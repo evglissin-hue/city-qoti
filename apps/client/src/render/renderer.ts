@@ -8,7 +8,7 @@ import {
   Fog,
   HemisphereLight,
   Mesh,
-  PCFSoftShadowMap,
+  PCFShadowMap,
   PerspectiveCamera,
   Raycaster,
   Scene,
@@ -101,6 +101,12 @@ export class Renderer implements RenderApi {
   private frames = 0;
   private fpsWindow = performance.now();
   private lightHour = -1;
+  /** Debug only (?debug&hour=19): pins the light to an hour for screenshots and look checks. */
+  private readonly hourOverride = ((): number | null => {
+    const q = new URLSearchParams(location.search);
+    const v = q.has('debug') ? Number(q.get('hour') ?? NaN) : NaN;
+    return Number.isFinite(v) ? v : null;
+  })();
   private readonly unsubscribe: () => void;
   private readonly resizeObserver: ResizeObserver;
 
@@ -117,7 +123,7 @@ export class Renderer implements RenderApi {
     this.three.domElement.tabIndex = 0;
     this.three.toneMapping = ACESFilmicToneMapping;
     this.three.outputColorSpace = SRGBColorSpace;
-    this.three.shadowMap.type = PCFSoftShadowMap;
+    this.three.shadowMap.type = PCFShadowMap;
     container.appendChild(this.three.domElement);
     this.skyCanvas.width = 2;
     this.skyCanvas.height = 128;
@@ -171,7 +177,7 @@ export class Renderer implements RenderApi {
 
   private updateLighting(): void {
     const { hour, minute } = calendar(this.mirror.tick.value);
-    const h = hour + Math.floor(minute / 15) / 4;
+    const h = this.hourOverride ?? hour + Math.floor(minute / 15) / 4;
     if (h === this.lightHour) return;
     this.lightHour = h;
     const l = lightingAt(h);
