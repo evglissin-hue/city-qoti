@@ -1,17 +1,40 @@
 // Placeholder decor: small colored primitives. Centered on the origin; linear pieces run along +x
 // and span one tile (-0.5 to 0.5).
-import { ShapeBuilder } from '../geometry';
+import { mixHex, seeded, ShapeBuilder, vary } from '../geometry';
 import { palette } from '../palette';
-import type { Kit } from './types';
+import type { Kit, KitBuildOptions } from './types';
 
-function tree(canopy: number, accent: number | null): ShapeBuilder {
+/** A small orchard tree: a sturdy trunk, a lumpy layered canopy and dots of fruit or blossom. */
+function fruitTree(
+  opts: KitBuildOptions | undefined,
+  canopy: number,
+  dot: number,
+  petals: boolean,
+): ShapeBuilder {
+  const rnd = seeded(opts?.seed ?? 5);
+  const leaf = vary(canopy, rnd);
   const s = new ShapeBuilder();
-  s.cylinder(0, 0, 0.06, 0.05, 0, 0.45, palette.bark, 6);
-  s.blob(0, 0.68, 0, 0.36, 0.3, 0.36, canopy);
-  if (accent !== null) {
-    s.blob(0.18, 0.62, 0.22, 0.05, 0.05, 0.05, accent);
-    s.blob(-0.2, 0.7, 0.05, 0.05, 0.05, 0.05, accent);
-    s.blob(0.05, 0.58, -0.25, 0.05, 0.05, 0.05, accent);
+  s.cylinder(0, 0, 0.07, 0.05, 0, 0.46, palette.bark, 6);
+  s.box(-0.015, 0.34, -0.015, 0.15, 0.38, 0.015, palette.bark);
+  s.blob(0, 0.7, 0, 0.34, 0.27, 0.34, leaf, 1, rnd, 0.08);
+  s.blob(0.2, 0.62, 0.1, 0.2, 0.17, 0.2, vary(leaf, rnd), 1, rnd, 0.08);
+  s.blob(-0.16, 0.64, -0.12, 0.21, 0.18, 0.21, vary(leaf, rnd), 1, rnd, 0.08);
+  s.blob(0.03, 0.88, 0.02, 0.2, 0.15, 0.2, vary(leaf, rnd, 1.5), 1, rnd, 0.06);
+  for (let i = 0; i < 7; i++) {
+    const a = (i / 7) * Math.PI * 2 + rnd() * 0.6;
+    const y = 0.58 + rnd() * 0.3;
+    const r = 0.34 - Math.abs(y - 0.7) * 0.6;
+    s.blob(Math.cos(a) * r, y, Math.sin(a) * r, 0.04, 0.04, 0.04, vary(dot, rnd, 0.5), 0);
+  }
+  if (petals) {
+    // A few fallen petals on the grass.
+    for (let i = 0; i < 6; i++) {
+      const a = rnd() * Math.PI * 2;
+      const r = 0.15 + rnd() * 0.25;
+      const x = Math.cos(a) * r;
+      const z = Math.sin(a) * r;
+      s.box(x - 0.02, 0, z - 0.015, x + 0.02, 0.006, z + 0.015, leaf);
+    }
   }
   return s;
 }
@@ -19,7 +42,8 @@ function tree(canopy: number, accent: number | null): ShapeBuilder {
 export const appleTree: Kit = {
   id: 'apple-tree',
   kind: 'decor',
-  build: () => tree(palette.leaf, palette.apple).build(),
+  build: (opts) =>
+    fruitTree(opts, mixHex(palette.oakLeaf, palette.birchLeaf, 0.4), palette.apple, false).build(),
 };
 
 export const barrels: Kit = {
@@ -36,19 +60,28 @@ export const barrels: Kit = {
 export const bench: Kit = {
   id: 'bench',
   kind: 'decor',
-  build: () =>
-    new ShapeBuilder()
-      .box(-0.17, 0.09, -0.05, 0.17, 0.12, 0.05, palette.wood)
-      .box(-0.17, 0.12, 0.04, 0.17, 0.24, 0.06, palette.wood)
-      .box(-0.15, 0, -0.04, -0.13, 0.09, 0.04, palette.darkWood)
-      .box(0.13, 0, -0.04, 0.15, 0.09, 0.04, palette.darkWood)
-      .build(),
+  build: (opts) => {
+    const rnd = seeded(opts?.seed ?? 2);
+    const wood = vary(palette.wood, rnd, 0.6);
+    const s = new ShapeBuilder();
+    // Side frames: leg panel, back post and arm rest. The back faces +z.
+    for (const x of [-0.165, 0.135]) {
+      s.rbox(x, 0, -0.05, x + 0.03, 0.1, 0.065, palette.timber, 0.008);
+      s.box(x, 0.1, 0.045, x + 0.03, 0.25, 0.065, palette.timber);
+      s.rbox(x - 0.005, 0.16, -0.055, x + 0.035, 0.18, 0.065, palette.timber, 0.008);
+    }
+    s.rbox(-0.18, 0.1, -0.055, 0.18, 0.12, -0.005, wood, 0.008);
+    s.rbox(-0.18, 0.1, 0.0, 0.18, 0.12, 0.045, vary(wood, rnd, 0.5), 0.008);
+    s.rbox(-0.17, 0.14, 0.045, 0.17, 0.18, 0.065, vary(wood, rnd, 0.5), 0.008);
+    s.rbox(-0.17, 0.2, 0.045, 0.17, 0.24, 0.065, wood, 0.008);
+    return s.build();
+  },
 };
 
 export const cherryTree: Kit = {
   id: 'cherry-tree',
   kind: 'decor',
-  build: () => tree(palette.blossom, palette.flowerA).build(),
+  build: (opts) => fruitTree(opts, palette.blossom, 0xfff1f4, true).build(),
 };
 
 export const crates: Kit = {
@@ -78,18 +111,24 @@ export const fence: Kit = {
 export const flowerBed: Kit = {
   id: 'flower-bed',
   kind: 'decor',
-  build: () => {
-    const s = new ShapeBuilder().box(-0.22, 0, -0.16, 0.22, 0.05, 0.16, palette.soil);
-    const colors = [palette.flowerA, palette.flowerB, palette.flowerC];
-    for (let i = 0; i < 9; i++) {
-      const x = -0.15 + (i % 3) * 0.15;
-      const z = -0.1 + Math.floor(i / 3) * 0.1;
-      s.blob(x, 0.08, z, 0.035, 0.03, 0.035, colors[i % 3]!);
+  build: (opts) => {
+    const rnd = seeded(opts?.seed ?? 3);
+    const s = new ShapeBuilder();
+    // A stone edging around a mounded bed of soil with mixed blooms on leafy clumps.
+    s.rbox(-0.23, 0, -0.17, 0.23, 0.045, 0.17, vary(palette.stone, rnd), 0.02);
+    s.blob(0, 0.045, 0, 0.2, 0.04, 0.14, palette.soil, 1);
+    const blooms = [palette.flowerA, palette.flowerB, palette.flowerC, palette.flowerD, palette.blossom];
+    for (let i = 0; i < 12; i++) {
+      const x = -0.15 + (i % 4) * 0.1 + (rnd() - 0.5) * 0.04;
+      const z = -0.09 + Math.floor(i / 4) * 0.09 + (rnd() - 0.5) * 0.03;
+      const y = 0.06 + 0.03 * (1 - Math.abs(x) / 0.2);
+      s.blob(x, y, z, 0.04, 0.03, 0.04, vary(palette.leaf, rnd), 0);
+      const c = blooms[Math.floor(rnd() * blooms.length)]!;
+      s.blob(x + (rnd() - 0.5) * 0.02, y + 0.035, z, 0.028, 0.022, 0.028, c, 0);
     }
     return s.build();
   },
 };
-
 export const hedge: Kit = {
   id: 'hedge',
   kind: 'decor',
