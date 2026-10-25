@@ -22,7 +22,13 @@ import { CameraController, FOV } from '../input/camera';
 import type { Mirror } from '../state/mirror';
 import type { EntityPick, Ghost, RenderApi, TilePick } from './api';
 import { fpToWorld, levelY } from './coords';
-import { layerFactories, type GhostLayer, type PresenceLayer, type RenderLayer } from './layers';
+import {
+  layerFactories,
+  type EffectsLayer,
+  type GhostLayer,
+  type PresenceLayer,
+  type RenderLayer,
+} from './layers';
 import { lightingAt } from './lighting';
 import { pickTileFromRay } from './picking';
 import { QUALITY_PRESETS, type Quality } from './quality';
@@ -143,6 +149,7 @@ export class Renderer implements RenderApi {
     const ctx = { scene: this.scene, mirror, material: this.material, invalidate: () => this.invalidate() };
     this.layers = layerFactories.map((make) => make());
     for (const layer of this.layers) layer.init(ctx);
+    this.layer<EffectsLayer>('effects').setSmoke(QUALITY_PRESETS[quality].ambientMotion);
     this.unsubscribe = mirror.onChange((change) => {
       for (const layer of this.layers) layer.update(change);
       this.shadowsDirty = true;
@@ -357,6 +364,10 @@ export class Renderer implements RenderApi {
     }
     this.shadowsDirty = true;
     this.lightHour = -1;
+    // Layers do not exist yet while the constructor applies the first preset.
+    (this.layers as RenderLayer[] | undefined)
+      ?.find((l): l is EffectsLayer => l.id === 'effects')
+      ?.setSmoke(preset.ambientMotion);
     this.invalidate();
   }
 
