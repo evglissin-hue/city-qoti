@@ -80,6 +80,7 @@ export function installDebugHook(getSession: () => Session | null): void {
       return best;
     },
     lastSubmitAt: () => s()?.debug.lastSubmitAt ?? 0,
+    resyncs: () => s()?.debug.resyncs ?? 0,
     stats: () => s()?.renderer?.stats ?? null,
     screenOf: (x: number, z: number) => s()?.renderer?.screenOf(x, z) ?? null,
     screenOfFp: (fx: number, fz: number) => s()?.renderer?.screenOfFp(fx, fz) ?? null,
