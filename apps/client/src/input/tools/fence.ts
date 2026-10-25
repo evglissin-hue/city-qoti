@@ -3,6 +3,7 @@ import { content } from '@qoti/content';
 import { canPlaceDecorRun, TILE_FP } from '@qoti/sim';
 import { rejectText } from '../../ui/messages';
 import type { ToolContext } from '../context';
+import { cursorHint } from '../hint';
 import type { Tool } from '../tool';
 
 const VARIANTS = [
@@ -18,12 +19,15 @@ export function fenceTool(ctx: ToolContext): Tool {
   const variant = signal('fence');
   let start: [number, number] | null = null;
   let end: [number, number] | null = null;
+  let cx = 0;
+  let cy = 0;
 
   function preview() {
     const def = content.decorById.get(variant.value);
     if (!def || !start || !end) return null;
     const check = canPlaceDecorRun(ctx.mirror, def, start, end);
     ctx.render.setGhost({ kind: 'decorRun', def: def.id, segments: check.segments, valid: check.ok });
+    cursorHint(check.ok ? null : rejectText(check.reason), cx, cy);
     return { def, check };
   }
 
@@ -37,12 +41,16 @@ export function fenceTool(ctx: ToolContext): Tool {
     variants: VARIANTS,
     variant,
     pointerDown(p) {
+      cx = p.clientX;
+      cy = p.clientY;
       if (!p.tile) return;
       start = [center(p.tile.x), center(p.tile.z)];
       end = start;
       preview();
     },
     pointerMove(p) {
+      cx = p.clientX;
+      cy = p.clientY;
       if (!p.tile) return;
       end = [center(p.tile.x), center(p.tile.z)];
       if (start) preview();
@@ -53,6 +61,7 @@ export function fenceTool(ctx: ToolContext): Tool {
       const from = start;
       const to = end;
       start = null;
+      cursorHint(null);
       if (!result || !from || !to) return;
       if (result.check.ok) ctx.submit({ t: 'decor.placeRun', def: result.def.id, from, to });
       else ctx.ui.toast(rejectText(result.check.reason));
@@ -61,6 +70,7 @@ export function fenceTool(ctx: ToolContext): Tool {
       start = null;
       end = null;
       ctx.render.setGhost(null);
+      cursorHint(null);
     },
   };
 }

@@ -1,6 +1,7 @@
 import { canPlantTree } from '@qoti/sim';
 import { rejectText } from '../../ui/messages';
 import type { ToolContext } from '../context';
+import { cursorHint } from '../hint';
 import type { PointerInfo, Tool } from '../tool';
 
 /** Plant oak saplings: click for one, drag for a row. */
@@ -10,10 +11,12 @@ export function treeTool(ctx: ToolContext): Tool {
   function preview(p: PointerInfo) {
     if (!p.tile) {
       ctx.render.setGhost(null);
+      cursorHint(null);
       return null;
     }
     const check = canPlantTree(ctx.mirror, p.tile.x, p.tile.z);
     ctx.render.setGhost({ kind: 'tree', species: 'oak', x: p.tile.x, z: p.tile.z, valid: check.ok });
+    cursorHint(check.ok ? null : rejectText(check.reason), p.clientX, p.clientY);
     return check;
   }
 
@@ -47,6 +50,7 @@ export function treeTool(ctx: ToolContext): Tool {
     },
     exit() {
       ctx.render.setGhost(null);
+      cursorHint(null);
     },
   };
 }
