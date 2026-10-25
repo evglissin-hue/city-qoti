@@ -8,6 +8,7 @@ import type { RoomConnection } from '../net/connection';
 import { LocalRoom } from '../net/local';
 import { OnlineRoom } from '../net/online';
 import { Renderer } from '../render/renderer';
+import { setPingSender, type PingKind } from '../ui/pingBus';
 import { loadProfile, profileUpdate } from './profile';
 import { Mirror, type MirrorChange } from '../state/mirror';
 import { rejectText } from '../ui/messages';
@@ -188,10 +189,37 @@ export class Session {
       submit: (cmd) => this.submit(cmd),
       ui: this.uiApi(),
     };
+    setPingSender((x, z, kind) => this.sendPing(x, z, kind));
     this.tools = new ToolManager(ctx, renderer, renderer.canvas, {
       pointer: (p) => this.pointer(p),
       globalKey: (e) => this.globalKey(e),
     });
+  }
+
+  /** Send an emote over the existing emote message and show it here too. */
+  sendEmote(id: string): void {
+    this.showEmote(this.seat, id);
+    const c = this.connection as unknown as { send?: (msg: { k: 'emote'; id: string }) => void };
+    c?.send?.call(this.connection, { k: 'emote', id });
+  }
+
+  private emoteKey = 0;
+  private showEmote(seat: number, id: string): void {
+    const key = this.emoteKey++;
+    this.ui.emotes.value = [...this.ui.emotes.value.slice(-3), { key, seat, id }];
+    setTimeout(() => {
+      this.ui.emotes.value = this.ui.emotes.value.filter((e) => e.key !== key);
+    }, 3200);
+  }
+
+  /** Show a ping here and send it to the partner over the existing ping message. */
+  sendPing(x: number, z: number, kind: PingKind): void {
+    this.renderer?.ping(this.seat, x + 0.5, z + 0.5, kind);
+    // RoomConnection has no ping sender yet (net/ is another cycle's), so reach the raw send.
+    const c = this.connection as unknown as {
+      send?: (msg: { k: 'ping'; x: number; z: number; kind: PingKind }) => void;
+    };
+    c?.send?.call(this.connection, { k: 'ping', x, z, kind });
   }
 
   submit(cmd: Command): number {
@@ -256,6 +284,7 @@ export class Session {
         }
         break;
       case 'emote':
+        this.showEmote(p.seat, p.id);
         break;
     }
   }
@@ -292,12 +321,17 @@ export class Session {
       case 'Tab':
         this.ui.lens.value = this.ui.lens.value === 'hearth' ? 'ledger' : 'hearth';
         return true;
+      case 'v':
+      case 'V':
+        this.ui.emoteOpen.value = !this.ui.emoteOpen.value;
+        return true;
       case '?':
         this.ui.helpOpen.value = !this.ui.helpOpen.value;
         return true;
       case 'Escape':
         this.ui.helpOpen.value = false;
         this.ui.settingsOpen.value = false;
+        this.ui.emoteOpen.value = false;
         this.tools?.select('inspect');
         this.ui.selection.value = null;
         return true;
@@ -357,6 +391,7 @@ export class Session {
     if (this.presence.timer) clearTimeout(this.presence.timer);
     this.connection?.close();
     this.tools?.dispose();
+    setPingSender(null);
     this.renderer?.dispose();
     this.host.terminate();
   }
