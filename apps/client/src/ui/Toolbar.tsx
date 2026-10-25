@@ -1,4 +1,5 @@
 import type { Session } from '../app/session';
+import { ToolIcon } from './icons';
 import { lenses, toolsForLens } from './lenses';
 
 export function Toolbar({ session }: { session: Session }) {
@@ -54,7 +55,9 @@ export function Toolbar({ session }: { session: Session }) {
               title={t.hint ? `${t.label}: ${t.hint}` : t.label}
               onClick={() => manager.select(t.id)}
             >
-              <span class="icon">{t.icon}</span>
+              <span class="icon">
+                <ToolIcon id={t.id} fallback={t.icon} />
+              </span>
               <span>{t.label}</span>
             </button>
           ))}
