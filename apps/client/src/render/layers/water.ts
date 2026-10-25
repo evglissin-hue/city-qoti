@@ -1,6 +1,6 @@
 import { palette, ShapeBuilder } from '@qoti/art';
 import { CHUNK_SIZE } from '@qoti/sim';
-import { MeshStandardMaterial } from 'three';
+import { Color, MeshStandardMaterial } from 'three';
 import { ChunkedMeshes } from '../chunks';
 import type { RenderLayer } from './types';
 
@@ -10,9 +10,10 @@ const SURFACE_Y = 0.12;
 export function waterLayer(): RenderLayer {
   let chunks: ChunkedMeshes | null = null;
   const material = new MeshStandardMaterial({
-    color: palette.water,
+    // A calm blue-green, a touch warmer than the palette placeholder.
+    color: new Color(palette.water).lerp(new Color(0x4fb3a8), 0.55),
     transparent: true,
-    opacity: 0.72,
+    opacity: 0.8,
     roughness: 0.25,
     metalness: 0,
     depthWrite: false,

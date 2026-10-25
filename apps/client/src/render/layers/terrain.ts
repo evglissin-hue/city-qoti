@@ -8,6 +8,14 @@ import type { LayerContext, RenderLayer } from './types';
 const RIVERBED_Y = -0.15;
 const EDGE_BOTTOM = -1.5;
 
+const SAND = 0xe8d3a0;
+const MEADOW_WARM = 0xb8c96a;
+
+function mixHex(a: number, b: number, t: number): number {
+  const ch = (sh: number) => Math.round(((a >> sh) & 255) * (1 - t) + ((b >> sh) & 255) * t);
+  return (ch(16) << 16) | (ch(8) << 8) | ch(0);
+}
+
 /** Terrain v0: one colored quad per tile at its height (stepped), with cliff sides. */
 export function terrainLayer(): RenderLayer {
   let chunks: ChunkedMeshes | null = null;
@@ -19,8 +27,17 @@ export function terrainLayer(): RenderLayer {
     for (let z = cz * CHUNK_SIZE; z < (cz + 1) * CHUNK_SIZE; z++) {
       for (let x = cx * CHUNK_SIZE; x < (cx + 1) * CHUNK_SIZE; x++) {
         const y = topY(x, z);
-        const base = TERRAIN_COLORS[m.terrain(x, z)] ?? TERRAIN_COLORS[0]!;
-        const color = shade(base, 0.94 + hash2(x, z) * 0.12);
+        const raw = TERRAIN_COLORS[m.terrain(x, z)] ?? TERRAIN_COLORS[0]!;
+        // Sandy banks beside the river, and soft meadow patches at a 4 tile scale.
+        const bank =
+          !m.water(x, z) &&
+          (m.water(Math.min(x + 1, MAP_SIZE - 1), z) ||
+            m.water(Math.max(x - 1, 0), z) ||
+            m.water(x, Math.min(z + 1, MAP_SIZE - 1)) ||
+            m.water(x, Math.max(z - 1, 0)));
+        const base = bank ? mixHex(raw, SAND, 0.7) : raw;
+        const patch = hash2(x >> 2, z >> 2, 7) * 0.5 + hash2((x + 2) >> 2, (z + 2) >> 2, 11) * 0.5;
+        const color = shade(mixHex(base, MEADOW_WARM, patch * 0.35), 0.95 + hash2(x, z) * 0.08);
         s.quad([x, y, z], [x + 1, y, z], [x + 1, y, z + 1], [x, y, z + 1], color, [0, 1, 0]);
         const side = shade(base, 0.68);
         // Sides wherever the neighbor sits lower; map edges drop to a skirt.
