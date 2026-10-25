@@ -19,7 +19,7 @@
     "build": "npm run gen && npm run build --workspaces --if-present",
     "test": "npm run gen && vitest run",
     "e2e": "npm run gen && playwright test -c apps/client/playwright.config.ts",
-    "typecheck": "npm run gen && npm run typecheck --workspaces --if-present",
+    "typecheck": "npm run gen && tsc -p tsconfig.json && npm run typecheck --workspaces --if-present",
     "lint": "eslint . --max-warnings 0 && prettier --check .",
     "format": "prettier --write .",
     "bench": "npm run gen && npm run bench -w @qoti/bench",

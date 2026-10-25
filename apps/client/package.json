@@ -8,7 +8,7 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "typecheck": "tsc -p . --noEmit"
+    "typecheck": "tsc -p . --noEmit && tsc -p e2e --noEmit"
   },
   "dependencies": {
     "@preact/signals": "2.11.3",
