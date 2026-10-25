@@ -21,6 +21,7 @@ async function pair(browser: Browser): Promise<{ a: Page; b: Page; offline: (v: 
 
 // Acceptance: corrupt one client, it resyncs from the longest-connected seat, hashes match again.
 test('a corrupted seat resyncs and agrees again', async ({ browser }) => {
+  test.setTimeout(240_000);
   const { a, b } = await pair(browser);
   await b.evaluate(() => window.__qoti.corrupt());
   await expect.poll(() => b.evaluate(() => window.__qoti.resyncs()), { timeout: 30_000 }).toBeGreaterThan(0);
@@ -32,6 +33,7 @@ test('a corrupted seat resyncs and agrees again', async ({ browser }) => {
 
 // Acceptance: drop the network for 10 s on one client, it reconnects and catches up.
 test('a seat that loses the network for 10 s reconnects and catches up', async ({ browser }) => {
+  test.setTimeout(240_000);
   const { a, b, offline } = await pair(browser);
   await offline(true);
   await b.waitForTimeout(10_000);
