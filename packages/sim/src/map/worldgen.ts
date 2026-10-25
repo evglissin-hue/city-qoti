@@ -71,22 +71,13 @@ function attempt(seed: string, _settings: ValleySettings, allowFallback: boolean
   const flow: 'ns' | 'we' = rng.chance(0.5) ? 'ns' : 'we';
   const idx = flow === 'ns' ? (a: number, c: number) => a * S + c : (a: number, c: number) => c * S + a;
 
-  // 1. River: a wandering centerline, smoothed, two or three tiles wide.
+  // 1. River: a gentle meander. Two low octaves of 1D value noise around a seeded middle,
+  // smoothed with a 9-tile moving average and limited per step so bends stay soft; 3 tiles wide.
+  const mid = rng.uniform(80, 112);
+  const bend = new ValueNoise(rng, S, 64);
+  const wiggle = new ValueNoise(rng, S, 28);
   const raw = new Float64Array(S);
-  let pos = rng.uniform(72, 120);
-  let v = 0;
-  for (let a = 0; a < S; a++) {
-    v = Math.max(-0.6, Math.min(0.6, v + rng.uniform(-0.15, 0.15)));
-    pos += v;
-    if (pos < 40) {
-      pos = 40;
-      v = Math.abs(v) * 0.5;
-    } else if (pos > 152) {
-      pos = 152;
-      v = -Math.abs(v) * 0.5;
-    }
-    raw[a] = pos;
-  }
+  for (let a = 0; a < S; a++) raw[a] = mid + (bend.at(a, 0) - 0.5) * 48 + (wiggle.at(a, 0) - 0.5) * 10;
   const center = new Float64Array(S);
   for (let a = 0; a < S; a++) {
     let sum = 0;
@@ -100,13 +91,16 @@ function attempt(seed: string, _settings: ValleySettings, allowFallback: boolean
     }
     center[a] = sum / n;
   }
-  const widthNoise = new ValueNoise(rng, S, 24);
+  for (let a = 1; a < S; a++) {
+    const step = center[a]! - center[a - 1]!;
+    if (step > 0.7) center[a] = center[a - 1]! + 0.7;
+    else if (step < -0.7) center[a] = center[a - 1]! - 0.7;
+  }
   for (let a = 0; a < S; a++) {
-    const c = Math.round(center[a]!);
-    const wide = widthNoise.at(a, 0) > 0.6;
-    for (let ct = c - 1; ct <= (wide ? c + 1 : c); ct++) {
+    const c = Math.max(40, Math.min(152, Math.round(center[a]!)));
+    for (let ct = c - 1; ct <= c + 1; ct++) {
       const i = idx(a, ct);
-      water[i] = wide && ct === c ? Water.riverDeep : Water.river;
+      water[i] = ct === c ? Water.riverDeep : Water.river;
       terrain[i] = Terrain.water;
       height[i] = 0;
     }
@@ -145,9 +139,10 @@ function attempt(seed: string, _settings: ValleySettings, allowFallback: boolean
   for (let i = 0; i < S * S; i++) dist[i] = Math.floor((d3[i]! + 1) / 3);
 
   // 3. Height: gentle banks rising into hills, plus three octaves of value noise.
-  const o1 = new ValueNoise(rng, S, 32);
-  const o2 = new ValueNoise(rng, S, 16);
-  const o3 = new ValueNoise(rng, S, 8);
+  // Soft rolling hills: low-frequency octaves, so most neighbors differ by one level at most.
+  const o1 = new ValueNoise(rng, S, 48);
+  const o2 = new ValueNoise(rng, S, 24);
+  const o3 = new ValueNoise(rng, S, 12);
   for (let z = 0; z < S; z++) {
     for (let x = 0; x < S; x++) {
       const i = z * S + x;
@@ -159,10 +154,12 @@ function attempt(seed: string, _settings: ValleySettings, allowFallback: boolean
         continue;
       }
       const d = dist[i]!;
-      const base = d <= 2 ? 1 : Math.min(10, 1 + (d - 2) / 6);
-      const n = (o1.at(x, z) - 0.5) * 6 + (o2.at(x, z) - 0.5) * 3 + (o3.at(x, z) - 0.5) * 1.5;
+      // Wide terraces step up gently from the river; hills grow taller toward the border.
+      const base = d <= 3 ? 1 : Math.min(8, 1 + (d - 3) / 10);
+      const rise = edge < 34 ? (34 - edge) / 8 : 0;
+      const n = (o1.at(x, z) - 0.5) * 5 + (o2.at(x, z) - 0.5) * 2 + (o3.at(x, z) - 0.5) * 0.6;
       // Damp the noise near the river so the banks stay buildable.
-      const h = Math.floor(base + n * Math.min(1, d / 10));
+      const h = Math.floor(base + rise + n * Math.min(1, d / 12));
       height[i] = Math.max(1, Math.min(12, h));
     }
   }
@@ -187,7 +184,8 @@ function attempt(seed: string, _settings: ValleySettings, allowFallback: boolean
       const forested = f > 0.55 && d >= 6 && h <= 11;
       // Clearings: small open glades inside the woods, read from above as soft meadow pockets.
       const clearing = forested && clearingNoise.at(x, z) > 0.74;
-      if (d === 1 && sandNoise.at(x, z) > 0.5) terrain[i] = Terrain.sand;
+      // Sandy banks, one to two tiles wide on both sides.
+      if (d === 1 || (d === 2 && sandNoise.at(x, z) > 0.45)) terrain[i] = Terrain.sand;
       else if (slope >= 3 || h >= 11) terrain[i] = Terrain.rock;
       else if (clearing) terrain[i] = Terrain.meadow;
       else if (forested) terrain[i] = Terrain.forestFloor;
