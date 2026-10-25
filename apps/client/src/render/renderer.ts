@@ -102,7 +102,7 @@ export class Renderer implements RenderApi {
   private fpsWindow = performance.now();
   private lightHour = -1;
   /** Debug only (?debug&hour=19): pins the light to an hour for screenshots and look checks. */
-  private readonly hourOverride = ((): number | null => {
+  private hourOverride = ((): number | null => {
     const q = new URLSearchParams(location.search);
     const v = q.has('debug') ? Number(q.get('hour') ?? NaN) : NaN;
     return Number.isFinite(v) ? v : null;
@@ -356,6 +356,16 @@ export class Renderer implements RenderApi {
       this.sun.shadow.map = null;
     }
     this.shadowsDirty = true;
+    this.lightHour = -1;
+    this.invalidate();
+  }
+
+  /**
+   * Debug only: pins the lighting phase to an hour of the day (fractional is fine), for screenshots
+   * and look checks. null returns to the sim clock.
+   */
+  setDebugHour(hour: number | null): void {
+    this.hourOverride = hour !== null && Number.isFinite(hour) ? hour : null;
     this.lightHour = -1;
     this.invalidate();
   }
