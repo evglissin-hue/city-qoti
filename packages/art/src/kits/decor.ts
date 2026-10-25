@@ -141,14 +141,27 @@ export const crates: Kit = {
 export const fence: Kit = {
   id: 'fence',
   kind: 'decor',
-  build: () =>
-    new ShapeBuilder()
-      .box(-0.5, 0.1, -0.015, 0.5, 0.13, 0.015, palette.wood)
-      .box(-0.5, 0.2, -0.015, 0.5, 0.23, 0.015, palette.wood)
-      .box(-0.5, 0, -0.03, -0.44, 0.28, 0.03, palette.darkWood)
-      .box(-0.03, 0, -0.03, 0.03, 0.28, 0.03, palette.darkWood)
-      .box(0.44, 0, -0.03, 0.5, 0.28, 0.03, palette.darkWood)
-      .build(),
+  build: (opts) => {
+    const rnd = seeded(opts?.seed ?? 14);
+    const s = new ShapeBuilder();
+    // A picket fence: two rails, chunky posts with pointed caps and pickets between them.
+    const wood = vary(palette.plasterCream, rnd, 0.5);
+    s.box(-0.5, 0.08, -0.012, 0.5, 0.11, 0.012, vary(palette.wood, rnd));
+    s.box(-0.5, 0.19, -0.012, 0.5, 0.22, 0.012, vary(palette.wood, rnd));
+    for (const x of [-0.47, 0, 0.47]) {
+      s.rbox(x - 0.03, 0, -0.03, x + 0.03, 0.27, 0.03, palette.timber, 0.008);
+      s.cylinder(x, 0, 0.035, 0, 0.27, 0.31, palette.timber, 4, Math.PI / 4);
+    }
+    for (let i = 0; i < 8; i++) {
+      const x = -0.385 + i * 0.11;
+      if (Math.abs(x) < 0.05) continue;
+      const h = 0.24 + (rnd() - 0.5) * 0.015;
+      s.box(x - 0.017, 0.02, 0.012, x + 0.017, h, 0.024, wood);
+      s.tri([x - 0.017, h, 0.024], [x + 0.017, h, 0.024], [x, h + 0.03, 0.024], wood, [0, 0, 1]);
+      s.tri([x - 0.017, h, 0.012], [x + 0.017, h, 0.012], [x, h + 0.03, 0.012], wood, [0, 0, -1]);
+    }
+    return s.build();
+  },
 };
 
 export const flowerBed: Kit = {
@@ -175,7 +188,18 @@ export const flowerBed: Kit = {
 export const hedge: Kit = {
   id: 'hedge',
   kind: 'decor',
-  build: () => new ShapeBuilder().box(-0.5, 0, -0.11, 0.5, 0.3, 0.11, palette.leaf).build(),
+  build: (opts) => {
+    const rnd = seeded(opts?.seed ?? 10);
+    const leaf = vary(palette.oakLeaf, rnd, 0.6);
+    const s = new ShapeBuilder();
+    // A clipped hedge with softly chamfered edges and a row of lumps along the top.
+    s.rbox(-0.5, 0, -0.11, 0.5, 0.26, 0.11, leaf, 0.05);
+    for (let i = 0; i < 4; i++) {
+      const x = -0.375 + i * 0.25;
+      s.blob(x, 0.25, 0, 0.15, 0.06, 0.1, vary(leaf, rnd, 1.2), 1, rnd, 0.08);
+    }
+    return s.build();
+  },
 };
 
 export const lantern: Kit = {
@@ -198,7 +222,26 @@ export const lantern: Kit = {
 export const lowWall: Kit = {
   id: 'low-wall',
   kind: 'decor',
-  build: () => new ShapeBuilder().box(-0.5, 0, -0.08, 0.5, 0.18, 0.08, palette.stone).build(),
+  build: (opts) => {
+    const rnd = seeded(opts?.seed ?? 12);
+    const s = new ShapeBuilder();
+    // Two courses of chunky, slightly varied stones under a chamfered coping.
+    for (const [row, y0, y1] of [
+      [0, 0, 0.08],
+      [1, 0.08, 0.15],
+    ] as const) {
+      let x = -0.5;
+      let k = row === 0 ? 0 : 0.12;
+      while (x < 0.5 - 0.001) {
+        const len = Math.min(0.5 - x, (row === 0 && x === -0.5 ? 0.22 : 0.24) + k);
+        k = 0;
+        s.rbox(x + 0.004, y0, -0.08, x + len - 0.004, y1, 0.08, vary(palette.stone, rnd, 1.5), 0.015);
+        x += len;
+      }
+    }
+    s.rbox(-0.5, 0.15, -0.09, 0.5, 0.19, 0.09, vary(palette.foundation, rnd, 0.6), 0.015);
+    return s.build();
+  },
 };
 
 export const planter: Kit = {
