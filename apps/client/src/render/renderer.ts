@@ -280,6 +280,9 @@ export class Renderer implements RenderApi {
     if (dirty || this.needsRender) {
       const start = performance.now();
       this.fitView();
+      // Count every pass of the frame, not just the last one, so stats stay honest with post on.
+      this.three.info.autoReset = false;
+      this.three.info.reset();
       if (this.post) this.post.render();
       else this.three.render(this.scene, this.camera);
       this.needsRender = false;
