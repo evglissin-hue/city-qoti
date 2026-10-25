@@ -34,5 +34,6 @@ async function shot(hour, name, setup) {
   await page.close();
 }
 
+await shot(13, 'midday', [['wide', null]]);
 await shot(19.5, 'dusk', [['wide', null]]);
 await browser.close();
