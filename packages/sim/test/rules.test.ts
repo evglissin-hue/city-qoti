@@ -195,3 +195,50 @@ describe('canPlantTree', () => {
     expect(canPlantTree(reader(w), S, 0).reason).toBe('OUT_OF_BOUNDS');
   });
 });
+
+describe('LOCKED_PARCEL', () => {
+  it('rejects every kind of placement on a locked parcel (fixture reader)', () => {
+    const base = reader(flatWorld());
+    const locked = { ...base, parcelUnlocked: (x: number, z: number) => x < 40 && base.parcelUnlocked(x, z) };
+    expect(canPlaceBuilding(locked, cottage, 50, 50, 0).reason).toBe('LOCKED_PARCEL');
+    expect(canPaintRoad(locked, 'path', [[50, 50]]).reason).toBe('LOCKED_PARCEL');
+    expect(canPlantTree(locked, 50, 50).reason).toBe('LOCKED_PARCEL');
+    expect(canPlaceDecor(locked, bench, fp(50), fp(50), 0).reason).toBe('LOCKED_PARCEL');
+    expect(canPlaceBuilding(locked, cottage, 20, 20, 0).ok).toBe(true);
+  });
+});
+
+describe('bridges', () => {
+  const river = (w: number) => {
+    const world = flatWorld();
+    // Low banks (height 1) on both sides of a w-wide river running north to south.
+    for (let x = 56; x < 64 + w; x++) for (let z = 0; z < S; z++) world.map.height[z * S + x] = 1;
+    for (let x = 60; x < 60 + w; x++) {
+      for (let z = 0; z < S; z++) {
+        world.map.water[z * S + x] = 1;
+        world.map.terrain[z * S + x] = Terrain.water;
+        world.map.height[z * S + x] = 0;
+      }
+    }
+    return world;
+  };
+  const line = (from: number, to: number): [number, number][] => {
+    const out: [number, number][] = [];
+    for (let x = from; x <= to; x++) out.push([x, 50]);
+    return out;
+  };
+
+  it('crosses up to six water tiles with low land at both ends', () => {
+    expect(canPaintRoad(reader(river(6)), 'path', line(58, 67)).ok).toBe(true);
+  });
+
+  it('rejects a seventh water tile, a dangling end, or high banks', () => {
+    expect(canPaintRoad(reader(river(7)), 'path', line(58, 68)).reason).toBe('WATER');
+    const dangling = canPaintRoad(reader(river(3)), 'path', line(58, 61));
+    expect(dangling.reason).toBe('WATER');
+    expect(dangling.firstBadTile).toEqual([60, 50]);
+    const high = river(3);
+    high.map.height[50 * S + 59] = 2;
+    expect(canPaintRoad(reader(high), 'path', line(58, 64)).ok).toBe(false);
+  });
+});

@@ -4,6 +4,7 @@ import * as B from './buildings';
 import * as D from './decor';
 import * as R from './roads';
 import * as T from './trees';
+export { valleyNamePrefixes, valleyNameSuffixes } from './names';
 import type { BuildingDef, Content, DecorDef, RoadDef, TreeDef } from './types';
 
 export * from './types';

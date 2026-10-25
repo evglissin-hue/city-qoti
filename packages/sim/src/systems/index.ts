@@ -2,10 +2,12 @@
 // by `order`, not by their place in this list.
 import type { System } from '../contracts';
 import { clock } from './clock';
+import { trees } from './trees';
 
 // prettier-ignore
 export const systems: readonly System[] = [
   clock,
+  trees,
 ];
 
 /** Systems in pipeline order (stable for equal orders, which never happens in practice). */

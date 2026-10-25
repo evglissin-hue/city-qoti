@@ -1,9 +1,21 @@
-// Worldgen v0: a deterministic river valley that is good enough to build in. C2A replaces it
-// with the full algorithm from docs/spec/10-world-and-building.md behind the same signature.
+// Worldgen: a deterministic river valley following docs/spec/10-world-and-building.md, "Valley
+// generation", steps 1 to 11: river, distance field, height, terrain, forest with soft edges and
+// clearings, deposits with guarantees, fertility, start area, valley road, parcels, validation.
 import { MAP_SIZE } from '../constants';
 import type { MapLayers, Rect, ValleySettings, WorldMeta } from '../contracts';
-import { seedStream, StreamRng } from '../rng/streams';
-import { createLayers, Flags, Road, Terrain, TREE_MATURE, TREE_SPECIES, treeValue, Water } from './layers';
+import { valleyNamePrefixes, valleyNameSuffixes } from '@qoti/content';
+import { rngFromSeed, seedStream, StreamRng } from '../rng/streams';
+import {
+  createLayers,
+  Deposit,
+  Flags,
+  Road,
+  Terrain,
+  TREE_MATURE,
+  TREE_SPECIES,
+  treeValue,
+  Water,
+} from './layers';
 import { ValueNoise } from './noise';
 
 export interface GeneratedValley {
@@ -18,7 +30,36 @@ const START_SIZE = 24;
 const START_CLEAR = 16;
 const INF = 0xffff;
 
-export function generateValley(seed: string, _settings: ValleySettings): GeneratedValley {
+const MAX_ATTEMPTS = 6;
+
+/**
+ * A valley name for a seed from the content word lists ("Willowmere", "Brackenford"). Uses its
+ * own stream, so naming never shifts the terrain. The lobby offers it as the default name.
+ */
+export function valleyNameFor(seed: string): string {
+  const rng = rngFromSeed(seed, 'valleyName');
+  const prefix = valleyNamePrefixes[rng.int(valleyNamePrefixes.length)]!;
+  let suffix = valleyNameSuffixes[rng.int(valleyNameSuffixes.length)]!;
+  // Avoid doubled letters at the seam ("Ashhollow"): take the next suffix instead.
+  if (prefix.endsWith(suffix[0]!))
+    suffix = valleyNameSuffixes[(valleyNameSuffixes.indexOf(suffix) + 1) % valleyNameSuffixes.length]!;
+  return prefix + suffix;
+}
+
+/**
+ * Generates the valley for a seed. Step 11 (validation): if an attempt has no proper start
+ * window, regenerate deterministically with `seed + ":r" + n`; the last attempt always succeeds
+ * using the fallback start area.
+ */
+export function generateValley(seed: string, settings: ValleySettings): GeneratedValley {
+  for (let n = 0; n < MAX_ATTEMPTS - 1; n++) {
+    const v = attempt(n === 0 ? seed : `${seed}:r${n}`, settings, false);
+    if (v) return v;
+  }
+  return attempt(`${seed}:r${MAX_ATTEMPTS - 1}`, settings, true)!;
+}
+
+function attempt(seed: string, _settings: ValleySettings, allowFallback: boolean): GeneratedValley | null {
   const S = MAP_SIZE;
   const words = new Uint32Array(4);
   seedStream(words, 0, seed, 'worldgen');
@@ -130,6 +171,7 @@ export function generateValley(seed: string, _settings: ValleySettings): Generat
   const sandNoise = new ValueNoise(rng, S, 8);
   const moisture = new ValueNoise(rng, S, 20);
   const forestNoise = new ValueNoise(rng, S, 24);
+  const clearingNoise = new ValueNoise(rng, S, 10);
   for (let z = 0; z < S; z++) {
     for (let x = 0; x < S; x++) {
       const i = z * S + x;
@@ -141,20 +183,29 @@ export function generateValley(seed: string, _settings: ValleySettings): Generat
       if (x < S - 1) slope = Math.max(slope, Math.abs(h - height[i + 1]!));
       if (z > 0) slope = Math.max(slope, Math.abs(h - height[i - S]!));
       if (z < S - 1) slope = Math.max(slope, Math.abs(h - height[i + S]!));
+      const f = forestNoise.at(x, z);
+      const forested = f > 0.55 && d >= 6 && h <= 11;
+      // Clearings: small open glades inside the woods, read from above as soft meadow pockets.
+      const clearing = forested && clearingNoise.at(x, z) > 0.74;
       if (d === 1 && sandNoise.at(x, z) > 0.5) terrain[i] = Terrain.sand;
       else if (slope >= 3 || h >= 11) terrain[i] = Terrain.rock;
-      else if (forestNoise.at(x, z) > 0.55 && d >= 6 && h <= 11) terrain[i] = Terrain.forestFloor;
+      else if (clearing) terrain[i] = Terrain.meadow;
+      else if (forested) terrain[i] = Terrain.forestFloor;
       else if (h <= 3 && moisture.at(x, z) > 0.55) terrain[i] = Terrain.meadow;
       else terrain[i] = Terrain.grass;
 
       const t = terrain[i];
-      if ((t === Terrain.forestFloor && rng.chance(0.7)) || (t === Terrain.grass && rng.chance(0.03))) {
+      // Soft edges: density rises from the rim of the mask (about 35%) to the heart (about 85%),
+      // and a sparse fringe of trees steps out onto the grass around each wood.
+      const density = 0.35 + 0.5 * Math.min(1, (f - 0.55) / 0.1);
+      const fringe = t === Terrain.grass && f > 0.47 && d >= 4 ? 0.14 : 0.025;
+      if ((t === Terrain.forestFloor && rng.chance(density)) || (t === Terrain.grass && rng.chance(fringe))) {
         let species: number;
         if (h <= 3) species = rng.chance(0.6) ? TREE_SPECIES.oak : TREE_SPECIES.birch;
         else if (h <= 8) species = rng.chance(0.5) ? TREE_SPECIES.oak : TREE_SPECIES.pine;
         else species = TREE_SPECIES.pine;
-        const stage = rng.chance(0.8) ? TREE_MATURE : rng.int(TREE_MATURE);
-        tree[i] = treeValue(species, stage);
+        // Wild trees start mature; only planted saplings grow (the trees system).
+        tree[i] = treeValue(species, TREE_MATURE);
       }
     }
   }
@@ -208,6 +259,10 @@ export function generateValley(seed: string, _settings: ValleySettings): Generat
         bestC = c0;
       }
     }
+  }
+  if (bestA < 0 || bestScore >= 1000) {
+    // Step 11: a start area with rock or water in it fails validation; try the next seed.
+    if (!allowFallback) return null;
   }
   if (bestA < 0) {
     // No window at the right distance (an unusually wide bend): fall back to the far bank side.
@@ -264,11 +319,153 @@ export function generateValley(seed: string, _settings: ValleySettings): Generat
   }
   flags[gate]! |= Flags.valleyGate;
 
+  // 6. Deposits, then 10. parcels.
+  placeDeposits(map, rng, dist, startRect);
+  assignParcels(map, rng, sa, sc, idx);
+
   return {
     map,
     meta: { startArea: startRect, valleyGate: [gate % S, Math.floor(gate / S)], flow },
     worldgenRng: words,
   };
+}
+
+/** Radius around the start area within which stone and clay are guaranteed. */
+export const DEPOSIT_REACH = 40;
+
+/**
+ * Step 6: stone clusters on and around rock, clay clusters on banks and sand. Guarantees at least
+ * two stone clusters of 12+ tiles and one clay cluster within DEPOSIT_REACH tiles of the start
+ * area, stamping them deterministically when the noise did not provide them.
+ */
+function placeDeposits(map: MapLayers, rng: StreamRng, dist: Uint16Array, start: Rect): void {
+  const S = MAP_SIZE;
+  const { deposit, terrain, height, road, flags, water } = map;
+  const stoneNoise = new ValueNoise(rng, S, 7);
+  const clayNoise = new ValueNoise(rng, S, 6);
+  for (let z = BORDER; z < S - BORDER; z++) {
+    for (let x = BORDER; x < S - BORDER; x++) {
+      const i = z * S + x;
+      if (water[i] || road[i] || flags[i]! & Flags.startArea) continue;
+      const t = terrain[i];
+      const nearRock =
+        t === Terrain.rock ||
+        terrain[i - 1] === Terrain.rock ||
+        terrain[i + 1] === Terrain.rock ||
+        terrain[i - S] === Terrain.rock ||
+        terrain[i + S] === Terrain.rock;
+      if (nearRock && stoneNoise.at(x, z) > 0.45) deposit[i] = Deposit.stone;
+      else if (height[i]! >= 7 && t !== Terrain.mountain && stoneNoise.at(x, z) > 0.82)
+        deposit[i] = Deposit.stone;
+      else if ((t === Terrain.sand || dist[i]! <= 2) && clayNoise.at(x, z) > 0.55) deposit[i] = Deposit.clay;
+    }
+  }
+  const [sx0, sz0, sx1, sz1] = start;
+  const rx0 = Math.max(BORDER, sx0 - DEPOSIT_REACH);
+  const rz0 = Math.max(BORDER, sz0 - DEPOSIT_REACH);
+  const rx1 = Math.min(S - 1 - BORDER, sx1 + DEPOSIT_REACH);
+  const rz1 = Math.min(S - 1 - BORDER, sz1 + DEPOSIT_REACH);
+  const clusters = (kind: number, min: number): number => {
+    const seen = new Uint8Array(S * S);
+    let count = 0;
+    for (let z = rz0; z <= rz1; z++) {
+      for (let x = rx0; x <= rx1; x++) {
+        const i0 = z * S + x;
+        if (seen[i0] || deposit[i0] !== kind) continue;
+        let size = 0;
+        const stack = [i0];
+        seen[i0] = 1;
+        while (stack.length) {
+          const i = stack.pop()!;
+          size++;
+          for (const n of [i + 1, i - 1, i + S, i - S]) {
+            if (n < 0 || n >= S * S || seen[n] || deposit[n] !== kind) continue;
+            if (Math.abs((n % S) - (i % S)) > 1) continue;
+            seen[n] = 1;
+            stack.push(n);
+          }
+        }
+        if (size >= min) count++;
+      }
+    }
+    return count;
+  };
+  // Candidate stamp spots: a deterministic scan outward from the start area, ring by ring.
+  const stamp = (kind: number, side: number, wantBank: boolean): boolean => {
+    for (let ring = 2; ring <= DEPOSIT_REACH - side; ring += 2) {
+      for (let z = sz0 - ring; z <= sz1 + ring; z += 2) {
+        for (let x = sx0 - ring; x <= sx1 + ring; x += 2) {
+          const onRing = z === sz0 - ring || z === sz1 + ring || x === sx0 - ring || x === sx1 + ring;
+          if (!onRing) continue;
+          if (x < BORDER || z < BORDER || x + side > S - BORDER || z + side > S - BORDER) continue;
+          let ok = true;
+          let bank = false;
+          for (let dz = 0; dz < side && ok; dz++) {
+            for (let dx = 0; dx < side && ok; dx++) {
+              const i = (z + dz) * S + x + dx;
+              if (water[i] || road[i] || flags[i]! & Flags.startArea || deposit[i]) ok = false;
+              if (dist[i]! <= 3) bank = true;
+            }
+          }
+          if (!ok || (wantBank && !bank)) continue;
+          for (let dz = 0; dz < side; dz++) {
+            for (let dx = 0; dx < side; dx++) deposit[(z + dz) * S + x + dx] = kind;
+          }
+          return true;
+        }
+      }
+    }
+    return false;
+  };
+  for (let k = clusters(Deposit.stone, 12); k < 2; k++) if (!stamp(Deposit.stone, 4, false)) break;
+  if (clusters(Deposit.clay, 1) < 1 && !stamp(Deposit.clay, 3, true)) stamp(Deposit.clay, 3, false);
+}
+
+/** Number of parcels: Voronoi cells around jittered points on a 4 x 4 grid. */
+export const PARCEL_COUNT = 16;
+
+/** Step 10: Voronoi parcels; the cell holding the start area center becomes parcel 0. */
+function assignParcels(
+  map: MapLayers,
+  rng: StreamRng,
+  startA: number,
+  startC: number,
+  idx: (a: number, c: number) => number,
+): void {
+  const S = MAP_SIZE;
+  const cell = S / 4;
+  const px: number[] = [];
+  const pz: number[] = [];
+  for (let gz = 0; gz < 4; gz++) {
+    for (let gx = 0; gx < 4; gx++) {
+      px.push(gx * cell + 8 + rng.int(cell - 16));
+      pz.push(gz * cell + 8 + rng.int(cell - 16));
+    }
+  }
+  const { parcel } = map;
+  for (let z = 0; z < S; z++) {
+    for (let x = 0; x < S; x++) {
+      let best = 0;
+      let bestD = Infinity;
+      for (let p = 0; p < PARCEL_COUNT; p++) {
+        const dx = x - px[p]!;
+        const dz = z - pz[p]!;
+        const d2 = dx * dx + dz * dz;
+        if (d2 < bestD) {
+          bestD = d2;
+          best = p;
+        }
+      }
+      parcel[z * S + x] = best;
+    }
+  }
+  const home = parcel[idx(startA, startC)]!;
+  if (home !== 0) {
+    for (let i = 0; i < S * S; i++) {
+      if (parcel[i] === home) parcel[i] = 0;
+      else if (parcel[i] === 0) parcel[i] = home;
+    }
+  }
 }
 
 /** A* over 4-neighbor tiles, favoring flat, treeless, dry ground. Returns tile indices gate to goal. */
