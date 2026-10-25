@@ -4,6 +4,7 @@ import { canPlaceBuilding, footprintSize, type Rot4 } from '@qoti/sim';
 import type { TilePick } from '../../render/api';
 import { rejectText } from '../../ui/messages';
 import type { ToolContext } from '../context';
+import { cursorHint } from '../hint';
 import type { Tool } from '../tool';
 
 const VARIANTS = [
@@ -17,12 +18,15 @@ export function buildingTool(ctx: ToolContext): Tool {
   const variant = signal('cottage');
   let rot: Rot4 = 0;
   let tile: TilePick | null = null;
+  let cx = 0;
+  let cy = 0;
   let stop: (() => void) | null = null;
 
   function preview() {
     const def = content.buildingById.get(variant.value);
     if (!tile || !def) {
       ctx.render.setGhost(null);
+      cursorHint(null);
       return null;
     }
     const [w, d] = footprintSize(def, rot);
@@ -30,6 +34,7 @@ export function buildingTool(ctx: ToolContext): Tool {
     const z = tile.z - Math.floor((d - 1) / 2);
     const check = canPlaceBuilding(ctx.mirror, def, x, z, rot);
     ctx.render.setGhost({ kind: 'building', def: def.id, x, z, rot, valid: check.ok });
+    cursorHint(check.ok ? null : rejectText(check.reason), cx, cy);
     return { def, x, z, check };
   }
 
@@ -50,6 +55,8 @@ export function buildingTool(ctx: ToolContext): Tool {
     },
     pointerMove(p) {
       tile = p.tile;
+      cx = p.clientX;
+      cy = p.clientY;
       preview();
     },
     pointerDown(p) {
@@ -70,6 +77,7 @@ export function buildingTool(ctx: ToolContext): Tool {
       stop = null;
       tile = null;
       ctx.render.setGhost(null);
+      cursorHint(null);
     },
   };
 }
