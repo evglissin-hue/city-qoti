@@ -204,8 +204,8 @@ function attempt(seed: string, _settings: ValleySettings, allowFallback: boolean
         if (h <= 3) species = rng.chance(0.6) ? TREE_SPECIES.oak : TREE_SPECIES.birch;
         else if (h <= 8) species = rng.chance(0.5) ? TREE_SPECIES.oak : TREE_SPECIES.pine;
         else species = TREE_SPECIES.pine;
-        const stage = rng.chance(0.8) ? TREE_MATURE : rng.int(TREE_MATURE);
-        tree[i] = treeValue(species, stage);
+        // Wild trees start mature; only planted saplings grow (the trees system).
+        tree[i] = treeValue(species, TREE_MATURE);
       }
     }
   }

@@ -14,7 +14,7 @@ export const plant: HandlerFor<'tree.plant'> = {
   },
   apply(state, _seat, cmd, ctx) {
     const species = content.treeById.get(cmd.species)!.species;
-    // A sapling; growth arrives with C2A.
+    // A sapling; the trees system grows it one stage every two days.
     state.map.tree[cmd.z * MAP_SIZE + cmd.x] = treeValue(species, 0);
     tilesChangedFor(ctx, [[cmd.x, cmd.z]], ['tree']);
   },

@@ -237,6 +237,10 @@ export class Mirror implements MapReader {
   tree(x: number, z: number): number {
     return this.read('tree', x, z);
   }
+  /** Growth stage of the tree on a tile: 0 sapling to 3 mature (0 when there is no tree). */
+  treeStage(x: number, z: number): number {
+    return this.read('tree', x, z) & 7;
+  }
   occupant(x: number, z: number): number {
     return this.read('occupant', x, z);
   }
