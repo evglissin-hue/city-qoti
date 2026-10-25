@@ -2,6 +2,7 @@ import { DEBUG } from '../app/debug';
 import type { Session } from '../app/session';
 import { DebugOverlay, Dialogs, InviteDialog, Toasts } from './Overlays';
 import { panels } from './panels';
+import { RemovalConfirm } from './RemovalConfirm';
 import { Toolbar } from './Toolbar';
 import { TopBar } from './TopBar';
 
@@ -28,6 +29,7 @@ export function GameUI({ session, onLeave }: { session: Session; onLeave: () => 
       <Toasts session={session} />
       <Dialogs session={session} />
       <InviteDialog session={session} />
+      <RemovalConfirm />
       {DEBUG && <DebugOverlay session={session} />}
     </div>
   );
