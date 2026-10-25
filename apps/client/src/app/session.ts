@@ -115,7 +115,9 @@ export class Session {
     const covered = turns[turns.length - 1]?.t ?? r.snapshot.t;
     if (r.nextTurn - 1 > covered) turns.push({ t: r.nextTurn - 1, cmds: [] });
     try {
-      this.mirror.load(await this.host.init({ kind: 'snapshot', data: base64ToBytes(r.snapshot.data) }, turns));
+      this.mirror.load(
+        await this.host.init({ kind: 'snapshot', data: base64ToBytes(r.snapshot.data) }, turns),
+      );
     } catch (err) {
       this.fail(`Could not mend the valley: ${err instanceof Error ? err.message : String(err)}`);
       return;
@@ -271,6 +273,12 @@ export class Session {
   private async uploadSnapshot(): Promise<void> {
     const snap = await this.host.snapshot();
     this.connection?.sendSnapshot({ t: snap.t, simVersion: SIM_VERSION, data: snap.data });
+  }
+
+  /** Debug only (?debug): applies a local-only turn so this seat drifts from the room, for resync tests. */
+  corruptForTest(): void {
+    const t = this.mirror.lastTurn.value + 1;
+    this.host.turns([{ t, cmds: [{ seat: this.seat, seq: 0, cmd: { t: 'time.setSpeed', speed: 3 } }] }]);
   }
 
   toast(text: string): void {
