@@ -4,6 +4,7 @@ import { canPlaceDecor, DECOR_CAP, DECOR_ROTATIONS } from '@qoti/sim';
 import type { TilePick } from '../../render/api';
 import { rejectText } from '../../ui/messages';
 import type { ToolContext } from '../context';
+import { cursorHint } from '../hint';
 import type { Tool } from '../tool';
 
 const VARIANTS = [
@@ -17,12 +18,15 @@ export function decorTool(ctx: ToolContext): Tool {
   const variant = signal('bench');
   let rot = 0;
   let tile: TilePick | null = null;
+  let cx = 0;
+  let cy = 0;
   let stop: (() => void) | null = null;
 
   function preview() {
     const def = content.decorById.get(variant.value);
     if (!tile || !def) {
       ctx.render.setGhost(null);
+      cursorHint(null);
       return null;
     }
     const check =
@@ -30,6 +34,7 @@ export function decorTool(ctx: ToolContext): Tool {
         ? { ok: false, reason: 'TOO_MANY' as const }
         : canPlaceDecor(ctx.mirror, def, tile.fx, tile.fz, rot);
     ctx.render.setGhost({ kind: 'decor', def: def.id, fx: tile.fx, fz: tile.fz, rot, valid: check.ok });
+    cursorHint(check.ok ? null : rejectText(check.reason), cx, cy);
     return { def, fx: tile.fx, fz: tile.fz, check };
   }
 
@@ -38,7 +43,7 @@ export function decorTool(ctx: ToolContext): Tool {
     lane: 'hearth',
     icon: '✿',
     label: 'Decor',
-    hint: 'R turns',
+    hint: 'R turns, Shift+R nudges',
     order: 40,
     variants: VARIANTS,
     variant,
@@ -50,6 +55,8 @@ export function decorTool(ctx: ToolContext): Tool {
     },
     pointerMove(p) {
       tile = p.tile;
+      cx = p.clientX;
+      cy = p.clientY;
       preview();
     },
     pointerDown(p) {
@@ -61,7 +68,8 @@ export function decorTool(ctx: ToolContext): Tool {
     },
     key(e) {
       if (e.key !== 'r' && e.key !== 'R') return false;
-      rot = (rot + DECOR_ROTATIONS / 8) % DECOR_ROTATIONS;
+      // R turns an eighth; Shift+R nudges one of the 64 fine steps.
+      rot = (rot + (e.shiftKey ? 1 : DECOR_ROTATIONS / 8)) % DECOR_ROTATIONS;
       preview();
       return true;
     },
@@ -70,6 +78,7 @@ export function decorTool(ctx: ToolContext): Tool {
       stop = null;
       tile = null;
       ctx.render.setGhost(null);
+      cursorHint(null);
     },
   };
 }
