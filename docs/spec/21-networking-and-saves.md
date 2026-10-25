@@ -81,8 +81,8 @@ interface RoomStorage {
 
 ## Snapshots and backups
 
-- Every 300 turns (30 s) the room sends `needSnapshot` to the seat connected longest; the client replies with a snapshot of its current turn. The room stores it and prunes turns up to it. It accepts unsolicited snapshots too, ignores ones older than its latest, and keeps the latest 20 (named seasonal backups arrive with C2C).
-- Clients also send a snapshot when someone pauses and on `bye` (closing the tab, `visibilitychange` to hidden).
+- Every 300 turns (30 s) the room sends `needSnapshot` to the seat connected longest; the client replies with a snapshot of its current turn. The room stores it and prunes turns up to it. It accepts unsolicited snapshots too, ignores ones older than its latest, and keeps the latest 20 plus the newest snapshot of each in-game season (`retainSnapshots`).
+- The room also asks the longest-connected seat for a snapshot when a turn sets speed 0. Clients send one when they pause and when the tab is hidden (`visibilitychange`), and label every snapshot with the season ("Year 2, Summer", the optional `label` on the `snapshot` message).
 - **Retention**: the latest 20 snapshots, plus one per in-game season as a named backup ("Year 2, Summer").
 - **Export** (`.qoti`): gzip JSON `{ format: 1, meta, snapshot, log }`. **Import** creates a new valley from a file.
 
