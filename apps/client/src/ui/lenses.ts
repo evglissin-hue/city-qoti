@@ -12,8 +12,8 @@ export interface LensDef {
 
 // prettier-ignore
 export const lenses: readonly LensDef[] = [
-  { id: 'hearth', label: 'Hearth', accent: '#c8693a', blurb: 'Homes, decor and nature' },
-  { id: 'ledger', label: 'Ledger', accent: '#4f8a5b', blurb: 'Roads, storage and trade' },
+  { id: 'hearth', label: 'Hearth', accent: '#7f9c6c', blurb: 'Homes, decor and nature' },
+  { id: 'ledger', label: 'Ledger', accent: '#c48a3f', blurb: 'Roads, storage and trade' },
 ];
 
 export function toolsForLens(tools: readonly Tool[], lens: Lens): Tool[] {

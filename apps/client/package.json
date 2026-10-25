@@ -11,6 +11,8 @@
     "typecheck": "tsc -p . --noEmit && tsc -p e2e --noEmit"
   },
   "dependencies": {
+    "@fontsource/alegreya": "5.3.0",
+    "@fontsource/alegreya-sans": "5.3.0",
     "@preact/signals": "2.11.3",
     "@qoti/art": "*",
     "@qoti/content": "*",
