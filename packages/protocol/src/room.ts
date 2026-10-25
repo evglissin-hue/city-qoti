@@ -190,7 +190,7 @@ export class RoomCore {
       case 'hash':
         return this.hash(seat, msg.t, msg.h);
       case 'snapshot':
-        return this.snapshot(msg.t, msg.simVersion, msg.data, c);
+        return this.snapshot(msg.t, msg.simVersion, msg.data, c, msg.label);
       case 'bye':
         this.close(conn);
         conn.close(CloseCode.normal, 'Bye');
@@ -234,7 +234,12 @@ export class RoomCore {
       if (c.phase === 'live') c.conn.send({ k: 'turn', turn });
       else if (c.phase === 'joining') c.buffer.push(turn);
     }
-    if (turn.t % SNAPSHOT_EVERY_TURNS === 0) this.requestSnapshot();
+    // A pause is a natural resting point: keep a snapshot of it, as every 300 turns.
+    const paused = turn.cmds.some((sc) => {
+      const cmd = sc.cmd as { t: string; speed?: unknown };
+      return cmd.t === 'time.setSpeed' && cmd.speed === 0;
+    });
+    if (paused || turn.t % SNAPSHOT_EVERY_TURNS === 0) this.requestSnapshot();
     if (turn.t % META_SAVE_EVERY_TURNS === 0) this.saveMeta();
   }
 
@@ -337,11 +342,12 @@ export class RoomCore {
     for (const old of this.hashes.keys()) if (old < t - HASHES_KEPT_TURNS) this.hashes.delete(old);
   }
 
-  private snapshot(t: number, simVersion: string, data: string, from?: Client): void {
+  private snapshot(t: number, simVersion: string, data: string, from?: Client, label?: unknown): void {
     const meta = this.meta;
     if (!meta || typeof t !== 'number' || typeof data !== 'string' || t < 0 || t >= this.nextTurn) return;
     if (simVersion !== meta.simVersion) return;
-    const snap: StoredSnapshot = { t, simVersion, label: null, created: this.opts.now(), data };
+    const named = typeof label === 'string' && label.trim() ? label.trim().slice(0, 40) : null;
+    const snap: StoredSnapshot = { t, simVersion, label: named, created: this.opts.now(), data };
     const resync = from !== undefined && from === this.resyncFrom;
     if (resync) this.resyncFrom = null;
     // Everyone else switches to the trusted copy: buffer their live turns until the resync is out.
