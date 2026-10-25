@@ -8,6 +8,7 @@ import { eraseTool } from './erase';
 import { fenceTool } from './fence';
 import { inspectTool } from './inspect';
 import { noteTool } from './note';
+import { pingTool } from './ping';
 import { roadTool } from './road';
 import { treeTool } from './tree';
 
@@ -23,5 +24,6 @@ export const toolFactories: readonly ToolFactory[] = [
   roadTool('lane'),
   noteTool,
   roadTool('path'),
+  pingTool,
   treeTool,
 ];

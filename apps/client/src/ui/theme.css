@@ -898,3 +898,35 @@ kbd {
     0 0 0 3px var(--paper-light),
     0 0 0 5px var(--ink-line);
 }
+
+.ping-menu-backdrop {
+  position: absolute;
+  inset: 0;
+}
+
+.ping-menu {
+  position: absolute;
+  transform: translate(8px, 8px);
+  display: grid;
+  gap: 4px;
+  padding: 6px;
+  border-radius: 12px;
+  animation: panel-in 160ms ease-out;
+}
+
+.ping-menu button {
+  text-align: left;
+  box-shadow: none;
+}
+
+.ping-look {
+  border-left: 4px solid var(--river) !important;
+}
+
+.ping-help {
+  border-left: 4px solid var(--rose) !important;
+}
+
+.ping-build {
+  border-left: 4px solid var(--sage) !important;
+}

@@ -2,6 +2,7 @@ import { DEBUG } from '../app/debug';
 import type { Session } from '../app/session';
 import { DebugOverlay, Dialogs, InviteDialog, Toasts } from './Overlays';
 import { panels } from './panels';
+import { PingMenuView } from './PingMenu';
 import { PresenceLabels } from './Presence';
 import { HelpOverlay, SettingsPanel } from './SettingsPanel';
 import { Toolbar } from './Toolbar';
@@ -32,6 +33,7 @@ export function GameUI({ session, onLeave }: { session: Session; onLeave: () => 
       <Dialogs session={session} />
       <InviteDialog session={session} />
       <SettingsPanel session={session} />
+      <PingMenuView />
       <HelpOverlay session={session} />
       {DEBUG && <DebugOverlay session={session} />}
     </div>

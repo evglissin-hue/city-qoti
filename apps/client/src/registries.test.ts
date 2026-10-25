@@ -43,6 +43,7 @@ describe('registries', () => {
       'lane',
       'note',
       'path',
+      'ping',
       'tree',
     ]);
   });

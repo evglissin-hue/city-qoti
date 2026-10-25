@@ -8,6 +8,7 @@ import type { RoomConnection } from '../net/connection';
 import { LocalRoom } from '../net/local';
 import { OnlineRoom } from '../net/online';
 import { Renderer, type Quality } from '../render/renderer';
+import { setPingSender, type PingKind } from '../ui/pingBus';
 import { loadProfile, profileUpdate } from './profile';
 import { Mirror, type MirrorChange } from '../state/mirror';
 import { rejectText } from '../ui/messages';
@@ -153,10 +154,21 @@ export class Session {
       submit: (cmd) => this.submit(cmd),
       ui: this.uiApi(),
     };
+    setPingSender((x, z, kind) => this.sendPing(x, z, kind));
     this.tools = new ToolManager(ctx, renderer, renderer.canvas, {
       pointer: (p) => this.pointer(p),
       globalKey: (e) => this.globalKey(e),
     });
+  }
+
+  /** Show a ping here and send it to the partner over the existing ping message. */
+  sendPing(x: number, z: number, kind: PingKind): void {
+    this.renderer?.ping(this.seat, x + 0.5, z + 0.5, kind);
+    // RoomConnection has no ping sender yet (net/ is another cycle's), so reach the raw send.
+    const c = this.connection as unknown as {
+      send?: (msg: { k: 'ping'; x: number; z: number; kind: PingKind }) => void;
+    };
+    c?.send?.call(this.connection, { k: 'ping', x, z, kind });
   }
 
   submit(cmd: Command): number {
@@ -312,6 +324,7 @@ export class Session {
     if (this.presence.timer) clearTimeout(this.presence.timer);
     this.connection?.close();
     this.tools?.dispose();
+    setPingSender(null);
     this.renderer?.dispose();
     this.host.terminate();
   }

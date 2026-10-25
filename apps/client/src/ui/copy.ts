@@ -51,6 +51,11 @@ export const copy = {
       'The invite link lives on the device that created this valley. Ask your partner to send it again.',
     fine: 'Fine',
   },
+  pingMenu: {
+    look: 'Look here',
+    help: 'Help',
+    build: 'Build here',
+  },
   presence: {
     partner: 'Your partner',
     goToPartner: 'Go to partner',
