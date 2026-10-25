@@ -195,3 +195,15 @@ describe('canPlantTree', () => {
     expect(canPlantTree(reader(w), S, 0).reason).toBe('OUT_OF_BOUNDS');
   });
 });
+
+describe('LOCKED_PARCEL', () => {
+  it('rejects every kind of placement on a locked parcel (fixture reader)', () => {
+    const base = reader(flatWorld());
+    const locked = { ...base, parcelUnlocked: (x: number, z: number) => x < 40 && base.parcelUnlocked(x, z) };
+    expect(canPlaceBuilding(locked, cottage, 50, 50, 0).reason).toBe('LOCKED_PARCEL');
+    expect(canPaintRoad(locked, 'path', [[50, 50]]).reason).toBe('LOCKED_PARCEL');
+    expect(canPlantTree(locked, 50, 50).reason).toBe('LOCKED_PARCEL');
+    expect(canPlaceDecor(locked, bench, fp(50), fp(50), 0).reason).toBe('LOCKED_PARCEL');
+    expect(canPlaceBuilding(locked, cottage, 20, 20, 0).ok).toBe(true);
+  });
+});
