@@ -29,6 +29,7 @@ export {
   treeValue,
   Water,
 } from './map/layers';
+export { createStateReader } from './map/reader';
 export { generateValley, type GeneratedValley } from './map/worldgen';
 
 export * from './rules';

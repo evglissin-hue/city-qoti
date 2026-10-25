@@ -2,6 +2,8 @@ import { defineConfig } from 'vitest/config';
 
 // One Vitest project per area, so `npm test` runs everything and failures say where they live.
 export default defineConfig({
+  // Client components are Preact; compile their JSX the same way Vite does for the app.
+  oxc: { jsx: { runtime: 'automatic', importSource: 'preact' } },
   test: {
     projects: [
       { extends: true, test: { name: 'content', include: ['packages/content/**/*.test.ts'] } },
