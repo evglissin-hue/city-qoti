@@ -14,7 +14,14 @@ export type C2S =
   | { k: 'emote'; id: string }
   | { k: 'hash'; t: number; h: string }
   /** data: base64 of gzip. */
-  | { k: 'snapshot'; t: number; simVersion: string; data: string }
+  | {
+      k: 'snapshot';
+      t: number;
+      simVersion: string;
+      data: string;
+      /** The in-game season ("Year 2, Summer"); the newest snapshot of each is kept as a named backup. */
+      label?: string;
+    }
   | { k: 'bye' };
 
 export type S2C =

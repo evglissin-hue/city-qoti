@@ -12,6 +12,8 @@ export interface SnapshotUpload {
   simVersion: string;
   /** gzip save bytes from the worker. */
   data: Uint8Array;
+  /** The in-game season, for named backups ("Year 2, Summer"). */
+  label?: string;
 }
 
 export interface RoomConnection {

@@ -25,6 +25,7 @@ export interface SessionTarget {
 }
 
 const PRESENCE_MS = 200;
+const SEASON_NAMES = ['Spring', 'Summer', 'Fall', 'Winter'] as const;
 
 const ROOM_ERRORS: Partial<Record<ErrorCode, string>> = {
   BAD_TOKEN: 'That invite does not open this valley.',
@@ -64,6 +65,10 @@ export class Session {
   private nextToast = 1;
   private resyncTimes: number[] = [];
   private readonly onPageHide = () => this.connection?.close();
+  /** Leaving the tab is a good moment to keep a snapshot; a closing tab rarely gets the chance. */
+  private readonly onVisibility = () => {
+    if (document.visibilityState === 'hidden' && this.phase.value === 'ready') void this.uploadSnapshot();
+  };
 
   constructor(readonly target: SessionTarget) {}
 
@@ -107,6 +112,7 @@ export class Session {
       }
     });
     addEventListener('pagehide', this.onPageHide);
+    document.addEventListener('visibilitychange', this.onVisibility);
   }
 
   /** After a desync: start over from the room's trusted snapshot, quietly, then carry on. */
@@ -189,6 +195,7 @@ export class Session {
   setSpeed(speed: Speed): void {
     if (speed > 0) this.lastSpeed = speed;
     this.submit({ t: 'time.setSpeed', speed });
+    if (speed === 0) void this.uploadSnapshot();
   }
 
   /** My desired speed (what my speed buttons show as pressed). */
@@ -278,7 +285,9 @@ export class Session {
 
   private async uploadSnapshot(): Promise<void> {
     const snap = await this.host.snapshot();
-    this.connection?.sendSnapshot({ t: snap.t, simVersion: SIM_VERSION, data: snap.data });
+    const { year, season } = this.mirror.clock.value;
+    const label = `Year ${year}, ${SEASON_NAMES[season]}`;
+    this.connection?.sendSnapshot({ t: snap.t, simVersion: SIM_VERSION, data: snap.data, label });
   }
 
   /** Debug only (?debug): applies a local-only turn so this seat drifts from the room, for resync tests. */
@@ -321,6 +330,7 @@ export class Session {
 
   close(): void {
     removeEventListener('pagehide', this.onPageHide);
+    document.removeEventListener('visibilitychange', this.onVisibility);
     if (this.presence.timer) clearTimeout(this.presence.timer);
     this.connection?.close();
     this.tools?.dispose();

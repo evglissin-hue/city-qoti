@@ -33,7 +33,13 @@ export abstract class BaseConnection implements RoomConnection {
   }
 
   sendSnapshot(s: SnapshotUpload): void {
-    this.send({ k: 'snapshot', t: s.t, simVersion: s.simVersion, data: bytesToBase64(s.data) });
+    this.send({
+      k: 'snapshot',
+      t: s.t,
+      simVersion: s.simVersion,
+      data: bytesToBase64(s.data),
+      ...(s.label ? { label: s.label } : {}),
+    });
   }
 
   sendHash(t: number, h: string): void {

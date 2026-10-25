@@ -4,6 +4,7 @@ export { SerialQueue } from './queue';
 export { RoomCore, type Conn, type RoomOptions } from './room';
 export {
   MemoryStorage,
+  retainSnapshots,
   type MemoryDump,
   type RoomStorage,
   type StoredMeta,
