@@ -31,6 +31,7 @@ import {
 } from './layers';
 import { lightingAt } from './lighting';
 import { pickTileFromRay } from './picking';
+import { PostChain } from './post';
 import { QUALITY_PRESETS, type Quality } from './quality';
 
 export type { Quality } from './quality';
@@ -97,6 +98,8 @@ export class Renderer implements RenderApi {
   private readonly skyCanvas = document.createElement('canvas');
   private readonly skyTexture: CanvasTexture;
   private quality: Quality = 'medium';
+  /** Post chain on Medium and High; Low draws straight to the canvas. */
+  private post: PostChain | null = null;
   private shadowsDirty = true;
   private readonly target = new Vector3();
   private readonly raycaster = new Raycaster();
@@ -177,6 +180,7 @@ export class Renderer implements RenderApi {
     const w = this.container.clientWidth || 1;
     const h = this.container.clientHeight || 1;
     this.three.setSize(w, h, false);
+    this.post?.setSize(w, h, this.three.getPixelRatio());
     this.camera.aspect = w / h;
     this.camera.updateProjectionMatrix();
     this.invalidate();
@@ -192,6 +196,7 @@ export class Renderer implements RenderApi {
     (this.scene.fog as Fog).color.copy(l.sky);
     this.three.toneMappingExposure = l.exposure;
     this.night.value = l.night;
+    this.post?.setNight(l.night);
     this.fill.color.copy(l.fill);
     this.fill.intensity = l.fillIntensity;
     this.hemi.color.copy(l.hemiSky);
@@ -275,7 +280,8 @@ export class Renderer implements RenderApi {
     if (dirty || this.needsRender) {
       const start = performance.now();
       this.fitView();
-      this.three.render(this.scene, this.camera);
+      if (this.post) this.post.render();
+      else this.three.render(this.scene, this.camera);
       this.needsRender = false;
       this.stats.frameMs = performance.now() - start;
       this.stats.drawCalls = this.three.info.render.calls;
@@ -364,6 +370,22 @@ export class Renderer implements RenderApi {
     }
     this.shadowsDirty = true;
     this.lightHour = -1;
+    const wantPost = q !== 'low';
+    if (wantPost && !this.post) {
+      try {
+        this.post = new PostChain(this.three, this.scene, this.camera);
+        this.post.setSize(
+          this.container.clientWidth || 1,
+          this.container.clientHeight || 1,
+          this.three.getPixelRatio(),
+        );
+      } catch {
+        this.post = null;
+      }
+    } else if (!wantPost && this.post) {
+      this.post.dispose();
+      this.post = null;
+    }
     // Layers do not exist yet while the constructor applies the first preset.
     (this.layers as RenderLayer[] | undefined)
       ?.find((l): l is EffectsLayer => l.id === 'effects')
@@ -429,6 +451,7 @@ export class Renderer implements RenderApi {
     this.rig.dispose();
     for (const layer of this.layers) layer.dispose();
     this.material.dispose();
+    this.post?.dispose();
     this.skyTexture.dispose();
     this.three.dispose();
     this.three.domElement.remove();
