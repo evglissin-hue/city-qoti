@@ -1,5 +1,5 @@
 import { signal } from '@preact/signals';
-import type { ErrorCode, PresenceMsg, RosterEntry, ValleyMeta, Welcome } from '@qoti/protocol';
+import type { ErrorCode, PresenceMsg, RosterEntry, S2C, ValleyMeta, Welcome } from '@qoti/protocol';
 import { base64ToBytes, SIM_VERSION, type Command, type SeatId, type Speed, type Turn } from '@qoti/sim';
 import type { Selection, ToolContext, UiApi } from '../input/context';
 import { ToolManager } from '../input/manager';
@@ -55,12 +55,14 @@ export class Session {
     hashes: new Map<number, string>(),
     firstSeen: new Map<string, number>(),
     lastSubmitAt: 0,
+    resyncs: 0,
   };
   private container: HTMLElement | null = null;
   private pointerAt = { x: innerWidth / 2, y: innerHeight / 2 };
   private presence = { key: '', sentAt: 0, timer: 0 as ReturnType<typeof setTimeout> | 0 };
   private lastSpeed: Speed = 1;
   private nextToast = 1;
+  private resyncTimes: number[] = [];
   private readonly onPageHide = () => this.connection?.close();
 
   constructor(readonly target: SessionTarget) {}
@@ -90,6 +92,10 @@ export class Session {
     c.onTurn((turn: Turn) => this.host.turns([turn]));
     c.onPresence((p) => this.onPresence(p));
     c.onNeedSnapshot(() => void this.uploadSnapshot());
+    c.onResync((r) => void this.resync(r));
+    c.onReloadRequired(() => {
+      this.toast('The valley has a newer version. Reload the page to keep building.');
+    });
     c.onError((code, message) => {
       const text = ROOM_ERRORS[code] ?? message;
       if (this.phase.value === 'ready') this.toast(text);
@@ -103,10 +109,33 @@ export class Session {
     addEventListener('pagehide', this.onPageHide);
   }
 
+  /** After a desync: start over from the room's trusted snapshot, quietly, then carry on. */
+  private async resync(r: Extract<S2C, { k: 'resync' }>): Promise<void> {
+    this.debug.resyncs++;
+    const now = Date.now();
+    this.resyncTimes = [...this.resyncTimes.filter((at) => now - at < 3_600_000), now];
+    if (this.resyncTimes.length === 3) {
+      this.toast('The valley had to mend itself three times this hour. That is a bug; please tell us.');
+    }
+    const turns = [...r.log];
+    const covered = turns[turns.length - 1]?.t ?? r.snapshot.t;
+    if (r.nextTurn - 1 > covered) turns.push({ t: r.nextTurn - 1, cmds: [] });
+    try {
+      this.mirror.load(
+        await this.host.init({ kind: 'snapshot', data: base64ToBytes(r.snapshot.data) }, turns),
+      );
+    } catch (err) {
+      this.fail(`Could not mend the valley: ${err instanceof Error ? err.message : String(err)}`);
+      return;
+    }
+    if (this.connection) this.connection.status.value = 'live';
+  }
+
   private async welcome(w: Welcome): Promise<void> {
     this.valley.value = w.valley;
     this.roster.value = w.roster;
-    this.phase.value = 'loading';
+    // A reconnect re-welcomes a valley already on screen; keep it there while it catches up.
+    if (this.phase.value !== 'ready') this.phase.value = 'loading';
     // Post init now, before any live turn: the worker handles messages in order.
     const source: InitSource = w.snapshot
       ? { kind: 'snapshot', data: base64ToBytes(w.snapshot.data) }
@@ -250,6 +279,12 @@ export class Session {
   private async uploadSnapshot(): Promise<void> {
     const snap = await this.host.snapshot();
     this.connection?.sendSnapshot({ t: snap.t, simVersion: SIM_VERSION, data: snap.data });
+  }
+
+  /** Debug only (?debug): applies a local-only turn so this seat drifts from the room, for resync tests. */
+  corruptForTest(): void {
+    const t = this.mirror.lastTurn.value + 1;
+    this.host.turns([{ t, cmds: [{ seat: this.seat, seq: 0, cmd: { t: 'time.setSpeed', speed: 3 } }] }]);
   }
 
   toast(text: string): void {

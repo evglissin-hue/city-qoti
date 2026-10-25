@@ -31,4 +31,10 @@ export interface RoomConnection {
   onError(cb: (code: ErrorCode, message: string) => void): void;
   sendSnapshot(s: SnapshotUpload): void;
   sendHash(t: number, h: string): void;
+
+  // C2C additions: desync recovery and version hand-over.
+  /** The room's trusted snapshot after a desync: re-init the sim from it, then apply the log. */
+  onResync(cb: (r: Extract<S2C, { k: 'resync' }>) => void): void;
+  /** The valley moved to a newer game version; the page must reload to keep playing. */
+  onReloadRequired(cb: (simVersion: string) => void): void;
 }

@@ -289,6 +289,32 @@ describe('presence, hashes and limits', () => {
     expect(logs.some((l) => l.includes('Desync at turn 100'))).toBe(true);
   });
 
+  it('resyncs a desynced seat from the longest-connected seat, without losing live turns', async () => {
+    const a = await join(0);
+    now += 10;
+    const b = await join(1);
+    steps(5);
+    room.message(a, { k: 'hash', t: 5, h: 'aaaa' });
+    room.message(b, { k: 'hash', t: 5, h: 'bbbb' });
+    expect(a.of('needSnapshot').map((m) => m.reason)).toEqual(['desync']);
+    expect(b.of('needSnapshot')).toEqual([]);
+    // A second mismatch while waiting does not ask again.
+    room.message(b, { k: 'hash', t: 5, h: 'cccc' });
+    expect(a.of('needSnapshot').length).toBe(1);
+    room.message(a, { k: 'snapshot', t: 5, simVersion: 'v-test', data: 'U05BUA==' });
+    steps(2);
+    await room.flush();
+    await vi.waitFor(() => expect(b.of('resync').length).toBe(1));
+    const r = b.of('resync')[0]!;
+    expect(r.snapshot).toEqual({ t: 5, simVersion: 'v-test', data: 'U05BUA==' });
+    expect(r.nextTurn).toBe(6);
+    expect(a.of('resync')).toEqual([]);
+    // Turns emitted while the resync was prepared follow it, with no gaps.
+    steps(1);
+    expect(b.turns().map((t) => t.t)).toEqual([1, 2, 3, 4, 5, 6, 7, 8]);
+    expect((await storage.latestSnapshot())?.t).toBe(5);
+  });
+
   it('caps commands at 30 per second per seat', async () => {
     const a = await join(0);
     for (let i = 0; i < 32; i++) room.message(a, { k: 'cmd', seq: i, cmd: { t: 'time.setSpeed', speed: 1 } });

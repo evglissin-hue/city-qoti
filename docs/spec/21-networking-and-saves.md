@@ -77,6 +77,7 @@ interface RoomStorage {
 2. The room replies `welcome` with the latest snapshot (or `null` for a fresh valley, which the client generates from the seed), the stored turns after it, and `nextTurn`. It then injects `sys.seatJoined` into the next turn.
 3. The client's worker loads the snapshot, replays turns up to `nextTurn - 1` as fast as it can (filling empty turns), and buffers live turns meanwhile. Status shows "catching up" until done.
 4. Snapshots every 300 turns keep catch-up under about a second.
+5. Reconnects: when the socket closes, or no frame arrives for 5 s (the room sends a turn every 100 ms, so silence means a sleeping laptop or lost wifi), the client replaces it after 0.5 s, then 1 s, 2 s and so on up to 30 s, with 25 percent jitter. The `online` event and the tab becoming visible retry at once. Closes that retrying cannot fix (bad hello, replaced by another tab, bad token, unknown valley, version mismatch) stop the retries. Each new `welcome` re-initializes the worker from its snapshot and log while the valley stays on screen; status goes `offline`, `connecting`, `catching-up`, then `live`.
 
 ## Snapshots and backups
 
@@ -88,7 +89,7 @@ interface RoomStorage {
 ## Desync detection
 
 - Every 50 turns each client sends `hash` for that turn.
-- If two seats report different hashes for the same turn: the room asks the seat connected longest for a snapshot, then sends `resync` to the other seat(s). Both clients keep a debug dump (snapshot plus the last 300 turns) for download from the debug overlay.
+- If two seats report different hashes for the same turn: the room asks the seat connected longest for a snapshot (`needSnapshot` with reason `desync`, once until it answers or leaves), stores it like any snapshot, then sends `resync` to the other seat(s) with the snapshot, the stored turns after it and `nextTurn`; live turns emitted meanwhile are buffered and follow the `resync`. With `?debug`, `window.__qoti.corrupt()` applies a local-only turn so tests can force this. Both clients keep a debug dump (snapshot plus the last 300 turns) for download from the debug overlay.
 - More than 3 desyncs in an hour shows a "this is a bug, please send the dump" notice.
 
 ## Version changes
