@@ -1,6 +1,7 @@
 import { DEBUG } from '../app/debug';
 import type { Session } from '../app/session';
 import { DebugOverlay, Dialogs, InviteDialog, Toasts } from './Overlays';
+import { EmoteBubbles, EmoteWheel } from './Emotes';
 import { panels } from './panels';
 import { PingMenuView } from './PingMenu';
 import { PresenceLabels } from './Presence';
@@ -34,6 +35,8 @@ export function GameUI({ session, onLeave }: { session: Session; onLeave: () => 
       <InviteDialog session={session} />
       <SettingsPanel session={session} />
       <PingMenuView />
+      <EmoteWheel session={session} />
+      <EmoteBubbles session={session} />
       <HelpOverlay session={session} />
       {DEBUG && <DebugOverlay session={session} />}
     </div>

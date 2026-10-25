@@ -22,6 +22,9 @@ export function createUiState() {
     inviteOpen: signal(false),
     notesOpen: signal(true),
     helpOpen: signal(false),
+    emoteOpen: signal(false),
+    /** Recent emotes from either seat, shown as small bubbles. */
+    emotes: signal<{ key: number; seat: number; id: string }[]>([]),
     /** Partner cursors in world tiles, by seat, for name labels and off-screen arrows. */
     cursors: signal<Map<number, { x: number; z: number; tool?: string }>>(new Map()),
     settingsOpen: signal(false),

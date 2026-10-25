@@ -51,6 +51,20 @@ export const copy = {
       'The invite link lives on the device that created this valley. Ask your partner to send it again.',
     fine: 'Fine',
   },
+  emotes: {
+    open: 'Emote',
+    hint: 'V opens the emote wheel',
+    list: [
+      ['wave', '\u{1F44B}', 'Wave'],
+      ['heart', '\u{2764}\u{FE0F}', 'Heart'],
+      ['laugh', '\u{1F604}', 'Laugh'],
+      ['thumbs', '\u{1F44D}', 'Nice'],
+      ['tea', '\u{1F375}', 'Tea break'],
+      ['sparkle', '\u{2728}', 'Lovely'],
+      ['sleepy', '\u{1F634}', 'Sleepy'],
+      ['think', '\u{1F914}', 'Hmm'],
+    ],
+  },
   pingMenu: {
     look: 'Look here',
     help: 'Help',
@@ -72,6 +86,7 @@ export const copy = {
       ['Space', 'Pause or resume time'],
       ['1, 2, 3', 'Set your preferred speed'],
       ['Esc', 'Put the tool down'],
+      ['V', 'Emote wheel'],
       ['?', 'This card'],
     ],
   },

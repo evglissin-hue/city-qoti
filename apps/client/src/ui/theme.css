@@ -930,3 +930,52 @@ kbd {
 .ping-build {
   border-left: 4px solid var(--sage) !important;
 }
+
+.emote-backdrop {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+}
+
+.emote-wheel {
+  position: relative;
+  width: 240px;
+  height: 240px;
+  border-radius: 50%;
+  background: var(--grain);
+  border: 2px solid var(--ink-line);
+  box-shadow: var(--shadow);
+  animation: card-in 180ms ease-out;
+}
+
+.emote {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  width: 46px;
+  height: 46px;
+  padding: 0;
+  border-radius: 50%;
+  font-size: 1.4rem;
+  line-height: 1;
+}
+
+.emote:hover:not(:disabled) {
+  transform: translate(-50%, -50%) scale(1.12);
+}
+
+.emote-bubbles {
+  position: absolute;
+  top: 66px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 6px;
+  pointer-events: none !important;
+}
+
+.emote-bubble {
+  padding: 3px 10px;
+  border-radius: 999px;
+  animation: panel-in 200ms ease-out;
+}
