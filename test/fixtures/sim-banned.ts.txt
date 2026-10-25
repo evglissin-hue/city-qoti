@@ -1,0 +1,13 @@
+// Linted as if it lived in packages/sim/src. Every line below must be reported.
+export const a = Math.random();
+export const b = Math.sin(1);
+export const c = 2 ** 8;
+export const d = Date.now();
+export const e = performance.now();
+setTimeout(() => {}, 1);
+export async function f(): Promise<number> {
+  return 1;
+}
+for (const key in { x: 1 }) void key;
+export const g = Object.keys({ x: 1 });
+export const h = 'a'.localeCompare('b');
