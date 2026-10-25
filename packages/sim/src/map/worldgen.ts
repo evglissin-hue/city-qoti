@@ -3,8 +3,19 @@
 // clearings, deposits with guarantees, fertility, start area, valley road, parcels, validation.
 import { MAP_SIZE } from '../constants';
 import type { MapLayers, Rect, ValleySettings, WorldMeta } from '../contracts';
-import { seedStream, StreamRng } from '../rng/streams';
-import { createLayers, Deposit, Flags, Road, Terrain, TREE_MATURE, TREE_SPECIES, treeValue, Water } from './layers';
+import { valleyNamePrefixes, valleyNameSuffixes } from '@qoti/content';
+import { rngFromSeed, seedStream, StreamRng } from '../rng/streams';
+import {
+  createLayers,
+  Deposit,
+  Flags,
+  Road,
+  Terrain,
+  TREE_MATURE,
+  TREE_SPECIES,
+  treeValue,
+  Water,
+} from './layers';
 import { ValueNoise } from './noise';
 
 export interface GeneratedValley {
@@ -20,6 +31,20 @@ const START_CLEAR = 16;
 const INF = 0xffff;
 
 const MAX_ATTEMPTS = 6;
+
+/**
+ * A valley name for a seed from the content word lists ("Willowmere", "Brackenford"). Uses its
+ * own stream, so naming never shifts the terrain. The lobby offers it as the default name.
+ */
+export function valleyNameFor(seed: string): string {
+  const rng = rngFromSeed(seed, 'valleyName');
+  const prefix = valleyNamePrefixes[rng.int(valleyNamePrefixes.length)]!;
+  let suffix = valleyNameSuffixes[rng.int(valleyNameSuffixes.length)]!;
+  // Avoid doubled letters at the seam ("Ashhollow"): take the next suffix instead.
+  if (prefix.endsWith(suffix[0]!))
+    suffix = valleyNameSuffixes[(valleyNameSuffixes.indexOf(suffix) + 1) % valleyNameSuffixes.length]!;
+  return prefix + suffix;
+}
 
 /**
  * Generates the valley for a seed. Step 11 (validation): if an attempt has no proper start
@@ -330,7 +355,8 @@ function placeDeposits(map: MapLayers, rng: StreamRng, dist: Uint16Array, start:
         terrain[i - S] === Terrain.rock ||
         terrain[i + S] === Terrain.rock;
       if (nearRock && stoneNoise.at(x, z) > 0.45) deposit[i] = Deposit.stone;
-      else if (height[i]! >= 7 && t !== Terrain.mountain && stoneNoise.at(x, z) > 0.82) deposit[i] = Deposit.stone;
+      else if (height[i]! >= 7 && t !== Terrain.mountain && stoneNoise.at(x, z) > 0.82)
+        deposit[i] = Deposit.stone;
       else if ((t === Terrain.sand || dist[i]! <= 2) && clayNoise.at(x, z) > 0.55) deposit[i] = Deposit.clay;
     }
   }
