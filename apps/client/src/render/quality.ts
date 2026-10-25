@@ -18,7 +18,9 @@ export const QUALITY_PRESETS: Record<Quality, QualityPreset> = {
 };
 
 /** A first guess from the device; players can change it in settings. */
-export function detectQuality(nav: { hardwareConcurrency?: number; userAgent?: string } = navigator): Quality {
+export function detectQuality(
+  nav: { hardwareConcurrency?: number; userAgent?: string } = navigator,
+): Quality {
   const cores = nav.hardwareConcurrency ?? 4;
   const mobile = /Android|iPhone|iPad|Mobile/i.test(nav.userAgent ?? '');
   if (mobile || cores <= 2) return 'low';
