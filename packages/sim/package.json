@@ -1,0 +1,18 @@
+{
+  "name": "@qoti/sim",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Deterministic simulation. No DOM, no Three, no network, no timers.",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p . --noEmit",
+    "golden": "tsx scripts/make-golden.ts"
+  },
+  "dependencies": {
+    "@qoti/content": "*",
+    "fflate": "0.8.3"
+  }
+}
