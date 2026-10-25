@@ -49,12 +49,23 @@ export const appleTree: Kit = {
 export const barrels: Kit = {
   id: 'barrels',
   kind: 'decor',
-  build: () =>
-    new ShapeBuilder()
-      .cylinder(-0.06, 0, 0.07, 0.07, 0, 0.18, palette.wood, 8)
-      .cylinder(0.09, 0.04, 0.07, 0.07, 0, 0.18, palette.darkWood, 8)
-      .cylinder(0.01, -0.1, 0.06, 0.06, 0, 0.15, palette.wood, 8)
-      .build(),
+  build: (opts) => {
+    const rnd = seeded(opts?.seed ?? 4);
+    const s = new ShapeBuilder();
+    // Bellied barrels: two stacked frustums with darker iron hoops and a lid.
+    for (const [x, z, r, h] of [
+      [-0.06, 0, 0.07, 0.18],
+      [0.09, 0.04, 0.07, 0.18],
+      [0.01, -0.1, 0.06, 0.15],
+    ] as const) {
+      const wood = vary(palette.wood, rnd);
+      s.cylinder(x, z, r * 0.88, r, 0, h / 2, wood, 8);
+      s.cylinder(x, z, r, r * 0.88, h / 2, h, wood, 8);
+      s.cylinder(x, z, r * 0.93, r * 0.95, h * 0.18, h * 0.24, palette.metal, 8);
+      s.cylinder(x, z, r * 0.95, r * 0.93, h * 0.76, h * 0.82, palette.metal, 8);
+    }
+    return s.build();
+  },
 };
 
 export const bench: Kit = {
@@ -87,12 +98,44 @@ export const cherryTree: Kit = {
 export const crates: Kit = {
   id: 'crates',
   kind: 'decor',
-  build: () =>
-    new ShapeBuilder()
-      .box(-0.13, 0, -0.08, 0.03, 0.15, 0.08, palette.wood)
-      .box(0.02, 0, -0.06, 0.14, 0.12, 0.07, palette.darkWood)
-      .box(-0.09, 0.15, -0.06, 0.03, 0.26, 0.06, palette.wood)
-      .build(),
+  build: (opts) => {
+    const rnd = seeded(opts?.seed ?? 6);
+    const s = new ShapeBuilder();
+    // Slatted crates with corner battens; the top one holds a few apples.
+    const crate = (x0: number, y0: number, z0: number, x1: number, y1: number, z1: number): void => {
+      const wood = vary(palette.wood, rnd);
+      s.rbox(x0, y0, z0, x1, y1, z1, wood, 0.01);
+      const b = 0.012;
+      s.box(
+        x0 - 0.004,
+        y0 + (y1 - y0) * 0.45,
+        z0 - b,
+        x1 + 0.004,
+        y0 + (y1 - y0) * 0.55,
+        z1 + b,
+        palette.darkWood,
+      );
+      for (const [x, z] of [
+        [x0, z0],
+        [x1, z0],
+        [x1, z1],
+        [x0, z1],
+      ] as const) {
+        s.box(x - b, y0, z - b, x + b, y1, z + b, palette.darkWood);
+      }
+    };
+    crate(-0.13, 0, -0.08, 0.03, 0.15, 0.08);
+    crate(0.04, 0, -0.06, 0.15, 0.12, 0.07);
+    crate(-0.1, 0.15, -0.06, 0.02, 0.25, 0.06);
+    for (const [x, z] of [
+      [-0.07, -0.02],
+      [-0.03, 0.02],
+      [-0.05, 0.03],
+    ] as const) {
+      s.blob(x, 0.26, z, 0.022, 0.02, 0.022, palette.apple, 0);
+    }
+    return s.build();
+  },
 };
 
 export const fence: Kit = {
@@ -161,19 +204,51 @@ export const lowWall: Kit = {
 export const planter: Kit = {
   id: 'planter',
   kind: 'decor',
-  build: () =>
-    new ShapeBuilder()
-      .box(-0.1, 0, -0.1, 0.1, 0.12, 0.1, palette.stone)
-      .blob(0, 0.15, 0, 0.1, 0.07, 0.1, palette.leafLight)
-      .build(),
+  build: (opts) => {
+    const rnd = seeded(opts?.seed ?? 8);
+    const s = new ShapeBuilder();
+    // A terracotta pot with a rim, a leafy mound and a few blooms.
+    s.cylinder(0, 0, 0.08, 0.1, 0, 0.12, vary(palette.roofTerracotta, rnd, 0.6), 8, Math.PI / 8);
+    s.cylinder(0, 0, 0.11, 0.11, 0.11, 0.14, vary(palette.brick, rnd, 0.5), 8, Math.PI / 8);
+    s.blob(0, 0.16, 0, 0.1, 0.07, 0.1, vary(palette.birchLeaf, rnd), 1, rnd, 0.1);
+    const blooms = [palette.flowerA, palette.flowerB, palette.flowerD];
+    for (let i = 0; i < 4; i++) {
+      const a = (i / 4) * Math.PI * 2 + rnd();
+      s.blob(
+        Math.cos(a) * 0.06,
+        0.2 + rnd() * 0.02,
+        Math.sin(a) * 0.06,
+        0.025,
+        0.02,
+        0.025,
+        blooms[i % 3]!,
+        0,
+      );
+    }
+    return s.build();
+  },
 };
 
 export const signpost: Kit = {
   id: 'signpost',
   kind: 'decor',
-  build: () =>
-    new ShapeBuilder()
-      .box(-0.02, 0, -0.02, 0.02, 0.45, 0.02, palette.darkWood)
-      .box(-0.02, 0.32, -0.01, 0.2, 0.4, 0.01, palette.wood)
-      .build(),
+  build: (opts) => {
+    const rnd = seeded(opts?.seed ?? 9);
+    const s = new ShapeBuilder();
+    // A post with a cap and two arrow boards pointing different ways, with a tuft at the foot.
+    s.rbox(-0.025, 0, -0.025, 0.025, 0.47, 0.025, palette.timber, 0.008);
+    s.cylinder(0, 0, 0.035, 0, 0.47, 0.52, palette.darkWood, 4, Math.PI / 4);
+    const board = (y: number, dir: number, hex: number): void => {
+      const x0 = dir > 0 ? 0.0 : -0.2;
+      const x1 = dir > 0 ? 0.2 : 0.0;
+      s.rbox(x0, y - 0.035, 0.025, x1, y + 0.035, 0.045, hex, 0.008);
+      const tip = dir > 0 ? x1 : x0;
+      s.tri([tip, y - 0.035, 0.045], [tip, y + 0.035, 0.045], [tip + dir * 0.04, y, 0.045], hex, [0, 0, 1]);
+      s.tri([tip, y - 0.035, 0.025], [tip, y + 0.035, 0.025], [tip + dir * 0.04, y, 0.025], hex, [0, 0, -1]);
+    };
+    board(0.38, 1, vary(palette.wood, rnd));
+    board(0.29, -1, vary(palette.plasterCream, rnd, 0.5));
+    s.blob(0, 0.03, 0, 0.06, 0.03, 0.06, palette.leaf, 0);
+    return s.build();
+  },
 };
