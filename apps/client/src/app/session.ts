@@ -8,6 +8,7 @@ import type { RoomConnection } from '../net/connection';
 import { LocalRoom } from '../net/local';
 import { OnlineRoom } from '../net/online';
 import { Renderer, type Quality } from '../render/renderer';
+import { loadProfile, profileUpdate } from './profile';
 import { Mirror, type MirrorChange } from '../state/mirror';
 import { rejectText } from '../ui/messages';
 import { createUiState } from '../ui/state';
@@ -126,7 +127,11 @@ export class Session {
     if (this.connection) this.connection.status.value = 'live';
     // Start in the lens this seat prefers; Tab still swaps freely afterwards.
     const mine = this.mirror.seats.value.find((v) => v.seat === this.seat);
-    if (mine) this.ui.lens.value = mine.lens;
+    if (mine) {
+      this.ui.lens.value = mine.lens;
+      const update = profileUpdate(loadProfile(), mine);
+      if (update) this.submit({ t: 'seat.setProfile', ...update, lens: mine.lens });
+    }
     this.phase.value = 'ready';
     updateRecent(this.target.valleyId, {
       name: w.valley.settings.townName,
