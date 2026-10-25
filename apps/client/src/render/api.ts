@@ -42,4 +42,9 @@ export interface RenderApi {
   ping(seat: SeatId, x: number, z: number, kind: 'look' | 'help' | 'build'): void;
   focus(x: number, z: number, distance?: number): void;
   setQuality(q: 'low' | 'medium' | 'high'): void;
+  /**
+   * C2 addition: a world point (tile units; y in world units) to canvas CSS pixels, for name labels
+   * and off-screen arrows. `onScreen` is false when the point is outside the view or behind it.
+   */
+  project?(x: number, y: number, z: number): { x: number; y: number; onScreen: boolean } | null;
 }

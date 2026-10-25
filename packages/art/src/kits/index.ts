@@ -32,4 +32,4 @@ export const kits: readonly Kit[] = [
 
 export const kitById: ReadonlyMap<string, Kit> = new Map(kits.map((k) => [k.id, k]));
 
-export type { Kit, KitBuildOptions } from './types';
+export type { Kit, KitAnchors, KitBuildOptions, KitPart } from './types';
