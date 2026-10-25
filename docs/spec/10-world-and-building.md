@@ -49,7 +49,7 @@ Deterministic from `seed` (string) using the `worldgen` RNG stream. Must finish 
 
 Output: map layers, metadata (`startArea` rect, `valleyGate` tile, flow axis), and nothing else. Generation is pure: same seed, same valley, on every machine.
 
-C2A implements all steps behind `generateValley(seed, settings)`. Noise is damped near the river so banks stay buildable, and the start area is levelled to its median height plus or minus 1. Validation retries up to 5 times with `seed + ":r" + n` when no start window free of rock and water exists; the last attempt keeps a fallback window. `valleyNameFor(seed)` names the valley from the content word lists (`valleyNamePrefixes`, `valleyNameSuffixes`).
+C2A implements all steps behind `generateValley(seed, settings)`, with a softer storybook shape: the river centerline is two low octaves of value noise (64 and 28 tiles) around a seeded middle, smoothed over 9 tiles and limited to 0.7 tiles of drift per step, always 3 wide with a deep middle; banks are sand at `d = 1` and patchily at `d = 2`; height uses octaves at 48, 24 and 12 tiles (amplitudes 5, 2, 0.6), terraces `base(d) = 1` to `d <= 3` then `1 + (d - 3) / 10` capped at 8, plus a rise of up to 3.5 levels within 34 tiles of the border, so slopes inside the valley are almost always 1 or less. Noise is damped near the river so banks stay buildable, and the start area is levelled to its median height plus or minus 1. Validation retries up to 5 times with `seed + ":r" + n` when no start window free of rock and water exists; the last attempt keeps a fallback window. `valleyNameFor(seed)` names the valley from the content word lists (`valleyNamePrefixes`, `valleyNameSuffixes`).
 
 ## Terrain rules
 
