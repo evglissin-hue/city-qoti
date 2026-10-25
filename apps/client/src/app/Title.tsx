@@ -4,6 +4,7 @@ import { createOnlineValley } from '../net/api';
 import { LocalRoom } from '../net/local';
 import { copy, welcomeLine } from '../ui/copy';
 import { ago } from '../ui/format';
+import { loadProfile, saveProfile, SWATCHES, type PlayerProfile } from './profile';
 import { listRecent, rememberValley, type RecentValley } from './recent';
 import type { SessionTarget } from './session';
 
@@ -23,6 +24,11 @@ export function Title({ onStart }: { onStart: (t: SessionTarget, opts?: { invite
   const [seed, setSeed] = useState('');
   const [town, setTown] = useState('');
   const welcome = useMemo(() => welcomeLine(), []);
+  const [profile, setProfileState] = useState<PlayerProfile>(() => loadProfile());
+  const setProfile = (p: PlayerProfile) => {
+    setProfileState(p);
+    saveProfile(p);
+  };
   const recent = listRecent();
   const invited = recent.find((v) => v.pending);
   const others = recent.filter((v) => !v.pending);
@@ -87,6 +93,33 @@ export function Title({ onStart }: { onStart: (t: SessionTarget, opts?: { invite
         </h1>
         <p class="tagline">{copy.title.tagline}</p>
         <p class="welcome muted">{welcome}</p>
+        <fieldset class="you">
+          <label>
+            {copy.title.yourName}
+            <input
+              value={profile.name}
+              maxLength={24}
+              placeholder={copy.title.yourNamePlaceholder}
+              data-testid="your-name"
+              onInput={(e) => setProfile({ ...profile, name: (e.target as HTMLInputElement).value })}
+            />
+          </label>
+          <div class="swatches" role="radiogroup" aria-label={copy.title.yourColor}>
+            <span class="swatch-label">{copy.title.yourColor}</span>
+            {SWATCHES.map((c) => (
+              <button
+                key={c}
+                type="button"
+                role="radio"
+                aria-checked={profile.color === c}
+                class={`swatch ${profile.color === c ? 'active' : ''}`}
+                style={{ '--swatch': `#${c.toString(16).padStart(6, '0')}` }}
+                data-testid={`swatch-${c.toString(16)}`}
+                onClick={() => setProfile({ ...profile, color: c })}
+              />
+            ))}
+          </div>
+        </fieldset>
         {invited && (
           <div class="invite-banner">
             <p>{copy.title.invited}</p>
@@ -100,6 +133,18 @@ export function Title({ onStart }: { onStart: (t: SessionTarget, opts?: { invite
               {copy.title.join}
             </button>
           </div>
+        )}
+        {!invited && (
+          <label class="town">
+            {copy.title.townName}
+            <input
+              value={town}
+              maxLength={32}
+              placeholder={copy.title.townPlaceholder}
+              data-testid="town-name"
+              onInput={(e) => setTown((e.target as HTMLInputElement).value)}
+            />
+          </label>
         )}
         <div class="title-actions">
           <button
@@ -116,16 +161,7 @@ export function Title({ onStart }: { onStart: (t: SessionTarget, opts?: { invite
           </button>
         </div>
         <details class="title-options">
-          <summary>{copy.title.options}</summary>
-          <label>
-            {copy.title.townName}
-            <input
-              value={town}
-              maxLength={32}
-              placeholder={copy.title.townPlaceholder}
-              onInput={(e) => setTown((e.target as HTMLInputElement).value)}
-            />
-          </label>
+          <summary>{copy.title.more}</summary>
           <label>
             {copy.title.seed}
             <input

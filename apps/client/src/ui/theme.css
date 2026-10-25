@@ -850,3 +850,51 @@ kbd {
   margin: -4px 0 4px;
   text-align: center;
 }
+
+.you {
+  border: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 10px;
+}
+
+.you label,
+.title-card label.town {
+  display: grid;
+  gap: 4px;
+  font-size: 0.92rem;
+  font-weight: 700;
+}
+
+.swatches {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.swatch-label {
+  font-size: 0.92rem;
+  font-weight: 700;
+  margin-right: 4px;
+}
+
+.swatch {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border-radius: 50%;
+  background: var(--swatch);
+  border: 2px solid var(--ink-line);
+  box-shadow: 0 2px 0 rgba(90, 66, 49, 0.18);
+}
+
+.swatch:hover:not(:disabled) {
+  background: var(--swatch);
+}
+
+.swatch.active {
+  box-shadow:
+    0 0 0 3px var(--paper-light),
+    0 0 0 5px var(--ink-line);
+}
