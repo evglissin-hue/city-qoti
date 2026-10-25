@@ -2,6 +2,7 @@
 // materials and renderOrder, not from this list.
 import { buildingsLayer } from './buildings';
 import { decorLayer } from './decor';
+import { effectsLayer } from './effects';
 import { ghostsLayer } from './ghosts';
 import { notesLayer } from './notes';
 import { presenceLayer } from './presence';
@@ -15,6 +16,7 @@ import { waterLayer } from './water';
 export const layerFactories: readonly LayerFactory[] = [
   buildingsLayer,
   decorLayer,
+  effectsLayer,
   ghostsLayer,
   notesLayer,
   presenceLayer,
@@ -24,6 +26,7 @@ export const layerFactories: readonly LayerFactory[] = [
   waterLayer,
 ];
 
+export type { EffectsLayer } from './effects';
 export type { GhostLayer } from './ghosts';
 export type { PresenceLayer } from './presence';
 export type { LayerContext, LayerFactory, RenderLayer } from './types';

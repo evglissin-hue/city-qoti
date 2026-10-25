@@ -44,13 +44,16 @@ export function decorGeometry(defId: string): BufferGeometry {
 
 const SPECIES_KIT = ['', 'oak', 'birch', 'pine'];
 
-/** Forest tree geometry by tree-layer species index (1 oak, 2 birch, 3 pine). */
-export function treeGeometry(species: number): BufferGeometry {
-  const key = `tree:${species}`;
+/**
+ * Forest tree geometry by tree-layer species index (1 oak, 2 birch, 3 pine) and growth stage
+ * (0 to 3; the kit scales and shapes each stage).
+ */
+export function treeGeometry(species: number, stage = 3): BufferGeometry {
+  const key = `tree:${species}:${stage}`;
   let g = cache.get(key);
   if (!g) {
     const kit = kitById.get(SPECIES_KIT[species] ?? '');
-    g = kit ? kit.build() : missing();
+    g = kit ? kit.build({ stage }) : missing();
     cache.set(key, g);
   }
   return g;
