@@ -204,6 +204,7 @@ export class RoomCore {
     this.clients.delete(conn);
     const wasActive = c.phase === 'joining' || c.phase === 'live';
     c.phase = 'closed';
+    if (this.resyncFrom === c) this.resyncFrom = null;
     if (wasActive && c.seat !== null && this.seats.get(c.seat) === c) {
       this.seats.delete(c.seat);
       this.pendingSys.push({ seat: c.seat, seq: 0, cmd: { t: 'sys.seatLeft', seat: c.seat } });
