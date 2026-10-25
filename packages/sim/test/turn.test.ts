@@ -100,8 +100,8 @@ describe('applyTurn', () => {
 });
 
 describe('systems and views', () => {
-  it('registers the clock system', () => {
-    expect(systems.map((s) => s.id)).toEqual(['clock']);
+  it('registers the clock and trees systems', () => {
+    expect(systems.map((s) => s.id)).toEqual(['clock', 'trees']);
   });
 
   it('builds a complete view snapshot with copied layers', () => {

@@ -39,7 +39,7 @@ Deterministic from `seed` (string) using the `worldgen` RNG stream. Must finish 
 2. **Distance field.** Chamfer distance `d` from every tile to the nearest water tile.
 3. **Height.** `h = clamp(floor(base(d) + n), 0, 12)` where `base(d) = 0` for water, `1` for `d <= 2`, then `1 + (d - 2) / 6` capped at 10, and `n` is 3-octave value noise (scales 32, 16, 8 tiles; amplitudes 3, 1.5, 0.75; centered on 0). A 6-tile border ring becomes `mountain` at heights 13 to 15.
 4. **Terrain.** `sand` on bank tiles (`d = 1`) where a noise channel exceeds 0.5; `rock` where the local slope (max height difference to a 4-neighbor) is at least 3 or `h >= 11`; `meadow` where `h <= 3` and a moisture channel exceeds 0.55; `forestFloor` under the forest mask; otherwise `grass`.
-5. **Forest.** Mask: noise at 24-tile scale above 0.55, `d >= 6`, `h <= 11`. 70% of masked tiles get a tree; 3% of grass tiles get a lone tree. Species by height: `h <= 3` oak 60% / birch 40%; `4..8` oak 50% / pine 50%; `>= 9` pine. 80% mature, the rest random stages.
+5. **Forest.** Mask: noise at 24-tile scale above 0.55, `d >= 6`, `h <= 11`. Density has soft edges: about 35% at the rim of the mask rising to 85% at its heart, with a sparse fringe (14%) on grass just outside it and 2.5% lone trees elsewhere. Clearings (a 10-tile noise channel above 0.74 inside the mask) become meadow glades. Species by height: `h <= 3` oak 60% / birch 40%; `4..8` oak 50% / pine 50%; `>= 9` pine. Wild trees start mature; only planted saplings grow.
 6. **Deposits.** Stone clusters on and around rock (cluster noise), clay clusters on bank and sand tiles. Guarantee at least 2 stone clusters of 12+ tiles and 1 clay cluster within 40 tiles of the start area; if missing, stamp one deterministically.
 7. **Fertility.** `100 - 3d` near the river (floor 20), +15 on meadow, -30 on forest floor, -60 on rock, plus noise, clamped 0 to 100.
 8. **Start area.** Search, in deterministic order, for a 24 x 24 window 6 to 14 tiles from the river in the middle third of the map with height spread at most 2 and no rock. Clear trees in its central 16 x 16. Set `flags.startArea`.
@@ -49,7 +49,7 @@ Deterministic from `seed` (string) using the `worldgen` RNG stream. Must finish 
 
 Output: map layers, metadata (`startArea` rect, `valleyGate` tile, flow axis), and nothing else. Generation is pure: same seed, same valley, on every machine.
 
-I0 ships worldgen v0 (C1) behind `generateValley(seed, settings)`: steps 1 to 5, 7, 8 and 9 in simplified form (noise is damped near the river so banks stay buildable, and the start area is levelled to its median height plus or minus 1). Deposits, parcels and validation with regeneration arrive with C2A.
+C2A implements all steps behind `generateValley(seed, settings)`. Noise is damped near the river so banks stay buildable, and the start area is levelled to its median height plus or minus 1. Validation retries up to 5 times with `seed + ":r" + n` when no start window free of rock and water exists; the last attempt keeps a fallback window. `valleyNameFor(seed)` names the valley from the content word lists (`valleyNamePrefixes`, `valleyNameSuffixes`).
 
 ## Terrain rules
 
