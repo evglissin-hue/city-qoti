@@ -62,6 +62,7 @@ export class Session {
   private presence = { key: '', sentAt: 0, timer: 0 as ReturnType<typeof setTimeout> | 0 };
   private lastSpeed: Speed = 1;
   private nextToast = 1;
+  private resyncTimes: number[] = [];
   private readonly onPageHide = () => this.connection?.close();
 
   constructor(readonly target: SessionTarget) {}
@@ -111,6 +112,11 @@ export class Session {
   /** After a desync: start over from the room's trusted snapshot, quietly, then carry on. */
   private async resync(r: Extract<S2C, { k: 'resync' }>): Promise<void> {
     this.debug.resyncs++;
+    const now = Date.now();
+    this.resyncTimes = [...this.resyncTimes.filter((at) => now - at < 3_600_000), now];
+    if (this.resyncTimes.length === 3) {
+      this.toast('The valley had to mend itself three times this hour. That is a bug; please tell us.');
+    }
     const turns = [...r.log];
     const covered = turns[turns.length - 1]?.t ?? r.snapshot.t;
     if (r.nextTurn - 1 > covered) turns.push({ t: r.nextTurn - 1, cmds: [] });
