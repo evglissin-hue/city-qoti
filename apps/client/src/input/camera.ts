@@ -112,7 +112,9 @@ export class CameraController {
     on(el, 'pointerdown', (e) => {
       if (e.button !== 1 && e.button !== 2) return;
       e.preventDefault();
-      this.drag = { mode: e.button === 2 ? 'rotate' : 'pan', x: e.clientX, y: e.clientY, id: e.pointerId };
+      // Shift+right-drag pans too, for mice without a middle button.
+      const mode = e.button === 2 && !e.shiftKey ? 'rotate' : 'pan';
+      this.drag = { mode, x: e.clientX, y: e.clientY, id: e.pointerId };
       el.setPointerCapture(e.pointerId);
     });
     on(el, 'pointermove', (e) => {
@@ -265,6 +267,7 @@ export class CameraController {
     const px = (k.has('d') || k.has('arrowright') ? 1 : 0) - (k.has('a') || k.has('arrowleft') ? 1 : 0);
     const pz = (k.has('s') || k.has('arrowdown') ? 1 : 0) - (k.has('w') || k.has('arrowup') ? 1 : 0);
     if (px || pz) {
+      this.smooth = SMOOTH_INPUT;
       const yaw = this.goal.yaw;
       this.goal.x += (Math.cos(yaw) * px + Math.sin(yaw) * pz) * pan;
       this.goal.z += (-Math.sin(yaw) * px + Math.cos(yaw) * pz) * pan;
