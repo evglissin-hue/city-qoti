@@ -169,7 +169,15 @@ describe('I0 contracts', () => {
 
   it('client interfaces', () => {
     expectTypeOf<keyof RenderApi>().toEqualTypeOf<
-      'pickTile' | 'pickEntity' | 'setGhost' | 'setOverlay' | 'setPresence' | 'ping' | 'focus' | 'setQuality'
+      | 'pickTile'
+      | 'pickEntity'
+      | 'setGhost'
+      | 'setOverlay'
+      | 'setPresence'
+      | 'ping'
+      | 'focus'
+      | 'setQuality'
+      | 'project'
     >();
     expectTypeOf<Ghost['kind']>().toExtend<string>();
     expectTypeOf<ToWorker['k']>().toEqualTypeOf<'init' | 'turns' | 'snapshot' | 'hash'>();
