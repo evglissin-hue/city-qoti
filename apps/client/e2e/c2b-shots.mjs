@@ -26,13 +26,17 @@ async function shot(hour, name, setup) {
   });
   await page.waitForTimeout(2500);
   for (const [n, fn] of setup) {
-    if (fn)
-      (await page.keyboard.down(fn[0]), await page.waitForTimeout(fn[1]), await page.keyboard.up(fn[0]));
+    if (fn) {
+      await page.keyboard.down(fn[0]);
+      await page.waitForTimeout(fn[1]);
+      await page.keyboard.up(fn[0]);
+    }
     await page.waitForTimeout(1200);
     await page.screenshot({ path: `${out}/c2b-render-${name}-${n}.png`, timeout: 120000 });
   }
   await page.close();
 }
 
+await shot(13, 'midday', [['wide', null]]);
 await shot(19.5, 'dusk', [['wide', null]]);
 await browser.close();
