@@ -6,20 +6,42 @@ import { isTile, MAX_DECOR_RADIUS } from './geometry';
 
 /**
  * Can a run of tiles be painted as `kind`? Any bad tile rejects the whole run and is reported
- * as firstBadTile. Bridges (roads over water) arrive with C2A.
+ * as firstBadTile. Water tiles form a bridge: at most MAX_BRIDGE_TILES in a straight line, with
+ * land at both ends at height 0 or 1.
  */
+/** Longest bridge, in water tiles. */
+export const MAX_BRIDGE_TILES = 6;
+
 export function canPaintRoad(reader: MapReader, kind: RoadKind, tiles: [number, number][]): RoadPlacement {
   if (kind !== 'path' && kind !== 'lane') return { ok: false, reason: 'INVALID' };
   if (!Array.isArray(tiles) || tiles.length === 0) return { ok: false, reason: 'INVALID' };
   if (tiles.length > MAX_ROAD_TILES) return { ok: false, reason: 'TOO_MANY' };
   let prev: [number, number] | null = null;
-  for (const tile of tiles) {
+  for (let k = 0; k < tiles.length; k++) {
+    const tile = tiles[k]!;
     if (!isTile(tile)) return { ok: false, reason: 'INVALID' };
     const [x, z] = tile;
     const bad = (reason: RejectReason): RoadPlacement => ({ ok: false, reason, firstBadTile: [x, z] });
     if (!inBounds(x, z, reader.size)) return bad('OUT_OF_BOUNDS');
     if (!reader.parcelUnlocked(x, z)) return bad('LOCKED_PARCEL');
-    if (reader.water(x, z)) return bad('WATER');
+    if (reader.water(x, z) && !(prev && reader.water(prev[0], prev[1]))) {
+      // The first water tile of a span: the whole span must make a sound bridge.
+      let end = k;
+      while (end < tiles.length && isTile(tiles[end]) && reader.water(tiles[end]![0], tiles[end]![1])) end++;
+      const before = prev;
+      const after = end < tiles.length && isTile(tiles[end]) ? tiles[end]! : null;
+      const lowLand = (t: [number, number] | null) =>
+        !!t && !reader.water(t[0], t[1]) && reader.height(t[0], t[1]) <= 1;
+      const straight = (t: [number, number] | null) => !!t && (t[0] === x || t[1] === z);
+      if (
+        end - k > MAX_BRIDGE_TILES ||
+        !lowLand(before) ||
+        !lowLand(after) ||
+        !straight(before) ||
+        !straight(after)
+      )
+        return bad('WATER');
+    }
     if (reader.occupant(x, z)) return bad('OCCUPIED');
     const cx = x * TILE_FP + TILE_FP / 2;
     const cz = z * TILE_FP + TILE_FP / 2;
