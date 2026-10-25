@@ -7,7 +7,7 @@ import type { PointerInfo } from '../input/tool';
 import type { RoomConnection } from '../net/connection';
 import { LocalRoom } from '../net/local';
 import { OnlineRoom } from '../net/online';
-import { Renderer, type Quality } from '../render/renderer';
+import { Renderer } from '../render/renderer';
 import { loadProfile, profileUpdate } from './profile';
 import { Mirror, type MirrorChange } from '../state/mirror';
 import { rejectText } from '../ui/messages';
@@ -15,6 +15,7 @@ import { createUiState } from '../ui/state';
 import type { InitSource } from '../worker/messages';
 import { SimHost } from '../worker/host';
 import { updateRecent } from './recent';
+import { initialQuality } from './quality';
 
 export interface SessionTarget {
   valleyId: string;
@@ -171,8 +172,7 @@ export class Session {
 
   private mount(): void {
     if (!this.container) return;
-    const quality = (new URLSearchParams(location.search).get('quality') as Quality | null) ?? 'medium';
-    const renderer = new Renderer(this.container, this.mirror, quality);
+    const renderer = new Renderer(this.container, this.mirror, initialQuality());
     this.renderer = renderer;
     const ctx: ToolContext = {
       mirror: this.mirror,

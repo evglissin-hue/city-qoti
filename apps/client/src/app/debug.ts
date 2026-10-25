@@ -150,6 +150,15 @@ export function installDebugHook(getSession: () => Session | null): void {
         host.terminate();
       }
     },
+    /** Glides the camera to the start area at `distance`, for screenshots. */
+    focusStart: (distance = 18) => {
+      const session = s();
+      if (!session) return;
+      const [x0, z0, x1, z1] = session.mirror.meta.startArea;
+      session.renderer?.focus((x0 + x1) / 2, (z0 + z1) / 2, distance);
+    },
+    /** Pins the lighting to an hour of the day (null follows the clock again). */
+    setHour: (hour: number | null) => s()?.renderer?.setDebugHour(hour),
   };
   (window as unknown as { __qoti: typeof hook }).__qoti = hook;
 }
