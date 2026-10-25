@@ -31,6 +31,25 @@ export function inviteFragment(valleyId: string, seat: number, token: string): s
   return `#v=${encodeURIComponent(valleyId)}&s=${seat}&k=${encodeURIComponent(token)}`;
 }
 
+/**
+ * Valley settings with defaults filled in. Mirrors defaultSettings() in @qoti/sim (the protocol
+ * may not import sim code); a client test keeps the two in step.
+ */
+export function normalizeSettings(partial: Partial<ValleySettings> = {}): ValleySettings {
+  const pick = <T extends string>(value: unknown, allowed: readonly T[], fallback: T): T =>
+    allowed.includes(value as T) ? (value as T) : fallback;
+  const name = (value: unknown, fallback: string) =>
+    typeof value === 'string' && value.trim() ? value.trim().slice(0, 32) : fallback;
+  return {
+    mode: pick(partial.mode, ['sandbox', 'standard'], 'sandbox'),
+    economy: pick(partial.economy, ['gentle', 'standard', 'thoughtful'], 'gentle'),
+    threat: pick(partial.threat, ['peaceful', 'standard', 'fierce'], 'peaceful'),
+    togetherOnly: partial.togetherOnly === true,
+    townName: name(partial.townName, 'Qoti'),
+    valleyName: name(partial.valleyName, 'Riverbend'),
+  };
+}
+
 /** Body of POST /api/valleys. */
 export interface CreateValleyRequest {
   seed?: string;
@@ -44,4 +63,22 @@ export interface CreateValleyResponse {
   tokens: string[];
   /** Fragments (#v=...&s=...&k=...) the client turns into invite links. */
   invites: string[];
+}
+
+/** Handles POST /api/valleys for any adapter: fills in settings, writes the meta, builds invites. */
+export async function createValley(
+  storage: RoomStorage,
+  valleyId: string,
+  body: CreateValleyRequest,
+  now: number,
+): Promise<CreateValleyResponse> {
+  const settings = normalizeSettings(typeof body.settings === 'object' && body.settings ? body.settings : {});
+  const seed = typeof body.seed === 'string' ? body.seed : undefined;
+  const v = await initValley(storage, { valleyId, seed, settings, now });
+  return {
+    valleyId,
+    seed: v.seed,
+    tokens: v.tokens,
+    invites: v.tokens.map((token, seat) => inviteFragment(valleyId, seat, token)),
+  };
 }

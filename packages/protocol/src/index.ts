@@ -11,8 +11,10 @@ export {
 } from './storage';
 export { randomId, sameHash, sha256Hex } from './tokens';
 export {
+  createValley,
   initValley,
   inviteFragment,
+  normalizeSettings,
   type CreateValleyRequest,
   type CreateValleyResponse,
   type NewValley,
