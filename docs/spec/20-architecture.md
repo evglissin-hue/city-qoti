@@ -121,7 +121,7 @@ interface TickCtx {
 
 `applyTurn(state, turn, ctx)`: apply the turn's commands in order, then run `effectiveSpeed(state)` ticks. Each tick runs the systems whose schedule matches, in `order`. Spread heavy hourly and daily work with offsets.
 
-`effectiveSpeed` = minimum desired speed over connected seats; 0 if none connected; 0 if `settings.togetherOnly` and fewer than 2 seats are connected (and then only notes, plans and profile commands are accepted).
+`effectiveSpeed` = minimum desired speed over connected seats; 0 if none connected; 0 if `settings.togetherOnly` and fewer than 2 seats are connected (and then only notes, plans and profile commands are accepted, plus `time.setSpeed` and `valley.setSettings`, so a seat on its own can still turn together only off).
 
 ### Determinism rules (packages/sim only)
 
@@ -140,7 +140,7 @@ sfc32 per stream, seeded from `cyrb128(seed + ':' + streamName)`. State lives in
 
 ### Serialization, hashing, versions
 
-- `serialize(state) -> Uint8Array`: JSON where typed arrays are base64, then gzip (CompressionStream). `deserialize` reverses it and rebuilds indexes.
+- `serialize(state) -> Uint8Array`: JSON where typed arrays are base64 (32-bit layers little-endian), then gzip. The sim uses fflate's synchronous gzip so it stays free of async (CompressionStream is async only); the bytes are standard gzip. `deserialize` reverses it and rebuilds indexes (the decor spatial hash lives in a derived index, never in saved state).
 - `hashState(state) -> string`: 64-bit FNV-1a (two 32-bit lanes) over typed array bytes and the JSON of the rest. Clients compare hashes every 50 turns.
 - `SAVE_VERSION` (integer): bump whenever the shape of saved state changes, and add `migrations[n]: (save) => save` with a test.
 - `simVersion` (string): a hash of `packages/sim/src` and `packages/content/src`, generated at build time into `version.generated.ts` (gitignored). Two clients can share a valley only with the same `simVersion`.
@@ -163,7 +163,7 @@ interface MapReader {
 
 ## I0 contracts
 
-Defined in cycle 01, then changed only additively (see `31-parallel-development.md`).
+Defined in cycle 01, then changed only additively (see `31-parallel-development.md`). C1 also made these contracts: `contracts/state.ts` (`WorldState` and its parts), `contracts/map.ts` (`MapReader` and the placement results below) and `contracts/sim.ts` (`Rng`, `RngStream`, `DirtyTracker`, `TickCtx`, `CommandHandler`, `System`). Members marked "C1 addition" below were added while building C1.
 
 ```ts
 // packages/sim/src/contracts/ids.ts
@@ -247,15 +247,16 @@ interface LayerPatch { layer: LayerName; rect: Rect; data: Uint8Array | Int32Arr
 // apps/client/src/worker/messages.ts
 type ToWorker =
   | { k: 'init'; source: { kind: 'new'; seed: string; settings: ValleySettings }
-                       | { kind: 'snapshot'; data: Uint8Array } }
+                       | { kind: 'snapshot'; data: Uint8Array };
+      turns?: Turn[] }                                                 // C1 addition: catch-up applied before ready
   | { k: 'turns'; turns: Turn[] }
   | { k: 'snapshot'; reqId: number }
-  | { k: 'hash' };
+  | { k: 'hash'; reqId?: number };                                   // C1 addition: reqId
 type FromWorker =
   | { k: 'ready'; view: ViewSnapshot }
-  | { k: 'update'; t: number; events: SimEvent[]; patches: LayerPatch[] }
+  | { k: 'update'; t: number; tick?: number; events: SimEvent[]; patches: LayerPatch[] }  // C1 addition: tick
   | { k: 'agents'; t: number; data: Float32Array }                     // I1
-  | { k: 'hash'; t: number; h: string }                                // every 50 turns
+  | { k: 'hash'; t: number; h: string; reqId?: number }               // every 50 turns, or a reply
   | { k: 'snapshot'; reqId: number; t: number; data: Uint8Array }
   | { k: 'error'; message: string };
 
@@ -268,13 +269,19 @@ interface RoomConnection {
   sendPresence(p: PresenceUpdate): void;
   close(): void;
   status: Signal<'connecting' | 'catching-up' | 'live' | 'offline'>;
+  // C1 additions
+  onWelcome(cb: (w: Welcome) => void): void;                          // snapshot, log, nextTurn, valley
+  onNeedSnapshot(cb: (reason: 'periodic' | 'desync' | 'version') => void): void;
+  onError(cb: (code: ErrorCode, message: string) => void): void;
+  sendSnapshot(s: { t: number; simVersion: string; data: Uint8Array }): void;
+  sendHash(t: number, h: string): void;
 }
 
 // apps/client/src/render/api.ts
 interface RenderApi {
   pickTile(clientX: number, clientY: number): { x: number; z: number; fx: number; fz: number; h: number } | null;
   pickEntity(clientX: number, clientY: number): { kind: 'building' | 'decor' | 'note' | 'tree'; id: number } | null;
-  setGhost(g: Ghost | null): void;      // building, decor, road run, tree; valid or invalid
+  setGhost(g: Ghost | null): void;      // building, decor, decor run, road run, tree, tiles; valid or invalid
   setOverlay(kind: string | null): void;
   setPresence(seat: SeatId, p: { x: number; z: number; tool?: string } | null): void;
   ping(seat: SeatId, x: number, z: number, kind: 'look' | 'help' | 'build'): void;
@@ -288,6 +295,8 @@ interface Tool {
   enter?(): void; exit?(): void;
   pointerMove?(p: PointerInfo): void; pointerDown?(p: PointerInfo): void; pointerUp?(p: PointerInfo): void;
   key?(e: KeyboardEvent): boolean;
+  variants?: { id: string; label: string }[]; variant?: Signal<string>;  // C1 additions
+  hint?: string; order?: number;
 }
 ```
 
@@ -335,5 +344,5 @@ interface DecorDef {
 
 ## Debugging
 
-- `?debug` in the URL shows a dev overlay: fps, frame ms, sim ms per tick, turn lag, hash, entity counts.
+- `?debug` in the URL shows a dev overlay (fps, frame ms, draw calls, triangles, turn, hash, entity counts; sim ms per tick and turn lag arrive with C2D) and exposes `window.__qoti` for tests: mirror counts, last turn, hashes by turn, clocks and helpers that find valid on-screen spots. `?quality=low|medium|high` picks the render quality.
 - On desync, both clients save a debug dump (snapshot and recent turns) that can be downloaded from the overlay.

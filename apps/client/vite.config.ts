@@ -26,7 +26,8 @@ function versionJson(): Plugin {
 
 export default defineConfig({
   oxc: { jsx: { runtime: 'automatic', importSource: 'preact' } },
-  server: { port: 5173, strictPort: true, proxy: relay },
+  // host: true lets a second laptop on the same network join during development.
+  server: { port: 5173, strictPort: true, host: true, proxy: relay },
   preview: { port: 4173, strictPort: true, proxy: relay },
   worker: { format: 'es' },
   build: { target: 'es2022', sourcemap: true, chunkSizeWarningLimit: 1500 },
