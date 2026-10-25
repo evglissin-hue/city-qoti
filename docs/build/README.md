@@ -1,15 +1,15 @@
 # Build board
 
-One row per cycle. A cycle is one agent session working from one brief on one branch, ending in one PR into `main`. How cycles work: `docs/spec/31-parallel-development.md`.
+One row per cycle. A cycle is one agent session working from one brief on one branch, ending in one PR into `main`. Wave 2 of I0 ran as six parallel agents (C2B and C2D were each split in two) and landed as one integration PR stacked on #1. How cycles work: `docs/spec/31-parallel-development.md`.
 
 | Cycle | Iteration | Wave | Brief | Depends on | Status |
 |---|---|---|---|---|---|
 | C1 Foundation | I0 | serial | `cycle-01-foundation.md` | none | PR open ([#1](https://github.com/evglissin-hue/city-qoti/pull/1)) |
-| C2A World and sim | I0 | parallel | `cycle-02a-world-sim.md` | C1 | waiting |
-| C2B Render and art kit | I0 | parallel | `cycle-02b-render-kit.md` | C1 | waiting |
-| C2C Co-op and saves | I0 | parallel | `cycle-02c-coop-saves.md` | C1 | waiting |
-| C2D Client UX | I0 | parallel | `cycle-02d-client-ux.md` | C1 | waiting |
-| C2X I0 integration | I0 | integration | `cycle-02x-integration.md` | C2A to C2D | waiting |
+| C2A World and sim | I0 | parallel | `cycle-02a-world-sim.md` | C1 | PR open ([#2](https://github.com/evglissin-hue/city-qoti/pull/2)), partial: remainder listed in the PR |
+| C2B Render and art kit | I0 | parallel | `cycle-02b-render-kit.md` | C1 | PR open ([#2](https://github.com/evglissin-hue/city-qoti/pull/2)), partial: remainder listed in the PR |
+| C2C Co-op and saves | I0 | parallel | `cycle-02c-coop-saves.md` | C1 | PR open ([#2](https://github.com/evglissin-hue/city-qoti/pull/2)), partial: remainder listed in the PR |
+| C2D Client UX | I0 | parallel | `cycle-02d-client-ux.md` | C1 | PR open ([#2](https://github.com/evglissin-hue/city-qoti/pull/2)), partial: remainder listed in the PR |
+| C2X I0 integration | I0 | integration | `cycle-02x-integration.md` | C2A to C2D | PR open ([#2](https://github.com/evglissin-hue/city-qoti/pull/2)); deploy, the 30-minute session and the I1 brief review remain |
 | C3.0 Hamlet contracts | I1 | serial | `cycle-03-0-hamlet-contracts.md` | C2X | waiting |
 | C3A Residents | I1 | parallel | `cycle-03a-residents.md` | C3.0 | waiting |
 | C3B Hearth v1 | I1 | parallel | `cycle-03b-hearth-v1.md` | C3.0 | waiting |
