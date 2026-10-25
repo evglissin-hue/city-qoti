@@ -1,0 +1,75 @@
+# 16. Co-op
+
+One shared town, co-owned, two laptops (P7 to P14). Everything here is designed for exactly two seats; the protocol allows up to four so nothing breaks if a guest ever joins.
+
+## Seats
+
+- A valley has seats 0 and 1. Each seat has a display name, a color (one of 6 palettes), a preferred lens and `lastSeenTick`.
+- Seat profile changes go through `seat.setProfile` so both screens agree.
+- Each seat joins with a private link containing its seat token. No accounts (P52).
+
+## Creating and joining [I0]
+
+Title screen:
+
+- **New valley**: choose a seed (or random), valley type (river valley in I0), difficulty dials, your name, color and lens, and name the town. Online valleys are created on the server and show an invite link for seat 1 with a copy button.
+- **Join**: open the invite link.
+- **Continue**: recent valleys stored locally (name, last played, link).
+- **Solo offline valley**: runs entirely in the browser with IndexedDB saves. Can be moved online later [I2].
+
+## Presence [I0]
+
+Ephemeral, never part of sim state (`21-networking-and-saves.md`).
+
+- The partner's cursor appears as a small lantern in their color with their name, and their active tool icon.
+- "Go to partner" button; partner camera footprint on the minimap [I2].
+- **Pings**: Alt+click (or the ping tool): Look here, Help, Build here. A ripple, a soft sound, and an edge arrow when off screen.
+- **Emotes** (8): wave, heart, laugh, thinking, thumbs up, celebrate, sleepy, "tea?". Shown above the partner's cursor.
+
+## Notes [I0]
+
+- Pin a note to a tile: up to 200 characters, colored by author, persistent (sim state via `note.pin`).
+- Either seat can resolve or remove a note. Unread notes for you show a badge.
+
+## Plans layer [I2]
+
+- A plan is a named set of proposed commands drawn as translucent blueprint ghosts in ink-blue, with its author.
+- Actions: comment (a short thread), edit, approve, discard. Approving executes the commands in order where still valid and affordable and reports any that were skipped.
+- Either seat may approve, including its own plans; plans the partner has not seen are marked "not yet seen by <partner>". Plans are a tool for talking, not a gate.
+
+## Requests [I2]
+
+- Structured requests between seats: goods (good, quantity, by when, where), charm (an area and a target charm), or free text.
+- Tracked in a Requests panel; goods and charm requests complete automatically when met. Fulfilled requests count toward Together achievements.
+
+## Guardrails
+
+- Every entity records `builtBy` (seat) and whether it is handmade (decor, customization, landmarks).
+- **Removing the partner's handmade work** [I0] asks for confirmation and an optional reason, then leaves the partner a note: "<name> removed your bench by the mill: making room for the bakery."
+- **Undo** [I1]: each client keeps a stack of its own last 30 accepted commands with their inverses. Undo submits the inverse as a new command; the sim rejects it if the target changed since.
+- **Who built this**: shown in every inspector.
+
+## Time and speed [I0]
+
+- Each seat has a desired speed (paused, 1x, 2x, 3x). Effective speed = the minimum over connected seats. So either seat can pause, and fast-forward needs both (P10).
+- The top bar shows the effective speed and, when slowed or paused, who caused it: "Paused by <name>".
+- Keys: Space toggles pause, 1, 2 and 3 set speed.
+- Time passes only while at least one seat is connected (P10). Valley setting **together only**: time passes only while both seats are connected (P9).
+
+## While you were away [I1]
+
+On connect, if the seat was away for at least one in-game day: a letter summarizing Chronicle entries, notable stats (population, treasury, patterns, wishes) and notes and requests for you since `lastSeenTick`.
+
+## Lenses [I0 skeleton, grows each iteration]
+
+Local UI state per laptop; Tab toggles (P8). The default comes from the seat profile.
+
+| Lens | Toolbar (grows by iteration) | Overlays | Alerts |
+|---|---|---|---|
+| Hearth | decor, trees and gardens, customize [I1], Pattern Book [I1], wishes [I1], festivals [I3], Field Guide [I3], Chronicle [I1] | charm [I1], wishes [I1], habitats [I3] | wishes, pattern hints, festival prep |
+| Ledger | roads, buildings, fields [I1], storehouses [I1], budget and reports [I1], zoning [I2], trade [I2], policies [I2], Watch [I3] | flows [I1], coverage [I1], status [I1], land value [I2], traffic [I2] | shortages, idle buildings, budget |
+| Shared (both) | inspect, erase, notes, plans [I2], requests [I2], Charter board [I2], time | none | threats, Charter progress, partner pings |
+
+## Together moments [I3]
+
+Some cozy moments happen only when both seats are connected: the festival's closing dance, fireworks at a rank-up, an evening stroll event. They never gate progress (P5).

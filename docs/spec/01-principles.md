@@ -1,6 +1,6 @@
-# City Qoti: broad spec and principles (v0)
+# 01. Principles
 
-Draft for review. The numbers are stable so feedback can point at them.
+Accepted as v1 on 2026-10-25. The numbers are stable; other spec docs cite them as P1 to P54. When a detailed spec conflicts with a principle, the principle wins until both players agree to change it.
 
 ## Broad spec
 
