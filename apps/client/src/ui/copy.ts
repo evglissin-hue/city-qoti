@@ -36,6 +36,16 @@ export const copy = {
     reducedMotionHint: 'Fewer wiggles and slides',
     done: 'Done',
   },
+  invite: {
+    heading: 'Invite your partner',
+    body: 'Send them this link. It opens the second seat of this valley, so keep it between the two of you.',
+    copy: 'Copy link',
+    copied: 'Copied. Off you go.',
+    done: 'Done',
+    missing:
+      'The invite link lives on the device that created this valley. Ask your partner to send it again.',
+    fine: 'Fine',
+  },
   presence: {
     partner: 'Your partner',
     goToPartner: 'Go to partner',

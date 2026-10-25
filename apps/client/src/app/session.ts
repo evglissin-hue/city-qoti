@@ -124,6 +124,9 @@ export class Session {
     this.mirror.load(view);
     if (!this.renderer) this.mount();
     if (this.connection) this.connection.status.value = 'live';
+    // Start in the lens this seat prefers; Tab still swaps freely afterwards.
+    const mine = this.mirror.seats.value.find((v) => v.seat === this.seat);
+    if (mine) this.ui.lens.value = mine.lens;
     this.phase.value = 'ready';
     updateRecent(this.target.valleyId, {
       name: w.valley.settings.townName,
