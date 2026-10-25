@@ -153,6 +153,9 @@ export class Session {
     this.mirror.load(view);
     if (!this.renderer) this.mount();
     if (this.connection) this.connection.status.value = 'live';
+    // Start in the lens this seat prefers; Tab still swaps freely afterwards.
+    const mine = this.mirror.seats.value.find((v) => v.seat === this.seat);
+    if (mine) this.ui.lens.value = mine.lens;
     this.phase.value = 'ready';
     updateRecent(this.target.valleyId, {
       name: w.valley.settings.townName,
@@ -217,18 +220,28 @@ export class Session {
 
   private onPresence(p: PresenceMsg): void {
     switch (p.k) {
-      case 'presence':
-        this.renderer?.setPresence(
-          p.seat,
-          p.cursor ? { x: p.cursor[0], z: p.cursor[1], ...(p.tool ? { tool: p.tool } : {}) } : null,
-        );
+      case 'presence': {
+        const cursor = p.cursor
+          ? { x: p.cursor[0], z: p.cursor[1], ...(p.tool ? { tool: p.tool } : {}) }
+          : null;
+        this.renderer?.setPresence(p.seat, cursor);
+        const next = new Map(this.ui.cursors.value);
+        if (cursor) next.set(p.seat, cursor);
+        else next.delete(p.seat);
+        this.ui.cursors.value = next;
         break;
+      }
       case 'ping':
         this.renderer?.ping(p.seat, p.x, p.z, p.kind);
         break;
       case 'roster':
         this.roster.value = p.roster;
         for (const r of p.roster) if (!r.connected) this.renderer?.setPresence(r.seat, null);
+        if (p.roster.some((r) => !r.connected && this.ui.cursors.value.has(r.seat))) {
+          const next = new Map(this.ui.cursors.value);
+          for (const r of p.roster) if (!r.connected) next.delete(r.seat);
+          this.ui.cursors.value = next;
+        }
         break;
       case 'emote':
         break;
@@ -267,7 +280,12 @@ export class Session {
       case 'Tab':
         this.ui.lens.value = this.ui.lens.value === 'hearth' ? 'ledger' : 'hearth';
         return true;
+      case '?':
+        this.ui.helpOpen.value = !this.ui.helpOpen.value;
+        return true;
       case 'Escape':
+        this.ui.helpOpen.value = false;
+        this.ui.settingsOpen.value = false;
         this.tools?.select('inspect');
         this.ui.selection.value = null;
         return true;

@@ -1,6 +1,8 @@
-import type { Speed } from '@qoti/sim';
+import { calendar, SEASON_NAMES, type Speed } from '@qoti/sim';
 import type { Session } from '../app/session';
+import { copy } from './copy';
 import { formatDate, formatTime, speedNote } from './format';
+import { GoToPartner } from './Presence';
 
 const SPEEDS: { speed: Speed; label: string; title: string }[] = [
   { speed: 0, label: '❚❚', title: 'Pause (Space)' },
@@ -36,6 +38,9 @@ export function TopBar({ session, onLeave }: { session: Session; onLeave: () => 
       <div class="topbar-clock" data-testid="clock">
         <span>{formatDate(tick)}</span>
         <span class="clock-time">{formatTime(tick)}</span>
+        <span class="season-chip" data-testid="season">
+          {SEASON_NAMES[calendar(tick).season]}
+        </span>
       </div>
       <div class="topbar-speed">
         {SPEEDS.map((s) => (
@@ -69,6 +74,7 @@ export function TopBar({ session, onLeave }: { session: Session; onLeave: () => 
             </span>
           ))}
         </span>
+        {online && <GoToPartner session={session} />}
         <span class={`chip status-${status}`} data-testid="connection">
           {online ? STATUS_TEXT[status] : 'Solo'}
         </span>
@@ -82,6 +88,15 @@ export function TopBar({ session, onLeave }: { session: Session; onLeave: () => 
             Invite
           </button>
         )}
+        <button
+          type="button"
+          class="ghost-button"
+          data-testid="settings-open"
+          title={copy.settings.open}
+          onClick={() => (session.ui.settingsOpen.value = true)}
+        >
+          {copy.settings.open}
+        </button>
         <button type="button" class="ghost-button" onClick={onLeave} title="Back to the title screen">
           Leave
         </button>
