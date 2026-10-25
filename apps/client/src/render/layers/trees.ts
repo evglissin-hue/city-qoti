@@ -5,7 +5,6 @@ import { InstanceSets } from '../instances';
 import { treeGeometry } from '../kitGeometry';
 import type { LayerContext, RenderLayer } from './types';
 
-const STAGE_SCALE = [0.35, 0.55, 0.8, 1];
 const up = new Vector3(0, 1, 0);
 
 /** Forest trees v0: instanced cone or blob and trunk per species, scaled by growth stage. */
@@ -23,9 +22,12 @@ export function treesLayer(): RenderLayer {
       if (!v) continue;
       const x = i % MAP_SIZE;
       const z = Math.floor(i / MAP_SIZE);
-      const key = String(treeSpecies(v));
+      // The kit draws each growth stage; the mirror's treeStage (when present) wins over the raw layer value.
+      const reader = ctx.mirror as { treeStage?(x: number, z: number): number };
+      const stage = Math.max(0, Math.min(3, Math.round(reader.treeStage?.(x, z) ?? treeStage(v))));
+      const key = `${treeSpecies(v)}:${stage}`;
       const jitter = hash2(x, z, 7);
-      const scale = (STAGE_SCALE[treeStage(v)] ?? 1) * (0.85 + jitter * 0.3);
+      const scale = 0.85 + jitter * 0.3;
       q.setFromAxisAngle(up, jitter * Math.PI * 2);
       const m = new Matrix4().compose(
         new Vector3(
@@ -48,7 +50,10 @@ export function treesLayer(): RenderLayer {
     id: 'trees',
     init(c) {
       ctx = c;
-      sets = new InstanceSets(c.scene, c.material, (key) => treeGeometry(Number(key)));
+      sets = new InstanceSets(c.scene, c.material, (key) => {
+        const [species, stage] = key.split(':').map(Number);
+        return treeGeometry(species ?? 1, stage ?? 3);
+      });
       rebuild();
     },
     update(change) {
