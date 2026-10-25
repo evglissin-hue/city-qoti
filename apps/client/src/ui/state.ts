@@ -22,6 +22,8 @@ export function createUiState() {
     inviteOpen: signal(false),
     notesOpen: signal(true),
     helpOpen: signal(false),
+    /** Partner cursors in world tiles, by seat, for name labels and off-screen arrows. */
+    cursors: signal<Map<number, { x: number; z: number; tool?: string }>>(new Map()),
     settingsOpen: signal(false),
   };
 }

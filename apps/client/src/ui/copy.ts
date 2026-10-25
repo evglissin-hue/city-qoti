@@ -36,6 +36,11 @@ export const copy = {
     reducedMotionHint: 'Fewer wiggles and slides',
     done: 'Done',
   },
+  presence: {
+    partner: 'Your partner',
+    goToPartner: 'Go to partner',
+    goToPartnerHint: 'Glide over to wherever your partner is pottering',
+  },
   help: {
     heading: 'How the valley works',
     footer: 'Press ? any time to bring this back.',

@@ -2,6 +2,7 @@ import { calendar, SEASON_NAMES, type Speed } from '@qoti/sim';
 import type { Session } from '../app/session';
 import { copy } from './copy';
 import { formatDate, formatTime, speedNote } from './format';
+import { GoToPartner } from './Presence';
 
 const SPEEDS: { speed: Speed; label: string; title: string }[] = [
   { speed: 0, label: '❚❚', title: 'Pause (Space)' },
@@ -73,6 +74,7 @@ export function TopBar({ session, onLeave }: { session: Session; onLeave: () => 
             </span>
           ))}
         </span>
+        {online && <GoToPartner session={session} />}
         <span class={`chip status-${status}`} data-testid="connection">
           {online ? STATUS_TEXT[status] : 'Solo'}
         </span>

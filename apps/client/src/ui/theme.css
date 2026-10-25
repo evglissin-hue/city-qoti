@@ -788,3 +788,49 @@ kbd {
   border: 1.5px solid var(--line);
   background: rgba(127, 156, 108, 0.16);
 }
+
+.presence-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none !important;
+  overflow: hidden;
+}
+
+.presence-label {
+  position: absolute;
+  transform: translate(10px, -130%);
+  padding: 1px 9px 2px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #fffaf0;
+  background: var(--seat);
+  border: 1.5px solid var(--ink-line);
+  border-radius: 999px 999px 999px 4px;
+  box-shadow: 0 2px 6px rgba(60, 40, 20, 0.2);
+  white-space: nowrap;
+}
+
+.presence-arrow {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  display: grid;
+  justify-items: center;
+  gap: 2px;
+}
+
+.presence-arrow i {
+  width: 0;
+  height: 0;
+  border-top: 9px solid transparent;
+  border-bottom: 9px solid transparent;
+  border-left: 16px solid var(--seat);
+  filter: drop-shadow(0 1px 0 var(--ink-line));
+}
+
+.presence-arrow b {
+  font-size: 0.75rem;
+  padding: 0 7px;
+  border-radius: 999px;
+  background: var(--paper-light);
+  border: 1.5px solid var(--seat);
+}
