@@ -1,7 +1,8 @@
 // Modular building parts: foundations, plaster walls with timber framing, windows with shutters and
 // flower boxes, round-topped doors, chimneys and chunky roofs. Faces are addressed in a local frame
 // (u along the face, y up, o outward from the wall plane) so one part works on any of the four sides.
-import { ShapeBuilder, type V3 } from '../geometry';
+import type { ShapeBuilder } from '../geometry';
+import { type V3 } from '../geometry';
 import { palette } from '../palette';
 
 export type FaceDir = 'z+' | 'z-' | 'x+' | 'x-';

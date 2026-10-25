@@ -92,7 +92,7 @@ function house(opts: KitBuildOptions | undefined, base: Style): Built {
         const u = tx + 0.5;
         if (ri === 0 && Math.abs(u - doorU) < 0.45) continue;
         if (base.floors === 1 && Math.abs(u - doorU) < 0.45) continue;
-        windowPart(s, south, u, y, 0.2, 0.22, style, rnd, anchors.lights);
+        windowPart(s, south, u, y, 0.2, 0.22, { ...style, box: ri === 0 || w <= 3 }, rnd, anchors.lights);
       }
     }
     // Side windows.
@@ -100,23 +100,25 @@ function house(opts: KitBuildOptions | undefined, base: Style): Built {
       { dir: 'x+', plane: x1 },
       { dir: 'x-', plane: x0 },
     ] as Face[]) {
-      for (let tz = 0; tz < d; tz++) {
+      // One side window per two tiles on big footprints keeps the hall within budget.
+      for (let tz = 0; tz < d; tz += d > 3 ? 2 : 1) {
         const y = rows[rows.length - 1]!;
         windowPart(s, f, tz + 0.5, y, 0.18, 0.2, { ...style, box: false }, rnd, anchors.lights);
       }
     }
-    // A back window so the house reads from every side.
-    windowPart(
-      s,
-      { dir: 'z-', plane: z0 },
-      w / 2,
-      rows[rows.length - 1]!,
-      0.2,
-      0.22,
-      { ...style, box: false },
-      rnd,
-      anchors.lights,
-    );
+    // A back window so the house reads from every side (the hall's tower covers its back).
+    if (w <= 3)
+      windowPart(
+        s,
+        { dir: 'z-', plane: z0 },
+        w / 2,
+        rows[rows.length - 1]!,
+        0.2,
+        0.22,
+        { ...style, box: false },
+        rnd,
+        anchors.lights,
+      );
   }
   if (base.chimney) {
     const cx = ridgeAlongX ? x1 - 0.3 : (x0 + x1) / 2 + 0.22;

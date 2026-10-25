@@ -101,10 +101,16 @@ export const lantern: Kit = {
   kind: 'decor',
   build: () =>
     new ShapeBuilder()
-      .cylinder(0, 0, 0.025, 0.02, 0, 0.5, palette.metal, 6)
-      .box(-0.05, 0.5, -0.05, 0.05, 0.6, 0.05, palette.lampGlow)
-      .cylinder(0, 0, 0.07, 0, 0.6, 0.66, palette.metal, 4)
+      .cylinder(0, 0, 0.06, 0.05, 0, 0.05, palette.stone, 8)
+      .cylinder(0, 0, 0.025, 0.02, 0.05, 0.5, palette.metal, 6)
+      .box(-0.055, 0.49, -0.055, 0.055, 0.51, 0.055, palette.metal)
+      .glow(1)
+      .box(-0.042, 0.51, -0.042, 0.042, 0.6, 0.042, palette.lantern)
+      .glow(0)
+      .cylinder(0, 0, 0.075, 0, 0.6, 0.67, palette.metal, 4, Math.PI / 4)
+      .blob(0, 0.68, 0, 0.012, 0.012, 0.012, palette.mustard, 0)
       .build(),
+  anchors: () => ({ lights: [[0, 0.555, 0]] }),
 };
 
 export const lowWall: Kit = {
