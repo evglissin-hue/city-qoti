@@ -834,3 +834,19 @@ kbd {
   background: var(--paper-light);
   border: 1.5px solid var(--seat);
 }
+
+/* Active states keep their fill under hover, so white labels never land on cream. */
+.lens.active:hover:not(:disabled) {
+  background: var(--lens);
+  border-color: var(--ink-line);
+}
+
+.speed.effective:hover:not(:disabled) {
+  background: var(--ink);
+  color: var(--paper);
+}
+
+.title-card .welcome {
+  margin: -4px 0 4px;
+  text-align: center;
+}
