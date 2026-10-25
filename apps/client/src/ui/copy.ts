@@ -24,6 +24,32 @@ export const copy = {
     online: 'For two',
     relayDown: 'Could not reach the relay. Is the dev server running?',
   },
+  settings: {
+    open: 'Settings',
+    heading: 'Settings',
+    quality: 'Picture quality',
+    qualityLow: 'Gentle on the laptop',
+    qualityMedium: 'Balanced',
+    qualityHigh: 'Every leaf',
+    uiScale: 'Interface size',
+    reducedMotion: 'Calm motion',
+    reducedMotionHint: 'Fewer wiggles and slides',
+    done: 'Done',
+  },
+  help: {
+    heading: 'How the valley works',
+    footer: 'Press ? any time to bring this back.',
+    rows: [
+      ['Drag', 'Pan the valley'],
+      ['Pinch or ctrl + scroll', 'Zoom'],
+      ['Shift + drag', 'Rotate the view'],
+      ['Tab', 'Swap between Hearth and Ledger'],
+      ['Space', 'Pause or resume time'],
+      ['1, 2, 3', 'Set your preferred speed'],
+      ['Esc', 'Put the tool down'],
+      ['?', 'This card'],
+    ],
+  },
 } as const;
 
 /** A welcome line that stays put for the whole visit. */

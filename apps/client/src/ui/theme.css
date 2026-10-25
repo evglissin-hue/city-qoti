@@ -706,3 +706,85 @@ input::placeholder {
   transition: none !important;
   animation: none !important;
 }
+
+.settings fieldset {
+  border: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.settings legend {
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+
+.settings fieldset button.active {
+  background: var(--sage);
+  color: #fffaf0;
+  border-color: var(--ink-line);
+}
+
+.settings label.scale {
+  display: grid;
+  gap: 6px;
+  font-weight: 700;
+}
+
+.settings input[type='range'] {
+  accent-color: var(--sage-deep);
+  padding: 0;
+  border: none;
+  background: transparent;
+}
+
+.settings label.check {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.settings label.check input {
+  width: auto;
+  accent-color: var(--sage-deep);
+}
+
+.help dl {
+  margin: 0;
+  display: grid;
+  gap: 6px;
+}
+
+.help dl div {
+  display: grid;
+  grid-template-columns: 11em 1fr;
+  gap: 10px;
+  align-items: baseline;
+}
+
+.help dt,
+.help dd {
+  margin: 0;
+}
+
+kbd {
+  font-family: inherit;
+  font-size: 0.85em;
+  font-weight: 700;
+  padding: 1px 7px;
+  border: 1.5px solid var(--line);
+  border-bottom-width: 3px;
+  border-radius: 7px;
+  background: var(--paper-light);
+  white-space: nowrap;
+}
+
+.season-chip {
+  font-size: 0.8rem;
+  padding: 1px 9px;
+  border-radius: 999px;
+  border: 1.5px solid var(--line);
+  background: rgba(127, 156, 108, 0.16);
+}

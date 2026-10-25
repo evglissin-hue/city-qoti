@@ -238,7 +238,12 @@ export class Session {
       case 'Tab':
         this.ui.lens.value = this.ui.lens.value === 'hearth' ? 'ledger' : 'hearth';
         return true;
+      case '?':
+        this.ui.helpOpen.value = !this.ui.helpOpen.value;
+        return true;
       case 'Escape':
+        this.ui.helpOpen.value = false;
+        this.ui.settingsOpen.value = false;
         this.tools?.select('inspect');
         this.ui.selection.value = null;
         return true;

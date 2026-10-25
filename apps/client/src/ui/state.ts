@@ -21,6 +21,8 @@ export function createUiState() {
     dialog: signal<Dialog | null>(null),
     inviteOpen: signal(false),
     notesOpen: signal(true),
+    helpOpen: signal(false),
+    settingsOpen: signal(false),
   };
 }
 
