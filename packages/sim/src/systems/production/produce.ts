@@ -5,7 +5,7 @@
 // for per-worker methods, so output scales with the share of the crew present.
 import type { BuildingDef, ProductionMethod } from '@qoti/content';
 import { content } from '@qoti/content';
-import { MAP_SIZE, TICKS_PER_HOUR } from '../../constants';
+import { MAP_SIZE } from '../../constants';
 import type { Building, BuildingRuntime, TickCtx, WorldState } from '../../contracts';
 import { footprintSize } from '../../rules/footprint';
 import { findById } from '../../state/entities';
@@ -16,10 +16,7 @@ import { productivity } from '../logistics/tasks';
 export const WORN_CONDITION = 70;
 export const DISREPAIR_CONDITION = 40;
 
-/** Work for one cycle, in percent-worker-ticks. */
-export function cycleWork(method: ProductionMethod): number {
-  return method.hours * TICKS_PER_HOUR * 100 * (method.perWorker ? 1 : Math.max(1, method.workers));
-}
+export { cycleWork } from './cycle';
 
 /** Output percent from condition: 100, 90 when worn, 70 in disrepair. */
 export function conditionPercent(rt: BuildingRuntime): number {
