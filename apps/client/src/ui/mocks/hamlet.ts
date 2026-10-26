@@ -1,7 +1,7 @@
 // Mock I1 views for UI work (C3.0), matching the sim's hamlet fixture
-// (packages/sim/test/fixtures/hamlet.ts): the same families, homes and jobs, plus a little history
-// the fixture does not have yet (wishes, discoveries, Chronicle entries, a week of stock).
-// Panels build against these first, then wire to the live Mirror.
+// (packages/sim/test/fixtures/hamlet.ts) id for id: the same families, homes and jobs, plus a little
+// history the fixture does not have yet (wishes, discoveries, Chronicle entries, a week of stock, a
+// construction site). Panels build against these first, then wire to the live Mirror.
 import type {
   AchievementView,
   AwayLetter,
@@ -100,9 +100,9 @@ export const mockBuildings: BuildingView[] = [
     },
   },
   {
-    id: 12,
+    id: 8,
     def: 'sawpit',
-    x: 80,
+    x: 71,
     z: 47,
     rot: 0,
     builtBy: 1,
@@ -136,13 +136,13 @@ export const mockBuildings: BuildingView[] = [
 
 export const mockResidents: ResidentView[] = [
   {
-    id: 13,
+    id: 12,
     given: 'Clover',
     family: 'Thistledown',
     species: 'rabbit',
     stage: 'adult',
     traits: ['cheerful', 'green-fingered'],
-    householdId: 12,
+    householdId: 11,
     homeId: 3,
     jobId: 1,
     tier: 'settler',
@@ -153,13 +153,13 @@ export const mockResidents: ResidentView[] = [
     flags: 0,
   },
   {
-    id: 14,
+    id: 13,
     given: 'Hazel',
     family: 'Thistledown',
     species: 'rabbit',
     stage: 'adult',
     traits: ['shy', 'bookish'],
-    householdId: 12,
+    householdId: 11,
     homeId: 3,
     jobId: 6,
     tier: 'settler',
@@ -170,13 +170,13 @@ export const mockResidents: ResidentView[] = [
     flags: 0,
   },
   {
-    id: 15,
+    id: 14,
     given: 'Pip',
     family: 'Thistledown',
     species: 'rabbit',
     stage: 'child',
     traits: ['curious', 'sporty'],
-    householdId: 12,
+    householdId: 11,
     homeId: 3,
     jobId: 0,
     tier: 'settler',
@@ -187,13 +187,13 @@ export const mockResidents: ResidentView[] = [
     flags: 0,
   },
   {
-    id: 17,
+    id: 16,
     given: 'Wendell',
     family: 'Underbank',
     species: 'otter',
     stage: 'adult',
     traits: ['grumpy', 'practical'],
-    householdId: 16,
+    householdId: 15,
     homeId: 4,
     jobId: 1,
     tier: 'settler',
@@ -204,13 +204,13 @@ export const mockResidents: ResidentView[] = [
     flags: 0,
   },
   {
-    id: 18,
+    id: 17,
     given: 'Marina',
     family: 'Underbank',
     species: 'otter',
     stage: 'adult',
     traits: ['romantic', 'night-owl'],
-    householdId: 16,
+    householdId: 15,
     homeId: 4,
     jobId: 2,
     tier: 'settler',
@@ -221,13 +221,13 @@ export const mockResidents: ResidentView[] = [
     flags: 0,
   },
   {
-    id: 19,
+    id: 18,
     given: 'Finn',
     family: 'Underbank',
     species: 'otter',
     stage: 'young',
     traits: ['sporty', 'cheerful'],
-    householdId: 16,
+    householdId: 15,
     homeId: 4,
     jobId: 2,
     tier: 'settler',
@@ -238,13 +238,13 @@ export const mockResidents: ResidentView[] = [
     flags: 0,
   },
   {
-    id: 21,
+    id: 20,
     given: 'Pippa',
     family: 'Quill',
     species: 'mouse',
     stage: 'young',
     traits: ['curious', 'practical'],
-    householdId: 20,
+    householdId: 19,
     homeId: 5,
     jobId: 9,
     tier: 'settler',
@@ -255,13 +255,13 @@ export const mockResidents: ResidentView[] = [
     flags: 0,
   },
   {
-    id: 22,
+    id: 21,
     given: 'Tansy',
     family: 'Quill',
     species: 'mouse',
     stage: 'elder',
     traits: ['sweet-tooth', 'homebody'],
-    householdId: 20,
+    householdId: 19,
     homeId: 5,
     jobId: 0,
     tier: 'settler',
@@ -272,13 +272,13 @@ export const mockResidents: ResidentView[] = [
     flags: 0,
   },
   {
-    id: 23,
+    id: 22,
     given: 'Crumb',
     family: 'Quill',
     species: 'mouse',
     stage: 'adult',
     traits: ['early-bird', 'generous'],
-    householdId: 20,
+    householdId: 19,
     homeId: 5,
     jobId: 0,
     tier: 'settler',
@@ -291,9 +291,9 @@ export const mockResidents: ResidentView[] = [
 ];
 
 export const mockHouseholds: HouseholdView[] = [
-  { id: 12, family: 'Thistledown', members: [13, 14, 15], homeId: 3, tier: 'settler', pantryFood: 6 },
-  { id: 16, family: 'Underbank', members: [17, 18, 19], homeId: 4, tier: 'settler', pantryFood: 2 },
-  { id: 20, family: 'Quill', members: [21, 22, 23], homeId: 5, tier: 'settler', pantryFood: 7 },
+  { id: 11, family: 'Thistledown', members: [12, 13, 14], homeId: 3, tier: 'settler', pantryFood: 6 },
+  { id: 15, family: 'Underbank', members: [16, 17, 18], homeId: 4, tier: 'settler', pantryFood: 2 },
+  { id: 19, family: 'Quill', members: [20, 21, 22], homeId: 5, tier: 'settler', pantryFood: 7 },
 ];
 
 const history = (start: number, step: number) =>
@@ -413,7 +413,7 @@ export const mockWishes: WishView[] = [
   {
     id: 40,
     template: 'river-bench',
-    residentId: 13,
+    residentId: 12,
     text: 'Clover would love a bench by the river, not too far from home, for watching the water do nothing.',
     lane: 'hearth',
     homeId: 3,
@@ -424,7 +424,7 @@ export const mockWishes: WishView[] = [
   {
     id: 41,
     template: 'quiet-please',
-    residentId: 17,
+    residentId: 16,
     text: 'Wendell cannot hear themselves think over the workshops. Some quiet at home, please.',
     lane: 'hearth',
     homeId: 4,
@@ -435,7 +435,7 @@ export const mockWishes: WishView[] = [
   {
     id: 42,
     template: 'fresh-fish',
-    residentId: 21,
+    residentId: 20,
     text: 'Pippa would love fresh fish at the market. Not soon. Now, ideally.',
     lane: 'ledger',
     homeId: 5,
@@ -453,7 +453,7 @@ export const mockPatterns: PatternView[] = [
     tick: 2 * DAY + 900,
     seat: 0,
     together: true,
-    sites: [{ x: 57, z: 52, members: [24, 25, 11], tiles: [] }],
+    sites: [{ x: 57, z: 52, members: [23, 24, 10], tiles: [] }],
   },
   {
     id: 'tree-place',
@@ -462,7 +462,7 @@ export const mockPatterns: PatternView[] = [
     tick: 3 * DAY,
     seat: 1,
     together: false,
-    sites: [{ x: 57, z: 54, members: [24, 25], tiles: [] }],
+    sites: [{ x: 57, z: 54, members: [23, 24], tiles: [] }],
   },
   { id: 'sitting-wall', discovered: false, hinted: true, sites: [] },
   { id: 'lantern-walk', discovered: false, hinted: true, sites: [] },
@@ -486,7 +486,7 @@ export const mockChronicle: ChronicleEntryView[] = [
     tick: 400,
     kind: 'household-arrived',
     text: 'The Thistledown family arrived through the valley gate and moved into a cottage on the lane.',
-    refs: [12],
+    refs: [11],
     seats: [],
   },
   {
@@ -494,7 +494,7 @@ export const mockChronicle: ChronicleEntryView[] = [
     tick: 410,
     kind: 'household-arrived',
     text: 'The Underbank family arrived through the valley gate and moved into a cottage on the lane.',
-    refs: [16],
+    refs: [15],
     seats: [],
   },
   {
@@ -510,7 +510,7 @@ export const mockChronicle: ChronicleEntryView[] = [
     tick: 2 * DAY + 900,
     kind: 'pattern-discovered',
     text: 'A new page in the Pattern Book: Well Gathering Place, found by the well on the lane.',
-    refs: [11],
+    refs: [10],
     seats: [0, 1],
   },
   {
@@ -566,12 +566,12 @@ export const mockResidentDetail: ResidentDetail = {
     { label: 'Cheerful', value: 5 },
   ],
   friends: [
-    { id: 18, name: 'Marina Underbank', level: 2 },
-    { id: 22, name: 'Tansy Quill', level: 1 },
+    { id: 17, name: 'Marina Underbank', level: 2 },
+    { id: 21, name: 'Tansy Quill', level: 1 },
   ],
   householdMembers: [
-    { id: 14, name: 'Hazel Thistledown' },
-    { id: 15, name: 'Pip Thistledown' },
+    { id: 13, name: 'Hazel Thistledown' },
+    { id: 14, name: 'Pip Thistledown' },
   ],
   doing: 'At work at the town hall',
   bio: 'A cheerful, green-fingered rabbit who came for the meadows and stayed for the gossip.',
@@ -586,7 +586,7 @@ export const mockResidentDetail: ResidentDetail = {
 
 export const mockBuildingDetail: BuildingDetail = {
   b: mockBuildings[2]!,
-  workers: [{ id: 14, name: 'Hazel Thistledown', present: true }],
+  workers: [{ id: 13, name: 'Hazel Thistledown', present: true }],
   status: ['Waiting for inputs'],
   method: { name: 'Bake bread', hours: 2 },
 };

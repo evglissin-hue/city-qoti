@@ -6,11 +6,15 @@ import {
   footprintSize,
   TILE_FP,
   type Command,
+  type Lens,
   type Rot4,
   type Turn,
   type ValleySettings,
 } from '@qoti/sim';
+import type { Selection } from '../input/context';
+import { applySettings, loadSettings } from '../ui/settings';
 import { SimHost } from '../worker/host';
+import { overlayMocks } from './fixture';
 import type { Session } from './session';
 
 export interface GoldenScript {
@@ -159,6 +163,45 @@ export function installDebugHook(getSession: () => Session | null): void {
     },
     /** Pins the lighting to an hour of the day (null follows the clock again). */
     setHour: (hour: number | null) => s()?.renderer?.setDebugHour(hour),
+    // I1 (C3E): hamlet UI helpers for tests and screenshots.
+    mode: () => s()?.mirror.settings.value.mode ?? null,
+    town: () => s()?.mirror.town.value ?? null,
+    budget: () => s()?.mirror.budget.value ?? null,
+    residentIds: () => [...(s()?.mirror.residents.keys() ?? [])],
+    buildingsOf: (def: string) =>
+      [...(s()?.mirror.buildings.values() ?? [])].filter((b) => b.def === def).map((b) => b.id),
+    select: (sel: Selection | null) => {
+      const session = s();
+      if (session) session.ui.selection.value = sel;
+    },
+    openPanel: (id: string | null) => {
+      const session = s();
+      if (session) session.ui.panel.value = id;
+    },
+    setLens: (lens: Lens) => {
+      const session = s();
+      if (session) session.ui.lens.value = lens;
+    },
+    customize: (id: number | null) => {
+      const session = s();
+      if (session) session.ui.customize.value = id;
+    },
+    undo: () => s()?.undoLast(),
+    undoSize: () => s()?.undo.size.value ?? 0,
+    /** Shows the while-you-were-away letter built from the mocks (the real one needs a day away). */
+    showMockLetter: async () => {
+      const session = s();
+      if (!session) return;
+      const { mockAwayLetter } = await import('../ui/mocks/hamlet');
+      session.ui.letter.value = { ...mockAwayLetter, seat: session.seat };
+    },
+    overlayMocks: async () => {
+      const session = s();
+      if (session) await overlayMocks(session);
+    },
+    /** Interface size, 0.8 to 1.4, as the settings slider sets it. */
+    setUiScale: (scale: number) => applySettings({ ...loadSettings(), uiScale: scale }),
+    awayLetter: async () => (await s()?.inspect('away', s()!.seat)) ?? null,
   };
   (window as unknown as { __qoti: typeof hook }).__qoti = hook;
 }

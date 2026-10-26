@@ -979,3 +979,71 @@ kbd {
   border-radius: 999px;
   animation: panel-in 200ms ease-out;
 }
+
+/* I1 title options: the creative valley toggle and the economy dial. */
+.creative-toggle {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.92rem;
+  cursor: pointer;
+}
+
+.creative-toggle input {
+  width: auto;
+  margin: 0;
+  accent-color: var(--sage-deep);
+}
+
+.title-options fieldset.economy {
+  border: none;
+  margin: 12px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+}
+
+.title-options fieldset.economy legend {
+  font-size: 0.92rem;
+  font-weight: 700;
+  padding: 0;
+  margin-bottom: 4px;
+}
+
+.title-options fieldset.economy:disabled {
+  opacity: 0.55;
+}
+
+.dial {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0;
+  border: 1.5px solid var(--line);
+  border-radius: 11px;
+  overflow: hidden;
+  background: #fffbf1;
+}
+
+.dial button {
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  background: transparent;
+  padding: 6px 8px;
+}
+
+.dial button + button {
+  border-left: 1.5px dashed var(--line);
+}
+
+.dial button.active,
+.dial button.active:hover:not(:disabled) {
+  background: var(--sage);
+  color: #fffaf0;
+}
+
+.dial-note {
+  margin: 0;
+  font-style: italic;
+}

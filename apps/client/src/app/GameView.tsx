@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'preact/hooks';
 import { GameUI } from '../ui/GameUI';
+import { DEBUG } from './debug';
+import { MOCK_OVERLAY, overlayMocks } from './fixture';
 import { Session, type SessionTarget } from './session';
 
 let current: Session | null = null;
@@ -32,6 +34,9 @@ export function GameView({
   }, [session, openInvite]);
 
   const phase = session.phase.value;
+  useEffect(() => {
+    if (phase === 'ready' && DEBUG && MOCK_OVERLAY) void overlayMocks(session);
+  }, [phase === 'ready']);
   return (
     <div class="game">
       <div class="viewport" ref={container} />

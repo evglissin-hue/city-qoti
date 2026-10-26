@@ -33,12 +33,14 @@ describe('registries', () => {
     });
   }
 
-  it('ships the I0 tools', () => {
+  it('ships the I0 and I1 tools', () => {
     expect(registries.tools).toEqual([
       'building',
+      'customize',
       'decor',
       'erase',
       'fence',
+      'field',
       'inspect',
       'lane',
       'note',

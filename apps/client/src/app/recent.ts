@@ -13,6 +13,8 @@ export interface RecentValley {
   invite?: string;
   /** Set by an invite link until the valley is first joined. */
   pending?: boolean;
+  /** I1: a creative (sandbox) valley, labeled as such in the list. */
+  creative?: boolean;
 }
 
 const KEY = 'qoti.recent';

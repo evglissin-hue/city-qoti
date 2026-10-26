@@ -347,7 +347,8 @@ Defined in cycle C3.0, then changed only additively during the I1 wave. Everythi
 
 - **Boot**: title screen → create or join → `RoomConnection` → `SimHost.init` (new from seed, or snapshot) → `ready` → Mirror built from the view → Renderer and UI mount → live turns flow to the worker.
 - **Mirror** (`state/`): typed-array copies of the layers (patched by `LayerPatch`), entity maps, seats, clock, and a decor spatial hash. Implements `MapReader`. Exposes Preact signals for UI.
-- **Registries** (one line per addition): render layers (`render/layers/index.ts`), tools (`input/tools/index.ts`), lens toolbars (`ui/lenses.ts`), panels (`ui/panels/index.ts`), overlays.
+- **Registries** (one line per addition): render layers (`render/layers/index.ts`), tools (`input/tools/index.ts`), lens toolbars and lens overlay toggles (`ui/lenses.ts`), panels (`ui/panels/index.ts`). [I1] A panel's side is `left`, `right`, `book` (opens from its lens's toolbar, one book at a time) or `overlay` (the away letter); a tool may name the valley `modes` that offer it.
+- **Undo** [I1] (`state/undo.ts`): each seat's stack of its last `UNDO_DEPTH` accepted commands. A command counts as accepted when the turn carrying its seq has run with no `command.rejected` for it; the inverse is built then, from what the command changed (new entity ids from the update, earlier road, tree and field values captured before submitting, earlier customization fields). Before submitting an inverse the client checks the target still looks as the command left it, and refuses with `CHANGED` otherwise; the sim's own rejection of an inverse reads as an undo refusal.
 - **Optimistic feel**: a placed ghost stays visible until the turn carrying its command arrives (about 100 to 200 ms), then the real piece replaces it; a rejection shows a gentle message at the spot.
 - **Settings**: `localStorage` wrapped in try/catch; the game works without it.
 
@@ -388,4 +389,5 @@ interface DecorDef {
 ## Debugging
 
 - `?debug` in the URL shows a dev overlay (fps, frame ms, draw calls, triangles, turn, hash, entity counts; sim ms per tick and turn lag arrive with C2D) and exposes `window.__qoti` for tests: mirror counts, last turn, hashes by turn, clocks and helpers that find valid on-screen spots. `?quality=low|medium|high` picks the render quality.
+- [I1] `?debug&fixture=hamlet` opens a fresh solo valley whose first snapshot is the sim's hamlet fixture (`packages/sim/test/fixtures/hamlet.ts`); adding `&mock` lays the UI mocks' history (wishes, pages, Chronicle, stocks, budget) over it. `&clean` hides the dev overlay for screenshots. `?creative` starts the title screen with the creative valley box ticked (the I0 end to end specs use it).
 - On desync, both clients save a debug dump (snapshot and recent turns) that can be downloaded from the overlay.

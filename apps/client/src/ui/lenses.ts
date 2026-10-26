@@ -19,3 +19,20 @@ export const lenses: readonly LensDef[] = [
 export function toolsForLens(tools: readonly Tool[], lens: Lens): Tool[] {
   return tools.filter((t) => t.lane === 'shared' || t.lane === lens);
 }
+
+/** I1 (C3E): overlay toggles in each lens's toolbar (render OverlayKind ids), alphabetical. */
+export interface OverlayDef {
+  id: string;
+  lens: Lens;
+  label: string;
+  icon: string;
+  hint: string;
+}
+
+// prettier-ignore
+export const overlays: readonly OverlayDef[] = [
+  { id: 'charm', lens: 'hearth', label: 'Charm', icon: 'charm', hint: 'Where the valley feels lovely, and where it could' },
+  { id: 'coverage', lens: 'ledger', label: 'Wells', icon: 'coverage', hint: 'Which homes a well reaches' },
+  { id: 'flows', lens: 'ledger', label: 'Flows', icon: 'flows', hint: 'Where the porters carry things' },
+  { id: 'status', lens: 'ledger', label: 'Status', icon: 'status', hint: 'Buildings that want attention' },
+];
