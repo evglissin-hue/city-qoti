@@ -23,10 +23,23 @@ import {
   worldIndex,
   type Building,
   type Command,
+  type GrowthDemand,
   type ValleySettings,
   type WorldState,
 } from '@qoti/sim';
 import { command, findSpot, runTicks, startingTown, type Hamlet } from './hamlet';
+import {
+  grownSince,
+  growthLine,
+  planHighStreet,
+  promoteToVillage,
+  storehouseSpot,
+  unreachedLots,
+  zoneHighStreet,
+  type GrowthLine,
+  type GrowthNight,
+  type HighStreet,
+} from './village';
 
 const FOODS = content.goods.flatMap((g, i) => (g.food ? [i] : []));
 const G = (id: string) => content.goodIndex.get(id)!;
@@ -52,6 +65,8 @@ export interface DayLine {
   leanTimes: boolean;
   built: number;
   sites: number;
+  /** Village runs (C4B): lots, grown buildings by zone kind and demand. */
+  growth?: GrowthLine;
 }
 
 export interface AutoplayResult {
@@ -59,6 +74,8 @@ export interface AutoplayResult {
   days: DayLine[];
   /** Everything the players tried and whether the sim took it, for reading a run. */
   actions: string[];
+  /** The high street of a Village run (C4B), once laid. */
+  street?: HighStreet | null;
 }
 
 const S = MAP_SIZE;
@@ -114,6 +131,36 @@ function pathToRoad(w: WorldState, from: number): [number, number][] | null {
 
 class Players {
   readonly actions: string[] = [];
+  /** The high street laid and zoned at the Village rank (C4B), once there is one. */
+  street: HighStreet | null = null;
+
+  /** The Village chapter: the Ledger lays a high street off the lanes and zones it. */
+  village(): void {
+    promoteToVillage(this.w);
+    const street = planHighStreet(this.w);
+    if (!street) {
+      this.actions.push('no room for a high street');
+      return;
+    }
+    if (!this.do('lay the high street', [{ t: 'road.paint', kind: 'lane', tiles: street.tiles }])) return;
+    this.street = street;
+    this.do('zone the high street', zoneHighStreet(this.w, street));
+  }
+
+  /** The Ledger's Village chores: a storehouse at the far end once porters cannot reach the lots there. */
+  private villageChores(): void {
+    const w = this.w;
+    if (!this.street || unreachedLots(w) < 2 || count(w, 'storehouse') >= 3 || sites(w) >= 3) return;
+    const def = content.buildingById.get('storehouse')!;
+    if (this.coins() < (def.cost?.coins ?? 0) + 40) return;
+    const stock = townStock(w);
+    for (const [g, q] of def.cost?.goods ?? []) if (stock[G(g)]! < q + 8) return;
+    const at = storehouseSpot(w, this.street);
+    if (at)
+      this.do('storehouse for the high street', [
+        { t: 'build.place', def: 'storehouse', x: at[0], z: at[1], rot: at[2] },
+      ]);
+  }
   constructor(readonly h: Hamlet) {}
 
   get w(): WorldState {
@@ -152,6 +199,7 @@ class Players {
 
   /** The Ledger player's turn: one or two things the town is shortest of. */
   ledger(): void {
+    this.villageChores();
     const w = this.w;
     const stock = townStock(w);
     const pop = w.residents.length;
@@ -196,10 +244,12 @@ class Players {
       count(w, 'fishers-hut') <= count(w, 'vegetable-plot') / 2 ? 'fishers-hut' : 'vegetable-plot',
     );
     want(food < pop * 2 && sites(w) === 0, 'vegetable-plot');
-    // Homes: always one empty cottage waiting for the next family.
+    // Homes: always one empty cottage waiting for the next family (a Village with homes zoned
+    // grows its own).
     want(
-      vacantHomes(w) + w.buildings.filter((b) => b.def === 'cottage' && b.stage === 'construction').length <
-        2,
+      !this.street &&
+        vacantHomes(w) + w.buildings.filter((b) => b.def === 'cottage' && b.stage === 'construction').length <
+          2,
       'cottage',
     );
     // Stone, then more timber as the town grows.
@@ -254,7 +304,7 @@ class Players {
           const z = farm.z + dz;
           const i = idx(x, z);
           if (w.map.occupant[i] || w.map.road[i] || w.map.water[i] || w.map.fieldOwner[i]) continue;
-          if (w.map.fertility[i]! < 40 || w.map.tree[i]) continue;
+          if (w.map.fertility[i]! < 40 || w.map.tree[i] || w.map.zone[i]) continue;
           tiles.push([x, z]);
         }
       }
@@ -284,6 +334,9 @@ class Players {
         const fx = Math.round((x + 0.5 + ox) * TILE_FP);
         const fz = Math.round((z + 0.5 + oz) * TILE_FP);
         if (near && !near(fx, fz)) continue;
+        // A thoughtful Hearth leaves zoned plots to grow (C4B): decor on a lot would stop it.
+        const ti = Math.floor(fz / TILE_FP) * S + Math.floor(fx / TILE_FP);
+        if (this.w.map.zone[ti] && !this.w.map.occupant[ti]) continue;
         if (canPlaceDecor(reader, d, fx, fz, (a * 7) % 64).ok) return [fx, fz];
       }
     }
@@ -400,32 +453,55 @@ function untilHour(h: Hamlet, hour: number): void {
   runTicks(h, n);
 }
 
-/** Plays `days` in-game days from the standard start and returns a line per day. */
+/**
+ * Plays `days` in-game days from the standard start and returns a line per day. With `village`,
+ * the valley becomes a Village on that morning and the Ledger lays and zones a high street (C4B);
+ * the day lines then carry the growth numbers and the result the street. From `handsOff` on both
+ * players leave the valley alone, so what happens next is the village's own doing.
+ */
 export function autoplay(
   seed: string,
   days: number,
-  opts: { economy?: ValleySettings['economy']; hearth?: boolean } = {},
+  opts: { economy?: ValleySettings['economy']; hearth?: boolean; village?: number; handsOff?: number } = {},
 ): AutoplayResult {
   const h = startingTown(seed, { economy: opts.economy ?? 'standard' });
   const players = new Players(h);
   const out: DayLine[] = [];
   for (let d = 1; d <= days; d++) {
+    const playing = opts.handsOff === undefined || d < opts.handsOff;
+    // Village runs watch the night's growth pass (01:00): what it wanted, and what it started.
+    let night: GrowthNight | undefined;
+    if (opts.village !== undefined && d > opts.village) {
+      untilHour(h, 1);
+      const before = growthLine(h.world);
+      runTicks(h, 1);
+      night = { demand: before.demand, started: grownSince(before, growthLine(h.world)) };
+    }
     untilHour(h, 9);
-    players.ledger();
-    if (opts.hearth !== false) players.hearth();
+    if (d === opts.village) players.village();
+    if (playing) players.ledger();
+    if (playing && opts.hearth !== false) players.hearth();
     untilHour(h, 15);
-    players.ledger();
-    if (opts.hearth !== false) players.hearth();
+    if (playing) players.ledger();
+    if (playing && opts.hearth !== false) players.hearth();
     untilHour(h, 23);
-    out.push(dayLine(h.world, d));
+    const line = dayLine(h.world, d);
+    if (opts.village !== undefined && d >= opts.village) line.growth = { ...growthLine(h.world), night };
+    out.push(line);
   }
-  return { hamlet: h, days: out, actions: players.actions };
+  return { hamlet: h, days: out, actions: players.actions, street: players.street };
 }
 
-/** The table `npm run tune` prints. */
+/** Homes, shops, crafts and farms as four digits ("2010"), or "-" for no night watched. */
+function kinds(k: GrowthDemand | undefined): string {
+  return k ? `${k.homes}${k.shops}${k.crafts}${k.farms}` : '-';
+}
+
+/** The table `npm run tune` prints (Village runs add the night's growth: wanted and started). */
 export function formatDays(days: readonly DayLine[]): string {
   const head =
-    'day  pop hh vac coins food made eaten plank stone mood mis wish grant pat ach left lean built sites';
+    'day  pop hh vac coins food made eaten plank stone mood mis wish grant pat ach left lean built sites' +
+    (days.some((d) => d.growth) ? ' lots hom sh cr fa grw want+ grew+' : '');
   const rows = days.map((d) =>
     [
       String(d.day).padStart(3),
@@ -448,6 +524,18 @@ export function formatDays(days: readonly DayLine[]): string {
       (d.leanTimes ? 'yes' : 'no').padStart(4),
       String(d.built).padStart(5),
       String(d.sites).padStart(5),
+      ...(d.growth
+        ? [
+            String(d.growth.lots).padStart(4),
+            String(d.growth.homes).padStart(3),
+            String(d.growth.shops).padStart(2),
+            String(d.growth.crafts).padStart(2),
+            String(d.growth.farms).padStart(2),
+            String(d.growth.sites).padStart(3),
+            kinds(d.growth.night?.demand).padStart(5),
+            kinds(d.growth.night?.started).padStart(5),
+          ]
+        : []),
     ].join(' '),
   );
   return [head, ...rows].join('\n');

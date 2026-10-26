@@ -119,6 +119,16 @@ export function lotDesirability(
   return Math.max(0, Math.min(100, Math.round(score)));
 }
 
+/** The row or column of road a lot fronts. */
+function frontLine(lot: Lot): number {
+  return lot.rot % 2 === 0 ? Math.floor(lot.frontage / S) : lot.frontage % S;
+}
+
+/** Homes of both densities count as one kind of neighbor; shops, crafts and farms each their own. */
+function zoneKind(zone: number): number {
+  return zone === Zone.homesMedium ? Zone.homesLow : zone;
+}
+
 /** True when the lot stands a level or more above the land around it, or high in the valley. */
 function isHigh(state: WorldState, x: number, z: number): boolean {
   const h = state.map.height[z * S + x]!;
@@ -134,9 +144,14 @@ export function pickStyle(state: WorldState, lot: Lot): string {
   const [x, z] = lotMiddle(lot);
   const styles = content.styles;
   if (styles.length === 0) return '';
+  // Neighbors on the same side of the same road, in the same kind of zone (a row of cottages, a
+  // parade of shops) read as one; across the road or past the shops it may change.
   const near = styles.map(() => 0);
+  const kind = zoneKind(lot.zone);
   for (const other of state.lots) {
-    if (other.id === lot.id || !other.style) continue;
+    if (other.id === lot.id || !other.style || other.rot !== lot.rot || zoneKind(other.zone) !== kind)
+      continue;
+    if (frontLine(other) !== frontLine(lot)) continue;
     const [ox, oz] = lotMiddle(other);
     if (Math.abs(ox - x) > 6 || Math.abs(oz - z) > 6) continue;
     const k = styles.findIndex((s) => s.id === other.style);
@@ -146,8 +161,8 @@ export function pickStyle(state: WorldState, lot: Lot): string {
   let follow = -1;
   for (let k = 0; k < near.length; k++)
     if (near[k]! > 0 && (follow < 0 || near[k]! > near[follow]!)) follow = k;
-  // One lot in six breaks ranks, so even a tidy street has a house that is not quite like the rest.
-  if (follow >= 0 && h % 6 !== 0) return styles[follow]!.id;
+  // One lot in five breaks ranks, so even a tidy row has a house that is not quite like the rest.
+  if (follow >= 0 && h % 5 !== 0) return styles[follow]!.id;
   const zoneId = content.zoneByValue.get(lot.zone)?.id ?? '';
   const water = waterWithin(state, x, z, 8) >= 0;
   const high = isHigh(state, x, z);
@@ -162,9 +177,9 @@ export function pickStyle(state: WorldState, lot: Lot): string {
     let v = 0;
     if (s.water && water) v += 3;
     if (s.high && high) v += 3;
-    if (s.street && street) v += 3;
+    if (s.street && street) v += 2;
     if (s.nature && nature) v += 2;
-    if (s.zones?.includes(zoneId)) v += 2;
+    if (s.zones?.includes(zoneId)) v += 3;
     if (v > bestScore) {
       bestScore = v;
       best = k;

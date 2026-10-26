@@ -4,12 +4,13 @@
 //    the Ledger pinned one), and gives grown farms the farm-zoned land around them as fields.
 // 2. Scores every empty lot (./desirability) and works out demand per zone:
 //    - homes, while the town would draw newcomers (food, jobs and mood, before vacancies count)
-//      and has open jobs for them: enough homes going up to keep one or two empty ones waiting;
-//    - shops, for households no food outlet reaches;
+//      and has open jobs for them: enough homes going up to keep two or so empty ones waiting;
+//    - shops, for households no outlet reaches, or one per eight households;
 //    - crafts, for a good the market is short of that a grown workshop can make;
 //    - farms, while there are under four days of food in hand.
 // 3. Starts grown sites on the best lots, a couple a day and a few at a time, only while the
-//    storehouses can spare the materials beyond what other sites still need and a small reserve.
+//    storehouses can spare half their materials beyond what other sites still wait for (the rest
+//    comes as it is made; a site waiting on planks makes planks short, so a sawpit may grow).
 //
 // When demand is met, growth stops; when it returns, growth starts again. Grown sites are ordinary
 // construction sites (growLot); they cost the treasury nothing. What grows: content defs with
@@ -26,23 +27,32 @@ import { emitBuilding } from '../economy/emit';
 import { dailyOffset } from '../economy/time';
 import { doorTile } from '../movement/api';
 import { fieldCap, fieldsOf, fieldTileProblem, isFarm, paintFields } from '../production/fields';
+import { porterServed, type Reach } from '../logistics/range';
+import { entranceTiles } from '../../rules/footprint';
 import { openJobCount } from '../residents/jobs';
 import { attractiveness } from '../residents/lifecycle';
 import { foodIndexes, pantryFood } from '../residents/needs';
 import { vacantHomes } from '../residents/places';
 import { growLot, lotPlacement } from './api';
 import { lotDesirability, lotFertility, mix, outletCovers, servicesOf, townSpecies } from './desirability';
-import { bestMethod, methodScore, shortages, SWITCH_MARGIN } from './recipes';
+import { bestMethod, methodScore, shortages, SWITCH_MARGIN, unmetShortages } from './recipes';
 
 const S = MAP_SIZE;
 
 /** Grown sites going up at once, and new ones a day. */
 export const GROWTH_MAX_SITES = 3;
 export const GROWTH_PER_DAY = 2;
-/** Units of each material a grown site must leave free in the storehouses for the Ledger's own builds. */
-export const GROWTH_RESERVE = 10;
+/**
+ * Percent of a grown site's materials that must lie free in the storehouses (beyond what other
+ * sites wait for) before it starts; porters bring the rest as the town makes it.
+ */
+export const GROWTH_SHARE = 50;
 /** Town pull (attractiveness before vacant homes count) that makes homes worth building. */
 export const HOMES_PULL = 25;
+/** Empty homes (built or going up) a growing town keeps waiting for newcomers, plus one per 30 folk. */
+export const HOMES_WAITING = 2;
+/** Households one outlet serves before the town wants another shop. */
+export const HOUSEHOLDS_PER_SHOP = 8;
 /** Below this many days of food in hand, farms grow. */
 export const FARM_FOOD_DAYS = 4;
 /** Households without an outlet in reach that make a shop worth growing, and how far a shop reaches. */
@@ -136,6 +146,13 @@ function shopReach(lot: Lot, doors: readonly [number, number][]): number {
   return n;
 }
 
+/** Outlets in town, built or going up. */
+function outletCount(state: WorldState): number {
+  let n = 0;
+  for (const b of state.buildings) if (content.buildingById.get(b.def)?.tags?.includes('outlet')) n++;
+  return n;
+}
+
 /** What the village wants grown now, in sites per zone kind (before the daily and site limits). */
 export function growthDemand(state: WorldState, services = servicesOf(state)): GrowthDemand {
   const stock = townStock(state);
@@ -148,10 +165,11 @@ export function growthDemand(state: WorldState, services = servicesOf(state)): G
     for (const b of state.buildings) {
       if (b.stage === 'construction' && content.buildingById.get(b.def)?.housing) waiting++;
     }
-    const target = Math.min(1 + Math.floor(pop / 30), Math.ceil(open / 2));
+    const target = Math.min(HOMES_WAITING + Math.floor(pop / 30), Math.ceil(open / 2));
     homes = Math.max(0, target - waiting);
   }
-  // Shops: households no outlet reaches, when some shop lot would reach them.
+  // Shops: households no outlet reaches, when some shop lot would reach them; or more households
+  // than the outlets in town can serve.
   const doors = unservedDoors(state, services);
   let shops = 0;
   if (doors.length >= SHOP_HOUSEHOLDS) {
@@ -159,8 +177,9 @@ export function growthDemand(state: WorldState, services = servicesOf(state)): G
       if (!l.buildingId && l.zone === Zone.shops && shopReach(l, doors) >= SHOP_HOUSEHOLDS) shops = 1;
     }
   }
+  if (Math.floor(state.households.length / HOUSEHOLDS_PER_SHOP) > outletCount(state)) shops = 1;
   // Crafts: something short that a grown workshop could make.
-  const short = shortages(state, stock);
+  const short = unmetShortages(state, shortages(state, stock));
   let crafts = 0;
   for (const def of growable(state, 'crafts')) {
     if (bestMethod(state, def, short, stock)[1] > 0) crafts = 1;
@@ -187,9 +206,20 @@ function freeMaterials(state: WorldState, stock: readonly number[]): number[] {
 function affordable(def: BuildingDef, free: number[]): boolean {
   for (const [id, qty] of def.cost?.goods ?? []) {
     const g = content.goodIndex.get(id);
-    if (g !== undefined && (free[g] ?? 0) - qty < GROWTH_RESERVE) return false;
+    if (g !== undefined && (free[g] ?? 0) * 100 < qty * GROWTH_SHARE) return false;
   }
   return true;
+}
+
+/** True when a storehouse with porters lies within its range of the tile, give or take a lot's width. */
+function nearAStore(reach: readonly Reach[], tile: number): boolean {
+  const x = tile % S;
+  const z = Math.floor(tile / S);
+  for (const r of reach) {
+    const d = Math.abs((r.door % S) - x) + Math.abs(Math.floor(r.door / S) - z);
+    if (r.porters > 0 && d <= r.radius + 2) return true;
+  }
+  return false;
 }
 
 /** The def to grow on a lot: by shortage for crafts and farms, by weight for the rest. */
@@ -200,8 +230,16 @@ function chooseDef(
   short: readonly number[],
   stock: readonly number[],
   free: number[],
+  reach: readonly Reach[],
 ): BuildingDef | null {
-  const fits = defs.filter((d) => affordable(d, free) && lotPlacement(state, lot, d));
+  const fits = defs.filter((d) => {
+    if (!affordable(d, free)) return false;
+    const at = lotPlacement(state, lot, d);
+    if (!at) return false;
+    // Porters must reach the door itself, or the site would wait for its planks forever.
+    const { front } = entranceTiles(d, at[0], at[1], lot.rot);
+    return porterServed(reach, front[1] * S + front[0]);
+  });
   if (fits.length === 0) return null;
   if (lot.zone === Zone.crafts || lot.zone === Zone.farms) {
     const fert = lotFertility(state, lot);
@@ -293,6 +331,8 @@ export function growthPass(state: WorldState, ctx: TickCtx): number {
   for (const b of state.buildings)
     if (b.lot && b.stage === 'built') chooseMethod(state, ctx, b, short, stock, false);
   growFields(state, ctx);
+  // New workshops answer only shortages the town's makers are not already catching up on.
+  const unmet = unmetShortages(state, short);
 
   const empty = state.lots.filter((l) => !l.buildingId && state.map.road[l.frontage]);
   if (empty.length === 0) return 0;
@@ -315,14 +355,18 @@ export function growthPass(state: WorldState, ctx: TickCtx): number {
     [[Zone.crafts], demand.crafts],
   ];
   const doors = demand.shops > 0 ? unservedDoors(state, services) : [];
+  // Shops wanted only for households out of reach must stand where they reach them.
+  const reachOnly =
+    Math.floor(state.households.length / HOUSEHOLDS_PER_SHOP) <= outletCount(state) ? SHOP_HOUSEHOLDS : 0;
   for (const [zones, n] of wants) {
     for (let k = 0; k < n; k++) {
       if (started >= GROWTH_PER_DAY || grownSites(state) >= GROWTH_MAX_SITES) return started;
       const shop = zones[0] === Zone.shops;
       // Shops go where they reach the most households without one, then by desirability.
+      // Only lots porters can about reach (chooseDef checks the very door).
       const lots = empty
-        .filter((l) => !l.buildingId && zones.includes(l.zone))
-        .filter((l) => !shop || shopReach(l, doors) >= SHOP_HOUSEHOLDS)
+        .filter((l) => !l.buildingId && zones.includes(l.zone) && nearAStore(services.reach, l.frontage))
+        .filter((l) => !shop || shopReach(l, doors) >= reachOnly)
         .sort(
           (p, q) =>
             (shop ? shopReach(q, doors) - shopReach(p, doors) : 0) ||
@@ -332,7 +376,8 @@ export function growthPass(state: WorldState, ctx: TickCtx): number {
       let grew = false;
       for (const lot of lots.slice(0, 6)) {
         const zoneId = content.zoneByValue.get(lot.zone)?.id ?? '';
-        const def = chooseDef(state, lot, growable(state, zoneId), short, stock, free);
+        const need = lot.zone === Zone.crafts ? unmet : short;
+        const def = chooseDef(state, lot, growable(state, zoneId), need, stock, free, services.reach);
         if (!def) continue;
         const b = growLot(state, ctx, lot.id, def.id);
         if (!b) continue;
@@ -340,7 +385,7 @@ export function growthPass(state: WorldState, ctx: TickCtx): number {
           const g = content.goodIndex.get(id);
           if (g !== undefined) free[g]! -= qty;
         }
-        chooseMethod(state, null, b, short, stock, true);
+        chooseMethod(state, null, b, need, stock, true);
         started++;
         grew = true;
         break;

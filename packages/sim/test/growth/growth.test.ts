@@ -9,7 +9,7 @@ import type { Building, WorldState } from '../../src/contracts';
 import { findById } from '../../src/state/entities';
 import { insertBuilding } from '../../src/state/place';
 import { growLot, lotPlacement } from '../../src/systems/growth/api';
-import { GROWTH_MAX_SITES, GROWTH_RESERVE, growthDemand, growthPass } from '../../src/systems/growth';
+import { GROWTH_MAX_SITES, GROWTH_SHARE, growthDemand, growthPass } from '../../src/systems/growth';
 import { bestMethod, shortages } from '../../src/systems/growth/recipes';
 import { withoutSystems } from '../../src/systems';
 import { doorTile } from '../../src/systems/movement/api';
@@ -165,12 +165,16 @@ describe('the nightly growth pass', () => {
     openWork(s, 91, 46);
     const planks = good('planks');
     for (const b of s.buildings) if (b.rt) b.rt.store[planks] = 0;
-    // Just under the cheapest stand-in's planks (a stall's) plus the reserve.
+    // Just under the share of the cheapest stand-in's planks (a stall's) that must be in hand.
     const stall = content.buildingById.get('market-stall')!;
     const need = stall.cost!.goods!.find(([g]) => g === 'planks')![1];
-    findById(s.buildings, f.b.storehouses[0])!.rt!.store[planks] = need + GROWTH_RESERVE - 1;
+    const share = Math.ceil((need * GROWTH_SHARE) / 100) - 1;
+    findById(s.buildings, f.b.storehouses[0])!.rt!.store[planks] = share;
     expect(growthDemand(s).homes).toBeGreaterThan(0);
     expect(night(s)).toBe(0);
+    // A home waiting on planks would make planks short: a workshop that makes them is wanted.
+    growLot(s, createTickCtx(s), f.lots.homes[2]!, 'cottage');
+    expect(shortages(s)[planks]).toBeGreaterThan(0);
     findById(s.buildings, f.b.storehouses[0])!.rt!.store[planks] = 400;
     // Lots of work on offer: still never more than a few grown sites at once.
     for (let k = 0; k < 6; k++) openWork(s, 30 + k * 3, 30);

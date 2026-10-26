@@ -272,6 +272,8 @@ function crowded(world: WorldState, x0: number, z0: number, w: number, d: number
     for (let x = x0 - 1; x <= x0 + w; x++) {
       if (x < 0 || z < 0 || x >= MAP_SIZE || z >= MAP_SIZE) continue;
       if (world.map.occupant[z * MAP_SIZE + x]) return true;
+      // I2 (C4B): hand-placed buildings leave zoned land to grow.
+      if (world.map.zone[z * MAP_SIZE + x]) return true;
     }
   }
   return false;
