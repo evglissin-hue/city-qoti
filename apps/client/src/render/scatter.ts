@@ -128,8 +128,11 @@ export class ScatterField {
     this.dirty = true;
   }
 
+  private readonly kindIds = new Map<string, number>();
+
   kindIndex(id: string): number {
-    return this.kinds.findIndex((k) => k.id === id);
+    if (this.kindIds.size === 0) this.kinds.forEach((k, i) => this.kindIds.set(k.id, i));
+    return this.kindIds.get(id) ?? -1;
   }
 
   setChunk(index: number, chunk: ScatterChunk | null): void {

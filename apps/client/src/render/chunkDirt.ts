@@ -1,5 +1,22 @@
 import { CHUNK_SIZE, CHUNKS_PER_SIDE, type Rect } from '@qoti/sim';
 
+/** A point to build chunks around first (the view's focus), in tiles. */
+export interface Near {
+  x: number;
+  z: number;
+}
+
+/** C3D-1: chunk indices sorted nearest first to a point (tiles), optionally only within `radius`. */
+export function nearestChunks(indices: Iterable<number>, near: Near, radius = Infinity): number[] {
+  const d = (i: number) => {
+    const cx = (i % CHUNKS_PER_SIDE) * CHUNK_SIZE + CHUNK_SIZE / 2 - near.x;
+    const cz = Math.floor(i / CHUNKS_PER_SIDE) * CHUNK_SIZE + CHUNK_SIZE / 2 - near.z;
+    return cx * cx + cz * cz;
+  };
+  const r2 = radius * radius;
+  return [...indices].filter((i) => d(i) <= r2).sort((a, b) => d(a) - d(b));
+}
+
 /** C3D-1: dirty chunk bookkeeping for layers that rebuild per chunk without owning meshes. */
 export class ChunkDirt {
   private readonly dirty = new Set<number>();
@@ -22,12 +39,19 @@ export class ChunkDirt {
     return this.dirty.size;
   }
 
-  /** Removes and returns up to `max` dirty chunk indices. */
-  take(max: number): number[] {
+  /** Removes and returns up to `max` dirty chunk indices, nearest to `near` first when given. */
+  take(max: number, near?: Near, radius = Infinity): number[] {
     const out: number[] = [];
-    for (const i of this.dirty) {
-      if (out.length >= max) break;
-      out.push(i);
+    if (near) {
+      for (const i of nearestChunks(this.dirty, near, radius)) {
+        if (out.length >= max) break;
+        out.push(i);
+      }
+    } else {
+      for (const i of this.dirty) {
+        if (out.length >= max) break;
+        out.push(i);
+      }
     }
     for (const i of out) this.dirty.delete(i);
     return out;

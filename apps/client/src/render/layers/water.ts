@@ -9,7 +9,7 @@ import {
   Vector2,
 } from 'three';
 import { ChunkedMeshes } from '../chunks';
-import { createWorldEnv, NOISE_GLSL, type WorldEnv } from '../env';
+import { createWorldEnv, FIRST_FRAME_RADIUS, nearOf, NOISE_GLSL, type WorldEnv } from '../env';
 import { surfaceY, SurfaceTiles, WATER_Y } from '../surface';
 import type { LayerContext, RenderLayer } from './types';
 
@@ -198,6 +198,7 @@ export function waterLayer(): RenderLayer {
   let chunks: ChunkedMeshes | null = null;
   let material: MeshStandardMaterial | null = null;
   let env: WorldEnv | null = null;
+  let start: readonly number[] = [0, 0, 0, 0];
 
   return {
     id: 'water',
@@ -208,7 +209,8 @@ export function waterLayer(): RenderLayer {
       const tiles = new SurfaceTiles(ctx.mirror);
       chunks = new ChunkedMeshes(ctx.scene, material, (cx, cz) => waterGeometry(tiles, cx, cz), 2);
       chunks.markAll();
-      chunks.rebuild();
+      chunks.rebuild(Infinity, nearOf(env, ctx.mirror.meta.startArea), FIRST_FRAME_RADIUS);
+      start = ctx.mirror.meta.startArea;
     },
     update(change) {
       if (!chunks) return;
@@ -218,7 +220,7 @@ export function waterLayer(): RenderLayer {
       }
     },
     frame() {
-      const rebuilt = chunks ? chunks.rebuild(2) : false;
+      const rebuilt = chunks ? chunks.rebuild(3, nearOf(env ?? undefined, start)) : false;
       return rebuilt || !!env?.motion;
     },
     dispose() {

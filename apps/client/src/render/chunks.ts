@@ -1,4 +1,5 @@
 import { CHUNK_SIZE, CHUNKS_PER_SIDE, type Rect } from '@qoti/sim';
+import { nearestChunks, type Near } from './chunkDirt';
 import { Mesh, type BufferGeometry, type Material, type Scene } from 'three';
 
 /**
@@ -35,9 +36,11 @@ export class ChunkedMeshes {
   }
 
   /** Rebuilds up to `max` dirty chunks. Returns true when anything changed. */
-  rebuild(max = Infinity): boolean {
+  rebuild(max = Infinity, near?: Near, radius = Infinity): boolean {
     let n = 0;
-    for (const i of this.dirty) {
+    // C3D-1: nearest the view first, so a fresh valley fills in from where the player looks.
+    const order = near ? nearestChunks(this.dirty, near, radius) : [...this.dirty];
+    for (const i of order) {
       if (n >= max) break;
       this.dirty.delete(i);
       this.rebuildChunk(i);

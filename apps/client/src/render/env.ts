@@ -36,6 +36,15 @@ export interface WorldEnv {
   viewRevision: number;
 }
 
+/** Where to build first: the view's focus once the renderer has drawn, else the start area. */
+export function nearOf(env: WorldEnv | undefined, startArea: readonly number[]): { x: number; z: number } {
+  if (env && (env.focus.x !== 0 || env.focus.z !== 0)) return { x: env.focus.x, z: env.focus.z };
+  return { x: (startArea[0]! + startArea[2]!) / 2, z: (startArea[1]! + startArea[3]!) / 2 };
+}
+
+/** Chunks within this many tiles of the start are built before the first frame; the rest stream in. */
+export const FIRST_FRAME_RADIUS = 56;
+
 export function createWorldEnv(camera: PerspectiveCamera): WorldEnv {
   return {
     time: { value: 0 },

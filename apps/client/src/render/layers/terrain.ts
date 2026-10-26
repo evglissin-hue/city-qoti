@@ -9,7 +9,7 @@ import {
 } from 'three';
 import { ChunkedMeshes } from '../chunks';
 import { hash2 } from '../coords';
-import { createWorldEnv } from '../env';
+import { createWorldEnv, FIRST_FRAME_RADIUS, nearOf, type WorldEnv } from '../env';
 import { createGroundMaterial, GroundTextures } from '../ground';
 import { SURFACE_GRID, SurfaceTiles, tileSurfaceY } from '../surface';
 import type { LayerContext, RenderLayer } from './types';
@@ -390,6 +390,8 @@ export function terrainLayer(): RenderLayer {
   let ground: GroundTextures | null = null;
   let material: MeshStandardMaterial | null = null;
   let tiles: SurfaceTiles | null = null;
+  let env: WorldEnv | undefined;
+  let start: readonly number[] = [0, 0, 0, 0];
 
   return {
     id: 'terrain',
@@ -402,7 +404,9 @@ export function terrainLayer(): RenderLayer {
       // and it keeps a whole pass of draw calls off the frame.
       chunks = new ChunkedMeshes(ctx.scene, material, (cx, cz) => buildTerrainChunk(t, cx, cz), 0, false);
       chunks.markAll();
-      chunks.rebuild();
+      chunks.rebuild(Infinity, nearOf(ctx.env, ctx.mirror.meta.startArea), FIRST_FRAME_RADIUS);
+      env = ctx.env;
+      start = ctx.mirror.meta.startArea;
     },
     update(change) {
       if (!chunks || !ground) return;
@@ -422,7 +426,7 @@ export function terrainLayer(): RenderLayer {
       }
     },
     frame() {
-      return chunks ? chunks.rebuild(2) : false;
+      return chunks ? chunks.rebuild(3, nearOf(env, start)) : false;
     },
     dispose() {
       chunks?.dispose();

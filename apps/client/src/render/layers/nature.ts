@@ -4,7 +4,7 @@ import { PerspectiveCamera, type MeshStandardMaterial } from 'three';
 import type { Mirror } from '../../state/mirror';
 import { ChunkDirt } from '../chunkDirt';
 import { hash2 } from '../coords';
-import { createWorldEnv, type WorldEnv } from '../env';
+import { createWorldEnv, nearOf, type WorldEnv } from '../env';
 import { patch } from '../ground';
 import {
   addInstance,
@@ -45,6 +45,8 @@ const PROPS: readonly PropSpec[] = [
   { kit: 'wildflowers', variants: 3, max: 76, shadows: false },
 ];
 
+const PROP_BY_KIT = new Map(PROPS.map((p) => [p.kit, p]));
+
 function propKinds(): ScatterKind[] {
   const kinds: ScatterKind[] = [];
   for (const p of PROPS) {
@@ -79,7 +81,7 @@ class Placer {
     sink = 0,
     tint: [number, number, number] = [1, 1, 1],
   ): void {
-    const spec = PROPS.find((p) => p.kit === kit)!;
+    const spec = PROP_BY_KIT.get(kit)!;
     const v = Math.floor(hash2(Math.floor(x * 7), Math.floor(z * 7), salt) * spec.variants);
     const kind = this.field.kindIndex(`${kit}:${v}`);
     const y = surfaceY(this.tiles, x, z) - sink * scale;
@@ -94,6 +96,8 @@ export function buildNatureChunk(
   mirror: Mirror,
   cx: number,
   cz: number,
+  /** Tiles with decor on or next to them (nothing grows there). */
+  decorTiles: ReadonlySet<number>,
 ): ScatterChunk {
   const chunk = emptyScatterChunk(field.kinds.length);
   const L = mirror.layers;
@@ -107,7 +111,7 @@ export function buildNatureChunk(
     for (let x = x0; x < x0 + CHUNK_SIZE; x++) {
       const i = at(x, z);
       if (L.water[i] || L.road[i] || L.occupant[i]) continue;
-      if (mirror.decorNear(x * TILE_FP + TILE_FP / 2, z * TILE_FP + TILE_FP / 2, TILE_FP).length) continue;
+      if (decorTiles.has(i)) continue;
       const terrain = L.terrain[i]!;
       if (terrain === Terrain.field) continue;
       let trees = 0;
@@ -212,15 +216,27 @@ export function natureLayer(): RenderLayer {
   const dirt = new ChunkDirt();
   /** Decor positions by chunk, to rebuild only the chunks whose decor changed. */
   let decorKeys = new Map<number, string>();
+  let decorTiles = new Set<number>();
 
+  /** Decor fingerprints by chunk, and the tiles decor keeps clear (on it and around it). */
   function decorByChunk(): Map<number, string> {
     const out = new Map<number, string>();
+    const tiles = new Set<number>();
+    decorTiles = tiles;
     if (!ctx) return out;
     for (const d of ctx.mirror.decor.values()) {
       const cx = Math.floor(d.fx / TILE_FP / CHUNK_SIZE);
       const cz = Math.floor(d.fz / TILE_FP / CHUNK_SIZE);
       const i = cz * CHUNKS_PER_SIDE + cx;
       out.set(i, `${out.get(i) ?? ''}${d.id}@${d.fx},${d.fz};`);
+      const tx = Math.floor(d.fx / TILE_FP);
+      const tz = Math.floor(d.fz / TILE_FP);
+      for (let dz = -1; dz <= 1; dz++)
+        for (let dx = -1; dx <= 1; dx++) {
+          const x = tx + dx;
+          const z = tz + dz;
+          if (x >= 0 && z >= 0 && x < MAP_SIZE && z < MAP_SIZE) tiles.add(z * MAP_SIZE + x);
+        }
     }
     return out;
   }
@@ -229,7 +245,14 @@ export function natureLayer(): RenderLayer {
     if (!ctx || !field || !tiles) return;
     field.setChunk(
       i,
-      buildNatureChunk(field, tiles, ctx.mirror, i % CHUNKS_PER_SIDE, Math.floor(i / CHUNKS_PER_SIDE)),
+      buildNatureChunk(
+        field,
+        tiles,
+        ctx.mirror,
+        i % CHUNKS_PER_SIDE,
+        Math.floor(i / CHUNKS_PER_SIDE),
+        decorTiles,
+      ),
     );
   }
 
@@ -243,7 +266,8 @@ export function natureLayer(): RenderLayer {
       tiles = new SurfaceTiles(c.mirror);
       decorKeys = decorByChunk();
       dirt.markAll();
-      for (const i of dirt.take(Infinity)) rebuildChunk(i);
+      // Small props only show up close, so only the start's neighborhood is built up front.
+      for (const i of dirt.take(Infinity, nearOf(c.env, c.mirror.meta.startArea), 40)) rebuildChunk(i);
     },
     update(change) {
       if (change.full) dirt.markAll();
@@ -264,7 +288,7 @@ export function natureLayer(): RenderLayer {
     },
     frame() {
       if (!field || !env) return false;
-      for (const i of dirt.take(3)) rebuildChunk(i);
+      if (ctx) for (const i of dirt.take(3, nearOf(env, ctx.mirror.meta.startArea))) rebuildChunk(i);
       field.lodScale = env.detailDistance / 80;
       return field.update(env.camera);
     },

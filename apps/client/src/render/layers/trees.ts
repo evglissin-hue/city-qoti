@@ -3,7 +3,7 @@ import { CHUNK_SIZE, CHUNKS_PER_SIDE, MAP_SIZE, treeSpecies, treeStage } from '@
 import { PerspectiveCamera, type BufferGeometry, type MeshStandardMaterial } from 'three';
 import { ChunkDirt } from '../chunkDirt';
 import { hash2 } from '../coords';
-import { createWorldEnv, type WorldEnv } from '../env';
+import { createWorldEnv, FIRST_FRAME_RADIUS, nearOf, type WorldEnv } from '../env';
 import {
   addInstance,
   createFoliageMaterial,
@@ -178,8 +178,9 @@ export function treesLayer(): RenderLayer {
       field = new ScatterField(c.scene, material, treeKinds(), env);
       tiles = new SurfaceTiles(c.mirror);
       dirt.markAll();
-      // The first build happens at once, so the first frame already has its forest.
-      for (const i of dirt.take(Infinity)) rebuildChunk(i);
+      // Trees near the start are there for the first frame; the rest stream in nearest first.
+      for (const i of dirt.take(Infinity, nearOf(c.env, c.mirror.meta.startArea), FIRST_FRAME_RADIUS))
+        rebuildChunk(i);
     },
     update(change) {
       if (change.full) dirt.markAll();
@@ -189,7 +190,7 @@ export function treesLayer(): RenderLayer {
     },
     frame() {
       if (!field || !env) return false;
-      for (const i of dirt.take(4)) rebuildChunk(i);
+      if (ctx) for (const i of dirt.take(4, nearOf(env, ctx.mirror.meta.startArea))) rebuildChunk(i);
       field.lodScale = env.detailDistance / 80;
       return field.update(env.camera);
     },
