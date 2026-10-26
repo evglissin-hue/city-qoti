@@ -23,6 +23,7 @@ import {
   washingLine,
 } from './details';
 import { districtLook, VILLAGE_MIX, type DistrictLook } from './district';
+import { orchardTree, seasonOf } from './village';
 import { crateOf, GOOD_COLORS, pileOf } from './goods';
 import {
   awningPart,
@@ -1217,22 +1218,7 @@ function farmsteadOf(opts: KitBuildOptions | undefined): Built {
         for (let i = 0; i < 2; i++) {
           const tx = px0 + (px1 - px0) * (0.3 + i * 0.4);
           const tz = pz0 + (pz1 - pz0) * (i === 0 ? 0.35 : 0.65);
-          s.cylinder(tx, tz, 0.045, 0.03, 0, 0.36, palette.bark, 5);
-          const leaf = vary(palette.leaf, rnd, 0.8);
-          s.blob(tx, 0.5, tz, 0.26, 0.21, 0.26, leaf, 1, rnd, 0.1, mixHex(leaf, 0xc8e070, 0.15));
-          for (let k = 0; k < 5; k++) {
-            const a = rnd() * Math.PI * 2;
-            s.blob(
-              tx + Math.cos(a) * 0.21,
-              0.44 + rnd() * 0.14,
-              tz + Math.sin(a) * 0.21,
-              0.024,
-              0.024,
-              0.024,
-              palette.apple,
-              0,
-            );
-          }
+          orchardTree(s, tx, tz, 0.85, seasonOf(opts), rnd, plain);
         }
       } else if (make === 'wheat') {
         s.rbox(px0, 0, pz0, px1, 0.012, pz1, 0x9a7a48, 0.03);

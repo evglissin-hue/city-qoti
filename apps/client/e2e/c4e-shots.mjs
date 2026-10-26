@@ -3,7 +3,8 @@
 //   QOTI_CHROMIUM=/opt/pw-browsers/chromium QOTI_CLIENT_PORT=5185 \
 //     node apps/client/e2e/c4e-shots.mjs <outDir> <prefix> <shot> [<shot> ...]
 // A shot is name=x,z,distance,hour[,turn,tilt] (turn and tilt in radians, relative to the default
-// view). Env: QOTI_SHOWCASE=0 skips the showcase, QOTI_OVERLAY=<kind> shows an overlay, QOTI_LENS
+// view). Env: QOTI_SHOWCASE=0 skips the showcase, QOTI_DENSE=1 grows it to about 150 buildings,
+// QOTI_SYNTH=<n> adds n synthetic residents, QOTI_OVERLAY=<kind> shows an overlay, QOTI_LENS
 // sets the lens, QOTI_QUALITY the preset, QOTI_WAIT the settle time per shot in ms.
 import { chromium } from '@playwright/test';
 
@@ -32,9 +33,14 @@ for (const name of ['Done', 'Close', 'Later']) {
       .catch(() => {});
 }
 if (process.env.QOTI_SHOWCASE !== '0') {
-  const n = await page.evaluate(() => window.__qoti.villageShowcase());
+  const n = await page.evaluate((d) => window.__qoti.villageShowcase(d), process.env.QOTI_DENSE === '1');
   console.log('showcase', JSON.stringify(n));
 }
+if (process.env.QOTI_SYNTH)
+  await page.evaluate(
+    (n) => window.__qoti.synthResidents(n, { center: [64, 60], radius: 30 }),
+    Number(process.env.QOTI_SYNTH),
+  );
 if (process.env.QOTI_LENS) await page.evaluate((l) => window.__qoti.setLens(l), process.env.QOTI_LENS);
 if (process.env.QOTI_OVERLAY)
   await page.evaluate((k) => window.__qoti.renderer()?.setOverlay(k), process.env.QOTI_OVERLAY);
@@ -59,8 +65,20 @@ for (const shot of shots) {
     [x, z, dist, hour, turn, tilt],
   );
   await page.waitForTimeout(Number(process.env.QOTI_WAIT ?? 7000));
-  const stats = await page.evaluate(() => window.__qoti.stats());
-  console.log(name, JSON.stringify({ draws: stats?.drawCalls, tris: stats?.triangles }));
+  const stats = await page.evaluate(() => {
+    const r = window.__qoti.renderer();
+    const s = window.__qoti.stats();
+    const layer = (id) => r?.layers?.find((l) => l.id === id);
+    return {
+      draws: s?.drawCalls,
+      tris: s?.triangles,
+      buildings: window.__qoti.counts()?.buildings,
+      residents: layer('agents')?.drawn,
+      carts: layer('carts')?.drawn,
+      animals: layer('animals')?.count,
+    };
+  });
+  console.log(name, JSON.stringify(stats));
   await page.screenshot({ path: `${out}/${prefix}-${name}.png`, timeout: 180000 });
 }
 await browser.close();

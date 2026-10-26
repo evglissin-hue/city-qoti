@@ -1,7 +1,7 @@
 // C4E: the village kit: district styles, grown homes that keep their look when they upgrade, the I2
 // buildings' footprints and anchors, animals and carts, and story outfits.
 import { describe, expect, it } from 'vitest';
-import { kitById, kits } from './kits';
+import { kitById, kits, type KitBuildOptions } from './kits';
 import { animalArt, standingAnimal } from './kits/animals';
 import { DISTRICT_STYLES, districtLook, districtStyle } from './kits/district';
 import { homeLook } from './kits/grown';
@@ -42,7 +42,7 @@ describe('grown homes', () => {
   it('keep their walls, roof and paint when a cottage becomes a townhouse', () => {
     for (const style of ['timber', 'stone', 'brick', 'plaster', '']) {
       for (let seed = 1; seed <= 6; seed++) {
-        const opts = { seed, params: style ? { style } : {} };
+        const opts: KitBuildOptions = { seed, params: style ? { style } : {} };
         const cottage = homeLook(opts, 1);
         const townhouse = homeLook(opts, 31);
         expect(townhouse.wall, `${style} ${seed}`).toBe(cottage.wall);

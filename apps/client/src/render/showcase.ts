@@ -59,6 +59,8 @@ interface Mover {
   side: number;
   t: number;
   jitter?: boolean;
+  /** Standing movers: the way they face (radians, 0 is +z). */
+  facing?: number;
 }
 
 export interface ShowcaseResult {
@@ -403,6 +405,47 @@ export function villageShowcase(mirror: Mirror, opts: { dense?: boolean } = {}):
     80,
   );
 
+  // Shade trees on the greens, and the little things a village collects: lanterns along the
+  // street, benches and flowers round the well, a signpost at the crossing.
+  for (const [x, z] of [
+    [47, 54],
+    [53, 55],
+    [56, 53],
+    [69, 65],
+    [75, 66],
+    [82, 64],
+    [88, 66],
+    [91, 64],
+    [45, 66],
+    [58, 64],
+  ] as const) {
+    const i = z * N + x;
+    if (!road[i] && !occupant[i]) tree[i] = (hash2(x, z, 3) < 0.7 ? 1 : 2) * 8 + 3;
+  }
+  let did = 650000;
+  const decor = (def: string, x: number, z: number, rot = 0): void => {
+    if (!content.decorById.get(def)) return;
+    events.push({
+      e: 'decor.added',
+      d: { id: did++, def, fx: Math.round(x * 256), fz: Math.round(z * 256), rot, builtBy: 0 },
+    });
+  };
+  for (let x = 36; x <= 94; x += 5) decor('lantern', x + 0.5, x % 2 ? 60.12 : 60.88);
+  for (let x = 36; x <= 94; x += 6) decor('lantern', x + 0.5, 50.88);
+  decor('ring-bench', 61.5, 54.5);
+  decor('bench', 58.5, 53.8, 16);
+  decor('flower-bed', 59.5, 51.6);
+  decor('flower-bed', 61.5, 51.6);
+  decor('birdbath', 62.6, 53.3);
+  decor('cherry-tree', 58.3, 55.6);
+  decor('apple-tree', 62.8, 56.2);
+  decor('signpost', 63.25, 59.25, 8);
+  decor('planter', 64.8, 59.2);
+  decor('barrels', 93.2, 59.25);
+  decor('crates', 90.8, 59.3);
+  decor('wildflower-verge', 70.5, 62.2);
+  decor('wildflower-verge', 74.5, 62.2);
+  decor('hanging-lantern', 68.4, 56.9);
   const all: Rect = [0, 0, N - 1, N - 1];
   const patch = (layer: LayerName, data: Uint8Array | Int32Array) => ({ layer, rect: all, data });
   mirror.apply({
@@ -601,7 +644,7 @@ export function villageShowcase(mirror: Mirror, opts: { dense?: boolean } = {}):
   }
   // A parent out with the baby in a sling (the baby itself stays home in the frames).
   {
-    const h = hid;
+    const h = hid++;
     const parent = person('mouse', 'adult', { householdId: h });
     const baby = person('mouse', 'child', { householdId: h, bornDay: today - 2 });
     mirror.households.set(h, {
@@ -682,6 +725,53 @@ export function villageShowcase(mirror: Mirror, opts: { dense?: boolean } = {}):
       jitter: true,
     });
   }
+  // A tableau in front of the tavern for close-ups: a couple chatting hand in hand, a parent with
+  // the baby, the three story characters, and a cart unloading at the Trading Post.
+  const stand = (
+    r: ResidentView,
+    x: number,
+    z: number,
+    facing: number,
+    anim: number = AgentAnim.idle,
+  ): void => {
+    movers.push({ id: r.id, pts: [[x, z]], speed: 0, anim, carry: 0, side: 0, t: 0, facing });
+  };
+  {
+    const h = hid++;
+    const a = person('hedgehog', 'adult', { householdId: h });
+    const b = person('rabbit', 'adult', { householdId: h, partner: a.id });
+    mirror.residents.set(a.id, { ...a, partner: b.id });
+    stand(a, 62.6, 60.55, 0.3);
+    stand(b, 62.6, 60.55, 0.3);
+    const h2 = hid;
+    const parent = person('otter', 'adult', { householdId: h2 });
+    const baby = person('otter', 'child', { householdId: h2, bornDay: today - 1 });
+    mirror.households.set(h2, {
+      id: h2,
+      family: 'Showcase',
+      members: [parent.id, baby.id],
+      homeId: 0,
+      tier: 'craftsfolk',
+      pantryFood: 4,
+    });
+    stand(parent, 66.2, 60.7, -0.4);
+    const pippa = person('mouse', 'adult', { flags: ResidentFlags.story });
+    const odette = person('fox', 'adult', { flags: ResidentFlags.story });
+    const juniper = person('rabbit', 'adult', { flags: ResidentFlags.story });
+    stand(pippa, 63.9, 61.1, 2.6);
+    stand(odette, 65.2, 61.3, -2.8);
+    stand(juniper, 64.6, 59.8, 0.0, AgentAnim.hop);
+  }
+  movers.push({
+    id: 690100,
+    pts: [[92.5, 60.4]],
+    speed: 0,
+    anim: AgentAnim.cart,
+    carry: gi('wool') + 1,
+    side: 0,
+    t: 0,
+    facing: Math.PI / 2,
+  });
   mirror.hamletRevision.value++;
 
   const moverRows = (dt: number): Float32Array => {
@@ -710,6 +800,9 @@ export function villageShowcase(mirror: Mirror, opts: { dense?: boolean } = {}):
         z = a[1] + (b[1] - a[1]) * f;
         dx = (b[0] - a[0]) * (back ? -1 : 1);
         dz = (b[1] - a[1]) * (back ? -1 : 1);
+      } else if (r.facing !== undefined) {
+        dx = Math.sin(r.facing);
+        dz = Math.cos(r.facing);
       } else if (r.jitter) {
         // Children hop about a spot.
         x += Math.sin(r.id + now / 900) * 0.4;

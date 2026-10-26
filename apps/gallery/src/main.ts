@@ -69,7 +69,7 @@ const parts: { mesh: Mesh; speed: number }[] = [];
 const residentMaterial = createResidentMaterial();
 const residentTime = residentMaterial.userData.time as { value: number };
 /** Figures on show with their animation (AgentAnim number) and walk speed in cycles per second. */
-const figures: { fig: Figure; anim: number; speed: number; phase: number }[] = [];
+const figures: { fig: Figure; anim: number; speed: number; phase: number; hold?: number }[] = [];
 const sceneName = q.get('scene') ?? 'kit';
 const animParam = q.get('anim');
 
@@ -266,7 +266,15 @@ function buildGrid(): void {
       const opts: KitBuildOptions = {
         seed: Number.isFinite(seeds[i]) && seeds[i]! > 0 ? seeds[i]! : state.seed + i * 3,
         ...(fp ?? {}),
-        params: { ...(style && style !== '-' ? { style } : {}), ...extra },
+        // A row is a district style, or k:v params for the whole row (season:3), or '-' for none.
+        params: {
+          ...(style.includes(':')
+            ? { [style.slice(0, style.indexOf(':'))]: Number(style.slice(style.indexOf(':') + 1)) }
+            : style && style !== '-'
+              ? { style }
+              : {}),
+          ...extra,
+        },
         ...(state.lod === 'low' ? { lod: 'low' as const } : {}),
       };
       const mesh = new Mesh(kit.build(opts), material);
@@ -277,6 +285,71 @@ function buildGrid(): void {
   });
   info.textContent = `grid: ${rows.join(', ')} x ${specs.join(', ')}`;
   gridSize = [total, rows.length * (rowD + gap)];
+}
+
+/**
+ * C4E: village folk (?scene=folk): the story characters in their outfits, a couple hand in hand,
+ * a parent with a baby in a sling, and the farm animals and the cart beside them.
+ */
+function buildFolk(): void {
+  for (const c of [...holder.children]) holder.remove(c);
+  figures.length = 0;
+  const story = ['mouse', 'fox', 'rabbit', 'otter', 'hedgehog'];
+  story.forEach((species, i) => {
+    const fig = makeFigure(
+      { species, look: 11 + i * 5, stage: 'adult', story: true },
+      residentMaterial,
+      'full',
+      i,
+    );
+    fig.group.position.set((i - 2) * 0.42, 0, 0.45);
+    holder.add(fig.group);
+    figures.push({ fig, anim: 0, speed: 0, phase: i });
+  });
+  // A couple walking hand in hand, a parent with the baby, a child.
+  const a = makeFigure(
+    { species: 'rabbit', look: 40, stage: 'adult', tier: 'craftsfolk' },
+    residentMaterial,
+    'full',
+    6,
+  );
+  const b = makeFigure({ species: 'hedgehog', look: 41, stage: 'adult' }, residentMaterial, 'full', 7);
+  a.group.position.set(-0.75, 0, -0.05);
+  b.group.position.set(-0.54, 0, -0.05);
+  holder.add(a.group, b.group);
+  figures.push(
+    { fig: a, anim: 1, speed: 1.6, phase: 0, hold: 1 },
+    { fig: b, anim: 1, speed: 1.6, phase: 0, hold: 2 },
+  );
+  const parent = makeFigure({ species: 'otter', look: 43, stage: 'adult' }, residentMaterial, 'full', 8, [
+    { kind: 'sling', color: 0xd48a86 },
+  ]);
+  parent.group.position.set(-0.1, 0, -0.05);
+  holder.add(parent.group);
+  figures.push({ fig: parent, anim: 0, speed: 0, phase: 0 });
+  const child = makeFigure({ species: 'squirrel', look: 44, stage: 'child' }, residentMaterial, 'full', 9);
+  child.group.position.set(0.18, 0, -0.05);
+  holder.add(child.group);
+  figures.push({ fig: child, anim: 3, speed: 0, phase: 0 });
+  // The animals and the cart.
+  const animals: [string, number, number, number][] = [
+    ['sheep', 0, 0.55, -0.1],
+    ['sheep', 2, 0.85, -0.2],
+    ['cow', 0, 1.3, -0.15],
+    ['cow', 2, 1.3, -0.75],
+    ['pony', 1, 0.6, -0.75],
+  ];
+  for (const [id, seed, x, z] of animals) {
+    const mesh = new Mesh(kitById.get(id)!.build({ seed }), material);
+    mesh.position.set(x, 0, z);
+    mesh.rotation.y = 0.5;
+    holder.add(mesh);
+  }
+  const cartMesh = new Mesh(kitById.get('cart')!.build({ seed: 2, params: { load: 'cheese' } }), material);
+  cartMesh.position.set(-0.5, 0, -0.85);
+  cartMesh.rotation.y = 1.2;
+  holder.add(cartMesh);
+  info.textContent = 'village folk: story characters, a couple, a sling, animals and a cart';
 }
 
 const JOBS = ['bakery', 'farmhouse', 'fishers-hut', 'woodcutter', 'market-stall', 'builders-yard', ''];
@@ -394,6 +467,11 @@ if (sceneName === 'lineup') {
   controls.target.set(0, Number(q.get('ty') ?? 0.4), 0);
   ground.scale.setScalar(2);
   state.spin = false;
+} else if (sceneName === 'folk') {
+  buildFolk();
+  camera.position.set(0.3, 1.5, 3.6);
+  controls.target.set(0.1, 0.12, -0.15);
+  state.spin = false;
 } else if (sceneName === 'residents') {
   buildResidents();
   camera.position.set(0.1, 1.1, 3.6);
@@ -412,7 +490,7 @@ renderer.setAnimationLoop(() => {
   residentTime.value += dt;
   for (const f of figures) {
     f.phase += dt * f.speed * Math.PI * 2 * (f.anim === 1 || f.anim === 2 ? 1 : 0);
-    f.fig.pose(f.anim, f.phase);
+    f.fig.pose(f.anim, f.phase, f.hold ?? 0);
     const bob = f.anim === 1 || f.anim === 2 ? Math.abs(Math.sin(f.phase)) * 0.016 : 0;
     const hop = f.anim === 3 ? Math.abs(Math.sin(residentTime.value * 5.5)) * 0.1 : 0;
     for (const m of f.fig.meshes) m.position.y = (bob + hop) / f.fig.group.scale.y;

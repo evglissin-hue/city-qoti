@@ -32,8 +32,8 @@ function geometry(key: string, make: () => BufferGeometry): BufferGeometry {
 export interface Figure {
   group: Group;
   meshes: InstancedMesh[];
-  /** Sets the animation: anim (AgentAnim number) and walk phase. */
-  pose(anim: number, phase: number): void;
+  /** Sets the animation: anim (AgentAnim number), walk phase and (C4E) the arm held out, 1 or 2. */
+  pose(anim: number, phase: number, hold?: number): void;
 }
 
 function one(
@@ -59,8 +59,10 @@ export function makeFigure(
   material: Material,
   detail: ResidentDetail = 'full',
   seed = 0,
+  more: { kind: ExtraKind; color: number }[] = [],
 ): Figure {
   const look = residentLook(input);
+  look.extras.push(...more);
   const group = new Group();
   const meshes: InstancedMesh[] = [];
   const body = geometry(`${look.species}:${detail}`, () => residentGeometry(look.species, detail));
@@ -76,10 +78,10 @@ export function makeFigure(
   return {
     group,
     meshes,
-    pose(anim, phase) {
+    pose(anim, phase, hold = 0) {
       for (const m of meshes) {
         const a = m.geometry.getAttribute('iMotion') as InstancedBufferAttribute;
-        a.setXYZW(0, anim, phase, seed, 0);
+        a.setXYZW(0, anim, phase, seed, hold);
         a.needsUpdate = true;
       }
     },
