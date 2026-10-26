@@ -5,7 +5,7 @@
 // making way for a new one; 1 point of decay per day apart (Shy friendships every other day).
 import { content } from '@qoti/content';
 import { MAP_SIZE, MAX_FRIENDS, TICKS_PER_DAY, TICKS_PER_HOUR as HOUR } from '../../constants';
-import type { Friend, Resident, WorldState } from '../../contracts';
+import type { Friend, Household, Resident, WorldState } from '../../contracts';
 import { findById } from '../../state/entities';
 import { addMoodModifier } from './api';
 import { chebyshev, doorOf, eachBuildingNear, tileX, tileZ } from './places';
@@ -168,13 +168,15 @@ export function hourlyFriendships(state: WorldState): void {
   }
 }
 
-/** Daily: neighbors within 6 tiles gain a point; friendships apart decay. */
-export function dailyFriendships(state: WorldState): void {
+/** Daily, per household (spread over the 06:00 hour): friendships apart lose a point. */
+export function decayFriendships(state: WorldState, h: Household): void {
   const day = dayIndex(state.tick);
-  // Decay, once per pair (from the lower id's side).
-  for (const r of state.residents) {
+  for (const id of h.members) {
+    const r = findById(state.residents, id);
+    if (!r) continue;
     for (let i = r.friends.length - 1; i >= 0; i--) {
       const f = r.friends[i]!;
+      // Once per pair, from the lower id's side; met yesterday or today still counts as recent.
       if (f.id < r.id || f.lastMet >= day - 1) continue;
       const other = findById(state.residents, f.id);
       const back = other ? entry(other, r.id) : undefined;
@@ -193,36 +195,38 @@ export function dailyFriendships(state: WorldState): void {
       }
     }
   }
-  // Neighbors: each household with its three nearest neighbors within 6 tiles (higher ids only, so
-  // each pair is visited once).
+}
+
+/**
+ * Daily, per household (spread over the 18:00 hour): a point with each member of the three nearest
+ * neighboring households within 6 tiles, door to door (higher ids only, so each pair waves once).
+ */
+export function greetNeighbors(state: WorldState, h: Household): void {
+  const door = doorOf(state, h.homeId);
+  if (door < 0) return;
   const hs = state.households;
-  const byHome = new Map<number, number[]>();
-  for (const h of hs) {
-    if (!h.homeId) continue;
-    const list = byHome.get(h.homeId);
-    if (list) list.push(h.id);
-    else byHome.set(h.homeId, [h.id]);
-  }
-  for (const h of hs) {
-    const door = doorOf(state, h.homeId);
-    if (door < 0) continue;
-    const near: [d: number, id: number][] = [];
-    eachBuildingNear(state, tileX(door), tileZ(door), NEIGHBOR_TILES, (b, od) => {
-      const d = chebyshev(door, od);
-      if (d > NEIGHBOR_TILES) return;
-      for (const id of byHome.get(b.id) ?? []) if (id > h.id) near.push([d, id]);
-    });
-    near.sort((p, q) => p[0] - q[0] || p[1] - q[1]);
-    for (let k = 0; k < near.length && k < 3; k++) {
-      const o = findById(hs, near[k]![1])!;
-      for (const a of h.members) {
-        const ra = findById(state.residents, a);
-        if (!ra) continue;
-        for (const b of o.members) {
-          const rb = findById(state.residents, b);
-          if (rb && canBefriend(ra, rb)) befriend(state, ra, rb, 1);
-        }
+  const near: [d: number, id: number][] = [];
+  eachBuildingNear(state, tileX(door), tileZ(door), NEIGHBOR_TILES, (b, od) => {
+    const d = chebyshev(door, od);
+    if (d > NEIGHBOR_TILES || !content.buildingById.get(b.def)?.housing) return;
+    for (const o of hs) if (o.homeId === b.id && o.id > h.id) near.push([d, o.id]);
+  });
+  near.sort((p, q) => p[0] - q[0] || p[1] - q[1]);
+  for (let k = 0; k < near.length && k < 3; k++) {
+    const o = findById(hs, near[k]![1])!;
+    for (const a of h.members) {
+      const ra = findById(state.residents, a);
+      if (!ra) continue;
+      for (const b of o.members) {
+        const rb = findById(state.residents, b);
+        if (rb && canBefriend(ra, rb)) befriend(state, ra, rb, 1);
       }
     }
   }
+}
+
+/** Both daily passes for every household at once (tools and tests). */
+export function dailyFriendships(state: WorldState): void {
+  for (const h of state.households) decayFriendships(state, h);
+  for (const h of state.households) greetNeighbors(state, h);
 }
