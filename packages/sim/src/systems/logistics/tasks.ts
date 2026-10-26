@@ -7,7 +7,7 @@
 //   > 0  a porter job (logistics.jobs id)
 //   = 0  walking back to the workplace door after a task
 //   < 0  a builder working at building -taskId (a construction site, or a repair)
-import { MOOD_PRODUCTIVITY } from '../../constants';
+import { MOOD_PRODUCTIVITY, ResidentFlags } from '../../constants';
 import type { Building, Resident, WorldState } from '../../contracts';
 import { findById } from '../../state/entities';
 import { moodBand } from '../../view/hamlet';
@@ -47,11 +47,13 @@ export function startTask(state: WorldState, r: Resident, taskId: number, tile: 
 
 /**
  * Keeps a tasked resident heading for `tile`: true once they stand there. Retries the walk when
- * they stopped elsewhere; returns null when the tile cannot be reached.
+ * they stopped elsewhere; returns null when the tile cannot be reached, including a walk that
+ * ended early with the resident flagged stuck (the movement system's way of giving up).
  */
 export function walkTo(state: WorldState, r: Resident, tile: number): boolean | null {
   if (isAt(state, r.id, tile)) return true;
   if (isWalking(state, r.id)) return false;
+  if (r.flags & ResidentFlags.stuck) return null;
   const res = requestMove(state, r.id, tile, 'task');
   return res === 'unreachable' ? null : res === 'arrived';
 }

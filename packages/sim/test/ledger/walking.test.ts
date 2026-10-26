@@ -3,15 +3,17 @@
 // The mock factory has to be async (Vitest loads the real module through it); test code only.
 /* eslint-disable no-restricted-syntax */
 import { describe, expect, it, vi } from 'vitest';
-import { MAP_SIZE, TICKS_PER_HOUR } from '../../src/constants';
+import { MAP_SIZE, ResidentFlags, TICKS_PER_HOUR } from '../../src/constants';
 import type { EntityId, WorldState } from '../../src/contracts';
 import type * as MovementApi from '../../src/systems/movement/api';
 import { findById } from '../../src/state/entities';
 import { hamletFixture } from '../fixtures/hamlet';
 import { run } from '../helpers';
-import { building, everyoneToWork, ticks, untilHour } from './helpers';
+import { building, everyoneToWork, good, ticks, untilHour } from './helpers';
 
 const left = new Map<EntityId, number>();
+/** Residents whose next walk gives up halfway, as C3A's movement does when a path breaks. */
+const giveUp = new Set<EntityId>();
 
 vi.mock('../../src/systems/movement/api', async (importOriginal) => {
   const actual = await importOriginal<typeof MovementApi>();
@@ -47,6 +49,13 @@ function walk(state: WorldState): void {
   for (const r of state.residents) {
     if (!r.move) continue;
     const n = (left.get(r.id) ?? 1) - 1;
+    if (giveUp.has(r.id) && n > 0) {
+      giveUp.delete(r.id);
+      r.move = null;
+      r.flags |= ResidentFlags.stuck;
+      left.delete(r.id);
+      continue;
+    }
     if (n > 0) {
       left.set(r.id, n);
       continue;
@@ -84,5 +93,31 @@ describe('with walking', () => {
     expect(f.state.logistics.jobs).toHaveLength(0);
     const store = building(f.state, f.b.storehouse);
     expect(store.rt!.reservedOut.every((n) => n === 0)).toBe(true);
+  });
+
+  it('gives a trip up when the walk ends stuck, and puts the goods back', () => {
+    left.clear();
+    giveUp.clear();
+    const f = hamletFixture();
+    const store = building(f.state, f.b.storehouse);
+    const wheat = store.rt!.store[good('wheat')]!;
+    untilHour(f.state, 8);
+    everyoneToWork(f.state);
+    ticks(f.state, 6, walk);
+    const job = f.state.logistics.jobs[0]!;
+    const porter = findById(f.state.residents, job.porter)!;
+    expect(job.stage).toBe(1);
+    giveUp.add(porter.id);
+    ticks(f.state, 3, walk);
+    expect(porter.flags & ResidentFlags.stuck).toBeTruthy();
+    expect(f.state.logistics.jobs.some((j) => j.id === job.id)).toBe(false);
+    expect(porter.carry).toBeNull();
+    const mill = building(f.state, f.b.windmill);
+    expect(
+      mill.rt!.reservedIn.every((n) => n === 0) || f.state.logistics.jobs.some((j) => j.to === mill.id),
+    ).toBe(true);
+    // The wheat went back into a storehouse rather than vanishing.
+    const inJobs = f.state.logistics.jobs.reduce((n, j) => n + (j.good === good('wheat') ? j.qty : 0), 0);
+    expect(store.rt!.store[good('wheat')]! + mill.rt!.input[good('wheat')]! + inJobs).toBe(wheat);
   });
 });

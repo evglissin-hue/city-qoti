@@ -269,6 +269,7 @@ export function tendFields(
       if (m.terrain[i] === Terrain.field) m.terrain[i] = Terrain.grass;
     }
     const rect = rectOf(lost)!;
+    state.networkVersion += 1;
     ctx.events.push({ e: 'tiles.changed', rect, layers: ['terrain', 'fieldOwner', 'crop'] });
     ctx.dirty.mark('terrain', rect);
     ctx.dirty.mark('fieldOwner', rect);

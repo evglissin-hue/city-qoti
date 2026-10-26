@@ -272,6 +272,7 @@ describe('field painting', () => {
     fertile(f.state, 124, 114, 140, 130);
     f.state.map.fertility[121 * S + 133] = 20;
     const before = f.state.economy.treasury;
+    const network = f.state.networkVersion;
     const ctx = run(f.state, {
       t: 'field.paint',
       farm: farm.id,
@@ -291,6 +292,8 @@ describe('field painting', () => {
     expect(owner(139, 120)).toBe(0); // 8 tiles away
     expect(owner(130, 120)).toBe(0); // the farmhouse itself
     expect(before - f.state.economy.treasury).toBe(200);
+    // Walkers route on the network; fields change it.
+    expect(f.state.networkVersion).toBeGreaterThan(network);
     expect(ctx.events.some((e) => e.e === 'tiles.changed' && e.layers.includes('fieldOwner'))).toBe(true);
   });
 
