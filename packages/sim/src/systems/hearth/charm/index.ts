@@ -30,10 +30,7 @@ export const charm: System = {
     }
     if (t % TICKS_PER_HOUR === 0) {
       const hour = (Math.floor(t / TICKS_PER_HOUR) + START_HOUR) % HOURS_PER_DAY;
-      if (hour === LIGHTS_ON_HOUR || hour === LIGHTS_OFF_HOUR) {
-        markLanterns(state);
-        due = true;
-      }
+      if ((hour === LIGHTS_ON_HOUR || hour === LIGHTS_OFF_HOUR) && markLanterns(state)) due = true;
     }
     if (due && h.dirtyChunks.length > 0) recomputeDirty(state, ctx);
     if (h.charmSoon) delete h.charmSoon;
@@ -58,8 +55,9 @@ export function recomputeDirty(state: WorldState, ctx: TickCtx | null): number {
   return n;
 }
 
-/** Marks the chunks around every light source whose value differs by night. */
-function markLanterns(state: WorldState): void {
+/** Marks the chunks around every light source whose value differs by night; false when none. */
+function markLanterns(state: WorldState): boolean {
+  let any = false;
   for (const d of state.decor) {
     const i = DECOR_INDEX.get(d.def);
     if (i === undefined || !NIGHT_DECOR[i]) continue;
@@ -68,5 +66,7 @@ function markLanterns(state: WorldState): void {
     let r = 0;
     for (const s of DECOR_SOURCES[i]!) r = Math.max(r, s.radius + 1);
     markChunks(state, [x - r, z - r, x + r, z + r]);
+    any = true;
   }
+  return any;
 }
