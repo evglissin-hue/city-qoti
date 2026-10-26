@@ -10,7 +10,11 @@ function terrace(x: number): number {
   if (x >= 100) return 1;
   return 0;
 }
-const reader = { height: (x: number) => terrace(x) } as unknown as MapReader;
+const reader = {
+  height: (x: number) => terrace(x),
+  water: () => 0,
+  occupant: () => 0,
+} as unknown as MapReader;
 
 /** A ray from high above that passes through the given world point, travelling along dir. */
 function rayThrough(px: number, py: number, pz: number, dir: Vector3): [Vector3, Vector3] {

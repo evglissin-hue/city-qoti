@@ -9,12 +9,14 @@ export interface QualityPreset {
   msaa: boolean;
   /** Keep redrawing while gentle ambient motion (water, smoke, sails) is in view. */
   ambientMotion: boolean;
+  /** C3D-1: decor and small prop detail distance in tiles (17-presentation.md, Quality presets). */
+  decorDistance: number;
 }
 
 export const QUALITY_PRESETS: Record<Quality, QualityPreset> = {
-  high: { maxDpr: 2, shadowMap: 2048, msaa: true, ambientMotion: true },
-  low: { maxDpr: 1, shadowMap: 0, msaa: false, ambientMotion: false },
-  medium: { maxDpr: 1.5, shadowMap: 1024, msaa: true, ambientMotion: true },
+  high: { maxDpr: 2, shadowMap: 4096, msaa: true, ambientMotion: true, decorDistance: 140 },
+  low: { maxDpr: 1, shadowMap: 0, msaa: false, ambientMotion: false, decorDistance: 40 },
+  medium: { maxDpr: 1.5, shadowMap: 2048, msaa: true, ambientMotion: true, decorDistance: 80 },
 };
 
 /** A first guess from the device; players can change it in settings. */

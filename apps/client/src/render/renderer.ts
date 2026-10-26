@@ -22,6 +22,7 @@ import { CameraController, FOV } from '../input/camera';
 import type { Mirror } from '../state/mirror';
 import type { EntityPick, Ghost, RenderApi, TilePick } from './api';
 import { fpToWorld, levelY } from './coords';
+import { createWorldEnv, type WorldEnv } from './env';
 import {
   layerFactories,
   type EffectsLayer,
@@ -95,6 +96,8 @@ export class Renderer implements RenderApi {
   private readonly sun = new DirectionalLight(0xffffff, 1.5);
   private readonly fill = new DirectionalLight(0x9cc4ff, 0.4);
   private readonly night = { value: 0 };
+  /** C3D-1: shared look state for world layers (time, night, sky, ground lights, camera). */
+  readonly env: WorldEnv;
   private readonly skyCanvas = document.createElement('canvas');
   private readonly skyTexture: CanvasTexture;
   private quality: Quality = 'medium';
@@ -124,6 +127,8 @@ export class Renderer implements RenderApi {
     readonly mirror: Mirror,
     quality: Quality = 'medium',
   ) {
+    this.env = createWorldEnv(this.camera);
+    this.env.night = this.night;
     this.three = new WebGLRenderer({
       antialias: QUALITY_PRESETS[quality].msaa,
       powerPreference: 'high-performance',
@@ -149,7 +154,13 @@ export class Renderer implements RenderApi {
     this.setQuality(quality);
     this.rig = new CameraController(this.camera, mirror, this.three.domElement);
 
-    const ctx = { scene: this.scene, mirror, material: this.material, invalidate: () => this.invalidate() };
+    const ctx = {
+      scene: this.scene,
+      mirror,
+      material: this.material,
+      invalidate: () => this.invalidate(),
+      env: this.env,
+    };
     this.layers = layerFactories.map((make) => make());
     for (const layer of this.layers) layer.init(ctx);
     this.layer<EffectsLayer>('effects').setSmoke(QUALITY_PRESETS[quality].ambientMotion);
@@ -211,6 +222,11 @@ export class Renderer implements RenderApi {
     );
     this.sun.target.position.set(MAP_SIZE / 2, 0, MAP_SIZE / 2);
     this.sunDir.set(l.sunDir[0], l.sunDir[1], l.sunDir[2]).normalize();
+    this.env.sky.value.copy(l.sky);
+    this.env.skyTop.value.copy(l.skyTop);
+    this.env.sunDir.value.copy(this.sunDir);
+    this.env.sunColor.value.copy(l.sun);
+    this.env.clouds.value = 1 - l.night;
     this.invalidate();
   }
 
@@ -242,6 +258,7 @@ export class Renderer implements RenderApi {
     const target = this.viewTarget();
     const dist = this.camera.position.distanceTo(target);
     const fog = this.scene.fog as Fog;
+    this.env.focus.copy(target);
     fog.near = dist * 1.3 + 30;
     fog.far = dist * 3.2 + 140;
     if (!this.three.shadowMap.enabled) return;
@@ -275,6 +292,8 @@ export class Renderer implements RenderApi {
     const dt = Math.min(0.1, (now - this.last) / 1000);
     this.last = now;
     let dirty = this.rig.update(dt);
+    if (dirty) this.env.viewRevision++;
+    if (this.env.motion) this.env.time.value += dt;
     for (const layer of this.layers) if (layer.frame?.(dt)) dirty = true;
     this.updateLighting();
     if (dirty || this.needsRender) {
@@ -366,6 +385,9 @@ export class Renderer implements RenderApi {
       });
     }
     this.sun.castShadow = shadows;
+    this.env.motion = preset.ambientMotion;
+    this.env.detailDistance = preset.decorDistance;
+    this.env.viewRevision++;
     if (shadows && this.sun.shadow.mapSize.x !== preset.shadowMap) {
       this.sun.shadow.mapSize.set(preset.shadowMap, preset.shadowMap);
       this.sun.shadow.map?.dispose();
