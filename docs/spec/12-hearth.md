@@ -190,3 +190,4 @@ interface ChronicleEntry {
 - Ledger draws districts; Hearth assigns or edits the style (P22). Grown buildings pick variant parameters from the style with RNG keyed by building id.
 - Restyling an existing district costs paint and materials and is applied by builders over time.
 - Starter styles: Riverside Timber, Hill Stone, Market Brick, Garden Plaster.
+- As built in C4E: the art kit draws the four starter styles (ids `timber`, `stone`, `brick`, `plaster`; longer names containing them work too) from `Building.style`; see `17-presentation.md`, Village.
