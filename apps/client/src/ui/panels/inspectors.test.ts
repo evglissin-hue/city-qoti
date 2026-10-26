@@ -14,7 +14,7 @@ afterEach(() => {
 describe('resident inspector', () => {
   it('shows who they are, how they feel and what they wish for', async () => {
     const { session, calls } = mockSession();
-    session.ui.selection.value = { kind: 'resident', id: 13 };
+    session.ui.selection.value = { kind: 'resident', id: 12 };
     view = await mount(h(InspectorPanel, { session }));
     const text = view.text();
     expect(text).toContain('Clover Thistledown');
@@ -34,13 +34,13 @@ describe('resident inspector', () => {
     expect(calls.find((c) => c.method === 'highlight')?.args[0]).toMatchObject({ x: 54, z: 49, radius: 4 });
 
     await view.click('follow');
-    expect(session.ui.following.value).toBe(13);
-    expect(calls.find((c) => c.method === 'follow')?.args[0]).toBe(13);
+    expect(session.ui.following.value).toBe(12);
+    expect(calls.find((c) => c.method === 'follow')?.args[0]).toBe(12);
   });
 
   it('tells their story: friends, household and history', async () => {
     const { session } = mockSession();
-    session.ui.selection.value = { kind: 'resident', id: 13 };
+    session.ui.selection.value = { kind: 'resident', id: 12 };
     view = await mount(h(InspectorPanel, { session }));
     await view.click('resident-story-tab');
     const text = view.text();
@@ -49,12 +49,12 @@ describe('resident inspector', () => {
     expect(text).toContain('Hazel Thistledown');
     expect(text).toContain('Became friends with Marina Underbank');
     await view.click(button(view.root, 'Marina Underbank'));
-    expect(session.ui.selection.value).toEqual({ kind: 'resident', id: 18 });
+    expect(session.ui.selection.value).toEqual({ kind: 'resident', id: 17 });
   });
 
   it('opens the home from the facts', async () => {
     const { session } = mockSession();
-    session.ui.selection.value = { kind: 'resident', id: 13 };
+    session.ui.selection.value = { kind: 'resident', id: 12 };
     view = await mount(h(InspectorPanel, { session }));
     await view.click(button(view.root, 'Cottage'));
     expect(session.ui.selection.value).toEqual({ kind: 'building', id: 3 });
@@ -87,7 +87,7 @@ describe('building inspector', () => {
 
   it('shows a construction site: stage, progress, materials and priority', async () => {
     const { session, submitted } = mockSession();
-    session.ui.selection.value = { kind: 'building', id: 12 };
+    session.ui.selection.value = { kind: 'building', id: 8 };
     view = await mount(h(InspectorPanel, { session }));
     const text = view.text();
     expect(text).toContain('Construction site');
@@ -98,7 +98,7 @@ describe('building inspector', () => {
     expect(text).toContain('Built by Bo');
     expect(view.root.querySelector('[data-testid="priority"]')?.getAttribute('aria-checked')).toBe('true');
     await view.click('priority');
-    expect(submitted).toEqual([{ t: 'build.setPriority', id: 12, priority: false }]);
+    expect(submitted).toEqual([{ t: 'build.setPriority', id: 8, priority: false }]);
   });
 
   it('shows the storehouse shelves and a home with its household', async () => {

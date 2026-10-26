@@ -65,7 +65,7 @@ const extraBuildings: BuildingView[] = [
     foundation: false,
   },
   {
-    id: 11,
+    id: 10,
     def: 'well',
     x: 57,
     z: 52,
