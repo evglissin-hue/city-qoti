@@ -5,10 +5,12 @@ import { levelY } from './coords';
  * The ground surface, shared by terrain, water, roads, trees, props and picking.
  *
  * Every tile center sits exactly at its level (so buildings, decor and residents placed at
- * `levelY(h)` stand on the ground). Between tile centers the ground eases from one level to the next
- * with a smoothstep, so one-level steps become soft rounded slopes. Neighbors two or more levels
- * apart do not blend: each keeps its own level up to the shared edge and the terrain draws a rocky
- * face between them. Tiles under buildings are pinned flat, and the slopes around them give way.
+ * `levelY(h)` stand on the ground). Between four tile centers the ground is two triangles split
+ * along the diagonal whose ends agree best, so one-level steps become even slopes and a staircase of
+ * levels reads as one diagonal hillside instead of a zigzag. Neighbors two or more levels apart do
+ * not blend: each keeps its own level up to the shared edge and the terrain draws a rocky face
+ * between them. Tiles under buildings are pinned flat, and the slopes around them give way. River
+ * banks follow a softened water mask, so shorelines curve.
  */
 
 /** Water surface height (world units). */
@@ -21,14 +23,12 @@ const PIN_REACH = 0.45;
 /** Shoreline shaping: half-width of the band around the mask's middle line, and its slope. */
 const SHORE_BAND = 0.14;
 const SHORE_SLOPE = 1.6;
-/** Grid cells per tile side where the ground is not flat: vertices sit on the smooth surface. */
-export const SURFACE_GRID = 2;
-
 /**
- * Gradient of the last `tileSurfaceY` call (d/dx, d/dz), exact when `gradExact` is true (no
- * built-on tiles nearby); otherwise callers fall back to finite differences.
+ * Grid cells per tile side where the ground is not flat. The grid's vertices are the tile centers,
+ * edge middles and corners, and its diagonals run from the tile center to the corners, so it holds
+ * the cell triangles exactly.
  */
-export const lastGrad = { dx: 0, dz: 0, exact: false };
+export const SURFACE_GRID = 2;
 
 export interface SurfaceReader {
   height(x: number, z: number): number;
@@ -179,17 +179,12 @@ const NB: readonly (readonly [number, number])[] = [
  */
 export function tileSurfaceY(t: SurfaceTiles, tx: number, tz: number, px: number, pz: number): number {
   const ownY = t.y(tx, tz);
-  lastGrad.dx = 0;
-  lastGrad.dz = 0;
-  lastGrad.exact = true;
   if (t.pinned(tx, tz)) return ownY;
   // The dual cell between the four tile centers around the point.
   const i0 = px >= tx + 0.5 ? tx : tx - 1;
   const j0 = pz >= tz + 0.5 ? tz : tz - 1;
-  const ru = px - 0.5 - i0;
-  const rv = pz - 0.5 - j0;
-  const u = ease(ru);
-  const v = ease(rv);
+  const u = px - 0.5 - i0;
+  const v = pz - 0.5 - j0;
   const own = (tz - j0) * 2 + (tx - i0);
   for (let k = 0; k < 4; k++) {
     const x = i0 + (k & 1);
@@ -221,32 +216,43 @@ export function tileSurfaceY(t: SurfaceTiles, tx: number, tz: number, px: number
     else if (IN[b]) S[k] = Y[b]!;
     else S[k] = ownY;
   }
-  const top = S[0]! + (S[1]! - S[0]!) * u;
-  const bottom = S[2]! + (S[3]! - S[2]!) * u;
-  let y = top + (bottom - top) * v;
-  lastGrad.dx = ((S[1]! - S[0]!) * (1 - v) + (S[3]! - S[2]!) * v) * 6 * ru * (1 - ru);
-  lastGrad.dz = (bottom - top) * 6 * rv * (1 - rv);
+  // Two triangles, split along the diagonal whose ends differ least (ties: the higher one, so
+  // saddles keep a ridge). Cell edges stay linear between their tile centers either way, so
+  // neighboring cells always meet.
+  const s0 = S[0]!;
+  const s1 = S[1]!;
+  const s2 = S[2]!;
+  const s3 = S[3]!;
+  const dMain = Math.abs(s0 - s3);
+  const dAnti = Math.abs(s1 - s2);
+  let y: number;
+  if (dAnti < dMain || (dAnti === dMain && s1 + s2 >= s0 + s3)) {
+    y = u + v <= 1 ? s0 + (s1 - s0) * u + (s2 - s0) * v : s3 + (s2 - s3) * (1 - u) + (s1 - s3) * (1 - v);
+  } else {
+    y = u >= v ? s0 + (s1 - s0) * u + (s3 - s1) * v : s0 + (s2 - s0) * v + (s3 - s2) * u;
+  }
 
   // Shorelines follow a softened water mask instead of the tile grid: close to the mask's middle
-  // line the ground is pulled through the water line, so river banks curve.
-  const w0 = t.wet(i0, j0);
-  const w1 = t.wet(i0 + 1, j0);
-  const w2 = t.wet(i0, j0 + 1);
-  const w3 = t.wet(i0 + 1, j0 + 1);
-  if (w0 + w1 + w2 + w3 > 0) {
-    const wt = w0 + (w1 - w0) * u;
-    const wb = w2 + (w3 - w2) * u;
-    const sd = 0.5 - (wt + (wb - wt) * v);
+  // line the ground is pulled through the water line, so river banks curve. Only where the water
+  // and this tile share the slope (not under a cliff that drops into the river).
+  let wetCell = false;
+  for (let k = 0; k < 4; k++) if (IN[k] && Y[k]! < 0) wetCell = true;
+  if (wetCell) {
+    const eu = ease(u);
+    const ev = ease(v);
+    const w0 = t.wet(i0, j0);
+    const w1 = t.wet(i0 + 1, j0);
+    const w2 = t.wet(i0, j0 + 1);
+    const w3 = t.wet(i0 + 1, j0 + 1);
+    const wt = w0 + (w1 - w0) * eu;
+    const wb = w2 + (w3 - w2) * eu;
+    const sd = 0.5 - (wt + (wb - wt) * ev);
     const k = ease(Math.abs(sd) / SHORE_BAND);
-    if (k < 1) {
-      y = WATER_Y + sd * SHORE_SLOPE + (y - WATER_Y - sd * SHORE_SLOPE) * k;
-      lastGrad.exact = false;
-    }
+    if (k < 1) y = WATER_Y + sd * SHORE_SLOPE + (y - WATER_Y - sd * SHORE_SLOPE) * k;
   }
 
   // Built-on neighbors pull the ground level with themselves near their edges.
   if (!t.pinsNear(tx, tz)) return y;
-  lastGrad.exact = false;
   let maxW = 0;
   let sumW = 0;
   let sumY = 0;

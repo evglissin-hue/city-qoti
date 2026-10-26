@@ -163,9 +163,11 @@ export function installDebugHook(getSession: () => Session | null): void {
     /** Pins the lighting to an hour of the day (null follows the clock again). */
     setHour: (hour: number | null) => s()?.renderer?.setDebugHour(hour),
     /** C3D-1: jumps the camera (no glide) to look at a tile from `distance`, for screenshots. */
-    look: (x: number, z: number, distance: number) => {
+    look: (x: number, z: number, distance: number, turn = 0, tilt = 0) => {
       const r = s()?.renderer;
       r?.focus(x, z, distance);
+      // Optional turn and tilt (radians, relative to the current view).
+      r?.rig.rotateBy(turn, tilt);
       r?.rig.snap();
     },
     /**

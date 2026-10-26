@@ -85,6 +85,8 @@ const features = [
   ['bridge', 11, 14],
   ['fields', 10, 16],
   ['lanterns', 22, 18],
+  ['rim', 16.5, 46],
+  ['horizon', 18.4, 70],
 ].filter(([n]) => !only || only.includes(n));
 if (features.length) {
   for (const def of ['lantern', 'lantern', 'bench', 'lantern', 'lantern']) {
@@ -143,7 +145,15 @@ if (features.length) {
         q.setHour(h);
         if (n === 'bridge' && b) q.look(b.at[0], b.at[1], d);
         else if (n === 'fields') q.look(f[0], f[1], d);
-        else q.focusStart(d, true);
+        else if (n === 'rim') {
+          // The valley's rocky rim, mountains and mist, seen from inside.
+          const a = q.startArea();
+          q.look(a[0] < 96 ? 26 : 166, (a[1] + a[3]) / 2, d, 0, 0);
+        } else if (n === 'horizon') {
+          // Tilted low so the sky, clouds and the misty rim show.
+          const a = q.startArea();
+          q.look((a[0] + a[2]) / 2, (a[1] + a[3]) / 2, d, 0.4, -0.5);
+        } else q.focusStart(d, true);
       },
       [name, hour, dist, bridge, field],
     );

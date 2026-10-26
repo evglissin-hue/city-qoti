@@ -11,7 +11,7 @@ import { ChunkedMeshes } from '../chunks';
 import { hash2 } from '../coords';
 import { createWorldEnv } from '../env';
 import { createGroundMaterial, GroundTextures } from '../ground';
-import { lastGrad, SURFACE_GRID, SurfaceTiles, tileSurfaceY } from '../surface';
+import { SURFACE_GRID, SurfaceTiles, tileSurfaceY } from '../surface';
 import type { LayerContext, RenderLayer } from './types';
 
 /**
@@ -117,6 +117,9 @@ export function buildTerrainChunk(tiles: SurfaceTiles, cx: number, cz: number): 
   const x0 = cx * CHUNK_SIZE;
   const z0 = cz * CHUNK_SIZE;
   tiles.cache(x0 - 2, z0 - 2, x0 + CHUNK_SIZE + 1, z0 + CHUNK_SIZE + 1);
+  gridCache.fill(NaN);
+  gridX0 = x0 - 1;
+  gridZ0 = z0 - 1;
   const b = new TerrainBuilder();
   // Flat tiles (all nine tile centers around them at one height) are a single quad.
   const span = CHUNK_SIZE + 1;
@@ -164,8 +167,54 @@ function top(b: TerrainBuilder, y: number, x: number, z: number): void {
 }
 
 /**
- * A sloped tile: a small grid on the smooth surface with normals from the smooth surface, so slopes
- * shade round and soft even though the grid is coarse.
+ * Heights of the grid points around the chunk being built, as their own tile draws them (points on
+ * an edge belong to the east or south tile), filled on demand: normals look one grid step across.
+ */
+const GRID_SPAN = (CHUNK_SIZE + 2) * SURFACE_GRID + 1;
+const gridCache = new Float32Array(GRID_SPAN * GRID_SPAN);
+let gridX0 = 0;
+let gridZ0 = 0;
+
+function gridY(tiles: SurfaceTiles, px: number, pz: number): number {
+  const gx = Math.round((px - gridX0) * SURFACE_GRID);
+  const gz = Math.round((pz - gridZ0) * SURFACE_GRID);
+  const inside = gx >= 0 && gz >= 0 && gx < GRID_SPAN && gz < GRID_SPAN;
+  if (inside) {
+    const v = gridCache[gz * GRID_SPAN + gx]!;
+    if (!Number.isNaN(v)) return v;
+  }
+  const tx = Math.min(MAP_SIZE - 1, Math.max(0, Math.floor(px)));
+  const tz = Math.min(MAP_SIZE - 1, Math.max(0, Math.floor(pz)));
+  const y = tileSurfaceY(
+    tiles,
+    tx,
+    tz,
+    Math.min(tx + 1, Math.max(tx, px)),
+    Math.min(tz + 1, Math.max(tz, pz)),
+  );
+  if (inside) gridCache[gz * GRID_SPAN + gx] = y;
+  return y;
+}
+
+/** One side of a central difference, unless it steps over a rocky face. */
+function slopeAcross(y: number, before: number, after: number): number {
+  const a = y - before;
+  const b = after - y;
+  const okA = Math.abs(a) < CLIFF_STEP;
+  const okB = Math.abs(b) < CLIFF_STEP;
+  if (okA && okB) return (a + b) / (2 * STEP);
+  if (okA) return a / STEP;
+  if (okB) return b / STEP;
+  return 0;
+}
+
+const STEP = 1 / SURFACE_GRID;
+/** A rise this big between neighboring grid points is a face, not a slope. */
+const CLIFF_STEP = 0.4;
+
+/**
+ * A sloped tile: a small grid on the surface. Normals average the slopes on both sides of each
+ * vertex (across tile edges too), so the hills shade soft and round even though the grid is coarse.
  */
 function slope(b: TerrainBuilder, tiles: SurfaceTiles, tx: number, tz: number): void {
   const step = 1 / GRID;
@@ -174,18 +223,10 @@ function slope(b: TerrainBuilder, tiles: SurfaceTiles, tx: number, tz: number): 
       const px = tx + i * step;
       const pz = tz + j * step;
       const k = j * (GRID + 1) + i;
-      heights[k] = tileSurfaceY(tiles, tx, tz, px, pz);
-      let dx = lastGrad.dx;
-      let dz = lastGrad.dz;
-      if (!lastGrad.exact) {
-        const e = 0.04;
-        const xa = Math.max(tx, px - e);
-        const xb = Math.min(tx + 1, px + e);
-        const za = Math.max(tz, pz - e);
-        const zb = Math.min(tz + 1, pz + e);
-        dx = (tileSurfaceY(tiles, tx, tz, xb, pz) - tileSurfaceY(tiles, tx, tz, xa, pz)) / (xb - xa);
-        dz = (tileSurfaceY(tiles, tx, tz, px, zb) - tileSurfaceY(tiles, tx, tz, px, za)) / (zb - za);
-      }
+      const y = tileSurfaceY(tiles, tx, tz, px, pz);
+      heights[k] = y;
+      const dx = slopeAcross(y, gridY(tiles, px - STEP, pz), gridY(tiles, px + STEP, pz));
+      const dz = slopeAcross(y, gridY(tiles, px, pz - STEP), gridY(tiles, px, pz + STEP));
       const len = Math.hypot(dx, 1, dz);
       normals[k * 3] = -dx / len;
       normals[k * 3 + 1] = 1 / len;
