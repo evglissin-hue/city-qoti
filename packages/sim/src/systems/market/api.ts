@@ -135,6 +135,16 @@ export function sell(
   return n;
 }
 
+/** True when some built outlet can hand out the good now (cheaper than outletsWith). */
+export function inStock(state: WorldState, good: number): boolean {
+  for (const b of state.buildings) {
+    const rt = b.rt;
+    if (b.stage !== 'built' || !rt || (rt.store[good] ?? 0) - (rt.reservedOut[good] ?? 0) <= 0) continue;
+    if (content.buildingById.get(b.def)?.tags?.includes('outlet')) return true;
+  }
+  return false;
+}
+
 /** Built outlets (tag 'outlet') holding the good, by id; every outlet when `good` is -1. */
 export function outletsWith(state: WorldState, good: number): EntityId[] {
   const out: EntityId[] = [];

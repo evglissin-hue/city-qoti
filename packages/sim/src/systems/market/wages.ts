@@ -77,6 +77,18 @@ export const wages: System = {
   every: TICKS_PER_DAY,
   offset: WAGES_OFFSET,
   tick(state, ctx) {
-    if (marketOpen(state)) payWages(state, ctx);
+    if (!marketOpen(state)) return;
+    // The first pay day after the Village charter: say what has changed.
+    const last = state.charter.history[state.charter.history.length - 1];
+    if (last?.rank === 'village' && last.tick > state.tick - TICKS_PER_DAY) {
+      ctx.events.push({ e: 'notify', kind: 'market-open', text: MARKET_OPEN_TEXT });
+    }
+    payWages(state, ctx);
   },
 };
+
+/** The first pay day after the Village charter. */
+export const MARKET_OPEN_TEXT =
+  'Market rights at last. Wages go out at five, the stalls charge what the shelves can bear, ' +
+  'income tax replaces the old hearth penny, and the only new coin in the valley is what trade ' +
+  'brings home. The Ledger has a market page for the curious.';

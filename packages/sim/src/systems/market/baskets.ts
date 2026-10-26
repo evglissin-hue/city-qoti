@@ -16,7 +16,7 @@ import { calendar } from '../clock/calendar';
 import { dailyOffset, dayIndex } from '../economy/time';
 import { foodIndexes, pantryFood } from '../residents/needs';
 import { announceHousehold } from '../residents/records';
-import { marketOpen, outletFree, outletsWith, purchase, tillPrice } from './api';
+import { inStock, marketOpen, outletFree, purchase, tillPrice } from './api';
 
 /** NEED_IDS index of the `goods` need. */
 export const GOODS_NEED = 5;
@@ -190,7 +190,7 @@ function buyGroup(state: WorldState, h: Household, g: NeedGroup, units: number, 
       const gi = content.goodIndex.get(id);
       if (gi === undefined || tried.includes(gi)) continue;
       const price = tillPrice(state, gi);
-      if (price > h.savings || outletsWith(state, gi).length === 0) continue;
+      if (price > h.savings || !inStock(state, gi)) continue;
       const value = valueOf(likeHalves(weight, taste.thrifty, taste.comfortable), price);
       if (value > bestValue) {
         bestValue = value;
@@ -237,7 +237,7 @@ function supperTreat(state: WorldState, h: Household, basket: NeedsBasket): void
       const gi = content.goodIndex.get(id);
       if (gi === undefined) continue;
       const price = tillPrice(state, gi);
-      if (h.savings - price < reserve || outletsWith(state, gi).length === 0) continue;
+      if (h.savings - price < reserve || !inStock(state, gi)) continue;
       const value = valueOf(likeHalves(weight, false, true), price);
       if (value > bestValue) {
         bestValue = value;

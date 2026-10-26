@@ -21,6 +21,7 @@ import { fileURLToPath } from 'node:url';
 import { residentsBench } from './residents';
 import { hearthBench } from './hearth';
 import { benchEconomy } from './economy';
+import { benchMarket } from './market';
 import { syntheticValley } from './synthetic';
 
 const BUDGET = {
@@ -143,6 +144,10 @@ failures.push(...hearth.failures);
 const economy = benchEconomy();
 lines.push(...economy.lines);
 failures.push(...economy.failures);
+// 7. Market and money (C4A): the daily passes of a 150-resident village.
+const market = benchMarket();
+lines.push(...market.lines);
+failures.push(...market.failures);
 
 const heapMb = process.memoryUsage().heapUsed / 1024 / 1024;
 lines.push(`memory          ${heapMb.toFixed(0)} MB heap in use`);
@@ -168,6 +173,7 @@ const report = {
   residents,
   hearth: hearth.report,
   economy: economy.report,
+  market: market.report,
   heapMb,
   failures,
 };
