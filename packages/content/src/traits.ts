@@ -48,6 +48,7 @@ export const curious: TraitDef = {
 export const earlyBird: TraitDef = {
   id: 'early-bird',
   name: 'Early Bird',
+  adjective: 'early-rising',
   blurb: 'Up before the bakery, and slightly smug about it.',
   clashes: ['night-owl'],
   befriends: ['early-bird', 'practical'],
@@ -84,6 +85,7 @@ export const grumpy: TraitDef = {
 export const homebody: TraitDef = {
   id: 'homebody',
   name: 'Homebody',
+  adjective: 'home-loving',
   blurb: 'Considers the garden gate an expedition.',
   clashes: ['curious', 'sporty'],
   befriends: ['homebody', 'green-fingered'],
@@ -96,6 +98,7 @@ export const homebody: TraitDef = {
 export const nightOwl: TraitDef = {
   id: 'night-owl',
   name: 'Night Owl',
+  adjective: 'night-owlish',
   blurb: 'Does their best thinking after the lanterns are lit.',
   clashes: ['early-bird'],
   befriends: ['night-owl', 'romantic'],
@@ -148,6 +151,7 @@ export const sporty: TraitDef = {
 export const sweetTooth: TraitDef = {
   id: 'sweet-tooth',
   name: 'Sweet Tooth',
+  adjective: 'sweet-toothed',
   blurb: 'Can smell a fresh loaf from the next parish.',
   clashes: [],
   befriends: ['sweet-tooth', 'cheerful'],

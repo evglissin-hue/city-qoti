@@ -27,6 +27,9 @@ export const badger: SpeciesDef = {
     "{name} once built a shed so solid it has outlived two of the neighbors' houses.",
     '{name} likes a home with thick walls and a workshop within earshot.',
     '{name} says crowds are fine in principle and exhausting in practice.',
+    '{name} keeps the tidiest woodpile in the valley and will tell you about it.',
+    '{name} has a favorite chair, a favorite mug and a favorite grievance.',
+    '{name} digs a garden like they are looking for something specific.',
   ],
   art: { kit: 'resident', params: { species: 'badger' } },
 };
@@ -53,6 +56,9 @@ export const fox: SpeciesDef = {
     '{name} likes a busy street, a good haggle and the last word.',
     '{name} has never once paid full price, and says so often.',
     '{name} finds quiet lanes suspicious. Where is everybody?',
+    '{name} has a story for every coin and a coin for every story.',
+    '{name} walks the long way past the market, just to see what is new.',
+    '{name} once sold a hat back to the fox who sold it to them.',
   ],
   art: { kit: 'resident', params: { species: 'fox' } },
 };
@@ -83,6 +89,9 @@ export const hedgehog: SpeciesDef = {
     '{name} keeps late hours and a very small lantern.',
     '{name} prefers a garden gate to a front door.',
     '{name} is prickly on the outside and mostly prickly on the inside, but kind.',
+    '{name} is up when the lanterns go out and asleep when the cockerels start.',
+    '{name} knows which garden has the best beetles and is not telling.',
+    '{name} rolls up at the first sign of trouble, and at the second, just to be sure.',
   ],
   art: { kit: 'resident', params: { species: 'hedgehog' } },
 };
@@ -107,6 +116,9 @@ export const mouse: SpeciesDef = {
     '{name} likes neighbors close enough to borrow sugar from without a coat.',
     '{name} finds open fields frankly too much sky.',
     '{name} keeps a pocketful of crumbs for emergencies. Every day is an emergency.',
+    '{name} has strong views on crumb structure.',
+    "{name} likes a kitchen with a window onto someone else's kitchen.",
+    "{name} keeps a list of everyone's birthdays and most of their shoe sizes.",
   ],
   art: { kit: 'resident', params: { species: 'mouse' } },
 };
@@ -132,6 +144,9 @@ export const otter: SpeciesDef = {
     '{name} swims before breakfast and talks about it after.',
     '{name} likes a window with a view of moving water, or failing that, a puddle.',
     '{name} has strong opinions about fish and stronger ones about where to catch them.',
+    '{name} floats on their back to think, and thinks a great deal.',
+    '{name} has a favorite stone and keeps it in a pocket, for luck or for skimming.',
+    '{name} says a day without a splash is a day mostly wasted.',
   ],
   art: { kit: 'resident', params: { species: 'otter' } },
 };
@@ -159,6 +174,9 @@ export const rabbit: SpeciesDef = {
     '{name} likes a quiet lane and a loud vegetable patch.',
     '{name} can hear a sawpit from a mile off and would rather not.',
     '{name} keeps a bunch of something fresh on the windowsill, always.',
+    '{name} rises early, worries mildly and gardens heroically.',
+    '{name} prefers a quiet cup of tea to a loud anything.',
+    '{name} has opinions about lettuce that would surprise you.',
   ],
   art: { kit: 'resident', params: { species: 'rabbit' } },
 };
@@ -185,6 +203,9 @@ export const squirrel: SpeciesDef = {
     '{name} likes a home with a tree outside and a better tree behind it.',
     '{name} thinks a street without trees is just a corridor.',
     '{name} prefers the high ground, for the view and for the feeling of being right.',
+    '{name} counts the acorns twice and trusts neither count.',
+    '{name} is always halfway up something.',
+    '{name} likes the creak of a big old tree in the wind, and says so.',
   ],
   art: { kit: 'resident', params: { species: 'squirrel' } },
 };

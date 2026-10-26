@@ -64,6 +64,10 @@ export function attractiveness(state: WorldState, vac: readonly Vacancy[] = vaca
   return Math.round(a);
 }
 
+function speciesOf(state: WorldState, h: Household): string {
+  return findById(state.residents, h.members[0] ?? 0)?.species ?? '';
+}
+
 /** The best vacant home for a species, ties by building id. */
 function bestHome(state: WorldState, vac: readonly Vacancy[], species: string): [Vacancy | null, number] {
   let best: Vacancy | null = null;
@@ -91,10 +95,14 @@ export function arrivals(state: WorldState, ctx: TickCtx, rng: Rng): number {
   const gate = gateTile(state);
   const present = new Set(state.residents.map((r) => r.species));
   for (let i = 0; i < k && vac.length > 0; i++) {
+    // Every species is welcome; the best home on offer tips the scales, and a valley full of
+    // one kind of folk is less likely to draw more of them (the founders are always mixed).
     const weights: [string, number][] = [];
     for (const sp of content.species) {
+      if (founding && present.has(sp.id)) continue;
       const [, score] = bestHome(state, vac, sp.id);
-      weights.push([sp.id, 6 + Math.max(0, score) + (present.has(sp.id) ? 0 : 4)]);
+      const same = state.households.filter((h) => speciesOf(state, h) === sp.id).length;
+      weights.push([sp.id, ((6 + Math.max(0, score)) * 2) / (2 + same)]);
     }
     const species = pickSpecies(rng, weights);
     const [home] = bestHome(state, vac, species);

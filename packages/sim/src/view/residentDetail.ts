@@ -210,7 +210,10 @@ function historyText(state: WorldState, r: Resident, item: HistoryItem): string 
 
 function bioText(r: Resident): string {
   const sp = content.speciesById.get(r.species);
-  const traits = r.traits.map((t) => content.traitById.get(t)?.name.toLowerCase() ?? t);
+  const traits = r.traits.map((t) => {
+    const def = content.traitById.get(t);
+    return def ? (def.adjective ?? def.name.toLowerCase()) : t;
+  });
   const who = `${traits.join(', ')} ${sp?.name.toLowerCase() ?? 'resident'}`;
   const article = /^[aeiou]/.test(who) ? 'An' : 'A';
   const bios = sp?.bios ?? [];

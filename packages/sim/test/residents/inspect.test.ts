@@ -50,7 +50,7 @@ describe('resident inspector', () => {
     const crumb = f.residents[2]![2]!;
     ticks(r, 2 * TICKS_PER_HOUR);
     const d = detail(f.state, crumb);
-    expect(d.bio).toMatch(/^An? early bird, generous mouse\. Crumb /);
+    expect(d.bio).toMatch(/^An early-rising, generous mouse\. Crumb /);
     const texts = d.history.map((h) => h.text);
     expect(texts[0]).toBe('Arrived in the valley with the family');
     expect(texts.some((t) => t.startsWith('Started '))).toBe(true);

@@ -4,7 +4,7 @@
 // fence. Levels at 10, 30, 60, 100 and 150 points; at most 5 friends, the weakest acquaintance
 // making way for a new one; 1 point of decay per day apart (Shy friendships every other day).
 import { content } from '@qoti/content';
-import { MAP_SIZE, MAX_FRIENDS, TICKS_PER_DAY } from '../../constants';
+import { MAP_SIZE, MAX_FRIENDS, TICKS_PER_DAY, TICKS_PER_HOUR as HOUR } from '../../constants';
 import type { Friend, Resident, WorldState } from '../../contracts';
 import { findById } from '../../state/entities';
 import { addMoodModifier } from './api';
@@ -150,7 +150,8 @@ export function hourlyFriendships(state: WorldState): void {
     let end = start + 1;
     while (end < n && Math.floor(sorted[end]! / 65536) === key) end++;
     const size = end - start;
-    if (size > 1) {
+    // Working side by side counts every other hour; visits and outings every hour.
+    if (size > 1 && (base !== POINTS_PER_HOUR.work || Math.floor(state.tick / HOUR) % 2 === 0)) {
       // Small groups pair everyone once; big gatherings pair each resident with a few neighbors.
       const all = size - 1 <= MAX_PAIRS_EACH * 2;
       for (let i = start; i < end; i++) {

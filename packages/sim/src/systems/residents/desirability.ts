@@ -172,25 +172,32 @@ export function homeDesirability(state: WorldState, home: Building, species: str
   return Math.round(score * 100) / 100;
 }
 
-/** A few words for where a home is, for the Chronicle ("a cottage by the river"). */
+/**
+ * A few words for where a home is, for the Chronicle ("a cottage by the river"). Water wins when it
+ * is close; otherwise one of the true descriptions is picked by the home's id, so a row of cottages
+ * by the same well does not all read alike.
+ */
 export function describeHome(state: WorldState, home: Building): string {
   const name = (content.buildingById.get(home.def)?.name ?? 'home').toLowerCase();
   const door = doorOf(state, home.id);
   const x = tileX(door);
   const z = tileZ(door);
-  const article = /^[aeiou]/.test(name) ? 'an' : 'a';
-  const d = waterWithin(state, x, z, 4);
-  if (d >= 0) {
-    const w = nearestWaterKind(state, x, z, 4);
-    return `${article} ${name} by the ${w}`;
+  const a = `${/^[aeiou]/.test(name) ? 'an' : 'a'} ${name}`;
+  if (waterWithin(state, x, z, 3) >= 0) return `${a} by the ${nearestWaterKind(state, x, z, 3)}`;
+  const options: string[] = [];
+  if (tagCount(state, 'well', x, z, 5, home.id)) options.push(`${a} by the well`);
+  if (tagCount(state, 'market', x, z, 6, home.id)) options.push(`${a} near the market`);
+  if (tagCount(state, 'bakery', x, z, 6, home.id)) options.push(`${a} that smells of the bakery`);
+  if (treeCount(state, x, z, 3) >= 4) options.push(`${a} under the trees`);
+  if (tagCount(state, 'flower', x, z, 3, home.id) >= 2) options.push(`${a} among the flowers`);
+  if (tagCount(state, 'civic', x, z, 8, home.id)) options.push(`${a} in the shadow of the town hall`);
+  if (tagCount(state, 'workshop', x, z, 5, home.id)) options.push(`${a} within earshot of the workshops`);
+  if (waterWithin(state, x, z, 8) >= 0) {
+    options.push(`${a} a short walk from the ${nearestWaterKind(state, x, z, 8)}`);
   }
-  if (tagCount(state, 'well', x, z, 5, home.id)) return `${article} ${name} by the well`;
-  if (tagCount(state, 'market', x, z, 6, home.id)) return `${article} ${name} near the market`;
-  if (tagCount(state, 'bakery', x, z, 6, home.id)) return `${article} ${name} next to the bakery`;
-  if (treeCount(state, x, z, 3) >= 4) return `${article} ${name} under the trees`;
-  if (tagCount(state, 'civic', x, z, 8, home.id)) return `${article} ${name} by the town hall`;
-  if (state.map.road[door]) return `${article} ${name} on the lane`;
-  return `${article} ${name} at the edge of town`;
+  if (homeCount(state, x, z, 4, home.id) === 0) options.push(`${a} with nobody next door`);
+  if (options.length > 0) return options[home.id % options.length]!;
+  return state.map.road[door] ? `${a} on the lane` : `${a} at the edge of town`;
 }
 
 function nearestWaterKind(state: WorldState, x: number, z: number, r: number): string {
