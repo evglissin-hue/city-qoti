@@ -5,7 +5,7 @@
 // Distances are gaps between tile rectangles (conditions/geo.ts): a target on a tile touching the
 // home is 0 tiles away, so "within 3" means the home's own footprint plus three rings around it.
 import { type CharmCategory, type Condition, content, type PlaceRef, type Target } from '@qoti/content';
-import { MAP_SIZE, NEED_IDS } from '../constants';
+import { MAP_SIZE, NEED_IDS, RANKS } from '../constants';
 import type { EntityId, MapLayers, Rect, WorldState } from '../contracts';
 import { treeStage } from '../map/layers';
 import { findById } from '../state/entities';
@@ -21,6 +21,7 @@ import {
   isHomeDef,
   rectGap2,
   tileGap2,
+  within,
 } from './geo';
 
 export interface Binding {
@@ -233,9 +234,50 @@ export function countOf(state: WorldState, what: string, ref?: string): number {
       for (const i of state.innovations) if (i.unlockedTick >= 0) n++;
       return n;
     }
+    // I2 (C4D): story goals and shared goals.
+    case 'buildings':
+      return builtCount(state, ref, false);
+    case 'byWater':
+      return builtCount(state, ref, true);
+    case 'innovation':
+      for (const i of state.innovations) if (i.id === ref) return i.unlockedTick >= 0 ? 1 : 0;
+      return 0;
+    case 'rank':
+      return Math.max(0, RANKS.indexOf(state.charter.rank));
+    case 'plansApproved':
+      return state.village.plansApproved;
+    case 'weddings':
+      return state.village.weddings;
+    case 'standingOrders':
+      return state.trade.orders.length;
     default:
       return 0;
   }
+}
+
+/** Built buildings whose def id or one of whose tags is `ref`; with `byWater`, only those within 3 tiles of open water. */
+function builtCount(state: WorldState, ref: string | undefined, byWater: boolean): number {
+  if (!ref) return 0;
+  let n = 0;
+  for (const b of state.buildings) {
+    if (b.stage !== 'built') continue;
+    const def = content.buildingById.get(b.def);
+    if (!def || (def.id !== ref && !def.tags?.includes(ref))) continue;
+    if (byWater && !waterWithin(state, buildingRect(b, def), 3)) continue;
+    n++;
+  }
+  return n;
+}
+
+/** Open water (river, lake or sea) on a tile within n tiles of the rect, corners rounded. */
+function waterWithin(state: WorldState, rect: Rect, n: number): boolean {
+  const r = expandRect(rect, n);
+  for (let z = r[1]; z <= r[3]; z++) {
+    for (let x = r[0]; x <= r[2]; x++) {
+      if (state.map.water[z * MAP_SIZE + x] && within(tileGap2(x, z, rect), n)) return true;
+    }
+  }
+  return false;
 }
 
 /** Whole days of food in town stores and outlets at one unit per resident per day. */

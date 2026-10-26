@@ -202,6 +202,29 @@ function historyText(state: WorldState, r: Resident, item: HistoryItem): string 
       return 'Came of age';
     case 'grew-elder':
       return 'Became an elder, with opinions to match';
+    // I2 (C4D): life events.
+    case 'couple':
+      return `Became a couple with ${nameOf(state, ref) || 'someone who has since moved away'}`;
+    case 'married':
+      return `Married ${nameOf(state, ref) || 'their sweetheart'}`;
+    case 'born':
+      return `Born in ${state.settings.townName}`;
+    case 'child':
+      return `Welcomed a child, ${nameOf(state, ref) || 'now grown and gone'}`;
+    case 'apprentice':
+    case 'trained': {
+      const b = findById(state.buildings, ref);
+      const where = b ? buildingName(b) : 'a workshop';
+      return item.kind === 'apprentice'
+        ? `Began an apprenticeship at the ${where}`
+        : `Finished an apprenticeship at the ${where}`;
+    }
+    case 'retired': {
+      const b = findById(state.buildings, ref);
+      return b ? `Retired from the ${buildingName(b)}` : 'Retired, with a cake';
+    }
+    case 'seaside':
+      return 'Set off to live by the sea';
     default: {
       const words = item.kind.split('-').join(' ');
       return words.charAt(0).toUpperCase() + words.slice(1);
@@ -210,6 +233,9 @@ function historyText(state: WorldState, r: Resident, item: HistoryItem): string 
 }
 
 function bioText(r: Resident): string {
+  // Story characters (C4D) bring their own.
+  const story = r.story ? content.storyById.get(r.story) : undefined;
+  if (story) return story.character.bio;
   const sp = content.speciesById.get(r.species);
   const traits = r.traits.map((t) => {
     const def = content.traitById.get(t);
