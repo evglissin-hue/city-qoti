@@ -95,7 +95,7 @@ export function lightsLayer(): RenderLayer {
         const pane = new Vector3(p.x - ox * 0.026, p.y, p.z - oz * 0.026);
         const gx = p.x + ox * 0.3;
         const gz = p.z + oz * 0.3;
-        all.push({ x: gx, y: groundY(mirror, gx, gz) + 0.05, z: gz, strength: 0.3, pane });
+        all.push({ x: gx, y: groundY(mirror, gx, gz) + 0.05, z: gz, strength: 0.2, pane });
       }
     }
     dirty = false;

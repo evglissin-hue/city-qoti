@@ -195,6 +195,9 @@ export function installDebugHook(getSession: () => Session | null): void {
       m.apply({ t: m.lastTurn.value, events: [], patches: [{ layer: name, rect: [x0, z0, x1, z1], data }] });
     },
     /** C3D-1: the water tile nearest the start area center, or null. */
+    /** C3D-1: whether a tile is water, and the start area rect, for screenshot scripts. */
+    isWater: (x: number, z: number) => !!s()?.mirror.water(x, z),
+    startArea: () => s()?.mirror.meta.startArea ?? null,
     nearestWater: () => {
       const m = s()?.mirror;
       if (!m) return null;

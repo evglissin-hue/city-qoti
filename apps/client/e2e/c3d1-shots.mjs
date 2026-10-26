@@ -47,7 +47,11 @@ await page.waitForFunction(() => window.__qoti?.status() === 'live', null, { tim
 // Close the invite or welcome dialog if one is open.
 for (const name of ['Done', 'Close']) {
   const b = page.getByRole('button', { name });
-  if (await b.count()) await b.first().click().catch(() => {});
+  if (await b.count())
+    await b
+      .first()
+      .click()
+      .catch(() => {});
 }
 await page.waitForTimeout(1500);
 for (const [name, hour, dist, rot] of shots) {
@@ -73,6 +77,81 @@ for (const [name, hour, dist, rot] of shots) {
   const stats = await page.evaluate(() => window.__qoti.stats());
   console.log(name, JSON.stringify({ draws: stats?.drawCalls, tris: stats?.triangles }));
   await page.screenshot({ path: `${out}/${prefix}-${name}.png`, timeout: 180000 });
+}
+
+// Feature shots (after the before-and-after set, so those stay comparable): lanterns and a bench
+// by the town hall, a path, a plank bridge over the river and a field with crops at every stage.
+const features = [
+  ['bridge', 11, 14],
+  ['fields', 10, 16],
+  ['lanterns', 22, 18],
+].filter(([n]) => !only || only.includes(n));
+if (features.length) {
+  for (const def of ['lantern', 'lantern', 'bench', 'lantern', 'lantern']) {
+    await page.evaluate((d) => {
+      const s = window.__qoti.findDecorSpot(d);
+      if (s) window.__qoti.submit({ t: 'decor.place', def: d, fx: s.fx, fz: s.fz, rot: 0 });
+    }, def);
+    await page.waitForTimeout(1500);
+  }
+  const bridge = await page.evaluate(() => {
+    const q = window.__qoti;
+    const w = q.nearestWater();
+    if (!w) return null;
+    // Cross the river the short way, from bank to bank.
+    let best = null;
+    for (const [dx, dz] of [
+      [1, 0],
+      [0, 1],
+    ]) {
+      const tiles = [];
+      let x = w[0];
+      let z = w[1];
+      while (q.isWater(x - dx, z - dz)) {
+        x -= dx;
+        z -= dz;
+      }
+      tiles.push([x - dx, z - dz]);
+      while (q.isWater(x, z)) {
+        tiles.push([x, z]);
+        x += dx;
+        z += dz;
+      }
+      tiles.push([x, z]);
+      if (!best || tiles.length < best.length) best = tiles;
+    }
+    q.submit({ t: 'road.paint', kind: 'path', tiles: best });
+    return { at: w, tiles: best };
+  });
+  console.log('bridge', JSON.stringify(bridge));
+  const field = await page.evaluate(() => {
+    const q = window.__qoti;
+    const a = q.startArea();
+    const x0 = a[0] + 1;
+    const z0 = a[1] + 2;
+    // Look checks only: the field sim (C3C) is not in yet, so paint the client's mirror.
+    q.paintLayer('terrain', x0, z0, x0 + 5, z0 + 6, 7);
+    q.paintLayer('crop', x0, z0, x0 + 5, z0 + 6, (x) => Math.min(255, (x - x0) * 51));
+    return [x0 + 3, z0 + 3.5];
+  });
+  // SwiftShader draws about a frame a second: give the chunk rebuilds time to land.
+  await page.waitForTimeout(15000);
+  for (const [name, hour, dist] of features) {
+    await page.evaluate(
+      ([n, h, d, b, f]) => {
+        const q = window.__qoti;
+        q.setHour(h);
+        if (n === 'bridge' && b) q.look(b.at[0], b.at[1], d);
+        else if (n === 'fields') q.look(f[0], f[1], d);
+        else q.focusStart(d, true);
+      },
+      [name, hour, dist, bridge, field],
+    );
+    await page.waitForTimeout(10000);
+    const stats = await page.evaluate(() => window.__qoti.stats());
+    console.log(name, JSON.stringify({ draws: stats?.drawCalls, tris: stats?.triangles }));
+    await page.screenshot({ path: `${out}/${prefix}-${name}.png`, timeout: 180000 });
+  }
 }
 await page.close();
 await browser.close();

@@ -374,7 +374,11 @@ export function terrainLayer(): RenderLayer {
         for (const rect of change.rects.get(layer) ?? []) chunks.markRect(rect);
       }
       const painted: LayerName[] = ['terrain', 'water', 'road', 'tree', 'occupant', 'crop', 'fieldOwner'];
-      for (const layer of painted) for (const rect of change.rects.get(layer) ?? []) ground.refresh(rect);
+      for (const layer of painted) {
+        // Field rows look along the whole field, so field edits refresh a wider margin.
+        const pad = layer === 'terrain' ? 12 : 2;
+        for (const rect of change.rects.get(layer) ?? []) ground.refresh(rect, pad);
+      }
     },
     frame() {
       return chunks ? chunks.rebuild(2) : false;

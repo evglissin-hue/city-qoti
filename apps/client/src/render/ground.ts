@@ -113,8 +113,6 @@ export class GroundTextures {
     let cliff = false;
     let trees = 0;
     let wet = 0;
-    let fieldX = 0;
-    let fieldZ = 0;
     for (let dz = -2; dz <= 2; dz++) {
       for (let dx = -2; dx <= 2; dx++) {
         const nx = x + dx;
@@ -125,10 +123,6 @@ export class GroundTextures {
         if (near && L.tree[j]) trees += dx === 0 && dz === 0 ? 2 : 1;
         if (L.water[j]) wet = Math.max(wet, near ? 2 : 1);
         if (near && !L.water[j] && Math.abs(L.height[j]! - level) >= 2) cliff = true;
-        if (L.terrain[j] === Terrain.field && (dx === 0) !== (dz === 0)) {
-          if (dz === 0) fieldX++;
-          else fieldZ++;
-        }
       }
     }
 
@@ -182,9 +176,19 @@ export class GroundTextures {
     this.colorBytes[o + 3] = Math.round(Math.min(1, flowers) * 255);
 
     if (terrain === Terrain.field) {
-      const owner = L.fieldOwner?.[i] ?? 0;
-      const alongX = owner ? (Math.imul(owner, 0x9e3779b1) >>> 16) & 1 : fieldX >= fieldZ ? 1 : 0;
-      if (alongX) flags |= GroundFlag.rowsAlongX;
+      // Rows run along the field's longer side, measured through this tile, so every tile of a
+      // rectangular field agrees.
+      const run = (dx: number, dz: number) => {
+        let n = 0;
+        for (let k = 1; k <= 12; k++) {
+          const nx = x + dx * k;
+          const nz = z + dz * k;
+          if (nx < 0 || nz < 0 || nx >= N || nz >= N || L.terrain[nz * N + nx] !== Terrain.field) break;
+          n++;
+        }
+        return n;
+      };
+      if (run(1, 0) + run(-1, 0) >= run(0, 1) + run(0, -1)) flags |= GroundFlag.rowsAlongX;
     }
     this.dataBytes[o] = road;
     this.dataBytes[o + 1] = terrain;
@@ -267,7 +271,7 @@ vec3 qGround(vec3 base) {
     vec3 fc = pick < 0.3 ? qSrgb(vec3(0.95, 0.62, 0.70)) : pick < 0.55 ? qSrgb(vec3(0.97, 0.86, 0.38))
       : pick < 0.8 ? qSrgb(vec3(0.68, 0.60, 0.90)) : qSrgb(vec3(0.98, 0.97, 0.92));
     float clump = smoothstep(0.35, 0.75, qNoise(wp * 0.9 + 11.0));
-    float on = step(h, flowers * clump * 0.55) * (1.0 - smoothstep(0.13, 0.2, r));
+    float on = step(h, flowers * clump * 0.55) * (1.0 - smoothstep(0.13, 0.2, r)) * (1.0 - 0.65 * uNight);
     col = mix(col, fc, on * fade);
     col = mix(col, col * vec3(1.05, 1.0, 1.04), flowers * clump * 0.25 * (1.0 - fade));
   }
@@ -309,9 +313,9 @@ vec3 qGlow() {
     vec4 l = uLights[i];
     vec3 d = vQWorld - l.xyz;
     float r2 = dot(d.xz, d.xz) + d.y * d.y * 2.0;
-    sum += l.w * max(1.0 / (1.0 + r2 * 4.0) - 0.08, 0.0);
+    sum += l.w * max(1.0 / (1.0 + r2 * 5.0) - 0.1, 0.0);
   }
-  return qSrgb(vec3(1.0, 0.74, 0.42)) * min(sum, vec3(1.2)) * uNight * uNight;
+  return qSrgb(vec3(1.0, 0.7, 0.4)) * min(sum, vec3(1.2)) * uNight * uNight;
 }
 
 float qCloudShade(vec2 wp) {
