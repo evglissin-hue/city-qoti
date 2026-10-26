@@ -26,7 +26,7 @@ import { Mirror, type MirrorChange } from '../state/mirror';
 import { UndoStack } from '../state/undo';
 import { rejectText, undoText } from '../ui/messages';
 import { panels, toggleBook } from '../ui/panels';
-import { PLANNABLE } from '../ui/plans';
+import { sketchWith } from '../ui/plans';
 import { INPUT_COPY } from '../input/copy';
 import { createUiState } from '../ui/state';
 import type { InitSource } from '../worker/messages';
@@ -265,10 +265,10 @@ export class Session {
   /** Submits a command; undoable ones go on this seat's undo stack once the sim accepts them. */
   submit(cmd: Command, record = true): number {
     // I2 (C4F): while a plan is being sketched, building commands become blueprint instead.
-    const sketch = this.ui.sketch.value;
-    if (sketch && PLANNABLE.has(cmd.t)) {
-      this.ui.sketch.value = { ...sketch, items: [...sketch.items, { cmd }] };
-      if (sketch.items.length === 0) this.toast(INPUT_COPY.sketched(1));
+    const sketched = sketchWith(this.ui.sketch.value, cmd);
+    if (sketched) {
+      this.ui.sketch.value = sketched;
+      if (sketched.items.length === 1) this.toast(INPUT_COPY.sketched(1));
       return -1;
     }
     if (!this.connection) return -1;

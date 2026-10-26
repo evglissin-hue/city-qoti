@@ -2,7 +2,7 @@
 // shortages, idle buildings and lean times; the Hearth about new wishes, pattern hints and letters.
 // Derived from the Mirror each time, so they clear themselves when the trouble does.
 import { content } from '@qoti/content';
-import { BuildingStatus, calendar, TICKS_PER_DAY, TIERS, type Lens } from '@qoti/sim';
+import { BuildingStatus, calendar, TICKS_PER_DAY, TIERS, type Lens, type LetterView } from '@qoti/sim';
 import type { Mirror } from '../state/mirror';
 import { buildingName, goodName, seatLabel } from './format';
 import { IDLE_BITS, statusWords, TIER_WORD } from './hamlet';
@@ -247,17 +247,23 @@ function villageAlerts(m: Mirror, who: AlertContext): Alert[] {
     }
   }
 
-  // Story letters that came this visit and are still sealed.
-  for (const l of [...m.letters.value].reverse()) {
-    const key = letterKey(l);
-    if (who.lettersRead?.has(key) || now - l.tick > 2 * TICKS_PER_DAY) continue;
+  // Story letters that came this visit and are still sealed, one line per correspondent.
+  const sealed = new Map<string, LetterView[]>();
+  for (const l of m.letters.value) {
+    if (who.lettersRead?.has(letterKey(l)) || now - l.tick > 2 * TICKS_PER_DAY) continue;
+    sealed.set(l.arc, [...(sealed.get(l.arc) ?? []), l]);
+  }
+  for (const [arc, list] of sealed) {
+    const newest = list[list.length - 1]!;
+    const count =
+      list.length === 1 ? 'A letter' : list.length === 2 ? 'Two letters' : `${list.length} letters`;
     out.push(
       ...both({
-        key: `story-${key}`,
+        key: `story-${arc}-${list.length}`,
         tone: 'news',
         icon: 'letter',
-        text: `A letter from ${l.from}.`,
-        action: { kind: 'letter', arc: l.arc, step: l.step },
+        text: `${count} from ${newest.from}.`,
+        action: { kind: 'letter', arc, step: newest.step },
       }),
     );
   }

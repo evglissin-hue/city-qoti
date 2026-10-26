@@ -49,7 +49,7 @@ export function StoryLetterPanel({ session }: { session: Session }) {
           ) : (
             <span class="postage-initial">{letter.from.slice(0, 1)}</span>
           )}
-          <i class="postmark">{town}</i>
+          <Postmark town={town} />
         </span>
         <p class="letter-meta">
           {stepWord(letter.step, story?.steps ?? 0)}
@@ -91,4 +91,27 @@ export function openLetter(session: Session, letter: LetterView): void {
   if (!session.ui.lettersRead.value.has(key)) {
     session.ui.lettersRead.value = new Set([...session.ui.lettersRead.value, key]);
   }
+}
+
+/** A round postmark with the town's name, and the wavy cancel lines across the stamp. */
+function Postmark({ town }: { town: string }) {
+  const name = town.toUpperCase().slice(0, 18);
+  return (
+    <svg class="postmark" viewBox="0 0 120 64" aria-hidden="true">
+      <defs>
+        <path id="postmark-arc" d="M12 32a20 20 0 1 1 40 0a20 20 0 1 1-40 0" />
+      </defs>
+      <circle cx="32" cy="32" r="25" />
+      <circle cx="32" cy="32" r="14.5" />
+      <text>
+        <textPath href="#postmark-arc" startOffset="2">
+          {name}
+        </textPath>
+      </text>
+      <path
+        class="cancel"
+        d="M60 22c8-5 14 5 22 0s14 5 22 0 10 4 14 1M60 32c8-5 14 5 22 0s14 5 22 0 10 4 14 1M60 42c8-5 14 5 22 0s14 5 22 0 10 4 14 1"
+      />
+    </svg>
+  );
 }

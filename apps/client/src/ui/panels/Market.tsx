@@ -249,8 +249,7 @@ export function Profit({ session }: { session: Session }) {
                   <i style={{ width: `${(share * 50).toFixed(1)}%` }} />
                 </span>
                 <b class={r.perDay >= 0 ? 'plus' : 'minus'}>
-                  {r.perDay >= 0 ? '+' : '−'}
-                  <Price pennies={Math.abs(r.perDay)} />
+                  <Price pennies={r.perDay} signed />
                 </b>
               </button>
               {open === r.id && (
@@ -259,8 +258,7 @@ export function Profit({ session }: { session: Session }) {
                     <p key={l.label}>
                       <span>{l.label}</span>
                       <span class={l.pennies >= 0 ? 'plus' : 'minus'}>
-                        {l.pennies >= 0 ? '+' : '−'}
-                        <Price pennies={Math.abs(l.pennies)} />
+                        <Price pennies={l.pennies} signed />
                       </span>
                     </p>
                   ))}

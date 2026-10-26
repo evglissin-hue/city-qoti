@@ -24,7 +24,7 @@ import { booksFor, toggleBook } from './panels';
 import { planSummary } from './plans';
 import { INPUT_COPY } from '../input/copy';
 import { UNZONE } from './village';
-import { RANK_WORD, rankAtLeast, zoneInk } from './village';
+import { rankAtLeast, zoneInk } from './village';
 
 export function Toolbar({ session }: { session: Session }) {
   const manager = session.tools;
@@ -329,21 +329,17 @@ function FieldHint({ session }: { session: Session }) {
   );
 }
 
-/** I2 (C4F): the zone picker: each zone with its color, what grows there and its lot shapes. */
+/** I2 (C4F): the zone picker: each zone with its color and lot shapes, the chosen one's line below. */
 function ZonePicker({ session, tool }: { session: Session; tool: Tool }) {
   const m = session.mirror;
   const open = rankAtLeast(m.town.value?.rank, 'village');
   const on = tool.variant?.value;
+  const zones = [...content.zones].sort((a, b) => a.layerValue - b.layerValue);
+  const chosen = zones.find((z) => z.id === on);
   return (
     <div class="picker panel zone-picker" data-testid="zone-picker">
-      {!open && (
-        <p class="zone-locked" data-testid="zone-locked">
-          <Glyph id="lock" /> {INPUT_COPY.zoneLocked} You are a {RANK_WORD[m.town.value?.rank ?? 'hamlet']}{' '}
-          for now.
-        </p>
-      )}
-      <div class="picker-cards">
-        {content.zones.map((z) => (
+      <div class="picker-cards zone-cards">
+        {zones.map((z) => (
           <button
             key={z.id}
             type="button"
@@ -359,7 +355,6 @@ function ZonePicker({ session, tool }: { session: Session; tool: Tool }) {
             <span class="card-text">
               <strong>{z.name}</strong>
               <span class="size">{z.density === 'medium' ? 'Snug' : 'Roomy'}</span>
-              <span class="zone-blurb">{z.blurb}</span>
             </span>
           </button>
         ))}
@@ -367,7 +362,7 @@ function ZonePicker({ session, tool }: { session: Session; tool: Tool }) {
           type="button"
           class={`card zone-card unzone ${on === UNZONE ? 'active' : ''}`}
           data-testid={`variant-${UNZONE}`}
-          title="Clear zoning. Grown buildings stay; empty lots go."
+          title="Grown buildings stay put; empty lots fold away."
           onClick={() => session.tools?.select('zone', UNZONE)}
         >
           <span class="zone-swatch unzone">
@@ -375,11 +370,26 @@ function ZonePicker({ session, tool }: { session: Session; tool: Tool }) {
           </span>
           <span class="card-text">
             <strong>Unzone</strong>
-            <span class="zone-blurb">Grown buildings stay put; empty lots fold away.</span>
+            <span class="size">Clear it</span>
           </span>
         </button>
       </div>
-      <span class="muted hint picker-hint">{tool.hint}</span>
+      {open ? (
+        <p class="zone-line">
+          {chosen ? (
+            <>
+              <b>{chosen.name}.</b> {chosen.blurb}{' '}
+            </>
+          ) : (
+            'Grown buildings stay put; empty lots fold away. '
+          )}
+          <span class="muted">{tool.hint}</span>
+        </p>
+      ) : (
+        <p class="zone-locked" data-testid="zone-locked">
+          <Glyph id="lock" /> {INPUT_COPY.zoneLocked}
+        </p>
+      )}
     </div>
   );
 }

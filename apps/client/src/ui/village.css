@@ -349,7 +349,7 @@ ul.price-list {
 
 .village-dial button.active,
 .village-dial button.active:hover:not(:disabled) {
-  background: var(--accent, var(--ochre));
+  background: var(--ochre);
 }
 
 /* Profit per building */
@@ -1193,19 +1193,29 @@ ul.thank-notes .glyph {
 
 .postmark {
   position: absolute;
-  left: -34px;
-  bottom: -12px;
-  padding: 6px 4px;
-  border: 1.6px solid rgba(168, 71, 59, 0.5);
-  border-radius: 50%;
-  font-style: normal;
-  font-size: 0.6rem;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: rgba(168, 71, 59, 0.7);
-  transform: rotate(-14deg);
-  background: transparent;
-  white-space: nowrap;
+  left: -54px;
+  bottom: -14px;
+  width: 104px;
+  height: 56px;
+  overflow: visible;
+  fill: none;
+  stroke: rgba(168, 71, 59, 0.55);
+  stroke-width: 1.4;
+  transform: rotate(-12deg);
+  pointer-events: none;
+}
+
+.postmark text {
+  fill: rgba(168, 71, 59, 0.75);
+  stroke: none;
+  font-family: 'Alegreya Sans', sans-serif;
+  font-size: 7.4px;
+  font-weight: 700;
+  letter-spacing: 1.2px;
+}
+
+.postmark .cancel {
+  stroke-width: 1.6;
 }
 
 .letter-meta {
@@ -1357,14 +1367,23 @@ li.request .small-button {
   gap: 3px;
 }
 
+.ask-backdrop {
+  z-index: 25;
+}
+
+.ask-card {
+  width: min(470px, 94vw);
+  gap: 6px;
+  padding: 12px 16px 14px;
+}
+
+.ask-card .panel-head {
+  margin-bottom: 2px;
+}
+
 .ask-form {
   display: grid;
-  gap: 3px;
-  margin-bottom: 7px;
-  padding: 6px 8px;
-  border-radius: 10px;
-  border: 1.5px solid rgba(95, 147, 179, 0.5);
-  background: rgba(240, 246, 248, 0.7);
+  gap: 4px;
 }
 
 .ask-form .dial.small {
@@ -1372,9 +1391,21 @@ li.request .small-button {
   margin: 0 0 4px;
 }
 
-.ask-form .good-pick {
-  max-height: 78px;
-  overflow-y: auto;
+.good-pick.named {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 2px;
+}
+
+.good-pick.named button {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 1px 6px 1px 2px;
+  border-radius: 999px;
+  font-size: 0.82rem;
+  text-align: left;
+  white-space: nowrap;
 }
 
 .ask-form textarea {
@@ -1625,6 +1656,11 @@ li.plan.settled p {
   opacity: 0.75;
 }
 
+.bp.zone-wash {
+  fill: color-mix(in srgb, var(--ink) 26%, transparent);
+  stroke: none;
+}
+
 .bp.lot-door {
   stroke: var(--ink);
   stroke-width: 4;
@@ -1666,17 +1702,33 @@ li.plan.settled p {
 
 /* Zoning */
 
+.zone-picker {
+  width: max-content;
+}
+
+.zone-cards {
+  flex-wrap: nowrap;
+  max-height: none;
+}
+
 .zone-picker .card.zone-card {
-  width: 196px;
-  align-items: flex-start;
+  width: auto;
+  min-width: 118px;
+  padding: 4px 10px 4px 4px;
+}
+
+.zone-line {
+  margin: 0 2px;
+  font-size: 0.84rem;
+  max-width: 640px;
 }
 
 .zone-swatch {
   flex: none;
   display: grid;
   place-items: center;
-  width: 46px;
-  height: 46px;
+  width: 40px;
+  height: 40px;
   border-radius: 10px;
   border: 1.5px solid var(--ink-line);
   background:
@@ -1686,8 +1738,8 @@ li.plan.settled p {
 }
 
 .zone-swatch svg {
-  width: 38px;
-  height: 30px;
+  width: 34px;
+  height: 27px;
   fill: rgba(255, 250, 240, 0.85);
   stroke: var(--ink-line);
   stroke-width: 1.1;
@@ -1922,10 +1974,10 @@ li.plan.settled p {
 .minimap {
   position: absolute;
   right: 10px;
-  bottom: 12px;
+  bottom: calc(22px + 74px * var(--ui-scale));
   padding: 6px;
   border-radius: 14px;
-  width: calc(156px * var(--ui-scale));
+  width: calc(148px * var(--ui-scale));
   pointer-events: auto;
 }
 
@@ -1999,7 +2051,7 @@ li.plan.settled p {
 .minimap-fold {
   position: absolute;
   right: 10px;
-  bottom: 12px;
+  bottom: calc(22px + 74px * var(--ui-scale));
   display: grid;
   place-items: center;
   width: 40px;
@@ -2014,11 +2066,42 @@ li.plan.settled p {
   height: 22px;
 }
 
-/* The right column stops above the minimap. */
-.side.right {
-  max-height: calc(100vh - 82px - 172px * var(--ui-scale));
+/* The map floats over the bottom right, above the toolbar's row; the right column stops above it.
+   On wide screens it drops down beside the toolbar instead. */
+.game-ui.with-minimap .side.right,
+.game-ui.with-minimap .side.right .inspector-panel {
+  max-height: calc(100vh - 104px - 236px * var(--ui-scale));
 }
 
-.side.right .inspector-panel {
-  max-height: calc(100vh - 92px - 172px * var(--ui-scale));
+@media (min-width: 1500px) {
+  .minimap {
+    bottom: 12px;
+  }
+
+  .game-ui.with-minimap .toolbar {
+    left: calc(50% - 82px * var(--ui-scale));
+  }
+
+  .game-ui.with-minimap .toolbar-row {
+    max-width: calc(100vw - 20px - 164px * var(--ui-scale));
+  }
+
+  .game-ui.with-minimap .side.right,
+  .game-ui.with-minimap .side.right .inspector-panel {
+    max-height: calc(100vh - 90px - 160px * var(--ui-scale));
+  }
+}
+
+/* Tools sit a touch closer, so the I2 toolbar fits a 1280 wide window. */
+.toolbar-row .tool {
+  min-width: 50px;
+  padding: 4px 5px;
+}
+
+/* The left feed scrolls rather than slipping under the toolbar. */
+.side.left {
+  max-height: calc(100vh - 92px - 84px * var(--ui-scale));
+  overflow-y: auto;
+  scrollbar-width: none;
+  padding-bottom: 8px;
 }

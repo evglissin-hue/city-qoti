@@ -1,13 +1,5 @@
 import { content } from '@qoti/content';
-import {
-  LOAN_RATE,
-  PENNIES_PER_COIN,
-  TAX_RATE_RANGE,
-  TIERS,
-  WAGE_LEVEL_RANGE,
-  wagesAt,
-  type LoansView,
-} from '@qoti/sim';
+import { LOAN_RATE, PENNIES_PER_COIN, TIERS, WAGE_LEVEL_RANGE, wagesAt, type LoansView } from '@qoti/sim';
 import { useState } from 'preact/hooks';
 import type { Session } from '../../app/session';
 import { coins, shortDate, thousands } from '../format';
@@ -90,28 +82,17 @@ export function WagesAndTaxes({ session }: { session: Session }) {
           </li>
         ))}
       </ul>
-      {!WAGE_STEPS.includes(levers.wageLevel as (typeof WAGE_STEPS)[number]) && (
-        <p class="muted small">Set to {levers.wageLevel}% by hand.</p>
-      )}
       <Heading>
         <Glyph id="coin" /> Income tax
       </Heading>
-      <p class="lever-line">
-        <span>Of every wage, back to the treasury</span>
-        <Stepper
-          value={levers.taxRate}
-          min={TAX_RATE_RANGE[0]}
-          max={TAX_RATE_RANGE[1]}
-          step={1}
-          testid="tax"
-          label="Income tax"
-          format={(v) => `${v}%`}
-          onChange={setTax}
-        />
+      <p class="policy-word">
+        {levers.taxRate === 0
+          ? 'No income tax. Very popular, oddly enough.'
+          : `Of every wage, ${levers.taxRate}% comes back to the treasury.`}
       </p>
       <Dial
-        label="Income tax presets"
-        testid="tax-preset"
+        label="Income tax"
+        testid="tax"
         value={levers.taxRate}
         options={TAX_STEPS.map((v) => ({ value: v, label: `${v}%` }))}
         onChange={setTax}

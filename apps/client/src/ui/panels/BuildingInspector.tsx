@@ -372,8 +372,7 @@ function VillageDetail({ session, detail }: { session: Session; detail: Building
           <button type="button" class="profit-row" aria-expanded={open} onClick={() => setOpen(!open)}>
             <span>{detail.profit.perDay >= 0 ? 'Earns its keep' : 'Runs at a loss'}</span>
             <b class={detail.profit.perDay >= 0 ? 'plus' : 'minus'}>
-              {detail.profit.perDay >= 0 ? '+' : '−'}
-              <Price pennies={Math.abs(detail.profit.perDay)} />
+              <Price pennies={detail.profit.perDay} signed />
               <span class="muted small"> a work day</span>
             </b>
           </button>
@@ -383,8 +382,7 @@ function VillageDetail({ session, detail }: { session: Session; detail: Building
                 <p key={l.label}>
                   <span>{l.label}</span>
                   <span class={l.pennies >= 0 ? 'plus' : 'minus'}>
-                    {l.pennies >= 0 ? '+' : '−'}
-                    <Price pennies={Math.abs(l.pennies)} />
+                    <Price pennies={l.pennies} signed />
                   </span>
                 </p>
               ))}

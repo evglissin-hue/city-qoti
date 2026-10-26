@@ -13,6 +13,8 @@ export interface GroundMark {
   /** The side the door faces (toward the road), for a little step mark. */
   door?: 'n' | 'e' | 's' | 'w';
   dashed?: boolean;
+  /** A wash with no outline (zoned ground). */
+  fill?: boolean;
 }
 
 export const groundMarks = signal<GroundMark[]>([]);

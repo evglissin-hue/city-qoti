@@ -98,7 +98,6 @@ export function ResidentInspector({ session, id }: { session: Session; id: numbe
           <div data-testid="resident-partner">
             <dt>{detail.partner.married ? 'Married to' : 'Sweet on'}</dt>
             <dd>
-              <Glyph id={detail.partner.married ? 'rings' : 'heart'} class="fact-icon" />
               <button
                 type="button"
                 class="link"
@@ -385,7 +384,8 @@ function StoryThread({ session, detail }: { session: Session; detail: ResidentDe
     <div class="story-thread" data-testid="resident-story">
       <p class="story-step">
         <Glyph id="letter" />
-        <b>{finished ? 'Their story is told' : stepWord(s.step, s.steps)}</b>
+        <b>A story in letters</b>
+        <span class="muted small">{finished ? 'told' : stepWord(s.step, s.steps).toLowerCase()}</span>
         {s.steps > 0 && (
           <span class="story-pips" aria-hidden="true">
             {Array.from({ length: s.steps }, (_, i) => (

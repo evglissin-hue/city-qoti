@@ -3,6 +3,7 @@
 import { content } from '@qoti/content';
 import { footprintSize, TILE_FP, type Command, type CommandType, type PlanItem } from '@qoti/sim';
 import type { Mirror } from '../state/mirror';
+import type { Sketch } from './state';
 
 /** Commands a plan may hold (the sim's list): building the valley, not running it. */
 export const PLANNABLE: ReadonlySet<CommandType> = new Set<CommandType>([
@@ -23,6 +24,15 @@ export const PLANNABLE: ReadonlySet<CommandType> = new Set<CommandType>([
   'zone.clear',
   'zone.paint',
 ]);
+
+/**
+ * While a sketch is open, a building command joins it instead of going to the sim. Returns the
+ * sketch with the command added, or null when the command should be sent as usual.
+ */
+export function sketchWith(sketch: Sketch | null, cmd: Command): Sketch | null {
+  if (!sketch || !PLANNABLE.has(cmd.t)) return null;
+  return { ...sketch, items: [...sketch.items, { cmd }] };
+}
 
 const a = (name: string) => (/^[aeiou]/i.test(name) ? `an ${name}` : `a ${name}`);
 

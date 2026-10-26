@@ -4,14 +4,36 @@ import type { ComponentChildren } from 'preact';
 import { Glyph } from '../icons';
 import { LANE_WORD, priceText } from '../village';
 
-/** "2.6" with a little coin in front. */
-export function Price({ pennies, class: cls }: { pennies: number; class?: string }) {
+/** "2.6" with a little coin in front; `signed` writes "+2.6" or "−2.6" in the plus or minus ink. */
+export function Price({
+  pennies,
+  class: cls,
+  signed,
+}: {
+  pennies: number;
+  class?: string;
+  signed?: boolean;
+}) {
+  const tone = signed ? (pennies >= 0 ? 'plus' : 'minus') : '';
   return (
-    <span class={`price ${cls ?? ''}`}>
+    <span class={`price ${tone} ${cls ?? ''}`}>
       <Glyph id="coin" />
-      {priceText(pennies)}
+      {signed ? (pennies >= 0 ? '+' : '−') : ''}
+      {priceText(Math.abs(pennies))}
     </span>
   );
+}
+
+/** Round chart steps in pennies: a tenth of a coin up to whole tens of coins. */
+const STEPS = [10, 20, 25, 50, 100, 200, 250, 500, 1000];
+
+/** Up to four tidy tick values between two prices. */
+export function niceTicks(bottom: number, top: number): number[] {
+  const span = Math.max(1, top - bottom);
+  const step = STEPS.find((s) => span / s <= 4) ?? 1000;
+  const out: number[] = [];
+  for (let v = Math.ceil(bottom / step) * step; v <= top; v += step) out.push(v);
+  return out;
 }
 
 /** A lane's colored tag: Hearth, Ledger or Together. */
@@ -135,7 +157,7 @@ export function PriceChart({
   const d = pts.map(([px, py], i) => `${i ? 'L' : 'M'}${px.toFixed(1)} ${py.toFixed(1)}`).join(' ');
   const last = pts[pts.length - 1];
   const area = last ? `${d} L${last[0].toFixed(1)} ${padT + ih} L${padL} ${padT + ih} Z` : '';
-  const ticks = [bottom + span * 0.15, bottom + span * 0.5, bottom + span * 0.85];
+  const ticks = niceTicks(bottom, top);
   const days = values.length;
   return (
     <svg

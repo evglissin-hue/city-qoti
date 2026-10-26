@@ -43,7 +43,7 @@ export function RankUpPanel({ session }: { session: Session }) {
             );
           })}
         </svg>
-        <p class="kicker">By order of the County</p>
+        <p class="kicker">A proclamation</p>
         <h2>
           {town} is a {RANK_WORD[up.rank]}
         </h2>

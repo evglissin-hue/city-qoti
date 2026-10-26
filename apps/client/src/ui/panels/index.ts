@@ -23,7 +23,7 @@ import { PlansPanel } from './Plans';
 import { PoliciesPanel } from './Policies';
 import { RankUpPanel } from './RankUp';
 import { ReportsPanel } from './Reports';
-import { RequestsPanel } from './Requests';
+import { AskDialog, RequestsPanel } from './Requests';
 import { StoryLetterPanel } from './StoryLetter';
 import { TradePanel } from './Trade';
 import { WishesPanel } from './Wishes';
@@ -55,6 +55,7 @@ const STANDARD = ['standard'] as const;
 export const panels: readonly PanelDef[] = [
   { id: 'achievements', side: 'book', component: AchievementsPanel, lens: 'hearth', label: 'Plaques', icon: 'achievements', modes: STANDARD, order: 40 },
   { id: 'alerts', side: 'left', component: AlertsPanel },
+  { id: 'ask', side: 'overlay', component: AskDialog },
   { id: 'away', side: 'overlay', component: AwayLetterPanel },
   { id: 'blueprints', side: 'world', component: Blueprints },
   { id: 'charter', side: 'book', component: CharterPanel, lens: 'shared', label: 'Charter', icon: 'charter', key: 'h', modes: STANDARD, hidden: true },
@@ -64,7 +65,7 @@ export const panels: readonly PanelDef[] = [
   { id: 'letters', side: 'book', component: LettersPanel, lens: 'hearth', label: 'Letters', icon: 'letter', key: 'o', modes: STANDARD, order: 35 },
   { id: 'market', side: 'book', component: MarketPanel, lens: 'ledger', label: 'Market', icon: 'market', key: 'm', modes: STANDARD, order: 10 },
   { id: 'minimap', side: 'overlay', component: Minimap },
-  { id: 'notebook', side: 'book', component: NotebookPanel, lens: 'shared', label: 'Notebook', icon: 'notebook', key: 'n', modes: STANDARD, order: 60 },
+  { id: 'notebook', side: 'book', component: NotebookPanel, lens: 'ledger', label: 'Notebook', icon: 'notebook', key: 'n', modes: STANDARD, order: 60 },
   { id: 'notes', side: 'left', component: NotesPanel },
   { id: 'patterns', side: 'book', component: PatternBookPanel, lens: 'hearth', label: 'Patterns', icon: 'patterns', key: 'b', modes: STANDARD, order: 20, wide: true },
   { id: 'plans', side: 'book', component: PlansPanel, lens: 'shared', label: 'Plans', icon: 'plan', hidden: true },

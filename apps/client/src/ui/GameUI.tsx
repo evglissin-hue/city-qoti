@@ -20,7 +20,7 @@ export function GameUI({ session, onLeave }: { session: Session; onLeave: () => 
   const open = session.ui.panel.value;
   const book = open ? panels.find((p) => p.id === open && p.side === 'book') : undefined;
   return (
-    <div class="game-ui">
+    <div class={`game-ui ${session.ui.minimapOpen.value ? 'with-minimap' : ''}`}>
       {panels
         .filter((p) => p.side === 'world')
         .map((p) => (

@@ -6,7 +6,7 @@ import type { Mirror } from '../../state/mirror';
 import { buildingName, dayDate, goodName, seatLabel } from '../format';
 import { GoodIcon } from '../goodIcons';
 import { Glyph } from '../icons';
-import { dayOf, goodOrder } from '../village';
+import { dayOf, goodOrder, partnerName } from '../village';
 import { Meter } from './parts';
 import { Stepper } from './villageParts';
 
@@ -81,12 +81,10 @@ export function RequestsPanel({ session }: { session: Session }) {
           class="small-button ask"
           data-testid="request-ask"
           aria-pressed={asking}
-          onClick={() => {
-            session.ui.asking.value = !asking;
-            session.ui.requestsOpen.value = true;
-          }}
+          title={`Ask ${partnerName(m.seats.value, session.seat)} for something`}
+          onClick={() => (session.ui.asking.value = !asking)}
         >
-          {asking ? 'Never mind' : '+ Ask'}
+          + Ask
         </button>
         <button
           type="button"
@@ -99,8 +97,7 @@ export function RequestsPanel({ session }: { session: Session }) {
       </header>
       {open && (
         <>
-          {asking && <AskForm session={session} />}
-          {live.length === 0 && closed.length === 0 && !asking && (
+          {live.length === 0 && closed.length === 0 && (
             <p class="muted small">Nothing asked. Need bread by Friday, or a prettier corner? Ask.</p>
           )}
           <ul class="request-list">
@@ -185,7 +182,31 @@ function RequestItem({ session, r }: { session: Session; r: RequestView }) {
 
 type Kind = RequestAsk['kind'];
 
-/** The little form: goods (what, how many, by when, where), charm around the view, or a note. */
+/** The ask card over the valley, while it is open. */
+export function AskDialog({ session }: { session: Session }) {
+  if (!session.ui.asking.value) return null;
+  const close = () => (session.ui.asking.value = false);
+  const partner = partnerName(session.mirror.seats.value, session.seat);
+  return (
+    <div class="modal-backdrop ask-backdrop" onClick={(e) => e.target === e.currentTarget && close()}>
+      <div class="panel modal ask-card" role="dialog" aria-label={`Ask ${partner}`} data-testid="ask-dialog">
+        <header class="panel-head">
+          <Glyph id="requests" class="head-icon" />
+          <div class="panel-titles">
+            <span class="kicker">A request</span>
+            <h3>Ask {partner} for something</h3>
+          </div>
+          <button type="button" class="close" title="Never mind" data-testid="ask-close" onClick={close}>
+            ×
+          </button>
+        </header>
+        <AskForm session={session} />
+      </div>
+    </div>
+  );
+}
+
+/** The form: goods (what, how many, by when, where), charm around the view, or a note. */
 export function AskForm({ session }: { session: Session }) {
   const m = session.mirror;
   const standard = m.settings.value.mode === 'standard';
@@ -242,7 +263,7 @@ export function AskForm({ session }: { session: Session }) {
       </div>
       {kind === 'goods' && (
         <>
-          <div class="good-pick" role="radiogroup" aria-label="Good">
+          <div class="good-pick named" role="radiogroup" aria-label="Good">
             {goods.map((g) => (
               <button
                 key={g}
@@ -250,11 +271,11 @@ export function AskForm({ session }: { session: Session }) {
                 role="radio"
                 aria-checked={good === g}
                 class={good === g ? 'active' : ''}
-                title={goodName(g)}
                 data-testid={`ask-good-${g}`}
                 onClick={() => setGood(g)}
               >
                 <GoodIcon good={g} />
+                <span>{goodName(g)}</span>
               </button>
             ))}
           </div>
@@ -325,7 +346,7 @@ export function AskForm({ session }: { session: Session }) {
           maxLength={MAX_NOTE_CHARS}
           placeholder="More benches by the river, please."
           value={text}
-          data-testid="ask-text"
+          data-testid="ask-note"
           onInput={(e) => setText((e.target as HTMLTextAreaElement).value)}
         />
       )}
@@ -337,7 +358,7 @@ export function AskForm({ session }: { session: Session }) {
           data-testid="ask-send"
           disabled={kind === 'text' && !text.trim()}
         >
-          Send the request
+          Send it to {partnerName(m.seats.value, session.seat)}
         </button>
       </div>
     </form>

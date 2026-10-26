@@ -104,14 +104,7 @@ describe('lens toolbars', () => {
       'ping',
       'erase',
     ]);
-    expect(ids(view.root, 'book-')).toEqual([
-      'wishes',
-      'patterns',
-      'chronicle',
-      'letters',
-      'achievements',
-      'notebook',
-    ]);
+    expect(ids(view.root, 'book-')).toEqual(['wishes', 'patterns', 'chronicle', 'letters', 'achievements']);
     expect(ids(view.root, 'overlay-')).toEqual(['charm']);
     await view.click('book-patterns');
     expect(session.ui.panel.value).toBe('patterns');

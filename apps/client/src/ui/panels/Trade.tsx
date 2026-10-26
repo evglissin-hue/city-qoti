@@ -422,8 +422,7 @@ export function Caravans({ session, trade }: { session: Session; trade: TradeVie
                 </th>
                 <td class="muted small">{name(e.neighbor)}</td>
                 <td class={`num ${e.pennies >= 0 ? 'plus' : 'minus'}`}>
-                  {e.pennies >= 0 ? '+' : '−'}
-                  <Price pennies={Math.abs(e.pennies)} />
+                  <Price pennies={e.pennies} signed />
                 </td>
               </tr>
             ))}

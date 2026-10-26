@@ -9,7 +9,7 @@ import { levelY } from '../render/coords';
 import { seatLabel } from './format';
 import { groundMarks, groundNote, type GroundMark } from './marks';
 import { shapesOf, type BlueprintShape } from './plans';
-import { ZONE_INK, zoneInk } from './village';
+import { ZONE_INK, zoneInk, zoneInkByValue } from './village';
 
 interface Drawn {
   d: string;
@@ -49,14 +49,39 @@ function collect(session: Session): {
     const who = p.by === session.seat ? 'Your plan' : `${seatLabel(seats, p.by, session.seat)}'s plan`;
     plans.push({ id: p.id, label: `${who}: ${p.name}`, items: p.items, sketch: false });
   }
-  const marks = [...groundMarks.value];
-  // While zoning, the lots already cut show faintly, so new paint can line up with them.
+  const marks: GroundMark[] = [];
+  // While zoning, zoned ground shows as a wash and the lots already cut as faint outlines, so new
+  // paint can line up with them.
   if (active === 'zone') {
+    marks.push(...zoneRuns(session));
     for (const l of m.lots.values()) {
       marks.push({ x: l.x, z: l.z, w: l.w, d: l.d, ink: zoneInk(l.zone), dashed: true });
     }
   }
+  marks.push(...groundMarks.value);
   return { plans, marks };
+}
+
+/** Zoned tiles as runs along each row (one wash per run), for the zone tool. */
+function zoneRuns(session: Session): GroundMark[] {
+  const zone = session.mirror.layers.zone;
+  const out: GroundMark[] = [];
+  if (!zone) return out;
+  for (let z = 0; z < MAP_SIZE; z++) {
+    let start = -1;
+    let value = 0;
+    for (let x = 0; x <= MAP_SIZE; x++) {
+      const v = x < MAP_SIZE ? zone[z * MAP_SIZE + x]! : 0;
+      if (v === value) continue;
+      if (value && start >= 0) {
+        const ink = zoneInkByValue(value);
+        if (ink) out.push({ x: start, z, w: x - start, d: 1, ink, fill: true });
+      }
+      start = x;
+      value = v;
+    }
+  }
+  return out;
 }
 
 export function Blueprints({ session }: { session: Session }) {
@@ -169,6 +194,11 @@ function draw(
     }
   }
   for (const mk of marks) {
+    if (mk.fill) {
+      const d = poly(rectPoints(mk.x, mk.z, mk.w, mk.d), true);
+      if (d) paths.push({ d, cls: 'bp zone-wash', ink: mk.ink });
+      continue;
+    }
     const d = poly(rectPoints(mk.x + 0.06, mk.z + 0.06, mk.w - 0.12, mk.d - 0.12), true);
     if (d) paths.push({ d, cls: `bp lot ${mk.dashed ? 'faint' : ''}`, ink: mk.ink });
     if (mk.door) {
