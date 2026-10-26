@@ -5,7 +5,7 @@ import { chroniclePhrases } from './chronicle';
 import { achievements, chronicle, patterns, swatches, wishes } from './index';
 
 const KEBAB = /^[a-z][a-z0-9]*(-[a-z0-9]+)*$/;
-const EM_DASH = /—|–/;
+const EM_DASH = /\u2014|\u2013/;
 const BRITISH = /\b(colour|favour|honour|neighbour|centre|grey|travell|organis|realis)/i;
 
 function placeholders(text: string): string[] {
