@@ -1,7 +1,15 @@
 // Style kit gallery: every kit with seed, stage, level of detail and swatch sliders, a day and
 // night slider and a turntable. URL params (?kit=cottage&seed=3&night=1&spin=0) fix a view for
 // screenshots.
-import { createKitMaterial, kitById, kits, palette, type KitBuildOptions } from '@qoti/art';
+import {
+  createKitMaterial,
+  createResidentMaterial,
+  kitById,
+  kits,
+  palette,
+  SPECIES_IDS,
+  type KitBuildOptions,
+} from '@qoti/art';
 import { content } from '@qoti/content';
 import type { BufferGeometry } from 'three';
 import {
@@ -17,6 +25,7 @@ import {
   WebGLRenderer,
 } from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { makeFigure, type Figure } from './figures';
 
 const q = new URLSearchParams(location.search);
 const renderer = new WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
@@ -55,6 +64,12 @@ const nightUniform = { value: 0 };
 const holder = new Group();
 scene.add(holder);
 const parts: { mesh: Mesh; speed: number }[] = [];
+const residentMaterial = createResidentMaterial();
+const residentTime = residentMaterial.userData.time as { value: number };
+/** Figures on show with their animation (AgentAnim number) and walk speed in cycles per second. */
+const figures: { fig: Figure; anim: number; speed: number; phase: number }[] = [];
+const sceneName = q.get('scene') ?? 'kit';
+const animParam = q.get('anim');
 
 const state = {
   kit: q.get('kit') ?? 'cottage',
@@ -103,6 +118,34 @@ function rebuild(): void {
     parts.push({ mesh: pm, speed: p.spinSpeed ?? 0 });
   }
   info.textContent = `${kit.id}: ${mesh.geometry.getAttribute('position').count / 3} triangles`;
+}
+
+const JOBS = ['bakery', 'farmhouse', 'fishers-hut', 'woodcutter', 'market-stall', 'builders-yard', ''];
+const ANIMS: Record<string, number> = { idle: 0, walk: 1, carry: 2, hop: 3, work: 4 };
+
+/** All seven species in a row: adults in work clothes at the front, a second outfit and a child behind. */
+function buildResidents(): void {
+  for (const c of [...holder.children]) holder.remove(c);
+  figures.length = 0;
+  const n = SPECIES_IDS.length;
+  SPECIES_IDS.forEach((species, i) => {
+    const x = (i - (n - 1) / 2) * 0.42;
+    const rows: [number, string, number][] = [
+      [0.35, 'adult', 0],
+      [-0.1, 'adult', 1],
+      [-0.5, 'child', 2],
+    ];
+    for (const [z, stage, k] of rows) {
+      const look = state.seed * 31 + i * 7 + k * 3;
+      const job = k === 0 ? JOBS[i % JOBS.length]! : k === 1 ? JOBS[(i + 3) % JOBS.length]! : '';
+      const fig = makeFigure({ species, look, stage, job, tier: 'settler' }, residentMaterial, 'full', i + k);
+      fig.group.position.set(x + (k === 1 ? 0.12 : 0), 0, z);
+      holder.add(fig.group);
+      const anim = animParam ? (ANIMS[animParam] ?? 0) : k === 1 ? 1 : 0;
+      figures.push({ fig, anim, speed: 2.4 + i * 0.1, phase: i });
+    }
+  });
+  info.textContent = `residents: ${SPECIES_IDS.length} species`;
 }
 
 function applyLight(): void {
@@ -166,7 +209,12 @@ function resize(): void {
 }
 window.addEventListener('resize', resize);
 resize();
-rebuild();
+if (sceneName === 'residents') {
+  buildResidents();
+  camera.position.set(0.1, 1.1, 3.6);
+  controls.target.set(0, 0.12, -0.05);
+  state.spin = false;
+} else rebuild();
 applyLight();
 
 let last = performance.now();
@@ -176,6 +224,14 @@ renderer.setAnimationLoop(() => {
   last = now;
   if (state.spin) holder.rotation.y += dt * 0.35;
   for (const p of parts) p.mesh.rotation.z += dt * p.speed;
+  residentTime.value += dt;
+  for (const f of figures) {
+    f.phase += dt * f.speed * Math.PI * 2 * (f.anim === 1 || f.anim === 2 ? 1 : 0);
+    f.fig.pose(f.anim, f.phase);
+    const bob = f.anim === 1 || f.anim === 2 ? Math.abs(Math.sin(f.phase)) * 0.016 : 0;
+    const hop = f.anim === 3 ? Math.abs(Math.sin(residentTime.value * 5.5)) * 0.1 : 0;
+    for (const m of f.fig.meshes) m.position.y = (bob + hop) / f.fig.group.scale.y;
+  }
   controls.update();
   renderer.render(scene, camera);
 });
