@@ -182,17 +182,40 @@ describe('the nightly growth pass', () => {
     expect(grown(s).length).toBeLessThanOrEqual(GROWTH_MAX_SITES);
   });
 
-  it('builds a grown site with the town builders, then the lot reads as taken', () => {
+  it('starts at 01:00 with the clock, and the lot reads as taken', () => {
     const f = villageFixture();
     const s = f.state;
     openWork(s);
     openWork(s, 91, 46);
     const ctx = createTickCtx(s);
+    // Residents off, so the fixture's households stay as they are for the night's sums.
     withoutSystems(['residents'], () => advanceTo(s, TICKS_PER_DAY, ctx));
-    const sites = s.buildings.filter((b) => b.lot && b.lot !== f.lots.homes[0]);
+    const sites = s.buildings.filter((b) => b.lot && b.id !== f.b.grown);
     expect(sites.length).toBeGreaterThan(0);
     for (const b of sites) expect(findById(s.lots, b.lot!)!.buildingId).toBe(b.id);
     expect(ctx.events.some((e) => e.e === 'lot.updated')).toBe(true);
+  });
+
+  it('goes up like any other site: porters bring its materials and builders raise it', () => {
+    const f = villageFixture();
+    const s = f.state;
+    const before = moneySnapshot(s);
+    const ctx = createTickCtx(s);
+    // The second homes lot, in reach of storehouse A's porters.
+    expect(growLot(s, ctx, f.lots.homes[1]!, 'cottage')).not.toBeNull();
+    advanceTo(s, 4 * TICKS_PER_DAY, ctx);
+    const grownNow = s.buildings.filter((b) => b.lot && b.id !== f.b.grown);
+    expect(grownNow.length).toBeGreaterThan(0);
+    const progressed = grownNow.filter(
+      (b) =>
+        b.stage === 'built' ||
+        (b.rt?.construction?.workDone ?? 0) > 0 ||
+        (b.rt?.construction?.delivered ?? []).some((n) => n > 0),
+    );
+    expect(progressed.length).toBeGreaterThan(0);
+    // Nobody paid for them: the treasury only moved for the town's usual business.
+    for (const b of grownNow) expect(b.rt?.construction?.paid ?? 0).toBe(0);
+    expectMoneyInvariant(before, s);
   });
 });
 
