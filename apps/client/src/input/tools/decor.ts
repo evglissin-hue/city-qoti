@@ -3,15 +3,10 @@ import { content } from '@qoti/content';
 import { canPlaceDecor, DECOR_CAP, DECOR_ROTATIONS } from '@qoti/sim';
 import type { TilePick } from '../../render/api';
 import { rejectText } from '../../ui/messages';
+import { costBlock, decorChoices } from '../catalog';
 import type { ToolContext } from '../context';
 import { cursorHint } from '../hint';
 import type { Tool } from '../tool';
-
-const VARIANTS = [
-  { id: 'bench', label: 'Bench' },
-  { id: 'lantern', label: 'Lantern' },
-  { id: 'flower-bed', label: 'Flower bed' },
-];
 
 /** Place decor exactly where the cursor is; R turns it an eighth. */
 export function decorTool(ctx: ToolContext): Tool {
@@ -29,8 +24,11 @@ export function decorTool(ctx: ToolContext): Tool {
       cursorHint(null);
       return null;
     }
-    const check =
-      ctx.mirror.decor.size >= DECOR_CAP
+    const locked = decorChoices(ctx.mirror, 'hearth', false).find((c) => c.def.id === def.id)?.locked;
+    const blocked = locked ? 'LOCKED' : costBlock(ctx.mirror, def.cost);
+    const check = blocked
+      ? { ok: false, reason: blocked }
+      : ctx.mirror.decor.size >= DECOR_CAP
         ? { ok: false, reason: 'TOO_MANY' as const }
         : canPlaceDecor(ctx.mirror, def, tile.fx, tile.fz, rot);
     ctx.render.setGhost({ kind: 'decor', def: def.id, fx: tile.fx, fz: tile.fz, rot, valid: check.ok });
@@ -45,7 +43,9 @@ export function decorTool(ctx: ToolContext): Tool {
     label: 'Decor',
     hint: 'R turns, Shift+R nudges',
     order: 40,
-    variants: VARIANTS,
+    get variants() {
+      return decorChoices(ctx.mirror, 'hearth', false).map((c) => ({ id: c.def.id, label: c.def.name }));
+    },
     variant,
     enter() {
       stop = effect(() => {

@@ -61,7 +61,7 @@ export function ResidentInspector({ session, id }: { session: Session; id: numbe
       <div class="resident-top">
         <Portrait species={r.species} look={r.look} stage={r.stage} size={68} mood={r.moodBand} />
         <div class="resident-facts">
-          <p class="doing">{detail?.doing ?? ' '}</p>
+          <p class="doing">{detail?.doing ?? ''}</p>
           <div class="traits">
             {r.traits.map((t) => {
               const def = content.traitById.get(t);

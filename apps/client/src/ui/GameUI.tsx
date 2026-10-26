@@ -9,20 +9,31 @@ import { RemovalConfirm } from './RemovalConfirm';
 import { HelpOverlay, SettingsPanel } from './SettingsPanel';
 import { Toolbar } from './Toolbar';
 import { TopBar } from './TopBar';
+import './hamlet.css';
 
 /** Everything drawn over the canvas once a valley is ready. */
 export function GameUI({ session, onLeave }: { session: Session; onLeave: () => void }) {
+  const open = session.ui.panel.value;
+  const book = open ? panels.find((p) => p.id === open && p.side === 'book') : undefined;
   return (
     <div class="game-ui">
       <PresenceLabels session={session} />
       <TopBar session={session} onLeave={onLeave} />
-      <aside class="side left">
-        {panels
-          .filter((p) => p.side === 'left')
-          .map((p) => (
-            <p.component key={p.id} session={session} />
-          ))}
-      </aside>
+      {/* The left feed steps aside while a book is open, so only one thing talks at a time. */}
+      {!book && (
+        <aside class="side left">
+          {panels
+            .filter((p) => p.side === 'left')
+            .map((p) => (
+              <p.component key={p.id} session={session} />
+            ))}
+        </aside>
+      )}
+      {book && (
+        <aside class={`book-slot ${book.wide ? 'wide' : ''}`} data-panel={book.id}>
+          <book.component key={book.id} session={session} />
+        </aside>
+      )}
       <aside class="side right">
         {panels
           .filter((p) => p.side === 'right')
@@ -40,6 +51,11 @@ export function GameUI({ session, onLeave }: { session: Session; onLeave: () => 
       <EmoteWheel session={session} />
       <EmoteBubbles session={session} />
       <HelpOverlay session={session} />
+      {panels
+        .filter((p) => p.side === 'overlay')
+        .map((p) => (
+          <p.component key={p.id} session={session} />
+        ))}
       {DEBUG && <DebugOverlay session={session} />}
     </div>
   );

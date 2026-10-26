@@ -17,7 +17,7 @@ function seatName(session: Session, seat: SeatId): string {
 export function InspectorPanel({ session }: { session: Session }) {
   const sel = session.ui.selection.value;
   void session.mirror.revision.value;
-  if (!sel) return null;
+  if (!sel || session.ui.customize.value !== null) return null;
   // I1: buildings and residents have their own inspectors.
   if (sel.kind === 'building') return <BuildingInspector key={sel.id} session={session} id={sel.id} />;
   if (sel.kind === 'resident') return <ResidentInspector key={sel.id} session={session} id={sel.id} />;

@@ -24,6 +24,7 @@ import { loadProfile, profileUpdate } from './profile';
 import { Mirror, type MirrorChange } from '../state/mirror';
 import { UndoStack } from '../state/undo';
 import { rejectText, undoText } from '../ui/messages';
+import { panels, toggleBook } from '../ui/panels';
 import { createUiState } from '../ui/state';
 import type { InitSource } from '../worker/messages';
 import { SimHost } from '../worker/host';
@@ -399,11 +400,25 @@ export class Session {
         this.ui.helpOpen.value = false;
         this.ui.settingsOpen.value = false;
         this.ui.emoteOpen.value = false;
+        this.ui.letter.value = null;
+        // Esc steps back one thing at a time: an open book or the paint box first, then the tool.
+        if (this.ui.panel.value || this.ui.customize.value !== null) {
+          this.ui.panel.value = null;
+          this.ui.customize.value = null;
+          this.render?.highlight?.(null);
+          return true;
+        }
         this.tools?.select('inspect');
         this.ui.selection.value = null;
         return true;
-      default:
-        return false;
+      default: {
+        const book = panels.find((p) => p.key && p.key === e.key.toLowerCase() && p.side === 'book');
+        const mode = this.mirror.settings.value.mode;
+        if (!book || (book.modes && !book.modes.includes(mode))) return false;
+        if (book.lens) this.ui.lens.value = book.lens;
+        toggleBook(this, book.id);
+        return true;
+      }
     }
   }
 
@@ -444,6 +459,15 @@ export class Session {
         this.ui.selection.value = selection;
       },
       lens: () => this.ui.lens.value,
+      customize: (id) => {
+        this.ui.selection.value = { kind: 'building', id };
+        this.ui.customize.value = id;
+      },
+      farm: () => this.ui.farm.value,
+      setFarm: (id) => {
+        this.ui.farm.value = id;
+      },
+      selection: () => this.ui.selection.value,
     };
   }
 

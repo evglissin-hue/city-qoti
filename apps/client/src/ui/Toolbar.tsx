@@ -1,19 +1,52 @@
+import { content } from '@qoti/content';
+import { useEffect, useState } from 'preact/hooks';
 import type { Session } from '../app/session';
-import { ToolIcon } from './icons';
-import { lenses, toolsForLens } from './lenses';
+import {
+  buildingChoices,
+  buildingGroup,
+  costBlock,
+  decorChoices,
+  GROUP_LABEL,
+  groupsOf,
+  type BuildingGroup,
+} from '../input/catalog';
+import type { Tool } from '../input/tool';
+import { goodName, thousands } from './format';
+import { Glyph, ToolIcon } from './icons';
+import { lenses, overlays, toolsForLens } from './lenses';
+import { rejectText } from './messages';
+import { booksFor, toggleBook } from './panels';
 
 export function Toolbar({ session }: { session: Session }) {
   const manager = session.tools;
-  if (!manager) return null;
+  const m = session.mirror;
   const lens = session.ui.lens.value;
-  const active = manager.active.value;
-  const tools = toolsForLens(manager.tools, lens);
+  const mode = m.settings.value.mode;
+  const active = manager?.active.value ?? 'inspect';
+  const overlay = session.ui.overlay.value;
+  const lensOverlays = mode === 'standard' ? overlays.filter((o) => o.lens === lens) : [];
+  const shown = lensOverlays.some((o) => o.id === overlay) ? overlay : null;
+  // The field tool shows its own overlay (the farm's reach) while it is out.
+  useEffect(() => {
+    if (active !== 'field') session.render?.setOverlay(shown);
+  }, [shown, active]);
+  if (!manager) return null;
+  void m.hamletRevision.value;
+  void m.budget.value;
+  const tools = toolsForLens(manager.tools, lens).filter((t) => !t.modes || t.modes.includes(mode));
   const current = manager.tool(active);
   const accent = lenses.find((l) => l.id === lens)?.accent ?? '#888';
+  const books = booksFor(lens, mode);
+  const panel = session.ui.panel.value;
+  const canUndo = session.undo.size.value > 0;
 
   return (
     <footer class="toolbar" style={{ '--accent': accent }}>
-      {current?.variants && current.variant && (
+      {current?.id === 'building' && <BuildingPicker session={session} tool={current} />}
+      {(current?.id === 'decor' || current?.id === 'fence') && (
+        <DecorPicker session={session} tool={current} linear={current.id === 'fence'} />
+      )}
+      {current?.variants && current.variant && !['building', 'decor', 'fence'].includes(current.id) && (
         <div class="variants panel">
           {current.variants.map((v) => (
             <button
@@ -29,6 +62,7 @@ export function Toolbar({ session }: { session: Session }) {
           {current.hint && <span class="muted hint">{current.hint}</span>}
         </div>
       )}
+      {current?.id === 'field' && <FieldHint session={session} />}
       <div class="toolbar-row panel">
         <div class="lenses" title="Tab switches lens">
           {lenses.map((l) => (
@@ -62,7 +96,186 @@ export function Toolbar({ session }: { session: Session }) {
             </button>
           ))}
         </div>
+        {books.length > 0 && (
+          <div class="books">
+            {books.map((b) => (
+              <button
+                key={b.id}
+                type="button"
+                class={`tool book ${panel === b.id ? 'active' : ''}`}
+                data-testid={`book-${b.id}`}
+                title={b.key ? `${b.label} (${b.key.toUpperCase()})` : b.label}
+                onClick={() => toggleBook(session, b.id)}
+              >
+                <span class="icon">
+                  <Glyph id={b.icon ?? b.id} />
+                </span>
+                <span>{b.label}</span>
+              </button>
+            ))}
+          </div>
+        )}
+        {lensOverlays.length > 0 && (
+          <div class="overlay-toggles" role="group" aria-label="Overlays">
+            {lensOverlays.map((o) => (
+              <button
+                key={o.id}
+                type="button"
+                class={`overlay-toggle ${shown === o.id ? 'active' : ''}`}
+                aria-pressed={shown === o.id}
+                data-testid={`overlay-${o.id}`}
+                title={o.hint}
+                onClick={() => (session.ui.overlay.value = shown === o.id ? null : o.id)}
+              >
+                <Glyph id={o.icon} />
+                <span>{o.label}</span>
+              </button>
+            ))}
+          </div>
+        )}
+        <button
+          type="button"
+          class="undo-button"
+          data-testid="undo"
+          disabled={!canUndo}
+          title="Undo your last change (Ctrl+Z)"
+          onClick={() => session.undoLast()}
+        >
+          <Glyph id="undo" />
+        </button>
       </div>
     </footer>
+  );
+}
+
+function CostLine({ coins, goods, free }: { coins?: number; goods?: [string, number][]; free: boolean }) {
+  if (free) return <span class="cost muted">Free in a creative valley</span>;
+  if (!coins && !goods?.length) return <span class="cost muted">No cost</span>;
+  return (
+    <span class="cost">
+      {coins ? (
+        <span class="coins">
+          <Glyph id="coin" />
+          {thousands(coins)}
+        </span>
+      ) : null}
+      {goods?.map(([g, q]) => (
+        <span key={g} class="mat">
+          {q} {goodName(g).toLowerCase()}
+        </span>
+      ))}
+    </span>
+  );
+}
+
+/** The Build picker: the valley's buildings by group, each card with its footprint and cost. */
+function BuildingPicker({ session, tool }: { session: Session; tool: Tool }) {
+  const m = session.mirror;
+  const mode = m.settings.value.mode;
+  const defs = buildingChoices(mode, session.ui.lens.value);
+  const groups = groupsOf(defs);
+  const selected = content.buildingById.get(tool.variant?.value ?? '');
+  const [group, setGroup] = useState<BuildingGroup | null>(null);
+  const showing = group && groups.includes(group) ? group : selected ? buildingGroup(selected) : groups[0];
+  const cards = defs.filter((d) => buildingGroup(d) === showing);
+  const free = mode !== 'standard';
+  return (
+    <div class="picker panel" data-testid="building-picker">
+      {groups.length > 1 && (
+        <div class="picker-groups" role="tablist">
+          {groups.map((g) => (
+            <button
+              key={g}
+              type="button"
+              role="tab"
+              aria-selected={showing === g}
+              class={showing === g ? 'active' : ''}
+              data-testid={`group-${g}`}
+              onClick={() => setGroup(g)}
+            >
+              {GROUP_LABEL[g]}
+            </button>
+          ))}
+          <span class="muted hint">{tool.hint}</span>
+        </div>
+      )}
+      <div class="picker-cards">
+        {cards.map((d) => {
+          const blocked = free ? null : costBlock(m, d.cost);
+          const on = tool.variant?.value === d.id;
+          return (
+            <button
+              key={d.id}
+              type="button"
+              class={`card ${on ? 'active' : ''} ${blocked ? 'short' : ''}`}
+              data-testid={`variant-${d.id}`}
+              title={blocked ? rejectText(blocked) : undefined}
+              onClick={() => session.tools?.select('building', d.id)}
+            >
+              <strong>{d.name}</strong>
+              <span class="size">
+                {d.size[0]} × {d.size[1]}
+                {!free && d.jobs ? `, ${d.jobs.count} ${d.jobs.count === 1 ? 'job' : 'jobs'}` : ''}
+                {!free && d.housing ? `, homes ${d.housing.residents}` : ''}
+              </span>
+              <CostLine coins={d.cost?.coins} goods={d.cost?.goods} free={free} />
+              {!free && d.upkeep ? <span class="upkeep muted">{d.upkeep} a day to keep</span> : null}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+/** Decor and fence pickers: Pattern Book pieces show locked, with the hint that unlocks them. */
+function DecorPicker({ session, tool, linear }: { session: Session; tool: Tool; linear: boolean }) {
+  const m = session.mirror;
+  const free = m.settings.value.mode !== 'standard';
+  const choices = decorChoices(m, 'hearth', linear);
+  return (
+    <div class="picker panel decor-picker" data-testid={linear ? 'fence-picker' : 'decor-picker'}>
+      <div class="picker-cards">
+        {choices.map(({ def, locked, hint }) => {
+          const on = tool.variant?.value === def.id;
+          return (
+            <button
+              key={def.id}
+              type="button"
+              class={`card small ${on ? 'active' : ''} ${locked ? 'locked' : ''}`}
+              aria-disabled={locked}
+              data-testid={`variant-${def.id}`}
+              title={locked ? hint : def.name}
+              onClick={() => (locked ? session.toast(hint) : session.tools?.select(tool.id, def.id))}
+            >
+              {locked && <Glyph id="lock" class="lock" />}
+              <strong>{def.name}</strong>
+              {locked ? (
+                <span class="cost muted">In the Pattern Book</span>
+              ) : (
+                !free && def.cost?.coins && <CostLine coins={def.cost.coins} free={false} />
+              )}
+            </button>
+          );
+        })}
+      </div>
+      {tool.hint && <span class="muted hint picker-hint">{tool.hint}</span>}
+    </div>
+  );
+}
+
+/** Which farmhouse the field tool is sowing for. */
+function FieldHint({ session }: { session: Session }) {
+  const id = session.ui.farm.value;
+  const b = id !== null ? session.mirror.buildings.get(id) : undefined;
+  return (
+    <div class="variants panel field-hint" data-testid="field-hint">
+      <Glyph id="field" />
+      <span>
+        {b
+          ? 'Sowing for the farmhouse. Drag a box of fertile ground; Shift+drag clears. A coin a tile.'
+          : 'Click a farmhouse first. Fields have to be within reach of someone with a hoe.'}
+      </span>
+    </div>
   );
 }

@@ -2,15 +2,10 @@ import { signal } from '@preact/signals';
 import { content } from '@qoti/content';
 import { canPlaceDecorRun, TILE_FP } from '@qoti/sim';
 import { rejectText } from '../../ui/messages';
+import { costBlock, decorChoices } from '../catalog';
 import type { ToolContext } from '../context';
 import { cursorHint } from '../hint';
 import type { Tool } from '../tool';
-
-const VARIANTS = [
-  { id: 'fence', label: 'Fence' },
-  { id: 'hedge', label: 'Hedge' },
-  { id: 'low-wall', label: 'Low wall' },
-];
 
 const center = (t: number) => t * TILE_FP + TILE_FP / 2;
 
@@ -25,7 +20,10 @@ export function fenceTool(ctx: ToolContext): Tool {
   function preview() {
     const def = content.decorById.get(variant.value);
     if (!def || !start || !end) return null;
-    const check = canPlaceDecorRun(ctx.mirror, def, start, end);
+    const run = canPlaceDecorRun(ctx.mirror, def, start, end);
+    const locked = decorChoices(ctx.mirror, 'hearth', true).find((c) => c.def.id === def.id)?.locked;
+    const blocked = locked ? 'LOCKED' : costBlock(ctx.mirror, def.cost);
+    const check = blocked ? { ...run, ok: false, reason: blocked } : run;
     ctx.render.setGhost({ kind: 'decorRun', def: def.id, segments: check.segments, valid: check.ok });
     cursorHint(check.ok ? null : rejectText(check.reason), cx, cy);
     return { def, check };
@@ -38,7 +36,9 @@ export function fenceTool(ctx: ToolContext): Tool {
     label: 'Fence',
     hint: 'Drag to draw',
     order: 50,
-    variants: VARIANTS,
+    get variants() {
+      return decorChoices(ctx.mirror, 'hearth', true).map((c) => ({ id: c.def.id, label: c.def.name }));
+    },
     variant,
     pointerDown(p) {
       cx = p.clientX;
