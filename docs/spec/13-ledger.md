@@ -100,6 +100,7 @@ How production runs [I1, C3C]:
 | Condition lost per unpaid day | 1% | 2% | 3% |
 | Repair per builder-hour | 15% | 10% | 8% |
 - **Loans** [I2]: the County Bank lends 500, 1,500 or 4,000 coins by rank at 5% interest per season. Repay any time. Credit limit: the treasury may go to -200 coins x rank before construction stops.
+- **Loans and credit [I2, C4A]**: the bank lends in all 500, 1,500 or 4,000 coins at Village, Town and Market Town (or 20 coins a resident when that is more). Interest comes due at 00:30 on each season's first day: 5% of each balance, rounded up to the penny, paid from the treasury when it can be and otherwise added to the loan. The credit line is 200 coins per rank step (none at Hamlet rank, so I1 rules hold to the penny): construction may spend into it, upkeep is paid within it, and lean times start only past it; what the treasury owes within the line pays the same 5% a season.
 
 ## Market and prices [I2]
 
@@ -107,13 +108,22 @@ A Victoria-lite market (P30). Money circulates between the treasury and househol
 
 - **Flows**: workplaces pay daily wages from the treasury to households; households buy goods at market prices (money returns to the treasury); income tax (lever) returns a share of wages; exports, imports, tourism and loans are the only money entering or leaving the valley.
 - **Invariant (test it)**: `treasury + sum(household savings)` changes only by external flows.
-- **Wages** per job tier per day *(tune)*: basic 6, skilled 10, merchant 16, patron 26 coins; lever: wage level 80% to 120%.
+- **Wages** per job tier per day *(tune)*: basic 6, skilled 10, merchant 16, patron 26 coins (C4A tuned them to 3, 5, 8 and 12.50; see Details); lever: wage level 80% to 120%.
 - **Needs baskets** per tier list need groups with quantities per day (food 1, warmth 1 per household in winter, clothing 0.1, treats 0.2...). Each group lists substitutable goods with preference weights. Households buy the good with the best `price / preference` they can afford; Thrifty households weigh price more. Unmet quantity lowers that need's satisfaction.
 - **Price** per good, updated daily at 00:00:
   - demand `D` = units households wanted yesterday; stock `S` = units in market outlets and storehouses in their range; cover `c = S / max(1, D)` days; target cover `T = 3`.
   - multiplier `m(c / T)` by linear interpolation of: 0.25 → 2.5, 0.5 → 1.6, 0.75 → 1.2, 1 → 1.0, 1.5 → 0.9, 2 → 0.8, 4 → 0.65, 8+ → 0.5.
   - `price += round((base * m - price) * 0.25)`, clamped to 0.4x to 3x base.
 - **Profit per building** (report): output at market price minus wages, upkeep and inputs at market price. All buildings belong to the town; profit is a signal, not a cash flow.
+- **Details [I2, C4A]**:
+  - The market opens with the Village rank (the Charter's `market-prices`). Before it a Hamlet keeps the I1 books exactly: flat tax, free food, no wages, prices at base, and the `goods` need weighs nothing.
+  - Wages (tuned): basic 3, skilled 5, merchant 8, patron 12.50 coins a day at wage level 100, so a working household's basket takes most of a wage (a worker keeps about two people fed). Paid at 17:00 to every assigned worker's household, with the income tax (default 10%) paid straight back. The first pay day after the Village charter sends a note explaining the new books. In lean times wages are paid only out of what the till took in from households the day before (sales and taxes), shared pro rata, so the treasury never slides further on wages.
+  - Demand `D` for the price rule is what households want, recorded each day at 18:00 from every basket group's daily quantity, shared across its goods by preference weight (so an empty shelf still counts as wanted), or what the town used up that day (production inputs, construction), whichever is more. `S` is town stock in storehouses, stalls and output buffers. A good with neither demand nor stock drifts back to base. Each daily step moves at least a penny. Prices are computed at 00:10.
+  - Buying: food is paid for at the till on the residents' shopping outings; every other basket group at the 18:00 household pass, used up at supper. Each group accrues its daily quantity in hundredths (fractions carry over) and buys the whole units it owes, best value first (`price / preference`, where Thrifty households count only half of a preference above 1 and comfortable ones lean in); unmet units are let go and the group's satisfaction moves halfway to the share it got. The `goods` need is the basket's average satisfaction and weighs 10 in mood from Village rank.
+  - Comfortable households (6 coins of savings a member) also treat themselves at supper: one unit of their favorite food per member while their purse stays above the mark, so purses that fill flow back through the till.
+  - On the slate: newcomers in their first two days and households with nobody in work take breakfast free when they cannot pay (the cheapest food, enough for the morning). Grown-ups without work feel it in their basket; elders and children do not.
+  - Price caps and subsidies apply at the till; what they let go shows in the Budget as subsidies (with sales at the full price beside it).
+  - A household that leaves takes its savings with it (money leaving the valley).
 - **Market Square** [I2]: replaces scattered stalls as the main outlet; market days [I3] (weekly) add shopping capacity, charm and a small fee income.
 
 ## Zoning and growth [I2]
@@ -164,6 +174,10 @@ Homes upgrade in place when a household meets the next tier's needs for 3 consec
 - **Regional price** per neighbor and good: `base x seasonal factor x drift x impact`. Drift is a deterministic random walk of up to 2% per day bounded 0.7 to 1.4. Impact: each unit you sell lowers that day's price by 0.5% (buying raises it), recovering 10% per day.
 - You buy at 1.2x and sell at 0.85x the regional price.
 - **Standing orders**: per good, keep stock between min and max: sell above max if the price is at least the floor, buy below min if the price is at most the ceiling. Caravans leave daily at 08:00 with capacity set by the post's level.
+- **Details [I2, C4A]**:
+  - Drift moves at 00:20 for every good a neighbor trades, by a step from a hash of the valley seed, the day, the neighbor and the good (no RNG stream, so trade never shifts other systems' dice), plus a pull of 4% of the way back to 1. Impact recovers 10% of the price a day in a straight line (a neighbor absorbs about twenty units a day before its price sags) and stays within 0.5x to 2x.
+  - At 08:00 caravans due home unload into the post's store (or the nearest storehouse), then the orders run: shortfalls first (counting what is already on the road), then surpluses, best-paying first, unit by unit while the floor or ceiling holds; buying also stops at the credit line. Capacity is 40 units a day, plus 16 for each cart in the valley (up to three). Loads come from the post's store, then the storehouses, so no hauling is needed; money settles at the gate as the caravan leaves (exports and imports), and bought goods arrive the neighbor's `days` later. Export bans are respected. A valley with a Trading Post no longer sees the peddler.
+  - Neighbors (tuned): Millhaven also buys logs and Stonecross vegetables, so every Hamlet good has a buyer somewhere.
 - **Contracts** [I4]: offers each season such as "deliver 200 wool by Autumn day 5 at 3 coins each". Shortfall costs renown and a fee. Rewards planning, carries risk (P31).
 - **Commissions** [I3]: optional requests from neighbors or notable visitors with unlock, decor or renown rewards.
 - **Road safety** [I4]: bandit activity on the valley road raises caravan losses unless the road is patrolled; the risk shows as a price premium.

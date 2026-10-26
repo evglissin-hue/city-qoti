@@ -157,7 +157,7 @@ describe('the daily market pass', () => {
     const bread = view.lines.find((l) => l.good === 'bread')!;
     expect(bread.target).toBeGreaterThan(0);
     expect(bread.why!.length).toBeGreaterThan(10);
-    expect(bread.why).not.toMatch(/—/);
+    expect(bread.why).not.toContain(String.fromCharCode(0x2014));
     expect(view.firstDay).toBeGreaterThanOrEqual(0);
   });
 });

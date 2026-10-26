@@ -1,5 +1,5 @@
 // The Ledger's I2 levers (C4.0 baseline; C4A owns them): wage level, income tax, price caps and
-// subsidies. They only set numbers; the market and wage passes read them.
+// subsidies. They only set numbers; the market and wage passes read them (systems/market).
 import { content } from '@qoti/content';
 import { MAX_SUBSIDY, TAX_RATE_RANGE, WAGE_LEVEL_RANGE } from '../constants';
 import { isInt } from '../rules/geometry';
@@ -19,6 +19,8 @@ export const setWageLevel: HandlerFor<'ledger.setWageLevel'> = {
   apply(state, _seat, cmd, ctx) {
     state.levers.wageLevel = cmd.percent;
     ctx.events.push({ e: 'levers.updated', l: leversView(state) });
+    // C4A: profit per building counts wages, so the market page moves with the lever.
+    ctx.events.push({ e: 'market.updated', m: marketView(state) });
   },
 };
 
