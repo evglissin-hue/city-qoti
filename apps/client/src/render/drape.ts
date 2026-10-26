@@ -3,7 +3,7 @@
 // the drawn ground (render/surface.ts): each sheet corner takes the highest of a few samples around
 // it, so a sheet never dips under the smooth slopes between corners.
 import { MAP_SIZE, type MapReader } from '@qoti/sim';
-import { BufferGeometry, Float32BufferAttribute } from 'three';
+import { BufferGeometry, Float32BufferAttribute, Uint32BufferAttribute } from 'three';
 import { groundY as surfaceGroundY } from './surface';
 
 /** Lift above the ground for overlay sheets. */
@@ -208,5 +208,38 @@ export function drapeOutline(
   g.setAttribute('position', new Float32BufferAttribute(pos, 3));
   g.setAttribute('color', new Float32BufferAttribute(col, 4));
   g.setIndex(idx);
+  return g;
+}
+
+/**
+ * C4E: merges drape sheets (position, RGBA color, index) into one geometry, in order, so an overlay
+ * of many lots or homes costs one draw. Later sheets draw over earlier ones. Disposes the inputs.
+ */
+export function mergeDrapes(sheets: readonly BufferGeometry[]): BufferGeometry {
+  let verts = 0;
+  let tris = 0;
+  for (const s of sheets) {
+    verts += s.getAttribute('position').count;
+    tris += s.getIndex()?.count ?? 0;
+  }
+  const pos = new Float32Array(verts * 3);
+  const col = new Float32Array(verts * 4);
+  const idx = new Uint32Array(tris);
+  let v = 0;
+  let t = 0;
+  for (const s of sheets) {
+    const p = s.getAttribute('position');
+    const c = s.getAttribute('color');
+    pos.set(p.array as Float32Array, v * 3);
+    col.set(c.array as Float32Array, v * 4);
+    const ix = s.getIndex();
+    if (ix) for (let i = 0; i < ix.count; i++) idx[t++] = ix.getX(i) + v;
+    v += p.count;
+    s.dispose();
+  }
+  const g = new BufferGeometry();
+  g.setAttribute('position', new Float32BufferAttribute(pos, 3));
+  g.setAttribute('color', new Float32BufferAttribute(col, 4));
+  g.setIndex(new Uint32BufferAttribute(idx, 1));
   return g;
 }

@@ -37,7 +37,7 @@ import {
   type Material,
 } from 'three';
 import type { Mirror } from '../../state/mirror';
-import { drapeGrid, drapeOutline, drapeRing, drapeTiles, groundY, type Rgba } from '../drape';
+import { drapeGrid, drapeOutline, drapeRing, drapeTiles, groundY, mergeDrapes, type Rgba } from '../drape';
 import { iconAtlas, IconSprites, STATUS_ICONS } from '../icons';
 import { buildingGeometry, footprintHeights } from '../kitGeometry';
 import { levelY } from '../coords';
@@ -232,6 +232,23 @@ export function overlaysLayer(): OverlaysLayer {
     mesh.frustumCulled = false;
     parent.add(mesh);
     return mesh;
+  }
+
+  // C4E: the village overlays draw one sheet per lot or home; they are gathered and merged into a
+  // single mesh, so a town of 150 homes costs one draw rather than 300.
+  let gathered: BufferGeometry[] = [];
+
+  /** Queues a sheet for the merged mesh; `under` puts it beneath the sheets queued so far. */
+  function put(geometry: BufferGeometry, under = false): void {
+    if (under) gathered.unshift(geometry);
+    else gathered.push(geometry);
+  }
+
+  function merged(build: () => void): void {
+    gathered = [];
+    build();
+    if (gathered.length > 0) add(mergeDrapes(gathered));
+    gathered = [];
   }
 
   function clear(): void {
@@ -515,7 +532,7 @@ export function overlaysLayer(): OverlaysLayer {
         if (!colors.has(v)) colors.set(v, zoneColor(v));
         return colors.get(v)!;
       };
-      add(
+      put(
         drapeGrid(m, box[0], box[1], box[2], box[3], (x, z): Rgba => {
           // Average the zoned tiles round this corner, so tints meet softly at zone borders.
           let r = 0;
@@ -546,7 +563,7 @@ export function overlaysLayer(): OverlaysLayer {
     for (const lot of m.lots.values()) {
       const z = content.zoneById.get(lot.zone);
       const c = new Color(ZONE_TOKENS[z?.token ?? ''] ?? 0x9a9a92).multiplyScalar(0.62);
-      add(
+      put(
         drapeOutline(
           m,
           lot.x,
@@ -587,7 +604,7 @@ export function overlaysLayer(): OverlaysLayer {
         rgba: [c.r, c.g, c.b, cap > 0 ? 0.78 : 0.4],
       });
     }
-    if (tiles.length > 0) add(drapeTiles(m, tiles, 0.04));
+    if (tiles.length > 0) put(drapeTiles(m, tiles, 0.04));
   }
 
   function land(): void {
@@ -603,7 +620,7 @@ export function overlaysLayer(): OverlaysLayer {
           inLot.add(z * MAP_SIZE + x);
           tiles.push({ x, z, rgba: [c.r, c.g, c.b, 0.72] });
         }
-      add(
+      put(
         drapeOutline(
           m,
           lot.x,
@@ -625,7 +642,7 @@ export function overlaysLayer(): OverlaysLayer {
       ramp(m.charm(x, z) / 100, c);
       tiles.push({ x, z, rgba: [c.r, c.g, c.b, 0.45] });
     }
-    if (tiles.length > 0) add(drapeTiles(m, tiles, 0.0));
+    if (tiles.length > 0) put(drapeTiles(m, tiles, 0.0), true);
   }
 
   function needs(): void {
@@ -650,13 +667,13 @@ export function overlaysLayer(): OverlaysLayer {
       const tier = tierOf.get(b.id);
       if (!e && !tier) {
         // Empty homes: a pale dashed outline.
-        add(drapeOutline(m, b.x, b.z, b.x + w, b.z + d, 0.06, [0.9, 0.88, 0.82, 0.8], 0.1, 2));
+        put(drapeOutline(m, b.x, b.z, b.x + w, b.z + d, 0.06, [0.9, 0.88, 0.82, 0.8], 0.1, 2));
         continue;
       }
       ramp(e ? e.sum / e.n / 4 : 0.5, c);
-      add(drapeGrid(m, b.x, b.z, b.x + w, b.z + d, () => [c.r, c.g, c.b, 0.58], 0.07));
+      put(drapeGrid(m, b.x, b.z, b.x + w, b.z + d, () => [c.r, c.g, c.b, 0.58], 0.07));
       const t = new Color(TIER_TONES[tier ?? 'settler'] ?? TIER_TONES.settler!);
-      add(drapeOutline(m, b.x, b.z, b.x + w, b.z + d, 0.12, [t.r, t.g, t.b, 0.95], 0.02));
+      put(drapeOutline(m, b.x, b.z, b.x + w, b.z + d, 0.12, [t.r, t.g, t.b, 0.95], 0.02));
     }
   }
 
@@ -668,10 +685,10 @@ export function overlaysLayer(): OverlaysLayer {
     } else if (kind === 'coverage') coverage();
     else if (kind === 'fields') fields();
     else if (kind === 'flows') flows();
-    else if (kind === 'zones') zones();
-    else if (kind === 'traffic') traffic();
-    else if (kind === 'land') land();
-    else if (kind === 'needs') needs();
+    else if (kind === 'zones') merged(zones);
+    else if (kind === 'traffic') merged(traffic);
+    else if (kind === 'land') merged(land);
+    else if (kind === 'needs') merged(needs);
     statusRebuild = true;
     ctx.invalidate();
   }
