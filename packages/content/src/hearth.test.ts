@@ -57,6 +57,13 @@ describe('the Chronicle', () => {
     'pattern-discovered': ['pattern', 'place', 'credit', 'flavor'],
     'season-summary': ['season', 'year', 'people', 'coins', 'pages', 'wishes', 'books'],
     'wishes-digest': ['wishes', 'examples'],
+    // I2 (C4D): lives, the rank-up and story characters.
+    birth: ['child', 'parents'],
+    'rank-up': ['proclamation', 'rank', 'credit'],
+    seaside: ['name'],
+    'story-arrived': ['name'],
+    'story-finale': ['name'],
+    wedding: ['a', 'b', 'when'],
   };
 
   it('has at least three variants per kind, using only the params its callers pass', () => {
