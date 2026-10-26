@@ -141,7 +141,7 @@ sfc32 per stream, seeded from `cyrb128(seed + ':' + streamName)`. State lives in
 ### Serialization, hashing, versions
 
 - `serialize(state) -> Uint8Array`: JSON where typed arrays are base64 (32-bit layers little-endian), then gzip. The sim uses fflate's synchronous gzip so it stays free of async (CompressionStream is async only); the bytes are standard gzip. `deserialize` reverses it and rebuilds indexes (the decor spatial hash lives in a derived index, never in saved state).
-- `hashState(state) -> string`: 64-bit FNV-1a (two 32-bit lanes) over typed array bytes and the JSON of the rest. Clients compare hashes every 50 turns.
+- `hashState(state) -> string`: a fast 64-bit hash (two 32-bit multiply lanes with a murmur-style finalizer) over the typed layers as little-endian 32-bit words, the RNG words and the JSON of the rest. Clients compare hashes every 50 turns. (C3X: replaced byte-wise FNV-1a, which took 65 ms at City scale; this takes about 6.)
 - `SAVE_VERSION` (integer): bump whenever the shape of saved state changes, and add `migrations[n]: (save) => save` with a test.
 - `simVersion` (string): a hash of `packages/sim/src` and `packages/content/src`, generated at build time into `version.generated.ts` (gitignored). Two clients can share a valley only with the same `simVersion`.
 

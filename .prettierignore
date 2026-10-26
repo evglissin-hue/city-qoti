@@ -12,3 +12,4 @@ package-lock.json
 docs
 packages/sim/test/golden
 test/fixtures
+.claude

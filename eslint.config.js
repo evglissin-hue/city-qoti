@@ -87,6 +87,7 @@ export default defineConfig([
     '**/*.generated.ts',
     'docs/**',
     'test/fixtures/**',
+    '.claude/**',
   ]),
   js.configs.recommended,
   tseslint.configs.recommended,
