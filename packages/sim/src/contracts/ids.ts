@@ -22,4 +22,13 @@ export type LayerName =
   | 'occupant'
   | 'zone'
   | 'parcel'
-  | 'flags';
+  | 'flags'
+  // I1 (C3.0)
+  | 'charm'
+  | 'charmNature'
+  | 'charmComfort'
+  | 'charmLight'
+  | 'charmView'
+  | 'charmNoise'
+  | 'fieldOwner'
+  | 'crop';

@@ -1,5 +1,18 @@
 // World state (docs/spec/20-architecture.md, Simulation). Later iterations add per-system
 // slices; any change to the saved shape bumps SAVE_VERSION and adds a migration.
+import type {
+  AchievementState,
+  BuildingRuntime,
+  ChronicleEntry,
+  EconomyState,
+  HearthState,
+  Household,
+  LogisticsState,
+  Resident,
+  SeenStats,
+  TownStats,
+  Wish,
+} from './hamlet';
 import type { EntityId, Lens, Rect, Rot4, SeatId, Speed } from './ids';
 import type { ValleySettings } from './settings';
 
@@ -16,6 +29,18 @@ export interface MapLayers {
   zone: Uint8Array;
   parcel: Uint8Array;
   flags: Uint8Array;
+  // I1 (C3.0). Charm 0..100 and its five categories (noise as a magnitude, 0 = quiet), stored
+  // because charm is recomputed hourly per dirty chunk, so it depends on history.
+  charm: Uint8Array;
+  charmNature: Uint8Array;
+  charmComfort: Uint8Array;
+  charmLight: Uint8Array;
+  charmView: Uint8Array;
+  charmNoise: Uint8Array;
+  /** Wheat field tiles: the farmhouse id that tends them, else 0. */
+  fieldOwner: Int32Array;
+  /** Crop growth on field tiles, 0 (bare) to 255 (ripe). */
+  crop: Uint8Array;
 }
 
 export interface WorldMeta {
@@ -30,6 +55,8 @@ export interface SeatState {
   color: number;
   lens: Lens;
   lastSeenTick: number;
+  /** I1: stats when the seat last left, for the while-you-were-away letter. */
+  seen?: SeenStats;
 }
 
 export interface Building {
@@ -43,6 +70,8 @@ export interface Building {
   stage: 'construction' | 'built';
   foundation: boolean;
   custom?: Record<string, string | boolean>;
+  /** I1: runtime state in standard valleys. */
+  rt?: BuildingRuntime;
 }
 
 export interface Decor {
@@ -86,4 +115,21 @@ export interface WorldState {
   decor: Decor[];
   /** Sorted by id. */
   notes: Note[];
+  // I1 slices (C3.0). Sandbox valleys keep them empty.
+  /** Sorted by id. */
+  residents: Resident[];
+  /** Sorted by id. */
+  households: Household[];
+  economy: EconomyState;
+  logistics: LogisticsState;
+  hearth: HearthState;
+  /** Active wishes, sorted by id. */
+  wishes: Wish[];
+  /** Sorted by id (oldest first). */
+  chronicle: ChronicleEntry[];
+  /** Unlocked achievements in unlock order. */
+  achievements: AchievementState[];
+  stats: TownStats;
+  /** Increments whenever roads, buildings or walkability change (path cache key). */
+  networkVersion: number;
 }

@@ -1,5 +1,6 @@
 import {
   createValley,
+  MAX_IMPORT_CHARS,
   MAX_SNAPSHOT_BYTES,
   MemoryStorage,
   randomId,
@@ -50,7 +51,7 @@ export function startDevServer(opts: DevServerOptions): Promise<DevServer> {
       const url = new URL(req.url ?? '/', 'http://localhost');
       if (req.method === 'POST' && url.pathname === '/api/valleys') {
         try {
-          const raw = await readBody(req);
+          const raw = await readBody(req, MAX_IMPORT_CHARS + 64 * 1024);
           const body = (raw ? JSON.parse(raw) : {}) as CreateValleyRequest;
           const valleyId = randomId();
           const storage = new MemoryStorage();

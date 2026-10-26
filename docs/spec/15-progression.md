@@ -40,7 +40,7 @@ Technology arrives through conditions in the town, shown as progress bars in the
 
 ## Achievements [I1]
 
-Feats and stories, never "build 100 roads" (P42). Data-driven conditions, checked hourly. Rewards are cosmetics and options (a plaque, a decor piece, a title, a style), never raw power. Shared achievements hang as plaques in the Town Hall; each seat also keeps a personal journal of the feats it was credited with.
+Feats and stories, never "build 100 roads" (P42). Data-driven conditions, checked hourly (C3B: offset 150, after the patterns pass; credit goes to the seats behind the underlying event, such as the seat credited with a discovery or both seats for Built Together, else to the seats connected at the time). Rewards are cosmetics and options (a plaque, a decor piece, a title, a style), never raw power. Shared achievements hang as plaques in the Town Hall; each seat also keeps a personal journal of the feats it was credited with.
 
 | Achievement | From | Condition |
 |---|---|---|

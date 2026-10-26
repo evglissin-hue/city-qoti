@@ -6,7 +6,8 @@
   "description": "Headless simulation benchmarks with budget checks.",
   "scripts": {
     "bench": "tsx src/bench.ts",
-    "typecheck": "tsc -p . --noEmit"
+    "typecheck": "tsc -p . --noEmit",
+    "tune": "tsx src/tune.ts"
   },
   "dependencies": {
     "@qoti/content": "*",

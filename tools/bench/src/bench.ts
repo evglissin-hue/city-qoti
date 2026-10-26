@@ -18,6 +18,9 @@ import {
 } from '@qoti/sim';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
+import { residentsBench } from './residents';
+import { hearthBench } from './hearth';
+import { benchEconomy } from './economy';
 import { syntheticValley } from './synthetic';
 
 const BUDGET = {
@@ -130,6 +133,17 @@ joining.time.desired = [3, 3, 3, 3];
 const [, catchUpMs] = time(() => advanceTo(joining, joining.lastTurn + 300, createTickCtx(joining)));
 lines.push(`catch-up        300 turns at 3x in ${catchUpMs.toFixed(1)} ms (budget ${BUDGET.catchUpMs} ms)`);
 
+// 6. Residents (C3A): the 40-resident hamlet and the synthetic 2,000-resident town.
+const residents = residentsBench(lines, failures);
+// 6. Hearth (C3B): charm per dirty chunk and the Pattern Book pass.
+const hearth = hearthBench();
+lines.push(...hearth.lines);
+failures.push(...hearth.failures);
+// 6. The I1 economy: the 40-resident hamlet against its budget, the standard start's first days.
+const economy = benchEconomy();
+lines.push(...economy.lines);
+failures.push(...economy.failures);
+
 const heapMb = process.memoryUsage().heapUsed / 1024 / 1024;
 lines.push(`memory          ${heapMb.toFixed(0)} MB heap in use`);
 
@@ -151,6 +165,9 @@ const report = {
   },
   snapshot: { bytes: bytes.length, serializeMs, deserializeMs, hashMs },
   catchUpMs,
+  residents,
+  hearth: hearth.report,
+  economy: economy.report,
   heapMb,
   failures,
 };

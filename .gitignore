@@ -14,3 +14,4 @@ blob-report/
 playwright/.cache/
 bench-report.json
 .DS_Store
+.claude/worktrees/

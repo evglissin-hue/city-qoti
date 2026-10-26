@@ -16,6 +16,14 @@ export interface QotiHook {
   findDecorSpot(def: string): { fx: number; fz: number; tile: [number, number] } | null;
   findRoadRun(len: number): [number, number][] | null;
   runGolden(script: unknown): Promise<string>;
+  resyncs(): number;
+  corrupt(): void;
+  // I1 (C3E)
+  mode(): string | null;
+  residentIds(): number[];
+  buildingsOf(def: string): number[];
+  select(sel: { kind: string; id: number } | null): void;
+  undoSize(): number;
 }
 
 declare global {
@@ -24,7 +32,9 @@ declare global {
   }
 }
 
-export const DEBUG_QUERY = '?debug&quality=low';
+/** I0 specs play creative (sandbox) valleys; HAMLET_QUERY starts standard ones. */
+export const DEBUG_QUERY = '?debug&quality=low&creative';
+export const HAMLET_QUERY = '?debug&quality=low';
 
 export async function waitLive(page: Page): Promise<void> {
   await page.waitForFunction(() => window.__qoti?.status() === 'live', null, { timeout: 60_000 });

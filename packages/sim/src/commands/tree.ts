@@ -1,9 +1,10 @@
 import { content } from '@qoti/content';
 import { MAP_SIZE } from '../constants';
-import { treeValue } from '../map/layers';
+import { tilesRect, treeValue } from '../map/layers';
 import { canPlantTree } from '../rules/tree';
 import { worldIndex } from '../state/worldIndex';
-import { checkTiles, type HandlerFor, tilesChangedFor } from './util';
+import { markCharmSoon } from '../systems/hearth/charm/dirty';
+import { checkTiles, type HandlerFor, tilesChangedFor, worldChanged } from './util';
 
 export const plant: HandlerFor<'tree.plant'> = {
   type: 'tree.plant',
@@ -14,9 +15,11 @@ export const plant: HandlerFor<'tree.plant'> = {
   },
   apply(state, _seat, cmd, ctx) {
     const species = content.treeById.get(cmd.species)!.species;
-    // A sapling; growth arrives with C2A.
+    // A sapling; the trees system grows it one stage every two days.
     state.map.tree[cmd.z * MAP_SIZE + cmd.x] = treeValue(species, 0);
     tilesChangedFor(ctx, [[cmd.x, cmd.z]], ['tree']);
+    worldChanged(state, [cmd.x, cmd.z, cmd.x, cmd.z], false);
+    markCharmSoon(state);
   },
 };
 
@@ -30,5 +33,7 @@ export const remove: HandlerFor<'tree.remove'> = {
   apply(state, _seat, cmd, ctx) {
     for (const [x, z] of cmd.tiles) state.map.tree[z * MAP_SIZE + x] = 0;
     tilesChangedFor(ctx, cmd.tiles, ['tree']);
+    worldChanged(state, tilesRect(cmd.tiles), false);
+    markCharmSoon(state);
   },
 };

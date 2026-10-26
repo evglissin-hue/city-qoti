@@ -30,7 +30,7 @@ export {
   Water,
 } from './map/layers';
 export { createStateReader } from './map/reader';
-export { generateValley, type GeneratedValley } from './map/worldgen';
+export { generateValley, type GeneratedValley, valleyNameFor } from './map/worldgen';
 
 export * from './rules';
 
@@ -49,10 +49,60 @@ export {
   runTick,
   type SimCtx,
 } from './turn';
-export { buildingView, buildView, clockView, decorView, noteView, seatView } from './view';
+export {
+  achievementView,
+  budgetView,
+  buildingView,
+  buildView,
+  chronicleView,
+  clockView,
+  constructionProgress,
+  constructionStage,
+  decorView,
+  fillText,
+  goodPairs,
+  householdView,
+  moodBand,
+  nameOf,
+  noteView,
+  patternView,
+  residentName,
+  residentView,
+  runtimeView,
+  seatView,
+  stocksView,
+  townStock,
+  townView,
+  wishView,
+  workforceView,
+} from './view';
+export { agentFrame } from './view/agents';
+export {
+  awayLetter,
+  buildingDetail,
+  inspect,
+  residentDetail,
+  type InspectKind,
+  type InspectResult,
+} from './view/inspect';
+export { evaluate, type Binding } from './conditions';
 
 export { base64ToBytes, bytesToBase64 } from './state/base64';
-export { createWorld, defaultSettings } from './state/create';
+export { createValley, createWorld, defaultSettings } from './state/create';
+export { createRuntime, emptyHamletSlices, goodsArray, isStandard } from './state/hamlet';
+export { insertBuilding } from './state/place';
+export { START_GOODS } from './systems/economy/start';
+export { settleHousehold } from './systems/residents/lifecycle';
+export { economyDial, type EconomyDial } from './systems/economy/dial';
+export { fieldCost, placementCost, roadCost } from './systems/economy/api';
+export { nearestOutletWithFood, outletFood, takeFromOutlet } from './systems/economy/outlets';
+export { doorTile } from './systems/movement/api';
+export {
+  CROP_RIPE,
+  CROP_STAGE_SHIFT,
+  FIELD_RANGE,
+  FIELD_TILES_PER_WORKER,
+} from './systems/production/fields';
 export { findById, findIndexById, removeById } from './state/entities';
 export { fnv64Hex, hashState } from './state/hash';
 export { deserialize, serialize } from './state/serialize';

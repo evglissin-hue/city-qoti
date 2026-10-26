@@ -10,7 +10,7 @@ Acceptance criteria for every cycle that touches the area. Reference machines: a
 | Main thread frame time | 12 ms or less on average (render, UI, mirror) |
 | Draw calls | 300 or fewer |
 | Triangles on screen | 1.5 M or fewer on Medium |
-| Sim tick (worker) | I0: 1 ms; with 2,000 residents: 4 ms average, 12 ms worst |
+| Sim tick (worker) | I0: 1 ms; I1 40-resident hamlet: 0.5 ms; with 2,000 residents: 4 ms average, 12 ms worst |
 | World generation | 300 ms in Node |
 | Chunk rebuild | 4 ms each, at most 2 per frame |
 | Catch-up | 300 turns at 3x in 1.5 s |

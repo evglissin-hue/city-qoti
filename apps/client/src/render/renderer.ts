@@ -1,25 +1,86 @@
 import { createKitMaterial } from '@qoti/art';
 import { calendar, MAP_SIZE, TILE_FP, type SeatId } from '@qoti/sim';
 import {
+  ACESFilmicToneMapping,
+  CanvasTexture,
   Color,
   DirectionalLight,
+  Fog,
   HemisphereLight,
+  Mesh,
+  PCFShadowMap,
   PerspectiveCamera,
   Raycaster,
   Scene,
+  SRGBColorSpace,
   Vector2,
   Vector3,
   WebGLRenderer,
+  type Material,
 } from 'three';
 import { CameraController, FOV } from '../input/camera';
 import type { Mirror } from '../state/mirror';
 import type { EntityPick, Ghost, RenderApi, TilePick } from './api';
 import { fpToWorld, levelY } from './coords';
-import { layerFactories, type GhostLayer, type PresenceLayer, type RenderLayer } from './layers';
-import { lightingAt } from './lighting';
+import { createWorldEnv, type WorldEnv } from './env';
+import {
+  layerFactories,
+  type AgentsLayer,
+  type EffectsLayer,
+  type GhostLayer,
+  type HighlightArea,
+  type OverlaysLayer,
+  type PresenceLayer,
+  type RenderLayer,
+} from './layers';
+import { lightingAt, WINDOW_HASH_GLSL } from './lighting';
 import { pickTileFromRay } from './picking';
+import { PostChain } from './post';
+import { QUALITY_PRESETS, type Quality } from './quality';
 
-export type Quality = 'low' | 'medium' | 'high';
+export type { Quality } from './quality';
+
+/**
+ * Adds the night glow to a kit material: vertices with the optional `glow` attribute (window panes,
+ * flames) shine warm at night, on a seeded share of windows that changes with the hour (C3D-1: the
+ * share and the hash come from lighting.ts, so ground spill matches lit panes). A missing
+ * attribute reads as 0.
+ */
+function addNightGlow(material: Material, night: { value: number }, share: { value: number }): void {
+  material.onBeforeCompile = (shader) => {
+    shader.uniforms.uNight = night;
+    shader.uniforms.uWindowShare = share;
+    shader.vertexShader = shader.vertexShader
+      .replace(
+        '#include <common>',
+        `#include <common>\nattribute float glow;\nvarying float vGlow;\nuniform float uNight;\nuniform float uWindowShare;\n${WINDOW_HASH_GLSL}`,
+      )
+      .replace(
+        '#include <project_vertex>',
+        [
+          '#include <project_vertex>',
+          'vec4 qWorld = vec4(transformed, 1.0);',
+          '#ifdef USE_INSTANCING',
+          'qWorld = instanceMatrix * qWorld;',
+          '#endif',
+          // C3D: buildings are batched; glow 2 marks lights that are always on (lanterns, shops).
+          '#ifdef USE_BATCHING',
+          'qWorld = batchingMatrix * qWorld;',
+          '#endif',
+          'qWorld = modelMatrix * qWorld;',
+          `vGlow = glow > 1.5 ? 1.0 : glow * qWindowLit(qWorld.xyz, uWindowShare);`,
+        ].join('\n'),
+      );
+    shader.fragmentShader = shader.fragmentShader
+      .replace('#include <common>', '#include <common>\nvarying float vGlow;\nuniform float uNight;')
+      .replace(
+        '#include <emissivemap_fragment>',
+        '#include <emissivemap_fragment>\ntotalEmissiveRadiance += vec3(1.0, 0.7, 0.36) * vGlow * uNight * 2.4;',
+      );
+  };
+  material.customProgramCacheKey = () => 'qoti-night-glow';
+  material.needsUpdate = true;
+}
 
 export interface RenderStats {
   fps: number;
@@ -39,6 +100,17 @@ export class Renderer implements RenderApi {
   private readonly layers: RenderLayer[];
   private readonly hemi = new HemisphereLight(0xffffff, 0x444444, 1);
   private readonly sun = new DirectionalLight(0xffffff, 1.5);
+  private readonly fill = new DirectionalLight(0x9cc4ff, 0.4);
+  private readonly night = { value: 0 };
+  /** C3D-1: shared look state for world layers (time, night, sky, ground lights, camera). */
+  readonly env: WorldEnv;
+  private readonly skyCanvas = document.createElement('canvas');
+  private readonly skyTexture: CanvasTexture;
+  private quality: Quality = 'medium';
+  /** Post chain on Medium and High; Low draws straight to the canvas. */
+  private post: PostChain | null = null;
+  private shadowsDirty = true;
+  private readonly target = new Vector3();
   private readonly raycaster = new Raycaster();
   private readonly ndc = new Vector2();
   private needsRender = true;
@@ -47,6 +119,12 @@ export class Renderer implements RenderApi {
   private frames = 0;
   private fpsWindow = performance.now();
   private lightHour = -1;
+  /** Debug only (?debug&hour=19): pins the light to an hour for screenshots and look checks. */
+  private hourOverride = ((): number | null => {
+    const q = new URLSearchParams(location.search);
+    const v = q.has('debug') ? Number(q.get('hour') ?? NaN) : NaN;
+    return Number.isFinite(v) ? v : null;
+  })();
   private readonly unsubscribe: () => void;
   private readonly resizeObserver: ResizeObserver;
 
@@ -55,19 +133,48 @@ export class Renderer implements RenderApi {
     readonly mirror: Mirror,
     quality: Quality = 'medium',
   ) {
-    this.three = new WebGLRenderer({ antialias: quality !== 'low', powerPreference: 'high-performance' });
+    this.env = createWorldEnv(this.camera);
+    this.env.night = this.night;
+    this.three = new WebGLRenderer({
+      antialias: QUALITY_PRESETS[quality].msaa,
+      powerPreference: 'high-performance',
+    });
     this.three.domElement.className = 'game-canvas';
     this.three.domElement.tabIndex = 0;
+    this.three.toneMapping = ACESFilmicToneMapping;
+    this.three.outputColorSpace = SRGBColorSpace;
+    this.three.shadowMap.type = PCFShadowMap;
     container.appendChild(this.three.domElement);
+    this.skyCanvas.width = 2;
+    this.skyCanvas.height = 128;
+    this.skyTexture = new CanvasTexture(this.skyCanvas);
+    this.skyTexture.colorSpace = SRGBColorSpace;
+    this.scene.background = this.skyTexture;
+    this.scene.fog = new Fog(0xcfe6ef, 120, 400);
+    this.sun.shadow.bias = -0.0004;
+    this.sun.shadow.normalBias = 0.03;
+    this.sun.shadow.radius = 3;
+    this.fill.position.set(-1, 0.6, -0.8);
+    this.scene.add(this.hemi, this.sun, this.sun.target, this.fill);
+    addNightGlow(this.material, this.night, this.env.windowShare);
     this.setQuality(quality);
-    this.scene.add(this.hemi, this.sun, this.sun.target);
     this.rig = new CameraController(this.camera, mirror, this.three.domElement);
 
-    const ctx = { scene: this.scene, mirror, material: this.material, invalidate: () => this.invalidate() };
+    const ctx = {
+      scene: this.scene,
+      mirror,
+      material: this.material,
+      invalidate: () => this.invalidate(),
+      camera: this.camera,
+      env: this.env,
+    };
     this.layers = layerFactories.map((make) => make());
     for (const layer of this.layers) layer.init(ctx);
+    this.layer<EffectsLayer>('effects').setSmoke(QUALITY_PRESETS[quality].ambientMotion);
+    this.layer<AgentsLayer>('agents').setDetail(QUALITY_PRESETS[quality].residentDetail);
     this.unsubscribe = mirror.onChange((change) => {
       for (const layer of this.layers) layer.update(change);
+      this.shadowsDirty = true;
       this.invalidate();
     });
 
@@ -92,6 +199,7 @@ export class Renderer implements RenderApi {
     const w = this.container.clientWidth || 1;
     const h = this.container.clientHeight || 1;
     this.three.setSize(w, h, false);
+    this.post?.setSize(w, h, this.three.getPixelRatio());
     this.camera.aspect = w / h;
     this.camera.updateProjectionMatrix();
     this.invalidate();
@@ -99,11 +207,18 @@ export class Renderer implements RenderApi {
 
   private updateLighting(): void {
     const { hour, minute } = calendar(this.mirror.tick.value);
-    const h = hour + Math.floor(minute / 15) / 4;
+    const h = this.hourOverride ?? hour + Math.floor(minute / 15) / 4;
     if (h === this.lightHour) return;
     this.lightHour = h;
     const l = lightingAt(h);
-    this.scene.background = l.sky;
+    this.paintSky(l.skyTop, l.sky);
+    (this.scene.fog as Fog).color.copy(l.sky);
+    this.three.toneMappingExposure = l.exposure;
+    this.night.value = l.night;
+    this.post?.setNight(l.night);
+    this.post?.setWarmth(l.warmth);
+    this.fill.color.copy(l.fill);
+    this.fill.intensity = l.fillIntensity;
     this.hemi.color.copy(l.hemiSky);
     this.hemi.groundColor.copy(l.hemiGround);
     this.hemi.intensity = l.hemiIntensity;
@@ -115,7 +230,72 @@ export class Renderer implements RenderApi {
       MAP_SIZE / 2 + l.sunDir[2] * 100,
     );
     this.sun.target.position.set(MAP_SIZE / 2, 0, MAP_SIZE / 2);
+    this.sunDir.set(l.sunDir[0], l.sunDir[1], l.sunDir[2]).normalize();
+    this.env.sky.value.copy(l.sky);
+    this.env.skyTop.value.copy(l.skyTop);
+    this.env.sunDir.value.copy(this.sunDir);
+    this.env.sunColor.value.copy(l.sun);
+    this.env.clouds.value = 1 - l.night;
+    this.env.windowShare.value = l.windowShare;
     this.invalidate();
+  }
+
+  private readonly sunDir = new Vector3(0, 1, 0);
+
+  /** A soft vertical sky gradient from the top color down to the horizon (which matches the fog). */
+  private paintSky(top: Color, horizon: Color): void {
+    const g = this.skyCanvas.getContext('2d');
+    if (!g) return;
+    const grad = g.createLinearGradient(0, 0, 0, this.skyCanvas.height);
+    grad.addColorStop(0, `#${top.getHexString()}`);
+    grad.addColorStop(0.75, `#${horizon.getHexString()}`);
+    grad.addColorStop(1, `#${horizon.getHexString()}`);
+    g.fillStyle = grad;
+    g.fillRect(0, 0, this.skyCanvas.width, this.skyCanvas.height);
+    this.skyTexture.needsUpdate = true;
+  }
+
+  /** Ground point the camera looks at (camera ray against the ground plane of its height). */
+  private viewTarget(): Vector3 {
+    const dir = this.camera.getWorldDirection(new Vector3());
+    const pos = this.camera.position;
+    const t = dir.y < -0.05 ? pos.y / -dir.y : 80;
+    return this.target.copy(pos).addScaledVector(dir, t);
+  }
+
+  /** Keeps fog and the shadow frustum tight around what the camera sees. */
+  private fitView(): void {
+    const target = this.viewTarget();
+    const dist = this.camera.position.distanceTo(target);
+    const fog = this.scene.fog as Fog;
+    this.env.focus.copy(target);
+    this.post?.setViewDistance(dist);
+    fog.near = dist * 1.3 + 30;
+    fog.far = dist * 3.2 + 140;
+    if (!this.three.shadowMap.enabled) return;
+    const half = Math.min(140, Math.max(18, dist * 0.95));
+    const cam = this.sun.shadow.camera;
+    cam.left = -half;
+    cam.right = half;
+    cam.top = half;
+    cam.bottom = -half;
+    cam.near = 1;
+    cam.far = half * 4 + 200;
+    cam.updateProjectionMatrix();
+    this.sun.target.position.copy(target);
+    this.sun.position.copy(target).addScaledVector(this.sunDir, half * 2 + 80);
+    this.sun.target.updateMatrixWorld();
+    if (this.shadowsDirty) {
+      this.shadowsDirty = false;
+      this.scene.traverse((o) => {
+        if (!(o instanceof Mesh)) return;
+        const m = o.material as Material;
+        const solid = !m.transparent;
+        // C3D-1: scattered grass and flowers opt out (userData.qotiShadows false); C3D-2: noCast.
+        o.castShadow = solid && !o.userData.noCast && o.userData.qotiShadows !== false;
+        o.receiveShadow = solid;
+      });
+    }
   }
 
   private readonly loop = (): void => {
@@ -123,12 +303,20 @@ export class Renderer implements RenderApi {
     const now = performance.now();
     const dt = Math.min(0.1, (now - this.last) / 1000);
     this.last = now;
+    this.followStep();
     let dirty = this.rig.update(dt);
+    if (dirty) this.env.viewRevision++;
+    if (this.env.motion) this.env.time.value += dt;
     for (const layer of this.layers) if (layer.frame?.(dt)) dirty = true;
     this.updateLighting();
     if (dirty || this.needsRender) {
       const start = performance.now();
-      this.three.render(this.scene, this.camera);
+      this.fitView();
+      // Count every pass of the frame, not just the last one, so stats stay honest with post on.
+      this.three.info.autoReset = false;
+      this.three.info.reset();
+      if (this.post) this.post.render();
+      else this.three.render(this.scene, this.camera);
       this.needsRender = false;
       this.stats.frameMs = performance.now() - start;
       this.stats.drawCalls = this.three.info.render.calls;
@@ -156,6 +344,14 @@ export class Renderer implements RenderApi {
   }
 
   pickEntity(clientX: number, clientY: number): EntityPick | null {
+    // I1: residents stand in front of everything, so they win when the ray passes close to one.
+    if (this.ray(clientX, clientY)) {
+      const r = this.layer<AgentsLayer>('agents').pick(
+        this.raycaster.ray.origin,
+        this.raycaster.ray.direction,
+      );
+      if (r !== null) return { kind: 'resident', id: r };
+    }
     const tile = this.pickTile(clientX, clientY);
     if (!tile) return null;
     const m = this.mirror;
@@ -180,8 +376,8 @@ export class Renderer implements RenderApi {
     this.layer<GhostLayer>('ghosts').set(g);
   }
 
-  setOverlay(_kind: string | null): void {
-    // Data overlays (charm, coverage, flows) arrive in I1.
+  setOverlay(kind: string | null): void {
+    this.layer<OverlaysLayer>('overlays').set(kind);
   }
 
   setPresence(seat: SeatId, p: { x: number; z: number; tool?: string } | null): void {
@@ -197,9 +393,108 @@ export class Renderer implements RenderApi {
   }
 
   setQuality(q: Quality): void {
+    const preset = QUALITY_PRESETS[q];
+    this.quality = q;
     const dpr = window.devicePixelRatio || 1;
-    this.three.setPixelRatio(q === 'low' ? 1 : q === 'medium' ? Math.min(dpr, 1.5) : Math.min(dpr, 2));
+    this.three.setPixelRatio(Math.min(dpr, preset.maxDpr));
+    const shadows = preset.shadowMap > 0;
+    if (shadows !== this.three.shadowMap.enabled) {
+      this.three.shadowMap.enabled = shadows;
+      this.material.needsUpdate = true;
+      this.scene.traverse((o) => {
+        if (o instanceof Mesh) (o.material as Material).needsUpdate = true;
+      });
+    }
+    this.sun.castShadow = shadows;
+    this.env.motion = preset.ambientMotion;
+    this.env.detailDistance = preset.decorDistance;
+    this.env.viewRevision++;
+    if (shadows && this.sun.shadow.mapSize.x !== preset.shadowMap) {
+      this.sun.shadow.mapSize.set(preset.shadowMap, preset.shadowMap);
+      this.sun.shadow.map?.dispose();
+      this.sun.shadow.map = null;
+    }
+    this.shadowsDirty = true;
+    this.lightHour = -1;
+    const wantPost = q !== 'low';
+    if (wantPost && !this.post) {
+      try {
+        this.post = new PostChain(this.three, this.scene, this.camera);
+        this.post.setSize(
+          this.container.clientWidth || 1,
+          this.container.clientHeight || 1,
+          this.three.getPixelRatio(),
+        );
+      } catch {
+        this.post = null;
+      }
+    } else if (!wantPost && this.post) {
+      this.post.dispose();
+      this.post = null;
+    }
+    // Layers do not exist yet while the constructor applies the first preset.
+    (this.layers as RenderLayer[] | undefined)
+      ?.find((l): l is EffectsLayer => l.id === 'effects')
+      ?.setSmoke(preset.ambientMotion);
+    (this.layers as RenderLayer[] | undefined)
+      ?.find((l): l is AgentsLayer => l.id === 'agents')
+      ?.setDetail(preset.residentDetail);
     this.invalidate();
+  }
+
+  // --- I1 (C3D): following residents and bubbles. ---------------------------------------------
+
+  private followId: number | null = null;
+
+  follow(residentId: number | null): void {
+    this.followId = residentId;
+    this.followStep();
+  }
+
+  /** Keeps the camera gliding after the followed resident (it waits at the door while they are inside). */
+  private followStep(): void {
+    if (this.followId === null) return;
+    if (!this.mirror.residents.has(this.followId) && this.mirror.residents.size > 0) {
+      this.followId = null;
+      return;
+    }
+    const p = this.layer<AgentsLayer>('agents').positionOf(this.followId);
+    if (p) this.rig.focus(p.x, p.z);
+  }
+
+  setBubbles(on: boolean): void {
+    this.layer<AgentsLayer>('agents').setBubbles(on);
+  }
+
+  highlight(area: HighlightArea): void {
+    this.layer<OverlaysLayer>('overlays').highlight(area);
+  }
+
+  /**
+   * Debug only: pins the lighting phase to an hour of the day (fractional is fine), for screenshots
+   * and look checks. null returns to the sim clock.
+   */
+  setDebugHour(hour: number | null): void {
+    this.hourOverride = hour !== null && Number.isFinite(hour) ? hour : null;
+    this.lightHour = -1;
+    this.invalidate();
+  }
+
+  /** The active quality preset. */
+  get qualityLevel(): Quality {
+    return this.quality;
+  }
+
+  project(x: number, y: number, z: number): { x: number; y: number; onScreen: boolean } | null {
+    const rect = this.three.domElement.getBoundingClientRect();
+    if (rect.width === 0 || rect.height === 0) return null;
+    const p = new Vector3(x, y, z).project(this.camera);
+    const behind = p.z > 1 || p.z < -1;
+    const onScreen = !behind && Math.abs(p.x) <= 1 && Math.abs(p.y) <= 1;
+    // Behind the camera the projection flips; mirror it so off-screen arrows point the right way.
+    const sx = behind ? -p.x : p.x;
+    const sy = behind ? -p.y : p.y;
+    return { x: ((sx + 1) / 2) * rect.width, y: ((1 - sy) / 2) * rect.height, onScreen };
   }
 
   /** Client coordinates of a tile's center, or null when it is off screen (used by tests). */
@@ -233,6 +528,8 @@ export class Renderer implements RenderApi {
     this.rig.dispose();
     for (const layer of this.layers) layer.dispose();
     this.material.dispose();
+    this.post?.dispose();
+    this.skyTexture.dispose();
     this.three.dispose();
     this.three.domElement.remove();
     this.scene.background = new Color(0);

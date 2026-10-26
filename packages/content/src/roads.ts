@@ -5,6 +5,7 @@ export const lane: RoadDef = {
   name: 'Lane',
   lane: 'ledger',
   layerValue: 2,
+  cost: { coins: 2 },
 };
 
 export const path: RoadDef = {
@@ -12,4 +13,5 @@ export const path: RoadDef = {
   name: 'Path',
   lane: 'hearth',
   layerValue: 1,
+  cost: { coins: 1 },
 };

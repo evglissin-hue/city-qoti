@@ -2,6 +2,8 @@ import { DEFAULT_SPEED } from '../constants';
 import type { ValleySettings, WorldState } from '../contracts';
 import { generateValley } from '../map/worldgen';
 import { seedStreams, streamIndex } from '../rng/streams';
+import { setupStandardStart } from '../systems/economy/start';
+import { emptyHamletSlices } from './hamlet';
 import { SAVE_VERSION } from './version';
 
 export function defaultSettings(): ValleySettings {
@@ -15,12 +17,16 @@ export function defaultSettings(): ValleySettings {
   };
 }
 
-/** A fresh world from a seed: the generated valley, no seats yet, turn 0, tick 0. */
+/**
+ * A fresh world from a seed: the generated valley, no seats yet, turn 0, tick 0. Standard valleys
+ * [I1] also get the starting town (docs/spec/02-game-overview.md, New valley); sandbox valleys
+ * stay empty.
+ */
 export function createWorld(seed: string, settings: ValleySettings): WorldState {
   const valley = generateValley(seed, settings);
   const rng = seedStreams(seed);
   rng.set(valley.worldgenRng, streamIndex('worldgen') * 4);
-  return {
+  const state: WorldState = {
     saveVersion: SAVE_VERSION,
     seed,
     settings: { ...settings },
@@ -35,5 +41,11 @@ export function createWorld(seed: string, settings: ValleySettings): WorldState 
     buildings: [],
     decor: [],
     notes: [],
+    ...emptyHamletSlices(),
   };
+  if (settings.mode === 'standard') setupStandardStart(state);
+  return state;
 }
+
+/** Same as createWorld; the name the I1 contracts use (createValley branches on settings.mode). */
+export const createValley = createWorld;

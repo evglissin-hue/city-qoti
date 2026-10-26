@@ -3,11 +3,14 @@
 import type { ToolContext } from '../context';
 import type { Tool } from '../tool';
 import { buildingTool } from './building';
+import { customizeTool } from './customize';
 import { decorTool } from './decor';
 import { eraseTool } from './erase';
 import { fenceTool } from './fence';
+import { fieldTool } from './field';
 import { inspectTool } from './inspect';
 import { noteTool } from './note';
+import { pingTool } from './ping';
 import { roadTool } from './road';
 import { treeTool } from './tree';
 
@@ -16,12 +19,15 @@ export type ToolFactory = (ctx: ToolContext) => Tool;
 // prettier-ignore
 export const toolFactories: readonly ToolFactory[] = [
   buildingTool,
+  customizeTool,
   decorTool,
   eraseTool,
   fenceTool,
+  fieldTool,
   inspectTool,
   roadTool('lane'),
   noteTool,
   roadTool('path'),
+  pingTool,
   treeTool,
 ];

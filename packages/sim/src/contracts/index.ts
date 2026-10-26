@@ -1,5 +1,6 @@
 export type * from './commands';
 export type * from './events';
+export type * from './hamlet';
 export type * from './ids';
 export type * from './map';
 export type * from './settings';

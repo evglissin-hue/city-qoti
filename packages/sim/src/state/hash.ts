@@ -24,53 +24,71 @@ class Fnv64 {
     this.lo = lo;
   }
 
-  /** 32-bit words as little-endian bytes. */
-  words(data: Int32Array | Uint32Array): void {
-    let hi = this.hi;
-    let lo = this.lo;
-    for (let i = 0; i < data.length; i++) {
-      const v = data[i]!;
-      for (let s = 0; s < 32; s += 8) {
-        lo = (lo ^ ((v >>> s) & 255)) >>> 0;
-        const m = lo * PRIME_LO;
-        hi = (Math.imul(hi, PRIME_LO) + Math.floor(m / TWO_32) + (lo << 8)) >>> 0;
-        lo = m >>> 0;
-      }
-    }
-    this.hi = hi;
-    this.lo = lo;
-  }
-
-  /** UTF-16 code units, two bytes each, little-endian. */
-  text(s: string): void {
-    let hi = this.hi;
-    let lo = this.lo;
-    for (let i = 0; i < s.length; i++) {
-      const c = s.charCodeAt(i);
-      for (let k = 0; k < 2; k++) {
-        lo = (lo ^ (k === 0 ? c & 255 : c >>> 8)) >>> 0;
-        const m = lo * PRIME_LO;
-        hi = (Math.imul(hi, PRIME_LO) + Math.floor(m / TWO_32) + (lo << 8)) >>> 0;
-        lo = m >>> 0;
-      }
-    }
-    this.hi = hi;
-    this.lo = lo;
-  }
-
   hex(): string {
     return this.hi.toString(16).padStart(8, '0') + this.lo.toString(16).padStart(8, '0');
   }
 }
 
-/** Hash of the whole state: layer bytes, RNG words, then the JSON of everything else. */
-export function hashState(state: WorldState): string {
-  const h = new Fnv64();
-  for (const name of LAYER_NAMES) {
-    const layer = state.map[name];
-    if (layer instanceof Int32Array) h.words(layer);
-    else h.bytes(layer);
+/**
+ * A fast 64-bit state hash for desync checks (not FNV: 2 x 32-bit lanes over 32-bit words, with a
+ * murmur-style finalizer). Typed arrays are read as little-endian 32-bit words through views on their
+ * buffers (every layer is a multiple of 4 bytes); strings two UTF-16 code units per word.
+ */
+class WordHash {
+  a = 0x9e3779b9;
+  b = 0x85ebca6b;
+  n = 0;
+
+  words(data: Uint32Array): void {
+    let a = this.a;
+    let b = this.b;
+    for (let i = 0; i < data.length; i++) {
+      const w = data[i]!;
+      a = Math.imul(a ^ w, 0x01000193);
+      b = Math.imul((b ^ w) + (a >>> 13), 0x5bd1e995);
+    }
+    this.a = a;
+    this.b = b;
+    this.n += data.length;
   }
+
+  layer(layer: Uint8Array | Int32Array): void {
+    const aligned = layer.byteOffset % 4 === 0 ? layer : layer.slice();
+    this.words(new Uint32Array(aligned.buffer, aligned.byteOffset, aligned.byteLength >>> 2));
+  }
+
+  text(s: string): void {
+    let a = this.a;
+    let b = this.b;
+    const n = s.length;
+    for (let i = 0; i < n; i += 2) {
+      const w = (s.charCodeAt(i) | ((i + 1 < n ? s.charCodeAt(i + 1) : 0) << 16)) >>> 0;
+      a = Math.imul(a ^ w, 0x01000193);
+      b = Math.imul((b ^ w) + (a >>> 13), 0x5bd1e995);
+    }
+    this.a = a;
+    this.b = b;
+    this.n += n;
+  }
+
+  hex(): string {
+    const fmix = (h: number) => {
+      h ^= h >>> 16;
+      h = Math.imul(h, 0x85ebca6b);
+      h ^= h >>> 13;
+      h = Math.imul(h, 0xc2b2ae35);
+      return (h ^ (h >>> 16)) >>> 0;
+    };
+    const hi = fmix(this.a ^ this.n);
+    const lo = fmix(this.b ^ Math.imul(this.n, 0x27d4eb2d));
+    return hi.toString(16).padStart(8, '0') + lo.toString(16).padStart(8, '0');
+  }
+}
+
+/** Hash of the whole state: layer words, RNG words, then the JSON of everything else. */
+export function hashState(state: WorldState): string {
+  const h = new WordHash();
+  for (const name of LAYER_NAMES) h.layer(state.map[name]);
   h.words(state.rng);
   h.text(
     JSON.stringify({
@@ -86,6 +104,16 @@ export function hashState(state: WorldState): string {
       buildings: state.buildings,
       decor: state.decor,
       notes: state.notes,
+      residents: state.residents,
+      households: state.households,
+      economy: state.economy,
+      logistics: state.logistics,
+      hearth: state.hearth,
+      wishes: state.wishes,
+      chronicle: state.chronicle,
+      achievements: state.achievements,
+      stats: state.stats,
+      networkVersion: state.networkVersion,
     }),
   );
   return h.hex();

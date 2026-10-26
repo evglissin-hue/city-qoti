@@ -14,6 +14,8 @@ export abstract class BaseConnection implements RoomConnection {
   private readonly welcomeCbs: ((w: Welcome) => void)[] = [];
   private readonly snapshotCbs: ((reason: NeedSnapshotReason) => void)[] = [];
   private readonly errorCbs: ((code: ErrorCode, message: string) => void)[] = [];
+  private readonly resyncCbs: ((r: Extract<S2C, { k: 'resync' }>) => void)[] = [];
+  private readonly reloadCbs: ((simVersion: string) => void)[] = [];
 
   constructor(readonly seat: SeatId) {}
 
@@ -31,7 +33,13 @@ export abstract class BaseConnection implements RoomConnection {
   }
 
   sendSnapshot(s: SnapshotUpload): void {
-    this.send({ k: 'snapshot', t: s.t, simVersion: s.simVersion, data: bytesToBase64(s.data) });
+    this.send({
+      k: 'snapshot',
+      t: s.t,
+      simVersion: s.simVersion,
+      data: bytesToBase64(s.data),
+      ...(s.label ? { label: s.label } : {}),
+    });
   }
 
   sendHash(t: number, h: string): void {
@@ -58,6 +66,14 @@ export abstract class BaseConnection implements RoomConnection {
     this.errorCbs.push(cb);
   }
 
+  onResync(cb: (r: Extract<S2C, { k: 'resync' }>) => void): void {
+    this.resyncCbs.push(cb);
+  }
+
+  onReloadRequired(cb: (simVersion: string) => void): void {
+    this.reloadCbs.push(cb);
+  }
+
   protected dispatch(msg: S2C): void {
     switch (msg.k) {
       case 'welcome':
@@ -80,8 +96,11 @@ export abstract class BaseConnection implements RoomConnection {
         for (const cb of this.errorCbs) cb(msg.code, msg.message);
         break;
       case 'resync':
+        this.status.value = 'catching-up';
+        for (const cb of this.resyncCbs) cb(msg);
+        break;
       case 'reloadRequired':
-        // The resync and version hand-over flows arrive with C2C.
+        for (const cb of this.reloadCbs) cb(msg.simVersion);
         break;
     }
   }

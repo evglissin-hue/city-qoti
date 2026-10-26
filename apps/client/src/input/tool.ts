@@ -41,4 +41,6 @@ export interface Tool {
   hint?: string;
   /** Position in the toolbar, lowest first. */
   order?: number;
+  /** I1 (C3E) addition: valley modes whose toolbar shows the tool (default both). */
+  modes?: readonly ('sandbox' | 'standard')[];
 }

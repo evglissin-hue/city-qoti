@@ -39,7 +39,7 @@ Deterministic from `seed` (string) using the `worldgen` RNG stream. Must finish 
 2. **Distance field.** Chamfer distance `d` from every tile to the nearest water tile.
 3. **Height.** `h = clamp(floor(base(d) + n), 0, 12)` where `base(d) = 0` for water, `1` for `d <= 2`, then `1 + (d - 2) / 6` capped at 10, and `n` is 3-octave value noise (scales 32, 16, 8 tiles; amplitudes 3, 1.5, 0.75; centered on 0). A 6-tile border ring becomes `mountain` at heights 13 to 15.
 4. **Terrain.** `sand` on bank tiles (`d = 1`) where a noise channel exceeds 0.5; `rock` where the local slope (max height difference to a 4-neighbor) is at least 3 or `h >= 11`; `meadow` where `h <= 3` and a moisture channel exceeds 0.55; `forestFloor` under the forest mask; otherwise `grass`.
-5. **Forest.** Mask: noise at 24-tile scale above 0.55, `d >= 6`, `h <= 11`. 70% of masked tiles get a tree; 3% of grass tiles get a lone tree. Species by height: `h <= 3` oak 60% / birch 40%; `4..8` oak 50% / pine 50%; `>= 9` pine. 80% mature, the rest random stages.
+5. **Forest.** Mask: noise at 24-tile scale above 0.55, `d >= 6`, `h <= 11`. Density has soft edges: about 35% at the rim of the mask rising to 85% at its heart, with a sparse fringe (14%) on grass just outside it and 2.5% lone trees elsewhere. Clearings (a 10-tile noise channel above 0.74 inside the mask) become meadow glades. Species by height: `h <= 3` oak 60% / birch 40%; `4..8` oak 50% / pine 50%; `>= 9` pine. Wild trees start mature; only planted saplings grow.
 6. **Deposits.** Stone clusters on and around rock (cluster noise), clay clusters on bank and sand tiles. Guarantee at least 2 stone clusters of 12+ tiles and 1 clay cluster within 40 tiles of the start area; if missing, stamp one deterministically.
 7. **Fertility.** `100 - 3d` near the river (floor 20), +15 on meadow, -30 on forest floor, -60 on rock, plus noise, clamped 0 to 100.
 8. **Start area.** Search, in deterministic order, for a 24 x 24 window 6 to 14 tiles from the river in the middle third of the map with height spread at most 2 and no rock. Clear trees in its central 16 x 16. Set `flags.startArea`.
@@ -49,7 +49,7 @@ Deterministic from `seed` (string) using the `worldgen` RNG stream. Must finish 
 
 Output: map layers, metadata (`startArea` rect, `valleyGate` tile, flow axis), and nothing else. Generation is pure: same seed, same valley, on every machine.
 
-I0 ships worldgen v0 (C1) behind `generateValley(seed, settings)`: steps 1 to 5, 7, 8 and 9 in simplified form (noise is damped near the river so banks stay buildable, and the start area is levelled to its median height plus or minus 1). Deposits, parcels and validation with regeneration arrive with C2A.
+C2A implements all steps behind `generateValley(seed, settings)`, with a softer storybook shape: the river centerline is two low octaves of value noise (64 and 28 tiles) around a seeded middle, smoothed over 9 tiles and limited to 0.7 tiles of drift per step, always 3 wide with a deep middle; banks are sand at `d = 1` and patchily at `d = 2`; height uses octaves at 48, 24 and 12 tiles (amplitudes 5, 2, 0.6), terraces `base(d) = 1` to `d <= 3` then `1 + (d - 3) / 10` capped at 8, plus a rise of up to 3.5 levels within 34 tiles of the border, so slopes inside the valley are almost always 1 or less. Noise is damped near the river so banks stay buildable, and the start area is levelled to its median height plus or minus 1. Validation retries up to 5 times with `seed + ":r" + n` when no start window free of rock and water exists; the last attempt keeps a fallback window. `valleyNameFor(seed)` names the valley from the content word lists (`valleyNamePrefixes`, `valleyNameSuffixes`).
 
 ## Terrain rules
 
@@ -119,7 +119,7 @@ Off-grid pieces (benches, lanterns, flower beds, planters, fences, low walls, he
 
 Hearth actions that mark the target as handmade.
 
-- **Phase 1 [I1]: paint and details.** Per building: wall swatch, roof material and swatch, accent swatch (doors, shutters), window boxes, shutters, chimney, shop sign text (24 chars). Command `build.customize`. Swatches come from the palette in `17-presentation.md`.
+- **Phase 1 [I1]: paint and details.** Per building: wall swatch, roof material and swatch, accent swatch (doors, shutters), window boxes, shutters, chimney, shop sign text (24 chars). Command `build.customize`. Swatches come from the palette in `17-presentation.md`. *As built (C3B)*: the allowed swatch ids are content (`packages/content/src/swatches.ts`, `content.swatches`, grouped `wall`, `roof`, `roofMaterial`, `accent`, each naming its `packages/art` palette token), because the sim may not import art. Each field is optional; `null` clears it back to the kit default and `false` turns a detail off. Sign text is trimmed, 1 to 24 printable characters. Any accepted change marks the building handmade and emits `building.updated`; window boxes count as a little flower piece for charm.
 - **Phase 2 [I3]: modules.** Special homes and landmarks offer module slots: porch, dormer, bay window, extra floor, balcony, tower, arcade. Modules cost materials.
 - **Phase 3 [I4]: block builder.** Landmarks are built by stacking 1-tile blocks on their plot (walls, arches, roofs, stairs, towers). Pieces adapt to neighbors and slopes: roofs join, stairs appear where levels differ, arches form over passages (P21).
 - **District styles** [I4] set defaults for grown buildings (see `12-hearth.md`).
@@ -132,3 +132,7 @@ The sim exports pure validators that run on any `MapReader` (sim state or client
 - `canPaintRoad(reader, kind, tiles) -> { ok, reason?, firstBadTile? }`
 - `canPlaceDecor(reader, def, fx, fz, rot) -> { ok, reason? }`
 - `canPlantTree(reader, x, z) -> { ok, reason? }`
+
+## Deposits near the start (C3X)
+
+Besides two stone clusters of 12+ tiles and a clay cluster within 40 tiles of the start area, worldgen guarantees a stone cluster of 9+ tiles within 8 tiles of it, stamped as close to the start center as it fits, so the first quarry lies inside the starting storehouse's porter range.

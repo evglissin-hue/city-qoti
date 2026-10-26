@@ -70,8 +70,10 @@ export class RoomCore {
   private nextTurn = 1;
   private readonly queue: SerialQueue;
   private readonly hashes = new Map<number, Map<SeatId, string>>();
-  /** Turns where two seats reported different hashes. The resync flow arrives with C2C. */
+  /** Turns where two seats reported different hashes. */
   desyncs = 0;
+  /** Set while the room waits for a desync snapshot from the longest-connected seat. */
+  private resyncFrom: Client | null = null;
 
   constructor(
     private readonly storage: RoomStorage,
@@ -188,7 +190,7 @@ export class RoomCore {
       case 'hash':
         return this.hash(seat, msg.t, msg.h);
       case 'snapshot':
-        return this.snapshot(msg.t, msg.simVersion, msg.data);
+        return this.snapshot(msg.t, msg.simVersion, msg.data, c, msg.label);
       case 'bye':
         this.close(conn);
         conn.close(CloseCode.normal, 'Bye');
@@ -202,6 +204,7 @@ export class RoomCore {
     this.clients.delete(conn);
     const wasActive = c.phase === 'joining' || c.phase === 'live';
     c.phase = 'closed';
+    if (this.resyncFrom === c) this.resyncFrom = null;
     if (wasActive && c.seat !== null && this.seats.get(c.seat) === c) {
       this.seats.delete(c.seat);
       this.pendingSys.push({ seat: c.seat, seq: 0, cmd: { t: 'sys.seatLeft', seat: c.seat } });
@@ -231,7 +234,12 @@ export class RoomCore {
       if (c.phase === 'live') c.conn.send({ k: 'turn', turn });
       else if (c.phase === 'joining') c.buffer.push(turn);
     }
-    if (turn.t % SNAPSHOT_EVERY_TURNS === 0) this.requestSnapshot();
+    // A pause is a natural resting point: keep a snapshot of it, as every 300 turns.
+    const paused = turn.cmds.some((sc) => {
+      const cmd = sc.cmd as { t: string; speed?: unknown };
+      return cmd.t === 'time.setSpeed' && cmd.speed === 0;
+    });
+    if (paused || turn.t % SNAPSHOT_EVERY_TURNS === 0) this.requestSnapshot();
     if (turn.t % META_SAVE_EVERY_TURNS === 0) this.saveMeta();
   }
 
@@ -325,31 +333,59 @@ export class RoomCore {
       if (other !== seat && oh !== h) {
         this.desyncs++;
         this.log('warn', `Desync at turn ${t}: seat ${other} has ${oh}, seat ${seat} has ${h}`);
+        if (!this.resyncFrom) {
+          this.resyncFrom = this.longestConnected();
+          this.resyncFrom?.conn.send({ k: 'needSnapshot', reason: 'desync' });
+        }
       }
     }
     for (const old of this.hashes.keys()) if (old < t - HASHES_KEPT_TURNS) this.hashes.delete(old);
   }
 
-  private snapshot(t: number, simVersion: string, data: string): void {
+  private snapshot(t: number, simVersion: string, data: string, from?: Client, label?: unknown): void {
     const meta = this.meta;
     if (!meta || typeof t !== 'number' || typeof data !== 'string' || t < 0 || t >= this.nextTurn) return;
     if (simVersion !== meta.simVersion) return;
-    const snap: StoredSnapshot = { t, simVersion, label: null, created: this.opts.now(), data };
+    const named = typeof label === 'string' && label.trim() ? label.trim().slice(0, 40) : null;
+    const snap: StoredSnapshot = { t, simVersion, label: named, created: this.opts.now(), data };
+    const resync = from !== undefined && from === this.resyncFrom;
+    if (resync) this.resyncFrom = null;
+    // Everyone else switches to the trusted copy: buffer their live turns until the resync is out.
+    const targets = resync ? [...this.seats.values()].filter((o) => o !== from && o.phase === 'live') : [];
+    for (const o of targets) {
+      o.phase = 'joining';
+      o.buffer = [];
+    }
+    const upTo = this.nextTurn;
     this.queue.run(async () => {
       const latest = await this.storage.latestSnapshot();
-      if (latest && latest.t >= snap.t) return;
-      await this.storage.putSnapshot(snap);
-      await this.storage.pruneTurnsUpTo(snap.t);
+      if (!latest || latest.t < snap.t) {
+        await this.storage.putSnapshot(snap);
+        await this.storage.pruneTurnsUpTo(snap.t);
+      }
+      if (targets.length === 0) return;
+      const log = (await this.storage.turnsAfter(snap.t)).filter((turn) => turn.t < upTo);
+      for (const o of targets) {
+        if (o.phase !== 'joining') continue;
+        o.conn.send({ k: 'resync', snapshot: { t, simVersion, data }, log, nextTurn: upTo });
+        for (const turn of o.buffer) o.conn.send({ k: 'turn', turn });
+        o.buffer = [];
+        o.phase = 'live';
+      }
     });
   }
 
-  /** Asks the seat connected longest for a snapshot of its current turn. */
-  private requestSnapshot(): void {
+  private longestConnected(): Client | null {
     let oldest: Client | null = null;
     for (const c of this.seats.values()) {
       if (c.phase === 'live' && (!oldest || c.joinedAt < oldest.joinedAt)) oldest = c;
     }
-    oldest?.conn.send({ k: 'needSnapshot', reason: 'periodic' });
+    return oldest;
+  }
+
+  /** Asks the seat connected longest for a snapshot of its current turn. */
+  private requestSnapshot(): void {
+    this.longestConnected()?.conn.send({ k: 'needSnapshot', reason: 'periodic' });
   }
 
   private roster(): RosterEntry[] {

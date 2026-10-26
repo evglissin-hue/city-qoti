@@ -4,7 +4,8 @@ import type { Mirror } from '../state/mirror';
 import type { CameraController } from './camera';
 
 export type Selection =
-  { kind: 'building' | 'decor' | 'note'; id: number } | { kind: 'tree' | 'tile'; x: number; z: number };
+  | { kind: 'building' | 'decor' | 'note' | 'resident'; id: number }
+  | { kind: 'tree' | 'tile'; x: number; z: number };
 
 /** What tools need from the UI: messages, questions and the inspector selection. */
 export interface UiApi {
@@ -13,6 +14,14 @@ export interface UiApi {
   prompt(title: string, placeholder: string, maxLength: number): Promise<string | null>;
   select(selection: Selection | null): void;
   lens(): Lens;
+  // I1 (C3E)
+  /** Opens the customization panel for a building. */
+  customize?(id: number): void;
+  /** The farmhouse the field tool paints for, if one is picked. */
+  farm?(): number | null;
+  setFarm?(id: number | null): void;
+  /** Current selection, so tools can start from it (the field tool from a selected farmhouse). */
+  selection?(): Selection | null;
 }
 
 /** Everything a tool may touch. Tools never reach into the session directly. */

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'preact/hooks';
 import { inviteLink } from '../app/invite';
 import type { Session } from '../app/session';
+import { copy } from './copy';
 
 /** Confirm and prompt dialogs requested by tools. */
 export function Dialogs({ session }: { session: Session }) {
@@ -82,12 +83,10 @@ export function InviteDialog({ session }: { session: Session }) {
   return (
     <div class="modal-backdrop" onClick={(e) => e.target === e.currentTarget && close()}>
       <div class="panel modal invite" role="dialog" data-testid="invite">
-        <h3>Invite your partner</h3>
+        <h3>{copy.invite.heading}</h3>
         {link ? (
           <>
-            <p>
-              Send them this link. It opens the second seat of this valley, so keep it between the two of you.
-            </p>
+            <p>{copy.invite.body}</p>
             <input
               readOnly
               value={link}
@@ -96,7 +95,7 @@ export function InviteDialog({ session }: { session: Session }) {
             />
             <div class="actions">
               <button type="button" onClick={close}>
-                Done
+                {copy.invite.done}
               </button>
               <button
                 type="button"
@@ -105,18 +104,16 @@ export function InviteDialog({ session }: { session: Session }) {
                   void navigator.clipboard?.writeText(link).then(() => setCopied(true));
                 }}
               >
-                {copied ? 'Copied' : 'Copy link'}
+                {copied ? copy.invite.copied : copy.invite.copy}
               </button>
             </div>
           </>
         ) : (
           <>
-            <p>
-              The invite link lives on the device that created this valley. Ask your partner to send it again.
-            </p>
+            <p>{copy.invite.missing}</p>
             <div class="actions">
               <button type="button" onClick={close}>
-                Fine
+                {copy.invite.fine}
               </button>
             </div>
           </>

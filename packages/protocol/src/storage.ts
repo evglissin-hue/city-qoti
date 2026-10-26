@@ -14,7 +14,7 @@ export interface StoredMeta {
 export interface StoredSnapshot {
   t: number;
   simVersion: string;
-  /** Named backups ("Year 2, Summer") arrive with C2C. */
+  /** Named backup ("Year 2, Summer"): the newest snapshot of that season, kept past the latest 20. */
   label: string | null;
   created: number;
   /** base64 of the gzip save. */
@@ -31,6 +31,27 @@ export interface RoomStorage {
   putSnapshot(s: StoredSnapshot): Promise<void>;
   latestSnapshot(): Promise<StoredSnapshot | null>;
   pruneTurnsUpTo(t: number): Promise<void>;
+}
+
+/**
+ * Retention: the latest SNAPSHOTS_KEPT snapshots, plus the newest snapshot of each label (one named
+ * backup per in-game season). Older snapshots of a label lose it. Returns what to keep, oldest first.
+ */
+export function retainSnapshots<S extends { t: number; label: string | null }>(
+  list: readonly S[],
+  kept: number = SNAPSHOTS_KEPT,
+): S[] {
+  const sorted = [...list].sort((a, b) => a.t - b.t);
+  const newestOfLabel = new Map<string, number>();
+  for (const s of sorted) if (s.label) newestOfLabel.set(s.label, s.t);
+  const recent = new Set(sorted.slice(-kept).map((s) => s.t));
+  const out: S[] = [];
+  for (const s of sorted) {
+    const named = s.label !== null && newestOfLabel.get(s.label) === s.t;
+    if (!named && !recent.has(s.t)) continue;
+    out.push(named || s.label === null ? s : { ...s, label: null });
+  }
+  return out;
 }
 
 export interface MemoryDump {
@@ -84,11 +105,7 @@ export class MemoryStorage implements RoomStorage {
   }
 
   async putSnapshot(s: StoredSnapshot): Promise<void> {
-    this.snapshots = this.snapshots.filter((x) => x.t !== s.t);
-    this.snapshots.push(s);
-    this.snapshots.sort((a, b) => a.t - b.t);
-    if (this.snapshots.length > SNAPSHOTS_KEPT)
-      this.snapshots.splice(0, this.snapshots.length - SNAPSHOTS_KEPT);
+    this.snapshots = retainSnapshots([...this.snapshots.filter((x) => x.t !== s.t), s]);
     this.changed();
   }
 

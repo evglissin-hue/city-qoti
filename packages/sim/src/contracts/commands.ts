@@ -25,7 +25,35 @@ export type Command =
   | { t: 'valley.setSettings'; settings: Partial<ValleySettings> }
   /** sys.* commands come only from the room; the room drops any client-sent sys.*. */
   | { t: 'sys.seatJoined'; seat: SeatId }
-  | { t: 'sys.seatLeft'; seat: SeatId };
+  | { t: 'sys.seatLeft'; seat: SeatId }
+  // I1 (C3.0)
+  /** Paint and details (docs/spec/10-world-and-building.md, Customization phase 1). Marks the building handmade. */
+  | { t: 'build.customize'; id: EntityId; custom: BuildingCustom }
+  /** Raise a construction site to the front of the queue (or lower it back). */
+  | { t: 'build.setPriority'; id: EntityId; priority: boolean }
+  | { t: 'build.setPaused'; id: EntityId; paused: boolean }
+  /** Paint wheat field tiles for a farmhouse (within its range, fertility 40+). Max 256 tiles. */
+  | { t: 'field.paint'; farm: EntityId; tiles: [number, number][] }
+  | { t: 'field.remove'; tiles: [number, number][] }
+  /** Mark a good for the peddler. */
+  | { t: 'ledger.setForSale'; good: string; forSale: boolean };
+
+/**
+ * Customization fields (all optional; null clears a field back to the kit default). Swatch values
+ * are palette token names from packages/art (for example 'rose', 'slate', 'teal').
+ */
+export interface BuildingCustom {
+  wall?: string | null;
+  roof?: string | null;
+  /** 'tile' | 'slate' | 'thatch' | 'shingle'. */
+  roofMaterial?: string | null;
+  accent?: string | null;
+  windowBoxes?: boolean | null;
+  shutters?: boolean | null;
+  chimney?: boolean | null;
+  /** Shop sign text, max 24 chars. */
+  sign?: string | null;
+}
 
 export type CommandType = Command['t'];
 
@@ -55,4 +83,13 @@ export type RejectReason =
   | 'NOT_ALLOWED'
   | 'TOGETHER_ONLY'
   | 'TOO_MANY'
-  | 'INVALID';
+  | 'INVALID'
+  // I1 (C3.0)
+  /** Lean times: no new construction while the treasury is below zero. */
+  | 'LEAN_TIMES'
+  /** The piece is not unlocked yet (Pattern Book). */
+  | 'LOCKED'
+  /** Field tile too far from its farmhouse. */
+  | 'OUT_OF_RANGE'
+  /** Undo target changed since the command it inverts. */
+  | 'CHANGED';

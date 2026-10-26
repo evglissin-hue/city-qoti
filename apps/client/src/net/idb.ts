@@ -1,5 +1,5 @@
 import type { RoomStorage, StoredMeta, StoredSnapshot } from '@qoti/protocol';
-import { SNAPSHOTS_KEPT } from '@qoti/protocol';
+import { retainSnapshots } from '@qoti/protocol';
 import type { Turn } from '@qoti/sim';
 
 const VERSION = 1;
@@ -74,8 +74,13 @@ export class IdbStorage implements RoomStorage {
     const tx = await this.tx(['snapshots'], 'readwrite');
     const store = tx.objectStore('snapshots');
     store.put(s);
-    const keys = (await promisify(store.getAllKeys())) as number[];
-    for (const key of keys.slice(0, Math.max(0, keys.length - SNAPSHOTS_KEPT))) store.delete(key);
+    const all = (await promisify(store.getAll())) as StoredSnapshot[];
+    const keep = new Map(retainSnapshots(all).map((x) => [x.t, x]));
+    for (const x of all) {
+      const k = keep.get(x.t);
+      if (!k) store.delete(x.t);
+      else if (k.label !== x.label) store.put(k);
+    }
     await done(tx);
   }
 

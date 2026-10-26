@@ -29,6 +29,7 @@ Pure functions from parameters (and a seed) to `BufferGeometry` with vertex colo
 - **Buildings**: modular parts (walls: plaster, timber frame, stone, brick; roofs: gable, hip, half-hip in thatch, slate, tile; windows with shutters and boxes; doors; chimneys with smoke; porches; dormers; signs). Generators: cottage, house, workshop, mill, farm, storehouse, stall, town hall, landmarks. Construction stages (staked plot, foundation, frame, roof).
 - **Props**: bench, curved and ring bench, lantern, hanging lantern, well, fountain, birdbath, fence, low wall, planter wall, hedge, flower bed, planter, wildflower verge, signpost, barrels, crates, carts, laundry lines, festival pieces [I3].
 - **Trees**: oak, birch, pine, apple, cherry, willow; growth stages; seasonal variants.
+- **Nature** [I1]: bush, grass tuft, wildflowers, reeds, rock, fern, mushrooms, fallen log (kind `nature`). Never placed by players: the renderer scatters them from the map with a seeded hash (forest floor and edges, open grass, meadows, banks, stony ground), clear of roads, buildings and decor, and fades them out at the decor detail distance.
 - **Residents** [I1]: one parametric body (rounded, about 0.3 tile tall) with species parts (ears, tails, stripes, spines), fur palette, clothing colors, tier details (aprons, scarves, hats) and seasonal clothing.
 - **Critters** [I3]: tiny ambient wildlife (butterflies, bees, ducks, frogs, fireflies).
 - **Gallery** (`apps/gallery`): every generator with parameter sliders, all seasons, day and night. Used for art review.
@@ -44,6 +45,7 @@ Pure functions from parameters (and a seed) to `BufferGeometry` with vertex colo
 
 - One directional light with shadows (Medium 2048, High 4096, Low off), hemisphere ambient, fog by weather.
 - Night: a share of windows in occupied homes glow (seeded per building, varying by hour); lanterns are emissive with bloom and a soft ground glow decal (no real point lights beyond 8 nearest the camera).
+- C3D-1: the table gains a golden hour (18:00) and a violet twilight (20:30) between its keys; a dusk split tone in the post grade keeps evening greens from turning to mud. Ground glow pools are drawn by the ground shader from the 32 lights nearest the view (lanterns, and spill under lit windows, chosen by the same integer hash as the panes). The sky is a dome with drifting clouds and stars; clouds also drift their shade over the ground by day.
 - Sun direction from the in-game hour on the client (any math is fine outside the sim).
 
 ## Seasons and weather visuals [I3]
@@ -80,7 +82,10 @@ Auto-detect picks a preset; the settings menu can override it.
 ## UI
 
 - **Look**: paper panels (`paper`) with soft shadows and thin ink outlines, line-art icons, small hand-drawn flourishes. Fonts: Alegreya (headings) and Alegreya Sans (UI, tabular numbers), self-hosted.
-- **Layout**: top bar (date, time and season, weather, effective speed, treasury, population, rank progress), bottom toolbar (the lens's tools), right inspector panel, left feed (alerts, notes, wishes, requests), minimap bottom right [I2].
+- **Layout**: top bar (date, time and season, weather, effective speed, treasury, population, rank progress), bottom toolbar (the lens's tools, then its books and overlay toggles, then undo), right inspector panel, left feed (alerts, notes, wishes, requests), minimap bottom right [I2].
+- **Books** [I1]: Wishes, the Pattern Book, the Chronicle, Plaques and the Ledger's Reports open from the toolbar one at a time; the left feed steps aside while one is open. The Pattern Book is a two-page spread in the middle of the screen; the Chronicle is a small gazette; plaques are brass. Keys: B Pattern Book, C Chronicle, J Wishes, L Reports, Esc closes.
+- **Portraits** [I1]: an inked SVG badge per resident from species, life stage, mood and look seed, until the art kit renders 3D portraits.
+- **Interface size**: at 120% and above the toolbar drops its labels (tooltips keep them); side panels grow with the size.
 - **Lenses**: Hearth uses the warm accent, Ledger the green accent; Tab toggles.
 - **Motion**: 100 to 200 ms transitions; reduced-motion setting.
 - **Writing**: warm, dry, witty; short sentences; never babyish; no em dashes anywhere.
@@ -89,7 +94,7 @@ Auto-detect picks a preset; the settings menu can override it.
 
 - Walk bob and squash in the vertex shader (no skeletons); carried bundles; little hops for joy; slower walk when unhappy.
 - Bubbles (toggleable): wish, happy, unhappy, sleepy, cold [I3].
-- Far away, residents become simple instanced shapes, then dots.
+- Far away, residents become simple instanced shapes (beyond the resident detail distance), then dots (beyond 2.5 times it). Figures are drawn at 1.15 times the kit's 0.3 tiles so they read from the default camera; clothes follow the job (bakers in toques, farmers in straw hats, fishers in sou'westers) and tier (bowler, top hat).
 
 ## Audio [I5, designed now]
 

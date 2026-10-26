@@ -1,6 +1,9 @@
-import type { Speed } from '@qoti/sim';
+import { calendar, SEASON_NAMES, type Speed } from '@qoti/sim';
 import type { Session } from '../app/session';
-import { formatDate, formatTime, speedNote } from './format';
+import { copy } from './copy';
+import { coinCount, coins, formatDate, formatTime, speedNote } from './format';
+import { Glyph } from './icons';
+import { GoToPartner } from './Presence';
 
 const SPEEDS: { speed: Speed; label: string; title: string }[] = [
   { speed: 0, label: '❚❚', title: 'Pause (Space)' },
@@ -33,9 +36,13 @@ export function TopBar({ session, onLeave }: { session: Session; onLeave: () => 
         <strong>{settings.townName}</strong>
         <span class="muted">{settings.valleyName}</span>
       </div>
+      {settings.mode === 'standard' && <TownStats session={session} />}
       <div class="topbar-clock" data-testid="clock">
         <span>{formatDate(tick)}</span>
         <span class="clock-time">{formatTime(tick)}</span>
+        <span class="season-chip" data-testid="season">
+          {SEASON_NAMES[calendar(tick).season]}
+        </span>
       </div>
       <div class="topbar-speed">
         {SPEEDS.map((s) => (
@@ -69,6 +76,7 @@ export function TopBar({ session, onLeave }: { session: Session; onLeave: () => 
             </span>
           ))}
         </span>
+        {online && <GoToPartner session={session} />}
         <span class={`chip status-${status}`} data-testid="connection">
           {online ? STATUS_TEXT[status] : 'Solo'}
         </span>
@@ -82,10 +90,62 @@ export function TopBar({ session, onLeave }: { session: Session; onLeave: () => 
             Invite
           </button>
         )}
+        <button
+          type="button"
+          class="ghost-button"
+          data-testid="settings-open"
+          title={copy.settings.open}
+          onClick={() => (session.ui.settingsOpen.value = true)}
+        >
+          {copy.settings.open}
+        </button>
         <button type="button" class="ghost-button" onClick={onLeave} title="Back to the title screen">
           Leave
         </button>
       </div>
     </header>
+  );
+}
+
+/** Treasury and population, standard valleys only. Lean times show gently, never as an alarm. */
+function TownStats({ session }: { session: Session }) {
+  const m = session.mirror;
+  const town = m.town.value;
+  const budget = m.budget.value;
+  const treasury = budget?.treasury ?? town?.treasury ?? 0;
+  const lean = budget?.leanTimes ?? town?.leanTimes ?? false;
+  const people = town?.population ?? m.residents.size;
+  const homes = town?.households ?? m.households.size;
+  const openBudget = () => {
+    session.ui.lens.value = 'ledger';
+    session.ui.reportTab.value = 'budget';
+    session.ui.panel.value = 'reports';
+  };
+  return (
+    <div class="topbar-town-stats">
+      <button
+        type="button"
+        class={`stat-chip coins ${lean ? 'lean' : ''}`}
+        data-testid="treasury"
+        title={
+          lean
+            ? `${coins(treasury)}. Lean times: new building waits until the books are back above zero.`
+            : `${coins(treasury)} in the treasury. Click for the budget.`
+        }
+        onClick={openBudget}
+      >
+        <Glyph id="coin" />
+        {coinCount(treasury)}
+        {lean && <span class="lean-word">lean times</span>}
+      </button>
+      <span
+        class="stat-chip people"
+        data-testid="population"
+        title={`${people} ${people === 1 ? 'resident' : 'residents'} in ${homes} ${homes === 1 ? 'household' : 'households'}`}
+      >
+        <Glyph id="people" />
+        {people}
+      </span>
+    </div>
   );
 }

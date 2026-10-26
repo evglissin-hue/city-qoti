@@ -36,6 +36,15 @@ Each iteration ends with something both players can play on the live link (P54),
 - The Ledger player has a reason to look at reports; the Hearth player has a reason to look at wishes and the Pattern Book; each needs the other at least once per evening.
 - The hamlet bench stays within budget; hashes still match over a full evening.
 
+**As built (C3X)**, with evidence:
+
+- Growth: the autoplayer (`tools/bench/src/autoplay.ts`) plays a sensible Ledger and Hearth; seeds reach 20 to 41 residents by in-game day 18 (three evenings), most 28+, with no lean times, departures or famine (`autoplay.test.ts` holds willow and hazel to 28+). Human players who tend the Hearth side better should beat it; the first playtest will tell.
+- Buildings, food and budget: per-building production at full and partial staffing, construction, logistics reservations, outlets, taxes, upkeep, the peddler and lean times are unit tested (`packages/sim/test/ledger`); a three-day run from the standard start keeps food ahead of eating (`tools/bench/src/hamlet.test.ts`).
+- Patterns, wishes and achievements: each of the 8 detectors has positive and negative fixtures, each of the 12 wish templates is generated and granted, each of the 10 achievements unlocks (`packages/sim/test/hearth`).
+- Each lane needs the other: residents' wishes ask for Ledger things (a bakery, fish at the stall, a proper path) and Ledger growth needs residents, who come for charm and leave over unhappiness; the alert feed tells each lens what to look at.
+- Budgets: hamlet tick 0.03 to 0.06 ms, 2,000-resident movement 0.5 ms, charm under 2 ms per chunk, patterns under 3 ms per hour (`npm run bench`); the i1-hamlet golden script hashes the same twice in Node and in a browser worker.
+- Looks: an autoplayed 30-resident hamlet (Thistlecombe, seed willow) at day, close up, dusk and night, under 130 draws and 0.9M triangles on Medium (`docs/build/screenshots/c3x-*.png`, shot with `apps/client/e2e/c3x-shots.mjs`).
+
 ## I2 Village
 
 **Scope**: Village Charter; zoning and organic growth; market prices, wages and household budgets (money invariant tested); Craftsfolk tier and home upgrades; goods and chains: clay and bricks, wool to cloth, dairy and cheese, orchards and cider, firewood, herbs, tools; carts; streets and traffic; school, tavern, herbalist; Trading Post, Millhaven and Stonecross, standing orders; loans; plans layer and requests; story characters (Pippa Quill, Odette Fenwick, Juniper Reed); first innovations (wheelbarrows, carts, cobbles, brick kiln, water wheel); 6 new patterns; couples, weddings, births, apprenticeships, retiring; desire paths; terraforming; stairs; minimap; moving a solo valley online.

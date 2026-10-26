@@ -59,9 +59,10 @@ export class SqliteStorage implements RoomStorage {
       s.created,
       bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength),
     );
-    // Keep the latest snapshots; named seasonal backups arrive with C2C.
+    // Retention as retainSnapshots(): the latest 20, plus the newest snapshot of each season.
+    if (s.label) this.sql.exec('UPDATE snapshots SET label = NULL WHERE label = ? AND t <> ?', s.label, s.t);
     this.sql.exec(
-      'DELETE FROM snapshots WHERE t NOT IN (SELECT t FROM snapshots ORDER BY t DESC LIMIT ?)',
+      'DELETE FROM snapshots WHERE label IS NULL AND t NOT IN (SELECT t FROM snapshots ORDER BY t DESC LIMIT ?)',
       SNAPSHOTS_KEPT,
     );
   }

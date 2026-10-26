@@ -16,8 +16,20 @@ export const REJECT_TEXT: Record<RejectReason, string> = {
   TOGETHER_ONLY: 'This valley waits until you are both here.',
   TOO_MANY: 'That is a lot at once. Try a little less.',
   INVALID: 'That did not quite work.',
+  LEAN_TIMES: 'Lean times. New building waits until the books are back above zero.',
+  LOCKED: 'Not yet. The Pattern Book has to find this one first.',
+  OUT_OF_RANGE: 'Too far from the farmhouse to tend.',
+  CHANGED: 'Things have moved on since then, so there is nothing to undo.',
 };
 
 export function rejectText(reason: RejectReason | undefined): string {
   return reason ? REJECT_TEXT[reason] : REJECT_TEXT.INVALID;
 }
+
+/** Undo toasts (Ctrl+Z). */
+export const undoText = {
+  done: (label: string) => `Undid ${label}.`,
+  empty: 'Nothing left to undo. Everything here is on purpose now.',
+  refused: (reason: RejectReason) =>
+    reason === 'CHANGED' ? REJECT_TEXT.CHANGED : `Could not undo that. ${REJECT_TEXT[reason]}`,
+};

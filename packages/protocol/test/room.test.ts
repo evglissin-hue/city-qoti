@@ -87,6 +87,28 @@ describe('initValley', () => {
   });
 });
 
+describe('imported valleys', () => {
+  it('start from the imported snapshot, with the next turn after it', async () => {
+    storage = new MemoryStorage();
+    valley = await initValley(storage, {
+      valleyId: 'valley-2',
+      seed: 'seed-2',
+      settings: SETTINGS,
+      now: 0,
+      snapshot: { t: 420, simVersion: 'v-test', data: 'IMPORTED' },
+    });
+    room = await makeRoom();
+    const a = await join(0);
+    expect(a.of('welcome')[0]).toMatchObject({
+      snapshot: { t: 420, simVersion: 'v-test', data: 'IMPORTED' },
+      log: [],
+      nextTurn: 421,
+    });
+    steps(2);
+    expect(a.turns()[0]!.t).toBe(421);
+  });
+});
+
 describe('joining', () => {
   it('welcomes a seat with the valley, no snapshot and turn 1 next, then injects sys.seatJoined', async () => {
     const a = await join(0);
@@ -287,6 +309,32 @@ describe('presence, hashes and limits', () => {
     room.message(b, { k: 'hash', t: 100, h: 'bbbb' });
     expect(room.desyncs).toBe(1);
     expect(logs.some((l) => l.includes('Desync at turn 100'))).toBe(true);
+  });
+
+  it('resyncs a desynced seat from the longest-connected seat, without losing live turns', async () => {
+    const a = await join(0);
+    now += 10;
+    const b = await join(1);
+    steps(5);
+    room.message(a, { k: 'hash', t: 5, h: 'aaaa' });
+    room.message(b, { k: 'hash', t: 5, h: 'bbbb' });
+    expect(a.of('needSnapshot').map((m) => m.reason)).toEqual(['desync']);
+    expect(b.of('needSnapshot')).toEqual([]);
+    // A second mismatch while waiting does not ask again.
+    room.message(b, { k: 'hash', t: 5, h: 'cccc' });
+    expect(a.of('needSnapshot').length).toBe(1);
+    room.message(a, { k: 'snapshot', t: 5, simVersion: 'v-test', data: 'U05BUA==' });
+    steps(2);
+    await room.flush();
+    await vi.waitFor(() => expect(b.of('resync').length).toBe(1));
+    const r = b.of('resync')[0]!;
+    expect(r.snapshot).toEqual({ t: 5, simVersion: 'v-test', data: 'U05BUA==' });
+    expect(r.nextTurn).toBe(6);
+    expect(a.of('resync')).toEqual([]);
+    // Turns emitted while the resync was prepared follow it, with no gaps.
+    steps(1);
+    expect(b.turns().map((t) => t.t)).toEqual([1, 2, 3, 4, 5, 6, 7, 8]);
+    expect((await storage.latestSnapshot())?.t).toBe(5);
   });
 
   it('caps commands at 30 per second per seat', async () => {

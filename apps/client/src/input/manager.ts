@@ -1,4 +1,5 @@
 import { signal } from '@preact/signals';
+import { content } from '@qoti/content';
 import type { RenderApi } from '../render/api';
 import type { ToolContext } from './context';
 import type { PointerInfo, Tool } from './tool';
@@ -9,6 +10,8 @@ export interface ManagerHooks {
   pointer(p: PointerInfo): void;
   /** Keys no tool used: pause, speed, lens and so on. Returns true when handled. */
   globalKey(e: KeyboardEvent): boolean;
+  /** I1: Ctrl+Z (Cmd+Z on a Mac) undoes this seat's latest command. */
+  undo?(): void;
 }
 
 function isTyping(e: KeyboardEvent): boolean {
@@ -22,10 +25,11 @@ export class ToolManager {
   readonly active = signal('inspect');
   private readonly byId: Map<string, Tool>;
   private current: Tool;
+  private last: { x: number; y: number } | null = null;
   private readonly cleanup: (() => void)[] = [];
 
   constructor(
-    ctx: ToolContext,
+    private readonly ctx: ToolContext,
     private readonly render: RenderApi,
     canvas: HTMLElement,
     private readonly hooks: ManagerHooks,
@@ -50,6 +54,7 @@ export class ToolManager {
       this.current.pointerDown?.(this.info(e));
     });
     on(canvas, 'pointermove', (e) => {
+      this.last = { x: e.clientX, y: e.clientY };
       const info = this.info(e);
       this.hooks.pointer(info);
       this.current.pointerMove?.(info);
@@ -60,8 +65,14 @@ export class ToolManager {
     });
     on(canvas, 'pointerleave', () => this.render.setGhost(null));
     on(window, 'keydown', (e) => {
-      if (isTyping(e) || e.metaKey || e.ctrlKey || e.altKey) return;
-      if (this.current.key?.(e) || this.hooks.globalKey(e)) e.preventDefault();
+      if (isTyping(e)) return;
+      if ((e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey && (e.key === 'z' || e.key === 'Z')) {
+        e.preventDefault();
+        this.hooks.undo?.();
+        return;
+      }
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      if (this.current.key?.(e) || this.eyedropper(e) || this.hooks.globalKey(e)) e.preventDefault();
     });
   }
 
@@ -77,6 +88,36 @@ export class ToolManager {
       metaKey: e.metaKey,
       tile: this.render.pickTile(e.clientX, e.clientY),
     };
+  }
+
+  /** I picks up whatever is under the cursor: the matching tool, with that piece selected. */
+  private eyedropper(e: KeyboardEvent): boolean {
+    if ((e.key !== 'i' && e.key !== 'I') || !this.last) return false;
+    const { x, y } = this.last;
+    const hit = this.render.pickEntity(x, y);
+    if (hit?.kind === 'building') {
+      const b = this.ctx.mirror.buildings.get(hit.id);
+      if (b) this.select('building', b.def);
+      return !!b;
+    }
+    if (hit?.kind === 'decor') {
+      const d = this.ctx.mirror.decor.get(hit.id);
+      if (d) this.select(content.decorById.get(d.def)?.linear ? 'fence' : 'decor', d.def);
+      return !!d;
+    }
+    if (hit?.kind === 'tree') {
+      this.select('tree');
+      return true;
+    }
+    if (hit?.kind === 'note') {
+      this.select('note');
+      return true;
+    }
+    const tile = this.render.pickTile(x, y);
+    const value = tile ? this.ctx.mirror.road(tile.x, tile.z) : 0;
+    const road = value ? content.roads.find((r) => r.layerValue === value) : undefined;
+    if (road) this.select(road.id);
+    return !!road;
   }
 
   tool(id: string): Tool | undefined {

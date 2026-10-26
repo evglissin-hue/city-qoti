@@ -3,6 +3,7 @@ import type { Command, MapReader, SeatId, Turn, WorldState } from '../src/contra
 import { createLayers, Terrain, Water } from '../src/map/layers';
 import { seedStreams } from '../src/rng/streams';
 import { defaultSettings } from '../src/state/create';
+import { emptyHamletSlices } from '../src/state/hamlet';
 import { SAVE_VERSION } from '../src/state/version';
 import { worldIndex } from '../src/state/worldIndex';
 import { applyTurn, createTickCtx, type SimCtx } from '../src/turn';
@@ -44,6 +45,7 @@ export function flatWorld(): WorldState {
     buildings: [],
     decor: [],
     notes: [],
+    ...emptyHamletSlices(),
   };
 }
 

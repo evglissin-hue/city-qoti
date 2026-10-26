@@ -100,8 +100,23 @@ describe('applyTurn', () => {
 });
 
 describe('systems and views', () => {
-  it('registers the clock system', () => {
-    expect(systems.map((s) => s.id)).toEqual(['clock']);
+  it('registers the I0 systems and the I1 slots at their orders', () => {
+    const orders = new Map(systems.map((s) => [s.id, s.order]));
+    expect([...orders]).toEqual([
+      ['achievements', 90],
+      ['charm', 70],
+      ['chronicle', 100],
+      ['clock', 10],
+      ['construction', 20],
+      ['economy', 60],
+      ['logistics', 40],
+      ['movement', 52],
+      ['patterns', 72],
+      ['production', 30],
+      ['residents', 50],
+      ['trees', 30],
+      ['wishes', 74],
+    ]);
   });
 
   it('builds a complete view snapshot with copied layers', () => {

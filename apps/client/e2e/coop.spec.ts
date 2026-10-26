@@ -4,6 +4,8 @@ import { clickTile, counts, DEBUG_QUERY, dragTiles, hashesAt, waitLive } from '.
 // Acceptance: two tabs share a valley through the dev server, see each other's placements
 // within 250 ms, keep equal hashes, pause together, and a reloaded tab catches up.
 test('two seats build together in one valley', async ({ browser }) => {
+  // Two seats rendering on SwiftShader share a few cores; the reload catch-up needs headroom.
+  test.setTimeout(240_000);
   const contextA = await browser.newContext();
   const a = await contextA.newPage();
   await a.goto(`/${DEBUG_QUERY}`);
