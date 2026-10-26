@@ -8,7 +8,8 @@ import { findById } from '../../state/entities';
 import { moodBand } from '../../view/hamlet';
 import { modifierValue } from './api';
 import { averageAround, tasteScore } from './desirability';
-import { doorOf, tileX, tileZ } from './places';
+import { walkGrid } from '../movement/grid';
+import { doorOf, tileX, tileZ, wellsOf } from './places';
 import { announceHousehold } from './records';
 import { hasTrait, traitSum } from './traits';
 
@@ -119,14 +120,46 @@ function approach(current: number, target: number): number {
   return current + (step !== 0 ? step : target > current ? 1 : -1);
 }
 
-let servedMemo: { state: WorldState; tick: number; served: Set<number> } | null = null;
+interface WaterCache {
+  /**
+   * Everything waterServed reads: the network epoch (where buildings and doors are), [id, home,
+   * members] per household, then [id, built] per well.
+   */
+  key: Int32Array;
+  served: Set<number>;
+}
+const waterCaches = new WeakMap<WorldState, WaterCache>();
+let keyScratch = new Int32Array(64);
 
-/** waterServed, computed at most once per tick. */
+/**
+ * waterServed, recomputed only when one of its inputs changed. The cache key is the full list of
+ * inputs compared exactly, so a reused answer is always the answer a fresh computation would give.
+ */
 function servedNow(state: WorldState): Set<number> {
-  if (!servedMemo || servedMemo.state !== state || servedMemo.tick !== state.tick) {
-    servedMemo = { state, tick: state.tick, served: waterServed(state) };
+  const hs = state.households;
+  const wells = wellsOf(state);
+  const n = 1 + hs.length * 3 + wells.length * 2;
+  if (keyScratch.length < n) keyScratch = new Int32Array(n * 2);
+  let k = 0;
+  keyScratch[k++] = walkGrid(state).epoch;
+  for (const h of hs) {
+    keyScratch[k++] = h.id;
+    keyScratch[k++] = h.homeId;
+    keyScratch[k++] = h.members.length;
   }
-  return servedMemo.served;
+  for (const b of wells) {
+    keyScratch[k++] = b.id;
+    keyScratch[k++] = b.stage === 'built' ? 1 : 0;
+  }
+  const c = waterCaches.get(state);
+  if (c && c.key.length === n) {
+    let same = true;
+    for (let i = 0; i < n && same; i++) same = c.key[i] === keyScratch[i];
+    if (same) return c.served;
+  }
+  const served = waterServed(state);
+  waterCaches.set(state, { key: keyScratch.slice(0, n), served });
+  return served;
 }
 
 /**

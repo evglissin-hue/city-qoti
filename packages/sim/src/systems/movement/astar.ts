@@ -21,8 +21,9 @@ let heap = new Float64Array(4096);
 let heapSize = 0;
 let search = 0;
 
-/** Expansions of the last search (tests and benches). */
+/** Expansions of the last search, and of all searches so far (tests and benches). */
 export let lastExpansions = 0;
+export let totalExpansions = 0;
 
 function push(key: number): void {
   if (heapSize === heap.length) {
@@ -99,6 +100,7 @@ export function findPath(
     closed[cur] = id;
     if (cur === to) {
       lastExpansions = expansions;
+      totalExpansions += expansions;
       return reconstruct(from, to);
     }
     if (++expansions > maxExpansions) break;
@@ -140,6 +142,7 @@ export function findPath(
     }
   }
   lastExpansions = expansions;
+  totalExpansions += expansions;
   return null;
 }
 

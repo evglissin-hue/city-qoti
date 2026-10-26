@@ -7,7 +7,7 @@ import { MAP_SIZE, TILE_FP } from '../../constants';
 import type { Building, WorldState } from '../../contracts';
 import { Water } from '../../map/layers';
 import { worldIndex } from '../../state/worldIndex';
-import { doorOf, tileX, tileZ } from './places';
+import { doorOf, eachBuildingNear, tileX, tileZ } from './places';
 
 const S = MAP_SIZE;
 
@@ -52,13 +52,11 @@ export function averageAround(layer: Uint8Array, x: number, z: number, r: number
 /** Buildings and decor carrying a tag within r tiles (Chebyshev) of (x, z). */
 export function tagCount(state: WorldState, tag: string, x: number, z: number, r: number, self = 0): number {
   let n = 0;
-  for (const b of state.buildings) {
-    if (b.id === self || b.stage !== 'built') continue;
-    if (Math.abs(b.x - x) > r + 2 || Math.abs(b.z - z) > r + 2) continue;
-    if (!content.buildingById.get(b.def)?.tags?.includes(tag)) continue;
-    const door = doorOf(state, b.id);
-    if (Math.abs(tileX(door) - x) <= r && Math.abs(tileZ(door) - z) <= r) n++;
-  }
+  eachBuildingNear(state, x, z, r, (b, door) => {
+    if (b.id === self || b.stage !== 'built') return;
+    if (Math.abs(tileX(door) - x) > r || Math.abs(tileZ(door) - z) > r) return;
+    if (content.buildingById.get(b.def)?.tags?.includes(tag)) n++;
+  });
   const near = worldIndex(state).decorGrid.near(x * TILE_FP + 128, z * TILE_FP + 128, (r + 0.5) * TILE_FP);
   for (const d of near) if (content.decorById.get(d.def)?.tags.includes(tag)) n++;
   return n;
@@ -67,13 +65,10 @@ export function tagCount(state: WorldState, tag: string, x: number, z: number, r
 /** Homes (other than `self`) whose door lies within r tiles of (x, z). */
 export function homeCount(state: WorldState, x: number, z: number, r: number, self = 0): number {
   let n = 0;
-  for (const b of state.buildings) {
-    if (b.id === self) continue;
-    if (Math.abs(b.x - x) > r + 2 || Math.abs(b.z - z) > r + 2) continue;
-    if (!content.buildingById.get(b.def)?.housing) continue;
-    const door = doorOf(state, b.id);
-    if (Math.abs(tileX(door) - x) <= r && Math.abs(tileZ(door) - z) <= r) n++;
-  }
+  eachBuildingNear(state, x, z, r, (b, door) => {
+    if (b.id === self || Math.abs(tileX(door) - x) > r || Math.abs(tileZ(door) - z) > r) return;
+    if (content.buildingById.get(b.def)?.housing) n++;
+  });
   return n;
 }
 

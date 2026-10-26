@@ -9,7 +9,7 @@ import { treeStage, TREE_MATURE } from '../../map/layers';
 import { findById } from '../../state/entities';
 import { worldIndex } from '../../state/worldIndex';
 import { walkGrid } from '../movement/grid';
-import { doorOf, householdOf, tileX, tileZ } from './places';
+import { doorOf, eachBuildingNear, householdOf, tileX, tileZ } from './places';
 import { hasTrait, traitFactor, traitPercent } from './traits';
 
 const S = MAP_SIZE;
@@ -138,10 +138,10 @@ export function chooseLeisure(state: WorldState, rng: Rng, r: Resident, evening:
   }
 
   // Buildings: the well, the market for a fox, the bakery for a mouse.
-  for (const b of state.buildings) {
-    if (b.stage !== 'built' || Math.abs(b.x - cx) > R + 3 || Math.abs(b.z - cz) > R + 3) continue;
+  eachBuildingNear(state, cx, cz, R, (b, door) => {
+    if (b.stage !== 'built') return;
     const tags = content.buildingById.get(b.def)?.tags;
-    if (!tags) continue;
+    if (!tags) return;
     let appeal = 0;
     for (const [tag, base, species, bonus] of BUILDING_APPEAL) {
       if (!tags.includes(tag)) continue;
@@ -149,10 +149,8 @@ export function chooseLeisure(state: WorldState, rng: Rng, r: Resident, evening:
       if (tag === 'bakery') v *= bakery;
       if (v > appeal) appeal = v;
     }
-    if (appeal <= 0) continue;
-    const door = doorOf(state, b.id);
     consider(tileX(door), tileZ(door), appeal, true);
-  }
+  });
 
   // Mature trees and the water's edge, on a coarse lattice so big radii stay cheap.
   const tree = state.map.tree;

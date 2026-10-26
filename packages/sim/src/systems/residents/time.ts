@@ -35,10 +35,25 @@ export function slotPhase(r: Resident): number {
   return (r.look >>> 11) % HOUR;
 }
 
+interface Offset {
+  traits: string[];
+  count: number;
+  ticks: number;
+}
+/** Shift plus jitter per resident, derived from traits and look (re-derived if traits change). */
+const offsets = new WeakMap<Resident, Offset>();
+
+function scheduleOffset(r: Resident): number {
+  const o = offsets.get(r);
+  if (o && o.traits === r.traits && o.count === r.traits.length) return o.ticks;
+  const ticks = traitSum(r, 'scheduleShift') * HOUR + jitter(r);
+  offsets.set(r, { traits: r.traits, count: r.traits.length, ticks });
+  return ticks;
+}
+
 /** The resident's schedule clock: tick of day minus their shift and jitter, wrapped to a day. */
 export function scheduleClock(r: Resident, tick: number): number {
-  const shift = traitSum(r, 'scheduleShift') * HOUR;
-  return (((tickOfDay(tick) - shift - jitter(r)) % DAY) + DAY) % DAY;
+  return (((tickOfDay(tick) - scheduleOffset(r)) % DAY) + DAY) % DAY;
 }
 
 /** Schedule blocks (docs/spec/11-residents.md, Schedules), on the schedule clock. */

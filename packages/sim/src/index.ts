@@ -91,6 +91,7 @@ export { createValley, createWorld, defaultSettings } from './state/create';
 export { createRuntime, emptyHamletSlices, goodsArray, isStandard } from './state/hamlet';
 export { insertBuilding } from './state/place';
 export { START_GOODS } from './systems/economy/start';
+export { settleHousehold } from './systems/residents/lifecycle';
 export { findById, findIndexById, removeById } from './state/entities';
 export { fnv64Hex, hashState } from './state/hash';
 export { deserialize, serialize } from './state/serialize';

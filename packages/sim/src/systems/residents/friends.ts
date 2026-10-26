@@ -8,7 +8,7 @@ import { MAP_SIZE, MAX_FRIENDS, TICKS_PER_DAY } from '../../constants';
 import type { Friend, Resident, WorldState } from '../../contracts';
 import { findById } from '../../state/entities';
 import { addMoodModifier } from './api';
-import { chebyshev, doorOf } from './places';
+import { chebyshev, doorOf, eachBuildingNear, tileX, tileZ } from './places';
 import { pushHistory } from './records';
 import { dayIndex } from './time';
 import { compatibility, traitPercent } from './traits';
@@ -21,6 +21,8 @@ export const FRIEND_LEVELS = [10, 30, 60, 100, 150] as const;
 export const POINTS_PER_HOUR = { visit: 3, outdoors: 2, work: 1 } as const;
 /** Outdoor patches are keyed above every entity id (ids stay below 2^30). */
 const OUTDOORS = 1073741824;
+/** Neighbors live within this many tiles of each other (door to door). */
+const NEIGHBOR_TILES = 6;
 /** Larger gatherings pair each resident with this many of the others per hour. */
 const MAX_PAIRS_EACH = 4;
 
@@ -190,19 +192,25 @@ export function dailyFriendships(state: WorldState): void {
       }
     }
   }
-  // Neighbors: each household with its three nearest neighbors within 6 tiles.
+  // Neighbors: each household with its three nearest neighbors within 6 tiles (higher ids only, so
+  // each pair is visited once).
   const hs = state.households;
+  const byHome = new Map<number, number[]>();
+  for (const h of hs) {
+    if (!h.homeId) continue;
+    const list = byHome.get(h.homeId);
+    if (list) list.push(h.id);
+    else byHome.set(h.homeId, [h.id]);
+  }
   for (const h of hs) {
     const door = doorOf(state, h.homeId);
     if (door < 0) continue;
     const near: [d: number, id: number][] = [];
-    for (const o of hs) {
-      if (o.id <= h.id) continue;
-      const od = doorOf(state, o.homeId);
-      if (od < 0) continue;
+    eachBuildingNear(state, tileX(door), tileZ(door), NEIGHBOR_TILES, (b, od) => {
       const d = chebyshev(door, od);
-      if (d <= 6) near.push([d, o.id]);
-    }
+      if (d > NEIGHBOR_TILES) return;
+      for (const id of byHome.get(b.id) ?? []) if (id > h.id) near.push([d, id]);
+    });
     near.sort((p, q) => p[0] - q[0] || p[1] - q[1]);
     for (let k = 0; k < near.length && k < 3; k++) {
       const o = findById(hs, near[k]![1])!;

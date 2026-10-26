@@ -12,7 +12,7 @@ import { moveResident, setInside } from '../movement/api';
 import { averageAround, describeHome, homeDesirability } from './desirability';
 import { removeFriend } from './friends';
 import { createHousehold, pickMakeup, pickSpecies, stageForAge, stagesFor } from './generate';
-import { openJobCount, release } from './jobs';
+import { assignJobs, openJobCount, release } from './jobs';
 import { foodIndexes, pantryFood } from './needs';
 import { doorOf, tileX, tileZ, vacantHomes, type Vacancy } from './places';
 import { announceHousehold, announceResident, announceTown, forgetResident, pushHistory } from './records';
@@ -291,4 +291,32 @@ export function rehouse(state: WorldState, ctx: TickCtx): void {
 /** The building a household lives in, if any. */
 export function homeOf(state: WorldState, h: Household): Building | undefined {
   return findById(state.buildings, h.homeId);
+}
+
+/**
+ * Moves a new household straight into a home, skipping the gate and the Chronicle: for benches,
+ * tools and tests that need a populated town at once. Jobs are assigned as usual.
+ */
+export function settleHousehold(
+  state: WorldState,
+  ctx: TickCtx,
+  homeId: number,
+  species: string,
+  stages: LifeStage[],
+): Household {
+  const door = doorOf(state, homeId);
+  const { household, members } = createHousehold(state, ctx.rng('residents'), {
+    species,
+    stages,
+    homeId,
+    tile: door,
+    inside: homeId,
+    activity: { kind: 'home' },
+  });
+  for (const r of members) {
+    announceResident(state, ctx, r);
+    assignJobs(state, ctx, r);
+  }
+  announceHousehold(state, ctx, household.id, true);
+  return household;
 }
