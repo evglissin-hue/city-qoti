@@ -33,8 +33,11 @@ export const homesLow: ZoneDef = {
   layerValue: 1,
   density: 'low',
   blurb: 'Cottages with gardens, for families who like a bit of elbow room.',
+  // C4B: deep plots first (a back garden) where the zone allows, a wide one now and then.
   lots: [
-    { size: [2, 2], weight: 3 },
+    { size: [2, 3], weight: 3 },
+    { size: [3, 3], weight: 1 },
+    { size: [2, 2], weight: 2 },
     { size: [3, 2], weight: 1 },
   ],
   token: 'rose',

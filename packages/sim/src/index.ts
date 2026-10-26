@@ -128,8 +128,13 @@ export { foodDays, goodsAtMarket } from './conditions';
 export { emptyVillageSlices, hasInnovation, rankAtLeast } from './state/village';
 export { moneyBalance, moneyInside, pay, type Purse } from './systems/economy/money';
 export { buy, outletsWith, priceOf, sell, tillPrice } from './systems/market/api';
-export { growLot } from './systems/growth/api';
+export { growLot, lotPlacement } from './systems/growth/api';
 export { cartAt, cartRoute, cartTile, requestCartMove } from './systems/traffic/api';
+// I2 (C4B): growth, traffic, desire paths and stairs for the client (overlays, tools, previews).
+export { growthDemand, type GrowthDemand } from './systems/growth';
+export { roadCapacity, roadNoise, slowdownPercent, trafficFlow } from './systems/traffic/api';
+export { roadKindLocked, wantsStairs } from './systems/traffic/streets';
+export { DESIRE_PATH_WEAR, desirePathTiles, WEAR_VISIBLE } from './systems/traffic/wear';
 export { grantReward, storyStep } from './systems/stories/api';
 export { unlockInnovation } from './systems/innovations/api';
 export { terraformCost } from './commands/terrain';
