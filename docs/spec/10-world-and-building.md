@@ -55,6 +55,7 @@ C2A implements all steps behind `generateValley(seed, settings)`, with a softer 
 
 - Walking and roads connect 4-neighbor tiles whose height differs by at most 1. A difference of 2 or more is a cliff. Stairs (a Hearth decor piece) bridge a 2-level cliff for paths only [I2].
 - Terraforming [I2]: raise, lower and level tools (Ledger). Cost per level per tile *(tune: 3 coins)*. Not on water, roads or buildings.
+- *As built (C4B)*: `terrain.raise` and `terrain.lower` move up to 64 tiles one level for 2 coins a tile, booked as terraforming. Not on water, roads, buildings or decor, nor in locked parcels, and never so a tile ends up two or more levels from a neighbor unless it already was (a cliff may be softened, never made), so the land stays walkable: a hill is built up ring by ring. Trees on the tiles are uprooted, field tiles are turned over (crop back to bare, still the farm's), worn ground starts fresh. Stairs follow: a path tile beside a road one level up, or beside a lane or street one level down, carries `Flags.stairs` (recomputed after every road change and terraform), so the renderer draws steps where a path climbs; walking is unchanged (a one-level step was always walkable).
 - Ponds [I3]: Hearth can dig a pond (lower to 0 and fill) on fertile low tiles.
 - Canals [I4]: Ledger digs canal tiles connected to the river.
 
@@ -72,6 +73,7 @@ C2A implements all steps behind `generateValley(seed, settings)`, with a softer 
 - **Removal.** Free; refunds 50% of coin cost [I1].
 - **Connections** are computed, not stored: the renderer draws joins from neighbor road tiles.
 - **Desire paths** [I2]: grass tiles walked often get worn; the overlay suggests paths.
+- *As built (C4B)*: streets paint like lanes once Cobbles is in (`LOCKED` before) and take their content goods (a stone a tile) from the storehouses on top of the coins, also when a lane or path is cobbled over (`CANNOT_AFFORD` without them). Desire paths: each step a resident takes onto grass, meadow, sand or forest floor adds 4 to the `wear` layer (to 255); the grass takes 24 back each night (02:30), never under roads. From 64 a tile looks trodden, from 128 it is a desire path (`desirePathTiles` lists them for the overlay and for paving with `road.paint`). Wear under a road stays, so paths laid over desire lines can be counted: the `desireLines` code predicate (`tiles`, default 12) is the Desire Lines achievement's condition.
 
 ## Buildings
 
