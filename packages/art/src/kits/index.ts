@@ -2,8 +2,8 @@
 // in `art.kit`; the client test checks that every one of them exists here.
 import * as B from './buildings';
 import * as D from './decor';
+import * as Gd from './garden';
 import * as G from './goods';
-import * as P from './placeholders';
 import * as R from './residents';
 import * as T from './trees';
 import type { Kit } from './types';
@@ -16,33 +16,33 @@ export const kits: readonly Kit[] = [
   D.barrels,
   D.bench,
   T.birch,
-  P.birdbath,
+  Gd.birdbath,
   W.buildersYardKit,
   D.cherryTree,
   B.cottage,
   D.crates,
-  P.curvedBench,
+  Gd.curvedBench,
   W.farmhouseKit,
   D.fence,
   W.fishersHutKit,
   D.flowerBed,
   W.forestersLodgeKit,
   G.handcart,
-  P.hangingLantern,
+  Gd.hangingLantern,
   D.hedge,
-  P.herbPlanter,
+  Gd.herbPlanter,
   B.house2,
   D.lantern,
   D.lowWall,
   W.marketStallKit,
-  P.mooringPost,
+  Gd.mooringPost,
   T.oak,
   T.pine,
   D.planter,
-  P.planterWall,
+  Gd.planterWall,
   W.quarryKit,
   R.resident,
-  P.ringBench,
+  Gd.ringBench,
   W.sawpitKit,
   B.shed,
   D.signpost,
@@ -50,7 +50,7 @@ export const kits: readonly Kit[] = [
   B.townHall,
   W.vegetablePlotKit,
   B.well,
-  P.wildflowerVerge,
+  Gd.wildflowerVerge,
   B.windmill,
   W.woodcutterKit,
 ];

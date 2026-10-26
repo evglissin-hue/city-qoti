@@ -149,9 +149,9 @@ function buildLineup(): Group {
       params,
       ...(state.lod === 'low' ? { lod: 'low' as const } : {}),
     };
-    const w = fp ? fp.size[0] : 1;
+    const w = fp ? fp.size[0] : 0.7;
     const mesh = new Mesh(kit.build(opts), material);
-    mesh.position.set(x + (fp ? 0 : 0.5), 0, fp ? -fp.size[1] / 2 : 0);
+    mesh.position.set(x + (fp ? 0 : 0.35), 0, fp ? -fp.size[1] / 2 : 0);
     row.add(mesh);
     for (const p of kit.parts?.(opts) ?? []) {
       const pg = p.geometry.clone().translate(-p.pivot[0], -p.pivot[1], -p.pivot[2]);
@@ -160,7 +160,7 @@ function buildLineup(): Group {
       row.add(pm);
       parts.push({ mesh: pm, speed: p.spinSpeed ?? 0 });
     }
-    x += w + 0.6;
+    x += w + (fp ? 0.6 : 0.15);
   });
   row.position.x = -(x - 0.6) / 2;
   holder.add(row);
@@ -212,6 +212,7 @@ function applyLight(): void {
 const panel = document.createElement('div');
 panel.className = 'label';
 document.body.appendChild(panel);
+if (q.get('hud') === '0') panel.style.display = 'none';
 const info = document.createElement('div');
 const select = document.createElement('select');
 for (const k of kits) select.add(new Option(`${k.kind}: ${k.id}`, k.id));
