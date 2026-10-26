@@ -16,6 +16,7 @@ import {
   CLUTTER,
   CONSTRUCTION,
   DECOR_LINEAR,
+  DECOR_REACH,
   DECOR_SOURCES,
   ENCLOSURE,
   HEIGHT_VIEW,
@@ -51,6 +52,13 @@ const MAX_DECOR = 4096;
 const decorX = new Float64Array(MAX_DECOR);
 const decorZ = new Float64Array(MAX_DECOR);
 const decorDef = new Int32Array(MAX_DECOR);
+// The same pieces sorted into rows (local z), so a tile only visits the rows within reach.
+const ROWS = CHUNK_SIZE + 2 * DECOR_REACH;
+const rowStart = new Int32Array(ROWS + 1);
+const rowOf = new Int32Array(MAX_DECOR);
+const sortedX = new Float64Array(MAX_DECOR);
+const sortedZ = new Float64Array(MAX_DECOR);
+const sortedDef = new Int32Array(MAX_DECOR);
 
 interface NearBuilding {
   x0: number;
@@ -157,19 +165,33 @@ export function recomputeChunk(
   const m = state.map;
   const rect = chunkRect(chunk);
   const [cx0, cz0, cx1, cz1] = rect;
-  const area = expandRect(rect, CHARM_REACH);
   const maxReach = CHARM_REACH;
 
-  // Decor within reach.
+  // Decor within reach, sorted into rows.
   let nd = 0;
-  for (const d of decorInRect(state, area)) {
+  const rz0 = cz0 - DECOR_REACH;
+  rowStart.fill(0);
+  for (const d of decorInRect(state, expandRect(rect, DECOR_REACH))) {
     const def = DECOR_INDEX.get(d.def);
     if (def === undefined || nd >= MAX_DECOR) continue;
     decorX[nd] = d.fx / TILE_FP;
     decorZ[nd] = d.fz / TILE_FP;
     decorDef[nd] = def;
+    const row = Math.min(ROWS - 1, Math.max(0, Math.floor(decorZ[nd]!) - rz0));
+    rowOf[nd] = row;
+    rowStart[row + 1]!++;
     nd++;
   }
+  for (let r = 0; r < ROWS; r++) rowStart[r + 1]! += rowStart[r]!;
+  for (let k = 0; k < nd; k++) {
+    const at = rowStart[rowOf[k]!]!++;
+    sortedX[at] = decorX[k]!;
+    sortedZ[at] = decorZ[k]!;
+    sortedDef[at] = decorDef[k]!;
+  }
+  // rowStart[r] now holds the end of row r; shift back so rows span [rowStart[r], rowStart[r + 1]).
+  for (let r = ROWS; r > 0; r--) rowStart[r] = rowStart[r - 1]!;
+  rowStart[0] = 0;
 
   // Buildings within reach, with their sources.
   nearBuildings.length = 0;
@@ -248,7 +270,7 @@ export function recomputeChunk(
   let changed = 0;
   const vR = VARIETY.radius * VARIETY.radius;
   const cR = CLUTTER.radius * CLUTTER.radius;
-  const dR = (maxReach + 1) * (maxReach + 1);
+  const dR = DECOR_REACH * DECOR_REACH;
   for (let tz = cz0; tz <= cz1; tz++) {
     for (let tx = cx0; tx <= cx1; tx++) {
       const i = tz * S + tx;
@@ -265,12 +287,15 @@ export function recomputeChunk(
       let seen = 0;
       let clutter = 0;
 
-      for (let k = 0; k < nd; k++) {
-        const dx = decorX[k]! - px;
-        const dz = decorZ[k]! - pz;
+      const lr = tz - rz0;
+      const k0 = rowStart[Math.max(0, lr - DECOR_REACH)]!;
+      const k1 = rowStart[Math.min(ROWS, lr + DECOR_REACH + 1)]!;
+      for (let k = k0; k < k1; k++) {
+        const dx = sortedX[k]! - px;
+        const dz = sortedZ[k]! - pz;
         const d2 = dx * dx + dz * dz;
         if (d2 > dR) continue;
-        const def = decorDef[k]!;
+        const def = sortedDef[k]!;
         if (d2 <= vR && !seenType[def]) {
           seenType[def] = 1;
           seenList[seen++] = def;

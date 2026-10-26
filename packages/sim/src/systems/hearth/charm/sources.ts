@@ -63,6 +63,7 @@ const MAX_PIECE_RADIUS = Math.max(
   ...content.decor.flatMap((d) => (d.charm ?? []).map((s) => s.radius)),
   ...content.buildings.flatMap((b) => (b.charm ?? []).map((s) => s.radius)),
 );
+const MAX_DECOR_RADIUS = Math.max(0, ...content.decor.flatMap((d) => (d.charm ?? []).map((s) => s.radius)));
 const MAX_SITE_RADIUS = Math.max(0, ...content.patterns.map((p) => p.siteBonus.radius));
 
 /** How far (in tiles) a change can move charm: a recompute covers this much around it. */
@@ -73,6 +74,9 @@ export const CHARM_REACH = Math.max(
   ENCLOSURE.reach + 1,
   HEIGHT_VIEW.window + 1,
 );
+
+/** How far (in tiles) a decor piece can reach a tile: its sources, variety and clutter. */
+export const DECOR_REACH = Math.max(MAX_DECOR_RADIUS + 1, VARIETY.radius, CLUTTER.radius);
 
 /** Lanterns are lit from 18:00 to 07:00 (dusk to the end of dawn). */
 export const LIGHTS_ON_HOUR = 18;

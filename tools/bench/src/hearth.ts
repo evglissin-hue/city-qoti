@@ -1,7 +1,15 @@
 // Hearth benches (C3B): charm recompute per dirty chunk and the Pattern Book pass per in-game hour,
 // on the shared hamlet fixture and on a dense block built next to it, against the budgets in the
 // C3B brief (charm under 2 ms per chunk, patterns under 3 ms per hour on the hamlet).
-import { CHUNKS_PER_SIDE, createTickCtx, TILE_FP, type Decor, type WorldState } from '@qoti/sim';
+import {
+  CHUNKS_PER_SIDE,
+  createTickCtx,
+  createValley,
+  defaultSettings,
+  TILE_FP,
+  type Decor,
+  type WorldState,
+} from '@qoti/sim';
 import { content } from '@qoti/content';
 import { hamletFixture } from '../../../packages/sim/test/fixtures/hamlet';
 import { worldIndex } from '../../../packages/sim/src/state/worldIndex';
@@ -127,8 +135,19 @@ export function hearthBench(): { lines: string[]; failures: string[]; report: Re
   const t = performance.now();
   recomputeDirty(hamlet, null);
   const fullMs = performance.now() - t;
+  // And on a generated standard valley (forests, river, hills): its first tick computes it all.
+  // The first run pays for compiling the forest and river paths; the best of three is reported.
+  const valley = createValley('bench-hearth', { ...defaultSettings(), mode: 'standard' });
+  let valleyMs = Infinity;
+  for (let i = 0; i < 3; i++) {
+    markChunks(valley, [0, 0, 191, 191]);
+    const tv = performance.now();
+    recomputeDirty(valley, null);
+    valleyMs = Math.min(valleyMs, performance.now() - tv);
+  }
   lines.push(
-    `charm full map  ${(CHUNKS_PER_SIDE * CHUNKS_PER_SIDE).toString()} chunks in ${fullMs.toFixed(0)} ms`,
+    `charm full map  ${CHUNKS_PER_SIDE * CHUNKS_PER_SIDE} chunks: hamlet ${fullMs.toFixed(0)} ms, ` +
+      `generated valley ${valleyMs.toFixed(0)} ms (once, on a valley's first tick)`,
   );
 
   return {
@@ -139,6 +158,7 @@ export function hearthBench(): { lines: string[]; failures: string[]; report: Re
       charmDenseChunkMs: denseChunk.median,
       charmAnyChunkMs: anyMedian,
       charmFullMapMs: fullMs,
+      charmValleyMs: valleyMs,
       patternsHamletMs: plain.median,
       patternsDenseMs: busy.median,
     },
