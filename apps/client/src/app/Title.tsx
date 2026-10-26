@@ -1,4 +1,5 @@
 import { randomId } from '@qoti/protocol';
+import type { ValleySettings } from '@qoti/sim';
 import { useMemo, useState } from 'preact/hooks';
 import { createOnlineValley } from '../net/api';
 import { LocalRoom } from '../net/local';
@@ -23,6 +24,9 @@ export function Title({ onStart }: { onStart: (t: SessionTarget, opts?: { invite
   const [error, setError] = useState<string | null>(null);
   const [seed, setSeed] = useState('');
   const [town, setTown] = useState('');
+  // ?creative starts with the creative box ticked (the I0 end to end specs play sandbox valleys).
+  const [creative, setCreative] = useState(() => new URLSearchParams(location.search).has('creative'));
+  const [economy, setEconomy] = useState<ValleySettings['economy']>('standard');
   const welcome = useMemo(() => welcomeLine(), []);
   const [profile, setProfileState] = useState<PlayerProfile>(() => loadProfile());
   const setProfile = (p: PlayerProfile) => {
@@ -32,10 +36,13 @@ export function Title({ onStart }: { onStart: (t: SessionTarget, opts?: { invite
   const recent = listRecent();
   const invited = recent.find((v) => v.pending);
   const others = recent.filter((v) => !v.pending);
-  const body = {
-    ...(seed.trim() ? { seed: seed.trim() } : {}),
-    settings: town.trim() ? { townName: town.trim() } : {},
+  // Standard valleys are the game; a creative valley is the quiet sandbox with no residents or costs.
+  const settings: Partial<ValleySettings> = {
+    mode: creative ? 'sandbox' : 'standard',
+    economy,
+    ...(town.trim() ? { townName: town.trim() } : {}),
   };
+  const body = { ...(seed.trim() ? { seed: seed.trim() } : {}), settings };
 
   async function run(task: () => Promise<void>) {
     setBusy(true);
@@ -60,6 +67,7 @@ export function Title({ onStart }: { onStart: (t: SessionTarget, opts?: { invite
         mode: 'online',
         name: town.trim() || 'Qoti',
         lastPlayed: Date.now(),
+        ...(creative ? { creative: true } : {}),
         ...(v.invites[1] ? { invite: v.invites[1] } : {}),
       };
       rememberValley(recentValley);
@@ -77,6 +85,7 @@ export function Title({ onStart }: { onStart: (t: SessionTarget, opts?: { invite
         mode: 'solo',
         name: town.trim() || 'Qoti',
         lastPlayed: Date.now(),
+        ...(creative ? { creative: true } : {}),
       };
       rememberValley(recentValley);
       onStart(targetOf(recentValley));
@@ -159,6 +168,19 @@ export function Title({ onStart }: { onStart: (t: SessionTarget, opts?: { invite
           <button type="button" class="big" data-testid="new-solo" disabled={busy} onClick={newSolo}>
             {copy.title.newSolo}
           </button>
+          {!invited && (
+            <label class="creative-toggle">
+              <input
+                type="checkbox"
+                checked={creative}
+                data-testid="creative"
+                onChange={(e) => setCreative((e.target as HTMLInputElement).checked)}
+              />
+              <span>
+                {copy.title.creative} <span class="muted">({copy.title.creativeHint})</span>
+              </span>
+            </label>
+          )}
         </div>
         <details class="title-options">
           <summary>{copy.title.more}</summary>
@@ -172,6 +194,29 @@ export function Title({ onStart }: { onStart: (t: SessionTarget, opts?: { invite
               onInput={(e) => setSeed((e.target as HTMLInputElement).value)}
             />
           </label>
+          <fieldset class="economy" disabled={creative}>
+            <legend>{copy.title.economy}</legend>
+            <div class="dial" role="radiogroup" aria-label={copy.title.economy}>
+              {copy.title.economyOptions.map(([id, label]) => (
+                <button
+                  key={id}
+                  type="button"
+                  role="radio"
+                  aria-checked={economy === id}
+                  class={economy === id ? 'active' : ''}
+                  data-testid={`economy-${id}`}
+                  onClick={() => setEconomy(id)}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+            <p class="muted dial-note">
+              {creative
+                ? copy.title.creativeHint
+                : copy.title.economyOptions.find(([id]) => id === economy)?.[2]}
+            </p>
+          </fieldset>
         </details>
         {error && <p class="error">{error}</p>}
         {others.length > 0 && (
@@ -188,6 +233,7 @@ export function Title({ onStart }: { onStart: (t: SessionTarget, opts?: { invite
                   >
                     <strong>{v.name}</strong>
                     <span class="muted">
+                      {v.creative ? `${copy.title.creativeTag}, ` : ''}
                       {v.mode === 'solo' ? copy.title.solo : copy.title.online}, {ago(v.lastPlayed)}
                     </span>
                   </button>

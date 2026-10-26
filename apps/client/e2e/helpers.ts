@@ -26,7 +26,9 @@ declare global {
   }
 }
 
-export const DEBUG_QUERY = '?debug&quality=low';
+/** I0 specs play creative (sandbox) valleys; HAMLET_QUERY starts standard ones. */
+export const DEBUG_QUERY = '?debug&quality=low&creative';
+export const HAMLET_QUERY = '?debug&quality=low';
 
 export async function waitLive(page: Page): Promise<void> {
   await page.waitForFunction(() => window.__qoti?.status() === 'live', null, { timeout: 60_000 });

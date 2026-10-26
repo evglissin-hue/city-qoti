@@ -28,6 +28,15 @@ export const copy = {
     solo: 'Solo',
     online: 'For two',
     relayDown: 'Could not reach the relay. Is the dev server running?',
+    creative: 'Creative valley',
+    creativeHint: 'no residents, no costs',
+    creativeTag: 'Creative',
+    economy: 'Economy',
+    economyOptions: [
+      ['gentle', 'Gentle', 'Forgiving books and patient builders.'],
+      ['standard', 'Standard', 'The valley as it was meant to be.'],
+      ['thoughtful', 'Thoughtful', 'Every plank is spoken for.'],
+    ],
   },
   settings: {
     open: 'Settings',
