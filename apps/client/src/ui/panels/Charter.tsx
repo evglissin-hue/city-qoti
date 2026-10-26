@@ -41,7 +41,7 @@ export function CharterPanel({ session }: { session: Session }) {
       id="charter"
       class="book-panel charter"
       icon="charter"
-      kicker={c ? `${RANK_WORD[c.rank]} of ${m.settings.value.townName}` : 'The County'}
+      kicker={c ? `${m.settings.value.townName}, a ${RANK_WORD[c.rank].toLowerCase()}` : 'The County'}
       title="The Charter"
       onClose={close}
     >
@@ -79,38 +79,44 @@ function Board({ session, c }: { session: Session; c: CharterView }) {
   const done = c.goals.filter((g) => g.done).length;
   return (
     <div class="charter-board" data-testid="charter-board">
-      <p class="charter-lede">
-        To be made a <b>{RANK_WORD[c.next]}</b>, the County would like to see:
-      </p>
-      <ol class="charter-goals">
-        {c.goals.map((g) => (
-          <li key={g.id} class={`goal ${g.done ? 'done' : ''}`} data-testid={`goal-${g.id}`}>
-            <span class="goal-check" aria-label={g.done ? 'Done' : 'Not yet'}>
-              {g.done && <Glyph id="check" />}
-            </span>
-            <div class="goal-body">
-              <p>
-                <span class="goal-text">{g.text}</span> <LaneTag lane={g.lane} />
-              </p>
-              {!g.done && (
-                <Meter
-                  value={g.value / Math.max(1, g.target)}
-                  note={`${Math.min(g.value, g.target)} of ${g.target}`}
-                  tone={g.lane === 'hearth' ? 'sage' : g.lane === 'ledger' ? 'ochre' : 'river'}
-                />
-              )}
-            </div>
-          </li>
-        ))}
-      </ol>
-      <p class="muted small charter-count">
-        {done} of {c.goals.length} met.{' '}
-        {c.ready
-          ? 'Every box is ticked.'
-          : done === 0
-            ? 'Early days.'
-            : 'The lane tags say who usually gets each one done; nobody is checking.'}
-      </p>
+      <div class="charter-doc">
+        <p class="charter-title">The {RANK_WORD[c.next]} Charter</p>
+        <p class="charter-lede">
+          To be made a <b>{RANK_WORD[c.next]}</b>, the County would like to see:
+        </p>
+        <ol class="charter-goals">
+          {c.goals.map((g) => (
+            <li key={g.id} class={`goal ${g.done ? 'done' : ''}`} data-testid={`goal-${g.id}`}>
+              <span class="goal-check" aria-label={g.done ? 'Done' : 'Not yet'}>
+                {g.done && <Glyph id="check" />}
+              </span>
+              <div class="goal-body">
+                <p>
+                  <span class="goal-text">{g.text}</span> <LaneTag lane={g.lane} />
+                </p>
+                {!g.done && (
+                  <Meter
+                    value={g.value / Math.max(1, g.target)}
+                    note={`${Math.min(g.value, g.target)} of ${g.target}`}
+                    tone={g.lane === 'hearth' ? 'sage' : g.lane === 'ledger' ? 'ochre' : 'river'}
+                  />
+                )}
+              </div>
+            </li>
+          ))}
+        </ol>
+        <p class="muted small charter-count">
+          {done} of {c.goals.length} met.{' '}
+          {c.ready
+            ? 'Every box is ticked.'
+            : done === 0
+              ? 'Early days.'
+              : 'The lane tags say who usually gets each one done; nobody is checking.'}
+        </p>
+        <span class={`wax-seal ${c.ready ? 'ready' : ''}`} aria-hidden="true">
+          {session.mirror.settings.value.townName.slice(0, 1)}
+        </span>
+      </div>
       {def && def.unlocks.length > 0 && (
         <p class="charter-unlocks small">
           <span class="label">Brings</span>

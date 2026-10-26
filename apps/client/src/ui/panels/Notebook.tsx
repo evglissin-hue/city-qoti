@@ -5,7 +5,7 @@ import { shortDate } from '../format';
 import { Glyph } from '../icons';
 import { RANK_WORD, rankAtLeast } from '../village';
 import { unlockName } from './Charter';
-import { Frame, Meter } from './parts';
+import { Frame } from './parts';
 
 /** What sets each idea going, in the notebook's own words (the sim names its conditions in code). */
 const NUDGE: Record<string, string> = {
@@ -65,22 +65,22 @@ export function NotebookPanel({ session }: { session: Session }) {
                 {v.unlocked ? <Glyph id="check" /> : <Glyph id="notebook" />}
               </span>
               <h4>{v.name}</h4>
-              {v.unlocked && v.tick !== undefined && (
-                <span class="muted small">since {shortDate(v.tick)}</span>
+              {v.unlocked ? (
+                v.tick !== undefined && <span class="muted small">since {shortDate(v.tick)}</span>
+              ) : ready ? (
+                <Gauge value={v.progress} />
+              ) : (
+                <Glyph id="lock" class="idea-lock" />
               )}
             </div>
-            <p class="idea-blurb">{v.blurb}</p>
-            {!v.unlocked &&
-              (ready ? (
-                <>
-                  <Meter value={v.progress / 100} note={`${Math.round(v.progress)}%`} tone="ochre" />
-                  {NUDGE[def.id] && <p class="idea-nudge small">{NUDGE[def.id]}</p>}
-                </>
-              ) : (
-                <p class="idea-nudge small muted">Waits until the town is a {RANK_WORD[def.rank]}.</p>
-              ))}
+            {!v.unlocked && <p class="idea-blurb">{v.blurb}</p>}
+            {!v.unlocked && (
+              <p class="idea-nudge small">
+                {ready ? (NUDGE[def.id] ?? '') : `Waits until the town is a ${RANK_WORD[def.rank]}.`}
+              </p>
+            )}
             <p class="idea-unlocks small">
-              <span class="label">{v.unlocked ? 'Brought' : 'Brings'}</span>
+              <span class="muted">{v.unlocked ? 'Brought' : 'Brings'}</span>
               {def.unlocks.map((u) => (
                 <span key={u} class="unlock-chip">
                   {unlockName(u)}
@@ -101,5 +101,28 @@ export function NotebookPanel({ session }: { session: Session }) {
         </button>
       </p>
     </Frame>
+  );
+}
+
+/** A little pencil ring that fills as the idea comes together. */
+function Gauge({ value }: { value: number }) {
+  const v = Math.max(0, Math.min(100, value));
+  const r = 9;
+  const c = 2 * Math.PI * r;
+  return (
+    <span class="idea-gauge" title={`${Math.round(v)}% of the way`}>
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <circle cx="12" cy="12" r={r} class="track" />
+        <circle
+          cx="12"
+          cy="12"
+          r={r}
+          class="fill"
+          stroke-dasharray={`${((v / 100) * c).toFixed(2)} ${c.toFixed(2)}`}
+          transform="rotate(-90 12 12)"
+        />
+      </svg>
+      <b>{Math.round(v)}%</b>
+    </span>
   );
 }

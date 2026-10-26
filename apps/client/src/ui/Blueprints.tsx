@@ -171,7 +171,9 @@ function draw(
     let sx = 0;
     let sz = 0;
     let n = 0;
-    for (const { cmd } of plan.items) {
+    // Small plans name their buildings on the ground, like pencil on a site plan.
+    const named = plan.items.length <= 8;
+    plan.items.forEach(({ cmd }, i) => {
       for (const s of shapesOf(cmd, m)) {
         const cls = `${base}${s.removal ? ' removal' : ''}`;
         drawShape(s, cls, paths, poly, rectPoints);
@@ -179,8 +181,13 @@ function draw(
         sx += c[0];
         sz += c[1];
         n++;
+        if (named && s.kind === 'rect' && s.label) {
+          const p = pt(c[0], c[1]);
+          if (p?.onScreen)
+            tags.push({ key: `label-${plan.id}-${i}`, x: p.x, y: p.y, text: s.label, cls: 'label' });
+        }
       }
-    }
+    });
     if (n) {
       const p = pt(sx / n, sz / n);
       if (p?.onScreen)

@@ -96,10 +96,19 @@ function viewQuad(session: Session): [number, number][] | null {
   return out;
 }
 
+/**
+ * Whether the map is out: the player's choice, except that it steps aside while an inspector or the
+ * paint box holds the right column, so they get its full height.
+ */
+export function minimapShown(session: Session): boolean {
+  const ui = session.ui;
+  return ui.minimapOpen.value && ui.selection.value === null && ui.customize.value === null;
+}
+
 export function Minimap({ session }: { session: Session }) {
   const canvas = useRef<HTMLCanvasElement>(null);
   const [quad, setQuad] = useState<[number, number][] | null>(null);
-  const open = session.ui.minimapOpen.value;
+  const open = minimapShown(session);
   const cursors = session.ui.cursors.value;
   const seats = session.mirror.seats.value;
 
@@ -142,7 +151,16 @@ export function Minimap({ session }: { session: Session }) {
     return () => clearInterval(timer);
   }, [session, open]);
 
-  const toggle = () => (session.ui.minimapOpen.value = !open);
+  const toggle = () => {
+    if (open) {
+      session.ui.minimapOpen.value = false;
+      return;
+    }
+    // Opening it by hand while something is inspected puts the inspector away.
+    session.ui.minimapOpen.value = true;
+    session.ui.selection.value = null;
+    session.ui.customize.value = null;
+  };
   if (!open) {
     return (
       <button

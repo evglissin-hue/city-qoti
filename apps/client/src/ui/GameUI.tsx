@@ -2,6 +2,7 @@ import { DEBUG } from '../app/debug';
 import type { Session } from '../app/session';
 import { DebugOverlay, Dialogs, InviteDialog, Toasts } from './Overlays';
 import { EmoteBubbles, EmoteWheel } from './Emotes';
+import { minimapShown } from './Minimap';
 import { panels } from './panels';
 import { PingMenuView } from './PingMenu';
 import { PresenceLabels } from './Presence';
@@ -20,7 +21,7 @@ export function GameUI({ session, onLeave }: { session: Session; onLeave: () => 
   const open = session.ui.panel.value;
   const book = open ? panels.find((p) => p.id === open && p.side === 'book') : undefined;
   return (
-    <div class={`game-ui ${session.ui.minimapOpen.value ? 'with-minimap' : ''}`}>
+    <div class={`game-ui ${minimapShown(session) ? 'with-minimap' : ''}`}>
       {panels
         .filter((p) => p.side === 'world')
         .map((p) => (

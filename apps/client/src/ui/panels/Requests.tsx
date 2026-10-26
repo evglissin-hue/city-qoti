@@ -98,7 +98,7 @@ export function RequestsPanel({ session }: { session: Session }) {
       {open && (
         <>
           {live.length === 0 && closed.length === 0 && (
-            <p class="muted small">Nothing asked. Need bread by Friday, or a prettier corner? Ask.</p>
+            <p class="muted small">Nothing asked. Bread by Friday? A prettier corner? Ask.</p>
           )}
           <ul class="request-list">
             {live.slice(0, SHOWN).map((r) => (

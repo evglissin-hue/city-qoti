@@ -467,6 +467,10 @@ li.loss .profit-bar i {
   padding: 5px 9px;
 }
 
+.profit-card .profit-row .muted {
+  margin-left: 4px;
+}
+
 /* Trade */
 
 .post-note,
@@ -774,8 +778,61 @@ li.loan {
 
 /* The Charter board */
 
+.charter-doc {
+  position: relative;
+  margin: 2px 0 10px;
+  padding: 10px 12px 12px;
+  border-radius: 4px;
+  background:
+    radial-gradient(circle at 15% 10%, rgba(255, 255, 255, 0.55), transparent 45%),
+    linear-gradient(175deg, #fbf3dd, #f1e2bd);
+  border: 1.5px solid rgba(90, 66, 49, 0.35);
+  outline: 1.5px dashed rgba(90, 66, 49, 0.25);
+  outline-offset: -6px;
+  box-shadow: 0 2px 0 rgba(90, 66, 49, 0.12);
+}
+
+.charter-title {
+  margin: 0 0 2px;
+  text-align: center;
+  font-family: 'Alegreya', Georgia, serif;
+  font-size: 1.05rem;
+  font-weight: 700;
+  font-variant: small-caps;
+  letter-spacing: 0.06em;
+}
+
 .charter-lede {
   margin: 0 0 6px;
+  text-align: center;
+  font-style: italic;
+  font-size: 0.92rem;
+}
+
+.wax-seal {
+  position: absolute;
+  right: 12px;
+  bottom: -14px;
+  display: grid;
+  place-items: center;
+  width: 2.3rem;
+  height: 2.3rem;
+  border-radius: 46% 54% 50% 50%;
+  font-family: 'Alegreya', Georgia, serif;
+  font-weight: 700;
+  font-size: 1.05rem;
+  color: rgba(255, 240, 230, 0.85);
+  background: radial-gradient(circle at 38% 34%, #c9c0b4, #8f877a 70%);
+  box-shadow:
+    inset 0 0 0 3px rgba(255, 255, 255, 0.15),
+    0 2px 3px rgba(60, 40, 20, 0.35);
+  transform: rotate(-8deg);
+  opacity: 0.75;
+}
+
+.wax-seal.ready {
+  background: radial-gradient(circle at 38% 34%, #d9604a, #9b2f22 72%);
+  opacity: 1;
 }
 
 ol.charter-goals {
@@ -791,15 +848,12 @@ li.goal {
   grid-template-columns: auto 1fr;
   gap: 9px;
   align-items: start;
-  padding: 6px 9px;
-  border-radius: 10px;
-  background: rgba(255, 251, 241, 0.75);
-  border: 1.5px solid var(--line);
+  padding: 5px 4px;
+  border-bottom: 1px solid rgba(90, 66, 49, 0.15);
 }
 
-li.goal.done {
-  background: rgba(127, 156, 108, 0.1);
-  border-color: rgba(95, 127, 80, 0.4);
+li.goal:last-child {
+  border-bottom: none;
 }
 
 li.goal p {
@@ -1014,6 +1068,48 @@ li.idea.unlocked .idea-mark {
 .idea-nudge {
   margin: 2px 0 0;
   color: #6b4f2a;
+}
+
+.idea-nudge:empty {
+  display: none;
+}
+
+.idea-gauge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 0.8rem;
+  color: var(--ochre-deep);
+}
+
+.idea-gauge svg {
+  width: 1.4rem;
+  height: 1.4rem;
+}
+
+.idea-gauge .track {
+  fill: none;
+  stroke: var(--paper-deep);
+  stroke-width: 3;
+}
+
+.idea-gauge .fill {
+  fill: none;
+  stroke: var(--ochre);
+  stroke-width: 3;
+  stroke-linecap: round;
+}
+
+.idea-lock {
+  color: var(--ink-soft);
+}
+
+li.idea.unlocked .idea-unlocks {
+  margin: 2px 0 0;
+}
+
+.idea-unlocks .muted {
+  margin-right: 2px;
 }
 
 /* Letters */
@@ -1680,6 +1776,21 @@ li.plan.settled p {
   box-shadow: 0 2px 6px rgba(30, 40, 60, 0.25);
 }
 
+.blueprint-tag.label {
+  transform: translate(-50%, -50%);
+  padding: 0;
+  border: none;
+  background: none;
+  box-shadow: none;
+  color: var(--blueprint);
+  font-family: 'Alegreya', Georgia, serif;
+  font-style: italic;
+  font-size: 0.82rem;
+  text-shadow:
+    0 0 3px #fffaf0,
+    0 0 6px #fffaf0;
+}
+
 .blueprint-tag.sketch {
   background: #fffaf0;
   color: var(--blueprint);
@@ -2068,8 +2179,7 @@ li.plan.settled p {
 
 /* The map floats over the bottom right, above the toolbar's row; the right column stops above it.
    On wide screens it drops down beside the toolbar instead. */
-.game-ui.with-minimap .side.right,
-.game-ui.with-minimap .side.right .inspector-panel {
+.game-ui.with-minimap .side.right {
   max-height: calc(100vh - 104px - 236px * var(--ui-scale));
 }
 
@@ -2086,8 +2196,7 @@ li.plan.settled p {
     max-width: calc(100vw - 20px - 164px * var(--ui-scale));
   }
 
-  .game-ui.with-minimap .side.right,
-  .game-ui.with-minimap .side.right .inspector-panel {
+  .game-ui.with-minimap .side.right {
     max-height: calc(100vh - 90px - 160px * var(--ui-scale));
   }
 }
@@ -2104,4 +2213,23 @@ li.plan.settled p {
   overflow-y: auto;
   scrollbar-width: none;
   padding-bottom: 8px;
+}
+
+/* The top bar keeps to one line with the rank pennant in it: tighter gaps, no wrapping, and the
+   season chip (the date already names the season) steps out on narrower screens. */
+.topbar {
+  gap: 12px;
+}
+
+.topbar-clock,
+.topbar-right,
+.seat,
+.speed-note {
+  white-space: nowrap;
+}
+
+@media (max-width: 1400px) {
+  .topbar .season-chip {
+    display: none;
+  }
 }
