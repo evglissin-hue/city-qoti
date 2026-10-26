@@ -38,6 +38,7 @@ import {
   tileDistance,
 } from './stores';
 import { deliverUpgrade } from '../tiers/api';
+import { isCartJob, keepCarts, matchCarts, stepCartJob, tickIdleCarts, type CartHooks } from './carts';
 import { available, finishTask, startTask, tickReturning, walkTo } from './tasks';
 
 /** Job classes in matching order: lower is more urgent (PorterJob.priority). */
@@ -75,6 +76,9 @@ export const logistics: System = {
     const workTime = isWorkTime(state.tick);
     if (state.logistics.jobs.length > 0) tickJobs(state, ctx, workTime);
     tickReturning(state, workTime);
+    // I2 (C4C): one cart per cart shed, parked when idle.
+    if (state.tick % PORTER_MATCH_EVERY === MATCH_OFFSET) keepCarts(state);
+    if (state.carts.length > 0) tickIdleCarts(state);
     if (workTime && state.tick % PORTER_MATCH_EVERY === MATCH_OFFSET) matchPorters(state);
     if (tickOfDay(state.tick) === 0) decayFlows(state);
   },
@@ -166,10 +170,12 @@ function matchPorters(state: WorldState): void {
       if (r && available(r, reach.b)) idle.push({ r, reach });
     }
   }
-  if (idle.length === 0) return;
+  if (idle.length === 0 && state.carts.length === 0) return;
   idle.sort((a, b) => a.r.id - b.r.id);
   const spots = spotsOf(state);
   const needs = needsOf(spots);
+  // Carts take the long hauls first; porters share what is left (same needs, same reservations).
+  if (state.carts.length > 0) matchCarts(state, spots, needs, CART_HOOKS);
   for (const { r, reach } of idle) assign(state, spots, needs, r, reach);
 }
 
@@ -275,7 +281,10 @@ function tickJobs(state: WorldState, ctx: TickCtx, workTime: boolean): void {
   let kept = 0;
   for (let i = 0; i < jobs.length; i++) {
     const job = jobs[i]!;
-    if (stepJob(state, ctx, job, workTime)) jobs[kept++] = job;
+    const going = isCartJob(state, job)
+      ? stepCartJob(state, ctx, job, CART_HOOKS)
+      : stepJob(state, ctx, job, workTime);
+    if (going) jobs[kept++] = job;
   }
   jobs.length = kept;
 }
@@ -362,6 +371,13 @@ function deliver(state: WorldState, ctx: TickCtx, job: PorterJob, dst: Building)
   }
   addFlow(state, job.from, job.to, n);
 }
+
+const CART_HOOKS: CartHooks = {
+  sourceAvail,
+  deliver,
+  stallOrder,
+  clearingClass: JobClass.clearing,
+};
 
 function unreserve(job: PorterJob, src: Building | undefined, dst: Building | undefined): void {
   const g = job.good;

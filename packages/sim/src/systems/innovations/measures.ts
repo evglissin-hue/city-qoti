@@ -148,7 +148,7 @@ export function measureProgress(state: WorldState, def: InnovationDef, s: Innova
   if (s.unlockedTick >= 0) return 100;
   const p = (code: string, name: string, fallback: number) =>
     param(predicateParams(def.condition, code) ?? [], name, fallback);
-  let v = 0;
+  let v: number;
   switch (def.measure) {
     case 'clayPitDays':
       v = share(s.counter, p('clayPitWorked', 'days', 2));
