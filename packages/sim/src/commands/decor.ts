@@ -4,6 +4,7 @@ import type { Decor, RejectReason, SeatId, TickCtx, WorldState } from '../contra
 import { canPlaceDecor, canPlaceDecorRun } from '../rules/decor';
 import { findById, removeById } from '../state/entities';
 import { worldIndex } from '../state/worldIndex';
+import { markCharmSoon } from '../systems/hearth/charm/dirty';
 import { decorView } from '../view';
 import { checkIds, type HandlerFor, takeId, worldChanged } from './util';
 
@@ -34,6 +35,7 @@ function addDecor(
   worldIndex(state).decorGrid.add(d);
   ctx.events.push({ e: 'decor.added', d: decorView(d) });
   worldChanged(state, decorRect(fx, fz), !!content.decorById.get(def)?.blocksWalking);
+  markCharmSoon(state);
 }
 
 export const place: HandlerFor<'decor.place'> = {
@@ -86,6 +88,7 @@ export const remove: HandlerFor<'decor.remove'> = {
       grid.remove(d);
       ctx.events.push({ e: 'decor.removed', id });
       worldChanged(state, decorRect(d.fx, d.fz), !!content.decorById.get(d.def)?.blocksWalking);
+      markCharmSoon(state);
     }
   },
 };
