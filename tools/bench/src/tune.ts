@@ -1,8 +1,10 @@
-// `npm run tune -w @qoti/bench [days] [seed] [economy] [villageDay] [handsOffDay]`: plays the standard start with
-// the autoplayer and prints a line per in-game day (C3X tuning). With a village day (C4B) the
-// valley becomes a Village that morning, the Ledger lays and zones a high street, and the run ends
-// with a top-down map of what grew there.
-import type { ValleySettings } from '@qoti/sim';
+// `npm run tune -w @qoti/bench [days] [seed] [economy] [villageDay] [handsOffDay]`: plays the
+// standard start with the autoplayer and prints a line per in-game day (C3X tuning). With a village
+// day (C4B) the valley becomes a Village that morning, the Ledger lays and zones a high street, and
+// the run ends with a top-down map of what grew there. TUNE_SAVE=<file.qoti> writes the valley
+// out, to open in the game (title screen, More, Open a valley file) or shoot with the e2e scripts.
+import { serialize, type ValleySettings } from '@qoti/sim';
+import { writeFileSync } from 'node:fs';
 import { autoplay, formatDays } from './autoplay';
 import { frontageAscii, grownSummary, streetRect } from './village';
 
@@ -16,7 +18,15 @@ const run = autoplay(seed, days, { economy, village, handsOff });
 console.log(`Autoplay ${seed}, ${economy}, ${days} days (${((performance.now() - t0) / 1000).toFixed(1)} s)`);
 console.log(formatDays(run.days));
 if (run.street) {
+  const rect = streetRect(run.street);
   console.log(`\n${grownSummary(run.hamlet.world)}`);
-  console.log(`\n${frontageAscii(run.hamlet.world, streetRect(run.street))}`);
+  console.log(`high street around (${(rect[0] + rect[2]) >> 1}, ${(rect[1] + rect[3]) >> 1})`);
+  console.log(`\n${frontageAscii(run.hamlet.world, rect)}`);
+}
+if (process.env.TUNE_SAVE) {
+  const w = run.hamlet.world;
+  w.time.connected = [];
+  writeFileSync(process.env.TUNE_SAVE, serialize(w));
+  console.log(`saved ${process.env.TUNE_SAVE}`);
 }
 if (process.env.TUNE_ACTIONS) console.log(run.actions.join('\n'));
