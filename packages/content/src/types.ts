@@ -223,6 +223,8 @@ export interface Taste {
   within?: number;
   /** Desirability weight, +-10 typical. */
   weight: number;
+  /** C3A addition: the taste counts when the thing is missing ("far from water", "treeless streets"). */
+  absent?: boolean;
 }
 
 export interface SpeciesDef {
