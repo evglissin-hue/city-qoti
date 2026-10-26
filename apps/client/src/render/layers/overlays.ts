@@ -666,14 +666,34 @@ export function overlaysLayer(): OverlaysLayer {
       const e = moods.get(b.id);
       const tier = tierOf.get(b.id);
       if (!e && !tier) {
-        // Empty homes: a pale dashed outline.
-        put(drapeOutline(m, b.x, b.z, b.x + w, b.z + d, 0.06, [0.9, 0.88, 0.82, 0.8], 0.1, 2));
+        // Empty homes: a pale dashed outline just outside the walls.
+        put(drapeOutline(m, b.x, b.z, b.x + w, b.z + d, 0.08, [0.9, 0.88, 0.82, 0.8], -0.3, 2));
         continue;
       }
+      // Mood as a pool of color that spills a tile past the walls and fades, so it reads round the
+      // house rather than hiding under it; the tier is a ring just outside the walls.
       ramp(e ? e.sum / e.n / 4 : 0.5, c);
-      put(drapeGrid(m, b.x, b.z, b.x + w, b.z + d, () => [c.r, c.g, c.b, 0.58], 0.07));
+      const x0 = b.x - 1;
+      const z0 = b.z - 1;
+      const x1 = b.x + w + 1;
+      const z1 = b.z + d + 1;
+      put(
+        drapeGrid(
+          m,
+          x0,
+          z0,
+          x1,
+          z1,
+          (x, z): Rgba => {
+            const edge = Math.min(x - x0, x1 - x, z - z0, z1 - z);
+            return [c.r, c.g, c.b, edge <= 0 ? 0 : edge < 1 ? 0.32 : 0.62];
+          },
+          0.07,
+          0.5,
+        ),
+      );
       const t = new Color(TIER_TONES[tier ?? 'settler'] ?? TIER_TONES.settler!);
-      put(drapeOutline(m, b.x, b.z, b.x + w, b.z + d, 0.12, [t.r, t.g, t.b, 0.95], 0.02));
+      put(drapeOutline(m, b.x, b.z, b.x + w, b.z + d, 0.16, [t.r, t.g, t.b, 0.95], -0.32));
     }
   }
 

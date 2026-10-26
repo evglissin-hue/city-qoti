@@ -260,6 +260,7 @@ export function villageShowcase(mirror: Mirror, opts: { dense?: boolean } = {}):
     row(plans, ['cottage', 'townhouse', 'cottage'], 34, 62, 82, 2, 'plaster', 'homes-low');
     row(plans, ['townhouse', 'cottage', 'workshop'], 66, 95, 82, 2, 'stone', 'crafts');
     row(plans, ['cottage', 'farmstead', 'cottage'], 34, 95, 92, 0, 'timber', 'homes-low');
+    row(plans, ['cottage', 'cottage', 'townhouse'], 34, 95, 92, 2, 'stone', 'homes-low');
   }
 
   // Place them: occupancy, lots and zones for the Ledger overlays, then the building views.
