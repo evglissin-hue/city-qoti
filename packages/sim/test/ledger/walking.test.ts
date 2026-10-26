@@ -1,8 +1,11 @@
 // Porters and builders with real walking: the movement stub is replaced by one that takes two
 // ticks per tile, the way C3A's movement will, so nothing may assume arrival in the same tick.
+// The mock factory has to be async (Vitest loads the real module through it); test code only.
+/* eslint-disable no-restricted-syntax */
 import { describe, expect, it, vi } from 'vitest';
 import { MAP_SIZE, TICKS_PER_HOUR } from '../../src/constants';
 import type { EntityId, WorldState } from '../../src/contracts';
+import type * as MovementApi from '../../src/systems/movement/api';
 import { findById } from '../../src/state/entities';
 import { hamletFixture } from '../fixtures/hamlet';
 import { run } from '../helpers';
@@ -11,7 +14,7 @@ import { building, everyoneToWork, ticks, untilHour } from './helpers';
 const left = new Map<EntityId, number>();
 
 vi.mock('../../src/systems/movement/api', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('../../src/systems/movement/api')>();
+  const actual = await importOriginal<typeof MovementApi>();
   return {
     ...actual,
     requestMove(state: WorldState, id: EntityId, target: number) {
