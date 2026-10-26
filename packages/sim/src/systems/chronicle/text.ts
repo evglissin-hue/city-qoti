@@ -4,6 +4,7 @@ import { chroniclePhrases, content } from '@qoti/content';
 import { MAP_SIZE } from '../../constants';
 import type { Building, SeatId, TickCtx, WorldState } from '../../contracts';
 import { buildingRect, householdIn, isHomeDef, rectGap2, tileGap2 } from '../../conditions/geo';
+import { findById } from '../../state/entities';
 import { fillText } from '../../view/hamlet';
 
 const S = MAP_SIZE;
@@ -56,9 +57,7 @@ export function placeName(state: WorldState, ctx: TickCtx, tile: number): string
   const x = tile % S;
   const z = (tile - x) / S;
   const P = chroniclePhrases;
-  const here = state.map.occupant[tile]
-    ? state.buildings.find((b) => b.id === state.map.occupant[tile])
-    : undefined;
+  const here = state.map.occupant[tile] ? findById(state.buildings, state.map.occupant[tile]!) : undefined;
 
   // The nearest home with a family, within 8 tiles.
   let home: Building | undefined;
@@ -77,8 +76,12 @@ export function placeName(state: WorldState, ctx: TickCtx, tile: number): string
   }
 
   let first = '';
+  const family =
+    here && isHomeDef(content.buildingById.get(here.def)) ? householdIn(state, here.id) : undefined;
+  // A family's own home is place enough; no need to name the neighbors too.
+  if (family) home = undefined;
   if (here) {
-    const h = isHomeDef(content.buildingById.get(here.def)) ? householdIn(state, here.id) : undefined;
+    const h = family;
     first = h
       ? fill(pick(ctx, P.atHome), [
           ['family', h.family],
@@ -108,7 +111,7 @@ export function placeName(state: WorldState, ctx: TickCtx, tile: number): string
     ]);
   } else if (water) {
     second = pick(ctx, P.byWater);
-  } else if (!here) {
+  } else if (!here && !family) {
     let near: Building | undefined;
     let d = 37;
     for (const b of state.buildings) {
@@ -121,6 +124,7 @@ export function placeName(state: WorldState, ctx: TickCtx, tile: number): string
     if (near) second = fill(pick(ctx, P.nearBuilding), [['building', lower(near.def)]]);
   }
 
+  if (family) return first;
   if (first && second) return `${first}, ${second}`;
   return first || second || pick(ctx, P.inTheOpen);
 }

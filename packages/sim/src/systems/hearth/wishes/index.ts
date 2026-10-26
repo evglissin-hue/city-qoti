@@ -119,16 +119,20 @@ export function generateWishes(
       if (activeAtHome(state, t.id, bind.home!)) continue;
       if (!evaluate(state, t.when, bind) || evaluate(state, t.target, bind)) continue;
       options.push(t);
-      weights += t.weight ?? 1;
+      weights += templateWeight(t);
     }
     if (options.length === 0) continue;
     let pickW = rng.int(weights);
     let k = 0;
-    while (pickW >= (options[k]!.weight ?? 1)) pickW -= options[k++]!.weight ?? 1;
+    while (pickW >= templateWeight(options[k]!)) pickW -= templateWeight(options[k++]!);
     makeWish(state, ctx, r, options[k]!, bind, rng.int(options[k]!.text.length));
     made++;
   }
   return made;
+}
+
+function templateWeight(t: WishTemplate): number {
+  return Math.max(1, t.weight ?? 1);
 }
 
 /** Lower mood weighs more: a resident at mood 20 is about twice as likely as one at 70. */

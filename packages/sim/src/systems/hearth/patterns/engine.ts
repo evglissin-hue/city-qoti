@@ -136,20 +136,16 @@ function pass(state: WorldState, ctx: TickCtx): PatternPassResult {
     result.added += added;
     result.removed += removed;
 
-    const discovered = h.discovered.some((d) => d.pattern === def.id);
-    if (!discovered && fresh.length > 0) {
-      h.sites = [...h.sites.filter((s) => s.pattern !== def.id), ...fresh];
+    const discovering = fresh.length > 0 && !h.discovered.some((d) => d.pattern === def.id);
+    if (!discovering && !added && !removed && !changed) continue;
+    // The views below read hearth.sites, so this pattern's sites are swapped in now.
+    h.sites = [...h.sites.filter((s) => s.pattern !== def.id), ...fresh];
+    if (discovering) {
       discover(state, ctx, def, fresh[0]!);
       result.discovered.push(def.id);
-    } else if (added) {
-      h.sites = [...h.sites.filter((s) => s.pattern !== def.id), ...fresh];
-      ctx.events.push({ e: 'pattern.siteAdded', p: patternView(state, def.id) });
-    } else if (removed) {
-      h.sites = [...h.sites.filter((s) => s.pattern !== def.id), ...fresh];
-      ctx.events.push({ e: 'pattern.siteRemoved', p: patternView(state, def.id) });
-    } else if (changed) {
-      h.sites = [...h.sites.filter((s) => s.pattern !== def.id), ...fresh];
-      ctx.events.push({ e: 'pattern.updated', p: patternView(state, def.id) });
+    } else {
+      const e = added ? 'pattern.siteAdded' : removed ? 'pattern.siteRemoved' : 'pattern.updated';
+      ctx.events.push({ e, p: patternView(state, def.id) });
     }
   }
 
