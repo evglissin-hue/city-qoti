@@ -30,7 +30,16 @@ export interface KitAnchors {
     width: number;
     height: number;
   };
+  /**
+   * C4E addition: animals that live in pens on the plot (sheep in a pasture, cows by the dairy,
+   * hens in a yard). Pens are kit-local rects [x0, z0, x1, z1] at ground level; the renderer keeps
+   * `count` animals of `kind` wandering and grazing inside each.
+   */
+  animals?: { kind: AnimalKind; pen: [number, number, number, number]; count: number }[];
 }
+
+/** C4E: animals the renderer can keep in a pen. */
+export type AnimalKind = 'sheep' | 'cow' | 'hen' | 'pony';
 
 /** C2 addition: a separately animated piece, such as windmill sails. */
 export interface KitPart {
@@ -53,8 +62,13 @@ export interface KitPart {
  */
 export interface Kit {
   id: string;
-  /** C3D-1 addition: 'nature' props (bushes, rocks, reeds...) that the renderer scatters. */
-  kind: 'building' | 'decor' | 'tree' | 'nature';
+  /**
+   * C3D-1 addition: 'nature' props (bushes, rocks, reeds...) that the renderer scatters. C4E:
+   * 'vehicle' (carts) and 'animal' (sheep, cows, ponies), drawn by the renderer's own layers.
+   */
+  kind: 'building' | 'decor' | 'tree' | 'nature' | 'vehicle' | 'animal';
+  /** C4E addition: the footprint (and entrance) the kit is drawn for when no def says otherwise. */
+  footprint?: { size: [number, number]; entrance: [number, number] };
   build(opts?: KitBuildOptions): BufferGeometry;
   /** C2 addition: anchors for effects (smoke, lights). Optional. */
   anchors?(opts?: KitBuildOptions): KitAnchors;

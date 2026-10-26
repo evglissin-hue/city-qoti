@@ -1,5 +1,27 @@
 export { mixHex, seeded, ShapeBuilder, vary, type V3 } from './geometry';
 export { kitById, kits, type Kit, type KitAnchors, type KitBuildOptions, type KitPart } from './kits';
+export type { AnimalKind } from './kits/types';
+export { animalArt, standingAnimal, type AnimalArt } from './kits/animals';
+export {
+  BED_Y,
+  CARTER_SEAT,
+  cartBodyGeometry,
+  cartLoadGeometry,
+  cartWheelGeometry,
+  mergeFlat,
+  PONY_OFFSET,
+  WHEEL_RADIUS,
+  WHEEL_X,
+} from './kits/vehicles';
+export {
+  DISTRICT_STYLES,
+  districtLook,
+  districtStyle,
+  type DistrictLook,
+  type DistrictStyle,
+  type GardenEdge,
+} from './kits/district';
+export { orchardTree, seasonOf } from './kits/village';
 export {
   CLOTH_COLORS,
   EXTRA_KINDS,

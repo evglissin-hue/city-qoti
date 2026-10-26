@@ -87,7 +87,21 @@ const state = {
 
 function sizeOf(id: string): { size: [number, number]; entrance: [number, number] } | null {
   const def = content.buildings.find((b) => b.art.kit === id);
-  return def ? { size: def.size, entrance: def.entrance } : null;
+  if (def) return { size: def.size, entrance: def.entrance };
+  // C4E: kits whose defs are not in content yet carry the footprint they are drawn for.
+  const fp = kitById.get(id)?.footprint;
+  return fp ? { size: fp.size, entrance: fp.entrance } : null;
+}
+
+/** C4E: a kit id with an optional footprint, 'cottage@3x2' (entrance in the front row, middle). */
+function kitAndSize(spec: string): {
+  id: string;
+  fp: { size: [number, number]; entrance: [number, number] } | null;
+} {
+  const [id = '', size] = spec.split('@');
+  if (!size) return { id, fp: sizeOf(id) };
+  const [w = 2, d = 2] = size.split('x').map(Number);
+  return { id, fp: { size: [w, d], entrance: [Math.floor(w / 2), d - 1] } };
 }
 
 /** C3D-1 lineups: trees by stage (and low detail, far right), or nature props by variant. */
@@ -190,9 +204,9 @@ function buildLineup(): Group {
       x += sfp.size[0] + 0.6;
       return;
     }
-    const kit = kitById.get(id);
+    const { id: kitId, fp } = kitAndSize(id);
+    const kit = kitById.get(kitId);
     if (!kit) return;
-    const fp = sizeOf(id);
     const opts: KitBuildOptions = {
       seed: Number.isFinite(seeds[i]) && seeds[i]! > 0 ? seeds[i]! : state.seed + i,
       ...(fp ?? {}),
@@ -217,6 +231,52 @@ function buildLineup(): Group {
   info.textContent = `lineup: ${ids.join(', ')}`;
   lineupWidth = x - 0.6;
   return row;
+}
+
+/**
+ * C4E: a grid of kits by district style (?scene=grid&rows=timber,stone,brick,plaster&kits=cottage,
+ * townhouse@2x3,shop). Each row passes its style in params; columns keep their seeds across rows so
+ * the same building can be compared style by style. `params` adds to every cell.
+ */
+let gridSize = [4, 4];
+function buildGrid(): void {
+  for (const c of [...holder.children]) holder.remove(c);
+  const rows = (q.get('rows') ?? 'timber,stone,brick,plaster').split(',');
+  const specs = (q.get('kits') ?? 'cottage,townhouse,shop,workshop,farmstead').split(',');
+  const seeds = (q.get('seeds') ?? '').split(',').map(Number);
+  const extra: Record<string, string | number | boolean> = {};
+  for (const kv of (q.get('params') ?? '').split(';').filter(Boolean)) {
+    const i = kv.lastIndexOf(':');
+    if (i > 0)
+      extra[kv.slice(0, i)] = Number.isFinite(Number(kv.slice(i + 1)))
+        ? Number(kv.slice(i + 1))
+        : kv.slice(i + 1);
+  }
+  const gap = Number(q.get('gap') ?? 0.5);
+  const cols = specs.map(kitAndSize);
+  const colW = cols.map((c) => c.fp?.size[0] ?? 1);
+  const rowD = Math.max(...cols.map((c) => c.fp?.size[1] ?? 1));
+  let total = 0;
+  for (const w of colW) total += w + gap;
+  rows.forEach((style, r) => {
+    let x = -total / 2;
+    cols.forEach(({ id, fp }, i) => {
+      const kit = kitById.get(id);
+      if (!kit) return;
+      const opts: KitBuildOptions = {
+        seed: Number.isFinite(seeds[i]) && seeds[i]! > 0 ? seeds[i]! : state.seed + i * 3,
+        ...(fp ?? {}),
+        params: { ...(style && style !== '-' ? { style } : {}), ...extra },
+        ...(state.lod === 'low' ? { lod: 'low' as const } : {}),
+      };
+      const mesh = new Mesh(kit.build(opts), material);
+      mesh.position.set(x, 0, (r - (rows.length - 1) / 2) * (rowD + gap) - (fp?.size[1] ?? 1) / 2);
+      holder.add(mesh);
+      x += colW[i]! + gap;
+    });
+  });
+  info.textContent = `grid: ${rows.join(', ')} x ${specs.join(', ')}`;
+  gridSize = [total, rows.length * (rowD + gap)];
 }
 
 const JOBS = ['bakery', 'farmhouse', 'fishers-hut', 'woodcutter', 'market-stall', 'builders-yard', ''];
@@ -325,6 +385,14 @@ if (sceneName === 'lineup') {
   const yaw = Number(q.get('yaw') ?? 0.5);
   camera.position.set(Math.sin(yaw) * dist, dist * 0.62, Math.cos(yaw) * dist);
   controls.target.set(0, Number(q.get('ty') ?? 0.6), 0);
+  state.spin = false;
+} else if (sceneName === 'grid') {
+  buildGrid();
+  const dist = Number(q.get('dist') ?? Math.max(6, Math.max(gridSize[0]!, gridSize[1]! * 1.4) * 1.05 + 2));
+  const yaw = Number(q.get('yaw') ?? 0.35);
+  camera.position.set(Math.sin(yaw) * dist, dist * Number(q.get('pitch') ?? 0.75), Math.cos(yaw) * dist);
+  controls.target.set(0, Number(q.get('ty') ?? 0.4), 0);
+  ground.scale.setScalar(2);
   state.spin = false;
 } else if (sceneName === 'residents') {
   buildResidents();

@@ -28,6 +28,8 @@ export interface RoofSpec {
   plain?: boolean;
   /** Underside color (defaults to a lighter trim, so overhangs do not read as holes). */
   soffit?: number;
+  /** C4E: a lean-to's high side at c1 instead of c0 (for lean-tos on the low sides of a wall). */
+  highAtC1?: boolean;
 }
 
 /** Base colors per roof material when no swatch is chosen. */
@@ -221,13 +223,18 @@ export function roofPart(s: ShapeBuilder, spec: RoofSpec): void {
       break;
     }
     case 'lean': {
-      // High side at c0, low eave at c1.
-      slope(s, spec, P(a0, y0, c1), P(a1, y0, c1), P(a1, y1, c0), P(a0, y1, c0), up(1), color);
+      // High side at c0, low eave at c1 (or the other way round with highAtC1).
+      const hi = spec.highAtC1 ? c1 : c0;
+      const lo = spec.highAtC1 ? c0 : c1;
+      const dir = spec.highAtC1 ? -1 : 1;
+      if (spec.highAtC1)
+        slope(s, spec, P(a1, y0, lo), P(a0, y0, lo), P(a0, y1, hi), P(a1, y1, hi), up(dir), color);
+      else slope(s, spec, P(a0, y0, lo), P(a1, y0, lo), P(a1, y1, hi), P(a0, y1, hi), up(dir), color);
       for (const ae of [a0, a1]) {
         const da = ae === a0 ? -1 : 1;
-        board(s, spec, P(ae, y0, c1), P(ae, y1, c0), ridgeAlongX ? [da, 0, 0] : [0, 0, da]);
+        board(s, spec, P(ae, y0, lo), P(ae, y1, hi), ridgeAlongX ? [da, 0, 0] : [0, 0, da]);
       }
-      board(s, spec, P(a0, y1, c0), P(a1, y1, c0), ridgeAlongX ? [0, 0, -1] : [-1, 0, 0]);
+      board(s, spec, P(a0, y1, hi), P(a1, y1, hi), ridgeAlongX ? [0, 0, -dir] : [-dir, 0, 0]);
       break;
     }
   }
@@ -324,7 +331,9 @@ function profile(spec: RoofSpec, c: number): number {
   const dc = Math.abs(c - cm);
   switch (spec.shape) {
     case 'lean':
-      return y1 - ((y1 - y0) * (c - c0)) / (c1 - c0);
+      return spec.highAtC1
+        ? y0 + ((y1 - y0) * (c - c0)) / (c1 - c0)
+        : y1 - ((y1 - y0) * (c - c0)) / (c1 - c0);
     case 'gambrel': {
       const yk = y0 + (y1 - y0) * 0.62;
       const dk = half * 0.68;
