@@ -23,7 +23,7 @@ One row per cycle. A cycle is one agent session working from one brief on one br
 | C4C Village chains, services and tiers | I2 | parallel | `cycle-04c-village-chains.md` | C4.0 | waiting |
 | C4D Lives, story characters and co-op tools | I2 | parallel | `cycle-04d-lives-and-coop.md` | C4.0 | waiting |
 | C4E Village art and rendering | I2 | parallel | `cycle-04e-village-art.md` | C4.0 | waiting |
-| C4F Village UI | I2 | parallel | `cycle-04f-village-ui.md` | C4.0 | waiting |
+| C4F Village UI | I2 | parallel | `cycle-04f-village-ui.md` | C4.0 | done on `cycle/04f-village-ui`; screenshots `c4f-*` |
 | C4X I2 integration and I3 planning | I2 | integration | `cycle-04x-integration.md` | C4A to C4F | waiting |
 
 Status values: waiting (dependencies not merged), ready, in progress (add the session link), PR open (add the PR link), merged.

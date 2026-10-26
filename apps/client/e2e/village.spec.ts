@@ -86,7 +86,7 @@ test('every village panel opens and works against a live village', async ({ page
 });
 
 test('plans and requests round trip between two browsers', async ({ browser }) => {
-  test.setTimeout(240_000);
+  test.setTimeout(420_000);
   const contextA = await browser.newContext();
   const a = await contextA.newPage();
   await a.goto(`/${DEBUG_QUERY}`);
@@ -101,7 +101,8 @@ test('plans and requests round trip between two browsers', async ({ browser }) =
   invite.search = DEBUG_QUERY;
   await b.goto(invite.toString());
   await b.getByTestId('join').click();
-  await waitLive(b);
+  // Two seats on SwiftShader share a few cores; joining and catching up can take a while.
+  await b.waitForFunction(() => window.__qoti?.status() === 'live', null, { timeout: 180_000 });
 
   // A sketches a bench with the ordinary decor tool and proposes it.
   await a.getByTestId('tool-plan').click();
@@ -135,7 +136,9 @@ test('plans and requests round trip between two browsers', async ({ browser }) =
   await expect.poll(async () => (await counts(a)).decor).toBe(1);
   await expect.poll(async () => (await counts(b)).decor).toBe(1);
 
-  // A asks B for something; B marks it done; A sees it done.
+  // A asks B for something; B marks it done; A sees it done (the feed is back once the books close).
+  await a.keyboard.press('Escape');
+  await b.keyboard.press('Escape');
   await a.getByTestId('request-ask').click();
   await a.getByTestId('ask-text').click();
   await a.getByTestId('ask-note').fill('A lantern for the bench, please.');

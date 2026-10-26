@@ -4,6 +4,7 @@ import { shortDate } from '../format';
 import { Glyph } from '../icons';
 import { letterKey, lettersOf, stepWord } from '../letters';
 import { Portrait } from '../Portrait';
+import { LIFE_ICON } from '../village';
 import { Empty, Frame } from './parts';
 import { openLetter } from './StoryLetter';
 
@@ -16,7 +17,9 @@ export function LettersPanel({ session }: { session: Session }) {
   void m.villageRevision.value;
   void m.letters.value;
   const stories = [...m.stories.values()].filter((s) => s.step >= 0 || s.residentId);
-  const notes = [...session.ui.letters.value].reverse();
+  const all = [...session.ui.letters.value].reverse();
+  const notes = all.filter((l) => !l.kind.startsWith('life-'));
+  const news = all.filter((l) => l.kind.startsWith('life-'));
   const close = () => (session.ui.panel.value = null);
   return (
     <Frame
@@ -47,6 +50,21 @@ export function LettersPanel({ session }: { session: Session }) {
             {notes.slice(0, 8).map((n) => (
               <li key={n.key}>
                 <Glyph id="heart" />
+                <span>{n.text}</span>
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
+      {news.length > 0 && (
+        <>
+          <h4 class="flourish">
+            <span>News of the neighbors</span>
+          </h4>
+          <ul class="thank-notes life-news" data-testid="life-news">
+            {news.slice(0, 8).map((n) => (
+              <li key={n.key}>
+                <Glyph id={LIFE_ICON[n.kind.slice(5)] ?? 'heart'} />
                 <span>{n.text}</span>
               </li>
             ))}
