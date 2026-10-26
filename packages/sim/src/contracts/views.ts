@@ -284,7 +284,8 @@ export interface ResidentDetail {
   story?: StoryView;
   /** Household savings in pennies and the next tier's progress. */
   savings?: number;
-  tierProgress?: { next: TierId; days: number; needed: number };
+  /** C4C adds `missing`: readable names of what the household still lacks for the next tier. */
+  tierProgress?: { next: TierId; days: number; needed: number; missing?: string[] };
 }
 
 /** Full building detail for the inspector (worker `inspect`). */
