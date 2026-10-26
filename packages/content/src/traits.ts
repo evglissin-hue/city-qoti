@@ -1,6 +1,10 @@
 import type { TraitDef } from './types';
 
-// The sixteen I1 traits (docs/spec/11-residents.md). Effects are read by name in the sim.
+// The sixteen I1 traits (docs/spec/11-residents.md). Effects are read by name in the sim
+// (packages/sim/src/systems/residents/traits.ts): mood and friendMood in mood points, scheduleShift
+// in hours, leisureRadius, walkSpeed, friendshipRate, friendshipDecay and homeTime in percent,
+// productivity and gardenYield as percent bonuses, and the *Weight effects as leisure multipliers.
+// Clashes are symmetric: if A clashes with B, B clashes with A.
 
 export const artistic: TraitDef = {
   id: 'artistic',
@@ -17,6 +21,7 @@ export const bookish: TraitDef = {
   blurb: 'Reads at breakfast, lunch and most of the way home.',
   clashes: ['sporty'],
   befriends: ['bookish', 'shy'],
+  effects: [['quietWeight', 2]],
 };
 
 export const cheerful: TraitDef = {
@@ -55,6 +60,7 @@ export const generous: TraitDef = {
   blurb: 'Brings a pie to every door, including the wrong ones.',
   clashes: ['thrifty'],
   befriends: ['cheerful', 'generous'],
+  effects: [['friendshipRate', 125]],
 };
 
 export const greenFingered: TraitDef = {
@@ -81,7 +87,10 @@ export const homebody: TraitDef = {
   blurb: 'Considers the garden gate an expedition.',
   clashes: ['curious', 'sporty'],
   befriends: ['homebody', 'green-fingered'],
-  effects: [['leisureRadius', 50]],
+  effects: [
+    ['leisureRadius', 50],
+    ['homeTime', 60],
+  ],
 };
 
 export const nightOwl: TraitDef = {
@@ -108,6 +117,7 @@ export const romantic: TraitDef = {
   blurb: 'Will walk twice as far if there are lanterns.',
   clashes: [],
   befriends: ['romantic', 'artistic'],
+  effects: [['lightWeight', 3]],
 };
 
 export const shy: TraitDef = {
@@ -119,6 +129,7 @@ export const shy: TraitDef = {
   effects: [
     ['friendshipRate', 50],
     ['friendshipDecay', 50],
+    ['quietWeight', 2],
   ],
 };
 
@@ -128,7 +139,10 @@ export const sporty: TraitDef = {
   blurb: 'Jogs. Nobody is sure where to.',
   clashes: ['bookish', 'homebody'],
   befriends: ['sporty'],
-  effects: [['walkSpeed', 80]],
+  effects: [
+    ['walkSpeed', 80],
+    ['natureWeight', 2],
+  ],
 };
 
 export const sweetTooth: TraitDef = {
@@ -137,6 +151,7 @@ export const sweetTooth: TraitDef = {
   blurb: 'Can smell a fresh loaf from the next parish.',
   clashes: [],
   befriends: ['sweet-tooth', 'cheerful'],
+  effects: [['bakeryWeight', 3]],
 };
 
 export const thrifty: TraitDef = {
