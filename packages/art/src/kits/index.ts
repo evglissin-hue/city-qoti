@@ -2,53 +2,57 @@
 // in `art.kit`; the client test checks that every one of them exists here.
 import * as B from './buildings';
 import * as D from './decor';
+import * as G from './goods';
 import * as P from './placeholders';
+import * as R from './residents';
 import * as T from './trees';
 import type { Kit } from './types';
+import * as W from './workplaces';
 
 // prettier-ignore
 export const kits: readonly Kit[] = [
   D.appleTree,
-  P.bakery,
+  W.bakeryKit,
   D.barrels,
   D.bench,
   T.birch,
   P.birdbath,
-  P.buildersYard,
+  W.buildersYardKit,
   D.cherryTree,
   B.cottage,
   D.crates,
   P.curvedBench,
-  P.farmhouse,
+  W.farmhouseKit,
   D.fence,
-  P.fishersHut,
+  W.fishersHutKit,
   D.flowerBed,
-  P.forestersLodge,
+  W.forestersLodgeKit,
+  G.handcart,
   P.hangingLantern,
   D.hedge,
   P.herbPlanter,
   B.house2,
   D.lantern,
   D.lowWall,
-  P.marketStall,
+  W.marketStallKit,
   P.mooringPost,
   T.oak,
   T.pine,
   D.planter,
   P.planterWall,
-  P.quarry,
-  P.resident,
+  W.quarryKit,
+  R.resident,
   P.ringBench,
-  P.sawpit,
+  W.sawpitKit,
   B.shed,
   D.signpost,
-  P.storehouse,
+  W.storehouseKit,
   B.townHall,
-  P.vegetablePlot,
+  W.vegetablePlotKit,
   B.well,
   P.wildflowerVerge,
   B.windmill,
-  P.woodcutter,
+  W.woodcutterKit,
 ];
 
 export const kitById: ReadonlyMap<string, Kit> = new Map(kits.map((k) => [k.id, k]));

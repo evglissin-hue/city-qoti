@@ -2,7 +2,17 @@
 // residents arrive. Fills the Mirror with resident views and posts agent frames every 100 ms, as
 // the worker would: folk stroll between nearby spots, porters carry goods, some work or hop.
 import { content } from '@qoti/content';
-import { AGENT_STRIDE, AgentAnim, AgentFlags, MAP_SIZE, type ResidentView, type TierId } from '@qoti/sim';
+import {
+  AGENT_STRIDE,
+  AgentAnim,
+  AgentFlags,
+  MAP_SIZE,
+  type BuildingRuntimeView,
+  type BuildingView,
+  type ResidentView,
+  type SimEvent,
+  type TierId,
+} from '@qoti/sim';
 import type { Mirror } from '../state/mirror';
 import { hash2 } from './coords';
 
@@ -31,6 +41,73 @@ export interface SyntheticOptions {
   anim?: number;
   /** Bubble flags for everyone, for bubble screenshots. */
   flags?: number;
+}
+
+/**
+ * Debug only: gives every building in the Mirror a plausible runtime (stock piles, outputs, crops,
+ * status bits) and, when `sites` is set, turns that many of them into construction sites at
+ * stages 0 to 3, so the art can be reviewed before the economy runs.
+ */
+export function fakeRuntime(mirror: Mirror, opts: { sites?: number; status?: boolean } = {}): void {
+  const events: SimEvent[] = [];
+  let site = 0;
+  let i = 0;
+  for (const b of mirror.buildings.values()) {
+    const def = content.buildingById.get(b.def);
+    const out = def?.methods?.[0]?.outputs ?? [];
+    const inputs = def?.methods?.[0]?.inputs ?? [];
+    const store: [string, number][] = def?.tags?.includes('storehouse')
+      ? [
+          ['logs', 50],
+          ['planks', 34],
+          ['stone', 22],
+          ['flour', 12],
+          ['bread', 20],
+          ['vegetables', 30],
+          ['fish', 8],
+          ['wheat', 16],
+        ]
+      : def?.tags?.includes('outlet')
+        ? [
+            ['bread', 14],
+            ['vegetables', 10],
+            ['fish', 6],
+          ]
+        : [];
+    const statusBits = [0, 1, 2, 4, 8, 16, 32, 64, 512, 1024];
+    const rt: BuildingRuntimeView = {
+      jobs: def?.jobs?.count ?? 0,
+      workers: 1,
+      present: 1,
+      status: opts.status ? statusBits[i % statusBits.length]! : 0,
+      condition: 100,
+      paused: false,
+      progress: ((i * 37) % 100) / 100,
+      input: inputs.map(([g]) => [g, 4] as [string, number]),
+      output: out.map(([g]) => [g, 6 + (i % 5)] as [string, number]),
+      store,
+    };
+    let stage: BuildingView['stage'] = 'built';
+    if (opts.sites && site < opts.sites && b.def !== 'town-hall') {
+      stage = 'construction';
+      rt.construction = {
+        stage: (site % 4) as 0 | 1 | 2 | 3,
+        progress: (site % 4) / 4,
+        needs: [['planks', 6]],
+        delivered: [
+          ['logs', 4 + site * 2],
+          ['planks', 2 + site * 3],
+          ['stone', 6],
+        ],
+        priority: false,
+      };
+      rt.status = 128;
+      site++;
+    }
+    events.push({ e: 'building.updated', b: { ...b, stage, rt } });
+    i++;
+  }
+  mirror.apply({ t: mirror.lastTurn.value, events, patches: [] });
 }
 
 /** Starts n synthetic residents; returns a stop function that clears them again. */

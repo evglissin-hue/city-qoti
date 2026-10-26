@@ -102,21 +102,33 @@ for (const scenario of scenarios) {
     await page.evaluate(() => window.__qoti.synthResidents(2000, { radius: 34 }));
     await view(page, 60);
     await stats(page, 'crowd medium d60');
-    await page.screenshot({ path: `${out}/c3d2-crowd-2000.png` });
+    await page.screenshot({ path: `${out}/c3d2-crowd-2000.png`, timeout: 180000 });
     await view(page, 30);
     await stats(page, 'crowd medium d30');
-    await page.screenshot({ path: `${out}/c3d2-crowd-2000-close.png` });
+    await page.screenshot({ path: `${out}/c3d2-crowd-2000-close.png`, timeout: 180000 });
     await page.close();
   } else if (scenario === 'hamlet' || scenario === 'dusk' || scenario === 'night') {
     const hour = scenario === 'hamlet' ? 10.5 : scenario === 'dusk' ? 19.2 : 22.5;
     const page = await open(`quality=medium&hour=${hour}`);
     await hamlet(page);
-    await page.evaluate(() => window.__qoti.synthResidents(120, { radius: 14 }));
+    await page.evaluate(() => {
+      window.__qoti.synthRuntime({});
+      window.__qoti.synthResidents(120, { radius: 14 });
+    });
     await view(page, 24);
     await stats(page, scenario);
-    await page.screenshot({ path: `${out}/c3d2-hamlet-${scenario}.png` });
+    await page.screenshot({ path: `${out}/c3d2-hamlet-${scenario}.png`, timeout: 180000 });
     await view(page, 12);
-    await page.screenshot({ path: `${out}/c3d2-hamlet-${scenario}-close.png` });
+    await page.screenshot({ path: `${out}/c3d2-hamlet-${scenario}-close.png`, timeout: 180000 });
+    await page.close();
+  } else if (scenario === 'sites') {
+    const page = await open('quality=medium&hour=11');
+    await hamlet(page, HAMLET.slice(0, 12));
+    await page.evaluate(() => window.__qoti.synthRuntime({ sites: 8 }));
+    await view(page, 20);
+    await page.screenshot({ path: `${out}/c3d2-construction.png`, timeout: 180000 });
+    await view(page, 13, -3, 0);
+    await page.screenshot({ path: `${out}/c3d2-construction-close.png`, timeout: 180000 });
     await page.close();
   } else if (scenario === 'bubbles') {
     const page = await open('quality=medium&hour=11');
@@ -126,7 +138,7 @@ for (const scenario of scenarios) {
       window.__qoti.renderer().setBubbles(true);
     });
     await view(page, 14);
-    await page.screenshot({ path: `${out}/c3d2-bubbles.png` });
+    await page.screenshot({ path: `${out}/c3d2-bubbles.png`, timeout: 180000 });
     await page.close();
   }
 }

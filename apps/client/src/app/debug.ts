@@ -10,7 +10,7 @@ import {
   type Turn,
   type ValleySettings,
 } from '@qoti/sim';
-import { startSyntheticResidents, type SyntheticOptions } from '../render/synthetic';
+import { fakeRuntime, startSyntheticResidents, type SyntheticOptions } from '../render/synthetic';
 import { SimHost } from '../worker/host';
 import type { Session } from './session';
 
@@ -168,6 +168,11 @@ export function installDebugHook(getSession: () => Session | null): void {
       stopSynth?.();
       stopSynth = startSyntheticResidents(session.mirror, n, opts);
       return true;
+    },
+    /** C3D: plausible runtimes for every building (piles, crops, status), and some construction sites. */
+    synthRuntime: (opts?: { sites?: number; status?: boolean }) => {
+      const session = s();
+      if (session) fakeRuntime(session.mirror, opts);
     },
     /** C3D: the renderer, for render tests (overlays, bubbles, follow, stats). */
     renderer: () => s()?.renderer ?? null,

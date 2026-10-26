@@ -39,7 +39,7 @@ const sun = new DirectionalLight(0xfff4e0, 1.8);
 sun.position.set(4, 6, 3);
 scene.add(sun);
 const ground = new Mesh(
-  new PlaneGeometry(9, 9),
+  new PlaneGeometry(60, 60),
   new MeshStandardMaterial({ color: palette.grass, roughness: 1 }),
 );
 ground.rotation.x = -Math.PI / 2;
@@ -118,6 +118,55 @@ function rebuild(): void {
     parts.push({ mesh: pm, speed: p.spinSpeed ?? 0 });
   }
   info.textContent = `${kit.id}: ${mesh.geometry.getAttribute('position').count / 3} triangles`;
+}
+
+/**
+ * Several kits side by side (?scene=lineup&kits=cottage,house&seeds=1,2&params=wall:rose;roof:slate).
+ * Buildings stand on their footprints with a little gap; decor sits in a row in front.
+ */
+let lineupWidth = 4;
+function buildLineup(): Group {
+  for (const c of [...holder.children]) holder.remove(c);
+  const ids = (q.get('kits') ?? 'cottage').split(',');
+  const seeds = (q.get('seeds') ?? '').split(',').map(Number);
+  const params: Record<string, string | number | boolean> = {};
+  for (const kv of (q.get('params') ?? '').split(';').filter(Boolean)) {
+    const i = kv.lastIndexOf(':');
+    const k = kv.slice(0, i);
+    const v = kv.slice(i + 1);
+    if (i <= 0) continue;
+    params[k] = v === 'true' ? true : v === 'false' ? false : Number.isFinite(Number(v)) ? Number(v) : v;
+  }
+  const row = new Group();
+  let x = 0;
+  ids.forEach((id, i) => {
+    const kit = kitById.get(id);
+    if (!kit) return;
+    const fp = sizeOf(id);
+    const opts: KitBuildOptions = {
+      seed: Number.isFinite(seeds[i]) && seeds[i]! > 0 ? seeds[i]! : state.seed + i,
+      ...(fp ?? {}),
+      params,
+      ...(state.lod === 'low' ? { lod: 'low' as const } : {}),
+    };
+    const w = fp ? fp.size[0] : 1;
+    const mesh = new Mesh(kit.build(opts), material);
+    mesh.position.set(x + (fp ? 0 : 0.5), 0, fp ? -fp.size[1] / 2 : 0);
+    row.add(mesh);
+    for (const p of kit.parts?.(opts) ?? []) {
+      const pg = p.geometry.clone().translate(-p.pivot[0], -p.pivot[1], -p.pivot[2]);
+      const pm = new Mesh(pg, material);
+      pm.position.set(mesh.position.x + p.pivot[0], p.pivot[1], mesh.position.z + p.pivot[2]);
+      row.add(pm);
+      parts.push({ mesh: pm, speed: p.spinSpeed ?? 0 });
+    }
+    x += w + 0.6;
+  });
+  row.position.x = -(x - 0.6) / 2;
+  holder.add(row);
+  info.textContent = `lineup: ${ids.join(', ')}`;
+  lineupWidth = x - 0.6;
+  return row;
 }
 
 const JOBS = ['bakery', 'farmhouse', 'fishers-hut', 'woodcutter', 'market-stall', 'builders-yard', ''];
@@ -209,7 +258,14 @@ function resize(): void {
 }
 window.addEventListener('resize', resize);
 resize();
-if (sceneName === 'residents') {
+if (sceneName === 'lineup') {
+  buildLineup();
+  const dist = Number(q.get('dist') ?? Math.max(5, lineupWidth * 1.15 + 2));
+  const yaw = Number(q.get('yaw') ?? 0.5);
+  camera.position.set(Math.sin(yaw) * dist, dist * 0.62, Math.cos(yaw) * dist);
+  controls.target.set(0, Number(q.get('ty') ?? 0.6), 0);
+  state.spin = false;
+} else if (sceneName === 'residents') {
   buildResidents();
   camera.position.set(0.1, 1.1, 3.6);
   controls.target.set(0, 0.12, -0.05);

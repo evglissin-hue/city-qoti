@@ -60,9 +60,13 @@ function addNightGlow(material: Material, night: { value: number }): void {
           '#ifdef USE_INSTANCING',
           'qWorld = instanceMatrix * qWorld;',
           '#endif',
+          // C3D: buildings are batched; glow 2 marks lights that are always on (lanterns, shops).
+          '#ifdef USE_BATCHING',
+          'qWorld = batchingMatrix * qWorld;',
+          '#endif',
           'qWorld = modelMatrix * qWorld;',
           'float qHash = fract(sin(dot(floor(qWorld.xyz * 1.5), vec3(12.9898, 78.233, 37.719))) * 43758.5453);',
-          `vGlow = glow * step(qHash, ${WINDOW_GLOW_SHARE.toFixed(2)});`,
+          `vGlow = glow > 1.5 ? 1.0 : glow * step(qHash, ${WINDOW_GLOW_SHARE.toFixed(2)});`,
         ].join('\n'),
       );
     shader.fragmentShader = shader.fragmentShader

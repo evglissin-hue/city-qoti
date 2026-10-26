@@ -17,6 +17,8 @@ export {
   type ResidentLookInput,
   type SpeciesId,
 } from './kits/residents';
+export { constructionGeometry, type ConstructionOptions } from './kits/construction';
+export { ACCENT_SWATCHES, ROOF_MATERIALS, ROOF_SWATCHES, WALL_SWATCHES } from './kits/style';
 export { BUNDLE_GOODS, bundleGeometry, crateOf, GOOD_COLORS, pileLevel, pileOf } from './kits/goods';
 export { PAINT, RIG, RIG_PIVOTS, RigBuilder, type Channel } from './rig';
 export { beam, cylX, cylZ, panel } from './shapes';

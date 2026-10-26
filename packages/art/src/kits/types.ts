@@ -20,6 +20,16 @@ export interface KitAnchors {
   smoke?: [number, number, number][];
   /** Lantern flames and lit windows, for ground glow and night lights. */
   lights?: [number, number, number][];
+  /**
+   * C3D addition: the painted board where custom sign text goes (center just off the board, the
+   * direction it faces, and its size), so the renderer can letter it with a canvas texture.
+   */
+  sign?: {
+    center: [number, number, number];
+    normal: [number, number, number];
+    width: number;
+    height: number;
+  };
 }
 
 /** C2 addition: a separately animated piece, such as windmill sails. */
