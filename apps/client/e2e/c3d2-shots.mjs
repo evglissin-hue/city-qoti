@@ -99,9 +99,19 @@ for (const scenario of scenarios) {
   if (scenario === 'crowd') {
     const page = await open('quality=medium&hour=13');
     await hamlet(page);
+    await view(page, 60);
+    await stats(page, 'no residents d60');
     await page.evaluate(() => window.__qoti.synthResidents(2000, { radius: 34 }));
     await view(page, 60);
     await stats(page, 'crowd medium d60');
+    const cpu = await page.evaluate(() => {
+      // Main-thread cost of the agents layer alone (interpolation, LOD, matrices) per frame.
+      const agents = window.__qoti.renderer().layers.find((l) => l.id === 'agents');
+      const t0 = performance.now();
+      for (let i = 0; i < 60; i++) agents.frame(1 / 60);
+      return (performance.now() - t0) / 60;
+    });
+    console.log(`agents layer CPU per frame with 2000 residents: ${cpu.toFixed(2)} ms`);
     await page.screenshot({ path: `${out}/c3d2-crowd-2000.png`, timeout: 180000 });
     await view(page, 30);
     await stats(page, 'crowd medium d30');

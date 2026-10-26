@@ -68,6 +68,10 @@ interface Look {
   extras: { kind: ExtraKind; color: Color }[];
   seed: number;
   lane: number;
+  /** Pools resolved once, so the per-frame loop builds no keys. */
+  full: Pool;
+  simple: Pool;
+  extraPools: Pool[];
 }
 
 interface Track {
@@ -204,6 +208,7 @@ export function agentsLayer(): AgentsLayer {
   const material = createResidentMaterial();
   const time = material.userData.time as { value: number };
   const pools = new Map<string, Pool>();
+  let dots: Pool | null = null;
   const bundles = new Map<number, Pool>();
   let shadows: InstancedMesh | null = null;
   const shadowTex = shadowTexture();
@@ -286,6 +291,9 @@ export function agentsLayer(): AgentsLayer {
       extras: look.extras.map((x) => ({ kind: x.kind, color: new Color(x.color) })),
       seed: hash2(id, 3, 17) * 40,
       lane: (hash2(id, 7, 29) - 0.5) * LANE_SPREAD,
+      full: pool(`${look.species}:full`, () => residentGeometry(look.species, 'full')),
+      simple: pool(`${look.species}:simple`, () => residentGeometry(look.species, 'simple')),
+      extraPools: look.extras.map((x) => pool(`extra:${x.kind}`, () => extraGeometry(x.kind))),
     };
     looks.set(id, l);
     return l;
@@ -468,19 +476,12 @@ export function agentsLayer(): AgentsLayer {
         const grow = Math.min(2.5, Math.max(1, Math.sqrt(d2) / (detail * 2.5)));
         s.multiplyScalar(grow);
         m.compose(p, q, s);
-        pool('dot', () => residentGeometry('rabbit', 'dot')).push(
-          m,
-          look.cloth,
-          look.fur,
-          look.furLight,
-          0,
-          0,
-          0,
-        );
+        dots ??= pool('dot', () => residentGeometry('rabbit', 'dot'));
+        dots.push(m, look.cloth, look.fur, look.furLight, 0, 0, 0);
         drawn.dot++;
         continue;
       }
-      pool(`${look.species}:${level}`, () => residentGeometry(look.species, level)).push(
+      (level === 'full' ? look.full : look.simple).push(
         m,
         look.cloth,
         look.fur,
@@ -491,8 +492,8 @@ export function agentsLayer(): AgentsLayer {
       );
       if (level === 'full') {
         drawn.full++;
-        for (const x of look.extras) {
-          pool(`extra:${x.kind}`, () => extraGeometry(x.kind)).push(m, x.color, WHITE, WHITE, 0, 0, 0);
+        for (let k = 0; k < look.extras.length; k++) {
+          look.extraPools[k]!.push(m, look.extras[k]!.color, WHITE, WHITE, 0, 0, 0);
         }
       } else drawn.simple++;
       if (carry > 0) {
