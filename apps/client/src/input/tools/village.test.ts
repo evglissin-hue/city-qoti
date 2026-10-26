@@ -95,15 +95,16 @@ describe('the zone tool', () => {
     const { ctx } = toolCtx(session, [], submitted);
     const tool = zoneTool(ctx);
     tool.variant!.value = 'homes-low';
+    // Three rows deep: home lots want a back garden (C4B's deep plots).
     tool.pointerDown!(at(42, 51));
-    tool.pointerMove!(at(47, 52));
+    tool.pointerMove!(at(47, 53));
     expect(groundMarks.value.length).toBeGreaterThan(0);
-    tool.pointerUp!(at(47, 52));
+    tool.pointerUp!(at(47, 53));
     expect(groundMarks.value).toHaveLength(0);
     const paint = submitted.pop() as Extract<Command, { t: 'zone.paint' }>;
     expect(paint.t).toBe('zone.paint');
     expect(paint.zone).toBe('homes-low');
-    expect(paint.tiles).toHaveLength(12);
+    expect(paint.tiles).toHaveLength(18);
 
     // The fixture's shop lots are zoned already: Shift+drag clears them.
     tool.pointerDown!(at(66, 51, { shiftKey: true }));
