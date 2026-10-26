@@ -69,11 +69,21 @@ function speciesOf(state: WorldState, h: Household): string {
 }
 
 /** The best vacant home for a species, ties by building id. */
-function bestHome(state: WorldState, vac: readonly Vacancy[], species: string): [Vacancy | null, number] {
+function bestHome(
+  state: WorldState,
+  vac: readonly Vacancy[],
+  species: string,
+  memo?: Map<string, number>,
+): [Vacancy | null, number] {
   let best: Vacancy | null = null;
   let bestScore = -Infinity;
   for (const v of vac) {
-    const s = homeDesirability(state, v.building, species);
+    const key = `${species}|${v.building.id}`;
+    let s = memo?.get(key);
+    if (s === undefined) {
+      s = homeDesirability(state, v.building, species);
+      memo?.set(key, s);
+    }
     if (s > bestScore) {
       bestScore = s;
       best = v;
@@ -94,18 +104,20 @@ export function arrivals(state: WorldState, ctx: TickCtx, rng: Rng): number {
     : Math.min(MAX_ARRIVALS_PER_DAY, 1 + Math.floor(vac.length / 4), vac.length);
   const gate = gateTile(state);
   const present = new Set(state.residents.map((r) => r.species));
+  // Arrivals do not change what a home is worth to a species, so each is scored once.
+  const memo = new Map<string, number>();
   for (let i = 0; i < k && vac.length > 0; i++) {
     // Every species is welcome; the best home on offer tips the scales, and a valley full of
     // one kind of folk is less likely to draw more of them (the founders are always mixed).
     const weights: [string, number][] = [];
     for (const sp of content.species) {
       if (founding && present.has(sp.id)) continue;
-      const [, score] = bestHome(state, vac, sp.id);
+      const [, score] = bestHome(state, vac, sp.id, memo);
       const same = state.households.filter((h) => speciesOf(state, h) === sp.id).length;
       weights.push([sp.id, ((6 + Math.max(0, score)) * 2) / (2 + same)]);
     }
     const species = pickSpecies(rng, weights);
-    const [home] = bestHome(state, vac, species);
+    const [home] = bestHome(state, vac, species, memo);
     if (!home) break;
     vac.splice(vac.indexOf(home), 1);
     present.add(species);
