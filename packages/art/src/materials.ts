@@ -113,7 +113,7 @@ void qRigSetup() {
     else qAx = sin(uTime * 1.7 + seed) * 0.07;
   } else if (rig > 2.5 && rig < 4.5) {
     float side = rig < 3.5 ? 1.0 : -1.0;
-    if (walk) qShift = vec3(0.0, max(0.0, -cos(ph) * side) * 0.016, -sin(ph) * side * 0.024);
+    if (walk) qShift = vec3(0.0, max(0.0, -cos(ph) * side) * 0.03, -sin(ph) * side * 0.045);
     else if (hop) qShift = vec3(0.0, 0.012, -0.01);
   } else if (rig > 4.5 && rig < 5.5) {
     qPivot = vec3(0.0, 0.255, 0.01);

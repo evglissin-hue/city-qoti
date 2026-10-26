@@ -365,7 +365,7 @@ export function wallLantern(s: ShapeBuilder, p: V3, out: V3): V3 {
   const q: V3 = [p[0] + out[0] * 0.1, p[1], p[2] + out[2] * 0.1];
   beam(s, p, q, 0.008, palette.metal);
   s.box(q[0] - 0.035, q[1] - 0.12, q[2] - 0.035, q[0] + 0.035, q[1] - 0.105, q[2] + 0.035, palette.metal);
-  s.glow(1);
+  s.glow(2);
   s.box(q[0] - 0.028, q[1] - 0.105, q[2] - 0.028, q[0] + 0.028, q[1] - 0.03, q[2] + 0.028, palette.lantern);
   s.glow(0);
   s.cylinder(q[0], q[2], 0.05, 0, q[1] - 0.03, q[1] + 0.01, palette.metal, 4, Math.PI / 4);

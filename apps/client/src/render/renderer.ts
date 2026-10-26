@@ -37,6 +37,7 @@ import { lightingAt, WINDOW_HASH_GLSL } from './lighting';
 import { pickTileFromRay } from './picking';
 import { PostChain } from './post';
 import { QUALITY_PRESETS, type Quality } from './quality';
+import { DynamicResolution } from './resolution';
 
 export type { Quality } from './quality';
 
@@ -87,6 +88,8 @@ export interface RenderStats {
   frameMs: number;
   drawCalls: number;
   triangles: number;
+  /** Pixel ratio the frame is drawn at, after dynamic resolution. */
+  pixelRatio: number;
 }
 
 /** The Three.js scene for one valley. Draws on demand: when the camera moves or something changes. */
@@ -95,7 +98,7 @@ export class Renderer implements RenderApi {
   readonly scene = new Scene();
   readonly camera = new PerspectiveCamera(FOV, 1, 0.5, 2000);
   readonly rig: CameraController;
-  readonly stats: RenderStats = { fps: 0, frameMs: 0, drawCalls: 0, triangles: 0 };
+  readonly stats: RenderStats = { fps: 0, frameMs: 0, drawCalls: 0, triangles: 0, pixelRatio: 1 };
   private readonly material = createKitMaterial();
   private readonly layers: RenderLayer[];
   private readonly hemi = new HemisphereLight(0xffffff, 0x444444, 1);
@@ -107,6 +110,14 @@ export class Renderer implements RenderApi {
   private readonly skyCanvas = document.createElement('canvas');
   private readonly skyTexture: CanvasTexture;
   private quality: Quality = 'medium';
+  /** The preset's pixel ratio for this screen; dynamic resolution scales it down when frames lag. */
+  private basePixelRatio = 1;
+  private readonly resolution = ((): DynamicResolution => {
+    const r = new DynamicResolution();
+    const q = new URLSearchParams(location.search);
+    r.enabled = !(q.has('debug') && q.has('fixedres'));
+    return r;
+  })();
   /** Post chain on Medium and High; Low draws straight to the canvas. */
   private post: PostChain | null = null;
   private shadowsDirty = true;
@@ -309,7 +320,8 @@ export class Renderer implements RenderApi {
     if (this.env.motion) this.env.time.value += dt;
     for (const layer of this.layers) if (layer.frame?.(dt)) dirty = true;
     this.updateLighting();
-    if (dirty || this.needsRender) {
+    const drew = dirty || this.needsRender;
+    if (drew) {
       const start = performance.now();
       this.fitView();
       // Count every pass of the frame, not just the last one, so stats stay honest with post on.
@@ -323,6 +335,7 @@ export class Renderer implements RenderApi {
       this.stats.triangles = this.three.info.render.triangles;
       this.frames++;
     }
+    if (this.resolution.frame(now, drew, this.basePixelRatio)) this.applyPixelRatio();
     if (now - this.fpsWindow >= 1000) {
       this.stats.fps = Math.round((this.frames * 1000) / (now - this.fpsWindow));
       this.frames = 0;
@@ -392,11 +405,23 @@ export class Renderer implements RenderApi {
     this.rig.focus(x + 0.5, z + 0.5, distance);
   }
 
+  /** Applies the dynamic resolution scale to the canvas and the post chain. */
+  private applyPixelRatio(): void {
+    const ratio = this.basePixelRatio * this.resolution.scale;
+    this.three.setPixelRatio(ratio);
+    this.stats.pixelRatio = ratio;
+    this.post?.setSize(this.container.clientWidth || 1, this.container.clientHeight || 1, ratio);
+    this.invalidate();
+  }
+
   setQuality(q: Quality): void {
     const preset = QUALITY_PRESETS[q];
     this.quality = q;
     const dpr = window.devicePixelRatio || 1;
-    this.three.setPixelRatio(Math.min(dpr, preset.maxDpr));
+    this.basePixelRatio = Math.min(dpr, preset.maxDpr);
+    this.resolution.reset();
+    this.three.setPixelRatio(this.basePixelRatio);
+    this.stats.pixelRatio = this.basePixelRatio;
     const shadows = preset.shadowMap > 0;
     if (shadows !== this.three.shadowMap.enabled) {
       this.three.shadowMap.enabled = shadows;

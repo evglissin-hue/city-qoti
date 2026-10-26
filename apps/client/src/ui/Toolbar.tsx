@@ -16,6 +16,7 @@ import {
 } from '../input/catalog';
 import type { Tool } from '../input/tool';
 import { goodName, thousands } from './format';
+import { thumbnail, type ThumbnailKind } from '../render/thumbnails';
 import { Glyph, ToolIcon } from './icons';
 import { lenses, overlays, toolsForLens } from './lenses';
 import { rejectText } from './messages';
@@ -172,6 +173,12 @@ function CostLine({ coins, goods, free }: { coins?: number; goods?: [string, num
   );
 }
 
+/** A card's little portrait of the piece, drawn from its art kit (blank until it is ready). */
+function Thumb({ kind, id }: { kind: ThumbnailKind; id: string }) {
+  const url = thumbnail(kind, id).value;
+  return <span class="thumb">{url && <img src={url} alt="" draggable={false} />}</span>;
+}
+
 /** The Build picker: the valley's buildings by group, each card with its footprint and cost. */
 function BuildingPicker({ session, tool }: { session: Session; tool: Tool }) {
   const m = session.mirror;
@@ -216,14 +223,17 @@ function BuildingPicker({ session, tool }: { session: Session; tool: Tool }) {
               title={blocked ? rejectText(blocked) : undefined}
               onClick={() => session.tools?.select('building', d.id)}
             >
-              <strong>{d.name}</strong>
-              <span class="size">
-                {d.size[0]} × {d.size[1]}
-                {!free && d.jobs ? `, ${d.jobs.count} ${d.jobs.count === 1 ? 'job' : 'jobs'}` : ''}
-                {!free && d.housing ? `, homes ${d.housing.residents}` : ''}
+              <Thumb kind="building" id={d.id} />
+              <span class="card-text">
+                <strong>{d.name}</strong>
+                <span class="size">
+                  {d.size[0]} × {d.size[1]}
+                  {!free && d.jobs ? `, ${d.jobs.count} ${d.jobs.count === 1 ? 'job' : 'jobs'}` : ''}
+                  {!free && d.housing ? `, homes ${d.housing.residents}` : ''}
+                </span>
+                <CostLine coins={d.cost?.coins} goods={d.cost?.goods} free={free} />
+                {!free && d.upkeep ? <span class="upkeep muted">{d.upkeep} a day to keep</span> : null}
               </span>
-              <CostLine coins={d.cost?.coins} goods={d.cost?.goods} free={free} />
-              {!free && d.upkeep ? <span class="upkeep muted">{d.upkeep} a day to keep</span> : null}
             </button>
           );
         })}
@@ -277,12 +287,15 @@ function DecorPicker({ session, tool, linear }: { session: Session; tool: Tool; 
               onClick={() => (locked ? session.toast(hint) : session.tools?.select(tool.id, def.id))}
             >
               {locked && <Glyph id="lock" class="lock" />}
-              <strong>{def.name}</strong>
-              {locked ? (
-                <span class="cost muted">In the Pattern Book</span>
-              ) : (
-                !free && def.cost?.coins && <CostLine coins={def.cost.coins} free={false} />
-              )}
+              <Thumb kind="decor" id={def.id} />
+              <span class="card-text">
+                <strong>{def.name}</strong>
+                {locked ? (
+                  <span class="cost muted">In the Pattern Book</span>
+                ) : (
+                  !free && def.cost?.coins && <CostLine coins={def.cost.coins} free={false} />
+                )}
+              </span>
             </button>
           );
         })}

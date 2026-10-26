@@ -84,7 +84,10 @@ describe('art kits', () => {
     expect(parts.length).toBe(1);
     expect(parts[0]!.spinAxis).toEqual([0, 0, 1]);
     const lantern = kitById.get('lantern')!;
-    expect(Array.from(lantern.build().getAttribute('glow').array).some((v) => v === 1)).toBe(true);
+    // Lantern flames are lit every night (2), not in the seeded share of windows (1).
+    const flame = Array.from(lantern.build().getAttribute('glow').array);
+    expect(flame.some((v) => v === 2)).toBe(true);
+    expect(flame.some((v) => v === 1)).toBe(false);
     expect(lantern.anchors!().lights!.length).toBe(1);
   });
 });

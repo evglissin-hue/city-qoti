@@ -152,7 +152,7 @@ export function DebugOverlay({ session }: { session: Session }) {
   const h = session.debug.lastHash;
   return (
     <pre class="debug-overlay">
-      {`fps ${s?.fps ?? 0}  frame ${(s?.frameMs ?? 0).toFixed(1)} ms
+      {`fps ${s?.fps ?? 0}  frame ${(s?.frameMs ?? 0).toFixed(1)} ms  res ${(s?.pixelRatio ?? 1).toFixed(2)}x
 draws ${s?.drawCalls ?? 0}  tris ${s?.triangles ?? 0}
 turn ${m.lastTurn.value}  tick ${m.tick.value}
 hash ${h ? `${h.t} ${h.h}` : '-'}
