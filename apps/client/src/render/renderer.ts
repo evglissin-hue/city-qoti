@@ -30,27 +30,27 @@ import {
   type PresenceLayer,
   type RenderLayer,
 } from './layers';
-import { lightingAt } from './lighting';
+import { lightingAt, WINDOW_HASH_GLSL } from './lighting';
 import { pickTileFromRay } from './picking';
 import { PostChain } from './post';
 import { QUALITY_PRESETS, type Quality } from './quality';
 
 export type { Quality } from './quality';
 
-/** Share of windows that light up at night (the rest of the town is asleep). */
-const WINDOW_GLOW_SHARE = 0.62;
-
 /**
  * Adds the night glow to a kit material: vertices with the optional `glow` attribute (window panes,
- * flames) shine warm at night, on a seeded share of windows. A missing attribute reads as 0.
+ * flames) shine warm at night, on a seeded share of windows that changes with the hour (C3D-1: the
+ * share and the hash come from lighting.ts, so ground spill matches lit panes). A missing
+ * attribute reads as 0.
  */
-function addNightGlow(material: Material, night: { value: number }): void {
+function addNightGlow(material: Material, night: { value: number }, share: { value: number }): void {
   material.onBeforeCompile = (shader) => {
     shader.uniforms.uNight = night;
+    shader.uniforms.uWindowShare = share;
     shader.vertexShader = shader.vertexShader
       .replace(
         '#include <common>',
-        '#include <common>\nattribute float glow;\nvarying float vGlow;\nuniform float uNight;',
+        `#include <common>\nattribute float glow;\nvarying float vGlow;\nuniform float uNight;\nuniform float uWindowShare;\n${WINDOW_HASH_GLSL}`,
       )
       .replace(
         '#include <project_vertex>',
@@ -61,8 +61,7 @@ function addNightGlow(material: Material, night: { value: number }): void {
           'qWorld = instanceMatrix * qWorld;',
           '#endif',
           'qWorld = modelMatrix * qWorld;',
-          'float qHash = fract(sin(dot(floor(qWorld.xyz * 1.5), vec3(12.9898, 78.233, 37.719))) * 43758.5453);',
-          `vGlow = glow * step(qHash, ${WINDOW_GLOW_SHARE.toFixed(2)});`,
+          'vGlow = glow * qWindowLit(qWorld.xyz, uWindowShare);',
         ].join('\n'),
       );
     shader.fragmentShader = shader.fragmentShader
@@ -150,7 +149,7 @@ export class Renderer implements RenderApi {
     this.sun.shadow.radius = 3;
     this.fill.position.set(-1, 0.6, -0.8);
     this.scene.add(this.hemi, this.sun, this.sun.target, this.fill);
-    addNightGlow(this.material, this.night);
+    addNightGlow(this.material, this.night, this.env.windowShare);
     this.setQuality(quality);
     this.rig = new CameraController(this.camera, mirror, this.three.domElement);
 
@@ -208,6 +207,7 @@ export class Renderer implements RenderApi {
     this.three.toneMappingExposure = l.exposure;
     this.night.value = l.night;
     this.post?.setNight(l.night);
+    this.post?.setWarmth(l.warmth);
     this.fill.color.copy(l.fill);
     this.fill.intensity = l.fillIntensity;
     this.hemi.color.copy(l.hemiSky);
@@ -227,6 +227,7 @@ export class Renderer implements RenderApi {
     this.env.sunDir.value.copy(this.sunDir);
     this.env.sunColor.value.copy(l.sun);
     this.env.clouds.value = 1 - l.night;
+    this.env.windowShare.value = l.windowShare;
     this.invalidate();
   }
 
@@ -259,6 +260,7 @@ export class Renderer implements RenderApi {
     const dist = this.camera.position.distanceTo(target);
     const fog = this.scene.fog as Fog;
     this.env.focus.copy(target);
+    this.post?.setViewDistance(dist);
     fog.near = dist * 1.3 + 30;
     fog.far = dist * 3.2 + 140;
     if (!this.three.shadowMap.enabled) return;

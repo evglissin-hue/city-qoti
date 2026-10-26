@@ -18,6 +18,8 @@ export interface WorldEnv {
   /** Towards the sun (normalized) and its color. */
   sunDir: { value: Vector3 };
   sunColor: { value: Color };
+  /** Share of windows lit at this hour (see lighting.ts windowLit). */
+  windowShare: { value: number };
   /** 0 to 1: how much drifting cloud shade shows on the ground (none at night). */
   clouds: { value: number };
   /** Ground glow pools: xyz in world units, w strength. Filled by the lights layer. */
@@ -43,6 +45,7 @@ export function createWorldEnv(camera: PerspectiveCamera): WorldEnv {
     sunDir: { value: new Vector3(0.3, 0.8, 0.4).normalize() },
     sunColor: { value: new Color(0xfff4e0) },
     clouds: { value: 1 },
+    windowShare: { value: 0.6 },
     lights: { value: Array.from({ length: MAX_GROUND_LIGHTS }, () => new Vector4()) },
     lightCount: { value: 0 },
     focus: new Vector3(),

@@ -309,15 +309,15 @@ vec3 qGlow() {
     vec4 l = uLights[i];
     vec3 d = vQWorld - l.xyz;
     float r2 = dot(d.xz, d.xz) + d.y * d.y * 2.0;
-    sum += l.w * (1.0 / (1.0 + r2 * 3.0) - 0.06) * step(r2, 9.0);
+    sum += l.w * max(1.0 / (1.0 + r2 * 4.0) - 0.08, 0.0);
   }
-  return qSrgb(vec3(1.0, 0.78, 0.47)) * max(sum, vec3(0.0)) * uNight;
+  return qSrgb(vec3(1.0, 0.74, 0.42)) * min(sum, vec3(1.2)) * uNight * uNight;
 }
 
 float qCloudShade(vec2 wp) {
   vec2 p = wp * 0.028 + vec2(uTime * 0.006, uTime * 0.0035);
-  float c = smoothstep(0.52, 0.72, qFbm(p));
-  return 1.0 - c * 0.16 * uClouds;
+  float c = smoothstep(0.5, 0.72, qFbm(p));
+  return 1.0 - c * 0.2 * uClouds;
 }
 
 float qRimMist(vec2 wp) {
@@ -377,7 +377,7 @@ export function createGroundMaterial(tex: GroundTextures, env: WorldEnv): MeshSt
       )
       .replace(
         '#include <emissivemap_fragment>',
-        '#include <emissivemap_fragment>\ntotalEmissiveRadiance += diffuseColor.rgb * qGlow() * 2.2;',
+        '#include <emissivemap_fragment>\ntotalEmissiveRadiance += diffuseColor.rgb * qGlow() * 1.3;',
       )
       .replace(
         '#include <fog_fragment>',

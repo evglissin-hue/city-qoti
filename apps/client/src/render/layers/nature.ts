@@ -37,12 +37,12 @@ interface PropSpec {
 const PROPS: readonly PropSpec[] = [
   { kit: 'bush', variants: 2, max: 140, lod: 60, shadows: true },
   { kit: 'fallen-log', variants: 2, max: 90, shadows: true },
-  { kit: 'fern', variants: 2, max: 62, shadows: false },
-  { kit: 'grass-tuft', variants: 2, max: 58, lod: 34, shadows: false },
+  { kit: 'fern', variants: 2, max: 72, shadows: false },
+  { kit: 'grass-tuft', variants: 2, max: 72, lod: 40, shadows: false },
   { kit: 'mushrooms', variants: 2, max: 40, shadows: false },
   { kit: 'reeds', variants: 2, max: 80, shadows: false },
   { kit: 'rock', variants: 2, max: 140, lod: 60, shadows: true },
-  { kit: 'wildflowers', variants: 3, max: 62, shadows: false },
+  { kit: 'wildflowers', variants: 3, max: 76, shadows: false },
 ];
 
 function propKinds(): ScatterKind[] {

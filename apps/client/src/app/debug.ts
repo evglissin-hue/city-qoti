@@ -6,6 +6,7 @@ import {
   footprintSize,
   TILE_FP,
   type Command,
+  type LayerName,
   type Rot4,
   type Turn,
   type ValleySettings,
@@ -166,6 +167,32 @@ export function installDebugHook(getSession: () => Session | null): void {
       const r = s()?.renderer;
       r?.focus(x, z, distance);
       r?.rig.snap();
+    },
+    /**
+     * C3D-1, look checks only: overwrites a rect of a map layer in this client's mirror (never the
+     * sim), for art that has no sim behind it yet, such as fields and crops. `value` may be a
+     * function of the tile.
+     */
+    paintLayer: (
+      layer: string,
+      x0: number,
+      z0: number,
+      x1: number,
+      z1: number,
+      value: number | ((x: number, z: number) => number),
+    ) => {
+      const m = s()?.mirror;
+      if (!m) return;
+      const w = x1 - x0 + 1;
+      const name = layer as LayerName;
+      const data =
+        m.layers[name] instanceof Int32Array
+          ? new Int32Array(w * (z1 - z0 + 1))
+          : new Uint8Array(w * (z1 - z0 + 1));
+      for (let z = z0; z <= z1; z++)
+        for (let x = x0; x <= x1; x++)
+          data[(z - z0) * w + (x - x0)] = typeof value === 'function' ? value(x, z) : value;
+      m.apply({ t: m.lastTurn.value, events: [], patches: [{ layer: name, rect: [x0, z0, x1, z1], data }] });
     },
     /** C3D-1: the water tile nearest the start area center, or null. */
     nearestWater: () => {

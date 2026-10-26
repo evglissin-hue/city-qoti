@@ -155,6 +155,8 @@ function createWaterMaterial(env: WorldEnv, flow: Vector2): MeshStandardMaterial
           'if (vDepth < -0.004) discard;',
           'vec2 wp = vQWorld.xz;',
           'vec3 wn = qWaterNormal(wp);',
+          // Far away the ripples are finer than a pixel: flatten them instead of letting them shimmer.
+          'wn = normalize(mix(wn, vec3(0.0, 1.0, 0.0), clamp(length(fwidth(wp)) * 6.0 - 0.2, 0.0, 0.85)));',
           'float depthK = smoothstep(0.03, 0.42, vDepth);',
           'vec3 waterCol = mix(uShallow, uDeep * 0.82, depthK) * (0.94 + 0.1 * qNoise(wp * 0.8 - uFlow * uTime * 0.3));',
           // Foam: a soft band at the bank with a slow, broken pulse.
