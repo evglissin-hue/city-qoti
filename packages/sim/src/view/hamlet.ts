@@ -60,6 +60,7 @@ export function residentView(state: WorldState, r: Resident): ResidentView {
     look: r.look,
     flags: r.flags,
     ...(r.partner ? { partner: r.partner } : {}),
+    ...(r.stage === 'child' ? { bornDay: r.bornDay } : {}),
   };
 }
 
@@ -127,6 +128,9 @@ export function runtimeView(defId: string, rt: BuildingRuntime): BuildingRuntime
     output: goodPairs(rt.output),
     store: goodPairs(rt.store),
   };
+  // C4E: what a grown craft is making, and a home upgrade under way, for the art.
+  if (method && (def?.methods?.length ?? 0) > 1) view.method = method.id;
+  if (rt.upgrade && rt.upgrade.some((q) => q > 0)) view.upgrading = true;
   const c = rt.construction;
   if (c) {
     view.construction = {
