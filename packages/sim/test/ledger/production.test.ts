@@ -341,3 +341,40 @@ describe('field painting', () => {
     expect(f.state.map.terrain[120 * S + 134]).toBe(0);
   });
 });
+
+describe('every I1 producer at full and partial staffing', () => {
+  // [building, crew, hours, good made, units]: the spec's numbers (13-ledger.md, I1 buildings).
+  const cases: [string, number, number, string, number][] = [
+    ['sawpit', 2, 2, 'planks', 3],
+    ['sawpit', 1, 4, 'planks', 3],
+    ['bakery', 2, 2, 'bread', 5],
+    ['bakery', 1, 4, 'bread', 5],
+    ['windmill', 1, 1, 'flour', 2],
+    ['quarry', 3, 2, 'stone', 6],
+    ['quarry', 2, 2, 'stone', 4],
+    ['fishers-hut', 2, 2, 'fish', 4],
+    ['fishers-hut', 1, 2, 'fish', 2],
+    ['vegetable-plot', 1, 4, 'vegetables', 3],
+    ['woodcutter', 2, 3, 'logs', 8],
+    ['woodcutter', 1, 3, 'logs', 4],
+  ];
+  for (const [def, crew, hours, made, units] of cases) {
+    it(`${def} with ${crew} at work makes ${units} ${made} in ${hours} h`, () => {
+      const f = hamletFixture();
+      const b = place(f.state, def, 120, 100);
+      b.rt!.input[good('logs')] = 20;
+      b.rt!.input[good('flour')] = 20;
+      b.rt!.input[good('wheat')] = 20;
+      for (let z = 96; z < 108; z++) {
+        for (let x = 116; x < 128; x++) {
+          if (!f.state.map.occupant[z * S + x]) f.state.map.tree[z * S + x] = treeValue(TREE_SPECIES.oak, 3);
+        }
+      }
+      toWork(f.state, hire(f.state, b.id, crew));
+      ticks(f.state, hours * H - 1);
+      expect(stockOf(b, 'output', made)).toBeLessThan(units);
+      ticks(f.state, 1);
+      expect(stockOf(b, 'output', made)).toBe(units);
+    });
+  }
+});
