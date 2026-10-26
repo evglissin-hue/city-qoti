@@ -8,7 +8,7 @@ import { manhattan } from '../../src/systems/residents/places';
 import { Block, blockOf, scheduleClock } from '../../src/systems/residents/time';
 import { agentFrame } from '../../src/view/agents';
 import { hamletFixture } from '../fixtures/hamlet';
-import { resident, runner, ticks, untilHour } from './helpers';
+import { resident, runner, ticks, tileOf, untilHour } from './helpers';
 import { doorOf } from '../../src/systems/residents/places';
 
 /** The hamlet's people by name. */
@@ -202,5 +202,40 @@ describe('flags', () => {
     expect(p.flags & ResidentFlags.hop).toBeTruthy();
     ticks(r, 40);
     expect(p.flags & ResidentFlags.hop).toBe(0);
+  });
+});
+
+describe('getting lost', () => {
+  it('stands about lost when boxed in, then finds the way home within the hour', () => {
+    const f = hamletFixture();
+    const r = runner(f.state);
+    const { tansy } = people(f);
+    untilHour(r, 10);
+    // Out on the grass, and suddenly hemmed in on all four sides.
+    tansy.inside = 0;
+    tansy.move = null;
+    tansy.tile = tileOf(80, 58);
+    tansy.activity = { kind: 'stroll', tile: tansy.tile };
+    for (const [x, z] of [
+      [79, 58],
+      [81, 58],
+      [80, 57],
+      [80, 59],
+    ] as const) {
+      f.state.map.occupant[tileOf(x, z)] = 999;
+    }
+    f.state.networkVersion += 1;
+    let lost = false;
+    for (let i = 0; i < 2 * TICKS_PER_HOUR && !lost; i++) {
+      ticks(r, 1);
+      lost = tansy.activity.kind === 'stuck';
+    }
+    expect(lost).toBe(true);
+    expect(tansy.flags & ResidentFlags.stuck).toBeTruthy();
+    expect(tansy.history.some((h) => h.kind === 'stuck')).toBe(true);
+    expect(tansy.modifiers.some((m) => m.kind === 'lost')).toBe(true);
+    ticks(r, TICKS_PER_HOUR + 2 * 10);
+    expect(tansy.inside).toBe(homeOf(f, tansy));
+    expect(tansy.flags & ResidentFlags.stuck).toBe(0);
   });
 });

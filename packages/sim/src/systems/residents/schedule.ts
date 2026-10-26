@@ -154,6 +154,7 @@ function lost(state: WorldState, r: Resident, h: Household, homeDoor: number): v
     r.tile = homeDoor;
     setInside(state, r, h.homeId);
     r.activity = { kind: 'home' };
+    r.flags &= ~ResidentFlags.stuck;
   }
 }
 
