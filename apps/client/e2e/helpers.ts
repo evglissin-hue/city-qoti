@@ -18,6 +18,12 @@ export interface QotiHook {
   runGolden(script: unknown): Promise<string>;
   resyncs(): number;
   corrupt(): void;
+  // I1 (C3E)
+  mode(): string | null;
+  residentIds(): number[];
+  buildingsOf(def: string): number[];
+  select(sel: { kind: string; id: number } | null): void;
+  undoSize(): number;
 }
 
 declare global {
