@@ -345,6 +345,47 @@ Defined in cycle C3.0, then changed only additively during the I1 wave. Everythi
 
 **Fixtures**: `packages/sim/test/fixtures/hamlet.ts` (a standard hamlet on the flat test world: 10 buildings with runtime, 3 households, 9 residents, stocks, decor) and `apps/client/src/ui/mocks/hamlet.ts` (matching mock views with a little history).
 
+## I2 contracts
+
+Defined in cycle C4.0, then changed only additively during the I2 wave. Runtime handshakes (who sets prices, who pays wages, who grows lots, how carts move) are in `docs/build/i2-wave-notes.md`.
+
+**State** (`contracts/village.ts`, `contracts/state.ts`; `SAVE_VERSION = 3`, migration from 2 grows every per-good array to the I2 goods, ledger periods to the I2 categories and residents' needs to the tier needs at 100, starts `economy.external` at 0, adds empty layers and neutral slices; I1 valleys play on as Settlers at Hamlet rank):
+
+- `WorldState` gains `market` (price per good in pennies, yesterday's demand, today's demand so far, cover in hundredths of a day, 24 days of prices), `levers` (wage level 80 to 120, income tax 0 to 20, price caps and subsidies per good, export bans), `loans`, `lots` (zone, a world-axis footprint, facing rotation, frontage road tile, desirability, district style, the grown building), `trade` (per neighbor drift and impact in permille, standing orders, caravans, a 60-entry log), `carts` (entity ids from `nextId`, a `MoveState`, load, job, heading, parked), `charter` (rank, the Charter on the board, progress per goal, ready, rank history), `innovations` (progress 0 to 100, a counter, unlock tick or -1), `plans`, `requests`, `stories` (arc step: -1 before arrival, then steps, then the finale) and `village` counters (requests fulfilled, plans approved, couples, weddings, births, seaside).
+- `Resident` gains optional `partner`, `marriedDay`, `parents`, `apprentice`, `retired`, `story`; `Household` optional `tierDays`, `basket`, `owed`; `BuildingRuntime` optional `tier`, `pinned`, `upgrade`; `Building` optional `lot` and `style`; `EconomyState.external` (see Money).
+- Map layers gain `lot` (Int32, lot id), `traffic` (cart passes this hour) and `wear` (desire paths); `zone` holds zone layer values 1 to 5; `Flags.stairs`.
+- Goods 8 to 19 are the I2 goods, appended in this order: clay, bricks, wool, yarn, cloth, milk, cheese, apples, cider, firewood, herbs, tools. `NEED_IDS` appends `goods`, `social`, `health`, `education` (weight 0 until C4A and C4C weigh them; the inspector shows only needs that weigh something). `LEDGER_CATEGORIES` appends wages, sales, exports, imports, loans, interest, repayments, subsidies, terraforming, grants. `TIERS`, `RANKS`, `Zone`, `WAGES`, the market, trade, loan, lot, traffic, terraforming, tier, plan and life constants live in `constants.ts`.
+
+**Money**: `book(state, category, pennies)` moves money between the treasury and the world outside and counts it in `economy.external`; `pay(state, from, to, pennies, category | null)` moves it between purses (`'treasury'`, `'outside'`, `{ household }`), never below zero for households, booking the category when the treasury is a side. The invariant `treasury + sum(savings) - external` never changes; `moneyBalance(state)` returns it and `packages/sim/test/money.ts` has `moneySnapshot` and `expectMoneyInvariant` for every economy test.
+
+**Content**: `NeedsBasket` and `NeedGroup` (perDay may be fractional, perHousehold, season, substitutable goods with preference weights; services, charm and savings per tier), `ZoneDef` and `LotDef`, `NeighborDef` (sells and buys with percent factors, seasonal factors, caravan days, rank), `InnovationDef` (condition, measure, unlocks, rank), `CharterDef` and `CharterGoal` (lane, a `CountWhat` measure and a target), `StoryArc`, `StoryStep`, `ResidentTemplate`, `Reward`, `CartDef`; `BuildingDef` gains `jobs.tier`, `tier`, `grows`, `upgradesTo`, `requires`; `RoadDef` gains `carts`, `capacity`, `requires`; the `street` road (layer 3, needs Cobbles); `CountWhat` gains `foodDays`, `tierResidents`, `requestsFulfilled`, `goodsAtMarket`, `innovations`. Seed content: the Settler and Craftsfolk baskets, five zones, Millhaven and Stonecross, the five I2 innovations, the Village Charter, the cart. `PlanItem` (a proposed `Command`) lives in the sim contracts, since content never imports the sim.
+
+**Commands** (validated baselines, owners in the file headers): `zone.paint { zone, tiles }`, `zone.clear`, `ledger.setWageLevel { percent }`, `ledger.setTaxRate`, `ledger.setPriceCap { good, cap, subsidy }`, `trade.setStandingOrder { good, order | null }`, `loan.take { coins }`, `loan.repay { id, coins }`, `plan.add { name, items }`, `plan.remove`, `plan.approve` (runs the items in order where still valid; plans hold only building commands), `plan.comment`, `plan.seen`, `request.add { ask }`, `request.resolve { id, status }`, `charter.claim`, `terrain.raise { tiles }`, `terrain.lower`, `build.pinRecipe { id, method | null }`. New reject reasons `CREDIT_LIMIT` and `NOT_READY`. Zoning and loans are `LOCKED` before the Village rank. `plan.comment`, `plan.seen` and `request.add` work while a together-only seat is alone.
+
+**Events and views**: `market.updated` (`MarketView`), `levers.updated`, `loans.updated`, `trade.updated` (`TradeView` with post prices at 1.2x and 0.85x), `lot.added|updated|removed` (`LotView`), `charter.updated` (`CharterView`), `rank.up { rank, text }`, `innovation.updated|unlocked`, `plan.added|updated|removed` (`PlanView`), `request.added|updated` (`RequestView` with readable text), `story.step { s: StoryView, letter: LetterView }`, `life.event { kind, residents, text }`. Traffic, wear, lot and zone tiles travel as layer patches. `ViewSnapshot` carries all I2 views; `TownView` gains `rank`, `charter` (done, total, ready) and `tiers`; `ResidentView.partner`, `HouseholdView.savings`, `BuildingView.lot` and `.style`; `ResidentDetail` gains partner, parents, children, apprenticeship, retired, story, savings, tier progress; `BuildingDetail` gains profit per work day, methods to pin, the pinned one, its lot, tier and upgrade.
+
+**Agent frames**: carts that are out ride in the same frame as rows with `anim` 5 (`AgentAnim.cart`) and their first load good; ids never collide with residents (both come from `nextId`).
+
+**Cross-track APIs**:
+
+| API | File | Owner |
+|---|---|---|
+| `pay`, `moneyInside`, `moneyBalance`, `Purse` | `systems/economy/money.ts` | C4A |
+| `priceOf`, `tillPrice`, `buy`, `sell`, `outletsWith` | `systems/market/api.ts` | C4A |
+| `regionalPrice`, `wagesAt`, `creditLimit` | `view/village.ts` | C4A |
+| `growLot(state, ctx, lotId, defId, style?)` | `systems/growth/api.ts` | C4B |
+| `cartRoute(state, from, to)`, `requestCartMove`, `cartAt`, `cartTile`, `cartTicks` | `systems/traffic/api.ts` | C4B (baseline breadth-first route) |
+| `unlockInnovation(state, ctx, id)` | `systems/innovations/api.ts` | C4C |
+| `storyStep(state, ctx, arcId)`, `grantReward` | `systems/stories/api.ts` | C4D |
+| `refreshCharter(state, ctx)` | `systems/charter/index.ts` | C4D |
+| `rankAtLeast`, `hasInnovation`, `emptyVillageSlices`, `charterFrom` | `state/village.ts` | C4.0 |
+
+**System slots**: 24 zoning, 26 growth, 54 traffic, 56 services, 58 tiers, 62 market, 64 trade, 66 loans, 92 innovations, 94 charter, 96 stories, 97 plans, 98 requests. Baselines run in market (daily roll of demand and price history), traffic (carts drive, passes counted, cleared hourly), innovations (conditions checked hourly) and charter (goals counted hourly); the rest are registered stubs. `dailyOffset(hour, extra)` in `systems/economy/time.ts` gives a daily system's offset.
+
+**Client**: the Mirror keeps `market`, `levers`, `loans`, `trade`, `charter` (signals), `lots`, `innovations`, `plans`, `requests`, `stories` (maps), `letters` (received this session) and `villageRevision`; `MirrorChange` gains `village`, `letters`, `life` and `rankUp`.
+
+**Fixtures**: `packages/sim/test/fixtures/village.ts` (60 residents in 15 households, 16 of them Craftsfolk, at Village rank: two storehouses, two market stalls, a cobbled street, eleven lots on zoned frontage with one grown cottage, five days of prices, a standing order, a loan, an open plan and request) and `apps/client/src/ui/mocks/village.ts` (views built from it with the sim's own builders, plus a story under way, letters, a couple and a trade log). `?debug&fixture=village` opens it live.
+
 ## Client
 
 - **Boot**: title screen → create or join → `RoomConnection` → `SimHost.init` (new from seed, or snapshot) → `ready` → Mirror built from the view → Renderer and UI mount → live turns flow to the worker.
