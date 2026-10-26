@@ -114,6 +114,7 @@ describe('I0 contracts', () => {
       | 'plan.approve'
       | 'plan.comment'
       | 'plan.seen'
+      | 'plan.edit'
       | 'request.add'
       | 'request.resolve'
       | 'charter.claim'
