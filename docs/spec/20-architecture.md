@@ -380,6 +380,8 @@ Defined in cycle C4.0, then changed only additively during the I2 wave. Runtime 
 | `refreshCharter(state, ctx)` | `systems/charter/index.ts` | C4D |
 | `rankAtLeast`, `hasInnovation`, `emptyVillageSlices`, `charterFrom` | `state/village.ts` | C4.0 |
 
+**C4D additions** (additive): `CountWhat` gains `buildings` and `byWater` (built buildings by def id or tag; `byWater` within 3 tiles of water), `innovation` (ref id), `rank` (index), `plansApproved`, `weddings`, `standingOrders`; the `plan.edit` command; `ChronicleParams.variant` (a chosen variant instead of a random pick); in content, the three story arcs, Chronicle kinds `wedding`, `birth`, `seaside`, `rank-up`, `story-arrived`, `story-finale`, and `lifePhrases`. Exported for other tracks: `isTrained`, `isApprentice` (`systems/residents/life.ts`), `advanceStories` (`systems/stories`), `checkRequests`, `tidyPlans`, `celebrateRank`, `requestProgress` (`view/village.ts`).
+
 **System slots**: 24 zoning, 26 growth, 54 traffic, 56 services, 58 tiers, 62 market, 64 trade, 66 loans, 92 innovations, 94 charter, 96 stories, 97 plans, 98 requests. Baselines run in market (daily roll of demand and price history), traffic (carts drive, passes counted, cleared hourly), innovations (conditions checked hourly) and charter (goals counted hourly); the rest are registered stubs. `dailyOffset(hour, extra)` in `systems/economy/time.ts` gives a daily system's offset.
 
 **Client**: the Mirror keeps `market`, `levers`, `loans`, `trade`, `charter` (signals), `lots`, `innovations`, `plans`, `requests`, `stories` (maps), `letters` (received this session) and `villageRevision`; `MirrorChange` gains `village`, `letters`, `life` and `rankUp`.

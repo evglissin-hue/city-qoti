@@ -13,6 +13,8 @@ The Charter board at the Town Hall lists the goals for the next rank, each tagge
 | Market Town | I5 | 400 residents including 80 Merchants; 15 patterns; a 4-star festival; 20 Field Guide species; a weekly market with 10 goods; 2 seasons in surplus | a great flood or the Bandit Chief | Patrons, library, theater, tram, gas lamps, glassworks |
 | City | I5 | 900 residents including 100 Patrons; 25 patterns; a 5-star festival; 3 contracts kept; renown 4 | the Long Winter (two cold snaps) | city hall, railway, grand landmarks, new valleys |
 
+**The rank-up moment (I2, C4D)**: when the last goal is met, the County Clerk writes to both seats that the claim is open. Claiming at the Town Hall (`charter.claim`) puts the proclamation in the Chronicle, credited to the seats present, gives every resident a mood lift for two days and a hop for an hour, and sends `rank.up` with the proclamation for the UI's celebration (C4F). No trial in I2.
+
 **Trials**: completing a Charter's goals announces the trial for day 5 of the next season, so there is an evening to prepare and one tense dusk to see it through. The rank is granted when the trial is weathered: the town keeps at least half of its food stock, or the raid is repelled, or everyone stays warm. A failed trial returns the next season; nothing else is lost beyond the trial's own damage.
 
 ## Renown [I3]
