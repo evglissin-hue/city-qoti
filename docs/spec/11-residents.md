@@ -195,3 +195,20 @@ Story residents never leave and are marked in the UI. Their letters are the main
 - Resident inspector: portrait, name, species, traits, household, home, job, mood with breakdown, needs, friends, wish, short bio and history.
 - Follow camera on any resident.
 - Mood and wish bubbles above heads (toggleable).
+
+## As built in I1 (C3A)
+
+Where the I1 implementation fills in or differs from the sections above (`packages/sim/src/systems/residents`, `systems/movement`):
+
+- **Tastes**: each `Taste` is measured as a presence from 0 to 1 around the home door (charm category averages, tags of buildings and decor, water, homes nearby for crowds, trees, height above the low ground, quiet) times its weight; `absent: true` counts the missing part ("far from water", "treeless streets"). Home desirability adds 0.15 x average charm (radius 3) and +4 for a well within 8 tiles.
+- **Arrivals**: the founding arrival (first day, empty valley) fills every vacant home, up to 3, with working families of four of different species. Later arrivals pick a species weighted by the best vacant home for it, less likely the more households of that species live here, then claim that home.
+- **Departure** thresholds follow the economy dial (15, 25, 35); a household whose home is removed moves to the best vacant home for its species, or leaves at once.
+- **Schedules**: every resident thinks every 10 ticks at their own phase; departures carry a personal jitter of about 12 minutes. Free time is spent in outings of about an hour (home, a leisure spot, a friend's home, a stroll from home; children play within 4 tiles of home), re-chosen at each resident's own hour boundary. Hedgehogs ramble round the hedges after 22:00 on two nights in three. Children keep Early Bird hours but not Night Owl ones.
+- **Leisure spot**: features within 12 tiles (Manhattan; Curious x1.5, Homebody x0.5): benches and seats, flowers, trees, the well, water's edge, the market for foxes and the bakery for mice, scored by appeal, charm, species, traits (Romantic and lanterns, Shy and quiet, Sporty and greenery, Sweet Tooth and the bakery), distance, friends already there (+8) and a little whim.
+- **Food** is eaten at 07:00 (breakfast), not 06:00. Households of 4 or more always want a full pantry, so someone shops most evenings.
+- **Water**: wells serve households in id order, each from its nearest well in range with capacity left. Needs other than food move a quarter of the way to their target each hour, staggered by household.
+- **Beauty** target: 0.7 x min(100, charm x 100 / tier threshold (settler 25)) + 30 + the home's taste score, clamped.
+- **Friendships**: an hour together is worth 3 points at a friend's home, 2 outdoors at the same spot, 1 at work (counted every other hour); neighbors within 6 tiles gain 1 point a day with their three nearest neighboring households; children befriend children, family does not count. A full list makes room only by dropping its weakest level 0 acquaintance. Shy friendships decay every other day.
+- **Bond**: `addBond` gains from wishes stop at 3 hearts; `addBond(..., 'other')` reaches 5; long residence adds a heart every 2 years.
+- **Movement**: a tile takes exactly its ticks (road 5, grass 10, forest floor and fields 15, rock 20; Sporty x0.8), by the tile being entered. Walks replan when the next tile becomes blocked; with no way left the walker stops, marked stuck, goes home, and after an hour finds their way in regardless.
+- **Agent frames**: walkers keep to the left of their way, residents sharing a tile spread round it, and idle residents face what they came to see.

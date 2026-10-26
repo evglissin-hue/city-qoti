@@ -223,6 +223,8 @@ export interface Taste {
   within?: number;
   /** Desirability weight, +-10 typical. */
   weight: number;
+  /** C3A addition: the taste counts when the thing is missing ("far from water", "treeless streets"). */
+  absent?: boolean;
 }
 
 export interface SpeciesDef {
@@ -233,6 +235,8 @@ export interface SpeciesDef {
   dislikes: Taste[];
   /** Species-flavored given names. */
   givenNames: string[];
+  /** C3A addition: inspector bio openers, one picked per resident; {name} is the given name. */
+  bios?: string[];
   /** Art parameters for packages/art residents (ears, tail, fur palette ids). */
   art: ArtRef;
 }
@@ -248,6 +252,8 @@ export interface TraitDef {
   befriends?: string[];
   /** Data the sim reads by name, for example { mood: 5, scheduleShift: 2, walkSpeed: 0.8 }. As a list, never iterated by key. */
   effects?: [name: string, value: number][];
+  /** C3A addition: the trait as an adjective for bios ("early-rising"), when the name is a noun. */
+  adjective?: string;
 }
 
 // --- Condition DSL (wish targets, wish offers, achievements) -------------------------------------

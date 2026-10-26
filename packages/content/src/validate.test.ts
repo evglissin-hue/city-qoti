@@ -236,6 +236,29 @@ describe('I1 content', () => {
     expect(familyNames.length).toBeGreaterThan(0);
   });
 
+  it('meets the I1 name targets: 200 given names and 100 family names, no repeats', () => {
+    const given = species.flatMap((s) => s.givenNames);
+    expect(given.length).toBeGreaterThanOrEqual(200);
+    expect(new Set(given).size).toBe(given.length);
+    expect(familyNames.length).toBeGreaterThanOrEqual(100);
+    expect(new Set(familyNames).size).toBe(familyNames.length);
+    expect([...familyNames].sort()).toEqual(familyNames);
+    for (const name of [...given, ...familyNames]) expect(name).toMatch(/^[A-Z][a-z]+$/);
+    for (const s of species) {
+      for (const bio of s.bios ?? []) {
+        expect(bio, s.id).toContain('{name}');
+        expect(bio).not.toMatch(/\u2014/);
+      }
+    }
+  });
+
+  it('pairs every trait with at least eleven others (compatible pairs exist for all)', () => {
+    for (const t of traits) {
+      const ok = traits.filter((o) => o.id !== t.id && !t.clashes.includes(o.id));
+      expect(ok.length, t.id).toBeGreaterThanOrEqual(11);
+    }
+  });
+
   it('has the twelve wishes, eight patterns and ten achievements, with valid references', () => {
     expect(wishes).toHaveLength(12);
     expect(patterns).toHaveLength(8);
