@@ -15,7 +15,7 @@ One row per cycle. A cycle is one agent session working from one brief on one br
 | C3B Hearth v1 | I1 | parallel | `cycle-03b-hearth-v1.md` | C3.0 | waiting |
 | C3C Ledger v1 | I1 | parallel | `cycle-03c-ledger-v1.md` | C3.0 | waiting |
 | C3D Hamlet art and rendering | I1 | parallel | `cycle-03d-hamlet-art.md` | C3.0 | waiting |
-| C3E Hamlet UI | I1 | parallel | `cycle-03e-hamlet-ui.md` | C3.0 | waiting |
+| C3E Hamlet UI | I1 | parallel | `cycle-03e-hamlet-ui.md` | C3.0 | done on `cycle/03e-hamlet-ui`, waiting for C3X |
 | C3X I1 integration and I2 planning | I1 | integration | `cycle-03x-integration.md` | C3A to C3E | waiting |
 | C4.0 onward | I2 | | written by C3X | C3X | |
 

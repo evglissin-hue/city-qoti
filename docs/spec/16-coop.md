@@ -46,7 +46,8 @@ Ephemeral, never part of sim state (`21-networking-and-saves.md`).
 
 - Every entity records `builtBy` (seat) and whether it is handmade (decor, customization, landmarks).
 - **Removing the partner's handmade work** [I0] asks for confirmation and an optional reason, then leaves the partner a note: "<name> removed your bench by the mill: making room for the bakery."
-- **Undo** [I1]: each client keeps a stack of its own last 30 accepted commands with their inverses. Undo submits the inverse as a new command; the sim rejects it if the target changed since.
+- **Undo** [I1]: each client keeps a stack of its own last 30 accepted commands with their inverses (place, remove, paint roads and fields, plant and fell, notes, customize, priority, pause, goods for sale). Ctrl+Z (Cmd+Z) or the toolbar's undo button submits the inverse as a new command. The client first checks that the target still looks the way the command left it and refuses gently (`CHANGED`) if not; the sim rejects the inverse if anything else moved on. Undoing a removal rebuilds the piece fresh (a felled tree comes back as a sapling).
+- **Customized buildings are handmade** [I1]: removing one the partner customized asks first and leaves them a note, like decor.
 - **Who built this**: shown in every inspector.
 
 ## Time and speed [I0]
@@ -58,7 +59,7 @@ Ephemeral, never part of sim state (`21-networking-and-saves.md`).
 
 ## While you were away [I1]
 
-On connect, if the seat was away for at least one in-game day: a letter summarizing Chronicle entries, notable stats (population, treasury, patterns, wishes) and notes and requests for you since `lastSeenTick`.
+On connect, if the seat was away for at least one in-game day: a letter summarizing Chronicle entries, notable stats (population, treasury, patterns, wishes) and notes and requests for you since `lastSeenTick`. The client asks the worker for it (`inspect('away', seat)`) as soon as the valley loads and shows it on paper over the valley; Esc or "Back to it" puts it away.
 
 ## Lenses [I0 skeleton, grows each iteration]
 
@@ -66,8 +67,8 @@ Local UI state per laptop; Tab toggles (P8). The default comes from the seat pro
 
 | Lens | Toolbar (grows by iteration) | Overlays | Alerts |
 |---|---|---|---|
-| Hearth | decor, trees and gardens, customize [I1], Pattern Book [I1], wishes [I1], festivals [I3], Field Guide [I3], Chronicle [I1] | charm [I1], wishes [I1], habitats [I3] | wishes, pattern hints, festival prep |
-| Ledger | roads, buildings, fields [I1], storehouses [I1], budget and reports [I1], zoning [I2], trade [I2], policies [I2], Watch [I3] | flows [I1], coverage [I1], status [I1], land value [I2], traffic [I2] | shortages, idle buildings, budget |
+| Hearth | decor, trees and gardens, customize [I1], Pattern Book [I1], wishes [I1], plaques [I1], festivals [I3], Field Guide [I3], Chronicle [I1] | charm [I1], wishes [I1], habitats [I3] | wishes, pattern hints, thank-you letters, festival prep |
+| Ledger | roads, buildings, fields [I1], storehouses [I1], budget and reports [I1], zoning [I2], trade [I2], policies [I2], Watch [I3] | flows [I1], coverage [I1], status [I1], land value [I2], traffic [I2] | shortages, idle buildings, lean times |
 | Shared (both) | inspect, erase, notes, plans [I2], requests [I2], Charter board [I2], time | none | threats, Charter progress, partner pings |
 
 ## Together moments [I3]

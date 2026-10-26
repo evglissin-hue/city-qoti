@@ -80,7 +80,10 @@ Auto-detect picks a preset; the settings menu can override it.
 ## UI
 
 - **Look**: paper panels (`paper`) with soft shadows and thin ink outlines, line-art icons, small hand-drawn flourishes. Fonts: Alegreya (headings) and Alegreya Sans (UI, tabular numbers), self-hosted.
-- **Layout**: top bar (date, time and season, weather, effective speed, treasury, population, rank progress), bottom toolbar (the lens's tools), right inspector panel, left feed (alerts, notes, wishes, requests), minimap bottom right [I2].
+- **Layout**: top bar (date, time and season, weather, effective speed, treasury, population, rank progress), bottom toolbar (the lens's tools, then its books and overlay toggles, then undo), right inspector panel, left feed (alerts, notes, wishes, requests), minimap bottom right [I2].
+- **Books** [I1]: Wishes, the Pattern Book, the Chronicle, Plaques and the Ledger's Reports open from the toolbar one at a time; the left feed steps aside while one is open. The Pattern Book is a two-page spread in the middle of the screen; the Chronicle is a small gazette; plaques are brass. Keys: B Pattern Book, C Chronicle, J Wishes, L Reports, Esc closes.
+- **Portraits** [I1]: an inked SVG badge per resident from species, life stage, mood and look seed, until the art kit renders 3D portraits.
+- **Interface size**: at 120% and above the toolbar drops its labels (tooltips keep them); side panels grow with the size.
 - **Lenses**: Hearth uses the warm accent, Ledger the green accent; Tab toggles.
 - **Motion**: 100 to 200 ms transitions; reduced-motion setting.
 - **Writing**: warm, dry, witty; short sentences; never babyish; no em dashes anywhere.
