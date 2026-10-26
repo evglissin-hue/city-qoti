@@ -1,14 +1,14 @@
 // Resident inspector detail (C3A): what they are doing and where, a mood breakdown in plain words,
 // needs, friends, family, a short bio and their history. View code: nothing here feeds back.
 import { content } from '@qoti/content';
-import { DAYS_PER_YEAR, MAP_SIZE, NEED_IDS, NEED_WEIGHTS, TILE_FP } from '../constants';
+import { DAYS_PER_YEAR, MAP_SIZE, NEED_IDS, TILE_FP } from '../constants';
 import type { Building, EntityId, HistoryItem, Resident, ResidentDetail, WorldState } from '../contracts';
 import { findById } from '../state/entities';
 import { worldIndex } from '../state/worldIndex';
 import { treeStage, TREE_MATURE } from '../map/layers';
 import { modifierValue } from '../systems/residents/api';
 import { describeHome } from '../systems/residents/desirability';
-import { cheerfulFriendBonus, needPoints } from '../systems/residents/needs';
+import { cheerfulFriendBonus, needPoints, needWeights } from '../systems/residents/needs';
 import { dayIndex } from '../systems/residents/time';
 import { doorOf } from '../systems/residents/places';
 import { nameOf, residentView, wishView } from './hamlet';
@@ -130,6 +130,13 @@ const NEED_WORDS: readonly (readonly [min: number, text: string])[][] = [
     [35, 'Could do with some flowers'],
     [0, 'Rather drab, frankly'],
   ],
+  // I2 (C4A): the basket, once the market is open.
+  [
+    [85, 'Has all the basket asks'],
+    [60, 'Making do at the market'],
+    [35, 'Going without a few things'],
+    [0, 'The shelves keep letting them down'],
+  ],
 ];
 
 const MODIFIER_TEXT: readonly [kind: string, text: string][] = [
@@ -230,10 +237,11 @@ export function residentDetail(state: WorldState, id: EntityId): ResidentDetail 
   const wish = r.wishId ? state.wishes.find((w) => w.id === r.wishId) : undefined;
   // I2 (C4.0): needs that weigh nothing yet (the tier needs, until C4A and C4C weigh them) stay out
   // of the inspector.
-  const shown = NEED_IDS.map((_, i) => i).filter((i) => (NEED_WEIGHTS[i] ?? 0) > 0);
+  const weights = needWeights(state);
+  const shown = NEED_IDS.map((_, i) => i).filter((i) => (weights[i] ?? 0) > 0);
   const moodLines: { label: string; value: number }[] = shown.map((i) => ({
     label: needText(i, r.needs[i] ?? 0),
-    value: Math.round(needPoints(r, i)),
+    value: Math.round(needPoints(r, i, weights)),
   }));
   for (const t of r.traits) {
     const def = content.traitById.get(t);

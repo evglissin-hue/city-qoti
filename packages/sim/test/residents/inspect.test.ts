@@ -40,7 +40,7 @@ describe('resident inspector', () => {
     expect(labels).toContain('Wish granted');
     const sum = d.moodLines.reduce((a, l) => a + l.value, 0);
     expect(
-      Math.abs(sum - (90 * 25 + 100 * 15 + 100 * 20 + 40 * 15 + 55 * 15 + 100 * 10) / 100 - 5 - 12),
+      Math.abs(sum - (90 * 25 + 100 * 15 + 100 * 20 + 40 * 15 + 55 * 15) / 90 - 5 - 12),
     ).toBeLessThanOrEqual(3);
   });
 

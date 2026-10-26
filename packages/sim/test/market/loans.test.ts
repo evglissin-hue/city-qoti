@@ -38,7 +38,7 @@ describe('borrowing', () => {
   it('lends up to the rank limit, more for a big town, and refuses beyond it', () => {
     const { state } = villageFixture();
     const limit = creditLimit(state);
-    expect(limit).toBeGreaterThanOrEqual(LOAN_LIMITS[RANKS.indexOf('village')] * PENNIES_PER_COIN);
+    expect(limit).toBeGreaterThanOrEqual((LOAN_LIMITS[RANKS.indexOf('village')] ?? 0) * PENNIES_PER_COIN);
     const before = moneySnapshot(state);
     const room = Math.floor((limit - loansOwed(state)) / PENNIES_PER_COIN);
     expect(rejection(run(state, { t: 'loan.take', coins: room + 1 }))).toBe('CREDIT_LIMIT');

@@ -67,6 +67,8 @@ export interface DayLine {
   sites: number;
   // I2 (C4A)
   rank: string;
+  /** Charter goals met, of the Charter on the board. */
+  charter: string;
   /** Coins in household purses. */
   savings: number;
   /** Yesterday's wages, sales, taxes and trade (exports less imports), coins. */
@@ -489,6 +491,7 @@ function dayLine(w: WorldState, day: number): DayLine {
     built: w.buildings.filter((b) => b.stage === 'built').length,
     sites: sites(w),
     rank: w.charter.rank,
+    charter: `${w.charter.progress.filter((v, i) => v >= (content.charterById.get(w.charter.charter)?.goals[i]?.target ?? Infinity)).length}/${w.charter.progress.length}`,
     savings: coinsOf(w.households.reduce((n, h) => n + h.savings, 0)),
     wages: coinsOf(y[cat('wages')]!),
     sales: coinsOf(y[cat('sales')]!),
@@ -546,7 +549,7 @@ export function autoplay(
 export function formatDays(days: readonly DayLine[]): string {
   const head =
     'day  pop hh vac coins food made eaten plank stone mood mis wish grant pat ach left lean built sites' +
-    ' | rank   sav wage sale  tax trade owed bask wl tx';
+    ' | rank    ch   sav wage sale  tax trade owed bask wl tx';
   const rows = days.map((d) =>
     [
       String(d.day).padStart(3),
@@ -571,6 +574,7 @@ export function formatDays(days: readonly DayLine[]): string {
       String(d.sites).padStart(5),
       '|',
       d.rank.slice(0, 7).padEnd(7),
+      d.charter.padStart(3),
       String(d.savings).padStart(4),
       String(d.wages).padStart(4),
       String(d.sales).padStart(4),
