@@ -21,9 +21,21 @@ export interface EntityPick {
 /**
  * Overlay kinds for setOverlay (I1, C3.0): 'charm' (and 'charm:nature' style category views),
  * 'coverage' (well water), 'flows' (porter deliveries), 'status' (building status icons),
- * 'fields' (farm reach while painting). null hides overlays.
+ * 'fields' (farm reach while painting). null hides overlays. I2 (C4E): 'zones' (zone tints and lot
+ * outlines), 'traffic' (cart passes against road capacity), 'land' (land value: lot desirability)
+ * and 'needs' (homes by contentment, ringed by tier).
  */
-export type OverlayKind = 'charm' | `charm:${string}` | 'coverage' | 'flows' | 'status' | 'fields';
+export type OverlayKind =
+  | 'charm'
+  | `charm:${string}`
+  | 'coverage'
+  | 'flows'
+  | 'status'
+  | 'fields'
+  | 'zones'
+  | 'traffic'
+  | 'land'
+  | 'needs';
 
 export interface GhostSegment {
   fx: number;
