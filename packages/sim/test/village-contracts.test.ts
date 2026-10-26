@@ -484,7 +484,7 @@ describe('I2 APIs', () => {
       const ctx = createTickCtx(s);
       const treasury = s.economy.treasury;
       expect(storyStep(s, ctx, arc.id)).toBe(true);
-      expect(s.stories[0]!.step).toBe(0);
+      expect(s.stories.find((x) => x.arc === arc.id)!.step).toBe(0);
       const first = ctx.events.find((e) => e.e === 'story.step');
       expect(first?.e === 'story.step' && first.letter.text).toBe('Step one.');
       storyStep(s, ctx, arc.id);
