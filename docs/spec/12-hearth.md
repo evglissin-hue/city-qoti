@@ -190,3 +190,4 @@ interface ChronicleEntry {
 - Ledger draws districts; Hearth assigns or edits the style (P22). Grown buildings pick variant parameters from the style with RNG keyed by building id.
 - Restyling an existing district costs paint and materials and is applied by builders over time.
 - Starter styles: Riverside Timber, Hill Stone, Market Brick, Garden Plaster.
+- *As built (C4B, I2 ahead of districts)*: the four are content (`packages/content/src/styles.ts`, ids `timber`, `stone`, `brick`, `plaster`, with names, a blurb and where each comes naturally). Until districts arrive the zoning pass picks one per lot: its neighbors' on the same side of the same road, or what the place suits (`13-ledger.md`, Zoning and growth). `Lot.style` and `Building.style` carry the id.

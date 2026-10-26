@@ -21,6 +21,7 @@ import { fileURLToPath } from 'node:url';
 import { residentsBench } from './residents';
 import { hearthBench } from './hearth';
 import { benchEconomy } from './economy';
+import { growthBench } from './growth';
 import { syntheticValley } from './synthetic';
 
 const BUDGET = {
@@ -143,6 +144,8 @@ failures.push(...hearth.failures);
 const economy = benchEconomy();
 lines.push(...economy.lines);
 failures.push(...economy.failures);
+// 7. Growth and traffic (C4B): zoning, the nightly growth pass and carts, at 150 and 2,000 residents.
+const growth = growthBench(lines, failures);
 
 const heapMb = process.memoryUsage().heapUsed / 1024 / 1024;
 lines.push(`memory          ${heapMb.toFixed(0)} MB heap in use`);
@@ -168,6 +171,7 @@ const report = {
   residents,
   hearth: hearth.report,
   economy: economy.report,
+  growth,
   heapMb,
   failures,
 };

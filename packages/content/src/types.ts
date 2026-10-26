@@ -115,6 +115,9 @@ export interface RoadDef {
   capacity?: number;
   /** Rank or innovation needed (streets need Cobbles). */
   requires?: { rank?: RankName; innovation?: string };
+  // I2 additions (C4B).
+  /** Charm noise the road itself gives its tile, fading over the next (cobbles and bustle). */
+  noise?: number;
 }
 
 export interface TreeDef {
@@ -177,6 +180,10 @@ export interface Content {
   storyById: ReadonlyMap<string, StoryArc>;
   carts: readonly CartDef[];
   cartById: ReadonlyMap<string, CartDef>;
+  // I2 additions (C4B).
+  /** District styles grown buildings are drawn in. */
+  styles: readonly DistrictStyleDef[];
+  styleById: ReadonlyMap<string, DistrictStyleDef>;
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -619,4 +626,19 @@ export interface CartDef {
   /** Ticks per tile by road id; carts use lanes and streets only. */
   ticksPerTile: [road: string, ticks: number][];
   art: ArtRef;
+}
+
+/**
+ * A district style for grown buildings (docs/spec/12-hearth.md, District styles). I2 (C4B): the
+ * growth pass picks one per lot from the land and the street around it, and new lots follow their
+ * neighbors, so a street reads as one place; C4E draws the materials. Hearth assigns styles by
+ * hand from I4.
+ */
+export interface DistrictStyleDef {
+  id: string;
+  name: string;
+  /** One line for the style picker. */
+  blurb: string;
+  /** Where the style comes naturally: by water, up the hillside, on streets, among gardens, by zone. */
+  suits: { water?: boolean; high?: boolean; street?: boolean; nature?: boolean; zones?: string[] };
 }

@@ -15,6 +15,7 @@ import * as N from './neighbors';
 import * as P from './patterns';
 import * as R from './roads';
 import * as Sp from './species';
+import * as St from './styles';
 import * as Sw from './swatches';
 import * as T from './trees';
 import * as Tr from './traits';
@@ -29,6 +30,7 @@ import type {
   ChronicleTemplate,
   Content,
   DecorDef,
+  DistrictStyleDef,
   GoodDef,
   InnovationDef,
   NeedsBasket,
@@ -290,6 +292,16 @@ export const carts: readonly CartDef[] = [
   Ca.cart,
 ];
 
+// --- I2 (C4B) ---------------------------------------------------------------------------------
+
+// prettier-ignore
+export const styles: readonly DistrictStyleDef[] = [
+  St.brick,
+  St.plaster,
+  St.stone,
+  St.timber,
+];
+
 function byId<T extends { id: string }>(list: readonly T[]): ReadonlyMap<string, T> {
   return new Map(list.map((item) => [item.id, item]));
 }
@@ -335,4 +347,6 @@ export const content: Content = {
   storyById: byId(stories),
   carts,
   cartById: byId(carts),
+  styles,
+  styleById: byId(styles),
 };

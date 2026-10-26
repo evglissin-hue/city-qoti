@@ -121,7 +121,7 @@ describe('canPaintRoad', () => {
     run(w, { t: 'decor.place', def: 'lantern', fx: fp(66), fz: fp(66), rot: 0 });
     expect(canPaintRoad(reader(w), 'path', [[66, 66]]).ok).toBe(true);
     expect(canPaintRoad(reader(w), 'path', []).reason).toBe('INVALID');
-    expect(canPaintRoad(reader(w), 'street' as never, [[1, 1]]).reason).toBe('INVALID');
+    expect(canPaintRoad(reader(w), 'avenue' as never, [[1, 1]]).reason).toBe('INVALID');
     const many = Array.from({ length: 257 }, (_, i) => [i % 90, 10] as [number, number]);
     expect(canPaintRoad(reader(w), 'path', many).reason).toBe('TOO_MANY');
     expect(canPaintRoad(reader(w), 'path', [[-1, 3]]).reason).toBe('OUT_OF_BOUNDS');

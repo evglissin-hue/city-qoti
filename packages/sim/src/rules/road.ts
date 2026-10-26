@@ -13,7 +13,8 @@ import { isTile, MAX_DECOR_RADIUS } from './geometry';
 export const MAX_BRIDGE_TILES = 6;
 
 export function canPaintRoad(reader: MapReader, kind: RoadKind, tiles: [number, number][]): RoadPlacement {
-  if (kind !== 'path' && kind !== 'lane') return { ok: false, reason: 'INVALID' };
+  // I2 (C4B): streets too; their Cobbles lock and stone are checked by the command (state, not map).
+  if (kind !== 'path' && kind !== 'lane' && kind !== 'street') return { ok: false, reason: 'INVALID' };
   if (!Array.isArray(tiles) || tiles.length === 0) return { ok: false, reason: 'INVALID' };
   if (tiles.length > MAX_ROAD_TILES) return { ok: false, reason: 'TOO_MANY' };
   let prev: [number, number] | null = null;

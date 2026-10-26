@@ -1,11 +1,13 @@
 // Zoning (C4.0 baseline; C4B owns it): paint and clear the `zone` layer. Zoning arrives with the
-// Village rank. Roads, water and buildings are never zoned; lots follow in the zoning system.
+// Village rank. Roads, water and buildings are never zoned; lots follow in the zoning system's
+// next hourly pass (systems/zoning).
 import { content } from '@qoti/content';
 import { MAP_SIZE, MAX_ZONE_TILES } from '../constants';
 import { Water } from '../map/layers';
 import { findById, removeById } from '../state/entities';
 import { isStandard } from '../state/hamlet';
 import { rankAtLeast } from '../state/village';
+import { zonesChanged } from '../systems/zoning';
 import { checkTiles, type HandlerFor, tilesChangedFor } from './util';
 
 export const paint: HandlerFor<'zone.paint'> = {
@@ -28,6 +30,7 @@ export const paint: HandlerFor<'zone.paint'> = {
       changed.push([x, z]);
     }
     tilesChangedFor(ctx, changed, ['zone']);
+    zonesChanged(state);
   },
 };
 
@@ -65,6 +68,7 @@ export const clear: HandlerFor<'zone.clear'> = {
       ctx.events.push({ e: 'lot.removed', id });
     }
     tilesChangedFor(ctx, changed, ['zone']);
+    zonesChanged(state);
     tilesChangedFor(ctx, gone, ['lot']);
   },
 };

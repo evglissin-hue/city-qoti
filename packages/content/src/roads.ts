@@ -28,4 +28,5 @@ export const street: RoadDef = {
   carts: true,
   capacity: 80,
   requires: { innovation: 'cobbles' },
+  noise: 2,
 };
