@@ -1,14 +1,16 @@
 // Movement API (C3.0 contract; C3A owns the implementation). C3C drives porters and builders
 // through it. Tiles are indexes z * MAP_SIZE + x.
 //
-// C3.0 STUB: requestMove teleports the resident to the target at once and reports 'arrived', so
-// tracks can test trips before real pathfinding lands. C3A replaces it with A* and walking.
+// requestMove plans an A* path (cached by network epoch) and the movement system walks it at the
+// spec's per-tile speeds. A walk that hits a newly blocked tile replans; when no path exists the
+// walk ends where the resident stands and the result says 'unreachable'.
 import type { BuildingDef } from '@qoti/content';
 import { content } from '@qoti/content';
-import { MAP_SIZE } from '../../constants';
-import type { Building, EntityId, MoveReason, WorldState } from '../../contracts';
+import { MAP_SIZE, ResidentFlags } from '../../constants';
+import type { Building, EntityId, MoveReason, Resident, WorldState } from '../../contracts';
 import { entranceTiles } from '../../rules/footprint';
 import { findById } from '../../state/entities';
+import { pathBetween } from './paths';
 
 /** 'walking' (a path was found), 'arrived' (already there), 'unreachable' (no path; resident is stuck). */
 export type MoveResult = 'walking' | 'arrived' | 'unreachable';
@@ -18,14 +20,45 @@ export function requestMove(
   state: WorldState,
   residentId: EntityId,
   targetTile: number,
-  _reason: MoveReason,
+  reason: MoveReason,
 ): MoveResult {
   const r = findById(state.residents, residentId);
   if (!r) return 'unreachable';
-  r.inside = 0;
+  return moveResident(state, r, targetTile, reason);
+}
+
+/** requestMove for a resident already in hand (the residents system's hot path). */
+export function moveResident(state: WorldState, r: Resident, target: number, reason: MoveReason): MoveResult {
+  setInside(state, r, 0);
+  const m = r.move;
+  if (m && m.target === target) {
+    m.reason = reason;
+    return 'walking';
+  }
+  // Mid-step: keep going to the next tile and plan onward from there, so nobody snaps back.
+  if (m && m.progress > 0 && m.step < m.path.length) {
+    const next = m.path[m.step]!;
+    const onward = next === target ? [] : pathBetween(state, next, target);
+    if (onward) {
+      r.move = {
+        path: [next, ...onward],
+        step: 0,
+        progress: m.progress,
+        target,
+        reason,
+        version: state.networkVersion,
+      };
+      r.flags &= ~ResidentFlags.stuck;
+      return 'walking';
+    }
+  }
   r.move = null;
-  r.tile = targetTile;
-  return 'arrived';
+  if (r.tile === target) return 'arrived';
+  const path = pathBetween(state, r.tile, target);
+  if (!path) return 'unreachable';
+  r.move = { path, step: 0, progress: 0, target, reason, version: state.networkVersion };
+  r.flags &= ~ResidentFlags.stuck;
+  return 'walking';
 }
 
 /** True when the resident stands on `tile` and is not walking. */
@@ -64,8 +97,28 @@ export function doorTileOf(state: WorldState, buildingId: EntityId): number {
 /** Puts a resident inside a building (they vanish from agent frames). Call after isAt(door). */
 export function enterBuilding(state: WorldState, residentId: EntityId, buildingId: EntityId): void {
   const r = findById(state.residents, residentId);
-  if (r) {
-    r.move = null;
-    r.inside = buildingId;
+  if (!r) return;
+  r.move = null;
+  const b = findById(state.buildings, buildingId);
+  if (!b) return;
+  r.tile = doorTile(b);
+  setInside(state, r, buildingId);
+}
+
+/**
+ * Moves a resident in or out of a building, keeping the workplace's `present` count equal to the
+ * workers inside it. Every change of `inside` goes through here.
+ */
+export function setInside(state: WorldState, r: Resident, buildingId: EntityId): void {
+  const old = r.inside;
+  if (old === buildingId) return;
+  r.inside = buildingId;
+  if (r.jobId && old === r.jobId) {
+    const rt = findById(state.buildings, old)?.rt;
+    if (rt && rt.present > 0) rt.present -= 1;
+  }
+  if (r.jobId && buildingId === r.jobId) {
+    const rt = findById(state.buildings, buildingId)?.rt;
+    if (rt) rt.present += 1;
   }
 }

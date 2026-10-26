@@ -10,6 +10,7 @@ import { SAVE_VERSION } from '../src/state/version';
 import { markCharmDirty } from '../src/systems/hearth/charm/dirty';
 import { addBond, addMoodModifier, modifierValue } from '../src/systems/residents/api';
 import { doorTile, isAt, requestMove } from '../src/systems/movement/api';
+import { movement } from '../src/systems/movement';
 import { nearestOutletWithFood, takeFromOutlet } from '../src/systems/economy/outlets';
 import { chronicle } from '../src/systems/chronicle/api';
 import { createTickCtx } from '../src/turn';
@@ -158,12 +159,16 @@ describe('ledger levers', () => {
 });
 
 describe('cross-track API stubs', () => {
-  it('moves residents (teleport stub) and reports arrival', () => {
+  it('walks residents to a target and reports arrival (C3A)', () => {
     const f = hamletFixture();
     const id = f.residents[0]![0]!;
     const target = 52 * MAP_SIZE + 60;
-    expect(requestMove(f.state, id, target, 'schedule')).toBe('arrived');
+    expect(requestMove(f.state, id, target, 'schedule')).toBe('walking');
+    expect(isAt(f.state, id, target)).toBe(false);
+    const ctx = createTickCtx(f.state);
+    for (let i = 0; i < 400 && !isAt(f.state, id, target); i++) movement.tick(f.state, ctx);
     expect(isAt(f.state, id, target)).toBe(true);
+    expect(requestMove(f.state, id, target, 'schedule')).toBe('arrived');
   });
 
   it('serves food from the nearest outlet', () => {
@@ -183,6 +188,8 @@ describe('cross-track API stubs', () => {
     addMoodModifier(f.state, id, { kind: 'wish-granted', value: 10, ticks: 100 });
     expect(r.modifiers).toHaveLength(1);
     addBond(f.state, id, 9);
+    expect(r.bond).toBe(3);
+    addBond(f.state, id, 9, 'other');
     expect(r.bond).toBe(5);
   });
 
