@@ -14,10 +14,18 @@ export const LAYER_NAMES: readonly LayerName[] = [
   'zone',
   'parcel',
   'flags',
+  'charm',
+  'charmNature',
+  'charmComfort',
+  'charmLight',
+  'charmView',
+  'charmNoise',
+  'fieldOwner',
+  'crop',
 ];
 
 /** Layers stored as Int32Array; all others are Uint8Array. */
-export const INT32_LAYERS: ReadonlySet<LayerName> = new Set<LayerName>(['occupant']);
+export const INT32_LAYERS: ReadonlySet<LayerName> = new Set<LayerName>(['occupant', 'fieldOwner']);
 
 export const Terrain = {
   grass: 0,
@@ -68,6 +76,14 @@ export function createLayers(size = MAP_SIZE): MapLayers {
     zone: new Uint8Array(n),
     parcel: new Uint8Array(n),
     flags: new Uint8Array(n),
+    charm: new Uint8Array(n),
+    charmNature: new Uint8Array(n),
+    charmComfort: new Uint8Array(n),
+    charmLight: new Uint8Array(n),
+    charmView: new Uint8Array(n),
+    charmNoise: new Uint8Array(n),
+    fieldOwner: new Int32Array(n),
+    crop: new Uint8Array(n),
   };
 }
 

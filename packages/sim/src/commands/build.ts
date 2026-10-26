@@ -1,43 +1,32 @@
 import { content } from '@qoti/content';
 import { MAP_SIZE } from '../constants';
-import type { Building } from '../contracts';
+import { tilesRect } from '../map/layers';
 import { canPlaceBuilding } from '../rules/building';
 import { footprintTiles } from '../rules/footprint';
 import { findById, removeById } from '../state/entities';
+import { insertBuilding } from '../state/place';
 import { worldIndex } from '../state/worldIndex';
-import { buildingView } from '../view';
-import { checkIds, type HandlerFor, takeId, tilesChangedFor } from './util';
+import { chargePlacement, placementBlocked, refundRemoval } from '../systems/economy/api';
+import { checkIds, type HandlerFor, tilesChangedFor, worldChanged } from './util';
 
 export const place: HandlerFor<'build.place'> = {
   type: 'build.place',
   validate(state, _seat, cmd) {
     const def = typeof cmd.def === 'string' ? content.buildingById.get(cmd.def) : undefined;
     if (!def) return 'INVALID';
+    if (def.modes && !def.modes.includes(state.settings.mode)) return 'NOT_ALLOWED';
     const result = canPlaceBuilding(worldIndex(state).reader, def, cmd.x, cmd.z, cmd.rot);
-    return result.ok ? null : (result.reason ?? 'INVALID');
+    if (!result.ok) return result.reason ?? 'INVALID';
+    return placementBlocked(state, def);
   },
   apply(state, seat, cmd, ctx) {
     const def = content.buildingById.get(cmd.def)!;
     const placement = canPlaceBuilding(worldIndex(state).reader, def, cmd.x, cmd.z, cmd.rot);
-    // Sandbox: no costs, built instantly, trees in the footprint cleared.
-    const b: Building = {
-      id: takeId(state),
-      def: def.id,
-      x: cmd.x,
-      z: cmd.z,
-      rot: cmd.rot,
-      builtBy: seat,
-      handmade: false,
-      stage: 'built',
+    // Sandbox: built instantly. Standard: a construction site that builders finish (C3C).
+    const b = insertBuilding(state, ctx, def, cmd.x, cmd.z, cmd.rot, seat, {
       foundation: placement.foundation,
-    };
-    for (const [x, z] of placement.tiles) {
-      state.map.occupant[z * MAP_SIZE + x] = b.id;
-      state.map.tree[z * MAP_SIZE + x] = 0;
-    }
-    state.buildings.push(b);
-    ctx.events.push({ e: 'building.added', b: buildingView(b) });
-    tilesChangedFor(ctx, placement.tiles, ['occupant', 'tree']);
+    });
+    chargePlacement(state, ctx, b, def);
   },
 };
 
@@ -50,15 +39,20 @@ export const remove: HandlerFor<'build.remove'> = {
   },
   apply(state, _seat, cmd, ctx) {
     for (const id of cmd.ids) {
-      const b = removeById(state.buildings, id);
-      if (!b) continue;
-      const def = content.buildingById.get(b.def);
+      const existing = findById(state.buildings, id);
+      if (!existing) continue;
+      const def = content.buildingById.get(existing.def);
+      if (def) refundRemoval(state, ctx, existing, def);
+      // Residents and households notice the missing building on their next tick (C3A).
+      const b = removeById(state.buildings, id)!;
       const tiles = def ? footprintTiles(def, b.x, b.z, b.rot) : [];
       for (const [x, z] of tiles) {
         if (state.map.occupant[z * MAP_SIZE + x] === id) state.map.occupant[z * MAP_SIZE + x] = 0;
       }
       ctx.events.push({ e: 'building.removed', id });
       tilesChangedFor(ctx, tiles, ['occupant']);
+      const rect = tilesRect(tiles);
+      worldChanged(state, rect && [rect[0] - 1, rect[1] - 1, rect[2] + 1, rect[3] + 1]);
     }
   },
 };

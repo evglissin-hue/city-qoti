@@ -4,7 +4,8 @@ import type { Mirror } from '../state/mirror';
 import type { CameraController } from './camera';
 
 export type Selection =
-  { kind: 'building' | 'decor' | 'note'; id: number } | { kind: 'tree' | 'tile'; x: number; z: number };
+  | { kind: 'building' | 'decor' | 'note' | 'resident'; id: number }
+  | { kind: 'tree' | 'tile'; x: number; z: number };
 
 /** What tools need from the UI: messages, questions and the inspector selection. */
 export interface UiApi {

@@ -1,5 +1,6 @@
 // The sim worker: owns the WorldState, applies turns as they arrive, posts view updates.
 import {
+  agentFrame,
   applyTurn,
   buildView,
   createTickCtx,
@@ -7,6 +8,7 @@ import {
   deserialize,
   HASH_EVERY_TURNS,
   hashState,
+  inspect,
   serialize,
   type SimCtx,
   type Turn,
@@ -66,12 +68,21 @@ scope.onmessage = (e) => {
           { k: 'update', t: state.lastTurn, tick: state.tick, events, patches },
           patches.map((p) => p.data.buffer as ArrayBuffer),
         );
+        if (state.residents.length > 0) {
+          const data = agentFrame(state);
+          post({ k: 'agents', t: state.lastTurn, data }, [data.buffer as ArrayBuffer]);
+        }
         break;
       }
       case 'snapshot': {
         if (!state) throw new Error('Snapshot requested before init');
         const data = serialize(state);
         post({ k: 'snapshot', reqId: msg.reqId, t: state.lastTurn, data }, [data.buffer as ArrayBuffer]);
+        break;
+      }
+      case 'inspect': {
+        if (!state) throw new Error('Inspect requested before init');
+        post({ k: 'inspected', reqId: msg.reqId, data: inspect(state, msg.kind, msg.id) });
         break;
       }
       case 'hash': {

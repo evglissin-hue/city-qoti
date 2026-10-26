@@ -8,9 +8,11 @@ const THREATS = ['peaceful', 'standard', 'fierce'];
 
 export const setSettings: HandlerFor<'valley.setSettings'> = {
   type: 'valley.setSettings',
-  validate(_state, _seat, cmd) {
+  validate(state, _seat, cmd) {
     const s = cmd.settings as Partial<ValleySettings> | null;
     if (typeof s !== 'object' || s === null || Array.isArray(s)) return 'INVALID';
+    // A valley keeps the mode it was created with: sandbox and standard state differ in shape.
+    if (s.mode !== undefined && s.mode !== state.settings.mode) return 'NOT_ALLOWED';
     let fields = 0;
     if (s.mode !== undefined && (fields++, !MODES.includes(s.mode))) return 'INVALID';
     if (s.economy !== undefined && (fields++, !ECONOMIES.includes(s.economy))) return 'INVALID';

@@ -18,6 +18,21 @@ import { LAYER_NAMES } from '../map/layers';
 import { effectiveSpeed } from '../speed';
 import { calendar } from '../systems/clock/calendar';
 import { SIM_VERSION } from '../version.generated';
+import { content } from '@qoti/content';
+import {
+  achievementView,
+  budgetView,
+  chronicleView,
+  householdView,
+  patternView,
+  residentView,
+  runtimeView,
+  stocksView,
+  townView,
+  wishView,
+} from './hamlet';
+
+export * from './hamlet';
 
 export function clockView(state: WorldState): ClockView {
   return { tick: state.tick, speed: effectiveSpeed(state), ...calendar(state.tick) };
@@ -36,6 +51,7 @@ export function buildingView(b: Building): BuildingView {
     foundation: b.foundation,
   };
   if (b.custom) view.custom = { ...b.custom };
+  if (b.rt) view.rt = runtimeView(b.def, b.rt);
   return view;
 }
 
@@ -81,5 +97,14 @@ export function buildView(state: WorldState): ViewSnapshot {
       valleyGate: [...state.meta.valleyGate],
       flow: state.meta.flow,
     },
+    residents: state.residents.map((r) => residentView(state, r)),
+    households: state.households.map(householdView),
+    stocks: stocksView(state),
+    budget: budgetView(state),
+    wishes: state.wishes.map((w) => wishView(state, w)),
+    patterns: content.patterns.map((p) => patternView(state, p.id)),
+    chronicle: state.chronicle.map(chronicleView),
+    achievements: content.achievements.map((a) => achievementView(state, a.id)),
+    town: townView(state),
   };
 }

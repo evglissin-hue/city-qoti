@@ -10,6 +10,7 @@ export const appleTree: DecorDef = {
   blocksWalking: true,
   tags: ['tree', 'fruit'],
   art: { kit: 'apple-tree' },
+  charm: [{ category: 'nature', value: 5, radius: 2 }],
 };
 
 export const barrels: DecorDef = {
@@ -31,6 +32,7 @@ export const bench: DecorDef = {
   onRoad: true,
   tags: ['bench', 'seat'],
   art: { kit: 'bench' },
+  charm: [{ category: 'comfort', value: 3, radius: 2 }],
 };
 
 export const cherryTree: DecorDef = {
@@ -41,6 +43,7 @@ export const cherryTree: DecorDef = {
   blocksWalking: true,
   tags: ['tree', 'blossom'],
   art: { kit: 'cherry-tree' },
+  charm: [{ category: 'nature', value: 5, radius: 2 }],
 };
 
 export const crates: DecorDef = {
@@ -72,6 +75,7 @@ export const flowerBed: DecorDef = {
   radius: 64,
   tags: ['flower'],
   art: { kit: 'flower-bed' },
+  charm: [{ category: 'nature', value: 4, radius: 2 }],
 };
 
 export const hedge: DecorDef = {
@@ -83,6 +87,7 @@ export const hedge: DecorDef = {
   blocksWalking: true,
   tags: ['hedge'],
   art: { kit: 'hedge' },
+  charm: [{ category: 'nature', value: 2, radius: 1 }],
 };
 
 export const lantern: DecorDef = {
@@ -93,6 +98,7 @@ export const lantern: DecorDef = {
   onRoad: true,
   tags: ['lantern', 'light'],
   art: { kit: 'lantern' },
+  charm: [{ category: 'light', value: 2, radius: 3, nightValue: 6 }],
 };
 
 export const lowWall: DecorDef = {
@@ -114,6 +120,7 @@ export const planter: DecorDef = {
   onRoad: true,
   tags: ['flower', 'planter'],
   art: { kit: 'planter' },
+  charm: [{ category: 'nature', value: 4, radius: 2 }],
 };
 
 export const signpost: DecorDef = {
@@ -124,4 +131,101 @@ export const signpost: DecorDef = {
   onRoad: true,
   tags: ['sign'],
   art: { kit: 'signpost' },
+};
+
+// I1 decor (C3.0): pieces the Pattern Book unlocks. Placeholder art until C3D draws them.
+
+export const birdbath: DecorDef = {
+  id: 'birdbath',
+  name: 'Birdbath',
+  lane: 'hearth',
+  radius: 48,
+  blocksWalking: true,
+  tags: ['birdbath', 'water-feature'],
+  art: { kit: 'birdbath' },
+  charm: [{ category: 'comfort', value: 6, radius: 3 }],
+  locked: true,
+};
+
+export const curvedBench: DecorDef = {
+  id: 'curved-bench',
+  name: 'Curved bench',
+  lane: 'hearth',
+  radius: 72,
+  onRoad: true,
+  tags: ['bench', 'seat'],
+  art: { kit: 'curved-bench' },
+  charm: [{ category: 'comfort', value: 4, radius: 2 }],
+  locked: true,
+};
+
+export const hangingLantern: DecorDef = {
+  id: 'hanging-lantern',
+  name: 'Hanging lantern',
+  lane: 'hearth',
+  radius: 32,
+  onRoad: true,
+  tags: ['lantern', 'light'],
+  art: { kit: 'hanging-lantern' },
+  charm: [{ category: 'light', value: 3, radius: 3, nightValue: 7 }],
+  locked: true,
+};
+
+export const herbPlanter: DecorDef = {
+  id: 'herb-planter',
+  name: 'Herb planter',
+  lane: 'hearth',
+  radius: 48,
+  tags: ['flower', 'planter', 'herb', 'garden'],
+  art: { kit: 'herb-planter' },
+  charm: [{ category: 'nature', value: 3, radius: 2 }],
+  locked: true,
+};
+
+export const mooringPost: DecorDef = {
+  id: 'mooring-post',
+  name: 'Mooring post',
+  lane: 'hearth',
+  radius: 32,
+  onWater: true,
+  tags: ['mooring'],
+  art: { kit: 'mooring-post' },
+  charm: [{ category: 'view', value: 2, radius: 2 }],
+  locked: true,
+};
+
+export const planterWall: DecorDef = {
+  id: 'planter-wall',
+  name: 'Planter wall',
+  lane: 'hearth',
+  radius: 64,
+  linear: true,
+  blocksWalking: true,
+  tags: ['wall', 'flower', 'seat'],
+  art: { kit: 'planter-wall' },
+  charm: [{ category: 'nature', value: 3, radius: 2 }],
+  locked: true,
+};
+
+export const ringBench: DecorDef = {
+  id: 'ring-bench',
+  name: 'Ring bench',
+  lane: 'hearth',
+  radius: 96,
+  tags: ['bench', 'seat', 'ring-bench'],
+  art: { kit: 'ring-bench' },
+  charm: [{ category: 'comfort', value: 5, radius: 2 }],
+  locked: true,
+};
+
+export const wildflowerVerge: DecorDef = {
+  id: 'wildflower-verge',
+  name: 'Wildflower verge',
+  lane: 'hearth',
+  radius: 64,
+  linear: true,
+  tags: ['flower', 'verge'],
+  art: { kit: 'wildflower-verge' },
+  charm: [{ category: 'nature', value: 4, radius: 2 }],
+  locked: true,
 };

@@ -82,6 +82,7 @@ export class Session {
   async start(container: HTMLElement): Promise<void> {
     this.container = container;
     this.host.onUpdate = (u) => this.afterUpdate(this.mirror.apply(u));
+    this.host.onAgents = (t, data) => this.mirror.applyAgents(t, data, performance.now());
     this.host.onHash = (t, h) => {
       this.debug.lastHash = { t, h };
       this.debug.hashes.set(t, h);

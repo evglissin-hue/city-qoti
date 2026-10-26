@@ -86,6 +86,16 @@ export function hashState(state: WorldState): string {
       buildings: state.buildings,
       decor: state.decor,
       notes: state.notes,
+      residents: state.residents,
+      households: state.households,
+      economy: state.economy,
+      logistics: state.logistics,
+      hearth: state.hearth,
+      wishes: state.wishes,
+      chronicle: state.chronicle,
+      achievements: state.achievements,
+      stats: state.stats,
+      networkVersion: state.networkVersion,
     }),
   );
   return h.hex();

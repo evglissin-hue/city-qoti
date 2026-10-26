@@ -60,6 +60,14 @@ describe('I0 contracts', () => {
       | 'zone'
       | 'parcel'
       | 'flags'
+      | 'charm'
+      | 'charmNature'
+      | 'charmComfort'
+      | 'charmLight'
+      | 'charmView'
+      | 'charmNoise'
+      | 'fieldOwner'
+      | 'crop'
     >();
     expectTypeOf<keyof ValleySettings>().toEqualTypeOf<
       'mode' | 'economy' | 'threat' | 'togetherOnly' | 'townName' | 'valleyName'
@@ -84,6 +92,12 @@ describe('I0 contracts', () => {
       | 'valley.setSettings'
       | 'sys.seatJoined'
       | 'sys.seatLeft'
+      | 'build.customize'
+      | 'build.setPriority'
+      | 'build.setPaused'
+      | 'field.paint'
+      | 'field.remove'
+      | 'ledger.setForSale'
     >();
     expectTypeOf<SeatedCommand>().toEqualTypeOf<{ seat: SeatId; seq: number; cmd: Command }>();
     expectTypeOf<Turn>().toEqualTypeOf<{ t: number; cmds: SeatedCommand[] }>();
@@ -102,6 +116,10 @@ describe('I0 contracts', () => {
       | 'TOGETHER_ONLY'
       | 'TOO_MANY'
       | 'INVALID'
+      | 'LEAN_TIMES'
+      | 'LOCKED'
+      | 'OUT_OF_RANGE'
+      | 'CHANGED'
     >();
   });
 
@@ -119,6 +137,15 @@ describe('I0 contracts', () => {
       | 'settings'
       | 'clock'
       | 'meta'
+      | 'residents'
+      | 'households'
+      | 'stocks'
+      | 'budget'
+      | 'wishes'
+      | 'patterns'
+      | 'chronicle'
+      | 'achievements'
+      | 'town'
     >();
     expectTypeOf<ViewSnapshot['meta']>().toEqualTypeOf<WorldState['meta']>();
     expectTypeOf<keyof ClockView>().toEqualTypeOf<
@@ -144,6 +171,24 @@ describe('I0 contracts', () => {
       | 'clock'
       | 'command.rejected'
       | 'notify'
+      | 'resident.added'
+      | 'resident.updated'
+      | 'resident.removed'
+      | 'household.added'
+      | 'household.updated'
+      | 'household.removed'
+      | 'stocks.updated'
+      | 'budget.updated'
+      | 'town.updated'
+      | 'wish.added'
+      | 'wish.granted'
+      | 'wish.expired'
+      | 'pattern.discovered'
+      | 'pattern.siteAdded'
+      | 'pattern.siteRemoved'
+      | 'pattern.updated'
+      | 'chronicle.added'
+      | 'achievement.unlocked'
     >();
     expectTypeOf<keyof LayerPatch>().toEqualTypeOf<'layer' | 'rect' | 'data'>();
   });
@@ -178,11 +223,14 @@ describe('I0 contracts', () => {
       | 'focus'
       | 'setQuality'
       | 'project'
+      | 'follow'
+      | 'setBubbles'
+      | 'highlight'
     >();
     expectTypeOf<Ghost['kind']>().toExtend<string>();
-    expectTypeOf<ToWorker['k']>().toEqualTypeOf<'init' | 'turns' | 'snapshot' | 'hash'>();
+    expectTypeOf<ToWorker['k']>().toEqualTypeOf<'init' | 'turns' | 'snapshot' | 'hash' | 'inspect'>();
     expectTypeOf<FromWorker['k']>().toEqualTypeOf<
-      'ready' | 'update' | 'agents' | 'hash' | 'snapshot' | 'error'
+      'ready' | 'update' | 'agents' | 'hash' | 'snapshot' | 'error' | 'inspected'
     >();
     expectTypeOf<RoomConnection>().toHaveProperty('submit');
     expectTypeOf<RoomConnection>().toHaveProperty('status');

@@ -72,7 +72,9 @@ export function canPlaceBuilding(
     switch (rule.kind) {
       case 'deposit': {
         const want = DEPOSIT_VALUES[rule.deposit];
-        if (!tiles.some(([tx, tz]) => reader.deposit(tx, tz) === want)) return fail('NEEDS_DEPOSIT', tiles);
+        let count = 0;
+        for (const [tx, tz] of tiles) if (reader.deposit(tx, tz) === want) count++;
+        if (count < (rule.minTiles ?? 1)) return fail('NEEDS_DEPOSIT', tiles);
         break;
       }
       case 'fertility': {

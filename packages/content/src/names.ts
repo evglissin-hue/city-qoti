@@ -40,3 +40,18 @@ export const valleyNameSuffixes: readonly string[] = [
   'stead',
   'wick',
 ];
+
+// Shared family name pool for residents (docs/spec/11-residents.md). C3A grows it to 100.
+// prettier-ignore
+export const familyNames: readonly string[] = [
+  'Ashby',
+  'Bramblewick',
+  'Fernsby',
+  'Hollins',
+  'Millbrook',
+  'Mossgrove',
+  'Puddleford',
+  'Quill',
+  'Thistledown',
+  'Underbank',
+];

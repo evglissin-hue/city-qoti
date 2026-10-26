@@ -300,6 +300,49 @@ interface Tool {
 }
 ```
 
+## I1 contracts
+
+Defined in cycle C3.0, then changed only additively during the I1 wave. Everything below is exported from `@qoti/sim` (types from `contracts/`, values from `constants.ts`) or `@qoti/content`.
+
+**State** (`contracts/hamlet.ts`, `contracts/state.ts`; `SAVE_VERSION = 2`, migration from 1 adds empty slices and zeroed layers, I0 valleys stay sandbox):
+
+- `WorldState` gains `residents`, `households` (sorted by id), `economy` (treasury in pennies, `forSale`, ledger periods today, yesterday, season and last season, 14 days of stock history, lean times, seasons in surplus, everything ever produced), `logistics` (porter jobs with reservations, delivery flows), `hearth` (pattern sites keyed by pattern and anchor tile, discoveries, 3 hints, unlocked ids, dirty charm chunks), `wishes`, `chronicle`, `achievements`, `stats` and `networkVersion` (bumped whenever roads, buildings, fields or blocking decor change; the path cache key).
+- `Building.rt?: BuildingRuntime` in standard valleys only: workers, present, `input`, `output` and `store` buffers, reservations in and out, method, progress, `construction { needs, delivered, work, workDone, priority, paid }`, condition, paused, `status` bits (`BuildingStatus`), produced today.
+- `SeatState.seen?`: stats when the seat last left, for the while-you-were-away letter.
+- Map layers gain `charm`, `charmNature`, `charmComfort`, `charmLight`, `charmView`, `charmNoise` (noise as a magnitude, 0 quiet), `fieldOwner` (Int32, the farmhouse tending a field tile) and `crop` (growth 0 to 255). Charm is stored because it is recomputed hourly per dirty chunk, so it depends on history.
+- **Per-good quantities are arrays indexed by good index** (`content.goods`, whose order is append-only); per-need values follow `NEED_IDS`; money follows `LEDGER_CATEGORIES`.
+
+**Content** (`packages/content/src/types.ts`): `GoodDef`, `ProductionMethod { kind: craft | gather | fell | plant | farm, inputs, outputs, hours, workers, perWorker?, range?, heightBonus? }`, `BuildingDef` additions (`jobs { count, role }`, `housing`, `storage`, `coverage`, `methods`, `work`, `outputBuffer`, `charm`, `tags`, `modes`), `DecorDef` additions (`charm`, `cost`, `locked`), `CharmSource`, `SpeciesDef` and `Taste`, `TraitDef`, `familyNames`, `WishTemplate`, `PatternDef`, `AchievementDef`, `ChronicleTemplate`. Lookups on `Content`: `goodIndex`, `speciesById`, `traitById`, `wishById`, `patternById`, `achievementById`, `chronicleByKind`.
+
+**Condition DSL** (types in content, evaluator in `packages/sim/src/conditions`): `all`, `any`, `not`; `near` (a target such as `{ tag: 'bench' }`, `{ building: 'well' }`, `{ tree: 'any' }`, `{ water: true }` or `{ home: 'occupied' }` within N tiles of a place, `atLeast`, and `also` for "a bench that is itself near water"); `count` (residents, households, patterns, wishes granted, goods produced, seasons in surplus, built together); `charm` at a place; `stock` of a good at a place; `resident` facts for offering wishes; `code` with params for named predicates (`lanternRoute`, `pathRoute`). Places: `home`, `work`, `nearestMarket`, a tile or a building, bound when a wish is made.
+
+**Commands**: `build.customize { id, custom: BuildingCustom }`, `build.setPriority`, `build.setPaused`, `field.paint { farm, tiles }`, `field.remove`, `ledger.setForSale { good, forSale }`. New reject reasons: `LEAN_TIMES`, `LOCKED`, `OUT_OF_RANGE`, `CHANGED`. A valley keeps its mode (`valley.setSettings` refuses a mode change). Pattern Book decor is `LOCKED` in standard valleys until unlocked.
+
+**Events and views**: `resident.added|updated|removed` (coarse `ResidentView`: home, job, tier, wish, mood band, bond, look seed), `household.*`, `stocks.updated` (`StocksView`), `budget.updated` (`BudgetView`), `town.updated` (`TownView`), `wish.added|granted|expired` (`WishView` with rendered text and a highlight area), `pattern.discovered|siteAdded|siteRemoved|updated` (`PatternView`), `chronicle.added`, `achievement.unlocked`; `building.updated` carries `rt` (`BuildingRuntimeView`, goods as `[id, qty]` pairs, construction stage 0 to 3). `ViewSnapshot` carries all of them. Full detail comes from the worker: `ToWorker { k: 'inspect', reqId, kind: 'resident' | 'building' | 'away', id }` answered by `FromWorker { k: 'inspected', reqId, data }` (`ResidentDetail`, `BuildingDetail`, `AwayLetter`).
+
+**Agent frames**: after each batch of turns the worker posts `{ k: 'agents', t, data }`, a `Float32Array` with `AGENT_STRIDE = 8` floats per resident outdoors: `[id, x, z, y, heading, anim, carryGood + 1, flags]`. x and z in tile units (tile centers at +0.5), y in height levels, heading in radians, `anim` 0 idle, 1 walk, 2 carry, 3 hop, 4 work; `flags` are `AgentFlags` (wish, happy, unhappy, sleepy, child, slow). The Mirror keeps the previous and latest frame with arrival times for interpolation.
+
+**Cross-track APIs** (signatures fixed by C3.0, stub or baseline implementations, owners in the file headers):
+
+| API | File | Owner |
+|---|---|---|
+| `requestMove(state, residentId, targetTile, reason)`, `isAt`, `isWalking`, `stopMove`, `doorTile`, `doorTileOf`, `enterBuilding` | `systems/movement/api.ts` | C3A (stub teleports) |
+| `addMoodModifier`, `removeMoodModifier`, `modifierValue`, `addBond`, `moodTaxPercent` | `systems/residents/api.ts` | C3A |
+| `takeFromOutlet`, `outletFood`, `nearestOutletWithFood` | `systems/economy/outlets.ts` | C3C |
+| `placementBlocked`, `chargePlacement`, `refundRemoval`, `roadBlocked`, `chargeRoad`, `book` | `systems/economy/api.ts` | C3C |
+| `setupStandardStart` | `systems/economy/start.ts` | C3C |
+| `chronicle(state, ctx, kind, params)` | `systems/chronicle/api.ts` | C3B |
+| `markCharmDirty(state, rect)` | `systems/hearth/charm/dirty.ts` | C3B |
+| `evaluate(state, condition, binding)`, `codePredicates` | `conditions/` | C3B |
+
+`createValley(seed, settings)` (an alias of `createWorld`) builds the standard starting town for `mode: 'standard'`: the Town Hall at the end of the valley lane, a Storehouse with the starting goods, two Cottages and a Well along a new path, and 500 coins. `insertBuilding` puts a building into state (occupancy, trees, runtime, charm dirt) for commands, the start and fixtures.
+
+**System slots**: 20 construction, 30 production, 40 logistics, 50 residents, 52 movement, 60 economy, 70 charm, 72 patterns, 74 wishes, 90 achievements, 100 chronicle (plus I0's 10 clock and 30 trees). Every I1 system returns at once in sandbox valleys.
+
+**Client**: `RenderApi` gains optional `follow(residentId | null)`, `setBubbles(on)` and `highlight(area | tiles | null)`; `EntityPick.kind` gains `'resident'`; `OverlayKind` names `'charm'` (and `'charm:<category>'`), `'coverage'`, `'flows'`, `'status'` and `'fields'`. The Mirror keeps residents, households, wishes, patterns, achievements, the Chronicle, stocks, budget and town, applies every I1 event, keeps agent frames, and exposes `charm(x, z, layer?)`. `SimHost.inspect(kind, id)` and `onAgents`.
+
+**Fixtures**: `packages/sim/test/fixtures/hamlet.ts` (a standard hamlet on the flat test world: 10 buildings with runtime, 3 households, 9 residents, stocks, decor) and `apps/client/src/ui/mocks/hamlet.ts` (matching mock views with a little history).
+
 ## Client
 
 - **Boot**: title screen → create or join → `RoomConnection` → `SimHost.init` (new from seed, or snapshot) → `ready` → Mirror built from the view → Renderer and UI mount → live turns flow to the worker.

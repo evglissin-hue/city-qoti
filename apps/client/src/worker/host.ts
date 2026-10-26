@@ -1,4 +1,4 @@
-import type { LayerPatch, SimEvent, Turn, ViewSnapshot } from '@qoti/sim';
+import type { InspectKind, InspectResult, LayerPatch, SimEvent, Turn, ViewSnapshot } from '@qoti/sim';
 import type { FromWorker, InitSource, ToWorker } from './messages';
 
 export interface WorkerUpdate {
@@ -18,6 +18,9 @@ export class SimHost {
   private failWait: ((err: Error) => void) | null = null;
   onUpdate: ((u: WorkerUpdate) => void) | null = null;
   onHash: ((t: number, h: string) => void) | null = null;
+  /** I1: agent frames after each batch of turns. */
+  onAgents: ((t: number, data: Float32Array) => void) | null = null;
+  private readonly inspectWaits = new Map<number, (data: InspectResult) => void>();
   onError: ((message: string) => void) | null = null;
 
   constructor() {
@@ -60,6 +63,11 @@ export class SimHost {
         this.snapshotWaits.delete(msg.reqId);
         break;
       case 'agents':
+        this.onAgents?.(msg.t, msg.data);
+        break;
+      case 'inspected':
+        this.inspectWaits.get(msg.reqId)?.(msg.data);
+        this.inspectWaits.delete(msg.reqId);
         break;
       case 'error':
         this.fail(msg.message);
@@ -97,6 +105,14 @@ export class SimHost {
     const reqId = this.nextReq++;
     const promise = new Promise<{ t: number; h: string }>((resolve) => this.hashWaits.set(reqId, resolve));
     this.post({ k: 'hash', reqId });
+    return promise;
+  }
+
+  /** I1: full detail for an inspector ('resident', 'building') or the away letter ('away', seat). */
+  inspect(kind: InspectKind, id: number): Promise<InspectResult> {
+    const reqId = this.nextReq++;
+    const promise = new Promise<InspectResult>((resolve) => this.inspectWaits.set(reqId, resolve));
+    this.post({ k: 'inspect', reqId, kind, id });
     return promise;
   }
 

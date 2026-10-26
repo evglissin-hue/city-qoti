@@ -24,6 +24,16 @@ interface SaveFile {
   buildings: WorldState['buildings'];
   decor: WorldState['decor'];
   notes: WorldState['notes'];
+  residents: WorldState['residents'];
+  households: WorldState['households'];
+  economy: WorldState['economy'];
+  logistics: WorldState['logistics'];
+  hearth: WorldState['hearth'];
+  wishes: WorldState['wishes'];
+  chronicle: WorldState['chronicle'];
+  achievements: WorldState['achievements'];
+  stats: WorldState['stats'];
+  networkVersion: number;
 }
 
 export function serialize(state: WorldState): Uint8Array {
@@ -47,6 +57,16 @@ export function serialize(state: WorldState): Uint8Array {
     buildings: state.buildings,
     decor: state.decor,
     notes: state.notes,
+    residents: state.residents,
+    households: state.households,
+    economy: state.economy,
+    logistics: state.logistics,
+    hearth: state.hearth,
+    wishes: state.wishes,
+    chronicle: state.chronicle,
+    achievements: state.achievements,
+    stats: state.stats,
+    networkVersion: state.networkVersion,
   };
   // mtime 0 keeps the bytes a pure function of the state.
   return gzipSync(strToU8(JSON.stringify(save)), { level: 6, mtime: 0 });
@@ -87,5 +107,15 @@ export function deserialize(data: Uint8Array): WorldState {
     buildings: [...save.buildings].sort(byId),
     decor: [...save.decor].sort(byId),
     notes: [...save.notes].sort(byId),
+    residents: [...save.residents].sort(byId),
+    households: [...save.households].sort(byId),
+    economy: save.economy,
+    logistics: save.logistics,
+    hearth: save.hearth,
+    wishes: [...save.wishes].sort(byId),
+    chronicle: [...save.chronicle].sort(byId),
+    achievements: save.achievements,
+    stats: save.stats,
+    networkVersion: save.networkVersion,
   };
 }

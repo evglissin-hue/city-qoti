@@ -11,6 +11,7 @@ import type {
 } from '../contracts';
 import { inBounds, tilesRect } from '../map/layers';
 import { isInt, isTile } from '../rules/geometry';
+import { markCharmDirty } from '../systems/hearth/charm/dirty';
 
 /** A handler for one command type, typed by its `t`. */
 export type HandlerFor<T extends Command['t']> = CommandHandler<Extract<Command, { t: T }>>;
@@ -60,4 +61,14 @@ export function trimmed(v: unknown, max: number): string | null {
   if (typeof v !== 'string') return null;
   const s = v.trim();
   return s.length === 0 || s.length > max ? null : s;
+}
+
+/**
+ * I1 (C3.0): the world's walkable network or what charm reads changed. Bumps networkVersion (the
+ * path cache key) and marks charm chunks dirty around the rect.
+ */
+export function worldChanged(state: WorldState, rect: Rect | null, walkable = true): void {
+  if (!rect) return;
+  if (walkable) state.networkVersion += 1;
+  markCharmDirty(state, rect);
 }

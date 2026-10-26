@@ -1,9 +1,13 @@
 // Command registry: one line per command, in alphabetical order by type.
 import type { Command, CommandType } from '../contracts';
 import * as build from './build';
+import * as customize from './customize';
 import * as decor from './decor';
+import * as field from './field';
+import * as ledger from './ledger';
 import * as note from './note';
 import * as road from './road';
+import * as runtime from './runtime';
 import * as seat from './seat';
 import * as sys from './sys';
 import * as time from './time';
@@ -13,11 +17,17 @@ import * as valley from './valley';
 
 // prettier-ignore
 export const commandHandlers: readonly AnyHandler[] = [
+  customize.customize,
   build.place,
   build.remove,
+  runtime.setPaused,
+  runtime.setPriority,
   decor.place,
   decor.placeRun,
   decor.remove,
+  field.paint,
+  field.remove,
+  ledger.setForSale,
   note.pin,
   note.remove,
   road.paint,

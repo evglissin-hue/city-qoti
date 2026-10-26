@@ -1,0 +1,259 @@
+// I1 view builders (C3.0). Their output never feeds back into state, so floats are fine here.
+// Tracks may enrich these (C3A residents, C3B Hearth, C3C Ledger) without changing their shapes.
+import { content } from '@qoti/content';
+import { LEDGER_CATEGORIES, MAP_SIZE, MOOD_BAND_MIN, TICKS_PER_HOUR } from '../constants';
+import type {
+  AchievementView,
+  BudgetLine,
+  BudgetView,
+  BuildingRuntime,
+  BuildingRuntimeView,
+  ChronicleEntry,
+  ChronicleEntryView,
+  EntityId,
+  Household,
+  HouseholdView,
+  LedgerPeriod,
+  MoodBand,
+  PatternView,
+  Resident,
+  ResidentView,
+  StocksView,
+  TownView,
+  Wish,
+  WishView,
+  WorldState,
+} from '../contracts';
+import { findById } from '../state/entities';
+
+export function moodBand(mood: number): MoodBand {
+  let band = 0;
+  for (let i = 0; i < MOOD_BAND_MIN.length; i++) if (mood >= MOOD_BAND_MIN[i]!) band = i + 1;
+  return band as MoodBand;
+}
+
+/** "Clover Thistledown". */
+export function residentName(r: Pick<Resident, 'given' | 'family'>): string {
+  return `${r.given} ${r.family}`;
+}
+
+export function residentView(state: WorldState, r: Resident): ResidentView {
+  const h = findById(state.households, r.householdId);
+  return {
+    id: r.id,
+    given: r.given,
+    family: r.family,
+    species: r.species,
+    stage: r.stage,
+    traits: [...r.traits],
+    householdId: r.householdId,
+    homeId: h?.homeId ?? 0,
+    jobId: r.jobId,
+    tier: r.tier,
+    wishId: r.wishId,
+    moodBand: moodBand(r.mood),
+    bond: r.bond,
+    look: r.look,
+    flags: r.flags,
+  };
+}
+
+export function householdView(h: Household): HouseholdView {
+  let food = 0;
+  for (let i = 0; i < content.goods.length; i++) if (content.goods[i]!.food) food += h.pantry[i] ?? 0;
+  return {
+    id: h.id,
+    family: h.family,
+    members: [...h.members],
+    homeId: h.homeId,
+    tier: h.tier,
+    pantryFood: food,
+  };
+}
+
+/** Nonzero entries of a per-good array as [good id, qty]. */
+export function goodPairs(values: readonly number[]): [string, number][] {
+  const out: [string, number][] = [];
+  for (let i = 0; i < values.length; i++) {
+    const v = values[i]!;
+    if (v) out.push([content.goods[i]?.id ?? `good-${i}`, v]);
+  }
+  return out;
+}
+
+/** 0 staked, 1 foundation, 2 frame, 3 roof, from materials delivered and work done. */
+export function constructionStage(rt: BuildingRuntime): 0 | 1 | 2 | 3 {
+  const c = rt.construction;
+  if (!c) return 3;
+  const p = constructionProgress(rt);
+  return p < 0.15 ? 0 : p < 0.45 ? 1 : p < 0.8 ? 2 : 3;
+}
+
+/** 0 to 1: half materials delivered, half work done. */
+export function constructionProgress(rt: BuildingRuntime): number {
+  const c = rt.construction;
+  if (!c) return 1;
+  let need = 0;
+  let got = 0;
+  for (let i = 0; i < c.needs.length; i++) {
+    need += c.needs[i]! + c.delivered[i]!;
+    got += c.delivered[i]!;
+  }
+  const mats = need > 0 ? got / need : 1;
+  const work = c.work > 0 ? c.workDone / c.work : 1;
+  return Math.min(1, 0.5 * mats + 0.5 * work);
+}
+
+export function runtimeView(defId: string, rt: BuildingRuntime): BuildingRuntimeView {
+  const def = content.buildingById.get(defId);
+  const method = def?.methods?.[rt.method];
+  const cycle = method ? method.hours * TICKS_PER_HOUR * Math.max(1, method.workers) : 0;
+  const view: BuildingRuntimeView = {
+    jobs: def?.jobs?.count ?? 0,
+    workers: rt.workers.length,
+    present: rt.present,
+    status: rt.status,
+    condition: rt.condition,
+    paused: rt.paused,
+    progress: cycle > 0 ? Math.min(1, rt.progress / cycle) : 0,
+    input: goodPairs(rt.input),
+    output: goodPairs(rt.output),
+    store: goodPairs(rt.store),
+  };
+  const c = rt.construction;
+  if (c) {
+    view.construction = {
+      stage: constructionStage(rt),
+      progress: constructionProgress(rt),
+      needs: goodPairs(c.needs),
+      delivered: goodPairs(c.delivered),
+      priority: c.priority,
+    };
+  }
+  return view;
+}
+
+/** Town stock per good: storehouses, stalls and output buffers. */
+export function townStock(state: WorldState): number[] {
+  const out = new Array<number>(content.goods.length).fill(0);
+  for (const b of state.buildings) {
+    const rt = b.rt;
+    if (!rt || b.stage !== 'built') continue;
+    for (let i = 0; i < out.length; i++) out[i]! += (rt.store[i] ?? 0) + (rt.output[i] ?? 0);
+  }
+  return out;
+}
+
+export function stocksView(state: WorldState): StocksView {
+  const stock = townStock(state);
+  const e = state.economy;
+  return {
+    lines: content.goods.map((g, i) => ({
+      good: g.id,
+      stock: stock[i]!,
+      producedToday: e.today.produced[i] ?? 0,
+      consumedToday: e.today.consumed[i] ?? 0,
+      producedYesterday: e.yesterday.produced[i] ?? 0,
+      consumedYesterday: e.yesterday.consumed[i] ?? 0,
+      history: e.stockHistory.map((day) => day[i] ?? 0),
+      forSale: e.forSale[i] ?? false,
+    })),
+  };
+}
+
+function budgetLines(p: LedgerPeriod): BudgetLine[] {
+  return LEDGER_CATEGORIES.map((c, i) => ({ category: c.id, kind: c.kind, pennies: p.money[i] ?? 0 }));
+}
+
+export function budgetView(state: WorldState): BudgetView {
+  const e = state.economy;
+  return {
+    treasury: e.treasury,
+    leanTimes: e.leanTimes,
+    today: budgetLines(e.today),
+    yesterday: budgetLines(e.yesterday),
+    season: budgetLines(e.season),
+    lastSeason: e.lastSeason ? budgetLines(e.lastSeason) : null,
+  };
+}
+
+/** Fills {name}, {place} and {species} in a template variant. */
+export function fillText(text: string, params: readonly [string, string][]): string {
+  let out = text;
+  for (const [k, v] of params) out = out.split(`{${k}}`).join(v);
+  return out;
+}
+
+export function wishView(state: WorldState, w: Wish): WishView {
+  const t = content.wishById.get(w.template);
+  const r = findById(state.residents, w.residentId);
+  const home = findById(state.buildings, w.home);
+  const sp = r ? content.speciesById.get(r.species) : undefined;
+  const raw = t?.text[w.variant % Math.max(1, t.text.length)] ?? w.template;
+  const text = fillText(raw, [
+    ['name', r ? r.given : 'Someone'],
+    ['place', home ? (content.buildingById.get(home.def)?.name.toLowerCase() ?? 'home') : 'home'],
+    ['species', sp?.name.toLowerCase() ?? 'resident'],
+  ]);
+  return {
+    id: w.id,
+    template: w.template,
+    residentId: w.residentId,
+    text,
+    lane: t?.lane ?? 'hearth',
+    homeId: w.home,
+    area: home ? { x: home.x + 1, z: home.z + 1, radius: 4 } : null,
+    createdTick: w.createdTick,
+    expiresTick: w.expiresTick,
+  };
+}
+
+export function patternView(state: WorldState, id: string): PatternView {
+  const d = state.hearth.discovered.find((p) => p.pattern === id);
+  const view: PatternView = {
+    id,
+    discovered: !!d,
+    hinted: state.hearth.hints.includes(id),
+    sites: state.hearth.sites
+      .filter((s) => s.pattern === id)
+      .map((s) => ({
+        x: s.anchor % MAP_SIZE,
+        z: Math.floor(s.anchor / MAP_SIZE),
+        members: [...s.members],
+        tiles: [...s.tiles],
+      })),
+  };
+  if (d) {
+    view.tick = d.tick;
+    view.seat = d.seat;
+    view.together = d.together;
+  }
+  return view;
+}
+
+export function chronicleView(c: ChronicleEntry): ChronicleEntryView {
+  return { id: c.id, tick: c.tick, kind: c.kind, text: c.text, refs: [...c.refs], seats: [...c.seats] };
+}
+
+export function achievementView(state: WorldState, id: string): AchievementView {
+  const a = state.achievements.find((x) => x.id === id);
+  return a ? { id, unlocked: true, tick: a.tick, seats: [...a.seats] } : { id, unlocked: false };
+}
+
+export function townView(state: WorldState): TownView {
+  return {
+    population: state.residents.length,
+    households: state.households.length,
+    treasury: state.economy.treasury,
+    leanTimes: state.economy.leanTimes,
+    attractiveness: state.stats.attractiveness,
+    unlocked: [...state.hearth.unlocked],
+    wishesGranted: state.stats.wishesGranted,
+  };
+}
+
+/** The resident's display name, or '' when gone. */
+export function nameOf(state: WorldState, id: EntityId): string {
+  const r = findById(state.residents, id);
+  return r ? residentName(r) : '';
+}

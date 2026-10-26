@@ -12,10 +12,18 @@ export interface TilePick {
 }
 
 export interface EntityPick {
-  kind: 'building' | 'decor' | 'note' | 'tree';
+  /** I1 (C3.0): 'resident' picks walking residents from the agent frames. */
+  kind: 'building' | 'decor' | 'note' | 'tree' | 'resident';
   /** Entity id, or the tile index (z * size + x) for trees. */
   id: number;
 }
+
+/**
+ * Overlay kinds for setOverlay (I1, C3.0): 'charm' (and 'charm:nature' style category views),
+ * 'coverage' (well water), 'flows' (porter deliveries), 'status' (building status icons),
+ * 'fields' (farm reach while painting). null hides overlays.
+ */
+export type OverlayKind = 'charm' | `charm:${string}` | 'coverage' | 'flows' | 'status' | 'fields';
 
 export interface GhostSegment {
   fx: number;
@@ -47,4 +55,18 @@ export interface RenderApi {
    * and off-screen arrows. `onScreen` is false when the point is outside the view or behind it.
    */
   project?(x: number, y: number, z: number): { x: number; y: number; onScreen: boolean } | null;
+  /** I1 (C3.0): follow a resident with the camera (null stops). Optional until C3D lands. */
+  follow?(residentId: number | null): void;
+  /** I1 (C3.0): mood and wish bubbles above heads. */
+  setBubbles?(on: boolean): void;
+  /**
+   * I1 (C3.0): a soft highlight of an area (a wish's target area, a pattern site, a farm's reach),
+   * drawn on the ground. null clears it.
+   */
+  highlight?(
+    area:
+      | { x: number; z: number; radius: number; tone?: 'hearth' | 'ledger' }
+      | { tiles: [number, number][]; tone?: 'hearth' | 'ledger' }
+      | null,
+  ): void;
 }
