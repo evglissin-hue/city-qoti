@@ -10,6 +10,7 @@ import { findById } from '../../state/entities';
 import { townStock } from '../../view/hamlet';
 import { setInside } from '../movement/api';
 import { doorOf, householdOf, isWorkingAge, manhattan } from './places';
+import { jobFits } from '../tiers/api';
 import { pushHistory } from './records';
 
 /** Open job slots at a built building, or 0 (paused buildings hire nobody). */
@@ -173,6 +174,8 @@ export function assignJobs(state: WorldState, _ctx: TickCtx, only?: Resident): n
     for (const b of open) {
       const p = openPriority(b, short);
       if (p === Infinity) continue;
+      // I2 (C4C): jobs at their tier or one below.
+      if (!jobFits(r.tier, content.buildingById.get(b.def))) continue;
       const d = manhattan(homeDoor, doorOf(state, b.id));
       if (p < bestP || (p === bestP && d < bestD)) {
         bestP = p;
@@ -180,7 +183,7 @@ export function assignJobs(state: WorldState, _ctx: TickCtx, only?: Resident): n
         best = b;
       }
     }
-    if (!best) break;
+    if (!best) continue;
     hire(state, r, best);
     hired++;
   }
@@ -216,6 +219,7 @@ export function rebalanceJobs(state: WorldState): boolean {
     for (let i = rt.workers.length - 1; i >= 0; i--) {
       const r = findById(state.residents, rt.workers[i]!);
       if (!r || r.activity.kind === 'task' || r.carry) continue;
+      if (!jobFits(r.tier, content.buildingById.get(target.def))) continue;
       fromP = p;
       from = r;
       break;

@@ -9,6 +9,7 @@ import { chroniclePhrases, content, type PatternDef } from '@qoti/content';
 import { MAP_SIZE } from '../../../constants';
 import type { EntityId, PatternSite, SeatId, TickCtx, WorldState } from '../../../contracts';
 import { findById } from '../../../state/entities';
+import { rankAtLeast } from '../../../state/village';
 import { patternView, townView } from '../../../view/hamlet';
 import { chronicle } from '../../chronicle/api';
 import { creditText, fill, listJoin, pick, placeName } from '../../chronicle/text';
@@ -100,6 +101,8 @@ function pass(state: WorldState, ctx: TickCtx): PatternPassResult {
   let charmTouched = false;
 
   for (const def of content.patterns) {
+    // I2 (C4C): a pattern is looked for from its rank on (the Village brings six).
+    if (!rankAtLeast(state, def.rank)) continue;
     const detect = detectors.get(def.detector);
     const old = h.sites.filter((s) => s.pattern === def.id);
     const oldByAnchor = new Map(old.map((s) => [s.anchor, s]));
@@ -218,7 +221,7 @@ export function refillHints(state: WorldState, ctx: TickCtx | null): void {
   for (let i = h.hints.length - 1; i >= 0; i--) if (discovered.has(h.hints[i]!)) h.hints.splice(i, 1);
   for (const p of HINT_ORDER) {
     if (h.hints.length >= MAX_HINTS) break;
-    if (discovered.has(p.id) || h.hints.includes(p.id) || p.rank !== 'hamlet') continue;
+    if (discovered.has(p.id) || h.hints.includes(p.id) || !rankAtLeast(state, p.rank)) continue;
     h.hints.push(p.id);
     ctx?.events.push({ e: 'pattern.updated', p: patternView(state, p.id) });
   }

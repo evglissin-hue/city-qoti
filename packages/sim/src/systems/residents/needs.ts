@@ -2,19 +2,19 @@
 // household pantry, preferring variety; water, shelter, belonging and beauty move hourly toward
 // their targets; mood is the weighted average of needs plus modifiers and traits, clamped 0 to 100.
 import { content } from '@qoti/content';
-import { MOOD_PRODUCTIVITY, NEED_IDS, NEED_WEIGHTS, TICKS_PER_DAY } from '../../constants';
+import { MOOD_PRODUCTIVITY, NEED_IDS, TICKS_PER_DAY } from '../../constants';
 import type { Household, Resident, TickCtx, WorldState } from '../../contracts';
 import { findById } from '../../state/entities';
 import { moodBand } from '../../view/hamlet';
 import { modifierValue } from './api';
 import { averageAround, tasteScore } from './desirability';
 import { walkGrid } from '../movement/grid';
+import { weightsOf } from '../services/weights';
 import { doorOf, tileX, tileZ, wellsOf } from './places';
 import { announceHousehold } from './records';
 import { hasTrait, traitSum } from './traits';
 
 export const Need = { food: 0, water: 1, shelter: 2, belonging: 3, beauty: 4 } as const;
-const WEIGHT_TOTAL = NEED_WEIGHTS.reduce((a, b) => a + b, 0);
 /** Charm at which a settler home counts as beautiful (tune). */
 export const BEAUTY_THRESHOLD = { settler: 25, craftsfolk: 35, merchant: 45, patron: 55 } as const;
 
@@ -203,9 +203,13 @@ function belongingTarget(r: Resident): number {
   return best >= 2 ? 100 : best === 1 ? 70 : r.friends.length > 0 ? 50 : 35;
 }
 
-/** Need contribution to mood (weighted), as whole points. */
+/**
+ * Need contribution to mood (weighted), as whole points. I2 (C4C): the weights depend on the tier
+ * and life stage (Craftsfolk weigh the tavern and the herbalist; Settlers weigh exactly as in I1).
+ */
 export function needPoints(r: Resident, i: number): number {
-  return ((r.needs[i] ?? 0) * NEED_WEIGHTS[i]!) / WEIGHT_TOTAL;
+  const row = weightsOf(r);
+  return ((r.needs[i] ?? 0) * row.w[i]!) / row.total;
 }
 
 /** +2 when a friend at level 1 or more is Cheerful (it spreads). */

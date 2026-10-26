@@ -19,6 +19,8 @@ import { chronicleView, fillText, goodPairs, nameOf } from './hamlet';
 import { residentDetail } from './residentDetail';
 import { lotView, wagesAt } from './village';
 import { priceOf } from '../systems/market/api';
+import { servedBy } from '../systems/services/coverage';
+import type { ServiceKind } from '../systems/services/weights';
 
 export { residentDetail };
 
@@ -62,6 +64,14 @@ function statusLines(b: Building, def: BuildingDef | undefined): string[] {
   if (has(BuildingStatus.noFields)) out.push('No fields painted yet');
   if (has(BuildingStatus.noRoad)) out.push('No road at the door');
   if (has(BuildingStatus.noPorters)) out.push('No porters within 20 tiles');
+  // I2 (C4C)
+  if (has(BuildingStatus.upgrading) && rt.upgrade) {
+    const to =
+      content.buildingById.get(def?.upgradesTo?.def ?? '')?.name.toLowerCase() ?? 'something grander';
+    const due = goodsText(rt.upgrade);
+    out.push(due ? `Becoming a ${to}: waiting for ${due}` : `Becoming a ${to}`);
+  }
+  if (has(BuildingStatus.noCartRoad)) out.push('No lane or street at the door for the cart');
   if (has(BuildingStatus.disrepair)) out.push(`In disrepair (${rt.condition}%)`);
   else if (rt.condition < WORN_CONDITION) out.push(`A little worn (${rt.condition}%)`);
   return out;
@@ -120,6 +130,14 @@ export function buildingDetail(state: WorldState, id: EntityId): BuildingDetail 
   if (cover && b.stage === 'built') {
     const residents = residentsWithin(state, b, cover.radius);
     detail.served = { residents, capacity: cover.capacity ?? residents };
+  }
+  // I2 (C4C): the school, tavern and herbalist count the residents they cover.
+  const service = def?.coverage?.find(
+    (c) => c.kind === 'social' || c.kind === 'health' || c.kind === 'education',
+  );
+  if (service && b.stage === 'built') {
+    const kind = service.kind as ServiceKind;
+    detail.served = { residents: servedBy(state, b, kind), capacity: service.capacity ?? 0 };
   }
   if (def && rt && b.stage === 'built') {
     const rates = dailyRates(state, b, def);

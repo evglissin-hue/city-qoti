@@ -37,6 +37,7 @@ import {
   stowNearest,
   tileDistance,
 } from './stores';
+import { deliverUpgrade } from '../tiers/api';
 import { available, finishTask, startTask, tickReturning, walkTo } from './tasks';
 
 /** Job classes in matching order: lower is more urgent (PorterJob.priority). */
@@ -79,8 +80,14 @@ export const logistics: System = {
   },
 };
 
-function carryOf(good: number): number {
-  return content.goods[good]?.carry ?? PORTER_CARRY;
+/** Capability id the Wheelbarrows innovation unlocks: porters carry 6. */
+export const WHEELBARROW = 'porter-carry-6';
+export const WHEELBARROW_CARRY = 6;
+
+/** Units a porter carries of a good: its `carry`, or 6 once the town has wheelbarrows. */
+export function carryOf(state: WorldState, good: number): number {
+  const carry = content.goods[good]?.carry ?? PORTER_CARRY;
+  return state.hearth.unlocked.includes(WHEELBARROW) ? Math.max(carry, WHEELBARROW_CARRY) : carry;
 }
 
 function spotsOf(state: WorldState): Spot[] {
@@ -113,6 +120,14 @@ function needsOf(spots: readonly Spot[]): Need[] {
         const want = c.needs[g]! - rt.reservedIn[g]!;
         if (want > 0)
           out.push({ dest: s, good: g, want, cls: c.priority ? JobClass.prioritySite : JobClass.site });
+      }
+      continue;
+    }
+    // I2 (C4C): a home upgrading to the next tier waits for its materials like a site.
+    if (rt.upgrade) {
+      for (let g = 0; g < rt.upgrade.length; g++) {
+        const want = rt.upgrade[g]! - rt.reservedIn[g]!;
+        if (want > 0) out.push({ dest: s, good: g, want, cls: JobClass.site });
       }
       continue;
     }
@@ -213,7 +228,7 @@ function assign(state: WorldState, spots: readonly Spot[], needs: Need[], r: Res
   if (!bestSrc || !bestDest || bestGood < 0) return;
 
   const g = bestGood;
-  let qty = Math.min(carryOf(g), sourceAvail(bestSrc.b, bestSrc.def, g));
+  let qty = Math.min(carryOf(state, g), sourceAvail(bestSrc.b, bestSrc.def, g));
   if (bestNeed) qty = Math.min(qty, bestNeed.want);
   if (isStorage(bestDest.def)) qty = Math.min(qty, storageSpace(bestDest.def, bestDest.rt));
   if (qty <= 0) return;
@@ -337,6 +352,9 @@ function deliver(state: WorldState, ctx: TickCtx, job: PorterJob, dst: Building)
     e.season.consumed[g]! += used;
     if (n > used) stowNearest(state, doorTile(dst), g, n - used, dst.id);
     if (constructionStage(rt) !== before) emitBuilding(state, ctx, dst);
+  } else if (rt.upgrade) {
+    const used = deliverUpgrade(state, ctx, dst, g, n);
+    if (n > used) stowNearest(state, doorTile(dst), g, n - used, dst.id);
   } else if (isStorage(defOf(dst))) {
     rt.store[g]! += n;
   } else {

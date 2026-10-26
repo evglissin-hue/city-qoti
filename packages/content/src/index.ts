@@ -49,6 +49,7 @@ import type {
 
 export { chroniclePhrases } from './chronicle';
 export { familyNames, valleyNamePrefixes, valleyNameSuffixes } from './names';
+export { villagePhrases } from './villageText';
 export * from './types';
 
 // prettier-ignore

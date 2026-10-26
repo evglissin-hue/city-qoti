@@ -455,6 +455,7 @@ export const sawmill: BuildingDef = {
       workers: 2,
     },
   ],
+  outputBuffer: 30,
   work: 16,
   charm: [{ category: 'noise', value: -10, radius: 4 }],
   tags: ['workshop', 'mill'],
