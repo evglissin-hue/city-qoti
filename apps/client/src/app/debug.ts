@@ -151,14 +151,40 @@ export function installDebugHook(getSession: () => Session | null): void {
       }
     },
     /** Glides the camera to the start area at `distance`, for screenshots. */
-    focusStart: (distance = 18) => {
+    focusStart: (distance = 18, snap = false) => {
       const session = s();
       if (!session) return;
       const [x0, z0, x1, z1] = session.mirror.meta.startArea;
       session.renderer?.focus((x0 + x1) / 2, (z0 + z1) / 2, distance);
+      // C3D-1: snap skips the glide, which crawls at SwiftShader frame rates.
+      if (snap) session.renderer?.rig.snap();
     },
     /** Pins the lighting to an hour of the day (null follows the clock again). */
     setHour: (hour: number | null) => s()?.renderer?.setDebugHour(hour),
+    /** C3D-1: jumps the camera (no glide) to look at a tile from `distance`, for screenshots. */
+    look: (x: number, z: number, distance: number) => {
+      const r = s()?.renderer;
+      r?.focus(x, z, distance);
+      r?.rig.snap();
+    },
+    /** C3D-1: the water tile nearest the start area center, or null. */
+    nearestWater: () => {
+      const m = s()?.mirror;
+      if (!m) return null;
+      const [x0, z0, x1, z1] = m.meta.startArea;
+      const cx = Math.floor((x0 + x1) / 2);
+      const cz = Math.floor((z0 + z1) / 2);
+      for (let r = 1; r < m.size; r++) {
+        for (let dz = -r; dz <= r; dz++) {
+          for (let dx = -r; dx <= r; dx++) {
+            if (Math.max(Math.abs(dx), Math.abs(dz)) === r && m.water(cx + dx, cz + dz)) {
+              return [cx + dx, cz + dz] as [number, number];
+            }
+          }
+        }
+      }
+      return null;
+    },
   };
   (window as unknown as { __qoti: typeof hook }).__qoti = hook;
 }
