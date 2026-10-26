@@ -324,6 +324,14 @@ export class Session {
         (sel.kind === 'resident' && !this.mirror.residents.has(sel.id));
       if (gone) this.ui.selection.value = null;
     }
+    const following = this.ui.following.value;
+    if (following !== null && change.residents && !this.mirror.residents.has(following)) {
+      this.ui.following.value = null;
+      this.render?.follow?.(null);
+    }
+    if (this.ui.customize.value !== null && !this.mirror.buildings.has(this.ui.customize.value)) {
+      this.ui.customize.value = null;
+    }
   }
 
   private onPresence(p: PresenceMsg): void {

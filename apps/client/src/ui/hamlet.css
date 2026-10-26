@@ -2089,3 +2089,23 @@ li.alert .dismiss {
   background: color-mix(in srgb, var(--river) 22%, var(--paper-light));
   border-color: var(--river);
 }
+
+.sketch-space {
+  display: grid;
+  place-items: center;
+  gap: 6px;
+  margin: 18px 8px 0;
+  padding: 26px 10px;
+  border: 1.5px dashed rgba(90, 66, 49, 0.25);
+  border-radius: 10px;
+  color: rgba(90, 66, 49, 0.45);
+  font-family: 'Alegreya', Georgia, serif;
+  font-style: italic;
+  font-size: 0.86rem;
+}
+
+.sketch-space .ornament {
+  width: 55%;
+  margin: 0;
+  opacity: 0.35;
+}

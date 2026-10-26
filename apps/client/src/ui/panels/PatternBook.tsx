@@ -171,6 +171,10 @@ function Page({
         <h3 class="unknown-title">? ? ?</h3>
         <p class="hint-text">{def.hint}</p>
         <p class="muted small">Build it somewhere in the valley and the page will write itself.</p>
+        <div class="sketch-space" aria-hidden="true">
+          <Ornament />
+          <span>room for a drawing</span>
+        </div>
         <span class="folio-mark">{folio}</span>
       </article>
     );
