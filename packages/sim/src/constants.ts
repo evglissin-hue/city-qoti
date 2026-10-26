@@ -181,10 +181,10 @@ export const Zone = { none: 0, homesLow: 1, homesMedium: 2, shops: 3, crafts: 4,
 /**
  * Daily wages per job tier at wage level 100, pennies, in TIERS order (tune). C4A tuned them down
  * from the spec's 6, 10, 16 and 26 coins so a working household's basket at base prices takes most
- * of its pay (a worker keeps about one and a half people fed): purses still fill toward the next
+ * of its pay (a worker keeps about two people fed): purses still fill toward the next
  * tier's savings, but slowly enough that the treasury is not drained into them.
  */
-export const WAGES = [250, 450, 700, 1100] as const;
+export const WAGES = [300, 500, 800, 1250] as const;
 export const WAGE_LEVEL_RANGE = [80, 120] as const;
 export const DEFAULT_WAGE_LEVEL = 100;
 export const TAX_RATE_RANGE = [0, 20] as const;

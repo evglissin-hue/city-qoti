@@ -7,6 +7,7 @@ import { describe, expect, it } from 'vitest';
 import {
   DRIFT_RANGE,
   DRIFT_STEP,
+  IMPACT_RECOVERY,
   LEDGER_CATEGORIES,
   TICKS_PER_DAY,
   TRADE_BUY_PERCENT,
@@ -57,15 +58,19 @@ describe('regional prices', () => {
     expect(seen.size).toBeGreaterThan(20);
   });
 
-  it('lets impact recover a tenth of the way home each day', () => {
+  it('lets impact recover a tenth of the price each day, and no further', () => {
     const { state } = villageFixture();
     const n = state.trade.neighbors[0]!;
     const planks = good('planks');
-    n.impact[planks] = 800;
+    const wheat = good('wheat');
+    n.impact[planks] = 750;
+    n.impact[wheat] = 1150;
     stepNeighbor(state, n, 1);
-    expect(n.impact[planks]).toBe(820);
-    for (let d = 0; d < 200; d++) stepNeighbor(state, n, 1);
+    expect(n.impact[planks]).toBe(750 + IMPACT_RECOVERY * 10);
+    expect(n.impact[wheat]).toBe(1150 - IMPACT_RECOVERY * 10);
+    for (let d = 0; d < 5; d++) stepNeighbor(state, n, 1);
     expect(n.impact[planks]).toBe(1000);
+    expect(n.impact[wheat]).toBe(1000);
   });
 
   it('prices the post at 1.2x to buy and 0.85x to sell', () => {

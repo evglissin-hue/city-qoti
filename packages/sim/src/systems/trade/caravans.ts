@@ -1,9 +1,10 @@
 // Caravans and standing orders (docs/spec/13-ledger.md, Trade). Daily at 08:00 (CARAVAN_HOUR),
 // with a Trading Post built: caravans due home unload what they bought, then the standing orders
-// are read in good order. A good above its order's max is sold, unit by unit, to the neighbor
-// paying most (or the one named), while the price holds at the floor; a good below its min (with
-// what is already on the road counted) is bought from the neighbor asking least while the price
-// stays under the ceiling and the treasury within its credit line. Each unit moves that
+// are read: shortfalls first, then surpluses, best-paying first. A good above its order's max is
+// sold, unit by unit, to the neighbor paying most (or the one named), while the price holds at the
+// floor; a good below its min (with what is already on the road counted) is bought from the
+// neighbor asking least while the price stays under the ceiling and the treasury within its
+// credit line. Each unit moves that
 // neighbor's price by IMPACT_PER_UNIT per mille, so a flood of planks cheapens planks.
 // Money settles at the gate as the caravan leaves (exports and imports, through book()); bought
 // goods arrive when it comes home, the neighbor's `days` later. The day's loads share the post's
@@ -166,7 +167,16 @@ function homecoming(state: WorldState, post: Building | null): void {
   state.trade.caravans = state.trade.caravans.filter((c) => c.returnTick > state.tick);
 }
 
-/** The day's standing orders: what sold and bought, per neighbor. */
+/** The best price a neighbor pays today for an order's good, or 0 when none buys it. */
+function bestSellPrice(state: WorldState, o: StandingOrder): number {
+  const n = partner(state, o, true);
+  return n ? (postSellPrice(state, n.id, o.good) ?? 0) : 0;
+}
+
+/**
+ * The day's standing orders: what sold and bought, per neighbor. Shortfalls come first (they are
+ * needs), then surpluses, best-paying first, so the wagons fill with what earns most.
+ */
 export function runOrders(state: WorldState, post: Building): Outbound[] {
   const out: Outbound[] = [];
   if (state.trade.orders.length === 0) return out;
@@ -174,27 +184,33 @@ export function runOrders(state: WorldState, post: Building): Outbound[] {
   const inbound = goodsArray();
   for (const c of state.trade.caravans) for (const [g, q] of c.buying) inbound[g]! += q;
   let room = caravanCapacity(state);
+  const sells: [order: StandingOrder, price: number][] = [];
   for (const o of state.trade.orders) {
-    if (room <= 0) break;
     const have = stock[o.good] ?? 0;
-    if (have > o.max && !state.levers.exportBans[o.good]) {
-      const units = Math.min(have - o.max, room, tradableStock(state, post, o.good));
-      const [sold, pennies, who] = sellFor(state, post, o, units);
-      if (sold > 0) {
-        book(state, 'exports', pennies);
-        log(state, who, o.good, -sold, pennies);
-        outboundFor(out, who).selling.push([o.good, sold]);
-        room -= sold;
-      }
-    } else if (have + inbound[o.good]! < o.min) {
-      const units = Math.min(o.min - have - inbound[o.good]!, room);
-      const [bought, pennies, who] = buyFor(state, o, units);
-      if (bought > 0) {
-        book(state, 'imports', pennies);
-        log(state, who, o.good, bought, -pennies);
-        outboundFor(out, who).buying.push([o.good, bought]);
-        room -= bought;
-      }
+    if (have > o.max) {
+      if (!state.levers.exportBans[o.good]) sells.push([o, bestSellPrice(state, o)]);
+      continue;
+    }
+    if (room <= 0 || have + inbound[o.good]! >= o.min) continue;
+    const units = Math.min(o.min - have - inbound[o.good]!, room);
+    const [bought, pennies, who] = buyFor(state, o, units);
+    if (bought > 0) {
+      book(state, 'imports', pennies);
+      log(state, who, o.good, bought, -pennies);
+      outboundFor(out, who).buying.push([o.good, bought]);
+      room -= bought;
+    }
+  }
+  sells.sort((a, b) => b[1] - a[1] || a[0].good - b[0].good);
+  for (const [o] of sells) {
+    if (room <= 0) break;
+    const units = Math.min((stock[o.good] ?? 0) - o.max, room, tradableStock(state, post, o.good));
+    const [sold, pennies, who] = sellFor(state, post, o, units);
+    if (sold > 0) {
+      book(state, 'exports', pennies);
+      log(state, who, o.good, -sold, pennies);
+      outboundFor(out, who).selling.push([o.good, sold]);
+      room -= sold;
     }
   }
   return out;

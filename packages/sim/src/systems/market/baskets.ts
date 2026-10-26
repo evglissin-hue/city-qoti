@@ -13,7 +13,7 @@ import { PENNIES_PER_COIN, TICKS_PER_DAY } from '../../constants';
 import type { EntityId, Household, Resident, System, TickCtx, WorldState } from '../../contracts';
 import { findById } from '../../state/entities';
 import { calendar } from '../clock/calendar';
-import { dailyOffset } from '../economy/time';
+import { dailyOffset, dayIndex } from '../economy/time';
 import { foodIndexes, pantryFood } from '../residents/needs';
 import { announceHousehold } from '../residents/records';
 import { marketOpen, outletFree, outletsWith, purchase, tillPrice } from './api';
@@ -23,7 +23,9 @@ export const GOODS_NEED = 5;
 /** The food group's id: bought on outings, eaten at breakfast. */
 export const FOOD_GROUP = 'food';
 /** Savings per member, pennies, above which a household is comfortable and buys what it likes. */
-export const COMFORTABLE_SAVINGS = 15 * PENNIES_PER_COIN;
+export const COMFORTABLE_SAVINGS = 6 * PENNIES_PER_COIN;
+/** Days a newly arrived household may eat on the slate while it finds its feet. */
+export const SLATE_DAYS = 2;
 /** 18:00, after wages at 17:00. */
 export const BASKETS_OFFSET = dailyOffset(18);
 
@@ -138,14 +140,35 @@ export function shopFood(
     }
   }
   const short = Math.max(1, h.members.length) - pantryFood(h);
-  if (cheapest < 0 || short <= 0) return null;
+  if (cheapest < 0 || short <= 0 || !onTheSlate(state, h)) return null;
   // On the slate: nobody in the valley goes without breakfast for want of a coin.
   const n = Math.min(want, short, outletFree(state, outlet, cheapest));
   const rt = findById(state.buildings, outlet)?.rt;
   if (!rt || n <= 0) return null;
   rt.store[cheapest]! -= n;
-  if (gi >= 0) satisfy(h, gi, 0);
+  // Elders and children are the town's to look after; grown-ups without work feel it.
+  if (gi >= 0 && canWork(state, h)) satisfy(h, gi, 0);
   return [cheapest, n];
+}
+
+/**
+ * Who may eat on the slate: newcomers in their first SLATE_DAYS, and households with nobody in
+ * work (elders, children, the jobless). A household with a wage coming in pays its way, so short
+ * purses show up at the market (stock stays on the shelf, and the price eases) rather than vanish.
+ */
+export function onTheSlate(state: WorldState, h: Household): boolean {
+  if (dayIndex(state.tick) - h.arrivedDay < SLATE_DAYS) return true;
+  for (const id of h.members) if ((findById(state.residents, id)?.jobId ?? 0) !== 0) return false;
+  return true;
+}
+
+/** True when someone in the household is of working age (young or adult). */
+function canWork(state: WorldState, h: Household): boolean {
+  for (const id of h.members) {
+    const stage = findById(state.residents, id)?.stage;
+    if (stage === 'young' || stage === 'adult') return true;
+  }
+  return false;
 }
 
 /** Units a group asks of a household per day, in hundredths. */
@@ -198,6 +221,37 @@ function want(g: NeedGroup, hundredths: number, tally: number[]): void {
 }
 
 /**
+ * A comfortable household treats itself at supper: up to one unit of its favorite food for each
+ * member, while its purse stays above the comfortable mark. Purses that fill flow back
+ * through the till instead of piling up, and the market hears what the well-off would like.
+ */
+function supperTreat(state: WorldState, h: Household, basket: NeedsBasket): void {
+  const group = basket.groups.find((g) => g.id === FOOD_GROUP);
+  if (!group) return;
+  const reserve = COMFORTABLE_SAVINGS * Math.max(1, h.members.length);
+  let left = h.members.length;
+  while (left > 0) {
+    let best = -1;
+    let bestValue = -1;
+    for (const [id, weight] of group.goods) {
+      const gi = content.goodIndex.get(id);
+      if (gi === undefined) continue;
+      const price = tillPrice(state, gi);
+      if (h.savings - price < reserve || outletsWith(state, gi).length === 0) continue;
+      const value = valueOf(likeHalves(weight, false, true), price);
+      if (value > bestValue) {
+        bestValue = value;
+        best = gi;
+      }
+    }
+    if (best < 0 || purchase(state, h, best, 1) === 0) break;
+    state.economy.today.consumed[best]! += 1;
+    state.economy.season.consumed[best]! += 1;
+    left--;
+  }
+}
+
+/**
  * The household pass at 18:00: every group records what it asks for the day as demand; every
  * group but food (bought on outings) accrues it (fractions carry over) and buys the whole units it
  * owes; unmet units are let go, and the group's satisfaction moves halfway to the share it got.
@@ -224,6 +278,7 @@ export function shopBaskets(state: WorldState, ctx: TickCtx): void {
       h.owed![i]! -= units * 100;
       satisfy(h, i, Math.round((100 * got) / units));
     }
+    if (taste.comfortable) supperTreat(state, h, basket);
     setGoodsNeed(state, h);
     if (h.savings !== before) announceHousehold(state, ctx, h.id);
   }

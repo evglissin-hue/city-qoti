@@ -111,10 +111,18 @@ describe('a food outing at the till', () => {
     expectMoneyInvariant(before, s);
   });
 
-  it('puts breakfast on the slate for a household without a coin, and the basket remembers', () => {
+  it('puts breakfast on the slate for a household with nobody in work, and the basket remembers', () => {
     const f = villageFixture();
     const s = f.state;
-    const h = household(s, f.households[0]!);
+    // The house families have no jobs; the cottage families do, and pay their way.
+    const working = household(s, f.households[0]!);
+    working.savings = 0;
+    working.pantry.fill(0);
+    working.arrivedDay = -10;
+    stall(s, f.b.stalls[0], [['bread', 10]]);
+    expect(shopFood(s, working, f.b.stalls[0], 4)).toBeNull();
+    const h = household(s, f.households[8]!);
+    h.arrivedDay = -10;
     ensureBasket(h);
     h.savings = 0;
     const before = moneySnapshot(s);

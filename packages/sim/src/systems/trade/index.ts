@@ -1,7 +1,8 @@
 // The Trading Post (docs/spec/13-ledger.md, Trade). Two passes:
 // - 00:20 (`trade`): each neighbor's prices move. Drift is a deterministic random walk of up to 2%
 //   a day per good it trades, bounded 0.7x to 1.4x, with a gentle pull home so it wanders rather
-//   than sticks at a bound; impact (what the valley's own trading did) recovers 10% a day. The
+//   than sticks at a bound; impact (what the valley's own trading did) recovers 10% of the price
+//   a day. The
 //   walk's steps come from a hash of the valley seed, the day, the neighbor and the good rather
 //   than an RNG stream, so trade never shifts the dice other systems roll.
 // - 08:00 (`caravans`, caravans.ts): caravans come home and new ones set off with what the
@@ -45,12 +46,13 @@ export function stepNeighbor(state: WorldState, n: NeighborState, seedWord: numb
   };
   for (const [good] of def.sells) walk(good);
   for (const [good] of def.buys) walk(good);
+  // Impact recovers IMPACT_RECOVERY percent of the price a day (100 per mille), straight back
+  // toward none: a neighbor shrugs off twenty units a day, and a flood takes a few days to clear.
+  const recover = IMPACT_RECOVERY * 10;
   for (let g = 0; g < n.impact.length; g++) {
     const i = n.impact[g]!;
-    if (i === 1000) continue;
-    let step = Math.round(((1000 - i) * IMPACT_RECOVERY) / 100);
-    if (step === 0) step = i < 1000 ? 1 : -1;
-    n.impact[g] = i + step;
+    if (i < 1000) n.impact[g] = Math.min(1000, i + recover);
+    else if (i > 1000) n.impact[g] = Math.max(1000, i - recover);
   }
 }
 

@@ -132,6 +132,7 @@ export { buy, marketOpen, outletsWith, priceOf, sell, tillPrice } from './system
 export { basketScore, likeHalves } from './systems/market/baskets';
 export { coverOf, multiplierFor, stepPrice, targetPrice } from './systems/market/prices';
 export { incomeTax, wageBill } from './systems/market/wages';
+export { expenses, income } from './systems/economy';
 export { caravanCapacity, postBuyPrice, postSellPrice } from './systems/trade/caravans';
 export { tradingPost } from './systems/trade/post';
 export { isLean, overdraftLimit } from './systems/loans/credit';

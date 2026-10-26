@@ -12,6 +12,8 @@
 import { content } from '@qoti/content';
 import {
   basketScore,
+  expenses,
+  income,
   BuildingStatus,
   calendar,
   creditLimit,
@@ -228,10 +230,23 @@ class Players {
       count(w, 'fishers-hut') <= count(w, 'vegetable-plot') / 2 ? 'fishers-hut' : 'vegetable-plot',
     );
     want(food < pop * 2 && sites(w) === 0, 'vegetable-plot');
+    // I2 (C4A): the Village Charter wants five days of food in store, so a Hamlet of 25 or more
+    // lays in a larder before the peddler gets any.
+    // Past 30 residents it holds new homes until the larder is full.
+    const larder = !rankAtLeast(w, 'village') && pop >= 25;
+    const stored = FOODS.reduce((n, g) => n + stock[g]!, 0);
+    want(
+      larder && stored < pop * 6 && foodMade < pop * 1.4 && sites(w) < 2,
+      count(w, 'fishers-hut') <= count(w, 'vegetable-plot') / 2 ? 'fishers-hut' : 'vegetable-plot',
+    );
+    // A Village deep in the County Bank's books pays down before it builds more homes.
+    const indebted = rankAtLeast(w, 'village') && loansOwed(w) * 2 > creditLimit(w);
+    const holdHomes = (larder && pop >= 30 && stored < pop * 5) || indebted;
     // Homes: always one empty cottage waiting for the next family.
     want(
-      vacantHomes(w) + w.buildings.filter((b) => b.def === 'cottage' && b.stage === 'construction').length <
-        2,
+      !holdHomes &&
+        vacantHomes(w) + w.buildings.filter((b) => b.def === 'cottage' && b.stage === 'construction').length <
+          2,
       'cottage',
     );
     // Stone, then more timber as the town grows.
@@ -258,16 +273,30 @@ class Players {
     want(count(w, 'windmill', true) > 0 && count(w, 'bakery') === 0, 'bakery');
     want(pop >= 20 && count(w, 'storehouse') < 2, 'storehouse');
     want(pop >= 20 && count(w, 'well') < 2, 'well');
+    // I2 (C4A): a Village pays its upkeep with what it sells beyond the valley, so when the books
+    // run short the Ledger sets up a trade: another sawpit for every thirty residents, and a
+    // woodcutter to feed each pair.
+    if (rankAtLeast(w, 'village')) {
+      const y = w.economy.yesterday;
+      const short = income(y) < expenses(y);
+      const trade = 2 + Math.floor(pop / 30);
+      want(short && count(w, 'sawpit') < trade, 'sawpit', true);
+      want(short && count(w, 'woodcutter') < Math.ceil(count(w, 'sawpit') / 2) + 1, 'woodcutter', true);
+      want(stock[G('stone')]! < 16 && count(w, 'quarry') < 1 + Math.floor(pop / 40), 'quarry');
+    }
     // The peddler takes surplus at 10:00: food beyond five days of eating, logs beyond 60.
     for (const g of content.goods) {
       const i = G(g.id);
       const surplus = g.food
-        ? stock[i]! > pop * 2 + 8
+        ? stock[i]! > pop * (larder ? 7 : 2) + 8
         : g.id === 'logs'
           ? stock[i]! > 40
           : g.id === 'stone'
             ? stock[i]! > 50
-            : false;
+            : // I2 (C4A): a Village lives on its trade, so spare planks go to the peddler too.
+              g.id === 'planks'
+              ? rankAtLeast(w, 'village') && stock[i]! > 30
+              : false;
       if (surplus !== w.economy.forSale[i]) {
         this.do(`${surplus ? 'sell' : 'keep'} ${g.id}`, [
           { t: 'ledger.setForSale', good: g.id, forSale: surplus },
@@ -304,32 +333,36 @@ class Players {
     if (!rankAtLeast(w, 'village')) return;
     const l = w.levers;
     const hh = Math.max(1, w.households.length);
-    const savings = w.households.reduce((n, h) => n + h.savings, 0) / hh / PENNIES_PER_COIN;
     const basket = w.households.reduce((n, h) => n + basketScore(h), 0) / hh;
     const coins = this.coins();
-    const y = w.economy.yesterday.money;
-    const internal = y[cat('sales')]! + y[cat('taxes')]! - y[cat('wages')]!;
-    if (basket < 75) {
-      if (l.taxRate > 6)
-        this.do('ease the income tax', [{ t: 'ledger.setTaxRate', percent: Math.max(0, l.taxRate - 2) }]);
-      else if (l.wageLevel < 120)
-        this.do('raise wages', [{ t: 'ledger.setWageLevel', percent: Math.min(120, l.wageLevel + 5) }]);
-    } else if (internal < 0 && coins < 250 && savings > 20) {
-      // Purses filling while the treasury slides: trim wages first, then firm up the tax.
-      if (l.wageLevel > 85) this.do('trim wages', [{ t: 'ledger.setWageLevel', percent: l.wageLevel - 5 }]);
-      else if (l.taxRate < 20)
-        this.do('raise the income tax', [{ t: 'ledger.setTaxRate', percent: Math.min(20, l.taxRate + 2) }]);
+    const y = w.economy.yesterday;
+    const net = income(y) - expenses(y);
+    const setWage = (percent: number, why: string) =>
+      percent !== l.wageLevel && this.do(why, [{ t: 'ledger.setWageLevel', percent }]);
+    const setTax = (percent: number, why: string) =>
+      percent !== l.taxRate && this.do(why, [{ t: 'ledger.setTaxRate', percent }]);
+    if (net < 0 && coins < 300 && basket >= 65) {
+      // The treasury slides while households get by: trim wages a little, then firm up the tax.
+      if (l.wageLevel > 85) setWage(l.wageLevel - 5, 'trim wages');
+      else if (l.taxRate < 16) setTax(l.taxRate + 2, 'raise the income tax');
+    } else if (basket < 65 && coins > 150) {
+      // Households going short while the treasury can spare it: ease off.
+      if (l.taxRate > 6) setTax(l.taxRate - 2, 'ease the income tax');
+      else if (l.wageLevel < 110) setWage(l.wageLevel + 5, 'raise wages');
+    } else if (net > 0 && coins > 500) {
+      // Flush: drift back toward the usual levels.
+      if (l.wageLevel < 100) setWage(l.wageLevel + 5, 'restore wages');
+      else if (l.taxRate > 10) setTax(l.taxRate - 2, 'ease the income tax');
     }
     // The County Bank: borrow when the treasury runs thin, repay when flush.
     const owed = loansOwed(w);
     const room = Math.floor((creditLimit(w) - owed) / PENNIES_PER_COIN);
-    if (coins < 60 && owed === 0 && room > 0) {
+    if (coins < 60 && room >= 100) {
       this.do('take a loan', [{ t: 'loan.take', coins: Math.min(room, 300) }]);
-    } else if (owed > 0 && coins > 500) {
+    } else if (owed > 0 && coins > 350) {
       const loan = w.loans.loans[0]!;
-      this.do('repay a loan', [
-        { t: 'loan.repay', id: loan.id, coins: Math.ceil(Math.min(loan.balance, (coins - 300) * 100) / 100) },
-      ]);
+      const pay = Math.min(Math.ceil(loan.balance / PENNIES_PER_COIN), Math.floor(coins - 250));
+      if (pay > 0) this.do('repay a loan', [{ t: 'loan.repay', id: loan.id, coins: pay }]);
     }
     // The Trading Post, when the content has one: build it, then keep a standing order book.
     if (content.buildingById.has('trading-post') && count(w, 'trading-post') === 0 && coins > 150) {
@@ -337,14 +370,14 @@ class Players {
     }
     if (!tradingPost(w)) return;
     const pop = w.residents.length;
+    // Sell what the town has plenty of; buy food only when the larder runs low.
     const book: [good: string, min: number, max: number][] = [
-      ['planks', 0, 50],
-      ['logs', 0, 60],
-      ['stone', 0, 60],
-      ['bread', 0, pop * 2 + 10],
-      ['fish', 0, pop * 2 + 10],
-      ['apples', Math.ceil(pop / 2), 1000],
-      ['milk', Math.ceil(pop / 3), 1000],
+      ['planks', 0, 30],
+      ['logs', 0, 40],
+      ['bread', 0, pop + 10],
+      ['fish', 0, pop + 10],
+      ['vegetables', 0, pop + 10],
+      ['apples', Math.ceil(pop / 4), 1000],
     ];
     for (const [good, min, max] of book) {
       const g = G(good);
@@ -464,6 +497,13 @@ class Players {
   }
 }
 
+/** "3/5 food": goals met, and the first one still open. */
+function charterLine(w: WorldState): string {
+  const goals = content.charterById.get(w.charter.charter)?.goals ?? [];
+  const open = goals.filter((g, i) => (w.charter.progress[i] ?? 0) < g.target);
+  return `${goals.length - open.length}/${goals.length}${open[0] ? ` ${open[0].id}` : ''}`;
+}
+
 function dayLine(w: WorldState, day: number): DayLine {
   const stock = townStock(w);
   const moods = w.residents.map((r) => r.mood);
@@ -491,7 +531,7 @@ function dayLine(w: WorldState, day: number): DayLine {
     built: w.buildings.filter((b) => b.stage === 'built').length,
     sites: sites(w),
     rank: w.charter.rank,
-    charter: `${w.charter.progress.filter((v, i) => v >= (content.charterById.get(w.charter.charter)?.goals[i]?.target ?? Infinity)).length}/${w.charter.progress.length}`,
+    charter: charterLine(w),
     savings: coinsOf(w.households.reduce((n, h) => n + h.savings, 0)),
     wages: coinsOf(y[cat('wages')]!),
     sales: coinsOf(y[cat('sales')]!),
@@ -521,26 +561,40 @@ export function autoplay(
     hearth?: boolean;
     /** Tuning: on this morning the County grants Village rank whether or not the Charter is done. */
     villageDay?: number;
+    /**
+     * Until C4C's Trading Post is in content: from Village rank the storehouses double as one
+     * (the 'trading-post' tag is lent to their def for the run), so caravans can be tuned.
+     */
+    standInPost?: boolean;
   } = {},
 ): AutoplayResult {
   const h = startingTown(seed, { economy: opts.economy ?? 'standard' });
   const players = new Players(h);
   const out: DayLine[] = [];
-  for (let d = 1; d <= days; d++) {
-    untilHour(h, 9);
-    if (d === opts.villageDay && !rankAtLeast(h.world, 'village')) {
-      // Through the real claim, as if every goal had just been met.
-      h.world.charter.ready = true;
-      command(h, [{ t: 'charter.claim' }]);
-      players.actions.push(`${d}:granted Village`);
+  const store = content.buildingById.get('storehouse') as { tags: string[] };
+  const tags = store.tags;
+  const lend = opts.standInPost && !content.buildingById.has('trading-post');
+  try {
+    for (let d = 1; d <= days; d++) {
+      untilHour(h, 9);
+      if (d === opts.villageDay && !rankAtLeast(h.world, 'village')) {
+        // Through the real claim, as if every goal had just been met.
+        h.world.charter.ready = true;
+        command(h, [{ t: 'charter.claim' }]);
+        players.actions.push(`${d}:granted Village`);
+      }
+      if (lend && rankAtLeast(h.world, 'village') && store.tags === tags)
+        store.tags = [...tags, 'trading-post'];
+      players.ledger();
+      if (opts.hearth !== false) players.hearth();
+      untilHour(h, 15);
+      players.ledger();
+      if (opts.hearth !== false) players.hearth();
+      untilHour(h, 23);
+      out.push(dayLine(h.world, d));
     }
-    players.ledger();
-    if (opts.hearth !== false) players.hearth();
-    untilHour(h, 15);
-    players.ledger();
-    if (opts.hearth !== false) players.hearth();
-    untilHour(h, 23);
-    out.push(dayLine(h.world, d));
+  } finally {
+    store.tags = tags;
   }
   return { hamlet: h, days: out, actions: players.actions };
 }
@@ -549,7 +603,7 @@ export function autoplay(
 export function formatDays(days: readonly DayLine[]): string {
   const head =
     'day  pop hh vac coins food made eaten plank stone mood mis wish grant pat ach left lean built sites' +
-    ' | rank    ch   sav wage sale  tax trade owed bask wl tx';
+    ' | rank    charter        sav wage sale  tax trade owed bask wl tx';
   const rows = days.map((d) =>
     [
       String(d.day).padStart(3),
@@ -574,7 +628,7 @@ export function formatDays(days: readonly DayLine[]): string {
       String(d.sites).padStart(5),
       '|',
       d.rank.slice(0, 7).padEnd(7),
-      d.charter.padStart(3),
+      d.charter.padEnd(14),
       String(d.savings).padStart(4),
       String(d.wages).padStart(4),
       String(d.sales).padStart(4),
