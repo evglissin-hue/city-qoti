@@ -72,8 +72,8 @@ export const NEED_IDS = [
   'health',
   'education',
 ] as const;
-/** Mood weights per need, same order (docs/spec/11-residents.md, Mood). */
-export const NEED_WEIGHTS: readonly number[] = [25, 15, 20, 15, 15, 0, 0, 0, 0];
+/** Mood weights per need, same order (docs/spec/11-residents.md, Mood). C4A weighs `goods` at 10. */
+export const NEED_WEIGHTS: readonly number[] = [25, 15, 20, 15, 15, 10, 0, 0, 0];
 /** Lower bounds of mood bands 1 to 4: Unhappy 20, Meh 40, Content 60, Glowing 80. */
 export const MOOD_BAND_MIN = [20, 40, 60, 80] as const;
 export const MOOD_BAND_NAMES = ['Miserable', 'Unhappy', 'Meh', 'Content', 'Glowing'] as const;
@@ -178,8 +178,13 @@ export const RANKS = ['hamlet', 'village', 'town', 'marketTown', 'city'] as cons
 /** `zone` map layer values (content.zones layerValue). */
 export const Zone = { none: 0, homesLow: 1, homesMedium: 2, shops: 3, crafts: 4, farms: 5 } as const;
 
-/** Daily wages per job tier at wage level 100, pennies, in TIERS order (tune). */
-export const WAGES = [600, 1000, 1600, 2600] as const;
+/**
+ * Daily wages per job tier at wage level 100, pennies, in TIERS order (tune). C4A tuned them down
+ * from the spec's 6, 10, 16 and 26 coins so a working household's basket at base prices takes most
+ * of its pay (a worker keeps about one and a half people fed): purses still fill toward the next
+ * tier's savings, but slowly enough that the treasury is not drained into them.
+ */
+export const WAGES = [250, 450, 700, 1100] as const;
 export const WAGE_LEVEL_RANGE = [80, 120] as const;
 export const DEFAULT_WAGE_LEVEL = 100;
 export const TAX_RATE_RANGE = [0, 20] as const;
@@ -221,6 +226,8 @@ export const TRADE_LOG_MAX = 60;
 export const LOAN_RATE = 5;
 export const CREDIT_PER_RESIDENT = 20;
 export const CREDIT_MIN = 200;
+/** I2 (C4A): what the County Bank lends in all, coins, by rank in RANKS order (500, 1,500, 4,000). */
+export const LOAN_LIMITS = [0, 500, 1500, 4000, 4000] as const;
 
 /** Zoning and growth. */
 export const LOT_MIN = 2;
