@@ -365,11 +365,43 @@ export interface MarketLine {
   /** Price cap (0 = none) and subsidy percent. */
   cap: number;
   subsidy: number;
+  // I2 (C4A), additive: what lies behind the price.
+  /** Units in storehouses, stalls and output buffers now. */
+  stock?: number;
+  /** Where today's cover is pulling the price (base x the curve), pennies. */
+  target?: number;
+  /** One line on why the price is where it is ("Shelves are thin..."). */
+  why?: string;
+}
+
+/** I2 (C4A): one building's profit per work day on the market page (a signal, not a cash flow). */
+export interface ProfitLine {
+  id: EntityId;
+  def: string;
+  /** Pennies per work day: output at market price less inputs, wages and upkeep. */
+  perDay: number;
+}
+
+/** I2 (C4A): how one tier's households are faring with their basket. */
+export interface TierBasketView {
+  tier: TierId;
+  households: number;
+  /** Average savings per household, pennies. */
+  savings: number;
+  /** Basket groups in basket order, satisfaction 0 to 100 averaged over the tier's households. */
+  groups: { id: string; name: string; satisfaction: number }[];
 }
 
 /** The Ledger's market page (prices, history, levers). */
 export interface MarketView {
   lines: MarketLine[];
+  // I2 (C4A), additive.
+  /** Day index (0 = Spring day 1, year 1) of each line's history[0]. */
+  firstDay?: number;
+  /** Buildings with work or methods, most profitable first. */
+  profits?: ProfitLine[];
+  /** Needs satisfaction by tier, for tiers with households. */
+  tiers?: TierBasketView[];
 }
 
 export interface LeversView {
