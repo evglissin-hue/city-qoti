@@ -21,6 +21,11 @@ export class ChunkedMeshes {
     private readonly castShadows = true,
   ) {}
 
+  /** C3D-1: chunks waiting to be rebuilt. */
+  get pending(): number {
+    return this.dirty.size;
+  }
+
   markAll(): void {
     for (let i = 0; i < this.meshes.length; i++) this.dirty.add(i);
   }

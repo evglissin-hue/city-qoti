@@ -53,7 +53,8 @@ for (const name of ['Done', 'Close']) {
       .click()
       .catch(() => {});
 }
-await page.waitForTimeout(1500);
+// Far chunks stream in after the first frame; at SwiftShader speed that takes a while.
+await page.waitForTimeout(40000);
 for (const [name, hour, dist, rot] of shots) {
   await page.evaluate(
     ([h, d]) => {

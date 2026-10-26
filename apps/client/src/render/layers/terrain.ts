@@ -426,7 +426,8 @@ export function terrainLayer(): RenderLayer {
       }
     },
     frame() {
-      return chunks ? chunks.rebuild(3, nearOf(env, start)) : false;
+      // A backlog (a fresh valley streaming in) gets bigger batches, about 7 ms a frame.
+      return chunks ? chunks.rebuild(chunks.pending > 12 ? 6 : 3, nearOf(env, start)) : false;
     },
     dispose() {
       chunks?.dispose();
