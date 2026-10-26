@@ -3,7 +3,7 @@
 // the drawn ground (render/surface.ts): each sheet corner takes the highest of a few samples around
 // it, so a sheet never dips under the smooth slopes between corners.
 import { MAP_SIZE, type MapReader } from '@qoti/sim';
-import { BufferGeometry, Float32BufferAttribute } from 'three';
+import { BufferGeometry, Float32BufferAttribute, Uint32BufferAttribute } from 'three';
 import { groundY as surfaceGroundY } from './surface';
 
 /** Lift above the ground for overlay sheets. */
@@ -117,5 +117,129 @@ export function drapeRing(
   g.setAttribute('position', new Float32BufferAttribute(pos, 3));
   g.setAttribute('color', new Float32BufferAttribute(col, 4));
   g.setIndex(idx);
+  return g;
+}
+
+/**
+ * C4E: one quad per tile (inset from the tile edges), corners on the drawn ground, each tile with
+ * its own color. For road tiles in the traffic overlay and lots in land value.
+ */
+export function drapeTiles(
+  reader: MapReader,
+  tiles: { x: number; z: number; rgba: Rgba }[],
+  inset = 0.06,
+  lift = DRAPE_LIFT + 0.005,
+): BufferGeometry {
+  const pos: number[] = [];
+  const col: number[] = [];
+  const idx: number[] = [];
+  for (const { x, z, rgba } of tiles) {
+    const base = pos.length / 3;
+    for (const [cx, cz] of [
+      [x + inset, z + inset],
+      [x + 1 - inset, z + inset],
+      [x + inset, z + 1 - inset],
+      [x + 1 - inset, z + 1 - inset],
+    ] as const) {
+      pos.push(cx, cornerY(reader, cx, cz) + lift, cz);
+      col.push(...rgba);
+    }
+    idx.push(base, base + 2, base + 1, base + 1, base + 2, base + 3);
+  }
+  const g = new BufferGeometry();
+  g.setAttribute('position', new Float32BufferAttribute(pos, 3));
+  g.setAttribute('color', new Float32BufferAttribute(col, 4));
+  g.setIndex(idx);
+  return g;
+}
+
+/**
+ * C4E: a ribbon round a rect of tiles [x0, x1) x [z0, z1), inset a little and following the ground
+ * in short steps. `dash` > 0 leaves gaps (every other run of that many steps), for empty lots.
+ */
+export function drapeOutline(
+  reader: MapReader,
+  x0: number,
+  z0: number,
+  x1: number,
+  z1: number,
+  width: number,
+  rgba: Rgba,
+  inset = 0.08,
+  dash = 0,
+  lift = DRAPE_LIFT + 0.012,
+): BufferGeometry {
+  const pos: number[] = [];
+  const col: number[] = [];
+  const idx: number[] = [];
+  const corners: [number, number][] = [
+    [x0 + inset, z0 + inset],
+    [x1 - inset, z0 + inset],
+    [x1 - inset, z1 - inset],
+    [x0 + inset, z1 - inset],
+  ];
+  let step = 0;
+  for (let e = 0; e < 4; e++) {
+    const [sx, sz] = corners[e]!;
+    const [ex, ez] = corners[(e + 1) % 4]!;
+    const len = Math.hypot(ex - sx, ez - sz) || 1;
+    const n = Math.max(1, Math.round(len / 0.25));
+    // The ribbon grows inward from the edge.
+    const nx = -(ez - sz) / len;
+    const nz = (ex - sx) / len;
+    for (let i = 0; i < n; i++, step++) {
+      if (dash > 0 && Math.floor(step / dash) % 2 === 1) continue;
+      const base = pos.length / 3;
+      for (const [t, wd] of [
+        [i / n, 0],
+        [i / n, width],
+        [(i + 1) / n, 0],
+        [(i + 1) / n, width],
+      ] as const) {
+        const px = sx + (ex - sx) * t + nx * wd;
+        const pz = sz + (ez - sz) * t + nz * wd;
+        pos.push(px, groundY(reader, px, pz) + lift, pz);
+        col.push(...rgba);
+      }
+      idx.push(base, base + 1, base + 2, base + 1, base + 3, base + 2);
+    }
+  }
+  const g = new BufferGeometry();
+  g.setAttribute('position', new Float32BufferAttribute(pos, 3));
+  g.setAttribute('color', new Float32BufferAttribute(col, 4));
+  g.setIndex(idx);
+  return g;
+}
+
+/**
+ * C4E: merges drape sheets (position, RGBA color, index) into one geometry, in order, so an overlay
+ * of many lots or homes costs one draw. Later sheets draw over earlier ones. Disposes the inputs.
+ */
+export function mergeDrapes(sheets: readonly BufferGeometry[]): BufferGeometry {
+  let verts = 0;
+  let tris = 0;
+  for (const s of sheets) {
+    verts += s.getAttribute('position').count;
+    tris += s.getIndex()?.count ?? 0;
+  }
+  const pos = new Float32Array(verts * 3);
+  const col = new Float32Array(verts * 4);
+  const idx = new Uint32Array(tris);
+  let v = 0;
+  let t = 0;
+  for (const s of sheets) {
+    const p = s.getAttribute('position');
+    const c = s.getAttribute('color');
+    pos.set(p.array as Float32Array, v * 3);
+    col.set(c.array as Float32Array, v * 4);
+    const ix = s.getIndex();
+    if (ix) for (let i = 0; i < ix.count; i++) idx[t++] = ix.getX(i) + v;
+    v += p.count;
+    s.dispose();
+  }
+  const g = new BufferGeometry();
+  g.setAttribute('position', new Float32BufferAttribute(pos, 3));
+  g.setAttribute('color', new Float32BufferAttribute(col, 4));
+  g.setIndex(new Uint32BufferAttribute(idx, 1));
   return g;
 }

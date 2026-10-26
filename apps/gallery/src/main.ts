@@ -69,7 +69,7 @@ const parts: { mesh: Mesh; speed: number }[] = [];
 const residentMaterial = createResidentMaterial();
 const residentTime = residentMaterial.userData.time as { value: number };
 /** Figures on show with their animation (AgentAnim number) and walk speed in cycles per second. */
-const figures: { fig: Figure; anim: number; speed: number; phase: number }[] = [];
+const figures: { fig: Figure; anim: number; speed: number; phase: number; hold?: number }[] = [];
 const sceneName = q.get('scene') ?? 'kit';
 const animParam = q.get('anim');
 
@@ -87,7 +87,21 @@ const state = {
 
 function sizeOf(id: string): { size: [number, number]; entrance: [number, number] } | null {
   const def = content.buildings.find((b) => b.art.kit === id);
-  return def ? { size: def.size, entrance: def.entrance } : null;
+  if (def) return { size: def.size, entrance: def.entrance };
+  // C4E: kits whose defs are not in content yet carry the footprint they are drawn for.
+  const fp = kitById.get(id)?.footprint;
+  return fp ? { size: fp.size, entrance: fp.entrance } : null;
+}
+
+/** C4E: a kit id with an optional footprint, 'cottage@3x2' (entrance in the front row, middle). */
+function kitAndSize(spec: string): {
+  id: string;
+  fp: { size: [number, number]; entrance: [number, number] } | null;
+} {
+  const [id = '', size] = spec.split('@');
+  if (!size) return { id, fp: sizeOf(id) };
+  const [w = 2, d = 2] = size.split('x').map(Number);
+  return { id, fp: { size: [w, d], entrance: [Math.floor(w / 2), d - 1] } };
 }
 
 /** C3D-1 lineups: trees by stage (and low detail, far right), or nature props by variant. */
@@ -190,9 +204,9 @@ function buildLineup(): Group {
       x += sfp.size[0] + 0.6;
       return;
     }
-    const kit = kitById.get(id);
+    const { id: kitId, fp } = kitAndSize(id);
+    const kit = kitById.get(kitId);
     if (!kit) return;
-    const fp = sizeOf(id);
     const opts: KitBuildOptions = {
       seed: Number.isFinite(seeds[i]) && seeds[i]! > 0 ? seeds[i]! : state.seed + i,
       ...(fp ?? {}),
@@ -217,6 +231,125 @@ function buildLineup(): Group {
   info.textContent = `lineup: ${ids.join(', ')}`;
   lineupWidth = x - 0.6;
   return row;
+}
+
+/**
+ * C4E: a grid of kits by district style (?scene=grid&rows=timber,stone,brick,plaster&kits=cottage,
+ * townhouse@2x3,shop). Each row passes its style in params; columns keep their seeds across rows so
+ * the same building can be compared style by style. `params` adds to every cell.
+ */
+let gridSize = [4, 4];
+function buildGrid(): void {
+  for (const c of [...holder.children]) holder.remove(c);
+  const rows = (q.get('rows') ?? 'timber,stone,brick,plaster').split(',');
+  const specs = (q.get('kits') ?? 'cottage,townhouse,shop,workshop,farmstead').split(',');
+  const seeds = (q.get('seeds') ?? '').split(',').map(Number);
+  const extra: Record<string, string | number | boolean> = {};
+  for (const kv of (q.get('params') ?? '').split(';').filter(Boolean)) {
+    const i = kv.lastIndexOf(':');
+    if (i > 0)
+      extra[kv.slice(0, i)] = Number.isFinite(Number(kv.slice(i + 1)))
+        ? Number(kv.slice(i + 1))
+        : kv.slice(i + 1);
+  }
+  const gap = Number(q.get('gap') ?? 0.5);
+  const cols = specs.map(kitAndSize);
+  const colW = cols.map((c) => c.fp?.size[0] ?? 1);
+  const rowD = Math.max(...cols.map((c) => c.fp?.size[1] ?? 1));
+  let total = 0;
+  for (const w of colW) total += w + gap;
+  rows.forEach((style, r) => {
+    let x = -total / 2;
+    cols.forEach(({ id, fp }, i) => {
+      const kit = kitById.get(id);
+      if (!kit) return;
+      const opts: KitBuildOptions = {
+        seed: Number.isFinite(seeds[i]) && seeds[i]! > 0 ? seeds[i]! : state.seed + i * 3,
+        ...(fp ?? {}),
+        // A row is a district style, or k:v params for the whole row (season:3), or '-' for none.
+        params: {
+          ...(style.includes(':')
+            ? { [style.slice(0, style.indexOf(':'))]: Number(style.slice(style.indexOf(':') + 1)) }
+            : style && style !== '-'
+              ? { style }
+              : {}),
+          ...extra,
+        },
+        ...(state.lod === 'low' ? { lod: 'low' as const } : {}),
+      };
+      const mesh = new Mesh(kit.build(opts), material);
+      mesh.position.set(x, 0, (r - (rows.length - 1) / 2) * (rowD + gap) - (fp?.size[1] ?? 1) / 2);
+      holder.add(mesh);
+      x += colW[i]! + gap;
+    });
+  });
+  info.textContent = `grid: ${rows.join(', ')} x ${specs.join(', ')}`;
+  gridSize = [total, rows.length * (rowD + gap)];
+}
+
+/**
+ * C4E: village folk (?scene=folk): the story characters in their outfits, a couple hand in hand,
+ * a parent with a baby in a sling, and the farm animals and the cart beside them.
+ */
+function buildFolk(): void {
+  for (const c of [...holder.children]) holder.remove(c);
+  figures.length = 0;
+  const story = ['mouse', 'fox', 'rabbit', 'otter', 'hedgehog'];
+  story.forEach((species, i) => {
+    const fig = makeFigure(
+      { species, look: 11 + i * 5, stage: 'adult', story: true },
+      residentMaterial,
+      'full',
+      i,
+    );
+    fig.group.position.set((i - 2) * 0.42, 0, 0.45);
+    holder.add(fig.group);
+    figures.push({ fig, anim: 0, speed: 0, phase: i });
+  });
+  // A couple walking hand in hand, a parent with the baby, a child.
+  const a = makeFigure(
+    { species: 'rabbit', look: 40, stage: 'adult', tier: 'craftsfolk' },
+    residentMaterial,
+    'full',
+    6,
+  );
+  const b = makeFigure({ species: 'hedgehog', look: 41, stage: 'adult' }, residentMaterial, 'full', 7);
+  a.group.position.set(-0.75, 0, -0.05);
+  b.group.position.set(-0.54, 0, -0.05);
+  holder.add(a.group, b.group);
+  figures.push(
+    { fig: a, anim: 1, speed: 1.6, phase: 0, hold: 1 },
+    { fig: b, anim: 1, speed: 1.6, phase: 0, hold: 2 },
+  );
+  const parent = makeFigure({ species: 'otter', look: 43, stage: 'adult' }, residentMaterial, 'full', 8, [
+    { kind: 'sling', color: 0xd48a86 },
+  ]);
+  parent.group.position.set(-0.1, 0, -0.05);
+  holder.add(parent.group);
+  figures.push({ fig: parent, anim: 0, speed: 0, phase: 0 });
+  const child = makeFigure({ species: 'squirrel', look: 44, stage: 'child' }, residentMaterial, 'full', 9);
+  child.group.position.set(0.18, 0, -0.05);
+  holder.add(child.group);
+  figures.push({ fig: child, anim: 3, speed: 0, phase: 0 });
+  // The animals and the cart.
+  const animals: [string, number, number, number][] = [
+    ['sheep', 0, 0.55, -0.1],
+    ['sheep', 2, 0.85, -0.2],
+    ['cow', 0, 1.3, -0.15],
+    ['cow', 2, 1.3, -0.75],
+    ['pony', 1, 0.6, -0.75],
+  ];
+  for (const [id, seed, x, z] of animals) {
+    const mesh = new Mesh(kitById.get(id)!.build({ seed }), material);
+    mesh.position.set(x, 0, z);
+    mesh.rotation.y = 0.5;
+    holder.add(mesh);
+  }
+  const cartMesh = new Mesh(kitById.get('cart')!.build({ seed: 2, params: { load: 'cheese' } }), material);
+  cartMesh.position.set(-0.5, 0, -0.85);
+  cartMesh.rotation.y = 1.2;
+  holder.add(cartMesh);
+  info.textContent = 'village folk: story characters, a couple, a sling, animals and a cart';
 }
 
 const JOBS = ['bakery', 'farmhouse', 'fishers-hut', 'woodcutter', 'market-stall', 'builders-yard', ''];
@@ -326,6 +459,19 @@ if (sceneName === 'lineup') {
   camera.position.set(Math.sin(yaw) * dist, dist * 0.62, Math.cos(yaw) * dist);
   controls.target.set(0, Number(q.get('ty') ?? 0.6), 0);
   state.spin = false;
+} else if (sceneName === 'grid') {
+  buildGrid();
+  const dist = Number(q.get('dist') ?? Math.max(6, Math.max(gridSize[0]!, gridSize[1]! * 1.4) * 1.05 + 2));
+  const yaw = Number(q.get('yaw') ?? 0.35);
+  camera.position.set(Math.sin(yaw) * dist, dist * Number(q.get('pitch') ?? 0.75), Math.cos(yaw) * dist);
+  controls.target.set(0, Number(q.get('ty') ?? 0.4), 0);
+  ground.scale.setScalar(2);
+  state.spin = false;
+} else if (sceneName === 'folk') {
+  buildFolk();
+  camera.position.set(0.3, 1.5, 3.6);
+  controls.target.set(0.1, 0.12, -0.15);
+  state.spin = false;
 } else if (sceneName === 'residents') {
   buildResidents();
   camera.position.set(0.1, 1.1, 3.6);
@@ -344,7 +490,7 @@ renderer.setAnimationLoop(() => {
   residentTime.value += dt;
   for (const f of figures) {
     f.phase += dt * f.speed * Math.PI * 2 * (f.anim === 1 || f.anim === 2 ? 1 : 0);
-    f.fig.pose(f.anim, f.phase);
+    f.fig.pose(f.anim, f.phase, f.hold ?? 0);
     const bob = f.anim === 1 || f.anim === 2 ? Math.abs(Math.sin(f.phase)) * 0.016 : 0;
     const hop = f.anim === 3 ? Math.abs(Math.sin(residentTime.value * 5.5)) * 0.1 : 0;
     for (const m of f.fig.meshes) m.position.y = (bob + hop) / f.fig.group.scale.y;

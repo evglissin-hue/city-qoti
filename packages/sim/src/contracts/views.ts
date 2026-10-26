@@ -124,6 +124,8 @@ export interface ResidentView {
   flags: number;
   /** I2 (C4.0): their partner, so couples can walk together. */
   partner?: EntityId;
+  /** I2 (C4E): children only, the absolute day they were born, so the renderer can tell babies. */
+  bornDay?: number;
 }
 
 export interface HouseholdView {
@@ -161,6 +163,10 @@ export interface BuildingRuntimeView {
     delivered: [good: string, qty: number][];
     priority: boolean;
   };
+  /** I2 (C4E): the production method's id, for buildings with a choice of methods (grown crafts). */
+  method?: string;
+  /** I2 (C4E): a home upgrade is under way (materials still to come), for the scaffolding. */
+  upgrading?: boolean;
 }
 
 export interface StockLine {

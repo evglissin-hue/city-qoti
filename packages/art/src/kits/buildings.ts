@@ -237,12 +237,23 @@ export function signBoard(
 
 // --- Cottage, house, shed --------------------------------------------------------------------------
 
-function cottageOf(opts: KitBuildOptions | undefined): Built {
-  const [w, d] = opts?.size ?? [2, 2];
-  const [ex] = opts?.entrance ?? [Math.floor(w / 2), d - 1];
+/** C4E: the cottage's seeded choices, shared with the townhouse it upgrades into. */
+export interface CottageChoices {
+  shape: RoofShape;
+  material: RoofMaterial;
+  wallMat: WallMaterial;
+  plaster: number;
+  wallColor: number;
+  accent: number;
+  porch: boolean;
+  rnd: () => number;
+  look: () => number;
+  c: Custom;
+}
+
+export function cottageChoices(opts: KitBuildOptions | undefined): CottageChoices {
   const { rnd, look } = streams(opts, 1);
   const c = customOf(opts);
-  const plain = opts?.lod === 'low';
   const shape = pickWeighted<RoofShape>(look, [
     ['gable', 4],
     ['halfHip', 4],
@@ -267,6 +278,14 @@ function cottageOf(opts: KitBuildOptions | undefined): Built {
   ]!;
   const accent = c.accent ?? accentDefault;
   const porch = look() < 0.4;
+  return { shape, material, wallMat, plaster, wallColor, accent, porch, rnd, look, c };
+}
+
+export function cottageOf(opts: KitBuildOptions | undefined): Built {
+  const [w, d] = opts?.size ?? [2, 2];
+  const [ex] = opts?.entrance ?? [Math.floor(w / 2), d - 1];
+  const { shape, material, wallMat, wallColor, accent, porch, rnd, look, c } = cottageChoices(opts);
+  const plain = opts?.lod === 'low';
   const s = new ShapeBuilder();
   const anchors: KitAnchors = { smoke: [], lights: [] };
   const x0 = 0.22;
@@ -545,7 +564,7 @@ function shedOf(opts: KitBuildOptions | undefined): Built {
   return { s, anchors };
 }
 
-function houseKit(id: string, make: (o: KitBuildOptions | undefined) => Built): Kit {
+export function houseKit(id: string, make: (o: KitBuildOptions | undefined) => Built): Kit {
   return {
     id,
     kind: 'building',
@@ -554,7 +573,6 @@ function houseKit(id: string, make: (o: KitBuildOptions | undefined) => Built): 
   };
 }
 
-export const cottage = houseKit('cottage', cottageOf);
 export const house2 = houseKit('house', houseOf);
 export const shed = houseKit('shed', shedOf);
 

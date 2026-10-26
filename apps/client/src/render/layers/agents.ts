@@ -16,7 +16,15 @@ import {
   type ResidentDetail,
 } from '@qoti/art';
 import { content } from '@qoti/content';
-import { AGENT_STRIDE, AgentAnim, AgentFlags } from '@qoti/sim';
+import {
+  AGENT_STRIDE,
+  AgentAnim,
+  AgentFlags,
+  ResidentFlags,
+  START_HOUR,
+  TICKS_PER_DAY,
+  TICKS_PER_HOUR,
+} from '@qoti/sim';
 import {
   CanvasTexture,
   Color,
@@ -51,6 +59,12 @@ const STRIDE = 0.36;
 const LANE_SPREAD = 0.34;
 /** Figures are drawn larger than the kit's 0.3 tiles so they read from the default camera (C3X: 1.4). */
 const FIGURE_SCALE = 1.4;
+/** C4E: children younger than this many days are babies: carried in a sling when a parent is near. */
+const BABY_DAYS = 24;
+/** C4E: partners closer than this walk side by side, hand in hand. */
+const COUPLE_NEAR = 0.9;
+const COUPLE_GAP = 0.105;
+const SLING_COLORS = [0xf3ead8, 0x8fa37a, 0xd48a86, 0x7fa7c4].map((h) => new Color(h));
 
 export interface AgentsLayer extends RenderLayer {
   /** Full detail distance in tiles (quality preset); simple shapes out to 2.5x, dots beyond. */
@@ -73,6 +87,10 @@ interface Look {
   extras: { kind: ExtraKind; color: Color }[];
   seed: number;
   lane: number;
+  /** C4E: their partner (couples walk together), whether they are a baby, and a sling color. */
+  partner: number;
+  baby: boolean;
+  sling: Color;
   /** Pools resolved once, so the per-frame loop builds no keys. */
   full: Pool;
   simple: Pool;
@@ -132,7 +150,16 @@ class Pool {
     return mesh;
   }
 
-  push(m: Matrix4, cloth: Color, fur: Color, fur2: Color, anim: number, phase: number, seed: number): void {
+  push(
+    m: Matrix4,
+    cloth: Color,
+    fur: Color,
+    fur2: Color,
+    anim: number,
+    phase: number,
+    seed: number,
+    hold = 0,
+  ): void {
     if (this.n >= this.mesh.instanceMatrix.count) {
       const old = this.mesh;
       const keep = { m: old.instanceMatrix.array, c: old.instanceColor!.array };
@@ -158,7 +185,7 @@ class Pool {
     mo[i * 4] = anim;
     mo[i * 4 + 1] = phase;
     mo[i * 4 + 2] = seed;
-    mo[i * 4 + 3] = 0;
+    mo[i * 4 + 3] = hold;
   }
 
   finish(): void {
@@ -233,6 +260,11 @@ export function agentsLayer(): AgentsLayer {
   let detail = 60;
   const looks = new Map<number, Look>();
   let lookRevision = -1;
+  /** C4E: babies and the grown-ups of their household who might carry them, by look revision. */
+  let babies: { id: number; adults: number[] }[] = [];
+  let babyDay = -1;
+  const slingers = new Set<number>();
+  const hiddenBabies = new Set<number>();
   const tracks = new Map<number, Track>();
   const playback = new AgentPlayback();
   let lastLatest: Float32Array | null = null;
@@ -285,6 +317,7 @@ export function agentsLayer(): AgentsLayer {
       stage: r?.stage ?? (flags & AgentFlags.child ? 'child' : 'adult'),
       ...(r?.tier && { tier: r.tier }),
       ...(job && { job }),
+      ...((r?.flags ?? 0) & ResidentFlags.story ? { story: true } : {}),
     });
     l = {
       species: look.species,
@@ -295,6 +328,9 @@ export function agentsLayer(): AgentsLayer {
       extras: look.extras.map((x) => ({ kind: x.kind, color: new Color(x.color) })),
       seed: hash2(id, 3, 17) * 40,
       lane: (hash2(id, 7, 29) - 0.5) * LANE_SPREAD,
+      partner: r?.partner ?? 0,
+      baby: babies.some((b) => b.id === id),
+      sling: SLING_COLORS[Math.floor(hash2(id, 13, 5) * SLING_COLORS.length)]!,
       full: pool(`${look.species}:full`, () => residentGeometry(look.species, 'full')),
       simple: pool(`${look.species}:simple`, () => residentGeometry(look.species, 'simple')),
       extraPools: look.extras.map((x) => pool(`extra:${x.kind}`, () => extraGeometry(x.kind))),
@@ -345,15 +381,68 @@ export function agentsLayer(): AgentsLayer {
     visibleCount++;
   }
 
+  /** Babies (children younger than BABY_DAYS) and the grown-ups of their household. */
+  function findBabies(today: number): void {
+    babies = [];
+    if (!ctx) return;
+    const m = ctx.mirror;
+    for (const r of m.residents.values()) {
+      if (r.stage !== 'child' || r.bornDay === undefined || today - r.bornDay >= BABY_DAYS) continue;
+      const h = m.households.get(r.householdId);
+      const adults = (h?.members ?? [])
+        .filter((id) => {
+          const a = m.residents.get(id);
+          return !!a && (a.stage === 'adult' || a.stage === 'young');
+        })
+        .sort((a, b) => a - b);
+      babies.push({ id: r.id, adults });
+    }
+  }
+
+  /**
+   * Who carries a baby this frame: a grown-up of its household near it when the baby is out, or the
+   * first one out when it is not (it is with them, snug in the sling).
+   */
+  function carryBabies(): void {
+    slingers.clear();
+    hiddenBabies.clear();
+    for (const b of babies) {
+      const bt = tracks.get(b.id);
+      const out = !!bt && bt.seen >= serial - 1;
+      let best = 0;
+      let bd = Infinity;
+      for (const a of b.adults) {
+        const at = tracks.get(a);
+        if (!at || at.seen < serial - 1) continue;
+        if (!out) {
+          best = a;
+          break;
+        }
+        const d = (at.x - bt.x) ** 2 + (at.z - bt.z) ** 2;
+        if (d < 0.64 && d < bd) {
+          bd = d;
+          best = a;
+        }
+      }
+      if (best) {
+        slingers.add(best);
+        if (out) hiddenBabies.add(b.id);
+      }
+    }
+  }
+
   function draw(dt: number): boolean {
     if (!ctx) return false;
     const mirror = ctx.mirror;
     const camera = ctx.camera as PerspectiveCamera;
     clock += dt;
     time.value = clock;
-    if (mirror.hamletRevision.value !== lookRevision) {
+    const today = Math.floor((mirror.tick.value + START_HOUR * TICKS_PER_HOUR) / TICKS_PER_DAY);
+    if (mirror.hamletRevision.value !== lookRevision || today !== babyDay) {
       lookRevision = mirror.hamletRevision.value;
+      babyDay = today;
       looks.clear();
+      findBabies(today);
     }
     const ag = mirror.agents;
     if (ag.latest !== lastLatest) {
@@ -385,7 +474,11 @@ export function agentsLayer(): AgentsLayer {
     const dotD2 = fullD2 * 64;
     const smooth = 1 - Math.exp(-dt * 10);
 
+    carryBabies();
+
     for (let o = 0; o + AGENT_STRIDE <= L.length; o += AGENT_STRIDE) {
+      // C4E: carts ride in the same frames; the carts layer draws them.
+      if (L[o + 5] === AgentAnim.cart) continue;
       const id = L[o]!;
       let x = L[o + 1]!;
       let z = L[o + 2]!;
@@ -418,13 +511,33 @@ export function agentsLayer(): AgentsLayer {
       if (step < 0.5) t.phase += (step / STRIDE) * Math.PI * 2;
       t.heading = fresh ? heading : t.heading + angleDelta(t.heading, heading) * smooth;
 
+      // A baby in a parent's sling is drawn there, not on its own.
+      if (hiddenBabies.has(id)) continue;
       const look = lookOf(id, flags);
       const walkLike = anim === AgentAnim.walk || anim === AgentAnim.carry;
       const shown =
         walkLike && !moving ? (anim === AgentAnim.carry ? AgentAnim.carry : AgentAnim.idle) : anim;
-      const h = t.heading;
-      const wx = x + Math.cos(h) * look.lane;
-      const wz = z - Math.sin(h) * look.lane;
+      let h = t.heading;
+      let wx = x + Math.cos(h) * look.lane;
+      let wz = z - Math.sin(h) * look.lane;
+      // C4E: partners near each other walk side by side, facing the same way, hand in hand.
+      let hold = 0;
+      const partner = look.partner;
+      const pt = partner ? tracks.get(partner) : undefined;
+      if (partner && pt && pt.seen >= serial - 1) {
+        const dx = pt.x - x;
+        const dz = pt.z - z;
+        if (dx * dx + dz * dz < COUPLE_NEAR * COUPLE_NEAR && Math.abs(angleDelta(h, pt.heading)) < 1.2) {
+          const side = id < partner ? 1 : -1;
+          h = h + angleDelta(h, pt.heading) * 0.5;
+          const mx = (x + pt.x) / 2;
+          const mz = (z + pt.z) / 2;
+          wx = mx + Math.cos(h) * side * COUPLE_GAP;
+          wz = mz - Math.sin(h) * side * COUPLE_GAP;
+          // The hand toward the partner: the figure's -x arm when the partner is on that side.
+          if (walkLike || shown === AgentAnim.idle) hold = side > 0 ? 2 : 1;
+        }
+      }
       // Stand on the drawn ground (smooth slopes, C3D-1), not the tile's level.
       const wy = ctx ? groundY(ctx.mirror, wx, wz) : levelY(y);
       t.wx = wx;
@@ -471,9 +584,10 @@ export function agentsLayer(): AgentsLayer {
         lean = sleepy ? 0.14 : unhappy ? 0.1 : 0;
         if (shown === AgentAnim.idle) yaw += Math.sin(clock * 0.35 + seed) * 0.3;
       }
-      const kx = look.scale[0] * FIGURE_SCALE;
-      const ky = look.scale[1] * FIGURE_SCALE;
-      const kz = look.scale[2] * FIGURE_SCALE;
+      const tiny = look.baby ? 0.62 : 1;
+      const kx = look.scale[0] * FIGURE_SCALE * tiny;
+      const ky = look.scale[1] * FIGURE_SCALE * tiny;
+      const kz = look.scale[2] * FIGURE_SCALE * tiny;
       e.set(lean, yaw, roll);
       q.setFromEuler(e);
       p.set(wx, wy + bob, wz);
@@ -497,12 +611,15 @@ export function agentsLayer(): AgentsLayer {
         shown,
         t.phase,
         seed,
+        hold,
       );
       if (level === 'full') {
         drawn.full++;
         for (let k = 0; k < look.extras.length; k++) {
           look.extraPools[k]!.push(m, look.extras[k]!.color, WHITE, WHITE, 0, 0, 0);
         }
+        if (slingers.has(id))
+          pool('extra:sling', () => extraGeometry('sling')).push(m, look.sling, WHITE, WHITE, 0, 0, 0);
       } else drawn.simple++;
       if (carry > 0) {
         local.makeTranslation(0, 0.1, 0.085);

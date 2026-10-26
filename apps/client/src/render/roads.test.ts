@@ -9,6 +9,7 @@ function fakeMirror(road: (x: number, z: number) => number, water: (x: number, z
     road: (x: number, z: number) => road(x, z),
     water: (x: number, z: number) => water(x, z),
     height: () => 1,
+    layers: { flags: new Uint8Array(MAP_SIZE * MAP_SIZE) },
   } as unknown as Mirror;
 }
 
