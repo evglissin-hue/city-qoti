@@ -1,11 +1,11 @@
 // Inspect request builders (C3.0 contract): full detail on demand for the inspectors and the
 // while-you-were-away letter. Baselines here; C3A enriches residents, C3C buildings, C3B the letter.
-import { content } from '@qoti/content';
+import { chroniclePhrases, content } from '@qoti/content';
 import { BuildingStatus, DAYS_PER_YEAR, NEED_IDS, NEED_WEIGHTS, TICKS_PER_DAY } from '../constants';
 import type { AwayLetter, BuildingDetail, EntityId, ResidentDetail, SeatId, WorldState } from '../contracts';
 import { findById } from '../state/entities';
 import { buildingView, noteView } from './index';
-import { chronicleView, nameOf, residentView, wishView } from './hamlet';
+import { chronicleView, fillText, nameOf, residentView, wishView } from './hamlet';
 
 export type InspectKind = 'resident' | 'building' | 'away';
 export type InspectResult = ResidentDetail | BuildingDetail | AwayLetter | null;
@@ -108,16 +108,73 @@ export function buildingDetail(state: WorldState, id: EntityId): BuildingDetail 
   return detail;
 }
 
+/** Most recent notable entries the letter lists; older ones are counted in `more`. */
+export const AWAY_ENTRIES = 12;
+
+function phrase(list: readonly string[], key: number): string {
+  return list[((key % list.length) + list.length) % list.length] ?? '';
+}
+
+/** "one household moved in" or "3 households moved in", from a [singular, plural] pair. */
+function counted(pair: readonly string[], n: number): string {
+  return n === 1 ? pair[0]! : fillText(pair[1]!, [['n', numberWord(n)]]);
+}
+
+function numberWord(n: number): string {
+  return chroniclePhrases.numbers[n] ?? String(n);
+}
+
+function listJoin(items: readonly string[]): string {
+  if (items.length <= 1) return items[0] ?? '';
+  return `${items.slice(0, -1).join(', ')} and ${items[items.length - 1]}`;
+}
+
+/**
+ * The while-you-were-away letter (docs/spec/16-coop.md): the notable Chronicle entries since the
+ * seat last left (newest AWAY_ENTRIES), stat changes, notes left by others, and an opening that
+ * sums it up in a few warm lines. Pure: phrase choices are keyed on the seat and the day count.
+ */
 export function awayLetter(state: WorldState, seat: SeatId): AwayLetter | null {
   const s = state.seats.find((x) => x.seat === seat);
   if (!s) return null;
   const since = s.seen?.tick ?? s.lastSeenTick;
   const seen = s.seen;
+  const days = Math.floor((state.tick - since) / TICKS_PER_DAY);
+  const notable = state.chronicle.filter(
+    (c) => c.tick > since && content.chronicleByKind.get(c.kind)?.notable,
+  );
+  const entries = notable.slice(-AWAY_ENTRIES).map(chronicleView);
+
+  const P = chroniclePhrases;
+  const key = seat + days;
+  const count = (kind: string) => notable.filter((c) => c.kind === kind).length;
+  const news: string[] = [];
+  const arrived = count('household-arrived');
+  const left = count('household-left');
+  const patterns = seen ? state.hearth.discovered.length - seen.patterns : count('pattern-discovered');
+  const wishes = seen ? state.stats.wishesGranted - seen.wishesGranted : 0;
+  const plaques = count('achievement');
+  if (arrived > 0) news.push(counted(P.awayArrived, arrived));
+  if (left > 0) news.push(counted(P.awayLeft, left));
+  if (patterns > 0) news.push(counted(P.awayPatterns, patterns));
+  if (wishes > 0) news.push(counted(P.awayWishes, wishes));
+  if (plaques > 0) news.push(counted(P.awayAchievements, plaques));
+  const lines = [fillText(phrase(P.awayGreeting, key), [['seat', s.name]])];
+  const dayText = days === 1 ? 'a day' : `${numberWord(days)} days`;
+  let second = fillText(phrase(P.awayDays, key), [['days', dayText]]);
+  second = second.charAt(0).toUpperCase() + second.slice(1);
+  second +=
+    ' ' +
+    (news.length ? fillText(phrase(P.awayNews, key), [['news', listJoin(news)]]) : phrase(P.awayQuiet, key));
+  const partner = state.seats.find((x) => x.seat !== seat && state.time.connected.includes(x.seat));
+  if (partner) second += ' ' + fillText(phrase(P.awayPartner, key), [['partner', partner.name]]);
+  lines.push(second);
+
   return {
     seat,
     since,
-    days: Math.floor((state.tick - since) / TICKS_PER_DAY),
-    entries: state.chronicle.filter((c) => c.tick > since).map(chronicleView),
+    days,
+    entries,
     stats: seen
       ? [
           ['Residents', seen.population, state.residents.length],
@@ -127,5 +184,7 @@ export function awayLetter(state: WorldState, seat: SeatId): AwayLetter | null {
         ]
       : [],
     notes: state.notes.filter((n) => n.tick > since && n.by !== seat).map(noteView),
+    opening: lines.join('\n'),
+    more: notable.length - entries.length,
   };
 }

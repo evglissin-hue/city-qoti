@@ -195,9 +195,10 @@ describe('cross-track API stubs', () => {
         ['place', 'Mill Lane'],
       ],
     });
-    expect(f.state.chronicle[0]!.text).toBe(
-      'The Fernsby family arrived through the valley gate and moved into Mill Lane.',
-    );
+    // C3B: the founding entry is written first in a valley's first hour; variants are picked.
+    expect(f.state.chronicle.map((c) => c.kind)).toEqual(['founding', 'household-arrived']);
+    expect(f.state.chronicle[1]!.text).toContain('Fernsby');
+    expect(f.state.chronicle[1]!.text).toContain('Mill Lane');
     expect(ctx.events.some((e) => e.e === 'chronicle.added')).toBe(true);
   });
 
