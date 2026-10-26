@@ -1968,7 +1968,7 @@ li.alert .dismiss {
 }
 
 .ui-large .toolbar-row .tool > span:last-child,
-.ui-large .overlay-toggle > span {
+.ui-large .overlay-toggle > span:not(.glyph) {
   display: none;
 }
 

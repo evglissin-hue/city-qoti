@@ -18,6 +18,7 @@ const GROUP_ORDER: BuildingGroup[] = ['homes', 'food', 'materials', 'services'];
 
 export function buildingGroup(def: BuildingDef): BuildingGroup {
   if (def.category === 'home') return 'homes';
+  if (def.tags?.includes('storehouse')) return 'services';
   const method = def.methods?.[0];
   const goods = [...(method?.outputs ?? []), ...(method?.inputs ?? [])].map(([g]) => g);
   const foodish = goods.some((g) => content.goodById.get(g)?.food || g === 'wheat' || g === 'flour');
