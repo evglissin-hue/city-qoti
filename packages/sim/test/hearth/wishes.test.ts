@@ -256,6 +256,9 @@ describe('expiry and cleanup', () => {
     checkWishes(f.state, ctx);
     const letter = events(ctx, 'notify').find((e) => e.kind === 'letter')!;
     expect(letter.text).toMatch(/P\.S\./);
+    // An extra hint: the Well Gathering Place is not among the three the Book shows.
+    expect(f.state.hearth.hints).not.toContain('well-gathering-place');
+    expect(letter.text).toMatch(/fetch water/);
     expect(letter.text.split('\n')).toHaveLength(3);
     expect(letter.at).toEqual([homeOf(f.state, w).x, homeOf(f.state, w).z]);
   });

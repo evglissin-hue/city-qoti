@@ -28,9 +28,10 @@ import { type Binding, evaluate } from '../../../conditions';
 import { buildingRect, rectGap2 } from '../../../conditions/geo';
 import { findById, removeById } from '../../../state/entities';
 import { isStandard } from '../../../state/hamlet';
-import { patternView, residentView, townView, wishView } from '../../../view/hamlet';
+import { residentView, townView, wishView } from '../../../view/hamlet';
 import { fill, pick } from '../../chronicle/text';
 import { addBond, addMoodModifier } from '../../residents/api';
+import { HINT_ORDER } from '../patterns/engine';
 
 export const WISH_HOUR = 7;
 /** New wishes per morning at most (tune). */
@@ -227,13 +228,14 @@ export function grantWish(state: WorldState, ctx: TickCtx, w: Wish, r: Resident,
   };
   if (home) letter.at = [home.x, home.z];
   ctx.events.push(letter);
-  if (t.reward.hint) {
-    for (const id of state.hearth.hints) ctx.events.push({ e: 'pattern.updated', p: patternView(state, id) });
-  }
   ctx.events.push({ e: 'town.updated', t: townView(state) });
 }
 
-/** The letter: a thank-you variant, a sign-off, and a hint if the resident is curious. */
+/**
+ * The letter: a thank-you variant and a sign-off. Curious residents (and wishes whose reward says
+ * so) add a P.S. with an extra hint: the next undiscovered pattern beyond the three the Pattern
+ * Book shows, or the first shown one when every other page is found.
+ */
 export function thankYouLetter(
   state: WorldState,
   ctx: TickCtx,
@@ -249,9 +251,12 @@ export function thankYouLetter(
   const rng = ctx.rng('wishes');
   const body = fill(t.thanks[rng.int(Math.max(1, t.thanks.length))] ?? '', params);
   const lines = [body];
-  if (r.traits.includes('curious')) {
-    const hinted = state.hearth.hints[0];
-    const hint = hinted ? content.patternById.get(hinted)?.hint : undefined;
+  if (r.traits.includes('curious') || t.reward.hint) {
+    const h = state.hearth;
+    const extra = HINT_ORDER.find(
+      (p) => !h.hints.includes(p.id) && !h.discovered.some((d) => d.pattern === p.id),
+    );
+    const hint = extra?.hint ?? (h.hints[0] ? content.patternById.get(h.hints[0])?.hint : undefined);
     if (hint) {
       const lower = hint.charAt(0).toLowerCase() + hint.slice(1);
       lines.push(fill(pick(ctx, chroniclePhrases.curiousPostscript), [['hint', lower]]));
