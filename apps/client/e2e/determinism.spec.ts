@@ -21,3 +21,21 @@ test('the golden script hashes the same in a browser worker and in Node', async 
   console.log(`golden i0-basic: node ${nodeHash}, browser ${browserHash}`);
   expect(browserHash).toBe(nodeHash);
 });
+
+// C3A: a standard valley with residents walking about, two and a half days at 3x.
+test('the golden hamlet script hashes the same in a browser worker and in Node', async ({ page }) => {
+  const hamlet = JSON.parse(
+    readFileSync(`${root}/packages/sim/test/golden/i1-hamlet.json`, 'utf8'),
+  ) as unknown;
+  const nodeHash = execFileSync('npx', ['tsx', 'packages/sim/scripts/golden-hash.ts', 'i1-hamlet'], {
+    cwd: root,
+    encoding: 'utf8',
+  }).trim();
+  expect(nodeHash).toMatch(/^[0-9a-f]{16}$/);
+
+  await page.goto(`/${DEBUG_QUERY}`);
+  await page.waitForFunction(() => typeof window.__qoti?.runGolden === 'function');
+  const browserHash = await page.evaluate((script) => window.__qoti.runGolden(script), hamlet);
+  console.log(`golden i1-hamlet: node ${nodeHash}, browser ${browserHash}`);
+  expect(browserHash).toBe(nodeHash);
+});
