@@ -75,10 +75,12 @@ export function marketView(state: WorldState): MarketView {
   };
 }
 
-/** Days with one decimal: "2.5", "3". */
-function daysText(hundredths: number): string {
+/** "a day's worth", "2.5 days' worth", "3 days' worth" (one decimal at most). */
+function worthText(hundredths: number): string {
   const tenths = Math.round(hundredths / 10);
-  return tenths % 10 === 0 ? String(tenths / 10) : (tenths / 10).toFixed(1);
+  if (tenths === 10) return "a day's worth";
+  const n = tenths % 10 === 0 ? String(tenths / 10) : (tenths / 10).toFixed(1);
+  return `${n} days' worth`;
 }
 
 /**
@@ -99,24 +101,28 @@ export function priceWhy(
   const capped = cap > 0 && price > cap ? ' The Ledger caps it at the till.' : '';
   if (noSignal) return `Nobody makes it and nobody has asked, so it keeps its usual price.${capped}`;
   const cover = m.cover[good] ?? 0;
-  const days = daysText(cover);
+  const days = worthText(cover);
   const ratio = cover / TARGET_COVER;
+  const base = content.goods[good]?.basePrice ?? price;
   const move =
     target > price
-      ? 'The price is climbing.'
+      ? target <= base
+        ? 'The price is creeping back up.'
+        : 'The price is climbing.'
       : target < price
-        ? 'The price is easing.'
+        ? target >= base
+          ? 'The price is settling back down.'
+          : 'The price is easing.'
         : 'The price is holding.';
   let level: string;
   if ((m.demand[good] ?? 0) === 0 && (state.economy.yesterday.consumed[good] ?? 0) === 0)
     level = 'Plenty in store and nobody asking for it.';
   else if (cover === 0) level = 'Wanted, and none to be had for love or money.';
-  else if (ratio < 50)
-    level = `Shelves are thin: ${days} days' worth against the ${TARGET_COVER} the town likes.`;
-  else if (ratio < 90) level = `A little short, with ${days} days' worth in store.`;
-  else if (ratio <= 120) level = `About ${days} days' worth on hand, which is just right.`;
-  else if (ratio <= 250) level = `A comfortable ${days} days' worth in store.`;
-  else level = `Heaps of it: ${days} days' worth, and buyers know it.`;
+  else if (ratio < 50) level = `Shelves are thin: ${days} against the ${TARGET_COVER} days the town likes.`;
+  else if (ratio < 90) level = `A little short, with ${days} in store.`;
+  else if (ratio <= 120) level = `About ${days} on hand, which is just right.`;
+  else if (ratio <= 250) level = `A comfortable ${days} in store.`;
+  else level = `Heaps of it: ${days}, and buyers know it.`;
   return `${level} ${move}${capped}`;
 }
 
