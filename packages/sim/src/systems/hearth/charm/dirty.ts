@@ -18,9 +18,9 @@ export function markCharmDirty(state: WorldState, rect: Rect | null): void {
   ]);
 }
 
-/** Hearth commands: recompute on the next tick instead of waiting for the hourly pass. */
+/** Hearth commands: recompute on the next tick instead of waiting for the hourly pass. Sandbox valleys keep no charm. */
 export function markCharmSoon(state: WorldState): void {
-  state.hearth.charmSoon = true;
+  if (state.settings.mode === 'standard') state.hearth.charmSoon = true;
 }
 
 /** Adds exactly the chunks a rect touches (no reach). */
