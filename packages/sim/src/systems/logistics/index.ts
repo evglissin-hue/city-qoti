@@ -144,6 +144,8 @@ function matchPorters(state: WorldState): void {
   const reaches = storehouseReach(state);
   const idle: { r: Resident; reach: Reach }[] = [];
   for (const reach of reaches) {
+    // A paused storehouse keeps its porters indoors.
+    if (reach.b.rt!.paused) continue;
     for (const id of reach.b.rt!.workers) {
       const r = findById(state.residents, id);
       if (r && available(r, reach.b)) idle.push({ r, reach });

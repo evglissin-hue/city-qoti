@@ -17,7 +17,8 @@ import { markCharmDirty } from '../hearth/charm/dirty';
 import { doorTile } from '../movement/api';
 import { defOf } from '../logistics/stores';
 import { available, finishTask, productivity, startTask, walkTo } from '../logistics/tasks';
-import { allowedWork, materialsDue, refreshStatus } from '../production/status';
+import { storehouseReach } from '../logistics/range';
+import { allowedWork, computeStatus, materialsDue } from '../production/status';
 
 export const MAX_BUILDERS_PER_SITE = 3;
 const MATCH_EVERY = 20;
@@ -102,8 +103,8 @@ export function finish(state: WorldState, ctx: TickCtx, b: Building): void {
   if (def) {
     const [w, d] = footprintSize(def, b.rot);
     markCharmDirty(state, [b.x - 1, b.z - 1, b.x + w, b.z + d]);
+    rt.status = computeStatus(state, b, def, storehouseReach(state));
   }
-  refreshStatus(state, ctx, b);
   emitBuilding(state, ctx, b);
   const door = doorTile(b);
   ctx.events.push({
