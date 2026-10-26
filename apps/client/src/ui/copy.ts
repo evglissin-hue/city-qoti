@@ -54,6 +54,17 @@ export const copy = {
     keepCopy: 'Keep a copy',
     keepCopyHint: 'A .qoti file of this valley, for safekeeping or another laptop.',
     saveCopy: 'Save a valley file',
+    // C4D: moving a solo valley online.
+    together: 'Play together',
+    togetherHint:
+      'Move this valley online and invite someone to share it. Everything comes along: every lantern, every loaf, every opinion about the well.',
+    moveOnline: 'Open it for two',
+    moveSure: (town: string) =>
+      `Move ${town} online? From now on it lives on the relay, and you get an invite link for your partner.`,
+    moveYes: 'Move it online',
+    moveNo: 'Not yet',
+    moving: 'Packing up the valley...',
+    moveFailed: 'The valley could not reach the relay. Nothing has moved; try again in a moment.',
     done: 'Done',
   },
   invite: {

@@ -61,6 +61,10 @@ export function App() {
         setPlayHash(null);
         setPlay(null);
       }}
+      onMove={(target) => {
+        setPlayHash(target.valleyId);
+        setPlay({ target, invite: true });
+      }}
     />
   );
 }

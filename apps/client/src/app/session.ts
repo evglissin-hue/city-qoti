@@ -16,6 +16,7 @@ import { ToolManager } from '../input/manager';
 import type { PointerInfo } from '../input/tool';
 import type { RoomConnection } from '../net/connection';
 import { LocalRoom } from '../net/local';
+import { moveValleyOnline } from './moveOnline';
 import { downloadBytes, valleyFileName } from './valleyFile';
 import { OnlineRoom } from '../net/online';
 import type { RenderApi } from '../render/api';
@@ -443,6 +444,20 @@ export class Session {
     const snap = await this.host.snapshot();
     const { year, season } = this.mirror.clock.value;
     downloadBytes(snap.data, valleyFileName(this.mirror.settings.value, year, SEASON_NAMES[season]));
+  }
+
+  /** C4D: called with the new online valley once a solo valley has moved online. */
+  onMove: ((target: SessionTarget) => void) | null = null;
+
+  /**
+   * C4D: moves this solo valley online (a snapshot through the valley-file path) and hands the new
+   * target to onMove, which opens it with the invite showing. Throws when the relay is unreachable.
+   */
+  async moveOnline(): Promise<void> {
+    if (this.target.mode !== 'solo') return;
+    const snap = await this.host.snapshot();
+    const target = await moveValleyOnline(snap.data, this.target);
+    this.onMove?.(target);
   }
 
   /** Debug only (?debug): makes this seat's sim drift from the room's, for resync tests. */

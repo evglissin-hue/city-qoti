@@ -24,6 +24,8 @@ export interface QotiHook {
   buildingsOf(def: string): number[];
   select(sel: { kind: string; id: number } | null): void;
   undoSize(): number;
+  // I2 (C4D)
+  valleyId(): string | null;
 }
 
 declare global {

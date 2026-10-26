@@ -97,6 +97,7 @@ export function SettingsPanel({ session }: { session: Session }) {
             {copy.settings.saveCopy}
           </button>
         </fieldset>
+        {session.target.mode === 'solo' && <MoveOnline session={session} />}
         <div class="actions">
           <button type="button" class="primary" onClick={() => (session.ui.settingsOpen.value = false)}>
             {copy.settings.done}
@@ -104,6 +105,47 @@ export function SettingsPanel({ session }: { session: Session }) {
         </div>
       </div>
     </div>
+  );
+}
+
+/** C4D: a solo valley can move online (C2C's import path), after a second click to be sure. */
+function MoveOnline({ session }: { session: Session }) {
+  const [stage, setStage] = useState<'idle' | 'sure' | 'moving' | 'failed'>('idle');
+  const go = () => {
+    setStage('moving');
+    session.moveOnline().catch(() => setStage('failed'));
+  };
+  const town = session.mirror.settings.value.townName;
+  return (
+    <fieldset class="keep-copy" data-testid="move-online-card">
+      <legend>{copy.settings.together}</legend>
+      <p class="muted">
+        {stage === 'sure'
+          ? copy.settings.moveSure(town)
+          : stage === 'failed'
+            ? copy.settings.moveFailed
+            : copy.settings.togetherHint}
+      </p>
+      {stage === 'sure' ? (
+        <div class="actions">
+          <button type="button" class="primary" data-testid="move-online-yes" onClick={go}>
+            {copy.settings.moveYes}
+          </button>
+          <button type="button" onClick={() => setStage('idle')}>
+            {copy.settings.moveNo}
+          </button>
+        </div>
+      ) : (
+        <button
+          type="button"
+          data-testid="move-online"
+          disabled={stage === 'moving'}
+          onClick={() => setStage('sure')}
+        >
+          {stage === 'moving' ? copy.settings.moving : copy.settings.moveOnline}
+        </button>
+      )}
+    </fieldset>
   );
 }
 
