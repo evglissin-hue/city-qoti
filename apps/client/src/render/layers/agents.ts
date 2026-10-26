@@ -537,7 +537,7 @@ export function agentsLayer(): AgentsLayer {
     drawn,
     init(c) {
       ctx = c;
-      bubbles = new IconSprites(c.scene, iconAtlas(BUBBLE_ICONS), BUBBLE_ICONS.length, 0.2);
+      bubbles = new IconSprites(c.scene, iconAtlas(BUBBLE_ICONS), BUBBLE_ICONS.length, 0.32);
       // Warm the pools so the first resident does not stall a frame on shader compiles.
       for (const sp of SPECIES_IDS) pool(`${sp}:full`, () => residentGeometry(sp, 'full'));
       for (const kind of EXTRA_KINDS) pool(`extra:${kind}`, () => extraGeometry(kind));

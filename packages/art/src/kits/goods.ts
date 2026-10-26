@@ -62,16 +62,7 @@ function logBundle(b: RigBuilder): void {
     );
     for (const x of [-0.07, 0.07]) b.ellipsoid([x, y, z], [0.002, 0.017, 0.017], 6, 1, () => ch(C.logEnd));
   }
-  b.tube(
-    [
-      [0, 0.0, 0],
-      [0, 0.075, 0],
-    ],
-    [0.0, 0.0],
-    3,
-    ch(C.rope),
-  );
-  b.ellipsoid([0, 0.035, 0], [0.006, 0.045, 0.042], 6, 2, () => ch(C.rope));
+  b.ellipsoid([0, 0.036, 0], [0.006, 0.036, 0.04], 6, 2, () => ch(C.rope));
 }
 
 function plankBundle(b: RigBuilder): void {
@@ -90,20 +81,20 @@ function stoneBundle(b: RigBuilder): void {
 function wheatBundle(b: RigBuilder): void {
   b.tube(
     [
-      [-0.07, 0.03, 0],
-      [0.02, 0.03, 0],
+      [-0.07, 0.036, 0],
+      [0.02, 0.036, 0],
     ],
     [0.022, 0.026],
     6,
     ch(C.wheatDark),
   );
-  b.ellipsoid([0.05, 0.03, 0], [0.04, 0.034, 0.034], 6, 3, () => ch(C.wheat));
-  b.ellipsoid([-0.02, 0.03, 0], [0.006, 0.03, 0.03], 6, 1, () => ch(C.rope));
+  b.ellipsoid([0.05, 0.036, 0], [0.04, 0.034, 0.034], 6, 3, () => ch(C.wheat));
+  b.ellipsoid([-0.02, 0.036, 0], [0.006, 0.03, 0.03], 6, 1, () => ch(C.rope));
 }
 
 function sack(b: RigBuilder, x: number, y: number, z: number, k = 1): void {
-  b.ellipsoid([x, y + 0.035 * k, z], [0.045 * k, 0.04 * k, 0.035 * k], 6, 3, () => ch(C.sack));
-  b.ellipsoid([x, y + 0.082 * k, z], [0.014 * k, 0.012 * k, 0.012 * k], 4, 2, () => ch(C.sackTie));
+  b.ellipsoid([x, y + 0.04 * k, z], [0.045 * k, 0.04 * k, 0.035 * k], 6, 3, () => ch(C.sack));
+  b.ellipsoid([x, y + 0.087 * k, z], [0.014 * k, 0.012 * k, 0.012 * k], 4, 2, () => ch(C.sackTie));
 }
 
 function basket(b: RigBuilder, fill: (b: RigBuilder) => void): void {
