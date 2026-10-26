@@ -263,6 +263,27 @@ export interface BuildingDetail {
   method?: { name: string; hours: number };
   /** Water and food coverage: residents served and capacity. */
   served?: { residents: number; capacity: number };
+  /** I1 (C3C): goods per work day with the full crew, after condition and any height bonus. */
+  rates?: { inputs: [good: string, perDay: number][]; outputs: [good: string, perDay: number][] };
+  /** I1 (C3C): units made today. */
+  producedToday?: [good: string, qty: number][];
+}
+
+/** I1 (C3C): the Workforce report. Jobs per building and the town's totals. */
+export interface WorkforceView {
+  lines: {
+    id: EntityId;
+    def: string;
+    role: string;
+    jobs: number;
+    workers: number;
+    present: number;
+  }[];
+  jobs: number;
+  employed: number;
+  /** Adults and young residents without a job. */
+  unemployed: number;
+  vacancies: number;
 }
 
 /** The while-you-were-away letter (docs/spec/16-coop.md). */
