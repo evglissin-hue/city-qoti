@@ -357,7 +357,7 @@ Defined in cycle C3.0, then changed only additively during the I1 wave. Everythi
 - **Static content** is chunked (16 x 16 tiles): terrain and roads are meshes per chunk; buildings use `BatchedMesh`; decor and trees use `InstancedMesh` per def and level of detail. A dirty chunk rebuilds within 2 frames; at most 2 chunk rebuilds per frame.
 - **Picking** is math, not raycasting meshes: march the ray across the heightfield, then use the `occupant` layer and the decor spatial hash.
 - **Ghosts**: translucent kit meshes tinted valid or invalid.
-- **Overlays** [I1]: data textures sampled by the terrain shader (charm, coverage, flows).
+- **Overlays** [I1]: their own ground-draped transparent meshes (charm per chunk, coverage discs and rings, flow ribbons with animated chevrons, status icons as billboards), never edits to the terrain shader. Buildings are one `BatchedMesh` keyed by variant (seed bucket, customization, runtime piles, construction stage), with a low detail swap beyond 75 tiles.
 - **Time of day**: from the clock plus interpolation between turns.
 
 ## Content pipeline
