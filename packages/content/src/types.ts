@@ -235,6 +235,8 @@ export interface SpeciesDef {
   dislikes: Taste[];
   /** Species-flavored given names. */
   givenNames: string[];
+  /** C3A addition: inspector bio openers, one picked per resident; {name} is the given name. */
+  bios?: string[];
   /** Art parameters for packages/art residents (ears, tail, fur palette ids). */
   art: ArtRef;
 }
