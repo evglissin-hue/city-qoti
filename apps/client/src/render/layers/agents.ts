@@ -37,15 +37,16 @@ import {
   type Scene,
 } from 'three';
 import { hash2, levelY } from '../coords';
+import { groundY } from '../surface';
 import { BUBBLE_ICONS, iconAtlas, IconSprites } from '../icons';
 import type { LayerContext, RenderLayer } from './types';
 
 /** Walk cycle length in tiles: one full cycle is two steps. */
-const STRIDE = 0.42;
+const STRIDE = 0.5;
 /** How far apart residents walk side by side on a path, in tiles (each keeps a lane). */
 const LANE_SPREAD = 0.34;
-/** Figures are drawn a touch larger than the kit's 0.3 tiles so they read from the default camera. */
-const FIGURE_SCALE = 1.15;
+/** Figures are drawn larger than the kit's 0.3 tiles so they read from the default camera (C3X: 1.4). */
+const FIGURE_SCALE = 1.4;
 
 export interface AgentsLayer extends RenderLayer {
   /** Full detail distance in tiles (quality preset); simple shapes out to 2.5x, dots beyond. */
@@ -419,7 +420,8 @@ export function agentsLayer(): AgentsLayer {
       const h = t.heading;
       const wx = x + Math.cos(h) * look.lane;
       const wz = z - Math.sin(h) * look.lane;
-      const wy = levelY(y);
+      // Stand on the drawn ground (smooth slopes, C3D-1), not the tile's level.
+      const wy = ctx ? groundY(ctx.mirror, wx, wz) : levelY(y);
       t.wx = wx;
       t.wy = wy;
       t.wz = wz;

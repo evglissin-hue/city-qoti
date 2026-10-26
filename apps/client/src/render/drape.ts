@@ -1,46 +1,36 @@
 // C3D: ground-draped overlay geometry (charm, coverage, highlights). Overlays are their own
 // transparent meshes laid just above the ground, never edits to the terrain shader. Heights follow
-// the tile levels: each tile corner takes the highest level around it, so a sheet never dips under
-// the ground on slopes or cliff edges.
+// the drawn ground (render/surface.ts): each sheet corner takes the highest of a few samples around
+// it, so a sheet never dips under the smooth slopes between corners.
 import { MAP_SIZE, type MapReader } from '@qoti/sim';
 import { BufferGeometry, Float32BufferAttribute } from 'three';
-import { levelY } from './coords';
+import { groundY as surfaceGroundY } from './surface';
 
 /** Lift above the ground for overlay sheets. */
 export const DRAPE_LIFT = 0.045;
 
-function clampTile(v: number): number {
-  return Math.min(MAP_SIZE - 1, Math.max(0, v));
-}
+const SAMPLES: readonly [number, number][] = [
+  [0, 0],
+  [-0.35, -0.35],
+  [0.35, -0.35],
+  [-0.35, 0.35],
+  [0.35, 0.35],
+];
 
-/** Height of a tile corner (x, z are corner coordinates 0..MAP_SIZE). */
+/** Height for a sheet corner (x, z are corner coordinates 0..MAP_SIZE): the highest ground nearby. */
 export function cornerY(reader: MapReader, x: number, z: number): number {
-  let h = 0;
-  for (const [dx, dz] of [
-    [-1, -1],
-    [0, -1],
-    [-1, 0],
-    [0, 0],
-  ] as const) {
-    const tx = clampTile(x + dx);
-    const tz = clampTile(z + dz);
-    const water = reader.water(tx, tz) > 0;
-    h = Math.max(h, water ? -0.1 : levelY(reader.height(tx, tz)));
+  let h = -Infinity;
+  for (const [dx, dz] of SAMPLES) {
+    const px = Math.min(MAP_SIZE, Math.max(0, x + dx));
+    const pz = Math.min(MAP_SIZE, Math.max(0, z + dz));
+    h = Math.max(h, surfaceGroundY(reader, px, pz));
   }
   return h;
 }
 
-/** Ground height at any point, bilinear between corner heights. */
+/** Ground height at any point, as drawn. */
 export function groundY(reader: MapReader, x: number, z: number): number {
-  const x0 = Math.floor(x);
-  const z0 = Math.floor(z);
-  const fx = x - x0;
-  const fz = z - z0;
-  const a = cornerY(reader, x0, z0);
-  const b = cornerY(reader, x0 + 1, z0);
-  const c = cornerY(reader, x0, z0 + 1);
-  const d = cornerY(reader, x0 + 1, z0 + 1);
-  return (a * (1 - fx) + b * fx) * (1 - fz) + (c * (1 - fx) + d * fx) * fz;
+  return surfaceGroundY(reader, x, z);
 }
 
 export type Rgba = [number, number, number, number];

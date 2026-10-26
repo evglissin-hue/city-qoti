@@ -1,7 +1,7 @@
 import { wheatTileGeometry } from '@qoti/art';
 import { MAP_SIZE } from '@qoti/sim';
 import { Matrix4, type BufferGeometry } from 'three';
-import { levelY } from '../coords';
+import { groundY } from '../surface';
 import { InstanceSets } from '../instances';
 import type { LayerContext, RenderLayer } from './types';
 
@@ -36,7 +36,7 @@ export function fieldsLayer(): RenderLayer {
         const z = Math.floor(i / MAP_SIZE);
         const key = `wheat:${Math.min(3, Math.floor((crop[i] ?? 0) / 64))}`;
         const list = groups.get(key) ?? [];
-        list.push(new Matrix4().makeTranslation(x, levelY(m.height(x, z)), z));
+        list.push(new Matrix4().makeTranslation(x, groundY(m, x + 0.5, z + 0.5), z));
         groups.set(key, list);
       }
     }

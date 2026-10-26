@@ -516,7 +516,7 @@ export function overlaysLayer(): OverlaysLayer {
                 [0, 0],
               ] as const)
                 if (set.has((z + dz) * MAP_SIZE + x + dx)) n++;
-              return [tone.r, tone.g, tone.b, n === 0 ? 0 : 0.18 + n * 0.1];
+              return [tone.r, tone.g, tone.b, n === 0 ? 0 : 0.12 + n * 0.07];
             },
             0.06,
           ),
@@ -537,14 +537,14 @@ export function overlaysLayer(): OverlaysLayer {
           Math.ceil(cz + radius + 1),
           (px, pz) => {
             const d = Math.sqrt((px - cx) ** 2 + (pz - cz) ** 2) / radius;
-            return [tone.r, tone.g, tone.b, d > 1 ? 0 : 0.12 + 0.3 * d * d];
+            return [tone.r, tone.g, tone.b, d > 1 ? 0 : 0.05 + 0.17 * d * d * d];
           },
           0.06,
         ),
         hlMaterial,
         g,
       );
-      add(drapeRing(m, cx, cz, radius, 0.12, [tone.r, tone.g, tone.b, 0.95], 0.08), hlMaterial, g);
+      add(drapeRing(m, cx, cz, radius, 0.08, [tone.r, tone.g, tone.b, 0.6], 0.08, 3), hlMaterial, g);
     }
     ctx.scene.add(g);
     highlightGroup = g;
@@ -610,7 +610,7 @@ export function overlaysLayer(): OverlaysLayer {
       }
       if (highlightGroup) {
         // A slow, gentle breathing so the area is noticed without flashing.
-        hlMaterial.opacity = 0.8 + Math.sin(time * 2.2) * 0.2;
+        hlMaterial.opacity = 0.62 + Math.sin(time * 1.6) * 0.14;
         dirty = true;
       }
       return dirty;
