@@ -1,6 +1,6 @@
 // Story arcs (docs/spec/11-residents.md, Story characters; C4D). Hourly at offset 120 in standard
 // valleys: an arc whose arrival condition holds moves its character in (a household of one in the
-// best vacant home, walking in from the valley gate) and sends the hello letter; a few hours later
+// best vacant home, walking in from the valley gate, never into the last vacant home) and sends the hello letter; a few hours later
 // the first step opens; each step's goal met (and no sooner than STEP_GAP after its letter) closes
 // it through storyStep, which pays the reward and sends the next letter, until the finale. The post
 // comes by day, one letter an hour across all arcs, so two characters never talk over each other.
@@ -26,6 +26,11 @@ import { storyStep } from './api';
 export const SETTLE_TICKS = 4 * TICKS_PER_HOUR;
 /** The least time a step stays open, so letters never pile up even when goals are already met. */
 export const STEP_GAP = 12 * TICKS_PER_HOUR;
+/**
+ * Vacant homes a character needs before moving in: they never take the last one, so the families
+ * who make a town grow keep arriving.
+ */
+export const STORY_VACANCIES = 2;
 /** The post comes between these hours. */
 export const POST_HOURS = [7, 21] as const;
 
@@ -84,9 +89,11 @@ export function storyBinding(state: WorldState, r: Resident): Binding {
  */
 export function arrive(state: WorldState, ctx: TickCtx, arc: StoryArc, s: StoryState): boolean {
   const c = arc.character;
+  const vacant = vacantHomes(state);
+  if (vacant.length < STORY_VACANCIES) return false;
   let home = null;
   let best = -Infinity;
-  for (const v of vacantHomes(state)) {
+  for (const v of vacant) {
     const score = homeDesirability(state, v.building, c.species);
     if (score > best) {
       best = score;
@@ -117,7 +124,7 @@ export function arrive(state: WorldState, ctx: TickCtx, arc: StoryArc, s: StoryS
     family: c.family,
     species: c.species,
     stage: c.stage,
-    bornDay: today - ageDaysFor(c.stage, ctx.rng('residents')),
+    bornDay: today - ageDaysFor(c.stage, ctx.rng('misc')),
     traits: [...c.traits],
     householdId: h.id,
     jobId: 0,
@@ -135,7 +142,7 @@ export function arrive(state: WorldState, ctx: TickCtx, arc: StoryArc, s: StoryS
     wishId: 0,
     history: [{ day: today, kind: 'arrived' }],
     flags: ResidentFlags.story,
-    look: ctx.rng('residents').next() >>> 0,
+    look: ctx.rng('misc').next() >>> 0,
     story: arc.id,
   };
   h.members.push(r.id);

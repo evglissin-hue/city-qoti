@@ -21,7 +21,8 @@ export const inventor: StoryArc = {
   },
   arrival: {
     all: [
-      { count: { what: 'residents', atLeast: 10 } },
+      { count: { what: 'residents', atLeast: 14 } },
+      { count: { what: 'foodDays', atLeast: 1 } },
       { count: { what: 'buildings', ref: 'workshop', atLeast: 2 } },
     ],
   },
@@ -125,7 +126,11 @@ export const merchant: StoryArc = {
     bio: 'A traveling merchant who has stopped traveling. She can price a cabbage at forty paces and talk you into a second one at twenty.',
   },
   arrival: {
-    all: [{ count: { what: 'residents', atLeast: 18 } }, { count: { what: 'goodsAtMarket', atLeast: 2 } }],
+    all: [
+      { count: { what: 'residents', atLeast: 20 } },
+      { count: { what: 'goodsAtMarket', atLeast: 2 } },
+      { count: { what: 'foodDays', atLeast: 1 } },
+    ],
   },
   hello: [
     'To the management of {town},',
@@ -247,7 +252,8 @@ export const musician: StoryArc = {
   },
   arrival: {
     all: [
-      { count: { what: 'residents', atLeast: 24 } },
+      { count: { what: 'residents', atLeast: 26 } },
+      { count: { what: 'foodDays', atLeast: 1 } },
       { count: { what: 'patternsDiscovered', atLeast: 2 } },
     ],
   },
@@ -267,9 +273,9 @@ export const musician: StoryArc = {
         'Hopefully, in three-four time,',
         'Juniper',
       ].join('\n'),
-      goal: { charm: { of: 'home', radius: 3, atLeast: 30 } },
+      goal: { charm: { of: 'home', radius: 3, atLeast: 25 } },
       reward: { unlock: ['ring-bench'], mood: 10 },
-      hint: "Charm of 30 or more around Juniper's home.",
+      hint: "Charm of 25 or more around Juniper's home.",
     },
     {
       letter: [

@@ -5,7 +5,8 @@
 // to live by the sea with family. At 18:00 couples marry: at the season's festival, or on a day of
 // their own choosing when one of them is Romantic. Nobody dies in City Qoti.
 //
-// Every draw comes from the 'residents' stream. Chronicle and notice lines rotate through their
+// Every draw comes from the 'misc' stream, so life events never change who arrives next (the
+// 'residents' stream picks arrivals). Chronicle and notice lines rotate through their
 // variants (rotation) so the same words never come round twice in a row.
 import { content, lifePhrases } from '@qoti/content';
 import {
@@ -45,18 +46,23 @@ import { announceHousehold, announceResident, announceTown, pushHistory, syncRes
 import { compatibility, hasTrait, traitsCompatible } from './traits';
 import { dayIndex } from './time';
 
-/** Friendship level two residents need before they become a couple (5 without a Romantic). */
-export const COUPLE_LEVEL = 4;
+/**
+ * Friendship level two residents need before they become a couple: friends (2) when one of
+ * them is Romantic, good friends (3) otherwise (tuned down from the spec's 4 and 5 in C4D: most
+ * arrivals come married, so the singles are few and need the help).
+ */
+export const COUPLE_LEVEL = 2;
+export const COUPLE_LEVEL_PLAIN = 3;
 /** Chance each morning that an eligible pair becomes a couple, and the most couples a day. */
 export const COUPLE_CHANCE = 0.5;
 export const MAX_COUPLES_PER_DAY = 2;
 /** Days a couple waits before the wedding (a Romantic couple's chosen day). */
 export const WEDDING_WAIT_DAYS = 2;
 /** Chance each morning that a married couple with a spare bed and mood 60+ has a child. */
-export const BIRTH_CHANCE = 0.06;
+export const BIRTH_CHANCE = 0.035;
 export const BIRTH_MOOD = 60;
 /** Days after a child before the next. */
-export const BIRTH_GAP_DAYS = 2 * DAYS_PER_SEASON;
+export const BIRTH_GAP_DAYS = 3 * DAYS_PER_SEASON;
 /** Chance each morning that an elder past SEASIDE_YEARS moves to the seaside (one a day). */
 export const SEASIDE_CHANCE = 0.12;
 /** Education satisfaction a young resident needs to start an apprenticeship, and starts a day. */
@@ -119,7 +125,7 @@ export function isApprentice(state: WorldState, r: Resident): boolean {
 /** The 06:00 life pass, after birthdays. */
 export function lifeMorning(state: WorldState, ctx: TickCtx): void {
   const today = dayIndex(state.tick);
-  const rng = ctx.rng('residents');
+  const rng = ctx.rng('misc');
   forgetGonePartners(state);
   retire(state, ctx);
   graduate(state, ctx, today);
@@ -182,7 +188,7 @@ export function canCouple(a: Resident, b: Resident): boolean {
   if (a.householdId === b.householdId || related(a, b)) return false;
   const level = friendLevel(a, b);
   if (level < COUPLE_LEVEL || compatibility(a, b) <= 50) return false;
-  return level >= 5 || hasTrait(a, 'romantic') || hasTrait(b, 'romantic');
+  return level >= COUPLE_LEVEL_PLAIN || hasTrait(a, 'romantic') || hasTrait(b, 'romantic');
 }
 
 function couples(state: WorldState, ctx: TickCtx, rng: Rng, today: number): void {

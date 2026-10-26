@@ -100,6 +100,11 @@ const SATISFY: Record<string, ((t: Scene) => void)[]> = {
   ],
 };
 
+/** A second vacant home (the fixture has one, the grown cottage), east of the river. */
+function spareHome(s: WorldState): void {
+  insertBuilding(s, null, content.buildingById.get('cottage')!, 110, 80, 0, 0, { site: false });
+}
+
 function discover(s: WorldState, n: number): void {
   for (const p of content.patterns) {
     if (s.hearth.discovered.length >= n) return;
@@ -140,6 +145,7 @@ describe('story arcs', () => {
         const s = f.state;
         only(s, arc.id);
         discover(s, 2);
+        spareHome(s);
         const ctx = createTickCtx(s);
         const before = moneySnapshot(s);
         const st = s.stories.find((x) => x.arc === arc.id)!;
@@ -203,7 +209,7 @@ describe('story arcs', () => {
   it('waits for a vacant home, sends one letter an hour, and only by day', () => {
     const f = villageFixture();
     const s = f.state;
-    // Fill the only vacant home.
+    // One vacant home is not enough: characters never take the last one.
     s.households.push({
       id: s.nextId++,
       family: 'Lodger',
@@ -220,6 +226,7 @@ describe('story arcs', () => {
     skipToHour(s, 10);
     expect(advanceStories(s, ctx)).toBeNull();
     s.households.pop();
+    spareHome(s);
     // The hourly pass at night does nothing; by day the inventor arrives, alone.
     skipToHour(s, 23);
     stories.tick(s, ctx);
@@ -234,6 +241,7 @@ describe('story arcs', () => {
     const f = villageFixture();
     const s = f.state;
     only(s, 'inventor');
+    spareHome(s);
     const ctx = createTickCtx(s);
     skipToHour(s, 10);
     advanceStories(s, ctx);

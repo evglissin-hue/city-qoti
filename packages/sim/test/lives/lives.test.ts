@@ -84,7 +84,7 @@ describe('couples', () => {
     const s = f.state;
     const a = member(f, 7, 2);
     const b = member(f, 8, 2);
-    befriend(a, b, 4); // neither is Romantic, so level 4 is not enough
+    befriend(a, b, 2); // neither is Romantic, so plain friends are not enough
     const sibling = member(f, 7, 3);
     befriend(a, sibling, 5);
     const ctx = createTickCtx(s);
