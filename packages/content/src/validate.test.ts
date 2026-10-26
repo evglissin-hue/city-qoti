@@ -247,7 +247,7 @@ describe('I1 content', () => {
     for (const s of species) {
       for (const bio of s.bios ?? []) {
         expect(bio, s.id).toContain('{name}');
-        expect(bio).not.toMatch(/—/);
+        expect(bio).not.toMatch(/\u2014/);
       }
     }
   });

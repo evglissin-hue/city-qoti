@@ -39,7 +39,7 @@ export function eatBreakfast(state: WorldState, ctx: TickCtx): void {
   const foods = foodIndexes();
   for (const h of state.households) {
     if (!h.homeId) continue;
-    let ate = false;
+    const ate: [r: Resident, good: number][] = [];
     for (const id of h.members) {
       const r = findById(state.residents, id);
       if (!r || r.activity.kind === 'arrive' || r.activity.kind === 'leave') continue;
@@ -62,16 +62,18 @@ export function eatBreakfast(state: WorldState, ctx: TickCtx): void {
       h.recentFoods.push(pick);
       state.economy.today.consumed[pick]! += 1;
       state.economy.season.consumed[pick]! += 1;
-      ate = true;
-      const kinds = new Set(h.recentFoods).size;
-      let food = 80 + (kinds >= 2 ? 10 : 0);
-      if (hasTrait(r, 'sweet-tooth') && content.goods[pick]!.id === 'bread') food += 5;
-      r.needs[Need.food] = Math.min(100, food);
+      ate.push([r, pick]);
     }
     // Keep three days of meals for the variety bonus.
     const keep = 3 * Math.max(1, h.members.length);
     if (h.recentFoods.length > keep) h.recentFoods.splice(0, h.recentFoods.length - keep);
-    if (ate) announceHousehold(state, ctx, h.id);
+    if (ate.length === 0) continue;
+    const variety = new Set(h.recentFoods).size >= 2 ? 10 : 0;
+    for (const [r, good] of ate) {
+      const treat = hasTrait(r, 'sweet-tooth') && content.goods[good]!.id === 'bread' ? 5 : 0;
+      r.needs[Need.food] = Math.min(100, 80 + variety + treat);
+    }
+    announceHousehold(state, ctx, h.id);
   }
 }
 

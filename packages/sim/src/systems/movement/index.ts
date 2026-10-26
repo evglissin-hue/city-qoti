@@ -1,7 +1,7 @@
 // Walks residents along their paths (docs/spec/11-residents.md, Movement). Speed in ticks per
 // tile from the tile being entered (road 5, grass 10, forest floor and fields 15, rock 20), Sporty
-// x0.8. Progress is 0 to 255 toward path[step]; leftover progress carries into the next tile so
-// average speeds hold. A step onto a tile that has since become blocked replans the walk; when no
+// x0.8. Progress is 0 to 255 toward path[step] and moves in even steps, so a tile of T ticks takes
+// exactly T ticks (road 51 or 52 a tick, never a tick too fast or slow). A step onto a tile that has since become blocked replans the walk; when no
 // path is left the resident stops and is marked stuck for the schedule to deal with.
 import { content } from '@qoti/content';
 import { ResidentFlags } from '../../constants';
@@ -32,9 +32,18 @@ export function walkFactor(r: Resident): number {
   return pct;
 }
 
-/** Progress per tick (0 to 256 per tile) for a tile's ticks and a resident's walk factor. */
-export function stepPerTick(ticks: number, pct: number): number {
-  return Math.ceil(25600 / ((ticks > 0 ? ticks : 10) * pct));
+/** Ticks to cross a tile for its walking ticks and a resident's walk factor (at least 1). */
+export function tileTicks(ticks: number, pct: number): number {
+  return Math.max(1, Math.round(((ticks > 0 ? ticks : 10) * pct) / 100));
+}
+
+/**
+ * Progress after one more tick on a tile that takes T ticks: the k-th tick of the tile lands on
+ * floor(256 k / T), so k is recovered from the progress itself (nothing else is stored).
+ */
+export function advance(progress: number, T: number): number {
+  const k = Math.ceil((progress * T) / 256);
+  return Math.floor((256 * (k + 1)) / T);
 }
 
 export const movement: System = {
@@ -54,7 +63,7 @@ export const movement: System = {
         continue;
       }
       const next = m.path[m.step]!;
-      m.progress += stepPerTick(grid.ticks[next]!, walkFactor(r));
+      m.progress = advance(m.progress, tileTicks(grid.ticks[next]!, walkFactor(r)));
       if (m.progress < 256) continue;
       r.tile = next;
       m.step += 1;
@@ -62,7 +71,7 @@ export const movement: System = {
         r.move = null;
         continue;
       }
-      m.progress = Math.min(255, m.progress - 256);
+      m.progress = 0;
       const ahead = m.path[m.step]!;
       if (grid.cost[ahead] === 0 && ahead !== m.target) {
         // The way ahead closed since the walk was planned: find another one from here.
@@ -86,6 +95,6 @@ export function walkTicks(state: WorldState, r: Resident, path: readonly number[
   const grid = walkGrid(state);
   const pct = walkFactor(r);
   let total = 0;
-  for (const t of path) total += Math.ceil(256 / stepPerTick(grid.ticks[t]!, pct));
+  for (const t of path) total += tileTicks(grid.ticks[t]!, pct);
   return total;
 }
