@@ -297,7 +297,7 @@ describe('I1 content', () => {
 
   it('has Chronicle templates for every I1 kind', () => {
     expect(chronicle.map((c) => c.kind).sort()).toEqual(
-      [
+      expect.arrayContaining([
         'achievement',
         'first-of',
         'founding',
@@ -306,7 +306,7 @@ describe('I1 content', () => {
         'pattern-discovered',
         'season-summary',
         'wishes-digest',
-      ].sort(),
+      ]),
     );
   });
 });

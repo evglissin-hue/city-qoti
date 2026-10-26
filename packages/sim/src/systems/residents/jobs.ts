@@ -11,6 +11,7 @@ import { townStock } from '../../view/hamlet';
 import { setInside } from '../movement/api';
 import { doorOf, householdOf, isWorkingAge, manhattan } from './places';
 import { pushHistory } from './records';
+import { dayIndex } from './time';
 
 /** Open job slots at a built building, or 0 (paused buildings hire nobody). */
 export function openJobs(b: Building): number {
@@ -216,6 +217,8 @@ export function rebalanceJobs(state: WorldState): boolean {
     for (let i = rt.workers.length - 1; i >= 0; i--) {
       const r = findById(state.residents, rt.workers[i]!);
       if (!r || r.activity.kind === 'task' || r.carry) continue;
+      // Apprentices see their season out (C4D).
+      if (r.apprentice && r.apprentice.untilDay > dayIndex(state.tick)) continue;
       fromP = p;
       from = r;
       break;

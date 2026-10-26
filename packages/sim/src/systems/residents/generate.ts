@@ -193,6 +193,14 @@ export function createHousehold(
     members.push(r);
     household.members.push(r.id);
   }
+  // The first two grown-ups of a couple, a family or an elder pair arrive married (C4D).
+  const [a, b] = members;
+  if (a && b && a.stage !== 'child' && b.stage !== 'child') {
+    a.partner = b.id;
+    b.partner = a.id;
+    a.marriedDay = Math.max(1, today);
+    b.marriedDay = Math.max(1, today);
+  }
   state.households.push(household);
   for (const r of members) state.residents.push(r);
   return { household, members };

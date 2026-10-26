@@ -191,6 +191,12 @@ export function installDebugHook(getSession: () => Session | null): void {
       const session = s();
       if (session) session.ui.customize.value = id;
     },
+    // I2 (C4D): plans, requests, stories, letters and the Charter, for the co-op e2e.
+    plans: () => [...(s()?.mirror.plans.values() ?? [])],
+    requests: () => [...(s()?.mirror.requests.values() ?? [])],
+    stories: () => [...(s()?.mirror.stories.values() ?? [])],
+    storyLetters: () => s()?.mirror.letters.value ?? [],
+    charter: () => s()?.mirror.charter.value ?? null,
     undo: () => s()?.undoLast(),
     undoSize: () => s()?.undo.size.value ?? 0,
     /** Shows the while-you-were-away letter built from the mocks (the real one needs a day away). */

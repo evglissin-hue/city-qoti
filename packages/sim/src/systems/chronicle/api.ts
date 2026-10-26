@@ -17,6 +17,8 @@ export interface ChronicleParams {
   text: [name: string, value: string][];
   refs?: EntityId[];
   seats?: SeatId[];
+  /** I2 (C4D): a chosen variant (taken modulo the template count) instead of a random pick. */
+  variant?: number;
 }
 
 export function chronicle(state: WorldState, ctx: TickCtx, kind: string, params: ChronicleParams): void {
@@ -37,12 +39,17 @@ export function chronicle(state: WorldState, ctx: TickCtx, kind: string, params:
     id: state.nextId++,
     tick: state.tick,
     kind,
-    text: fillText(pick(ctx, t?.text ?? [kind]), [...params.text, ...base]),
+    text: fillText(chosen(ctx, t?.text ?? [kind], params.variant), [...params.text, ...base]),
     refs: [...(params.refs ?? [])],
     seats: [...(params.seats ?? [])],
   };
   state.chronicle.push(entry);
   ctx.events.push({ e: 'chronicle.added', c: chronicleView(entry) });
+}
+
+function chosen(ctx: TickCtx, list: readonly string[], variant: number | undefined): string {
+  if (variant === undefined || list.length === 0) return pick(ctx, list);
+  return list[((variant % list.length) + list.length) % list.length]!;
 }
 
 /** The first page: the season and the names of the seats that founded the town. */

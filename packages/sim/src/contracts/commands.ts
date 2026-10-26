@@ -64,6 +64,8 @@ export type Command =
   | { t: 'plan.comment'; id: EntityId; text: string }
   /** The sending seat has looked at the plan. */
   | { t: 'plan.seen'; id: EntityId }
+  /** I2 (C4D): tweak an open plan: new items (and optionally a new name); the partner sees it afresh. */
+  | { t: 'plan.edit'; id: EntityId; items: PlanItem[]; name?: string }
   | { t: 'request.add'; ask: RequestAsk }
   /** Close a request by hand (goods and charm requests also close themselves when met). */
   | { t: 'request.resolve'; id: EntityId; status: 'done' | 'withdrawn' }

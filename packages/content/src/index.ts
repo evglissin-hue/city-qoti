@@ -10,10 +10,12 @@ import * as C from './chronicle';
 import * as D from './decor';
 import * as G from './goods';
 import * as I from './innovations';
+import * as L from './lives';
 import { familyNames } from './names';
 import * as N from './neighbors';
 import * as P from './patterns';
 import * as R from './roads';
+import * as Sr from './stories';
 import * as Sp from './species';
 import * as St from './styles';
 import * as Sw from './swatches';
@@ -47,6 +49,7 @@ import type {
 } from './types';
 
 export { chroniclePhrases } from './chronicle';
+export { lifePhrases } from './lives';
 export { familyNames, valleyNamePrefixes, valleyNameSuffixes } from './names';
 export * from './types';
 
@@ -211,12 +214,18 @@ export const achievements: readonly AchievementDef[] = [
 // prettier-ignore
 export const chronicle: readonly ChronicleTemplate[] = [
   C.achievement,
+  L.birth,
   C.firstOf,
   C.founding,
   C.householdArrived,
   C.householdLeft,
   C.patternDiscovered,
+  L.rankUp,
+  L.seaside,
   C.seasonSummary,
+  L.storyArrived,
+  L.storyFinale,
+  L.wedding,
   C.wishesDigest,
 ];
 
@@ -282,9 +291,11 @@ export const charters: readonly CharterDef[] = [
   Ch.villageCharter,
 ];
 
-/** C4D adds the arcs (a stories.ts file, one line each here). */
 // prettier-ignore
 export const stories: readonly StoryArc[] = [
+  Sr.inventor,
+  Sr.merchant,
+  Sr.musician,
 ];
 
 // prettier-ignore

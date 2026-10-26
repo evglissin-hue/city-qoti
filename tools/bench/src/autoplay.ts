@@ -9,6 +9,12 @@
 // while the treasury slides (and the other way round when households go short), keeps a standing
 // order book at the Trading Post when there is one, and visits the County Bank when the treasury
 // runs low, paying it back once flush.
+//
+// C4D: at 15:00 the two also work together: the Ledger claims the Charter once it is ready, the
+// Hearth asks the Ledger for food at the stall with a request (it closes itself when the porters
+// deliver), the Hearth sketches lanterns and flowers as a plan that the Ledger approves on its next
+// visit, and both keep an eye on the story characters' hints (a lantern by their door, a seat and
+// flowers by the market, a spare home for the next one to move in).
 import { content } from '@qoti/content';
 import {
   basketScore,
@@ -34,6 +40,7 @@ import {
   TILE_FP,
   townStock,
   worldIndex,
+  evaluate,
   type Building,
   type Command,
   type GrowthDemand,
@@ -99,6 +106,15 @@ export interface DayLine {
   basket: number;
   wageLevel: number;
   taxRate: number;
+  // C4D: lives, stories and working together.
+  couples: number;
+  weddings: number;
+  births: number;
+  seaside: number;
+  /** Story letters sent so far (arrivals and steps, across arcs). */
+  story: number;
+  requests: number;
+  plans: number;
 }
 
 export interface AutoplayResult {
@@ -199,14 +215,14 @@ class Players {
     return this.h.world;
   }
 
-  private do(label: string, cmds: Command[]): boolean {
-    const ok = command(this.h, cmds).every(Boolean);
+  private do(label: string, cmds: Command[], seat: 0 | 1 = 0): boolean {
+    const ok = command(this.h, cmds, seat).every(Boolean);
     this.actions.push(`${calendar(this.w.tick).day}:${label}${ok ? '' : ' (refused)'}`);
     return ok;
   }
 
-  private build(def: string): Building | null {
-    const spot = findSpot(this.w, def);
+  build(def: string, only?: (x: number, z: number, w: number, d: number) => boolean): Building | null {
+    const spot = findSpot(this.w, def, only ? 60 : 40, only);
     if (!spot) {
       this.actions.push(`no spot for ${def}`);
       return null;
@@ -225,7 +241,7 @@ class Players {
       this.do(`path for ${b.def}`, [{ t: 'road.paint', kind: 'path', tiles: path }]);
   }
 
-  private coins(): number {
+  coins(): number {
     return this.w.economy.treasury / PENNIES_PER_COIN;
   }
 
@@ -291,12 +307,14 @@ class Players {
     const indebted = rankAtLeast(w, 'village') && loansOwed(w) * 2 > creditLimit(w);
     const holdHomes = (larder && pop >= 30 && stored < pop * 5) || indebted;
     // Homes: always one empty cottage waiting for the next family (a Village with homes zoned
-    // grows its own).
+    // grows its own), and a second when a story character is waiting to move in (C4D: they never
+    // take the last one).
+    const waiting = storyWaiting(w) ? 1 : 0;
     want(
       !this.street &&
         !holdHomes &&
         vacantHomes(w) + w.buildings.filter((b) => b.def === 'cottage' && b.stage === 'construction').length <
-          2,
+          2 + waiting,
       'cottage',
     );
     // Stone, then more timber as the town grows.
@@ -475,6 +493,15 @@ class Players {
     return null;
   }
 
+  /** For Together: run commands as a seat, find a decor spot. */
+  act(label: string, cmds: Command[], seat: 0 | 1 = 0): boolean {
+    return this.do(label, cmds, seat);
+  }
+
+  spot(def: string, x: number, z: number, r: number): [number, number] | null {
+    return this.decorSpot(def, x, z, r);
+  }
+
   private place(def: string, at: [number, number] | null, why: string): boolean {
     if (!at) return false;
     return this.do(`${def} ${why}`, [
@@ -557,6 +584,128 @@ function charterLine(w: WorldState): string {
   return `${goals.length - open.length}/${goals.length}${open[0] ? ` ${open[0].id}` : ''}`;
 }
 
+/** A story character whose arrival condition holds is waiting for a home. */
+function storyWaiting(w: WorldState): boolean {
+  return w.stories.some((s) => {
+    const arc = content.storyById.get(s.arc);
+    return !!arc && s.residentId === 0 && evaluate(w, arc.arrival, {});
+  });
+}
+
+/** C4D: the two players working together (see the header). */
+class Together {
+  constructor(readonly p: Players) {}
+
+  get w(): WorldState {
+    return this.p.w;
+  }
+
+  turn(): void {
+    const w = this.w;
+    if (w.charter.ready) this.p.act('claim the Charter', [{ t: 'charter.claim' }], 1);
+    this.request();
+    this.plans();
+    this.inventor();
+  }
+
+  /** Pippa's river letter: a sawpit within three tiles of the water. */
+  private inventor(): void {
+    const w = this.w;
+    const s = w.stories.find((x) => x.arc === 'inventor');
+    const step = s && s.step >= 0 ? content.storyById.get('inventor')?.steps[s.step] : undefined;
+    if (!step || !('count' in step.goal) || step.goal.count.what !== 'byWater') return;
+    // Within three steps of the footprint, corners rounded, as the goal counts it.
+    const wet = (x: number, z: number, wd: number, d: number) => {
+      for (let tz = z - 3; tz < z + d + 3; tz++) {
+        for (let tx = x - 3; tx < x + wd + 3; tx++) {
+          const gx = Math.max(0, x - tx, tx - (x + wd - 1));
+          const gz = Math.max(0, z - tz, tz - (z + d - 1));
+          if (gx * gx + gz * gz <= 12 && w.map.water[idx(tx, tz)]) return true;
+        }
+      }
+      return false;
+    };
+    const turned = (b: Building) => (b.rot % 2 === 0 ? [2, 3] : [3, 2]) as [number, number];
+    if (w.buildings.some((b) => b.def === 'sawpit' && wet(b.x, b.z, ...turned(b)))) return;
+    if (this.p.coins() < 60) return;
+    this.p.build('sawpit', wet);
+  }
+
+  /** The Hearth asks for food at the first stall; withdraws a request nobody could meet in a week. */
+  private request(): void {
+    const w = this.w;
+    const today = Math.floor((w.tick + START_HOUR * TICKS_PER_HOUR) / TICKS_PER_DAY);
+    for (const r of w.requests) {
+      if (r.status === 'open' && w.tick - r.tick > 7 * TICKS_PER_DAY) {
+        this.p.act('withdraw a request', [{ t: 'request.resolve', id: r.id, status: 'withdrawn' }]);
+      }
+    }
+    if (w.requests.some((r) => r.status === 'open')) return;
+    const stall = w.buildings.find((b) => b.def === 'market-stall' && b.stage === 'built');
+    if (!stall?.rt) return;
+    let best = -1;
+    for (const g of FOODS) if (best < 0 || townStock(w)[g]! > townStock(w)[best]!) best = g;
+    if (best < 0) return;
+    const qty = Math.min(20, Math.max(6, (stall.rt.store[best] ?? 0) + 2));
+    const ask = {
+      kind: 'goods' as const,
+      good: content.goods[best]!.id,
+      qty,
+      byDay: today + 3,
+      at: stall.id,
+    };
+    this.p.act(`ask for ${qty} ${ask.good}`, [{ t: 'request.add', ask }]);
+  }
+
+  /**
+   * Plans: the Ledger approves what the Hearth sketched last time; the Hearth reads each story
+   * character's open step and sketches what it asks for: lanterns by their door, flowers and a tree
+   * when the lane wants charm, a seat and flowers by the market stall.
+   */
+  private plans(): void {
+    const w = this.w;
+    for (const p of w.plans) {
+      if (p.status === 'open' && p.by === 0)
+        this.p.act(`approve ${p.name}`, [{ t: 'plan.approve', id: p.id }], 1);
+    }
+    const items: Command[] = [];
+    const add = (def: string, at: [number, number] | null) => {
+      if (at) items.push({ t: 'decor.place', def, fx: at[0], fz: at[1], rot: 0 });
+    };
+    for (const s of w.stories) {
+      const goal = s.step >= 0 ? content.storyById.get(s.arc)?.steps[s.step]?.goal : undefined;
+      const r = goal && s.residentId ? findById(w.residents, s.residentId) : undefined;
+      const home = r ? findById(w.buildings, findById(w.households, r.householdId)?.homeId ?? 0) : undefined;
+      if (!goal || !home) continue;
+      const wants = JSON.stringify(goal);
+      if (wants.includes('"lantern"')) add('lantern', this.p.spot('lantern', home.x, home.z, 3));
+      if ('charm' in goal) {
+        add('flower-bed', this.p.spot('flower-bed', home.x, home.z, 3));
+        add('cherry-tree', this.p.spot('cherry-tree', home.x, home.z, 3));
+      }
+      const stall = wants.includes('nearestMarket')
+        ? w.buildings.find((b) => b.def === 'market-stall' && b.stage === 'built')
+        : undefined;
+      if (stall) {
+        add('bench', this.p.spot('bench', stall.x, stall.z, 2));
+        add('flower-bed', this.p.spot('flower-bed', stall.x, stall.z, 2));
+        add('flower-bed', this.p.spot('flower-bed', stall.x, stall.z, 2));
+      }
+    }
+    if (items.length > 0) {
+      this.p.act('sketch a plan', [
+        { t: 'plan.add', name: 'For our story folk', items: items.map((cmd) => ({ cmd })) },
+      ]);
+    }
+  }
+}
+
+function storyLetters(w: WorldState): number {
+  let n = 0;
+  for (const s of w.stories) if (s.residentId) n += s.step + 2;
+  return n;
+}
+
 function dayLine(w: WorldState, day: number): DayLine {
   const stock = townStock(w);
   const moods = w.residents.map((r) => r.mood);
@@ -594,6 +743,13 @@ function dayLine(w: WorldState, day: number): DayLine {
     basket: Math.round(w.households.reduce((n, h) => n + basketScore(h), 0) / hh),
     wageLevel: w.levers.wageLevel,
     taxRate: w.levers.taxRate,
+    couples: w.village.couples,
+    weddings: w.village.weddings,
+    births: w.village.births,
+    seaside: w.village.seaside,
+    story: storyLetters(w),
+    requests: w.village.requestsFulfilled,
+    plans: w.village.plansApproved,
   };
 }
 
@@ -626,10 +782,13 @@ export function autoplay(
      * (the 'trading-post' tag is lent to their def for the run), so caravans can be tuned.
      */
     standInPost?: boolean;
+    /** C4D: the two players also work together at 15:00 (requests, plans, the Charter). */
+    together?: boolean;
   } = {},
 ): AutoplayResult {
   const h = startingTown(seed, { economy: opts.economy ?? 'standard' });
   const players = new Players(h);
+  const together = new Together(players);
   const out: DayLine[] = [];
   const store = content.buildingById.get('storehouse') as { tags: string[] };
   const tags = store.tags;
@@ -666,6 +825,7 @@ export function autoplay(
       untilHour(h, 15);
       if (playing) players.ledger();
       if (playing && opts.hearth !== false) players.hearth();
+      if (playing && opts.together !== false) together.turn();
       untilHour(h, 23);
       const line = dayLine(h.world, d);
       if (villageFrom > 0) line.growth = { ...growthLine(h.world), night };
@@ -686,7 +846,7 @@ function kinds(k: GrowthDemand | undefined): string {
 export function formatDays(days: readonly DayLine[]): string {
   const head =
     'day  pop hh vac coins food made eaten plank stone mood mis wish grant pat ach left lean built sites' +
-    ' | rank    charter        sav wage sale  tax trade owed bask wl tx' +
+    '  cpl wed born sea story req plan | rank    charter        sav wage sale  tax trade owed bask wl tx' +
     (days.some((d) => d.growth) ? ' lots hom sh cr fa grw want+ grew+' : '');
   const rows = days.map((d) =>
     [
@@ -710,6 +870,13 @@ export function formatDays(days: readonly DayLine[]): string {
       (d.leanTimes ? 'yes' : 'no').padStart(4),
       String(d.built).padStart(5),
       String(d.sites).padStart(5),
+      String(d.couples).padStart(4),
+      String(d.weddings).padStart(3),
+      String(d.births).padStart(4),
+      String(d.seaside).padStart(3),
+      String(d.story).padStart(5),
+      String(d.requests).padStart(3),
+      String(d.plans).padStart(4),
       '|',
       d.rank.slice(0, 7).padEnd(7),
       d.charter.padEnd(14),

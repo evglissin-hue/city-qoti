@@ -183,6 +183,8 @@ export function morningPass(state: WorldState): void {
       n++;
     }
     if (n === 0) continue;
+    // Story characters never leave (C4D), and neither does anyone who lives with them.
+    if (h.members.some((id) => (findById(state.residents, id)?.flags ?? 0) & ResidentFlags.story)) continue;
     const tolerant = state.economy.leanTimes && bond / n >= 3;
     const threshold = base - (tolerant ? 10 : 0);
     h.lowMoodDays = mood / n < threshold ? h.lowMoodDays + 1 : 0;
@@ -299,6 +301,9 @@ export function rehouse(state: WorldState, ctx: TickCtx): void {
         if (r.activity.kind === 'home' || r.activity.kind === 'sleep') r.activity = { kind: 'goHome' };
       }
       announceHousehold(state, ctx, h.id);
+    } else if (h.members.some((id) => (findById(state.residents, id)?.flags ?? 0) & ResidentFlags.story)) {
+      // A story character waits for a home rather than leave (C4D); this runs again shortly.
+      continue;
     } else {
       setOffForGood(
         state,

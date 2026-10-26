@@ -1,5 +1,5 @@
 // The residents system (docs/spec/11-residents.md): arrivals, departures, jobs, schedules, needs,
-// mood and friendships. Heavy work is spread out: the daily pass at 06:00, breakfast at 07:00,
+// mood, friendships and (I2, C4D) life events in ./life. Heavy work is spread out: the daily pass at 06:00, breakfast at 07:00,
 // arrivals at 08:00, departures at 09:00, friendships hourly at an offset, each household's needs
 // (and its daily friendship chores) once an hour at its own tick, and each resident's schedule
 // every THINK_EVERY ticks at its own.
@@ -9,6 +9,7 @@ import { isStandard } from '../../state/hamlet';
 import { modifierValue } from './api';
 import { decayFriendships, greetNeighbors, hourlyFriendships } from './friends';
 import { assignJobs, auditJobs, rebalanceJobs } from './jobs';
+import { lifeEvening, lifeMorning } from './life';
 import { arrivals, departures, morningPass, rehouse, thinkLeaving } from './lifecycle';
 import { eatBreakfast, updateHouseholdNeeds } from './needs';
 import { syncResident } from './records';
@@ -25,13 +26,17 @@ const MORNING = at(6);
 const BREAKFAST = at(7);
 const ARRIVALS = at(8);
 const DEPARTURES = at(9);
+/** Weddings (C4D): the festival evening, or the couple's own chosen evening. */
+const WEDDINGS = at(18);
 /** Friendships fade in the morning and neighbors wave over the fence in the evening. */
 const MORNING_HOUR = 6;
 const EVENING_HOUR = 18;
 
 function clearHop(state: WorldState, r: Resident): void {
   if (!(r.flags & ResidentFlags.hop)) return;
-  const granted = r.modifiers.find((m) => m.kind === 'wish-granted');
+  const granted = r.modifiers.find(
+    (m) => m.kind === 'wish-granted' || m.kind === 'wedding' || m.kind === 'rank-up',
+  );
   const since = granted ? state.tick - granted.from : HOUR;
   if (since >= HOUR || (granted && modifierValue(granted, state.tick) === 0)) r.flags &= ~ResidentFlags.hop;
 }
@@ -40,10 +45,14 @@ export function residentsTick(state: WorldState, ctx: TickCtx): void {
   const t = state.tick;
   const tod = tickOfDay(t);
   const rng = ctx.rng('residents');
-  if (tod === MORNING) morningPass(state);
+  if (tod === MORNING) {
+    morningPass(state);
+    lifeMorning(state, ctx);
+  }
   if (tod === BREAKFAST) eatBreakfast(state, ctx);
   if (tod === ARRIVALS) arrivals(state, ctx, rng);
   if (tod === DEPARTURES) departures(state, ctx);
+  if (tod === WEDDINGS) lifeEvening(state, ctx);
   if (t % UPKEEP_EVERY === 0) {
     rehouse(state, ctx);
     auditJobs(state);

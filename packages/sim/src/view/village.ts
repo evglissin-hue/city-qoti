@@ -9,6 +9,10 @@ import {
   RANKS,
   TARGET_COVER,
   TIERS,
+  SEASON_NAMES,
+  START_HOUR,
+  TICKS_PER_DAY,
+  TICKS_PER_HOUR,
   TRADE_BUY_PERCENT,
   TRADE_SELL_PERCENT,
   WAGES,
@@ -41,6 +45,7 @@ import { dayIndex } from '../systems/economy/time';
 import { marketOpen } from '../systems/market/api';
 import { targetPrice } from '../systems/market/prices';
 import { profitReport } from '../systems/market/profit';
+import { charmAt } from '../conditions';
 
 const goodId = (i: number): string => content.goods[i]?.id ?? '';
 
@@ -317,19 +322,67 @@ export function planView(p: Plan): PlanView {
   return view;
 }
 
-/** Readable text for a request ("12 bread at the market by Summer day 3"). */
+/** Readable text for a request ("12 bread at the market stall by Summer day 3"). */
 export function requestText(state: WorldState, r: SeatRequest): string {
   const a = r.ask;
   if (a.kind === 'text') return a.text;
-  if (a.kind === 'charm') return `Charm ${a.target} around (${a.x}, ${a.z})`;
+  if (a.kind === 'charm') return `Charm ${a.target} ${charmPlace(state, a.x, a.z, a.radius)}`;
   const g = content.goodById.get(a.good);
   const at = a.at ? findById(state.buildings, a.at) : undefined;
   const place = at ? ` at the ${content.buildingById.get(at.def)?.name.toLowerCase() ?? 'building'}` : '';
-  return `${a.qty} ${g?.label ?? a.good}${place} by day ${a.byDay + 1}`;
+  const c = calendar(a.byDay * TICKS_PER_DAY - START_HOUR * TICKS_PER_HOUR);
+  return `${a.qty} ${g?.label ?? a.good}${place} by ${SEASON_NAMES[c.season]} day ${c.day}`;
+}
+
+/** "around the well", or "around (61, 53)" when no building stands near the spot. */
+function charmPlace(state: WorldState, x: number, z: number, radius: number): string {
+  let best: string | null = null;
+  let bestD = (radius + 2) * (radius + 2) + 1;
+  for (const b of state.buildings) {
+    const def = content.buildingById.get(b.def);
+    if (!def) continue;
+    const dx = Math.max(0, b.x - x, x - (b.x + def.size[0] - 1));
+    const dz = Math.max(0, b.z - z, z - (b.z + def.size[1] - 1));
+    const d = dx * dx + dz * dz;
+    if (d < bestD) {
+      bestD = d;
+      best = def.name.toLowerCase();
+    }
+  }
+  return best ? `around the ${best}` : `around (${x}, ${z})`;
+}
+
+/**
+ * How close a goods or charm request is (C4D): units of the good at the place (the whole town when
+ * it names none), or the average charm over the area. Text requests have none.
+ */
+export function requestProgress(
+  state: WorldState,
+  r: SeatRequest,
+): { value: number; target: number } | undefined {
+  const a = r.ask;
+  if (a.kind === 'goods') {
+    const g = content.goodIndex.get(a.good);
+    if (g === undefined) return { value: 0, target: a.qty };
+    let value = 0;
+    if (a.at) {
+      const rt = findById(state.buildings, a.at)?.rt;
+      value = rt ? (rt.store[g] ?? 0) + (rt.output[g] ?? 0) : 0;
+    } else {
+      for (const b of state.buildings) {
+        if (b.rt && b.stage === 'built') value += (b.rt.store[g] ?? 0) + (b.rt.output[g] ?? 0);
+      }
+    }
+    return { value, target: a.qty };
+  }
+  if (a.kind === 'charm') {
+    return { value: Math.round(charmAt(state, [a.x, a.z, a.x, a.z], undefined, a.radius)), target: a.target };
+  }
+  return undefined;
 }
 
 export function requestView(state: WorldState, r: SeatRequest): RequestView {
-  return {
+  const view: RequestView = {
     id: r.id,
     from: r.from,
     ask: { ...r.ask },
@@ -338,6 +391,9 @@ export function requestView(state: WorldState, r: SeatRequest): RequestView {
     status: r.status,
     closedTick: r.closedTick,
   };
+  const progress = r.status === 'open' ? requestProgress(state, r) : undefined;
+  if (progress) view.progress = progress;
+  return view;
 }
 
 export function storyView(_state: WorldState, s: StoryState): StoryView {

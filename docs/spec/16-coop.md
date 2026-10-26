@@ -42,6 +42,12 @@ Ephemeral, never part of sim state (`21-networking-and-saves.md`).
 - Structured requests between seats: goods (good, quantity, by when, where), charm (an area and a target charm), or free text.
 - Tracked in a Requests panel; goods and charm requests complete automatically when met. Fulfilled requests count toward Together achievements.
 
+**As built in I2 (C4D)**:
+
+- Plans hold building commands only (build, decor, fields, notes, roads, terrain, trees, zones). `plan.edit { id, items, name? }` tweaks an open plan and marks it unseen by the partner (`seenBy` becomes the editor alone); `plan.remove` discards. Approving runs each item through its own validation at that moment, records `applied` and `skipped`, and sends both seats a note ("Bo approved "A bench by the well": 3 done, 1 skipped because things had changed since it was drawn."). A daily pass at 03:00 tidies closed plans after 12 days, keeping at most 10. Ghost drawing and the panel are C4F's (and C4E's).
+- Requests close themselves hourly at offset 130: goods when the named building holds the quantity (store and output buffer; the whole town when it names none), charm when the average charm over the area reaches the target. "By when" is shown, not enforced: a late delivery still counts. The asker gets a note; `village.requestsFulfilled` counts them for Odette's arc and the Together goals. Open requests carry `progress { value, target }` and send `request.updated` when it moves. Text requests are closed by hand.
+- **Moving a solo valley online**: Settings, "Play together", in a solo valley. The current turn is snapshotted and read back through the valley-file path, the relay creates a new online valley from it, this device opens it as seat 0 with the invite for seat 1 showing, and the solo valley leaves the Continue list (moved, not copied).
+
 ## Guardrails
 
 - Every entity records `builtBy` (seat) and whether it is handmade (decor, customization, landmarks).

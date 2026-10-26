@@ -4,7 +4,7 @@
 import { content } from '@qoti/content';
 import { isStandard } from '../state/hamlet';
 import { startCharter } from '../state/village';
-import { refreshCharter } from '../systems/charter';
+import { celebrateRank, refreshCharter } from '../systems/charter';
 import { townView } from '../view';
 import { charterView } from '../view/village';
 import type { HandlerFor } from './util';
@@ -25,11 +25,9 @@ export const claim: HandlerFor<'charter.claim'> = {
     for (const u of def.unlocks) if (!state.hearth.unlocked.includes(u)) state.hearth.unlocked.push(u);
     state.charter = { ...startCharter(def.rank), history };
     refreshCharter(state, null);
-    ctx.events.push({
-      e: 'rank.up',
-      rank: def.rank,
-      text: def.proclamation.split('{town}').join(state.settings.townName),
-    });
+    const text = def.proclamation.split('{town}').join(state.settings.townName);
+    celebrateRank(state, ctx, def.rank, text);
+    ctx.events.push({ e: 'rank.up', rank: def.rank, text });
     ctx.events.push({ e: 'charter.updated', c: charterView(state) });
     ctx.events.push({ e: 'town.updated', t: townView(state) });
   },

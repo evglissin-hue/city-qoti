@@ -15,13 +15,17 @@ export function GameView({
   target,
   openInvite,
   onLeave,
+  onMove,
 }: {
   target: SessionTarget;
   openInvite: boolean;
   onLeave: () => void;
+  /** C4D: a solo valley moved online; open the new one. */
+  onMove?: (target: SessionTarget) => void;
 }) {
   const container = useRef<HTMLDivElement>(null);
   const [session] = useState(() => new Session(target));
+  session.onMove = onMove ?? null;
 
   useEffect(() => {
     current = session;
