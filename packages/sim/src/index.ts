@@ -127,7 +127,15 @@ export {
 export { foodDays, goodsAtMarket } from './conditions';
 export { emptyVillageSlices, hasInnovation, rankAtLeast } from './state/village';
 export { moneyBalance, moneyInside, pay, type Purse } from './systems/economy/money';
-export { buy, outletsWith, priceOf, sell, tillPrice } from './systems/market/api';
+export { buy, marketOpen, outletsWith, priceOf, sell, tillPrice } from './systems/market/api';
+// I2 (C4A)
+export { basketScore, likeHalves } from './systems/market/baskets';
+export { coverOf, multiplierFor, stepPrice, targetPrice } from './systems/market/prices';
+export { incomeTax, wageBill } from './systems/market/wages';
+export { expenses, income } from './systems/economy';
+export { caravanCapacity, postBuyPrice, postSellPrice } from './systems/trade/caravans';
+export { tradingPost } from './systems/trade/post';
+export { isLean, overdraftLimit } from './systems/loans/credit';
 export { growLot, lotPlacement } from './systems/growth/api';
 export { cartAt, cartRoute, cartTile, requestCartMove } from './systems/traffic/api';
 // I2 (C4B): growth, traffic, desire paths and stairs for the client (overlays, tools, previews).

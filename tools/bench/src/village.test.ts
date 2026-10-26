@@ -12,7 +12,7 @@ const VILLAGE_DAY = 12;
 describe('a Village grows its high street', { timeout: 180_000 }, () => {
   for (const seed of ['willow', 'hazel']) {
     it(`grows homes, shops and crafts on ${seed}'s zoned frontage in ten days`, () => {
-      const run = autoplay(seed, VILLAGE_DAY + 10, { village: VILLAGE_DAY });
+      const run = autoplay(seed, VILLAGE_DAY + 10, { villageDay: VILLAGE_DAY });
       const days = run.days;
       const first = days[VILLAGE_DAY - 1]!;
       const last = days[days.length - 1]!;
@@ -37,8 +37,8 @@ describe('a Village grows its high street', { timeout: 180_000 }, () => {
   }
 
   it('plays the same Village the same way twice', () => {
-    const a = autoplay('hazel', VILLAGE_DAY + 2, { village: VILLAGE_DAY }).hamlet.world;
-    const b = autoplay('hazel', VILLAGE_DAY + 2, { village: VILLAGE_DAY }).hamlet.world;
+    const a = autoplay('hazel', VILLAGE_DAY + 2, { villageDay: VILLAGE_DAY }).hamlet.world;
+    const b = autoplay('hazel', VILLAGE_DAY + 2, { villageDay: VILLAGE_DAY }).hamlet.world;
     expect(a.lots.length).toBeGreaterThan(0);
     expect(hashState(a)).toBe(hashState(b));
   });

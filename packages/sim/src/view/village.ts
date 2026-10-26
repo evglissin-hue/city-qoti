@@ -4,8 +4,11 @@ import { content } from '@qoti/content';
 import {
   CREDIT_MIN,
   CREDIT_PER_RESIDENT,
+  LOAN_LIMITS,
   PENNIES_PER_COIN,
   RANKS,
+  TARGET_COVER,
+  TIERS,
   TRADE_BUY_PERCENT,
   TRADE_SELL_PERCENT,
   WAGES,
@@ -27,30 +30,123 @@ import type {
   SeatRequest,
   StoryState,
   StoryView,
+  TierBasketView,
   TradeView,
   WorldState,
 } from '../contracts';
-import { residentName } from './hamlet';
+import { residentName, townStock } from './hamlet';
 import { findById } from '../state/entities';
 import { calendar } from '../systems/clock/calendar';
+import { dayIndex } from '../systems/economy/time';
+import { marketOpen } from '../systems/market/api';
+import { targetPrice } from '../systems/market/prices';
+import { profitReport } from '../systems/market/profit';
 
 const goodId = (i: number): string => content.goods[i]?.id ?? '';
 
 export function marketView(state: WorldState): MarketView {
   const m = state.market;
   const l = state.levers;
+  const stock = townStock(state);
   return {
-    lines: content.goods.map((g, i) => ({
-      good: g.id,
-      price: m.prices[i] ?? g.basePrice,
-      base: g.basePrice,
-      demand: m.demand[i] ?? 0,
-      cover: Math.round(m.cover[i] ?? 0) / 100,
-      history: m.history.map((day) => day[i] ?? g.basePrice),
-      cap: l.priceCaps[i] ?? 0,
-      subsidy: l.subsidies[i] ?? 0,
-    })),
+    lines: content.goods.map((g, i) => {
+      const price = m.prices[i] ?? g.basePrice;
+      const cover = m.cover[i] ?? 0;
+      const demand = m.demand[i] ?? 0;
+      const noSignal = cover === 0 && demand === 0 && (stock[i] ?? 0) === 0;
+      const target = noSignal ? g.basePrice : targetPrice(g.basePrice, cover);
+      return {
+        good: g.id,
+        price,
+        base: g.basePrice,
+        demand,
+        cover: Math.round(cover) / 100,
+        history: m.history.map((day) => day[i] ?? g.basePrice),
+        cap: l.priceCaps[i] ?? 0,
+        subsidy: l.subsidies[i] ?? 0,
+        stock: stock[i] ?? 0,
+        target,
+        why: priceWhy(state, i, price, target, noSignal),
+      };
+    }),
+    firstDay: Math.max(0, dayIndex(state.tick) - m.history.length + 1),
+    profits: profitReport(state),
+    tiers: tierBaskets(state),
   };
+}
+
+/** "a day's worth", "2.5 days' worth", "3 days' worth" (one decimal at most). */
+function worthText(hundredths: number): string {
+  const tenths = Math.round(hundredths / 10);
+  if (tenths === 10) return "a day's worth";
+  const n = tenths % 10 === 0 ? String(tenths / 10) : (tenths / 10).toFixed(1);
+  return `${n} days' worth`;
+}
+
+/**
+ * One line on why a price sits where it does, from the cover the last pass saw and where it is
+ * pulling (docs/spec/13-ledger.md, Market and prices). Warm, dry and short; no numbers beyond days.
+ */
+export function priceWhy(
+  state: WorldState,
+  good: number,
+  price: number,
+  target: number,
+  noSignal: boolean,
+): string {
+  if (!marketOpen(state))
+    return 'The market opens with the Village charter. Until then, prices keep to custom.';
+  const m = state.market;
+  const cap = state.levers.priceCaps[good] ?? 0;
+  const capped = cap > 0 && price > cap ? ' The Ledger caps it at the till.' : '';
+  if (noSignal) return `Nobody makes it and nobody has asked, so it keeps its usual price.${capped}`;
+  const cover = m.cover[good] ?? 0;
+  const days = worthText(cover);
+  const ratio = cover / TARGET_COVER;
+  const base = content.goods[good]?.basePrice ?? price;
+  const move =
+    target > price
+      ? target <= base
+        ? 'The price is creeping back up.'
+        : 'The price is climbing.'
+      : target < price
+        ? target >= base
+          ? 'The price is settling back down.'
+          : 'The price is easing.'
+        : 'The price is holding.';
+  let level: string;
+  if ((m.demand[good] ?? 0) === 0 && (state.economy.yesterday.consumed[good] ?? 0) === 0)
+    level = 'Plenty in store and nobody asking for it.';
+  else if (cover === 0) level = 'Wanted, and none to be had for love or money.';
+  else if (ratio < 50) level = `Shelves are thin: ${days} against the ${TARGET_COVER} days the town likes.`;
+  else if (ratio < 90) level = `A little short, with ${days} in store.`;
+  else if (ratio <= 120) level = `About ${days} on hand, which is just right.`;
+  else if (ratio <= 250) level = `A comfortable ${days} in store.`;
+  else level = `Heaps of it: ${days}, and buyers know it.`;
+  return `${level} ${move}${capped}`;
+}
+
+/** Needs satisfaction by tier: households, average savings and each basket group's average. */
+export function tierBaskets(state: WorldState): TierBasketView[] {
+  const out: TierBasketView[] = [];
+  for (const tier of TIERS) {
+    const hs = state.households.filter((h) => h.tier === tier);
+    if (hs.length === 0) continue;
+    const basket = content.basketByTier.get(tier);
+    let savings = 0;
+    for (const h of hs) savings += h.savings;
+    out.push({
+      tier,
+      households: hs.length,
+      savings: Math.round(savings / hs.length),
+      groups: (basket?.groups ?? []).map((g, i) => {
+        let sum = 0;
+        for (const h of hs) sum += h.basket?.length === basket!.groups.length ? (h.basket[i] ?? 100) : 100;
+        return { id: g.id, name: g.name, satisfaction: Math.round(sum / hs.length) };
+      }),
+    });
+  }
+  return out;
 }
 
 /** Daily wage per job tier at the current wage level, pennies. */
@@ -67,9 +163,14 @@ export function leversView(state: WorldState): LeversView {
   return { wageLevel: l.wageLevel, taxRate: l.taxRate, wages: wagesAt(l.wageLevel), exportBans: bans };
 }
 
-/** The County Bank's credit limit in pennies (CREDIT_PER_RESIDENT coins a resident, at least CREDIT_MIN). */
+/**
+ * What the County Bank lends in all, pennies: 500, 1,500 or 4,000 coins by rank
+ * (docs/spec/13-ledger.md, Budget), or CREDIT_PER_RESIDENT coins a resident when that is more.
+ */
 export function creditLimit(state: WorldState): number {
-  return Math.max(CREDIT_MIN, CREDIT_PER_RESIDENT * state.residents.length) * PENNIES_PER_COIN;
+  const byRank = LOAN_LIMITS[Math.max(0, RANKS.indexOf(state.charter.rank))] ?? 0;
+  const byTown = CREDIT_PER_RESIDENT * state.residents.length;
+  return Math.max(byRank, byTown, CREDIT_MIN) * PENNIES_PER_COIN;
 }
 
 export function loansOwed(state: WorldState): number {

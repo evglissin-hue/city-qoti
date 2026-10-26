@@ -1,8 +1,9 @@
 // `npm run tune -w @qoti/bench [days] [seed] [economy] [villageDay] [handsOffDay]`: plays the
 // standard start with the autoplayer and prints a line per in-game day (C3X tuning). With a village
-// day (C4B) the valley becomes a Village that morning, the Ledger lays and zones a high street, and
-// the run ends with a top-down map of what grew there. TUNE_SAVE=<file.qoti> writes the valley
-// out, to open in the game (title screen, More, Open a valley file) or shoot with the e2e scripts.
+// day (C4A, C4B) the County grants Village rank that morning (through the real claim), the Ledger lays
+// and zones a high street, and the run ends with a top-down map of what grew there ('-' skips it).
+// TUNE_SAVE=<file.qoti> writes the valley out, to open in the game (title screen, More, Open a valley
+// file) or shoot with the e2e scripts.
 import { serialize, type ValleySettings } from '@qoti/sim';
 import { writeFileSync } from 'node:fs';
 import { autoplay, formatDays } from './autoplay';
@@ -11,10 +12,12 @@ import { frontageAscii, grownSummary, streetRect } from './village';
 const days = Number(process.argv[2] ?? 12);
 const seed = process.argv[3] ?? 'hazel';
 const economy = (process.argv[4] ?? 'standard') as ValleySettings['economy'];
-const village = process.argv[5] ? Number(process.argv[5]) : undefined;
+const villageDay = process.argv[5] && process.argv[5] !== '-' ? Number(process.argv[5]) : undefined;
 const handsOff = process.argv[6] ? Number(process.argv[6]) : undefined;
+// `TUNE_POST=1`: storehouses stand in for the Trading Post from Village rank (until C4C's lands).
+const standInPost = !!process.env.TUNE_POST;
 const t0 = performance.now();
-const run = autoplay(seed, days, { economy, village, handsOff });
+const run = autoplay(seed, days, { economy, villageDay, handsOff, standInPost });
 console.log(`Autoplay ${seed}, ${economy}, ${days} days (${((performance.now() - t0) / 1000).toFixed(1)} s)`);
 console.log(formatDays(run.days));
 if (run.street) {

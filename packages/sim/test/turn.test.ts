@@ -104,6 +104,8 @@ describe('systems and views', () => {
     const orders = new Map(systems.map((s) => [s.id, s.order]));
     expect([...orders]).toEqual([
       ['achievements', 90],
+      ['baskets', 67],
+      ['caravans', 65],
       ['charm', 70],
       ['charter', 94],
       ['chronicle', 100],
@@ -127,6 +129,7 @@ describe('systems and views', () => {
       ['trade', 64],
       ['traffic', 54],
       ['trees', 30],
+      ['wages', 63],
       ['wishes', 74],
       ['zoning', 24],
     ]);

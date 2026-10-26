@@ -10,11 +10,24 @@ import { modifierValue } from './api';
 import { averageAround, tasteScore } from './desirability';
 import { walkGrid } from '../movement/grid';
 import { doorOf, tileX, tileZ, wellsOf } from './places';
+import { marketOpen } from '../market/api';
 import { announceHousehold } from './records';
 import { hasTrait, traitSum } from './traits';
 
 export const Need = { food: 0, water: 1, shelter: 2, belonging: 3, beauty: 4 } as const;
-const WEIGHT_TOTAL = NEED_WEIGHTS.reduce((a, b) => a + b, 0);
+/**
+ * I2 (C4A): the weights in force. The `goods` need (the basket) weighs only once the market opens
+ * at Village rank, so a Hamlet's moods stay I1's to the point.
+ */
+const HAMLET_WEIGHTS: readonly number[] = NEED_WEIGHTS.map((w, i) => (NEED_IDS[i] === 'goods' ? 0 : w));
+export function needWeights(state: WorldState): readonly number[] {
+  return marketOpen(state) ? NEED_WEIGHTS : HAMLET_WEIGHTS;
+}
+const totalOf = (w: readonly number[]) => w.reduce((a, b) => a + b, 0);
+const TOTALS = new Map<readonly number[], number>([
+  [NEED_WEIGHTS, totalOf(NEED_WEIGHTS)],
+  [HAMLET_WEIGHTS, totalOf(HAMLET_WEIGHTS)],
+]);
 /** Charm at which a settler home counts as beautiful (tune). */
 export const BEAUTY_THRESHOLD = { settler: 25, craftsfolk: 35, merchant: 45, patron: 55 } as const;
 
@@ -204,8 +217,8 @@ function belongingTarget(r: Resident): number {
 }
 
 /** Need contribution to mood (weighted), as whole points. */
-export function needPoints(r: Resident, i: number): number {
-  return ((r.needs[i] ?? 0) * NEED_WEIGHTS[i]!) / WEIGHT_TOTAL;
+export function needPoints(r: Resident, i: number, weights: readonly number[] = HAMLET_WEIGHTS): number {
+  return ((r.needs[i] ?? 0) * weights[i]!) / (TOTALS.get(weights) ?? totalOf(weights));
 }
 
 /** +2 when a friend at level 1 or more is Cheerful (it spreads). */
@@ -220,7 +233,8 @@ export function cheerfulFriendBonus(state: WorldState, r: Resident): number {
 
 export function computeMood(state: WorldState, r: Resident): number {
   let mood = 0;
-  for (let i = 0; i < NEED_IDS.length; i++) mood += needPoints(r, i);
+  const weights = needWeights(state);
+  for (let i = 0; i < NEED_IDS.length; i++) mood += needPoints(r, i, weights);
   mood += traitSum(r, 'mood') + cheerfulFriendBonus(state, r);
   const t = state.tick;
   for (const m of r.modifiers) mood += modifierValue(m, t);

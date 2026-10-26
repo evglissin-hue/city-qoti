@@ -22,6 +22,7 @@ import { residentsBench } from './residents';
 import { hearthBench } from './hearth';
 import { benchEconomy } from './economy';
 import { growthBench } from './growth';
+import { benchMarket } from './market';
 import { syntheticValley } from './synthetic';
 
 const BUDGET = {
@@ -146,6 +147,10 @@ lines.push(...economy.lines);
 failures.push(...economy.failures);
 // 7. Growth and traffic (C4B): zoning, the nightly growth pass and carts, at 150 and 2,000 residents.
 const growth = growthBench(lines, failures);
+// 8. Market and money (C4A): the daily passes of a 150-resident village.
+const market = benchMarket();
+lines.push(...market.lines);
+failures.push(...market.failures);
 
 const heapMb = process.memoryUsage().heapUsed / 1024 / 1024;
 lines.push(`memory          ${heapMb.toFixed(0)} MB heap in use`);
@@ -172,6 +177,7 @@ const report = {
   hearth: hearth.report,
   economy: economy.report,
   growth,
+  market: market.report,
   heapMb,
   failures,
 };

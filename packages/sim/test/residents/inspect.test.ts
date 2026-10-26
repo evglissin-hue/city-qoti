@@ -27,7 +27,7 @@ describe('resident inspector', () => {
   it('breaks mood down into needs, traits and modifiers that add up', () => {
     const f = hamletFixture();
     const clover = resident(f.state, f.residents[0]![0]!);
-    clover.needs = [90, 100, 100, 40, 55];
+    clover.needs = [90, 100, 100, 40, 55, 100];
     addMoodModifier(f.state, clover.id, { kind: 'wish-granted', value: 12, ticks: TICKS_PER_DAY });
     const d = detail(f.state, clover.id);
     const labels = d.moodLines.map((l) => l.label);

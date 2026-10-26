@@ -1,7 +1,9 @@
 import type { NeighborDef } from './types';
 
 // Neighbor towns for the Trading Post (docs/spec/13-ledger.md, Trade). Price factors are percent of
-// base; C4A adds drift and impact on top and tunes these.
+// base; C4A adds drift and impact on top and tunes these. C4A gave each a taste for something a
+// young village has plenty of (Millhaven: logs for its barns; Stonecross: vegetables,
+// which do not grow on a hillside), so every Hamlet good has a buyer somewhere.
 
 export const millhaven: NeighborDef = {
   id: 'millhaven',
@@ -18,6 +20,7 @@ export const millhaven: NeighborDef = {
     ['planks', 115],
     ['bricks', 110],
     ['cider', 105],
+    ['logs', 95],
   ],
   seasonal: [
     ['wheat', 1, 80],
@@ -42,6 +45,7 @@ export const stonecross: NeighborDef = {
     ['cloth', 125],
     ['cheese', 115],
     ['fish', 110],
+    ['vegetables', 100],
   ],
   seasonal: [
     ['firewood', 3, 130],

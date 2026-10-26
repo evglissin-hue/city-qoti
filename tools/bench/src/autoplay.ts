@@ -4,10 +4,23 @@
 // the lanes with benches, flowers, trees and lanterns. It plays once a day at 09:00 and 15:00,
 // like two people dropping in, and logs a line per day. Used by `npm run tune` and a test that
 // holds the I1 acceptance targets (docs/spec/30-roadmap.md, I1).
+// I2 (C4A): the Ledger player claims the Charter when it is ready, and once the market opens at
+// Village rank it minds the money: it trims wages or firms up the income tax when purses fill
+// while the treasury slides (and the other way round when households go short), keeps a standing
+// order book at the Trading Post when there is one, and visits the County Bank when the treasury
+// runs low, paying it back once flush.
 import { content } from '@qoti/content';
 import {
+  basketScore,
+  expenses,
+  income,
   BuildingStatus,
   calendar,
+  creditLimit,
+  LEDGER_CATEGORIES,
+  loansOwed,
+  rankAtLeast,
+  tradingPost,
   canPaintRoad,
   canPlaceDecor,
   doorTile,
@@ -43,6 +56,8 @@ import {
 
 const FOODS = content.goods.flatMap((g, i) => (g.food ? [i] : []));
 const G = (id: string) => content.goodIndex.get(id)!;
+const cat = (id: string) => LEDGER_CATEGORIES.findIndex((c) => c.id === id);
+const coinsOf = (pennies: number) => Math.round(pennies / PENNIES_PER_COIN);
 
 export interface DayLine {
   day: number;
@@ -67,6 +82,23 @@ export interface DayLine {
   sites: number;
   /** Village runs (C4B): lots, grown buildings by zone kind and demand. */
   growth?: GrowthLine;
+  // I2 (C4A)
+  rank: string;
+  /** Charter goals met, of the Charter on the board. */
+  charter: string;
+  /** Coins in household purses. */
+  savings: number;
+  /** Yesterday's wages, sales, taxes and trade (exports less imports), coins. */
+  wages: number;
+  sales: number;
+  taxes: number;
+  trade: number;
+  /** Coins owed to the County Bank. */
+  owed: number;
+  /** Average basket satisfaction (the goods need), 0 to 100. */
+  basket: number;
+  wageLevel: number;
+  taxRate: number;
 }
 
 export interface AutoplayResult {
@@ -201,6 +233,8 @@ class Players {
   ledger(): void {
     this.villageChores();
     const w = this.w;
+    if (w.charter.ready) this.do('claim the Charter', [{ t: 'charter.claim' }]);
+    this.money();
     const stock = townStock(w);
     const pop = w.residents.length;
     const food =
@@ -244,10 +278,23 @@ class Players {
       count(w, 'fishers-hut') <= count(w, 'vegetable-plot') / 2 ? 'fishers-hut' : 'vegetable-plot',
     );
     want(food < pop * 2 && sites(w) === 0, 'vegetable-plot');
+    // I2 (C4A): the Village Charter wants five days of food in store, so a Hamlet of 25 or more
+    // lays in a larder before the peddler gets any.
+    // Past 30 residents it holds new homes until the larder is full.
+    const larder = !rankAtLeast(w, 'village') && pop >= 25;
+    const stored = FOODS.reduce((n, g) => n + stock[g]!, 0);
+    want(
+      larder && stored < pop * 6 && foodMade < pop * 1.4 && sites(w) < 2,
+      count(w, 'fishers-hut') <= count(w, 'vegetable-plot') / 2 ? 'fishers-hut' : 'vegetable-plot',
+    );
+    // A Village deep in the County Bank's books pays down before it builds more homes.
+    const indebted = rankAtLeast(w, 'village') && loansOwed(w) * 2 > creditLimit(w);
+    const holdHomes = (larder && pop >= 30 && stored < pop * 5) || indebted;
     // Homes: always one empty cottage waiting for the next family (a Village with homes zoned
     // grows its own).
     want(
       !this.street &&
+        !holdHomes &&
         vacantHomes(w) + w.buildings.filter((b) => b.def === 'cottage' && b.stage === 'construction').length <
           2,
       'cottage',
@@ -276,16 +323,30 @@ class Players {
     want(count(w, 'windmill', true) > 0 && count(w, 'bakery') === 0, 'bakery');
     want(pop >= 20 && count(w, 'storehouse') < 2, 'storehouse');
     want(pop >= 20 && count(w, 'well') < 2, 'well');
+    // I2 (C4A): a Village pays its upkeep with what it sells beyond the valley, so when the books
+    // run short the Ledger sets up a trade: another sawpit for every thirty residents, and a
+    // woodcutter to feed each pair.
+    if (rankAtLeast(w, 'village')) {
+      const y = w.economy.yesterday;
+      const short = income(y) < expenses(y);
+      const trade = 2 + Math.floor(pop / 30);
+      want(short && count(w, 'sawpit') < trade, 'sawpit', true);
+      want(short && count(w, 'woodcutter') < Math.ceil(count(w, 'sawpit') / 2) + 1, 'woodcutter', true);
+      want(stock[G('stone')]! < 16 && count(w, 'quarry') < 1 + Math.floor(pop / 40), 'quarry');
+    }
     // The peddler takes surplus at 10:00: food beyond five days of eating, logs beyond 60.
     for (const g of content.goods) {
       const i = G(g.id);
       const surplus = g.food
-        ? stock[i]! > pop * 2 + 8
+        ? stock[i]! > pop * (larder ? 7 : 2) + 8
         : g.id === 'logs'
           ? stock[i]! > 40
           : g.id === 'stone'
             ? stock[i]! > 50
-            : false;
+            : // I2 (C4A): a Village lives on its trade, so spare planks go to the peddler too.
+              g.id === 'planks'
+              ? rankAtLeast(w, 'village') && stock[i]! > 30
+              : false;
       if (surplus !== w.economy.forSale[i]) {
         this.do(`${surplus ? 'sell' : 'keep'} ${g.id}`, [
           { t: 'ledger.setForSale', good: g.id, forSale: surplus },
@@ -309,6 +370,77 @@ class Players {
         }
       }
       if (tiles.length) this.do(`fields x${tiles.length}`, [{ t: 'field.paint', farm: farm.id, tiles }]);
+    }
+  }
+
+  /**
+   * I2 (C4A): the Ledger's money levers once the market is open. Wages and tax steer where the
+   * coins pile up; the Trading Post sells what the town has plenty of and buys food when it runs
+   * short; the County Bank tides a short treasury over.
+   */
+  private money(): void {
+    const w = this.w;
+    if (!rankAtLeast(w, 'village')) return;
+    const l = w.levers;
+    const hh = Math.max(1, w.households.length);
+    const basket = w.households.reduce((n, h) => n + basketScore(h), 0) / hh;
+    const coins = this.coins();
+    const y = w.economy.yesterday;
+    const net = income(y) - expenses(y);
+    const setWage = (percent: number, why: string) =>
+      percent !== l.wageLevel && this.do(why, [{ t: 'ledger.setWageLevel', percent }]);
+    const setTax = (percent: number, why: string) =>
+      percent !== l.taxRate && this.do(why, [{ t: 'ledger.setTaxRate', percent }]);
+    if (net < 0 && coins < 300 && basket >= 65) {
+      // The treasury slides while households get by: trim wages a little, then firm up the tax.
+      if (l.wageLevel > 85) setWage(l.wageLevel - 5, 'trim wages');
+      else if (l.taxRate < 16) setTax(l.taxRate + 2, 'raise the income tax');
+    } else if (basket < 65 && coins > 150) {
+      // Households going short while the treasury can spare it: ease off.
+      if (l.taxRate > 6) setTax(l.taxRate - 2, 'ease the income tax');
+      else if (l.wageLevel < 110) setWage(l.wageLevel + 5, 'raise wages');
+    } else if (net > 0 && coins > 500) {
+      // Flush: drift back toward the usual levels.
+      if (l.wageLevel < 100) setWage(l.wageLevel + 5, 'restore wages');
+      else if (l.taxRate > 10) setTax(l.taxRate - 2, 'ease the income tax');
+    }
+    // The County Bank: borrow when the treasury runs thin, repay when flush.
+    const owed = loansOwed(w);
+    const room = Math.floor((creditLimit(w) - owed) / PENNIES_PER_COIN);
+    if (coins < 60 && room >= 100) {
+      this.do('take a loan', [{ t: 'loan.take', coins: Math.min(room, 300) }]);
+    } else if (owed > 0 && coins > 350) {
+      const loan = w.loans.loans[0]!;
+      const pay = Math.min(Math.ceil(loan.balance / PENNIES_PER_COIN), Math.floor(coins - 250));
+      if (pay > 0) this.do('repay a loan', [{ t: 'loan.repay', id: loan.id, coins: pay }]);
+    }
+    // The Trading Post, when the content has one: build it, then keep a standing order book.
+    if (content.buildingById.has('trading-post') && count(w, 'trading-post') === 0 && coins > 150) {
+      this.build('trading-post');
+    }
+    if (!tradingPost(w)) return;
+    const pop = w.residents.length;
+    // Sell what the town has plenty of; buy food only when the larder runs low.
+    const book: [good: string, min: number, max: number][] = [
+      ['planks', 0, 30],
+      ['logs', 0, 40],
+      ['bread', 0, pop + 10],
+      ['fish', 0, pop + 10],
+      ['vegetables', 0, pop + 10],
+      ['apples', Math.ceil(pop / 4), 1000],
+    ];
+    for (const [good, min, max] of book) {
+      const g = G(good);
+      const o = w.trade.orders.find((x) => x.good === g);
+      if (o && o.min === min && o.max === max) continue;
+      if (o && Math.abs(o.min - min) + Math.abs(o.max - max) < 6) continue;
+      this.do(`order ${good}`, [
+        {
+          t: 'trade.setStandingOrder',
+          good,
+          order: { min, max, floor: 0, ceiling: Math.round(content.goods[g]!.basePrice * 1.6), neighbor: '' },
+        },
+      ]);
     }
   }
 
@@ -418,9 +550,18 @@ class Players {
   }
 }
 
+/** "3/5 food": goals met, and the first one still open. */
+function charterLine(w: WorldState): string {
+  const goals = content.charterById.get(w.charter.charter)?.goals ?? [];
+  const open = goals.filter((g, i) => (w.charter.progress[i] ?? 0) < g.target);
+  return `${goals.length - open.length}/${goals.length}${open[0] ? ` ${open[0].id}` : ''}`;
+}
+
 function dayLine(w: WorldState, day: number): DayLine {
   const stock = townStock(w);
   const moods = w.residents.map((r) => r.mood);
+  const y = w.economy.yesterday.money;
+  const hh = Math.max(1, w.households.length);
   return {
     day,
     residents: w.residents.length,
@@ -442,6 +583,17 @@ function dayLine(w: WorldState, day: number): DayLine {
     leanTimes: w.economy.leanTimes,
     built: w.buildings.filter((b) => b.stage === 'built').length,
     sites: sites(w),
+    rank: w.charter.rank,
+    charter: charterLine(w),
+    savings: coinsOf(w.households.reduce((n, h) => n + h.savings, 0)),
+    wages: coinsOf(y[cat('wages')]!),
+    sales: coinsOf(y[cat('sales')]!),
+    taxes: coinsOf(y[cat('taxes')]!),
+    trade: coinsOf(y[cat('exports')]! - y[cat('imports')]! + y[cat('peddler')]!),
+    owed: coinsOf(loansOwed(w)),
+    basket: Math.round(w.households.reduce((n, h) => n + basketScore(h), 0) / hh),
+    wageLevel: w.levers.wageLevel,
+    taxRate: w.levers.taxRate,
   };
 }
 
@@ -462,32 +614,65 @@ function untilHour(h: Hamlet, hour: number): void {
 export function autoplay(
   seed: string,
   days: number,
-  opts: { economy?: ValleySettings['economy']; hearth?: boolean; village?: number; handsOff?: number } = {},
+  opts: {
+    economy?: ValleySettings['economy'];
+    hearth?: boolean;
+    /** Tuning: on this morning the County grants Village rank whether or not the Charter is done. */
+    villageDay?: number;
+    /** From this day on the players only watch (C4B: does growth stop when demand does?). */
+    handsOff?: number;
+    /**
+     * Until C4C's Trading Post is in content: from Village rank the storehouses double as one
+     * (the 'trading-post' tag is lent to their def for the run), so caravans can be tuned.
+     */
+    standInPost?: boolean;
+  } = {},
 ): AutoplayResult {
   const h = startingTown(seed, { economy: opts.economy ?? 'standard' });
   const players = new Players(h);
   const out: DayLine[] = [];
-  for (let d = 1; d <= days; d++) {
-    const playing = opts.handsOff === undefined || d < opts.handsOff;
-    // Village runs watch the night's growth pass (01:00): what it wanted, and what it started.
-    let night: GrowthNight | undefined;
-    if (opts.village !== undefined && d > opts.village) {
-      untilHour(h, 1);
-      const before = growthLine(h.world);
-      runTicks(h, 1);
-      night = { demand: before.demand, started: grownSince(before, growthLine(h.world)) };
+  const store = content.buildingById.get('storehouse') as { tags: string[] };
+  const tags = store.tags;
+  const lend = opts.standInPost && !content.buildingById.has('trading-post');
+  /** First day that began at Village rank (claimed or granted); 0 while a Hamlet. */
+  let villageFrom = 0;
+  try {
+    for (let d = 1; d <= days; d++) {
+      const playing = opts.handsOff === undefined || d < opts.handsOff;
+      // Village runs watch the night's growth pass (01:00): what it wanted, and what it started.
+      let night: GrowthNight | undefined;
+      if (villageFrom > 0 && d > villageFrom) {
+        untilHour(h, 1);
+        const before = growthLine(h.world);
+        runTicks(h, 1);
+        night = { demand: before.demand, started: grownSince(before, growthLine(h.world)) };
+      }
+      untilHour(h, 9);
+      if (d === opts.villageDay && !rankAtLeast(h.world, 'village')) {
+        // Through the real claim, as if every goal had just been met.
+        h.world.charter.ready = true;
+        command(h, [{ t: 'charter.claim' }]);
+        players.actions.push(`${d}:granted Village`);
+      }
+      // The first morning at Village rank, however it came, the Ledger lays and zones a high street.
+      if (villageFrom === 0 && rankAtLeast(h.world, 'village')) {
+        villageFrom = d;
+        if (playing) players.village();
+      }
+      if (lend && rankAtLeast(h.world, 'village') && store.tags === tags)
+        store.tags = [...tags, 'trading-post'];
+      if (playing) players.ledger();
+      if (playing && opts.hearth !== false) players.hearth();
+      untilHour(h, 15);
+      if (playing) players.ledger();
+      if (playing && opts.hearth !== false) players.hearth();
+      untilHour(h, 23);
+      const line = dayLine(h.world, d);
+      if (villageFrom > 0) line.growth = { ...growthLine(h.world), night };
+      out.push(line);
     }
-    untilHour(h, 9);
-    if (d === opts.village) players.village();
-    if (playing) players.ledger();
-    if (playing && opts.hearth !== false) players.hearth();
-    untilHour(h, 15);
-    if (playing) players.ledger();
-    if (playing && opts.hearth !== false) players.hearth();
-    untilHour(h, 23);
-    const line = dayLine(h.world, d);
-    if (opts.village !== undefined && d >= opts.village) line.growth = { ...growthLine(h.world), night };
-    out.push(line);
+  } finally {
+    store.tags = tags;
   }
   return { hamlet: h, days: out, actions: players.actions, street: players.street };
 }
@@ -501,6 +686,7 @@ function kinds(k: GrowthDemand | undefined): string {
 export function formatDays(days: readonly DayLine[]): string {
   const head =
     'day  pop hh vac coins food made eaten plank stone mood mis wish grant pat ach left lean built sites' +
+    ' | rank    charter        sav wage sale  tax trade owed bask wl tx' +
     (days.some((d) => d.growth) ? ' lots hom sh cr fa grw want+ grew+' : '');
   const rows = days.map((d) =>
     [
@@ -524,6 +710,18 @@ export function formatDays(days: readonly DayLine[]): string {
       (d.leanTimes ? 'yes' : 'no').padStart(4),
       String(d.built).padStart(5),
       String(d.sites).padStart(5),
+      '|',
+      d.rank.slice(0, 7).padEnd(7),
+      d.charter.padEnd(14),
+      String(d.savings).padStart(4),
+      String(d.wages).padStart(4),
+      String(d.sales).padStart(4),
+      String(d.taxes).padStart(4),
+      String(d.trade).padStart(5),
+      String(d.owed).padStart(4),
+      String(d.basket).padStart(4),
+      String(d.wageLevel).padStart(3),
+      String(d.taxRate).padStart(2),
       ...(d.growth
         ? [
             String(d.growth.lots).padStart(4),

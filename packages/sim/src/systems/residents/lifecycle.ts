@@ -8,6 +8,7 @@ import type { Building, Household, LifeStage, Resident, Rng, TickCtx, WorldState
 import { findById, removeById } from '../../state/entities';
 import { moodBand, townStock } from '../../view/hamlet';
 import { chronicle } from '../chronicle/api';
+import { pay } from '../economy/money';
 import { moveResident, setInside } from '../movement/api';
 import { averageAround, describeHome, homeDesirability } from './desirability';
 import { removeFriend } from './friends';
@@ -269,6 +270,8 @@ export function removeResident(state: WorldState, ctx: TickCtx, r: Resident): vo
   const i = h.members.indexOf(r.id);
   if (i >= 0) h.members.splice(i, 1);
   if (h.members.length === 0) {
+    // I2 (C4A): the last one out takes the household's purse along (money leaving the valley).
+    if (h.savings > 0) pay(state, { household: h.id }, 'outside', h.savings, null);
     removeById(state.households, h.id);
     ctx.events.push({ e: 'household.removed', id: h.id });
     announceTown(state, ctx);
