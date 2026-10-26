@@ -10,6 +10,7 @@ import { HelpOverlay, SettingsPanel } from './SettingsPanel';
 import { Toolbar } from './Toolbar';
 import { TopBar } from './TopBar';
 import './hamlet.css';
+import './village.css';
 
 /** ?clean hides the debug numbers, for screenshots. */
 const CLEAN = new URLSearchParams(location.search).has('clean');
@@ -20,6 +21,11 @@ export function GameUI({ session, onLeave }: { session: Session; onLeave: () => 
   const book = open ? panels.find((p) => p.id === open && p.side === 'book') : undefined;
   return (
     <div class="game-ui">
+      {panels
+        .filter((p) => p.side === 'world')
+        .map((p) => (
+          <p.component key={p.id} session={session} />
+        ))}
       <PresenceLabels session={session} />
       <TopBar session={session} onLeave={onLeave} />
       {/* The left feed steps aside while a book is open, so only one thing talks at a time. */}

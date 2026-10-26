@@ -4,6 +4,7 @@ import { copy } from './copy';
 import { coinCount, coins, formatDate, formatTime, speedNote } from './format';
 import { Glyph } from './icons';
 import { GoToPartner } from './Presence';
+import { RANK_WORD } from './village';
 
 const SPEEDS: { speed: Speed; label: string; title: string }[] = [
   { speed: 0, label: '❚❚', title: 'Pause (Space)' },
@@ -138,6 +139,7 @@ function TownStats({ session }: { session: Session }) {
         {coinCount(treasury)}
         {lean && <span class="lean-word">lean times</span>}
       </button>
+      <RankChip session={session} />
       <span
         class="stat-chip people"
         data-testid="population"
@@ -147,5 +149,46 @@ function TownStats({ session }: { session: Session }) {
         {people}
       </span>
     </div>
+  );
+}
+
+/**
+ * I2 (C4F): the town's rank and how far along the next Charter is, as a little pennant with a pip
+ * per goal. Opens the Charter board; glows warmly when the claim is open.
+ */
+function RankChip({ session }: { session: Session }) {
+  const m = session.mirror;
+  const town = m.town.value;
+  const c = m.charter.value;
+  const rank = c?.rank ?? town?.rank;
+  if (!rank) return null;
+  const goals = c?.goals ?? [];
+  const done = c ? goals.filter((g) => g.done).length : (town?.charter?.done ?? 0);
+  const total = c ? goals.length : (town?.charter?.total ?? 0);
+  const ready = c?.ready ?? town?.charter?.ready ?? false;
+  const next = c?.next;
+  const open = session.ui.panel.value === 'charter';
+  return (
+    <button
+      type="button"
+      class={`stat-chip rank ${ready ? 'ready' : ''} ${open ? 'open' : ''}`}
+      data-testid="rank"
+      title={
+        next
+          ? `${RANK_WORD[rank]}. ${done} of ${total} goals toward ${RANK_WORD[next]}${ready ? ': ready to claim!' : '.'} (H)`
+          : `${RANK_WORD[rank]}. The Charter board (H)`
+      }
+      onClick={() => (session.ui.panel.value = open ? null : 'charter')}
+    >
+      <Glyph id="rank" />
+      <span>{RANK_WORD[rank]}</span>
+      {next && total > 0 && (
+        <span class="pips" aria-label={`${done} of ${total}`}>
+          {goals.length
+            ? goals.map((g) => <i key={g.id} class={`${g.done ? 'on' : ''} lane-${g.lane}`} />)
+            : Array.from({ length: total }, (_, i) => <i key={i} class={i < done ? 'on' : ''} />)}
+        </span>
+      )}
+    </button>
   );
 }

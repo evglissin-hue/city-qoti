@@ -1,5 +1,5 @@
 import { signal } from '@preact/signals';
-import type { AwayLetter, Lens } from '@qoti/sim';
+import type { AwayLetter, LetterView, Lens, PlanItem, RankId } from '@qoti/sim';
 import type { Selection } from '../input/context';
 
 export interface Toast {
@@ -23,6 +23,17 @@ export interface Letter {
 }
 
 export type ReportTab = 'stocks' | 'workforce' | 'budget' | 'buildings';
+
+// I2 (C4F)
+export type MarketTab = 'prices' | 'profit';
+export type TradeTab = 'neighbors' | 'orders' | 'caravans';
+
+/** A plan being sketched: commands the tools would have sent, kept here until proposed. */
+export interface Sketch {
+  items: PlanItem[];
+  /** A plan being added to (its items come first), or null for a new one. */
+  basedOn: number | null;
+}
 
 export function createUiState() {
   return {
@@ -62,6 +73,27 @@ export function createUiState() {
     /** Alert keys the player waved away. */
     dismissed: signal<ReadonlySet<string>>(new Set()),
     alertsOpen: signal(true),
+    // I2 (C4F)
+    marketTab: signal<MarketTab>('prices'),
+    /** The good whose price history the market page draws large. */
+    marketGood: signal<string | null>(null),
+    tradeTab: signal<TradeTab>('neighbors'),
+    /** The story letter on the desk, while it is open. */
+    storyLetter: signal<LetterView | null>(null),
+    /** Story letters already opened this visit (arc and step), so the feed stops waving them. */
+    lettersRead: signal<ReadonlySet<string>>(new Set()),
+    /** The plan being sketched (tools add to it instead of building), or null. */
+    sketch: signal<Sketch | null>(null),
+    /** The plan whose blueprint is drawn on the valley. */
+    planFocus: signal<number | null>(null),
+    /** The plans the blueprint layer draws: 'focus' (one), 'open' (every open plan) or none. */
+    blueprints: signal<'focus' | 'open'>('focus'),
+    /** The request form in the feed, while it is open. */
+    asking: signal(false),
+    requestsOpen: signal(true),
+    minimapOpen: signal(true),
+    /** The rank-up moment, while it is on screen. */
+    rankUp: signal<{ rank: RankId; text: string } | null>(null),
   };
 }
 

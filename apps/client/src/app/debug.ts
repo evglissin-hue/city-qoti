@@ -4,10 +4,12 @@ import {
   canPlaceBuilding,
   canPlaceDecor,
   footprintSize,
+  MAP_SIZE,
   TILE_FP,
   type Command,
   type Lens,
   type LayerName,
+  type RankId,
   type Rot4,
   type Turn,
   type ValleySettings,
@@ -16,7 +18,7 @@ import type { Selection } from '../input/context';
 import { applySettings, loadSettings } from '../ui/settings';
 import { fakeCharm, fakeRuntime, startSyntheticResidents, type SyntheticOptions } from '../render/synthetic';
 import { SimHost } from '../worker/host';
-import { overlayMocks } from './fixture';
+import { overlayMocks, overlayVillageMocks } from './fixture';
 import type { Session } from './session';
 
 export interface GoldenScript {
@@ -204,6 +206,34 @@ export function installDebugHook(getSession: () => Session | null): void {
       const session = s();
       if (session) await overlayMocks(session);
     },
+    /** I2 (C4F): the village mocks over the live village fixture; `charter` adds a board in progress. */
+    villageMocks: async (opts?: { charter?: boolean }) => {
+      const session = s();
+      if (session) await overlayVillageMocks(session, opts);
+    },
+    /** I2 (C4F): opens a story letter (the latest from the mocks or the Mirror). */
+    openLetter: (index = -1) => {
+      const session = s();
+      const letters = session?.mirror.letters.value ?? [];
+      const l = letters.at(index);
+      if (session && l) session.ui.storyLetter.value = l;
+      return !!l;
+    },
+    /** I2 (C4F): the rank-up moment, as the sim's rank.up event would show it. */
+    rankUp: (rank: RankId = 'village') => {
+      const session = s();
+      if (session) session.ui.rankUp.value = { rank, text: '' };
+    },
+    /** I2 (C4F): pulls a UI signal by name (tabs, focus) for screenshots and tests. */
+    setUi: (name: string, value: unknown) => {
+      const session = s();
+      const sig = session?.ui[name as keyof Session['ui']] as { value: unknown } | undefined;
+      if (sig && 'value' in sig) sig.value = value;
+    },
+    plans: () => [...(s()?.mirror.plans.values() ?? [])],
+    requests: () => [...(s()?.mirror.requests.values() ?? [])],
+    lots: () => [...(s()?.mirror.lots.values() ?? [])],
+    zoneAt: (x: number, z: number) => s()?.mirror.layers.zone[z * MAP_SIZE + x] ?? 0,
     /** Interface size, 0.8 to 1.4, as the settings slider sets it. */
     setUiScale: (scale: number) => applySettings({ ...loadSettings(), uiScale: scale }),
     awayLetter: async () => (await s()?.inspect('away', s()!.seat)) ?? null,

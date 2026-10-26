@@ -33,7 +33,7 @@ describe('registries', () => {
     });
   }
 
-  it('ships the I0 and I1 tools', () => {
+  it('ships the I0, I1 and I2 tools', () => {
     expect(registries.tools).toEqual([
       'building',
       'customize',
@@ -46,7 +46,10 @@ describe('registries', () => {
       'note',
       'path',
       'ping',
+      'plan',
+      'street',
       'tree',
+      'zone',
     ]);
   });
 });

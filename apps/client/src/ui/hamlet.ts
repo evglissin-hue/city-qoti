@@ -7,6 +7,11 @@ export const NEED_LABEL: Record<string, string> = {
   shelter: 'Shelter',
   belonging: 'Belonging',
   beauty: 'Beauty',
+  // I2 (C4F)
+  goods: 'Goods',
+  social: 'Company',
+  health: 'Health',
+  education: 'Schooling',
 };
 
 export const MOOD_WORD = MOOD_BAND_NAMES;
@@ -80,6 +85,15 @@ export const HISTORY_WORD: Record<string, string> = {
   'wish-expired': 'Let a wish go',
   born: 'Was born in the valley',
   'grew-up': 'Grew up a little',
+  // I2 (C4F)
+  couple: 'Fell for someone',
+  wedding: 'Got married',
+  birth: 'Welcomed a baby',
+  apprentice: 'Took up an apprenticeship',
+  retired: 'Retired',
+  seaside: 'Moved to the seaside',
+  'tier-up': 'Moved up in the world',
+  'tier-down': 'Tightened the belt',
 };
 
 export const TIER_WORD: Record<string, string> = {

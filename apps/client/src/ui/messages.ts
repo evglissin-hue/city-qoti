@@ -34,4 +34,6 @@ export const undoText = {
   empty: 'Nothing left to undo. Everything here is on purpose now.',
   refused: (reason: RejectReason) =>
     reason === 'CHANGED' ? REJECT_TEXT.CHANGED : `Could not undo that. ${REJECT_TEXT[reason]}`,
+  /** I2 (C4F): Ctrl+Z while sketching takes back the last blueprint piece. */
+  sketch: 'Rubbed out the last bit of the sketch.',
 };

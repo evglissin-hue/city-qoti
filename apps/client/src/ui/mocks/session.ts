@@ -28,6 +28,7 @@ import {
   mockTown,
   mockWishes,
 } from './hamlet';
+import { mockCharter, mockLetters, mockStories, mockVillageView, villageInspect } from './village';
 
 /** The three cottages and the well the mocks refer to by id, beside the mock buildings. */
 const extraBuildings: BuildingView[] = [
@@ -193,4 +194,23 @@ export function mockSession(view: ViewSnapshot = mockView(), seat: 0 | 1 = 0): M
     setSpeed: record('setSpeed'),
   } as unknown as Session;
   return { session, submitted, calls };
+}
+
+/**
+ * I2 (C4F): a session on the village fixture with the village mocks' history (a story under way and
+ * its letters, an in-progress Charter board when `charter` is set), answering inspect from the
+ * fixture through the sim's own builders.
+ */
+export function mockVillageSession(seat: 0 | 1 = 0, opts: { charter?: boolean } = {}): MockSession {
+  const view: ViewSnapshot = {
+    ...mockVillageView,
+    seats: mockView().seats,
+    stories: mockStories,
+    ...(opts.charter ? { charter: mockCharter } : {}),
+  };
+  const out = mockSession(view, seat);
+  out.session.mirror.letters.value = [...mockLetters];
+  (out.session as { inspect: Session['inspect'] }).inspect = (kind, id) =>
+    Promise.resolve(villageInspect(kind, id));
+  return out;
 }
