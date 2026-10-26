@@ -84,7 +84,8 @@ test('the hamlet fixture: residents and buildings inspected live from the sim wo
   const resident = page.getByTestId('resident-inspector');
   await expect(resident).toContainText('Clover Thistledown');
   await expect(resident).toContainText('Rabbit, adult');
-  await expect(resident.locator('.mood-lines li')).toHaveCount(5);
+  // One line per need, plus any moods and bonds that apply today.
+  await expect.poll(() => resident.locator('.mood-lines li').count()).toBeGreaterThanOrEqual(5);
   await page.getByTestId('resident-story-tab').click();
   await expect(resident).toContainText('Hazel Thistledown');
 

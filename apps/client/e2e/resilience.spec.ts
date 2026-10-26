@@ -1,15 +1,25 @@
-import { expect, test, type Browser, type Page } from '@playwright/test';
+import { expect, test, type Browser, type BrowserContext, type Page } from '@playwright/test';
 import { DEBUG_QUERY, hashesAt, waitLive } from './helpers';
+
+// Contexts made from the shared browser outlive their test unless closed; two seats left rendering
+// in the background starve the next test's seats on a GPU-less runner.
+const contexts: BrowserContext[] = [];
+test.afterEach(async () => {
+  for (const c of contexts.splice(0)) await c.close();
+});
 
 /** Seat 0 creates an online valley, seat 1 joins it from the invite link. */
 async function pair(browser: Browser): Promise<{ a: Page; b: Page; offline: (v: boolean) => Promise<void> }> {
-  const a = await (await browser.newContext()).newPage();
+  const contextA = await browser.newContext();
+  contexts.push(contextA);
+  const a = await contextA.newPage();
   await a.goto(`/${DEBUG_QUERY}`);
   await a.getByTestId('new-online').click();
   await waitLive(a);
   const link = await a.getByTestId('invite-link').inputValue();
   await a.getByRole('button', { name: 'Done' }).click();
   const contextB = await browser.newContext();
+  contexts.push(contextB);
   const b = await contextB.newPage();
   const invite = new URL(link);
   invite.search = DEBUG_QUERY;

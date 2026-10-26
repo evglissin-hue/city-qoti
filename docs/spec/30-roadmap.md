@@ -43,6 +43,7 @@ Each iteration ends with something both players can play on the live link (P54),
 - Patterns, wishes and achievements: each of the 8 detectors has positive and negative fixtures, each of the 12 wish templates is generated and granted, each of the 10 achievements unlocks (`packages/sim/test/hearth`).
 - Each lane needs the other: residents' wishes ask for Ledger things (a bakery, fish at the stall, a proper path) and Ledger growth needs residents, who come for charm and leave over unhappiness; the alert feed tells each lens what to look at.
 - Budgets: hamlet tick 0.03 to 0.06 ms, 2,000-resident movement 0.5 ms, charm under 2 ms per chunk, patterns under 3 ms per hour (`npm run bench`); the i1-hamlet golden script hashes the same twice in Node and in a browser worker.
+- Looks: an autoplayed 30-resident hamlet (Thistlecombe, seed willow) at day, close up, dusk and night, under 130 draws and 0.9M triangles on Medium (`docs/build/screenshots/c3x-*.png`, shot with `apps/client/e2e/c3x-shots.mjs`).
 
 ## I2 Village
 
