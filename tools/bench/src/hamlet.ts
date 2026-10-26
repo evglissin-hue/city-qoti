@@ -293,7 +293,13 @@ function matureTreesNear(world: WorldState, x: number, z: number, r: number): nu
  * The nearest valid spot to the town center for a building, with a tile of space around it and,
  * for woodcutters, mature trees in reach. Null when nothing fits within `radius`.
  */
-export function findSpot(world: WorldState, defId: string, radius = 40): [number, number, Rot4] | null {
+export function findSpot(
+  world: WorldState,
+  defId: string,
+  radius = 40,
+  /** C4D: only spots this accepts (footprint min corner and turned size). */
+  only?: (x: number, z: number, w: number, d: number) => boolean,
+): [number, number, Rot4] | null {
   const def = content.buildingById.get(defId)!;
   const [cx, cz] = center(world);
   const reader = worldIndex(world).reader;
@@ -310,6 +316,7 @@ export function findSpot(world: WorldState, defId: string, radius = 40): [number
           if (!p.ok) continue;
           const [w, d] = rot % 2 === 0 ? def.size : [def.size[1], def.size[0]];
           if (crowded(world, x, z, w, d)) continue;
+          if (only && !only(x, z, w, d)) continue;
           if (!nearStorehouse(world, def, x, z, rot)) continue;
           let score = p.warnings.includes('NO_ROAD') ? 0 : 1;
           if (defId === 'woodcutter') score = matureTreesNear(world, x, z, 8) >= 40 ? 1 : -1;
@@ -341,11 +348,11 @@ function nearStorehouse(world: WorldState, def: BuildingDef, x: number, z: numbe
 }
 
 /** Applies commands as one turn (seat 0) and returns whether each was accepted. */
-export function command(h: Hamlet, cmds: Command[]): boolean[] {
+export function command(h: Hamlet, cmds: Command[], seat: 0 | 1 = 0): boolean[] {
   const before = h.ctx.events.length;
   applyTurn(
     h.world,
-    { t: h.world.lastTurn + 1, cmds: cmds.map((cmd, i) => ({ seat: 0, seq: i + 1, cmd })) },
+    { t: h.world.lastTurn + 1, cmds: cmds.map((cmd, i) => ({ seat, seq: i + 1, cmd })) },
     h.ctx,
   );
   const rejected = new Set<number>();

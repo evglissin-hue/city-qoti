@@ -26,6 +26,26 @@ describe('two players, three evenings', { timeout: 120_000 }, () => {
     });
   }
 
+  // C4D: with lives, story characters, plans, requests and the Charter claim in play, a valley
+  // still grows, eats and never stalls, and the together loop actually happens.
+  it('lives, stories and the together loop over six evenings (hazel, 40 days)', () => {
+    const run = autoplay('hazel', 40);
+    const days = run.days;
+    const last = days[days.length - 1]!;
+    const why = `\n${formatDays(days)}`;
+    expect(last.residents, why).toBeGreaterThanOrEqual(60);
+    expect(last.departures, why).toBe(0);
+    for (const d of days) {
+      expect(d.leanTimes, why).toBe(false);
+      expect(d.miserable, why).toBeLessThanOrEqual(1);
+    }
+    expect(last.couples + last.births, why).toBeGreaterThanOrEqual(2);
+    expect(last.story, why).toBeGreaterThanOrEqual(6);
+    expect(last.requests, why).toBeGreaterThanOrEqual(1);
+    expect(last.plans, why).toBeGreaterThanOrEqual(1);
+    expect(last.rank, why).toBe('village');
+  });
+
   it('plays the same valley the same way twice', () => {
     const a = autoplay('willow', 4).hamlet.world;
     const b = autoplay('willow', 4).hamlet.world;

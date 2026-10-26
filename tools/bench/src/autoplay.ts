@@ -4,6 +4,12 @@
 // the lanes with benches, flowers, trees and lanterns. It plays once a day at 09:00 and 15:00,
 // like two people dropping in, and logs a line per day. Used by `npm run tune` and a test that
 // holds the I1 acceptance targets (docs/spec/30-roadmap.md, I1).
+//
+// C4D: at 15:00 the two also work together: the Ledger claims the Charter once it is ready, the
+// Hearth asks the Ledger for food at the stall with a request (it closes itself when the porters
+// deliver), the Hearth sketches lanterns and flowers as a plan that the Ledger approves on its next
+// visit, and both keep an eye on the story characters' hints (a lantern by their door, a seat and
+// flowers by the market, a spare home for the next one to move in).
 import { content } from '@qoti/content';
 import {
   BuildingStatus,
@@ -21,6 +27,7 @@ import {
   TILE_FP,
   townStock,
   worldIndex,
+  evaluate,
   type Building,
   type Command,
   type ValleySettings,
@@ -52,6 +59,16 @@ export interface DayLine {
   leanTimes: boolean;
   built: number;
   sites: number;
+  // C4D: lives, stories and working together.
+  couples: number;
+  weddings: number;
+  births: number;
+  seaside: number;
+  /** Story letters sent so far (arrivals and steps, across arcs). */
+  story: number;
+  requests: number;
+  plans: number;
+  rank: string;
 }
 
 export interface AutoplayResult {
@@ -120,14 +137,14 @@ class Players {
     return this.h.world;
   }
 
-  private do(label: string, cmds: Command[]): boolean {
-    const ok = command(this.h, cmds).every(Boolean);
+  private do(label: string, cmds: Command[], seat: 0 | 1 = 0): boolean {
+    const ok = command(this.h, cmds, seat).every(Boolean);
     this.actions.push(`${calendar(this.w.tick).day}:${label}${ok ? '' : ' (refused)'}`);
     return ok;
   }
 
-  private build(def: string): Building | null {
-    const spot = findSpot(this.w, def);
+  build(def: string, only?: (x: number, z: number, w: number, d: number) => boolean): Building | null {
+    const spot = findSpot(this.w, def, only ? 60 : 40, only);
     if (!spot) {
       this.actions.push(`no spot for ${def}`);
       return null;
@@ -146,7 +163,7 @@ class Players {
       this.do(`path for ${b.def}`, [{ t: 'road.paint', kind: 'path', tiles: path }]);
   }
 
-  private coins(): number {
+  coins(): number {
     return this.w.economy.treasury / PENNIES_PER_COIN;
   }
 
@@ -196,10 +213,12 @@ class Players {
       count(w, 'fishers-hut') <= count(w, 'vegetable-plot') / 2 ? 'fishers-hut' : 'vegetable-plot',
     );
     want(food < pop * 2 && sites(w) === 0, 'vegetable-plot');
-    // Homes: always one empty cottage waiting for the next family.
+    // Homes: always one empty cottage waiting for the next family, and a second when a story
+    // character is waiting to move in (they never take the last one).
+    const waiting = storyWaiting(w) ? 1 : 0;
     want(
       vacantHomes(w) + w.buildings.filter((b) => b.def === 'cottage' && b.stage === 'construction').length <
-        2,
+        2 + waiting,
       'cottage',
     );
     // Stone, then more timber as the town grows.
@@ -226,11 +245,13 @@ class Players {
     want(count(w, 'windmill', true) > 0 && count(w, 'bakery') === 0, 'bakery');
     want(pop >= 20 && count(w, 'storehouse') < 2, 'storehouse');
     want(pop >= 20 && count(w, 'well') < 2, 'well');
-    // The peddler takes surplus at 10:00: food beyond five days of eating, logs beyond 60.
+    // The peddler takes surplus at 10:00: food beyond two days of eating (C4D: six while the Village
+    // Charter wants five days in stock), logs beyond 40, stone beyond 50.
+    const keepDays = w.charter.rank === 'hamlet' && pop >= 24 ? 6 : 2;
     for (const g of content.goods) {
       const i = G(g.id);
       const surplus = g.food
-        ? stock[i]! > pop * 2 + 8
+        ? stock[i]! > pop * keepDays + 8
         : g.id === 'logs'
           ? stock[i]! > 40
           : g.id === 'stone'
@@ -288,6 +309,15 @@ class Players {
       }
     }
     return null;
+  }
+
+  /** For Together: run commands as a seat, find a decor spot. */
+  act(label: string, cmds: Command[], seat: 0 | 1 = 0): boolean {
+    return this.do(label, cmds, seat);
+  }
+
+  spot(def: string, x: number, z: number, r: number): [number, number] | null {
+    return this.decorSpot(def, x, z, r);
   }
 
   private place(def: string, at: [number, number] | null, why: string): boolean {
@@ -365,6 +395,128 @@ class Players {
   }
 }
 
+/** A story character whose arrival condition holds is waiting for a home. */
+function storyWaiting(w: WorldState): boolean {
+  return w.stories.some((s) => {
+    const arc = content.storyById.get(s.arc);
+    return !!arc && s.residentId === 0 && evaluate(w, arc.arrival, {});
+  });
+}
+
+/** C4D: the two players working together (see the header). */
+class Together {
+  constructor(readonly p: Players) {}
+
+  get w(): WorldState {
+    return this.p.w;
+  }
+
+  turn(): void {
+    const w = this.w;
+    if (w.charter.ready) this.p.act('claim the Charter', [{ t: 'charter.claim' }], 1);
+    this.request();
+    this.plans();
+    this.inventor();
+  }
+
+  /** Pippa's river letter: a sawpit within three tiles of the water. */
+  private inventor(): void {
+    const w = this.w;
+    const s = w.stories.find((x) => x.arc === 'inventor');
+    const step = s && s.step >= 0 ? content.storyById.get('inventor')?.steps[s.step] : undefined;
+    if (!step || !('count' in step.goal) || step.goal.count.what !== 'byWater') return;
+    // Within three steps of the footprint, corners rounded, as the goal counts it.
+    const wet = (x: number, z: number, wd: number, d: number) => {
+      for (let tz = z - 3; tz < z + d + 3; tz++) {
+        for (let tx = x - 3; tx < x + wd + 3; tx++) {
+          const gx = Math.max(0, x - tx, tx - (x + wd - 1));
+          const gz = Math.max(0, z - tz, tz - (z + d - 1));
+          if (gx * gx + gz * gz <= 12 && w.map.water[idx(tx, tz)]) return true;
+        }
+      }
+      return false;
+    };
+    const turned = (b: Building) => (b.rot % 2 === 0 ? [2, 3] : [3, 2]) as [number, number];
+    if (w.buildings.some((b) => b.def === 'sawpit' && wet(b.x, b.z, ...turned(b)))) return;
+    if (this.p.coins() < 60) return;
+    this.p.build('sawpit', wet);
+  }
+
+  /** The Hearth asks for food at the first stall; withdraws a request nobody could meet in a week. */
+  private request(): void {
+    const w = this.w;
+    const today = Math.floor((w.tick + START_HOUR * TICKS_PER_HOUR) / TICKS_PER_DAY);
+    for (const r of w.requests) {
+      if (r.status === 'open' && w.tick - r.tick > 7 * TICKS_PER_DAY) {
+        this.p.act('withdraw a request', [{ t: 'request.resolve', id: r.id, status: 'withdrawn' }]);
+      }
+    }
+    if (w.requests.some((r) => r.status === 'open')) return;
+    const stall = w.buildings.find((b) => b.def === 'market-stall' && b.stage === 'built');
+    if (!stall?.rt) return;
+    let best = -1;
+    for (const g of FOODS) if (best < 0 || townStock(w)[g]! > townStock(w)[best]!) best = g;
+    if (best < 0) return;
+    const qty = Math.min(20, Math.max(6, (stall.rt.store[best] ?? 0) + 2));
+    const ask = {
+      kind: 'goods' as const,
+      good: content.goods[best]!.id,
+      qty,
+      byDay: today + 3,
+      at: stall.id,
+    };
+    this.p.act(`ask for ${qty} ${ask.good}`, [{ t: 'request.add', ask }]);
+  }
+
+  /**
+   * Plans: the Ledger approves what the Hearth sketched last time; the Hearth reads each story
+   * character's open step and sketches what it asks for: lanterns by their door, flowers and a tree
+   * when the lane wants charm, a seat and flowers by the market stall.
+   */
+  private plans(): void {
+    const w = this.w;
+    for (const p of w.plans) {
+      if (p.status === 'open' && p.by === 0)
+        this.p.act(`approve ${p.name}`, [{ t: 'plan.approve', id: p.id }], 1);
+    }
+    const items: Command[] = [];
+    const add = (def: string, at: [number, number] | null) => {
+      if (at) items.push({ t: 'decor.place', def, fx: at[0], fz: at[1], rot: 0 });
+    };
+    for (const s of w.stories) {
+      const goal = s.step >= 0 ? content.storyById.get(s.arc)?.steps[s.step]?.goal : undefined;
+      const r = goal && s.residentId ? findById(w.residents, s.residentId) : undefined;
+      const home = r ? findById(w.buildings, findById(w.households, r.householdId)?.homeId ?? 0) : undefined;
+      if (!goal || !home) continue;
+      const wants = JSON.stringify(goal);
+      if (wants.includes('"lantern"')) add('lantern', this.p.spot('lantern', home.x, home.z, 3));
+      if ('charm' in goal) {
+        add('flower-bed', this.p.spot('flower-bed', home.x, home.z, 3));
+        add('cherry-tree', this.p.spot('cherry-tree', home.x, home.z, 3));
+      }
+      const stall = wants.includes('nearestMarket')
+        ? w.buildings.find((b) => b.def === 'market-stall' && b.stage === 'built')
+        : undefined;
+      if (stall) {
+        add('bench', this.p.spot('bench', stall.x, stall.z, 2));
+        add('flower-bed', this.p.spot('flower-bed', stall.x, stall.z, 2));
+        add('flower-bed', this.p.spot('flower-bed', stall.x, stall.z, 2));
+      }
+    }
+    if (items.length > 0) {
+      this.p.act('sketch a plan', [
+        { t: 'plan.add', name: 'For our story folk', items: items.map((cmd) => ({ cmd })) },
+      ]);
+    }
+  }
+}
+
+function storyLetters(w: WorldState): number {
+  let n = 0;
+  for (const s of w.stories) if (s.residentId) n += s.step + 2;
+  return n;
+}
+
 function dayLine(w: WorldState, day: number): DayLine {
   const stock = townStock(w);
   const moods = w.residents.map((r) => r.mood);
@@ -389,6 +541,14 @@ function dayLine(w: WorldState, day: number): DayLine {
     leanTimes: w.economy.leanTimes,
     built: w.buildings.filter((b) => b.stage === 'built').length,
     sites: sites(w),
+    couples: w.village.couples,
+    weddings: w.village.weddings,
+    births: w.village.births,
+    seaside: w.village.seaside,
+    story: storyLetters(w),
+    requests: w.village.requestsFulfilled,
+    plans: w.village.plansApproved,
+    rank: w.charter.rank,
   };
 }
 
@@ -404,10 +564,11 @@ function untilHour(h: Hamlet, hour: number): void {
 export function autoplay(
   seed: string,
   days: number,
-  opts: { economy?: ValleySettings['economy']; hearth?: boolean } = {},
+  opts: { economy?: ValleySettings['economy']; hearth?: boolean; together?: boolean } = {},
 ): AutoplayResult {
   const h = startingTown(seed, { economy: opts.economy ?? 'standard' });
   const players = new Players(h);
+  const together = new Together(players);
   const out: DayLine[] = [];
   for (let d = 1; d <= days; d++) {
     untilHour(h, 9);
@@ -416,6 +577,7 @@ export function autoplay(
     untilHour(h, 15);
     players.ledger();
     if (opts.hearth !== false) players.hearth();
+    if (opts.together !== false) together.turn();
     untilHour(h, 23);
     out.push(dayLine(h.world, d));
   }
@@ -425,7 +587,8 @@ export function autoplay(
 /** The table `npm run tune` prints. */
 export function formatDays(days: readonly DayLine[]): string {
   const head =
-    'day  pop hh vac coins food made eaten plank stone mood mis wish grant pat ach left lean built sites';
+    'day  pop hh vac coins food made eaten plank stone mood mis wish grant pat ach left lean built sites' +
+    '  cpl wed born sea story req plan rank';
   const rows = days.map((d) =>
     [
       String(d.day).padStart(3),
@@ -448,6 +611,14 @@ export function formatDays(days: readonly DayLine[]): string {
       (d.leanTimes ? 'yes' : 'no').padStart(4),
       String(d.built).padStart(5),
       String(d.sites).padStart(5),
+      String(d.couples).padStart(4),
+      String(d.weddings).padStart(3),
+      String(d.births).padStart(4),
+      String(d.seaside).padStart(3),
+      String(d.story).padStart(5),
+      String(d.requests).padStart(3),
+      String(d.plans).padStart(4),
+      ` ${d.rank}`,
     ].join(' '),
   );
   return [head, ...rows].join('\n');
