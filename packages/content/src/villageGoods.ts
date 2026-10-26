@@ -2,7 +2,8 @@ import type { GoodDef } from './types';
 
 // I2 goods (docs/spec/13-ledger.md, Goods), added in C4.0 so every I2 track agrees on their
 // indexes: the registry in index.ts appends them after the I1 goods, in this order, forever.
-// Base prices in pennies; C4C tunes the chains around them, C4A the market.
+// Base prices in pennies; C4C tunes the chains around them, C4A the market. C4C: yarn 4 coins
+// (spec 3), so spinning pays its way between the pasture and the loom.
 
 export const apples: GoodDef = {
   id: 'apples',
@@ -112,6 +113,6 @@ export const yarn: GoodDef = {
   name: 'Yarn',
   label: 'yarn',
   category: 'crafted',
-  basePrice: 300,
+  basePrice: 400,
   carry: 4,
 };

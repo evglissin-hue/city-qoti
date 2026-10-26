@@ -78,6 +78,16 @@ export const cottage: BuildingDef = {
   housing: { households: 1, residents: 4 },
   work: 8,
   tags: ['home'],
+  // I2 (C4C): grows on low-density home lots, and becomes a townhouse when its household reaches
+  // the Craftsfolk (materials by porter).
+  grows: { zone: 'homes-low', handPlaced: true },
+  upgradesTo: {
+    def: 'townhouse',
+    goods: [
+      ['bricks', 10],
+      ['planks', 6],
+    ],
+  },
   art: { kit: 'cottage' },
 };
 

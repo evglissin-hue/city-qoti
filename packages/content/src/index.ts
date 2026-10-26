@@ -18,7 +18,10 @@ import * as Sp from './species';
 import * as Sw from './swatches';
 import * as T from './trees';
 import * as Tr from './traits';
+import * as VB from './villageBuildings';
+import * as VD from './villageDecor';
 import * as VG from './villageGoods';
+import * as VP from './villagePatterns';
 import * as W from './wishes';
 import * as Z from './zones';
 import type {
@@ -51,22 +54,44 @@ export * from './types';
 // prettier-ignore
 export const buildings: readonly BuildingDef[] = [
   B.bakery,
+  VB.brickKiln,
   B.buildersYard,
+  VB.cartShed,
+  VB.cheesemaker,
+  VB.choppingShed,
+  VB.ciderPress,
+  VB.clayPit,
+  VB.cornerShop,
   B.cottage,
+  VB.dairy,
   B.farmhouse,
+  VB.farmstead,
   B.fishersHut,
   B.forestersLodge,
+  VB.herbGarden,
+  VB.herbalist,
   B.house,
   B.marketStall,
+  VB.orchard,
   B.quarry,
+  VB.sawmill,
   B.sawpit,
+  VB.school,
   B.shed,
+  VB.sheepPasture,
+  VB.smithy,
+  VB.spinner,
   B.storehouse,
+  VB.tavern,
   B.townHall,
+  VB.townhouse,
+  VB.tradingPost,
   B.vegetablePlot,
+  VB.weaver,
   B.well,
   B.windmill,
   B.woodcutter,
+  VB.workshop,
 ];
 
 // prettier-ignore
@@ -75,17 +100,23 @@ export const decor: readonly DecorDef[] = [
   D.barrels,
   D.bench,
   D.birdbath,
+  VD.cafeTable,
   D.cherryTree,
   D.crates,
   D.curvedBench,
   D.fence,
   D.flowerBed,
+  VD.flowerCart,
+  VD.fountain,
   D.hangingLantern,
   D.hedge,
   D.herbPlanter,
+  VD.lampPost,
   D.lantern,
   D.lowWall,
+  VD.maypole,
   D.mooringPost,
+  VD.noticeBoard,
   D.planter,
   D.planterWall,
   D.ringBench,
@@ -182,14 +213,20 @@ export const wishes: readonly WishTemplate[] = [
 
 // prettier-ignore
 export const patterns: readonly PatternDef[] = [
+  VP.bridgeCrossing,
+  VP.cornerCafe,
   P.hedgerowLane,
   P.kitchenGarden,
   P.lanternWalk,
+  VP.marketCross,
   P.pocketPark,
   P.promenadeByTheWater,
   P.sittingWall,
+  VP.smallSquare,
   P.treePlace,
+  VP.villageGreen,
   P.wellGatheringPlace,
+  VP.windowGardens,
 ];
 
 // prettier-ignore

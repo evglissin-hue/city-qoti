@@ -55,7 +55,7 @@ export const waterWheel: InnovationDef = {
       },
     ],
   },
-  unlocks: ['sawmill-water'],
+  unlocks: ['sawmill'],
   rank: 'hamlet',
 };
 
