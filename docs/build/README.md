@@ -17,7 +17,7 @@ One row per cycle. A cycle is one agent session working from one brief on one br
 | C3D Hamlet art and rendering | I1 | parallel | `cycle-03d-hamlet-art.md` | C3.0 | merged into the C3X branch (split in two: world look, hamlet art) |
 | C3E Hamlet UI | I1 | parallel | `cycle-03e-hamlet-ui.md` | C3.0 | merged into the C3X branch |
 | C3X I1 integration and I2 planning | I1 | integration | `cycle-03x-integration.md` | C3A to C3E | done on `ccr-7441f212-64lp1y`; deploy and the playtest evening remain |
-| C4.0 Village contracts | I2 | serial | `cycle-04-0-village-contracts.md` | C3X | ready once C3X is merged |
+| C4.0 Village contracts | I2 | serial | `cycle-04-0-village-contracts.md` | C3X | done on `cycle/04-0-village-contracts`; wave notes in `i2-wave-notes.md` |
 | C4A Market and money | I2 | parallel | `cycle-04a-market-money.md` | C4.0 | waiting |
 | C4B Growth | I2 | parallel | `cycle-04b-growth.md` | C4.0 | waiting |
 | C4C Village chains, services and tiers | I2 | parallel | `cycle-04c-village-chains.md` | C4.0 | waiting |

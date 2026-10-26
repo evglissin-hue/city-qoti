@@ -34,6 +34,19 @@ interface SaveFile {
   achievements: WorldState['achievements'];
   stats: WorldState['stats'];
   networkVersion: number;
+  // I2 (C4.0)
+  market: WorldState['market'];
+  levers: WorldState['levers'];
+  loans: WorldState['loans'];
+  lots: WorldState['lots'];
+  trade: WorldState['trade'];
+  carts: WorldState['carts'];
+  charter: WorldState['charter'];
+  innovations: WorldState['innovations'];
+  plans: WorldState['plans'];
+  requests: WorldState['requests'];
+  stories: WorldState['stories'];
+  village: WorldState['village'];
 }
 
 export function serialize(state: WorldState): Uint8Array {
@@ -67,6 +80,18 @@ export function serialize(state: WorldState): Uint8Array {
     achievements: state.achievements,
     stats: state.stats,
     networkVersion: state.networkVersion,
+    market: state.market,
+    levers: state.levers,
+    loans: state.loans,
+    lots: state.lots,
+    trade: state.trade,
+    carts: state.carts,
+    charter: state.charter,
+    innovations: state.innovations,
+    plans: state.plans,
+    requests: state.requests,
+    stories: state.stories,
+    village: state.village,
   };
   // mtime 0 keeps the bytes a pure function of the state.
   return gzipSync(strToU8(JSON.stringify(save)), { level: 6, mtime: 0 });
@@ -117,5 +142,17 @@ export function deserialize(data: Uint8Array): WorldState {
     achievements: save.achievements,
     stats: save.stats,
     networkVersion: save.networkVersion,
+    market: save.market,
+    levers: save.levers,
+    loans: { loans: [...save.loans.loans].sort(byId) },
+    lots: [...save.lots].sort(byId),
+    trade: save.trade,
+    carts: [...save.carts].sort(byId),
+    charter: save.charter,
+    innovations: save.innovations,
+    plans: [...save.plans].sort(byId),
+    requests: [...save.requests].sort(byId),
+    stories: save.stories,
+    village: save.village,
   };
 }

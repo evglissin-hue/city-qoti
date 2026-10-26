@@ -145,12 +145,19 @@ export function chargeRoad(state: WorldState, ctx: TickCtx, kind: RoadKind, newT
   emitMoney(state, ctx);
 }
 
-/** Moves money and books it (pennies; positive amounts, the category says income or expense). */
+/**
+ * Moves money between the treasury and the world outside the valley and books it (pennies; positive
+ * amounts, the category says income or expense). I2 (C4.0): it also counts the flow in
+ * `economy.external`, which keeps the money invariant; money between the treasury and households
+ * goes through `pay()` (systems/economy/money.ts) instead.
+ */
 export function book(state: WorldState, category: LedgerCategoryId, pennies: number): void {
   const i = LEDGER_CATEGORIES.findIndex((c) => c.id === category);
   if (i < 0 || pennies === 0) return;
   const e = state.economy;
-  e.treasury += LEDGER_CATEGORIES[i]!.kind === 'income' ? pennies : -pennies;
+  const signed = LEDGER_CATEGORIES[i]!.kind === 'income' ? pennies : -pennies;
+  e.treasury += signed;
+  e.external += signed;
   e.today.money[i]! += pennies;
   e.season.money[i]! += pennies;
 }

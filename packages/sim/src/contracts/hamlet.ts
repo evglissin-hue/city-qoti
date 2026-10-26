@@ -3,12 +3,23 @@
 // Additive changes only during the I1 wave. Per-good quantities are arrays indexed by good index
 // (content.goods order, append-only); per-need values are arrays indexed by NEED_IDS order.
 import type { EntityId, SeatId } from './ids';
+import type { Apprenticeship } from './village';
 
 /** Settlers in I1; the rest arrive in I2 to I4. */
 export type TierId = 'settler' | 'craftsfolk' | 'merchant' | 'patron';
 export type LifeStage = 'child' | 'young' | 'adult' | 'elder';
-/** Index order of Resident.needs (see NEED_IDS in constants). */
-export type NeedId = 'food' | 'water' | 'shelter' | 'belonging' | 'beauty';
+/** Index order of Resident.needs (see NEED_IDS in constants). I2 appends the tier needs. */
+export type NeedId =
+  | 'food'
+  | 'water'
+  | 'shelter'
+  | 'belonging'
+  | 'beauty'
+  // I2 (C4.0): the tier basket bought at the market, then service access.
+  | 'goods'
+  | 'social'
+  | 'health'
+  | 'education';
 /** 0 Miserable, 1 Unhappy, 2 Meh, 3 Content, 4 Glowing. */
 export type MoodBand = 0 | 1 | 2 | 3 | 4;
 
@@ -110,6 +121,18 @@ export interface Resident {
   flags: number;
   /** Generated seed for looks (fur, clothes); never changes. */
   look: number;
+  // I2 (C4.0), absent until they apply, so older residents hash and save as before.
+  /** The resident they are a couple with. */
+  partner?: EntityId;
+  /** Day they married (0 or absent: not married). */
+  marriedDay?: number;
+  /** Parents, for residents born in the valley. */
+  parents?: EntityId[];
+  apprentice?: Apprenticeship;
+  /** Elders who stopped working. */
+  retired?: true;
+  /** Story arc id for story characters (ResidentFlags.story is set too). */
+  story?: string;
 }
 
 export interface Household {
@@ -128,6 +151,13 @@ export interface Household {
   arrivedDay: number;
   /** Consecutive days with average mood below the departure threshold. */
   lowMoodDays: number;
+  // I2 (C4.0), absent until used.
+  /** Consecutive days meeting the next tier's needs (positive) or failing this tier's (negative). */
+  tierDays?: number;
+  /** Satisfaction 0 to 100 per need group of the tier's basket, in basket order. */
+  basket?: number[];
+  /** Hundredths of a unit still owed per basket group (fractional needs like cloth 0.1 a day). */
+  owed?: number[];
 }
 
 /** Construction progress of a site (standard valleys). */
@@ -173,6 +203,13 @@ export interface BuildingRuntime {
   status: number;
   /** Producing buildings: units produced today, by good index (reports). */
   producedToday: number[];
+  // I2 (C4.0), absent until used.
+  /** Homes: the tier it houses now (upgrades in place). */
+  tier?: TierId;
+  /** Method id the Ledger pinned (build.pinRecipe); grown crafts and farms keep it. */
+  pinned?: string;
+  /** Materials still to deliver for a home upgrade, by good index (null when none is under way). */
+  upgrade?: number[] | null;
 }
 
 export interface PorterJob {
@@ -222,6 +259,13 @@ export interface EconomyState {
   seasonsInSurplus: number;
   /** Total units ever produced, by good index (firsts and achievements). */
   everProduced: number[];
+  /**
+   * I2 (C4.0): net pennies that ever crossed the valley's edge, in positive. Everything `book()`
+   * moves between the treasury and the outside world counts (taxes in I1, upkeep, construction,
+   * trade, loans, the peddler); `pay()` between the treasury and households does not. So
+   * `treasury + sum(savings) - external` never changes: the money invariant.
+   */
+  external: number;
 }
 
 export interface PatternSite {

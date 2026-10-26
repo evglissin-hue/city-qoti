@@ -1,7 +1,7 @@
 // Resident inspector detail (C3A): what they are doing and where, a mood breakdown in plain words,
 // needs, friends, family, a short bio and their history. View code: nothing here feeds back.
 import { content } from '@qoti/content';
-import { DAYS_PER_YEAR, MAP_SIZE, NEED_IDS, TILE_FP } from '../constants';
+import { DAYS_PER_YEAR, MAP_SIZE, NEED_IDS, NEED_WEIGHTS, TILE_FP } from '../constants';
 import type { Building, EntityId, HistoryItem, Resident, ResidentDetail, WorldState } from '../contracts';
 import { findById } from '../state/entities';
 import { worldIndex } from '../state/worldIndex';
@@ -12,6 +12,7 @@ import { cheerfulFriendBonus, needPoints } from '../systems/residents/needs';
 import { dayIndex } from '../systems/residents/time';
 import { doorOf } from '../systems/residents/places';
 import { nameOf, residentView, wishView } from './hamlet';
+import { storyView } from './village';
 
 function buildingName(b: Building | undefined): string {
   return (b && content.buildingById.get(b.def)?.name.toLowerCase()) ?? 'somewhere';
@@ -227,7 +228,10 @@ export function residentDetail(state: WorldState, id: EntityId): ResidentDetail 
   const h = findById(state.households, r.householdId);
   const ageDays = dayIndex(state.tick) - r.bornDay;
   const wish = r.wishId ? state.wishes.find((w) => w.id === r.wishId) : undefined;
-  const moodLines: { label: string; value: number }[] = NEED_IDS.map((_, i) => ({
+  // I2 (C4.0): needs that weigh nothing yet (the tier needs, until C4A and C4C weigh them) stay out
+  // of the inspector.
+  const shown = NEED_IDS.map((_, i) => i).filter((i) => (NEED_WEIGHTS[i] ?? 0) > 0);
+  const moodLines: { label: string; value: number }[] = shown.map((i) => ({
     label: needText(i, r.needs[i] ?? 0),
     value: Math.round(needPoints(r, i)),
   }));
@@ -246,7 +250,7 @@ export function residentDetail(state: WorldState, id: EntityId): ResidentDetail 
   const detail: ResidentDetail = {
     r: residentView(state, r),
     mood: r.mood,
-    needs: NEED_IDS.map((n, i) => [n, r.needs[i] ?? 0]),
+    needs: shown.map((i) => [NEED_IDS[i]!, r.needs[i] ?? 0]),
     moodLines,
     friends: r.friends
       .filter((f) => f.level > 0)
@@ -261,5 +265,22 @@ export function residentDetail(state: WorldState, id: EntityId): ResidentDetail 
     age: { years: Math.max(0, Math.floor(ageDays / DAYS_PER_YEAR)), stage: r.stage },
   };
   if (wish) detail.wish = wishView(state, wish);
+  addLives(state, r, detail);
   return detail;
+}
+
+/** I2 (C4.0): partner, parents, children, apprenticeship, retiring, story, savings. */
+function addLives(state: WorldState, r: Resident, detail: ResidentDetail): void {
+  if (r.partner) {
+    detail.partner = { id: r.partner, name: nameOf(state, r.partner), married: (r.marriedDay ?? 0) > 0 };
+  }
+  if (r.parents?.length) detail.parents = r.parents.map((id) => ({ id, name: nameOf(state, id) }));
+  const children = state.residents.filter((c) => c.parents?.includes(r.id));
+  if (children.length > 0) detail.children = children.map((c) => ({ id: c.id, name: nameOf(state, c.id) }));
+  if (r.apprentice) detail.apprenticeship = { ...r.apprentice };
+  if (r.retired) detail.retired = true;
+  const story = r.story ? state.stories.find((s) => s.arc === r.story) : undefined;
+  if (story) detail.story = storyView(state, story);
+  const h = findById(state.households, r.householdId);
+  if (h?.savings) detail.savings = h.savings;
 }

@@ -100,22 +100,35 @@ describe('applyTurn', () => {
 });
 
 describe('systems and views', () => {
-  it('registers the I0 systems and the I1 slots at their orders', () => {
+  it('registers the I0 systems and the I1 and I2 slots at their orders', () => {
     const orders = new Map(systems.map((s) => [s.id, s.order]));
     expect([...orders]).toEqual([
       ['achievements', 90],
       ['charm', 70],
+      ['charter', 94],
       ['chronicle', 100],
       ['clock', 10],
       ['construction', 20],
       ['economy', 60],
+      ['growth', 26],
+      ['innovations', 92],
+      ['loans', 66],
       ['logistics', 40],
+      ['market', 62],
       ['movement', 52],
       ['patterns', 72],
+      ['plans', 97],
       ['production', 30],
+      ['requests', 98],
       ['residents', 50],
+      ['services', 56],
+      ['stories', 96],
+      ['tiers', 58],
+      ['trade', 64],
+      ['traffic', 54],
       ['trees', 30],
       ['wishes', 74],
+      ['zoning', 24],
     ]);
   });
 

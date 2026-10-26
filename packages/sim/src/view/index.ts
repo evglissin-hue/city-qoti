@@ -32,7 +32,21 @@ import {
   wishView,
 } from './hamlet';
 
+import {
+  charterView,
+  innovationView,
+  leversView,
+  loansView,
+  lotView,
+  marketView,
+  planView,
+  requestView,
+  storyView,
+  tradeView,
+} from './village';
+
 export * from './hamlet';
+export * from './village';
 
 export function clockView(state: WorldState): ClockView {
   return { tick: state.tick, speed: effectiveSpeed(state), ...calendar(state.tick) };
@@ -51,6 +65,8 @@ export function buildingView(b: Building): BuildingView {
     foundation: b.foundation,
   };
   if (b.custom) view.custom = { ...b.custom };
+  if (b.lot) view.lot = b.lot;
+  if (b.style) view.style = b.style;
   if (b.rt) view.rt = runtimeView(b.def, b.rt);
   return view;
 }
@@ -106,5 +122,15 @@ export function buildView(state: WorldState): ViewSnapshot {
     chronicle: state.chronicle.map(chronicleView),
     achievements: content.achievements.map((a) => achievementView(state, a.id)),
     town: townView(state),
+    market: marketView(state),
+    levers: leversView(state),
+    loans: loansView(state),
+    lots: state.lots.map(lotView),
+    trade: tradeView(state),
+    charter: charterView(state),
+    innovations: state.innovations.map((i) => innovationView(state, i.id)),
+    plans: state.plans.map(planView),
+    requests: state.requests.map((r) => requestView(state, r)),
+    stories: state.stories.map((s) => storyView(state, s)),
   };
 }

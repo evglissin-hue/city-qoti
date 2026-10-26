@@ -9,6 +9,19 @@ import {
   pasteRect,
   type AchievementView,
   type BudgetView,
+  type CharterView,
+  type InnovationView,
+  type LetterView,
+  type LeversView,
+  type LifeEventKind,
+  type LoansView,
+  type LotView,
+  type MarketView,
+  type PlanView,
+  type RankId,
+  type RequestView,
+  type StoryView,
+  type TradeView,
   type BuildingView,
   type ChronicleEntryView,
   type ClockView,
@@ -60,6 +73,15 @@ export interface MirrorChange {
   granted: { id: number; residentId: number }[];
   /** Notify events in this update (letters, thanks, farewells). */
   notices: { kind: string; text: string; seat?: number; at?: [number, number] }[];
+  // I2 (C4.0)
+  /** Lots, plans, requests, innovations or stories changed. */
+  village: boolean;
+  /** Story letters that arrived in this update. */
+  letters: LetterView[];
+  /** Life events in this update (couples, weddings, births...). */
+  life: { kind: LifeEventKind; residents: EntityId[]; text: string }[];
+  /** The rank-up moment, when it happened in this update. */
+  rankUp: { rank: RankId; text: string } | null;
 }
 
 /** I1 (C3.0): the latest agent frames, for interpolation between turns. */
@@ -89,6 +111,10 @@ function emptyChange(full = false): MirrorChange {
     patterns: full,
     granted: [],
     notices: [],
+    village: full,
+    letters: [],
+    life: [],
+    rankUp: null,
   };
 }
 
@@ -129,6 +155,21 @@ export class Mirror implements MapReader {
   readonly town = signal<TownView | null>(null);
   /** Bumps whenever residents, households, wishes, patterns or achievements change. */
   readonly hamletRevision = signal(0);
+  // I2 (C4.0): village state, kept from the snapshot and I2 events.
+  readonly market = signal<MarketView | null>(null);
+  readonly levers = signal<LeversView | null>(null);
+  readonly loans = signal<LoansView | null>(null);
+  readonly trade = signal<TradeView | null>(null);
+  readonly charter = signal<CharterView | null>(null);
+  readonly lots = new Map<EntityId, LotView>();
+  readonly innovations = new Map<string, InnovationView>();
+  readonly plans = new Map<EntityId, PlanView>();
+  readonly requests = new Map<EntityId, RequestView>();
+  readonly stories = new Map<string, StoryView>();
+  /** Story letters received this session, oldest first (the story panel keeps the rest in state). */
+  readonly letters = signal<LetterView[]>([]);
+  /** Bumps whenever lots, plans, requests, innovations or stories change. */
+  readonly villageRevision = signal(0);
   agents: AgentFrames = { prev: EMPTY_FRAME, prevAt: 0, latest: EMPTY_FRAME, latestAt: 0, t: 0 };
   private readonly listeners: ((c: MirrorChange) => void)[] = [];
 
@@ -185,6 +226,22 @@ export class Mirror implements MapReader {
     this.stocks.value = view.stocks ?? null;
     this.budget.value = view.budget ?? null;
     this.town.value = view.town ?? null;
+    this.market.value = view.market ?? null;
+    this.levers.value = view.levers ?? null;
+    this.loans.value = view.loans ?? null;
+    this.trade.value = view.trade ?? null;
+    this.charter.value = view.charter ?? null;
+    this.lots.clear();
+    this.innovations.clear();
+    this.plans.clear();
+    this.requests.clear();
+    this.stories.clear();
+    for (const l of view.lots ?? []) this.lots.set(l.id, l);
+    for (const i of view.innovations ?? []) this.innovations.set(i.id, i);
+    for (const p of view.plans ?? []) this.plans.set(p.id, p);
+    for (const r of view.requests ?? []) this.requests.set(r.id, r);
+    for (const st of view.stories ?? []) this.stories.set(st.arc, st);
+    this.villageRevision.value++;
     this.agents = { prev: EMPTY_FRAME, prevAt: 0, latest: EMPTY_FRAME, latestAt: 0, t: view.lastTurn };
     this.revision.value++;
     this.hamletRevision.value++;
@@ -330,11 +387,68 @@ export class Mirror implements MapReader {
           break;
         case 'tiles.changed':
           break;
+        // I2 (C4.0)
+        case 'market.updated':
+          this.market.value = e.m;
+          break;
+        case 'levers.updated':
+          this.levers.value = e.l;
+          break;
+        case 'loans.updated':
+          this.loans.value = e.l;
+          break;
+        case 'trade.updated':
+          this.trade.value = e.t;
+          break;
+        case 'charter.updated':
+          this.charter.value = e.c;
+          break;
+        case 'rank.up':
+          change.rankUp = { rank: e.rank, text: e.text };
+          break;
+        case 'lot.added':
+        case 'lot.updated':
+          this.lots.set(e.l.id, e.l);
+          change.village = true;
+          break;
+        case 'lot.removed':
+          this.lots.delete(e.id);
+          change.village = true;
+          break;
+        case 'innovation.updated':
+        case 'innovation.unlocked':
+          this.innovations.set(e.i.id, e.i);
+          change.village = true;
+          break;
+        case 'plan.added':
+        case 'plan.updated':
+          this.plans.set(e.p.id, e.p);
+          change.village = true;
+          break;
+        case 'plan.removed':
+          this.plans.delete(e.id);
+          change.village = true;
+          break;
+        case 'request.added':
+        case 'request.updated':
+          this.requests.set(e.r.id, e.r);
+          change.village = true;
+          break;
+        case 'story.step':
+          this.stories.set(e.s.arc, e.s);
+          this.letters.value = [...this.letters.value, e.letter];
+          change.letters.push(e.letter);
+          change.village = true;
+          break;
+        case 'life.event':
+          change.life.push({ kind: e.kind, residents: e.residents, text: e.text });
+          break;
       }
     }
     if (change.residents || change.households || change.wishes || change.patterns) {
       this.hamletRevision.value++;
     }
+    if (change.village) this.villageRevision.value++;
     if (seats) this.seats.value = seats;
     if (u.tick !== undefined) this.tick.value = u.tick;
     this.lastTurn.value = u.t;

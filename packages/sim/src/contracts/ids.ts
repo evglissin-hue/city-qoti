@@ -6,8 +6,8 @@ export type EntityId = number;
 export type Rot4 = 0 | 1 | 2 | 3;
 export type Speed = 0 | 1 | 2 | 3;
 export type Lens = 'hearth' | 'ledger';
-/** 'street' arrives in I2. */
-export type RoadKind = 'path' | 'lane';
+/** 'street' arrives in I2 (C4.0: the kind exists; C4B gates painting behind Cobbles). */
+export type RoadKind = 'path' | 'lane' | 'street';
 export type TreeSpecies = 'oak' | 'birch' | 'pine';
 /** Inclusive tile rectangle. */
 export type Rect = [x0: number, z0: number, x1: number, z1: number];
@@ -31,4 +31,8 @@ export type LayerName =
   | 'charmView'
   | 'charmNoise'
   | 'fieldOwner'
-  | 'crop';
+  | 'crop'
+  // I2 (C4.0)
+  | 'lot'
+  | 'traffic'
+  | 'wear';

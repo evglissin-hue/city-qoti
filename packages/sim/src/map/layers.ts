@@ -22,10 +22,14 @@ export const LAYER_NAMES: readonly LayerName[] = [
   'charmNoise',
   'fieldOwner',
   'crop',
+  // I2 (C4.0)
+  'lot',
+  'traffic',
+  'wear',
 ];
 
 /** Layers stored as Int32Array; all others are Uint8Array. */
-export const INT32_LAYERS: ReadonlySet<LayerName> = new Set<LayerName>(['occupant', 'fieldOwner']);
+export const INT32_LAYERS: ReadonlySet<LayerName> = new Set<LayerName>(['occupant', 'fieldOwner', 'lot']);
 
 export const Terrain = {
   grass: 0,
@@ -44,7 +48,8 @@ export const Deposit = { none: 0, stone: 1, clay: 2, sand: 3, coal: 4 } as const
 
 export const Road = { none: 0, path: 1, lane: 2, street: 3, avenue: 4 } as const;
 
-export const Flags = { floodplain: 1, valleyGate: 2, startArea: 4 } as const;
+/** I2 (C4.0): `stairs` on a path tile that climbs one level (C4B). */
+export const Flags = { floodplain: 1, valleyGate: 2, startArea: 4, stairs: 8 } as const;
 
 /** Tree layer value: species * 8 + stage. Species 1 oak, 2 birch, 3 pine; stage 0 sapling to 3 mature. */
 export const TREE_SPECIES = { oak: 1, birch: 2, pine: 3 } as const;
@@ -84,6 +89,9 @@ export function createLayers(size = MAP_SIZE): MapLayers {
     charmNoise: new Uint8Array(n),
     fieldOwner: new Int32Array(n),
     crop: new Uint8Array(n),
+    lot: new Int32Array(n),
+    traffic: new Uint8Array(n),
+    wear: new Uint8Array(n),
   };
 }
 

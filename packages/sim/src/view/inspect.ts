@@ -1,7 +1,7 @@
 // Inspect request builders (C3.0 contract): full detail on demand for the inspectors and the
 // while-you-were-away letter. Baselines here; C3A enriches residents, C3C buildings, C3B the letter.
 import { chroniclePhrases, content, type BuildingDef } from '@qoti/content';
-import { BuildingStatus, TICKS_PER_DAY } from '../constants';
+import { BuildingStatus, PENNIES_PER_COIN, TICKS_PER_DAY, TIERS } from '../constants';
 import type {
   AwayLetter,
   Building,
@@ -17,6 +17,8 @@ import { dailyRates } from '../systems/production/rates';
 import { buildingView, noteView } from './index';
 import { chronicleView, fillText, goodPairs, nameOf } from './hamlet';
 import { residentDetail } from './residentDetail';
+import { lotView, wagesAt } from './village';
+import { priceOf } from '../systems/market/api';
 
 export { residentDetail };
 
@@ -125,7 +127,40 @@ export function buildingDetail(state: WorldState, id: EntityId): BuildingDetail 
     const made = goodPairs(rt.producedToday);
     if (method) detail.producedToday = made;
   }
+  if (def && rt) addVillageDetail(state, b, def, detail);
   return detail;
+}
+
+/**
+ * I2 (C4.0): methods to pin, the lot, the tier and an upgrade, and profit per work day: output
+ * at market price minus wages, upkeep and inputs at market price (docs/spec/13-ledger.md). A
+ * signal, not a cash flow; C4A refines it.
+ */
+function addVillageDetail(state: WorldState, b: Building, def: BuildingDef, detail: BuildingDetail): void {
+  const rt = b.rt!;
+  if ((def.methods?.length ?? 0) > 1) detail.methods = def.methods!.map((m) => ({ id: m.id, name: m.name }));
+  if (rt.pinned) detail.pinned = rt.pinned;
+  const lot = b.lot ? findById(state.lots, b.lot) : undefined;
+  if (lot) detail.lot = lotView(lot);
+  if (rt.tier) detail.tier = rt.tier;
+  if (rt.upgrade && def.upgradesTo)
+    detail.upgrade = { to: def.upgradesTo.def, waiting: goodPairs(rt.upgrade) };
+  const rates = detail.rates;
+  if (!rates && !def.jobs) return;
+  const lines: { label: string; pennies: number }[] = [];
+  let made = 0;
+  for (const [g, n] of rates?.outputs ?? [])
+    made += Math.round(priceOf(state, content.goodIndex.get(g)!) * n);
+  let used = 0;
+  for (const [g, n] of rates?.inputs ?? []) used += Math.round(priceOf(state, content.goodIndex.get(g)!) * n);
+  const tier = Math.max(0, TIERS.indexOf(def.jobs?.tier ?? 'settler'));
+  const wages = (def.jobs?.count ?? 0) * (wagesAt(state.levers.wageLevel)[tier] ?? 0);
+  const upkeep = (def.upkeep ?? 0) * PENNIES_PER_COIN;
+  if (made) lines.push({ label: 'Goods made', pennies: made });
+  if (used) lines.push({ label: 'Goods used', pennies: -used });
+  if (wages) lines.push({ label: 'Wages', pennies: -wages });
+  if (upkeep) lines.push({ label: 'Upkeep', pennies: -upkeep });
+  detail.profit = { perDay: made - used - wages - upkeep, lines };
 }
 
 /** Most recent notable entries the letter lists; older ones are counted in `more`. */

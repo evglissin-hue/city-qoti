@@ -5,7 +5,7 @@
 // C3A: walks are smoothed (diagonals and rounded corners), walkers keep left, residents sharing a
 // tile spread round it, and idle residents face what they came to see.
 import { AGENT_STRIDE, AgentAnim, AgentFlags, MAP_SIZE, ResidentFlags, TICKS_PER_HOUR } from '../constants';
-import type { Resident, WorldState } from '../contracts';
+import type { Cart, Resident, WorldState } from '../contracts';
 import { tickOfDay } from '../systems/residents/time';
 import { moodBand } from './hamlet';
 
@@ -54,7 +54,47 @@ export function agentFrame(state: WorldState): Float32Array {
     writeRow(scratch, n * AGENT_STRIDE, r, S, h, crowd, night);
     n++;
   }
+  // I2 (C4.0): carts out on the roads, as rows with anim `cart` and their first load good.
+  for (const c of state.carts) {
+    if (c.parked) continue;
+    if ((n + 1) * AGENT_STRIDE > scratch.length) {
+      const bigger = new Float32Array(scratch.length * 2);
+      bigger.set(scratch);
+      scratch = bigger;
+    }
+    writeCartRow(scratch, n * AGENT_STRIDE, c, S, h);
+    n++;
+  }
   return scratch.slice(0, n * AGENT_STRIDE);
+}
+
+const CART_HEADINGS = [HEAD_NZ, HEAD_PX, HEAD_PZ, HEAD_NX] as const;
+
+/** A cart row: straight along its route, no smoothing yet (C4B and C4E refine). */
+function writeCartRow(out: Float32Array, o: number, c: Cart, S: number, h: Uint8Array): void {
+  let x = (c.tile % S) + 0.5;
+  let z = Math.floor(c.tile / S) + 0.5;
+  let y = h[c.tile] ?? 0;
+  let heading: number = CART_HEADINGS[c.dir & 3]!;
+  const m = c.move;
+  if (m && m.step < m.path.length) {
+    const next = m.path[m.step]!;
+    const t = m.progress / 256;
+    const nx = (next % S) + 0.5;
+    const nz = Math.floor(next / S) + 0.5;
+    heading = headingFor8(nx - x, nz - z);
+    x += (nx - x) * t;
+    z += (nz - z) * t;
+    y += ((h[next] ?? 0) - y) * t;
+  }
+  out[o] = c.id;
+  out[o + 1] = x;
+  out[o + 2] = z;
+  out[o + 3] = y;
+  out[o + 4] = heading;
+  out[o + 5] = AgentAnim.cart;
+  out[o + 6] = c.load.length > 0 ? c.load[0]![0] + 1 : 0;
+  out[o + 7] = 0;
 }
 
 function isNight(tick: number): boolean {

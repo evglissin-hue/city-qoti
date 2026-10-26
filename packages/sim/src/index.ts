@@ -103,6 +103,36 @@ export {
   FIELD_RANGE,
   FIELD_TILES_PER_WORKER,
 } from './systems/production/fields';
+// I2 (C4.0)
+export {
+  charterView,
+  creditLimit,
+  innovationView,
+  leversView,
+  loansOwed,
+  loansView,
+  lotView,
+  marketView,
+  nextRank,
+  planView,
+  regionalPrice,
+  requestText,
+  requestView,
+  storyLetter,
+  storyView,
+  tierCounts,
+  tradeView,
+  wagesAt,
+} from './view';
+export { foodDays, goodsAtMarket } from './conditions';
+export { emptyVillageSlices, hasInnovation, rankAtLeast } from './state/village';
+export { moneyBalance, moneyInside, pay, type Purse } from './systems/economy/money';
+export { buy, outletsWith, priceOf, sell, tillPrice } from './systems/market/api';
+export { growLot } from './systems/growth/api';
+export { cartAt, cartRoute, cartTile, requestCartMove } from './systems/traffic/api';
+export { grantReward, storyStep } from './systems/stories/api';
+export { unlockInnovation } from './systems/innovations/api';
+export { terraformCost } from './commands/terrain';
 export { findById, findIndexById, removeById } from './state/entities';
 export { fnv64Hex, hashState } from './state/hash';
 export { deserialize, serialize } from './state/serialize';

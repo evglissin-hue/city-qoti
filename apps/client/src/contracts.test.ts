@@ -45,7 +45,7 @@ describe('I0 contracts', () => {
     expectTypeOf<Rot4>().toEqualTypeOf<0 | 1 | 2 | 3>();
     expectTypeOf<Speed>().toEqualTypeOf<0 | 1 | 2 | 3>();
     expectTypeOf<Lens>().toEqualTypeOf<'hearth' | 'ledger'>();
-    expectTypeOf<RoadKind>().toEqualTypeOf<'path' | 'lane'>();
+    expectTypeOf<RoadKind>().toEqualTypeOf<'path' | 'lane' | 'street'>();
     expectTypeOf<TreeSpecies>().toEqualTypeOf<'oak' | 'birch' | 'pine'>();
     expectTypeOf<Rect>().toEqualTypeOf<[x0: number, z0: number, x1: number, z1: number]>();
     expectTypeOf<LayerName>().toEqualTypeOf<
@@ -68,6 +68,9 @@ describe('I0 contracts', () => {
       | 'charmNoise'
       | 'fieldOwner'
       | 'crop'
+      | 'lot'
+      | 'traffic'
+      | 'wear'
     >();
     expectTypeOf<keyof ValleySettings>().toEqualTypeOf<
       'mode' | 'economy' | 'threat' | 'togetherOnly' | 'townName' | 'valleyName'
@@ -98,6 +101,25 @@ describe('I0 contracts', () => {
       | 'field.paint'
       | 'field.remove'
       | 'ledger.setForSale'
+      | 'zone.paint'
+      | 'zone.clear'
+      | 'ledger.setWageLevel'
+      | 'ledger.setTaxRate'
+      | 'ledger.setPriceCap'
+      | 'trade.setStandingOrder'
+      | 'loan.take'
+      | 'loan.repay'
+      | 'plan.add'
+      | 'plan.remove'
+      | 'plan.approve'
+      | 'plan.comment'
+      | 'plan.seen'
+      | 'request.add'
+      | 'request.resolve'
+      | 'charter.claim'
+      | 'terrain.raise'
+      | 'terrain.lower'
+      | 'build.pinRecipe'
     >();
     expectTypeOf<SeatedCommand>().toEqualTypeOf<{ seat: SeatId; seq: number; cmd: Command }>();
     expectTypeOf<Turn>().toEqualTypeOf<{ t: number; cmds: SeatedCommand[] }>();
@@ -120,6 +142,8 @@ describe('I0 contracts', () => {
       | 'LOCKED'
       | 'OUT_OF_RANGE'
       | 'CHANGED'
+      | 'CREDIT_LIMIT'
+      | 'NOT_READY'
     >();
   });
 
@@ -146,6 +170,16 @@ describe('I0 contracts', () => {
       | 'chronicle'
       | 'achievements'
       | 'town'
+      | 'market'
+      | 'levers'
+      | 'loans'
+      | 'lots'
+      | 'trade'
+      | 'charter'
+      | 'innovations'
+      | 'plans'
+      | 'requests'
+      | 'stories'
     >();
     expectTypeOf<ViewSnapshot['meta']>().toEqualTypeOf<WorldState['meta']>();
     expectTypeOf<keyof ClockView>().toEqualTypeOf<
@@ -189,6 +223,24 @@ describe('I0 contracts', () => {
       | 'pattern.updated'
       | 'chronicle.added'
       | 'achievement.unlocked'
+      | 'market.updated'
+      | 'levers.updated'
+      | 'loans.updated'
+      | 'trade.updated'
+      | 'lot.added'
+      | 'lot.updated'
+      | 'lot.removed'
+      | 'charter.updated'
+      | 'rank.up'
+      | 'innovation.updated'
+      | 'innovation.unlocked'
+      | 'plan.added'
+      | 'plan.updated'
+      | 'plan.removed'
+      | 'request.added'
+      | 'request.updated'
+      | 'story.step'
+      | 'life.event'
     >();
     expectTypeOf<keyof LayerPatch>().toEqualTypeOf<'layer' | 'rect' | 'data'>();
   });
