@@ -4,10 +4,21 @@
 // the lanes with benches, flowers, trees and lanterns. It plays once a day at 09:00 and 15:00,
 // like two people dropping in, and logs a line per day. Used by `npm run tune` and a test that
 // holds the I1 acceptance targets (docs/spec/30-roadmap.md, I1).
+// I2 (C4A): the Ledger player claims the Charter when it is ready, and once the market opens at
+// Village rank it minds the money: it trims wages or firms up the income tax when purses fill
+// while the treasury slides (and the other way round when households go short), keeps a standing
+// order book at the Trading Post when there is one, and visits the County Bank when the treasury
+// runs low, paying it back once flush.
 import { content } from '@qoti/content';
 import {
+  basketScore,
   BuildingStatus,
   calendar,
+  creditLimit,
+  LEDGER_CATEGORIES,
+  loansOwed,
+  rankAtLeast,
+  tradingPost,
   canPaintRoad,
   canPlaceDecor,
   doorTile,
@@ -30,6 +41,8 @@ import { command, findSpot, runTicks, startingTown, type Hamlet } from './hamlet
 
 const FOODS = content.goods.flatMap((g, i) => (g.food ? [i] : []));
 const G = (id: string) => content.goodIndex.get(id)!;
+const cat = (id: string) => LEDGER_CATEGORIES.findIndex((c) => c.id === id);
+const coinsOf = (pennies: number) => Math.round(pennies / PENNIES_PER_COIN);
 
 export interface DayLine {
   day: number;
@@ -52,6 +65,21 @@ export interface DayLine {
   leanTimes: boolean;
   built: number;
   sites: number;
+  // I2 (C4A)
+  rank: string;
+  /** Coins in household purses. */
+  savings: number;
+  /** Yesterday's wages, sales, taxes and trade (exports less imports), coins. */
+  wages: number;
+  sales: number;
+  taxes: number;
+  trade: number;
+  /** Coins owed to the County Bank. */
+  owed: number;
+  /** Average basket satisfaction (the goods need), 0 to 100. */
+  basket: number;
+  wageLevel: number;
+  taxRate: number;
 }
 
 export interface AutoplayResult {
@@ -153,6 +181,8 @@ class Players {
   /** The Ledger player's turn: one or two things the town is shortest of. */
   ledger(): void {
     const w = this.w;
+    if (w.charter.ready) this.do('claim the Charter', [{ t: 'charter.claim' }]);
+    this.money();
     const stock = townStock(w);
     const pop = w.residents.length;
     const food =
@@ -262,6 +292,73 @@ class Players {
     }
   }
 
+  /**
+   * I2 (C4A): the Ledger's money levers once the market is open. Wages and tax steer where the
+   * coins pile up; the Trading Post sells what the town has plenty of and buys food when it runs
+   * short; the County Bank tides a short treasury over.
+   */
+  private money(): void {
+    const w = this.w;
+    if (!rankAtLeast(w, 'village')) return;
+    const l = w.levers;
+    const hh = Math.max(1, w.households.length);
+    const savings = w.households.reduce((n, h) => n + h.savings, 0) / hh / PENNIES_PER_COIN;
+    const basket = w.households.reduce((n, h) => n + basketScore(h), 0) / hh;
+    const coins = this.coins();
+    const y = w.economy.yesterday.money;
+    const internal = y[cat('sales')]! + y[cat('taxes')]! - y[cat('wages')]!;
+    if (basket < 75) {
+      if (l.taxRate > 6)
+        this.do('ease the income tax', [{ t: 'ledger.setTaxRate', percent: Math.max(0, l.taxRate - 2) }]);
+      else if (l.wageLevel < 120)
+        this.do('raise wages', [{ t: 'ledger.setWageLevel', percent: Math.min(120, l.wageLevel + 5) }]);
+    } else if (internal < 0 && coins < 250 && savings > 20) {
+      // Purses filling while the treasury slides: trim wages first, then firm up the tax.
+      if (l.wageLevel > 85) this.do('trim wages', [{ t: 'ledger.setWageLevel', percent: l.wageLevel - 5 }]);
+      else if (l.taxRate < 20)
+        this.do('raise the income tax', [{ t: 'ledger.setTaxRate', percent: Math.min(20, l.taxRate + 2) }]);
+    }
+    // The County Bank: borrow when the treasury runs thin, repay when flush.
+    const owed = loansOwed(w);
+    const room = Math.floor((creditLimit(w) - owed) / PENNIES_PER_COIN);
+    if (coins < 60 && owed === 0 && room > 0) {
+      this.do('take a loan', [{ t: 'loan.take', coins: Math.min(room, 300) }]);
+    } else if (owed > 0 && coins > 500) {
+      const loan = w.loans.loans[0]!;
+      this.do('repay a loan', [
+        { t: 'loan.repay', id: loan.id, coins: Math.ceil(Math.min(loan.balance, (coins - 300) * 100) / 100) },
+      ]);
+    }
+    // The Trading Post, when the content has one: build it, then keep a standing order book.
+    if (content.buildingById.has('trading-post') && count(w, 'trading-post') === 0 && coins > 150) {
+      this.build('trading-post');
+    }
+    if (!tradingPost(w)) return;
+    const pop = w.residents.length;
+    const book: [good: string, min: number, max: number][] = [
+      ['planks', 0, 50],
+      ['logs', 0, 60],
+      ['stone', 0, 60],
+      ['bread', 0, pop * 2 + 10],
+      ['fish', 0, pop * 2 + 10],
+      ['apples', Math.ceil(pop / 2), 1000],
+      ['milk', Math.ceil(pop / 3), 1000],
+    ];
+    for (const [good, min, max] of book) {
+      const g = G(good);
+      const o = w.trade.orders.find((x) => x.good === g);
+      if (o && o.min === min && o.max === max) continue;
+      if (o && Math.abs(o.min - min) + Math.abs(o.max - max) < 6) continue;
+      this.do(`order ${good}`, [
+        {
+          t: 'trade.setStandingOrder',
+          good,
+          order: { min, max, floor: 0, ceiling: Math.round(content.goods[g]!.basePrice * 1.6), neighbor: '' },
+        },
+      ]);
+    }
+  }
+
   /** A free spot for a decor piece within `r` tiles of a tile center, or null. */
   private decorSpot(
     def: string,
@@ -368,6 +465,8 @@ class Players {
 function dayLine(w: WorldState, day: number): DayLine {
   const stock = townStock(w);
   const moods = w.residents.map((r) => r.mood);
+  const y = w.economy.yesterday.money;
+  const hh = Math.max(1, w.households.length);
   return {
     day,
     residents: w.residents.length,
@@ -389,6 +488,16 @@ function dayLine(w: WorldState, day: number): DayLine {
     leanTimes: w.economy.leanTimes,
     built: w.buildings.filter((b) => b.stage === 'built').length,
     sites: sites(w),
+    rank: w.charter.rank,
+    savings: coinsOf(w.households.reduce((n, h) => n + h.savings, 0)),
+    wages: coinsOf(y[cat('wages')]!),
+    sales: coinsOf(y[cat('sales')]!),
+    taxes: coinsOf(y[cat('taxes')]!),
+    trade: coinsOf(y[cat('exports')]! - y[cat('imports')]! + y[cat('peddler')]!),
+    owed: coinsOf(loansOwed(w)),
+    basket: Math.round(w.households.reduce((n, h) => n + basketScore(h), 0) / hh),
+    wageLevel: w.levers.wageLevel,
+    taxRate: w.levers.taxRate,
   };
 }
 
@@ -404,13 +513,24 @@ function untilHour(h: Hamlet, hour: number): void {
 export function autoplay(
   seed: string,
   days: number,
-  opts: { economy?: ValleySettings['economy']; hearth?: boolean } = {},
+  opts: {
+    economy?: ValleySettings['economy'];
+    hearth?: boolean;
+    /** Tuning: on this morning the County grants Village rank whether or not the Charter is done. */
+    villageDay?: number;
+  } = {},
 ): AutoplayResult {
   const h = startingTown(seed, { economy: opts.economy ?? 'standard' });
   const players = new Players(h);
   const out: DayLine[] = [];
   for (let d = 1; d <= days; d++) {
     untilHour(h, 9);
+    if (d === opts.villageDay && !rankAtLeast(h.world, 'village')) {
+      // Through the real claim, as if every goal had just been met.
+      h.world.charter.ready = true;
+      command(h, [{ t: 'charter.claim' }]);
+      players.actions.push(`${d}:granted Village`);
+    }
     players.ledger();
     if (opts.hearth !== false) players.hearth();
     untilHour(h, 15);
@@ -425,7 +545,8 @@ export function autoplay(
 /** The table `npm run tune` prints. */
 export function formatDays(days: readonly DayLine[]): string {
   const head =
-    'day  pop hh vac coins food made eaten plank stone mood mis wish grant pat ach left lean built sites';
+    'day  pop hh vac coins food made eaten plank stone mood mis wish grant pat ach left lean built sites' +
+    ' | rank   sav wage sale  tax trade owed bask wl tx';
   const rows = days.map((d) =>
     [
       String(d.day).padStart(3),
@@ -448,6 +569,17 @@ export function formatDays(days: readonly DayLine[]): string {
       (d.leanTimes ? 'yes' : 'no').padStart(4),
       String(d.built).padStart(5),
       String(d.sites).padStart(5),
+      '|',
+      d.rank.slice(0, 7).padEnd(7),
+      String(d.savings).padStart(4),
+      String(d.wages).padStart(4),
+      String(d.sales).padStart(4),
+      String(d.taxes).padStart(4),
+      String(d.trade).padStart(5),
+      String(d.owed).padStart(4),
+      String(d.basket).padStart(4),
+      String(d.wageLevel).padStart(3),
+      String(d.taxRate).padStart(2),
     ].join(' '),
   );
   return [head, ...rows].join('\n');
