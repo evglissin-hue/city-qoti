@@ -30,6 +30,7 @@ import type {
   WishTemplate,
 } from './types';
 
+export { chroniclePhrases } from './chronicle';
 export { familyNames, valleyNamePrefixes, valleyNameSuffixes } from './names';
 export * from './types';
 

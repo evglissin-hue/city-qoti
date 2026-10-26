@@ -1,11 +1,12 @@
 import type { AchievementDef } from './types';
 
-// The ten I1 achievements (docs/spec/15-progression.md): feats and stories, checked hourly.
+// The ten I1 achievements (docs/spec/15-progression.md): feats and stories, checked hourly. The
+// description is the plaque's inscription and is quoted in the Chronicle.
 
 export const balancedBooks: AchievementDef = {
   id: 'balanced-books',
   name: 'Balanced Books',
-  description: 'A season ended with more coming in than going out.',
+  description: 'A whole season ended with more coming in than going out.',
   lane: 'ledger',
   condition: { count: { what: 'seasonsInSurplus', atLeast: 1 } },
 };
@@ -13,7 +14,7 @@ export const balancedBooks: AchievementDef = {
 export const breadOnTheTable: AchievementDef = {
   id: 'bread-on-the-table',
   name: 'Bread on the Table',
-  description: 'The first loaf came out of the oven.',
+  description: 'The first loaf came out of the oven, and nobody waited for it to cool.',
   lane: 'ledger',
   condition: { count: { what: 'goodProduced', ref: 'bread', atLeast: 1 } },
 };
@@ -23,13 +24,15 @@ export const builtTogether: AchievementDef = {
   name: 'Built Together',
   description: 'A pattern site holds pieces placed by both of you.',
   lane: 'shared',
-  condition: { count: { what: 'builtTogether', atLeast: 1 } },
+  condition: {
+    any: [{ count: { what: 'builtTogether', atLeast: 1 } }, { count: { what: 'togetherSites', atLeast: 1 } }],
+  },
 };
 
 export const everyDoorAName: AchievementDef = {
   id: 'every-door-a-name',
   name: 'Every Door a Name',
-  description: 'Twenty residents call the valley home.',
+  description: 'Twenty residents call the valley home, and everyone knows whose door is whose.',
   lane: 'shared',
   condition: { count: { what: 'residents', atLeast: 20 } },
 };
@@ -53,7 +56,7 @@ export const hearthAndHome: AchievementDef = {
 export const plankByPlank: AchievementDef = {
   id: 'plank-by-plank',
   name: 'Plank by Plank',
-  description: 'The first planks were sawn.',
+  description: 'The first planks were sawn, measured twice and cut once.',
   lane: 'ledger',
   condition: { count: { what: 'goodProduced', ref: 'planks', atLeast: 1 } },
 };
@@ -77,7 +80,7 @@ export const wellMet: AchievementDef = {
 export const wishesGranted: AchievementDef = {
   id: 'wishes-granted',
   name: 'Wishes Granted',
-  description: 'Five wishes came true.',
+  description: 'Five wishes came true, and five thank-you letters were pinned up.',
   lane: 'hearth',
   condition: { count: { what: 'wishesGranted', atLeast: 5 } },
 };
