@@ -10,6 +10,9 @@ import { emptyPeriod, goodsArray, isStandard } from '../../state/hamlet';
 import { townStock } from '../../view/hamlet';
 import { defOf, isStorehouse } from '../logistics/stores';
 import { addMoodModifier, moodTaxPercent, removeMoodModifier } from '../residents/api';
+import { overdraftLimit, isLean } from '../loans/credit';
+import { marketOpen } from '../market/api';
+import { tradingPost } from '../trade/post';
 import { book } from './api';
 import { economyDial, upkeepPennies } from './dial';
 import { emitChangedBuildings, emitMoney, emitReports } from './emit';
@@ -37,7 +40,7 @@ export const economy: System = {
     const tod = tickOfDay(state.tick);
     if (tod === 0) midnight(state, ctx);
     if (tod === PEDDLER_HOUR * TICKS_PER_HOUR) peddler(state, ctx);
-    if (state.economy.leanTimes !== state.economy.treasury < 0) setLean(state, ctx);
+    if (state.economy.leanTimes !== isLean(state)) setLean(state, ctx);
     const minute = tod % TICKS_PER_HOUR;
     if (minute === LEAN_OFFSET && state.economy.leanTimes) leanForNewcomers(state);
     if (minute === BUILDINGS_OFFSET) emitChangedBuildings(state, ctx);
@@ -58,13 +61,17 @@ function midnight(state: WorldState, ctx: TickCtx): void {
     e.season = emptyPeriod();
   }
 
-  let taxes = 0;
-  for (const r of state.residents) taxes += moodTaxPercent(state, r.id);
-  book(state, 'taxes', taxes);
+  // I1's flat tax, until the market opens at Village rank: then income tax on wages (C4A, at
+  // 17:00 with the wages) takes its place.
+  if (!marketOpen(state)) {
+    let taxes = 0;
+    for (const r of state.residents) taxes += moodTaxPercent(state, r.id);
+    book(state, 'taxes', taxes);
+  }
 
-  // Upkeep is paid while the treasury is in the black (it may tip it into the red); in lean
-  // times it goes unpaid and the buildings wear instead.
-  const paying = e.treasury >= 0;
+  // Upkeep is paid while the treasury is in the black, or within the County Bank's credit line
+  // from Village rank (it may tip it past); in lean times it goes unpaid and the buildings wear.
+  const paying = e.treasury >= -overdraftLimit(state);
   const decay = economyDial(state.settings.economy).leanDecay;
   let upkeep = 0;
   for (const b of state.buildings) {
@@ -74,7 +81,7 @@ function midnight(state: WorldState, ctx: TickCtx): void {
     else b.rt.condition = Math.max(0, b.rt.condition - decay);
   }
   book(state, 'upkeep', upkeep);
-  if (e.leanTimes !== e.treasury < 0) setLean(state, ctx);
+  if (e.leanTimes !== isLean(state)) setLean(state, ctx);
   emitReports(state, ctx, true);
 }
 
@@ -93,8 +100,9 @@ export function expenses(p: LedgerPeriod): number {
 }
 
 function setLean(state: WorldState, ctx: TickCtx): void {
-  const lean = state.economy.treasury < 0;
+  const lean = isLean(state);
   state.economy.leanTimes = lean;
+  const credit = overdraftLimit(state) > 0;
   for (const r of state.residents) {
     if (lean) addMoodModifier(state, r.id, { kind: LEAN_MODIFIER, value: LEAN_MOOD, ticks: 0 });
     else removeMoodModifier(state, r.id, LEAN_MODIFIER);
@@ -103,8 +111,12 @@ function setLean(state: WorldState, ctx: TickCtx): void {
     e: 'notify',
     kind: lean ? 'lean-times' : 'lean-times-over',
     text: lean
-      ? 'Lean times: the treasury is below zero. New building waits, upkeep goes unpaid, and supper is a little quieter.'
-      : 'The treasury is back above zero. Lean times are over, and the builders have found their good hammers.',
+      ? credit
+        ? "Lean times: the treasury has run past the County Bank's credit line. New building waits, upkeep goes unpaid, wages come out of what the till takes in, and supper is a little quieter. Trade, a loan or a firmer tax will turn it round."
+        : 'Lean times: the treasury is below zero. New building waits, upkeep goes unpaid, and supper is a little quieter.'
+      : credit
+        ? "The treasury is back within the County Bank's good graces. Lean times are over, and the builders have found their good hammers."
+        : 'The treasury is back above zero. Lean times are over, and the builders have found their good hammers.',
   });
   emitMoney(state, ctx);
 }
@@ -130,6 +142,8 @@ export function peddlerPrice(good: number): number {
  */
 function peddler(state: WorldState, ctx: TickCtx): void {
   const e = state.economy;
+  // I2 (C4A): a valley with a Trading Post trades through its caravans; the peddler retires.
+  if (tradingPost(state)) return;
   const houses = state.buildings.filter((b) => b.stage === 'built' && b.rt && isStorehouse(defOf(b)));
   if (houses.length === 0 || !e.forSale.some(Boolean)) return;
   const sold = goodsArray();

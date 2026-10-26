@@ -509,7 +509,7 @@ describe('I2 APIs', () => {
     const r = inspect(s, 'resident', a!) as { partner?: { id: number }; savings?: number; needs: unknown[] };
     expect(r.partner!.id).toBe(b);
     expect(r.savings).toBe(20 * PENNIES_PER_COIN);
-    expect(r.needs).toHaveLength(5);
+    expect(r.needs).toHaveLength(6);
     const bakery = inspect(s, 'building', f.b.bakery) as { profit?: { perDay: number; lines: unknown[] } };
     expect(bakery.profit!.lines.length).toBeGreaterThan(0);
     const grown = inspect(s, 'building', f.b.grown) as { lot?: { zone: string } };

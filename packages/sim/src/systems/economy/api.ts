@@ -19,6 +19,7 @@ import { stowNearest } from '../logistics/stores';
 import { doorTile } from '../movement/api';
 import { clearFields, fieldsOf, isFarm } from '../production/fields';
 import { bookProduced } from '../production/produce';
+import { isLean, overdraftLimit } from '../loans/credit';
 import { emitMoney } from './emit';
 import { isWorkTime } from './time';
 
@@ -37,12 +38,15 @@ export function fieldCost(tiles: number): number {
   return FIELD_TILE_COST * PENNIES_PER_COIN * tiles;
 }
 
-/** LEAN_TIMES while the treasury is below zero, CANNOT_AFFORD when it cannot cover `pennies`. */
+/**
+ * LEAN_TIMES while the treasury is below zero (below the County Bank's credit line from Village
+ * rank, C4A), CANNOT_AFFORD when it cannot cover `pennies` (with the credit line's help).
+ */
 export function spendBlocked(state: WorldState, pennies: number): RejectReason | null {
   if (!isStandard(state)) return null;
   const e = state.economy;
-  if (e.leanTimes || e.treasury < 0) return 'LEAN_TIMES';
-  return pennies > e.treasury ? 'CANNOT_AFFORD' : null;
+  if (e.leanTimes || isLean(state)) return 'LEAN_TIMES';
+  return pennies > e.treasury + overdraftLimit(state) ? 'CANNOT_AFFORD' : null;
 }
 
 /** Validate hook for build.place: CANNOT_AFFORD or LEAN_TIMES, else null. Pure. */

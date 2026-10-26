@@ -4,6 +4,7 @@ import { content } from '@qoti/content';
 import {
   CREDIT_MIN,
   CREDIT_PER_RESIDENT,
+  LOAN_LIMITS,
   PENNIES_PER_COIN,
   RANKS,
   TRADE_BUY_PERCENT,
@@ -67,9 +68,14 @@ export function leversView(state: WorldState): LeversView {
   return { wageLevel: l.wageLevel, taxRate: l.taxRate, wages: wagesAt(l.wageLevel), exportBans: bans };
 }
 
-/** The County Bank's credit limit in pennies (CREDIT_PER_RESIDENT coins a resident, at least CREDIT_MIN). */
+/**
+ * What the County Bank lends in all, pennies: 500, 1,500 or 4,000 coins by rank
+ * (docs/spec/13-ledger.md, Budget), or CREDIT_PER_RESIDENT coins a resident when that is more.
+ */
 export function creditLimit(state: WorldState): number {
-  return Math.max(CREDIT_MIN, CREDIT_PER_RESIDENT * state.residents.length) * PENNIES_PER_COIN;
+  const byRank = LOAN_LIMITS[Math.max(0, RANKS.indexOf(state.charter.rank))] ?? 0;
+  const byTown = CREDIT_PER_RESIDENT * state.residents.length;
+  return Math.max(byRank, byTown, CREDIT_MIN) * PENNIES_PER_COIN;
 }
 
 export function loansOwed(state: WorldState): number {

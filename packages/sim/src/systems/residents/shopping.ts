@@ -6,6 +6,8 @@ import { PANTRY_CAPACITY, PORTER_CARRY } from '../../constants';
 import type { Household, Resident, TickCtx, WorldState } from '../../contracts';
 import { findById } from '../../state/entities';
 import { nearestOutletWithFood, outletFood, takeFromOutlet } from '../economy/outlets';
+import { marketOpen } from '../market/api';
+import { shopFood } from '../market/baskets';
 import { moveResident } from '../movement/api';
 import { foodIndexes, pantryFood } from './needs';
 import { doorOf } from './places';
@@ -49,7 +51,14 @@ export function buyAtOutlet(state: WorldState, r: Resident, h: Household): void 
   const room = PANTRY_CAPACITY - pantryFood(h);
   const want = Math.min(PORTER_CARRY, room);
   let took = 0;
-  if (want > 0) {
+  if (want > 0 && marketOpen(state)) {
+    // I2 (C4A): with the market open, food is paid for at the till (systems/market/baskets.ts).
+    const got = shopFood(state, h, outlet, want);
+    if (got) {
+      r.carry = got;
+      took = got[1];
+    }
+  } else if (want > 0) {
     // The kind lowest in the pantry first; ties by good index.
     const order = [...foodIndexes()].sort((a, b) => (h.pantry[a] ?? 0) - (h.pantry[b] ?? 0) || a - b);
     for (const g of order) {

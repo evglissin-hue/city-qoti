@@ -3,7 +3,7 @@
 // 40 logistics, 50 residents, 52 movement, 60 economy, 70 charm, 72 patterns, 74 wishes,
 // 90 achievements, 100 chronicle. I2 slots (C4.0): 24 zoning, 26 growth, 54 traffic, 56 services,
 // 58 tiers, 62 market, 64 trade, 66 loans, 92 innovations, 94 charter, 96 stories, 97 plans,
-// 98 requests.
+// 98 requests. C4A adds 63 wages (17:00), 65 caravans (08:00) and 67 baskets (18:00).
 import type { System } from '../contracts';
 import { achievements } from './achievements';
 import { charter } from './charter';
@@ -19,6 +19,8 @@ import { innovations } from './innovations';
 import { loans } from './loans';
 import { logistics } from './logistics';
 import { market } from './market';
+import { baskets } from './market/baskets';
+import { wages } from './market/wages';
 import { movement } from './movement';
 import { plans } from './plans';
 import { production } from './production';
@@ -28,6 +30,7 @@ import { services } from './services';
 import { stories } from './stories';
 import { tiers } from './tiers';
 import { trade } from './trade';
+import { caravans } from './trade/caravans';
 import { traffic } from './traffic';
 import { trees } from './trees';
 import { zoning } from './zoning';
@@ -35,6 +38,8 @@ import { zoning } from './zoning';
 // prettier-ignore
 export const systems: readonly System[] = [
   achievements,
+  baskets,
+  caravans,
   charm,
   charter,
   chronicle,
@@ -58,6 +63,7 @@ export const systems: readonly System[] = [
   trade,
   traffic,
   trees,
+  wages,
   wishes,
   zoning,
 ];
