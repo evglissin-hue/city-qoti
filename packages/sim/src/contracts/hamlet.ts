@@ -258,6 +258,12 @@ export interface HearthState {
   unlocked: string[];
   /** Chunks waiting for a charm recompute, as chunk indexes (cz * CHUNKS_PER_SIDE + cx), sorted. */
   dirtyChunks: number[];
+  /**
+   * C3B: set by Hearth commands (decor, trees, customize) so the next tick recomputes the dirty
+   * chunks instead of waiting for the hourly pass. Absent (never false) when nothing is due, so
+   * saves from before it existed hash the same.
+   */
+  charmSoon?: true;
 }
 
 export interface Wish {
