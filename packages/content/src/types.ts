@@ -369,7 +369,22 @@ export type CountWhat =
   /** Distinct goods in stock at market outlets. */
   | 'goodsAtMarket'
   /** Innovations unlocked. */
-  | 'innovations';
+  | 'innovations'
+  // I2 (C4D): story goals and shared goals.
+  /** Built buildings whose def id or tag is `ref`. */
+  | 'buildings'
+  /** Built buildings whose def id or tag is `ref`, within 3 tiles of open water. */
+  | 'byWater'
+  /** 1 once the innovation `ref` is unlocked, else 0. */
+  | 'innovation'
+  /** The town's rank as an index (0 hamlet, 1 village, 2 town...). */
+  | 'rank'
+  /** Plans approved. */
+  | 'plansApproved'
+  /** Weddings held. */
+  | 'weddings'
+  /** Standing orders at the Trading Post. */
+  | 'standingOrders';
 
 // --- Hearth content ---------------------------------------------------------------------------
 
