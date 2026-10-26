@@ -18,6 +18,10 @@ const wanted = (name) => !only || name.includes(only);
 
 async function open(query, { width = 1280, height = 800 } = {}) {
   const page = await browser.newPage({ viewport: { width, height } });
+  // Calm motion: SwiftShader draws a frame a second, so CSS transitions would be caught halfway.
+  await page.addInitScript(() =>
+    localStorage.setItem('qoti.settings.v1', JSON.stringify({ uiScale: 1, reducedMotion: true })),
+  );
   await page.route('**/api/**', (r) => r.abort());
   await page.goto(`${base}/${query}`);
   return page;
@@ -113,6 +117,10 @@ async function reset(page) {
 
   await page.getByTestId('tool-decor').click();
   await snap(page, 'c3e-decor-picker');
+  if (wanted('c3e-decor-locked')) {
+    await page.getByTestId('decor-group-greenery').click();
+    await snap(page, 'c3e-decor-locked');
+  }
   await reset(page);
 
   await q(page, () => window.__qoti.showMockLetter());
@@ -124,6 +132,30 @@ async function reset(page) {
   await page.getByTestId('tool-building').click();
   await snap(page, 'c3e-build-picker');
   await reset(page);
+  if (wanted('c3e-field-tool')) {
+    // A farmhouse south of the lane, then the field tool dragging a box beside it.
+    const farm = await q(page, () => {
+      const h = window.__qoti;
+      const spot = h.findBuildingSpot('farmhouse', 0);
+      if (spot) h.submit({ t: 'build.place', def: 'farmhouse', x: spot.x, z: spot.z, rot: 0 });
+      return spot;
+    });
+    await page.waitForFunction(() => window.__qoti.buildingsOf('farmhouse').length > 0);
+    const id = await q(page, () => window.__qoti.buildingsOf('farmhouse')[0]);
+    await q(page, (fid) => window.__qoti.select({ kind: 'building', id: fid }), id);
+    await page.getByTestId('tool-field').click();
+    const a = await q(page, ([x, z]) => window.__qoti.screenOf(x + 3, z), [farm.x, farm.z]);
+    const b = await q(page, ([x, z]) => window.__qoti.screenOf(x + 6, z + 3), [farm.x, farm.z]);
+    await page.mouse.move(a.x, a.y);
+    await page.mouse.down();
+    await page.mouse.move(b.x, b.y, { steps: 6 });
+    await page.waitForTimeout(900);
+    await page.screenshot({ path: `${out}/c3e-field-tool.png`, timeout: 120000 });
+    console.log('shot c3e-field-tool');
+    await page.keyboard.press('Escape');
+    await page.mouse.up();
+    await reset(page);
+  }
   await page.getByTestId('book-reports').click();
   for (const tab of ['stocks', 'workforce', 'budget', 'buildings']) {
     if (!wanted(`c3e-report-${tab}`)) continue;

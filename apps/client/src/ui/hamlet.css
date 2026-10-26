@@ -1926,6 +1926,7 @@ li.alert .dismiss {
 }
 
 .picker .card.locked {
+  padding-right: 24px;
   opacity: 0.62;
   border-style: dashed;
   cursor: help;
