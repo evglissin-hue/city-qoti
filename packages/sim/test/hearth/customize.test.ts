@@ -62,11 +62,8 @@ describe('build.customize', () => {
   });
 
   it('accepts every swatch in its own group', () => {
-    const field = { wall: 'wall', roof: 'roof', roofMaterial: 'roofMaterial', accent: 'accent' } as const;
-    for (const s of content.swatches) {
-      const key = Object.entries(field).find(([, g]) => g === s.group)![0] as keyof typeof field;
-      expect(rejection(customize({ [key]: s.id }).ctx)).toBeUndefined();
-    }
+    // The custom field for each swatch group has the group's name.
+    for (const s of content.swatches) expect(rejection(customize({ [s.group]: s.id }).ctx)).toBeUndefined();
   });
 
   it('window boxes add a little nature on the next tick', () => {

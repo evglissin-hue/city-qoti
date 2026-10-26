@@ -9,36 +9,54 @@ import { createTickCtx } from '../../src/turn';
 import { hamletFixture } from '../fixtures/hamlet';
 import { build, decor, events, runHours, standardWorld, tree } from './helpers';
 
-const SETUPS: Record<string, (s: WorldState) => void> = {
-  'balanced-books': (s) => {
-    s.economy.seasonsInSurplus = 1;
-  },
-  'bread-on-the-table': (s) => {
-    s.economy.everProduced[content.goodIndex.get('bread')!] = 5;
-  },
-  'built-together': (s) => runPatterns(s, createTickCtx(s)),
-  'every-door-a-name': (s) => {
-    const base = s.residents[0]!;
-    for (let i = 0; i < 11; i++) s.residents.push({ ...base, id: s.nextId++ });
-  },
-  'first-footsteps': () => {},
-  'hearth-and-home': (s) => runPatterns(s, createTickCtx(s)),
-  'plank-by-plank': (s) => {
-    s.economy.everProduced[content.goodIndex.get('planks')!] = 4;
-  },
-  'the-long-walk-home': (s) => {
-    decor(s, 'lantern', 65, 51);
-    runPatterns(s, createTickCtx(s));
-  },
-  'well-met': (s) => runPatterns(s, createTickCtx(s)),
-  'wishes-granted': (s) => {
-    s.stats.wishesGranted = 5;
-  },
-};
+const SETUPS = new Map<string, (s: WorldState) => void>([
+  [
+    'balanced-books',
+    (s) => {
+      s.economy.seasonsInSurplus = 1;
+    },
+  ],
+  [
+    'bread-on-the-table',
+    (s) => {
+      s.economy.everProduced[content.goodIndex.get('bread')!] = 5;
+    },
+  ],
+  ['built-together', (s) => runPatterns(s, createTickCtx(s))],
+  [
+    'every-door-a-name',
+    (s) => {
+      const base = s.residents[0]!;
+      for (let i = 0; i < 11; i++) s.residents.push({ ...base, id: s.nextId++ });
+    },
+  ],
+  ['first-footsteps', () => {}],
+  ['hearth-and-home', (s) => runPatterns(s, createTickCtx(s))],
+  [
+    'plank-by-plank',
+    (s) => {
+      s.economy.everProduced[content.goodIndex.get('planks')!] = 4;
+    },
+  ],
+  [
+    'the-long-walk-home',
+    (s) => {
+      decor(s, 'lantern', 65, 51);
+      runPatterns(s, createTickCtx(s));
+    },
+  ],
+  ['well-met', (s) => runPatterns(s, createTickCtx(s))],
+  [
+    'wishes-granted',
+    (s) => {
+      s.stats.wishesGranted = 5;
+    },
+  ],
+]);
 
 describe('every achievement', () => {
   it('has a setup', () => {
-    expect(Object.keys(SETUPS).sort()).toEqual(content.achievements.map((a) => a.id).sort());
+    expect([...SETUPS.keys()].sort()).toEqual(content.achievements.map((a) => a.id).sort());
   });
 
   for (const a of content.achievements) {
@@ -49,7 +67,7 @@ describe('every achievement', () => {
       const households = s.households.splice(0);
       expect(checkAchievements(s, createTickCtx(s))).toEqual([]);
       if (a.id === 'first-footsteps') s.households.push(...households);
-      SETUPS[a.id]!(s);
+      SETUPS.get(a.id)!(s);
       const ctx = createTickCtx(s);
       expect(checkAchievements(s, ctx)).toContain(a.id);
       const state = s.achievements.find((x) => x.id === a.id)!;

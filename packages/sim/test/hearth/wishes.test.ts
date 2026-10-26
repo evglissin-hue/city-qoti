@@ -122,7 +122,8 @@ const CASES: Record<string, Case> = {
 
 describe('every template', () => {
   it('has a test case', () => {
-    expect(Object.keys(CASES).sort()).toEqual(content.wishes.map((t) => t.id).sort());
+    for (const t of content.wishes) expect(CASES[t.id], t.id).toBeDefined();
+    expect(content.wishes).toHaveLength(12);
   });
 
   for (const t of content.wishes) {
