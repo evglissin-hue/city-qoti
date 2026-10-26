@@ -1,7 +1,9 @@
 // @vitest-environment happy-dom
 import { h } from 'preact';
 import { afterEach, describe, expect, it } from 'vitest';
-import { mockSession } from '../mocks/session';
+import { removalRequest } from '../../input/removal';
+import { mockBuildings } from '../mocks/hamlet';
+import { mockSession, mockView } from '../mocks/session';
 import { button, mount, type Mounted } from '../test/dom';
 import { InspectorPanel } from './Inspector';
 
@@ -120,5 +122,24 @@ describe('building inspector', () => {
     view = await mount(h(InspectorPanel, { session }));
     await view.click('remove');
     expect(submitted).toEqual([{ t: 'build.remove', ids: [6] }]);
+  });
+
+  it("asks before removing the partner's handmade building, and leaves them a note", async () => {
+    const theirs = mockBuildings.map((b) => (b.id === 6 ? { ...b, builtBy: 1 as const } : b));
+    const { session, submitted } = mockSession(mockView({ buildings: theirs }));
+    session.ui.selection.value = { kind: 'building', id: 6 };
+    view = await mount(h(InspectorPanel, { session }));
+    await view.click('remove');
+    expect(submitted).toEqual([]);
+    expect(removalRequest.value?.title).toBe('Bo built this bakery and dressed it up by hand.');
+    removalRequest.value!.resolve('The mill needs the spot');
+    await new Promise((r) => setTimeout(r, 0));
+    expect(submitted[0]).toEqual({ t: 'build.remove', ids: [6] });
+    expect(submitted[1]).toMatchObject({
+      t: 'note.pin',
+      x: 65,
+      z: 48,
+      text: 'Ada removed your bakery: The mill needs the spot',
+    });
   });
 });

@@ -1,6 +1,7 @@
 import { content } from '@qoti/content';
 import type { BuildingDetail, BuildingView } from '@qoti/sim';
 import type { Session } from '../../app/session';
+import { removeWithCare } from '../../input/removal';
 import { capital, coins, seatLabel } from '../format';
 import { CATEGORY_WORD, CONSTRUCTION_STAGES, statusWords } from '../hamlet';
 import { Glyph } from '../icons';
@@ -217,7 +218,11 @@ export function BuildingInspector({ session, id }: { session: Session; id: numbe
           type="button"
           class="danger"
           data-testid="remove"
-          onClick={() => session.submit({ t: 'build.remove', ids: [b.id] })}
+          onClick={() => {
+            const thing = (def?.name ?? b.def).toLowerCase();
+            const piece = { builtBy: b.builtBy, handmade: b.handmade, thing, x: b.x, z: b.z, building: true };
+            void removeWithCare(session, piece, { t: 'build.remove', ids: [b.id] });
+          }}
         >
           Remove
         </button>
