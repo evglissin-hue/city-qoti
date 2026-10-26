@@ -3,7 +3,16 @@
 import { MAP_SIZE, TILE_FP } from '../../../../constants';
 import type { EntityId } from '../../../../contracts';
 import { TREE_MATURE, treeStage } from '../../../../map/layers';
-import { type Detector, dist2, param, type SiteCandidate, tagged, taggedIn, tileOf } from '../shared';
+import {
+  type Detector,
+  dist2,
+  param,
+  type SiteCandidate,
+  tagged,
+  taggedIn,
+  tileOf,
+  treeTiles,
+} from '../shared';
 
 const S = MAP_SIZE;
 const HALF = TILE_FP / 2;
@@ -17,10 +26,9 @@ export const treePlace: Detector = (state, def) => {
   // Every big tree: mature map trees and ornamental trees, as fixed-point centers.
   const trees: [tile: number, fx: number, fz: number, decor: EntityId][] = [];
   const m = state.map;
-  for (let i = 0; i < S * S; i++) {
-    const v = m.tree[i]!;
-    if (v && treeStage(v) >= TREE_MATURE)
-      trees.push([i, (i % S) * TILE_FP + HALF, Math.floor(i / S) * TILE_FP + HALF, 0]);
+  for (const i of treeTiles(state)) {
+    if (treeStage(m.tree[i]!) < TREE_MATURE) continue;
+    trees.push([i, (i % S) * TILE_FP + HALF, Math.floor(i / S) * TILE_FP + HALF, 0]);
   }
   for (const d of tagged(state, 'tree')) trees.push([tileOf(d), d.fx, d.fz, d.id]);
 

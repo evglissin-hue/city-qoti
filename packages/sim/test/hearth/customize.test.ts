@@ -9,7 +9,6 @@ import { charm, events, settle } from './helpers';
 
 function customize(custom: BuildingCustom | Record<string, unknown>, which: 'c1' | 'missing' = 'c1') {
   const f = hamletFixture();
-  settle(f.state);
   const id = which === 'c1' ? f.b.cottages[0] : 999999;
   const ctx = run(f.state, { t: 'build.customize', id, custom: custom as BuildingCustom });
   return { f, ctx, b: findById(f.state.buildings, f.b.cottages[0])! };
@@ -62,8 +61,14 @@ describe('build.customize', () => {
   });
 
   it('accepts every swatch in its own group', () => {
-    // The custom field for each swatch group has the group's name.
-    for (const s of content.swatches) expect(rejection(customize({ [s.group]: s.id }).ctx)).toBeUndefined();
+    const f = hamletFixture();
+    let seq = 1;
+    for (const s of content.swatches) {
+      // The custom field for each swatch group has the group's name.
+      const custom = { [s.group]: s.id } as BuildingCustom;
+      const ctx = run(f.state, { t: 'build.customize', id: f.b.cottages[0], custom }, 0, seq++);
+      expect(rejection(ctx), s.id).toBeUndefined();
+    }
   });
 
   it('window boxes add a little nature on the next tick', () => {

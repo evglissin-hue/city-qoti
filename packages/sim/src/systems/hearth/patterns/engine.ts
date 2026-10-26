@@ -14,7 +14,7 @@ import { chronicle } from '../../chronicle/api';
 import { creditText, fill, listJoin, pick, placeName } from '../../chronicle/text';
 import { markCharmDirty, markCharmSoon } from '../charm/dirty';
 import { detectors } from './detectors';
-import type { SiteCandidate } from './shared';
+import { beginPass, endPass, type SiteCandidate } from './shared';
 
 const S = MAP_SIZE;
 export const MAX_HINTS = 3;
@@ -85,6 +85,15 @@ export interface PatternPassResult {
 
 /** Runs every detector over the map and applies the differences. */
 export function runPatterns(state: WorldState, ctx: TickCtx): PatternPassResult {
+  beginPass();
+  try {
+    return pass(state, ctx);
+  } finally {
+    endPass();
+  }
+}
+
+function pass(state: WorldState, ctx: TickCtx): PatternPassResult {
   const h = state.hearth;
   const result: PatternPassResult = { added: 0, removed: 0, discovered: [] };
   const next: PatternSite[] = [];

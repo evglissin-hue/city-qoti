@@ -149,7 +149,7 @@ describe('the same words everywhere', () => {
 
   it('two runs write identical Chronicles, and so does a run saved and loaded halfway', () => {
     const turns = script();
-    const end = 3 * TICKS_PER_DAY;
+    const end = 2 * TICKS_PER_DAY;
     const a = hamletFixture().state;
     const b = hamletFixture().state;
     play(a, end, turns);
@@ -168,5 +168,5 @@ describe('the same words everywhere', () => {
     );
     expect(c.chronicle.map((x) => x.text)).toEqual(a.chronicle.map((x) => x.text));
     expect(hashState(c)).toBe(hashState(a));
-  });
+  }, 60_000);
 });

@@ -170,13 +170,39 @@ export function taggedAlong(state: WorldState, comp: readonly number[], tag: str
   return ids;
 }
 
-/** Road tiles of the given kinds (1 path, 2 lane) anywhere on the map, ascending. */
-export function roadTiles(state: WorldState, maxKind = 2): number[] {
+// --- Per-pass scans --------------------------------------------------------------------------
+// Several detectors scan the whole map for roads or grown trees. Inside a patterns pass the
+// scans are shared; outside one (tests calling a detector directly) they are made fresh.
+
+let pass: { roads: number[] | null; trees: number[] | null } | null = null;
+
+export function beginPass(): void {
+  pass = { roads: null, trees: null };
+}
+
+export function endPass(): void {
+  pass = null;
+}
+
+/** Path and lane tiles anywhere on the map, ascending. */
+export function roadTiles(state: WorldState): number[] {
+  if (pass?.roads) return pass.roads;
   const out: number[] = [];
   const road = state.map.road;
   for (let i = 0; i < N; i++) {
     const r = road[i]!;
-    if (r > 0 && r <= maxKind) out.push(i);
+    if (r > 0 && r <= 2) out.push(i);
   }
+  if (pass) pass.roads = out;
+  return out;
+}
+
+/** Tiles of trees at stage `minStage` or more (3 = mature), ascending. */
+export function treeTiles(state: WorldState): number[] {
+  if (pass?.trees) return pass.trees;
+  const out: number[] = [];
+  const tree = state.map.tree;
+  for (let i = 0; i < N; i++) if (tree[i]) out.push(i);
+  if (pass) pass.trees = out;
   return out;
 }

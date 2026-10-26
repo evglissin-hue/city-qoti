@@ -88,20 +88,26 @@ function scanRun(state: WorldState, def: PatternDef, run: Run, out: SiteCandidat
 export const hedgerowLane: Detector = (state, def) => {
   const minRun = param(def, 'minRun', 6);
   const road = state.map.road;
-  const isRoad = (i: number) => road[i]! > 0 && road[i]! <= 2;
   const out: SiteCandidate[] = [];
   for (const horizontal of [true, false]) {
+    const step = horizontal ? 1 : S;
     for (let line = 0; line < S; line++) {
+      const base = horizontal ? line * S : line;
       let k = 0;
       while (k < S) {
-        const run: Run = { horizontal, line, start: k, end: k };
-        if (!isRoad(tileAt(run, k))) {
+        const v = road[base + k * step]!;
+        if (v === 0 || v > 2) {
           k++;
           continue;
         }
-        while (run.end + 1 < S && isRoad(tileAt(run, run.end + 1))) run.end++;
-        if (run.end - run.start + 1 >= minRun) scanRun(state, def, run, out);
-        k = run.end + 1;
+        let end = k;
+        while (end + 1 < S) {
+          const n = road[base + (end + 1) * step]!;
+          if (n === 0 || n > 2) break;
+          end++;
+        }
+        if (end - k + 1 >= minRun) scanRun(state, def, { horizontal, line, start: k, end }, out);
+        k = end + 1;
       }
     }
   }

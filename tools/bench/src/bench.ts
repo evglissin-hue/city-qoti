@@ -18,6 +18,7 @@ import {
 } from '@qoti/sim';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
+import { hearthBench } from './hearth';
 import { syntheticValley } from './synthetic';
 
 const BUDGET = {
@@ -130,6 +131,11 @@ joining.time.desired = [3, 3, 3, 3];
 const [, catchUpMs] = time(() => advanceTo(joining, joining.lastTurn + 300, createTickCtx(joining)));
 lines.push(`catch-up        300 turns at 3x in ${catchUpMs.toFixed(1)} ms (budget ${BUDGET.catchUpMs} ms)`);
 
+// 6. Hearth (C3B): charm per dirty chunk and the Pattern Book pass.
+const hearth = hearthBench();
+lines.push(...hearth.lines);
+failures.push(...hearth.failures);
+
 const heapMb = process.memoryUsage().heapUsed / 1024 / 1024;
 lines.push(`memory          ${heapMb.toFixed(0)} MB heap in use`);
 
@@ -151,6 +157,7 @@ const report = {
   },
   snapshot: { bytes: bytes.length, serializeMs, deserializeMs, hashMs },
   catchUpMs,
+  hearth: hearth.report,
   heapMb,
   failures,
 };
