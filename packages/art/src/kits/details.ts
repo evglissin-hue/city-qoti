@@ -222,16 +222,20 @@ export function dryStoneWall(
 
 /** A clipped hedge run. */
 export function hedgeRun(s: ShapeBuilder, a: [number, number], b: [number, number], rnd: () => number): void {
-  const dx = b[0] - a[0];
-  const dz = b[1] - a[1];
-  const len = Math.sqrt(dx * dx + dz * dz);
-  const n = Math.max(1, Math.round(len / 0.22));
+  // A clipped box hedge with a soft, leafy top.
+  const w = 0.075;
+  const x0 = Math.min(a[0], b[0]) - (a[0] === b[0] ? w : 0);
+  const x1 = Math.max(a[0], b[0]) + (a[0] === b[0] ? w : 0);
+  const z0 = Math.min(a[1], b[1]) - (a[1] === b[1] ? w : 0);
+  const z1 = Math.max(a[1], b[1]) + (a[1] === b[1] ? w : 0);
+  s.rbox(x0, 0, z0, x1, 0.17, z1, vary(0x4f7d3a, rnd, 0.5), 0.04);
+  const len = Math.max(x1 - x0, z1 - z0);
+  const n = Math.max(1, Math.round(len / 0.14));
   for (let i = 0; i < n; i++) {
     const t = (i + 0.5) / n;
-    const x = a[0] + dx * t;
-    const z = a[1] + dz * t;
-    const leaf = vary(0x4f7d3a, rnd, 0.6);
-    s.blob(x, 0.13, z, (len / n) * 0.62, 0.14, 0.11, leaf, 1, rnd, 0.08, vary(0x6a9447, rnd, 0.6));
+    const x = a[0] + (b[0] - a[0]) * t;
+    const z = a[1] + (b[1] - a[1]) * t;
+    s.blob(x, 0.17, z, 0.07, 0.035, 0.07, vary(0x5f8c45, rnd, 0.7), 0, rnd, 0.2);
   }
 }
 

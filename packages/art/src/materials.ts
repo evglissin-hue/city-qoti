@@ -53,7 +53,7 @@ export function createEmissiveKitMaterial(night = 1): MeshStandardMaterial {
  * C3D: the resident material. Vertex colors plus two per-vertex channels from rig.ts: `paint`
  * picks a tint (instance color for clothes, `iFur` and `iFur2` for fur), and `rig` swings arms,
  * feet, ears and tails about fixed pivots from the per-instance `iMotion` (anim, walk phase, seed,
- * spare) and the shared `uTime` uniform (seconds, in `material.userData.time`). Anim numbers follow
+ * and C4E the arm held out to a partner's hand, 0 for none) and the shared `uTime` uniform (seconds, in `material.userData.time`). Anim numbers follow
  * AgentAnim: 0 idle, 1 walk, 2 carry, 3 hop, 4 work. Body bob and squash live in the instance
  * matrix, so carried bundles can share them.
  */
@@ -106,7 +106,11 @@ void qRigSetup() {
   if (rig > 0.5 && rig < 2.5) {
     float side = rig < 1.5 ? 1.0 : -1.0;
     qPivot = vec3(0.066 * side, 0.15, 0.0);
-    if (anim > 0.5 && anim < 1.5) qAx = sin(ph) * 0.75 * side;
+    // C4E: iMotion.w names an arm (1 or 2) held out to a partner's hand, swinging a little.
+    if (iMotion.w > 0.5 && abs(iMotion.w - rig) < 0.5) {
+      qAz = side * 0.42;
+      qAx = -0.22 + (walk ? sin(ph) * 0.12 : 0.0);
+    } else if (anim > 0.5 && anim < 1.5) qAx = sin(ph) * 0.75 * side;
     else if (anim > 1.5 && anim < 2.5) qAx = -1.3;
     else if (hop) qAz = side * (2.2 + sin(uTime * 9.0 + seed) * 0.25);
     else if (anim > 3.5) qAx = -1.05 + sin(uTime * 9.0 + seed) * 0.6;

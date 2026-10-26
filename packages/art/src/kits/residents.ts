@@ -11,8 +11,14 @@ import type { Kit } from './types';
 
 export type SpeciesId = 'badger' | 'fox' | 'hedgehog' | 'mouse' | 'otter' | 'rabbit' | 'squirrel';
 export type ResidentDetail = 'full' | 'simple' | 'dot';
-export type HatKind = 'baker' | 'bowler' | 'cap' | 'felt' | 'souwester' | 'straw' | 'top';
-export type ExtraKind = 'apron' | 'scarf' | `hat:${HatKind}`;
+export type HatKind =
+  'baker' | 'beret' | 'bowler' | 'cap' | 'captain' | 'felt' | 'souwester' | 'straw' | 'top' | 'wide';
+/**
+ * C4E: story characters' signature pieces (a satchel, a long scarf, goggles, a lute, a shawl) and
+ * the sling a parent carries a baby in.
+ */
+export type ExtraKind =
+  'apron' | 'goggles' | 'longscarf' | 'lute' | 'satchel' | 'scarf' | 'shawl' | 'sling' | `hat:${HatKind}`;
 
 export const SPECIES_IDS: readonly SpeciesId[] = [
   'badger',
@@ -23,10 +29,27 @@ export const SPECIES_IDS: readonly SpeciesId[] = [
   'rabbit',
   'squirrel',
 ];
-export const HAT_KINDS: readonly HatKind[] = ['baker', 'bowler', 'cap', 'felt', 'souwester', 'straw', 'top'];
+export const HAT_KINDS: readonly HatKind[] = [
+  'baker',
+  'beret',
+  'bowler',
+  'cap',
+  'captain',
+  'felt',
+  'souwester',
+  'straw',
+  'top',
+  'wide',
+];
 export const EXTRA_KINDS: readonly ExtraKind[] = [
   'apron',
+  'goggles',
+  'longscarf',
+  'lute',
+  'satchel',
   'scarf',
+  'shawl',
+  'sling',
   ...HAT_KINDS.map((h) => `hat:${h}` as const),
 ];
 
@@ -546,6 +569,67 @@ function hat(b: RigBuilder, kind: HatKind): void {
         fixed(INK),
       );
       break;
+    case 'wide':
+      // A wide-brimmed traveling hat with a pheasant feather in the band.
+      b.ellipsoid([0, y + 0.002, 0.004], [0.12, 0.008, 0.12], 12, 2, () => cloth);
+      b.ellipsoid(
+        [0, y + 0.006, 0.004],
+        [0.055, 0.048, 0.055],
+        8,
+        2,
+        () => cloth,
+        Math.PI / 8,
+        0,
+        Math.PI / 2,
+      );
+      b.ellipsoid(
+        [0, y + 0.012, 0.004],
+        [0.0565, 0.012, 0.0565],
+        8,
+        1,
+        () => fixed(INK),
+        Math.PI / 8,
+        1.3,
+        1.62,
+      );
+      b.tube(
+        [
+          [0.05, y + 0.02, -0.01],
+          [0.08, y + 0.07, -0.05],
+          [0.095, y + 0.1, -0.1],
+        ],
+        [0.008, 0.01, 0.0],
+        4,
+        fixed(0xb8693a),
+      );
+      break;
+    case 'beret':
+      b.ellipsoid([0.012, y + 0.008, 0.0], [0.075, 0.022, 0.07], 10, 2, () => cloth);
+      b.nub([0.012, y + 0.03, 0.0], [0.008, 0.012, 0.008], cloth);
+      break;
+    case 'captain':
+      b.tube(
+        [
+          [0, y - 0.004, 0.004],
+          [0, y + 0.028, 0.004],
+        ],
+        [0.058, 0.064],
+        8,
+        cloth,
+      );
+      b.ellipsoid(
+        [0, y + 0.03, 0.004],
+        [0.066, 0.012, 0.066],
+        8,
+        2,
+        () => fixed(0xf7f4ec),
+        Math.PI / 8,
+        0,
+        Math.PI / 2,
+      );
+      b.ellipsoid([0, y - 0.002, 0.06], [0.05, 0.006, 0.03], 6, 2, () => fixed(INK), Math.PI / 6, 0, Math.PI);
+      b.nub([0, y + 0.014, 0.066], [0.01, 0.008, 0.004], fixed(palette.mustard));
+      break;
     case 'baker':
       b.tube(
         [
@@ -561,13 +645,188 @@ function hat(b: RigBuilder, kind: HatKind): void {
   }
 }
 
-/** Geometry for something worn on top of the body (an apron, a scarf or a hat). */
+const LEATHER_DARK = 0x6b4a30;
+const BRASS = 0xc9a24a;
+
+/** A bag on a strap across the body: the strap from the left shoulder, the bag at the right hip. */
+function satchel(b: RigBuilder): void {
+  b.tube(
+    [
+      [0.05, 0.17, 0.045],
+      [0.0, 0.12, 0.068],
+      [-0.055, 0.07, 0.05],
+    ],
+    [0.008, 0.008, 0.008],
+    4,
+    fixed(LEATHER_DARK),
+  );
+  b.tube(
+    [
+      [0.05, 0.17, -0.04],
+      [0.0, 0.12, -0.064],
+      [-0.055, 0.07, -0.045],
+    ],
+    [0.007, 0.007, 0.007],
+    4,
+    fixed(LEATHER_DARK),
+  );
+  b.box(-0.085, 0.035, -0.035, -0.06, 0.09, 0.04, cloth);
+  b.box(-0.088, 0.065, -0.037, -0.058, 0.092, 0.042, fixed(LEATHER_DARK));
+  b.box(-0.09, 0.07, 0.0, -0.087, 0.08, 0.008, fixed(BRASS));
+}
+
+/** A long knitted scarf: wound at the neck, its tails flying out behind. */
+function longScarf(b: RigBuilder): void {
+  b.ellipsoid([0, 0.172, 0.004], [0.064, 0.026, 0.062], 8, 2, () => cloth, Math.PI / 8, 0.9, 2.25);
+  b.tube(
+    [
+      [0.03, 0.17, -0.05],
+      [0.04, 0.15, -0.09],
+      [0.05, 0.12, -0.13],
+    ],
+    [0.014, 0.013, 0.011],
+    4,
+    cloth,
+  );
+  b.tube(
+    [
+      [0.02, 0.165, 0.055],
+      [0.03, 0.12, 0.07],
+      [0.03, 0.08, 0.068],
+    ],
+    [0.013, 0.012, 0.012],
+    4,
+    cloth,
+  );
+  for (const y of [0.1, 0.12]) b.box(0.018, y, 0.064, 0.044, y + 0.006, 0.08, fixed(0xf7f4ec));
+}
+
+/** Brass goggles pushed up on the forehead, an inventor's badge of office. */
+function goggles(b: RigBuilder): void {
+  b.ellipsoid([0, 0.235, 0.006], [0.068, 0.012, 0.064], 10, 1, () => fixed(LEATHER_DARK), 0, 1.2, 1.94);
+  for (const sx of [-1, 1]) {
+    b.tube(
+      [
+        [sx * 0.026, 0.245, 0.058],
+        [sx * 0.026, 0.245, 0.072],
+      ],
+      [0.02, 0.019],
+      8,
+      fixed(BRASS),
+    );
+    b.ellipsoid([sx * 0.026, 0.245, 0.073], [0.015, 0.015, 0.003], 8, 1, () => fixed(0x9fd0d8));
+  }
+}
+
+/** A lute slung on the back, neck up over the shoulder. */
+function lute(b: RigBuilder): void {
+  b.ellipsoid([0.01, 0.1, -0.085], [0.045, 0.06, 0.022], 8, 3, () => fixed(0xb98a5a));
+  b.ellipsoid([0.01, 0.1, -0.063], [0.012, 0.012, 0.002], 6, 1, () => fixed(INK));
+  b.tube(
+    [
+      [0.01, 0.15, -0.08],
+      [0.035, 0.24, -0.075],
+      [0.045, 0.27, -0.08],
+    ],
+    [0.008, 0.007, 0.01],
+    4,
+    fixed(0x8a5a3a),
+  );
+  b.tube(
+    [
+      [0.055, 0.17, 0.04],
+      [0.0, 0.13, 0.066],
+      [-0.05, 0.09, 0.05],
+    ],
+    [0.005, 0.005, 0.005],
+    3,
+    cloth,
+  );
+}
+
+/** A knitted shawl round the shoulders, fringed in front. */
+function shawl(b: RigBuilder): void {
+  b.ellipsoid([0, 0.15, 0.0], [0.08, 0.05, 0.072], 10, 2, () => cloth, Math.PI / 10, 0.2, 1.7);
+  b.nub([0, 0.12, 0.07], [0.02, 0.02, 0.008], fixed(palette.mustard));
+}
+
+/** A sling across the chest with a baby snug inside, peeking out. */
+function sling(b: RigBuilder): void {
+  b.tube(
+    [
+      [0.055, 0.17, -0.04],
+      [0.06, 0.15, 0.03],
+      [0.0, 0.08, 0.075],
+      [-0.06, 0.07, 0.03],
+    ],
+    [0.012, 0.012, 0.03, 0.012],
+    6,
+    cloth,
+  );
+  b.ellipsoid([0.0, 0.1, 0.085], [0.032, 0.028, 0.026], 6, 3, () => fixed(0xf3ead8));
+  b.ellipsoid([0.0, 0.128, 0.088], [0.022, 0.02, 0.02], 6, 3, () => fixed(0xd8c2a0));
+  for (const sx of [-1, 1]) b.nub([sx * 0.014, 0.15, 0.084], [0.006, 0.012, 0.005], fixed(0xd8c2a0));
+  b.nub([0, 0.126, 0.107], [0.004, 0.004, 0.003], fixed(INK));
+}
+
+/** Geometry for something worn on top of the body (an apron, a scarf, a hat, a satchel...). */
 export function extraGeometry(kind: ExtraKind): BufferGeometry {
   const b = new RigBuilder();
   if (kind === 'apron') apron(b);
   else if (kind === 'scarf') scarf(b);
+  else if (kind === 'satchel') satchel(b);
+  else if (kind === 'longscarf') longScarf(b);
+  else if (kind === 'goggles') goggles(b);
+  else if (kind === 'lute') lute(b);
+  else if (kind === 'shawl') shawl(b);
+  else if (kind === 'sling') sling(b);
   else hat(b, kind.slice(4) as HatKind);
   return b.build(0.3);
+}
+
+/**
+ * C4E: the signature outfit of a story character by species (docs/spec/11-residents.md, Story
+ * characters), so they can be picked out of a crowd: Pippa Quill the inventor (mouse) in goggles
+ * with a satchel of tools, Odette Fenwick the merchant (fox) in a wide hat with a ledger bag,
+ * Juniper Reed the musician (rabbit) in a beret and a long scarf with a lute, and the later cast.
+ */
+export function storyOutfit(species: string): { kind: ExtraKind; color: number }[] {
+  switch (species) {
+    case 'mouse':
+      return [
+        { kind: 'hat:cap', color: palette.teal },
+        { kind: 'goggles', color: BRASS },
+        { kind: 'satchel', color: 0x9a6b43 },
+      ];
+    case 'fox':
+      return [
+        { kind: 'hat:wide', color: palette.roofPlum },
+        { kind: 'longscarf', color: palette.mustard },
+        { kind: 'satchel', color: 0x34506b },
+      ];
+    case 'rabbit':
+      return [
+        { kind: 'hat:beret', color: palette.accentRed },
+        { kind: 'longscarf', color: 0x7fa7c4 },
+        { kind: 'lute', color: 0x6e8a5a },
+      ];
+    case 'otter':
+      return [
+        { kind: 'hat:captain', color: palette.navy },
+        { kind: 'longscarf', color: palette.accentRed },
+      ];
+    case 'hedgehog':
+      return [
+        { kind: 'shawl', color: 0x8fa37a },
+        { kind: 'satchel', color: 0x6e8a5a },
+      ];
+    default:
+      return [
+        { kind: 'hat:wide', color: 0x6b4f3a },
+        { kind: 'longscarf', color: palette.teal },
+        { kind: 'satchel', color: 0x9a6b43 },
+      ];
+  }
 }
 
 // --- Looks: fur and clothes from the look seed, job and tier. ------------------------------------
@@ -601,6 +860,8 @@ export interface ResidentLookInput {
   tier?: string;
   /** Building def id of the workplace, for work clothes. */
   job?: string;
+  /** C4E: a story character, dressed in their signature outfit. */
+  story?: boolean;
 }
 
 export interface ResidentLook {
@@ -684,6 +945,10 @@ export function residentLook(input: ResidentLookInput): ResidentLook {
       extras.push({ kind: 'scarf', color: other });
   } else if (roll < 0.35) {
     extras.push({ kind: 'scarf', color: other });
+  }
+  if (input.story && !child) {
+    extras.length = 0;
+    extras.push(...storyOutfit(sp));
   }
   return {
     species: sp,

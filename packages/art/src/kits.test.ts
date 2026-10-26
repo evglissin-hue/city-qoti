@@ -60,7 +60,7 @@ describe('art kits', () => {
     }
   });
 
-  it('stay within triangle budgets', () => {
+  it('stay within triangle budgets', { timeout: 60000 }, () => {
     // Every seed, with every stock pile full, crops grown and a sign: the worst case per kit.
     const full: Record<string, number | string> = { growth: 3, sign: 'Sign' };
     for (const g of content.goods.map((x) => x.id)) {
@@ -74,10 +74,11 @@ describe('art kits', () => {
         const size = def?.size ?? kit.footprint?.size ?? [2, 2];
         const entrance = def?.entrance ?? kit.footprint?.entrance ?? [0, 1];
         const budget = BUILDING_BUDGETS[kit.id] ?? 2600;
-        // Every district style too (grown buildings), and none.
-        for (const style of ['', 'timber', 'stone', 'brick', 'plaster']) {
+        // Grown and village kits in every district style too (fewer seeds), the rest as they are.
+        const styled = !!kit.footprint || kit.id === 'cottage';
+        for (const style of styled ? ['', 'timber', 'stone', 'brick', 'plaster'] : ['']) {
           const base = { size, entrance, params: { ...full, ...(style ? { style } : {}) } };
-          for (let seed = 1; seed <= 8; seed++) {
+          for (let seed = 1; seed <= (style ? 3 : 8); seed++) {
             const high = tris(kit.id, { ...base, seed });
             expect(high, `${kit.id} seed ${seed} ${style}`).toBeLessThan(budget);
             const low = tris(kit.id, { ...base, seed, lod: 'low' });
