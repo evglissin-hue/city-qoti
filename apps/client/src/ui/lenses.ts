@@ -27,6 +27,8 @@ export interface OverlayDef {
   label: string;
   icon: string;
   hint: string;
+  /** I2 (C4E): shown from the Village rank on (zones, lots, traffic and the like). */
+  village?: boolean;
 }
 
 // prettier-ignore
@@ -34,5 +36,9 @@ export const overlays: readonly OverlayDef[] = [
   { id: 'charm', lens: 'hearth', label: 'Charm', icon: 'charm', hint: 'Where the valley feels lovely, and where it could' },
   { id: 'coverage', lens: 'ledger', label: 'Wells', icon: 'coverage', hint: 'Which homes a well reaches' },
   { id: 'flows', lens: 'ledger', label: 'Flows', icon: 'flows', hint: 'Where the porters carry things' },
+  { id: 'land', lens: 'ledger', label: 'Land value', icon: 'land', hint: 'Which lots folk would most like to live on', village: true },
+  { id: 'needs', lens: 'ledger', label: 'Needs', icon: 'needs', hint: 'How content each home is, ringed by its tier', village: true },
   { id: 'status', lens: 'ledger', label: 'Status', icon: 'status', hint: 'Buildings that want attention' },
+  { id: 'traffic', lens: 'ledger', label: 'Traffic', icon: 'traffic', hint: 'Where the carts crowd the roads', village: true },
+  { id: 'zones', lens: 'ledger', label: 'Zones', icon: 'zones', hint: 'Zoned land and the lots cut from it', village: true },
 ];

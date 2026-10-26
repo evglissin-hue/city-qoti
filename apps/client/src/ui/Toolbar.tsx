@@ -29,7 +29,10 @@ export function Toolbar({ session }: { session: Session }) {
   const mode = m.settings.value.mode;
   const active = manager?.active.value ?? 'inspect';
   const overlay = session.ui.overlay.value;
-  const lensOverlays = mode === 'standard' ? overlays.filter((o) => o.lens === lens) : [];
+  // I2 (C4E): the village overlays wait for the Village rank.
+  const village = (m.charter.value?.rank ?? m.town.value?.rank ?? 'hamlet') !== 'hamlet';
+  const lensOverlays =
+    mode === 'standard' ? overlays.filter((o) => o.lens === lens && (village || !o.village)) : [];
   const shown = lensOverlays.some((o) => o.id === overlay) ? overlay : null;
   // The field tool shows its own overlay (the farm's reach) while it is out.
   useEffect(() => {

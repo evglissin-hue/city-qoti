@@ -36,8 +36,10 @@ const ICONS: Record<string, () => JSX.Element> = {
   heart: () => svg([<path key="h" d="M12 19s-7-4.3-7-9.2A3.7 3.7 0 0 1 12 8a3.7 3.7 0 0 1 7 1.8C19 14.7 12 19 12 19z" />]),
   home: () => svg([<path key="r" d="M4.5 11 12 5l7.5 6" />, <path key="w" d="M6.5 9.5v9h11v-9" />, <path key="d" d="M10.5 18.5v-4h3v4" />]),
   inspect: () => svg([<circle key="c" cx="10.5" cy="10.5" r="5.5" />, <path key="h" d="m15 15 4.5 4.5" />]),
+  land: () => svg([<path key="p" d="M4 17.5 9 14l6 2.5 5-3.5" />, <path key="f" d="M8.5 13V6.5l4 1.5-4 1.5" />, <circle key="c" cx="16.5" cy="9" r="2.3" />]),
   letter: () => svg([<rect key="r" x="4" y="6.5" width="16" height="11" rx="1.5" />, <path key="f" d="m4.5 7.5 7.5 6 7.5-6" />]),
   lock: () => svg([<rect key="b" x="6" y="11" width="12" height="8.5" rx="1.8" />, <path key="s" d="M8.5 11V8.5a3.5 3.5 0 0 1 7 0V11" />, <path key="k" d="M12 14.5v2" />]),
+  needs: () => svg([<path key="r" d="M4.5 11.5 12 5.5l7.5 6" />, <path key="w" d="M6.5 10v9.5h11V10" />, <path key="h" d="M12 17.5s-2.6-1.6-2.6-3.4a1.4 1.4 0 0 1 2.6-.6 1.4 1.4 0 0 1 2.6.6c0 1.8-2.6 3.4-2.6 3.4z" />]),
   note: () => svg([<path key="p" d="M6 4.5h9l3 3v12H6z" />, <path key="l" d="M9 10h6M9 13.5h6M9 17h3.5" />]),
   path: () => svg([<path key="a" d="M5 20c2-5 4-6 7-8s5-4 6-8" stroke-dasharray="2.5 3" />]),
   patterns: () => svg([<path key="a" d="M12 6.5c-2-1.6-4.6-2-7.5-1.5v13c2.9-.5 5.5-.1 7.5 1.5 2-1.6 4.6-2 7.5-1.5V5c-2.9-.5-5.5-.1-7.5 1.5z" />, <path key="b" d="M12 6.5v13" />, <path key="c" d="M7 9c1 0 2 .2 3 .6M7 12c1 0 2 .2 3 .6M14 9.6c1-.4 2-.6 3-.6" />]),
@@ -46,9 +48,11 @@ const ICONS: Record<string, () => JSX.Element> = {
   reports: () => svg([<path key="b" d="M5.5 4.5h10l3 3v12h-13z" />, <path key="c" d="M8.5 16.5v-3M11.5 16.5v-6M14.5 16.5v-4.5" />, <path key="l" d="M8 8h4" />]),
   road: () => svg([<path key="a" d="M7 20 10 4M17 20 14 4" />, <path key="b" d="M12 18.5v-2M12 13v-2M12 7.5v-2" />]),
   status: () => svg([<path key="b" d="M7 16.5V11a5 5 0 0 1 10 0v5.5l1.5 1.5h-13z" />, <path key="c" d="M10.5 20.5h3" />]),
+  traffic: () => svg([<circle key="w" cx="8" cy="15.5" r="3" />, <path key="s" d="M8 12.5v6M5 15.5h6" />, <path key="b" d="M11 13h7.5l-1-4.5H11z" />, <path key="a" d="M15 19h4.5M17.5 17l2 2-2 2" />]),
   tree: () => svg([<path key="t" d="M12 20v-6" />, <path key="c" d="M12 3.5c-3.5 0-5.5 2.6-5.5 5.4 0 2.8 2.3 5.1 5.5 5.1s5.5-2.3 5.5-5.1c0-2.8-2-5.4-5.5-5.4z" />]),
   undo: () => svg([<path key="a" d="M8.5 7 5 10.5 8.5 14" />, <path key="b" d="M5.5 10.5h8a5 5 0 0 1 0 10H10" />]),
   wishes: () => svg([<path key="s" d="m12 4 2.2 4.6 5 .7-3.6 3.5.9 5-4.5-2.4-4.5 2.4.9-5-3.6-3.5 5-.7z" />]),
+  zones: () => svg([<rect key="a" x="4.5" y="4.5" width="6.5" height="6.5" rx="1" />, <rect key="b" x="13" y="4.5" width="6.5" height="6.5" rx="1" stroke-dasharray="2 1.8" />, <rect key="c" x="4.5" y="13" width="15" height="6.5" rx="1" />]),
 };
 
 export function ToolIcon({ id, fallback }: { id: string; fallback: string }) {
