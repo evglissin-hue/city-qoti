@@ -7,6 +7,7 @@ import { copy, welcomeLine } from '../ui/copy';
 import { ago } from '../ui/format';
 import { loadProfile, saveProfile, SWATCHES, type PlayerProfile } from './profile';
 import { listRecent, rememberValley, type RecentValley } from './recent';
+import { readValleyFile, type ValleyFile } from './valleyFile';
 import type { SessionTarget } from './session';
 
 function targetOf(v: RecentValley): SessionTarget {
@@ -27,6 +28,7 @@ export function Title({ onStart }: { onStart: (t: SessionTarget, opts?: { invite
   // ?creative starts with the creative box ticked (the I0 end to end specs play sandbox valleys).
   const [creative, setCreative] = useState(() => new URLSearchParams(location.search).has('creative'));
   const [economy, setEconomy] = useState<ValleySettings['economy']>('standard');
+  const [imported, setImported] = useState<ValleyFile | null>(null);
   const welcome = useMemo(() => welcomeLine(), []);
   const [profile, setProfileState] = useState<PlayerProfile>(() => loadProfile());
   const setProfile = (p: PlayerProfile) => {
@@ -89,6 +91,53 @@ export function Title({ onStart }: { onStart: (t: SessionTarget, opts?: { invite
       };
       rememberValley(recentValley);
       onStart(targetOf(recentValley));
+    });
+
+  const pickFile = (file: File | undefined) =>
+    file &&
+    run(async () => {
+      setImported(readValleyFile(new Uint8Array(await file.arrayBuffer())));
+      setBusy(false);
+    });
+
+  /** Opens an imported valley file as a new valley, solo or for two. */
+  const openImported = (mode: 'solo' | 'online') =>
+    imported &&
+    run(async () => {
+      const req = { seed: imported.seed, settings: imported.settings, snapshot: imported.snapshot };
+      const sandbox = imported.settings.mode === 'sandbox';
+      const name = imported.summary.townName;
+      if (mode === 'online') {
+        const v = await createOnlineValley(req).catch(() => {
+          throw new Error(copy.title.relayDown);
+        });
+        const recentValley: RecentValley = {
+          valleyId: v.valleyId,
+          seat: 0,
+          token: v.tokens[0]!,
+          mode: 'online',
+          name,
+          lastPlayed: Date.now(),
+          ...(sandbox ? { creative: true } : {}),
+          ...(v.invites[1] ? { invite: v.invites[1] } : {}),
+        };
+        rememberValley(recentValley);
+        onStart(targetOf(recentValley), { invite: true });
+      } else {
+        const valleyId = randomId();
+        const { token } = await LocalRoom.create(valleyId, req);
+        const recentValley: RecentValley = {
+          valleyId,
+          seat: 0,
+          token,
+          mode: 'solo',
+          name,
+          lastPlayed: Date.now(),
+          ...(sandbox ? { creative: true } : {}),
+        };
+        rememberValley(recentValley);
+        onStart(targetOf(recentValley));
+      }
     });
 
   return (
@@ -217,6 +266,43 @@ export function Title({ onStart }: { onStart: (t: SessionTarget, opts?: { invite
                 : copy.title.economyOptions.find(([id]) => id === economy)?.[2]}
             </p>
           </fieldset>
+          <label class="open-file">
+            {copy.title.openFile}
+            <input
+              type="file"
+              accept=".qoti,application/octet-stream"
+              data-testid="open-file"
+              disabled={busy}
+              onChange={(e) => void pickFile((e.target as HTMLInputElement).files?.[0])}
+            />
+          </label>
+          {imported && (
+            <div class="imported" data-testid="imported">
+              <p>
+                <strong>{imported.summary.townName}</strong> {copy.title.importedIn}{' '}
+                {imported.summary.valleyName}
+                <span class="muted"> ({copy.title.importedResidents(imported.summary.residents)})</span>
+              </p>
+              <div class="actions">
+                <button
+                  type="button"
+                  data-testid="open-imported-online"
+                  disabled={busy}
+                  onClick={() => openImported('online')}
+                >
+                  {copy.title.newOnline}
+                </button>
+                <button
+                  type="button"
+                  data-testid="open-imported-solo"
+                  disabled={busy}
+                  onClick={() => openImported('solo')}
+                >
+                  {copy.title.newSolo}
+                </button>
+              </div>
+            </div>
+          )}
         </details>
         {error && <p class="error">{error}</p>}
         {others.length > 0 && (

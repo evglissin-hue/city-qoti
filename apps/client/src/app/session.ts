@@ -16,6 +16,7 @@ import { ToolManager } from '../input/manager';
 import type { PointerInfo } from '../input/tool';
 import type { RoomConnection } from '../net/connection';
 import { LocalRoom } from '../net/local';
+import { downloadBytes, valleyFileName } from './valleyFile';
 import { OnlineRoom } from '../net/online';
 import type { RenderApi } from '../render/api';
 import { Renderer } from '../render/renderer';
@@ -435,6 +436,13 @@ export class Session {
     const { year, season } = this.mirror.clock.value;
     const label = `Year ${year}, ${SEASON_NAMES[season]}`;
     this.connection?.sendSnapshot({ t: snap.t, simVersion: SIM_VERSION, data: snap.data, label });
+  }
+
+  /** Saves this valley as a .qoti file (a snapshot of the current turn). */
+  async exportValley(): Promise<void> {
+    const snap = await this.host.snapshot();
+    const { year, season } = this.mirror.clock.value;
+    downloadBytes(snap.data, valleyFileName(this.mirror.settings.value, year, SEASON_NAMES[season]));
   }
 
   /** Debug only (?debug): makes this seat's sim drift from the room's, for resync tests. */

@@ -90,6 +90,13 @@ export function SettingsPanel({ session }: { session: Session }) {
             {copy.settings.reducedMotion} <span class="muted">{copy.settings.reducedMotionHint}</span>
           </span>
         </label>
+        <fieldset class="keep-copy">
+          <legend>{copy.settings.keepCopy}</legend>
+          <p class="muted">{copy.settings.keepCopyHint}</p>
+          <button type="button" data-testid="save-valley-file" onClick={() => void session.exportValley()}>
+            {copy.settings.saveCopy}
+          </button>
+        </fieldset>
         <div class="actions">
           <button type="button" class="primary" onClick={() => (session.ui.settingsOpen.value = false)}>
             {copy.settings.done}
