@@ -92,8 +92,12 @@ export function wishBinding(w: Wish): Binding {
 
 // --- Generation ---------------------------------------------------------------------------------
 
-/** Makes the morning's new wishes. Returns how many were made. */
-export function generateWishes(state: WorldState, ctx: TickCtx): number {
+/** Makes the morning's new wishes from `templates` (all of them in play). Returns how many were made. */
+export function generateWishes(
+  state: WorldState,
+  ctx: TickCtx,
+  templates: readonly WishTemplate[] = content.wishes,
+): number {
   const slots = Math.min(WISHES_PER_DAY, wishCap(state.residents.length) - state.wishes.length);
   if (slots <= 0) return 0;
   const rng = ctx.rng('wishes');
@@ -111,7 +115,7 @@ export function generateWishes(state: WorldState, ctx: TickCtx): number {
     const bind = bindFor(state, r);
     const options: WishTemplate[] = [];
     let weights = 0;
-    for (const t of content.wishes) {
+    for (const t of templates) {
       if (activeAtHome(state, t.id, bind.home!)) continue;
       if (!evaluate(state, t.when, bind) || evaluate(state, t.target, bind)) continue;
       options.push(t);

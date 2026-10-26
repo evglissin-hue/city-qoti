@@ -12,14 +12,17 @@ import type { ChronicleTemplate } from './types';
 //   pattern-discovered  {pattern} {place} {credit} {flavor}
 //   achievement         {achievement} {description} {credit}
 //   wishes-digest       {wishes} {examples}         ("three wishes", "a bench by the river for Clover and ...")
-//   season-summary      {season} {year} {residents} {coins} {patterns} {granted} {books} {arrivals}
+//   season-summary      {season} {year} {people} {coins} {pages} {wishes} {books}
+//                       ("nine residents", "one page", "no wishes")
+//
+// {credit} reads like "Ada" or "Ada and Bo, between them", so it always ends a sentence.
 
 export const achievement: ChronicleTemplate = {
   kind: 'achievement',
   text: [
     'A new plaque went up in the Town Hall: {achievement}. {description} Credit to {credit}.',
-    'The plaque-maker was called in again. {achievement}: {description} Hung with pride by {credit}.',
-    '{town} has earned {achievement}. {description} {credit} pretended not to be pleased.',
+    'The plaque-maker was sent for. {achievement}: {description} Hung with pride by {credit}.',
+    '{town} has earned {achievement}. {description} Everyone pretended not to be pleased, especially {credit}.',
     'Notice is hereby given that {town} has achieved {achievement}. {description} With thanks to {credit}.',
   ],
   notable: true,
@@ -71,7 +74,7 @@ export const patternDiscovered: ChronicleTemplate = {
   kind: 'pattern-discovered',
   text: [
     'New in the Pattern Book: {pattern}, found {place}. {flavor} Credit to {credit}.',
-    '{credit} noticed something {place} and wrote it down: {pattern}. {flavor}',
+    'Something worth writing down was noticed {place}. The Pattern Book calls it {pattern}. {flavor} Noticed by {credit}.',
     'A page was added to the Pattern Book today. {pattern}, {place}. {flavor} With thanks to {credit}.',
     'It has a name now: {pattern}. Found {place}, credited to {credit}. {flavor}',
   ],
@@ -81,9 +84,9 @@ export const patternDiscovered: ChronicleTemplate = {
 export const seasonSummary: ChronicleTemplate = {
   kind: 'season-summary',
   text: [
-    '{season} of year {year} is behind us. {residents} residents, {coins} coins in the treasury, {granted} wishes granted so far and {patterns} pages in the Pattern Book. {books}',
-    'Looking back on {season}, year {year}: {residents} folk call {town} home, the treasury holds {coins} coins and the Pattern Book has {patterns} pages. {books}',
-    'So ends {season} of year {year}. The count stands at {residents} residents and {coins} coins, with {granted} wishes granted to date. {books}',
+    '{season} of year {year} is behind us: {people}, {coins} coins in the treasury, {wishes} granted so far and {pages} in the Pattern Book. {books}',
+    'Looking back on {season}, year {year}: {town} counts {people}, the treasury holds {coins} coins and the Pattern Book has {pages}. {books}',
+    'So ends {season} of year {year}. The count stands at {people} and {coins} coins, with {wishes} granted to date. {books}',
   ],
   notable: true,
 };

@@ -51,6 +51,11 @@ function moneyBalance(p: LedgerPeriod | null): number | null {
   return income === 0 && expense === 0 ? null : income - expense;
 }
 
+/** "no wishes", "one page", "nine residents", "40 residents". */
+function counted(n: number, one: string, many: string): string {
+  return `${numberWord(n)} ${n === 1 ? one : many}`;
+}
+
 /** The season that just ended, summed up. `t` is the first tick of the new season. */
 export function writeSeasonSummary(state: WorldState, ctx: TickCtx, t: number): void {
   const ended = calendar(t - 1);
@@ -63,10 +68,10 @@ export function writeSeasonSummary(state: WorldState, ctx: TickCtx, t: number): 
     text: [
       ['season', SEASON_NAMES[ended.season]],
       ['year', String(ended.year)],
-      ['residents', String(state.residents.length)],
+      ['people', counted(state.residents.length, 'resident', 'residents')],
       ['coins', String(Math.floor(state.economy.treasury / PENNIES_PER_COIN))],
-      ['patterns', String(state.hearth.discovered.length)],
-      ['granted', String(state.stats.wishesGranted)],
+      ['pages', counted(state.hearth.discovered.length, 'page', 'pages')],
+      ['wishes', counted(state.stats.wishesGranted, 'wish', 'wishes')],
       ['books', books],
     ],
     seats: [...state.time.connected],
@@ -101,7 +106,7 @@ export function writeDigest(state: WorldState, ctx: TickCtx): void {
   const n = list.length;
   write(state, ctx, 'wishes-digest', {
     text: [
-      ['wishes', `${numberWord(n)} ${n === 1 ? 'wish' : 'wishes'}`],
+      ['wishes', counted(n, 'wish', 'wishes')],
       ['examples', listJoin(examples)],
     ],
     refs,
