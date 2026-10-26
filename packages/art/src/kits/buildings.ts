@@ -416,20 +416,7 @@ function houseOf(opts: KitBuildOptions | undefined): Built {
   if (!plain) {
     const style = windowStyle(c, accent, { box: true, shutters: true });
     windowRow(s, front, x0, x1, 0.45, style, rnd, anchors.lights!, [doorU], 0.6, [0.2, 0.22], clad);
-    windowRow(
-      s,
-      upFront,
-      ox0,
-      ox1,
-      1.12,
-      { ...style, box: true },
-      rnd,
-      anchors.lights!,
-      [],
-      0.6,
-      [0.22, 0.24],
-      0.012,
-    );
+    windowRow(s, upFront, ox0, ox1, 1.12, style, rnd, anchors.lights!, [], 0.6, [0.22, 0.24], 0.012);
     const side = { ...style, box: false };
     for (const f of [
       { dir: 'x+', plane: ox1 },

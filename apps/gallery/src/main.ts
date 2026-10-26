@@ -2,6 +2,7 @@
 // night slider and a turntable. URL params (?kit=cottage&seed=3&night=1&spin=0) fix a view for
 // screenshots.
 import {
+  constructionGeometry,
   createKitMaterial,
   createResidentMaterial,
   kitById,
@@ -51,7 +52,7 @@ material.onBeforeCompile = (shader) => {
   shader.uniforms.uNight = nightUniform;
   shader.vertexShader = shader.vertexShader
     .replace('#include <common>', '#include <common>\nattribute float glow;\nvarying float vGlow;')
-    .replace('#include <begin_vertex>', '#include <begin_vertex>\nvGlow = glow;');
+    .replace('#include <begin_vertex>', '#include <begin_vertex>\nvGlow = min(glow, 1.0);');
   shader.fragmentShader = shader.fragmentShader
     .replace('#include <common>', '#include <common>\nuniform float uNight;\nvarying float vGlow;')
     .replace(
@@ -140,6 +141,20 @@ function buildLineup(): Group {
   const row = new Group();
   let x = 0;
   ids.forEach((id, i) => {
+    // site:<kit>:<stage> shows a construction site for that kit.
+    if (id.startsWith('site:')) {
+      const [, kitId = 'cottage', stage = '0'] = id.split(':');
+      const sfp = sizeOf(kitId) ?? { size: [2, 2] as [number, number] };
+      const delivered = { logs: 2, planks: 3, stone: 2 };
+      const site = new Mesh(
+        constructionGeometry({ kit: kitId, size: sfp.size, stage: Number(stage), delivered, seed: i + 1 }),
+        material,
+      );
+      site.position.set(x, 0, -sfp.size[1] / 2);
+      row.add(site);
+      x += sfp.size[0] + 0.6;
+      return;
+    }
     const kit = kitById.get(id);
     if (!kit) return;
     const fp = sizeOf(id);
