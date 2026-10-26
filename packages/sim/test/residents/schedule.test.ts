@@ -28,6 +28,11 @@ function people(f: ReturnType<typeof hamletFixture>) {
   };
 }
 
+/** Reads the activity kind without the narrowing a test's own assignment would cause. */
+function kindOf(r: Resident): string {
+  return r.activity.kind;
+}
+
 function homeOf(f: ReturnType<typeof hamletFixture>, r: Resident): number {
   return findById(f.state.households, r.householdId)!.homeId;
 }
@@ -228,7 +233,7 @@ describe('getting lost', () => {
     let lost = false;
     for (let i = 0; i < 2 * TICKS_PER_HOUR && !lost; i++) {
       ticks(r, 1);
-      lost = tansy.activity.kind === 'stuck';
+      lost = kindOf(tansy) === 'stuck';
     }
     expect(lost).toBe(true);
     expect(tansy.flags & ResidentFlags.stuck).toBeTruthy();
