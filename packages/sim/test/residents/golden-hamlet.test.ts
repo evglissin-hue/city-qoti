@@ -53,8 +53,19 @@ describe('golden script i1-hamlet', () => {
   });
 
   it('resumes from a mid-script snapshot (residents mid-walk) to the same hash', () => {
-    const half = Math.floor(script.lastTurn * 0.55);
-    const mid = deserialize(serialize(replay(half).world));
+    // Find a turn after the middle when somebody is out walking, and snapshot there.
+    const base = replay(Math.floor(script.lastTurn / 2)).world;
+    const ctxBase = createTickCtx(base);
+    while (!base.residents.some((r) => r.move) && base.lastTurn < script.lastTurn - 10) {
+      applyTurns(
+        base,
+        script.turns.filter((t) => t.t === base.lastTurn + 1),
+        ctxBase,
+      );
+      advanceTo(base, base.lastTurn + 1, ctxBase);
+    }
+    const half = base.lastTurn;
+    const mid = deserialize(serialize(base));
     expect(mid.residents.some((r) => r.move)).toBe(true);
     const ctx = createTickCtx(mid);
     applyTurns(
