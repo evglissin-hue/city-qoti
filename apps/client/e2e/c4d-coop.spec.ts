@@ -8,6 +8,9 @@ import { counts, HAMLET_QUERY, hashesAt } from './helpers';
 // joins it with everything in place. Commands go in through the debug hook (the panels are
 // C4F's); everything else is the real relay, sims and mirrors.
 
+/** docs/build/screenshots, wherever the tests run from. */
+const shots = () => `${test.info().project.testDir}/../../../docs/build/screenshots`;
+
 // Two SwiftShader pages on a shared machine are slow: be patient rather than flaky.
 const expect = baseExpect.configure({ timeout: 120_000 });
 
@@ -139,7 +142,9 @@ test('a solo valley moves online and a partner joins it', async ({ browser }) =>
   const before = await counts(a);
 
   await a.getByTestId('settings-open').click();
+  await a.getByTestId('move-online-card').screenshot({ path: `${shots()}/c4d-move-online.png` });
   await a.getByTestId('move-online').click();
+  await a.getByTestId('settings').screenshot({ path: `${shots()}/c4d-move-online-sure.png` });
   await a.getByTestId('move-online-yes').click();
   // The online valley opens with the invite for seat 1 on screen.
   await expect(a.getByTestId('invite-link')).toHaveValue(/#v=[0-9a-f]{32}&s=1&k=[0-9a-f]{32}$/);
