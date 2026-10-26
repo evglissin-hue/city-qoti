@@ -24,8 +24,11 @@ import type { EntityPick, Ghost, RenderApi, TilePick } from './api';
 import { fpToWorld, levelY } from './coords';
 import {
   layerFactories,
+  type AgentsLayer,
   type EffectsLayer,
   type GhostLayer,
+  type HighlightArea,
+  type OverlaysLayer,
   type PresenceLayer,
   type RenderLayer,
 } from './layers';
@@ -59,9 +62,13 @@ function addNightGlow(material: Material, night: { value: number }): void {
           '#ifdef USE_INSTANCING',
           'qWorld = instanceMatrix * qWorld;',
           '#endif',
+          // C3D: buildings are batched; glow 2 marks lights that are always on (lanterns, shops).
+          '#ifdef USE_BATCHING',
+          'qWorld = batchingMatrix * qWorld;',
+          '#endif',
           'qWorld = modelMatrix * qWorld;',
           'float qHash = fract(sin(dot(floor(qWorld.xyz * 1.5), vec3(12.9898, 78.233, 37.719))) * 43758.5453);',
-          `vGlow = glow * step(qHash, ${WINDOW_GLOW_SHARE.toFixed(2)});`,
+          `vGlow = glow > 1.5 ? 1.0 : glow * step(qHash, ${WINDOW_GLOW_SHARE.toFixed(2)});`,
         ].join('\n'),
       );
     shader.fragmentShader = shader.fragmentShader
@@ -149,10 +156,17 @@ export class Renderer implements RenderApi {
     this.setQuality(quality);
     this.rig = new CameraController(this.camera, mirror, this.three.domElement);
 
-    const ctx = { scene: this.scene, mirror, material: this.material, invalidate: () => this.invalidate() };
+    const ctx = {
+      scene: this.scene,
+      mirror,
+      material: this.material,
+      invalidate: () => this.invalidate(),
+      camera: this.camera,
+    };
     this.layers = layerFactories.map((make) => make());
     for (const layer of this.layers) layer.init(ctx);
     this.layer<EffectsLayer>('effects').setSmoke(QUALITY_PRESETS[quality].ambientMotion);
+    this.layer<AgentsLayer>('agents').setDetail(QUALITY_PRESETS[quality].residentDetail);
     this.unsubscribe = mirror.onChange((change) => {
       for (const layer of this.layers) layer.update(change);
       this.shadowsDirty = true;
@@ -263,7 +277,7 @@ export class Renderer implements RenderApi {
         if (!(o instanceof Mesh)) return;
         const m = o.material as Material;
         const solid = !m.transparent;
-        o.castShadow = solid;
+        o.castShadow = solid && !o.userData.noCast;
         o.receiveShadow = solid;
       });
     }
@@ -274,6 +288,7 @@ export class Renderer implements RenderApi {
     const now = performance.now();
     const dt = Math.min(0.1, (now - this.last) / 1000);
     this.last = now;
+    this.followStep();
     let dirty = this.rig.update(dt);
     for (const layer of this.layers) if (layer.frame?.(dt)) dirty = true;
     this.updateLighting();
@@ -312,6 +327,14 @@ export class Renderer implements RenderApi {
   }
 
   pickEntity(clientX: number, clientY: number): EntityPick | null {
+    // I1: residents stand in front of everything, so they win when the ray passes close to one.
+    if (this.ray(clientX, clientY)) {
+      const r = this.layer<AgentsLayer>('agents').pick(
+        this.raycaster.ray.origin,
+        this.raycaster.ray.direction,
+      );
+      if (r !== null) return { kind: 'resident', id: r };
+    }
     const tile = this.pickTile(clientX, clientY);
     if (!tile) return null;
     const m = this.mirror;
@@ -336,8 +359,8 @@ export class Renderer implements RenderApi {
     this.layer<GhostLayer>('ghosts').set(g);
   }
 
-  setOverlay(_kind: string | null): void {
-    // Data overlays (charm, coverage, flows) arrive in I1.
+  setOverlay(kind: string | null): void {
+    this.layer<OverlaysLayer>('overlays').set(kind);
   }
 
   setPresence(seat: SeatId, p: { x: number; z: number; tool?: string } | null): void {
@@ -393,7 +416,38 @@ export class Renderer implements RenderApi {
     (this.layers as RenderLayer[] | undefined)
       ?.find((l): l is EffectsLayer => l.id === 'effects')
       ?.setSmoke(preset.ambientMotion);
+    (this.layers as RenderLayer[] | undefined)
+      ?.find((l): l is AgentsLayer => l.id === 'agents')
+      ?.setDetail(preset.residentDetail);
     this.invalidate();
+  }
+
+  // --- I1 (C3D): following residents and bubbles. ---------------------------------------------
+
+  private followId: number | null = null;
+
+  follow(residentId: number | null): void {
+    this.followId = residentId;
+    this.followStep();
+  }
+
+  /** Keeps the camera gliding after the followed resident (it waits at the door while they are inside). */
+  private followStep(): void {
+    if (this.followId === null) return;
+    if (!this.mirror.residents.has(this.followId) && this.mirror.residents.size > 0) {
+      this.followId = null;
+      return;
+    }
+    const p = this.layer<AgentsLayer>('agents').positionOf(this.followId);
+    if (p) this.rig.focus(p.x, p.z);
+  }
+
+  setBubbles(on: boolean): void {
+    this.layer<AgentsLayer>('agents').setBubbles(on);
+  }
+
+  highlight(area: HighlightArea): void {
+    this.layer<OverlaysLayer>('overlays').highlight(area);
   }
 
   /**

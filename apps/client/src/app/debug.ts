@@ -13,6 +13,7 @@ import {
 } from '@qoti/sim';
 import type { Selection } from '../input/context';
 import { applySettings, loadSettings } from '../ui/settings';
+import { fakeCharm, fakeRuntime, startSyntheticResidents, type SyntheticOptions } from '../render/synthetic';
 import { SimHost } from '../worker/host';
 import { overlayMocks } from './fixture';
 import type { Session } from './session';
@@ -50,6 +51,7 @@ function nearbyTiles(session: Session, radius: number): [number, number][] {
 export function installDebugHook(getSession: () => Session | null): void {
   if (!DEBUG) return;
   const s = () => getSession();
+  let stopSynth: (() => void) | null = null;
   const hook = {
     status: () => s()?.connection?.status.value ?? 'none',
     phase: () => s()?.phase.value ?? 'none',
@@ -202,6 +204,26 @@ export function installDebugHook(getSession: () => Session | null): void {
     /** Interface size, 0.8 to 1.4, as the settings slider sets it. */
     setUiScale: (scale: number) => applySettings({ ...loadSettings(), uiScale: scale }),
     awayLetter: async () => (await s()?.inspect('away', s()!.seat)) ?? null,
+    /** C3D: n synthetic residents wandering near the start area; returns false without a session. */
+    synthResidents: (n: number, opts?: SyntheticOptions) => {
+      const session = s();
+      if (!session) return false;
+      stopSynth?.();
+      stopSynth = startSyntheticResidents(session.mirror, n, opts);
+      return true;
+    },
+    /** C3D: plausible runtimes for every building (piles, crops, status), and some construction sites. */
+    synthRuntime: (opts?: { sites?: number; status?: boolean }) => {
+      const session = s();
+      if (session) fakeRuntime(session.mirror, opts);
+    },
+    /** C3D: a made-up charm field for overlay screenshots (until the charm system runs). */
+    synthCharm: () => {
+      const session = s();
+      if (session) fakeCharm(session.mirror);
+    },
+    /** C3D: the renderer, for render tests (overlays, bubbles, follow, stats). */
+    renderer: () => s()?.renderer ?? null,
   };
   (window as unknown as { __qoti: typeof hook }).__qoti = hook;
 }

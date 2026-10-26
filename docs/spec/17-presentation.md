@@ -92,7 +92,7 @@ Auto-detect picks a preset; the settings menu can override it.
 
 - Walk bob and squash in the vertex shader (no skeletons); carried bundles; little hops for joy; slower walk when unhappy.
 - Bubbles (toggleable): wish, happy, unhappy, sleepy, cold [I3].
-- Far away, residents become simple instanced shapes, then dots.
+- Far away, residents become simple instanced shapes (beyond the resident detail distance), then dots (beyond 2.5 times it). Figures are drawn at 1.15 times the kit's 0.3 tiles so they read from the default camera; clothes follow the job (bakers in toques, farmers in straw hats, fishers in sou'westers) and tier (bowler, top hat).
 
 ## Audio [I5, designed now]
 

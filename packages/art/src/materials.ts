@@ -49,6 +49,97 @@ export function createEmissiveKitMaterial(night = 1): MeshStandardMaterial {
   return m;
 }
 
+/**
+ * C3D: the resident material. Vertex colors plus two per-vertex channels from rig.ts: `paint`
+ * picks a tint (instance color for clothes, `iFur` and `iFur2` for fur), and `rig` swings arms,
+ * feet, ears and tails about fixed pivots from the per-instance `iMotion` (anim, walk phase, seed,
+ * spare) and the shared `uTime` uniform (seconds, in `material.userData.time`). Anim numbers follow
+ * AgentAnim: 0 idle, 1 walk, 2 carry, 3 hop, 4 work. Body bob and squash live in the instance
+ * matrix, so carried bundles can share them.
+ */
+export function createResidentMaterial(): MeshStandardMaterial {
+  const m = new MeshStandardMaterial({ vertexColors: true, roughness: 0.85, metalness: 0 });
+  const time = { value: 0 };
+  m.userData.time = time;
+  m.onBeforeCompile = (shader) => {
+    shader.uniforms.uTime = time;
+    shader.vertexShader = shader.vertexShader
+      .replace('#include <common>', `#include <common>\n${RESIDENT_VERTEX_HEAD}`)
+      .replace(
+        '#include <beginnormal_vertex>',
+        '#include <beginnormal_vertex>\nqRigSetup();\nobjectNormal = qRot(objectNormal);',
+      )
+      .replace('#include <begin_vertex>', '#include <begin_vertex>\ntransformed = qRigPoint(transformed);')
+      .replace('#include <color_vertex>', RESIDENT_COLOR_VERTEX);
+  };
+  m.customProgramCacheKey = () => 'qoti-resident';
+  return m;
+}
+
+const RESIDENT_VERTEX_HEAD = /* glsl */ `
+attribute float paint;
+attribute float rig;
+attribute vec3 iFur;
+attribute vec3 iFur2;
+attribute vec4 iMotion;
+uniform float uTime;
+vec3 qPivot;
+vec3 qShift;
+float qAx;
+float qAy;
+float qAz;
+vec3 qRot(vec3 p) {
+  float c = cos(qAx), s = sin(qAx);
+  p = vec3(p.x, p.y * c - p.z * s, p.y * s + p.z * c);
+  c = cos(qAz); s = sin(qAz);
+  p = vec3(p.x * c - p.y * s, p.x * s + p.y * c, p.z);
+  c = cos(qAy); s = sin(qAy);
+  return vec3(p.x * c + p.z * s, p.y, -p.x * s + p.z * c);
+}
+void qRigSetup() {
+  qPivot = vec3(0.0); qShift = vec3(0.0); qAx = 0.0; qAy = 0.0; qAz = 0.0;
+  float anim = iMotion.x;
+  float ph = iMotion.y;
+  float seed = iMotion.z;
+  bool walk = anim > 0.5 && anim < 2.5;
+  bool hop = anim > 2.5 && anim < 3.5;
+  if (rig > 0.5 && rig < 2.5) {
+    float side = rig < 1.5 ? 1.0 : -1.0;
+    qPivot = vec3(0.066 * side, 0.15, 0.0);
+    if (anim > 0.5 && anim < 1.5) qAx = sin(ph) * 0.75 * side;
+    else if (anim > 1.5 && anim < 2.5) qAx = -1.3;
+    else if (hop) qAz = side * (2.2 + sin(uTime * 9.0 + seed) * 0.25);
+    else if (anim > 3.5) qAx = -1.05 + sin(uTime * 9.0 + seed) * 0.6;
+    else qAx = sin(uTime * 1.7 + seed) * 0.07;
+  } else if (rig > 2.5 && rig < 4.5) {
+    float side = rig < 3.5 ? 1.0 : -1.0;
+    if (walk) qShift = vec3(0.0, max(0.0, -cos(ph) * side) * 0.016, -sin(ph) * side * 0.024);
+    else if (hop) qShift = vec3(0.0, 0.012, -0.01);
+  } else if (rig > 4.5 && rig < 5.5) {
+    qPivot = vec3(0.0, 0.255, 0.01);
+    if (walk) qAx = -0.08 + sin(ph * 2.0) * 0.1;
+    else if (hop) qAx = -0.35;
+    else qAx = sin(uTime * 2.3 + seed) * 0.05 + max(0.0, sin(uTime * 0.7 + seed * 3.0) - 0.96) * 4.0;
+  } else if (rig > 5.5) {
+    qPivot = vec3(0.0, 0.07, -0.06);
+    qAy = walk ? sin(ph) * 0.3 : sin(uTime * (hop ? 12.0 : 2.6) + seed) * 0.22;
+  }
+}
+vec3 qRigPoint(vec3 p) { return qRot(p - qPivot) + qPivot + qShift; }
+`;
+
+const RESIDENT_COLOR_VERTEX = /* glsl */ `
+  vColor = vec4( 1.0 );
+#ifdef USE_COLOR
+  vColor.rgb *= color.rgb;
+#endif
+#ifdef USE_INSTANCING_COLOR
+  if (paint > 0.5 && paint < 1.5) vColor.rgb *= instanceColor.rgb;
+#endif
+  if (paint > 1.5 && paint < 2.5) vColor.rgb *= iFur;
+  else if (paint > 2.5) vColor.rgb *= iFur2;
+`;
+
 /** Translucent material for placement ghosts, tinted valid or invalid. */
 export function createGhostMaterial(valid: boolean): MeshBasicMaterial {
   return new MeshBasicMaterial({

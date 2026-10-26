@@ -11,7 +11,8 @@ import {
   Vector3,
   type BufferGeometry,
 } from 'three';
-import { buildingMatrix, footprintHeights } from '../kitGeometry';
+import type { BuildingView } from '@qoti/sim';
+import { buildingKey, buildingKitOptions, buildingMatrix, footprintHeights } from '../kitGeometry';
 import type { LayerContext, RenderLayer } from './types';
 
 /** Kit anchors and parts rerun the generator, so cache them per def. */
@@ -31,13 +32,16 @@ function kitOptions(defId: string): { kitId: string; opts: KitBuildOptions } | n
   };
 }
 
-function anchorsOf(defId: string): KitAnchors {
-  let a = anchorCache.get(defId);
+/** C3D: anchors per building variant (chimneys move with the seeded look and customization). */
+function anchorsOf(b: BuildingView): KitAnchors {
+  if (b.stage !== 'built') return {};
+  const key = buildingKey(b);
+  let a = anchorCache.get(key);
   if (!a) {
-    const k = kitOptions(defId);
-    const kit = k ? kitById.get(k.kitId) : undefined;
-    a = (k && kit?.anchors?.(k.opts)) || {};
-    anchorCache.set(defId, a);
+    const def = content.buildingById.get(b.def);
+    const kit = def ? kitById.get(def.art.kit) : undefined;
+    a = kit?.anchors?.(buildingKitOptions(b)) || {};
+    anchorCache.set(key, a);
   }
   return a;
 }
@@ -112,9 +116,9 @@ export function effectsLayer(): EffectsLayer {
     for (const b of ctx.mirror.buildings.values()) {
       const [, hi] = footprintHeights(ctx.mirror, b.def, b.x, b.z, b.rot);
       const place = buildingMatrix(b.def, b.x, b.z, b.rot, hi);
-      for (const [x, y, z] of anchorsOf(b.def).smoke ?? [])
+      for (const [x, y, z] of anchorsOf(b).smoke ?? [])
         chimneys.push(new Vector3(x, y, z).applyMatrix4(place));
-      for (const { geometry, part } of partsOf(b.def)) {
+      for (const { geometry, part } of b.stage === 'built' ? partsOf(b.def) : []) {
         const mesh = new Mesh(geometry, ctx.material);
         mesh.matrixAutoUpdate = false;
         mesh.castShadow = true;
