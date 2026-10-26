@@ -34,7 +34,6 @@ const S = MAP_SIZE;
 const DECOR_INDEX = new Map(content.decor.map((d, i) => [d.id, i]));
 const BUILDING_INDEX = new Map(content.buildings.map((b, i) => [b.id, i]));
 const PATTERN_INDEX = new Map(content.patterns.map((p, i) => [p.id, i]));
-const TREE_TYPE = MATURE_TREE.type;
 
 /** Layer names in category order, then the total. */
 export const CHARM_LAYERS: readonly (keyof MapLayers & LayerName)[] = [
@@ -320,12 +319,8 @@ export function recomputeChunk(
           if (x < 0 || x >= S) continue;
           const v = m.tree[z * S + x]!;
           if (!v) continue;
-          const mature = (v & 7) >= 3;
-          add(mature ? MATURE_TREE : YOUNG_TREE, Math.sqrt(dx * dx + dz * dz));
-          if (mature && !seenType[TREE_TYPE]) {
-            seenType[TREE_TYPE] = 1;
-            seenList[seen++] = TREE_TYPE;
-          }
+          // Forest trees are nature, not decor: they count for no-spam but not for variety.
+          add((v & 7) >= 3 ? MATURE_TREE : YOUNG_TREE, Math.sqrt(dx * dx + dz * dz));
         }
       }
 

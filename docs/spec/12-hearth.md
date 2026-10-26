@@ -34,7 +34,7 @@ A per-tile integer field, 0 to 100 (P20). Stored in sim state as `hearth.charm` 
 **Rules that keep it thoughtful:**
 
 - **No spam**: for each decor type, only the 2 strongest instances within the radius count for a tile. Fifty identical benches add no more than two. (As built: per type and category; building defs and forest trees are types too; noise is never capped, two sawpits are louder than one.)
-- **Variety**: +2 per distinct decor type within 3 tiles, up to +10. (A grown tree on the map counts as a type.)
+- **Variety**: +2 per distinct decor type within 3 tiles, up to +10. (Decor only: ornamental trees count, forest trees do not, so a forest is pleasant but not "varied".)
 - **Clutter**: more than 12 decor items within 2 tiles gives -5. (Linear pieces, fences, walls and hedges, are boundaries and never clutter.)
 - **Enclosure**: an open tile (no building, not a road wider than a lane) with buildings on 3 or 4 sides within 4 tiles gets +5 (squares feel good). (Looking straight out along each axis; one-tile buildings such as wells and flat plots do not close a square.)
 - Pattern site bonuses add on top (below). (As built: a site's bonus radiates from its anchor and member tiles with the same falloff; per tile the strongest site of each pattern counts; a bonus with a category goes to that layer too.)
