@@ -14,6 +14,7 @@ import {
 } from '@qoti/sim';
 import type { Selection } from '../input/context';
 import { applySettings, loadSettings } from '../ui/settings';
+import { villageShowcase } from '../render/showcase';
 import { fakeCharm, fakeRuntime, startSyntheticResidents, type SyntheticOptions } from '../render/synthetic';
 import { SimHost } from '../worker/host';
 import { overlayMocks } from './fixture';
@@ -219,6 +220,17 @@ export function installDebugHook(getSession: () => Session | null): void {
     synthRuntime: (opts?: { sites?: number; status?: boolean }) => {
       const session = s();
       if (session) fakeRuntime(session.mirror, opts);
+    },
+    /**
+     * C4E: dresses the village fixture as a grown village in this client's Mirror (never the sim):
+     * village buildings, streets, carts, couples, babies and story characters. `dense` adds two
+     * streets of homes for the 150-building budget scene. Returns what it placed.
+     */
+    villageShowcase: (dense = false) => {
+      const session = s();
+      if (!session) return null;
+      const r = villageShowcase(session.mirror, { dense });
+      return { buildings: r.buildings, carts: r.carts };
     },
     /** C3D: a made-up charm field for overlay screenshots (until the charm system runs). */
     synthCharm: () => {

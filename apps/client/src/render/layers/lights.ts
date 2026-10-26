@@ -1,5 +1,6 @@
 import { kitById, type KitAnchors } from '@qoti/art';
 import { content } from '@qoti/content';
+import { drawDef } from '../defs';
 import { Matrix4, PerspectiveCamera, Vector3 } from 'three';
 import { createWorldEnv, MAX_GROUND_LIGHTS, type WorldEnv } from '../env';
 import { buildingMatrix, decorMatrix, footprintHeights } from '../kitGeometry';
@@ -39,7 +40,7 @@ function anchorsForDecor(defId: string): KitAnchors {
 function anchorsForBuilding(defId: string): KitAnchors {
   let a = buildingAnchors.get(defId);
   if (!a) {
-    const def = content.buildingById.get(defId);
+    const def = drawDef(defId);
     const kit = def ? kitById.get(def.art.kit) : undefined;
     a =
       (def &&
@@ -82,7 +83,7 @@ export function lightsLayer(): RenderLayer {
       if (!lights?.length) continue;
       const [, hi] = footprintHeights(mirror, b.def, b.x, b.z, b.rot);
       buildingMatrix(b.def, b.x, b.z, b.rot, hi, m);
-      const def = content.buildingById.get(b.def);
+      const def = drawDef(b.def);
       const [w, d] = def?.size ?? [1, 1];
       const center = new Vector3(w / 2, 0, d / 2).applyMatrix4(m);
       for (const l of lights) {

@@ -7,9 +7,15 @@
 // - 'flows': animated chevrons along arcs between buildings, weighted by deliveries.
 // - 'status': building status icons from BuildingStatus bits.
 // - 'fields': each farmhouse's reach and the field tiles it tends.
+// - C4E 'zones': zone tints (the zone's own token color) with every lot outlined, solid when built
+//   on, dashed while it waits; 'traffic': road tiles by cart passes this hour against the road's
+//   capacity; 'land': lots by desirability (land value) and charm elsewhere in zoned land; 'needs':
+//   homes by how content their households are, ringed in their tier's color. All on the same
+//   colorblind-safe ramp as charm, so lightness tells low from high.
 // `highlight()` draws a soft disc and ring, or tinted tiles, for wish areas and pattern sites.
 import { palette } from '@qoti/art';
 import { content } from '@qoti/content';
+import { drawDef } from '../defs';
 import {
   BuildingStatus,
   CHUNK_SIZE,
@@ -31,7 +37,7 @@ import {
   type Material,
 } from 'three';
 import type { Mirror } from '../../state/mirror';
-import { drapeGrid, drapeRing, groundY, type Rgba } from '../drape';
+import { drapeGrid, drapeOutline, drapeRing, drapeTiles, groundY, type Rgba } from '../drape';
 import { iconAtlas, IconSprites, STATUS_ICONS } from '../icons';
 import { buildingGeometry, footprintHeights } from '../kitGeometry';
 import { levelY } from '../coords';
@@ -86,17 +92,37 @@ const STATUS_PRIORITY = [3, 6, 0, 1, 8, 7, 4, 2, 9, 10, 5];
 
 const TONES = { hearth: new Color(palette.hearth), ledger: new Color(palette.ledger) };
 
+/** C4E: zone overlay tints by the zone def's token (docs/spec/13-ledger.md, Zoning and growth). */
+const ZONE_TOKENS: Record<string, number> = {
+  rose: 0xe0868c,
+  plum: 0x9a6aa6,
+  teal: 0x3f9f9a,
+  ochre: 0xd9a33e,
+  moss: 0x7f9a52,
+};
+
+/** C4E: tier colors for the needs overlay's rings, in TIERS order. */
+const TIER_TONES: Record<string, number> = {
+  settler: 0x8a6f58,
+  craftsfolk: 0x3f7f7a,
+  merchant: 0x7a5468,
+  patron: 0xd6a73e,
+};
+
+function zoneColor(value: number): Color | null {
+  const z = content.zoneByValue.get(value);
+  return z ? new Color(ZONE_TOKENS[z.token] ?? 0x9a9a92) : null;
+}
+
 /** Logistics flows: a live view when the Mirror has one, otherwise an estimate from runtimes. */
 export function flowsOf(mirror: Mirror): [from: number, to: number, units: number][] {
   const live = (mirror as unknown as { flows?: { value?: [number, number, number][] } }).flows?.value;
   if (live && live.length > 0) return live;
-  const stores = [...mirror.buildings.values()].filter((b) =>
-    content.buildingById.get(b.def)?.tags?.includes('storehouse'),
-  );
+  const stores = [...mirror.buildings.values()].filter((b) => drawDef(b.def)?.tags?.includes('storehouse'));
   if (stores.length === 0) return [];
   const center = (id: number): [number, number] => {
     const b = mirror.buildings.get(id)!;
-    const def = content.buildingById.get(b.def);
+    const def = drawDef(b.def);
     const [w, d] = def ? footprintSize(def, b.rot) : [1, 1];
     return [b.x + w / 2, b.z + d / 2];
   };
@@ -116,7 +142,7 @@ export function flowsOf(mirror: Mirror): [from: number, to: number, units: numbe
   };
   const flows: [number, number, number][] = [];
   for (const b of mirror.buildings.values()) {
-    const def = content.buildingById.get(b.def);
+    const def = drawDef(b.def);
     if (!b.rt || !def || def.tags?.includes('storehouse')) continue;
     const store = nearest(b.id);
     const out = b.rt.output.reduce((t, [, q]) => t + q, 0);
@@ -277,7 +303,7 @@ export function overlaysLayer(): OverlaysLayer {
   function centerOf(id: number): [number, number, number] | null {
     const b = ctx?.mirror.buildings.get(id);
     if (!b || !ctx) return null;
-    const def = content.buildingById.get(b.def);
+    const def = drawDef(b.def);
     const [w, d] = def ? footprintSize(def, b.rot) : [1, 1];
     const [, hi] = footprintHeights(ctx.mirror, b.def, b.x, b.z, b.rot);
     return [b.x + w / 2, levelY(hi), b.z + d / 2];
@@ -286,14 +312,12 @@ export function overlaysLayer(): OverlaysLayer {
   function coverage(): void {
     if (!ctx) return;
     const m = ctx.mirror;
-    const homes = [...m.buildings.values()].filter((b) =>
-      content.buildingById.get(b.def)?.tags?.includes('home'),
-    );
+    const homes = [...m.buildings.values()].filter((b) => drawDef(b.def)?.tags?.includes('home'));
     const residentsAt = new Map<number, number>();
     for (const r of m.residents.values()) residentsAt.set(r.homeId, (residentsAt.get(r.homeId) ?? 0) + 1);
     const covered = new Set<number>();
     for (const b of m.buildings.values()) {
-      const cov = content.buildingById.get(b.def)?.coverage?.find((x) => x.kind === 'water');
+      const cov = drawDef(b.def)?.coverage?.find((x) => x.kind === 'water');
       if (!cov) continue;
       const c = centerOf(b.id);
       if (!c) continue;
@@ -333,7 +357,7 @@ export function overlaysLayer(): OverlaysLayer {
       }
     }
     for (const h of homes) {
-      const def = content.buildingById.get(h.def);
+      const def = drawDef(h.def);
       const [w, d] = def ? footprintSize(def, h.rot) : [1, 1];
       const ok = covered.has(h.id);
       const c = new Color(ok ? 0x4f9fd0 : palette.danger);
@@ -380,7 +404,7 @@ export function overlaysLayer(): OverlaysLayer {
       }
     }
     for (const b of m.buildings.values()) {
-      const def = content.buildingById.get(b.def);
+      const def = drawDef(b.def);
       const range = def?.methods?.find((x) => x.kind === 'farm')?.range;
       if (!range) continue;
       const c = centerOf(b.id);
@@ -460,6 +484,182 @@ export function overlaysLayer(): OverlaysLayer {
     status.end();
   }
 
+  // --- C4E: zones and lots, traffic, land value, needs by tier -----------------------------------
+
+  /** The bounding rect of tiles where `test` holds, or null. */
+  function bounds(test: (i: number) => boolean): [number, number, number, number] | null {
+    let x0 = MAP_SIZE;
+    let z0 = MAP_SIZE;
+    let x1 = -1;
+    let z1 = -1;
+    for (let i = 0; i < MAP_SIZE * MAP_SIZE; i++) {
+      if (!test(i)) continue;
+      const x = i % MAP_SIZE;
+      const z = Math.floor(i / MAP_SIZE);
+      if (x < x0) x0 = x;
+      if (z < z0) z0 = z;
+      if (x > x1) x1 = x;
+      if (z > z1) z1 = z;
+    }
+    return x1 < 0 ? null : [x0, z0, x1 + 1, z1 + 1];
+  }
+
+  function zones(): void {
+    if (!ctx) return;
+    const m = ctx.mirror;
+    const zl = m.layers.zone as Uint8Array;
+    const box = bounds((i) => zl[i]! > 0);
+    if (box) {
+      const colors = new Map<number, Color | null>();
+      const colorOf = (v: number): Color | null => {
+        if (!colors.has(v)) colors.set(v, zoneColor(v));
+        return colors.get(v)!;
+      };
+      add(
+        drapeGrid(m, box[0], box[1], box[2], box[3], (x, z): Rgba => {
+          // Average the zoned tiles round this corner, so tints meet softly at zone borders.
+          let r = 0;
+          let g = 0;
+          let b = 0;
+          let n = 0;
+          for (const [dx, dz] of [
+            [-1, -1],
+            [0, -1],
+            [-1, 0],
+            [0, 0],
+          ] as const) {
+            const tx = x + dx;
+            const tz = z + dz;
+            if (tx < 0 || tz < 0 || tx >= MAP_SIZE || tz >= MAP_SIZE) continue;
+            const c = colorOf(zl[tz * MAP_SIZE + tx]!);
+            if (!c) continue;
+            r += c.r;
+            g += c.g;
+            b += c.b;
+            n++;
+          }
+          return n === 0 ? [0, 0, 0, 0] : [r / n, g / n, b / n, 0.14 + n * 0.07];
+        }),
+      );
+    }
+    // Lot outlines in a deeper shade of their zone: solid when built on, dashed while waiting.
+    for (const lot of m.lots.values()) {
+      const z = content.zoneById.get(lot.zone);
+      const c = new Color(ZONE_TOKENS[z?.token ?? ''] ?? 0x9a9a92).multiplyScalar(0.62);
+      add(
+        drapeOutline(
+          m,
+          lot.x,
+          lot.z,
+          lot.x + lot.w,
+          lot.z + lot.d,
+          0.07,
+          [c.r, c.g, c.b, 0.95],
+          0.07,
+          lot.buildingId ? 0 : 2,
+        ),
+      );
+    }
+  }
+
+  function traffic(): void {
+    if (!ctx) return;
+    const m = ctx.mirror;
+    const tl = m.layers.traffic as Uint8Array;
+    const rl = m.layers.road as Uint8Array;
+    const capacity = new Map(content.roads.map((r) => [r.layerValue, r.capacity ?? 0]));
+    const tiles: { x: number; z: number; rgba: Rgba }[] = [];
+    const c = new Color();
+    for (let i = 0; i < MAP_SIZE * MAP_SIZE; i++) {
+      const road = rl[i]!;
+      if (!road) continue;
+      const cap = capacity.get(road) ?? 0;
+      const passes = tl[i]!;
+      // Paths carry no carts: shown faintly, so the cart network stands out.
+      if (cap <= 0) {
+        if (passes === 0) continue;
+      }
+      const load = cap > 0 ? passes / cap : 0;
+      ramp(Math.min(1, load * 0.75 + (passes > 0 ? 0.12 : 0)), c);
+      tiles.push({
+        x: i % MAP_SIZE,
+        z: Math.floor(i / MAP_SIZE),
+        rgba: [c.r, c.g, c.b, cap > 0 ? 0.78 : 0.4],
+      });
+    }
+    if (tiles.length > 0) add(drapeTiles(m, tiles, 0.04));
+  }
+
+  function land(): void {
+    if (!ctx) return;
+    const m = ctx.mirror;
+    const tiles: { x: number; z: number; rgba: Rgba }[] = [];
+    const c = new Color();
+    const inLot = new Set<number>();
+    for (const lot of m.lots.values()) {
+      ramp(lot.desirability / 100, c);
+      for (let z = lot.z; z < lot.z + lot.d; z++)
+        for (let x = lot.x; x < lot.x + lot.w; x++) {
+          inLot.add(z * MAP_SIZE + x);
+          tiles.push({ x, z, rgba: [c.r, c.g, c.b, 0.72] });
+        }
+      add(
+        drapeOutline(
+          m,
+          lot.x,
+          lot.z,
+          lot.x + lot.w,
+          lot.z + lot.d,
+          0.05,
+          [c.r * 0.6, c.g * 0.6, c.b * 0.6, 0.9],
+          0.05,
+        ),
+      );
+    }
+    // Zoned land not cut into lots yet shows its charm, the main thing that will make it valuable.
+    const zl = m.layers.zone as Uint8Array;
+    for (let i = 0; i < MAP_SIZE * MAP_SIZE; i++) {
+      if (!zl[i] || inLot.has(i)) continue;
+      const x = i % MAP_SIZE;
+      const z = Math.floor(i / MAP_SIZE);
+      ramp(m.charm(x, z) / 100, c);
+      tiles.push({ x, z, rgba: [c.r, c.g, c.b, 0.45] });
+    }
+    if (tiles.length > 0) add(drapeTiles(m, tiles, 0.0));
+  }
+
+  function needs(): void {
+    if (!ctx) return;
+    const m = ctx.mirror;
+    const moods = new Map<number, { sum: number; n: number }>();
+    for (const r of m.residents.values()) {
+      if (!r.homeId) continue;
+      const e = moods.get(r.homeId) ?? { sum: 0, n: 0 };
+      e.sum += r.moodBand;
+      e.n++;
+      moods.set(r.homeId, e);
+    }
+    const tierOf = new Map<number, string>();
+    for (const h of m.households.values()) if (h.homeId) tierOf.set(h.homeId, h.tier);
+    const c = new Color();
+    for (const b of m.buildings.values()) {
+      const def = drawDef(b.def);
+      if (!def?.housing && !def?.tags?.includes('home')) continue;
+      const [w, d] = footprintSize(def, b.rot);
+      const e = moods.get(b.id);
+      const tier = tierOf.get(b.id);
+      if (!e && !tier) {
+        // Empty homes: a pale dashed outline.
+        add(drapeOutline(m, b.x, b.z, b.x + w, b.z + d, 0.06, [0.9, 0.88, 0.82, 0.8], 0.1, 2));
+        continue;
+      }
+      ramp(e ? e.sum / e.n / 4 : 0.5, c);
+      add(drapeGrid(m, b.x, b.z, b.x + w, b.z + d, () => [c.r, c.g, c.b, 0.58], 0.07));
+      const t = new Color(TIER_TONES[tier ?? 'settler'] ?? TIER_TONES.settler!);
+      add(drapeOutline(m, b.x, b.z, b.x + w, b.z + d, 0.12, [t.r, t.g, t.b, 0.95], 0.02));
+    }
+  }
+
   function rebuild(): void {
     if (!ctx) return;
     clear();
@@ -468,6 +668,10 @@ export function overlaysLayer(): OverlaysLayer {
     } else if (kind === 'coverage') coverage();
     else if (kind === 'fields') fields();
     else if (kind === 'flows') flows();
+    else if (kind === 'zones') zones();
+    else if (kind === 'traffic') traffic();
+    else if (kind === 'land') land();
+    else if (kind === 'needs') needs();
     statusRebuild = true;
     ctx.invalidate();
   }
@@ -572,7 +776,17 @@ export function overlaysLayer(): OverlaysLayer {
         for (const r of change.rects.get(layer) ?? []) markCharm(r);
         for (const r of change.rects.get('height') ?? []) markCharm(r);
         if (change.full) rebuild();
-      } else if (change.full || change.buildings || change.residents || change.rects.has('fieldOwner')) {
+      } else if (
+        change.full ||
+        change.buildings ||
+        change.residents ||
+        change.rects.has('fieldOwner') ||
+        // C4E: the village overlays follow zones, lots, traffic and households too.
+        (change.village && (kind === 'zones' || kind === 'land')) ||
+        (change.households && kind === 'needs') ||
+        ((change.rects.has('zone') || change.rects.has('lot')) && (kind === 'zones' || kind === 'land')) ||
+        ((change.rects.has('traffic') || change.rects.has('road')) && kind === 'traffic')
+      ) {
         rebuild();
       }
       if (change.buildings) statusRebuild = true;

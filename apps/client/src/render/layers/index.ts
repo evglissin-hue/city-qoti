@@ -1,7 +1,9 @@
 // Render layer registry: one line per layer, in alphabetical order. Draw order comes from
 // materials and renderOrder, not from this list.
 import { agentsLayer } from './agents';
+import { animalsLayer } from './animals';
 import { buildingsLayer } from './buildings';
+import { cartsLayer } from './carts';
 import { decorLayer } from './decor';
 import { effectsLayer } from './effects';
 import { fieldsLayer } from './fields';
@@ -22,7 +24,9 @@ import { waterLayer } from './water';
 // prettier-ignore
 export const layerFactories: readonly LayerFactory[] = [
   agentsLayer,
+  animalsLayer,
   buildingsLayer,
+  cartsLayer,
   decorLayer,
   effectsLayer,
   fieldsLayer,
@@ -41,6 +45,8 @@ export const layerFactories: readonly LayerFactory[] = [
 ];
 
 export type { AgentsLayer } from './agents';
+export type { AnimalsLayer } from './animals';
+export type { CartsLayer } from './carts';
 export type { EffectsLayer } from './effects';
 export type { GhostLayer } from './ghosts';
 export type { HighlightArea, OverlaysLayer } from './overlays';
