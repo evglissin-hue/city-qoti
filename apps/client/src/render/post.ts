@@ -14,12 +14,13 @@ import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass.js';
 import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
 import { HorizontalTiltShiftShader } from 'three/examples/jsm/shaders/HorizontalTiltShiftShader.js';
 import { VerticalTiltShiftShader } from 'three/examples/jsm/shaders/VerticalTiltShiftShader.js';
-import { VignetteShader } from 'three/examples/jsm/shaders/VignetteShader.js';
 
 /**
  * C3D-1 seasonal grade, applied last on display colors: lift (shadows), gamma (mids) and gain
  * (highlights) per channel, plus saturation. Spring is a fresh, slightly warm grade with cool
- * shadows; the other seasons arrive with I3.
+ * shadows; the other seasons arrive with I3. The soft vignette rides along in the same pass (one
+ * fewer full-screen pass); it darkens toward black as the old linear-space vignette did, so the
+ * factor is raised to 1/2.2 for display colors.
  */
 const GradeShader = {
   uniforms: {
@@ -28,6 +29,7 @@ const GradeShader = {
     gamma: { value: new Vector3(1, 1, 1) },
     gain: { value: new Vector3(1, 1, 1) },
     saturation: { value: 1 },
+    vignette: { value: 0.8 },
   },
   vertexShader: /* glsl */ `
     varying vec2 vUv;
@@ -42,13 +44,16 @@ const GradeShader = {
     uniform vec3 gamma;
     uniform vec3 gain;
     uniform float saturation;
+    uniform float vignette;
     varying vec2 vUv;
     void main() {
       vec4 c = texture2D(tDiffuse, vUv);
       vec3 x = clamp(c.rgb * gain + lift * (1.0 - c.rgb), 0.0, 1.0);
       x = pow(x, 1.0 / gamma);
       float l = dot(x, vec3(0.2126, 0.7152, 0.0722));
-      gl_FragColor = vec4(mix(vec3(l), x, saturation), c.a);
+      vec2 d = (vUv - 0.5) * vignette;
+      float shade = pow(max(1.0 - dot(d, d), 0.0), 0.4545);
+      gl_FragColor = vec4(mix(vec3(l), x, saturation) * shade, c.a);
     }
   `,
 };
@@ -65,8 +70,8 @@ const GRADES: Record<GradeSeason, { lift: number[]; gamma: number[]; gain: numbe
 
 /**
  * Medium and High post: gentle bloom (high threshold, so mostly lit windows and flames at night),
- * a tilt-shift that keeps the middle band sharp and grows softer as the camera pulls back, a soft
- * vignette, tone mapping, then the seasonal grade.
+ * a tilt-shift that keeps the middle band sharp and grows softer as the camera pulls back, tone
+ * mapping, then the seasonal grade with a soft vignette.
  */
 export class PostChain {
   private readonly composer: EffectComposer;
@@ -91,11 +96,6 @@ export class PostChain {
     for (const p of [this.hTilt, this.vTilt]) (p.uniforms.r as { value: number }).value = 0.5;
     this.composer.addPass(this.hTilt);
     this.composer.addPass(this.vTilt);
-    const vignette = new ShaderPass(VignetteShader);
-    (vignette.uniforms.offset as { value: number }).value = 0.8;
-    // Darkness 1 mixes toward black, so night corners deepen instead of turning gray.
-    (vignette.uniforms.darkness as { value: number }).value = 1;
-    this.composer.addPass(vignette);
     this.composer.addPass(new OutputPass());
     this.grade = new ShaderPass(GradeShader);
     this.composer.addPass(this.grade);

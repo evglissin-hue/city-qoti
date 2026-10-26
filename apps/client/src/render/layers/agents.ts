@@ -39,10 +39,14 @@ import {
 import { hash2, levelY } from '../coords';
 import { groundY } from '../surface';
 import { BUBBLE_ICONS, iconAtlas, IconSprites } from '../icons';
+import { AgentPlayback } from '../agentPlayback';
 import type { LayerContext, RenderLayer } from './types';
 
-/** Walk cycle length in tiles: one full cycle is two steps. */
-const STRIDE = 0.5;
+/**
+ * Walk cycle length in tiles: one full cycle is two steps. Short, quick steps suit small woodland
+ * folk and keep the cadence in step with how far the body travels, so nobody glides.
+ */
+const STRIDE = 0.36;
 /** How far apart residents walk side by side on a path, in tiles (each keeps a lane). */
 const LANE_SPREAD = 0.34;
 /** Figures are drawn larger than the kit's 0.3 tiles so they read from the default camera (C3X: 1.4). */
@@ -230,7 +234,7 @@ export function agentsLayer(): AgentsLayer {
   const looks = new Map<number, Look>();
   let lookRevision = -1;
   const tracks = new Map<number, Track>();
-  const prevIndex = new Map<number, number>();
+  const playback = new AgentPlayback();
   let lastLatest: Float32Array | null = null;
   let serial = 0;
   let clock = 0;
@@ -352,17 +356,18 @@ export function agentsLayer(): AgentsLayer {
       looks.clear();
     }
     const ag = mirror.agents;
-    const L = ag.latest;
-    const P = ag.prev;
-    if (L !== lastLatest) {
-      lastLatest = L;
-      prevIndex.clear();
-      for (let o = 0; o + AGENT_STRIDE <= P.length; o += AGENT_STRIDE) prevIndex.set(P[o]!, o);
+    if (ag.latest !== lastLatest) {
+      lastLatest = ag.latest;
+      playback.push(ag.t, ag.latest);
     }
+    playback.advance(dt);
     serial++;
-    const now = performance.now();
-    const span = Math.min(1000, Math.max(30, ag.latestAt - ag.prevAt));
-    const alpha = Math.min(1, Math.max(0, (now - ag.latestAt) / span));
+    const sample = playback.sample();
+    // Residents are drawn from the newer frame around the playback time, moved back toward the older.
+    const L = sample?.b.data ?? ag.latest;
+    const P = sample?.a.data ?? ag.latest;
+    const prevIndex = sample?.a.index;
+    const alpha = sample?.alpha ?? 0;
 
     for (const pl of pools.values()) pl.n = 0;
     for (const pl of bundles.values()) pl.n = 0;
@@ -389,7 +394,7 @@ export function agentsLayer(): AgentsLayer {
       const anim = L[o + 5]!;
       const carry = L[o + 6]!;
       const flags = L[o + 7]!;
-      const po = prevIndex.get(id);
+      const po = prevIndex?.get(id);
       let moving = false;
       if (po !== undefined) {
         const px = P[po + 1]!;
@@ -443,12 +448,14 @@ export function agentsLayer(): AgentsLayer {
       let yaw = h;
       const unhappy = (flags & (AgentFlags.unhappy | AgentFlags.slow)) !== 0;
       if (shown === AgentAnim.walk || (shown === AgentAnim.carry && moving)) {
-        const k = Math.abs(Math.sin(t.phase));
-        bob = k * (unhappy ? 0.01 : 0.018);
-        sy = 0.97 + 0.04 * k;
-        sxz = 1.015 - 0.02 * k;
-        roll = Math.sin(t.phase) * 0.05;
-        lean = shown === AgentAnim.carry ? -0.03 : unhappy ? 0.16 : 0.07;
+        // Up as the feet pass under the body, down with a little squash as a foot lands (feet are
+        // furthest apart at sin(phase) = +-1, see the rig in @qoti/art materials).
+        const k = Math.abs(Math.cos(t.phase));
+        bob = k * k * (unhappy ? 0.022 : shown === AgentAnim.carry ? 0.03 : 0.045);
+        sy = 0.95 + 0.07 * k;
+        sxz = 1.03 - 0.035 * k;
+        roll = Math.sin(t.phase) * 0.06;
+        lean = shown === AgentAnim.carry ? -0.03 : unhappy ? 0.16 : 0.1;
       } else if (shown === AgentAnim.hop) {
         const k = Math.abs(Math.sin(clock * 5.5 + seed));
         bob = k * 0.1;

@@ -74,7 +74,7 @@ export function lightsLayer(): RenderLayer {
       decorMatrix(mirror, d.fx, d.fz, d.rot, m);
       for (const l of lights) {
         p.set(l[0], l[1], l[2]).applyMatrix4(m);
-        all.push({ x: p.x, y: groundY(mirror, p.x, p.z) + 0.05, z: p.z, strength: 0.8, pane: p.clone() });
+        all.push({ x: p.x, y: groundY(mirror, p.x, p.z) + 0.05, z: p.z, strength: 0.8, pane: null });
       }
     }
     for (const b of mirror.buildings.values()) {

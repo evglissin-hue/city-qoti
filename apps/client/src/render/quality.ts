@@ -35,13 +35,16 @@ export const QUALITY_PRESETS: Record<Quality, QualityPreset> = {
   },
 };
 
-/** A first guess from the device; players can change it in settings. */
+/**
+ * A first guess from the device; players can change it in settings. Core counts say little about
+ * the GPU (a 10-core laptop still drives a Retina screen from integrated graphics), so the guess
+ * never picks High: Medium plus dynamic resolution suits most laptops, and High is a choice.
+ */
 export function detectQuality(
   nav: { hardwareConcurrency?: number; userAgent?: string } = navigator,
 ): Quality {
   const cores = nav.hardwareConcurrency ?? 4;
   const mobile = /Android|iPhone|iPad|Mobile/i.test(nav.userAgent ?? '');
   if (mobile || cores <= 2) return 'low';
-  if (cores >= 8) return 'high';
   return 'medium';
 }

@@ -47,8 +47,9 @@ export interface KitPart {
  * with vertex colors. Buildings span [0, w] x [0, d] with the entrance facing +z; decor and
  * trees are centered on the origin with their base at y = 0 and linear decor runs along +x.
  *
- * C2 addition: geometry may carry a `glow` vertex attribute (itemSize 1): 1 on window panes and
- * flames that light up at night, 0 elsewhere. Renderers treat a missing attribute as all 0.
+ * C2 addition: geometry may carry a `glow` vertex attribute (itemSize 1): 1 on window panes (lit
+ * in a seeded share of homes each evening), 2 on lantern flames and fires (lit every night), 0
+ * elsewhere. Renderers treat a missing attribute as all 0.
  */
 export interface Kit {
   id: string;

@@ -77,7 +77,7 @@ Tone mapping (AgX or ACES), bloom (strong at night), tilt-shift (vertical gradie
 | Decor detail distance | 40 | 80 | 140 |
 | Ambient critters | none | some | all |
 
-Auto-detect picks a preset; the settings menu can override it.
+Auto-detect picks a preset (Low on phones and two-core machines, otherwise Medium; High is a choice in settings, because core counts say little about the GPU behind a Retina screen); the settings menu can override it. On every preset, dynamic resolution steps the render scale down (to 0.85, 0.72, 0.6 and 0.5 of the preset's, never below a pixel ratio of 0.6) when frames average slower than about 45 fps, and back up after a few seconds above about 66 fps (`apps/client/src/render/resolution.ts`; `?debug&fixedres` turns it off for screenshots).
 
 ## UI
 
@@ -85,6 +85,7 @@ Auto-detect picks a preset; the settings menu can override it.
 - **Layout**: top bar (date, time and season, weather, effective speed, treasury, population, rank progress), bottom toolbar (the lens's tools, then its books and overlay toggles, then undo), right inspector panel, left feed (alerts, notes, wishes, requests), minimap bottom right [I2].
 - **Books** [I1]: Wishes, the Pattern Book, the Chronicle, Plaques and the Ledger's Reports open from the toolbar one at a time; the left feed steps aside while one is open. The Pattern Book is a two-page spread in the middle of the screen; the Chronicle is a small gazette; plaques are brass. Keys: B Pattern Book, C Chronicle, J Wishes, L Reports, Esc closes.
 - **Portraits** [I1]: an inked SVG badge per resident from species, life stage, mood and look seed, until the art kit renders 3D portraits.
+- **Picker portraits**: every card in the Build, Decor and Fence pickers shows the piece itself, drawn from its art kit as a little diorama on a round patch of meadow, in warm light (`apps/client/src/render/thumbnails.ts`, drawn once per piece on a small offscreen canvas).
 - **Interface size**: at 120% and above the toolbar drops its labels (tooltips keep them); side panels grow with the size.
 - **Lenses**: Hearth uses the warm accent, Ledger the green accent; Tab toggles.
 - **Motion**: 100 to 200 ms transitions; reduced-motion setting.
