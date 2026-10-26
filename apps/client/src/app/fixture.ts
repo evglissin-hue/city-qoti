@@ -1,5 +1,5 @@
-// Debug only (?debug&fixture=hamlet): a solo valley that starts as the sim's hamlet fixture, so the
-// hamlet panels can be tried and tested live before the residents and economy tracks land. With
+// Debug only (?debug&fixture=hamlet, or =village [I2]): a solo valley that starts as the sim's
+// hamlet or village fixture, so panels can be tried and tested live before the tracks land. With
 // &mock, the fixture's missing history (wishes, pages, Chronicle, stocks, budget) is laid over the
 // Mirror from the UI mocks, whose ids match the fixture.
 import { randomId } from '@qoti/protocol';
@@ -12,10 +12,15 @@ import { rememberValley, type RecentValley } from './recent';
 export const FIXTURE = new URLSearchParams(location.search).get('fixture');
 export const MOCK_OVERLAY = new URLSearchParams(location.search).has('mock');
 
-/** Writes a new solo valley whose first snapshot is the hamlet fixture, and remembers it. */
-export async function createFixtureValley(townName = 'Thistlecombe'): Promise<RecentValley> {
-  const { hamletFixture } = await import('../../../../packages/sim/test/fixtures/hamlet');
-  const { state } = hamletFixture();
+/** Writes a new solo valley whose first snapshot is the hamlet (or village) fixture, and remembers it. */
+export async function createFixtureValley(
+  townName = 'Thistlecombe',
+  kind: 'hamlet' | 'village' = 'hamlet',
+): Promise<RecentValley> {
+  const state =
+    kind === 'village'
+      ? (await import('../../../../packages/sim/test/fixtures/village')).villageFixture().state
+      : (await import('../../../../packages/sim/test/fixtures/hamlet')).hamletFixture().state;
   state.settings.townName = townName;
   state.settings.valleyName = 'Fixture Vale';
   state.time.connected = [];

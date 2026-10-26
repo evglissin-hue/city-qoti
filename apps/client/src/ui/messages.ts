@@ -20,6 +20,8 @@ export const REJECT_TEXT: Record<RejectReason, string> = {
   LOCKED: 'Not yet. The Pattern Book has to find this one first.',
   OUT_OF_RANGE: 'Too far from the farmhouse to tend.',
   CHANGED: 'Things have moved on since then, so there is nothing to undo.',
+  CREDIT_LIMIT: 'The County Bank has lent all it cares to for now. Pay some back first.',
+  NOT_READY: 'Not every goal on the Charter is met yet. Close, though.',
 };
 
 export function rejectText(reason: RejectReason | undefined): string {

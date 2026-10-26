@@ -46,10 +46,11 @@ interface Pending {
   since: number;
 }
 
-const ROAD_VALUE: Record<RoadKind, number> = { path: 1, lane: 2 };
+const ROAD_VALUE: Record<RoadKind, number> = { path: 1, lane: 2, street: 3 };
 const KIND_OF_VALUE = new Map<number, RoadKind>([
   [1, 'path'],
   [2, 'lane'],
+  [3, 'street'],
 ]);
 /** Give up on a command that has not arrived in this many turns (a resync or a lost message). */
 const STALE_TURNS = 600;
