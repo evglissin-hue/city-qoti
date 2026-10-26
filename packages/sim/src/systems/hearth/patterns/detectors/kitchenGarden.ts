@@ -10,6 +10,7 @@ import {
   isHomeDef,
   rectGap2,
   tileGap2,
+  within as withinTiles,
 } from '../../../../conditions/geo';
 import { buildingHasTag, type Detector, hasTag, param, type SiteCandidate, tileOf } from '../shared';
 
@@ -18,7 +19,6 @@ const S = MAP_SIZE;
 export const kitchenGarden: Detector = (state, def) => {
   const need = param(def, 'plots', 2);
   const within = param(def, 'within', 2);
-  const w2 = within * within;
   const out: SiteCandidate[] = [];
   for (const home of state.buildings) {
     if (home.stage !== 'built' || !isHomeDef(content.buildingById.get(home.def))) continue;
@@ -28,7 +28,7 @@ export const kitchenGarden: Detector = (state, def) => {
     for (const b of state.buildings) {
       if (b.stage !== 'built' || !buildingHasTag(b.def, 'plot')) continue;
       const pr = buildingRect(b);
-      if (rectGap2(pr, r) > w2) continue;
+      if (!withinTiles(rectGap2(pr, r), within)) continue;
       plots.push(pr);
       members.push(b.id);
     }
@@ -39,7 +39,7 @@ export const kitchenGarden: Detector = (state, def) => {
       const t = tileOf(d);
       const x = t % S;
       const z = (t - x) / S;
-      if (tileGap2(x, z, r) > w2) continue;
+      if (!withinTiles(tileGap2(x, z, r), within)) continue;
       plots.push([x, z, x, z]);
       members.push(d.id);
     }
@@ -50,7 +50,7 @@ export const kitchenGarden: Detector = (state, def) => {
       const t = tileOf(d);
       const x = t % S;
       const z = (t - x) / S;
-      if (!plots.some((p) => tileGap2(x, z, p) <= 1)) continue;
+      if (!plots.some((p) => withinTiles(tileGap2(x, z, p), 1))) continue;
       fenced++;
       members.push(d.id);
     }

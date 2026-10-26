@@ -60,20 +60,38 @@ export function runOf(
 /** Linear decor along row z from tile x0 to x1, one segment centered on each tile. */
 export function rowRun(state: WorldState, def: string, x0: number, x1: number, z: number, seat: SeatId = 0) {
   const c = z * TILE_FP + TILE_FP / 2;
-  return decorRunSegments([x0 * TILE_FP, c], [(x1 + 1) * TILE_FP, c]).map((s) => decor(state, def, 0, 0, seat, s));
+  return decorRunSegments([x0 * TILE_FP, c], [(x1 + 1) * TILE_FP, c]).map((s) =>
+    decor(state, def, 0, 0, seat, s),
+  );
 }
 
 /** Linear decor along column x from tile z0 to z1, one segment centered on each tile. */
 export function colRun(state: WorldState, def: string, x: number, z0: number, z1: number, seat: SeatId = 0) {
   const c = x * TILE_FP + TILE_FP / 2;
-  return decorRunSegments([c, z0 * TILE_FP], [c, (z1 + 1) * TILE_FP]).map((s) => decor(state, def, 0, 0, seat, s));
+  return decorRunSegments([c, z0 * TILE_FP], [c, (z1 + 1) * TILE_FP]).map((s) =>
+    decor(state, def, 0, 0, seat, s),
+  );
 }
 
-export function build(state: WorldState, def: string, x: number, z: number, rot: Rot4 = 0, seat: SeatId = 0): Building {
+export function build(
+  state: WorldState,
+  def: string,
+  x: number,
+  z: number,
+  rot: Rot4 = 0,
+  seat: SeatId = 0,
+): Building {
   return insertBuilding(state, null, content.buildingById.get(def)!, x, z, rot, seat, { site: false });
 }
 
-export function road(state: WorldState, kind: 'path' | 'lane', x0: number, z0: number, x1: number, z1: number): void {
+export function road(
+  state: WorldState,
+  kind: 'path' | 'lane',
+  x0: number,
+  z0: number,
+  x1: number,
+  z1: number,
+): void {
   for (let z = Math.min(z0, z1); z <= Math.max(z0, z1); z++) {
     for (let x = Math.min(x0, x1); x <= Math.max(x0, x1); x++) state.map.road[z * S + x] = Road[kind];
   }

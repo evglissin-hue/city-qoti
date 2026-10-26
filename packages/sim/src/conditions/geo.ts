@@ -1,6 +1,7 @@
 // Tile geometry shared by the Condition DSL, the pattern detectors and the Chronicle's place
-// names. Everything is measured as the gap between inclusive tile rectangles, so "within 2 tiles of
-// home" counts the tiles touching the home and the two rings beyond them.
+// names. Distances are steps between inclusive tile rectangles: a tile touching the home is 1 step
+// away, and "within n" is a rounded disk (steps squared at most n * n + n), so diagonal neighbors
+// are within 1 and a bench two tiles out and one across is within 2.
 import { content, type BuildingDef } from '@qoti/content';
 import { MAP_SIZE, TILE_FP } from '../constants';
 import type { Building, Decor, Rect, WorldState } from '../contracts';
@@ -23,18 +24,23 @@ export function decorTileZ(d: Pick<Decor, 'fz'>): number {
   return Math.floor(d.fz / TILE_FP);
 }
 
-/** Squared gap between two inclusive rects, in tiles (0 when they touch or overlap). */
+/** Squared steps between two inclusive rects (0 when they overlap, 1 when they touch). */
 export function rectGap2(a: Rect, b: Rect): number {
-  const gx = Math.max(0, a[0] - b[2] - 1, b[0] - a[2] - 1);
-  const gz = Math.max(0, a[1] - b[3] - 1, b[1] - a[3] - 1);
+  const gx = Math.max(0, a[0] - b[2], b[0] - a[2]);
+  const gz = Math.max(0, a[1] - b[3], b[1] - a[3]);
   return gx * gx + gz * gz;
 }
 
-/** Squared gap between a tile and an inclusive rect. */
+/** Squared steps between a tile and an inclusive rect. */
 export function tileGap2(x: number, z: number, r: Rect): number {
-  const gx = Math.max(0, r[0] - x - 1, x - r[2] - 1);
-  const gz = Math.max(0, r[1] - z - 1, z - r[3] - 1);
+  const gx = Math.max(0, r[0] - x, x - r[2]);
+  const gz = Math.max(0, r[1] - z, z - r[3]);
   return gx * gx + gz * gz;
+}
+
+/** True when squared steps `gap2` lie within `n` tiles (a rounded disk). */
+export function within(gap2: number, n: number): boolean {
+  return gap2 <= n * n + n;
 }
 
 export function expandRect(r: Rect, n: number): Rect {

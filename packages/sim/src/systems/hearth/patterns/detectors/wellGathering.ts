@@ -3,7 +3,7 @@
 import { content } from '@qoti/content';
 import { MAP_SIZE } from '../../../../constants';
 import type { EntityId } from '../../../../contracts';
-import { buildingRect, expandRect, isHomeDef, rectGap2, tileGap2 } from '../../../../conditions/geo';
+import { buildingRect, expandRect, isHomeDef, rectGap2, tileGap2, within } from '../../../../conditions/geo';
 import { treeStage } from '../../../../map/layers';
 import { buildingHasTag, type Detector, param, type SiteCandidate, taggedIn, tileOf } from '../shared';
 
@@ -22,7 +22,7 @@ export const wellGathering: Detector = (state, def) => {
     const benches: EntityId[] = [];
     for (const d of taggedIn(state, expandRect(r, benchReach), 'bench')) {
       const t = tileOf(d);
-      if (tileGap2(t % S, (t - (t % S)) / S, r) <= benchReach * benchReach) benches.push(d.id);
+      if (within(tileGap2(t % S, (t - (t % S)) / S, r), benchReach)) benches.push(d.id);
     }
     if (benches.length < needBenches) continue;
 
@@ -33,7 +33,7 @@ export const wellGathering: Detector = (state, def) => {
     for (const d of taggedIn(state, expandRect(r, treeReach), 'tree')) {
       const t = tileOf(d);
       const g = tileGap2(t % S, (t - (t % S)) / S, r);
-      if (g <= treeReach * treeReach && g < best) {
+      if (within(g, treeReach) && g < best) {
         best = g;
         treeDecor = d.id;
       }
@@ -45,7 +45,7 @@ export const wellGathering: Detector = (state, def) => {
           const v = state.map.tree[z * S + x]!;
           if (!v || treeStage(v) < 2) continue;
           const g = tileGap2(x, z, r);
-          if (g <= treeReach * treeReach && g < best) {
+          if (within(g, treeReach) && g < best) {
             best = g;
             treeTile = z * S + x;
           }
@@ -57,7 +57,7 @@ export const wellGathering: Detector = (state, def) => {
     let homes = 0;
     for (const b of state.buildings) {
       if (b.stage !== 'built' || !isHomeDef(content.buildingById.get(b.def))) continue;
-      if (rectGap2(buildingRect(b), r) <= homeReach * homeReach) homes++;
+      if (within(rectGap2(buildingRect(b), r), homeReach)) homes++;
     }
     if (homes < needHomes) continue;
 

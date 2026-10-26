@@ -173,7 +173,7 @@ export function recomputeChunk(
 
   // Buildings within reach, with their sources.
   nearBuildings.length = 0;
-  const reach2 = maxReach * maxReach;
+  const reach2 = (maxReach + 1) * (maxReach + 1);
   for (const b of state.buildings) {
     const def = content.buildingById.get(b.def);
     if (!def) continue;

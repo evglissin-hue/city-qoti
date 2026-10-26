@@ -116,7 +116,7 @@ export function countNear(
   exclude: EntityId = 0,
   also?: { target: Target; within: number },
 ): number {
-  const w2 = within * within;
+  const w2 = within * within + within;
   const area = expandRect(place, within);
   let n = 0;
   const accept = (r: Rect): boolean => !also || countNear(state, also.target, r, also.within, 1) >= 1;

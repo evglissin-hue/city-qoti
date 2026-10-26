@@ -195,7 +195,13 @@ describe('recompute rules', () => {
     const w = standardWorld();
     runHours(w, 1);
     expect(w.hearth.dirtyChunks).toEqual([]);
-    const ctx = run(w, { t: 'decor.place', def: 'bench', fx: 120 * TILE_FP + 128, fz: 30 * TILE_FP + 128, rot: 0 });
+    const ctx = run(w, {
+      t: 'decor.place',
+      def: 'bench',
+      fx: 120 * TILE_FP + 128,
+      fz: 30 * TILE_FP + 128,
+      rot: 0,
+    });
     expect(charm(w, 'charmComfort', 120, 30)).toBe(3);
     expect(w.hearth.charmSoon).toBeUndefined();
     // Clients get patches for the charm layers.
