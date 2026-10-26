@@ -4,7 +4,7 @@
 
 Deterministic lockstep with a relay (P48). Both browsers run the same simulation. The room (a Cloudflare Durable Object online, `LocalRoom` offline) collects commands, orders them into **turns**, stores the log and snapshots, and relays presence. It never runs the simulation.
 
-- A turn is emitted every 100 ms of real time while at least one seat is connected. Each turn carries the commands received since the last one, in arrival order, with server-injected `sys.*` commands first.
+- A turn is emitted every 100 ms of real time while at least one seat is connected (and once more after the last seat leaves, to record its `sys.seatLeft`). Each turn carries the commands received since the last one, in arrival order, with server-injected `sys.*` commands first.
 - The sim decides how many ticks a turn advances (`effectiveSpeed`, see `20-architecture.md`). Turns therefore carry no speed.
 - Empty turns are broadcast (they advance time) but not stored: the log stores only turns with commands; replay fills the gaps.
 
@@ -53,6 +53,9 @@ class RoomCore {
   message(conn: Conn, msg: C2S): void;
   close(conn: Conn): void;
   step(): void;                            // the adapter calls this every turnMs
+  receive(conn: Conn, raw: string): void;  // C1: parses a frame and enforces the size limits
+  ready(): Promise<void>;                  // C1: storage loaded
+  flush(): Promise<void>;                  // C1: queued storage writes done
 }
 interface Conn { send(msg: S2C): void; close(code: number, reason: string): void }
 interface RoomStorage {
@@ -64,7 +67,7 @@ interface RoomStorage {
 }
 ```
 
-- `StoredMeta` holds the valley meta, SHA-256 hashes of the seat tokens, `nextTurn` and the active `simVersion`.
+- `StoredMeta` holds the valley meta, SHA-256 hashes of the seat tokens, `nextTurn` (written every 50 turns and when the last seat leaves) and the active `simVersion`.
 - Storage operations are queued so their order matches turn order.
 - A seat can be connected once; a second connection for the same seat replaces the first (handy after a laptop sleeps).
 
@@ -77,7 +80,7 @@ interface RoomStorage {
 
 ## Snapshots and backups
 
-- Every 300 turns (30 s) the room sends `needSnapshot` to the seat connected longest; the client replies with a snapshot of its current turn. The room stores it and prunes turns up to it.
+- Every 300 turns (30 s) the room sends `needSnapshot` to the seat connected longest; the client replies with a snapshot of its current turn. The room stores it and prunes turns up to it. It accepts unsolicited snapshots too, ignores ones older than its latest, and keeps the latest 20 (named seasonal backups arrive with C2C).
 - Clients also send a snapshot when someone pauses and on `bye` (closing the tab, `visibilitychange` to hidden).
 - **Retention**: the latest 20 snapshots, plus one per in-game season as a named backup ("Year 2, Summer").
 - **Export** (`.qoti`): gzip JSON `{ format: 1, meta, snapshot, log }`. **Import** creates a new valley from a file.
@@ -90,12 +93,13 @@ interface RoomStorage {
 
 ## Version changes
 
+- Until C2C builds this hand-over, a hello with a different `simVersion` is refused with `VERSION_MISMATCH` while another seat is connected; with nobody else connected, the newcomer's version becomes the active one.
 - A client whose `simVersion` differs from the room's active version, while seats with the old version are connected: the room asks an old client for a snapshot, sends `reloadRequired` to the old clients, then admits the new client from that snapshot. Nothing is lost.
 - If no one is connected, the new client loads the latest snapshot (migrating by `saveVersion`) and becomes the active version. Turns after that snapshot from an older `simVersion` cannot be replayed and are dropped (at most about 30 s of play, rarer thanks to snapshots on pause and leave). The client shows a short notice.
 
 ## Presence
 
-- Never part of sim state. Presence is throttled to 5 messages per second per seat and sent only while something changes. Pings and emotes are rate-limited to 2 per second.
+- Never part of sim state. Presence is throttled to 5 messages per second per seat and sent only while something changes. Pings and emotes are rate-limited to 2 per second. The roster counts a seat as connected from its hello until it leaves.
 - The room relays presence to the other seats immediately (not in turns).
 
 ## Offline solo
@@ -111,9 +115,9 @@ One Cloudflare Worker named `city-qoti` serving the client build as static asset
 | `GET /*` | client (single-page fallback to `index.html`) |
 | `POST /api/valleys` | create: returns `valleyId` and two seat tokens with invite links |
 | `GET /api/valleys/:id/ws` | WebSocket upgrade, handled by the valley's Durable Object |
-| `GET /api/valleys/:id/export` | download `.qoti` (seat token in an `Authorization` header) |
-| `POST /api/valleys/import` | create a valley from a `.qoti` file |
-| `GET /version.json` | `{ simVersion, build }` for update checks |
+| `GET /api/valleys/:id/export` | download `.qoti` (seat token in an `Authorization` header; C2C, answers 501 until then) |
+| `POST /api/valleys/import` | create a valley from a `.qoti` file (C2C, answers 501 until then) |
+| `GET /version.json` | `{ simVersion, build }` for update checks (a static file emitted by the client build) |
 
 Durable Object SQLite schema:
 

@@ -1,0 +1,13 @@
+{
+  "name": "@qoti/content",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Game data and its types. No logic.",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p . --noEmit"
+  }
+}

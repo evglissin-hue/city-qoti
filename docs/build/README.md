@@ -4,7 +4,7 @@ One row per cycle. A cycle is one agent session working from one brief on one br
 
 | Cycle | Iteration | Wave | Brief | Depends on | Status |
 |---|---|---|---|---|---|
-| C1 Foundation | I0 | serial | `cycle-01-foundation.md` | none | ready |
+| C1 Foundation | I0 | serial | `cycle-01-foundation.md` | none | PR open ([#1](https://github.com/evglissin-hue/city-qoti/pull/1)) |
 | C2A World and sim | I0 | parallel | `cycle-02a-world-sim.md` | C1 | waiting |
 | C2B Render and art kit | I0 | parallel | `cycle-02b-render-kit.md` | C1 | waiting |
 | C2C Co-op and saves | I0 | parallel | `cycle-02c-coop-saves.md` | C1 | waiting |

@@ -1,0 +1,22 @@
+# One Worker named city-qoti: the client build as static assets, plus the ValleyRoom Durable
+# Object class (SQLite storage). Deploy with `npm run deploy` after `npx wrangler login`.
+name = "city-qoti"
+main = "src/index.ts"
+compatibility_date = "2026-10-01"
+
+[assets]
+directory = "../client/dist"
+binding = "ASSETS"
+not_found_handling = "single-page-application"
+run_worker_first = ["/api/*"]
+
+[[durable_objects.bindings]]
+name = "VALLEY"
+class_name = "ValleyRoom"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["ValleyRoom"]
+
+[observability]
+enabled = true

@@ -1,0 +1,14 @@
+node_modules
+dist
+coverage
+playwright-report
+test-results
+blob-report
+.wrangler
+.devdata
+package-lock.json
+*.generated.ts
+*.md
+docs
+packages/sim/test/golden
+test/fixtures

@@ -49,6 +49,8 @@ Deterministic from `seed` (string) using the `worldgen` RNG stream. Must finish 
 
 Output: map layers, metadata (`startArea` rect, `valleyGate` tile, flow axis), and nothing else. Generation is pure: same seed, same valley, on every machine.
 
+I0 ships worldgen v0 (C1) behind `generateValley(seed, settings)`: steps 1 to 5, 7, 8 and 9 in simplified form (noise is damped near the river so banks stay buildable, and the start area is levelled to its median height plus or minus 1). Deposits, parcels and validation with regeneration arrive with C2A.
+
 ## Terrain rules
 
 - Walking and roads connect 4-neighbor tiles whose height differs by at most 1. A difference of 2 or more is a cliff. Stairs (a Hearth decor piece) bridge a 2-level cliff for paths only [I2].
@@ -65,7 +67,7 @@ Output: map layers, metadata (`startArea` rect, `valleyGate` tile, flow axis), a
 | Street | I2 | walkers, carts (faster) | 4 coins + 1 stone | noise; needs Cobbles innovation |
 | Avenue | I5 | trams, carts | later | |
 
-- **Painting.** Drag from A to B; the client proposes a straight or L-shaped route (`road.paint` carries the tile list, max 256 tiles). The sim validates each tile and paints valid ones; if any tile is invalid, the whole command is rejected with the first failing tile.
+- **Painting.** Drag from A to B; the client proposes a straight or L-shaped route (`road.paint` carries the tile list, max 256 tiles). The sim validates each tile and paints valid ones; if any tile is invalid, the whole command is rejected with the first failing tile. Neighboring tiles in a run may differ by at most one level (`TOO_STEEP`). Sandbox clears forest trees under new roads.
 - **Bridges.** A road over water is a bridge: up to 6 consecutive water tiles, both ends on land, height of ends 0 or 1. Cost x3 [I1].
 - **Removal.** Free; refunds 50% of coin cost [I1].
 - **Connections** are computed, not stored: the renderer draws joins from neighbor road tiles.
@@ -79,7 +81,7 @@ Defined in `packages/content` (fields in `20-architecture.md`). Placement rules,
 |---|---|
 | Footprint inside the map and in unlocked parcels | `OUT_OF_BOUNDS`, `LOCKED_PARCEL` |
 | No water under the footprint unless the def allows `waterEdge` | `WATER` |
-| No road, building or blocking decor in the footprint | `OCCUPIED` |
+| No road, building or decor in the footprint (decor keeps its 32-unit margin, and every decor piece is handmade, so a building never swallows one) | `OCCUPIED` |
 | Footprint height spread at most 1 (adds a foundation), else invalid | `TOO_STEEP` |
 | Def-specific rule (deposit, water edge, fertility, height) | `NEEDS_DEPOSIT`, `NEEDS_WATER_EDGE`, `NEEDS_FERTILITY` |
 | Affordable [I1] | `CANNOT_AFFORD` |
@@ -96,8 +98,8 @@ Off-grid pieces (benches, lanterns, flower beds, planters, fences, low walls, he
 
 - Position `fx, fz` in fixed point, rotation 0 to 63, collision radius `r` from the def (fixed point).
 - May not overlap building footprints (with a 32-unit margin) or water (unless `def.onWater`). Two decor items may not have centers closer than `0.8 * (r1 + r2)`.
-- Allowed on grass, meadow, sand, roads (paths and lanes only, and only defs with `onRoad`), field edges.
-- **Linear decor** (fence, low wall, hedge, bunting [I3]): drag places a run of segments along a line, each a separate decor item aligned to the line. Segments are 1 tile long.
+- Allowed on grass, meadow, sand, roads (paths and lanes only, and only defs with `onRoad`), field edges. Elsewhere the reason is `NOT_ALLOWED`; a forest tree on the tile gives `OCCUPIED`.
+- **Linear decor** (fence, low wall, hedge, bunting [I3]): drag places a run of segments along a line, each a separate decor item aligned to the line. Segments are 1 tile long (the client snaps runs to tile centers). The sim picks each segment's rotation from a 64-entry integer direction table, since it may not call trigonometry.
 - **Ornamental trees** (apple, cherry, willow, lime...) are decor. Forest trees are the `tree` layer (harvested by woodcutters). Ornamental trees are never harvested.
 - Cap: 6,000 decor items per valley. The UI warns at 5,500.
 - Every decor item is handmade (guardrails in `16-coop.md`).
@@ -105,7 +107,7 @@ Off-grid pieces (benches, lanterns, flower beds, planters, fences, low walls, he
 ## Trees (tile layer)
 
 - Stages: sapling (0) → young (1) → grown (2) → mature (3). Each stage takes 2 days [I1]. Only mature trees yield logs (4) and count fully for charm and wildlife.
-- `tree.plant` places a sapling on grass, meadow or forest floor. `tree.remove` clears it (sandbox instant; standard [I1] queues a clearing job that yields logs).
+- `tree.plant` places a sapling on grass, meadow or forest floor with no road, building, tree or decor on the tile. `tree.remove` clears it (sandbox instant; standard [I1] queues a clearing job that yields logs).
 - Foresters replant automatically within their radius [I1].
 - Winter [I3]: deciduous trees bare, no growth.
 
