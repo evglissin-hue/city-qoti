@@ -446,6 +446,18 @@ export function villageShowcase(mirror: Mirror, opts: { dense?: boolean } = {}):
   decor('wildflower-verge', 70.5, 62.2);
   decor('wildflower-verge', 74.5, 62.2);
   decor('hanging-lantern', 68.4, 56.9);
+  // Cart passes this hour for the traffic overlay: busiest by the market, quiet on the farm lane.
+  const traffic = new Uint8Array(L.traffic as Uint8Array);
+  for (let i = 0; i < N * N; i++) {
+    if (!road[i]) continue;
+    const x = i % N;
+    const z = Math.floor(i / N);
+    const near = Math.max(0, 1 - Math.abs(x - 72) / 30);
+    traffic[i] = Math.round(
+      (road[i] === Road.street ? 30 + 60 * near : z === 50 ? 12 + 30 * near : 6) *
+        (0.8 + 0.4 * hash2(x, z, 8)),
+    );
+  }
   const all: Rect = [0, 0, N - 1, N - 1];
   const patch = (layer: LayerName, data: Uint8Array | Int32Array) => ({ layer, rect: all, data });
   mirror.apply({
@@ -458,6 +470,7 @@ export function villageShowcase(mirror: Mirror, opts: { dense?: boolean } = {}):
       patch('tree', tree),
       patch('terrain', terrain),
       patch('wear', wear),
+      patch('traffic', traffic),
       patch('zone', zone),
       patch('lot', lotLayer),
       patch('occupant', occupant),
