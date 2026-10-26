@@ -17,7 +17,9 @@ export {
   type ResidentLookInput,
   type SpeciesId,
 } from './kits/residents';
+export { BUNDLE_GOODS, bundleGeometry, crateOf, GOOD_COLORS, pileLevel, pileOf } from './kits/goods';
 export { PAINT, RIG, RIG_PIVOTS, RigBuilder, type Channel } from './rig';
+export { beam, cylX, cylZ, panel } from './shapes';
 export {
   createEmissiveKitMaterial,
   createGhostMaterial,

@@ -1,5 +1,6 @@
 // Render layer registry: one line per layer, in alphabetical order. Draw order comes from
 // materials and renderOrder, not from this list.
+import { agentsLayer } from './agents';
 import { buildingsLayer } from './buildings';
 import { decorLayer } from './decor';
 import { effectsLayer } from './effects';
@@ -14,6 +15,7 @@ import { waterLayer } from './water';
 
 // prettier-ignore
 export const layerFactories: readonly LayerFactory[] = [
+  agentsLayer,
   buildingsLayer,
   decorLayer,
   effectsLayer,
@@ -26,6 +28,7 @@ export const layerFactories: readonly LayerFactory[] = [
   waterLayer,
 ];
 
+export type { AgentsLayer } from './agents';
 export type { EffectsLayer } from './effects';
 export type { GhostLayer } from './ghosts';
 export type { PresenceLayer } from './presence';

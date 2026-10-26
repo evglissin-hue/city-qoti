@@ -10,6 +10,7 @@ import {
   type Turn,
   type ValleySettings,
 } from '@qoti/sim';
+import { startSyntheticResidents, type SyntheticOptions } from '../render/synthetic';
 import { SimHost } from '../worker/host';
 import type { Session } from './session';
 
@@ -46,6 +47,7 @@ function nearbyTiles(session: Session, radius: number): [number, number][] {
 export function installDebugHook(getSession: () => Session | null): void {
   if (!DEBUG) return;
   const s = () => getSession();
+  let stopSynth: (() => void) | null = null;
   const hook = {
     status: () => s()?.connection?.status.value ?? 'none',
     phase: () => s()?.phase.value ?? 'none',
@@ -159,6 +161,16 @@ export function installDebugHook(getSession: () => Session | null): void {
     },
     /** Pins the lighting to an hour of the day (null follows the clock again). */
     setHour: (hour: number | null) => s()?.renderer?.setDebugHour(hour),
+    /** C3D: n synthetic residents wandering near the start area; returns false without a session. */
+    synthResidents: (n: number, opts?: SyntheticOptions) => {
+      const session = s();
+      if (!session) return false;
+      stopSynth?.();
+      stopSynth = startSyntheticResidents(session.mirror, n, opts);
+      return true;
+    },
+    /** C3D: the renderer, for render tests (overlays, bubbles, follow, stats). */
+    renderer: () => s()?.renderer ?? null,
   };
   (window as unknown as { __qoti: typeof hook }).__qoti = hook;
 }

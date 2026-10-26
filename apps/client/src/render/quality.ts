@@ -9,12 +9,14 @@ export interface QualityPreset {
   msaa: boolean;
   /** Keep redrawing while gentle ambient motion (water, smoke, sails) is in view. */
   ambientMotion: boolean;
+  /** C3D addition: residents within this many tiles get full figures (docs/spec/17, Quality presets). */
+  residentDetail: number;
 }
 
 export const QUALITY_PRESETS: Record<Quality, QualityPreset> = {
-  high: { maxDpr: 2, shadowMap: 2048, msaa: true, ambientMotion: true },
-  low: { maxDpr: 1, shadowMap: 0, msaa: false, ambientMotion: false },
-  medium: { maxDpr: 1.5, shadowMap: 1024, msaa: true, ambientMotion: true },
+  high: { maxDpr: 2, shadowMap: 2048, msaa: true, ambientMotion: true, residentDetail: 100 },
+  low: { maxDpr: 1, shadowMap: 0, msaa: false, ambientMotion: false, residentDetail: 30 },
+  medium: { maxDpr: 1.5, shadowMap: 1024, msaa: true, ambientMotion: true, residentDetail: 60 },
 };
 
 /** A first guess from the device; players can change it in settings. */
