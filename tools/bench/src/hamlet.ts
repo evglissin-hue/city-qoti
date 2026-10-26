@@ -311,6 +311,9 @@ export function findSpot(world: WorldState, defId: string, radius = 40): [number
           const [w, d] = rot % 2 === 0 ? def.size : [def.size[1], def.size[0]];
           if (crowded(world, x, z, w, d)) continue;
           if (!nearStorehouse(world, def, x, z, rot)) continue;
+          // C4C: never a door that opens onto the water (porters cannot walk into the river).
+          const door = doorTile({ def: defId, x, z, rot } as Building, def);
+          if (world.map.water[door]) continue;
           let score = p.warnings.includes('NO_ROAD') ? 0 : 1;
           if (defId === 'woodcutter') score = matureTreesNear(world, x, z, 8) >= 40 ? 1 : -1;
           if (score > bestScore) {

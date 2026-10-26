@@ -14,11 +14,11 @@ import type { BuildingDef } from './types';
 //   dairy farm      18 milk                          (2 hands)
 //   cheesemaker     13.5 milk -> 9 cheese            (skilled)
 //   orchard         18 apples                        (2 pickers)
-//   cider press     18 apples -> 9 cider             (skilled)
+//   cider press     18 apples -> 9 cider
 //   chopping shed   9 logs -> 18 firewood
 //   herb garden     9 herbs
 //   smithy          9 firewood + 4.5 stone -> 4.5 tools (skilled)
-//   tavern          4.5 cider poured                 (social cover, 10 tiles, 60 residents)
+//   tavern          3 cider poured                   (social cover, 10 tiles, 60 residents)
 //   herbalist       6 herbs brewed                   (health cover, 12 tiles, 60 residents)
 //
 // Forty Craftsfolk (ten households) use about 10 firewood, 4 cloth, 12 bread and 8 treats a day;
@@ -311,7 +311,7 @@ export const ciderPress: BuildingDef = {
     ],
   },
   upkeep: 2,
-  jobs: { count: 1, role: 'worker', tier: 'craftsfolk' },
+  jobs: { count: 1, role: 'worker' },
   methods: [
     {
       id: 'press-cider',
@@ -517,7 +517,7 @@ export const tavern: BuildingDef = {
       kind: 'craft',
       inputs: [['cider', 1]],
       outputs: [],
-      hours: 2,
+      hours: 3,
       workers: 2,
     },
   ],

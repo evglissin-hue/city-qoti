@@ -32,7 +32,12 @@ const FOOD_CHAIN = new Set([...FOOD, 'wheat', 'flour']);
 export interface Shortages {
   food: boolean;
   goods: Set<string>;
+  /** I2 (C4C): more than PLENTY_DAYS of food in hand, so farms and fishers can spare hands. */
+  plenty?: boolean;
 }
+
+/** Days of food in hand above which food jobs stop outranking other work (C4C). */
+export const PLENTY_DAYS = 8;
 
 export function shortages(state: WorldState): Shortages {
   const stock = townStock(state);
@@ -54,7 +59,11 @@ export function shortages(state: WorldState): Shortages {
     const g = content.goodIndex.get(id)!;
     if (stock[g]! < needs[g]! + 20) goods.add(id);
   }
-  return { food: food < 3 * state.residents.length, goods };
+  return {
+    food: food < 3 * state.residents.length,
+    goods,
+    plenty: food > PLENTY_DAYS * state.residents.length,
+  };
 }
 
 function makes(def: BuildingDef, short: Shortages): 'short' | 'food' | 'other' {
@@ -82,8 +91,11 @@ export function slotPriority(def: BuildingDef, k: number, short: Shortages = NO_
   if (role === 'builder') return k === 0 ? 0 : k === 1 ? 1 : 4;
   if (role === 'porter') return k === 0 ? 0 : k === 1 ? 1 : 4;
   if (role === 'vendor') return 1;
+  // I2 (C4C): a tavern, herbalist or school open matters as much as food; and a town sitting on
+  // more than eight days of food lets its farms and fishers go to other work first.
+  if (def.category === 'service') return 2;
   const kind = makes(def, short);
-  return kind === 'short' ? 0 : kind === 'food' ? 2 : 3;
+  return kind === 'short' ? 0 : kind === 'food' ? (short.plenty ? 4 : 2) : 3;
 }
 
 const NO_SHORTAGES: Shortages = { food: false, goods: new Set() };

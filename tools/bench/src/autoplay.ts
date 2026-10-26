@@ -27,6 +27,7 @@ import {
   type WorldState,
 } from '@qoti/sim';
 import { command, findSpot, runTicks, startingTown, type Hamlet } from './hamlet';
+import { craftsfolk, VillagePlayer } from './village';
 
 const FOODS = content.goods.flatMap((g, i) => (g.food ? [i] : []));
 const G = (id: string) => content.goodIndex.get(id)!;
@@ -52,6 +53,10 @@ export interface DayLine {
   leanTimes: boolean;
   built: number;
   sites: number;
+  // I2 (C4C)
+  rank: string;
+  craftsfolk: number;
+  innovations: number;
 }
 
 export interface AutoplayResult {
@@ -59,6 +64,8 @@ export interface AutoplayResult {
   days: DayLine[];
   /** Everything the players tried and whether the sim took it, for reading a run. */
   actions: string[];
+  /** C4C: the Village run paid stand-in wages (C4A's wages were not running). */
+  standInWages: boolean;
 }
 
 const S = MAP_SIZE;
@@ -114,19 +121,21 @@ function pathToRoad(w: WorldState, from: number): [number, number][] | null {
 
 class Players {
   readonly actions: string[] = [];
+  /** Days of food kept back from the peddler (C4C: the Village run keeps six, for the Charter). */
+  foodReserveDays = 2;
   constructor(readonly h: Hamlet) {}
 
   get w(): WorldState {
     return this.h.world;
   }
 
-  private do(label: string, cmds: Command[]): boolean {
+  do(label: string, cmds: Command[]): boolean {
     const ok = command(this.h, cmds).every(Boolean);
     this.actions.push(`${calendar(this.w.tick).day}:${label}${ok ? '' : ' (refused)'}`);
     return ok;
   }
 
-  private build(def: string): Building | null {
+  build(def: string): Building | null {
     const spot = findSpot(this.w, def);
     if (!spot) {
       this.actions.push(`no spot for ${def}`);
@@ -140,7 +149,7 @@ class Players {
   }
 
   /** Paints a path from the door to the road network (the Ledger likes tidy frontage). */
-  private connect(b: Building): void {
+  connect(b: Building): void {
     const path = pathToRoad(this.w, doorTile(b));
     if (path && path.length > 0)
       this.do(`path for ${b.def}`, [{ t: 'road.paint', kind: 'path', tiles: path }]);
@@ -213,7 +222,12 @@ class Players {
       (b) => b.def === 'woodcutter' && b.stage === 'built' && (b.rt!.status & BuildingStatus.noTrees) !== 0,
     );
     want(felled.length > 0 && count(w, 'woodcutter') - felled.length < 2, 'woodcutter');
-    for (const b of felled) this.do('retire a woodcutter', [{ t: 'build.remove', ids: [b.id] }]);
+    // C4C: retire it only once a working one stands, or a valley with no logs left can never
+    // build another (a Village run found that deadlock).
+    const working = w.buildings.some(
+      (b) => b.def === 'woodcutter' && b.stage === 'built' && (b.rt!.status & BuildingStatus.noTrees) === 0,
+    );
+    if (working) for (const b of felled) this.do('retire a woodcutter', [{ t: 'build.remove', ids: [b.id] }]);
     want(stock[G('stone')]! < 16 && count(w, 'quarry') === 0, 'quarry');
     want(
       count(w, 'foresters-lodge') === 0 && count(w, 'woodcutter', true) > 0 && pop >= 12,
@@ -224,13 +238,15 @@ class Players {
     want(pop >= 22 && count(w, 'farmhouse') === 0, 'farmhouse');
     want(count(w, 'farmhouse', true) > 0 && count(w, 'windmill') === 0, 'windmill');
     want(count(w, 'windmill', true) > 0 && count(w, 'bakery') === 0, 'bakery');
-    want(pop >= 20 && count(w, 'storehouse') < 2, 'storehouse');
+    // C4C: urgent, or porters busy with food and inputs leave the sites waiting, and the sites
+    // waiting keep the second storehouse from being started (a Village run deadlocked there).
+    want(pop >= 20 && count(w, 'storehouse') < 2, 'storehouse', true);
     want(pop >= 20 && count(w, 'well') < 2, 'well');
     // The peddler takes surplus at 10:00: food beyond five days of eating, logs beyond 60.
     for (const g of content.goods) {
       const i = G(g.id);
       const surplus = g.food
-        ? stock[i]! > pop * 2 + 8
+        ? stock[i]! > pop * this.foodReserveDays + 8
         : g.id === 'logs'
           ? stock[i]! > 40
           : g.id === 'stone'
@@ -336,7 +352,14 @@ class Players {
             : false;
           break;
         case 'a-well-closer':
-          if (this.coins() > 60 && townStock(w)[G('stone')]! >= 12 && sites(w) < 3) ok = !!this.build('well');
+          // C4C: one well per ten residents is plenty (a Village run built forty).
+          if (
+            this.coins() > 60 &&
+            townStock(w)[G('stone')]! >= 12 &&
+            sites(w) < 3 &&
+            count(w, 'well') <= w.residents.length / 10
+          )
+            ok = !!this.build('well');
           break;
         default:
           break;
@@ -389,6 +412,9 @@ function dayLine(w: WorldState, day: number): DayLine {
     leanTimes: w.economy.leanTimes,
     built: w.buildings.filter((b) => b.stage === 'built').length,
     sites: sites(w),
+    rank: w.charter.rank,
+    craftsfolk: craftsfolk(w),
+    innovations: w.innovations.filter((i) => i.unlockedTick >= 0).length,
   };
 }
 
@@ -404,28 +430,33 @@ function untilHour(h: Hamlet, hour: number): void {
 export function autoplay(
   seed: string,
   days: number,
-  opts: { economy?: ValleySettings['economy']; hearth?: boolean } = {},
+  opts: { economy?: ValleySettings['economy']; hearth?: boolean; village?: boolean } = {},
 ): AutoplayResult {
   const h = startingTown(seed, { economy: opts.economy ?? 'standard' });
   const players = new Players(h);
+  // I2 (C4C): the Village run claims the Charter and plays the chains, services and tiers.
+  const village = opts.village ? new VillagePlayer(players) : null;
+  if (village) players.foodReserveDays = 6;
   const out: DayLine[] = [];
   for (let d = 1; d <= days; d++) {
     untilHour(h, 9);
+    village?.turn(false);
     players.ledger();
     if (opts.hearth !== false) players.hearth();
     untilHour(h, 15);
+    village?.turn(true);
     players.ledger();
     if (opts.hearth !== false) players.hearth();
     untilHour(h, 23);
     out.push(dayLine(h.world, d));
   }
-  return { hamlet: h, days: out, actions: players.actions };
+  return { hamlet: h, days: out, actions: players.actions, standInWages: village?.standInWages ?? false };
 }
 
 /** The table `npm run tune` prints. */
 export function formatDays(days: readonly DayLine[]): string {
   const head =
-    'day  pop hh vac coins food made eaten plank stone mood mis wish grant pat ach left lean built sites';
+    'day  pop hh vac coins food made eaten plank stone mood mis wish grant pat ach left lean built sites rank    crafts inv';
   const rows = days.map((d) =>
     [
       String(d.day).padStart(3),
@@ -448,6 +479,9 @@ export function formatDays(days: readonly DayLine[]): string {
       (d.leanTimes ? 'yes' : 'no').padStart(4),
       String(d.built).padStart(5),
       String(d.sites).padStart(5),
+      d.rank.padEnd(7),
+      String(d.craftsfolk).padStart(6),
+      String(d.innovations).padStart(3),
     ].join(' '),
   );
   return [head, ...rows].join('\n');

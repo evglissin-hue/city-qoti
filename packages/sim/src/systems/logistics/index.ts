@@ -25,6 +25,7 @@ import { constructionStage } from '../../view/hamlet';
 import { emitBuilding } from '../economy/emit';
 import { isWorkTime, tickOfDay } from '../economy/time';
 import { doorTile } from '../movement/api';
+import { pathBetween } from '../movement/paths';
 import { storehouseReach, within, type Reach } from './range';
 import {
   defOf,
@@ -99,7 +100,12 @@ function spotsOf(state: WorldState): Spot[] {
   for (const b of state.buildings) {
     const def = defOf(b);
     if (!b.rt || !def) continue;
-    out.push({ b, def, rt: b.rt, door: doorTile(b, def) });
+    const door = doorTile(b, def);
+    // C4C: a door that opens onto the river (a fisher's hut turned the wrong way) can never be
+    // walked to; matching it would send porters on the same failed trip every round while other
+    // sites wait (a Village autoplay stalled on two such huts).
+    if (state.map.water[door]) continue;
+    out.push({ b, def, rt: b.rt, door });
   }
   return out;
 }
@@ -176,11 +182,19 @@ function matchPorters(state: WorldState): void {
   const needs = needsOf(spots);
   // Carts take the long hauls first; porters share what is left (same needs, same reservations).
   if (state.carts.length > 0) matchCarts(state, spots, needs, CART_HOOKS);
-  for (const { r, reach } of idle) assign(state, spots, needs, r, reach);
+  for (const { r, reach } of idle) assign(state, spots, needs, r, reach, reaches);
 }
 
 /** Finds the best job for one porter and starts it. */
-function assign(state: WorldState, spots: readonly Spot[], needs: Need[], r: Resident, reach: Reach): void {
+function assign(
+  state: WorldState,
+  spots: readonly Spot[],
+  needs: Need[],
+  r: Resident,
+  reach: Reach,
+  reaches: readonly Reach[],
+  tries = 0,
+): void {
   const from = r.inside ? reach.door : r.tile;
   let bestCls: number = NO_CLASS;
   let bestD = Infinity;
@@ -213,6 +227,21 @@ function assign(state: WorldState, spots: readonly Spot[], needs: Need[], r: Res
   }
 
   if (!bestNeed) {
+    // I2 (C4C): a relay. A need beyond this storehouse's reach, at a place another storehouse
+    // reaches, gets the goods carried to that storehouse when it holds too few: its own porters
+    // take them on. Without it, goods piled at one end of a long village never reach a site at the
+    // other (a Village autoplay deadlocked with 400 planks in store and three sites waiting).
+    const relay = findRelay(state, spots, needs, reach, reaches, from);
+    if (relay) {
+      bestCls = JobClass.clearing;
+      bestNeed = relay.need;
+      bestSrc = relay.src;
+      bestDest = relay.dest;
+      bestGood = relay.good;
+    }
+  }
+
+  if (!bestNeed) {
     // Clearing outputs: a full enough output buffer goes to the nearest storehouse with room.
     for (const s of spots) {
       if (s.b.stage !== 'built' || isStorage(s.def) || !within(reach, s.door)) continue;
@@ -232,6 +261,14 @@ function assign(state: WorldState, spots: readonly Spot[], needs: Need[], r: Res
     }
   }
   if (!bestSrc || !bestDest || bestGood < 0) return;
+  // I2 (C4C): a destination porters cannot walk to from the source (a site across the river with
+  // no bridge) is dropped for this round, so it cannot hold up every other job.
+  if (bestSrc.door !== bestDest.door && !pathBetween(state, bestSrc.door, bestDest.door)) {
+    if (!bestNeed || tries >= 4) return;
+    bestNeed.want = 0;
+    assign(state, spots, needs, r, reach, reaches, tries + 1);
+    return;
+  }
 
   const g = bestGood;
   let qty = Math.min(carryOf(state, g), sourceAvail(bestSrc.b, bestSrc.def, g));
@@ -259,6 +296,44 @@ function assign(state: WorldState, spots: readonly Spot[], needs: Need[], r: Res
     lg.jobs.pop();
     finishTask(state, r, false);
   }
+}
+
+/**
+ * A relay job for a porter of `reach`: an open need outside its range whose destination another
+ * storehouse in its range reaches, that storehouse short of the good, and a source in range.
+ */
+function findRelay(
+  _state: WorldState,
+  spots: readonly Spot[],
+  needs: readonly Need[],
+  reach: Reach,
+  reaches: readonly Reach[],
+  from: number,
+): { need: Need; src: Spot; dest: Spot; good: number } | null {
+  for (const need of needs) {
+    if (need.want <= 0 || need.good < 0 || within(reach, need.dest.door)) continue;
+    const g = need.good;
+    for (const other of reaches) {
+      if (other.b === reach.b || other.porters === 0 || !within(reach, other.door)) continue;
+      if (!within(other, need.dest.door)) continue;
+      const dest = spots.find((s) => s.b === other.b);
+      if (!dest || storageSpace(dest.def, dest.rt) <= 0) continue;
+      if (dest.rt.store[g]! + dest.rt.reservedIn[g]! - dest.rt.reservedOut[g]! >= need.want) continue;
+      let src: Spot | null = null;
+      let bestD = Infinity;
+      for (const s of spots) {
+        if (s === dest || s === need.dest || sourceAvail(s.b, s.def, g) <= 0 || !within(reach, s.door))
+          continue;
+        const d = tileDistance(from, s.door);
+        if (d < bestD) {
+          bestD = d;
+          src = s;
+        }
+      }
+      if (src) return { need, src, dest, good: g };
+    }
+  }
+  return null;
 }
 
 function nearestStorehouse(spots: readonly Spot[], reach: Reach, src: Spot): Spot | null {
