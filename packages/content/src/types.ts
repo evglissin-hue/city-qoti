@@ -140,6 +140,9 @@ export interface Content {
   achievementById: ReadonlyMap<string, AchievementDef>;
   chronicle: readonly ChronicleTemplate[];
   chronicleByKind: ReadonlyMap<string, ChronicleTemplate>;
+  // I1 additions (C3B).
+  /** Customization swatches by group (docs/spec/17-presentation.md palette names). */
+  swatches: readonly SwatchDef[];
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -319,7 +322,9 @@ export type CountWhat =
   | 'wishesGranted'
   | 'goodProduced'
   | 'seasonsInSurplus'
-  | 'builtTogether';
+  | 'builtTogether'
+  /** Valid pattern sites right now whose members were placed by both seats (C3B). */
+  | 'togetherSites';
 
 // --- Hearth content ---------------------------------------------------------------------------
 
@@ -340,6 +345,8 @@ export interface WishTemplate {
   thanks: string[];
   /** Relative weight when picking a template. */
   weight?: number;
+  /** Phrases for the Chronicle's weekly digest, with {name} (C3B). "a bench by the river for {name}". */
+  digest?: string[];
 }
 
 export interface PatternDef {
@@ -357,6 +364,8 @@ export interface PatternDef {
   siteBonus: { charm: number; radius: number; category?: CharmCategory };
   /** Decor, building or style ids. */
   unlocks: string[];
+  /** Order in which hints are revealed, lowest first (C3B). Content order when absent. */
+  hintOrder?: number;
 }
 
 export interface AchievementDef {
@@ -376,4 +385,19 @@ export interface ChronicleTemplate {
   text: string[];
   /** Kinds that count as notable for the while-you-were-away letter. */
   notable?: boolean;
+}
+
+// --- Customization (C3B) ----------------------------------------------------------------------
+
+export type SwatchGroup = 'wall' | 'roof' | 'roofMaterial' | 'accent';
+
+/**
+ * A customization choice for build.customize. The sim validates ids per group; the renderer maps
+ * them to colors. `token` names the packages/art palette entry (content never imports art).
+ */
+export interface SwatchDef {
+  id: string;
+  name: string;
+  group: SwatchGroup;
+  token: string;
 }

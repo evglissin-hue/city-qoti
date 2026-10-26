@@ -39,8 +39,8 @@ describe('day one in a standard valley', () => {
     expect(w.residents.filter((p) => p.tile === gate || p.move?.path.length).length).toBe(8);
     expect(eventsOf(r, 'resident.added')).toHaveLength(8);
     expect(eventsOf(r, 'household.added')).toHaveLength(2);
-    const lines = eventsOf(r, 'chronicle.added').map((e) => e.c.text);
-    expect(lines.filter((t) => t.includes('arrived through the valley gate'))).toHaveLength(2);
+    const arrivals = eventsOf(r, 'chronicle.added').filter((e) => e.c.kind === 'household-arrived');
+    expect(arrivals).toHaveLength(2);
     expect(eventsOf(r, 'town.updated').length).toBeGreaterThan(0);
     const cottages = w.buildings.filter((b) => b.def === 'cottage').map((b) => b.id);
     expect(w.households.map((h) => h.homeId).sort()).toEqual(cottages.sort());
@@ -175,9 +175,9 @@ describe('departures', () => {
     expect(quills.lowMoodDays).toBe(3);
     for (const id of members) expect(resident(f.state, id).flags & ResidentFlags.leaving).toBeTruthy();
     untilHour(r, 9.01);
-    expect(eventsOf(r, 'chronicle.added').some((e) => e.c.text.includes('The Quill family packed up'))).toBe(
-      true,
-    );
+    expect(
+      eventsOf(r, 'chronicle.added').some((e) => e.c.kind === 'household-left' && e.c.text.includes('Quill')),
+    ).toBe(true);
     expect(eventsOf(r, 'notify').some((e) => e.kind === 'letter' && e.text.includes('Quill'))).toBe(true);
     expect(f.state.stats.departures).toBe(1);
     for (const id of members) expect(resident(f.state, id).activity.kind).toBe('leave');

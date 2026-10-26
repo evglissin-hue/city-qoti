@@ -19,6 +19,7 @@ import {
 import { readFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { residentsBench } from './residents';
+import { hearthBench } from './hearth';
 import { syntheticValley } from './synthetic';
 
 const BUDGET = {
@@ -133,6 +134,10 @@ lines.push(`catch-up        300 turns at 3x in ${catchUpMs.toFixed(1)} ms (budge
 
 // 6. Residents (C3A): the 40-resident hamlet and the synthetic 2,000-resident town.
 const residents = residentsBench(lines, failures);
+// 6. Hearth (C3B): charm per dirty chunk and the Pattern Book pass.
+const hearth = hearthBench();
+lines.push(...hearth.lines);
+failures.push(...hearth.failures);
 
 const heapMb = process.memoryUsage().heapUsed / 1024 / 1024;
 lines.push(`memory          ${heapMb.toFixed(0)} MB heap in use`);
@@ -156,6 +161,7 @@ const report = {
   snapshot: { bytes: bytes.length, serializeMs, deserializeMs, hashMs },
   catchUpMs,
   residents,
+  hearth: hearth.report,
   heapMb,
   failures,
 };

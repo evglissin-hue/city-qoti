@@ -3,6 +3,7 @@ import { MAP_SIZE } from '../constants';
 import { tilesRect, treeValue } from '../map/layers';
 import { canPlantTree } from '../rules/tree';
 import { worldIndex } from '../state/worldIndex';
+import { markCharmSoon } from '../systems/hearth/charm/dirty';
 import { checkTiles, type HandlerFor, tilesChangedFor, worldChanged } from './util';
 
 export const plant: HandlerFor<'tree.plant'> = {
@@ -18,6 +19,7 @@ export const plant: HandlerFor<'tree.plant'> = {
     state.map.tree[cmd.z * MAP_SIZE + cmd.x] = treeValue(species, 0);
     tilesChangedFor(ctx, [[cmd.x, cmd.z]], ['tree']);
     worldChanged(state, [cmd.x, cmd.z, cmd.x, cmd.z], false);
+    markCharmSoon(state);
   },
 };
 
@@ -32,5 +34,6 @@ export const remove: HandlerFor<'tree.remove'> = {
     for (const [x, z] of cmd.tiles) state.map.tree[z * MAP_SIZE + x] = 0;
     tilesChangedFor(ctx, cmd.tiles, ['tree']);
     worldChanged(state, tilesRect(cmd.tiles), false);
+    markCharmSoon(state);
   },
 };

@@ -8,7 +8,9 @@ A per-tile integer field, 0 to 100 (P20). Stored in sim state as `hearth.charm` 
 
 **Recompute** dirty chunks (and their neighbors) at most once per in-game hour, and immediately after a Hearth command in that chunk (debounced to the next tick).
 
-**Sources** (value at the source tile, linear falloff to 0 at the radius) *(tune)*:
+*As built (C3B):* `markCharmDirty(rect)` grows the rect by the charm reach (6 tiles: the largest source radius plus one, enclosure and the height window) before marking chunks, so "and their neighbors" means exactly the chunks a change can reach. The hourly pass runs at offset 50. Hearth commands (decor, trees, `build.customize`) set `hearth.charmSoon`, and the next tick recomputes. When the lanterns are lit (18:00) and put out (07:00) the chunks around every light source are recomputed. A valley's first tick computes the whole map. Recomputed layers are marked on `ctx.dirty`, so clients get LayerPatches only for layers that changed. Budget: under 2 ms per chunk (0.25 ms on the hamlet, 1.5 ms on a block packed with 300 pieces at night).
+
+**Sources** (value at the source tile, linear falloff to 0 at the radius) *(tune)*. As built: value x (radius + 1 - d) / (radius + 1), where d is the distance in tiles from the tile's center to the piece (or to a building's footprint), so the last tile inside the radius still gets a little and nothing past it does. Sources come from content (`charm` on decor and buildings) plus the map:
 
 | Source | Category | Value | Radius |
 |---|---|---|---|
@@ -31,11 +33,13 @@ A per-tile integer field, 0 to 100 (P20). Stored in sim state as `hearth.charm` 
 
 **Rules that keep it thoughtful:**
 
-- **No spam**: for each decor type, only the 2 strongest instances within the radius count for a tile. Fifty identical benches add no more than two.
-- **Variety**: +2 per distinct decor type within 3 tiles, up to +10.
-- **Clutter**: more than 12 decor items within 2 tiles gives -5.
-- **Enclosure**: an open tile (no building, not a road wider than a lane) with buildings on 3 or 4 sides within 4 tiles gets +5 (squares feel good).
-- Pattern site bonuses add on top (below).
+- **No spam**: for each decor type, only the 2 strongest instances within the radius count for a tile. Fifty identical benches add no more than two. (As built: per type and category; building defs and forest trees are types too; noise is never capped, two sawpits are louder than one.)
+- **Variety**: +2 per distinct decor type within 3 tiles, up to +10. (Decor only: ornamental trees count, forest trees do not, so a forest is pleasant but not "varied".)
+- **Clutter**: more than 12 decor items within 2 tiles gives -5. (Linear pieces, fences, walls and hedges, are boundaries and never clutter.)
+- **Enclosure**: an open tile (no building, not a road wider than a lane) with buildings on 3 or 4 sides within 4 tiles gets +5 (squares feel good). (Looking straight out along each axis; one-tile buildings such as wells and flat plots do not close a square.)
+- Pattern site bonuses add on top (below). (As built: a site's bonus radiates from its anchor and member tiles with the same falloff; per tile the strongest site of each pattern counts; a bonus with a category goes to that layer too.)
+- *Additions (C3B, tune)*: younger trees (stages 1 and 2) give nature +1 r1; customized window boxes count as nature +2 r1; lanterns are lit from 18:00 to 07:00; "height" means 4+ levels above the average of the 11 x 11 tiles around; water tiles have no charm.
+- *Total* = nature + comfort + light + view - noise + variety - clutter + enclosure + uncategorized site bonuses, rounded and clamped to 0 to 100; the five category layers are stored rounded (noise as a magnitude).
 
 **Effects**: home desirability and arrivals, the Beauty need, tier thresholds [I2], wish targets, pattern detection, tourism [I4], Watch morale near defenses [I3]. Charm overlay uses a colorblind-safe ramp.
 
@@ -60,7 +64,7 @@ interface PatternDef {
 
 **Engine:**
 
-- Each in-game hour, run every pattern's detector over dirty chunks. A detector returns site instances `{ anchorTile, members: EntityId[] }`.
+- Each in-game hour, run every pattern's detector over dirty chunks. A detector returns site instances `{ anchorTile, members: EntityId[] }`. *As built (C3B):* the pass runs at offset 100 over the whole map (0.5 ms on the hamlet, 2.7 ms with a dense block added), which keeps re-validation exact for long walks whose anchor sits outside the changed chunk; scoping to dirty chunks is a later optimization. Detectors are modules registered by id in `systems/hearth/patterns/detectors`. Credit ties go to the seat that placed the newest member.
 - Instances are keyed by `(patternId, anchorTile)` so they are stable. An existing instance whose members change is re-validated; an invalid one is removed with its bonus.
 - **First valid instance anywhere** = discovery: Book entry, Chronicle line, both seats notified. The seat that placed most member pieces is credited; if both seats placed members, the discovery also counts for "Built Together".
 - Every valid instance (not only the first) applies its site bonus.
@@ -75,7 +79,7 @@ interface PatternDef {
 | Tree Place | a mature or ornamental big tree with 2+ benches within 1.5 tiles, and path tiles leading off in 2+ directions within 2 tiles | +8 r3 | Ring Bench |
 | Pocket Park | an area of 2x2 to 4x4 free tiles holding 1+ tree, 1+ bench and 2+ flower pieces, with buildings on 2+ sides within 2 tiles | +6 r3 | Birdbath |
 | Kitchen Garden | a home with 2+ vegetable or herb plots within 2 tiles of its footprint and a fence or hedge beside them | +5 r2; household food +1 per day | Herb Planter |
-| Lantern Walk | a continuous path or lane of 10+ tiles where every run of 3 consecutive tiles has a lantern within 1 tile | +6 light along the walk; night safety [I3] | Hanging Lantern |
+| Lantern Walk | a continuous path or lane of 10+ tiles where every run of 3 consecutive tiles has a lantern within 1 tile, and 3+ lanterns in all (C3B: two lanterns made a "walk" too cheaply) | +6 light along the walk; night safety [I3] | Hanging Lantern |
 | Promenade by the Water | 8+ consecutive path tiles each next to water, with 2+ benches and 2+ lanterns along it | +10 r2 | Mooring Post; otter arrivals favored |
 | Hedgerow Lane | a path or lane run of 6+ tiles with hedges on both sides along 4+ of them | +5 r1; hedgerow habitat [I3] | Wildflower Verge |
 
@@ -98,6 +102,7 @@ Specific, often spatial wishes; granted ones deepen bonds, ignored ones fade (P1
 - Pick residents weighted toward low mood, no active wish, bond under 5.
 - Pick a template whose conditions match the resident (species, traits, needs, home) and whose target is not already met. Bind parameters (their home, their workplace, the nearest market).
 - Expiry: 6 days (one season) by default. Expired wishes fade quietly, no penalty.
+- *As built (C3B, tune)*: at most 2 new wishes a morning; a resident's weight is 20 + (100 - mood); the same template is never active twice at one home. Distances in conditions are steps between tile rectangles (a tile touching the home is 1 step) within a rounded disk (steps squared at most n x n + n), so diagonal neighbors are within 1. The mood reward is the `wish-granted` modifier for 3 days, fading. Thank-you letters are `notify` events of kind `letter` (body, then a sign-off with the resident's name; a curious resident, or a wish whose reward has `hint`, adds a P.S. with an extra hint: the next undiscovered pattern beyond the three on show). Generation can be limited to a template list for tests and debug tools.
 
 **Template** (content):
 
@@ -172,8 +177,9 @@ interface ChronicleEntry {
 ```
 
 - **I1 kinds**: founding, household arrived, household left, first-of (first bread, first planks...), pattern discovered, wishes digest (weekly), achievement, season summary.
+- *As built (C3B)*: written like a small-town gazette, three or more variants per kind (`packages/content/src/chronicle.ts`, with the phrase tables the sim stitches in: books, credits, place names, letter sign-offs). The founding entry is always first (if another kind is written in a valley's first hour, the founding goes in just ahead). The season summary is written at midnight as a season starts, after the economy closes the books; the wishes digest every seventh evening at 19:00, naming up to three granted wishes. Place names come from what stands at the spot and the nearest family ("at the well, near the Underbank cottage").
 - **Later kinds**: rank-up, festival, raid, trial, wedding, birth, story step, flood, innovation, new parcel.
-- **While you were away** [I1]: when a seat connects after 1+ in-game day away, the client builds a letter from entries and stat changes since that seat's `lastSeenTick`, plus notes and requests addressed to them.
+- **While you were away** [I1]: when a seat connects after 1+ in-game day away, the client builds a letter from entries and stat changes since that seat's `lastSeenTick`, plus notes and requests addressed to them. *As built (C3B)*: the worker's `inspect('away', seat)` returns the notable entries since the seat left (newest 12, the rest counted in `more`), the stat rows, notes from the other seat and an `opening` ("Dear Ada, / You were away for three days. While you were gone, one household moved in and four wishes came true. Bo held the fort.").
 - **Snapshots** [I3]: the client captures a thumbnail for notable entries and uploads it to valley storage.
 - **Time-lapse** [I4]: rendered from stored periodic snapshots.
 - **Claude-written letters** [I5, optional]: one client asks Claude (with an API key from settings) to write a resident letter from Chronicle data, then submits the text through a `letter.add` command, so both seats see the same text and the sim stays deterministic.

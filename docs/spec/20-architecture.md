@@ -335,6 +335,8 @@ Defined in cycle C3.0, then changed only additively during the I1 wave. Everythi
 | `markCharmDirty(state, rect)` | `systems/hearth/charm/dirty.ts` | C3B |
 | `evaluate(state, condition, binding)`, `codePredicates` | `conditions/` | C3B |
 
+**C3B additions** (additive): `HearthState.charmSoon?: true` (set by Hearth commands so charm recomputes on the next tick; absent, never false); `AwayLetter.opening?` and `.more?`; in content, `Content.swatches` (`SwatchDef`, `SwatchGroup`), `WishTemplate.digest?`, `PatternDef.hintOrder?`, `CountWhat` `'togetherSites'`, and the `chroniclePhrases` tables. Conditions measure distance in steps between tile rectangles within a rounded disk (`conditions/geo.ts`).
+
 `createValley(seed, settings)` (an alias of `createWorld`) builds the standard starting town for `mode: 'standard'`: the Town Hall at the end of the valley lane, a Storehouse with the starting goods, two Cottages and a Well along a new path, and 500 coins. `insertBuilding` puts a building into state (occupancy, trees, runtime, charm dirt) for commands, the start and fixtures.
 
 **System slots**: 20 construction, 30 production, 40 logistics, 50 residents, 52 movement, 60 economy, 70 charm, 72 patterns, 74 wishes, 90 achievements, 100 chronicle (plus I0's 10 clock and 30 trees). Every I1 system returns at once in sandbox valleys.

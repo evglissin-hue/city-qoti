@@ -1,3 +1,4 @@
+import { content } from '@qoti/content';
 // @vitest-environment happy-dom
 import { h } from 'preact';
 import { afterEach, describe, expect, it } from 'vitest';
@@ -61,7 +62,7 @@ describe('the Pattern Book', () => {
     expect(view.get('page-sitting-wall').textContent).toContain('A page not yet found');
     expect((view.get('page-pocket-park') as HTMLButtonElement).disabled).toBe(true);
     expect(text).toContain('Hints in the margin');
-    expect(text).toContain('A low wall beside a path');
+    expect(text).toContain(content.patternById.get('sitting-wall')!.hint);
   });
 
   it('shows a found page with flavor, date, credit and unlocks, and a hinted one with its hint', async () => {
@@ -83,7 +84,7 @@ describe('the Pattern Book', () => {
     await view.click('page-lantern-walk');
     page = view.get('book-page').textContent ?? '';
     expect(page).toContain('Not yet found');
-    expect(page).toContain('A long path, never more than a few steps from a light.');
+    expect(page).toContain(content.patternById.get('lantern-walk')!.hint);
   });
 });
 
@@ -109,7 +110,9 @@ describe('plaques', () => {
     expect(view.get('plaque-well-met').className).toContain('earned');
     expect(view.get('plaque-well-met').textContent).toContain('you and Bo');
     expect(view.get('plaque-balanced-books').className).toContain('waiting');
-    expect(view.get('plaque-balanced-books').textContent).toContain('A season ended');
+    expect(view.get('plaque-balanced-books').textContent).toContain(
+      content.achievementById.get('balanced-books')!.description,
+    );
   });
 });
 

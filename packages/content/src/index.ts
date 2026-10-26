@@ -10,6 +10,7 @@ import { familyNames } from './names';
 import * as P from './patterns';
 import * as R from './roads';
 import * as Sp from './species';
+import * as Sw from './swatches';
 import * as T from './trees';
 import * as Tr from './traits';
 import * as W from './wishes';
@@ -23,11 +24,13 @@ import type {
   PatternDef,
   RoadDef,
   SpeciesDef,
+  SwatchDef,
   TraitDef,
   TreeDef,
   WishTemplate,
 } from './types';
 
+export { chroniclePhrases } from './chronicle';
 export { familyNames, valleyNamePrefixes, valleyNameSuffixes } from './names';
 export * from './types';
 
@@ -187,6 +190,31 @@ export const chronicle: readonly ChronicleTemplate[] = [
   C.wishesDigest,
 ];
 
+// prettier-ignore
+export const swatches: readonly SwatchDef[] = [
+  Sw.accentMustard,
+  Sw.accentNavy,
+  Sw.accentRed,
+  Sw.accentTeal,
+  Sw.accentWhite,
+  Sw.materialShingle,
+  Sw.materialSlate,
+  Sw.materialThatch,
+  Sw.materialTile,
+  Sw.roofMoss,
+  Sw.roofPlum,
+  Sw.roofSlate,
+  Sw.roofTerracotta,
+  Sw.roofThatch,
+  Sw.wallBrick,
+  Sw.wallButter,
+  Sw.wallCream,
+  Sw.wallRose,
+  Sw.wallSage,
+  Sw.wallSky,
+  Sw.wallStone,
+];
+
 function byId<T extends { id: string }>(list: readonly T[]): ReadonlyMap<string, T> {
   return new Map(list.map((item) => [item.id, item]));
 }
@@ -216,4 +244,5 @@ export const content: Content = {
   achievementById: byId(achievements),
   chronicle,
   chronicleByKind: new Map(chronicle.map((c) => [c.kind, c])),
+  swatches,
 };

@@ -1,7 +1,6 @@
 # Build board
 
 One row per cycle. A cycle is one agent session working from one brief on one branch, ending in one PR into `main`. Wave 2 of I0 ran as six parallel agents (C2B and C2D were each split in two) and landed as one integration PR stacked on #1. How cycles work: `docs/spec/31-parallel-development.md`.
-
 | Cycle | Iteration | Wave | Brief | Depends on | Status |
 |---|---|---|---|---|---|
 | C1 Foundation | I0 | serial | `cycle-01-foundation.md` | none | PR open ([#1](https://github.com/evglissin-hue/city-qoti/pull/1)) |
@@ -12,7 +11,7 @@ One row per cycle. A cycle is one agent session working from one brief on one br
 | C2X I0 integration | I0 | integration | `cycle-02x-integration.md` | C2A to C2D | PR open ([#2](https://github.com/evglissin-hue/city-qoti/pull/2)); deploy, the 30-minute session and the I1 brief review remain |
 | C3.0 Hamlet contracts | I1 | serial | `cycle-03-0-hamlet-contracts.md` | C2X | waiting |
 | C3A Residents | I1 | parallel | `cycle-03a-residents.md` | C3.0 | done on branch `cycle/03a-residents`, merged locally by C3X |
-| C3B Hearth v1 | I1 | parallel | `cycle-03b-hearth-v1.md` | C3.0 | waiting |
+| C3B Hearth v1 | I1 | parallel | `cycle-03b-hearth-v1.md` | C3.0 | branch `cycle/03b-hearth-v1` ready for C3X ([session](https://claude.ai/code/session_0165Sg4PVMcZmX2EeZkdLQwM)) |
 | C3C Ledger v1 | I1 | parallel | `cycle-03c-ledger-v1.md` | C3.0 | waiting |
 | C3D Hamlet art and rendering | I1 | parallel | `cycle-03d-hamlet-art.md` | C3.0 | waiting |
 | C3E Hamlet UI | I1 | parallel | `cycle-03e-hamlet-ui.md` | C3.0 | done on `cycle/03e-hamlet-ui`, waiting for C3X |

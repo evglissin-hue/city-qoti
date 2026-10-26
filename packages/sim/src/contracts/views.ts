@@ -274,4 +274,8 @@ export interface AwayLetter {
   /** [label, before, after]. */
   stats: [label: string, before: number, after: number][];
   notes: NoteView[];
+  /** C3B: the letter's opening ("Dear Ada, you were away for three days..."), lines split by \n. */
+  opening?: string;
+  /** C3B: notable Chronicle entries since `since` that did not fit in `entries` (it keeps the newest). */
+  more?: number;
 }

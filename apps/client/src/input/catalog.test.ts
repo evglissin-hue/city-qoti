@@ -48,9 +48,7 @@ describe('catalog', () => {
     // Locked pieces sort last.
     expect(choices[choices.length - 1]!.locked).toBe(true);
     // Hinted pattern: the hint shows. Unhinted: a promise of one.
-    expect(lockHint(m, 'hanging-lantern')).toContain(
-      'A long path, never more than a few steps from a light.',
-    );
+    expect(lockHint(m, 'hanging-lantern')).toContain(content.patternById.get('lantern-walk')!.hint);
     expect(lockHint(m, 'birdbath')).toContain('nobody has a hint for yet');
     const creative = mirror({ settings: { ...mockView().settings, mode: 'sandbox' } });
     expect(decorChoices(creative, 'hearth', false).every((c) => !c.locked)).toBe(true);

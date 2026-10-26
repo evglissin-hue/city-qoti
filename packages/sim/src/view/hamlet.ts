@@ -1,11 +1,12 @@
 // I1 view builders (C3.0). Their output never feeds back into state, so floats are fine here.
 // Tracks may enrich these (C3A residents, C3B Hearth, C3C Ledger) without changing their shapes.
-import { content } from '@qoti/content';
+import { type Condition, content } from '@qoti/content';
 import { LEDGER_CATEGORIES, MAP_SIZE, MOOD_BAND_MIN, TICKS_PER_HOUR } from '../constants';
 import type {
   AchievementView,
   BudgetLine,
   BudgetView,
+  Building,
   BuildingRuntime,
   BuildingRuntimeView,
   ChronicleEntry,
@@ -24,6 +25,7 @@ import type {
   WishView,
   WorldState,
 } from '../contracts';
+import { footprintSize } from '../rules/footprint';
 import { findById } from '../state/entities';
 
 export function moodBand(mood: number): MoodBand {
@@ -189,10 +191,13 @@ export function wishView(state: WorldState, w: Wish): WishView {
   const r = findById(state.residents, w.residentId);
   const home = findById(state.buildings, w.home);
   const sp = r ? content.speciesById.get(r.species) : undefined;
+  const work = findById(state.buildings, w.work);
   const raw = t?.text[w.variant % Math.max(1, t.text.length)] ?? w.template;
   const text = fillText(raw, [
     ['name', r ? r.given : 'Someone'],
+    ['family', r ? r.family : 'neighbor'],
     ['place', home ? (content.buildingById.get(home.def)?.name.toLowerCase() ?? 'home') : 'home'],
+    ['work', work ? (content.buildingById.get(work.def)?.name.toLowerCase() ?? 'work') : 'work'],
     ['species', sp?.name.toLowerCase() ?? 'resident'],
   ]);
   return {
@@ -202,10 +207,57 @@ export function wishView(state: WorldState, w: Wish): WishView {
     text,
     lane: t?.lane ?? 'hearth',
     homeId: w.home,
-    area: home ? { x: home.x + 1, z: home.z + 1, radius: 4 } : null,
+    area: wishArea(state, w, t?.target),
     createdTick: w.createdTick,
     expiresTick: w.expiresTick,
   };
+}
+
+/** Center and half size of a building's footprint, in tiles. */
+function buildingCenter(b: Building): { x: number; z: number; half: number } {
+  const def = content.buildingById.get(b.def);
+  const [fw, fd] = def ? footprintSize(def, b.rot) : [1, 1];
+  return { x: b.x + fw / 2, z: b.z + fd / 2, half: Math.max(fw, fd) / 2 };
+}
+
+/**
+ * The soft area a wish's target lives in, for the ghost highlight: the reach around home for
+ * "near home" wishes, the commute for route wishes, the market for stock wishes.
+ */
+export function wishArea(state: WorldState, w: Wish, target: Condition | undefined): WishView['area'] {
+  const home = findById(state.buildings, w.home);
+  if (!home) return null;
+  const h = buildingCenter(home);
+  const around = (radius: number) => ({ x: h.x, z: h.z, radius: Math.round((h.half + radius) * 10) / 10 });
+  const visit = (c: Condition | undefined): WishView['area'] | undefined => {
+    if (!c) return undefined;
+    if ('all' in c || 'any' in c) {
+      for (const child of 'all' in c ? c.all : c.any) {
+        const a = visit(child);
+        if (a) return a;
+      }
+      return undefined;
+    }
+    if ('near' in c && c.near.of === 'home') return around(c.near.within);
+    if ('charm' in c && c.charm.of === 'home') return around(Math.max(2, c.charm.radius ?? 0));
+    if ('stock' in c && c.stock.at === 'nearestMarket') {
+      const m = findById(state.buildings, w.market);
+      if (!m) return null;
+      const mc = buildingCenter(m);
+      return { x: mc.x, z: mc.z, radius: mc.half + 1 };
+    }
+    if ('code' in c) {
+      const job = findById(state.buildings, w.work);
+      if (!job) return around(4);
+      const j = buildingCenter(job);
+      const dx = j.x - h.x;
+      const dz = j.z - h.z;
+      const half = Math.sqrt(dx * dx + dz * dz) / 2;
+      return { x: (h.x + j.x) / 2, z: (h.z + j.z) / 2, radius: Math.round((half + 2) * 10) / 10 };
+    }
+    return undefined;
+  };
+  return visit(target) ?? around(4);
 }
 
 export function patternView(state: WorldState, id: string): PatternView {

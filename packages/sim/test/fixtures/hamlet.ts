@@ -65,8 +65,10 @@ function stock(b: Building, pairs: [string, number][], where: 'store' | 'input' 
 
 function addDecor(state: WorldState, def: string, x: number, z: number, seat: 0 | 1 = 0): EntityId {
   const d: Decor = { id: state.nextId++, def, fx: x * 256 + 128, fz: z * 256 + 128, rot: 0, builtBy: seat };
+  // Build the index first: building it after the push would index the first piece twice.
+  const grid = worldIndex(state).decorGrid;
   state.decor.push(d);
-  worldIndex(state).decorGrid.add(d);
+  grid.add(d);
   return d.id;
 }
 

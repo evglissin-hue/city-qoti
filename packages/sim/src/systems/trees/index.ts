@@ -1,6 +1,8 @@
 import { MAP_SIZE, TICKS_PER_DAY } from '../../constants';
 import type { System } from '../../contracts';
 import { TREE_MATURE, treeStage } from '../../map/layers';
+import { isStandard } from '../../state/hamlet';
+import { markCharmDirty } from '../hearth/charm/dirty';
 
 /** Ticks between growth steps: two in-game days per stage, sapling (0) to mature (3). */
 export const TREE_STAGE_TICKS = 2 * TICKS_PER_DAY;
@@ -22,6 +24,7 @@ export const trees: System = {
     let z0 = S;
     let x1 = -1;
     let z1 = -1;
+    const standard = isStandard(state);
     for (let i = 0; i < tree.length; i++) {
       const v = tree[i]!;
       if (!v || treeStage(v) >= TREE_MATURE) continue;
@@ -29,6 +32,8 @@ export const trees: System = {
       const x = i % S;
       const z = (i - x) / S;
       ctx.dirty.mark('tree', [x, z, x, z]);
+      // Growing trees change charm (I1); sandbox valleys keep no charm.
+      if (standard) markCharmDirty(state, [x, z, x, z]);
       if (x < x0) x0 = x;
       if (x > x1) x1 = x;
       if (z < z0) z0 = z;

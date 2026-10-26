@@ -119,7 +119,7 @@ Off-grid pieces (benches, lanterns, flower beds, planters, fences, low walls, he
 
 Hearth actions that mark the target as handmade.
 
-- **Phase 1 [I1]: paint and details.** Per building: wall swatch, roof material and swatch, accent swatch (doors, shutters), window boxes, shutters, chimney, shop sign text (24 chars). Command `build.customize`. Swatches come from the palette in `17-presentation.md`.
+- **Phase 1 [I1]: paint and details.** Per building: wall swatch, roof material and swatch, accent swatch (doors, shutters), window boxes, shutters, chimney, shop sign text (24 chars). Command `build.customize`. Swatches come from the palette in `17-presentation.md`. *As built (C3B)*: the allowed swatch ids are content (`packages/content/src/swatches.ts`, `content.swatches`, grouped `wall`, `roof`, `roofMaterial`, `accent`, each naming its `packages/art` palette token), because the sim may not import art. Each field is optional; `null` clears it back to the kit default and `false` turns a detail off. Sign text is trimmed, 1 to 24 printable characters. Any accepted change marks the building handmade and emits `building.updated`; window boxes count as a little flower piece for charm.
 - **Phase 2 [I3]: modules.** Special homes and landmarks offer module slots: porch, dormer, bay window, extra floor, balcony, tower, arcade. Modules cost materials.
 - **Phase 3 [I4]: block builder.** Landmarks are built by stacking 1-tile blocks on their plot (walls, arches, roofs, stairs, towers). Pieces adapt to neighbors and slopes: roofs join, stairs appear where levels differ, arches form over passages (P21).
 - **District styles** [I4] set defaults for grown buildings (see `12-hearth.md`).
