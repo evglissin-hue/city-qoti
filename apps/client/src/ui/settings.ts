@@ -42,6 +42,8 @@ export function applySettings(s: UiSettings): void {
   const root = document.documentElement;
   root.style.setProperty('--ui-scale', String(clampScale(s.uiScale)));
   root.classList.toggle('reduced-motion', s.reducedMotion);
+  // Large interface: the toolbar drops its labels (tooltips keep them) so it still fits.
+  root.classList.toggle('ui-large', clampScale(s.uiScale) > 1.15);
 }
 
 export function applyStoredSettings(): void {

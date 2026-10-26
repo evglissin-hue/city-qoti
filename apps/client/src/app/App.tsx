@@ -1,5 +1,6 @@
-import { useState } from 'preact/hooks';
-import { installDebugHook } from './debug';
+import { useEffect, useState } from 'preact/hooks';
+import { DEBUG, installDebugHook } from './debug';
+import { createFixtureValley, FIXTURE } from './fixture';
 import { currentSession, GameView } from './GameView';
 import { readPlayHash, setPlayHash, takeInviteFromUrl } from './invite';
 import { findRecent } from './recent';
@@ -28,6 +29,18 @@ export function App() {
     const target = resumeTarget();
     return target ? { target, invite: false } : null;
   });
+
+  // ?debug&fixture=hamlet: straight into a fresh copy of the sim's hamlet fixture.
+  useEffect(() => {
+    if (play || !DEBUG || FIXTURE !== 'hamlet') return;
+    void createFixtureValley().then((v) => {
+      setPlayHash(v.valleyId);
+      setPlay({
+        target: { valleyId: v.valleyId, seat: v.seat, token: v.token, mode: v.mode },
+        invite: false,
+      });
+    });
+  }, []);
 
   if (!play) {
     return (

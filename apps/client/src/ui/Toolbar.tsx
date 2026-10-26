@@ -5,10 +5,14 @@ import {
   buildingChoices,
   buildingGroup,
   costBlock,
+  DECOR_GROUP_LABEL,
   decorChoices,
+  decorGroup,
+  decorGroupsOf,
   GROUP_LABEL,
   groupsOf,
   type BuildingGroup,
+  type DecorGroup,
 } from '../input/catalog';
 import type { Tool } from '../input/tool';
 import { goodName, thousands } from './format';
@@ -232,9 +236,33 @@ function BuildingPicker({ session, tool }: { session: Session; tool: Tool }) {
 function DecorPicker({ session, tool, linear }: { session: Session; tool: Tool; linear: boolean }) {
   const m = session.mirror;
   const free = m.settings.value.mode !== 'standard';
-  const choices = decorChoices(m, 'hearth', linear);
+  const all = decorChoices(m, 'hearth', linear);
+  const groups = linear ? [] : decorGroupsOf(all);
+  const selected = all.find((c) => c.def.id === tool.variant?.value);
+  const [group, setGroup] = useState<DecorGroup | null>(null);
+  const showing =
+    group && groups.includes(group) ? group : selected ? decorGroup(selected.def) : (groups[0] ?? null);
+  const choices = showing ? all.filter((c) => decorGroup(c.def) === showing) : all;
   return (
     <div class="picker panel decor-picker" data-testid={linear ? 'fence-picker' : 'decor-picker'}>
+      {groups.length > 1 && (
+        <div class="picker-groups" role="tablist">
+          {groups.map((g) => (
+            <button
+              key={g}
+              type="button"
+              role="tab"
+              aria-selected={showing === g}
+              class={showing === g ? 'active' : ''}
+              data-testid={`decor-group-${g}`}
+              onClick={() => setGroup(g)}
+            >
+              {DECOR_GROUP_LABEL[g]}
+            </button>
+          ))}
+          {tool.hint && <span class="muted hint">{tool.hint}</span>}
+        </div>
+      )}
       <div class="picker-cards">
         {choices.map(({ def, locked, hint }) => {
           const on = tool.variant?.value === def.id;
@@ -259,7 +287,7 @@ function DecorPicker({ session, tool, linear }: { session: Session; tool: Tool; 
           );
         })}
       </div>
-      {tool.hint && <span class="muted hint picker-hint">{tool.hint}</span>}
+      {groups.length <= 1 && tool.hint && <span class="muted hint picker-hint">{tool.hint}</span>}
     </div>
   );
 }

@@ -119,13 +119,12 @@ export function computeAlerts(m: Mirror, letters: readonly Letter[] = []): Alert
     .filter((w) => now - w.createdTick < TICKS_PER_DAY)
     .sort((a, b) => b.createdTick - a.createdTick);
   for (const w of fresh) {
-    const r = m.residents.get(w.residentId);
     out.push({
       key: `wish-${w.id}`,
       lens: 'hearth',
       tone: 'news',
       icon: 'wishes',
-      text: r ? `${r.given} has a wish. ${w.text}` : w.text,
+      text: w.text,
       action: { kind: 'wish', id: w.id },
     });
   }

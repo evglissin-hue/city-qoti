@@ -44,7 +44,7 @@ export const panels: readonly PanelDef[] = [
   { id: 'customize', side: 'right', component: CustomizePanel },
   { id: 'inspector', side: 'right', component: InspectorPanel },
   { id: 'notes', side: 'left', component: NotesPanel },
-  { id: 'patterns', side: 'book', component: PatternBookPanel, lens: 'hearth', label: 'Pattern Book', icon: 'patterns', key: 'b', modes: STANDARD, order: 20, wide: true },
+  { id: 'patterns', side: 'book', component: PatternBookPanel, lens: 'hearth', label: 'Patterns', icon: 'patterns', key: 'b', modes: STANDARD, order: 20, wide: true },
   { id: 'reports', side: 'book', component: ReportsPanel, lens: 'ledger', label: 'Reports', icon: 'reports', key: 'l', modes: STANDARD, order: 50 },
   { id: 'wishes', side: 'book', component: WishesPanel, lens: 'hearth', label: 'Wishes', icon: 'wishes', key: 'j', modes: STANDARD, order: 10 },
 ];

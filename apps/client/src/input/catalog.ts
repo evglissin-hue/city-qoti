@@ -48,6 +48,31 @@ export function unlockedIds(m: Mirror): ReadonlySet<string> {
   return new Set(m.town.value?.unlocked ?? []);
 }
 
+export type DecorGroup = 'seats' | 'lights' | 'greenery' | 'water' | 'odds';
+
+export const DECOR_GROUP_LABEL: Record<DecorGroup, string> = {
+  seats: 'Seats',
+  lights: 'Lights',
+  greenery: 'Greenery',
+  water: 'By the water',
+  odds: 'Odds and ends',
+};
+
+const DECOR_GROUP_ORDER: DecorGroup[] = ['seats', 'lights', 'greenery', 'water', 'odds'];
+
+export function decorGroup(def: DecorDef): DecorGroup {
+  const t = def.tags;
+  if (t.includes('seat') && !t.includes('wall')) return 'seats';
+  if (t.includes('light')) return 'lights';
+  if (t.includes('water-feature') || t.includes('mooring')) return 'water';
+  if (['tree', 'flower', 'planter', 'hedge', 'verge', 'herb'].some((x) => t.includes(x))) return 'greenery';
+  return 'odds';
+}
+
+export function decorGroupsOf(choices: readonly DecorChoice[]): DecorGroup[] {
+  return DECOR_GROUP_ORDER.filter((g) => choices.some((c) => decorGroup(c.def) === g));
+}
+
 export interface DecorChoice {
   def: DecorDef;
   locked: boolean;

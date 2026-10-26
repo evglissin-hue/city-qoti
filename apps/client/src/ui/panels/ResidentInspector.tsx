@@ -75,6 +75,15 @@ export function ResidentInspector({ session, id }: { session: Session; id: numbe
           <p class={`mood-word band-${r.moodBand}`} data-testid="mood-word">
             <b>{MOOD_WORD[r.moodBand]}</b> <span class="muted">{MOOD_LINE[r.moodBand]}</span>
           </p>
+          <button
+            type="button"
+            class={`small-button follow ${following ? 'active' : ''}`}
+            data-testid="follow"
+            onClick={follow}
+            title="The camera keeps them in view"
+          >
+            <Glyph id="eye" /> {following ? 'Following' : 'Follow'}
+          </button>
         </div>
       </div>
 
@@ -245,18 +254,6 @@ export function ResidentInspector({ session, id }: { session: Session; id: numbe
           )}
         </div>
       )}
-
-      <div class="panel-actions">
-        <button
-          type="button"
-          class={following ? 'active' : ''}
-          data-testid="follow"
-          onClick={follow}
-          title="The camera keeps them in view"
-        >
-          <Glyph id="eye" /> {following ? 'Stop following' : 'Follow'}
-        </button>
-      </div>
     </Frame>
   );
 }

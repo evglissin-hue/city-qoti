@@ -11,6 +11,9 @@ import { Toolbar } from './Toolbar';
 import { TopBar } from './TopBar';
 import './hamlet.css';
 
+/** ?clean hides the debug numbers, for screenshots. */
+const CLEAN = new URLSearchParams(location.search).has('clean');
+
 /** Everything drawn over the canvas once a valley is ready. */
 export function GameUI({ session, onLeave }: { session: Session; onLeave: () => void }) {
   const open = session.ui.panel.value;
@@ -56,7 +59,7 @@ export function GameUI({ session, onLeave }: { session: Session; onLeave: () => 
         .map((p) => (
           <p.component key={p.id} session={session} />
         ))}
-      {DEBUG && <DebugOverlay session={session} />}
+      {DEBUG && !CLEAN && <DebugOverlay session={session} />}
     </div>
   );
 }

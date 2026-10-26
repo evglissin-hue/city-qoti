@@ -57,7 +57,7 @@ function pick(seed: number, salt: number, n: number): number {
   let h = (seed ^ (salt * 0x9e3779b1)) >>> 0;
   h = Math.imul(h ^ (h >>> 15), 0x85ebca6b) >>> 0;
   h = Math.imul(h ^ (h >>> 13), 0xc2b2ae35) >>> 0;
-  return (h ^ (h >>> 16)) % n;
+  return ((h ^ (h >>> 16)) >>> 0) % n;
 }
 
 export function Portrait({

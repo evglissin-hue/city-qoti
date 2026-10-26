@@ -66,9 +66,13 @@ button.link:hover:not(:disabled) {
 
 /* Panels ------------------------------------------------------------------------------------- */
 
+/* Side columns grow with the interface size, so text never wraps into a ribbon. */
+.side {
+  width: calc(270px * var(--ui-scale));
+}
+
 .side.right {
-  width: 320px;
-  max-height: calc(100% - 176px);
+  width: calc(320px * var(--ui-scale));
   overflow: visible;
 }
 
@@ -78,7 +82,7 @@ button.link:hover:not(:disabled) {
 }
 
 .inspector-panel {
-  max-height: calc(100vh - 186px);
+  max-height: calc(100vh - 92px - 96px * var(--ui-scale));
   overflow-y: auto;
   scrollbar-width: thin;
   scrollbar-color: rgba(90, 66, 49, 0.35) transparent;
@@ -745,10 +749,10 @@ ol.stages li.now {
 
 .book-slot {
   position: absolute;
-  top: 70px;
+  top: calc(10px + 58px * var(--ui-scale));
   left: 10px;
-  width: 372px;
-  max-height: calc(100% - 186px);
+  width: calc(372px * var(--ui-scale));
+  max-height: calc(100% - 92px - 96px * var(--ui-scale));
   display: grid;
   pointer-events: auto;
 }
@@ -756,11 +760,11 @@ ol.stages li.now {
 .book-slot.wide {
   left: 50%;
   transform: translateX(-50%);
-  width: min(780px, calc(100% - 20px));
+  width: min(calc(780px * var(--ui-scale)), calc(100% - 20px));
 }
 
 .book-panel {
-  max-height: calc(100vh - 186px);
+  max-height: calc(100vh - 92px - 96px * var(--ui-scale));
   overflow-y: auto;
   scrollbar-width: thin;
 }
@@ -1796,6 +1800,13 @@ li.alert.tone-news {
   box-shadow: none;
 }
 
+.alert-body > span:last-child {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
 .alert-body .glyph {
   margin-top: 1px;
   color: var(--ink-line);
@@ -1820,8 +1831,7 @@ li.alert .dismiss {
   display: grid;
   gap: 6px;
   padding: 7px 8px 8px;
-  max-width: min(980px, calc(100vw - 20px));
-  animation: panel-in 160ms ease-out;
+  max-width: min(calc(900px * var(--ui-scale)), calc(100vw - 20px));
 }
 
 .picker-groups {
@@ -1846,8 +1856,10 @@ li.alert .dismiss {
 
 .picker-cards {
   display: flex;
+  flex-wrap: wrap;
   gap: 6px;
-  overflow-x: auto;
+  max-height: calc(170px * var(--ui-scale));
+  overflow-y: auto;
   scrollbar-width: thin;
   padding-bottom: 2px;
 }
@@ -1855,6 +1867,7 @@ li.alert .dismiss {
 .picker .card {
   position: relative;
   flex: none;
+  animation: none;
   display: grid;
   align-content: start;
   justify-items: start;
@@ -1937,11 +1950,37 @@ li.alert .dismiss {
   max-width: 560px;
 }
 
+/* The toolbar row stays on one line; at large interface sizes it drops its labels. */
+.toolbar-row {
+  max-width: calc(100vw - 16px);
+  overflow-x: auto;
+  scrollbar-width: none;
+  gap: 8px;
+}
+
+.toolbar-row .tools {
+  gap: 3px;
+}
+
+.toolbar-row .tool {
+  min-width: 54px;
+  padding: 4px 6px;
+}
+
+.ui-large .toolbar-row .tool > span:last-child,
+.ui-large .overlay-toggle > span {
+  display: none;
+}
+
+.ui-large .toolbar-row .tool {
+  min-width: 40px;
+}
+
 .books,
 .overlay-toggles {
   display: flex;
-  gap: 4px;
-  padding-left: 12px;
+  gap: 3px;
+  padding-left: 8px;
   border-left: 1.5px dashed var(--line);
 }
 
@@ -2037,4 +2076,16 @@ li.alert .dismiss {
   .topbar .seats {
     display: none;
   }
+}
+
+.small-button.follow {
+  justify-self: start;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.small-button.follow.active {
+  background: color-mix(in srgb, var(--river) 22%, var(--paper-light));
+  border-color: var(--river);
 }

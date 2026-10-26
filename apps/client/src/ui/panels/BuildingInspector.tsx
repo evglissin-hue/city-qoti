@@ -23,7 +23,8 @@ export function BuildingInspector({ session, id }: { session: Session; id: numbe
   const by = seatLabel(seats, b.builtBy, session.seat);
   const close = () => (session.ui.selection.value = null);
   const site = b.stage === 'construction' && rt?.construction;
-  const status = detail?.status ?? statusWords(rt?.status ?? 0);
+  // The worker's words when it has any; the status bits the Mirror holds otherwise.
+  const status = detail?.status.length ? detail.status : statusWords(rt?.status ?? 0);
   const household = detail?.household ?? findHousehold(session, b);
   const kicker = site ? 'Construction site' : (CATEGORY_WORD[def?.category ?? ''] ?? 'Building');
 
@@ -138,7 +139,7 @@ export function BuildingInspector({ session, id }: { session: Session; id: numbe
               )}
             </div>
           )}
-          {def?.storage && (
+          {!!def?.storage && (
             <>
               <Heading>
                 Stores <span class="muted">{`${sum(rt.store)} of ${def.storage}`}</span>
@@ -191,9 +192,12 @@ export function BuildingInspector({ session, id }: { session: Session; id: numbe
       )}
 
       <p class="credit">
-        <Glyph id="home" /> {capital(by === 'you' ? 'built by you' : `built by ${by}`)}
-        {b.handmade && <span class="handmade"> with a personal touch</span>}
-        {b.foundation && <span class="muted">, on a stone plinth</span>}.
+        <Glyph id="home" />
+        <span>
+          {capital(`built by ${by}`)}
+          {b.handmade && <span class="handmade"> with a personal touch</span>}
+          {b.foundation && ', on a stone plinth'}.
+        </span>
       </p>
       {site && def?.cost?.coins ? (
         <p class="muted small">Removing a site refunds its {coins(def.cost.coins * 100)} in full.</p>
