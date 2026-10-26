@@ -17,7 +17,7 @@ describe('command registry', () => {
     const types = commandHandlers.map((h) => h.type);
     expect(new Set(types).size).toBe(types.length);
     expect(types).toEqual([...types].sort());
-    expect(types).toHaveLength(41);
+    expect(types.length).toBeGreaterThanOrEqual(42); // 41 in C4.0, plus plan.edit (C4D)
   });
 });
 

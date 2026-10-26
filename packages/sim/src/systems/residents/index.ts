@@ -34,7 +34,9 @@ const EVENING_HOUR = 18;
 
 function clearHop(state: WorldState, r: Resident): void {
   if (!(r.flags & ResidentFlags.hop)) return;
-  const granted = r.modifiers.find((m) => m.kind === 'wish-granted' || m.kind === 'wedding');
+  const granted = r.modifiers.find(
+    (m) => m.kind === 'wish-granted' || m.kind === 'wedding' || m.kind === 'rank-up',
+  );
   const since = granted ? state.tick - granted.from : HOUR;
   if (since >= HOUR || (granted && modifierValue(granted, state.tick) === 0)) r.flags &= ~ResidentFlags.hop;
 }

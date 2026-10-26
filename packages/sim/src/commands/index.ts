@@ -49,6 +49,7 @@ export const commandHandlers: readonly AnyHandler[] = [
   plan.add,
   plan.approve,
   plan.comment,
+  plan.edit,
   plan.remove,
   plan.seen,
   request.add,

@@ -33,7 +33,7 @@ export const rankUp: ChronicleTemplate = {
   text: [
     "{proclamation} The County's letter was read aloud at the Town Hall twice, the second time with feeling. Credit to {credit}.",
     "{proclamation} The bells rang, the bunting went up and somebody's goat ate a little of it. Credit to {credit}.",
-    '{proclamation} {town} is a {rank} now, and has been walking slightly taller all day. Credit to {credit}.',
+    '{proclamation} The sign at the valley gate has been repainted, with the word {rank} rather larger than strictly necessary. Credit to {credit}.',
   ],
   notable: true,
 };

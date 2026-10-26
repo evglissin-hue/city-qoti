@@ -1,6 +1,8 @@
 // Plans (C4.0 baseline; C4D owns them). docs/spec/16-coop.md, Plans layer: a named set of proposed
 // commands drawn as ink-blue ghosts. Either seat may comment, approve or discard, including its
 // own; approving runs the commands in order where they are still valid and reports the rest.
+// C4D adds plan.edit (a tweak the partner sees afresh) and the note after an approval.
+import { lifePhrases } from '@qoti/content';
 import {
   MAX_COMMENT_CHARS,
   MAX_COMMENTS,
@@ -11,7 +13,9 @@ import {
 import type { CommandType, Plan, PlanItem, TickCtx, WorldState } from '../contracts';
 import { isInt } from '../rules/geometry';
 import { findById, removeById } from '../state/entities';
+import { fillText } from '../view/hamlet';
 import { planView } from '../view/village';
+import { seatName } from '../systems/chronicle/text';
 import { handlerFor } from './index';
 import { takeId, trimmed, type HandlerFor } from './util';
 
@@ -111,8 +115,45 @@ export const approve: HandlerFor<'plan.approve'> = {
     p.status = 'approved';
     p.applied = applied;
     p.skipped = skipped;
-    if (!p.seenBy.includes(seat)) p.seenBy.push(seat);
+    if (!p.seenBy.includes(seat)) {
+      p.seenBy.push(seat);
+      p.seenBy.sort((a, b) => a - b);
+    }
     state.village.plansApproved += 1;
+    emitPlan(ctx, p);
+    // C4D: a note to both seats on what was built and what had to be skipped.
+    const template =
+      skipped === 0
+        ? lifePhrases.planApproved
+        : applied === 0
+          ? lifePhrases.planNone
+          : lifePhrases.planPartly;
+    ctx.events.push({
+      e: 'notify',
+      kind: 'letter',
+      text: fillText(template, [
+        ['who', seatName(state, seat)],
+        ['plan', p.name],
+        ['applied', String(applied)],
+        ['skipped', String(skipped)],
+      ]),
+    });
+  },
+};
+
+/** C4D: tweak an open plan. New items replace the old; whoever has not seen the change yet is told. */
+export const edit: HandlerFor<'plan.edit'> = {
+  type: 'plan.edit',
+  validate(state, _seat, cmd) {
+    if (!openPlan(state, cmd.id)) return 'NOT_FOUND';
+    if (cmd.name !== undefined && !trimmed(cmd.name, MAX_PLAN_NAME_CHARS)) return 'INVALID';
+    return validItems(cmd.items) ? null : 'INVALID';
+  },
+  apply(state, seat, cmd, ctx) {
+    const p = openPlan(state, cmd.id)!;
+    p.items = cmd.items.map((i) => ({ cmd: i.cmd }));
+    if (cmd.name !== undefined) p.name = trimmed(cmd.name, MAX_PLAN_NAME_CHARS)!;
+    p.seenBy = [seat];
     emitPlan(ctx, p);
   },
 };
