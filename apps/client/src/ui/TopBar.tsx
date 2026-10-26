@@ -181,7 +181,7 @@ function RankChip({ session }: { session: Session }) {
       onClick={() => (session.ui.panel.value = open ? null : 'charter')}
     >
       <Glyph id="rank" />
-      <span>{RANK_WORD[rank]}</span>
+      <span class="rank-word">{RANK_WORD[rank]}</span>
       {next && total > 0 && (
         <span class="pips" aria-label={`${done} of ${total}`}>
           {goals.length

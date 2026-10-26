@@ -2233,3 +2233,35 @@ li.plan.settled p {
     display: none;
   }
 }
+
+/* At large interface sizes the top bar sheds what tooltips can carry: the rank word (the flag and
+   its pips stay) and an absent partner. */
+.ui-large .topbar {
+  gap: 9px;
+}
+
+.ui-large .stat-chip.rank:has(.pips) .rank-word,
+.ui-large .topbar .seat.off {
+  display: none;
+}
+
+.ui-large .topbar .speed {
+  min-width: 0;
+  padding: 2px 6px;
+}
+
+.ui-large .topbar .ghost-button {
+  padding: 2px 8px;
+}
+
+.ui-large .topbar {
+  padding: 5px 8px;
+}
+
+.ui-large .topbar-clock {
+  gap: 6px;
+}
+
+.ui-large .topbar .speed-note {
+  font-size: 0.82rem;
+}
