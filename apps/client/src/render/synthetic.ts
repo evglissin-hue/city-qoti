@@ -9,6 +9,7 @@ import {
   MAP_SIZE,
   type BuildingRuntimeView,
   type BuildingView,
+  type LayerName,
   type ResidentView,
   type SimEvent,
   type TierId,
@@ -108,6 +109,40 @@ export function fakeRuntime(mirror: Mirror, opts: { sites?: number; status?: boo
     i++;
   }
   mirror.apply({ t: mirror.lastTurn.value, events, patches: [] });
+}
+
+/**
+ * Debug only: a plausible charm field (until the sim's charm system runs), so the charm overlays can
+ * be reviewed: warm near buildings and trees, a noisy patch around workshops.
+ */
+export function fakeCharm(mirror: Mirror): void {
+  const spots = [...mirror.buildings.values()].map((b) => [b.x + 1, b.z + 1, b.def] as const);
+  const layers: LayerName[] = [
+    'charm',
+    'charmNature',
+    'charmComfort',
+    'charmLight',
+    'charmView',
+    'charmNoise',
+  ];
+  const patches = layers.map((layer, li) => {
+    const data = new Uint8Array(MAP_SIZE * MAP_SIZE);
+    for (let z = 0; z < MAP_SIZE; z++) {
+      for (let x = 0; x < MAP_SIZE; x++) {
+        let v = li === 1 ? (mirror.tree(x, z) ? 55 : 15) : 10;
+        for (const [bx, bz, def] of spots) {
+          const d2 = (bx - x) ** 2 + (bz - z) ** 2;
+          const workshop = content.buildingById.get(def)?.tags?.includes('workshop') ?? false;
+          if (li === 5) v += workshop ? 90 * Math.exp(-d2 / 18) : 0;
+          else v += (li === 0 ? 55 : 35 + li * 6) * Math.exp(-d2 / (30 + li * 10));
+        }
+        v += (hash2(x >> 2, z >> 2, li) - 0.5) * 18;
+        data[z * MAP_SIZE + x] = Math.max(0, Math.min(100, Math.round(v)));
+      }
+    }
+    return { layer, rect: [0, 0, MAP_SIZE - 1, MAP_SIZE - 1] as [number, number, number, number], data };
+  });
+  mirror.apply({ t: mirror.lastTurn.value, events: [], patches });
 }
 
 /** Starts n synthetic residents; returns a stop function that clears them again. */

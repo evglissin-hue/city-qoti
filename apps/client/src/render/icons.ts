@@ -115,6 +115,197 @@ export const BUBBLE_ICONS: IconPainter[] = [
   },
 ];
 
+/** A status badge: a paper disc with a colored ring, then the symbol. */
+function badge(
+  g: CanvasRenderingContext2D,
+  ring: number,
+  symbol: (g: CanvasRenderingContext2D) => void,
+): void {
+  const c = CELL / 2;
+  g.beginPath();
+  g.arc(c, c, 52, 0, Math.PI * 2);
+  g.fillStyle = css(palette.paper);
+  g.fill();
+  g.lineWidth = 9;
+  g.strokeStyle = css(ring);
+  g.stroke();
+  g.lineWidth = 3;
+  g.strokeStyle = css(palette.ink);
+  g.beginPath();
+  g.arc(c, c, 57, 0, Math.PI * 2);
+  g.stroke();
+  g.save();
+  g.lineCap = 'round';
+  g.lineJoin = 'round';
+  g.strokeStyle = css(palette.ink);
+  g.fillStyle = css(palette.ink);
+  g.lineWidth = 6;
+  symbol(g);
+  g.restore();
+}
+
+function line(g: CanvasRenderingContext2D, pts: [number, number][]): void {
+  g.beginPath();
+  pts.forEach(([x, y], i) => (i === 0 ? g.moveTo(x, y) : g.lineTo(x, y)));
+  g.stroke();
+}
+
+function cross(g: CanvasRenderingContext2D, x: number, y: number, r: number): void {
+  g.save();
+  g.strokeStyle = css(palette.danger);
+  g.lineWidth = 7;
+  line(g, [
+    [x - r, y - r],
+    [x + r, y + r],
+  ]);
+  line(g, [
+    [x + r, y - r],
+    [x - r, y + r],
+  ]);
+  g.restore();
+}
+
+function crate(g: CanvasRenderingContext2D, x: number, y: number, s: number): void {
+  g.strokeRect(x - s, y - s * 0.8, s * 2, s * 1.6);
+  line(g, [
+    [x - s, y],
+    [x + s, y],
+  ]);
+}
+
+/**
+ * Building status icons, in BuildingStatus bit order: no workers, missing input, output full, no
+ * road, no porters, paused, disrepair, waiting for materials, waiting for builders, no trees, no
+ * fields. Warnings ring amber, blockers ring red.
+ */
+export const STATUS_ICONS: IconPainter[] = [
+  (g) =>
+    badge(g, palette.warning, (g) => {
+      g.beginPath();
+      g.arc(64, 46, 13, 0, Math.PI * 2);
+      g.fill();
+      g.beginPath();
+      g.arc(64, 92, 26, Math.PI, 0);
+      g.fill();
+      cross(g, 88, 84, 10);
+    }),
+  (g) =>
+    badge(g, palette.warning, (g) => {
+      crate(g, 64, 70, 24);
+      g.font = 'bold 34px Georgia, serif';
+      g.textAlign = 'center';
+      g.fillText('?', 64, 50);
+    }),
+  (g) =>
+    badge(g, palette.warning, (g) => {
+      crate(g, 56, 80, 18);
+      crate(g, 74, 52, 16);
+      line(g, [
+        [94, 92],
+        [94, 60],
+      ]);
+      line(g, [
+        [84, 70],
+        [94, 58],
+        [104, 70],
+      ]);
+    }),
+  (g) =>
+    badge(g, palette.danger, (g) => {
+      g.lineWidth = 7;
+      line(g, [
+        [40, 100],
+        [56, 70],
+      ]);
+      line(g, [
+        [72, 52],
+        [84, 28],
+      ]);
+      line(g, [
+        [70, 100],
+        [76, 76],
+      ]);
+      line(g, [
+        [84, 54],
+        [90, 28],
+      ]);
+    }),
+  (g) =>
+    badge(g, palette.warning, (g) => {
+      g.strokeRect(40, 54, 44, 24);
+      g.beginPath();
+      g.arc(52, 86, 8, 0, Math.PI * 2);
+      g.stroke();
+      line(g, [
+        [84, 60],
+        [100, 48],
+      ]);
+      cross(g, 92, 88, 9);
+    }),
+  (g) =>
+    badge(g, palette.inkSoft, (g) => {
+      g.fillRect(48, 40, 12, 48);
+      g.fillRect(70, 40, 12, 48);
+    }),
+  (g) =>
+    badge(g, palette.danger, (g) => {
+      g.strokeRect(40, 42, 48, 44);
+      line(g, [
+        [62, 42],
+        [56, 58],
+        [68, 66],
+        [60, 86],
+      ]);
+    }),
+  (g) =>
+    badge(g, palette.ledger, (g) => {
+      for (let i = 0; i < 3; i++) g.strokeRect(38 + i * 4, 76 - i * 14, 52, 10);
+      g.beginPath();
+      g.arc(90, 46, 12, 0, Math.PI * 2);
+      g.stroke();
+      line(g, [
+        [90, 40],
+        [90, 46],
+        [95, 50],
+      ]);
+    }),
+  (g) =>
+    badge(g, palette.ledger, (g) => {
+      g.lineWidth = 8;
+      line(g, [
+        [48, 92],
+        [76, 52],
+      ]);
+      g.fillRect(64, 34, 34, 16);
+    }),
+  (g) =>
+    badge(g, palette.warning, (g) => {
+      g.strokeRect(50, 66, 28, 22);
+      g.beginPath();
+      g.ellipse(64, 66, 14, 5, 0, 0, Math.PI * 2);
+      g.stroke();
+      cross(g, 90, 46, 9);
+    }),
+  (g) =>
+    badge(g, palette.warning, (g) => {
+      line(g, [
+        [60, 96],
+        [60, 40],
+      ]);
+      for (const y of [46, 58, 70]) {
+        line(g, [
+          [60, y + 6],
+          [48, y - 2],
+        ]);
+        line(g, [
+          [60, y + 6],
+          [72, y - 2],
+        ]);
+      }
+      cross(g, 92, 84, 9);
+    }),
+];
+
 /** Paints icons side by side into one atlas texture. */
 export function iconAtlas(icons: IconPainter[]): CanvasTexture {
   const canvas = document.createElement('canvas');

@@ -10,7 +10,7 @@ import {
   type Turn,
   type ValleySettings,
 } from '@qoti/sim';
-import { fakeRuntime, startSyntheticResidents, type SyntheticOptions } from '../render/synthetic';
+import { fakeCharm, fakeRuntime, startSyntheticResidents, type SyntheticOptions } from '../render/synthetic';
 import { SimHost } from '../worker/host';
 import type { Session } from './session';
 
@@ -173,6 +173,11 @@ export function installDebugHook(getSession: () => Session | null): void {
     synthRuntime: (opts?: { sites?: number; status?: boolean }) => {
       const session = s();
       if (session) fakeRuntime(session.mirror, opts);
+    },
+    /** C3D: a made-up charm field for overlay screenshots (until the charm system runs). */
+    synthCharm: () => {
+      const session = s();
+      if (session) fakeCharm(session.mirror);
     },
     /** C3D: the renderer, for render tests (overlays, bubbles, follow, stats). */
     renderer: () => s()?.renderer ?? null,

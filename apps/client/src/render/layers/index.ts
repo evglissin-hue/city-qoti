@@ -6,8 +6,10 @@ import { decorLayer } from './decor';
 import { effectsLayer } from './effects';
 import { ghostsLayer } from './ghosts';
 import { notesLayer } from './notes';
+import { overlaysLayer } from './overlays';
 import { presenceLayer } from './presence';
 import { roadsLayer } from './roads';
+import { signsLayer } from './signs';
 import { terrainLayer } from './terrain';
 import { treesLayer } from './trees';
 import type { LayerFactory } from './types';
@@ -21,8 +23,10 @@ export const layerFactories: readonly LayerFactory[] = [
   effectsLayer,
   ghostsLayer,
   notesLayer,
+  overlaysLayer,
   presenceLayer,
   roadsLayer,
+  signsLayer,
   terrainLayer,
   treesLayer,
   waterLayer,
@@ -31,5 +35,6 @@ export const layerFactories: readonly LayerFactory[] = [
 export type { AgentsLayer } from './agents';
 export type { EffectsLayer } from './effects';
 export type { GhostLayer } from './ghosts';
+export type { HighlightArea, OverlaysLayer } from './overlays';
 export type { PresenceLayer } from './presence';
 export type { LayerContext, LayerFactory, RenderLayer } from './types';

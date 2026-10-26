@@ -27,6 +27,8 @@ import {
   type AgentsLayer,
   type EffectsLayer,
   type GhostLayer,
+  type HighlightArea,
+  type OverlaysLayer,
   type PresenceLayer,
   type RenderLayer,
 } from './layers';
@@ -357,8 +359,8 @@ export class Renderer implements RenderApi {
     this.layer<GhostLayer>('ghosts').set(g);
   }
 
-  setOverlay(_kind: string | null): void {
-    // Data overlays (charm, coverage, flows) arrive in I1.
+  setOverlay(kind: string | null): void {
+    this.layer<OverlaysLayer>('overlays').set(kind);
   }
 
   setPresence(seat: SeatId, p: { x: number; z: number; tool?: string } | null): void {
@@ -442,6 +444,10 @@ export class Renderer implements RenderApi {
 
   setBubbles(on: boolean): void {
     this.layer<AgentsLayer>('agents').setBubbles(on);
+  }
+
+  highlight(area: HighlightArea): void {
+    this.layer<OverlaysLayer>('overlays').highlight(area);
   }
 
   /**

@@ -130,6 +130,34 @@ for (const scenario of scenarios) {
     await view(page, 13, -3, 0);
     await page.screenshot({ path: `${out}/c3d2-construction-close.png`, timeout: 180000 });
     await page.close();
+  } else if (scenario === 'overlays') {
+    const page = await open('quality=medium&hour=12');
+    await hamlet(page);
+    await page.evaluate(() => {
+      window.__qoti.synthRuntime({ status: true, sites: 2 });
+      window.__qoti.synthCharm();
+      window.__qoti.synthResidents(40, { radius: 12 });
+    });
+    for (const kind of ['charm', 'charm:noise', 'coverage', 'flows', 'status']) {
+      await page.evaluate((k) => window.__qoti.renderer().setOverlay(k), kind);
+      await view(page, kind === 'charm' || kind === 'charm:noise' ? 34 : 24);
+      if (kind.startsWith('charm')) await page.waitForTimeout(12000);
+      await page.screenshot({ path: `${out}/c3d2-overlay-${kind.replace(':', '-')}.png`, timeout: 180000 });
+    }
+    await page.evaluate(() => {
+      const r = window.__qoti.renderer();
+      r.setOverlay(null);
+      const [x0, z0, x1, z1] = r.mirror.meta.startArea;
+      r.highlight({
+        x: Math.floor((x0 + x1) / 2) + 3,
+        z: Math.floor((z0 + z1) / 2) + 2,
+        radius: 4,
+        tone: 'hearth',
+      });
+    });
+    await view(page, 20);
+    await page.screenshot({ path: `${out}/c3d2-highlight.png`, timeout: 180000 });
+    await page.close();
   } else if (scenario === 'bubbles') {
     const page = await open('quality=medium&hour=11');
     await hamlet(page, HAMLET.slice(0, 6));
