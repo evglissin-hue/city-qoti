@@ -69,11 +69,12 @@ export const cottage: BuildingDef = {
   cost: {
     coins: 20,
     goods: [
-      ['planks', 20],
-      ['stone', 8],
+      ['planks', 16],
+      ['stone', 6],
     ],
   },
-  upkeep: 1,
+  // Homes pay their way in taxes (C3X tuning: no upkeep).
+  upkeep: 0,
   housing: { households: 1, residents: 4 },
   work: 8,
   tags: ['home'],
@@ -260,7 +261,7 @@ export const sawpit: BuildingDef = {
       name: 'Saw planks',
       kind: 'craft',
       inputs: [['logs', 2]],
-      outputs: [['planks', 3]],
+      outputs: [['planks', 4]],
       hours: 2,
       workers: 2,
     },
@@ -300,7 +301,7 @@ export const storehouse: BuildingDef = {
   upkeep: 2,
   jobs: { count: 4, role: 'porter' },
   storage: 400,
-  coverage: [{ kind: 'logistics', radius: 20 }],
+  coverage: [{ kind: 'logistics', radius: 24 }],
   work: 16,
   charm: [{ category: 'noise', value: -3, radius: 2 }],
   tags: ['storehouse', 'outlet'],

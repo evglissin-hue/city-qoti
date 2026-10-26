@@ -132,3 +132,7 @@ The sim exports pure validators that run on any `MapReader` (sim state or client
 - `canPaintRoad(reader, kind, tiles) -> { ok, reason?, firstBadTile? }`
 - `canPlaceDecor(reader, def, fx, fz, rot) -> { ok, reason? }`
 - `canPlantTree(reader, x, z) -> { ok, reason? }`
+
+## Deposits near the start (C3X)
+
+Besides two stone clusters of 12+ tiles and a clay cluster within 40 tiles of the start area, worldgen guarantees a stone cluster of 9+ tiles within 8 tiles of it, stamped as close to the start center as it fits, so the first quarry lies inside the starting storehouse's porter range.

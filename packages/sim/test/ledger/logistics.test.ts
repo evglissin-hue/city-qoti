@@ -8,7 +8,16 @@ import { JobClass } from '../../src/systems/logistics';
 import { nearestOutletWithFood, outletFood, takeFromOutlet } from '../../src/systems/economy/outlets';
 import { hamletFixture } from '../fixtures/hamlet';
 import { run } from '../helpers';
-import { building, everyoneToWork, good, stockOf, ticks, ticksUntil, untilHour } from './helpers';
+import {
+  building,
+  everyoneToWork,
+  good,
+  stockOf,
+  ticks,
+  ticksUntil,
+  untilHour,
+  withoutStall,
+} from './helpers';
 
 const H = TICKS_PER_HOUR;
 
@@ -16,9 +25,13 @@ function place(state: WorldState, def: string, x: number, z: number, rot: 0 | 1 
   return insertBuilding(state, null, content.buildingById.get(def)!, x, z, rot, 0, { site: false });
 }
 
-/** The fixture at 08:00 with everyone at work; the first porter match runs 5 ticks later. */
+/**
+ * The fixture without its market stall (in porter range since the C3X range of 24, and these tests
+ * are about the other job classes), at 08:00 with everyone at work; the first porter match runs 5
+ * ticks later.
+ */
 function morning() {
-  const f = hamletFixture();
+  const f = withoutStall();
   untilHour(f.state, 8);
   everyoneToWork(f.state);
   return f;
@@ -44,7 +57,7 @@ describe('porter matching', () => {
   });
 
   it('feeds market stalls before production inputs, varying the food', () => {
-    const f = hamletFixture();
+    const f = withoutStall();
     const stall = place(f.state, 'market-stall', 48, 51, 2);
     untilHour(f.state, 8);
     everyoneToWork(f.state);
@@ -60,7 +73,7 @@ describe('porter matching', () => {
   });
 
   it('serves raised construction before everything else', () => {
-    const f = hamletFixture();
+    const f = withoutStall();
     run(f.state, { t: 'build.place', def: 'well', x: 47, z: 52, rot: 0 });
     const well = f.state.buildings[f.state.buildings.length - 1]!;
     run(f.state, { t: 'build.setPriority', id: well.id, priority: true });
@@ -74,7 +87,7 @@ describe('porter matching', () => {
   });
 
   it('clears full output buffers into the storehouse', () => {
-    const f = hamletFixture();
+    const f = withoutStall();
     const store = building(f.state, f.b.storehouse);
     store.rt!.store[good('wheat')] = 0;
     const bakery = building(f.state, f.b.bakery);
@@ -88,11 +101,12 @@ describe('porter matching', () => {
     ]);
     ticksUntil(f.state, (s) => s.logistics.jobs.length === 0);
     expect(stockOf(bakery, 'output', 'bread')).toBe(0);
-    expect(stockOf(store, 'store', 'bread')).toBe(24);
+    // 16 from the start, 10 back from the removed stall, 8 from the bakery.
+    expect(stockOf(store, 'store', 'bread')).toBe(34);
     expect(f.state.logistics.flows).toEqual([[bakery.id, store.id, 8]]);
   });
 
-  it('leaves buildings beyond 20 tiles of a storehouse alone, marked "no porters"', () => {
+  it('leaves buildings beyond 24 tiles of a storehouse alone, marked "no porters"', () => {
     const f = hamletFixture();
     run(f.state, { t: 'build.place', def: 'cottage', x: 84, z: 48, rot: 0 });
     const far = f.state.buildings[f.state.buildings.length - 1]!;
@@ -102,8 +116,8 @@ describe('porter matching', () => {
     expect(f.state.logistics.jobs.some((j) => j.to === far.id)).toBe(false);
     expect(far.rt!.construction!.delivered.every((n) => n === 0)).toBe(true);
     expect(far.rt!.status & BuildingStatus.noPorters).toBeTruthy();
-    // The fixture's stall sits 24 tiles from the storehouse door.
-    expect(building(f.state, f.b.stall).rt!.status & BuildingStatus.noPorters).toBeTruthy();
+    // The fixture's stall sits 24 tiles from the storehouse door: just in reach.
+    expect(building(f.state, f.b.stall).rt!.status & BuildingStatus.noPorters).toBeFalsy();
     expect(building(f.state, f.b.windmill).rt!.status & BuildingStatus.noPorters).toBeFalsy();
   });
 

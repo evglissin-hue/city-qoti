@@ -1,7 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { MAP_SIZE } from '../src/constants';
 import { Deposit, Flags } from '../src/map/layers';
-import { DEPOSIT_REACH, generateValley, PARCEL_COUNT, valleyNameFor } from '../src/map/worldgen';
+import {
+  DEPOSIT_REACH,
+  generateValley,
+  NEAR_STONE_REACH,
+  PARCEL_COUNT,
+  valleyNameFor,
+} from '../src/map/worldgen';
 import { defaultSettings } from '../src/state/create';
 
 const S = MAP_SIZE;
@@ -52,6 +58,14 @@ describe('worldgen properties', () => {
       }
       expect(stone, seed).toBeGreaterThanOrEqual(24);
       expect(clay, seed).toBeGreaterThan(0);
+      // And a first quarry's worth of stone close by (C3X).
+      let near = 0;
+      for (let z = Math.max(0, z0 - NEAR_STONE_REACH); z <= Math.min(S - 1, z1 + NEAR_STONE_REACH); z++) {
+        for (let x = Math.max(0, x0 - NEAR_STONE_REACH); x <= Math.min(S - 1, x1 + NEAR_STONE_REACH); x++) {
+          if (map.deposit[z * S + x] === Deposit.stone) near++;
+        }
+      }
+      expect(near, seed).toBeGreaterThanOrEqual(9);
 
       // Gate on the edge, flagged, on a lane; parcels in range and parcel 0 holds the start center.
       const gate = meta.valleyGate[1] * S + meta.valleyGate[0];

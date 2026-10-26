@@ -5,6 +5,7 @@ import type { Building, EntityId, Resident, SimEvent, WorldState } from '../../s
 import { findById } from '../../src/state/entities';
 import { doorTile } from '../../src/systems/movement/api';
 import { withoutSystems } from '../../src/systems';
+import { hamletFixture, type HamletFixture } from '../fixtures/hamlet';
 import { applyTurn, createTickCtx } from '../../src/turn';
 
 export const good = (id: string): number => content.goodIndex.get(id)!;
@@ -131,4 +132,19 @@ export function ticksUntil(
     n++;
   }
   return n;
+}
+
+/**
+ * The hamlet fixture without its market stall. Since the C3X porter range of 24 the stall is in
+ * reach, and restocking it (a more urgent job class) would crowd out what a test is about.
+ */
+export function withoutStall(): HamletFixture {
+  const f = hamletFixture();
+  const ctx = createTickCtx(f.state);
+  applyTurn(
+    f.state,
+    { t: f.state.lastTurn + 1, cmds: [{ seat: 0, seq: 1, cmd: { t: 'build.remove', ids: [f.b.stall] } }] },
+    ctx,
+  );
+  return f;
 }

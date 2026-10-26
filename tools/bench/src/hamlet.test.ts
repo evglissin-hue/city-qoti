@@ -38,7 +38,8 @@ describe('the standard start, three days on', { timeout: 30_000 }, () => {
     }
     // The new plot and hut are built, staffed and feeding the town.
     expect(w.buildings.every((b) => b.stage === 'built')).toBe(true);
-    expect(made).toBeGreaterThanOrEqual(30);
+    // Well ahead of eating (16 over days 2 and 3).
+    expect(made).toBeGreaterThanOrEqual(24);
     const stall = w.buildings.find((b) => b.def === 'market-stall')!;
     expect(FOODS.reduce((n, g) => n + stall.rt!.store[g]!, 0)).toBeGreaterThan(10);
     const stock = townStock(w);

@@ -312,7 +312,7 @@ export function findSpot(world: WorldState, defId: string, radius = 40): [number
           if (crowded(world, x, z, w, d)) continue;
           if (!nearStorehouse(world, def, x, z, rot)) continue;
           let score = p.warnings.includes('NO_ROAD') ? 0 : 1;
-          if (defId === 'woodcutter') score = matureTreesNear(world, x, z, 8) >= 12 ? 1 : -1;
+          if (defId === 'woodcutter') score = matureTreesNear(world, x, z, 8) >= 40 ? 1 : -1;
           if (score > bestScore) {
             bestScore = score;
             best = [x, z, rot];
@@ -325,7 +325,7 @@ export function findSpot(world: WorldState, defId: string, radius = 40): [number
   return null;
 }
 
-/** Keeps new buildings within porter range (18 of 20 tiles) of a storehouse door. */
+/** Keeps new buildings within porter range (22 of 24 tiles) of a storehouse door. */
 function nearStorehouse(world: WorldState, def: BuildingDef, x: number, z: number, rot: Rot4): boolean {
   const houses = world.buildings.filter((b) => b.def === 'storehouse');
   if (houses.length === 0) return true;
@@ -335,7 +335,7 @@ function nearStorehouse(world: WorldState, def: BuildingDef, x: number, z: numbe
     return (
       Math.abs((d % MAP_SIZE) - (door % MAP_SIZE)) +
         Math.abs(Math.floor(d / MAP_SIZE) - Math.floor(door / MAP_SIZE)) <=
-      18
+      22
     );
   });
 }

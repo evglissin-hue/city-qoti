@@ -145,8 +145,9 @@ describe('lens toolbars', () => {
     expect(ids(view.root, 'group-')).toEqual(['homes', 'food', 'materials', 'services']);
     const cottage = view.get('variant-cottage');
     expect(cottage.textContent).toContain('20');
-    expect(cottage.textContent).toContain('20 planks');
-    expect(cottage.textContent).toContain('1 a day to keep');
+    expect(cottage.textContent).toContain('16 planks');
+    // Homes have no upkeep (C3X tuning), so the card shows none.
+    expect(cottage.textContent).not.toContain('a day to keep');
     await view.click('group-food');
     expect(ids(view.root, 'variant-')).toEqual(
       expect.arrayContaining(['bakery', 'farmhouse', 'fishers-hut', 'market-stall', 'windmill']),

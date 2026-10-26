@@ -5,7 +5,16 @@ import { TREE_SPECIES, treeValue } from '../../src/map/layers';
 import { findById } from '../../src/state/entities';
 import { hamletFixture } from '../fixtures/hamlet';
 import { rejection, run, S } from '../helpers';
-import { building, everyoneToWork, good, stockOf, ticks, ticksUntil, untilHour } from './helpers';
+import {
+  building,
+  everyoneToWork,
+  good,
+  stockOf,
+  ticks,
+  ticksUntil,
+  untilHour,
+  withoutStall,
+} from './helpers';
 
 const H = TICKS_PER_HOUR;
 
@@ -92,7 +101,7 @@ describe('placing a site', () => {
 
 describe('building a site', () => {
   it('gets materials from porters and work from builders, through the four stages in order', () => {
-    const f = hamletFixture();
+    const f = withoutStall();
     run(f.state, { t: 'build.place', def: 'cottage', x: 52, z: 51, rot: 2 });
     const site = f.state.buildings[f.state.buildings.length - 1]!;
     const store = building(f.state, f.b.storehouse);
@@ -101,14 +110,14 @@ describe('building a site', () => {
     const events = ticks(f.state, 6 * H);
     expect(site.stage).toBe('built');
     expect(site.rt!.construction).toBeNull();
-    expect(stockOf(store, 'store', 'planks')).toBe(10);
-    expect(stockOf(store, 'store', 'stone')).toBe(12);
+    expect(stockOf(store, 'store', 'planks')).toBe(30 - 16);
+    expect(stockOf(store, 'store', 'stone')).toBe(20 - 6);
     // Stages only ever move forward, and every visible one shows (stage 0 may pass before the
     // first update when porters are quick).
     const stages = siteStages(events, site.id);
     expect(stages.filter((x) => x !== 0)).toEqual([1, 2, 3, 'built']);
     expect(events.some((e) => e.e === 'notify' && e.kind === 'built')).toBe(true);
-    expect(f.state.economy.today.consumed[good('planks')]).toBe(20);
+    expect(f.state.economy.today.consumed[good('planks')]).toBe(16);
     // Builders go back to the town hall when the work is done.
     for (const id of building(f.state, f.b.townHall).rt!.workers) {
       expect(findById(f.state.residents, id)!.activity.kind).toBe('work');
@@ -116,7 +125,7 @@ describe('building a site', () => {
   });
 
   it('keeps work in step with deliveries: no frame without the planks', () => {
-    const f = hamletFixture();
+    const f = withoutStall();
     const store = building(f.state, f.b.storehouse);
     store.rt!.store[good('planks')] = 4;
     run(f.state, { t: 'build.place', def: 'cottage', x: 52, z: 51, rot: 2 });
@@ -125,9 +134,9 @@ describe('building a site', () => {
     everyoneToWork(f.state);
     ticks(f.state, 4 * H);
     const c = site.rt!.construction!;
-    // 4 planks and 8 stone of 28 units: work stops at 12/28 of 8 builder-hours.
+    // 4 planks and 6 stone of 22 units: work stops at 10/22 of 8 builder-hours.
     expect(c.delivered[good('planks')]).toBe(4);
-    expect(c.workDone).toBe(Math.floor((8 * H * 12) / 28));
+    expect(c.workDone).toBe(Math.floor((8 * H * 10) / 22));
     expect(site.rt!.status & BuildingStatus.waitingMaterials).toBeTruthy();
   });
 

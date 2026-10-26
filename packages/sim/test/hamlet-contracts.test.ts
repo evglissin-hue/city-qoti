@@ -59,7 +59,7 @@ describe('standard valley', () => {
     expect(defs).toEqual(['cottage', 'cottage', 'storehouse', 'town-hall', 'well']);
     expect(a.economy.treasury).toBe(START_TREASURY);
     const store = a.buildings.find((x) => x.def === 'storehouse')!.rt!.store;
-    expect(store[content.goodIndex.get('planks')!]).toBe(30);
+    expect(store[content.goodIndex.get('planks')!]).toBe(50);
     expect(a.buildings.every((x) => x.stage === 'built')).toBe(true);
   });
 
@@ -76,7 +76,7 @@ describe('standard valley', () => {
     run(w, { t: 'build.place', def: 'cottage', x: 60, z: 60, rot: 0 });
     const b = w.buildings[0]!;
     expect(b.stage).toBe('construction');
-    expect(b.rt!.construction!.needs[content.goodIndex.get('planks')!]).toBe(20);
+    expect(b.rt!.construction!.needs[content.goodIndex.get('planks')!]).toBe(16);
   });
 
   it('refuses to switch a valley between sandbox and standard', () => {

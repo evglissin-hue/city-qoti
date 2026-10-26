@@ -212,3 +212,18 @@ Where the I1 implementation fills in or differs from the sections above (`packag
 - **Bond**: `addBond` gains from wishes stop at 3 hearts; `addBond(..., 'other')` reaches 5; long residence adds a heart every 2 years.
 - **Movement**: a tile takes exactly its ticks (road 5, grass 10, forest floor and fields 15, rock 20; Sporty x0.8), by the tile being entered. Walks replan when the next tile becomes blocked; with no way left the walker stops, marked stuck, goes home, and after an hour finds their way in regardless.
 - **Agent frames**: walkers keep to the left of their way, residents sharing a tile spread round it, and idle residents face what they came to see.
+
+## Jobs (as built, C3X)
+
+Residents take the open job that matters most, nearest first among equals:
+
+| Priority | Jobs |
+|---|---|
+| 0 | the first builder (town hall or yard), the first porter of each storehouse, and producers of whatever the town is short of: food when under three days of eating are in town (shelves, buffers and pantries), logs, planks or stone when stock is under what open sites need plus 20 |
+| 1 | the second builder, the second porter, stall vendors |
+| 2 | food producers when food is plentiful |
+| 3 | other producers |
+| 4 | further builders and porters |
+| 5 | jobs at a building that is stuck (no trees in reach, no fields, missing inputs) |
+
+Each hour one worker may move from a job two levels less important (or any job, when the open one makes something short) to the most important open job; workers on a Ledger task finish it first. Pausing a building lets its workers go, which is the Ledger's lever on labor.

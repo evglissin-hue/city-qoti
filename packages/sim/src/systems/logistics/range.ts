@@ -7,7 +7,7 @@ import type { Building, WorldState } from '../../contracts';
 import { doorTile } from '../movement/api';
 import { defOf, isStorehouse } from './stores';
 
-export const LOGISTICS_RANGE = 20;
+export const LOGISTICS_RANGE = 24;
 
 export interface Reach {
   b: Building;

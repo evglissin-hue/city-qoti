@@ -29,16 +29,16 @@ Each good also has `carry` (units a porter carries: 4; a cart: 16) and optional 
 
 ## I1 buildings
 
-Costs, upkeep and outputs are *(tune)*. Workers are adult or young residents. Production runs while workers are present during work hours, scaled by the fraction of workers present and their mood productivity.
+Costs, upkeep and outputs are *(tune)*. C3X tuned them against a headless pair of players (`npm run tune -w @qoti/bench`): cottages cost 16 planks and 6 stone and have no upkeep (homes pay their way in taxes), the sawpit makes 4 planks from 2 logs, the storehouse reaches 24 tiles, and the starting storehouse holds 50 planks and 30 stone. With those, a sensibly played valley reaches 20 to 40 residents in 18 in-game days (three evenings), most seeds 28 or more, without lean times or departures. Workers are adult or young residents. Production runs while workers are present during work hours, scaled by the fraction of workers present and their mood productivity.
 
 | Building | Size | Cost | Upkeep/day | Workers | Production | Placement |
 |---|---|---|---|---|---|---|
 | Town Hall | 4x4 | start | 0 | 2 builders | treasury, Charter board, peddler sales; builds sites until a Builder's Yard exists | start area |
-| Cottage | 2x2 | 20 planks, 8 stone, 20 coins | 1 | none | home for 1 household (up to 4) | road at entrance |
+| Cottage | 2x2 | 16 planks, 6 stone, 20 coins | 0 | none | home for 1 household (up to 4) | road at entrance |
 | Builder's Yard | 3x3 | 20 logs, 10 stone, 30 | 2 | 3 builders | builds sites | road |
 | Woodcutter's Hut | 2x2 | 12 logs, 20 | 1 | 2 | fells 1 mature tree per 3 h per worker → 4 logs | mature trees within 8 |
 | Forester's Lodge | 2x2 | 12 logs, 6 stone, 20 | 1 | 1 | plants 1 sapling per 2 h within 8 | |
-| Sawpit | 2x3 | 16 logs, 6 stone, 30 | 1 | 2 | 2 logs → 3 planks per 2 h | |
+| Sawpit | 2x3 | 16 logs, 6 stone, 30 | 1 | 2 | 2 logs → 4 planks per 2 h | |
 | Quarry | 3x3 | 20 planks, 40 | 2 | 3 | 2 stone per 2 h per worker | 4+ stone deposit tiles in footprint |
 | Farmhouse | 2x2 | 16 planks, 6 stone, 30 | 1 | 3 | tends fields: 1 wheat per field tile per day, max 12 tiles per worker | |
 | Wheat Field | painted tiles within 6 of a farmhouse | 1 per tile | 0 | none | see farmhouse | fertility 40+ |
@@ -76,7 +76,7 @@ How production runs [I1, C3C]:
 - **Porters**: storehouse workers. Every 20 ticks, each idle porter in id order takes the best job: priority construction (raised) > food to stalls > production inputs > construction (normal) > clearing outputs; ties go to the nearest source. A job reserves units at the source and space at the destination so nothing is double-booked.
 - **Trips**: walk to the source, pick up up to 4 units, walk to the destination, drop off. Porters carry visible bundles.
 - **Carts** [I2]: cart shed, 16 units, faster on lanes and streets, never on paths. **Barges** [I4]: 60 units on canals and the river.
-- **Range**: a storehouse serves buildings within 20 tiles of walking distance; buildings outside any range show a "no porters" marker. Until walking distances are cached, door-to-door Manhattan distance stands in for them. A porter only takes jobs whose source and destination both lie in its storehouse's range.
+- **Range**: a storehouse serves buildings within 24 tiles of walking distance (C3X tuning, was 20); buildings outside any range show a "no porters" marker. Until walking distances are cached, door-to-door Manhattan distance stands in for them. A porter only takes jobs whose source and destination both lie in its storehouse's range.
 - **Details [I1, C3C]**: production inputs are topped up to 2 cycles' worth. Market stalls ask for the food they hold least of, so stalls stock variety. Sources are storehouses and producers' output buffers (never market stalls), so a mill can feed a bakery directly. Outputs are cleared once 4 units (a load) wait. A porter carries `carry` units of one good (4), walks back to the storehouse after a trip, and can be matched again on the way. At 17:00 porters finish the trip they are on and go home; a paused storehouse keeps its porters in. Flows for the overlay count deliveries per building pair and halve at midnight (a decaying count of about two days).
 
 ## Consumption [I1]

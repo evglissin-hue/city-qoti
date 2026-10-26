@@ -19,13 +19,14 @@ describe('the daily books', () => {
     untilHour(f.state, 0);
     const today = f.state.economy.today.money;
     expect(today[cat('taxes')]).toBe(900);
-    expect(today[cat('upkeep')]).toBe(770); // gentle: 70%
-    expect(f.state.economy.treasury - before).toBe(130);
+    // 8 coins of upkeep a day (homes have none since C3X tuning); gentle pays 70%.
+    expect(today[cat('upkeep')]).toBe(560);
+    expect(f.state.economy.treasury - before).toBe(340);
 
     const g = hamletFixture();
     g.state.settings.economy = 'thoughtful';
     untilHour(g.state, 0);
-    expect(g.state.economy.today.money[cat('upkeep')]).toBe(1375);
+    expect(g.state.economy.today.money[cat('upkeep')]).toBe(1000);
   });
 
   it('taxes by mood: Glowing residents pay more, Miserable ones less', () => {
@@ -105,10 +106,10 @@ describe('lean times', () => {
   it('start when upkeep tips the treasury below zero, and end when it recovers', () => {
     const f = hamletFixture();
     f.state.settings.economy = 'thoughtful';
-    f.state.economy.treasury = 100;
+    f.state.economy.treasury = 50;
     const start = untilHour(f.state, 0);
     const e = f.state.economy;
-    expect(e.treasury).toBe(100 + 900 - 1375);
+    expect(e.treasury).toBe(50 + 900 - 1000);
     expect(e.leanTimes).toBe(true);
     expect(start.some((x) => x.e === 'notify' && x.kind === 'lean-times')).toBe(true);
     expect(

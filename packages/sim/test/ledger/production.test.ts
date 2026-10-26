@@ -20,14 +20,14 @@ function fertile(state: WorldState, x0: number, z0: number, x1: number, z1: numb
 }
 
 describe('crafting', () => {
-  it('saws 2 logs into 3 planks every 2 hours with the full crew', () => {
+  it('saws 2 logs into 4 planks every 2 hours with the full crew', () => {
     const f = hamletFixture();
     const sawpit = building(f.state, f.b.sawpit);
     toWork(f.state, hire(f.state, sawpit.id, 2));
     ticks(f.state, 2 * H);
-    expect(stockOf(sawpit, 'output', 'planks')).toBe(3);
+    expect(stockOf(sawpit, 'output', 'planks')).toBe(4);
     expect(stockOf(sawpit, 'input', 'logs')).toBe(2);
-    expect(f.state.economy.today.produced[good('planks')]).toBe(3);
+    expect(f.state.economy.today.produced[good('planks')]).toBe(4);
     expect(f.state.economy.today.consumed[good('logs')]).toBe(2);
   });
 
@@ -38,7 +38,7 @@ describe('crafting', () => {
     ticks(f.state, 2 * H);
     expect(stockOf(sawpit, 'output', 'planks')).toBe(0);
     ticks(f.state, 2 * H);
-    expect(stockOf(sawpit, 'output', 'planks')).toBe(3);
+    expect(stockOf(sawpit, 'output', 'planks')).toBe(4);
   });
 
   it('bakes 5 bread from 2 flour every 2 hours, and waits when the flour runs out', () => {
@@ -348,8 +348,8 @@ describe('field painting', () => {
 describe('every I1 producer at full and partial staffing', () => {
   // [building, crew, hours, good made, units]: the spec's numbers (13-ledger.md, I1 buildings).
   const cases: [string, number, number, string, number][] = [
-    ['sawpit', 2, 2, 'planks', 3],
-    ['sawpit', 1, 4, 'planks', 3],
+    ['sawpit', 2, 2, 'planks', 4],
+    ['sawpit', 1, 4, 'planks', 4],
     ['bakery', 2, 2, 'bread', 5],
     ['bakery', 1, 4, 'bread', 5],
     ['windmill', 1, 1, 'flour', 2],

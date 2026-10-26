@@ -330,6 +330,11 @@ function attempt(seed: string, _settings: ValleySettings, allowFallback: boolean
 
 /** Radius around the start area within which stone and clay are guaranteed. */
 export const DEPOSIT_REACH = 40;
+/**
+ * C3X: one stone cluster of 9+ tiles also lies within this many tiles of the start area, so the
+ * first quarry fits inside the starting storehouse's porter range (20 tiles from the town center).
+ */
+export const NEAR_STONE_REACH = 8;
 
 /**
  * Step 6: stone clusters on and around rock, clay clusters on banks and sand. Guarantees at least
@@ -359,15 +364,15 @@ function placeDeposits(map: MapLayers, rng: StreamRng, dist: Uint16Array, start:
     }
   }
   const [sx0, sz0, sx1, sz1] = start;
-  const rx0 = Math.max(BORDER, sx0 - DEPOSIT_REACH);
-  const rz0 = Math.max(BORDER, sz0 - DEPOSIT_REACH);
-  const rx1 = Math.min(S - 1 - BORDER, sx1 + DEPOSIT_REACH);
-  const rz1 = Math.min(S - 1 - BORDER, sz1 + DEPOSIT_REACH);
-  const clusters = (kind: number, min: number): number => {
+  const clusters = (kind: number, min: number, reach = DEPOSIT_REACH): number => {
     const seen = new Uint8Array(S * S);
     let count = 0;
-    for (let z = rz0; z <= rz1; z++) {
-      for (let x = rx0; x <= rx1; x++) {
+    const bx0 = Math.max(BORDER, sx0 - reach);
+    const bz0 = Math.max(BORDER, sz0 - reach);
+    const bx1 = Math.min(S - 1 - BORDER, sx1 + reach);
+    const bz1 = Math.min(S - 1 - BORDER, sz1 + reach);
+    for (let z = bz0; z <= bz1; z++) {
+      for (let x = bx0; x <= bx1; x++) {
         const i0 = z * S + x;
         if (seen[i0] || deposit[i0] !== kind) continue;
         let size = 0;
@@ -379,6 +384,10 @@ function placeDeposits(map: MapLayers, rng: StreamRng, dist: Uint16Array, start:
           for (const n of [i + 1, i - 1, i + S, i - S]) {
             if (n < 0 || n >= S * S || seen[n] || deposit[n] !== kind) continue;
             if (Math.abs((n % S) - (i % S)) > 1) continue;
+            // Only tiles inside the reach count toward a cluster's size.
+            const nx = n % S;
+            const nz = (n - nx) / S;
+            if (nx < bx0 || nx > bx1 || nz < bz0 || nz > bz1) continue;
             seen[n] = 1;
             stack.push(n);
           }
@@ -389,8 +398,36 @@ function placeDeposits(map: MapLayers, rng: StreamRng, dist: Uint16Array, start:
     return count;
   };
   // Candidate stamp spots: a deterministic scan outward from the start area, ring by ring.
-  const stamp = (kind: number, side: number, wantBank: boolean): boolean => {
-    for (let ring = 2; ring <= DEPOSIT_REACH - side; ring += 2) {
+  /** Stamps a side x side cluster as close to the start center as it fits (outside the start area). */
+  const stampNear = (kind: number, side: number): boolean => {
+    const cx = (sx0 + sx1) >> 1;
+    const cz = (sz0 + sz1) >> 1;
+    let best = -1;
+    let bestD = Infinity;
+    for (let z = sz0 - NEAR_STONE_REACH; z <= sz1 + NEAR_STONE_REACH; z++) {
+      for (let x = sx0 - NEAR_STONE_REACH; x <= sx1 + NEAR_STONE_REACH; x++) {
+        if (x < BORDER || z < BORDER || x + side > S - BORDER || z + side > S - BORDER) continue;
+        const d = Math.abs(x + (side >> 1) - cx) + Math.abs(z + (side >> 1) - cz);
+        if (d >= bestD) continue;
+        let ok = true;
+        for (let dz = 0; dz < side && ok; dz++) {
+          for (let dx = 0; dx < side && ok; dx++) {
+            const i = (z + dz) * S + x + dx;
+            if (water[i] || road[i] || flags[i]! & Flags.startArea || deposit[i]) ok = false;
+          }
+        }
+        if (ok) {
+          best = z * S + x;
+          bestD = d;
+        }
+      }
+    }
+    if (best < 0) return false;
+    for (let dz = 0; dz < side; dz++) for (let dx = 0; dx < side; dx++) deposit[best + dz * S + dx] = kind;
+    return true;
+  };
+  const stamp = (kind: number, side: number, wantBank: boolean, reach = DEPOSIT_REACH): boolean => {
+    for (let ring = 2; ring <= reach - side; ring += 2) {
       for (let z = sz0 - ring; z <= sz1 + ring; z += 2) {
         for (let x = sx0 - ring; x <= sx1 + ring; x += 2) {
           const onRing = z === sz0 - ring || z === sz1 + ring || x === sx0 - ring || x === sx1 + ring;
@@ -415,6 +452,7 @@ function placeDeposits(map: MapLayers, rng: StreamRng, dist: Uint16Array, start:
     }
     return false;
   };
+  if (clusters(Deposit.stone, 9, NEAR_STONE_REACH) < 1) stampNear(Deposit.stone, 4);
   for (let k = clusters(Deposit.stone, 12); k < 2; k++) if (!stamp(Deposit.stone, 4, false)) break;
   if (clusters(Deposit.clay, 1) < 1 && !stamp(Deposit.clay, 3, true)) stamp(Deposit.clay, 3, false);
 }

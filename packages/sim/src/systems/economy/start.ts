@@ -15,8 +15,8 @@ import { worldIndex } from '../../state/worldIndex';
 /** Storehouse stock at founding: [good id, units]. */
 export const START_GOODS: readonly [string, number][] = [
   ['logs', 40],
-  ['planks', 30],
-  ['stone', 20],
+  ['planks', 50],
+  ['stone', 30],
   ['bread', 16],
   ['vegetables', 16],
   ['fish', 8],
