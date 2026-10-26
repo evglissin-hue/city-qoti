@@ -280,7 +280,8 @@ export class Renderer implements RenderApi {
         if (!(o instanceof Mesh)) return;
         const m = o.material as Material;
         const solid = !m.transparent;
-        o.castShadow = solid;
+        // C3D-1: scattered grass and flowers opt out of casting (userData.qotiShadows false).
+        o.castShadow = solid && o.userData.qotiShadows !== false;
         o.receiveShadow = solid;
       });
     }

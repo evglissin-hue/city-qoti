@@ -16,6 +16,8 @@ export class ChunkedMeshes {
     private readonly material: Material,
     private readonly build: (cx: number, cz: number) => BufferGeometry | null,
     private readonly renderOrder = 0,
+    /** C3D-1: false keeps the chunks out of the shadow pass (they still receive shadows). */
+    private readonly castShadows = true,
   ) {}
 
   markAll(): void {
@@ -59,6 +61,7 @@ export class ChunkedMeshes {
     const mesh = new Mesh(geometry, this.material);
     mesh.matrixAutoUpdate = false;
     mesh.renderOrder = this.renderOrder;
+    if (!this.castShadows) mesh.userData.qotiShadows = false;
     this.scene.add(mesh);
     this.meshes[i] = mesh;
   }

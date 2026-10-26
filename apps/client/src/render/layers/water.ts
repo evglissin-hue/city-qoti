@@ -183,7 +183,7 @@ function createWaterMaterial(env: WorldEnv, flow: Vector2): MeshStandardMaterial
           'float glint = pow(max(dot(refl, normalize(uSunDir)), 0.0), 180.0);',
           'float twinkle = step(0.8, qHash(floor(wp * 9.0) + floor(uTime * 3.0)));',
           // Far away the glints are smaller than a pixel: let them go rather than shimmer.
-          'glint *= clamp(1.6 - length(fwidth(wp)) * 9.0, 0.0, 1.0);',
+          'glint *= clamp(1.0 - length(fwidth(wp)) * 16.0, 0.0, 1.0);',
           'totalEmissiveRadiance += uSun * glint * (0.25 + 1.1 * twinkle) * (1.0 - uNight);',
         ].join('\n'),
       );

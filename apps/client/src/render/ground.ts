@@ -37,7 +37,7 @@ const mix = (a: RGB, b: RGB, t: number): RGB => [
 ];
 
 const GRASS = rgb(palette.grass);
-const GRASS_WARM = rgb(0xb3c766);
+const GRASS_WARM = rgb(0xa8bf60);
 const GRASS_LUSH = rgb(0x6f9d4a);
 const MEADOW = rgb(palette.meadow);
 const FOREST = rgb(palette.forestFloor);
@@ -49,7 +49,7 @@ const BED = rgb(0x8f8a62);
 const FIELD = rgb(0x8a6a48);
 
 /** Smooth value noise over the tile grid, for patches several tiles wide. */
-function patch(x: number, z: number, scale: number, salt: number): number {
+export function patch(x: number, z: number, scale: number, salt: number): number {
   const fx = x / scale;
   const fz = z / scale;
   const ix = Math.floor(fx);
@@ -108,7 +108,9 @@ export class GroundTextures {
     if (L.occupant[i]) flags |= GroundFlag.built;
     if (L.tree[i]) flags |= GroundFlag.tree;
 
-    // Neighborhood: trees for canopy shade, water for banks, fields for row direction.
+    // Neighborhood: trees for canopy shade, water for banks, fields for row direction, cliffs.
+    const level = L.height[i]!;
+    let cliff = false;
     let trees = 0;
     let wet = 0;
     let fieldX = 0;
@@ -122,6 +124,7 @@ export class GroundTextures {
         const near = Math.abs(dx) <= 1 && Math.abs(dz) <= 1;
         if (near && L.tree[j]) trees += dx === 0 && dz === 0 ? 2 : 1;
         if (L.water[j]) wet = Math.max(wet, near ? 2 : 1);
+        if (near && !L.water[j] && Math.abs(L.height[j]! - level) >= 2) cliff = true;
         if (L.terrain[j] === Terrain.field && (dx === 0) !== (dz === 0)) {
           if (dz === 0) fieldX++;
           else fieldZ++;
@@ -159,13 +162,15 @@ export class GroundTextures {
         c = FIELD;
         break;
       default:
-        c = mix(GRASS, GRASS_WARM, Math.max(0, warm - 0.3) * 0.9);
+        c = mix(GRASS, GRASS_WARM, Math.max(0, warm - 0.35) * 0.8);
         c = mix(c, GRASS_LUSH, Math.max(0, lush - 0.55) * 1.4);
         flowers = Math.max(0, bloom - 0.62) * 1.6;
     }
     if (!water && wet && terrain !== Terrain.sand && terrain !== Terrain.rock)
       c = mix(c, GRASS_WARM, wet === 2 ? 0.3 : 0.1);
     if (trees > 0 && !water) c = mix(c, CANOPY, Math.min(1, trees / 8) * 0.6);
+    // Stony ground around rocky faces, so a cliff reads as an outcrop, not a crack.
+    if (cliff && !water) c = mix(c, ROCK, 0.45);
     // A whisper of per-tile value jitter; the filter turns it into soft blotches, not a grid.
     const k = 0.975 + hash2(x, z, 21) * 0.05;
     if (L.occupant[i] || road) flowers = 0;
@@ -239,7 +244,7 @@ vec3 qGround(vec3 base) {
   float m1 = qFbm(wp * 0.42);
   float m2 = qNoise(wp * 1.3 + 3.0);
   col *= 0.9 + 0.17 * m1;
-  col = mix(col, col * vec3(1.08, 1.05, 0.82), smoothstep(0.55, 0.9, m2) * 0.45);
+  col = mix(col, col * vec3(1.06, 1.04, 0.86), smoothstep(0.55, 0.9, m2) * 0.3);
   float strokes = qNoise(vec2(wp.x * 11.0 + wp.y * 4.0, wp.y * 3.0 - wp.x * 1.5));
   col *= 0.95 + 0.08 * strokes;
   if (terrain > 3.5 && terrain < 5.5) {
@@ -289,7 +294,7 @@ vec3 qGround(vec3 base) {
 
   // Banks: a sandy strip that follows the shore, damp sand at the waterline, the bed below it.
   float above = vQWorld.y - ${WATER_Y.toFixed(3)};
-  float strip = 1.0 - smoothstep(0.14, 0.3, above + (qNoise(wp * 2.3) - 0.5) * 0.12);
+  float strip = 1.0 - smoothstep(0.1, 0.22, above + (qNoise(wp * 2.3) - 0.5) * 0.1);
   col = mix(col, qSrgb(vec3(0.89, 0.82, 0.63)) * (0.94 + 0.1 * qNoise(wp * 5.0)), strip * 0.85);
   col *= mix(0.72, 1.0, smoothstep(-0.02, 0.07, above));
   col = mix(col, qSrgb(vec3(0.38, 0.42, 0.30)), smoothstep(0.0, -0.4, above) * 0.6);

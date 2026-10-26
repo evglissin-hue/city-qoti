@@ -269,6 +269,7 @@ export class ShapeBuilder {
     detail = 1,
     rnd?: () => number,
     wobble = 0,
+    topHex?: number,
   ): this {
     const v: V3[] = [
       [1, 0, 0],
@@ -328,8 +329,48 @@ export class ShapeBuilder {
           t[0]![1] + t[1]![1] + t[2]![1],
           t[0]![2] + t[1]![2] + t[2]![2],
         ]);
-        this.tri(place(t[0]!), place(t[1]!), place(t[2]!), hex, center);
+        // C3D-1: an optional sunlit color for the upward faces (canopies, bushes).
+        const c = topHex !== undefined && center[1] > 0.45 ? topHex : hex;
+        this.tri(place(t[0]!), place(t[1]!), place(t[2]!), c, center);
       }
+    }
+    return this;
+  }
+
+  /**
+   * C3D-1: a thin tapered blade from (x, 0, z) leaning towards `dir` (radians), two triangles back to
+   * back so it reads from both sides. For grass, reeds and leaves.
+   */
+  blade(
+    x: number,
+    z: number,
+    height: number,
+    width: number,
+    lean: number,
+    dir: number,
+    hex: number,
+    tipHex = hex,
+  ): this {
+    const dx = Math.cos(dir);
+    const dz = Math.sin(dir);
+    // The blade's flat side faces sideways to its lean.
+    const sx = -dz * width * 0.5;
+    const sz = dx * width * 0.5;
+    const tip: V3 = [x + dx * lean, height, z + dz * lean];
+    const a: V3 = [x - sx, 0, z - sz];
+    const b: V3 = [x + sx, 0, z + sz];
+    const out: V3 = [-dz, 0.3, dx];
+    this.tri(a, b, tip, hex, out);
+    this.tri(a, b, tip, tipHex, [dz, 0.3, -dx]);
+    return this;
+  }
+
+  /** C3D-1: moves everything built so far (used to lift or offset a finished piece). */
+  translate(x: number, y: number, z: number): this {
+    for (let i = 0; i < this.positions.length; i += 3) {
+      this.positions[i]! += x;
+      this.positions[i + 1]! += y;
+      this.positions[i + 2]! += z;
     }
     return this;
   }

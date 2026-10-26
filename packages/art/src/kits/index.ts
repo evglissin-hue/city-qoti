@@ -2,6 +2,7 @@
 // in `art.kit`; the client test checks that every one of them exists here.
 import * as B from './buildings';
 import * as D from './decor';
+import * as N from './nature';
 import * as P from './placeholders';
 import * as T from './trees';
 import type { Kit } from './types';
@@ -15,15 +16,19 @@ export const kits: readonly Kit[] = [
   T.birch,
   P.birdbath,
   P.buildersYard,
+  N.bush,
   D.cherryTree,
   B.cottage,
   D.crates,
   P.curvedBench,
+  N.fallenLog,
   P.farmhouse,
   D.fence,
+  N.fern,
   P.fishersHut,
   D.flowerBed,
   P.forestersLodge,
+  N.grassTuft,
   P.hangingLantern,
   D.hedge,
   P.herbPlanter,
@@ -32,13 +37,16 @@ export const kits: readonly Kit[] = [
   D.lowWall,
   P.marketStall,
   P.mooringPost,
+  N.mushrooms,
   T.oak,
   T.pine,
   D.planter,
   P.planterWall,
   P.quarry,
+  N.reeds,
   P.resident,
   P.ringBench,
+  N.rock,
   P.sawpit,
   B.shed,
   D.signpost,
@@ -47,6 +55,7 @@ export const kits: readonly Kit[] = [
   P.vegetablePlot,
   B.well,
   P.wildflowerVerge,
+  N.wildflowers,
   B.windmill,
   P.woodcutter,
 ];

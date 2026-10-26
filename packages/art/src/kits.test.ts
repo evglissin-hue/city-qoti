@@ -49,6 +49,10 @@ describe('art kits', () => {
         expect(tris(kit.id, { size, entrance: [0, size[1] - 1] }), kit.id).toBeLessThan(1500);
       } else if (kit.kind === 'decor') {
         expect(tris(kit.id, {}), kit.id).toBeLessThan(400);
+      } else if (kit.kind === 'nature') {
+        // Scattered by the thousand: keep them tiny, and the low version no bigger.
+        expect(tris(kit.id, {}), kit.id).toBeLessThan(160);
+        expect(tris(kit.id, { lod: 'low' }), kit.id).toBeLessThanOrEqual(tris(kit.id, {}));
       } else {
         expect(tris(kit.id, { lod: 'low' }), kit.id).toBeLessThan(60);
         expect(tris(kit.id, { stage: 0 }), kit.id).toBeLessThanOrEqual(tris(kit.id, {}));

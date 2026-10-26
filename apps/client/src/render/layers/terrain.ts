@@ -330,7 +330,9 @@ export function terrainLayer(): RenderLayer {
       ground = new GroundTextures(ctx.mirror);
       material = createGroundMaterial(ground, ctx.env ?? createWorldEnv(new PerspectiveCamera()));
       const t = tiles;
-      chunks = new ChunkedMeshes(ctx.scene, material, (cx, cz) => buildTerrainChunk(t, cx, cz));
+      // The ground receives shadows but casts none: rolling hills would only shadow themselves,
+      // and it keeps a whole pass of draw calls off the frame.
+      chunks = new ChunkedMeshes(ctx.scene, material, (cx, cz) => buildTerrainChunk(t, cx, cz), 0, false);
       chunks.markAll();
       chunks.rebuild();
     },
