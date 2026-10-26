@@ -587,7 +587,7 @@ function seaside(state: WorldState, ctx: TickCtx, rng: Rng, today: number): void
     const partner = r.partner ? findById(state.residents, r.partner) : undefined;
     if (partner && (partner.stage !== 'elder' || partner.story || busy(partner))) continue;
     if (!rng.chance(SEASIDE_CHANCE)) continue;
-    goToSeaside(state, ctx, partner ? [r, partner] : [r]);
+    goToSeaside(state, ctx, partner ? [r, partner].sort((x, y) => x.id - y.id) : [r]);
     return;
   }
 }
