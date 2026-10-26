@@ -80,7 +80,7 @@ export function befriend(a: Resident, b: Resident, level: number): void {
       f.level = level;
       f.points = points;
     } else {
-      x.friends.push({ id: y.id, level, points });
+      x.friends.push({ id: y.id, level, points, lastMet: 0 });
       x.friends.sort((p, q) => p.id - q.id);
     }
   }

@@ -1,4 +1,4 @@
-import { expect as baseExpect, test, type Page } from '@playwright/test';
+import { expect as baseExpect, test, type Browser, type Page } from '@playwright/test';
 import { counts, HAMLET_QUERY, hashesAt } from './helpers';
 
 // C4D acceptance: plans and requests round trip through the sim and both clients. Seat 0 sketches
@@ -43,7 +43,7 @@ const requests = (p: Page) =>
 const submit = (p: Page, cmd: unknown) =>
   p.evaluate((c) => (window.__qoti as unknown as { submit(c: unknown): number }).submit(c), cmd);
 
-async function twoSeats(browser: import('@playwright/test').Browser) {
+async function twoSeats(browser: Browser) {
   const a = await (await browser.newContext()).newPage();
   await a.goto(`/${HAMLET_QUERY}`);
   await a.getByTestId('new-online').click();
