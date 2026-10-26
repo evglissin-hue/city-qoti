@@ -1,17 +1,29 @@
 import { signal } from '@preact/signals';
 import type { ErrorCode, PresenceMsg, RosterEntry, S2C, ValleyMeta, Welcome } from '@qoti/protocol';
-import { base64ToBytes, SIM_VERSION, type Command, type SeatId, type Speed, type Turn } from '@qoti/sim';
+import {
+  base64ToBytes,
+  SIM_VERSION,
+  TICKS_PER_DAY,
+  type Command,
+  type InspectKind,
+  type InspectResult,
+  type SeatId,
+  type Speed,
+  type Turn,
+} from '@qoti/sim';
 import type { Selection, ToolContext, UiApi } from '../input/context';
 import { ToolManager } from '../input/manager';
 import type { PointerInfo } from '../input/tool';
 import type { RoomConnection } from '../net/connection';
 import { LocalRoom } from '../net/local';
 import { OnlineRoom } from '../net/online';
+import type { RenderApi } from '../render/api';
 import { Renderer } from '../render/renderer';
 import { setPingSender, type PingKind } from '../ui/pingBus';
 import { loadProfile, profileUpdate } from './profile';
 import { Mirror, type MirrorChange } from '../state/mirror';
-import { rejectText } from '../ui/messages';
+import { UndoStack } from '../state/undo';
+import { rejectText, undoText } from '../ui/messages';
 import { createUiState } from '../ui/state';
 import type { InitSource } from '../worker/messages';
 import { SimHost } from '../worker/host';
@@ -73,7 +85,23 @@ export class Session {
     if (document.visibilityState === 'hidden' && this.phase.value === 'ready') void this.uploadSnapshot();
   };
 
-  constructor(readonly target: SessionTarget) {}
+  /** I1: this seat's own undo stack (Ctrl+Z). */
+  readonly undo: UndoStack;
+  private nextLetter = 1;
+
+  constructor(readonly target: SessionTarget) {
+    this.undo = new UndoStack(target.seat);
+  }
+
+  /** The renderer as the UI sees it (highlight, focus, follow), or null before it mounts. */
+  get render(): RenderApi | null {
+    return this.renderer;
+  }
+
+  /** I1: full detail for an inspector or the away letter, from the sim worker. */
+  inspect(kind: InspectKind, id: number): Promise<InspectResult> {
+    return this.host.inspect(kind, id);
+  }
 
   get seat(): SeatId {
     return this.target.seat;
@@ -98,7 +126,10 @@ export class Session {
     }
     const c = this.connection;
     c.onWelcome((w) => void this.welcome(w));
-    c.onTurn((turn: Turn) => this.host.turns([turn]));
+    c.onTurn((turn: Turn) => {
+      this.undo.sawTurn(turn);
+      this.host.turns([turn]);
+    });
     c.onPresence((p) => this.onPresence(p));
     c.onNeedSnapshot(() => void this.uploadSnapshot());
     c.onResync((r) => void this.resync(r));
@@ -130,6 +161,7 @@ export class Session {
     const turns = [...r.log];
     const covered = turns[turns.length - 1]?.t ?? r.snapshot.t;
     if (r.nextTurn - 1 > covered) turns.push({ t: r.nextTurn - 1, cmds: [] });
+    this.undo.clear();
     try {
       this.mirror.load(
         await this.host.init({ kind: 'snapshot', data: base64ToBytes(r.snapshot.data) }, turns),
@@ -170,7 +202,9 @@ export class Session {
       const update = profileUpdate(loadProfile(), mine);
       if (update) this.submit({ t: 'seat.setProfile', ...update, lens: mine.lens });
     }
+    const firstVisit = this.phase.value !== 'ready';
     this.phase.value = 'ready';
+    if (firstVisit) void this.checkAway();
     updateRecent(this.target.valleyId, {
       name: w.valley.settings.townName,
       lastPlayed: Date.now(),
@@ -194,6 +228,7 @@ export class Session {
     this.tools = new ToolManager(ctx, renderer, renderer.canvas, {
       pointer: (p) => this.pointer(p),
       globalKey: (e) => this.globalKey(e),
+      undo: () => this.undoLast(),
     });
   }
 
@@ -223,10 +258,31 @@ export class Session {
     c?.send?.call(this.connection, { k: 'ping', x, z, kind });
   }
 
-  submit(cmd: Command): number {
+  /** Submits a command; undoable ones go on this seat's undo stack once the sim accepts them. */
+  submit(cmd: Command, record = true): number {
     if (!this.connection) return -1;
     this.debug.lastSubmitAt = Date.now();
-    return this.connection.submit(cmd);
+    const before = record ? this.undo.prepare(cmd, this.mirror) : null;
+    const seq = this.connection.submit(cmd);
+    if (before) this.undo.submitted(seq, cmd, before, this.mirror.lastTurn.value);
+    return seq;
+  }
+
+  /** Ctrl+Z: submits the inverse of this seat's latest accepted command. */
+  undoLast(): void {
+    const out = this.undo.undo(this.mirror, (cmd) => this.submit(cmd, false));
+    this.toast(
+      out.ok ? undoText.done(out.label) : out.reason === 'EMPTY' ? undoText.empty : rejectText(out.reason),
+    );
+  }
+
+  /** On arrival: a letter when this seat was away for a day or more (docs/spec/16-coop.md). */
+  private async checkAway(): Promise<void> {
+    // The sim keeps what this seat saw when it last left; the letter is built from there.
+    const letter = await this.host.inspect('away', this.seat);
+    if (letter && 'days' in letter && letter.days >= 1 && this.mirror.tick.value >= TICKS_PER_DAY) {
+      this.ui.letter.value = letter;
+    }
   }
 
   setSpeed(speed: Speed): void {
@@ -248,13 +304,23 @@ export class Session {
   private afterUpdate(change: MirrorChange): void {
     const now = Date.now();
     for (const key of change.added) if (!this.debug.firstSeen.has(key)) this.debug.firstSeen.set(key, now);
-    for (const r of change.rejections) if (r.seat === this.seat) this.toast(rejectText(r.reason));
+    for (const r of change.rejections) {
+      if (r.seat !== this.seat) continue;
+      this.toast(this.undo.undoSeqs.has(r.seq) ? undoText.refused(r.reason) : rejectText(r.reason));
+    }
+    this.undo.observe(change, this.mirror);
+    for (const n of change.notices) {
+      if (n.kind !== 'letter' || (n.seat !== undefined && n.seat !== this.seat)) continue;
+      const letter = { key: this.nextLetter++, kind: n.kind, text: n.text, tick: this.mirror.tick.value };
+      this.ui.letters.value = [...this.ui.letters.value.slice(-19), n.at ? { ...letter, at: n.at } : letter];
+    }
     const sel = this.ui.selection.value;
     if (sel && 'id' in sel) {
       const gone =
         (sel.kind === 'building' && !this.mirror.buildings.has(sel.id)) ||
         (sel.kind === 'decor' && !this.mirror.decor.has(sel.id)) ||
-        (sel.kind === 'note' && !this.mirror.notes.has(sel.id));
+        (sel.kind === 'note' && !this.mirror.notes.has(sel.id)) ||
+        (sel.kind === 'resident' && !this.mirror.residents.has(sel.id));
       if (gone) this.ui.selection.value = null;
     }
   }

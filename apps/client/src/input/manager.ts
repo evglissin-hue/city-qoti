@@ -10,6 +10,8 @@ export interface ManagerHooks {
   pointer(p: PointerInfo): void;
   /** Keys no tool used: pause, speed, lens and so on. Returns true when handled. */
   globalKey(e: KeyboardEvent): boolean;
+  /** I1: Ctrl+Z (Cmd+Z on a Mac) undoes this seat's latest command. */
+  undo?(): void;
 }
 
 function isTyping(e: KeyboardEvent): boolean {
@@ -63,7 +65,13 @@ export class ToolManager {
     });
     on(canvas, 'pointerleave', () => this.render.setGhost(null));
     on(window, 'keydown', (e) => {
-      if (isTyping(e) || e.metaKey || e.ctrlKey || e.altKey) return;
+      if (isTyping(e)) return;
+      if ((e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey && (e.key === 'z' || e.key === 'Z')) {
+        e.preventDefault();
+        this.hooks.undo?.();
+        return;
+      }
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
       if (this.current.key?.(e) || this.eyedropper(e) || this.hooks.globalKey(e)) e.preventDefault();
     });
   }
