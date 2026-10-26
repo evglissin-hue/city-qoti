@@ -94,6 +94,8 @@ export { insertBuilding } from './state/place';
 export { START_GOODS } from './systems/economy/start';
 export { economyDial, type EconomyDial } from './systems/economy/dial';
 export { fieldCost, placementCost, roadCost } from './systems/economy/api';
+export { nearestOutletWithFood, outletFood, takeFromOutlet } from './systems/economy/outlets';
+export { doorTile } from './systems/movement/api';
 export {
   CROP_RIPE,
   CROP_STAGE_SHIFT,
