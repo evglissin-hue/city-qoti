@@ -33,7 +33,7 @@ export const bakery: BuildingDef = {
   ],
   work: 12,
   charm: [{ category: 'comfort', value: 2, radius: 2 }],
-  tags: ['bakery', 'workshop'],
+  tags: ['bakery', 'workshop', 'cafe'],
   art: { kit: 'bakery' },
 };
 

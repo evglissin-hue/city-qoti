@@ -297,8 +297,9 @@ export function tickIdleCarts(state: WorldState): void {
       continue;
     }
     if (c.parked || c.move) continue;
+    // Only carts kept by a cart shed are sent home (others belong to whoever made them).
     const shed = findById(state.buildings, c.home);
-    const home = shed ? shedTile(state, shed) : -1;
+    const home = shed && isCartShed(shed) ? shedTile(state, shed) : -1;
     if (home < 0) continue;
     if (c.tile === home) c.parked = true;
     else if (requestCartMove(state, c.id, home) === 'unreachable') parkAt(c, home);
