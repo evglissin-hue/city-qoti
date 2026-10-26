@@ -85,7 +85,7 @@ describe('service coverage', () => {
     for (const r of state.residents) {
       const kid = r.stage === 'child' && r.tier === 'craftsfolk';
       expect(r.needs[SERVICE_NEED.education], `${r.tier} ${r.stage}`).toBe(100);
-      expect(weightsOf(r).w[SERVICE_NEED.education] > 0).toBe(kid);
+      expect(weightsOf(r).w[SERVICE_NEED.education]! > 0).toBe(kid);
     }
     const bare = villageWith().state;
     settle(bare);
