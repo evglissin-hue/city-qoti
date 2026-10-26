@@ -7,6 +7,8 @@ import { join } from 'node:path';
 // both servers so several checkouts can test side by side.
 const clientPort = Number(process.env.QOTI_CLIENT_PORT ?? 5173);
 const relayPort = Number(process.env.QOTI_RELAY_PORT ?? 8787);
+// QOTI_CHROMIUM points at a preinstalled Chromium when the bundled one is missing (sandboxes).
+const executablePath = process.env.QOTI_CHROMIUM || undefined;
 
 export default defineConfig({
   testDir: './e2e',
@@ -31,6 +33,7 @@ export default defineConfig({
         viewport: { width: 1280, height: 800 },
         // CI machines have no GPU: WebGL runs on SwiftShader.
         launchOptions: {
+          ...(executablePath && { executablePath }),
           args: ['--enable-unsafe-swiftshader', '--use-angle=swiftshader', '--ignore-gpu-blocklist'],
         },
       },
