@@ -80,7 +80,7 @@ export function addHousehold(
 
 /** Workers for a building: fresh adults in a new household living in the building's own spot. */
 export function staff(state: WorldState, b: Building, n: number, tier: TierId = 'settler'): EntityId[] {
-  const h = state.households[0]!;
+  const h = state.households.find((x) => x.tier === tier) ?? state.households[0]!;
   const ids: EntityId[] = [];
   for (let k = 0; k < n; k++) {
     const r = addResident(state, h, 'adult');
