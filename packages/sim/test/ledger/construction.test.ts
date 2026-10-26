@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { BuildingStatus, PENNIES_PER_COIN, TICKS_PER_HOUR } from '../../src/constants';
 import type { BuildingView } from '../../src/contracts';
+import { TREE_SPECIES, treeValue } from '../../src/map/layers';
 import { findById } from '../../src/state/entities';
 import { hamletFixture } from '../fixtures/hamlet';
-import { rejection, run } from '../helpers';
+import { rejection, run, S } from '../helpers';
 import { building, everyoneToWork, good, stockOf, ticks, untilHour } from './helpers';
 
 const H = TICKS_PER_HOUR;
@@ -45,6 +46,31 @@ describe('placing a site', () => {
       'LEAN_TIMES',
     );
     expect(rejection(run(f.state, { t: 'road.paint', kind: 'path', tiles: [[82, 53]] }))).toBe('LEAN_TIMES');
+  });
+
+  it('turns trees cleared off a site into logs, for the site first', () => {
+    const f = hamletFixture();
+    const store = building(f.state, f.b.storehouse);
+    const oak = treeValue(TREE_SPECIES.oak, 3);
+    // Three mature trees and a sapling under a woodcutter's hut that needs 12 logs.
+    for (const [x, z] of [
+      [120, 60],
+      [121, 60],
+      [120, 61],
+    ]) {
+      f.state.map.tree[z! * S + x!] = oak;
+    }
+    f.state.map.tree[61 * S + 121] = treeValue(TREE_SPECIES.oak, 1);
+    run(f.state, { t: 'build.place', def: 'woodcutter', x: 120, z: 60, rot: 0 });
+    const hut = f.state.buildings[f.state.buildings.length - 1]!;
+    expect(hut.rt!.construction!.delivered[good('logs')]).toBe(6);
+    expect(hut.rt!.construction!.needs[good('logs')]).toBe(6);
+    // A cottage needs no logs: its two trees go to the storehouse.
+    f.state.map.tree[60 * S + 52] = oak;
+    f.state.map.tree[61 * S + 53] = oak;
+    run(f.state, { t: 'build.place', def: 'cottage', x: 52, z: 60, rot: 2 });
+    expect(stockOf(store, 'store', 'logs')).toBe(44);
+    expect(f.state.economy.today.produced[good('logs')]).toBe(10);
   });
 
   it('charges roads per new tile in standard valleys', () => {

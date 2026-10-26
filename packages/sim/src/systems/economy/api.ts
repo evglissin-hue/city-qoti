@@ -10,13 +10,15 @@ import {
   PENNIES_PER_COIN,
   type LedgerCategoryId,
 } from '../../constants';
-import type { Building, RejectReason, RoadKind, TickCtx, WorldState } from '../../contracts';
+import type { Building, RejectReason, RoadKind, Rot4, TickCtx, WorldState } from '../../contracts';
+import { TREE_MATURE, treeStage } from '../../map/layers';
 import { footprintTiles } from '../../rules/footprint';
 import { isStandard } from '../../state/hamlet';
 import { cancelJobsFor } from '../logistics';
 import { stowNearest } from '../logistics/stores';
 import { doorTile } from '../movement/api';
 import { clearFields, fieldsOf, isFarm } from '../production/fields';
+import { bookProduced } from '../production/produce';
 import { emitMoney } from './emit';
 import { isWorkTime } from './time';
 
@@ -48,8 +50,38 @@ export function placementBlocked(state: WorldState, def: BuildingDef): RejectRea
   return spendBlocked(state, placementCost(def));
 }
 
-/** Apply hook for build.place, after the site exists: deducts coins, records ConstructionState.paid. */
-export function chargePlacement(state: WorldState, ctx: TickCtx, b: Building, def: BuildingDef): void {
+/** Logs a builder gets from each mature tree cleared off a site (a woodcutter gets 4). */
+export const CLEARED_TREE_LOGS = 2;
+
+/** Mature trees standing on a footprint: call before insertBuilding clears them. */
+export function matureTreesUnder(
+  state: WorldState,
+  def: BuildingDef,
+  x: number,
+  z: number,
+  rot: Rot4,
+): number {
+  let n = 0;
+  for (const [tx, tz] of footprintTiles(def, x, z, rot)) {
+    if (tx < 0 || tz < 0 || tx >= MAP_SIZE || tz >= MAP_SIZE) continue;
+    const v = state.map.tree[tz * MAP_SIZE + tx]!;
+    if (v && treeStage(v) >= TREE_MATURE) n++;
+  }
+  return n;
+}
+
+/**
+ * Apply hook for build.place, after the site exists: deducts coins, records ConstructionState.paid.
+ * Mature trees cleared off the footprint (`clearedTrees`, counted before the site went in) become
+ * logs: toward the site's own needs first, the rest to the nearest storehouse.
+ */
+export function chargePlacement(
+  state: WorldState,
+  ctx: TickCtx,
+  b: Building,
+  def: BuildingDef,
+  clearedTrees = 0,
+): void {
   // A building placed over field tiles takes them over (in sandbox valleys too).
   const lost: number[] = [];
   for (const [x, z] of footprintTiles(def, b.x, b.z, b.rot)) {
@@ -61,6 +93,16 @@ export function chargePlacement(state: WorldState, ctx: TickCtx, b: Building, de
   const cost = placementCost(def);
   book(state, 'construction', cost);
   b.rt.construction.paid = cost;
+  const logs = content.goodIndex.get('logs');
+  if (clearedTrees > 0 && logs !== undefined) {
+    const c = b.rt.construction;
+    const n = clearedTrees * CLEARED_TREE_LOGS;
+    const used = Math.min(n, c.needs[logs]!);
+    c.needs[logs]! -= used;
+    c.delivered[logs]! += used;
+    if (n > used) stowNearest(state, doorTile(b, def), logs, n - used, b.id);
+    bookProduced(state, ctx, b, logs, n);
+  }
   emitMoney(state, ctx);
 }
 

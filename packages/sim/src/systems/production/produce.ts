@@ -66,6 +66,12 @@ export function produce(state: WorldState, ctx: TickCtx, b: Building, good: numb
   const rt = b.rt!;
   rt.output[good]! += qty;
   rt.producedToday[good]! += qty;
+  bookProduced(state, ctx, b, good, qty);
+}
+
+/** Books goods made (in a building or by clearing a site) in the ledger and everProduced. */
+export function bookProduced(state: WorldState, ctx: TickCtx, b: Building, good: number, qty: number): void {
+  if (qty <= 0) return;
   const e = state.economy;
   e.today.produced[good]! += qty;
   e.season.produced[good]! += qty;

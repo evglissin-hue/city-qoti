@@ -6,7 +6,7 @@ import { footprintTiles } from '../rules/footprint';
 import { findById, removeById } from '../state/entities';
 import { insertBuilding } from '../state/place';
 import { worldIndex } from '../state/worldIndex';
-import { chargePlacement, placementBlocked, refundRemoval } from '../systems/economy/api';
+import { chargePlacement, matureTreesUnder, placementBlocked, refundRemoval } from '../systems/economy/api';
 import { checkIds, type HandlerFor, tilesChangedFor, worldChanged } from './util';
 
 export const place: HandlerFor<'build.place'> = {
@@ -23,10 +23,11 @@ export const place: HandlerFor<'build.place'> = {
     const def = content.buildingById.get(cmd.def)!;
     const placement = canPlaceBuilding(worldIndex(state).reader, def, cmd.x, cmd.z, cmd.rot);
     // Sandbox: built instantly. Standard: a construction site that builders finish (C3C).
+    const trees = matureTreesUnder(state, def, cmd.x, cmd.z, cmd.rot);
     const b = insertBuilding(state, ctx, def, cmd.x, cmd.z, cmd.rot, seat, {
       foundation: placement.foundation,
     });
-    chargePlacement(state, ctx, b, def);
+    chargePlacement(state, ctx, b, def, trees);
   },
 };
 
