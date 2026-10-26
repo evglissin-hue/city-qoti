@@ -4,6 +4,7 @@ import * as B from './buildings';
 import * as D from './decor';
 import * as Gd from './garden';
 import * as G from './goods';
+import * as N from './nature';
 import * as R from './residents';
 import * as T from './trees';
 import type { Kit } from './types';
@@ -18,15 +19,19 @@ export const kits: readonly Kit[] = [
   T.birch,
   Gd.birdbath,
   W.buildersYardKit,
+  N.bush,
   D.cherryTree,
   B.cottage,
   D.crates,
   Gd.curvedBench,
+  N.fallenLog,
   W.farmhouseKit,
   D.fence,
+  N.fern,
   W.fishersHutKit,
   D.flowerBed,
   W.forestersLodgeKit,
+  N.grassTuft,
   G.handcart,
   Gd.hangingLantern,
   D.hedge,
@@ -36,13 +41,16 @@ export const kits: readonly Kit[] = [
   D.lowWall,
   W.marketStallKit,
   Gd.mooringPost,
+  N.mushrooms,
   T.oak,
   T.pine,
   D.planter,
   Gd.planterWall,
   W.quarryKit,
+  N.reeds,
   R.resident,
   Gd.ringBench,
+  N.rock,
   W.sawpitKit,
   B.shed,
   D.signpost,
@@ -51,6 +59,7 @@ export const kits: readonly Kit[] = [
   W.vegetablePlotKit,
   B.well,
   Gd.wildflowerVerge,
+  N.wildflowers,
   B.windmill,
   W.woodcutterKit,
 ];

@@ -7,6 +7,7 @@ import {
   TILE_FP,
   type Command,
   type Lens,
+  type LayerName,
   type Rot4,
   type Turn,
   type ValleySettings,
@@ -157,11 +158,13 @@ export function installDebugHook(getSession: () => Session | null): void {
       }
     },
     /** Glides the camera to the start area at `distance`, for screenshots. */
-    focusStart: (distance = 18) => {
+    focusStart: (distance = 18, snap = false) => {
       const session = s();
       if (!session) return;
       const [x0, z0, x1, z1] = session.mirror.meta.startArea;
       session.renderer?.focus((x0 + x1) / 2, (z0 + z1) / 2, distance);
+      // C3D-1: snap skips the glide, which crawls at SwiftShader frame rates.
+      if (snap) session.renderer?.rig.snap();
     },
     /** Pins the lighting to an hour of the day (null follows the clock again). */
     setHour: (hour: number | null) => s()?.renderer?.setDebugHour(hour),
@@ -224,6 +227,61 @@ export function installDebugHook(getSession: () => Session | null): void {
     },
     /** C3D: the renderer, for render tests (overlays, bubbles, follow, stats). */
     renderer: () => s()?.renderer ?? null,
+    /** C3D-1: jumps the camera (no glide) to look at a tile from `distance`, for screenshots. */
+    look: (x: number, z: number, distance: number, turn = 0, tilt = 0) => {
+      const r = s()?.renderer;
+      r?.focus(x, z, distance);
+      // Optional turn and tilt (radians, relative to the current view).
+      r?.rig.rotateBy(turn, tilt);
+      r?.rig.snap();
+    },
+    /**
+     * C3D-1, look checks only: overwrites a rect of a map layer in this client's mirror (never the
+     * sim), for art that has no sim behind it yet, such as fields and crops. `value` may be a
+     * function of the tile.
+     */
+    paintLayer: (
+      layer: string,
+      x0: number,
+      z0: number,
+      x1: number,
+      z1: number,
+      value: number | ((x: number, z: number) => number),
+    ) => {
+      const m = s()?.mirror;
+      if (!m) return;
+      const w = x1 - x0 + 1;
+      const name = layer as LayerName;
+      const data =
+        m.layers[name] instanceof Int32Array
+          ? new Int32Array(w * (z1 - z0 + 1))
+          : new Uint8Array(w * (z1 - z0 + 1));
+      for (let z = z0; z <= z1; z++)
+        for (let x = x0; x <= x1; x++)
+          data[(z - z0) * w + (x - x0)] = typeof value === 'function' ? value(x, z) : value;
+      m.apply({ t: m.lastTurn.value, events: [], patches: [{ layer: name, rect: [x0, z0, x1, z1], data }] });
+    },
+    /** C3D-1: the water tile nearest the start area center, or null. */
+    /** C3D-1: whether a tile is water, and the start area rect, for screenshot scripts. */
+    isWater: (x: number, z: number) => !!s()?.mirror.water(x, z),
+    startArea: () => s()?.mirror.meta.startArea ?? null,
+    nearestWater: () => {
+      const m = s()?.mirror;
+      if (!m) return null;
+      const [x0, z0, x1, z1] = m.meta.startArea;
+      const cx = Math.floor((x0 + x1) / 2);
+      const cz = Math.floor((z0 + z1) / 2);
+      for (let r = 1; r < m.size; r++) {
+        for (let dz = -r; dz <= r; dz++) {
+          for (let dx = -r; dx <= r; dx++) {
+            if (Math.max(Math.abs(dx), Math.abs(dz)) === r && m.water(cx + dx, cz + dz)) {
+              return [cx + dx, cz + dz] as [number, number];
+            }
+          }
+        }
+      }
+      return null;
+    },
   };
   (window as unknown as { __qoti: typeof hook }).__qoti = hook;
 }

@@ -1,4 +1,5 @@
 import { CHUNK_SIZE, CHUNKS_PER_SIDE, type Rect } from '@qoti/sim';
+import { nearestChunks, type Near } from './chunkDirt';
 import { Mesh, type BufferGeometry, type Material, type Scene } from 'three';
 
 /**
@@ -16,7 +17,14 @@ export class ChunkedMeshes {
     private readonly material: Material,
     private readonly build: (cx: number, cz: number) => BufferGeometry | null,
     private readonly renderOrder = 0,
+    /** C3D-1: false keeps the chunks out of the shadow pass (they still receive shadows). */
+    private readonly castShadows = true,
   ) {}
+
+  /** C3D-1: chunks waiting to be rebuilt. */
+  get pending(): number {
+    return this.dirty.size;
+  }
 
   markAll(): void {
     for (let i = 0; i < this.meshes.length; i++) this.dirty.add(i);
@@ -33,9 +41,11 @@ export class ChunkedMeshes {
   }
 
   /** Rebuilds up to `max` dirty chunks. Returns true when anything changed. */
-  rebuild(max = Infinity): boolean {
+  rebuild(max = Infinity, near?: Near, radius = Infinity): boolean {
     let n = 0;
-    for (const i of this.dirty) {
+    // C3D-1: nearest the view first, so a fresh valley fills in from where the player looks.
+    const order = near ? nearestChunks(this.dirty, near, radius) : [...this.dirty];
+    for (const i of order) {
       if (n >= max) break;
       this.dirty.delete(i);
       this.rebuildChunk(i);
@@ -59,6 +69,7 @@ export class ChunkedMeshes {
     const mesh = new Mesh(geometry, this.material);
     mesh.matrixAutoUpdate = false;
     mesh.renderOrder = this.renderOrder;
+    if (!this.castShadows) mesh.userData.qotiShadows = false;
     this.scene.add(mesh);
     this.meshes[i] = mesh;
   }

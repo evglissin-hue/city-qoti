@@ -10,6 +10,7 @@ import {
 } from '@qoti/sim';
 import { Matrix4, Quaternion, Vector3, type BufferGeometry } from 'three';
 import { fpToWorld, levelY } from './coords';
+import { groundY } from './surface';
 
 const cache = new Map<string, BufferGeometry>();
 
@@ -208,6 +209,7 @@ export function decorMatrix(
   const x = fpToWorld(fx);
   const z = fpToWorld(fz);
   q.setFromAxisAngle(up, (-rot * 2 * Math.PI) / DECOR_ROTATIONS);
-  pos.set(x, levelY(reader.height(Math.floor(x), Math.floor(z))), z);
+  // C3D-1: stand on the drawn ground, which slopes between tile centers.
+  pos.set(x, groundY(reader, x, z), z);
   return out.compose(pos, q, scl);
 }

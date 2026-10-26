@@ -6,11 +6,14 @@ import { decorLayer } from './decor';
 import { effectsLayer } from './effects';
 import { fieldsLayer } from './fields';
 import { ghostsLayer } from './ghosts';
+import { lightsLayer } from './lights';
+import { natureLayer } from './nature';
 import { notesLayer } from './notes';
 import { overlaysLayer } from './overlays';
 import { presenceLayer } from './presence';
 import { roadsLayer } from './roads';
 import { signsLayer } from './signs';
+import { skyLayer } from './sky';
 import { terrainLayer } from './terrain';
 import { treesLayer } from './trees';
 import type { LayerFactory } from './types';
@@ -24,11 +27,14 @@ export const layerFactories: readonly LayerFactory[] = [
   effectsLayer,
   fieldsLayer,
   ghostsLayer,
+  lightsLayer,
+  natureLayer,
   notesLayer,
   overlaysLayer,
   presenceLayer,
   roadsLayer,
   signsLayer,
+  skyLayer,
   terrainLayer,
   treesLayer,
   waterLayer,

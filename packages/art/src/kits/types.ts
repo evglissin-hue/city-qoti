@@ -52,7 +52,8 @@ export interface KitPart {
  */
 export interface Kit {
   id: string;
-  kind: 'building' | 'decor' | 'tree';
+  /** C3D-1 addition: 'nature' props (bushes, rocks, reeds...) that the renderer scatters. */
+  kind: 'building' | 'decor' | 'tree' | 'nature';
   build(opts?: KitBuildOptions): BufferGeometry;
   /** C2 addition: anchors for effects (smoke, lights). Optional. */
   anchors?(opts?: KitBuildOptions): KitAnchors;

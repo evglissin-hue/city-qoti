@@ -2,33 +2,51 @@ import { MAP_SIZE, TILE_FP, type MapReader } from '@qoti/sim';
 import type { Vector3 } from 'three';
 import type { TilePick } from './api';
 import { levelY } from './coords';
+import { surfaceOf, surfaceY, type SurfaceReader } from './surface';
 
 const MAX_Y = levelY(15) + 0.5;
-const STEP = 0.08;
+const STEP = 0.06;
 
 /**
- * Picking is math, not mesh raycasting: march the ray across the heightfield until it dips
- * below a tile's top, then refine the crossing by bisection.
+ * Picking is math, not mesh raycasting: march the ray over the same smooth surface the terrain
+ * draws until it dips below the ground, then refine the crossing by bisection. The picked tile is
+ * the one under the hit point, so slopes and cliff faces pick what the cursor is on.
  */
-export function pickTileFromRay(reader: MapReader, origin: Vector3, dir: Vector3): TilePick | null {
+export function pickTileFromRay(
+  reader: MapReader | SurfaceReader,
+  origin: Vector3,
+  dir: Vector3,
+): TilePick | null {
   if (dir.y >= 0 && origin.y > MAX_Y) return null;
+  const surface = surfaceOf(reader);
   let t = origin.y > MAX_Y ? (origin.y - MAX_Y) / -dir.y : 0;
   const tEnd = t + 1200;
   const below = (tt: number) => {
     const x = origin.x + dir.x * tt;
     const z = origin.z + dir.z * tt;
+    if (x < 0 || z < 0 || x >= MAP_SIZE || z >= MAP_SIZE) return false;
+    const y = origin.y + dir.y * tt;
+    // Cheap bound first: the surface never rises above the highest of the 3 x 3 tile centers.
     const tx = Math.floor(x);
     const tz = Math.floor(z);
-    if (tx < 0 || tz < 0 || tx >= MAP_SIZE || tz >= MAP_SIZE) return false;
-    return origin.y + dir.y * tt <= levelY(reader.height(tx, tz));
+    let top = -1;
+    for (let dz = -1; dz <= 1; dz++) {
+      for (let dx = -1; dx <= 1; dx++) {
+        const nx = Math.min(MAP_SIZE - 1, Math.max(0, tx + dx));
+        const nz = Math.min(MAP_SIZE - 1, Math.max(0, tz + dz));
+        top = Math.max(top, levelY(reader.height(nx, nz)));
+      }
+    }
+    if (y > top + 0.01) return false;
+    return y <= surfaceY(surface, x, z);
   };
   let prev = t;
   for (; t < tEnd; t += STEP) {
-    if (origin.y + dir.y * t < -1) break;
+    if (origin.y + dir.y * t < -1.5) break;
     if (below(t)) {
       let lo = prev;
       let hi = t;
-      for (let i = 0; i < 10; i++) {
+      for (let i = 0; i < 12; i++) {
         const mid = (lo + hi) / 2;
         if (below(mid)) hi = mid;
         else lo = mid;

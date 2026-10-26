@@ -22,6 +22,7 @@ import { CameraController, FOV } from '../input/camera';
 import type { Mirror } from '../state/mirror';
 import type { EntityPick, Ghost, RenderApi, TilePick } from './api';
 import { fpToWorld, levelY } from './coords';
+import { createWorldEnv, type WorldEnv } from './env';
 import {
   layerFactories,
   type AgentsLayer,
@@ -32,27 +33,27 @@ import {
   type PresenceLayer,
   type RenderLayer,
 } from './layers';
-import { lightingAt } from './lighting';
+import { lightingAt, WINDOW_HASH_GLSL } from './lighting';
 import { pickTileFromRay } from './picking';
 import { PostChain } from './post';
 import { QUALITY_PRESETS, type Quality } from './quality';
 
 export type { Quality } from './quality';
 
-/** Share of windows that light up at night (the rest of the town is asleep). */
-const WINDOW_GLOW_SHARE = 0.62;
-
 /**
  * Adds the night glow to a kit material: vertices with the optional `glow` attribute (window panes,
- * flames) shine warm at night, on a seeded share of windows. A missing attribute reads as 0.
+ * flames) shine warm at night, on a seeded share of windows that changes with the hour (C3D-1: the
+ * share and the hash come from lighting.ts, so ground spill matches lit panes). A missing
+ * attribute reads as 0.
  */
-function addNightGlow(material: Material, night: { value: number }): void {
+function addNightGlow(material: Material, night: { value: number }, share: { value: number }): void {
   material.onBeforeCompile = (shader) => {
     shader.uniforms.uNight = night;
+    shader.uniforms.uWindowShare = share;
     shader.vertexShader = shader.vertexShader
       .replace(
         '#include <common>',
-        '#include <common>\nattribute float glow;\nvarying float vGlow;\nuniform float uNight;',
+        `#include <common>\nattribute float glow;\nvarying float vGlow;\nuniform float uNight;\nuniform float uWindowShare;\n${WINDOW_HASH_GLSL}`,
       )
       .replace(
         '#include <project_vertex>',
@@ -67,8 +68,7 @@ function addNightGlow(material: Material, night: { value: number }): void {
           'qWorld = batchingMatrix * qWorld;',
           '#endif',
           'qWorld = modelMatrix * qWorld;',
-          'float qHash = fract(sin(dot(floor(qWorld.xyz * 1.5), vec3(12.9898, 78.233, 37.719))) * 43758.5453);',
-          `vGlow = glow > 1.5 ? 1.0 : glow * step(qHash, ${WINDOW_GLOW_SHARE.toFixed(2)});`,
+          `vGlow = glow > 1.5 ? 1.0 : glow * qWindowLit(qWorld.xyz, uWindowShare);`,
         ].join('\n'),
       );
     shader.fragmentShader = shader.fragmentShader
@@ -102,6 +102,8 @@ export class Renderer implements RenderApi {
   private readonly sun = new DirectionalLight(0xffffff, 1.5);
   private readonly fill = new DirectionalLight(0x9cc4ff, 0.4);
   private readonly night = { value: 0 };
+  /** C3D-1: shared look state for world layers (time, night, sky, ground lights, camera). */
+  readonly env: WorldEnv;
   private readonly skyCanvas = document.createElement('canvas');
   private readonly skyTexture: CanvasTexture;
   private quality: Quality = 'medium';
@@ -131,6 +133,8 @@ export class Renderer implements RenderApi {
     readonly mirror: Mirror,
     quality: Quality = 'medium',
   ) {
+    this.env = createWorldEnv(this.camera);
+    this.env.night = this.night;
     this.three = new WebGLRenderer({
       antialias: QUALITY_PRESETS[quality].msaa,
       powerPreference: 'high-performance',
@@ -152,7 +156,7 @@ export class Renderer implements RenderApi {
     this.sun.shadow.radius = 3;
     this.fill.position.set(-1, 0.6, -0.8);
     this.scene.add(this.hemi, this.sun, this.sun.target, this.fill);
-    addNightGlow(this.material, this.night);
+    addNightGlow(this.material, this.night, this.env.windowShare);
     this.setQuality(quality);
     this.rig = new CameraController(this.camera, mirror, this.three.domElement);
 
@@ -162,6 +166,7 @@ export class Renderer implements RenderApi {
       material: this.material,
       invalidate: () => this.invalidate(),
       camera: this.camera,
+      env: this.env,
     };
     this.layers = layerFactories.map((make) => make());
     for (const layer of this.layers) layer.init(ctx);
@@ -211,6 +216,7 @@ export class Renderer implements RenderApi {
     this.three.toneMappingExposure = l.exposure;
     this.night.value = l.night;
     this.post?.setNight(l.night);
+    this.post?.setWarmth(l.warmth);
     this.fill.color.copy(l.fill);
     this.fill.intensity = l.fillIntensity;
     this.hemi.color.copy(l.hemiSky);
@@ -225,6 +231,12 @@ export class Renderer implements RenderApi {
     );
     this.sun.target.position.set(MAP_SIZE / 2, 0, MAP_SIZE / 2);
     this.sunDir.set(l.sunDir[0], l.sunDir[1], l.sunDir[2]).normalize();
+    this.env.sky.value.copy(l.sky);
+    this.env.skyTop.value.copy(l.skyTop);
+    this.env.sunDir.value.copy(this.sunDir);
+    this.env.sunColor.value.copy(l.sun);
+    this.env.clouds.value = 1 - l.night;
+    this.env.windowShare.value = l.windowShare;
     this.invalidate();
   }
 
@@ -256,6 +268,8 @@ export class Renderer implements RenderApi {
     const target = this.viewTarget();
     const dist = this.camera.position.distanceTo(target);
     const fog = this.scene.fog as Fog;
+    this.env.focus.copy(target);
+    this.post?.setViewDistance(dist);
     fog.near = dist * 1.3 + 30;
     fog.far = dist * 3.2 + 140;
     if (!this.three.shadowMap.enabled) return;
@@ -277,7 +291,8 @@ export class Renderer implements RenderApi {
         if (!(o instanceof Mesh)) return;
         const m = o.material as Material;
         const solid = !m.transparent;
-        o.castShadow = solid && !o.userData.noCast;
+        // C3D-1: scattered grass and flowers opt out (userData.qotiShadows false); C3D-2: noCast.
+        o.castShadow = solid && !o.userData.noCast && o.userData.qotiShadows !== false;
         o.receiveShadow = solid;
       });
     }
@@ -290,6 +305,8 @@ export class Renderer implements RenderApi {
     this.last = now;
     this.followStep();
     let dirty = this.rig.update(dt);
+    if (dirty) this.env.viewRevision++;
+    if (this.env.motion) this.env.time.value += dt;
     for (const layer of this.layers) if (layer.frame?.(dt)) dirty = true;
     this.updateLighting();
     if (dirty || this.needsRender) {
@@ -389,6 +406,9 @@ export class Renderer implements RenderApi {
       });
     }
     this.sun.castShadow = shadows;
+    this.env.motion = preset.ambientMotion;
+    this.env.detailDistance = preset.decorDistance;
+    this.env.viewRevision++;
     if (shadows && this.sun.shadow.mapSize.x !== preset.shadowMap) {
       this.sun.shadow.mapSize.set(preset.shadowMap, preset.shadowMap);
       this.sun.shadow.map?.dispose();

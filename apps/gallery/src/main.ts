@@ -1,6 +1,7 @@
 // Style kit gallery: every kit with seed, stage, level of detail and swatch sliders, a day and
 // night slider and a turntable. URL params (?kit=cottage&seed=3&night=1&spin=0) fix a view for
-// screenshots.
+// screenshots. C3D-1: ?set=trees lines up every forest tree at each growth stage plus its low
+// detail version; ?set=nature lines up the scattered nature props in two variants each.
 import {
   constructionGeometry,
   createKitMaterial,
@@ -81,11 +82,44 @@ const state = {
   roof: -1,
   night: Number(q.get('night') ?? 0),
   spin: q.get('spin') !== '0',
+  set: q.get('set') ?? '',
 };
 
 function sizeOf(id: string): { size: [number, number]; entrance: [number, number] } | null {
   const def = content.buildings.find((b) => b.art.kit === id);
   return def ? { size: def.size, entrance: def.entrance } : null;
+}
+
+/** C3D-1 lineups: trees by stage (and low detail, far right), or nature props by variant. */
+function lineup(set: string): boolean {
+  if (set === 'trees') {
+    ['oak', 'birch', 'pine'].forEach((id, row) => {
+      const kit = kitById.get(id)!;
+      const opts: KitBuildOptions[] = [0, 1, 2, 3].map((stage) => ({ stage, seed: state.seed }));
+      opts.push({ stage: 3, seed: state.seed, lod: 'low' });
+      opts.forEach((o, col) => {
+        const mesh = new Mesh(kit.build(o), material);
+        mesh.position.set((col - 2) * 1.3, 0, (row - 1) * 1.4);
+        holder.add(mesh);
+      });
+    });
+    info.textContent = 'trees: stages 0 to 3, then low detail';
+    return true;
+  }
+  if (set === 'nature') {
+    const nature = kits.filter((k) => k.kind === 'nature');
+    nature.forEach((kit, i) => {
+      for (let v = 0; v < 2; v++) {
+        const mesh = new Mesh(kit.build({ seed: state.seed + v * 13 }), material);
+        mesh.scale.setScalar(2.4);
+        mesh.position.set((i - (nature.length - 1) / 2) * 1.35, 0, (v - 0.5) * 1.6);
+        holder.add(mesh);
+      }
+    });
+    info.textContent = `nature: ${nature.map((k) => k.id).join(', ')}`;
+    return true;
+  }
+  return false;
 }
 
 function rebuild(): void {
@@ -94,6 +128,7 @@ function rebuild(): void {
     ((c as Mesh).geometry as BufferGeometry | undefined)?.dispose();
   }
   parts.length = 0;
+  if (state.set && lineup(state.set)) return;
   const kit = kitById.get(state.kit);
   if (!kit) return;
   const fp = sizeOf(state.kit);
@@ -230,10 +265,16 @@ document.body.appendChild(panel);
 if (q.get('hud') === '0') panel.style.display = 'none';
 const info = document.createElement('div');
 const select = document.createElement('select');
+select.add(new Option('set: trees by stage', 'set:trees'));
+select.add(new Option('set: nature props', 'set:nature'));
 for (const k of kits) select.add(new Option(`${k.kind}: ${k.id}`, k.id));
-select.value = state.kit;
+select.value = state.set ? `set:${state.set}` : state.kit;
 select.onchange = () => {
-  state.kit = select.value;
+  if (select.value.startsWith('set:')) state.set = select.value.slice(4);
+  else {
+    state.set = '';
+    state.kit = select.value;
+  }
   rebuild();
 };
 panel.append(select, info);
@@ -263,6 +304,10 @@ slider('Turntable', 0, 1, 1, state.spin ? 1 : 0, (v) => (state.spin = v === 1));
 
 const camera = new PerspectiveCamera(30, 1, 0.1, 100);
 camera.position.set(5.5, 4, 6.5);
+if (state.set) {
+  camera.position.set(4.5, 6, 10);
+  ground.scale.setScalar(1.8);
+}
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.target.set(0, 0.8, 0);
 controls.enableDamping = true;

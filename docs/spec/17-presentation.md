@@ -29,6 +29,7 @@ Pure functions from parameters (and a seed) to `BufferGeometry` with vertex colo
 - **Buildings**: modular parts (walls: plaster, timber frame, stone, brick; roofs: gable, hip, half-hip in thatch, slate, tile; windows with shutters and boxes; doors; chimneys with smoke; porches; dormers; signs). Generators: cottage, house, workshop, mill, farm, storehouse, stall, town hall, landmarks. Construction stages (staked plot, foundation, frame, roof).
 - **Props**: bench, curved and ring bench, lantern, hanging lantern, well, fountain, birdbath, fence, low wall, planter wall, hedge, flower bed, planter, wildflower verge, signpost, barrels, crates, carts, laundry lines, festival pieces [I3].
 - **Trees**: oak, birch, pine, apple, cherry, willow; growth stages; seasonal variants.
+- **Nature** [I1]: bush, grass tuft, wildflowers, reeds, rock, fern, mushrooms, fallen log (kind `nature`). Never placed by players: the renderer scatters them from the map with a seeded hash (forest floor and edges, open grass, meadows, banks, stony ground), clear of roads, buildings and decor, and fades them out at the decor detail distance.
 - **Residents** [I1]: one parametric body (rounded, about 0.3 tile tall) with species parts (ears, tails, stripes, spines), fur palette, clothing colors, tier details (aprons, scarves, hats) and seasonal clothing.
 - **Critters** [I3]: tiny ambient wildlife (butterflies, bees, ducks, frogs, fireflies).
 - **Gallery** (`apps/gallery`): every generator with parameter sliders, all seasons, day and night. Used for art review.
@@ -44,6 +45,7 @@ Pure functions from parameters (and a seed) to `BufferGeometry` with vertex colo
 
 - One directional light with shadows (Medium 2048, High 4096, Low off), hemisphere ambient, fog by weather.
 - Night: a share of windows in occupied homes glow (seeded per building, varying by hour); lanterns are emissive with bloom and a soft ground glow decal (no real point lights beyond 8 nearest the camera).
+- C3D-1: the table gains a golden hour (18:00) and a violet twilight (20:30) between its keys; a dusk split tone in the post grade keeps evening greens from turning to mud. Ground glow pools are drawn by the ground shader from the 32 lights nearest the view (lanterns, and spill under lit windows, chosen by the same integer hash as the panes). The sky is a dome with drifting clouds and stars; clouds also drift their shade over the ground by day.
 - Sun direction from the in-game hour on the client (any math is fine outside the sim).
 
 ## Seasons and weather visuals [I3]
