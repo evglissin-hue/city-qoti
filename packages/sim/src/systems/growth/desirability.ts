@@ -7,8 +7,9 @@
 // streets, plaster among the gardens). Floats inside, integers out.
 import { content, type SpeciesDef } from '@qoti/content';
 import { MAP_SIZE, Zone } from '../../constants';
-import type { Lot, WorldState } from '../../contracts';
+import type { Lot, TickCtx, WorldState } from '../../contracts';
 import { Road } from '../../map/layers';
+import { lotView } from '../../view/village';
 import { storehouseReach, within } from '../logistics/range';
 import { doorTile } from '../movement/api';
 import { averageAround, homeCount, tasteScore, treeCount, waterWithin } from '../residents/desirability';
@@ -79,6 +80,31 @@ export function lotFertility(state: WorldState, lot: Lot): number {
   for (let z = lot.z; z < lot.z + lot.d; z++)
     for (let x = lot.x; x < lot.x + lot.w; x++) sum += state.map.fertility[z * S + x]!;
   return sum / (lot.w * lot.d);
+}
+
+/** Hours in the cycle that rescores empty lots: each lot once a day, a slice each hour. */
+export const DESIRABILITY_SLICES = 24;
+
+/**
+ * The hourly slice of the lot scoring (the zoning system calls it): empty lots whose id falls in
+ * this hour's slice get their desirability again, and the UI hears of those that moved. A daily
+ * rescore of every lot at once would be one long tick in a big town; this is 24 short ones.
+ */
+export function refreshDesirability(state: WorldState, ctx: TickCtx | null, slice: number): number {
+  let species: SpeciesDef[] | null = null;
+  let services: Services | null = null;
+  let n = 0;
+  for (const lot of state.lots) {
+    if (lot.buildingId || lot.id % DESIRABILITY_SLICES !== slice) continue;
+    species ??= townSpecies(state);
+    services ??= servicesOf(state);
+    const d = lotDesirability(state, lot, species, services);
+    n++;
+    if (d === lot.desirability) continue;
+    lot.desirability = d;
+    ctx?.events.push({ e: 'lot.updated', l: lotView(lot) });
+  }
+  return n;
 }
 
 /** Desirability 0 to 100 of a lot for its zone. */

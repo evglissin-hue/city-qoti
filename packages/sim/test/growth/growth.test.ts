@@ -186,6 +186,7 @@ describe('the nightly growth pass', () => {
     const f = villageFixture();
     const s = f.state;
     openWork(s);
+    openWork(s, 91, 46);
     const ctx = createTickCtx(s);
     withoutSystems(['residents'], () => advanceTo(s, TICKS_PER_DAY, ctx));
     const sites = s.buildings.filter((b) => b.lot && b.lot !== f.lots.homes[0]);

@@ -7,7 +7,7 @@
 // the grass grow back over desire paths each night (./wear) and marks the chunks where carts are
 // heard for the charm pass (./noise).
 import { MAP_SIZE, TICKS_PER_DAY, TICKS_PER_HOUR } from '../../constants';
-import type { Cart, Rect, System, TickCtx, WorldState } from '../../contracts';
+import type { Cart, System, TickCtx, WorldState } from '../../contracts';
 import { isStandard } from '../../state/hamlet';
 import { findById } from '../../state/entities';
 import { dailyOffset } from '../economy/time';
@@ -16,6 +16,7 @@ import { doorTile } from '../movement/api';
 import { advance } from '../movement';
 import { cartRoute, cartTicks, cartTile, routeStillOpen, slowdownPercent } from './api';
 import { markNoisyChunks } from './noise';
+import { clearTraffic, countPass } from './passes';
 import { regrow } from './wear';
 
 /** The nightly regrowth of worn grass. */
@@ -94,34 +95,4 @@ function sendHome(state: WorldState, cart: Cart): void {
   if (!shed) return;
   cart.tile = doorTile(shed);
   cart.parked = true;
-}
-
-function countPass(state: WorldState, ctx: TickCtx, tile: number): void {
-  const t = state.map.traffic;
-  if (t[tile]! < 255) t[tile]! += 1;
-  const x = tile % MAP_SIZE;
-  const z = Math.floor(tile / MAP_SIZE);
-  ctx.dirty.mark('traffic', [x, z, x, z]);
-}
-
-function clearTraffic(state: WorldState, ctx: TickCtx): void {
-  const t = state.map.traffic;
-  let x0 = MAP_SIZE;
-  let z0 = MAP_SIZE;
-  let x1 = -1;
-  let z1 = -1;
-  for (let i = 0; i < t.length; i++) {
-    if (!t[i]) continue;
-    t[i] = 0;
-    const x = i % MAP_SIZE;
-    const z = Math.floor(i / MAP_SIZE);
-    if (x < x0) x0 = x;
-    if (z < z0) z0 = z;
-    if (x > x1) x1 = x;
-    if (z > z1) z1 = z;
-  }
-  if (x1 >= 0) {
-    const rect: Rect = [x0, z0, x1, z1];
-    ctx.dirty.mark('traffic', rect);
-  }
 }

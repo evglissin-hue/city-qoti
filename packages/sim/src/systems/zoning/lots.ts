@@ -33,6 +33,9 @@ const ROAD_DZ = [-1, 1, 0, 0] as const;
 /** The lot's rotation for each road side (the entrance faces the road). */
 const ROT_FOR: readonly Rot4[] = [2, 0, 1, 3];
 
+/** New lots a pass scores in full; the rest get their species tastes within the day. */
+const FULL_SCORES = 8;
+
 /** Tiles no lot may take this pass (dead-end continuations, doors that face open ground). */
 const reserved = new Uint8Array(N);
 const reservedList: number[] = [];
@@ -116,42 +119,39 @@ function fronts(state: WorldState, x: number, z: number, dir: number, zone: numb
 }
 
 /** Every frontage run on the map, busiest road and longest run first. */
-function frontageRuns(state: WorldState): Run[] {
+function frontageRuns(state: WorldState, zoned: readonly number[]): Run[] {
   const m = state.map;
   const runs: Run[] = [];
   for (let dir = 0; dir < 4; dir++) {
     const alongX = dir < 2;
-    for (let a = 0; a < S; a++) {
-      let start = -1;
-      let zone = 0;
+    // The zoned tiles that front a road on this side, in run order (along x, or along z).
+    const front: number[] = [];
+    for (const i of zoned) {
+      const x = i % S;
+      const z = (i - x) / S;
+      if (!m.lot[i] && fronts(state, x, z, dir, m.zone[i]!)) front.push(i);
+    }
+    if (!alongX) front.sort((p, q) => (p % S) - (q % S) || p - q);
+    const step = alongX ? 1 : S;
+    let k = 0;
+    while (k < front.length) {
+      const first = front[k]!;
+      const zone = m.zone[first]!;
       let road = 0;
-      for (let b = 0; b <= S; b++) {
-        const x = alongX ? b : a;
-        const z = alongX ? a : b;
-        const zv = b < S ? m.zone[z * S + x]! : 0;
-        const ok = b < S && zv !== 0 && fronts(state, x, z, dir, zv);
-        if (ok && start >= 0 && zv === zone) {
-          road = Math.max(road, m.road[(z + ROAD_DZ[dir]!) * S + x + ROAD_DX[dir]!]!);
-          continue;
-        }
-        if (start >= 0) {
-          runs.push({
-            dir,
-            zone,
-            x: alongX ? start : a,
-            z: alongX ? a : start,
-            len: b - start,
-            road,
-            reach: 0,
-          });
-          start = -1;
-        }
-        if (ok) {
-          start = b;
-          zone = zv;
-          road = m.road[(z + ROAD_DZ[dir]!) * S + x + ROAD_DX[dir]!]!;
-        }
+      let len = 0;
+      while (
+        k + len < front.length &&
+        front[k + len] === first + step * len &&
+        m.zone[front[k + len]!] === zone &&
+        // A run along x never wraps onto the next row.
+        (!alongX || (first % S) + len < S)
+      ) {
+        const t = front[k + len]!;
+        road = Math.max(road, m.road[t + ROAD_DZ[dir]! * S + ROAD_DX[dir]!]!);
+        len++;
       }
+      runs.push({ dir, zone, x: first % S, z: Math.floor(first / S), len, road, reach: 0 });
+      k += len;
     }
   }
   for (const r of runs) r.reach = straightRoad(state, r);
@@ -343,7 +343,7 @@ function addLot(
 }
 
 /** True when an empty lot still stands where it was cut, on ground it may use. */
-function stillValid(state: WorldState, lot: Lot): boolean {
+function stillValid(state: WorldState, lot: Lot, decorMoved: boolean): boolean {
   const m = state.map;
   if (!m.road[lot.frontage] || !content.zoneByValue.has(lot.zone)) return false;
   let lo = 255;
@@ -358,7 +358,7 @@ function stillValid(state: WorldState, lot: Lot): boolean {
       if (h > hi) hi = h;
     }
   }
-  return hi - lo <= 1 && !swallowsDecor(state, lot.x, lot.z, lot.w, lot.d);
+  return hi - lo <= 1 && (!decorMoved || !swallowsDecor(state, lot.x, lot.z, lot.w, lot.d));
 }
 
 /** Removes a lot and its tiles from the lot layer. */
@@ -383,31 +383,30 @@ export interface ZoningResult {
 /**
  * One zoning pass: empty lots the ground no longer allows go, then free frontage is cut into new
  * lots, round after round until nothing more fits, so a second pass right after finds nothing.
+ * `decorMoved` false skips looking for decor on lots that were clear of it when last checked (the
+ * caller knows no decor came or went since).
  */
-export function zoningPass(state: WorldState, ctx: TickCtx | null): ZoningResult {
+export function zoningPass(state: WorldState, ctx: TickCtx | null, decorMoved = true): ZoningResult {
   let removed = 0;
   for (const lot of [...state.lots]) {
     if (lot.buildingId) continue;
-    if (stillValid(state, lot)) continue;
+    if (stillValid(state, lot, decorMoved)) continue;
     dropLot(state, ctx, lot);
     removed++;
   }
-  let any = false;
+  // Zoned tiles outside any lot: the only places a new lot can start.
+  const zoned: number[] = [];
   const zone = state.map.zone;
-  for (let i = 0; i < N; i++) {
-    if (zone[i] && !state.map.lot[i]) {
-      any = true;
-      break;
-    }
-  }
+  const lotLayer = state.map.lot;
+  for (let i = 0; i < N; i++) if (zone[i] && !lotLayer[i]) zoned.push(i);
   const added: Lot[] = [];
-  if (any) {
+  if (zoned.length > 0) {
     markReserved(state);
     try {
       // Each round only takes free tiles, so this settles; the bound is a guard, never reached.
       for (let round = 0; round < 32; round++) {
         const before = added.length;
-        for (const run of frontageRuns(state)) cutRun(state, ctx, run, added);
+        for (const run of frontageRuns(state, zoned)) cutRun(state, ctx, run, added);
         if (added.length === before) break;
       }
     } finally {
@@ -415,12 +414,14 @@ export function zoningPass(state: WorldState, ctx: TickCtx | null): ZoningResult
     }
   }
   if (added.length > 0) {
+    // A first score now; past the first few the species tastes wait for the lot's hourly slice
+    // (refreshDesirability), so zoning a whole valley at once stays one short tick.
     const species = townSpecies(state);
     const services = servicesOf(state);
-    for (const lot of added) {
-      lot.desirability = lotDesirability(state, lot, species, services);
+    added.forEach((lot, k) => {
+      lot.desirability = lotDesirability(state, lot, k < FULL_SCORES ? species : [], services);
       ctx?.events.push({ e: 'lot.added', l: lotView(lot) });
-    }
+    });
   }
   return { added: added.length, removed };
 }

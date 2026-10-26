@@ -2,11 +2,13 @@
 // noise to charm). A road gives its own tile its content noise (cobbles and bustle) plus the noise
 // of the carts on it, and half of that to the four tiles beside it. Charm reads it when a chunk is
 // recomputed (systems/hearth/charm/compute.ts); the traffic system marks the chunks where carts
-// came or went, so the noise follows the carts hour by hour. Integer math only.
+// came or went, so the noise follows the carts hour by hour. Halves may be fractional;
+// charm rounds each tile before it is stored.
 import { MAP_SIZE } from '../../constants';
 import type { WorldState } from '../../contracts';
 import { markChunks } from '../hearth/charm/dirty';
 import { roadNoise, trafficFlow } from './api';
+import { countedTiles } from './passes';
 
 /** Noise per TRAFFIC_NOISE_FLOW cart passes per hour on a tile, and the most traffic adds. */
 export const TRAFFIC_NOISE_FLOW = 10;
@@ -44,11 +46,14 @@ export function markNoisyChunks(state: WorldState, full: boolean): void {
   const t = state.map.traffic;
   // Passes on a tile that make at least one point of noise: a whole hour's, or a quarter's.
   const least = full ? TRAFFIC_NOISE_FLOW : Math.ceil(TRAFFIC_NOISE_FLOW / 4);
-  for (let i = 0; i < t.length; i++) {
-    if (t[i]! < least) continue;
+  const mark = (i: number) => {
+    if (t[i]! < least) return;
     const x = i % S;
     const z = (i - x) / S;
     // The noise reaches one tile, which may lie in the next chunk.
     markChunks(state, [x - 1, z - 1, x + 1, z + 1]);
-  }
+  };
+  const list = countedTiles(state);
+  if (list) for (const i of list) mark(i);
+  else for (let i = 0; i < t.length; i++) mark(i);
 }

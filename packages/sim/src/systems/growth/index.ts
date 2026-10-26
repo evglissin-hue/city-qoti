@@ -2,7 +2,7 @@
 //
 // 1. Lets grown crafts and farms change their method to whatever the town is shortest of (unless
 //    the Ledger pinned one), and gives grown farms the farm-zoned land around them as fields.
-// 2. Scores every empty lot (./desirability) and works out demand per zone:
+// 2. Works out demand per zone (lots are scored through the day by ./desirability, a slice an hour):
 //    - homes, while the town would draw newcomers (food, jobs and mood, before vacancies count)
 //      and has open jobs for them: enough homes going up to keep two or so empty ones waiting;
 //    - shops, for households no outlet reaches, or one per eight households;
@@ -22,7 +22,6 @@ import { findById } from '../../state/entities';
 import { isStandard } from '../../state/hamlet';
 import { hasInnovation, rankAtLeast } from '../../state/village';
 import { townStock } from '../../view/hamlet';
-import { lotView } from '../../view/village';
 import { emitBuilding } from '../economy/emit';
 import { dailyOffset } from '../economy/time';
 import { doorTile } from '../movement/api';
@@ -34,7 +33,7 @@ import { attractiveness } from '../residents/lifecycle';
 import { foodIndexes, pantryFood } from '../residents/needs';
 import { vacantHomes } from '../residents/places';
 import { growLot, lotPlacement } from './api';
-import { lotDesirability, lotFertility, mix, outletCovers, servicesOf, townSpecies } from './desirability';
+import { lotFertility, mix, outletCovers, servicesOf } from './desirability';
 import { bestMethod, methodScore, shortages, SWITCH_MARGIN, unmetShortages } from './recipes';
 
 const S = MAP_SIZE;
@@ -155,6 +154,14 @@ function outletCount(state: WorldState): number {
 
 /** What the village wants grown now, in sites per zone kind (before the daily and site limits). */
 export function growthDemand(state: WorldState, services = servicesOf(state)): GrowthDemand {
+  return demandDetail(state, services).demand;
+}
+
+/** growthDemand, with the unserved home doors it found on the way. */
+function demandDetail(
+  state: WorldState,
+  services: ReturnType<typeof servicesOf>,
+): { demand: GrowthDemand; doors: [number, number][] } {
   const stock = townStock(state);
   const pop = state.residents.length;
   // Homes: newcomers would come, and there is work for them.
@@ -174,7 +181,10 @@ export function growthDemand(state: WorldState, services = servicesOf(state)): G
   let shops = 0;
   if (doors.length >= SHOP_HOUSEHOLDS) {
     for (const l of state.lots) {
-      if (!l.buildingId && l.zone === Zone.shops && shopReach(l, doors) >= SHOP_HOUSEHOLDS) shops = 1;
+      if (!l.buildingId && l.zone === Zone.shops && shopReach(l, doors) >= SHOP_HOUSEHOLDS) {
+        shops = 1;
+        break;
+      }
     }
   }
   if (Math.floor(state.households.length / HOUSEHOLDS_PER_SHOP) > outletCount(state)) shops = 1;
@@ -186,10 +196,13 @@ export function growthDemand(state: WorldState, services = servicesOf(state)): G
   }
   const farms = foodDaysInHand(state, stock) < FARM_FOOD_DAYS ? 1 : 0;
   return {
-    homes,
-    shops: Math.max(0, shops - grownSites(state, [Zone.shops])),
-    crafts: Math.max(0, crafts - grownSites(state, [Zone.crafts])),
-    farms: Math.max(0, farms - grownSites(state, [Zone.farms])),
+    demand: {
+      homes,
+      shops: Math.max(0, shops - grownSites(state, [Zone.shops])),
+      crafts: Math.max(0, crafts - grownSites(state, [Zone.crafts])),
+      farms: Math.max(0, farms - grownSites(state, [Zone.farms])),
+    },
+    doors,
   };
 }
 
@@ -334,18 +347,11 @@ export function growthPass(state: WorldState, ctx: TickCtx): number {
   // New workshops answer only shortages the town's makers are not already catching up on.
   const unmet = unmetShortages(state, short);
 
+  // Lots are scored through the day, a slice an hour (refreshDesirability, from the zoning pass).
   const empty = state.lots.filter((l) => !l.buildingId && state.map.road[l.frontage]);
   if (empty.length === 0) return 0;
-  const species = townSpecies(state);
   const services = servicesOf(state);
-  for (const lot of empty) {
-    const d = lotDesirability(state, lot, species, services);
-    if (d === lot.desirability) continue;
-    lot.desirability = d;
-    ctx.events.push({ e: 'lot.updated', l: lotView(lot) });
-  }
-
-  const demand = growthDemand(state, services);
+  const { demand, doors } = demandDetail(state, services);
   const free = freeMaterials(state, stock);
   let started = 0;
   const wants: [zones: readonly number[], n: number][] = [
@@ -354,10 +360,12 @@ export function growthPass(state: WorldState, ctx: TickCtx): number {
     [[Zone.shops], demand.shops],
     [[Zone.crafts], demand.crafts],
   ];
-  const doors = demand.shops > 0 ? unservedDoors(state, services) : [];
   // Shops wanted only for households out of reach must stand where they reach them.
   const reachOnly =
     Math.floor(state.households.length / HOUSEHOLDS_PER_SHOP) <= outletCount(state) ? SHOP_HOUSEHOLDS : 0;
+  const reachOf = new Map<number, number>();
+  if (demand.shops > 0)
+    for (const l of empty) if (l.zone === Zone.shops) reachOf.set(l.id, shopReach(l, doors));
   for (const [zones, n] of wants) {
     for (let k = 0; k < n; k++) {
       if (started >= GROWTH_PER_DAY || grownSites(state) >= GROWTH_MAX_SITES) return started;
@@ -366,10 +374,10 @@ export function growthPass(state: WorldState, ctx: TickCtx): number {
       // Only lots porters can about reach (chooseDef checks the very door).
       const lots = empty
         .filter((l) => !l.buildingId && zones.includes(l.zone) && nearAStore(services.reach, l.frontage))
-        .filter((l) => !shop || shopReach(l, doors) >= reachOnly)
+        .filter((l) => !shop || (reachOf.get(l.id) ?? 0) >= reachOnly)
         .sort(
           (p, q) =>
-            (shop ? shopReach(q, doors) - shopReach(p, doors) : 0) ||
+            (shop ? (reachOf.get(q.id) ?? 0) - (reachOf.get(p.id) ?? 0) : 0) ||
             q.desirability - p.desirability ||
             p.id - q.id,
         );
