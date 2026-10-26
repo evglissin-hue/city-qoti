@@ -9,6 +9,7 @@ import { CHUNK_SIZE, CHUNKS_PER_SIDE, MAP_SIZE, TILE_FP } from '../../../constan
 import type { LayerName, MapLayers, Rect, TickCtx, WorldState } from '../../../contracts';
 import { buildingRect, decorInRect, expandRect, rectGap2 } from '../../../conditions/geo';
 import { findById } from '../../../state/entities';
+import { streetNoise } from '../../traffic/noise';
 import {
   BUILDING_SOURCES,
   CAT,
@@ -330,7 +331,8 @@ export function recomputeChunk(
         cats[key % 5]! += best1[key]! + best2[key]!;
         keyUsed[key] = 0;
       }
-      cats[CAT.noise] = noise;
+      // I2 (C4B): streets and the carts on them are heard too.
+      cats[CAT.noise] = noise + streetNoise(state, tx, tz);
 
       // Water in view: the nearest river or pond tile within the radius.
       let w2 = Infinity;
