@@ -2,35 +2,105 @@
 // Sandbox valleys never charge. Standard valleys charge coins at placement and painting, refund on
 // cancel or removal, and refuse new construction during lean times.
 import type { BuildingDef } from '@qoti/content';
-import { LEDGER_CATEGORIES, type LedgerCategoryId } from '../../constants';
+import { content } from '@qoti/content';
+import {
+  FIELD_TILE_COST,
+  LEDGER_CATEGORIES,
+  MAP_SIZE,
+  PENNIES_PER_COIN,
+  type LedgerCategoryId,
+} from '../../constants';
 import type { Building, RejectReason, RoadKind, TickCtx, WorldState } from '../../contracts';
+import { footprintTiles } from '../../rules/footprint';
+import { isStandard } from '../../state/hamlet';
+import { cancelJobsFor } from '../logistics';
+import { stowNearest } from '../logistics/stores';
+import { doorTile } from '../movement/api';
+import { clearFields, fieldsOf, isFarm } from '../production/fields';
+import { emitMoney } from './emit';
+import { isWorkTime } from './time';
+
+/** The coin price of placing a building, in pennies. */
+export function placementCost(def: BuildingDef): number {
+  return (def.cost?.coins ?? 0) * PENNIES_PER_COIN;
+}
+
+/** The coin price of painting `tiles` new road tiles of a kind, in pennies. */
+export function roadCost(kind: RoadKind, tiles: number): number {
+  return (content.roadById.get(kind)?.cost?.coins ?? 0) * PENNIES_PER_COIN * tiles;
+}
+
+/** The coin price of painting `tiles` field tiles, in pennies. */
+export function fieldCost(tiles: number): number {
+  return FIELD_TILE_COST * PENNIES_PER_COIN * tiles;
+}
+
+/** LEAN_TIMES while the treasury is below zero, CANNOT_AFFORD when it cannot cover `pennies`. */
+export function spendBlocked(state: WorldState, pennies: number): RejectReason | null {
+  if (!isStandard(state)) return null;
+  const e = state.economy;
+  if (e.leanTimes || e.treasury < 0) return 'LEAN_TIMES';
+  return pennies > e.treasury ? 'CANNOT_AFFORD' : null;
+}
 
 /** Validate hook for build.place: CANNOT_AFFORD or LEAN_TIMES, else null. Pure. */
-export function placementBlocked(_state: WorldState, _def: BuildingDef): RejectReason | null {
-  return null; // C3C
+export function placementBlocked(state: WorldState, def: BuildingDef): RejectReason | null {
+  return spendBlocked(state, placementCost(def));
 }
 
 /** Apply hook for build.place, after the site exists: deducts coins, records ConstructionState.paid. */
-export function chargePlacement(_state: WorldState, _ctx: TickCtx, _b: Building, _def: BuildingDef): void {
-  // C3C
+export function chargePlacement(state: WorldState, ctx: TickCtx, b: Building, def: BuildingDef): void {
+  if (!isStandard(state) || !b.rt?.construction) return;
+  const cost = placementCost(def);
+  book(state, 'construction', cost);
+  b.rt.construction.paid = cost;
+  // A building placed over field tiles takes them over.
+  const lost: number[] = [];
+  for (const [x, z] of footprintTiles(def, b.x, b.z, b.rot)) {
+    const i = z * MAP_SIZE + x;
+    if (state.map.fieldOwner[i]) lost.push(i);
+  }
+  if (lost.length > 0) clearFields(state, ctx, lost);
+  emitMoney(state, ctx);
 }
 
 /**
  * Apply hook for build.remove, before the building leaves state: refunds coins for unfinished sites,
  * returns delivered materials and buffers to the nearest storehouse, cancels porter jobs.
  */
-export function refundRemoval(_state: WorldState, _ctx: TickCtx, _b: Building, _def: BuildingDef): void {
-  // C3C
+export function refundRemoval(state: WorldState, ctx: TickCtx, b: Building, def: BuildingDef): void {
+  if (isFarm(def)) {
+    const fields = fieldsOf(state, b, def);
+    if (fields.length > 0) clearFields(state, ctx, fields);
+  }
+  const rt = b.rt;
+  if (!isStandard(state) || !rt) return;
+  cancelJobsFor(state, b.id, isWorkTime(state.tick));
+  const door = doorTile(b, def);
+  const c = rt.construction;
+  if (c) {
+    if (c.paid > 0) book(state, 'refunds', c.paid);
+    c.paid = 0;
+    for (let g = 0; g < c.delivered.length; g++) stowNearest(state, door, g, c.delivered[g]!, b.id);
+  }
+  for (let g = 0; g < rt.store.length; g++) {
+    const n = rt.store[g]! + rt.input[g]! + rt.output[g]!;
+    if (n > 0) stowNearest(state, door, g, n, b.id);
+  }
+  emitMoney(state, ctx);
 }
 
 /** Validate hook for road.paint: CANNOT_AFFORD or LEAN_TIMES, else null. Pure. */
-export function roadBlocked(_state: WorldState, _kind: RoadKind, _newTiles: number): RejectReason | null {
-  return null; // C3C
+export function roadBlocked(state: WorldState, kind: RoadKind, newTiles: number): RejectReason | null {
+  if (newTiles <= 0) return null;
+  return spendBlocked(state, roadCost(kind, newTiles));
 }
 
 /** Apply hook for road.paint: charges for tiles that were not road before. */
-export function chargeRoad(_state: WorldState, _ctx: TickCtx, _kind: RoadKind, _newTiles: number): void {
-  // C3C
+export function chargeRoad(state: WorldState, ctx: TickCtx, kind: RoadKind, newTiles: number): void {
+  if (!isStandard(state) || newTiles <= 0) return;
+  book(state, 'roads', roadCost(kind, newTiles));
+  emitMoney(state, ctx);
 }
 
 /** Moves money and books it (pennies; positive amounts, the category says income or expense). */

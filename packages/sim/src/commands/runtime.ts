@@ -1,6 +1,8 @@
-// Ledger levers on a building (C3C owns them): construction priority and pausing.
+// Ledger levers on a building (C3C owns them): construction priority and pausing. A paused
+// producer stops working and asking for inputs; a paused site waits for builders and materials.
 import { findById } from '../state/entities';
-import { buildingView } from '../view';
+import { emitBuilding } from '../systems/economy/emit';
+import { refreshStatus } from '../systems/production/status';
 import type { HandlerFor } from './util';
 
 export const setPriority: HandlerFor<'build.setPriority'> = {
@@ -14,7 +16,7 @@ export const setPriority: HandlerFor<'build.setPriority'> = {
   apply(state, _seat, cmd, ctx) {
     const b = findById(state.buildings, cmd.id)!;
     b.rt!.construction!.priority = cmd.priority;
-    ctx.events.push({ e: 'building.updated', b: buildingView(b) });
+    emitBuilding(state, ctx, b);
   },
 };
 
@@ -29,6 +31,7 @@ export const setPaused: HandlerFor<'build.setPaused'> = {
   apply(state, _seat, cmd, ctx) {
     const b = findById(state.buildings, cmd.id)!;
     b.rt!.paused = cmd.paused;
-    ctx.events.push({ e: 'building.updated', b: buildingView(b) });
+    refreshStatus(state, ctx, b);
+    emitBuilding(state, ctx, b);
   },
 };

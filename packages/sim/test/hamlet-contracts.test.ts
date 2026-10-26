@@ -71,6 +71,7 @@ describe('standard valley', () => {
   it('places buildings as construction sites with runtime', () => {
     const w = flatWorld();
     w.settings.mode = 'standard';
+    w.economy.treasury = START_TREASURY;
     run(w, { t: 'build.place', def: 'cottage', x: 60, z: 60, rot: 0 });
     const b = w.buildings[0]!;
     expect(b.stage).toBe('construction');
