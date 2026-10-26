@@ -50,17 +50,17 @@ export function placementBlocked(state: WorldState, def: BuildingDef): RejectRea
 
 /** Apply hook for build.place, after the site exists: deducts coins, records ConstructionState.paid. */
 export function chargePlacement(state: WorldState, ctx: TickCtx, b: Building, def: BuildingDef): void {
-  if (!isStandard(state) || !b.rt?.construction) return;
-  const cost = placementCost(def);
-  book(state, 'construction', cost);
-  b.rt.construction.paid = cost;
-  // A building placed over field tiles takes them over.
+  // A building placed over field tiles takes them over (in sandbox valleys too).
   const lost: number[] = [];
   for (const [x, z] of footprintTiles(def, b.x, b.z, b.rot)) {
     const i = z * MAP_SIZE + x;
     if (state.map.fieldOwner[i]) lost.push(i);
   }
   if (lost.length > 0) clearFields(state, ctx, lost);
+  if (!isStandard(state) || !b.rt?.construction) return;
+  const cost = placementCost(def);
+  book(state, 'construction', cost);
+  b.rt.construction.paid = cost;
   emitMoney(state, ctx);
 }
 
