@@ -14,6 +14,9 @@ export interface InsertOptions {
   site?: boolean;
   foundation?: boolean;
   handmade?: boolean;
+  /** I2 (C4.0): grown on this lot, in this district style (growLot). */
+  lot?: number;
+  style?: string;
 }
 
 export function insertBuilding(
@@ -38,6 +41,8 @@ export function insertBuilding(
     stage: site ? 'construction' : 'built',
     foundation: opts.foundation ?? false,
   };
+  if (opts.lot) b.lot = opts.lot;
+  if (opts.style) b.style = opts.style;
   if (isStandard(state)) b.rt = createRuntime(def, site);
   const tiles = footprintTiles(def, x, z, rot);
   for (const [tx, tz] of tiles) {

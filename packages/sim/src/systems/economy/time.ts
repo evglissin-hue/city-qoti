@@ -1,6 +1,6 @@
 // Calendar arithmetic for the Ledger systems. Tick 0 is 06:00 on day 1 (START_HOUR), so the
 // time of day is shifted before taking the remainder.
-import { START_HOUR, TICKS_PER_DAY, TICKS_PER_HOUR, WORK_HOURS } from '../../constants';
+import { HOURS_PER_DAY, START_HOUR, TICKS_PER_DAY, TICKS_PER_HOUR, WORK_HOURS } from '../../constants';
 
 /** Ticks since the last midnight. */
 export function tickOfDay(tick: number): number {
@@ -20,4 +20,12 @@ export function hourOf(tick: number): number {
 export function isWorkTime(tick: number): boolean {
   const h = hourOf(tick);
   return h >= WORK_HOURS[0] && h < WORK_HOURS[1];
+}
+
+/**
+ * I2 (C4.0): the `offset` for a daily system (`every: TICKS_PER_DAY`) that runs at `hour`:00 plus
+ * `extra` ticks. Tick 0 is 06:00, so 00:00 is offset 3600.
+ */
+export function dailyOffset(hour: number, extra = 0): number {
+  return ((hour - START_HOUR + HOURS_PER_DAY) % HOURS_PER_DAY) * TICKS_PER_HOUR + extra;
 }

@@ -1,9 +1,11 @@
-import { MAP_SIZE } from '../constants';
+import { content } from '@qoti/content';
+import { LEDGER_CATEGORIES, MAP_SIZE, NEED_IDS } from '../constants';
 import { bytesToBase64 } from './base64';
 import { emptyHamletSlices } from './hamlet';
+import { emptyVillageSlices } from './village';
 
 /** Bump whenever the shape of saved state changes, and add a migration with a test. */
-export const SAVE_VERSION = 2;
+export const SAVE_VERSION = 3;
 
 export type SaveObject = Record<string, unknown> & { saveVersion: number };
 export type Migration = (save: SaveObject) => SaveObject;
@@ -13,6 +15,7 @@ export type Migration = (save: SaveObject) => SaveObject;
 // prettier-ignore
 export const migrations: ReadonlyMap<number, Migration> = new Map<number, Migration>([
   [1, toV2],
+  [2, toV3],
 ]);
 
 /**
@@ -37,6 +40,81 @@ function toV2(save: SaveObject): SaveObject {
   }
   map.fieldOwner = zeros32;
   return { ...save, ...emptyHamletSlices(), map, saveVersion: 2 };
+}
+
+type Obj = Record<string, unknown>;
+
+/** A deep copy of plain save data, so migrations never edit their input. */
+function clone(v: unknown): unknown {
+  return v === undefined ? undefined : JSON.parse(JSON.stringify(v));
+}
+
+/** Pads an array (in place, if it is one) to `n` entries with `fill`. */
+function pad<T>(v: unknown, n: number, fill: T): void {
+  if (!Array.isArray(v)) return;
+  while (v.length < n) v.push(fill);
+}
+
+function padPeriod(p: unknown, goods: number, categories: number): void {
+  if (!p || typeof p !== 'object') return;
+  const period = p as Obj;
+  pad(period.money, categories, 0);
+  pad(period.produced, goods, 0);
+  pad(period.consumed, goods, 0);
+}
+
+/**
+ * v2 (I1) to v3 (I2 contracts): per-good arrays grow to the I2 goods, ledger periods to the I2
+ * categories, residents' needs to the tier needs (at 100: an I1 valley's Settlers have none of
+ * them), the money counter starts at 0, new map layers start empty, and the I2 slices start
+ * neutral: base prices, default levers, no lots, Hamlet rank, everything locked. I1 valleys keep
+ * playing as Settlers until they zone, trade and claim the Village Charter.
+ */
+function toV3(save: SaveObject): SaveObject {
+  const goods = content.goods.length;
+  const categories = LEDGER_CATEGORIES.length;
+  const needs = NEED_IDS.length;
+  const n = MAP_SIZE * MAP_SIZE;
+  const map = { ...(save.map as Record<string, string>) };
+  map.lot = bytesToBase64(new Uint8Array(n * 4));
+  map.traffic = bytesToBase64(new Uint8Array(n));
+  map.wear = bytesToBase64(new Uint8Array(n));
+
+  const economy = clone(save.economy) as Obj;
+  pad(economy.forSale, goods, false);
+  for (const k of ['today', 'yesterday', 'season', 'lastSeason']) padPeriod(economy[k], goods, categories);
+  for (const day of (economy.stockHistory as unknown[]) ?? []) pad(day, goods, 0);
+  pad(economy.everProduced, goods, 0);
+  economy.external = 0;
+
+  const buildings = clone(save.buildings) as Obj[];
+  for (const b of buildings) {
+    const rt = b.rt as Obj | undefined;
+    if (!rt) continue;
+    for (const k of ['input', 'output', 'store', 'reservedIn', 'reservedOut', 'producedToday']) {
+      pad(rt[k], goods, 0);
+    }
+    const c = rt.construction as Obj | null | undefined;
+    if (c) {
+      pad(c.needs, goods, 0);
+      pad(c.delivered, goods, 0);
+    }
+  }
+  const households = clone(save.households) as Obj[];
+  for (const h of households) pad(h.pantry, goods, 0);
+  const residents = clone(save.residents) as Obj[];
+  for (const r of residents) pad(r.needs, needs, 100);
+
+  return {
+    ...save,
+    ...emptyVillageSlices(),
+    map,
+    economy,
+    buildings,
+    households,
+    residents,
+    saveVersion: 3,
+  };
 }
 
 /** Brings a parsed save up to SAVE_VERSION, one migration at a time. */

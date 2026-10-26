@@ -46,6 +46,11 @@ export const remove: HandlerFor<'build.remove'> = {
       if (def) refundRemoval(state, ctx, existing, def);
       // Residents and households notice the missing building on their next tick (C3A).
       const b = removeById(state.buildings, id)!;
+      // I2 (C4.0): a grown building's lot is free again.
+      if (b.lot) {
+        const lot = findById(state.lots, b.lot);
+        if (lot && lot.buildingId === id) lot.buildingId = 0;
+      }
       const tiles = def ? footprintTiles(def, b.x, b.z, b.rot) : [];
       for (const [x, z] of tiles) {
         if (state.map.occupant[z * MAP_SIZE + x] === id) state.map.occupant[z * MAP_SIZE + x] = 0;

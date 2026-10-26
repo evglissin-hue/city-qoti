@@ -37,6 +37,7 @@ export function emptyEconomy(): EconomyState {
     leanTimes: false,
     seasonsInSurplus: 0,
     everProduced: goodsArray(),
+    external: 0,
   };
 }
 

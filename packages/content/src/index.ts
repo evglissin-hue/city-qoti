@@ -2,32 +2,46 @@
 // branches adding different entries merge cleanly. The one exception is `goods`: its order is
 // append-only, because a good's position is its index in every per-good array in saved state.
 import * as A from './achievements';
+import * as Ba from './baskets';
 import * as B from './buildings';
+import * as Ca from './carts';
+import * as Ch from './charters';
 import * as C from './chronicle';
 import * as D from './decor';
 import * as G from './goods';
+import * as I from './innovations';
 import { familyNames } from './names';
+import * as N from './neighbors';
 import * as P from './patterns';
 import * as R from './roads';
 import * as Sp from './species';
 import * as Sw from './swatches';
 import * as T from './trees';
 import * as Tr from './traits';
+import * as VG from './villageGoods';
 import * as W from './wishes';
+import * as Z from './zones';
 import type {
   AchievementDef,
   BuildingDef,
+  CartDef,
+  CharterDef,
   ChronicleTemplate,
   Content,
   DecorDef,
   GoodDef,
+  InnovationDef,
+  NeedsBasket,
+  NeighborDef,
   PatternDef,
   RoadDef,
   SpeciesDef,
+  StoryArc,
   SwatchDef,
   TraitDef,
   TreeDef,
   WishTemplate,
+  ZoneDef,
 } from './types';
 
 export { chroniclePhrases } from './chronicle';
@@ -83,6 +97,7 @@ export const decor: readonly DecorDef[] = [
 export const roads: readonly RoadDef[] = [
   R.lane,
   R.path,
+  R.street,
 ];
 
 // prettier-ignore
@@ -103,6 +118,19 @@ export const goods: readonly GoodDef[] = [
   G.bread,
   G.vegetables,
   G.fish,
+  // I2 (C4.0)
+  VG.clay,
+  VG.bricks,
+  VG.wool,
+  VG.yarn,
+  VG.cloth,
+  VG.milk,
+  VG.cheese,
+  VG.apples,
+  VG.cider,
+  VG.firewood,
+  VG.herbs,
+  VG.tools,
 ];
 
 // prettier-ignore
@@ -215,6 +243,53 @@ export const swatches: readonly SwatchDef[] = [
   Sw.wallStone,
 ];
 
+// --- I2 (C4.0) --------------------------------------------------------------------------------
+
+// prettier-ignore
+export const zones: readonly ZoneDef[] = [
+  Z.crafts,
+  Z.farms,
+  Z.homesLow,
+  Z.homesMedium,
+  Z.shops,
+];
+
+// prettier-ignore
+export const baskets: readonly NeedsBasket[] = [
+  Ba.craftsfolk,
+  Ba.settler,
+];
+
+// prettier-ignore
+export const neighbors: readonly NeighborDef[] = [
+  N.millhaven,
+  N.stonecross,
+];
+
+// prettier-ignore
+export const innovations: readonly InnovationDef[] = [
+  I.brickKiln,
+  I.carts,
+  I.cobbles,
+  I.waterWheel,
+  I.wheelbarrows,
+];
+
+// prettier-ignore
+export const charters: readonly CharterDef[] = [
+  Ch.villageCharter,
+];
+
+/** C4D adds the arcs (a stories.ts file, one line each here). */
+// prettier-ignore
+export const stories: readonly StoryArc[] = [
+];
+
+// prettier-ignore
+export const carts: readonly CartDef[] = [
+  Ca.cart,
+];
+
 function byId<T extends { id: string }>(list: readonly T[]): ReadonlyMap<string, T> {
   return new Map(list.map((item) => [item.id, item]));
 }
@@ -245,4 +320,19 @@ export const content: Content = {
   chronicle,
   chronicleByKind: new Map(chronicle.map((c) => [c.kind, c])),
   swatches,
+  zones,
+  zoneById: byId(zones),
+  zoneByValue: new Map(zones.map((z) => [z.layerValue, z])),
+  baskets,
+  basketByTier: new Map(baskets.map((b) => [b.tier, b])),
+  neighbors,
+  neighborById: byId(neighbors),
+  innovations,
+  innovationById: byId(innovations),
+  charters,
+  charterById: byId(charters),
+  stories,
+  storyById: byId(stories),
+  carts,
+  cartById: byId(carts),
 };

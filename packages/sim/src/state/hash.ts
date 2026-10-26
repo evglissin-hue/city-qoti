@@ -114,6 +114,18 @@ export function hashState(state: WorldState): string {
       achievements: state.achievements,
       stats: state.stats,
       networkVersion: state.networkVersion,
+      market: state.market,
+      levers: state.levers,
+      loans: state.loans,
+      lots: state.lots,
+      trade: state.trade,
+      carts: state.carts,
+      charter: state.charter,
+      innovations: state.innovations,
+      plans: state.plans,
+      requests: state.requests,
+      stories: state.stories,
+      village: state.village,
     }),
   );
   return h.hex();

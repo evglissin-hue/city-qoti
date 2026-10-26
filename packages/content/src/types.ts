@@ -45,8 +45,8 @@ export interface BuildingDef {
   upkeep?: number;
   art: ArtRef;
   // I1 additions (C3.0). All optional, so sandbox-only defs stay valid.
-  /** Jobs at this building and who fills them. */
-  jobs?: { count: number; role: JobRole };
+  /** Jobs at this building and who fills them. `tier` [I2]: the tier of the job (default settler). */
+  jobs?: { count: number; role: JobRole; tier?: TierName };
   /** Homes: households and residents it holds. */
   housing?: { households: number; residents: number };
   /** Storage capacity in units, all goods together (storehouse 400, market stall 40). */
@@ -65,6 +65,15 @@ export interface BuildingDef {
   tags?: string[];
   /** Which valley modes offer it in the toolbar (default both). */
   modes?: ValleyMode[];
+  // I2 additions (C4.0).
+  /** Homes: the population tier it houses (default settler). */
+  tier?: TierName;
+  /** Grown on lots of this zone; hidden from the build picker unless `handPlaced`. */
+  grows?: { zone: string; weight?: number; handPlaced?: boolean };
+  /** Upgrades in place to this def when its household reaches the next tier, consuming the goods. */
+  upgradesTo?: { def: string; goods: [good: string, qty: number][] };
+  /** Rank or innovation needed before it can be placed or grown. */
+  requires?: { rank?: RankName; innovation?: string };
 }
 
 export interface DecorDef {
@@ -99,6 +108,13 @@ export interface RoadDef {
   /** Value stored in the `road` map layer (1 path, 2 lane, 3 street [I2], 4 avenue [I5]). */
   layerValue: number;
   cost?: Cost;
+  // I2 additions (C4.0).
+  /** Carts may use it; carts never use paths. */
+  carts?: boolean;
+  /** Cart passes per hour before carts slow down (lane 30, street 80). */
+  capacity?: number;
+  /** Rank or innovation needed (streets need Cobbles). */
+  requires?: { rank?: RankName; innovation?: string };
 }
 
 export interface TreeDef {
@@ -143,6 +159,24 @@ export interface Content {
   // I1 additions (C3B).
   /** Customization swatches by group (docs/spec/17-presentation.md palette names). */
   swatches: readonly SwatchDef[];
+  // I2 additions (C4.0).
+  zones: readonly ZoneDef[];
+  zoneById: ReadonlyMap<string, ZoneDef>;
+  /** Zone def by its `zone` layer value. */
+  zoneByValue: ReadonlyMap<number, ZoneDef>;
+  baskets: readonly NeedsBasket[];
+  basketByTier: ReadonlyMap<string, NeedsBasket>;
+  neighbors: readonly NeighborDef[];
+  neighborById: ReadonlyMap<string, NeighborDef>;
+  /** Innovation state in saves is keyed by id, so this list is alphabetical like the rest. */
+  innovations: readonly InnovationDef[];
+  innovationById: ReadonlyMap<string, InnovationDef>;
+  charters: readonly CharterDef[];
+  charterById: ReadonlyMap<string, CharterDef>;
+  stories: readonly StoryArc[];
+  storyById: ReadonlyMap<string, StoryArc>;
+  carts: readonly CartDef[];
+  cartById: ReadonlyMap<string, CartDef>;
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -324,7 +358,18 @@ export type CountWhat =
   | 'seasonsInSurplus'
   | 'builtTogether'
   /** Valid pattern sites right now whose members were placed by both seats (C3B). */
-  | 'togetherSites';
+  | 'togetherSites'
+  // I2 (C4.0)
+  /** Days of food in town stock at the current rate of eating. */
+  | 'foodDays'
+  /** Residents of the tier named in `ref`. */
+  | 'tierResidents'
+  /** Requests between seats fulfilled. */
+  | 'requestsFulfilled'
+  /** Distinct goods in stock at market outlets. */
+  | 'goodsAtMarket'
+  /** Innovations unlocked. */
+  | 'innovations';
 
 // --- Hearth content ---------------------------------------------------------------------------
 
@@ -400,4 +445,178 @@ export interface SwatchDef {
   name: string;
   group: SwatchGroup;
   token: string;
+}
+
+// ---------------------------------------------------------------------------------------------
+// I2 content types (C4.0). docs/spec/11-residents.md (Ages, Story characters), 13-ledger.md
+// (Market, Zoning, Streets, Services, Tiers, Trade), 15-progression.md (Charters, Innovations).
+
+/** Population tier ids (the sim's TierId). Content never imports the sim, so it is repeated here. */
+export type TierName = 'settler' | 'craftsfolk' | 'merchant' | 'patron';
+
+/** Town ranks, in order. */
+export type RankName = 'hamlet' | 'village' | 'town' | 'marketTown' | 'city';
+
+/**
+ * One line of a tier's needs basket: a need group (food, bread, firewood, cloth...) with the
+ * quantity a household member uses per day and the goods that can satisfy it, with preference
+ * weights (higher is preferred). Households buy the good with the best price / weight they can
+ * afford; Thrifty households weigh price more.
+ */
+export interface NeedGroup {
+  id: string;
+  name: string;
+  /** Units per resident per day; may be fractional (cloth 0.1). The sim accrues hundredths. */
+  perDay: number;
+  /** Per household rather than per resident (firewood). */
+  perHousehold?: boolean;
+  /** Only in this season (0 spring to 3 winter) [I3: winter warmth]; every season when absent. */
+  season?: number;
+  /** Substitutable goods and their preference weights (1 = plain, 2 = twice as wanted). */
+  goods: [good: string, weight: number][];
+}
+
+/** What a tier needs beyond shelter, water and belonging (docs/spec/13-ledger.md, Population tiers). */
+export interface NeedsBasket {
+  tier: TierName;
+  /** Need groups bought at the market (food is a group too). */
+  groups: NeedGroup[];
+  /** Service coverage this tier needs: 'social' (tavern), 'health' (herbalist), 'education' (school). */
+  services: string[];
+  /** Average charm around home this tier needs (0 to 100). */
+  charm: number;
+  /** Savings in coins a household needs before its home upgrades to this tier. */
+  savings: number;
+}
+
+/** A zone the Ledger paints (docs/spec/13-ledger.md, Zoning and growth). */
+export interface ZoneDef {
+  id: string;
+  name: string;
+  /** Value stored in the `zone` map layer (1 to 5; 0 is unzoned). */
+  layerValue: number;
+  density: 'low' | 'medium';
+  /** What grows there, in a line for the zone tool. */
+  blurb: string;
+  /** Lot shapes the subdivider tries, best first. */
+  lots: LotDef[];
+  /** Overlay tint: a packages/art palette token name. */
+  token: string;
+}
+
+/** A lot shape for a zone: a footprint facing the road. */
+export interface LotDef {
+  /** Width along the road and depth away from it, in tiles. */
+  size: [w: number, d: number];
+  /** Relative weight when several shapes fit. */
+  weight: number;
+}
+
+/** An NPC neighbor town (docs/spec/13-ledger.md, Trade). */
+export interface NeighborDef {
+  id: string;
+  name: string;
+  blurb: string;
+  /** Goods it sells to the valley, with a price factor on base in percent (90 = cheap there). */
+  sells: [good: string, percent: number][];
+  /** Goods it buys from the valley, with a price factor on base in percent (120 = keen buyer). */
+  buys: [good: string, percent: number][];
+  /** Seasonal price factors in percent: [good, season 0 to 3, percent]. */
+  seasonal?: [good: string, season: number, percent: number][];
+  /** Days a caravan takes there and back. */
+  days: number;
+  /** Rank needed before it trades (Port Amberly waits for Town). */
+  rank?: RankName;
+}
+
+/** Technology that arrives through conditions in the town (docs/spec/15-progression.md). */
+export interface InnovationDef {
+  id: string;
+  name: string;
+  /** One line for the inventor's notebook. */
+  blurb: string;
+  /** Unlocks when this holds (checked hourly). */
+  condition: Condition;
+  /** A named progress measure in the sim (systems/innovations) for the bar; 0 until done when absent. */
+  measure?: string;
+  /** Building, method, road or capability ids it unlocks ('street', 'cart-shed', 'porter-carry-6'). */
+  unlocks: string[];
+  /** Rank it can first progress at. */
+  rank: RankName;
+}
+
+/** A goal on a Charter board, with the lane icon it shows. */
+export interface CharterGoal {
+  id: string;
+  text: string;
+  lane: 'hearth' | 'ledger' | 'shared';
+  /** What is counted and the target (progress shows count / target). */
+  measure: { what: CountWhat; ref?: string };
+  target: number;
+}
+
+/** The goals for the next rank (docs/spec/15-progression.md, Ranks and Charters). */
+export interface CharterDef {
+  id: string;
+  /** The rank it grants. */
+  rank: RankName;
+  /** The rank you hold while working on it. */
+  from: RankName;
+  goals: CharterGoal[];
+  /** Content and capability ids unlocked on reaching the rank. */
+  unlocks: string[];
+  /** Words for the rank-up moment (Chronicle and letter), with {town}. */
+  proclamation: string;
+}
+
+/** A fixed resident for a story arc (docs/spec/11-residents.md, Story characters). */
+export interface ResidentTemplate {
+  given: string;
+  family: string;
+  species: string;
+  traits: string[];
+  stage: 'young' | 'adult' | 'elder';
+  bio: string;
+}
+
+export interface Reward {
+  mood?: number;
+  bond?: number;
+  /** Content ids unlocked (decor, buildings, styles). */
+  unlock?: string[];
+  /** Innovation ids completed outright. */
+  innovation?: string[];
+  coins?: number;
+}
+
+export interface StoryStep {
+  /** The letter that opens the step, with {seat} (the reader's name) and {town}. */
+  letter: string;
+  goal: Condition;
+  reward: Reward;
+  /** Shown in the story panel while the step is open. */
+  hint: string;
+}
+
+export interface StoryArc {
+  id: string;
+  character: ResidentTemplate;
+  /** When they move in. */
+  arrival: Condition;
+  /** The letter they send on arrival. */
+  hello: string;
+  /** 4 to 6 steps. */
+  steps: StoryStep[];
+  finale: Reward & { letter: string };
+}
+
+/** A cart (docs/spec/13-ledger.md, Logistics; Streets and traffic). */
+export interface CartDef {
+  id: string;
+  name: string;
+  /** Units carried. */
+  capacity: number;
+  /** Ticks per tile by road id; carts use lanes and streets only. */
+  ticksPerTile: [road: string, ticks: number][];
+  art: ArtRef;
 }

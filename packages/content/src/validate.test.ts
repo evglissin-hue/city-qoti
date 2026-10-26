@@ -106,7 +106,7 @@ describe('content', () => {
         'wildflower-verge',
       ].sort(),
     );
-    expect(roads.map((r) => r.id).sort()).toEqual(['lane', 'path']);
+    expect(roads.map((r) => r.id).sort()).toEqual(['lane', 'path', 'street']);
     expect(trees.map((t) => t.id).sort()).toEqual(['birch', 'oak', 'pine']);
   });
 
@@ -204,6 +204,19 @@ describe('I1 content', () => {
       'bread',
       'vegetables',
       'fish',
+      // I2 (C4.0)
+      'clay',
+      'bricks',
+      'wool',
+      'yarn',
+      'cloth',
+      'milk',
+      'cheese',
+      'apples',
+      'cider',
+      'firewood',
+      'herbs',
+      'tools',
     ]);
     goods.forEach((g, i) => expect(content.goodIndex.get(g.id)).toBe(i));
     for (const g of goods) expect(g.basePrice > 0 && g.carry > 0, g.id).toBe(true);

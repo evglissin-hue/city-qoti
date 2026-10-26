@@ -6,18 +6,31 @@ import type {
   AchievementView,
   BudgetView,
   BuildingView,
+  CharterView,
   ChronicleEntryView,
   ClockView,
   DecorView,
   HouseholdView,
+  InnovationView,
+  LetterView,
+  LeversView,
+  LifeEventKind,
+  LoansView,
+  LotView,
+  MarketView,
   NoteView,
   PatternView,
+  PlanView,
+  RequestView,
   ResidentView,
   SeatView,
   StocksView,
+  StoryView,
   TownView,
+  TradeView,
   WishView,
 } from './views';
+import type { RankId } from './village';
 
 export type SimEvent =
   | { e: 'tiles.changed'; rect: Rect; layers: LayerName[] }
@@ -55,7 +68,32 @@ export type SimEvent =
   /** Hints and unlocks changed. */
   | { e: 'pattern.updated'; p: PatternView }
   | { e: 'chronicle.added'; c: ChronicleEntryView }
-  | { e: 'achievement.unlocked'; a: AchievementView };
+  | { e: 'achievement.unlocked'; a: AchievementView }
+  // I2 (C4.0). docs/build/i2-wave-notes.md lists who emits each. Traffic, wear, lot and zone
+  // tiles travel as layer patches (tiles.changed plus dirty chunks), never as events.
+  /** Daily after the price pass, and when a lever changes prices. */
+  | { e: 'market.updated'; m: MarketView }
+  | { e: 'levers.updated'; l: LeversView }
+  | { e: 'loans.updated'; l: LoansView }
+  /** Orders, caravans and the log. */
+  | { e: 'trade.updated'; t: TradeView }
+  | { e: 'lot.added'; l: LotView }
+  | { e: 'lot.updated'; l: LotView }
+  | { e: 'lot.removed'; id: EntityId }
+  | { e: 'charter.updated'; c: CharterView }
+  /** The rank-up moment (P40). */
+  | { e: 'rank.up'; rank: RankId; text: string }
+  | { e: 'innovation.updated'; i: InnovationView }
+  | { e: 'innovation.unlocked'; i: InnovationView }
+  | { e: 'plan.added'; p: PlanView }
+  | { e: 'plan.updated'; p: PlanView }
+  | { e: 'plan.removed'; id: EntityId }
+  | { e: 'request.added'; r: RequestView }
+  | { e: 'request.updated'; r: RequestView }
+  /** A story arc moved on (arrival, a step done, the finale), with the letter to show. */
+  | { e: 'story.step'; s: StoryView; letter: LetterView }
+  /** Couples, weddings, births, apprenticeships, retiring, moving to the seaside. */
+  | { e: 'life.event'; kind: LifeEventKind; residents: EntityId[]; text: string };
 
 export interface LayerPatch {
   layer: LayerName;

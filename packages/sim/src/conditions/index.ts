@@ -216,9 +216,50 @@ export function countOf(state: WorldState, what: string, ref?: string): number {
       for (const s of state.hearth.sites) if (s.seats.length >= 2) n++;
       return n;
     }
+    // I2 (C4.0)
+    case 'foodDays':
+      return foodDays(state);
+    case 'tierResidents': {
+      let n = 0;
+      for (const r of state.residents) if (r.tier === ref) n++;
+      return n;
+    }
+    case 'requestsFulfilled':
+      return state.village.requestsFulfilled;
+    case 'goodsAtMarket':
+      return goodsAtMarket(state);
+    case 'innovations': {
+      let n = 0;
+      for (const i of state.innovations) if (i.unlockedTick >= 0) n++;
+      return n;
+    }
     default:
       return 0;
   }
+}
+
+/** Whole days of food in town stores and outlets at one unit per resident per day. */
+export function foodDays(state: WorldState): number {
+  let food = 0;
+  for (const b of state.buildings) {
+    if (!b.rt) continue;
+    for (let g = 0; g < content.goods.length; g++) {
+      if (content.goods[g]!.food) food += (b.rt.store[g] ?? 0) + (b.rt.output[g] ?? 0);
+    }
+  }
+  return Math.floor(food / Math.max(1, state.residents.length));
+}
+
+/** Distinct goods in stock at outlets (buildings tagged 'outlet'). */
+export function goodsAtMarket(state: WorldState): number {
+  const seen = new Array<boolean>(content.goods.length).fill(false);
+  for (const b of state.buildings) {
+    if (!b.rt || !content.buildingById.get(b.def)?.tags?.includes('outlet')) continue;
+    for (let g = 0; g < seen.length; g++) if ((b.rt.store[g] ?? 0) > 0) seen[g] = true;
+  }
+  let n = 0;
+  for (const s of seen) if (s) n++;
+  return n;
 }
 
 // --- Charm and stock ----------------------------------------------------------------------------
