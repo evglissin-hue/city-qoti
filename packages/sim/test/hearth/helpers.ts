@@ -1,3 +1,4 @@
+import { START_TREASURY } from '../../src/constants';
 // Test helpers for the Hearth systems (C3B): build pieces straight into state, recompute charm,
 // run the sim for a while. The shared hamlet fixture stays untouched.
 import { content } from '@qoti/content';
@@ -18,6 +19,8 @@ export const S = MAP_SIZE;
 export function standardWorld(): WorldState {
   const w = flatWorld();
   w.settings.mode = 'standard';
+  // Roads and pieces cost coins in standard valleys (C3C).
+  w.economy.treasury = START_TREASURY;
   return w;
 }
 

@@ -15,7 +15,7 @@ import { StreamRng, streamIndex } from './rng/streams';
 import { canPaintRoad } from './rules/road';
 import { effectiveSpeed } from './speed';
 import { worldIndex } from './state/worldIndex';
-import { pipeline } from './systems';
+import { isSkipped, pipeline } from './systems';
 import { clockView } from './view';
 
 export { effectiveSpeed } from './speed';
@@ -87,7 +87,7 @@ export function runTick(state: WorldState, ctx: TickCtx): void {
   const t = state.tick;
   for (const system of pipeline) {
     const every = system.every ?? 1;
-    if (t % every === (system.offset ?? 0)) system.tick(state, ctx);
+    if (t % every === (system.offset ?? 0) && !isSkipped(system.id)) system.tick(state, ctx);
   }
 }
 

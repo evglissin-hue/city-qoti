@@ -1,9 +1,11 @@
 // Outlet API (C3.0 contract; C3C owns it). Residents (C3A) shop through it: market stalls first,
-// storehouses when no stall is within reach. C3.0 baseline: a working simple version.
+// storehouses when no stall is within reach. Porters keep stalls stocked to STALL_RESTOCK_TARGET
+// food (logistics); goods a porter has been promised (reservedOut) are never handed out.
 import { content } from '@qoti/content';
 import { MAP_SIZE } from '../../constants';
 import type { EntityId, WorldState } from '../../contracts';
 import { findById } from '../../state/entities';
+import { doorTile } from '../movement/api';
 
 /** Takes up to qty units of a good from an outlet's store; returns the units taken. */
 export function takeFromOutlet(
@@ -36,7 +38,7 @@ export function outletFood(state: WorldState, buildingId: EntityId): number {
 
 /**
  * The nearest built outlet with food for a tile: a market stall within its coverage radius, else
- * the nearest storehouse. Straight-line distance, ties by id. 0 when none.
+ * the nearest storehouse. Straight-line distance to the outlet's door, ties by id. 0 when none.
  */
 export function nearestOutletWithFood(state: WorldState, tile: number): EntityId {
   const x = tile % MAP_SIZE;
@@ -49,8 +51,9 @@ export function nearestOutletWithFood(state: WorldState, tile: number): EntityId
     if (b.stage !== 'built' || !b.rt) continue;
     const def = content.buildingById.get(b.def);
     if (!def?.tags?.includes('outlet') || outletFood(state, b.id) <= 0) continue;
-    const dx = b.x - x;
-    const dz = b.z - z;
+    const door = doorTile(b, def);
+    const dx = (door % MAP_SIZE) - x;
+    const dz = Math.floor(door / MAP_SIZE) - z;
     const d = dx * dx + dz * dz;
     if (def.tags.includes('market')) {
       const r = def.coverage?.find((c) => c.kind === 'food')?.radius ?? 14;

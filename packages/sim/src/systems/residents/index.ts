@@ -8,7 +8,7 @@ import type { Resident, System, TickCtx, WorldState } from '../../contracts';
 import { isStandard } from '../../state/hamlet';
 import { modifierValue } from './api';
 import { decayFriendships, greetNeighbors, hourlyFriendships } from './friends';
-import { assignJobs, auditJobs } from './jobs';
+import { assignJobs, auditJobs, rebalanceJobs } from './jobs';
 import { arrivals, departures, morningPass, rehouse, thinkLeaving } from './lifecycle';
 import { eatBreakfast, updateHouseholdNeeds } from './needs';
 import { syncResident } from './records';
@@ -48,7 +48,10 @@ export function residentsTick(state: WorldState, ctx: TickCtx): void {
     rehouse(state, ctx);
     auditJobs(state);
   }
-  if (t % HOUR === JOBS_OFFSET) assignJobs(state, ctx);
+  if (t % HOUR === JOBS_OFFSET) {
+    assignJobs(state, ctx);
+    rebalanceJobs(state);
+  }
   if (t % HOUR === FRIENDS_OFFSET) hourlyFriendships(state);
 
   // Each household's hourly needs at its own tick; its daily friendship chores ride along.

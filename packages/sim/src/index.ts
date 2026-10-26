@@ -74,6 +74,7 @@ export {
   townStock,
   townView,
   wishView,
+  workforceView,
 } from './view';
 export { agentFrame } from './view/agents';
 export {
@@ -92,6 +93,16 @@ export { createRuntime, emptyHamletSlices, goodsArray, isStandard } from './stat
 export { insertBuilding } from './state/place';
 export { START_GOODS } from './systems/economy/start';
 export { settleHousehold } from './systems/residents/lifecycle';
+export { economyDial, type EconomyDial } from './systems/economy/dial';
+export { fieldCost, placementCost, roadCost } from './systems/economy/api';
+export { nearestOutletWithFood, outletFood, takeFromOutlet } from './systems/economy/outlets';
+export { doorTile } from './systems/movement/api';
+export {
+  CROP_RIPE,
+  CROP_STAGE_SHIFT,
+  FIELD_RANGE,
+  FIELD_TILES_PER_WORKER,
+} from './systems/production/fields';
 export { findById, findIndexById, removeById } from './state/entities';
 export { fnv64Hex, hashState } from './state/hash';
 export { deserialize, serialize } from './state/serialize';

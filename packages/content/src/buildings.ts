@@ -418,7 +418,7 @@ export const woodcutter: BuildingDef = {
       kind: 'fell',
       inputs: [],
       outputs: [['logs', 4]],
-      hours: 2,
+      hours: 3,
       workers: 2,
       perWorker: true,
       range: 8,

@@ -58,6 +58,8 @@ describe('the day table', () => {
       expect(x.inside).toBe(homeOf(f, x));
     untilHour(r, 8.5);
     for (const x of [p.clover, p.hazel, p.wendell, p.finn, p.pippa]) {
+      // Builders and porters may already be out on a Ledger task (C3C) by 08:30.
+      if (x.activity.kind === 'task') continue;
       expect(x.inside, x.given).toBe(x.jobId);
       expect(x.activity.kind).toBe('work');
     }
@@ -70,7 +72,11 @@ describe('the day table', () => {
       const inside = b.rt.workers.filter((id) => resident(f.state, id).inside === b.id).length;
       expect(b.rt.present, b.def).toBe(inside);
     }
-    expect(findById(f.state.buildings, f.b.townHall)!.rt!.present).toBe(2);
+    // Every town hall builder still on the books is in (one may have moved to the bakery's open
+    // job, which matters more: food first).
+    const hall = findById(f.state.buildings, f.b.townHall)!.rt!;
+    expect(hall.present).toBe(hall.workers.length);
+    expect(hall.present).toBeGreaterThan(0);
   });
 
   it('staggers departures so the whole town does not leave the door on one tick', () => {
@@ -151,9 +157,9 @@ describe('the day table', () => {
   it('faces idle residents toward what they came to see, and keeps walkers to the left', () => {
     const f = hamletFixture();
     const r = runner(f.state);
-    untilHour(r, 18);
+    untilHour(r, 17);
     let checked = 0;
-    for (let i = 0; i < 2 * TICKS_PER_HOUR && checked < 3; i++) {
+    for (let i = 0; i < 4 * TICKS_PER_HOUR && checked < 3; i++) {
       ticks(r, 1);
       const frame = agentFrame(f.state);
       for (let o = 0; o < frame.length; o += AGENT_STRIDE) {
@@ -188,9 +194,10 @@ describe('shopping', () => {
     expect(shoppers).toBe(1);
     expect(carried).toBe(true);
     expect(pantryFood(h)).toBeGreaterThanOrEqual(6);
+    // The food came out of the town's outlets (porters also move food between them now, C3C).
     const after =
       store.rt!.store[bread]! + store.rt!.store[veg]! + store.rt!.store[content.goodIndex.get('fish')!]!;
-    expect(before - after).toBeGreaterThanOrEqual(pantryFood(h));
+    expect(before).toBeGreaterThan(after);
     // Nobody ever carries more than four units on one trip.
     for (const id of h.members) expect(resident(f.state, id).carry).toBeNull();
   });

@@ -9,13 +9,13 @@ One row per cycle. A cycle is one agent session working from one brief on one br
 | C2C Co-op and saves | I0 | parallel | `cycle-02c-coop-saves.md` | C1 | PR open ([#2](https://github.com/evglissin-hue/city-qoti/pull/2)), partial: remainder listed in the PR |
 | C2D Client UX | I0 | parallel | `cycle-02d-client-ux.md` | C1 | PR open ([#2](https://github.com/evglissin-hue/city-qoti/pull/2)), partial: remainder listed in the PR |
 | C2X I0 integration | I0 | integration | `cycle-02x-integration.md` | C2A to C2D | PR open ([#2](https://github.com/evglissin-hue/city-qoti/pull/2)); deploy, the 30-minute session and the I1 brief review remain |
-| C3.0 Hamlet contracts | I1 | serial | `cycle-03-0-hamlet-contracts.md` | C2X | waiting |
-| C3A Residents | I1 | parallel | `cycle-03a-residents.md` | C3.0 | done on branch `cycle/03a-residents`, merged locally by C3X |
-| C3B Hearth v1 | I1 | parallel | `cycle-03b-hearth-v1.md` | C3.0 | branch `cycle/03b-hearth-v1` ready for C3X ([session](https://claude.ai/code/session_0165Sg4PVMcZmX2EeZkdLQwM)) |
-| C3C Ledger v1 | I1 | parallel | `cycle-03c-ledger-v1.md` | C3.0 | waiting |
-| C3D Hamlet art and rendering | I1 | parallel | `cycle-03d-hamlet-art.md` | C3.0 | waiting |
-| C3E Hamlet UI | I1 | parallel | `cycle-03e-hamlet-ui.md` | C3.0 | done on `cycle/03e-hamlet-ui`, waiting for C3X |
-| C3X I1 integration and I2 planning | I1 | integration | `cycle-03x-integration.md` | C3A to C3E | waiting |
+| C3.0 Hamlet contracts | I1 | serial | `cycle-03-0-hamlet-contracts.md` | C2X | merged into the C3X branch |
+| C3A Residents | I1 | parallel | `cycle-03a-residents.md` | C3.0 | merged into the C3X branch |
+| C3B Hearth v1 | I1 | parallel | `cycle-03b-hearth-v1.md` | C3.0 | merged into the C3X branch |
+| C3C Ledger v1 | I1 | parallel | `cycle-03c-ledger-v1.md` | C3.0 | merged into the C3X branch |
+| C3D Hamlet art and rendering | I1 | parallel | `cycle-03d-hamlet-art.md` | C3.0 | in progress (split in two: world look, hamlet art) |
+| C3E Hamlet UI | I1 | parallel | `cycle-03e-hamlet-ui.md` | C3.0 | merged into the C3X branch |
+| C3X I1 integration and I2 planning | I1 | integration | `cycle-03x-integration.md` | C3A to C3E | in progress |
 | C4.0 onward | I2 | | written by C3X | C3X | |
 
 Status values: waiting (dependencies not merged), ready, in progress (add the session link), PR open (add the PR link), merged.

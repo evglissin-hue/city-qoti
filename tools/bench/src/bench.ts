@@ -20,6 +20,7 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { residentsBench } from './residents';
 import { hearthBench } from './hearth';
+import { benchEconomy } from './economy';
 import { syntheticValley } from './synthetic';
 
 const BUDGET = {
@@ -138,6 +139,10 @@ const residents = residentsBench(lines, failures);
 const hearth = hearthBench();
 lines.push(...hearth.lines);
 failures.push(...hearth.failures);
+// 6. The I1 economy: the 40-resident hamlet against its budget, the standard start's first days.
+const economy = benchEconomy();
+lines.push(...economy.lines);
+failures.push(...economy.failures);
 
 const heapMb = process.memoryUsage().heapUsed / 1024 / 1024;
 lines.push(`memory          ${heapMb.toFixed(0)} MB heap in use`);
@@ -162,6 +167,7 @@ const report = {
   catchUpMs,
   residents,
   hearth: hearth.report,
+  economy: economy.report,
   heapMb,
   failures,
 };

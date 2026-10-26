@@ -5,6 +5,7 @@ import type { Building, EntityId, Resident, Rot4, SimEvent, WorldState } from '.
 import { findById } from '../../src/state/entities';
 import { insertBuilding } from '../../src/state/place';
 import { tickOfDay } from '../../src/systems/residents/time';
+import { withoutSystems } from '../../src/systems';
 import { applyTurn, createTickCtx, type SimCtx } from '../../src/turn';
 
 export const S = MAP_SIZE;
@@ -18,22 +19,31 @@ export interface Runner {
   state: WorldState;
   ctx: SimCtx;
   events: SimEvent[];
+  /** Systems switched off for this runner. */
+  skip: readonly string[];
 }
 
-export function runner(state: WorldState): Runner {
+/**
+ * The Ledger's systems (C3C) are off by default: these tests are about residents, and porters
+ * taking workers on tasks or the hourly job rebalance would blur them. `all` runs everything.
+ */
+export function runner(state: WorldState, opts: { all?: boolean } = {}): Runner {
   if (state.time.connected.length === 0) state.time.connected = [0];
-  return { state, ctx: createTickCtx(state), events: [] };
+  const skip = opts.all ? [] : ['construction', 'production', 'logistics', 'economy'];
+  return { state, ctx: createTickCtx(state), events: [], skip };
 }
 
 /** Runs n empty turns (one tick each at speed 1). */
 export function ticks(run: Runner, n: number): void {
-  for (let i = 0; i < n; i++) {
-    applyTurn(run.state, { t: run.state.lastTurn + 1, cmds: [] }, run.ctx);
-    if (run.ctx.events.length) {
-      for (const e of run.ctx.events) run.events.push(e);
-      run.ctx.events.length = 0;
+  withoutSystems(run.skip, () => {
+    for (let i = 0; i < n; i++) {
+      applyTurn(run.state, { t: run.state.lastTurn + 1, cmds: [] }, run.ctx);
+      if (run.ctx.events.length) {
+        for (const e of run.ctx.events) run.events.push(e);
+        run.ctx.events.length = 0;
+      }
     }
-  }
+  });
 }
 
 /** Runs until the clock shows `hour` (fractions allowed), at most a day ahead. */

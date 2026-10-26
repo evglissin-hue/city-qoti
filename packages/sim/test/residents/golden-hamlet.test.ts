@@ -41,8 +41,9 @@ describe('golden script i1-hamlet', () => {
     }
     const { world, kinds: events } = straight();
     expect(world.tick).toBeGreaterThan(2 * 4800);
-    expect(world.stats.arrivals).toBe(2);
-    expect(events.get('resident.added')).toBe(8);
+    // The two founding households, plus any the valley attracts by then.
+    expect(world.stats.arrivals).toBeGreaterThanOrEqual(2);
+    expect(events.get('resident.added')).toBeGreaterThanOrEqual(8);
     expect(events.get('chronicle.added')).toBeGreaterThanOrEqual(3);
   });
 

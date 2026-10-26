@@ -38,3 +38,25 @@ export const systems: readonly System[] = [
 export const pipeline: readonly System[] = [...systems].sort(
   (a, b) => a.order - b.order || (a.id < b.id ? -1 : 1),
 );
+
+let skipped: ReadonlySet<string> | null = null;
+
+/** Tests only: whether runTick skips a system (see withoutSystems). */
+export function isSkipped(id: string): boolean {
+  return skipped !== null && skipped.has(id);
+}
+
+/**
+ * Tests only: runs `fn` with some systems switched off, to test one system in isolation (for
+ * example production without the residents' schedule moving hand-placed workers). Never used by
+ * the game; nothing in saved state depends on it.
+ */
+export function withoutSystems<T>(ids: readonly string[], fn: () => T): T {
+  const before = skipped;
+  skipped = new Set([...(before ?? []), ...ids]);
+  try {
+    return fn();
+  } finally {
+    skipped = before;
+  }
+}

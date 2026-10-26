@@ -1,7 +1,7 @@
 // I1 view builders (C3.0). Their output never feeds back into state, so floats are fine here.
 // Tracks may enrich these (C3A residents, C3B Hearth, C3C Ledger) without changing their shapes.
 import { type Condition, content } from '@qoti/content';
-import { LEDGER_CATEGORIES, MAP_SIZE, MOOD_BAND_MIN, TICKS_PER_HOUR } from '../constants';
+import { LEDGER_CATEGORIES, MAP_SIZE, MOOD_BAND_MIN } from '../constants';
 import type {
   AchievementView,
   BudgetLine,
@@ -23,10 +23,12 @@ import type {
   TownView,
   Wish,
   WishView,
+  WorkforceView,
   WorldState,
 } from '../contracts';
 import { footprintSize } from '../rules/footprint';
 import { findById } from '../state/entities';
+import { cycleWork } from '../systems/production/cycle';
 
 export function moodBand(mood: number): MoodBand {
   let band = 0;
@@ -109,7 +111,8 @@ export function constructionProgress(rt: BuildingRuntime): number {
 export function runtimeView(defId: string, rt: BuildingRuntime): BuildingRuntimeView {
   const def = content.buildingById.get(defId);
   const method = def?.methods?.[rt.method];
-  const cycle = method ? method.hours * TICKS_PER_HOUR * Math.max(1, method.workers) : 0;
+  // Farms keep the average ripeness of their tended fields (0 to 255) as progress.
+  const cycle = !method ? 0 : method.kind === 'farm' ? 255 : cycleWork(method);
   const view: BuildingRuntimeView = {
     jobs: def?.jobs?.count ?? 0,
     workers: rt.workers.length,
@@ -161,6 +164,31 @@ export function stocksView(state: WorldState): StocksView {
       forSale: e.forSale[i] ?? false,
     })),
   };
+}
+
+/** The Workforce report: every building with jobs, and the town's totals. */
+export function workforceView(state: WorldState): WorkforceView {
+  const lines: WorkforceView['lines'] = [];
+  let jobs = 0;
+  let employed = 0;
+  for (const b of state.buildings) {
+    const def = content.buildingById.get(b.def);
+    const count = def?.jobs?.count ?? 0;
+    if (!b.rt || count === 0) continue;
+    lines.push({
+      id: b.id,
+      def: b.def,
+      role: def!.jobs!.role,
+      jobs: count,
+      workers: b.rt.workers.length,
+      present: b.rt.present,
+    });
+    if (b.stage === 'built') jobs += count;
+    employed += b.rt.workers.length;
+  }
+  let unemployed = 0;
+  for (const r of state.residents) if (!r.jobId && (r.stage === 'adult' || r.stage === 'young')) unemployed++;
+  return { lines, jobs, employed, unemployed, vacancies: Math.max(0, jobs - employed) };
 }
 
 function budgetLines(p: LedgerPeriod): BudgetLine[] {
