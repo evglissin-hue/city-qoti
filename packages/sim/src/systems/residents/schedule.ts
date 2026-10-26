@@ -319,7 +319,7 @@ function chooseOuting(
     setOff(state, ctx, r, h, homeDoor, friendDoor, { kind: 'visit', friend });
     return;
   }
-  stroll(state, ctx, rng, r, h, homeDoor, r.tile, evening ? 10 : 7);
+  stroll(state, ctx, rng, r, h, homeDoor, homeDoor, evening ? 9 : 7);
 }
 
 function shop(state: WorldState, ctx: TickCtx, r: Resident, h: Household, homeDoor: number): void {

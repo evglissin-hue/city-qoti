@@ -38,16 +38,19 @@ export function slotPhase(r: Resident): number {
 interface Offset {
   traits: string[];
   count: number;
+  stage: Resident['stage'];
   ticks: number;
 }
-/** Shift plus jitter per resident, derived from traits and look (re-derived if traits change). */
+/** Shift plus jitter per resident, from traits, stage and look (re-derived if those change). */
 const offsets = new WeakMap<Resident, Offset>();
 
 function scheduleOffset(r: Resident): number {
   const o = offsets.get(r);
-  if (o && o.traits === r.traits && o.count === r.traits.length) return o.ticks;
-  const ticks = traitSum(r, 'scheduleShift') * HOUR + jitter(r);
-  offsets.set(r, { traits: r.traits, count: r.traits.length, ticks });
+  if (o && o.traits === r.traits && o.count === r.traits.length && o.stage === r.stage) return o.ticks;
+  // Children keep an Early Bird's hours but not a Night Owl's: somebody sends them to bed.
+  const shift = traitSum(r, 'scheduleShift');
+  const ticks = (r.stage === 'child' ? Math.min(0, shift) : shift) * HOUR + jitter(r);
+  offsets.set(r, { traits: r.traits, count: r.traits.length, stage: r.stage, ticks });
   return ticks;
 }
 

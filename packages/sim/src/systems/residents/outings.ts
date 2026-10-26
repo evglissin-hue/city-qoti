@@ -5,7 +5,7 @@
 import { content } from '@qoti/content';
 import { MAP_SIZE, TILE_FP } from '../../constants';
 import type { Resident, Rng, WorldState } from '../../contracts';
-import { treeStage, TREE_MATURE } from '../../map/layers';
+import { Terrain, treeStage, TREE_MATURE } from '../../map/layers';
 import { findById } from '../../state/entities';
 import { worldIndex } from '../../state/worldIndex';
 import { walkGrid } from '../movement/grid';
@@ -193,20 +193,26 @@ export function choosePlay(state: WorldState, rng: Rng, r: Resident): number {
   return fallback >= 0 ? fallback : base;
 }
 
-/** A stroll destination: a lane or path tile 4 to `far` tiles away, the most charming of a few tries. */
+/**
+ * A stroll destination 4 to `far` tiles from `around` (usually home, so strolls loop rather than
+ * drift): lanes and paths first, charm next, open ground over the woods, the most pleasant of a
+ * dozen tries.
+ */
 export function chooseStroll(state: WorldState, rng: Rng, around: number, far = 10): number {
   const cost = walkGrid(state).cost;
   const road = state.map.road;
+  const terrain = state.map.terrain;
   const ax = tileX(around);
   const az = tileZ(around);
   let best = -1;
   let bestScore = -Infinity;
-  for (let k = 0; k < 10; k++) {
+  for (let k = 0; k < 12; k++) {
     const x = ax + rng.range(-far, far);
     const z = az + rng.range(-far, far);
     if (Math.abs(x - ax) + Math.abs(z - az) < 4 || !walkableTile(cost, x, z)) continue;
     const i = z * S + x;
-    const score = (road[i] ? 10 : 0) + state.map.charm[i]! * 0.2 + rng.float() * 4;
+    const woods = terrain[i] === Terrain.forestFloor || state.map.tree[i] ? 6 : 0;
+    const score = (road[i] ? 10 : 0) + state.map.charm[i]! * 0.2 - woods + rng.float() * 4;
     if (score > bestScore) {
       bestScore = score;
       best = i;
