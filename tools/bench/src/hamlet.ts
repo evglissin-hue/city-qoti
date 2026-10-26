@@ -3,8 +3,8 @@
 //
 // Until C3A's residents system lands, a small stand-in plays its part: it hires, sends workers in
 // at 08:00 and home at 17:00, feeds everyone at 07:00 and shops in the evening, teleporting like
-// the C3.0 movement stub. Once C3A drives residents, pass `standIn: false` (or delete the stand-in)
-// and the scenarios run on the real thing.
+// the C3.0 movement stub. Once C3A drives residents (it also books breakfast), set STAND_IN to
+// false and the scenarios run on the real thing.
 import type { BuildingDef } from '@qoti/content';
 import { content } from '@qoti/content';
 import {
@@ -37,6 +37,9 @@ import {
   type WorldState,
   worldIndex,
 } from '@qoti/sim';
+
+/** Flip to false once C3A's residents system is merged: the two must not both drive residents. */
+export const STAND_IN = true;
 
 const FOODS = content.goods.flatMap((g, i) => (g.food ? [i] : []));
 
@@ -371,7 +374,7 @@ export function startingTown(
   seed: string,
   opts: { standIn?: boolean; economy?: ValleySettings['economy'] } = {},
 ) {
-  const h = newHamlet(seed, opts.economy ?? 'standard', opts.standIn ?? true);
+  const h = newHamlet(seed, opts.economy ?? 'standard', opts.standIn ?? STAND_IN);
   const cottages = h.world.buildings.filter((b) => b.def === 'cottage');
   addHousehold(h.world, cottages[0]!, content.familyNames[0]!, 'rabbit');
   addHousehold(h.world, cottages[1]!, content.familyNames[1]!, 'otter');
@@ -398,7 +401,7 @@ export function runTicks(h: Hamlet, n: number, each?: (h: Hamlet) => void): numb
  * and bread, timber, stone), with two sites under construction, all built directly into state.
  */
 export function fortyResidentHamlet(seed: string): Hamlet {
-  const h = newHamlet(seed, 'standard', true);
+  const h = newHamlet(seed, 'standard', STAND_IN);
   const w = h.world;
   const put = (defId: string): Building | null => {
     const spot = findSpot(w, defId);
