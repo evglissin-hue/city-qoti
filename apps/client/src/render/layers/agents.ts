@@ -211,12 +211,11 @@ export function agentsLayer(): AgentsLayer {
   let dots: Pool | null = null;
   const bundles = new Map<number, Pool>();
   let shadows: InstancedMesh | null = null;
-  const shadowTex = shadowTexture();
+  let shadowTex: CanvasTexture | null = null;
   const shadowMaterial = new MeshBasicMaterial({
     color: 0x1e2a1a,
     transparent: true,
     opacity: 0.28,
-    alphaMap: shadowTex,
     depthWrite: false,
     polygonOffset: true,
     polygonOffsetFactor: -2,
@@ -537,6 +536,9 @@ export function agentsLayer(): AgentsLayer {
     drawn,
     init(c) {
       ctx = c;
+      // Canvas textures need the DOM, so they are made here rather than in the factory.
+      shadowTex = shadowTexture();
+      shadowMaterial.alphaMap = shadowTex;
       bubbles = new IconSprites(c.scene, iconAtlas(BUBBLE_ICONS), BUBBLE_ICONS.length, 0.32);
       // Warm the pools so the first resident does not stall a frame on shader compiles.
       for (const sp of SPECIES_IDS) pool(`${sp}:full`, () => residentGeometry(sp, 'full'));
@@ -593,7 +595,7 @@ export function agentsLayer(): AgentsLayer {
       bubbles?.dispose();
       shadowGeometry.dispose();
       shadowMaterial.dispose();
-      shadowTex.dispose();
+      shadowTex?.dispose();
       material.dispose();
     },
   };
