@@ -1,6 +1,8 @@
 import { content } from '@qoti/content';
 import { treeSpecies, treeStage, type SeatId } from '@qoti/sim';
 import type { Session } from '../../app/session';
+import { BuildingInspector } from './BuildingInspector';
+import { ResidentInspector } from './ResidentInspector';
 
 const TERRAIN_NAMES = ['Grass', 'Meadow', 'Forest floor', 'Sand', 'Rock', 'Mountain', 'Water', 'Field'];
 const SPECIES = ['', 'Oak', 'Birch', 'Pine'];
@@ -16,19 +18,15 @@ export function InspectorPanel({ session }: { session: Session }) {
   const sel = session.ui.selection.value;
   void session.mirror.revision.value;
   if (!sel) return null;
+  // I1: buildings and residents have their own inspectors.
+  if (sel.kind === 'building') return <BuildingInspector key={sel.id} session={session} id={sel.id} />;
+  if (sel.kind === 'resident') return <ResidentInspector key={sel.id} session={session} id={sel.id} />;
   const m = session.mirror;
   let title = '';
   const lines: string[] = [];
   let remove: (() => void) | null = null;
 
-  if (sel.kind === 'building') {
-    const b = m.buildings.get(sel.id);
-    if (!b) return null;
-    title = content.buildingById.get(b.def)?.name ?? b.def;
-    lines.push(`Built by ${seatName(session, b.builtBy)}.`);
-    if (b.foundation) lines.push('Sits on a stone plinth.');
-    remove = () => session.submit({ t: 'build.remove', ids: [b.id] });
-  } else if (sel.kind === 'decor') {
+  if (sel.kind === 'decor') {
     const d = m.decor.get(sel.id);
     if (!d) return null;
     title = content.decorById.get(d.def)?.name ?? d.def;
