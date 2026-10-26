@@ -2,7 +2,8 @@ import { CHUNK_SIZE, MAP_SIZE, type LayerName } from '@qoti/sim';
 import {
   BufferGeometry,
   Color,
-  Float32BufferAttribute,
+  InterleavedBuffer,
+  InterleavedBufferAttribute,
   PerspectiveCamera,
   type MeshStandardMaterial,
 } from 'three';
@@ -27,16 +28,29 @@ const ROCKY = 0.3;
 
 /** Accumulates terrain triangles: smooth-shaded tops and flat-shaded faces. */
 class TerrainBuilder {
-  readonly pos: number[] = [];
-  readonly nor: number[] = [];
-  readonly col: number[] = [];
-  readonly surf: number[] = [];
+  // Shared, growable scratch buffers: chunk builds reuse them and copy out only what they wrote.
+  private static buf = new Float32Array(4096 * 10);
+  private n = 0;
 
   vertex(x: number, y: number, z: number, nx: number, ny: number, nz: number, c: Color, surf: number): void {
-    this.pos.push(x, y, z);
-    this.nor.push(nx, ny, nz);
-    this.col.push(c.r, c.g, c.b);
-    this.surf.push(surf);
+    let b = TerrainBuilder.buf;
+    const o = this.n * 10;
+    if (o + 10 > b.length) {
+      const grown = new Float32Array(b.length * 2);
+      grown.set(b);
+      TerrainBuilder.buf = b = grown;
+    }
+    b[o] = x;
+    b[o + 1] = y;
+    b[o + 2] = z;
+    b[o + 3] = nx;
+    b[o + 4] = ny;
+    b[o + 5] = nz;
+    b[o + 6] = c.r;
+    b[o + 7] = c.g;
+    b[o + 8] = c.b;
+    b[o + 9] = surf;
+    this.n++;
   }
 
   /** A flat-shaded triangle facing `out` (winding is fixed up to match). */
@@ -68,12 +82,15 @@ class TerrainBuilder {
   }
 
   build(): BufferGeometry | null {
-    if (this.pos.length === 0) return null;
+    if (this.n === 0) return null;
+    // One interleaved copy out of the scratch buffer.
+    const data = TerrainBuilder.buf.slice(0, this.n * 10);
+    const ib = new InterleavedBuffer(data, 10);
     const g = new BufferGeometry();
-    g.setAttribute('position', new Float32BufferAttribute(this.pos, 3));
-    g.setAttribute('normal', new Float32BufferAttribute(this.nor, 3));
-    g.setAttribute('color', new Float32BufferAttribute(this.col, 3));
-    g.setAttribute('gsurf', new Float32BufferAttribute(this.surf, 1));
+    g.setAttribute('position', new InterleavedBufferAttribute(ib, 3, 0));
+    g.setAttribute('normal', new InterleavedBufferAttribute(ib, 3, 3));
+    g.setAttribute('color', new InterleavedBufferAttribute(ib, 3, 6));
+    g.setAttribute('gsurf', new InterleavedBufferAttribute(ib, 1, 9));
     g.computeBoundingSphere();
     g.computeBoundingBox();
     return g;
@@ -87,6 +104,7 @@ const MOSS = new Color().setHex(0x76875a);
 const EARTH = new Color().setHex(0x7d6247);
 const EARTH_DARK = new Color().setHex(0x5a4634);
 
+const flatMap = new Uint8Array((CHUNK_SIZE + 1) * (CHUNK_SIZE + 1));
 const heights = new Float32Array((GRID + 1) * (GRID + 1));
 const normals = new Float32Array((GRID + 1) * (GRID + 1) * 3);
 /** Columns along a seam: the face is finer than the top grid, for its bulges. */
@@ -100,12 +118,20 @@ export function buildTerrainChunk(tiles: SurfaceTiles, cx: number, cz: number): 
   const z0 = cz * CHUNK_SIZE;
   tiles.cache(x0 - 2, z0 - 2, x0 + CHUNK_SIZE + 1, z0 + CHUNK_SIZE + 1);
   const b = new TerrainBuilder();
-  const flat = (x: number, z: number): boolean => {
-    const y = tiles.y(x, z);
-    for (let dz = -1; dz <= 1; dz++)
-      for (let dx = -1; dx <= 1; dx++) if (tiles.y(x + dx, z + dz) !== y) return false;
-    return true;
-  };
+  // Flat tiles (all nine tile centers around them at one height) are a single quad.
+  const span = CHUNK_SIZE + 1;
+  for (let z = 0; z < span; z++) {
+    for (let x = 0; x < span; x++) {
+      const tx = x0 + x;
+      const tz = z0 + z;
+      const y = tiles.y(tx, tz);
+      let f = 1;
+      for (let dz = -1; dz <= 1 && f; dz++)
+        for (let dx = -1; dx <= 1 && f; dx++) if (tiles.y(tx + dx, tz + dz) !== y) f = 0;
+      flatMap[z * span + x] = f;
+    }
+  }
+  const flat = (x: number, z: number): boolean => flatMap[(z - z0) * span + (x - x0)] === 1;
   for (let tz = z0; tz < z0 + CHUNK_SIZE; tz++) {
     for (let tx = x0; tx < x0 + CHUNK_SIZE; tx++) {
       const isFlat = tiles.pinned(tx, tz) || flat(tx, tz);
@@ -251,6 +277,7 @@ function sampleEdge(
   }
 }
 
+const colorPool: Color[] = [];
 function face(
   b: TerrainBuilder,
   hi: Float32Array,
@@ -282,7 +309,7 @@ function face(
         y,
         az + out[2]! * bulge + (alongZ ? slide : 0),
       ]);
-      const c = new Color();
+      const c = colorPool[colors.length] ?? (colorPool[colors.length] = new Color());
       if (rocky) {
         const v = hash2(Math.round(ax * 8), Math.round(y * 6), 41);
         c.copy(ROCK_DARK).lerp(ROCK, 0.35 + 0.65 * t * (0.6 + 0.4 * v));
