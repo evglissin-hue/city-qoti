@@ -21,6 +21,10 @@ import { Glyph, ToolIcon } from './icons';
 import { lenses, overlays, toolsForLens } from './lenses';
 import { rejectText } from './messages';
 import { booksFor, toggleBook } from './panels';
+import { planSummary } from './plans';
+import { INPUT_COPY } from '../input/copy';
+import { UNZONE } from './village';
+import { rankAtLeast, zoneInk } from './village';
 
 export function Toolbar({ session }: { session: Session }) {
   const manager = session.tools;
@@ -54,22 +58,26 @@ export function Toolbar({ session }: { session: Session }) {
       {(current?.id === 'decor' || current?.id === 'fence') && (
         <DecorPicker session={session} tool={current} linear={current.id === 'fence'} />
       )}
-      {current?.variants && current.variant && !['building', 'decor', 'fence'].includes(current.id) && (
-        <div class="variants panel">
-          {current.variants.map((v) => (
-            <button
-              key={v.id}
-              type="button"
-              class={current.variant!.value === v.id ? 'active' : ''}
-              data-testid={`variant-${v.id}`}
-              onClick={() => manager.select(current.id, v.id)}
-            >
-              {v.label}
-            </button>
-          ))}
-          {current.hint && <span class="muted hint">{current.hint}</span>}
-        </div>
-      )}
+      {current?.id === 'zone' && <ZonePicker session={session} tool={current} />}
+      {session.ui.sketch.value && <SketchBar session={session} />}
+      {current?.variants &&
+        current.variant &&
+        !['building', 'decor', 'fence', 'zone'].includes(current.id) && (
+          <div class="variants panel">
+            {current.variants.map((v) => (
+              <button
+                key={v.id}
+                type="button"
+                class={current.variant!.value === v.id ? 'active' : ''}
+                data-testid={`variant-${v.id}`}
+                onClick={() => manager.select(current.id, v.id)}
+              >
+                {v.label}
+              </button>
+            ))}
+            {current.hint && <span class="muted hint">{current.hint}</span>}
+          </div>
+        )}
       {current?.id === 'field' && <FieldHint session={session} />}
       <div class="toolbar-row panel">
         <div class="lenses" title="Tab switches lens">
@@ -320,6 +328,116 @@ function FieldHint({ session }: { session: Session }) {
           ? 'Sowing for the farmhouse. Drag a box of fertile ground; Shift+drag clears. A coin a tile.'
           : 'Click a farmhouse first. Fields have to be within reach of someone with a hoe.'}
       </span>
+    </div>
+  );
+}
+
+/** I2 (C4F): the zone picker: each zone with its color and lot shapes, the chosen one's line below. */
+function ZonePicker({ session, tool }: { session: Session; tool: Tool }) {
+  const m = session.mirror;
+  const open = rankAtLeast(m.town.value?.rank, 'village');
+  const on = tool.variant?.value;
+  const zones = [...content.zones].sort((a, b) => a.layerValue - b.layerValue);
+  const chosen = zones.find((z) => z.id === on);
+  return (
+    <div class="picker panel zone-picker" data-testid="zone-picker">
+      <div class="picker-cards zone-cards">
+        {zones.map((z) => (
+          <button
+            key={z.id}
+            type="button"
+            class={`card zone-card ${on === z.id ? 'active' : ''} ${open ? '' : 'locked'}`}
+            aria-disabled={!open}
+            data-testid={`variant-${z.id}`}
+            title={z.blurb}
+            onClick={() => session.tools?.select('zone', z.id)}
+          >
+            <span class="zone-swatch" style={{ '--zone': zoneInk(z.id) }}>
+              <LotShapes sizes={z.lots.map((l) => l.size)} />
+            </span>
+            <span class="card-text">
+              <strong>{z.name}</strong>
+              <span class="size">{z.density === 'medium' ? 'Snug' : 'Roomy'}</span>
+            </span>
+          </button>
+        ))}
+        <button
+          type="button"
+          class={`card zone-card unzone ${on === UNZONE ? 'active' : ''}`}
+          data-testid={`variant-${UNZONE}`}
+          title="Grown buildings stay put; empty lots fold away."
+          onClick={() => session.tools?.select('zone', UNZONE)}
+        >
+          <span class="zone-swatch unzone">
+            <Glyph id="erase" />
+          </span>
+          <span class="card-text">
+            <strong>Unzone</strong>
+            <span class="size">Clear it</span>
+          </span>
+        </button>
+      </div>
+      {open ? (
+        <p class="zone-line">
+          {chosen ? (
+            <>
+              <b>{chosen.name}.</b> {chosen.blurb}{' '}
+            </>
+          ) : (
+            'Grown buildings stay put; empty lots fold away. '
+          )}
+          <span class="muted">{tool.hint}</span>
+        </p>
+      ) : (
+        <p class="zone-locked" data-testid="zone-locked">
+          <Glyph id="lock" /> {INPUT_COPY.zoneLocked}
+        </p>
+      )}
+    </div>
+  );
+}
+
+/** Tiny lot diagrams: the shapes a zone cuts, facing a road along the bottom. */
+function LotShapes({ sizes }: { sizes: [number, number][] }) {
+  let x = 2;
+  return (
+    <svg viewBox="0 0 30 24" aria-hidden="true">
+      <path d="M0 21.5h30" class="lot-road" />
+      {sizes.slice(0, 2).map(([w, d], i) => {
+        const rect = <rect key={i} x={x} y={20 - d * 4.5} width={w * 4.5} height={d * 4.5} rx="0.8" />;
+        x += w * 4.5 + 2;
+        return rect;
+      })}
+    </svg>
+  );
+}
+
+/** I2 (C4F): while sketching, a ribbon over the toolbar says so and offers to finish. */
+function SketchBar({ session }: { session: Session }) {
+  const sketch = session.ui.sketch.value!;
+  const n = sketch.items.length;
+  return (
+    <div class="variants panel sketch-bar" data-testid="sketch-bar">
+      <Glyph id="plan" />
+      <span>
+        <b>Sketching.</b> {n ? planSummary(sketch.items) : 'Whatever you place now is ink, not timber.'}
+      </span>
+      <button
+        type="button"
+        class="small-button"
+        data-testid="sketch-review"
+        onClick={() => (session.ui.panel.value = 'plans')}
+      >
+        {n ? 'Name it and propose' : 'Plans'}
+      </button>
+      <button
+        type="button"
+        class="small-button"
+        data-testid="sketch-stop"
+        onClick={() => (session.ui.sketch.value = null)}
+      >
+        Stop
+      </button>
     </div>
   );
 }

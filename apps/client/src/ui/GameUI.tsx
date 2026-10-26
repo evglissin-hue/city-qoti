@@ -2,6 +2,7 @@ import { DEBUG } from '../app/debug';
 import type { Session } from '../app/session';
 import { DebugOverlay, Dialogs, InviteDialog, Toasts } from './Overlays';
 import { EmoteBubbles, EmoteWheel } from './Emotes';
+import { minimapShown } from './Minimap';
 import { panels } from './panels';
 import { PingMenuView } from './PingMenu';
 import { PresenceLabels } from './Presence';
@@ -10,6 +11,7 @@ import { HelpOverlay, SettingsPanel } from './SettingsPanel';
 import { Toolbar } from './Toolbar';
 import { TopBar } from './TopBar';
 import './hamlet.css';
+import './village.css';
 
 /** ?clean hides the debug numbers, for screenshots. */
 const CLEAN = new URLSearchParams(location.search).has('clean');
@@ -19,7 +21,12 @@ export function GameUI({ session, onLeave }: { session: Session; onLeave: () => 
   const open = session.ui.panel.value;
   const book = open ? panels.find((p) => p.id === open && p.side === 'book') : undefined;
   return (
-    <div class="game-ui">
+    <div class={`game-ui ${minimapShown(session) ? 'with-minimap' : ''}`}>
+      {panels
+        .filter((p) => p.side === 'world')
+        .map((p) => (
+          <p.component key={p.id} session={session} />
+        ))}
       <PresenceLabels session={session} />
       <TopBar session={session} onLeave={onLeave} />
       {/* The left feed steps aside while a book is open, so only one thing talks at a time. */}

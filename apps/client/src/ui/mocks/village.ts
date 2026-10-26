@@ -7,6 +7,7 @@ import {
   buildingDetail,
   buildView,
   charterView,
+  inspect,
   residentDetail,
   type BuildingDetail,
   type CharterView,
@@ -21,6 +22,8 @@ import {
   type ResidentDetail,
   type StoryView,
   type TradeView,
+  type InspectKind,
+  type InspectResult,
   type ViewSnapshot,
 } from '@qoti/sim';
 import { villageFixture } from '../../../../../packages/sim/test/fixtures/village';
@@ -132,3 +135,9 @@ export const mockGrownBuildingDetail: BuildingDetail = buildingDetail(s, fixture
 
 /** The whole village snapshot (with the history above), for the live-fixture overlay and stories. */
 export const mockVillageView: ViewSnapshot = view;
+
+/** I2 (C4F): inspect answers from the fixture itself, with the story character's detail on top. */
+export function villageInspect(kind: InspectKind, id: number): InspectResult {
+  if (kind === 'resident' && id === a) return mockVillageResidentDetail;
+  return inspect(s, kind, id);
+}

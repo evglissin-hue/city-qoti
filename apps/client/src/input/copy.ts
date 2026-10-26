@@ -13,4 +13,15 @@ export const INPUT_COPY = {
   someone: 'Someone',
   piece: 'piece',
   roadHint: 'F flips the bend. Esc lets go.',
+  // I2 (C4F)
+  streetLocked: (innovation: string) =>
+    `Streets want ${innovation} first. Cut plenty of stone and the notebook will work it out.`,
+  zoneLocked: 'Zoning comes with the Village Charter. The County likes its paperwork in order.',
+  zoneHint: 'Drag a box to zone it. Shift+drag unzones.',
+  zonePreview: (n: number, road: string) =>
+    n === 0
+      ? 'No road frontage here yet. Lots only grow along a lane or street.'
+      : `Room for about ${n} ${n === 1 ? 'lot' : 'lots'} along the ${road}. The surveyor has the final say.`,
+  sketched: (n: number) =>
+    n === 1 ? 'Sketched. One idea on the table.' : `Sketched. ${n} ideas on the table.`,
 } as const;

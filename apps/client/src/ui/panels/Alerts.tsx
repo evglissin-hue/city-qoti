@@ -2,6 +2,8 @@ import type { Session } from '../../app/session';
 import { alertsForLens, computeAlerts, type Alert } from '../alerts';
 import { Glyph } from '../icons';
 import type { ReportTab } from '../state';
+import { showPlan } from './Plans';
+import { openLetter } from './StoryLetter';
 
 const SHOWN = 5;
 
@@ -13,9 +15,17 @@ export function AlertsPanel({ session }: { session: Session }) {
   void m.stocks.value;
   void m.budget.value;
   void m.clock.value;
+  void m.villageRevision.value;
+  void m.market.value;
+  void m.charter.value;
   if (m.settings.value.mode !== 'standard') return null;
   const lens = session.ui.lens.value;
-  const all = alertsForLens(computeAlerts(m, session.ui.letters.value), lens, session.ui.dismissed.value);
+  const who = { seat: session.seat, lettersRead: session.ui.lettersRead.value };
+  const all = alertsForLens(
+    computeAlerts(m, session.ui.letters.value, who),
+    lens,
+    session.ui.dismissed.value,
+  );
   if (!all.length) return null;
   const open = session.ui.alertsOpen.value;
   const dismiss = (a: Alert) =>
@@ -83,6 +93,35 @@ export function act(session: Session, a: Alert): void {
       break;
     case 'place':
       session.render?.focus(action.x, action.z);
+      break;
+    // I2 (C4F)
+    case 'letter': {
+      const letter = m.letters.value.find((l) => l.arc === action.arc && l.step === action.step);
+      if (letter) openLetter(session, letter);
+      break;
+    }
+    case 'plan': {
+      const p = m.plans.get(action.id);
+      session.ui.panel.value = 'plans';
+      if (p) showPlan(session, p);
+      break;
+    }
+    case 'request': {
+      session.ui.requestsOpen.value = true;
+      const r = m.requests.get(action.id);
+      if (r?.ask.kind === 'charm') {
+        session.render?.focus(r.ask.x, r.ask.z);
+        session.render?.highlight?.({ x: r.ask.x, z: r.ask.z, radius: r.ask.radius, tone: 'hearth' });
+      } else if (r?.ask.kind === 'goods' && r.ask.at) {
+        session.ui.selection.value = { kind: 'building', id: r.ask.at };
+      }
+      break;
+    }
+    case 'market':
+      session.ui.lens.value = 'ledger';
+      session.ui.marketTab.value = 'prices';
+      session.ui.marketGood.value = action.good;
+      session.ui.panel.value = 'market';
       break;
   }
 }
