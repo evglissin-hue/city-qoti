@@ -108,7 +108,33 @@ export function fakeRuntime(mirror: Mirror, opts: { sites?: number; status?: boo
     events.push({ e: 'building.updated', b: { ...b, stage, rt } });
     i++;
   }
-  mirror.apply({ t: mirror.lastTurn.value, events, patches: [] });
+  // A few field tiles beside each farmhouse, one growth stage per column.
+  const owner = new Int32Array(MAP_SIZE * MAP_SIZE);
+  const crop = new Uint8Array(MAP_SIZE * MAP_SIZE);
+  owner.set(mirror.layers.fieldOwner as Int32Array);
+  crop.set(mirror.layers.crop as Uint8Array);
+  for (const b of mirror.buildings.values()) {
+    if (b.def !== 'farmhouse') continue;
+    for (let dz = -1; dz < 3; dz++) {
+      for (let dx = 0; dx < 4; dx++) {
+        const x = b.x + 2 + dx;
+        const z = b.z + dz;
+        if (x < 0 || z < 0 || x >= MAP_SIZE || z >= MAP_SIZE) continue;
+        if (mirror.occupant(x, z) || mirror.water(x, z) || mirror.road(x, z)) continue;
+        owner[z * MAP_SIZE + x] = b.id;
+        crop[z * MAP_SIZE + x] = dx * 64 + 20;
+      }
+    }
+  }
+  const all: [number, number, number, number] = [0, 0, MAP_SIZE - 1, MAP_SIZE - 1];
+  mirror.apply({
+    t: mirror.lastTurn.value,
+    events,
+    patches: [
+      { layer: 'fieldOwner', rect: all, data: owner },
+      { layer: 'crop', rect: all, data: crop },
+    ],
+  });
 }
 
 /**
