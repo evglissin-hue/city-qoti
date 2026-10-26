@@ -228,7 +228,9 @@ describe('I0 contracts', () => {
       | 'highlight'
     >();
     expectTypeOf<Ghost['kind']>().toExtend<string>();
-    expectTypeOf<ToWorker['k']>().toEqualTypeOf<'init' | 'turns' | 'snapshot' | 'hash' | 'inspect'>();
+    expectTypeOf<ToWorker['k']>().toEqualTypeOf<
+      'init' | 'turns' | 'snapshot' | 'hash' | 'inspect' | 'debugCorrupt'
+    >();
     expectTypeOf<FromWorker['k']>().toEqualTypeOf<
       'ready' | 'update' | 'agents' | 'hash' | 'snapshot' | 'error' | 'inspected'
     >();

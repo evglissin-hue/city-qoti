@@ -12,17 +12,28 @@ export interface NewValley {
 /** Writes a new valley's meta into empty storage and returns the plain seat tokens once. */
 export async function initValley(
   storage: RoomStorage,
-  opts: { valleyId: string; seed?: string; settings: ValleySettings; now: number; seats?: number },
+  opts: {
+    valleyId: string;
+    seed?: string;
+    settings: ValleySettings;
+    now: number;
+    seats?: number;
+    snapshot?: ImportedSnapshot;
+  },
 ): Promise<NewValley> {
   const tokens = Array.from({ length: opts.seats ?? 2 }, () => randomId());
   const seed = opts.seed && opts.seed.trim() ? opts.seed.trim().slice(0, 64) : randomId().slice(0, 12);
   const meta: StoredMeta = {
     valley: { id: opts.valleyId, seed, settings: opts.settings, createdAt: opts.now },
     tokenHashes: await Promise.all(tokens.map((t) => sha256Hex(t))),
-    nextTurn: 1,
-    simVersion: null,
+    nextTurn: opts.snapshot ? opts.snapshot.t + 1 : 1,
+    simVersion: opts.snapshot?.simVersion ?? null,
   };
   await storage.putMeta(meta);
+  if (opts.snapshot) {
+    const { t, simVersion, data } = opts.snapshot;
+    await storage.putSnapshot({ t, simVersion, label: 'Imported', created: opts.now, data });
+  }
   return { valleyId: opts.valleyId, tokens, seed };
 }
 
@@ -50,10 +61,35 @@ export function normalizeSettings(partial: Partial<ValleySettings> = {}): Valley
   };
 }
 
+/**
+ * A valley imported from a .qoti file: a snapshot the importing client has already migrated and
+ * re-serialized with its own sim (so its simVersion matches), with nobody connected.
+ */
+export interface ImportedSnapshot {
+  t: number;
+  simVersion: string;
+  /** Base64 of the serialized state, as in the snapshot message. */
+  data: string;
+}
+
+/** Imported snapshots are capped well above a City-scale valley (2 MB gzipped, as base64). */
+export const MAX_IMPORT_CHARS = 8 * 1024 * 1024;
+
 /** Body of POST /api/valleys. */
 export interface CreateValleyRequest {
   seed?: string;
   settings?: Partial<ValleySettings>;
+  /** C3X: start from an imported valley instead of a fresh one. */
+  snapshot?: ImportedSnapshot;
+}
+
+function importedSnapshot(v: unknown): ImportedSnapshot | undefined {
+  if (typeof v !== 'object' || v === null) return undefined;
+  const s = v as Record<string, unknown>;
+  if (typeof s.t !== 'number' || !Number.isInteger(s.t) || s.t < 0) return undefined;
+  if (typeof s.simVersion !== 'string' || typeof s.data !== 'string') return undefined;
+  if (s.data.length === 0 || s.data.length > MAX_IMPORT_CHARS) return undefined;
+  return { t: s.t, simVersion: s.simVersion, data: s.data };
 }
 
 /** Response of POST /api/valleys. */
@@ -74,7 +110,8 @@ export async function createValley(
 ): Promise<CreateValleyResponse> {
   const settings = normalizeSettings(typeof body.settings === 'object' && body.settings ? body.settings : {});
   const seed = typeof body.seed === 'string' ? body.seed : undefined;
-  const v = await initValley(storage, { valleyId, seed, settings, now });
+  const snapshot = importedSnapshot(body.snapshot);
+  const v = await initValley(storage, { valleyId, seed, settings, now, ...(snapshot && { snapshot }) });
   return {
     valleyId,
     seed: v.seed,

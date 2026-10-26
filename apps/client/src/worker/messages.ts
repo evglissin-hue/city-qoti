@@ -27,7 +27,9 @@ export type ToWorker =
    * I1 (C3.0): full detail for an inspector or the away letter. kind 'resident' and 'building' take
    * an entity id; 'away' takes a seat. Answered by `inspected` with the same reqId.
    */
-  | { k: 'inspect'; reqId: number; kind: InspectKind; id: number };
+  | { k: 'inspect'; reqId: number; kind: InspectKind; id: number }
+  /** Debug only (C3X): nudges the state so this seat's hash drifts, for resync tests. */
+  | { k: 'debugCorrupt' };
 
 export type FromWorker =
   | { k: 'ready'; view: ViewSnapshot }

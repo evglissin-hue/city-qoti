@@ -2,6 +2,7 @@
 // valley relaying the room protocol. Routes: docs/spec/21-networking-and-saves.md, Hosting.
 import {
   createValley,
+  MAX_IMPORT_CHARS,
   randomId,
   RoomCore,
   TURN_MS,
@@ -17,7 +18,6 @@ export interface Env {
 }
 
 const WS_ROUTE = /^\/api\/valleys\/([0-9a-f]{32})\/ws$/;
-const EXPORT_ROUTE = /^\/api\/valleys\/([0-9a-f]{32})\/export$/;
 
 function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -41,6 +41,7 @@ export default {
       let body: CreateValleyRequest;
       try {
         const text = await request.text();
+        if (text.length > MAX_IMPORT_CHARS + 64 * 1024) return json({ error: 'Too large' }, 413);
         body = text ? (JSON.parse(text) as CreateValleyRequest) : {};
       } catch {
         return json({ error: 'Bad request' }, 400);
@@ -57,9 +58,6 @@ export default {
       return env.VALLEY.get(env.VALLEY.idFromName(ws[1]!)).fetch(request);
     }
 
-    if (EXPORT_ROUTE.test(url.pathname) || url.pathname === '/api/valleys/import') {
-      return json({ error: 'Export and import arrive with cycle C2C' }, 501);
-    }
     if (url.pathname.startsWith('/api/')) return json({ error: 'Not found' }, 404);
 
     // The client build, with single-page fallback to index.html (see wrangler.toml).

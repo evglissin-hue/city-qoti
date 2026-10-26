@@ -15,8 +15,10 @@ export {
   createValley,
   initValley,
   inviteFragment,
+  MAX_IMPORT_CHARS,
   normalizeSettings,
   type CreateValleyRequest,
+  type ImportedSnapshot,
   type CreateValleyResponse,
   type NewValley,
 } from './valley';

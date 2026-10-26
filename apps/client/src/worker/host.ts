@@ -116,6 +116,11 @@ export class SimHost {
     return promise;
   }
 
+  /** Debug only: makes this sim drift from the room's (resync tests). */
+  corruptForTest(): void {
+    this.post({ k: 'debugCorrupt' });
+  }
+
   terminate(): void {
     this.worker.terminate();
   }

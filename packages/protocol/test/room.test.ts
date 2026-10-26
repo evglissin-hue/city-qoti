@@ -87,6 +87,28 @@ describe('initValley', () => {
   });
 });
 
+describe('imported valleys', () => {
+  it('start from the imported snapshot, with the next turn after it', async () => {
+    storage = new MemoryStorage();
+    valley = await initValley(storage, {
+      valleyId: 'valley-2',
+      seed: 'seed-2',
+      settings: SETTINGS,
+      now: 0,
+      snapshot: { t: 420, simVersion: 'v-test', data: 'IMPORTED' },
+    });
+    room = await makeRoom();
+    const a = await join(0);
+    expect(a.of('welcome')[0]).toMatchObject({
+      snapshot: { t: 420, simVersion: 'v-test', data: 'IMPORTED' },
+      log: [],
+      nextTurn: 421,
+    });
+    steps(2);
+    expect(a.turns()[0]!.t).toBe(421);
+  });
+});
+
 describe('joining', () => {
   it('welcomes a seat with the valley, no snapshot and turn 1 next, then injects sys.seatJoined', async () => {
     const a = await join(0);

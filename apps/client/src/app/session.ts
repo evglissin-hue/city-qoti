@@ -348,10 +348,9 @@ export class Session {
     this.connection?.sendSnapshot({ t: snap.t, simVersion: SIM_VERSION, data: snap.data, label });
   }
 
-  /** Debug only (?debug): applies a local-only turn so this seat drifts from the room, for resync tests. */
+  /** Debug only (?debug): makes this seat's sim drift from the room's, for resync tests. */
   corruptForTest(): void {
-    const t = this.mirror.lastTurn.value + 1;
-    this.host.turns([{ t, cmds: [{ seat: this.seat, seq: 0, cmd: { t: 'time.setSpeed', speed: 3 } }] }]);
+    this.host.corruptForTest();
   }
 
   toast(text: string): void {

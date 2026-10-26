@@ -80,6 +80,11 @@ scope.onmessage = (e) => {
         post({ k: 'snapshot', reqId: msg.reqId, t: state.lastTurn, data }, [data.buffer as ArrayBuffer]);
         break;
       }
+      case 'debugCorrupt': {
+        // An id nobody will ever use: invisible on screen, but every later hash differs.
+        if (state) state.nextId += 1;
+        break;
+      }
       case 'inspect': {
         if (!state) throw new Error('Inspect requested before init');
         post({ k: 'inspected', reqId: msg.reqId, data: inspect(state, msg.kind, msg.id) });
