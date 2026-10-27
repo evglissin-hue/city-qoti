@@ -73,7 +73,7 @@ describe('I0 contracts', () => {
       | 'wear'
     >();
     expectTypeOf<keyof ValleySettings>().toEqualTypeOf<
-      'mode' | 'economy' | 'threat' | 'togetherOnly' | 'townName' | 'valleyName'
+      'mode' | 'economy' | 'threat' | 'togetherOnly' | 'townName' | 'valleyName' | 'guide'
     >();
   });
 

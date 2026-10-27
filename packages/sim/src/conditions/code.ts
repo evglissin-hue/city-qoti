@@ -23,6 +23,8 @@ export type CodePredicate = (
   state: WorldState,
   bind: Binding,
   params: readonly [string, number][],
+  /** I3 (C5.0): the condition's `ref` (a content id), when it has one. */
+  ref?: string,
 ) => boolean;
 
 function param(params: readonly [string, number][], name: string, fallback: number): number {

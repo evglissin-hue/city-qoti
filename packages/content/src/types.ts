@@ -74,6 +74,11 @@ export interface BuildingDef {
   upgradesTo?: { def: string; goods: [good: string, qty: number][] };
   /** Rank or innovation needed before it can be placed or grown. */
   requires?: { rank?: RankName; innovation?: string };
+  // I3 additions (C5.0).
+  /** Defense pieces (docs/spec/14-challenge.md, Defenses; C5D fills the numbers). */
+  defense?: DefenseDef;
+  /** Module slots for customization phase 2 (C5C): [slot, how many]. */
+  moduleSlots?: [slot: ModuleSlot, count: number][];
 }
 
 export interface DecorDef {
@@ -99,6 +104,11 @@ export interface DecorDef {
   cost?: Cost;
   /** Hidden from the toolbar until a pattern (or another unlock) names it in hearth.unlocked. */
   locked?: boolean;
+  // I3 additions (C5.0).
+  /** A temporary festival piece (C5B): removed the morning after unless kept, when keepable. */
+  festival?: { keepable?: boolean };
+  /** Raiders crossing it are slowed by this many percent (fence 20, hedge 30; C5D). */
+  slows?: number;
 }
 
 export interface RoadDef {
@@ -184,6 +194,29 @@ export interface Content {
   /** District styles grown buildings are drawn in. */
   styles: readonly DistrictStyleDef[];
   styleById: ReadonlyMap<string, DistrictStyleDef>;
+  // I3 additions (C5.0).
+  /** In SeasonIndex order. */
+  seasons: readonly SeasonDef[];
+  weather: readonly WeatherDef[];
+  weatherById: ReadonlyMap<string, WeatherDef>;
+  events: readonly EventDef[];
+  eventById: ReadonlyMap<string, EventDef>;
+  festivals: readonly FestivalDef[];
+  festivalById: ReadonlyMap<string, FestivalDef>;
+  twists: readonly FestivalTwistDef[];
+  twistById: ReadonlyMap<string, FestivalTwistDef>;
+  wildlife: readonly WildlifeDef[];
+  wildlifeById: ReadonlyMap<string, WildlifeDef>;
+  threats: readonly ThreatDef[];
+  threatById: ReadonlyMap<string, ThreatDef>;
+  modules: readonly ModuleDef[];
+  moduleById: ReadonlyMap<string, ModuleDef>;
+  commissions: readonly CommissionDef[];
+  commissionById: ReadonlyMap<string, CommissionDef>;
+  /** In level order, 0 to 5. */
+  renown: readonly RenownDef[];
+  /** The first days guide (C5H). */
+  guide: GuideDef;
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -302,6 +335,8 @@ export interface TraitDef {
   effects?: [name: string, value: number][];
   /** C3A addition: the trait as an adjective for bios ("early-rising"), when the name is a noun. */
   adjective?: string;
+  /** I3 (C5.0): never rolled for a newcomer; given by a story or an event (Reformed). */
+  special?: true;
 }
 
 // --- Condition DSL (wish targets, wish offers, achievements) -------------------------------------
@@ -356,8 +391,12 @@ export type Condition =
         needBelow?: [need: string, value: number];
       };
     }
-  /** Escape hatch to a named predicate in packages/sim/src/conditions/code.ts ('lanternRoute', 'pathRoute'). */
-  | { code: string; params?: [name: string, value: number][] };
+  /**
+   * Escape hatch to a named predicate in packages/sim/src/conditions/code.ts ('lanternRoute',
+   * 'pathRoute'). I3 (C5.0): `ref` names a content id the predicate reads (a story arc id for
+   * 'storyStep'), since params are numbers.
+   */
+  | { code: string; params?: [name: string, value: number][]; ref?: string };
 
 export type CountWhat =
   | 'residents'
@@ -395,7 +434,20 @@ export type CountWhat =
   /** Weddings held. */
   | 'weddings'
   /** Standing orders at the Trading Post. */
-  | 'standingOrders';
+  | 'standingOrders'
+  // I3 (C5.0)
+  /** Renown level, 0 to 5. */
+  | 'renown'
+  /** Best festival stars so far. */
+  | 'festivalStars'
+  /** Field Guide species found. */
+  | 'fieldGuide'
+  /** 1 once the wildlife id `ref` has been sighted. */
+  | 'sighted'
+  /** Raids repelled with nothing stolen. */
+  | 'raidsHeld'
+  /** Winters where nobody was cold. */
+  | 'warmWinters';
 
 // --- Hearth content ---------------------------------------------------------------------------
 
@@ -593,6 +645,8 @@ export interface CharterDef {
   unlocks: string[];
   /** Words for the rank-up moment (Chronicle and letter), with {town}. */
   proclamation: string;
+  /** I3 (C5.0): the trial that seals it (the Village's first winter). */
+  trial?: TrialDef;
 }
 
 /** A fixed resident for a story arc (docs/spec/11-residents.md, Story characters). */
@@ -613,6 +667,8 @@ export interface Reward {
   /** Innovation ids completed outright. */
   innovation?: string[];
   coins?: number;
+  /** I3 (C5.0): renown points (C5B's addRenown). */
+  renown?: number;
 }
 
 export interface StoryStep {
@@ -660,4 +716,198 @@ export interface DistrictStyleDef {
   blurb: string;
   /** Where the style comes naturally: by water, up the hillside, on streets, among gardens, by zone. */
   suits: { water?: boolean; high?: boolean; street?: boolean; nature?: boolean; zones?: string[] };
+}
+
+// ---------------------------------------------------------------------------------------------
+// I3 content types (C5.0). docs/spec/14-challenge.md (Seasons, Weather and events, Threats,
+// Defenses), 12-hearth.md (Festivals, Nature), 13-ledger.md (I3 goods, River Dock, Commissions),
+// 15-progression.md (Renown, trials), 10-world-and-building.md (Customization phase 2).
+// C5.0 seeds ids and names; the owning tracks write the numbers.
+
+/** Permille: 1000 is x1. */
+export type Permille = number;
+
+/** One season (docs/spec/14-challenge.md, Seasons). `index` is the SeasonIndex. */
+export interface SeasonDef {
+  id: string;
+  name: string;
+  index: number;
+  /** Days of the season wheat is sown and harvested (1 to 6), when it is. */
+  sow?: [from: number, to: number];
+  harvest?: [from: number, to: number];
+  river: 'high' | 'best' | 'normal' | 'freezes';
+  /** Firewood per household per day (winter). */
+  warmth?: number;
+  /** Events that can come this season (content.events ids). */
+  events: string[];
+  /** This season's festival (content.festivals id). */
+  festival: string;
+}
+
+/** A daily weather kind with its odds per season and its effects (C5A). */
+export interface WeatherDef {
+  id: 'clear' | 'cloudy' | 'rain' | 'storm' | 'fog' | 'snow' | 'heat';
+  name: string;
+  /** Chance per day by season index, permille. */
+  odds: [season: number, chance: Permille][];
+  /** Named effects the systems read: ['farm', 1100], ['leisure', 500], ['walk', 700]. */
+  effects: [name: string, factor: Permille][];
+}
+
+/** A weather event (C5A): flood, drought, early frost, cold snap, travelling circus. */
+export interface EventDef {
+  id: string;
+  name: string;
+  /** Season index it comes in. */
+  season: number;
+  /** Rank needed (the circus waits for a Village). */
+  rank?: RankName;
+  /** Chance per season, permille (times the dial). */
+  odds: Permille;
+  /** Days of warning, and how long it lasts. */
+  forecastDays: [min: number, max: number];
+  durationDays: [min: number, max: number];
+  effects: [name: string, factor: Permille][];
+  /** One line for the season card and the barometer. */
+  blurb: string;
+}
+
+/** A seasonal festival (C5B). */
+export interface FestivalDef {
+  id: string;
+  name: string;
+  season: number;
+  /** One line for the planner. */
+  blurb: string;
+  /** Festival piece decor ids that suit it best. */
+  pieces: string[];
+}
+
+/** A rotating festival twist (C5B): a secondary goal so no two festivals feel alike. */
+export interface FestivalTwistDef {
+  id: string;
+  name: string;
+  blurb: string;
+  /** Seasons it can come in; any when absent. */
+  seasons?: number[];
+  /** What earns the twist bonus. */
+  goal?: Condition;
+}
+
+export type HabitatName = 'pollinator' | 'wetland' | 'hedgerow' | 'woodland' | 'meadow' | 'garden';
+
+/** A Field Guide species (C5C). */
+export interface WildlifeDef {
+  id: string;
+  name: string;
+  kind: 'bird' | 'insect' | 'mammal' | 'amphibian' | 'fish';
+  /** Habitat scores (0 to 255) it needs nearby. */
+  habitats: [habitat: HabitatName, min: number][];
+  /** Season indexes it shows in. */
+  seasons: number[];
+  /** Hours it is about: [from, to), wrapping past midnight. */
+  hours: [from: number, to: number];
+  /** Chance per hour when everything suits it, permille. */
+  rarity: Permille;
+  /** Something it needs besides habitat ('hive' for the honeybee). */
+  needs?: string;
+  /** Named effects once sighted ('orchardYield', 1100). */
+  effect?: [name: string, factor: Permille][];
+  /** The Field Guide's line. */
+  flavor: string;
+}
+
+/** A threat (C5D). Raiders are a gang, not a species. */
+export interface ThreatDef {
+  id: string;
+  name: string;
+  spawn: ('forest' | 'road' | 'edge')[];
+  /** Ticks per tile. */
+  speed: number;
+  morale: number;
+  /** Units each carries. */
+  carry: number;
+}
+
+/** What a defense piece does (C5D). */
+export interface DefenseDef {
+  hp?: number;
+  /** Blocks walking (walls). */
+  blocks?: boolean;
+  /** Gates let residents and carts through while open. */
+  passable?: 'gate';
+  /** Watchtowers: morale range in tiles. */
+  towerRange?: number;
+  /** Extra days of raid warning. */
+  warningDays?: number;
+  trap?: 'pit' | 'net';
+}
+
+export type ModuleSlot = 'roof' | 'front' | 'side' | 'top' | 'wall';
+
+/** A module for customization phase 2 (C5C): porch, dormer, bay window, extra floor, tower... */
+export interface ModuleDef {
+  id: string;
+  name: string;
+  slot: ModuleSlot;
+  cost?: Cost;
+  charm?: CharmSource[];
+  art: ArtRef;
+}
+
+/** A commission a neighbor or notable visitor asks for (C5B). */
+export interface CommissionDef {
+  id: string;
+  name: string;
+  /** A neighbor id, or 'visitor'. */
+  from: string;
+  /** What is asked: goods delivered, or a condition met. */
+  ask: { goods: [good: string, qty: number][] } | { condition: Condition };
+  deadlineDays: number;
+  reward: Reward;
+  /** Renown level needed before it is offered. */
+  renown?: number;
+}
+
+/** A renown level and what it brings (C5B). */
+export interface RenownDef {
+  level: number;
+  name: string;
+  /** Points needed. */
+  points: number;
+  effects: [name: string, value: number][];
+}
+
+/** The trial that seals a Charter (C5A for winter, C5D for raids). */
+export interface TrialDef {
+  kind: 'winter' | 'raid' | 'flood';
+  name: string;
+  /** One line for the trial card. */
+  blurb: string;
+}
+
+/** A step of the first days guide (C5H). */
+export interface GuideStep {
+  id: string;
+  /** Whose lane it teaches. */
+  lens: 'hearth' | 'ledger' | 'both';
+  letter: string;
+  goal: Condition;
+  hint: string;
+  point?: GuidePoint;
+}
+
+/** What the guide's arrow points at (C5H): a tool, a panel, an overlay or a place. */
+export interface GuidePoint {
+  tool?: string;
+  panel?: string;
+  overlay?: string;
+  tile?: 'start' | 'gate' | 'storehouse';
+}
+
+/** The first days guide (C5H): letters from a County surveyor, one step at a time. */
+export interface GuideDef {
+  id: string;
+  from: ResidentTemplate;
+  steps: GuideStep[];
 }

@@ -90,7 +90,8 @@ export function pickGiven(rng: Rng, species: string, family: string, taken: Set<
 
 /** Two compatible traits (no clash, no repeat). */
 export function pickTraits(rng: Rng): [string, string] {
-  const all = content.traits;
+  // I3 (C5.0): special traits (Reformed) are given, never rolled, so the roll is what it was.
+  const all = content.traits.filter((t) => !t.special);
   const a = all[rng.int(all.length)]!.id;
   const ok = all.filter((t) => traitsCompatible(a, t.id));
   const b = ok[rng.int(ok.length)]!.id;

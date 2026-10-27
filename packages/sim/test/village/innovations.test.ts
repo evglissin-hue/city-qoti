@@ -1,7 +1,6 @@
 // C4C: each I2 innovation fills its notebook bar from what the town does and unlocks in a fixture,
 // and what it unlocks becomes buildable (or, for wheelbarrows, porters carry 6). The innovations
 // pass is called directly at chosen hours.
-import { content, type StoryArc } from '@qoti/content';
 import { describe, expect, it } from 'vitest';
 import { START_HOUR, TICKS_PER_DAY, TICKS_PER_HOUR, WORK_HOURS } from '../../src/constants';
 import type { WorldState } from '../../src/contracts';
@@ -125,17 +124,12 @@ describe('innovations', () => {
     place(state, 'sawpit', 96, 90); // two tiles from the river at x 100
     pass(state);
     expect(progress(state, 'water-wheel')).toBe(50);
-    // Stand in for C4D's first arc until its stories land.
-    const stories = content.stories as StoryArc[];
-    const arc = { id: 'test-arc' } as StoryArc;
-    stories.unshift(arc);
-    try {
-      state.stories.push({ arc: arc.id, residentId: state.residents[0]!.id, step: 2, stepTick: 0 });
-      pass(state);
-      expect(hasInnovation(state, 'water-wheel')).toBe(true);
-      expect(state.hearth.unlocked).toContain('sawmill');
-    } finally {
-      stories.shift();
-    }
+    // C5.0: the condition names Pippa's arc by id ('inventor'), wherever it sits in the list.
+    const s = state.stories.find((x) => x.arc === 'inventor')!;
+    s.residentId = state.residents[0]!.id;
+    s.step = 2;
+    pass(state);
+    expect(hasInnovation(state, 'water-wheel')).toBe(true);
+    expect(state.hearth.unlocked).toContain('sawmill');
   });
 });

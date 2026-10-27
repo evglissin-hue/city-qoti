@@ -69,7 +69,7 @@ export function evaluate(state: WorldState, cond: Condition, bind: Binding = {})
   if ('resident' in cond) return residentMatches(state, cond.resident, bind);
   if ('code' in cond) {
     const fn = codePredicates.get(cond.code);
-    return fn ? fn(state, bind, cond.params ?? []) : false;
+    return fn ? fn(state, bind, cond.params ?? [], cond.ref) : false;
   }
   return false;
 }
@@ -250,6 +250,19 @@ export function countOf(state: WorldState, what: string, ref?: string): number {
       return state.village.weddings;
     case 'standingOrders':
       return state.trade.orders.length;
+    // I3 (C5.0)
+    case 'renown':
+      return state.renown.level;
+    case 'festivalStars':
+      return state.seasons.bestStars;
+    case 'fieldGuide':
+      return state.nature.guide.length;
+    case 'sighted':
+      return state.nature.guide.some((e) => e.species === ref) ? 1 : 0;
+    case 'raidsHeld':
+      return state.seasons.raidsHeld;
+    case 'warmWinters':
+      return state.seasons.warmWinters;
     default:
       return 0;
   }

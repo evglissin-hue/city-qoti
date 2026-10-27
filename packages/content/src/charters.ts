@@ -1,3 +1,4 @@
+import { firstWinter } from './seasons';
 import type { CharterDef } from './types';
 
 // Charters (docs/spec/15-progression.md, Ranks and Charters). The Village Charter ships in I2; the
@@ -39,4 +40,7 @@ export const villageCharter: CharterDef = {
     'loans',
   ],
   proclamation: 'By order of the County, {town} is a village. Somebody fetch the bunting.',
+  // C5.0: the first winter after the claim seals it (C5A runs the trial; the rank is granted at the
+  // claim as in I2).
+  trial: firstWinter,
 };

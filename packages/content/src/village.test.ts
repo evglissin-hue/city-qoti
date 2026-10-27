@@ -95,7 +95,11 @@ describe('I2 buildings', () => {
     }
     for (const i of content.innovations)
       for (const u of i.unlocks) {
-        const known = content.buildingById.has(u) || content.roadById.has(u) || u.startsWith('porter-carry-');
+        // Capabilities: porter-carry-6 [I2]; forecast-days-2 and wheat-yield-120 [I3].
+        const known =
+          content.buildingById.has(u) ||
+          content.roadById.has(u) ||
+          /^(porter-carry|forecast-days|wheat-yield)-\d+$/.test(u);
         expect(known, `${i.id} unlocks ${u}`).toBe(true);
       }
   });

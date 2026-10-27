@@ -8,16 +8,25 @@ import * as Ca from './carts';
 import * as Ch from './charters';
 import * as C from './chronicle';
 import * as D from './decor';
+import * as Fe from './festivals';
 import * as G from './goods';
+import * as Gu from './guide';
+import * as He from './herbalist';
 import * as I from './innovations';
 import * as L from './lives';
 import { familyNames } from './names';
 import * as N from './neighbors';
 import * as P from './patterns';
 import * as R from './roads';
+import * as SA from './seasonsAchievements';
+import * as SB from './seasonsBuildings';
+import * as SG from './seasonsGoods';
+import * as SP from './seasonsPatterns';
+import * as Se from './seasons';
 import * as Sr from './stories';
 import * as Sp from './species';
 import * as St from './styles';
+import * as Sm from './stonemason';
 import * as Sw from './swatches';
 import * as T from './trees';
 import * as Tr from './traits';
@@ -32,21 +41,31 @@ import type {
   BuildingDef,
   CartDef,
   CharterDef,
+  CommissionDef,
   ChronicleTemplate,
   Content,
   DecorDef,
   DistrictStyleDef,
+  EventDef,
+  FestivalDef,
+  FestivalTwistDef,
   GoodDef,
   InnovationDef,
+  ModuleDef,
   NeedsBasket,
   NeighborDef,
   PatternDef,
+  RenownDef,
   RoadDef,
+  SeasonDef,
   SpeciesDef,
   StoryArc,
   SwatchDef,
+  ThreatDef,
   TraitDef,
   TreeDef,
+  WeatherDef,
+  WildlifeDef,
   WishTemplate,
   ZoneDef,
 } from './types';
@@ -59,10 +78,15 @@ export * from './types';
 
 // prettier-ignore
 export const buildings: readonly BuildingDef[] = [
+  SB.apiary,
   B.bakery,
+  SB.bathHouse,
+  SB.bellTower,
   VB.brickKiln,
   B.buildersYard,
+  SB.carpenter,
   VB.cartShed,
+  SB.chandler,
   VB.cheesemaker,
   VB.choppingShed,
   VB.ciderPress,
@@ -74,12 +98,18 @@ export const buildings: readonly BuildingDef[] = [
   VB.farmstead,
   B.fishersHut,
   B.forestersLodge,
+  SB.gate,
   VB.herbGarden,
   VB.herbalist,
   B.house,
   B.marketStall,
+  SB.netTrap,
   VB.orchard,
+  SB.palisade,
+  SB.pieShop,
+  SB.pitTrap,
   B.quarry,
+  SB.riverDock,
   VB.sawmill,
   B.sawpit,
   VB.school,
@@ -87,12 +117,16 @@ export const buildings: readonly BuildingDef[] = [
   VB.sheepPasture,
   VB.smithy,
   VB.spinner,
+  SB.stoneWall,
   B.storehouse,
+  SB.tailor,
   VB.tavern,
   B.townHall,
   VB.townhouse,
   VB.tradingPost,
   B.vegetablePlot,
+  SB.watchHouse,
+  SB.watchtower,
   VB.weaver,
   B.well,
   B.windmill,
@@ -106,11 +140,17 @@ export const decor: readonly DecorDef[] = [
   D.barrels,
   D.bench,
   D.birdbath,
+  Fe.bonfire,
+  Fe.bunting,
   VD.cafeTable,
   D.cherryTree,
   D.crates,
   D.curvedBench,
   D.fence,
+  Fe.festivalStage,
+  Fe.festivalStall,
+  Fe.festivalTable,
+  Fe.flowerArch,
   D.flowerBed,
   VD.flowerCart,
   VD.fountain,
@@ -168,6 +208,12 @@ export const goods: readonly GoodDef[] = [
   VG.firewood,
   VG.herbs,
   VG.tools,
+  // I3 (C5.0)
+  SG.coats,
+  SG.furniture,
+  SG.pies,
+  SG.honey,
+  SG.candles,
 ];
 
 // prettier-ignore
@@ -194,6 +240,7 @@ export const traits: readonly TraitDef[] = [
   Tr.homebody,
   Tr.nightOwl,
   Tr.practical,
+  Tr.reformed,
   Tr.romantic,
   Tr.shy,
   Tr.sporty,
@@ -220,17 +267,23 @@ export const wishes: readonly WishTemplate[] = [
 // prettier-ignore
 export const patterns: readonly PatternDef[] = [
   VP.bridgeCrossing,
+  SP.childrensCorner,
   VP.cornerCafe,
   P.hedgerowLane,
   P.kitchenGarden,
   P.lanternWalk,
   VP.marketCross,
+  SP.orchardPath,
   P.pocketPark,
+  SP.pondGarden,
   P.promenadeByTheWater,
+  SP.readingNook,
   P.sittingWall,
   VP.smallSquare,
+  SP.townGate,
   P.treePlace,
   VP.villageGreen,
+  SP.watchLookout,
   P.wellGatheringPlace,
   VP.windowGardens,
 ];
@@ -241,10 +294,15 @@ export const achievements: readonly AchievementDef[] = [
   A.breadOnTheTable,
   A.builtTogether,
   A.everyDoorAName,
+  SA.fieldNotes,
   A.firstFootsteps,
+  SA.fiveStars,
   A.hearthAndHome,
   A.plankByPlank,
+  SA.theGateHeld,
   A.theLongWalkHome,
+  SA.theRiverRunsClean,
+  SA.warmHearths,
   A.wellMet,
   A.wishesGranted,
 ];
@@ -317,9 +375,11 @@ export const neighbors: readonly NeighborDef[] = [
 
 // prettier-ignore
 export const innovations: readonly InnovationDef[] = [
+  I.barometer,
   I.brickKiln,
   I.carts,
   I.cobbles,
+  I.seedDrill,
   I.waterWheel,
   I.wheelbarrows,
 ];
@@ -329,11 +389,15 @@ export const charters: readonly CharterDef[] = [
   Ch.villageCharter,
 ];
 
+/** APPEND-ONLY since C5.0 (like goods): conditions name arcs by id, but keep old indexes stable too. */
 // prettier-ignore
 export const stories: readonly StoryArc[] = [
   Sr.inventor,
   Sr.merchant,
   Sr.musician,
+  // I3 (C5.0)
+  He.herbalist,
+  Sm.stonemason,
 ];
 
 // prettier-ignore
@@ -349,6 +413,86 @@ export const styles: readonly DistrictStyleDef[] = [
   St.plaster,
   St.stone,
   St.timber,
+];
+
+// --- I3 (C5.0) --------------------------------------------------------------------------------
+
+/** In SeasonIndex order (spring 0 to winter 3), not alphabetical. */
+// prettier-ignore
+export const seasons: readonly SeasonDef[] = [
+  Se.spring,
+  Se.summer,
+  Se.autumn,
+  Se.winter,
+];
+
+// prettier-ignore
+export const weather: readonly WeatherDef[] = [
+  Se.clear,
+  Se.cloudy,
+  Se.fog,
+  Se.heat,
+  Se.rain,
+  Se.snow,
+  Se.storm,
+];
+
+// prettier-ignore
+export const events: readonly EventDef[] = [
+  Se.circus,
+  Se.coldSnap,
+  Se.drought,
+  Se.earlyFrost,
+  Se.flood,
+];
+
+// prettier-ignore
+export const festivals: readonly FestivalDef[] = [
+  Fe.blossomFair,
+  Fe.harvestSupper,
+  Fe.hearthFeast,
+  Fe.lanternNight,
+];
+
+// prettier-ignore
+export const twists: readonly FestivalTwistDef[] = [
+  Fe.costumeParade,
+  Fe.harvestDisplay,
+  Fe.lanternsOnTheWater,
+  Fe.pieContest,
+  Fe.snowSculptures,
+];
+
+/** C5C writes about 30 species (one line each, alphabetical). */
+// prettier-ignore
+export const wildlife: readonly WildlifeDef[] = [
+];
+
+// prettier-ignore
+export const threats: readonly ThreatDef[] = [
+  Se.bandits,
+  Se.wolves,
+];
+
+/** C5C writes the modules (one line each, alphabetical). */
+// prettier-ignore
+export const modules: readonly ModuleDef[] = [
+];
+
+/** C5B writes the commissions (one line each, alphabetical). */
+// prettier-ignore
+export const commissions: readonly CommissionDef[] = [
+];
+
+/** In level order, 0 to 5. */
+// prettier-ignore
+export const renown: readonly RenownDef[] = [
+  Se.renown0,
+  Se.renown1,
+  Se.renown2,
+  Se.renown3,
+  Se.renown4,
+  Se.renown5,
 ];
 
 function byId<T extends { id: string }>(list: readonly T[]): ReadonlyMap<string, T> {
@@ -398,4 +542,23 @@ export const content: Content = {
   cartById: byId(carts),
   styles,
   styleById: byId(styles),
+  seasons,
+  weather,
+  weatherById: byId(weather),
+  events,
+  eventById: byId(events),
+  festivals,
+  festivalById: byId(festivals),
+  twists,
+  twistById: byId(twists),
+  wildlife,
+  wildlifeById: byId(wildlife),
+  threats,
+  threatById: byId(threats),
+  modules,
+  moduleById: byId(modules),
+  commissions,
+  commissionById: byId(commissions),
+  renown,
+  guide: Gu.firstDays,
 };

@@ -101,7 +101,7 @@ describe('save version 3', () => {
     const v2 = shrinkToV2(raw);
     const migrated = deserialize(gzipSync(strToU8(JSON.stringify(v2))));
     expect(migrated.saveVersion).toBe(SAVE_VERSION);
-    expect(SAVE_VERSION).toBe(3);
+    expect(SAVE_VERSION).toBeGreaterThanOrEqual(3);
     expect(migrated.economy.forSale).toHaveLength(content.goods.length);
     expect(migrated.economy.today.money).toHaveLength(LEDGER_CATEGORIES.length);
     expect(migrated.economy.external).toBe(0);
@@ -523,9 +523,11 @@ describe('standard valleys start neutral', () => {
     expect(w.charter).toMatchObject({ rank: 'hamlet', charter: 'village', ready: false });
     expect(w.market.prices).toEqual(content.goods.map((g) => g.basePrice));
     expect(w.innovations.map((i) => i.id)).toEqual([
+      'barometer',
       'brick-kiln',
       'carts',
       'cobbles',
+      'seed-drill',
       'water-wheel',
       'wheelbarrows',
     ]);

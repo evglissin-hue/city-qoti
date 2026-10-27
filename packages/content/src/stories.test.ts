@@ -17,10 +17,19 @@ function clean(text: string, allowed: readonly string[], where: string): void {
   for (const p of placeholders(text)) expect(allowed, `${where}: {${p}}`).toContain(p);
 }
 
+// C5.0: the I3 arcs are stubs until C5A (herbalist) and C5D (stonemason) write them; C5X drops this.
+const STUBS = new Set(['herbalist', 'stonemason']);
+const written = stories.filter((a) => !STUBS.has(a.id) || a.steps.length > 0);
+
 describe('story arcs', () => {
+  it('append new arcs after the I2 ones, so arc ids never move', () => {
+    expect(stories.map((a) => a.id).slice(0, 3)).toEqual(['inventor', 'merchant', 'musician']);
+    for (const a of stories) if (a.steps.length === 0) expect(STUBS.has(a.id), a.id).toBe(true);
+  });
+
   it('have unique ids, four to six steps and a finale that gives something', () => {
     expect(new Set(stories.map((a) => a.id)).size).toBe(stories.length);
-    for (const a of stories) {
+    for (const a of written) {
       expect(a.steps.length, a.id).toBeGreaterThanOrEqual(4);
       expect(a.steps.length, a.id).toBeLessThanOrEqual(6);
       expect(a.finale.unlock?.length ?? 0, a.id).toBeGreaterThan(0);
@@ -46,7 +55,7 @@ describe('story arcs', () => {
   });
 
   it('write letters that only use {town}, and hints that use nothing', () => {
-    for (const a of stories) {
+    for (const a of written) {
       const letters = [a.hello, ...a.steps.map((s) => s.letter), a.finale.letter];
       for (const l of letters) {
         clean(l, ['town'], a.id);
