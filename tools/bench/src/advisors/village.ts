@@ -1,4 +1,4 @@
-// The autoplayer's Village half (C4C): claims the Charter when it is ready, then plays the I2
+// The village advisor (C4C, ported in C5.0): claims the Charter when it is ready, then plays the I2
 // chains, services and homes toward Craftsfolk: a tavern and a herbalist near the homes, firewood,
 // cloth, bricks (once the kiln is invented), cider and cheese, a school, carts, more storehouses,
 // and flowers by the doors so the streets reach the Craftsfolk's charm. A clay pit goes in while
@@ -7,12 +7,12 @@
 // C4X: the stand-ins this half carried while the wave ran (wages paid from outside, the Village
 // rank granted on day 24, a loan taken on day one) are gone: C4A's wages and loans and the real
 // Charter claim drive it now.
+//
+// C5.0: its wants go to the planner, priced `VILLAGE_MARGIN` over the def (I2 kept 30 coins back);
+// a want's priority is the build queue it will join (I2's `maxSites`).
 import { content } from '@qoti/content';
 import {
   BuildingStatus,
-  creditLimit,
-  loansOwed,
-  PENNIES_PER_COIN,
   TILE_FP,
   canPlaceBuilding,
   canPlaceDecor,
@@ -23,32 +23,13 @@ import {
   townStock,
   worldIndex,
   type Building,
-  type Command,
   type Rot4,
   type WorldState,
 } from '@qoti/sim';
-import { canStaff, materialsPressing } from './labor';
-
-const G = (id: string) => content.goodIndex.get(id)!;
-
-export interface VillageHost {
-  readonly w: WorldState;
-  do(label: string, cmds: Command[]): boolean;
-  build(def: string): Building | null;
-  connect(b: Building): void;
-  /** C4X: true when `def` found no spot today. */
-  blocked(def: string): boolean;
-  /** C4X: the next food building, skipping one that found no spot today. */
-  foodBuilding(): string;
-}
-
-function count(w: WorldState, def: string, built = false): number {
-  return w.buildings.filter((b) => b.def === def && (!built || b.stage === 'built')).length;
-}
-
-function sites(w: WorldState): number {
-  return w.buildings.filter((b) => b.stage === 'construction').length;
-}
+import { materialsPressing } from '../labor';
+import { costOf, MONEY_RESERVE, VILLAGE_MARGIN, type Budget, type Planner } from '../planner';
+import { count, craftsfolk, G } from '../town';
+import type { Advisor, AdvisorDef, Visit } from './types';
 
 /** Timber and food buildings may dip into the reserve. */
 function essential(def: string): boolean {
@@ -63,19 +44,15 @@ function essential(def: string): boolean {
   ].includes(def);
 }
 
-export function craftsfolk(w: WorldState): number {
-  return w.residents.filter((r) => r.tier === 'craftsfolk').length;
-}
-
-export class VillagePlayer {
-  constructor(readonly p: VillageHost) {}
+class Village implements Advisor {
+  constructor(readonly p: Planner) {}
 
   get w(): WorldState {
     return this.p.w;
   }
 
   private coins(): number {
-    return this.w.economy.treasury / PENNIES_PER_COIN;
+    return this.p.coins();
   }
 
   /** Construction progress last seen per site, and the day it last moved. */
@@ -100,8 +77,8 @@ export class VillagePlayer {
     }
   }
 
-  /** One turn; `afternoon` is the 15:00 visit (tidying sites, decorating). */
-  turn(afternoon: boolean): void {
+  /** One turn; the 15:00 visit also tidies sites and decorates. */
+  visit({ afternoon }: Visit): void {
     const w = this.w;
     if (afternoon) this.tidySites();
     if (w.charter.ready && w.charter.charter) this.p.do('claim the Charter', [{ t: 'charter.claim' }]);
@@ -148,39 +125,31 @@ export class VillagePlayer {
     if (afternoon) this.dress();
   }
 
-  /** Builds `def` when the coins and free materials allow and fewer than `maxSites` sites wait. */
-  private want(def: string, maxSites = 5, pressing = false): boolean {
-    const w = this.w;
-    if (sites(w) >= maxSites) return false;
-    // C4X: only workplaces someone can work (see labor.ts).
-    if (!canStaff(w, def, pressing)) return false;
-    const d = content.buildingById.get(def)!;
-    if (this.coins() < (d.cost?.coins ?? 0) + 30) return false;
-    // C4X: past half the County Bank's line only what is pressing or keeps the town going is
-    // started (the Village borrowed its way to the edge of lean times on new workshops).
-    if (!pressing && !essential(def) && loansOwed(w) * 2 > creditLimit(w)) return false;
-    const free = townStock(w);
-    for (const b of w.buildings) {
-      const c = b.rt?.construction;
-      if (c) for (let g = 0; g < free.length; g++) free[g]! -= c.needs[g] ?? 0;
-      const u = b.rt?.upgrade;
-      if (u) for (let g = 0; g < free.length; g++) free[g]! -= u[g] ?? 0;
-    }
-    // Keep a reserve of timber so the woodcutters and sawpits can always be rebuilt: a village that
-    // spends its last logs on a tavern has no way back.
-    const reserve = (g: string) => (g === 'logs' ? 16 : g === 'planks' ? 24 : 0);
-    for (const [g, q] of d.cost?.goods ?? [])
-      if (free[G(g)]! < q + (essential(def) ? 0 : reserve(g))) return false;
-    return !!this.p.build(def);
+  /**
+   * Proposes `def` to the planner, joining a build queue of at most `priority` sites. C4X: only
+   * workplaces someone can work (see labor.ts); past half the County Bank's line only what is
+   * pressing or keeps the town going is started (the Village borrowed its way to the edge of lean
+   * times on new workshops); and a reserve of timber stays so the woodcutters and sawpits can always
+   * be rebuilt (a village that spends its last logs on a tavern has no way back).
+   */
+  private want(def: string, priority = 5, pressing = false, budget?: Budget): boolean {
+    return !!this.p.propose({
+      def,
+      priority,
+      cost: costOf(def, VILLAGE_MARGIN),
+      pressing,
+      essential: essential(def),
+      budget,
+    });
   }
 
   private buildVillage(): void {
     const w = this.w;
     const pop = w.residents.length;
     const crafts = craftsfolk(w);
-    let budget = 3;
+    const budget: Budget = { left: 3 };
     const go = (cond: boolean, def: string, pressing = false) => {
-      if (budget > 0 && cond && this.want(def, 5, pressing)) budget--;
+      if (cond) this.want(def, 5, pressing, budget);
     };
     // C4X: bread is pressing while the shelves hold under a third of a loaf a head (Craftsfolk eat
     // it daily), so the farm, mill and bakery may draw hands from spare porters.
@@ -232,7 +201,7 @@ export class VillagePlayer {
     const stock = townStock(w);
     // Bricks first (taverns and townhouses are made of them): a clay pit (two days of digging
     // invent the kiln), firewood for the kiln, then the kiln.
-    if (budget > 0 && count(w, 'clay-pit') === 0 && !this.want('clay-pit') && this.p.blocked('clay-pit'))
+    if (budget.left > 0 && count(w, 'clay-pit') === 0 && !this.want('clay-pit') && this.p.blocked('clay-pit'))
       this.outpost('clay-pit');
     go(count(w, 'chopping-shed') < 1 + Math.floor(crafts / 24), 'chopping-shed');
     // C4X: bricks and cloth by the size of the town, not its Craftsfolk: what the Village sells
@@ -387,10 +356,10 @@ export class VillagePlayer {
     const w = this.w;
     if (w.buildings.some((b) => b.def === def && b.stage === 'construction')) return false;
     if (count(w, def) >= 1 + Math.floor(w.residents.length / 30)) return false;
-    if (!canStaff(w, def, true)) return false;
+    if (!this.p.staffs(def, true)) return false;
     const covered = serviceCoverage(w, kind).quality;
     const d = content.buildingById.get(def)!;
-    if (this.coins() < (d.cost?.coins ?? 0) + 30) return false;
+    if (this.coins() < costOf(def, VILLAGE_MARGIN).coins + MONEY_RESERVE) return false;
     const stock = townStock(w);
     for (const [g, q] of d.cost?.goods ?? []) if (stock[G(g)]! < q) return false;
     const reader = worldIndex(w).reader;
@@ -408,10 +377,7 @@ export class VillagePlayer {
               const z = home.z + dz;
               if (!canPlaceBuilding(reader, d, x, z, rot).ok) continue;
               if (w.map.water[doorTile({ def, x, z, rot } as Building, d)]) continue;
-              if (!this.p.do(`build ${def} by the ${h.family}s`, [{ t: 'build.place', def, x, z, rot }]))
-                return false;
-              this.p.connect(w.buildings[w.buildings.length - 1]!);
-              return true;
+              return !!this.p.buildAt(`build ${def} by the ${h.family}s`, def, x, z, rot, true);
             }
           }
         }
@@ -464,12 +430,7 @@ export class VillagePlayer {
                   if (!canPlaceBuilding(reader, store, sx, sz, 0).ok) continue;
                   const door = doorTile({ def: 'storehouse', x: sx, z: sz, rot: 0 } as Building, store);
                   if (man(door, from) > 22 || man(door, z * 192 + x) > 20) continue;
-                  if (
-                    this.p.do(`storehouse toward the ${def}`, [
-                      { t: 'build.place', def: 'storehouse', x: sx, z: sz, rot: 0 },
-                    ])
-                  )
-                    this.p.connect(w.buildings[w.buildings.length - 1]!);
+                  this.p.buildAt(`storehouse toward the ${def}`, 'storehouse', sx, sz, 0, true);
                   return;
                 }
               }
@@ -546,3 +507,15 @@ function decorSpot(w: WorldState, def: string, x: number, z: number): [number, n
   }
   return null;
 }
+
+export const village: AdvisorDef = {
+  id: 'village',
+  slot: 10,
+  // The Village chains, services and tiers, once the content has them (I2) and the run plays them.
+  plays: (opts) => !!opts.village && content.buildingById.has('tavern'),
+  create: (p) => {
+    // C4C: the Village run keeps six days of food from the peddler, for the Charter.
+    p.foodReserveDays = 6;
+    return new Village(p);
+  },
+};
