@@ -12,6 +12,7 @@ import {
   FIELD_MIN_FERTILITY,
   growthDemand,
   MAP_SIZE,
+  type Building,
   type Command,
   type GrowthDemand,
   type Rect,
@@ -62,7 +63,7 @@ function open(w: WorldState, x: number, z: number): boolean {
   if (x < 2 || z < 2 || x >= S - 2 || z >= S - 2) return false;
   const i = z * S + x;
   const m = w.map;
-  return !m.road[i] && !m.occupant[i] && !m.water[i] && !m.fieldOwner[i];
+  return !m.road[i] && !m.occupant[i] && !m.water[i] && !m.fieldOwner[i] && !m.zone[i];
 }
 
 /**
@@ -157,13 +158,25 @@ export function zoneHighStreet(w: WorldState, street: HighStreet): Command[] {
 
 /**
  * Where the Ledger puts a storehouse for the far end of the high street, so porters reach the lots
- * there: the nearest free spot to the street's end, door onto a road, off the zoned land.
+ * there: the free spot nearest the street's end, door onto a road, off the zoned land (C4X: and
+ * within reach of a standing storehouse, whose porters must bring its own planks, and of at least
+ * two lots no porter reaches yet; the spot at the very end was out of every porter's reach, so the
+ * site stood unsupplied until it was cancelled, again and again).
  */
 export function storehouseSpot(w: WorldState, street: HighStreet): [number, number, Rot4] | null {
   const def = content.buildingById.get('storehouse')!;
   const reader = worldIndex(w).reader;
   const [ex, ez] = street.tiles[street.tiles.length - 1]!;
-  for (let r = 1; r <= 12; r++) {
+  const man = (a: number, x: number, z: number) => Math.abs((a % S) - x) + Math.abs(Math.floor(a / S) - z);
+  const stores = w.buildings
+    .filter((b) => b.def === 'storehouse' && b.stage === 'built')
+    .map((b) => doorTile(b));
+  const far = w.lots
+    .filter(
+      (l) => !l.buildingId && !stores.some((d) => man(d, l.frontage % S, Math.floor(l.frontage / S)) <= 22),
+    )
+    .map((l) => l.frontage);
+  for (let r = 1; r <= 20; r++) {
     for (let dz = -r; dz <= r; dz++) {
       for (let dx = -r; dx <= r; dx++) {
         if (Math.max(Math.abs(dx), Math.abs(dz)) !== r) continue;
@@ -171,6 +184,11 @@ export function storehouseSpot(w: WorldState, street: HighStreet): [number, numb
           const p = canPlaceBuilding(reader, def, ex + dx, ez + dz, rot);
           if (!p.ok || p.warnings.includes('NO_ROAD')) continue;
           if (p.tiles.some(([x, z]) => w.map.zone[z * S + x])) continue;
+          const door = doorTile({ def: 'storehouse', x: ex + dx, z: ez + dz, rot } as Building, def);
+          const dx0 = door % S;
+          const dz0 = Math.floor(door / S);
+          if (!stores.some((d) => man(d, dx0, dz0) <= 22)) continue;
+          if (far.filter((f) => man(f, dx0, dz0) <= 22).length < 2) continue;
           return [ex + dx, ez + dz, rot];
         }
       }
