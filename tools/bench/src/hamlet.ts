@@ -303,6 +303,8 @@ function fieldRoom(world: WorldState, x: number, z: number, rot: Rot4, want: num
     for (let tx = x - 6; tx <= x + 8; tx++) {
       if (tx < 0 || tz < 0 || tx >= MAP_SIZE || tz >= MAP_SIZE || world.map.zone[tz * MAP_SIZE + tx])
         continue;
+      // Good soil only, the land the autoplayer sows.
+      if (world.map.fertility[tz * MAP_SIZE + tx]! < FIELD_GOOD_FERTILITY) continue;
       if (!fieldTileProblem(world, farm, def, tx, tz) && ++n >= want) return true;
     }
   }

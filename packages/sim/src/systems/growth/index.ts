@@ -16,7 +16,7 @@
 // construction sites (growLot); they cost the treasury nothing. What grows: content defs with
 // `grows.zone` (C4C writes them); until a zone has any, the I1 buildings stand in.
 import { content, type BuildingDef } from '@qoti/content';
-import { MAP_SIZE, TICKS_PER_DAY, Zone } from '../../constants';
+import { FIELD_GOOD_FERTILITY, MAP_SIZE, TICKS_PER_DAY, Zone } from '../../constants';
 import type { Building, Lot, System, TickCtx, WorldState } from '../../contracts';
 import { findById } from '../../state/entities';
 import { isStandard } from '../../state/hamlet';
@@ -321,6 +321,8 @@ function growFields(state: WorldState, ctx: TickCtx): void {
       for (let x = Math.max(0, b.x - 8); x < Math.min(S, b.x + 10); x++) {
         const i = z * S + x;
         if (m.zone[i] !== Zone.farms || m.lot[i] || m.fieldOwner[i]) continue;
+        // Grown farms keep to good soil; thin soil is the players' to sow if they like.
+        if (m.fertility[i]! < FIELD_GOOD_FERTILITY) continue;
         if (fieldTileProblem(state, b, def, x, z)) continue;
         options.push([Math.abs(x - dx0) + Math.abs(z - dz0), i]);
       }
