@@ -22,6 +22,7 @@ import { residentsBench } from './residents';
 import { hearthBench } from './hearth';
 import { benchEconomy } from './economy';
 import { syntheticValley } from './synthetic';
+import { villageBench } from './village.bench';
 
 const BUDGET = {
   worldgenMs: 300,
@@ -144,6 +145,10 @@ const economy = benchEconomy();
 lines.push(...economy.lines);
 failures.push(...economy.failures);
 
+const village = villageBench();
+lines.push(...village.lines);
+failures.push(...village.failures);
+
 const heapMb = process.memoryUsage().heapUsed / 1024 / 1024;
 lines.push(`memory          ${heapMb.toFixed(0)} MB heap in use`);
 
@@ -168,6 +173,7 @@ const report = {
   residents,
   hearth: hearth.report,
   economy: economy.report,
+  village: village.report,
   heapMb,
   failures,
 };
