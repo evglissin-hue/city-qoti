@@ -131,6 +131,6 @@ describe('I2 buildings', () => {
 
   it('writes the I2 buildings and decor without em or en dashes', () => {
     const i2 = content.buildings.filter((b) => b.requires || b.grows || b.upgradesTo);
-    expect(JSON.stringify([i2, content.decor, content.patterns])).not.toMatch(/—|–/);
+    expect(JSON.stringify([i2, content.decor, content.patterns])).not.toMatch(/\u2014|\u2013/);
   });
 });
