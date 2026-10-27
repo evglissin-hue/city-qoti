@@ -24,6 +24,7 @@ import { benchEconomy } from './economy';
 import { growthBench } from './growth';
 import { benchMarket } from './market';
 import { syntheticValley } from './synthetic';
+import { villageBench } from './village.bench';
 
 const BUDGET = {
   worldgenMs: 300,
@@ -151,6 +152,10 @@ const growth = growthBench(lines, failures);
 const market = benchMarket();
 lines.push(...market.lines);
 failures.push(...market.failures);
+// 9. Village chains (C4C): the village fixture with every chain, services, tiers and a cart.
+const village = villageBench();
+lines.push(...village.lines);
+failures.push(...village.failures);
 
 const heapMb = process.memoryUsage().heapUsed / 1024 / 1024;
 lines.push(`memory          ${heapMb.toFixed(0)} MB heap in use`);
@@ -178,6 +183,7 @@ const report = {
   economy: economy.report,
   growth,
   market: market.report,
+  village: village.report,
   heapMb,
   failures,
 };

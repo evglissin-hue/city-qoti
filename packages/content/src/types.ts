@@ -239,10 +239,14 @@ export interface ProductionMethod {
 }
 
 export interface Coverage {
-  kind: 'water' | 'food' | 'logistics';
-  /** Tiles (straight-line for water and food, walking distance for logistics). */
+  /**
+   * I2 (C4C) adds the services: 'social' (tavern), 'health' (herbalist) and 'education' (school,
+   * children only).
+   */
+  kind: 'water' | 'food' | 'logistics' | 'social' | 'health' | 'education';
+  /** Tiles (straight-line for water, food and services, walking distance for logistics). */
   radius: number;
-  /** Residents served (well 30). */
+  /** Residents served (well 30; services count the residents who need them). */
   capacity?: number;
 }
 

@@ -144,7 +144,11 @@ export { roadCapacity, roadNoise, slowdownPercent, trafficFlow } from './systems
 export { roadKindLocked, wantsStairs } from './systems/traffic/streets';
 export { DESIRE_PATH_WEAR, desirePathTiles, WEAR_VISIBLE } from './systems/traffic/wear';
 export { grantReward, storyStep } from './systems/stories/api';
-export { unlockInnovation } from './systems/innovations/api';
+export { meetsRequires, unlockInnovation } from './systems/innovations/api';
+// I2 (C4C): services, tiers and carts for the client and the bench.
+export { serviceCoverage, servedBy } from './systems/services/coverage';
+export { checkTier, homeRoute, nextTier, tierProgress } from './systems/tiers/api';
+export { CART_MIN_LOAD, CART_MIN_TRIP } from './systems/logistics/carts';
 export { terraformCost } from './commands/terrain';
 export { findById, findIndexById, removeById } from './state/entities';
 export { fnv64Hex, hashState } from './state/hash';

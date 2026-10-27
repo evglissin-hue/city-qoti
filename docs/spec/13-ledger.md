@@ -15,12 +15,12 @@ The Ledger lane is a complete game (P1): space, flows, prices and budgets, with 
 | Vegetables | I1 | food | 1 | vegetable plot, farms [I2] |
 | Fish | I1 | food | 2 | fisher's hut |
 | Clay, Bricks | I2 | material | 1, 4 | clay pit, brick kiln |
-| Wool, Yarn, Cloth | I2 | material, crafted | 2, 3, 6 | sheep pasture, spinner, weaver |
+| Wool, Yarn, Cloth | I2 | material, crafted | 2, 4 (C4C, was 3), 6 | sheep pasture, spinner, weaver |
 | Milk, Cheese | I2 | food | 1, 5 | dairy farm, cheesemaker |
 | Apples, Cider | I2 | food, treat | 1, 4 | orchard, cider press |
 | Firewood | I2 | fuel | 1 | chopping shed (logs) |
 | Herbs | I2 | raw | 1 | herb garden |
-| Tools | I2 | crafted | 8 | smithy (iron [I4] or trade) |
+| Tools | I2 | crafted | 8 | smithy (I2: firewood and stone; iron [I4] or trade) |
 | Coats, Furniture | I3 | crafted | 12, 15 | tailor, carpenter |
 | Pies, Honey, Candles | I3 | treat, crafted | 4, 3, 3 | pie shop, apiary, chandler |
 | Paper, Books, Glass, Jam, Tea, Coal, Iron, Soap, Music boxes | I4 | various | 4 to 30 | later chains and imports |
@@ -60,6 +60,35 @@ How production runs [I1, C3C]:
 - Wheat fields: painted per tile within 6 tiles of the farmhouse footprint on fertility 40+, 12 tiles per job (36 per farmhouse); painting skips tiles that cannot be fields and is refused only when none can. Each farmer tends 12 tiles: tended tiles grow 4 points (of 255) per quarter hour of tending, ripen in about two work days and yield 2 wheat, about 1 wheat per tile per day. The `crop` layer holds growth; patches go out when a tile crosses one of four drawn stages (bare, sprouts, green, golden). Tiles a road or building takes over stop being fields.
 - The first unit of a good ever made writes a "first of" line in the Chronicle.
 
+## I2 buildings [C4C]
+
+Numbers per work day (nine hours, full crew of Content workers); all *(tune)*. Each producer turns its inputs into more value than its wages (basic 6, skilled 10 coins) and upkeep at base prices, so the inspector's profit line reads positive until C4A's prices move. Rank Village unless noted; "skilled" jobs need Craftsfolk.
+
+| Building | Size | Cost | Upkeep | Workers | Per work day | Needs |
+|---|---|---|---|---|---|---|
+| Clay Pit | 2x2 | 10 planks, 20 | 1 | 2 | 18 clay | 2+ clay deposit tiles; Hamlet rank |
+| Brick Kiln | 2x2 | 12 planks, 16 stone, 40 | 2 | 2 | 18 clay + 4.5 firewood -> 13.5 bricks | Brick Kiln innovation |
+| Sheep Pasture | 3x3 | 12 planks, 20 | 1 | 1 | 6 wool | fertility 30 |
+| Spinner's Cottage | 2x2 | 14 planks, 6 stone, 25 | 1 | 1 | 6 wool -> 6 yarn | |
+| Weaver's Shop | 2x2 | 16 planks, 8 stone, 30 | 1 | 1 | 6 yarn -> 6 cloth | |
+| Dairy Farm | 3x3 | 16 planks, 6 stone, 30 | 1 | 2 | 18 milk | fertility 30 |
+| Cheesemaker | 2x2 | 14 planks, 12 stone, 40 | 2 | 2 skilled | 13.5 milk -> 9 cheese | |
+| Orchard | 3x3 | 8 planks, 25 | 1 | 2 | 18 apples | fertility 40 |
+| Cider Press | 2x2 | 16 planks, 8 stone, 40 | 2 | 1 | 18 apples -> 9 cider | |
+| Chopping Shed | 2x2 | 12 logs, 15 | 1 | 1 | 9 logs -> 18 firewood | Hamlet rank |
+| Herb Garden | 2x2 | 4 planks, 8 | 0 | 1 | 9 herbs | fertility 30 |
+| Smithy | 2x2 | 12 planks, 16 stone, 45 | 2 | 1 skilled | 9 firewood + 4.5 stone -> 4.5 tools | |
+| Water Sawmill | 2x3 | 20 planks, 12 stone, 4 tools, 60 | 2 | 2 | 16 logs -> 32 planks (+80%) | water edge; Water Wheel innovation |
+| School | 3x3 | 24 planks, 12 stone, 12 bricks, 60 | 3 | 2 skilled | education for 24 children within 12 | |
+| Tavern | 3x2 | 24 planks, 12 stone, 6 bricks, 50 | 2 | 2 | pours 2 cider; social for 60 within 10 | |
+| Herbalist | 2x2 | 14 planks, 8 stone, 35 | 2 | 1 | brews 6 herbs; health for 60 within 12 | |
+| Trading Post | 4x3 | 30 planks, 16 stone, 8 bricks, 60 | 3 | 2 porters | 200 storage, logistics 16; tagged `trading-post` (C4A trades through it) | |
+| Cart Shed | 2x3 | 16 planks, 6 stone, 2 tools, 40 | 2 | 1 carter | one cart | door on a lane or street; Carts innovation |
+| Townhouse | 2x2 | (grown, or a cottage upgraded with 10 bricks and 6 planks) | 0 | | a Craftsfolk household of up to 5 | grows on Townhouses lots |
+| Corner Shop, Workshop, Farmstead | 2x3, 3x3, 3x3 | 18 to 14 planks and stone | 1 | 1 to 2 | a food outlet with a flat above; five small crafts; five farm methods (the method is chosen by shortage unless pinned) | grown on Shops, Crafts and Farms lots only |
+
+Forty Craftsfolk (ten households) use about 10 firewood, 4 cloth, 12 bread and 8 treats a day; ten upgrades take 100 bricks and 60 planks. `requires` (rank or innovation) is checked by `build.place` (LOCKED) and grown-only defs are not hand-placed (NOT_ALLOWED).
+
 ## Construction [I1]
 
 - Placing a building creates a construction site, deducts the coin cost immediately, and requests the material cost. Placement is refused when the treasury cannot cover the coins, and in lean times.
@@ -76,6 +105,9 @@ How production runs [I1, C3C]:
 - **Porters**: storehouse workers. Every 20 ticks, each idle porter in id order takes the best job: priority construction (raised) > food to stalls > production inputs > construction (normal) > clearing outputs; ties go to the nearest source. A job reserves units at the source and space at the destination so nothing is double-booked.
 - **Trips**: walk to the source, pick up up to 4 units, walk to the destination, drop off. Porters carry visible bundles.
 - **Carts** [I2]: cart shed, 16 units, faster on lanes and streets, never on paths. **Barges** [I4]: 60 units on canals and the river.
+- **Carts as built [C4C]**: each built cart shed keeps one cart (`state.carts`), parked at the shed's door when idle and not drawn. While its carter is at work, an idle cart takes a long haul from the same needs the porters match, before the porters do: 8 to 16 units, both doors on a lane or street, door to door 12+ tiles apart; or clears a producer's cartload to a storehouse that far away. It drives with C4B's `requestCartMove`, picks up, delivers (flows count it) and drives home. A shed with no cart road at its door shows "No lane or street at the door for the cart" (`noCartRoad`); a removed shed takes its cart and the load goes to the nearest storehouse.
+- **Wheelbarrows [C4C]**: once unlocked, porters carry 6 of every good.
+- **Relays and reachability [C4C]**: a porter whose own range misses a need, at a place another storehouse in its range reaches, carries the goods to that storehouse when it holds too few. A destination porters cannot walk to from the source (across the river with no bridge, or a door on the water) is skipped for the round rather than retried by every porter.
 - **Range**: a storehouse serves buildings within 24 tiles of walking distance (C3X tuning, was 20); buildings outside any range show a "no porters" marker. Until walking distances are cached, door-to-door Manhattan distance stands in for them. A porter only takes jobs whose source and destination both lie in its storehouse's range.
 - **Details [I1, C3C]**: production inputs are topped up to 2 cycles' worth. Market stalls ask for the food they hold least of, so stalls stock variety. Sources are storehouses and producers' output buffers (never market stalls), so a mill can feed a bakery directly. Outputs are cleared once 4 units (a load) wait. A porter carries `carry` units of one good (4), walks back to the storehouse after a trip, and can be matched again on the way. At 17:00 porters finish the trip they are on and go home; a paused storehouse keeps its porters in. Flows for the overlay count deliveries per building pair and halve at midnight (a decaying count of about two days).
 
@@ -161,6 +193,8 @@ A Victoria-lite market (P30). Money circulates between the treasury and househol
 | Bath House | I3 | warmth and health in winter | |
 | Library, Theater, Post Office, Inn | I4 | culture, letters, tourism | Patron needs |
 
+Services as built [C4C]: a school, tavern or herbalist covers homes whose door lies within its radius of its own door while it is built, open and staffed, up to its capacity in residents who use it (grown-ups for the tavern, children for the school, everyone for the herbalist), each household going to the nearest one with room. Hourly (offset 110) the `social`, `health` and `education` needs move a quarter of the way toward 100 (covered), 60 (covered but out of cider or herbs) or 25 (none; education 45). Settlers do not have these needs (they stay at 100 and weigh nothing, so a Hamlet plays as in I1); Craftsfolk grown-ups weigh social and health at 10 each, their children health and education. The tavern is an evening leisure spot. Open services hire before other work and are never "stuck" for want of supplies.
+
 ## Population tiers [I2 to I4]
 
 Homes upgrade in place when a household meets the next tier's needs for 3 consecutive days and has the savings; they slide back after 4 days unmet (P34).
@@ -173,6 +207,8 @@ Homes upgrade in place when a household meets the next tier's needs for 3 consec
 | Patrons | I5 | treats (cider, jam, tea), books, library or theater, a festival attended this season, charm 65+, a park within 6 | arts, scholarship | Manor or terrace |
 
 - Upgrades consume materials delivered by porters (Townhouse: 10 bricks, 6 planks).
+- *As built (C4C)*: daily at 05:00, once the valley has unlocked the tier (the Village Charter unlocks Craftsfolk). Moving up needs, three days running: bread and another food eaten lately; every other group of the next basket on outlet shelves (or in the pantry) for a day; the basket's services covering the home; average charm within 3 tiles of the door at the basket's level; savings at the basket's level (not spent); a home that can grow (its def holds the tier, or `upgradesTo` one that does). Then a cottage asks for its materials (`rt.upgrade`, status "Becoming a townhouse: waiting for ..."), porters bring them like a site's, and the def swaps in place when the last unit arrives; the household, its members and `rt.tier` move up. Staying needs C4A's basket satisfaction (each group 50+) when the household buys its own basket, else the shelves, the services and charm with 5 points of slack; four failing days slide it back a tier, keeping the house, so three good days later it moves up again with no new bricks. Notices of kind `tier` mark each step. The resident inspector's `tierProgress` names what is missing. While Craftsfolk are unlocked, hiring treats the basket's missing goods (and the inputs of their workshops, and bricks while homes wait) as shortages.
+- Skilled jobs at I2: cheesemaker, smithy, school. Residents take jobs at their tier or one below.
 - Jobs have a tier. Residents take jobs at their tier or one below; higher tiers refuse basic jobs, so a healthy town keeps a mix (and districts for each).
 
 ## Trade

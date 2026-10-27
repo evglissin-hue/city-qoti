@@ -84,3 +84,25 @@ describe('two players, three evenings', { timeout: 120_000 }, () => {
     expect(hashState(a)).toBe(hashState(b));
   });
 });
+
+// C4C: the Village run. From the same start, the players claim (or, until C4D and C4X chase the
+// Charter, are granted on VILLAGE_DAY) the Village, then build the chains, services and homes
+// toward Craftsfolk. The goal of 40 Craftsfolk comes with C4A's wages and market and C4X's
+// tuning; here the run must keep growing without dead ends and raise its first Craftsfolk.
+describe('a Village run', { timeout: 240_000 }, () => {
+  it('grows on as a Village and raises Craftsfolk (oak)', () => {
+    const run = autoplay('oak', 90, { village: true });
+    const days = run.days;
+    const why = `\n${formatDays(days)}`;
+    const village = days.findIndex((d) => d.rank === 'village');
+    expect(village, why).toBeGreaterThan(0);
+    const last = days[days.length - 1]!;
+    expect(last.residents, why).toBeGreaterThan(days[village]!.residents + 60);
+    expect(last.craftsfolk, why).toBeGreaterThanOrEqual(16);
+    expect(last.departures, why).toBeLessThanOrEqual(2);
+    for (const d of days) expect(d.leanTimes, why).toBe(false);
+    // The town never stalls: every ten days of the Village half add residents.
+    for (let i = village + 10; i < days.length; i += 10)
+      expect(days[i]!.residents, why).toBeGreaterThan(days[i - 10]!.residents);
+  });
+});

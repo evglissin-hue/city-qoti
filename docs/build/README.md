@@ -20,7 +20,7 @@ One row per cycle. A cycle is one agent session working from one brief on one br
 | C4.0 Village contracts | I2 | serial | `cycle-04-0-village-contracts.md` | C3X | done on `cycle/04-0-village-contracts`; wave notes in `i2-wave-notes.md` |
 | C4A Market and money | I2 | parallel | `cycle-04a-market-money.md` | C4.0 | done on `cycle/04a-market-money` (merged by C4X) |
 | C4B Growth | I2 | parallel | `cycle-04b-growth.md` | C4.0 | done on `cycle/04b-growth` (merged by C4X) |
-| C4C Village chains, services and tiers | I2 | parallel | `cycle-04c-village-chains.md` | C4.0 | waiting |
+| C4C Village chains, services and tiers | I2 | parallel | `cycle-04c-village-chains.md` | C4.0 | done on `cycle/04c-village-chains` (merged locally by C4X) |
 | C4D Lives, story characters and co-op tools | I2 | parallel | `cycle-04d-lives-and-coop.md` | C4.0 | done on `cycle/04d-lives-coop` (merged locally by C4X) |
 | C4E Village art and rendering | I2 | parallel | `cycle-04e-village-art.md` | C4.0 | done on `cycle/04e-village-art` (merged locally by C4X) |
 | C4F Village UI | I2 | parallel | `cycle-04f-village-ui.md` | C4.0 | done on `cycle/04f-village-ui` (merged locally by C4X); screenshots `c4f-*` |

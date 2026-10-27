@@ -60,7 +60,7 @@ describe('content', () => {
     }
   });
 
-  it('ships the I0 and I1 content lists', () => {
+  it('ships the I0, I1 and I2 content lists', () => {
     expect(buildings.map((b) => b.id).sort()).toEqual(
       [
         'bakery',
@@ -80,6 +80,29 @@ describe('content', () => {
         'well',
         'windmill',
         'woodcutter',
+        // I2 (C4C)
+        'brick-kiln',
+        'cart-shed',
+        'cheesemaker',
+        'chopping-shed',
+        'cider-press',
+        'clay-pit',
+        'corner-shop',
+        'dairy',
+        'farmstead',
+        'herb-garden',
+        'herbalist',
+        'orchard',
+        'sawmill',
+        'school',
+        'sheep-pasture',
+        'smithy',
+        'spinner',
+        'tavern',
+        'townhouse',
+        'trading-post',
+        'weaver',
+        'workshop',
       ].sort(),
     );
     expect(decor.map((d) => d.id).sort()).toEqual(
@@ -104,6 +127,13 @@ describe('content', () => {
         'ring-bench',
         'signpost',
         'wildflower-verge',
+        // I2 (C4C)
+        'cafe-table',
+        'flower-cart',
+        'fountain',
+        'lamp-post',
+        'maypole',
+        'notice-board',
       ].sort(),
     );
     expect(roads.map((r) => r.id).sort()).toEqual(['lane', 'path', 'street']);
@@ -272,9 +302,9 @@ describe('I1 content', () => {
     }
   });
 
-  it('has the twelve wishes, eight patterns and ten achievements, with valid references', () => {
+  it('has the twelve wishes, fourteen patterns (eight I1, six I2) and ten achievements, with valid references', () => {
     expect(wishes).toHaveLength(12);
-    expect(patterns).toHaveLength(8);
+    expect(patterns).toHaveLength(14);
     expect(achievements).toHaveLength(10);
     for (const w of wishes) {
       for (const ref of [...conditionRefs(w.when), ...conditionRefs(w.target)]) {

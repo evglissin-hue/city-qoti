@@ -2,32 +2,20 @@
 // household pantry, preferring variety; water, shelter, belonging and beauty move hourly toward
 // their targets; mood is the weighted average of needs plus modifiers and traits, clamped 0 to 100.
 import { content } from '@qoti/content';
-import { MOOD_PRODUCTIVITY, NEED_IDS, NEED_WEIGHTS, TICKS_PER_DAY } from '../../constants';
+import { MOOD_PRODUCTIVITY, NEED_IDS, TICKS_PER_DAY } from '../../constants';
 import type { Household, Resident, TickCtx, WorldState } from '../../contracts';
 import { findById } from '../../state/entities';
 import { moodBand } from '../../view/hamlet';
 import { modifierValue } from './api';
 import { averageAround, tasteScore } from './desirability';
 import { walkGrid } from '../movement/grid';
+import { weightsOf } from '../services/weights';
 import { doorOf, tileX, tileZ, wellsOf } from './places';
 import { marketOpen } from '../market/api';
 import { announceHousehold } from './records';
 import { hasTrait, traitSum } from './traits';
 
 export const Need = { food: 0, water: 1, shelter: 2, belonging: 3, beauty: 4 } as const;
-/**
- * I2 (C4A): the weights in force. The `goods` need (the basket) weighs only once the market opens
- * at Village rank, so a Hamlet's moods stay I1's to the point.
- */
-const HAMLET_WEIGHTS: readonly number[] = NEED_WEIGHTS.map((w, i) => (NEED_IDS[i] === 'goods' ? 0 : w));
-export function needWeights(state: WorldState): readonly number[] {
-  return marketOpen(state) ? NEED_WEIGHTS : HAMLET_WEIGHTS;
-}
-const totalOf = (w: readonly number[]) => w.reduce((a, b) => a + b, 0);
-const TOTALS = new Map<readonly number[], number>([
-  [NEED_WEIGHTS, totalOf(NEED_WEIGHTS)],
-  [HAMLET_WEIGHTS, totalOf(HAMLET_WEIGHTS)],
-]);
 /** Charm at which a settler home counts as beautiful (tune). */
 export const BEAUTY_THRESHOLD = { settler: 25, craftsfolk: 35, merchant: 45, patron: 55 } as const;
 
@@ -216,9 +204,14 @@ function belongingTarget(r: Resident): number {
   return best >= 2 ? 100 : best === 1 ? 70 : r.friends.length > 0 ? 50 : 35;
 }
 
-/** Need contribution to mood (weighted), as whole points. */
-export function needPoints(r: Resident, i: number, weights: readonly number[] = HAMLET_WEIGHTS): number {
-  return ((r.needs[i] ?? 0) * weights[i]!) / (TOTALS.get(weights) ?? totalOf(weights));
+/**
+ * Need contribution to mood (weighted), as whole points. I2 (C4C): the weights depend on the tier
+ * and life stage (Craftsfolk weigh the tavern and the herbalist; Settlers weigh exactly as in I1);
+ * C4A: the goods need counts once the market is open (`marketOpen`).
+ */
+export function needPoints(r: Resident, i: number, market = false): number {
+  const row = weightsOf(r, market);
+  return ((r.needs[i] ?? 0) * row.w[i]!) / row.total;
 }
 
 /** +2 when a friend at level 1 or more is Cheerful (it spreads). */
@@ -233,8 +226,8 @@ export function cheerfulFriendBonus(state: WorldState, r: Resident): number {
 
 export function computeMood(state: WorldState, r: Resident): number {
   let mood = 0;
-  const weights = needWeights(state);
-  for (let i = 0; i < NEED_IDS.length; i++) mood += needPoints(r, i, weights);
+  const market = marketOpen(state);
+  for (let i = 0; i < NEED_IDS.length; i++) mood += needPoints(r, i, market);
   mood += traitSum(r, 'mood') + cheerfulFriendBonus(state, r);
   const t = state.tick;
   for (const m of r.modifiers) mood += modifierValue(m, t);

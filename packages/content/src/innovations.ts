@@ -1,8 +1,8 @@
 import type { InnovationDef } from './types';
 
 // The I2 innovations (docs/spec/15-progression.md, Innovations). Conditions use named code
-// predicates and measures that C4C implements in packages/sim (systems/innovations); until then an
-// unknown predicate is false, so nothing unlocks early.
+// predicates and measures implemented in packages/sim/src/systems/innovations/measures.ts (C4C).
+// `storyStep`'s arc is an index into content.stories (C4D's arcs).
 
 export const brickKiln: InnovationDef = {
   id: 'brick-kiln',
@@ -55,7 +55,8 @@ export const waterWheel: InnovationDef = {
       },
     ],
   },
-  unlocks: ['sawmill-water'],
+  measure: 'waterWheel',
+  unlocks: ['sawmill'],
   rank: 'hamlet',
 };
 
@@ -72,5 +73,6 @@ export const wheelbarrows: InnovationDef = {
   },
   measure: 'portersBusyDays',
   unlocks: ['porter-carry-6'],
-  rank: 'hamlet',
+  // C4C: from Village rank, so a Hamlet's porters (always busy early on) play as in I1.
+  rank: 'village',
 };

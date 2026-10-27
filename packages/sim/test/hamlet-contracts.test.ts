@@ -223,7 +223,7 @@ describe('views, frames and inspect', () => {
     const { state } = hamletFixture();
     const view = buildView(state);
     expect(view.residents).toHaveLength(9);
-    expect(view.patterns).toHaveLength(8);
+    expect(view.patterns).toHaveLength(content.patterns.length);
     expect(view.achievements).toHaveLength(10);
     expect(view.stocks!.lines.find((l) => l.good === 'bread')!.stock).toBe(26);
     expect(view.buildings.find((b) => b.def === 'bakery')!.rt!.input).toEqual([['flour', 4]]);

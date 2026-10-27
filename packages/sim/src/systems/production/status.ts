@@ -10,6 +10,7 @@ import { emitBuilding } from '../economy/emit';
 import { doorTile } from '../movement/api';
 import { porterServed, storehouseReach, type Reach } from '../logistics/range';
 import { defOf, isMarket, outputCap } from '../logistics/stores';
+import { cartShedStatus } from '../logistics/carts';
 import { CROP_YIELD, ownedFields } from './fields';
 import { countMatureTrees, FORESTRY_RANGE } from './forestry';
 import { DISREPAIR_CONDITION } from './produce';
@@ -104,6 +105,9 @@ export function computeStatus(
   if ((def.jobs?.count ?? 0) > 0 && rt.workers.length === 0) s |= BuildingStatus.noWorkers;
   if (wantsRoad(def) && !roadAtDoor) s |= BuildingStatus.noRoad;
   if (rt.condition < DISREPAIR_CONDITION) s |= BuildingStatus.disrepair;
+  // I2 (C4C): a home waiting for upgrade materials, a cart shed with no cart road out.
+  if (rt.upgrade) s |= BuildingStatus.upgrading;
+  s |= cartShedStatus(state, b);
   const method = def.methods?.[rt.method];
   if (wantsPorters(def, method) && !porterServed(reaches, doorTile(b, def))) s |= BuildingStatus.noPorters;
   if (!method) return s;

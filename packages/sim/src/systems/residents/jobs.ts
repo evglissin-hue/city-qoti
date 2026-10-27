@@ -10,6 +10,7 @@ import { findById } from '../../state/entities';
 import { townStock } from '../../view/hamlet';
 import { setInside } from '../movement/api';
 import { doorOf, householdOf, isWorkingAge, manhattan } from './places';
+import { jobFits, tierShortages } from '../tiers/api';
 import { pushHistory } from './records';
 import { dayIndex } from './time';
 
@@ -32,7 +33,12 @@ const FOOD_CHAIN = new Set([...FOOD, 'wheat', 'flour']);
 export interface Shortages {
   food: boolean;
   goods: Set<string>;
+  /** I2 (C4C): more than PLENTY_DAYS of food in hand, so farms and fishers can spare hands. */
+  plenty?: boolean;
 }
+
+/** Days of food in hand above which food jobs stop outranking other work (C4C). */
+export const PLENTY_DAYS = 8;
 
 export function shortages(state: WorldState): Shortages {
   const stock = townStock(state);
@@ -54,7 +60,13 @@ export function shortages(state: WorldState): Shortages {
     const g = content.goodIndex.get(id)!;
     if (stock[g]! < needs[g]! + 20) goods.add(id);
   }
-  return { food: food < 3 * state.residents.length, goods };
+  // I2 (C4C): what the Craftsfolk basket is short of (nothing before the Village).
+  for (const id of tierShortages(state, stock)) goods.add(id);
+  return {
+    food: food < 3 * state.residents.length,
+    goods,
+    plenty: food > PLENTY_DAYS * state.residents.length,
+  };
 }
 
 function makes(def: BuildingDef, short: Shortages): 'short' | 'food' | 'other' {
@@ -82,8 +94,13 @@ export function slotPriority(def: BuildingDef, k: number, short: Shortages = NO_
   if (role === 'builder') return k === 0 ? 0 : k === 1 ? 1 : 4;
   if (role === 'porter') return k === 0 ? 0 : k === 1 ? 1 : 4;
   if (role === 'vendor') return 1;
+  // I2 (C4C): a tavern, herbalist or school open matters like a stall's vendor; and a town sitting on
+  // more than eight days of food lets its plots, farms and fishers go to other work first.
+  if (def.category === 'service') return k === 0 ? 0 : 1;
   const kind = makes(def, short);
-  return kind === 'short' ? 0 : kind === 'food' ? 2 : 3;
+  // The mill and the bakery keep their hands: bread is its own need for Craftsfolk.
+  const grows = (def.methods ?? []).every((m) => m.kind !== 'craft');
+  return kind === 'short' ? 0 : kind === 'food' ? (short.plenty && grows ? 5 : 2) : 3;
 }
 
 const NO_SHORTAGES: Shortages = { food: false, goods: new Set() };
@@ -143,7 +160,9 @@ const STUCK = BuildingStatus.noTrees | BuildingStatus.noFields | BuildingStatus.
 
 /** Priority of a job at a building: its slot priority, or last when the building is stuck. */
 function jobPriority(b: Building, def: BuildingDef, k: number, short: Shortages): number {
-  return b.rt && b.rt.status & STUCK ? 5 : slotPriority(def, k, short);
+  // C4C: a tavern out of cider or a herbalist out of herbs still serves; it is never stuck.
+  const stuck = def.category !== 'service' && !!b.rt && (b.rt.status & STUCK) !== 0;
+  return stuck ? 5 : slotPriority(def, k, short);
 }
 
 /** Priority of a building's next open slot (Infinity when it has none). */
@@ -174,6 +193,8 @@ export function assignJobs(state: WorldState, _ctx: TickCtx, only?: Resident): n
     for (const b of open) {
       const p = openPriority(b, short);
       if (p === Infinity) continue;
+      // I2 (C4C): jobs at their tier or one below.
+      if (!jobFits(r.tier, content.buildingById.get(b.def))) continue;
       const d = manhattan(homeDoor, doorOf(state, b.id));
       if (p < bestP || (p === bestP && d < bestD)) {
         bestP = p;
@@ -181,7 +202,7 @@ export function assignJobs(state: WorldState, _ctx: TickCtx, only?: Resident): n
         best = b;
       }
     }
-    if (!best) break;
+    if (!best) continue;
     hire(state, r, best);
     hired++;
   }
@@ -219,6 +240,7 @@ export function rebalanceJobs(state: WorldState): boolean {
       if (!r || r.activity.kind === 'task' || r.carry) continue;
       // Apprentices see their season out (C4D).
       if (r.apprentice && r.apprentice.untilDay > dayIndex(state.tick)) continue;
+      if (!jobFits(r.tier, content.buildingById.get(target.def))) continue;
       fromP = p;
       from = r;
       break;
@@ -241,6 +263,9 @@ export function auditJobs(state: WorldState): void {
     if (!b) release(state, r, true);
     // Pausing a building lets its workers go (a Ledger lever for labor), once their task is done.
     else if (b.rt?.paused && r.activity.kind !== 'task' && !r.carry) release(state, r);
+    // C4C: a worker who has grown old hands the job on (the schedule no longer sends elders to
+    // work, so the job sat empty; a Village autoplay lost its only miller that way).
+    else if (!isWorkingAge(r) && r.activity.kind !== 'task' && !r.carry) release(state, r);
   }
   for (const b of state.buildings) {
     const rt = b.rt;

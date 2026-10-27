@@ -8,7 +8,10 @@ import { worldIndex } from '../state/worldIndex';
 import { treeStage, TREE_MATURE } from '../map/layers';
 import { modifierValue } from '../systems/residents/api';
 import { describeHome } from '../systems/residents/desirability';
-import { cheerfulFriendBonus, needPoints, needWeights } from '../systems/residents/needs';
+import { cheerfulFriendBonus, needPoints } from '../systems/residents/needs';
+import { marketOpen } from '../systems/market/api';
+import { serviceNeedWords, weightsOf } from '../systems/services/weights';
+import { tierProgress } from '../systems/tiers/api';
 import { dayIndex } from '../systems/residents/time';
 import { doorOf } from '../systems/residents/places';
 import { nameOf, residentView, wishView } from './hamlet';
@@ -148,7 +151,7 @@ const MODIFIER_TEXT: readonly [kind: string, text: string][] = [
 ];
 
 function needText(i: number, value: number): string {
-  for (const [min, text] of NEED_WORDS[i] ?? []) if (value >= min) return text;
+  for (const [min, text] of NEED_WORDS[i] ?? serviceNeedWords(i)) if (value >= min) return text;
   return NEED_IDS[i] ?? 'need';
 }
 
@@ -263,11 +266,14 @@ export function residentDetail(state: WorldState, id: EntityId): ResidentDetail 
   const wish = r.wishId ? state.wishes.find((w) => w.id === r.wishId) : undefined;
   // I2 (C4.0): needs that weigh nothing yet (the tier needs, until C4A and C4C weigh them) stay out
   // of the inspector.
-  const weights = needWeights(state);
+  // I2 (C4C): weights by tier and stage, so Craftsfolk see their tavern and herbalist; C4A: the
+  // goods need once the market is open.
+  const market = marketOpen(state);
+  const weights = weightsOf(r, market).w;
   const shown = NEED_IDS.map((_, i) => i).filter((i) => (weights[i] ?? 0) > 0);
   const moodLines: { label: string; value: number }[] = shown.map((i) => ({
     label: needText(i, r.needs[i] ?? 0),
-    value: Math.round(needPoints(r, i, weights)),
+    value: Math.round(needPoints(r, i, market)),
   }));
   for (const t of r.traits) {
     const def = content.traitById.get(t);
@@ -317,4 +323,7 @@ function addLives(state: WorldState, r: Resident, detail: ResidentDetail): void 
   if (story) detail.story = storyView(state, story);
   const h = findById(state.households, r.householdId);
   if (h?.savings) detail.savings = h.savings;
+  // I2 (C4C): the next tier, how many days in a row the household has met it, and what is missing.
+  const progress = h ? tierProgress(state, h) : null;
+  if (progress) detail.tierProgress = progress;
 }

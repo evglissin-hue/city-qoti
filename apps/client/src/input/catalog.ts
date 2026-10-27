@@ -29,15 +29,19 @@ export function buildingGroup(def: BuildingDef): BuildingGroup {
 
 /** Buildings the picker offers: the valley mode's, and in the Hearth lens only the homely ones. */
 export function buildingChoices(mode: ValleyMode, lens: Lens): BuildingDef[] {
-  return content.buildings
-    .filter((d) => !d.modes || d.modes.includes(mode))
-    .filter((d) => lens === 'ledger' || d.lane !== 'ledger')
-    .sort(
-      (a, b) =>
-        GROUP_ORDER.indexOf(buildingGroup(a)) - GROUP_ORDER.indexOf(buildingGroup(b)) ||
-        (a.cost?.coins ?? 0) - (b.cost?.coins ?? 0) ||
-        a.name.localeCompare(b.name),
-    );
+  return (
+    content.buildings
+      .filter((d) => !d.modes || d.modes.includes(mode))
+      // I2 (C4C): grown-only defs (shops, workshops, farmsteads, townhouses) come up on lots.
+      .filter((d) => mode !== 'standard' || !d.grows || !!d.grows.handPlaced)
+      .filter((d) => lens === 'ledger' || d.lane !== 'ledger')
+      .sort(
+        (a, b) =>
+          GROUP_ORDER.indexOf(buildingGroup(a)) - GROUP_ORDER.indexOf(buildingGroup(b)) ||
+          (a.cost?.coins ?? 0) - (b.cost?.coins ?? 0) ||
+          a.name.localeCompare(b.name),
+      )
+  );
 }
 
 export function groupsOf(defs: readonly BuildingDef[]): BuildingGroup[] {

@@ -8,6 +8,16 @@ import { pavedDesireTiles } from '../systems/traffic/wear';
 import { decorInRect, decorTileX, decorTileZ, expandRect } from './geo';
 import type { Binding } from './index';
 import { findRoute } from './route';
+// I2 (C4C): the innovations' predicates live with their measures.
+import {
+  clayPitWorked,
+  plankRate,
+  portersBusy,
+  rankAtLeastCode,
+  sawpitByRiver,
+  stoneRate,
+  storyStep,
+} from '../systems/innovations/measures';
 
 export type CodePredicate = (
   state: WorldState,
@@ -70,7 +80,14 @@ export function pathRoute(state: WorldState, bind: Binding): boolean {
 // Registry: one line per predicate, alphabetical.
 // prettier-ignore
 export const codePredicates: ReadonlyMap<string, CodePredicate> = new Map<string, CodePredicate>([
+  ['clayPitWorked', clayPitWorked],
   ['desireLines', desireLines],
   ['lanternRoute', lanternRoute],
   ['pathRoute', pathRoute],
+  ['plankRate', plankRate],
+  ['portersBusy', portersBusy],
+  ['rankAtLeast', rankAtLeastCode],
+  ['sawpitByRiver', sawpitByRiver],
+  ['stoneRate', stoneRate],
+  ['storyStep', storyStep],
 ]);
