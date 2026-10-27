@@ -88,8 +88,8 @@ describe('two players, three evenings', { timeout: 120_000 }, () => {
 // C4C: the Village run. From the same start, the players claim the Village Charter, then build
 // the chains, services and homes toward Craftsfolk. C4X: the run grows on without dead ends (no
 // lean times, nobody leaving, every ten days more residents), and the County Bank's loans peak and
-// come down again. Craftsfolk are not asserted: the autoplayer raises a handful at times (0 to 12
-// across five seeds at day 90), well short of the 40 the tuning brief aimed for, because a Village
+// come down again. Craftsfolk are not asserted: the autoplayer raises a handful at times (0 to 14
+// at their peak across five seeds), well short of the 40 the tuning brief aimed for, because a Village
 // of 150 to 220 has its hands in food, porters and builders (see docs/spec/13-ledger.md, C4X).
 describe('a Village run', { timeout: 240_000 }, () => {
   it('grows on as a Village with its loans in hand (oak)', () => {
