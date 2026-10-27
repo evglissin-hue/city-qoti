@@ -45,6 +45,7 @@ import {
   fieldTileProblem,
   findRoute,
   growthDemand,
+  treeStage,
   Zone,
   type Building,
   type Command,
@@ -52,7 +53,7 @@ import {
   type ValleySettings,
   type WorldState,
 } from '@qoti/sim';
-import { command, findSpot, runTicks, startingTown, type Hamlet } from './hamlet';
+import { command, findSpot, matureTreesNear, runTicks, startingTown, type Hamlet } from './hamlet';
 import {
   grownSince,
   growthLine,
@@ -267,6 +268,8 @@ class Players {
   /** The next food building: a fishers' hut for every two plots, while the river has room. */
   /** Buildings the larder rest paused (so only those reopen; the Village player rests its own). */
   private readonly rested = new Set<number>();
+  /** Sawpits rested so the logs go to the next woodcutter. */
+  private readonly keptLogs = new Set<number>();
 
   foodBuilding(): string {
     const w = this.w;
@@ -393,7 +396,20 @@ class Players {
     const felled = w.buildings.filter(
       (b) => b.def === 'woodcutter' && b.stage === 'built' && (b.rt!.status & BuildingStatus.noTrees) !== 0,
     );
-    want(felled.length > 0 && count(w, 'woodcutter') - felled.length < 2, 'woodcutter');
+    // C4X: and one goes up while the last good patch is thinning, with logs kept back for it (the
+    // sawpits used to saw the last log the day the patch ran out, and with no logs no woodcutter
+    // could ever be built again: a hamlet sat at 40 residents for fifty days).
+    const healthy = w.buildings.filter(
+      (b) =>
+        b.def === 'woodcutter' &&
+        (b.stage !== 'built' || ((b.rt!.status & BuildingStatus.noTrees) === 0 && matureTreesNear(w, b.x, b.z, 8) >= 15)),
+    ).length;
+    const thinning = count(w, 'woodcutter', true) > 0 && healthy === 0;
+    want(
+      (felled.length > 0 && count(w, 'woodcutter') - felled.length < 2) || thinning,
+      'woodcutter',
+      thinning,
+    );
     // C4C: retire it only once a working one stands, or a valley with no logs left can never
     // build another (a Village run found that deadlock).
     const working = w.buildings.some(
@@ -452,8 +468,19 @@ class Players {
     // planks and stone are plentiful, so their hands go to the fields (the sim only calls food
     // short under three days); they reopen once the larder is full or the stocks run low.
     const resting = larderLow && pop >= 30;
+    // Logs kept back for the next woodcutter while the patch thins.
+    const keepLogs = thinning && stock[G('logs')]! < 16;
     for (const b of w.buildings) {
       if (b.stage !== 'built' || !b.rt) continue;
+      if (b.def === 'sawpit' && (keepLogs || this.keptLogs.has(b.id))) {
+        if (keepLogs === b.rt.paused) continue;
+        if (keepLogs) this.keptLogs.add(b.id);
+        else this.keptLogs.delete(b.id);
+        this.do(`${keepLogs ? 'rest' : 'reopen'} the sawpit for the woodcutter's logs`, [
+          { t: 'build.setPaused', id: b.id, paused: keepLogs },
+        ]);
+        continue;
+      }
       // Rest from 60 planks, 40 stone or 30 logs, reopen under 30, 20 or 15 (a gap, so it does not
       // flip daily).
       const [have, high, low] =
@@ -744,12 +771,12 @@ class Players {
           Math.abs(h.x - b.x) <= 9 &&
           Math.abs(h.z - b.z) <= 9,
       ).length;
-    const wells = w.buildings.filter((b) => b.def === 'well' && b.stage === 'built');
-    const well = wells.reduce<Building | undefined>(
-      (best, b) => (!best || homesNear(b) > homesNear(best) ? b : best),
-      undefined,
-    );
-    if (well) {
+    // C4X: the first such well (most homes first) where two seats and a tree can still go; the
+    // busiest one was sometimes boxed in by homes and fields, and the pattern never came.
+    const wells = w.buildings
+      .filter((b) => b.def === 'well' && b.stage === 'built' && homesNear(b) >= 3)
+      .sort((a, b) => homesNear(b) - homesNear(a) || a.id - b.id);
+    for (const well of wells) {
       const near = (def: string, r: number) =>
         w.decor.filter(
           (d) =>
@@ -757,10 +784,28 @@ class Players {
             Math.abs(d.fx / TILE_FP - (well.x + 0.5)) <= r + 1 &&
             Math.abs(d.fz / TILE_FP - (well.z + 0.5)) <= r + 1,
         ).length;
-      if (near('bench', 2) < 2)
-        this.place('bench', this.decorSpot('bench', well.x, well.z, 2), 'by the well');
-      if (near('apple-tree', 3) < 1)
-        this.place('apple-tree', this.decorSpot('apple-tree', well.x, well.z, 3), 'by the well');
+      // Within three tiles of the well's footprint, searched a little wider than its corner.
+      const d = content.buildingById.get(well.def)!;
+      const [ww, wd] = well.rot % 2 === 0 ? d.size : [d.size[1], d.size[0]];
+      const shade = (fx: number, fz: number) => {
+        const tx = Math.floor(fx / TILE_FP);
+        const tz = Math.floor(fz / TILE_FP);
+        const gx = Math.max(0, well.x - tx, tx - (well.x + ww - 1));
+        const gz = Math.max(0, well.z - tz, tz - (well.z + wd - 1));
+        return gx * gx + gz * gz <= 9;
+      };
+      const benches = near('bench', 2) >= 2 ? null : this.decorSpot('bench', well.x, well.z, 2);
+      if (near('bench', 2) < 2 && !benches) continue;
+      const shaded = near('apple-tree', 3) + near('cherry-tree', 3) > 0 || treeNear(w, well, 3, 2);
+      const tree = shaded
+        ? null
+        : (['apple-tree', 'cherry-tree'] as const)
+            .map((t) => [t, this.decorSpot(t, well.x, well.z, 5, shade)] as const)
+            .find(([, at]) => at);
+      if (!shaded && !tree) continue;
+      if (benches) this.place('bench', benches, 'by the well');
+      if (tree) this.place(tree[0], tree[1], 'by the well');
+      break;
     }
   }
 
@@ -825,6 +870,18 @@ class Players {
       }
     }
   }
+}
+
+/** A tree on the map, grown to at least `stage`, within `r` tiles of a building. */
+function treeNear(w: WorldState, b: Building, r: number, stage: number): boolean {
+  const def = content.buildingById.get(b.def)!;
+  const [bw, bd] = b.rot % 2 === 0 ? def.size : [def.size[1], def.size[0]];
+  for (let z = Math.max(0, b.z - r); z < Math.min(S, b.z + bd + r); z++)
+    for (let x = Math.max(0, b.x - r); x < Math.min(S, b.x + bw + r); x++) {
+      const v = w.map.tree[z * S + x]!;
+      if (v && treeStage(v) >= stage) return true;
+    }
+  return false;
 }
 
 /** Ids of the Charter goals still open. */

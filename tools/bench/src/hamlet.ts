@@ -280,7 +280,7 @@ function crowded(world: WorldState, x0: number, z0: number, w: number, d: number
   return false;
 }
 
-function matureTreesNear(world: WorldState, x: number, z: number, r: number): number {
+export function matureTreesNear(world: WorldState, x: number, z: number, r: number): number {
   let n = 0;
   for (let tz = z - r; tz <= z + r; tz++) {
     for (let tx = x - r; tx <= x + r; tx++) {

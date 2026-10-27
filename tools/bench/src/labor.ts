@@ -45,12 +45,15 @@ function core(def: string): number {
   return jobs.role === 'porter' || jobs.role === 'builder' ? Math.min(2, jobs.count) : jobs.count;
 }
 
-/** Open core jobs at standing buildings of a def: no point building another while these sit empty. */
+/**
+ * Open core jobs at standing buildings of a def: no point building another while these sit empty
+ * (a stuck one does not count: a woodcutter that has felled its patch must be replaced).
+ */
 export function vacancies(w: WorldState, def: string): number {
   const n0 = core(def);
   let n = 0;
   for (const b of w.buildings)
-    if (b.def === def && b.stage === 'built' && b.rt) n += Math.max(0, n0 - b.rt.workers.length);
+    if (b.def === def && b.stage === 'built' && b.rt && asks(b)) n += Math.max(0, n0 - b.rt.workers.length);
   return n;
 }
 

@@ -206,7 +206,9 @@ export class VillagePlayer {
     if (budget > 0 && count(w, 'clay-pit') === 0 && !this.want('clay-pit') && this.p.blocked('clay-pit'))
       this.outpost('clay-pit');
     go(count(w, 'chopping-shed') < 1 + Math.floor(crafts / 24), 'chopping-shed');
-    go(hasInnovation(w, 'brick-kiln') && count(w, 'brick-kiln') < 1 + Math.floor(crafts / 16), 'brick-kiln');
+    // C4X: bricks and cloth by the size of the town, not its Craftsfolk: what the Village sells
+    // beyond the valley pays for its sites and loans (and there were no Craftsfolk to count yet).
+    go(hasInnovation(w, 'brick-kiln') && count(w, 'brick-kiln') < 1 + Math.floor(pop / 80), 'brick-kiln');
     go(hasInnovation(w, 'brick-kiln') && count(w, 'clay-pit') < count(w, 'brick-kiln', true), 'clay-pit');
     go(count(w, 'herb-garden') < count(w, 'herbalist', true), 'herb-garden');
     // Treats: apples pressed into cider (the tavern pours some of it).
@@ -214,9 +216,9 @@ export class VillagePlayer {
     go(count(w, 'orchard') < 2 + Math.floor(pop / 40) + Math.floor(count(w, 'tavern') / 2), 'orchard');
     go(count(w, 'orchard', true) > 0 && count(w, 'cider-press') < count(w, 'orchard', true), 'cider-press');
     // Cloth for the basket.
-    go(count(w, 'sheep-pasture') < 1 + Math.floor(crafts / 30), 'sheep-pasture');
+    go(count(w, 'sheep-pasture') < 1 + Math.floor(pop / 60), 'sheep-pasture');
     go(count(w, 'spinner') < count(w, 'sheep-pasture', true), 'spinner');
-    go(count(w, 'weaver') < Math.min(count(w, 'spinner', true), 1 + Math.floor(crafts / 30)), 'weaver');
+    go(count(w, 'weaver') < count(w, 'spinner', true), 'weaver');
     // Skilled work, once there are Craftsfolk to do it.
     go(crafts >= 8 && count(w, 'dairy') === 0, 'dairy');
     go(crafts >= 8 && count(w, 'dairy', true) > 0 && count(w, 'cheesemaker') === 0, 'cheesemaker');
@@ -319,7 +321,7 @@ export class VillagePlayer {
   private serve(def: string, kind: 'social' | 'health'): boolean {
     const w = this.w;
     if (w.buildings.some((b) => b.def === def && b.stage === 'construction')) return false;
-    if (count(w, def) >= 1 + Math.floor(w.residents.length / 40)) return false;
+    if (count(w, def) >= 1 + Math.floor(w.residents.length / 30)) return false;
     if (!canStaff(w, def, true)) return false;
     const covered = serviceCoverage(w, kind).quality;
     const d = content.buildingById.get(def)!;
@@ -421,7 +423,7 @@ export class VillagePlayer {
       .map((b) => ({ b, charm: charmAt(w, b) }))
       .filter((x) => x.charm < 32)
       .sort((a, b) => a.charm - b.charm || a.b.id - b.b.id)
-      .slice(0, 5);
+      .slice(0, 10);
     for (const { b } of homes) {
       const door = doorTile(b);
       const x = door % 192;
