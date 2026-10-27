@@ -191,13 +191,16 @@ export class VillagePlayer {
     // turn's budget, one site of each at a time; behind the chains they came too late).
     this.serve('tavern', 'social');
     this.serve('herbalist', 'health');
-    // C4X: a pile of yarn or apples gets its weaver or press before anything else (466 yarn and
+    // C4X: a pile of wool, yarn or apples gets its spinner, weaver or press before anything else (466 yarn and
     // 160 apples waited while the Village kept starting other things, and nobody had cloth or
     // cider).
     // Nothing else is started until they are, so the coins are there for them.
     const piles = townStock(w);
+    const spinner = piles[G('wool')]! >= 20 && count(w, 'spinner') < count(w, 'sheep-pasture', true);
     const weaver = piles[G('yarn')]! >= 20 && count(w, 'weaver') < count(w, 'spinner', true);
     const press = piles[G('apples')]! >= 40 && count(w, 'cider-press') < count(w, 'orchard', true);
+    // Wool as well (C4X: 256 wool waited with no spinner, so no Settler household ever had cloth).
+    if (spinner && !this.want('spinner', 8, true)) return;
     if (weaver && !this.want('weaver', 8, true)) return;
     if (press && !this.want('cider-press', 8, true)) return;
     go(count(w, 'farmhouse') === 0, 'farmhouse');

@@ -505,7 +505,9 @@ export const tavern: BuildingDef = {
   },
   upkeep: 2,
   jobs: { count: 2, role: 'worker' },
-  coverage: [{ kind: 'social', radius: 10, capacity: 60 }],
+  // C4X: a tavern serves a whole quarter (14 tiles, 100 residents); at 10 and 60 most homes waited
+  // on a tavern of their own before anyone could become Craftsfolk.
+  coverage: [{ kind: 'social', radius: 14, capacity: 100 }],
   methods: [
     {
       id: 'pour-cider',
@@ -544,7 +546,8 @@ export const herbalist: BuildingDef = {
   },
   upkeep: 2,
   jobs: { count: 1, role: 'worker' },
-  coverage: [{ kind: 'health', radius: 12, capacity: 60 }],
+  // C4X: like the tavern, a herbalist serves a quarter (14 tiles, 100 residents).
+  coverage: [{ kind: 'health', radius: 14, capacity: 100 }],
   methods: [
     {
       id: 'brew-remedies',

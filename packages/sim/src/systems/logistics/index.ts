@@ -1,7 +1,8 @@
 // Porters (docs/spec/13-ledger.md, Logistics). Every PORTER_MATCH_EVERY ticks during work hours,
 // each idle porter in id order takes the best job in reach of its storehouse:
 //
-//   priority construction > food to stalls > production inputs > construction > clearing outputs
+//   priority construction > food to stalls > production inputs and construction (nearest first,
+//   C4X) > clearing outputs
 //
 // with ties going to the nearest source. A job reserves goods at the source (reservedOut) and
 // room at the destination (reservedIn), so nothing is promised twice. Trips walk through the
@@ -206,8 +207,15 @@ function assign(
   let bestDest: Spot | null = null;
   let bestGood = -1;
 
-  for (const need of needs) {
-    if (need.want <= 0 || need.cls > bestCls || !within(reach, need.dest.door)) continue;
+  // C4X: sites and workshop inputs share a class (the nearer source wins), and the scan starts at a
+  // rotating need so ties do not always go to the oldest building. With inputs strictly first, a
+  // busy Village always had some workshop wanting logs, and its sites waited for good (a tavern
+  // stood at 0 of 42 materials for weeks with 69 bricks and 121 planks in store).
+  const off = needs.length > 0 ? state.logistics.nextJobId % needs.length : 0;
+  for (let k = 0; k < needs.length; k++) {
+    const need = needs[(k + off) % needs.length]!;
+    const cls = need.cls === JobClass.site ? JobClass.input : need.cls;
+    if (need.want <= 0 || cls > bestCls || !within(reach, need.dest.door)) continue;
     const goods = need.good >= 0 ? [need.good] : stallOrder(need.dest.rt);
     for (const g of goods) {
       let found = false;
@@ -215,8 +223,8 @@ function assign(
         if (s === need.dest || sourceAvail(s.b, s.def, g) <= 0 || !within(reach, s.door)) continue;
         found = true;
         const d = tileDistance(from, s.door);
-        if (need.cls < bestCls || d < bestD) {
-          bestCls = need.cls;
+        if (cls < bestCls || d < bestD) {
+          bestCls = cls;
           bestD = d;
           bestNeed = need;
           bestSrc = s;

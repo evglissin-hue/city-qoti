@@ -34,7 +34,8 @@ export const craftsfolk: NeedsBasket = {
   ],
   services: ['health', 'social'],
   charm: 25,
-  savings: 30,
+  // C4X: 20 coins put by (30 kept half the households from ever moving up on a Settler's wage).
+  savings: 20,
 };
 
 export const settler: NeedsBasket = {

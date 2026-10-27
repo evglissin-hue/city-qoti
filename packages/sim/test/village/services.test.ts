@@ -1,5 +1,6 @@
 // C4C: service coverage (school, tavern, herbalist) and the tier-aware needs it fills. Calls the
 // services pass directly; the other systems are not involved.
+import { content } from '@qoti/content';
 import { describe, expect, it } from 'vitest';
 import { BuildingStatus } from '../../src/constants';
 import type { Building, Household, WorldState } from '../../src/contracts';
@@ -95,17 +96,18 @@ describe('service coverage', () => {
 
   it('needs staff, stays within its radius and its capacity, and the inspector counts who it serves', () => {
     const { state, tavern } = servedVillage();
-    const cov = serviceCoverage(state, 'social');
-    // Homes beyond 10 tiles of the tavern's door are not covered (the far end of street B).
-    const far = state.households.find((h) => findById(state.buildings, h.homeId)!.x >= 56)!;
-    expect(cov.quality.has(far.id)).toBe(false);
+    const { radius, capacity = 0 } = content.buildingById.get('tavern')!.coverage![0]!;
+    // A home well beyond the tavern's reach is not covered.
+    const farHome = place(state, 'cottage', tavern.x + radius + 6, tavern.z);
+    const far = addHousehold(state, farHome, 'craftsfolk', 1);
+    expect(serviceCoverage(state, 'social').quality.has(far.id)).toBe(false);
     const served = servedBy(state, tavern, 'social');
     expect(served).toBeGreaterThan(0);
-    expect(served).toBeLessThanOrEqual(60);
-    expect(buildingDetail(state, tavern.id)!.served).toEqual({ residents: served, capacity: 60 });
+    expect(served).toBeLessThanOrEqual(capacity);
+    expect(buildingDetail(state, tavern.id)!.served).toEqual({ residents: served, capacity });
     // Fill the tavern up: a big family next door finds no room.
     const home = place(state, 'cottage', 36, 58);
-    const big = addHousehold(state, home, 'craftsfolk', 60 - served + 1);
+    const big = addHousehold(state, home, 'craftsfolk', capacity - served + 1);
     expect(serviceCoverage(state, 'social').quality.has(big.id)).toBe(false);
     // No staff, no tavern.
     tavern.rt!.workers.length = 0;
