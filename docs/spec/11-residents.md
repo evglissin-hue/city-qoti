@@ -242,3 +242,10 @@ Residents take the open job that matters most, nearest first among equals:
 | 5 | jobs at a building that is stuck (no trees in reach, no fields, missing inputs) |
 
 Each hour one worker may move from a job two levels less important (or any job, when the open one makes something short) to the most important open job; workers on a Ledger task finish it first. Pausing a building lets its workers go, which is the Ledger's lever on labor.
+
+*As built (C4X tuning)*: the jobs rules did not change. Measured with the autoplayer over five seeds and 90 days:
+
+- About 65% of residents can work (the rest are children, elders and the retired).
+- Workers are at their workplace for about 95% of the working day, but a plot or hut makes only 2.5 to 3 food a worker a day against 6 to 9 on paper. The rest is lost to full output buffers waiting for porters, so storehouses (porters at priority 0 and 1) matter as much as farms.
+- A Village of 150 to 220 has 40 to 55% of its hands in food. Porters, builders, services and timber take most of the rest, which leaves few hands for the Craftsfolk chains (bread, cider, cloth, firewood).
+- Households save toward the next tier and treat themselves only from what is left over (see 13-ledger.md, Market and prices, C4X).
