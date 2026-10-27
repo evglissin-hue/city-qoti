@@ -2,6 +2,8 @@ import { useState } from 'preact/hooks';
 import type { Session } from '../app/session';
 import { copy } from './copy';
 import { clampScale, loadSettings, saveSettings, type UiSettings } from './settings';
+import { clampVolume, type AudioSettings } from '../audio/settings';
+import { audioSettings, setAudioSettings } from '../audio/store';
 
 type Quality = 'low' | 'medium' | 'high';
 const QUALITY_KEY = 'qoti.quality.v1';
@@ -23,7 +25,7 @@ function saveQuality(q: Quality): void {
   }
 }
 
-/** Settings card: quality preset, interface size and calm motion. */
+/** Settings card: quality preset, interface size, calm motion and sound. */
 export function SettingsPanel({ session }: { session: Session }) {
   const [s, setS] = useState<UiSettings>(() => loadSettings());
   const [quality, setQuality] = useState<Quality>(() => loadQuality());
@@ -90,6 +92,7 @@ export function SettingsPanel({ session }: { session: Session }) {
             {copy.settings.reducedMotion} <span class="muted">{copy.settings.reducedMotionHint}</span>
           </span>
         </label>
+        <SoundSettings />
         <fieldset class="keep-copy">
           <legend>{copy.settings.keepCopy}</legend>
           <p class="muted">{copy.settings.keepCopyHint}</p>
@@ -105,6 +108,54 @@ export function SettingsPanel({ session }: { session: Session }) {
         </div>
       </div>
     </div>
+  );
+}
+
+/** C5G: a volume per bus and a mute, saved in this browser. */
+function SoundSettings() {
+  const a = audioSettings.value;
+  const sliders: [keyof Omit<AudioSettings, 'muted'>, string][] = [
+    ['master', copy.settings.master],
+    ['music', copy.settings.music],
+    ['ambience', copy.settings.ambience],
+    ['effects', copy.settings.effects],
+  ];
+  return (
+    <fieldset class="sound" data-testid="sound-settings">
+      <legend>{copy.settings.sound}</legend>
+      <p class="muted">{copy.settings.soundHint}</p>
+      {sliders.map(([key, label]) => (
+        <label key={key} class="scale">
+          {label} <strong>{Math.round(a[key] * 100)}%</strong>
+          <input
+            type="range"
+            min={0}
+            max={100}
+            step={5}
+            value={Math.round(a[key] * 100)}
+            disabled={a.muted}
+            data-testid={`volume-${key}`}
+            onInput={(e) =>
+              setAudioSettings({
+                ...a,
+                [key]: clampVolume(Number((e.target as HTMLInputElement).value) / 100, a[key]),
+              })
+            }
+          />
+        </label>
+      ))}
+      <label class="check">
+        <input
+          type="checkbox"
+          checked={a.muted}
+          data-testid="mute"
+          onChange={(e) => setAudioSettings({ ...a, muted: (e.target as HTMLInputElement).checked })}
+        />
+        <span>
+          {copy.settings.mute} <span class="muted">{copy.settings.muteHint}</span>
+        </span>
+      </label>
+    </fieldset>
   );
 }
 

@@ -171,6 +171,12 @@ export class CameraController {
     on(window, 'blur', () => this.keys.clear());
   }
 
+  /** Where the camera looks, for the ambience (C5G): ground focus, yaw and distance. */
+  get look(): { x: number; z: number; yaw: number; distance: number } {
+    const v = this.view;
+    return { x: v.x, z: v.z, yaw: v.yaw, distance: v.distance };
+  }
+
   private get worldPerPixel(): number {
     const height = this.el.clientHeight || 1;
     return (2 * this.view.distance * Math.tan(MathUtils.degToRad(FOV / 2))) / height;

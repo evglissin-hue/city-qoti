@@ -707,6 +707,11 @@ input::placeholder {
   animation: none !important;
 }
 
+.modal.settings {
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
 .settings fieldset {
   border: none;
   margin: 0;
@@ -738,6 +743,15 @@ input::placeholder {
   padding: 0;
   border: none;
   background: transparent;
+}
+
+.settings fieldset.sound {
+  display: grid;
+  gap: 8px;
+}
+
+.settings fieldset.sound label.scale {
+  font-weight: 600;
 }
 
 .settings label.check {

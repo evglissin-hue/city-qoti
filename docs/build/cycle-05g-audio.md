@@ -50,3 +50,19 @@ Layered stems that follow the town's size (I5, if CC0 stems are found), position
 
 - P48 asks for stems that follow the hour and the season; with CC0 recordings, whole tracks by phase with crossfades are the honest version. Note the gap in `17-presentation.md`.
 - Keep files short and loop-clean for ambience (8 to 30 s with a crossfaded loop point).
+
+## As built
+
+The CC0 hosts (Freesound, OpenGameArt, Kenney, FreePD, the Free Music Archive, Musopen, archive.org) were blocked by the build environment's network policy, so every sound is synthesized in the browser instead, which the owner allowed. The manifest, `npm run audio:fetch` (hash check, trim, loudnorm, AAC) and the manifest test are in place for recordings added later.
+
+- `apps/client/src/audio/director.ts` picks the style by hour and season and paces pieces and gaps; `composer.ts` writes a piece (A A B A, 12 to 24 bars) from a seed: bass line (walking in the evening), chords (arpeggiated guitar, comped piano, waltz oom-pah-pah, night pad), a motif melody that resolves home, brushes on two and four. Same seed, same piece.
+- `synth/` renders the band (Karplus-Strong guitar and bass, an additive piano with two detuned strings and a hammer, a music box tine, brushes, a pad), nine ambience loops (loop-clean, RMS-normalized so they sit under the music) and sixteen cues, all as Float32Arrays at 22.05 kHz, in `synth/render.worker.ts`; the main thread never renders.
+- `music.ts` schedules notes 0.6 s ahead on the audio clock with a little human timing and touch, and starts a piece only once its notes are rendered.
+- `ambience.ts` and `scene.ts` sample about 300 tiles and the working buildings around the camera every half second; `engine.ts` fades up to eight looping voices toward those levels and pans them by screen side.
+- `cues/index.ts` has one rule per cue (scene before and after each update); the player's own place and remove sounds come from the session at submit; `cues/limiter.ts` keeps a box drag to one sound and caps cues at four a second.
+- `install.ts` loads the engine chunk (28 kB) on the first pointer or key press in a valley; the title screen loads nothing. The context suspends while the tab is hidden.
+- Settings has sliders for everything, music, the valley and clicks and chimes, and a hush; saved per browser (`qoti.audio.v1`).
+- `npm run audio:preview` (`tools/audio/demo.ts`) renders a five-minute WAV of the styles with their ambience, then every cue, to listen to outside the game.
+- Small edits outside the owned paths: `audio/api.ts` gains the `built` and `emote` cue ids (additive); `input/camera.ts` exposes `look` (focus, yaw, distance); `app/session.ts` installs the engine and plays place, remove, ping and emote; `app/debug.ts` adds `__qoti.audio`; `ui/SettingsPanel.tsx`, `ui/copy.ts` and `ui/theme.css` add the sound card; root `package.json` adds `audio:fetch` and `audio:preview`.
+- Not done: captions (optional), sheep and cows, the mill's creak, the plans' pencil scratch.
+

@@ -22,7 +22,9 @@ export type SoundCueId =
   | 'ping'
   | 'pattern'
   | 'achievement'
-  | 'rank-up';
+  | 'rank-up'
+  | 'built'
+  | 'emote';
 
 export interface AudioApi {
   /** Plays a cue once (rate-limited by the engine). */

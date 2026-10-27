@@ -34,6 +34,9 @@ import type { InitSource } from '../worker/messages';
 import { SimHost } from '../worker/host';
 import { updateRecent } from './recent';
 import { initialQuality } from './quality';
+import { audio } from '../audio/api';
+import { cueForCommand } from '../audio/cues/index';
+import { installAudio } from '../audio/install';
 
 export interface SessionTarget {
   valleyId: string;
@@ -69,6 +72,8 @@ export class Session {
   readonly roster = signal<RosterEntry[]>([]);
   connection: RoomConnection | null = null;
   renderer: Renderer | null = null;
+  /** C5G: tears down the audio engine when leaving the valley. */
+  private stopAudio: (() => void) | null = null;
   tools: ToolManager | null = null;
   /** For the debug hook and tests: hashes by turn, first sight of entities, submit times. */
   readonly debug = {
@@ -230,6 +235,8 @@ export class Session {
       ui: this.uiApi(),
     };
     setPingSender((x, z, kind) => this.sendPing(x, z, kind));
+    // C5G: sound starts on the first gesture in the valley, never on the title screen.
+    this.stopAudio = installAudio({ mirror: this.mirror, look: () => this.renderer?.rig.look ?? null });
     this.tools = new ToolManager(ctx, renderer, renderer.canvas, {
       pointer: (p) => this.pointer(p),
       globalKey: (e) => this.globalKey(e),
@@ -246,6 +253,7 @@ export class Session {
 
   private emoteKey = 0;
   private showEmote(seat: number, id: string): void {
+    audio().cue('emote');
     const key = this.emoteKey++;
     this.ui.emotes.value = [...this.ui.emotes.value.slice(-3), { key, seat, id }];
     setTimeout(() => {
@@ -256,6 +264,7 @@ export class Session {
   /** Show a ping here and send it to the partner over the existing ping message. */
   sendPing(x: number, z: number, kind: PingKind): void {
     this.renderer?.ping(this.seat, x + 0.5, z + 0.5, kind);
+    audio().cue('ping');
     // RoomConnection has no ping sender yet (net/ is another cycle's), so reach the raw send.
     const c = this.connection as unknown as {
       send?: (msg: { k: 'ping'; x: number; z: number; kind: PingKind }) => void;
@@ -276,6 +285,8 @@ export class Session {
     this.debug.lastSubmitAt = Date.now();
     const before = record ? this.undo.prepare(cmd, this.mirror) : null;
     const seq = this.connection.submit(cmd);
+    const cue = cueForCommand(cmd.t);
+    if (cue) audio().cue(cue);
     if (before) this.undo.submitted(seq, cmd, before, this.mirror.lastTurn.value);
     return seq;
   }
@@ -386,6 +397,7 @@ export class Session {
       }
       case 'ping':
         this.renderer?.ping(p.seat, p.x, p.z, p.kind);
+        audio().cue('ping');
         break;
       case 'roster':
         this.roster.value = p.roster;
@@ -560,6 +572,7 @@ export class Session {
     this.connection?.close();
     this.tools?.dispose();
     setPingSender(null);
+    this.stopAudio?.();
     this.renderer?.dispose();
     this.host.terminate();
   }

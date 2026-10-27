@@ -106,7 +106,8 @@ Auto-detect picks a preset (Low on phones and two-core machines, otherwise Mediu
 - **Music**: acoustic guitar, piano, upright bass and brushes; light jazz chords in the evening, a waltz in winter. Layered stems that follow time of day and season.
 - **Ambience**: emitters from what is nearby: river, wind, birds by habitat, market chatter by stall density, mill creak, saw, festival crowd, the watch bell.
 - **UI**: paper rustle, soft clicks, pencil scratch for plans.
-- Sources: CC0 or public domain recordings only (decided after I2), listed in `tools/audio/manifest.json` with their source pages and credited in `apps/client/public/audio/CREDITS.md`. With whole CC0 tracks, music follows the hour and season by crossfading between playlists; layered stems wait for I5. Volume sliders per channel (C5G).
+- Sources: CC0 or public domain recordings only (decided after I2), listed in `tools/audio/manifest.json` with their source pages and credited in `apps/client/public/audio/CREDITS.md`. Volume sliders per channel and a mute (C5G).
+- As built (C5G): every sound is synthesized in the browser, so the manifest is empty and nothing is downloaded. A composer writes each piece from a seed in the hour's style (morning guitar, afternoon piano with brushes, swung evening jazz, a night music box, a winter waltz, a minor autumn afternoon), so the music follows the hour and the season by style rather than by stems, with a 4 s crossfade when the style changes and quiet gaps of 20 to 90 s. Ambience loops and cues are synthesized too (`apps/client/src/audio/synth`), rendered once in a worker. The UI's pencil scratch for plans is not in yet; plans use the place and remove sounds.
 
 ## Accessibility [I1]
 

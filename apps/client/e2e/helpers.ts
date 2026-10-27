@@ -26,6 +26,15 @@ export interface QotiHook {
   undoSize(): number;
   // I2 (C4D)
   valleyId(): string | null;
+  // I3 (C5G)
+  audio: {
+    state(): string;
+    gains(): { music: number; ambience: number; effects: number } | null;
+    playing(): { music: string; ambience: { id: string; gain: number; pan: number }[] } | null;
+    cost(): number;
+    pending(): number;
+    cue(id: string): void;
+  };
 }
 
 declare global {

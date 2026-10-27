@@ -18,6 +18,8 @@ import type { Selection } from '../input/context';
 import { applySettings, loadSettings } from '../ui/settings';
 import { folkShowcase } from '../render/folkShowcase';
 import { roadsShowcase } from '../render/roadShowcase';
+import { audio, type SoundCueId } from '../audio/api';
+import { audioEngine } from '../audio/install';
 import { villageShowcase } from '../render/showcase';
 import { fakeCharm, fakeRuntime, startSyntheticResidents, type SyntheticOptions } from '../render/synthetic';
 import { SimHost } from '../worker/host';
@@ -341,6 +343,22 @@ export function installDebugHook(getSession: () => Session | null): void {
         }
       }
       return null;
+    },
+    /**
+     * C5G: the sound engine, once the first gesture started it. `state` is the audio context's
+     * ('none' before the first gesture), `gains` the bus targets the sliders set, `playing` the
+     * music style and the ambience voices, `cost` main-thread milliseconds per update.
+     */
+    audio: {
+      state: () => audioEngine()?.ctx.state ?? 'none',
+      gains: () => audioEngine()?.gains() ?? null,
+      playing: () => audioEngine()?.playing() ?? null,
+      cost: () => {
+        const c = audioEngine()?.cost ?? [];
+        return c.length ? c.reduce((a, b) => a + b, 0) / c.length : 0;
+      },
+      pending: () => audioEngine()?.bank.pending ?? 0,
+      cue: (id: SoundCueId) => audio().cue(id),
     },
   };
   (window as unknown as { __qoti: typeof hook }).__qoti = hook;
