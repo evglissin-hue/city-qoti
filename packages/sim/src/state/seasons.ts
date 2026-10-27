@@ -52,6 +52,7 @@ export function calmThreats(): ThreatState {
     scheduled: null,
     wolves: [],
     history: [],
+    captives: [],
   };
 }
 

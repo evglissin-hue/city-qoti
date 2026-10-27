@@ -181,3 +181,13 @@ export const chroniclePhrases = {
   byWater: ['by the river', 'down by the water'],
   inTheOpen: ['out in the valley', 'somewhere out past the last house'],
 } as const;
+
+/** I3 (C5.0): either seat changed the threat dial (docs/spec/14-challenge.md, Difficulty dials). */
+export const threatDial: ChronicleTemplate = {
+  kind: 'threat-dial',
+  text: [
+    '{who} set the threat dial to {dial}. The Watch made a note of it.',
+    'By order of {who}, the threat dial now reads {dial}. The crows were informed.',
+    'The threat dial turned to {dial}, on the say-so of {who}. Somewhere in the woods, a bandit sighed.',
+  ],
+};

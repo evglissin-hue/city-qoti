@@ -7,6 +7,7 @@ import type { TickCtx, WorldState } from '../../contracts';
 import { storyLetter, storyView } from '../../view/village';
 import { pay } from '../economy/money';
 import { unlockInnovation } from '../innovations/api';
+import { addRenown } from '../renown/api';
 import { addBond, addMoodModifier } from '../residents/api';
 
 /** Pays a story reward: mood and bond to the character, unlocks, innovations, coins from the County. */
@@ -23,6 +24,8 @@ export function grantReward(
   for (const u of reward.unlock ?? []) if (!state.hearth.unlocked.includes(u)) state.hearth.unlocked.push(u);
   for (const i of reward.innovation ?? []) unlockInnovation(state, ctx, i);
   if (reward.coins) pay(state, 'outside', 'treasury', reward.coins * PENNIES_PER_COIN, 'grants');
+  // I3 (C5.0): story finales and commissions raise renown (C5B).
+  if (reward.renown) addRenown(state, ctx, reward.renown, 'story');
 }
 
 /**

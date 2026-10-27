@@ -58,10 +58,11 @@ export function createEmissiveKitMaterial(night = 1): MeshStandardMaterial {
  * matrix, so carried bundles can share them.
  */
 /**
- * C4P: motions the client derives for residents on top of the sim's AgentAnim (0 to 5), written to
- * the same iMotion.x: chatting, waving while walking, waving while standing, sitting on a bench.
+ * C4P: motions the client derives for residents on top of the sim's AgentAnim (0 to 7; values
+ * below 16 belong to the sim), written to the same iMotion.x: chatting, waving while walking,
+ * waving while standing, sitting on a bench.
  */
-export const MOTION = { talk: 6, wave: 7, waveStill: 8, sit: 9 } as const;
+export const MOTION = { talk: 16, wave: 17, waveStill: 18, sit: 19 } as const;
 
 export function createResidentMaterial(): MeshStandardMaterial {
   const m = new MeshStandardMaterial({ vertexColors: true, roughness: 0.85, metalness: 0 });
@@ -107,14 +108,15 @@ void qRigSetup() {
   float anim = iMotion.x;
   float ph = iMotion.y;
   float seed = iMotion.z;
-  // AgentAnim 0 to 4 from the sim; C4P adds the client's own motions 6 to 9 (MOTION).
-  bool wave = anim > 6.5 && anim < 8.5;
-  bool walk = (anim > 0.5 && anim < 2.5) || (anim > 6.5 && anim < 7.5);
+  // AgentAnim from the sim below 16 (C5E draws run and dance); the client's own motions from 16
+  // (MOTION, C4P): 16 talk, 17 wave while walking, 18 wave standing, 19 sit.
+  bool wave = anim > 16.5 && anim < 18.5;
+  bool walk = (anim > 0.5 && anim < 2.5) || (anim > 16.5 && anim < 17.5);
   bool carry = anim > 1.5 && anim < 2.5;
   bool hop = anim > 2.5 && anim < 3.5;
   bool work = anim > 3.5 && anim < 4.5;
-  bool talk = anim > 5.5 && anim < 6.5;
-  bool sit = anim > 8.5;
+  bool talk = anim > 15.5 && anim < 16.5;
+  bool sit = anim > 18.5 && anim < 19.5;
   if (rig > 0.5 && rig < 2.5) {
     float side = rig < 1.5 ? 1.0 : -1.0;
     qPivot = vec3(0.066 * side, 0.15, 0.0);

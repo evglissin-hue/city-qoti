@@ -321,6 +321,7 @@ export const chronicle: readonly ChronicleTemplate[] = [
   C.seasonSummary,
   L.storyArrived,
   L.storyFinale,
+  C.threatDial,
   L.wedding,
   C.wishesDigest,
 ];

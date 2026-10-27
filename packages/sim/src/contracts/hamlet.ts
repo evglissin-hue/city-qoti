@@ -351,6 +351,8 @@ export interface ChronicleEntry {
   text: string;
   refs: EntityId[];
   seats: SeatId[];
+  /** I3 (C5.0): notable entries the client photographs: a tile to center on and a radius. */
+  snapshot?: { focus: [number, number]; radius: number };
 }
 
 export interface AchievementState {

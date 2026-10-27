@@ -3,6 +3,7 @@ export type * from './events';
 export type * from './hamlet';
 export type * from './ids';
 export type * from './map';
+export type * from './seasonViews';
 export type * from './seasons';
 export type * from './settings';
 export type * from './sim';

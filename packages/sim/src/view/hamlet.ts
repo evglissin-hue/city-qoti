@@ -318,7 +318,16 @@ export function patternView(state: WorldState, id: string): PatternView {
 }
 
 export function chronicleView(c: ChronicleEntry): ChronicleEntryView {
-  return { id: c.id, tick: c.tick, kind: c.kind, text: c.text, refs: [...c.refs], seats: [...c.seats] };
+  const v: ChronicleEntryView = {
+    id: c.id,
+    tick: c.tick,
+    kind: c.kind,
+    text: c.text,
+    refs: [...c.refs],
+    seats: [...c.seats],
+  };
+  if (c.snapshot) v.snapshot = { focus: [...c.snapshot.focus], radius: c.snapshot.radius };
+  return v;
 }
 
 export function achievementView(state: WorldState, id: string): AchievementView {

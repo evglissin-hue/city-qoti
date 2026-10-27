@@ -2,6 +2,7 @@
 // add a new command in its own commit so merges stay trivial.
 import type { EntityId, Lens, RoadKind, Rot4, SeatId, Speed, TreeSpecies } from './ids';
 import type { ValleySettings } from './settings';
+import type { FestivalSite } from './seasons';
 import type { PlanItem, RequestAsk } from './village';
 
 export type Command =
@@ -75,7 +76,44 @@ export type Command =
   | { t: 'terrain.raise'; tiles: [number, number][] }
   | { t: 'terrain.lower'; tiles: [number, number][] }
   /** Pin a production method (content method id) on a building, or null to let it choose. */
-  | { t: 'build.pinRecipe'; id: EntityId; method: string | null };
+  | { t: 'build.pinRecipe'; id: EntityId; method: string | null }
+  // I3 (C5.0). docs/spec/20-architecture.md, "I3 contracts". Owners in each handler's header.
+  /** Plan this season's festival: site, menu as [good id, qty] (up to 4), twist and music (C5B). */
+  | {
+      t: 'festival.plan';
+      site: FestivalSite | null;
+      menu: [good: string, qty: number][];
+      twist?: string;
+      music?: 'none' | 'resident' | 'bandstand';
+    }
+  /** Keep a keepable festival piece as permanent decor (C5B). */
+  | { t: 'festival.keepPiece'; decor: EntityId }
+  | { t: 'commission.accept'; id: EntityId }
+  | { t: 'commission.decline'; id: EntityId }
+  /** A weekly market day (day of the season 1 to 6), or null for none (C5B). */
+  | { t: 'ledger.setMarketDay'; day: number | null }
+  /** Quiet hours: workshops rest in the evening, for charm and mood (C5B). */
+  | { t: 'ledger.setQuietHours'; on: boolean }
+  /** Dig a pond on grass tiles (C5C). Max 64 tiles. */
+  | { t: 'terrain.pond'; tiles: [number, number][] }
+  /** Fit a module in a slot (content module id), or null to take it off (C5C). */
+  | { t: 'build.setModule'; id: EntityId; slot: string; module: string | null }
+  /** Paint a run of wall pieces (palisade, stone wall) on tiles (C5D). Max 256 tiles. */
+  | { t: 'wall.paint'; def: string; tiles: [number, number][] }
+  | { t: 'wall.remove'; tiles: [number, number][] }
+  | { t: 'gate.set'; id: EntityId; open: boolean }
+  | { t: 'watch.setTarget'; size: number }
+  /** Coins a day for the Watch's training and gear. */
+  | { t: 'watch.setBudget'; coins: number }
+  /** Up to 3 guard tiles. */
+  | { t: 'watch.setPosture'; guards: [number, number][] }
+  /** Ring the bell: residents go indoors and gates close (C5D). */
+  | { t: 'watch.ringBell' }
+  | { t: 'watch.lightLanterns' }
+  /** A captured raider: offer a home or send them off (C5D). */
+  | { t: 'bandit.decide'; id: EntityId; choice: 'home' | 'send' }
+  /** Hide or show the first days guide for the sending seat only (C5H). */
+  | { t: 'guide.setHidden'; on: boolean };
 
 /** A standing order as a command carries it (good ids, not indexes). */
 export interface StandingOrderInput {
@@ -147,4 +185,11 @@ export type RejectReason =
   /** Over the County Bank's credit limit. */
   | 'CREDIT_LIMIT'
   /** The Charter's goals are not all met yet. */
-  | 'NOT_READY';
+  | 'NOT_READY'
+  // I3 (C5.0)
+  /** A wall run would close residents' homes off from the roads (C5D). */
+  | 'WOULD_ENCLOSE'
+  /** The river is frozen (the dock, a pond on ice). */
+  | 'FROZEN'
+  /** There is no raid on (the bell's raid-only uses, bandit.decide). */
+  | 'NO_RAID';

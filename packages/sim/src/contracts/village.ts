@@ -38,6 +38,11 @@ export interface LeversState {
   subsidies: number[];
   /** Goods the Trading Post may not sell. */
   exportBans: boolean[];
+  // I3 (C5.0, C5B), absent until set, so I2 valleys save and hash as before.
+  /** Weekly market day (day of the season 1 to 6), or null for none. */
+  marketDay?: number | null;
+  /** Workshops rest in the evening. */
+  quietHours?: boolean;
 }
 
 /** A loan from the County Bank. */

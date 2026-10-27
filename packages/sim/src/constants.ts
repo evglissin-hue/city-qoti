@@ -140,7 +140,8 @@ export const AGENT_STRIDE = 8;
 /** Field offsets in an agent row: [id, x, z, y, heading, anim, carryGood + 1, flags]. */
 export const AgentField = { id: 0, x: 1, z: 2, y: 3, heading: 4, anim: 5, carry: 6, flags: 7 } as const;
 /** I2 (C4.0): `cart` rows are carts (state.carts), not residents; carry is the first load good. */
-export const AgentAnim = { idle: 0, walk: 1, carry: 2, hop: 3, work: 4, cart: 5 } as const;
+/** I3 (C5.0) adds run (raiders, the Watch turning out, folk hurrying home) and dance (festivals). */
+export const AgentAnim = { idle: 0, walk: 1, carry: 2, hop: 3, work: 4, cart: 5, run: 6, dance: 7 } as const;
 /** Agent row flags (bubbles and look hints). */
 export const AgentFlags = {
   wish: 1,
@@ -149,6 +150,14 @@ export const AgentFlags = {
   sleepy: 8,
   child: 16,
   slow: 32,
+  // I3 (C5.0). Raiders, wolves, circus visitors and dock boats ride in the same frame (ids from nextId).
+  cold: 64,
+  watch: 128,
+  raider: 256,
+  wolf: 512,
+  festival: 1024,
+  skating: 2048,
+  visitor: 4096,
 } as const;
 
 /** Resident.flags bits. */

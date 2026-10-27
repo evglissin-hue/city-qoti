@@ -52,6 +52,7 @@ describe('the Chronicle', () => {
     achievement: ['achievement', 'description', 'credit'],
     'first-of': ['good'],
     founding: ['season', 'founders'],
+    'threat-dial': ['who', 'dial'],
     'household-arrived': ['family', 'place'],
     'household-left': ['family', 'place'],
     'pattern-discovered': ['pattern', 'place', 'credit', 'flavor'],

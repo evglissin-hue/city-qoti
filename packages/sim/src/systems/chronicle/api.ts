@@ -6,7 +6,7 @@
 // valley's first hour (households arriving on tick 0, say), the founding is written just ahead.
 import { content } from '@qoti/content';
 import { SEASON_NAMES, TICKS_PER_HOUR } from '../../constants';
-import type { EntityId, SeatId, TickCtx, WorldState } from '../../contracts';
+import type { ChronicleEntry, EntityId, SeatId, TickCtx, WorldState } from '../../contracts';
 import { isStandard } from '../../state/hamlet';
 import { chronicleView, fillText } from '../../view/hamlet';
 import { calendar } from '../clock/calendar';
@@ -19,6 +19,11 @@ export interface ChronicleParams {
   seats?: SeatId[];
   /** I2 (C4D): a chosen variant (taken modulo the template count) instead of a random pick. */
   variant?: number;
+  /**
+   * I3 (C5.0): a notable entry (festival, raid, trial, first sighting, flood, rank-up, first
+   * winter) the lowest connected seat's client photographs (C5E captures, C5F stores).
+   */
+  snapshot?: { focus: [number, number]; radius: number };
 }
 
 export function chronicle(state: WorldState, ctx: TickCtx, kind: string, params: ChronicleParams): void {
@@ -35,16 +40,24 @@ export function chronicle(state: WorldState, ctx: TickCtx, kind: string, params:
     ['town', state.settings.townName],
     ['valley', state.settings.valleyName],
   ];
-  const entry = {
+  const entry: ChronicleEntry = {
     id: state.nextId++,
     tick: state.tick,
     kind,
     text: fillText(chosen(ctx, t?.text ?? [kind], params.variant), [...params.text, ...base]),
     refs: [...(params.refs ?? [])],
     seats: [...(params.seats ?? [])],
+    ...(params.snapshot && {
+      snapshot: { focus: [...params.snapshot.focus], radius: params.snapshot.radius },
+    }),
   };
   state.chronicle.push(entry);
-  ctx.events.push({ e: 'chronicle.added', c: chronicleView(entry) });
+  const view = chronicleView(entry);
+  ctx.events.push(
+    entry.snapshot
+      ? { e: 'chronicle.added', c: view, snapshot: entry.snapshot }
+      : { e: 'chronicle.added', c: view },
+  );
 }
 
 function chosen(ctx: TickCtx, list: readonly string[], variant: number | undefined): string {

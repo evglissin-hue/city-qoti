@@ -248,6 +248,8 @@ export interface ThreatState {
   wolves: number[];
   /** Last RAID_HISTORY_MAX raids, oldest first. */
   history: RaidRecord[];
+  /** Captured raiders waiting for bandit.decide, kept after the raid ends (raider ids, sorted). */
+  captives: EntityId[];
 }
 
 export interface WatchState {
@@ -297,8 +299,6 @@ export interface LiveRaid {
   watch: WatchInRaid[];
   bell: boolean;
   lanterns: boolean;
-  /** Captured raiders waiting for bandit.decide (raider ids, sorted). */
-  captures: EntityId[];
 }
 
 export interface TrialState {
