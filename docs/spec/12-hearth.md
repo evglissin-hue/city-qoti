@@ -83,9 +83,21 @@ interface PatternDef {
 | Promenade by the Water | 8+ consecutive path tiles each next to water, with 2+ benches and 2+ lanterns along it | +10 r2 | Mooring Post; otter arrivals favored |
 | Hedgerow Lane | a path or lane run of 6+ tiles with hedges on both sides along 4+ of them | +5 r1; hedgerow habitat [I3] | Wildflower Verge |
 
+**I2 patterns (6, C4C)**, looked for and hinted from Village rank on (each pattern's `rank`; hints follow the Hamlet ones in `hintOrder`):
+
+| Pattern | Rule | Site bonus | Unlocks |
+|---|---|---|---|
+| Small Square | a paved open space of 3x3 tiles or more (path or street, nothing built on it) with buildings on 3+ of its sides within 2 tiles, and a bench and a lantern on it or at its edge | +8 comfort r4 | Fountain |
+| Corner Cafe | a tavern, bakery or corner shop whose door lies within 2 tiles of a corner (a road tile with roads leaving at right angles), with 2+ seats and a flower piece within 2 tiles of it | +6 comfort r3 | Cafe Table |
+| Village Green | an open lawn of 5x5 tiles (no building, road, water or field) holding a grown tree (mature or ornamental), with a bench on it or at its edge and 4+ homes within 3 tiles | +8 nature r4 | Maypole |
+| Window Gardens | 3+ homes with window boxes side by side on one street: facing the same way, doors on one line, at most 1 tile between neighbors | +5 nature r2 | Flower Cart |
+| Market Cross | a crossroads (roads leaving in all four directions) with a well or a grown tree within 1 tile and 2+ market buildings (stalls, shops) within 4 | +8 comfort r4 | Notice Board |
+| Bridge Crossing | a bridge (road over water) whose two ends each have a lantern within 1 tile, with a bench within 3 tiles of an end | +6 view r3 | Lamp Post |
+
+The six unlocks are new decor (stand-in art until C4E draws them). Detectors only look at trees near homes (Village Green) and scan the map's roads once a pass (Market Cross, Bridge Crossing); the whole pass stays under 1 ms on the village fixture.
+
 **Later patterns** (rules written in their iteration's planning cycle):
 
-- **I2**: Small Square, Corner Cafe, Village Green, Window Gardens (3+ customized homes in a row), Market Cross, Bridge Crossing.
 - **I3**: Orchard Path, Children's Corner, Reading Nook, Town Gate, Watch Lookout, Pond Garden.
 - **I4**: Arcade Street, Quiet Lane, Festival Ground, Allotments, Riverside Steps, Rooftop Garden, Bandstand Green, Old Tree Sanctuary.
 - **I5**: Grand Avenue, Clock Square, Harbor Quay, Cathedral Close, Night Market, Garden City Block, and more per new valley.

@@ -30,6 +30,8 @@ Technology arrives through conditions in the town, shown as progress bars in the
 | Cobbles | I2 | quarry output 20+ per day | streets |
 | Brick Kiln | I2 | a clay pit worked for 2 days | bricks |
 | Water Wheel | I2 | a sawpit within 3 tiles of the river and Pippa Quill's step 2 | water-powered sawmill (+80% output, noise) |
+
+*As built (C4C)*: hourly at offset 170 each innovation whose rank is reached updates its measure and bar (`innovation.updated` when it moves) and unlocks when its condition holds, with a notice. Brick Kiln counts days a clay pit dug clay (Hamlet rank, so the kiln is ready for the Village); Cobbles and Carts read yesterday's stone and planks; Wheelbarrows samples the busiest storehouse's share of porters out on trips each work hour and needs an average of 80% for three days in a row, from Village rank (a Hamlet's two porters are always busy, and I1 stays as tuned); Water Wheel is half for a sawpit within 3 tiles of water and half for the story step (`storyStep` arc 0, C4D's first arc). It unlocks the Water Sawmill.
 | Barometer | I3 | Watch House and Town Hall upgrade | 2-day forecasts |
 | Seed Drill | I3 | 3 farms and a smithy | +20% wheat |
 | Printing Press | I4 | library and paper mill | newspaper: +bond, +renown |
