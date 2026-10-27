@@ -16,6 +16,7 @@ import {
 } from '@qoti/sim';
 import type { Selection } from '../input/context';
 import { applySettings, loadSettings } from '../ui/settings';
+import { roadsShowcase } from '../render/roadShowcase';
 import { villageShowcase } from '../render/showcase';
 import { fakeCharm, fakeRuntime, startSyntheticResidents, type SyntheticOptions } from '../render/synthetic';
 import { SimHost } from '../worker/host';
@@ -265,6 +266,11 @@ export function installDebugHook(getSession: () => Session | null): void {
       if (!session) return null;
       const r = villageShowcase(session.mirror, { dense });
       return { buildings: r.buildings, carts: r.carts };
+    },
+    /** C4P: a hill of paths, lanes, a street and stairs in this client's Mirror, for road art review. */
+    roadsShowcase: (x?: number, z?: number) => {
+      const session = s();
+      return session ? roadsShowcase(session.mirror, x, z) : null;
     },
     /** C3D: a made-up charm field for overlay screenshots (until the charm system runs). */
     synthCharm: () => {
