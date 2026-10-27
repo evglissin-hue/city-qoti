@@ -159,3 +159,39 @@ export { deserialize, serialize } from './state/serialize';
 export { migrateSave, migrations, SAVE_VERSION, type Migration, type SaveObject } from './state/version';
 export { worldIndex, type WorldIndex } from './state/worldIndex';
 export { SIM_VERSION } from './version.generated';
+// I3 (C5.0): the season views, hooks and cross-track APIs for the client and the bench.
+export {
+  commissionView,
+  dockView,
+  festivalOf,
+  festivalResultView,
+  festivalView,
+  fieldGuideEntryView,
+  guideView,
+  raidResultView,
+  raidView,
+  renownView,
+  seasonCardView,
+  threatView,
+  trialView,
+  watchView,
+  weatherEventView,
+  weatherView,
+} from './view/seasons';
+export { seasonReportView } from './view/season';
+export { emptySeasonsSlices, markFloodplain, seasonAt, startGuide } from './state/seasons';
+export { FESTIVAL_SITE_MAX, FESTIVAL_SITE_MIN } from './commands/festival';
+export { WATCH_BUDGET_MAX, WATCH_MAX } from './commands/watch';
+export { addRenown, levelFor, renownLevel } from './systems/renown/api';
+export { festivalMorale } from './systems/festivals/api';
+export {
+  forecast,
+  isCold,
+  isFlooded,
+  isFrozen,
+  seasonNow,
+  warmthReport,
+  weatherToday,
+} from './systems/seasons/api';
+export { habitatAt, hasSpecies, pestLoss, pollinatorFactor } from './systems/habitats/api';
+export { deterrenceAt, isRaidActive, lanternLit, watchStrength, wealth } from './systems/threats/api';

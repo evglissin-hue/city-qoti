@@ -7,6 +7,7 @@ import { LEDGER_CATEGORIES, MAP_SIZE, RIVER_FREEZE_DAY, TICKS_PER_HOUR } from '.
 import type { WorldState } from '../src/contracts';
 import { Flags, Road, Water } from '../src/map/layers';
 import { RNG_STREAMS } from '../src/rng/streams';
+import { base64ToBytes, bytesToBase64 } from '../src/state/base64';
 import { createValley, defaultSettings } from '../src/state/create';
 import { findById } from '../src/state/entities';
 import { deserialize, serialize } from '../src/state/serialize';
@@ -335,8 +336,7 @@ describe('save version 4', () => {
     for (const k of ['weather', 'warmth', 'festival', 'renown', 'commissions', 'dock', 'nature'])
       delete raw[k];
     for (const k of ['threats', 'watch', 'raid', 'trial', 'guide', 'seasons']) delete raw[k];
-    const rng = Buffer.from(raw.rng as string, 'base64');
-    raw.rng = rng.subarray(0, 6 * 16).toString('base64');
+    raw.rng = bytesToBase64(base64ToBytes(raw.rng as string).subarray(0, 6 * 16));
     const e = raw.economy as Record<string, unknown>;
     e.forSale = trim(e.forSale, goods);
     e.everProduced = trim(e.everProduced, goods);
@@ -368,9 +368,9 @@ describe('save version 4', () => {
     );
     // An I2 valley never had the floodplain flag.
     const map = raw.map as Record<string, string>;
-    const flags = Buffer.from(map.flags!, 'base64');
+    const flags = base64ToBytes(map.flags!);
     for (let i = 0; i < flags.length; i++) flags[i]! &= ~Flags.floodplain;
-    map.flags = flags.toString('base64');
+    map.flags = bytesToBase64(flags);
     raw.saveVersion = 3;
     return raw;
   }

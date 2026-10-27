@@ -3,7 +3,21 @@ import type { HistoryItem, LifeStage, MoodBand, TierId } from './hamlet';
 import type { EntityId, LayerName, Lens, Rot4, SeatId, Speed } from './ids';
 import type { ValleySettings } from './settings';
 import type { WorldState } from './state';
-import type { GuideView } from './seasonViews';
+import type {
+  CommissionView,
+  DockView,
+  FestivalResultView,
+  FestivalView,
+  FieldGuideEntryView,
+  GuideView,
+  RaidView,
+  RenownView,
+  SeasonCardView,
+  ThreatView,
+  TrialView,
+  WatchView,
+  WeatherView,
+} from './seasonViews';
 import type { PlanItem, RankId, RequestAsk } from './village';
 
 export interface BuildingView {
@@ -97,6 +111,20 @@ export interface ViewSnapshot {
   plans?: PlanView[];
   requests?: RequestView[];
   stories?: StoryView[];
+  // I3 (C5.0)
+  seasonCard?: SeasonCardView;
+  weather?: WeatherView;
+  festival?: FestivalView;
+  festivalResult?: FestivalResultView | null;
+  renown?: RenownView;
+  commissions?: CommissionView[];
+  dock?: DockView;
+  fieldGuide?: FieldGuideEntryView[];
+  threat?: ThreatView;
+  watch?: WatchView;
+  raid?: RaidView | null;
+  trial?: TrialView | null;
+  guide?: GuideView;
 }
 
 // ---------------------------------------------------------------------------------------------

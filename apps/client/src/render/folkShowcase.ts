@@ -77,7 +77,7 @@ export function folkShowcase(mirror: Mirror, cx = 52, cz = 104): FolkShowcaseRes
         const out = s < span;
         const along = out ? s : span * 2 - s;
         x = f.x + Math.sign(f.walk) * along;
-        heading = (Math.sign(f.walk) > 0) === out ? Math.PI / 2 : -Math.PI / 2;
+        heading = Math.sign(f.walk) > 0 === out ? Math.PI / 2 : -Math.PI / 2;
         anim = AgentAnim.walk;
       }
       data[o] = f.id;

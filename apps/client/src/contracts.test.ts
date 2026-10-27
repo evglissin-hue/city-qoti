@@ -203,6 +203,20 @@ describe('I0 contracts', () => {
       | 'plans'
       | 'requests'
       | 'stories'
+      // I3 (C5.0)
+      | 'seasonCard'
+      | 'weather'
+      | 'festival'
+      | 'festivalResult'
+      | 'renown'
+      | 'commissions'
+      | 'dock'
+      | 'fieldGuide'
+      | 'threat'
+      | 'watch'
+      | 'raid'
+      | 'trial'
+      | 'guide'
     >();
     expectTypeOf<ViewSnapshot['meta']>().toEqualTypeOf<WorldState['meta']>();
     expectTypeOf<keyof ClockView>().toEqualTypeOf<

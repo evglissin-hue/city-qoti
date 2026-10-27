@@ -1,4 +1,19 @@
 // View builders. Their output never feeds back into state, so they may compute floats freely.
+import {
+  commissionView,
+  dockView,
+  festivalResultView,
+  festivalView,
+  fieldGuideEntryView,
+  guideView,
+  raidView,
+  renownView,
+  seasonCardView,
+  threatView,
+  trialView,
+  watchView,
+  weatherView,
+} from './seasons';
 import { DEFAULT_SPEED, MAP_SIZE } from '../constants';
 import type {
   Building,
@@ -132,5 +147,19 @@ export function buildView(state: WorldState): ViewSnapshot {
     plans: state.plans.map(planView),
     requests: state.requests.map((r) => requestView(state, r)),
     stories: state.stories.map((s) => storyView(state, s)),
+    // I3 (C5.0)
+    seasonCard: seasonCardView(state),
+    weather: weatherView(state),
+    festival: festivalView(state),
+    festivalResult: festivalResultView(state),
+    renown: renownView(state),
+    commissions: state.commissions.list.map(commissionView),
+    dock: dockView(state),
+    fieldGuide: state.nature.guide.map(fieldGuideEntryView),
+    threat: threatView(state),
+    watch: watchView(state),
+    raid: raidView(state),
+    trial: trialView(state),
+    guide: guideView(state),
   };
 }

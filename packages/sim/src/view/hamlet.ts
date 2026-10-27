@@ -1,5 +1,7 @@
 // I1 view builders (C3.0). Their output never feeds back into state, so floats are fine here.
 // Tracks may enrich these (C3A residents, C3B Hearth, C3C Ledger) without changing their shapes.
+import { seasonAt } from '../state/seasons';
+import { guideView } from './seasons';
 import { type Condition, content } from '@qoti/content';
 import { LEDGER_CATEGORIES, MAP_SIZE, MOOD_BAND_MIN, TIERS } from '../constants';
 import type {
@@ -348,6 +350,16 @@ export function townView(state: WorldState): TownView {
     rank: state.charter.rank,
     charter: charterTally(state),
     tiers: tierCounts(state),
+    // I3 (C5.0)
+    season: seasonAt(state.tick),
+    weather: state.weather.today,
+    renownLevel: state.renown.level,
+    coldHouseholds: state.households.filter((h) => h.warmth && h.warmth.coldHours > 0).length,
+    threatBand:
+      state.threats.scheduled && state.tick >= state.threats.scheduled.telegraphTick
+        ? state.threats.scheduled.band
+        : null,
+    ...(!state.guide.over && { guide: guideView(state) }),
   };
 }
 

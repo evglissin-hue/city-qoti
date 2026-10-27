@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'preact/hooks';
 import { DEBUG, installDebugHook } from './debug';
-import { createFixtureValley, FIXTURE } from './fixture';
+import { createFixtureValley, FIXTURE, FIXTURE_KINDS, type FixtureKind } from './fixture';
 import { currentSession, GameView } from './GameView';
 import { readPlayHash, setPlayHash, takeInviteFromUrl } from './invite';
 import { findRecent } from './recent';
@@ -30,10 +30,10 @@ export function App() {
     return target ? { target, invite: false } : null;
   });
 
-  // ?debug&fixture=hamlet (or =village): straight into a fresh copy of the sim's fixture.
+  // ?debug&fixture=hamlet (=village, =winter, =raid): straight into a fresh copy of the sim's fixture.
   useEffect(() => {
-    if (play || !DEBUG || (FIXTURE !== 'hamlet' && FIXTURE !== 'village')) return;
-    void createFixtureValley('Thistlecombe', FIXTURE).then((v) => {
+    if (play || !DEBUG || !FIXTURE_KINDS.includes(FIXTURE as FixtureKind)) return;
+    void createFixtureValley('Thistlecombe', FIXTURE as FixtureKind).then((v) => {
       setPlayHash(v.valleyId);
       setPlay({
         target: { valleyId: v.valleyId, seat: v.seat, token: v.token, mode: v.mode },
