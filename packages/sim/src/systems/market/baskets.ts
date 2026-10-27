@@ -9,8 +9,9 @@
 // household pass records every group's daily quantity, shared across its goods by preference
 // weight, so an empty shelf still shows up as wanted (and its price climbs).
 import { content, type NeedGroup, type NeedsBasket } from '@qoti/content';
-import { PENNIES_PER_COIN, TICKS_PER_DAY } from '../../constants';
+import { PENNIES_PER_COIN, TICKS_PER_DAY, TIERS } from '../../constants';
 import type { EntityId, Household, Resident, System, TickCtx, WorldState } from '../../contracts';
+import { foodDays } from '../../conditions';
 import { findById } from '../../state/entities';
 import { calendar } from '../clock/calendar';
 import { dailyOffset, dayIndex } from '../economy/time';
@@ -24,6 +25,8 @@ export const GOODS_NEED = 5;
 export const FOOD_GROUP = 'food';
 /** Savings per member, pennies, above which a household is comfortable and buys what it likes. */
 export const COMFORTABLE_SAVINGS = 6 * PENNIES_PER_COIN;
+/** C4X: days of food in town stores below which comfortable households skip the supper treat. */
+export const TREAT_FOOD_DAYS = 3;
 /** Days a newly arrived household may eat on the slate while it finds its feet. */
 export const SLATE_DAYS = 2;
 /** 18:00, after wages at 17:00. */
@@ -221,6 +224,19 @@ function want(g: NeedGroup, hundredths: number, tally: number[]): void {
 }
 
 /**
+ * C4X: what a household puts by for its next home, in pennies: the next tier's savings once the
+ * Charter has unlocked it. Supper treats only come out of a purse above it (or above the
+ * comfortable mark, whichever is more), so a family can save for a townhouse at all (before,
+ * treats emptied every purse past 6 coins a head, and the 30 coins Craftsfolk need was never
+ * reached).
+ */
+function savingFor(state: WorldState, h: Household): number {
+  const next = TIERS[TIERS.indexOf(h.tier) + 1];
+  if (!next || !state.hearth.unlocked.includes(next)) return 0;
+  return (content.basketByTier.get(next)?.savings ?? 0) * PENNIES_PER_COIN;
+}
+
+/**
  * A comfortable household treats itself at supper: up to one unit of its favorite food for each
  * member, while its purse stays above the comfortable mark. Purses that fill flow back
  * through the till instead of piling up, and the market hears what the well-off would like.
@@ -228,7 +244,7 @@ function want(g: NeedGroup, hundredths: number, tally: number[]): void {
 function supperTreat(state: WorldState, h: Household, basket: NeedsBasket): void {
   const group = basket.groups.find((g) => g.id === FOOD_GROUP);
   if (!group) return;
-  const reserve = COMFORTABLE_SAVINGS * Math.max(1, h.members.length);
+  const reserve = Math.max(COMFORTABLE_SAVINGS * Math.max(1, h.members.length), savingFor(state, h));
   let left = h.members.length;
   while (left > 0) {
     let best = -1;
@@ -260,6 +276,9 @@ function supperTreat(state: WorldState, h: Household, basket: NeedsBasket): void
 export function shopBaskets(state: WorldState, ctx: TickCtx): void {
   const season = calendar(state.tick).season;
   const tally = new Array<number>(content.goods.length).fill(0);
+  // C4X: nobody feasts while food is short, under three days a head (treats doubled the town's
+  // eating the day the Village charter opened the market and ran the larder down to nothing).
+  const feast = foodDays(state) >= TREAT_FOOD_DAYS;
   for (const h of state.households) {
     if (!h.homeId) continue;
     const basket = ensureBasket(h);
@@ -278,7 +297,7 @@ export function shopBaskets(state: WorldState, ctx: TickCtx): void {
       h.owed![i]! -= units * 100;
       satisfy(h, i, Math.round((100 * got) / units));
     }
-    if (taste.comfortable) supperTreat(state, h, basket);
+    if (taste.comfortable && feast) supperTreat(state, h, basket);
     setGoodsNeed(state, h);
     if (h.savings !== before) announceHousehold(state, ctx, h.id);
   }

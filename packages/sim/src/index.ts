@@ -102,6 +102,8 @@ export {
   CROP_STAGE_SHIFT,
   FIELD_RANGE,
   FIELD_TILES_PER_WORKER,
+  fieldCap,
+  fieldTileProblem,
 } from './systems/production/fields';
 // I2 (C4.0)
 export {
@@ -125,6 +127,7 @@ export {
   wagesAt,
 } from './view';
 export { foodDays, goodsAtMarket } from './conditions';
+export { findRoute } from './conditions/route';
 export { emptyVillageSlices, hasInnovation, rankAtLeast } from './state/village';
 export { moneyBalance, moneyInside, pay, type Purse } from './systems/economy/money';
 export { buy, marketOpen, outletsWith, priceOf, sell, tillPrice } from './systems/market/api';

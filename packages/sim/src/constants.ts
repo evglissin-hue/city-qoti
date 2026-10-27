@@ -184,7 +184,7 @@ export const Zone = { none: 0, homesLow: 1, homesMedium: 2, shops: 3, crafts: 4,
  * of its pay (a worker keeps about two people fed): purses still fill toward the next
  * tier's savings, but slowly enough that the treasury is not drained into them.
  */
-export const WAGES = [300, 500, 800, 1250] as const;
+export const WAGES = [400, 650, 1000, 1600] as const;
 export const WAGE_LEVEL_RANGE = [80, 120] as const;
 export const DEFAULT_WAGE_LEVEL = 100;
 export const TAX_RATE_RANGE = [0, 20] as const;
