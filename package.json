@@ -25,7 +25,7 @@
     "bench": "npm run gen && npm run bench -w @qoti/bench",
     "deploy": "npm run build && npm run deploy -w @qoti/server",
     "audio:fetch": "node tools/audio/fetch.mjs",
-    "audio:preview": "tsx tools/audio/demo.ts"
+    "audio:preview": "tsx tools/audio/preview.ts"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",

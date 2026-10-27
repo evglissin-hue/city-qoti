@@ -6,18 +6,18 @@ import { renderCue } from './cues';
 import { renderNote, type Instrument } from './instruments';
 
 export type RenderJob =
-  | { kind: 'note'; inst: Instrument; midi: number }
+  | { kind: 'note'; inst: Instrument; midi: number; layer: number }
   | { kind: 'cue'; id: SoundCueId }
   | { kind: 'ambience'; id: AmbienceId };
 
 export function jobKey(job: RenderJob): string {
-  return job.kind === 'note' ? `${job.inst}:${job.midi}` : `${job.kind}:${job.id}`;
+  return job.kind === 'note' ? `${job.inst}:${job.midi}:${job.layer}` : `${job.kind}:${job.id}`;
 }
 
 export function renderJob(job: RenderJob): Float32Array {
   switch (job.kind) {
     case 'note':
-      return renderNote(job.inst, job.midi);
+      return renderNote(job.inst, job.midi, job.layer);
     case 'cue':
       return renderCue(job.id);
     case 'ambience':

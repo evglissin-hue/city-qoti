@@ -55,14 +55,56 @@ Layered stems that follow the town's size (I5, if CC0 stems are found), position
 
 The CC0 hosts (Freesound, OpenGameArt, Kenney, FreePD, the Free Music Archive, Musopen, archive.org) were blocked by the build environment's network policy, so every sound is synthesized in the browser instead, which the owner allowed. The manifest, `npm run audio:fetch` (hash check, trim, loudnorm, AAC) and the manifest test are in place for recordings added later.
 
-- `apps/client/src/audio/director.ts` picks the style by hour and season and paces pieces and gaps; `composer.ts` writes a piece (A A B A, 12 to 24 bars) from a seed: bass line (walking in the evening), chords (arpeggiated guitar, comped piano, waltz oom-pah-pah, night pad), a motif melody that resolves home, brushes on two and four. Same seed, same piece.
-- `synth/` renders the band (Karplus-Strong guitar and bass, an additive piano with two detuned strings and a hammer, a music box tine, brushes, a pad), nine ambience loops (loop-clean, RMS-normalized so they sit under the music) and sixteen cues, all as Float32Arrays at 22.05 kHz, in `synth/render.worker.ts`; the main thread never renders.
-- `music.ts` schedules notes 0.6 s ahead on the audio clock with a little human timing and touch, and starts a piece only once its notes are rendered.
-- `ambience.ts` and `scene.ts` sample about 300 tiles and the working buildings around the camera every half second; `engine.ts` fades up to eight looping voices toward those levels and pans them by screen side.
-- `cues/index.ts` has one rule per cue (scene before and after each update); the player's own place and remove sounds come from the session at submit; `cues/limiter.ts` keeps a box drag to one sound and caps cues at four a second.
-- `install.ts` loads the engine chunk (28 kB) on the first pointer or key press in a valley; the title screen loads nothing. The context suspends while the tab is hidden.
-- Settings has sliders for everything, music, the valley and clicks and chimes, and a hush; saved per browser (`qoti.audio.v1`).
-- `npm run audio:preview` (`tools/audio/demo.ts`) renders a five-minute WAV of the styles with their ambience, then every cue, to listen to outside the game.
-- Small edits outside the owned paths: `audio/api.ts` gains the `built` and `emote` cue ids (additive); `input/camera.ts` exposes `look` (focus, yaw, distance); `app/session.ts` installs the engine and plays place, remove, ping and emote; `app/debug.ts` adds `__qoti.audio`; `ui/SettingsPanel.tsx`, `ui/copy.ts` and `ui/theme.css` add the sound card; root `package.json` adds `audio:fetch` and `audio:preview`.
-- Not done: captions (optional), sheep and cows, the mill's creak, the plans' pencil scratch.
+Second pass (after the owner's first listen: "not great, needs way more attention"):
 
+- **Instruments** (`synth/instruments.ts`, rendered at 32 kHz in `synth/render.worker.ts`):
+  - **Nylon guitar and upright bass**: tuned plucked strings. Karplus-Strong with an allpass for the fractional delay, a pluck-point comb, a fingertip lowpass and wooden body modes. The first pass rounded the delay to whole samples, so high notes sat up to 35 cents flat.
+  - **Felt piano**: up to 18 stretched partials shaped by a hammer lowpass and the strike point. Two or three strings a hair apart, with a double decay. Tuned so the partials that set the heard pitch sit on the note.
+  - **Electric piano**: two-operator FM.
+  - **Mallets**: marimba, vibraphone with its tremolo, celesta, glockenspiel and kalimba, as struck bars with modal partials.
+  - **Flute**: breath and delayed vibrato.
+  - **Strings**: three detuned soft sawtooths.
+  - **Drums**: brushes, a ride and a shaker.
+  - Every instrument renders a soft and a firm touch, so a firm note is brighter as well as louder.
+- **Styles** (`director.ts`):
+
+  | When | Style |
+  |---|---|
+  | Spring morning | fingerpicked guitar and flute or kalimba, a shaker |
+  | Summer morning | arpeggiated guitar and marimba |
+  | Winter morning | rolling piano and celesta, strings |
+  | Afternoon | piano and vibraphone, bass, brushes |
+  | Autumn afternoon | minor key; guitar and piano or flute, strings |
+  | Evening | electric piano comping, walking bass, vibraphone, a swung ride (0.63) |
+  | Night | celesta over strings, a pedal bass |
+  | Winter afternoons, evenings and nights | a waltz: oom-pah-pah piano, celesta, strings |
+
+- **Composition** (`composer.ts`):
+  - **Form**: intro, A, A with a new ending, B, A again as it first was, then an outro. The last A has a glockenspiel doubling.
+  - **Phrases**: four-bar phrases; the first ends away from home, the second comes home. B hands back to the theme.
+  - **Melody**: chord tones on the strong beats and steps between them (over 85% of moves are steps), an arched contour, and a second bar that answers the first a step away.
+  - **Accompaniment**: chords voice-led to the nearest inversion, rootless in the evening. Comp, bass and drum figures suit the style.
+  - **Timing**: a slowing outro, a player's small looseness, and the lead laid back a few milliseconds.
+- **Mix** (`music.ts`):
+  - Levels set by measurement: lead on top, the comp 3 to 5 dB under, bass 6 to 8, drums 10 to 15.
+  - Pianos spread across the stereo field by pitch.
+  - A damper release on struck notes, and a release on held ones.
+- **Effects** (`synth/cues.ts`):
+  - Built from the band's own instruments: a marimba knock for placing, kalimba for finished sites and pings, celesta and paper for letters, glockenspiel arpeggios for patterns and achievements, piano and glockenspiel for the rank-up.
+  - The musical cues are tuned to the key of the music now playing.
+  - The bell is struck bronze, with its hum, prime, tierce, quint and nominal.
+- **Ambience** (`synth/ambience.ts`):
+  - A brook made of about 90 bubbles a second over a moving bed.
+  - Four kinds of bird: a warbler, a tit, a sparrow and a wood pigeon.
+  - Dense rain with the odd drip from the eaves, and four crickets.
+  - A new hearth crackle near homes on winter days and cold autumn evenings.
+- **Bank** (`bank.ts`): least recently used sounds go first under a 32 MB cap. A piece's notes render in the worker in 0.1 to 4.4 s, inside the quiet before it.
+- **Preview**: `npm run audio:preview -- out.wav` mixes eight styles, with their ambience, then every cue, the way the engine plays them.
+- **Edits outside the owned paths**:
+  - `audio/api.ts` gains the `built` and `emote` cue ids (additive).
+  - `input/camera.ts` exposes `look` (focus, yaw and distance).
+  - `app/session.ts` installs the engine and plays place, remove, ping and emote.
+  - `app/debug.ts` adds `__qoti.audio`.
+  - `ui/SettingsPanel.tsx`, `ui/copy.ts` and `ui/theme.css` add the sound card.
+  - The root `package.json` adds `audio:fetch` and `audio:preview`.
+- **Not done**: captions (optional), sheep and cows, the mill's creak, and the plans' pencil scratch.

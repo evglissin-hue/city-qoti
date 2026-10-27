@@ -31,6 +31,8 @@ export interface AmbienceScene {
   saw: Presence;
   /** Stalls, taverns and the trading post (busier counts more). */
   market: Presence;
+  /** Homes with folk in, for the hearth's crackle on cold evenings. */
+  homes: Presence;
   /** Tiles from the focus to the edge of the sampled square. */
   radius: number;
 }
@@ -122,6 +124,9 @@ export function mixAmbience(scene: AmbienceScene, c: AmbienceConditions): Emitte
   const crowd = c.festival ? 1 : level(scene.market, 0.2) * hourWindow(c.hour, 8, 20, 1) * 0.6;
   push('murmur', crowd, c.festival ? null : scene.market);
   push('hammer', level(scene.hammer, 0.5) * work * 0.5, scene.hammer);
+  // A fire in the grate, close up, on winter days and every cold evening.
+  const cold = c.season === 3 ? 1 : c.season === 2 ? hourWindow(c.hour, 18, 6, 1) * 0.7 : 0;
+  push('hearth', level(scene.homes, 0.12) * cold * Math.max(0, 1.6 - c.zoom / 60) * 0.5, scene.homes);
   push('anvil', level(scene.anvil, 0.7) * work * 0.4, scene.anvil);
   push('saw', level(scene.saw, 0.6) * work * 0.4, scene.saw);
 

@@ -22,6 +22,7 @@ function scene(over: Partial<AmbienceScene> = {}): AmbienceScene {
     anvil: emptyPresence(),
     saw: emptyPresence(),
     market: emptyPresence(),
+    homes: emptyPresence(),
     radius: 30,
     ...over,
   };
@@ -88,10 +89,28 @@ describe('ambience mix', () => {
     // Turned half way round, right becomes left.
     expect(panOf(10, 0, Math.PI, 20)).toBeLessThan(0);
     const p = { amount: 1, dx: 0, dz: 0 };
-    const busy = scene({ water: p, forest: p, grass: p, hammer: p, anvil: p, saw: p, market: p, height: 1 });
-    const lv = mixAmbience(busy, { ...NOON, weather: 'storm', hour: 10 });
+    const busy = scene({
+      water: p,
+      forest: p,
+      grass: p,
+      hammer: p,
+      anvil: p,
+      saw: p,
+      market: p,
+      homes: { amount: 9, dx: 0, dz: 0 },
+      height: 1,
+    });
+    const lv = mixAmbience(busy, { ...NOON, weather: 'storm', hour: 10, season: 3, zoom: 30 });
     expect(lv.length).toBeLessThanOrEqual(MAX_VOICES);
     for (let i = 1; i < lv.length; i++) expect(lv[i]!.gain).toBeLessThanOrEqual(lv[i - 1]!.gain);
+  });
+
+  it('crackles a hearth close by homes in winter, and not on a summer noon', () => {
+    const s = scene({ homes: { amount: 8, dx: 2, dz: 0 } });
+    expect(ids(s, { ...NOON, season: 3, zoom: 40 })).toContain('hearth');
+    expect(ids(s, { ...NOON, season: 2, hour: 20, zoom: 40 })).toContain('hearth');
+    expect(ids(s, { ...NOON, zoom: 40 })).not.toContain('hearth');
+    expect(ids(s, { ...NOON, season: 3, zoom: 200 })).not.toContain('hearth');
   });
 
   it('windows hours across midnight', () => {
