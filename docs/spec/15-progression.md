@@ -27,7 +27,7 @@ Technology arrives through conditions in the town, shown as progress bars in the
 
 | Innovation | From | Condition | Unlocks |
 |---|---|---|---|
-| Wheelbarrows | I2 | a storehouse whose porters were 80%+ busy for 3 days | porters carry 6 |
+| Wheelbarrows | I2 | a storehouse whose porters were 80%+ busy for 3 days | porters carry 8 |
 | Carts | I2 | Village rank and 20+ planks per day | Cart Shed |
 | Cobbles | I2 | quarry output 20+ per day | streets |
 | Brick Kiln | I2 | a clay pit worked for 2 days | bricks |

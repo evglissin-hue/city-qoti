@@ -35,7 +35,15 @@ export interface Shortages {
   goods: Set<string>;
   /** I2 (C4C): more than PLENTY_DAYS of food in hand, so farms and fishers can spare hands. */
   plenty?: boolean;
+  /**
+   * C4X: goods are piling up for want of porters (a quarter or more of the producing buildings sit
+   * with full output), so the extra porters of each storehouse are hired like any other work.
+   */
+  haul?: boolean;
 }
+
+/** Share of producing buildings with full output at which porters count as short (C4X). */
+export const HAUL_SHORT_SHARE = 0.25;
 
 /** Days of food in hand above which food jobs stop outranking other work (C4C). */
 export const PLENTY_DAYS = 8;
@@ -62,10 +70,20 @@ export function shortages(state: WorldState): Shortages {
   }
   // I2 (C4C): what the Craftsfolk basket is short of (nothing before the Village).
   for (const id of tierShortages(state, stock)) goods.add(id);
+  let producing = 0;
+  let full = 0;
+  for (const b of state.buildings) {
+    if (b.stage !== 'built' || !b.rt || b.rt.paused) continue;
+    const def = content.buildingById.get(b.def);
+    if (!def?.methods?.length || def.category === 'service') continue;
+    producing++;
+    if (b.rt.status & BuildingStatus.outputFull) full++;
+  }
   return {
     food: food < 3 * state.residents.length,
     goods,
     plenty: food > PLENTY_DAYS * state.residents.length,
+    haul: producing > 0 && full >= producing * HAUL_SHORT_SHARE,
   };
 }
 
@@ -85,14 +103,15 @@ function makes(def: BuildingDef, short: Shortages): 'short' | 'food' | 'other' {
  * How much the k-th job at a building matters, lower first: 0 the first builder, the first porter
  * of each storehouse and anything making what the town is short of (food, or timber and stone the
  * sites are waiting on); 1 the second builder, the second porter and stall vendors; 2 food when
- * there is enough; 3 everything else that makes things; 4 the remaining builders and porters.
+ * there is enough; 3 everything else that makes things; 4 the remaining builders and porters (3
+ * for the porters while goods pile up for want of them, C4X: never ahead of a workplace's first hand).
  * Without a porter nothing moves and without a builder nothing gets built, so those two are never
  * poached; past them a hamlet of eight keeps fed and keeps building before it hauls.
  */
 export function slotPriority(def: BuildingDef, k: number, short: Shortages = NO_SHORTAGES): number {
   const role = def.jobs?.role ?? 'worker';
   if (role === 'builder') return k === 0 ? 0 : k === 1 ? 1 : 4;
-  if (role === 'porter') return k === 0 ? 0 : k === 1 ? 1 : 4;
+  if (role === 'porter') return k === 0 ? 0 : k === 1 ? 1 : short.haul ? 3 : 4;
   if (role === 'vendor') return 1;
   // I2 (C4C): a tavern, herbalist or school open matters like a stall's vendor; and a town sitting on
   // more than eight days of food lets its plots, farms and fishers go to other work first.

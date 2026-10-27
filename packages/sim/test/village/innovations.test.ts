@@ -7,7 +7,7 @@ import { START_HOUR, TICKS_PER_DAY, TICKS_PER_HOUR, WORK_HOURS } from '../../src
 import type { WorldState } from '../../src/contracts';
 import { hasInnovation } from '../../src/state/village';
 import { updateInnovations } from '../../src/systems/innovations';
-import { carryOf } from '../../src/systems/logistics';
+import { carryOf, WHEELBARROW_CARRY } from '../../src/systems/logistics';
 import { createTickCtx } from '../../src/turn';
 import { hamletFixture } from '../fixtures/hamlet';
 import { rejection, run } from '../helpers';
@@ -102,7 +102,7 @@ describe('innovations', () => {
     at(state, 3, 18);
     pass(state);
     expect(hasInnovation(state, 'wheelbarrows')).toBe(true);
-    expect(carryOf(state, good('planks'))).toBe(6);
+    expect(carryOf(state, good('planks'))).toBe(WHEELBARROW_CARRY);
   });
 
   it('Wheelbarrows: an idle afternoon breaks the streak', () => {

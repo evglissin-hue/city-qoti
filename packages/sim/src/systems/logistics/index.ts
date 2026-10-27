@@ -85,11 +85,14 @@ export const logistics: System = {
   },
 };
 
-/** Capability id the Wheelbarrows innovation unlocks: porters carry 6. */
+/**
+ * Capability id the Wheelbarrows innovation unlocks. C4X: a wheelbarrow doubles a porter's load to 8
+ * (the id keeps its I2 contract name): a Village's porters were a third of its workforce at 6.
+ */
 export const WHEELBARROW = 'porter-carry-6';
-export const WHEELBARROW_CARRY = 6;
+export const WHEELBARROW_CARRY = 8;
 
-/** Units a porter carries of a good: its `carry`, or 6 once the town has wheelbarrows. */
+/** Units a porter carries of a good: its `carry`, or 8 once the town has wheelbarrows. */
 export function carryOf(state: WorldState, good: number): number {
   const carry = content.goods[good]?.carry ?? PORTER_CARRY;
   return state.hearth.unlocked.includes(WHEELBARROW) ? Math.max(carry, WHEELBARROW_CARRY) : carry;
