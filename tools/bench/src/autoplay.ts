@@ -545,7 +545,9 @@ class Players {
       percent !== l.wageLevel && this.do(why, [{ t: 'ledger.setWageLevel', percent }]);
     const setTax = (percent: number, why: string) =>
       percent !== l.taxRate && this.do(why, [{ t: 'ledger.setTaxRate', percent }]);
-    if (net < 0 && coins < 300 && basket >= 65) {
+    // C4X: or whenever the treasury is nearly empty while households get by (purses held four
+    // thousand coins while the town could not afford a cider press).
+    if ((net < 0 && coins < 300 && basket >= 65) || (coins < 100 && basket >= 75)) {
       // The treasury slides while households get by: trim wages a little, then firm up the tax.
       if (l.wageLevel > 85) setWage(l.wageLevel - 5, 'trim wages');
       else if (l.taxRate < 20) setTax(l.taxRate + 2, 'raise the income tax');
@@ -561,6 +563,8 @@ class Players {
     // The County Bank: borrow when the treasury runs thin, repay when flush.
     const owed = loansOwed(w);
     const room = Math.floor((creditLimit(w) - owed) / PENNIES_PER_COIN);
+    // C4X: near the end of the credit line, wages go to the floor (lean times are a step away).
+    if (room < 400 && coins < 200 && l.wageLevel > 80) setWage(80, 'trim wages to the floor');
     if (coins < 60 && room >= 100) {
       this.do('take a loan', [{ t: 'loan.take', coins: Math.min(room, 300) }]);
     } else if (owed > 0 && coins > 350) {
