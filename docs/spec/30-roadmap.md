@@ -53,7 +53,7 @@ Each iteration ends with something both players can play on the live link (P54),
 
 **As built (C4X)**, with evidence:
 
-- From the standard start the autoplayer claims the Village Charter by itself on day 25 to 37 (five seeds), then grows to 138 to 268 residents by day 90 with no lean days and no departures (`tools/bench/src/autoplay.test.ts`, `npm run tune -w @qoti/bench`, `TUNE_VILLAGE=1`):
+- From the standard start the autoplayer claims the Village Charter by itself on day 25 to 37 (five seeds), then grows to 138 to 268 residents by day 90 with no lean days and no departures (`tools/bench/src/autoplay.test.ts`, `npm run tune -w @qoti/bench`, the Village half, which C5.0 made the default run):
 
   | Seed | Village day | Pop / Craftsfolk d60 | Pop / Craftsfolk d90 | Craftsfolk peak | Owed max → d90 (coins) |
   |---|---|---|---|---|---|
