@@ -22,6 +22,7 @@ import type {
 } from '../../contracts';
 import { findById } from '../../state/entities';
 import { isStandard } from '../../state/hamlet';
+import { rankAtLeast } from '../../state/village';
 import { constructionStage } from '../../view/hamlet';
 import { emitBuilding } from '../economy/emit';
 import { isWorkTime, tickOfDay } from '../economy/time';
@@ -207,14 +208,14 @@ function assign(
   let bestDest: Spot | null = null;
   let bestGood = -1;
 
-  // C4X: sites and workshop inputs share a class (the nearer source wins), and the scan starts at a
-  // rotating need so ties do not always go to the oldest building. With inputs strictly first, a
-  // busy Village always had some workshop wanting logs, and its sites waited for good (a tavern
-  // stood at 0 of 42 materials for weeks with 69 bricks and 121 planks in store).
-  const off = needs.length > 0 ? state.logistics.nextJobId % needs.length : 0;
-  for (let k = 0; k < needs.length; k++) {
-    const need = needs[(k + off) % needs.length]!;
-    const cls = need.cls === JobClass.site ? JobClass.input : need.cls;
+  // C4X: from Village rank, sites and workshop inputs share a class (the nearer source wins; among
+  // sites the oldest, so they finish one at a time). With inputs strictly first, a busy Village
+  // always had some workshop wanting logs, and its sites waited for good (a tavern stood at 0 of 42
+  // materials for weeks with 69 bricks and 121 planks in store). A Hamlet keeps I1's order, which
+  // its first evenings are tuned to.
+  const fair = rankAtLeast(state, 'village');
+  for (const need of needs) {
+    const cls = fair && need.cls === JobClass.site ? JobClass.input : need.cls;
     if (need.want <= 0 || cls > bestCls || !within(reach, need.dest.door)) continue;
     const goods = need.good >= 0 ? [need.good] : stallOrder(need.dest.rt);
     for (const g of goods) {
