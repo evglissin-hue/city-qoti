@@ -26,9 +26,8 @@ import type { BuildingDef } from './types';
 // value than it takes in wages (basic 6 coins, skilled 10) and upkeep, so the profit line in the
 // inspector reads positive at base prices; C4A's market moves the prices from there.
 //
-// Art: C4E draws these. Until its kits land each def names an existing kit as a stand-in and puts
-// the kit it should use in `params.kit`, with the details the kit can read (walls, roof, piles,
-// animals, signs).
+// Art: C4E's kits of the same names draw these (C4X); the water sawmill borrows the sawpit's kit
+// until it has its own.
 
 /** Clay dug from the riverbank deposits. A pit worked for two days brings the Brick Kiln. */
 export const clayPit: BuildingDef = {
@@ -57,7 +56,7 @@ export const clayPit: BuildingDef = {
   work: 8,
   charm: [{ category: 'noise', value: -4, radius: 2 }],
   tags: ['workshop', 'clay'],
-  art: { kit: 'quarry', params: { kit: 'clay-pit', pile: 'clay', water: true } },
+  art: { kit: 'clay-pit' },
 };
 
 export const brickKiln: BuildingDef = {
@@ -94,10 +93,7 @@ export const brickKiln: BuildingDef = {
   charm: [{ category: 'noise', value: -6, radius: 3 }],
   tags: ['workshop', 'kiln'],
   requires: { innovation: 'brick-kiln' },
-  art: {
-    kit: 'bakery',
-    params: { kit: 'brick-kiln', wall: 'brick', chimney: true, smoke: true, pile: 'bricks' },
-  },
+  art: { kit: 'brick-kiln' },
 };
 
 export const sheepPasture: BuildingDef = {
@@ -126,7 +122,7 @@ export const sheepPasture: BuildingDef = {
   charm: [{ category: 'nature', value: 3, radius: 2 }],
   tags: ['farm', 'pasture', 'animals'],
   requires: { rank: 'village' },
-  art: { kit: 'vegetable-plot', params: { kit: 'sheep-pasture', animals: 'sheep', count: 5, fence: true } },
+  art: { kit: 'sheep-pasture' },
 };
 
 export const spinner: BuildingDef = {
@@ -159,7 +155,7 @@ export const spinner: BuildingDef = {
   work: 10,
   tags: ['workshop', 'textile'],
   requires: { rank: 'village' },
-  art: { kit: 'cottage', params: { kit: 'spinner', wheel: true, sign: 'yarn' } },
+  art: { kit: 'spinner' },
 };
 
 export const weaver: BuildingDef = {
@@ -193,7 +189,7 @@ export const weaver: BuildingDef = {
   charm: [{ category: 'noise', value: -3, radius: 2 }],
   tags: ['workshop', 'textile'],
   requires: { rank: 'village' },
-  art: { kit: 'bakery', params: { kit: 'weaver', loom: true, sign: 'cloth', awning: true } },
+  art: { kit: 'weaver' },
 };
 
 export const dairy: BuildingDef = {
@@ -229,7 +225,7 @@ export const dairy: BuildingDef = {
   charm: [{ category: 'noise', value: -4, radius: 2 }],
   tags: ['farm', 'animals', 'smelly'],
   requires: { rank: 'village' },
-  art: { kit: 'farmhouse', params: { kit: 'dairy', animals: 'cows', count: 3, churns: true } },
+  art: { kit: 'dairy' },
 };
 
 export const cheesemaker: BuildingDef = {
@@ -263,7 +259,7 @@ export const cheesemaker: BuildingDef = {
   charm: [{ category: 'noise', value: -2, radius: 2 }],
   tags: ['workshop', 'cheese'],
   requires: { rank: 'village' },
-  art: { kit: 'bakery', params: { kit: 'cheesemaker', wall: 'stone', sign: 'cheese', wheels: true } },
+  art: { kit: 'cheesemaker' },
 };
 
 export const orchard: BuildingDef = {
@@ -293,7 +289,7 @@ export const orchard: BuildingDef = {
   charm: [{ category: 'nature', value: 5, radius: 2 }],
   tags: ['farm', 'orchard', 'garden'],
   requires: { rank: 'village' },
-  art: { kit: 'vegetable-plot', params: { kit: 'orchard', trees: 6, fruit: 'apple', ladder: true } },
+  art: { kit: 'orchard' },
 };
 
 export const ciderPress: BuildingDef = {
@@ -327,7 +323,7 @@ export const ciderPress: BuildingDef = {
   charm: [{ category: 'comfort', value: 2, radius: 2 }],
   tags: ['workshop', 'cider'],
   requires: { rank: 'village' },
-  art: { kit: 'bakery', params: { kit: 'cider-press', barrels: 4, sign: 'cider' } },
+  art: { kit: 'cider-press' },
 };
 
 /** Firewood for the townhouses now and every hearth in winter [I3]. */
@@ -355,7 +351,7 @@ export const choppingShed: BuildingDef = {
   work: 6,
   charm: [{ category: 'noise', value: -4, radius: 2 }],
   tags: ['workshop', 'forestry'],
-  art: { kit: 'woodcutter', params: { kit: 'chopping-shed', pile: 'firewood', block: true } },
+  art: { kit: 'chopping-shed' },
 };
 
 export const herbGarden: BuildingDef = {
@@ -384,7 +380,7 @@ export const herbGarden: BuildingDef = {
   charm: [{ category: 'nature', value: 3, radius: 2 }],
   tags: ['plot', 'garden', 'herb'],
   requires: { rank: 'village' },
-  art: { kit: 'vegetable-plot', params: { kit: 'herb-garden', crop: 'herbs', bees: true } },
+  art: { kit: 'herb-garden' },
 };
 
 /** Tools until iron comes over the hill [I4]: hard stone, hot fires and a patient smith. */
@@ -422,7 +418,7 @@ export const smithy: BuildingDef = {
   charm: [{ category: 'noise', value: -8, radius: 3 }],
   tags: ['workshop', 'smithy'],
   requires: { rank: 'village' },
-  art: { kit: 'sawpit', params: { kit: 'smithy', wall: 'stone', chimney: true, glow: true, anvil: true } },
+  art: { kit: 'smithy' },
 };
 
 /** Planks by the river (the Water Wheel innovation): 80% more than a sawpit's crew, and louder. */
@@ -488,7 +484,7 @@ export const school: BuildingDef = {
   charm: [{ category: 'comfort', value: 4, radius: 3 }],
   tags: ['school', 'civic'],
   requires: { rank: 'village' },
-  art: { kit: 'house', params: { kit: 'school', bell: true, wall: 'brick', yard: true } },
+  art: { kit: 'school' },
 };
 
 /** Social cover for 60 residents within 10 tiles; pours cider of an evening. */
@@ -528,7 +524,7 @@ export const tavern: BuildingDef = {
   ],
   tags: ['tavern', 'cafe'],
   requires: { rank: 'village' },
-  art: { kit: 'house', params: { kit: 'tavern', sign: 'tavern', benches: true, lamps: true } },
+  art: { kit: 'tavern' },
 };
 
 /** Health cover for 60 residents within 12 tiles; brews remedies from herbs. */
@@ -564,7 +560,7 @@ export const herbalist: BuildingDef = {
   charm: [{ category: 'nature', value: 2, radius: 2 }],
   tags: ['herbalist', 'garden'],
   requires: { rank: 'village' },
-  art: { kit: 'cottage', params: { kit: 'herbalist', drying: true, sign: 'mortar', pots: 4 } },
+  art: { kit: 'herbalist' },
 };
 
 // --- Trade and carts ---------------------------------------------------------------------------
@@ -596,7 +592,7 @@ export const tradingPost: BuildingDef = {
   charm: [{ category: 'noise', value: -4, radius: 3 }],
   tags: ['trading-post', 'storehouse', 'outlet'],
   requires: { rank: 'village' },
-  art: { kit: 'storehouse', params: { kit: 'trading-post', flags: true, scales: true, crates: 6 } },
+  art: { kit: 'trading-post' },
 };
 
 /** One cart and its pony: 16 units a trip on lanes and streets (the Carts innovation). */
@@ -621,7 +617,7 @@ export const cartShed: BuildingDef = {
   charm: [{ category: 'noise', value: -3, radius: 2 }],
   tags: ['cart-shed'],
   requires: { innovation: 'carts' },
-  art: { kit: 'shed', params: { kit: 'cart-shed', doors: 'wide', hay: true } },
+  art: { kit: 'cart-shed' },
 };
 
 // --- Homes and grown buildings -----------------------------------------------------------------
@@ -652,7 +648,7 @@ export const townhouse: BuildingDef = {
   tier: 'craftsfolk',
   grows: { zone: 'homes-medium' },
   requires: { rank: 'village' },
-  art: { kit: 'house', params: { kit: 'townhouse', storeys: 2, wall: 'brick', chimney: true } },
+  art: { kit: 'townhouse' },
 };
 
 /** A shop with a flat above: a food outlet on the ground floor and a household upstairs. */
@@ -680,7 +676,7 @@ export const cornerShop: BuildingDef = {
   tags: ['outlet', 'market', 'shop', 'cafe'],
   grows: { zone: 'shops' },
   requires: { rank: 'village' },
-  art: { kit: 'house', params: { kit: 'corner-shop', awning: true, shopfront: true, storeys: 2 } },
+  art: { kit: 'shop' },
 };
 
 /** A small workshop on a crafts lot that takes up whatever the market is short of. */
@@ -752,7 +748,7 @@ export const workshop: BuildingDef = {
   tags: ['workshop', 'grown'],
   grows: { zone: 'crafts' },
   requires: { rank: 'village' },
-  art: { kit: 'bakery', params: { kit: 'workshop', yard: true, sign: 'method' } },
+  art: { kit: 'workshop' },
 };
 
 /** A farmstead on a farms lot: pasture, cows, apples, herbs or vegetables, by what is short. */
@@ -830,5 +826,5 @@ export const farmstead: BuildingDef = {
   tags: ['farm', 'grown'],
   grows: { zone: 'farms' },
   requires: { rank: 'village' },
-  art: { kit: 'farmhouse', params: { kit: 'farmstead', yard: true, crop: 'method' } },
+  art: { kit: 'farmstead' },
 };

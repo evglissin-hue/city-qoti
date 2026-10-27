@@ -117,15 +117,17 @@ describe('the nightly growth pass', () => {
     expect(growthDemand(s).crafts).toBe(0);
     night(s);
     expect(grown(s).some((b) => findById(s.lots, b.lot!)!.zone === Zone.crafts)).toBe(false);
-    // Planks run short: the sawpit (which the logs in stock can feed) grows.
-    s.market.demand[good('planks')] = 40;
+    // Firewood runs short: a workshop (which the logs in stock can feed) grows, set to chopping.
+    s.market.demand[good('firewood')] = 40;
     expect(growthDemand(s).crafts).toBe(1);
     night(s);
     const shop = grown(s).find((b) => findById(s.lots, b.lot!)!.zone === Zone.crafts);
-    expect(shop?.def).toBe('sawpit');
+    const def = content.buildingById.get(shop?.def ?? '');
+    expect(def?.grows?.zone).toBe('crafts');
+    expect(def?.methods?.[shop!.rt!.method]?.outputs[0]?.[0]).toBe('firewood');
   });
 
-  it('grows a farm when food runs low, and gives it the farm land behind as fields', () => {
+  it('grows a farm when food runs low, and gives a field farm the farm land behind', () => {
     const f = villageFixture();
     const s = f.state;
     // Fertile farm land north of lane A, east of the stalls; empty the larders.
@@ -144,6 +146,8 @@ describe('the nightly growth pass', () => {
     night(s);
     const farm = grown(s).find((b) => findById(s.lots, b.lot!)!.zone === Zone.farms)!;
     expect(farm).toBeDefined();
+    // C4C's farmstead keeps its crops in its own yard; a field farm (a farmhouse) takes the land.
+    if (!content.buildingById.get(farm.def)?.methods?.some((m) => m.kind === 'farm')) return;
     // Finished, it takes fields on the zoned land behind the lots, nearest first.
     farm.stage = 'built';
     farm.rt!.construction = null;
