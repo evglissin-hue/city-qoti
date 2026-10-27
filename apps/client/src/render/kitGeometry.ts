@@ -1,5 +1,13 @@
-import { constructionGeometry, kitById, ShapeBuilder, type KitBuildOptions } from '@qoti/art';
+import {
+  constructionGeometry,
+  kitById,
+  mergeFlat,
+  ShapeBuilder,
+  upgradeScaffold,
+  type KitBuildOptions,
+} from '@qoti/art';
 import { content } from '@qoti/content';
+import { drawDef } from './defs';
 import {
   DECOR_ROTATIONS,
   footprintSize,
@@ -23,7 +31,7 @@ export function buildingGeometry(defId: string): BufferGeometry {
   const key = `building:${defId}`;
   let g = cache.get(key);
   if (!g) {
-    const def = content.buildingById.get(defId);
+    const def = drawDef(defId);
     const kit = def ? kitById.get(def.art.kit) : undefined;
     g =
       def && kit
@@ -51,12 +59,39 @@ function pile(qty: number, full: number): number {
   return qty <= 0 ? 0 : Math.max(1, Math.min(4, Math.ceil((qty / full) * 4)));
 }
 
+/**
+ * C4E: kits whose look follows the season (fruit trees in orchards and farmsteads). Others never
+ * see the season in their params, so a new season rebuilds only these.
+ */
+const SEASONAL_KITS = new Set(['farmstead', 'orchard']);
+let drawSeason = 1;
+
+/** Sets the season seasonal kits are drawn in (0 spring to 3 winter); true when it changed. */
+export function setDrawSeason(season: number): boolean {
+  if (season === drawSeason) return false;
+  drawSeason = season;
+  return true;
+}
+
+export function isSeasonal(defId: string): boolean {
+  const kit = drawDef(defId)?.art.kit;
+  return !!kit && SEASONAL_KITS.has(kit);
+}
+
 /** Kit params for one building: its def's params, the player's customization and runtime levels. */
 export function buildingParams(b: BuildingView): Record<string, number | string | boolean> {
-  const def = content.buildingById.get(b.def);
+  const def = drawDef(b.def);
   const p: Record<string, number | string | boolean> = { ...(def?.art.params ?? {}) };
   for (const [k, v] of Object.entries(b.custom ?? {})) p[k] = v;
+  // C4E: grown buildings take their district's look; seasonal kits the season.
+  if (b.style) p.style = b.style;
+  if (def && SEASONAL_KITS.has(def.art.kit)) p.season = drawSeason;
   const rt = b.rt;
+  if (rt?.method) {
+    // What a grown craft or farm is making, by its method's first output.
+    const out = def?.methods?.find((m) => m.id === rt.method)?.outputs[0]?.[0];
+    if (out) p.make = out;
+  }
   if (rt && b.stage === 'built') {
     const storeFull =
       def?.tags?.includes('outlet') && !def.tags.includes('storehouse') ? FULL_STALL : FULL_STORE;
@@ -90,12 +125,13 @@ export function buildingKey(b: BuildingView, lod: 'high' | 'low' = 'high'): stri
   }
   const params = buildingParams(b);
   const keys = Object.keys(params).sort();
-  return `b:${b.def}:${variantSeed(b)}:${lod}:${keys.map((k) => `${k}=${String(params[k])}`).join(';')}`;
+  const up = b.rt?.upgrading ? ':up' : '';
+  return `b:${b.def}:${variantSeed(b)}:${lod}${up}:${keys.map((k) => `${k}=${String(params[k])}`).join(';')}`;
 }
 
 /** Kit options for a building view (seed variant, params), as the effects layer and signs need. */
 export function buildingKitOptions(b: BuildingView): KitBuildOptions {
-  const def = content.buildingById.get(b.def);
+  const def = drawDef(b.def);
   return {
     ...(def ? { size: def.size, entrance: def.entrance } : {}),
     params: buildingParams(b),
@@ -108,7 +144,7 @@ export function buildingKitOptions(b: BuildingView): KitBuildOptions {
  * Not cached: the buildings batch copies it once per key and the caller disposes it.
  */
 export function buildingVariantGeometry(b: BuildingView, lod: 'high' | 'low' = 'high'): BufferGeometry {
-  const def = content.buildingById.get(b.def);
+  const def = drawDef(b.def);
   const kit = def ? kitById.get(def.art.kit) : undefined;
   const stage = constructionStage(b);
   if (!def || !kit) return missing();
@@ -117,7 +153,12 @@ export function buildingVariantGeometry(b: BuildingView, lod: 'high' | 'low' = '
     for (const [good, qty] of b.rt?.construction?.delivered ?? []) delivered[good] = pile(qty, 10);
     return constructionGeometry({ kit: def.art.kit, size: def.size, stage, delivered, seed: variantSeed(b) });
   }
-  return kit.build({ ...buildingKitOptions(b), lod });
+  const g = kit.build({ ...buildingKitOptions(b), lod });
+  if (!b.rt?.upgrading) return g;
+  // C4E: a home upgrade under way: scaffolding round the house as it stands.
+  const merged = mergeFlat([g, upgradeScaffold(def.art.kit, def.size, variantSeed(b))]);
+  g.dispose();
+  return merged;
 }
 
 export function decorGeometry(defId: string): BufferGeometry {
@@ -163,7 +204,7 @@ export function footprintHeights(
   z: number,
   rot: Rot4,
 ): [number, number] {
-  const def = content.buildingById.get(defId);
+  const def = drawDef(defId);
   if (!def) return [0, 0];
   const [w, d] = footprintSize(def, rot);
   let lo = 15;
@@ -188,7 +229,7 @@ export function buildingMatrix(
   baseLevel: number,
   out = new Matrix4(),
 ): Matrix4 {
-  const def = content.buildingById.get(defId);
+  const def = drawDef(defId);
   const [w, d] = def?.size ?? [1, 1];
   const [rw, rd] = def ? footprintSize(def, rot) : [1, 1];
   toOrigin.makeTranslation(-w / 2, 0, -d / 2);

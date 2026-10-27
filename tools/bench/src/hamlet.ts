@@ -14,6 +14,7 @@ import {
   createValley,
   defaultSettings,
   doorTile,
+  fieldTileProblem,
   findById,
   insertBuilding,
   MAP_SIZE,
@@ -272,12 +273,14 @@ function crowded(world: WorldState, x0: number, z0: number, w: number, d: number
     for (let x = x0 - 1; x <= x0 + w; x++) {
       if (x < 0 || z < 0 || x >= MAP_SIZE || z >= MAP_SIZE) continue;
       if (world.map.occupant[z * MAP_SIZE + x]) return true;
+      // I2 (C4B): hand-placed buildings leave zoned land to grow.
+      if (world.map.zone[z * MAP_SIZE + x]) return true;
     }
   }
   return false;
 }
 
-function matureTreesNear(world: WorldState, x: number, z: number, r: number): number {
+export function matureTreesNear(world: WorldState, x: number, z: number, r: number): number {
   let n = 0;
   for (let tz = z - r; tz <= z + r; tz++) {
     for (let tx = x - r; tx <= x + r; tx++) {
@@ -289,11 +292,32 @@ function matureTreesNear(world: WorldState, x: number, z: number, r: number): nu
   return n;
 }
 
+/** C4X: whether a farmhouse here would find `want` tiles it may turn into fields (not zoned). */
+function fieldRoom(world: WorldState, x: number, z: number, rot: Rot4, want: number): boolean {
+  const def = content.buildingById.get('farmhouse')!;
+  const farm = { id: -1, def: 'farmhouse', x, z, rot } as Building;
+  let n = 0;
+  for (let tz = z - 6; tz <= z + 8; tz++) {
+    for (let tx = x - 6; tx <= x + 8; tx++) {
+      if (tx < 0 || tz < 0 || tx >= MAP_SIZE || tz >= MAP_SIZE || world.map.zone[tz * MAP_SIZE + tx])
+        continue;
+      if (!fieldTileProblem(world, farm, def, tx, tz) && ++n >= want) return true;
+    }
+  }
+  return false;
+}
+
 /**
  * The nearest valid spot to the town center for a building, with a tile of space around it and,
- * for woodcutters, mature trees in reach. Null when nothing fits within `radius`.
+ * for woodcutters, mature trees in reach (C4X: for farmhouses, room for two workers' fields). Null when nothing fits within `radius`.
  */
-export function findSpot(world: WorldState, defId: string, radius = 40): [number, number, Rot4] | null {
+export function findSpot(
+  world: WorldState,
+  defId: string,
+  radius = 40,
+  /** C4D: only spots this accepts (footprint min corner and turned size). */
+  only?: (x: number, z: number, w: number, d: number) => boolean,
+): [number, number, Rot4] | null {
   const def = content.buildingById.get(defId)!;
   const [cx, cz] = center(world);
   const reader = worldIndex(world).reader;
@@ -310,9 +334,14 @@ export function findSpot(world: WorldState, defId: string, radius = 40): [number
           if (!p.ok) continue;
           const [w, d] = rot % 2 === 0 ? def.size : [def.size[1], def.size[0]];
           if (crowded(world, x, z, w, d)) continue;
+          if (only && !only(x, z, w, d)) continue;
           if (!nearStorehouse(world, def, x, z, rot)) continue;
+          // C4C: never a door that opens onto the water (porters cannot walk into the river).
+          const door = doorTile({ def: defId, x, z, rot } as Building, def);
+          if (world.map.water[door]) continue;
           let score = p.warnings.includes('NO_ROAD') ? 0 : 1;
           if (defId === 'woodcutter') score = matureTreesNear(world, x, z, 8) >= 40 ? 1 : -1;
+          else if (defId === 'farmhouse' && !fieldRoom(world, x, z, rot, 24)) score = -1;
           if (score > bestScore) {
             bestScore = score;
             best = [x, z, rot];
@@ -341,11 +370,11 @@ function nearStorehouse(world: WorldState, def: BuildingDef, x: number, z: numbe
 }
 
 /** Applies commands as one turn (seat 0) and returns whether each was accepted. */
-export function command(h: Hamlet, cmds: Command[]): boolean[] {
+export function command(h: Hamlet, cmds: Command[], seat: 0 | 1 = 0): boolean[] {
   const before = h.ctx.events.length;
   applyTurn(
     h.world,
-    { t: h.world.lastTurn + 1, cmds: cmds.map((cmd, i) => ({ seat: 0, seq: i + 1, cmd })) },
+    { t: h.world.lastTurn + 1, cmds: cmds.map((cmd, i) => ({ seat, seq: i + 1, cmd })) },
     h.ctx,
   );
   const rejected = new Set<number>();

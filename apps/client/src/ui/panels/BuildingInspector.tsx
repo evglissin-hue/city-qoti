@@ -1,9 +1,12 @@
 import { content } from '@qoti/content';
 import type { BuildingDetail, BuildingView } from '@qoti/sim';
+import { useState } from 'preact/hooks';
 import type { Session } from '../../app/session';
 import { removeWithCare } from '../../input/removal';
-import { capital, coins, seatLabel } from '../format';
-import { CATEGORY_WORD, CONSTRUCTION_STAGES, statusWords } from '../hamlet';
+import { buildingName, capital, coins, seatLabel } from '../format';
+import { CATEGORY_WORD, CONSTRUCTION_STAGES, statusWords, TIER_WORD } from '../hamlet';
+import { zoneInk } from '../village';
+import { Price } from './villageParts';
 import { Glyph } from '../icons';
 import { Empty, Frame, GoodChip, GoodList, Heading, Meter, Toggle, useInspect } from './parts';
 
@@ -173,6 +176,8 @@ export function BuildingInspector({ session, id }: { session: Session; id: numbe
         </>
       )}
 
+      {detail && <VillageDetail session={session} detail={detail} />}
+
       {household && (
         <>
           <Heading>Home of the {household.family} family</Heading>
@@ -276,4 +281,115 @@ function findHousehold(session: Session, b: BuildingView) {
     };
   }
   return undefined;
+}
+
+const STYLE_WORD: Record<string, string> = {
+  timber: 'timber-framed',
+  plaster: 'plastered',
+  stone: 'stone-built',
+  brick: 'red brick',
+};
+
+/**
+ * I2 (C4F): what the village adds to a building: the lot it grew on and its style, a home's tier
+ * and upgrade, the recipe the Ledger pinned, and (in the Ledger lens) its profit per work day.
+ */
+function VillageDetail({ session, detail }: { session: Session; detail: BuildingDetail }) {
+  const [open, setOpen] = useState(false);
+  const ledger = session.ui.lens.value === 'ledger';
+  const b = detail.b;
+  const lot = detail.lot;
+  const zone = lot ? content.zoneById.get(lot.zone) : undefined;
+  const style = b.style || lot?.style;
+  return (
+    <>
+      {lot && (
+        <p class="lot-line small" data-testid="building-lot">
+          <i class="zone-dot" style={{ '--zone': zoneInk(lot.zone) }} />
+          <span>
+            Grew on a {(zone?.name ?? 'zoned').toLowerCase()} lot
+            {style ? `, ${STYLE_WORD[style] ?? style}` : ''}.
+            {lot.desirability > 0 && (
+              <span class="muted">
+                {' '}
+                A {lot.desirability >= 60
+                  ? 'sought-after'
+                  : lot.desirability >= 35
+                    ? 'decent'
+                    : 'modest'}{' '}
+                spot.
+              </span>
+            )}
+          </span>
+        </p>
+      )}
+      {detail.tier && (
+        <p class="small" data-testid="building-tier">
+          A {TIER_WORD[detail.tier]?.toLowerCase() ?? detail.tier} home.
+        </p>
+      )}
+      {detail.upgrade && (
+        <div class="upgrade" data-testid="building-upgrade">
+          <Heading>Becoming a {buildingName(detail.upgrade.to).toLowerCase()}</Heading>
+          <GoodList items={detail.upgrade.waiting} empty="Everything has arrived; the builders are on it." />
+        </div>
+      )}
+      {detail.methods && detail.methods.length > 1 && (
+        <div class="pin-recipe" data-testid="pin-recipe">
+          <Heading>Makes</Heading>
+          <div class="dial small village-dial" role="radiogroup" aria-label="Recipe">
+            <button
+              type="button"
+              role="radio"
+              aria-checked={!detail.pinned}
+              class={!detail.pinned ? 'active' : ''}
+              title="Whatever the market is shortest of"
+              onClick={() => session.submit({ t: 'build.pinRecipe', id: b.id, method: null })}
+            >
+              Whatever is short
+            </button>
+            {detail.methods.map((mt) => (
+              <button
+                key={mt.id}
+                type="button"
+                role="radio"
+                aria-checked={detail.pinned === mt.id}
+                class={detail.pinned === mt.id ? 'active' : ''}
+                data-testid={`pin-${mt.id}`}
+                onClick={() => session.submit({ t: 'build.pinRecipe', id: b.id, method: mt.id })}
+              >
+                {mt.name}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+      {ledger && detail.profit && (
+        <div
+          class={`profit-card ${detail.profit.perDay >= 0 ? 'gain' : 'loss'}`}
+          data-testid="building-profit"
+        >
+          <button type="button" class="profit-row" aria-expanded={open} onClick={() => setOpen(!open)}>
+            <span>{detail.profit.perDay >= 0 ? 'Earns its keep' : 'Runs at a loss'}</span>
+            <b class={detail.profit.perDay >= 0 ? 'plus' : 'minus'}>
+              <Price pennies={detail.profit.perDay} signed />
+              <span class="muted small"> a work day</span>
+            </b>
+          </button>
+          {open && (
+            <div class="profit-lines">
+              {detail.profit.lines.map((l) => (
+                <p key={l.label}>
+                  <span>{l.label}</span>
+                  <span class={l.pennies >= 0 ? 'plus' : 'minus'}>
+                    <Price pennies={l.pennies} signed />
+                  </span>
+                </p>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </>
+  );
 }

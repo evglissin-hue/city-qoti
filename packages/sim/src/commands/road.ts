@@ -4,6 +4,7 @@ import { canPaintRoad } from '../rules/road';
 import { worldIndex } from '../state/worldIndex';
 import { tilesRect } from '../map/layers';
 import { chargeRoad, roadBlocked } from '../systems/economy/api';
+import { afterRoadChange, chargeRoadGoods, roadPaintBlocked } from '../systems/traffic/streets';
 import { checkTiles, type HandlerFor, tilesChangedFor, worldChanged } from './util';
 
 export const paint: HandlerFor<'road.paint'> = {
@@ -11,10 +12,14 @@ export const paint: HandlerFor<'road.paint'> = {
   validate(state, _seat, cmd) {
     const result = canPaintRoad(worldIndex(state).reader, cmd.kind, cmd.tiles);
     if (!result.ok) return result.reason ?? 'INVALID';
-    return roadBlocked(state, cmd.kind, newRoadTiles(state, cmd.tiles));
+    return (
+      roadBlocked(state, cmd.kind, newRoadTiles(state, cmd.tiles)) ??
+      roadPaintBlocked(state, cmd.kind, cmd.tiles)
+    );
   },
   apply(state, _seat, cmd, ctx) {
     chargeRoad(state, ctx, cmd.kind, newRoadTiles(state, cmd.tiles));
+    chargeRoadGoods(state, ctx, cmd.kind, cmd.tiles);
     const value = content.roadById.get(cmd.kind)!.layerValue;
     const { road, tree } = state.map;
     for (const [x, z] of cmd.tiles) {
@@ -24,6 +29,7 @@ export const paint: HandlerFor<'road.paint'> = {
     }
     tilesChangedFor(ctx, cmd.tiles, ['road', 'tree']);
     worldChanged(state, tilesRect(cmd.tiles));
+    afterRoadChange(state, ctx, cmd.tiles);
   },
 };
 
@@ -38,6 +44,7 @@ export const remove: HandlerFor<'road.remove'> = {
     for (const [x, z] of cmd.tiles) state.map.road[z * MAP_SIZE + x] = 0;
     tilesChangedFor(ctx, cmd.tiles, ['road']);
     worldChanged(state, tilesRect(cmd.tiles));
+    afterRoadChange(state, ctx, cmd.tiles);
   },
 };
 

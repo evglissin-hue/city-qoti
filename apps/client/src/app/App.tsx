@@ -30,10 +30,10 @@ export function App() {
     return target ? { target, invite: false } : null;
   });
 
-  // ?debug&fixture=hamlet: straight into a fresh copy of the sim's hamlet fixture.
+  // ?debug&fixture=hamlet (or =village): straight into a fresh copy of the sim's fixture.
   useEffect(() => {
-    if (play || !DEBUG || FIXTURE !== 'hamlet') return;
-    void createFixtureValley().then((v) => {
+    if (play || !DEBUG || (FIXTURE !== 'hamlet' && FIXTURE !== 'village')) return;
+    void createFixtureValley('Thistlecombe', FIXTURE).then((v) => {
       setPlayHash(v.valleyId);
       setPlay({
         target: { valleyId: v.valleyId, seat: v.seat, token: v.token, mode: v.mode },
@@ -60,6 +60,10 @@ export function App() {
       onLeave={() => {
         setPlayHash(null);
         setPlay(null);
+      }}
+      onMove={(target) => {
+        setPlayHash(target.valleyId);
+        setPlay({ target, invite: true });
       }}
     />
   );

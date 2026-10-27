@@ -1,7 +1,9 @@
+import { fileURLToPath } from 'node:url';
 import { expect, test } from '@playwright/test';
 import { DEBUG_QUERY, waitLive } from './helpers';
 
-const SHOTS = '../../docs/build/screenshots';
+// Resolved from this file, so the shots land in docs/ whichever folder Playwright runs from.
+const SHOTS = fileURLToPath(new URL('../../../docs/build/screenshots', import.meta.url));
 
 test('title, create, invite, lenses and settings look right', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 800 });

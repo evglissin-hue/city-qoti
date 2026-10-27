@@ -49,6 +49,8 @@ const BUILDING_APPEAL: readonly [tag: string, base: number, species: string, bon
   ['bakery', 3, 'mouse', 6],
   ['civic', 2, 'fox', 2],
   ['garden', 3, 'rabbit', 4],
+  // I2 (C4C): the tavern of an evening (a third as tempting by day).
+  ['tavern', 10, 'badger', 6],
 ];
 
 function walkableTile(cost: Uint8Array, x: number, z: number): boolean {
@@ -147,6 +149,7 @@ export function chooseLeisure(state: WorldState, rng: Rng, r: Resident, evening:
       if (!tags.includes(tag)) continue;
       let v = base + (species === sp ? bonus : 0);
       if (tag === 'bakery') v *= bakery;
+      if (tag === 'tavern' && !evening) v /= 3;
       if (v > appeal) appeal = v;
     }
     consider(tileX(door), tileZ(door), appeal, true);

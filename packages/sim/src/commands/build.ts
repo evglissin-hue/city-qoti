@@ -4,9 +4,11 @@ import { tilesRect } from '../map/layers';
 import { canPlaceBuilding } from '../rules/building';
 import { footprintTiles } from '../rules/footprint';
 import { findById, removeById } from '../state/entities';
+import { isStandard } from '../state/hamlet';
 import { insertBuilding } from '../state/place';
 import { worldIndex } from '../state/worldIndex';
 import { chargePlacement, matureTreesUnder, placementBlocked, refundRemoval } from '../systems/economy/api';
+import { meetsRequires } from '../systems/innovations/api';
 import { checkIds, type HandlerFor, tilesChangedFor, worldChanged } from './util';
 
 export const place: HandlerFor<'build.place'> = {
@@ -15,6 +17,9 @@ export const place: HandlerFor<'build.place'> = {
     const def = typeof cmd.def === 'string' ? content.buildingById.get(cmd.def) : undefined;
     if (!def) return 'INVALID';
     if (def.modes && !def.modes.includes(state.settings.mode)) return 'NOT_ALLOWED';
+    // I2 (C4C): a rank or an innovation first; grown-only defs (shops, workshops) are not placed.
+    if (!meetsRequires(state, def.requires)) return 'LOCKED';
+    if (def.grows && !def.grows.handPlaced && isStandard(state)) return 'NOT_ALLOWED';
     const result = canPlaceBuilding(worldIndex(state).reader, def, cmd.x, cmd.z, cmd.rot);
     if (!result.ok) return result.reason ?? 'INVALID';
     return placementBlocked(state, def);
@@ -46,6 +51,11 @@ export const remove: HandlerFor<'build.remove'> = {
       if (def) refundRemoval(state, ctx, existing, def);
       // Residents and households notice the missing building on their next tick (C3A).
       const b = removeById(state.buildings, id)!;
+      // I2 (C4.0): a grown building's lot is free again.
+      if (b.lot) {
+        const lot = findById(state.lots, b.lot);
+        if (lot && lot.buildingId === id) lot.buildingId = 0;
+      }
       const tiles = def ? footprintTiles(def, b.x, b.z, b.rot) : [];
       for (const [x, z] of tiles) {
         if (state.map.occupant[z * MAP_SIZE + x] === id) state.map.occupant[z * MAP_SIZE + x] = 0;

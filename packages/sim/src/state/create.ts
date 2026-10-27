@@ -4,6 +4,7 @@ import { generateValley } from '../map/worldgen';
 import { seedStreams, streamIndex } from '../rng/streams';
 import { setupStandardStart } from '../systems/economy/start';
 import { emptyHamletSlices } from './hamlet';
+import { emptyVillageSlices } from './village';
 import { SAVE_VERSION } from './version';
 
 export function defaultSettings(): ValleySettings {
@@ -42,6 +43,7 @@ export function createWorld(seed: string, settings: ValleySettings): WorldState 
     decor: [],
     notes: [],
     ...emptyHamletSlices(),
+    ...emptyVillageSlices(),
   };
   if (settings.mode === 'standard') setupStandardStart(state);
   return state;

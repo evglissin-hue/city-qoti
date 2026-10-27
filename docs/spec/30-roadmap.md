@@ -49,6 +49,25 @@ Each iteration ends with something both players can play on the live link (P54),
 
 **Scope**: Village Charter; zoning and organic growth; market prices, wages and household budgets (money invariant tested); Craftsfolk tier and home upgrades; goods and chains: clay and bricks, wool to cloth, dairy and cheese, orchards and cider, firewood, herbs, tools; carts; streets and traffic; school, tavern, herbalist; Trading Post, Millhaven and Stonecross, standing orders; loans; plans layer and requests; story characters (Pippa Quill, Odette Fenwick, Juniper Reed); first innovations (wheelbarrows, carts, cobbles, brick kiln, water wheel); 6 new patterns; couples, weddings, births, apprenticeships, retiring; desire paths; terraforming; stairs; minimap; moving a solo valley online.
 
+**Cycles**: C4.0 village contracts (serial) → C4A market and money, C4B growth, C4C village chains, services and tiers, C4D lives, story characters and co-op tools, C4E village art, C4F village UI (parallel) → C4X integration, tuning and I3 planning.
+
+**As built (C4X)**, with evidence:
+
+- From the standard start the autoplayer claims the Village Charter by itself on day 25 to 37 (five seeds), then grows to 138 to 268 residents by day 90 with no lean days and no departures (`tools/bench/src/autoplay.test.ts`, `npm run tune -w @qoti/bench`, `TUNE_VILLAGE=1`):
+
+  | Seed | Village day | Pop / Craftsfolk d60 | Pop / Craftsfolk d90 | Craftsfolk peak | Owed max → d90 (coins) |
+  |---|---|---|---|---|---|
+  | hazel | 25 | 115 / 0 | 138 / 0 | 0 | 1500 → 0 |
+  | willow | 31 | 164 / 0 | 268 / 12 | 22 | 2115 → 66 |
+  | oak | 31 | 148 / 0 | 209 / 0 | 12 | 1971 → 0 |
+  | alder | 37 | 119 / 0 | 183 / 6 | 18 | 3600 → 3600 |
+  | rowan | 35 | 109 / 0 | 181 / 18 | 22 | 1214 → 0 |
+
+- Money: the invariant (`treasury + savings - external` never changes) holds in every economy test and a 10-day village run; from Village rank upkeep is paid to the village's own households, so loans come down again on four of five seeds.
+- Not met: 40 Craftsfolk by day 90. The autoplayer peaks at 0 to 22, held back by its own timber and cloth strategy (woodcutters left on felled patches, yarn waiting for a weaver) more than by the rules; the first human playtest decides how much further to lower the bar.
+- Integration fixes found by running everything together: the Trading Post costs no bricks (a new Village could not trade before its kiln); every workplace gets its first hand before any gets a second; extra porters are hired while goods pile up, and wheelbarrows carry 8; from Village rank, construction deliveries compete with workshop inputs instead of waiting behind them; taverns and herbalists serve 14 tiles and 100 residents; Craftsfolk need 20 coins put by.
+- Looks: an autoplayed village of 130 at day 70 draws 97 to 152 calls and 0.8M to 1.15M triangles on Medium; the I1 playtest's walking, lag, menu icon and lantern notes are fixed and live.
+
 ## I3 Seasons and the Watch
 
 **Scope**: seasons (seasonal farming, frozen river, warmth and firewood); weather and events (flood, drought, early frost, cold snap, travelling circus); festivals; habitats and the Field Guide (about 30 species); threat pressure, telegraphing, bandit gangs and winter wolves; defenses; the Watch and raid resolution; threat dial; River Dock; commissions; renown; customization phase 2 (modules); photo mode; Chronicle snapshots; 6 new patterns; together moments; story characters Mother Thornbury and Barnaby Ashcombe; the first winter trial for Village.

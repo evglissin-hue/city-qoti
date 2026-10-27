@@ -3,6 +3,7 @@ import type { HistoryItem, LifeStage, MoodBand, TierId } from './hamlet';
 import type { EntityId, LayerName, Lens, Rot4, SeatId, Speed } from './ids';
 import type { ValleySettings } from './settings';
 import type { WorldState } from './state';
+import type { PlanItem, RankId, RequestAsk } from './village';
 
 export interface BuildingView {
   id: EntityId;
@@ -15,6 +16,9 @@ export interface BuildingView {
   stage: 'construction' | 'built';
   foundation: boolean;
   custom?: Record<string, string | boolean>;
+  /** I2 (C4.0): grown buildings, their lot and district style. */
+  lot?: EntityId;
+  style?: string;
   /** I1: runtime summary in standard valleys (sent on building.updated). */
   rt?: BuildingRuntimeView;
 }
@@ -81,6 +85,17 @@ export interface ViewSnapshot {
   chronicle?: ChronicleEntryView[];
   achievements?: AchievementView[];
   town?: TownView;
+  // I2 (C4.0)
+  market?: MarketView;
+  levers?: LeversView;
+  loans?: LoansView;
+  lots?: LotView[];
+  trade?: TradeView;
+  charter?: CharterView;
+  innovations?: InnovationView[];
+  plans?: PlanView[];
+  requests?: RequestView[];
+  stories?: StoryView[];
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -107,6 +122,10 @@ export interface ResidentView {
   look: number;
   /** ResidentFlags bits. */
   flags: number;
+  /** I2 (C4.0): their partner, so couples can walk together. */
+  partner?: EntityId;
+  /** I2 (C4E): children only, the absolute day they were born, so the renderer can tell babies. */
+  bornDay?: number;
 }
 
 export interface HouseholdView {
@@ -117,6 +136,8 @@ export interface HouseholdView {
   tier: TierId;
   /** Food units in the pantry (all food goods). */
   pantryFood: number;
+  /** I2 (C4.0): pennies saved. */
+  savings?: number;
 }
 
 /** Building runtime summary (I1). Goods as [good id, qty] pairs. */
@@ -142,6 +163,10 @@ export interface BuildingRuntimeView {
     delivered: [good: string, qty: number][];
     priority: boolean;
   };
+  /** I2 (C4E): the production method's id, for buildings with a choice of methods (grown crafts). */
+  method?: string;
+  /** I2 (C4E): a home upgrade is under way (materials still to come), for the scaffolding. */
+  upgrading?: boolean;
 }
 
 export interface StockLine {
@@ -231,6 +256,12 @@ export interface TownView {
   /** Unlocked content ids (Pattern Book). */
   unlocked: string[];
   wishesGranted: number;
+  // I2 (C4.0)
+  rank?: RankId;
+  /** Charter goals met of total, and whether the claim is open. */
+  charter?: { done: number; total: number; ready: boolean };
+  /** Residents per tier, in TIERS order. */
+  tiers?: number[];
 }
 
 /** Full resident detail for the inspector (worker `inspect`). */
@@ -249,6 +280,18 @@ export interface ResidentDetail {
   history: (HistoryItem & { text: string })[];
   wish?: WishView;
   age: { years: number; stage: LifeStage };
+  // I2 (C4.0), present when they apply.
+  partner?: { id: EntityId; name: string; married: boolean };
+  parents?: { id: EntityId; name: string }[];
+  children?: { id: EntityId; name: string }[];
+  apprenticeship?: { at: EntityId; trade: string; untilDay: number };
+  retired?: boolean;
+  /** Story characters: their arc and where it stands. */
+  story?: StoryView;
+  /** Household savings in pennies and the next tier's progress. */
+  savings?: number;
+  /** C4C adds `missing`: readable names of what the household still lacks for the next tier. */
+  tierProgress?: { next: TierId; days: number; needed: number; missing?: string[] };
 }
 
 /** Full building detail for the inspector (worker `inspect`). */
@@ -267,6 +310,17 @@ export interface BuildingDetail {
   rates?: { inputs: [good: string, perDay: number][]; outputs: [good: string, perDay: number][] };
   /** I1 (C3C): units made today. */
   producedToday?: [good: string, qty: number][];
+  // I2 (C4.0)
+  /** Output at market price minus wages, upkeep and inputs at market price, per work day (pennies). */
+  profit?: { perDay: number; lines: { label: string; pennies: number }[] };
+  /** Methods the Ledger may pin, and the pinned one. */
+  methods?: { id: string; name: string }[];
+  pinned?: string;
+  /** Grown buildings: their lot. */
+  lot?: LotView;
+  /** Homes: the tier housed and an upgrade under way. */
+  tier?: TierId;
+  upgrade?: { to: string; waiting: [good: string, qty: number][] };
 }
 
 /** I1 (C3C): the Workforce report. Jobs per building and the town's totals. */
@@ -300,3 +354,191 @@ export interface AwayLetter {
   /** C3B: notable Chronicle entries since `since` that did not fit in `entries` (it keeps the newest). */
   more?: number;
 }
+
+// ---------------------------------------------------------------------------------------------
+// I2 views (C4.0). Pennies throughout; goods as content ids.
+
+export interface MarketLine {
+  good: string;
+  /** Today's price and the base price, pennies. */
+  price: number;
+  base: number;
+  /** Units households wanted yesterday. */
+  demand: number;
+  /** Days of cover (stock / demand), one decimal. */
+  cover: number;
+  /** Daily prices, oldest first (up to 24 days). */
+  history: number[];
+  /** Price cap (0 = none) and subsidy percent. */
+  cap: number;
+  subsidy: number;
+  // I2 (C4A), additive: what lies behind the price.
+  /** Units in storehouses, stalls and output buffers now. */
+  stock?: number;
+  /** Where today's cover is pulling the price (base x the curve), pennies. */
+  target?: number;
+  /** One line on why the price is where it is ("Shelves are thin..."). */
+  why?: string;
+}
+
+/** I2 (C4A): one building's profit per work day on the market page (a signal, not a cash flow). */
+export interface ProfitLine {
+  id: EntityId;
+  def: string;
+  /** Pennies per work day: output at market price less inputs, wages and upkeep. */
+  perDay: number;
+}
+
+/** I2 (C4A): how one tier's households are faring with their basket. */
+export interface TierBasketView {
+  tier: TierId;
+  households: number;
+  /** Average savings per household, pennies. */
+  savings: number;
+  /** Basket groups in basket order, satisfaction 0 to 100 averaged over the tier's households. */
+  groups: { id: string; name: string; satisfaction: number }[];
+}
+
+/** The Ledger's market page (prices, history, levers). */
+export interface MarketView {
+  lines: MarketLine[];
+  // I2 (C4A), additive.
+  /** Day index (0 = Spring day 1, year 1) of each line's history[0]. */
+  firstDay?: number;
+  /** Buildings with work or methods, most profitable first. */
+  profits?: ProfitLine[];
+  /** Needs satisfaction by tier, for tiers with households. */
+  tiers?: TierBasketView[];
+}
+
+export interface LeversView {
+  wageLevel: number;
+  taxRate: number;
+  /** Wages per day per job tier at the current level, pennies, in TIERS order. */
+  wages: number[];
+  exportBans: string[];
+}
+
+export interface LoansView {
+  loans: { id: EntityId; principal: number; balance: number; rate: number; takenTick: number }[];
+  /** Total owed and what can still be borrowed, pennies. */
+  owed: number;
+  available: number;
+}
+
+export interface LotView {
+  id: EntityId;
+  /** Zone content id. */
+  zone: string;
+  x: number;
+  z: number;
+  w: number;
+  d: number;
+  rot: Rot4;
+  desirability: number;
+  style: string;
+  buildingId: EntityId;
+}
+
+export interface TradeView {
+  /** Neighbors trading now, with prices at the post (you buy at 1.2x, sell at 0.85x the regional price). */
+  neighbors: {
+    id: string;
+    name: string;
+    blurb: string;
+    prices: { good: string; buy: number | null; sell: number | null }[];
+  }[];
+  orders: { good: string; min: number; max: number; floor: number; ceiling: number; neighbor: string }[];
+  caravans: {
+    id: EntityId;
+    neighbor: string;
+    selling: [good: string, qty: number][];
+    buying: [good: string, qty: number][];
+    departTick: number;
+    returnTick: number;
+  }[];
+  /** Newest last. */
+  log: { tick: number; neighbor: string; good: string; qty: number; pennies: number }[];
+  /** The Trading Post building, or 0 when the valley has none. */
+  postId: EntityId;
+}
+
+export interface CharterView {
+  rank: RankId;
+  /** The rank being worked toward, or null at the top. */
+  next: RankId | null;
+  charter: string;
+  goals: {
+    id: string;
+    text: string;
+    lane: 'hearth' | 'ledger' | 'shared';
+    value: number;
+    target: number;
+    done: boolean;
+  }[];
+  ready: boolean;
+  history: { rank: RankId; tick: number; seats: SeatId[] }[];
+}
+
+export interface InnovationView {
+  id: string;
+  name: string;
+  blurb: string;
+  /** 0 to 100. */
+  progress: number;
+  unlocked: boolean;
+  tick?: number;
+}
+
+export interface PlanView {
+  id: EntityId;
+  name: string;
+  by: SeatId;
+  tick: number;
+  items: PlanItem[];
+  comments: { by: SeatId; tick: number; text: string }[];
+  seenBy: SeatId[];
+  status: 'open' | 'approved' | 'discarded';
+  applied?: number;
+  skipped?: number;
+}
+
+export interface RequestView {
+  id: EntityId;
+  from: SeatId;
+  ask: RequestAsk;
+  /** Readable ("12 bread at the market by Summer day 3"). */
+  text: string;
+  tick: number;
+  status: 'open' | 'done' | 'withdrawn';
+  closedTick: number;
+  /** Goods and charm requests: how close they are. */
+  progress?: { value: number; target: number };
+}
+
+export interface StoryView {
+  arc: string;
+  /** The character's full name. */
+  name: string;
+  species: string;
+  residentId: EntityId;
+  /** -1 before arrival; steps once the finale is done. */
+  step: number;
+  steps: number;
+  /** The open step's hint, if any. */
+  hint?: string;
+}
+
+/** A letter from a story character (arrival, each step, the finale). */
+export interface LetterView {
+  arc: string;
+  from: string;
+  residentId: EntityId;
+  /** Lines split by \n. */
+  text: string;
+  tick: number;
+  /** -1 hello, 0.. step letters, steps for the finale. */
+  step: number;
+}
+
+export type LifeEventKind = 'couple' | 'wedding' | 'birth' | 'apprentice' | 'retired' | 'seaside';

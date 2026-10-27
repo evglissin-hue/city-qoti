@@ -11,8 +11,10 @@ import { fieldTool } from './field';
 import { inspectTool } from './inspect';
 import { noteTool } from './note';
 import { pingTool } from './ping';
+import { planTool } from './plan';
 import { roadTool } from './road';
 import { treeTool } from './tree';
+import { zoneTool } from './zone';
 
 export type ToolFactory = (ctx: ToolContext) => Tool;
 
@@ -29,5 +31,8 @@ export const toolFactories: readonly ToolFactory[] = [
   noteTool,
   roadTool('path'),
   pingTool,
+  planTool,
+  roadTool('street'),
   treeTool,
+  zoneTool,
 ];

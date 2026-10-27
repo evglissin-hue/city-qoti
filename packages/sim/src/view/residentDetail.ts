@@ -9,9 +9,13 @@ import { treeStage, TREE_MATURE } from '../map/layers';
 import { modifierValue } from '../systems/residents/api';
 import { describeHome } from '../systems/residents/desirability';
 import { cheerfulFriendBonus, needPoints } from '../systems/residents/needs';
+import { marketOpen } from '../systems/market/api';
+import { serviceNeedWords, weightsOf } from '../systems/services/weights';
+import { tierProgress } from '../systems/tiers/api';
 import { dayIndex } from '../systems/residents/time';
 import { doorOf } from '../systems/residents/places';
 import { nameOf, residentView, wishView } from './hamlet';
+import { storyView } from './village';
 
 function buildingName(b: Building | undefined): string {
   return (b && content.buildingById.get(b.def)?.name.toLowerCase()) ?? 'somewhere';
@@ -129,6 +133,13 @@ const NEED_WORDS: readonly (readonly [min: number, text: string])[][] = [
     [35, 'Could do with some flowers'],
     [0, 'Rather drab, frankly'],
   ],
+  // I2 (C4A): the basket, once the market is open.
+  [
+    [85, 'Has all the basket asks'],
+    [60, 'Making do at the market'],
+    [35, 'Going without a few things'],
+    [0, 'The shelves keep letting them down'],
+  ],
 ];
 
 const MODIFIER_TEXT: readonly [kind: string, text: string][] = [
@@ -140,7 +151,7 @@ const MODIFIER_TEXT: readonly [kind: string, text: string][] = [
 ];
 
 function needText(i: number, value: number): string {
-  for (const [min, text] of NEED_WORDS[i] ?? []) if (value >= min) return text;
+  for (const [min, text] of NEED_WORDS[i] ?? serviceNeedWords(i)) if (value >= min) return text;
   return NEED_IDS[i] ?? 'need';
 }
 
@@ -201,6 +212,29 @@ function historyText(state: WorldState, r: Resident, item: HistoryItem): string 
       return 'Came of age';
     case 'grew-elder':
       return 'Became an elder, with opinions to match';
+    // I2 (C4D): life events.
+    case 'couple':
+      return `Became a couple with ${nameOf(state, ref) || 'someone who has since moved away'}`;
+    case 'married':
+      return `Married ${nameOf(state, ref) || 'their sweetheart'}`;
+    case 'born':
+      return `Born in ${state.settings.townName}`;
+    case 'child':
+      return `Welcomed a child, ${nameOf(state, ref) || 'now grown and gone'}`;
+    case 'apprentice':
+    case 'trained': {
+      const b = findById(state.buildings, ref);
+      const where = b ? buildingName(b) : 'a workshop';
+      return item.kind === 'apprentice'
+        ? `Began an apprenticeship at the ${where}`
+        : `Finished an apprenticeship at the ${where}`;
+    }
+    case 'retired': {
+      const b = findById(state.buildings, ref);
+      return b ? `Retired from the ${buildingName(b)}` : 'Retired, with a cake';
+    }
+    case 'seaside':
+      return 'Set off to live by the sea';
     default: {
       const words = item.kind.split('-').join(' ');
       return words.charAt(0).toUpperCase() + words.slice(1);
@@ -209,6 +243,9 @@ function historyText(state: WorldState, r: Resident, item: HistoryItem): string 
 }
 
 function bioText(r: Resident): string {
+  // Story characters (C4D) bring their own.
+  const story = r.story ? content.storyById.get(r.story) : undefined;
+  if (story) return story.character.bio;
   const sp = content.speciesById.get(r.species);
   const traits = r.traits.map((t) => {
     const def = content.traitById.get(t);
@@ -227,9 +264,16 @@ export function residentDetail(state: WorldState, id: EntityId): ResidentDetail 
   const h = findById(state.households, r.householdId);
   const ageDays = dayIndex(state.tick) - r.bornDay;
   const wish = r.wishId ? state.wishes.find((w) => w.id === r.wishId) : undefined;
-  const moodLines: { label: string; value: number }[] = NEED_IDS.map((_, i) => ({
+  // I2 (C4.0): needs that weigh nothing yet (the tier needs, until C4A and C4C weigh them) stay out
+  // of the inspector.
+  // I2 (C4C): weights by tier and stage, so Craftsfolk see their tavern and herbalist; C4A: the
+  // goods need once the market is open.
+  const market = marketOpen(state);
+  const weights = weightsOf(r, market).w;
+  const shown = NEED_IDS.map((_, i) => i).filter((i) => (weights[i] ?? 0) > 0);
+  const moodLines: { label: string; value: number }[] = shown.map((i) => ({
     label: needText(i, r.needs[i] ?? 0),
-    value: Math.round(needPoints(r, i)),
+    value: Math.round(needPoints(r, i, market)),
   }));
   for (const t of r.traits) {
     const def = content.traitById.get(t);
@@ -246,7 +290,7 @@ export function residentDetail(state: WorldState, id: EntityId): ResidentDetail 
   const detail: ResidentDetail = {
     r: residentView(state, r),
     mood: r.mood,
-    needs: NEED_IDS.map((n, i) => [n, r.needs[i] ?? 0]),
+    needs: shown.map((i) => [NEED_IDS[i]!, r.needs[i] ?? 0]),
     moodLines,
     friends: r.friends
       .filter((f) => f.level > 0)
@@ -261,5 +305,25 @@ export function residentDetail(state: WorldState, id: EntityId): ResidentDetail 
     age: { years: Math.max(0, Math.floor(ageDays / DAYS_PER_YEAR)), stage: r.stage },
   };
   if (wish) detail.wish = wishView(state, wish);
+  addLives(state, r, detail);
   return detail;
+}
+
+/** I2 (C4.0): partner, parents, children, apprenticeship, retiring, story, savings. */
+function addLives(state: WorldState, r: Resident, detail: ResidentDetail): void {
+  if (r.partner) {
+    detail.partner = { id: r.partner, name: nameOf(state, r.partner), married: (r.marriedDay ?? 0) > 0 };
+  }
+  if (r.parents?.length) detail.parents = r.parents.map((id) => ({ id, name: nameOf(state, id) }));
+  const children = state.residents.filter((c) => c.parents?.includes(r.id));
+  if (children.length > 0) detail.children = children.map((c) => ({ id: c.id, name: nameOf(state, c.id) }));
+  if (r.apprentice) detail.apprenticeship = { ...r.apprentice };
+  if (r.retired) detail.retired = true;
+  const story = r.story ? state.stories.find((s) => s.arc === r.story) : undefined;
+  if (story) detail.story = storyView(state, story);
+  const h = findById(state.households, r.householdId);
+  if (h?.savings) detail.savings = h.savings;
+  // I2 (C4C): the next tier, how many days in a row the household has met it, and what is missing.
+  const progress = h ? tierProgress(state, h) : null;
+  if (progress) detail.tierProgress = progress;
 }

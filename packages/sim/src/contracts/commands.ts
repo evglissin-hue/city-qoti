@@ -2,6 +2,7 @@
 // add a new command in its own commit so merges stay trivial.
 import type { EntityId, Lens, RoadKind, Rot4, SeatId, Speed, TreeSpecies } from './ids';
 import type { ValleySettings } from './settings';
+import type { PlanItem, RequestAsk } from './village';
 
 export type Command =
   /** Max 256 tiles. */
@@ -36,7 +37,56 @@ export type Command =
   | { t: 'field.paint'; farm: EntityId; tiles: [number, number][] }
   | { t: 'field.remove'; tiles: [number, number][] }
   /** Mark a good for the peddler. */
-  | { t: 'ledger.setForSale'; good: string; forSale: boolean };
+  | { t: 'ledger.setForSale'; good: string; forSale: boolean }
+  // I2 (C4.0). docs/spec/20-architecture.md, "I2 contracts".
+  /** Paint a zone (content zone id) on tiles. Max 256 tiles. Roads, water and buildings are skipped. */
+  | { t: 'zone.paint'; zone: string; tiles: [number, number][] }
+  /** Unzone tiles; lots on them go, grown buildings stay. Max 256 tiles. */
+  | { t: 'zone.clear'; tiles: [number, number][] }
+  /** Wage level, 80 to 120 percent. */
+  | { t: 'ledger.setWageLevel'; percent: number }
+  /** Income tax, 0 to 20 percent. */
+  | { t: 'ledger.setTaxRate'; percent: number }
+  /** Price cap in pennies (0 = none) and subsidy in percent (0 to 50) for a food. */
+  | { t: 'ledger.setPriceCap'; good: string; cap: number; subsidy: number }
+  /** Set or clear (null) the Trading Post's standing order for a good. */
+  | { t: 'trade.setStandingOrder'; good: string; order: StandingOrderInput | null }
+  /** Borrow coins from the County Bank, up to the credit limit. */
+  | { t: 'loan.take'; coins: number }
+  /** Repay coins on a loan (more than the balance repays it). */
+  | { t: 'loan.repay'; id: EntityId; coins: number }
+  /** Propose a plan: up to MAX_PLAN_ITEMS commands, drawn as ghosts until approved. */
+  | { t: 'plan.add'; name: string; items: PlanItem[] }
+  /** Discard a plan (either seat). */
+  | { t: 'plan.remove'; id: EntityId }
+  /** Approve a plan: its commands run in order where still valid and affordable. */
+  | { t: 'plan.approve'; id: EntityId }
+  | { t: 'plan.comment'; id: EntityId; text: string }
+  /** The sending seat has looked at the plan. */
+  | { t: 'plan.seen'; id: EntityId }
+  /** I2 (C4D): tweak an open plan: new items (and optionally a new name); the partner sees it afresh. */
+  | { t: 'plan.edit'; id: EntityId; items: PlanItem[]; name?: string }
+  | { t: 'request.add'; ask: RequestAsk }
+  /** Close a request by hand (goods and charm requests also close themselves when met). */
+  | { t: 'request.resolve'; id: EntityId; status: 'done' | 'withdrawn' }
+  /** Claim the rank once every Charter goal is met. */
+  | { t: 'charter.claim' }
+  /** Raise or lower land by one level. Max TERRAFORM_MAX_TILES tiles, costs per tile. */
+  | { t: 'terrain.raise'; tiles: [number, number][] }
+  | { t: 'terrain.lower'; tiles: [number, number][] }
+  /** Pin a production method (content method id) on a building, or null to let it choose. */
+  | { t: 'build.pinRecipe'; id: EntityId; method: string | null };
+
+/** A standing order as a command carries it (good ids, not indexes). */
+export interface StandingOrderInput {
+  min: number;
+  max: number;
+  /** Pennies; 0 = any. */
+  floor: number;
+  ceiling: number;
+  /** Neighbor id, or '' for the best price. */
+  neighbor: string;
+}
 
 /**
  * Customization fields (all optional; null clears a field back to the kit default). Swatch values
@@ -92,4 +142,9 @@ export type RejectReason =
   /** Field tile too far from its farmhouse. */
   | 'OUT_OF_RANGE'
   /** Undo target changed since the command it inverts. */
-  | 'CHANGED';
+  | 'CHANGED'
+  // I2 (C4.0)
+  /** Over the County Bank's credit limit. */
+  | 'CREDIT_LIMIT'
+  /** The Charter's goals are not all met yet. */
+  | 'NOT_READY';

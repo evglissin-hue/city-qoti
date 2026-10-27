@@ -57,6 +57,13 @@ describe('the Chronicle', () => {
     'pattern-discovered': ['pattern', 'place', 'credit', 'flavor'],
     'season-summary': ['season', 'year', 'people', 'coins', 'pages', 'wishes', 'books'],
     'wishes-digest': ['wishes', 'examples'],
+    // I2 (C4D): lives, the rank-up and story characters.
+    birth: ['child', 'parents'],
+    'rank-up': ['proclamation', 'rank', 'credit'],
+    seaside: ['name'],
+    'story-arrived': ['name'],
+    'story-finale': ['name'],
+    wedding: ['a', 'b', 'when'],
   };
 
   it('has at least three variants per kind, using only the params its callers pass', () => {
@@ -91,7 +98,7 @@ describe('the Chronicle', () => {
 describe('patterns and achievements', () => {
   it('reveal hints in a fixed order and read cleanly', () => {
     const order = patterns.map((p) => p.hintOrder).sort((a, b) => a! - b!);
-    expect(order).toEqual([1, 2, 3, 4, 5, 6, 7, 8]);
+    expect(order).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]);
     for (const p of patterns) {
       clean(p.hint, [], p.id);
       clean(p.flavor, [], p.id);

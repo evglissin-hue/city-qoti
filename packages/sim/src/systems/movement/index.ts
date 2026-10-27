@@ -3,10 +3,12 @@
 // x0.8. Progress is 0 to 255 toward path[step] and moves in even steps, so a tile of T ticks takes
 // exactly T ticks (road 51 or 52 a tick, never a tick too fast or slow). A step onto a tile that has since become blocked replans the walk; when no
 // path is left the resident stops and is marked stuck for the schedule to deal with.
+// I2 (C4B): every step onto open ground wears a desire path in (systems/traffic/wear).
 import { content } from '@qoti/content';
 import { ResidentFlags } from '../../constants';
 import type { Resident, System, WorldState } from '../../contracts';
 import { isStandard } from '../../state/hamlet';
+import { wearStep } from '../traffic/wear';
 import { walkGrid } from './grid';
 import { pathBetween } from './paths';
 
@@ -50,7 +52,7 @@ export const movement: System = {
   id: 'movement',
   order: 52,
   every: 1,
-  tick(state) {
+  tick(state, ctx) {
     if (!isStandard(state)) return;
     const residents = state.residents;
     let grid = walkGrid(state);
@@ -66,6 +68,7 @@ export const movement: System = {
       m.progress = advance(m.progress, tileTicks(grid.ticks[next]!, walkFactor(r)));
       if (m.progress < 256) continue;
       r.tile = next;
+      wearStep(state, ctx, next);
       m.step += 1;
       if (m.step >= m.path.length) {
         r.move = null;

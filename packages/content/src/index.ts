@@ -2,57 +2,102 @@
 // branches adding different entries merge cleanly. The one exception is `goods`: its order is
 // append-only, because a good's position is its index in every per-good array in saved state.
 import * as A from './achievements';
+import * as Ba from './baskets';
 import * as B from './buildings';
+import * as Ca from './carts';
+import * as Ch from './charters';
 import * as C from './chronicle';
 import * as D from './decor';
 import * as G from './goods';
+import * as I from './innovations';
+import * as L from './lives';
 import { familyNames } from './names';
+import * as N from './neighbors';
 import * as P from './patterns';
 import * as R from './roads';
+import * as Sr from './stories';
 import * as Sp from './species';
+import * as St from './styles';
 import * as Sw from './swatches';
 import * as T from './trees';
 import * as Tr from './traits';
+import * as VB from './villageBuildings';
+import * as VD from './villageDecor';
+import * as VG from './villageGoods';
+import * as VP from './villagePatterns';
 import * as W from './wishes';
+import * as Z from './zones';
 import type {
   AchievementDef,
   BuildingDef,
+  CartDef,
+  CharterDef,
   ChronicleTemplate,
   Content,
   DecorDef,
+  DistrictStyleDef,
   GoodDef,
+  InnovationDef,
+  NeedsBasket,
+  NeighborDef,
   PatternDef,
   RoadDef,
   SpeciesDef,
+  StoryArc,
   SwatchDef,
   TraitDef,
   TreeDef,
   WishTemplate,
+  ZoneDef,
 } from './types';
 
 export { chroniclePhrases } from './chronicle';
+export { lifePhrases } from './lives';
 export { familyNames, valleyNamePrefixes, valleyNameSuffixes } from './names';
+export { villagePhrases } from './villageText';
 export * from './types';
 
 // prettier-ignore
 export const buildings: readonly BuildingDef[] = [
   B.bakery,
+  VB.brickKiln,
   B.buildersYard,
+  VB.cartShed,
+  VB.cheesemaker,
+  VB.choppingShed,
+  VB.ciderPress,
+  VB.clayPit,
+  VB.cornerShop,
   B.cottage,
+  VB.dairy,
   B.farmhouse,
+  VB.farmstead,
   B.fishersHut,
   B.forestersLodge,
+  VB.herbGarden,
+  VB.herbalist,
   B.house,
   B.marketStall,
+  VB.orchard,
   B.quarry,
+  VB.sawmill,
   B.sawpit,
+  VB.school,
   B.shed,
+  VB.sheepPasture,
+  VB.smithy,
+  VB.spinner,
   B.storehouse,
+  VB.tavern,
   B.townHall,
+  VB.townhouse,
+  VB.tradingPost,
   B.vegetablePlot,
+  VB.weaver,
   B.well,
   B.windmill,
   B.woodcutter,
+  VB.workshop,
 ];
 
 // prettier-ignore
@@ -61,17 +106,23 @@ export const decor: readonly DecorDef[] = [
   D.barrels,
   D.bench,
   D.birdbath,
+  VD.cafeTable,
   D.cherryTree,
   D.crates,
   D.curvedBench,
   D.fence,
   D.flowerBed,
+  VD.flowerCart,
+  VD.fountain,
   D.hangingLantern,
   D.hedge,
   D.herbPlanter,
+  VD.lampPost,
   D.lantern,
   D.lowWall,
+  VD.maypole,
   D.mooringPost,
+  VD.noticeBoard,
   D.planter,
   D.planterWall,
   D.ringBench,
@@ -83,6 +134,7 @@ export const decor: readonly DecorDef[] = [
 export const roads: readonly RoadDef[] = [
   R.lane,
   R.path,
+  R.street,
 ];
 
 // prettier-ignore
@@ -103,6 +155,19 @@ export const goods: readonly GoodDef[] = [
   G.bread,
   G.vegetables,
   G.fish,
+  // I2 (C4.0)
+  VG.clay,
+  VG.bricks,
+  VG.wool,
+  VG.yarn,
+  VG.cloth,
+  VG.milk,
+  VG.cheese,
+  VG.apples,
+  VG.cider,
+  VG.firewood,
+  VG.herbs,
+  VG.tools,
 ];
 
 // prettier-ignore
@@ -154,14 +219,20 @@ export const wishes: readonly WishTemplate[] = [
 
 // prettier-ignore
 export const patterns: readonly PatternDef[] = [
+  VP.bridgeCrossing,
+  VP.cornerCafe,
   P.hedgerowLane,
   P.kitchenGarden,
   P.lanternWalk,
+  VP.marketCross,
   P.pocketPark,
   P.promenadeByTheWater,
   P.sittingWall,
+  VP.smallSquare,
   P.treePlace,
+  VP.villageGreen,
   P.wellGatheringPlace,
+  VP.windowGardens,
 ];
 
 // prettier-ignore
@@ -181,12 +252,18 @@ export const achievements: readonly AchievementDef[] = [
 // prettier-ignore
 export const chronicle: readonly ChronicleTemplate[] = [
   C.achievement,
+  L.birth,
   C.firstOf,
   C.founding,
   C.householdArrived,
   C.householdLeft,
   C.patternDiscovered,
+  L.rankUp,
+  L.seaside,
   C.seasonSummary,
+  L.storyArrived,
+  L.storyFinale,
+  L.wedding,
   C.wishesDigest,
 ];
 
@@ -213,6 +290,65 @@ export const swatches: readonly SwatchDef[] = [
   Sw.wallSage,
   Sw.wallSky,
   Sw.wallStone,
+];
+
+// --- I2 (C4.0) --------------------------------------------------------------------------------
+
+// prettier-ignore
+export const zones: readonly ZoneDef[] = [
+  Z.crafts,
+  Z.farms,
+  Z.homesLow,
+  Z.homesMedium,
+  Z.shops,
+];
+
+// prettier-ignore
+export const baskets: readonly NeedsBasket[] = [
+  Ba.craftsfolk,
+  Ba.settler,
+];
+
+// prettier-ignore
+export const neighbors: readonly NeighborDef[] = [
+  N.millhaven,
+  N.stonecross,
+];
+
+// prettier-ignore
+export const innovations: readonly InnovationDef[] = [
+  I.brickKiln,
+  I.carts,
+  I.cobbles,
+  I.waterWheel,
+  I.wheelbarrows,
+];
+
+// prettier-ignore
+export const charters: readonly CharterDef[] = [
+  Ch.villageCharter,
+];
+
+// prettier-ignore
+export const stories: readonly StoryArc[] = [
+  Sr.inventor,
+  Sr.merchant,
+  Sr.musician,
+];
+
+// prettier-ignore
+export const carts: readonly CartDef[] = [
+  Ca.cart,
+];
+
+// --- I2 (C4B) ---------------------------------------------------------------------------------
+
+// prettier-ignore
+export const styles: readonly DistrictStyleDef[] = [
+  St.brick,
+  St.plaster,
+  St.stone,
+  St.timber,
 ];
 
 function byId<T extends { id: string }>(list: readonly T[]): ReadonlyMap<string, T> {
@@ -245,4 +381,21 @@ export const content: Content = {
   chronicle,
   chronicleByKind: new Map(chronicle.map((c) => [c.kind, c])),
   swatches,
+  zones,
+  zoneById: byId(zones),
+  zoneByValue: new Map(zones.map((z) => [z.layerValue, z])),
+  baskets,
+  basketByTier: new Map(baskets.map((b) => [b.tier, b])),
+  neighbors,
+  neighborById: byId(neighbors),
+  innovations,
+  innovationById: byId(innovations),
+  charters,
+  charterById: byId(charters),
+  stories,
+  storyById: byId(stories),
+  carts,
+  cartById: byId(carts),
+  styles,
+  styleById: byId(styles),
 };

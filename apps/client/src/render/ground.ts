@@ -19,7 +19,8 @@ import { WATER_Y } from './surface';
  * C3D-1: the painted ground. Two small textures cover the map, one texel per tile:
  * - color (filtered, so tile colors blend softly across edges): the base tint per tile with seeded
  *   variation, canopy shade under trees and sandy banks; alpha is wildflower density.
- * - data (exact): road kind, terrain, crop growth and flags, for roads, field furrows and crops.
+ * - data (exact): road kind, terrain, crop growth (wear off fields, C4E) and flags, for roads,
+ *   field furrows, crops and desire paths.
  * The ground shader adds the detail on top: mottling, flowers, furrows, roads with ruts, wet
  * banks, drifting cloud shade, lantern glow pools at night and mist at the valley's rim.
  */
@@ -192,7 +193,8 @@ export class GroundTextures {
     }
     this.dataBytes[o] = road;
     this.dataBytes[o + 1] = terrain;
-    this.dataBytes[o + 2] = L.crop?.[i] ?? 0;
+    // C4E: the third channel is crop growth on fields and wear (desire paths) everywhere else.
+    this.dataBytes[o + 2] = terrain === Terrain.field ? (L.crop?.[i] ?? 0) : (L.wear?.[i] ?? 0);
     this.dataBytes[o + 3] = flags;
   }
 
@@ -294,6 +296,7 @@ vec3 qGround(vec3 base) {
     col = mix(col, field, inField);
   }
 
+  if (!water && !built) col = qTrailPaint(wp, col);
   if (!water) col = qRoadPaint(wp, col);
 
   // Banks: a sandy strip that follows the shore, damp sand at the waterline, the bed below it.

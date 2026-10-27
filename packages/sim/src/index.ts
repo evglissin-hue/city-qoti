@@ -102,7 +102,57 @@ export {
   CROP_STAGE_SHIFT,
   FIELD_RANGE,
   FIELD_TILES_PER_WORKER,
+  fieldCap,
+  fieldTileProblem,
 } from './systems/production/fields';
+// I2 (C4.0)
+export {
+  charterView,
+  creditLimit,
+  innovationView,
+  leversView,
+  loansOwed,
+  loansView,
+  lotView,
+  marketView,
+  nextRank,
+  planView,
+  regionalPrice,
+  requestText,
+  requestView,
+  storyLetter,
+  storyView,
+  tierCounts,
+  tradeView,
+  wagesAt,
+} from './view';
+export { foodDays, goodsAtMarket } from './conditions';
+export { findRoute } from './conditions/route';
+export { emptyVillageSlices, hasInnovation, rankAtLeast } from './state/village';
+export { moneyBalance, moneyInside, pay, type Purse } from './systems/economy/money';
+export { buy, marketOpen, outletsWith, priceOf, sell, tillPrice } from './systems/market/api';
+// I2 (C4A)
+export { basketScore, likeHalves } from './systems/market/baskets';
+export { coverOf, multiplierFor, stepPrice, targetPrice } from './systems/market/prices';
+export { incomeTax, wageBill } from './systems/market/wages';
+export { expenses, income } from './systems/economy';
+export { caravanCapacity, postBuyPrice, postSellPrice } from './systems/trade/caravans';
+export { tradingPost } from './systems/trade/post';
+export { isLean, overdraftLimit } from './systems/loans/credit';
+export { growLot, lotPlacement } from './systems/growth/api';
+export { cartAt, cartRoute, cartTile, requestCartMove } from './systems/traffic/api';
+// I2 (C4B): growth, traffic, desire paths and stairs for the client (overlays, tools, previews).
+export { growthDemand, type GrowthDemand } from './systems/growth';
+export { roadCapacity, roadNoise, slowdownPercent, trafficFlow } from './systems/traffic/api';
+export { roadKindLocked, wantsStairs } from './systems/traffic/streets';
+export { DESIRE_PATH_WEAR, desirePathTiles, WEAR_VISIBLE } from './systems/traffic/wear';
+export { grantReward, storyStep } from './systems/stories/api';
+export { meetsRequires, unlockInnovation } from './systems/innovations/api';
+// I2 (C4C): services, tiers and carts for the client and the bench.
+export { serviceCoverage, servedBy } from './systems/services/coverage';
+export { checkTier, homeRoute, nextTier, tierProgress } from './systems/tiers/api';
+export { CART_MIN_LOAD, CART_MIN_TRIP } from './systems/logistics/carts';
+export { terraformCost } from './commands/terrain';
 export { findById, findIndexById, removeById } from './state/entities';
 export { fnv64Hex, hashState } from './state/hash';
 export { deserialize, serialize } from './state/serialize';

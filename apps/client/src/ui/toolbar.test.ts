@@ -100,10 +100,11 @@ describe('lens toolbars', () => {
       'fence',
       'tree',
       'note',
+      'plan',
       'ping',
       'erase',
     ]);
-    expect(ids(view.root, 'book-')).toEqual(['wishes', 'patterns', 'chronicle', 'achievements']);
+    expect(ids(view.root, 'book-')).toEqual(['wishes', 'patterns', 'chronicle', 'letters', 'achievements']);
     expect(ids(view.root, 'overlay-')).toEqual(['charm']);
     await view.click('book-patterns');
     expect(session.ui.panel.value).toBe('patterns');
@@ -114,13 +115,16 @@ describe('lens toolbars', () => {
     expect(ids(view.root, 'tool-')).toEqual([
       'inspect',
       'lane',
+      'street',
       'field',
       'building',
+      'zone',
       'note',
+      'plan',
       'ping',
       'erase',
     ]);
-    expect(ids(view.root, 'book-')).toEqual(['reports']);
+    expect(ids(view.root, 'book-')).toEqual(['market', 'trade', 'policies', 'reports', 'notebook']);
     expect(ids(view.root, 'overlay-')).toEqual(['coverage', 'flows', 'status']);
     await view.click('overlay-flows');
     expect(session.ui.overlay.value).toBe('flows');

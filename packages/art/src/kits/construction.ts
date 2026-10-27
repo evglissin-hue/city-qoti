@@ -32,6 +32,28 @@ const DEFAULT_MASSING: Massing = {
 
 const MASSING: Record<string, Partial<Massing>> = {
   bakery: { wallH: 0.84, shape: 'halfHip' },
+  // C4E: the village buildings.
+  'brick-kiln': { inset: [0.25, 0.3, 1.2, 1.4], wallH: 1.1, rise: 0.4, shape: 'hip' },
+  'cart-shed': { inset: [0.16, 0.16, 0.16, 0.3], wallH: 0.98, rise: 0.72, alongX: false },
+  cheesemaker: { inset: [0.22, 0.25, 0.22, 0.36], wallH: 0.82, shape: 'hip' },
+  'chopping-shed': { inset: [0.16, 0.16, 0.16, 0.9], wallH: 0.6, rise: 0.22, shape: 'lean' },
+  'cider-press': { inset: [0.18, 0.18, 0.18, 1.05], wallH: 0.8, shape: 'halfHip', alongX: false },
+  'clay-pit': { open: true },
+  dairy: { inset: [0.2, 0.18, 0.2, 1.8], wallH: 0.66, rise: 0.55 },
+  farmstead: { inset: [0.18, 1.6, 1.6, 0.4], wallH: 0.74, rise: 0.56 },
+  'herb-garden': { open: true },
+  herbalist: { inset: [0.26, 0.3, 0.26, 0.55], wallH: 0.72, rise: 0.82, shape: 'halfHip' },
+  orchard: { open: true },
+  school: { inset: [0.3, 0.25, 0.3, 1.0], wallH: 1.12, rise: 0.95, alongX: false },
+  'sheep-pasture': { open: true },
+  shop: { inset: [0.16, 0.22, 0.16, 0.24], wallH: 1.56, rise: 0.88, alongX: false },
+  smithy: { inset: [0.2, 0.2, 0.2, 1.05], wallH: 1.0, rise: 0.56, alongX: false },
+  spinner: { inset: [0.22, 0.25, 0.22, 0.62], wallH: 0.74, shape: 'halfHip' },
+  tavern: { inset: [0.2, 0.2, 0.2, 1.0], wallH: 1.5, rise: 0.9, shape: 'halfHip' },
+  townhouse: { inset: [0.18, 0.25, 0.18, 0.26], wallH: 1.46, rise: 0.8 },
+  'trading-post': { inset: [0.2, 0.2, 0.2, 1.0], wallH: 1.2, rise: 0.7 },
+  weaver: { inset: [0.2, 0.2, 0.2, 0.75], wallH: 1.34, rise: 0.6, alongX: false },
+  workshop: { inset: [0.2, 0.2, 1.05, 0.85], wallH: 0.86, rise: 0.62, alongX: false },
   'builders-yard': { inset: [0.12, 0.1, 0.12, 2.0], wallH: 0.9, rise: 0.28, shape: 'lean' },
   cottage: { wallH: 0.78 },
   farmhouse: { wallH: 0.72, rise: 0.95, shape: 'gambrel', alongX: false },
@@ -176,6 +198,50 @@ function materials(
     const [x, z] = spots[i++ % spots.length]!;
     pileOf(s, good, lv, x, 0, z, rnd);
   }
+}
+
+/**
+ * C4E: scaffolding round a building while its home upgrade is under way (Settler cottage to
+ * Craftsfolk townhouse): poles and planks up past the eaves, a ladder, a rope hoist and bricks
+ * waiting on the planks. Drawn on top of the building as it stands.
+ */
+export function upgradeScaffold(kit: string, size: [number, number], seed = 1): BufferGeometry {
+  const m: Massing = { ...DEFAULT_MASSING, ...(MASSING[kit] ?? {}) };
+  const [w, d] = size;
+  const rnd = seeded(seed * 29 + 3);
+  const s = new ShapeBuilder();
+  const x0 = m.inset[0];
+  const z0 = m.inset[1];
+  const x1 = w - m.inset[2];
+  const z1 = d - m.inset[3];
+  scaffold(s, x0, z0, x1, z1, Math.max(1.2, m.wallH + 0.55), rnd);
+  // A rope hoist on the top rail and a bucket of mortar on the planks.
+  const o = 0.16;
+  beam(s, [x1 + o, m.wallH + 0.75, z1 + o], [x1 + o + 0.18, m.wallH + 0.75, z1 + o], 0.012, POLE);
+  beam(s, [x1 + o + 0.16, m.wallH + 0.74, z1 + o], [x1 + o + 0.16, 0.25, z1 + o], 0.003, STRING);
+  s.cylinder(
+    (x0 + x1) / 2 + 0.2,
+    z1 + o + 0.03,
+    0.04,
+    0.05,
+    Math.max(1.2, m.wallH + 0.55) * 0.55 + 0.025,
+    Math.max(1.2, m.wallH + 0.55) * 0.55 + 0.1,
+    palette.metal,
+    6,
+  );
+  // Bricks waiting on the planks.
+  const level = Math.max(1.2, m.wallH + 0.55) * 0.55 + 0.025;
+  for (let i = 0; i < 4; i++)
+    s.box(
+      x0 + 0.1 + i * 0.07,
+      level,
+      z1 + o - 0.04,
+      x0 + 0.16 + i * 0.07,
+      level + 0.03,
+      z1 + o + 0.04,
+      vary(0xb5654b, rnd, 0.6),
+    );
+  return s.build();
 }
 
 /** A construction site for a building kit at a stage. */

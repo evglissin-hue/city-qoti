@@ -7,3 +7,4 @@ export type * from './settings';
 export type * from './sim';
 export type * from './state';
 export type * from './views';
+export type * from './village';

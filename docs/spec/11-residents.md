@@ -213,6 +213,21 @@ Where the I1 implementation fills in or differs from the sections above (`packag
 - **Movement**: a tile takes exactly its ticks (road 5, grass 10, forest floor and fields 15, rock 20; Sporty x0.8), by the tile being entered. Walks replan when the next tile becomes blocked; with no way left the walker stops, marked stuck, goes home, and after an hour finds their way in regardless.
 - **Agent frames**: walkers keep to the left of their way, residents sharing a tile spread round it, and idle residents face what they came to see.
 
+## Lives and story characters (as built in I2, C4D)
+
+`packages/sim/src/systems/residents/life.ts` and `systems/stories`; content in `packages/content/src/lives.ts` and `stories.ts`. Every life draw comes from the `misc` stream, so life events never change who arrives next.
+
+- **Couples** (06:00): two young or adult residents of different households, not parent and child or siblings, with compatible traits (no clash) and a mutual friendship of level 2 when one is Romantic, level 3 otherwise *(tuned down from 4 and 5: most households arrive married)*; a 50% chance each morning, at most two couples a day. They move in together when a home fits: one who lives alone joins the other's home if it has a bed, else both take the best vacant home as a new household named for both families ("Thistledown-Underbough"); otherwise they retry each morning. Savings follow: a share of the old household's, or all of it from the last member.
+- **Arrivals come married**: the first two grown-ups of an arriving couple, family or elder pair are partners, married on arrival.
+- **Weddings** (18:00): a couple of at least two days marries on the season's festival day (day 6), or on any evening if one of them is Romantic ("a day of their own choosing"). Mood +15 for three days, a hop, +5 for friends of level 2+, a Chronicle entry, `life.event`.
+- **Births** (06:00): a married couple living together, both mood 60+, with a spare bed and no child in the last three seasons, has a child with a 3.5% chance each morning *(tune)*. The child takes a parent's species, the family name (the household's when the parents' differ), one trait from a parent and one of their own.
+- **Apprenticeships** (06:00): with a school open (a built building tagged `school` or with id `school`) and education satisfaction 50+, a young resident starts a season (`APPRENTICE_DAYS`) at a workshop: the one they work at, or the nearest with an open job. At most two start a day; the job rebalance leaves apprentices be. Finished apprentices count as trained (`isTrained`) and move to the nearest open Craftsfolk job if there is one.
+- **Retiring**: elders stop working (`retired`), with a line when they leave a job.
+- **The seaside**: an elder past 20 years (with an elder partner, together) may go to live by the sea: 12% each morning, one departure a day. Their share of the household's savings leaves with them (`pay(..., 'outside')`), a Chronicle entry, and they walk out through the valley gate. Story characters never go.
+- **Words**: Chronicle and notice lines rotate through all their variants before any repeats, starting where the valley's seed says.
+- **Story characters** (hourly, offset 120, 07:00 to 21:00): an arc whose arrival condition holds moves its character in when at least two homes are vacant (they never take the last one), as a household of one walking in from the gate, with a Chronicle line and the hello letter. The first step opens four hours later; each step stays open at least twelve hours, then closes when its goal holds (goals bind to the character's home and nearest market). One letter an hour across all arcs. Story households never leave (no low-mood departure; with their home gone they wait for another).
+- **The cast in I2**: Pippa Quill (`inventor`, mouse: bread chain, a lantern, a sawpit by the river that brings the Water Wheel, six workshops, three innovations; finale: plans for a printing press), Odette Fenwick (`merchant`, fox: four goods at market, a request fulfilled, a seat and flowers by the stall, the Village Charter, a Trading Post, a standing order; finale: the Market Hall), Juniper Reed (`musician`, rabbit: charm 25 around her home, a plan approved, a wedding, four patterns, four lanterns; finale: the Bandstand Green and festival music). Arc ids name the calling so the registry puts the inventor first (the Water Wheel's condition names arc 0).
+
 ## Jobs (as built, C3X)
 
 Residents take the open job that matters most, nearest first among equals:
@@ -227,3 +242,10 @@ Residents take the open job that matters most, nearest first among equals:
 | 5 | jobs at a building that is stuck (no trees in reach, no fields, missing inputs) |
 
 Each hour one worker may move from a job two levels less important (or any job, when the open one makes something short) to the most important open job; workers on a Ledger task finish it first. Pausing a building lets its workers go, which is the Ledger's lever on labor.
+
+*As built (C4X tuning)*: the jobs rules did not change. Measured with the autoplayer over five seeds and 90 days:
+
+- About 65% of residents can work (the rest are children, elders and the retired).
+- Workers are at their workplace for about 95% of the working day, but a plot or hut makes only 2.5 to 3 food a worker a day against 6 to 9 on paper. The rest is lost to full output buffers waiting for porters, so storehouses (porters at priority 0 and 1) matter as much as farms.
+- A Village of 150 to 220 has 40 to 55% of its hands in food. Porters, builders, services and timber take most of the rest, which leaves few hands for the Craftsfolk chains (bread, cider, cloth, firewood).
+- Households save toward the next tier and treat themselves only from what is left over (see 13-ledger.md, Market and prices, C4X).

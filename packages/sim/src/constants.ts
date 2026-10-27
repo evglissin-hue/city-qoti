@@ -55,10 +55,25 @@ export const DECOR_BUILDING_MARGIN = 32;
 // ---------------------------------------------------------------------------------------------
 // I1 (C3.0): hamlet constants. Values marked (tune) in the spec are tuned in C3X.
 
-/** Index order of Resident.needs. Append-only. */
-export const NEED_IDS = ['food', 'water', 'shelter', 'belonging', 'beauty'] as const;
-/** Mood weights per need, same order (docs/spec/11-residents.md, Mood). */
-export const NEED_WEIGHTS = [25, 15, 20, 15, 15] as const;
+/**
+ * Index order of Resident.needs. Append-only. I2 (C4.0) appends the tier needs: `goods` (the
+ * tier's basket bought at the market), `social` (tavern), `health` (herbalist), `education`
+ * (school, children). They weigh nothing until C4A and C4C give them weights; a need a tier does
+ * not have stays at 100.
+ */
+export const NEED_IDS = [
+  'food',
+  'water',
+  'shelter',
+  'belonging',
+  'beauty',
+  'goods',
+  'social',
+  'health',
+  'education',
+] as const;
+/** Mood weights per need, same order (docs/spec/11-residents.md, Mood). C4A weighs `goods` at 10. */
+export const NEED_WEIGHTS: readonly number[] = [25, 15, 20, 15, 15, 10, 0, 0, 0];
 /** Lower bounds of mood bands 1 to 4: Unhappy 20, Meh 40, Content 60, Glowing 80. */
 export const MOOD_BAND_MIN = [20, 40, 60, 80] as const;
 export const MOOD_BAND_NAMES = ['Miserable', 'Unhappy', 'Meh', 'Content', 'Glowing'] as const;
@@ -76,6 +91,19 @@ export const LEDGER_CATEGORIES = [
   { id: 'construction', kind: 'expense' },
   { id: 'roads', kind: 'expense' },
   { id: 'fields', kind: 'expense' },
+  // I2 (C4.0). `book()` moves money across the valley's edge (counted in economy.external);
+  // `pay()` moves it between the treasury and households (wages, sales, taxes on wages).
+  { id: 'wages', kind: 'expense' },
+  { id: 'sales', kind: 'income' },
+  { id: 'exports', kind: 'income' },
+  { id: 'imports', kind: 'expense' },
+  { id: 'loans', kind: 'income' },
+  { id: 'interest', kind: 'expense' },
+  { id: 'repayments', kind: 'expense' },
+  { id: 'subsidies', kind: 'expense' },
+  { id: 'terraforming', kind: 'expense' },
+  /** Story and Charter rewards from the County. */
+  { id: 'grants', kind: 'income' },
 ] as const;
 export type LedgerCategoryId = (typeof LEDGER_CATEGORIES)[number]['id'];
 
@@ -103,7 +131,8 @@ export const MAX_PATH_EXPANSIONS = 20000;
 export const AGENT_STRIDE = 8;
 /** Field offsets in an agent row: [id, x, z, y, heading, anim, carryGood + 1, flags]. */
 export const AgentField = { id: 0, x: 1, z: 2, y: 3, heading: 4, anim: 5, carry: 6, flags: 7 } as const;
-export const AgentAnim = { idle: 0, walk: 1, carry: 2, hop: 3, work: 4 } as const;
+/** I2 (C4.0): `cart` rows are carts (state.carts), not residents; carry is the first load good. */
+export const AgentAnim = { idle: 0, walk: 1, carry: 2, hop: 3, work: 4, cart: 5 } as const;
 /** Agent row flags (bubbles and look hints). */
 export const AgentFlags = {
   wish: 1,
@@ -130,4 +159,102 @@ export const BuildingStatus = {
   waitingBuilders: 256,
   noTrees: 512,
   noFields: 1024,
+  // I2 (C4.0)
+  /** Waiting for materials for a home upgrade. */
+  upgrading: 2048,
+  /** A cart shed with no cart road out. */
+  noCartRoad: 4096,
 } as const;
+
+// ---------------------------------------------------------------------------------------------
+// I2 (C4.0): village constants (docs/spec/13-ledger.md, 15-progression.md). Values marked (tune)
+// in the spec are tuned in C4X.
+
+/** Population tiers, in order (TierId). Index order of per-tier arrays. */
+export const TIERS = ['settler', 'craftsfolk', 'merchant', 'patron'] as const;
+/** Town ranks, in order (RankId). */
+export const RANKS = ['hamlet', 'village', 'town', 'marketTown', 'city'] as const;
+
+/** `zone` map layer values (content.zones layerValue). */
+export const Zone = { none: 0, homesLow: 1, homesMedium: 2, shops: 3, crafts: 4, farms: 5 } as const;
+
+/**
+ * Daily wages per job tier at wage level 100, pennies, in TIERS order (tune). C4A tuned them down
+ * from the spec's 6, 10, 16 and 26 coins so a working household's basket at base prices takes most
+ * of its pay (a worker keeps about two people fed). C4X raised them a little (from 3, 5, 8 and
+ * 12.50) so most purses do fill toward the 30 coins Craftsfolk put by; more, and the town borrowed
+ * what the purses held.
+ */
+export const WAGES = [350, 575, 900, 1400] as const;
+export const WAGE_LEVEL_RANGE = [80, 120] as const;
+export const DEFAULT_WAGE_LEVEL = 100;
+export const TAX_RATE_RANGE = [0, 20] as const;
+export const DEFAULT_TAX_RATE = 10;
+export const MAX_SUBSIDY = 50;
+
+/** Market (docs/spec/13-ledger.md, Market and prices). */
+export const PRICE_HISTORY_DAYS = 24;
+/** Target cover T in days. */
+export const TARGET_COVER = 3;
+/** Price multiplier curve: [cover / T in hundredths, multiplier in hundredths], interpolated linearly. */
+export const PRICE_CURVE: readonly (readonly [number, number])[] = [
+  [25, 250],
+  [50, 160],
+  [75, 120],
+  [100, 100],
+  [150, 90],
+  [200, 80],
+  [400, 65],
+  [800, 50],
+];
+/** Each day the price moves this percent of the way to base * m. */
+export const PRICE_SMOOTHING = 25;
+/** Prices stay within these percents of base. */
+export const PRICE_CLAMP = [40, 300] as const;
+
+/** Trade (docs/spec/13-ledger.md, Trade). */
+export const TRADE_BUY_PERCENT = 120;
+export const TRADE_SELL_PERCENT = 85;
+/** Drift: permille step up to 20 a day, bounded. Impact: permille per unit, recovery percent a day. */
+export const DRIFT_STEP = 20;
+export const DRIFT_RANGE = [700, 1400] as const;
+export const IMPACT_PER_UNIT = 5;
+export const IMPACT_RECOVERY = 10;
+export const CARAVAN_HOUR = 8;
+export const TRADE_LOG_MAX = 60;
+
+/** Loans: interest per season in percent, and the credit limit in coins per resident (tune). */
+export const LOAN_RATE = 5;
+export const CREDIT_PER_RESIDENT = 20;
+export const CREDIT_MIN = 200;
+/** I2 (C4A): what the County Bank lends in all, coins, by rank in RANKS order (500, 1,500, 4,000). */
+export const LOAN_LIMITS = [0, 500, 1500, 4000, 4000] as const;
+
+/** Zoning and growth. */
+export const LOT_MIN = 2;
+export const LOT_MAX = 3;
+export const MAX_ZONE_TILES = 256;
+
+/** Streets and traffic. Cart passes per hour before slowing, and the slowest factor. */
+export const CART_CAPACITY = 16;
+export const TRAFFIC_SLOWDOWN_MAX = 2;
+
+/** Terraforming: tiles per command and coins per level per tile (tune). */
+export const TERRAFORM_MAX_TILES = 64;
+export const TERRAFORM_COST = 2;
+
+/** Tiers: days in a row to upgrade a home, and to slide back. */
+export const TIER_UP_DAYS = 3;
+export const TIER_DOWN_DAYS = 4;
+
+/** Plans and requests. */
+export const MAX_PLANS = 40;
+export const MAX_PLAN_ITEMS = 64;
+export const MAX_PLAN_NAME_CHARS = 40;
+export const MAX_COMMENT_CHARS = 200;
+export const MAX_COMMENTS = 30;
+export const MAX_REQUESTS = 60;
+
+/** Life events. */
+export const APPRENTICE_DAYS = 6;
+export const SEASIDE_YEARS = 20;

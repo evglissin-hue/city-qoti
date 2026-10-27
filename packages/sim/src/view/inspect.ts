@@ -17,6 +17,10 @@ import { dailyRates } from '../systems/production/rates';
 import { buildingView, noteView } from './index';
 import { chronicleView, fillText, goodPairs, nameOf } from './hamlet';
 import { residentDetail } from './residentDetail';
+import { lotView } from './village';
+import { buildingProfit } from '../systems/market/profit';
+import { servedBy } from '../systems/services/coverage';
+import type { ServiceKind } from '../systems/services/weights';
 
 export { residentDetail };
 
@@ -60,6 +64,14 @@ function statusLines(b: Building, def: BuildingDef | undefined): string[] {
   if (has(BuildingStatus.noFields)) out.push('No fields painted yet');
   if (has(BuildingStatus.noRoad)) out.push('No road at the door');
   if (has(BuildingStatus.noPorters)) out.push('No porters within 20 tiles');
+  // I2 (C4C)
+  if (has(BuildingStatus.upgrading) && rt.upgrade) {
+    const to =
+      content.buildingById.get(def?.upgradesTo?.def ?? '')?.name.toLowerCase() ?? 'something grander';
+    const due = goodsText(rt.upgrade);
+    out.push(due ? `Becoming a ${to}: waiting for ${due}` : `Becoming a ${to}`);
+  }
+  if (has(BuildingStatus.noCartRoad)) out.push('No lane or street at the door for the cart');
   if (has(BuildingStatus.disrepair)) out.push(`In disrepair (${rt.condition}%)`);
   else if (rt.condition < WORN_CONDITION) out.push(`A little worn (${rt.condition}%)`);
   return out;
@@ -119,13 +131,39 @@ export function buildingDetail(state: WorldState, id: EntityId): BuildingDetail 
     const residents = residentsWithin(state, b, cover.radius);
     detail.served = { residents, capacity: cover.capacity ?? residents };
   }
+  // I2 (C4C): the school, tavern and herbalist count the residents they cover.
+  const service = def?.coverage?.find(
+    (c) => c.kind === 'social' || c.kind === 'health' || c.kind === 'education',
+  );
+  if (service && b.stage === 'built') {
+    const kind = service.kind as ServiceKind;
+    detail.served = { residents: servedBy(state, b, kind), capacity: service.capacity ?? 0 };
+  }
   if (def && rt && b.stage === 'built') {
     const rates = dailyRates(state, b, def);
     if (rates && (rates.inputs.length > 0 || rates.outputs.length > 0)) detail.rates = rates;
     const made = goodPairs(rt.producedToday);
     if (method) detail.producedToday = made;
   }
+  if (def && rt) addVillageDetail(state, b, def, detail);
   return detail;
+}
+
+/**
+ * I2 (C4.0): methods to pin, the lot, the tier and an upgrade, and profit per work day: output
+ * at market price minus wages, upkeep and inputs at market price (C4A, systems/market/profit.ts).
+ */
+function addVillageDetail(state: WorldState, b: Building, def: BuildingDef, detail: BuildingDetail): void {
+  const rt = b.rt!;
+  if ((def.methods?.length ?? 0) > 1) detail.methods = def.methods!.map((m) => ({ id: m.id, name: m.name }));
+  if (rt.pinned) detail.pinned = rt.pinned;
+  const lot = b.lot ? findById(state.lots, b.lot) : undefined;
+  if (lot) detail.lot = lotView(lot);
+  if (rt.tier) detail.tier = rt.tier;
+  if (rt.upgrade && def.upgradesTo)
+    detail.upgrade = { to: def.upgradesTo.def, waiting: goodPairs(rt.upgrade) };
+  const profit = buildingProfit(state, b, def);
+  if (profit) detail.profit = profit;
 }
 
 /** Most recent notable entries the letter lists; older ones are counted in `more`. */

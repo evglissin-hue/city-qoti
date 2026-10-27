@@ -57,7 +57,7 @@ describe('the Pattern Book', () => {
     const { session } = mockSession();
     view = await mount(h(PatternBookPanel, { session }));
     const text = view.text();
-    expect(text).toContain('2 of 8 pages written');
+    expect(text).toContain(`2 of ${content.patterns.length} pages written`);
     expect(view.get('page-well-gathering-place').textContent).toContain('Well Gathering Place');
     expect(view.get('page-sitting-wall').textContent).toContain('A page not yet found');
     expect((view.get('page-pocket-park') as HTMLButtonElement).disabled).toBe(true);

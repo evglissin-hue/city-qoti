@@ -22,6 +22,11 @@ export interface UiApi {
   setFarm?(id: number | null): void;
   /** Current selection, so tools can start from it (the field tool from a selected farmhouse). */
   selection?(): Selection | null;
+  // I2 (C4F)
+  /** Opens a book panel (the plan tool opens the plans book). */
+  openPanel?(id: string | null): void;
+  /** Draws one plan's blueprint (null clears it). */
+  focusPlan?(id: number | null): void;
 }
 
 /** Everything a tool may touch. Tools never reach into the session directly. */

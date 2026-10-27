@@ -15,3 +15,5 @@ playwright/.cache/
 bench-report.json
 .DS_Store
 .claude/worktrees/
+# Stray output from tools run inside a worktree root.
+.claude/docs/

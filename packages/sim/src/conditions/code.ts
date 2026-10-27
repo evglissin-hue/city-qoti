@@ -4,9 +4,20 @@ import { content } from '@qoti/content';
 import { MAP_SIZE } from '../constants';
 import type { Rect, WorldState } from '../contracts';
 import { doorTileOf } from '../systems/movement/api';
+import { pavedDesireTiles } from '../systems/traffic/wear';
 import { decorInRect, decorTileX, decorTileZ, expandRect } from './geo';
 import type { Binding } from './index';
 import { findRoute } from './route';
+// I2 (C4C): the innovations' predicates live with their measures.
+import {
+  clayPitWorked,
+  plankRate,
+  portersBusy,
+  rankAtLeastCode,
+  sawpitByRiver,
+  stoneRate,
+  storyStep,
+} from '../systems/innovations/measures';
 
 export type CodePredicate = (
   state: WorldState,
@@ -53,6 +64,14 @@ export function lanternRoute(state: WorldState, bind: Binding, params: readonly 
   return n * 100 >= param(params, 'share', 50) * route.length;
 }
 
+/**
+ * I2 (C4B): at least `tiles` (default 12) path tiles laid where residents had already worn a
+ * desire path into the grass (the Desire Lines achievement).
+ */
+export function desireLines(state: WorldState, _bind: Binding, params: readonly [string, number][]): boolean {
+  return pavedDesireTiles(state) >= param(params, 'tiles', 12);
+}
+
 /** A road route from home to work: door to door without setting foot on grass. */
 export function pathRoute(state: WorldState, bind: Binding): boolean {
   return commute(state, bind, true) !== null;
@@ -61,6 +80,14 @@ export function pathRoute(state: WorldState, bind: Binding): boolean {
 // Registry: one line per predicate, alphabetical.
 // prettier-ignore
 export const codePredicates: ReadonlyMap<string, CodePredicate> = new Map<string, CodePredicate>([
+  ['clayPitWorked', clayPitWorked],
+  ['desireLines', desireLines],
   ['lanternRoute', lanternRoute],
   ['pathRoute', pathRoute],
+  ['plankRate', plankRate],
+  ['portersBusy', portersBusy],
+  ['rankAtLeast', rankAtLeastCode],
+  ['sawpitByRiver', sawpitByRiver],
+  ['stoneRate', stoneRate],
+  ['storyStep', storyStep],
 ]);

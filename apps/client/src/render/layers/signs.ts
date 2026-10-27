@@ -1,5 +1,5 @@
 import { kitById, palette } from '@qoti/art';
-import { content } from '@qoti/content';
+import { drawDef } from '../defs';
 import type { BuildingView } from '@qoti/sim';
 import {
   CanvasTexture,
@@ -75,7 +75,7 @@ export function signsLayer(): RenderLayer {
     const key = `${text}|${b.x},${b.z},${b.rot},${hi}|${JSON.stringify(b.custom)}`;
     if (signs.get(b.id)?.key === key) return;
     drop(b.id);
-    const def = content.buildingById.get(b.def);
+    const def = drawDef(b.def);
     const kit = def ? kitById.get(def.art.kit) : undefined;
     const sign = kit?.anchors?.(buildingKitOptions(b)).sign;
     if (!sign) return;

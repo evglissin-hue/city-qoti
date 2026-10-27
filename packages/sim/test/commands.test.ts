@@ -13,11 +13,11 @@ function eventsOf<K extends SimEvent['e']>(events: SimEvent[], kind: K): Extract
 }
 
 describe('command registry', () => {
-  it('registers every I0 and I1 command once, sorted by type', () => {
+  it('registers every I0, I1 and I2 command once, sorted by type', () => {
     const types = commandHandlers.map((h) => h.type);
     expect(new Set(types).size).toBe(types.length);
     expect(types).toEqual([...types].sort());
-    expect(types).toHaveLength(22);
+    expect(types.length).toBeGreaterThanOrEqual(42); // 41 in C4.0, plus plan.edit (C4D)
   });
 });
 

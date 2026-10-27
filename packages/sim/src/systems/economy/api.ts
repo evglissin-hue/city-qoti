@@ -19,6 +19,7 @@ import { stowNearest } from '../logistics/stores';
 import { doorTile } from '../movement/api';
 import { clearFields, fieldsOf, isFarm } from '../production/fields';
 import { bookProduced } from '../production/produce';
+import { isLean, overdraftLimit } from '../loans/credit';
 import { emitMoney } from './emit';
 import { isWorkTime } from './time';
 
@@ -37,12 +38,15 @@ export function fieldCost(tiles: number): number {
   return FIELD_TILE_COST * PENNIES_PER_COIN * tiles;
 }
 
-/** LEAN_TIMES while the treasury is below zero, CANNOT_AFFORD when it cannot cover `pennies`. */
+/**
+ * LEAN_TIMES while the treasury is below zero (below the County Bank's credit line from Village
+ * rank, C4A), CANNOT_AFFORD when it cannot cover `pennies` (with the credit line's help).
+ */
 export function spendBlocked(state: WorldState, pennies: number): RejectReason | null {
   if (!isStandard(state)) return null;
   const e = state.economy;
-  if (e.leanTimes || e.treasury < 0) return 'LEAN_TIMES';
-  return pennies > e.treasury ? 'CANNOT_AFFORD' : null;
+  if (e.leanTimes || isLean(state)) return 'LEAN_TIMES';
+  return pennies > e.treasury + overdraftLimit(state) ? 'CANNOT_AFFORD' : null;
 }
 
 /** Validate hook for build.place: CANNOT_AFFORD or LEAN_TIMES, else null. Pure. */
@@ -145,12 +149,19 @@ export function chargeRoad(state: WorldState, ctx: TickCtx, kind: RoadKind, newT
   emitMoney(state, ctx);
 }
 
-/** Moves money and books it (pennies; positive amounts, the category says income or expense). */
+/**
+ * Moves money between the treasury and the world outside the valley and books it (pennies; positive
+ * amounts, the category says income or expense). I2 (C4.0): it also counts the flow in
+ * `economy.external`, which keeps the money invariant; money between the treasury and households
+ * goes through `pay()` (systems/economy/money.ts) instead.
+ */
 export function book(state: WorldState, category: LedgerCategoryId, pennies: number): void {
   const i = LEDGER_CATEGORIES.findIndex((c) => c.id === category);
   if (i < 0 || pennies === 0) return;
   const e = state.economy;
-  e.treasury += LEDGER_CATEGORIES[i]!.kind === 'income' ? pennies : -pennies;
+  const signed = LEDGER_CATEGORIES[i]!.kind === 'income' ? pennies : -pennies;
+  e.treasury += signed;
+  e.external += signed;
   e.today.money[i]! += pennies;
   e.season.money[i]! += pennies;
 }

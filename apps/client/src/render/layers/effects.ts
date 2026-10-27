@@ -1,5 +1,5 @@
 import { kitById, type KitAnchors, type KitBuildOptions, type KitPart } from '@qoti/art';
-import { content } from '@qoti/content';
+import { drawDef } from '../defs';
 import {
   DynamicDrawUsage,
   IcosahedronGeometry,
@@ -20,7 +20,7 @@ const anchorCache = new Map<string, KitAnchors>();
 const partCache = new Map<string, { geometry: BufferGeometry; part: KitPart }[]>();
 
 function kitOptions(defId: string): { kitId: string; opts: KitBuildOptions } | null {
-  const def = content.buildingById.get(defId);
+  const def = drawDef(defId);
   if (!def) return null;
   return {
     kitId: def.art.kit,
@@ -38,7 +38,7 @@ function anchorsOf(b: BuildingView): KitAnchors {
   const key = buildingKey(b);
   let a = anchorCache.get(key);
   if (!a) {
-    const def = content.buildingById.get(b.def);
+    const def = drawDef(b.def);
     const kit = def ? kitById.get(def.art.kit) : undefined;
     a = kit?.anchors?.(buildingKitOptions(b)) || {};
     anchorCache.set(key, a);

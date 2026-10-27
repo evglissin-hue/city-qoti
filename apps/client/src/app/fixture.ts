@@ -1,5 +1,5 @@
-// Debug only (?debug&fixture=hamlet): a solo valley that starts as the sim's hamlet fixture, so the
-// hamlet panels can be tried and tested live before the residents and economy tracks land. With
+// Debug only (?debug&fixture=hamlet, or =village [I2]): a solo valley that starts as the sim's
+// hamlet or village fixture, so panels can be tried and tested live before the tracks land. With
 // &mock, the fixture's missing history (wishes, pages, Chronicle, stocks, budget) is laid over the
 // Mirror from the UI mocks, whose ids match the fixture.
 import { randomId } from '@qoti/protocol';
@@ -12,10 +12,15 @@ import { rememberValley, type RecentValley } from './recent';
 export const FIXTURE = new URLSearchParams(location.search).get('fixture');
 export const MOCK_OVERLAY = new URLSearchParams(location.search).has('mock');
 
-/** Writes a new solo valley whose first snapshot is the hamlet fixture, and remembers it. */
-export async function createFixtureValley(townName = 'Thistlecombe'): Promise<RecentValley> {
-  const { hamletFixture } = await import('../../../../packages/sim/test/fixtures/hamlet');
-  const { state } = hamletFixture();
+/** Writes a new solo valley whose first snapshot is the hamlet (or village) fixture, and remembers it. */
+export async function createFixtureValley(
+  townName = 'Thistlecombe',
+  kind: 'hamlet' | 'village' = 'hamlet',
+): Promise<RecentValley> {
+  const state =
+    kind === 'village'
+      ? (await import('../../../../packages/sim/test/fixtures/village')).villageFixture().state
+      : (await import('../../../../packages/sim/test/fixtures/hamlet')).hamletFixture().state;
   state.settings.townName = townName;
   state.settings.valleyName = 'Fixture Vale';
   state.time.connected = [];
@@ -35,6 +40,7 @@ export async function createFixtureValley(townName = 'Thistlecombe'): Promise<Re
 
 /** Lays the UI mocks' history over a live fixture valley (and answers inspect from them). */
 export async function overlayMocks(session: Session): Promise<void> {
+  if (FIXTURE === 'village') return overlayVillageMocks(session);
   const mocks = await import('../ui/mocks/hamlet');
   const { mockInspect } = await import('../ui/mocks/session');
   const m = session.mirror;
@@ -59,5 +65,35 @@ export async function overlayMocks(session: Session): Promise<void> {
   session.inspect = (kind, id) => {
     const mock = mockInspect(kind, id);
     return mock ? Promise.resolve(mock) : live(kind, id);
+  };
+}
+
+/**
+ * I2 (C4F): the village mocks over the live village fixture: a story under way with its letters,
+ * the couple, a caravan and the trade log, an innovation halfway. With `charter`, an in-progress
+ * Charter board (the fixture is already a Village, and no Town Charter exists in I2).
+ */
+export async function overlayVillageMocks(session: Session, opts: { charter?: boolean } = {}): Promise<void> {
+  const v = await import('../ui/mocks/village');
+  const m = session.mirror;
+  for (const st of v.mockStories) m.stories.set(st.arc, st);
+  m.letters.value = [...v.mockLetters];
+  for (const i of v.mockInnovations) m.innovations.set(i.id, i);
+  m.trade.value = v.mockTrade;
+  for (const r of v.mockVillageView.residents ?? []) {
+    const live = m.residents.get(r.id);
+    if (live && r.partner) m.residents.set(r.id, { ...live, partner: r.partner });
+  }
+  if (opts.charter) m.charter.value = v.mockCharter;
+  m.villageRevision.value++;
+  m.hamletRevision.value++;
+  const story = v.mockVillageResidentDetail;
+  const live = session.inspect.bind(session);
+  session.inspect = async (kind, id) => {
+    const real = await live(kind, id);
+    if (kind === 'resident' && id === story.r.id && real && 'r' in real) {
+      return { ...real, story: story.story!, partner: story.partner! };
+    }
+    return real;
   };
 }

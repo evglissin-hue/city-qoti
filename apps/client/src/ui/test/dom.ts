@@ -59,3 +59,12 @@ export function button(root: HTMLElement, label: string): HTMLButtonElement {
   if (!found) throw new Error(`No button "${label}"`);
   return found;
 }
+
+/** I2 (C4F): types into an input or textarea as a player would, then lets Preact catch up. */
+export async function typeInto(el: HTMLElement, value: string): Promise<void> {
+  await act(() => {
+    (el as HTMLInputElement).value = value;
+    el.dispatchEvent(new Event('input', { bubbles: true }));
+  });
+  await settle();
+}

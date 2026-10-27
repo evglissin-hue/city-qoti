@@ -1,7 +1,7 @@
 // I1 view builders (C3.0). Their output never feeds back into state, so floats are fine here.
 // Tracks may enrich these (C3A residents, C3B Hearth, C3C Ledger) without changing their shapes.
 import { type Condition, content } from '@qoti/content';
-import { LEDGER_CATEGORIES, MAP_SIZE, MOOD_BAND_MIN } from '../constants';
+import { LEDGER_CATEGORIES, MAP_SIZE, MOOD_BAND_MIN, TIERS } from '../constants';
 import type {
   AchievementView,
   BudgetLine,
@@ -59,6 +59,8 @@ export function residentView(state: WorldState, r: Resident): ResidentView {
     bond: r.bond,
     look: r.look,
     flags: r.flags,
+    ...(r.partner ? { partner: r.partner } : {}),
+    ...(r.stage === 'child' ? { bornDay: r.bornDay } : {}),
   };
 }
 
@@ -72,6 +74,7 @@ export function householdView(h: Household): HouseholdView {
     homeId: h.homeId,
     tier: h.tier,
     pantryFood: food,
+    ...(h.savings ? { savings: h.savings } : {}),
   };
 }
 
@@ -125,6 +128,9 @@ export function runtimeView(defId: string, rt: BuildingRuntime): BuildingRuntime
     output: goodPairs(rt.output),
     store: goodPairs(rt.store),
   };
+  // C4E: what a grown craft is making, and a home upgrade under way, for the art.
+  if (method && (def?.methods?.length ?? 0) > 1) view.method = method.id;
+  if (rt.upgrade && rt.upgrade.some((q) => q > 0)) view.upgrading = true;
   const c = rt.construction;
   if (c) {
     view.construction = {
@@ -329,7 +335,31 @@ export function townView(state: WorldState): TownView {
     attractiveness: state.stats.attractiveness,
     unlocked: [...state.hearth.unlocked],
     wishesGranted: state.stats.wishesGranted,
+    // I2 (C4.0)
+    rank: state.charter.rank,
+    charter: charterTally(state),
+    tiers: tierCounts(state),
   };
+}
+
+/** Residents per tier, in TIERS order. */
+export function tierCounts(state: WorldState): number[] {
+  const out = TIERS.map(() => 0);
+  for (const r of state.residents) {
+    const i = TIERS.indexOf(r.tier);
+    if (i >= 0) out[i]! += 1;
+  }
+  return out;
+}
+
+/** Charter goals met of total, and whether the claim is open. */
+function charterTally(state: WorldState): { done: number; total: number; ready: boolean } {
+  const goals = content.charterById.get(state.charter.charter)?.goals ?? [];
+  let done = 0;
+  goals.forEach((g, i) => {
+    if ((state.charter.progress[i] ?? 0) >= g.target) done++;
+  });
+  return { done, total: goals.length, ready: state.charter.ready };
 }
 
 /** The resident's display name, or '' when gone. */

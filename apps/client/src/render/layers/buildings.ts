@@ -1,11 +1,18 @@
 import { palette, ShapeBuilder } from '@qoti/art';
-import { content } from '@qoti/content';
+import { drawDef } from '../defs';
 import { footprintSize, type BuildingView } from '@qoti/sim';
 import { Matrix4, MeshStandardMaterial, Quaternion, Vector3 } from 'three';
 import { KeyedBatch } from '../batch';
 import { levelY } from '../coords';
 import { InstanceSets } from '../instances';
-import { buildingKey, buildingMatrix, buildingVariantGeometry, footprintHeights } from '../kitGeometry';
+import {
+  buildingKey,
+  buildingMatrix,
+  buildingVariantGeometry,
+  footprintHeights,
+  isSeasonal,
+  setDrawSeason,
+} from '../kitGeometry';
 import type { LayerContext, RenderLayer } from './types';
 
 const PLINTH = '__plinth';
@@ -45,7 +52,7 @@ export function buildingsLayer(): RenderLayer {
     const seen = new Set<number>();
     for (const b of ctx.mirror.buildings.values()) {
       seen.add(b.id);
-      const def = content.buildingById.get(b.def);
+      const def = drawDef(b.def);
       const [w, d] = def ? footprintSize(def, b.rot) : [1, 1];
       centers.set(b.id, new Vector3(b.x + w / 2, 0, b.z + d / 2));
       place(b);
@@ -96,6 +103,7 @@ export function buildingsLayer(): RenderLayer {
     id: 'buildings',
     init(c) {
       ctx = c;
+      setDrawSeason(c.mirror.clock.value.season);
       batch = new KeyedBatch(c.scene, c.material);
       plinths = new InstanceSets(c.scene, plinthMaterial, () => plinthGeometry);
       rebuild();
@@ -104,7 +112,13 @@ export function buildingsLayer(): RenderLayer {
       if (change.full || change.buildings || change.rects.has('height')) rebuild();
     },
     frame(dt) {
-      return updateLods(dt);
+      // C4E: orchards and farm trees follow the season.
+      let seasonal = false;
+      if (ctx && setDrawSeason(ctx.mirror.clock.value.season)) {
+        for (const b of ctx.mirror.buildings.values()) if (isSeasonal(b.def)) place(b);
+        seasonal = true;
+      }
+      return updateLods(dt) || seasonal;
     },
     dispose() {
       batch?.dispose();

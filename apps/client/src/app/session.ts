@@ -16,6 +16,7 @@ import { ToolManager } from '../input/manager';
 import type { PointerInfo } from '../input/tool';
 import type { RoomConnection } from '../net/connection';
 import { LocalRoom } from '../net/local';
+import { moveValleyOnline } from './moveOnline';
 import { downloadBytes, valleyFileName } from './valleyFile';
 import { OnlineRoom } from '../net/online';
 import type { RenderApi } from '../render/api';
@@ -26,6 +27,8 @@ import { Mirror, type MirrorChange } from '../state/mirror';
 import { UndoStack } from '../state/undo';
 import { rejectText, undoText } from '../ui/messages';
 import { panels, toggleBook } from '../ui/panels';
+import { sketchWith } from '../ui/plans';
+import { INPUT_COPY } from '../input/copy';
 import { createUiState } from '../ui/state';
 import type { InitSource } from '../worker/messages';
 import { SimHost } from '../worker/host';
@@ -262,6 +265,13 @@ export class Session {
 
   /** Submits a command; undoable ones go on this seat's undo stack once the sim accepts them. */
   submit(cmd: Command, record = true): number {
+    // I2 (C4F): while a plan is being sketched, building commands become blueprint instead.
+    const sketched = sketchWith(this.ui.sketch.value, cmd);
+    if (sketched) {
+      this.ui.sketch.value = sketched;
+      if (sketched.items.length === 1) this.toast(INPUT_COPY.sketched(1));
+      return -1;
+    }
     if (!this.connection) return -1;
     this.debug.lastSubmitAt = Date.now();
     const before = record ? this.undo.prepare(cmd, this.mirror) : null;
@@ -270,8 +280,14 @@ export class Session {
     return seq;
   }
 
-  /** Ctrl+Z: submits the inverse of this seat's latest accepted command. */
+  /** Ctrl+Z: submits the inverse of this seat's latest accepted command (or takes back a sketched one). */
   undoLast(): void {
+    const sketch = this.ui.sketch.value;
+    if (sketch && sketch.items.length) {
+      this.ui.sketch.value = { ...sketch, items: sketch.items.slice(0, -1) };
+      this.toast(undoText.sketch);
+      return;
+    }
     const out = this.undo.undo(this.mirror, (cmd) => this.submit(cmd, false));
     this.toast(
       out.ok ? undoText.done(out.label) : out.reason === 'EMPTY' ? undoText.empty : rejectText(out.reason),
@@ -315,6 +331,26 @@ export class Session {
       if (n.kind !== 'letter' || (n.seat !== undefined && n.seat !== this.seat)) continue;
       const letter = { key: this.nextLetter++, kind: n.kind, text: n.text, tick: this.mirror.tick.value };
       this.ui.letters.value = [...this.ui.letters.value.slice(-19), n.at ? { ...letter, at: n.at } : letter];
+    }
+    // I2 (C4F): weddings, births and the like join the Hearth's news; the rank-up gets its moment.
+    for (const l of change.life) {
+      const r = this.mirror.residents.get(l.residents[0] ?? 0);
+      const home = r ? this.mirror.buildings.get(r.homeId) : undefined;
+      const item = {
+        key: this.nextLetter++,
+        kind: `life-${l.kind}`,
+        text: l.text,
+        tick: this.mirror.tick.value,
+      };
+      this.ui.letters.value = [
+        ...this.ui.letters.value.slice(-19),
+        home ? { ...item, at: [home.x, home.z] as [number, number] } : item,
+      ];
+    }
+    if (change.rankUp) this.ui.rankUp.value = change.rankUp;
+    const focus = this.ui.planFocus.value;
+    if (focus !== null && change.village && this.mirror.plans.get(focus)?.status !== 'open') {
+      this.ui.planFocus.value = null;
     }
     const sel = this.ui.selection.value;
     if (sel && 'id' in sel) {
@@ -410,6 +446,12 @@ export class Session {
         this.ui.settingsOpen.value = false;
         this.ui.emoteOpen.value = false;
         this.ui.letter.value = null;
+        // I2 (C4F): a story letter or the rank-up card goes first.
+        if (this.ui.storyLetter.value || this.ui.rankUp.value) {
+          this.ui.storyLetter.value = null;
+          this.ui.rankUp.value = null;
+          return true;
+        }
         // Esc steps back one thing at a time: an open book or the paint box first, then the tool.
         if (this.ui.panel.value || this.ui.customize.value !== null) {
           this.ui.panel.value = null;
@@ -424,7 +466,7 @@ export class Session {
         const book = panels.find((p) => p.key && p.key === e.key.toLowerCase() && p.side === 'book');
         const mode = this.mirror.settings.value.mode;
         if (!book || (book.modes && !book.modes.includes(mode))) return false;
-        if (book.lens) this.ui.lens.value = book.lens;
+        if (book.lens && book.lens !== 'shared') this.ui.lens.value = book.lens;
         toggleBook(this, book.id);
         return true;
       }
@@ -443,6 +485,20 @@ export class Session {
     const snap = await this.host.snapshot();
     const { year, season } = this.mirror.clock.value;
     downloadBytes(snap.data, valleyFileName(this.mirror.settings.value, year, SEASON_NAMES[season]));
+  }
+
+  /** C4D: called with the new online valley once a solo valley has moved online. */
+  onMove: ((target: SessionTarget) => void) | null = null;
+
+  /**
+   * C4D: moves this solo valley online (a snapshot through the valley-file path) and hands the new
+   * target to onMove, which opens it with the invite showing. Throws when the relay is unreachable.
+   */
+  async moveOnline(): Promise<void> {
+    if (this.target.mode !== 'solo') return;
+    const snap = await this.host.snapshot();
+    const target = await moveValleyOnline(snap.data, this.target);
+    this.onMove?.(target);
   }
 
   /** Debug only (?debug): makes this seat's sim drift from the room's, for resync tests. */
@@ -483,6 +539,12 @@ export class Session {
         this.ui.farm.value = id;
       },
       selection: () => this.ui.selection.value,
+      openPanel: (id) => {
+        this.ui.panel.value = id;
+      },
+      focusPlan: (id) => {
+        this.ui.planFocus.value = id;
+      },
     };
   }
 
