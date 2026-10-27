@@ -119,7 +119,7 @@ function GoodCard({ session, line }: { session: Session; line: MarketLine }) {
         <div>
           <h4>{good?.name ?? line.good}</h4>
           <p class="small muted">
-            <Price pennies={line.price} /> today, usually <Price pennies={line.base} />.{' '}
+            <Price pennies={line.price} /> today (usually <Price pennies={line.base} />){' '}
             <span class={`mood-chip mood-${mood}`}>{MOOD_WORD[mood]}</span>
           </p>
         </div>
