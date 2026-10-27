@@ -9,6 +9,7 @@ import { ResidentFlags } from '../../constants';
 import type { Resident, System, WorldState } from '../../contracts';
 import { isStandard } from '../../state/hamlet';
 import { wearStep } from '../traffic/wear';
+import { walkPermille } from './factors';
 import { walkGrid } from './grid';
 import { pathBetween } from './paths';
 
@@ -65,7 +66,10 @@ export const movement: System = {
         continue;
       }
       const next = m.path[m.step]!;
-      m.progress = advance(m.progress, tileTicks(grid.ticks[next]!, walkFactor(r)));
+      // I3 (C5.0): snow and the like slow the step through the walk hook.
+      const p = walkPermille(state, { kind: 'resident', id: r.id }, next);
+      const pct = p === 1000 ? walkFactor(r) : (walkFactor(r) * p) / 1000;
+      m.progress = advance(m.progress, tileTicks(grid.ticks[next]!, pct));
       if (m.progress < 256) continue;
       r.tile = next;
       wearStep(state, ctx, next);

@@ -14,6 +14,7 @@ import { dailyOffset } from '../economy/time';
 import { CHARM_OFFSET } from '../hearth/charm';
 import { doorTile } from '../movement/api';
 import { advance } from '../movement';
+import { walkPermille } from '../movement/factors';
 import { cartRoute, cartTicks, cartTile, routeStillOpen, slowdownPercent } from './api';
 import { markNoisyChunks } from './noise';
 import { clearTraffic, countPass } from './passes';
@@ -53,7 +54,10 @@ function drive(state: WorldState, ctx: TickCtx, cart: Cart): void {
   }
   const road = state.map.road[next]!;
   const ticks = cartTicks(cart, road) || 4;
-  const T = Math.max(1, Math.round((ticks * slowdownPercent(state, next)) / 100));
+  const slow = slowdownPercent(state, next);
+  // I3 (C5.0): snow and the like through the walk hook.
+  const p = walkPermille(state, { kind: 'cart', id: cart.id }, next);
+  const T = Math.max(1, Math.round((ticks * (p === 1000 ? slow : (slow * p) / 1000)) / 100));
   move.progress = advance(move.progress, T);
   if (move.progress < 256) return;
   move.progress = 0;

@@ -15,6 +15,7 @@ import { tickOfDay } from '../economy/time';
 import { defOf } from '../logistics/stores';
 import { CROP_STEP_TICKS, tendFields } from './fields';
 import { FORESTRY_RANGE, fellTree, plantSapling, treeToFell } from './forestry';
+import { yieldPermille } from './modifiers';
 import { conditionPercent, consume, crewPower, cycleWork, heightPercent, produce } from './produce';
 import { inputsShort, outputBlocked, refreshAllStatus } from './status';
 
@@ -54,7 +55,10 @@ export function crewWork(
 ): number {
   const crew = crewPower(state, b, rt, Math.max(1, method.workers));
   if (crew === 0) return 0;
-  return Math.floor((crew * conditionPercent(rt) * heightPercent(state, b, def, method)) / 10000);
+  const work = Math.floor((crew * conditionPercent(rt) * heightPercent(state, b, def, method)) / 10000);
+  // I3 (C5.0): weather, pollinators, pests and the like, through the yield hook.
+  const p = yieldPermille(state, b, def, method);
+  return p === 1000 ? work : Math.floor((work * p) / 1000);
 }
 
 function canRun(rt: BuildingRuntime, def: BuildingDef, method: ProductionMethod): boolean {
@@ -126,5 +130,7 @@ function farm(
   if (crew === 0) return;
   const wheat = content.goodIndex.get(method.outputs[0]?.[0] ?? 'wheat');
   if (wheat === undefined) return;
-  tendFields(state, ctx, b, def, Math.floor((crew * conditionPercent(rt)) / 100), wheat);
+  const work = Math.floor((crew * conditionPercent(rt)) / 100);
+  const p = yieldPermille(state, b, def, method);
+  tendFields(state, ctx, b, def, p === 1000 ? work : Math.floor((work * p) / 1000), wheat);
 }
