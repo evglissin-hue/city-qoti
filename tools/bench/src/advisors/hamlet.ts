@@ -9,6 +9,7 @@ import {
   BuildingStatus,
   creditLimit,
   expenses,
+  FIELD_GOOD_FERTILITY,
   fieldCap,
   fieldTileProblem,
   income,
@@ -250,14 +251,18 @@ class Hamlet implements Advisor {
       let owned = 0;
       for (let i = 0; i < w.map.fieldOwner.length; i++) if (w.map.fieldOwner[i] === farm.id) owned++;
       if (owned >= cap || p.coins() < cap) continue;
+      // Good soil first, as a farmer would; thin soil (slower wheat) only to fill the rest.
       const tiles: [number, number][] = [];
-      for (let dz = -6; dz <= 7 && tiles.length < cap - owned; dz++) {
-        for (let dx = -6; dx <= 7 && tiles.length < cap - owned; dx++) {
-          const x = farm.x + dx;
-          const z = farm.z + dz;
-          const i = idx(x, z);
-          if (w.map.fieldOwner[i] || w.map.zone[i] || fieldTileProblem(w, farm, def, x, z)) continue;
-          tiles.push([x, z]);
+      for (const good of [true, false]) {
+        for (let dz = -6; dz <= 7 && tiles.length < cap - owned; dz++) {
+          for (let dx = -6; dx <= 7 && tiles.length < cap - owned; dx++) {
+            const x = farm.x + dx;
+            const z = farm.z + dz;
+            const i = idx(x, z);
+            if (w.map.fieldOwner[i] || w.map.zone[i] || fieldTileProblem(w, farm, def, x, z)) continue;
+            if (w.map.fertility[i]! >= FIELD_GOOD_FERTILITY !== good) continue;
+            tiles.push([x, z]);
+          }
         }
       }
       if (tiles.length) p.do(`fields x${tiles.length}`, [{ t: 'field.paint', farm: farm.id, tiles }]);

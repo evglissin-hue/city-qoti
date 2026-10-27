@@ -127,7 +127,9 @@ export const PORTER_CARRY = 4;
 export const PORTER_MATCH_EVERY = 20;
 export const STALL_RESTOCK_TARGET = 30;
 export const FIELD_TILE_COST = 1;
-export const FIELD_MIN_FERTILITY = 40;
+/** Fields grow on almost any open grass; below FIELD_GOOD_FERTILITY the wheat grows more slowly. */
+export const FIELD_MIN_FERTILITY = 15;
+export const FIELD_GOOD_FERTILITY = 40;
 export const MAX_FIELD_TILES = 256;
 export const MAX_SIGN_CHARS = 24;
 /** Undo stack depth per seat (client). */

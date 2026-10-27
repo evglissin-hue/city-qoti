@@ -6,7 +6,7 @@
 //   homes tinted by whether any well reaches them.
 // - 'flows': animated chevrons along arcs between buildings, weighted by deliveries.
 // - 'status': building status icons from BuildingStatus bits.
-// - 'fields': each farmhouse's reach and the field tiles it tends.
+// - 'fields': each farmhouse's reach, the field tiles it tends, and the soil within reach.
 // - C4E 'zones': zone tints (the zone's own token color) with every lot outlined, solid when built
 //   on, dashed while it waits; 'traffic': road tiles by cart passes this hour against the road's
 //   capacity; 'land': lots by desirability (land value) and charm elsewhere in zoned land; 'needs':
@@ -20,6 +20,8 @@ import {
   BuildingStatus,
   CHUNK_SIZE,
   CHUNKS_PER_SIDE,
+  FIELD_GOOD_FERTILITY,
+  FIELD_MIN_FERTILITY,
   footprintSize,
   MAP_SIZE,
   type LayerName,
@@ -420,6 +422,33 @@ export function overlaysLayer(): OverlaysLayer {
         );
       }
     }
+    // The soil within each farm's reach, so it is plain where wheat grows well: deep green on rich
+    // soil, pale sage on good, sandy on thin (slower), nothing where no field can go. Lightness
+    // steps with the soil, so it reads without color too.
+    const rich = new Color(0x3f7a3a);
+    const good = new Color(0x8fb879);
+    const thin = new Color(0xd9b98a);
+    const soil: { x: number; z: number; rgba: Rgba }[] = [];
+    const seen = new Set<number>();
+    for (const b of m.buildings.values()) {
+      const def = drawDef(b.def);
+      const range = def?.methods?.find((x) => x.kind === 'farm')?.range;
+      if (!range || !def) continue;
+      const [w, d] = footprintSize(def, b.rot);
+      for (let z = Math.max(0, b.z - range); z <= Math.min(MAP_SIZE - 1, b.z + d - 1 + range); z++) {
+        for (let x = Math.max(0, b.x - range); x <= Math.min(MAP_SIZE - 1, b.x + w - 1 + range); x++) {
+          const i = z * MAP_SIZE + x;
+          if (seen.has(i) || owner?.[i]) continue;
+          seen.add(i);
+          if (m.water(x, z) || m.road(x, z) || m.occupant(x, z) || m.tree(x, z)) continue;
+          const f = m.fertility(x, z);
+          if (f < FIELD_MIN_FERTILITY) continue;
+          const c = f >= 70 ? rich : f >= FIELD_GOOD_FERTILITY ? good : thin;
+          soil.push({ x, z, rgba: [c.r, c.g, c.b, 0.34] });
+        }
+      }
+    }
+    if (soil.length) add(drapeTiles(m, soil, 0.1));
     for (const b of m.buildings.values()) {
       const def = drawDef(b.def);
       const range = def?.methods?.find((x) => x.kind === 'farm')?.range;

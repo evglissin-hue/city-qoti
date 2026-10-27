@@ -41,7 +41,7 @@ Costs, upkeep and outputs are *(tune)*. C3X tuned them against a headless pair o
 | Sawpit | 2x3 | 16 logs, 6 stone, 30 | 1 | 2 | 2 logs → 4 planks per 2 h | |
 | Quarry | 3x3 | 20 planks, 40 | 2 | 3 | 2 stone per 2 h per worker | 4+ stone deposit tiles in footprint |
 | Farmhouse | 2x2 | 16 planks, 6 stone, 30 | 1 | 3 | tends fields: 1 wheat per field tile per day, max 12 tiles per worker | |
-| Wheat Field | painted tiles within 6 of a farmhouse | 1 per tile | 0 | none | see farmhouse | fertility 40+ |
+| Wheat Field | painted tiles within 6 of a farmhouse | 1 per tile | 0 | none | see farmhouse | fertility 15+ (40+ grows at full speed) |
 | Windmill | 2x2 | 24 planks, 12 stone, 50 | 2 | 1 | 3 wheat → 2 flour per h; +25% at height 4+ | |
 | Bakery | 2x2 | 20 planks, 16 stone, 50 | 2 | 2 | 2 flour → 5 bread per 2 h | |
 | Vegetable Plot | 2x2 | 4 planks, 5 | 0 | 1 | 3 vegetables per 4 h | fertility 30+ |
@@ -57,7 +57,7 @@ How production runs [I1, C3C]:
 - Work is counted per tick: each worker inside adds their mood productivity (Miserable 50% to Glowing 110%), scaled by condition (worn under 70%: 90%; disrepair under 40%: 70%) and the height bonus. A cycle needs `hours` of the full crew at 100% (of one worker for per-worker methods), so half a crew takes twice as long.
 - A cycle only runs with its inputs in the input buffer and room in the output buffer (10 per good, farms 30); otherwise the building shows "missing input" or "output full".
 - Woodcutters fell the mature tree in range with the most trees around it (nearest on ties), so thick stands thin first and lone trees last. Foresters plant beside existing trees where they can, a tile clear of roads and buildings, in the neighbors' species.
-- Wheat fields: painted per tile within 6 tiles of the farmhouse footprint on fertility 40+, 12 tiles per job (36 per farmhouse); painting skips tiles that cannot be fields and is refused only when none can. Each farmer tends 12 tiles: tended tiles grow 4 points (of 255) per quarter hour of tending, ripen in about two work days and yield 2 wheat, about 1 wheat per tile per day. The `crop` layer holds growth; patches go out when a tile crosses one of four drawn stages (bare, sprouts, green, golden). Tiles a road or building takes over stop being fields.
+- Wheat fields: painted per tile within 6 tiles of the farmhouse footprint on fertility 15+, 12 tiles per job (36 per farmhouse); painting skips tiles that cannot be fields and is refused only when none can. Each farmer tends 12 tiles: tended tiles grow 4 points (of 255) per quarter hour of tending on good soil (40+), 3 on thin soil (25 to 39) and 2 on the thinnest (15 to 24), ripen in about two work days and yield 2 wheat, about 1 wheat per tile per day. The `crop` layer holds growth; patches go out when a tile crosses one of four drawn stages (bare, sprouts, green, golden). Tiles a road or building takes over stop being fields.
 - The first unit of a good ever made writes a "first of" line in the Chronicle.
 
 ## I2 buildings [C4C]

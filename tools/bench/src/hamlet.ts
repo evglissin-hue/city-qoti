@@ -14,8 +14,10 @@ import {
   createValley,
   defaultSettings,
   doorTile,
+  FIELD_GOOD_FERTILITY,
   fieldTileProblem,
   findById,
+  inBounds,
   insertBuilding,
   MAP_SIZE,
   NEED_IDS,
@@ -475,7 +477,8 @@ export function fortyResidentHamlet(seed: string): Hamlet {
   if (farm) {
     const tiles: [number, number][] = [];
     for (let z = farm.z - 6; z <= farm.z + 7; z++)
-      for (let x = farm.x - 6; x <= farm.x + 7; x++) tiles.push([x, z]);
+      for (let x = farm.x - 6; x <= farm.x + 7; x++)
+        if (inBounds(x, z) && w.map.fertility[z * MAP_SIZE + x]! >= FIELD_GOOD_FERTILITY) tiles.push([x, z]);
     command(h, [{ t: 'field.paint', farm: farm.id, tiles: tiles.slice(0, 256) }]);
   }
   const store = w.buildings.find((b) => b.def === 'storehouse')!;
