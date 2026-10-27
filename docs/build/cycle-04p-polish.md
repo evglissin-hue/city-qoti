@@ -50,3 +50,13 @@ Seasonal looks, snow on roads and skaters (C5E). New road kinds. Sim-side animat
 
 - The stairs looked broken because the treads were flat boxes at `levelY` stacked on the ground's ramp, and every flagged pair built its own flight and its own cheek stones.
 - Keep residents one instanced draw call; species features are extra bones and vertex groups on the shared body, not extra meshes.
+
+## As built (C4P)
+
+- Stairs: rebuilt in `render/layers/roads.ts` from `groundY`, with sloped kerbs and warm sandstone; a unit test holds the top tread flush with the path above and the flight reaching the ground on both sides of a cross slope. Each climb is its own flight between tile centers (consecutive climbs meet at the centers).
+- Roads: one dirt for paths and lanes, blended across joins; road squares paved across; softer ruts and a ragged crown instead of a dashed one; desire paths in the same earth. Streets still change to setts at the middle of a joint, at a kerb.
+- Folk: round eyes with catchlights, blush (not on badgers and otters), heads in ten slices; skirts, overalls, neckerchiefs and hair bows, rolled after the I1 rolls so every existing resident keeps their fur, vest and work clothes. Full figures are 304 to 374 triangles (the test cap is 380).
+- Motions, all client-side (`MOTION` in `@qoti/art`, no new `AgentAnim`): sitting on benches (the `bench` decor only; curved and ring benches still have folk standing by them), chats in turns with a nod from the listener, waves between folk who know each other.
+- Debug scenes: `__qoti.roadsShowcase()` (a hill of paths, lanes, a street and stairs) and `__qoti.folkShowcase()` (benches, a pair, a trio and two walkers), shot with `apps/client/e2e/c4p-shots.mjs`. The brief's gallery scenes became these live scenes instead, since stairs and motions need the real ground and frames.
+- Budget: on the dense village showcase (166 buildings, 150 synthetic residents, Medium), 200 to 230 draws and 0.42M to 0.88M triangles, which is 2 to 5 more draws (one per new outfit piece in view) and under 1.2% more triangles than `main`. The autoplayed day-70 village was not re-measured here; expect at most four more draws than the C4X numbers.
+- Not done: per-species girth by life stage beyond the existing species scale, a sit pose for curved and ring benches, and sim-side animation states (none were needed).

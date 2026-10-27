@@ -531,7 +531,7 @@ export function agentsLayer(): AgentsLayer {
     }
   }
 
-  /** Calls `visit` with each resident seen last frame within `r` tiles of (x, z), nearest not first. */
+  /** Calls `visit` with each resident seen last frame within `r` tiles of (x, z), in no order; true stops. */
   function eachNear(
     x: number,
     z: number,
