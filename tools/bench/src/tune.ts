@@ -21,8 +21,6 @@ const t0 = performance.now();
 // C4C: `TUNE_VILLAGE=1` plays on past the Charter (chains, services, Craftsfolk).
 const village = !!process.env.TUNE_VILLAGE;
 const run = autoplay(seed, days, { economy, villageDay, handsOff, standInPost, village });
-if (run.standInWages) console.log('(stand-in wages paid: C4A wages were not running)');
-if (run.standInRank) console.log('(stand-in Village rank granted: the Charter was not met in time)');
 console.log(`Autoplay ${seed}, ${economy}, ${days} days (${((performance.now() - t0) / 1000).toFixed(1)} s)`);
 console.log(formatDays(run.days));
 if (run.street) {

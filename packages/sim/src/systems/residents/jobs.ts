@@ -98,9 +98,13 @@ export function slotPriority(def: BuildingDef, k: number, short: Shortages = NO_
   // more than eight days of food lets its plots, farms and fishers go to other work first.
   if (def.category === 'service') return k === 0 ? 0 : 1;
   const kind = makes(def, short);
+  if (kind === 'short') return 0;
+  // C4X: every workplace gets its first hand before any gets a second, so a building the Ledger
+  // places always starts (a clay pit that never digs never invents the kiln).
+  if (k === 0) return 2;
   // The mill and the bakery keep their hands: bread is its own need for Craftsfolk.
   const grows = (def.methods ?? []).every((m) => m.kind !== 'craft');
-  return kind === 'short' ? 0 : kind === 'food' ? (short.plenty && grows ? 5 : 2) : 3;
+  return kind === 'food' ? (short.plenty && grows ? 5 : 2) : 3;
 }
 
 const NO_SHORTAGES: Shortages = { food: false, goods: new Set() };

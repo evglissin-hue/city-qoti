@@ -4,22 +4,17 @@
 // and flowers by the doors so the streets reach the Craftsfolk's charm. A clay pit goes in while
 // still a Hamlet so the Brick Kiln is ready when the Village is.
 //
-// STAND-IN (until C4A merges): Craftsfolk need savings, and savings come from C4A's wages. While a
-// valley at Village rank books no wages, the harness pays each household a basic wage per working
-// member at the 15:00 turn, from outside the valley (pay('outside', ...), so the money invariant
-// holds). Once C4A's wages run it stops by itself. Purchases need no stand-in: the tiers system
-// reads shelves when C4A's basket satisfaction is absent.
+// C4X: the stand-ins this half carried while the wave ran (wages paid from outside, the Village
+// rank granted on day 24, a loan taken on day one) are gone: C4A's wages and loans and the real
+// Charter claim drive it now.
 import { content } from '@qoti/content';
 import {
-  LEDGER_CATEGORIES,
   PENNIES_PER_COIN,
   TILE_FP,
-  WAGES,
   canPlaceBuilding,
   canPlaceDecor,
   doorTile,
   hasInnovation,
-  pay,
   rankAtLeast,
   serviceCoverage,
   townStock,
@@ -31,9 +26,6 @@ import {
 } from '@qoti/sim';
 
 const G = (id: string) => content.goodIndex.get(id)!;
-/** Day the stand-in grants the Village rank if the Charter has not (the hamlet's tuned span). */
-export const VILLAGE_DAY = 24;
-const WAGES_INDEX = LEDGER_CATEGORIES.findIndex((c) => c.id === 'wages');
 
 export interface VillageHost {
   readonly w: WorldState;
@@ -68,10 +60,6 @@ export function craftsfolk(w: WorldState): number {
 }
 
 export class VillagePlayer {
-  /** True once the stand-in has paid anything (reported in the tune output). */
-  standInWages = false;
-  /** True once the stand-in granted the Village rank (the Charter was not met by VILLAGE_DAY). */
-  standInRank = false;
   constructor(readonly p: VillageHost) {}
 
   get w(): WorldState {
@@ -102,16 +90,10 @@ export class VillagePlayer {
     }
   }
 
-  /** One turn; `afternoon` is the 15:00 visit (wages stand-in, decorating). */
+  /** One turn; `afternoon` is the 15:00 visit (tidying sites, decorating). */
   turn(afternoon: boolean): void {
     const w = this.w;
     if (afternoon) this.tidySites();
-    // STAND-IN (until C4D and C4X chase the Charter): a valley still a Hamlet on VILLAGE_DAY is
-    // granted the rank, so the Village half always gets its evenings. Reported as standInRank.
-    if (!rankAtLeast(w, 'village') && Math.floor(w.tick / 4800) >= VILLAGE_DAY && w.charter.charter) {
-      w.charter.ready = true;
-      this.standInRank = true;
-    }
     if (w.charter.ready && w.charter.charter) this.p.do('claim the Charter', [{ t: 'charter.claim' }]);
     this.feed();
     const pit = w.buildings.find((b) => b.def === 'clay-pit' && b.stage === 'built');
@@ -124,9 +106,6 @@ export class VillagePlayer {
     }
     if (pit?.rt!.paused)
       this.p.do('reopen the clay pit', [{ t: 'build.setPaused', id: pit.id, paused: false }]);
-    if (afternoon) this.standIn();
-    if (w.loans.loans.length === 0)
-      this.p.do('borrow from the County Bank', [{ t: 'loan.take', coins: 600 }]);
     // Homes before anything else: a Village grows by the families that move in.
     const vacant = w.buildings.filter(
       (b) =>
@@ -374,21 +353,6 @@ export class VillagePlayer {
             }
           }
         }
-      }
-    }
-  }
-
-  /** STAND-IN for C4A's wages (see the file header). */
-  private standIn(): void {
-    const w = this.w;
-    if ((w.economy.yesterday.money[WAGES_INDEX] ?? 0) > 0 || (w.economy.today.money[WAGES_INDEX] ?? 0) > 0)
-      return;
-    for (const h of w.households) {
-      let workers = 0;
-      for (const id of h.members) if (w.residents.find((r) => r.id === id)?.jobId) workers++;
-      if (workers > 0) {
-        pay(w, 'outside', { household: h.id }, workers * WAGES[0], null);
-        this.standInWages = true;
       }
     }
   }

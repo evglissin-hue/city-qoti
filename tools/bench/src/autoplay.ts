@@ -128,10 +128,6 @@ export interface AutoplayResult {
   actions: string[];
   /** The high street of a Village run (C4B), once laid. */
   street?: HighStreet | null;
-  /** C4C: the Village run paid stand-in wages (C4A's wages were not running). */
-  standInWages: boolean;
-  /** C4C: the Village run was granted the rank on VILLAGE_DAY (the Charter was not met). */
-  standInRank: boolean;
 }
 
 const S = MAP_SIZE;
@@ -872,8 +868,6 @@ export function autoplay(
     days: out,
     actions: players.actions,
     street: players.street,
-    standInWages: village?.standInWages ?? false,
-    standInRank: village?.standInRank ?? false,
   };
 }
 

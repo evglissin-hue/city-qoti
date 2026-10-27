@@ -14,6 +14,7 @@ import { overdraftLimit, isLean } from '../loans/credit';
 import { marketOpen } from '../market/api';
 import { tradingPost } from '../trade/post';
 import { book } from './api';
+import { pay } from './money';
 import { economyDial, upkeepPennies } from './dial';
 import { emitChangedBuildings, emitMoney, emitReports } from './emit';
 import { dayIndex, tickOfDay } from './time';
@@ -80,9 +81,31 @@ function midnight(state: WorldState, ctx: TickCtx): void {
     if (paying) upkeep += upkeepPennies(state, def.upkeep);
     else b.rt.condition = Math.max(0, b.rt.condition - decay);
   }
-  book(state, 'upkeep', upkeep);
+  payUpkeep(state, upkeep);
   if (e.leanTimes !== isLean(state)) setLean(state, ctx);
   emitReports(state, ctx, true);
+}
+
+/**
+ * Upkeep leaves the valley in a Hamlet (I1). Once the market opens at Village rank (C4X) it stays
+ * home: the village pays its own folk to mend roofs, sweep the wells and grease the mill, shared
+ * evenly between households, so the coins come back through the shops and the income tax instead of
+ * draining a Village that has no flat tax left to refill it.
+ */
+function payUpkeep(state: WorldState, upkeep: number): void {
+  const n = state.households.length;
+  if (upkeep <= 0) return;
+  if (!marketOpen(state) || n === 0) {
+    book(state, 'upkeep', upkeep);
+    return;
+  }
+  const share = Math.floor(upkeep / n);
+  let rest = upkeep - share * n;
+  for (const h of state.households) {
+    const extra = rest > 0 ? 1 : 0;
+    rest -= extra;
+    pay(state, 'treasury', { household: h.id }, share + extra, 'upkeep');
+  }
 }
 
 export function income(p: LedgerPeriod): number {

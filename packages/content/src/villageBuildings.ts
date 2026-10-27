@@ -578,10 +578,11 @@ export const tradingPost: BuildingDef = {
   entrance: [1, 2],
   cost: {
     coins: 60,
+    // C4X: no bricks, so a new Village can trade before its kiln is invented (the post is how a
+    // Village pays its way once the Hamlet's flat tax gives way to income tax).
     goods: [
       ['planks', 30],
-      ['stone', 16],
-      ['bricks', 8],
+      ['stone', 20],
     ],
   },
   upkeep: 3,
