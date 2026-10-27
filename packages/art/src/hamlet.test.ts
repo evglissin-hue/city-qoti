@@ -45,6 +45,31 @@ describe('residents', () => {
     expect(kinds('bakery', 'patron')).toContain('hat:top');
     expect(residentLook({ species: 'dragon', look: 1 }).species).toBe('rabbit');
   });
+
+  it('wear everyday outfits on top, without changing fur, vests or work clothes (C4P)', () => {
+    const looks = Array.from({ length: 200 }, (_, i) => residentLook({ species: 'mouse', look: i }));
+    const share = (kind: string): number => looks.filter((l) => l.extras.some((e) => e.kind === kind)).length;
+    expect(share('skirt')).toBeGreaterThan(30);
+    expect(share('overalls')).toBeGreaterThan(5);
+    expect(share('kerchief')).toBeGreaterThan(10);
+    expect(share('bow')).toBeGreaterThan(5);
+    // Overalls are for field hands, and never under an apron.
+    const farmers = Array.from({ length: 100 }, (_, i) =>
+      residentLook({ species: 'rabbit', look: i, job: 'farmhouse' }),
+    );
+    expect(farmers.filter((l) => l.extras.some((e) => e.kind === 'overalls')).length).toBeGreaterThan(45);
+    for (let i = 0; i < 100; i++) {
+      const kinds = residentLook({ species: 'fox', look: i, job: 'bakery' }).extras.map((e) => e.kind);
+      expect(kinds).toEqual(expect.arrayContaining(['apron', 'hat:baker']));
+      expect(kinds).not.toContain('overalls');
+    }
+    // Story characters keep their signature outfit and nothing else.
+    expect(residentLook({ species: 'mouse', look: 3, story: true }).extras.map((e) => e.kind)).toEqual([
+      'hat:cap',
+      'goggles',
+      'satchel',
+    ]);
+  });
 });
 
 describe('goods', () => {

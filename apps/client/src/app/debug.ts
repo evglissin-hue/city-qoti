@@ -16,6 +16,7 @@ import {
 } from '@qoti/sim';
 import type { Selection } from '../input/context';
 import { applySettings, loadSettings } from '../ui/settings';
+import { folkShowcase } from '../render/folkShowcase';
 import { roadsShowcase } from '../render/roadShowcase';
 import { villageShowcase } from '../render/showcase';
 import { fakeCharm, fakeRuntime, startSyntheticResidents, type SyntheticOptions } from '../render/synthetic';
@@ -266,6 +267,13 @@ export function installDebugHook(getSession: () => Session | null): void {
       if (!session) return null;
       const r = villageShowcase(session.mirror, { dense });
       return { buildings: r.buildings, carts: r.carts };
+    },
+    /** C4P: folk sitting on benches, chatting and waving, in this client's Mirror, for art review. */
+    folkShowcase: (x?: number, z?: number) => {
+      const session = s();
+      if (!session) return null;
+      const r = folkShowcase(session.mirror, x, z);
+      return { center: r.center, folk: r.folk };
     },
     /** C4P: a hill of paths, lanes, a street and stairs in this client's Mirror, for road art review. */
     roadsShowcase: (x?: number, z?: number) => {

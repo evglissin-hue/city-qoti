@@ -3,7 +3,8 @@
 //   QOTI_CLIENT_PORT=5190 node apps/client/e2e/c4p-shots.mjs <outDir> <prefix> <shot> [<shot> ...]
 // A shot is name=x,z,distance,hour[,turn,tilt] (turn and tilt in radians, relative to the default
 // view). Env: QOTI_SHOWCASE=1 adds the village showcase, QOTI_ROADS=0 skips the roads scene,
-// QOTI_FOLK=1 adds the folk scene, QOTI_WAIT the settle time per shot in ms.
+// QOTI_FOLK=1 adds the folk scene, QOTI_WAIT the settle time per shot in ms, QOTI_SIZE the viewport
+// and QOTI_CLIP=x,y,w,h a crop of it (a large viewport and a crop make a close-up).
 import { chromium } from '@playwright/test';
 
 const clientPort = Number(process.env.QOTI_CLIENT_PORT ?? 5173);
@@ -59,7 +60,12 @@ for (const shot of shots) {
     const s = window.__qoti.stats();
     return { draws: s?.drawCalls, tris: s?.triangles };
   });
-  await page.screenshot({ path: `${out}/${prefix}-${name}.png` });
+  const clip = process.env.QOTI_CLIP?.split(',').map(Number);
+  await page.screenshot({
+    path: `${out}/${prefix}-${name}.png`,
+    timeout: 240000,
+    ...(clip ? { clip: { x: clip[0], y: clip[1], width: clip[2], height: clip[3] } } : {}),
+  });
   console.log(name, JSON.stringify(stats));
 }
 await browser.close();

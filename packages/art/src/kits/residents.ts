@@ -18,7 +18,19 @@ export type HatKind =
  * the sling a parent carries a baby in.
  */
 export type ExtraKind =
-  'apron' | 'goggles' | 'longscarf' | 'lute' | 'satchel' | 'scarf' | 'shawl' | 'sling' | `hat:${HatKind}`;
+  | 'apron'
+  | 'bow'
+  | 'goggles'
+  | 'kerchief'
+  | 'longscarf'
+  | 'lute'
+  | 'overalls'
+  | 'satchel'
+  | 'scarf'
+  | 'shawl'
+  | 'skirt'
+  | 'sling'
+  | `hat:${HatKind}`;
 
 export const SPECIES_IDS: readonly SpeciesId[] = [
   'badger',
@@ -43,12 +55,16 @@ export const HAT_KINDS: readonly HatKind[] = [
 ];
 export const EXTRA_KINDS: readonly ExtraKind[] = [
   'apron',
+  'bow',
   'goggles',
+  'kerchief',
   'longscarf',
   'lute',
+  'overalls',
   'satchel',
   'scarf',
   'shawl',
+  'skirt',
   'sling',
   ...HAT_KINDS.map((h) => `hat:${h}` as const),
 ];
@@ -67,6 +83,9 @@ interface SpeciesArt {
 
 const INK = 0x2a221c;
 const PINK = 0xe2a29a;
+/** C4P: a catchlight in each eye and a touch of blush, so faces look awake. */
+const GLINT = 0xfbf8f0;
+const BLUSH = 0xe6a19b;
 const NOSE_DARK = 0x3a2c26;
 
 export const SPECIES_ART: Record<SpeciesId, SpeciesArt> = {
@@ -170,7 +189,8 @@ const HEAD_R: V3 = [0.066, 0.06, 0.06];
 
 /** The head: fur with species face markings, painted per face. */
 function head(b: RigBuilder, sp: SpeciesId): void {
-  b.ellipsoid(HEAD_C, HEAD_R, 8, 4, (nx, _ny, nz, ring) => {
+  // C4P: ten slices (was eight) so the head reads round at the default camera.
+  b.ellipsoid(HEAD_C, HEAD_R, 10, 4, (nx, _ny, nz, ring) => {
     const front = nz > 0.55;
     const diag = nz > 0.2 && Math.abs(nx) > 0.35 && Math.abs(nx) < 0.85;
     switch (sp) {
@@ -198,7 +218,25 @@ function face(b: RigBuilder, sp: SpeciesId): void {
   const muzzle = sp === 'badger' ? furLight : sp === 'hedgehog' ? furLight : furLight;
   b.ellipsoid([0, 0.196, mz], [0.028 * w, 0.022, len], 6, 3, () => muzzle);
   b.nub([0, 0.2, mz + len * 0.92], [0.011, 0.009, 0.008], fixed(art.nose));
-  for (const s of [1, -1]) b.nub([0.026 * s, 0.226, 0.058], [0.0105, 0.013, 0.008], fixed(INK));
+  for (const s of [1, -1]) {
+    // C4P: round eyes (were diamonds).
+    b.ellipsoid([0.026 * s, 0.226, 0.058], [0.0105, 0.013, 0.008], 6, 2, () => fixed(INK));
+    // C4P: the catchlight sits up and out, as if the sun were over one shoulder.
+    b.nub([0.029 * s, 0.231, 0.0655], [0.0036, 0.0036, 0.002], fixed(GLINT));
+    // Blush: a soft patch on each cheek, turned out with the face.
+    if (sp !== 'badger' && sp !== 'otter') {
+      const [cx, cy, cz] = [0.041 * s, 0.203, 0.0565];
+      const [ux, uz] = [0.0105 * 0.82, -0.0105 * 0.57 * s];
+      b.quad(
+        [cx - ux, cy - 0.0055, cz - uz],
+        [cx + ux, cy - 0.0055, cz + uz],
+        [cx + ux, cy + 0.0055, cz + uz],
+        [cx - ux, cy + 0.0055, cz - uz],
+        fixed(BLUSH),
+        [0.57 * s, 0, 0.82],
+      );
+    }
+  }
 }
 
 function limbs(b: RigBuilder, sp: SpeciesId, simple = false): void {
@@ -769,10 +807,84 @@ function sling(b: RigBuilder): void {
   b.nub([0, 0.126, 0.107], [0.004, 0.004, 0.003], fixed(INK));
 }
 
+/** C4P: a skirt flaring from the waist, so a vest becomes a dress. */
+function skirt(b: RigBuilder): void {
+  b.tube(
+    [
+      [0, 0.08, 0],
+      [0, 0.058, 0.002],
+      [0, 0.032, 0.004],
+    ],
+    [0.067, 0.081, 0.093],
+    10,
+    cloth,
+  );
+  // A darker hem band, so the flare reads from above.
+  b.tube(
+    [
+      [0, 0.04, 0.0035],
+      [0, 0.031, 0.004],
+    ],
+    [0.0905, 0.0945],
+    10,
+    { ...cloth, shade: 0.72 },
+  );
+}
+
+/** C4P: overalls: trousers over the tummy, a bib in front and straps over the shoulders. */
+function overalls(b: RigBuilder): void {
+  b.ellipsoid(TORSO_C, [0.0728, 0.0878, 0.0648], 8, 2, () => cloth, Math.PI / 8, 1.85, Math.PI);
+  for (const [z, out] of [
+    [0.0655, 1],
+    [0.0605, -1],
+  ] as const)
+    b.quad(
+      [-0.033, 0.134, z - 0.004],
+      [0.033, 0.134, z - 0.004],
+      [0.036, 0.072, z],
+      [-0.036, 0.072, z],
+      cloth,
+      [0, 0, out],
+    );
+  for (const s of [1, -1]) {
+    b.tube(
+      [
+        [0.027 * s, 0.132, 0.06],
+        [0.042 * s, 0.168, 0.036],
+        [0.046 * s, 0.181, -0.008],
+        [0.038 * s, 0.14, -0.058],
+      ],
+      [0.0065, 0.0065, 0.0065, 0.0065],
+      3,
+      cloth,
+    );
+    b.nub([0.026 * s, 0.128, 0.067], [0.0055, 0.0055, 0.003], fixed(palette.mustard));
+  }
+}
+
+/** C4P: a neckerchief knotted at the throat, its point down the chest. */
+function kerchief(b: RigBuilder): void {
+  b.ellipsoid([0, 0.172, 0.004], [0.06, 0.012, 0.058], 8, 1, () => cloth, Math.PI / 8, 1.2, 1.95);
+  b.tri([-0.032, 0.176, 0.056], [0.032, 0.176, 0.056], [0, 0.128, 0.069], cloth, [0, 0.2, 1]);
+  b.tri([-0.032, 0.176, 0.052], [0.032, 0.176, 0.052], [0, 0.128, 0.064], cloth, [0, -0.2, -1]);
+  b.nub([0, 0.17, 0.063], [0.008, 0.007, 0.005], cloth);
+}
+
+/** C4P: a hair bow worn to one side, between the ears. */
+function bow(b: RigBuilder): void {
+  const c: V3 = [-0.03, 0.262, 0.03];
+  for (const s of [1, -1]) b.nub([c[0] + 0.013 * s, c[1], c[2]], [0.013, 0.0095, 0.006], cloth);
+  b.nub(c, [0.006, 0.0065, 0.0065], cloth);
+}
+
 /** Geometry for something worn on top of the body (an apron, a scarf, a hat, a satchel...). */
 export function extraGeometry(kind: ExtraKind): BufferGeometry {
   const b = new RigBuilder();
   if (kind === 'apron') apron(b);
+  else if (kind === 'bow') bow(b);
+  else if (kind === 'kerchief') kerchief(b);
+  else if (kind === 'overalls') overalls(b);
+  else if (kind === 'skirt') skirt(b);
   else if (kind === 'scarf') scarf(b);
   else if (kind === 'satchel') satchel(b);
   else if (kind === 'longscarf') longScarf(b);
@@ -877,6 +989,53 @@ export interface ResidentLook {
 
 const CHILD_SCALE = 0.7;
 
+const DENIMS = [0x4f6d8f, 0x5d7a99, 0x7a5a3e] as const;
+const BOWS = [palette.accentRed, 0xd48a86, palette.mustard, 0xf7f4ec] as const;
+/** Workplaces whose hands mostly wear overalls (fields, pens and yards). */
+const OVERALLS_JOBS: ReadonlySet<string> = new Set([
+  'builders-yard',
+  'clay-pit',
+  'dairy',
+  'farmhouse',
+  'farmstead',
+  'herb-garden',
+  'orchard',
+  'sheep-pasture',
+  'vegetable-plot',
+]);
+
+/**
+ * C4P: the everyday outfit over the vest: a skirt (so some wear dresses), overalls for field and
+ * yard hands, a neckerchief, a hair bow. Story characters keep their signature outfit.
+ */
+function dressUp(
+  extras: { kind: ExtraKind; color: number }[],
+  input: ResidentLookInput,
+  outfit: number,
+  accent: number,
+  second: number,
+): void {
+  if (input.story && input.stage !== 'child') return;
+  const has = (k: (kind: ExtraKind) => boolean): boolean => extras.some((e) => k(e.kind));
+  const apron = has((k) => k === 'apron');
+  const hat = has((k) => k.startsWith('hat:'));
+  const neck = has((k) => k === 'scarf' || k === 'longscarf' || k === 'shawl');
+  if (input.stage === 'child') {
+    if (outfit < 0.3) extras.push({ kind: 'skirt', color: second });
+    if (accent > 0.72 && !hat)
+      extras.push({ kind: 'bow', color: BOWS[Math.floor(outfit * 97) % BOWS.length]! });
+    return;
+  }
+  const denim = DENIMS[Math.floor(outfit * 997) % DENIMS.length]!;
+  const fieldHand = !!input.job && OVERALLS_JOBS.has(input.job);
+  if (!apron && (fieldHand ? outfit < 0.65 : outfit >= 0.32 && outfit < 0.42))
+    extras.push({ kind: 'overalls', color: denim });
+  else if (outfit < 0.32) extras.push({ kind: 'skirt', color: second });
+  if (accent < 0.2 && !neck) extras.push({ kind: 'kerchief', color: second });
+  else if (accent > 0.86 && !hat)
+    extras.push({ kind: 'bow', color: BOWS[Math.floor(outfit * 97) % BOWS.length]! });
+}
+
 /**
  * Fur and clothes for a resident, deterministic from the look seed. Work clothes follow the job:
  * bakers in white aprons and toques, farmers in straw hats, fishers in sou'westers.
@@ -893,6 +1052,12 @@ export function residentLook(input: ResidentLookInput): ResidentLook {
   const k = child ? CHILD_SCALE : 1;
   const extras: { kind: ExtraKind; color: number }[] = [];
   const roll = rnd();
+  // C4P: rolls for the everyday outfit come after the I1 ones, so fur, vest and work clothes stay
+  // what they were for every resident.
+  const outfit = rnd();
+  const accent = rnd();
+  let second = CLOTH_COLORS[Math.floor(rnd() * CLOTH_COLORS.length)]!;
+  if (second === cloth) second = CLOTH_COLORS[(CLOTH_COLORS.indexOf(cloth) + 5) % CLOTH_COLORS.length]!;
   if (!child) {
     switch (input.job) {
       case 'bakery':
@@ -946,6 +1111,7 @@ export function residentLook(input: ResidentLookInput): ResidentLook {
   } else if (roll < 0.35) {
     extras.push({ kind: 'scarf', color: other });
   }
+  dressUp(extras, input, outfit, accent, second);
   if (input.story && !child) {
     extras.length = 0;
     extras.push(...storyOutfit(sp));

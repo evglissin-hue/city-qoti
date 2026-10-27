@@ -2,6 +2,7 @@
 // C4E: the village in the renderer: stand-in defs for kits content does not know yet, grown
 // buildings' params (district style, what a craft makes, the season), upgrade scaffolding keys,
 // stairs, the village overlays, carts and animals.
+import { MOTION } from '@qoti/art';
 import { Flags, MAP_SIZE, AGENT_STRIDE, AgentAnim, type BuildingView } from '@qoti/sim';
 import type { Mesh } from 'three';
 import { PerspectiveCamera, Scene, type Object3D } from 'three';
@@ -145,6 +146,14 @@ describe('stairs', () => {
         expect(Math.min(...near.map((p) => p[1]))).toBeLessThan(groundY(m, x, z));
       }
     }
+  });
+});
+
+describe('client motions (C4P)', () => {
+  it("never collide with the sim's agent animations", () => {
+    const sim = Object.values(AgentAnim) as number[];
+    for (const m of Object.values(MOTION)) expect(sim).not.toContain(m);
+    expect(Math.min(...Object.values(MOTION))).toBeGreaterThan(Math.max(...sim));
   });
 });
 
