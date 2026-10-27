@@ -393,6 +393,49 @@ Defined in cycle C4.0, then changed only additively during the I2 wave. Runtime 
 
 **Fixtures**: `packages/sim/test/fixtures/village.ts` (60 residents in 15 households, 16 of them Craftsfolk, at Village rank: two storehouses, two market stalls, a cobbled street, eleven lots on zoned frontage with one grown cottage, five days of prices, a standing order, a loan, an open plan and request) and `apps/client/src/ui/mocks/village.ts` (views built from it with the sim's own builders, plus a story under way, letters, a couple and a trade log). `?debug&fixture=village` opens it live.
 
+## I3 contracts
+
+Defined in cycle C5.0, then changed only additively during the I3 wave. Runtime handshakes (who sets the season and freezes the river, every new money flow, Watch morale, renown sources, the Chronicle snapshot) are in `docs/build/i3-wave-notes.md`.
+
+**State** (`contracts/seasons.ts`, `contracts/state.ts`; `SAVE_VERSION = 4`, migration from 3 grows every per-good array to the I3 goods, ledger periods to the I3 categories, seeds the new RNG streams from the valley seed, marks the floodplain, adds the two new story arcs and innovations unstarted, and starts the I3 slices neutral; P53, a gentle update: the river is frozen if the date says so, a valley migrated in autumn or winter gets six firewood per household from the County, a Village keeps its rank and its trial is the next winter, and the first days guide is over):
+
+- `WorldState` gains `weather` (today, a forecast of up to 2 days, scheduled and running events, `river.frozen` and the tick it froze), `warmth` (the winter counted, cold household-days, households cold a whole day), `festival` (this season's plan: site as a rect or a pattern site, menu and reserved as `[goodIndex, qty]`, twist, music, who planned it; the temporary pieces; live; the last outcome with attendance, five joy parts and stars; an 8-festival history), `renown` (points, level 0 to 5, a 20-entry log), `commissions`, `dock` (boats from `nextId`, a log), `nature` (habitat scores as a plain `number[]` of 6 x 144, habitat h of chunk c at `h * 144 + c`; Field Guide entries; three hints; summer pests per farm), `threats` (pressure in permille of the threshold, deterrence parts, the scheduled raid with its telegraph tick and signs, wolves' nights, a 12-raid history, captives waiting for a decision), `watch` (members, target, training 100 to 160, morale, up to 3 guard tiles, today's duty, budget in pennies), `raid` (the live raid: raiders with tile, `MoveState`, morale, load, state and target; the Watch in it; bell; lanterns; null outside one), `trial` (kind, Charter, season, year, status, what it measured), `guide` (step, done ticks, hidden per seat, over) and `seasons` counters (raids held, warm winters, best stars, together moments).
+- `Household.warmth?`, `Resident.reformed?` and `Resident.watch?`, `BuildingRuntime.hp?`, `.open?`, `.modules?` (`[slot, module]` pairs), `.moduleWork?`, `.flooded?` (a tick), `Decor.festival?` (`kept`), `ChronicleEntry.snapshot?` (focus tile and radius), `LeversState.marketDay?` and `.quietHours?`, `ValleySettings.guide?`. All optional and absent until used, so I2 shapes hash as before.
+- Map: `water` value 3 (pond) in use; `Flags.floodplain` (land at height 1 or below within 6 tiles of the river) set for every valley at creation and by the migration (`markFloodplain`).
+- Goods 20 to 24 are the I3 goods, appended: coats, furniture, pies, honey, candles. `LEDGER_CATEGORIES` appends festival, dock, commissions, watch, visitors, fees. RNG streams append `nature` and `festival`. `SEASON_IDS`, `HABITAT_IDS`, the forecast, freeze, warmth, festival, renown, raid, Watch and guide constants live in `constants.ts`.
+
+**Content**: `SeasonDef` (sowing and harvest days, river, warmth, events, festival), `WeatherDef` (odds per season and named effects, permille), `EventDef`, `FestivalDef`, `FestivalTwistDef`, `WildlifeDef` and `HabitatName`, `ThreatDef`, `DefenseDef` (`BuildingDef.defense`), `ModuleSlot`, `ModuleDef` and `BuildingDef.moduleSlots`, `CommissionDef`, `RenownDef`, `TrialDef` (`CharterDef.trial`), `GuideDef`, `GuideStep`, `GuidePoint`; `DecorDef.festival` and `.slows`; `Reward.renown`; `TraitDef.special` (never rolled for newcomers); the `code` condition's `ref` (a content id; `storyStep` names its arc by id); `CountWhat` gains `renown`, `festivalStars`, `fieldGuide`, `sighted`, `raidsHeld`, `warmWinters`. Seed content with ids and names: four seasons, seven weather kinds, five events, four festivals, five twists, six renown levels, two threats, the I3 goods, fifteen building stubs (hidden from the picker with `modes: []` until their owners write them), six festival pieces, two innovations (Barometer, Seed Drill; `rank: 'town'` until written), five achievements, six pattern stubs (`rank: 'town'` until their detectors land), the Village trial (The First Winter), the Reformed trait, two story arc stubs (herbalist, stonemason) and the first days guide stub. The story list is append-only now, like goods.
+
+**Commands** (validated baselines, owners in the file headers): `festival.plan { site, menu, twist?, music? }`, `festival.keepPiece { decor }`, `commission.accept|decline { id }`, `ledger.setMarketDay { day | null }`, `ledger.setQuietHours { on }` (C5B); `terrain.pond { tiles }`, `build.setModule { id, slot, module | null }` (C5C); `wall.paint { def, tiles }` (`LOCKED` until C5D unhides the defense defs), `wall.remove { tiles }`, `gate.set { id, open }`, `watch.setTarget`, `watch.setBudget`, `watch.setPosture { guards }`, `watch.ringBell`, `watch.lightLanterns` (raid only), `bandit.decide { id, choice }` (C5D); `guide.setHidden { on }` (C5H; per seat, works while a together-only seat is alone). `valley.setSettings` takes `guide`, and a threat dial change tells the partner and writes a Chronicle line. New reject reasons `WOULD_ENCLOSE`, `FROZEN`, `NO_RAID`.
+
+**Events and views** (`contracts/seasonViews.ts`): `season.started` (`SeasonCardView`), `season.report` (`SeasonReportView`, built in `view/season/` from one file per track), `weather.updated`, `event.forecast|started|ended`, `festival.updated|started|ended`, `together.moment`, `renown.updated`, `commission.added|updated|removed`, `dock.updated`, `species.sighted`, `habitats.updated` (chunk scores), `threat.updated` (`ThreatView`: band, side, days left, signs; `pressure` for the Ledger lens only), `watch.updated`, `raid.started|updated|ended`, `bandit.captured`, `trial.updated`, `guide.step`; `chronicle.added` may carry a `snapshot`. `ViewSnapshot` carries all I3 views; `TownView` gains season, weather, renown level, cold households, threat band and the guide; `ResidentDetail` gains warmth, Watch and reformed; `BuildingDetail` gains modules, hp, gate and flooded.
+
+**Agent frames**: `AgentAnim` gains `run` (6) and `dance` (7); `AgentFlags` gains `cold`, `watch`, `raider`, `wolf`, `festival`, `skating`, `visitor`. Raiders, wolves, circus visitors and boats ride in the same frame with ids from `nextId`. Values from 16 are the client's own motions (`MOTION` in `@qoti/art`), never the sim's.
+
+**Shared hooks** (written once in C5.0, one registration line per source; each has a `with...` helper for tests):
+
+| Hook | File | Returns | Registered by |
+|---|---|---|---|
+| `yieldModifiers` | `systems/production/modifiers.ts` | permille on farm, gather and craft output | C5A weather, drought, early frost, frozen river, Seed Drill; C5C pollinators, pests |
+| `walkFactors` | `systems/movement/factors.ts` | permille of tile ticks, for residents, carts and raiders | C5A snow; C5D fences and hedges (raiders) |
+| `scheduleOverrides` | `systems/residents/overrides.ts` | an `Activity` or null, by priority, before the day table | C5B festival evening; C5D bell, duty, turn-out; C5A storms, skating |
+
+**Cross-track APIs**:
+
+| API | File | Owner |
+|---|---|---|
+| `seasonNow`, `weatherToday`, `forecast`, `isFrozen`, `isFlooded`, `isCold`, `warmthReport`, `startTrial`, `trialOutcome` | `systems/seasons/api.ts` | C5A |
+| `addRenown`, `renownLevel`, `levelFor` | `systems/renown/api.ts` | C5B |
+| `festivalMorale`, `reserveMenu` | `systems/festivals/api.ts` | C5B |
+| `habitatAt`, `pollinatorFactor`, `pestLoss`, `hasSpecies` | `systems/habitats/api.ts` | C5C |
+| `wealth`, `deterrenceAt`, `isRaidActive`, `watchStrength`, `lanternLit` | `systems/threats/api.ts` | C5D |
+| `emptySeasonsSlices`, `markFloodplain`, `seasonAt`, `startGuide` | `state/seasons.ts` | C5.0 |
+| `AudioApi`, `audio()`, `setAudio`, `SoundCueId` | `apps/client/src/audio/api.ts` | C5G |
+
+**System slots**: 12 seasons (00:02), 14 weather (00:04), 59 warmth (07:30), 68 dock (08:00), 75 festivals (04:00), 76 habitats (02:00), 78 wildlife (hourly at 140), 80 threats (00:40), 82 watch (05:30), 84 raids and 86 defenses (every tick, returning at once outside a raid), 91 renown (00:06), 93 commissions (hourly at 180), 95 trials (00:08), 99 guide (hourly at 190). All are registered no-ops that return at once in sandbox valleys.
+
+**Fixtures**: `packages/sim/test/fixtures/winter.ts` (the village on Winter day 2 of year 2: frozen river, snow, two cold households, a Bath House, the Winter Hearth Feast planned at the well, the trial running, a Watch House with four members, two Field Guide entries) and `threat.ts` (`threatFixture`: storehouse A behind a palisade with a gate, a watchtower, lanterns on lane A, a Medium raid telegraphed from the north for day 4; `raidAtDusk`: the same valley at 18:30 on day 4 with six raiders and the bell rung). Client mocks in `apps/client/src/ui/mocks/seasons.ts`; `?debug&fixture=winter` and `?debug&fixture=raid` open them live.
+
 ## Client
 
 - **Boot**: title screen → create or join → `RoomConnection` → `SimHost.init` (new from seed, or snapshot) → `ready` → Mirror built from the view → Renderer and UI mount → live turns flow to the worker.

@@ -74,6 +74,19 @@ Each iteration ends with something both players can play on the live link (P54),
 
 **Cycles**: C5.0 seasons contracts (serial, with C4P roads and folk polish alongside) → C5A seasons and weather, C5B festivals and renown, C5C nature and the Field Guide, C5D threats and the Watch, C5E seasons art, C5F seasons UI, C5G music and sound, C5H the first days guide (parallel) → C5X integration and I4 planning.
 
+**Acceptance** (C5.0, from C5X's proposal):
+
+- A Village prepares for and gets through its first winter: everyone fed on stored food, everyone warm, the trial weathered; unprepared, some are cold and a few leave, and nothing worse.
+- Every season ends in a planned festival whose stars follow its site, menu, music and twist; a 5-star festival is reachable.
+- Every raid is telegraphed with time to prepare; defenses, lanterns and the Watch visibly change its outcome; nobody is hurt and every loss can be rebuilt; captured bandits can join the town.
+- About 30 species can be found; the Field Guide fills for both seats; bees and songbirds change yields.
+- Weather and events (flood, drought, early frost, cold snap, circus) are forecast and felt in both lanes.
+- Renown, commissions, the River Dock, modules, photo mode and Chronicle pictures work; the 6 new patterns and 5 new achievements can be earned.
+- Each lane has seasonal work and needs the other (festival supplies, winter stock, walls dressed for charm, morale from festivals).
+- Music follows the hour and the season, ambience follows the camera, and every recording is CC0 and credited.
+- A new standard valley's first days are guided for both lanes, and the guide can be hidden by either player.
+- Benches within budget at Village scale in winter, during a festival and during a raid; hashes match over a full year, including a raid, in Node and a browser worker.
+
 ## I4 Town
 
 **Scope**: Town Charter and the bandit raid trial; Merchants tier; districts, district policies and styles; contracts; Port Amberly; canals and barges; parcels and expansion (purchase, bridges, camps and dens with Watch expeditions); great owl, river raiders, bandit chief; block builder for landmarks; library, theater, post office, inn and tourism; levees and irrigation; time-lapse; 8 new patterns; Captain Wendell Rook; more achievements.
