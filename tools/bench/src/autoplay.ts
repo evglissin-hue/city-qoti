@@ -44,6 +44,8 @@ import {
   fieldCap,
   fieldTileProblem,
   findRoute,
+  growthDemand,
+  Zone,
   type Building,
   type Command,
   type GrowthDemand,
@@ -201,22 +203,52 @@ class Players {
     }
     if (!this.do('lay the high street', [{ t: 'road.paint', kind: 'lane', tiles: street.tiles }])) return;
     this.street = street;
+    this.streets = 1;
     this.do('zone the high street', zoneHighStreet(this.w, street));
+  }
+
+  /** Streets laid and zoned so far (the high street first). */
+  private streets = 0;
+
+  /**
+   * C4X: another street once the zoned homes are all taken and families still want to come (a
+   * Village with one street stopped growing homes on day 46 with demand for five every night).
+   */
+  private nextStreet(): void {
+    const w = this.w;
+    if (!this.street || this.streets >= 4 || this.coins() < 80) return;
+    const homes: number[] = [Zone.homesLow, Zone.homesMedium];
+    if (w.lots.some((l) => !l.buildingId && homes.includes(l.zone))) return;
+    if (growthDemand(w).homes <= 0) return;
+    const street = planHighStreet(w);
+    if (!street || !this.do('lay another street', [{ t: 'road.paint', kind: 'lane', tiles: street.tiles }])) return;
+    this.streets++;
+    this.do('zone the street', zoneHighStreet(w, street));
   }
 
   /** The Ledger's Village chores: a storehouse at the far end once porters cannot reach the lots there. */
   private villageChores(): void {
     const w = this.w;
-    if (!this.street || unreachedLots(w) < 2 || count(w, 'storehouse') >= 3 || sites(w) >= 3) return;
+    this.nextStreet();
+    // C4X: whatever the storehouses elsewhere (it used to stop at three, and a town with more
+    // storehouses never reached its own high street), one site at a time.
+    const building = w.buildings.some((b) => b.def === 'storehouse' && b.stage === 'construction');
+    if (!this.street || unreachedLots(w) < 2 || building) return;
     const def = content.buildingById.get('storehouse')!;
-    if (this.coins() < (def.cost?.coins ?? 0) + 40) return;
+    if (this.coins() < (def.cost?.coins ?? 0) + 20) return;
     const stock = townStock(w);
-    for (const [g, q] of def.cost?.goods ?? []) if (stock[G(g)]! < q + 8) return;
+    for (const [g, q] of def.cost?.goods ?? []) if (stock[G(g)]! < q) return;
     const at = storehouseSpot(w, this.street);
-    if (at)
+    // Raised to the front: the lots out there grow nothing until porters reach them.
+    if (
+      at &&
       this.do('storehouse for the high street', [
         { t: 'build.place', def: 'storehouse', x: at[0], z: at[1], rot: at[2] },
-      ]);
+      ])
+    ) {
+      const site = w.buildings[w.buildings.length - 1]!;
+      this.do('raise the storehouse', [{ t: 'build.setPriority', id: site.id, priority: true }]);
+    }
   }
   /** Days of food kept back from the peddler (C4C: the Village run keeps six, for the Charter). */
   foodReserveDays = 2;
@@ -346,13 +378,11 @@ class Players {
     // grows its own), and a second when a story character is waiting to move in (C4D: they never
     // take the last one).
     const waiting = storyWaiting(w) ? 1 : 0;
-    want(
-      !this.street &&
-        !holdHomes &&
-        vacantHomes(w) + w.buildings.filter((b) => b.def === 'cottage' && b.stage === 'construction').length <
-          2 + waiting,
-      'cottage',
-    );
+    const homesComing =
+      vacantHomes(w) + w.buildings.filter((b) => b.def === 'cottage' && b.stage === 'construction').length;
+    // C4X: with no home empty or going up, the next cottage jumps the queue (nobody moves in
+    // without one; a hamlet sat at 13 residents for six days behind its other sites).
+    want(!this.street && !holdHomes && homesComing < 2 + waiting, 'cottage', homesComing === 0);
     // Stone, then more timber as the town grows.
     want(
       pop >= 10 && stock[G('planks')]! < 20 && count(w, 'sawpit') < 2 && count(w, 'sawpit', true) > 0,
