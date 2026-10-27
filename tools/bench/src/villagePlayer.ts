@@ -10,6 +10,8 @@
 import { content } from '@qoti/content';
 import {
   BuildingStatus,
+  creditLimit,
+  loansOwed,
   PENNIES_PER_COIN,
   TILE_FP,
   canPlaceBuilding,
@@ -92,7 +94,9 @@ export class VillagePlayer {
       const done = c.workDone + c.delivered.reduce((a, n) => a + n, 0);
       const seen = this.progress.get(b.id);
       if (!seen || seen[0] !== done) this.progress.set(b.id, [done, day]);
-      else if (day - seen[1] >= 3) this.p.do(`cancel a stuck ${b.def}`, [{ t: 'build.remove', ids: [b.id] }]);
+      // A site only waiting its turn for a builder is not stuck (C4X).
+      else if (day - seen[1] >= 3 && !((b.rt?.status ?? 0) & BuildingStatus.waitingBuilders))
+        this.p.do(`cancel a stuck ${b.def}`, [{ t: 'build.remove', ids: [b.id] }]);
     }
   }
 
@@ -121,7 +125,12 @@ export class VillagePlayer {
     if (vacant < 2) this.want('cottage', 6);
     // Builders: a yard per forty residents, or the sites queue up behind two town hall builders
     // (C4X: per thirty, six yards kept sixteen builders from the bakeries).
-    if (count(w, 'builders-yard') < Math.floor(w.residents.length / 40)) this.want('builders-yard', 8);
+    // Pressing while sites wait their turn for a builder (C4X: they used to be cancelled as stuck).
+    const queued = w.buildings.some(
+      (b) => b.stage === 'construction' && ((b.rt?.status ?? 0) & BuildingStatus.waitingBuilders) !== 0,
+    );
+    if (count(w, 'builders-yard') < Math.floor(w.residents.length / 40))
+      this.want('builders-yard', 8, queued);
     // More porters next: a storehouse per 20 residents, raised to the front, and another whenever
     // three workplaces sit with their output full (C4X: bread, cloth and cider waited at the
     // bakeries and the weaver while the shelves stood empty, so nobody became Craftsfolk).
@@ -147,6 +156,9 @@ export class VillagePlayer {
     if (!canStaff(w, def, pressing)) return false;
     const d = content.buildingById.get(def)!;
     if (this.coins() < (d.cost?.coins ?? 0) + 30) return false;
+    // C4X: past half the County Bank's line only what is pressing or keeps the town going is
+    // started (the Village borrowed its way to the edge of lean times on new workshops).
+    if (!pressing && !essential(def) && loansOwed(w) * 2 > creditLimit(w)) return false;
     const free = townStock(w);
     for (const b of w.buildings) {
       const c = b.rt?.construction;
@@ -166,19 +178,28 @@ export class VillagePlayer {
     const w = this.w;
     const pop = w.residents.length;
     const crafts = craftsfolk(w);
-    let budget = 2;
+    let budget = 3;
     const go = (cond: boolean, def: string, pressing = false) => {
       if (budget > 0 && cond && this.want(def, 5, pressing)) budget--;
     };
     // C4X: bread is pressing while the shelves hold under a third of a loaf a head (Craftsfolk eat
     // it daily), so the farm, mill and bakery may draw hands from spare porters.
-    const breadShort = townStock(w)[G('bread')]! < pop / 3;
+    const breadShort = townStock(w)[G('bread')]! < pop / 2;
     // Bread: a farm, the mill and the bakery (Craftsfolk eat it every day; C4X: a Village whose
     // food came from plots and huts never built the farm, so never baked).
     // Services: Craftsfolk want a tavern and a herbalist in reach (C4X: first, and outside the
     // turn's budget, one site of each at a time; behind the chains they came too late).
     this.serve('tavern', 'social');
     this.serve('herbalist', 'health');
+    // C4X: a pile of yarn or apples gets its weaver or press before anything else (466 yarn and
+    // 160 apples waited while the Village kept starting other things, and nobody had cloth or
+    // cider).
+    // Nothing else is started until they are, so the coins are there for them.
+    const piles = townStock(w);
+    const weaver = piles[G('yarn')]! >= 20 && count(w, 'weaver') < count(w, 'spinner', true);
+    const press = piles[G('apples')]! >= 40 && count(w, 'cider-press') < count(w, 'orchard', true);
+    if (weaver && !this.want('weaver', 8, true)) return;
+    if (press && !this.want('cider-press', 8, true)) return;
     go(count(w, 'farmhouse') === 0, 'farmhouse');
     // A mill per farm and a bakery per mill while bread is short; another farm only once every
     // farm's wheat is being milled (C4X: six farms stood with full barns behind two mills).
@@ -205,6 +226,7 @@ export class VillagePlayer {
       'farmhouse',
       true,
     );
+    const stock = townStock(w);
     // Bricks first (taverns and townhouses are made of them): a clay pit (two days of digging
     // invent the kiln), firewood for the kiln, then the kiln.
     if (budget > 0 && count(w, 'clay-pit') === 0 && !this.want('clay-pit') && this.p.blocked('clay-pit'))
@@ -212,17 +234,37 @@ export class VillagePlayer {
     go(count(w, 'chopping-shed') < 1 + Math.floor(crafts / 24), 'chopping-shed');
     // C4X: bricks and cloth by the size of the town, not its Craftsfolk: what the Village sells
     // beyond the valley pays for its sites and loans (and there were no Craftsfolk to count yet).
-    go(hasInnovation(w, 'brick-kiln') && count(w, 'brick-kiln') < 1 + Math.floor(pop / 80), 'brick-kiln');
-    go(hasInnovation(w, 'brick-kiln') && count(w, 'clay-pit') < count(w, 'brick-kiln', true), 'clay-pit');
+    // Pressing while there are too few bricks for the next tavern or townhouse.
+    const bricksShort = stock[G('bricks')]! < 20;
+    go(
+      hasInnovation(w, 'brick-kiln') && count(w, 'brick-kiln') < 1 + Math.floor(pop / 80),
+      'brick-kiln',
+      bricksShort,
+    );
+    go(
+      hasInnovation(w, 'brick-kiln') && count(w, 'clay-pit') < count(w, 'brick-kiln', true),
+      'clay-pit',
+      bricksShort,
+    );
+    // Cloth and treats for the basket, by the size of the town, not its Craftsfolk (there were
+    // none to count while the shelves had no cloth or cider), and pressing, like bread, while the
+    // shelves hold too little of them (C4X: every Settler household waited on cloth and cider).
+    const clothShort = stock[G('cloth')]! < w.households.length / 2;
+    const ciderShort = stock[G('cider')]! < pop / 8;
+    go(count(w, 'sheep-pasture') < 1 + Math.floor(pop / 60), 'sheep-pasture', clothShort);
+    go(count(w, 'spinner') < count(w, 'sheep-pasture', true), 'spinner', clothShort);
+    go(count(w, 'weaver') < count(w, 'spinner', true), 'weaver', clothShort);
+    go(
+      count(w, 'orchard') < 2 + Math.floor(pop / 40) + Math.floor(count(w, 'tavern') / 2),
+      'orchard',
+      ciderShort,
+    );
+    go(
+      count(w, 'orchard', true) > 0 && count(w, 'cider-press') < count(w, 'orchard', true),
+      'cider-press',
+      ciderShort,
+    );
     go(count(w, 'herb-garden') < count(w, 'herbalist', true), 'herb-garden');
-    // Treats: apples pressed into cider (the tavern pours some of it).
-    // C4X: by the town, not the Craftsfolk (they never came while the shelves had no cider).
-    go(count(w, 'orchard') < 2 + Math.floor(pop / 40) + Math.floor(count(w, 'tavern') / 2), 'orchard');
-    go(count(w, 'orchard', true) > 0 && count(w, 'cider-press') < count(w, 'orchard', true), 'cider-press');
-    // Cloth for the basket.
-    go(count(w, 'sheep-pasture') < 1 + Math.floor(pop / 60), 'sheep-pasture');
-    go(count(w, 'spinner') < count(w, 'sheep-pasture', true), 'spinner');
-    go(count(w, 'weaver') < count(w, 'spinner', true), 'weaver');
     // Skilled work, once there are Craftsfolk to do it.
     go(crafts >= 8 && count(w, 'dairy') === 0, 'dairy');
     go(crafts >= 8 && count(w, 'dairy', true) > 0 && count(w, 'cheesemaker') === 0, 'cheesemaker');
@@ -250,7 +292,9 @@ export class VillagePlayer {
     const stock = townStock(w);
     const food = foods.reduce((n, g) => n + stock[g]!, 0);
     const made = foods.reduce((n, g) => n + (w.economy.yesterday.produced[g] ?? 0), 0);
-    if (pop >= 30 && food < pop * 5 && made < pop * 1.4) {
+    // C4X: a little over a day's eating made a day is enough (at 1.4 a Village of 200 kept a third
+    // of its hands on plots and huts while the Craftsfolk chains stood empty).
+    if (pop >= 30 && food < pop * 4 && made < pop * 1.15) {
       // C4X: plots and huts (wheat is not food; the farms come with the bread chain).
       const def = this.p.foodBuilding();
       this.want(def, 5, true);
@@ -273,7 +317,9 @@ export class VillagePlayer {
     const wantLogs = cutters < 2 + Math.floor(pop / 50) || count(w, 'chopping-shed') < 1;
     const pits = w.buildings.filter((b) => b.def === 'sawpit' && b.stage === 'built');
     // Plenty of planks, or logs wanted for building: keep one sawpit going (none with 120 planks).
-    const keep = planks >= 120 ? 0 : wantLogs && logs < 12 && cutters < 2 ? 1 : pits.length;
+    // C4X: none while the next woodcutter waits for its twelve logs (one woodcutter's logs all went
+    // to the sawpits, so a Village of 130 never built a second and ran out of planks for good).
+    const keep = planks >= 120 || (wantLogs && logs < 16) ? 0 : pits.length;
     pits.forEach((b, i) => {
       const rest = i >= keep;
       if (b.rt!.paused !== rest)
@@ -305,6 +351,18 @@ export class VillagePlayer {
           planted++;
       }
     }
+    // C4X: the chopping sheds rest once there is firewood for days (one turned every log into 280
+    // firewood while the sawpits stood idle), and reopen when it runs low.
+    const firewood = stock[G('firewood')]!;
+    const homes = w.households.length;
+    for (const b of w.buildings) {
+      if (b.def !== 'chopping-shed' || b.stage !== 'built' || !b.rt) continue;
+      const rest = b.rt.paused ? firewood >= homes * 2 : firewood >= Math.max(40, homes * 5);
+      if (b.rt.paused !== rest)
+        this.p.do(rest ? 'rest the chopping shed' : 'reopen the chopping shed', [
+          { t: 'build.setPaused', id: b.id, paused: rest },
+        ]);
+    }
     // C4X: a forester per sixty residents while logs run short (five stood by 400 logs).
     if (logs < 100 && count(w, 'foresters-lodge') < 1 + Math.floor(pop / 60)) this.want('foresters-lodge', 6);
     if (
@@ -335,10 +393,10 @@ export class VillagePlayer {
     const reader = worldIndex(w).reader;
     let tried = 0;
     for (const h of w.households) {
-      if (!h.homeId || covered.has(h.id) || tried++ >= 12) continue;
+      if (!h.homeId || covered.has(h.id) || tried++ >= 24) continue;
       const home = w.buildings.find((b) => b.id === h.homeId);
       if (!home) continue;
-      for (let r = 2; r <= 8; r++) {
+      for (let r = 2; r <= 9; r++) {
         for (let dz = -r; dz <= r; dz++) {
           for (let dx = -r; dx <= r; dx++) {
             if (Math.max(Math.abs(dx), Math.abs(dz)) !== r) continue;

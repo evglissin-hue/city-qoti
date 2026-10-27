@@ -158,7 +158,7 @@ export function zoneHighStreet(w: WorldState, street: HighStreet): Command[] {
 
 /**
  * Where the Ledger puts a storehouse for the far end of the high street, so porters reach the lots
- * there: the free spot nearest the street's end, door onto a road, off the zoned land (C4X: and
+ * there: the free spot nearest the lots porters miss (C4X: on any street, not only the first), door onto a road, off the zoned land (C4X: and
  * within reach of a standing storehouse, whose porters must bring its own planks, and of at least
  * two lots no porter reaches yet; the spot at the very end was out of every porter's reach, so the
  * site stood unsupplied until it was cancelled, again and again).
@@ -166,7 +166,6 @@ export function zoneHighStreet(w: WorldState, street: HighStreet): Command[] {
 export function storehouseSpot(w: WorldState, street: HighStreet): [number, number, Rot4] | null {
   const def = content.buildingById.get('storehouse')!;
   const reader = worldIndex(w).reader;
-  const [ex, ez] = street.tiles[street.tiles.length - 1]!;
   const man = (a: number, x: number, z: number) => Math.abs((a % S) - x) + Math.abs(Math.floor(a / S) - z);
   const stores = w.buildings
     .filter((b) => b.def === 'storehouse' && b.stage === 'built')
@@ -176,6 +175,12 @@ export function storehouseSpot(w: WorldState, street: HighStreet): [number, numb
       (l) => !l.buildingId && !stores.some((d) => man(d, l.frontage % S, Math.floor(l.frontage / S)) <= 22),
     )
     .map((l) => l.frontage);
+  // Searched from the middle of the lots no porter reaches (on any street), else the street's end.
+  let [ex, ez] = street.tiles[street.tiles.length - 1]!;
+  if (far.length > 0) {
+    ex = Math.round(far.reduce((n, f) => n + (f % S), 0) / far.length);
+    ez = Math.round(far.reduce((n, f) => n + Math.floor(f / S), 0) / far.length);
+  }
   for (let r = 1; r <= 20; r++) {
     for (let dz = -r; dz <= r; dz++) {
       for (let dx = -r; dx <= r; dx++) {
