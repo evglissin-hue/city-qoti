@@ -73,5 +73,6 @@ export const wheelbarrows: InnovationDef = {
   },
   measure: 'portersBusyDays',
   unlocks: ['porter-carry-6'],
-  rank: 'hamlet',
+  // C4C: from Village rank, so a Hamlet's porters (always busy early on) play as in I1.
+  rank: 'village',
 };

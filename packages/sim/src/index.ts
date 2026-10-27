@@ -131,7 +131,11 @@ export { buy, outletsWith, priceOf, sell, tillPrice } from './systems/market/api
 export { growLot } from './systems/growth/api';
 export { cartAt, cartRoute, cartTile, requestCartMove } from './systems/traffic/api';
 export { grantReward, storyStep } from './systems/stories/api';
-export { unlockInnovation } from './systems/innovations/api';
+export { meetsRequires, unlockInnovation } from './systems/innovations/api';
+// I2 (C4C): services, tiers and carts for the client and the bench.
+export { serviceCoverage, servedBy } from './systems/services/coverage';
+export { checkTier, homeRoute, nextTier, tierProgress } from './systems/tiers/api';
+export { CART_MIN_LOAD, CART_MIN_TRIP } from './systems/logistics/carts';
 export { terraformCost } from './commands/terrain';
 export { findById, findIndexById, removeById } from './state/entities';
 export { fnv64Hex, hashState } from './state/hash';

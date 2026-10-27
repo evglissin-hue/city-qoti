@@ -66,6 +66,8 @@ export interface AutoplayResult {
   actions: string[];
   /** C4C: the Village run paid stand-in wages (C4A's wages were not running). */
   standInWages: boolean;
+  /** C4C: the Village run was granted the rank on VILLAGE_DAY (the Charter was not met). */
+  standInRank: boolean;
 }
 
 const S = MAP_SIZE;
@@ -450,7 +452,13 @@ export function autoplay(
     untilHour(h, 23);
     out.push(dayLine(h.world, d));
   }
-  return { hamlet: h, days: out, actions: players.actions, standInWages: village?.standInWages ?? false };
+  return {
+    hamlet: h,
+    days: out,
+    actions: players.actions,
+    standInWages: village?.standInWages ?? false,
+    standInRank: village?.standInRank ?? false,
+  };
 }
 
 /** The table `npm run tune` prints. */

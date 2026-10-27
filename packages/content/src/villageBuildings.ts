@@ -18,7 +18,7 @@ import type { BuildingDef } from './types';
 //   chopping shed   9 logs -> 18 firewood
 //   herb garden     9 herbs
 //   smithy          9 firewood + 4.5 stone -> 4.5 tools (skilled)
-//   tavern          3 cider poured                   (social cover, 10 tiles, 60 residents)
+//   tavern          2 cider poured                   (social cover, 10 tiles, 60 residents)
 //   herbalist       6 herbs brewed                   (health cover, 12 tiles, 60 residents)
 //
 // Forty Craftsfolk (ten households) use about 10 firewood, 4 cloth, 12 bread and 8 treats a day;
@@ -517,7 +517,7 @@ export const tavern: BuildingDef = {
       kind: 'craft',
       inputs: [['cider', 1]],
       outputs: [],
-      hours: 3,
+      hours: 4,
       workers: 2,
     },
   ],

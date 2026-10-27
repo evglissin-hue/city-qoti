@@ -11,6 +11,7 @@ const village = process.argv[5] === 'village';
 const t0 = performance.now();
 const run = autoplay(seed, days, { economy, village });
 if (run.standInWages) console.log('(stand-in wages paid: C4A wages were not running)');
+if (run.standInRank) console.log('(stand-in Village rank granted: the Charter was not met in time)');
 console.log(`Autoplay ${seed}, ${economy}, ${days} days (${((performance.now() - t0) / 1000).toFixed(1)} s)`);
 console.log(formatDays(run.days));
 if (process.env.TUNE_ACTIONS) console.log(run.actions.join('\n'));

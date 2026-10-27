@@ -21,6 +21,7 @@ import {
   hasInnovation,
   pay,
   rankAtLeast,
+  serviceCoverage,
   townStock,
   worldIndex,
   type Building,
@@ -28,9 +29,10 @@ import {
   type Rot4,
   type WorldState,
 } from '@qoti/sim';
-import { serviceCoverage } from '../../../packages/sim/src/systems/services/coverage';
 
 const G = (id: string) => content.goodIndex.get(id)!;
+/** Day the stand-in grants the Village rank if the Charter has not (the hamlet's tuned span). */
+export const VILLAGE_DAY = 24;
 const WAGES_INDEX = LEDGER_CATEGORIES.findIndex((c) => c.id === 'wages');
 
 export interface VillageHost {
@@ -50,7 +52,15 @@ function sites(w: WorldState): number {
 
 /** Timber and food buildings may dip into the reserve. */
 function essential(def: string): boolean {
-  return ['woodcutter', 'sawpit', 'vegetable-plot', 'fishers-hut', 'farmhouse', 'market-stall'].includes(def);
+  return [
+    'woodcutter',
+    'sawpit',
+    'vegetable-plot',
+    'fishers-hut',
+    'farmhouse',
+    'market-stall',
+    'cottage',
+  ].includes(def);
 }
 
 export function craftsfolk(w: WorldState): number {
@@ -60,6 +70,8 @@ export function craftsfolk(w: WorldState): number {
 export class VillagePlayer {
   /** True once the stand-in has paid anything (reported in the tune output). */
   standInWages = false;
+  /** True once the stand-in granted the Village rank (the Charter was not met by VILLAGE_DAY). */
+  standInRank = false;
   constructor(readonly p: VillageHost) {}
 
   get w(): WorldState {
@@ -94,6 +106,12 @@ export class VillagePlayer {
   turn(afternoon: boolean): void {
     const w = this.w;
     if (afternoon) this.tidySites();
+    // STAND-IN (until C4D and C4X chase the Charter): a valley still a Hamlet on VILLAGE_DAY is
+    // granted the rank, so the Village half always gets its evenings. Reported as standInRank.
+    if (!rankAtLeast(w, 'village') && Math.floor(w.tick / 4800) >= VILLAGE_DAY && w.charter.charter) {
+      w.charter.ready = true;
+      this.standInRank = true;
+    }
     if (w.charter.ready && w.charter.charter) this.p.do('claim the Charter', [{ t: 'charter.claim' }]);
     this.feed();
     const pit = w.buildings.find((b) => b.def === 'clay-pit' && b.stage === 'built');
@@ -109,7 +127,16 @@ export class VillagePlayer {
     if (afternoon) this.standIn();
     if (w.loans.loans.length === 0)
       this.p.do('borrow from the County Bank', [{ t: 'loan.take', coins: 600 }]);
-    // More porters before anything else: a storehouse per 25 residents, raised to the front.
+    // Homes before anything else: a Village grows by the families that move in.
+    const vacant = w.buildings.filter(
+      (b) =>
+        content.buildingById.get(b.def)?.housing &&
+        (b.stage === 'construction' || !w.households.some((h) => h.homeId === b.id)),
+    ).length;
+    if (vacant < 2) this.want('cottage', 6);
+    // Builders: a yard per thirty residents, or the sites queue up behind two town hall builders.
+    if (count(w, 'builders-yard') < Math.floor(w.residents.length / 30)) this.want('builders-yard', 8);
+    // More porters next: a storehouse per 25 residents, raised to the front.
     if (count(w, 'storehouse') < 1 + Math.floor(w.residents.length / 25) && this.want('storehouse', 8)) {
       const site = w.buildings[w.buildings.length - 1]!;
       this.p.do('raise the storehouse', [{ t: 'build.setPriority', id: site.id, priority: true }]);
@@ -120,7 +147,7 @@ export class VillagePlayer {
   }
 
   /** Builds `def` when the coins and free materials allow and fewer than `maxSites` sites wait. */
-  private want(def: string, maxSites = 3): boolean {
+  private want(def: string, maxSites = 5): boolean {
     const w = this.w;
     if (sites(w) >= maxSites) return false;
     const d = content.buildingById.get(def)!;
@@ -149,11 +176,11 @@ export class VillagePlayer {
       if (budget > 0 && cond && this.want(def)) budget--;
     };
     // Bread: the mill and the bakery (Craftsfolk eat it every day).
-    go(count(w, 'farmhouse', true) > 0 && count(w, 'windmill') === 0, 'windmill');
+    go(count(w, 'farmhouse', true) > 0 && count(w, 'windmill') < 1 + Math.floor(pop / 60), 'windmill');
     go(count(w, 'windmill', true) > 0 && count(w, 'bakery') < 1 + Math.floor(pop / 50), 'bakery');
     // Bricks first (taverns and townhouses are made of them): a clay pit (two days of digging
     // invent the kiln), firewood for the kiln, then the kiln.
-    go(count(w, 'clay-pit') === 0, 'clay-pit');
+    if (budget > 0 && count(w, 'clay-pit') === 0 && !this.want('clay-pit')) this.outpost('clay-pit');
     go(count(w, 'chopping-shed') < 1 + Math.floor(crafts / 24), 'chopping-shed');
     go(hasInnovation(w, 'brick-kiln') && count(w, 'brick-kiln') < 1 + Math.floor(crafts / 16), 'brick-kiln');
     go(hasInnovation(w, 'brick-kiln') && count(w, 'clay-pit') < count(w, 'brick-kiln', true), 'clay-pit');
@@ -161,13 +188,14 @@ export class VillagePlayer {
     if (budget > 0 && this.serve('tavern', 'social')) budget--;
     if (budget > 0 && this.serve('herbalist', 'health')) budget--;
     go(count(w, 'herb-garden') < count(w, 'herbalist', true), 'herb-garden');
-    // Cloth and treats for the basket.
+    // Treats: apples pressed into cider (the tavern pours some of it).
+    go(count(w, 'orchard') < 2 + Math.floor(crafts / 24) + Math.floor(count(w, 'tavern') / 2), 'orchard');
+    go(count(w, 'orchard', true) > 0 && count(w, 'cider-press') < count(w, 'orchard', true), 'cider-press');
+    // Cloth for the basket.
     go(count(w, 'sheep-pasture') < 1 + Math.floor(crafts / 30), 'sheep-pasture');
     go(count(w, 'spinner') < count(w, 'sheep-pasture', true), 'spinner');
     go(count(w, 'weaver') < Math.min(count(w, 'spinner', true), 1 + Math.floor(crafts / 30)), 'weaver');
-    go(count(w, 'orchard') < 2 + Math.floor(crafts / 24), 'orchard');
     // Skilled work, once there are Craftsfolk to do it.
-    go(count(w, 'orchard', true) > 0 && count(w, 'cider-press') < count(w, 'orchard', true), 'cider-press');
     go(crafts >= 8 && count(w, 'dairy') === 0, 'dairy');
     go(crafts >= 8 && count(w, 'dairy', true) > 0 && count(w, 'cheesemaker') === 0, 'cheesemaker');
     go(crafts >= 8 && count(w, 'school') === 0, 'school');
@@ -229,7 +257,24 @@ export class VillagePlayer {
           { t: 'build.setPaused', id: b.id, paused: rest },
         ]);
     });
-    if (cutters < 2 + Math.floor(pop / 30)) this.want('woodcutter', 6);
+    if (cutters < 2 + Math.floor(pop / 30) && !this.want('woodcutter', 6)) this.outpost('woodcutter');
+    // Replant around a woodcutter running short of grown trees, so its patch comes back (a valley
+    // with no logs cannot build another one: it would be stuck for good).
+    for (const b of w.buildings) {
+      if (b.def !== 'woodcutter' || b.stage !== 'built' || treesNear(w, b.x, b.z, 8) >= 16) continue;
+      let planted = 0;
+      for (let k = 0; k < 120 && planted < 6; k++) {
+        const x = b.x - 8 + ((k * 7 + b.id) % 18);
+        const z = b.z - 8 + ((k * 11 + b.id * 3) % 18);
+        if (x < 1 || z < 1 || x > 190 || z > 190) continue;
+        const i = z * 192 + x;
+        if (w.map.tree[i] || w.map.road[i] || w.map.occupant[i] || w.map.water[i] || w.map.fieldOwner[i])
+          continue;
+        if (this.p.do('plant a sapling for the woodcutter', [{ t: 'tree.plant', species: 'oak', x, z }]))
+          planted++;
+      }
+    }
+    if (count(w, 'foresters-lodge') < 1 + Math.floor(pop / 40)) this.want('foresters-lodge', 6);
     if (stock[G('stone')]! < 60 && count(w, 'quarry') < 1 + Math.floor(pop / 40) && !this.want('quarry', 6))
       this.outpost('quarry');
     if (planks < 60 && pits.length < 2 + Math.floor(pop / 40)) this.want('sawpit', 6);
@@ -244,28 +289,30 @@ export class VillagePlayer {
     if (w.buildings.some((b) => b.def === def && b.stage === 'construction')) return false;
     if (count(w, def) >= 1 + Math.floor(w.residents.length / 40)) return false;
     const covered = serviceCoverage(w, kind).quality;
-    const h = w.households.find((x) => x.homeId && !covered.has(x.id));
-    if (!h) return false;
-    const home = w.buildings.find((b) => b.id === h.homeId);
-    if (!home) return false;
     const d = content.buildingById.get(def)!;
     if (this.coins() < (d.cost?.coins ?? 0) + 30) return false;
     const stock = townStock(w);
     for (const [g, q] of d.cost?.goods ?? []) if (stock[G(g)]! < q) return false;
     const reader = worldIndex(w).reader;
-    for (let r = 2; r <= 7; r++) {
-      for (let dz = -r; dz <= r; dz++) {
-        for (let dx = -r; dx <= r; dx++) {
-          if (Math.max(Math.abs(dx), Math.abs(dz)) !== r) continue;
-          for (let rot = 0 as Rot4; rot < 4; rot = (rot + 1) as Rot4) {
-            const x = home.x + dx;
-            const z = home.z + dz;
-            if (!canPlaceBuilding(reader, d, x, z, rot).ok) continue;
-            if (w.map.water[doorTile({ def, x, z, rot } as Building, d)]) continue;
-            if (!this.p.do(`build ${def} by the ${h.family}s`, [{ t: 'build.place', def, x, z, rot }]))
-              return false;
-            this.p.connect(w.buildings[w.buildings.length - 1]!);
-            return true;
+    let tried = 0;
+    for (const h of w.households) {
+      if (!h.homeId || covered.has(h.id) || tried++ >= 12) continue;
+      const home = w.buildings.find((b) => b.id === h.homeId);
+      if (!home) continue;
+      for (let r = 2; r <= 8; r++) {
+        for (let dz = -r; dz <= r; dz++) {
+          for (let dx = -r; dx <= r; dx++) {
+            if (Math.max(Math.abs(dx), Math.abs(dz)) !== r) continue;
+            for (let rot = 0 as Rot4; rot < 4; rot = (rot + 1) as Rot4) {
+              const x = home.x + dx;
+              const z = home.z + dz;
+              if (!canPlaceBuilding(reader, d, x, z, rot).ok) continue;
+              if (w.map.water[doorTile({ def, x, z, rot } as Building, d)]) continue;
+              if (!this.p.do(`build ${def} by the ${h.family}s`, [{ t: 'build.place', def, x, z, rot }]))
+                return false;
+              this.p.connect(w.buildings[w.buildings.length - 1]!);
+              return true;
+            }
           }
         }
       }
@@ -282,31 +329,48 @@ export class VillagePlayer {
     if (w.buildings.some((b) => b.def === 'storehouse' && b.stage === 'construction')) return;
     const reader = worldIndex(w).reader;
     const d = content.buildingById.get(def)!;
-    const home = w.buildings.find((b) => b.def === 'town-hall')!;
-    for (let r = 4; r <= 80; r++) {
-      for (let dz = -r; dz <= r; dz++) {
-        for (let dx = -r; dx <= r; dx++) {
-          if (Math.max(Math.abs(dx), Math.abs(dz)) !== r) continue;
-          const x = home.x + dx;
-          const z = home.z + dz;
-          if (!canPlaceBuilding(reader, d, x, z, 0).ok) continue;
-          const store = content.buildingById.get('storehouse')!;
-          for (let k = 4; k <= 10; k++) {
-            for (const [sx, sz] of [
-              [x - k, z],
-              [x + k, z],
-              [x, z - k],
-              [x, z + k],
-            ] as const) {
-              if (!canPlaceBuilding(reader, store, sx, sz, 0).ok) continue;
-              if (
-                !this.p.do(`storehouse by the ${def}`, [
-                  { t: 'build.place', def: 'storehouse', x: sx, z: sz, rot: 0 },
-                ])
-              )
-                return;
-              this.p.connect(w.buildings[w.buildings.length - 1]!);
-              return;
+    const store = content.buildingById.get('storehouse')!;
+    const doors = w.buildings
+      .filter((b) => b.def === 'storehouse' && b.stage === 'built')
+      .map((b) => doorTile(b));
+    const man = (a: number, b: number) =>
+      Math.abs((a % 192) - (b % 192)) + Math.abs(Math.floor(a / 192) - Math.floor(b / 192));
+    const fits = (x: number, z: number) => {
+      if (!canPlaceBuilding(reader, d, x, z, 0).ok) return false;
+      return def !== 'woodcutter' || treesNear(w, x, z, 8) >= 30;
+    };
+    // A spot for the building between 22 and 40 tiles from a storehouse, then a new storehouse
+    // between the two, so porters from the old one can stock the new one.
+    for (const from of doors) {
+      const fx = from % 192;
+      const fz = Math.floor(from / 192);
+      for (let r = 12; r <= 44; r++) {
+        for (let dz = -r; dz <= r; dz++) {
+          for (let dx = -r; dx <= r; dx++) {
+            if (Math.max(Math.abs(dx), Math.abs(dz)) !== r) continue;
+            const x = fx + dx;
+            const z = fz + dz;
+            if (x < 2 || z < 2 || x > 188 || z > 188 || !fits(x, z)) continue;
+            const mx = (fx + x) >> 1;
+            const mz = (fz + z) >> 1;
+            for (let k = 0; k <= 6; k++) {
+              for (let oz = -k; oz <= k; oz++) {
+                for (let ox = -k; ox <= k; ox++) {
+                  if (Math.max(Math.abs(ox), Math.abs(oz)) !== k) continue;
+                  const sx = mx + ox;
+                  const sz = mz + oz;
+                  if (!canPlaceBuilding(reader, store, sx, sz, 0).ok) continue;
+                  const door = doorTile({ def: 'storehouse', x: sx, z: sz, rot: 0 } as Building, store);
+                  if (man(door, from) > 22 || man(door, z * 192 + x) > 20) continue;
+                  if (
+                    this.p.do(`storehouse toward the ${def}`, [
+                      { t: 'build.place', def: 'storehouse', x: sx, z: sz, rot: 0 },
+                    ])
+                  )
+                    this.p.connect(w.buildings[w.buildings.length - 1]!);
+                  return;
+                }
+              }
             }
           }
         }
@@ -337,7 +401,7 @@ export class VillagePlayer {
       .map((b) => ({ b, charm: charmAt(w, b) }))
       .filter((x) => x.charm < 32)
       .sort((a, b) => a.charm - b.charm || a.b.id - b.b.id)
-      .slice(0, 3);
+      .slice(0, 5);
     for (const { b } of homes) {
       const door = doorTile(b);
       const x = door % 192;
@@ -349,6 +413,17 @@ export class VillagePlayer {
       }
     }
   }
+}
+
+function treesNear(w: WorldState, x: number, z: number, r: number): number {
+  let n = 0;
+  for (let tz = z - r; tz <= z + r; tz++)
+    for (let tx = x - r; tx <= x + r; tx++) {
+      if (tx < 0 || tz < 0 || tx >= 192 || tz >= 192) continue;
+      const v = w.map.tree[tz * 192 + tx]!;
+      if (v && (v & 7) >= 3) n++;
+    }
+  return n;
 }
 
 function charmAt(w: WorldState, b: Building): number {

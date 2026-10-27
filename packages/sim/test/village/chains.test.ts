@@ -85,7 +85,8 @@ describe('every I2 building produces', () => {
     stocked(tavern, 'input', [['cider', 1]]);
     stocked(herbalist, 'input', [['herbs', 2]]);
     toWork(state, [...staff(state, tavern, 2), ...staff(state, herbalist, 1)]);
-    ticks(state, 3 * H);
+    const hours = (id: string) => content.buildingById.get(id)!.methods![0]!.hours;
+    ticks(state, Math.max(hours('tavern'), hours('herbalist')) * H);
     expect(tavern.rt!.input[good('cider')]).toBe(0);
     expect(herbalist.rt!.input[good('herbs')]).toBe(0);
     ticks(state, 2 * H);

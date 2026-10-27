@@ -308,3 +308,37 @@ export function jobFits(residentTier: TierId, def: BuildingDef | undefined): boo
   const own = tierIndex(residentTier);
   return job <= own && job >= own - 1;
 }
+
+/**
+ * Goods the Village is short of for its tiers (C4C), so the residents' hiring puts hands on them
+ * first (systems/residents/jobs.ts): each Craftsfolk basket group with less than a day of it on
+ * the shelves for the whole town, bricks while homes wait to upgrade, herbs while a herbalist is
+ * out of them; with the goods their workshops are waiting on (wool for the loom's yarn, flour for
+ * the bakery). Empty until the valley unlocks Craftsfolk, so a Hamlet hires as in I1.
+ */
+export function tierShortages(state: WorldState, stock: readonly number[]): string[] {
+  if (!tiersActive(state)) return [];
+  const basket = content.basketByTier.get('craftsfolk');
+  if (!basket) return [];
+  const out = new Set<string>();
+  const pop = state.residents.length;
+  const homes = state.households.length;
+  for (const group of basket.groups) {
+    if (group.id === 'food') continue;
+    const need = Math.max(4, Math.ceil(group.perDay * (group.perHousehold ? homes : pop)));
+    let have = 0;
+    for (const [id] of group.goods) have += stock[content.goodIndex.get(id) ?? -1] ?? 0;
+    if (have < need) for (const [id] of group.goods) out.add(id);
+  }
+  if (state.buildings.some((b) => upgradeDue(b))) out.add('bricks');
+  // Upstream: whatever the makers of a short good take in.
+  for (let pass = 0; pass < 2; pass++) {
+    for (const def of content.buildings) {
+      for (const m of def.methods ?? []) {
+        if (!m.outputs.some(([g]) => out.has(g))) continue;
+        for (const [g] of m.inputs) out.add(g);
+      }
+    }
+  }
+  return [...out].sort();
+}
