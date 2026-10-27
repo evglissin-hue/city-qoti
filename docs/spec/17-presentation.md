@@ -100,12 +100,12 @@ Auto-detect picks a preset (Low on phones and two-core machines, otherwise Mediu
 - [I2, C4E] Story characters wear a signature outfit by species (Pippa Quill: goggles, cap and satchel; Odette Fenwick: wide hat, long scarf and ledger bag; Juniper Reed: beret, long scarf and lute). Partners near each other walk side by side, hand in hand. Babies (under a year) ride in a parent's sling. Carts glide on a damped follow, turn at a pony's pace and tilt with the slope; the pony's legs and the wheels move with the ground covered; a carter stands at the front board. Animals graze, wander a few steps, look up and lie down at night in the pens their buildings declare (`KitAnchors.animals`).
 - Far away, residents become simple instanced shapes (beyond the resident detail distance), then dots (beyond 2.5 times it). Figures are drawn at 1.15 times the kit's 0.3 tiles so they read from the default camera; clothes follow the job (bakers in toques, farmers in straw hats, fishers in sou'westers) and tier (bowler, top hat).
 
-## Audio [I5, designed now]
+## Audio [I3]
 
 - **Music**: acoustic guitar, piano, upright bass and brushes; light jazz chords in the evening, a waltz in winter. Layered stems that follow time of day and season.
 - **Ambience**: emitters from what is nearby: river, wind, birds by habitat, market chatter by stall density, mill creak, saw, festival crowd, the watch bell.
 - **UI**: paper rustle, soft clicks, pencil scratch for plans.
-- Sources: royalty-free or CC0 libraries, or commissioned. Volume sliders per channel.
+- Sources: CC0 or public domain recordings only (decided after I2), listed in `tools/audio/manifest.json` with their source pages and credited in `apps/client/public/audio/CREDITS.md`. With whole CC0 tracks, music follows the hour and season by crossfading between playlists; layered stems wait for I5. Volume sliders per channel (C5G).
 
 ## Accessibility [I1]
 

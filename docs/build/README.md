@@ -25,14 +25,17 @@ One row per cycle. A cycle is one agent session working from one brief on one br
 | C4E Village art and rendering | I2 | parallel | `cycle-04e-village-art.md` | C4.0 | done on `cycle/04e-village-art` (merged locally by C4X) |
 | C4F Village UI | I2 | parallel | `cycle-04f-village-ui.md` | C4.0 | done on `cycle/04f-village-ui` (merged locally by C4X); screenshots `c4f-*` |
 | C4X I2 integration and I3 planning | I2 | integration | `cycle-04x-integration.md` | C4A to C4F | done on `ccr-7441f212-64lp1y`; playtest sheet `docs/playtests/I2.md` |
-| C5.0 Seasons contracts | I3 | serial | `cycle-05-0-seasons-contracts.md` | C4X | ready once C4X is merged |
+| C4P Roads and folk polish | I2 polish | alongside C5.0 | `cycle-04p-polish.md` | C4X | in progress on `claude/epic-hawking-e32pnd` |
+| C5.0 Seasons contracts | I3 | serial | `cycle-05-0-seasons-contracts.md` | C4X | ready (C4X is merged) |
 | C5A Seasons, weather and the first winter | I3 | parallel | `cycle-05a-seasons-weather.md` | C5.0 | waiting |
 | C5B Festivals, renown, commissions and the River Dock | I3 | parallel | `cycle-05b-festivals-renown.md` | C5.0 | waiting |
 | C5C Nature, the Field Guide and Hearth craft | I3 | parallel | `cycle-05c-nature-field-guide.md` | C5.0 | waiting |
 | C5D Threats, defenses and the Watch | I3 | parallel | `cycle-05d-threats-watch.md` | C5.0 | waiting |
 | C5E Seasons art and rendering | I3 | parallel | `cycle-05e-seasons-art.md` | C5.0 | waiting |
 | C5F Seasons UI | I3 | parallel | `cycle-05f-seasons-ui.md` | C5.0 | waiting |
-| C5X I3 integration and I4 planning | I3 | integration | `cycle-05x-integration.md` | C5A to C5F | waiting |
+| C5G Music and sound | I3 | parallel | `cycle-05g-audio.md` | C5.0 | waiting |
+| C5H The first days guide | I3 | parallel | `cycle-05h-first-days.md` | C5.0 | waiting |
+| C5X I3 integration and I4 planning | I3 | integration | `cycle-05x-integration.md` | C5A to C5H | waiting |
 
 Status values: waiting (dependencies not merged), ready, in progress (add the session link), PR open (add the PR link), merged.
 

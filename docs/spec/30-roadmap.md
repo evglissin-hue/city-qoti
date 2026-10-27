@@ -70,7 +70,9 @@ Each iteration ends with something both players can play on the live link (P54),
 
 ## I3 Seasons and the Watch
 
-**Scope**: seasons (seasonal farming, frozen river, warmth and firewood); weather and events (flood, drought, early frost, cold snap, travelling circus); festivals; habitats and the Field Guide (about 30 species); threat pressure, telegraphing, bandit gangs and winter wolves; defenses; the Watch and raid resolution; threat dial; River Dock; commissions; renown; customization phase 2 (modules); photo mode; Chronicle snapshots; 6 new patterns; together moments; story characters Mother Thornbury and Barnaby Ashcombe; the first winter trial for Village.
+**Scope**: seasons (seasonal farming, frozen river, warmth and firewood); weather and events (flood, drought, early frost, cold snap, travelling circus); festivals; habitats and the Field Guide (about 30 species); threat pressure, telegraphing, bandit gangs and winter wolves; defenses; the Watch and raid resolution; threat dial; River Dock; commissions; renown; customization phase 2 (modules); photo mode; Chronicle snapshots; 6 new patterns; together moments; story characters Mother Thornbury and Barnaby Ashcombe; the first winter trial for Village; music, ambience and sound effects from CC0 recordings (pulled forward from I5); a guide for a new valley's first days.
+
+**Cycles**: C5.0 seasons contracts (serial, with C4P roads and folk polish alongside) → C5A seasons and weather, C5B festivals and renown, C5C nature and the Field Guide, C5D threats and the Watch, C5E seasons art, C5F seasons UI, C5G music and sound, C5H the first days guide (parallel) → C5X integration and I4 planning.
 
 ## I4 Town
 
@@ -78,4 +80,4 @@ Each iteration ends with something both players can play on the live link (P54),
 
 ## I5 Market Town, City and beyond
 
-**Scope**: Market Town and City Charters and trials; Patrons tier; tram, gas lamps, railway, glassworks; grand landmarks; music and ambience; stroll mode; optional Claude-written letters; new valleys (coast, highlands, lakes); gamepads and a one-screen couch mode; remappable keys; captions; polish.
+**Scope**: Market Town and City Charters and trials; Patrons tier; tram, gas lamps, railway, glassworks; grand landmarks; music stems that follow the town; stroll mode; optional Claude-written letters; new valleys (coast, highlands, lakes); gamepads and a one-screen couch mode; remappable keys; captions; polish.
