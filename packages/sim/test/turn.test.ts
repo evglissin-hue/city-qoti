@@ -100,7 +100,7 @@ describe('applyTurn', () => {
 });
 
 describe('systems and views', () => {
-  it('registers the I0 systems and the I1 and I2 slots at their orders', () => {
+  it('registers the I0 systems and the I1, I2 and I3 slots at their orders', () => {
     const orders = new Map(systems.map((s) => [s.id, s.order]));
     expect([...orders]).toEqual([
       ['achievements', 90],
@@ -110,9 +110,15 @@ describe('systems and views', () => {
       ['charter', 94],
       ['chronicle', 100],
       ['clock', 10],
+      ['commissions', 93],
       ['construction', 20],
+      ['defenses', 86],
+      ['dock', 68],
       ['economy', 60],
+      ['festivals', 75],
       ['growth', 26],
+      ['guide', 99],
+      ['habitats', 76],
       ['innovations', 92],
       ['loans', 66],
       ['logistics', 40],
@@ -121,15 +127,24 @@ describe('systems and views', () => {
       ['patterns', 72],
       ['plans', 97],
       ['production', 30],
+      ['raids', 84],
+      ['renown', 91],
       ['requests', 98],
       ['residents', 50],
+      ['seasons', 12],
       ['services', 56],
       ['stories', 96],
+      ['threats', 80],
       ['tiers', 58],
       ['trade', 64],
       ['traffic', 54],
       ['trees', 30],
+      ['trials', 95],
       ['wages', 63],
+      ['warmth', 59],
+      ['watch', 82],
+      ['weather', 14],
+      ['wildlife', 78],
       ['wishes', 74],
       ['zoning', 24],
     ]);

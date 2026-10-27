@@ -22,6 +22,10 @@ export const REJECT_TEXT: Record<RejectReason, string> = {
   CHANGED: 'Things have moved on since then, so there is nothing to undo.',
   CREDIT_LIMIT: 'The County Bank has lent all it cares to for now. Pay some back first.',
   NOT_READY: 'Not every goal on the Charter is met yet. Close, though.',
+  // I3 (C5.0)
+  WOULD_ENCLOSE: 'That wall would shut someone in. They would notice.',
+  FROZEN: 'The river is frozen. It will thaw in spring, as rivers do.',
+  NO_RAID: 'There is no raid on. The bell can rest.',
 };
 
 export function rejectText(reason: RejectReason | undefined): string {

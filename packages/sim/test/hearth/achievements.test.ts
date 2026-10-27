@@ -52,6 +52,38 @@ const SETUPS = new Map<string, (s: WorldState) => void>([
       s.stats.wishesGranted = 5;
     },
   ],
+  // I3 (C5.0): the counters the I3 tracks keep.
+  [
+    'field-notes',
+    (s) => {
+      for (let i = 0; i < 10; i++)
+        s.nature.guide.push({ species: `s${i}`, firstTick: 0, seats: [0], count: 1 });
+    },
+  ],
+  [
+    'five-stars',
+    (s) => {
+      s.seasons.bestStars = 5;
+    },
+  ],
+  [
+    'the-gate-held',
+    (s) => {
+      s.seasons.raidsHeld = 1;
+    },
+  ],
+  [
+    'the-river-runs-clean',
+    (s) => {
+      s.nature.guide.push({ species: 'kingfisher', firstTick: 0, seats: [0, 1], count: 1 });
+    },
+  ],
+  [
+    'warm-hearths',
+    (s) => {
+      s.seasons.warmWinters = 1;
+    },
+  ],
 ]);
 
 describe('every achievement', () => {

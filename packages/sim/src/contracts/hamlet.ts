@@ -3,6 +3,7 @@
 // Additive changes only during the I1 wave. Per-good quantities are arrays indexed by good index
 // (content.goods order, append-only); per-need values are arrays indexed by NEED_IDS order.
 import type { EntityId, SeatId } from './ids';
+import type { HouseholdWarmth } from './seasons';
 import type { Apprenticeship } from './village';
 
 /** Settlers in I1; the rest arrive in I2 to I4. */
@@ -133,6 +134,11 @@ export interface Resident {
   retired?: true;
   /** Story arc id for story characters (ResidentFlags.story is set too). */
   story?: string;
+  // I3 (C5.0), absent until they apply.
+  /** A captured bandit offered a home (the Reformed trait is set too). */
+  reformed?: true;
+  /** Watch members: the absolute day of their next duty, and the tick they are shaken until. */
+  watch?: { dutyDay: number; shakenUntil: number };
 }
 
 export interface Household {
@@ -158,6 +164,8 @@ export interface Household {
   basket?: number[];
   /** Hundredths of a unit still owed per basket group (fractional needs like cloth 0.1 a day). */
   owed?: number[];
+  /** I3 (C5.0, C5A): this winter's warmth; absent outside winter. */
+  warmth?: HouseholdWarmth;
 }
 
 /** Construction progress of a site (standard valleys). */
@@ -210,6 +218,17 @@ export interface BuildingRuntime {
   pinned?: string;
   /** Materials still to deliver for a home upgrade, by good index (null when none is under way). */
   upgrade?: number[] | null;
+  // I3 (C5.0), absent until used.
+  /** Wall pieces (palisade, stone wall, gate): hit points left (C5D). */
+  hp?: number;
+  /** Gates: open for residents and carts (C5D). */
+  open?: boolean;
+  /** Customization phase 2 modules: [slot id, module id], sorted by slot (C5C). */
+  modules?: [slot: string, module: string][];
+  /** Materials still to deliver for a module, by good index, like `upgrade` (C5C). */
+  moduleWork?: number[] | null;
+  /** Under flood water until this tick (C5A). */
+  flooded?: number;
 }
 
 export interface PorterJob {
@@ -332,6 +351,8 @@ export interface ChronicleEntry {
   text: string;
   refs: EntityId[];
   seats: SeatId[];
+  /** I3 (C5.0): notable entries the client photographs: a tile to center on and a radius. */
+  snapshot?: { focus: [number, number]; radius: number };
 }
 
 export interface AchievementState {

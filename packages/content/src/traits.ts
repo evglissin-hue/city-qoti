@@ -114,6 +114,16 @@ export const practical: TraitDef = {
   effects: [['productivity', 5]],
 };
 
+/** I3 (C5.0): a captured bandit offered a home (C5D gives it; +10% at work, a small story). */
+export const reformed: TraitDef = {
+  id: 'reformed',
+  name: 'Reformed',
+  blurb: "Used to take things. Now brings back other people's wheelbarrows.",
+  clashes: [],
+  special: true,
+  effects: [['productivity', 110]],
+};
+
 export const romantic: TraitDef = {
   id: 'romantic',
   name: 'Romantic',

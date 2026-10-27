@@ -73,7 +73,7 @@ describe('I0 contracts', () => {
       | 'wear'
     >();
     expectTypeOf<keyof ValleySettings>().toEqualTypeOf<
-      'mode' | 'economy' | 'threat' | 'togetherOnly' | 'townName' | 'valleyName'
+      'mode' | 'economy' | 'threat' | 'togetherOnly' | 'townName' | 'valleyName' | 'guide'
     >();
   });
 
@@ -121,6 +121,25 @@ describe('I0 contracts', () => {
       | 'terrain.raise'
       | 'terrain.lower'
       | 'build.pinRecipe'
+      // I3 (C5.0)
+      | 'festival.plan'
+      | 'festival.keepPiece'
+      | 'commission.accept'
+      | 'commission.decline'
+      | 'ledger.setMarketDay'
+      | 'ledger.setQuietHours'
+      | 'terrain.pond'
+      | 'build.setModule'
+      | 'wall.paint'
+      | 'wall.remove'
+      | 'gate.set'
+      | 'watch.setTarget'
+      | 'watch.setBudget'
+      | 'watch.setPosture'
+      | 'watch.ringBell'
+      | 'watch.lightLanterns'
+      | 'bandit.decide'
+      | 'guide.setHidden'
     >();
     expectTypeOf<SeatedCommand>().toEqualTypeOf<{ seat: SeatId; seq: number; cmd: Command }>();
     expectTypeOf<Turn>().toEqualTypeOf<{ t: number; cmds: SeatedCommand[] }>();
@@ -145,6 +164,9 @@ describe('I0 contracts', () => {
       | 'CHANGED'
       | 'CREDIT_LIMIT'
       | 'NOT_READY'
+      | 'WOULD_ENCLOSE'
+      | 'FROZEN'
+      | 'NO_RAID'
     >();
   });
 
@@ -181,6 +203,20 @@ describe('I0 contracts', () => {
       | 'plans'
       | 'requests'
       | 'stories'
+      // I3 (C5.0)
+      | 'seasonCard'
+      | 'weather'
+      | 'festival'
+      | 'festivalResult'
+      | 'renown'
+      | 'commissions'
+      | 'dock'
+      | 'fieldGuide'
+      | 'threat'
+      | 'watch'
+      | 'raid'
+      | 'trial'
+      | 'guide'
     >();
     expectTypeOf<ViewSnapshot['meta']>().toEqualTypeOf<WorldState['meta']>();
     expectTypeOf<keyof ClockView>().toEqualTypeOf<
@@ -242,6 +278,32 @@ describe('I0 contracts', () => {
       | 'request.updated'
       | 'story.step'
       | 'life.event'
+      // I3 (C5.0)
+      | 'season.started'
+      | 'season.report'
+      | 'weather.updated'
+      | 'event.forecast'
+      | 'event.started'
+      | 'event.ended'
+      | 'festival.updated'
+      | 'festival.started'
+      | 'festival.ended'
+      | 'together.moment'
+      | 'renown.updated'
+      | 'commission.added'
+      | 'commission.updated'
+      | 'commission.removed'
+      | 'dock.updated'
+      | 'species.sighted'
+      | 'habitats.updated'
+      | 'threat.updated'
+      | 'watch.updated'
+      | 'raid.started'
+      | 'raid.updated'
+      | 'raid.ended'
+      | 'bandit.captured'
+      | 'trial.updated'
+      | 'guide.step'
     >();
     expectTypeOf<keyof LayerPatch>().toEqualTypeOf<'layer' | 'rect' | 'data'>();
   });

@@ -1,0 +1,4 @@
+{
+  "$comment": "CC0 or public domain recordings only (docs/build/cycle-05g-audio.md). Each entry: id, kind (music, ambience, effect), source (page URL), url (download), author, license (CC0-1.0 or PD), sha256 of the original, and optional trim [start, end] in seconds. Empty while the game's sounds are synthesized in the browser; `npm run audio:fetch` processes whatever is listed here.",
+  "files": []
+}

@@ -13,6 +13,7 @@ import {
   FIELD_TILES_PER_WORKER,
   ownedFields,
 } from './fields';
+import { yieldPermille } from './modifiers';
 import { conditionPercent, heightPercent } from './produce';
 
 const WORK_DAY_HOURS = WORK_HOURS[1] - WORK_HOURS[0];
@@ -31,7 +32,9 @@ export function dailyRates(state: WorldState, b: Building, def: BuildingDef): Da
   const rt = b.rt;
   const method = def.methods?.[rt?.method ?? 0];
   if (!rt || !method) return null;
-  const scale = (conditionPercent(rt) * heightPercent(state, b, def, method)) / 10000;
+  const scale =
+    ((conditionPercent(rt) * heightPercent(state, b, def, method)) / 10000) *
+    (yieldPermille(state, b, def, method) / 1000);
   if (method.kind === 'farm') {
     const tiles = Math.min(ownedFields(state, b, def), FIELD_TILES_PER_WORKER * Math.max(1, method.workers));
     const stepsPerDay = (WORK_DAY_HOURS * TICKS_PER_HOUR) / CROP_STEP_TICKS;

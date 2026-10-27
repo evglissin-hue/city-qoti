@@ -8,6 +8,22 @@ import {
   MAP_SIZE,
   pasteRect,
   type AchievementView,
+  type ChronicleSnapshot,
+  type CommissionView,
+  type DockView,
+  type FestivalResultView,
+  type FestivalView,
+  type FieldGuideEntryView,
+  type GuideView,
+  type RaidResultView,
+  type RaidView,
+  type RenownView,
+  type SeasonCardView,
+  type SeasonReportView,
+  type ThreatView,
+  type TrialView,
+  type WatchView,
+  type WeatherView,
   type BudgetView,
   type CharterView,
   type InnovationView,
@@ -82,6 +98,22 @@ export interface MirrorChange {
   life: { kind: LifeEventKind; residents: EntityId[]; text: string }[];
   /** The rank-up moment, when it happened in this update. */
   rankUp: { rank: RankId; text: string } | null;
+  // I3 (C5.0)
+  /** Any I3 signal or map changed (weather, festival, renown, the Watch...). */
+  seasons: boolean;
+  /** Notable Chronicle entries to photograph (the lowest connected seat captures, C5E and C5F). */
+  snapshots: { id: EntityId; snapshot: ChronicleSnapshot }[];
+  /** Together moments in this update (the closing dance, fireworks). */
+  together: string[];
+  /** First sightings in this update. */
+  sightings: FieldGuideEntryView[];
+  /** Raiders captured in this update, waiting for bandit.decide. */
+  captures: { id: EntityId; at: [number, number] }[];
+  /** The season card or report, when one arrived in this update. */
+  seasonCard: SeasonCardView | null;
+  seasonReport: SeasonReportView | null;
+  /** A raid ended in this update. */
+  raidResult: RaidResultView | null;
 }
 
 /** I1 (C3.0): the latest agent frames, for interpolation between turns. */
@@ -115,6 +147,14 @@ function emptyChange(full = false): MirrorChange {
     letters: [],
     life: [],
     rankUp: null,
+    seasons: full,
+    snapshots: [],
+    together: [],
+    sightings: [],
+    captures: [],
+    seasonCard: null,
+    seasonReport: null,
+    raidResult: null,
   };
 }
 
@@ -170,6 +210,26 @@ export class Mirror implements MapReader {
   readonly letters = signal<LetterView[]>([]);
   /** Bumps whenever lots, plans, requests, innovations or stories change. */
   readonly villageRevision = signal(0);
+  // I3 (C5.0): seasons and the Watch, kept from the snapshot and I3 events.
+  readonly seasonCard = signal<SeasonCardView | null>(null);
+  readonly seasonReport = signal<SeasonReportView | null>(null);
+  readonly weather = signal<WeatherView | null>(null);
+  readonly festival = signal<FestivalView | null>(null);
+  readonly festivalResult = signal<FestivalResultView | null>(null);
+  readonly renown = signal<RenownView | null>(null);
+  readonly commissions = new Map<EntityId, CommissionView>();
+  readonly dock = signal<DockView | null>(null);
+  readonly fieldGuide = new Map<string, FieldGuideEntryView>();
+  /** Habitat scores per chunk (six, in HABITAT_IDS order), from habitats.updated. */
+  readonly habitats = new Map<number, number[]>();
+  readonly threat = signal<ThreatView | null>(null);
+  readonly watch = signal<WatchView | null>(null);
+  readonly raid = signal<RaidView | null>(null);
+  readonly raidResult = signal<RaidResultView | null>(null);
+  readonly trial = signal<TrialView | null>(null);
+  readonly guide = signal<GuideView | null>(null);
+  /** Bumps whenever commissions, the Field Guide or habitats change. */
+  readonly seasonsRevision = signal(0);
   agents: AgentFrames = { prev: EMPTY_FRAME, prevAt: 0, latest: EMPTY_FRAME, latestAt: 0, t: 0 };
   private readonly listeners: ((c: MirrorChange) => void)[] = [];
 
@@ -242,6 +302,23 @@ export class Mirror implements MapReader {
     for (const r of view.requests ?? []) this.requests.set(r.id, r);
     for (const st of view.stories ?? []) this.stories.set(st.arc, st);
     this.villageRevision.value++;
+    this.seasonCard.value = view.seasonCard ?? null;
+    this.weather.value = view.weather ?? null;
+    this.festival.value = view.festival ?? null;
+    this.festivalResult.value = view.festivalResult ?? null;
+    this.renown.value = view.renown ?? null;
+    this.dock.value = view.dock ?? null;
+    this.threat.value = view.threat ?? null;
+    this.watch.value = view.watch ?? null;
+    this.raid.value = view.raid ?? null;
+    this.trial.value = view.trial ?? null;
+    this.guide.value = view.guide ?? null;
+    this.commissions.clear();
+    this.fieldGuide.clear();
+    this.habitats.clear();
+    for (const c of view.commissions ?? []) this.commissions.set(c.id, c);
+    for (const g of view.fieldGuide ?? []) this.fieldGuide.set(g.species, g);
+    this.seasonsRevision.value++;
     this.agents = { prev: EMPTY_FRAME, prevAt: 0, latest: EMPTY_FRAME, latestAt: 0, t: view.lastTurn };
     this.revision.value++;
     this.hamletRevision.value++;
@@ -380,6 +457,7 @@ export class Mirror implements MapReader {
           break;
         case 'chronicle.added':
           this.chronicle.value = [...this.chronicle.value, e.c];
+          if (e.snapshot) change.snapshots.push({ id: e.c.id, snapshot: e.snapshot });
           break;
         case 'achievement.unlocked':
           this.achievements.set(e.a.id, e.a);
@@ -443,12 +521,111 @@ export class Mirror implements MapReader {
         case 'life.event':
           change.life.push({ kind: e.kind, residents: e.residents, text: e.text });
           break;
+        // I3 (C5.0)
+        case 'season.started':
+          this.seasonCard.value = e.c;
+          this.weather.value = e.c.weather;
+          this.threat.value = e.c.threat;
+          change.seasonCard = e.c;
+          change.seasons = true;
+          break;
+        case 'season.report':
+          this.seasonReport.value = e.r;
+          change.seasonReport = e.r;
+          change.seasons = true;
+          break;
+        case 'weather.updated':
+          this.weather.value = e.w;
+          change.seasons = true;
+          break;
+        case 'event.forecast':
+        case 'event.started':
+        case 'event.ended': {
+          const w = this.weather.value;
+          if (w) {
+            const events = w.events.filter((v) => v.id !== e.v.id);
+            if (e.e !== 'event.ended') events.push(e.v);
+            events.sort((a, b) => a.start - b.start || a.id - b.id);
+            this.weather.value = { ...w, events };
+          }
+          change.seasons = true;
+          break;
+        }
+        case 'festival.updated':
+        case 'festival.started':
+          this.festival.value = e.f;
+          change.seasons = true;
+          break;
+        case 'festival.ended':
+          this.festivalResult.value = e.r;
+          change.seasons = true;
+          break;
+        case 'together.moment':
+          change.together.push(e.kind);
+          break;
+        case 'renown.updated':
+          this.renown.value = e.r;
+          change.seasons = true;
+          break;
+        case 'commission.added':
+        case 'commission.updated':
+          this.commissions.set(e.c.id, e.c);
+          change.seasons = true;
+          break;
+        case 'commission.removed':
+          this.commissions.delete(e.id);
+          change.seasons = true;
+          break;
+        case 'dock.updated':
+          this.dock.value = e.d;
+          change.seasons = true;
+          break;
+        case 'species.sighted':
+          this.fieldGuide.set(e.s.species, e.s);
+          change.sightings.push(e.s);
+          change.seasons = true;
+          break;
+        case 'habitats.updated':
+          for (const [chunk, scores] of e.chunks) this.habitats.set(chunk, scores);
+          change.seasons = true;
+          break;
+        case 'threat.updated':
+          this.threat.value = e.t;
+          change.seasons = true;
+          break;
+        case 'watch.updated':
+          this.watch.value = e.w;
+          change.seasons = true;
+          break;
+        case 'raid.started':
+        case 'raid.updated':
+          this.raid.value = e.r;
+          change.seasons = true;
+          break;
+        case 'raid.ended':
+          this.raid.value = null;
+          this.raidResult.value = e.r;
+          change.raidResult = e.r;
+          change.seasons = true;
+          break;
+        case 'bandit.captured':
+          change.captures.push({ id: e.id, at: e.at });
+          break;
+        case 'trial.updated':
+          this.trial.value = e.t;
+          change.seasons = true;
+          break;
+        case 'guide.step':
+          this.guide.value = e.g;
+          change.seasons = true;
+          break;
       }
     }
     if (change.residents || change.households || change.wishes || change.patterns) {
       this.hamletRevision.value++;
     }
     if (change.village) this.villageRevision.value++;
+    if (change.seasons) this.seasonsRevision.value++;
     if (seats) this.seats.value = seats;
     if (u.tick !== undefined) this.tick.value = u.tick;
     this.lastTurn.value = u.t;

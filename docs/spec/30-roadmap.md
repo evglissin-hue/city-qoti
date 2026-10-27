@@ -53,7 +53,7 @@ Each iteration ends with something both players can play on the live link (P54),
 
 **As built (C4X)**, with evidence:
 
-- From the standard start the autoplayer claims the Village Charter by itself on day 25 to 37 (five seeds), then grows to 138 to 268 residents by day 90 with no lean days and no departures (`tools/bench/src/autoplay.test.ts`, `npm run tune -w @qoti/bench`, `TUNE_VILLAGE=1`):
+- From the standard start the autoplayer claims the Village Charter by itself on day 25 to 37 (five seeds), then grows to 138 to 268 residents by day 90 with no lean days and no departures (`tools/bench/src/autoplay.test.ts`, `npm run tune -w @qoti/bench`, the Village half, which C5.0 made the default run):
 
   | Seed | Village day | Pop / Craftsfolk d60 | Pop / Craftsfolk d90 | Craftsfolk peak | Owed max → d90 (coins) |
   |---|---|---|---|---|---|
@@ -70,7 +70,22 @@ Each iteration ends with something both players can play on the live link (P54),
 
 ## I3 Seasons and the Watch
 
-**Scope**: seasons (seasonal farming, frozen river, warmth and firewood); weather and events (flood, drought, early frost, cold snap, travelling circus); festivals; habitats and the Field Guide (about 30 species); threat pressure, telegraphing, bandit gangs and winter wolves; defenses; the Watch and raid resolution; threat dial; River Dock; commissions; renown; customization phase 2 (modules); photo mode; Chronicle snapshots; 6 new patterns; together moments; story characters Mother Thornbury and Barnaby Ashcombe; the first winter trial for Village.
+**Scope**: seasons (seasonal farming, frozen river, warmth and firewood); weather and events (flood, drought, early frost, cold snap, travelling circus); festivals; habitats and the Field Guide (about 30 species); threat pressure, telegraphing, bandit gangs and winter wolves; defenses; the Watch and raid resolution; threat dial; River Dock; commissions; renown; customization phase 2 (modules); photo mode; Chronicle snapshots; 6 new patterns; together moments; story characters Mother Thornbury and Barnaby Ashcombe; the first winter trial for Village; music, ambience and sound effects from CC0 recordings (pulled forward from I5); a guide for a new valley's first days.
+
+**Cycles**: C5.0 seasons contracts (serial, with C4P roads and folk polish alongside) → C5A seasons and weather, C5B festivals and renown, C5C nature and the Field Guide, C5D threats and the Watch, C5E seasons art, C5F seasons UI, C5G music and sound, C5H the first days guide (parallel) → C5X integration and I4 planning.
+
+**Acceptance** (C5.0, from C5X's proposal):
+
+- A Village prepares for and gets through its first winter: everyone fed on stored food, everyone warm, the trial weathered; unprepared, some are cold and a few leave, and nothing worse.
+- Every season ends in a planned festival whose stars follow its site, menu, music and twist; a 5-star festival is reachable.
+- Every raid is telegraphed with time to prepare; defenses, lanterns and the Watch visibly change its outcome; nobody is hurt and every loss can be rebuilt; captured bandits can join the town.
+- About 30 species can be found; the Field Guide fills for both seats; bees and songbirds change yields.
+- Weather and events (flood, drought, early frost, cold snap, circus) are forecast and felt in both lanes.
+- Renown, commissions, the River Dock, modules, photo mode and Chronicle pictures work; the 6 new patterns and 5 new achievements can be earned.
+- Each lane has seasonal work and needs the other (festival supplies, winter stock, walls dressed for charm, morale from festivals).
+- Music follows the hour and the season, ambience follows the camera, and every recording is CC0 and credited.
+- A new standard valley's first days are guided for both lanes, and the guide can be hidden by either player.
+- Benches within budget at Village scale in winter, during a festival and during a raid; hashes match over a full year, including a raid, in Node and a browser worker.
 
 ## I4 Town
 
@@ -78,4 +93,4 @@ Each iteration ends with something both players can play on the live link (P54),
 
 ## I5 Market Town, City and beyond
 
-**Scope**: Market Town and City Charters and trials; Patrons tier; tram, gas lamps, railway, glassworks; grand landmarks; music and ambience; stroll mode; optional Claude-written letters; new valleys (coast, highlands, lakes); gamepads and a one-screen couch mode; remappable keys; captions; polish.
+**Scope**: Market Town and City Charters and trials; Patrons tier; tram, gas lamps, railway, glassworks; grand landmarks; music stems that follow the town; stroll mode; optional Claude-written letters; new valleys (coast, highlands, lakes); gamepads and a one-screen couch mode; remappable keys; captions; polish.

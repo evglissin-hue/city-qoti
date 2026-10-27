@@ -7,10 +7,12 @@
 import { ResidentFlags, TICKS_PER_DAY } from '../../constants';
 import type { Activity, Household, Resident, Rng, TickCtx, WorldState } from '../../contracts';
 import { findById } from '../../state/entities';
+import { hourOf } from '../economy/time';
 import { moveResident, setInside } from '../movement/api';
 import { addMoodModifier } from './api';
 import { assignJobs } from './jobs';
 import { chooseLeisure, choosePlay, chooseStroll, chooseVisit } from './outings';
+import { scheduleOverride } from './overrides';
 import { doorOf, householdOf, isWorkingAge } from './places';
 import { loggedToday, pushHistory } from './records';
 import { buyAtOutlet, needsShopping, someoneShopping, startShopping, unpack } from './shopping';
@@ -69,6 +71,9 @@ export function think(state: WorldState, ctx: TickCtx, rng: Rng, r: Resident): v
   const homeDoor = doorOf(state, h.homeId);
   if (homeDoor < 0) return; // Homeless for the moment: the upkeep pass rehouses them.
   const t = state.tick;
+  // I3 (C5.0): the festival evening, the bell, Watch duty, storms and skating come first.
+  const o = scheduleOverride(state, r, hourOf(t));
+  if (o && followOverride(state, ctx, r, h, homeDoor, o)) return;
   const clock = scheduleClock(r, t);
   const block = blockOf(clock);
   const turned = slotTurned(r, t);
@@ -102,6 +107,49 @@ export function think(state: WorldState, ctx: TickCtx, rng: Rng, r: Resident): v
         return;
       }
       chooseOuting(state, ctx, rng, r, h, homeDoor, block);
+  }
+}
+
+/**
+ * Acts on an override's activity: home and sleep go home, work goes in at `at`, leisure walks to
+ * `tile` and stays there. Returns false for kinds it does not act on (the day table carries on).
+ */
+function followOverride(
+  state: WorldState,
+  ctx: TickCtx,
+  r: Resident,
+  h: Household,
+  homeDoor: number,
+  o: Activity,
+): boolean {
+  switch (o.kind) {
+    case 'home':
+    case 'sleep':
+      stayHome(state, ctx, r, h, homeDoor, o.kind);
+      return true;
+    case 'work': {
+      if (r.inside === o.at) {
+        if (r.activity.kind !== 'work' || r.activity.at !== o.at) r.activity = { kind: 'work', at: o.at };
+        return true;
+      }
+      const door = doorOf(state, o.at);
+      if (door < 0) return false;
+      if (r.move && r.move.target === door) return true;
+      if (!r.move && r.tile === door) {
+        r.move = null;
+        setInside(state, r, o.at);
+        r.activity = { kind: 'work', at: o.at };
+        return true;
+      }
+      if (moveResident(state, r, door, 'schedule') === 'unreachable') return false;
+      r.activity = { kind: 'commute', to: o.at };
+      return true;
+    }
+    case 'leisure':
+      if (r.activity.kind === 'leisure' && r.activity.tile === o.tile) return true;
+      return setOff(state, ctx, r, h, homeDoor, o.tile, o);
+    default:
+      return false;
   }
 }
 

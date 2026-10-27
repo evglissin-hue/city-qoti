@@ -33,7 +33,7 @@ Contracts are the shared types every track codes against:
 - `packages/sim/src/contracts/**`
 - `packages/protocol/src/messages.ts`
 - `packages/content/src/types.ts`
-- `apps/client/src/render/api.ts`, `src/input/tool.ts`, `src/net/connection.ts`, `src/worker/messages.ts`
+- `apps/client/src/render/api.ts`, `src/input/tool.ts`, `src/net/connection.ts`, `src/worker/messages.ts`, `src/audio/api.ts` (from C5.0)
 
 Rules:
 

@@ -51,6 +51,7 @@ export {
   createGhostMaterial,
   createKitMaterial,
   createResidentMaterial,
+  MOTION,
   setKitMaterialHooks,
   type KitMaterialHooks,
   type Season,

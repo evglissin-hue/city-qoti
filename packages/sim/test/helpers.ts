@@ -4,6 +4,7 @@ import { createLayers, Terrain, Water } from '../src/map/layers';
 import { seedStreams } from '../src/rng/streams';
 import { defaultSettings } from '../src/state/create';
 import { emptyHamletSlices } from '../src/state/hamlet';
+import { emptySeasonsSlices } from '../src/state/seasons';
 import { emptyVillageSlices } from '../src/state/village';
 import { SAVE_VERSION } from '../src/state/version';
 import { worldIndex } from '../src/state/worldIndex';
@@ -48,6 +49,7 @@ export function flatWorld(): WorldState {
     notes: [],
     ...emptyHamletSlices(),
     ...emptyVillageSlices(),
+    ...emptySeasonsSlices(),
   };
 }
 

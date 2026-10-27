@@ -1,8 +1,7 @@
-import { palette, seeded, ShapeBuilder, vary } from '@qoti/art';
+import { palette, seeded, ShapeBuilder, vary, type V3 } from '@qoti/art';
 import { CHUNK_SIZE, Flags, MAP_SIZE, Road } from '@qoti/sim';
-import { levelY } from '../coords';
 import { ChunkedMeshes } from '../chunks';
-import { WATER_Y } from '../surface';
+import { groundY, WATER_Y } from '../surface';
 import type { LayerContext, RenderLayer } from './types';
 
 /**
@@ -19,15 +18,23 @@ float qSmin(float a, float b, float k) {
   float h = clamp(0.5 + 0.5 * (b - a) / k, 0.0, 1.0);
   return mix(b, a, h) - k * h * (1.0 - h);
 }
+// C4P: kind comes out continuous along a segment between two kinds (a path running into a lane
+// turns into it over the middle half of the joint), so a join changes width and dirt smoothly
+// instead of cutting from one to the other. Streets still switch at the middle: setts end at a kerb.
 void qRoadSeg(vec2 p, vec2 a, vec2 b, float ka, float kb, inout float edge, inout float center, inout float kind, inout float best, inout vec2 dir) {
   vec2 pa = p - a;
   vec2 ba = b - a;
   float h = clamp(dot(pa, ba) / dot(ba, ba), 0.0, 1.0);
   float d = length(pa - ba * h);
-  float e = d - mix(qRoadHalf(ka), qRoadHalf(kb), h);
+  float hs = smoothstep(0.25, 0.75, h);
+  float e = d - mix(qRoadHalf(ka), qRoadHalf(kb), hs);
   edge = qSmin(edge, e, 0.14);
   center = min(center, d);
-  if (e < best) { best = e; kind = h < 0.5 ? ka : kb; dir = ba; }
+  if (e < best) {
+    best = e;
+    kind = max(ka, kb) > 2.5 && min(ka, kb) < 2.5 ? (h < 0.5 ? ka : kb) : mix(ka, kb, hs);
+    dir = ba;
+  }
 }
 
 // C4E: streets. Granite setts in rows across the street, each stone domed and lit from above, set
@@ -103,6 +110,15 @@ vec3 qRoadPaint(vec2 wp, vec3 col) {
       qRoadSeg(wp, a, a + vec2(0.0, 1.0), ka, kb, edge, center, kind, best, dir);
     }
   }
+  // C4P: a square of four road tiles is paved right across, instead of leaving a hole of grass.
+  for (int j = 0; j < 2; j++) {
+    for (int i = 0; i < 2; i++) {
+      if (min(min(k[j * 3 + i], k[j * 3 + i + 1]), min(k[(j + 1) * 3 + i], k[(j + 1) * 3 + i + 1])) < 0.5) continue;
+      vec2 q = abs(wp - (o + vec2(float(i), float(j)) + 0.5)) - 0.5;
+      float sq = length(max(q, 0.0)) + min(max(q.x, q.y), 0.0);
+      edge = qSmin(edge, sq, 0.14);
+    }
+  }
   if (k[4] > 0.5 && k[1] + k[3] + k[5] + k[7] < 0.5) {
     vec2 c = o + vec2(1.0);
     qRoadSeg(wp, c, c + vec2(0.001, 0.0), k[4], k[4], edge, center, kind, best, dir);
@@ -110,33 +126,36 @@ vec3 qRoadPaint(vec2 wp, vec3 col) {
   if (kind < 0.5) return col;
 
   bool street = kind > 2.5;
-  float e = edge + (street ? 0.0 : (qNoise(wp * 6.5) - 0.5) * 0.08 + (qNoise(wp * 17.0 + 9.0) - 0.5) * 0.035);
+  // One edge for every road: a little irregular, never lumpy (C4P halved the wobble).
+  float e = edge + (street ? 0.0 : (qNoise(wp * 5.0) - 0.5) * 0.045 + (qNoise(wp * 17.0 + 9.0) - 0.5) * 0.02);
   // Trampled grass just outside the edge.
   col *= 1.0 - 0.08 * (1.0 - smoothstep(0.0, 0.09, e));
   float inside = 1.0 - smoothstep(-0.015, 0.02, e);
   if (inside <= 0.0) return col;
   if (street) return mix(col, qStreet(wp, col, e, dir), inside);
-  bool lane = kind > 1.5;
-  vec3 dirt = lane ? qSrgb(vec3(0.69, 0.58, 0.42)) : qSrgb(vec3(0.80, 0.67, 0.47));
-  dirt *= 0.9 + 0.16 * qNoise(wp * 2.7) + 0.08 * (qNoise(wp * 13.0) - 0.5);
+  // C4P: paths and lanes are one dirt. A lane (lw 1) is the same earth packed a little darker by
+  // cart wheels, with two soft ruts and a ragged grass crown; a path (lw 0) is lighter where feet
+  // wear its middle. Joins blend lw, so a path running into a lane changes over gradually.
+  float lw = clamp(kind - 1.0, 0.0, 1.0);
+  vec3 dirt = qSrgb(vec3(0.77, 0.65, 0.46)) * mix(1.0, 0.9, lw);
+  dirt *= 0.92 + 0.12 * qNoise(wp * 2.7) + 0.07 * (qNoise(wp * 13.0) - 0.5);
   // Pebbles.
   vec2 pc = floor(wp * 14.0);
   float ph = qHash(pc + 5.0);
   float pr = length(fract(wp * 14.0) - 0.5);
-  dirt = mix(dirt, dirt * (ph > 0.93 ? 1.2 : 0.78), step(0.86, ph) * (1.0 - smoothstep(0.16, 0.3, pr)));
-  if (lane) {
-    // Two cart ruts and a hint of grass down the middle.
-    float rut = 1.0 - smoothstep(0.02, 0.055, abs(center - 0.15));
-    dirt *= 1.0 - 0.2 * rut;
-    float median = (1.0 - smoothstep(0.02, 0.06, center)) * smoothstep(0.35, 0.65, qNoise(wp * 4.0));
-    dirt = mix(dirt, col * 0.95, median * 0.75);
-  } else {
-    // A worn, lighter middle; grass creeping in at the sides.
-    dirt *= 1.0 + 0.07 * (1.0 - smoothstep(0.0, 0.14, center));
-    float tuft = smoothstep(0.62, 0.8, qNoise(wp * 8.0)) * smoothstep(-0.12, -0.03, e);
-    dirt = mix(dirt, col, tuft * 0.85);
-  }
-  dirt *= 1.0 - 0.1 * smoothstep(-0.08, 0.0, e);
+  dirt = mix(dirt, dirt * (ph > 0.93 ? 1.18 : 0.8), step(0.87, ph) * (1.0 - smoothstep(0.16, 0.3, pr)));
+  // Ruts: two soft darker bands where the wheels run, coming and going a little along the lane.
+  float rut = (1.0 - smoothstep(0.025, 0.07, abs(center - 0.15))) * (0.75 + 0.25 * qNoise(wp * 3.1));
+  dirt *= 1.0 - 0.13 * rut * lw;
+  // The crown: long, ragged patches of grass down the middle, not a dashed line.
+  float crown = (1.0 - smoothstep(0.03, 0.075, center + (qNoise(wp * 9.0) - 0.5) * 0.03));
+  crown *= smoothstep(0.42, 0.72, qNoise(wp * 1.3 + 4.0));
+  dirt = mix(dirt, col * 0.97, crown * 0.6 * lw);
+  // A path's worn, lighter middle, and grass creeping in at its sides.
+  dirt *= 1.0 + 0.06 * (1.0 - smoothstep(0.0, 0.14, center)) * (1.0 - lw);
+  float tuft = smoothstep(0.64, 0.8, qNoise(wp * 8.0)) * smoothstep(-0.12, -0.03, e);
+  dirt = mix(dirt, col, tuft * 0.75);
+  dirt *= 1.0 - 0.08 * smoothstep(-0.08, 0.0, e);
   return mix(col, dirt, inside);
 }
 
@@ -182,7 +201,7 @@ vec3 qTrailPaint(vec2 wp, vec3 col) {
         vec2 ba = b - a;
         float h = clamp(dot(pa, ba) / dot(ba, ba), 0.0, 1.0);
         float sw = mix(wa, wb, h);
-        float e = length(pa - ba * h) - (0.05 + 0.09 * sw);
+        float e = length(pa - ba * h) - (0.04 + 0.07 * sw);
         if (e < d) { d = e; s = sw; }
       }
       // A worn spot where several ways meet, or a dead end.
@@ -193,19 +212,34 @@ vec3 qTrailPaint(vec2 wp, vec3 col) {
   d += (qNoise(wp * 9.0) - 0.5) * 0.05;
   float on = 1.0 - smoothstep(-0.02, 0.03, d);
   if (on <= 0.0) return col;
-  vec3 trod = mix(col * vec3(1.08, 1.02, 0.82), qSrgb(vec3(0.70, 0.60, 0.44)), 0.35 + 0.45 * s);
+  // C4P: trampled grass going to bare earth of the same dirt as the paths (never paler than them),
+  // broken by tufts, so a shortcut reads as a shortcut and not as a smear beside the road.
+  vec3 trod = mix(col * vec3(0.92, 0.9, 0.78), qSrgb(vec3(0.71, 0.6, 0.43)), 0.25 + 0.55 * s);
   trod *= 0.94 + 0.12 * qNoise(wp * 14.0);
-  float tufts = smoothstep(0.55, 0.75, qNoise(wp * 10.0 + 3.0)) * (1.0 - s * 0.7);
-  return mix(col, mix(trod, col, tufts), on * (0.55 + 0.4 * s));
+  float tufts = smoothstep(0.5, 0.72, qNoise(wp * 10.0 + 3.0)) * (1.0 - s * 0.6);
+  return mix(col, mix(trod, col, tufts), on * (0.5 + 0.4 * s));
 }
 `;
 
 const DECK_Y = WATER_Y + 0.2;
 
+/** Stone for steps: a warm sandstone that sits with the dirt of the paths it carries. */
+const STEP_STONE = 0xc4b49a;
+const STEP_KERB = 0xa89a84;
+/** Treads per level climbed (a level is 0.5 world units, so 0.1 risers on 0.2 treads). */
+const STEPS = 5;
+/** Half the width of a flight: a little wider than the path it carries (qRoadHalf for paths). */
+const STEP_HALF = 0.24;
+
 /**
- * C4E: stone steps where a path with the stairs flag climbs one level to a road neighbor: five
- * treads from the lower tile's center to the upper one's, with cheek stones either side. Each pair
- * is built once, from the lower tile (or the upper one when only it carries the flag).
+ * Stone steps where a path with the stairs flag climbs one level to a road neighbor (C4E, rebuilt
+ * in C4P). The ground already climbs from the lower tile's center to the upper one's as an even
+ * slope, so the flight is cut into that slope: each tread's back is flush with the ground and its
+ * front rises one riser above it, and every height comes from the drawn ground (`groundY`), so no
+ * tread floats where the hillside falls away to one side. A sloped kerb runs along each side,
+ * sinking into the ground at both ends. Consecutive climbs meet at tile centers, so a path that
+ * climbs on and on reads as one flight. Each flight is built once, from the lower tile (or the
+ * upper one when only it carries the flag).
  */
 function stairs(ctx: LayerContext, s: ShapeBuilder, x: number, z: number): void {
   const m = ctx.mirror;
@@ -227,59 +261,99 @@ function stairs(ctx: LayerContext, s: ShapeBuilder, x: number, z: number): void 
     const lowerHere = nh > h;
     // Build each flight once: from the lower end when it is flagged, else from the upper end.
     if (!lowerHere && flagged(nx, nz)) continue;
-    const [lx, lz, ly] = lowerHere ? [x, z, h] : [nx, nz, nh];
+    const [lx, lz] = lowerHere ? [x, z] : [nx, nz];
     const [ux, uz] = lowerHere ? [nx, nz] : [x, z];
-    const rnd = seeded(lx * 7919 + lz * 104729 + ux * 31 + uz);
-    const ax = lx + 0.5;
-    const az = lz + 0.5;
-    const ddx = ux - lx;
-    const ddz = uz - lz;
-    const y0 = levelY(ly);
-    const rise = levelY(ly + 1) - y0;
-    const steps = 5;
-    const half = 0.24;
-    for (let i = 0; i < steps; i++) {
-      const t0 = (i + 0.1) / steps;
-      const t1 = (i + 1.1) / steps;
-      const top = y0 + (rise * (i + 1)) / steps - 0.01;
-      const p0x = ax + ddx * t0;
-      const p0z = az + ddz * t0;
-      const p1x = ax + ddx * Math.min(1, t1);
-      const p1z = az + ddz * Math.min(1, t1);
-      const wx = ddz !== 0 ? half : 0;
-      const wz = ddx !== 0 ? half : 0;
-      s.rbox(
-        Math.min(p0x, p1x) - wx,
-        y0 - 0.12,
-        Math.min(p0z, p1z) - wz,
-        Math.max(p0x, p1x) + wx,
-        top,
-        Math.max(p0z, p1z) + wz,
-        vary(palette.stone, rnd, 1.1),
-        0.012,
-      );
-    }
-    // Cheek stones along both sides, stepping up with the flight.
-    for (const side of [-1, 1]) {
-      for (let i = 0; i < 3; i++) {
-        const t0 = i / 3;
-        const t1 = (i + 1) / 3;
-        const cxp = ax + ddx * ((t0 + t1) / 2) + (ddz !== 0 ? side * (half + 0.04) : 0);
-        const czp = az + ddz * ((t0 + t1) / 2) + (ddx !== 0 ? side * (half + 0.04) : 0);
-        const len = 1 / 3 / 2;
-        const lxh = ddx !== 0 ? len : 0.045;
-        const lzh = ddz !== 0 ? len : 0.045;
-        s.rbox(
-          cxp - lxh,
-          y0 - 0.1,
-          czp - lzh,
-          cxp + lxh,
-          y0 + rise * t1 + 0.05,
-          czp + lzh,
-          vary(0xa39c90, rnd, 1.2),
-          0.015,
-        );
-      }
+    flight(ctx, s, lx, lz, ux - lx, uz - lz);
+  }
+}
+
+/** One flight from the center of tile (lx, lz) up to its neighbor in direction (ddx, ddz). */
+function flight(ctx: LayerContext, s: ShapeBuilder, lx: number, lz: number, ddx: number, ddz: number): void {
+  const m = ctx.mirror;
+  const rnd = seeded(lx * 7919 + lz * 104729 + (lx + ddx) * 31 + (lz + ddz));
+  // Along the climb (a: 0 at the lower center, 1 at the upper) and across it (c).
+  const cxp = ddz !== 0 ? 1 : 0;
+  const czp = ddx !== 0 ? 1 : 0;
+  const at = (a: number, c: number): [number, number] => [
+    lx + 0.5 + ddx * a + cxp * c,
+    lz + 0.5 + ddz * a + czp * c,
+  ];
+  const g = (a: number, c: number): number => {
+    const [px, pz] = at(a, c);
+    return groundY(m, px, pz);
+  };
+  const y0 = g(0, 0);
+  const y1 = g(1, 0);
+  const rise = (y1 - y0) / STEPS;
+  // A box between two (a, c) corners and two heights, mapped back to x and z.
+  const box = (
+    a0: number,
+    c0: number,
+    a1: number,
+    c1: number,
+    yb: number,
+    yt: number,
+    hex: number,
+    bev: number,
+  ) => {
+    const [px, pz] = at(a0, c0);
+    const [qx, qz] = at(a1, c1);
+    s.rbox(Math.min(px, qx), yb, Math.min(pz, qz), Math.max(px, qx), yt, Math.max(pz, qz), hex, bev);
+  };
+  let prevTop = y0;
+  for (let i = 0; i < STEPS; i++) {
+    const a0 = i / STEPS;
+    const a1 = (i + 1) / STEPS;
+    // The back of the tread is flush with the ground; never lower than the tread below.
+    const top = Math.max(prevTop + rise * 0.5, g(a1, 0)) - 0.005;
+    prevTop = top;
+    let low = top;
+    for (const a of [a0, a1]) for (const c of [-STEP_HALF, 0, STEP_HALF]) low = Math.min(low, g(a, c));
+    // Each tread laps a little under the next riser, so no gap opens between them.
+    const tone = vary(STEP_STONE, rnd, 1.2);
+    box(a0, -STEP_HALF, Math.min(1, a1 + 0.03), STEP_HALF, low - 0.08, top, tone, 0.014);
+  }
+  // Kerbs: sloped stones along both sides, a little above the tread fronts in the middle and
+  // dipping to the ground at both ends, so they start and stop without a post.
+  const lip = Math.abs(rise) + 0.035;
+  const knots = [-0.06, 0.18, 0.5, 0.82, 1.06];
+  const kw = 0.04;
+  for (const side of [-1, 1]) {
+    const cIn = side * STEP_HALF;
+    const cOut = side * (STEP_HALF + 2 * kw);
+    const top = (a: number): number => {
+      const t = Math.min(1, Math.max(0, a));
+      const ends = a <= 0 || a >= 1 ? 0.02 : lip;
+      return y0 + (y1 - y0) * t + ends;
+    };
+    const bottom = (a: number): number => Math.min(g(a, cIn), g(a, cOut), y0 + (y1 - y0) * a) - 0.1;
+    const tone = vary(STEP_KERB, rnd, 1);
+    for (let k = 0; k + 1 < knots.length; k++) {
+      const a0 = knots[k]!;
+      const a1 = knots[k + 1]!;
+      const corner = (a: number, c: number, y: number): V3 => {
+        const [px, pz] = at(a, c);
+        return [px, y, pz];
+      };
+      const t0 = top(a0);
+      const t1 = top(a1);
+      const b0 = bottom(a0);
+      const b1 = bottom(a1);
+      const i0t = corner(a0, cIn, t0);
+      const i1t = corner(a1, cIn, t1);
+      const o0t = corner(a0, cOut, t0);
+      const o1t = corner(a1, cOut, t1);
+      const i0b = corner(a0, cIn, b0);
+      const i1b = corner(a1, cIn, b1);
+      const o0b = corner(a0, cOut, b0);
+      const o1b = corner(a1, cOut, b1);
+      const outSide: V3 = [cxp * side, 0, czp * side];
+      const inSide: V3 = [-cxp * side, 0, -czp * side];
+      s.quad(i0t, i1t, o1t, o0t, tone, [0, 1, 0]);
+      s.quad(o0b, o1b, o1t, o0t, tone, outSide);
+      s.quad(i0b, i1b, i1t, i0t, tone, inSide);
+      if (k === 0) s.quad(i0b, o0b, o0t, i0t, tone, [-ddx, 0, -ddz]);
+      if (k + 2 === knots.length) s.quad(i1b, o1b, o1t, i1t, tone, [ddx, 0, ddz]);
     }
   }
 }

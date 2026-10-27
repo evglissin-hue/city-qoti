@@ -47,6 +47,20 @@ interface SaveFile {
   requests: WorldState['requests'];
   stories: WorldState['stories'];
   village: WorldState['village'];
+  // I3 (C5.0)
+  weather: WorldState['weather'];
+  warmth: WorldState['warmth'];
+  festival: WorldState['festival'];
+  renown: WorldState['renown'];
+  commissions: WorldState['commissions'];
+  dock: WorldState['dock'];
+  nature: WorldState['nature'];
+  threats: WorldState['threats'];
+  watch: WorldState['watch'];
+  raid: WorldState['raid'];
+  trial: WorldState['trial'];
+  guide: WorldState['guide'];
+  seasons: WorldState['seasons'];
 }
 
 export function serialize(state: WorldState): Uint8Array {
@@ -92,6 +106,19 @@ export function serialize(state: WorldState): Uint8Array {
     requests: state.requests,
     stories: state.stories,
     village: state.village,
+    weather: state.weather,
+    warmth: state.warmth,
+    festival: state.festival,
+    renown: state.renown,
+    commissions: state.commissions,
+    dock: state.dock,
+    nature: state.nature,
+    threats: state.threats,
+    watch: state.watch,
+    raid: state.raid,
+    trial: state.trial,
+    guide: state.guide,
+    seasons: state.seasons,
   };
   // mtime 0 keeps the bytes a pure function of the state.
   return gzipSync(strToU8(JSON.stringify(save)), { level: 6, mtime: 0 });
@@ -154,5 +181,18 @@ export function deserialize(data: Uint8Array): WorldState {
     requests: [...save.requests].sort(byId),
     stories: save.stories,
     village: save.village,
+    weather: save.weather,
+    warmth: save.warmth,
+    festival: save.festival,
+    renown: save.renown,
+    commissions: { list: [...save.commissions.list].sort(byId) },
+    dock: { ...save.dock, boats: [...save.dock.boats].sort(byId) },
+    nature: save.nature,
+    threats: save.threats,
+    watch: save.watch,
+    raid: save.raid,
+    trial: save.trial,
+    guide: save.guide,
+    seasons: save.seasons,
   };
 }

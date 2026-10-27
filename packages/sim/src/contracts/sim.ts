@@ -6,7 +6,16 @@ import type { LayerName, Rect, SeatId } from './ids';
 import type { WorldState } from './state';
 
 /** Append-only: the order fixes each stream's slot in WorldState.rng. */
-export type RngStream = 'worldgen' | 'residents' | 'wishes' | 'weather' | 'threats' | 'misc';
+export type RngStream =
+  | 'worldgen'
+  | 'residents'
+  | 'wishes'
+  | 'weather'
+  | 'threats'
+  | 'misc'
+  // I3 (C5.0): never borrow 'misc' for these, it would shift who arrives next.
+  | 'nature'
+  | 'festival';
 
 export interface Rng {
   /** Uniform 32-bit unsigned integer. */

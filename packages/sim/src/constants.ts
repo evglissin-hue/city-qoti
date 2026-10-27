@@ -104,6 +104,14 @@ export const LEDGER_CATEGORIES = [
   { id: 'terraforming', kind: 'expense' },
   /** Story and Charter rewards from the County. */
   { id: 'grants', kind: 'income' },
+  // I3 (C5.0): festival supplies and takings, the River Dock's boats, commissions' rewards, the
+  // Watch's training and gear, visitors' spending (the circus), and fees (market days, the bath house).
+  { id: 'festival', kind: 'expense' },
+  { id: 'dock', kind: 'income' },
+  { id: 'commissions', kind: 'income' },
+  { id: 'watch', kind: 'expense' },
+  { id: 'visitors', kind: 'income' },
+  { id: 'fees', kind: 'income' },
 ] as const;
 export type LedgerCategoryId = (typeof LEDGER_CATEGORIES)[number]['id'];
 
@@ -132,7 +140,8 @@ export const AGENT_STRIDE = 8;
 /** Field offsets in an agent row: [id, x, z, y, heading, anim, carryGood + 1, flags]. */
 export const AgentField = { id: 0, x: 1, z: 2, y: 3, heading: 4, anim: 5, carry: 6, flags: 7 } as const;
 /** I2 (C4.0): `cart` rows are carts (state.carts), not residents; carry is the first load good. */
-export const AgentAnim = { idle: 0, walk: 1, carry: 2, hop: 3, work: 4, cart: 5 } as const;
+/** I3 (C5.0) adds run (raiders, the Watch turning out, folk hurrying home) and dance (festivals). */
+export const AgentAnim = { idle: 0, walk: 1, carry: 2, hop: 3, work: 4, cart: 5, run: 6, dance: 7 } as const;
 /** Agent row flags (bubbles and look hints). */
 export const AgentFlags = {
   wish: 1,
@@ -141,6 +150,14 @@ export const AgentFlags = {
   sleepy: 8,
   child: 16,
   slow: 32,
+  // I3 (C5.0). Raiders, wolves, circus visitors and dock boats ride in the same frame (ids from nextId).
+  cold: 64,
+  watch: 128,
+  raider: 256,
+  wolf: 512,
+  festival: 1024,
+  skating: 2048,
+  visitor: 4096,
 } as const;
 
 /** Resident.flags bits. */
@@ -258,3 +275,30 @@ export const MAX_REQUESTS = 60;
 /** Life events. */
 export const APPRENTICE_DAYS = 6;
 export const SEASIDE_YEARS = 20;
+
+// --- I3 (C5.0): seasons and the Watch. docs/spec/14-challenge.md, 12-hearth.md ---------------------
+
+/** Season ids in SeasonIndex order (content.seasons). */
+export const SEASON_IDS = ['spring', 'summer', 'autumn', 'winter'] as const;
+/** Habitats in NatureState.habitats order. */
+export const HABITAT_IDS = ['pollinator', 'wetland', 'hedgerow', 'woodland', 'meadow', 'garden'] as const;
+/** Weather days forecast ahead (two with the Barometer). */
+export const WEATHER_FORECAST_DAYS = 2;
+/** The river freezes from this day of winter. */
+export const RIVER_FREEZE_DAY = 2;
+/** Firewood a household burns per winter day (cold snaps double it). */
+export const WARMTH_PER_HOUSEHOLD = 1;
+/** Festivals: goods on the menu, and festivals remembered. */
+export const FESTIVAL_MENU_MAX = 4;
+export const FESTIVAL_HISTORY_MAX = 8;
+/** Renown: entries kept in the log. */
+export const RENOWN_LOG_MAX = 20;
+/** Threats: raids remembered, and the Watch's training range in percent. */
+export const RAID_HISTORY_MAX = 12;
+export const WATCH_TRAINING = [100, 160] as const;
+export const WATCH_POSTURE_MAX = 3;
+/** Raiders: starting morale and the units each carries (14-challenge.md, Raid resolution). */
+export const RAIDER_MORALE = 10;
+export const RAIDER_CARRY = 8;
+/** The first days guide (C5H) ends by this day at the latest (absolute day index). */
+export const GUIDE_LAST_DAY = 6;

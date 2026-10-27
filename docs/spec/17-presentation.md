@@ -25,7 +25,7 @@ Pure functions from parameters (and a seed) to `BufferGeometry` with vertex colo
 
 - **Terrain**: chunk meshes (16 x 16 tiles) with smooth slopes between levels, soft cliff faces where levels differ by 2+, terrain colors blended at tile edges, field furrows [I1].
 - **Water**: river and pond surfaces with gentle animated waves and foam at banks; frozen variant [I3].
-- **Roads**: path (worn dirt with grass edges), lane (packed dirt with ruts), street (cobbles) [I2]; joins and corners from neighbors; bridges (plank and stone). C4E: streets are granite setts in rows across the street between pale kerbs with a gutter shadow; desire paths (the `wear` layer) are narrow trodden lines joining worn tiles; stone stairs climb where a path with the stairs flag meets a road a level up.
+- **Roads**: path (worn dirt with grass edges), lane (packed dirt with ruts), street (cobbles) [I2]; joins and corners from neighbors; bridges (plank and stone). C4E: streets are granite setts in rows across the street between pale kerbs with a gutter shadow; desire paths (the `wear` layer) are narrow trodden lines joining worn tiles; stone stairs climb where a path with the stairs flag meets a road a level up. C4P: paths and lanes are one dirt (a lane a little darker and packed, with soft ruts and a ragged grass crown), and a path running into a lane changes width and dirt over the middle of the joint; a square of four road tiles is paved across; desire paths are trampled earth of the same dirt, never paler than the roads; stairs are cut into the drawn slope (each tread's back flush with the ground, its front one riser above it, all heights from `groundY`) in warm sandstone between sloped kerbs that sink into the ground at both ends, so no tread floats where a hillside falls away to the side.
 - **Buildings**: modular parts (walls: plaster, timber frame, stone, brick; roofs: gable, hip, half-hip in thatch, slate, tile; windows with shutters and boxes; doors; chimneys with smoke; porches; dormers; signs). Generators: cottage, house, workshop, mill, farm, storehouse, stall, town hall, landmarks. Construction stages (staked plot, foundation, frame, roof).
 - **Props**: bench, curved and ring bench, lantern, hanging lantern, well, fountain, birdbath, fence, low wall, planter wall, hedge, flower bed, planter, wildflower verge, signpost, barrels, crates, carts, laundry lines, festival pieces [I3].
 - **Trees**: oak, birch, pine, apple, cherry, willow; growth stages; seasonal variants.
@@ -96,16 +96,18 @@ Auto-detect picks a preset (Low on phones and two-core machines, otherwise Mediu
 ## Residents on screen [I1]
 
 - Walk bob and squash in the vertex shader (no skeletons); carried bundles; little hops for joy; slower walk when unhappy.
+- [I2 polish, C4P] Round eyes with a catchlight, blush on most species, rounder heads. Everyday outfits over the vest from the look seed: skirts, overalls (mostly field and yard hands, never under an apron), neckerchiefs and hair bows. Between walks, motions the client derives from the frames (the sim never hears of them, `MOTION` in `@qoti/art`): an idle resident by a bench sits on it, idle neighbors within 0.75 tiles turn to each other and take turns talking with a hand while the other nods, and folk who know each other (family, partners and a stable third of the neighbors) wave once in a while as they pass.
 - Bubbles (toggleable): wish, happy, unhappy, sleepy, cold [I3].
 - [I2, C4E] Story characters wear a signature outfit by species (Pippa Quill: goggles, cap and satchel; Odette Fenwick: wide hat, long scarf and ledger bag; Juniper Reed: beret, long scarf and lute). Partners near each other walk side by side, hand in hand. Babies (under a year) ride in a parent's sling. Carts glide on a damped follow, turn at a pony's pace and tilt with the slope; the pony's legs and the wheels move with the ground covered; a carter stands at the front board. Animals graze, wander a few steps, look up and lie down at night in the pens their buildings declare (`KitAnchors.animals`).
 - Far away, residents become simple instanced shapes (beyond the resident detail distance), then dots (beyond 2.5 times it). Figures are drawn at 1.15 times the kit's 0.3 tiles so they read from the default camera; clothes follow the job (bakers in toques, farmers in straw hats, fishers in sou'westers) and tier (bowler, top hat).
 
-## Audio [I5, designed now]
+## Audio [I3]
 
 - **Music**: acoustic guitar, piano, upright bass and brushes; light jazz chords in the evening, a waltz in winter. Layered stems that follow time of day and season.
 - **Ambience**: emitters from what is nearby: river, wind, birds by habitat, market chatter by stall density, mill creak, saw, festival crowd, the watch bell.
 - **UI**: paper rustle, soft clicks, pencil scratch for plans.
-- Sources: royalty-free or CC0 libraries, or commissioned. Volume sliders per channel.
+- Sources: CC0 or public domain recordings only (decided after I2), listed in `tools/audio/manifest.json` with their source pages and credited in `apps/client/public/audio/CREDITS.md`. Volume sliders per channel and a mute (C5G).
+- As built (C5G): every sound is synthesized in the browser, so the manifest is empty and nothing is downloaded. A composer writes each piece from a seed in the hour's style (morning guitar, afternoon piano with brushes, swung evening jazz, a night music box, a winter waltz, a minor autumn afternoon), so the music follows the hour and the season by style rather than by stems, with a 4 s crossfade when the style changes and quiet gaps of 20 to 90 s. Ambience loops and cues are synthesized too (`apps/client/src/audio/synth`), rendered once in a worker. The UI's pencil scratch for plans is not in yet; plans use the place and remove sounds.
 
 ## Accessibility [I1]
 

@@ -9,4 +9,6 @@ export interface ValleySettings {
   togetherOnly: boolean;
   townName: string;
   valleyName: string;
+  /** I3 (C5.0, C5H): show the first days guide (new standard valleys default to on). */
+  guide?: boolean;
 }

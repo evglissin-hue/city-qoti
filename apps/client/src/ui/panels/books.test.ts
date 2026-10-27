@@ -106,7 +106,7 @@ describe('plaques', () => {
   it('shows earned plaques first, with dates and who, and the rest as outlines', async () => {
     const { session } = mockSession();
     view = await mount(h(AchievementsPanel, { session }));
-    expect(view.text()).toContain('5 of 10 earned');
+    expect(view.text()).toContain('5 of 15 earned');
     expect(view.get('plaque-well-met').className).toContain('earned');
     expect(view.get('plaque-well-met').textContent).toContain('you and Bo');
     expect(view.get('plaque-balanced-books').className).toContain('waiting');

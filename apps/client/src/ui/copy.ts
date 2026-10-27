@@ -65,6 +65,15 @@ export const copy = {
     moveNo: 'Not yet',
     moving: 'Packing up the valley...',
     moveFailed: 'The valley could not reach the relay. Nothing has moved; try again in a moment.',
+    // C5G: sound.
+    sound: 'Sound',
+    soundHint: 'Every note is made on the spot by your browser. No two evenings sound quite alike.',
+    master: 'Everything',
+    music: 'Music',
+    ambience: 'The valley',
+    effects: 'Clicks and chimes',
+    mute: 'Hush',
+    muteHint: 'All quiet, for the library or the late shift',
     done: 'Done',
   },
   invite: {

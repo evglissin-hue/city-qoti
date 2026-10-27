@@ -3,6 +3,21 @@ import type { HistoryItem, LifeStage, MoodBand, TierId } from './hamlet';
 import type { EntityId, LayerName, Lens, Rot4, SeatId, Speed } from './ids';
 import type { ValleySettings } from './settings';
 import type { WorldState } from './state';
+import type {
+  CommissionView,
+  DockView,
+  FestivalResultView,
+  FestivalView,
+  FieldGuideEntryView,
+  GuideView,
+  RaidView,
+  RenownView,
+  SeasonCardView,
+  ThreatView,
+  TrialView,
+  WatchView,
+  WeatherView,
+} from './seasonViews';
 import type { PlanItem, RankId, RequestAsk } from './village';
 
 export interface BuildingView {
@@ -96,6 +111,20 @@ export interface ViewSnapshot {
   plans?: PlanView[];
   requests?: RequestView[];
   stories?: StoryView[];
+  // I3 (C5.0)
+  seasonCard?: SeasonCardView;
+  weather?: WeatherView;
+  festival?: FestivalView;
+  festivalResult?: FestivalResultView | null;
+  renown?: RenownView;
+  commissions?: CommissionView[];
+  dock?: DockView;
+  fieldGuide?: FieldGuideEntryView[];
+  threat?: ThreatView;
+  watch?: WatchView;
+  raid?: RaidView | null;
+  trial?: TrialView | null;
+  guide?: GuideView;
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -236,6 +265,8 @@ export interface ChronicleEntryView {
   text: string;
   refs: EntityId[];
   seats: SeatId[];
+  /** I3 (C5.0): set on notable entries; C5F stores the client's picture with the valley. */
+  snapshot?: { focus: [number, number]; radius: number };
 }
 
 export interface AchievementView {
@@ -262,6 +293,17 @@ export interface TownView {
   charter?: { done: number; total: number; ready: boolean };
   /** Residents per tier, in TIERS order. */
   tiers?: number[];
+  // I3 (C5.0)
+  /** Season index, year index and day of the season (1 to 6). */
+  season?: { season: number; year: number; day: number };
+  weather?: string;
+  renownLevel?: number;
+  /** Households cold right now (winter). */
+  coldHouseholds?: number;
+  /** A telegraphed raid's band, or null. */
+  threatBand?: string | null;
+  /** The first days guide, while it is open (C5H). */
+  guide?: GuideView;
 }
 
 /** Full resident detail for the inspector (worker `inspect`). */
@@ -292,6 +334,12 @@ export interface ResidentDetail {
   savings?: number;
   /** C4C adds `missing`: readable names of what the household still lacks for the next tier. */
   tierProgress?: { next: TierId; days: number; needed: number; missing?: string[] };
+  // I3 (C5.0), present when they apply.
+  /** Winter: firewood burned today and cold hours (C5A). */
+  warmth?: { burnedToday: number; coldHours: number; coldDays: number };
+  /** Watch members: next duty day and shaken (C5D). */
+  watch?: { dutyDay: number; shaken: boolean };
+  reformed?: boolean;
 }
 
 /** Full building detail for the inspector (worker `inspect`). */
@@ -321,6 +369,15 @@ export interface BuildingDetail {
   /** Homes: the tier housed and an upgrade under way. */
   tier?: TierId;
   upgrade?: { to: string; waiting: [good: string, qty: number][] };
+  // I3 (C5.0), present when they apply.
+  /** Modules fitted: [slot, module id] (C5C). */
+  modules?: [slot: string, module: string][];
+  /** Wall pieces: hit points and the most (C5D). */
+  hp?: { now: number; max: number };
+  /** Gates: open or closed (C5D). */
+  gate?: { open: boolean };
+  /** Under flood water (C5A). */
+  flooded?: boolean;
 }
 
 /** I1 (C3C): the Workforce report. Jobs per building and the town's totals. */
@@ -417,6 +474,9 @@ export interface LeversView {
   /** Wages per day per job tier at the current level, pennies, in TIERS order. */
   wages: number[];
   exportBans: string[];
+  // I3 (C5.0, C5B)
+  marketDay?: number | null;
+  quietHours?: boolean;
 }
 
 export interface LoansView {

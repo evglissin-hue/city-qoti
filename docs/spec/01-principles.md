@@ -19,9 +19,9 @@ Accepted as v1 on 2026-10-25. The numbers are stable; other spec docs cite them 
 - **I0 Valley sandbox:** generated valley, camera, paths and cottages, day and night, saves, both laptops building live together.
 - **I1 Hamlet:** first named residents and wishes, first goods and budget, first patterns and achievements.
 - **I2 Village:** zoning, market prices, production chains, second tier, Charters.
-- **I3 Seasons and the Watch:** winter prep, festivals, Field Guide, Chronicle, first threats and defenses.
+- **I3 Seasons and the Watch:** winter prep, festivals, Field Guide, Chronicle, first threats and defenses, music and sound, a guide for the first days.
 - **I4 Town:** districts and styles, trade and contracts, weather, innovations, raids and trials.
-- **I5 onward:** Market Town and City, new land and valleys, stroll mode, music, polish.
+- **I5 onward:** Market Town and City, new land and valleys, stroll mode, polish.
 
 **Not doing.** Unit micromanagement or tower-defense waves, PvP, monetization, mobile-first, metropolis-scale traffic simulation, losing the whole town.
 

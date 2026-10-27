@@ -16,6 +16,10 @@ import {
 } from '@qoti/sim';
 import type { Selection } from '../input/context';
 import { applySettings, loadSettings } from '../ui/settings';
+import { folkShowcase } from '../render/folkShowcase';
+import { roadsShowcase } from '../render/roadShowcase';
+import { audio, type SoundCueId } from '../audio/api';
+import { audioEngine } from '../audio/install';
 import { villageShowcase } from '../render/showcase';
 import { fakeCharm, fakeRuntime, startSyntheticResidents, type SyntheticOptions } from '../render/synthetic';
 import { SimHost } from '../worker/host';
@@ -266,6 +270,18 @@ export function installDebugHook(getSession: () => Session | null): void {
       const r = villageShowcase(session.mirror, { dense });
       return { buildings: r.buildings, carts: r.carts };
     },
+    /** C4P: folk sitting on benches, chatting and waving, in this client's Mirror, for art review. */
+    folkShowcase: (x?: number, z?: number) => {
+      const session = s();
+      if (!session) return null;
+      const r = folkShowcase(session.mirror, x, z);
+      return { center: r.center, folk: r.folk };
+    },
+    /** C4P: a hill of paths, lanes, a street and stairs in this client's Mirror, for road art review. */
+    roadsShowcase: (x?: number, z?: number) => {
+      const session = s();
+      return session ? roadsShowcase(session.mirror, x, z) : null;
+    },
     /** C3D: a made-up charm field for overlay screenshots (until the charm system runs). */
     synthCharm: () => {
       const session = s();
@@ -327,6 +343,22 @@ export function installDebugHook(getSession: () => Session | null): void {
         }
       }
       return null;
+    },
+    /**
+     * C5G: the sound engine, once the first gesture started it. `state` is the audio context's
+     * ('none' before the first gesture), `gains` the bus targets the sliders set, `playing` the
+     * music style and the ambience voices, `cost` main-thread milliseconds per update.
+     */
+    audio: {
+      state: () => audioEngine()?.ctx.state ?? 'none',
+      gains: () => audioEngine()?.gains() ?? null,
+      playing: () => audioEngine()?.playing() ?? null,
+      cost: () => {
+        const c = audioEngine()?.cost ?? [];
+        return c.length ? c.reduce((a, b) => a + b, 0) / c.length : 0;
+      },
+      pending: () => audioEngine()?.bank.pending ?? 0,
+      cue: (id: SoundCueId) => audio().cue(id),
     },
   };
   (window as unknown as { __qoti: typeof hook }).__qoti = hook;

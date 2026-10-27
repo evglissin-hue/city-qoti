@@ -41,6 +41,20 @@ export function predicateParams(cond: Condition, code: string): Params | null {
   return null;
 }
 
+/** The `ref` a condition gives a named predicate (searching all/any/not), or undefined (C5.0). */
+export function predicateRef(cond: Condition, code: string): string | undefined {
+  if ('all' in cond || 'any' in cond) {
+    for (const c of 'all' in cond ? cond.all : cond.any) {
+      const r = predicateRef(c, code);
+      if (r !== undefined) return r;
+    }
+    return undefined;
+  }
+  if ('not' in cond) return predicateRef(cond.not, code);
+  if ('code' in cond && cond.code === code) return cond.ref;
+  return undefined;
+}
+
 /** The counter of the innovation measured by `measure`, or 0. */
 function counterOf(state: WorldState, measure: string): number {
   for (const s of state.innovations)
@@ -92,9 +106,12 @@ export function sawpitByRiver(state: WorldState, _bind: unknown, params: Params)
   return false;
 }
 
-/** The story arc at index `arc` of content.stories has reached `step` with its character here. */
-export function storyStep(state: WorldState, _bind: unknown, params: Params): boolean {
-  const arc = content.stories[param(params, 'arc', 0)];
+/**
+ * The story arc `ref` (C5.0; or, for older conditions, the arc at index `arc` of content.stories)
+ * has reached `step` with its character here.
+ */
+export function storyStep(state: WorldState, _bind: unknown, params: Params, ref?: string): boolean {
+  const arc = ref ? content.storyById.get(ref) : content.stories[param(params, 'arc', 0)];
   const s = arc ? state.stories.find((x) => x.arc === arc.id) : undefined;
   return !!s && s.residentId !== 0 && s.step >= param(params, 'step', 0);
 }
@@ -168,7 +185,8 @@ export function measureProgress(state: WorldState, def: InnovationDef, s: Innova
     case 'waterWheel': {
       const by = predicateParams(def.condition, 'sawpitByRiver') ?? [];
       const story = predicateParams(def.condition, 'storyStep') ?? [];
-      v = (sawpitByRiver(state, null, by) ? 50 : 0) + (storyStep(state, null, story) ? 50 : 0);
+      const arc = predicateRef(def.condition, 'storyStep');
+      v = (sawpitByRiver(state, null, by) ? 50 : 0) + (storyStep(state, null, story, arc) ? 50 : 0);
       break;
     }
     default:

@@ -1,4 +1,4 @@
-// Debug only (?debug&fixture=hamlet, or =village [I2]): a solo valley that starts as the sim's
+// Debug only (?debug&fixture=hamlet, =village [I2], =winter or =raid [I3]): a solo valley that starts as the sim's
 // hamlet or village fixture, so panels can be tried and tested live before the tracks land. With
 // &mock, the fixture's missing history (wishes, pages, Chronicle, stocks, budget) is laid over the
 // Mirror from the UI mocks, whose ids match the fixture.
@@ -12,15 +12,22 @@ import { rememberValley, type RecentValley } from './recent';
 export const FIXTURE = new URLSearchParams(location.search).get('fixture');
 export const MOCK_OVERLAY = new URLSearchParams(location.search).has('mock');
 
-/** Writes a new solo valley whose first snapshot is the hamlet (or village) fixture, and remembers it. */
+export type FixtureKind = 'hamlet' | 'village' | 'winter' | 'raid';
+export const FIXTURE_KINDS: readonly FixtureKind[] = ['hamlet', 'village', 'winter', 'raid'];
+
+/** Writes a new solo valley whose first snapshot is one of the sim's fixtures, and remembers it. */
 export async function createFixtureValley(
   townName = 'Thistlecombe',
-  kind: 'hamlet' | 'village' = 'hamlet',
+  kind: FixtureKind = 'hamlet',
 ): Promise<RecentValley> {
   const state =
-    kind === 'village'
-      ? (await import('../../../../packages/sim/test/fixtures/village')).villageFixture().state
-      : (await import('../../../../packages/sim/test/fixtures/hamlet')).hamletFixture().state;
+    kind === 'winter'
+      ? (await import('../../../../packages/sim/test/fixtures/winter')).winterFixture().state
+      : kind === 'raid'
+        ? (await import('../../../../packages/sim/test/fixtures/threat')).raidAtDusk().state
+        : kind === 'village'
+          ? (await import('../../../../packages/sim/test/fixtures/village')).villageFixture().state
+          : (await import('../../../../packages/sim/test/fixtures/hamlet')).hamletFixture().state;
   state.settings.townName = townName;
   state.settings.valleyName = 'Fixture Vale';
   state.time.connected = [];
@@ -40,7 +47,8 @@ export async function createFixtureValley(
 
 /** Lays the UI mocks' history over a live fixture valley (and answers inspect from them). */
 export async function overlayMocks(session: Session): Promise<void> {
-  if (FIXTURE === 'village') return overlayVillageMocks(session);
+  if (FIXTURE === 'village' || FIXTURE === 'winter' || FIXTURE === 'raid')
+    return overlayVillageMocks(session);
   const mocks = await import('../ui/mocks/hamlet');
   const { mockInspect } = await import('../ui/mocks/session');
   const m = session.mirror;

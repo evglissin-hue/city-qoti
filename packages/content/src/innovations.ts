@@ -2,7 +2,7 @@ import type { InnovationDef } from './types';
 
 // The I2 innovations (docs/spec/15-progression.md, Innovations). Conditions use named code
 // predicates and measures implemented in packages/sim/src/systems/innovations/measures.ts (C4C).
-// `storyStep`'s arc is an index into content.stories (C4D's arcs).
+// `storyStep` names its arc by id in `ref` (C5.0: the story list is append-only, but ids never move).
 
 export const brickKiln: InnovationDef = {
   id: 'brick-kiln',
@@ -46,13 +46,7 @@ export const waterWheel: InnovationDef = {
   condition: {
     all: [
       { code: 'sawpitByRiver', params: [['within', 3]] },
-      {
-        code: 'storyStep',
-        params: [
-          ['arc', 0],
-          ['step', 2],
-        ],
-      },
+      { code: 'storyStep', ref: 'inventor', params: [['step', 2]] },
     ],
   },
   measure: 'waterWheel',
@@ -75,4 +69,25 @@ export const wheelbarrows: InnovationDef = {
   unlocks: ['porter-carry-6'],
   // C4C: from Village rank, so a Hamlet's porters (always busy early on) play as in I1.
   rank: 'village',
+};
+
+// --- I3 (C5.0). Stubs: conditions stay unreachable (rank 99) and `rank: 'town'` keeps them out of
+// the Village notebook until their owners write them (Barometer C5A, Seed Drill C5A).
+
+export const barometer: InnovationDef = {
+  id: 'barometer',
+  name: 'Barometer',
+  blurb: 'A glass that knows the weather two days before the weather does.',
+  condition: { count: { what: 'rank', atLeast: 99 } },
+  unlocks: ['forecast-days-2'],
+  rank: 'town',
+};
+
+export const seedDrill: InnovationDef = {
+  id: 'seed-drill',
+  name: 'Seed Drill',
+  blurb: 'Seeds in straight rows, at the right depth, and no more feeding the crows.',
+  condition: { count: { what: 'rank', atLeast: 99 } },
+  unlocks: ['wheat-yield-120'],
+  rank: 'town',
 };

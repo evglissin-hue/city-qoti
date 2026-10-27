@@ -10,6 +10,9 @@ export const RNG_STREAMS: readonly RngStream[] = [
   'weather',
   'threats',
   'misc',
+  // I3 (C5.0)
+  'nature',
+  'festival',
 ];
 
 const WARMUP_STEPS = 12;

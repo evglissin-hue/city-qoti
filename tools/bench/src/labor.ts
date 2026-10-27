@@ -5,6 +5,12 @@
 import { content } from '@qoti/content';
 import { BuildingStatus, townStock, type Building, type WorldState } from '@qoti/sim';
 
+/**
+ * The labor budget's reserve (C5.0, the planner's): a new workplace opens only while free hands
+ * exceed core jobs by this many, unless the want is pressing.
+ */
+export const LABOR_RESERVE = 1;
+
 /** Residents who can take a job: young and adult, not retired. */
 export function hands(w: WorldState): number {
   let n = 0;
@@ -84,5 +90,5 @@ export function canStaff(w: WorldState, def: string, pressing = false): boolean 
   if (vacancies(w, def) > 0) return false;
   // Pressing needs (food the town is short of) may draw a hand from spare porters: the sim gives a
   // workplace's first job before a storehouse's third porter.
-  return pressing || spareHands(w) >= 1;
+  return pressing || spareHands(w) >= LABOR_RESERVE;
 }

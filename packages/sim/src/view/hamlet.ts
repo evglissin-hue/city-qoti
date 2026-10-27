@@ -1,5 +1,7 @@
 // I1 view builders (C3.0). Their output never feeds back into state, so floats are fine here.
 // Tracks may enrich these (C3A residents, C3B Hearth, C3C Ledger) without changing their shapes.
+import { seasonAt } from '../state/seasons';
+import { guideView } from './seasons';
 import { type Condition, content } from '@qoti/content';
 import { LEDGER_CATEGORIES, MAP_SIZE, MOOD_BAND_MIN, TIERS } from '../constants';
 import type {
@@ -318,7 +320,16 @@ export function patternView(state: WorldState, id: string): PatternView {
 }
 
 export function chronicleView(c: ChronicleEntry): ChronicleEntryView {
-  return { id: c.id, tick: c.tick, kind: c.kind, text: c.text, refs: [...c.refs], seats: [...c.seats] };
+  const v: ChronicleEntryView = {
+    id: c.id,
+    tick: c.tick,
+    kind: c.kind,
+    text: c.text,
+    refs: [...c.refs],
+    seats: [...c.seats],
+  };
+  if (c.snapshot) v.snapshot = { focus: [...c.snapshot.focus], radius: c.snapshot.radius };
+  return v;
 }
 
 export function achievementView(state: WorldState, id: string): AchievementView {
@@ -339,6 +350,16 @@ export function townView(state: WorldState): TownView {
     rank: state.charter.rank,
     charter: charterTally(state),
     tiers: tierCounts(state),
+    // I3 (C5.0)
+    season: seasonAt(state.tick),
+    weather: state.weather.today,
+    renownLevel: state.renown.level,
+    coldHouseholds: state.households.filter((h) => h.warmth && h.warmth.coldHours > 0).length,
+    threatBand:
+      state.threats.scheduled && state.tick >= state.threats.scheduled.telegraphTick
+        ? state.threats.scheduled.band
+        : null,
+    ...(!state.guide.over && { guide: guideView(state) }),
   };
 }
 

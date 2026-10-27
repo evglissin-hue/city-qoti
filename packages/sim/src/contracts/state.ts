@@ -14,6 +14,21 @@ import type {
   Wish,
 } from './hamlet';
 import type { EntityId, Lens, Rect, Rot4, SeatId, Speed } from './ids';
+import type {
+  CommissionsState,
+  DockState,
+  FestivalState,
+  GuideState,
+  LiveRaid,
+  NatureState,
+  RenownState,
+  SeasonsStats,
+  ThreatState,
+  TrialState,
+  WarmthStats,
+  WatchState,
+  WeatherState,
+} from './seasons';
 import type { ValleySettings } from './settings';
 import type {
   Cart,
@@ -107,6 +122,8 @@ export interface Decor {
   fz: number;
   rot: number;
   builtBy: SeatId;
+  /** I3 (C5.0, C5B): a temporary festival piece; `kept` once a seat chose to keep it as decor. */
+  festival?: { kept: boolean };
 }
 
 export interface Note {
@@ -178,4 +195,22 @@ export interface WorldState {
   /** One per content story arc, sorted by arc id. */
   stories: StoryState[];
   village: VillageStats;
+  // I3 slices (C5.0). docs/spec/20-architecture.md, "I3 contracts". Sandbox valleys keep them
+  // neutral (clear weather, no festival, no threats).
+  weather: WeatherState;
+  warmth: WarmthStats;
+  festival: FestivalState;
+  renown: RenownState;
+  commissions: CommissionsState;
+  dock: DockState;
+  nature: NatureState;
+  threats: ThreatState;
+  watch: WatchState;
+  /** The live raid, null outside one. */
+  raid: LiveRaid | null;
+  /** The trial on hand (the Village Charter's first winter), null when none. */
+  trial: TrialState | null;
+  /** The first days guide (C5H). */
+  guide: GuideState;
+  seasons: SeasonsStats;
 }

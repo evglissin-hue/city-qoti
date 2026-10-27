@@ -165,7 +165,14 @@ export function leversView(state: WorldState): LeversView {
   l.exportBans.forEach((b, i) => {
     if (b) bans.push(goodId(i));
   });
-  return { wageLevel: l.wageLevel, taxRate: l.taxRate, wages: wagesAt(l.wageLevel), exportBans: bans };
+  return {
+    wageLevel: l.wageLevel,
+    taxRate: l.taxRate,
+    wages: wagesAt(l.wageLevel),
+    exportBans: bans,
+    ...(l.marketDay !== undefined && { marketDay: l.marketDay }),
+    ...(l.quietHours !== undefined && { quietHours: l.quietHours }),
+  };
 }
 
 /**

@@ -2,6 +2,7 @@
 // C4E: the village in the renderer: stand-in defs for kits content does not know yet, grown
 // buildings' params (district style, what a craft makes, the season), upgrade scaffolding keys,
 // stairs, the village overlays, carts and animals.
+import { MOTION } from '@qoti/art';
 import { Flags, MAP_SIZE, AGENT_STRIDE, AgentAnim, type BuildingView } from '@qoti/sim';
 import type { Mesh } from 'three';
 import { PerspectiveCamera, Scene, type Object3D } from 'three';
@@ -13,6 +14,7 @@ import { animalsLayer } from './layers/animals';
 import { cartsLayer } from './layers/carts';
 import { overlaysLayer } from './layers/overlays';
 import { roadsLayer } from './layers/roads';
+import { groundY } from './surface';
 import type { LayerContext } from './layers/types';
 
 function view(over: Partial<BuildingView>): BuildingView {
@@ -109,6 +111,49 @@ describe('stairs', () => {
     stairs.init(context(m, scene));
     expect(triangles(scene)).toBeGreaterThan(60);
     stairs.dispose();
+  });
+
+  it('are cut into the drawn slope and reach the ground where the hillside falls away (C4P)', () => {
+    const m = new Mirror();
+    const at = (x: number, z: number): number => z * MAP_SIZE + x;
+    // A path climbing from (20, 10) to (20, 11) across a hillside that drops away to the west.
+    for (let z = 8; z <= 13; z++) {
+      for (let x = 17; x <= 23; x++) m.layers.height[at(x, z)] = x < 20 ? 0 : z >= 11 ? 2 : 1;
+    }
+    m.layers.road[at(20, 10)] = 1;
+    m.layers.road[at(20, 11)] = 1;
+    m.layers.flags[at(20, 10)] = Flags.stairs;
+    const scene = new Scene();
+    const layer = roadsLayer();
+    layer.init(context(m, scene));
+    const pts: [number, number, number][] = [];
+    scene.traverse((o: Object3D) => {
+      const g = (o as Mesh).geometry;
+      if (!g) return;
+      const pos = g.getAttribute('position');
+      for (let i = 0; i < pos.count; i++) pts.push([pos.getX(i), pos.getY(i), pos.getZ(i)]);
+    });
+    layer.dispose();
+    expect(pts.length).toBeGreaterThan(100);
+    // The top step is flush with the path above it.
+    const top = Math.max(...pts.filter((p) => Math.abs(p[0] - 20.5) < 0.235).map((p) => p[1]));
+    expect(Math.abs(top - groundY(m, 20.5, 11.5))).toBeLessThan(0.09);
+    // Along both sides, from the foot to the top, something reaches down to the ground.
+    for (const x of [20.5 - 0.3, 20.5 + 0.3]) {
+      for (const z of [10.6, 11, 11.4]) {
+        const near = pts.filter((p) => Math.abs(p[0] - x) < 0.06 && Math.abs(p[2] - z) < 0.2);
+        expect(near.length).toBeGreaterThan(0);
+        expect(Math.min(...near.map((p) => p[1]))).toBeLessThan(groundY(m, x, z));
+      }
+    }
+  });
+});
+
+describe('client motions (C4P)', () => {
+  it("never collide with the sim's agent animations", () => {
+    const sim = Object.values(AgentAnim) as number[];
+    for (const m of Object.values(MOTION)) expect(sim).not.toContain(m);
+    expect(Math.min(...Object.values(MOTION))).toBeGreaterThan(Math.max(...sim));
   });
 });
 

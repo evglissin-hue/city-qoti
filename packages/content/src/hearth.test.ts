@@ -52,6 +52,7 @@ describe('the Chronicle', () => {
     achievement: ['achievement', 'description', 'credit'],
     'first-of': ['good'],
     founding: ['season', 'founders'],
+    'threat-dial': ['who', 'dial'],
     'household-arrived': ['family', 'place'],
     'household-left': ['family', 'place'],
     'pattern-discovered': ['pattern', 'place', 'credit', 'flavor'],
@@ -98,7 +99,7 @@ describe('the Chronicle', () => {
 describe('patterns and achievements', () => {
   it('reveal hints in a fixed order and read cleanly', () => {
     const order = patterns.map((p) => p.hintOrder).sort((a, b) => a! - b!);
-    expect(order).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]);
+    expect(order).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]);
     for (const p of patterns) {
       clean(p.hint, [], p.id);
       clean(p.flavor, [], p.id);

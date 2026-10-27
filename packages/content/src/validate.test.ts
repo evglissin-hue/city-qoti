@@ -60,7 +60,7 @@ describe('content', () => {
     }
   });
 
-  it('ships the I0, I1 and I2 content lists', () => {
+  it('ships the I0 to I3 content lists', () => {
     expect(buildings.map((b) => b.id).sort()).toEqual(
       [
         'bakery',
@@ -103,6 +103,22 @@ describe('content', () => {
         'trading-post',
         'weaver',
         'workshop',
+        // I3 (C5.0 stubs)
+        'apiary',
+        'bath-house',
+        'bell-tower',
+        'carpenter',
+        'chandler',
+        'gate',
+        'net-trap',
+        'palisade',
+        'pie-shop',
+        'pit-trap',
+        'river-dock',
+        'stone-wall',
+        'tailor',
+        'watch-house',
+        'watchtower',
       ].sort(),
     );
     expect(decor.map((d) => d.id).sort()).toEqual(
@@ -134,6 +150,13 @@ describe('content', () => {
         'lamp-post',
         'maypole',
         'notice-board',
+        // I3 (C5.0): festival pieces
+        'bonfire',
+        'bunting',
+        'festival-stage',
+        'festival-stall',
+        'festival-table',
+        'flower-arch',
       ].sort(),
     );
     expect(roads.map((r) => r.id).sort()).toEqual(['lane', 'path', 'street']);
@@ -162,6 +185,7 @@ describe('content', () => {
       expect(d.art.kit).toMatch(KEBAB);
     }
     expect(decor.filter((d) => d.linear).map((d) => d.id)).toEqual([
+      'bunting',
       'fence',
       'hedge',
       'low-wall',
@@ -205,7 +229,8 @@ function conditionRefs(c: Condition, out: string[] = []): string[] {
     for (const s of c.resident.species ?? []) out.push(`species:${s}`);
     for (const t of c.resident.traits ?? []) out.push(`trait:${t}`);
   } else if ('count' in c && c.count.ref) {
-    out.push(c.count.what === 'pattern' ? `pattern:${c.count.ref}` : `good:${c.count.ref}`);
+    const kind = c.count.what === 'pattern' ? 'pattern' : c.count.what === 'sighted' ? 'wildlife' : 'good';
+    out.push(`${kind}:${c.count.ref}`);
   }
   return out;
 }
@@ -218,6 +243,8 @@ describe('I1 content', () => {
     species: new Set(species.map((s) => s.id)),
     trait: new Set(traits.map((t) => t.id)),
     pattern: new Set(patterns.map((p) => p.id)),
+    // C5.0: the Field Guide's species arrive with C5C; until then a sighting may name one ahead.
+    wildlife: new Set(content.wildlife.length ? content.wildlife.map((w) => w.id) : ['kingfisher']),
   };
   const known = (ref: string) => {
     const [kind, id] = ref.split(':') as [keyof typeof ids, string];
@@ -247,6 +274,12 @@ describe('I1 content', () => {
       'firewood',
       'herbs',
       'tools',
+      // I3 (C5.0)
+      'coats',
+      'furniture',
+      'pies',
+      'honey',
+      'candles',
     ]);
     goods.forEach((g, i) => expect(content.goodIndex.get(g.id)).toBe(i));
     for (const g of goods) expect(g.basePrice > 0 && g.carry > 0, g.id).toBe(true);
@@ -267,7 +300,9 @@ describe('I1 content', () => {
 
   it('has seven species, sixteen traits with symmetric clashes, and name pools', () => {
     expect(species).toHaveLength(7);
-    expect(traits).toHaveLength(16);
+    // Sixteen to roll for newcomers, and Reformed [I3], which is only ever given.
+    expect(traits).toHaveLength(17);
+    expect(traits.filter((t) => t.special).map((t) => t.id)).toEqual(['reformed']);
     for (const t of traits) {
       for (const c of t.clashes) {
         expect(ids.trait.has(c), `${t.id} clashes ${c}`).toBe(true);
@@ -302,10 +337,10 @@ describe('I1 content', () => {
     }
   });
 
-  it('has the twelve wishes, fourteen patterns (eight I1, six I2) and ten achievements, with valid references', () => {
+  it('has the twelve wishes, twenty patterns (eight I1, six I2, six I3) and fifteen achievements, with valid references', () => {
     expect(wishes).toHaveLength(12);
-    expect(patterns).toHaveLength(14);
-    expect(achievements).toHaveLength(10);
+    expect(patterns).toHaveLength(20);
+    expect(achievements).toHaveLength(15);
     for (const w of wishes) {
       for (const ref of [...conditionRefs(w.when), ...conditionRefs(w.target)]) {
         expect(known(ref), `${w.id} ${ref}`).toBe(true);
@@ -321,7 +356,8 @@ describe('I1 content', () => {
       for (const ref of conditionRefs(a.condition)) expect(known(ref), `${a.id} ${ref}`).toBe(true);
     }
     const unlockable = new Set(patterns.flatMap((p) => p.unlocks));
-    for (const d of decor.filter((x) => x.locked))
+    // Festival pieces [I3] are placed by the festival planner, not unlocked by a pattern.
+    for (const d of decor.filter((x) => x.locked && !x.festival))
       expect(unlockable.has(d.id), `${d.id} has an unlock`).toBe(true);
   });
 

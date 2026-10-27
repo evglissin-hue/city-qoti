@@ -31,6 +31,8 @@ export interface Channel {
   hex: number;
   paint?: Paint;
   rig?: Rig;
+  /** C4P: darkens a tinted face (a hem, a cuff) by this factor; fixed faces ignore it. */
+  shade?: number;
 }
 
 const ta = new Vector3();
@@ -64,6 +66,7 @@ export class RigBuilder {
     tn.normalize();
     const paint = ch.paint ?? PAINT.fixed;
     tmp.setHex(paint === PAINT.fixed ? ch.hex : 0xffffff);
+    if (paint !== PAINT.fixed && ch.shade !== undefined) tmp.multiplyScalar(ch.shade);
     for (const p of [a, b, c]) {
       this.pos.push(p[0], p[1], p[2]);
       const n = this.normalAt?.(p);

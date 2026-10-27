@@ -127,16 +127,25 @@ function lettersOf(ctx: SimCtx) {
 }
 
 describe('story arcs', () => {
-  it('ships three arcs of four to six steps, with the inventor first (the Water Wheel names arc 0)', () => {
-    expect(content.stories.map((a) => a.id)).toEqual(['inventor', 'merchant', 'musician']);
-    for (const a of content.stories) {
+  // C5.0: the I3 arcs (herbalist C5A, stonemason C5D) are appended as stubs until their tracks write them.
+  const written = (content.stories as StoryArc[]).filter((a) => a.steps.length > 0);
+
+  it('ships the I2 arcs of four to six steps first, then the I3 arcs appended', () => {
+    expect(content.stories.map((a) => a.id)).toEqual([
+      'inventor',
+      'merchant',
+      'musician',
+      'herbalist',
+      'stonemason',
+    ]);
+    for (const a of written) {
       expect(a.steps.length, a.id).toBeGreaterThanOrEqual(4);
       expect(a.steps.length, a.id).toBeLessThanOrEqual(6);
     }
     expect(SATISFY.inventor).toHaveLength(content.storyById.get('inventor')!.steps.length);
   });
 
-  for (const arc of content.stories as StoryArc[]) {
+  for (const arc of written) {
     const who = `${arc.character.given} ${arc.character.family}`;
     it(`${who}: arrives, writes every letter and reaches the finale`, () => {
       const restore = withTestBuilding(testDef('test-post', ['trading-post']));

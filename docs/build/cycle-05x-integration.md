@@ -1,7 +1,7 @@
 # C5X: I3 integration and I4 planning
 
 **Iteration**: I3. **Wave**: integration. **Branch**: `cycle/05x-integration`.
-**Depends on**: C5A to C5F open or merged. **Ports**: the defaults (5173 and 8787).
+**Depends on**: C5A to C5H open or merged. **Ports**: the defaults (5173 and 8787).
 
 ## Goal
 
@@ -10,7 +10,7 @@ Seasons and the Watch shipped and tuned: a Village gets through its first winter
 ## Read
 
 - `CLAUDE.md`, `docs/spec/30-roadmap.md` (I3, I4), `docs/spec/31-parallel-development.md`, `docs/build/i3-wave-notes.md` (especially the stand-ins table and the decisions)
-- The six wave PRs, `docs/playtests/I2.md`, the C4X commits (what integration learned)
+- The eight wave PRs, `docs/playtests/I2.md`, the C4X commits (what integration learned)
 
 ## You own
 
@@ -18,7 +18,7 @@ Everything, for merging, fixing and tuning, plus new briefs.
 
 ## Tasks
 
-1. **Merge** the wave (sim tracks first, C5A before the others since everything reads the season; then C5E and C5F), re-running checks after each. Expect cross-track test assumptions to break once real systems run together (the bell over the festival, drought and pollinators on one farm, the Watch taking workers from a bakery in winter); isolate unit tests with `withoutSystems` and fix behavior where the combination exposes a real gap.
+1. **Merge** the wave (sim tracks first, C5A before the others since everything reads the season; then C5E, C5F, C5G and C5H), re-running checks after each. Expect cross-track test assumptions to break once real systems run together (the bell over the festival, drought and pollinators on one farm, the Watch taking workers from a bakery in winter); isolate unit tests with `withoutSystems` and fix behavior where the combination exposes a real gap.
 2. **Remove every stand-in** listed in the wave notes, and say in the PR which remain and why.
 3. **Tune with the autoplayer** (`npm run tune -w @qoti/bench`), one coherent player with every system on, seeds willow, hazel and two more: from founding through two years. Targets: a Village in about two to three evenings as in I2; every winter eaten through on stored food; no cold household in any winter after the first Village one (the trial weathered first time on most seeds); every season with a festival and a 3-star one in the first Village year; the first raid telegraphed and repelled or with modest losses, recovered within a season; 10+ Field Guide species in the first Village year; no famine, deadlock, labor starvation, lean-time spiral or treasury that trends down across a year; the money invariant across the whole run. Look for dead ends on purpose (a late farm, a lost storehouse, a frozen water sawmill, a raid on the only food store, a Village with no exports) and fix each one you find. Record the final values in the spec.
 4. **Play** two browsers for a full year (four seasons, compressed with speed), with a festival, a flood or cold snap, a raid at dusk and the winter trial; fix what feels wrong, with special attention to the playtest flags (floaty walking, Retina performance, plain menus, half-lit lanterns) under snow, crowds and raids.
@@ -41,6 +41,8 @@ Everything, for merging, fixing and tuning, plus new briefs.
 - Weather and events (flood, drought, early frost, cold snap, circus) are forecast and felt in both lanes.
 - Renown, commissions, the River Dock, modules, photo mode and Chronicle pictures work; the 6 new patterns and 5 new achievements can be earned.
 - Each lane has seasonal work and needs the other (festival supplies, winter stock, walls dressed for charm, morale from festivals).
+- Music follows the hour and the season, ambience follows the camera, and every recording is CC0 and credited.
+- A new standard valley's first days are guided for both lanes, and the guide can be hidden by either player.
 - Benches within budget at Village scale in winter, during a festival and during a raid; hashes match over a full year, including a raid, in Node and a browser worker.
 
 ## Notes
