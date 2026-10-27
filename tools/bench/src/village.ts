@@ -168,9 +168,13 @@ export function storehouseSpot(w: WorldState, street: HighStreet): [number, numb
   const reader = worldIndex(w).reader;
   const [ex, ez] = street.tiles[street.tiles.length - 1]!;
   const man = (a: number, x: number, z: number) => Math.abs((a % S) - x) + Math.abs(Math.floor(a / S) - z);
-  const stores = w.buildings.filter((b) => b.def === 'storehouse' && b.stage === 'built').map((b) => doorTile(b));
+  const stores = w.buildings
+    .filter((b) => b.def === 'storehouse' && b.stage === 'built')
+    .map((b) => doorTile(b));
   const far = w.lots
-    .filter((l) => !l.buildingId && !stores.some((d) => man(d, l.frontage % S, Math.floor(l.frontage / S)) <= 22))
+    .filter(
+      (l) => !l.buildingId && !stores.some((d) => man(d, l.frontage % S, Math.floor(l.frontage / S)) <= 22),
+    )
     .map((l) => l.frontage);
   for (let r = 1; r <= 20; r++) {
     for (let dz = -r; dz <= r; dz++) {

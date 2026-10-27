@@ -186,7 +186,8 @@ export class VillagePlayer {
       w.buildings.some((b) => b.def === def && ((b.rt?.status ?? 0) & BuildingStatus.outputFull) !== 0);
     go(
       count(w, 'farmhouse', true) > 0 &&
-        count(w, 'windmill') < Math.max(1 + Math.floor(pop / 60), breadShort ? count(w, 'farmhouse', true) : 0),
+        count(w, 'windmill') <
+          Math.max(1 + Math.floor(pop / 60), breadShort ? count(w, 'farmhouse', true) : 0),
       'windmill',
       breadShort,
     );
@@ -197,7 +198,10 @@ export class VillagePlayer {
       breadShort,
     );
     go(
-      breadShort && !backedUp('farmhouse') && !backedUp('windmill') && count(w, 'farmhouse') < 1 + Math.floor(pop / 50),
+      breadShort &&
+        !backedUp('farmhouse') &&
+        !backedUp('windmill') &&
+        count(w, 'farmhouse') < 1 + Math.floor(pop / 50),
       'farmhouse',
       true,
     );

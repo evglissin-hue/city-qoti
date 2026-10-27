@@ -222,7 +222,8 @@ class Players {
     if (w.lots.some((l) => !l.buildingId && homes.includes(l.zone))) return;
     if (growthDemand(w).homes <= 0) return;
     const street = planHighStreet(w);
-    if (!street || !this.do('lay another street', [{ t: 'road.paint', kind: 'lane', tiles: street.tiles }])) return;
+    if (!street || !this.do('lay another street', [{ t: 'road.paint', kind: 'lane', tiles: street.tiles }]))
+      return;
     this.streets++;
     this.do('zone the street', zoneHighStreet(w, street));
   }
@@ -402,7 +403,8 @@ class Players {
     const healthy = w.buildings.filter(
       (b) =>
         b.def === 'woodcutter' &&
-        (b.stage !== 'built' || ((b.rt!.status & BuildingStatus.noTrees) === 0 && matureTreesNear(w, b.x, b.z, 8) >= 15)),
+        (b.stage !== 'built' ||
+          ((b.rt!.status & BuildingStatus.noTrees) === 0 && matureTreesNear(w, b.x, b.z, 8) >= 15)),
     ).length;
     const thinning = count(w, 'woodcutter', true) > 0 && healthy === 0;
     want(
@@ -416,7 +418,8 @@ class Players {
       (b) => b.def === 'woodcutter' && b.stage === 'built' && (b.rt!.status & BuildingStatus.noTrees) === 0,
     );
     if (working) for (const b of felled) this.do('retire a woodcutter', [{ t: 'build.remove', ids: [b.id] }]);
-    want(stock[G('stone')]! < 16 && count(w, 'quarry') === 0, 'quarry');
+    // C4X: urgent, as homes wait on stone (a hamlet ran out on day five and grew no homes for a week).
+    want(stock[G('stone')]! < 16 && count(w, 'quarry') === 0, 'quarry', true);
     want(
       count(w, 'foresters-lodge') === 0 && count(w, 'woodcutter', true) > 0 && pop >= 12,
       'foresters-lodge',
@@ -776,25 +779,24 @@ class Players {
     const wells = w.buildings
       .filter((b) => b.def === 'well' && b.stage === 'built' && homesNear(b) >= 3)
       .sort((a, b) => homesNear(b) - homesNear(a) || a.id - b.id);
-    for (const well of wells) {
-      const near = (def: string, r: number) =>
-        w.decor.filter(
-          (d) =>
-            d.def === def &&
-            Math.abs(d.fx / TILE_FP - (well.x + 0.5)) <= r + 1 &&
-            Math.abs(d.fz / TILE_FP - (well.z + 0.5)) <= r + 1,
-        ).length;
-      // Within three tiles of the well's footprint, searched a little wider than its corner.
+    // Once the Pattern Book hints at it and the hamlet has a few streets (seats placed on day one
+    // took the plots the first cottages wanted).
+    const gather = w.hearth.hints.includes('well-gathering-place') && w.residents.length >= 20;
+    for (const well of gather ? wells : []) {
+      // Distances as the Pattern Book measures them: from the well's footprint, in a straight line.
       const d = content.buildingById.get(well.def)!;
       const [ww, wd] = well.rot % 2 === 0 ? d.size : [d.size[1], d.size[0]];
-      const shade = (fx: number, fz: number) => {
+      const reach = (r: number) => (fx: number, fz: number) => {
         const tx = Math.floor(fx / TILE_FP);
         const tz = Math.floor(fz / TILE_FP);
         const gx = Math.max(0, well.x - tx, tx - (well.x + ww - 1));
         const gz = Math.max(0, well.z - tz, tz - (well.z + wd - 1));
-        return gx * gx + gz * gz <= 9;
+        return gx * gx + gz * gz <= r * r + r;
       };
-      const benches = near('bench', 2) >= 2 ? null : this.decorSpot('bench', well.x, well.z, 2);
+      const near = (def: string, r: number) =>
+        w.decor.filter((x) => x.def === def && reach(r)(x.fx, x.fz)).length;
+      const shade = reach(3);
+      const benches = near('bench', 2) >= 2 ? null : this.decorSpot('bench', well.x, well.z, 4, reach(2));
       if (near('bench', 2) < 2 && !benches) continue;
       const shaded = near('apple-tree', 3) + near('cherry-tree', 3) > 0 || treeNear(w, well, 3, 2);
       const tree = shaded
@@ -878,8 +880,11 @@ function treeNear(w: WorldState, b: Building, r: number, stage: number): boolean
   const [bw, bd] = b.rot % 2 === 0 ? def.size : [def.size[1], def.size[0]];
   for (let z = Math.max(0, b.z - r); z < Math.min(S, b.z + bd + r); z++)
     for (let x = Math.max(0, b.x - r); x < Math.min(S, b.x + bw + r); x++) {
+      // Measured as the Pattern Book does: straight-line distance from the footprint.
+      const gx = Math.max(0, b.x - x, x - (b.x + bw - 1));
+      const gz = Math.max(0, b.z - z, z - (b.z + bd - 1));
       const v = w.map.tree[z * S + x]!;
-      if (v && treeStage(v) >= stage) return true;
+      if (v && treeStage(v) >= stage && gx * gx + gz * gz <= r * r + r) return true;
     }
   return false;
 }

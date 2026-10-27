@@ -299,7 +299,8 @@ function fieldRoom(world: WorldState, x: number, z: number, rot: Rot4, want: num
   let n = 0;
   for (let tz = z - 6; tz <= z + 8; tz++) {
     for (let tx = x - 6; tx <= x + 8; tx++) {
-      if (tx < 0 || tz < 0 || tx >= MAP_SIZE || tz >= MAP_SIZE || world.map.zone[tz * MAP_SIZE + tx]) continue;
+      if (tx < 0 || tz < 0 || tx >= MAP_SIZE || tz >= MAP_SIZE || world.map.zone[tz * MAP_SIZE + tx])
+        continue;
       if (!fieldTileProblem(world, farm, def, tx, tz) && ++n >= want) return true;
     }
   }
