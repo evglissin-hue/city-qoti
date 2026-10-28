@@ -2201,12 +2201,6 @@ li.plan.settled p {
   }
 }
 
-/* Tools sit a touch closer, so the I2 toolbar fits a 1280 wide window. */
-.toolbar-row .tool {
-  min-width: 50px;
-  padding: 4px 5px;
-}
-
 /* The left feed scrolls rather than slipping under the toolbar. */
 .side.left {
   max-height: calc(100vh - 92px - 84px * var(--ui-scale));

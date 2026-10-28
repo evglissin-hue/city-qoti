@@ -1,6 +1,7 @@
 // Samples the Mirror around the camera focus into an AmbienceScene (C5G): a coarse grid of tiles
 // for water, woods and grass, and the working buildings nearby. About 300 tile reads and one pass
 // over the buildings, every half second.
+import { content } from '@qoti/content';
 import { MAP_SIZE, MAX_HEIGHT, Terrain, Water, type BuildingView } from '@qoti/sim';
 import { WORK_SOUNDS, emptyPresence, type AmbienceScene, type Presence } from './ambience';
 
@@ -71,6 +72,7 @@ export function sampleScene(
   const anvil = emptyPresence();
   const saw = emptyPresence();
   const market = emptyPresence();
+  const homes = emptyPresence();
   const by = { hammer, anvil, saw, market };
   for (const b of buildings) {
     const dx = b.x - fx;
@@ -81,13 +83,14 @@ export function sampleScene(
       if (present > 0) addTo(hammer, dx, dz, 1);
       continue;
     }
+    if (content.buildingById.get(b.def)?.tags?.includes('home')) addTo(homes, dx, dz, 1);
     const sound = WORK_SOUNDS.get(b.def);
     if (!sound) continue;
     // Stalls and taverns murmur when open even with nobody counted inside; workshops only at work.
     if (sound === 'market') addTo(market, dx, dz, b.def === 'tavern' || b.def === 'trading-post' ? 2 : 1);
     else if (present > 0) addTo(by[sound], dx, dz, 1);
   }
-  for (const p of [hammer, anvil, saw, market]) finish(p, 1);
+  for (const p of [hammer, anvil, saw, market, homes]) finish(p, 1);
   return {
     water,
     forest,
@@ -97,6 +100,7 @@ export function sampleScene(
     anvil,
     saw,
     market,
+    homes,
     radius,
   };
 }

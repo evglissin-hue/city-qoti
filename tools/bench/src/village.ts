@@ -9,7 +9,7 @@ import {
   canPaintRoad,
   canPlaceBuilding,
   doorTile,
-  FIELD_MIN_FERTILITY,
+  FIELD_GOOD_FERTILITY,
   growthDemand,
   MAP_SIZE,
   type Building,
@@ -131,7 +131,7 @@ export function zoneHighStreet(w: WorldState, street: HighStreet): Command[] {
       // Farms want good soil: the last stretch, if it has it, else more cottages.
       let fert = 0;
       for (let d = 1; d <= 3; d++) fert += w.map.fertility[(tz + dx * side * d) * S + tx + -dz * side * d]!;
-      const farm = k >= 17 && fert / 3 >= FIELD_MIN_FERTILITY;
+      const farm = k >= 17 && fert / 3 >= FIELD_GOOD_FERTILITY;
       const zone =
         k < 4
           ? 'shops'

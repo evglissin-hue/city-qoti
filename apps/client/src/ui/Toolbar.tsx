@@ -18,7 +18,7 @@ import type { Tool } from '../input/tool';
 import { goodName, thousands } from './format';
 import { thumbnail, type ThumbnailKind } from '../render/thumbnails';
 import { Glyph, ToolIcon } from './icons';
-import { lenses, overlays, toolsForLens } from './lenses';
+import { lenses, overlays, toolsForLens, type OverlayDef } from './lenses';
 import { rejectText } from './messages';
 import { booksFor, toggleBook } from './panels';
 import { planSummary } from './plans';
@@ -80,13 +80,14 @@ export function Toolbar({ session }: { session: Session }) {
         )}
       {current?.id === 'field' && <FieldHint session={session} />}
       <div class="toolbar-row panel">
-        <div class="lenses" title="Tab switches lens">
+        <div class="lenses" role="group" aria-label="Lens" title="Tab switches lens">
           {lenses.map((l) => (
             <button
               key={l.id}
               type="button"
               class={`lens ${lens === l.id ? 'active' : ''}`}
               style={{ '--lens': l.accent }}
+              aria-pressed={lens === l.id}
               data-testid={`lens-${l.id}`}
               title={l.blurb}
               onClick={() => (session.ui.lens.value = l.id)}
@@ -96,11 +97,11 @@ export function Toolbar({ session }: { session: Session }) {
           ))}
         </div>
         <div class="tools">
-          {tools.map((t) => (
+          {tools.map((t, i) => (
             <button
               key={t.id}
               type="button"
-              class={`tool ${active === t.id ? 'active' : ''}`}
+              class={`tool ${active === t.id ? 'active' : ''} ${i > 0 && toolBand(t) !== toolBand(tools[i - 1]!) ? 'band' : ''}`}
               data-testid={`tool-${t.id}`}
               title={t.hint ? `${t.label}: ${t.hint}` : t.label}
               onClick={() => manager.select(t.id)}
@@ -108,59 +109,128 @@ export function Toolbar({ session }: { session: Session }) {
               <span class="icon">
                 <ToolIcon id={t.id} fallback={t.icon} />
               </span>
-              <span>{t.label}</span>
+              <span class="label">{t.label}</span>
             </button>
           ))}
         </div>
         {books.length > 0 && (
-          <div class="books">
+          <div class="books" role="group" aria-label="Books">
             {books.map((b) => (
               <button
                 key={b.id}
                 type="button"
-                class={`tool book ${panel === b.id ? 'active' : ''}`}
+                class={`book ${panel === b.id ? 'active' : ''}`}
                 data-testid={`book-${b.id}`}
-                title={b.key ? `${b.label} (${b.key.toUpperCase()})` : b.label}
+                aria-label={b.label}
+                data-tip={b.key ? `${b.label} (${b.key.toUpperCase()})` : b.label}
                 onClick={() => toggleBook(session, b.id)}
               >
-                <span class="icon">
-                  <Glyph id={b.icon ?? b.id} />
-                </span>
-                <span>{b.label}</span>
+                <Glyph id={b.icon ?? b.id} />
               </button>
             ))}
           </div>
         )}
         {lensOverlays.length > 0 && (
-          <div class="overlay-toggles" role="group" aria-label="Overlays">
-            {lensOverlays.map((o) => (
-              <button
-                key={o.id}
-                type="button"
-                class={`overlay-toggle ${shown === o.id ? 'active' : ''}`}
-                aria-pressed={shown === o.id}
-                data-testid={`overlay-${o.id}`}
-                title={o.hint}
-                onClick={() => (session.ui.overlay.value = shown === o.id ? null : o.id)}
-              >
-                <Glyph id={o.icon} />
-                <span>{o.label}</span>
-              </button>
-            ))}
-          </div>
+          <OverlayMenu options={lensOverlays} shown={shown} pick={(id) => (session.ui.overlay.value = id)} />
         )}
         <button
           type="button"
           class="undo-button"
           data-testid="undo"
           disabled={!canUndo}
-          title="Undo your last change (Ctrl+Z)"
+          aria-label="Undo"
+          data-tip="Undo your last change (Ctrl+Z)"
           onClick={() => session.undoLast()}
         >
           <Glyph id="undo" />
         </button>
       </div>
     </footer>
+  );
+}
+
+/** Tools fall in bands (look, make, talk, take away); a little air separates the bands. */
+function toolBand(t: Tool): number {
+  const o = t.order ?? 50;
+  return o < 10 ? 0 : o < 70 ? 1 : o < 90 ? 2 : 3;
+}
+
+/** One button for the lens's overlays: it names the one showing, and opens a short list. */
+function OverlayMenu({
+  options,
+  shown,
+  pick,
+}: {
+  options: OverlayDef[];
+  shown: string | null;
+  pick: (id: string | null) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  useEffect(() => {
+    if (!open) return;
+    const close = (e: Event) => {
+      if (e instanceof KeyboardEvent && e.key !== 'Escape') return;
+      if (e instanceof PointerEvent && (e.target as Element | null)?.closest('.overlay-menu')) return;
+      setOpen(false);
+    };
+    addEventListener('pointerdown', close, true);
+    addEventListener('keydown', close, true);
+    return () => {
+      removeEventListener('pointerdown', close, true);
+      removeEventListener('keydown', close, true);
+    };
+  }, [open]);
+  const current = options.find((o) => o.id === shown);
+  return (
+    <div class="overlay-menu">
+      {open && (
+        <div class="overlay-list panel" role="menu" data-testid="overlay-list">
+          {options.map((o) => (
+            <button
+              key={o.id}
+              type="button"
+              role="menuitemradio"
+              aria-checked={shown === o.id}
+              class={shown === o.id ? 'active' : ''}
+              data-testid={`overlay-${o.id}`}
+              onClick={() => {
+                pick(shown === o.id ? null : o.id);
+                setOpen(false);
+              }}
+            >
+              <Glyph id={o.icon} />
+              <span>
+                <b>{o.label}</b>
+                <span class="muted">{o.hint}</span>
+              </span>
+            </button>
+          ))}
+        </div>
+      )}
+      <button
+        type="button"
+        class={`overlay-button ${current ? 'active' : ''}`}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        data-testid="overlays"
+        data-tip="Overlays: see the valley another way"
+        onClick={() => setOpen(!open)}
+      >
+        <Glyph id={current?.icon ?? 'eye'} />
+        <span>{current ? current.label : 'View'}</span>
+      </button>
+      {current && (
+        <button
+          type="button"
+          class="overlay-clear"
+          aria-label={`Hide ${current.label}`}
+          data-testid="overlay-clear"
+          onClick={() => pick(null)}
+        >
+          ×
+        </button>
+      )}
+    </div>
   );
 }
 
@@ -325,7 +395,7 @@ function FieldHint({ session }: { session: Session }) {
       <Glyph id="field" />
       <span>
         {b
-          ? 'Sowing for the farmhouse. Drag a box of fertile ground; Shift+drag clears. A coin a tile.'
+          ? 'Sowing for the farmhouse. Drag a box within reach; the tint shows the soil, and Shift+drag clears. A coin a tile.'
           : 'Click a farmhouse first. Fields have to be within reach of someone with a hoe.'}
       </span>
     </div>

@@ -10,6 +10,7 @@ import { CUE_GAP, CueLimiter } from './cues/limiter';
 import { cueForCommand, cueScene, cuesFor, type CueScene } from './cues/index';
 import { MusicPlayer } from './music';
 import { sampleScene } from './scene';
+import { TUNED_CUES } from './synth/cues';
 import { busGain, type AudioSettings } from './settings';
 import type { AmbienceId } from './synth/ambience';
 
@@ -41,6 +42,12 @@ interface AmbienceVoice {
   pan: StereoPannerNode;
   /** Audio time it went silent, or -1 while heard. */
   quietSince: number;
+}
+
+/** Semitones from C to the key's tonic, the short way round (-5 to 6). */
+export function keyShift(key: number): number {
+  const s = (((key - 48) % 12) + 12) % 12;
+  return s > 6 ? s - 12 : s;
 }
 
 /** A soft room: two channels of decaying noise, darker as it fades. */
@@ -158,6 +165,8 @@ export class AudioEngine implements AudioApi {
     if (!buffer || !this.limiter.allow(id, this.ctx.currentTime)) return;
     const src = this.ctx.createBufferSource();
     src.buffer = buffer;
+    // Musical cues are written in C and play in the music's key, so a chime never clashes.
+    if (TUNED_CUES.has(id)) src.playbackRate.value = Math.pow(2, keyShift(this.music.key) / 12);
     const g = this.ctx.createGain();
     g.gain.value = id === 'bell' || id === 'raid-horn' || id === 'thunder' ? 0.8 : 0.55;
     src.connect(g).connect(this.buses.effects);

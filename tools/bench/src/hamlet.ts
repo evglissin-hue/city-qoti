@@ -14,8 +14,10 @@ import {
   createValley,
   defaultSettings,
   doorTile,
+  FIELD_GOOD_FERTILITY,
   fieldTileProblem,
   findById,
+  inBounds,
   insertBuilding,
   MAP_SIZE,
   NEED_IDS,
@@ -301,6 +303,8 @@ function fieldRoom(world: WorldState, x: number, z: number, rot: Rot4, want: num
     for (let tx = x - 6; tx <= x + 8; tx++) {
       if (tx < 0 || tz < 0 || tx >= MAP_SIZE || tz >= MAP_SIZE || world.map.zone[tz * MAP_SIZE + tx])
         continue;
+      // Good soil only, the land the autoplayer sows.
+      if (world.map.fertility[tz * MAP_SIZE + tx]! < FIELD_GOOD_FERTILITY) continue;
       if (!fieldTileProblem(world, farm, def, tx, tz) && ++n >= want) return true;
     }
   }
@@ -475,7 +479,8 @@ export function fortyResidentHamlet(seed: string): Hamlet {
   if (farm) {
     const tiles: [number, number][] = [];
     for (let z = farm.z - 6; z <= farm.z + 7; z++)
-      for (let x = farm.x - 6; x <= farm.x + 7; x++) tiles.push([x, z]);
+      for (let x = farm.x - 6; x <= farm.x + 7; x++)
+        if (inBounds(x, z) && w.map.fertility[z * MAP_SIZE + x]! >= FIELD_GOOD_FERTILITY) tiles.push([x, z]);
     command(h, [{ t: 'field.paint', farm: farm.id, tiles: tiles.slice(0, 256) }]);
   }
   const store = w.buildings.find((b) => b.def === 'storehouse')!;

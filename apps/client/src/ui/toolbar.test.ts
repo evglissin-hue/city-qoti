@@ -105,7 +105,11 @@ describe('lens toolbars', () => {
       'erase',
     ]);
     expect(ids(view.root, 'book-')).toEqual(['wishes', 'patterns', 'chronicle', 'letters', 'achievements']);
-    expect(ids(view.root, 'overlay-')).toEqual(['charm']);
+    // Overlays wait behind one View button.
+    expect(ids(view.root, 'overlay-')).toEqual([]);
+    await view.click('overlays');
+    expect(ids(view.root, 'overlay-').filter((id) => id !== 'list')).toEqual(['charm']);
+    await view.click('overlays');
     await view.click('book-patterns');
     expect(session.ui.panel.value).toBe('patterns');
     await view.click('book-patterns');
@@ -125,9 +129,15 @@ describe('lens toolbars', () => {
       'erase',
     ]);
     expect(ids(view.root, 'book-')).toEqual(['market', 'trade', 'policies', 'reports', 'notebook']);
-    expect(ids(view.root, 'overlay-')).toEqual(['coverage', 'flows', 'status']);
+    await view.click('overlays');
+    expect(ids(view.root, 'overlay-').filter((id) => id !== 'list')).toEqual(['coverage', 'flows', 'status']);
     await view.click('overlay-flows');
     expect(session.ui.overlay.value).toBe('flows');
+    // The button now names the overlay, and the list has closed.
+    expect(view.get('overlays').textContent).toContain('Flows');
+    expect(ids(view.root, 'overlay-')).toEqual(['clear']);
+    await view.click('overlay-clear');
+    expect(session.ui.overlay.value).toBeNull();
     expect((view.get('undo') as HTMLButtonElement).disabled).toBe(true);
   });
 

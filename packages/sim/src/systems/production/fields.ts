@@ -1,10 +1,11 @@
 // Wheat fields (docs/spec/13-ledger.md, Farmhouse and Wheat Field). Field tiles are painted
-// within 6 tiles of a farmhouse on fertile ground (40+). The farmhouse's workers tend up to 12
-// tiles each: tended tiles grow in the `crop` layer (0 bare to 255 ripe) during the work day and
-// are harvested for wheat when ripe, then sown again. A field ripens in about two work days and
-// yields 2 wheat, so a tile gives about 1 wheat a day, as the spec asks.
+// within 6 tiles of a farmhouse on open ground (fertility 15+). The farmhouse's workers tend up to
+// 12 tiles each: tended tiles grow in the `crop` layer (0 bare to 255 ripe) during the work day and
+// are harvested for wheat when ripe, then sown again. On good soil (40+) a field ripens in about
+// two work days and yields 2 wheat, so a tile gives about 1 wheat a day, as the spec asks; thin
+// soil grows it a quarter to a half slower.
 import type { BuildingDef } from '@qoti/content';
-import { FIELD_MIN_FERTILITY, MAP_SIZE, TILE_FP } from '../../constants';
+import { FIELD_GOOD_FERTILITY, FIELD_MIN_FERTILITY, MAP_SIZE, TILE_FP } from '../../constants';
 import type { Building, Rect, RejectReason, TickCtx, WorldState } from '../../contracts';
 import { inBounds, Terrain } from '../../map/layers';
 import { MAX_DECOR_RADIUS } from '../../rules/geometry';
@@ -21,6 +22,11 @@ export const CROP_GROWTH = 4;
 export const CROP_STEP_TICKS = 50;
 export const CROP_RIPE = 255;
 export const CROP_YIELD = 2;
+/** Crop growth per tended step on a tile of this fertility: full on good soil, less on thin. */
+export function cropGrowth(fertility: number): number {
+  if (fertility >= FIELD_GOOD_FERTILITY) return CROP_GROWTH;
+  return fertility >= 25 ? CROP_GROWTH - 1 : CROP_GROWTH - 2;
+}
 /** Growth stages the renderer draws (crop >> CROP_STAGE_SHIFT): bare, sprouts, green, golden. */
 export const CROP_STAGE_SHIFT = 6;
 
@@ -243,7 +249,7 @@ export function tendFields(
           full = true;
         }
       } else {
-        next = Math.min(CROP_RIPE, c + CROP_GROWTH);
+        next = Math.min(CROP_RIPE, c + cropGrowth(m.fertility[i]!));
       }
       m.crop[i] = next;
       sum += next;

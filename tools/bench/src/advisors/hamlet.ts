@@ -9,6 +9,7 @@ import {
   BuildingStatus,
   creditLimit,
   expenses,
+  FIELD_GOOD_FERTILITY,
   fieldCap,
   fieldTileProblem,
   income,
@@ -250,6 +251,7 @@ class Hamlet implements Advisor {
       let owned = 0;
       for (let i = 0; i < w.map.fieldOwner.length; i++) if (w.map.fieldOwner[i] === farm.id) owned++;
       if (owned >= cap || p.coins() < cap) continue;
+      // Good soil only: thin soil grows slowly, and the land is better kept for the village.
       const tiles: [number, number][] = [];
       for (let dz = -6; dz <= 7 && tiles.length < cap - owned; dz++) {
         for (let dx = -6; dx <= 7 && tiles.length < cap - owned; dx++) {
@@ -257,6 +259,7 @@ class Hamlet implements Advisor {
           const z = farm.z + dz;
           const i = idx(x, z);
           if (w.map.fieldOwner[i] || w.map.zone[i] || fieldTileProblem(w, farm, def, x, z)) continue;
+          if (w.map.fertility[i]! < FIELD_GOOD_FERTILITY) continue;
           tiles.push([x, z]);
         }
       }

@@ -556,47 +556,78 @@ input::placeholder {
 
 .toolbar-row {
   display: flex;
-  gap: 12px;
-  padding: 7px 10px;
+  gap: 6px;
+  padding: 6px 8px;
   align-items: center;
   border-radius: 16px;
-  border-top: 4px solid var(--accent, var(--ink-line));
+  border-top: 3px solid var(--accent, var(--ink-line));
+  max-width: calc(100vw - 16px);
+}
+
+/* The toolbar is one quiet strip: its buttons have no boxes of their own, only the chosen tool
+   wears the lens color, and a little air (not lines) keeps the groups apart. */
+.toolbar-row button {
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+}
+
+.toolbar-row button:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--ink) 7%, transparent);
+  border-color: transparent;
+  box-shadow: none;
+  transform: none;
 }
 
 .lenses {
   display: flex;
-  gap: 4px;
-  padding-right: 12px;
-  border-right: 1.5px dashed var(--line);
+  padding: 2px;
+  margin-right: 4px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--ink) 8%, var(--paper-light));
 }
 
-.lens {
+.toolbar-row .lens {
   font-family: 'Alegreya', Georgia, serif;
   font-weight: 700;
+  font-size: 0.95rem;
+  padding: 5px 12px;
+  border-radius: 10px;
+  color: var(--ink-soft);
 }
 
-.lens.active {
+.toolbar-row .lens.active,
+.toolbar-row .lens.active:hover:not(:disabled) {
   background: var(--lens);
   color: #fffaf0;
-  border-color: var(--ink-line);
+  box-shadow: 0 1px 0 rgba(90, 66, 49, 0.25);
 }
 
 .tools {
   display: flex;
-  gap: 4px;
+  gap: 1px;
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
 }
 
 .tool {
   display: grid;
   justify-items: center;
   gap: 1px;
-  min-width: 62px;
-  padding: 4px 8px;
-  font-size: 0.82rem;
+  min-width: 50px;
+  padding: 4px 6px 3px;
+  border-radius: 10px;
+  font-size: 0.78rem;
+  color: var(--ink);
+}
+
+.tool.band {
+  margin-left: 10px;
 }
 
 .tool .icon {
-  font-size: 1.15rem;
+  font-size: 1.1rem;
   line-height: 1;
   display: grid;
   place-items: center;
@@ -604,14 +635,182 @@ input::placeholder {
 }
 
 .tool .icon svg {
-  width: 22px;
-  height: 22px;
+  width: 21px;
+  height: 21px;
 }
 
-.tool.active {
-  border-color: var(--accent);
-  background: color-mix(in srgb, var(--accent) 16%, var(--paper-light));
+.toolbar-row .tool.active,
+.toolbar-row .tool.active:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--accent) 18%, var(--paper-light));
   box-shadow: inset 0 0 0 1.5px var(--accent);
+}
+
+/* Books: small spines with a tooltip, apart from the tools. */
+.books {
+  display: flex;
+  gap: 1px;
+  margin-left: 6px;
+  padding-left: 8px;
+  border-left: 1px solid color-mix(in srgb, var(--ink) 14%, transparent);
+}
+
+.toolbar-row .book {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border-radius: 10px;
+  color: var(--ink-soft);
+}
+
+.toolbar-row .book .glyph,
+.toolbar-row .book svg {
+  width: 20px;
+  height: 20px;
+}
+
+.toolbar-row .book.active,
+.toolbar-row .book.active:hover:not(:disabled) {
+  color: var(--ink);
+  background: color-mix(in srgb, var(--accent) 18%, var(--paper-light));
+  box-shadow: inset 0 0 0 1.5px var(--accent);
+}
+
+/* Overlays: one button that names the overlay showing and opens a short list above it. */
+.overlay-menu {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.toolbar-row .overlay-button {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  height: 36px;
+  padding: 0 10px;
+  border-radius: 10px;
+  font-size: 0.82rem;
+  color: var(--ink-soft);
+  white-space: nowrap;
+}
+
+.overlay-button .glyph {
+  width: 17px;
+  height: 17px;
+}
+
+.toolbar-row .overlay-button.active {
+  color: var(--ink);
+  background: color-mix(in srgb, var(--accent) 18%, var(--paper-light));
+  box-shadow: inset 0 0 0 1.5px var(--accent);
+}
+
+.toolbar-row .overlay-clear {
+  padding: 0 6px;
+  height: 24px;
+  margin-left: -2px;
+  font-size: 1rem;
+  line-height: 1;
+  color: var(--ink-soft);
+}
+
+.overlay-list {
+  position: absolute;
+  bottom: calc(100% + 12px);
+  right: -8px;
+  display: grid;
+  gap: 2px;
+  width: 260px;
+  padding: 6px;
+  border-radius: 14px;
+}
+
+.overlay-list button {
+  display: flex;
+  gap: 9px;
+  align-items: flex-start;
+  text-align: left;
+  padding: 6px 8px;
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+  font-size: 0.84rem;
+}
+
+.overlay-list button:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--ink) 7%, transparent);
+  border-color: transparent;
+  box-shadow: none;
+  transform: none;
+}
+
+.overlay-list button.active {
+  background: color-mix(in srgb, var(--accent) 18%, var(--paper-light));
+}
+
+.overlay-list .glyph {
+  width: 17px;
+  height: 17px;
+  margin-top: 1px;
+  flex: none;
+}
+
+.overlay-list b {
+  display: block;
+}
+
+.overlay-list .muted {
+  display: block;
+  font-size: 0.76rem;
+  line-height: 1.25;
+}
+
+.toolbar-row .undo-button {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border-radius: 50%;
+  color: var(--ink-soft);
+}
+
+.undo-button .glyph {
+  width: 18px;
+  height: 18px;
+}
+
+/* Quick tooltips for the icon-only buttons (the title attribute waits too long). */
+.toolbar-row [data-tip] {
+  position: relative;
+}
+
+.toolbar-row [data-tip]:hover::after {
+  content: attr(data-tip);
+  position: absolute;
+  bottom: calc(100% + 10px);
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 4px 8px;
+  border-radius: 8px;
+  background: var(--ink);
+  color: var(--paper-light);
+  font-size: 0.76rem;
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 2;
+}
+
+/* At large interface sizes the tools drop their labels (tooltips keep them). */
+.ui-large .toolbar-row .tool .label,
+.ui-large .overlay-button > span:not(.glyph) {
+  display: none;
+}
+
+.ui-large .toolbar-row .tool {
+  min-width: 40px;
 }
 
 .variants {
@@ -1060,4 +1259,8 @@ kbd {
 .dial-note {
   margin: 0;
   font-style: italic;
+}
+
+.toolbar-row [aria-expanded='true']:hover::after {
+  display: none;
 }

@@ -4,11 +4,12 @@
 import { RENDER_RATE } from './synth/dsp';
 import { jobKey, renderJob, type RenderJob } from './synth/jobs';
 
-/** Most notes a piece needs at once is about 40; keep a few pieces' worth plus cues and loops. */
-const MAX_BUFFERS = 200;
+/** The bank's limit in samples (32 MB of floats): a few pieces' notes, the cues and the loops. */
+const MAX_SAMPLES = 8_000_000;
 
 export class SoundBank {
   private readonly buffers = new Map<string, AudioBuffer>();
+  private samples = 0;
   private readonly asked = new Set<string>();
   private readonly idleQueue: RenderJob[] = [];
   private idle = false;
@@ -70,8 +71,11 @@ export class SoundBank {
     const b = this.ctx.createBuffer(1, Math.max(1, data.length), RENDER_RATE);
     b.copyToChannel(data as Float32Array<ArrayBuffer>, 0);
     this.buffers.set(key, b);
-    while (this.buffers.size > MAX_BUFFERS) {
+    this.samples += b.length;
+    // Least recently used go first; cues and the loops in play are used often enough to stay.
+    while (this.samples > MAX_SAMPLES && this.buffers.size > 1) {
       const oldest = this.buffers.keys().next().value as string;
+      this.samples -= this.buffers.get(oldest)!.length;
       this.buffers.delete(oldest);
     }
   }

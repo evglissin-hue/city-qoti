@@ -20,6 +20,9 @@ export function audioEngine(): AudioEngine | null {
  */
 export function installAudio(source: AudioSource): () => void {
   if (typeof window === 'undefined' || typeof AudioContext === 'undefined') return () => {};
+  // Automated browsers (the e2e suite) stay silent unless a page asks for sound with ?audio: two
+  // browsers rendering instruments on a shared CI runner slowed the two-seat specs past their time.
+  if (navigator.webdriver && !new URLSearchParams(location.search).has('audio')) return () => {};
   let disposed = false;
   let stopSettings: (() => void) | null = null;
   const start = (): void => {

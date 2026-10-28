@@ -4,7 +4,13 @@ import { BuildingStatus, MAP_SIZE, TICKS_PER_HOUR } from '../../src/constants';
 import type { Building, WorldState } from '../../src/contracts';
 import { TREE_SPECIES, treeStage, treeValue } from '../../src/map/layers';
 import { insertBuilding } from '../../src/state/place';
-import { CROP_RIPE, CROP_STEP_TICKS, CROP_YIELD } from '../../src/systems/production/fields';
+import {
+  CROP_GROWTH,
+  CROP_RIPE,
+  CROP_STEP_TICKS,
+  CROP_YIELD,
+  cropGrowth,
+} from '../../src/systems/production/fields';
 import { hamletFixture } from '../fixtures/hamlet';
 import { rejection, run, S } from '../helpers';
 import { building, good, hire, stockOf, ticks, toWork } from './helpers';
@@ -270,7 +276,7 @@ describe('field painting', () => {
     const f = hamletFixture();
     const farm = place(f.state, 'farmhouse', 130, 120);
     fertile(f.state, 124, 114, 140, 130);
-    f.state.map.fertility[121 * S + 133] = 20;
+    f.state.map.fertility[121 * S + 133] = 10;
     const before = f.state.economy.treasury;
     const network = f.state.networkVersion;
     const ctx = run(f.state, {
@@ -295,6 +301,20 @@ describe('field painting', () => {
     // Walkers route on the network; fields change it.
     expect(f.state.networkVersion).toBeGreaterThan(network);
     expect(ctx.events.some((e) => e.e === 'tiles.changed' && e.layers.includes('fieldOwner'))).toBe(true);
+  });
+
+  it('sows thin soil too, where the wheat grows more slowly', () => {
+    const f = hamletFixture();
+    const farm = place(f.state, 'farmhouse', 130, 120);
+    fertile(f.state, 124, 114, 140, 130, 30);
+    expect(rejection(run(f.state, { t: 'field.paint', farm: farm.id, tiles: [[133, 120]] }))).toBeUndefined();
+    expect(f.state.map.fieldOwner[120 * S + 133]).toBe(farm.id);
+    expect(cropGrowth(30)).toBeLessThan(CROP_GROWTH);
+    expect(cropGrowth(18)).toBeLessThan(cropGrowth(30));
+    expect(cropGrowth(18)).toBeGreaterThan(0);
+    // Good soil grows exactly as before.
+    expect(cropGrowth(40)).toBe(CROP_GROWTH);
+    expect(cropGrowth(95)).toBe(CROP_GROWTH);
   });
 
   it('refuses when nothing could be painted, with the reason', () => {

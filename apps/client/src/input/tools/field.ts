@@ -1,5 +1,6 @@
 import { content } from '@qoti/content';
 import {
+  FIELD_GOOD_FERTILITY,
   FIELD_MIN_FERTILITY,
   FIELD_TILE_COST,
   footprintTiles,
@@ -15,6 +16,14 @@ import { cursorHint } from '../hint';
 import type { PointerInfo, Tool } from '../tool';
 
 const DEFAULT_RANGE = 6;
+
+/** How the soil reads on a tile, for the hint while sowing. */
+export function soilWord(fertility: number): string {
+  if (fertility >= 70) return 'Rich soil';
+  if (fertility >= FIELD_GOOD_FERTILITY) return 'Good soil';
+  if (fertility >= FIELD_MIN_FERTILITY) return 'Thin soil: the wheat will take its time';
+  return 'Too stony for wheat';
+}
 
 /** Field tiles a farmhouse can tend: within its method's range of the footprint (square reach). */
 export function fieldReach(b: BuildingView): {
@@ -69,11 +78,11 @@ export function fieldTool(ctx: ToolContext): Tool {
   }
 
   /** The box from start to end, split into tiles that can be painted (or cleared) and the rest. */
-  function box(): { good: [number, number][]; bad: [number, number][]; reason: string | null } {
+  function box(): { good: [number, number][]; bad: [number, number][]; reason: string | null; thin: number } {
     const b = farm();
     const good: [number, number][] = [];
     const bad: [number, number][] = [];
-    if (!start || !end || !b) return { good, bad, reason: null };
+    if (!start || !end || !b) return { good, bad, reason: null, thin: 0 };
     const reach = fieldReach(b);
     const m = ctx.mirror;
     const owner = m.layers.fieldOwner;
@@ -101,11 +110,13 @@ export function fieldTool(ctx: ToolContext): Tool {
         }
       }
     }
-    return { good: good.slice(0, MAX_FIELD_TILES), bad, reason };
+    const sown = good.slice(0, MAX_FIELD_TILES);
+    const thin = erase ? 0 : sown.filter(([x, z]) => m.fertility(x, z) < FIELD_GOOD_FERTILITY).length;
+    return { good: sown, bad, reason, thin };
   }
 
   function preview(): void {
-    const { good, bad, reason } = box();
+    const { good, bad, reason, thin } = box();
     if (!start) return;
     const tiles = good.length ? good : bad;
     ctx.render.setGhost({ kind: 'tiles', tiles, valid: good.length > 0 });
@@ -123,7 +134,7 @@ export function fieldTool(ctx: ToolContext): Tool {
       blocked
         ? rejectText(blocked)
         : good.length
-          ? `${good.length} ${good.length === 1 ? 'tile' : 'tiles'} of wheat, ${coins} ${coins === 1 ? 'coin' : 'coins'}${bad.length && reason ? `. Some are not: ${reason.toLowerCase()}` : ''}`
+          ? `${good.length} ${good.length === 1 ? 'tile' : 'tiles'} of wheat, ${coins} ${coins === 1 ? 'coin' : 'coins'}${thin ? ` (${thin === good.length ? 'all' : thin} on thin soil, slower)` : ''}${bad.length && reason ? `. Some are not: ${reason.toLowerCase()}` : ''}`
           : (reason ?? 'Nothing to plant here'),
       cx,
       cy,
@@ -159,8 +170,18 @@ export function fieldTool(ctx: ToolContext): Tool {
         preview();
         return;
       }
-      ctx.render.setGhost({ kind: 'tiles', tiles: [[p.tile.x, p.tile.z]], valid: !!farm() });
-      cursorHint(farm() ? null : 'Pick a farmhouse first: its fields go within reach of the door.', cx, cy);
+      const b = farm();
+      const inReach = !!b && fieldReach(b).contains(p.tile.x, p.tile.z);
+      ctx.render.setGhost({ kind: 'tiles', tiles: [[p.tile.x, p.tile.z]], valid: !!b });
+      cursorHint(
+        !b
+          ? 'Pick a farmhouse first: its fields go within reach of the door.'
+          : inReach
+            ? soilWord(ctx.mirror.fertility(p.tile.x, p.tile.z))
+            : null,
+        cx,
+        cy,
+      );
     },
     pointerDown(p) {
       cx = p.clientX;

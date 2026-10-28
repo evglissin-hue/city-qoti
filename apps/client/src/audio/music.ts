@@ -10,56 +10,62 @@ import {
   styleFor,
   type DirectorState,
   type PieceChoice,
-  type Style,
 } from './director';
 import { seededRand, type Rand } from './rng';
-import { NOTE_SECONDS, type Instrument } from './synth/instruments';
-import { jobKey } from './synth/jobs';
+import {
+  INSTRUMENT_LEVEL,
+  INSTRUMENT_PAN,
+  RELEASE,
+  SUSTAINED,
+  UNPITCHED,
+  noteSeconds,
+} from './synth/instruments';
+import { jobKey, type RenderJob } from './synth/jobs';
 
 /** Seconds of notes scheduled ahead of the clock. */
 const LOOKAHEAD = 0.6;
 
-/** Voice mix: level and pan. */
-export const VOICE_MIX: Record<Voice, { gain: number; pan: number }> = {
-  lead: { gain: 0.6, pan: 0.15 },
-  comp: { gain: 0.32, pan: -0.25 },
-  bass: { gain: 0.26, pan: 0 },
-  brush: { gain: 0.9, pan: 0.3 },
-  pad: { gain: 0.3, pan: -0.1 },
+/** Each part's level in the band. */
+export const VOICE_LEVEL: Record<Voice, number> = {
+  lead: 1.2,
+  sparkle: 0.6,
+  comp: 0.5,
+  bass: 0.9,
+  pad: 0.6,
+  drums: 0.9,
 };
 
-/** Evens out the instruments: a plucked string dies away fast, so it is played up to match. */
-export const INSTRUMENT_TRIM: Record<Instrument, number> = {
-  bass: 1,
-  bell: 1,
-  brush: 1,
-  guitar: 2.4,
-  pad: 1,
-  piano: 1,
-};
-
-export function instrumentFor(voice: Voice, style: Style): Instrument {
-  if (voice === 'bass' || voice === 'brush' || voice === 'pad') return voice;
-  if (voice === 'lead') return style.lead;
-  return style.lead === 'bell' ? 'pad' : style.lead;
+/** The rendered note a score note plays: soft or firm touch, by its velocity. */
+export function noteJob(n: Pick<Note, 'inst' | 'midi' | 'vel'>): RenderJob {
+  return { kind: 'note', inst: n.inst, midi: n.midi, layer: UNPITCHED.has(n.inst) || n.vel >= 0.5 ? 1 : 0 };
 }
 
-/** The rendered note a score note plays. Brushes vary hit to hit: four rendered strokes. */
-function noteJob(
-  inst: Instrument,
-  note: Note,
-  index: number,
-): { kind: 'note'; inst: Instrument; midi: number } {
-  return { kind: 'note', inst, midi: inst === 'brush' ? 1 + (index % 4) : note.midi };
+/** How loud a note plays (the touch layer already carries the brightness). */
+export function noteGain(n: Pick<Note, 'inst' | 'vel' | 'voice'>): number {
+  return n.vel * INSTRUMENT_LEVEL[n.inst] * VOICE_LEVEL[n.voice];
+}
+
+/** Where a note sits: the instrument's place, and pianos spread low to high. */
+export function notePan(n: Pick<Note, 'inst' | 'midi'>): number {
+  const spread = n.inst === 'piano' || n.inst === 'epiano' ? (n.midi - 64) / 70 : 0;
+  return Math.max(-0.8, Math.min(0.8, INSTRUMENT_PAN[n.inst] + spread));
+}
+
+/** When a note's sound is let go: held notes at their end, struck notes may ring a little on. */
+export function noteRelease(n: Pick<Note, 'inst' | 'dur' | 'midi'>): { at: number; tau: number } {
+  const ring = SUSTAINED.has(n.inst)
+    ? n.dur
+    : Math.max(n.dur, Math.min(1.2, noteSeconds(n.inst, n.midi)) * 0.4);
+  return { at: Math.min(ring, noteSeconds(n.inst, n.midi)), tau: RELEASE[n.inst] / 3 };
 }
 
 interface Playing {
   piece: Piece;
-  style: Style;
+  style: string;
   start: number;
   next: number;
   out: GainNode;
-  voices: Map<Voice, StereoPannerNode>;
+  pans: Map<number, StereoPannerNode>;
 }
 
 export class MusicPlayer {
@@ -69,6 +75,8 @@ export class MusicPlayer {
   private fading: Playing[] = [];
   /** A chosen piece waiting for its notes to render. */
   private waiting: { choice: PieceChoice; piece: Piece } | null = null;
+  /** The key of the music now or last played (cues are tuned to it). */
+  key = 48;
 
   constructor(
     private readonly ctx: AudioContext,
@@ -82,14 +90,14 @@ export class MusicPlayer {
 
   /** The style playing now, or '' in a quiet gap. */
   get style(): string {
-    return this.playing ? this.playing.style.id : '';
+    return this.playing ? this.playing.style : '';
   }
 
   /** Called a few times a second with the valley's hour and season. */
   update(hour: number, season: number): void {
     const now = this.ctx.currentTime;
     // The hour turned to a new style: let this piece go and start the new one right away.
-    if (this.playing && styleFor(hour, season).id !== this.playing.style.id && !this.waiting) {
+    if (this.playing && styleFor(hour, season).id !== this.playing.style && !this.waiting) {
       this.fadeOut(this.playing, now);
       this.playing = null;
       this.director.mode = 'quiet';
@@ -100,14 +108,15 @@ export class MusicPlayer {
       const choice = stepDirector(this.director, now, hour, season, this.rand, (c) => compose(c).seconds);
       if (choice) {
         const piece = compose(choice);
-        this.warm(piece, choice.style);
+        for (const n of piece.notes) this.bank.want(noteJob(n));
         this.waiting = { choice, piece };
       }
     }
-    if (this.waiting && this.ready(this.waiting.piece, this.waiting.choice.style)) {
-      const { piece, choice } = this.waiting;
+    if (this.waiting && this.waiting.piece.notes.every((n) => this.bank.has(jobKey(noteJob(n))))) {
+      const { piece } = this.waiting;
       this.waiting = null;
-      this.playing = this.begin(piece, choice.style, now + 0.1);
+      this.playing = this.begin(piece, now + 0.1);
+      this.key = piece.key;
       // The director's clock starts when the sound does.
       this.director.until = this.playing.start + piece.seconds;
     }
@@ -122,27 +131,12 @@ export class MusicPlayer {
     this.playing = null;
   }
 
-  private warm(piece: Piece, style: Style): void {
-    piece.notes.forEach((n, i) => this.bank.want(noteJob(instrumentFor(n.voice, style), n, i)));
-  }
-
-  private ready(piece: Piece, style: Style): boolean {
-    return piece.notes.every((n, i) => this.bank.has(jobKey(noteJob(instrumentFor(n.voice, style), n, i))));
-  }
-
-  private begin(piece: Piece, style: Style, start: number): Playing {
+  private begin(piece: Piece, start: number): Playing {
     const out = this.ctx.createGain();
     out.gain.setValueAtTime(0, start);
     out.gain.linearRampToValueAtTime(1, start + (this.fading.length ? CROSSFADE_SECONDS : 0.05));
     out.connect(this.out);
-    const voices = new Map<Voice, StereoPannerNode>();
-    for (const v of ['lead', 'comp', 'bass', 'brush', 'pad'] as const) {
-      const p = this.ctx.createStereoPanner();
-      p.pan.value = VOICE_MIX[v].pan;
-      p.connect(out);
-      voices.set(v, p);
-    }
-    return { piece, style, start, next: 0, out, voices };
+    return { piece, style: piece.style, start, next: 0, out, pans: new Map() };
   }
 
   private fadeOut(p: Playing, now: number, seconds = CROSSFADE_SECONDS): void {
@@ -155,34 +149,42 @@ export class MusicPlayer {
   }
 
   private schedule(p: Playing, now: number): void {
-    const spb = 60 / p.piece.tempo;
     const notes = p.piece.notes;
     while (p.next < notes.length) {
       const n = notes[p.next]!;
-      const at = p.start + n.beat * spb;
+      const at = p.start + n.time;
       if (at > now + LOOKAHEAD) break;
-      const i = p.next++;
+      p.next++;
       if (at < now - 0.05) continue;
-      this.playNote(p, n, i, at, spb);
+      this.playNote(p, n, at);
     }
   }
 
-  private playNote(p: Playing, n: Note, index: number, at: number, spb: number): void {
-    const inst = instrumentFor(n.voice, p.style);
-    const buffer = this.bank.get(jobKey(noteJob(inst, n, index)));
+  /** One panner per position, shared by the notes that sit there. */
+  private panner(p: Playing, pan: number): StereoPannerNode {
+    const key = Math.round(pan * 20);
+    let node = p.pans.get(key);
+    if (!node) {
+      node = this.ctx.createStereoPanner();
+      node.pan.value = key / 20;
+      node.connect(p.out);
+      p.pans.set(key, node);
+    }
+    return node;
+  }
+
+  private playNote(p: Playing, n: Note, at: number): void {
+    const buffer = this.bank.get(jobKey(noteJob(n)));
     if (!buffer) return;
     const src = this.ctx.createBufferSource();
     src.buffer = buffer;
     const g = this.ctx.createGain();
-    // A little looseness, like a person playing: timing within 8 ms, touch within 10%.
-    const human = n.voice === 'bass' ? 0 : (this.rand() - 0.5) * 0.016;
-    const t = Math.max(this.ctx.currentTime, at + human);
-    const vel = n.vel * VOICE_MIX[n.voice].gain * INSTRUMENT_TRIM[inst] * (0.9 + this.rand() * 0.2);
-    g.gain.setValueAtTime(vel, t);
-    const ring = Math.min(NOTE_SECONDS[inst], n.len * spb + 0.25);
-    g.gain.setTargetAtTime(0, t + ring, 0.12);
-    src.connect(g).connect(p.voices.get(n.voice)!);
+    const t = Math.max(this.ctx.currentTime, at);
+    g.gain.setValueAtTime(noteGain(n), t);
+    const rel = noteRelease(n);
+    g.gain.setTargetAtTime(0, t + rel.at, rel.tau);
+    src.connect(g).connect(this.panner(p, notePan(n)));
     src.start(t);
-    src.stop(t + ring + 0.8);
+    src.stop(Math.min(t + buffer.duration, t + rel.at + rel.tau * 8));
   }
 }
