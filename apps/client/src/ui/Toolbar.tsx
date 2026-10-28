@@ -38,14 +38,20 @@ export function Toolbar({ session }: { session: Session }) {
   const lensOverlays =
     mode === 'standard' ? overlays.filter((o) => o.lens === lens && (village || !o.village)) : [];
   const shown = lensOverlays.some((o) => o.id === overlay) ? overlay : null;
-  // The field tool shows its own overlay (the farm's reach) while it is out.
+  // A tool may show its own overlay while it is out (the farm's reach, where clay lies).
+  const out = manager?.tool(active);
+  void out?.variant?.value;
+  const own = out?.overlay?.() ?? null;
   useEffect(() => {
-    if (active !== 'field') session.render?.setOverlay(shown);
-  }, [shown, active]);
+    session.render?.setOverlay(own ?? shown);
+  }, [shown, own]);
   if (!manager) return null;
   void m.hamletRevision.value;
   void m.budget.value;
-  const tools = toolsForLens(manager.tools, lens).filter((t) => !t.modes || t.modes.includes(mode));
+  // Inspecting is what a click does when no tool is out, so it needs no button of its own.
+  const tools = toolsForLens(manager.tools, lens).filter(
+    (t) => t.id !== 'inspect' && (!t.modes || t.modes.includes(mode)),
+  );
   const current = manager.tool(active);
   const accent = lenses.find((l) => l.id === lens)?.accent ?? '#888';
   const books = booksFor(lens, mode);
@@ -103,8 +109,8 @@ export function Toolbar({ session }: { session: Session }) {
               type="button"
               class={`tool ${active === t.id ? 'active' : ''} ${i > 0 && toolBand(t) !== toolBand(tools[i - 1]!) ? 'band' : ''}`}
               data-testid={`tool-${t.id}`}
-              title={t.hint ? `${t.label}: ${t.hint}` : t.label}
-              onClick={() => manager.select(t.id)}
+              title={`${t.hint ? `${t.label}: ${t.hint}` : t.label}. Esc or a right-click puts it away.`}
+              onClick={() => (active === t.id ? manager.putAway() : manager.select(t.id))}
             >
               <span class="icon">
                 <ToolIcon id={t.id} fallback={t.icon} />

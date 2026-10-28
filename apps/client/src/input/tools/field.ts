@@ -149,6 +149,7 @@ export function fieldTool(ctx: ToolContext): Tool {
     hint: 'Pick a farmhouse, drag to sow, Shift+drag to clear',
     order: 25,
     modes: ['standard'],
+    overlay: () => 'fields',
     enter() {
       const sel = ctx.ui.selection?.();
       if (sel?.kind === 'building' && ctx.mirror.buildings.get(sel.id)?.def === 'farmhouse')

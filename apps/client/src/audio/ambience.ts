@@ -109,7 +109,7 @@ export function mixAmbience(scene: AmbienceScene, c: AmbienceConditions): Emitte
   const dawn = 1 + 0.5 * hourWindow(c.hour, 5, 9, 1.5);
   push(
     'birds',
-    wet || c.weather === 'snow' ? 0 : level(scene.forest, 2.5) * 0.55 * day * birdSeason * dawn,
+    wet || c.weather === 'snow' ? 0 : level(scene.forest, 2.5) * 0.4 * day * birdSeason * dawn,
     scene.forest,
   );
   const night = hourWindow(c.hour, 20, 5, 1.5);

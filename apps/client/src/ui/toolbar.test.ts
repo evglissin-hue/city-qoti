@@ -91,8 +91,8 @@ describe('lens toolbars', () => {
   it('Hearth: decor, customize and the books; Ledger: fields, reports and overlays', async () => {
     const session = withTools(mockSession().session);
     view = await mount(h(Toolbar, { session }));
+    // Inspecting is the default click, so it has no button; pings are off for now.
     expect(ids(view.root, 'tool-')).toEqual([
-      'inspect',
       'path',
       'building',
       'decor',
@@ -101,7 +101,6 @@ describe('lens toolbars', () => {
       'tree',
       'note',
       'plan',
-      'ping',
       'erase',
     ]);
     expect(ids(view.root, 'book-')).toEqual(['wishes', 'patterns', 'chronicle', 'letters', 'achievements']);
@@ -117,7 +116,6 @@ describe('lens toolbars', () => {
 
     await view.click('lens-ledger');
     expect(ids(view.root, 'tool-')).toEqual([
-      'inspect',
       'lane',
       'street',
       'field',
@@ -125,7 +123,6 @@ describe('lens toolbars', () => {
       'zone',
       'note',
       'plan',
-      'ping',
       'erase',
     ]);
     expect(ids(view.root, 'book-')).toEqual(['market', 'trade', 'policies', 'reports', 'notebook']);
@@ -138,6 +135,11 @@ describe('lens toolbars', () => {
     expect(ids(view.root, 'overlay-')).toEqual(['clear']);
     await view.click('overlay-clear');
     expect(session.ui.overlay.value).toBeNull();
+    // Clicking the chosen tool again puts it away: back to inspecting.
+    await view.click('tool-building');
+    expect(session.tools!.active.value).toBe('building');
+    await view.click('tool-building');
+    expect(session.tools!.active.value).toBe('inspect');
     expect((view.get('undo') as HTMLButtonElement).disabled).toBe(true);
   });
 

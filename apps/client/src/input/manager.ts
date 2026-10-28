@@ -47,7 +47,10 @@ export class ToolManager {
       target.addEventListener(type, fn as EventListener);
       this.cleanup.push(() => target.removeEventListener(type, fn as EventListener));
     };
+    // A right-click that does not drag (a drag turns the camera) puts the tool away.
+    let rightDown: { x: number; y: number; t: number } | null = null;
     on(canvas, 'pointerdown', (e) => {
+      if (e.button === 2) rightDown = { x: e.clientX, y: e.clientY, t: e.timeStamp };
       if (e.button !== 0) return;
       canvas.setPointerCapture(e.pointerId);
       canvas.focus({ preventScroll: true });
@@ -60,6 +63,11 @@ export class ToolManager {
       this.current.pointerMove?.(info);
     });
     on(canvas, 'pointerup', (e) => {
+      if (e.button === 2 && rightDown) {
+        const still = Math.hypot(e.clientX - rightDown.x, e.clientY - rightDown.y) < 6;
+        if (still && e.timeStamp - rightDown.t < 500) this.putAway();
+        rightDown = null;
+      }
       if (e.button !== 0) return;
       this.current.pointerUp?.(this.info(e));
     });
@@ -118,6 +126,12 @@ export class ToolManager {
     const road = value ? content.roads.find((r) => r.layerValue === value) : undefined;
     if (road) this.select(road.id);
     return !!road;
+  }
+
+  /** Back to looking: the default, where a click inspects what it lands on. */
+  putAway(): void {
+    if (this.current.id === 'inspect') return;
+    this.select('inspect');
   }
 
   tool(id: string): Tool | undefined {

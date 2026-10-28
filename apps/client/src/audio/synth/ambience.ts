@@ -223,9 +223,11 @@ function birds(len: number, rand: Rand): Float32Array {
       }
     }
   }
-  // Far birds are dulled by distance; the near ones keep their sparkle.
+  // Birds heard from a garden, not a cage: their sharpest edge rolled off, with a faint bed of leaves.
+  const air = new Biquad('lowpass', 4200, 0.6);
+  const air2 = new Biquad('lowpass', 4200, 0.6);
   const leaves = new Biquad('bandpass', 2500, 0.4);
-  for (let i = 0; i < len; i++) out[i] = out[i]! + leaves.run(noise(rand)) * 0.006;
+  for (let i = 0; i < len; i++) out[i] = air2.run(air.run(out[i]!)) + leaves.run(noise(rand)) * 0.006;
   return out;
 }
 
@@ -372,7 +374,7 @@ const RENDER: Record<AmbienceId, (len: number, rand: Rand) => Float32Array> = {
 /** Loudness of each loop (RMS dBFS): beds sit low, sparse sounds a little higher so they carry. */
 const LOUDNESS: Record<AmbienceId, number> = {
   anvil: -24,
-  birds: -25,
+  birds: -31,
   crickets: -27,
   hammer: -25,
   hearth: -26,

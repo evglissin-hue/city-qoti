@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 import { clickTile, counts, DEBUG_QUERY, dragTiles, waitLive } from './helpers';
 
-// C4F: the village UI against a live village (the sim's village fixture), and plans and requests
+// C4F: the village UI against a live village (the sim's village fixture), and plans
 // round-tripping between two browsers.
 
 const VILLAGE_QUERY = '?debug&quality=low&fixture=village';
@@ -76,16 +76,15 @@ test('every village panel opens and works against a live village', async ({ page
   await page.getByTestId(`plan-approve-${plan.id}`).click();
   await expect.poll(async () => (await counts(page)).decor).toBe(decor + 1);
 
-  // A note for the partner (the feed comes back once the book is put away).
+  // The townsfolk open from the population chip, and a row finds its resident.
   await page.keyboard.press('Escape');
-  await page.getByTestId('request-ask').click();
-  await page.getByTestId('ask-text').click();
-  await page.getByTestId('ask-note').fill('A lantern by the well, please.');
-  await page.getByTestId('ask-send').click();
-  await expect(page.getByTestId('requests')).toContainText('A lantern by the well');
+  await page.getByTestId('population').click();
+  await expect(page.getByTestId('people')).toContainText('residents');
+  await page.locator('[data-testid^="person-"]').first().click();
+  await expect(page.getByTestId('resident-inspector')).toBeVisible();
 });
 
-test('plans and requests round trip between two browsers', async ({ browser }) => {
+test('plans round trip between two browsers', async ({ browser }) => {
   test.setTimeout(420_000);
   const contextA = await browser.newContext();
   const a = await contextA.newPage();
@@ -135,20 +134,6 @@ test('plans and requests round trip between two browsers', async ({ browser }) =
   await b.getByTestId(`plan-approve-${id}`).click();
   await expect.poll(async () => (await counts(a)).decor).toBe(1);
   await expect.poll(async () => (await counts(b)).decor).toBe(1);
-
-  // A asks B for something; B marks it done; A sees it done (the feed is back once the books close).
-  await a.keyboard.press('Escape');
-  await b.keyboard.press('Escape');
-  await a.getByTestId('request-ask').click();
-  await a.getByTestId('ask-text').click();
-  await a.getByTestId('ask-note').fill('A lantern for the bench, please.');
-  await a.getByTestId('ask-send').click();
-  const requests = () => b.evaluate(() => (window.__qoti as unknown as VillageHook).requests());
-  await expect.poll(async () => (await requests()).length).toBe(1);
-  const req = (await requests())[0]!;
-  await expect(b.getByTestId(`request-${req.id}`)).toContainText('A lantern for the bench');
-  await b.getByTestId(`request-done-${req.id}`).click();
-  await expect(a.getByTestId(`request-${req.id}`)).toContainText('done');
 
   await contextA.close();
   await contextB.close();

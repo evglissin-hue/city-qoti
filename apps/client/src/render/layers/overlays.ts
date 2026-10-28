@@ -20,6 +20,7 @@ import {
   BuildingStatus,
   CHUNK_SIZE,
   CHUNKS_PER_SIDE,
+  Deposit,
   FIELD_GOOD_FERTILITY,
   FIELD_MIN_FERTILITY,
   footprintSize,
@@ -56,6 +57,14 @@ export interface OverlaysLayer extends RenderLayer {
   /** The overlay showing now. */
   readonly kind: string | null;
 }
+
+/** Deposit overlay colors, by the content's deposit name. */
+const DEPOSIT_TINTS: Record<string, { deposit: number; color: number }> = {
+  clay: { deposit: Deposit.clay, color: 0xc2643a },
+  coal: { deposit: Deposit.coal, color: 0x2f2b28 },
+  sand: { deposit: Deposit.sand, color: 0xe6cf8c },
+  stone: { deposit: Deposit.stone, color: 0x8d949c },
+};
 
 /** Viridis, sampled at five stops: perceptually even and safe for every common color vision. */
 const VIRIDIS = [0x440154, 0x3b528b, 0x21918c, 0x5ec962, 0xfde725].map((h) => new Color(h));
@@ -726,6 +735,23 @@ export function overlaysLayer(): OverlaysLayer {
     }
   }
 
+  /** Where a deposit lies, tinted in its own color, for placing the building that digs it. */
+  function deposits(name: string): void {
+    if (!ctx) return;
+    const value = DEPOSIT_TINTS[name];
+    if (!value) return;
+    const m = ctx.mirror;
+    const c = new Color(value.color);
+    const tiles: { x: number; z: number; rgba: Rgba }[] = [];
+    for (let z = 0; z < MAP_SIZE; z++) {
+      for (let x = 0; x < MAP_SIZE; x++) {
+        if (m.deposit(x, z) !== value.deposit || m.water(x, z)) continue;
+        tiles.push({ x, z, rgba: [c.r, c.g, c.b, 0.62] });
+      }
+    }
+    if (tiles.length) add(drapeTiles(m, tiles, 0.04));
+  }
+
   function rebuild(): void {
     if (!ctx) return;
     clear();
@@ -738,6 +764,7 @@ export function overlaysLayer(): OverlaysLayer {
     else if (kind === 'traffic') merged(traffic);
     else if (kind === 'land') merged(land);
     else if (kind === 'needs') merged(needs);
+    else if (kind?.startsWith('deposit:')) deposits(kind.slice('deposit:'.length));
     statusRebuild = true;
     ctx.invalidate();
   }

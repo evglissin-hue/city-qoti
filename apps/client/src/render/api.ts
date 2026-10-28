@@ -23,7 +23,8 @@ export interface EntityPick {
  * 'coverage' (well water), 'flows' (porter deliveries), 'status' (building status icons),
  * 'fields' (farm reach while painting). null hides overlays. I2 (C4E): 'zones' (zone tints and lot
  * outlines), 'traffic' (cart passes against road capacity), 'land' (land value: lot desirability)
- * and 'needs' (homes by contentment, ringed by tier).
+ * and 'needs' (homes by contentment, ringed by tier). 'deposit:clay' (and stone, sand, coal): where
+ * that deposit lies, while placing a building that needs it.
  */
 export type OverlayKind =
   | 'charm'
@@ -35,7 +36,8 @@ export type OverlayKind =
   | 'zones'
   | 'traffic'
   | 'land'
-  | 'needs';
+  | 'needs'
+  | `deposit:${string}`;
 
 export interface GhostSegment {
   fx: number;

@@ -168,7 +168,7 @@ export class AudioEngine implements AudioApi {
     // Musical cues are written in C and play in the music's key, so a chime never clashes.
     if (TUNED_CUES.has(id)) src.playbackRate.value = Math.pow(2, keyShift(this.music.key) / 12);
     const g = this.ctx.createGain();
-    g.gain.value = id === 'bell' || id === 'raid-horn' || id === 'thunder' ? 0.8 : 0.55;
+    g.gain.value = id === 'bell' || id === 'raid-horn' || id === 'thunder' ? 0.8 : 0.4;
     src.connect(g).connect(this.buses.effects);
     src.start();
     if (id === 'rank-up' || id === 'raid-horn') this.duckFor(id === 'rank-up' ? 3 : 2.5);

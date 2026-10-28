@@ -19,11 +19,11 @@ import { MarketPanel } from './Market';
 import { NotebookPanel } from './Notebook';
 import { NotesPanel } from './Notes';
 import { PatternBookPanel } from './PatternBook';
+import { PeoplePanel } from './People';
 import { PlansPanel } from './Plans';
 import { PoliciesPanel } from './Policies';
 import { RankUpPanel } from './RankUp';
 import { ReportsPanel } from './Reports';
-import { AskDialog, RequestsPanel } from './Requests';
 import { StoryLetterPanel } from './StoryLetter';
 import { TradePanel } from './Trade';
 import { WishesPanel } from './Wishes';
@@ -55,7 +55,6 @@ const STANDARD = ['standard'] as const;
 export const panels: readonly PanelDef[] = [
   { id: 'achievements', side: 'book', component: AchievementsPanel, lens: 'hearth', label: 'Plaques', icon: 'achievements', modes: STANDARD, order: 40 },
   { id: 'alerts', side: 'left', component: AlertsPanel },
-  { id: 'ask', side: 'overlay', component: AskDialog },
   { id: 'away', side: 'overlay', component: AwayLetterPanel },
   { id: 'blueprints', side: 'world', component: Blueprints },
   { id: 'charter', side: 'book', component: CharterPanel, lens: 'shared', label: 'Charter', icon: 'charter', key: 'h', modes: STANDARD, hidden: true },
@@ -68,11 +67,11 @@ export const panels: readonly PanelDef[] = [
   { id: 'notebook', side: 'book', component: NotebookPanel, lens: 'ledger', label: 'Notebook', icon: 'notebook', key: 'n', modes: STANDARD, order: 60 },
   { id: 'notes', side: 'left', component: NotesPanel },
   { id: 'patterns', side: 'book', component: PatternBookPanel, lens: 'hearth', label: 'Patterns', icon: 'patterns', key: 'b', modes: STANDARD, order: 20, wide: true },
+  { id: 'people', side: 'book', component: PeoplePanel, lens: 'shared', label: 'Townsfolk', icon: 'people', key: 'k', modes: STANDARD, hidden: true },
   { id: 'plans', side: 'book', component: PlansPanel, lens: 'shared', label: 'Plans', icon: 'plan', hidden: true },
   { id: 'policies', side: 'book', component: PoliciesPanel, lens: 'ledger', label: 'Policies', icon: 'policies', key: 'p', modes: STANDARD, order: 30 },
   { id: 'rankup', side: 'overlay', component: RankUpPanel },
   { id: 'reports', side: 'book', component: ReportsPanel, lens: 'ledger', label: 'Reports', icon: 'reports', key: 'l', modes: STANDARD, order: 50 },
-  { id: 'requests', side: 'left', component: RequestsPanel },
   { id: 'story-letter', side: 'overlay', component: StoryLetterPanel },
   { id: 'trade', side: 'book', component: TradePanel, lens: 'ledger', label: 'Trade', icon: 'trade', modes: STANDARD, order: 20 },
   { id: 'wishes', side: 'book', component: WishesPanel, lens: 'hearth', label: 'Wishes', icon: 'wishes', key: 'j', modes: STANDARD, order: 10 },

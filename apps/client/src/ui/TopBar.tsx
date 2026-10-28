@@ -3,6 +3,7 @@ import type { Session } from '../app/session';
 import { copy } from './copy';
 import { coinCount, coins, formatDate, formatTime, speedNote } from './format';
 import { Glyph } from './icons';
+import { toggleBook } from './panels';
 import { GoToPartner } from './Presence';
 import { RANK_WORD } from './village';
 
@@ -140,14 +141,16 @@ function TownStats({ session }: { session: Session }) {
         {lean && <span class="lean-word">lean times</span>}
       </button>
       <RankChip session={session} />
-      <span
-        class="stat-chip people"
+      <button
+        type="button"
+        class={`stat-chip people ${session.ui.panel.value === 'people' ? 'open' : ''}`}
         data-testid="population"
-        title={`${people} ${people === 1 ? 'resident' : 'residents'} in ${homes} ${homes === 1 ? 'household' : 'households'}`}
+        title={`${people} ${people === 1 ? 'resident' : 'residents'} in ${homes} ${homes === 1 ? 'household' : 'households'}. Click for the townsfolk (K).`}
+        onClick={() => toggleBook(session, 'people')}
       >
         <Glyph id="people" />
         {people}
-      </span>
+      </button>
     </div>
   );
 }

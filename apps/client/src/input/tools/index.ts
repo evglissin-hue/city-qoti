@@ -10,7 +10,6 @@ import { fenceTool } from './fence';
 import { fieldTool } from './field';
 import { inspectTool } from './inspect';
 import { noteTool } from './note';
-import { pingTool } from './ping';
 import { planTool } from './plan';
 import { roadTool } from './road';
 import { treeTool } from './tree';
@@ -30,7 +29,6 @@ export const toolFactories: readonly ToolFactory[] = [
   roadTool('lane'),
   noteTool,
   roadTool('path'),
-  pingTool,
   planTool,
   roadTool('street'),
   treeTool,

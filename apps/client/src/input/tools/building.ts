@@ -8,6 +8,20 @@ import type { ToolContext } from '../context';
 import { cursorHint } from '../hint';
 import type { Tool } from '../tool';
 
+/** The deposit a building must sit on, if any (clay pits, quarries). */
+export function depositOf(def: string): string | null {
+  const rule = content.buildingById.get(def)?.placement?.find((r) => r.kind === 'deposit');
+  return rule && rule.kind === 'deposit' ? rule.deposit : null;
+}
+
+/** Where to look, when a building wants a deposit it is not on. */
+const DEPOSIT_HINT: Record<string, string> = {
+  clay: 'Clay lies in the terracotta patches, mostly on river banks and sand.',
+  coal: 'Coal shows dark in the hills.',
+  sand: 'Sand lies by the water.',
+  stone: 'Stone shows grey: rocky ground and outcrops.',
+};
+
 /**
  * Place buildings with the cursor at the footprint's center; R rotates. The picker offers what the
  * valley's mode allows (and, in the Hearth lens, the homely ones), with costs; a refusal says why.
@@ -36,7 +50,16 @@ export function buildingTool(ctx: ToolContext): Tool {
     const blocked = place.ok ? costBlock(ctx.mirror, def.cost) : null;
     const check = blocked ? { ok: false, reason: blocked } : place;
     ctx.render.setGhost({ kind: 'building', def: def.id, x, z, rot, valid: check.ok });
-    cursorHint(check.ok ? null : rejectText(check.reason), cx, cy);
+    const where = depositOf(def.id);
+    cursorHint(
+      check.ok
+        ? null
+        : check.reason === 'NEEDS_DEPOSIT' && where
+          ? (DEPOSIT_HINT[where] ?? rejectText(check.reason))
+          : rejectText(check.reason),
+      cx,
+      cy,
+    );
     return { def, x, z, check };
   }
 
@@ -51,6 +74,10 @@ export function buildingTool(ctx: ToolContext): Tool {
       return choices().map((d) => ({ id: d.id, label: d.name }));
     },
     variant,
+    overlay() {
+      const dep = depositOf(variant.value);
+      return dep ? `deposit:${dep}` : null;
+    },
     enter() {
       // A valley mode or lens may not offer the last pick (a house in a standard valley).
       const offered = choices();

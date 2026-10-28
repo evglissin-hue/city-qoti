@@ -28,7 +28,7 @@ const LOOKAHEAD = 0.6;
 /** Each part's level in the band. */
 export const VOICE_LEVEL: Record<Voice, number> = {
   lead: 1.2,
-  sparkle: 0.6,
+  sparkle: 0.35,
   comp: 0.5,
   bass: 0.9,
   pad: 0.6,

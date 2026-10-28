@@ -2082,3 +2082,144 @@ li.alert .dismiss {
   margin: 0;
   opacity: 0.35;
 }
+
+/* Playtest: the townsfolk, from the population chip. */
+button.stat-chip.people {
+  cursor: pointer;
+}
+
+.stat-chip.people.open {
+  border-color: var(--ink-line);
+  background: #fff6e2;
+}
+
+.people-summary {
+  display: grid;
+  gap: 4px;
+  margin-bottom: 10px;
+  font-size: 0.9rem;
+}
+
+.people-summary .warn,
+.people-list .what.warn {
+  color: var(--danger);
+}
+
+.mood-spread {
+  display: flex;
+  height: 8px;
+  border-radius: 999px;
+  overflow: hidden;
+  margin-top: 4px;
+  background: color-mix(in srgb, var(--ink) 8%, transparent);
+}
+
+.mood-spread .band-0 {
+  background: #b0503f;
+}
+
+.mood-spread .band-1 {
+  background: #d08a5a;
+}
+
+.mood-spread .band-2 {
+  background: #d9c37e;
+}
+
+.mood-spread .band-3 {
+  background: #9cba84;
+}
+
+.mood-spread .band-4 {
+  background: #5f7f50;
+}
+
+.people-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-bottom: 8px;
+}
+
+.people-filters button {
+  padding: 2px 10px;
+  font-size: 0.8rem;
+  border-radius: 999px;
+  box-shadow: none;
+}
+
+.people-filters button.active {
+  background: var(--ink);
+  color: var(--paper-light);
+  border-color: var(--ink);
+}
+
+ul.people-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.people-list button {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 34px 1fr auto;
+  grid-template-areas: 'face who mood' 'face what mood';
+  column-gap: 10px;
+  align-items: center;
+  text-align: left;
+  padding: 4px 8px;
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+}
+
+.people-list button:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--ink) 6%, transparent);
+  border-color: transparent;
+  box-shadow: none;
+  transform: none;
+}
+
+.people-list .portrait {
+  grid-area: face;
+}
+
+.people-list .who {
+  grid-area: who;
+  display: flex;
+  gap: 6px;
+  align-items: baseline;
+  font-size: 0.88rem;
+}
+
+.people-list .who .muted {
+  font-size: 0.76rem;
+}
+
+.people-list .what {
+  grid-area: what;
+  font-size: 0.8rem;
+  color: var(--ink-soft);
+}
+
+.people-list .mood {
+  grid-area: mood;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.people-list .mood.band-0,
+.people-list .mood.band-1 {
+  color: var(--danger);
+}
+
+.people-list .mood.band-3 {
+  color: var(--sage-deep);
+}
+
+.people-list .mood.band-4 {
+  color: #b5762e;
+}

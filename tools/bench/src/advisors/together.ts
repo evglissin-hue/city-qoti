@@ -6,6 +6,7 @@
 import { content } from '@qoti/content';
 import {
   findById,
+  MAP_SIZE,
   START_HOUR,
   TICKS_PER_DAY,
   TICKS_PER_HOUR,
@@ -32,6 +33,32 @@ class Together implements Advisor {
     this.request();
     this.plans();
     this.inventor();
+    this.partners();
+  }
+
+  /**
+   * Odette's partnership letter: a pattern site with pieces from each of you. The seat that has not
+   * yet touched a site sets a bench by it (a seat joins most of the Pattern Book's places).
+   */
+  private partners(): void {
+    const w = this.w;
+    const s = w.stories.find((x) => x.arc === 'merchant');
+    const step = s && s.step >= 0 ? content.storyById.get('merchant')?.steps[s.step] : undefined;
+    if (!step || !('count' in step.goal) || step.goal.count.what !== 'togetherSites') return;
+    if (w.hearth.sites.some((x) => x.seats.length >= 2)) return;
+    for (const site of w.hearth.sites) {
+      const other: 0 | 1 = site.seats.includes(0) ? 1 : 0;
+      const ax = site.anchor % MAP_SIZE;
+      const az = Math.floor(site.anchor / MAP_SIZE);
+      const spot = this.p.decorSpot('bench', ax, az, 2);
+      if (!spot) continue;
+      this.p.do(
+        'a bench for the partnership',
+        [{ t: 'decor.place', def: 'bench', fx: spot[0], fz: spot[1], rot: 0 }],
+        other,
+      );
+      return;
+    }
   }
 
   /** Pippa's river letter: a sawpit within three tiles of the water. */

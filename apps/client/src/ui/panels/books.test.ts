@@ -11,6 +11,7 @@ import { AwayLetterPanel } from './AwayLetter';
 import { ChroniclePanel, chronicleDays } from './Chronicle';
 import { CustomizePanel } from './Customize';
 import { PatternBookPanel } from './PatternBook';
+import { PeoplePanel } from './People';
 import { ReportsPanel } from './Reports';
 import { WishesPanel } from './Wishes';
 
@@ -18,6 +19,25 @@ let view: Mounted | null = null;
 afterEach(() => {
   view?.unmount();
   view = null;
+});
+
+describe('the townsfolk', () => {
+  it('lists everyone with work and mood, filters, and finds a resident', async () => {
+    const { session, calls } = mockSession();
+    const all = [...session.mirror.residents.values()];
+    view = await mount(h(PeoplePanel, { session }));
+    expect(view.text()).toContain(`${all.length} residents`);
+    expect(view.root.querySelectorAll('.people-list li')).toHaveLength(all.length);
+    await view.click('people-children');
+    expect(view.root.querySelectorAll('.people-list li')).toHaveLength(
+      all.filter((r) => r.stage === 'child').length,
+    );
+    await view.click('people-all');
+    const first = all[0]!;
+    await view.click(`person-${first.id}`);
+    expect(session.ui.selection.value).toEqual({ kind: 'resident', id: first.id });
+    expect(calls.some((c) => c.method === 'focus')).toBe(true);
+  });
 });
 
 describe('wishes', () => {

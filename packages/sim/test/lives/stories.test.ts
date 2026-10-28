@@ -61,8 +61,16 @@ const SATISFY: Record<string, ((t: Scene) => void)[]> = {
     () => {
       // The fixture's stalls already hold bread, vegetables, fish, cheese and firewood.
     },
-    ({ f, s }) => {
-      expect(exec(s, { t: 'request.resolve', id: f.request, status: 'done' })).toBe(true);
+    ({ s }) => {
+      // A pattern site both seats had a hand in.
+      s.hearth.sites.push({
+        pattern: 'reading-nook',
+        anchor: 0,
+        members: [],
+        tiles: [],
+        seats: [0, 1],
+        tick: s.tick,
+      });
     },
     ({ s }) => {
       expect(placeDecorNear(s, 'bench', 77, 51, 1)).toBe(true);

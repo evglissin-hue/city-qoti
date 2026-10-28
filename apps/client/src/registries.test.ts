@@ -45,7 +45,6 @@ describe('registries', () => {
       'lane',
       'note',
       'path',
-      'ping',
       'plan',
       'street',
       'tree',

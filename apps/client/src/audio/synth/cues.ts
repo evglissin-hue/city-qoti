@@ -115,7 +115,7 @@ function coins(rand: Rand): Float32Array {
   // Two or three small coins meeting: bright, quick inharmonic rings.
   const out = buf(0.7);
   for (let c = 0; c < 3; c++) {
-    const f = 3100 + rand() * 1600;
+    const f = 1900 + rand() * 900;
     const at = Math.floor((c * 0.075 + rand() * 0.02) * RENDER_RATE);
     const parts = [
       new Partial(f, 0.4, t60Per(0.35)),
@@ -381,8 +381,32 @@ const RENDER: Record<SoundCueId, (rand: Rand) => Float32Array> = {
 
 export const CUE_IDS: readonly SoundCueId[] = Object.keys(RENDER) as SoundCueId[];
 
+/** Small, bright cues: rolled off above SOFT_HZ and played quieter, so they never prick the ear. */
+const CHIMES: ReadonlySet<SoundCueId> = new Set([
+  'achievement',
+  'built',
+  'coins',
+  'emote',
+  'letter',
+  'pattern',
+  'ping',
+  'rank-up',
+]);
+const SOFT_HZ = 3600;
+
+/** A gentle two-pole lowpass, run twice (four poles): takes the glassy edge off a chime. */
+function soften(buf: Float32Array, hz: number): Float32Array {
+  for (let pass = 0; pass < 2; pass++) {
+    const lp = new Biquad('lowpass', hz, 0.6);
+    for (let i = 0; i < buf.length; i++) buf[i] = lp.run(buf[i]!);
+  }
+  return buf;
+}
+
 /** Renders a cue, normalized, with click-free edges. */
 export function renderCue(id: SoundCueId): Float32Array {
   const rand = seeded(id.length * 977 + id.charCodeAt(0));
-  return fadeEdges(dcBlock(normalize(RENDER[id](rand), 0.8)), 0.002, 0.05);
+  const raw = RENDER[id](rand);
+  const chime = CHIMES.has(id);
+  return fadeEdges(dcBlock(normalize(chime ? soften(raw, SOFT_HZ) : raw, chime ? 0.55 : 0.8)), 0.002, 0.05);
 }

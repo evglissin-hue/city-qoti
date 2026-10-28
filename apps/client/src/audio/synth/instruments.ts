@@ -284,9 +284,9 @@ const celesta = (m: number, l: number) =>
     l,
     [
       [1, 1, 1.8],
-      [3.0, 0.3, 0.5],
-      [4.1, 0.15, 0.25],
-      [6.1, 0.08, 0.12],
+      [3.0, 0.2, 0.45],
+      [4.1, 0.08, 0.2],
+      [6.1, 0.03, 0.1],
     ],
     noteSeconds('celesta', m),
     3000,
@@ -297,12 +297,12 @@ const glock = (m: number, l: number) =>
     l,
     [
       [1, 1, 2.2],
-      [2.71, 0.3, 0.8],
-      [5.15, 0.12, 0.4],
-      [8.43, 0.05, 0.2],
+      [2.71, 0.16, 0.6],
+      [5.15, 0.05, 0.25],
+      [8.43, 0.02, 0.12],
     ],
     noteSeconds('glock', m),
-    5000,
+    2800,
   );
 const kalimba = (m: number, l: number) =>
   bar(
@@ -469,7 +469,7 @@ export const INSTRUMENT_LEVEL: Record<Instrument, number> = {
   celesta: 0.8,
   epiano: 0.75,
   flute: 0.6,
-  glock: 0.9,
+  glock: 0.6,
   guitar: 1.4,
   kalimba: 0.9,
   marimba: 0.85,
