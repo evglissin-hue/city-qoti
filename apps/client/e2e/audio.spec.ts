@@ -28,7 +28,8 @@ test('sound starts on the first gesture and follows the sliders', async ({ page 
       audioRequests.push(r.url());
   });
 
-  await page.goto(`/${DEBUG_QUERY}`);
+  // Automated browsers are silent unless the page asks for sound.
+  await page.goto(`/${DEBUG_QUERY}&audio`);
   await expect(page.getByTestId('new-solo')).toBeVisible();
   expect(await page.evaluate(() => (window as unknown as { __audioContexts: number }).__audioContexts)).toBe(
     0,
