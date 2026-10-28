@@ -5,8 +5,11 @@
 //   hair apart for the slow beating, and the double decay (a quick fall, then a long ring);
 // - an electric piano: two-operator FM (the warm tone and the bell of the tine);
 // - mallets (marimba, vibraphone, celesta, glockenspiel, kalimba): struck bars, modal partials;
-// - a flute with breath, and soft strings for pads; brushes, a ride and a shaker.
-// Each note renders once (per loudness layer) into a Float32Array; the engine caches it.
+// - a flute with breath (and a clarinet, its odd harmonics), a harp, soft strings for pads;
+//   brushes, a ride and a shaker.
+// Each note renders once (per loudness layer) into a Float32Array; the engine caches it. The
+// instruments with recordings (audio/sampler.ts) play those instead; these stand in when a
+// recording cannot load, and for the cues.
 import {
   Biquad,
   OnePole,
@@ -27,10 +30,12 @@ export type Instrument =
   | 'bass'
   | 'brush'
   | 'celesta'
+  | 'clarinet'
   | 'epiano'
   | 'flute'
   | 'glock'
   | 'guitar'
+  | 'harp'
   | 'kalimba'
   | 'marimba'
   | 'piano'
@@ -43,10 +48,12 @@ export const INSTRUMENTS: readonly Instrument[] = [
   'bass',
   'brush',
   'celesta',
+  'clarinet',
   'epiano',
   'flute',
   'glock',
   'guitar',
+  'harp',
   'kalimba',
   'marimba',
   'piano',
@@ -60,7 +67,7 @@ export const INSTRUMENTS: readonly Instrument[] = [
 export const UNPITCHED: ReadonlySet<Instrument> = new Set(['brush', 'ride', 'shaker']);
 
 /** How a note ends: sustained instruments are held and released; struck ones ring out. */
-export const SUSTAINED: ReadonlySet<Instrument> = new Set(['flute', 'strings']);
+export const SUSTAINED: ReadonlySet<Instrument> = new Set(['clarinet', 'flute', 'strings']);
 
 /** Seconds a note's buffer lasts at this pitch (high notes ring shorter). */
 export function noteSeconds(inst: Instrument, midi: number): number {
@@ -70,6 +77,8 @@ export function noteSeconds(inst: Instrument, midi: number): number {
       return 4.2 - 2.2 * hi;
     case 'guitar':
       return 3 - 1.2 * hi;
+    case 'harp':
+      return 4 - 1.5 * hi;
     case 'bass':
       return 2.2;
     case 'epiano':
@@ -83,6 +92,7 @@ export function noteSeconds(inst: Instrument, midi: number): number {
       return 2.4;
     case 'kalimba':
       return 2;
+    case 'clarinet':
     case 'flute':
       return 3.2;
     case 'strings':
@@ -131,6 +141,19 @@ function guitar(midi: number, layer: number): Float32Array {
   const nylon = new Biquad('lowpass', 4200 + layer * 1800, 0.6);
   for (let i = 0; i < n; i++) out[i] = nylon.run(plate.run(top.run(air.run(s.run()))));
   return fadeEdges(dcBlock(normalize(out, 0.8)), 0.001, 0.08);
+}
+
+/** A harp string: a brighter, longer pluck than the guitar's, with a soundboard and no nylon. */
+function harp(midi: number, layer: number): Float32Array {
+  const f = midiToHz(midi);
+  const n = len(noteSeconds('harp', midi));
+  const out = new Float32Array(n);
+  const s = new TunedString(f, 4.5 * Math.pow(220 / f, 0.3), 0.7 + layer * 0.15);
+  s.excite(pluckBurst(s.period + 2, layer ? 0.5 : 0.65, 0.5, midi * 29 + layer));
+  const board = new Biquad('peak', 260, 1.5, 3);
+  const tone = new Biquad('lowpass', 3600 + layer * 1400, 0.6);
+  for (let i = 0; i < n; i++) out[i] = tone.run(board.run(s.run()));
+  return fadeEdges(dcBlock(normalize(out, 0.8)), 0.001, 0.1);
 }
 
 function bass(midi: number, layer: number): Float32Array {
@@ -319,14 +342,20 @@ const kalimba = (m: number, l: number) =>
 
 // --- Flute and strings ----------------------------------------------------------------------------
 
-function flute(midi: number, layer: number): Float32Array {
+/** A flute's harmonics fall away smoothly; a clarinet's closed pipe favors the odd ones. */
+const WIND_HARMONICS = {
+  clarinet: [1, 0.06, 0.5, 0.05, 0.24, 0.04, 0.1],
+  flute: [1, 0.42, 0.16, 0.08, 0.03],
+};
+
+function flute(midi: number, layer: number, kind: 'clarinet' | 'flute' = 'flute'): Float32Array {
   const f = midiToHz(midi);
-  const n = len(noteSeconds('flute', midi));
+  const n = len(noteSeconds(kind, midi));
   const out = new Float32Array(n);
   const rand = seeded(midi * 3 + layer);
   const breath = new Biquad('bandpass', f * 2, 3);
   const chiff = new Biquad('bandpass', f * 3, 2);
-  const harm = [1, 0.42, 0.16, 0.08, 0.03];
+  const harm = WIND_HARMONICS[kind];
   const ph = harm.map(() => rand() * 6.28);
   const w = (2 * Math.PI * f) / RENDER_RATE;
   let vib = 0;
@@ -342,7 +371,7 @@ function flute(midi: number, layer: number): Float32Array {
       s += Math.sin(ph[h]!) * harm[h]!;
     }
     const swell = Math.min(1, t / 0.07) * (0.92 + 0.08 * Math.sin(t * 2.1));
-    const air = breath.run(noise(rand)) * 0.12;
+    const air = breath.run(noise(rand)) * (kind === 'flute' ? 0.12 : 0.04);
     const start = t < 0.06 ? chiff.run(noise(rand)) * (1 - t / 0.06) * 0.35 : 0;
     out[i] = (s * swell + air * swell + start) * (layer ? 1 : 0.8);
   }
@@ -437,6 +466,8 @@ export function renderNote(inst: Instrument, midi: number, layer = 1): Float32Ar
       return brush(midi);
     case 'celesta':
       return celesta(midi, layer);
+    case 'clarinet':
+      return flute(midi, layer, 'clarinet');
     case 'epiano':
       return epiano(midi, layer);
     case 'flute':
@@ -445,6 +476,8 @@ export function renderNote(inst: Instrument, midi: number, layer = 1): Float32Ar
       return glock(midi, layer);
     case 'guitar':
       return guitar(midi, layer);
+    case 'harp':
+      return harp(midi, layer);
     case 'kalimba':
       return kalimba(midi, layer);
     case 'marimba':
@@ -467,10 +500,12 @@ export const INSTRUMENT_LEVEL: Record<Instrument, number> = {
   bass: 0.95,
   brush: 1.0,
   celesta: 0.8,
+  clarinet: 0.55,
   epiano: 0.75,
   flute: 0.6,
   glock: 0.6,
   guitar: 1.4,
+  harp: 0.9,
   kalimba: 0.9,
   marimba: 0.85,
   piano: 0.9,
@@ -485,10 +520,12 @@ export const RELEASE: Record<Instrument, number> = {
   bass: 0.12,
   brush: 0.1,
   celesta: 0.6,
+  clarinet: 0.15,
   epiano: 0.15,
   flute: 0.12,
   glock: 0.8,
   guitar: 0.25,
+  harp: 0.6,
   kalimba: 0.5,
   marimba: 0.3,
   piano: 0.12,
@@ -503,10 +540,12 @@ export const INSTRUMENT_PAN: Record<Instrument, number> = {
   bass: 0,
   brush: 0.25,
   celesta: 0.3,
+  clarinet: 0.15,
   epiano: -0.2,
   flute: 0.2,
   glock: 0.35,
   guitar: -0.25,
+  harp: -0.3,
   kalimba: 0.2,
   marimba: 0.15,
   piano: 0,

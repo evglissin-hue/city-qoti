@@ -1,11 +1,15 @@
-// Renders a listening preview of the synthesized music, ambience and cues to a WAV file (C5G):
+// Renders a listening preview of the music, ambience and cues to a WAV file (C5G):
 // `npm run audio:preview -- out.wav`. It mixes each piece exactly as the engine schedules it
-// (gain, pan, release), with a stereo room standing in for the engine's reverb.
+// (gain, pan, release, the recorded instruments through the sampler's choice of note), with a
+// stereo room standing in for the engine's reverb. QOTI_PREVIEW_SYNTH=1 hears the synth alone.
+import { execFileSync } from 'node:child_process';
 import { writeFileSync } from 'node:fs';
+import { join } from 'node:path';
 import type { SoundCueId } from '../../apps/client/src/audio/api';
 import { compose } from '../../apps/client/src/audio/composer';
 import { STYLES } from '../../apps/client/src/audio/director';
-import { noteGain, noteJob, notePan, noteRelease } from '../../apps/client/src/audio/music';
+import { noteGain, noteJob, noteLayer, notePan, noteRelease } from '../../apps/client/src/audio/music';
+import { zoneFor } from '../../apps/client/src/audio/sampler';
 import { renderAmbience, type AmbienceId } from '../../apps/client/src/audio/synth/ambience';
 import { renderCue } from '../../apps/client/src/audio/synth/cues';
 import { RENDER_RATE } from '../../apps/client/src/audio/synth/dsp';
@@ -84,6 +88,34 @@ function sample(n: Parameters<typeof noteJob>[0]): Float32Array {
   return b;
 }
 
+const samplesDir = join(import.meta.dirname, '..', '..', 'apps', 'client', 'public', 'audio', 'samples');
+const recordings = new Map<string, Float32Array>();
+/** A recording decoded at the preview's rate, from 4 ms before its attack (as the sampler trims it). */
+function recording(file: string): Float32Array {
+  let r = recordings.get(file);
+  if (!r) {
+    const raw = execFileSync('ffmpeg', [
+      '-loglevel',
+      'error',
+      '-i',
+      join(samplesDir, file),
+      '-ac',
+      '1',
+      '-ar',
+      String(RATE),
+      '-f',
+      'f32le',
+      '-',
+    ]);
+    const x = new Float32Array(raw.buffer, raw.byteOffset, raw.length / 4);
+    let on = 0;
+    while (on < x.length && Math.abs(x[on]!) < 0.01) on++;
+    r = x.slice(Math.max(0, on - Math.floor(0.004 * RATE)));
+    recordings.set(file, r);
+  }
+  return r;
+}
+
 const parts: { L: Float32Array; R: Float32Array }[] = [];
 for (const seg of segments) {
   const style = STYLES.find((s) => s.id === seg.style)!;
@@ -92,20 +124,26 @@ for (const seg of segments) {
   const L = new Float32Array(len);
   const R = new Float32Array(len);
   for (const n of piece.notes) {
-    const buf = sample(n);
+    const v = process.env.QOTI_PREVIEW_SYNTH ? null : zoneFor(n.inst, n.midi, noteLayer(n));
+    const buf = v ? recording(v.file) : sample(n);
+    const rate = v?.rate ?? 1;
     const at = Math.floor(n.time * RATE);
-    const g = noteGain(n);
+    const g = noteGain(n) * (v?.gain ?? 1);
     const pan = notePan(n);
     const gl = g * Math.cos(((pan + 1) * Math.PI) / 4);
     const gr = g * Math.sin(((pan + 1) * Math.PI) / 4);
-    const rel = noteRelease(n);
+    const rel = v ? noteRelease(n, buf.length / rate / RATE) : noteRelease(n);
     const relAt = rel.at * RATE;
     const tau = Math.max(1, rel.tau * RATE);
-    for (let j = 0; j < buf.length && at + j < len; j++) {
+    for (let j = 0; at + j < len; j++) {
+      const pos = j * rate;
+      const i = Math.floor(pos);
+      if (i + 1 >= buf.length) break;
       const e = j < relAt ? 1 : Math.exp(-(j - relAt) / tau);
       if (e < 1e-4) break;
-      L[at + j] += buf[j]! * gl * e;
-      R[at + j] += buf[j]! * gr * e;
+      const x = buf[i]! + (buf[i + 1]! - buf[i]!) * (pos - i);
+      L[at + j] += x * gl * e;
+      R[at + j] += x * gr * e;
     }
   }
   // At the default sliders the ambience bus is about 1.35 times the music bus.

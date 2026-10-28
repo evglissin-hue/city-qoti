@@ -20,7 +20,8 @@ const manifest = JSON.parse(readFileSync(join(here, 'manifest.json'), 'utf8')) a
 describe('audio manifest', () => {
   it('lists every sound file in public/audio, each CC0 or public domain with its source', () => {
     const ids = new Set(manifest.files.map((f) => f.id));
-    const files = readdirSync(publicAudio).filter((f) => f !== 'CREDITS.md');
+    // The sampled instruments have their own folder, credits and test (apps/client/src/audio/sampler.test.ts).
+    const files = readdirSync(publicAudio).filter((f) => f !== 'CREDITS.md' && f !== 'samples');
     for (const f of files) expect(ids.has(f.replace(/\.m4a$/, '')), `${f} has no manifest line`).toBe(true);
     for (const f of manifest.files) {
       expect(['CC0-1.0', 'PD']).toContain(f.license);

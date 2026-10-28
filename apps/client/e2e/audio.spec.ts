@@ -71,6 +71,12 @@ test('sound starts on the first gesture and follows the sliders', async ({ page 
   await expect
     .poll(() => page.evaluate(() => window.__qoti.audio.playing()?.ambience.length ?? 0), { timeout: 20_000 })
     .toBeGreaterThan(0);
+  // After a short quiet the first piece plays, its recorded instruments (VSCO-2 CE) fetched only
+  // for the notes it needs.
+  await expect
+    .poll(() => page.evaluate(() => window.__qoti.audio.playing()?.music ?? ''), { timeout: 40_000 })
+    .not.toBe('');
+  expect(audioRequests.some((u) => /\/audio\/samples\/\w+\/[\w-]+\.m4a/.test(u))).toBe(true);
   // Main-thread audio work stays far under its 0.3 ms a frame (it runs ten times a second).
   expect(await page.evaluate(() => window.__qoti.audio.cost())).toBeLessThan(1.5);
   expect(errors).toEqual([]);

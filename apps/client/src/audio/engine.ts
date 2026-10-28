@@ -9,6 +9,7 @@ import { SoundBank } from './bank';
 import { CUE_GAP, CueLimiter } from './cues/limiter';
 import { cueForCommand, cueScene, cuesFor, type CueScene } from './cues/index';
 import { MusicPlayer } from './music';
+import { Sampler } from './sampler';
 import { sampleScene } from './scene';
 import { TUNED_CUES } from './synth/cues';
 import { busGain, type AudioSettings } from './settings';
@@ -126,7 +127,13 @@ export class AudioEngine implements AudioApi {
     send(this.duckGain, 0.55);
     send(this.buses.effects, 0.25);
     send(this.buses.ambience, 0.08);
-    this.music = new MusicPlayer(ctx, this.bank, this.buses.music, Math.floor(Math.random() * 1e9));
+    this.music = new MusicPlayer(
+      ctx,
+      this.bank,
+      this.buses.music,
+      Math.floor(Math.random() * 1e9),
+      new Sampler(ctx),
+    );
     this.apply(settings, true);
     // Cues are short; render them all up front so the first click already has its sound.
     for (const id of Object.keys(CUE_GAP) as SoundCueId[]) this.bank.want({ kind: 'cue', id });

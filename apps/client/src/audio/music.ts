@@ -1,6 +1,8 @@
 // The music player (C5G): asks the director what to play, writes it with the composer, and
 // schedules the notes a little ahead on the audio clock. A new style at a phase change crossfades
 // over CROSSFADE_SECONDS; otherwise pieces end on their own and the valley is quiet in between.
+// Instruments with recordings play them through the sampler; the rest, and any recording that has
+// not arrived in time, are synthesized.
 import type { SoundBank } from './bank';
 import { compose, type Note, type Piece, type Voice } from './composer';
 import {
@@ -12,6 +14,7 @@ import {
   type PieceChoice,
 } from './director';
 import { seededRand, type Rand } from './rng';
+import type { SampledVoice, Sampler } from './sampler';
 import {
   INSTRUMENT_LEVEL,
   INSTRUMENT_PAN,
@@ -24,6 +27,8 @@ import { jobKey, type RenderJob } from './synth/jobs';
 
 /** Seconds of notes scheduled ahead of the clock. */
 const LOOKAHEAD = 0.6;
+/** Seconds a piece waits for its recordings before the synthesized band stands in for the rest. */
+const SAMPLE_WAIT = 8;
 
 /** Each part's level in the band. */
 export const VOICE_LEVEL: Record<Voice, number> = {
@@ -35,9 +40,14 @@ export const VOICE_LEVEL: Record<Voice, number> = {
   drums: 0.9,
 };
 
-/** The rendered note a score note plays: soft or firm touch, by its velocity. */
+/** A note's touch: 0 soft, 1 firm, by its velocity. */
+export function noteLayer(n: Pick<Note, 'inst' | 'vel'>): number {
+  return UNPITCHED.has(n.inst) || n.vel >= 0.5 ? 1 : 0;
+}
+
+/** The rendered note a score note plays. */
 export function noteJob(n: Pick<Note, 'inst' | 'midi' | 'vel'>): RenderJob {
-  return { kind: 'note', inst: n.inst, midi: n.midi, layer: UNPITCHED.has(n.inst) || n.vel >= 0.5 ? 1 : 0 };
+  return { kind: 'note', inst: n.inst, midi: n.midi, layer: noteLayer(n) };
 }
 
 /** How loud a note plays (the touch layer already carries the brightness). */
@@ -51,16 +61,22 @@ export function notePan(n: Pick<Note, 'inst' | 'midi'>): number {
   return Math.max(-0.8, Math.min(0.8, INSTRUMENT_PAN[n.inst] + spread));
 }
 
-/** When a note's sound is let go: held notes at their end, struck notes may ring a little on. */
-export function noteRelease(n: Pick<Note, 'inst' | 'dur' | 'midi'>): { at: number; tau: number } {
-  const ring = SUSTAINED.has(n.inst)
-    ? n.dur
-    : Math.max(n.dur, Math.min(1.2, noteSeconds(n.inst, n.midi)) * 0.4);
-  return { at: Math.min(ring, noteSeconds(n.inst, n.midi)), tau: RELEASE[n.inst] / 3 };
+/**
+ * When a note's sound is let go: held notes at their end, struck notes may ring a little on.
+ * `seconds` is how long its sound lasts (a recording's own length; the synth's by default).
+ */
+export function noteRelease(
+  n: Pick<Note, 'inst' | 'dur' | 'midi'>,
+  seconds = noteSeconds(n.inst, n.midi),
+): { at: number; tau: number } {
+  const ring = SUSTAINED.has(n.inst) ? n.dur : Math.max(n.dur, Math.min(1.2, seconds) * 0.4);
+  return { at: Math.min(ring, seconds), tau: RELEASE[n.inst] / 3 };
 }
 
 interface Playing {
   piece: Piece;
+  /** Each note's recording, or null for the synthesized sound. */
+  voices: (SampledVoice | null)[];
   style: string;
   start: number;
   next: number;
@@ -73,8 +89,13 @@ export class MusicPlayer {
   private readonly rand: Rand;
   private playing: Playing | null = null;
   private fading: Playing[] = [];
-  /** A chosen piece waiting for its notes to render. */
-  private waiting: { choice: PieceChoice; piece: Piece } | null = null;
+  /** A chosen piece waiting for its notes to render and its recordings to load. */
+  private waiting: {
+    choice: PieceChoice;
+    piece: Piece;
+    voices: (SampledVoice | null)[];
+    since: number;
+  } | null = null;
   /** The key of the music now or last played (cues are tuned to it). */
   key = 48;
 
@@ -83,6 +104,7 @@ export class MusicPlayer {
     private readonly bank: SoundBank,
     private readonly out: AudioNode,
     seed: number,
+    private readonly sampler: Sampler | null = null,
   ) {
     this.director = startDirector(ctx.currentTime);
     this.rand = seededRand(seed);
@@ -108,14 +130,19 @@ export class MusicPlayer {
       const choice = stepDirector(this.director, now, hour, season, this.rand, (c) => compose(c).seconds);
       if (choice) {
         const piece = compose(choice);
-        for (const n of piece.notes) this.bank.want(noteJob(n));
-        this.waiting = { choice, piece };
+        const voices = piece.notes.map((n) => this.sampler?.pick(n.inst, n.midi, noteLayer(n)) ?? null);
+        piece.notes.forEach((n, i) => {
+          const v = voices[i];
+          if (v) this.sampler!.want(v.file);
+          else this.bank.want(noteJob(n));
+        });
+        this.waiting = { choice, piece, voices, since: now };
       }
     }
-    if (this.waiting && this.waiting.piece.notes.every((n) => this.bank.has(jobKey(noteJob(n))))) {
-      const { piece } = this.waiting;
+    if (this.waiting && this.ready(this.waiting, now)) {
+      const { piece, voices } = this.waiting;
       this.waiting = null;
-      this.playing = this.begin(piece, now + 0.1);
+      this.playing = this.begin(piece, voices, now + 0.1);
       this.key = piece.key;
       // The director's clock starts when the sound does.
       this.director.until = this.playing.start + piece.seconds;
@@ -131,12 +158,32 @@ export class MusicPlayer {
     this.playing = null;
   }
 
-  private begin(piece: Piece, start: number): Playing {
+  /**
+   * Whether every note has its sound: its recording, or its synthesized note when it has none (or
+   * when the recording failed, or has kept the piece waiting too long, which hands it to the synth).
+   */
+  private ready(w: NonNullable<MusicPlayer['waiting']>, now: number): boolean {
+    const late = now - w.since > SAMPLE_WAIT;
+    let ok = true;
+    w.piece.notes.forEach((n, i) => {
+      const v = w.voices[i];
+      if (v && this.sampler!.has(v.file)) return;
+      if (v && !late && this.sampler!.pick(n.inst, n.midi, noteLayer(n))) {
+        ok = false;
+        return;
+      }
+      if (v) w.voices[i] = null;
+      if (!this.bank.has(this.bank.want(noteJob(n)))) ok = false;
+    });
+    return ok;
+  }
+
+  private begin(piece: Piece, voices: (SampledVoice | null)[], start: number): Playing {
     const out = this.ctx.createGain();
     out.gain.setValueAtTime(0, start);
     out.gain.linearRampToValueAtTime(1, start + (this.fading.length ? CROSSFADE_SECONDS : 0.05));
     out.connect(this.out);
-    return { piece, style: piece.style, start, next: 0, out, pans: new Map() };
+    return { piece, voices, style: piece.style, start, next: 0, out, pans: new Map() };
   }
 
   private fadeOut(p: Playing, now: number, seconds = CROSSFADE_SECONDS): void {
@@ -156,7 +203,7 @@ export class MusicPlayer {
       if (at > now + LOOKAHEAD) break;
       p.next++;
       if (at < now - 0.05) continue;
-      this.playNote(p, n, at);
+      this.playNote(p, n, p.voices[p.next - 1] ?? null, at);
     }
   }
 
@@ -173,18 +220,21 @@ export class MusicPlayer {
     return node;
   }
 
-  private playNote(p: Playing, n: Note, at: number): void {
-    const buffer = this.bank.get(jobKey(noteJob(n)));
+  private playNote(p: Playing, n: Note, voice: SampledVoice | null, at: number): void {
+    const buffer = voice ? this.sampler!.get(voice.file) : this.bank.get(jobKey(noteJob(n)));
     if (!buffer) return;
     const src = this.ctx.createBufferSource();
     src.buffer = buffer;
+    const rate = voice?.rate ?? 1;
+    src.playbackRate.value = rate;
     const g = this.ctx.createGain();
     const t = Math.max(this.ctx.currentTime, at);
-    g.gain.setValueAtTime(noteGain(n), t);
-    const rel = noteRelease(n);
+    g.gain.setValueAtTime(noteGain(n) * (voice?.gain ?? 1), t);
+    const length = buffer.duration / rate;
+    const rel = voice ? noteRelease(n, length) : noteRelease(n);
     g.gain.setTargetAtTime(0, t + rel.at, rel.tau);
     src.connect(g).connect(this.panner(p, notePan(n)));
     src.start(t);
-    src.stop(Math.min(t + buffer.duration, t + rel.at + rel.tau * 8));
+    src.stop(Math.min(t + length, t + rel.at + rel.tau * 8));
   }
 }

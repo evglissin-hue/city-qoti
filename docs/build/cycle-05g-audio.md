@@ -55,6 +55,8 @@ Layered stems that follow the town's size (I5, if CC0 stems are found), position
 
 The CC0 hosts (Freesound, OpenGameArt, Kenney, FreePD, the Free Music Archive, Musopen, archive.org) were blocked by the build environment's network policy, so every sound is synthesized in the browser instead, which the owner allowed. The manifest, `npm run audio:fetch` (hash check, trim, loudnorm, AAC) and the manifest test are in place for recordings added later.
 
+Later, with the owner's go-ahead, the band gained recordings: VSCO-2 CE (CC0, cloned from GitHub) for the piano (Ivy Audio's upright, every major third, two dynamics), the double bass pizzicato, the string section (cellos, violas and violins by register), the flute, the clarinet (new), the harp (new) and the marimba. `npm run audio:samples -- <checkout>` (`tools/audio/samples.ts`) checks each note's pitch, trims and cuts it, matches its loudness to the synthesized instrument it replaces and writes mono AAC plus the zone table (`audio/sampler.zones.ts`); `audio/sampler.ts` picks the nearest note of the same touch and retunes it, and the music player waits up to 8 s for a piece's recordings before the synth stands in. 163 files, 6.9 MB (budget 16 MB). Clarinet leads join spring mornings, autumn and evenings; the harp arpeggiates autumn and leads some winter mornings and nights.
+
 Second pass (after the owner's first listen: "not great, needs way more attention"):
 
 - **Instruments** (`synth/instruments.ts`, rendered at 32 kHz in `synth/render.worker.ts`):
