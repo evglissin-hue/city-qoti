@@ -752,6 +752,29 @@ export function overlaysLayer(): OverlaysLayer {
     if (tiles.length) add(drapeTiles(m, tiles, 0.04));
   }
 
+  /**
+   * Playtest round three: the soil everywhere, for placing a farmhouse or a plot: deep green on
+   * rich soil, pale sage on good, sandy on thin (slower), nothing where no field can go.
+   */
+  function soil(): void {
+    if (!ctx) return;
+    const m = ctx.mirror;
+    const rich = new Color(0x3f7a3a);
+    const good = new Color(0x8fb879);
+    const thin = new Color(0xd9b98a);
+    const tiles: { x: number; z: number; rgba: Rgba }[] = [];
+    for (let z = 0; z < MAP_SIZE; z++) {
+      for (let x = 0; x < MAP_SIZE; x++) {
+        if (m.water(x, z) || m.road(x, z) || m.occupant(x, z) || m.tree(x, z)) continue;
+        const f = m.fertility(x, z);
+        if (f < FIELD_MIN_FERTILITY) continue;
+        const c = f >= 70 ? rich : f >= FIELD_GOOD_FERTILITY ? good : thin;
+        tiles.push({ x, z, rgba: [c.r, c.g, c.b, 0.36] });
+      }
+    }
+    if (tiles.length) add(drapeTiles(m, tiles, 0.04));
+  }
+
   function rebuild(): void {
     if (!ctx) return;
     clear();
@@ -765,6 +788,7 @@ export function overlaysLayer(): OverlaysLayer {
     else if (kind === 'land') merged(land);
     else if (kind === 'needs') merged(needs);
     else if (kind?.startsWith('deposit:')) deposits(kind.slice('deposit:'.length));
+    else if (kind === 'soil') soil();
     statusRebuild = true;
     ctx.invalidate();
   }

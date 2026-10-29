@@ -1,7 +1,7 @@
 // Empty I1 slices and runtime helpers (C3.0). Sandbox valleys keep these slices empty.
 import { content } from '@qoti/content';
 import type { BuildingDef } from '@qoti/content';
-import { LEDGER_CATEGORIES, TICKS_PER_HOUR } from '../constants';
+import { BUILD_EFFORT, LEDGER_CATEGORIES, TICKS_PER_HOUR } from '../constants';
 import type {
   BuildingRuntime,
   EconomyState,
@@ -104,7 +104,7 @@ export function createRuntime(def: BuildingDef, site: boolean): BuildingRuntime 
     construction = {
       needs,
       delivered: goodsArray(),
-      work: (def.work ?? 8) * TICKS_PER_HOUR,
+      work: Math.round((def.work ?? 8) * TICKS_PER_HOUR * BUILD_EFFORT),
       workDone: 0,
       priority: false,
       paid: 0,

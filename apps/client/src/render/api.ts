@@ -37,7 +37,9 @@ export type OverlayKind =
   | 'traffic'
   | 'land'
   | 'needs'
-  | `deposit:${string}`;
+  | `deposit:${string}`
+  // Playtest round three: soil quality everywhere, while placing a farmhouse or a plot.
+  | 'soil';
 
 export interface GhostSegment {
   fx: number;

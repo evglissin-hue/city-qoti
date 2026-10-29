@@ -56,6 +56,9 @@ describe('the nightly growth pass', () => {
   it('grows homes on the best lots while newcomers would come and there is work, then stops', () => {
     const f = villageFixture();
     const s = f.state;
+    // The fixture staffs two of the town hall's four builder jobs (playtest round three); this test
+    // counts only the work it opens, so hiring there is paused (no ticks run, nobody builds).
+    s.buildings.find((b) => b.def === 'town-hall')!.rt!.paused = true;
     openWork(s);
     openWork(s, 91, 46);
     const before = moneySnapshot(s);

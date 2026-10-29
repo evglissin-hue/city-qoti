@@ -23,6 +23,8 @@ describe('two players, three evenings', { timeout: 120_000 }, () => {
       expect(last.wishesGranted, why).toBeGreaterThanOrEqual(3);
       expect(last.patterns, why).toBeGreaterThanOrEqual(2);
       expect(last.achievements, why).toBeGreaterThanOrEqual(5);
+      // Playtest round three: nothing stuck along the way (sites, builders, walkers, materials).
+      expect(run.health.map((i) => i.text)).toEqual([]);
     });
   }
 
@@ -39,7 +41,9 @@ describe('two players, three evenings', { timeout: 120_000 }, () => {
       const days = run.days;
       const why = `\n${formatDays(days)}`;
       const village = days.find((d) => d.rank === 'village');
-      expect(village?.day, why).toBeLessThanOrEqual(36);
+      // The roadmap's range is day 25 to 37 (docs/spec/30-roadmap.md); playtest round three's faster
+      // building moved hazel from 36 to 37 (it grows bigger sooner and waits on a season in surplus).
+      expect(village?.day, why).toBeLessThanOrEqual(37);
       const last = days[days.length - 1]!;
       expect(last.residents, why).toBeGreaterThanOrEqual(40);
       expect(last.departures, why).toBe(0);

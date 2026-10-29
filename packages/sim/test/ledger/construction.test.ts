@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { BuildingStatus, PENNIES_PER_COIN, TICKS_PER_HOUR } from '../../src/constants';
+import { BUILD_EFFORT, BuildingStatus, PENNIES_PER_COIN, TICKS_PER_HOUR } from '../../src/constants';
 import type { BuildingView } from '../../src/contracts';
 import { TREE_SPECIES, treeValue } from '../../src/map/layers';
 import { findById } from '../../src/state/entities';
@@ -61,19 +61,21 @@ describe('placing a site', () => {
     const f = hamletFixture();
     const store = building(f.state, f.b.storehouse);
     const oak = treeValue(TREE_SPECIES.oak, 3);
-    // Three mature trees and a sapling under a woodcutter's hut that needs 12 logs.
+    // Three mature trees and a sapling under a sawpit that needs 16 logs, on the town's side of the
+    // river (across it, with no bridge, the site would be cut off).
     for (const [x, z] of [
-      [120, 60],
-      [121, 60],
-      [120, 61],
+      [70, 55],
+      [71, 55],
+      [70, 56],
     ]) {
       f.state.map.tree[z! * S + x!] = oak;
     }
-    f.state.map.tree[61 * S + 121] = treeValue(TREE_SPECIES.oak, 1);
-    run(f.state, { t: 'build.place', def: 'woodcutter', x: 120, z: 60, rot: 0 });
+    f.state.map.tree[56 * S + 71] = treeValue(TREE_SPECIES.oak, 1);
+    run(f.state, { t: 'build.place', def: 'sawpit', x: 70, z: 55, rot: 0 });
     const hut = f.state.buildings[f.state.buildings.length - 1]!;
+    expect(hut.def).toBe('sawpit');
     expect(hut.rt!.construction!.delivered[good('logs')]).toBe(6);
-    expect(hut.rt!.construction!.needs[good('logs')]).toBe(6);
+    expect(hut.rt!.construction!.needs[good('logs')]).toBe(10);
     // A cottage needs no logs: its two trees go to the storehouse.
     f.state.map.tree[60 * S + 52] = oak;
     f.state.map.tree[61 * S + 53] = oak;
@@ -134,9 +136,10 @@ describe('building a site', () => {
     everyoneToWork(f.state);
     ticks(f.state, 4 * H);
     const c = site.rt!.construction!;
-    // 4 planks and 6 stone of 22 units: work stops at 10/22 of 8 builder-hours.
+    // 4 planks and 6 stone of 22 units: work stops at 10/22 of the cottage's builder-hours.
     expect(c.delivered[good('planks')]).toBe(4);
-    expect(c.workDone).toBe(Math.floor((8 * H * 10) / 22));
+    expect(c.workDone).toBe(Math.floor((c.work * 10) / 22));
+    expect(c.work).toBe(Math.round(8 * H * BUILD_EFFORT));
     expect(site.rt!.status & BuildingStatus.waitingMaterials).toBeTruthy();
   });
 

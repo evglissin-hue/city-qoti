@@ -94,3 +94,13 @@ Each iteration ends with something both players can play on the live link (P54),
 ## I5 Market Town, City and beyond
 
 **Scope**: Market Town and City Charters and trials; Patrons tier; tram, gas lamps, railway, glassworks; grand landmarks; music stems that follow the town; stroll mode; optional Claude-written letters; new valleys (coast, highlands, lakes); gamepads and a one-screen couch mode; remappable keys; captions; polish.
+
+## Ideas from playtests (not scheduled)
+
+Raised by the owner and Kat after playtest round three; for later increments, not the current one.
+
+- **A little RimWorld flavor, not obviously**: residents already have personalities; lean on them so every villager feels like someone in particular.
+- **Ideology and belief**: once a village has grown into a bigger place (Town at the earliest, maybe later), the two players pick what the town believes and values, and it colors the town: festivals, buildings, wishes, moods.
+- **A light technology tree**, kept basic.
+- **Decor that is cozy and varied from the start**: no edgy, angular furniture-pack look (Kat's RimWorld comparison: the base game's furniture is too angular until mods make it cute). Start with a small set of basic pieces and combinations that are already charming, and unlock much more with ranks and achievements, with a bit of challenge in earning them.
+- **A move mode**: pick up a building or a piece of decor and set it down elsewhere, as in games that let you rearrange the town freely.

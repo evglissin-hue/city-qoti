@@ -178,11 +178,17 @@ describe('note commands', () => {
 });
 
 describe('time, seat and valley commands', () => {
-  it('sets desired speed per seat; effective speed is the minimum', () => {
+  it('sets the speed for everyone: the last to change it decides', () => {
     const w = flatWorld();
-    run(w, { t: 'time.setSpeed', speed: 3 }, 0);
-    const ctx = run(w, { t: 'time.setSpeed', speed: 2 }, 1);
-    expect(w.time.desired.slice(0, 2)).toEqual([3, 2]);
+    w.time.connected = [0, 1];
+    let ctx = run(w, { t: 'time.setSpeed', speed: 3 }, 0);
+    // A partner who never touched the clock does not hold it back.
+    expect(w.time.desired.slice(0, 2)).toEqual([3, 3]);
+    expect(eventsOf(ctx.events, 'clock')[0]!.c.speed).toBe(3);
+    ctx = run(w, { t: 'time.setSpeed', speed: 0 }, 1);
+    expect(eventsOf(ctx.events, 'clock')[0]!.c.speed).toBe(0);
+    ctx = run(w, { t: 'time.setSpeed', speed: 2 }, 0);
+    expect(w.time.desired.slice(0, 2)).toEqual([2, 2]);
     expect(eventsOf(ctx.events, 'clock')[0]!.c.speed).toBe(2);
     expect(rejection(run(w, { t: 'time.setSpeed', speed: 4 as never }))).toBe('INVALID');
   });

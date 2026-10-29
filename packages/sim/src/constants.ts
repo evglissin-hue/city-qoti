@@ -131,6 +131,11 @@ export const FIELD_TILE_COST = 1;
 export const FIELD_MIN_FERTILITY = 15;
 export const FIELD_GOOD_FERTILITY = 40;
 export const MAX_FIELD_TILES = 256;
+/**
+ * Builder-hours a site takes per hour of its def's `work` (tune). Playtest round three: at 1 two
+ * builders raised about one building a day, and sites with every plank in sat waiting for weeks.
+ */
+export const BUILD_EFFORT = 0.5;
 export const MAX_SIGN_CHARS = 24;
 /** Undo stack depth per seat (client). */
 export const UNDO_DEPTH = 30;

@@ -33,13 +33,13 @@ Costs, upkeep and outputs are *(tune)*. C3X tuned them against a headless pair o
 
 | Building | Size | Cost | Upkeep/day | Workers | Production | Placement |
 |---|---|---|---|---|---|---|
-| Town Hall | 4x4 | start | 0 | 2 builders | treasury, Charter board, peddler sales; builds sites until a Builder's Yard exists | start area |
+| Town Hall | 4x4 | start | 0 | 4 builders (the last two fill with spare hands) | treasury, Charter board, peddler sales; builds sites until a Builder's Yard exists | start area |
 | Cottage | 2x2 | 16 planks, 6 stone, 20 coins | 0 | none | home for 1 household (up to 4) | road at entrance |
 | Builder's Yard | 3x3 | 20 logs, 10 stone, 30 | 2 | 3 builders | builds sites | road |
 | Woodcutter's Hut | 2x2 | 12 logs, 20 | 1 | 2 | fells 1 mature tree per 3 h per worker → 4 logs | mature trees within 8 |
 | Forester's Lodge | 2x2 | 12 logs, 6 stone, 20 | 1 | 1 | plants 1 sapling per 2 h within 8 | |
-| Sawpit | 2x3 | 16 logs, 6 stone, 30 | 1 | 2 | 2 logs → 4 planks per 2 h | |
-| Quarry | 3x3 | 20 planks, 40 | 2 | 3 | 2 stone per 2 h per worker | 4+ stone deposit tiles in footprint |
+| Sawpit | 2x3 | 16 logs, 30 | 1 | 2 | 2 logs → 4 planks per 2 h | |
+| Quarry | 3x3 | 12 planks, 40 | 2 | 3 | 2 stone per 2 h per worker | 4+ stone deposit tiles in footprint |
 | Farmhouse | 2x2 | 16 planks, 6 stone, 30 | 1 | 3 | tends fields: 1 wheat per field tile per day, max 12 tiles per worker | |
 | Wheat Field | painted tiles within 6 of a farmhouse | 1 per tile | 0 | none | see farmhouse | fertility 15+ (40+ grows at full speed) |
 | Windmill | 2x2 | 24 planks, 12 stone, 50 | 2 | 1 | 3 wheat → 2 flour per h; +25% at height 4+ | |
@@ -92,9 +92,12 @@ Forty Craftsfolk (ten households) use about 10 firewood, 4 cloth, 12 bread and 8
 ## Construction [I1]
 
 - Placing a building creates a construction site, deducts the coin cost immediately, and requests the material cost. Placement is refused when the treasury cannot cover the coins, and in lean times.
-- Porters deliver materials; builders then add work: cottage 8 builder-hours, workshop 12, storehouse 16, windmill 20 *(tune)*. Work keeps pace with deliveries: builders may only do the share of the work that the materials delivered so far allow, so a site waits ("waiting for materials") rather than racing ahead.
+- Porters deliver materials; builders then add work: a def's `work` hours times `BUILD_EFFORT` (0.5 since playtest round three), so a cottage takes 4 builder-hours, a workshop 6, a storehouse 8, a windmill 10 *(tune)*. Work keeps pace with deliveries: builders may only do the share of the work that the materials delivered so far allow, so a site waits ("waiting for materials") rather than racing ahead.
 - Visible stages: staked plot, foundation, frame, roof, done. Progress is half materials, half work; stages change at 15%, 45% and 80%.
-- Builders (town hall and builder's yards) walk to the site's door and work there, up to 3 per site. Order: placement order, raised sites first. Ledger can raise a site to priority (`build.setPriority`). A paused site waits.
+- Builders (the town hall's four, and builder's yards) walk to the site's door and work there, up to 3 per site. Order: placement order, raised sites first. Ledger can raise a site to priority (`build.setPriority`). A paused site waits. A builder who cannot walk to a site skips it for that round, so one unreachable site never holds up the rest.
+- A site's door must be reachable from the town (the town hall, storehouses and builder's yards, walking as residents do: no cliffs of two levels, no water without a bridge); otherwise `build.place` refuses it as CUT_OFF and the ghost shows why (`rules/reach.ts`, playtest round three).
+- A waiting site explains itself in the inspector: which materials are short, whether the town has none and what makes them (and what that needs), whether sites ahead take the stock first, the builders' queue and hours, or that it is cut off.
+- The basic chain always restarts from trees: a woodcutter's hut costs logs (and trees cleared off its site pay for it), a sawpit logs only, a quarry planks only. `HealthWatch` (sim `view/health.ts`) flags stalled sites, idle builders beside work, materials nothing can make, cut-off sites and stuck residents; the autoplayer and `tools/bench/src/playtest.test.ts` assert it stays quiet.
 - Builders with no site to work on repair the most worn building, outside lean times.
 - Cancelling refunds coins in full and delivered materials to the nearest storehouse. Removing a built building returns its stock and buffers to the nearest storehouse, without a coin refund. A building placed over field tiles takes them over; trees in a footprint are cleared at placement.
 

@@ -167,11 +167,23 @@ function matchBuilders(state: WorldState): void {
         .filter((b) => b.stage === 'built' && b.rt && b.rt.condition < 100)
         .sort((a, b) => a.rt!.condition - b.rt!.condition || a.id - b.id);
 
+  // Playtest round three: a site a builder cannot walk to is skipped for the rest of this round,
+  // so one cut-off site never keeps every builder from the others.
+  const unreachable = new Set<number>();
   for (const { r } of idle) {
-    let target = sites.find((s) => (crews.get(s.id) ?? 0) < MAX_BUILDERS_PER_SITE);
-    target ??= worn.find((s) => !crews.has(s.id));
-    if (!target) return;
-    crews.set(target.id, (crews.get(target.id) ?? 0) + 1);
-    if (startTask(state, r, -target.id, doorTile(target)) === 'unreachable') finishTask(state, r, false);
+    for (;;) {
+      let target = sites.find(
+        (s) => !unreachable.has(s.id) && (crews.get(s.id) ?? 0) < MAX_BUILDERS_PER_SITE,
+      );
+      target ??= worn.find((s) => !unreachable.has(s.id) && !crews.has(s.id));
+      if (!target) return;
+      if (startTask(state, r, -target.id, doorTile(target)) === 'unreachable') {
+        finishTask(state, r, false);
+        unreachable.add(target.id);
+        continue;
+      }
+      crews.set(target.id, (crews.get(target.id) ?? 0) + 1);
+      break;
+    }
   }
 }

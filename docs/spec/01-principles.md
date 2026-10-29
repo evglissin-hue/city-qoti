@@ -41,7 +41,7 @@ Accepted as v1 on 2026-10-25. The numbers are stable; other spec docs cite them 
 7. **One shared town, co-owned.** You build in the same world at the same time, each on your own laptop with your own camera, as equals (no host). Rejected alternative: two neighboring towns that trade, which gives more ownership but less time together.
 8. **Your own lens.** Each screen defaults to its player's lane (tools, overlays, alerts); one key flips to the other.
 9. **Either of you can play alone.** Whoever opens the town can play; the other comes back to a "while you were away" letter. Optional setting: the town only runs when you're both in.
-10. **Time passes only while someone is in.** Leave for a month and nothing changes. Either player can pause; fast-forward needs both to opt in.
+10. **Time passes only while someone is in.** Leave for a month and nothing changes. Either player can pause or change the speed, and the speed is shared: whoever changed it last decides (playtest round three: waiting on a partner who never touched the clock read as a bug).
 11. **Presence.** See each other's cursor and tool, ping a spot, pin notes to the map, emote. Voice stays outside the game.
 12. **Plans layer.** Sketch ghost plans (roads, zones, buildings, decor) for the other to comment on, tweak and approve, live or asynchronously.
 13. **Requests between lanes.** "I need 40 lanterns for the Autumn Walk." "Can Mill Lane get nicer so merchants move in?" Requests are tracked and count toward shared goals.

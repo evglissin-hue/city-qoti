@@ -86,6 +86,7 @@ export {
   type InspectResult,
 } from './view/inspect';
 export { evaluate, type Binding } from './conditions';
+export { HealthWatch, type HealthIssue, type HealthKind } from './view/health';
 
 export { base64ToBytes, bytesToBase64 } from './state/base64';
 export { createValley, createWorld, defaultSettings } from './state/create';

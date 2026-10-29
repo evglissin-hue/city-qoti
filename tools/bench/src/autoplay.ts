@@ -33,7 +33,9 @@ import {
   TICKS_PER_DAY,
   TICKS_PER_HOUR,
   townStock,
+  HealthWatch,
   type GrowthDemand,
+  type HealthIssue,
   type WorldState,
 } from '@qoti/sim';
 import { advisors, type AutoplayOptions } from './advisors';
@@ -108,6 +110,8 @@ export interface AutoplayResult {
   actions: string[];
   /** The high street of a Village run (C4B), once laid. */
   street?: HighStreet | null;
+  /** Playtest round three: every health issue seen, checked each game hour (first sighting kept). */
+  health: HealthIssue[];
 }
 
 function dayLine(w: WorldState, day: number): DayLine {
@@ -159,12 +163,17 @@ function dayLine(w: WorldState, day: number): DayLine {
   };
 }
 
-/** Ticks until the clock next shows `hour`:00. */
-function untilHour(h: Hamlet, hour: number): void {
+/** Ticks until the clock next shows `hour`:00, with `hourly` after each game hour. */
+function untilHour(h: Hamlet, hour: number, hourly?: () => void): void {
   const now = (h.world.tick + START_HOUR * TICKS_PER_HOUR) % TICKS_PER_DAY;
   let n = (hour * TICKS_PER_HOUR - now + TICKS_PER_DAY) % TICKS_PER_DAY;
   if (n === 0) n = TICKS_PER_DAY;
-  runTicks(h, n);
+  while (n > 0) {
+    const step = Math.min(n, TICKS_PER_HOUR);
+    runTicks(h, step);
+    n -= step;
+    hourly?.();
+  }
 }
 
 /**
@@ -187,18 +196,23 @@ export function autoplay(seed: string, days: number, opts: AutoplayOptions = {})
   const lend = opts.standInPost && !content.buildingById.has('trading-post');
   /** First day that began at Village rank (claimed or granted); 0 while a Hamlet. */
   let villageFrom = 0;
+  const watch = new HealthWatch();
+  const health = new Map<string, HealthIssue>();
+  const look = () => {
+    for (const i of watch.check(h.world)) if (!health.has(i.kind + i.id)) health.set(i.kind + i.id, i);
+  };
   try {
     for (let d = 1; d <= days; d++) {
       const playing = opts.handsOff === undefined || d < opts.handsOff;
       // Village runs watch the night's growth pass (01:00): what it wanted, and what it started.
       let night: GrowthNight | undefined;
       if (villageFrom > 0 && d > villageFrom) {
-        untilHour(h, 1);
+        untilHour(h, 1, look);
         const before = growthLine(h.world);
         runTicks(h, 1);
         night = { demand: before.demand, started: grownSince(before, growthLine(h.world)) };
       }
-      untilHour(h, 9);
+      untilHour(h, 9, look);
       if (d === opts.villageDay && !rankAtLeast(h.world, 'village')) {
         // Through the real claim, as if every goal had just been met.
         h.world.charter.ready = true;
@@ -213,9 +227,9 @@ export function autoplay(seed: string, days: number, opts: AutoplayOptions = {})
       if (lend && rankAtLeast(h.world, 'village') && store.tags === tags)
         store.tags = [...tags, 'trading-post'];
       if (playing) for (const a of team) a.visit({ afternoon: false });
-      untilHour(h, 15);
+      untilHour(h, 15, look);
       if (playing) for (const a of team) a.visit({ afternoon: true });
-      untilHour(h, 23);
+      untilHour(h, 23, look);
       const line = dayLine(h.world, d);
       if (villageFrom > 0) line.growth = { ...growthLine(h.world), night };
       out.push(line);
@@ -229,6 +243,7 @@ export function autoplay(seed: string, days: number, opts: AutoplayOptions = {})
     days: out,
     actions: planner.actions,
     street: planner.street,
+    health: [...health.values()],
   };
 }
 

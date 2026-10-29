@@ -58,7 +58,7 @@ Ephemeral, never part of sim state (`21-networking-and-saves.md`).
 
 ## Time and speed [I0]
 
-- Each seat has a desired speed (paused, 1x, 2x, 3x). Effective speed = the minimum over connected seats. So either seat can pause, and fast-forward needs both (P10).
+- The speed (paused, 1x, 2x, 3x) is shared: `time.setSpeed` sets every seat's desired speed, so whoever changes it last decides, and either seat can pause or carry on (P10). State still keeps a desired speed per seat and the effective speed is their minimum over connected seats, so older saves behave.
 - The top bar shows the effective speed and, when slowed or paused, who caused it: "Paused by <name>".
 - Keys: Space toggles pause, 1, 2 and 3 set speed.
 - Time passes only while at least one seat is connected (P10). Valley setting **together only**: time passes only while both seats are connected (P9).

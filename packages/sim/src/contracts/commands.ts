@@ -192,4 +192,7 @@ export type RejectReason =
   /** The river is frozen (the dock, a pond on ice). */
   | 'FROZEN'
   /** There is no raid on (the bell's raid-only uses, bandit.decide). */
-  | 'NO_RAID';
+  | 'NO_RAID'
+  // Playtest round three
+  /** Nobody from the town can walk to the door: cut off by a cliff or water. */
+  | 'CUT_OFF';

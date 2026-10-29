@@ -6,6 +6,7 @@ import { footprintTiles } from '../rules/footprint';
 import { findById, removeById } from '../state/entities';
 import { isStandard } from '../state/hamlet';
 import { insertBuilding } from '../state/place';
+import { townReachesDoor } from '../state/reach';
 import { worldIndex } from '../state/worldIndex';
 import { chargePlacement, matureTreesUnder, placementBlocked, refundRemoval } from '../systems/economy/api';
 import { meetsRequires } from '../systems/innovations/api';
@@ -22,6 +23,9 @@ export const place: HandlerFor<'build.place'> = {
     if (def.grows && !def.grows.handPlaced && isStandard(state)) return 'NOT_ALLOWED';
     const result = canPlaceBuilding(worldIndex(state).reader, def, cmd.x, cmd.z, cmd.rot);
     if (!result.ok) return result.reason ?? 'INVALID';
+    // Playtest round three: a site nobody can walk to would wait forever.
+    if (isStandard(state) && !townReachesDoor(state, { def: def.id, x: cmd.x, z: cmd.z, rot: cmd.rot }))
+      return 'CUT_OFF';
     return placementBlocked(state, def);
   },
   apply(state, seat, cmd, ctx) {

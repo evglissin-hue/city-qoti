@@ -54,7 +54,7 @@ Map: 192 x 192 tiles, 1 tile = 4 m. Decor cap 6,000 items. Forest up to about 15
 ## New valley
 
 - **Sandbox valley** (I0, kept later as a creative mode): empty generated valley, no costs, instant building, no residents.
-- **Standard valley** [I1]: Town Hall near the river crossing, a Storehouse (logs 40, planks 50, stone 30, bread 16, vegetables 16, fish 8; C3X tuning), two Cottages, a Well and a path to the valley road. Treasury 500 coins. The Town Hall employs 2 builders (filled by the first residents) until a Builder's Yard exists. Two households (8 residents) arrive at 08:00 on Spring day 1.
+- **Standard valley** [I1]: Town Hall near the river crossing, a Storehouse (logs 40, planks 50, stone 30, bread 16, vegetables 16, fish 8; C3X tuning), two Cottages, a Well and a path to the valley road. Treasury 500 coins. The Town Hall employs up to 4 builders (the first two filled by the first residents, the other two by spare hands) until a Builder's Yard exists. Two households (8 residents) arrive at 08:00 on Spring day 1.
 - At creation the players name the town; the valley gets a generated name (for example "Willowmere").
 
 ## Glossary

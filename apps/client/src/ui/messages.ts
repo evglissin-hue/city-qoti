@@ -26,6 +26,9 @@ export const REJECT_TEXT: Record<RejectReason, string> = {
   WOULD_ENCLOSE: 'That wall would shut someone in. They would notice.',
   FROZEN: 'The river is frozen. It will thaw in spring, as rivers do.',
   NO_RAID: 'There is no raid on. The bell can rest.',
+  // Playtest round three
+  CUT_OFF:
+    'Nobody can walk to that door: a cliff or the river is in the way. Turn it, or build where a path can reach.',
 };
 
 export function rejectText(reason: RejectReason | undefined): string {

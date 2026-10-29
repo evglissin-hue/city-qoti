@@ -26,7 +26,8 @@ export const QUALITY_PRESETS: Record<Quality, QualityPreset> = {
   },
   low: { maxDpr: 1, shadowMap: 0, msaa: false, ambientMotion: false, residentDetail: 30, decorDistance: 40 },
   medium: {
-    maxDpr: 1.5,
+    // Playtest round three: 1.5 on a Retina screen looked soft; dynamic resolution steps down instead.
+    maxDpr: 2,
     shadowMap: 2048,
     msaa: true,
     ambientMotion: true,

@@ -72,8 +72,8 @@ Tone mapping (AgX or ACES), bloom (strong at night), tilt-shift (vertical gradie
 | | Low | Medium (target) | High |
 |---|---|---|---|
 | Shadows | off | 2048, soft | 4096, softer |
-| Post | tone mapping only | + bloom, tilt-shift | + ambient occlusion, more bloom detail |
-| Render scale | 0.75 | 1.0 | 1.0 (device pixel ratio up to 2) |
+| Post | tone mapping only | + bloom, tilt-shift on wide views (none close up) | + ambient occlusion, more bloom detail |
+| Render scale | 0.75 | 1.0 (device pixel ratio up to 2) | 1.0 (device pixel ratio up to 2) |
 | Resident detail distance | 30 tiles | 60 | 100 |
 | Decor detail distance | 40 | 80 | 140 |
 | Ambient critters | none | some | all |

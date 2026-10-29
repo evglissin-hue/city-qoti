@@ -63,10 +63,10 @@ describe('reports', () => {
     const f = hamletFixture();
     const w = workforceView(f.state);
     const th = w.lines.find((l) => l.def === 'town-hall')!;
-    expect(th).toMatchObject({ role: 'builder', jobs: 2, workers: 2 });
+    expect(th).toMatchObject({ role: 'builder', jobs: 4, workers: 2 });
     expect(w.employed).toBe(6);
     expect(w.unemployed).toBe(1);
-    expect(w.jobs).toBe(2 + 4 + 2 + 1 + 2 + 1);
+    expect(w.jobs).toBe(4 + 4 + 2 + 1 + 2 + 1);
     expect(w.vacancies).toBe(w.jobs - 6);
   });
 

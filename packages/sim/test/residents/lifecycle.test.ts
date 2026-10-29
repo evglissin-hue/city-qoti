@@ -63,7 +63,8 @@ describe('day one in a standard valley', () => {
     expect(jobs).toBe(6);
     for (const p of w.residents) expect(p.history.map((h) => h.kind)).toContain('moved-in');
     const hall = w.buildings.find((b) => b.def === 'town-hall')!;
-    expect(hall.rt!.workers).toHaveLength(2);
+    // Four builders (playtest round three), the porters' first hands before the fourth.
+    expect(hall.rt!.workers.length).toBeGreaterThanOrEqual(3);
   });
 
   it('is the same day on every machine', () => {

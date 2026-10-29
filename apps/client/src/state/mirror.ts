@@ -2,7 +2,12 @@ import { signal } from '@preact/signals';
 import {
   DecorGrid,
   defaultSettings,
+  doorFront,
   inBounds,
+  reachesTile,
+  townReach,
+  townSources,
+  type Rot4,
   INT32_LAYERS,
   LAYER_NAMES,
   MAP_SIZE,
@@ -231,6 +236,9 @@ export class Mirror implements MapReader {
   /** Bumps whenever commissions, the Field Guide or habitats change. */
   readonly seasonsRevision = signal(0);
   agents: AgentFrames = { prev: EMPTY_FRAME, prevAt: 0, latest: EMPTY_FRAME, latestAt: 0, t: 0 };
+  /** Bumps on every layer patch and snapshot, for caches derived from the map (the town's reach). */
+  layerRevision = 0;
+  private reachCache: { rev: number; buildings: number; reach: Uint8Array } | null = null;
   private readonly listeners: ((c: MirrorChange) => void)[] = [];
 
   constructor() {
@@ -255,6 +263,7 @@ export class Mirror implements MapReader {
 
   load(view: ViewSnapshot): void {
     for (const name of LAYER_NAMES) this.layers[name] = view.layers[name];
+    this.layerRevision++;
     this.buildings.clear();
     this.decor.clear();
     this.notes.clear();
@@ -332,6 +341,7 @@ export class Mirror implements MapReader {
 
   apply(u: WorkerUpdate): MirrorChange {
     const change = emptyChange();
+    if (u.patches.length) this.layerRevision++;
     for (const p of u.patches) {
       pasteRect(this.layers[p.layer], p.rect, p.data);
       const list = change.rects.get(p.layer) ?? [];
@@ -690,6 +700,21 @@ export class Mirror implements MapReader {
   parcelUnlocked(x: number, z: number): boolean {
     return inBounds(x, z, MAP_SIZE);
   }
+  /**
+   * Playtest round three: true when the town can walk to this door (the sim refuses sites it
+   * cannot, as CUT_OFF). The flood is cached until the map or the buildings change.
+   */
+  townReaches(b: { def: string; x: number; z: number; rot: Rot4 }): boolean {
+    const n = this.buildings.size;
+    if (!this.reachCache || this.reachCache.rev !== this.layerRevision || this.reachCache.buildings !== n) {
+      const sources = townSources(this.buildings.values());
+      this.reachCache = { rev: this.layerRevision, buildings: n, reach: townReach(this, sources) };
+    }
+    const reach = this.reachCache.reach;
+    if (!reach.some((v) => v === 1)) return true;
+    return reachesTile(reach, this, doorFront(b));
+  }
+
   decorNear(fx: number, fz: number, radius: number): DecorView[] {
     return this.grid.near(fx, fz, radius);
   }

@@ -12,10 +12,15 @@ import type {
   WorldState,
 } from '../contracts';
 import { findById } from '../state/entities';
+import { townReachesDoor } from '../state/reach';
+import { isWorkTime } from '../systems/economy/time';
+import { ARRIVAL_THRESHOLD } from '../systems/residents/lifecycle';
+import { meetsRequires } from '../systems/innovations/api';
+import { allowedWork } from '../systems/production/status';
 import { WORN_CONDITION } from '../systems/production/produce';
 import { dailyRates } from '../systems/production/rates';
 import { buildingView, noteView } from './index';
-import { chronicleView, fillText, goodPairs, nameOf } from './hamlet';
+import { chronicleView, fillText, goodPairs, nameOf, townStock } from './hamlet';
 import { residentDetail } from './residentDetail';
 import { lotView } from './village';
 import { buildingProfit } from '../systems/market/profit';
@@ -39,7 +44,7 @@ export function inspect(state: WorldState, kind: InspectKind, id: number): Inspe
 }
 
 /** Readable lines for each status bit; some name what is missing. */
-function statusLines(b: Building, def: BuildingDef | undefined): string[] {
+function statusLines(state: WorldState, b: Building, def: BuildingDef | undefined): string[] {
   const rt = b.rt;
   if (!rt) return [];
   const s = rt.status;
@@ -49,10 +54,26 @@ function statusLines(b: Building, def: BuildingDef | undefined): string[] {
   if (has(BuildingStatus.paused)) out.push('Paused by the Ledger');
   if (b.stage === 'construction' && rt.construction) {
     const due = goodsText(rt.construction.needs);
-    if (has(BuildingStatus.waitingMaterials)) out.push(due ? `Waiting for ${due}` : 'Waiting for materials');
-    else if (due) out.push(`Still to come: ${due}`);
-    if (has(BuildingStatus.waitingBuilders)) out.push('Waiting for a builder to come by');
+    // Playtest round three: say why a site waits, and what would get it going.
+    if (!townReachesDoor(state, b)) {
+      out.push(
+        'Nobody from the town can walk to its door: a cliff or water is in the way. Join it with a path, or move it',
+      );
+    }
+    if (has(BuildingStatus.waitingMaterials)) {
+      out.push(due ? `Waiting for ${due}` : 'Waiting for materials');
+      out.push(...materialAdvice(state, b));
+    } else if (due) out.push(`Still to come: ${due}`);
+    if (has(BuildingStatus.waitingBuilders)) out.push(builderAdvice(state, b));
     if (rt.construction.priority) out.push('Raised to the front of the queue');
+  }
+  // Playtest round three: an empty home says when a family will come ("they're not using it").
+  if (b.stage === 'built' && def?.housing && !state.households.some((h) => h.homeId === b.id)) {
+    out.push(
+      state.stats.attractiveness >= ARRIVAL_THRESHOLD
+        ? 'Empty for now: new families walk in from the valley gate at 8:00'
+        : 'Empty for now: families will come once the valley is a little more inviting (food in store, work going, a bit of charm)',
+    );
   }
   if (has(BuildingStatus.noWorkers)) out.push('Nobody works here yet');
   if (has(BuildingStatus.missingInput) && method) {
@@ -75,6 +96,106 @@ function statusLines(b: Building, def: BuildingDef | undefined): string[] {
   if (has(BuildingStatus.disrepair)) out.push(`In disrepair (${rt.condition}%)`);
   else if (rt.condition < WORN_CONDITION) out.push(`A little worn (${rt.condition}%)`);
   return out;
+}
+
+/** Sites served before this one: rushed sites first, then in the order they were placed. */
+function sitesAhead(state: WorldState, b: Building): Building[] {
+  const mine = b.rt!.construction!;
+  return state.buildings.filter((s) => {
+    const c = s.stage === 'construction' ? s.rt?.construction : null;
+    if (!c || s.id === b.id) return false;
+    if (c.priority !== mine.priority) return c.priority;
+    return s.id < b.id;
+  });
+}
+
+/** For each good a site waits on: does the town have it, do sites ahead want it, does anything make it. */
+function materialAdvice(state: WorldState, b: Building): string[] {
+  const c = b.rt!.construction!;
+  const stock = townStock(state);
+  const ahead = sitesAhead(state, b);
+  const out: string[] = [];
+  c.needs.forEach((need, g) => {
+    if (need <= 0) return;
+    const good = content.goods[g]!;
+    const name = good.name.toLowerCase();
+    const have = stock[g] ?? 0;
+    const wanted = ahead.reduce((n, s) => n + (s.rt!.construction!.needs[g] ?? 0), 0);
+    const how = makerHint(state, good.id, stock);
+    if (have === 0 && !working(state, good.id)) {
+      out.push(`The town has no ${name} and nothing is making any${how ? `: ${how}` : ''}`);
+    } else if (have === 0) out.push(`The town is out of ${name}; more is on the way`);
+    else if (have <= wanted)
+      out.push(
+        `Sites ahead in the queue take the town's ${have} ${name} first. Rush this one to put it at the front`,
+      );
+  });
+  return out;
+}
+
+/** Defs that make a good, the plainest the players can place now first. */
+function makersOf(state: WorldState, good: string): BuildingDef[] {
+  return content.buildings
+    .filter(
+      (d) =>
+        d.methods?.some((m) => m.outputs.some(([o]) => o === good)) &&
+        (!d.modes || d.modes.includes(state.settings.mode)) &&
+        (!d.grows || d.grows.handPlaced) &&
+        meetsRequires(state, d.requires),
+    )
+    .sort((a, b) => Number(!!a.requires) - Number(!!b.requires) || costSize(a) - costSize(b));
+}
+
+function costSize(d: BuildingDef): number {
+  return (d.cost?.goods ?? []).reduce((n, [, q]) => n + q, 0);
+}
+
+/** True when a built, staffed building makes the good. */
+function working(state: WorldState, good: string): boolean {
+  const makers = new Set(
+    content.buildings
+      .filter((d) => d.methods?.some((m) => m.outputs.some(([o]) => o === good)))
+      .map((d) => d.id),
+  );
+  return state.buildings.some(
+    (x) => x.stage === 'built' && x.rt && x.rt.workers.length > 0 && makers.has(x.def),
+  );
+}
+
+/** "a sawpit makes planks from logs, and a woodcutter's hut brings logs": one step down the chain. */
+function makerHint(state: WorldState, good: string, stock: readonly number[]): string {
+  const maker = makersOf(state, good)[0];
+  if (!maker) return '';
+  const inputs = maker.methods?.find((m) => m.outputs.some(([o]) => o === good))?.inputs ?? [];
+  let text = `${aOrAn(maker.name.toLowerCase())} makes ${goodName(good)}`;
+  if (inputs.length) text += ` from ${inputs.map(([i]) => goodName(i)).join(' and ')}`;
+  for (const [i] of inputs) {
+    const gi = content.goodIndex.get(i) ?? -1;
+    if ((stock[gi] ?? 0) > 0 || working(state, i)) continue;
+    const next = makersOf(state, i)[0];
+    if (next) text += `, and ${aOrAn(next.name.toLowerCase())} brings ${goodName(i)}`;
+  }
+  return text;
+}
+
+function aOrAn(word: string): string {
+  return /^[aeiou]/.test(word) ? `an ${word}` : `a ${word}`;
+}
+
+/** Why no builder has come: night, the queue ahead, or nobody in the builder jobs. */
+function builderAdvice(state: WorldState, b: Building): string {
+  let builders = 0;
+  for (const x of state.buildings) {
+    if (x.stage === 'built' && x.rt && content.buildingById.get(x.def)?.jobs?.role === 'builder')
+      builders += x.rt.workers.length;
+  }
+  if (builders === 0)
+    return 'Waiting for a builder: nobody has taken the builder jobs yet (the town hall has them)';
+  if (!isWorkTime(state.tick)) return 'Waiting for a builder: they work from 8:00 to 17:00';
+  const ahead = sitesAhead(state, b).filter((s) => s.rt!.construction!.workDone < allowedWork(s.rt!)).length;
+  const crew = `${builders} builder${builders === 1 ? '' : 's'}`;
+  if (ahead === 0) return `Waiting for a builder to come by (the town has ${crew})`;
+  return `Waiting for a builder: ${ahead} site${ahead === 1 ? ' is' : 's are'} ahead in the queue for the town's ${crew}. A builder's yard adds more, or rush this one`;
 }
 
 function goodName(id: string): string {
@@ -114,7 +235,7 @@ export function buildingDetail(state: WorldState, id: EntityId): BuildingDetail 
       const present = !!r && (r.inside === b.id || (r.activity.kind === 'task' && r.jobId === b.id));
       return { id: w, name: nameOf(state, w), present };
     }),
-    status: statusLines(b, def),
+    status: statusLines(state, b, def),
   };
   const method = def?.methods?.[rt?.method ?? 0];
   if (method) detail.method = { name: method.name, hours: method.hours };

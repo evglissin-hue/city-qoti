@@ -228,7 +228,8 @@ export const quarry: BuildingDef = {
   size: [3, 3],
   entrance: [1, 2],
   placement: [{ kind: 'deposit', deposit: 'stone', minTiles: 4 }],
-  cost: { coins: 40, goods: [['planks', 20]] },
+  // Playtest round three: fewer planks (20 before), and the sawpit no longer needs stone.
+  cost: { coins: 40, goods: [['planks', 12]] },
   upkeep: 2,
   jobs: { count: 3, role: 'worker' },
   methods: [
@@ -256,13 +257,8 @@ export const sawpit: BuildingDef = {
   category: 'production',
   size: [2, 3],
   entrance: [1, 2],
-  cost: {
-    coins: 30,
-    goods: [
-      ['logs', 16],
-      ['stone', 6],
-    ],
-  },
+  // Playtest round three: logs only (no stone), so stone and planks never wait on each other.
+  cost: { coins: 30, goods: [['logs', 16]] },
   upkeep: 1,
   jobs: { count: 2, role: 'worker' },
   methods: [
@@ -326,7 +322,7 @@ export const townHall: BuildingDef = {
   category: 'civic',
   size: [4, 4],
   entrance: [2, 3],
-  jobs: { count: 2, role: 'builder' },
+  jobs: { count: 4, role: 'builder' },
   storage: 0,
   charm: [{ category: 'comfort', value: 8, radius: 4 }],
   tags: ['civic', 'builders'],

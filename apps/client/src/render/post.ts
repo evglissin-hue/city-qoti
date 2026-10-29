@@ -79,7 +79,7 @@ export class PostChain {
   private readonly hTilt: ShaderPass;
   private readonly vTilt: ShaderPass;
   private readonly grade: ShaderPass;
-  private tilt = 1;
+  private tilt = 0;
   private width = 1;
   private height = 1;
   private pixelRatio = 1;
@@ -141,16 +141,19 @@ export class PostChain {
 
   /**
    * C3D-1: tilt-shift strength from the camera distance: close-ups stay crisp, wide views get the
-   * miniature look.
+   * miniature look. Playtest round three: close-ups had a little blur everywhere but the middle
+   * band ("blurry when I zoom in"), so it now starts at zero and only grows once the camera is
+   * well back; at zero the two passes are skipped.
    */
   setViewDistance(distance: number): void {
-    const k = 0.6 + Math.min(1, Math.max(0, (distance - 25) / 140)) * 1.6;
+    const k = Math.min(1, Math.max(0, (distance - 50) / 130)) * 2.2;
     if (Math.abs(k - this.tilt) < 0.02) return;
     this.tilt = k;
     this.applyTilt();
   }
 
   private applyTilt(): void {
+    this.hTilt.enabled = this.vTilt.enabled = this.tilt > 0.02;
     (this.hTilt.uniforms.h as { value: number }).value = (1.5 * this.tilt) / (this.width * this.pixelRatio);
     (this.vTilt.uniforms.v as { value: number }).value = (1.5 * this.tilt) / (this.height * this.pixelRatio);
   }
