@@ -24,6 +24,8 @@ interface Marker {
   x: number;
   z: number;
   y: number;
+  /** False until the spot has been laid on the ground once. */
+  placed: boolean;
 }
 
 interface Ping {
@@ -123,7 +125,7 @@ export function presenceLayer(): PresenceLayer {
       mesh.frustumCulled = false;
       mesh.visible = false;
       ctx.scene.add(mesh);
-      m = { track: new CursorTrack(), mesh, geometry, material, alpha: 0, shown: false, x: 0, z: 0, y: 0 };
+      m = { track: new CursorTrack(), mesh, geometry, material, alpha: 0, shown: false, x: 0, z: 0, y: 0, placed: false };
       markers.set(seat, m);
     }
     return m;
@@ -183,7 +185,8 @@ export function presenceLayer(): PresenceLayer {
         if (m.track.moving(now)) moving = true;
         const dx = at.x - m.x;
         const dz = at.z - m.z;
-        if (dx * dx + dz * dz > 1e-8 || m.y === 0) {
+        if (dx * dx + dz * dz > 1e-8 || !m.placed) {
+          m.placed = true;
           m.x = at.x;
           m.z = at.z;
           m.y = groundY(ctx.mirror, at.x, at.z);

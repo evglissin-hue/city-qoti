@@ -81,4 +81,13 @@ describe('CursorTrack', () => {
     expect(slow.delay).toBeGreaterThan(fast.delay * 1.5);
     expect(fast.delay).toBeLessThan(200);
   });
+  it('stops asking for frames once the cursor has come to rest', () => {
+    const t = new CursorTrack();
+    const p = { x: 0, z: 0 };
+    for (let i = 0; i < 10; i++) t.push(i, 0, i * 100);
+    let now = 900;
+    for (; now < 3000; now += 16) t.at(now, p);
+    expect(t.moving(now)).toBe(false);
+    expect(p.x).toBeCloseTo(9, 3);
+  });
 });
