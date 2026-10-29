@@ -125,7 +125,18 @@ export function presenceLayer(): PresenceLayer {
       mesh.frustumCulled = false;
       mesh.visible = false;
       ctx.scene.add(mesh);
-      m = { track: new CursorTrack(), mesh, geometry, material, alpha: 0, shown: false, x: 0, z: 0, y: 0, placed: false };
+      m = {
+        track: new CursorTrack(),
+        mesh,
+        geometry,
+        material,
+        alpha: 0,
+        shown: false,
+        x: 0,
+        z: 0,
+        y: 0,
+        placed: false,
+      };
       markers.set(seat, m);
     }
     return m;
