@@ -401,6 +401,16 @@ export class Session {
           ? { x: p.cursor[0], z: p.cursor[1], ...(p.tool ? { tool: p.tool } : {}) }
           : null;
         this.renderer?.setPresence(p.seat, cursor);
+        // The renderer glides the cursor itself; the interface (minimap, top bar, the tool in hand)
+        // only needs to hear when it reaches another tile, changes tool, or comes and goes.
+        const was = this.ui.cursors.value.get(p.seat);
+        const same =
+          was && cursor
+            ? Math.floor(was.x) === Math.floor(cursor.x) &&
+              Math.floor(was.z) === Math.floor(cursor.z) &&
+              was.tool === cursor.tool
+            : !was && !cursor;
+        if (same) break;
         const next = new Map(this.ui.cursors.value);
         if (cursor) next.set(p.seat, cursor);
         else next.delete(p.seat);
