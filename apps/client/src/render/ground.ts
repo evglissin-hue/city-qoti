@@ -1,5 +1,5 @@
 import { palette } from '@qoti/art';
-import { MAP_SIZE, Terrain, type Rect } from '@qoti/sim';
+import { entranceTiles, MAP_SIZE, Terrain, type Rect } from '@qoti/sim';
 import {
   DataTexture,
   LinearFilter,
@@ -12,15 +12,16 @@ import {
 import type { Mirror } from '../state/mirror';
 import { hash2 } from './coords';
 import { MAX_GROUND_LIGHTS, NOISE_GLSL, type WorldEnv } from './env';
-import { ROAD_GLSL } from './layers/roads';
+import { drawDef } from './defs';
+import { DOOR_KIND, ROAD_GLSL } from './layers/roads';
 import { WATER_Y } from './surface';
 
 /**
  * C3D-1: the painted ground. Two small textures cover the map, one texel per tile:
  * - color (filtered, so tile colors blend softly across edges): the base tint per tile with seeded
  *   variation, canopy shade under trees and sandy banks; alpha is wildflower density.
- * - data (exact): road kind, terrain, crop growth (wear off fields, C4E) and flags, for roads,
- *   field furrows, crops and desire paths.
+ * - data (exact): road kind (or a door, see DOOR_KIND), terrain, crop growth (wear off fields, C4E)
+ *   and flags, for roads, doorsteps, field furrows, crops and desire paths.
  * The ground shader adds the detail on top: mottling, flowers, furrows, roads with ruts, wet
  * banks, drifting cloud shade, lantern glow pools at night and mist at the valley's rim.
  */
@@ -191,11 +192,21 @@ export class GroundTextures {
       };
       if (run(1, 0) + run(-1, 0) >= run(0, 1) + run(0, -1)) flags |= GroundFlag.rowsAlongX;
     }
-    this.dataBytes[o] = road;
+    this.dataBytes[o] = road || this.door(x, z, L.occupant[i]!);
     this.dataBytes[o + 1] = terrain;
     // C4E: the third channel is crop growth on fields and wear (desire paths) everywhere else.
     this.dataBytes[o + 2] = terrain === Terrain.field ? (L.crop?.[i] ?? 0) : (L.wear?.[i] ?? 0);
     this.dataBytes[o + 3] = flags;
+  }
+
+  /** DOOR_KIND plus the building's rotation on the tile its door is in, else 0. */
+  private door(x: number, z: number, occupant: number): number {
+    if (!occupant) return 0;
+    const b = this.mirror.buildings.get(occupant);
+    const def = b && drawDef(b.def);
+    if (!b || !def) return 0;
+    const [ex, ez] = entranceTiles(def, b.x, b.z, b.rot).entrance;
+    return ex === x && ez === z ? DOOR_KIND + b.rot : 0;
   }
 
   dispose(): void {

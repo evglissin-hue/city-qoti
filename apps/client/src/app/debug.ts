@@ -17,6 +17,7 @@ import {
 import type { Selection } from '../input/context';
 import { applySettings, loadSettings } from '../ui/settings';
 import { folkShowcase } from '../render/folkShowcase';
+import { fitShowcase } from '../render/fitShowcase';
 import { roadsShowcase } from '../render/roadShowcase';
 import { audio, type SoundCueId } from '../audio/api';
 import { audioEngine } from '../audio/install';
@@ -281,6 +282,11 @@ export function installDebugHook(getSession: () => Session | null): void {
     roadsShowcase: (x?: number, z?: number) => {
       const session = s();
       return session ? roadsShowcase(session.mirror, x, z) : null;
+    },
+    /** A hillside street of buildings on straddled levels, for reviewing how they sit on the ground. */
+    fitShowcase: (x?: number, z?: number) => {
+      const session = s();
+      return session ? fitShowcase(session.mirror, x, z) : null;
     },
     /** C3D: a made-up charm field for overlay screenshots (until the charm system runs). */
     synthCharm: () => {

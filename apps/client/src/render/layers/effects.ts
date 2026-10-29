@@ -12,7 +12,7 @@ import {
   type BufferGeometry,
 } from 'three';
 import type { BuildingView } from '@qoti/sim';
-import { buildingKey, buildingKitOptions, buildingMatrix, footprintHeights } from '../kitGeometry';
+import { buildingKey, buildingKitOptions, buildingMatrix, standLevel } from '../kitGeometry';
 import type { LayerContext, RenderLayer } from './types';
 
 /** Kit anchors and parts rerun the generator, so cache them per def. */
@@ -114,8 +114,8 @@ export function effectsLayer(): EffectsLayer {
     clearSpinners();
     chimneys = [];
     for (const b of ctx.mirror.buildings.values()) {
-      const [, hi] = footprintHeights(ctx.mirror, b.def, b.x, b.z, b.rot);
-      const place = buildingMatrix(b.def, b.x, b.z, b.rot, hi);
+      const level = standLevel(ctx.mirror, b.def, b.x, b.z, b.rot);
+      const place = buildingMatrix(b.def, b.x, b.z, b.rot, level);
       for (const [x, y, z] of anchorsOf(b).smoke ?? [])
         chimneys.push(new Vector3(x, y, z).applyMatrix4(place));
       for (const { geometry, part } of b.stage === 'built' ? partsOf(b.def) : []) {

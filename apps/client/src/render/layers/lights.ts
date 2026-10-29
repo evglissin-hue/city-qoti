@@ -3,7 +3,7 @@ import { content } from '@qoti/content';
 import { drawDef } from '../defs';
 import { Matrix4, PerspectiveCamera, Vector3 } from 'three';
 import { createWorldEnv, MAX_GROUND_LIGHTS, type WorldEnv } from '../env';
-import { buildingMatrix, decorMatrix, footprintHeights } from '../kitGeometry';
+import { buildingMatrix, decorMatrix, standLevel } from '../kitGeometry';
 import { windowLit } from '../lighting';
 import { groundY } from '../surface';
 import type { LayerContext, RenderLayer } from './types';
@@ -81,8 +81,8 @@ export function lightsLayer(): RenderLayer {
     for (const b of mirror.buildings.values()) {
       const lights = anchorsForBuilding(b.def).lights;
       if (!lights?.length) continue;
-      const [, hi] = footprintHeights(mirror, b.def, b.x, b.z, b.rot);
-      buildingMatrix(b.def, b.x, b.z, b.rot, hi, m);
+      const level = standLevel(mirror, b.def, b.x, b.z, b.rot);
+      buildingMatrix(b.def, b.x, b.z, b.rot, level, m);
       const def = drawDef(b.def);
       const [w, d] = def?.size ?? [1, 1];
       const center = new Vector3(w / 2, 0, d / 2).applyMatrix4(m);

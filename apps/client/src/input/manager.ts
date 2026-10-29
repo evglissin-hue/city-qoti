@@ -8,6 +8,8 @@ import { toolFactories } from './tools';
 export interface ManagerHooks {
   /** Every pointer move over the canvas (for presence). */
   pointer(p: PointerInfo): void;
+  /** The pointer left the canvas (onto the interface or out of the window). */
+  pointerLeave?(): void;
   /** Keys no tool used: pause, speed, lens and so on. Returns true when handled. */
   globalKey(e: KeyboardEvent): boolean;
   /** I1: Ctrl+Z (Cmd+Z on a Mac) undoes this seat's latest command. */
@@ -71,7 +73,10 @@ export class ToolManager {
       if (e.button !== 0) return;
       this.current.pointerUp?.(this.info(e));
     });
-    on(canvas, 'pointerleave', () => this.render.setGhost(null));
+    on(canvas, 'pointerleave', () => {
+      this.render.setGhost(null);
+      this.hooks.pointerLeave?.();
+    });
     on(window, 'keydown', (e) => {
       if (isTyping(e)) return;
       if ((e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey && (e.key === 'z' || e.key === 'Z')) {

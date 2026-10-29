@@ -28,7 +28,8 @@ export function decorLayer(): RenderLayer {
       rebuild();
     },
     update(change) {
-      if (change.full || change.decor || change.rects.has('height')) rebuild();
+      if (change.full || change.decor || change.rects.has('height') || change.rects.has('occupant'))
+        rebuild();
     },
     dispose() {
       sets?.dispose();

@@ -62,6 +62,7 @@ export interface RenderApi {
   pickEntity(clientX: number, clientY: number): EntityPick | null;
   setGhost(g: Ghost | null): void;
   setOverlay(kind: string | null): void;
+  /** A partner's cursor: the world point under it (tiles, fractional), or null when it is away. */
   setPresence(seat: SeatId, p: { x: number; z: number; tool?: string } | null): void;
   ping(seat: SeatId, x: number, z: number, kind: 'look' | 'help' | 'build'): void;
   focus(x: number, z: number, distance?: number): void;
@@ -71,6 +72,11 @@ export interface RenderApi {
    * and off-screen arrows. `onScreen` is false when the point is outside the view or behind it.
    */
   project?(x: number, y: number, z: number): { x: number; y: number; onScreen: boolean } | null;
+  /**
+   * Where a partner's cursor is drawn this frame, smoothed (tiles; y on the ground), and how faded
+   * in it is (0 to 1), so the interface's pointer and name tag move with it. Null when hidden.
+   */
+  presenceAt?(seat: SeatId): { x: number; y: number; z: number; alpha: number } | null;
   /** I1 (C3.0): follow a resident with the camera (null stops). Optional until C3D lands. */
   follow?(residentId: number | null): void;
   /** I1 (C3.0): mood and wish bubbles above heads. */

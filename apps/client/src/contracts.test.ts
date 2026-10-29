@@ -340,6 +340,7 @@ describe('I0 contracts', () => {
       | 'focus'
       | 'setQuality'
       | 'project'
+      | 'presenceAt'
       | 'follow'
       | 'setBubbles'
       | 'highlight'

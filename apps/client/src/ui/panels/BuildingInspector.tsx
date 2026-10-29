@@ -202,7 +202,7 @@ export function BuildingInspector({ session, id }: { session: Session; id: numbe
         <span>
           {capital(`built by ${by}`)}
           {b.handmade && <span class="handmade"> with a personal touch</span>}
-          {b.foundation && ', on a stone plinth'}.
+          {b.foundation && ', set into the hillside'}.
         </span>
       </p>
       {site && def?.cost?.coins ? (

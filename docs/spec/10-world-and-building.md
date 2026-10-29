@@ -90,7 +90,7 @@ Defined in `packages/content` (fields in `20-architecture.md`). Placement rules,
 
 - **Trees in the footprint**: sandbox removes them. Standard [I1]: the construction site includes clearing work (+1 builder-hour per tree, yields 4 logs each to the nearest storehouse).
 - **Entrance**: each def has an entrance tile offset (front middle by default). The tile in front of it must be a road for the building to function [I1]; placement without it is allowed with a warning, and the building shows a "no road" marker until connected.
-- **Foundations**: a footprint with spread 1 gets a stone plinth (render) and costs +10% stone [I1].
+- **Foundations**: a footprint with spread 1 is drawn as one terrace at its door's level (cut into the hill or banked up, the ground easing back to the slope around it) and costs +10% stone [I1].
 - **Construction** [I1]: placed buildings start as construction sites (see `13-ledger.md`). Sandbox: instant.
 - **Removal**: sandbox instant. Standard [I1]: refunds 50% of materials to the nearest storehouse; residents and workers are released.
 

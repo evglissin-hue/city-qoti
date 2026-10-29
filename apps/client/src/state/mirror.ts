@@ -1,4 +1,5 @@
 import { signal } from '@preact/signals';
+import { content } from '@qoti/content';
 import {
   DecorGrid,
   defaultSettings,
@@ -65,6 +66,7 @@ import {
   type WorldMeta,
 } from '@qoti/sim';
 import type { WorkerUpdate } from '../worker/host';
+import { padLevel } from './pads';
 
 export interface Rejection {
   seat: number;
@@ -239,6 +241,9 @@ export class Mirror implements MapReader {
   /** Bumps on every layer patch and snapshot, for caches derived from the map (the town's reach). */
   layerRevision = 0;
   private reachCache: { rev: number; buildings: number; reach: Uint8Array } | null = null;
+  /** Pad levels by building id, until the map or the buildings change. */
+  private pads = new Map<EntityId, number>();
+  private padsRev = -1;
   private readonly listeners: ((c: MirrorChange) => void)[] = [];
 
   constructor() {
@@ -355,10 +360,12 @@ export class Mirror implements MapReader {
         case 'building.updated':
           if (e.e === 'building.added') change.added.push(`building:${e.b.id}`);
           this.buildings.set(e.b.id, e.b);
+          this.pads.delete(e.b.id);
           change.buildings = true;
           break;
         case 'building.removed':
           this.buildings.delete(e.id);
+          this.pads.delete(e.id);
           change.buildings = true;
           break;
         case 'decor.added':
@@ -713,6 +720,37 @@ export class Mirror implements MapReader {
     const reach = this.reachCache.reach;
     if (!reach.some((v) => v === 1)) return true;
     return reachesTile(reach, this, doorFront(b));
+  }
+
+  /**
+   * The level the ground is drawn at under a built-on tile: its building's flat pad (see
+   * `padLevel`), or the tile's own level when nothing stands on it. Render only.
+   */
+  padLevel(x: number, z: number): number {
+    const id = this.occupant(x, z);
+    if (!id) return this.height(x, z);
+    if (this.padsRev !== this.layerRevision) {
+      this.pads.clear();
+      this.padsRev = this.layerRevision;
+    }
+    let level = this.pads.get(id);
+    if (level === undefined) {
+      const b = this.buildings.get(id);
+      const def = b && content.buildingById.get(b.def);
+      if (b && def) level = padLevel(this, def, b.x, b.z, b.rot);
+      else if (b) level = this.highestOf(id, b.x, b.z);
+      else level = this.height(x, z);
+      this.pads.set(id, level);
+    }
+    return level;
+  }
+
+  /** The highest level under a building content does not know (debug stand-ins), from its corner. */
+  private highestOf(id: EntityId, x0: number, z0: number): number {
+    let hi = this.height(x0, z0);
+    for (let z = z0; z < MAP_SIZE && this.occupant(x0, z) === id; z++)
+      for (let x = x0; x < MAP_SIZE && this.occupant(x, z) === id; x++) hi = Math.max(hi, this.height(x, z));
+    return hi;
   }
 
   decorNear(fx: number, fz: number, radius: number): DecorView[] {

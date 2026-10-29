@@ -15,7 +15,8 @@ export const MAX_SNAPSHOT_BYTES = 8 * 1024 * 1024;
 export const MAX_OTHER_BYTES = 8 * 1024;
 
 export const CMDS_PER_SECOND = 30;
-export const PRESENCE_PER_SECOND = 5;
+/** Cursor updates: the client sends 10 a second while the pointer moves; a little headroom for jitter. */
+export const PRESENCE_PER_SECOND = 12;
 export const PINGS_PER_SECOND = 2;
 
 /** WebSocket close codes the room uses (4000 to 4999 are free for applications). */

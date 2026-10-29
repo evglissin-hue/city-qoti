@@ -278,16 +278,17 @@ describe('snapshots', () => {
 });
 
 describe('presence, hashes and limits', () => {
-  it('relays presence to the other seat only, at most 5 per second', async () => {
+  it('relays presence to the other seat only, at most 12 per second', async () => {
     const a = await join(0);
     const b = await join(1);
-    for (let i = 0; i < 8; i++) room.message(a, { k: 'presence', cursor: [i, i], tool: 'path' });
-    expect(b.of('presence')).toHaveLength(5);
-    expect(b.of('presence')[0]).toEqual({ k: 'presence', seat: 0, cursor: [0, 0], tool: 'path' });
+    for (let i = 0; i < 15; i++)
+      room.message(a, { k: 'presence', cursor: [i + 0.5, i + 0.25], tool: 'path' });
+    expect(b.of('presence')).toHaveLength(12);
+    expect(b.of('presence')[0]).toEqual({ k: 'presence', seat: 0, cursor: [0.5, 0.25], tool: 'path' });
     expect(a.of('presence')).toHaveLength(0);
     now += 1000;
     room.message(a, { k: 'presence', cursor: [9, 9] });
-    expect(b.of('presence')).toHaveLength(6);
+    expect(b.of('presence')).toHaveLength(13);
   });
 
   it('rate-limits pings and emotes to 2 per second', async () => {

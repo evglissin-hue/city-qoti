@@ -9,8 +9,10 @@ import { levelY } from './coords';
  * along the diagonal whose ends agree best, so one-level steps become even slopes and a staircase of
  * levels reads as one diagonal hillside instead of a zigzag. Neighbors two or more levels apart do
  * not blend: each keeps its own level up to the shared edge and the terrain draws a rocky face
- * between them. Tiles under buildings are pinned flat, and the slopes around them give way. River
- * banks follow a softened water mask, so shorelines curve.
+ * between them. Tiles under buildings are pinned flat at their building's pad (its door's level, so
+ * a footprint across two levels is cut into the hill or banked up as one terrace), with a little
+ * flat apron round them and the slopes easing away beyond it. River banks follow a softened water
+ * mask, so shorelines curve.
  */
 
 /** Water surface height (world units). */
@@ -18,8 +20,10 @@ export const WATER_Y = -0.06;
 /** River bed under shallow and deep water (world units). */
 const BED_Y = -0.42;
 const DEEP_Y = -0.66;
-/** How far a pinned (built-on) tile flattens the ground around it, in tiles. */
-const PIN_REACH = 0.45;
+/** Flat ground right round a pinned (built-on) tile, for doorsteps, benches and barrels, in tiles. */
+const PIN_APRON = 0.2;
+/** Beyond the apron, how far the ground takes to ease back to the hillside, in tiles. */
+const PIN_REACH = 0.6;
 /** Shoreline shaping: half-width of the band around the mask's middle line, and its slope. */
 const SHORE_BAND = 0.14;
 const SHORE_SLOPE = 1.6;
@@ -34,6 +38,8 @@ export interface SurfaceReader {
   height(x: number, z: number): number;
   water(x: number, z: number): number;
   occupant(x: number, z: number): number;
+  /** The level a built-on tile's ground is drawn at (its building's pad); the tile's level if absent. */
+  padLevel?(x: number, z: number): number;
 }
 
 function clampTile(v: number): number {
@@ -82,7 +88,7 @@ export class SurfaceTiles {
         const i = z * this.cw + x;
         const tx = clampTile(x0 + x);
         const tz = clampTile(z0 + z);
-        this.lv[i] = this.reader.height(tx, tz);
+        this.lv[i] = this.readLevel(tx, tz);
         this.ys[i] = this.readY(tx, tz);
         this.pins[i] = this.reader.occupant(tx, tz) ? 1 : 0;
       }
@@ -112,10 +118,15 @@ export class SurfaceTiles {
     this.ch = 0;
   }
 
+  private readLevel(tx: number, tz: number): number {
+    const r = this.reader;
+    return r.padLevel && r.occupant(tx, tz) && !r.water(tx, tz) ? r.padLevel(tx, tz) : r.height(tx, tz);
+  }
+
   private readY(tx: number, tz: number): number {
     const w = this.reader.water(tx, tz);
     if (w) return w === 2 ? DEEP_Y : BED_Y;
-    return levelY(this.reader.height(tx, tz));
+    return levelY(this.readLevel(tx, tz));
   }
 
   private readWet(x: number, z: number): number {
@@ -139,7 +150,7 @@ export class SurfaceTiles {
 
   level(x: number, z: number): number {
     const i = this.slot(x, z);
-    return i >= 0 ? this.lv[i]! : this.reader.height(clampTile(x), clampTile(z));
+    return i >= 0 ? this.lv[i]! : this.readLevel(clampTile(x), clampTile(z));
   }
 
   /** Height of the tile's center: its level on land, the river bed under water. */
@@ -266,8 +277,8 @@ export function tileSurfaceY(t: SurfaceTiles, tx: number, tz: number, px: number
       const ddx = px < nx ? nx - px : px > nx + 1 ? px - nx - 1 : 0;
       const ddz = pz < nz ? nz - pz : pz > nz + 1 ? pz - nz - 1 : 0;
       const d = Math.sqrt(ddx * ddx + ddz * ddz);
-      if (d >= PIN_REACH) continue;
-      const w = 1 - ease(d / PIN_REACH);
+      if (d >= PIN_APRON + PIN_REACH) continue;
+      const w = d <= PIN_APRON ? 1 : 1 - ease((d - PIN_APRON) / PIN_REACH);
       sumW += w;
       sumY += w * t.y(nx, nz);
       if (w > maxW) maxW = w;

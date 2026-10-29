@@ -100,7 +100,7 @@ interface RoomStorage {
 
 ## Presence
 
-- Never part of sim state. Presence is throttled to 5 messages per second per seat and sent only while something changes. Pings and emotes are rate-limited to 2 per second. The roster counts a seat as connected from its hello until it leaves.
+- Never part of sim state. A cursor is the world point under the pointer, to a 32nd of a tile, sent up to 10 times a second while it moves (the room allows 12 per second per seat) and an empty presence once the pointer has been off the valley for a moment. The receiving client plays the points back a gap or so behind, at the pace they came, and smooths the corners, so a partner's cursor glides instead of hopping between tiles. Pings and emotes are rate-limited to 2 per second. The roster counts a seat as connected from its hello until it leaves.
 - The room relays presence to the other seats immediately (not in turns).
 
 ## Offline solo

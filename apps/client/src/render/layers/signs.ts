@@ -11,7 +11,7 @@ import {
   SRGBColorSpace,
   Vector3,
 } from 'three';
-import { buildingKitOptions, buildingMatrix, footprintHeights } from '../kitGeometry';
+import { buildingKitOptions, buildingMatrix, standLevel } from '../kitGeometry';
 import type { LayerContext, RenderLayer } from './types';
 
 const css = (hex: number): string => `#${hex.toString(16).padStart(6, '0')}`;
@@ -71,8 +71,8 @@ export function signsLayer(): RenderLayer {
     if (!ctx) return;
     const text = typeof b.custom?.sign === 'string' ? b.custom.sign.trim() : '';
     if (!text || b.stage !== 'built') return drop(b.id);
-    const [, hi] = footprintHeights(ctx.mirror, b.def, b.x, b.z, b.rot);
-    const key = `${text}|${b.x},${b.z},${b.rot},${hi}|${JSON.stringify(b.custom)}`;
+    const level = standLevel(ctx.mirror, b.def, b.x, b.z, b.rot);
+    const key = `${text}|${b.x},${b.z},${b.rot},${level}|${JSON.stringify(b.custom)}`;
     if (signs.get(b.id)?.key === key) return;
     drop(b.id);
     const def = drawDef(b.def);
@@ -86,7 +86,7 @@ export function signsLayer(): RenderLayer {
       polygonOffsetFactor: -2,
     });
     const mesh = new Mesh(new PlaneGeometry(sign.width, sign.height), material);
-    const place = buildingMatrix(b.def, b.x, b.z, b.rot, hi);
+    const place = buildingMatrix(b.def, b.x, b.z, b.rot, level);
     const center = new Vector3(...sign.center).applyMatrix4(place);
     const normal = new Vector3(...sign.normal).transformDirection(place);
     look.lookAt(new Vector3(0, 0, 0), normal.clone().negate(), up);

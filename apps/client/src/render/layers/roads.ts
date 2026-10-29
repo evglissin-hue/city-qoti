@@ -7,12 +7,18 @@ import type { LayerContext, RenderLayer } from './types';
 /**
  * C3D-1 roads. Road surfaces are painted by the ground shader (see ROAD_GLSL), which joins each
  * road tile to its road neighbors with soft rounded corners, so runs, corners and T-junctions come
- * out of the neighbors with no stripes or gaps. This layer adds what paint cannot: plank bridges
- * with posts and rails where a road crosses water.
+ * out of the neighbors with no stripes or gaps, and walks a narrow way from the road up to every
+ * door that faces one (door tiles carry DOOR_KIND plus their building's rotation in the road
+ * channel). This layer adds what paint cannot: plank bridges with posts and rails where a road
+ * crosses water.
  */
+
+/** Road channel value of a door tile at rotation 0; rotation r is DOOR_KIND + r. */
+export const DOOR_KIND = 16;
 
 /** Ground shader chunk: `qRoadPaint(wp, ground)` paints roads over the ground color. */
 export const ROAD_GLSL = /* glsl */ `
+float qRoadOnly(float k) { return k < 15.5 ? k : 0.0; }
 float qRoadHalf(float k) { return k < 1.5 ? 0.21 : k < 2.5 ? 0.33 : 0.43; }
 float qSmin(float a, float b, float k) {
   float h = clamp(0.5 + 0.5 * (b - a) / k, 0.0, 1.0);
@@ -78,14 +84,16 @@ vec3 qRoadPaint(vec2 wp, vec3 col) {
   ivec2 t = ivec2(floor(wp));
   float k[9];
   float any = 0.0;
+  bool doors = false;
   for (int j = 0; j < 3; j++) {
     for (int i = 0; i < 3; i++) {
       float v = qGroundFetch(t + ivec2(i - 1, j - 1), 0);
+      if (v > 15.5) doors = true;
       k[j * 3 + i] = v;
-      any = max(any, v);
+      any = max(any, v < 15.5 ? v : 0.0);
     }
   }
-  if (any < 0.5) return col;
+  if (any < 0.5 && !doors) return col;
   float edge = 9.0;
   float center = 9.0;
   float kind = 0.0;
@@ -96,7 +104,7 @@ vec3 qRoadPaint(vec2 wp, vec3 col) {
     for (int i = 0; i < 2; i++) {
       float ka = k[j * 3 + i];
       float kb = k[j * 3 + i + 1];
-      if (ka < 0.5 || kb < 0.5) continue;
+      if (ka < 0.5 || kb < 0.5 || max(ka, kb) > 15.5) continue;
       vec2 a = o + vec2(float(i), float(j));
       qRoadSeg(wp, a, a + vec2(1.0, 0.0), ka, kb, edge, center, kind, best, dir);
     }
@@ -105,7 +113,7 @@ vec3 qRoadPaint(vec2 wp, vec3 col) {
     for (int i = 0; i < 3; i++) {
       float ka = k[j * 3 + i];
       float kb = k[(j + 1) * 3 + i];
-      if (ka < 0.5 || kb < 0.5) continue;
+      if (ka < 0.5 || kb < 0.5 || max(ka, kb) > 15.5) continue;
       vec2 a = o + vec2(float(i), float(j));
       qRoadSeg(wp, a, a + vec2(0.0, 1.0), ka, kb, edge, center, kind, best, dir);
     }
@@ -113,15 +121,48 @@ vec3 qRoadPaint(vec2 wp, vec3 col) {
   // C4P: a square of four road tiles is paved right across, instead of leaving a hole of grass.
   for (int j = 0; j < 2; j++) {
     for (int i = 0; i < 2; i++) {
-      if (min(min(k[j * 3 + i], k[j * 3 + i + 1]), min(k[(j + 1) * 3 + i], k[(j + 1) * 3 + i + 1])) < 0.5) continue;
+      float lo = min(min(k[j * 3 + i], k[j * 3 + i + 1]), min(k[(j + 1) * 3 + i], k[(j + 1) * 3 + i + 1]));
+      float hi = max(max(k[j * 3 + i], k[j * 3 + i + 1]), max(k[(j + 1) * 3 + i], k[(j + 1) * 3 + i + 1]));
+      if (lo < 0.5 || hi > 15.5) continue;
       vec2 q = abs(wp - (o + vec2(float(i), float(j)) + 0.5)) - 0.5;
       float sq = length(max(q, 0.0)) + min(max(q.x, q.y), 0.0);
       edge = qSmin(edge, sq, 0.14);
     }
   }
-  if (k[4] > 0.5 && k[1] + k[3] + k[5] + k[7] < 0.5) {
+  if (k[4] > 0.5 && k[4] < 15.5 && qRoadOnly(k[1]) + qRoadOnly(k[3]) + qRoadOnly(k[5]) + qRoadOnly(k[7]) < 0.5) {
     vec2 c = o + vec2(1.0);
     qRoadSeg(wp, c, c + vec2(0.001, 0.0), k[4], k[4], edge, center, kind, best, dir);
+  }
+  // Doorsteps: a narrow walk from the middle of the road in front of a door up to the door,
+  // ending under the building, joined to the road with the same soft fillet as any junction. Off a
+  // street it is paved like the street; otherwise it is a path's dirt.
+  if (doors) {
+    for (int j = 0; j < 3; j++) {
+      for (int i = 0; i < 3; i++) {
+        float r = k[j * 3 + i] - 16.0;
+        if (r < -0.5) continue;
+        vec2 f = r < 0.5 ? vec2(0.0, 1.0) : r < 1.5 ? vec2(-1.0, 0.0) : r < 2.5 ? vec2(0.0, -1.0) : vec2(1.0, 0.0);
+        ivec2 dt = t + ivec2(i - 1, j - 1);
+        float kf = qGroundFetch(dt + ivec2(f), 0);
+        if (kf < 0.5 || kf > 15.5) continue;
+        vec2 c = vec2(dt) + 0.5;
+        float kw = kf > 2.5 ? 3.0 : 1.0;
+        vec2 a = c + f;
+        vec2 b = c + f * 0.1;
+        vec2 pa = wp - a;
+        vec2 ba = b - a;
+        float h = clamp(dot(pa, ba) / dot(ba, ba), 0.0, 1.0);
+        float d = length(pa - ba * h);
+        float e = d - (kw > 2.5 ? 0.2 : 0.14);
+        edge = qSmin(edge, e, 0.12);
+        center = min(center, d);
+        if (e < best) {
+          best = e;
+          kind = kw;
+          dir = ba;
+        }
+      }
+    }
   }
   if (kind < 0.5) return col;
 
@@ -438,7 +479,7 @@ export function roadsLayer(): RenderLayer {
     update(change) {
       if (!chunks) return;
       if (change.full) chunks.markAll();
-      for (const layer of ['road', 'water', 'flags', 'height'] as const) {
+      for (const layer of ['road', 'water', 'flags', 'height', 'occupant'] as const) {
         for (const rect of change.rects.get(layer) ?? []) chunks.markRect(rect);
       }
     },

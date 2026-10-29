@@ -397,6 +397,10 @@ export class Renderer implements RenderApi {
     this.layer<PresenceLayer>('presence').setPresence(seat, p);
   }
 
+  presenceAt(seat: SeatId): { x: number; y: number; z: number; alpha: number } | null {
+    return this.layer<PresenceLayer>('presence').presenceAt(seat);
+  }
+
   ping(seat: SeatId, x: number, z: number, _kind: 'look' | 'help' | 'build'): void {
     this.layer<PresenceLayer>('presence').ping(seat, x, z);
   }

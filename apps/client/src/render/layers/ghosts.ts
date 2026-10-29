@@ -7,7 +7,7 @@ import {
   buildingMatrix,
   decorGeometry,
   decorMatrix,
-  footprintHeights,
+  standLevel,
   treeGeometry,
 } from '../kitGeometry';
 import type { LayerContext, RenderLayer } from './types';
@@ -72,10 +72,10 @@ export function ghostsLayer(): GhostLayer {
         const material = g.valid ? valid : invalid;
         switch (g.kind) {
           case 'building': {
-            const [, hi] = footprintHeights(ctx.mirror, g.def, g.x, g.z, g.rot);
+            const level = standLevel(ctx.mirror, g.def, g.x, g.z, g.rot);
             const mesh = add(buildingGeometry(g.def), material);
             mesh.matrixAutoUpdate = false;
-            mesh.matrix.copy(buildingMatrix(g.def, g.x, g.z, g.rot, hi));
+            mesh.matrix.copy(buildingMatrix(g.def, g.x, g.z, g.rot, level));
             break;
           }
           case 'decor': {

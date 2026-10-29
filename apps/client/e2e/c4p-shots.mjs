@@ -3,7 +3,7 @@
 //   QOTI_CLIENT_PORT=5190 node apps/client/e2e/c4p-shots.mjs <outDir> <prefix> <shot> [<shot> ...]
 // A shot is name=x,z,distance,hour[,turn,tilt] (turn and tilt in radians, relative to the default
 // view). Env: QOTI_SHOWCASE=1 adds the village showcase, QOTI_ROADS=0 skips the roads scene,
-// QOTI_FOLK=1 adds the folk scene, QOTI_WAIT the settle time per shot in ms, QOTI_SIZE the viewport
+// QOTI_FOLK=1 adds the folk scene, QOTI_FIT=1 the hillside street of buildings, QOTI_WAIT the settle time per shot in ms, QOTI_SIZE the viewport
 // and QOTI_CLIP=x,y,w,h a crop of it (a large viewport and a crop make a close-up).
 import { chromium } from '@playwright/test';
 
@@ -34,6 +34,8 @@ for (const name of ['Done', 'Close', 'Later']) {
 if (process.env.QOTI_SHOWCASE === '1') await page.evaluate(() => window.__qoti.villageShowcase(false));
 if (process.env.QOTI_ROADS !== '0')
   console.log('roads', JSON.stringify(await page.evaluate(() => window.__qoti.roadsShowcase?.())));
+if (process.env.QOTI_FIT === '1')
+  console.log('fit', JSON.stringify(await page.evaluate(() => window.__qoti.fitShowcase?.())));
 if (process.env.QOTI_FOLK === '1')
   console.log('folk', JSON.stringify(await page.evaluate(() => window.__qoti.folkShowcase?.())));
 await page.addStyleTag({

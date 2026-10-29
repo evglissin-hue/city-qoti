@@ -42,7 +42,7 @@ import {
 import type { Mirror } from '../../state/mirror';
 import { drapeGrid, drapeOutline, drapeRing, drapeTiles, groundY, mergeDrapes, type Rgba } from '../drape';
 import { iconAtlas, IconSprites, STATUS_ICONS } from '../icons';
-import { buildingGeometry, footprintHeights } from '../kitGeometry';
+import { buildingGeometry, standLevel } from '../kitGeometry';
 import { levelY } from '../coords';
 import type { LayerContext, RenderLayer } from './types';
 
@@ -333,8 +333,8 @@ export function overlaysLayer(): OverlaysLayer {
     if (!b || !ctx) return null;
     const def = drawDef(b.def);
     const [w, d] = def ? footprintSize(def, b.rot) : [1, 1];
-    const [, hi] = footprintHeights(ctx.mirror, b.def, b.x, b.z, b.rot);
-    return [b.x + w / 2, levelY(hi), b.z + d / 2];
+    const level = standLevel(ctx.mirror, b.def, b.x, b.z, b.rot);
+    return [b.x + w / 2, levelY(level), b.z + d / 2];
   }
 
   function coverage(): void {

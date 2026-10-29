@@ -18,7 +18,8 @@ import {
 } from '@qoti/sim';
 import { Matrix4, Quaternion, Vector3, type BufferGeometry } from 'three';
 import { fpToWorld, levelY } from './coords';
-import { groundY } from './surface';
+import { padLevel } from '../state/pads';
+import { groundY, type SurfaceReader } from './surface';
 
 const cache = new Map<string, BufferGeometry>();
 
@@ -220,7 +221,22 @@ export function footprintHeights(
   return [lo, hi];
 }
 
-/** Places a building kit: rotate about the footprint center, stand it on the highest tile. */
+/**
+ * The level a building stands at: its flat pad, which the ground is drawn to as well. A placed
+ * building asks the reader (the Mirror caches pads); a ghost works it out from its def.
+ */
+export function standLevel(
+  reader: Pick<MapReader, 'height' | 'water' | 'occupant'> & Pick<SurfaceReader, 'padLevel'>,
+  defId: string,
+  x: number,
+  z: number,
+  rot: Rot4,
+): number {
+  if (reader.padLevel && reader.occupant(x, z)) return reader.padLevel(x, z);
+  return padLevel(reader, drawDef(defId), x, z, rot);
+}
+
+/** Places a building kit: rotate about the footprint center, stand it on its pad's level. */
 export function buildingMatrix(
   defId: string,
   x: number,

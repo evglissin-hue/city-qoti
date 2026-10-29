@@ -3,6 +3,7 @@ import type { ErrorCode, PresenceMsg, RosterEntry, S2C, ValleyMeta, Welcome } fr
 import {
   base64ToBytes,
   SIM_VERSION,
+  TILE_FP,
   TICKS_PER_DAY,
   type Command,
   type InspectKind,
@@ -47,7 +48,12 @@ export interface SessionTarget {
   invite?: string;
 }
 
-const PRESENCE_MS = 200;
+/** Cursor updates go out at most this often (the room allows PRESENCE_PER_SECOND). */
+const PRESENCE_MS = 100;
+/** Positions are sent to a 32nd of a tile: smooth enough to glide, short on the wire. */
+const PRESENCE_STEPS = 32;
+/** A pointer that leaves the valley for this long (onto a book, out of the window) is away. */
+const AWAY_MS = 1500;
 const SEASON_NAMES = ['Spring', 'Summer', 'Fall', 'Winter'] as const;
 
 const ROOM_ERRORS: Partial<Record<ErrorCode, string>> = {
@@ -85,7 +91,12 @@ export class Session {
   };
   private container: HTMLElement | null = null;
   private pointerAt = { x: innerWidth / 2, y: innerHeight / 2 };
-  private presence = { key: '', sentAt: 0, timer: 0 as ReturnType<typeof setTimeout> | 0 };
+  private presence = {
+    key: '',
+    sentAt: 0,
+    timer: 0 as ReturnType<typeof setTimeout> | 0,
+    away: 0 as ReturnType<typeof setTimeout> | 0,
+  };
   private lastSpeed: Speed = 1;
   private nextToast = 1;
   private resyncTimes: number[] = [];
@@ -239,6 +250,7 @@ export class Session {
     this.stopAudio = installAudio({ mirror: this.mirror, look: () => this.renderer?.rig.look ?? null });
     this.tools = new ToolManager(ctx, renderer, renderer.canvas, {
       pointer: (p) => this.pointer(p),
+      pointerLeave: () => this.pointerLeft(),
       globalKey: (e) => this.globalKey(e),
       undo: () => this.undoLast(),
     });
@@ -414,17 +426,42 @@ export class Session {
     }
   }
 
-  /** Sends my cursor to the other seat: at most 5 times a second, and only when it changes. */
+  /**
+   * Sends the point under my cursor to the other seat (to a 32nd of a tile, so it glides there):
+   * at most 10 times a second, only when it changes, and always the last position it came to rest
+   * on. The other side plays these back smoothly (CursorTrack).
+   */
   private pointer(p: PointerInfo): void {
     this.pointerAt = { x: p.clientX, y: p.clientY };
+    if (this.presence.away) clearTimeout(this.presence.away);
+    this.presence.away = 0;
     if (!p.tile || !this.connection) return;
     const tool = this.tools?.active.value ?? 'inspect';
-    const key = `${p.tile.x},${p.tile.z},${tool}`;
+    const q = TILE_FP / PRESENCE_STEPS;
+    const x = Math.round(p.tile.fx / q) / PRESENCE_STEPS;
+    const z = Math.round(p.tile.fz / q) / PRESENCE_STEPS;
+    this.queuePresence(`${x},${z},${tool}`);
+  }
+
+  /** The pointer left the valley: after a moment, tell the other seat my cursor is away. */
+  private pointerLeft(): void {
+    if (this.presence.away || !this.connection) return;
+    this.presence.away = setTimeout(() => {
+      this.presence.away = 0;
+      this.queuePresence('');
+    }, AWAY_MS);
+  }
+
+  private queuePresence(key: string): void {
     if (key === this.presence.key) return;
     this.presence.key = key;
     const send = () => {
       this.presence.timer = 0;
       this.presence.sentAt = Date.now();
+      if (!this.presence.key) {
+        this.connection?.sendPresence({});
+        return;
+      }
       const [x, z, t] = this.presence.key.split(',');
       this.connection?.sendPresence({ cursor: [Number(x), Number(z)], tool: t ?? 'inspect' });
     };
@@ -569,6 +606,7 @@ export class Session {
     removeEventListener('pagehide', this.onPageHide);
     document.removeEventListener('visibilitychange', this.onVisibility);
     if (this.presence.timer) clearTimeout(this.presence.timer);
+    if (this.presence.away) clearTimeout(this.presence.away);
     this.connection?.close();
     this.tools?.dispose();
     setPingSender(null);

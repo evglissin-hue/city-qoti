@@ -25,6 +25,44 @@ function worldReader(w: WorldState): SurfaceReader {
 }
 
 describe('ground surface', () => {
+  it('draws a building across two levels as one flat pad, eased into the slope around it', () => {
+    // A 2 x 2 building (id 7) on tiles (2..3, 1..2): its back row at level 2, its front at 1, its
+    // pad at its door's level (1). The hill behind is at 2.
+    const levels = [
+      [2, 2, 2, 2, 2, 2],
+      [2, 2, 2, 2, 2, 2],
+      [1, 1, 1, 1, 1, 1],
+      [1, 1, 1, 1, 1, 1],
+      [1, 1, 1, 1, 1, 1],
+    ];
+    const pins = [[], [0, 0, 7, 7], [0, 0, 7, 7]];
+    const reader: SurfaceReader = {
+      ...grid(levels, [], pins),
+      padLevel: (x, z) => (pins[z]?.[x] ? 1 : levels[z]![x]!),
+    };
+    const t = new SurfaceTiles(reader);
+    const pad = levelY(1);
+    // The whole footprint is flat at the pad, back row included (cut into the hill).
+    for (const [x, z] of [
+      [2.2, 1.1],
+      [3.9, 1.05],
+      [2.5, 2.5],
+      [3.95, 2.95],
+    ] as const)
+      expect(surfaceY(t, x, z)).toBeCloseTo(pad, 6);
+    // A little flat apron round it (the drawn grid is half a tile, so nearly flat), then the ground
+    // eases back to the hill behind.
+    expect(tileSurfaceY(t, 3, 0, 3.5, 0.85)).toBeCloseTo(pad, 6);
+    expect(surfaceY(t, 3, 0.9) - pad).toBeLessThan(0.08);
+    expect(surfaceY(t, 3, 0.5)).toBeGreaterThan(pad);
+    expect(surfaceY(t, 3, 0.05)).toBeCloseTo(levelY(2), 1);
+    // Neighbors agree with the pad along its edges: no step to close.
+    for (let k = 0; k <= 8; k++) {
+      const along = 1 + k / 4;
+      expect(tileSurfaceY(t, 1, Math.floor(along - 1e-9), 2, along)).toBeCloseTo(pad, 6);
+    }
+  });
+
   it('puts every land tile center at its level', () => {
     const t = new SurfaceTiles(
       grid([

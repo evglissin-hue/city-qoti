@@ -8,7 +8,7 @@ import type { BuildingView } from '@qoti/sim';
 import { Euler, Matrix4, Quaternion, Vector3 } from 'three';
 import { hash2 } from '../coords';
 import { drawDef } from '../defs';
-import { buildingKitOptions, buildingMatrix, footprintHeights } from '../kitGeometry';
+import { buildingKitOptions, buildingMatrix, standLevel } from '../kitGeometry';
 import { FramePool } from '../pool';
 import { groundY } from '../surface';
 import type { LayerContext, RenderLayer } from './types';
@@ -112,8 +112,8 @@ export function animalsLayer(): AnimalsLayer {
     next: Beast[],
   ): void {
     if (!ctx) return;
-    const [, hi] = footprintHeights(ctx.mirror, b.def, b.x, b.z, b.rot);
-    buildingMatrix(b.def, b.x, b.z, b.rot, hi, m);
+    const level = standLevel(ctx.mirror, b.def, b.x, b.z, b.rot);
+    buildingMatrix(b.def, b.x, b.z, b.rot, level, m);
     pens.forEach((pen, pi) => {
       const [x0, z0, x1, z1] = pen.pen;
       const o = local.set(x0, 0, z0).applyMatrix4(m).clone();

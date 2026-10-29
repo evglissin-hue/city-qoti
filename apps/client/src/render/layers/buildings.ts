@@ -1,36 +1,30 @@
-import { palette, ShapeBuilder } from '@qoti/art';
 import { drawDef } from '../defs';
 import { footprintSize, type BuildingView } from '@qoti/sim';
-import { Matrix4, MeshStandardMaterial, Quaternion, Vector3 } from 'three';
+import { Matrix4, Vector3 } from 'three';
 import { KeyedBatch } from '../batch';
-import { levelY } from '../coords';
-import { InstanceSets } from '../instances';
 import {
   buildingKey,
   buildingMatrix,
   buildingVariantGeometry,
-  footprintHeights,
   isSeasonal,
   setDrawSeason,
+  standLevel,
 } from '../kitGeometry';
 import type { LayerContext, RenderLayer } from './types';
 
-const PLINTH = '__plinth';
 /** Beyond this many tiles from the camera, buildings swap to their low detail version. */
 const LOD_DISTANCE = 75;
 
 /**
  * Buildings (C3D): every building as it stands (its seeded variant, the player's customization,
  * stock piles and crops from its runtime, or its construction stage) in one BatchedMesh, so the
- * whole hamlet is a single draw call. Distant buildings swap to a cheaper version. A stone plinth
- * goes under footprints on a slope.
+ * whole hamlet is a single draw call. Distant buildings swap to a cheaper version. Each stands on
+ * its pad, the flat terrace the ground is drawn to under its footprint (see `padLevel`), so no
+ * foundation hangs over a slope.
  */
 export function buildingsLayer(): RenderLayer {
   let batch: KeyedBatch | null = null;
   let ctx: LayerContext | null = null;
-  const plinthGeometry = new ShapeBuilder().box(0, 0, 0, 1, 1, 1, palette.plinth).build();
-  const plinthMaterial = new MeshStandardMaterial({ vertexColors: true, roughness: 0.95 });
-  let plinths: InstanceSets | null = null;
   const lods = new Map<number, 'high' | 'low'>();
   const centers = new Map<number, Vector3>();
   const camPos = new Vector3();
@@ -40,15 +34,13 @@ export function buildingsLayer(): RenderLayer {
 
   function place(b: BuildingView): void {
     if (!ctx || !batch) return;
-    const [, hi] = footprintHeights(ctx.mirror, b.def, b.x, b.z, b.rot);
-    buildingMatrix(b.def, b.x, b.z, b.rot, hi, m);
+    buildingMatrix(b.def, b.x, b.z, b.rot, standLevel(ctx.mirror, b.def, b.x, b.z, b.rot), m);
     const lod = lods.get(b.id) ?? 'high';
     batch.set(b.id, buildingKey(b, lod), () => buildingVariantGeometry(b, lod), m);
   }
 
   function rebuild(): void {
-    if (!ctx || !batch || !plinths) return;
-    const plinthMatrices: Matrix4[] = [];
+    if (!ctx || !batch) return;
     const seen = new Set<number>();
     for (const b of ctx.mirror.buildings.values()) {
       seen.add(b.id);
@@ -56,16 +48,6 @@ export function buildingsLayer(): RenderLayer {
       const [w, d] = def ? footprintSize(def, b.rot) : [1, 1];
       centers.set(b.id, new Vector3(b.x + w / 2, 0, b.z + d / 2));
       place(b);
-      const [lo, hi] = footprintHeights(ctx.mirror, b.def, b.x, b.z, b.rot);
-      if (hi > lo) {
-        plinthMatrices.push(
-          new Matrix4().compose(
-            new Vector3(b.x, levelY(lo), b.z),
-            new Quaternion(),
-            new Vector3(w, levelY(hi) - levelY(lo), d),
-          ),
-        );
-      }
     }
     for (const id of batch.ids()) {
       if (seen.has(id)) continue;
@@ -73,7 +55,6 @@ export function buildingsLayer(): RenderLayer {
       lods.delete(id);
       centers.delete(id);
     }
-    plinths.set(new Map([[PLINTH, plinthMatrices]]));
     lastCam.set(Infinity, 0, 0);
     ctx.invalidate();
   }
@@ -105,11 +86,11 @@ export function buildingsLayer(): RenderLayer {
       ctx = c;
       setDrawSeason(c.mirror.clock.value.season);
       batch = new KeyedBatch(c.scene, c.material);
-      plinths = new InstanceSets(c.scene, plinthMaterial, () => plinthGeometry);
       rebuild();
     },
     update(change) {
-      if (change.full || change.buildings || change.rects.has('height')) rebuild();
+      if (change.full || change.buildings || change.rects.has('height') || change.rects.has('occupant'))
+        rebuild();
     },
     frame(dt) {
       // C4E: orchards and farm trees follow the season.
@@ -122,9 +103,6 @@ export function buildingsLayer(): RenderLayer {
     },
     dispose() {
       batch?.dispose();
-      plinths?.dispose();
-      plinthGeometry.dispose();
-      plinthMaterial.dispose();
     },
   };
 }

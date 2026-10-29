@@ -34,7 +34,7 @@ export function pickTileFromRay(
       for (let dx = -1; dx <= 1; dx++) {
         const nx = Math.min(MAP_SIZE - 1, Math.max(0, tx + dx));
         const nz = Math.min(MAP_SIZE - 1, Math.max(0, tz + dz));
-        top = Math.max(top, levelY(reader.height(nx, nz)));
+        top = Math.max(top, levelY(surface.level(nx, nz)));
       }
     }
     if (y > top + 0.01) return false;
