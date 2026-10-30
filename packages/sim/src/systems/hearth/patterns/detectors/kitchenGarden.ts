@@ -3,15 +3,7 @@
 import { content } from '@qoti/content';
 import { MAP_SIZE } from '../../../../constants';
 import type { Building, EntityId, Rect, WorldState } from '../../../../contracts';
-import {
-  buildingRect,
-  decorInRect,
-  expandRect,
-  isHomeDef,
-  rectGap2,
-  tileGap2,
-  within as withinTiles,
-} from '../../../../conditions/geo';
+import { buildingRect, decorInRect, expandRect, isHomeDef } from '../../../../conditions/geo';
 import { buildingHasTag, type Detector, hasTag, param, type SiteCandidate, tileOf } from '../shared';
 
 const S = MAP_SIZE;
@@ -21,7 +13,16 @@ const S = MAP_SIZE;
  */
 const FENCE_REACH = 2;
 
-interface Garden {
+/**
+ * Steps between two inclusive rects counted the way a player counts them on the grid, diagonals
+ * included (playtest round six: a plot two tiles across and one down was "too far" as the crow
+ * flies). 1 means touching.
+ */
+function squareGap(a: Rect, b: Rect): number {
+  return Math.max(0, a[0] - b[2], b[0] - a[2], a[1] - b[3], b[1] - a[3]);
+}
+
+export interface Garden {
   members: EntityId[];
   plots: number;
   fenced: number;
@@ -32,7 +33,7 @@ interface Garden {
  * chain on from the home, so a row of plots beside the door is one garden even when the far one
  * is more than `within` tiles from the house itself.
  */
-function gardenAt(state: WorldState, home: Building, within: number): Garden {
+export function gardenAt(state: WorldState, home: Building, within: number): Garden {
   const r = buildingRect(home);
   const plots: Rect[] = [];
   const members: EntityId[] = [home.id];
@@ -42,7 +43,7 @@ function gardenAt(state: WorldState, home: Building, within: number): Garden {
       candidates.push({ id: b.id, rect: buildingRect(b) });
   }
   const near = (rect: Rect) =>
-    withinTiles(rectGap2(rect, r), within) || plots.some((p) => withinTiles(rectGap2(rect, p), within));
+    squareGap(rect, r) <= within || plots.some((p) => squareGap(rect, p) <= within);
   // Grow the garden outward from the home until no plot is left within reach of it.
   for (let grew = true; grew;) {
     grew = false;
@@ -80,7 +81,7 @@ function gardenAt(state: WorldState, home: Building, within: number): Garden {
     const t = tileOf(d);
     const x = t % S;
     const z = (t - x) / S;
-    if (!plots.some((p) => withinTiles(tileGap2(x, z, p), FENCE_REACH))) continue;
+    if (!plots.some((p) => squareGap([x, z, x, z], p) <= FENCE_REACH)) continue;
     fenced++;
     members.push(d.id);
   }

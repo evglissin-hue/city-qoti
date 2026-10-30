@@ -1,8 +1,8 @@
-import type { WishView } from '@qoti/sim';
+import type { ProgressList, WishView } from '@qoti/sim';
 import type { Session } from '../../app/session';
 import { untilText } from '../format';
 import { Portrait } from '../Portrait';
-import { Empty, Frame } from './parts';
+import { Empty, Frame, useInspect } from './parts';
 
 /** Every wish in the valley. Selecting one highlights its target area as a soft ghost. */
 export function WishesPanel({ session }: { session: Session }) {
@@ -12,6 +12,14 @@ export function WishesPanel({ session }: { session: Session }) {
   const focus = session.ui.wishFocus.value;
   const wishes = [...m.wishes.values()].sort((a, b) => a.expiresTick - b.expiresTick);
   const granted = m.town.value?.wishesGranted ?? 0;
+  // Playtest round six: what each wish still wants, in plain words.
+  const progress = useInspect<ProgressList>(
+    (k, i) => session.inspect(k, i),
+    'progress',
+    0,
+    m.hamletRevision.value,
+  );
+  const wants = new Map((progress?.wishes ?? []).map((p) => [p.id, p.wants]));
   const close = () => {
     session.ui.panel.value = null;
     unfocus(session);
@@ -62,6 +70,11 @@ export function WishesPanel({ session }: { session: Session }) {
                   )}
                   <span class="wish-body">
                     <span class="wish-text">{w.text}</span>
+                    {wants.get(w.id) && (
+                      <span class="wish-wants muted" data-testid={`wish-wants-${w.id}`}>
+                        Still wants {wants.get(w.id)}.
+                      </span>
+                    )}
                     <span class="wish-meta">
                       <span class={`lane-tag ${w.lane}`}>{w.lane === 'hearth' ? 'Hearth' : 'Ledger'}</span>
                       <span class="muted">{left}</span>

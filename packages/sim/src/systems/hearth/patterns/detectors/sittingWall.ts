@@ -5,7 +5,7 @@
 // must be on the other side, within a tile and a half of a segment. Anchored on the smallest
 // tile under the wall.
 import { MAP_SIZE, TILE_FP } from '../../../../constants';
-import type { Decor, EntityId } from '../../../../contracts';
+import type { Decor, EntityId, WorldState } from '../../../../contracts';
 import { DIR_COS, DIR_SIN } from '../../../../map/directions';
 import { type Detector, hasTag, param, type SiteCandidate, tagged, taggedIn, tileOf } from '../shared';
 
@@ -16,11 +16,19 @@ function dirOf(d: Decor): [number, number] {
   return [DIR_COS[d.rot & 63]! / UNIT, DIR_SIN[d.rot & 63]! / UNIT];
 }
 
-export const sittingWall: Detector = (state, def) => {
-  const need = param(def, 'segments', 4);
-  const gap = param(def, 'gap', 51);
+/** One continuous line of low wall: its pieces, whether a path runs along it, the green behind. */
+export interface WallLine {
+  line: Decor[];
+  /** A path along one side of at least half the pieces. */
+  path: boolean;
+  /** Flowers or hedge on the side away from the path. */
+  greens: EntityId[];
+}
+
+/** Every line of low wall in the valley (single pieces too), as the detector reads them. */
+export function wallLines(state: WorldState, gap: number): WallLine[] {
   const walls = tagged(state, 'wall');
-  if (walls.length < need) return [];
+  if (walls.length === 0) return [];
 
   // Union-find over segments that continue each other's line.
   const parent = walls.map((_, i) => i);
@@ -63,9 +71,8 @@ export const sittingWall: Detector = (state, def) => {
     const z = Math.floor(fz / TILE_FP);
     return x >= 0 && z >= 0 && x < S && z < S && road[z * S + x]! > 0;
   };
-  const out: SiteCandidate[] = [];
+  const out: WallLine[] = [];
   for (const line of groups.values()) {
-    if (line.length < need) continue;
     let plus = 0;
     let minus = 0;
     for (const w of line) {
@@ -76,7 +83,7 @@ export const sittingWall: Detector = (state, def) => {
       if (roadAt(w.fx - nx, w.fz - nz)) minus++;
     }
     const side = plus >= minus ? 1 : -1;
-    if (Math.max(plus, minus) * 2 < line.length) continue;
+    const path = Math.max(plus, minus) * 2 >= line.length && Math.max(plus, minus) > 0;
 
     const greens = new Set<EntityId>();
     for (const w of line) {
@@ -95,7 +102,16 @@ export const sittingWall: Detector = (state, def) => {
         if (toward < -0.1) greens.add(g.id);
       }
     }
-    if (greens.size === 0) continue;
+    out.push({ line, path, greens: [...greens] });
+  }
+  return out;
+}
+
+export const sittingWall: Detector = (state, def) => {
+  const need = param(def, 'segments', 4);
+  const out: SiteCandidate[] = [];
+  for (const { line, path, greens } of wallLines(state, param(def, 'gap', 51))) {
+    if (line.length < need || !path || greens.length === 0) continue;
     const tiles = [...new Set(line.map(tileOf))].sort((a, b) => a - b);
     out.push({ anchor: tiles[0]!, members: [...line.map((w) => w.id), ...greens], tiles });
   }

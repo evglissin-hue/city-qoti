@@ -4,6 +4,7 @@
 // most). Each connected stretch of covered road whose longest walk reaches 10 tiles is a walk,
 // anchored on its smallest tile.
 import { MAP_SIZE } from '../../../../constants';
+import type { WorldState } from '../../../../contracts';
 import {
   components,
   type Detector,
@@ -19,9 +20,8 @@ import {
 const S = MAP_SIZE;
 const lit = new Uint8Array(S * S);
 
-export const lanternWalk: Detector = (state, def) => {
-  const minRun = param(def, 'minRun', 10);
-  const reach = param(def, 'reach', 1);
+/** Connected stretches of covered road (see the header), smallest tile first. */
+export function litStretches(state: WorldState, reach: number): number[][] {
   const lanterns = tagged(state, 'lantern');
   if (lanterns.length === 0) return [];
   const marked: number[] = [];
@@ -54,10 +54,14 @@ export const lanternWalk: Detector = (state, def) => {
     if (ok) covered.push(i);
   }
   for (const i of marked) lit[i] = 0;
+  return components(covered);
+}
 
+export const lanternWalk: Detector = (state, def) => {
+  const minRun = param(def, 'minRun', 10);
   const needLanterns = param(def, 'lanterns', 3);
   const out: SiteCandidate[] = [];
-  for (const comp of components(covered)) {
+  for (const comp of litStretches(state, param(def, 'reach', 1))) {
     if (comp.length < minRun || spanLength(comp) < minRun) continue;
     const members = taggedAlong(state, comp, 'lantern');
     if (members.length < needLanterns) continue;

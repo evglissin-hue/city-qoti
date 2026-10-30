@@ -4,7 +4,6 @@ import { content } from '@qoti/content';
 import { MAP_SIZE } from '../../../../constants';
 import type { EntityId } from '../../../../contracts';
 import { buildingRect, expandRect, isHomeDef, rectGap2, tileGap2, within } from '../../../../conditions/geo';
-import { treeStage } from '../../../../map/layers';
 import { buildingHasTag, type Detector, param, type SiteCandidate, taggedIn, tileOf } from '../shared';
 
 const S = MAP_SIZE;
@@ -43,7 +42,8 @@ export const wellGathering: Detector = (state, def) => {
       for (let z = a[1]; z <= a[3]; z++) {
         for (let x = a[0]; x <= a[2]; x++) {
           const v = state.map.tree[z * S + x]!;
-          if (!v || treeStage(v) < 2) continue;
+          // Playtest round six: a tree planted for it counts at once, rather than days later.
+          if (!v) continue;
           const g = tileGap2(x, z, r);
           if (within(g, treeReach) && g < best) {
             best = g;

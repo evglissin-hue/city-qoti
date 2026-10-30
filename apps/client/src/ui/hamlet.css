@@ -2415,3 +2415,17 @@ ul.people-list {
   width: 15px;
   height: 15px;
 }
+
+/* Playtest round six: what the closest attempt at a page still wants. */
+.book-closest {
+  margin: 3px 0 0;
+  font-size: 0.82rem;
+  line-height: 1.3;
+}
+
+.wish-wants {
+  display: block;
+  font-size: 0.8rem;
+  line-height: 1.25;
+  margin-top: 2px;
+}

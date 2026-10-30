@@ -258,6 +258,33 @@ export interface PatternView {
   sites: { x: number; z: number; members: EntityId[]; tiles: number[] }[];
 }
 
+/**
+ * Playtest round six addition: the closest attempt at a Pattern Book page not yet found, and what
+ * it still wants, in plain words (inspect kind 'progress').
+ */
+export interface PatternProgressView {
+  pattern: string;
+  /** Where to look: a tile of the attempt. */
+  x: number;
+  z: number;
+  /** What it still wants, one short clause each. */
+  wants: string[];
+  /** 0 to 100. */
+  progress: number;
+}
+
+/** Playtest round six addition: what a voiced wish still wants, in plain words. */
+export interface WishProgressView {
+  id: EntityId;
+  wants: string;
+}
+
+/** Playtest round six addition: inspect kind 'progress', for the Pattern Book and the Wishes. */
+export interface ProgressList {
+  patterns: PatternProgressView[];
+  wishes: WishProgressView[];
+}
+
 export interface ChronicleEntryView {
   id: EntityId;
   tick: number;

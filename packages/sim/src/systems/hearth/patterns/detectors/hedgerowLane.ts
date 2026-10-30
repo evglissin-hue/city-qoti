@@ -1,6 +1,6 @@
 // Hedgerow Lane: a straight path or lane run of 6+ tiles with hedges on both sides along 4+ of
-// them. A road tile is hedged on one side when a hedge segment stands in the row (or column) next
-// to it, within a quarter tile either way along the road. Gaps longer than 3 unhedged tiles split
+// them. A road tile is hedged on one side when a hedge segment stands in one of the two rows (or
+// columns) beside it, within a quarter tile either way along the road. Gaps longer than 3 unhedged tiles split
 // a run, so two hedged stretches of one long lane are two sites. Anchored on the first tile of the
 // stretch.
 import type { PatternDef } from '@qoti/content';
@@ -12,7 +12,7 @@ const S = MAP_SIZE;
 const MAX_GAP = 3;
 const SLACK = TILE_FP / 4;
 
-interface Run {
+export interface Run {
   horizontal: boolean;
   /** The fixed coordinate (z for horizontal runs, x for vertical ones). */
   line: number;
@@ -29,8 +29,9 @@ function sideOf(run: Run, d: Decor, k: number): number {
   const along = run.horizontal ? d.fx : d.fz;
   const across = run.horizontal ? d.fz : d.fx;
   if (along < k * TILE_FP - SLACK || along > (k + 1) * TILE_FP + SLACK) return 0;
-  if (across >= (run.line - 1) * TILE_FP && across < run.line * TILE_FP) return 1;
-  if (across >= (run.line + 1) * TILE_FP && across < (run.line + 2) * TILE_FP) return 2;
+  // Playtest round six: a tile of verge may lie between the road and its hedge.
+  if (across >= (run.line - 2) * TILE_FP && across < run.line * TILE_FP) return 1;
+  if (across >= (run.line + 1) * TILE_FP && across < (run.line + 3) * TILE_FP) return 2;
   return 0;
 }
 
@@ -39,8 +40,8 @@ function scanRun(state: WorldState, def: PatternDef, run: Run, out: SiteCandidat
   const minHedged = param(def, 'minHedged', 4);
   const { start, end, line } = run;
   const box: [number, number, number, number] = run.horizontal
-    ? [start, line - 1, end, line + 1]
-    : [line - 1, start, line + 1, end];
+    ? [start, line - 2, end, line + 2]
+    : [line - 2, start, line + 2, end];
   const hedges = taggedIn(state, box, 'hedge');
   let first = -1;
   let last = -1;
@@ -85,10 +86,10 @@ function scanRun(state: WorldState, def: PatternDef, run: Run, out: SiteCandidat
   flush();
 }
 
-export const hedgerowLane: Detector = (state, def) => {
-  const minRun = param(def, 'minRun', 6);
+/** Straight path and lane runs of at least `minLen` tiles, rows then columns. */
+export function straightRuns(state: WorldState, minLen: number): Run[] {
   const road = state.map.road;
-  const out: SiteCandidate[] = [];
+  const out: Run[] = [];
   for (const horizontal of [true, false]) {
     const step = horizontal ? 1 : S;
     for (let line = 0; line < S; line++) {
@@ -106,10 +107,33 @@ export const hedgerowLane: Detector = (state, def) => {
           if (n === 0 || n > 2) break;
           end++;
         }
-        if (end - k + 1 >= minRun) scanRun(state, def, { horizontal, line, start: k, end }, out);
+        if (end - k + 1 >= minLen) out.push({ horizontal, line, start: k, end });
         k = end + 1;
       }
     }
   }
+  return out;
+}
+
+/** Per tile of a run, the sides with a hedge: 1 before the road, 2 after, 3 both. */
+export function hedgedSides(state: WorldState, run: Run): number[] {
+  const { start, end, line } = run;
+  const box: [number, number, number, number] = run.horizontal
+    ? [start, line - 2, end, line + 2]
+    : [line - 2, start, line + 2, end];
+  const hedges = taggedIn(state, box, 'hedge');
+  const out: number[] = [];
+  for (let k = start; k <= end; k++) {
+    let sides = 0;
+    for (const h of hedges) sides |= sideOf(run, h, k);
+    out.push(sides);
+  }
+  return out;
+}
+
+export const hedgerowLane: Detector = (state, def) => {
+  const minRun = param(def, 'minRun', 6);
+  const out: SiteCandidate[] = [];
+  for (const run of straightRuns(state, minRun)) scanRun(state, def, run, out);
   return out;
 };

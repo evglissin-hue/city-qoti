@@ -10,6 +10,7 @@ import { kitchenGardenHarvest } from '../../src/systems/hearth/patterns';
 import { detectors } from '../../src/systems/hearth/patterns/detectors';
 import { kitchenGardenMissing } from '../../src/systems/hearth/patterns/detectors/kitchenGarden';
 import { inspect } from '../../src/view/inspect';
+import { patternProgress } from '../../src/systems/hearth/patterns/progress';
 import { refillHints, runPatterns } from '../../src/systems/hearth/patterns/engine';
 import { createTickCtx } from '../../src/turn';
 import { hamletFixture } from '../fixtures/hamlet';
@@ -223,7 +224,8 @@ describe('Kitchen Garden', () => {
     expect(h.pantry[veg]).toBe(3);
     kitchenGardenHarvest(s, ctx);
     expect(h.pantry[veg]).toBe(4);
-    expect(events(ctx, 'household.updated')).toHaveLength(1);
+    // Round six: the neighbors' cottage is near enough to share the garden; this household's once.
+    expect(events(ctx, 'household.updated').filter((e) => e.h.id === h.id)).toHaveLength(1);
     h.pantry[veg] = 5; // with 3 bread, the pantry is full at 8
     kitchenGardenHarvest(s, ctx);
     expect(h.pantry[veg]).toBe(5);
@@ -444,5 +446,41 @@ describe('the engine', () => {
     expect(events(ctx, 'pattern.updated').map((e) => e.p.id)).toContain('lantern-walk');
     const view = events(ctx, 'pattern.discovered')[0]!.p;
     expect(view).toMatchObject({ id: 'well-gathering-place', discovered: true, hinted: false });
+  });
+});
+
+describe('closest attempts (playtest round six)', () => {
+  it('says what a well, a garden and a lit path still want, and stops once a page is found', () => {
+    const w = standardWorld();
+    const well = build(w, 'well', 130, 40);
+    decor(w, 'bench', 131, 41);
+    const home = build(w, 'cottage', 160, 80);
+    build(w, 'vegetable-plot', 163, 80);
+    road(w, 'path', 110, 90, 116, 90);
+    decor(w, 'lantern', 112, 91);
+    const byId = new Map(patternProgress(w).map((p) => [p.pattern, p]));
+    const gathering = byId.get('well-gathering-place')!;
+    expect([gathering.x, gathering.z]).toEqual([well.x, well.z]);
+    expect(gathering.wants.join(' ')).toContain('1 more bench');
+    expect(gathering.wants.join(' ')).toContain('a tree for shade');
+    const garden = byId.get('kitchen-garden')!;
+    expect([garden.x, garden.z]).toEqual([home.x, home.z]);
+    expect(garden.wants.join(' ')).toContain('1 more plot');
+    expect(garden.wants.join(' ')).toContain('fence or hedge');
+    expect(byId.get('lantern-walk')!.wants.join(' ')).toContain('2 more lanterns');
+    // A page once found is no longer explained.
+    build(w, 'vegetable-plot', 160, 83);
+    colRun(w, 'fence', 165, 80, 81);
+    runPatterns(w, createTickCtx(w));
+    expect(patternProgress(w).some((p) => p.pattern === 'kitchen-garden')).toBe(false);
+  });
+
+  it('counts a plot two tiles across and one down from the house (the round six screenshot)', () => {
+    const w = standardWorld();
+    const home = build(w, 'cottage', 160, 80);
+    build(w, 'vegetable-plot', 157, 76);
+    build(w, 'vegetable-plot', 154, 76);
+    rowRun(w, 'fence', 153, 159, 75);
+    expect(detect(w, 'kitchen-garden').map((s) => s.anchor)).toEqual([home.z * S + home.x]);
   });
 });

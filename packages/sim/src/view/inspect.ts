@@ -7,6 +7,7 @@ import type {
   Building,
   BuildingDetail,
   EntityId,
+  ProgressList,
   ResidentDetail,
   SeatId,
   WorldState,
@@ -18,6 +19,8 @@ import { ARRIVAL_THRESHOLD } from '../systems/residents/lifecycle';
 import { meetsRequires } from '../systems/innovations/api';
 import { allowedWork } from '../systems/production/status';
 import { kitchenGardenMissing } from '../systems/hearth/patterns/detectors/kitchenGarden';
+import { patternProgress } from '../systems/hearth/patterns/progress';
+import { wishProgress } from '../systems/hearth/wishes/progress';
 import { porterServed, storehouseReach } from '../systems/logistics/range';
 import { doorTile } from '../systems/movement/api';
 import { WORN_CONDITION } from '../systems/production/produce';
@@ -32,8 +35,9 @@ import type { ServiceKind } from '../systems/services/weights';
 
 export { residentDetail };
 
-export type InspectKind = 'resident' | 'building' | 'away';
-export type InspectResult = ResidentDetail | BuildingDetail | AwayLetter | null;
+/** Playtest round six adds 'progress': closest attempts at pages and what wishes want (id ignored). */
+export type InspectKind = 'resident' | 'building' | 'away' | 'progress';
+export type InspectResult = ResidentDetail | BuildingDetail | AwayLetter | ProgressList | null;
 
 export function inspect(state: WorldState, kind: InspectKind, id: number): InspectResult {
   switch (kind) {
@@ -43,6 +47,8 @@ export function inspect(state: WorldState, kind: InspectKind, id: number): Inspe
       return buildingDetail(state, id);
     case 'away':
       return awayLetter(state, id as SeatId);
+    case 'progress':
+      return { patterns: patternProgress(state), wishes: wishProgress(state) };
   }
 }
 

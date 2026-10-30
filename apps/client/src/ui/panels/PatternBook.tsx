@@ -1,7 +1,8 @@
 import { content, type PatternDef } from '@qoti/content';
-import type { PatternView } from '@qoti/sim';
+import type { PatternProgressView, PatternView, ProgressList } from '@qoti/sim';
 import type { Session } from '../../app/session';
 import { seatLabel, seatList, shortDate } from '../format';
+import { useInspect } from './parts';
 
 /**
  * The Pattern Book as a little two-page book: contents on the left, the open page on the right.
@@ -26,6 +27,18 @@ export function PatternBookPanel({ session }: { session: Session }) {
   const close = () => {
     session.ui.panel.value = null;
     session.render?.highlight?.(null);
+  };
+  // Playtest round six: how close the valley's best attempt at each unfound page is.
+  const progress = useInspect<ProgressList>(
+    (k, i) => session.inspect(k, i),
+    'progress',
+    0,
+    m.hamletRevision.value,
+  );
+  const closest = new Map((progress?.patterns ?? []).map((p) => [p.pattern, p]));
+  const look = (p: PatternProgressView) => {
+    close();
+    session.renderer?.focus(p.x + 1, p.z + 1, 28);
   };
 
   return (
@@ -70,9 +83,23 @@ export function PatternBookPanel({ session }: { session: Session }) {
         <div class="book-spine" aria-hidden="true" />
         <div class="book-page right">
           {page ? (
-            <Page def={page.def} view={page.view} session={session} folio={at + 1} />
+            <Page
+              def={page.def}
+              view={page.view}
+              session={session}
+              folio={at + 1}
+              closest={closest.get(page.def.id)}
+              look={look}
+            />
           ) : (
-            <Cover order={order} seats={seats} me={session.seat} onOpen={open} />
+            <Cover
+              order={order}
+              seats={seats}
+              me={session.seat}
+              onOpen={open}
+              closest={closest}
+              look={look}
+            />
           )}
         </div>
       </div>
@@ -104,16 +131,40 @@ export function PatternBookPanel({ session }: { session: Session }) {
   );
 }
 
+/** "Closest so far: ..." under a hint, with a button that flies there. */
+function Closest({
+  p,
+  look,
+}: {
+  p: PatternProgressView | undefined;
+  look: (p: PatternProgressView) => void;
+}) {
+  if (!p) return null;
+  return (
+    <p class="book-closest" data-testid={`closest-${p.pattern}`}>
+      <span class="muted">Closest so far ({p.progress}%): still wants </span>
+      {p.wants.join('; ')}.{' '}
+      <button type="button" class="link" onClick={() => look(p)}>
+        Show me
+      </button>
+    </p>
+  );
+}
+
 function Cover({
   order,
   seats,
   me,
   onOpen,
+  closest,
+  look,
 }: {
   order: { def: PatternDef; view: PatternView | undefined }[];
   seats: Session['mirror']['seats']['value'];
   me: number;
   onOpen: (id: string) => void;
+  closest: Map<string, PatternProgressView>;
+  look: (p: PatternProgressView) => void;
 }) {
   const hints = order.filter((p) => !p.view?.discovered && p.view?.hinted);
   const last = [...order].filter((p) => p.view?.discovered).pop();
@@ -143,6 +194,7 @@ function Cover({
                 <button type="button" class="link" onClick={() => onOpen(p.def.id)}>
                   {p.def.hint}
                 </button>
+                <Closest p={closest.get(p.def.id)} look={look} />
               </li>
             ))}
           </ul>
@@ -157,11 +209,15 @@ function Page({
   view,
   session,
   folio,
+  closest,
+  look,
 }: {
   def: PatternDef;
   view: PatternView | undefined;
   session: Session;
   folio: number;
+  closest?: PatternProgressView | undefined;
+  look: (p: PatternProgressView) => void;
 }) {
   const seats = session.mirror.seats.value;
   if (!view?.discovered) {
@@ -170,6 +226,7 @@ function Page({
         <p class="book-kicker">Not yet found</p>
         <h3 class="unknown-title">? ? ?</h3>
         <p class="hint-text">{def.hint}</p>
+        <Closest p={closest} look={look} />
         <p class="muted small">Build it somewhere in the valley and the page will write itself.</p>
         <div class="sketch-space" aria-hidden="true">
           <Ornament />

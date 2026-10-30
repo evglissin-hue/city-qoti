@@ -29,7 +29,7 @@ export const kitchenGarden: PatternDef = {
   detector: 'kitchenGarden',
   params: [
     ['plots', 2],
-    ['within', 2],
+    ['within', 3],
     ['foodPerDay', 1],
   ],
   siteBonus: { charm: 5, radius: 2, category: 'nature' },
@@ -118,7 +118,7 @@ export const treePlace: PatternDef = {
   detector: 'treePlace',
   params: [
     ['benches', 2],
-    ['benchReach', 384],
+    ['benchReach', 640],
     ['paths', 2],
     ['pathReach', 2],
   ],
@@ -136,7 +136,7 @@ export const wellGatheringPlace: PatternDef = {
   detector: 'wellGathering',
   params: [
     ['benches', 2],
-    ['benchReach', 2],
+    ['benchReach', 3],
     ['treeReach', 3],
     ['homes', 3],
     ['homeReach', 8],

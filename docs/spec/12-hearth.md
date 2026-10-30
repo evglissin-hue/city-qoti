@@ -74,14 +74,16 @@ interface PatternDef {
 
 | Pattern | Rule | Site bonus | Unlocks |
 |---|---|---|---|
-| Well Gathering Place | a well with 2+ benches within 2 tiles and a tree (tile or ornamental) within 3; 3+ homes within 8 | +8 r4 | Curved Bench |
+| Well Gathering Place | a well with 2+ benches within 3 tiles and a tree (any tree on the map, a sapling too, or an ornamental one) within 3; 3+ homes within 8 (round six: 2 tiles and grown trees only) | +8 r4 | Curved Bench |
 | Sitting Wall | 4+ low-wall segments in a continuous line (gaps under 0.2 tile) beside a path, with flowers or hedge on the side away from the path | +6 r3 | Planter Wall |
-| Tree Place | a mature or ornamental big tree with 2+ benches within 1.5 tiles, and path tiles leading off in 2+ directions within 2 tiles | +8 r3 | Ring Bench |
+| Tree Place | a mature or ornamental big tree with 2+ benches within 2.5 tiles (round six; 1.5 before), and path tiles leading off in 2+ directions within 2 tiles | +8 r3 | Ring Bench |
 | Pocket Park | an area of 2x2 to 4x4 free tiles holding 1+ tree, 1+ bench and 2+ flower pieces, with buildings on 2+ sides within 2 tiles | +6 r3 | Birdbath |
-| Kitchen Garden | a home with 2+ vegetable or herb plots within 2 tiles of its footprint or of another of its plots (a row of plots is one garden; playtest round six) and a fence or hedge within 2 tiles of them | +5 r2; household food +1 per day | Herb Planter |
+| Kitchen Garden | a home with 2+ vegetable or herb plots within 3 steps of its footprint or of another of its plots, diagonals counting as one step (so two empty tiles may lie between; a row of plots is one garden; playtest round six) and a fence or hedge within 2 steps of them | +5 r2; household food +1 per day | Herb Planter |
 | Lantern Walk | a continuous path or lane of 10+ tiles where every run of 3 consecutive tiles has a lantern within 1 tile, and 3+ lanterns in all (C3B: two lanterns made a "walk" too cheaply) | +6 light along the walk; night safety [I3] | Hanging Lantern |
-| Promenade by the Water | 8+ consecutive path tiles each next to water, with 2+ benches and 2+ lanterns along it | +10 r2 | Mooring Post; otter arrivals favored |
-| Hedgerow Lane | a path or lane run of 6+ tiles with hedges on both sides along 4+ of them | +5 r1; hedgerow habitat [I3] | Wildflower Verge |
+| Promenade by the Water | 8+ consecutive path tiles each within 2 tiles of water (round six; a path on the sand counts), with 2+ benches and 2+ lanterns along it | +10 r2 | Mooring Post; otter arrivals favored |
+| Hedgerow Lane | a straight path or lane run of 6+ tiles with hedges on both sides along 4+ of them, a hedge in either of the two rows beside the road (round six: a tile of verge may lie between) | +5 r1; hedgerow habitat [I3] | Wildflower Verge |
+
+Playtest round six: the Pattern Book shows, under each hint and on each page not yet found, the valley's closest attempt and what it still wants in plain words ("1 more bench beside the well; a tree for shade within three steps of it"), with Show me to fly there (`systems/hearth/patterns/progress.ts`, inspect kind `progress`, which reads each detector's own rules). Each wish in the Wishes book says what it still wants the same way ("1 of 3 flowers within 3 steps of the home", "the walk crosses 5 tiles of grass").
 
 **I2 patterns (6, C4C)**, looked for and hinted from Village rank on (each pattern's `rank`; hints follow the Hamlet ones in `hintOrder`):
 

@@ -10,6 +10,7 @@ import { goodsArray } from '../../src/state/hamlet';
 import { findById, removeById } from '../../src/state/entities';
 import { doorTileOf } from '../../src/systems/movement/api';
 import { checkWishes, generateWishes, makeWish, wishBinding, wishCap } from '../../src/systems/hearth/wishes';
+import { wishProgress } from '../../src/systems/hearth/wishes/progress';
 import { createTickCtx, type SimCtx } from '../../src/turn';
 import { type HamletFixture, hamletFixture } from '../fixtures/hamlet';
 import { build, decor, events, road, runHours, S, settle, tree } from './helpers';
@@ -286,5 +287,28 @@ describe('wish views', () => {
     expect(lantern.work).toBe(f.b.bakery);
     expect(lv.area!.radius).toBeGreaterThan(2);
     expect(S).toBe(MAP_SIZE);
+  });
+});
+
+describe('what a wish still wants (playtest round six)', () => {
+  it('counts what is near the home and how much of the walk is grass or dark', () => {
+    const f = hamletFixture();
+    const s = f.state;
+    const ctx = createTickCtx(s);
+    const r = s.residents.find((x) => x.jobId)!;
+    const sit = makeWish(s, ctx, r, content.wishById.get('somewhere-to-sit')!);
+    const flowers = makeWish(s, ctx, r, content.wishById.get('flowers-on-the-lane')!);
+    const path = makeWish(s, ctx, r, content.wishById.get('a-proper-path')!);
+    const lantern = makeWish(s, ctx, r, content.wishById.get('lantern-on-my-way-home')!);
+    const home = homeOf(s, sit);
+    decor(s, 'flower-bed', home.x - 1, home.z);
+    const wants = new Map(wishProgress(s).map((p) => [p.id, p.wants]));
+    expect(wants.get(sit.id)).toBe('a bench within 3 steps of the home');
+    expect(wants.get(flowers.id)).toBe('1 of 3 flowers within 3 steps of the home');
+    if (wants.has(path.id)) expect(wants.get(path.id)).toContain('a path all the way');
+    expect(wants.get(lantern.id)).toMatch(/^lanterns along 50% of the walk home from work \(\d+% lit now\)$/);
+    // Granted conditions say nothing.
+    decor(s, 'bench', home.x - 1, home.z + 1);
+    expect(wishProgress(s).some((p) => p.id === sit.id)).toBe(false);
   });
 });
