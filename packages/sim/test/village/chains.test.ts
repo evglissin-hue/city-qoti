@@ -12,7 +12,10 @@ import { good, place, staff, stocked, villageWith } from './helpers';
 const H = TICKS_PER_HOUR;
 
 /** The I2 producers: defs with methods that need a rank or an innovation, or that grow on lots. */
-const I2: BuildingDef[] = content.buildings.filter((d) => (d.requires || d.grows) && d.methods?.length);
+// The I2 buildings: behind a rank or an innovation, or grown (round six's `built` unlocks are I1's).
+const I2: BuildingDef[] = content.buildings.filter(
+  (d) => (d.requires?.rank || d.requires?.innovation || d.grows) && d.methods?.length,
+);
 
 function setUp(def: BuildingDef, methodIndex: number, crew: number): { state: WorldState; b: Building } {
   const { state } = villageWith();

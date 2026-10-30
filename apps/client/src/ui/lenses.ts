@@ -38,6 +38,7 @@ export const overlays: readonly OverlayDef[] = [
   { id: 'flows', lens: 'ledger', label: 'Flows', icon: 'flows', hint: 'Where the porters carry things' },
   { id: 'land', lens: 'ledger', label: 'Land value', icon: 'land', hint: 'Which lots folk would most like to live on', village: true },
   { id: 'needs', lens: 'ledger', label: 'Needs', icon: 'needs', hint: 'How content each home is, ringed by its tier', village: true },
+  { id: 'resources', lens: 'ledger', label: 'Soil and stone', icon: 'land', hint: 'Rich soil, clay and stone across the valley (the Ledger shows it until you pick another)' },
   { id: 'status', lens: 'ledger', label: 'Status', icon: 'status', hint: 'Buildings that want attention' },
   { id: 'traffic', lens: 'ledger', label: 'Traffic', icon: 'traffic', hint: 'Where the carts crowd the roads', village: true },
   { id: 'zones', lens: 'ledger', label: 'Zones', icon: 'zones', hint: 'Zoned land and the lots cut from it', village: true },

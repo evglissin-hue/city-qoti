@@ -41,6 +41,9 @@ const mix = (a: RGB, b: RGB, t: number): RGB => [
 const GRASS = rgb(palette.grass);
 const GRASS_WARM = rgb(0xa8bf60);
 const GRASS_LUSH = rgb(0x6f9d4a);
+/** Playtest round six: thin soil reads dry and straw-pale, rich soil deep and lush. */
+const GRASS_DRY = rgb(0xbdbb74);
+const GRASS_RICH = rgb(0x5a8f3c);
 const MEADOW = rgb(palette.meadow);
 const FOREST = rgb(palette.forestFloor);
 const CANOPY = rgb(0x4b6a35);
@@ -159,8 +162,17 @@ export class GroundTextures {
         break;
       default:
         c = mix(GRASS, GRASS_WARM, Math.max(0, warm - 0.35) * 0.8);
-        c = mix(c, GRASS_LUSH, Math.max(0, lush - 0.55) * 1.4);
+        c = mix(c, GRASS_LUSH, Math.max(0, lush - 0.55) * 0.5);
         flowers = Math.max(0, bloom - 0.62) * 1.6;
+    }
+    // Playtest round six: the soil shows in the grass, so rich and thin ground look different
+    // before a plot or farm is chosen. Rich ground also flowers a little more.
+    if (terrain === Terrain.grass || terrain === Terrain.meadow || terrain === Terrain.forestFloor) {
+      const soil = ((L.fertility[i] ?? 50) - 50) / 50;
+      if (soil > 0) {
+        c = mix(c, GRASS_RICH, soil * 0.6);
+        flowers += soil * 0.25;
+      } else c = mix(c, GRASS_DRY, -soil * 0.4);
     }
     if (!water && wet && terrain !== Terrain.sand && terrain !== Terrain.rock)
       c = mix(c, GRASS_WARM, wet === 2 ? 0.3 : 0.1);

@@ -149,6 +149,8 @@ export function fieldTool(ctx: ToolContext): Tool {
     hint: 'Pick a farmhouse, drag to sow, Shift+drag to clear',
     order: 25,
     modes: ['standard'],
+    // Playtest round six: fields belong to a farmhouse; until one is going up, the tool waits.
+    hidden: () => ![...ctx.mirror.buildings.values()].some((b) => b.def === 'farmhouse'),
     overlay: () => 'fields',
     enter() {
       const sel = ctx.ui.selection?.();

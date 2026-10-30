@@ -376,3 +376,20 @@ describe('I1 content', () => {
     );
   });
 });
+
+describe('building unlocks (playtest round six)', () => {
+  it('name real buildings, in counts of one or more, and never loop', () => {
+    for (const b of buildings) {
+      for (const [def, count] of b.requires?.built ?? []) {
+        expect(content.buildingById.has(def), `${b.id} requires ${def}`).toBe(true);
+        expect(Number.isInteger(count) && count >= 1, `${b.id} count`).toBe(true);
+      }
+    }
+    // Following the chain from any building never comes back to it.
+    const visit = (id: string, path: string[]): void => {
+      expect(path.includes(id), `${[...path, id].join(' > ')}`).toBe(false);
+      for (const [def] of content.buildingById.get(id)?.requires?.built ?? []) visit(def, [...path, id]);
+    };
+    for (const b of buildings) visit(b.id, []);
+  });
+});

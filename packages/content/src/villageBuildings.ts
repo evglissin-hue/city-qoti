@@ -56,6 +56,7 @@ export const clayPit: BuildingDef = {
   work: 8,
   charm: [{ category: 'noise', value: -4, radius: 2 }],
   tags: ['workshop', 'clay'],
+  requires: { built: [['quarry', 1]] },
   art: { kit: 'clay-pit' },
 };
 
@@ -103,7 +104,6 @@ export const sheepPasture: BuildingDef = {
   category: 'production',
   size: [3, 3],
   entrance: [1, 2],
-  placement: [{ kind: 'fertility', min: 30 }],
   cost: { coins: 20, goods: [['planks', 12]] },
   upkeep: 1,
   jobs: { count: 1, role: 'worker' },
@@ -120,7 +120,7 @@ export const sheepPasture: BuildingDef = {
   ],
   work: 8,
   charm: [{ category: 'nature', value: 3, radius: 2 }],
-  tags: ['farm', 'pasture', 'animals'],
+  tags: ['farm', 'pasture', 'animals', 'soil'],
   requires: { rank: 'village' },
   art: { kit: 'sheep-pasture' },
 };
@@ -199,7 +199,6 @@ export const dairy: BuildingDef = {
   category: 'production',
   size: [3, 3],
   entrance: [1, 2],
-  placement: [{ kind: 'fertility', min: 30 }],
   cost: {
     coins: 30,
     goods: [
@@ -223,7 +222,7 @@ export const dairy: BuildingDef = {
   ],
   work: 12,
   charm: [{ category: 'noise', value: -4, radius: 2 }],
-  tags: ['farm', 'animals', 'smelly'],
+  tags: ['farm', 'animals', 'smelly', 'soil'],
   requires: { rank: 'village' },
   art: { kit: 'dairy' },
 };
@@ -269,7 +268,6 @@ export const orchard: BuildingDef = {
   category: 'production',
   size: [3, 3],
   entrance: [1, 2],
-  placement: [{ kind: 'fertility', min: 40 }],
   cost: { coins: 25, goods: [['planks', 8]] },
   upkeep: 1,
   jobs: { count: 2, role: 'worker' },
@@ -287,7 +285,7 @@ export const orchard: BuildingDef = {
   ],
   work: 8,
   charm: [{ category: 'nature', value: 5, radius: 2 }],
-  tags: ['farm', 'orchard', 'garden'],
+  tags: ['farm', 'orchard', 'garden', 'soil'],
   requires: { rank: 'village' },
   art: { kit: 'orchard' },
 };
@@ -351,6 +349,7 @@ export const choppingShed: BuildingDef = {
   work: 6,
   charm: [{ category: 'noise', value: -4, radius: 2 }],
   tags: ['workshop', 'forestry'],
+  requires: { built: [['sawpit', 1]] },
   art: { kit: 'chopping-shed' },
 };
 
@@ -361,7 +360,6 @@ export const herbGarden: BuildingDef = {
   category: 'production',
   size: [2, 2],
   entrance: [1, 1],
-  placement: [{ kind: 'fertility', min: 30 }],
   cost: { coins: 8, goods: [['planks', 4]] },
   upkeep: 0,
   jobs: { count: 1, role: 'worker' },
@@ -378,7 +376,7 @@ export const herbGarden: BuildingDef = {
   ],
   work: 4,
   charm: [{ category: 'nature', value: 3, radius: 2 }],
-  tags: ['plot', 'garden', 'herb'],
+  tags: ['plot', 'garden', 'herb', 'soil'],
   requires: { rank: 'village' },
   art: { kit: 'herb-garden' },
 };
@@ -763,7 +761,6 @@ export const farmstead: BuildingDef = {
   category: 'production',
   size: [3, 3],
   entrance: [1, 2],
-  placement: [{ kind: 'fertility', min: 30 }],
   cost: {
     coins: 25,
     goods: [
@@ -827,7 +824,7 @@ export const farmstead: BuildingDef = {
   ],
   work: 10,
   charm: [{ category: 'nature', value: 2, radius: 2 }],
-  tags: ['farm', 'grown'],
+  tags: ['farm', 'grown', 'soil'],
   grows: { zone: 'farms' },
   requires: { rank: 'village' },
   art: { kit: 'farmstead' },

@@ -1,9 +1,12 @@
-import { content } from '@qoti/content';
+import { content, type BuildingDef } from '@qoti/content';
+import { Fragment } from 'preact';
 import { useEffect, useState } from 'preact/hooks';
 import type { Session } from '../app/session';
 import {
   buildingChoices,
   buildingGroup,
+  buildingLock,
+  chainsOf,
   costBlock,
   DECOR_GROUP_LABEL,
   decorChoices,
@@ -12,6 +15,8 @@ import {
   GROUP_LABEL,
   groupsOf,
   type BuildingGroup,
+  type BuildingLock,
+  type Chain,
   type DecorGroup,
 } from '../input/catalog';
 import type { Tool } from '../input/tool';
@@ -25,7 +30,8 @@ import { planSummary } from './plans';
 import { INPUT_COPY } from '../input/copy';
 import { UNZONE } from './village';
 import { rankAtLeast, zoneInk } from './village';
-import { buildingPurpose } from './purpose';
+import { GoodIcon } from './goodIcons';
+import { buildingPurpose, goodPurpose } from './purpose';
 
 export function Toolbar({ session }: { session: Session }) {
   const manager = session.tools;
@@ -38,7 +44,9 @@ export function Toolbar({ session }: { session: Session }) {
   const village = (m.charter.value?.rank ?? m.town.value?.rank ?? 'hamlet') !== 'hamlet';
   const lensOverlays =
     mode === 'standard' ? overlays.filter((o) => o.lens === lens && (village || !o.village)) : [];
-  const shown = lensOverlays.some((o) => o.id === overlay) ? overlay : null;
+  // Playtest round six: the Ledger looks at the land unless told otherwise ('off' turns it off).
+  const fallback = lens === 'ledger' && lensOverlays.some((o) => o.id === 'resources') ? 'resources' : null;
+  const shown = overlay === 'off' ? null : lensOverlays.some((o) => o.id === overlay) ? overlay : fallback;
   // A tool may show its own overlay while it is out (the farm's reach, where clay lies).
   const out = manager?.tool(active);
   void out?.variant?.value;
@@ -50,8 +58,9 @@ export function Toolbar({ session }: { session: Session }) {
   void m.hamletRevision.value;
   void m.budget.value;
   // Inspecting is what a click does when no tool is out, so it needs no button of its own.
+  void m.revision.value;
   const tools = toolsForLens(manager.tools, lens).filter(
-    (t) => t.id !== 'inspect' && (!t.modes || t.modes.includes(mode)),
+    (t) => t.id !== 'inspect' && (!t.modes || t.modes.includes(mode)) && !t.hidden?.(),
   );
   const current = manager.tool(active);
   const accent = lenses.find((l) => l.id === lens)?.accent ?? '#888';
@@ -138,7 +147,11 @@ export function Toolbar({ session }: { session: Session }) {
           </div>
         )}
         {lensOverlays.length > 0 && (
-          <OverlayMenu options={lensOverlays} shown={shown} pick={(id) => (session.ui.overlay.value = id)} />
+          <OverlayMenu
+            options={lensOverlays}
+            shown={shown}
+            pick={(id) => (session.ui.overlay.value = id ?? 'off')}
+          />
         )}
         <button
           type="button"
@@ -267,17 +280,40 @@ function Thumb({ kind, id }: { kind: ThumbnailKind; id: string }) {
   return <span class="thumb">{url && <img src={url} alt="" draggable={false} />}</span>;
 }
 
-/** The Build picker: the valley's buildings by group, each card with its footprint and cost. */
+/**
+ * The Build picker: the valley's buildings by group. Playtest round six: Food and Materials show
+ * their production chains, a row each, from the buildings that start from nothing to the ones that
+ * finish the goods, with the goods that pass between them; buildings the town has not opened yet
+ * stay in their chain, greyed, saying what opens them; those for a later rank wait off the page.
+ */
 function BuildingPicker({ session, tool }: { session: Session; tool: Tool }) {
   const m = session.mirror;
+  void m.revision.value;
+  void m.town.value;
   const mode = m.settings.value.mode;
-  const defs = buildingChoices(mode, session.ui.lens.value);
+  const all = buildingChoices(mode, session.ui.lens.value);
+  const locks = new Map(all.map((d) => [d.id, buildingLock(m, d)] as const));
+  const defs = all.filter((d) => locks.get(d.id)?.kind !== 'rank');
+  const later = all.filter((d) => locks.get(d.id)?.kind === 'rank');
   const groups = groupsOf(defs);
   const selected = content.buildingById.get(tool.variant?.value ?? '');
   const [group, setGroup] = useState<BuildingGroup | null>(null);
   const showing = group && groups.includes(group) ? group : selected ? buildingGroup(selected) : groups[0];
   const cards = defs.filter((d) => buildingGroup(d) === showing);
   const free = mode !== 'standard';
+  const chained = showing === 'food' || showing === 'materials';
+  const card = (d: BuildingDef) => (
+    <BuildCard
+      key={d.id}
+      session={session}
+      def={d}
+      lock={locks.get(d.id) ?? null}
+      on={tool.variant?.value === d.id}
+      free={free}
+      compact={chained}
+    />
+  );
+  const laterHere = later.filter((d) => buildingGroup(d) === showing);
   return (
     <div class="picker panel" data-testid="building-picker">
       {groups.length > 1 && (
@@ -298,41 +334,114 @@ function BuildingPicker({ session, tool }: { session: Session; tool: Tool }) {
           <span class="muted hint">{tool.hint}</span>
         </div>
       )}
-      <div class="picker-cards">
-        {cards.map((d) => {
-          const blocked = free ? null : costBlock(m, d.cost);
-          const on = tool.variant?.value === d.id;
-          return (
-            <button
-              key={d.id}
-              type="button"
-              class={`card ${on ? 'active' : ''} ${blocked ? 'short' : ''}`}
-              data-testid={`variant-${d.id}`}
-              title={blocked ? `${rejectText(blocked)} ${buildingPurpose(d)}` : buildingPurpose(d)}
-              onClick={() => session.tools?.select('building', d.id)}
-            >
-              <Thumb kind="building" id={d.id} />
-              <span class="card-text">
-                <strong>{d.name}</strong>
-                <span class="size">
-                  {d.size[0]} × {d.size[1]}
-                  {!free && d.jobs ? `, ${d.jobs.count} ${d.jobs.count === 1 ? 'job' : 'jobs'}` : ''}
-                  {!free && d.housing ? `, homes ${d.housing.residents}` : ''}
-                </span>
-                <CostLine coins={d.cost?.coins} goods={d.cost?.goods} free={free} />
-                {!free && d.upkeep ? <span class="upkeep muted">{d.upkeep} a day to keep</span> : null}
+      {chained ? (
+        <div class="picker-chains" data-testid="building-chains">
+          {chainsOf(cards).map((c) => (
+            <div class="chain-row" key={c.columns[0]![0]!.id}>
+              <span class="chain-label" title={c.makes.map(goodPurpose).join(' ')}>
+                {chainLabel(c)}
               </span>
-            </button>
-          );
-        })}
-      </div>
+              {c.columns.map((col, i) => (
+                <Fragment key={i}>
+                  {i > 0 && (
+                    <span class="chain-flow" title={c.flows[i - 1]!.map(goodPurpose).join(' ')}>
+                      {c.flows[i - 1]!.map((g) => (
+                        <GoodIcon key={g} good={g} />
+                      ))}
+                      <span class="arrow" aria-hidden="true">
+                        →
+                      </span>
+                    </span>
+                  )}
+                  <span class="chain-col">{col.map(card)}</span>
+                </Fragment>
+              ))}
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div class="picker-cards">{cards.map(card)}</div>
+      )}
+      {laterHere.length > 0 && (
+        <p class="picker-later muted" data-testid="building-later">
+          {buildingLock(m, laterHere[0]!)?.text}: {laterHere.map((d) => d.name).join(', ')}.
+        </p>
+      )}
       {/* Playtest round five: what the chosen building is for, without hunting for a tooltip. */}
       {selected && (
         <p class="picker-purpose" data-testid="building-purpose">
           <strong>{selected.name}:</strong> {buildingPurpose(selected)}
+          {locks.get(selected.id) ? ` ${locks.get(selected.id)!.text}.` : ''}
         </p>
       )}
     </div>
+  );
+}
+
+/** "Bread, from wheat": what a chain ends in, and what it starts from when that is different. */
+function chainLabel(c: Chain): string {
+  const end = c.makes.map((g) => goodName(g)).join(', ');
+  if (c.columns.length < 2) return end || 'Upkeep';
+  const raw = [
+    ...new Set(c.columns[0]!.flatMap((d) => (d.methods ?? []).flatMap((m) => m.outputs.map(([g]) => g)))),
+  ];
+  const from = raw.filter((g) => !c.makes.includes(g)).map((g) => goodName(g).toLowerCase());
+  if (!from.length) return end;
+  return `${end}, from ${from.length > 1 ? `${from.slice(0, -1).join(', ')} and ${from[from.length - 1]}` : from[0]}`;
+}
+
+/** One building in the picker: portrait, name, cost; greyed with its reason while locked. */
+function BuildCard({
+  session,
+  def: d,
+  lock,
+  on,
+  free,
+  compact,
+}: {
+  session: Session;
+  def: BuildingDef;
+  lock: BuildingLock | null;
+  on: boolean;
+  free: boolean;
+  compact: boolean;
+}) {
+  const m = session.mirror;
+  const blocked = free || lock ? null : costBlock(m, d.cost);
+  const title = [lock?.text ? `${lock.text}.` : '', blocked ? rejectText(blocked) : '', buildingPurpose(d)]
+    .filter(Boolean)
+    .join(' ');
+  return (
+    <button
+      type="button"
+      class={`card ${compact ? 'compact' : ''} ${on ? 'active' : ''} ${blocked ? 'short' : ''} ${lock ? 'locked' : ''}`}
+      data-testid={`variant-${d.id}`}
+      title={title}
+      disabled={!!lock}
+      onClick={() => session.tools?.select('building', d.id)}
+    >
+      <Thumb kind="building" id={d.id} />
+      <span class="card-text">
+        <strong>{d.name}</strong>
+        {lock ? (
+          <span class="lock-why muted">{lock.text}</span>
+        ) : (
+          <>
+            {!compact && (
+              <span class="size">
+                {d.size[0]} × {d.size[1]}
+                {!free && d.jobs ? `, ${d.jobs.count} ${d.jobs.count === 1 ? 'job' : 'jobs'}` : ''}
+                {!free && d.housing ? `, homes ${d.housing.residents}` : ''}
+              </span>
+            )}
+            <CostLine coins={d.cost?.coins} goods={d.cost?.goods} free={free} />
+            {!compact && !free && d.upkeep ? (
+              <span class="upkeep muted">{d.upkeep} a day to keep</span>
+            ) : null}
+          </>
+        )}
+      </span>
+    </button>
   );
 }
 

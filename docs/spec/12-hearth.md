@@ -78,7 +78,7 @@ interface PatternDef {
 | Sitting Wall | 4+ low-wall segments in a continuous line (gaps under 0.2 tile) beside a path, with flowers or hedge on the side away from the path | +6 r3 | Planter Wall |
 | Tree Place | a mature or ornamental big tree with 2+ benches within 1.5 tiles, and path tiles leading off in 2+ directions within 2 tiles | +8 r3 | Ring Bench |
 | Pocket Park | an area of 2x2 to 4x4 free tiles holding 1+ tree, 1+ bench and 2+ flower pieces, with buildings on 2+ sides within 2 tiles | +6 r3 | Birdbath |
-| Kitchen Garden | a home with 2+ vegetable or herb plots within 2 tiles of its footprint and a fence or hedge beside them | +5 r2; household food +1 per day | Herb Planter |
+| Kitchen Garden | a home with 2+ vegetable or herb plots within 2 tiles of its footprint or of another of its plots (a row of plots is one garden; playtest round six) and a fence or hedge within 2 tiles of them | +5 r2; household food +1 per day | Herb Planter |
 | Lantern Walk | a continuous path or lane of 10+ tiles where every run of 3 consecutive tiles has a lantern within 1 tile, and 3+ lanterns in all (C3B: two lanterns made a "walk" too cheaply) | +6 light along the walk; night safety [I3] | Hanging Lantern |
 | Promenade by the Water | 8+ consecutive path tiles each next to water, with 2+ benches and 2+ lanterns along it | +10 r2 | Mooring Post; otter arrivals favored |
 | Hedgerow Lane | a path or lane run of 6+ tiles with hedges on both sides along 4+ of them | +5 r1; hedgerow habitat [I3] | Wildflower Verge |

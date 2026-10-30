@@ -44,11 +44,15 @@ Costs, upkeep and outputs are *(tune)*. C3X tuned them against a headless pair o
 | Wheat Field | painted tiles within 6 of a farmhouse | 1 per tile | 0 | none | see farmhouse | fertility 15+ (40+ grows at full speed) |
 | Windmill | 2x2 | 24 planks, 12 stone, 50 | 2 | 1 | 3 wheat → 2 flour per h; +25% at height 4+ | |
 | Bakery | 2x2 | 20 planks, 16 stone, 50 | 2 | 2 | 2 flour → 5 bread per 2 h | |
-| Vegetable Plot | 2x2 | 4 planks, 5 | 0 | 1 | 3 vegetables per 4 h | fertility 30+ |
+| Vegetable Plot | 2x2 | 4 planks, 5 | 0 | 1 | 3 vegetables per 4 h, by the soil (60% on bare ground, full from 80) | anywhere (round six) |
 | Fisher's Hut | 2x2 | 14 planks, 20 | 1 | 2 | 2 fish per 2 h per worker | entrance next to water |
 | Storehouse | 3x3 | 30 planks, 10 stone, 40 | 2 | 4 porters | 400 units storage; logistics hub | road |
 | Market Stall | 1x2 | 8 planks, 10 | 1 | 1 | food outlet for homes within 14 | road |
 | Well | 1x1 | 6 stone, 10 | 0 | none | water for homes within 8, up to 30 residents | |
+
+Unlocks (playtest round six, content `requires.built`): a fresh hamlet offers homes, the well, the woodcutter, the sawpit, the storehouse, the vegetable plot, the fisher's hut and the market stall. The rest open as the town builds: the quarry, the chopping shed after a sawpit; the forester's lodge after a woodcutter's hut; the farmhouse after two vegetable plots, the windmill after a farmhouse, the bakery after a windmill; the clay pit after a quarry; the builder's yard after four cottages. The Village Charter (goals that include wishes granted and Pattern Book pages, the beauty side) opens the Village buildings. The Build picker shows a locked building greyed in its chain with what opens it, hides those for a later rank behind one line, and the town hears when something opens.
+
+Soil (playtest round six): buildings tagged `soil` (vegetable plots, herb gardens, pastures, dairies, orchards, farmsteads) place anywhere instead of needing a minimum fertility, and yield by the soil under them through the yield hook (`production/soil.ts`): 60% on bare ground rising to a full crop from fertility 80.
 
 Sanity check for a 40-resident hamlet: about 20 workers; food needs 40 per day; materials keep growth at about one cottage per 1.5 days. Labor, not money, is the main constraint early on. Tuning targets for this live in `22-quality.md` (bench).
 

@@ -11,6 +11,8 @@ const TERRAIN = ['Grass', 'Meadow', 'Forest floor', 'Sand', 'Rock', 'Mountain', 
 const DEPOSITS = ['', 'stone', 'clay', 'sand', 'coal'];
 /** The pointer rests this long (ms) before the hover label says what is under it. */
 const HOVER_DWELL = 450;
+/** And it shows for this long (ms). */
+const HOVER_SHOWN = 4000;
 
 /**
  * Playtest round five ("show stats without switching tools"): a short line about what is under a
@@ -39,7 +41,7 @@ export function hoverText(ctx: ToolContext, p: PointerInfo): string | null {
   const parts = [`${terrain}. Soil ${f} (${soilWord(f)}).`];
   const dep = DEPOSITS[m.deposit(t.x, t.z)];
   if (dep) parts.push(`There is ${dep} here.`);
-  if (m.road(t.x, t.z)) parts.push(m.road(t.x, t.z) === 1 ? 'A path.' : 'A lane.');
+  if (m.road(t.x, t.z)) parts.push(['', 'A footpath.', 'A cart lane.', 'A street.'][m.road(t.x, t.z)] ?? '');
   return parts.join(' ');
 }
 
@@ -55,7 +57,13 @@ export function inspectTool(ctx: ToolContext): Tool {
     dwell = setTimeout(() => {
       dwell = 0;
       const text = hoverText(ctx, p);
-      if (text) cursorHint(text, p.clientX, p.clientY);
+      if (!text) return;
+      cursorHint(text, p.clientX, p.clientY);
+      // Gone after a while, so a camera moved by keys never leaves it pointing at the wrong thing.
+      dwell = setTimeout(() => {
+        dwell = 0;
+        cursorHint(null);
+      }, HOVER_SHOWN);
     }, HOVER_DWELL);
   }
 
@@ -106,6 +114,11 @@ export function inspectTool(ctx: ToolContext): Tool {
     },
     pointerLeave() {
       stopHover();
+    },
+    key() {
+      // Keys move the camera: the label would be left pointing at the wrong thing.
+      stopHover();
+      return false;
     },
     exit() {
       stopHover();

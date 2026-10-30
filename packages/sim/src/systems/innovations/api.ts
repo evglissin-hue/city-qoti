@@ -1,21 +1,32 @@
 // Innovations API (C4.0 contract; C4C owns the measures and conditions). docs/spec/15-progression.md.
-import { content, type RankName } from '@qoti/content';
+import { content, type BuildingDef } from '@qoti/content';
 import type { TickCtx, WorldState } from '../../contracts';
 import { isStandard } from '../../state/hamlet';
 import { hasInnovation, rankAtLeast } from '../../state/village';
 import { innovationView } from '../../view/village';
 
 /**
- * True when a def's `requires` (a rank, an innovation) is met. Sandbox valleys have everything.
+ * True when a def's `requires` (a rank, an innovation, buildings standing) is met. Sandbox valleys have everything.
  * Checked when a building is placed or grown (C4C).
  */
-export function meetsRequires(
-  state: WorldState,
-  req: { rank?: RankName; innovation?: string } | undefined,
-): boolean {
+export function meetsRequires(state: WorldState, req: BuildingDef['requires'] | undefined): boolean {
   if (!req || !isStandard(state)) return true;
   if (req.rank && !rankAtLeast(state, req.rank)) return false;
   if (req.innovation && !hasInnovation(state, req.innovation)) return false;
+  return hasBuilt(state, req.built);
+}
+
+/** Playtest round six: every [def, count] in `built` has that many standing (built, not sites). */
+export function hasBuilt(
+  state: WorldState,
+  built: readonly (readonly [string, number])[] | undefined,
+): boolean {
+  if (!built) return true;
+  for (const [def, count] of built) {
+    let n = 0;
+    for (const b of state.buildings) if (b.def === def && b.stage === 'built') n++;
+    if (n < count) return false;
+  }
   return true;
 }
 

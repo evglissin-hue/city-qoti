@@ -8,6 +8,7 @@ import {
   buildingVariantGeometry,
   isSeasonal,
   setDrawSeason,
+  setSoilReader,
   standLevel,
 } from '../kitGeometry';
 import type { LayerContext, RenderLayer } from './types';
@@ -85,6 +86,7 @@ export function buildingsLayer(): RenderLayer {
     init(c) {
       ctx = c;
       setDrawSeason(c.mirror.clock.value.season);
+      setSoilReader((x, z) => c.mirror.fertility(x, z));
       batch = new KeyedBatch(c.scene, c.material);
       rebuild();
     },

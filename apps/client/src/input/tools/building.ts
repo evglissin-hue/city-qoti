@@ -6,6 +6,7 @@ import {
   FIELD_GOOD_FERTILITY,
   FIELD_MIN_FERTILITY,
   footprintSize,
+  soilPermille,
   TREE_MATURE,
   type Rot4,
 } from '@qoti/sim';
@@ -35,7 +36,11 @@ const DEPOSIT_HINT: Record<string, string> = {
 /** Farms and plots: placing them shows the soil (playtest round three). */
 function wantsSoil(def: string): boolean {
   const d = content.buildingById.get(def);
-  return !!d?.methods?.some((m) => m.kind === 'farm') || !!d?.placement?.some((r) => r.kind === 'fertility');
+  return (
+    !!d?.methods?.some((m) => m.kind === 'farm') ||
+    !!d?.tags?.includes('soil') ||
+    !!d?.placement?.some((r) => r.kind === 'fertility')
+  );
 }
 
 /** Playtest round five: the soil under a plot or farm, as a number and a word, for the cursor. */
@@ -45,7 +50,15 @@ function soilHint(m: Mirror, def: BuildingDef, x: number, z: number, rot: Rot4):
   let sum = 0;
   for (let tz = z; tz < z + d; tz++) for (let tx = x; tx < x + w; tx++) sum += m.fertility(tx, tz);
   const f = Math.round(sum / (w * d));
+  // Playtest round six: gardens grow anywhere, by the soil (sim: production/soil.ts).
+  if (def.tags?.includes('soil'))
+    return `Soil ${f} (${soilWord(f)}): ${soilYieldPercent(f)}% of a full crop.`;
   return `Soil ${f} (${soilWord(f)}).`;
+}
+
+/** The yield of a 'soil' building on this fertility, percent (sim: soilPermille). */
+export function soilYieldPercent(f: number): number {
+  return Math.round(soilPermille(f) / 10);
 }
 
 export function soilWord(f: number): string {

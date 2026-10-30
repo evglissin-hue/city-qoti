@@ -1,5 +1,5 @@
-// Kitchen Garden: a home with 2+ vegetable or herb plots within 2 tiles of its footprint and a
-// fence or hedge beside them (within 1 tile of a plot). Anchored on the home.
+// Kitchen Garden: a home with 2+ vegetable or herb plots within 2 tiles of its footprint (or of a
+// plot that is) and a fence or hedge beside them (within 1 tile of a plot). Anchored on the home.
 import { content } from '@qoti/content';
 import { MAP_SIZE } from '../../../../constants';
 import type { Building, EntityId, Rect, WorldState } from '../../../../contracts';
@@ -15,6 +15,11 @@ import {
 import { buildingHasTag, type Detector, hasTag, param, type SiteCandidate, tileOf } from '../shared';
 
 const S = MAP_SIZE;
+/**
+ * Tiles from a plot a fence or hedge may stand and still keep it (playtest round six: a fence run
+ * with a tile of path inside it is still the garden's fence).
+ */
+const FENCE_REACH = 2;
 
 interface Garden {
   members: EntityId[];
@@ -22,26 +27,50 @@ interface Garden {
   fenced: number;
 }
 
-/** The plots and fencing around one home, as the detector counts them. */
+/**
+ * The plots and fencing around one home, as the detector counts them. Playtest round six: plots
+ * chain on from the home, so a row of plots beside the door is one garden even when the far one
+ * is more than `within` tiles from the house itself.
+ */
 function gardenAt(state: WorldState, home: Building, within: number): Garden {
   const r = buildingRect(home);
   const plots: Rect[] = [];
   const members: EntityId[] = [home.id];
+  const candidates: { id: EntityId; rect: Rect }[] = [];
   for (const b of state.buildings) {
-    if (b.stage !== 'built' || !buildingHasTag(b.def, 'plot')) continue;
-    const pr = buildingRect(b);
-    if (!withinTiles(rectGap2(pr, r), within)) continue;
-    plots.push(pr);
-    members.push(b.id);
+    if (b.stage === 'built' && buildingHasTag(b.def, 'plot'))
+      candidates.push({ id: b.id, rect: buildingRect(b) });
   }
-  // Plots reach up to their own size past `within`, and fences one tile beyond that.
-  const decor = decorInRect(state, expandRect(r, within + 4)).sort((a, b) => a.id - b.id);
+  const near = (rect: Rect) =>
+    withinTiles(rectGap2(rect, r), within) || plots.some((p) => withinTiles(rectGap2(rect, p), within));
+  // Grow the garden outward from the home until no plot is left within reach of it.
+  for (let grew = true; grew;) {
+    grew = false;
+    for (let i = 0; i < candidates.length; i++) {
+      const c = candidates[i]!;
+      if (!near(c.rect)) continue;
+      plots.push(c.rect);
+      members.push(c.id);
+      candidates.splice(i--, 1);
+      grew = true;
+    }
+  }
+  // Herb planters, and the fences just past the plots, within the garden's bounds.
+  let area = r;
+  for (const p of plots)
+    area = [
+      Math.min(area[0], p[0]),
+      Math.min(area[1], p[1]),
+      Math.max(area[2], p[2]),
+      Math.max(area[3], p[3]),
+    ];
+  const decor = decorInRect(state, expandRect(area, within + 4)).sort((a, b) => a.id - b.id);
   for (const d of decor) {
     if (!hasTag(d.def, 'herb')) continue;
     const t = tileOf(d);
     const x = t % S;
     const z = (t - x) / S;
-    if (!withinTiles(tileGap2(x, z, r), within)) continue;
+    if (!near([x, z, x, z])) continue;
     plots.push([x, z, x, z]);
     members.push(d.id);
   }
@@ -51,7 +80,7 @@ function gardenAt(state: WorldState, home: Building, within: number): Garden {
     const t = tileOf(d);
     const x = t % S;
     const z = (t - x) / S;
-    if (!plots.some((p) => withinTiles(tileGap2(x, z, p), 1))) continue;
+    if (!plots.some((p) => withinTiles(tileGap2(x, z, p), FENCE_REACH))) continue;
     fenced++;
     members.push(d.id);
   }

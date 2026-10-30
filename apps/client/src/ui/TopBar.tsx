@@ -1,9 +1,10 @@
 import { content } from '@qoti/content';
-import { calendar, SEASON_NAMES, type Speed } from '@qoti/sim';
+import { calendar, SEASON_NAMES, type MoodBand, type Speed } from '@qoti/sim';
 import type { Session } from '../app/session';
 import { copy } from './copy';
 import { coinCount, coins, formatDate, formatTime, speedNote } from './format';
 import { GoodIcon } from './goodIcons';
+import { MOOD_WORD } from './hamlet';
 import { Glyph } from './icons';
 import { goodPurpose } from './purpose';
 import { toggleBook } from './panels';
@@ -125,6 +126,8 @@ export function StockStrip({ session }: { session: Session }) {
   const m = session.mirror;
   const lines = m.stocks.value?.lines;
   if (!lines || m.settings.value.mode !== 'standard') return null;
+  // Playtest round six: the Ledger watches the stocks; the Hearth watches how folk are doing.
+  if (session.ui.lens.value === 'hearth') return <HearthStrip session={session} />;
   let food = 0;
   const foodNames: string[] = [];
   const chips: { good: string; n: number; made: number; used: number }[] = [];
@@ -175,6 +178,78 @@ export function StockStrip({ session }: { session: Session }) {
           <span class="stock-word">{content.goodById.get(c.good)?.label ?? c.good}</span>
         </button>
       ))}
+    </div>
+  );
+}
+
+/**
+ * Playtest round six: the Hearth's strip under the top bar: how folk feel, the Pattern Book pages
+ * found, wishes waiting and plaques won. Each chip opens its book.
+ */
+function HearthStrip({ session }: { session: Session }) {
+  const m = session.mirror;
+  void m.hamletRevision.value;
+  let mood = 0;
+  let folk = 0;
+  for (const r of m.residents.values()) {
+    mood += r.moodBand;
+    folk++;
+  }
+  const band = folk ? Math.round(mood / folk) : 2;
+  const patterns = [...m.patterns.values()];
+  const found = patterns.filter((p) => p.discovered).length;
+  const wishes = m.wishes.size;
+  const plaques = [...m.achievements.values()].filter((a) => a.unlocked).length;
+  const open = (id: string) => toggleBook(session, id);
+  return (
+    <div class="stock-strip hearth-strip panel" data-testid="hearth-strip">
+      <button
+        type="button"
+        class="stock-chip"
+        data-testid="hearth-mood"
+        title={
+          folk
+            ? `On the whole, the valley feels ${MOOD_WORD[band as MoodBand].toLowerCase()}. Click for the townsfolk.`
+            : 'Nobody has moved in yet: families walk in from the valley gate. Click for the townsfolk.'
+        }
+        onClick={() => open('people')}
+      >
+        <span class={`mood-dot band-${band}`} aria-hidden="true" />
+        <span>{folk ? MOOD_WORD[band as MoodBand] : 'Nobody yet'}</span>
+      </button>
+      <button
+        type="button"
+        class="stock-chip"
+        data-testid="hearth-patterns"
+        title="Pages of the Pattern Book found: charming corners that unlock new pieces. Click for the book."
+        onClick={() => open('patterns')}
+      >
+        <Glyph id="patterns" />
+        <span>{found}</span>
+        <span class="stock-word">patterns</span>
+      </button>
+      <button
+        type="button"
+        class="stock-chip"
+        data-testid="hearth-wishes"
+        title="Wishes folk have voiced and are waiting on. Click to read them."
+        onClick={() => open('wishes')}
+      >
+        <Glyph id="wishes" />
+        <span>{wishes}</span>
+        <span class="stock-word">{wishes === 1 ? 'wish' : 'wishes'}</span>
+      </button>
+      <button
+        type="button"
+        class="stock-chip"
+        data-testid="hearth-plaques"
+        title="Brass plaques the valley has earned. Click for the wall of them."
+        onClick={() => open('achievements')}
+      >
+        <Glyph id="achievements" />
+        <span>{plaques}</span>
+        <span class="stock-word">{plaques === 1 ? 'plaque' : 'plaques'}</span>
+      </button>
     </div>
   );
 }

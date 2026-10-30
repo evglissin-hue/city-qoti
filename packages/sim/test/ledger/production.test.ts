@@ -11,6 +11,7 @@ import {
   CROP_YIELD,
   cropGrowth,
 } from '../../src/systems/production/fields';
+import { soilPermille } from '../../src/systems/production/soil';
 import { hamletFixture } from '../fixtures/hamlet';
 import { rejection, run, S } from '../helpers';
 import { building, good, hire, stockOf, ticks, toWork } from './helpers';
@@ -18,7 +19,10 @@ import { building, good, hire, stockOf, ticks, toWork } from './helpers';
 const H = TICKS_PER_HOUR;
 
 function place(state: WorldState, def: string, x: number, z: number): Building {
-  return insertBuilding(state, null, content.buildingById.get(def)!, x, z, 0, 0, { site: false });
+  const d = content.buildingById.get(def)!;
+  // Gardens yield by their soil (production/soil.ts): these tests count a full crop, on rich loam.
+  if (d.tags?.includes('soil')) fertile(state, x, z, x + d.size[0] - 1, z + d.size[1] - 1, 100);
+  return insertBuilding(state, null, d, x, z, 0, 0, { site: false });
 }
 
 function fertile(state: WorldState, x0: number, z0: number, x1: number, z1: number, f = 60): void {
@@ -124,6 +128,21 @@ describe('gathering', () => {
     toWork(f.state, hire(f.state, plot.id, 1));
     ticks(f.state, 4 * H);
     expect(stockOf(plot, 'output', 'vegetables')).toBe(3);
+  });
+
+  it('grows anywhere, less on thin soil (playtest round six)', () => {
+    const crop = (soil: number) => {
+      const f = hamletFixture();
+      const plot = place(f.state, 'vegetable-plot', 120, 60);
+      fertile(f.state, 120, 60, 121, 61, soil);
+      toWork(f.state, hire(f.state, plot.id, 1));
+      ticks(f.state, 16 * H);
+      return stockOf(plot, 'output', 'vegetables');
+    };
+    expect(soilPermille(0)).toBe(600);
+    expect(soilPermille(80)).toBe(1000);
+    expect(crop(10)).toBeLessThan(crop(90));
+    expect(crop(10)).toBeGreaterThan(0);
   });
 
   it('scales with mood: Glowing workers beat Miserable ones', () => {

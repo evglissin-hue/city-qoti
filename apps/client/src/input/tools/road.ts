@@ -8,10 +8,32 @@ import { proposeRoute } from '../route';
 import type { Tool } from '../tool';
 
 // I2 (C4F): streets need the Cobbles innovation (content `requires`), in standard valleys.
-const LOOKS: Record<RoadKind, { lane: Tool['lane']; icon: string; label: string; order: number }> = {
-  path: { lane: 'hearth', icon: '┄', label: 'Path', order: 10 },
-  lane: { lane: 'ledger', icon: '═', label: 'Lane', order: 20 },
-  street: { lane: 'ledger', icon: '▦', label: 'Street', order: 22 },
+// Playtest round six ("path and lane: what's the difference?"): names and hints say what each is for.
+const LOOKS: Record<
+  RoadKind,
+  { lane: Tool['lane']; icon: string; label: string; order: number; hint: string }
+> = {
+  path: {
+    lane: 'hearth',
+    icon: '┄',
+    label: 'Footpath',
+    order: 10,
+    hint: 'For folk on foot: cheap and cozy, and enough for a home or a stall. Carts need a cart lane',
+  },
+  lane: {
+    lane: 'ledger',
+    icon: '═',
+    label: 'Cart lane',
+    order: 20,
+    hint: 'Wide enough for carts, and at Village rank new homes and shops grow along it',
+  },
+  street: {
+    lane: 'ledger',
+    icon: '▦',
+    label: 'Street',
+    order: 22,
+    hint: 'Cobbled, for busy cart traffic; a little noisy',
+  },
 };
 
 /** Drag from A to B: the tool proposes a straight or L-shaped run and paints it on release. */
@@ -54,7 +76,7 @@ export function roadTool(kind: RoadKind): (ctx: ToolContext) => Tool {
     return {
       id: kind,
       ...LOOKS[kind],
-      hint: 'Drag to draw, F flips the bend',
+      hint: `${LOOKS[kind].hint}. Drag to draw, F flips the bend`,
       pointerMove(p) {
         cx = p.clientX;
         cy = p.clientY;

@@ -2,7 +2,7 @@
 // shared village fixture (packages/sim/test/fixtures/village.ts) and the Ledger helpers. The open
 // ground north of lane A (z 30 to 44) and south of the home lots (z 76 and on) is free for tests.
 import { content } from '@qoti/content';
-import { NEED_IDS, PENNIES_PER_COIN } from '../../src/constants';
+import { MAP_SIZE, NEED_IDS, PENNIES_PER_COIN } from '../../src/constants';
 import type { Building, EntityId, Household, Resident, Rot4, TierId, WorldState } from '../../src/contracts';
 import { findById } from '../../src/state/entities';
 import { goodsArray } from '../../src/state/hamlet';
@@ -13,7 +13,14 @@ import { villageFixture, type VillageFixture } from '../fixtures/village';
 export { good } from '../ledger/helpers';
 
 export function place(state: WorldState, def: string, x: number, z: number, rot: Rot4 = 0): Building {
-  return insertBuilding(state, null, content.buildingById.get(def)!, x, z, rot, 0, { site: false });
+  const d = content.buildingById.get(def)!;
+  // Gardens yield by their soil (production/soil.ts): these tests count a full crop, on rich loam.
+  if (d.tags?.includes('soil')) {
+    const [w, h] = rot % 2 ? [d.size[1], d.size[0]] : d.size;
+    for (let tz = z; tz < z + h; tz++)
+      for (let tx = x; tx < x + w; tx++) state.map.fertility[tz * MAP_SIZE + tx] = 100;
+  }
+  return insertBuilding(state, null, d, x, z, rot, 0, { site: false });
 }
 
 /** A fresh adult (or child) in a household, tier as the household's, unemployed and at home. */

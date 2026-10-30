@@ -123,7 +123,8 @@ describe('I2 buildings', () => {
   it('pays its way: every hand-placed I2 producer makes more than it costs a work day at base prices', () => {
     for (const b of content.buildings) {
       const m = b.methods?.[0];
-      if (!m || !b.requires || b.grows || m.outputs.length === 0) continue;
+      // I2 producers: behind a rank or an innovation (round six's `built` unlocks are I1's).
+      if (!m || !(b.requires?.rank || b.requires?.innovation) || b.grows || m.outputs.length === 0) continue;
       const cycles = (9 / m.hours) * (m.perWorker ? m.workers : 1);
       let value = 0;
       for (const [g, q] of m.outputs) value += price(g) * q * cycles;

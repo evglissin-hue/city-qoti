@@ -4,7 +4,7 @@
 // the vegetable plot's beds, the fisher's jetty and boat, the storehouse yard and the market stall.
 // Runtime detail arrives in params: 'out:<good>', 'in:<good>' and 'stock:<good>' levels 0 to 4
 // and 'growth' 0 to 3, so piles and crops follow what the building is doing.
-import { ShapeBuilder, vary, type V3 } from '../geometry';
+import { mixHex, ShapeBuilder, vary, type V3 } from '../geometry';
 import { palette } from '../palette';
 import { beam, cylX, cylZ, panel } from '../shapes';
 import { shell, signBoard, windowRow, windowStyle, type Built } from './buildings';
@@ -597,6 +597,10 @@ function quarry(opts: KitBuildOptions | undefined): Built {
 
 // --- Vegetable plot ---------------------------------------------------------------------------------------
 
+/** Bed colors for thin, sandy soil and rich, dark loam. */
+const THIN_SOIL = 0xb59a72;
+const RICH_SOIL = 0x4a3222;
+
 function vegetablePlot(opts: KitBuildOptions | undefined): Built {
   const [w, d] = opts?.size ?? [2, 2];
   const [ex] = opts?.entrance ?? [1, 1];
@@ -604,6 +608,10 @@ function vegetablePlot(opts: KitBuildOptions | undefined): Built {
   const c = customOf(opts);
   const { s, anchors } = start();
   const growth = Math.max(0, Math.min(3, Math.round(level(opts, 'growth'))));
+  // Playtest round six: the soil shows. 'soil' 1 (thin) to 4 (rich); absent reads as good soil.
+  const soil = Math.max(1, Math.min(4, Math.round(level(opts, 'soil')) || 3));
+  const bed = mixHex(THIN_SOIL, RICH_SOIL, (soil - 1) / 3);
+  const lush = 0.7 + soil * 0.1;
   // Wattle fence around, with a gap at the gate.
   const gate = ex + 0.5;
   wattle(s, [0.08, 0.08], [w - 0.08, 0.08], rnd);
@@ -614,11 +622,11 @@ function vegetablePlot(opts: KitBuildOptions | undefined): Built {
   // Three mounded rows: cabbages, carrots and pumpkins, by growth stage.
   const rows = [0.42, 0.88, 1.34];
   rows.forEach((z, r) => {
-    s.rbox(0.22, 0, z - 0.14, w - 0.22, 0.06, z + 0.14, vary(palette.soil, rnd, 0.4), 0.04);
+    s.rbox(0.22, 0, z - 0.14, w - 0.22, 0.06, z + 0.14, vary(bed, rnd, 0.4), 0.04);
     const n = 5;
     for (let i = 0; i < n; i++) {
       const x = 0.36 + ((w - 0.72) * i) / (n - 1);
-      const k = 0.85 + rnd() * 0.3;
+      const k = (0.85 + rnd() * 0.3) * lush;
       if (growth === 0) {
         if ((i + r) % 2 === 0) s.blob(x, 0.07, z, 0.018, 0.02, 0.018, palette.birchLeaf, 0);
         continue;

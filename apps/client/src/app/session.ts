@@ -1,4 +1,5 @@
 import { signal } from '@preact/signals';
+import { content } from '@qoti/content';
 import type { ErrorCode, PresenceMsg, RosterEntry, S2C, ValleyMeta, Welcome } from '@qoti/protocol';
 import {
   base64ToBytes,
@@ -30,6 +31,7 @@ import { rejectText, undoText } from '../ui/messages';
 import { panels, toggleBook } from '../ui/panels';
 import { sketchWith } from '../ui/plans';
 import { INPUT_COPY } from '../input/copy';
+import { buildingChoices, buildingLock } from '../input/catalog';
 import { createUiState } from '../ui/state';
 import type { InitSource } from '../worker/messages';
 import { SimHost } from '../worker/host';
@@ -354,9 +356,32 @@ export class Session {
     if (update) this.submit({ t: 'seat.setProfile', ...update, lens: mine.lens }, false);
   }
 
+  /**
+   * Playtest round six: buildings the Build menu has open. A building that opens (its chain's
+   * last step built, a rank, an innovation) is announced once; the first look only takes stock.
+   */
+  private openBuildings: Set<string> | null = null;
+
+  private checkUnlocks(): void {
+    if (this.mirror.settings.value.mode !== 'standard') return;
+    const open = new Set(
+      buildingChoices('standard', 'ledger')
+        .filter((d) => !buildingLock(this.mirror, d))
+        .map((d) => d.id),
+    );
+    const before = this.openBuildings;
+    this.openBuildings = open;
+    if (!before) return;
+    const fresh = [...open]
+      .filter((id) => !before.has(id))
+      .map((id) => content.buildingById.get(id)?.name ?? id);
+    if (fresh.length) this.toast(INPUT_COPY.unlocked(fresh));
+  }
+
   private afterUpdate(change: MirrorChange): void {
     const now = Date.now();
     if (change.seats) this.syncProfile();
+    if (change.buildings || change.village || change.rankUp || change.full) this.checkUnlocks();
     for (const key of change.added) if (!this.debug.firstSeen.has(key)) this.debug.firstSeen.set(key, now);
     for (const r of change.rejections) {
       if (r.seat !== this.seat) continue;

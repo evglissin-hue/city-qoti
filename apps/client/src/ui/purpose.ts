@@ -82,6 +82,7 @@ export function buildingPurpose(def: BuildingDef): string {
   if (parts.length === 0) parts.push('Makes the place look lived in');
   const where = placementLine(def);
   if (where) parts.push(where);
+  if (def.tags?.includes('soil')) parts.push('Grows anywhere, best on rich, dark soil');
   return `${parts.join('. ')}.`;
 }
 

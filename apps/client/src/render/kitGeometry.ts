@@ -74,6 +74,30 @@ export function setDrawSeason(season: number): boolean {
   return true;
 }
 
+/**
+ * Playtest round six: plots show their soil. The buildings layer hands in the map's fertility;
+ * a plot's params carry it as 1 (thin) to 4 (rich) over its footprint.
+ */
+let soilAt: ((x: number, z: number) => number) | null = null;
+
+export function setSoilReader(read: ((x: number, z: number) => number) | null): void {
+  soilAt = read;
+}
+
+/** Fertility 0 to 100 as the four soil levels the plot kit draws. */
+export function soilLevel(fertility: number): number {
+  return fertility >= 70 ? 4 : fertility >= 45 ? 3 : fertility >= 25 ? 2 : 1;
+}
+
+function plotSoil(b: BuildingView): number {
+  const def = drawDef(b.def);
+  if (!soilAt || !def) return 3;
+  const [w, d] = b.rot % 2 ? [def.size[1], def.size[0]] : def.size;
+  let sum = 0;
+  for (let z = b.z; z < b.z + d; z++) for (let x = b.x; x < b.x + w; x++) sum += soilAt(x, z);
+  return soilLevel(sum / (w * d));
+}
+
 export function isSeasonal(defId: string): boolean {
   const kit = drawDef(defId)?.art.kit;
   return !!kit && SEASONAL_KITS.has(kit);
@@ -87,6 +111,7 @@ export function buildingParams(b: BuildingView): Record<string, number | string 
   // C4E: grown buildings take their district's look; seasonal kits the season.
   if (b.style) p.style = b.style;
   if (def && SEASONAL_KITS.has(def.art.kit)) p.season = drawSeason;
+  if (def?.tags?.includes('plot')) p.soil = plotSoil(b);
   const rt = b.rt;
   if (rt?.method) {
     // What a grown craft or farm is making, by its method's first output.

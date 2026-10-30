@@ -290,6 +290,37 @@ input::placeholder {
   gap: 6px;
 }
 
+.continue-row {
+  display: flex;
+  gap: 6px;
+}
+
+.continue .continue-row button.forget {
+  width: auto;
+  flex: none;
+  padding: 0 10px;
+  color: rgba(90, 66, 49, 0.6);
+}
+
+.forget-confirm {
+  padding: 8px 10px;
+  border: 1.5px dashed rgba(90, 66, 49, 0.35);
+  border-radius: 10px;
+}
+
+.forget-confirm p {
+  margin: 0 0 6px;
+}
+
+.forget-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.continue .forget-actions button {
+  width: auto;
+}
+
 .continue button {
   width: 100%;
   display: flex;

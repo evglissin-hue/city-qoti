@@ -25,6 +25,9 @@ export const INPUT_COPY = {
   /** Playtest round five: the building cursor always says how to turn it. */
   turnHint: 'R turns it; the arrow marks the door.',
   noRoadYet: 'No road at the door yet: it will want one.',
+  /** Playtest round six: something new opened in the Build menu. */
+  unlocked: (names: string[]) =>
+    `New in the Build menu: ${names.length > 1 ? `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}` : names[0]}.`,
   sketched: (n: number) =>
     n === 1 ? 'Sketched. One idea on the table.' : `Sketched. ${n} ideas on the table.`,
 } as const;

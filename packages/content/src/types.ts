@@ -72,8 +72,12 @@ export interface BuildingDef {
   grows?: { zone: string; weight?: number; handPlaced?: boolean };
   /** Upgrades in place to this def when its household reaches the next tier, consuming the goods. */
   upgradesTo?: { def: string; goods: [good: string, qty: number][] };
-  /** Rank or innovation needed before it can be placed or grown. */
-  requires?: { rank?: RankName; innovation?: string };
+  /**
+   * Rank or innovation needed before it can be placed or grown. Playtest round six addition:
+   * `built`, buildings the town must have standing first ([def, how many]), so a hamlet opens up
+   * one chain at a time instead of offering everything on day one.
+   */
+  requires?: { rank?: RankName; innovation?: string; built?: [def: string, count: number][] };
   // I3 additions (C5.0).
   /** Defense pieces (docs/spec/14-challenge.md, Defenses; C5D fills the numbers). */
   defense?: DefenseDef;

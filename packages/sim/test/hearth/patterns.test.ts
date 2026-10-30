@@ -183,6 +183,21 @@ describe('Kitchen Garden', () => {
     expect(kitchenGardenMissing(scene(0, false).w, scene(0, false).home)).toBeNull();
   });
 
+  it('counts a row of plots running on from the home, fenced all round (playtest round six)', () => {
+    const w = standardWorld();
+    const home = build(w, 'cottage', 160, 80);
+    // Two plots side by side to the east: the second is four tiles from the home itself.
+    build(w, 'vegetable-plot', 163, 80);
+    build(w, 'vegetable-plot', 166, 80);
+    rowRun(w, 'fence', 162, 168, 78);
+    rowRun(w, 'fence', 162, 168, 83);
+    colRun(w, 'fence', 169, 78, 83);
+    const sites = detect(w, 'kitchen-garden');
+    expect(sites).toHaveLength(1);
+    expect(sites[0]!.anchor).toBe(home.z * S + home.x);
+    expect(sites[0]!.members.length).toBeGreaterThanOrEqual(3);
+  });
+
   it('herb planters count as plots and a hedge as a fence', () => {
     const w = standardWorld();
     build(w, 'cottage', 160, 80);

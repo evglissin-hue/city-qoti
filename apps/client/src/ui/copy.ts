@@ -25,6 +25,14 @@ export const copy = {
     seed: 'Seed',
     seedPlaceholder: 'Leave empty for a surprise',
     continue: 'Pick up where you left off',
+    // Playtest round six: tidying the list.
+    forget: 'Remove',
+    forgetTitle: (name: string) => `Remove ${name} from this list`,
+    forgetSolo: (name: string) => `Delete ${name} for good? Solo valleys live only on this device.`,
+    forgetOnline: (name: string) =>
+      `Take ${name} off this list? It stays on the relay, so your partner keeps it, but this device forgets the way in.`,
+    forgetYes: 'Remove it',
+    forgetNo: 'Keep it',
     solo: 'Solo',
     online: 'For two',
     relayDown: 'Could not reach the relay. Is the dev server running?',

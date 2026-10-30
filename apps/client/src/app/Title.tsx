@@ -6,7 +6,8 @@ import { LocalRoom } from '../net/local';
 import { copy, welcomeLine } from '../ui/copy';
 import { ago } from '../ui/format';
 import { loadProfile, saveProfile, SWATCHES, type PlayerProfile } from './profile';
-import { listRecent, rememberValley, type RecentValley } from './recent';
+import { forgetValley, listRecent, rememberValley, type RecentValley } from './recent';
+import { valleyDbName } from '../net/idb';
 import { readValleyFile, type ValleyFile } from './valleyFile';
 import type { SessionTarget } from './session';
 
@@ -23,6 +24,22 @@ function targetOf(v: RecentValley): SessionTarget {
 export function Title({ onStart }: { onStart: (t: SessionTarget, opts?: { invite?: boolean }) => void }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Playtest round six: the valley asking "are you sure?", and a bump to redraw the list after.
+  const [forgetting, setForgetting] = useState<string | null>(null);
+  const [, setListVersion] = useState(0);
+  const forget = (v: RecentValley) => {
+    forgetValley(v.valleyId);
+    // A solo valley's turns and snapshots live in this browser alone: delete them too.
+    if (v.mode === 'solo') {
+      try {
+        indexedDB.deleteDatabase(valleyDbName(v.valleyId));
+      } catch {
+        // Storage blocked: the list entry is gone, which is what the player asked for.
+      }
+    }
+    setForgetting(null);
+    setListVersion((n) => n + 1);
+  };
   const [seed, setSeed] = useState('');
   const [town, setTown] = useState('');
   // ?creative starts with the creative box ticked (the I0 end to end specs play sandbox valleys).
@@ -309,22 +326,54 @@ export function Title({ onStart }: { onStart: (t: SessionTarget, opts?: { invite
           <div class="continue">
             <h2>{copy.title.continue}</h2>
             <ul>
-              {others.map((v) => (
-                <li key={v.valleyId}>
-                  <button
-                    type="button"
-                    data-testid={`continue-${v.valleyId}`}
-                    disabled={busy}
-                    onClick={() => onStart(targetOf(v))}
-                  >
-                    <strong>{v.name}</strong>
-                    <span class="muted">
-                      {v.creative ? `${copy.title.creativeTag}, ` : ''}
-                      {v.mode === 'solo' ? copy.title.solo : copy.title.online}, {ago(v.lastPlayed)}
-                    </span>
-                  </button>
-                </li>
-              ))}
+              {others.map((v) =>
+                forgetting === v.valleyId ? (
+                  <li key={v.valleyId} class="forget-confirm" data-testid={`forget-confirm-${v.valleyId}`}>
+                    <p>
+                      {v.mode === 'solo' ? copy.title.forgetSolo(v.name) : copy.title.forgetOnline(v.name)}
+                    </p>
+                    <div class="forget-actions">
+                      <button
+                        type="button"
+                        class="danger"
+                        data-testid={`forget-yes-${v.valleyId}`}
+                        onClick={() => forget(v)}
+                      >
+                        {copy.title.forgetYes}
+                      </button>
+                      <button type="button" onClick={() => setForgetting(null)}>
+                        {copy.title.forgetNo}
+                      </button>
+                    </div>
+                  </li>
+                ) : (
+                  <li key={v.valleyId} class="continue-row">
+                    <button
+                      type="button"
+                      data-testid={`continue-${v.valleyId}`}
+                      disabled={busy}
+                      onClick={() => onStart(targetOf(v))}
+                    >
+                      <strong>{v.name}</strong>
+                      <span class="muted">
+                        {v.creative ? `${copy.title.creativeTag}, ` : ''}
+                        {v.mode === 'solo' ? copy.title.solo : copy.title.online}, {ago(v.lastPlayed)}
+                      </span>
+                    </button>
+                    <button
+                      type="button"
+                      class="forget"
+                      title={copy.title.forgetTitle(v.name)}
+                      aria-label={copy.title.forgetTitle(v.name)}
+                      data-testid={`forget-${v.valleyId}`}
+                      disabled={busy}
+                      onClick={() => setForgetting(v.valleyId)}
+                    >
+                      ×
+                    </button>
+                  </li>
+                ),
+              )}
             </ul>
           </div>
         )}

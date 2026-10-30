@@ -106,6 +106,7 @@ export {
   fieldCap,
   fieldTileProblem,
 } from './systems/production/fields';
+export { soilPermille } from './systems/production/soil';
 // I2 (C4.0)
 export {
   charterView,
@@ -148,7 +149,7 @@ export { roadCapacity, roadNoise, slowdownPercent, trafficFlow } from './systems
 export { roadKindLocked, wantsStairs } from './systems/traffic/streets';
 export { DESIRE_PATH_WEAR, desirePathTiles, WEAR_VISIBLE } from './systems/traffic/wear';
 export { grantReward, storyStep } from './systems/stories/api';
-export { meetsRequires, unlockInnovation } from './systems/innovations/api';
+export { hasBuilt, meetsRequires, unlockInnovation } from './systems/innovations/api';
 // I2 (C4C): services, tiers and carts for the client and the bench.
 export { serviceCoverage, servedBy } from './systems/services/coverage';
 export { checkTier, homeRoute, nextTier, tierProgress } from './systems/tiers/api';

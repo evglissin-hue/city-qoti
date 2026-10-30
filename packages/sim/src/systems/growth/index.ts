@@ -21,6 +21,7 @@ import type { Building, Lot, System, TickCtx, WorldState } from '../../contracts
 import { findById } from '../../state/entities';
 import { isStandard } from '../../state/hamlet';
 import { hasInnovation, rankAtLeast } from '../../state/village';
+import { hasBuilt } from '../innovations/api';
 import { townStock } from '../../view/hamlet';
 import { emitBuilding } from '../economy/emit';
 import { dailyOffset } from '../economy/time';
@@ -75,7 +76,7 @@ function available(state: WorldState, def: BuildingDef): boolean {
   if (req.innovation && !hasInnovation(state, req.innovation) && !state.hearth.unlocked.includes(def.id)) {
     return false;
   }
-  return true;
+  return hasBuilt(state, req.built);
 }
 
 /** Defs that may grow in a zone now: content's `grows` defs, or the stand-ins while it has none. */

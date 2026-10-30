@@ -34,6 +34,7 @@ export const bakery: BuildingDef = {
   work: 12,
   charm: [{ category: 'comfort', value: 2, radius: 2 }],
   tags: ['bakery', 'workshop', 'cafe'],
+  requires: { built: [['windmill', 1]] },
   art: { kit: 'bakery' },
 };
 
@@ -56,6 +57,7 @@ export const buildersYard: BuildingDef = {
   work: 12,
   charm: [{ category: 'noise', value: -4, radius: 3 }],
   tags: ['builders', 'workshop'],
+  requires: { built: [['cottage', 4]] },
   art: { kit: 'builders-yard' },
 };
 
@@ -122,6 +124,7 @@ export const farmhouse: BuildingDef = {
   outputBuffer: 30,
   work: 12,
   tags: ['farm'],
+  requires: { built: [['vegetable-plot', 2]] },
   art: { kit: 'farmhouse' },
 };
 
@@ -185,6 +188,7 @@ export const forestersLodge: BuildingDef = {
   ],
   work: 12,
   tags: ['forestry'],
+  requires: { built: [['woodcutter', 1]] },
   art: { kit: 'foresters-lodge' },
 };
 
@@ -247,6 +251,7 @@ export const quarry: BuildingDef = {
   work: 12,
   charm: [{ category: 'noise', value: -10, radius: 4 }],
   tags: ['workshop'],
+  requires: { built: [['sawpit', 1]] },
   art: { kit: 'quarry' },
 };
 
@@ -337,7 +342,6 @@ export const vegetablePlot: BuildingDef = {
   category: 'production',
   size: [2, 2],
   entrance: [1, 1],
-  placement: [{ kind: 'fertility', min: 30 }],
   cost: { coins: 5, goods: [['planks', 4]] },
   upkeep: 0,
   jobs: { count: 1, role: 'worker' },
@@ -354,7 +358,7 @@ export const vegetablePlot: BuildingDef = {
   ],
   work: 4,
   charm: [{ category: 'nature', value: 2, radius: 1 }],
-  tags: ['plot', 'garden'],
+  tags: ['plot', 'garden', 'soil'],
   art: { kit: 'vegetable-plot' },
 };
 
@@ -405,6 +409,7 @@ export const windmill: BuildingDef = {
   work: 20,
   charm: [{ category: 'view', value: 2, radius: 2 }],
   tags: ['mill', 'workshop'],
+  requires: { built: [['farmhouse', 1]] },
   art: { kit: 'windmill' },
 };
 

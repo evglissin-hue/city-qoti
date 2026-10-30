@@ -19,6 +19,19 @@ function label(): HTMLDivElement | null {
       opacity: '0',
     });
     document.body.appendChild(el);
+    // Playtest round six: the label never outstays the pointer. It goes once the pointer is over
+    // the interface rather than the valley, and when the wheel moves the camera under it.
+    const hide = () => {
+      if (el) el.style.opacity = '0';
+    };
+    document.addEventListener(
+      'pointermove',
+      (e) => {
+        if (!(e.target instanceof HTMLCanvasElement)) hide();
+      },
+      { capture: true, passive: true },
+    );
+    document.addEventListener('wheel', hide, { capture: true, passive: true });
   }
   return el;
 }

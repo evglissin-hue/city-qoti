@@ -115,16 +115,8 @@ describe('lens toolbars', () => {
     expect(session.ui.panel.value).toBeNull();
 
     await view.click('lens-ledger');
-    expect(ids(view.root, 'tool-')).toEqual([
-      'lane',
-      'street',
-      'field',
-      'building',
-      'zone',
-      'note',
-      'plan',
-      'erase',
-    ]);
+    // Playtest round six: Fields waits for a farmhouse (the mock valley has none).
+    expect(ids(view.root, 'tool-')).toEqual(['lane', 'street', 'building', 'zone', 'note', 'plan', 'erase']);
     // Playtest round five: the Pattern Book is on both lenses' shelves.
     expect(ids(view.root, 'book-')).toEqual([
       'market',
@@ -135,14 +127,23 @@ describe('lens toolbars', () => {
       'notebook',
     ]);
     await view.click('overlays');
-    expect(ids(view.root, 'overlay-').filter((id) => id !== 'list')).toEqual(['coverage', 'flows', 'status']);
+    // Playtest round six: the Ledger shows the soil and stone until another view is picked.
+    expect(view.get('overlays').textContent).toContain('Soil and stone');
+    expect(ids(view.root, 'overlay-').filter((id) => id !== 'list')).toEqual([
+      'coverage',
+      'flows',
+      'resources',
+      'status',
+      'clear',
+    ]);
     await view.click('overlay-flows');
     expect(session.ui.overlay.value).toBe('flows');
     // The button now names the overlay, and the list has closed.
     expect(view.get('overlays').textContent).toContain('Flows');
     expect(ids(view.root, 'overlay-')).toEqual(['clear']);
     await view.click('overlay-clear');
-    expect(session.ui.overlay.value).toBeNull();
+    // Cleared on purpose: 'off', so the Ledger's own view does not come straight back.
+    expect(session.ui.overlay.value).toBe('off');
     // Clicking the chosen tool again puts it away: back to inspecting.
     await view.click('tool-building');
     expect(session.tools!.active.value).toBe('building');
@@ -173,10 +174,15 @@ describe('lens toolbars', () => {
     // Homes have no upkeep (C3X tuning), so the card shows none.
     expect(cottage.textContent).not.toContain('a day to keep');
     await view.click('group-food');
+    // Playtest round six: food as chains; the steps the valley has not opened say what opens them.
     expect(ids(view.root, 'variant-')).toEqual(
-      expect.arrayContaining(['bakery', 'farmhouse', 'fishers-hut', 'market-stall', 'windmill']),
+      expect.arrayContaining(['bakery', 'farmhouse', 'fishers-hut', 'vegetable-plot', 'windmill']),
     );
+    expect(view.get('building-chains')).toBeTruthy();
+    const bakery = view.get('variant-bakery');
+    if (bakery.classList.contains('locked')) expect(bakery.textContent).toContain('After a windmill');
     await view.click('group-services');
+    expect(ids(view.root, 'variant-')).toContain('market-stall');
     expect(ids(view.root, 'variant-')).not.toContain('town-hall');
     await view.click('variant-storehouse');
     expect(session.tools!.tool('building')!.variant!.value).toBe('storehouse');

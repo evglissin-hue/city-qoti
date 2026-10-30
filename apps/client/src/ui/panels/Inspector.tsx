@@ -50,7 +50,11 @@ export function InspectorPanel({ session }: { session: Session }) {
       `Tile ${sel.x}, ${sel.z}. Level ${m.height(sel.x, sel.z)}, fertility ${m.fertility(sel.x, sel.z)}.`,
     );
     if (m.road(sel.x, sel.z))
-      lines.push(m.road(sel.x, sel.z) === 1 ? 'A path runs here.' : 'A lane runs here.');
+      lines.push(
+        ['', 'A footpath runs here.', 'A cart lane runs here.', 'A street runs here.'][
+          m.road(sel.x, sel.z)
+        ] ?? '',
+      );
   }
 
   return (

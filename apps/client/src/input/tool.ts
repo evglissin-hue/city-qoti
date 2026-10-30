@@ -45,6 +45,11 @@ export interface Tool {
   order?: number;
   /** I1 (C3E) addition: valley modes whose toolbar shows the tool (default both). */
   modes?: readonly ('sandbox' | 'standard')[];
+  /**
+   * Playtest round six addition: true while the tool has nothing to work on yet, so the toolbar
+   * leaves it out (the Fields tool before there is a farmhouse).
+   */
+  hidden?(): boolean;
   /** Playtest addition: the overlay the tool shows while out (the toolbar's own waits), if any. */
   overlay?(): string | null;
 }

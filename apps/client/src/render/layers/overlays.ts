@@ -781,6 +781,35 @@ export function overlaysLayer(): OverlaysLayer {
     if (tiles.length) add(drapeTiles(m, tiles, 0.04));
   }
 
+  /**
+   * Playtest round six: the Ledger's own look at the land, its default view. Rich soil a soft
+   * green wash (good soil faint), clay and stone deposits in their colors: where things will grow
+   * and what lies underfoot, light enough to build over.
+   */
+  function resources(): void {
+    if (!ctx) return;
+    const m = ctx.mirror;
+    const rich = new Color(0x3f7a3a);
+    const good = new Color(0x8fb879);
+    const clay = new Color(DEPOSIT_TINTS.clay!.color);
+    const stone = new Color(DEPOSIT_TINTS.stone!.color);
+    const tiles: { x: number; z: number; rgba: Rgba }[] = [];
+    for (let z = 0; z < MAP_SIZE; z++) {
+      for (let x = 0; x < MAP_SIZE; x++) {
+        if (m.water(x, z) || m.road(x, z) || m.occupant(x, z)) continue;
+        const dep = m.deposit(x, z);
+        if (dep === Deposit.clay) tiles.push({ x, z, rgba: [clay.r, clay.g, clay.b, 0.42] });
+        else if (dep === Deposit.stone) tiles.push({ x, z, rgba: [stone.r, stone.g, stone.b, 0.42] });
+        else if (!m.tree(x, z)) {
+          const f = m.fertility(x, z);
+          if (f >= 70) tiles.push({ x, z, rgba: [rich.r, rich.g, rich.b, 0.16] });
+          else if (f >= FIELD_GOOD_FERTILITY + 15) tiles.push({ x, z, rgba: [good.r, good.g, good.b, 0.08] });
+        }
+      }
+    }
+    if (tiles.length) add(drapeTiles(m, tiles, 0.04));
+  }
+
   function rebuild(): void {
     if (!ctx) return;
     clear();
@@ -795,6 +824,7 @@ export function overlaysLayer(): OverlaysLayer {
     else if (kind === 'needs') merged(needs);
     else if (kind?.startsWith('deposit:')) deposits(kind.slice('deposit:'.length));
     else if (kind === 'soil') soil();
+    else if (kind === 'resources') resources();
     statusRebuild = true;
     ctx.invalidate();
   }
@@ -899,6 +929,16 @@ export function overlaysLayer(): OverlaysLayer {
         for (const r of change.rects.get(layer) ?? []) markCharm(r);
         for (const r of change.rects.get('height') ?? []) markCharm(r);
         if (change.full) rebuild();
+      } else if (kind === 'resources') {
+        // Playtest round six: a whole-map pass, so only when the ground under it changes (the
+        // Ledger shows it by default, and buildings and residents update every turn).
+        if (
+          change.full ||
+          change.rects.has('occupant') ||
+          change.rects.has('road') ||
+          change.rects.has('tree')
+        )
+          rebuild();
       } else if (
         change.full ||
         change.buildings ||

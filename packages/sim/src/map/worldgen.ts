@@ -208,18 +208,21 @@ function attempt(seed: string, _settings: ValleySettings, allowFallback: boolean
     }
   }
 
-  // 7. Fertility (deposits and parcels arrive with C2A).
+  // 7. Fertility. Playtest round six: rich loam lies in broad patches across the whole valley
+  // (the same noise read at two scales: patches about 40 tiles across, and a finer grain), not
+  // only on the river banks, which add a little silt.
   const fertNoise = new ValueNoise(rng, S, 16);
   for (let z = 0; z < S; z++) {
     for (let x = 0; x < S; x++) {
       const i = z * S + x;
       const t = terrain[i];
       if (t === Terrain.water || t === Terrain.mountain) continue;
-      let f = Math.max(20, 100 - 3 * dist[i]!);
-      if (t === Terrain.meadow) f += 15;
-      if (t === Terrain.forestFloor) f -= 30;
+      const broad = Math.max(0, Math.min(1, (fertNoise.at(x * 0.4, z * 0.4) - 0.28) / 0.44));
+      let f = 22 + 66 * broad + (fertNoise.at(x, z) - 0.5) * 18;
+      if (dist[i]! < 5) f += (5 - dist[i]!) * 3;
+      if (t === Terrain.meadow) f += 10;
+      if (t === Terrain.forestFloor) f -= 12;
       if (t === Terrain.rock) f -= 60;
-      f += (fertNoise.at(x, z) - 0.5) * 20;
       fertility[i] = Math.max(0, Math.min(100, Math.round(f)));
     }
   }
@@ -282,6 +285,9 @@ function attempt(seed: string, _settings: ValleySettings, allowFallback: boolean
       height[i] = Math.max(median - 1, Math.min(median + 1, height[i]!));
       if (terrain[i] === Terrain.rock || terrain[i] === Terrain.mountain) terrain[i] = Terrain.grass;
       flags[i]! |= Flags.startArea;
+      // Playtest round six: the first homes stand on workable soil, so their kitchen gardens grow;
+      // the patches still show (the floor is 45, the noise keeps rich and thin apart above it).
+      fertility[i] = Math.max(fertility[i]!, 45 + Math.round(fertNoise.at(S - 1 - c, a) * 30));
       const inner = START_SIZE / 2 - START_CLEAR / 2;
       if (
         a - bestA >= inner &&
@@ -290,6 +296,8 @@ function attempt(seed: string, _settings: ValleySettings, allowFallback: boolean
         c - bestC < inner + START_CLEAR
       ) {
         tree[i] = 0;
+        // A clearing is grass, not forest floor with the trees taken away.
+        if (terrain[i] === Terrain.forestFloor) terrain[i] = Terrain.grass;
       }
     }
   }
