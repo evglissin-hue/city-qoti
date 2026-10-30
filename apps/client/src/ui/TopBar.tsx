@@ -1,8 +1,11 @@
+import { content } from '@qoti/content';
 import { calendar, SEASON_NAMES, type Speed } from '@qoti/sim';
 import type { Session } from '../app/session';
 import { copy } from './copy';
 import { coinCount, coins, formatDate, formatTime, speedNote } from './format';
+import { GoodIcon } from './goodIcons';
 import { Glyph } from './icons';
+import { goodPurpose } from './purpose';
 import { toggleBook } from './panels';
 import { GoToPartner } from './Presence';
 import { RANK_WORD } from './village';
@@ -106,6 +109,73 @@ export function TopBar({ session, onLeave }: { session: Session; onLeave: () => 
         </button>
       </div>
     </header>
+  );
+}
+
+/** Always on show (playtest round five): what building takes, whether or not any is in. */
+const ALWAYS = ['logs', 'planks', 'stone'] as const;
+const MAX_CHIPS = 9;
+
+/**
+ * Playtest round five ("it should be clear how many resources you have"): the town's stock of the
+ * building goods and whatever else it holds or makes, under the top bar in both lenses. Food is one
+ * chip. Each chip says where the good comes from and goes; a click opens the stocks report.
+ */
+export function StockStrip({ session }: { session: Session }) {
+  const m = session.mirror;
+  const lines = m.stocks.value?.lines;
+  if (!lines || m.settings.value.mode !== 'standard') return null;
+  let food = 0;
+  const foodNames: string[] = [];
+  const chips: { good: string; n: number; made: number; used: number }[] = [];
+  for (const l of lines) {
+    const def = content.goodById.get(l.good);
+    if (def?.food) {
+      food += l.stock;
+      if (l.stock > 0) foodNames.push(`${l.stock} ${def.label}`);
+      continue;
+    }
+    const always = (ALWAYS as readonly string[]).includes(l.good);
+    if (!always && l.stock <= 0 && l.producedToday <= 0 && l.producedYesterday <= 0) continue;
+    chips.push({ good: l.good, n: l.stock, made: l.producedToday, used: l.consumedToday });
+  }
+  chips.sort(
+    (a, b) =>
+      Number((ALWAYS as readonly string[]).includes(b.good)) -
+      Number((ALWAYS as readonly string[]).includes(a.good)),
+  );
+  const open = () => {
+    session.ui.reportTab.value = 'stocks';
+    session.ui.panel.value = session.ui.panel.value === 'reports' ? null : 'reports';
+  };
+  return (
+    <div class="stock-strip panel" data-testid="stock-strip">
+      <button
+        type="button"
+        class="stock-chip"
+        data-testid="stock-food"
+        title={`Food in store${foodNames.length ? `: ${foodNames.join(', ')}` : ': none yet'}. Click for the stocks.`}
+        onClick={open}
+      >
+        <GoodIcon good="bread" />
+        <span>{food}</span>
+        <span class="stock-word">food</span>
+      </button>
+      {chips.slice(0, MAX_CHIPS).map((c) => (
+        <button
+          key={c.good}
+          type="button"
+          class={`stock-chip ${c.n <= 0 ? 'empty' : ''}`}
+          data-testid={`stock-${c.good}`}
+          title={`${goodPurpose(c.good)} ${c.n} in store; ${c.made} made and ${c.used} used today. Click for the stocks.`}
+          onClick={open}
+        >
+          <GoodIcon good={c.good} />
+          <span>{c.n}</span>
+          <span class="stock-word">{content.goodById.get(c.good)?.label ?? c.good}</span>
+        </button>
+      ))}
+    </div>
   );
 }
 

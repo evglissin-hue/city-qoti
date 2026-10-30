@@ -8,6 +8,8 @@ import { removeById } from '../../src/state/entities';
 import { worldIndex } from '../../src/state/worldIndex';
 import { kitchenGardenHarvest } from '../../src/systems/hearth/patterns';
 import { detectors } from '../../src/systems/hearth/patterns/detectors';
+import { kitchenGardenMissing } from '../../src/systems/hearth/patterns/detectors/kitchenGarden';
+import { inspect } from '../../src/view/inspect';
 import { refillHints, runPatterns } from '../../src/systems/hearth/patterns/engine';
 import { createTickCtx } from '../../src/turn';
 import { hamletFixture } from '../fixtures/hamlet';
@@ -165,6 +167,20 @@ describe('Kitchen Garden', () => {
   it('not with one plot, and not unfenced', () => {
     expect(detect(scene(1, true).w, 'kitchen-garden')).toHaveLength(0);
     expect(detect(scene(2, false).w, 'kitchen-garden')).toHaveLength(0);
+  });
+
+  it("tells the home's inspector what the garden still wants", () => {
+    expect(kitchenGardenMissing(scene(1, false).w, scene(1, false).home)).toBe('plot');
+    const unfenced = scene(2, false);
+    expect(kitchenGardenMissing(unfenced.w, unfenced.home)).toBe('fence');
+    expect(inspect(unfenced.w, 'building', unfenced.home.id)).toMatchObject({
+      status: expect.arrayContaining([
+        'Plots at the door: a bit of fence or hedge along them would make a Kitchen Garden',
+      ]),
+    });
+    const done = scene(2, true);
+    expect(kitchenGardenMissing(done.w, done.home)).toBeNull();
+    expect(kitchenGardenMissing(scene(0, false).w, scene(0, false).home)).toBeNull();
   });
 
   it('herb planters count as plots and a hedge as a fence', () => {

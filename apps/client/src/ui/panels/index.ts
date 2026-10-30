@@ -66,7 +66,7 @@ export const panels: readonly PanelDef[] = [
   { id: 'minimap', side: 'overlay', component: Minimap },
   { id: 'notebook', side: 'book', component: NotebookPanel, lens: 'ledger', label: 'Notebook', icon: 'notebook', key: 'n', modes: STANDARD, order: 60 },
   { id: 'notes', side: 'left', component: NotesPanel },
-  { id: 'patterns', side: 'book', component: PatternBookPanel, lens: 'hearth', label: 'Patterns', icon: 'patterns', key: 'b', modes: STANDARD, order: 20, wide: true },
+  { id: 'patterns', side: 'book', component: PatternBookPanel, lens: 'shared', label: 'Patterns', icon: 'patterns', key: 'b', modes: STANDARD, order: 20, wide: true },
   { id: 'people', side: 'book', component: PeoplePanel, lens: 'shared', label: 'Townsfolk', icon: 'people', key: 'k', modes: STANDARD, hidden: true },
   { id: 'plans', side: 'book', component: PlansPanel, lens: 'shared', label: 'Plans', icon: 'plan', hidden: true },
   { id: 'policies', side: 'book', component: PoliciesPanel, lens: 'ledger', label: 'Policies', icon: 'policies', key: 'p', modes: STANDARD, order: 30 },

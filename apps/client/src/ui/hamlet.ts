@@ -40,7 +40,7 @@ export const STATUS_WORDS: [bit: number, text: string][] = [
   [BuildingStatus.missingInput, 'Waiting for inputs'],
   [BuildingStatus.outputFull, 'Output is piling up'],
   [BuildingStatus.noRoad, 'No road at the door'],
-  [BuildingStatus.noPorters, 'No porters in range'],
+  [BuildingStatus.noPorters, 'No porters yet'],
   [BuildingStatus.paused, 'Paused'],
   [BuildingStatus.disrepair, 'In disrepair'],
   [BuildingStatus.waitingMaterials, 'Waiting for materials'],

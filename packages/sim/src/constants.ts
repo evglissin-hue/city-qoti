@@ -30,6 +30,17 @@ export const DAY_PHASES = {
   dusk: [18, 21],
 } as const;
 export const WORK_HOURS = [8, 17] as const;
+/**
+ * Playtest round five: builders and porters keep at it until 19:00, as builders always have, so
+ * a site is not left waiting the whole night for two more hours of work.
+ */
+export const BUILD_HOURS = [8, 19] as const;
+/**
+ * Playtest round five: from 22:00 to 06:00, while the town sleeps, each turn runs this many times
+ * the ticks, so the night passes quickly at any speed.
+ */
+export const NIGHT_HOURS = [22, 6] as const;
+export const NIGHT_HURRY = 3;
 /** Day 6 of each season, 18:00 to 22:00 [I3]. */
 export const FESTIVAL = { day: 6, from: 18, to: 22 } as const;
 export const MAX_SPEED = 3;

@@ -25,10 +25,10 @@ import { isStandard } from '../../state/hamlet';
 import { rankAtLeast } from '../../state/village';
 import { constructionStage } from '../../view/hamlet';
 import { emitBuilding } from '../economy/emit';
-import { isWorkTime, tickOfDay } from '../economy/time';
+import { isBuildTime, tickOfDay } from '../economy/time';
 import { doorTile } from '../movement/api';
 import { pathBetween } from '../movement/paths';
-import { storehouseReach, within, type Reach } from './range';
+import { adoptStrays, storehouseReach, within, type Reach } from './range';
 import {
   defOf,
   foodIncoming,
@@ -76,7 +76,7 @@ export const logistics: System = {
   every: 1,
   tick(state, ctx) {
     if (!isStandard(state)) return;
-    const workTime = isWorkTime(state.tick);
+    const workTime = isBuildTime(state.tick);
     if (state.logistics.jobs.length > 0) tickJobs(state, ctx, workTime);
     tickReturning(state, workTime);
     // I2 (C4C): one cart per cart shed, parked when idle.
@@ -184,6 +184,10 @@ function matchPorters(state: WorldState): void {
   if (idle.length === 0 && state.carts.length === 0) return;
   idle.sort((a, b) => a.r.id - b.r.id);
   const spots = spotsOf(state);
+  adoptStrays(
+    reaches,
+    spots.map((s) => s.door),
+  );
   const needs = needsOf(spots);
   // Carts take the long hauls first; porters share what is left (same needs, same reservations).
   if (state.carts.length > 0) matchCarts(state, spots, needs, CART_HOOKS);

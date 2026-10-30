@@ -33,7 +33,8 @@ City Qoti is a cozy town builder for two players on two laptops, played in the b
 | Seasons | Spring, Summer, Autumn, Winter |
 | Year | 24 days (about 3 h 12 min at 1x) |
 | Day phases | night 21:00 to 05:00, dawn 05:00 to 07:00, day 07:00 to 18:00, dusk 18:00 to 21:00 |
-| Work hours | 08:00 to 17:00 |
+| Work hours | 08:00 to 17:00; builders and porters until 19:00 (playtest round five) |
+| Night | 22:00 to 06:00 runs three times as fast at any speed (playtest round five) |
 | Festival | day 6 of each season, 18:00 to 22:00 [I3] |
 | Calendar start | Year 1, Spring, day 1, 06:00 |
 

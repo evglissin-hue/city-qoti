@@ -32,6 +32,8 @@ export interface Tool {
   pointerMove?(p: PointerInfo): void;
   pointerDown?(p: PointerInfo): void;
   pointerUp?(p: PointerInfo): void;
+  /** Playtest round five addition: the pointer left the canvas. */
+  pointerLeave?(): void;
   /** Returns true when the tool used the key. */
   key?(e: KeyboardEvent): boolean;
   // C1 additions: pieces the tool can place, picked in the toolbar.

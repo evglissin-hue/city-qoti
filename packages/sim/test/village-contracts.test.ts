@@ -14,6 +14,7 @@ import {
   TICKS_PER_HOUR,
 } from '../src/constants';
 import type { Cart, WorldState } from '../src/contracts';
+import { withoutNightHurry } from '../src/speed';
 import { createValley, defaultSettings } from '../src/state/create';
 import { findById } from '../src/state/entities';
 import { hashState } from '../src/state/hash';
@@ -67,7 +68,7 @@ describe('village fixture', () => {
     const { state } = villageFixture();
     const before = moneySnapshot(state);
     const ctx = createTickCtx(state);
-    advanceTo(state, TICKS_PER_DAY, ctx);
+    withoutNightHurry(() => advanceTo(state, TICKS_PER_DAY, ctx));
     expect(state.tick).toBe(TICKS_PER_DAY);
     expectMoneyInvariant(before, state);
     // The market pass rolled the day: demand moved on and today's prices joined the history.

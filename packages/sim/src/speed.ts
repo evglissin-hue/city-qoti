@@ -1,4 +1,11 @@
-import { DEFAULT_SPEED } from './constants';
+import {
+  DEFAULT_SPEED,
+  NIGHT_HOURS,
+  NIGHT_HURRY,
+  START_HOUR,
+  TICKS_PER_DAY,
+  TICKS_PER_HOUR,
+} from './constants';
 import type { Speed, WorldState } from './contracts';
 
 /**
@@ -12,4 +19,32 @@ export function effectiveSpeed(state: WorldState): Speed {
   let speed = 3;
   for (const seat of connected) speed = Math.min(speed, state.time.desired[seat] ?? DEFAULT_SPEED);
   return speed as Speed;
+}
+
+/** Playtest round five: true from 22:00 to 06:00, when each turn runs NIGHT_HURRY times the ticks. */
+export function isHurriedNight(tick: number): boolean {
+  const hour = Math.floor(((tick + START_HOUR * TICKS_PER_HOUR) % TICKS_PER_DAY) / TICKS_PER_HOUR);
+  return hour >= NIGHT_HOURS[0] || hour < NIGHT_HOURS[1];
+}
+
+/** Ticks one turn runs: the effective speed, times NIGHT_HURRY while the town sleeps. */
+export function ticksThisTurn(state: WorldState): number {
+  const speed = effectiveSpeed(state);
+  return hurry && isHurriedNight(state.tick) ? speed * NIGHT_HURRY : speed;
+}
+
+let hurry = true;
+
+/**
+ * Tests only: runs `fn` with the night unhurried, one tick per turn per speed step, for tests that
+ * count turns as ticks. Never used by the game; nothing in saved state depends on it.
+ */
+export function withoutNightHurry<T>(fn: () => T): T {
+  const before = hurry;
+  hurry = false;
+  try {
+    return fn();
+  } finally {
+    hurry = before;
+  }
 }

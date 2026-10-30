@@ -25,6 +25,7 @@ import { planSummary } from './plans';
 import { INPUT_COPY } from '../input/copy';
 import { UNZONE } from './village';
 import { rankAtLeast, zoneInk } from './village';
+import { buildingPurpose } from './purpose';
 
 export function Toolbar({ session }: { session: Session }) {
   const manager = session.tools;
@@ -307,7 +308,7 @@ function BuildingPicker({ session, tool }: { session: Session; tool: Tool }) {
               type="button"
               class={`card ${on ? 'active' : ''} ${blocked ? 'short' : ''}`}
               data-testid={`variant-${d.id}`}
-              title={blocked ? rejectText(blocked) : undefined}
+              title={blocked ? `${rejectText(blocked)} ${buildingPurpose(d)}` : buildingPurpose(d)}
               onClick={() => session.tools?.select('building', d.id)}
             >
               <Thumb kind="building" id={d.id} />
@@ -325,6 +326,12 @@ function BuildingPicker({ session, tool }: { session: Session; tool: Tool }) {
           );
         })}
       </div>
+      {/* Playtest round five: what the chosen building is for, without hunting for a tooltip. */}
+      {selected && (
+        <p class="picker-purpose" data-testid="building-purpose">
+          <strong>{selected.name}:</strong> {buildingPurpose(selected)}
+        </p>
+      )}
     </div>
   );
 }

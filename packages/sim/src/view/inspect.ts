@@ -13,10 +13,13 @@ import type {
 } from '../contracts';
 import { findById } from '../state/entities';
 import { townReachesDoor } from '../state/reach';
-import { isWorkTime } from '../systems/economy/time';
+import { isBuildTime } from '../systems/economy/time';
 import { ARRIVAL_THRESHOLD } from '../systems/residents/lifecycle';
 import { meetsRequires } from '../systems/innovations/api';
 import { allowedWork } from '../systems/production/status';
+import { kitchenGardenMissing } from '../systems/hearth/patterns/detectors/kitchenGarden';
+import { porterServed, storehouseReach } from '../systems/logistics/range';
+import { doorTile } from '../systems/movement/api';
 import { WORN_CONDITION } from '../systems/production/produce';
 import { dailyRates } from '../systems/production/rates';
 import { buildingView, noteView } from './index';
@@ -41,6 +44,21 @@ export function inspect(state: WorldState, kind: InspectKind, id: number): Inspe
     case 'away':
       return awayLetter(state, id as SeatId);
   }
+}
+
+/**
+ * Playtest round five: beyond every staffed storehouse's range, where the nearest one's porters
+ * still come (adoptStrays), slowly. Only for buildings that wait on porters.
+ */
+function farFromStores(state: WorldState, b: Building, def: BuildingDef | undefined): boolean {
+  const rt = b.rt;
+  if (!rt || !def) return false;
+  const method = def.methods?.[rt.method];
+  const waits =
+    b.stage === 'construction'
+      ? !!rt.construction && rt.construction.needs.some((n) => n > 0)
+      : !!method && (method.inputs.length > 0 || method.outputs.length > 0);
+  return waits && !porterServed(storehouseReach(state), doorTile(b, def));
 }
 
 /** Readable lines for each status bit; some name what is missing. */
@@ -71,9 +89,18 @@ function statusLines(state: WorldState, b: Building, def: BuildingDef | undefine
   if (b.stage === 'built' && def?.housing && !state.households.some((h) => h.homeId === b.id)) {
     out.push(
       state.stats.attractiveness >= ARRIVAL_THRESHOLD
-        ? 'Empty for now: new families walk in from the valley gate at 8:00'
+        ? 'Empty for now: new families walk in from the valley gate every two hours between 8:00 and 16:00'
         : 'Empty for now: families will come once the valley is a little more inviting (food in store, work going, a bit of charm)',
     );
+  }
+  // Playtest round five: two plots and no pattern; say what the Kitchen Garden still wants.
+  if (b.stage === 'built') {
+    const missing = kitchenGardenMissing(state, b);
+    if (missing === 'fence') {
+      out.push('Plots at the door: a bit of fence or hedge along them would make a Kitchen Garden');
+    } else if (missing === 'plot') {
+      out.push('A plot at the door: a second, and a bit of fence or hedge, would make a Kitchen Garden');
+    }
   }
   if (has(BuildingStatus.noWorkers)) out.push('Nobody works here yet');
   if (has(BuildingStatus.missingInput) && method) {
@@ -84,7 +111,10 @@ function statusLines(state: WorldState, b: Building, def: BuildingDef | undefine
   if (has(BuildingStatus.noTrees)) out.push(`No mature trees within ${method?.range ?? 8} tiles`);
   if (has(BuildingStatus.noFields)) out.push('No fields painted yet');
   if (has(BuildingStatus.noRoad)) out.push('No road at the door');
-  if (has(BuildingStatus.noPorters)) out.push('No porters within 20 tiles');
+  if (has(BuildingStatus.noPorters)) out.push('Nobody carries goods yet: a storehouse needs porters');
+  else if (farFromStores(state, b, def)) {
+    out.push('Far from every storehouse: porters make the long walk, so deliveries come slowly');
+  }
   // I2 (C4C)
   if (has(BuildingStatus.upgrading) && rt.upgrade) {
     const to =
@@ -191,7 +221,7 @@ function builderAdvice(state: WorldState, b: Building): string {
   }
   if (builders === 0)
     return 'Waiting for a builder: nobody has taken the builder jobs yet (the town hall has them)';
-  if (!isWorkTime(state.tick)) return 'Waiting for a builder: they work from 8:00 to 17:00';
+  if (!isBuildTime(state.tick)) return 'Waiting for a builder: they work from 8:00 to 19:00';
   const ahead = sitesAhead(state, b).filter((s) => s.rt!.construction!.workDone < allowedWork(s.rt!)).length;
   const crew = `${builders} builder${builders === 1 ? '' : 's'}`;
   if (ahead === 0) return `Waiting for a builder to come by (the town has ${crew})`;

@@ -98,6 +98,7 @@ export class Session {
     away: 0 as ReturnType<typeof setTimeout> | 0,
   };
   private lastSpeed: Speed = 1;
+  private profileSynced = false;
   private nextToast = 1;
   private resyncTimes: number[] = [];
   private readonly onPageHide = () => this.connection?.close();
@@ -218,11 +219,9 @@ export class Session {
     if (this.connection) this.connection.status.value = 'live';
     // Start in the lens this seat prefers; Tab still swaps freely afterwards.
     const mine = this.mirror.seats.value.find((v) => v.seat === this.seat);
-    if (mine) {
-      this.ui.lens.value = mine.lens;
-      const update = profileUpdate(loadProfile(), mine);
-      if (update) this.submit({ t: 'seat.setProfile', ...update, lens: mine.lens });
-    }
+    if (mine) this.ui.lens.value = mine.lens;
+    this.profileSynced = false;
+    this.syncProfile();
     const firstVisit = this.phase.value !== 'ready';
     this.phase.value = 'ready';
     if (firstVisit) void this.checkAway();
@@ -342,8 +341,22 @@ export class Session {
     this.setSpeed(mine > 0 ? 0 : this.lastSpeed);
   }
 
+  /**
+   * Bring this seat's name and color in line with the saved profile. A seat new to the valley
+   * only appears once the room's join turn has run, after the welcome, so this waits for it.
+   */
+  private syncProfile(): void {
+    if (this.profileSynced) return;
+    const mine = this.mirror.seats.value.find((v) => v.seat === this.seat);
+    if (!mine) return;
+    this.profileSynced = true;
+    const update = profileUpdate(loadProfile(), mine);
+    if (update) this.submit({ t: 'seat.setProfile', ...update, lens: mine.lens }, false);
+  }
+
   private afterUpdate(change: MirrorChange): void {
     const now = Date.now();
+    if (change.seats) this.syncProfile();
     for (const key of change.added) if (!this.debug.firstSeen.has(key)) this.debug.firstSeen.set(key, now);
     for (const r of change.rejections) {
       if (r.seat !== this.seat) continue;

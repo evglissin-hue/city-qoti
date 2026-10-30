@@ -4,7 +4,8 @@
 // there. Free time is spent in outings of about an hour, re-chosen at the resident's own slot
 // boundary (phase from the look seed), so the town drifts about instead of moving in lockstep.
 // Residents on a 'task' belong to C3C until it hands them back.
-import { ResidentFlags, TICKS_PER_DAY } from '../../constants';
+import { content } from '@qoti/content';
+import { BUILD_HOURS, ResidentFlags, TICKS_PER_DAY } from '../../constants';
 import type { Activity, Household, Resident, Rng, TickCtx, WorldState } from '../../contracts';
 import { findById } from '../../state/entities';
 import { hourOf } from '../economy/time';
@@ -42,6 +43,15 @@ function hasWork(state: WorldState, r: Resident): boolean {
   return r.jobId !== 0 && isWorkingAge(r) && doorOf(state, r.jobId) >= 0;
 }
 
+const LONG_DAY_END = at(BUILD_HOURS[1]);
+
+/** Playtest round five: builders and porters stay on into the evening (BUILD_HOURS). */
+function keepsLongHours(state: WorldState, r: Resident): boolean {
+  const job = findById(state.buildings, r.jobId);
+  const role = job ? content.buildingById.get(job.def)?.jobs?.role : undefined;
+  return role === 'builder' || role === 'porter';
+}
+
 /** What the resident wants in this block of their day. */
 export function goalFor(state: WorldState, r: Resident, block: BlockId, clock: number): Goal {
   switch (block) {
@@ -55,7 +65,7 @@ export function goalFor(state: WorldState, r: Resident, block: BlockId, clock: n
     case Block.day:
       return hasWork(state, r) ? 'work' : 'outing';
     case Block.evening:
-      return 'outing';
+      return hasWork(state, r) && clock < LONG_DAY_END && keepsLongHours(state, r) ? 'work' : 'outing';
     default:
       return 'home';
   }

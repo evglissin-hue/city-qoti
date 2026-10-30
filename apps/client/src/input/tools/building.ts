@@ -2,9 +2,11 @@ import { effect, signal } from '@preact/signals';
 import { content, type BuildingDef } from '@qoti/content';
 import {
   canPlaceBuilding,
+  entranceTiles,
   FIELD_GOOD_FERTILITY,
   FIELD_MIN_FERTILITY,
   footprintSize,
+  TREE_MATURE,
   type Rot4,
 } from '@qoti/sim';
 import type { TilePick } from '../../render/api';
@@ -12,6 +14,7 @@ import type { Mirror } from '../../state/mirror';
 import { rejectText } from '../../ui/messages';
 import { buildingChoices, costBlock } from '../catalog';
 import type { ToolContext } from '../context';
+import { INPUT_COPY } from '../copy';
 import { cursorHint } from '../hint';
 import type { Tool } from '../tool';
 
@@ -33,6 +36,48 @@ const DEPOSIT_HINT: Record<string, string> = {
 function wantsSoil(def: string): boolean {
   const d = content.buildingById.get(def);
   return !!d?.methods?.some((m) => m.kind === 'farm') || !!d?.placement?.some((r) => r.kind === 'fertility');
+}
+
+/** Playtest round five: the soil under a plot or farm, as a number and a word, for the cursor. */
+function soilHint(m: Mirror, def: BuildingDef, x: number, z: number, rot: Rot4): string | null {
+  if (!wantsSoil(def.id)) return null;
+  const [w, d] = footprintSize(def, rot);
+  let sum = 0;
+  for (let tz = z; tz < z + d; tz++) for (let tx = x; tx < x + w; tx++) sum += m.fertility(tx, tz);
+  const f = Math.round(sum / (w * d));
+  return `Soil ${f} (${soilWord(f)}).`;
+}
+
+export function soilWord(f: number): string {
+  return f >= 70 ? 'rich' : f >= FIELD_GOOD_FERTILITY ? 'good' : f >= FIELD_MIN_FERTILITY ? 'thin' : 'poor';
+}
+
+/**
+ * Playtest round five ("we couldn't have logs"): a woodcutter's grown trees in reach at a spot,
+ * counted like the sim does (the footprint plus `range` tiles around it).
+ */
+function treesHint(m: Mirror, def: BuildingDef, x: number, z: number, rot: Rot4): string | null {
+  const range = def.methods?.find((x) => x.kind === 'fell')?.range;
+  if (!range) return null;
+  const [w, d] = footprintSize(def, rot);
+  let n = 0;
+  for (let tz = z - range; tz < z + d + range; tz++)
+    for (let tx = x - range; tx < x + w + range; tx++)
+      if (m.tree(tx, tz) && m.treeStage(tx, tz) >= TREE_MATURE) n++;
+  if (n === 0) return `No grown trees within ${range} tiles: a woodcutter here would stand idle.`;
+  return n < 6
+    ? `Only ${n} grown ${n === 1 ? 'tree' : 'trees'} within ${range} tiles. Nearer the woods is better.`
+    : `${n} grown trees within ${range} tiles.`;
+}
+
+/** Buildings that idle without a road at the door (the sim's noRoad status). */
+function needsRoadAtDoor(def: BuildingDef): boolean {
+  return (
+    def.category === 'home' ||
+    def.category === 'storage' ||
+    !!def.tags?.includes('market') ||
+    !!def.tags?.includes('builders')
+  );
 }
 
 /** Fewer open, fertile tiles than this within a farmhouse's reach, and the cursor says so. */
@@ -64,7 +109,8 @@ function fieldRoomHint(m: Mirror, def: BuildingDef, x: number, z: number, rot: R
 }
 
 /**
- * Place buildings with the cursor at the footprint's center; R rotates. The picker offers what the
+ * Place buildings with the cursor at the footprint's center; R turns it clockwise and Shift+R (or
+ * T) back, and the cursor says so. The picker offers what the
  * valley's mode allows (and, in the Hearth lens, the homely ones), with costs; a refusal says why.
  */
 export function buildingTool(ctx: ToolContext): Tool {
@@ -97,15 +143,20 @@ export function buildingTool(ctx: ToolContext): Tool {
     const check = blocked ? { ok: false, reason: blocked } : place;
     ctx.render.setGhost({ kind: 'building', def: def.id, x, z, rot, valid: check.ok });
     const where = depositOf(def.id);
-    cursorHint(
-      check.ok
-        ? fieldRoomHint(ctx.mirror, def, x, z, rot)
-        : check.reason === 'NEEDS_DEPOSIT' && where
-          ? (DEPOSIT_HINT[where] ?? rejectText(check.reason))
-          : rejectText(check.reason),
-      cx,
-      cy,
-    );
+    const soil = soilHint(ctx.mirror, def, x, z, rot);
+    const room = check.ok ? fieldRoomHint(ctx.mirror, def, x, z, rot) : null;
+    // Playtest round five: say so before a home or store goes up with no road at its door.
+    const { front } = entranceTiles(def, x, z, rot);
+    const road =
+      check.ok && needsRoadAtDoor(def) && !ctx.mirror.road(front[0], front[1]) ? INPUT_COPY.noRoadYet : null;
+    const trees = check.ok ? treesHint(ctx.mirror, def, x, z, rot) : null;
+    const why = check.ok
+      ? [road, trees, soil, room].filter(Boolean).join(' ') || null
+      : check.reason === 'NEEDS_DEPOSIT' && where
+        ? (DEPOSIT_HINT[where] ?? rejectText(check.reason))
+        : rejectText(check.reason);
+    // Playtest round five: nobody found R, so the cursor always says how to turn the building.
+    cursorHint(why ? `${why} ${INPUT_COPY.turnHint}` : INPUT_COPY.turnHint, cx, cy);
     return { def, x, z, check };
   }
 
@@ -114,7 +165,7 @@ export function buildingTool(ctx: ToolContext): Tool {
     lane: 'shared',
     icon: '⌂',
     label: 'Build',
-    hint: 'R rotates',
+    hint: 'R turns it, Shift+R back; the arrow marks the door',
     order: 30,
     get variants() {
       return choices().map((d) => ({ id: d.id, label: d.name }));
@@ -148,8 +199,10 @@ export function buildingTool(ctx: ToolContext): Tool {
       else ctx.ui.toast(rejectText(spot.check.reason));
     },
     key(e) {
-      if (e.key !== 'r' && e.key !== 'R') return false;
-      rot = ((rot + 1) % 4) as Rot4;
+      const k = e.key.toLowerCase();
+      if (k !== 'r' && k !== 't') return false;
+      const back = k === 't' || e.shiftKey;
+      rot = ((rot + (back ? 3 : 1)) % 4) as Rot4;
       preview();
       return true;
     },

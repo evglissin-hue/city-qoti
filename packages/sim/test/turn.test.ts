@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { TICKS_PER_DAY, TICKS_PER_HOUR } from '../src/constants';
+import { NIGHT_HURRY, TICKS_PER_DAY, TICKS_PER_HOUR } from '../src/constants';
+import { isHurriedNight } from '../src/speed';
 import { systems } from '../src/systems';
 import { calendar } from '../src/systems/clock/calendar';
 import { advanceTo, applyTurn, applyTurns, createTickCtx, effectiveSpeed } from '../src/turn';
@@ -48,6 +49,18 @@ describe('applyTurn', () => {
     expect(w.lastTurn).toBe(100);
     expect(w.tick).toBe(200);
     expect(ctx.events.filter((e) => e.e === 'clock')).toHaveLength(1);
+  });
+
+  it('hurries the night: from 22:00 to 06:00 each turn runs NIGHT_HURRY times the ticks', () => {
+    expect(isHurriedNight(15 * TICKS_PER_HOUR)).toBe(false); // 21:00
+    expect(isHurriedNight(16 * TICKS_PER_HOUR)).toBe(true); // 22:00
+    expect(isHurriedNight(23 * TICKS_PER_HOUR)).toBe(true); // 05:00
+    expect(isHurriedNight(24 * TICKS_PER_HOUR)).toBe(false); // 06:00
+    const w = flatWorld();
+    w.time.desired = [2, 2, 1, 1];
+    w.tick = 16 * TICKS_PER_HOUR;
+    applyTurn(w, { t: 1, cmds: [] }, createTickCtx(w));
+    expect(w.tick).toBe(16 * TICKS_PER_HOUR + 2 * NIGHT_HURRY);
   });
 
   it('refuses turns out of order', () => {

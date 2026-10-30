@@ -98,6 +98,11 @@ const STATUS_ORDER = [
   BuildingStatus.noTrees,
   BuildingStatus.noFields,
 ];
+/**
+ * Playtest round five: statuses marked over a building even with no overlay out, because they
+ * never fix themselves (a home with no road at its door).
+ */
+const ALWAYS_SHOWN = BuildingStatus.noRoad;
 /** Which statuses to show first when a building has several (blockers before warnings). */
 const STATUS_PRIORITY = [3, 6, 0, 1, 8, 7, 4, 2, 9, 10, 5];
 
@@ -522,9 +527,10 @@ export function overlaysLayer(): OverlaysLayer {
   function statusIcons(): void {
     if (!ctx || !status) return;
     status.begin(time);
-    if (kind === 'status') {
+    {
+      const all = kind === 'status';
       for (const b of ctx.mirror.buildings.values()) {
-        const bits = b.rt?.status ?? 0;
+        const bits = (b.rt?.status ?? 0) & (all ? ~0 : ALWAYS_SHOWN);
         if (!bits) continue;
         const shown = STATUS_PRIORITY.filter((i) => bits & STATUS_ORDER[i]!).slice(0, 2);
         const c = centerOf(b.id);
@@ -931,9 +937,9 @@ export function overlaysLayer(): OverlaysLayer {
         dirty = true;
       }
       if (statusRebuild || kind === 'status') {
+        dirty = dirty || statusRebuild || kind === 'status';
         statusRebuild = false;
         statusIcons();
-        dirty = dirty || kind === 'status';
       }
       if (kind === 'flows') {
         (flowMaterial.uniforms.uTime as { value: number }).value = time;

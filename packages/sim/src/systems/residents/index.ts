@@ -1,6 +1,6 @@
 // The residents system (docs/spec/11-residents.md): arrivals, departures, jobs, schedules, needs,
 // mood, friendships and (I2, C4D) life events in ./life. Heavy work is spread out: the daily pass at 06:00, breakfast at 07:00,
-// arrivals at 08:00, departures at 09:00, friendships hourly at an offset, each household's needs
+// arrivals every two hours from 08:00 to 16:00, departures at 09:00, friendships hourly at an offset, each household's needs
 // (and its daily friendship chores) once an hour at its own tick, and each resident's schedule
 // every THINK_EVERY ticks at its own.
 import { ResidentFlags } from '../../constants';
@@ -10,7 +10,7 @@ import { modifierValue } from './api';
 import { decayFriendships, greetNeighbors, hourlyFriendships } from './friends';
 import { assignJobs, auditJobs, rebalanceJobs } from './jobs';
 import { lifeEvening, lifeMorning } from './life';
-import { arrivals, departures, morningPass, rehouse, thinkLeaving } from './lifecycle';
+import { arrivals, attractiveness, departures, morningPass, rehouse, thinkLeaving } from './lifecycle';
 import { eatBreakfast, updateHouseholdNeeds } from './needs';
 import { syncResident } from './records';
 import { THINK_EVERY, think, thinkArrival } from './schedule';
@@ -24,7 +24,10 @@ const UPKEEP_EVERY = 20;
 
 const MORNING = at(6);
 const BREAKFAST = at(7);
-const ARRIVALS = at(8);
+/** Playtest round five: families walk in through the day, not once a morning. */
+const FIRST_ARRIVALS = at(8);
+const LAST_ARRIVALS = at(16);
+const ARRIVALS_EVERY = 2 * HOUR;
 const DEPARTURES = at(9);
 /** Weddings (C4D): the festival evening, or the couple's own chosen evening. */
 const WEDDINGS = at(18);
@@ -50,7 +53,11 @@ export function residentsTick(state: WorldState, ctx: TickCtx): void {
     lifeMorning(state, ctx);
   }
   if (tod === BREAKFAST) eatBreakfast(state, ctx);
-  if (tod === ARRIVALS) arrivals(state, ctx, rng);
+  if (tod >= FIRST_ARRIVALS && tod <= LAST_ARRIVALS && (tod - FIRST_ARRIVALS) % ARRIVALS_EVERY === 0) {
+    // The morning's pull goes stale as homes go up and fill, so each wave weighs it afresh.
+    if (tod !== FIRST_ARRIVALS) state.stats.attractiveness = attractiveness(state);
+    arrivals(state, ctx, rng);
+  }
   if (tod === DEPARTURES) departures(state, ctx);
   if (tod === WEDDINGS) lifeEvening(state, ctx);
   if (t % UPKEEP_EVERY === 0) {

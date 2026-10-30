@@ -8,7 +8,7 @@ import type { Building, BuildingRuntime, TickCtx, WorldState } from '../../contr
 import { entranceTiles } from '../../rules/footprint';
 import { emitBuilding } from '../economy/emit';
 import { doorTile } from '../movement/api';
-import { porterServed, storehouseReach, type Reach } from '../logistics/range';
+import { porterReachable, storehouseReach, type Reach } from '../logistics/range';
 import { defOf, isMarket, outputCap } from '../logistics/stores';
 import { cartShedStatus } from '../logistics/carts';
 import { CROP_YIELD, ownedFields } from './fields';
@@ -94,7 +94,7 @@ export function computeStatus(
   const roadAtDoor = !!state.map.road[front[1] * MAP_SIZE + front[0]];
   if (b.stage === 'construction') {
     if (materialsDue(rt)) {
-      if (!porterServed(reaches, doorTile(b, def))) s |= BuildingStatus.noPorters;
+      if (!porterReachable(reaches, doorTile(b, def))) s |= BuildingStatus.noPorters;
     }
     const c = rt.construction;
     if (c && c.workDone >= allowedWork(rt) && materialsDue(rt)) s |= BuildingStatus.waitingMaterials;
@@ -109,7 +109,7 @@ export function computeStatus(
   if (rt.upgrade) s |= BuildingStatus.upgrading;
   s |= cartShedStatus(state, b);
   const method = def.methods?.[rt.method];
-  if (wantsPorters(def, method) && !porterServed(reaches, doorTile(b, def))) s |= BuildingStatus.noPorters;
+  if (wantsPorters(def, method) && !porterReachable(reaches, doorTile(b, def))) s |= BuildingStatus.noPorters;
   if (!method) return s;
   if (method.kind === 'craft' && inputsShort(rt, method)) s |= BuildingStatus.missingInput;
   if (outputBlocked(def, rt, method)) s |= BuildingStatus.outputFull;

@@ -22,6 +22,9 @@ export const INPUT_COPY = {
     n === 0
       ? 'No road frontage here yet. Lots only grow along a lane or street.'
       : `Room for about ${n} ${n === 1 ? 'lot' : 'lots'} along the ${road}. The surveyor has the final say.`,
+  /** Playtest round five: the building cursor always says how to turn it. */
+  turnHint: 'R turns it; the arrow marks the door.',
+  noRoadYet: 'No road at the door yet: it will want one.',
   sketched: (n: number) =>
     n === 1 ? 'Sketched. One idea on the table.' : `Sketched. ${n} ideas on the table.`,
 } as const;

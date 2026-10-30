@@ -14,6 +14,7 @@ import {
   pavedDesireTiles,
   WEAR_STEP,
 } from '../../src/systems/traffic/wear';
+import { withoutNightHurry } from '../../src/speed';
 import { advanceTo, createTickCtx } from '../../src/turn';
 import { villageFixture } from '../fixtures/village';
 import { flatWorld, rejection, run, S } from '../helpers';
@@ -33,12 +34,14 @@ describe('desire paths', () => {
     const b = 58 * S + 58;
     r.tile = a;
     const ctx = createTickCtx(s);
-    withoutSystems(OTHERS, () => {
-      for (let k = 0; k < 40; k++) {
-        requestMove(s, r.id, k % 2 === 0 ? b : a, 'leisure');
-        for (let t = 0; t < 400 && r.move; t++) advanceTo(s, s.tick + 1, ctx);
-      }
-    });
+    withoutSystems(OTHERS, () =>
+      withoutNightHurry(() => {
+        for (let k = 0; k < 40; k++) {
+          requestMove(s, r.id, k % 2 === 0 ? b : a, 'leisure');
+          for (let t = 0; t < 400 && r.move; t++) advanceTo(s, s.tick + 1, ctx);
+        }
+      }),
+    );
     const worn = desirePathTiles(s.map, 39, 55, 59, 61);
     expect(worn.length).toBeGreaterThan(5);
     for (const [x, z] of worn) expect(s.map.road[z * S + x]).toBe(0);

@@ -75,6 +75,7 @@ export class ToolManager {
     });
     on(canvas, 'pointerleave', () => {
       this.render.setGhost(null);
+      this.current.pointerLeave?.();
       this.hooks.pointerLeave?.();
     });
     on(window, 'keydown', (e) => {

@@ -104,3 +104,10 @@ Raised by the owner and Kat after playtest round three; for later increments, no
 - **A light technology tree**, kept basic.
 - **Decor that is cozy and varied from the start**: no edgy, angular furniture-pack look (Kat's RimWorld comparison: the base game's furniture is too angular until mods make it cute). Start with a small set of basic pieces and combinations that are already charming, and unlock much more with ranks and achievements, with a bit of challenge in earning them.
 - **A move mode**: pick up a building or a piece of decor and set it down elsewhere, as in games that let you rearrange the town freely.
+
+Raised in playtest round five, not yet done (round five did the rest; see the changelog):
+
+- **Soil you can see**: ground of different fertility looks alike until a plot or farm is chosen (the soil tint) or the pointer rests on it (the hover label). Shade rich and thin soil a little in the ground itself.
+- **Residents easier to spot** from the usual camera height.
+- **A first-days tutorial**: what to build first and why (C5H's guide is the place for it).
+- **The town hall's door walk** did not seem to meet the road; check the door walk against the road on every rotation.

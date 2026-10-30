@@ -9,6 +9,9 @@ import { G } from '../town';
 import { planHighStreet, promoteToVillage, storehouseSpot, unreachedLots, zoneHighStreet } from '../village';
 import type { Advisor, AdvisorDef } from './types';
 
+/** Streets the Ledger lays at most, the high street included. */
+const MAX_STREETS = 6;
+
 class Street implements Advisor {
   /** Streets laid and zoned so far (the high street first). */
   private streets = 0;
@@ -33,11 +36,13 @@ class Street implements Advisor {
   /**
    * C4X: another street once the zoned homes are all taken and families still want to come (a
    * Village with one street stopped growing homes on day 46 with demand for five every night).
+   * Playtest round five: up to six streets (four were all a town took before families came every
+   * two hours; the faster town filled them by day 55 and stopped there).
    */
   private nextStreet(): void {
     const p = this.p;
     const w = p.w;
-    if (!p.street || this.streets >= 4 || p.coins() < 80) return;
+    if (!p.street || this.streets >= MAX_STREETS || p.coins() < 80) return;
     const homes: number[] = [Zone.homesLow, Zone.homesMedium];
     if (w.lots.some((l) => !l.buildingId && homes.includes(l.zone))) return;
     if (growthDemand(w).homes <= 0) return;

@@ -1,6 +1,7 @@
 // The music player (C5G): asks the director what to play, writes it with the composer, and
-// schedules the notes a little ahead on the audio clock. A new style at a phase change crossfades
-// over CROSSFADE_SECONDS; otherwise pieces end on their own and the valley is quiet in between.
+// schedules the notes a little ahead on the audio clock. A new style at a phase change lets a piece
+// near its end finish, or fades it over STYLE_FADE_SECONDS and brings the next in over
+// CROSSFADE_SECONDS; otherwise pieces end on their own and the valley is quiet in between.
 // Instruments with recordings play them through the sampler; the rest, and any recording that has
 // not arrived in time, are synthesized.
 import type { SoundBank } from './bank';
@@ -27,6 +28,10 @@ import { jobKey, type RenderJob } from './synth/jobs';
 
 /** Seconds of notes scheduled ahead of the clock. */
 const LOOKAHEAD = 0.6;
+/** A piece with this little left (seconds) finishes when the style changes under it. */
+const LET_FINISH = 25;
+/** How long a piece takes to bow out when the style changes under it, seconds. */
+const STYLE_FADE_SECONDS = 9;
 /** Seconds a piece waits for its recordings before the synthesized band stands in for the rest. */
 const SAMPLE_WAIT = 8;
 
@@ -118,12 +123,19 @@ export class MusicPlayer {
   /** Called a few times a second with the valley's hour and season. */
   update(hour: number, season: number): void {
     const now = this.ctx.currentTime;
-    // The hour turned to a new style: let this piece go and start the new one right away.
-    if (this.playing && styleFor(hour, season).id !== this.playing.style && !this.waiting) {
-      this.fadeOut(this.playing, now);
+    // The hour turned to a new style. Playtest round five ("the music stops abruptly"): a piece
+    // near its end plays out; a longer one bows out over a slow fade, then the new style begins.
+    const left = this.playing ? this.playing.start + this.playing.piece.seconds - now : 0;
+    if (
+      this.playing &&
+      left > LET_FINISH &&
+      styleFor(hour, season).id !== this.playing.style &&
+      !this.waiting
+    ) {
+      this.fadeOut(this.playing, now, STYLE_FADE_SECONDS);
       this.playing = null;
       this.director.mode = 'quiet';
-      this.director.until = now;
+      this.director.until = now + STYLE_FADE_SECONDS / 2;
     }
     if (this.playing && now > this.playing.start + this.playing.piece.seconds) this.playing = null;
     if (!this.waiting) {

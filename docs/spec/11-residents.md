@@ -82,7 +82,7 @@ Two per resident, compatible pairs only (no Cheerful + Grumpy).
 ## Arrival and departure [I1]
 
 - **Attractiveness** `A` (0 to 100), recomputed each morning: vacant homes (weight 30), food cover in days (20), open jobs (20), average charm near vacant homes (15), average mood (15).
-- **Arrivals** at 08:00 if there is a vacant home and `A >= 40` *(tune)*: `k = 1 + floor(vacancies / 4)` households, max 3 per day. They walk in from the valley gate and claim homes in order of desirability for their species.
+- **Arrivals** in waves every two hours from 08:00 to 16:00 (playtest round five; once a morning was too slow) if there is a vacant home and `A >= 40` *(tune)*, with `A` weighed afresh at each wave after the first: `k = 1 + floor(vacancies / 4)` households, max 3 per wave. They walk in from the valley gate and claim homes in order of desirability for their species.
 - **Household makeup** *(tune)*: single 25%, couple 30%, family with 1 to 3 children 35%, elder pair 10%.
 - **Departure**: a household whose average mood stays below the departure threshold (25 at Standard, see dials) for 3 consecutive days leaves at 09:00, with a Chronicle line and a short farewell note.
 - Sandbox: no residents.
@@ -113,7 +113,7 @@ Default day, shifted by Night Owl (+2 h) and Early Bird (-2 h):
 | 06:00 to 07:30 | morning at home, breakfast | home | home |
 | 07:30 to 08:00 | commute | school [I2] or play near home | stroll |
 | 08:00 to 17:00 | work (if employed), else errands and leisure | school or play | leisure, visiting friends |
-| 17:00 to 21:00 | shopping if pantry low, leisure, visiting friends | play | leisure |
+| 17:00 to 21:00 | shopping if pantry low, leisure, visiting friends (builders and porters work until 19:00) | play | leisure |
 | 21:00 to 22:00 | walk home | home | home |
 
 - **Leisure spot**: the highest-charm reachable tile within 15 walking minutes, weighted by species tastes and traits; friends often choose the same spot.

@@ -8,7 +8,7 @@ import { PresenceLabels } from './Presence';
 import { RemovalConfirm } from './RemovalConfirm';
 import { HelpOverlay, SettingsPanel } from './SettingsPanel';
 import { Toolbar } from './Toolbar';
-import { TopBar } from './TopBar';
+import { StockStrip, TopBar } from './TopBar';
 import './hamlet.css';
 import './village.css';
 
@@ -28,6 +28,7 @@ export function GameUI({ session, onLeave }: { session: Session; onLeave: () => 
         ))}
       <PresenceLabels session={session} />
       <TopBar session={session} onLeave={onLeave} />
+      <StockStrip session={session} />
       {/* The left feed steps aside while a book is open, so only one thing talks at a time. */}
       {!book && (
         <aside class="side left">

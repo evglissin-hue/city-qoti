@@ -1,5 +1,7 @@
 import { createGhostMaterial, ShapeBuilder } from '@qoti/art';
-import { Group, Mesh, type BufferGeometry, type Material } from 'three';
+import { content } from '@qoti/content';
+import { entranceTiles, type Rot4 } from '@qoti/sim';
+import { Group, Mesh, MeshBasicMaterial, type BufferGeometry, type Material } from 'three';
 import type { Ghost } from '../api';
 import { levelY } from '../coords';
 import {
@@ -25,6 +27,13 @@ export function ghostsLayer(): GhostLayer {
   group.renderOrder = 5;
   const valid = createGhostMaterial(true);
   const invalid = createGhostMaterial(false);
+  // Playtest round five: an arrow on the doorstep says which way a building faces.
+  const doorMark = new MeshBasicMaterial({
+    color: 0xfff1c2,
+    transparent: true,
+    opacity: 0.95,
+    depthTest: false,
+  });
   /** Geometries made for one ghost (roads, tiles); kit geometries are shared and never disposed. */
   const owned: BufferGeometry[] = [];
 
@@ -58,6 +67,29 @@ export function ghostsLayer(): GhostLayer {
     add(g, material);
   }
 
+  /** An arrow on the tile in front of the door, pointing out of it. */
+  function doorArrow(def: string, x: number, z: number, rot: Rot4): void {
+    const d = content.buildingById.get(def);
+    if (!ctx || !d) return;
+    const { entrance, front } = entranceTiles(d, x, z, rot);
+    const dx = front[0] - entrance[0];
+    const dz = front[1] - entrance[1];
+    const cx = front[0] + 0.5;
+    const cz = front[1] + 0.5;
+    const y = levelY(ctx.mirror.height(front[0], front[1])) + 0.08;
+    const at = (along: number, side: number): [number, number, number] => [
+      cx + dx * along - dz * side,
+      y,
+      cz + dz * along + dx * side,
+    ];
+    const s = new ShapeBuilder();
+    s.tri(at(0.42, 0), at(0, 0.34), at(0, -0.34), 0xffffff, [0, 1, 0]);
+    s.quad(at(0, 0.13), at(-0.4, 0.13), at(-0.4, -0.13), at(0, -0.13), 0xffffff, [0, 1, 0]);
+    const g = s.build();
+    owned.push(g);
+    add(g, doorMark).renderOrder = 6;
+  }
+
   return {
     id: 'ghosts',
     init(c) {
@@ -76,6 +108,7 @@ export function ghostsLayer(): GhostLayer {
             const mesh = add(buildingGeometry(g.def), material);
             mesh.matrixAutoUpdate = false;
             mesh.matrix.copy(buildingMatrix(g.def, g.x, g.z, g.rot, level));
+            doorArrow(g.def, g.x, g.z, g.rot);
             break;
           }
           case 'decor': {
@@ -116,6 +149,7 @@ export function ghostsLayer(): GhostLayer {
       ctx?.scene.remove(group);
       valid.dispose();
       invalid.dispose();
+      doorMark.dispose();
     },
   };
 }

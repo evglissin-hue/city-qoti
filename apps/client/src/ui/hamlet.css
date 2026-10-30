@@ -2223,3 +2223,62 @@ ul.people-list {
 .people-list .mood.band-4 {
   color: #b5762e;
 }
+
+/* Playtest round five: the town's stocks, always on show under the top bar. */
+.stock-strip {
+  position: absolute;
+  top: 62px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 4px;
+  padding: 3px 6px;
+  border-radius: 999px;
+  max-width: calc(100% - 20px);
+  overflow: hidden;
+  font-size: 0.86rem;
+}
+
+.stock-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 0 7px 0 4px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  font-weight: 700;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.stock-chip:hover {
+  background: var(--paper-light);
+}
+
+.stock-chip .good-icon {
+  width: 16px;
+  height: 16px;
+}
+
+.stock-chip .stock-word {
+  font-weight: 400;
+  color: rgba(90, 66, 49, 0.7);
+}
+
+.stock-chip.empty {
+  color: var(--warn);
+}
+
+@media (max-width: 900px) {
+  .stock-chip .stock-word {
+    display: none;
+  }
+}
+
+.picker-purpose {
+  margin: 4px 6px 2px;
+  font-size: 0.86rem;
+  color: rgba(90, 66, 49, 0.85);
+  max-width: 640px;
+}

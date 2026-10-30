@@ -34,7 +34,7 @@ function cartTown(): { state: WorldState; shed: Building; stall: Building; store
 describe('carts', { timeout: 60_000 }, () => {
   it('keeps one cart per shed, parked at its door', () => {
     const { state, shed } = cartTown();
-    state.tick = 12 * H; // 18:00: no trips
+    state.tick = 13 * H; // 19:00: no trips
     ticks(state, 30);
     expect(state.carts.length).toBe(1);
     const c = state.carts[0]!;
@@ -93,7 +93,7 @@ describe('carts', { timeout: 60_000 }, () => {
     expect(a.state.carts[0]!.parked).toBe(true);
 
     const b = cartTown();
-    b.state.tick = 12 * H; // 18:00
+    b.state.tick = 13 * H; // 19:00
     ticks(b.state, H);
     expect(b.state.carts[0]!.parked).toBe(true);
   });

@@ -1,6 +1,6 @@
 // Story arcs (docs/spec/11-residents.md, Story characters; C4D). Hourly at offset 120 in standard
 // valleys: an arc whose arrival condition holds moves its character in (a household of one in the
-// best vacant home, walking in from the valley gate, never into the last vacant home) and sends the hello letter; a few hours later
+// best vacant home, walking in from the valley gate; arrival waves hold a home back for them) and sends the hello letter; a few hours later
 // the first step opens; each step's goal met (and no sooner than STEP_GAP after its letter) closes
 // it through storyStep, which pays the reward and sends the next letter, until the finale. The post
 // comes by day, one letter an hour across all arcs, so two characters never talk over each other.
@@ -27,10 +27,11 @@ export const SETTLE_TICKS = 4 * TICKS_PER_HOUR;
 /** The least time a step stays open, so letters never pile up even when goals are already met. */
 export const STEP_GAP = 12 * TICKS_PER_HOUR;
 /**
- * Vacant homes a character needs before moving in: they never take the last one, so the families
- * who make a town grow keep arriving.
+ * Vacant homes a character needs before moving in. Playtest round five: with families arriving
+ * every two hours, two empty homes were rare, so arrival waves now keep one back for a character
+ * who is ready (residents/lifecycle.ts, storyWaiting) and the character needs only that one.
  */
-export const STORY_VACANCIES = 2;
+export const STORY_VACANCIES = 1;
 /** The post comes between these hours. */
 export const POST_HOURS = [7, 21] as const;
 

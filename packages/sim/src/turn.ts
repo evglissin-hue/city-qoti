@@ -13,7 +13,7 @@ import type {
 import { Dirty } from './map/dirty';
 import { StreamRng, streamIndex } from './rng/streams';
 import { canPaintRoad } from './rules/road';
-import { effectiveSpeed } from './speed';
+import { effectiveSpeed, ticksThisTurn } from './speed';
 import { worldIndex } from './state/worldIndex';
 import { isSkipped, pipeline } from './systems';
 import { clockView } from './view';
@@ -92,7 +92,8 @@ export function runTick(state: WorldState, ctx: TickCtx): void {
 }
 
 /**
- * Applies a turn: its commands in order, then effectiveSpeed(state) ticks. Turns must arrive in
+ * Applies a turn: its commands in order, then ticksThisTurn(state) ticks (the effective speed,
+ * hurried at night). Turns must arrive in
  * sequence; use applyTurns to fill gaps left by empty turns, which the room does not store.
  */
 export function applyTurn(state: WorldState, turn: Turn, ctx: TickCtx): void {
@@ -102,7 +103,8 @@ export function applyTurn(state: WorldState, turn: Turn, ctx: TickCtx): void {
   state.lastTurn = turn.t;
   const speed = effectiveSpeed(state);
   if (speed !== before) ctx.events.push({ e: 'clock', c: clockView(state) });
-  for (let i = 0; i < speed; i++) runTick(state, ctx);
+  const ticks = ticksThisTurn(state);
+  for (let i = 0; i < ticks; i++) runTick(state, ctx);
 }
 
 /** Applies turns in order, filling any gap with empty turns. Turns at or before lastTurn are skipped. */

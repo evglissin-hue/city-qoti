@@ -1,10 +1,11 @@
 // Arrival and departure (docs/spec/11-residents.md): attractiveness each morning, households
-// walking in from the valley gate at 08:00 to the home that suits their species best, departures
+// walking in from the valley gate every two hours from 08:00 to 16:00 to the home that suits their species best, departures
 // at 09:00 after three low-mood days, and rehousing when a home disappears. Ages and bonds tick
 // over in the 06:00 pass.
 import { content } from '@qoti/content';
 import { DAYS_PER_SEASON, DAYS_PER_YEAR, MAP_SIZE, NEED_IDS, ResidentFlags } from '../../constants';
 import type { Building, Household, LifeStage, Resident, Rng, TickCtx, WorldState } from '../../contracts';
+import { evaluate } from '../../conditions';
 import { findById, removeById } from '../../state/entities';
 import { moodBand, townStock } from '../../view/hamlet';
 import { chronicle } from '../chronicle/api';
@@ -19,8 +20,9 @@ import { doorOf, tileX, tileZ, vacantHomes, type Vacancy } from './places';
 import { announceHousehold, announceResident, announceTown, forgetResident, pushHistory } from './records';
 import { dayIndex } from './time';
 
-/** Attractiveness needed for daily arrivals (tune). */
+/** Attractiveness needed for arrivals (tune). */
 export const ARRIVAL_THRESHOLD = 40;
+/** Households per arrival wave; waves come every two hours from 08:00 to 16:00. */
 export const MAX_ARRIVALS_PER_DAY = 3;
 /** Consecutive low-mood days before a household leaves. */
 export const LOW_MOOD_DAYS = 3;
@@ -93,16 +95,29 @@ function bestHome(
   return [best, bestScore];
 }
 
-/** 08:00: households walk in from the valley gate and claim homes in order of desirability. */
+/** True when a story character's arrival holds and they have no home yet (systems/stories). */
+export function storyWaiting(state: WorldState): boolean {
+  for (const s of state.stories) {
+    if (s.residentId) continue;
+    const arc = content.storyById.get(s.arc);
+    if (arc && evaluate(state, arc.arrival, {})) return true;
+  }
+  return false;
+}
+
+/** Each arrival wave: households walk in from the valley gate and claim homes in order of desirability. */
 export function arrivals(state: WorldState, ctx: TickCtx, rng: Rng): number {
   const vac = vacantHomes(state);
   if (vac.length === 0) return 0;
   const founding = state.stats.arrivals === 0 && state.residents.length === 0;
   if (founding) state.stats.attractiveness = attractiveness(state, vac);
   else if (state.stats.attractiveness < ARRIVAL_THRESHOLD) return 0;
+  // A story character ready to move in gets the last home (C4D; playtest round five).
+  const room = founding || !storyWaiting(state) ? vac.length : vac.length - 1;
   const k = founding
     ? Math.min(MAX_ARRIVALS_PER_DAY, vac.length)
-    : Math.min(MAX_ARRIVALS_PER_DAY, 1 + Math.floor(vac.length / 4), vac.length);
+    : Math.min(MAX_ARRIVALS_PER_DAY, 1 + Math.floor(vac.length / 4), room);
+  if (k <= 0) return 0;
   const gate = gateTile(state);
   const present = new Set(state.residents.map((r) => r.species));
   // Arrivals do not change what a home is worth to a species, so each is scored once.

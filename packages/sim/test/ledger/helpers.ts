@@ -6,6 +6,7 @@ import { findById } from '../../src/state/entities';
 import { doorTile } from '../../src/systems/movement/api';
 import { withoutSystems } from '../../src/systems';
 import { hamletFixture, type HamletFixture } from '../fixtures/hamlet';
+import { withoutNightHurry } from '../../src/speed';
 import { applyTurn, createTickCtx } from '../../src/turn';
 
 export const good = (id: string): number => content.goodIndex.get(id)!;
@@ -94,18 +95,20 @@ export function everyoneToWork(state: WorldState): void {
  * day table. Walking (the movement system) stays on.
  */
 export function ticks(state: WorldState, n: number, each?: (s: WorldState) => void): SimEvent[] {
-  return withoutSystems(['residents'], () => {
-    const ctx = createTickCtx(state);
-    const events: SimEvent[] = [];
-    state.time.desired = [1, 1, 1, 1];
-    for (let i = 0; i < n; i++) {
-      applyTurn(state, { t: state.lastTurn + 1, cmds: [] }, ctx);
-      events.push(...ctx.events);
-      ctx.events.length = 0;
-      each?.(state);
-    }
-    return events;
-  });
+  return withoutSystems(['residents'], () =>
+    withoutNightHurry(() => {
+      const ctx = createTickCtx(state);
+      const events: SimEvent[] = [];
+      state.time.desired = [1, 1, 1, 1];
+      for (let i = 0; i < n; i++) {
+        applyTurn(state, { t: state.lastTurn + 1, cmds: [] }, ctx);
+        events.push(...ctx.events);
+        ctx.events.length = 0;
+        each?.(state);
+      }
+      return events;
+    }),
+  );
 }
 
 /** Ticks until the clock reads `hour`:00 (the next time it does). */

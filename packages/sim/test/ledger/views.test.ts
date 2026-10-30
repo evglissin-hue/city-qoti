@@ -37,9 +37,11 @@ describe('building views', () => {
     const site = f.state.buildings[f.state.buildings.length - 1]!;
     ticks(f.state, TICKS_PER_HOUR);
     const d = detail(f, site.id);
-    expect(site.rt!.status & BuildingStatus.noPorters).toBeTruthy();
+    expect(site.rt!.status & BuildingStatus.noPorters).toBeFalsy();
     expect(d.status).toContain('Waiting for 16 planks and 6 stone');
-    expect(d.status).toContain('No porters within 20 tiles');
+    expect(d.status).toContain(
+      'Far from every storehouse: porters make the long walk, so deliveries come slowly',
+    );
     expect(buildingView(site).rt!.construction!.stage).toBe(0);
   });
 

@@ -125,7 +125,15 @@ describe('lens toolbars', () => {
       'plan',
       'erase',
     ]);
-    expect(ids(view.root, 'book-')).toEqual(['market', 'trade', 'policies', 'reports', 'notebook']);
+    // Playtest round five: the Pattern Book is on both lenses' shelves.
+    expect(ids(view.root, 'book-')).toEqual([
+      'market',
+      'patterns',
+      'trade',
+      'policies',
+      'reports',
+      'notebook',
+    ]);
     await view.click('overlays');
     expect(ids(view.root, 'overlay-').filter((id) => id !== 'list')).toEqual(['coverage', 'flows', 'status']);
     await view.click('overlay-flows');

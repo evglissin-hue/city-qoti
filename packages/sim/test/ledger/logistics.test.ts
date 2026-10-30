@@ -106,16 +106,21 @@ describe('porter matching', () => {
     expect(f.state.logistics.flows).toEqual([[bakery.id, store.id, 8]]);
   });
 
-  it('leaves buildings beyond 24 tiles of a storehouse alone, marked "no porters"', () => {
+  it("sends the nearest storehouse's porters the long way to a building beyond every range", () => {
     const f = hamletFixture();
     run(f.state, { t: 'build.place', def: 'cottage', x: 84, z: 48, rot: 0 });
     const far = f.state.buildings[f.state.buildings.length - 1]!;
     untilHour(f.state, 8);
     everyoneToWork(f.state);
-    ticks(f.state, H);
-    expect(f.state.logistics.jobs.some((j) => j.to === far.id)).toBe(false);
-    expect(far.rt!.construction!.delivered.every((n) => n === 0)).toBe(true);
-    expect(far.rt!.status & BuildingStatus.noPorters).toBeTruthy();
+    // Playtest round five: a far site is adopted, not left waiting forever.
+    let sent = false;
+    for (let i = 0; i < 4; i++) {
+      ticks(f.state, H);
+      sent ||= f.state.logistics.jobs.some((j) => j.to === far.id);
+    }
+    expect(sent).toBe(true);
+    expect(far.rt!.construction!.delivered.some((n) => n > 0)).toBe(true);
+    expect(far.rt!.status & BuildingStatus.noPorters).toBeFalsy();
     // The fixture's stall sits 24 tiles from the storehouse door: just in reach.
     expect(building(f.state, f.b.stall).rt!.status & BuildingStatus.noPorters).toBeFalsy();
     expect(building(f.state, f.b.windmill).rt!.status & BuildingStatus.noPorters).toBeFalsy();

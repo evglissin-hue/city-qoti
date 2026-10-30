@@ -21,7 +21,7 @@ import { clearFields, fieldsOf, isFarm } from '../production/fields';
 import { bookProduced } from '../production/produce';
 import { isLean, overdraftLimit } from '../loans/credit';
 import { emitMoney } from './emit';
-import { isWorkTime } from './time';
+import { isBuildTime } from './time';
 
 /** The coin price of placing a building, in pennies. */
 export function placementCost(def: BuildingDef): number {
@@ -121,7 +121,7 @@ export function refundRemoval(state: WorldState, ctx: TickCtx, b: Building, def:
   }
   const rt = b.rt;
   if (!isStandard(state) || !rt) return;
-  cancelJobsFor(state, b.id, isWorkTime(state.tick));
+  cancelJobsFor(state, b.id, isBuildTime(state.tick));
   const door = doorTile(b, def);
   const c = rt.construction;
   if (c) {

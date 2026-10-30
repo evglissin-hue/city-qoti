@@ -12,7 +12,7 @@ import { isStandard } from '../../state/hamlet';
 import { constructionStage } from '../../view/hamlet';
 import { economyDial } from '../economy/dial';
 import { emitBuilding } from '../economy/emit';
-import { isWorkTime } from '../economy/time';
+import { isBuildTime } from '../economy/time';
 import { markCharmDirty } from '../hearth/charm/dirty';
 import { doorTile } from '../movement/api';
 import { defOf } from '../logistics/stores';
@@ -30,7 +30,7 @@ export const construction: System = {
   every: 1,
   tick(state, ctx) {
     if (!isStandard(state)) return;
-    const workTime = isWorkTime(state.tick);
+    const workTime = isBuildTime(state.tick);
     tickBuilders(state, ctx, workTime);
     if (workTime && state.tick % MATCH_EVERY === MATCH_OFFSET) matchBuilders(state);
   },

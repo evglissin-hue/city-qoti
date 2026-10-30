@@ -95,9 +95,11 @@ describe('two players, three evenings', { timeout: 120_000 }, () => {
 // come down again. Craftsfolk are not asserted: the autoplayer raises a handful at times (0 to 14
 // at their peak across five seeds), well short of the 40 the tuning brief aimed for, because a Village
 // of 150 to 220 has its hands in food, porters and builders (see docs/spec/13-ledger.md, C4X).
-describe('a Village run', { timeout: 240_000 }, () => {
+// Playtest round five: families every two hours and longer building days make a town of ~250 by
+// day 60, so the run is 70 days (Village by about day 30) and a bigger town takes longer to play.
+describe('a Village run', { timeout: 400_000 }, () => {
   it('grows on as a Village with its loans in hand (oak)', () => {
-    const run = autoplay('oak', 90, { village: true });
+    const run = autoplay('oak', 70, { village: true });
     const days = run.days;
     const why = `\n${formatDays(days)}`;
     const village = days.findIndex((d) => d.rank === 'village');

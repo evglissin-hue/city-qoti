@@ -7,7 +7,7 @@ import { ResidentFlags, TICKS_PER_DAY, TICKS_PER_HOUR } from '../constants';
 import type { Building, WorldState } from '../contracts';
 import { townReachesDoor } from '../state/reach';
 import { isStandard } from '../state/hamlet';
-import { isWorkTime } from '../systems/economy/time';
+import { isBuildTime } from '../systems/economy/time';
 import { MAX_BUILDERS_PER_SITE } from '../systems/construction';
 import { available } from '../systems/logistics/tasks';
 import { allowedWork } from '../systems/production/status';
@@ -88,7 +88,7 @@ export class HealthWatch {
     for (const r of state.residents)
       if (r.activity.kind === 'task' && r.activity.taskId < 0)
         crews.set(-r.activity.taskId, (crews.get(-r.activity.taskId) ?? 0) + 1);
-    const idle = isWorkTime(now) ? idleBuilders(state) : 0;
+    const idle = isBuildTime(now) ? idleBuilders(state) : 0;
     for (const b of sites) {
       const c = b.rt!.construction!;
       const workable =

@@ -6,6 +6,7 @@ import { findById } from '../../src/state/entities';
 import { insertBuilding } from '../../src/state/place';
 import { tickOfDay } from '../../src/systems/residents/time';
 import { withoutSystems } from '../../src/systems';
+import { withoutNightHurry } from '../../src/speed';
 import { applyTurn, createTickCtx, type SimCtx } from '../../src/turn';
 
 export const S = MAP_SIZE;
@@ -35,15 +36,17 @@ export function runner(state: WorldState, opts: { all?: boolean } = {}): Runner 
 
 /** Runs n empty turns (one tick each at speed 1). */
 export function ticks(run: Runner, n: number): void {
-  withoutSystems(run.skip, () => {
-    for (let i = 0; i < n; i++) {
-      applyTurn(run.state, { t: run.state.lastTurn + 1, cmds: [] }, run.ctx);
-      if (run.ctx.events.length) {
-        for (const e of run.ctx.events) run.events.push(e);
-        run.ctx.events.length = 0;
+  withoutSystems(run.skip, () =>
+    withoutNightHurry(() => {
+      for (let i = 0; i < n; i++) {
+        applyTurn(run.state, { t: run.state.lastTurn + 1, cmds: [] }, run.ctx);
+        if (run.ctx.events.length) {
+          for (const e of run.ctx.events) run.events.push(e);
+          run.ctx.events.length = 0;
+        }
       }
-    }
-  });
+    }),
+  );
 }
 
 /** Runs until the clock shows `hour` (fractions allowed), at most a day ahead. */
