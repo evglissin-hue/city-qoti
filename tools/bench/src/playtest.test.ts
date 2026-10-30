@@ -16,11 +16,12 @@ const FIRST_EVENING = [
   'cottage',
   'market-stall',
   'well',
+  'quarry',
   'sawpit',
   'woodcutter',
 ];
 /** Opened by the first evening's buildings (content `requires.built`). */
-const NEXT = ['farmhouse', 'quarry'];
+const NEXT = ['farmhouse', 'foresters-lodge'];
 
 describe('two new players, one evening', { timeout: 120_000 }, () => {
   for (const seed of ['kat-1', 'kat-2', 'willow']) {

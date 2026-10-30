@@ -251,7 +251,6 @@ export const quarry: BuildingDef = {
   work: 12,
   charm: [{ category: 'noise', value: -10, radius: 4 }],
   tags: ['workshop'],
-  requires: { built: [['sawpit', 1]] },
   art: { kit: 'quarry' },
 };
 

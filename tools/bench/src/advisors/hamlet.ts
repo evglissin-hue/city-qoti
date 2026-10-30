@@ -78,6 +78,9 @@ class Hamlet implements Advisor {
     // Timber next: woodcutter and sawpit need only logs and stone, and everything else needs planks.
     want(count(w, 'woodcutter') === 0, 'woodcutter');
     want(count(w, 'sawpit') === 0, 'sawpit');
+    // C4X: urgent, as homes wait on stone (a hamlet ran out on day five and grew no homes for a week).
+    // Round seven: ahead of the homes, so the last of the stone never goes into a cottage first.
+    want(stock[G('stone')]! < 16 && count(w, 'quarry') === 0, 'quarry', true);
     // Food first: a day's eating for everyone should come in each day, with a few days in hand.
     const foodPlaces = count(w, 'vegetable-plot') + count(w, 'fishers-hut') * 2 + count(w, 'farmhouse') * 3;
     want(foodMade < pop + 4 && foodPlaces * 3 < pop + 6, p.foodBuilding());
@@ -136,8 +139,6 @@ class Hamlet implements Advisor {
       (b) => b.def === 'woodcutter' && b.stage === 'built' && (b.rt!.status & BuildingStatus.noTrees) === 0,
     );
     if (working) for (const b of felled) p.do('retire a woodcutter', [{ t: 'build.remove', ids: [b.id] }]);
-    // C4X: urgent, as homes wait on stone (a hamlet ran out on day five and grew no homes for a week).
-    want(stock[G('stone')]! < 16 && count(w, 'quarry') === 0, 'quarry', true);
     want(
       count(w, 'foresters-lodge') === 0 && count(w, 'woodcutter', true) > 0 && pop >= 12,
       'foresters-lodge',
