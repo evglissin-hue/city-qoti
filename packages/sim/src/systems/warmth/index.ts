@@ -94,8 +94,8 @@ export function fetchFirewood(state: WorldState, h: Household, to: number): numb
   if (marketOpen(state)) {
     got = buy(state, h.id, g, want);
     // On the slate, as with breakfast: newcomers and households with nobody in work are not left
-    // cold for want of a coin.
-    if (got >= want || !onTheSlate(state, h)) return got;
+    // cold for want of a coin, for the days the winter is on (not to stock up in autumn).
+    if (got >= want || !onTheSlate(state, h) || seasonNow(state).season !== 3) return got;
   }
   const free = takeFree(state, g, want - got);
   got += free;
