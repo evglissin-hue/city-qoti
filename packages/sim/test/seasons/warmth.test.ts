@@ -91,7 +91,13 @@ describe('warmth', () => {
     const f = winterFixture();
     const s = f.state;
     expect(firewoodToday(s)).toBe(WARMTH_PER_HOUSEHOLD);
-    s.weather.events.push({ id: 9999, event: 'cold-snap', start: s.tick - 10, end: s.tick + 2 * TICKS_PER_DAY, forecastTick: s.tick - TICKS_PER_DAY });
+    s.weather.events.push({
+      id: 9999,
+      event: 'cold-snap',
+      start: s.tick - 10,
+      end: s.tick + 2 * TICKS_PER_DAY,
+      forecastTick: s.tick - TICKS_PER_DAY,
+    });
     expect(firewoodToday(s)).toBe(2 * WARMTH_PER_HOUSEHOLD);
     emptyFirewood(s);
     for (const h of s.households) h.pantry[FIREWOOD] = 1;

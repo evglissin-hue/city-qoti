@@ -81,8 +81,8 @@ Daily (`every: TICKS_PER_DAY`, `offset: dailyOffset(hour, extra)`): 00:02 season
 
 | Track | Stand-in it relies on until the owner lands | Owner |
 |---|---|---|
-| C5B | weather is always clear (`weatherToday`) | C5A |
-| C5C | seasons from `seasonNow` only; no pests until C5C itself | C5A |
+| C5B | weather is always clear (`weatherToday`); C5A's weather is in (00:04), so this stand-in is gone | C5A |
+| C5C | seasons from `seasonNow` only; no pests until C5C itself (C5A's seasonal growth for gardens and orchards is a yield modifier, `seasonal`, beside yours) | C5A |
 | C5D | Watch morale without festivals (`festivalMorale` is 0 with no history) | C5B |
 | C5E | the winter and raid fixtures for every visual | C5A, C5D |
 | C5F | the mocks in `apps/client/src/ui/mocks/seasons.ts` | C5A to C5D |
@@ -96,6 +96,15 @@ Daily (`every: TICKS_PER_DAY`, `offset: dailyOffset(hour, extra)`): 00:02 season
 - Money: every economy test still takes `moneySnapshot` first and ends with `expectMoneyInvariant`.
 - The tune prints a year view after the I2 output (season, weather, cold households, festival stars, threat band, raid result). Fill your columns by filling the state; `tools/bench/src/yearRow.ts` reads it.
 - Ports, so parallel checkouts never collide: C4P 5190 and 8800, C5A 5191 and 8801, C5B 5192 and 8802, C5C 5193 and 8803, C5D 5194 and 8804, C5E 5195 and 8805, C5F 5196 and 8806, C5G 5197 and 8807, C5H 5198 and 8808 (`QOTI_CLIENT_PORT=<n> QOTI_RELAY_PORT=<m> npx playwright test -c apps/client/playwright.config.ts <spec>`; `QOTI_CHROMIUM=/opt/pw-browsers/chromium` in sandboxes).
+
+## C5A as built (read if you meet these)
+
+- The seasons system is hourly at minute 2: it turns the season at 00:02 and sends `season.report` at 23:02 on the season's last day (after the festival), so report builders in `view/season/` read the closing season (`economy.season` still holds it).
+- The latest of each weather event stays in `weather.events` after it ends (for "never twice in a row" and the report); `weatherView` shows only those to come or on. Use `runningEvent(state, id)` and `eventEffect(state, id, name)` from `systems/weather/effects.ts` rather than scanning the list.
+- Snow's `walk` effect in content is permille of tile ticks (1300), as the walk hook reads it.
+- Warmth is a held `cold` mood modifier (no new need). `isCold` and `warmthReport` read `Household.warmth`, set at 07:30 each winter day.
+- Gardens, orchards and herb gardens gather by `GoodDef.seasons` (yield modifier `seasonal`); a test that counts a gatherer's full rate picks a season where its table reads 1000.
+- `BuildingDef.requires.story`: a building only a story unlocks (Mother Thornbury's cottage); `meetsRequires` takes the def id.
 
 ## Registries
 

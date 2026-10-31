@@ -17,6 +17,7 @@ import { yieldPermille } from '../../src/systems/production/modifiers';
 import { scheduleOverride } from '../../src/systems/residents/overrides';
 import { isFlooded, isFrozen } from '../../src/systems/seasons/api';
 import { seasons, turnDay } from '../../src/systems/seasons';
+import { trees } from '../../src/systems/trees';
 import { handSawPermille } from '../../src/systems/seasons/river';
 import { wellPermille } from '../../src/systems/weather/effects';
 import {
@@ -124,8 +125,7 @@ describe('the season turns', () => {
     expect(scheduleOverride(state, resident(state), 12)).toBeNull();
   });
 
-  it('rests the trees in winter', async () => {
-    const { trees } = await import('../../src/systems/trees');
+  it('rests the trees in winter', () => {
     const { state } = villageFixture();
     const i = 30 * MAP_SIZE + 30;
     state.map.tree[i] = 1 * 8 + 0;
