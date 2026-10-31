@@ -9,7 +9,8 @@ import type { Decor, EntityId, WorldState } from '../../../../contracts';
 import { type Detector, param, type SiteCandidate, taggedIn } from '../shared';
 
 const S = MAP_SIZE;
-const MAX_GAP = 3;
+/** Unhedged tiles that may lie between two hedged stretches of one run before it splits in two. */
+export const MAX_GAP = 3;
 const SLACK = TILE_FP / 4;
 
 export interface Run {

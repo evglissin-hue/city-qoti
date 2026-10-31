@@ -67,7 +67,9 @@ button.link:hover:not(:disabled) {
 /* Panels ------------------------------------------------------------------------------------- */
 
 /* Side columns grow with the interface size, so text never wraps into a ribbon. */
-.side {
+/* .side.left, not .side: theme.css loads after this file and its fixed width won, so at 140% the
+   feed kept 270px and wrapped its own title. */
+.side.left {
   width: calc(270px * var(--ui-scale));
 }
 
@@ -1380,6 +1382,12 @@ li.plaque.waiting {
   font-size: 0.8rem;
 }
 
+/* A quiet zero, so the goods that moved today stand out from the ones that did not. */
+.ledger-table td.flow .idle {
+  color: var(--ink-soft);
+  opacity: 0.55;
+}
+
 .net {
   margin-left: 3px;
   font-size: 0.7rem;
@@ -2225,18 +2233,55 @@ ul.people-list {
 }
 
 /* Playtest round five: the town's stocks, always on show under the top bar. */
-.stock-strip {
+/* The strip under the top bar sits in a lane that spans the gap between whatever is open on
+   either side (the feed, a book, the inspector), so it never slides under them. It stays in the
+   middle of the screen as far as the lane allows and steps aside only as far as it must; a wide
+   book covers the middle, so the strip waits until it closes. */
+.game-ui {
+  --strip-l: 10px;
+  --strip-r: 10px;
+}
+
+.game-ui:has(> .side.left > *) {
+  --strip-l: calc(20px + 270px * var(--ui-scale));
+}
+
+.game-ui:has(> .book-slot) {
+  --strip-l: calc(20px + 372px * var(--ui-scale));
+}
+
+.game-ui:has(> .side.right > *) {
+  --strip-r: calc(20px + 320px * var(--ui-scale));
+}
+
+.game-ui > .strip-lane {
   position: absolute;
-  top: 62px;
-  left: 50%;
-  transform: translateX(-50%);
+  top: calc(27px + 35px * var(--ui-scale));
+  left: var(--strip-l);
+  right: var(--strip-r);
+  container: strip / inline-size;
+  pointer-events: none;
+}
+
+.game-ui:has(> .book-slot.wide) > .strip-lane {
+  display: none;
+}
+
+.stock-strip {
   display: flex;
   gap: 4px;
+  width: fit-content;
+  max-width: 100%;
+  /* Centered on the screen, clamped to the lane: 50% here is half the strip's own width. */
+  translate: clamp(0px, calc(50vw - var(--strip-l) - 50%), calc(100cqw - 100%));
   padding: 3px 6px;
-  border-radius: 999px;
-  max-width: calc(100% - 20px);
+  /* A pill on one line; a rounded card if a very narrow lane makes it wrap. */
+  flex-wrap: wrap;
+  justify-content: center;
+  border-radius: 1.1em;
   overflow: hidden;
   font-size: 0.86rem;
+  pointer-events: auto;
 }
 
 .stock-chip {
@@ -2270,8 +2315,23 @@ ul.people-list {
   color: var(--warn);
 }
 
-@media (max-width: 900px) {
-  .stock-chip .stock-word {
+/* A narrow lane (a small window, or a book and the inspector both open) keeps the icons and
+   numbers; each chip's tooltip still names its good. A chip with its word runs about 5rem, so the
+   threshold follows how many chips the strip holds (fitClass in TopBar.tsx). */
+@container strip (max-width: 51rem) {
+  .stock-strip.fit-l .stock-word {
+    display: none;
+  }
+}
+
+@container strip (max-width: 41rem) {
+  .stock-strip.fit-m .stock-word {
+    display: none;
+  }
+}
+
+@container strip (max-width: 26rem) {
+  .stock-strip.fit-s .stock-word {
     display: none;
   }
 }

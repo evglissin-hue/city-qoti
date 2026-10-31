@@ -91,7 +91,8 @@ export function Stocks({ session }: { session: Session }) {
                 </th>
                 <td class="num stock">{l.stock}</td>
                 <td class="num flow" title={`${l.producedToday} made, ${l.consumedToday} used today`}>
-                  <span class="plus">+{l.producedToday}</span> <span class="minus">-{l.consumedToday}</span>
+                  <span class={l.producedToday ? 'plus' : 'idle'}>+{l.producedToday}</span>{' '}
+                  <span class={l.consumedToday ? 'minus' : 'idle'}>-{l.consumedToday}</span>
                   <span class={`net ${net > 0 ? 'up' : net < 0 ? 'down' : ''}`}>
                     {net > 0 ? '▲' : net < 0 ? '▼' : '·'}
                   </span>

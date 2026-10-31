@@ -16,8 +16,9 @@ import {
 } from '../../../conditions/geo';
 import { TREE_MATURE, treeStage } from '../../../map/layers';
 import { rankAtLeast } from '../../../state/village';
-import { hedgedSides, straightRuns } from './detectors/hedgerowLane';
+import { hedgedSides, MAX_GAP, straightRuns } from './detectors/hedgerowLane';
 import { gardenAt } from './detectors/kitchenGarden';
+import { treePaths } from './detectors/treePlace';
 import { litStretches } from './detectors/lanternWalk';
 import { shoreStretches } from './detectors/promenade';
 import { wallLines } from './detectors/sittingWall';
@@ -60,9 +61,14 @@ function homeName(state: WorldState, home: Building): string {
   return h ? `the ${h.family}s' ${name}` : `the empty ${name}`;
 }
 
+/**
+ * The most nearly finished attempt that still wants something. One that wants nothing is either
+ * about to be discovered or counted differently by its detector; either way the next best gives
+ * the page a hint instead of none.
+ */
 function best(list: Attempt[]): Attempt | null {
   let out: Attempt | null = null;
-  for (const a of list) if (!out || a.score > out.score) out = a;
+  for (const a of list) if (a.wants.length > 0 && (!out || a.score > out.score)) out = a;
   return out;
 }
 
@@ -167,17 +173,8 @@ const treePlace: Explainer = (state, def) => {
       let benches = 0;
       for (const d of taggedIn(state, [tx - r, tz - r, tx + r, tz + r], 'bench'))
         if (dist2(d.fx, d.fz, fx, fz) <= reach * reach) benches++;
-      let dirs = 0;
-      for (let dz = -pathReach; dz <= pathReach; dz++)
-        for (let dx = -pathReach; dx <= pathReach; dx++) {
-          const x = tx + dx;
-          const z = tz + dz;
-          if (x < 0 || z < 0 || x >= S || z >= S || !state.map.road[z * S + x] || (dx === 0 && dz === 0))
-            continue;
-          dirs |= Math.abs(dx) >= Math.abs(dz) ? (dx > 0 ? 1 : 2) : dz > 0 ? 4 : 8;
-        }
-      let n = 0;
-      for (let b = dirs; b; b &= b - 1) n++;
+      // As the detector counts them: a round reach from the trunk.
+      const n = treePaths(state, tx, tz, fx, fz, pathReach).directions;
       const wants: string[] = [];
       if (benches < needBenches)
         wants.push(
@@ -197,23 +194,37 @@ const hedgerowLane: Explainer = (state, def) => {
   const list: Attempt[] = [];
   for (const run of straightRuns(state, 2)) {
     const sides = hedgedSides(state, run);
-    const both = sides.filter((s) => s === 3).length;
     const one = sides.filter((s) => s === 1 || s === 2).length;
-    if (both === 0 && one === 0) continue;
+    // Stretches of both-sided hedging as the detector splits them: more than MAX_GAP unhedged
+    // tiles between two hedged ones makes two stretches, each counted on its own.
+    const stretches: { first: number; count: number }[] = [];
+    let last = -1;
+    for (let i = 0; i < sides.length; i++) {
+      if (sides[i] !== 3) continue;
+      if (stretches.length === 0 || i - last - 1 > MAX_GAP) stretches.push({ first: i, count: 0 });
+      stretches[stretches.length - 1]!.count++;
+      last = i;
+    }
+    if (stretches.length === 0) {
+      if (one === 0) continue;
+      stretches.push({ first: 0, count: 0 });
+    }
     const len = run.end - run.start + 1;
-    const wants: string[] = [];
-    if (len < minRun) wants.push(`a straight path of ${minRun} steps or more (this one runs ${len})`);
-    if (both < minHedged)
-      wants.push(
-        `hedges on both sides along ${minHedged} steps (${both} so far${one ? `, ${one} more with a hedge on one side only` : ''})`,
-      );
-    const k = run.start;
-    list.push({
-      score: (part(len, minRun) + part(both, minHedged) * 2 + part(one, minHedged) * 0.5) / 3.5,
-      x: run.horizontal ? k : run.line,
-      z: run.horizontal ? run.line : k,
-      wants,
-    });
+    for (const { first, count: both } of stretches) {
+      const wants: string[] = [];
+      if (len < minRun) wants.push(`a straight path of ${minRun} steps or more (this one runs ${len})`);
+      if (both < minHedged)
+        wants.push(
+          `hedges on both sides along ${minHedged} steps (${both} so far${one ? `, ${one} more with a hedge on one side only` : ''}${stretches.length > 1 ? `; keep the gaps to ${MAX_GAP} steps or fewer` : ''})`,
+        );
+      const k = run.start + first;
+      list.push({
+        score: (part(len, minRun) + part(both, minHedged) * 2 + part(one, minHedged) * 0.5) / 3.5,
+        x: run.horizontal ? k : run.line,
+        z: run.horizontal ? run.line : k,
+        wants,
+      });
+    }
   }
   return best(list);
 };

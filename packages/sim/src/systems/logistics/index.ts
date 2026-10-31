@@ -28,7 +28,7 @@ import { emitBuilding } from '../economy/emit';
 import { isBuildTime, tickOfDay } from '../economy/time';
 import { doorTile } from '../movement/api';
 import { pathBetween } from '../movement/paths';
-import { adoptStrays, storehouseReach, within, type Reach } from './range';
+import { adoptStrays, staffed, storehouseReach, within, type Reach } from './range';
 import {
   defOf,
   foodIncoming,
@@ -330,7 +330,7 @@ function findRelay(
     if (need.want <= 0 || need.good < 0 || within(reach, need.dest.door)) continue;
     const g = need.good;
     for (const other of reaches) {
-      if (other.b === reach.b || other.porters === 0 || !within(reach, other.door)) continue;
+      if (other.b === reach.b || !staffed(other) || !within(reach, other.door)) continue;
       if (!within(other, need.dest.door)) continue;
       const dest = spots.find((s) => s.b === other.b);
       if (!dest || storageSpace(dest.def, dest.rt) <= 0) continue;

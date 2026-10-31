@@ -2,7 +2,7 @@
 // picker), decor with its Pattern Book lock, and the client-side cost check that explains a refusal
 // before the sim has to.
 import { content, type BuildingDef, type Cost, type DecorDef, type ValleyMode } from '@qoti/content';
-import { PENNIES_PER_COIN, type Lens, type RejectReason } from '@qoti/sim';
+import { countsAsBuilt, PENNIES_PER_COIN, type Lens, type RejectReason } from '@qoti/sim';
 import type { Mirror } from '../state/mirror';
 import { RANK_WORD, rankAtLeast } from '../ui/village';
 
@@ -161,10 +161,10 @@ export interface BuildingLock {
   text: string;
 }
 
-/** Built buildings of a def in the valley (sites do not count). */
+/** Built buildings of a def in the valley, upgrades included (sites do not count), as the sim counts them. */
 export function builtCount(m: Mirror, def: string): number {
   let n = 0;
-  for (const b of m.buildings.values()) if (b.def === def && b.stage === 'built') n++;
+  for (const b of m.buildings.values()) if (b.stage === 'built' && countsAsBuilt(b.def, def)) n++;
   return n;
 }
 

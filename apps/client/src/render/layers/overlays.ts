@@ -920,6 +920,9 @@ export function overlaysLayer(): OverlaysLayer {
       status.setDim(0.95);
     },
     update(change) {
+      // Before the early return: the always-shown marks (a home with no road) follow building
+      // changes with no overlay out too, or they never appeared or cleared in the Hearth.
+      if (change.buildings) statusRebuild = true;
       if (!kind) {
         if (highlightArea && (change.full || change.rects.has('height'))) drawHighlight();
         return;
@@ -952,7 +955,6 @@ export function overlaysLayer(): OverlaysLayer {
       ) {
         rebuild();
       }
-      if (change.buildings) statusRebuild = true;
       if (highlightArea && (change.full || change.rects.has('height'))) drawHighlight();
     },
     frame(dt) {

@@ -117,10 +117,8 @@ const NEED_WORDS: readonly (readonly [min: number, text: string])[][] = [
     [50, 'A fair walk for water'],
     [0, 'Short of water'],
   ],
-  [
-    [85, 'A roof of their own'],
-    [0, 'No roof to speak of'],
-  ],
+  // Shelter: see shelterText.
+  [],
   [
     [85, 'Among friends'],
     [60, 'A friend or two'],
@@ -142,6 +140,8 @@ const NEED_WORDS: readonly (readonly [min: number, text: string])[][] = [
   ],
 ];
 
+const SHELTER = (NEED_IDS as readonly string[]).indexOf('shelter');
+
 const MODIFIER_TEXT: readonly [kind: string, text: string][] = [
   ['wish-granted', 'Wish granted'],
   ['new-friend', 'Made a new friend'],
@@ -150,7 +150,18 @@ const MODIFIER_TEXT: readonly [kind: string, text: string][] = [
   ['lost', 'Got lost'],
 ];
 
-function needText(i: number, value: number): string {
+/**
+ * Shelter climbs toward full a step an hour after a move and drains the same way after losing a
+ * home, so its words follow whether the household has a door now, not the number alone (a family
+ * a few hours into a new cottage used to read "No roof to speak of").
+ */
+function shelterText(housed: boolean, value: number): string {
+  if (housed) return value >= 85 ? 'A roof of their own' : 'Settling into the new place';
+  return value >= 50 ? 'Between homes for now' : 'No roof to speak of';
+}
+
+function needText(i: number, value: number, housed: boolean): string {
+  if (i === SHELTER) return shelterText(housed, value);
   for (const [min, text] of NEED_WORDS[i] ?? serviceNeedWords(i)) if (value >= min) return text;
   return NEED_IDS[i] ?? 'need';
 }
@@ -271,8 +282,9 @@ export function residentDetail(state: WorldState, id: EntityId): ResidentDetail 
   const market = marketOpen(state);
   const weights = weightsOf(r, market).w;
   const shown = NEED_IDS.map((_, i) => i).filter((i) => (weights[i] ?? 0) > 0);
+  const housed = doorOf(state, h?.homeId ?? 0) >= 0;
   const moodLines: { label: string; value: number }[] = shown.map((i) => ({
-    label: needText(i, r.needs[i] ?? 0),
+    label: needText(i, r.needs[i] ?? 0, housed),
     value: Math.round(needPoints(r, i, market)),
   }));
   for (const t of r.traits) {

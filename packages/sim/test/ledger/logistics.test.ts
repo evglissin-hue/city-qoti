@@ -5,6 +5,13 @@ import type { Building, WorldState } from '../../src/contracts';
 import { findById } from '../../src/state/entities';
 import { insertBuilding } from '../../src/state/place';
 import { JobClass } from '../../src/systems/logistics';
+import {
+  adoptStrays,
+  nearestStaffed,
+  porterReachable,
+  porterServed,
+  type Reach,
+} from '../../src/systems/logistics/range';
 import { nearestOutletWithFood, outletFood, takeFromOutlet } from '../../src/systems/economy/outlets';
 import { hamletFixture } from '../fixtures/hamlet';
 import { run } from '../helpers';
@@ -124,6 +131,29 @@ describe('porter matching', () => {
     // The fixture's stall sits 24 tiles from the storehouse door: just in reach.
     expect(building(f.state, f.b.stall).rt!.status & BuildingStatus.noPorters).toBeFalsy();
     expect(building(f.state, f.b.windmill).rt!.status & BuildingStatus.noPorters).toBeFalsy();
+  });
+
+  it('never lets a paused storehouse adopt a far door: its porters stay indoors', () => {
+    const at = (x: number, z: number) => z * MAP_SIZE + x;
+    const reach = (paused: boolean, door: number): Reach => ({
+      b: { rt: { paused } } as unknown as Building,
+      door,
+      radius: 24,
+      porters: 2,
+    });
+    const paused = reach(true, at(100, 100));
+    const open = reach(false, at(20, 20));
+    const site = at(115, 115);
+    // A door in the paused one's own range waits for it; a far one goes to the open one, though
+    // the paused one is nearer.
+    expect(porterServed([paused, open], at(105, 100))).toBe(true);
+    expect(porterServed([paused, open], site)).toBe(false);
+    expect(nearestStaffed([paused, open], site)).toBe(open);
+    adoptStrays([paused, open], [site]);
+    expect(open.adopted?.has(site)).toBe(true);
+    expect(paused.adopted).toBeUndefined();
+    expect(porterReachable([paused], site)).toBe(false);
+    expect(porterReachable([paused, open], site)).toBe(true);
   });
 
   it('hands porters back when the work day ends', () => {

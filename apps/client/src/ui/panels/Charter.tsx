@@ -155,8 +155,11 @@ function History({ session, c }: { session: Session; c: CharterView }) {
           <Glyph id="rank" />
           <span>
             Made a <b>{RANK_WORD[h.rank]}</b> on {shortDate(h.tick)}
+            {/* The comma stays in the date's run so the font kerns it against the tabular "1". */}
             {h.seats.length > 0 && (
-              <span class="muted">, with {seatList(seats, h.seats, session.seat)} there</span>
+              <>
+                , <span class="muted">with {seatList(seats, h.seats, session.seat)} there</span>
+              </>
             )}
           </span>
         </li>

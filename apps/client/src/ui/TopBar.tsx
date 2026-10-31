@@ -64,7 +64,7 @@ export function TopBar({ session, onLeave }: { session: Session; onLeave: () => 
           </button>
         ))}
         {note && (
-          <span class="speed-note" data-testid="speed-note">
+          <span class="speed-note" data-testid="speed-note" title={note}>
             {note}
           </span>
         )}
@@ -118,6 +118,14 @@ const ALWAYS = ['logs', 'planks', 'stone'] as const;
 const MAX_CHIPS = 9;
 
 /**
+ * How long a strip of n chips runs with its words (about 5rem a chip), so the lane under the top
+ * bar drops the words only when they would not fit (see the strip's container queries).
+ */
+function fitClass(n: number): string {
+  return n <= 5 ? 'fit-s' : n <= 8 ? 'fit-m' : 'fit-l';
+}
+
+/**
  * Playtest round five ("it should be clear how many resources you have"): the town's stock of the
  * building goods and whatever else it holds or makes, under the top bar in both lenses. Food is one
  * chip. Each chip says where the good comes from and goes; a click opens the stocks report.
@@ -151,8 +159,9 @@ export function StockStrip({ session }: { session: Session }) {
     session.ui.reportTab.value = 'stocks';
     session.ui.panel.value = session.ui.panel.value === 'reports' ? null : 'reports';
   };
+  const shown = chips.slice(0, MAX_CHIPS);
   return (
-    <div class="stock-strip panel" data-testid="stock-strip">
+    <div class={`stock-strip panel ${fitClass(1 + shown.length)}`} data-testid="stock-strip">
       <button
         type="button"
         class="stock-chip"
@@ -164,7 +173,7 @@ export function StockStrip({ session }: { session: Session }) {
         <span>{food}</span>
         <span class="stock-word">food</span>
       </button>
-      {chips.slice(0, MAX_CHIPS).map((c) => (
+      {shown.map((c) => (
         <button
           key={c.good}
           type="button"
@@ -202,7 +211,7 @@ function HearthStrip({ session }: { session: Session }) {
   const plaques = [...m.achievements.values()].filter((a) => a.unlocked).length;
   const open = (id: string) => toggleBook(session, id);
   return (
-    <div class="stock-strip hearth-strip panel" data-testid="hearth-strip">
+    <div class={`stock-strip hearth-strip panel ${fitClass(4)}`} data-testid="hearth-strip">
       <button
         type="button"
         class="stock-chip"

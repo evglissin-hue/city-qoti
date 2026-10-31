@@ -79,6 +79,25 @@ button:active:not(:disabled) {
   box-shadow: 0 1px 0 rgba(90, 66, 49, 0.14);
 }
 
+/* The valley file picker's button, in the same paper as every other button (it was the browser's
+   own gray one on the title card). */
+input[type='file']::file-selector-button {
+  margin-right: 10px;
+  font: inherit;
+  color: var(--ink);
+  background: var(--paper-light);
+  border: 1.5px solid var(--line);
+  border-radius: 10px;
+  padding: 3px 12px;
+  cursor: pointer;
+  box-shadow: 0 2px 0 rgba(90, 66, 49, 0.14);
+}
+
+input[type='file']::file-selector-button:hover {
+  background: #fff6e2;
+  border-color: var(--ink-line);
+}
+
 button:focus-visible,
 input:focus-visible,
 select:focus-visible,
@@ -162,10 +181,12 @@ input::placeholder {
     linear-gradient(180deg, #a9d3e8 0%, #cfe6e6 45%, #f6e7c6 75%, #f3dcb0 100%);
 }
 
+/* Fixed, like the sky behind them: the title scrolls when More is open on a short screen, and
+   hills that scrolled away left a bare band of sand along the bottom. */
 .title-screen::before,
 .title-screen::after {
   content: '';
-  position: absolute;
+  position: fixed;
   left: -10%;
   right: -10%;
   pointer-events: none;
@@ -490,7 +511,8 @@ input::placeholder {
 
 .side {
   position: absolute;
-  top: 70px;
+  /* Just under the top bar, whose bottom sits near 24px + 35px per unit of interface size. */
+  top: calc(35px + 35px * var(--ui-scale));
   width: 270px;
   display: grid;
   gap: 10px;
@@ -655,6 +677,12 @@ input::placeholder {
 
 .tool.band {
   margin-left: 10px;
+}
+
+/* The bar sizes to its narrowest fit, so a two-word label ("Cart lane") would break over two
+   lines and make the Ledger's bar taller than the Hearth's. */
+.tool .label {
+  white-space: nowrap;
 }
 
 .tool .icon {
