@@ -84,18 +84,22 @@ describe('the season turns', () => {
     expect(isFrozen(state)).toBe(false);
   });
 
-  it('gives the bank by each skating spot a little comfort while the ice holds', () => {
+  it('gives the ice by each skating spot a little comfort while it holds', () => {
     const { state } = villageFixture();
     const comfortAt = (t: number) => state.map.charmComfort[t]!;
     state.tick = tickAt(0, 3, RIVER_FREEZE_DAY, 0) + 2;
     recomputeDirty(state, null);
-    const spot = skatingSpots(state)[0]!;
+    const bank = skatingSpots(state)[0]!;
+    const spot = [bank - 1, bank + 1, bank - MAP_SIZE, bank + MAP_SIZE].find((t) => state.map.water[t])!;
+    const bankBefore = comfortAt(bank);
     const before = comfortAt(spot);
     turnDay(state, createTickCtx(state));
     expect(isFrozen(state)).toBe(true);
     expect(state.hearth.dirtyChunks.length).toBeGreaterThan(0);
     recomputeDirty(state, null);
     expect(comfortAt(spot)).toBeGreaterThan(before);
+    // The bank itself, where homes and decor stand, keeps its charm.
+    expect(comfortAt(bank)).toBe(bankBefore);
     state.tick = tickAt(1, 0, 1, 0) + 2;
     turnDay(state, createTickCtx(state));
     recomputeDirty(state, null);

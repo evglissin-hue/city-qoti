@@ -269,7 +269,7 @@ export function recomputeChunk(
     }
   }
 
-  // I3 (C5A): skating spots on the frozen bank near this chunk.
+  // I3 (C5A): skating spots near this chunk while the river is frozen.
   const skate: number[] = [];
   if (state.weather.river.frozen) {
     const sr = SKATING_COMFORT.radius;
@@ -290,6 +290,17 @@ export function recomputeChunk(
       const i = tz * S + tx;
       if (m.water[i]) {
         for (let k = 0; k < 6; k++) out[k] = 0;
+        // I3 (C5A): the ice by a skating spot has a little comfort while the river is frozen (on the
+        // ice only: the bank's homes and decor keep their charm).
+        for (let k = 0; k < skate.length; k += 2) {
+          const dx = skate[k]! - tx;
+          const dz = skate[k + 1]! - tz;
+          if (dx * dx + dz * dz <= skateR) {
+            out[CAT.comfort] = SKATING_COMFORT.value;
+            out[5] = SKATING_COMFORT.value;
+            break;
+          }
+        }
         changed |= write(m, i);
         continue;
       }
@@ -384,14 +395,6 @@ export function recomputeChunk(
 
       const road = m.road[i]!;
       if (road === 1) cats[CAT.comfort]! += PATH_COMFORT;
-      for (let k = 0; k < skate.length; k += 2) {
-        const dx = skate[k]! - tx;
-        const dz = skate[k + 1]! - tz;
-        if (dx * dx + dz * dz <= skateR) {
-          cats[CAT.comfort]! += SKATING_COMFORT.value;
-          break;
-        }
-      }
 
       // Variety, clutter and enclosure.
       let extra = Math.min(VARIETY.max, seen * VARIETY.per);
