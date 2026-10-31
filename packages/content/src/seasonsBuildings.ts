@@ -20,6 +20,12 @@ export const apiary: BuildingDef = {
   ...HIDDEN,
 };
 
+/**
+ * C5A: hot water and a warm bench all year (health cover like a herbalist's), and in winter the
+ * households in reach feel the cold far less (systems/warmth). It heats its water with firewood and
+ * pays its way from a small daily fee from each household it serves (half a coin), which covers its
+ * bath-keeper's wage, the firewood and the upkeep at base prices with about twenty households.
+ */
 export const bathHouse: BuildingDef = {
   id: 'bath-house',
   name: 'Bath House',
@@ -27,10 +33,32 @@ export const bathHouse: BuildingDef = {
   category: 'service',
   size: [3, 2],
   entrance: [1, 1],
+  cost: {
+    coins: 45,
+    goods: [
+      ['planks', 18],
+      ['stone', 12],
+    ],
+  },
+  upkeep: 2,
+  jobs: { count: 1, role: 'worker' },
+  coverage: [{ kind: 'health', radius: 12, capacity: 80 }],
+  methods: [
+    {
+      id: 'heat-baths',
+      name: 'Heat the baths',
+      kind: 'craft',
+      inputs: [['firewood', 1]],
+      outputs: [],
+      hours: 4,
+      workers: 1,
+    },
+  ],
+  work: 12,
+  charm: [{ category: 'comfort', value: 3, radius: 3 }],
   art: { kit: 'house', params: { kit: 'bath-house' } },
   tags: ['bath-house', 'warm'],
   requires: { rank: 'village' },
-  ...HIDDEN,
 };
 
 export const bellTower: BuildingDef = {

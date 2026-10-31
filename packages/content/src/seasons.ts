@@ -68,7 +68,7 @@ export const storm: WeatherDef = { id: 'storm', name: 'Storm', odds: [], effects
 
 export const circus: EventDef = {
   id: 'circus',
-  name: 'Travelling Circus',
+  name: 'Traveling Circus',
   season: 1,
   rank: 'village',
   odds: 0,

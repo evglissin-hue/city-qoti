@@ -13,6 +13,7 @@ import { emptyWarmth } from '../../state/seasons';
 import { seasonCardView, weatherView } from '../../view/seasons';
 import { seasonReportView } from '../../view/season';
 import { chronicle } from '../chronicle/api';
+import { endWinter } from '../warmth';
 import { dayIndex, hourOf } from '../economy/time';
 import { seasonNow } from './api';
 import { townFocus } from './place';
@@ -75,7 +76,7 @@ export function closeWinter(state: WorldState): void {
   ) {
     state.seasons.warmWinters += 1;
   }
-  for (const h of state.households) delete h.warmth;
+  endWinter(state);
 }
 
 export function freeze(state: WorldState, ctx: TickCtx): void {

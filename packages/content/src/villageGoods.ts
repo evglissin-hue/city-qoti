@@ -79,8 +79,8 @@ export const herbs: GoodDef = {
   category: 'material',
   basePrice: 100,
   carry: 4,
-  // I3 (C5A): picked spring to autumn and dried for the winter.
-  seasons: [1200, 1400, 1400, 0],
+  // I3 (C5A): picked spring to autumn; a little under glass in winter.
+  seasons: [1000, 1400, 1400, 200],
 };
 
 export const milk: GoodDef = {
