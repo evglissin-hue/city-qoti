@@ -7,16 +7,19 @@
 //          the festival (18:00 to 22:00), the season report.
 // Sowing, ripening and the harvest read the season table themselves (systems/production/fields).
 // It returns at once in sandbox valleys.
-import { DAYS_PER_SEASON, RIVER_FREEZE_DAY, TICKS_PER_HOUR } from '../../constants';
+import { DAYS_PER_SEASON, MAP_SIZE, RIVER_FREEZE_DAY, TICKS_PER_HOUR } from '../../constants';
 import type { System, TickCtx, WorldState } from '../../contracts';
 import { isStandard } from '../../state/hamlet';
 import { emptyWarmth } from '../../state/seasons';
 import { seasonCardView, weatherView } from '../../view/seasons';
 import { seasonReportView } from '../../view/season';
 import { chronicle } from '../chronicle/api';
+import { markChunks } from '../hearth/charm/dirty';
+import { SKATING_COMFORT } from '../hearth/charm/sources';
 import { endWinter } from '../warmth';
 import { dayIndex, hourOf } from '../economy/time';
 import { seasonNow } from './api';
+import { skatingSpots } from './place';
 import { spoil } from './spoilage';
 import { townFocus } from './place';
 
@@ -86,10 +89,23 @@ export function closeWinter(state: WorldState): void {
 
 export function freeze(state: WorldState, ctx: TickCtx): void {
   state.weather.river = { frozen: true, frozenTick: state.tick };
+  markSkatingCharm(state);
   ctx.events.push({ e: 'weather.updated', w: weatherView(state) });
 }
 
 export function thaw(state: WorldState, ctx: TickCtx): void {
+  // The spots are cached per freeze, so mark them before the river opens.
+  markSkatingCharm(state);
   state.weather.river = { frozen: false, frozenTick: -1 };
   ctx.events.push({ e: 'weather.updated', w: weatherView(state) });
+}
+
+/** The skating spots' little comfort comes and goes with the ice: recompute the chunks by them. */
+function markSkatingCharm(state: WorldState): void {
+  const r = SKATING_COMFORT.radius;
+  for (const t of skatingSpots(state)) {
+    const x = t % MAP_SIZE;
+    const z = (t - x) / MAP_SIZE;
+    markChunks(state, [x - r, z - r, x + r, z + r]);
+  }
 }

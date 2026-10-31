@@ -27,6 +27,7 @@ import {
   creditLimit,
   doorTile,
   loansOwed,
+  onFloodplain,
   PENNIES_PER_COIN,
   TILE_FP,
   townStock,
@@ -126,6 +127,8 @@ export class Planner {
   street: HighStreet | null = null;
   /** Days of food kept back from the peddler (C4C: a Village run keeps six, for the Charter). */
   foodReserveDays = 2;
+  /** C5A: set by the seasons advisor while a flood is forecast or running: new buildings keep off the floodplain. */
+  keepOffFloodplain = false;
   /**
    * C4X: defs that found no spot, and the day they last failed. A valley with no free river edge
    * left kept asking for a fishers' hut (154 times in a willow run) and never built the vegetable
@@ -207,7 +210,11 @@ export class Planner {
 
   /** The build queue: `def` at the first spot that fits (within `only`), with a path to the road. */
   build(def: string, only?: (x: number, z: number, w: number, d: number) => boolean): Building | null {
-    const spot = findSpot(this.w, def, only ? 60 : 40, only);
+    const ok = this.keepOffFloodplain
+      ? (x: number, z: number, w: number, d: number) =>
+          !onFloodplain(this.w, x, z, w, d) && (!only || only(x, z, w, d))
+      : only;
+    const spot = findSpot(this.w, def, only ? 60 : 40, ok);
     if (!spot) {
       this.actions.push(`no spot for ${def}`);
       if (!only) this.noSpot.set(def, calendar(this.w.tick).day);

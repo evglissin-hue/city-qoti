@@ -27,7 +27,7 @@ One row per cycle. A cycle is one agent session working from one brief on one br
 | C4X I2 integration and I3 planning | I2 | integration | `cycle-04x-integration.md` | C4A to C4F | done on `ccr-7441f212-64lp1y`; playtest sheet `docs/playtests/I2.md` |
 | C4P Roads and folk polish | I2 polish | alongside C5.0 | `cycle-04p-polish.md` | C4X | done on `claude/epic-hawking-e32pnd` (stairs, roads, folk looks and motions; screenshots `c4p-*`) |
 | C5.0 Seasons contracts | I3 | serial | `cycle-05-0-seasons-contracts.md` | C4X | done on `claude/epic-hawking-e32pnd`; wave notes in `i3-wave-notes.md` |
-| C5A Seasons, weather and the first winter | I3 | parallel | `cycle-05a-seasons-weather.md` | C5.0 | done on `claude/stoic-gauss-cshmwm` (see As built in the brief) |
+| C5A Seasons, weather and the first winter | I3 | parallel | `cycle-05a-seasons-weather.md` | C5.0 | merged into `main` (built on `claude/stoic-gauss-cshmwm`, finished on `claude/great-rubin-8f16hk`; see As built in the brief) |
 | C5B Festivals, renown, commissions and the River Dock | I3 | parallel | `cycle-05b-festivals-renown.md` | C5.0 | ready (C5.0 is done) |
 | C5C Nature, the Field Guide and Hearth craft | I3 | parallel | `cycle-05c-nature-field-guide.md` | C5.0 | ready (C5.0 is done) |
 | C5D Threats, defenses and the Watch | I3 | parallel | `cycle-05d-threats-watch.md` | C5.0 | ready (C5.0 is done) |

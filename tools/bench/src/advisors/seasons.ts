@@ -3,7 +3,8 @@
 // is short of ten days a household (pressing once autumn comes), it keeps eight days of food back
 // from the peddler from late spring to the thaw (nothing grows in winter), asks for vegetable plots
 // in summer and autumn while the larder is short of a winter, and a
-// Village with a dozen homes and the coins asks for a Bath House. It never places anything itself.
+// Village with a dozen homes and the coins asks for a Bath House. While a flood is forecast it tells
+// the planner to keep new buildings off the floodplain. It never places anything itself.
 import { calendar, larder, rankAtLeast, townStock, type WorldState } from '@qoti/sim';
 import { costOf, type Planner } from '../planner';
 import { count, G } from '../town';
@@ -22,6 +23,11 @@ export function firewoodInTown(w: WorldState): number {
   return n;
 }
 
+/** True from a flood's forecast until it ends. */
+export function floodInSight(w: WorldState): boolean {
+  return w.weather.events.some((e) => e.event === 'flood' && e.forecastTick <= w.tick && e.end > w.tick);
+}
+
 class Seasons implements Advisor {
   /** The food reserve before winter raised it, restored in spring. */
   private base: number | null = null;
@@ -33,6 +39,8 @@ class Seasons implements Advisor {
     const p = this.p;
     const w = p.w;
     const { season, day } = calendar(w.tick);
+    // Once a flood is forecast, and until it drains, nothing new goes on the floodplain.
+    p.keepOffFloodplain = floodInSight(w);
     const homes = w.households.length;
     const inSight = season >= 2 || (season === 1 && day >= 3);
     if (inSight && homes > 0 && firewoodInTown(w) < homes * WOOD_DAYS) {

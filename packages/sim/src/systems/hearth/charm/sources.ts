@@ -51,6 +51,8 @@ export const TYPE_COUNT = EXTRA + 3;
 export const WATER_VIEW = { value: 6, radius: 3 } as const;
 export const HEIGHT_VIEW = { value: 3, above: 4, window: 5 } as const;
 export const PATH_COMFORT = 1;
+/** I3 (C5A): the bank beside a skating spot while the river is frozen: a little comfort, close by. */
+export const SKATING_COMFORT = { value: 3, radius: 2 } as const;
 export const VARIETY = { per: 2, max: 10, radius: 3 } as const;
 export const CLUTTER = { over: 12, penalty: 5, radius: 2 } as const;
 export const ENCLOSURE = { bonus: 5, reach: 4, sides: 3 } as const;

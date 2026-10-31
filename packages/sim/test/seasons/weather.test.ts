@@ -3,9 +3,13 @@
 import { content } from '@qoti/content';
 import { describe, expect, it } from 'vitest';
 import {
+  AGENT_STRIDE,
+  AgentAnim,
+  AgentFlags,
   DAYS_PER_SEASON,
   MAP_SIZE,
   RIVER_FREEZE_DAY,
+  START_HOUR,
   TICKS_PER_DAY,
   TICKS_PER_HOUR,
 } from '../../src/constants';
@@ -19,6 +23,8 @@ import { isFlooded, isFrozen } from '../../src/systems/seasons/api';
 import { seasons, turnDay } from '../../src/systems/seasons';
 import { trees } from '../../src/systems/trees';
 import { handSawPermille } from '../../src/systems/seasons/river';
+import { skatingSpots } from '../../src/systems/seasons/place';
+import { recomputeDirty } from '../../src/systems/hearth/charm';
 import { wellPermille } from '../../src/systems/weather/effects';
 import {
   dayTick,
@@ -31,6 +37,8 @@ import {
   weatherDay,
 } from '../../src/systems/weather';
 import { dayIndex } from '../../src/systems/economy/time';
+import { agentFrame } from '../../src/view/agents';
+import { visitorCount, VISITOR_ID_BASE } from '../../src/view/season/visitors';
 import { placeFree, tickAt } from '../fixtures/seasonsPlace';
 import { villageFixture } from '../fixtures/village';
 import { expectMoneyInvariant, moneySnapshot } from '../money';
@@ -74,6 +82,24 @@ describe('the season turns', () => {
     state.tick = tickAt(1, 0, 1, 0) + 2;
     turnDay(state, createTickCtx(state));
     expect(isFrozen(state)).toBe(false);
+  });
+
+  it('gives the bank by each skating spot a little comfort while the ice holds', () => {
+    const { state } = villageFixture();
+    const comfortAt = (t: number) => state.map.charmComfort[t]!;
+    state.tick = tickAt(0, 3, RIVER_FREEZE_DAY, 0) + 2;
+    recomputeDirty(state, null);
+    const spot = skatingSpots(state)[0]!;
+    const before = comfortAt(spot);
+    turnDay(state, createTickCtx(state));
+    expect(isFrozen(state)).toBe(true);
+    expect(state.hearth.dirtyChunks.length).toBeGreaterThan(0);
+    recomputeDirty(state, null);
+    expect(comfortAt(spot)).toBeGreaterThan(before);
+    state.tick = tickAt(1, 0, 1, 0) + 2;
+    turnDay(state, createTickCtx(state));
+    recomputeDirty(state, null);
+    expect(comfortAt(spot)).toBe(before);
   });
 
   it('writes the first winter into the Chronicle', () => {
@@ -354,6 +380,54 @@ describe('events', () => {
     expect(state.chronicle.some((c) => c.kind === 'circus')).toBe(true);
     expect(state.residents[0]!.modifiers.some((m) => m.kind === 'circus')).toBe(true);
     expectMoneyInvariant(before, state);
+  });
+
+  it('circus visitors walk in from the gate for the evening and home again (view only)', () => {
+    const { state } = villageFixture();
+    state.hearth.sites = state.hearth.sites.filter((s) => s.pattern !== 'village-green');
+    const green = 60 * MAP_SIZE + 60;
+    state.hearth.sites.push({
+      pattern: 'village-green',
+      anchor: green,
+      members: [],
+      tiles: [],
+      seats: [0],
+      tick: 0,
+    });
+    const start = dayTick(24 + 8);
+    state.weather.events.push({
+      id: 90,
+      event: 'circus',
+      start,
+      end: start + TICKS_PER_DAY,
+      forecastTick: start,
+    });
+    const visitors = (hour: number) => {
+      state.tick = dayIndex(start) * TICKS_PER_DAY + Math.round((hour - START_HOUR) * TICKS_PER_HOUR);
+      const f = agentFrame(state);
+      const rows: number[][] = [];
+      for (let o = 0; o < f.length; o += AGENT_STRIDE)
+        if (f[o + 7]! & AgentFlags.visitor) rows.push([...f.subarray(o, o + AGENT_STRIDE)]);
+      return rows;
+    };
+    const [gx, gz] = state.meta.valleyGate;
+    expect(visitors(12)).toHaveLength(0);
+    // The first sets off from the gate in the afternoon, in time for the show at seven.
+    let first: number[][] = [];
+    for (let hour = 14; hour < 19 && first.length === 0; hour += 0.05) first = visitors(hour);
+    expect(first.length).toBeGreaterThan(0);
+    expect(Math.abs(first[0]![1]! - (gx + 0.5)) + Math.abs(first[0]![2]! - (gz + 0.5))).toBeLessThan(3);
+    // By half past eight they all stand round the green, a few tiles from its middle.
+    const show = visitors(20.5);
+    expect(show).toHaveLength(visitorCount(state.residents.length));
+    for (const r of show) {
+      expect(Math.abs(r[1]! - 60.5) + Math.abs(r[2]! - 60.5)).toBeLessThan(5);
+      expect(r[5]).toBe(AgentAnim.idle);
+      expect(r[0]).toBeGreaterThanOrEqual(VISITOR_ID_BASE);
+    }
+    // Gone by midnight, and nothing about the state changed.
+    expect(visitors(23.9)).toHaveLength(0);
+    expect(state.residents.every((r) => r.id < VISITOR_ID_BASE)).toBe(true);
   });
 
   it('an early frost halves the standing wheat when it starts', () => {

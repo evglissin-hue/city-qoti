@@ -9,6 +9,7 @@ import type { Cart, Resident, WorldState } from '../contracts';
 import { tickOfDay } from '../systems/residents/time';
 import { isSkating } from '../systems/seasons/river';
 import { moodBand } from './hamlet';
+import { writeVisitorRows } from './season/visitors';
 
 /** Headings for the four grid directions: +x, +z, -x, -z. */
 const HEAD_PX = Math.PI / 2;
@@ -74,6 +75,17 @@ export function agentFrame(state: WorldState): Float32Array {
     writeCartRow(scratch, n * AGENT_STRIDE, c, S, h);
     n++;
   }
+  // I3 (C5A): circus visitors walking in from the valley gate, view only.
+  const v = writeVisitorRows(state, scratch, n, (rows) => {
+    let size = scratch.length;
+    while (rows * AGENT_STRIDE > size) size *= 2;
+    const bigger = new Float32Array(size);
+    bigger.set(scratch);
+    scratch = bigger;
+    return scratch;
+  });
+  scratch = v.out;
+  n = v.n;
   return scratch.slice(0, n * AGENT_STRIDE);
 }
 
