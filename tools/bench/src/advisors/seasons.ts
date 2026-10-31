@@ -1,5 +1,5 @@
 // The seasons advisor (C5A): winter in sight, it asks the planner for what a town needs to get
-// through it. From summer it wants a chopping shed (one per ten homes, one more from autumn) while the woodpile
+// through it. From Summer day 3 it wants a chopping shed (one per twelve homes) while the woodpile
 // is short of ten days a household (pressing once autumn comes), it keeps eight days of food back
 // from the peddler from late spring to the thaw (nothing grows in winter), asks for vegetable plots
 // in summer and autumn while the larder is short of a winter, and a
@@ -34,10 +34,10 @@ class Seasons implements Advisor {
     const w = p.w;
     const { season, day } = calendar(w.tick);
     const homes = w.households.length;
-    const inSight = season >= 1;
+    const inSight = season >= 2 || (season === 1 && day >= 3);
     if (inSight && homes > 0 && firewoodInTown(w) < homes * WOOD_DAYS) {
       const sheds = count(w, 'chopping-shed');
-      if (sheds < 1 + Math.floor(homes / 10) + (season >= 2 ? 1 : 0)) {
+      if (sheds < 1 + Math.floor(homes / 12)) {
         p.propose({
           def: 'chopping-shed',
           priority: season >= 2 ? 4 : 2,
