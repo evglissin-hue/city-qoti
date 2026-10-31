@@ -24,6 +24,7 @@ import { benchEconomy } from './economy';
 import { growthBench } from './growth';
 import { benchMarket } from './market';
 import { syntheticValley } from './synthetic';
+import { seasonsBench } from './seasons.bench';
 import { villageBench } from './village.bench';
 
 const BUDGET = {
@@ -156,6 +157,10 @@ failures.push(...market.failures);
 const village = villageBench();
 lines.push(...village.lines);
 failures.push(...village.failures);
+// 10. Seasons (C5A): a day of the seasons, weather, warmth and trials passes at 150 residents.
+const seasons = seasonsBench();
+lines.push(...seasons.lines);
+failures.push(...seasons.failures);
 
 const heapMb = process.memoryUsage().heapUsed / 1024 / 1024;
 lines.push(`memory          ${heapMb.toFixed(0)} MB heap in use`);
@@ -184,6 +189,7 @@ const report = {
   growth,
   market: market.report,
   village: village.report,
+  seasons: seasons.report,
   heapMb,
   failures,
 };

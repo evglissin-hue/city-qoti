@@ -2,7 +2,7 @@
 // nights, storehouses keep it better, and a town that eats what it makes loses nothing.
 import { content } from '@qoti/content';
 import { describe, expect, it } from 'vitest';
-import { SPOIL_FLOOR, spoil } from '../../src/systems/seasons/spoilage';
+import { SPOIL_FLOOR, spoil, spoilKeep } from '../../src/systems/seasons/spoilage';
 import { villageFixture } from '../fixtures/village';
 
 const FISH = content.goodIndex.get('fish')!;
@@ -28,14 +28,15 @@ describe('spoilage', () => {
     clear(s, FISH);
     const store = s.buildings.find((b) => b.id === f.b.storehouses[0])!;
     const bakery = s.buildings.find((b) => b.id === f.b.bakery)!;
-    store.rt!.store[FISH] = 100;
-    bakery.rt!.output[FISH] = 100;
+    store.rt!.store[FISH] = 200;
+    bakery.rt!.output[FISH] = 200;
     s.economy.yesterday.consumed[FISH] = 5;
     const lost = spoil(s);
-    const keep = Math.max(SPOIL_FLOOR, 5 * 2);
-    const loss = Math.floor((200 - keep) / 2);
-    expect(bakery.rt!.output[FISH]).toBe(100 - Math.floor((loss * 100) / 200));
-    expect(store.rt!.store[FISH]).toBe(100 - (Math.floor((loss * 100) / 200) >> 1));
+    const keep = spoilKeep(s, FISH, 2);
+    expect(keep).toBeGreaterThanOrEqual(Math.max(SPOIL_FLOOR, s.residents.length * 2));
+    const loss = Math.floor((400 - keep) / 2);
+    expect(bakery.rt!.output[FISH]).toBe(200 - Math.floor((loss * 200) / 400));
+    expect(store.rt!.store[FISH]).toBe(200 - (Math.floor((loss * 200) / 400) >> 1));
     expect(lost[FISH]).toBeGreaterThan(0);
     // Wheat never spoils.
     expect(lost[WHEAT]).toBe(0);
@@ -46,11 +47,12 @@ describe('spoilage', () => {
     const s = f.state;
     clear(s, BREAD);
     const store = s.buildings.find((b) => b.id === f.b.storehouses[0])!;
-    store.rt!.store[BREAD] = 60;
     s.economy.yesterday.consumed[BREAD] = 20;
+    const keep = spoilKeep(s, BREAD, 3);
+    store.rt!.store[BREAD] = keep;
     for (const h of s.households) h.pantry[BREAD] = 4;
     spoil(s);
-    expect(store.rt!.store[BREAD]).toBe(60);
+    expect(store.rt!.store[BREAD]).toBe(keep);
     for (const h of s.households) expect(h.pantry[BREAD]).toBe(4);
   });
 });

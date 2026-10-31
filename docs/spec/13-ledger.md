@@ -27,7 +27,7 @@ The Ledger lane is a complete game (P1): space, flows, prices and budgets, with 
 
 Each good also has `carry` (units a porter carries: 4; a cart: 16) and optional `spoilsDays` [I3] (fish 2, bread 3, milk 2).
 
-*As built (C5A), spoilage*: no per-batch ages. Each night at 00:02, for each good with `spoilsDays` d, the town keeps what it eats in d days (yesterday's eating) plus a day's fresh supply, and at least 10 units; a town total above that loses a d-th of the excess, shared over the piles by size, half as much in storehouses. Pantries never spoil. A town eating what it makes loses nothing; a glut shrinks over a few nights. Wheat, flour and vegetables keep.
+*As built (C5A), spoilage*: no per-batch ages. Each night at 23:02, for each good with `spoilsDays` d, the town keeps what it eats in d days (yesterday's eating, or a unit a resident a day if that is more) plus a day's fresh supply, and at least 10 units; a town total above that loses a d-th of the excess, shared over the piles by size, half as much in storehouses. Pantries never spoil. A town eating what it makes loses nothing; a glut shrinks over a few nights. Wheat, flour and vegetables keep.
 
 *As built (C5A), the seasons of what grows* (`GoodDef.seasons`, permille of a gatherer's rate by season): vegetables 1000, 1300, 1000, 0; apples 400, 1000, 2600, 0; herbs 1000, 1400, 1400, 200. Fishers catch nothing while the river is frozen.
 

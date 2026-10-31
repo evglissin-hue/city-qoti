@@ -101,6 +101,6 @@ export function weatherLines(state: WorldState): { hearth: SeasonReportLine[]; l
       value: state.economy.season.produced[wheat] ?? 0,
     });
   }
-  ledger.push({ track: 'weather', text: 'Days of food in the larder.', value: larderDays(state) });
+  if (season >= 2) ledger.push({ track: 'weather', text: 'Days of food in the larder.', value: larderDays(state) });
   return { hearth, ledger };
 }
