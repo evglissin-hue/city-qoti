@@ -6,7 +6,8 @@
 //           (AgentFlags.cold), and the town counts cold household-days for the winter trial and
 //           Warm Hearths.
 // This is the winter basket's firewood line for every tier: a Hamlet (no market yet) takes it free
-// from the storehouses, a Village buys it at the till with buy() (so demand reaches the price).
+// from the storehouses, a Village buys it at the till with buy() (so demand reaches the price), and
+// a household on the slate (newcomers, nobody in work) takes what it cannot pay for, as at breakfast.
 // A Bath House within reach (and the herbalist's health cover) softens the cold; the bath house
 // takes a small fee from each household it serves (pay, category `fees`). Nobody is ever hurt
 // (P3): the worst of winter is a cold, cross household that may move away.
@@ -19,6 +20,7 @@ import { pay } from '../economy/money';
 import { dailyOffset, dayIndex } from '../economy/time';
 import { defOf, isStorage } from '../logistics/stores';
 import { buy, marketOpen } from '../market/api';
+import { onTheSlate } from '../market/baskets';
 import { doorTile } from '../movement/api';
 import { consume } from '../production/produce';
 import { announceHousehold } from '../residents/records';
@@ -88,9 +90,16 @@ export function fetchFirewood(state: WorldState, h: Household, to: number): numb
   if (g < 0) return 0;
   const want = to - (h.pantry[g] ?? 0);
   if (want <= 0) return 0;
-  if (marketOpen(state)) return buy(state, h.id, g, want);
-  const got = takeFree(state, g, want);
-  if (got > 0) h.pantry[g] = (h.pantry[g] ?? 0) + got;
+  let got = 0;
+  if (marketOpen(state)) {
+    got = buy(state, h.id, g, want);
+    // On the slate, as with breakfast: newcomers and households with nobody in work are not left
+    // cold for want of a coin.
+    if (got >= want || !onTheSlate(state, h)) return got;
+  }
+  const free = takeFree(state, g, want - got);
+  got += free;
+  if (free > 0) h.pantry[g] = (h.pantry[g] ?? 0) + free;
   return got;
 }
 
