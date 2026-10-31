@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest';
 import { START_HOUR, TICKS_PER_DAY, TICKS_PER_HOUR, WORK_HOURS } from '../../src/constants';
 import type { WorldState } from '../../src/contracts';
 import { hasInnovation } from '../../src/state/village';
+import { countsAsBuilt, hasBuilt } from '../../src/systems/innovations/api';
 import { updateInnovations } from '../../src/systems/innovations';
 import { carryOf, WHEELBARROW_CARRY } from '../../src/systems/logistics';
 import { createTickCtx } from '../../src/turn';
@@ -131,5 +132,22 @@ describe('innovations', () => {
     pass(state);
     expect(hasInnovation(state, 'water-wheel')).toBe(true);
     expect(state.hearth.unlocked).toContain('sawmill');
+  });
+});
+
+describe('requires.built', () => {
+  it('counts upgrades: a cottage that became a townhouse is still one of the four', () => {
+    expect(countsAsBuilt('cottage', 'cottage')).toBe(true);
+    expect(countsAsBuilt('townhouse', 'cottage')).toBe(true);
+    expect(countsAsBuilt('cottage', 'townhouse')).toBe(false);
+    expect(countsAsBuilt('farmhouse', 'cottage')).toBe(false);
+    const s = hamletFixture().state;
+    const cottages = s.buildings.filter((b) => b.def === 'cottage' && b.stage === 'built');
+    const need = cottages.length;
+    expect(hasBuilt(s, [['cottage', need]])).toBe(true);
+    cottages[0]!.def = 'townhouse';
+    expect(hasBuilt(s, [['cottage', need]])).toBe(true);
+    cottages[0]!.stage = 'construction';
+    expect(hasBuilt(s, [['cottage', need]])).toBe(false);
   });
 });

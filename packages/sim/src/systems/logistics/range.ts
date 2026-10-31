@@ -39,20 +39,35 @@ export function within(reach: Reach, tile: number): boolean {
   return d <= reach.radius;
 }
 
-/** True when some storehouse with porters reaches the tile (the "no porters" marker otherwise). */
+/**
+ * True when the storehouse has porters out working: some assigned, and not paused. A paused
+ * storehouse keeps its porters indoors, so it never adopts strays or takes relays; the doors in its
+ * own range wait for it (porterServed still counts it), as pausing it means.
+ */
+export function staffed(r: Reach): boolean {
+  return r.porters > 0 && !r.b.rt?.paused;
+}
+
+/**
+ * True when some storehouse with porters reaches the tile, paused or not: a door in a paused
+ * storehouse's range waits for it rather than being adopted by another.
+ */
 export function porterServed(reaches: readonly Reach[], tile: number): boolean {
   for (const r of reaches) if (r.porters > 0 && within(r, tile)) return true;
   return false;
 }
 
-/** The storehouse with porters nearest the tile (door to door), first in id order on ties. */
+/**
+ * The working storehouse nearest the tile (door to door), first in id order on ties. A paused one
+ * nearer still would adopt the door and never send anyone.
+ */
 export function nearestStaffed(reaches: readonly Reach[], tile: number): Reach | null {
   let best: Reach | null = null;
   let bestD = Infinity;
   const tx = tile % MAP_SIZE;
   const tz = (tile - tx) / MAP_SIZE;
   for (const r of reaches) {
-    if (r.porters === 0) continue;
+    if (!staffed(r)) continue;
     const x = r.door % MAP_SIZE;
     const d = Math.abs(x - tx) + Math.abs((r.door - x) / MAP_SIZE - tz);
     if (d < bestD) {
@@ -81,6 +96,6 @@ export function adoptStrays(reaches: readonly Reach[], doors: readonly number[])
  * with no porters at all leaves a building unserved.
  */
 export function porterReachable(reaches: readonly Reach[], _tile: number): boolean {
-  for (const r of reaches) if (r.porters > 0) return true;
+  for (const r of reaches) if (staffed(r)) return true;
   return false;
 }

@@ -44,7 +44,12 @@ export function gardenAt(state: WorldState, home: Building, within: number): Gar
   }
   const near = (rect: Rect) =>
     squareGap(rect, r) <= within || plots.some((p) => squareGap(rect, p) <= within);
-  // Grow the garden outward from the home until no plot is left within reach of it.
+  // Grow the garden outward from the home until no plot or herb planter is left within reach of
+  // it. Herbs join the same growth as built plots, so a planter that links a far plot (or a far
+  // planter) counts whatever order they were placed in.
+  const herbs = new Set<EntityId>();
+  let decor: ReturnType<typeof decorInRect> = [];
+  let queried: Rect | null = null;
   for (let grew = true; grew;) {
     grew = false;
     for (let i = 0; i < candidates.length; i++) {
@@ -55,25 +60,31 @@ export function gardenAt(state: WorldState, home: Building, within: number): Gar
       candidates.splice(i--, 1);
       grew = true;
     }
-  }
-  // Herb planters, and the fences just past the plots, within the garden's bounds.
-  let area = r;
-  for (const p of plots)
-    area = [
-      Math.min(area[0], p[0]),
-      Math.min(area[1], p[1]),
-      Math.max(area[2], p[2]),
-      Math.max(area[3], p[3]),
-    ];
-  const decor = decorInRect(state, expandRect(area, within + 4)).sort((a, b) => a.id - b.id);
-  for (const d of decor) {
-    if (!hasTag(d.def, 'herb')) continue;
-    const t = tileOf(d);
-    const x = t % S;
-    const z = (t - x) / S;
-    if (!near([x, z, x, z])) continue;
-    plots.push([x, z, x, z]);
-    members.push(d.id);
+    // Herb planters, and later the fences just past the plots, within the garden's bounds.
+    let area = r;
+    for (const p of plots)
+      area = [
+        Math.min(area[0], p[0]),
+        Math.min(area[1], p[1]),
+        Math.max(area[2], p[2]),
+        Math.max(area[3], p[3]),
+      ];
+    // The same bounds as the last pass find the same decor.
+    if (!queried || area.some((v, i) => v !== queried![i])) {
+      decor = decorInRect(state, expandRect(area, within + 4)).sort((a, b) => a.id - b.id);
+      queried = area;
+    }
+    for (const d of decor) {
+      if (herbs.has(d.id) || !hasTag(d.def, 'herb')) continue;
+      const t = tileOf(d);
+      const x = t % S;
+      const z = (t - x) / S;
+      if (!near([x, z, x, z])) continue;
+      plots.push([x, z, x, z]);
+      members.push(d.id);
+      herbs.add(d.id);
+      grew = true;
+    }
   }
   let fenced = 0;
   for (const d of decor) {

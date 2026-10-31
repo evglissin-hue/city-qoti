@@ -209,6 +209,19 @@ describe('Kitchen Garden', () => {
     expect(detect(w, 'kitchen-garden')).toHaveLength(1);
   });
 
+  it('a planter reached through another counts, whichever was placed first', () => {
+    for (const farFirst of [false, true]) {
+      const w = standardWorld();
+      build(w, 'cottage', 160, 80);
+      // The near planter is two tiles from the home; the far one only reaches it through the near one.
+      if (farFirst) decor(w, 'herb-planter', 165, 80);
+      decor(w, 'herb-planter', 163, 80);
+      if (!farFirst) decor(w, 'herb-planter', 165, 80);
+      colRun(w, 'hedge', 167, 80, 81);
+      expect(detect(w, 'kitchen-garden'), farFirst ? 'far planter first' : 'near first').toHaveLength(1);
+    }
+  });
+
   it('puts a little extra in the pantry each morning, while there is room', () => {
     const f = hamletFixture();
     const s = f.state;
@@ -473,6 +486,33 @@ describe('closest attempts (playtest round six)', () => {
     colRun(w, 'fence', 165, 80, 81);
     runPatterns(w, createTickCtx(w));
     expect(patternProgress(w).some((p) => p.pattern === 'kitchen-garden')).toBe(false);
+  });
+
+  it('counts tree paths as the detector does: a round reach, so a far corner is not a direction', () => {
+    const w = standardWorld();
+    tree(w, 140, 60);
+    decor(w, 'bench', 139, 60);
+    decor(w, 'bench', 141, 60);
+    // Two path tiles two across and two down: outside the round reach, so no direction yet.
+    road(w, 'path', 142, 62, 142, 62);
+    road(w, 'path', 138, 58, 138, 58);
+    expect(detect(w, 'tree-place')).toHaveLength(0);
+    const hint = patternProgress(w).find((p) => p.pattern === 'tree-place');
+    expect(hint?.wants.join(' ')).toContain('(0 now)');
+  });
+
+  it('splits a hedged lane at a long gap, as the detector does', () => {
+    const w = standardWorld();
+    road(w, 'lane', 110, 100, 121, 100);
+    // Two hedged stretches of two tiles, six bare tiles apart: no Hedgerow Lane.
+    for (const x0 of [110, 118]) {
+      rowRun(w, 'hedge', x0, x0 + 1, 99);
+      rowRun(w, 'hedge', x0, x0 + 1, 101);
+    }
+    expect(detect(w, 'hedgerow-lane')).toHaveLength(0);
+    const hint = patternProgress(w).find((p) => p.pattern === 'hedgerow-lane');
+    expect(hint?.wants.join(' ')).toContain('2 so far');
+    expect(hint?.wants.join(' ')).toContain('keep the gaps to 3 steps or fewer');
   });
 
   it('counts a plot two tiles across and one down from the house (the round six screenshot)', () => {

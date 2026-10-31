@@ -89,7 +89,10 @@ describe('relays between storehouses', () => {
       }
       toWork(state, porters);
       state.tick = 2 * TICKS_PER_HOUR;
-      ticks(state, 5 * TICKS_PER_HOUR);
+      // The new storehouse's two porters restock the market stalls with food first (one stall
+      // lies beyond every working storehouse's range: the paused one used to adopt it and leave it
+      // bare), then the windmill's wheat, then the site's planks.
+      ticks(state, 12 * TICKS_PER_HOUR);
       const planks = content.goodIndex.get('planks')!;
       expect(state.logistics.flows.some(([f, t]) => f === a.id && t === c.id)).toBe(true);
       expect(site.rt!.construction!.delivered[planks]).toBeGreaterThan(0);

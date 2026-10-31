@@ -2316,9 +2316,22 @@ ul.people-list {
 }
 
 /* A narrow lane (a small window, or a book and the inspector both open) keeps the icons and
-   numbers; each chip's tooltip still names its good. Ten chips with words run about 50rem. */
+   numbers; each chip's tooltip still names its good. A chip with its word runs about 5rem, so the
+   threshold follows how many chips the strip holds (fitClass in TopBar.tsx). */
 @container strip (max-width: 51rem) {
-  .stock-chip .stock-word {
+  .stock-strip.fit-l .stock-word {
+    display: none;
+  }
+}
+
+@container strip (max-width: 41rem) {
+  .stock-strip.fit-m .stock-word {
+    display: none;
+  }
+}
+
+@container strip (max-width: 26rem) {
+  .stock-strip.fit-s .stock-word {
     display: none;
   }
 }

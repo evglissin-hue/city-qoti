@@ -16,6 +16,20 @@ export function meetsRequires(state: WorldState, req: BuildingDef['requires'] | 
   return hasBuilt(state, req.built);
 }
 
+/**
+ * True when a building of def `have` counts as a `want` for `requires.built`: the same def, or one
+ * it upgrades into (a cottage that became a townhouse is still one of the four cottages the
+ * builder's yard asks for; counting only cottages locked the yard again as homes upgraded).
+ */
+export function countsAsBuilt(have: string, want: string): boolean {
+  let def: string | undefined = want;
+  for (let guard = 0; def && guard < 8; guard++) {
+    if (def === have) return true;
+    def = content.buildingById.get(def)?.upgradesTo?.def;
+  }
+  return false;
+}
+
 /** Playtest round six: every [def, count] in `built` has that many standing (built, not sites). */
 export function hasBuilt(
   state: WorldState,
@@ -24,7 +38,7 @@ export function hasBuilt(
   if (!built) return true;
   for (const [def, count] of built) {
     let n = 0;
-    for (const b of state.buildings) if (b.def === def && b.stage === 'built') n++;
+    for (const b of state.buildings) if (b.stage === 'built' && countsAsBuilt(b.def, def)) n++;
     if (n < count) return false;
   }
   return true;

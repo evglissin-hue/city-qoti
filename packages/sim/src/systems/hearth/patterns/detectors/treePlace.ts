@@ -1,7 +1,7 @@
 // Tree Place: a mature or ornamental big tree with 2+ benches within 1.5 tiles, and path tiles
 // leading off in 2+ directions within 2 tiles. Anchored on the tree's tile.
 import { MAP_SIZE, TILE_FP } from '../../../../constants';
-import type { EntityId } from '../../../../contracts';
+import type { EntityId, WorldState } from '../../../../contracts';
 import { TREE_MATURE, treeStage } from '../../../../map/layers';
 import {
   type Detector,
@@ -16,6 +16,43 @@ import {
 
 const S = MAP_SIZE;
 const HALF = TILE_FP / 2;
+
+/**
+ * Path tiles within `pathReach` of a tree's center (a round reach, from the trunk itself, so an
+ * ornamental tree off its tile's middle measures from where it stands), and how many directions
+ * (east, west, south, north) they lead off in. The Pattern Book's hint counts the same way.
+ */
+export function treePaths(
+  state: WorldState,
+  tx: number,
+  tz: number,
+  fx: number,
+  fz: number,
+  pathReach: number,
+): { directions: number; paths: number[] } {
+  const m = state.map;
+  let dirs = 0;
+  const paths: number[] = [];
+  const limit = (pathReach + 0.5) * (pathReach + 0.5);
+  for (let dz = -pathReach; dz <= pathReach; dz++) {
+    for (let dx = -pathReach; dx <= pathReach; dx++) {
+      const x = tx + dx;
+      const z = tz + dz;
+      if (x < 0 || z < 0 || x >= S || z >= S || !m.road[z * S + x]) continue;
+      const ox = (x * TILE_FP + HALF - fx) / TILE_FP;
+      const oz = (z * TILE_FP + HALF - fz) / TILE_FP;
+      if (ox * ox + oz * oz > limit) continue;
+      const ax = Math.abs(ox);
+      const az = Math.abs(oz);
+      if (ax < 0.5 && az < 0.5) continue;
+      dirs |= ax >= az ? (ox > 0 ? 1 : 2) : oz > 0 ? 4 : 8;
+      paths.push(z * S + x);
+    }
+  }
+  let n = 0;
+  for (let b = dirs; b; b &= b - 1) n++;
+  return { directions: n, paths };
+}
 
 export const treePlace: Detector = (state, def) => {
   const needBenches = param(def, 'benches', 2);
@@ -43,27 +80,7 @@ export const treePlace: Detector = (state, def) => {
     }
     if (benches.length < needBenches) continue;
 
-    // Path tiles around the tree, by the direction they lead off in (east, west, south, north).
-    let dirs = 0;
-    const paths: number[] = [];
-    const limit = (pathReach + 0.5) * (pathReach + 0.5);
-    for (let dz = -pathReach; dz <= pathReach; dz++) {
-      for (let dx = -pathReach; dx <= pathReach; dx++) {
-        const x = tx + dx;
-        const z = tz + dz;
-        if (x < 0 || z < 0 || x >= S || z >= S || !m.road[z * S + x]) continue;
-        const ox = (x * TILE_FP + HALF - fx) / TILE_FP;
-        const oz = (z * TILE_FP + HALF - fz) / TILE_FP;
-        if (ox * ox + oz * oz > limit) continue;
-        const ax = Math.abs(ox);
-        const az = Math.abs(oz);
-        if (ax < 0.5 && az < 0.5) continue;
-        dirs |= ax >= az ? (ox > 0 ? 1 : 2) : oz > 0 ? 4 : 8;
-        paths.push(z * S + x);
-      }
-    }
-    let n = 0;
-    for (let b = dirs; b; b &= b - 1) n++;
+    const { directions: n, paths } = treePaths(state, tx, tz, fx, fz, pathReach);
     if (n < needDirs) continue;
 
     const members = decor ? [decor, ...benches] : benches;
