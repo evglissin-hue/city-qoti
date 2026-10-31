@@ -490,7 +490,8 @@ input::placeholder {
 
 .side {
   position: absolute;
-  top: 70px;
+  /* Just under the top bar, whose bottom sits near 24px + 35px per unit of interface size. */
+  top: calc(35px + 35px * var(--ui-scale));
   width: 270px;
   display: grid;
   gap: 10px;
@@ -655,6 +656,12 @@ input::placeholder {
 
 .tool.band {
   margin-left: 10px;
+}
+
+/* The bar sizes to its narrowest fit, so a two-word label ("Cart lane") would break over two
+   lines and make the Ledger's bar taller than the Hearth's. */
+.tool .label {
+  white-space: nowrap;
 }
 
 .tool .icon {

@@ -2222,6 +2222,23 @@ li.plan.settled p {
   white-space: nowrap;
 }
 
+/* Whatever room is left goes to the speed note, which trims to an ellipsis (its tooltip keeps the
+   whole of it) rather than push Leave past the end of the bar ("Paused by you" did at 1024px, and
+   at 140% on a laptop). */
+.topbar-speed {
+  min-width: 0;
+}
+
+.topbar-speed .speed {
+  flex-shrink: 0;
+}
+
+.topbar .speed-note {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 @media (max-width: 1400px) {
   .topbar .season-chip {
     display: none;

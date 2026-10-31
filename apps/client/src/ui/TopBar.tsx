@@ -64,7 +64,7 @@ export function TopBar({ session, onLeave }: { session: Session; onLeave: () => 
           </button>
         ))}
         {note && (
-          <span class="speed-note" data-testid="speed-note">
+          <span class="speed-note" data-testid="speed-note" title={note}>
             {note}
           </span>
         )}

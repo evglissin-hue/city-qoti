@@ -44,6 +44,22 @@ describe('resident inspector', () => {
     ).toBeLessThanOrEqual(3);
   });
 
+  it('words shelter by whether the household has a home, not the number alone', () => {
+    const f = hamletFixture();
+    const clover = resident(f.state, f.residents[0]![0]!);
+    const shelter = (value: number) => {
+      clover.needs[2] = value;
+      return detail(f.state, clover.id).moodLines[2]!.label;
+    };
+    // Housed and still climbing toward full after a move: never "No roof".
+    expect(shelter(100)).toBe('A roof of their own');
+    expect(shelter(40)).toBe('Settling into the new place');
+    const household = f.state.households.find((h) => h.id === clover.householdId)!;
+    household.homeId = 0;
+    expect(shelter(70)).toBe('Between homes for now');
+    expect(shelter(10)).toBe('No roof to speak of');
+  });
+
   it('writes a bio and readable history', () => {
     const f = hamletFixture();
     const r = runner(f.state);

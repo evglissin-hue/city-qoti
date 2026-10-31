@@ -28,7 +28,10 @@ export function GameUI({ session, onLeave }: { session: Session; onLeave: () => 
         ))}
       <PresenceLabels session={session} />
       <TopBar session={session} onLeave={onLeave} />
-      <StockStrip session={session} />
+      {/* The lane is the gap between whatever is open on either side; the strip keeps to it. */}
+      <div class="strip-lane">
+        <StockStrip session={session} />
+      </div>
       {/* The left feed steps aside while a book is open, so only one thing talks at a time. */}
       {!book && (
         <aside class="side left">
