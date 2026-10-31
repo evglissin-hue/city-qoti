@@ -199,6 +199,9 @@ export const BuildingStatus = {
   upgrading: 2048,
   /** A cart shed with no cart road out. */
   noCartRoad: 4096,
+  // I3 (C5A)
+  /** A farm whose fields lie ready for the spring sowing (nothing sown or standing). */
+  fallow: 8192,
 } as const;
 
 // ---------------------------------------------------------------------------------------------

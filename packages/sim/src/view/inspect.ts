@@ -13,6 +13,7 @@ import type {
   WorldState,
 } from '../contracts';
 import { findById } from '../state/entities';
+import { seasonAt } from '../state/seasons';
 import { townReachesDoor } from '../state/reach';
 import { isBuildTime } from '../systems/economy/time';
 import { ARRIVAL_THRESHOLD } from '../systems/residents/lifecycle';
@@ -116,6 +117,14 @@ function statusLines(state: WorldState, b: Building, def: BuildingDef | undefine
   if (has(BuildingStatus.outputFull)) out.push('Output is piling up, waiting for a porter');
   if (has(BuildingStatus.noTrees)) out.push(`No mature trees within ${method?.range ?? 8} tiles`);
   if (has(BuildingStatus.noFields)) out.push('No fields painted yet');
+  // I3 (C5A)
+  if (has(BuildingStatus.fallow)) {
+    out.push(
+      seasonAt(state.tick).season === 3
+        ? 'The fields lie ready: wheat is sown on Spring days 1 to 3'
+        : 'Wheat is sown on Spring days 1 to 3; until then the fields grow vegetables',
+    );
+  }
   if (has(BuildingStatus.noRoad)) out.push('No road at the door');
   if (has(BuildingStatus.noPorters)) out.push('Nobody carries goods yet: a storehouse needs porters');
   else if (farFromStores(state, b, def)) {
@@ -177,7 +186,7 @@ function makersOf(state: WorldState, good: string): BuildingDef[] {
         d.methods?.some((m) => m.outputs.some(([o]) => o === good)) &&
         (!d.modes || d.modes.includes(state.settings.mode)) &&
         (!d.grows || d.grows.handPlaced) &&
-        meetsRequires(state, d.requires),
+        meetsRequires(state, d.requires, d.id),
     )
     .sort((a, b) => Number(!!a.requires) - Number(!!b.requires) || costSize(a) - costSize(b));
 }

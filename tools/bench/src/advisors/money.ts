@@ -7,6 +7,7 @@
 import { content } from '@qoti/content';
 import {
   basketScore,
+  calendar,
   creditLimit,
   expenses,
   income,
@@ -69,14 +70,19 @@ class Money implements Advisor {
     }
     if (!tradingPost(w)) return;
     const pop = w.residents.length;
+    // C5A: from late spring to the thaw the seasons advisor raises the food reserve; the book keeps
+    // a winter's food and buys a little in when the larder runs low in winter.
+    const winter = p.foodReserveDays >= 8;
+    const keep = winter ? pop * 6 + 10 : pop + 10;
+    const low = winter && calendar(w.tick).season === 3 ? pop : 0;
     // Sell what the town has plenty of; buy food only when the larder runs low.
     const book: [good: string, min: number, max: number][] = [
       // C4X: 60 planks in hand, not 30, so a tavern (24) or a townhouse can still be started.
       ['planks', 0, 60],
       ['logs', 0, 40],
-      ['bread', 0, pop + 10],
-      ['fish', 0, pop + 10],
-      ['vegetables', 0, pop + 10],
+      ['bread', low, keep],
+      ['fish', 0, keep],
+      ['vegetables', low, keep],
       ['apples', Math.ceil(pop / 4), 1000],
       // C4X: what the Village makes past its own needs pays for its upkeep, sites and loans:
       // cloth and cider beyond a few days' shelves, bricks beyond the next few buildings.

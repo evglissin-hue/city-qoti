@@ -20,6 +20,7 @@ import * as P from './patterns';
 import * as R from './roads';
 import * as SA from './seasonsAchievements';
 import * as SB from './seasonsBuildings';
+import * as SC from './seasonsChronicle';
 import * as SG from './seasonsGoods';
 import * as SP from './seasonsPatterns';
 import * as Se from './seasons';
@@ -101,6 +102,7 @@ export const buildings: readonly BuildingDef[] = [
   SB.gate,
   VB.herbGarden,
   VB.herbalist,
+  He.herbalistsCottage,
   B.house,
   B.marketStall,
   SB.netTrap,
@@ -311,7 +313,12 @@ export const achievements: readonly AchievementDef[] = [
 export const chronicle: readonly ChronicleTemplate[] = [
   C.achievement,
   L.birth,
+  SC.circus,
+  SC.coldSnap,
+  SC.firstFrost,
   C.firstOf,
+  SC.firstWinter,
+  SC.flood,
   C.founding,
   C.householdArrived,
   C.householdLeft,
@@ -322,6 +329,8 @@ export const chronicle: readonly ChronicleTemplate[] = [
   L.storyArrived,
   L.storyFinale,
   C.threatDial,
+  SC.trialFailed,
+  SC.trialPassed,
   L.wedding,
   C.wishesDigest,
 ];

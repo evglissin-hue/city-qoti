@@ -178,6 +178,8 @@ export function buildingLock(m: Mirror, def: BuildingDef): BuildingLock | null {
     const name = m.innovations.get(req.innovation)?.name ?? content.innovationById.get(req.innovation)?.name;
     return { kind: 'innovation', text: `Needs the ${name ?? req.innovation} innovation` };
   }
+  // I3 (C5A): a story's reward (Mother Thornbury's cottage).
+  if (req.story && !unlockedIds(m).has(def.id)) return { kind: 'innovation', text: 'A story will unlock it' };
   const missing: string[] = [];
   for (const [id, count] of req.built ?? []) {
     const have = builtCount(m, id);

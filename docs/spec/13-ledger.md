@@ -27,6 +27,10 @@ The Ledger lane is a complete game (P1): space, flows, prices and budgets, with 
 
 Each good also has `carry` (units a porter carries: 4; a cart: 16) and optional `spoilsDays` [I3] (fish 2, bread 3, milk 2).
 
+*As built (C5A), spoilage*: no per-batch ages. Each night at 23:02, for each good with `spoilsDays` d, the town keeps what it eats in d days (yesterday's eating, or a unit a resident a day if that is more) plus a day's fresh supply, and at least 10 units; a town total above that loses a d-th of the excess, shared over the piles by size, half as much in storehouses. Pantries never spoil. A town eating what it makes loses nothing; a glut shrinks over a few nights. Wheat, flour and vegetables keep.
+
+*As built (C5A), the seasons of what grows* (`GoodDef.seasons`, permille of a gatherer's rate by season): vegetables 1000, 1300, 1000, 0; apples 400, 1000, 2600, 0; herbs 1000, 1400, 1400, 200. Fishers catch nothing while the river is frozen.
+
 ## I1 buildings
 
 Costs, upkeep and outputs are *(tune)*. C3X tuned them against a headless pair of players (`npm run tune -w @qoti/bench`): cottages cost 16 planks and 6 stone and have no upkeep (homes pay their way in taxes), the sawpit makes 4 planks from 2 logs, the storehouse reaches 24 tiles, and the starting storehouse holds 50 planks and 30 stone. With those, a sensibly played valley reaches 20 to 40 residents in 18 in-game days (three evenings), most seeds 28 or more, without lean times or departures. Workers are adult or young residents. Production runs while workers are present during work hours, scaled by the fraction of workers present and their mood productivity.
@@ -40,7 +44,7 @@ Costs, upkeep and outputs are *(tune)*. C3X tuned them against a headless pair o
 | Forester's Lodge | 2x2 | 12 logs, 6 stone, 20 | 1 | 1 | plants 1 sapling per 2 h within 8 | |
 | Sawpit | 2x3 | 16 logs, 30 | 1 | 2 | 2 logs → 4 planks per 2 h | |
 | Quarry | 3x3 | 12 planks, 40 | 2 | 3 | 2 stone per 2 h per worker | 4+ stone deposit tiles in footprint |
-| Farmhouse | 2x2 | 16 planks, 6 stone, 30 | 1 | 3 | tends fields: 1 wheat per field tile per day, max 12 tiles per worker | |
+| Farmhouse | 2x2 | 16 planks, 6 stone, 30 | 1 | 3 | tends fields: about a year of 1 wheat per field tile per day, brought in at the harvest [I3], max 12 tiles per worker | |
 | Wheat Field | painted tiles within 6 of a farmhouse | 1 per tile | 0 | none | see farmhouse | fertility 15+ (40+ grows at full speed) |
 | Windmill | 2x2 | 24 planks, 12 stone, 50 | 2 | 1 | 3 wheat → 2 flour per h; +25% at height 4+ | |
 | Bakery | 2x2 | 20 planks, 16 stone, 50 | 2 | 2 | 2 flour → 5 bread per 2 h | |
@@ -63,6 +67,8 @@ How production runs [I1, C3C]:
 - Woodcutters fell the mature tree in range with the most trees around it (nearest on ties), so thick stands thin first and lone trees last. Foresters plant beside existing trees where they can, a tile clear of roads and buildings, in the neighbors' species.
 - Wheat fields: painted per tile within 6 tiles of the farmhouse footprint on fertility 15+, 12 tiles per job (36 per farmhouse); painting skips tiles that cannot be fields and is refused only when none can. Each farmer tends 12 tiles: tended tiles grow 4 points (of 255) per quarter hour of tending on good soil (40+), 3 on thin soil (25 to 39) and 2 on the thinnest (15 to 24), ripen in about two work days and yield 2 wheat, about 1 wheat per tile per day. The `crop` layer holds growth; patches go out when a tile crosses one of four drawn stages (bare, sprouts, green, golden). Tiles a road or building takes over stop being fields.
 - The first unit of a good ever made writes a "first of" line in the Chronicle.
+
+*As built (C5A), wheat through the year*: bare field tiles are sown on Spring days 1 to 3, grow on one tended step in four (a quarter slower on fair soil, half on thin) and turn golden at crop 192; from Autumn day 1 golden tiles are brought in, 2 wheat a tended step while the farmhouse has room, 5 crop a step (4 with the Seed Drill), so a fully ripe tile gives 26 wheat (32 with the drill): about what a year of I2's tending gave. Sheaves left standing keep through winter, harvested as room allows (the field is the granary), and are ploughed in at the next sowing; an early frost halves what still stands. A farm that missed the sowing grows vegetables on its bare rows until spring and says so (`BuildingStatus.fallow`); in winter its fields lie ready. Rain (+10%) and drought (-40% away from a well) speed or slow the tending. The inspector shows the year's wheat spread over its days.
 
 ## I2 buildings [C4C]
 
@@ -202,7 +208,7 @@ A Victoria-lite market (P30). Money circulates between the treasury and househol
 | Herbalist | I2 | health, 12 tiles | Craftsfolk need; clinic upgrade [I4] |
 | Tavern | I2 | social, 10 tiles | Craftsfolk need; evening leisure |
 | Watch House | I3 | safety | see `14-challenge.md` |
-| Bath House | I3 | warmth and health in winter | |
+| Bath House | I3 | warmth and health in winter | As built (C5A): 3x2, 45 coins, 18 planks, 12 stone, upkeep 2, 1 bath-keeper; health cover 12 tiles for 80 residents all year; homes in reach feel the cold far less (-7 instead of -15); burns a firewood every 4 hours; each household it serves pays half a coin a day (`fees`), which covers it at base prices with about twenty households |
 | Library, Theater, Post Office, Inn | I4 | culture, letters, tourism | Patron needs |
 
 Services as built [C4C]: a school, tavern or herbalist covers homes whose door lies within its radius of its own door while it is built, open and staffed, up to its capacity in residents who use it (grown-ups for the tavern, children for the school, everyone for the herbalist), each household going to the nearest one with room. Hourly (offset 110) the `social`, `health` and `education` needs move a quarter of the way toward 100 (covered), 60 (covered but out of cider or herbs) or 25 (none; education 45). Settlers do not have these needs (they stay at 100 and weigh nothing, so a Hamlet plays as in I1); Craftsfolk grown-ups weigh social and health at 10 each, their children health and education. The tavern is an evening leisure spot. Open services hire before other work and are never "stuck" for want of supplies.

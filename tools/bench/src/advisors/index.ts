@@ -6,6 +6,7 @@ import { charter } from './charter';
 import { hamlet } from './hamlet';
 import { hearth } from './hearth';
 import { money } from './money';
+import { seasons } from './seasons';
 import { street } from './street';
 import { together } from './together';
 import type { AdvisorDef } from './types';
@@ -19,6 +20,7 @@ export const advisors: readonly AdvisorDef[] = [
   hamlet,
   hearth,
   money,
+  seasons,
   street,
   together,
   village,

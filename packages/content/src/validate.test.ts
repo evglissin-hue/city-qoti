@@ -92,6 +92,7 @@ describe('content', () => {
         'farmstead',
         'herb-garden',
         'herbalist',
+        'herbalists-cottage',
         'orchard',
         'sawmill',
         'school',

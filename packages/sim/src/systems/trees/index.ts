@@ -2,6 +2,7 @@ import { MAP_SIZE, TICKS_PER_DAY } from '../../constants';
 import type { System } from '../../contracts';
 import { TREE_MATURE, treeStage } from '../../map/layers';
 import { isStandard } from '../../state/hamlet';
+import { seasonAt } from '../../state/seasons';
 import { markCharmDirty } from '../hearth/charm/dirty';
 
 /** Ticks between growth steps: two in-game days per stage, sapling (0) to mature (3). */
@@ -25,6 +26,8 @@ export const trees: System = {
     let x1 = -1;
     let z1 = -1;
     const standard = isStandard(state);
+    // I3 (C5A): trees rest in winter (standard valleys; sandbox trees keep growing).
+    if (standard && seasonAt(state.tick).season === 3) return;
     for (let i = 0; i < tree.length; i++) {
       const v = tree[i]!;
       if (!v || treeStage(v) >= TREE_MATURE) continue;

@@ -45,32 +45,89 @@ export const winter: SeasonDef = {
   festival: 'hearth-feast',
 };
 
-// --- Weather (alphabetical; C5A writes the odds) ----------------------------------------------
+// --- Weather (alphabetical; C5A) -------------------------------------------------------------
+// Odds are permille per day by season index (0 spring, 1 summer, 2 autumn, 3 winter); each
+// season's column adds up to 1000. Effects are permille: farm and well output, the share of folk
+// who still go out in the evening ('leisure'), each tile's walking ticks ('walk'), a storm's roofs.
 
-export const clear: WeatherDef = { id: 'clear', name: 'Clear', odds: [], effects: [] };
-export const cloudy: WeatherDef = { id: 'cloudy', name: 'Cloudy', odds: [], effects: [] };
-export const fog: WeatherDef = { id: 'fog', name: 'Fog', odds: [], effects: [['warning', 500]] };
-export const heat: WeatherDef = { id: 'heat', name: 'Heat', odds: [], effects: [['well', 800]] };
+export const clear: WeatherDef = {
+  id: 'clear',
+  name: 'Clear',
+  odds: [
+    [0, 350],
+    [1, 480],
+    [2, 300],
+    [3, 260],
+  ],
+  effects: [],
+};
+export const cloudy: WeatherDef = {
+  id: 'cloudy',
+  name: 'Cloudy',
+  odds: [
+    [0, 250],
+    [1, 160],
+    [2, 280],
+    [3, 240],
+  ],
+  effects: [],
+};
+export const fog: WeatherDef = {
+  id: 'fog',
+  name: 'Fog',
+  odds: [
+    [0, 70],
+    [2, 100],
+    [3, 100],
+  ],
+  effects: [['warning', 500]],
+};
+export const heat: WeatherDef = {
+  id: 'heat',
+  name: 'Heat',
+  odds: [[1, 120]],
+  effects: [['well', 800]],
+};
 export const rain: WeatherDef = {
   id: 'rain',
   name: 'Rain',
-  odds: [],
+  odds: [
+    [0, 300],
+    [1, 160],
+    [2, 250],
+  ],
   effects: [
     ['farm', 1100],
     ['leisure', 500],
   ],
 };
-export const snow: WeatherDef = { id: 'snow', name: 'Snow', odds: [], effects: [['walk', 700]] };
-export const storm: WeatherDef = { id: 'storm', name: 'Storm', odds: [], effects: [['roofs', 1]] };
+// Snow: 'walk' is permille of each tile's walking ticks (1300 is 30% slower).
+export const snow: WeatherDef = {
+  id: 'snow',
+  name: 'Snow',
+  odds: [[3, 350]],
+  effects: [['walk', 1300]],
+};
+export const storm: WeatherDef = {
+  id: 'storm',
+  name: 'Storm',
+  odds: [
+    [0, 30],
+    [1, 80],
+    [2, 70],
+    [3, 50],
+  ],
+  effects: [['roofs', 1]],
+};
 
-// --- Events (alphabetical; C5A writes the odds and durations) ---------------------------------
+// --- Events (alphabetical; C5A). Odds are the chance per season, permille, times the dial. ------
 
 export const circus: EventDef = {
   id: 'circus',
-  name: 'Travelling Circus',
+  name: 'Traveling Circus',
   season: 1,
   rank: 'village',
-  odds: 0,
+  odds: 600,
   forecastDays: [2, 2],
   durationDays: [1, 1],
   effects: [],
@@ -81,7 +138,7 @@ export const coldSnap: EventDef = {
   id: 'cold-snap',
   name: 'Cold Snap',
   season: 3,
-  odds: 0,
+  odds: 550,
   forecastDays: [1, 2],
   durationDays: [2, 2],
   effects: [['warmth', 2000]],
@@ -92,7 +149,7 @@ export const drought: EventDef = {
   id: 'drought',
   name: 'Drought',
   season: 1,
-  odds: 0,
+  odds: 400,
   forecastDays: [1, 2],
   durationDays: [2, 3],
   effects: [['farm', 600]],
@@ -103,7 +160,7 @@ export const earlyFrost: EventDef = {
   id: 'early-frost',
   name: 'Early Frost',
   season: 2,
-  odds: 0,
+  odds: 350,
   forecastDays: [1, 2],
   durationDays: [1, 1],
   effects: [['wheat', 500]],
@@ -114,7 +171,7 @@ export const flood: EventDef = {
   id: 'flood',
   name: 'Flood',
   season: 0,
-  odds: 0,
+  odds: 450,
   forecastDays: [1, 2],
   durationDays: [1, 2],
   effects: [['condition', 800]],

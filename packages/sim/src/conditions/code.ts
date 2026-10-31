@@ -3,6 +3,7 @@
 import { content } from '@qoti/content';
 import { MAP_SIZE } from '../constants';
 import type { Rect, WorldState } from '../contracts';
+import { seasonAt } from '../state/seasons';
 import { doorTileOf } from '../systems/movement/api';
 import { pavedDesireTiles } from '../systems/traffic/wear';
 import { decorInRect, decorTileX, decorTileZ, expandRect } from './geo';
@@ -74,6 +75,11 @@ export function desireLines(state: WorldState, _bind: Binding, params: readonly 
   return pavedDesireTiles(state) >= param(params, 'tiles', 12);
 }
 
+/** I3 (C5A): the season now is `index` (0 spring to 3 winter); stories time their arrivals by it. */
+export function seasonIs(state: WorldState, _bind: Binding, params: readonly [string, number][]): boolean {
+  return seasonAt(state.tick).season === param(params, 'index', 0);
+}
+
 /** A road route from home to work: door to door without setting foot on grass. */
 export function pathRoute(state: WorldState, bind: Binding): boolean {
   return commute(state, bind, true) !== null;
@@ -90,6 +96,7 @@ export const codePredicates: ReadonlyMap<string, CodePredicate> = new Map<string
   ['portersBusy', portersBusy],
   ['rankAtLeast', rankAtLeastCode],
   ['sawpitByRiver', sawpitByRiver],
+  ['seasonIs', seasonIs],
   ['stoneRate', stoneRate],
   ['storyStep', storyStep],
 ]);

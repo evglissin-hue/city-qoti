@@ -7,6 +7,7 @@
 import { AGENT_STRIDE, AgentAnim, AgentFlags, MAP_SIZE, ResidentFlags, TICKS_PER_HOUR } from '../constants';
 import type { Cart, Resident, WorldState } from '../contracts';
 import { tickOfDay } from '../systems/residents/time';
+import { isSkating } from '../systems/seasons/river';
 import { moodBand } from './hamlet';
 
 /** Headings for the four grid directions: +x, +z, -x, -z. */
@@ -38,9 +39,17 @@ export function agentFrame(state: WorldState): Float32Array {
   const h = state.map.height;
   const night = isNight(state.tick);
   const standing = new Map<number, number>();
+  // I3 (C5A): cold households show a shiver, and skaters skate.
+  let cold: Set<number> | null = null;
+  for (const hh of state.households)
+    if (hh.warmth && hh.warmth.coldHours > 0) (cold ??= new Set()).add(hh.id);
+  const frozen = state.weather.river.frozen;
   let n = 0;
   for (const r of state.residents) {
     if (r.inside) continue;
+    let extra = 0;
+    if (cold?.has(r.householdId)) extra |= AgentFlags.cold;
+    if (frozen && r.activity.kind === 'leisure' && isSkating(state, r)) extra |= AgentFlags.skating;
     if ((n + 1) * AGENT_STRIDE > scratch.length) {
       const bigger = new Float32Array(scratch.length * 2);
       bigger.set(scratch);
@@ -51,7 +60,7 @@ export function agentFrame(state: WorldState): Float32Array {
       crowd = standing.get(r.tile) ?? 0;
       standing.set(r.tile, crowd + 1);
     }
-    writeRow(scratch, n * AGENT_STRIDE, r, S, h, crowd, night);
+    writeRow(scratch, n * AGENT_STRIDE, r, S, h, crowd, night, extra);
     n++;
   }
   // I2 (C4.0): carts out on the roads, as rows with anim `cart` and their first load good.
@@ -157,6 +166,7 @@ function writeRow(
   h: Uint8Array,
   crowd: number,
   night: boolean,
+  extra = 0,
 ): void {
   const x0 = r.tile % S;
   const z0 = Math.floor(r.tile / S);
@@ -205,7 +215,7 @@ function writeRow(
     }
   }
   const band = moodBand(r.mood);
-  let flags = 0;
+  let flags = extra;
   if (r.wishId) flags |= AgentFlags.wish;
   if (band >= 4) flags |= AgentFlags.happy;
   if (band <= 1) flags |= AgentFlags.unhappy;

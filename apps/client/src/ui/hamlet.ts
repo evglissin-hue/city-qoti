@@ -47,6 +47,7 @@ export const STATUS_WORDS: [bit: number, text: string][] = [
   [BuildingStatus.waitingBuilders, 'Waiting for builders'],
   [BuildingStatus.noTrees, 'No mature trees in reach'],
   [BuildingStatus.noFields, 'No fields to tend'],
+  [BuildingStatus.fallow, 'Fields lie ready for spring'],
 ];
 
 /** Status bits that mean a building is idle (the Ledger's idle alerts). */

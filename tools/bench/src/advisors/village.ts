@@ -13,6 +13,7 @@
 import { content } from '@qoti/content';
 import {
   BuildingStatus,
+  calendar,
   TILE_FP,
   canPlaceBuilding,
   canPlaceDecor,
@@ -329,7 +330,11 @@ class Village implements Advisor {
     const homes = w.households.length;
     for (const b of w.buildings) {
       if (b.def !== 'chopping-shed' || b.stage !== 'built' || !b.rt) continue;
-      const rest = b.rt.paused ? firewood >= homes * 2 : firewood >= Math.max(40, homes * 5);
+      // C5A: from autumn the woodpile has a winter to see through (pantries hold four days each).
+      const winter = calendar(w.tick).season >= 2 ? 2 : 1;
+      const rest = b.rt.paused
+        ? firewood >= homes * 2 * winter
+        : firewood >= Math.max(40, homes * 5 * winter);
       if (b.rt.paused !== rest)
         this.p.do(rest ? 'rest the chopping shed' : 'reopen the chopping shed', [
           { t: 'build.setPaused', id: b.id, paused: rest },

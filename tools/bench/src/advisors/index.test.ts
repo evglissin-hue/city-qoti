@@ -12,6 +12,15 @@ describe('the advisors', () => {
   it('visit in distinct slots, in the I2 order', () => {
     const order = [...advisors].sort((a, b) => a.slot - b.slot).map((a) => a.id);
     expect(new Set(advisors.map((a) => a.slot)).size).toBe(advisors.length);
-    expect(order).toEqual(['village', 'street', 'charter', 'money', 'hamlet', 'hearth', 'together']);
+    expect(order).toEqual([
+      'village',
+      'street',
+      'charter',
+      'money',
+      'hamlet',
+      'seasons',
+      'hearth',
+      'together',
+    ]);
   });
 });

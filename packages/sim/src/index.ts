@@ -197,3 +197,5 @@ export {
 } from './systems/seasons/api';
 export { habitatAt, hasSpecies, pestLoss, pollinatorFactor } from './systems/habitats/api';
 export { deterrenceAt, isRaidActive, lanternLit, watchStrength, wealth } from './systems/threats/api';
+// I3 (C5A): the winter stores, for the autoplayer and the tuner.
+export { larder } from './systems/seasons/stores';

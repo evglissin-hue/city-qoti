@@ -77,7 +77,13 @@ export interface BuildingDef {
    * `built`, buildings the town must have standing first ([def, how many]), so a hamlet opens up
    * one chain at a time instead of offering everything on day one.
    */
-  requires?: { rank?: RankName; innovation?: string; built?: [def: string, count: number][] };
+  requires?: {
+    rank?: RankName;
+    innovation?: string;
+    built?: [def: string, count: number][];
+    /** I3 (C5A): only once a story's reward has unlocked it (hearth.unlocked holds the def id). */
+    story?: boolean;
+  };
   // I3 additions (C5.0).
   /** Defense pieces (docs/spec/14-challenge.md, Defenses; C5D fills the numbers). */
   defense?: DefenseDef;
@@ -247,6 +253,11 @@ export interface GoodDef {
   food?: boolean;
   /** Spoils after this many days [I3]. */
   spoilsDays?: number;
+  /**
+   * I3 (C5A): how much of it grows each season (spring, summer, autumn, winter), permille of the
+   * gatherer's rate. Absent: the same all year.
+   */
+  seasons?: [spring: number, summer: number, autumn: number, winter: number];
   /** Art kit for carried bundles and stock piles (packages/art). */
   art?: ArtRef;
 }
@@ -754,7 +765,7 @@ export interface WeatherDef {
   name: string;
   /** Chance per day by season index, permille. */
   odds: [season: number, chance: Permille][];
-  /** Named effects the systems read: ['farm', 1100], ['leisure', 500], ['walk', 700]. */
+  /** Named effects the systems read: ['farm', 1100], ['leisure', 500], ['walk', 1300] (snow: permille of tile ticks). */
   effects: [name: string, factor: Permille][];
 }
 
