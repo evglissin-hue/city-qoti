@@ -186,7 +186,7 @@ function makersOf(state: WorldState, good: string): BuildingDef[] {
         d.methods?.some((m) => m.outputs.some(([o]) => o === good)) &&
         (!d.modes || d.modes.includes(state.settings.mode)) &&
         (!d.grows || d.grows.handPlaced) &&
-        meetsRequires(state, d.requires),
+        meetsRequires(state, d.requires, d.id),
     )
     .sort((a, b) => Number(!!a.requires) - Number(!!b.requires) || costSize(a) - costSize(b));
 }

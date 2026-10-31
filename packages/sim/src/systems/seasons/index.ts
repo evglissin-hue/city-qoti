@@ -3,6 +3,7 @@
 //   00:02  the season turns over on day 1: the season card (season.started), the winter counters
 //          open on Winter day 1 and close (Warm Hearths) on Spring day 1; the river freezes on
 //          Winter day RIVER_FREEZE_DAY and thaws on Spring day 1.
+//          Each night: fish, bread and milk spoil by the cheap rule in spoilage.ts.
 //   23:02  on the season's last day, after the festival (18:00 to 22:00): the season report.
 // Sowing, ripening and the harvest read the season table themselves (systems/production/fields).
 // It returns at once in sandbox valleys.
@@ -16,6 +17,7 @@ import { chronicle } from '../chronicle/api';
 import { endWinter } from '../warmth';
 import { dayIndex, hourOf } from '../economy/time';
 import { seasonNow } from './api';
+import { spoil } from './spoilage';
 import { townFocus } from './place';
 
 export const SEASONS_OFFSET = 2;
@@ -42,6 +44,7 @@ function report(state: WorldState, ctx: TickCtx): void {
 /** 00:02: what the new day brings the season and the river. */
 export function turnDay(state: WorldState, ctx: TickCtx): void {
   const { season, year, day } = seasonNow(state);
+  spoil(state);
   if (day === 1) startSeason(state, ctx, season, year);
   if (season === 3 && day === RIVER_FREEZE_DAY && !state.weather.river.frozen) freeze(state, ctx);
   // A valley that missed the freeze day (loaded late in winter) still freezes.

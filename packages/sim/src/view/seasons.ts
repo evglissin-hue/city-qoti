@@ -29,6 +29,7 @@ import type {
 } from '../contracts';
 import { seasonAt } from '../state/seasons';
 import { dayIndex } from '../systems/economy/time';
+import { weatherCardLines } from './season/weather';
 
 const goodId = (i: number): string => content.goods[i]?.id ?? '';
 const tileXZ = (t: number): [number, number] => [t % MAP_SIZE, Math.floor(t / MAP_SIZE)];
@@ -103,6 +104,8 @@ export function seasonCardView(state: WorldState): SeasonCardView {
     const def = content.charterById.get(state.trial.charter)?.trial;
     if (def) steps.push(def.blurb);
   }
+  // C5A: from autumn on, the larder and the woodpile against the winter ahead.
+  steps.push(...weatherCardLines(state));
   return {
     season: season as SeasonIndex,
     year,

@@ -13,6 +13,7 @@ import { unlockInnovation } from '../../src/systems/innovations/api';
 import { morningPass } from '../../src/systems/residents/lifecycle';
 import { advanceStories, SETTLE_TICKS, STEP_GAP, stories } from '../../src/systems/stories';
 import { createTickCtx, type SimCtx } from '../../src/turn';
+import { tickAt } from '../fixtures/seasonsPlace';
 import { villageFixture, type VillageFixture } from '../fixtures/village';
 import { expectMoneyInvariant, moneySnapshot } from '../money';
 import {
@@ -55,6 +56,26 @@ const SATISFY: Record<string, ((t: Scene) => void)[]> = {
     },
     ({ s, ctx }) => {
       unlockInnovation(s, ctx, 'wheelbarrows');
+    },
+  ],
+  // C5A: Mother Thornbury's winter lessons.
+  herbalist: [
+    ({ s }) => {
+      insertBuilding(s, null, content.buildingById.get('herb-garden')!, 116, 60, 0, 0, { site: false });
+    },
+    ({ s, f }) => {
+      findById(s.buildings, f.b.storehouses[0])!.rt!.store[content.goodIndex.get('firewood')!] = 60;
+    },
+    ({ s }) => {
+      insertBuilding(s, null, content.buildingById.get('bath-house')!, 116, 66, 0, 0, { site: false });
+    },
+    ({ s, f }) => {
+      insertBuilding(s, null, content.buildingById.get('chopping-shed')!, 122, 60, 0, 0, { site: false });
+      insertBuilding(s, null, content.buildingById.get('chopping-shed')!, 122, 66, 0, 0, { site: false });
+      findById(s.buildings, f.b.storehouses[0])!.rt!.store[content.goodIndex.get('firewood')!] = 100;
+    },
+    ({ s }) => {
+      insertBuilding(s, null, content.buildingById.get('herbalist')!, 116, 72, 0, 0, { site: false });
     },
   ],
   merchant: [
@@ -172,6 +193,8 @@ describe('story arcs', () => {
           return { x: b.x, z: b.z };
         };
         const scene: Scene = { f, s, ctx, home };
+        // C5A: Mother Thornbury comes in the autumn.
+        if (arc.id === 'herbalist') s.tick = tickAt(1, 2, 2, 8);
         skipToHour(s, 10);
 
         // Arrival: a household of one, marked as a story character, and the hello letter.

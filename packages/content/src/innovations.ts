@@ -74,20 +74,32 @@ export const wheelbarrows: InnovationDef = {
 // --- I3 (C5.0). Stubs: conditions stay unreachable (rank 99) and `rank: 'town'` keeps them out of
 // the Village notebook until their owners write them (Barometer C5A, Seed Drill C5A).
 
+// C5A: a Watch House and a bell tower (the spec's "Town Hall upgrade", as the wave notes read it).
 export const barometer: InnovationDef = {
   id: 'barometer',
   name: 'Barometer',
   blurb: 'A glass that knows the weather two days before the weather does.',
-  condition: { count: { what: 'rank', atLeast: 99 } },
+  condition: {
+    all: [
+      { count: { what: 'buildings', ref: 'watch-house', atLeast: 1 } },
+      { count: { what: 'buildings', ref: 'bell-tower', atLeast: 1 } },
+    ],
+  },
   unlocks: ['forecast-days-2'],
-  rank: 'town',
+  rank: 'village',
 };
 
+// C5A: three farms and a smithy to make the drills.
 export const seedDrill: InnovationDef = {
   id: 'seed-drill',
   name: 'Seed Drill',
   blurb: 'Seeds in straight rows, at the right depth, and no more feeding the crows.',
-  condition: { count: { what: 'rank', atLeast: 99 } },
+  condition: {
+    all: [
+      { count: { what: 'buildings', ref: 'farmhouse', atLeast: 3 } },
+      { count: { what: 'buildings', ref: 'smithy', atLeast: 1 } },
+    ],
+  },
   unlocks: ['wheat-yield-120'],
-  rank: 'town',
+  rank: 'village',
 };

@@ -63,7 +63,8 @@ describe('I3 fixtures', () => {
     expect(watchView(s).members).toHaveLength(4);
     expect(hasSpecies(s, 'kingfisher')).toBe(true);
     expect(seasonCardView(s)).toMatchObject({ season: 3, year: 1, festival: { id: 'hearth-feast' } });
-    expect(seasonCardView(s).steps).toHaveLength(1);
+    // C5A: the trial's line first, then the winter stores.
+    expect(seasonCardView(s).steps[0]).toBe(content.charterById.get('village')!.trial!.blurb);
     expect(renownView(s)).toMatchObject({ level: 1, next: 30 });
     expect(festivalMorale(s)).toBe(5);
     // Smoke: it builds every view and keeps going for a few hours.

@@ -77,7 +77,13 @@ export interface BuildingDef {
    * `built`, buildings the town must have standing first ([def, how many]), so a hamlet opens up
    * one chain at a time instead of offering everything on day one.
    */
-  requires?: { rank?: RankName; innovation?: string; built?: [def: string, count: number][] };
+  requires?: {
+    rank?: RankName;
+    innovation?: string;
+    built?: [def: string, count: number][];
+    /** I3 (C5A): only once a story's reward has unlocked it (hearth.unlocked holds the def id). */
+    story?: boolean;
+  };
   // I3 additions (C5.0).
   /** Defense pieces (docs/spec/14-challenge.md, Defenses; C5D fills the numbers). */
   defense?: DefenseDef;
