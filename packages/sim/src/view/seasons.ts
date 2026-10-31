@@ -50,7 +50,10 @@ export function weatherView(state: WorldState): WeatherView {
   return {
     today: w.today,
     forecast: w.forecast.map((d) => [d.day, d.kind]),
-    events: w.events.filter((v) => v.forecastTick <= state.tick).map((v) => weatherEventView(state, v)),
+    // C5A: the latest of each event is kept after it ends; the view shows those to come or on.
+    events: w.events
+      .filter((v) => v.forecastTick <= state.tick && v.end > state.tick)
+      .map((v) => weatherEventView(state, v)),
     frozen: w.river.frozen,
   };
 }
