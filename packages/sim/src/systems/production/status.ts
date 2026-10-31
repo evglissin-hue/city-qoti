@@ -11,7 +11,7 @@ import { doorTile } from '../movement/api';
 import { porterReachable, storehouseReach, type Reach } from '../logistics/range';
 import { defOf, isMarket, outputCap } from '../logistics/stores';
 import { cartShedStatus } from '../logistics/carts';
-import { CROP_YIELD, ownedFields } from './fields';
+import { CROP_YIELD, isFallow, ownedFields } from './fields';
 import { countMatureTrees, FORESTRY_RANGE } from './forestry';
 import { DISREPAIR_CONDITION } from './produce';
 
@@ -117,6 +117,8 @@ export function computeStatus(
     s |= BuildingStatus.noTrees;
   }
   if (method.kind === 'farm' && ownedFields(state, b, def) === 0) s |= BuildingStatus.noFields;
+  // I3 (C5A): sown only in spring; until then the fields lie ready.
+  if (method.kind === 'farm' && isFallow(state, b, def)) s |= BuildingStatus.fallow;
   return s;
 }
 

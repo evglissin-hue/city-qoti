@@ -5,6 +5,9 @@
 // Felling and planting are never modified.
 import type { BuildingDef, ProductionMethod } from '@qoti/content';
 import type { Building, WorldState } from '../../contracts';
+import { seasonalGrowth } from '../seasons/growing';
+import { frozenRiver } from '../seasons/river';
+import { farmWeather } from '../weather/effects';
 import { soilYield } from './soil';
 
 export type YieldModifier = (
@@ -17,7 +20,10 @@ export type YieldModifier = (
 // Registry: one line per source, alphabetical by id.
 // prettier-ignore
 export const yieldModifiers: readonly [id: string, modifier: YieldModifier][] = [
+  ['frozen-river', frozenRiver],
+  ['seasonal', seasonalGrowth],
   ['soil', soilYield],
+  ['weather', farmWeather],
 ];
 
 let extra: readonly [string, YieldModifier][] = [];

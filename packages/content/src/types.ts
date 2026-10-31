@@ -247,6 +247,11 @@ export interface GoodDef {
   food?: boolean;
   /** Spoils after this many days [I3]. */
   spoilsDays?: number;
+  /**
+   * I3 (C5A): how much of it grows each season (spring, summer, autumn, winter), permille of the
+   * gatherer's rate. Absent: the same all year.
+   */
+  seasons?: [spring: number, summer: number, autumn: number, winter: number];
   /** Art kit for carried bundles and stock piles (packages/art). */
   art?: ArtRef;
 }
@@ -754,7 +759,7 @@ export interface WeatherDef {
   name: string;
   /** Chance per day by season index, permille. */
   odds: [season: number, chance: Permille][];
-  /** Named effects the systems read: ['farm', 1100], ['leisure', 500], ['walk', 700]. */
+  /** Named effects the systems read: ['farm', 1100], ['leisure', 500], ['walk', 1300] (snow: permille of tile ticks). */
   effects: [name: string, factor: Permille][];
 }
 

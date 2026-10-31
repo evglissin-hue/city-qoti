@@ -3,16 +3,10 @@
 // does not (it varies by who turns up).
 import type { BuildingDef } from '@qoti/content';
 import { content } from '@qoti/content';
-import { TICKS_PER_HOUR, WORK_HOURS } from '../../constants';
+import { DAYS_PER_YEAR, WORK_HOURS } from '../../constants';
 import type { Building, WorldState } from '../../contracts';
-import {
-  CROP_GROWTH,
-  CROP_RIPE,
-  CROP_STEP_TICKS,
-  CROP_YIELD,
-  FIELD_TILES_PER_WORKER,
-  ownedFields,
-} from './fields';
+import { hasInnovation } from '../../state/village';
+import { DRILL_STEP, FIELD_TILES_PER_WORKER, HARVEST_STEP, ownedFields, tileHarvest } from './fields';
 import { yieldPermille } from './modifiers';
 import { conditionPercent, heightPercent } from './produce';
 
@@ -36,10 +30,13 @@ export function dailyRates(state: WorldState, b: Building, def: BuildingDef): Da
     ((conditionPercent(rt) * heightPercent(state, b, def, method)) / 10000) *
     (yieldPermille(state, b, def, method) / 1000);
   if (method.kind === 'farm') {
+    // I3 (C5A): one harvest a year, shown as the year's wheat spread over its days (rain and
+    // drought change how far the wheat gets by the harvest, not this).
     const tiles = Math.min(ownedFields(state, b, def), FIELD_TILES_PER_WORKER * Math.max(1, method.workers));
-    const stepsPerDay = (WORK_DAY_HOURS * TICKS_PER_HOUR) / CROP_STEP_TICKS;
-    const perTile = (CROP_YIELD * stepsPerDay * CROP_GROWTH) / (CROP_RIPE + 1);
-    return { inputs: [], outputs: method.outputs.map(([g]) => [g, tenth(tiles * perTile * scale)]) };
+    const bite = hasInnovation(state, 'seed-drill') ? DRILL_STEP : HARVEST_STEP;
+    const perTile = tileHarvest(bite) / DAYS_PER_YEAR;
+    const cond = (conditionPercent(rt) * heightPercent(state, b, def, method)) / 10000;
+    return { inputs: [], outputs: method.outputs.map(([g]) => [g, tenth(tiles * perTile * cond)]) };
   }
   const cycles =
     (WORK_DAY_HOURS / method.hours) * (method.perWorker ? Math.max(1, method.workers) : 1) * scale;

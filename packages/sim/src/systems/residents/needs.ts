@@ -10,6 +10,7 @@ import { modifierValue } from './api';
 import { averageAround, tasteScore } from './desirability';
 import { walkGrid } from '../movement/grid';
 import { weightsOf } from '../services/weights';
+import { wellPermille } from '../weather/effects';
 import { doorOf, tileX, tileZ, wellsOf } from './places';
 import { marketOpen } from '../market/api';
 import { announceHousehold } from './records';
@@ -85,7 +86,9 @@ export function waterServed(state: WorldState): Set<number> {
     if (b.stage !== 'built') continue;
     const cov = content.buildingById.get(b.def)?.coverage?.find((c) => c.kind === 'water');
     if (!cov) continue;
-    wells.push({ door: doorOf(state, b.id), x: b.x, z: b.z, r: cov.radius, left: cov.capacity ?? 30 });
+    // I3 (C5A): heat takes a fifth off every well's capacity.
+    const left = Math.floor(((cov.capacity ?? 30) * wellPermille(state)) / 1000);
+    wells.push({ door: doorOf(state, b.id), x: b.x, z: b.z, r: cov.radius, left });
   }
   const served = new Set<number>();
   if (wells.length === 0) return served;
@@ -141,10 +144,11 @@ let keyScratch = new Int32Array(64);
 function servedNow(state: WorldState): Set<number> {
   const hs = state.households;
   const wells = wellsOf(state);
-  const n = 1 + hs.length * 3 + wells.length * 2;
+  const n = 2 + hs.length * 3 + wells.length * 2;
   if (keyScratch.length < n) keyScratch = new Int32Array(n * 2);
   let k = 0;
   keyScratch[k++] = walkGrid(state).epoch;
+  keyScratch[k++] = wellPermille(state);
   for (const h of hs) {
     keyScratch[k++] = h.id;
     keyScratch[k++] = h.homeId;

@@ -13,6 +13,8 @@ export const apples: GoodDef = {
   basePrice: 100,
   carry: 4,
   food: true,
+  // I3 (C5A): blossom in spring, the crop in summer and autumn, bare boughs in winter.
+  seasons: [400, 1000, 2600, 0],
 };
 
 export const bricks: GoodDef = {
@@ -77,6 +79,8 @@ export const herbs: GoodDef = {
   category: 'material',
   basePrice: 100,
   carry: 4,
+  // I3 (C5A): picked spring to autumn and dried for the winter.
+  seasons: [1200, 1400, 1400, 0],
 };
 
 export const milk: GoodDef = {

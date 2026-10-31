@@ -70,6 +70,8 @@ export const vegetables: GoodDef = {
   basePrice: 100,
   carry: 4,
   food: true,
+  // I3 (C5A): nothing grows in winter; summer makes up some of it.
+  seasons: [1000, 1300, 1000, 0],
 };
 
 export const wheat: GoodDef = {

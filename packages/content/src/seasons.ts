@@ -60,7 +60,8 @@ export const rain: WeatherDef = {
     ['leisure', 500],
   ],
 };
-export const snow: WeatherDef = { id: 'snow', name: 'Snow', odds: [], effects: [['walk', 700]] };
+// Snow: 'walk' is permille of each tile's walking ticks (1300 is 30% slower).
+export const snow: WeatherDef = { id: 'snow', name: 'Snow', odds: [], effects: [['walk', 1300]] };
 export const storm: WeatherDef = { id: 'storm', name: 'Storm', odds: [], effects: [['roofs', 1]] };
 
 // --- Events (alphabetical; C5A writes the odds and durations) ---------------------------------
