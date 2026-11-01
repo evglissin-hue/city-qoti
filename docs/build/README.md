@@ -36,13 +36,13 @@ One row per cycle. A cycle is one agent session working from one brief on one br
 | C5G Music and sound | I3 | parallel | `cycle-05g-audio.md` | C5.0 | done on `claude/epic-hawking-e32pnd`, synthesized (see As built in the brief) |
 | C5H The first days guide | I3 | parallel | `cycle-05h-first-days.md` | C5.0 | ready (C5.0 is done) |
 | C5X I3 integration and I4 planning | I3 | integration | `cycle-05x-integration.md` | C5A to C5H | waiting |
-| V0 Concept and direction | V0 | serial | none (this session) | none | done on `claude/compassionate-dirac-9c0pyz` (concept viewer `docs/concepts/v0-look/`, stills `v0-*`, `18-eras.md`, budgets by preset); waiting for the owner and Kat to pick A, B, C or a mix |
-| V1.0 Look contracts | V1 | serial | written after the pick | V0 pick | waiting |
-| V1A Materials and light | V1 | parallel | written after the pick | V1.0 | waiting |
-| V1B Buildings detail | V1 | parallel | written after the pick | V1.0 | waiting |
-| V1C Ground, water and nature | V1 | parallel | written after the pick | V1.0 | waiting |
-| V1D Performance | V1 | parallel | written after the pick | V1.0 | waiting |
-| V1X V1 integration | V1 | integration | written after the pick | V1A to V1D | waiting |
+| V0 Concept and direction | V0 | serial | none (this session) | none | done on `claude/compassionate-dirac-9c0pyz`: B (Painted Miniature) picked by the owner and Kat; concept viewer on the lean renderer (`docs/concepts/v0-look/index.html`, first engine `v1-engine.html`), stills `v0-*`, `18-eras.md`, budgets by preset, the V1 briefs |
+| V1.0 Look contracts | V1 | serial | `cycle-v1-0-look-contracts.md` | V0 merged | ready (after this branch merges) |
+| V1A Materials and light | V1 | parallel | `cycle-v1a-materials-light.md` | V1.0 | waiting (V1.0) |
+| V1B Buildings detail | V1 | parallel | `cycle-v1b-buildings-detail.md` | V1.0 | waiting (V1.0) |
+| V1C Ground, water and nature | V1 | parallel | `cycle-v1c-ground-nature.md` | V1.0 | waiting (V1.0) |
+| V1D Lean renderer | V1 | parallel | `cycle-v1d-lean-renderer.md` | V1.0 | waiting (V1.0) |
+| V1X V1 integration | V1 | integration | `cycle-v1x-integration.md` | V1A to V1D | waiting |
 
 Status values: waiting (dependencies not merged), ready, in progress (add the session link), PR open (add the PR link), merged.
 

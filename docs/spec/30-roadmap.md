@@ -93,22 +93,22 @@ The look gets much more detailed and stays cozy (owner, 2026-11-01; `17-presenta
 
 ### V0 Concept and direction (done)
 
-The concept viewer (`docs/concepts/v0-look/index.html`) with three directions, three eras and three times of day, and a live fps, draw call and triangle readout; stills (`docs/build/screenshots/v0-*.jpg`); this eras doc; the budgets by preset (`22-quality.md`). Ends when the owner and Kat pick a direction (A, B, C or a mix); the V1 briefs are written from the pick.
+The concept viewer (`docs/concepts/v0-look/index.html`) with three directions, three eras and three times of day, and a live fps, draw call and triangle readout; stills (`docs/build/screenshots/v0-*.jpg`); this eras doc; the budgets by preset (`22-quality.md`). The owner and Kat picked B, the Painted Miniature (2026-11-01). The owner measured the first concept at about 20 to 25 fps on High, so the concept was rebuilt on the lean renderer (`20-architecture.md`, Lean renderer [V1]) to prove the look can run on the weaker laptop; the first engine stays as `docs/concepts/v0-look/v1-engine.html` for comparison. The V1 briefs are written (`docs/build/cycle-v1-*.md`).
 
 ### V1 Look foundation (next)
 
 Runs alongside the I3 wave's C5B, C5C, C5D, C5F and C5H; C5E waits for V1X.
 
-**Cycles**: V1.0 look contracts (serial) → V1A materials and light, V1B buildings detail, V1C ground, water and nature, V1D performance (parallel) → V1X integration.
+**Cycles**: V1.0 look contracts (serial) → V1A materials and light, V1B buildings detail, V1C ground, water and nature, V1D lean renderer (parallel) → V1X integration.
 
-- **V1.0 look contracts**: the surface material id every kit writes per vertex (plaster, brick, stone, timber, thatch, tile, slate, glass, metal, cobble, ground kinds) and how the shared material reads it; palette 2.0 tokens for the chosen direction; `Era` and `eras` reserved in content types; the quality presets with Ultra; a GPU timer in the `?debug` overlay; fixed before and after fixtures (hamlet, village of 130, a synthetic 1,000-building town) shot from the same cameras.
-- **V1A materials and light**: surface detail drawn in the shader from the material id (brick courses, roof tile rows, thatch, slate, plaster grain, timber grain, cobbles), ambient occlusion, warm distance haze, the grade, palette retune, night (window glow, lamp pools), seasonal hooks kept working.
-- **V1B buildings detail**: every existing generator gets window frames, sills, lintels, cornices, roof courses, eave and verge thickness, chimney pots, gutters and downpipes; joined facades and party walls where neighbors touch; a near, middle and far level of detail per kit.
-- **V1C ground, water and nature**: ground variety (meadow, mown grass, worn edges, soil, moss on stone), road edges and kerbs, trees v2 (fuller crowns, trunks and roots), banks, reeds and water v2.
-- **V1D performance**: impostors or merged far blocks for buildings beyond the middle distance, the new budgets measured on both laptops, Ultra, dynamic resolution retuned for the heavier post.
-- **V1X integration**: merges and tunes; before and after screenshots of every fixture; fps, GPU time, draws and triangles from both laptops on each preset; a playtest evening.
+- **V1.0 look contracts**: the per-vertex surface id every kit writes and its table; palette 2.0 from the B concept; the pattern texture array interface; `Era` and `eras` reserved in content types; render layers marked static or moving; the quality presets with Ultra; a GPU timer in the `?debug` overlay; the split of `renderer.ts` and `post.ts` so V1A and V1D never share a file; fixed scenes (the hamlet, the village of 130, a 1,000-building town with 2,000 synthetic residents) with a shots script and a perf script that measures moving and idle frames.
+- **V1A materials and light**: the Lambert-based kit material with the pattern array generated in code (brick, curved clay tiles, slate, thatch, plaster, timber, cobbles, flags, grass with flowers and the rest), palette 2.0, sky fresnel and sun glint on glass and water, warm haze, night windows and lamp pools, the season, snow and sway hooks on the new material, and the final pass's look (grade, tilt-shift, bloom, tone mapping).
+- **V1B buildings detail**: the B detail kit on every generator (frames, sills, lintels, string courses, cornices, roof courses, eave and verge boards, dormers, chimney pots, shutters, window boxes, ivy), joined facades and party walls where neighbors touch, a near and a far level for every kit, baked vertex AO.
+- **V1C ground, water and nature**: ground variety (mown grass, meadow, worn edges, soil you can see), kerbs and road edges, the ground AO texture and its chunk updates, trees v2 with two levels, water and banks, blob shadows under residents and carts.
+- **V1D lean renderer**: one scene pass, a quarter resolution blur chain and one final pass; cached sun shadows; level choice per preset; the still-frame cache (idle frames draw only the moving layers); dynamic resolution judged on moving frames with a cool-down; Ultra; the budgets measured on both laptops.
+- **V1X integration**: merges and tunes; before and after shots of every scene; fps and GPU time from both laptops on each preset, moving and idle; a playtest evening; C5E's brief updated; planning notes for V2 and V3.
 
-**Acceptance**: the fixtures read as the chosen concept from the default camera and close up, by day and by night; every budget in `22-quality.md` holds on the weaker laptop on Medium; nothing in the sim changes, and hashes match.
+**Acceptance**: the scenes read as the B concept from the default camera and close up, by day, golden hour and night; every budget in `22-quality.md` holds on the weaker laptop on Medium, moving and idle; nothing in the sim changes, and hashes match.
 
 ### V2 Streets that feel like a town (with the I4 wave)
 

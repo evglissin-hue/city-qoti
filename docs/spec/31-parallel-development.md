@@ -11,17 +11,20 @@ A **cycle** is one agent session working from one brief on one branch, ending in
 | I0 | C1 foundation | C2A world and sim, C2B render and art kit, C2C co-op and saves, C2D client UX | C2X |
 | I1 | C3.0 hamlet contracts | C3A residents, C3B Hearth v1, C3C Ledger v1, C3D hamlet art and rendering, C3E hamlet UI | C3X (also writes the I2 briefs) |
 | I2 to I5 | written by the previous integration cycle | | |
-| V1 | V1.0 look contracts (surface material ids, palette 2.0, reserved `Era`, presets, GPU timer, fixtures) | V1A materials and light, V1B buildings detail, V1C ground, water and nature, V1D performance | V1X |
+| V1 | V1.0 look contracts (surface ids, palette 2.0, the pattern array interface, reserved `Era`, static and moving layers, presets with Ultra, GPU timer, the file split, scenes and perf scripts) | V1A materials and light, V1B buildings detail, V1C ground, water and nature, V1D lean renderer | V1X |
 | V2 to V4 | inside I4 and I5's contracts cycles | with the I4 and I5 waves | with I4X and I5X |
 
 V1 splits the render and art track by subpath so its four cycles can run at once on V1.0's shared contract:
 
 | V1 cycle | Owns |
 |---|---|
-| V1A | `packages/art/src/materials.ts`, `packages/art/src/palette.ts`, `apps/client/src/render/{post,lighting,env}.ts`, the shared material's shader hooks |
-| V1B | `packages/art/src/kits/` (buildings, props, residents) except `nature.ts` and `trees.ts`; `render/layers/buildings.ts` |
-| V1C | `packages/art/src/kits/{nature,trees}.ts`; terrain, roads, water, nature and trees in the client (`render/layers/{terrain,roads,water,nature,trees}.ts`, `render/{ground,surface,scatter}.ts`) |
-| V1D | `apps/client/src/render/{quality,resolution}.ts`, level of detail and impostor code, the `?debug` overlay's GPU timer |
+| V1.0 | the contract and split files listed in its brief (`docs/build/cycle-v1-0-look-contracts.md`) |
+| V1A | `packages/art/src/{materials,palette,patterns}.ts` and the values in `surface.ts`; `apps/client/src/render/{material,look,lighting,env}.ts`; the gallery's surfaces section |
+| V1B | `packages/art/src/kits/` (buildings, props, residents) except `nature.ts` and `trees.ts`; helpers in `packages/art/src/{shapes,geometry}.ts`; `apps/client/src/render/{kitGeometry.ts,layers/buildings.ts}` |
+| V1C | `packages/art/src/kits/{nature,trees}.ts`; `render/layers/{terrain,roads,water,nature,trees,blobs}.ts`; `render/{ground,surface,scatter,groundAo}.ts` |
+| V1D | `apps/client/src/render/{renderer,post,quality,resolution,chunks,batch,gpuTimer,cache,shadows,lod}.ts`, `apps/client/e2e/v1-perf.mjs` |
+
+Two files would otherwise be shared, so V1.0 splits them: the kit material moves from `renderer.ts` to `material.ts` (V1A), and the final pass's color code moves from `post.ts` to `look.ts` (V1A), leaving the frame graph in `post.ts` and the frame loop in `renderer.ts` to V1D.
 
 A V1 wave runs beside gameplay cycles that own sim and UI paths (I3's C5B, C5C, C5D, C5F, C5H); a gameplay cycle that owns render or art paths (C5E) waits for V1X.
 
