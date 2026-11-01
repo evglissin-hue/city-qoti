@@ -168,11 +168,17 @@ function untilHour(h: Hamlet, hour: number, hourly?: () => void): void {
   const now = (h.world.tick + START_HOUR * TICKS_PER_HOUR) % TICKS_PER_DAY;
   let n = (hour * TICKS_PER_HOUR - now + TICKS_PER_DAY) % TICKS_PER_DAY;
   if (n === 0) n = TICKS_PER_DAY;
-  while (n > 0) {
-    const step = Math.min(n, TICKS_PER_HOUR);
-    runTicks(h, step);
-    n -= step;
-    hourly?.();
+  // By the clock, not by turns: a night turn runs NIGHT_HURRY ticks (playtest round five), so
+  // counting turns overshot every night, the day's last stop landed at 01:00 instead of 23:00, and
+  // a Village day (which waits for 01:00 next) ran about three days between advisor visits.
+  const target = h.world.tick + n;
+  let nextHour = h.world.tick + TICKS_PER_HOUR;
+  while (h.world.tick < target) {
+    runTicks(h, 1);
+    if (h.world.tick >= nextHour) {
+      hourly?.();
+      nextHour += TICKS_PER_HOUR;
+    }
   }
 }
 
