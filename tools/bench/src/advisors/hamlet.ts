@@ -7,12 +7,14 @@
 import { content } from '@qoti/content';
 import {
   BuildingStatus,
+  calendar,
   creditLimit,
   expenses,
   FIELD_GOOD_FERTILITY,
   fieldCap,
   fieldTileProblem,
   income,
+  larderWelcomes,
   loansOwed,
   rankAtLeast,
   townStock,
@@ -56,8 +58,10 @@ class Hamlet implements Advisor {
     const larderLow =
       !rankAtLeast(w, 'village') && pop >= 25 && FOODS.reduce((n, g) => n + stock[g]!, 0) < pop * 5;
     const foodPressing = food < pop * 3 || larderLow;
+    // C5A: nothing grows in winter and the river freezes, so no new plot or hut until spring.
+    const winter = calendar(w.tick).season === 3;
     const want = (cond: boolean, def: string, urgent = false) => {
-      if (!cond) return;
+      if (!cond || (winter && (def === 'vegetable-plot' || def === 'fishers-hut'))) return;
       p.propose({
         def,
         priority: urgent ? URGENT : QUEUE,
@@ -69,52 +73,24 @@ class Hamlet implements Advisor {
         budget,
       });
     };
+    // The next food building; C5A: when the fishers' hut finds no spot on the river, the plot is
+    // tried in the same visit (willow has no free bank, and a day lost there emptied the store on day 3).
+    const wantFood = (cond: boolean, urgent = false) => {
+      const def = p.foodBuilding();
+      want(cond, def, urgent);
+      if (p.blocked(def) && p.foodBuilding() !== def) want(cond, p.foodBuilding(), urgent);
+    };
     // Hungry towns come first: a food building jumps the queue when there are under three days left.
     const foodSites = w.buildings.filter(
       (b) => b.stage === 'construction' && (b.def === 'vegetable-plot' || b.def === 'fishers-hut'),
     ).length;
-    want(food < pop * 3 && foodSites === 0, p.foodBuilding(), true);
+    wantFood(food < pop * 3 && foodSites === 0, true);
     want(food < pop * 3 && foodSites === 0, 'vegetable-plot', true);
     // Timber next: woodcutter and sawpit need only logs and stone, and everything else needs planks.
     want(count(w, 'woodcutter') === 0, 'woodcutter');
     want(count(w, 'sawpit') === 0, 'sawpit');
-    // C4X: urgent, as homes wait on stone (a hamlet ran out on day five and grew no homes for a week).
-    // Round seven: ahead of the homes, so the last of the stone never goes into a cottage first.
-    want(stock[G('stone')]! < 16 && count(w, 'quarry') === 0, 'quarry', true);
-    // Food first: a day's eating for everyone should come in each day, with a few days in hand.
-    const foodPlaces = count(w, 'vegetable-plot') + count(w, 'fishers-hut') * 2 + count(w, 'farmhouse') * 3;
-    want(foodMade < pop + 4 && foodPlaces * 3 < pop + 6, p.foodBuilding());
-    want(food < pop * 2 && sites(w) === 0, 'vegetable-plot');
-    // I2 (C4A): the Village Charter wants five days of food in store, so a Hamlet of 25 or more
-    // lays in a larder before the peddler gets any, and past 30 residents it holds new homes until
-    // the larder is full (C4X: food buildings may now always draw hands while it does, so the hold
-    // no longer starves the fields of workers; a town that keeps growing never gets ahead of its
-    // own suppers).
-    const larder = !rankAtLeast(w, 'village') && pop >= 25;
-    const stored = FOODS.reduce((n, g) => n + stock[g]!, 0);
-    want(larder && stored < pop * 6 && foodMade < pop * 1.4, p.foodBuilding(), true);
-    // A Village deep in the County Bank's books pays down before it builds more homes.
-    const indebted = rankAtLeast(w, 'village') && loansOwed(w) * 2 > creditLimit(w);
-    // Only once food is the last goal open: holding homes while wishes or patterns are still to come
-    // froze a valley at 36 residents for thirty days (wishes need residents to make them).
-    const foodLast = charterOpen(w).length === 1 && charterOpen(w)[0] === 'food';
-    const holdHomes = (larderLow && pop >= 30 && foodLast) || indebted;
-    // Homes: always one empty cottage waiting for the next family (a Village with homes zoned
-    // grows its own), and a second when a story character is waiting to move in (C4D: they never
-    // take the last one).
-    const waiting = storyWaiting(w) ? 1 : 0;
-    const homesComing =
-      vacantHomes(w) + w.buildings.filter((b) => b.def === 'cottage' && b.stage === 'construction').length;
-    // C4X: with no home empty or going up, the next cottage jumps the queue (nobody moves in
-    // without one; a hamlet sat at 13 residents for six days behind its other sites).
-    want(!p.street && !holdHomes && homesComing < 2 + waiting, 'cottage', homesComing === 0);
-    // Stone, then more timber as the town grows.
-    want(
-      pop >= 10 && stock[G('planks')]! < 20 && count(w, 'sawpit') < 2 && count(w, 'sawpit', true) > 0,
-      'sawpit',
-    );
-    want(pop >= 12 && count(w, 'woodcutter') < 2 && count(w, 'sawpit') > 1, 'woodcutter');
-    // A woodcutter that has felled its patch is replaced by one at the forest edge.
+    // A woodcutter that has felled its patch is replaced by one at the forest edge (C5A: ahead of
+    // homes and food: a Hamlet down to its last coins built cottages while its patch ran out).
     const felled = w.buildings.filter(
       (b) => b.def === 'woodcutter' && b.stage === 'built' && (b.rt!.status & BuildingStatus.noTrees) !== 0,
     );
@@ -139,6 +115,46 @@ class Hamlet implements Advisor {
       (b) => b.def === 'woodcutter' && b.stage === 'built' && (b.rt!.status & BuildingStatus.noTrees) === 0,
     );
     if (working) for (const b of felled) p.do('retire a woodcutter', [{ t: 'build.remove', ids: [b.id] }]);
+    // C4X: urgent, as homes wait on stone (a hamlet ran out on day five and grew no homes for a week).
+    // Round seven: ahead of the homes, so the last of the stone never goes into a cottage first.
+    want(stock[G('stone')]! < 16 && count(w, 'quarry') === 0, 'quarry', true);
+    // Food first: a day's eating for everyone should come in each day, with a few days in hand.
+    const foodPlaces = count(w, 'vegetable-plot') + count(w, 'fishers-hut') * 2 + count(w, 'farmhouse') * 3;
+    wantFood(foodMade < pop + 4 && foodPlaces * 3 < pop + 6);
+    want(food < pop * 2 && sites(w) === 0, 'vegetable-plot');
+    // I2 (C4A): the Village Charter wants five days of food in store, so a Hamlet of 25 or more
+    // lays in a larder before the peddler gets any, and past 30 residents it holds new homes until
+    // the larder is full (C4X: food buildings may now always draw hands while it does, so the hold
+    // no longer starves the fields of workers; a town that keeps growing never gets ahead of its
+    // own suppers).
+    const larder = !rankAtLeast(w, 'village') && pop >= 25;
+    const stored = FOODS.reduce((n, g) => n + stock[g]!, 0);
+    wantFood(larder && stored < pop * 6 && foodMade < pop * 1.4, true);
+    // A Village deep in the County Bank's books pays down before it builds more homes.
+    const indebted = rankAtLeast(w, 'village') && loansOwed(w) * 2 > creditLimit(w);
+    // Only once food is the last goal open: holding homes while wishes or patterns are still to come
+    // froze a valley at 36 residents for thirty days (wishes need residents to make them).
+    const foodLast = charterOpen(w).length === 1 && charterOpen(w)[0] === 'food';
+    // Homes: always one empty cottage waiting for the next family (a Village with homes zoned
+    // grows its own), and a second when a story character is waiting to move in (C4D: they never
+    // take the last one).
+    const waiting = storyWaiting(w) ? 1 : 0;
+    const homesComing =
+      vacantHomes(w) + w.buildings.filter((b) => b.def === 'cottage' && b.stage === 'construction').length;
+    // C5A: and from autumn, while the larder could not see another family through the winter (the
+    // sim holds them at the gate), one home ready for them and no more: the rest would wait for
+    // spring, and their planks and stone kept the sawpits and quarry hiring over the gardens.
+    const winterHold = homesComing > 1 && !larderWelcomes(w, 4);
+    const holdHomes = (larderLow && pop >= 30 && foodLast) || indebted || winterHold;
+    // C4X: with no home empty or going up, the next cottage jumps the queue (nobody moves in
+    // without one; a hamlet sat at 13 residents for six days behind its other sites).
+    want(!p.street && !holdHomes && homesComing < 2 + waiting, 'cottage', homesComing === 0);
+    // Stone, then more timber as the town grows.
+    want(
+      pop >= 10 && stock[G('planks')]! < 20 && count(w, 'sawpit') < 2 && count(w, 'sawpit', true) > 0,
+      'sawpit',
+    );
+    want(pop >= 12 && count(w, 'woodcutter') < 2 && count(w, 'sawpit') > 1, 'woodcutter');
     want(
       count(w, 'foresters-lodge') === 0 && count(w, 'woodcutter', true) > 0 && pop >= 12,
       'foresters-lodge',
@@ -167,13 +183,38 @@ class Hamlet implements Advisor {
       want(short && count(w, 'woodcutter') < Math.ceil(count(w, 'sawpit') / 2) + 1, 'woodcutter', true);
       want(stock[G('stone')]! < 16 && count(w, 'quarry') < 1 + Math.floor(pop / 40), 'quarry');
     }
-    this.peddler(stock, pop, larder);
-    this.rest(stock, larderLow && pop >= 30, thinning && stock[G('logs')]! < 16);
+    this.peddler(stock, pop, larder, thinning);
+    // C5A: the sawpits also rest while the larder is short of a winter (the seasons advisor says),
+    // judged on stocks free of the sites' promises (resting them on planks promised to cottages left
+    // the new plots without theirs). Logs are kept for a chopping shed still to build or waiting on
+    // them while the woodpile is short (the waiting one only if planks are not short too), and while
+    // the last patch thins the sheds leave them alone as well: a winter's sheds took the last log,
+    // the next woodcutter could never be built, and with no logs nothing else was.
+    const fewLogs = stock[G('logs')]! < 16;
+    const noShed = count(w, 'chopping-shed') === 0;
+    const shedWaits = w.buildings.some(
+      (b) =>
+        b.def === 'chopping-shed' &&
+        b.stage === 'built' &&
+        !b.rt!.paused &&
+        (b.rt!.status & BuildingStatus.missingInput) !== 0,
+    );
+    const forShed = p.woodShort && (noShed || (shedWaits && !materialsPressing(w, 'sawpit')));
+    p.logsForWoodcutter = thinning && fewLogs;
+    this.rest(
+      free,
+      (larderLow && pop >= 30) || p.larderShort,
+      (thinning || forShed) && fewLogs,
+      p.larderShort,
+    );
     this.fields();
   }
 
-  /** The peddler takes surplus at 10:00: food beyond five days of eating, logs beyond 60. */
-  private peddler(stock: number[], pop: number, larder: boolean): void {
+  /**
+   * The peddler takes surplus at 10:00: food beyond five days of eating, logs beyond 40 (C5A: none
+   * while the last patch thins: the peddler took the next woodcutter's logs).
+   */
+  private peddler(stock: number[], pop: number, larder: boolean, thinning: boolean): void {
     const p = this.p;
     const w = p.w;
     for (const g of content.goods) {
@@ -181,7 +222,7 @@ class Hamlet implements Advisor {
       const surplus = g.food
         ? stock[i]! > pop * (larder ? 7 : p.foodReserveDays) + 8
         : g.id === 'logs'
-          ? stock[i]! > 40
+          ? stock[i]! > 40 && !thinning
           : g.id === 'stone'
             ? stock[i]! > 50
             : // I2 (C4A): a Village lives on its trade, so spare planks go to the peddler too.
@@ -200,29 +241,32 @@ class Hamlet implements Advisor {
    * C4X: a Hamlet laying in the Charter's five days of food rests its sawpits and quarry while
    * planks and stone are plentiful, so their hands go to the fields (the sim only calls food
    * short under three days); they reopen once the larder is full or the stocks run low. With
-   * `keepLogs` the sawpits rest so logs are kept back for the next woodcutter while the patch thins.
+   * `keepLogs` the sawpits rest so logs are kept back for the next woodcutter while the patch thins
+   * (C5A: or for a chopping shed). C5A: with `winter` (the larder short of a winter), from lower
+   * stocks: a town putting food by for the winter needs its hands on the plots more than planks.
    */
-  private rest(stock: number[], resting: boolean, keepLogs: boolean): void {
+  private rest(stock: number[], resting: boolean, keepLogs: boolean, winter: boolean): void {
     const p = this.p;
     const w = p.w;
     for (const b of w.buildings) {
       if (b.stage !== 'built' || !b.rt) continue;
-      if (b.def === 'sawpit' && (keepLogs || this.keptLogs.has(b.id))) {
-        if (keepLogs === b.rt.paused) continue;
-        if (keepLogs) this.keptLogs.add(b.id);
+      const keep = b.def === 'sawpit' ? keepLogs : b.def === 'chopping-shed' && p.logsForWoodcutter;
+      if ((b.def === 'sawpit' || b.def === 'chopping-shed') && (keep || this.keptLogs.has(b.id))) {
+        if (keep === b.rt.paused) continue;
+        if (keep) this.keptLogs.add(b.id);
         else this.keptLogs.delete(b.id);
-        p.do(`${keepLogs ? 'rest' : 'reopen'} the sawpit for the woodcutter's logs`, [
-          { t: 'build.setPaused', id: b.id, paused: keepLogs },
+        p.do(`${keep ? 'rest' : 'reopen'} the ${b.def} for the woodcutter's logs`, [
+          { t: 'build.setPaused', id: b.id, paused: keep },
         ]);
         continue;
       }
       // Rest from 60 planks, 40 stone or 30 logs, reopen under 30, 20 or 15 (a gap, so it does not
-      // flip daily).
+      // flip daily); for the winter from 24 planks and 16 stone, reopening under 12 and 8.
       const [have, high, low] =
         b.def === 'sawpit'
-          ? [stock[G('planks')]!, 60, 30]
+          ? [stock[G('planks')]!, winter ? 24 : 60, winter ? 12 : 30]
           : b.def === 'quarry'
-            ? [stock[G('stone')]!, 40, 20]
+            ? [stock[G('stone')]!, winter ? 16 : 40, winter ? 8 : 20]
             : b.def === 'woodcutter'
               ? [stock[G('logs')]!, 30, 15]
               : [0, -1, -1];

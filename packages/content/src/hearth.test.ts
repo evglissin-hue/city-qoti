@@ -65,6 +65,11 @@ describe('the Chronicle', () => {
     'story-arrived': ['name'],
     'story-finale': ['name'],
     wedding: ['a', 'b', 'when'],
+    // I3 (C5A)
+    circus: ['place'],
+    flood: ['place'],
+    'trial-failed': ['trial'],
+    'trial-passed': ['trial', 'charter'],
   };
 
   it('has at least three variants per kind, using only the params its callers pass', () => {

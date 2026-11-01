@@ -930,6 +930,8 @@ export function agentsLayer(): AgentsLayer {
         const dy = vy - dir.y * tt;
         const dz = vz - dir.z * tt;
         const r = 0.2 * visible[o + 4]!;
+        // Only residents open an inspector (circus visitors are passing through).
+        if (!ctx?.mirror.residents.has(visible[o]!)) continue;
         if (dx * dx + dy * dy + dz * dz < r * r && tt < bestT) {
           bestT = tt;
           best = visible[o]!;

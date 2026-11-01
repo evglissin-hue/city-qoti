@@ -9,10 +9,17 @@ import { innovationView } from '../../view/village';
  * True when a def's `requires` (a rank, an innovation, buildings standing) is met. Sandbox valleys have everything.
  * Checked when a building is placed or grown (C4C).
  */
-export function meetsRequires(state: WorldState, req: BuildingDef['requires'] | undefined): boolean {
+export function meetsRequires(
+  state: WorldState,
+  req: BuildingDef['requires'] | undefined,
+  /** I3 (C5A): the def id: a story's unlock (hearth.unlocked) waives an innovation and meets `story`. */
+  id?: string,
+): boolean {
   if (!req || !isStandard(state)) return true;
   if (req.rank && !rankAtLeast(state, req.rank)) return false;
-  if (req.innovation && !hasInnovation(state, req.innovation)) return false;
+  const unlocked = !!id && state.hearth.unlocked.includes(id);
+  if (req.innovation && !hasInnovation(state, req.innovation) && !unlocked) return false;
+  if (req.story && !unlocked) return false;
   return hasBuilt(state, req.built);
 }
 

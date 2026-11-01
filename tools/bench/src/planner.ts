@@ -12,8 +12,9 @@
 //   `buildAt`, which remember a def that found no spot today.
 // - The labor budget: a new workplace only while free hands exceed core jobs by the reserve
 //   (`LABOR_RESERVE` in labor.ts), unless its want is pressing (see `canStaff`).
-// - The money reserve: `MONEY_RESERVE` coins stay in the treasury after a want's cost. The Village
-//   advisor prices its wants `VILLAGE_MARGIN` dearer (I2's Village player kept 30 back).
+// - The money reserve: `MONEY_RESERVE` coins stay in the treasury after a want's cost, except for an
+//   urgent essential want (C5A). The Village advisor prices its wants `VILLAGE_MARGIN` dearer (I2's
+//   Village player kept 30 back).
 // - Materials: a want needs its goods free of what sites have been promised. An advisor that tallies
 //   its own turn passes the tally and the planner takes each start out of it; otherwise free stock
 //   is read fresh (upgrades count as promised), and the timber kept for rebuilding woodcutters and
@@ -26,7 +27,10 @@ import {
   canPlaceDecor,
   creditLimit,
   doorTile,
+  expenses,
+  income,
   loansOwed,
+  onFloodplain,
   PENNIES_PER_COIN,
   TILE_FP,
   townStock,
@@ -126,6 +130,16 @@ export class Planner {
   street: HighStreet | null = null;
   /** Days of food kept back from the peddler (C4C: a Village run keeps six, for the Charter). */
   foodReserveDays = 2;
+  /** C5A: set by the seasons advisor while a flood is forecast or running: new buildings keep off the floodplain. */
+  keepOffFloodplain = false;
+  /** C5A: set by the seasons advisor while the woodpile is short of the winter ahead (sawpits leave logs for the sheds). */
+  woodShort = false;
+  /** C5A: set by the seasons advisor in summer and autumn while the larder is short of a winter (hands go to the plots). */
+  larderShort = false;
+  /** C5A: set by the hamlet advisor while the last woodcutter's patch thins and logs are few (the sheds leave them be). */
+  logsForWoodcutter = false;
+  /** C5A: set by the charter advisor late in a season while the Charter waits on one ended in surplus. */
+  keepSurplus = false;
   /**
    * C4X: defs that found no spot, and the day they last failed. A valley with no free river edge
    * left kept asking for a fishers' hut (154 times in a willow run) and never built the vegetable
@@ -141,6 +155,12 @@ export class Planner {
 
   coins(): number {
     return this.w.economy.treasury / PENNIES_PER_COIN;
+  }
+
+  /** This season's income less its expenses so far, coins. */
+  seasonBalance(): number {
+    const s = this.w.economy.season;
+    return (income(s) - expenses(s)) / PENNIES_PER_COIN;
   }
 
   /** Runs commands as a seat and logs them. */
@@ -185,7 +205,12 @@ export class Planner {
     if (want.budget && want.budget.left <= 0) return false;
     if (sites(w) >= want.priority) return false;
     if (!this.staffs(want.def, want.pressing)) return false;
-    if (this.coins() < want.cost.coins + MONEY_RESERVE) return false;
+    // C5A: an urgent want that keeps the town going may spend the reserve, which is there for it (a
+    // Hamlet down to 37 coins could never replace its last woodcutter, and with no logs, nothing else).
+    const reserve = want.essential && want.priority === URGENT ? 0 : MONEY_RESERVE;
+    if (this.coins() < want.cost.coins + reserve) return false;
+    // C5A: late in a season the Charter's surplus wants, nothing that can wait may tip it into deficit.
+    if (this.keepSurplus && want.priority !== URGENT && want.cost.coins > this.seasonBalance()) return false;
     if (!want.pressing && !want.essential && loansOwed(w) * 2 > creditLimit(w)) return false;
     const free = want.tally ?? this.freeStock();
     for (const [g, q] of want.cost.goods) {
@@ -207,7 +232,11 @@ export class Planner {
 
   /** The build queue: `def` at the first spot that fits (within `only`), with a path to the road. */
   build(def: string, only?: (x: number, z: number, w: number, d: number) => boolean): Building | null {
-    const spot = findSpot(this.w, def, only ? 60 : 40, only);
+    const ok = this.keepOffFloodplain
+      ? (x: number, z: number, w: number, d: number) =>
+          !onFloodplain(this.w, x, z, w, d) && (!only || only(x, z, w, d))
+      : only;
+    const spot = findSpot(this.w, def, only ? 60 : 40, ok);
     if (!spot) {
       this.actions.push(`no spot for ${def}`);
       if (!only) this.noSpot.set(def, calendar(this.w.tick).day);

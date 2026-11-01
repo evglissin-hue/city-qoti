@@ -3,7 +3,8 @@
 // workers stay where the test puts them; numbers come from content, not from the test.
 import { content, type BuildingDef, type ProductionMethod } from '@qoti/content';
 import { describe, expect, it } from 'vitest';
-import { BuildingStatus, TICKS_PER_HOUR } from '../../src/constants';
+import { BuildingStatus, DAYS_PER_SEASON, TICKS_PER_DAY, TICKS_PER_HOUR } from '../../src/constants';
+import { seasonAt } from '../../src/state/seasons';
 import type { Building, WorldState } from '../../src/contracts';
 import { building, ticks, toWork } from '../ledger/helpers';
 import { expectMoneyInvariant, moneySnapshot } from '../money';
@@ -17,8 +18,18 @@ const I2: BuildingDef[] = content.buildings.filter(
   (d) => (d.requires?.rank || d.requires?.innovation || d.grows) && d.methods?.length,
 );
 
+/** I3 (C5A): gardens and orchards gather by the season; count them in a season at their plain rate. */
+function plainSeason(state: WorldState, m: ProductionMethod): void {
+  const table = content.goodById.get(m.outputs[0]?.[0] ?? '')?.seasons;
+  if (!table) return;
+  const now = seasonAt(state.tick).season;
+  const want = table.indexOf(1000);
+  state.tick += ((want - now + 4) % 4) * DAYS_PER_SEASON * TICKS_PER_DAY;
+}
+
 function setUp(def: BuildingDef, methodIndex: number, crew: number): { state: WorldState; b: Building } {
   const { state } = villageWith();
+  plainSeason(state, def.methods![methodIndex]!);
   const b = place(state, def.id, 44, 100);
   b.rt!.method = methodIndex;
   const m = def.methods![methodIndex]!;

@@ -19,7 +19,7 @@ export const place: HandlerFor<'build.place'> = {
     if (!def) return 'INVALID';
     if (def.modes && !def.modes.includes(state.settings.mode)) return 'NOT_ALLOWED';
     // I2 (C4C): a rank or an innovation first; grown-only defs (shops, workshops) are not placed.
-    if (!meetsRequires(state, def.requires)) return 'LOCKED';
+    if (!meetsRequires(state, def.requires, def.id)) return 'LOCKED';
     if (def.grows && !def.grows.handPlaced && isStandard(state)) return 'NOT_ALLOWED';
     const result = canPlaceBuilding(worldIndex(state).reader, def, cmd.x, cmd.z, cmd.rot);
     if (!result.ok) return result.reason ?? 'INVALID';

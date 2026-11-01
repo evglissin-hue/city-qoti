@@ -60,8 +60,10 @@ export class HealthWatch {
       const c = b.rt!.construction!;
       seen.add(b.id);
       const last = this.progress.get(b.id);
-      if (!last || last[0] !== c.workDone) this.progress.set(b.id, [c.workDone, now]);
       const allIn = c.needs.every((n) => n <= 0);
+      // The clock runs from the last progress or the last look still waiting on materials: a site
+      // that waited days for its last stone was not stalled with everything in (C5A).
+      if (!last || last[0] !== c.workDone || !allIn) this.progress.set(b.id, [c.workDone, now]);
       if (allIn && last && last[0] === c.workDone && now - last[1] >= STALL_TICKS && !b.rt!.paused) {
         out.push({
           kind: 'site-stalled',

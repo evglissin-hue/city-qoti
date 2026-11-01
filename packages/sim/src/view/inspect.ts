@@ -13,9 +13,11 @@ import type {
   WorldState,
 } from '../contracts';
 import { findById } from '../state/entities';
+import { seasonAt } from '../state/seasons';
 import { townReachesDoor } from '../state/reach';
 import { isBuildTime } from '../systems/economy/time';
 import { ARRIVAL_THRESHOLD } from '../systems/residents/lifecycle';
+import { larderWelcomes } from '../systems/seasons/api';
 import { meetsRequires } from '../systems/innovations/api';
 import { allowedWork } from '../systems/production/status';
 import { kitchenGardenMissing } from '../systems/hearth/patterns/detectors/kitchenGarden';
@@ -94,9 +96,12 @@ function statusLines(state: WorldState, b: Building, def: BuildingDef | undefine
   // Playtest round three: an empty home says when a family will come ("they're not using it").
   if (b.stage === 'built' && def?.housing && !state.households.some((h) => h.homeId === b.id)) {
     out.push(
-      state.stats.attractiveness >= ARRIVAL_THRESHOLD
-        ? 'Empty for now: new families walk in from the valley gate every two hours between 8:00 and 16:00'
-        : 'Empty for now: families will come once the valley is a little more inviting (food in store, work going, a bit of charm)',
+      state.stats.attractiveness < ARRIVAL_THRESHOLD
+        ? 'Empty for now: families will come once the valley is a little more inviting (food in store, work going, a bit of charm)'
+        : // C5A: from autumn, families wait for a larder that would see them through the winter.
+          !larderWelcomes(state, 1)
+          ? 'Empty for now: families wait until the larder could feed one more mouth to the thaw'
+          : 'Empty for now: new families walk in from the valley gate every two hours between 8:00 and 16:00',
     );
   }
   // Playtest round five: two plots and no pattern; say what the Kitchen Garden still wants.
@@ -116,6 +121,14 @@ function statusLines(state: WorldState, b: Building, def: BuildingDef | undefine
   if (has(BuildingStatus.outputFull)) out.push('Output is piling up, waiting for a porter');
   if (has(BuildingStatus.noTrees)) out.push(`No mature trees within ${method?.range ?? 8} tiles`);
   if (has(BuildingStatus.noFields)) out.push('No fields painted yet');
+  // I3 (C5A)
+  if (has(BuildingStatus.fallow)) {
+    out.push(
+      seasonAt(state.tick).season === 3
+        ? 'The fields lie ready: wheat is sown on Spring days 1 to 3'
+        : 'Wheat is sown on Spring days 1 to 3; until then the fields grow vegetables',
+    );
+  }
   if (has(BuildingStatus.noRoad)) out.push('No road at the door');
   if (has(BuildingStatus.noPorters)) out.push('Nobody carries goods yet: a storehouse needs porters');
   else if (farFromStores(state, b, def)) {
@@ -177,7 +190,7 @@ function makersOf(state: WorldState, good: string): BuildingDef[] {
         d.methods?.some((m) => m.outputs.some(([o]) => o === good)) &&
         (!d.modes || d.modes.includes(state.settings.mode)) &&
         (!d.grows || d.grows.handPlaced) &&
-        meetsRequires(state, d.requires),
+        meetsRequires(state, d.requires, d.id),
     )
     .sort((a, b) => Number(!!a.requires) - Number(!!b.requires) || costSize(a) - costSize(b));
 }

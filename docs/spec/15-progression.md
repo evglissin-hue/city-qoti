@@ -15,6 +15,8 @@ The Charter board at the Town Hall lists the goals for the next rank, each tagge
 
 **The rank-up moment (I2, C4D)**: when the last goal is met, the County Clerk writes to both seats that the claim is open. Claiming at the Town Hall (`charter.claim`) puts the proclamation in the Chronicle, credited to the seats present, gives every resident a mood lift for two days and a hop for an hour, and sends `rank.up` with the proclamation for the UI's celebration (C4F). No trial in I2.
 
+*As built (C5A), trials*: the claim grants the rank as in I2; the trials system (00:08) then opens the Charter's trial for the next time its season comes round (a letter), runs it through that season measuring each day, and judges it the morning after. The Village's first winter is weathered when no household went a whole day without firewood and the larder (food, wheat and flour) never ran dry; weathered seals the Charter (a County letter, a Chronicle page, 3 renown), failed returns next winter and takes nothing. Kinds are rows in `TRIAL_KINDS` (winter now; raid and flood later). The Barometer needs a Watch House and a bell tower, the Seed Drill three farms and a smithy (both from Village rank).
+
 **Trials**: completing a Charter's goals announces the trial for day 5 of the next season, so there is an evening to prepare and one tense dusk to see it through. The rank is granted when the trial is weathered: the town keeps at least half of its food stock, or the raid is repelled, or everyone stays warm. A failed trial returns the next season; nothing else is lost beyond the trial's own damage.
 
 ## Renown [I3]

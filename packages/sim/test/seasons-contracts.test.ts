@@ -47,29 +47,35 @@ import { flatWorld, rejection, run, S } from './helpers';
 const standard = () => ({ ...defaultSettings(), mode: 'standard' as const });
 
 describe('I3 fixtures', () => {
-  it('builds a village in winter: frozen river, snow, two cold households, a feast planned, the trial running', () => {
-    const f = winterFixture();
-    const s = f.state;
-    expect(seasonAt(s.tick)).toEqual({ season: 3, year: 1, day: 2 });
-    expect(isFrozen(s)).toBe(true);
-    expect(weatherView(s).today).toBe('snow');
-    expect(warmthReport(s)).toEqual({ cold: 2, householdDays: 2 });
-    for (const h of f.cold) expect(isCold(s, h)).toBe(true);
-    expect(festivalView(s).plan?.menu).toEqual([
-      ['pies', 20, 10],
-      ['cider', 16, 8],
-    ]);
-    expect(trialView(s)).toMatchObject({ kind: 'winter', status: 'running', name: 'The First Winter' });
-    expect(watchView(s).members).toHaveLength(4);
-    expect(hasSpecies(s, 'kingfisher')).toBe(true);
-    expect(seasonCardView(s)).toMatchObject({ season: 3, year: 1, festival: { id: 'hearth-feast' } });
-    expect(seasonCardView(s).steps).toHaveLength(1);
-    expect(renownView(s)).toMatchObject({ level: 1, next: 30 });
-    expect(festivalMorale(s)).toBe(5);
-    // Smoke: it builds every view and keeps going for a few hours.
-    expect(buildView(s).buildings.length).toBeGreaterThan(25);
-    advanceTo(s, s.tick + 3 * TICKS_PER_HOUR, createTickCtx(s));
-  });
+  // Builds and runs a whole Village into winter: about 12 s alone, so it gets room on a busy machine.
+  it(
+    'builds a village in winter: frozen river, snow, two cold households, a feast planned, the trial running',
+    { timeout: 60_000 },
+    () => {
+      const f = winterFixture();
+      const s = f.state;
+      expect(seasonAt(s.tick)).toEqual({ season: 3, year: 1, day: 2 });
+      expect(isFrozen(s)).toBe(true);
+      expect(weatherView(s).today).toBe('snow');
+      expect(warmthReport(s)).toEqual({ cold: 2, householdDays: 2 });
+      for (const h of f.cold) expect(isCold(s, h)).toBe(true);
+      expect(festivalView(s).plan?.menu).toEqual([
+        ['pies', 20, 10],
+        ['cider', 16, 8],
+      ]);
+      expect(trialView(s)).toMatchObject({ kind: 'winter', status: 'running', name: 'The First Winter' });
+      expect(watchView(s).members).toHaveLength(4);
+      expect(hasSpecies(s, 'kingfisher')).toBe(true);
+      expect(seasonCardView(s)).toMatchObject({ season: 3, year: 1, festival: { id: 'hearth-feast' } });
+      // C5A: the trial's line first, then the winter stores.
+      expect(seasonCardView(s).steps[0]).toBe(content.charterById.get('village')!.trial!.blurb);
+      expect(renownView(s)).toMatchObject({ level: 1, next: 30 });
+      expect(festivalMorale(s)).toBe(5);
+      // Smoke: it builds every view and keeps going for a few hours.
+      expect(buildView(s).buildings.length).toBeGreaterThan(25);
+      advanceTo(s, s.tick + 3 * TICKS_PER_HOUR, createTickCtx(s));
+    },
+  );
 
   it('builds a valley under threat, and the same valley at dusk with raiders on the map', () => {
     const f = threatFixture();

@@ -83,6 +83,7 @@ Two per resident, compatible pairs only (no Cheerful + Grumpy).
 
 - **Attractiveness** `A` (0 to 100), recomputed each morning: vacant homes (weight 30), food cover in days (20), open jobs (20), average charm near vacant homes (15), average mood (15).
 - **Arrivals** in waves every two hours from 08:00 to 16:00 (playtest round five; once a morning was too slow) if there is a vacant home and `A >= 40` *(tune)*, with `A` weighed afresh at each wave after the first: `k = 1 + floor(vacancies / 4)` households, max 3 per wave. They walk in from the valley gate and claim homes in order of desirability for their species.
+- **Arrivals weigh the winter** [I3, C5A]: from autumn to the thaw a family comes only while the larder could feed the town, them included, to the thaw with a little in hand (`14-challenge.md`, Seasons, As built).
 - **Household makeup** *(tune)*: single 25%, couple 30%, family with 1 to 3 children 35%, elder pair 10%.
 - **Departure**: a household whose average mood stays below the departure threshold (25 at Standard, see dials) for 3 consecutive days leaves at 09:00, with a Chronicle line and a short farewell note.
 - Sandbox: no residents.

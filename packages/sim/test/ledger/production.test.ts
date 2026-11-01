@@ -1,6 +1,6 @@
 import { content } from '@qoti/content';
 import { describe, expect, it } from 'vitest';
-import { BuildingStatus, MAP_SIZE, TICKS_PER_HOUR } from '../../src/constants';
+import { BuildingStatus, DAYS_PER_YEAR, MAP_SIZE, TICKS_PER_DAY, TICKS_PER_HOUR } from '../../src/constants';
 import type { Building, WorldState } from '../../src/contracts';
 import { TREE_SPECIES, treeStage, treeValue } from '../../src/map/layers';
 import { insertBuilding } from '../../src/state/place';
@@ -8,9 +8,17 @@ import {
   CROP_GROWTH,
   CROP_RIPE,
   CROP_STEP_TICKS,
-  CROP_YIELD,
   cropGrowth,
+  DRILL_STEP,
+  fieldsOf,
+  frostFields,
+  HARVEST_MIN,
+  HARVEST_STEP,
+  tendFields,
+  tileHarvest,
 } from '../../src/systems/production/fields';
+import { createTickCtx } from '../../src/turn';
+import { tickAt } from '../fixtures/seasonsPlace';
 import { soilPermille } from '../../src/systems/production/soil';
 import { hamletFixture } from '../fixtures/hamlet';
 import { rejection, run, S } from '../helpers';
@@ -248,37 +256,105 @@ describe('farms', () => {
     return { f, farm };
   }
 
-  it('grows painted fields and harvests 2 wheat per ripe tile, 12 tiles per farmer', () => {
+  it('sows bare fields in the spring window, 12 tiles per farmer', () => {
     const { f, farm } = farmWithFields(20, 1);
+    f.state.tick = tickAt(0, 0, 1, 9);
     ticks(f.state, 10 * CROP_STEP_TICKS);
     const growing = () =>
       f.state.map.crop.filter((c, i) => c > 0 && f.state.map.fieldOwner[i] === farm.id).length;
     // One farmer tends the first 12 tiles; the other eight wait for help.
     expect(growing()).toBe(12);
-    ticks(f.state, (Math.ceil(CROP_RIPE / 4) - 9) * CROP_STEP_TICKS);
-    expect(stockOf(farm, 'output', 'wheat')).toBe(12 * CROP_YIELD);
+    expect(stockOf(farm, 'output', 'wheat')).toBe(0);
   });
 
-  it('works out to about one wheat per field tile per day of tending', () => {
+  it('brings in golden wheat from Autumn day 1, 2 wheat a step, and a ripe tile gives about a year of I2 tending', () => {
     const { f, farm } = farmWithFields(12, 1);
-    // Work days are 9 hours; 4 days of tending is 36 hours.
+    const tiles = fieldsOf(f.state, farm, content.buildingById.get('farmhouse')!);
+    for (const i of tiles) f.state.map.crop[i] = CROP_RIPE;
+    // Summer: golden, but not yet.
+    f.state.tick = tickAt(0, 1, 5, 9);
+    ticks(f.state, 4 * CROP_STEP_TICKS);
+    expect(stockOf(farm, 'output', 'wheat')).toBe(0);
+    f.state.tick = tickAt(0, 2, 1, 9);
     let wheat = 0;
-    ticks(f.state, 36 * H, () => {
+    ticks(f.state, 40 * CROP_STEP_TICKS, () => {
       wheat += stockOf(farm, 'output', 'wheat');
       farm.rt!.output[good('wheat')] = 0;
     });
-    const perTileDay = wheat / 12 / 4;
-    expect(perTileDay).toBeGreaterThan(0.9);
-    expect(perTileDay).toBeLessThan(1.3);
+    expect(wheat).toBe(12 * tileHarvest(HARVEST_STEP));
+    for (const i of tiles) expect(f.state.map.crop[i]).toBe(0);
+    // About one wheat a tile a day over the year, as in I2.
+    expect(tileHarvest(HARVEST_STEP) / DAYS_PER_YEAR).toBeGreaterThan(0.9);
+    expect(tileHarvest(HARVEST_STEP) / DAYS_PER_YEAR).toBeLessThan(1.3);
+    // The Seed Drill takes smaller bites: a fifth more.
+    expect(tileHarvest(DRILL_STEP) / tileHarvest(HARVEST_STEP)).toBeGreaterThan(1.15);
   });
 
-  it('holds ripe wheat when the 30-unit buffer is full', () => {
+  it('holds standing wheat in the field when the 30-unit buffer is full', () => {
     const { f, farm } = farmWithFields(20, 2);
-    ticks(f.state, 70 * CROP_STEP_TICKS);
+    for (const i of fieldsOf(f.state, farm, content.buildingById.get('farmhouse')!))
+      f.state.map.crop[i] = CROP_RIPE;
+    f.state.tick = tickAt(0, 2, 2, 9);
+    ticks(f.state, 20 * CROP_STEP_TICKS);
     expect(stockOf(farm, 'output', 'wheat')).toBe(30);
     expect(
-      f.state.map.crop.filter((c, i) => c === CROP_RIPE && f.state.map.fieldOwner[i] === farm.id).length,
-    ).toBe(5);
+      f.state.map.crop.filter((c, i) => c >= HARVEST_MIN && f.state.map.fieldOwner[i] === farm.id).length,
+    ).toBe(20);
+    expect(farm.rt!.status & BuildingStatus.outputFull).toBeTruthy();
+  });
+
+  it('grows from the spring sowing to golden by the autumn on good soil, and rests in winter', () => {
+    const { f, farm } = farmWithFields(12, 1);
+    const def = content.buildingById.get('farmhouse')!;
+    const wheat = good('wheat');
+    const ctx = createTickCtx(f.state);
+    // Tend every work step from Spring day 1 to the end of summer, straight through the hook.
+    for (let day = 0; day < 12; day++) {
+      for (let h = 8; h < 17; h++) {
+        for (let q = 0; q < 4; q++) {
+          f.state.tick = tickAt(0, 0, 1, 8) + day * TICKS_PER_DAY + (h - 8) * H + q * CROP_STEP_TICKS;
+          tendFields(f.state, ctx, farm, def, 100, wheat);
+        }
+      }
+    }
+    const tiles = fieldsOf(f.state, farm, def);
+    for (const i of tiles) expect(f.state.map.crop[i]).toBeGreaterThanOrEqual(HARVEST_MIN);
+    // Winter: green wheat stays as it is.
+    f.state.map.crop[tiles[0]!] = 100;
+    for (let q = 0; q < 40; q++) {
+      f.state.tick = tickAt(0, 3, 3, 9) + q * CROP_STEP_TICKS;
+      tendFields(f.state, ctx, farm, def, 100, wheat);
+    }
+    expect(f.state.map.crop[tiles[0]!]).toBe(100);
+  });
+
+  it("ploughs last year's standing sheaves back in at the spring sowing", () => {
+    const { f, farm } = farmWithFields(4, 1);
+    const tiles = fieldsOf(f.state, farm, content.buildingById.get('farmhouse')!);
+    for (const i of tiles) f.state.map.crop[i] = 230;
+    f.state.tick = tickAt(1, 0, 2, 9);
+    ticks(f.state, 2 * CROP_STEP_TICKS);
+    for (const i of tiles) expect(f.state.map.crop[i]).toBeLessThan(HARVEST_MIN);
+  });
+
+  it('a farm that missed the sowing grows vegetables and says its fields lie ready', () => {
+    const { f, farm } = farmWithFields(12, 1);
+    f.state.tick = tickAt(0, 1, 2, 8);
+    ticks(f.state, 24 * H);
+    expect(farm.rt!.status & BuildingStatus.fallow).toBeTruthy();
+    expect(stockOf(farm, 'output', 'vegetables')).toBeGreaterThan(0);
+    expect(stockOf(farm, 'output', 'wheat')).toBe(0);
+  });
+
+  it('an early frost halves what still stands', () => {
+    const { f, farm } = farmWithFields(2, 1);
+    const tiles = fieldsOf(f.state, farm, content.buildingById.get('farmhouse')!);
+    f.state.map.crop[tiles[0]!] = CROP_RIPE;
+    f.state.map.crop[tiles[1]!] = 100;
+    frostFields(f.state, createTickCtx(f.state));
+    const left = f.state.map.crop[tiles[0]!]! - HARVEST_MIN;
+    expect(left).toBe((CROP_RIPE - HARVEST_MIN) >> 1);
+    expect(f.state.map.crop[tiles[1]!]).toBe(50);
   });
 
   it('flags a farmhouse with no fields', () => {

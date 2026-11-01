@@ -9,6 +9,7 @@ import { CHUNK_SIZE, CHUNKS_PER_SIDE, MAP_SIZE, TILE_FP } from '../../../constan
 import type { LayerName, MapLayers, Rect, TickCtx, WorldState } from '../../../contracts';
 import { buildingRect, decorInRect, expandRect, rectGap2 } from '../../../conditions/geo';
 import { findById } from '../../../state/entities';
+import { skatingSpots } from '../../seasons/place';
 import { streetNoise } from '../../traffic/noise';
 import {
   BUILDING_SOURCES,
@@ -23,6 +24,7 @@ import {
   HEIGHT_VIEW,
   MATURE_TREE,
   PATH_COMFORT,
+  SKATING_COMFORT,
   type Source,
   TYPE_COUNT,
   VARIETY,
@@ -267,6 +269,18 @@ export function recomputeChunk(
     }
   }
 
+  // I3 (C5A): skating spots near this chunk while the river is frozen.
+  const skate: number[] = [];
+  if (state.weather.river.frozen) {
+    const sr = SKATING_COMFORT.radius;
+    for (const t of skatingSpots(state)) {
+      const x = t % S;
+      const z = (t - x) / S;
+      if (x >= cx0 - sr && x <= cx1 + sr && z >= cz0 - sr && z <= cz1 + sr) skate.push(x, z);
+    }
+  }
+  const skateR = SKATING_COMFORT.radius * SKATING_COMFORT.radius;
+
   let changed = 0;
   const vR = VARIETY.radius * VARIETY.radius;
   const cR = CLUTTER.radius * CLUTTER.radius;
@@ -276,6 +290,17 @@ export function recomputeChunk(
       const i = tz * S + tx;
       if (m.water[i]) {
         for (let k = 0; k < 6; k++) out[k] = 0;
+        // I3 (C5A): the ice by a skating spot has a little comfort while the river is frozen (on the
+        // ice only: the bank's homes and decor keep their charm).
+        for (let k = 0; k < skate.length; k += 2) {
+          const dx = skate[k]! - tx;
+          const dz = skate[k + 1]! - tz;
+          if (dx * dx + dz * dz <= skateR) {
+            out[CAT.comfort] = SKATING_COMFORT.value;
+            out[5] = SKATING_COMFORT.value;
+            break;
+          }
+        }
         changed |= write(m, i);
         continue;
       }
