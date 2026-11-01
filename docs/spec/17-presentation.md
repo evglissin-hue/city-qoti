@@ -1,6 +1,22 @@
 # 17. Presentation
 
-A storybook miniature: soft-lit, warm, low-poly but dense with small details, never grimy, never babyish (P4, P44 to P49).
+A storybook miniature: soft-lit, warm, richly detailed, never grimy, never babyish (P4, P44 to P49).
+
+## Visual direction [V0]
+
+The game should stay cozy and get much more detailed (owner, 2026-11-01). The V0 concept viewer (`docs/concepts/v0-look/index.html`, open it in a browser; stills in `docs/build/screenshots/v0-*.jpg`) draws one generated town three ways, in each era (`18-eras.md`) and at day, golden hour and night, with a live fps, draw call and triangle readout to try on both laptops.
+
+| Direction | What it is | Cost |
+|---|---|---|
+| A. Polished Storybook | Today's palette and chunky shapes, plus joined rows, window frames, roof courses and ground variety | cheapest; close to today's budgets |
+| B. Painted Miniature (recommended) | A softened, harmonious palette; surface detail drawn in the shader (brick courses, roof tile rows, thatch, plaster grain, timber); ambient occlusion, warm haze, tilt-shift; a model village under a warm lamp | moderate: one material system, then detail everywhere for free |
+| C. Grand Diorama | Closest to Anno: taller three to four storey buildings, mansards, cornices and more ornament, a natural palette, stronger haze and little tilt-shift | most geometry and the least cozy |
+
+**Status**: the owner and Kat pick one, or a mix (for example B's materials with C's rooflines in the Age of Steam). Until then the art direction below stands. The pick sets the V1 briefs (`30-roadmap.md`, Visual overhaul).
+
+Concept numbers (Age of Steam, 249 buildings, about 3,000 trees and the valley around them, every post pass on): A 0.49 M triangles, B 1.24 M, C 1.28 M, under 100 draw calls. The concept merges each look into a few meshes, so the game will draw more calls than this; the triangles are a fair guide to what each look costs.
+
+Whatever the pick, the gap to close is the same: buildings standing alone on lawns instead of joining into streets, flat roof planes with no courses or thickness, one saturated grass, and little ambient occlusion where things meet.
 
 ## Palette
 
@@ -33,6 +49,7 @@ Pure functions from parameters (and a seed) to `BufferGeometry` with vertex colo
 - **Residents** [I1]: one parametric body (rounded, about 0.3 tile tall) with species parts (ears, tails, stripes, spines), fur palette, clothing colors, tier details (aprons, scarves, hats) and seasonal clothing.
 - **Critters** [I3]: tiny ambient wildlife (butterflies, bees, ducks, frogs, fireflies).
 - **Village** [I2, C4E]: district styles (`kits/district.ts`: Riverside Timber `timber`, Hill Stone `stone`, Market Brick `brick`, Garden Plaster `plaster`) set wall and upper-floor materials, plaster, roof shape, material and tint, accents and detail odds (window boxes, shutters, ivy, porches, lean-tos, dormers, benches, garden edges: picket, wattle, dry stone, hedge, railings). Grown generators fit any 2x2 to 3x3 lot: the district cottage (side gardens: vegetables, washing, a fruit tree or hens), the Craftsfolk townhouse (jettied upper floor, bay window, fanlight, two stacks), the shop with a flat above (shopfront, gilt fascia lettering, awning, a trade sign), the workshop with its yard and what it makes, and the farmstead (house, barn, yard and a produce corner: pen, fruit trees, wheat or rows). A home's look comes from its seed and district alone, so a cottage that upgrades in place becomes a townhouse in the same walls and paint, with scaffolding while the upgrade is under way. Each I2 building has its own silhouette (clay pit banks and pug mill, bottle kiln, shepherd's hut, spinning wheel porch and dye pots, weavers' windows and tenter frame, byre and churn stand, cheese room, orchard rows by season, apple mill and screw press, round woodstack, skeps and herb beds, open forge, bell cote and playground, inn sign on a post and beer garden, herbalist's bottles and bunches, Trading Post veranda and pennants, cart shed bay and pony stall). Sheep, cows and ponies are animated parts; the cart has a body, wheels and a load per good.
+- **Eras** (`18-eras.md`): kits take `era` beside `style`, and an era is a parameter set, not a fork. Old Age [today]: thatch, timber frame, plaster, wattle, dry stone, steep gables, oil lanterns. Age of Steam [I4, V3]: brick and stucco, slate and mansards, sash windows, cast iron railings and lamp posts, gas lamps, chimney stacks, canal locks and barges, terraces of two to four storeys. Bright Age [I5, V4]: stucco in soft pastels, art deco details (stepped parapets, round windows, fluted pilasters), striped awnings, electric globe lamps, tram wires, station canopies; pitched roofs stay the rule.
 - **Gallery** (`apps/gallery`): every generator with parameter sliders, all seasons, day and night. Used for art review.
 
 ## Lighting and time of day
@@ -69,14 +86,16 @@ Tone mapping (AgX or ACES), bloom (strong at night), tilt-shift (vertical gradie
 
 ## Quality presets
 
-| | Low | Medium (target) | High |
-|---|---|---|---|
-| Shadows | off | 2048, soft | 4096, softer |
-| Post | tone mapping only | + bloom, tilt-shift on wide views (none close up) | + ambient occlusion, more bloom detail |
-| Render scale | 0.75 | 1.0 (device pixel ratio up to 2) | 1.0 (device pixel ratio up to 2) |
-| Resident detail distance | 30 tiles | 60 | 100 |
-| Decor detail distance | 40 | 80 | 140 |
-| Ambient critters | none | some | all |
+| | Low | Medium (target) | High | Ultra [V1] |
+|---|---|---|---|---|
+| Shadows | off | 2048, soft | 4096, softer | 4096, softest filtering |
+| Post | tone mapping only | + bloom, tilt-shift on wide views (none close up) | + ambient occlusion, more bloom detail | + ambient occlusion (GTAO) at full resolution |
+| Render scale | 0.75 | 1.0 (device pixel ratio up to 2) | 1.0 (device pixel ratio up to 2) | 1.0 (device pixel ratio up to 2) |
+| Resident detail distance | 30 tiles | 60 | 100 | 140 |
+| Decor detail distance | 40 | 80 | 140 | 200 |
+| Ambient critters | none | some | all | all |
+
+Ultra is for the stronger laptop or a desktop; it is never auto-detected. Budgets per preset: `22-quality.md`.
 
 Auto-detect picks a preset (Low on phones and two-core machines, otherwise Medium; High is a choice in settings, because core counts say little about the GPU behind a Retina screen); the settings menu can override it. On every preset, dynamic resolution steps the render scale down (to 0.85, 0.72, 0.6 and 0.5 of the preset's, never below a pixel ratio of 0.6) when frames average slower than about 45 fps, and back up after a few seconds above about 66 fps (`apps/client/src/render/resolution.ts`; `?debug&fixedres` turns it off for screenshots).
 

@@ -1,6 +1,6 @@
 # 30. Roadmap
 
-Each iteration ends with something both players can play on the live link (P54), a playtest (`22-quality.md`), and an integration cycle that writes the next iteration's briefs. Cycle ids refer to `docs/build/`.
+Each iteration (gameplay I0 to I5, visual V1 to V4; V0 was a concept) ends with something both players can play on the live link (P54), a playtest (`22-quality.md`), and an integration cycle that writes the next iteration's briefs. Cycle ids refer to `docs/build/`.
 
 ## I0 Valley sandbox
 
@@ -72,7 +72,7 @@ Each iteration ends with something both players can play on the live link (P54),
 
 **Scope**: seasons (seasonal farming, frozen river, warmth and firewood); weather and events (flood, drought, early frost, cold snap, travelling circus); festivals; habitats and the Field Guide (about 30 species); threat pressure, telegraphing, bandit gangs and winter wolves; defenses; the Watch and raid resolution; threat dial; River Dock; commissions; renown; customization phase 2 (modules); photo mode; Chronicle snapshots; 6 new patterns; together moments; story characters Mother Thornbury and Barnaby Ashcombe; the first winter trial for Village; music, ambience and sound effects from CC0 recordings (pulled forward from I5); a guide for a new valley's first days.
 
-**Cycles**: C5.0 seasons contracts (serial, with C4P roads and folk polish alongside) → C5A seasons and weather, C5B festivals and renown, C5C nature and the Field Guide, C5D threats and the Watch, C5E seasons art, C5F seasons UI, C5G music and sound, C5H the first days guide (parallel) → C5X integration and I4 planning.
+**Cycles**: C5.0 seasons contracts (serial, with C4P roads and folk polish alongside) → C5A seasons and weather, C5B festivals and renown, C5C nature and the Field Guide, C5D threats and the Watch, C5E seasons art, C5F seasons UI, C5G music and sound, C5H the first days guide (parallel) → C5X integration and I4 planning. C5E waits for V1 (below) and then builds the seasons, festivals and defenses on the new look; the other I3 cycles own sim and UI paths and run alongside V1.
 
 **Acceptance** (C5.0, from C5X's proposal):
 
@@ -87,13 +87,48 @@ Each iteration ends with something both players can play on the live link (P54),
 - A new standard valley's first days are guided for both lanes, and the guide can be hidden by either player.
 - Benches within budget at Village scale in winter, during a festival and during a raid; hashes match over a full year, including a raid, in Node and a browser worker.
 
+## Visual overhaul (V iterations)
+
+The look gets much more detailed and stays cozy (owner, 2026-11-01; `17-presentation.md`, Visual direction; `18-eras.md`). Like the gameplay iterations, each V iteration is a serial contracts cycle, a parallel wave and an integration cycle, ends playable on the live link and gets a playtest evening. V iterations interleave with the gameplay ones: a V wave owns render and art paths, so gameplay cycles that own sim and UI paths can run beside it.
+
+### V0 Concept and direction (done)
+
+The concept viewer (`docs/concepts/v0-look/index.html`) with three directions, three eras and three times of day, and a live fps, draw call and triangle readout; stills (`docs/build/screenshots/v0-*.jpg`); this eras doc; the budgets by preset (`22-quality.md`). Ends when the owner and Kat pick a direction (A, B, C or a mix); the V1 briefs are written from the pick.
+
+### V1 Look foundation (next)
+
+Runs alongside the I3 wave's C5B, C5C, C5D, C5F and C5H; C5E waits for V1X.
+
+**Cycles**: V1.0 look contracts (serial) → V1A materials and light, V1B buildings detail, V1C ground, water and nature, V1D performance (parallel) → V1X integration.
+
+- **V1.0 look contracts**: the surface material id every kit writes per vertex (plaster, brick, stone, timber, thatch, tile, slate, glass, metal, cobble, ground kinds) and how the shared material reads it; palette 2.0 tokens for the chosen direction; `Era` and `eras` reserved in content types; the quality presets with Ultra; a GPU timer in the `?debug` overlay; fixed before and after fixtures (hamlet, village of 130, a synthetic 1,000-building town) shot from the same cameras.
+- **V1A materials and light**: surface detail drawn in the shader from the material id (brick courses, roof tile rows, thatch, slate, plaster grain, timber grain, cobbles), ambient occlusion, warm distance haze, the grade, palette retune, night (window glow, lamp pools), seasonal hooks kept working.
+- **V1B buildings detail**: every existing generator gets window frames, sills, lintels, cornices, roof courses, eave and verge thickness, chimney pots, gutters and downpipes; joined facades and party walls where neighbors touch; a near, middle and far level of detail per kit.
+- **V1C ground, water and nature**: ground variety (meadow, mown grass, worn edges, soil, moss on stone), road edges and kerbs, trees v2 (fuller crowns, trunks and roots), banks, reeds and water v2.
+- **V1D performance**: impostors or merged far blocks for buildings beyond the middle distance, the new budgets measured on both laptops, Ultra, dynamic resolution retuned for the heavier post.
+- **V1X integration**: merges and tunes; before and after screenshots of every fixture; fps, GPU time, draws and triangles from both laptops on each preset; a playtest evening.
+
+**Acceptance**: the fixtures read as the chosen concept from the default camera and close up, by day and by night; every budget in `22-quality.md` holds on the weaker laptop on Medium; nothing in the sim changes, and hashes match.
+
+### V2 Streets that feel like a town (with the I4 wave)
+
+Zoned buildings fill their street frontage and join into terraces around back gardens and courtyards; corner buildings; stepped rooflines and heights by tier; street furniture density by district. It changes how lots are cut and grown, so its sim half goes through I4's contracts cycle and its art half joins the I4 art cycle.
+
+### V3 Age of Steam (with I4 Town)
+
+Era state in the sim and saves (`18-eras.md`, Data), the Age of Steam kit (brick, slate, mansards, ironwork, gas lamps, canal locks, barges, factory stacks and smoke), the era moment at the sealed Town Charter, restyling across eras, the Old Town pattern, steam as a production method and smoke as a Charm cost.
+
+### V4 Bright Age and grand landmarks (with I5)
+
+The Bright Age kit (stucco, art deco touches, electric lamps, tram wires, the station), electric methods and the electric tram, grand landmarks, and the Bright Age's gentle threats.
+
 ## I4 Town
 
-**Scope**: Town Charter and the bandit raid trial; Merchants tier; districts, district policies and styles; contracts; Port Amberly; canals and barges; parcels and expansion (purchase, bridges, camps and dens with Watch expeditions); great owl, river raiders, bandit chief; block builder for landmarks; library, theater, post office, inn and tourism; levees and irrigation; time-lapse; 8 new patterns; Captain Wendell Rook; more achievements.
+**Scope**: Town Charter and the bandit raid trial; the Age of Steam (`18-eras.md`: era state, the Steam kit and systems, the era moment, restyling across eras, Old Town; V2 and V3 run with this wave); Merchants tier; districts, district policies and styles; contracts; Port Amberly; canals and barges; parcels and expansion (purchase, bridges, camps and dens with Watch expeditions); great owl, river raiders, bandit chief; block builder for landmarks; library, theater, post office, inn and tourism; levees and irrigation; time-lapse; 8 new patterns; Captain Wendell Rook; more achievements.
 
 ## I5 Market Town, City and beyond
 
-**Scope**: Market Town and City Charters and trials; Patrons tier; tram, gas lamps, railway, glassworks; grand landmarks; music stems that follow the town; stroll mode; optional Claude-written letters; new valleys (coast, highlands, lakes); gamepads and a one-screen couch mode; remappable keys; captions; polish.
+**Scope**: Market Town and City Charters and trials; the Bright Age at City (`18-eras.md`; V4 runs with this wave); Patrons tier; tram, gas lamps, railway, glassworks; grand landmarks; music stems that follow the town; stroll mode; optional Claude-written letters; new valleys (coast, highlands, lakes); gamepads and a one-screen couch mode; remappable keys; captions; polish.
 
 ## Ideas from playtests (not scheduled)
 

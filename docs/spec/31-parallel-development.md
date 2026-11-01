@@ -11,6 +11,19 @@ A **cycle** is one agent session working from one brief on one branch, ending in
 | I0 | C1 foundation | C2A world and sim, C2B render and art kit, C2C co-op and saves, C2D client UX | C2X |
 | I1 | C3.0 hamlet contracts | C3A residents, C3B Hearth v1, C3C Ledger v1, C3D hamlet art and rendering, C3E hamlet UI | C3X (also writes the I2 briefs) |
 | I2 to I5 | written by the previous integration cycle | | |
+| V1 | V1.0 look contracts (surface material ids, palette 2.0, reserved `Era`, presets, GPU timer, fixtures) | V1A materials and light, V1B buildings detail, V1C ground, water and nature, V1D performance | V1X |
+| V2 to V4 | inside I4 and I5's contracts cycles | with the I4 and I5 waves | with I4X and I5X |
+
+V1 splits the render and art track by subpath so its four cycles can run at once on V1.0's shared contract:
+
+| V1 cycle | Owns |
+|---|---|
+| V1A | `packages/art/src/materials.ts`, `packages/art/src/palette.ts`, `apps/client/src/render/{post,lighting,env}.ts`, the shared material's shader hooks |
+| V1B | `packages/art/src/kits/` (buildings, props, residents) except `nature.ts` and `trees.ts`; `render/layers/buildings.ts` |
+| V1C | `packages/art/src/kits/{nature,trees}.ts`; terrain, roads, water, nature and trees in the client (`render/layers/{terrain,roads,water,nature,trees}.ts`, `render/{ground,surface,scatter}.ts`) |
+| V1D | `apps/client/src/render/{quality,resolution}.ts`, level of detail and impostor code, the `?debug` overlay's GPU timer |
+
+A V1 wave runs beside gameplay cycles that own sim and UI paths (I3's C5B, C5C, C5D, C5F, C5H); a gameplay cycle that owns render or art paths (C5E) waits for V1X.
 
 Briefs live in `docs/build/`. The board in `docs/build/README.md` tracks status.
 

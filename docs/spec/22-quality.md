@@ -6,19 +6,22 @@ Acceptance criteria for every cycle that touches the area. Reference machines: a
 
 | Metric | Budget |
 |---|---|
-| Frame rate | 60 fps at 1080p on Medium with a City-scale scene; 30 fps floor on Low on older machines |
+| Frame rate | 60 fps at 1080p on Medium on the weaker laptop with a City-scale scene; 30 fps floor on Low on older machines |
+| GPU frame time | 12 ms or less on Medium on the weaker laptop, measured with `EXT_disjoint_timer_query_webgl2` where the browser offers it, else frame time minus main thread time; shown in the `?debug` overlay [V1] |
 | Main thread frame time | 12 ms or less on average (render, UI, mirror) |
-| Draw calls | 300 or fewer |
-| Triangles on screen | 1.5 M or fewer on Medium |
+| Draw calls | Low and Medium 300; High and Ultra 450 |
+| Triangles on screen | Low 1.5 M; Medium 3 M; High 6 M; Ultra 12 M *(tune: confirm on both laptops with the V0 concept viewer's readout)* |
 | Sim tick (worker) | I0: 1 ms; I1 40-resident hamlet: 0.5 ms; with 2,000 residents: 4 ms average, 12 ms worst |
 | World generation | 300 ms in Node |
 | Chunk rebuild | 4 ms each, at most 2 per frame |
 | Catch-up | 300 turns at 3x in 1.5 s |
 | Snapshot | 2 MB gzipped at City scale; serialize in 150 ms |
 | State hash | 30 ms |
-| Memory | 600 MB per tab |
+| Memory | Low and Medium 800 MB per tab; High and Ultra 1.5 GB |
 | Load | interactive in 5 s cold, 2 s warm; initial JS 1.5 MB gzipped |
 | Input | ghost follows the cursor within 1 frame; online command visible within 250 ms |
+
+**Why these numbers (V0, 2026-11-01)**: v1's 1.5 M triangles and 300 draws were a guess made before anything was measured, and a village of 130 already draws 0.8 to 1.15 M triangles (`30-roadmap.md`, I2 As built). On integrated graphics fill rate costs more than triangles: post passes, shadow map size, overdraw and the pixel ratio decide the frame long before geometry does. So the frame rate and the GPU frame time on the weaker laptop are the real criteria, triangles are a guide, and detail is spent where the camera is (levels of detail near, impostors far away). Draw calls stay low because each costs main thread time; more detail comes from batching and instancing, never from more calls.
 
 `tools/bench` builds synthetic valleys (I0: 1,000 buildings and 6,000 decor; I1: a 40-resident hamlet; later a synthetic 2,000-resident town) and reports ms per tick, memory and snapshot size. CI fails when a sim or worldgen budget is exceeded.
 

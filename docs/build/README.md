@@ -1,6 +1,6 @@
 # Build board
 
-One row per cycle. A cycle is one agent session working from one brief on one branch, ending in one PR into `main`. I1 ran as C3.0 then six parallel agents (C3D split into world look and hamlet art), merged and tuned in C3X on one branch. Wave 2 of I0 ran as six parallel agents (C2B and C2D were each split in two) and landed as one integration PR stacked on #1. How cycles work: `docs/spec/31-parallel-development.md`.
+One row per cycle. A cycle is one agent session working from one brief on one branch, ending in one PR into `main`. I1 ran as C3.0 then six parallel agents (C3D split into world look and hamlet art), merged and tuned in C3X on one branch. Wave 2 of I0 ran as six parallel agents (C2B and C2D were each split in two) and landed as one integration PR stacked on #1. The visual overhaul runs as V iterations between the gameplay ones (`docs/spec/30-roadmap.md`, Visual overhaul); V1 runs beside the I3 wave. How cycles work: `docs/spec/31-parallel-development.md`.
 
 | Cycle | Iteration | Wave | Brief | Depends on | Status |
 |---|---|---|---|---|---|
@@ -31,11 +31,18 @@ One row per cycle. A cycle is one agent session working from one brief on one br
 | C5B Festivals, renown, commissions and the River Dock | I3 | parallel | `cycle-05b-festivals-renown.md` | C5.0 | ready (C5.0 is done) |
 | C5C Nature, the Field Guide and Hearth craft | I3 | parallel | `cycle-05c-nature-field-guide.md` | C5.0 | ready (C5.0 is done) |
 | C5D Threats, defenses and the Watch | I3 | parallel | `cycle-05d-threats-watch.md` | C5.0 | ready (C5.0 is done) |
-| C5E Seasons art and rendering | I3 | parallel | `cycle-05e-seasons-art.md` | C5.0 | ready (C5.0 is done) |
+| C5E Seasons art and rendering | I3 | parallel | `cycle-05e-seasons-art.md` | C5.0, V1X | waits for V1 (builds on the new look) |
 | C5F Seasons UI | I3 | parallel | `cycle-05f-seasons-ui.md` | C5.0 | ready (C5.0 is done) |
 | C5G Music and sound | I3 | parallel | `cycle-05g-audio.md` | C5.0 | done on `claude/epic-hawking-e32pnd`, synthesized (see As built in the brief) |
 | C5H The first days guide | I3 | parallel | `cycle-05h-first-days.md` | C5.0 | ready (C5.0 is done) |
 | C5X I3 integration and I4 planning | I3 | integration | `cycle-05x-integration.md` | C5A to C5H | waiting |
+| V0 Concept and direction | V0 | serial | none (this session) | none | done on `claude/compassionate-dirac-9c0pyz` (concept viewer `docs/concepts/v0-look/`, stills `v0-*`, `18-eras.md`, budgets by preset); waiting for the owner and Kat to pick A, B, C or a mix |
+| V1.0 Look contracts | V1 | serial | written after the pick | V0 pick | waiting |
+| V1A Materials and light | V1 | parallel | written after the pick | V1.0 | waiting |
+| V1B Buildings detail | V1 | parallel | written after the pick | V1.0 | waiting |
+| V1C Ground, water and nature | V1 | parallel | written after the pick | V1.0 | waiting |
+| V1D Performance | V1 | parallel | written after the pick | V1.0 | waiting |
+| V1X V1 integration | V1 | integration | written after the pick | V1A to V1D | waiting |
 
 Status values: waiting (dependencies not merged), ready, in progress (add the session link), PR open (add the PR link), merged.
 
