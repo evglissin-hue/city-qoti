@@ -17,6 +17,7 @@ import { seasonAt } from '../state/seasons';
 import { townReachesDoor } from '../state/reach';
 import { isBuildTime } from '../systems/economy/time';
 import { ARRIVAL_THRESHOLD } from '../systems/residents/lifecycle';
+import { larderWelcomes } from '../systems/seasons/api';
 import { meetsRequires } from '../systems/innovations/api';
 import { allowedWork } from '../systems/production/status';
 import { kitchenGardenMissing } from '../systems/hearth/patterns/detectors/kitchenGarden';
@@ -95,9 +96,12 @@ function statusLines(state: WorldState, b: Building, def: BuildingDef | undefine
   // Playtest round three: an empty home says when a family will come ("they're not using it").
   if (b.stage === 'built' && def?.housing && !state.households.some((h) => h.homeId === b.id)) {
     out.push(
-      state.stats.attractiveness >= ARRIVAL_THRESHOLD
-        ? 'Empty for now: new families walk in from the valley gate every two hours between 8:00 and 16:00'
-        : 'Empty for now: families will come once the valley is a little more inviting (food in store, work going, a bit of charm)',
+      state.stats.attractiveness < ARRIVAL_THRESHOLD
+        ? 'Empty for now: families will come once the valley is a little more inviting (food in store, work going, a bit of charm)'
+        : // C5A: from autumn, families wait for a larder that would see them through the winter.
+          !larderWelcomes(state, 1)
+          ? 'Empty for now: families wait until the larder could feed one more mouth to the thaw'
+          : 'Empty for now: new families walk in from the valley gate every two hours between 8:00 and 16:00',
     );
   }
   // Playtest round five: two plots and no pattern; say what the Kitchen Garden still wants.

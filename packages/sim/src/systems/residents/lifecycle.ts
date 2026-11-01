@@ -10,6 +10,7 @@ import { findById, removeById } from '../../state/entities';
 import { moodBand, townStock } from '../../view/hamlet';
 import { chronicle } from '../chronicle/api';
 import { pay } from '../economy/money';
+import { larderWelcomes } from '../seasons/api';
 import { moveResident, setInside } from '../movement/api';
 import { averageAround, describeHome, homeDesirability } from './desirability';
 import { removeFriend } from './friends';
@@ -112,6 +113,9 @@ export function arrivals(state: WorldState, ctx: TickCtx, rng: Rng): number {
   const founding = state.stats.arrivals === 0 && state.residents.length === 0;
   if (founding) state.stats.attractiveness = attractiveness(state, vac);
   else if (state.stats.attractiveness < ARRIVAL_THRESHOLD) return 0;
+  // C5A: from autumn to the thaw families wait while the larder could not see one more through
+  // the winter (each family below counts its own mouths).
+  if (!founding && !larderWelcomes(state, 1)) return 0;
   // A story character ready to move in gets the last home (C4D; playtest round five).
   const room = founding || !storyWaiting(state) ? vac.length : vac.length - 1;
   const k = founding
@@ -122,6 +126,7 @@ export function arrivals(state: WorldState, ctx: TickCtx, rng: Rng): number {
   const present = new Set(state.residents.map((r) => r.species));
   // Arrivals do not change what a home is worth to a species, so each is scored once.
   const memo = new Map<string, number>();
+  let came = 0;
   for (let i = 0; i < k && vac.length > 0; i++) {
     // Every species is welcome; the best home on offer tips the scales, and a valley full of
     // one kind of folk is less likely to draw more of them (the founders are always mixed).
@@ -141,6 +146,7 @@ export function arrivals(state: WorldState, ctx: TickCtx, rng: Rng): number {
     const stages: LifeStage[] = founding
       ? (['adult', 'adult', 'young', 'child'] as LifeStage[]).slice(0, Math.max(1, home.residents))
       : stagesFor(pickMakeup(rng), rng, home.residents);
+    if (!founding && !larderWelcomes(state, stages.length)) break;
     const { household, members } = createHousehold(state, rng, {
       species,
       stages,
@@ -162,9 +168,10 @@ export function arrivals(state: WorldState, ctx: TickCtx, rng: Rng): number {
       refs: [household.id, home.building.id],
     });
     state.stats.arrivals += 1;
+    came++;
   }
   announceTown(state, ctx);
-  return k;
+  return came;
 }
 
 /** 06:00: attractiveness, birthdays, bonds and the low-mood count behind departures. */

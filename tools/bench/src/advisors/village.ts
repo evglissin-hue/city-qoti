@@ -30,6 +30,7 @@ import {
 import { materialsPressing } from '../labor';
 import { costOf, MONEY_RESERVE, VILLAGE_MARGIN, type Budget, type Planner } from '../planner';
 import { count, craftsfolk, G } from '../town';
+import { firewoodInTown, woodNeed } from './seasons';
 import type { Advisor, AdvisorDef, Visit } from './types';
 
 /** Timber and food buildings may dip into the reserve. */
@@ -267,7 +268,8 @@ class Village implements Advisor {
     const made = foods.reduce((n, g) => n + (w.economy.yesterday.produced[g] ?? 0), 0);
     // C4X: a little over a day's eating made a day is enough (at 1.4 a Village of 200 kept a third
     // of its hands on plots and huts while the Craftsfolk chains stood empty).
-    if (pop >= 30 && food < pop * 4 && made < pop * 1.15) {
+    // C5A: not in winter, when plots and huts make nothing.
+    if (pop >= 30 && food < pop * 4 && made < pop * 1.15 && calendar(w.tick).season !== 3) {
       // C4X: plots and huts (wheat is not food; the farms come with the bread chain).
       const def = this.p.foodBuilding();
       this.want(def, 5, true);
@@ -287,7 +289,16 @@ class Village implements Advisor {
     const logs = stock[G('logs')]!;
     const planks = stock[G('planks')]!;
     const cutters = count(w, 'woodcutter');
-    const wantLogs = cutters < 2 + Math.floor(pop / 50) || count(w, 'chopping-shed') < 1;
+    // C5A: and while a chopping shed waits on logs with the woodpile short of the winter ahead.
+    const shedWaits = w.buildings.some(
+      (b) =>
+        b.def === 'chopping-shed' &&
+        b.stage === 'built' &&
+        !b.rt!.paused &&
+        (b.rt!.status & BuildingStatus.missingInput) !== 0,
+    );
+    const wantLogs =
+      cutters < 2 + Math.floor(pop / 50) || count(w, 'chopping-shed') < 1 || (this.p.woodShort && shedWaits);
     const pits = w.buildings.filter((b) => b.def === 'sawpit' && b.stage === 'built');
     // Plenty of planks, or logs wanted for building: keep one sawpit going (none with 120 planks).
     // C4X: none while the next woodcutter waits for its twelve logs (one woodcutter's logs all went
@@ -328,13 +339,22 @@ class Village implements Advisor {
     // firewood while the sawpits stood idle), and reopen when it runs low.
     const firewood = stock[G('firewood')]!;
     const homes = w.households.length;
+    // C5A: from autumn the woodpile (stores and pantries) has a winter to see through: a shed rests
+    // only with the winter ahead in hand and some over, and reopens once the pile is short of it.
+    const need = woodNeed(w);
+    const pile = firewoodInTown(w);
     for (const b of w.buildings) {
       if (b.def !== 'chopping-shed' || b.stage !== 'built' || !b.rt) continue;
-      // C5A: from autumn the woodpile has a winter to see through (pantries hold four days each).
-      const winter = calendar(w.tick).season >= 2 ? 2 : 1;
-      const rest = b.rt.paused
-        ? firewood >= homes * 2 * winter
-        : firewood >= Math.max(40, homes * 5 * winter);
+      // The woodcutter's logs come first while the last patch thins (the hamlet advisor says so).
+      const rest =
+        this.p.logsForWoodcutter ||
+        (calendar(w.tick).season >= 2
+          ? b.rt.paused
+            ? pile >= need
+            : pile >= need + Math.max(40, homes * 2)
+          : b.rt.paused
+            ? firewood >= homes * 2
+            : firewood >= Math.max(40, homes * 5));
       if (b.rt.paused !== rest)
         this.p.do(rest ? 'rest the chopping shed' : 'reopen the chopping shed', [
           { t: 'build.setPaused', id: b.id, paused: rest },

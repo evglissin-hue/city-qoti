@@ -68,18 +68,24 @@ export function firewoodToday(state: WorldState): number {
   return Math.max(1, Math.round((WARMTH_PER_HOUSEHOLD * snap) / 1000));
 }
 
-/** Takes up to `qty` firewood free from the storehouses (a Hamlet's way), in id order. */
+/**
+ * Takes up to `qty` firewood free (a Hamlet's way), in id order: from the storehouses, then from
+ * the pile at a chopping shed's door. C5A tuning: a busy Hamlet's two porters clear outputs last,
+ * so a shed's full pile sat for days while every hearth in town went cold.
+ */
 function takeFree(state: WorldState, good: number, qty: number): number {
   let got = 0;
-  for (const b of state.buildings) {
-    if (got >= qty) break;
-    const rt = b.rt;
-    if (b.stage !== 'built' || !rt || !isStorage(defOf(b))) continue;
-    const free = (rt.store[good] ?? 0) - (rt.reservedOut[good] ?? 0);
-    const n = Math.min(qty - got, free);
-    if (n <= 0) continue;
-    rt.store[good]! -= n;
-    got += n;
+  for (const pass of [0, 1]) {
+    for (const b of state.buildings) {
+      if (got >= qty) return got;
+      const rt = b.rt;
+      if (b.stage !== 'built' || !rt || isStorage(defOf(b)) !== (pass === 0)) continue;
+      const pile = pass === 0 ? rt.store : rt.output;
+      const n = Math.min(qty - got, (pile[good] ?? 0) - (rt.reservedOut[good] ?? 0));
+      if (n <= 0) continue;
+      pile[good]! -= n;
+      got += n;
+    }
   }
   return got;
 }

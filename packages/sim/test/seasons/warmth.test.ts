@@ -21,7 +21,7 @@ import {
 import { createTickCtx } from '../../src/turn';
 import { agentFrame } from '../../src/view/agents';
 import { hamletFixture } from '../fixtures/hamlet';
-import { tickAt } from '../fixtures/seasonsPlace';
+import { placeFree, tickAt } from '../fixtures/seasonsPlace';
 import { winterFixture } from '../fixtures/winter';
 import { expectMoneyInvariant, moneySnapshot } from '../money';
 
@@ -165,6 +165,21 @@ describe('warmth', () => {
     expect(store.rt!.store[FIREWOOD]).toBe(50 - s.households.length * WARMTH_PER_HOUSEHOLD);
     expect(s.economy.today.consumed[FIREWOOD]).toBe(s.households.length * WARMTH_PER_HOUSEHOLD);
     expectMoneyInvariant(before, s);
+  });
+
+  it("takes it from the chopping shed's pile in a Hamlet when the storehouses have none", () => {
+    const f = hamletFixture();
+    const s = f.state;
+    s.tick = tickAt(0, 3, 1, 8);
+    emptyFirewood(s);
+    const shed = placeFree(s, 'chopping-shed', 80, 46);
+    const want = s.households.length * WARMTH_PER_HOUSEHOLD;
+    shed.rt!.output[FIREWOOD] = want + 3;
+    shed.rt!.reservedOut[FIREWOOD] = 2;
+    burnDay(s, createTickCtx(s));
+    for (const h of s.households) expect(isCold(s, h.id)).toBe(false);
+    // What a porter has already been promised stays for the porter.
+    expect(shed.rt!.output[FIREWOOD]).toBe(3);
   });
 
   it('counts a winter where nobody was cold toward Warm Hearths, and clears the winter in spring', () => {

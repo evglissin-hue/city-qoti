@@ -6,20 +6,12 @@ import { DAYS_PER_SEASON, SEASON_NAMES } from '../../constants';
 import type { SeasonReportLine, WorldState } from '../../contracts';
 import { seasonAt } from '../../state/seasons';
 import { dayIndex } from '../../systems/economy/time';
-import { larder } from '../../systems/seasons/stores';
+import { larder, woodpile } from '../../systems/seasons/stores';
+
+export { woodpile };
 
 function good(id: string): number {
   return content.goodIndex.get(id) ?? -1;
-}
-
-/** Firewood in the storehouses and the households' pantries. */
-export function woodpile(state: WorldState): number {
-  const g = good('firewood');
-  if (g < 0) return 0;
-  let n = 0;
-  for (const b of state.buildings) if (b.rt) n += (b.rt.store[g] ?? 0) + (b.rt.output[g] ?? 0);
-  for (const h of state.households) n += h.pantry[g] ?? 0;
-  return n;
 }
 
 /** Days the larder would feed the town (one unit a resident a day). */

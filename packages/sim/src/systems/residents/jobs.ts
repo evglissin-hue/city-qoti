@@ -10,6 +10,7 @@ import { findById } from '../../state/entities';
 import { townStock } from '../../view/hamlet';
 import { setInside } from '../movement/api';
 import { doorOf, householdOf, isWorkingAge, manhattan } from './places';
+import { larderWelcomes, seasonNow, woodpileShort } from '../seasons/api';
 import { jobFits, tierShortages } from '../tiers/api';
 import { pushHistory } from './records';
 import { dayIndex } from './time';
@@ -36,6 +37,11 @@ export interface Shortages {
   /** I2 (C4C): more than PLENTY_DAYS of food in hand, so farms and fishers can spare hands. */
   plenty?: boolean;
   /**
+   * C5A: autumn, and the larder could not see the town and a family more through the winter
+   * (seasons/api.ts), so the gardens' last days of growing come before other work.
+   */
+  winter?: boolean;
+  /**
    * C4X: goods are piling up for want of porters (a quarter or more of the producing buildings sit
    * with full output), so the extra porters of each storehouse are hired like any other work.
    */
@@ -44,6 +50,9 @@ export interface Shortages {
 
 /** Share of producing buildings with full output at which porters count as short (C4X). */
 export const HAUL_SHORT_SHARE = 0.25;
+
+/** C5A: the family the autumn gardens work for: food work leads while one this size could not move in. */
+export const WAITING_FAMILY = 4;
 
 /** Days of food in hand above which food jobs stop outranking other work (C4C). */
 export const PLENTY_DAYS = 8;
@@ -70,6 +79,8 @@ export function shortages(state: WorldState): Shortages {
   }
   // I2 (C4C): what the Craftsfolk basket is short of (nothing before the Village).
   for (const id of tierShortages(state, stock)) goods.add(id);
+  // C5A: from autumn to the thaw, firewood while the woodpile could not see the winter through.
+  if (woodpileShort(state)) goods.add('firewood');
   let producing = 0;
   let full = 0;
   for (const b of state.buildings) {
@@ -81,6 +92,7 @@ export function shortages(state: WorldState): Shortages {
   }
   return {
     food: food < 3 * state.residents.length,
+    winter: seasonNow(state).season === 2 && !larderWelcomes(state, WAITING_FAMILY),
     goods,
     plenty: food > PLENTY_DAYS * state.residents.length,
     haul: producing > 0 && full >= producing * HAUL_SHORT_SHARE,
@@ -111,6 +123,10 @@ function makes(def: BuildingDef, short: Shortages): 'short' | 'food' | 'other' {
 export function slotPriority(def: BuildingDef, k: number, short: Shortages = NO_SHORTAGES): number {
   const role = def.jobs?.role ?? 'worker';
   if (role === 'builder') return k === 0 ? 0 : k === 1 ? 1 : 4;
+  // C5A: with the larder short of the winter in autumn and goods piling up for want of porters, a
+  // storehouse's first two porters come first and the rest rank with food work (a harvest waiting
+  // in full baskets fills no larder).
+  if (role === 'porter' && short.haul && short.winter) return k <= 1 ? 0 : 1;
   if (role === 'porter') return k === 0 ? 0 : k === 1 ? 1 : short.haul ? 3 : 4;
   if (role === 'vendor') return 1;
   // I2 (C4C): a tavern, herbalist or school open matters like a stall's vendor; and a town sitting on
@@ -118,6 +134,9 @@ export function slotPriority(def: BuildingDef, k: number, short: Shortages = NO_
   if (def.category === 'service') return k === 0 ? 0 : 1;
   const kind = makes(def, short);
   if (kind === 'short') return 0;
+  // C5A: food work, with the larder short of the winter in autumn: ahead of other workplaces, never
+  // ahead of the first two builders and porters (or nothing reaches the shelves).
+  if (kind === 'food' && short.winter) return 1;
   // C4X: every workplace gets its first hand before any gets a second, so a building the Ledger
   // places always starts (a clay pit that never digs never invents the kiln).
   if (k === 0) return 2;

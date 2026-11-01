@@ -191,13 +191,16 @@ export {
   isCold,
   isFlooded,
   isFrozen,
+  larderWelcomes,
   seasonNow,
   warmthReport,
   weatherToday,
+  winterDaysAhead,
+  woodpileShort,
 } from './systems/seasons/api';
 // I3 (C5A): the floodplain test, for the autoplayer keeping off it when a flood is forecast.
 export { onFloodplain } from './systems/weather';
 export { habitatAt, hasSpecies, pestLoss, pollinatorFactor } from './systems/habitats/api';
 export { deterrenceAt, isRaidActive, lanternLit, watchStrength, wealth } from './systems/threats/api';
 // I3 (C5A): the winter stores, for the autoplayer and the tuner.
-export { larder } from './systems/seasons/stores';
+export { larder, woodpile } from './systems/seasons/stores';
