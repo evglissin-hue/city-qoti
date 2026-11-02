@@ -184,6 +184,7 @@ export function effectsLayer(): EffectsLayer {
 
   return {
     id: 'effects',
+    motion: 'moving',
     init(c) {
       ctx = c;
       rebuild();

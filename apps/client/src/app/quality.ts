@@ -1,10 +1,6 @@
-import { detectQuality, type Quality } from '../render/quality';
+import { detectQuality, isQuality, type Quality } from '../render/quality';
 
 const QUALITY_KEY = 'qoti.quality.v1';
-
-function isQuality(q: string | null): q is Quality {
-  return q === 'low' || q === 'medium' || q === 'high';
-}
 
 /** The preset to start with: `?quality=` first, then the saved setting, then a guess from the device. */
 export function initialQuality(): Quality {

@@ -910,6 +910,7 @@ export function overlaysLayer(): OverlaysLayer {
 
   return {
     id: 'overlays',
+    motion: 'moving',
     get kind() {
       return kind;
     },

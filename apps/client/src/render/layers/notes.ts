@@ -25,6 +25,7 @@ export function notesLayer(): RenderLayer {
 
   return {
     id: 'notes',
+    motion: 'moving',
     init(c) {
       ctx = c;
       sets = new InstanceSets(c.scene, c.material, () => pin);

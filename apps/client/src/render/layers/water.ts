@@ -202,6 +202,7 @@ export function waterLayer(): RenderLayer {
 
   return {
     id: 'water',
+    motion: 'moving',
     init(ctx: LayerContext) {
       env = ctx.env ?? createWorldEnv(new PerspectiveCamera());
       const flow = ctx.mirror.meta.flow === 'ns' ? new Vector2(0, 0.35) : new Vector2(0.35, 0);

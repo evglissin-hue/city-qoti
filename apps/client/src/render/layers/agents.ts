@@ -890,6 +890,7 @@ export function agentsLayer(): AgentsLayer {
 
   return {
     id: 'agents',
+    motion: 'moving',
     drawn,
     init(c) {
       ctx = c;

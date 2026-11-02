@@ -92,6 +92,7 @@ export function ghostsLayer(): GhostLayer {
 
   return {
     id: 'ghosts',
+    motion: 'moving',
     init(c) {
       ctx = c;
       c.scene.add(group);

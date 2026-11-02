@@ -144,6 +144,7 @@ export function presenceLayer(): PresenceLayer {
 
   return {
     id: 'presence',
+    motion: 'moving',
     init(c) {
       ctx = c;
     },

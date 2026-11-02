@@ -276,6 +276,7 @@ export function animalsLayer(): AnimalsLayer {
 
   return {
     id: 'animals',
+    motion: 'moving',
     get count() {
       return beasts.length;
     },

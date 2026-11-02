@@ -5,13 +5,13 @@ import { clampScale, loadSettings, saveSettings, type UiSettings } from './setti
 import { clampVolume, type AudioSettings } from '../audio/settings';
 import { audioSettings, setAudioSettings } from '../audio/store';
 
-type Quality = 'low' | 'medium' | 'high';
+type Quality = 'low' | 'medium' | 'high' | 'ultra';
 const QUALITY_KEY = 'qoti.quality.v1';
 
 function loadQuality(): Quality {
   try {
     const q = localStorage.getItem(QUALITY_KEY);
-    return q === 'low' || q === 'high' ? q : 'medium';
+    return q === 'low' || q === 'high' || q === 'ultra' ? q : 'medium';
   } catch {
     return 'medium';
   }
@@ -43,6 +43,7 @@ export function SettingsPanel({ session }: { session: Session }) {
     ['low', copy.settings.qualityLow],
     ['medium', copy.settings.qualityMedium],
     ['high', copy.settings.qualityHigh],
+    ['ultra', copy.settings.qualityUltra],
   ];
   return (
     <div class="modal-backdrop" onClick={() => (session.ui.settingsOpen.value = false)}>

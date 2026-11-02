@@ -229,6 +229,7 @@ export function cartsLayer(): CartsLayer {
 
   return {
     id: 'carts',
+    motion: 'moving',
     get drawn() {
       return drawn;
     },
