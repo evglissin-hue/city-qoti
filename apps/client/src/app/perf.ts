@@ -4,6 +4,7 @@
 // reports average and 95th percentile frame and GPU times for the moving and the idle part. Run it
 // on a real laptop for timings; headless browsers draw in software, so only draws and triangles
 // mean anything there.
+import { WebGLRenderTarget } from 'three';
 import type { Quality } from '../render/quality';
 import type { Renderer } from '../render/renderer';
 
@@ -160,4 +161,40 @@ export async function runPerf(renderer: Renderer, opts: PerfOptions = {}): Promi
   const table = perfTable(rows);
   console.log(table);
   return { rows, table };
+}
+
+/**
+ * Triangles each render layer draws from the current camera (the camera pass only, no shadows or
+ * post), by drawing each layer's root alone into a small off-screen target. For the before and
+ * after numbers per track (trees for V1C, buildings for V1B); a render per layer, so it is slow in
+ * a software renderer.
+ */
+export function layerTriangles(renderer: Renderer): Record<string, number> {
+  const { three, scene, camera } = renderer;
+  const roots = scene.children.filter((c) => c.name.startsWith('layer:'));
+  const shown = roots.map((r) => r.visible);
+  const autoShadow = three.shadowMap.autoUpdate;
+  const autoReset = three.info.autoReset;
+  const before = three.getRenderTarget();
+  const target = new WebGLRenderTarget(64, 64);
+  three.shadowMap.autoUpdate = false;
+  three.info.autoReset = false;
+  three.setRenderTarget(target);
+  const out: Record<string, number> = {};
+  try {
+    for (const root of roots) {
+      roots.forEach((r) => (r.visible = r === root));
+      three.info.reset();
+      three.render(scene, camera);
+      out[root.name.slice('layer:'.length)] = three.info.render.triangles;
+    }
+  } finally {
+    roots.forEach((r, i) => (r.visible = shown[i]!));
+    three.setRenderTarget(before);
+    three.shadowMap.autoUpdate = autoShadow;
+    three.info.autoReset = autoReset;
+    target.dispose();
+    renderer.invalidate();
+  }
+  return out;
 }

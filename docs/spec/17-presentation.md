@@ -112,7 +112,7 @@ From V1 (the lean renderer, `20-architecture.md`):
 | Decor detail distance | 40 | 80 | 140 | 200 |
 | Ambient critters | none | some | all | all |
 
-Ultra is for the stronger laptop or a desktop; it is never auto-detected. Budgets per preset: `22-quality.md`. Before V1 the game runs Low without post or shadows, and Medium and High at a device pixel ratio up to 2 with bloom, two tilt-shift passes and the grade (`render/quality.ts`).
+Ultra is for the stronger laptop or a desktop; it is never auto-detected. Budgets per preset: `22-quality.md`. Before V1 the game runs Low without post or shadows, and Medium and High at a device pixel ratio up to 2 with bloom, two tilt-shift passes and the grade (`render/quality.ts`). From V1.0 the settings menu offers Ultra ("Spare no candles") and `?quality=ultra` picks it; until V1D lands it behaves as High with Ultra's detail distances (buildings 110, residents 140, decor 200), and the other presets keep their pre-V1 behavior, buildings swapping to low detail beyond 75 tiles.
 
 Medium caps the pixel ratio at 1 for moving frames. Playtest round three found 1.5 soft on a Retina screen (Medium was raised to 2 then), so V1D checks cap 1 against cap 2 with dynamic resolution on the Retina laptop, may let the still-frame cache draw at the device pixel ratio on Medium and High if the idle budget allows, and records what it kept here.
 

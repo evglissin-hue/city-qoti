@@ -10,7 +10,7 @@
 // same scene.
 // Env: QOTI_QUALITY (medium), QOTI_OUT (the screenshots folder), QOTI_WAIT (least ms per shot,
 // 8000), QOTI_SETTLE_MAX (most ms to wait for a scene to settle, 240000), QOTI_SIZE (1440x900),
-// QOTI_HUD=1 keeps the interface.
+// QOTI_HUD=1 keeps the interface, QOTI_LAYERS=1 also prints triangles per render layer (slow).
 import { chromium } from '@playwright/test';
 
 const clientPort = Number(process.env.QOTI_CLIENT_PORT ?? 5173);
@@ -153,6 +153,8 @@ for (const [scene, def] of Object.entries(SCENES)) {
     const row = { scene, shot: shot.name, ...s };
     rows.push(row);
     console.log(file, JSON.stringify(row));
+    if (process.env.QOTI_LAYERS === '1')
+      console.log('  layers', JSON.stringify(await page.evaluate(() => window.__qoti.layerTriangles?.())));
   }
   await page.close();
 }

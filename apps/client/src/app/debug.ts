@@ -26,7 +26,7 @@ import { townShowcase, type TownShowcaseOptions } from '../render/townShowcase';
 import { fakeCharm, fakeRuntime, startSyntheticResidents, type SyntheticOptions } from '../render/synthetic';
 import { SimHost } from '../worker/host';
 import { overlayMocks, overlayVillageMocks } from './fixture';
-import { runPerf, type PerfOptions } from './perf';
+import { layerTriangles, runPerf, type PerfOptions } from './perf';
 import type { Session } from './session';
 
 export interface GoldenScript {
@@ -300,6 +300,11 @@ export function installDebugHook(getSession: () => Session | null): void {
     perf: async (opts?: PerfOptions) => {
       const r = s()?.renderer;
       return r ? runPerf(r, opts) : null;
+    },
+    /** V1.0: triangles per render layer from the current camera (app/perf.ts). */
+    layerTriangles: () => {
+      const r = s()?.renderer;
+      return r ? layerTriangles(r) : null;
     },
     /** C4P: folk sitting on benches, chatting and waving, in this client's Mirror, for art review. */
     folkShowcase: (x?: number, z?: number) => {

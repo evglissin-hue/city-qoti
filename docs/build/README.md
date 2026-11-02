@@ -37,11 +37,11 @@ One row per cycle. A cycle is one agent session working from one brief on one br
 | C5H The first days guide | I3 | parallel | `cycle-05h-first-days.md` | C5.0 | ready (C5.0 is done) |
 | C5X I3 integration and I4 planning | I3 | integration | `cycle-05x-integration.md` | C5A to C5H | waiting |
 | V0 Concept and direction | V0 | serial | none (this session) | none | done on `claude/compassionate-dirac-9c0pyz`: B (Painted Miniature) picked by the owner and Kat; concept viewer on the lean renderer (`docs/concepts/v0-look/index.html`, first engine `v1-engine.html`), stills `v0-*`, `18-eras.md`, budgets by preset, the V1 briefs |
-| V1.0 Look contracts | V1 | serial | `cycle-v1-0-look-contracts.md` | V0 merged | ready (after this branch merges) |
-| V1A Materials and light | V1 | parallel | `cycle-v1a-materials-light.md` | V1.0 | waiting (V1.0) |
-| V1B Buildings detail | V1 | parallel | `cycle-v1b-buildings-detail.md` | V1.0 | waiting (V1.0) |
-| V1C Ground, water and nature | V1 | parallel | `cycle-v1c-ground-nature.md` | V1.0 | waiting (V1.0) |
-| V1D Lean renderer | V1 | parallel | `cycle-v1d-lean-renderer.md` | V1.0 | waiting (V1.0) |
+| V1.0 Look contracts | V1 | serial | `cycle-v1-0-look-contracts.md` | V0 merged | PR open on `cycle/v1-0-look-contracts`: surface ids, palette 2.0, the pattern array, `Era`, static and moving layers, Ultra, the GPU timer, the `material.ts` and `look.ts` split, the town showcase, the shots and perf scripts and the before numbers (`v1-wave-notes.md`) |
+| V1A Materials and light | V1 | parallel | `cycle-v1a-materials-light.md` | V1.0 | waiting (V1.0 merged; then ready, with `v1-wave-notes.md`) |
+| V1B Buildings detail | V1 | parallel | `cycle-v1b-buildings-detail.md` | V1.0 | waiting (V1.0 merged; then ready, with `v1-wave-notes.md`) |
+| V1C Ground, water and nature | V1 | parallel | `cycle-v1c-ground-nature.md` | V1.0 | waiting (V1.0 merged; then ready, with `v1-wave-notes.md`) |
+| V1D Lean renderer | V1 | parallel | `cycle-v1d-lean-renderer.md` | V1.0 | waiting (V1.0 merged; then ready, with `v1-wave-notes.md`) |
 | V1X V1 integration | V1 | integration | `cycle-v1x-integration.md` | V1A to V1D | waiting |
 
 Status values: waiting (dependencies not merged), ready, in progress (add the session link), PR open (add the PR link), merged.
