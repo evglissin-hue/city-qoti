@@ -151,7 +151,7 @@ How they were taken: headless Chromium in the build container, which has no GPU,
 What the numbers say, for the wave:
 
 - **Draw calls fit everywhere**: at most 241 (the village on High; budget 450) and 230 on Medium (budget 300).
-- **Half of every frame is the shadow pass**: the camera pass is 0.48 M of the village wide shot's 0.88 M and 1.31 M of the town's 2.66 M; the rest is the sun's shadow map drawing every caster again each frame. V1D's cached shadows remove it from nearly every frame.
+- **About half of every frame's triangles are the shadow pass**: the camera pass is 0.48 M of the village wide shot's 0.88 M and 1.31 M of the town's 2.66 M; the rest is the sun's shadow map drawing every caster again each frame. V1D's cached shadows remove it from nearly every frame.
 - **Decor is the town's biggest layer, and it is never culled**: 800 k triangles in every town shot whatever the camera sees, because each decor kind is one instanced mesh over the whole valley, drawn whole. Per-instance culling and levels for decor (V1D's `lod.ts`, V1B's low levels for props) are the largest single saving in the wave.
 - **Trees are the village's biggest layer**: 283 k of the wide shot's 0.48 M camera pass (V1C's before number for the 60% cut), 220 k in the street shot.
 - **Buildings come next**: 335 k to 452 k in the town at full detail within 75 tiles, 151 k in the village at 45 tiles (V1B's low levels and `lod.ts`).
