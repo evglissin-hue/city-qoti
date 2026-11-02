@@ -108,6 +108,74 @@ export const palette = {
   noteRed: 0xd9534f,
 } as const;
 
+/**
+ * Palette 2.0 (V1.0): the Painted Miniature look (B) from the V0 concept viewer (`PALHEX.b`, docs/
+ * concepts/v0-look/index.html): softer, more harmonious colors, each a little greyed toward its
+ * neighbors, for a material that draws brick courses, tile rows and plaster grain on top. Nothing
+ * reads it yet: V1A tunes the values (and the table in 17-presentation.md) and moves the kits over,
+ * and V1X retires the old tokens above. Lists are swatches a kit picks from by seed, in the
+ * concept's order. `stuccos` are the Age of Steam's walls, `deco` and `pastels` the Bright Age's.
+ */
+export const palette2 = {
+  // Ground.
+  grass: 0x93ad66,
+  meadow: 0xb7c27c,
+  forestFloor: 0x5f7a47,
+  dirt: 0xc4a67e,
+  lane: 0xb09673,
+  cobble: 0xa39a8c,
+  flags: 0xcdc4b2,
+  /** Ripe wheat, a green crop, tilled earth. */
+  fields: [0xd0b673, 0xa6b866, 0xa07f5a],
+
+  // Walls.
+  plasters: [0xefe3cc, 0xe6c6b5, 0xcdd2b3, 0xc3cfd0, 0xeddaa6, 0xe2c9a0],
+  stuccos: [0xf0e6d2, 0xe8cbbd, 0xd3d8bd, 0xc8d4d6, 0xefdcae, 0xe6d1c0],
+  deco: [0xf4efe4, 0xf1dfb6, 0xe9cfc2, 0xcfdccf],
+  pastels: [0xeec4b8, 0xc8dfc8, 0xf1dca0, 0xc4d6e2, 0xf4eee2, 0xe6cde0],
+  bricks: [0xae6a52, 0x9f5e4a, 0xb67d5f, 0x94583f],
+  /** Between the bricks (the brick pattern's accent). */
+  mortar: 0xc4bcb1,
+  stones: [0xc8bfae, 0xd4cab6, 0xb9b09f],
+  timber: 0x5a4434,
+  foundation: 0x938a7c,
+
+  // Roofs.
+  tiles: [0xbb6e4c, 0xa95f43, 0xc27b55, 0x9a5a42],
+  slates: [0x67707d, 0x5d6773, 0x707a83],
+  thatch: [0xc2a16a, 0xb8975f],
+  zinc: 0x8a959b,
+  flatRoof: 0x857d73,
+  copper: 0x76a594,
+  chimney: 0xa1604b,
+
+  // Accents.
+  frames: 0xf4ecdd,
+  doors: [0x4e7c78, 0x9c4f43, 0xd1a24a, 0x45607a, 0x6f8b68, 0x7a5468],
+  shutters: [0x5f8a74, 0x9c5a4a, 0x4b6680, 0x7d8a5a],
+  shopfronts: [0x4e6f6a, 0x45607a, 0x8c4a3f, 0x5f4a3a, 0x6f8b68],
+  awnings: [0xb2564a, 0x4e7c78, 0xd1a24a, 0x45607a, 0x7a5468],
+  /** The cream between awning stripes (the awning pattern's accent). */
+  stripe: 0xefe7d7,
+  glass: 0x34434f,
+  metal: 0x33403a,
+  wood: 0x957050,
+
+  // Foliage.
+  leaves: [0x67904a, 0x86ad55, 0x5a8243, 0x76984c],
+  pine: 0x466d4c,
+  bark: 0x6a4c36,
+
+  // Water.
+  water: 0x6aaab4,
+  riverbed: 0x3d5c66,
+} as const;
+
+/** Palette 2.0 tokens that hold one color (not a swatch list), for references such as accents. */
+export type Palette2Single = {
+  [K in keyof typeof palette2]: (typeof palette2)[K] extends number ? K : never;
+}[keyof typeof palette2];
+
 /** Plaster wall swatches, in customization order. */
 export const PLASTERS: readonly number[] = [
   palette.plasterCream,

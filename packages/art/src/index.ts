@@ -56,4 +56,26 @@ export {
   type KitMaterialHooks,
   type Season,
 } from './materials';
-export { ACCENTS, palette, PLASTERS, ROOFS, SEAT_COLORS, TERRAIN_COLORS } from './palette';
+export {
+  ACCENTS,
+  palette,
+  palette2,
+  PLASTERS,
+  ROOFS,
+  SEAT_COLORS,
+  TERRAIN_COLORS,
+  type Palette2Single,
+} from './palette';
+export { createPatternArray, PATTERN_CHANNELS, PATTERN_ONE, PATTERN_SIZE } from './patterns';
+export {
+  NOISE_LAYER,
+  NOISE_SCALE,
+  PATTERN_LAYERS,
+  SURFACE,
+  surfaceDef,
+  SURFACES,
+  type SurfaceDef,
+  type SurfaceId,
+  type SurfaceMapping,
+  type SurfaceName,
+} from './surface';
