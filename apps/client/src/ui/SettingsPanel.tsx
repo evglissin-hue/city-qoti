@@ -28,7 +28,9 @@ function saveQuality(q: Quality): void {
 /** Settings card: quality preset, interface size, calm motion and sound. */
 export function SettingsPanel({ session }: { session: Session }) {
   const [s, setS] = useState<UiSettings>(() => loadSettings());
-  const [quality, setQuality] = useState<Quality>(() => loadQuality());
+  const [saved, setQuality] = useState<Quality>(() => loadQuality());
+  // V1.0: the preset the renderer runs (`?quality=` may differ from the saved one).
+  const quality = session.renderer?.qualityLevel ?? saved;
   if (!session.ui.settingsOpen.value) return null;
   const update = (next: UiSettings) => {
     setS(next);

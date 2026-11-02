@@ -4,11 +4,11 @@
 // reports average and 95th percentile frame and GPU times for the moving and the idle part. Run it
 // on a real laptop for timings; headless browsers draw in software, so only draws and triangles
 // mean anything there.
-import { QUALITY_PRESETS, type Quality } from '../render/quality';
+import type { Quality } from '../render/quality';
 import type { Renderer } from '../render/renderer';
 
 export interface PerfOptions {
-  /** Presets to run, in order (default: every preset). */
+  /** Presets to run, in order (default: Low, Medium, High and Ultra). */
   presets?: Quality[];
   /** Seconds of camera movement and of rest per preset (default 10 each). */
   move?: number;
@@ -125,7 +125,7 @@ export function perfTable(rows: PerfRow[]): string {
  * the camera and the preset back as they were, and logs the table.
  */
 export async function runPerf(renderer: Renderer, opts: PerfOptions = {}): Promise<PerfResult> {
-  const presets = opts.presets ?? (Object.keys(QUALITY_PRESETS) as Quality[]);
+  const presets = opts.presets ?? (['low', 'medium', 'high', 'ultra'] as Quality[]);
   const move = opts.move ?? 10;
   const rest = opts.rest ?? 10;
   const scene = opts.scene ?? 'current';

@@ -5,8 +5,12 @@
 // The stage is `before` (V1.0) or `after` (V1X); scenes are hamlet, village, town and winter (all
 // by default). Saves docs/build/screenshots/v1-<stage>-<scene>-<shot>.png and prints draw calls,
 // triangles, frame ms and GPU ms for each shot, then the lot as a Markdown table.
-// Env: QOTI_QUALITY (medium), QOTI_OUT (the screenshots folder), QOTI_SETTLE (ms after a scene
-// loads, 12000), QOTI_WAIT (ms per shot, 8000), QOTI_SIZE (1440x900), QOTI_HUD=1 keeps the interface.
+// Each shot waits until the scene has finished streaming in (the triangle count holds within 2%
+// over three looks, three drawn frames apart), so a slow software renderer and a laptop see the
+// same scene.
+// Env: QOTI_QUALITY (medium), QOTI_OUT (the screenshots folder), QOTI_WAIT (least ms per shot,
+// 8000), QOTI_SETTLE_MAX (most ms to wait for a scene to settle, 240000), QOTI_SIZE (1440x900),
+// QOTI_HUD=1 keeps the interface.
 import { chromium } from '@playwright/test';
 
 const clientPort = Number(process.env.QOTI_CLIENT_PORT ?? 5173);
@@ -56,6 +60,33 @@ const SCENES = {
   },
 };
 
+/**
+ * Waits at least `least` ms, then until the triangle count holds within 2% over three looks, each
+ * three drawn frames apart (a software renderer can take seconds a frame).
+ */
+async function settle(page, least) {
+  const start = Date.now();
+  await page.waitForTimeout(least);
+  const counts = [];
+  const most = Number(process.env.QOTI_SETTLE_MAX ?? 240000);
+  while (Date.now() - start < most) {
+    counts.push(
+      await page.evaluate(
+        () =>
+          new Promise((resolve) => {
+            let n = 0;
+            const step = () =>
+              ++n >= 3 ? resolve(window.__qoti.stats()?.triangles ?? 0) : requestAnimationFrame(step);
+            requestAnimationFrame(step);
+          }),
+      ),
+    );
+    const last = counts.slice(-3);
+    if (last.length === 3 && Math.max(...last) - Math.min(...last) <= Math.max(...last) * 0.02) return;
+  }
+  console.log('  (still streaming after', most / 1000, 's)');
+}
+
 const browser = await chromium.launch({
   ...(process.env.QOTI_CHROMIUM ? { executablePath: process.env.QOTI_CHROMIUM } : {}),
   args: ['--enable-unsafe-swiftshader', '--use-angle=swiftshader', '--ignore-gpu-blocklist'],
@@ -93,7 +124,6 @@ for (const [scene, def] of Object.entries(SCENES)) {
     const [x0, z0, x1, z1] = await page.evaluate(() => window.__qoti.startArea());
     center = [(x0 + x1 + 1) / 2, (z0 + z1 + 1) / 2];
   }
-  await page.waitForTimeout(Number(process.env.QOTI_SETTLE ?? 12000));
   for (const shot of def.shots) {
     // Town shots aim relative to its center; the others at absolute tiles.
     const at = shot.at
@@ -108,7 +138,7 @@ for (const [scene, def] of Object.entries(SCENES)) {
       },
       [at[0], at[1], shot.dist, shot.hour, shot.tilt ?? 0],
     );
-    await page.waitForTimeout(Number(process.env.QOTI_WAIT ?? 8000));
+    await settle(page, Number(process.env.QOTI_WAIT ?? 8000));
     const s = await page.evaluate(() => {
       const st = window.__qoti.stats();
       return {
