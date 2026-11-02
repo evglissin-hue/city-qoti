@@ -22,9 +22,11 @@ import { roadsShowcase } from '../render/roadShowcase';
 import { audio, type SoundCueId } from '../audio/api';
 import { audioEngine } from '../audio/install';
 import { villageShowcase } from '../render/showcase';
+import { townShowcase, type TownShowcaseOptions } from '../render/townShowcase';
 import { fakeCharm, fakeRuntime, startSyntheticResidents, type SyntheticOptions } from '../render/synthetic';
 import { SimHost } from '../worker/host';
 import { overlayMocks, overlayVillageMocks } from './fixture';
+import { runPerf, type PerfOptions } from './perf';
 import type { Session } from './session';
 
 export interface GoldenScript {
@@ -270,6 +272,34 @@ export function installDebugHook(getSession: () => Session | null): void {
       if (!session) return null;
       const r = villageShowcase(session.mirror, { dense });
       return { buildings: r.buildings, carts: r.carts };
+    },
+    /**
+     * V1.0: a City-scale stress scene in this client's Mirror (never the sim): about 1,000 of today's
+     * buildings in streets, about 6,000 decor and trees, then 2,000 synthetic residents walking the
+     * town (`residents` changes the number, 0 for none). Returns what it placed and where.
+     */
+    townShowcase: (opts: TownShowcaseOptions & { residents?: number } = {}) => {
+      const session = s();
+      if (!session) return null;
+      const r = townShowcase(session.mirror, opts);
+      const n = opts.residents ?? 2000;
+      if (n > 0) {
+        stopSynth?.();
+        const [x0, z0, x1, z1] = r.rect;
+        stopSynth = startSyntheticResidents(session.mirror, n, {
+          center: [r.center[0], (z0 + z1) / 2],
+          radius: Math.max(x1 - x0, z1 - z0) / 2,
+        });
+      }
+      return r;
+    },
+    /**
+     * V1.0: the perf run (see app/perf.ts): each preset in turn, a scripted camera path then a rest,
+     * logged and returned as a Markdown table. Paste `await __qoti.perf()` in the console.
+     */
+    perf: async (opts?: PerfOptions) => {
+      const r = s()?.renderer;
+      return r ? runPerf(r, opts) : null;
     },
     /** C4P: folk sitting on benches, chatting and waving, in this client's Mirror, for art review. */
     folkShowcase: (x?: number, z?: number) => {

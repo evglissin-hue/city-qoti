@@ -35,6 +35,7 @@ import {
 } from './layers';
 import { lightingAt, WINDOW_HASH_GLSL } from './lighting';
 import { pickTileFromRay } from './picking';
+import { GpuTimer } from './gpuTimer';
 import { PostChain } from './post';
 import { QUALITY_PRESETS, type Quality } from './quality';
 import { DynamicResolution } from './resolution';
@@ -90,6 +91,16 @@ export interface RenderStats {
   triangles: number;
   /** Pixel ratio the frame is drawn at, after dynamic resolution. */
   pixelRatio: number;
+  /**
+   * V1.0: GPU time per drawn frame in ms (an average of the last 30), from
+   * `EXT_disjoint_timer_query_webgl2`; null where the browser has no GPU timer.
+   */
+  gpuMs: number | null;
+  /**
+   * V1.0: what the last frame drew: `moving` (the whole scene), `still` (the static layers into the
+   * still-frame cache) or `idle` (the cache plus the moving layers). Always `moving` until V1D.
+   */
+  mode: 'moving' | 'still' | 'idle';
 }
 
 /** The Three.js scene for one valley. Draws on demand: when the camera moves or something changes. */
@@ -98,7 +109,17 @@ export class Renderer implements RenderApi {
   readonly scene = new Scene();
   readonly camera = new PerspectiveCamera(FOV, 1, 0.5, 2000);
   readonly rig: CameraController;
-  readonly stats: RenderStats = { fps: 0, frameMs: 0, drawCalls: 0, triangles: 0, pixelRatio: 1 };
+  readonly stats: RenderStats = {
+    fps: 0,
+    frameMs: 0,
+    drawCalls: 0,
+    triangles: 0,
+    pixelRatio: 1,
+    gpuMs: null,
+    mode: 'moving',
+  };
+  /** V1.0: GPU time per drawn frame, where the browser offers a timer (`?debug` overlay, perf). */
+  readonly gpuTimer: GpuTimer;
   private readonly material = createKitMaterial();
   private readonly layers: RenderLayer[];
   private readonly hemi = new HemisphereLight(0xffffff, 0x444444, 1);
@@ -150,6 +171,7 @@ export class Renderer implements RenderApi {
       antialias: QUALITY_PRESETS[quality].msaa,
       powerPreference: 'high-performance',
     });
+    this.gpuTimer = new GpuTimer(this.three.getContext() as WebGL2RenderingContext);
     this.three.domElement.className = 'game-canvas';
     this.three.domElement.tabIndex = 0;
     this.three.toneMapping = ACESFilmicToneMapping;
@@ -327,14 +349,17 @@ export class Renderer implements RenderApi {
       // Count every pass of the frame, not just the last one, so stats stay honest with post on.
       this.three.info.autoReset = false;
       this.three.info.reset();
+      this.gpuTimer.begin();
       if (this.post) this.post.render();
       else this.three.render(this.scene, this.camera);
+      this.gpuTimer.end();
       this.needsRender = false;
       this.stats.frameMs = performance.now() - start;
       this.stats.drawCalls = this.three.info.render.calls;
       this.stats.triangles = this.three.info.render.triangles;
       this.frames++;
-    }
+    } else this.gpuTimer.poll();
+    this.stats.gpuMs = this.gpuTimer.ms;
     if (this.resolution.frame(now, drew, this.basePixelRatio)) this.applyPixelRatio();
     if (now - this.fpsWindow >= 1000) {
       this.stats.fps = Math.round((this.frames * 1000) / (now - this.fpsWindow));
@@ -557,6 +582,7 @@ export class Renderer implements RenderApi {
     this.rig.dispose();
     for (const layer of this.layers) layer.dispose();
     this.material.dispose();
+    this.gpuTimer.dispose();
     this.post?.dispose();
     this.skyTexture.dispose();
     this.three.dispose();
