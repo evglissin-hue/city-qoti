@@ -2,7 +2,7 @@
 
 Accepted as v1 on 2026-10-25. The numbers are stable; other spec docs cite them as P1 to P54. When a detailed spec conflicts with a principle, the principle wins until both players agree to change it.
 
-Amended 2026-11-01 by the owner, with Kat's nod pending: P44 (eras), P45 (richly detailed rather than low-poly) and P50 (measured by GPU frame time, richer presets for the stronger laptop). See `18-eras.md`, `17-presentation.md` (Visual direction) and `22-quality.md`.
+Amended 2026-11-01 by the owner and agreed by Kat on 2026-11-02: P44 (eras), P45 (richly detailed rather than low-poly) and P50 (measured by GPU frame time, richer presets for the stronger laptop). See `18-eras.md`, `17-presentation.md` (Visual direction) and `22-quality.md`.
 
 ## Broad spec
 

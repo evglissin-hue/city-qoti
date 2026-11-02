@@ -2,7 +2,7 @@
 
 As the town climbs the ranks it moves through three eras (P44): the Old Age, the Age of Steam and the Bright Age. Each era brings a look, its machines and new rules in both lanes, and the older eras stay standing beside the new. It stays cozy throughout: the Bright Age stops around the 1950s, and the valley never becomes a modern metropolis.
 
-Agreed by the owner on 2026-11-01, with Kat's nod pending (`01-principles.md`). Each era's look follows the visual direction in `17-presentation.md`. Era state and the Age of Steam land with I4 Town, the Bright Age with I5; V1 only reserves the data.
+Agreed by the owner (2026-11-01) and Kat (2026-11-02), with P44, P45 and P50 amended to match (`01-principles.md`). Each era's look follows the visual direction in `17-presentation.md`. Era state and the Age of Steam land with I4 Town, the Bright Age with I5; V1 only reserves the data.
 
 ## The three eras
 
