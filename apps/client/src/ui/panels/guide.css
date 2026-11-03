@@ -1,0 +1,194 @@
+/* The first days guide (C5H): the corner card, the surveyor's letter and the inked arrows. */
+
+.guide-card {
+  position: fixed;
+  left: 12px;
+  bottom: 96px;
+  z-index: 12;
+  display: flex;
+  gap: 10px;
+  width: min(300px, calc(100vw - 24px));
+  padding: 10px 12px 10px 0;
+  overflow: hidden;
+  text-align: left;
+  color: var(--ink);
+  background: linear-gradient(170deg, #fdf8ec, #f3e6c8);
+  border: 1px solid rgba(90, 66, 49, 0.25);
+  border-radius: 6px;
+  box-shadow: 0 6px 18px rgba(50, 30, 15, 0.22);
+  font-family: 'Alegreya', Georgia, serif;
+  cursor: pointer;
+  animation: guide-card-in 320ms ease-out;
+}
+
+.guide-card:hover {
+  border-color: var(--ink-line);
+}
+
+.guide-lane {
+  flex: none;
+  width: 6px;
+  background: var(--lane);
+}
+
+.guide-card-body {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.guide-card-meta {
+  font-weight: 700;
+  font-size: 0.92rem;
+}
+
+.guide-card-lane {
+  font-weight: 400;
+  color: var(--ink-soft);
+}
+
+.guide-card-hint {
+  font-size: 0.88rem;
+  line-height: 1.3;
+  color: var(--ink-soft);
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.guide-dots {
+  display: flex;
+  gap: 4px;
+  margin-top: 2px;
+}
+
+.guide-dots i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  border: 1px solid var(--ink-line);
+  opacity: 0.45;
+}
+
+.guide-dots i.done {
+  background: var(--ink-line);
+  opacity: 0.8;
+}
+
+.guide-dots i.open {
+  opacity: 1;
+  background: var(--paper-light);
+  box-shadow: 0 0 0 2px rgba(168, 71, 59, 0.35);
+}
+
+@keyframes guide-card-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+}
+
+.guide-postage .postage-initial {
+  background: var(--paper-deep);
+}
+
+.guide-stamp-lane {
+  position: absolute;
+  left: 6px;
+  right: 6px;
+  bottom: 6px;
+  height: 5px;
+  border-radius: 2px;
+  background: var(--lane);
+}
+
+.guide-letter .actions {
+  align-items: center;
+}
+
+.guide-skip {
+  margin-right: auto;
+  padding: 4px 2px;
+  border: 0;
+  background: none;
+  color: var(--ink-soft);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.guide-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 25;
+  pointer-events: none;
+}
+
+.guide-outline {
+  position: fixed;
+  border: 2px solid rgba(168, 71, 59, 0.7);
+  border-radius: 10px;
+  animation: guide-pulse 1.6s ease-in-out infinite;
+}
+
+.guide-ring {
+  position: fixed;
+  width: 54px;
+  height: 30px;
+  margin: -15px 0 0 -27px;
+  border: 2px solid rgba(168, 71, 59, 0.75);
+  border-radius: 50%;
+  animation: guide-pulse 1.6s ease-in-out infinite;
+}
+
+.guide-arrow {
+  position: fixed;
+  width: 72px;
+  height: 48px;
+  margin: -24px 0 0 -64px;
+  transform-origin: 64px 24px;
+  overflow: visible;
+  fill: none;
+  stroke: #6b3f2a;
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  filter: drop-shadow(0 1px 0 rgba(253, 248, 236, 0.9));
+}
+
+.guide-arrow .shaft {
+  stroke-dasharray: 2 0;
+}
+
+@keyframes guide-pulse {
+  0%,
+  100% {
+    opacity: 0.45;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.04);
+  }
+}
+
+:root.reduced-motion .guide-outline,
+:root.reduced-motion .guide-ring,
+:root.reduced-motion .guide-card {
+  animation: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .guide-outline,
+  .guide-ring,
+  .guide-card {
+    animation: none;
+  }
+}
+
+@media (max-width: 640px) {
+  .guide-card {
+    bottom: 132px;
+  }
+}

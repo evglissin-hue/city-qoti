@@ -242,7 +242,7 @@ describe('the first days guide: the system', () => {
     const later = createTickCtx(state);
     expect(advanceGuide(state, later)).toBe(false);
     expect(later.events).toHaveLength(0);
-    expect(buildView(state).town.guide).toBeUndefined();
+    expect(buildView(state).town?.guide).toBeUndefined();
   });
 
   it('does nothing in sandbox valleys or with the box unticked', () => {
@@ -253,7 +253,7 @@ describe('the first days guide: the system', () => {
     const off = createValley('meadow', { ...defaultSettings(), mode: 'standard', guide: false });
     expect(off.guide.over).toBe(true);
     expect(advanceGuide(off, createTickCtx(off))).toBe(false);
-    expect(buildView(off).town.guide).toBeUndefined();
+    expect(buildView(off).town?.guide).toBeUndefined();
   });
 
   it('saves and loads with the half-step Chronicle id in place, hashing the same', () => {
@@ -305,6 +305,7 @@ describe('a migrated I2 valley', () => {
       expect(ctx.events.filter((e) => e.e === 'guide.step')).toHaveLength(0);
       s.tick += TICKS_PER_HOUR;
     }
-    expect(buildView(s).town.guide).toBeUndefined();
+    expect(buildView(s).town).toBeDefined();
+    expect(buildView(s).town?.guide).toBeUndefined();
   });
 });

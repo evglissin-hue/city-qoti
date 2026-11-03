@@ -5,6 +5,7 @@ import { createOnlineValley } from '../net/api';
 import { LocalRoom } from '../net/local';
 import { copy, welcomeLine } from '../ui/copy';
 import { ago } from '../ui/format';
+import { guideCopy } from '../ui/guide';
 import { loadProfile, saveProfile, SWATCHES, type PlayerProfile } from './profile';
 import { forgetValley, listRecent, rememberValley, type RecentValley } from './recent';
 import { valleyDbName } from '../net/idb';
@@ -45,6 +46,8 @@ export function Title({ onStart }: { onStart: (t: SessionTarget, opts?: { invite
   // ?creative starts with the creative box ticked (the I0 end to end specs play sandbox valleys).
   const [creative, setCreative] = useState(() => new URLSearchParams(location.search).has('creative'));
   const [economy, setEconomy] = useState<ValleySettings['economy']>('standard');
+  // C5H: the first days guide, on by default for standard valleys.
+  const [guide, setGuide] = useState(true);
   const [imported, setImported] = useState<ValleyFile | null>(null);
   const welcome = useMemo(() => welcomeLine(), []);
   const [profile, setProfileState] = useState<PlayerProfile>(() => loadProfile());
@@ -59,6 +62,7 @@ export function Title({ onStart }: { onStart: (t: SessionTarget, opts?: { invite
   const settings: Partial<ValleySettings> = {
     mode: creative ? 'sandbox' : 'standard',
     economy,
+    ...(creative ? {} : { guide }),
     ...(town.trim() ? { townName: town.trim() } : {}),
   };
   const body = { ...(seed.trim() ? { seed: seed.trim() } : {}), settings };
@@ -244,6 +248,19 @@ export function Title({ onStart }: { onStart: (t: SessionTarget, opts?: { invite
               />
               <span>
                 {copy.title.creative} <span class="muted">({copy.title.creativeHint})</span>
+              </span>
+            </label>
+          )}
+          {!invited && !creative && (
+            <label class="creative-toggle">
+              <input
+                type="checkbox"
+                checked={guide}
+                data-testid="guide-new"
+                onChange={(e) => setGuide((e.target as HTMLInputElement).checked)}
+              />
+              <span>
+                {guideCopy.show} <span class="muted">({guideCopy.showHint})</span>
               </span>
             </label>
           )}

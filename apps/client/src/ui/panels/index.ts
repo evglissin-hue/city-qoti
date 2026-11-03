@@ -13,6 +13,7 @@ import { AwayLetterPanel } from './AwayLetter';
 import { CharterPanel } from './Charter';
 import { ChroniclePanel } from './Chronicle';
 import { CustomizePanel } from './Customize';
+import { GuidePanel } from './Guide';
 import { InspectorPanel } from './Inspector';
 import { LettersPanel } from './Letters';
 import { MarketPanel } from './Market';
@@ -60,6 +61,7 @@ export const panels: readonly PanelDef[] = [
   { id: 'charter', side: 'book', component: CharterPanel, lens: 'shared', label: 'Charter', icon: 'charter', key: 'h', modes: STANDARD, hidden: true },
   { id: 'chronicle', side: 'book', component: ChroniclePanel, lens: 'hearth', label: 'Chronicle', icon: 'chronicle', key: 'c', modes: STANDARD, order: 30 },
   { id: 'customize', side: 'right', component: CustomizePanel },
+  { id: 'guide', side: 'overlay', component: GuidePanel, modes: STANDARD },
   { id: 'inspector', side: 'right', component: InspectorPanel },
   { id: 'letters', side: 'book', component: LettersPanel, lens: 'hearth', label: 'Letters', icon: 'letter', key: 'o', modes: STANDARD, order: 35 },
   { id: 'market', side: 'book', component: MarketPanel, lens: 'ledger', label: 'Market', icon: 'market', key: 'm', modes: STANDARD, order: 10 },
