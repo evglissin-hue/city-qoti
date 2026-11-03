@@ -47,7 +47,8 @@ export async function createFixtureValley(
 
 /**
  * C5F: the raid at dusk with one raider already caught (as the I3 mocks have it), so the captive
- * choice can be tried live before C5D's raids catch anyone themselves.
+ * choice can be tried live at once. C5X: C5D's raids catch their own, but only later in the night,
+ * so this stays as a fixture convenience (the c5f-seasons e2e uses it), not a stand-in.
  */
 function raidWithCaptive(f: { state: WorldState; raiders: number[] }): WorldState {
   if (f.raiders[0] !== undefined && !f.state.threats.captives.includes(f.raiders[0])) {

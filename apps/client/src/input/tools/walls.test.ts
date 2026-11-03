@@ -1,28 +1,14 @@
 // I3 (C5F): wall ghosts agree with the sim (like roads in mirror.test.ts). For random runs over the
 // threat fixture, the ghost's rule on the client's Mirror and the sim's own wall.paint validation on
 // its state give the same answer, reason included, enclosures among them.
-import { content, type BuildingDef } from '@qoti/content';
 import { buildView, commandHandlers, rngFromSeed, type Command } from '@qoti/sim';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { threatFixture } from '../../../../../packages/sim/test/fixtures/threat';
 import { Mirror } from '../../state/mirror';
 import { proposeRoute } from '../route';
 import { wallGhost } from './seasons';
 
 const DEFS = ['palisade', 'stone-wall'];
-const saved = new Map<string, BuildingDef['modes']>();
-
-// C5D unhides the defense pieces (modes); until then open them for the test, and put them back.
-beforeAll(() => {
-  for (const id of DEFS) {
-    const def = content.buildingById.get(id) as BuildingDef;
-    saved.set(id, def.modes);
-    delete (def as { modes?: unknown }).modes;
-  }
-});
-afterAll(() => {
-  for (const id of DEFS) (content.buildingById.get(id) as { modes?: unknown }).modes = saved.get(id);
-});
 
 describe('wall ghosts', () => {
   it('agree with wall.paint validation for random runs, enclosures included', () => {
@@ -59,7 +45,10 @@ describe('wall ghosts', () => {
       reasons.set(sim ?? 'ok', (reasons.get(sim ?? 'ok') ?? 0) + 1);
     }
     expect(reasons.get('ok') ?? 0).toBeGreaterThan(10);
-    expect(reasons.get('WOULD_ENCLOSE') ?? 0).toBeGreaterThan(0);
     expect(reasons.get('OCCUPIED') ?? 0).toBeGreaterThan(0);
+    // C5X: the ghost now runs C5D's own rule (rules/wall.ts), where a ring crossing a road takes a
+    // gate there and stays open, so random rings rarely enclose; packages/sim/test/threats/walls.test.ts
+    // covers WOULD_ENCLOSE on that same function. Stone walls wait for Town or Barnaby's arc.
+    expect(reasons.get('LOCKED') ?? 0).toBeGreaterThan(0);
   });
 });
