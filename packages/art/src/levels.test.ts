@@ -41,7 +41,10 @@ describe('building levels (V1B)', () => {
           const o = optsOf(kit.id, style, seed);
           const low = tris(kit.id, { ...o, lod: 'low' });
           expect(low, `${kit.id} ${style} ${seed}`).toBeLessThanOrEqual(budget);
-          expect(low, `${kit.id} ${style} ${seed}`).toBeLessThan(tris(kit.id, o));
+          const high = tris(kit.id, o);
+          expect(low, `${kit.id} ${style} ${seed}`).toBeLessThan(high);
+          if (HOMES.includes(kit.id) || kit.id === 'farmstead')
+            expect(high, `${kit.id} ${style} ${seed} near`).toBeLessThanOrEqual(HOME_HIGH);
         }
       }
     }
