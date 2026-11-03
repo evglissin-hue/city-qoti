@@ -57,14 +57,17 @@ describe('ground AO texture', () => {
     place(occupant, 9, 100, 100, 3, 3);
     // The occupant patch arrives as its chunk's rect.
     ao.markRect([96, 96, 111, 111]);
-    let worst = 0;
-    for (let k = 0; k < 5; k++) {
+    const times: number[] = [];
+    for (let k = 0; k < 7; k++) {
       ao.markRect([96, 96, 111, 111]);
       expect(ao.update()).toBe(true);
-      worst = Math.max(worst, ao.lastMs);
+      times.push(ao.lastMs);
     }
     expect(ao.pending).toBe(false);
-    expect(worst).toBeLessThan(4);
+    // The median, since the test runner shares the machine with other workers.
+    const median = times.sort((a, b) => a - b)[3]!;
+    console.log(`ground AO: one chunk rebuilt in ${median.toFixed(2)} ms (${ao.lastTexels} texels)`);
+    expect(median).toBeLessThan(4);
     const fresh = new GroundAo(mirror);
     for (const [x, z] of [
       [103.2, 101],

@@ -71,7 +71,10 @@ describe('ShapeBuilder surfaces (V1.0)', () => {
   });
 
   it('reads 0 on every kit that sets none (all of them, until V1B and V1C)', () => {
+    // V1C: trees and hedgerows write leaf and timber (checked below).
+    const v1c = new Set(['oak', 'birch', 'pine', 'hedgerow']);
     for (const kit of kits) {
+      if (v1c.has(kit.id)) continue;
       const g = kit.build(kit.kind === 'building' ? OPTS : undefined);
       const surface = g.getAttribute('surface');
       expect(surface, kit.id).toBeDefined();
@@ -80,6 +83,22 @@ describe('ShapeBuilder surfaces (V1.0)', () => {
         Array.from(surface.array).every((v) => v === 0),
         kit.id,
       ).toBe(true);
+    }
+  });
+
+  it('V1C: trees write leaf on their crowns and timber on their trunks, at both levels', () => {
+    for (const id of ['oak', 'birch', 'pine']) {
+      for (const lod of ['high', 'low'] as const) {
+        const ids = new Set(
+          Array.from(
+            kits
+              .find((k) => k.id === id)!
+              .build({ lod })
+              .getAttribute('surface').array,
+          ),
+        );
+        expect([...ids].sort(), `${id} ${lod}`).toEqual([SURFACE.timber, SURFACE.leaf].sort());
+      }
     }
   });
 

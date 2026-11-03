@@ -27,6 +27,10 @@ const SPECIES_KIT = ['', 'oak', 'birch', 'pine'];
 const VARIANTS = 2;
 /** Camera distance (world units, at Medium) beyond which trees use their low detail mesh. */
 export const TREE_LOD_DISTANCE = 72;
+/** V1C: a tree with no building within this many tiles is forest (far level sooner on Low and Medium). */
+export const TOWN_REACH = 6;
+/** Decor detail distances below this are Low and Medium (quality.ts: 40 and 80; High 140). */
+const FOREST_LOW_BELOW = 100;
 
 function kindId(species: number, stage: number, variant: number): string {
   return `${species}:${stage}:${variant}`;
@@ -82,6 +86,7 @@ export function buildTreeChunk(
   stageOf: (x: number, z: number, v: number) => number,
   cx: number,
   cz: number,
+  occupant?: ArrayLike<number>,
 ): ScatterChunk {
   const chunk = emptyScatterChunk(field.kinds.length);
   const x0 = cx * CHUNK_SIZE;
@@ -124,6 +129,7 @@ export function buildTreeChunk(
       const kind = field.kindIndex(kindId(species, stage, variant));
       if (kind < 0) continue;
       const [r, g, b] = tint(species, x, z);
+      const forest = occupant ? !nearTown(occupant, x, z) : false;
       addInstance(
         chunk,
         kind,
@@ -137,11 +143,24 @@ export function buildTreeChunk(
         r,
         g,
         b,
+        1.6,
+        forest,
       );
     }
   }
   tiles.uncache();
   return chunk;
+}
+
+/** Any building within TOWN_REACH tiles. */
+function nearTown(occupant: ArrayLike<number>, x: number, z: number): boolean {
+  const z0 = Math.max(0, z - TOWN_REACH);
+  const z1 = Math.min(MAP_SIZE - 1, z + TOWN_REACH);
+  const x0 = Math.max(0, x - TOWN_REACH);
+  const x1 = Math.min(MAP_SIZE - 1, x + TOWN_REACH);
+  for (let nz = z0; nz <= z1; nz++)
+    for (let nx = x0; nx <= x1; nx++) if (occupant[nz * MAP_SIZE + nx]) return true;
+  return false;
 }
 
 export function treesLayer(): RenderLayer {
@@ -165,6 +184,7 @@ export function treesLayer(): RenderLayer {
         stageOf,
         i % CHUNKS_PER_SIDE,
         Math.floor(i / CHUNKS_PER_SIDE),
+        ctx.mirror.layers.occupant,
       ),
     );
   }
@@ -185,13 +205,16 @@ export function treesLayer(): RenderLayer {
     update(change) {
       if (change.full) dirt.markAll();
       for (const layer of ['tree', 'height', 'water', 'occupant'] as const) {
-        for (const rect of change.rects.get(layer) ?? []) dirt.markRect(rect);
+        // A building changes which trees count as forest for TOWN_REACH tiles around it.
+        for (const rect of change.rects.get(layer) ?? [])
+          dirt.markRect(rect, layer === 'occupant' ? TOWN_REACH : 2);
       }
     },
     frame() {
       if (!field || !env) return false;
       if (ctx) for (const i of dirt.take(4, nearOf(env, ctx.mirror.meta.startArea))) rebuildChunk(i);
       field.lodScale = env.detailDistance / 80;
+      field.forestLow = env.detailDistance < FOREST_LOW_BELOW;
       return field.update(env.camera);
     },
     dispose() {

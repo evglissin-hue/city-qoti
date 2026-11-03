@@ -39,6 +39,13 @@ export interface ScatterKind {
 export interface ScatterChunk {
   matrices: number[][];
   colors: number[][];
+  /**
+   * V1C: per kind, 1 for an instance that keeps its low level at any distance when the field's
+   * `forestLow` is on (forest trees beyond the town, on Low and Medium). Absent means none.
+   */
+  farOnly?: number[][];
+  /** V1C: each instance's level at the last fill (0 none yet, 1 high, 2 low), for hysteresis. */
+  levels?: Uint8Array[];
   /** Height range of the chunk's instances, for culling. */
   minY: number;
   maxY: number;
@@ -75,6 +82,7 @@ export function addInstance(
   g: number,
   b: number,
   height = 1.6,
+  farOnly = false,
 ): void {
   // Lean is a small tilt: rotate about x then z, then turn about the vertical.
   const cy = Math.cos(yaw / 2);
@@ -87,6 +95,12 @@ export function addInstance(
   const list = chunk.matrices[kind]!;
   for (let i = 0; i < 16; i++) list.push(m4.elements[i]!);
   chunk.colors[kind]!.push(r, g, b);
+  if (farOnly || chunk.farOnly) {
+    chunk.farOnly ??= chunk.matrices.map((m) =>
+      new Array<number>(m.length / 16 - (m === list ? 1 : 0)).fill(0),
+    );
+    chunk.farOnly[kind]!.push(farOnly ? 1 : 0);
+  }
   chunk.minY = Math.min(chunk.minY, y);
   chunk.maxY = Math.max(chunk.maxY, y + height * scale);
 }
@@ -109,6 +123,17 @@ export class ScatterField {
   private readonly viewProj = new Matrix4();
   private readonly dir = new Vector3();
   private lod = 1;
+  /** V1C: instances marked farOnly keep their low level at any distance (Low and Medium). */
+  private forest = false;
+  /** Chunks drawn at the last fill: a rebuild elsewhere waits for the camera instead of a frame. */
+  private readonly shown = new Set<number>();
+  /** V1C: share of the swap distance either side of it within which an instance keeps its level. */
+  static readonly HYSTERESIS = 0.1;
+  /**
+   * V1C: farOnly instances (forest beyond the town) swap at this share of the swap distance when
+   * `forestLow` is on, so a forest is low from any usual camera but full when you stand in it.
+   */
+  static readonly FOREST_SHARE = 0.4;
   /** Instances drawn at the last fill, by kind id (for stats and tests). */
   readonly drawn = new Map<string, { high: number; low: number }>();
 
@@ -135,9 +160,34 @@ export class ScatterField {
     return this.kindIds.get(id) ?? -1;
   }
 
-  setChunk(index: number, chunk: ScatterChunk | null): void {
-    this.chunks[index] = chunk;
+  set forestLow(on: boolean) {
+    if (on === this.forest) return;
+    this.forest = on;
     this.dirty = true;
+  }
+
+  /**
+   * Sets a chunk's instances. Only a chunk in view at the last fill asks for a refill (and so a
+   * frame, and a new still for V1D's cache); one off screen shows when the camera next moves.
+   */
+  setChunk(index: number, chunk: ScatterChunk | null): void {
+    const old = this.chunks[index];
+    this.chunks[index] = chunk;
+    if (this.shown.has(index) || this.shown.size === 0 || (!old && chunk && this.nearView(index)))
+      this.dirty = true;
+  }
+
+  /** A chunk the last fill did not draw, but whose sphere is in the current frustum. */
+  private nearView(index: number): boolean {
+    const c = this.chunks[index];
+    if (!c || c.maxY < c.minY) return false;
+    this.sphere.center.set(
+      (index % CHUNKS_PER_SIDE) * CHUNK_SIZE + CHUNK_SIZE / 2,
+      (c.minY + c.maxY) / 2,
+      Math.floor(index / CHUNKS_PER_SIDE) * CHUNK_SIZE + CHUNK_SIZE / 2,
+    );
+    this.sphere.radius = Math.hypot(CHUNK_SIZE * 0.71, (c.maxY - c.minY) / 2) + 4;
+    return this.frustum.intersectsSphere(this.sphere);
   }
 
   /** Forces a refill on the next update (quality changed, say). */
@@ -187,6 +237,7 @@ export class ScatterField {
     const cam = camera.position;
     const visible: ScatterChunk[] = [];
     const dists: number[] = [];
+    this.shown.clear();
     for (let i = 0; i < this.chunks.length; i++) {
       const c = this.chunks[i];
       if (!c || c.maxY < c.minY) continue;
@@ -197,6 +248,7 @@ export class ScatterField {
       this.sphere.center.set(cx, cy, cz);
       this.sphere.radius = Math.hypot(CHUNK_SIZE * 0.71, halfY) + margin;
       if (!this.frustum.intersectsSphere(this.sphere)) continue;
+      this.shown.add(i);
       visible.push(c);
       dists.push(cam.distanceTo(this.sphere.center) - this.sphere.radius + margin);
     }
@@ -226,9 +278,17 @@ export class ScatterField {
       let nl = 0;
       for (let c = 0; c < visible.length; c++) {
         if (dists[c]! >= max) continue;
-        const mats = visible[c]!.matrices[k]!;
-        const cols = visible[c]!.colors[k]!;
+        const chunk = visible[c]!;
+        const mats = chunk.matrices[k]!;
+        const cols = chunk.colors[k]!;
         const n = mats.length / 16;
+        const far = this.forest ? chunk.farOnly?.[k] : undefined;
+        let lv: Uint8Array | undefined;
+        if (lm !== null) {
+          chunk.levels ??= chunk.matrices.map((m) => new Uint8Array(m.length / 16));
+          lv = chunk.levels[k];
+        }
+        const band = lod * ScatterField.HYSTERESIS;
         for (let i = 0; i < n; i++) {
           const o = i * 16;
           const dx = mats[o + 12]! - cam.x;
@@ -236,8 +296,17 @@ export class ScatterField {
           const dz = mats[o + 14]! - cam.z;
           const d = Math.sqrt(dx * dx + dy * dy + dz * dz);
           if (d >= max) continue;
-          const useLow = lm !== null && d > lod;
-          const outM = useLow ? lm : hm;
+          // Keep the level within the band either side of the swap distance, so trees near it do
+          // not flicker between levels as the camera breathes in and out.
+          let useLow = false;
+          if (lm !== null && lv) {
+            const prev = lv[i]!;
+            const at = far?.[i] ? lod * ScatterField.FOREST_SHARE : lod;
+            const b = far?.[i] ? band * ScatterField.FOREST_SHARE : band;
+            useLow = prev === 2 ? d > at - b : prev === 1 ? d > at + b : d > at;
+            lv[i] = useLow ? 2 : 1;
+          }
+          const outM = useLow ? lm! : hm;
           const outC = useLow ? lc! : hc;
           const at = useLow ? nl++ : nh++;
           const shrink = d > fadeFrom ? 1 - (d - fadeFrom) / (max - fadeFrom) : 1;

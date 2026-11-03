@@ -50,6 +50,7 @@ export const kits: readonly Kit[] = [
   G.handcart,
   Gd.hangingLantern,
   D.hedge,
+  T.hedgerow,
   V.herbGardenKit,
   Gd.herbPlanter,
   Sv.herbalistKit,
