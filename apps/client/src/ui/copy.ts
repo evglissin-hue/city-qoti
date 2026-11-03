@@ -56,6 +56,7 @@ export const copy = {
     qualityLow: 'Gentle on the laptop',
     qualityMedium: 'Balanced',
     qualityHigh: 'Every leaf',
+    qualityUltra: 'Spare no candles',
     uiScale: 'Interface size',
     reducedMotion: 'Calm motion',
     reducedMotionHint: 'Fewer wiggles and slides',

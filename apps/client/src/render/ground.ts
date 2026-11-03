@@ -366,7 +366,7 @@ export function createGroundMaterial(tex: GroundTextures, env: WorldEnv): MeshSt
     Object.assign(shader.uniforms, {
       uGroundColor: { value: tex.color },
       uGroundData: { value: tex.data },
-      uTime: env.time,
+      uTime: env.staticTime,
       uNight: env.night,
       uClouds: env.clouds,
       uLights: env.lights,

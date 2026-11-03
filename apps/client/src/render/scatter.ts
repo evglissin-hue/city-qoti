@@ -284,7 +284,7 @@ export class ScatterField {
 export function createFoliageMaterial(env: WorldEnv): MeshStandardMaterial {
   const m = new MeshStandardMaterial({ vertexColors: true, roughness: 0.92, metalness: 0 });
   m.onBeforeCompile = (shader) => {
-    shader.uniforms.uTime = env.time;
+    shader.uniforms.uTime = env.staticTime;
     shader.vertexShader = shader.vertexShader
       .replace('#include <common>', '#include <common>\nuniform float uTime;')
       .replace(

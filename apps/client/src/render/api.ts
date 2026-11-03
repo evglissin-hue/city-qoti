@@ -66,7 +66,8 @@ export interface RenderApi {
   setPresence(seat: SeatId, p: { x: number; z: number; tool?: string } | null): void;
   ping(seat: SeatId, x: number, z: number, kind: 'look' | 'help' | 'build'): void;
   focus(x: number, z: number, distance?: number): void;
-  setQuality(q: 'low' | 'medium' | 'high'): void;
+  /** V1.0: `ultra` added (for the stronger laptop or a desktop; never auto-detected). */
+  setQuality(q: 'low' | 'medium' | 'high' | 'ultra'): void;
   /**
    * C2 addition: a world point (tile units; y in world units) to canvas CSS pixels, for name labels
    * and off-screen arrows. `onScreen` is false when the point is outside the view or behind it.

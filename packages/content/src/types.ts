@@ -4,6 +4,12 @@
 /** Which lens a piece belongs to. Shared pieces show in both lens toolbars. */
 export type ContentLane = 'hearth' | 'ledger' | 'shared';
 
+/**
+ * V1.0, reserved for I4 (docs/spec/18-eras.md, Data): the Old Age, the Age of Steam (Town) and the
+ * Bright Age (City). Defs list the eras they belong to in `eras`; no data or sim state yet.
+ */
+export type Era = 'old' | 'steam' | 'bright';
+
 /** Reference to a procedural art kit in packages/art (one kit per def in I0). */
 export interface ArtRef {
   kit: string;
@@ -89,6 +95,9 @@ export interface BuildingDef {
   defense?: DefenseDef;
   /** Module slots for customization phase 2 (C5C): [slot, how many]. */
   moduleSlots?: [slot: ModuleSlot, count: number][];
+  // V1 additions (V1.0).
+  /** Eras this building belongs to (18-eras.md); absent means every era. Reserved, filled in I4. */
+  eras?: Era[];
 }
 
 export interface DecorDef {
@@ -119,6 +128,9 @@ export interface DecorDef {
   festival?: { keepable?: boolean };
   /** Raiders crossing it are slowed by this many percent (fence 20, hedge 30; C5D). */
   slows?: number;
+  // V1 additions (V1.0).
+  /** Eras this piece belongs to (18-eras.md); absent means every era. Reserved, filled in I4. */
+  eras?: Era[];
 }
 
 export interface RoadDef {
@@ -138,6 +150,9 @@ export interface RoadDef {
   // I2 additions (C4B).
   /** Charm noise the road itself gives its tile, fading over the next (cobbles and bustle). */
   noise?: number;
+  // V1 additions (V1.0).
+  /** Eras this road belongs to (18-eras.md); absent means every era. Reserved, filled in I4. */
+  eras?: Era[];
 }
 
 export interface TreeDef {

@@ -1,7 +1,5 @@
-import { createKitMaterial } from '@qoti/art';
 import { calendar, MAP_SIZE, TILE_FP, type SeatId } from '@qoti/sim';
 import {
-  ACESFilmicToneMapping,
   CanvasTexture,
   Color,
   DirectionalLight,
@@ -17,6 +15,7 @@ import {
   Vector3,
   WebGLRenderer,
   type Material,
+  type MeshStandardMaterial,
 } from 'three';
 import { CameraController, FOV } from '../input/camera';
 import type { Mirror } from '../state/mirror';
@@ -33,55 +32,17 @@ import {
   type PresenceLayer,
   type RenderLayer,
 } from './layers';
-import { lightingAt, WINDOW_HASH_GLSL } from './lighting';
+import { GpuTimer } from './gpuTimer';
+import { layerRoot, MOVING_LAYER, STATIC_LAYER } from './layerTags';
+import { lightingAt } from './lighting';
+import { LOOK_TONE_MAPPING } from './look';
+import { createWorldMaterial } from './material';
 import { pickTileFromRay } from './picking';
 import { PostChain } from './post';
-import { QUALITY_PRESETS, type Quality } from './quality';
+import { buildingDetailNow, QUALITY_PRESETS, type Quality } from './quality';
 import { DynamicResolution } from './resolution';
 
 export type { Quality } from './quality';
-
-/**
- * Adds the night glow to a kit material: vertices with the optional `glow` attribute (window panes,
- * flames) shine warm at night, on a seeded share of windows that changes with the hour (C3D-1: the
- * share and the hash come from lighting.ts, so ground spill matches lit panes). A missing
- * attribute reads as 0.
- */
-function addNightGlow(material: Material, night: { value: number }, share: { value: number }): void {
-  material.onBeforeCompile = (shader) => {
-    shader.uniforms.uNight = night;
-    shader.uniforms.uWindowShare = share;
-    shader.vertexShader = shader.vertexShader
-      .replace(
-        '#include <common>',
-        `#include <common>\nattribute float glow;\nvarying float vGlow;\nuniform float uNight;\nuniform float uWindowShare;\n${WINDOW_HASH_GLSL}`,
-      )
-      .replace(
-        '#include <project_vertex>',
-        [
-          '#include <project_vertex>',
-          'vec4 qWorld = vec4(transformed, 1.0);',
-          '#ifdef USE_INSTANCING',
-          'qWorld = instanceMatrix * qWorld;',
-          '#endif',
-          // C3D: buildings are batched; glow 2 marks lights that are always on (lanterns, shops).
-          '#ifdef USE_BATCHING',
-          'qWorld = batchingMatrix * qWorld;',
-          '#endif',
-          'qWorld = modelMatrix * qWorld;',
-          `vGlow = glow > 1.5 ? 1.0 : glow * qWindowLit(qWorld.xyz, uWindowShare);`,
-        ].join('\n'),
-      );
-    shader.fragmentShader = shader.fragmentShader
-      .replace('#include <common>', '#include <common>\nvarying float vGlow;\nuniform float uNight;')
-      .replace(
-        '#include <emissivemap_fragment>',
-        '#include <emissivemap_fragment>\ntotalEmissiveRadiance += vec3(1.0, 0.7, 0.36) * vGlow * uNight * 2.4;',
-      );
-  };
-  material.customProgramCacheKey = () => 'qoti-night-glow';
-  material.needsUpdate = true;
-}
 
 export interface RenderStats {
   fps: number;
@@ -90,6 +51,16 @@ export interface RenderStats {
   triangles: number;
   /** Pixel ratio the frame is drawn at, after dynamic resolution. */
   pixelRatio: number;
+  /**
+   * V1.0: GPU time per drawn frame in ms (an average of the last 30), from
+   * `EXT_disjoint_timer_query_webgl2`; null where the browser has no GPU timer.
+   */
+  gpuMs: number | null;
+  /**
+   * V1.0: what the last frame drew: `moving` (the whole scene), `still` (the static layers into the
+   * still-frame cache) or `idle` (the cache plus the moving layers). Always `moving` until V1D.
+   */
+  mode: 'moving' | 'still' | 'idle';
 }
 
 /** The Three.js scene for one valley. Draws on demand: when the camera moves or something changes. */
@@ -98,8 +69,19 @@ export class Renderer implements RenderApi {
   readonly scene = new Scene();
   readonly camera = new PerspectiveCamera(FOV, 1, 0.5, 2000);
   readonly rig: CameraController;
-  readonly stats: RenderStats = { fps: 0, frameMs: 0, drawCalls: 0, triangles: 0, pixelRatio: 1 };
-  private readonly material = createKitMaterial();
+  readonly stats: RenderStats = {
+    fps: 0,
+    frameMs: 0,
+    drawCalls: 0,
+    triangles: 0,
+    pixelRatio: 1,
+    gpuMs: null,
+    mode: 'moving',
+  };
+  /** V1.0: GPU time per drawn frame, where the browser offers a timer (`?debug` overlay, perf). */
+  readonly gpuTimer: GpuTimer;
+  /** The kit material every layer shares (material.ts). */
+  private readonly material: MeshStandardMaterial;
   private readonly layers: RenderLayer[];
   private readonly hemi = new HemisphereLight(0xffffff, 0x444444, 1);
   private readonly sun = new DirectionalLight(0xffffff, 1.5);
@@ -146,13 +128,15 @@ export class Renderer implements RenderApi {
   ) {
     this.env = createWorldEnv(this.camera);
     this.env.night = this.night;
+    this.material = createWorldMaterial(this.env);
     this.three = new WebGLRenderer({
-      antialias: QUALITY_PRESETS[quality].msaa,
+      antialias: QUALITY_PRESETS[quality].msaa > 0,
       powerPreference: 'high-performance',
     });
+    this.gpuTimer = new GpuTimer(this.three.getContext() as WebGL2RenderingContext);
     this.three.domElement.className = 'game-canvas';
     this.three.domElement.tabIndex = 0;
-    this.three.toneMapping = ACESFilmicToneMapping;
+    this.three.toneMapping = LOOK_TONE_MAPPING;
     this.three.outputColorSpace = SRGBColorSpace;
     this.three.shadowMap.type = PCFShadowMap;
     container.appendChild(this.three.domElement);
@@ -167,20 +151,30 @@ export class Renderer implements RenderApi {
     this.sun.shadow.radius = 3;
     this.fill.position.set(-1, 0.6, -0.8);
     this.scene.add(this.hemi, this.sun, this.sun.target, this.fill);
-    addNightGlow(this.material, this.night, this.env.windowShare);
+    // V1.0: layers draw on Three.js layer 1 (static) or 2 (moving); the camera and lights see both.
+    for (const o of [this.camera, this.hemi, this.sun, this.fill]) {
+      o.layers.enable(STATIC_LAYER);
+      o.layers.enable(MOVING_LAYER);
+    }
     this.setQuality(quality);
     this.rig = new CameraController(this.camera, mirror, this.three.domElement);
 
-    const ctx = {
-      scene: this.scene,
-      mirror,
-      material: this.material,
-      invalidate: () => this.invalidate(),
-      camera: this.camera,
-      env: this.env,
-    };
     this.layers = layerFactories.map((make) => make());
-    for (const layer of this.layers) layer.init(ctx);
+    for (const layer of this.layers) {
+      // V1.0: each layer adds to a root of its own, which tags what it holds static or moving, and
+      // its invalidate says which kind of layer changed.
+      const root = layerRoot(layer);
+      const moving = layer.motion === 'moving';
+      this.scene.add(root);
+      layer.init({
+        scene: root,
+        mirror,
+        material: this.material,
+        invalidate: () => (moving ? this.invalidate() : this.invalidateStatic()),
+        camera: this.camera,
+        env: this.env,
+      });
+    }
     this.layer<EffectsLayer>('effects').setSmoke(QUALITY_PRESETS[quality].ambientMotion);
     this.layer<AgentsLayer>('agents').setDetail(QUALITY_PRESETS[quality].residentDetail);
     this.unsubscribe = mirror.onChange((change) => {
@@ -203,6 +197,17 @@ export class Renderer implements RenderApi {
   }
 
   invalidate(): void {
+    this.needsRender = true;
+  }
+
+  /**
+   * V1.0: bumped whenever a static layer changes (it called its context's `invalidate`, or its
+   * `frame` reported a change), so V1D knows to drop the still-frame cache. Nothing reads it yet.
+   */
+  staticRevision = 0;
+
+  private invalidateStatic(): void {
+    this.staticRevision++;
     this.needsRender = true;
   }
 
@@ -318,7 +323,11 @@ export class Renderer implements RenderApi {
     let dirty = this.rig.update(dt);
     if (dirty) this.env.viewRevision++;
     if (this.env.motion) this.env.time.value += dt;
-    for (const layer of this.layers) if (layer.frame?.(dt)) dirty = true;
+    for (const layer of this.layers) {
+      if (!layer.frame?.(dt)) continue;
+      dirty = true;
+      if (layer.motion !== 'moving') this.staticRevision++;
+    }
     this.updateLighting();
     const drew = dirty || this.needsRender;
     if (drew) {
@@ -327,14 +336,17 @@ export class Renderer implements RenderApi {
       // Count every pass of the frame, not just the last one, so stats stay honest with post on.
       this.three.info.autoReset = false;
       this.three.info.reset();
+      this.gpuTimer.begin();
       if (this.post) this.post.render();
       else this.three.render(this.scene, this.camera);
+      this.gpuTimer.end();
       this.needsRender = false;
       this.stats.frameMs = performance.now() - start;
       this.stats.drawCalls = this.three.info.render.calls;
       this.stats.triangles = this.three.info.render.triangles;
       this.frames++;
-    }
+    } else this.gpuTimer.poll();
+    this.stats.gpuMs = this.gpuTimer.ms;
     if (this.resolution.frame(now, drew, this.basePixelRatio)) this.applyPixelRatio();
     if (now - this.fpsWindow >= 1000) {
       this.stats.fps = Math.round((this.frames * 1000) / (now - this.fpsWindow));
@@ -437,6 +449,7 @@ export class Renderer implements RenderApi {
     this.sun.castShadow = shadows;
     this.env.motion = preset.ambientMotion;
     this.env.detailDistance = preset.decorDistance;
+    this.env.buildingDetail = buildingDetailNow(q);
     this.env.viewRevision++;
     if (shadows && this.sun.shadow.mapSize.x !== preset.shadowMap) {
       this.sun.shadow.mapSize.set(preset.shadowMap, preset.shadowMap);
@@ -557,6 +570,7 @@ export class Renderer implements RenderApi {
     this.rig.dispose();
     for (const layer of this.layers) layer.dispose();
     this.material.dispose();
+    this.gpuTimer.dispose();
     this.post?.dispose();
     this.skyTexture.dispose();
     this.three.dispose();

@@ -1,4 +1,5 @@
-import { Color, Vector3, Vector4, type PerspectiveCamera } from 'three';
+import { createPatternArray } from '@qoti/art';
+import { Color, Vector3, Vector4, type DataArrayTexture, type PerspectiveCamera } from 'three';
 
 /** Most ground glow pools (lanterns, lit windows) drawn at once, nearest the view first. */
 export const MAX_GROUND_LIGHTS = 32;
@@ -10,6 +11,12 @@ export const MAX_GROUND_LIGHTS = 32;
 export interface WorldEnv {
   /** Seconds of ambient animation (water, clouds); frozen when ambient motion is off. */
   time: { value: number };
+  /**
+   * V1.0: the clock animation inside static layers runs on (cloud shade on the ground, foliage
+   * sway, the sky's clouds and stars). The same object as `time` until V1D, which stops it while
+   * the camera rests, so the still-frame cache stays true (docs/build/v1-wave-notes.md).
+   */
+  staticTime: { value: number };
   /** 0 by day, 1 at full night. */
   night: { value: number };
   /** Horizon and fog color, and the top of the sky. */
@@ -32,8 +39,18 @@ export interface WorldEnv {
   motion: boolean;
   /** Decor detail distance in tiles for the active quality preset (small props fade out beyond). */
   detailDistance: number;
+  /**
+   * V1.0: buildings within this many tiles of the camera draw at full detail, the low version
+   * beyond (the preset's, see quality.ts `buildingDetailNow`).
+   */
+  buildingDetail: number;
   /** Bumped whenever the camera moves, so level of detail can skip still frames. */
   viewRevision: number;
+  /**
+   * V1.0: the pattern texture array (packages/art patterns.ts), created once and shared by the kit
+   * material (V1A) and the ground shader (V1C). Flat until V1A writes the generators.
+   */
+  patterns: { value: DataArrayTexture };
 }
 
 /** Where to build first: the view's focus once the renderer has drawn, else the start area. */
@@ -46,8 +63,10 @@ export function nearOf(env: WorldEnv | undefined, startArea: readonly number[]):
 export const FIRST_FRAME_RADIUS = 56;
 
 export function createWorldEnv(camera: PerspectiveCamera): WorldEnv {
+  const time = { value: 0 };
   return {
-    time: { value: 0 },
+    time,
+    staticTime: time,
     night: { value: 0 },
     sky: { value: new Color(0xcfe6ef) },
     skyTop: { value: new Color(0x7fb6e0) },
@@ -61,7 +80,9 @@ export function createWorldEnv(camera: PerspectiveCamera): WorldEnv {
     camera,
     motion: true,
     detailDistance: 80,
+    buildingDetail: 75,
     viewRevision: 0,
+    patterns: { value: createPatternArray() },
   };
 }
 

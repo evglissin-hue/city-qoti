@@ -3,7 +3,7 @@
 // bed and the carter's bench), a wheel that turns about its axle, and the load on the bed, one
 // geometry per good. Faces +z with the axle at the origin on the ground; the pony walks between the
 // shafts at PONY_OFFSET. The `cart` kit assembles everything standing still.
-import { Float32BufferAttribute, type BufferGeometry } from 'three';
+import { Float32BufferAttribute, Uint8BufferAttribute, type BufferGeometry } from 'three';
 import { seeded, ShapeBuilder, vary } from '../geometry';
 import { palette } from '../palette';
 import { beam, cylX } from '../shapes';
@@ -162,6 +162,16 @@ export function mergeFlat(parts: BufferGeometry[]): BufferGeometry {
     });
     out.setAttribute(name, new Float32BufferAttribute(data, size));
   }
+  // V1.0: surface ids (geometry.ts) stay bytes; a part without them is plain.
+  const surface = new Uint8Array(parts.reduce((t, p) => t + p.getAttribute('position').count, 0));
+  let o = 0;
+  for (const p of parts) {
+    const n = p.getAttribute('position').count;
+    const a = p.getAttribute('surface')?.array as Uint8Array | undefined;
+    if (a) surface.set(a.subarray(0, n), o);
+    o += n;
+  }
+  out.setAttribute('surface', new Uint8BufferAttribute(surface, 1));
   out.computeBoundingBox();
   out.computeBoundingSphere();
   return out;

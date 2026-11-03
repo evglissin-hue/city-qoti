@@ -1,4 +1,4 @@
-import { BufferGeometry, Color, Float32BufferAttribute, Vector3 } from 'three';
+import { BufferGeometry, Color, Float32BufferAttribute, Uint8BufferAttribute, Vector3 } from 'three';
 
 export type V3 = [number, number, number];
 
@@ -37,20 +37,32 @@ export function mixHex(a: number, b: number, t: number): number {
 /**
  * Accumulates flat-shaded, vertex-colored triangles and emits one non-indexed geometry.
  * Faces take an outward hint and flip themselves if needed, so winding mistakes cannot
- * produce inside-out pieces. Every geometry carries a `glow` attribute (1 on panes and flames)
- * and baked vertex ambient occlusion (darker at the base and on undersides, lighter on top).
+ * produce inside-out pieces. Every geometry carries a `glow` attribute (1 on panes and flames),
+ * a `surface` attribute (V1.0: the surface id of each face, surface.ts; 0, plain, unless set) and
+ * baked vertex ambient occlusion (darker at the base and on undersides, lighter on top).
  */
 export class ShapeBuilder {
   private readonly positions: number[] = [];
   private readonly normals: number[] = [];
   private readonly colors: number[] = [];
   private readonly glows: number[] = [];
+  private readonly surfaces: number[] = [];
   private readonly color = new Color();
   private glowValue = 0;
+  private surfaceValue = 0;
 
   /** Sets the glow written for the following faces (1 for window panes and flames). */
   glow(value: number): this {
     this.glowValue = value;
+    return this;
+  }
+
+  /**
+   * V1.0: sets the surface id (`SURFACE` in surface.ts: brick, slate, thatch, ...) written for the
+   * following faces, like `glow`. Faces before any call are plain (0).
+   */
+  surface(id: number): this {
+    this.surfaceValue = id;
     return this;
   }
 
@@ -75,6 +87,7 @@ export class ShapeBuilder {
       this.normals.push(tmpN.x, tmpN.y, tmpN.z);
       this.colors.push(this.color.r, this.color.g, this.color.b);
       this.glows.push(this.glowValue);
+      this.surfaces.push(this.surfaceValue);
     }
     return this;
   }
@@ -403,6 +416,7 @@ export class ShapeBuilder {
     g.setAttribute('normal', new Float32BufferAttribute(this.normals, 3));
     g.setAttribute('color', new Float32BufferAttribute(colors, 3));
     g.setAttribute('glow', new Float32BufferAttribute(this.glows, 1));
+    g.setAttribute('surface', new Uint8BufferAttribute(Uint8Array.from(this.surfaces), 1));
     g.computeBoundingBox();
     g.computeBoundingSphere();
     return g;

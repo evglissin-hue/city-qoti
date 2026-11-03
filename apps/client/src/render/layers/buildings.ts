@@ -13,7 +13,7 @@ import {
 } from '../kitGeometry';
 import type { LayerContext, RenderLayer } from './types';
 
-/** Beyond this many tiles from the camera, buildings swap to their low detail version. */
+/** Beyond this many tiles from the camera, buildings swap to their low detail version (V1.0: the preset's). */
 const LOD_DISTANCE = 75;
 
 /**
@@ -72,7 +72,7 @@ export function buildingsLayer(): RenderLayer {
     for (const b of ctx.mirror.buildings.values()) {
       const c = centers.get(b.id);
       if (!c) continue;
-      const want = c.distanceTo(camPos) > LOD_DISTANCE ? 'low' : 'high';
+      const want = c.distanceTo(camPos) > (ctx.env?.buildingDetail ?? LOD_DISTANCE) ? 'low' : 'high';
       if ((lods.get(b.id) ?? 'high') === want) continue;
       lods.set(b.id, want);
       place(b);

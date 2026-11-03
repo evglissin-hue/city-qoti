@@ -6,7 +6,7 @@
 //   per-instance fur tints (main and light fur). Tinted faces store a white shade, so baked
 //   occlusion still darkens them.
 // - rig 0 is rigid; the others swing in the vertex shader (see RIG and resident shader hooks).
-import { BufferGeometry, Color, Float32BufferAttribute, Vector3 } from 'three';
+import { BufferGeometry, Color, Float32BufferAttribute, Uint8BufferAttribute, Vector3 } from 'three';
 import type { V3 } from './geometry';
 
 export const PAINT = { fixed: 0, cloth: 1, fur: 2, furLight: 3 } as const;
@@ -263,6 +263,8 @@ export class RigBuilder {
     g.setAttribute('paint', new Float32BufferAttribute(paint, 1));
     g.setAttribute('rig', new Float32BufferAttribute(this.rig, 1));
     g.setAttribute('glow', new Float32BufferAttribute(new Float32Array(this.paint.length), 1));
+    // V1.0: plain surfaces, so rigged pieces merge and batch with kit geometry (geometry.ts).
+    g.setAttribute('surface', new Uint8BufferAttribute(new Uint8Array(this.paint.length), 1));
     g.computeBoundingBox();
     g.computeBoundingSphere();
     return g;

@@ -62,7 +62,7 @@ export function skyLayer(): RenderLayer {
           uSkyTop: env.skyTop,
           uSun: env.sunColor,
           uSunDir: env.sunDir,
-          uTime: env.time,
+          uTime: env.staticTime,
           uNight: env.night,
         },
         vertexShader: /* glsl */ `

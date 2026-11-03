@@ -984,6 +984,12 @@ input::placeholder {
   margin-bottom: 6px;
 }
 
+/* V1.0: four presets sit two by two rather than three and a straggler. */
+.settings fieldset.quality {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+}
+
 .settings fieldset button.active {
   background: var(--sage);
   color: #fffaf0;

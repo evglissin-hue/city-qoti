@@ -62,3 +62,14 @@ Any change to how the game looks (V1A to V1C), the frame graph, shadow caching, 
 - The concept viewer is a single-file prototype with no Mirror, no chunk rebuilds and no on-demand drawing. Port its ideas and numbers, not its code.
 - Keep every id append-only (surface ids show up in gallery screenshots and tests).
 - Visual quality is the owner's top priority, but this cycle's job is that nothing moves: a perfect no-op is a success.
+
+## As built
+
+- **Two more `WorldEnv` fields** than the brief lists, both no-ops today: `env.staticTime` (the clock the ground's cloud shade, the scatter sway and the sky read; the same object as `env.time` until V1D stops it at rest, which is how the wave notes' "pause while the camera rests" decisions work) and `env.patterns` (the one pattern array, so V1A and V1C bind the same texture and a sampler is never null).
+- **Cache invalidation needs no flag**: each layer gets its own context, so the renderer knows a static layer called `invalidate()` (or returned true from `frame()`) and bumps `renderer.staticRevision`. Layers change nothing.
+- **Tone mapping moved too**: three's OutputPass became the look's output pass (`lookToneMap` and `lookSrgb`, exact copies of three's ACES filmic and sRGB code), so V1A can change the operator without touching `post.ts`. The bloom mix stays inside UnrealBloomPass until V1D (`lookBloomMix` is ready for its final pass); the bloom's strength and threshold come from `bloomFor`.
+- **`QualityPreset.msaa`** was a boolean; it is now 0 or 4 as the brief asks (the renderer reads `msaa > 0` for the context). Low's shadow map stays off until V1D, which brings the cached 1024.
+- **Every geometry carries `surface`**, not only kits that set ids: the buildings layer's `BatchedMesh` refuses a geometry missing an attribute the first one had, so `RigBuilder` writes zeros and `mergeFlat` carries the ids.
+- **The town showcase** places exactly 1,000 buildings, 4,000 decor and 2,000 garden trees (on top of the valley's forests) on `fixture=village`, and 2,000 synthetic residents across the town.
+- **The shots hide the interface** (the clock and the news feed change from run to run; `QOTI_HUD=1` keeps it) and wait until the scene has streamed in (the triangle count steady over three looks, three drawn frames apart): with a fixed wait, the first software-rendered run caught the village's wide shot with half its trees.
+- **Ultra in the settings** is "Spare no candles"; the settings panel now marks the preset the renderer runs (it read only the saved one, so `?quality=` showed Medium).
