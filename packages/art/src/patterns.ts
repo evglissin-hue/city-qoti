@@ -187,8 +187,14 @@ type Texel = (x: number, y: number, i: number) => void;
 export function generatePatterns(data: Uint8Array, size: number): void {
   const n = size * size;
   const out = { r: 1, g: 0, b: 0, a: 0 };
-  const put = (layer: number, fn: Texel): void => {
+  // A clamped view rounds and clamps each byte as it is written (the same on every engine).
+  const c8 = new Uint8ClampedArray(data.buffer, data.byteOffset, data.length);
+  const put = (layer: number, fn: Texel | null): void => {
     const off = layer * n * 4;
+    if (!fn) {
+      for (let i = 0; i < n; i++) c8[off + i * 4] = PATTERN_ONE;
+      return;
+    }
     for (let py = 0; py < size; py++) {
       const y = (py + 0.5) / size;
       for (let px = 0; px < size; px++) {
@@ -199,17 +205,17 @@ export function generatePatterns(data: Uint8Array, size: number): void {
         const i = py * size + px;
         fn((px + 0.5) / size, y, i);
         const o = off + i * 4;
-        data[o] = Math.round(clamp01(out.r * 0.5) * 255);
-        data[o + 1] = Math.round(clamp01(out.g) * 255);
-        data[o + 2] = Math.round(clamp01(out.b) * 255);
-        data[o + 3] = Math.round(clamp01(out.a) * 255);
+        c8[o] = out.r * 127.5;
+        c8[o + 1] = out.g * 255;
+        c8[o + 2] = out.b * 255;
+        c8[o + 3] = out.a * 255;
       }
     }
   };
   const cells = (cx: number, cy: number, seed: number): Float64Array => table(cx, cy, seed);
 
   // Plain: flat.
-  put(SURFACE.plain, () => {});
+  put(SURFACE.plain, null);
 
   // Plaster: two scales of mottling, broad patches and a fine grain.
   {
@@ -314,7 +320,7 @@ export function generatePatterns(data: Uint8Array, size: number): void {
   }
 
   // Glass: flat (the material gives it a sky fresnel and a sun glint).
-  put(SURFACE.glass, () => {});
+  put(SURFACE.glass, null);
 
   // Grass: fine variation and sparse flower dots (G mask, B hue).
   {
@@ -341,7 +347,7 @@ export function generatePatterns(data: Uint8Array, size: number): void {
   }
 
   // Water: flat (fresnel and glint).
-  put(SURFACE.water, () => {});
+  put(SURFACE.water, null);
 
   // Leaf: soft clusters of light and shade.
   {
