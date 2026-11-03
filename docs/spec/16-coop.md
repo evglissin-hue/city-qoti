@@ -80,3 +80,5 @@ Local UI state per laptop; Tab toggles (P8). The default comes from the seat pro
 ## Together moments [I3]
 
 Some cozy moments happen only when both seats are connected: the festival's closing dance, fireworks at a rank-up, an evening stroll event. They never gate progress (P5).
+
+*As built (C5B)*: the sim emits `together.moment { kind }` only while `time.connected` holds both seats, and counts each kind in `seasons.together`; nothing waits on one and nothing else changes (a one-seat valley runs to the same state but for the counter and the seats named on that evening's Chronicle line). The rules: **dance** at 21:00 on the festival evening, while the festival is live (the guests on the site dance in the agent frame for the last hour); **fireworks** at 21:00 on the evening after a rank-up or a sealed Charter (a `rank-up` or `trial-passed` Chronicle entry in the day before); **stroll** at 20:00 on day 3 of each season when the weather is clear or cloudy (a fair evening midway between two festivals, for the pair to walk the town together). C5E draws them.

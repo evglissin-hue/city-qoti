@@ -64,7 +64,7 @@ Two per resident, compatible pairs only (no Cheerful + Grumpy).
 | Sporty | wants greens and paths; walks faster |
 | Romantic | forms couples [I2]; loves lantern-lit spots |
 | Thrifty | buys cheapest substitutes [I2]; saves more |
-| Generous | gifts to friends; donates to festivals [I3] |
+| Generous | gifts to friends; donates to festivals [I3] (C5B: buys a unit of the menu at noon on the festival day when the household can pay) |
 | Artistic | loves variety (charm variety weight x2); paints signs |
 | Practical | productivity +5%; dislikes clutter |
 | Night Owl | schedule +2 h |
@@ -100,7 +100,7 @@ Years are 24 days. Stages *(tune)*: child 0 to 3 years, young 3 to 5, adult 5 to
 | Weddings | I2 | a couple marries at the next festival or on a chosen day; mini event, Chronicle entry |
 | Births | I2 | a couple with a spare bed and mood 60+ may have a child (chance per season) |
 | Apprenticeships | I2 | young residents learn a trade at a workshop for 1 season, then take skilled jobs |
-| Opening a shop | I3 | an adult with savings, a fitting trait and a vacant shop lot opens a named shop |
+| Opening a shop | I3 | an adult with savings, a fitting trait and a vacant shop lot opens a named shop. As built (C5B): once a season, on day 2 at 10:00 from Village rank, the first grown-up whose household has 40 coins put by and who is Artistic, Cheerful, Generous, Practical, Sweet-toothed or Thrifty grows the shop zone's shop on a free shop lot (`growLot`) with a sign of their family name and their kind of shop ("Thistledown Sweets"), a Chronicle line and a letter; the town's builders put it up, so no money moves; one shop a family |
 | Retiring | I2 | elders stop working |
 | Moving to the seaside | I2 | elders past 20 years may leave to "live by the sea with family" (warm Chronicle entry). Nobody dies in City Qoti. |
 
