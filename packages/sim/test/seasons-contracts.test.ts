@@ -24,7 +24,7 @@ import { scheduleOverride, withScheduleOverrides } from '../src/systems/resident
 import { think } from '../src/systems/residents/schedule';
 import { isCold, isFrozen, seasonNow, warmthReport } from '../src/systems/seasons/api';
 import { isRaidActive, lanternLit, watchStrength, wealth } from '../src/systems/threats/api';
-import { advanceTo, createTickCtx } from '../src/turn';
+import { createTickCtx, runTick } from '../src/turn';
 import { buildView } from '../src/view';
 import { seasonReportView } from '../src/view/season';
 import {
@@ -43,6 +43,12 @@ import { raidAtDusk, threatFixture } from './fixtures/threat';
 import { winterFixture } from './fixtures/winter';
 import { villageFixture } from './fixtures/village';
 import { flatWorld, rejection, run, S } from './helpers';
+
+/** Runs `n` ticks (advanceTo counts turns, not ticks). */
+function runTicks(state: WorldState, n: number): void {
+  const ctx = createTickCtx(state);
+  for (let i = 0; i < n; i++) runTick(state, ctx);
+}
 
 const standard = () => ({ ...defaultSettings(), mode: 'standard' as const });
 
@@ -73,7 +79,7 @@ describe('I3 fixtures', () => {
       expect(festivalMorale(s)).toBe(5);
       // Smoke: it builds every view and keeps going for a few hours.
       expect(buildView(s).buildings.length).toBeGreaterThan(25);
-      advanceTo(s, s.tick + 3 * TICKS_PER_HOUR, createTickCtx(s));
+      runTicks(s, 3 * TICKS_PER_HOUR);
     },
   );
 
@@ -86,12 +92,12 @@ describe('I3 fixtures', () => {
     expect(lanternLit(f.state, 51 * S + 36)).toBe(true);
     expect(lanternLit(f.state, 20 * S + 20)).toBe(false);
     expect(wealth(f.state)).toBeGreaterThan(f.state.economy.treasury);
-    advanceTo(f.state, f.state.tick + 2 * TICKS_PER_HOUR, createTickCtx(f.state));
+    runTicks(f.state, 2 * TICKS_PER_HOUR);
 
     const d = raidAtDusk();
     expect(isRaidActive(d.state)).toBe(true);
     expect(raidView(d.state)).toMatchObject({ band: 'medium', raiders: 6, bell: true, lanterns: false });
-    advanceTo(d.state, d.state.tick + TICKS_PER_HOUR, createTickCtx(d.state));
+    runTicks(d.state, TICKS_PER_HOUR);
   });
 });
 
@@ -420,7 +426,7 @@ describe('save version 4', () => {
       expect(s.map.flags[10 * S + 98]! & Flags.floodplain).toBe(Flags.floodplain);
       expect(s.map.flags[10 * S + 90]! & Flags.floodplain).toBe(0);
       // It keeps playing.
-      advanceTo(s, s.tick + 2 * TICKS_PER_HOUR, createTickCtx(s));
+      runTicks(s, 2 * TICKS_PER_HOUR);
     });
   }
 });
