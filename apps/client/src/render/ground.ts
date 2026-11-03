@@ -52,11 +52,11 @@ const mix = (a: RGB, b: RGB, t: number): RGB => [
 ];
 
 // V1C: the Painted Miniature ground (palette2): a softer, less saturated grass.
-const GRASS = rgb(palette2.grass);
-const GRASS_WARM = rgb(0xadb86c);
+const GRASS = rgb(0x90b063);
+const GRASS_WARM = rgb(0xa9bb66);
 const GRASS_LUSH = rgb(0x789d55);
 /** Playtest round six: thin soil reads dry and straw-pale, rich soil deep and lush. */
-const GRASS_DRY = rgb(0xc2bb7c);
+const GRASS_DRY = rgb(0xb5b672);
 const GRASS_RICH = rgb(0x5f8a43);
 const MEADOW = rgb(palette2.meadow);
 const FOREST = rgb(palette2.forestFloor);
@@ -127,7 +127,8 @@ export class GroundTextures {
           const nx = x + dx;
           const nz = z + dz;
           if (nx < 0 || nz < 0 || nx >= N || nz >= N) continue;
-          const v = dx === 0 && dz === 0 ? 0.85 : dx === 0 || dz === 0 ? 0.3 : 0.12;
+          const v = dx === 0 && dz === 0 ? 0.8 : dx === 0 || dz === 0 ? 0.2 : 0;
+          if (v === 0) continue;
           const i = nz * N + nx;
           out.set(i, Math.max(out.get(i) ?? 0, v));
         }
@@ -241,7 +242,7 @@ export class GroundTextures {
     if (terrain === Terrain.grass) meadow = smoothstep(0.52, 0.72, patch(x, z, 13, 71)) * 0.85;
     meadow *= 1 - mown;
     if (terrain === Terrain.grass && meadow > 0) {
-      c = mix(c, MEADOW, meadow * 0.6);
+      c = mix(c, MEADOW, meadow * 0.45);
       flowers = Math.max(flowers, meadow * (0.35 + bloom * 0.5));
     }
     if (mown > 0 && (terrain === Terrain.grass || terrain === Terrain.meadow)) {
@@ -257,7 +258,7 @@ export class GroundTextures {
       if (soil > 0) {
         c = mix(c, GRASS_RICH, soil * 0.7);
         flowers += soil * 0.25;
-      } else c = mix(c, GRASS_DRY, -soil * 0.6);
+      } else c = mix(c, GRASS_DRY, -soil * 0.55);
     }
     if (!water && wet && terrain !== Terrain.sand && terrain !== Terrain.rock)
       c = mix(c, GRASS_WARM, wet === 2 ? 0.3 : 0.1);
@@ -412,29 +413,29 @@ vec3 qGround(vec3 base) {
     float comb = qNoise(vec2(wp.x * 3.0 + wp.y * 7.5, wp.y * 2.0 - wp.x * 1.2));
     col = mix(col, col * vec3(1.1, 1.07, 0.82), meadowK * smoothstep(0.45, 0.85, comb) * 0.55);
     col *= 1.0 - meadowK * 0.06 * (1.0 - comb);
-    // Soil you can see: clover and lush tufts on rich ground, bare earth showing through on thin.
-    float speck = qHash(floor(wp * 6.0) + 2.0);
-    vec2 sc = fract(wp * 6.0) - 0.5;
-    float dotK = (1.0 - smoothstep(0.22, 0.4, length(sc))) * fade;
-    vec3 clover = col * vec3(0.78, 0.92, 0.74);
-    col = mix(col, clover, step(0.62, speck) * dotK * clamp(soil, 0.0, 1.0) * 0.9);
-    vec3 bare = qSrgb(vec3(0.62, 0.52, 0.37)) * (0.9 + 0.15 * qNoise(wp * 7.0));
-    float thin = clamp(-soil, 0.0, 1.0);
-    float patchy = smoothstep(0.45, 0.8, qNoise(wp * 1.7 + 21.0));
-    col = mix(col, bare, thin * (step(0.7, speck) * dotK * 0.75 + patchy * 0.28));
-    // Far away the specks melt into a tint, so the two soils still read apart.
-    col = mix(col, col * mix(vec3(1.0), soil > 0.0 ? vec3(0.9, 0.97, 0.86) : vec3(1.07, 1.02, 0.86), abs(soil)), (1.0 - fade) * 0.6);
+    // Soil you can see: clover leaves on rich ground, a little bare earth on thin, both sparse and
+    // small; the tile tint (above) carries most of it, so it reads from the default camera too.
+    vec2 cell = floor(wp * 4.0);
+    float speck = qHash(cell + 2.0);
+    vec2 sc = fract(wp * 4.0) - 0.25 - 0.5 * vec2(qHash(cell + 5.1), qHash(cell + 8.3));
+    float dotK = (1.0 - smoothstep(0.07, 0.16, length(sc))) * fade;
+    float rich = clamp(soil * 1.6 - 0.35, 0.0, 1.0);
+    float thin = clamp(-soil * 1.6 - 0.35, 0.0, 1.0);
+    col = mix(col, col * vec3(0.8, 0.93, 0.76), step(1.0 - rich * 0.45, speck) * dotK * 0.8);
+    vec3 bare = col * vec3(1.12, 0.98, 0.78);
+    float patchy = smoothstep(0.55, 0.85, qNoise(wp * 1.9 + 21.0));
+    col = mix(col, bare, thin * (step(1.0 - thin * 0.35, speck) * dotK * 0.7 + patchy * 0.3));
   }
   // Worn earth under benches and seats and in front of doors, ragged at the edge.
   if (worn > 0.02 && !built && !water) {
-    float wv = smoothstep(0.22, 0.58, worn + (qNoise(wp * 4.3) - 0.5) * 0.28 + (qNoise(wp * 13.0) - 0.5) * 0.08);
+    float wv = smoothstep(0.3, 0.62, worn + (qNoise(wp * 4.3) - 0.5) * 0.28 + (qNoise(wp * 13.0) - 0.5) * 0.08);
     vec3 earth = qSrgb(vec3(0.70, 0.59, 0.42)) * (0.9 + 0.14 * qNoise(wp * 9.0));
     col = mix(col, earth, wv * 0.8);
   }
 
   // Wildflower speckles, five cells per tile; far away they melt into a soft tint.
   float flowers = gc.a;
-  if (flowers > 0.01 && !built) {
+  if (flowers > 0.01) {
     vec2 cell = floor(wp * 5.0);
     float h = qHash(cell);
     vec2 c = cell + 0.2 + 0.6 * vec2(qHash(cell + 7.1), qHash(cell + 3.7));
@@ -477,9 +478,8 @@ vec3 qGround(vec3 base) {
   col = mix(col, qSrgb(vec3(0.38, 0.42, 0.30)), smoothstep(0.0, -0.4, above) * 0.6);
 
   // V1C: the ground AO texture, soft pools beside walls, in courtyards and narrow streets, under
-  // crowns. Under a building's own lot (its yard, its garden) it is gentler.
+  // crowns (gentler under a building's own lot, see groundAo.ts LOT_LIFT).
   float ao = qGroundAo(wp);
-  if (built) ao = mix(ao, 1.0, 0.55);
   col *= ao * mix(1.0, 0.97, 1.0 - ao) + (1.0 - ao) * vec3(0.0, 0.004, 0.012);
   return qGroundSeason(col, wp);
 }

@@ -28,9 +28,14 @@ export const AO_SIZE = Math.round(MAP_SIZE * AO_TEXELS_PER_TILE);
 export const CONTACT_RADIUS = 2;
 export const ENCLOSURE_RADIUS = 6;
 /** How much each blur darkens, and the darkest the ground gets. *(tune)* */
-export const CONTACT_WEIGHT = 0.55;
-export const ENCLOSURE_WEIGHT = 0.15;
-export const AO_FLOOR = 0.38;
+export const CONTACT_WEIGHT = 0.75;
+export const ENCLOSURE_WEIGHT = 0.25;
+export const AO_FLOOR = 0.36;
+/**
+ * Under a building's own lot (its yard, its garden: the occupant layer covers the whole lot, the
+ * walls stand inside it) the occlusion is this much gentler, so a yard is not a dark pit.
+ */
+export const LOT_LIFT = 0.55;
 /** Texels an edit reaches after both passes of the wide blur. */
 const REACH = ENCLOSURE_RADIUS * 2;
 /** Tiles of decor and crowns that can spill into a neighboring tile's texels. */
@@ -59,7 +64,7 @@ export function decorBlob(defId: string, fx: number, fz: number, rot: number): B
   const x = fpToWorld(fx);
   const z = fpToWorld(fz);
   const tags = def.tags;
-  if (tags.includes('tree')) return { x, z, dx: 0, dz: 0, len: 0, r: 0.95, v: 0.55, hard: 0 };
+  if (tags.includes('tree')) return { x, z, dx: 0, dz: 0, len: 0, r: 1, v: 0.7, hard: 0 };
   if (def.linear) {
     const a = (rot * 2 * Math.PI) / DECOR_ROTATIONS;
     const dx = Math.cos(a);
@@ -67,8 +72,8 @@ export function decorBlob(defId: string, fx: number, fz: number, rot: number): B
     // Hedges and walls stand solid; a fence or a verge lets most of the light through.
     const hedge = tags.includes('hedge');
     const wall = tags.includes('wall');
-    const r = hedge ? 0.2 : wall ? 0.14 : 0.06;
-    const v = hedge ? 0.85 : wall ? 0.75 : tags.includes('fence') ? 0.3 : 0.15;
+    const r = hedge ? 0.32 : wall ? 0.26 : 0.12;
+    const v = hedge ? 1 : wall ? 0.9 : tags.includes('fence') ? 0.4 : 0.2;
     return { x, z, dx, dz, len: 0.5, r, v, hard: 1 };
   }
   // Benches, planters, wells and the like: a small, faint pool.
@@ -81,7 +86,14 @@ function blobKey(b: Blob): string {
 }
 
 /** Sliding-window box blur of radius r along rows (step 1) or columns (step w), in place via tmp. */
-function boxPass(src: Float32Array, dst: Float32Array, w: number, h: number, r: number, horizontal: boolean): void {
+function boxPass(
+  src: Float32Array,
+  dst: Float32Array,
+  w: number,
+  h: number,
+  r: number,
+  horizontal: boolean,
+): void {
   const n = horizontal ? w : h;
   const lines = horizontal ? h : w;
   const step = horizontal ? 1 : w;
@@ -98,7 +110,14 @@ function boxPass(src: Float32Array, dst: Float32Array, w: number, h: number, r: 
 }
 
 /** Two box passes each way (close to a Gaussian). */
-function blur(src: Float32Array, out: Float32Array, tmp: Float32Array, w: number, h: number, r: number): void {
+function blur(
+  src: Float32Array,
+  out: Float32Array,
+  tmp: Float32Array,
+  w: number,
+  h: number,
+  r: number,
+): void {
   boxPass(src, tmp, w, h, r, true);
   boxPass(tmp, out, w, h, r, false);
   boxPass(out, tmp, w, h, r, true);
@@ -219,15 +238,20 @@ export class GroundAo {
     const near = this.scratch.subarray(n, n * 2);
     const wide = this.scratch.subarray(n * 2, n * 3);
     const tmp = this.scratch.subarray(n * 3, n * 4);
-    for (let z = 0; z < h; z++) src.set(this.mask.subarray((iz0 + z) * S + ix0, (iz0 + z) * S + ix0 + w), z * w);
+    for (let z = 0; z < h; z++)
+      src.set(this.mask.subarray((iz0 + z) * S + ix0, (iz0 + z) * S + ix0 + w), z * w);
     blur(src, near, tmp, w, h, CONTACT_RADIUS);
     blur(src, wide, tmp, w, h, ENCLOSURE_RADIUS);
     for (let z = oz0; z <= oz1; z++) {
       const lz = z - iz0;
       for (let x = ox0; x <= ox1; x++) {
         const li = lz * w + (x - ix0);
-        const light = 1 - near[li]! * CONTACT_WEIGHT - wide[li]! * ENCLOSURE_WEIGHT;
-        this.bytes[z * S + x] = Math.round(255 * Math.max(AO_FLOOR, Math.min(1, light)));
+        let light = Math.max(
+          AO_FLOOR,
+          Math.min(1, 1 - near[li]! * CONTACT_WEIGHT - wide[li]! * ENCLOSURE_WEIGHT),
+        );
+        if (src[li] === 1) light += (1 - light) * LOT_LIFT;
+        this.bytes[z * S + x] = Math.round(255 * light);
       }
     }
     this.texture.needsUpdate = true;

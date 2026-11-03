@@ -26,6 +26,7 @@ import { townShowcase, type TownShowcaseOptions } from '../render/townShowcase';
 import { fakeCharm, fakeRuntime, startSyntheticResidents, type SyntheticOptions } from '../render/synthetic';
 import { SimHost } from '../worker/host';
 import { overlayMocks, overlayVillageMocks } from './fixture';
+import type { GroundAo } from '../render/groundAo';
 import { layerTriangles, runPerf, type PerfOptions } from './perf';
 import type { Session } from './session';
 
@@ -305,6 +306,21 @@ export function installDebugHook(getSession: () => Session | null): void {
     layerTriangles: () => {
       const r = s()?.renderer;
       return r ? layerTriangles(r) : null;
+    },
+    /**
+     * V1C: the ground AO texture's last rebuild (ms, texels written, rebuilds so far) and its light
+     * at a world point, if given.
+     */
+    groundAo: (x?: number, z?: number) => {
+      const r = s()?.renderer as unknown as { layers?: { id: string; ao?: GroundAo | null }[] } | undefined;
+      const ao = r?.layers?.find((l) => l.id === 'terrain')?.ao;
+      if (!ao) return null;
+      return {
+        ms: ao.lastMs,
+        texels: ao.lastTexels,
+        rebuilds: ao.rebuilds,
+        ...(x !== undefined && z !== undefined ? { light: ao.sample(x, z) } : {}),
+      };
     },
     /** C4P: folk sitting on benches, chatting and waving, in this client's Mirror, for art review. */
     folkShowcase: (x?: number, z?: number) => {
