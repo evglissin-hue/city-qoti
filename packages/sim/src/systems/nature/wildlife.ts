@@ -10,6 +10,7 @@ import { CHUNK_SIZE, CHUNKS_PER_SIDE, MAP_SIZE } from '../../constants';
 import type { FieldGuideEntry, SeatId, TickCtx, WorldState } from '../../contracts';
 import { isHomeDef } from '../../conditions/geo';
 import { seasonAt } from '../../state/seasons';
+import { rankAtLeast } from '../../state/village';
 import { fieldGuideEntryView } from '../../view/seasons';
 import { chronicle } from '../chronicle/api';
 import { creditText, placeName } from '../chronicle/text';
@@ -118,8 +119,12 @@ export function sightingChance(def: WildlifeDef, n: number): number {
   return n <= 0 ? 0 : Math.min(SIGHTING_CAP, def.rarity * Math.min(n, SIGHTING_CHUNKS));
 }
 
-/** The hourly pass. */
+/**
+ * The hourly pass. The Field Guide opens at Village rank, with the I2 and I3 Hearth patterns and the
+ * apiary: a Hamlet is too busy getting fed to keep notes.
+ */
 export function rollSightings(state: WorldState, ctx: TickCtx): void {
+  if (!rankAtLeast(state, 'village')) return;
   const season = seasonAt(state.tick).season;
   const hour = hourOf(state.tick);
   let watched: Uint8Array | null = null;

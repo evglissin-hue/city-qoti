@@ -6,7 +6,8 @@
 // - a pond near homes once affordable (a 2 x 3 dig of fertile low ground), then planting, a bench
 //   and a path by it (the Pond Garden) and reeds once they are unlocked;
 // - low walls and ivy for garden nooks, and now and then a module on a townhouse.
-// Everything it spends keeps the planner's reserve (MONEY_RESERVE) plus a margin in hand.
+// Everything it spends keeps the planner's reserve (MONEY_RESERVE) plus a margin in hand, and comes
+// out of the season's surplus (income over expenses so far), so nature is paid for by a town in profit.
 import { content } from '@qoti/content';
 import {
   canPaintRoad,
@@ -24,7 +25,7 @@ import { count, S } from '../town';
 import type { Advisor, AdvisorDef, Visit } from './types';
 
 /** Coins the advisor keeps in hand above the planner's reserve before spending on nature. */
-export const NATURE_MARGIN = 60;
+export const NATURE_MARGIN = 150;
 /** Hedge pieces it plants in all. */
 export const HEDGES = 24;
 /** Days between modules. */
@@ -58,7 +59,9 @@ class Nature implements Advisor {
     return this.p.w;
   }
 
+  /** Coins to spare: the reserve and a margin in hand, and this season's books in the black. */
   private spare(cost: number): boolean {
+    if (this.p.seasonBalance() < cost) return false;
     return this.p.coins() >= cost + MONEY_RESERVE + NATURE_MARGIN;
   }
 

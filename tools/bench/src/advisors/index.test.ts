@@ -20,6 +20,8 @@ describe('the advisors', () => {
       'hamlet',
       'seasons',
       'hearth',
+      // I3 (C5C)
+      'nature',
       'together',
     ]);
   });
