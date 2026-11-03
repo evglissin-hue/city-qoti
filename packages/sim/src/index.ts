@@ -169,6 +169,7 @@ export {
   festivalResultView,
   festivalView,
   fieldGuideEntryView,
+  fieldGuideHintsView,
   guideView,
   raidResultView,
   raidView,

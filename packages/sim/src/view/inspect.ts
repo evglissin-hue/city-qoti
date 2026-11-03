@@ -332,6 +332,14 @@ function addVillageDetail(state: WorldState, b: Building, def: BuildingDef, deta
   if (rt.tier) detail.tier = rt.tier;
   if (rt.upgrade && def.upgradesTo)
     detail.upgrade = { to: def.upgradesTo.def, waiting: goodPairs(rt.upgrade) };
+  // I3 (C5C): modules fitted, and one under way with what it still waits for.
+  if (rt.modules?.length) detail.modules = rt.modules.map(([s, m]) => [s, m]);
+  if (rt.moduleNext && rt.moduleWork)
+    detail.moduleWork = {
+      slot: rt.moduleNext[0],
+      module: rt.moduleNext[1],
+      waiting: goodPairs(rt.moduleWork),
+    };
   const profit = buildingProfit(state, b, def);
   if (profit) detail.profit = profit;
 }

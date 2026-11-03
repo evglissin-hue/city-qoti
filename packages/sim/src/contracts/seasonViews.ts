@@ -137,6 +137,14 @@ export interface DockView {
   frozen: boolean;
 }
 
+/** C5C (additive): a Field Guide hint for a species not found yet. */
+export interface FieldGuideHintView {
+  species: string;
+  name: string;
+  kind: string;
+  hint: string;
+}
+
 export interface FieldGuideEntryView {
   species: string;
   name: string;

@@ -119,6 +119,9 @@ describe('save version 3', () => {
     // It is the same town (the fixture's tier needs start at 70, a migrated Settler's at 100), and
     // it keeps playing.
     for (const r of f.state.residents) r.needs.fill(100, 5);
+    // C5C: chunks waiting for the habitats pass are not saved by older versions; a migrated valley
+    // scores every chunk on its first pass anyway (its habitats start at zero).
+    delete f.state.nature.dirty;
     expect(hashState(migrated)).toBe(hashState(f.state));
     const ctx = createTickCtx(migrated);
     advanceTo(migrated, 2 * TICKS_PER_HOUR, ctx);
