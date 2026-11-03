@@ -62,6 +62,12 @@ function footprintNear(b: Building, x: number, z: number, r: number): boolean {
   return x >= b.x - r && x < b.x + ww + r && z >= b.z - r && z < b.z + dd + r;
 }
 
+/** Farms and pastures: what wolves come for (a farmhouse's fields, a pasture's sheep). */
+export function hasAnimals(b: Building): boolean {
+  const def = content.buildingById.get(b.def);
+  return isFarm(def) || !!def?.tags?.includes('farm');
+}
+
 /** True when a farm has a fence, hedge or wall by it (within 2 tiles) or a lantern at its door. */
 export function farmGuarded(state: WorldState, b: Building, lit?: Set<number>): boolean {
   if ((lit ?? litTiles(state)).has(frontOf(b))) return true;
@@ -99,7 +105,7 @@ export function packFor(state: WorldState, night = nightOf(state.tick)): Pack {
   let far = -1;
   if (wolvesCome(state)) {
     for (const b of state.buildings) {
-      if (b.stage !== 'built' || !isFarm(content.buildingById.get(b.def))) continue;
+      if (b.stage !== 'built' || !hasAnimals(b)) continue;
       const d = Math.abs(b.x - hx) + Math.abs(b.z - hz);
       if (d < OUTLYING || d <= far || farmGuarded(state, b, lit)) continue;
       farm = b;
@@ -199,7 +205,8 @@ export function scaredAnimals(
   def: BuildingDef,
   _method: ProductionMethod,
 ): number {
-  if (state.threats.wolves.length === 0 || !isFarm(def) || !wolvesCome(state)) return 1000;
+  if (state.threats.wolves.length === 0 || !(isFarm(def) || def.tags?.includes('farm')) || !wolvesCome(state))
+    return 1000;
   const last = dayIndex(state.tick) - 1;
   if (hourOf(state.tick) < WOLF_TO || !state.threats.wolves.includes(last)) return 1000;
   return packFor(state, last).farm?.id === b.id ? SCARED_YIELD : 1000;

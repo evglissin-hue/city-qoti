@@ -11,8 +11,10 @@ import { pocketPark } from './pocketPark';
 import { promenade } from './promenade';
 import { sittingWall } from './sittingWall';
 import { smallSquare } from './smallSquare';
+import { townGate } from './townGate';
 import { treePlace } from './treePlace';
 import { villageGreen } from './villageGreen';
+import { watchLookout } from './watchLookout';
 import { wellGathering } from './wellGathering';
 import { windowGardens } from './windowGardens';
 
@@ -28,8 +30,10 @@ export const detectors: ReadonlyMap<string, Detector> = new Map<string, Detector
   ['promenade', promenade],
   ['sittingWall', sittingWall],
   ['smallSquare', smallSquare],
+  ['townGate', townGate],
   ['treePlace', treePlace],
   ['villageGreen', villageGreen],
+  ['watchLookout', watchLookout],
   ['wellGathering', wellGathering],
   ['windowGardens', windowGardens],
 ]);
