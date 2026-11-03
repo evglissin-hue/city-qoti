@@ -60,6 +60,10 @@ interface AoPass {
   dispose(): void;
 }
 
+/** GTAOPass, once its module has loaded (shared by every cache), and the load in flight. */
+let aoMaker: ((scene: Scene, camera: Camera, width: number, height: number) => AoPass) | null = null;
+let aoLoading: Promise<void> | null = null;
+
 export class StillCache {
   /** The preset keeps a still-frame cache (Medium and up). */
   enabled = false;
@@ -77,7 +81,6 @@ export class StillCache {
   private target: WebGLRenderTarget | null = null;
   private aoTarget: WebGLRenderTarget | null = null;
   private aoPass: AoPass | null = null;
-  private aoLoading = false;
   private key = '';
   private lastMove = -Infinity;
 
@@ -148,29 +151,48 @@ export class StillCache {
     this.renders++;
   }
 
-  /** The AO pass at this size, once it has loaded (stills before that go without). */
+  /** The AO pass at this size, once its code has loaded (stills before that go without). */
   private aoFor(w: number, h: number, frame: LeanFrame): AoPass | null {
-    if (!this.ao) return null;
-    if (!this.aoPass) {
-      if (!this.aoLoading) {
-        this.aoLoading = true;
-        void import('three/examples/jsm/postprocessing/GTAOPass.js').then(({ GTAOPass }) => {
-          const pass = new GTAOPass(this.scene, this.camera, w, h);
-          // The concept viewer's values: a soft, short-range occlusion that pools in corners.
-          pass.updateGtaoMaterial({
-            radius: 0.55,
-            distanceExponent: 1.4,
-            thickness: 1,
-            scale: 1.25,
-            samples: 16,
-          });
-          pass.updatePdMaterial({ lumaPhi: 10, depthPhi: 2, normalPhi: 3, radius: 6, rings: 2, samples: 16 });
-          pass.blendIntensity = 0.8;
-          this.aoPass = pass;
-          this.invalidate();
-        });
-      }
+    if (!this.ao) {
+      // Off this preset: free the pass and its targets (made again if Ultra comes back).
+      this.aoPass?.dispose();
+      this.aoTarget?.dispose();
+      this.aoPass = null;
+      this.aoTarget = null;
       return null;
+    }
+    if (!this.aoPass) {
+      const make = aoMaker;
+      if (!make) {
+        // Loaded once, on demand, so presets without AO never download it.
+        if (!aoLoading)
+          aoLoading = import('three/examples/jsm/postprocessing/GTAOPass.js').then(({ GTAOPass }) => {
+            aoMaker = (scene, camera, width, height) => {
+              const pass = new GTAOPass(scene, camera, width, height);
+              // The concept viewer's values: a soft, short-range occlusion that pools in corners.
+              pass.updateGtaoMaterial({
+                radius: 0.55,
+                distanceExponent: 1.4,
+                thickness: 1,
+                scale: 1.25,
+                samples: 16,
+              });
+              pass.updatePdMaterial({
+                lumaPhi: 10,
+                depthPhi: 2,
+                normalPhi: 3,
+                radius: 6,
+                rings: 2,
+                samples: 16,
+              });
+              pass.blendIntensity = 0.8;
+              return pass;
+            };
+          });
+        void aoLoading.then(() => this.invalidate());
+        return null;
+      }
+      this.aoPass = make(this.scene, this.camera, w, h);
     }
     if (!this.aoTarget || this.aoTarget.width !== w || this.aoTarget.height !== h) {
       this.aoTarget?.dispose();

@@ -20,6 +20,9 @@ const move = Number(process.env.QOTI_MOVE ?? 10);
 const rest = Number(process.env.QOTI_REST ?? 10);
 const headed = process.env.QOTI_HEADED === '1';
 const engine = process.env.QOTI_ENGINE === 'classic' ? '&engine=classic' : '';
+// V1D: QOTI_FIXEDRES=1 turns dynamic resolution off, so both engines draw the same pixels (in a
+// software renderer every frame is slow, so it would otherwise step moving frames down).
+const fixedres = process.env.QOTI_FIXEDRES === '1' ? '&fixedres' : '';
 
 const SCENES = {
   hamlet: { fixture: 'hamlet' },
@@ -41,7 +44,7 @@ for (const [scene, def] of Object.entries(SCENES)) {
   page.on('pageerror', (e) => console.log('pageerror:', e.message));
   page.on('console', (m) => m.type() === 'error' && console.log('console:', m.text()));
   await page.route('**/api/**', (r) => r.abort());
-  await page.goto(`${base}/?debug&fixture=${def.fixture}&clean&quality=medium${engine}`);
+  await page.goto(`${base}/?debug&fixture=${def.fixture}&clean&quality=medium${engine}${fixedres}`);
   await page.waitForFunction(() => window.__qoti?.status() === 'live', null, { timeout: 240000 });
   for (const name of ['Done', 'Close', 'Later']) {
     const b = page.getByRole('button', { name, exact: true });
@@ -96,6 +99,6 @@ await browser.close();
 // One table for all scenes: the header once, then every scene's rows.
 const lines = tables.flatMap((t, i) => t.split('\n').slice(i === 0 ? 0 : 2));
 console.log(
-  `\n${headed ? 'headed' : 'headless (software renderer)'}, ${engine ? 'classic' : 'lean'} engine, ${vw} x ${vh}, ${move} s moving, ${rest} s idle:\n`,
+  `\n${headed ? 'headed' : 'headless (software renderer)'}, ${engine ? 'classic' : 'lean'} engine${fixedres ? ', fixed resolution' : ''}, ${vw} x ${vh}, ${move} s moving, ${rest} s idle:\n`,
 );
 console.log(lines.join('\n'));

@@ -126,14 +126,14 @@ const pair = (a: number | null, b: number | null): string => `${fmt(a)} / ${fmt(
 
 export function perfTable(rows: PerfRow[]): string {
   const head = [
-    '| Scene | Preset | Moving frame ms (avg / p95) | Moving GPU ms (avg / p95) | Idle frame ms (avg / p95) | Idle GPU ms (avg / p95) | Draws | Triangles | Rest: still / idle frames, shadow renders |',
+    '| Scene | Preset | Moving frame ms (avg / p95) | Moving GPU ms (avg / p95) | Idle frame ms (avg / p95) | Idle GPU ms (avg / p95) | Draws | Triangles | Rest: moving / still / idle frames, shadow renders |',
     '|---|---|---|---|---|---|---|---|---|',
   ];
   return [
     ...head,
     ...rows.map(
       (r) =>
-        `| ${r.scene} | ${r.quality} | ${pair(r.moving.frameAvg, r.moving.frameP95)} | ${pair(r.moving.gpuAvg, r.moving.gpuP95)} | ${pair(r.idle.frameAvg, r.idle.frameP95)} | ${pair(r.idle.gpuAvg, r.idle.gpuP95)} | ${r.moving.draws} | ${(r.moving.triangles / 1e6).toFixed(2)} M | ${r.idle.modes.still} / ${r.idle.modes.idle}, ${r.idle.shadowRenders} |`,
+        `| ${r.scene} | ${r.quality} | ${pair(r.moving.frameAvg, r.moving.frameP95)} | ${pair(r.moving.gpuAvg, r.moving.gpuP95)} | ${pair(r.idle.frameAvg, r.idle.frameP95)} | ${pair(r.idle.gpuAvg, r.idle.gpuP95)} | ${r.moving.draws} | ${(r.moving.triangles / 1e6).toFixed(2)} M | ${r.idle.modes.moving} / ${r.idle.modes.still} / ${r.idle.modes.idle}, ${r.idle.shadowRenders} |`,
     ),
   ].join('\n');
 }
@@ -169,7 +169,11 @@ export async function runPerf(renderer: Renderer, opts: PerfOptions = {}): Promi
       else if (t < quarter * 3) rig.zoomBy(Math.exp(-1.6 * dt));
       else rig.zoomBy(Math.exp(1.8 * dt));
     });
-    // The camera glides a moment after the last input; the idle part starts once it has stopped.
+    // The camera glides a moment after the last input; V1D: it is snapped to its goal, so the idle
+    // part is a rest on any machine (in a software renderer the glide outlasts the rest, since it
+    // advances at most 0.1 s a frame and a frame takes seconds).
+    rig.snap();
+    renderer.invalidate();
     const idle = await phase(renderer, rest, Math.min(1.5, rest / 2), () => {});
     rows.push({ scene, quality, moving, idle });
     goHome();

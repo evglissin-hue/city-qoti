@@ -8,6 +8,7 @@ import {
   Mesh,
   PCFShadowMap,
   PerspectiveCamera,
+  Quaternion,
   Raycaster,
   Scene,
   SRGBColorSpace,
@@ -366,15 +367,15 @@ export class Renderer implements RenderApi {
     this.sun.color.copy(l.sun);
     this.sun.intensity = l.sunIntensity;
     this.sunDir.set(l.sunDir[0], l.sunDir[1], l.sunDir[2]).normalize();
-    if (!this.lean) {
-      // The lean engine places the sun only when its shadow map renders (shadows.ts).
-      this.sun.position.set(
-        MAP_SIZE / 2 + l.sunDir[0] * 100,
-        l.sunDir[1] * 100,
-        MAP_SIZE / 2 + l.sunDir[2] * 100,
-      );
-      this.sun.target.position.set(MAP_SIZE / 2, 0, MAP_SIZE / 2);
-    }
+    // The light's direction for shading. Where the shadow camera sits is set when the shadow map
+    // renders (fitView on the classic engine, shadows.ts on the lean one), along the same direction;
+    // the map's own matrix only changes when it renders, so moving the light here never shifts it.
+    this.sun.position.set(
+      MAP_SIZE / 2 + l.sunDir[0] * 100,
+      l.sunDir[1] * 100,
+      MAP_SIZE / 2 + l.sunDir[2] * 100,
+    );
+    this.sun.target.position.set(MAP_SIZE / 2, 0, MAP_SIZE / 2);
     this.env.sky.value.copy(l.sky);
     this.env.skyTop.value.copy(l.skyTop);
     this.env.sunDir.value.copy(this.sunDir);
@@ -452,13 +453,36 @@ export class Renderer implements RenderApi {
     });
   }
 
+  private readonly lastCamPos = new Vector3(Number.NaN, 0, 0);
+  private readonly lastCamQuat = new Quaternion();
+  private lastCamProj = '';
+
+  /** Whether the camera's pose or lens changed since the last call. */
+  private cameraChanged(): boolean {
+    const c = this.camera;
+    const proj = `${c.fov}|${c.aspect}|${c.zoom}|${c.near}|${c.far}`;
+    if (
+      c.position.equals(this.lastCamPos) &&
+      c.quaternion.equals(this.lastCamQuat) &&
+      proj === this.lastCamProj
+    )
+      return false;
+    this.lastCamPos.copy(c.position);
+    this.lastCamQuat.copy(c.quaternion);
+    this.lastCamProj = proj;
+    return true;
+  }
+
   private readonly loop = (): void => {
     this.raf = requestAnimationFrame(this.loop);
     const now = performance.now();
     const dt = Math.min(0.1, (now - this.last) / 1000);
     this.last = now;
     this.followStep();
-    const moved = this.rig.update(dt);
+    // V1D: any change to the camera counts, including jumps made outside the controller's glide
+    // (a snap, a focus from the interface), or the still-frame cache would show the old view.
+    const glided = this.rig.update(dt);
+    const moved = this.cameraChanged() || glided;
     if (moved) {
       this.env.viewRevision++;
       this.still.noteMove(now);
