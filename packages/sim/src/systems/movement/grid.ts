@@ -29,8 +29,8 @@ const grids = new WeakMap<WorldState, GridEntry>();
 let epochs = 0;
 
 /** Cost and ticks per tile for terrain kinds, indexed by Terrain value. */
-const TERRAIN_COST = new Uint8Array(16);
-const TERRAIN_TICKS = new Uint8Array(16);
+export const TERRAIN_COST = new Uint8Array(16);
+export const TERRAIN_TICKS = new Uint8Array(16);
 for (const [t, cost, ticks] of [
   [Terrain.grass, 2, 10],
   [Terrain.meadow, 2, 10],
@@ -106,6 +106,20 @@ function buildGrid(state: WorldState, reuse: WalkGrid | undefined): WalkGrid {
     if (x < 0 || z < 0 || x >= S || z >= S) continue;
     cost[z * S + x] = 0;
     ticks[z * S + x] = 0;
+  }
+  // I3 (C5D): an open gate lets walkers through (as the ground under it); a shut one blocks.
+  for (const b of state.buildings) {
+    if (content.buildingById.get(b.def)?.defense?.passable !== 'gate') continue;
+    const i = b.z * S + b.x;
+    if (b.rt && b.rt.open === false) continue;
+    if (road[i]) {
+      cost[i] = ROAD_COST;
+      ticks[i] = ROAD_TICKS;
+    } else {
+      const t = terrain[i]!;
+      cost[i] = TERRAIN_COST[t] ?? 2;
+      ticks[i] = TERRAIN_TICKS[t] ?? 10;
+    }
   }
   return { cost, ticks, epoch: ++epochs };
 }

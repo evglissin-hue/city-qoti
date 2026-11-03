@@ -46,7 +46,13 @@ export const YOUNG_TREE: Source = { type: EXTRA, cat: CAT.nature, value: 1, nigh
 export const CONSTRUCTION: Source = { type: EXTRA + 1, cat: CAT.noise, value: -3, night: -3, radius: 2 };
 /** Customized window boxes count as a small flower piece. */
 export const WINDOW_BOXES: Source = { type: EXTRA + 2, cat: CAT.nature, value: 2, night: 2, radius: 1 };
-export const TYPE_COUNT = EXTRA + 3;
+/** I3 (C5B): an outlet on market day (systems/festivals/levers.ts, MARKET_CHARM). */
+export const MARKET_DAY: Source = { type: EXTRA + 3, cat: CAT.comfort, value: 3, night: 3, radius: 3 };
+/** I3 (C5C): fitted modules' charm, by module id (each module its own type). */
+export const MODULE_SOURCES: ReadonlyMap<string, Source[]> = new Map(
+  content.modules.map((m, i) => [m.id, toSources(EXTRA + 4 + i, m.charm)]),
+);
+export const TYPE_COUNT = EXTRA + 4 + content.modules.length;
 
 export const WATER_VIEW = { value: 6, radius: 3 } as const;
 export const HEIGHT_VIEW = { value: 3, above: 4, window: 5 } as const;
@@ -64,6 +70,7 @@ const MAX_PIECE_RADIUS = Math.max(
   2,
   ...content.decor.flatMap((d) => (d.charm ?? []).map((s) => s.radius)),
   ...content.buildings.flatMap((b) => (b.charm ?? []).map((s) => s.radius)),
+  ...content.modules.flatMap((m) => (m.charm ?? []).map((s) => s.radius)),
 );
 const MAX_DECOR_RADIUS = Math.max(0, ...content.decor.flatMap((d) => (d.charm ?? []).map((s) => s.radius)));
 const MAX_SITE_RADIUS = Math.max(0, ...content.patterns.map((p) => p.siteBonus.radius));

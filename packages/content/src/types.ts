@@ -89,6 +89,8 @@ export interface BuildingDef {
     built?: [def: string, count: number][];
     /** I3 (C5A): only once a story's reward has unlocked it (hearth.unlocked holds the def id). */
     story?: boolean;
+    /** I3 (C5B): renown level needed (the River Dock waits for renown 1). */
+    renown?: number;
   };
   // I3 additions (C5.0).
   /** Defense pieces (docs/spec/14-challenge.md, Defenses; C5D fills the numbers). */
@@ -236,6 +238,9 @@ export interface Content {
   threatById: ReadonlyMap<string, ThreatDef>;
   modules: readonly ModuleDef[];
   moduleById: ReadonlyMap<string, ModuleDef>;
+  /** C5C (additive): the six habitats in HABITAT_IDS order, and what scores each. */
+  habitats: readonly HabitatDef[];
+  habitatSources: readonly HabitatSource[];
   commissions: readonly CommissionDef[];
   commissionById: ReadonlyMap<string, CommissionDef>;
   /** In level order, 0 to 5. */
@@ -845,6 +850,29 @@ export interface WildlifeDef {
   effect?: [name: string, factor: Permille][];
   /** The Field Guide's line. */
   flavor: string;
+  /** C5C (additive): the Field Guide's hint before it is found, in words a player can act on. */
+  hint?: string;
+}
+
+/** A habitat (C5C): its name and what makes it, for the overlay and the Field Guide. */
+export interface HabitatDef {
+  id: HabitatName;
+  name: string;
+  blurb: string;
+}
+
+/**
+ * What adds to a chunk's habitat score (C5C), summed per chunk and capped at 255. `from` says what
+ * is counted and `ref` which: a decor or building tag (each piece, in the chunk of its tile or its
+ * footprint's center), a module id (each building wearing it), a map terrain name or water name
+ * (each tile), a tree stage name ('grown' or 'mature', each tile), a pattern id (each site anchored
+ * in the chunk), or 'windowBoxes' (each building with window boxes on).
+ */
+export interface HabitatSource {
+  habitat: HabitatName;
+  from: 'decor' | 'building' | 'module' | 'terrain' | 'water' | 'tree' | 'site' | 'custom';
+  ref: string;
+  points: number;
 }
 
 /** A threat (C5D). Raiders are a gang, not a species. */
@@ -897,6 +925,53 @@ export interface CommissionDef {
   reward: Reward;
   /** Renown level needed before it is offered. */
   renown?: number;
+  // C5B additions.
+  /** A notable visitor's name, for asks `from: 'visitor'`. */
+  visitor?: string;
+  /** A building the town must be able to build before it is offered (a `Condition` ask's subject). */
+  builds?: string;
+  /** One line for the commission card, in the asker's voice. */
+  blurb?: string;
+}
+
+/**
+ * Festival scoring and rewards (C5B; docs/spec/12-hearth.md, Festivals). The sim and the tests read
+ * these numbers rather than pinning them.
+ */
+export interface FestivalTuning {
+  /** Joy weights for the five parts, summing to 100. */
+  weights: { site: number; variety: number; menu: number; music: number; twist: number };
+  /** Score (0 to 100) needed for 2, 3, 4 and 5 stars; below the first is 1 star. */
+  stars: [number, number, number, number];
+  /** Tiles (Chebyshev) from a resident's home door to the site that count as walking reach. */
+  reach: number;
+  /** Attendance by today's weather, permille; kinds not listed are 1000. */
+  weather: [kind: string, permille: number][];
+  /** Attendance at mood 0, permille, rising in a straight line to 1000 at mood 100. */
+  moodFloor: number;
+  /** Average site charm that earns the whole site part; a pattern site adds `patternBonus` points. */
+  siteCharm: number;
+  patternBonus: number;
+  /** Distinct festival piece defs on the site for the whole variety part. */
+  varietyFull: number;
+  /** Menu: distinct goods for full variety (half the part), units a guest for full sufficiency (the other half). */
+  menuGoods: number;
+  perGuest: number;
+  /** Music part by source. */
+  music: { none: number; resident: number; bandstand: number; both: number };
+  /** The twist part when the twist's goal holds (0 otherwise). */
+  twist: number;
+  /** The score is joy x turnout: permille at no turnout, 1000 when everyone in reach came. */
+  turnoutFloor: number;
+  /** Town mood bonus by stars (index 0 to 5; 0 unused), held `moodDays` days. */
+  mood: number[];
+  moodDays: number;
+  /** Renown points by stars (index 0 to 5). */
+  renown: number[];
+  /** Unlocks the first time a festival reaches a number of stars. */
+  unlocks: [stars: number, ids: string[]][];
+  /** Units a Generous resident with savings gives to the menu (they buy it at the market). */
+  donation: number;
 }
 
 /** A renown level and what it brings (C5B). */
@@ -940,4 +1015,8 @@ export interface GuideDef {
   id: string;
   from: ResidentTemplate;
   steps: GuideStep[];
+  /** C5H: the last letter, once every step is done ({town}); Pippa Quill is on her way. */
+  farewell?: string;
+  /** C5H: the last letter when Pippa Quill already lives in the valley. */
+  farewellAfterPippa?: string;
 }

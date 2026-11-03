@@ -192,12 +192,16 @@ function untilHour(h: Hamlet, hour: number, hourly?: () => void): void {
  */
 export function autoplay(seed: string, days: number, opts: AutoplayOptions = {}): AutoplayResult {
   const h = startingTown(seed, { economy: opts.economy ?? 'standard' });
+  // C5D: the threat dial (valleys start Peaceful).
+  if (opts.threat) h.world.settings.threat = opts.threat;
   const planner = new Planner(h);
   // Every advisor that plays this run, in visit order.
+  // C5X: TUNE_SKIP=nature,festivals leaves advisors out, to see what each one costs (tuning only).
+  const skip = (process.env.TUNE_SKIP ?? '').split(',');
   const team = advisors
-    .filter((a) => a.plays(opts, h.world))
+    .filter((a) => a.plays(opts, h.world) && !skip.includes(a.id))
     .sort((a, b) => a.slot - b.slot)
-    .map((a) => a.create(planner));
+    .map((a) => a.create(planner, opts));
   const out: DayLine[] = [];
   const store = content.buildingById.get('storehouse') as { tags: string[] };
   const tags = store.tags;

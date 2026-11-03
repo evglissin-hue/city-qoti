@@ -7,7 +7,7 @@
 // reach every door of a dozen households, and crafts grow only for a shortage a grown workshop can
 // answer (firewood, yarn, cloth, cider or cheese), which no young Village has yet. Fifteen days,
 // not ten: the far end of the street waits for its storehouse before porters can bring planks.
-import { hashState } from '@qoti/sim';
+import { DAYS_PER_SEASON, hashState } from '@qoti/sim';
 import { describe, expect, it } from 'vitest';
 import { autoplay, formatDays } from './autoplay';
 import { frontageAscii, streetRect } from './village';
@@ -17,20 +17,29 @@ const VILLAGE_DAY = 12;
 describe('a Village grows its high street', { timeout: 180_000 }, () => {
   for (const seed of ['willow', 'hazel']) {
     it(`grows homes and shops on ${seed}'s zoned frontage in fifteen days`, () => {
-      const run = autoplay(seed, 50, { village: true });
+      // C5B: 60 days, so a claim late in the roadmap's range (day 25 to 37) still has its window after it.
+      const run = autoplay(seed, 60, { village: true });
       const days = run.days;
       const claimed = days.findIndex((d) => d.rank === 'village');
       const why = `\n${formatDays(days)}\n\n${run.street ? frontageAscii(run.hamlet.world, streetRect(run.street)) : 'no street'}`;
       expect(claimed, why).toBeGreaterThan(0);
-      expect(claimed + 15, why).toBeLessThan(days.length);
+      // Fifteen days; a season more when the claim comes in autumn or winter, when the winter's
+      // firewood and larder (C5A) hold building back until the thaw.
+      // C5X: or whenever the fifteen days cross a winter (hazel claims on summer's first day with
+      // every I3 system on, and its window ran into the winter's held arrivals).
+      const winterIn = (d: number) => Math.floor((d - 1) / DAYS_PER_SEASON) % 4 === 3;
+      const day0 = days[claimed]!.day;
+      const crosses = Array.from({ length: 16 }, (_, k) => day0 + k).some(winterIn);
+      const window = crosses ? 15 + DAYS_PER_SEASON : 15;
+      expect(claimed + window, why).toBeLessThan(days.length);
       const first = days[claimed]!;
-      const later = days[claimed + 15]!;
+      const later = days[claimed + window]!;
       expect(run.street, why).toBeTruthy();
       expect(later.growth!.homes, why).toBeGreaterThanOrEqual(5);
       expect(later.growth!.shops, why).toBeGreaterThanOrEqual(1);
       expect(later.residents, why).toBeGreaterThan(first.residents + 8);
       expect(later.departures, why).toBe(0);
-      for (const d of days.slice(claimed, claimed + 16)) {
+      for (const d of days.slice(claimed, claimed + window + 1)) {
         expect(d.leanTimes, why).toBe(false);
         expect(d.foodMade + d.food, why).toBeGreaterThan(0);
         expect(d.miserable, why).toBeLessThanOrEqual(1);

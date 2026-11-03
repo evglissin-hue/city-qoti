@@ -119,6 +119,9 @@ One Cloudflare Worker named `city-qoti` serving the client build as static asset
 | `GET /api/valleys/:id/export` | download `.qoti` (seat token in an `Authorization` header; C2C, answers 501 until then) |
 | `POST /api/valleys/import` | create a valley from a `.qoti` file (C2C, answers 501 until then) |
 | `GET /version.json` | `{ simVersion, build }` for update checks (a static file emitted by the client build) |
+| `PUT /api/valleys/:id/images/:entry` | [I3] store a Chronicle snapshot for an entry (seat token in an `Authorization` header) |
+| `GET /api/valleys/:id/images/:entry` | [I3] that snapshot, or 404 (seat token required) |
+| `GET /api/valleys/:id/images` | [I3] the entry ids that have a snapshot (seat token required) |
 
 Durable Object SQLite schema:
 
@@ -126,7 +129,16 @@ Durable Object SQLite schema:
 CREATE TABLE meta (k TEXT PRIMARY KEY, v TEXT);
 CREATE TABLE turns (t INTEGER PRIMARY KEY, cmds TEXT);
 CREATE TABLE snapshots (t INTEGER PRIMARY KEY, sim_version TEXT, label TEXT, created INTEGER, data BLOB);
+CREATE TABLE images (entry INTEGER PRIMARY KEY, type TEXT, created INTEGER, data BLOB); -- [I3]
 ```
+
+**Chronicle snapshots** [I3] (C5F; `packages/protocol/src/images.ts`): when a notable Chronicle entry arrives with a `snapshot` (focus and radius), the lowest connected seat's client takes a small picture with the renderer's `capture` (320 by 200, WebP) and uploads it keyed by valley and entry id. The other seat fetches it a few seconds later. One `handleImage` serves the Worker's `ValleyRoom` (its SQLite `images` table), the dev relay (memory, saved beside the valley as `<id>.images.json`) and solo valleys (IndexedDB, an `images` store, through the same function), so the rules hold everywhere:
+
+- A seat token in `Authorization: Bearer <token>` on every call; anything else is 401.
+- WebP, PNG or JPEG only (415 otherwise; the first bytes must match the type, 400 otherwise), at most 256 KB (413).
+- The first write for an entry wins (a second PUT answers 200 with `stored: false`), so an entry gets one picture whichever seat sent it.
+- At most 200 pictures a valley; past that the oldest entries' pictures go.
+- Pictures never enter sim state, hashes or turns, and in I3 a `.qoti` export leaves them out (a valley moved online or opened from a file starts with an empty album).
 
 - The turn timer is a `setInterval` while at least one socket is open (standard WebSocket accept, not hibernation). If timers prove unreliable on the platform, fall back to client heartbeats: each client sends a heartbeat every 100 ms and the room emits a turn on the first heartbeat of each new 100 ms slot.
 - Invite links look like `https://<host>/#v=<valleyId>&s=1&k=<token>`. The fragment never reaches servers or logs; the client moves it into local storage and clears it from the address bar.
@@ -143,4 +155,5 @@ Two players for a few hours a day should fit comfortably in the free tier; check
 
 - Valley ids and seat tokens are 128-bit random values. Tokens are stored only as SHA-256 hashes and never logged.
 - Limits: `cmd` 8 KB, `snapshot` 8 MB, `presence` 256 B; 30 commands per second per seat. Oversized or excessive messages get an `error` and are dropped.
+- [I3] Chronicle pictures are the only stored files: seat token required to read or write, 256 KB each, images only (type and first bytes checked), 200 a valley, never shared beyond the valley's two seats.
 - Same-origin only. No analytics, no third-party scripts, no personal data beyond display names.

@@ -5,6 +5,7 @@ import {
   festivalResultView,
   festivalView,
   fieldGuideEntryView,
+  fieldGuideHintsView,
   guideView,
   raidView,
   renownView,
@@ -82,6 +83,7 @@ export function buildingView(b: Building): BuildingView {
   if (b.custom) view.custom = { ...b.custom };
   if (b.lot) view.lot = b.lot;
   if (b.style) view.style = b.style;
+  if (b.rt?.modules?.length) view.modules = b.rt.modules.map(([s, m]) => [s, m]);
   if (b.rt) view.rt = runtimeView(b.def, b.rt);
   return view;
 }
@@ -156,6 +158,8 @@ export function buildView(state: WorldState): ViewSnapshot {
     commissions: state.commissions.list.map(commissionView),
     dock: dockView(state),
     fieldGuide: state.nature.guide.map(fieldGuideEntryView),
+    fieldGuideHints: fieldGuideHintsView(state),
+    habitats: [...state.nature.habitats],
     threat: threatView(state),
     watch: watchView(state),
     raid: raidView(state),

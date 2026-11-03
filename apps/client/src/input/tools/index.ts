@@ -12,6 +12,7 @@ import { inspectTool } from './inspect';
 import { noteTool } from './note';
 import { planTool } from './plan';
 import { roadTool } from './road';
+import { festivalSiteTool, guardTool, pondTool, wallTool } from './seasons';
 import { treeTool } from './tree';
 import { zoneTool } from './zone';
 
@@ -24,13 +25,17 @@ export const toolFactories: readonly ToolFactory[] = [
   decorTool,
   eraseTool,
   fenceTool,
+  festivalSiteTool,
   fieldTool,
+  guardTool,
   inspectTool,
   roadTool('lane'),
   noteTool,
   roadTool('path'),
   planTool,
+  pondTool,
   roadTool('street'),
   treeTool,
+  wallTool,
   zoneTool,
 ];

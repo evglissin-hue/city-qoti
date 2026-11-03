@@ -70,6 +70,22 @@ describe('the Chronicle', () => {
     flood: ['place'],
     'trial-failed': ['trial'],
     'trial-passed': ['trial', 'charter'],
+    // I3 (C5B)
+    'commission-done': ['commission', 'from'],
+    festival: ['festival', 'stars', 'guests', 'place'],
+    'first-boat': ['neighbor'],
+    'renown-level': ['level'],
+    'shop-opened': ['name', 'shop'],
+    // I3 (C5C)
+    'first-sighting': ['species', 'place', 'credit'],
+    // I3 (C5D)
+    'bandit-home': ['name'],
+    'raid-held': ['side'],
+    'raid-lost': ['side', 'stolen'],
+    'raid-repelled': ['side', 'stolen'],
+    wolves: ['place'],
+    // I3 (C5H)
+    'guide-done': ['surveyor'],
   };
 
   it('has at least three variants per kind, using only the params its callers pass', () => {

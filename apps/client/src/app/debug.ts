@@ -1,5 +1,6 @@
 import { content } from '@qoti/content';
 import {
+  base64ToBytes,
   canPaintRoad,
   canPlaceBuilding,
   canPlaceDecor,
@@ -123,6 +124,46 @@ export function installDebugHook(getSession: () => Session | null): void {
       }
       return null;
     },
+    /**
+     * C5X: an n-by-n box of open ground (no building, water or tree, as festival.plan wants) with a
+     * free tile round it, on screen clear of the left-hand book and the bars, for dragging a site.
+     */
+    findOpenGround: (n = 7) => {
+      const session = s();
+      const r = session?.renderer;
+      if (!session || !r) return null;
+      const m = session.mirror;
+      const free = (x: number, z: number) => !m.occupant(x, z) && !m.water(x, z) && !m.tree(x, z);
+      const clear = (x: number, z: number) => {
+        const p = r.screenOf(x, z);
+        return (
+          !!p && p.x > 440 && p.x < window.innerWidth - 200 && p.y > 120 && p.y < window.innerHeight - 220
+        );
+      };
+      for (const [x0, z0] of nearbyTiles(session, 20)) {
+        let ok = clear(x0, z0) && clear(x0 + n - 1, z0 + n - 1);
+        for (let z = z0 - 1; ok && z <= z0 + n; z++)
+          for (let x = x0 - 1; ok && x <= x0 + n; x++) ok = free(x, z);
+        if (ok)
+          return { from: [x0, z0] as [number, number], to: [x0 + n - 1, z0 + n - 1] as [number, number] };
+      }
+      return null;
+    },
+    /** I3 (C5H): a spot for `def` with its door on a road (any turn), for the guide's lane step. */
+    findRoadSpot: (def: string) => {
+      const session = s();
+      const d = content.buildingById.get(def);
+      if (!session || !d) return null;
+      for (const [x, z] of nearbyTiles(session, 20)) {
+        for (const rot of [0, 1, 2, 3] as Rot4[]) {
+          const check = canPlaceBuilding(session.mirror, d, x, z, rot);
+          if (check.ok && !check.warnings?.includes('NO_ROAD')) return { x, z, rot };
+        }
+      }
+      return null;
+    },
+    /** I3 (C5H): the first days guide as this seat's mirror has it. */
+    guide: () => s()?.mirror.guide.value ?? null,
     /** The center of a tile where `def` fits with room to spare. */
     findDecorSpot: (def: string) => {
       const session = s();
@@ -162,6 +203,16 @@ export function installDebugHook(getSession: () => Session | null): void {
         const turns = [...script.turns];
         if ((turns[turns.length - 1]?.t ?? 0) < script.lastTurn) turns.push({ t: script.lastTurn, cmds: [] });
         await host.init({ kind: 'new', seed: script.seed, settings: script.settings }, turns);
+        return (await host.hash()).h;
+      } finally {
+        host.terminate();
+      }
+    },
+    /** I3 (C5D): replays a snapshot (base64) to turn `to` in a fresh sim worker; resolves with the hash. */
+    runSnapshot: async (data: string, to: number) => {
+      const host = new SimHost();
+      try {
+        await host.init({ kind: 'snapshot', data: base64ToBytes(data) }, [{ t: to, cmds: [] }]);
         return (await host.hash()).h;
       } finally {
         host.terminate();
@@ -219,6 +270,32 @@ export function installDebugHook(getSession: () => Session | null): void {
     overlayMocks: async () => {
       const session = s();
       if (session) await overlayMocks(session);
+    },
+    /** I3 (C5F): the season views as this seat's Mirror holds them, for the e2e round trips. */
+    seasons: () => {
+      const m = s()?.mirror;
+      if (!m) return null;
+      return {
+        festival: m.festival.value,
+        watch: m.watch.value,
+        threat: m.threat.value,
+        raid: m.raid.value,
+        settings: m.settings.value,
+        weather: m.weather.value,
+        trial: m.trial.value,
+      };
+    },
+    /** I3 (C5F): puts a season page on the desk from the I3 mocks ('card', 'report', 'festival', 'raid'). */
+    seasonsMock: async (what: 'card' | 'report' | 'festival' | 'raid') => {
+      const session = s();
+      if (!session) return;
+      const mk = await import('../ui/mocks/seasons');
+      const ui = session.ui;
+      if (what === 'card')
+        ui.almanac.value = { kind: 'card', view: session.mirror.seasonCard.value ?? mk.mockSeasonCard };
+      if (what === 'report') ui.almanac.value = { kind: 'report', view: mk.mockSeasonReport, page: 0 };
+      if (what === 'festival') ui.festivalCard.value = mk.mockFestivalResult;
+      if (what === 'raid') ui.raidCard.value = mk.mockRaidResult;
     },
     /** I2 (C4F): the village mocks over the live village fixture; `charter` adds a board in progress. */
     villageMocks: async (opts?: { charter?: boolean }) => {

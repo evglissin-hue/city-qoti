@@ -10,6 +10,7 @@ import { goodPurpose } from './purpose';
 import { toggleBook } from './panels';
 import { GoToPartner } from './Presence';
 import { RANK_WORD } from './village';
+import { RenownChip, WeatherChip } from './SeasonChips';
 
 const SPEEDS: { speed: Speed; label: string; title: string }[] = [
   { speed: 0, label: '❚❚', title: 'Pause (Space)' },
@@ -49,6 +50,7 @@ export function TopBar({ session, onLeave }: { session: Session; onLeave: () => 
         <span class="season-chip" data-testid="season">
           {SEASON_NAMES[calendar(tick).season]}
         </span>
+        <WeatherChip session={session} />
       </div>
       <div class="topbar-speed">
         {SPEEDS.map((s) => (
@@ -295,6 +297,7 @@ function TownStats({ session }: { session: Session }) {
         {lean && <span class="lean-word">lean times</span>}
       </button>
       <RankChip session={session} />
+      <RenownChip session={session} />
       <button
         type="button"
         class={`stat-chip people ${session.ui.panel.value === 'people' ? 'open' : ''}`}

@@ -214,6 +214,9 @@ describe('I0 contracts', () => {
       | 'commissions'
       | 'dock'
       | 'fieldGuide'
+      // C5C (additive)
+      | 'fieldGuideHints'
+      | 'habitats'
       | 'threat'
       | 'watch'
       | 'raid'

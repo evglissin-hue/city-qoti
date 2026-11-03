@@ -33,21 +33,25 @@ describe('registries', () => {
     });
   }
 
-  it('ships the I0, I1 and I2 tools', () => {
+  it('ships the I0 to I3 tools', () => {
     expect(registries.tools).toEqual([
       'building',
       'customize',
       'decor',
       'erase',
       'fence',
+      'festival-site',
       'field',
+      'guard',
       'inspect',
       'lane',
       'note',
       'path',
       'plan',
+      'pond',
       'street',
       'tree',
+      'wall',
       'zone',
     ]);
   });

@@ -2,6 +2,7 @@
 // buildings change: a derived index, never saved or hashed (see rules/reach.ts).
 import type { Building, WorldState } from '../contracts';
 import { doorFront, reachesTile, townReach, townSources } from '../rules/reach';
+import { gateTiles } from '../rules/wall';
 import { worldIndex } from './worldIndex';
 
 interface Cached {
@@ -18,7 +19,7 @@ export function reachOf(state: WorldState): Uint8Array {
   const last = n ? state.buildings[n - 1]!.id : 0;
   const c = cache.get(state);
   if (c && c.version === state.networkVersion && c.buildings === n && c.last === last) return c.reach;
-  const reach = townReach(worldIndex(state).reader, townSources(state.buildings));
+  const reach = townReach(worldIndex(state).reader, townSources(state.buildings), gateTiles(state.buildings));
   cache.set(state, { version: state.networkVersion, buildings: n, last, reach });
   return reach;
 }

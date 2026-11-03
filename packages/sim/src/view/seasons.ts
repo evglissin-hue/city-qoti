@@ -12,6 +12,7 @@ import type {
   FestivalView,
   FieldGuideEntry,
   FieldGuideEntryView,
+  FieldGuideHintView,
   GuideView,
   RaidRecord,
   RaidResultView,
@@ -76,6 +77,8 @@ export function threatView(state: WorldState): ThreatView {
     signs: shown ? [...r!.signs] : [],
     wolvesTonight: state.threats.wolves.includes(today),
     pressure: state.threats.pressure,
+    // C5F: captured raiders waiting for bandit.decide, so either seat can decide after dawn.
+    ...(state.threats.captives.length ? { captives: [...state.threats.captives] } : {}),
   };
 }
 
@@ -157,6 +160,8 @@ export function festivalResultView(state: WorldState): FestivalResultView | null
     joy: { ...o.joy },
     stars: o.stars,
     twist: h.twist,
+    ...(o.invited !== undefined && { invited: o.invited }),
+    ...(o.score !== undefined && { score: o.score }),
   };
 }
 
@@ -204,7 +209,25 @@ export function dockView(state: WorldState): DockView {
       moored: b.tile >= 0,
     })),
     frozen: state.weather.river.frozen,
+    orders: (state.dock.orders ?? []).map((o) => ({
+      good: goodId(o.good),
+      min: o.min,
+      max: o.max,
+      floor: o.floor,
+      ceiling: o.ceiling,
+    })),
+    built: state.buildings.some((b) => b.def === 'river-dock' && b.stage === 'built'),
   };
+}
+
+/** C5C: the Field Guide's hints, in nature.hints order. */
+export function fieldGuideHintsView(state: WorldState): FieldGuideHintView[] {
+  const out: FieldGuideHintView[] = [];
+  for (const id of state.nature.hints) {
+    const def = content.wildlifeById.get(id);
+    if (def) out.push({ species: id, name: def.name, kind: def.kind, hint: def.hint ?? '' });
+  }
+  return out;
 }
 
 export function fieldGuideEntryView(e: FieldGuideEntry): FieldGuideEntryView {
@@ -298,6 +321,8 @@ function guideTile(state: WorldState, place: 'start' | 'gate' | 'storehouse'): [
 export function guideView(state: WorldState): GuideView {
   const g = state.guide;
   const steps = content.guide.steps;
+  // C5H: once every step is done, the surveyor's farewell hands over to Pippa Quill's letters.
+  if (g.step >= steps.length && g.doneTicks.length >= steps.length) return guideFarewell(state);
   const s = steps[Math.min(g.step, steps.length - 1)];
   let point: GuideView['point'];
   if (s?.point) {
@@ -314,6 +339,24 @@ export function guideView(state: WorldState): GuideView {
     hint: s?.hint ?? '',
     ...(point && { point }),
     done: steps.map((_, i) => i < g.doneTicks.length),
+    hidden: [...g.hidden],
+    over: g.over,
+  };
+}
+
+/** The guide's last letter (C5H): what is next is Pippa Quill, or her letters if she is here. */
+function guideFarewell(state: WorldState): GuideView {
+  const g = state.guide;
+  const def = content.guide;
+  const pippa = state.stories.some((st) => st.arc === 'inventor' && st.residentId);
+  return {
+    step: g.step,
+    of: def.steps.length,
+    id: 'farewell',
+    lens: 'both',
+    letter: (pippa ? def.farewellAfterPippa : def.farewell) ?? '',
+    hint: '',
+    done: def.steps.map(() => true),
     hidden: [...g.hidden],
     over: g.over,
   };

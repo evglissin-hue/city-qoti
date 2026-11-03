@@ -169,6 +169,7 @@ export {
   festivalResultView,
   festivalView,
   fieldGuideEntryView,
+  fieldGuideHintsView,
   guideView,
   raidResultView,
   raidView,
@@ -184,8 +185,20 @@ export { seasonReportView } from './view/season';
 export { emptySeasonsSlices, markFloodplain, seasonAt, startGuide } from './state/seasons';
 export { FESTIVAL_SITE_MAX, FESTIVAL_SITE_MIN } from './commands/festival';
 export { WATCH_BUDGET_MAX, WATCH_MAX } from './commands/watch';
-export { addRenown, levelFor, renownLevel } from './systems/renown/api';
+export { addRenown, levelFor, renownEffect, renownLevel } from './systems/renown/api';
 export { festivalMorale } from './systems/festivals/api';
+// I3 (C5B): what the autoplayer's festivals advisor reads.
+export {
+  availableInTown,
+  currentPlan,
+  hasBandstand,
+  inReach,
+  musicianFor,
+  reserveMenu,
+} from './systems/festivals/api';
+export { openGround, patternRect, siteRect } from './systems/festivals/site';
+export { canMeet, progressOf } from './systems/commissions';
+export { BOAT_UNITS, dockSellPrice, riverDock } from './systems/dock';
 export {
   forecast,
   isCold,
@@ -201,6 +214,27 @@ export {
 // I3 (C5A): the floodplain test, for the autoplayer keeping off it when a flood is forecast.
 export { onFloodplain } from './systems/weather';
 export { habitatAt, hasSpecies, pestLoss, pollinatorFactor } from './systems/habitats/api';
-export { deterrenceAt, isRaidActive, lanternLit, watchStrength, wealth } from './systems/threats/api';
+// I3 (C5C): ponds (for the ghost and the autoplayer), habitats and sightings (for benches and tools).
+export { pondBlocked, pondCost, POND_FERTILITY, POND_MAX_HEIGHT, POND_MAX_TILES } from './commands/pond';
+export { CHUNKS, chunkScores, scoreChunks, updateHabitats } from './systems/nature/habitats';
+export { rollSightings } from './systems/nature/wildlife';
+export {
+  deterrenceAt,
+  deterrenceParts,
+  frontOf,
+  heldValue,
+  isRaidActive,
+  lanternLit,
+  raidStartTick,
+  valuables,
+  watchStrength,
+  wealth,
+} from './systems/threats/api';
+// I3 (C5D): the threat schedule, the Watch and raids, for the autoplayer, the tuner and the bench.
+export { raidsPossible, thresholdFor } from './systems/threats/pressure';
+export { DUTY_EVERY } from './systems/watch';
+export { RAID_TICKS, raidTargets } from './systems/raids/run';
+export { pressureBand } from './view/season/threat';
+export { vacantHomes } from './systems/residents/places';
 // I3 (C5A): the winter stores, for the autoplayer and the tuner.
 export { larder, woodpile } from './systems/seasons/stores';

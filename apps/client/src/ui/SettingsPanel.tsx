@@ -4,6 +4,7 @@ import { copy } from './copy';
 import { clampScale, loadSettings, saveSettings, type UiSettings } from './settings';
 import { clampVolume, type AudioSettings } from '../audio/settings';
 import { audioSettings, setAudioSettings } from '../audio/store';
+import { GuideSetting } from './panels/Guide';
 
 type Quality = 'low' | 'medium' | 'high' | 'ultra';
 const QUALITY_KEY = 'qoti.quality.v1';
@@ -95,6 +96,8 @@ export function SettingsPanel({ session }: { session: Session }) {
             {copy.settings.reducedMotion} <span class="muted">{copy.settings.reducedMotionHint}</span>
           </span>
         </label>
+        {session.mirror.settings.value.mode === 'standard' && <ValleyDials session={session} />}
+        <GuideSetting session={session} />
         <SoundSettings />
         <fieldset class="keep-copy">
           <legend>{copy.settings.keepCopy}</legend>
@@ -223,5 +226,45 @@ export function HelpOverlay({ session }: { session: Session }) {
         <p class="muted">{copy.help.footer}</p>
       </div>
     </div>
+  );
+}
+
+/** I3 (C5F): the economy and threat dials, for either seat to turn (the sim tells the partner). */
+export function ValleyDials({ session }: { session: Session }) {
+  const v = session.mirror.settings.value;
+  const row = <K extends 'economy' | 'threat'>(
+    key: K,
+    label: string,
+    options: readonly (readonly [string, string, string])[],
+  ) => (
+    <div class="dial-row" data-testid={`dial-${key}`}>
+      <span>{label}</span>
+      <div class="dial" role="radiogroup" aria-label={label}>
+        {options.map(([id, name, note]) => (
+          <button
+            key={id}
+            type="button"
+            role="radio"
+            title={note}
+            aria-checked={v[key] === id}
+            class={v[key] === id ? 'active' : ''}
+            data-testid={`settings-${key}-${id}`}
+            onClick={() =>
+              v[key] !== id && session.submit({ t: 'valley.setSettings', settings: { [key]: id } })
+            }
+          >
+            {name}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+  return (
+    <fieldset class="dials" data-testid="valley-dials">
+      <legend>{copy.settings.dials}</legend>
+      <p class="muted">{copy.settings.dialsHint}</p>
+      {row('economy', copy.title.economy, copy.title.economyOptions)}
+      {row('threat', copy.title.threat, copy.title.threatOptions)}
+    </fieldset>
   );
 }

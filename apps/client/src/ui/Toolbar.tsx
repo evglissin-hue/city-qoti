@@ -164,6 +164,16 @@ export function Toolbar({ session }: { session: Session }) {
         >
           <Glyph id="undo" />
         </button>
+        <button
+          type="button"
+          class="undo-button photo-button"
+          data-testid="photo-open"
+          aria-label="Photo mode"
+          data-tip="Photo mode: hide the interface and take a picture (F2)"
+          onClick={() => (session.ui.photo.value = true)}
+        >
+          <Glyph id="photo" />
+        </button>
       </div>
     </footer>
   );

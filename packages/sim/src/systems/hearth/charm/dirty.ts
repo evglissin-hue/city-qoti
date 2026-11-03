@@ -5,6 +5,7 @@
 import { CHUNK_SIZE, CHUNKS_PER_SIDE } from '../../../constants';
 import type { Rect, WorldState } from '../../../contracts';
 import { clampRect } from '../../../map/layers';
+import { markHabitatChunk } from '../../nature/habitats';
 import { CHARM_REACH } from './sources';
 
 /** Adds the chunks a rect (grown by the charm reach) touches to hearth.dirtyChunks, sorted and unique. */
@@ -31,6 +32,8 @@ export function markChunks(state: WorldState, rect: Rect): void {
   for (let cz = Math.floor(z0 / CHUNK_SIZE); cz <= Math.floor(z1 / CHUNK_SIZE); cz++) {
     for (let cx = Math.floor(x0 / CHUNK_SIZE); cx <= Math.floor(x1 / CHUNK_SIZE); cx++) {
       insertSorted(list, cz * CHUNKS_PER_SIDE + cx);
+      // C5C: whatever moves charm can move a habitat; the 02:00 pass rescores the chunk.
+      markHabitatChunk(state, cz * CHUNKS_PER_SIDE + cx);
     }
   }
 }

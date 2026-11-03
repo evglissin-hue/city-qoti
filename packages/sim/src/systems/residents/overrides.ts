@@ -4,7 +4,9 @@
 // something wins. C5B: the festival evening; C5D: the bell (indoors), Watch duty and turn-out;
 // C5A: skating and staying in during storms. The bell beats the festival.
 import type { Activity, Resident, WorldState } from '../../contracts';
+import { FESTIVAL_PRIORITY, festivalGuest } from '../festivals/override';
 import { skating } from '../seasons/river';
+import { bellIndoors, watchDuty, watchTurnOut } from '../watch/overrides';
 import { rainIndoors, stormIndoors } from '../weather/effects';
 
 export interface ScheduleOverride {
@@ -18,9 +20,13 @@ export interface ScheduleOverride {
 // Registry: one line per override, alphabetical by id.
 // prettier-ignore
 export const scheduleOverrides: readonly ScheduleOverride[] = [
+  { id: 'bell', priority: 100, pick: bellIndoors },
+  { id: 'festival', priority: FESTIVAL_PRIORITY, pick: festivalGuest },
   { id: 'rain', priority: 15, pick: rainIndoors },
   { id: 'skating', priority: 20, pick: skating },
   { id: 'storm', priority: 80, pick: stormIndoors },
+  { id: 'watch-duty', priority: 40, pick: watchDuty },
+  { id: 'watch-turn-out', priority: 90, pick: watchTurnOut },
 ];
 
 let extra: readonly ScheduleOverride[] = [];

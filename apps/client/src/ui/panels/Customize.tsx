@@ -1,9 +1,9 @@
 import { content } from '@qoti/content';
-import { MAX_SIGN_CHARS, type BuildingCustom } from '@qoti/sim';
+import { MAX_SIGN_CHARS, type BuildingCustom, type BuildingDetail } from '@qoti/sim';
 import { useEffect, useState } from 'preact/hooks';
 import type { Session } from '../../app/session';
 import { swatchGroups, swatchHex, type Swatch } from '../swatches';
-import { Frame, Heading, Toggle } from './parts';
+import { Frame, Heading, Toggle, useInspect } from './parts';
 
 type Draft = Record<string, string | boolean | null | undefined>;
 
@@ -94,6 +94,7 @@ export function CustomizePanel({ session }: { session: Session }) {
         current={value('accent') as string | null}
         onPick={(v) => set({ accent: v })}
       />
+      <ModulePicker session={session} id={b.id} />
       <Heading>Details</Heading>
       <div class="detail-toggles">
         <Toggle
@@ -263,4 +264,107 @@ function HouseSketch(p: {
       )}
     </svg>
   );
+}
+
+const SLOT_WORD: Record<string, string> = {
+  roof: 'On the roof',
+  front: 'At the front',
+  side: 'To the side',
+  top: 'On top',
+  wall: 'Along the wall',
+};
+
+/** Where a slot sits on the little house outline, for the preview. */
+const SLOT_SPOT: Record<string, [number, number]> = {
+  roof: [60, 18],
+  front: [60, 62],
+  side: [100, 52],
+  top: [60, 6],
+  wall: [30, 52],
+};
+
+/**
+ * I3 (C5F): modules (customization phase 2, C5C's content): one row per slot the building has,
+ * each module with its cost, a dot on a sketch for where it goes, fitted with build.setModule.
+ */
+export function ModulePicker({ session, id }: { session: Session; id: number }) {
+  const b = session.mirror.buildings.get(id);
+  const def = b ? content.buildingById.get(b.def) : undefined;
+  const detail = useInspect<BuildingDetail>((k, i) => session.inspect(k, i), 'building', id, b);
+  const [hover, setHover] = useState<string | null>(null);
+  const slots = def?.moduleSlots ?? [];
+  if (!b || !slots.length) return null;
+  const fitted = new Map(detail?.modules ?? []);
+  return (
+    <section class="module-picker" data-testid="module-picker">
+      <Heading>Additions</Heading>
+      <svg class="module-preview" viewBox="0 0 120 80" aria-hidden="true">
+        <path
+          d="M18 72 V40 L60 14 L102 40 V72 Z"
+          fill="var(--paper-light)"
+          stroke="var(--ink-line)"
+          stroke-width="1.5"
+        />
+        <path d="M52 72 V54 h16 v18" fill="none" stroke="var(--ink-line)" stroke-width="1.2" />
+        {slots.map(([slot]) => {
+          const [x, y] = SLOT_SPOT[slot] ?? [60, 40];
+          return (
+            <circle
+              key={slot}
+              cx={x}
+              cy={y}
+              r={hover === slot ? 7 : 5}
+              class={`slot-dot ${fitted.has(slot) ? 'fitted' : ''}`}
+            />
+          );
+        })}
+      </svg>
+      {slots.map(([slot]) => {
+        const options = content.modules.filter((md) => md.slot === slot);
+        const now = fitted.get(slot) ?? null;
+        return (
+          <div
+            key={slot}
+            class="module-slot"
+            data-testid={`slot-${slot}`}
+            onMouseEnter={() => setHover(slot)}
+            onMouseLeave={() => setHover(null)}
+          >
+            <span class="small muted">{SLOT_WORD[slot] ?? slot}</span>
+            {options.length === 0 ? (
+              <span class="small muted">Nothing to fit here yet.</span>
+            ) : (
+              <div class="material-row" role="radiogroup" aria-label={SLOT_WORD[slot] ?? slot}>
+                {options.map((md) => (
+                  <button
+                    key={md.id}
+                    type="button"
+                    role="radio"
+                    aria-checked={now === md.id}
+                    class={now === md.id ? 'active' : ''}
+                    data-testid={`module-${md.id}`}
+                    title={costText(md.cost)}
+                    onClick={() =>
+                      session.submit({ t: 'build.setModule', id, slot, module: now === md.id ? null : md.id })
+                    }
+                  >
+                    {md.name}
+                    <span class="small muted"> {costText(md.cost)}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </section>
+  );
+}
+
+function costText(cost?: { coins?: number; goods?: [string, number][] }): string {
+  const parts: string[] = [];
+  if (cost?.coins) parts.push(`${cost.coins} coins`);
+  for (const [g, q] of cost?.goods ?? [])
+    parts.push(`${q} ${content.goodById.get(g)?.label.toLowerCase() ?? g}`);
+  return parts.length ? parts.join(', ') : 'free';
 }

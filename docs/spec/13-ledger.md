@@ -29,6 +29,17 @@ Each good also has `carry` (units a porter carries: 4; a cart: 16) and optional 
 
 *As built (C5A), spoilage*: no per-batch ages. Each night at 23:02, for each good with `spoilsDays` d, the town keeps what it eats in d days (yesterday's eating, or a unit a resident a day if that is more) plus a day's fresh supply, and at least 10 units; a town total above that loses a d-th of the excess, shared over the piles by size, half as much in storehouses. Pantries never spoil. A town eating what it makes loses nothing; a glut shrinks over a few nights. Wheat, flour and vegetables keep.
 
+*As built (C5B), the I3 trades* (Village rank; each pays its way at base prices, sells to a neighbor, and appears in commissions):
+
+| Building | Crew | Recipe | Notes |
+|---|---|---|---|
+| Pie Shop | 2 | 1 flour + 2 apples, or 1 flour + 1 honey, to 3 pies an hour | pies 3.50, a festival treat and in the Craftsfolk treats |
+| Chandler | 1 | 2 herbs to 2 candles (rushlights, from the herb garden's rushes) or 1 honey to 3 beeswax candles, an hour | candles 2; the rushlights mean no Village waits on bees |
+| Tailor | 1 | 1 cloth to 1 coat in 3 hours | coats 12; Stonecross buys them (dearest in winter) |
+| Carpenter | 2 | 3 planks to 1 piece of furniture in 2 hours | furniture 15; Millhaven buys it |
+
+Millhaven also buys pies and furniture and sells honey (until C5C's apiary); Stonecross buys coats and candles. Pies and candles join the Craftsfolk treats.
+
 *As built (C5A), the seasons of what grows* (`GoodDef.seasons`, permille of a gatherer's rate by season): vegetables 1000, 1300, 1000, 0; apples 400, 1000, 2600, 0; herbs 1000, 1400, 1400, 200. Fishers catch nothing while the river is frozen.
 
 ## I1 buildings
@@ -175,6 +186,7 @@ A Victoria-lite market (P30). Money circulates between the treasury and househol
     - Nobody treats while the town holds under three days of food a head (`TREAT_FOOD_DAYS`). The day the Village charter opened the market, treats doubled what the town ate and ran the Charter's five-day larder down to nothing within a week.
     - What this leaves: purses hold what Craftsfolk need, and the treasury lends it to them through the County Bank. In the 90-day autoplayer runs owed peaks at 1,960 to 4,060 coins (under the credit line, no lean days) and by day 90 falls to under 700 on three seeds of five (hazel, willow, rowan) and a little below its peak on the other two. Cloth and brick exports pay for it once the chains run; until then the Village borrows.
 - **Market Square** [I2]: replaces scattered stalls as the main outlet; market days [I3] (weekly) add shopping capacity, charm and a small fee income.
+  - *As built (C5B)*: a market day is one day of each season (1 to 6, `ledger.setMarketDay`). That day shoppers carry twice a usual load home a trip, every outlet gives +3 comfort charm within 3 tiles, and at 18:00 each household with a quarter coin to spare pays it to the treasury as a stall fee (`pay`, `fees`).
 
 ## Zoning and growth [I2]
 
@@ -242,6 +254,8 @@ Homes upgrade in place when a household meets the next tier's needs for 3 consec
   - Neighbors (tuned): Millhaven also buys logs and Stonecross vegetables, so every Hamlet good has a buyer somewhere.
 - **Contracts** [I4]: offers each season such as "deliver 200 wool by Autumn day 5 at 3 coins each". Shortfall costs renown and a fee. Rewards planning, carries risk (P31).
 - **Commissions** [I3]: optional requests from neighbors or notable visitors with unlock, decor or renown rewards.
+- *As built (C5B), the River Dock*: a 2x2 building on the water's edge at Village rank and renown 1 (60 coins, 24 planks, 8 stone, keeps 80 units). At 08:00, after the caravans, a boat sails downstream for Millhaven on the dock's own standing orders (`trade.setStandingOrder` with `via: 'dock'`; `FROZEN` while the river is), when no boat is away: up to 120 units out and back (a caravan carries 40), selling at 92% and buying at 110% of Millhaven's regional price (the post: 85% and 120%), renown's terms on top; back in 3 days. While the river is frozen no boat sails, and one downstream waits for the thaw. Money settles as the boat leaves (`book('dock')`); each unit nudges Millhaven's price as a caravan's does. The first boat writes a Chronicle line. The dock is never the only buyer of anything: Millhaven trades the same goods at the post.
+- *As built (C5B), commissions*: from Village rank a neighbor may write on days 1 and 4 at 09:00 (two open at most), and a notable visitor may call on day 2 of a season once renown allows (`visitors`). Seven in content: bread for Millhaven's threshers, chairs for its hall, coats for the Stonecross quarrymen, planks for its scaffolds; and the visitors' candles (a minstrel, renown 2), pies (the Dowager of Amberly, renown 3) and a landing for the County barge (a River Dock, renown 2). Only what the town can meet is offered: a goods ask once the town has made every good named, a building ask once it can be built. An offer waits 3 days; accepted, it runs to its deadline (4 to 12 days), and hourly at :54 (offset 180) it closes itself when the town holds the goods (they leave with the asker) or the condition holds. Rewards: coins with `book('commissions')`, renown, and decor unlocks. A missed deadline only closes it; the last 8 closed stay listed.
 - **Road safety** [I4]: bandit activity on the valley road raises caravan losses unless the road is patrolled; the risk shows as a price premium.
 
 ## Levers and policies
@@ -250,7 +264,7 @@ Homes upgrade in place when a household meets the next tier's needs for 3 consec
 |---|---|
 | Goods for sale (peddler), building priority, pause a building | I1 |
 | Income tax 0% to 20%, wage level, price cap or subsidy per food, loans, export bans | I2 |
-| Market day, quiet hours (workshops idle 20:00 to 07:00: less noise, less output) | I3 |
+| Market day, quiet hours (workshops idle 20:00 to 07:00: less noise, less output) | I3 (C5B: quiet hours halve workshops' night noise in charm and take 5% off their output through the yield hook) |
 | Watch size and budget, gate rules | I3 |
 | District policies (no carts, festival district, garden district) | I4 |
 

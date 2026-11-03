@@ -17,6 +17,7 @@ import {
   CHARM_REACH,
   CLUTTER,
   CONSTRUCTION,
+  MARKET_DAY,
   DECOR_LINEAR,
   DECOR_REACH,
   DECOR_SOURCES,
@@ -30,12 +31,21 @@ import {
   VARIETY,
   WATER_VIEW,
   WINDOW_BOXES,
+  MODULE_SOURCES,
   YOUNG_TREE,
 } from './sources';
+import { isMarketDay, quietHours } from '../../festivals/levers';
 
 const S = MAP_SIZE;
 const DECOR_INDEX = new Map(content.decor.map((d, i) => [d.id, i]));
 const BUILDING_INDEX = new Map(content.buildings.map((b, i) => [b.id, i]));
+// I3 (C5B): the levers' charm (systems/festivals/levers.ts).
+const WORKSHOP = content.buildings.map((b) => !!b.tags?.includes('workshop'));
+const OUTLET = content.buildings.map((b) => !!b.tags?.includes('outlet'));
+const QUIET_SOURCES: readonly Source[][] = BUILDING_SOURCES.map((list) =>
+  list.map((s) => (s.cat === CAT.noise ? { ...s, night: Math.trunc(s.night / 2) } : s)),
+);
+
 const PATTERN_INDEX = new Map(content.patterns.map((p, i) => [p.id, i]));
 
 /** Layer names in category order, then the total. */
@@ -164,6 +174,8 @@ export function recomputeChunk(
   wallCache: Map<number, boolean> = new Map(),
 ): boolean {
   lit = nightLights;
+  const quiet = quietHours(state);
+  const marketDay = isMarketDay(state);
   const m = state.map;
   const rect = chunkRect(chunk);
   const [cx0, cz0, cx1, cz1] = rect;
@@ -205,8 +217,15 @@ export function recomputeChunk(
     if (rectGap2(r, rect) > reach2) continue;
     const sources: Source[] = [];
     if (b.stage === 'construction') sources.push(CONSTRUCTION);
-    else for (const s of BUILDING_SOURCES[BUILDING_INDEX.get(b.def)!]!) sources.push(s);
+    else {
+      const i = BUILDING_INDEX.get(b.def)!;
+      // I3 (C5B): quiet hours halve workshops' night noise; market day adds comfort at outlets.
+      for (const s of quiet && WORKSHOP[i] ? QUIET_SOURCES[i]! : BUILDING_SOURCES[i]!) sources.push(s);
+      if (marketDay && OUTLET[i]) sources.push(MARKET_DAY);
+    }
     if (b.custom?.windowBoxes === true) sources.push(WINDOW_BOXES);
+    // I3 (C5C): modules fitted (customization phase 2).
+    for (const [, mod] of b.rt?.modules ?? []) for (const s of MODULE_SOURCES.get(mod) ?? []) sources.push(s);
     if (sources.length > 0) nearBuildings.push({ x0: r[0], z0: r[1], x1: r[2] + 1, z1: r[3] + 1, sources });
   }
 

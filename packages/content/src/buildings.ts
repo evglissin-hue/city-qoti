@@ -331,6 +331,12 @@ export const townHall: BuildingDef = {
   charm: [{ category: 'comfort', value: 8, radius: 4 }],
   tags: ['civic', 'builders'],
   modes: ['sandbox'],
+  // C5C: an arcade along the front, a clock tower, ivy.
+  moduleSlots: [
+    ['front', 1],
+    ['top', 1],
+    ['wall', 1],
+  ],
   art: { kit: 'town-hall' },
 };
 

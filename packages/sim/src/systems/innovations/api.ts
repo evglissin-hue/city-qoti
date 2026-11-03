@@ -20,6 +20,8 @@ export function meetsRequires(
   const unlocked = !!id && state.hearth.unlocked.includes(id);
   if (req.innovation && !hasInnovation(state, req.innovation) && !unlocked) return false;
   if (req.story && !unlocked) return false;
+  // I3 (C5B): renown (the River Dock waits for renown 1).
+  if (req.renown && state.renown.level < req.renown) return false;
   return hasBuilt(state, req.built);
 }
 

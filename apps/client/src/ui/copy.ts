@@ -48,6 +48,13 @@ export const copy = {
       ['standard', 'Standard', 'The valley as it was meant to be.'],
       ['thoughtful', 'Thoughtful', 'Every plank is spoken for.'],
     ],
+    // I3 (C5F): the threat dial.
+    threat: 'Threats',
+    threatOptions: [
+      ['peaceful', 'Peaceful', 'No raids at all. Wolves only howl.'],
+      ['standard', 'Standard', 'The odd band of bandits, telegraphed days ahead.'],
+      ['fierce', 'Fierce', 'Bolder bands, sooner. The Watch will earn its supper.'],
+    ],
   },
   settings: {
     open: 'Settings',
@@ -60,6 +67,10 @@ export const copy = {
     uiScale: 'Interface size',
     reducedMotion: 'Calm motion',
     reducedMotionHint: 'Fewer wiggles and slides',
+    // I3 (C5F)
+    dials: "The valley's dials",
+    dialsHint:
+      'Either of you can turn these any time. Your partner hears about it, and the Chronicle notes it.',
     keepCopy: 'Keep a copy',
     keepCopyHint: 'A .qoti file of this valley, for safekeeping or another laptop.',
     saveCopy: 'Save a valley file',

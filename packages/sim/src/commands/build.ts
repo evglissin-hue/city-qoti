@@ -3,6 +3,7 @@ import { MAP_SIZE } from '../constants';
 import { tilesRect } from '../map/layers';
 import { canPlaceBuilding } from '../rules/building';
 import { footprintTiles } from '../rules/footprint';
+import { wouldEnclose } from '../rules/wall';
 import { findById, removeById } from '../state/entities';
 import { isStandard } from '../state/hamlet';
 import { insertBuilding } from '../state/place';
@@ -26,6 +27,13 @@ export const place: HandlerFor<'build.place'> = {
     // Playtest round three: a site nobody can walk to would wait forever.
     if (isStandard(state) && !townReachesDoor(state, { def: def.id, x: cmd.x, z: cmd.z, rot: cmd.rot }))
       return 'CUT_OFF';
+    // I3 (C5D): a wall piece placed by hand may not enclose anything either.
+    if (
+      def.defense?.blocks &&
+      wouldEnclose(worldIndex(state).reader, [[cmd.x, cmd.z, def.id]], state.buildings, state.meta.valleyGate)
+        .length > 0
+    )
+      return 'WOULD_ENCLOSE';
     return placementBlocked(state, def);
   },
   apply(state, seat, cmd, ctx) {

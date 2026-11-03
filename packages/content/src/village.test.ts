@@ -71,6 +71,8 @@ describe('I2 buildings', () => {
     const made = new Set(
       content.buildings.flatMap((b) => (b.methods ?? []).flatMap((m) => m.outputs.map(([g]) => g))),
     );
+    // I3 (C5B): a good a neighbor sells counts as one the town can get (honey before the apiary).
+    for (const n of content.neighbors) for (const [g] of n.sells) made.add(g);
     for (const g of I2_GOODS) expect(made.has(g), g).toBe(true);
     for (const b of content.buildings)
       for (const m of b.methods ?? [])

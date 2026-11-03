@@ -78,6 +78,29 @@ const SATISFY: Record<string, ((t: Scene) => void)[]> = {
       insertBuilding(s, null, content.buildingById.get('herbalist')!, 116, 72, 0, 0, { site: false });
     },
   ],
+  stonemason: [
+    ({ s }) => {
+      for (let x = 116; x < 122; x++)
+        insertBuilding(s, null, content.buildingById.get('palisade')!, x, 60, 0, 0, { site: false });
+    },
+    ({ s }) => {
+      insertBuilding(s, null, content.buildingById.get('watch-house')!, 116, 66, 0, 0, { site: false });
+    },
+    ({ s, f }) => {
+      s.watch.members = f.residents.slice(0, 2).sort((a, b) => a - b);
+      s.watch.posture = [62 * 192 + 118];
+    },
+    ({ s }) => {
+      const b = insertBuilding(s, null, content.buildingById.get('stone-wall')!, 116, 72, 0, 0, {
+        site: false,
+      });
+      b.rt!.modules = [['wall', 'ivy']];
+    },
+    ({ s }) => {
+      const i = s.map.water.findIndex((w) => w > 0);
+      s.map.road[i] = 1;
+    },
+  ],
   merchant: [
     () => {
       // The fixture's stalls already hold bread, vegetables, fish, cheese and firewood.
@@ -195,6 +218,18 @@ describe('story arcs', () => {
         const scene: Scene = { f, s, ctx, home };
         // C5A: Mother Thornbury comes in the autumn.
         if (arc.id === 'herbalist') s.tick = tickAt(1, 2, 2, 8);
+        // C5D: Barnaby Ashcombe comes once a raid has been telegraphed (or one has come).
+        if (arc.id === 'stonemason')
+          insertBuilding(s, null, content.buildingById.get('quarry')!, 126, 60, 0, 0, { site: false });
+        if (arc.id === 'stonemason')
+          s.threats.history.push({
+            tick: 0,
+            band: 'small',
+            side: 'n',
+            stolen: 0,
+            captured: 0,
+            repelled: true,
+          });
         skipToHour(s, 10);
 
         // Arrival: a household of one, marked as a story character, and the hello letter.

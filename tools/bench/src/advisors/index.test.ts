@@ -17,10 +17,15 @@ describe('the advisors', () => {
       'street',
       'charter',
       'money',
+      'watch',
       'hamlet',
       'seasons',
+      'festivals',
       'hearth',
+      // I3 (C5C)
+      'nature',
       'together',
+      'guide',
     ]);
   });
 });

@@ -9,7 +9,12 @@ import type { Cart, Resident, WorldState } from '../contracts';
 import { tickOfDay } from '../systems/residents/time';
 import { isSkating } from '../systems/seasons/river';
 import { moodBand } from './hamlet';
+import { writeRaiderRows } from './season/raiders';
 import { writeVisitorRows } from './season/visitors';
+import { DANCE_HOUR } from '../systems/festivals';
+import { atFestival } from '../systems/festivals/override';
+import { bothConnected } from '../systems/festivals/together';
+import { hourOf } from '../systems/economy/time';
 
 /** Headings for the four grid directions: +x, +z, -x, -z. */
 const HEAD_PX = Math.PI / 2;
@@ -45,12 +50,19 @@ export function agentFrame(state: WorldState): Float32Array {
   for (const hh of state.households)
     if (hh.warmth && hh.warmth.coldHours > 0) (cold ??= new Set()).add(hh.id);
   const frozen = state.weather.river.frozen;
+  const festive = state.festival.live;
+  const dancing = festive && hourOf(state.tick) >= DANCE_HOUR && bothConnected(state);
   let n = 0;
   for (const r of state.residents) {
     if (r.inside) continue;
     let extra = 0;
     if (cold?.has(r.householdId)) extra |= AgentFlags.cold;
     if (frozen && r.activity.kind === 'leisure' && isSkating(state, r)) extra |= AgentFlags.skating;
+    // I3 (C5B): festival guests on the site; in the closing dance's hour, with both seats here, they dance.
+    const guest = festive && atFestival(state, r);
+    if (guest) extra |= AgentFlags.festival;
+    // I3 (C5D): the Watch on its feet (duty or a raid).
+    if (r.watch && (state.raid || state.watch.duty.includes(r.id))) extra |= AgentFlags.watch;
     if ((n + 1) * AGENT_STRIDE > scratch.length) {
       const bigger = new Float32Array(scratch.length * 2);
       bigger.set(scratch);
@@ -62,6 +74,7 @@ export function agentFrame(state: WorldState): Float32Array {
       standing.set(r.tile, crowd + 1);
     }
     writeRow(scratch, n * AGENT_STRIDE, r, S, h, crowd, night, extra);
+    if (guest && dancing && !r.move) scratch[n * AGENT_STRIDE + 5] = AgentAnim.dance;
     n++;
   }
   // I2 (C4.0): carts out on the roads, as rows with anim `cart` and their first load good.
@@ -86,6 +99,17 @@ export function agentFrame(state: WorldState): Float32Array {
   });
   scratch = v.out;
   n = v.n;
+  // I3 (C5D): raiders on the map and the wolves on a wolf night.
+  const w = writeRaiderRows(state, scratch, n, (rows) => {
+    let size = scratch.length;
+    while (rows * AGENT_STRIDE > size) size *= 2;
+    const bigger = new Float32Array(size);
+    bigger.set(scratch);
+    scratch = bigger;
+    return scratch;
+  });
+  scratch = w.out;
+  n = w.n;
   return scratch.slice(0, n * AGENT_STRIDE);
 }
 
@@ -160,7 +184,7 @@ function pointAt(r: Resident, m: NonNullable<Resident['move']>, S: number, q: nu
 }
 
 /** Heading for any direction, snapped to eight (0 faces +z, clockwise from above). */
-function headingFor8(dx: number, dz: number): number {
+export function headingFor8(dx: number, dz: number): number {
   const ax = Math.abs(dx);
   const az = Math.abs(dz);
   // tan(22.5 degrees) is about 0.414: within that of an axis, face along the axis.

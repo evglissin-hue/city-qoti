@@ -42,17 +42,25 @@ export function seasonsBench(): { lines: string[]; failures: string[]; report: R
     state.households.push(h);
   }
   const ctx = createTickCtx(state);
-  const runs = 20;
-  const t0 = performance.now();
-  for (let i = 0; i < runs; i++) {
+  // C5X: a few days first, so the JIT has compiled the passes, then the median day of forty (a cold
+  // mean of twenty swung from 0.84 to 1.30 ms between identical runs on one machine).
+  const day = () => {
     turnDay(state, ctx);
     weatherDay(state, ctx);
     burnDay(state, ctx);
     stepTrial(state, ctx);
     seasonReportView(state);
     ctx.events.length = 0;
+  };
+  for (let i = 0; i < 5; i++) day();
+  const times: number[] = [];
+  for (let i = 0; i < 40; i++) {
+    const t0 = performance.now();
+    day();
+    times.push(performance.now() - t0);
   }
-  const perDay = (performance.now() - t0) / runs;
+  times.sort((a, b) => a - b);
+  const perDay = times[times.length >> 1]!;
   const failures = perDay > SEASONS_DAY_BUDGET_MS ? [`seasons day ${perDay.toFixed(3)} ms`] : [];
   return {
     lines: [

@@ -1,8 +1,9 @@
-import type { RoomStorage, StoredMeta, StoredSnapshot } from '@qoti/protocol';
+import type { ImageStorage, RoomStorage, StoredImage, StoredMeta, StoredSnapshot } from '@qoti/protocol';
 import { retainSnapshots } from '@qoti/protocol';
 import type { Turn } from '@qoti/sim';
 
-const VERSION = 1;
+/** 2 (C5F): adds the `images` store for Chronicle pictures. */
+const VERSION = 2;
 
 function promisify<T>(req: IDBRequest<T>): Promise<T> {
   return new Promise((resolve, reject) => {
@@ -23,8 +24,11 @@ export function valleyDbName(valleyId: string): string {
   return `qoti-valley-${valleyId}`;
 }
 
-/** RoomStorage in IndexedDB, one database per valley, for LocalRoom (solo valleys). */
-export class IdbStorage implements RoomStorage {
+/**
+ * RoomStorage in IndexedDB, one database per valley, for LocalRoom (solo valleys). C5F: also the
+ * valley's Chronicle pictures (ImageStorage), through the same storeImage as the relay.
+ */
+export class IdbStorage implements RoomStorage, ImageStorage {
   private db: Promise<IDBDatabase> | null = null;
 
   constructor(private readonly valleyId: string) {}
@@ -34,9 +38,15 @@ export class IdbStorage implements RoomStorage {
       const req = indexedDB.open(valleyDbName(this.valleyId), VERSION);
       req.onupgradeneeded = () => {
         const db = req.result;
-        db.createObjectStore('meta');
-        db.createObjectStore('turns', { keyPath: 't' });
-        db.createObjectStore('snapshots', { keyPath: 't' });
+        for (const [name, key] of [
+          ['meta', null],
+          ['turns', 't'],
+          ['snapshots', 't'],
+          ['images', 'entry'],
+        ] as const) {
+          if (!db.objectStoreNames.contains(name))
+            db.createObjectStore(name, key ? { keyPath: key } : undefined);
+        }
       };
       req.onsuccess = () => resolve(req.result);
       req.onerror = () => reject(req.error);
@@ -93,6 +103,31 @@ export class IdbStorage implements RoomStorage {
   async pruneTurnsUpTo(t: number): Promise<void> {
     const tx = await this.tx(['turns'], 'readwrite');
     tx.objectStore('turns').delete(IDBKeyRange.upperBound(t));
+    await done(tx);
+  }
+
+  async getImage(entry: number): Promise<StoredImage | null> {
+    const tx = await this.tx(['images'], 'readonly');
+    return ((await promisify(tx.objectStore('images').get(entry))) as StoredImage | undefined) ?? null;
+  }
+
+  async putImageIfAbsent(image: StoredImage): Promise<boolean> {
+    const tx = await this.tx(['images'], 'readwrite');
+    const store = tx.objectStore('images');
+    const had = await promisify(store.getKey(image.entry));
+    if (had === undefined) store.put(image);
+    await done(tx);
+    return had === undefined;
+  }
+
+  async listImages(): Promise<number[]> {
+    const tx = await this.tx(['images'], 'readonly');
+    return ((await promisify(tx.objectStore('images').getAllKeys())) as number[]).sort((a, b) => a - b);
+  }
+
+  async deleteImages(entries: number[]): Promise<void> {
+    const tx = await this.tx(['images'], 'readwrite');
+    for (const e of entries) tx.objectStore('images').delete(e);
     await done(tx);
   }
 }

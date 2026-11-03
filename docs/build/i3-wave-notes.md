@@ -82,12 +82,31 @@ Daily (`every: TICKS_PER_DAY`, `offset: dailyOffset(hour, extra)`): 00:02 season
 | Track | Stand-in it relies on until the owner lands | Owner |
 |---|---|---|
 | C5B | weather is always clear (`weatherToday`); C5A's weather is in (00:04), so this stand-in is gone | C5A |
+| C5B | a musician when Juniper Reed is not in town: the first Artistic grown-up plays at half the part (`musicianFor`, `musicPart`); remove once more musicians come with I4's arcs | C5B, I4 |
+| C5B | the bandstand is Juniper's `bandstand-green` unlock (`hasBandstand`), as there is no bandstand building yet; swap for a built bandstand (a tag) when one lands | C5E, I4 |
+| C5B | honey for the beeswax candles and honey pies comes from Millhaven at the post until C5C's apiary makes it (content `neighbors.ts`); keep both, the post is a fallback | C5C |
 | C5C | seasons from `seasonNow` only; no pests until C5C itself (C5A's seasonal growth for gardens and orchards is a yield modifier, `seasonal`, beside yours) | C5A |
+| C5C (as built) | the swing, see-saw, pear tree, arbor seat and reed bed borrow existing decor kits (`params.kit` names the one to draw); modules name `kit: 'module'` with `params.module` and are not drawn (the building view carries `modules`); ponds draw as any water tile; no critters (wildlife is sim-only); the Field Guide book reads `ViewSnapshot.fieldGuide` and `fieldGuideHints` | C5E (art), C5F (UI) |
 | C5D | Watch morale without festivals (`festivalMorale` is 0 with no history) | C5B |
 | C5E | the winter and raid fixtures for every visual | C5A, C5D |
-| C5F | the mocks in `apps/client/src/ui/mocks/seasons.ts` | C5A to C5D |
+| C5F | the mocks in `apps/client/src/ui/mocks/seasons.ts`; `?debug&fixture=raid` adds one caught raider to `threats.captives` (as the mocks do) until C5D's raids catch their own (`app/fixture.ts`, `raidWithCaptive`: remove when C5D lands) | C5A to C5D |
+| C5F | no `capture` or `photo` on the renderer yet: snapshots are the middle of the canvas scaled to 320 by 200, photo mode hides the interface and saves the canvas, its depth of field and time of day sliders are disabled (`app/snapshots.ts`, `SeasonRender`: C5E adds `capture({ focus, radius, size })` and `photo { setPhoto, setDepthOfField, setTimeOfDay, savePng }` on the Renderer, and the stand-ins fall away untouched) | C5E |
+| C5F | the Field Guide's habitat view uses `highlight` on chunk tiles (habitats.updated); no 'habitats' overlay kind in the renderer yet | C5C, C5E |
+| C5F | the Watch board's morale parts are words read from the Mirror (town mood, the last festival's stars, the roster, the last raid); the number is C5D's `watch.morale` | C5D |
 | C5G | the silent `audio()` stub until its engine lands | C5G |
 | C5H | goals use existing `CountWhat`s; new ones are added additively | C5H |
+
+### Stand-ins after C5X part 1
+
+Gone: C5B's clear-weather stand-in (C5A's weather runs); C5C's "seasons only" row (C5A is in); C5D's Watch morale without festivals (`festivalMorale` reads C5B's history); C5G's silent `audio()` stub (the engine is installed); the defense pieces' `modes: []` (C5D unhid them; the unused `HIDDEN` helper in `seasonsBuildings.ts` is gone); C5F's own `rules/walls.ts` (the wall ghost now runs C5D's `canPaintWall` from `rules/wall.ts`, the rule `wall.paint` runs, so it agrees by construction). The C5F mocks now serve only the unit tests and the `?debug&fixture` overlay; the live panels read the sim's views.
+
+Remaining, and why:
+
+- C5B's musician and bandstand stand-ins: no owner until I4's arcs and a bandstand building.
+- C5B's honey from Millhaven: kept on purpose as the post's fallback beside C5C's apiary.
+- C5C's borrowed decor kits and undrawn modules, ponds as plain water, no critters; C5F's renderer stand-ins (`capture`, `photo`, the habitats overlay); C5E's fixtures: all wait for C5E (C5X part 2, after V1X).
+- C5F's `raidWithCaptive` in `app/fixture.ts`: kept as a fixture convenience, not a stand-in. C5D's raids catch their own, but only later in the night, and the `c5f-seasons` e2e needs a captive at once.
+- C5F's Watch morale parts as words: `WatchView` has no parts; an additive field for I4.
 
 ## Testing and benches
 
@@ -106,6 +125,30 @@ Daily (`every: TICKS_PER_DAY`, `offset: dailyOffset(hour, extra)`): 00:02 season
 - Gardens, orchards and herb gardens gather by `GoodDef.seasons` (yield modifier `seasonal`); a test that counts a gatherer's full rate picks a season where its table reads 1000.
 - `BuildingDef.requires.story`: a building only a story unlocks (Mother Thornbury's cottage); `meetsRequires` takes the def id.
 
+## C5B as built (read if you meet these)
+
+- `festivalMorale(state)` reads the last two festivals' stars (3 is neutral, -10 to +10). `addRenown(state, ctx, n, source)` is safe to call from anywhere with or without a ctx; a new level writes a Chronicle line (with a ctx).
+- The festival evening has its own hourly system, `festivalEvening` (77, on the hour); its schedule override is `festival` (50). The bell (C5D, 100) beats it. Guests are chosen at 18:00 and listed in `festival.guests` (sorted) until 22:00; `atFestival(state, r)` is true for a guest standing on the site.
+- Festival pieces placed with the decor tool while a festival is planned carry `Decor.festival` and come down at 04:00 on day 1 of the next season (the `festivals` system, 75).
+- `together.moment` kinds: `dance`, `fireworks`, `stroll` (rules in `16-coop.md`); C5E draws them, C5G may sound them.
+- Commissions use `book('commissions')`, the River Dock `book('dock')` (net: sales positive, purchases negative on the same line), market day fees `pay(household, 'treasury', 'fees')`, Generous gifts to the menu `pay(household, 'treasury', 'sales')`.
+## C5D as built (read if you meet these)
+
+- The threat fixture now sets the threat dial to Standard (valleys default to Peaceful, and Peaceful has no raids); ids and positions are unchanged. `raidAtDusk()` raiders start with no path: the raids system plans them on the next tick.
+- `canPaintWall(reader, def, tiles, buildings, valleyGate)` (rules, exported) is the wall ghost's answer: the pieces (a gate where the run crosses a road) or the reason, with `enclosed` ids for `WOULD_ENCLOSE`. `townReach` takes an optional set of tiles to pass through (gates).
+- Gates on roads: a run over a road puts a gate there, occupying the tile with the road kept; carts drive on roads, so they pass gates whatever their state; walkers pass open gates only.
+- Raiders ride in the agent frame (anim `run`, `AgentFlags.raider`, their first good as the carry); the wolf pack is three view-only rows from `1 << 23` + `1 << 20` (`AgentFlags.wolf`); Watch members on duty or in a raid carry `AgentFlags.watch`.
+- The result card is the `raid.ended` event's own `RaidResultView` (goods by id, condition points lost, renown, morale change); `raidResultView(record)` still gives the history's lighter card.
+- The bell's override (100) sends everyone but the Watch on its feet home; a festival evening (50) gives way to it, as the notes asked.
+- The autoplayer plays raids when `threat` is passed (`AutoplayOptions.threat`; `npm run tune` passes Standard as its seventh argument's default); other runs stay Peaceful, so their numbers do not move.
+
 ## Registries
 
 One alphabetical line per entry in every registry (commands, systems, content, hooks, advisors, render layers, tools, lenses, panels, art kits, sound cues). Goods and story arcs are append-only. Nobody is ever hurt (P3, P35): no state for injuries or destroyed homes; losses are goods, condition, mood and morale, all recoverable.
+
+## C5F as built (read if you meet these)
+
+- `canPaintWall(reader, def, tiles, { gate, buildings })` (`packages/sim/src/rules/wall.ts`) is the wall rule: open land only (not water, a road, a building or decor; an unlocked parcel) and `WOULD_ENCLOSE` when a run would cut a home, workplace or storehouse door off from the valley gate (gates count as a way through). `wall.paint` validates with it after `LOCKED`, and the client's wall ghost runs the same checks in the same order on its Mirror (property test in `apps/client/src/input/tools/walls.test.ts`). C5D keeps it and adds costs and placement.
+- `ThreatView.captives` (additive): captured raiders waiting for `bandit.decide`, so either seat can decide after dawn. `bandit.decide` also sends `raid.updated` while a raid is on, so both seats' captive cards close.
+- Map tools that fill a book's draft: `festival-site` (a box or a Pattern Book site) and `guard` (up to three points), both hidden from the toolbar and opened from their books; `wall` (hidden until a defense def is open to the valley) and `pond` (Hearth). `UiApi.drafts()` (additive) hands tools the drafts.
+- The festival planner's joy estimate (`ui/seasons.ts`, `joyEstimate`) is a rough reading of `12-hearth.md`'s outcome rule from what the client knows, labeled an estimate; the night's real joy is C5B's.
