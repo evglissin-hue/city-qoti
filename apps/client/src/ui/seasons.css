@@ -1020,3 +1020,35 @@
 .season-lines.building p {
   margin: 4px 0;
 }
+
+.radio-line input,
+.toggle-line input {
+  width: auto;
+  margin: 0;
+  flex: none;
+}
+.radio-line {
+  justify-content: flex-start;
+  text-align: left;
+}
+/* The raid bar steps right of an open book. */
+.game-ui:has(> .book-slot) .raid-bar {
+  left: calc(50% + 200px * var(--ui-scale));
+  max-width: calc(100% - 420px * var(--ui-scale));
+}
+
+/* The top bar is tight on a laptop: the weather keeps its glyph (the tooltip has the words). */
+.topbar .weather-chip {
+  flex-shrink: 0;
+}
+@media (max-width: 1400px) {
+  .topbar .weather-chip .weather-word,
+  .topbar .weather-chip .next {
+    display: none;
+  }
+}
+.ui-large .topbar .weather-chip .weather-word,
+.ui-large .topbar .weather-chip .next,
+.ui-large .topbar .stat-chip.renown span {
+  display: none;
+}
