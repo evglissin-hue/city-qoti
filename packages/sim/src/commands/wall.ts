@@ -9,6 +9,8 @@ import { findById } from '../state/entities';
 import { isStandard } from '../state/hamlet';
 import { rankAtLeast } from '../state/village';
 import { buildingView } from '../view';
+import { canPaintWall } from '../rules/walls';
+import { worldIndex } from '../state/worldIndex';
 import { checkTiles, type HandlerFor } from './util';
 
 const S = MAP_SIZE;
@@ -22,7 +24,13 @@ export const paint: HandlerFor<'wall.paint'> = {
     const bad = checkTiles(cmd.tiles, MAX_ZONE_TILES);
     if (bad) return bad;
     if (def.modes && !def.modes.includes(state.settings.mode)) return 'LOCKED';
-    return rankAtLeast(state, def.requires?.rank ?? 'village') ? null : 'LOCKED';
+    if (!rankAtLeast(state, def.requires?.rank ?? 'village')) return 'LOCKED';
+    // C5F: the same rule the client's wall ghost runs (rules/walls.ts), WOULD_ENCLOSE included.
+    const run = canPaintWall(worldIndex(state).reader, def.id, cmd.tiles, {
+      gate: state.meta.valleyGate,
+      buildings: state.buildings,
+    });
+    return run.ok ? null : (run.reason ?? 'INVALID');
   },
   // C5D: a piece per free tile, as construction sites; nothing reaches here while LOCKED.
   apply() {},

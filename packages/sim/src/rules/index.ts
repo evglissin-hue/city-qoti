@@ -6,4 +6,5 @@ export { entranceTiles, facing, footprintSize, footprintTiles, rotateLocal } fro
 export { circleHitsTile, decorRadius, decorTooClose, isInt, isTile, MAX_DECOR_RADIUS } from './geometry';
 export { canPaintRoad } from './road';
 export { canPlantTree } from './tree';
+export { canPaintWall, MAX_WALL_TILES, type WallWorld } from './walls';
 export { doorFront, reachesTile, townReach, townSources, type ReachBuilding } from './reach';

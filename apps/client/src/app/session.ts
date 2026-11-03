@@ -40,6 +40,7 @@ import { initialQuality } from './quality';
 import { audio } from '../audio/api';
 import { cueForCommand } from '../audio/cues/index';
 import { installAudio } from '../audio/install';
+import { seasonsAfterUpdate, seasonsEscape } from './seasonsHook';
 
 export interface SessionTarget {
   valleyId: string;
@@ -409,6 +410,7 @@ export class Session {
       ];
     }
     if (change.rankUp) this.ui.rankUp.value = change.rankUp;
+    seasonsAfterUpdate(this, change);
     const focus = this.ui.planFocus.value;
     if (focus !== null && change.village && this.mirror.plans.get(focus)?.status !== 'open') {
       this.ui.planFocus.value = null;
@@ -544,6 +546,7 @@ export class Session {
         this.ui.emoteOpen.value = false;
         this.ui.letter.value = null;
         // I2 (C4F): a story letter or the rank-up card goes first.
+        if (seasonsEscape(this.ui)) return true;
         if (this.ui.storyLetter.value || this.ui.rankUp.value) {
           this.ui.storyLetter.value = null;
           this.ui.rankUp.value = null;
@@ -642,6 +645,7 @@ export class Session {
       focusPlan: (id) => {
         this.ui.planFocus.value = id;
       },
+      drafts: () => ({ festival: this.ui.festivalDraft, posture: this.ui.postureDraft }),
     };
   }
 

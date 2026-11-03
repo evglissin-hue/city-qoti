@@ -38,6 +38,8 @@ export interface ThreatView {
   wolvesTonight: boolean;
   /** Ledger lens only: pressure in permille of the threshold. */
   pressure?: number;
+  /** C5F (additive): captured raiders waiting for bandit.decide, either seat deciding. */
+  captives?: EntityId[];
 }
 
 /** The season card that opens each evening (C5F draws it). */

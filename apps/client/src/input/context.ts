@@ -1,5 +1,7 @@
 import type { Command, Lens, SeatId } from '@qoti/sim';
+import type { Signal } from '@preact/signals';
 import type { RenderApi } from '../render/api';
+import type { FestivalDraft } from '../ui/state';
 import type { Mirror } from '../state/mirror';
 import type { CameraController } from './camera';
 
@@ -27,6 +29,15 @@ export interface UiApi {
   openPanel?(id: string | null): void;
   /** Draws one plan's blueprint (null clears it). */
   focusPlan?(id: number | null): void;
+  // I3 (C5F)
+  /** The drafts the map tools fill for a book: the festival site and the Watch's guard points. */
+  drafts?(): SeasonDrafts;
+}
+
+/** I3 (C5F): the festival planner's and the Watch's working copies, shared by books and tools. */
+export interface SeasonDrafts {
+  festival: Signal<FestivalDraft | null>;
+  posture: Signal<[number, number][] | null>;
 }
 
 /** Everything a tool may touch. Tools never reach into the session directly. */
