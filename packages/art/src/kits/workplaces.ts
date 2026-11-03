@@ -625,55 +625,60 @@ function vegetablePlot(opts: KitBuildOptions | undefined): Built {
   const rows = [0.42, 0.88, 1.34];
   rows.forEach((z, r) => {
     s.rbox(0.22, 0, z - 0.14, w - 0.22, 0.06, z + 0.14, vary(bed, rnd, 0.4), 0.04);
-    const n = 5;
-    for (let i = 0; i < n; i++) {
-      const x = 0.36 + ((w - 0.72) * i) / (n - 1);
-      const k = (0.85 + rnd() * 0.3) * lush;
-      if (growth === 0) {
-        if ((i + r) % 2 === 0) s.blob(x, 0.07, z, 0.018, 0.02, 0.018, palette.birchLeaf, 0);
-        continue;
-      }
-      const g = growth / 3;
-      if (r === 0) {
-        s.blob(
-          x,
-          0.07,
-          z,
-          0.06 * g * k + 0.02,
-          0.04 * g * k + 0.015,
-          0.06 * g * k + 0.02,
-          vary(0x7fae4e, rnd, 0.8),
-          growth >= 2 ? 1 : 0,
-        );
-        if (growth === 3) s.blob(x, 0.1, z, 0.04 * k, 0.035, 0.04 * k, 0xa9d07a, 0);
-      } else if (r === 1) {
-        for (const dz of [-0.05, 0.05])
-          s.cylinder(
-            x + dz * 0.4,
-            z + dz,
-            0.03 * g + 0.01,
-            0,
-            0.06,
-            0.08 + 0.1 * g * k,
-            vary(0x5f9a3e, rnd, 0.8),
-            4,
+    // V1B: far off, a row of crops is one green block on its bed (sprouts drop out).
+    const crops = (b: ShapeBuilder): void => {
+      const n = 5;
+      for (let i = 0; i < n; i++) {
+        const x = 0.36 + ((w - 0.72) * i) / (n - 1);
+        const k = (0.85 + rnd() * 0.3) * lush;
+        if (growth === 0) {
+          if ((i + r) % 2 === 0) b.blob(x, 0.07, z, 0.018, 0.02, 0.018, palette.birchLeaf, 0);
+          continue;
+        }
+        const g = growth / 3;
+        if (r === 0) {
+          b.blob(
+            x,
+            0.07,
+            z,
+            0.06 * g * k + 0.02,
+            0.04 * g * k + 0.015,
+            0.06 * g * k + 0.02,
+            vary(0x7fae4e, rnd, 0.8),
+            growth >= 2 ? 1 : 0,
           );
-        if (growth === 3) s.cylinder(x, z, 0.022, 0.03, 0.04, 0.07, 0xe2803a, 6);
-      } else {
-        s.blob(x, 0.07, z, 0.07 * g, 0.02 + 0.02 * g, 0.07 * g, vary(0x6f9a46, rnd, 0.8), 0);
-        if (growth >= 2 && i % 2 === 0)
-          s.blob(
-            x + 0.04,
-            0.08,
-            z + 0.03,
-            0.05 * g * k,
-            0.04 * g * k,
-            0.05 * g * k,
-            growth === 3 ? 0xe08a2e : 0x9fb050,
-            1,
-          );
+          if (growth === 3) b.blob(x, 0.1, z, 0.04 * k, 0.035, 0.04 * k, 0xa9d07a, 0);
+        } else if (r === 1) {
+          for (const dz of [-0.05, 0.05])
+            b.cylinder(
+              x + dz * 0.4,
+              z + dz,
+              0.03 * g + 0.01,
+              0,
+              0.06,
+              0.08 + 0.1 * g * k,
+              vary(0x5f9a3e, rnd, 0.8),
+              4,
+            );
+          if (growth === 3) b.cylinder(x, z, 0.022, 0.03, 0.04, 0.07, 0xe2803a, 6);
+        } else {
+          b.blob(x, 0.07, z, 0.07 * g, 0.02 + 0.02 * g, 0.07 * g, vary(0x6f9a46, rnd, 0.8), 0);
+          if (growth >= 2 && i % 2 === 0)
+            b.blob(
+              x + 0.04,
+              0.08,
+              z + 0.03,
+              0.05 * g * k,
+              0.04 * g * k,
+              0.05 * g * k,
+              growth === 3 ? 0xe08a2e : 0x9fb050,
+              1,
+            );
+        }
       }
-    }
+    };
+    if (growth === 0) s.nearOnly(() => crops(s));
+    else s.proxy(crops);
   });
   scarecrow(s, w - 0.3, 0.3, c.accent ?? vary(palette.navy, rnd, 0.5));
   wateringCan(s, gate - 0.32, 0, d - 0.25);
