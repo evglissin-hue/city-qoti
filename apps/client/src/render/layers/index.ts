@@ -2,6 +2,7 @@
 // materials and renderOrder, not from this list.
 import { agentsLayer } from './agents';
 import { animalsLayer } from './animals';
+import { blobsLayer } from './blobs';
 import { buildingsLayer } from './buildings';
 import { cartsLayer } from './carts';
 import { decorLayer } from './decor';
@@ -25,6 +26,7 @@ import { waterLayer } from './water';
 export const layerFactories: readonly LayerFactory[] = [
   agentsLayer,
   animalsLayer,
+  blobsLayer,
   buildingsLayer,
   cartsLayer,
   decorLayer,

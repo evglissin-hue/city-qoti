@@ -142,7 +142,7 @@ Raised by the owner and Kat after playtest round three; for later increments, no
 
 Raised in playtest round five, not yet done (round five did the rest; see the changelog):
 
-- **Soil you can see**: ground of different fertility looks alike until a plot or farm is chosen (the soil tint) or the pointer rests on it (the hover label). Shade rich and thin soil a little in the ground itself.
+- **Soil you can see**: ground of different fertility looks alike until a plot or farm is chosen (the soil tint) or the pointer rests on it (the hover label). Shade rich and thin soil a little in the ground itself. *V1C*: rich ground is a deeper green with clover, thin a paler straw with a little bare earth showing.
 - **Residents easier to spot** from the usual camera height.
 - **A first-days tutorial**: what to build first and why (C5H's guide is the place for it).
 - **The town hall's door walk** did not seem to meet the road; check the door walk against the road on every rotation.

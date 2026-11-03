@@ -102,6 +102,22 @@ describe('ShapeBuilder surfaces (V1.0)', () => {
     }
   });
 
+  it('V1C: trees write leaf on their crowns and timber on their trunks, at both levels', () => {
+    for (const id of ['oak', 'birch', 'pine']) {
+      for (const lod of ['high', 'low'] as const) {
+        const ids = new Set(
+          Array.from(
+            kits
+              .find((k) => k.id === id)!
+              .build({ lod })
+              .getAttribute('surface').array,
+          ),
+        );
+        expect([...ids].sort(), `${id} ${lod}`).toEqual([SURFACE.timber, SURFACE.leaf].sort());
+      }
+    }
+  });
+
   it('survive merging, and rigged pieces are plain', () => {
     const brick = new ShapeBuilder().surface(SURFACE.brick).box(0, 0, 0, 1, 1, 1, 0xffffff).build();
     const parts = [cartBodyGeometry(0), brick, standingAnimal('pony', 0), cartWheelGeometry()];

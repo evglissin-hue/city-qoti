@@ -10,7 +10,8 @@ import {
 import { ChunkedMeshes } from '../chunks';
 import { hash2 } from '../coords';
 import { createWorldEnv, FIRST_FRAME_RADIUS, nearOf, type WorldEnv } from '../env';
-import { createGroundMaterial, GroundTextures } from '../ground';
+import { createGroundMaterial, GroundTextures, MOWN } from '../ground';
+import { GroundAo, groundAoFor } from '../groundAo';
 import { SURFACE_GRID, SurfaceTiles, tileSurfaceY } from '../surface';
 import type { LayerContext, RenderLayer } from './types';
 
@@ -384,10 +385,20 @@ function skirt(b: TerrainBuilder, tiles: SurfaceTiles, tx: number, tz: number, d
   face(b, rowA, rowB, ex, ez, alongZ, [dx, 0, dz], false);
 }
 
-/** The terrain layer also owns the ground textures and material shared with the ground shader. */
-export function terrainLayer(): RenderLayer {
+/** Stats from the terrain layer, for the overlay and tests (V1C). */
+export interface TerrainLayer extends RenderLayer {
+  /** The ground AO texture (null before init). */
+  readonly ao: GroundAo | null;
+}
+
+/**
+ * The terrain layer also owns the ground textures, the ground AO texture (V1C, groundAo.ts) and the
+ * material shared with the ground shader.
+ */
+export function terrainLayer(): TerrainLayer {
   let chunks: ChunkedMeshes | null = null;
   let ground: GroundTextures | null = null;
+  let ao: GroundAo | null = null;
   let material: MeshStandardMaterial | null = null;
   let tiles: SurfaceTiles | null = null;
   let env: WorldEnv | undefined;
@@ -395,10 +406,16 @@ export function terrainLayer(): RenderLayer {
 
   return {
     id: 'terrain',
+    get ao() {
+      return ao;
+    },
     init(ctx: LayerContext) {
       tiles = new SurfaceTiles(ctx.mirror);
       ground = new GroundTextures(ctx.mirror);
-      material = createGroundMaterial(ground, ctx.env ?? createWorldEnv(new PerspectiveCamera()));
+      const worldEnv = ctx.env ?? createWorldEnv(new PerspectiveCamera());
+      ao = new GroundAo(ctx.mirror);
+      groundAoFor(worldEnv).value = ao.texture;
+      material = createGroundMaterial(ground, worldEnv);
       const t = tiles;
       // The ground receives shadows but casts none: rolling hills would only shadow themselves,
       // and it keeps a whole pass of draw calls off the frame.
@@ -413,7 +430,18 @@ export function terrainLayer(): RenderLayer {
       if (change.full) {
         chunks.markAll();
         ground.refresh([0, 0, MAP_SIZE - 1, MAP_SIZE - 1]);
+        ao?.syncDecor();
+        ao?.markAll();
         return;
+      }
+      // V1C: the ground AO follows footprints, crowns and decor; the lawns follow buildings.
+      if (ao) {
+        for (const layer of ['occupant', 'tree'] as const)
+          for (const rect of change.rects.get(layer) ?? []) ao.markRect(rect);
+      }
+      if (change.decor) {
+        ao?.syncDecor();
+        ground.syncDecor();
       }
       // A height change can move a whole building's pad (its door's level), and the ground eases
       // to a pad within a tile, so heights reach as far as the largest footprint and one more.
@@ -432,17 +460,22 @@ export function terrainLayer(): RenderLayer {
       ];
       for (const layer of painted) {
         // Field rows look along the whole field, so field edits refresh a wider margin.
-        const pad = layer === 'terrain' ? 12 : 2;
+        const pad = layer === 'terrain' ? 12 : layer === 'occupant' ? MOWN + 1 : 2;
         for (const rect of change.rects.get(layer) ?? []) ground.refresh(rect, pad);
       }
     },
     frame() {
+      // The AO rebuild is a static change: returning true drops the still-frame cache and, with the
+      // camera at rest, re-renders the cached sun shadows (V1D).
+      const aoChanged = ao ? ao.update() : false;
       // A backlog (a fresh valley streaming in) gets bigger batches, about 7 ms a frame.
-      return chunks ? chunks.rebuild(chunks.pending > 12 ? 6 : 3, nearOf(env, start)) : false;
+      const rebuilt = chunks ? chunks.rebuild(chunks.pending > 12 ? 6 : 3, nearOf(env, start)) : false;
+      return rebuilt || aoChanged;
     },
     dispose() {
       chunks?.dispose();
       ground?.dispose();
+      ao?.dispose();
       material?.dispose();
     },
   };

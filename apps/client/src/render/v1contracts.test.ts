@@ -67,6 +67,8 @@ describe('static and moving layers (V1.0)', () => {
     expect(moving).toEqual([
       'agents',
       'animals',
+      // V1C: blob shadows under animals and carts.
+      'blobs',
       'carts',
       'effects',
       'ghosts',
