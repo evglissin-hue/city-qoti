@@ -26,7 +26,15 @@ import {
   type TextureDataType,
   type WebGLRenderer,
 } from 'three';
-import { applyGrade, bloomFor, LOOK_GLSL, lookUniforms, tiltFor, type GradeSeason, type LookUniforms } from './look';
+import {
+  applyGrade,
+  bloomFor,
+  LOOK_GLSL,
+  lookUniforms,
+  tiltFor,
+  type GradeSeason,
+  type LookUniforms,
+} from './look';
 
 export type { GradeSeason } from './look';
 
@@ -55,7 +63,11 @@ export function fullScreenTriangle(): BufferGeometry {
  */
 export const TILT_MIX = 0.85;
 
-/** Downsample: four bilinear fetches at the corners of a 4 x 4 block of the source. */
+/**
+ * Downsample: four bilinear fetches a quarter of a target texel from its center, which average
+ * the 4 x 4 block of source texels under it at full scale (and the 2 x 2 block when the source was
+ * drawn at half the ratio), so the blur keeps one size on screen at any moving scale.
+ */
 const DOWN_FRAGMENT = /* glsl */ `
   uniform sampler2D tSrc;
   uniform vec2 uTexel;
@@ -282,6 +294,7 @@ export class LeanFrame {
       this.qa = colorTarget(qw, qh, this.format);
       this.qb = colorTarget(qw, qh, this.format);
       this.blur.uniforms.uTexel!.value.set(1 / qw, 1 / qh);
+      this.down.uniforms.uTexel!.value.set(0.25 / qw, 0.25 / qh);
       // The blur is sized in quarter texels of the still target, so it stays the same size on
       // screen at any moving scale; above a ratio of 1.5 one round is too small, so it runs twice.
       this.blurPasses = l.stillRatio >= 1.5 ? 2 : 1;
@@ -366,7 +379,6 @@ export class LeanFrame {
     const f = this.final.uniforms;
     if (blurs && this.qa && this.qb) {
       this.down.uniforms.tSrc!.value = src.texture;
-      this.down.uniforms.uTexel!.value.set(1 / src.width, 1 / src.height);
       this.pass(this.down, this.qa);
       for (let i = 0; i < this.blurPasses; i++) {
         this.blur.uniforms.tSrc!.value = this.qa.texture;

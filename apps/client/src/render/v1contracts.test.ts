@@ -6,7 +6,7 @@ import { GpuTimer } from './gpuTimer';
 import { layerFactories } from './layers';
 import { layerRoot, MOVING_LAYER, STATIC_LAYER, tagTree } from './layerTags';
 import { applyGrade, bloomFor, lookUniforms, tiltFor } from './look';
-import { buildingDetailNow, detectQuality, isQuality, QUALITY_PRESETS } from './quality';
+import { buildingDetailNow, detectQuality, isQuality, pixelRatios, QUALITY_PRESETS } from './quality';
 
 const only = (o: Object3D, n: number): boolean => o.layers.mask === 1 << n;
 
@@ -118,15 +118,26 @@ describe('quality presets (V1.0)', () => {
     ]);
   });
 
-  it('keep today’s look until V1D: Ultra is High plus its distances', () => {
-    const { high, ultra } = QUALITY_PRESETS;
-    expect(ultra.maxDpr).toBe(high.maxDpr);
-    expect(ultra.shadowMap).toBe(high.shadowMap);
-    expect(ultra.ambientMotion).toBe(high.ambientMotion);
-    for (const q of ['low', 'medium', 'high'] as const) expect(buildingDetailNow(q)).toBe(75);
-    expect(buildingDetailNow('ultra')).toBe(110);
+  it('V1D: every preset uses its own building distance, and Low gets cached shadows', () => {
+    for (const q of ['low', 'medium', 'high', 'ultra'] as const)
+      expect(buildingDetailNow(q)).toBe(QUALITY_PRESETS[q].buildingDetail);
+    expect(QUALITY_PRESETS.low.shadowMap).toBe(1024);
+    // The classic engine (?engine=classic, until V1X) keeps reading the old cap.
     expect(QUALITY_PRESETS.medium.maxDpr).toBe(2);
-    expect(QUALITY_PRESETS.low.shadowMap).toBe(0);
+  });
+
+  it('V1D: moving frames draw at the preset’s cap, still ones as sharp as the screen allows', () => {
+    const { low, medium, high, ultra } = QUALITY_PRESETS;
+    // A Retina laptop.
+    expect(pixelRatios(low, 2)).toEqual({ moving: 0.75, still: 0.75 });
+    expect(pixelRatios(medium, 2)).toEqual({ moving: 1, still: 2 });
+    expect(pixelRatios(high, 2)).toEqual({ moving: 1.5, still: 2 });
+    expect(pixelRatios(ultra, 2)).toEqual({ moving: 2, still: 2 });
+    // A 1080p laptop: every preset but Low at its full ratio.
+    expect(pixelRatios(medium, 1)).toEqual({ moving: 1, still: 1 });
+    expect(pixelRatios(ultra, 1)).toEqual({ moving: 1, still: 1 });
+    // `?debug&dpr=2` overrides the moving cap.
+    expect(pixelRatios(medium, 2, 2)).toEqual({ moving: 2, still: 2 });
   });
 
   it('never auto-detect High or Ultra, and know Ultra by name', () => {

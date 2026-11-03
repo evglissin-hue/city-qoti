@@ -41,7 +41,7 @@ One row per cycle. A cycle is one agent session working from one brief on one br
 | V1A Materials and light | V1 | parallel | `cycle-v1a-materials-light.md` | V1.0 | ready (V1.0 is done; read `v1-wave-notes.md` first) |
 | V1B Buildings detail | V1 | parallel | `cycle-v1b-buildings-detail.md` | V1.0 | ready (V1.0 is done; read `v1-wave-notes.md` first) |
 | V1C Ground, water and nature | V1 | parallel | `cycle-v1c-ground-nature.md` | V1.0 | ready (V1.0 is done; read `v1-wave-notes.md` first) |
-| V1D Lean renderer | V1 | parallel | `cycle-v1d-lean-renderer.md` | V1.0 | ready (V1.0 is done; read `v1-wave-notes.md` first) |
+| V1D Lean renderer | V1 | parallel | `cycle-v1d-lean-renderer.md` | V1.0 | done, pushed to `main` at the owner's request (no PR): the lean frame graph, the still-frame cache, cached shadows, levels for buildings and decor, moving-only dynamic resolution, every preset field; laptop timings remain (see As built in the brief) |
 | V1X V1 integration | V1 | integration | `cycle-v1x-integration.md` | V1A to V1D | waiting |
 
 Status values: waiting (dependencies not merged), ready, in progress (add the session link), PR open (add the PR link), merged.

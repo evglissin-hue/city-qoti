@@ -40,21 +40,26 @@ export class ChunkedMeshes {
       for (let cx = x0; cx <= x1; cx++) this.dirty.add(cz * CHUNKS_PER_SIDE + cx);
   }
 
-  /** Rebuilds up to `max` dirty chunks. Returns true when anything changed. */
+  /**
+   * Rebuilds up to `max` dirty chunks. Returns true when anything on screen changed (V1D: a chunk
+   * that was empty and stays empty is no change, so it does not drop the still-frame cache).
+   */
   rebuild(max = Infinity, near?: Near, radius = Infinity): boolean {
     let n = 0;
+    let changed = false;
     // C3D-1: nearest the view first, so a fresh valley fills in from where the player looks.
     const order = near ? nearestChunks(this.dirty, near, radius) : [...this.dirty];
     for (const i of order) {
       if (n >= max) break;
       this.dirty.delete(i);
-      this.rebuildChunk(i);
+      if (this.rebuildChunk(i)) changed = true;
       n++;
     }
-    return n > 0;
+    return changed;
   }
 
-  private rebuildChunk(i: number): void {
+  /** Rebuilds one chunk; false when it was empty and still is. */
+  private rebuildChunk(i: number): boolean {
     const old = this.meshes[i];
     if (old) {
       this.scene.remove(old);
@@ -64,7 +69,7 @@ export class ChunkedMeshes {
     const geometry = this.build(i % CHUNKS_PER_SIDE, Math.floor(i / CHUNKS_PER_SIDE));
     if (!geometry || geometry.getAttribute('position').count === 0) {
       geometry?.dispose();
-      return;
+      return old !== null;
     }
     const mesh = new Mesh(geometry, this.material);
     mesh.matrixAutoUpdate = false;
@@ -72,6 +77,7 @@ export class ChunkedMeshes {
     if (!this.castShadows) mesh.userData.qotiShadows = false;
     this.scene.add(mesh);
     this.meshes[i] = mesh;
+    return true;
   }
 
   dispose(): void {

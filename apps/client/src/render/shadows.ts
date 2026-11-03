@@ -34,7 +34,13 @@ const UP = new Vector3(0, 1, 0);
  * light's view plane (the light looks along `-sunDir` with the world up, as three's shadow camera
  * does). Depth along the light is left alone: an orthographic map does not care.
  */
-export function snapToTexels(center: Vector3, sunDir: Vector3, half: number, size: number, out = new Vector3()): Vector3 {
+export function snapToTexels(
+  center: Vector3,
+  sunDir: Vector3,
+  half: number,
+  size: number,
+  out = new Vector3(),
+): Vector3 {
   x.crossVectors(UP, sunDir);
   if (x.lengthSq() < 1e-8) x.set(1, 0, 0);
   x.normalize();
@@ -43,11 +49,7 @@ export function snapToTexels(center: Vector3, sunDir: Vector3, half: number, siz
   const cx = Math.round(center.dot(x) / texel) * texel;
   const cy = Math.round(center.dot(y) / texel) * texel;
   const cz = center.dot(sunDir);
-  return out
-    .copy(x)
-    .multiplyScalar(cx)
-    .addScaledVector(y, cy)
-    .addScaledVector(sunDir, cz);
+  return out.copy(x).multiplyScalar(cx).addScaledVector(y, cy).addScaledVector(sunDir, cz);
 }
 
 export interface ShadowView {

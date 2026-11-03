@@ -187,13 +187,15 @@ export function buildingVariantGeometry(b: BuildingView, lod: 'high' | 'low' = '
   return merged;
 }
 
-export function decorGeometry(defId: string): BufferGeometry {
-  const key = `decor:${defId}`;
+/** A decor kit's geometry; V1D: `lod` picks the kit's far level (lod.ts chooses which shows). */
+export function decorGeometry(defId: string, lod: 'high' | 'low' = 'high'): BufferGeometry {
+  const key = lod === 'high' ? `decor:${defId}` : `decor:${defId}:${lod}`;
   let g = cache.get(key);
   if (!g) {
     const def = content.decorById.get(defId);
     const kit = def ? kitById.get(def.art.kit) : undefined;
-    g = kit ? kit.build(def?.art.params ? { params: def.art.params } : {}) : missing();
+    const params = def?.art.params ? { params: def.art.params } : {};
+    g = kit ? kit.build(lod === 'high' ? params : { ...params, lod }) : missing();
     cache.set(key, g);
   }
   return g;

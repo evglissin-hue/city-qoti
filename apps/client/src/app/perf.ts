@@ -28,6 +28,9 @@ export interface PerfPart {
   gpuP95: number | null;
   draws: number;
   triangles: number;
+  /** V1D: drawn frames by mode, and sun shadow renders, in this part. */
+  modes: { moving: number; still: number; idle: number };
+  shadowRenders: number;
 }
 
 export interface PerfRow {
@@ -49,6 +52,12 @@ interface Sample {
   triangles: number;
 }
 
+/** V1D: counts what the renderer drew during a part (from its running counters). */
+interface Tally {
+  modes: { moving: number; still: number; idle: number };
+  shadowRenders: number;
+}
+
 const nextFrame = (): Promise<number> => new Promise((resolve) => requestAnimationFrame(resolve));
 
 function p95(values: number[]): number {
@@ -61,9 +70,10 @@ function mean(values: number[]): number {
   return values.length ? values.reduce((a, b) => a + b, 0) / values.length : 0;
 }
 
-function summarize(samples: Sample[], gpu: number[]): PerfPart {
+function summarize(samples: Sample[], gpu: number[], tally: Tally): PerfPart {
   const ms = samples.map((s) => s.ms);
   return {
+    ...tally,
     frames: samples.length,
     frameAvg: mean(ms),
     frameP95: p95(ms),
@@ -84,9 +94,12 @@ async function phase(
   const samples: Sample[] = [];
   const gpu: number[] = [];
   const timer = renderer.gpuTimer;
+  const tally: Tally = { modes: { moving: 0, still: 0, idle: 0 }, shadowRenders: 0 };
   const start = await nextFrame();
   let last = start;
   let seen = timer.total;
+  let shadows = renderer.stats.shadowRenders;
+  let drawn = renderer.stats.drawn;
   for (;;) {
     const now = await nextFrame();
     const t = (now - start) / 1000;
@@ -97,11 +110,15 @@ async function phase(
       samples.push({ ms: now - last, draws: s.drawCalls, triangles: s.triangles });
       const fresh = Math.min(timer.total - seen, timer.history.length);
       if (fresh > 0) gpu.push(...timer.history.slice(-fresh));
+      if (s.drawn !== drawn) tally.modes[s.mode]++;
+      tally.shadowRenders += s.shadowRenders - shadows;
     }
+    drawn = renderer.stats.drawn;
+    shadows = renderer.stats.shadowRenders;
     seen = timer.total;
     last = now;
   }
-  return summarize(samples, gpu);
+  return summarize(samples, gpu, tally);
 }
 
 const fmt = (v: number | null): string => (v === null ? 'n/a' : v.toFixed(1));
@@ -109,14 +126,14 @@ const pair = (a: number | null, b: number | null): string => `${fmt(a)} / ${fmt(
 
 export function perfTable(rows: PerfRow[]): string {
   const head = [
-    '| Scene | Preset | Moving frame ms (avg / p95) | Moving GPU ms (avg / p95) | Idle frame ms (avg / p95) | Idle GPU ms (avg / p95) | Draws | Triangles |',
-    '|---|---|---|---|---|---|---|---|',
+    '| Scene | Preset | Moving frame ms (avg / p95) | Moving GPU ms (avg / p95) | Idle frame ms (avg / p95) | Idle GPU ms (avg / p95) | Draws | Triangles | Rest: still / idle frames, shadow renders |',
+    '|---|---|---|---|---|---|---|---|---|',
   ];
   return [
     ...head,
     ...rows.map(
       (r) =>
-        `| ${r.scene} | ${r.quality} | ${pair(r.moving.frameAvg, r.moving.frameP95)} | ${pair(r.moving.gpuAvg, r.moving.gpuP95)} | ${pair(r.idle.frameAvg, r.idle.frameP95)} | ${pair(r.idle.gpuAvg, r.idle.gpuP95)} | ${r.moving.draws} | ${(r.moving.triangles / 1e6).toFixed(2)} M |`,
+        `| ${r.scene} | ${r.quality} | ${pair(r.moving.frameAvg, r.moving.frameP95)} | ${pair(r.moving.gpuAvg, r.moving.gpuP95)} | ${pair(r.idle.frameAvg, r.idle.frameP95)} | ${pair(r.idle.gpuAvg, r.idle.gpuP95)} | ${r.moving.draws} | ${(r.moving.triangles / 1e6).toFixed(2)} M | ${r.idle.modes.still} / ${r.idle.modes.idle}, ${r.idle.shadowRenders} |`,
     ),
   ].join('\n');
 }

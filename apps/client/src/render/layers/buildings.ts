@@ -11,6 +11,7 @@ import {
   setSoilReader,
   standLevel,
 } from '../kitGeometry';
+import { levelFor, SwapQueue, type Level } from '../lod';
 import type { LayerContext, RenderLayer } from './types';
 
 /** Beyond this many tiles from the camera, buildings swap to their low detail version (V1.0: the preset's). */
@@ -26,7 +27,9 @@ const LOD_DISTANCE = 75;
 export function buildingsLayer(): RenderLayer {
   let batch: KeyedBatch | null = null;
   let ctx: LayerContext | null = null;
-  const lods = new Map<number, 'high' | 'low'>();
+  const lods = new Map<number, Level>();
+  // V1D: swaps wait in a queue, nearest first, a few a frame (lod.ts).
+  const swaps = new SwapQueue();
   const centers = new Map<number, Vector3>();
   const camPos = new Vector3();
   const lastCam = new Vector3(Infinity, 0, 0);
@@ -36,7 +39,15 @@ export function buildingsLayer(): RenderLayer {
   function place(b: BuildingView): void {
     if (!ctx || !batch) return;
     buildingMatrix(b.def, b.x, b.z, b.rot, standLevel(ctx.mirror, b.def, b.x, b.z, b.rot), m);
-    const lod = lods.get(b.id) ?? 'high';
+    let lod = lods.get(b.id);
+    if (!lod) {
+      // V1D: a new building starts at the level its distance asks for, so far ones never build
+      // their full detail just to swap it away.
+      const c = centers.get(b.id);
+      camPos.setFromMatrixPosition(ctx.camera.matrixWorld);
+      lod = c ? levelFor(undefined, c.distanceTo(camPos), ctx.env?.buildingDetail ?? LOD_DISTANCE) : 'high';
+      lods.set(b.id, lod);
+    }
     batch.set(b.id, buildingKey(b, lod), () => buildingVariantGeometry(b, lod), m);
   }
 
@@ -54,31 +65,46 @@ export function buildingsLayer(): RenderLayer {
       if (seen.has(id)) continue;
       batch.remove(id);
       lods.delete(id);
+      swaps.delete(id);
       centers.delete(id);
     }
     lastCam.set(Infinity, 0, 0);
     ctx.invalidate();
   }
 
-  /** Swaps buildings between full and low detail by distance, a couple of times a second. */
+  /**
+   * Swaps buildings between full and low detail by distance (V1D: with hysteresis, and a few swaps a
+   * frame, nearest first; lod.ts), re-judging a couple of times a second or when the camera moves.
+   */
   function updateLods(dt: number): boolean {
     if (!ctx) return false;
     lodTimer -= dt;
     camPos.setFromMatrixPosition(ctx.camera.matrixWorld);
-    if (lodTimer > 0 && camPos.distanceToSquared(lastCam) < 4) return false;
-    lodTimer = 0.4;
-    lastCam.copy(camPos);
-    let changed = false;
-    for (const b of ctx.mirror.buildings.values()) {
-      const c = centers.get(b.id);
-      if (!c) continue;
-      const want = c.distanceTo(camPos) > (ctx.env?.buildingDetail ?? LOD_DISTANCE) ? 'low' : 'high';
-      if ((lods.get(b.id) ?? 'high') === want) continue;
-      lods.set(b.id, want);
-      place(b);
-      changed = true;
+    // The first look (after a load or a big change) swaps everything at once.
+    const first = !Number.isFinite(lastCam.x);
+    if (lodTimer <= 0 || camPos.distanceToSquared(lastCam) >= 4) {
+      lodTimer = 0.4;
+      lastCam.copy(camPos);
+      const detail = ctx.env?.buildingDetail ?? LOD_DISTANCE;
+      for (const b of ctx.mirror.buildings.values()) {
+        const c = centers.get(b.id);
+        if (!c) continue;
+        const d = c.distanceTo(camPos);
+        const now = lods.get(b.id) ?? 'high';
+        const want = levelFor(now, d, detail);
+        if (want === now) swaps.delete(b.id);
+        else swaps.set(b.id, want, d);
+      }
     }
-    return changed;
+    const buildings = ctx.mirror.buildings;
+    return (
+      swaps.drain((id, level) => {
+        const b = buildings.get(id);
+        if (!b) return;
+        lods.set(id, level);
+        place(b);
+      }, first) > 0
+    );
   }
 
   return {

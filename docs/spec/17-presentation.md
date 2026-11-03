@@ -101,7 +101,8 @@ From V1 (the lean renderer, `20-architecture.md`):
 
 | | Low | Medium (target) | High | Ultra [V1] |
 |---|---|---|---|---|
-| Render scale | 0.75 of a pixel ratio of 1 | pixel ratio up to 1 | pixel ratio up to 1.5 | pixel ratio up to 2 |
+| Render scale, moving | 0.75 of a pixel ratio of 1 | pixel ratio up to 1 | pixel ratio up to 1.5 | pixel ratio up to 2 |
+| Render scale, at rest [V1D] | as moving | pixel ratio up to 2 | pixel ratio up to 2 | the device's, up to 3 |
 | Antialiasing | none | MSAA 4 on the scene pass | MSAA 4 | MSAA 4 |
 | Sun shadows (cached) | 1024 | 2048 | 4096 | 4096, softest filtering |
 | Ambient occlusion | baked | baked | baked | baked, plus screen-space on still frames |
@@ -112,11 +113,11 @@ From V1 (the lean renderer, `20-architecture.md`):
 | Decor detail distance | 40 | 80 | 140 | 200 |
 | Ambient critters | none | some | all | all |
 
-Ultra is for the stronger laptop or a desktop; it is never auto-detected. Budgets per preset: `22-quality.md`. Before V1 the game runs Low without post or shadows, and Medium and High at a device pixel ratio up to 2 with bloom, two tilt-shift passes and the grade (`render/quality.ts`). From V1.0 the settings menu offers Ultra ("Spare no candles") and `?quality=ultra` picks it; until V1D lands it behaves as High with Ultra's detail distances (buildings 110, residents 140, decor 200), and the other presets keep their pre-V1 behavior, buildings swapping to low detail beyond 75 tiles.
+Ultra is for the stronger laptop or a desktop; it is never auto-detected. Budgets per preset: `22-quality.md`. The settings menu offers Ultra ("Spare no candles") and `?quality=ultra` picks it. From V1D every preset runs the lean renderer (`20-architecture.md`, Lean renderer): Low too gets the one final pass (tilt-shift, grade, tone mapping, no bloom) and cached 1024 shadows, every preset reads its own building distance, and decor reads the decor distance (small props shrink away beyond it; lit pieces like lanterns and larger ones switch to their far level). `?engine=classic` keeps the chain from before V1D on the same build until V1X, for comparing the two.
 
-Medium caps the pixel ratio at 1 for moving frames. Playtest round three found 1.5 soft on a Retina screen (Medium was raised to 2 then), so V1D checks cap 1 against cap 2 with dynamic resolution on the Retina laptop, may let the still-frame cache draw at the device pixel ratio on Medium and High if the idle budget allows, and records what it kept here.
+**Medium on a Retina screen (V1D's choice)**: moving frames draw at a pixel ratio of 1 (dynamic resolution below that when they lag), and once the camera rests the still-frame cache draws at the device's ratio, up to 2 (`QualityPreset.stillScale`); High does the same from 1.5. Playtest round three found 1.5 soft on a Retina screen and Medium was raised to 2 for every frame; with the still-frame cache the sharp picture costs one full frame per rest instead of every frame, so the view is crisp whenever you stop to look and quick while you pan, and the camera at rest sharpens a moment (200 ms) after it stops. Not yet measured on the Retina laptop (the build container has no GPU): `?debug&dpr=2` draws moving frames at 2 for comparing caps on the same screen, and the `?debug` overlay shows GPU ms, the frame mode and the ratio. If cap 1 looks soft while panning, Medium's `renderScale` goes to 2 with dynamic resolution doing the rest.
 
-Auto-detect picks a preset (Low on phones and two-core machines, otherwise Medium; High is a choice in settings, because core counts say little about the GPU behind a Retina screen); the settings menu can override it. On every preset, dynamic resolution steps the render scale down (to 0.85, 0.72, 0.6 and 0.5 of the preset's, never below a pixel ratio of 0.6) when frames average slower than about 45 fps, and back up after a few seconds above about 66 fps (`apps/client/src/render/resolution.ts`; `?debug&fixedres` turns it off for screenshots). [V1] It judges moving frames only and waits longer before retrying a step-up that failed.
+Auto-detect picks a preset (Low on phones and two-core machines, otherwise Medium; High is a choice in settings, because core counts say little about the GPU behind a Retina screen); the settings menu can override it. On every preset, dynamic resolution steps the render scale down (to 0.85, 0.72, 0.6 and 0.5 of the preset's, never below a pixel ratio of 0.6) when frames average slower than about 45 fps, and back up after a few seconds above about 66 fps (`apps/client/src/render/resolution.ts`; `?debug&fixedres` turns it off for screenshots). [V1D] It judges moving frames only (30-frame windows), steps back up after 2.5 s of moving time with headroom, and when frames turn slow within 3 s of a step-up, that step-up failed and the next one waits twice as long (up to 40 s); a quality change starts over. Still and idle frames always draw at the preset's own ratio.
 
 ## UI
 

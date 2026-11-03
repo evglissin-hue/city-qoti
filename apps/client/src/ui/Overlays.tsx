@@ -140,7 +140,10 @@ export function Toasts({ session }: { session: Session }) {
   );
 }
 
-/** ?debug overlay: frame stats (V1.0: GPU ms, frame mode and preset), turn, hash and entity counts. */
+/**
+ * ?debug overlay: frame stats (V1.0: GPU ms, frame mode and preset; V1D: the engine, and how many
+ * times the sun's shadows and the still frame have been drawn), turn, hash and entity counts.
+ */
 export function DebugOverlay({ session }: { session: Session }) {
   const [, setTick] = useState(0);
   useEffect(() => {
@@ -153,7 +156,8 @@ export function DebugOverlay({ session }: { session: Session }) {
   return (
     <pre class="debug-overlay">
       {`fps ${s?.fps ?? 0}  frame ${(s?.frameMs ?? 0).toFixed(1)} ms  res ${(s?.pixelRatio ?? 1).toFixed(2)}x
-gpu ${typeof s?.gpuMs === 'number' ? `${s.gpuMs.toFixed(1)} ms` : 'n/a'}  ${s?.mode ?? 'moving'}  ${session.renderer?.qualityLevel ?? '-'}
+gpu ${typeof s?.gpuMs === 'number' ? `${s.gpuMs.toFixed(1)} ms` : 'n/a'}  ${s?.mode ?? 'moving'}  ${session.renderer?.qualityLevel ?? '-'}  ${s?.engine ?? 'lean'}
+shadows ${s?.shadowRenders ?? 0}  stills ${s?.stillRenders ?? 0}
 draws ${s?.drawCalls ?? 0}  tris ${s?.triangles ?? 0}
 turn ${m.lastTurn.value}  tick ${m.tick.value}
 hash ${h ? `${h.t} ${h.h}` : '-'}

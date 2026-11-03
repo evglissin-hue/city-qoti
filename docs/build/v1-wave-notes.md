@@ -35,9 +35,13 @@ From `docs/spec/31-parallel-development.md`, with the files V1.0 added:
 
 **Blob shadows.** V1C draws them in a new moving layer, `render/layers/blobs.ts` (one registry line, `motion: 'moving'`), instanced from the agents and carts frames the agents and carts layers read, faded at the resident detail distance. V1D stops moving layers casting into the cached shadow map (an object on `MOVING_LAYER` gets `castShadow = false`) only once V1C's blobs are in; until both land, residents and carts cast as today. V1X checks the pair.
 
+*V1D as built*: the casting had to stop with V1D itself. A moving caster's shadow falls on static ground, and the still-frame cache keeps the ground as it was drawn, so a walking cart would leave its shadow behind on every idle frame (and the cached shadow map would need a render every frame anyway). Residents were never affected: they have drawn their own blob shadows since C3D and never cast. Animals, carts and the windmill's sails have no sun shadow until V1C's blob layer lands; V1C can copy the agents layer's blob (`shadowTexture()`, `pushShadow`).
+
 **The final pass.** V1D owns the frame graph and the passes (`post.ts`) and the frame loop (`renderer.ts`); V1A owns what the final image looks like (`look.ts`). V1D's one final pass includes `LOOK_GLSL`, shares one `lookUniforms()` set, and calls the look's functions in this order: `lookTiltMask` to mix the sharp and blurred images, `lookBloomMix` with the blurred image, `lookToneMap`, `lookSrgb`, then `lookGrade` times `lookVignette` (dither after, V1A's function). A new look function is V1A's change; calling it is one line of V1D's. Until V1D lands, `PostChain` calls them from today's passes, and the bloom is still UnrealBloomPass's own composite with `bloomFor`'s strength and threshold.
 
-**Cache invalidation.** Each layer has its own context, so the renderer knows which kind of layer changed: a static layer calls `ctx.invalidate()` as today (no flag) and the renderer bumps `staticRevision`; a static layer's `frame()` returning true bumps it too. V1D's `cache.ts` keeps the revision it drew at and redraws when it differs, and also on a camera move, a sun or light change, a shadow render, and a quality or size change. A moving layer's `invalidate()` only asks for a frame. Anything that changes static content outside a layer (a ground AO texture swap, a material uniform that changes the static picture, such as the hour's window share) calls `renderer.invalidate()` plus a static bump through its layer, or V1D adds a public `invalidateStatic()` (additive).
+*V1D as built*: the mix is `smoothstep(0, 1, lookTiltMask(uv) * tiltFor(distance) * TILT_MIX)` (`TILT_MIX` 0.85 in `post.ts`, close to the classic chain's two passes; V1A may move the curve into a look function). The dither is a stand-in in `post.ts` (interleaved gradient noise, half a level either way) until `lookDither` exists. Bloom is `lookBloomMix` on the quarter resolution blur, so its glow is tighter than UnrealBloomPass's five-mip one; `bloomFor` and the threshold are V1A's to retune. Low has bloom off (`QualityPreset.bloom`).
+
+**Cache invalidation.** Each layer has its own context, so the renderer knows which kind of layer changed: a static layer calls `ctx.invalidate()` as today (no flag) and the renderer bumps `staticRevision`; a static layer's `frame()` returning true bumps it too. V1D's `cache.ts` keeps the revision it drew at and redraws when it differs, and also on a camera move, a sun or light change, a shadow render, and a quality or size change. A moving layer's `invalidate()` only asks for a frame. Anything that changes static content outside a layer (a ground AO texture swap, a material uniform that changes the static picture, such as the hour's window share) calls `renderer.invalidate()` plus a static bump through its layer, or V1D adds a public `invalidateStatic()` (additive). *V1D as built*: `renderer.invalidateStatic()` is public; the hour's light (window share included) is part of the cache's key already.
 
 **Fresnel and glint.** V1A exports them from `render/material.ts` as GLSL (sky fresnel and a sun glint for glass and water); V1C's water shader uses them. Until then the water keeps its own.
 
@@ -47,7 +51,7 @@ V1.0 looked at every static layer for anything that moves on its own. Each decis
 
 | Effect | Where | Decision |
 |---|---|---|
-| Cloud shade drifting over the ground | the ground shader (`render/ground.ts`, terrain layer) | Pause while the camera rests now (it reads `env.staticTime`); V1D moves it into the final pass from depth (world x and z from the depth buffer), with V1A deciding its look in `look.ts`, so it drifts again at rest. |
+| Cloud shade drifting over the ground | the ground shader (`render/ground.ts`, terrain layer) | Pause while the camera rests now (it reads `env.staticTime`); V1D moves it into the final pass from depth (world x and z from the depth buffer), with V1A deciding its look in `look.ts`, so it drifts again at rest. *V1D as built*: it pauses at rest; the move to the final pass needs V1C's ground shader to stop drawing it and V1A's look, so V1X does it (the still target's depth texture is there to read). |
 | Foliage, grass and flower sway | `render/scatter.ts` (trees and nature layers) | Pause while the camera rests (`env.staticTime`). The sway is a few hundredths of a tile; at rest the eye goes to the residents, and the clock carries on from where it stopped, so nothing jumps. |
 | Drifting sky clouds and twinkling stars | the sky dome (`layers/sky.ts`) | Pause while the camera rests (`env.staticTime`): the clouds drift 0.004 of the dome a second, too slow to see in a rest. If the stars are missed at night, V1A can twinkle them in the final pass. |
 | Lit windows by the hour, ground glow pools | the kit material's night glow, the lights layer | Not animation: they change every in-game quarter hour or when the view's focus moves, and the change invalidates the cache (a light change, or the lights layer's `frame()` returning true). |
@@ -65,14 +69,14 @@ How it works: `env.staticTime` is the same object as `env.time` until V1D, so to
 | Surface ids on kits | every kit writes plain (0) | V1B (buildings, props, residents), V1C (trees, nature, ground) |
 | The lean kit material | `createWorldMaterial(env)`: today's `MeshStandardMaterial` with the night glow; it ignores `surface` | V1A |
 | Fresnel and glint for glass and water | the water layer's own shader; no glint on glass | V1A |
-| High and low levels | today's `lod: 'low'` versions; only buildings swap (at `env.buildingDetail`) | V1B, V1C build; V1D swaps |
-| The frame graph | `PostChain`: RenderPass, UnrealBloomPass, two tilt-shift passes, the look's output pass (tone mapping and sRGB), the look's grade pass | V1D |
-| The V1 preset fields | stored, not read; Ultra is High with Ultra's distances | V1D |
-| `RenderStats.mode` | always `moving` | V1D |
-| `renderer.staticRevision` | counted, read by nobody | V1D's `cache.ts` |
-| `env.staticTime` | the same clock as `env.time` | V1D |
-| Cached sun shadows | re-rendered whenever the Mirror changes, as today | V1D |
-| Blob shadows | none; residents and carts cast into the shadow map | V1C draws, V1D stops the casting |
+| High and low levels | today's `lod: 'low'` versions; V1D swaps buildings (`env.buildingDetail`, hysteresis, a few a frame) and decor (`env.detailDistance`, culled per chunk); trees keep scatter.ts's own swap | V1B, V1C build; V1D swaps (done) |
+| The frame graph | V1D: one scene pass, the quarter resolution chain and one final pass calling the look's functions (`post.ts`); `PostChain` moved to `postClassic.ts` behind `?engine=classic` until V1X | V1D (done) |
+| The V1 preset fields | every field read (plus `stillScale`, the ratio at rest) | V1D (done) |
+| `RenderStats.mode` | `moving`, `still` or `idle`, with `shadowRenders` and `stillRenders` in the overlay | V1D (done) |
+| `renderer.staticRevision` | the still-frame cache's key and the shadows' content trigger | V1D (done) |
+| `env.staticTime` | its own clock, stopped while the camera rests | V1D (done) |
+| Cached sun shadows | rendered on a sun step, a frustum refit, a size change or a static change (`shadows.ts`) | V1D (done) |
+| Blob shadows | residents have their own (from C3D; they never cast); V1D stopped every moving layer casting, so animals, carts and the windmill's sails have no sun shadow until V1C's blob layer | V1C draws (V1D's half done) |
 | Ground AO texture | none | V1C |
 | Ambient critters (`critters`) | none drawn on any preset | C5E (seasons art) |
 

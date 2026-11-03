@@ -101,9 +101,14 @@ export class StillCache {
     this.lastMove = now;
   }
 
+  /** Whether the camera has rested for REST_MS (with or without a cache to draw from). */
+  rested(now: number): boolean {
+    return now - this.lastMove >= REST_MS;
+  }
+
   /** Whether the camera has rested long enough for frames to come from the cache. */
   resting(now: number): boolean {
-    return this.enabled && now - this.lastMove >= REST_MS;
+    return this.enabled && this.rested(now);
   }
 
   /** Whether the kept picture is still true for `key` (see the renderer's `stillKey`). */
@@ -152,7 +157,13 @@ export class StillCache {
         void import('three/examples/jsm/postprocessing/GTAOPass.js').then(({ GTAOPass }) => {
           const pass = new GTAOPass(this.scene, this.camera, w, h);
           // The concept viewer's values: a soft, short-range occlusion that pools in corners.
-          pass.updateGtaoMaterial({ radius: 0.55, distanceExponent: 1.4, thickness: 1, scale: 1.25, samples: 16 });
+          pass.updateGtaoMaterial({
+            radius: 0.55,
+            distanceExponent: 1.4,
+            thickness: 1,
+            scale: 1.25,
+            samples: 16,
+          });
           pass.updatePdMaterial({ lumaPhi: 10, depthPhi: 2, normalPhi: 3, radius: 6, rings: 2, samples: 16 });
           pass.blendIntensity = 0.8;
           this.aoPass = pass;

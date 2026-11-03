@@ -71,6 +71,8 @@ export interface RenderStats {
   stillRenders: number;
   /** V1D: the engine drawing: `lean`, or `classic` (`?engine=classic`, until V1X). */
   engine: Engine;
+  /** V1D: frames drawn so far (perf runs count modes per drawn frame). */
+  drawn: number;
 }
 
 /** V1D: the lean renderer, or the classic chain kept behind `?engine=classic` until V1X. */
@@ -124,6 +126,7 @@ export class Renderer implements RenderApi {
     shadowRenders: 0,
     stillRenders: 0,
     engine: this.engine,
+    drawn: 0,
   };
   /** V1.0: GPU time per drawn frame, where the browser offers a timer (`?debug` overlay, perf). */
   readonly gpuTimer: GpuTimer;
@@ -502,6 +505,7 @@ export class Renderer implements RenderApi {
       this.stats.drawCalls = this.three.info.render.calls;
       this.stats.triangles = this.three.info.render.triangles;
       this.stats.mode = 'moving';
+      this.stats.drawn++;
       this.frames++;
     } else this.gpuTimer.poll();
     if (this.resolution.frame(now, drew, this.basePixelRatio)) this.applyPixelRatio();
@@ -535,7 +539,7 @@ export class Renderer implements RenderApi {
     }
     const start = performance.now();
     this.fitView();
-    this.planShadows(now, resting);
+    this.planShadows(now, this.still.rested(now));
     this.three.info.autoReset = false;
     this.three.info.reset();
     this.gpuTimer.begin();
@@ -568,15 +572,16 @@ export class Renderer implements RenderApi {
     this.stats.pixelRatio = lean.ratio(mode === 'moving' ? 'moving' : 'still');
     this.stats.shadowRenders = this.shadowCache.renders;
     this.stats.stillRenders = this.still.renders;
+    this.stats.drawn++;
     this.frames++;
     if (this.resolution.frame(now, true, this.basePixelRatio, mode === 'moving')) this.applyLayout();
   }
 
   /**
    * V1D: decides whether the sun's shadow map renders this frame (shadows.ts) and, if so, places the
-   * light and asks three for one render. At rest any static change counts; while the camera moves,
-   * only a content change that has settled (layers refill as the view moves, which the frustum
-   * re-fit and the rest catch up with).
+   * light and asks three for one render. With the camera at rest (on any preset) any static change
+   * counts; while it moves, only a content change that has settled (layers refill as the view
+   * moves, which the frustum re-fit and the next rest catch up with).
    */
   private planShadows(now: number, resting: boolean): void {
     if (!this.three.shadowMap.enabled) return;

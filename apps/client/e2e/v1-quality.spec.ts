@@ -7,14 +7,19 @@ const qualityOf = (page: Page): Promise<string> =>
   );
 
 // V1.0 acceptance: Ultra from the URL and from the settings menu, and GPU time (or n/a) with the
-// frame mode and the preset in the ?debug overlay.
+// frame mode and the preset in the ?debug overlay. V1D: with the camera at rest the lean renderer
+// draws from the still-frame cache (still, then idle) and counts shadow and still renders; Low has
+// no cache, so every frame there is a moving one.
 test('Ultra from ?quality and the settings menu, and GPU ms in the debug overlay', async ({ page }) => {
   await page.route('**/api/**', (route) => route.abort());
   await page.goto('/?debug&quality=ultra&creative');
   await page.getByTestId('new-solo').click();
   await waitLive(page);
   expect(await qualityOf(page)).toBe('ultra');
-  await expect(page.locator('.debug-overlay')).toContainText(/gpu (\d+\.\d ms|n\/a)\s+moving\s+ultra\s/);
+  const overlay = page.locator('.debug-overlay');
+  await expect(overlay).toContainText(/gpu (\d+\.\d ms|n\/a)\s+(moving|still|idle)\s+ultra\s+lean/);
+  await expect(overlay).toContainText(/(still|idle)\s+ultra\s+lean/, { timeout: 60_000 });
+  await expect(overlay).toContainText(/shadows [1-9]\d*\s+stills [1-9]\d*/);
 
   await page.getByTestId('settings-open').click();
   await expect(page.getByTestId('quality-ultra')).toHaveClass(/active/);
