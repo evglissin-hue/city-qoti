@@ -5,7 +5,7 @@
 // 58 tiers, 62 market, 64 trade, 66 loans, 92 innovations, 94 charter, 96 stories, 97 plans,
 // 98 requests. C4A adds 63 wages (17:00), 65 caravans (08:00) and 67 baskets (18:00). I3 slots
 // (C5.0): 12 seasons, 14 weather, 59 warmth, 68 dock, 75 festivals, 76 habitats, 78 wildlife,
-// 80 threats, 82 watch, 84 raids, 86 defenses, 91 renown, 93 commissions, 95 trials, 99 guide.
+// 80 threats, 82 watch, 84 raids, 86 defenses, 91 renown, 93 commissions, 95 trials, 99 guide. C5B adds 77 festivalEvening (hourly).
 import type { System } from '../contracts';
 import { achievements } from './achievements';
 import { charter } from './charter';
@@ -16,7 +16,7 @@ import { construction } from './construction';
 import { defenses } from './defenses';
 import { dock } from './dock';
 import { economy } from './economy';
-import { festivals } from './festivals';
+import { festivalEvening, festivals } from './festivals';
 import { growth } from './growth';
 import { guide } from './guide';
 import { habitats } from './habitats';
@@ -66,6 +66,7 @@ export const systems: readonly System[] = [
   defenses,
   dock,
   economy,
+  festivalEvening,
   festivals,
   growth,
   guide,

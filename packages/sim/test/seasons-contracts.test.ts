@@ -24,7 +24,7 @@ import { scheduleOverride, withScheduleOverrides } from '../src/systems/resident
 import { think } from '../src/systems/residents/schedule';
 import { isCold, isFrozen, seasonNow, warmthReport } from '../src/systems/seasons/api';
 import { isRaidActive, lanternLit, watchStrength, wealth } from '../src/systems/threats/api';
-import { advanceTo, createTickCtx } from '../src/turn';
+import { createTickCtx, runTick } from '../src/turn';
 import { buildView } from '../src/view';
 import { seasonReportView } from '../src/view/season';
 import {
@@ -43,6 +43,12 @@ import { raidAtDusk, threatFixture } from './fixtures/threat';
 import { winterFixture } from './fixtures/winter';
 import { villageFixture } from './fixtures/village';
 import { flatWorld, rejection, run, S } from './helpers';
+
+/** Runs `n` ticks (advanceTo counts turns, not ticks). */
+function runTicks(state: WorldState, n: number): void {
+  const ctx = createTickCtx(state);
+  for (let i = 0; i < n; i++) runTick(state, ctx);
+}
 
 const standard = () => ({ ...defaultSettings(), mode: 'standard' as const });
 
@@ -69,11 +75,11 @@ describe('I3 fixtures', () => {
       expect(seasonCardView(s)).toMatchObject({ season: 3, year: 1, festival: { id: 'hearth-feast' } });
       // C5A: the trial's line first, then the winter stores.
       expect(seasonCardView(s).steps[0]).toBe(content.charterById.get('village')!.trial!.blurb);
-      expect(renownView(s)).toMatchObject({ level: 1, next: 30 });
+      expect(renownView(s)).toMatchObject({ level: 1, next: content.renown[2]!.points });
       expect(festivalMorale(s)).toBe(5);
       // Smoke: it builds every view and keeps going for a few hours.
       expect(buildView(s).buildings.length).toBeGreaterThan(25);
-      advanceTo(s, s.tick + 3 * TICKS_PER_HOUR, createTickCtx(s));
+      runTicks(s, 3 * TICKS_PER_HOUR);
     },
   );
 
@@ -86,12 +92,12 @@ describe('I3 fixtures', () => {
     expect(lanternLit(f.state, 51 * S + 36)).toBe(true);
     expect(lanternLit(f.state, 20 * S + 20)).toBe(false);
     expect(wealth(f.state)).toBeGreaterThan(f.state.economy.treasury);
-    advanceTo(f.state, f.state.tick + 2 * TICKS_PER_HOUR, createTickCtx(f.state));
+    runTicks(f.state, 2 * TICKS_PER_HOUR);
 
     const d = raidAtDusk();
     expect(isRaidActive(d.state)).toBe(true);
     expect(raidView(d.state)).toMatchObject({ band: 'medium', raiders: 6, bell: true, lanterns: false });
-    advanceTo(d.state, d.state.tick + TICKS_PER_HOUR, createTickCtx(d.state));
+    runTicks(d.state, TICKS_PER_HOUR);
   });
 });
 
@@ -211,7 +217,7 @@ describe('cross-track APIs', () => {
     expect(ctx.events.some((e) => e.e === 'renown.updated')).toBe(true);
     expect(seasonNow(s).season).toBe(0);
     expect(habitatAt(s, 10, 10, 'meadow')).toBe(0);
-    expect(dockView(s)).toEqual({ boats: [], frozen: false });
+    expect(dockView(s)).toMatchObject({ boats: [], frozen: false });
   });
 
   it('names the Water Wheel story by arc id, wherever the arc sits in the list', () => {
@@ -286,11 +292,12 @@ describe('command baselines', () => {
     expect(s.renown.points).toBe(1);
   });
 
-  it('gates open and close; walls wait for C5D; modules need a slot', () => {
+  it('gates open and close; stone walls wait for Town or Barnaby; modules need a slot', () => {
     const f = threatFixture();
     expect(rejection(run(f.state, { t: 'gate.set', id: f.gate, open: false }))).toBeUndefined();
     expect(findById(f.state.buildings, f.gate)!.rt!.open).toBe(false);
-    expect(rejection(run(f.state, { t: 'wall.paint', def: 'palisade', tiles: [[20, 60]] }))).toBe('LOCKED');
+    // C5D: walls are written; a sandbox-only or stone wall before its unlock stays LOCKED.
+    expect(rejection(run(f.state, { t: 'wall.paint', def: 'stone-wall', tiles: [[20, 60]] }))).toBe('LOCKED');
     expect(rejection(run(f.state, { t: 'wall.paint', def: 'cottage', tiles: [[20, 60]] }))).toBe('INVALID');
     expect(rejection(run(f.state, { t: 'wall.remove', tiles: [[20, 60]] }))).toBe('NOT_FOUND');
     const cottage = f.village.b.cottages[0]!;
@@ -302,6 +309,11 @@ describe('command baselines', () => {
   it('ponds on open grass; market days and quiet hours; commissions; the guide per seat', () => {
     const s = villageFixture().state;
     expect(rejection(run(s, { t: 'terrain.pond', tiles: [[64, 60]] }))).toBe('OCCUPIED');
+    // C5C: ponds go in fertile low ground.
+    for (const x of [20, 21]) {
+      s.map.height[90 * S + x] = 1;
+      s.map.fertility[90 * S + x] = 60;
+    }
     expect(
       rejection(
         run(s, {
@@ -419,7 +431,7 @@ describe('save version 4', () => {
       expect(s.map.flags[10 * S + 98]! & Flags.floodplain).toBe(Flags.floodplain);
       expect(s.map.flags[10 * S + 90]! & Flags.floodplain).toBe(0);
       // It keeps playing.
-      advanceTo(s, s.tick + 2 * TICKS_PER_HOUR, createTickCtx(s));
+      runTicks(s, 2 * TICKS_PER_HOUR);
     });
   }
 });

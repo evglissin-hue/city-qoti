@@ -2,6 +2,7 @@
 // the Field Guide. Production reads pollinators and pests through the yield hook (C5C registers it).
 import { CHUNK_SIZE, CHUNKS_PER_SIDE, HABITAT_IDS } from '../../constants';
 import type { HabitatId, WorldState } from '../../contracts';
+import { pollinatorFactorOf } from '../nature/effects';
 
 /** Habitat score 0 to 255 of the chunk holding tile (x, z). */
 export function habitatAt(state: WorldState, x: number, z: number, habitat: HabitatId): number {
@@ -11,9 +12,9 @@ export function habitatAt(state: WorldState, x: number, z: number, habitat: Habi
   return state.nature.habitats[h * CHUNKS_PER_SIDE * CHUNKS_PER_SIDE + c] ?? 0;
 }
 
-/** C5C: bees on an orchard or farm, permille (1000 = no effect). */
-export function pollinatorFactor(_state: WorldState, _buildingId: number): number {
-  return 1000;
+/** C5C: bees on an orchard or farm (or an apiary's honey), permille (1000 = no effect). */
+export function pollinatorFactor(state: WorldState, buildingId: number): number {
+  return pollinatorFactorOf(state, buildingId);
 }
 
 /** Summer pests eating a farm's yield, permille lost. */

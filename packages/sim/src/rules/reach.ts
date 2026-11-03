@@ -40,11 +40,17 @@ export function townSources(buildings: Iterable<ReachBuilding>): number[] {
 }
 
 /** Reachable tiles (1) from `sources` (tile indexes), walking as residents do. */
-export function townReach(reader: MapReader, sources: readonly number[]): Uint8Array {
+export function townReach(
+  reader: MapReader,
+  sources: readonly number[],
+  /** I3 (C5D): occupied tiles walkers pass anyway (gates; a closed gate opens again). */
+  through?: ReadonlySet<number>,
+): Uint8Array {
   const S = MAP_SIZE;
   const out = new Uint8Array(S * S);
   const open = (x: number, z: number) =>
-    !reader.occupant(x, z) && (reader.road(x, z) > 0 || reader.water(x, z) === 0);
+    (!reader.occupant(x, z) || (through !== undefined && through.has(z * S + x))) &&
+    (reader.road(x, z) > 0 || reader.water(x, z) === 0);
   const queue: number[] = [];
   for (const t of sources) {
     if (t < 0 || t >= S * S || out[t]) continue;

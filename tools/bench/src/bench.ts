@@ -24,6 +24,9 @@ import { benchEconomy } from './economy';
 import { growthBench } from './growth';
 import { benchMarket } from './market';
 import { syntheticValley } from './synthetic';
+import { festivalsBench } from './festivals.bench';
+import { natureBench } from './nature.bench';
+import { raidsBench } from './raids.bench';
 import { seasonsBench } from './seasons.bench';
 import { villageBench } from './village.bench';
 
@@ -161,6 +164,18 @@ failures.push(...village.failures);
 const seasons = seasonsBench();
 lines.push(...seasons.lines);
 failures.push(...seasons.failures);
+// 11. Festivals (C5B): a festival's outcome, and a day of renown, commissions and the dock, at 150 residents.
+const festivals = festivalsBench();
+lines.push(...festivals.lines);
+failures.push(...festivals.failures);
+// 12. Nature (C5C): the habitats pass on the synthetic map, the wildlife pass at 150 residents.
+const nature = natureBench();
+lines.push(...nature.lines);
+failures.push(...nature.failures);
+// 13. Raids (C5D): a Large raid at 150 residents, and the daily threat pass.
+const raidsResult = raidsBench();
+lines.push(...raidsResult.lines);
+failures.push(...raidsResult.failures);
 
 const heapMb = process.memoryUsage().heapUsed / 1024 / 1024;
 lines.push(`memory          ${heapMb.toFixed(0)} MB heap in use`);
@@ -190,6 +205,9 @@ const report = {
   market: market.report,
   village: village.report,
   seasons: seasons.report,
+  festivals: festivals.report,
+  nature: nature.report,
+  raids: raidsResult.report,
   heapMb,
   failures,
 };

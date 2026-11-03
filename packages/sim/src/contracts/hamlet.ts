@@ -227,6 +227,8 @@ export interface BuildingRuntime {
   modules?: [slot: string, module: string][];
   /** Materials still to deliver for a module, by good index, like `upgrade` (C5C). */
   moduleWork?: number[] | null;
+  /** C5C (additive): the module waiting for those materials, [slot id, module id]. */
+  moduleNext?: [slot: string, module: string];
   /** Under flood water until this tick (C5A). */
   flooded?: number;
 }

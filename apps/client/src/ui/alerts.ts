@@ -10,6 +10,7 @@ import { letterKey } from './letters';
 import { askText } from './panels/Requests';
 import type { Letter } from './state';
 import { inPlay, LIFE_ICON, priceText } from './village';
+import { seasonAlerts } from './seasonAlerts';
 
 export type AlertAction =
   | { kind: 'building'; id: number }
@@ -133,6 +134,7 @@ export function computeAlerts(
   }
 
   out.push(...villageAlerts(m, who));
+  out.push(...seasonAlerts(m));
 
   // Hearth
   const fresh = [...m.wishes.values()]

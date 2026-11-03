@@ -126,6 +126,7 @@ export const herbalistsCottage: BuildingDef = {
   moduleSlots: [
     ['front', 1],
     ['roof', 1],
+    ['wall', 1],
   ],
   // Unlocked by Mother Thornbury's finale (into hearth.unlocked).
   requires: { rank: 'village', story: true },

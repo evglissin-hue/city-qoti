@@ -24,6 +24,7 @@ import { content } from '@qoti/content';
 import {
   calendar,
   canPaintRoad,
+  DAYS_PER_SEASON,
   canPlaceDecor,
   creditLimit,
   doorTile,
@@ -56,6 +57,8 @@ export const TIMBER_RESERVE: ReadonlyMap<string, number> = new Map([
 ]);
 /** A want with this priority joins any build queue. */
 export const URGENT = Infinity;
+/** C5X: coins a new building's path may cost, kept back while the Charter wants a season in surplus. */
+const PATH_ALLOWANCE = 10;
 
 export interface Cost {
   coins: number;
@@ -158,6 +161,16 @@ export class Planner {
   }
 
   /** This season's income less its expenses so far, coins. */
+  /** C5X: coins still to go out this season whatever is built: the remaining days' upkeep and a path. */
+  seasonCommitted(): number {
+    let upkeep = 0;
+    for (const b of this.w.buildings) {
+      if (b.stage === 'built') upkeep += content.buildingById.get(b.def)?.upkeep ?? 0;
+    }
+    const days = DAYS_PER_SEASON - calendar(this.w.tick).day + 1;
+    return days * upkeep + PATH_ALLOWANCE;
+  }
+
   seasonBalance(): number {
     const s = this.w.economy.season;
     return (income(s) - expenses(s)) / PENNIES_PER_COIN;
@@ -210,7 +223,11 @@ export class Planner {
     const reserve = want.essential && want.priority === URGENT ? 0 : MONEY_RESERVE;
     if (this.coins() < want.cost.coins + reserve) return false;
     // C5A: late in a season the Charter's surplus wants, nothing that can wait may tip it into deficit.
-    if (this.keepSurplus && want.priority !== URGENT && want.cost.coins > this.seasonBalance()) return false;
+    // C5X: counting the upkeep still to pay this season and a path, and only food or materials
+    // short today may break it (a cottage built on the season's last day for an empty home, paid
+    // from a balance two days' upkeep would eat, kept hazel's Hamlet from its rank for a season).
+    if (this.keepSurplus && !want.pressing && want.cost.coins + this.seasonCommitted() > this.seasonBalance())
+      return false;
     if (!want.pressing && !want.essential && loansOwed(w) * 2 > creditLimit(w)) return false;
     const free = want.tally ?? this.freeStock();
     for (const [g, q] of want.cost.goods) {

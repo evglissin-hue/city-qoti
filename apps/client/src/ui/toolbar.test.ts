@@ -99,11 +99,20 @@ describe('lens toolbars', () => {
       'customize',
       'fence',
       'tree',
+      'pond',
       'note',
       'plan',
       'erase',
     ]);
-    expect(ids(view.root, 'book-')).toEqual(['wishes', 'patterns', 'chronicle', 'letters', 'achievements']);
+    expect(ids(view.root, 'book-')).toEqual([
+      'wishes',
+      'festival',
+      'patterns',
+      'field-guide',
+      'chronicle',
+      'letters',
+      'achievements',
+    ]);
     // Overlays wait behind one View button.
     expect(ids(view.root, 'overlay-')).toEqual([]);
     await view.click('overlays');
@@ -115,14 +124,25 @@ describe('lens toolbars', () => {
     expect(session.ui.panel.value).toBeNull();
 
     await view.click('lens-ledger');
-    // Playtest round six: Fields waits for a farmhouse (the mock valley has none).
-    expect(ids(view.root, 'tool-')).toEqual(['lane', 'street', 'building', 'zone', 'note', 'plan', 'erase']);
+    // Playtest round six: Fields waits for a farmhouse (the mock valley has none). C5X: walls show
+    // now that C5D opened the defense pieces (the mock valley is a Village).
+    expect(ids(view.root, 'tool-')).toEqual([
+      'lane',
+      'street',
+      'building',
+      'wall',
+      'zone',
+      'note',
+      'plan',
+      'erase',
+    ]);
     // Playtest round five: the Pattern Book is on both lenses' shelves.
     expect(ids(view.root, 'book-')).toEqual([
       'market',
       'patterns',
       'trade',
       'policies',
+      'watch',
       'reports',
       'notebook',
     ]);

@@ -18,6 +18,7 @@ import {
   loansOwed,
   rankAtLeast,
   townStock,
+  type Building,
 } from '@qoti/sim';
 import { matureTreesNear } from '../hamlet';
 import { materialsPressing } from '../labor';
@@ -97,11 +98,19 @@ class Hamlet implements Advisor {
     // C4X: and one goes up while the last good patch is thinning, with logs kept back for it (the
     // sawpits used to saw the last log the day the patch ran out, and with no logs no woodcutter
     // could ever be built again: a hamlet sat at 40 residents for fifty days).
+    // C5X: a site counts once its logs are in (it counted from the moment it was placed, so the
+    // sheds and sawpits went back to work and took the logs it waited for: hazel sat with a felled
+    // patch, a woodcutter site and no logs or planks from day 33, its 130 firewood no use to it).
+    const logsIn = (b: Building) => {
+      const c = b.rt?.construction;
+      return !c || (c.needs[G('logs')] ?? 0) === 0;
+    };
     const healthy = w.buildings.filter(
       (b) =>
         b.def === 'woodcutter' &&
-        (b.stage !== 'built' ||
-          ((b.rt!.status & BuildingStatus.noTrees) === 0 && matureTreesNear(w, b.x, b.z, 8) >= 15)),
+        (b.stage !== 'built'
+          ? logsIn(b)
+          : (b.rt!.status & BuildingStatus.noTrees) === 0 && matureTreesNear(w, b.x, b.z, 8) >= 15),
     ).length;
     const thinning = count(w, 'woodcutter', true) > 0 && healthy === 0;
     want(
@@ -191,6 +200,12 @@ class Hamlet implements Advisor {
     // the last patch thins the sheds leave them alone as well: a winter's sheds took the last log,
     // the next woodcutter could never be built, and with no logs nothing else was.
     const fewLogs = stock[G('logs')]! < 16;
+    // C5X: and the next woodcutter's site is raised, so the porters bring it its logs ahead of the
+    // sawpits and sheds (they took 34 logs the day the Charter was claimed, and the site waited).
+    for (const b of w.buildings) {
+      if (b.def === 'woodcutter' && b.stage === 'construction' && !logsIn(b) && !b.rt?.construction?.priority)
+        p.do('raise the woodcutter', [{ t: 'build.setPriority', id: b.id, priority: true }]);
+    }
     const noShed = count(w, 'chopping-shed') === 0;
     const shedWaits = w.buildings.some(
       (b) =>

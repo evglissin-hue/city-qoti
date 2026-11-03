@@ -46,6 +46,7 @@ export function PoliciesPanel({ session }: { session: Session }) {
       onClose={close}
     >
       <WagesAndTaxes session={session} />
+      <TownRhythm session={session} />
       <Loans session={session} />
     </Frame>
   );
@@ -238,5 +239,45 @@ function LoanList({ session, loans, treasury }: { session: Session; loans: Loans
         );
       })}
     </ul>
+  );
+}
+
+const DAY_WORD = ['First', 'Second', 'Third', 'Fourth', 'Fifth', 'Sixth'];
+
+/** I3 (C5F): market day (one day a season the stalls fill and charge a small fee) and quiet hours. */
+export function TownRhythm({ session }: { session: Session }) {
+  const levers = session.mirror.levers.value;
+  if (!levers || !rankAtLeast(session.mirror.town.value?.rank, 'village')) return null;
+  const day = levers.marketDay ?? null;
+  const quiet = levers.quietHours ?? false;
+  return (
+    <section class="town-rhythm" data-testid="town-rhythm">
+      <Heading>The town's rhythm</Heading>
+      <p class="small muted">
+        Market day fills the square once a season, with a small fee a stall. Quiet hours rest the workshops in
+        the evening: less made, nicer to live by.
+      </p>
+      <Dial
+        label="Market day"
+        testid="market-day"
+        value={day ?? -1}
+        options={[
+          { value: -1, label: 'None' },
+          ...DAY_WORD.map((w, i) => ({ value: i + 1, label: w, title: `Day ${i + 1} of each season` })),
+        ]}
+        onChange={(v) => session.submit({ t: 'ledger.setMarketDay', day: v < 0 ? null : v })}
+      />
+      <label class="toggle-line">
+        <input
+          type="checkbox"
+          checked={quiet}
+          data-testid="quiet-hours"
+          onChange={(e) =>
+            session.submit({ t: 'ledger.setQuietHours', on: (e.target as HTMLInputElement).checked })
+          }
+        />
+        Quiet hours in the evening
+      </label>
+    </section>
   );
 }

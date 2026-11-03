@@ -2,34 +2,46 @@
 // detector, alphabetical.
 import type { Detector } from '../shared';
 import { bridgeCrossing } from './bridgeCrossing';
+import { childrensCorner } from './childrensCorner';
 import { cornerCafe } from './cornerCafe';
 import { hedgerowLane } from './hedgerowLane';
 import { kitchenGarden } from './kitchenGarden';
 import { lanternWalk } from './lanternWalk';
 import { marketCross } from './marketCross';
+import { orchardPath } from './orchardPath';
 import { pocketPark } from './pocketPark';
+import { pondGarden } from './pondGarden';
 import { promenade } from './promenade';
+import { readingNook } from './readingNook';
 import { sittingWall } from './sittingWall';
 import { smallSquare } from './smallSquare';
+import { townGate } from './townGate';
 import { treePlace } from './treePlace';
 import { villageGreen } from './villageGreen';
+import { watchLookout } from './watchLookout';
 import { wellGathering } from './wellGathering';
 import { windowGardens } from './windowGardens';
 
 // prettier-ignore
 export const detectors: ReadonlyMap<string, Detector> = new Map<string, Detector>([
   ['bridgeCrossing', bridgeCrossing],
+  ['childrensCorner', childrensCorner],
   ['cornerCafe', cornerCafe],
   ['hedgerowLane', hedgerowLane],
   ['kitchenGarden', kitchenGarden],
   ['lanternWalk', lanternWalk],
   ['marketCross', marketCross],
+  ['orchardPath', orchardPath],
   ['pocketPark', pocketPark],
+  ['pondGarden', pondGarden],
   ['promenade', promenade],
+  ['readingNook', readingNook],
   ['sittingWall', sittingWall],
   ['smallSquare', smallSquare],
+  ['townGate', townGate],
   ['treePlace', treePlace],
   ['villageGreen', villageGreen],
+  ['watchLookout', watchLookout],
   ['wellGathering', wellGathering],
   ['windowGardens', windowGardens],
 ]);

@@ -1,3 +1,4 @@
+import { ResidentSeasonLines } from './seasonParts';
 import { content } from '@qoti/content';
 import { NEED_IDS, NEED_WEIGHTS, type ResidentDetail } from '@qoti/sim';
 import { useState } from 'preact/hooks';
@@ -210,6 +211,7 @@ export function ResidentInspector({ session, id }: { session: Session; id: numbe
           {detail ? (
             <>
               <Meter label="Mood" value={detail.mood / 100} note={`${Math.round(detail.mood)}`} tone="rose" />
+              <ResidentSeasonLines detail={detail} />
               <ul class="mood-lines">
                 {detail.moodLines.map((l) => (
                   <li key={l.label}>

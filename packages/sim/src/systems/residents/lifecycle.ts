@@ -20,6 +20,7 @@ import { foodIndexes, pantryFood } from './needs';
 import { doorOf, tileX, tileZ, vacantHomes, type Vacancy } from './places';
 import { announceHousehold, announceResident, announceTown, forgetResident, pushHistory } from './records';
 import { dayIndex } from './time';
+import { renownEffect } from '../renown/api';
 
 /** Attractiveness needed for arrivals (tune). */
 export const ARRIVAL_THRESHOLD = 40;
@@ -65,7 +66,8 @@ export function attractiveness(state: WorldState, vac: readonly Vacancy[] = vaca
     20 * Math.min(1, openJobCount(state) / 4) +
     15 * Math.min(1, charm / 30) +
     (15 * mood) / 100;
-  return Math.round(a);
+  // I3 (C5B): renown pulls a little harder (the level's `arrivals` effect, permille).
+  return Math.round((a * (1000 + renownEffect(state, 'arrivals'))) / 1000);
 }
 
 function speciesOf(state: WorldState, h: Household): string {

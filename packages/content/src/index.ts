@@ -8,7 +8,9 @@ import * as Ca from './carts';
 import * as Ch from './charters';
 import * as C from './chronicle';
 import * as D from './decor';
+import * as Co from './commissions';
 import * as Fe from './festivals';
+import * as FC from './festivalsChronicle';
 import * as G from './goods';
 import * as Gu from './guide';
 import * as He from './herbalist';
@@ -16,6 +18,8 @@ import * as I from './innovations';
 import * as L from './lives';
 import { familyNames } from './names';
 import * as N from './neighbors';
+import * as Na from './nature';
+import * as ND from './natureDecor';
 import * as P from './patterns';
 import * as R from './roads';
 import * as SA from './seasonsAchievements';
@@ -30,6 +34,7 @@ import * as St from './styles';
 import * as Sm from './stonemason';
 import * as Sw from './swatches';
 import * as T from './trees';
+import * as Th from './threats';
 import * as Tr from './traits';
 import * as VB from './villageBuildings';
 import * as VD from './villageDecor';
@@ -72,6 +77,7 @@ import type {
 } from './types';
 
 export { chroniclePhrases } from './chronicle';
+export { festivalTuning } from './festivals';
 export { lifePhrases } from './lives';
 export { familyNames, valleyNamePrefixes, valleyNameSuffixes } from './names';
 export { villagePhrases } from './villageText';
@@ -119,6 +125,7 @@ export const buildings: readonly BuildingDef[] = [
   VB.sheepPasture,
   VB.smithy,
   VB.spinner,
+  Th.stoneBridge,
   SB.stoneWall,
   B.storehouse,
   SB.tailor,
@@ -139,6 +146,7 @@ export const buildings: readonly BuildingDef[] = [
 // prettier-ignore
 export const decor: readonly DecorDef[] = [
   D.appleTree,
+  ND.arborSeat,
   D.barrels,
   D.bench,
   D.birdbath,
@@ -156,19 +164,25 @@ export const decor: readonly DecorDef[] = [
   D.flowerBed,
   VD.flowerCart,
   VD.fountain,
+  Th.gateBanner,
   D.hangingLantern,
   D.hedge,
   D.herbPlanter,
   VD.lampPost,
   D.lantern,
+  Th.lookoutBench,
   D.lowWall,
   VD.maypole,
   D.mooringPost,
   VD.noticeBoard,
+  ND.pearTree,
   D.planter,
   D.planterWall,
+  ND.reedBed,
   D.ringBench,
+  ND.seeSaw,
   D.signpost,
+  ND.swing,
   D.wildflowerVerge,
 ];
 
@@ -312,20 +326,32 @@ export const achievements: readonly AchievementDef[] = [
 // prettier-ignore
 export const chronicle: readonly ChronicleTemplate[] = [
   C.achievement,
+  Th.banditHome,
+  Th.banditSent,
   L.birth,
   SC.circus,
   SC.coldSnap,
+  FC.commissionDone,
+  FC.festival,
+  FC.firstBoat,
   SC.firstFrost,
   C.firstOf,
+  ND.firstSighting,
   SC.firstWinter,
   SC.flood,
   C.founding,
+  Gu.guideDone,
   C.householdArrived,
   C.householdLeft,
   C.patternDiscovered,
+  Th.raidHeld,
+  Th.raidLost,
+  Th.raidRepelled,
   L.rankUp,
+  FC.renownLevel,
   L.seaside,
   C.seasonSummary,
+  FC.shopOpened,
   L.storyArrived,
   L.storyFinale,
   C.threatDial,
@@ -333,6 +359,8 @@ export const chronicle: readonly ChronicleTemplate[] = [
   SC.trialPassed,
   L.wedding,
   C.wishesDigest,
+  Th.wolves,
+  Th.wolvesHowl,
 ];
 
 // prettier-ignore
@@ -476,6 +504,38 @@ export const twists: readonly FestivalTwistDef[] = [
 /** C5C writes about 30 species (one line each, alphabetical). */
 // prettier-ignore
 export const wildlife: readonly WildlifeDef[] = [
+  Na.blueTit,
+  Na.bumblebee,
+  Na.commonBlue,
+  Na.commonFrog,
+  Na.commonToad,
+  Na.dragonfly,
+  Na.elephantHawkMoth,
+  Na.firefly,
+  Na.gardenSnail,
+  Na.glowWorm,
+  Na.goldfinch,
+  Na.greatSpottedWoodpecker,
+  Na.greyHeron,
+  Na.honeybee,
+  Na.kingfisher,
+  Na.ladybird,
+  Na.mallard,
+  Na.muteSwan,
+  Na.peacockButterfly,
+  Na.perch,
+  Na.pipistrelle,
+  Na.robin,
+  Na.roeDeer,
+  Na.smoothNewt,
+  Na.songThrush,
+  Na.stagBeetle,
+  Na.stoat,
+  Na.swallow,
+  Na.tawnyOwl,
+  Na.trout,
+  Na.waterVole,
+  Na.wren,
 ];
 
 // prettier-ignore
@@ -487,11 +547,27 @@ export const threats: readonly ThreatDef[] = [
 /** C5C writes the modules (one line each, alphabetical). */
 // prettier-ignore
 export const modules: readonly ModuleDef[] = [
+  Na.arcade,
+  Na.balcony,
+  Na.bayWindow,
+  Na.dormer,
+  Na.extraFloor,
+  Na.flowerBoxes,
+  Na.ivy,
+  Na.porch,
+  Na.tower,
 ];
 
 /** C5B writes the commissions (one line each, alphabetical). */
 // prettier-ignore
 export const commissions: readonly CommissionDef[] = [
+  Co.countySurveyor,
+  Co.millhavenBread,
+  Co.millhavenFurniture,
+  Co.minstrelCandles,
+  Co.stonecrossCoats,
+  Co.stonecrossPlanks,
+  Co.theDowager,
 ];
 
 /** In level order, 0 to 5. */
@@ -567,6 +643,8 @@ export const content: Content = {
   threatById: byId(threats),
   modules,
   moduleById: byId(modules),
+  habitats: Na.habitats,
+  habitatSources: Na.habitatSources,
   commissions,
   commissionById: byId(commissions),
   renown,

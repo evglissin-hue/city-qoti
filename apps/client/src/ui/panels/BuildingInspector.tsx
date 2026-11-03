@@ -1,3 +1,4 @@
+import { BuildingSeasonLines } from './seasonParts';
 import { content } from '@qoti/content';
 import type { BuildingDetail, BuildingView } from '@qoti/sim';
 import { useState } from 'preact/hooks';
@@ -47,6 +48,7 @@ export function BuildingInspector({ session, id }: { session: Session; id: numbe
           {status.length ? status.join('. ') + '.' : site ? 'Coming along nicely.' : quietLine(b)}
         </p>
       )}
+      {detail && <BuildingSeasonLines session={session} detail={detail} />}
 
       {site && rt?.construction && (
         <div class="site">

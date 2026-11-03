@@ -37,6 +37,7 @@ import { coinsText } from '../economy';
 import { emitMoney } from '../economy/emit';
 import { dailyOffset } from '../economy/time';
 import { overdraftLimit } from '../loans/credit';
+import { renownEffect } from '../renown/api';
 import { loadCaravan, tradableStock, tradingPost, unloadCaravan } from './post';
 
 /** Units the post's caravans carry a day without carts. */
@@ -64,7 +65,10 @@ export function postSellPrice(state: WorldState, neighbor: string, good: number)
   const id = content.goods[good]?.id;
   if (!content.neighborById.get(neighbor)?.buys.some(([g]) => g === id)) return null;
   const p = regionalPrice(state, neighbor, good);
-  return p === null ? null : Math.round((p * TRADE_SELL_PERCENT) / 100);
+  // I3 (C5B): renown earns better terms, `trade` percent a level's worth.
+  return p === null
+    ? null
+    : Math.round((p * TRADE_SELL_PERCENT * (100 + renownEffect(state, 'trade'))) / 10000);
 }
 
 /** What the post charges per unit for a good a neighbor sells, pennies; null when it does not. */
@@ -72,7 +76,9 @@ export function postBuyPrice(state: WorldState, neighbor: string, good: number):
   const id = content.goods[good]?.id;
   if (!content.neighborById.get(neighbor)?.sells.some(([g]) => g === id)) return null;
   const p = regionalPrice(state, neighbor, good);
-  return p === null ? null : Math.round((p * TRADE_BUY_PERCENT) / 100);
+  return p === null
+    ? null
+    : Math.round((p * TRADE_BUY_PERCENT * (100 - renownEffect(state, 'trade'))) / 10000);
 }
 
 /** The neighbor to deal with for an order: the one named, else the best price today. */

@@ -9,6 +9,7 @@ import type {
   FestivalResultView,
   FestivalView,
   FieldGuideEntryView,
+  FieldGuideHintView,
   GuideView,
   RaidView,
   RenownView,
@@ -34,6 +35,8 @@ export interface BuildingView {
   /** I2 (C4.0): grown buildings, their lot and district style. */
   lot?: EntityId;
   style?: string;
+  /** I3 (C5C, additive): modules fitted, [slot, module id], for the art. */
+  modules?: [slot: string, module: string][];
   /** I1: runtime summary in standard valleys (sent on building.updated). */
   rt?: BuildingRuntimeView;
 }
@@ -120,6 +123,10 @@ export interface ViewSnapshot {
   commissions?: CommissionView[];
   dock?: DockView;
   fieldGuide?: FieldGuideEntryView[];
+  /** C5C (additive): the three species the Field Guide hints at, and their hints. */
+  fieldGuideHints?: FieldGuideHintView[];
+  /** C5C (additive): habitat scores, habitat h of chunk c at h * 144 + c (as NatureState). */
+  habitats?: number[];
   threat?: ThreatView;
   watch?: WatchView;
   raid?: RaidView | null;
@@ -399,6 +406,8 @@ export interface BuildingDetail {
   // I3 (C5.0), present when they apply.
   /** Modules fitted: [slot, module id] (C5C). */
   modules?: [slot: string, module: string][];
+  /** C5C (additive): a module ordered and waiting for its materials. */
+  moduleWork?: { slot: string; module: string; waiting: [good: string, qty: number][] };
   /** Wall pieces: hit points and the most (C5D). */
   hp?: { now: number; max: number };
   /** Gates: open or closed (C5D). */

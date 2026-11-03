@@ -9,6 +9,7 @@ import type { TradeTab } from '../state';
 import { goodOrder, priceText } from '../village';
 import { Empty, Frame, Meter } from './parts';
 import { Price, Stepper } from './villageParts';
+import { CommissionsTab, DockTab } from './Dock';
 
 type Order = TradeView['orders'][number];
 
@@ -16,6 +17,9 @@ const TABS: [TradeTab, string][] = [
   ['neighbors', 'Neighbors'],
   ['orders', 'Standing orders'],
   ['caravans', 'Caravans'],
+  // I3 (C5F)
+  ['dock', 'River Dock'],
+  ['commissions', 'Commissions'],
 ];
 
 /** The Trading Post: neighbors and their prices, standing orders, caravans on the road and the log. */
@@ -55,6 +59,10 @@ export function TradePanel({ session }: { session: Session }) {
           <Neighbors session={session} trade={trade} />
         ) : tab === 'orders' ? (
           <Orders session={session} trade={trade} />
+        ) : tab === 'dock' ? (
+          <DockTab session={session} />
+        ) : tab === 'commissions' ? (
+          <CommissionsTab session={session} />
         ) : (
           <Caravans session={session} trade={trade} />
         )}

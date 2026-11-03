@@ -25,6 +25,8 @@ export function threatFixture(): ThreatFixture {
   const village = villageFixture();
   const state = village.state;
   state.tick = tickAt(0, 2, 2, 10);
+  // C5D: raids need the threat dial on (valleys default to Peaceful).
+  state.settings.threat = 'standard';
   const storeA = state.buildings.find((b) => b.id === village.b.storehouses[0])!;
 
   // A palisade round storehouse A's back and sides, and a gate on the lane side.

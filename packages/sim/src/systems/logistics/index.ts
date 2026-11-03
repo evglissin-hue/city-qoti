@@ -41,6 +41,7 @@ import {
   tileDistance,
 } from './stores';
 import { deliverUpgrade } from '../tiers/api';
+import { deliverModule } from '../modules';
 import { isCartJob, keepCarts, matchCarts, stepCartJob, tickIdleCarts, type CartHooks } from './carts';
 import { available, finishTask, startTask, tickReturning, walkTo } from './tasks';
 
@@ -142,6 +143,14 @@ function needsOf(spots: readonly Spot[]): Need[] {
     if (rt.upgrade) {
       for (let g = 0; g < rt.upgrade.length; g++) {
         const want = rt.upgrade[g]! - rt.reservedIn[g]!;
+        if (want > 0) out.push({ dest: s, good: g, want, cls: JobClass.site });
+      }
+      continue;
+    }
+    // I3 (C5C): a module's materials come like an upgrade's.
+    if (rt.moduleWork) {
+      for (let g = 0; g < rt.moduleWork.length; g++) {
+        const want = rt.moduleWork[g]! - rt.reservedIn[g]!;
         if (want > 0) out.push({ dest: s, good: g, want, cls: JobClass.site });
       }
       continue;
@@ -454,6 +463,9 @@ function deliver(state: WorldState, ctx: TickCtx, job: PorterJob, dst: Building)
     if (constructionStage(rt) !== before) emitBuilding(state, ctx, dst);
   } else if (rt.upgrade) {
     const used = deliverUpgrade(state, ctx, dst, g, n);
+    if (n > used) stowNearest(state, doorTile(dst), g, n - used, dst.id);
+  } else if (rt.moduleWork) {
+    const used = deliverModule(state, ctx, dst, g, n);
     if (n > used) stowNearest(state, doorTile(dst), g, n - used, dst.id);
   } else if (isStorage(defOf(dst))) {
     rt.store[g]! += n;

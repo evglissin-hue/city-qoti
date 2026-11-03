@@ -7,3 +7,14 @@ export { circleHitsTile, decorRadius, decorTooClose, isInt, isTile, MAX_DECOR_RA
 export { canPaintRoad } from './road';
 export { canPlantTree } from './tree';
 export { doorFront, reachesTile, townReach, townSources, type ReachBuilding } from './reach';
+export {
+  canPaintWall,
+  gateTiles,
+  isGateDef,
+  isWallDef,
+  MAX_WALL_TILES,
+  mustReach,
+  wouldEnclose,
+  type WallBuilding,
+  type WallPlan,
+} from './wall';

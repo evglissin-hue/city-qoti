@@ -4,7 +4,12 @@
 // history the fixtures cannot have yet (a season report, a festival result, a raid's card, a
 // commission and a boat, a guide step). C5F builds the I3 pages against these first.
 import {
+  buildView,
   commissionView,
+  inspect,
+  type InspectKind,
+  type InspectResult,
+  type ViewSnapshot,
   dockView,
   festivalView,
   fieldGuideEntryView,
@@ -143,3 +148,17 @@ export const mockGuide: GuideView = {
   done: [true, false, false, false, false, false, false, false],
   over: false,
 };
+
+/** C5F: the whole winter and raid valleys as views, for panels that read the Mirror. */
+export const mockWinterView: ViewSnapshot = buildView(w);
+export const mockRaidView: ViewSnapshot = buildView(dusk.state);
+export const mockThreatView: ViewSnapshot = buildView(threat.state);
+
+/** C5F: inspect answers from the fixtures through the sim's own builders. */
+export function seasonsInspect(
+  which: 'winter' | 'raid' | 'threat',
+  kind: InspectKind,
+  id: number,
+): InspectResult {
+  return inspect(which === 'winter' ? w : which === 'raid' ? dusk.state : threat.state, kind, id);
+}

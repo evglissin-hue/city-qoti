@@ -13,9 +13,11 @@ export interface QotiHook {
   screenOf(x: number, z: number): { x: number; y: number } | null;
   screenOfFp(fx: number, fz: number): { x: number; y: number } | null;
   findBuildingSpot(def: string, rot?: number): { x: number; z: number; tile: [number, number] } | null;
+  findOpenGround(n?: number): { from: [number, number]; to: [number, number] } | null;
   findDecorSpot(def: string): { fx: number; fz: number; tile: [number, number] } | null;
   findRoadRun(len: number): [number, number][] | null;
   runGolden(script: unknown): Promise<string>;
+  runSnapshot(data: string, to: number): Promise<string>;
   resyncs(): number;
   corrupt(): void;
   // I1 (C3E)
@@ -45,7 +47,10 @@ declare global {
 
 /** I0 specs play creative (sandbox) valleys; HAMLET_QUERY starts standard ones. */
 export const DEBUG_QUERY = '?debug&quality=low&creative';
-export const HAMLET_QUERY = '?debug&quality=low';
+/** C5H: without the first days guide, whose first letter would sit over the valley. */
+export const HAMLET_QUERY = '?debug&quality=low&noguide';
+/** C5H: a standard valley with the first days guide, as New valley makes it by default. */
+export const GUIDE_QUERY = '?debug&quality=low';
 
 export async function waitLive(page: Page): Promise<void> {
   // V1X: a joiner catching up beside a partner's page, both drawing in software on a 2-core CI
