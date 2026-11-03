@@ -7,6 +7,11 @@ import type { BuildingDef } from './types';
 
 const HIDDEN = { modes: [] as BuildingDef['modes'] };
 
+/**
+ * C5C: a row of hives and a keeper. Honey comes in as fast as the flowers around it allow: the
+ * pollinator score of its chunk sets the yield (a quarter with none, the full rate at 200), and
+ * honeybees are only ever sighted near one.
+ */
 export const apiary: BuildingDef = {
   id: 'apiary',
   name: 'Apiary',
@@ -14,10 +19,25 @@ export const apiary: BuildingDef = {
   category: 'production',
   size: [2, 2],
   entrance: [0, 1],
+  cost: { coins: 20, goods: [['planks', 8]] },
+  upkeep: 1,
+  jobs: { count: 1, role: 'worker' },
+  methods: [
+    {
+      id: 'keep-bees',
+      name: 'Keep bees',
+      kind: 'gather',
+      inputs: [],
+      outputs: [['honey', 2]],
+      hours: 6,
+      workers: 1,
+    },
+  ],
+  work: 6,
+  charm: [{ category: 'nature', value: 3, radius: 2 }],
   art: { kit: 'shed', params: { kit: 'apiary' } },
   tags: ['hive', 'farm'],
   requires: { rank: 'village' },
-  ...HIDDEN,
 };
 
 /**

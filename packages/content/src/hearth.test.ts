@@ -76,6 +76,8 @@ describe('the Chronicle', () => {
     'first-boat': ['neighbor'],
     'renown-level': ['level'],
     'shop-opened': ['name', 'shop'],
+    // I3 (C5C)
+    'first-sighting': ['species', 'place', 'credit'],
   };
 
   it('has at least three variants per kind, using only the params its callers pass', () => {

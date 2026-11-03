@@ -42,6 +42,8 @@ export const honey: GoodDef = {
   basePrice: 300,
   carry: 4,
   food: true,
+  // C5C: the bees rest in winter.
+  seasons: [800, 1000, 600, 0],
 };
 
 export const candles: GoodDef = {

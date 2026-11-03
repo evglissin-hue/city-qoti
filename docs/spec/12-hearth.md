@@ -98,6 +98,17 @@ Playtest round six: the Pattern Book shows, under each hint and on each page not
 
 The six unlocks are new decor (stand-in art until C4E draws them). Detectors only look at trees near homes (Village Green) and scan the map's roads once a pass (Market Cross, Bridge Crossing); the whole pass stays under 1 ms on the village fixture.
 
+**I3 Hearth patterns (4, C5C)**, looked for and hinted from Village rank on (`seasonsPatterns.ts`; C5D writes Town Gate and Watch Lookout):
+
+| Pattern | Rule | Site bonus | Unlocks |
+|---|---|---|---|
+| Orchard Path | an orchard with 3+ path or lane tiles running along it (touching its footprint, diagonals too) and a bench within 2 tiles of the orchard | +6 nature r2; pollinator habitat | Pear Tree |
+| Children's Corner | a play piece (the Swing, a Village piece) within 8 tiles of 3+ homes where children live, with a bench within 3 tiles of it; play pieces within 3 tiles of a corner belong to it | +6 comfort r3 | See-saw |
+| Reading Nook | a bench with 3+ wall, hedge or fence pieces, a flower piece and a lantern within 2 tiles, and noise at its tile of 2 or less | +5 comfort r2; garden nook habitat | Arbor Seat |
+| Pond Garden | a pond of 2+ tiles with 2+ flower, reed or tree pieces and a seat within 2 tiles of its water, and a path or lane within 2 tiles | +7 nature r3; wetland habitat | Reed Bed |
+
+The four unlocks and the Swing are new decor with stand-in art until C5E draws them. The detectors look only at orchards, play pieces, benches and pond tiles, so the whole patterns pass stays under 1 ms on the village fixture (bench: `village passes`).
+
 **Later patterns** (rules written in their iteration's planning cycle):
 
 - **I3**: Orchard Path, Children's Corner, Reading Nook, Town Gate, Watch Lookout, Pond Garden.
@@ -186,6 +197,16 @@ Wildlife you invite (P24).
 - **Sightings** are decided by the sim (deterministic RNG) from habitat scores; the first sighting adds a Field Guide entry for both seats. The renderer shows ambient critters near qualifying habitat (cosmetic, client-side).
 - **Effects**: pollinator score raises orchard and farm yields up to +20%; songbirds and frogs cut summer pest losses (pests reduce yields 0 to 15% in summer); a kingfisher marks a healthy river (achievement); a rich garden district attracts Patrons [I4].
 - Wildlife never conflicts with residents: residents are folk, wildlife is wildlife (no resident species appear as wild animals).
+
+*As built (C5C)* (`systems/nature`, content `nature.ts`):
+
+- **Habitats**: six scores per chunk (16 x 16 tiles), 0 to 255, the sum of content's `habitatSources` (`from` a decor or building tag per piece, a module per building wearing it, a map terrain, water or tree stage per tile, a pattern site per site anchored in the chunk, or window boxes), capped at 255. Pollinator: flower pieces 10, fruit and blossom trees 8, orchards 60, herb gardens 40, window boxes 6, an Orchard Path site 30. Wetland: pond tiles 14, shallow river 3, deep river 1, reeds 25, birdbaths and fountains 10, a Pond Garden 40. Hedgerow: hedges 14, fences 3, a Hedgerow Lane 80. Woodland: mature trees 1 a tile, ornamental trees 6. Meadow: meadow tiles 1, wildflower verges 12. Garden nooks: low walls 8, planters 8, birdbaths 15, gardens 25, window boxes 10, ivy and flower boxes 30, a Reading Nook 30. The 02:00 pass scores the chunks the charm was told about since the last pass (`nature.dirty`, filled by `markChunks`) plus a rolling sixth of the map, so trees growing up are caught within six days; a valley whose habitats are all zero (new or migrated) scores every chunk. Chunks that moved go out in `habitats.updated`; the snapshot carries the scores (`ViewSnapshot.habitats`).
+- **Sightings** (hourly at 140, from Village rank, when the Field Guide opens with the Village patterns and the apiary; a Hamlet's runs stay exactly as tuned): for each species in its seasons and hours, the suitable chunks are those that meet every habitat need and are watched: near homes (a chunk with a home or next to one) and with a path or lane in it or a resident outdoors. Fish need a fisher at work on open water in the chunk instead, the honeybee an apiary. With n suitable chunks the chance is rarity x min(n, 3) permille, at most 900, on the `nature` stream. A first sighting writes a Field Guide page (`species.sighted`), a Chronicle line with a snapshot (`first-sighting`, its wording picked from the nature stream) and refreshes the hints; later sightings only count. Credit goes to the seats whose pieces in that chunk add to the habitats the species needs, like pattern credit; a wild place nobody built credits the seats connected.
+- **Hints**: the three commonest species not yet found (highest rarity, then id), each with content's `hint` in words a player can act on ("A pond near a garden, on spring and summer evenings"); `ViewSnapshot.fieldGuideHints`.
+- **Species**: 32 (`content.wildlife`): 9 birds besides the kingfisher, 11 insects (the garden snail files under insects, and says so), 3 amphibians, 2 fish, 4 small mammals (pipistrelle, water vole, roe deer, stoat). Specialists ask for what a player builds: the kingfisher wetland 170 (the river and a pond beside it), the mute swan 200, the woodpecker 200 woodland.
+- **Effects** (yield hook, `pollinators` and `pests`), from Village rank (a Hamlet's handful of plots is beneath the notice of bees and pests alike; with bees from the first day the autoplayer reached Village a season later on five seeds of eight, so the I2 Hamlet stays as tuned): a crop grower (a farm, or a gatherer of apples, herbs, vegetables or wheat) gains up to +20% at a pollinator score of 200 in its chunk; an apiary makes a quarter of its honey with no flowers about, all of it at 200 (honey rests in winter, `GoodDef.seasons`). Each summer morning every crop grower loses 15% to pests, less each Field Guide species with a `pests` effect (wren, song thrush, blue tit, swallow, ladybird, pipistrelle, common frog, common toad) whose habitat needs the farm's chunk meets: each cuts its share (a wren 30%), together up to all of it. A Hamlet's few plots are beneath a pest's notice.
+- **Apiary**: a Hearth building from Village rank (20 coins, 8 planks, one keeper), gathering 2 honey in 6 hours, by the pollinator score as above.
+- The season report's nature lines: new Field Guide pages, good habitat (60+) by chunks, and for the Ledger the bees' lift, the honey made and summer's pests.
 
 ## The Chronicle [I1]
 

@@ -158,6 +158,12 @@ describe('content', () => {
         'festival-stall',
         'festival-table',
         'flower-arch',
+        // I3 (C5C): play, and the I3 Hearth patterns' unlocks
+        'arbor-seat',
+        'pear-tree',
+        'reed-bed',
+        'see-saw',
+        'swing',
       ].sort(),
     );
     expect(roads.map((r) => r.id).sort()).toEqual(['lane', 'path', 'street']);
@@ -315,11 +321,11 @@ describe('I1 content', () => {
     expect(familyNames.length).toBeGreaterThan(0);
   });
 
-  it('meets the I1 name targets: 200 given names and 100 family names, no repeats', () => {
+  it('meets the I3 name targets: 400 given names and 150 family names, no repeats', () => {
     const given = species.flatMap((s) => s.givenNames);
-    expect(given.length).toBeGreaterThanOrEqual(200);
+    expect(given.length).toBeGreaterThanOrEqual(400);
     expect(new Set(given).size).toBe(given.length);
-    expect(familyNames.length).toBeGreaterThanOrEqual(100);
+    expect(familyNames.length).toBeGreaterThanOrEqual(150);
     expect(new Set(familyNames).size).toBe(familyNames.length);
     expect([...familyNames].sort()).toEqual(familyNames);
     for (const name of [...given, ...familyNames]) expect(name).toMatch(/^[A-Z][a-z]+$/);

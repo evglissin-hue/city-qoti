@@ -12,6 +12,7 @@ import type {
   FestivalView,
   FieldGuideEntry,
   FieldGuideEntryView,
+  FieldGuideHintView,
   GuideView,
   RaidRecord,
   RaidResultView,
@@ -215,6 +216,16 @@ export function dockView(state: WorldState): DockView {
     })),
     built: state.buildings.some((b) => b.def === 'river-dock' && b.stage === 'built'),
   };
+}
+
+/** C5C: the Field Guide's hints, in nature.hints order. */
+export function fieldGuideHintsView(state: WorldState): FieldGuideHintView[] {
+  const out: FieldGuideHintView[] = [];
+  for (const id of state.nature.hints) {
+    const def = content.wildlifeById.get(id);
+    if (def) out.push({ species: id, name: def.name, kind: def.kind, hint: def.hint ?? '' });
+  }
+  return out;
 }
 
 export function fieldGuideEntryView(e: FieldGuideEntry): FieldGuideEntryView {

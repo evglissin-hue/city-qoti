@@ -21,6 +21,8 @@ describe('the advisors', () => {
       'seasons',
       'festivals',
       'hearth',
+      // I3 (C5C)
+      'nature',
       'together',
     ]);
   });

@@ -31,6 +31,7 @@ import {
   VARIETY,
   WATER_VIEW,
   WINDOW_BOXES,
+  MODULE_SOURCES,
   YOUNG_TREE,
 } from './sources';
 import { isMarketDay, quietHours } from '../../festivals/levers';
@@ -223,6 +224,8 @@ export function recomputeChunk(
       if (marketDay && OUTLET[i]) sources.push(MARKET_DAY);
     }
     if (b.custom?.windowBoxes === true) sources.push(WINDOW_BOXES);
+    // I3 (C5C): modules fitted (customization phase 2).
+    for (const [, mod] of b.rt?.modules ?? []) for (const s of MODULE_SOURCES.get(mod) ?? []) sources.push(s);
     if (sources.length > 0) nearBuildings.push({ x0: r[0], z0: r[1], x1: r[2] + 1, z1: r[3] + 1, sources });
   }
 

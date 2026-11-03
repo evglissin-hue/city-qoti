@@ -1,11 +1,12 @@
 // The yield hook (C5.0): one registry of output modifiers that production applies to farm, gather
 // and craft work, so no I3 track edits production itself. Each source returns permille (1000 = no
 // change); they multiply. C5A registers weather, drought, early frost, the frozen river and the
-// Seed Drill; C5C pollinators and pests. Playtest round six: the soil under 'soil' buildings.
+// Seed Drill; C5C pollinators and pests (systems/nature/effects). Playtest round six: the soil under 'soil' buildings.
 // Felling and planting are never modified.
 import type { BuildingDef, ProductionMethod } from '@qoti/content';
 import type { Building, WorldState } from '../../contracts';
 import { quietYield } from '../festivals/levers';
+import { pests, pollinators } from '../nature/effects';
 import { seasonalGrowth } from '../seasons/growing';
 import { frozenRiver } from '../seasons/river';
 import { farmWeather } from '../weather/effects';
@@ -22,6 +23,8 @@ export type YieldModifier = (
 // prettier-ignore
 export const yieldModifiers: readonly [id: string, modifier: YieldModifier][] = [
   ['frozen-river', frozenRiver],
+  ['pests', pests],
+  ['pollinators', pollinators],
   ['quiet-hours', quietYield],
   ['seasonal', seasonalGrowth],
   ['soil', soilYield],

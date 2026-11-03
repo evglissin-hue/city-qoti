@@ -198,7 +198,10 @@ export interface FieldGuideEntry {
   /** Content wildlife id. */
   species: string;
   firstTick: number;
-  /** Seats that were connected at the first sighting. */
+  /**
+   * Seats credited with the first sighting (C5C): those who placed the pieces that made the
+   * habitat where it was seen, like pattern credit; the seats connected then for wild places.
+   */
   seats: SeatId[];
   /** Sightings so far. */
   count: number;
@@ -216,6 +219,11 @@ export interface NatureState {
   hints: string[];
   /** Summer pests per farm: [building id, permille of yield lost], sorted by id. */
   pests: [farm: EntityId, permille: number][];
+  /**
+   * C5C (additive): chunks changed since the last habitats pass, sorted; absent when none, so a
+   * valley that never changed hashes as before. The 02:00 pass recomputes these plus a rolling sixth.
+   */
+  dirty?: number[];
 }
 
 // --- Threats, the Watch, raids and trials (C5D, C5A) -------------------------------------------

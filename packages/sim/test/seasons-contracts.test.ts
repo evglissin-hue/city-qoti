@@ -302,6 +302,11 @@ describe('command baselines', () => {
   it('ponds on open grass; market days and quiet hours; commissions; the guide per seat', () => {
     const s = villageFixture().state;
     expect(rejection(run(s, { t: 'terrain.pond', tiles: [[64, 60]] }))).toBe('OCCUPIED');
+    // C5C: ponds go in fertile low ground.
+    for (const x of [20, 21]) {
+      s.map.height[90 * S + x] = 1;
+      s.map.fertility[90 * S + x] = 60;
+    }
     expect(
       rejection(
         run(s, {

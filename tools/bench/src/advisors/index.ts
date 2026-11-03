@@ -7,6 +7,7 @@ import { festivals } from './festivals';
 import { hamlet } from './hamlet';
 import { hearth } from './hearth';
 import { money } from './money';
+import { nature } from './nature';
 import { seasons } from './seasons';
 import { street } from './street';
 import { together } from './together';
@@ -22,6 +23,7 @@ export const advisors: readonly AdvisorDef[] = [
   hamlet,
   hearth,
   money,
+  nature,
   seasons,
   street,
   together,

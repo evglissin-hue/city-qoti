@@ -14,8 +14,11 @@ const H = TICKS_PER_HOUR;
 
 /** The I2 producers: defs with methods that need a rank or an innovation, or that grow on lots. */
 // The I2 buildings: behind a rank or an innovation, or grown (round six's `built` unlocks are I1's).
+// I3 (C5C): the apiary's honey follows the flowers around it, so its rates are tested with the
+// habitats it needs (test/nature/effects.test.ts), not here.
 const I2: BuildingDef[] = content.buildings.filter(
-  (d) => (d.requires?.rank || d.requires?.innovation || d.grows) && d.methods?.length,
+  (d) =>
+    (d.requires?.rank || d.requires?.innovation || d.grows) && d.methods?.length && !d.tags?.includes('hive'),
 );
 
 /** I3 (C5A): gardens and orchards gather by the season; count them in a season at their plain rate. */

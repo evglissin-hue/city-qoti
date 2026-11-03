@@ -86,6 +86,7 @@ Daily (`every: TICKS_PER_DAY`, `offset: dailyOffset(hour, extra)`): 00:02 season
 | C5B | the bandstand is Juniper's `bandstand-green` unlock (`hasBandstand`), as there is no bandstand building yet; swap for a built bandstand (a tag) when one lands | C5E, I4 |
 | C5B | honey for the beeswax candles and honey pies comes from Millhaven at the post until C5C's apiary makes it (content `neighbors.ts`); keep both, the post is a fallback | C5C |
 | C5C | seasons from `seasonNow` only; no pests until C5C itself (C5A's seasonal growth for gardens and orchards is a yield modifier, `seasonal`, beside yours) | C5A |
+| C5C (as built) | the swing, see-saw, pear tree, arbor seat and reed bed borrow existing decor kits (`params.kit` names the one to draw); modules name `kit: 'module'` with `params.module` and are not drawn (the building view carries `modules`); ponds draw as any water tile; no critters (wildlife is sim-only); the Field Guide book reads `ViewSnapshot.fieldGuide` and `fieldGuideHints` | C5E (art), C5F (UI) |
 | C5D | Watch morale without festivals (`festivalMorale` is 0 with no history) | C5B |
 | C5E | the winter and raid fixtures for every visual | C5A, C5D |
 | C5F | the mocks in `apps/client/src/ui/mocks/seasons.ts` | C5A to C5D |
