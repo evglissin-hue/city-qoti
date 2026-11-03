@@ -264,6 +264,18 @@ export class LeanFrame {
   private layout: FrameLayout | null = null;
   private blurPasses = 1;
   private tilt = 0;
+  /** C5E: photo mode's depth of field, 0 to 1 (a floor under the tilt-shift's strength). */
+  private dof = 0;
+
+  setDepthOfField(amount: number): void {
+    this.dof = amount;
+    this.tilt = Math.max(this.tilt, amount);
+  }
+
+  /** The exposure before tone mapping (for `capture`'s tone mapping on the CPU). */
+  get exposure(): number {
+    return this.look.uLookExposure.value;
+  }
   private bloom = true;
   private night = 0;
   private season: GradeSeason = 'spring';
@@ -430,7 +442,7 @@ export class LeanFrame {
 
   /** Tilt-shift strength from the camera distance (look.ts `tiltFor`). */
   setViewDistance(distance: number): void {
-    this.tilt = tiltFor(distance);
+    this.tilt = Math.max(tiltFor(distance), this.dof);
   }
 
   /** Whether this frame needs the tilt-shift blur chain. */

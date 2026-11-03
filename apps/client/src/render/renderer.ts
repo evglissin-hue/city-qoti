@@ -3,8 +3,10 @@ import { calendar, MAP_SIZE, TILE_FP, type SeatId, type WeatherKind } from '@qot
 import {
   Color,
   DirectionalLight,
+  FloatType,
   Fog,
   HemisphereLight,
+  MathUtils,
   Mesh,
   PCFShadowMap,
   PerspectiveCamera,
@@ -15,11 +17,11 @@ import {
   Vector2,
   Vector3,
   WebGLRenderer,
+  WebGLRenderTarget,
   type Material,
   type MeshLambertMaterial,
-  type WebGLRenderTarget,
 } from 'three';
-import { CameraController, FOV } from '../input/camera';
+import { CameraController, FOV, setFreeCamera } from '../input/camera';
 import type { Mirror } from '../state/mirror';
 import type { EntityPick, Ghost, RenderApi, TilePick } from './api';
 import { fpToWorld, levelY } from './coords';
@@ -324,6 +326,7 @@ export class Renderer implements RenderApi {
     const w = this.container.clientWidth || 1;
     const h = this.container.clientHeight || 1;
     const r = pixelRatios(preset, window.devicePixelRatio || 1, this.dprCap);
+    r.still *= this.photoBoost;
     this.basePixelRatio = r.moving;
     const moving = r.moving * this.resolution.scale;
     // Without the still-frame cache every frame is a moving one: one target, and the canvas follows.
@@ -421,7 +424,13 @@ export class Renderer implements RenderApi {
   private weatherStep = '';
 
   /** C5E: eases the weather's look and drops the still frame when a step shows. */
-  private updateWeather(dt: number): boolean {
+  private weatherAt = -1;
+
+  private updateWeather(): boolean {
+    // Wall time, not the frame's capped step: a slow frame must not stretch the change out.
+    const now = performance.now();
+    const dt = this.weatherAt < 0 ? 0 : Math.min(2, (now - this.weatherAt) / 1000);
+    this.weatherAt = now;
     const w = this.mirror.weather.value;
     const pin = this.lookOverride.weather;
     const drought = pin === 'drought' || !!w?.events.some((e) => e.event === 'drought' && e.active);
@@ -553,7 +562,7 @@ export class Renderer implements RenderApi {
       }
     }
     this.updateLighting();
-    if (this.updateWeather(dt)) dirty = true;
+    if (this.updateWeather()) dirty = true;
     // C5E: the storm's glow behind the clouds: a slow swell every eleven seconds or so, a few
     // percent of brightness over more than a second, never a flash (accessibility).
     const storm = this.env.storm.value;
@@ -839,6 +848,142 @@ export class Renderer implements RenderApi {
     this.invalidate();
   }
 
+  /**
+   * C5E: photo mode (17-presentation.md, Camera; C5F's strip drives it through `SeasonRender`): a
+   * free camera beyond the play clamp, depth of field (a stronger tilt-shift about the focus), a
+   * time of day for the light alone (the sim's clock never moves), and a PNG at one and a half times
+   * the still frame's resolution (up to the GPU's limit).
+   */
+  readonly photo = {
+    setPhoto: (on: boolean): void => {
+      setFreeCamera(on);
+      if (!on) {
+        this.timeOfDay = null;
+        this.lean.setDepthOfField(0);
+        this.lightHour = -1;
+      }
+      this.invalidate();
+    },
+    setDepthOfField: (amount: number): void => {
+      this.lean.setDepthOfField(Math.min(1, Math.max(0, amount)));
+      this.invalidate();
+    },
+    setTimeOfDay: (hour: number | null): void => {
+      this.timeOfDay = hour !== null && Number.isFinite(hour) ? ((hour % 24) + 24) % 24 : null;
+      this.lightHour = -1;
+      this.invalidate();
+    },
+    savePng: (): Promise<Blob> => this.savePng(),
+  };
+
+  /** C5E: extra resolution for photo mode's PNG (1 otherwise). */
+  private photoBoost = 1;
+
+  private async savePng(): Promise<Blob> {
+    const canvas = this.three.domElement;
+    const max = this.three.capabilities.maxTextureSize || 4096;
+    const big = Math.max(canvas.width, canvas.height) || 1;
+    this.photoBoost = Math.max(1, Math.min(1.5, (max * 0.9) / big));
+    this.applyLayout();
+    // Draw the picture now, at rest, and take the canvas in the same task (before it is cleared).
+    this.updateLighting();
+    this.drawLean(performance.now(), true, QUALITY_PRESETS[this.quality].stillCache);
+    const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/png'));
+    this.photoBoost = 1;
+    this.applyLayout();
+    this.invalidate();
+    return blob ?? new Blob([], { type: 'image/png' });
+  }
+
+  private captureTarget: WebGLRenderTarget | null = null;
+  private readonly captureCamera = new PerspectiveCamera(FOV, 1.6, 0.5, 2000);
+
+  /**
+   * C5E: a small picture of the valley about `focus` (tiles), `radius` tiles across, for the
+   * Chronicle's snapshots. Drawn offscreen in one scene pass at twice the size into a float target,
+   * then tone mapped, graded to sRGB and halved on the CPU into a PNG; the canvas never shows it.
+   * The camera looks from the player's own bearing at 50 degrees. What the main view's culling has
+   * put away (far chunks) may be missing from a snapshot of somewhere else.
+   */
+  async capture(opts: {
+    focus: [number, number];
+    radius: number;
+    size: [number, number];
+  }): Promise<Blob | null> {
+    const [w, h] = opts.size;
+    const sw = Math.max(2, Math.round(w * 2));
+    const sh = Math.max(2, Math.round(h * 2));
+    if (!this.captureTarget || this.captureTarget.width !== sw || this.captureTarget.height !== sh) {
+      this.captureTarget?.dispose();
+      this.captureTarget = new WebGLRenderTarget(sw, sh, { type: FloatType, depthBuffer: true });
+    }
+    const cam = this.captureCamera;
+    cam.aspect = w / h;
+    cam.fov = FOV;
+    const [fx, fz] = opts.focus;
+    const tx = Math.min(MAP_SIZE - 1, Math.max(0, Math.floor(fx)));
+    const tz = Math.min(MAP_SIZE - 1, Math.max(0, Math.floor(fz)));
+    const y = levelY(this.mirror.height(tx, tz));
+    const dist = (Math.max(10, opts.radius) / Math.tan(MathUtils.degToRad(FOV / 2))) * 0.62;
+    const dir = this.camera.getWorldDirection(new Vector3());
+    const yaw = Math.atan2(dir.x, dir.z);
+    const pitch = MathUtils.degToRad(50);
+    cam.position.set(
+      fx - Math.sin(yaw) * Math.cos(pitch) * dist,
+      y + Math.sin(pitch) * dist,
+      fz - Math.cos(yaw) * Math.cos(pitch) * dist,
+    );
+    cam.lookAt(fx, y, fz);
+    cam.near = Math.max(0.5, dist * 0.05);
+    cam.far = dist * 6;
+    cam.updateProjectionMatrix();
+    cam.layers.mask = this.camera.layers.mask;
+    const three = this.three;
+    const prev = three.getRenderTarget();
+    const fog = this.scene.fog as Fog;
+    const fogSave = { near: fog.near, far: fog.far };
+    Object.assign(fog, hazeFor(dist));
+    three.setRenderTarget(this.captureTarget);
+    three.clear();
+    three.render(this.scene, cam);
+    three.setRenderTarget(prev);
+    Object.assign(fog, fogSave);
+    const px = new Float32Array(sw * sh * 4);
+    three.readRenderTargetPixels(this.captureTarget, 0, 0, sw, sh, px);
+    const canvas = document.createElement('canvas');
+    canvas.width = w;
+    canvas.height = h;
+    const g = canvas.getContext('2d');
+    if (!g) return null;
+    const img = g.createImageData(w, h);
+    const exposure = this.lean.exposure;
+    const sky = this.env.sky.value;
+    for (let j = 0; j < h; j++) {
+      for (let i = 0; i < w; i++) {
+        let r = 0;
+        let gg = 0;
+        let b = 0;
+        for (let dj = 0; dj < 2; dj++)
+          for (let di = 0; di < 2; di++) {
+            const o = ((sh - 1 - (j * 2 + dj)) * sw + (i * 2 + di)) * 4;
+            // Where nothing drew (beyond the valley), the sky's haze.
+            const a = px[o + 3]!;
+            r += a > 0 ? px[o]! : sky.r;
+            gg += a > 0 ? px[o + 1]! : sky.g;
+            b += a > 0 ? px[o + 2]! : sky.b;
+          }
+        const [tr, tg, tb] = neutralToneMap(r / 4, gg / 4, b / 4, exposure);
+        const q = (j * w + i) * 4;
+        img.data[q] = srgb8(tr);
+        img.data[q + 1] = srgb8(tg);
+        img.data[q + 2] = srgb8(tb);
+        img.data[q + 3] = 255;
+      }
+    }
+    g.putImageData(img, 0, 0);
+    return new Promise((resolve) => canvas.toBlob(resolve, 'image/png'));
+  }
+
   /** The active quality preset. */
   get qualityLevel(): Quality {
     return this.quality;
@@ -894,4 +1039,35 @@ export class Renderer implements RenderApi {
     this.three.domElement.remove();
     this.scene.background = new Color(0);
   }
+}
+
+/** C5E: Khronos PBR Neutral, as look.ts `lookToneMap` (for `capture`, on the CPU). */
+function neutralToneMap(r: number, g: number, b: number, exposure: number): [number, number, number] {
+  r *= exposure;
+  g *= exposure;
+  b *= exposure;
+  const start = 0.8 - 0.04;
+  const desat = 0.15;
+  const x = Math.min(r, g, b);
+  const offset = x < 0.08 ? x - 6.25 * x * x : 0.04;
+  r -= offset;
+  g -= offset;
+  b -= offset;
+  const peak = Math.max(r, g, b);
+  if (peak < start) return [r, g, b];
+  const d = 1 - start;
+  const np = 1 - (d * d) / (peak + d - start);
+  const k = np / peak;
+  r *= k;
+  g *= k;
+  b *= k;
+  const t = 1 - 1 / (desat * (peak - np) + 1);
+  return [r + (np - r) * t, g + (np - g) * t, b + (np - b) * t];
+}
+
+/** Linear to an sRGB byte. */
+function srgb8(v: number): number {
+  const c = Math.max(0, Math.min(1, v));
+  const s = c <= 0.0031308 ? c * 12.92 : 1.055 * c ** (1 / 2.4) - 0.055;
+  return Math.round(s * 255);
 }
