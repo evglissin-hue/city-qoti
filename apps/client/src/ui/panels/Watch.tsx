@@ -245,6 +245,8 @@ export function WatchPanel({ session }: { session: Session }) {
             data-testid="watch-place-guards"
             onClick={() => {
               session.ui.postureDraft.value = guards.map(([x, z]) => [x, z]);
+              // The board steps aside while the points are placed; each click brings it back.
+              session.ui.panel.value = null;
               session.tools?.select('guard');
             }}
           >

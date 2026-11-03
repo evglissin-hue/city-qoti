@@ -3,7 +3,7 @@
 // &mock, the fixture's missing history (wishes, pages, Chronicle, stocks, budget) is laid over the
 // Mirror from the UI mocks, whose ids match the fixture.
 import { randomId } from '@qoti/protocol';
-import { bytesToBase64, serialize, SIM_VERSION } from '@qoti/sim';
+import { bytesToBase64, serialize, SIM_VERSION, type WorldState } from '@qoti/sim';
 import { LocalRoom } from '../net/local';
 import { IdbStorage } from '../net/idb';
 import type { Session } from './session';
@@ -24,7 +24,7 @@ export async function createFixtureValley(
     kind === 'winter'
       ? (await import('../../../../packages/sim/test/fixtures/winter')).winterFixture().state
       : kind === 'raid'
-        ? (await import('../../../../packages/sim/test/fixtures/threat')).raidAtDusk().state
+        ? raidWithCaptive((await import('../../../../packages/sim/test/fixtures/threat')).raidAtDusk())
         : kind === 'village'
           ? (await import('../../../../packages/sim/test/fixtures/village')).villageFixture().state
           : (await import('../../../../packages/sim/test/fixtures/hamlet')).hamletFixture().state;
@@ -43,6 +43,17 @@ export async function createFixtureValley(
   const v: RecentValley = { valleyId, seat: 0, token, mode: 'solo', name: townName, lastPlayed: Date.now() };
   rememberValley(v);
   return v;
+}
+
+/**
+ * C5F: the raid at dusk with one raider already caught (as the I3 mocks have it), so the captive
+ * choice can be tried live before C5D's raids catch anyone themselves.
+ */
+function raidWithCaptive(f: { state: WorldState; raiders: number[] }): WorldState {
+  if (f.raiders[0] !== undefined && !f.state.threats.captives.includes(f.raiders[0])) {
+    f.state.threats.captives.push(f.raiders[0]);
+  }
+  return f.state;
 }
 
 /** Lays the UI mocks' history over a live fixture valley (and answers inspect from them). */

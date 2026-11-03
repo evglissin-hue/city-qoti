@@ -110,6 +110,8 @@ export function FestivalPanel({ session }: { session: Session }) {
   };
   const pickSite = () => {
     session.ui.festivalDraft.value = draft;
+    // The poster steps aside while the site is picked; the tool brings it back.
+    session.ui.panel.value = null;
     session.tools?.select('festival-site');
   };
   const showSite = () => {

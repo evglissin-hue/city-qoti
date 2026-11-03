@@ -182,6 +182,7 @@ export function guardTool(ctx: ToolContext): Tool {
       else if (tiles.length < WATCH_POSTURE_MAX) d.value = [...tiles, [p.tile.x, p.tile.z]];
       else ctx.ui.toast('Three guard points at most. Lift one first.');
       ctx.render.setGhost({ kind: 'tiles', tiles: d.value ?? [], valid: true });
+      ctx.ui.openPanel?.('watch');
     },
     exit() {
       ctx.render.setGhost(null);

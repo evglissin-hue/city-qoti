@@ -220,6 +220,32 @@ export function installDebugHook(getSession: () => Session | null): void {
       const session = s();
       if (session) await overlayMocks(session);
     },
+    /** I3 (C5F): the season views as this seat's Mirror holds them, for the e2e round trips. */
+    seasons: () => {
+      const m = s()?.mirror;
+      if (!m) return null;
+      return {
+        festival: m.festival.value,
+        watch: m.watch.value,
+        threat: m.threat.value,
+        raid: m.raid.value,
+        settings: m.settings.value,
+        weather: m.weather.value,
+        trial: m.trial.value,
+      };
+    },
+    /** I3 (C5F): puts a season page on the desk from the I3 mocks ('card', 'report', 'festival', 'raid'). */
+    seasonsMock: async (what: 'card' | 'report' | 'festival' | 'raid') => {
+      const session = s();
+      if (!session) return;
+      const mk = await import('../ui/mocks/seasons');
+      const ui = session.ui;
+      if (what === 'card')
+        ui.almanac.value = { kind: 'card', view: session.mirror.seasonCard.value ?? mk.mockSeasonCard };
+      if (what === 'report') ui.almanac.value = { kind: 'report', view: mk.mockSeasonReport, page: 0 };
+      if (what === 'festival') ui.festivalCard.value = mk.mockFestivalResult;
+      if (what === 'raid') ui.raidCard.value = mk.mockRaidResult;
+    },
     /** I2 (C4F): the village mocks over the live village fixture; `charter` adds a board in progress. */
     villageMocks: async (opts?: { charter?: boolean }) => {
       const session = s();
