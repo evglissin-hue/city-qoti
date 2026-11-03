@@ -13,13 +13,19 @@ function fruitTree(
 ): ShapeBuilder {
   const rnd = seeded(opts?.seed ?? 5);
   const leaf = vary(canopy, rnd);
-  const s = new ShapeBuilder();
+  // V1B: the far level is the trunk and one round crown (fruit, petals and the bough drop out).
+  const s = new ShapeBuilder(opts?.lod ?? 'high');
   s.cylinder(0, 0, 0.07, 0.05, 0, 0.46, palette.bark, 6);
   s.box(-0.015, 0.34, -0.015, 0.15, 0.38, 0.015, palette.bark);
-  s.blob(0, 0.7, 0, 0.34, 0.27, 0.34, leaf, 1, rnd, 0.08);
-  s.blob(0.2, 0.62, 0.1, 0.2, 0.17, 0.2, vary(leaf, rnd), 1, rnd, 0.08);
-  s.blob(-0.16, 0.64, -0.12, 0.21, 0.18, 0.21, vary(leaf, rnd), 1, rnd, 0.08);
-  s.blob(0.03, 0.88, 0.02, 0.2, 0.15, 0.2, vary(leaf, rnd, 1.5), 1, rnd, 0.06);
+  s.levels(
+    () => {
+      s.blob(0, 0.7, 0, 0.34, 0.27, 0.34, leaf, 1, rnd, 0.08);
+      s.blob(0.2, 0.62, 0.1, 0.2, 0.17, 0.2, vary(leaf, rnd), 1, rnd, 0.08);
+      s.blob(-0.16, 0.64, -0.12, 0.21, 0.18, 0.21, vary(leaf, rnd), 1, rnd, 0.08);
+      s.blob(0.03, 0.88, 0.02, 0.2, 0.15, 0.2, vary(leaf, rnd, 1.5), 1, rnd, 0.06);
+    },
+    () => void s.blob(0.01, 0.7, -0.005, 0.4, 0.32, 0.4, leaf, 1),
+  );
   for (let i = 0; i < 7; i++) {
     const a = (i / 7) * Math.PI * 2 + rnd() * 0.6;
     const y = 0.58 + rnd() * 0.3;
