@@ -1,5 +1,6 @@
 import {
   constructionGeometry,
+  isRowKit,
   kitById,
   mergeFlat,
   ShapeBuilder,
@@ -98,6 +99,18 @@ function plotSoil(b: BuildingView): number {
   return soilLevel(sum / (w * d));
 }
 
+/**
+ * V1B: joined facades. The buildings layer hands in a reader for a home's place in its row (the
+ * neighbor's kit on each joined side, and the sides that face a road), read from the Mirror's
+ * occupant layer; the params carry it, so the key changes, and both houses rebuild, when a
+ * neighbor comes, goes or changes.
+ */
+let rowAt: ((b: BuildingView) => Record<string, string | boolean>) | null = null;
+
+export function setRowReader(read: ((b: BuildingView) => Record<string, string | boolean>) | null): void {
+  rowAt = read;
+}
+
 export function isSeasonal(defId: string): boolean {
   const kit = drawDef(defId)?.art.kit;
   return !!kit && SEASONAL_KITS.has(kit);
@@ -112,6 +125,7 @@ export function buildingParams(b: BuildingView): Record<string, number | string 
   if (b.style) p.style = b.style;
   if (def && SEASONAL_KITS.has(def.art.kit)) p.season = drawSeason;
   if (def?.tags?.includes('plot')) p.soil = plotSoil(b);
+  if (rowAt && def && isRowKit(def.art.kit)) Object.assign(p, rowAt(b));
   const rt = b.rt;
   if (rt?.method) {
     // What a grown craft or farm is making, by its method's first output.

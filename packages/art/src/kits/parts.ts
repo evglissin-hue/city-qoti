@@ -140,6 +140,8 @@ export interface WallSpec {
    * each skipped side from which its face is drawn after all.
    */
   partyFrom?: { l?: number; r?: number };
+  /** V1B: another floor (and its sill beam) stands on these walls, hiding their wall plate. */
+  capped?: boolean;
 }
 
 /** How far cladding stands proud of the wall plane: windows and doors sit on top of it. */
@@ -246,7 +248,7 @@ function farTrim(s: ShapeBuilder, w: WallSpec): void {
   // Posts are a pixel wide from where the far level shows; the plates and floor beams still read.
   s.surface(SURFACE.timber);
   for (const { f, u0, u1 } of faces) {
-    strip(f, u0, y1 - 0.055, u1, y1, w.trim);
+    if (!w.capped) strip(f, u0, y1 - 0.055, u1, y1, w.trim);
     if (m === 'timber') for (const y of w.beams ?? []) strip(f, u0, y - 0.03, u1, y + 0.03, w.trim);
   }
 }

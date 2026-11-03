@@ -123,7 +123,11 @@ export function orchardTree(
 ): void {
   // V1B: one path for both levels (the far one drops the boughs, fruit and side crowns by itself).
   const trunk = vary(palette.bark, rnd, 0.6);
-  s.cylinder(x, z, 0.05 * k, 0.035 * k, 0, 0.32 * k, trunk, 5);
+  // The far level is the crown alone, as a squat six-sided puff (orchards hold a dozen trees).
+  // (bare winter trees keep their trunk).
+  const drawTrunk = (): void => void s.cylinder(x, z, 0.05 * k, 0.035 * k, 0, 0.32 * k, trunk, 5);
+  if (season === 3) drawTrunk();
+  else s.nearOnly(drawTrunk);
   // Three short boughs splaying out to hold the crown.
   const a0 = rnd() * Math.PI * 2;
   const tips: V3[] = [];
@@ -157,25 +161,25 @@ export function orchardTree(
         : vary(palette.leaf, rnd, 0.7);
   const top = mixHex(leaf, season === 0 ? 0xf7e8ee : 0xc8e070, season === 0 ? 0.25 : 0.15);
   s.levels(
-    () => s.blob(x, 0.6 * k, z, 0.3 * k, 0.22 * k, 0.3 * k, leaf, 1, rnd, 0.1, top),
-    () => s.blob(x, 0.6 * k, z, 0.3 * k, 0.22 * k, 0.3 * k, leaf, 1, undefined, 0, top),
+    () => {
+      s.blob(x, 0.6 * k, z, 0.3 * k, 0.22 * k, 0.3 * k, leaf, 1, rnd, 0.1, top);
+      for (const t of tips)
+        s.blob(
+          t[0],
+          t[1] + 0.06 * k,
+          t[2],
+          0.17 * k,
+          0.14 * k,
+          0.17 * k,
+          vary(leaf, rnd, 1),
+          1,
+          rnd,
+          0.12,
+          top,
+        );
+    },
+    () => void s.cylinder(x, z, 0.32 * k, 0.22 * k, 0.42 * k, 0.8 * k, mixHex(leaf, top, 0.5), 6),
   );
-  {
-    for (const t of tips)
-      s.blob(
-        t[0],
-        t[1] + 0.06 * k,
-        t[2],
-        0.17 * k,
-        0.14 * k,
-        0.17 * k,
-        vary(leaf, rnd, 1),
-        1,
-        rnd,
-        0.12,
-        top,
-      );
-  }
   for (let i = 0; i < 9; i++) {
     const a = rnd() * Math.PI * 2;
     const r = (0.22 + rnd() * 0.12) * k;

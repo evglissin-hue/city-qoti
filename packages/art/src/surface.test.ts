@@ -70,16 +70,35 @@ describe('ShapeBuilder surfaces (V1.0)', () => {
     expect(ids.slice(72).every((v) => v === SURFACE.slate)).toBe(true);
   });
 
-  it('reads 0 on every kit that sets none (all of them, until V1B and V1C)', () => {
+  it('V1B: buildings carry their wall, roof and glass surfaces at both levels', () => {
+    const surfacesOf = (g: ReturnType<typeof ShapeBuilder.prototype.build>): Set<number> =>
+      new Set(Array.from(g.getAttribute('surface').array));
     for (const kit of kits) {
       const g = kit.build(kit.kind === 'building' ? OPTS : undefined);
       const surface = g.getAttribute('surface');
       expect(surface, kit.id).toBeDefined();
       expect(surface.count, kit.id).toBe(g.getAttribute('position').count);
-      expect(
-        Array.from(surface.array).every((v) => v === 0),
-        kit.id,
-      ).toBe(true);
+    }
+    for (const style of ['timber', 'stone', 'brick', 'plaster']) {
+      for (const id of ['cottage', 'townhouse', 'shop']) {
+        for (const lod of ['high', 'low'] as const) {
+          const ids = surfacesOf(kitById.get(id)!.build({ ...OPTS, params: { style }, lod }));
+          const roofs = [SURFACE.tile, SURFACE.slate, SURFACE.thatch].filter((r) => ids.has(r));
+          const walls = [SURFACE.plaster, SURFACE.brick, SURFACE.stone, SURFACE.timber].filter((w) =>
+            ids.has(w),
+          );
+          expect(roofs.length, `${id} ${style} ${lod} roof`).toBeGreaterThan(0);
+          expect(walls.length, `${id} ${style} ${lod} walls`).toBeGreaterThan(0);
+          expect(ids.has(SURFACE.glass), `${id} ${style} ${lod} glass`).toBe(true);
+        }
+      }
+    }
+    // Lit panes are glass, at both levels.
+    for (const lod of ['high', 'low'] as const) {
+      const g = kitById.get('cottage')!.build({ ...OPTS, params: { style: 'brick' }, lod });
+      const glow = g.getAttribute('glow').array;
+      const surf = g.getAttribute('surface').array;
+      for (let i = 0; i < glow.length; i++) if (glow[i] === 1) expect(surf[i]).toBe(SURFACE.glass);
     }
   });
 

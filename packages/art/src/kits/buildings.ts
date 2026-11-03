@@ -108,6 +108,7 @@ export function shell(s: ShapeBuilder, sp: ShellSpec): Shell {
       color: sp.wallColor,
       trim: sp.trim,
       rnd,
+      capped: true,
       ...partyWalls(),
     });
     const j = sp.upper.jetty;

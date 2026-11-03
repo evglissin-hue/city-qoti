@@ -1,4 +1,4 @@
-import { BufferGeometry, Color, Float32BufferAttribute, Uint8BufferAttribute, Vector3 } from 'three';
+import { BufferGeometry, Color, Float32BufferAttribute, Uint8BufferAttribute } from 'three';
 
 export type V3 = [number, number, number];
 
@@ -42,10 +42,9 @@ export function hash4(a: number, b: number, c: number, d: number): number {
   return (h >>> 0) / 4294967296;
 }
 
-const tmpA = new Vector3();
-const tmpB = new Vector3();
-const tmpN = new Vector3();
 const tmpColor = new Color();
+/** V1B: linear colors by hex, so the sRGB conversion runs once per color. */
+const linearCache = new Map<number, [number, number, number]>();
 const hsl = { h: 0, s: 0, l: 0 };
 
 /** A small deterministic generator (mulberry32). Same seed, same sequence, on every laptop. */
@@ -82,12 +81,32 @@ export function mixHex(a: number, b: number, t: number): number {
  * baked vertex ambient occlusion (darker at the base and on undersides, lighter on top).
  */
 export class ShapeBuilder {
-  private readonly positions: number[] = [];
-  private readonly normals: number[] = [];
-  private readonly colors: number[] = [];
-  private readonly glows: number[] = [];
-  private readonly surfaces: number[] = [];
-  private readonly color = new Color();
+  // V1B: vertex data in growable typed arrays (`n` vertices of `cap`), so drawing a face is a few
+  // stores and `build()` hands the arrays over without copying them into new ones.
+  private n = 0;
+  private cap = 0;
+  private positions = new Float32Array(0);
+  private normals = new Float32Array(0);
+  private colors = new Float32Array(0);
+  private glows = new Float32Array(0);
+  private surfaces = new Uint8Array(0);
+
+  private reserve(add: number): void {
+    if (this.n + add <= this.cap) return;
+    let cap = Math.max(1536, this.cap * 2);
+    while (cap < this.n + add) cap *= 2;
+    const grow = <T extends Float32Array | Uint8Array>(a: T, k: number, make: (len: number) => T): T => {
+      const b = make(cap * k);
+      b.set(a.subarray(0, this.n * k));
+      return b;
+    };
+    this.positions = grow(this.positions, 3, (l) => new Float32Array(l));
+    this.normals = grow(this.normals, 3, (l) => new Float32Array(l));
+    this.colors = grow(this.colors, 3, (l) => new Float32Array(l));
+    this.glows = grow(this.glows, 1, (l) => new Float32Array(l));
+    this.surfaces = grow(this.surfaces, 1, (l) => new Uint8Array(l));
+    this.cap = cap;
+  }
   private glowValue = 0;
   private surfaceValue = 0;
   /**
@@ -259,23 +278,41 @@ export class ShapeBuilder {
 
   /** Triangle count so far. */
   get triangles(): number {
-    return this.positions.length / 9;
+    return this.n / 3;
   }
 
   tri(a: V3, b: V3, c: V3, hex: number, outward?: V3): this {
     if (this.silent) return this;
-    tmpA.set(b[0] - a[0], b[1] - a[1], b[2] - a[2]);
-    tmpB.set(c[0] - a[0], c[1] - a[1], c[2] - a[2]);
-    tmpN.crossVectors(tmpA, tmpB);
-    if (tmpN.lengthSq() === 0) return this;
-    if (outward && tmpN.x * outward[0] + tmpN.y * outward[1] + tmpN.z * outward[2] < 0) {
+    const ux = b[0] - a[0];
+    const uy = b[1] - a[1];
+    const uz = b[2] - a[2];
+    const vx = c[0] - a[0];
+    const vy = c[1] - a[1];
+    const vz = c[2] - a[2];
+    let nx = uy * vz - uz * vy;
+    let ny = uz * vx - ux * vz;
+    let nz = ux * vy - uy * vx;
+    const len = Math.sqrt(nx * nx + ny * ny + nz * nz);
+    if (len === 0) return this;
+    if (outward && nx * outward[0] + ny * outward[1] + nz * outward[2] < 0) {
       [b, c] = [c, b];
-      tmpN.negate();
+      nx = -nx;
+      ny = -ny;
+      nz = -nz;
     }
-    tmpN.normalize();
-    this.color.setHex(hex);
+    nx /= len;
+    ny /= len;
+    nz /= len;
+    // V1B: hex to linear color once per color, not once per triangle (the sRGB curve is costly).
+    let rgb = linearCache.get(hex);
+    if (!rgb) {
+      tmpColor.setHex(hex);
+      rgb = [tmpColor.r, tmpColor.g, tmpColor.b];
+      linearCache.set(hex, rgb);
+    }
+    let k = 1;
     if (this.jitterValue > 0) {
-      let k = this.faceK;
+      k = this.faceK;
       if (Number.isNaN(k)) {
         k =
           1 +
@@ -289,15 +326,33 @@ export class ShapeBuilder {
               2 -
               1);
       }
-      this.color.multiplyScalar(k);
     }
-    for (const p of [a, b, c]) {
-      this.positions.push(p[0], p[1], p[2]);
-      this.normals.push(tmpN.x, tmpN.y, tmpN.z);
-      this.colors.push(this.color.r, this.color.g, this.color.b);
-      this.glows.push(this.glowValue);
-      this.surfaces.push(this.surfaceValue);
+    const r = rgb[0] * k;
+    const g = rgb[1] * k;
+    const bl = rgb[2] * k;
+    this.reserve(3);
+    const v = this.n;
+    const P = this.positions;
+    const N = this.normals;
+    const C = this.colors;
+    const gv = this.glowValue;
+    const sv = this.surfaceValue;
+    for (let i = 0; i < 3; i++) {
+      const p = i === 0 ? a : i === 1 ? b : c;
+      const o = (v + i) * 3;
+      P[o] = p[0];
+      P[o + 1] = p[1];
+      P[o + 2] = p[2];
+      N[o] = nx;
+      N[o + 1] = ny;
+      N[o + 2] = nz;
+      C[o] = r;
+      C[o + 1] = g;
+      C[o + 2] = bl;
+      this.glows[v + i] = gv;
+      this.surfaces[v + i] = sv;
     }
+    this.n = v + 3;
     return this;
   }
 
@@ -557,10 +612,15 @@ export class ShapeBuilder {
     };
     const mid = (a: V3, b: V3): V3 => norm([(a[0] + b[0]) / 2, (a[1] + b[1]) / 2, (a[2] + b[2]) / 2]);
     // Per-direction wobble, keyed by a rounded direction so shared vertices move together.
-    const bumps = new Map<string, number>();
+    const bumps = new Map<number, number>();
     const bump = (p: V3): number => {
       if (!rnd || wobble === 0) return 1;
-      const key = `${p[0].toFixed(3)},${p[1].toFixed(3)},${p[2].toFixed(3)}`;
+      // Unit directions rounded to thousandths, packed into one number (V1B: no string keys).
+      const key =
+        (Math.round(p[0] * 1000) + 1000) * 4004001 +
+        (Math.round(p[1] * 1000) + 1000) * 2001 +
+        Math.round(p[2] * 1000) +
+        1000;
       let b = bumps.get(key);
       if (b === undefined) {
         b = 1 + (rnd() - 0.5) * 2 * wobble;
@@ -629,7 +689,7 @@ export class ShapeBuilder {
 
   /** C3D-1: moves everything built so far (used to lift or offset a finished piece). */
   translate(x: number, y: number, z: number): this {
-    for (let i = 0; i < this.positions.length; i += 3) {
+    for (let i = 0; i < this.n * 3; i += 3) {
       this.positions[i]! += x;
       this.positions[i + 1]! += y;
       this.positions[i + 2]! += z;
@@ -639,7 +699,7 @@ export class ShapeBuilder {
 
   /** Scales everything built so far about the origin (used for tree growth stages). */
   scale(k: number): this {
-    for (let i = 0; i < this.positions.length; i++) this.positions[i]! *= k;
+    for (let i = 0; i < this.n * 3; i++) this.positions[i]! *= k;
     return this;
   }
 
@@ -648,13 +708,13 @@ export class ShapeBuilder {
    * 0.85 tiles up (the concept's `ao` ramp); undersides (jetties, eaves, canopies) take a third
    * off; occluders add shade where things meet. Roofs and lit panes are never darkened.
    */
-  private bakeKit(colors: number[]): void {
+  private bakeKit(colors: Float32Array): void {
     let maxY = 0.001;
-    for (let i = 1; i < this.positions.length; i += 3) maxY = Math.max(maxY, this.positions[i]!);
+    for (let i = 1; i < this.n * 3; i += 3) maxY = Math.max(maxY, this.positions[i]!);
     // Small pieces (sheds, stalls) keep a contact band in proportion to their height.
     const foot = Math.min(0.85, Math.max(0.16, maxY * 0.55));
     const occ = this.occluders;
-    for (let v = 0; v < this.glows.length; v++) {
+    for (let v = 0; v < this.n; v++) {
       if (this.glows[v]! > 0) continue;
       const roof = ROOF_SURFACES.has(this.surfaces[v]!);
       const x = this.positions[v * 3]!;
@@ -680,13 +740,14 @@ export class ShapeBuilder {
   }
 
   build(ao: boolean | AoBake = true): BufferGeometry {
-    const colors = this.colors.slice();
+    const n = this.n;
+    const colors = this.colors.slice(0, n * 3);
     const bake: AoBake | null = ao === false ? null : ao === true ? this.bake : ao;
     if (bake === 'classic') {
       let maxY = 0.001;
-      for (let i = 1; i < this.positions.length; i += 3) maxY = Math.max(maxY, this.positions[i]!);
+      for (let i = 1; i < n * 3; i += 3) maxY = Math.max(maxY, this.positions[i]!);
       const base = Math.min(0.28, maxY * 0.45);
-      for (let v = 0; v < this.glows.length; v++) {
+      for (let v = 0; v < n; v++) {
         if (this.glows[v]! > 0) continue;
         const y = this.positions[v * 3 + 1]!;
         const ny = this.normals[v * 3 + 1]!;
@@ -698,11 +759,11 @@ export class ShapeBuilder {
       }
     } else if (bake === 'kit') this.bakeKit(colors);
     const g = new BufferGeometry();
-    g.setAttribute('position', new Float32BufferAttribute(this.positions, 3));
-    g.setAttribute('normal', new Float32BufferAttribute(this.normals, 3));
+    g.setAttribute('position', new Float32BufferAttribute(this.positions.slice(0, n * 3), 3));
+    g.setAttribute('normal', new Float32BufferAttribute(this.normals.slice(0, n * 3), 3));
     g.setAttribute('color', new Float32BufferAttribute(colors, 3));
-    g.setAttribute('glow', new Float32BufferAttribute(this.glows, 1));
-    g.setAttribute('surface', new Uint8BufferAttribute(Uint8Array.from(this.surfaces), 1));
+    g.setAttribute('glow', new Float32BufferAttribute(this.glows.slice(0, n), 1));
+    g.setAttribute('surface', new Uint8BufferAttribute(this.surfaces.slice(0, n), 1));
     g.computeBoundingBox();
     g.computeBoundingSphere();
     return g;

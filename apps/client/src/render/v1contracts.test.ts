@@ -128,9 +128,10 @@ describe('quality presets (V1.0)', () => {
   it('V1D: every preset uses its own building distance above the stand-in floor, and Low gets cached shadows', () => {
     for (const q of ['low', 'medium', 'high', 'ultra'] as const)
       expect(buildingDetailNow(q)).toBe(Math.max(QUALITY_PRESETS[q].buildingDetail, BUILDING_DETAIL_FLOOR));
-    // Until V1B's far levels have lit windows, nothing swaps nearer than before V1D.
+    // V1B: far levels keep their panes lit, so the floor is gone and each preset's distance applies.
+    expect(BUILDING_DETAIL_FLOOR).toBe(0);
     expect([buildingDetailNow('low'), buildingDetailNow('medium'), buildingDetailNow('ultra')]).toEqual([
-      75, 75, 110,
+      40, 60, 110,
     ]);
     expect(QUALITY_PRESETS.low.shadowMap).toBe(1024);
     // The classic engine (?engine=classic, until V1X) keeps reading the old cap.

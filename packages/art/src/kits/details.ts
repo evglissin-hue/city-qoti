@@ -389,7 +389,7 @@ function bayNear(
       0,
       out[2],
     ]);
-    s.glow(1);
+    s.glow(1).surface(SURFACE.glass);
     s.quad(
       p(ua, y0 + 0.08, oa + 0.004),
       p(ub, y0 + 0.08, ob + 0.004),
@@ -398,7 +398,7 @@ function bayNear(
       palette.windowDay,
       [out[0], 0, out[2]],
     );
-    s.glow(0);
+    s.glow(0).surface(SURFACE.plain);
     s.quad(p(ua, y0 + h - 0.04, oa), p(ub, y0 + h - 0.04, ob), p(ub, y0 + h, ob), p(ua, y0 + h, oa), frame, [
       out[0],
       0,
@@ -513,9 +513,9 @@ function shopfrontNear(
     if (b - a < 0.08) continue;
     faceBox(s, f, a, 0, o, b, riser, o + 0.04, vary(paint, rnd, 0.6));
     faceBox(s, f, a - 0.005, riser, o, b + 0.005, riser + 0.02, o + 0.06, paint);
-    s.glow(1);
+    s.glow(1).surface(SURFACE.glass);
     faceBox(s, f, a, riser + 0.02, ins, b, h - 0.04, ins + 0.006, palette.windowDay);
-    s.glow(0);
+    s.glow(0).surface(SURFACE.plain);
     // Glazing bars: a grid of small panes.
     const cols = Math.max(2, Math.round((b - a) / 0.11));
     for (let i = 1; i < cols; i++) {
@@ -547,7 +547,7 @@ function shopfrontNear(
     o + 0.025,
     vary(paint, rnd, 1.2),
   );
-  s.glow(1);
+  s.glow(1).surface(SURFACE.glass);
   faceBox(
     s,
     f,
@@ -559,7 +559,7 @@ function shopfrontNear(
     o + 0.03,
     palette.windowDay,
   );
-  s.glow(0);
+  s.glow(0).surface(SURFACE.plain);
   const knob = facePoint(f, doorU + door - 0.07, h * 0.42, o + 0.035);
   s.blob(knob[0], knob[1], knob[2], 0.012, 0.012, 0.012, palette.mustard, 0);
   faceBox(s, f, doorU - door - 0.02, 0, o, doorU + door + 0.02, 0.03, o + 0.14, palette.stone);
