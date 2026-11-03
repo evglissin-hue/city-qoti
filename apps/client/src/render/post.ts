@@ -1,210 +1,399 @@
-// The post chain on Medium and High (V1D's file from V1.0: the frame graph; what the passes do to
-// color lives in look.ts, V1A's). V1D replaces this chain with the lean renderer's single final pass.
+// The lean frame graph (V1D; docs/spec/20-architecture.md, Lean renderer). The scene is drawn once a
+// frame into a float scene target (multisampled from Medium up); a quarter resolution chain blurs a
+// copy of it (a 4 x 4 downsample, then a horizontal and a vertical Gaussian of five linear fetches
+// each); one final full-screen pass to the canvas mixes the sharp and blurred images for tilt-shift,
+// adds bloom from the blurred image, tone maps, converts to sRGB, grades, vignettes and dithers. What
+// those steps do to color is look.ts (V1A's); this file only calls its functions, in the order the
+// wave notes fix. It replaces the classic chain (postClassic.ts: RenderPass, UnrealBloomPass, two
+// tilt-shift passes, OutputPass and a grade pass), which stays behind `?engine=classic` until V1X.
 import {
+  BufferGeometry,
+  DepthTexture,
+  Float32BufferAttribute,
   HalfFloatType,
-  RawShaderMaterial,
+  LinearFilter,
+  Mesh,
+  OrthographicCamera,
+  RGBAFormat,
+  RGBFormat,
+  Scene,
   ShaderMaterial,
+  UnsignedInt101111Type,
   Vector2,
   WebGLRenderTarget,
-  type Camera,
-  type Scene,
+  type Material,
+  type PixelFormat,
+  type TextureDataType,
   type WebGLRenderer,
 } from 'three';
-import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js';
-import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
-import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass.js';
-import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
-import { OutputShader } from 'three/examples/jsm/shaders/OutputShader.js';
-import {
-  applyGrade,
-  bloomFor,
-  LOOK_BLOOM_RADIUS,
-  LOOK_GLSL,
-  lookUniforms,
-  tiltFor,
-  type GradeSeason,
-  type LookUniforms,
-} from './look';
+import { applyGrade, bloomFor, LOOK_GLSL, lookUniforms, tiltFor, type GradeSeason, type LookUniforms } from './look';
 
 export type { GradeSeason } from './look';
 
-const PASS_VERTEX = /* glsl */ `
+/** Full-screen passes draw one big triangle with clip-space positions (no camera math). */
+export const FULLSCREEN_VERTEX = /* glsl */ `
   varying vec2 vUv;
   void main() {
     vUv = uv;
-    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+    gl_Position = vec4(position.xy, 0.0, 1.0);
   }
 `;
 
-/** A 9-tap tilt-shift blur along one axis, scaled by the look's mask (as three's tilt shaders). */
-function tiltFragment(axis: 'x' | 'y'): string {
-  const at = (k: string): string =>
-    axis === 'x' ? `vec2(vUv.x ${k} * hh, vUv.y)` : `vec2(vUv.x, vUv.y ${k} * hh)`;
-  const taps: [string, string][] = [
-    ['- 4.0', '0.051'],
-    ['- 3.0', '0.0918'],
-    ['- 2.0', '0.12245'],
-    ['- 1.0', '0.1531'],
-    ['', '0.1633'],
-    ['+ 1.0', '0.1531'],
-    ['+ 2.0', '0.12245'],
-    ['+ 3.0', '0.0918'],
-    ['+ 4.0', '0.051'],
-  ];
-  return /* glsl */ `
-    uniform sampler2D tDiffuse;
-    uniform float h;
-    ${LOOK_GLSL}
-    varying vec2 vUv;
-    void main() {
-      vec4 sum = vec4(0.0);
-      float hh = h * lookTiltMask(vUv);
-      ${taps
-        .map(([k, w]) =>
-          k
-            ? `sum += texture2D(tDiffuse, ${at(k)}) * ${w};`
-            : `sum += texture2D(tDiffuse, vec2(vUv.x, vUv.y)) * ${w};`,
-        )
-        .join('\n      ')}
-      gl_FragColor = sum;
-    }
-  `;
+/** The one triangle that covers the screen: uv 0 to 1 across the visible part. */
+export function fullScreenTriangle(): BufferGeometry {
+  const g = new BufferGeometry();
+  g.setAttribute('position', new Float32BufferAttribute([-1, -1, 0, 3, -1, 0, -1, 3, 0], 3));
+  g.setAttribute('uv', new Float32BufferAttribute([0, 0, 2, 0, 0, 2], 2));
+  return g;
 }
 
-/** Tone mapping and sRGB, as three's OutputPass does, through the look's operator. */
-const OUTPUT_FRAGMENT = /* glsl */ `
-  precision highp float;
-  uniform sampler2D tDiffuse;
-  ${LOOK_GLSL}
+/**
+ * How strongly the tilt-shift mixes in the blurred image, per unit of `tiltFor` (look.ts) and of
+ * the look's mask: the final pass uses smoothstep(0, 1, mask * tilt * TILT_MIX). At the far
+ * camera (tilt 2.2) the top and bottom edges are fully soft and the middle band stays sharp, close
+ * to the classic chain's two passes.
+ */
+export const TILT_MIX = 0.85;
+
+/** Downsample: four bilinear fetches at the corners of a 4 x 4 block of the source. */
+const DOWN_FRAGMENT = /* glsl */ `
+  uniform sampler2D tSrc;
+  uniform vec2 uTexel;
   varying vec2 vUv;
   void main() {
-    gl_FragColor = texture2D(tDiffuse, vUv);
-    gl_FragColor.rgb = lookToneMap(gl_FragColor.rgb);
-    gl_FragColor = lookSrgb(gl_FragColor);
+    gl_FragColor = 0.25 * (
+      texture2D(tSrc, vUv + uTexel * vec2(-1.0, -1.0)) +
+      texture2D(tSrc, vUv + uTexel * vec2(1.0, -1.0)) +
+      texture2D(tSrc, vUv + uTexel * vec2(-1.0, 1.0)) +
+      texture2D(tSrc, vUv + uTexel * vec2(1.0, 1.0)));
   }
 `;
 
-/** The seasonal grade and the vignette on display colors, last. */
-const GRADE_FRAGMENT = /* glsl */ `
-  uniform sampler2D tDiffuse;
-  ${LOOK_GLSL}
+/** A 9-tap Gaussian along one axis in five fetches (linear sampling between texel pairs). */
+const BLUR_FRAGMENT = /* glsl */ `
+  uniform sampler2D tSrc;
+  uniform vec2 uTexel;
+  uniform vec2 uDir;
   varying vec2 vUv;
   void main() {
-    vec4 c = texture2D(tDiffuse, vUv);
-    gl_FragColor = vec4(lookGrade(c.rgb) * lookVignette(vUv), c.a);
+    vec2 o1 = uDir * uTexel * 1.3846154;
+    vec2 o2 = uDir * uTexel * 3.2307692;
+    gl_FragColor = texture2D(tSrc, vUv) * 0.2270270
+      + (texture2D(tSrc, vUv + o1) + texture2D(tSrc, vUv - o1)) * 0.3162162
+      + (texture2D(tSrc, vUv + o2) + texture2D(tSrc, vUv - o2)) * 0.0702703;
   }
 `;
 
 /**
- * Medium and High post: gentle bloom (high threshold, so mostly lit windows and flames at night),
- * a tilt-shift that keeps the middle band sharp and grows softer as the camera pulls back, tone
- * mapping, then the seasonal grade with a soft vignette. The passes share one set of look uniforms.
+ * The final pass, in the wave notes' order: tilt-shift mix, bloom, tone mapping, sRGB, then the
+ * grade times the vignette, then dither. Without blur (close up by day) it skips both blurred
+ * fetches.
  */
-export class PostChain {
-  private readonly composer: EffectComposer;
-  private readonly bloom: UnrealBloomPass;
-  private readonly hTilt: ShaderPass;
-  private readonly vTilt: ShaderPass;
-  private readonly look: LookUniforms = lookUniforms();
+const FINAL_FRAGMENT = /* glsl */ `
+  uniform sampler2D tScene;
+  uniform sampler2D tBlur;
+  uniform float uTilt;
+  uniform float uBlurOn;
+  ${LOOK_GLSL}
+  varying vec2 vUv;
+  void main() {
+    vec3 c = texture2D(tScene, vUv).rgb;
+    if (uBlurOn > 0.5) {
+      vec3 b = texture2D(tBlur, vUv).rgb;
+      c = mix(c, b, smoothstep(0.0, 1.0, lookTiltMask(vUv) * uTilt));
+      c = lookBloomMix(c, b);
+    }
+    c = lookToneMap(c);
+    vec4 o = lookSrgb(vec4(c, 1.0));
+    o.rgb = lookGrade(o.rgb) * lookVignette(vUv);
+    // Dither (interleaved gradient noise) so slow gradients like the sky never band in 8 bits.
+    float n = fract(52.9829189 * fract(dot(gl_FragCoord.xy, vec2(0.06711056, 0.00583715))));
+    gl_FragColor = vec4(o.rgb + (n - 0.5) / 255.0, 1.0);
+  }
+`;
+
+/** The color format of the frame's float targets. */
+export type SceneFormat = 'packed' | 'half';
+
+/**
+ * R11F_G11F_B10F where the browser can render to it (half the bytes of RGBA16F, which matters on
+ * integrated graphics, where full-screen passes are bound by memory bandwidth), else RGBA16F. The
+ * scene targets need no alpha: the final image is opaque. `?debug&scenefmt=half` forces RGBA16F.
+ */
+export function sceneFormat(renderer: WebGLRenderer, samples: number): SceneFormat {
+  const q = new URLSearchParams(typeof location === 'undefined' ? '' : location.search);
+  if (q.has('debug') && q.get('scenefmt') === 'half') return 'half';
+  if (!renderer.extensions.has('EXT_color_buffer_float')) return 'half';
+  const gl = renderer.getContext() as WebGL2RenderingContext;
+  const probe = new WebGLRenderTarget(4, 4, { ...formatOptions('packed'), samples, depthBuffer: false });
+  const before = renderer.getRenderTarget();
+  try {
+    renderer.setRenderTarget(probe);
+    return gl.checkFramebufferStatus(gl.FRAMEBUFFER) === gl.FRAMEBUFFER_COMPLETE ? 'packed' : 'half';
+  } catch {
+    return 'half';
+  } finally {
+    renderer.setRenderTarget(before);
+    probe.dispose();
+  }
+}
+
+function formatOptions(f: SceneFormat): { format: PixelFormat; type: TextureDataType } {
+  return f === 'packed'
+    ? { format: RGBFormat, type: UnsignedInt101111Type }
+    : { format: RGBAFormat, type: HalfFloatType };
+}
+
+/** A float color target of the frame (no mipmaps, linear filtering). */
+export function colorTarget(
+  w: number,
+  h: number,
+  f: SceneFormat,
+  opts: { samples?: number; depth?: boolean; depthTexture?: boolean } = {},
+): WebGLRenderTarget {
+  const t = new WebGLRenderTarget(w, h, {
+    ...formatOptions(f),
+    samples: opts.samples ?? 0,
+    depthBuffer: opts.depth ?? false,
+    stencilBuffer: false,
+    minFilter: LinearFilter,
+    magFilter: LinearFilter,
+    generateMipmaps: false,
+    depthTexture: opts.depthTexture ? new DepthTexture(w, h) : null,
+  });
+  // The depth texture is resolved from the multisampled buffer only when a pass asks for it.
+  t.resolveDepthBuffer = false;
+  return t;
+}
+
+/** Sizes in device pixels for a CSS size at a pixel ratio. */
+export function deviceSize(cssW: number, cssH: number, ratio: number): [number, number] {
+  return [Math.max(2, Math.round(cssW * ratio)), Math.max(2, Math.round(cssH * ratio))];
+}
+
+export interface FrameLayout {
+  /** CSS size of the canvas. */
+  width: number;
+  height: number;
+  /** Pixel ratio of moving frames, after dynamic resolution. */
+  movingRatio: number;
+  /** Pixel ratio of still and idle frames (the canvas is drawn at this ratio). */
+  stillRatio: number;
+  /** MSAA samples on the scene targets (0 or 4; capped by the GPU). */
+  msaa: number;
+  /** The still target keeps a depth texture (for the still-frame cache). */
+  stillDepth: boolean;
+}
+
+/**
+ * The lean renderer's targets and passes: the scene targets the renderer draws into (one for
+ * moving frames, one for still and idle frames; the same target when both draw at one ratio), the
+ * quarter resolution blur chain and the final pass to the canvas.
+ */
+export class LeanFrame {
+  /** The look's uniforms, shared by the final pass (V1A sets the values through look.ts). */
+  readonly look: LookUniforms = lookUniforms();
+  readonly format: SceneFormat;
+  private readonly fsScene = new Scene();
+  private readonly fsCamera = new OrthographicCamera(-1, 1, 1, -1, 0, 1);
+  private readonly fsMesh: Mesh;
+  private readonly down: ShaderMaterial;
+  private readonly blur: ShaderMaterial;
+  private readonly final: ShaderMaterial;
+  private moving: WebGLRenderTarget | null = null;
+  private still: WebGLRenderTarget | null = null;
+  private qa: WebGLRenderTarget | null = null;
+  private qb: WebGLRenderTarget | null = null;
+  private layout: FrameLayout | null = null;
+  private blurPasses = 1;
   private tilt = 0;
-  private width = 1;
-  private height = 1;
-  private pixelRatio = 1;
+  private bloom = true;
+  private night = 0;
+  private season: GradeSeason = 'spring';
+  private warmth = 0;
+  /** Bumped whenever the targets are reallocated (the still-frame cache follows the still target). */
+  revision = 0;
 
   constructor(
     private readonly renderer: WebGLRenderer,
-    scene: Scene,
-    camera: Camera,
+    msaa: number,
   ) {
-    const size = renderer.getSize(new Vector2());
-    const target = new WebGLRenderTarget(size.x, size.y, { type: HalfFloatType, samples: 4 });
-    this.composer = new EffectComposer(renderer, target);
-    this.composer.addPass(new RenderPass(scene, camera));
-    this.bloom = new UnrealBloomPass(size.clone(), 0.35, LOOK_BLOOM_RADIUS, 0.92);
-    this.composer.addPass(this.bloom);
-    const pass = (name: string, fragmentShader: string, extra: Record<string, { value: unknown }> = {}) =>
-      new ShaderPass(
-        new ShaderMaterial({
-          name,
-          uniforms: { tDiffuse: { value: null }, ...extra, ...this.look },
-          vertexShader: PASS_VERTEX,
-          fragmentShader,
-        }),
-      );
-    this.hTilt = pass('LookTiltX', tiltFragment('x'), { h: { value: 0 } });
-    this.vTilt = pass('LookTiltY', tiltFragment('y'), { h: { value: 0 } });
-    this.composer.addPass(this.hTilt);
-    this.composer.addPass(this.vTilt);
-    this.composer.addPass(
-      new ShaderPass(
-        new RawShaderMaterial({
-          name: 'LookOutput',
-          uniforms: { tDiffuse: { value: null }, ...this.look },
-          vertexShader: OutputShader.vertexShader,
-          fragmentShader: OUTPUT_FRAGMENT,
-        }),
-      ),
-    );
-    this.composer.addPass(pass('LookGrade', GRADE_FRAGMENT));
+    this.format = sceneFormat(renderer, Math.min(msaa, renderer.capabilities.maxSamples));
+    this.fsMesh = new Mesh(fullScreenTriangle());
+    this.fsMesh.frustumCulled = false;
+    this.fsScene.add(this.fsMesh);
+    const pass = (name: string, fragmentShader: string, uniforms: Record<string, { value: unknown }>) =>
+      new ShaderMaterial({
+        name,
+        uniforms,
+        vertexShader: FULLSCREEN_VERTEX,
+        fragmentShader,
+        depthTest: false,
+        depthWrite: false,
+        toneMapped: false,
+      });
+    this.down = pass('LeanDown', DOWN_FRAGMENT, { tSrc: { value: null }, uTexel: { value: new Vector2() } });
+    this.blur = pass('LeanBlur', BLUR_FRAGMENT, {
+      tSrc: { value: null },
+      uTexel: { value: new Vector2() },
+      uDir: { value: new Vector2(1, 0) },
+    });
+    this.final = pass('LeanFinal', FINAL_FRAGMENT, {
+      tScene: { value: null },
+      tBlur: { value: null },
+      uTilt: { value: 0 },
+      uBlurOn: { value: 0 },
+      ...this.look,
+    });
     this.setSeason('spring');
-    this.setSize(size.x, size.y, renderer.getPixelRatio());
+    this.setNight(0);
   }
 
-  /** Bloom grows a little at night so windows and lanterns glow without washing out the day. */
+  /** Draws `material` over the whole of `target` (null: the canvas). It covers it, so no clear. */
+  pass(material: Material, target: WebGLRenderTarget | null): void {
+    const r = this.renderer;
+    const autoClear = r.autoClear;
+    this.fsMesh.material = material;
+    r.autoClear = false;
+    r.setRenderTarget(target);
+    r.render(this.fsScene, this.fsCamera);
+    r.autoClear = autoClear;
+  }
+
+  /** (Re)allocates whatever targets the layout changed. Returns true when anything changed. */
+  configure(l: FrameLayout): boolean {
+    const p = this.layout;
+    const samples = Math.min(l.msaa, this.renderer.capabilities.maxSamples);
+    const same = (a: number, b: number) => Math.abs(a - b) < 1e-6;
+    const sizeSame = p !== null && p.width === l.width && p.height === l.height;
+    const stillSame =
+      sizeSame && same(p.stillRatio, l.stillRatio) && p.msaa === l.msaa && p.stillDepth === l.stillDepth;
+    const movingSame = stillSame && same(p.movingRatio, l.movingRatio);
+    if (movingSame) return false;
+    if (!stillSame) {
+      this.disposeMoving();
+      this.still?.dispose();
+      this.qa?.dispose();
+      this.qb?.dispose();
+      const [sw, sh] = deviceSize(l.width, l.height, l.stillRatio);
+      this.still = colorTarget(sw, sh, this.format, { samples, depth: true, depthTexture: l.stillDepth });
+      const qw = Math.max(2, Math.ceil(sw / 4));
+      const qh = Math.max(2, Math.ceil(sh / 4));
+      this.qa = colorTarget(qw, qh, this.format);
+      this.qb = colorTarget(qw, qh, this.format);
+      this.blur.uniforms.uTexel!.value.set(1 / qw, 1 / qh);
+      // The blur is sized in quarter texels of the still target, so it stays the same size on
+      // screen at any moving scale; above a ratio of 1.5 one round is too small, so it runs twice.
+      this.blurPasses = l.stillRatio >= 1.5 ? 2 : 1;
+      this.revision++;
+    }
+    this.disposeMoving();
+    if (!same(l.movingRatio, l.stillRatio)) {
+      const [mw, mh] = deviceSize(l.width, l.height, l.movingRatio);
+      this.moving = colorTarget(mw, mh, this.format, { samples, depth: true });
+    }
+    this.layout = { ...l };
+    return true;
+  }
+
+  private disposeMoving(): void {
+    if (this.moving && this.moving !== this.still) this.moving.dispose();
+    this.moving = null;
+  }
+
+  /** The scene target for a moving frame, or for a still or idle one. */
+  target(kind: 'moving' | 'still'): WebGLRenderTarget {
+    const t = kind === 'moving' ? (this.moving ?? this.still) : this.still;
+    if (!t) throw new Error('LeanFrame used before configure');
+    return t;
+  }
+
+  /** The pixel ratio a frame of this kind draws at. */
+  ratio(kind: 'moving' | 'still'): number {
+    const l = this.layout;
+    if (!l) return 1;
+    return kind === 'moving' ? l.movingRatio : l.stillRatio;
+  }
+
+  /** Bloom on or off by preset (Low has none); its strength by the hour comes from `bloomFor`. */
+  setBloom(on: boolean): void {
+    this.bloom = on;
+    this.setNight(this.night);
+  }
+
+  /** Bloom grows at night so windows and lanterns glow without washing out the day (look.ts). */
   setNight(night: number): void {
+    this.night = night;
     const b = bloomFor(night);
-    this.bloom.strength = b.strength;
-    this.bloom.threshold = b.threshold;
-    this.look.uLookBloomStrength.value = b.strength;
+    this.look.uLookBloomStrength.value = this.bloom ? b.strength : 0;
     this.look.uLookBloomThreshold.value = b.threshold;
   }
 
-  private season: GradeSeason = 'spring';
-  private warmth = 0;
-
-  /** C3D-1: the seasonal grade hook (Spring only until a season pass). */
+  /** The seasonal grade hook (look.ts). */
   setSeason(season: GradeSeason): void {
     this.season = season;
     applyGrade(this.look, this.season, this.warmth);
   }
 
-  /** C3D-1: dusk and dawn split toning, 0 to 1: rose highlights and violet shadows. */
+  /** Dusk and dawn split toning, 0 to 1 (look.ts). */
   setWarmth(w: number): void {
     if (Math.abs(w - this.warmth) < 0.005) return;
     this.warmth = w;
     applyGrade(this.look, this.season, this.warmth);
   }
 
-  /** Tilt-shift strength from the camera distance (look.ts); at zero the two passes are skipped. */
+  /** Exposure before tone mapping, from the light (lighting.ts). */
+  setExposure(e: number): void {
+    this.look.uLookExposure.value = e;
+  }
+
+  /** Tilt-shift strength from the camera distance (look.ts `tiltFor`). */
   setViewDistance(distance: number): void {
-    const k = tiltFor(distance);
-    if (Math.abs(k - this.tilt) < 0.02) return;
-    this.tilt = k;
-    this.applyTilt();
+    this.tilt = tiltFor(distance);
   }
 
-  private applyTilt(): void {
-    this.hTilt.enabled = this.vTilt.enabled = this.tilt > 0.02;
-    (this.hTilt.uniforms.h as { value: number }).value = (1.5 * this.tilt) / (this.width * this.pixelRatio);
-    (this.vTilt.uniforms.h as { value: number }).value = (1.5 * this.tilt) / (this.height * this.pixelRatio);
+  /** Whether this frame needs the blur chain: tilt-shift in view, or bloom to add. */
+  get blurs(): boolean {
+    return this.tilt > 0.02 || this.look.uLookBloomStrength.value > 0;
   }
 
-  setSize(width: number, height: number, pixelRatio: number): void {
-    this.composer.setPixelRatio(pixelRatio);
-    this.composer.setSize(width, height);
-    this.width = width;
-    this.height = height;
-    this.pixelRatio = pixelRatio;
-    this.applyTilt();
-  }
-
-  render(): void {
-    // Exposure follows the light (renderer.toneMappingExposure), as three's OutputPass read it.
-    this.look.uLookExposure.value = this.renderer.toneMappingExposure;
-    this.composer.render();
+  /**
+   * The blur chain (when it is needed) and the final pass from `src`, the scene target this frame
+   * drew into, to the canvas.
+   */
+  finish(src: WebGLRenderTarget): void {
+    const blurs = this.blurs;
+    const f = this.final.uniforms;
+    if (blurs && this.qa && this.qb) {
+      this.down.uniforms.tSrc!.value = src.texture;
+      this.down.uniforms.uTexel!.value.set(1 / src.width, 1 / src.height);
+      this.pass(this.down, this.qa);
+      for (let i = 0; i < this.blurPasses; i++) {
+        this.blur.uniforms.tSrc!.value = this.qa.texture;
+        this.blur.uniforms.uDir!.value.set(1, 0);
+        this.pass(this.blur, this.qb);
+        this.blur.uniforms.tSrc!.value = this.qb.texture;
+        this.blur.uniforms.uDir!.value.set(0, 1);
+        this.pass(this.blur, this.qa);
+      }
+      f.tBlur!.value = this.qa.texture;
+    }
+    f.tScene!.value = src.texture;
+    f.uBlurOn!.value = blurs ? 1 : 0;
+    f.uTilt!.value = this.tilt * TILT_MIX;
+    this.pass(this.final, null);
   }
 
   dispose(): void {
-    this.composer.dispose();
+    this.disposeMoving();
+    this.still?.dispose();
+    this.qa?.dispose();
+    this.qb?.dispose();
+    this.still = this.qa = this.qb = null;
+    this.layout = null;
+    this.down.dispose();
+    this.blur.dispose();
+    this.final.dispose();
+    this.fsMesh.geometry.dispose();
   }
 }
