@@ -10,12 +10,14 @@ import {
   FESTIVAL_SITE_MIN,
   MAP_SIZE,
   MAX_WALL_TILES,
+  MAX_ZONE_TILES,
   TERRAFORM_MAX_TILES,
   TILE_FP,
   WATCH_POSTURE_MAX,
   type RoadPlacement,
 } from '@qoti/sim';
 import { rejectText } from '../../ui/messages';
+import { rankAtLeast } from '../../ui/village';
 import type { ToolContext } from '../context';
 import { cursorHint } from '../hint';
 import { proposeRoute } from '../route';
@@ -188,12 +190,24 @@ export function guardTool(ctx: ToolContext): Tool {
   };
 }
 
-/** The wall ghost: the sim's own rule on the Mirror (rules/walls.ts), so it agrees with wall.paint. */
+/**
+ * The wall ghost: the sim's wall.paint checks in the same order (tiles, then whether the piece is
+ * open to this valley, then rules/walls.ts on the Mirror), so it agrees with the command.
+ */
 export function wallGhost(ctx: Pick<ToolContext, 'mirror'>, def: string, tiles: Tile[]): RoadPlacement {
-  return canPaintWall(ctx.mirror, def, tiles, {
-    gate: ctx.mirror.meta.valleyGate,
-    buildings: ctx.mirror.buildings.values(),
-  });
+  const d = content.buildingById.get(def);
+  if (!d?.defense?.blocks) return { ok: false, reason: 'INVALID' };
+  if (!Array.isArray(tiles) || tiles.length === 0) return { ok: false, reason: 'INVALID' };
+  if (tiles.length > MAX_ZONE_TILES) return { ok: false, reason: 'TOO_MANY' };
+  for (const [x, z] of tiles) {
+    if (x < 0 || z < 0 || x >= MAP_SIZE || z >= MAP_SIZE)
+      return { ok: false, reason: 'OUT_OF_BOUNDS', firstBadTile: [x, z] };
+  }
+  const m = ctx.mirror;
+  if (d.modes && !d.modes.includes(m.settings.value.mode)) return { ok: false, reason: 'LOCKED' };
+  if (!rankAtLeast(m.town.value?.rank ?? m.charter.value?.rank, d.requires?.rank ?? 'village'))
+    return { ok: false, reason: 'LOCKED' };
+  return canPaintWall(m, def, tiles, { gate: m.meta.valleyGate, buildings: m.buildings.values() });
 }
 
 export const WALL_DEFS = ['palisade', 'stone-wall'] as const;

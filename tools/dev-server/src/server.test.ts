@@ -104,7 +104,7 @@ describe('dev server', () => {
       fetch(url(port, entry), {
         method: 'PUT',
         headers: { 'content-type': 'image/png', ...(token ? { authorization: `Bearer ${token}` } : {}) },
-        body,
+        body: body as BodyInit,
       });
     expect((await put(server.port, valley.tokens[0]!, png(1))).status).toBe(201);
     expect((await put(server.port, valley.tokens[1]!, png(2))).status).toBe(200);
