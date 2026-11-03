@@ -21,6 +21,7 @@ describe('the advisors', () => {
       'seasons',
       'hearth',
       'together',
+      'guide',
     ]);
   });
 });

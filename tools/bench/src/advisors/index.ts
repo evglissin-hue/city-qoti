@@ -3,6 +3,7 @@
 // `advisors/<area>.ts` with a line below; its `plays` checks that its system exists, so a run plays
 // every system it finds.
 import { charter } from './charter';
+import { guide } from './guide';
 import { hamlet } from './hamlet';
 import { hearth } from './hearth';
 import { money } from './money';
@@ -17,6 +18,7 @@ export type { Advisor, AdvisorDef, AutoplayOptions, Visit } from './types';
 // prettier-ignore
 export const advisors: readonly AdvisorDef[] = [
   charter,
+  guide,
   hamlet,
   hearth,
   money,

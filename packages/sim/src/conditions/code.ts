@@ -19,6 +19,8 @@ import {
   stoneRate,
   storyStep,
 } from '../systems/innovations/measures';
+// I3 (C5H): the first days guide's goals.
+import { guideFoodWorked, guideInBlack, guideLane } from '../systems/guide/goals';
 
 export type CodePredicate = (
   state: WorldState,
@@ -90,6 +92,9 @@ export function pathRoute(state: WorldState, bind: Binding): boolean {
 export const codePredicates: ReadonlyMap<string, CodePredicate> = new Map<string, CodePredicate>([
   ['clayPitWorked', clayPitWorked],
   ['desireLines', desireLines],
+  ['guideFoodWorked', guideFoodWorked],
+  ['guideInBlack', guideInBlack],
+  ['guideLane', guideLane],
   ['lanternRoute', lanternRoute],
   ['pathRoute', pathRoute],
   ['plankRate', plankRate],

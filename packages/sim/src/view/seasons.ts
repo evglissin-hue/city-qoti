@@ -298,6 +298,8 @@ function guideTile(state: WorldState, place: 'start' | 'gate' | 'storehouse'): [
 export function guideView(state: WorldState): GuideView {
   const g = state.guide;
   const steps = content.guide.steps;
+  // C5H: once every step is done, the surveyor's farewell hands over to Pippa Quill's letters.
+  if (g.step >= steps.length && g.doneTicks.length >= steps.length) return guideFarewell(state);
   const s = steps[Math.min(g.step, steps.length - 1)];
   let point: GuideView['point'];
   if (s?.point) {
@@ -314,6 +316,24 @@ export function guideView(state: WorldState): GuideView {
     hint: s?.hint ?? '',
     ...(point && { point }),
     done: steps.map((_, i) => i < g.doneTicks.length),
+    hidden: [...g.hidden],
+    over: g.over,
+  };
+}
+
+/** The guide's last letter (C5H): what is next is Pippa Quill, or her letters if she is here. */
+function guideFarewell(state: WorldState): GuideView {
+  const g = state.guide;
+  const def = content.guide;
+  const pippa = state.stories.some((st) => st.arc === 'inventor' && st.residentId);
+  return {
+    step: g.step,
+    of: def.steps.length,
+    id: 'farewell',
+    lens: 'both',
+    letter: (pippa ? def.farewellAfterPippa : def.farewell) ?? '',
+    hint: '',
+    done: def.steps.map(() => true),
     hidden: [...g.hidden],
     over: g.over,
   };
