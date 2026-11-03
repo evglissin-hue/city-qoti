@@ -64,7 +64,10 @@ export default {
     const image = IMAGE_ROUTE.exec(url.pathname);
     if (image) {
       if (!sameOrigin(request, url)) return json({ error: 'Forbidden' }, 403);
-      return env.VALLEY.get(env.VALLEY.idFromName(image[1]!)).image(request, image[2] === undefined ? null : Number(image[2]));
+      return env.VALLEY.get(env.VALLEY.idFromName(image[1]!)).image(
+        request,
+        image[2] === undefined ? null : Number(image[2]),
+      );
     }
 
     if (url.pathname.startsWith('/api/')) return json({ error: 'Not found' }, 404);
@@ -140,7 +143,10 @@ export class ValleyRoom extends DurableObject<Env> {
     if (out.bytes) {
       return new Response(out.bytes, {
         status: out.status,
-        headers: { 'content-type': out.type ?? 'application/octet-stream', 'cache-control': 'private, max-age=31536000, immutable' },
+        headers: {
+          'content-type': out.type ?? 'application/octet-stream',
+          'cache-control': 'private, max-age=31536000, immutable',
+        },
       });
     }
     return json(out.json ?? {}, out.status);

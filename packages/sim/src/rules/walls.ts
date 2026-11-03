@@ -99,7 +99,8 @@ export function canPaintWall(
   }
   const buildings = [...world.buildings];
   const gates = new Set<number>();
-  for (const b of buildings) if (content.buildingById.get(b.def)?.defense?.passable === 'gate') gates.add(b.id);
+  for (const b of buildings)
+    if (content.buildingById.get(b.def)?.defense?.passable === 'gate') gates.add(b.id);
   const before = reachFromGate(reader, world.gate, gates, new Set());
   const after = reachFromGate(reader, world.gate, gates, set);
   for (const b of buildings) {

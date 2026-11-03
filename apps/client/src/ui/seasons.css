@@ -1,0 +1,1022 @@
+/* I3 (C5F): the season pages. The almanac card and report, the Field Guide as a naturalist's
+   notebook, the festival planner as a village poster, the Watch as a duty roster pinned to a board,
+   the raid's bar and cards, the trial card and photo mode. Paper takes a faint tint of the season. */
+
+/* Paper that follows the season (faint: the panels stay quick to read). */
+.game-ui.season-spring {
+  --paper: #f8f0df;
+  --paper-light: #fdf9ef;
+  --paper-deep: #efe4cc;
+}
+.game-ui.season-summer {
+  --paper: #f9efd8;
+  --paper-light: #fef8e8;
+  --paper-deep: #f1e0bb;
+}
+.game-ui.season-autumn {
+  --paper: #f6ead3;
+  --paper-light: #fcf4e4;
+  --paper-deep: #ecd8b4;
+}
+.game-ui.season-winter {
+  --paper: #f3f0e8;
+  --paper-light: #fbf9f4;
+  --paper-deep: #e4e2d8;
+}
+
+.paper-spring {
+  --season-ink: #8aa877;
+  --season-wash: rgba(214, 160, 170, 0.18);
+}
+.paper-summer {
+  --season-ink: #c89a3a;
+  --season-wash: rgba(232, 196, 92, 0.2);
+}
+.paper-autumn {
+  --season-ink: #b8693c;
+  --season-wash: rgba(196, 120, 60, 0.18);
+}
+.paper-winter {
+  --season-ink: #5f86a3;
+  --season-wash: rgba(150, 180, 210, 0.22);
+}
+
+/* Season vignettes */
+.season-vignette {
+  display: block;
+  width: 100%;
+  max-width: 260px;
+  height: auto;
+  margin: 0 auto;
+}
+.season-vignette .v-ground {
+  fill: var(--season-wash, rgba(127, 156, 108, 0.18));
+}
+.season-vignette.s0 .v-ground {
+  fill: rgba(127, 170, 108, 0.24);
+}
+.season-vignette.s1 .v-ground {
+  fill: rgba(150, 176, 90, 0.24);
+}
+.season-vignette.s2 .v-ground {
+  fill: rgba(200, 150, 80, 0.22);
+}
+.season-vignette.s3 .v-ground {
+  fill: rgba(230, 236, 242, 0.95);
+  stroke: var(--ink-line);
+  stroke-width: 0.8;
+}
+.v-blossom {
+  fill: #f2c4cc;
+}
+.v-sun {
+  fill: #f3d27a;
+}
+.v-lantern {
+  fill: #f0b85a;
+}
+.v-band {
+  stroke: #c9a14a;
+}
+.v-apple {
+  fill: #d0614c;
+}
+.v-leaf {
+  fill: #d38a3a;
+}
+.v-house {
+  fill: #e8cfa8;
+}
+.v-snowroof {
+  stroke-width: 3.2;
+  stroke: #fff;
+  filter: drop-shadow(0 0.6px 0 var(--ink-line));
+}
+.v-window {
+  fill: #f6cf6a;
+}
+.v-flake {
+  fill: #9fb6c8;
+}
+.v-smoke {
+  opacity: 0.6;
+}
+
+/* The almanac: the season card and the report */
+.almanac-card,
+.almanac-report,
+.festival-result,
+.raid-result {
+  position: relative;
+  width: min(520px, 92vw);
+  max-height: calc(100vh - 40px);
+  overflow-y: auto;
+  padding: 16px 26px 20px;
+  background:
+    radial-gradient(circle at 15% 10%, var(--season-wash, transparent), transparent 55%), var(--grain);
+  border: 2px solid var(--ink-line);
+  border-radius: 14px;
+  box-shadow: 0 18px 40px rgba(50, 30, 15, 0.35);
+  animation: letter-in 360ms ease-out;
+  text-align: center;
+}
+.almanac-card::before,
+.almanac-report::before {
+  /* An inner rule like a printed almanac's border. */
+  content: '';
+  position: absolute;
+  inset: 7px;
+  border: 1px solid color-mix(in srgb, var(--season-ink, var(--ink-line)) 55%, transparent);
+  border-radius: 9px;
+  pointer-events: none;
+}
+.almanac-card h2,
+.almanac-report h2,
+.festival-result h2,
+.raid-result h2 {
+  margin: 0 0 8px;
+  font-size: 1.7rem;
+  font-family: 'Alegreya', Georgia, serif;
+}
+.almanac-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  text-align: left;
+}
+.almanac-box,
+.almanac-steps,
+.almanac-threat {
+  padding: 8px 11px;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--paper-light) 70%, transparent);
+  border: 1.5px dashed color-mix(in srgb, var(--ink-line) 45%, transparent);
+}
+.almanac-box h4,
+.almanac-steps h4 {
+  margin: 0 0 3px;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--season-ink, var(--ink-soft));
+}
+.almanac-box p {
+  margin: 2px 0;
+}
+.almanac-steps {
+  margin-top: 10px;
+  text-align: left;
+}
+.almanac-steps ul {
+  margin: 2px 0 4px;
+  padding-left: 18px;
+}
+.almanac-threat {
+  margin-top: 10px;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  text-align: left;
+  border-style: solid;
+  border-color: color-mix(in srgb, var(--ochre) 50%, transparent);
+  background: color-mix(in srgb, var(--ochre) 9%, var(--paper-light));
+}
+.almanac-threat p {
+  margin: 0;
+}
+.almanac-card .actions,
+.almanac-report .actions,
+.festival-result .actions,
+.raid-result .actions {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+  margin-top: 14px;
+  flex-wrap: wrap;
+}
+.link-button {
+  padding: 0;
+  border: none;
+  box-shadow: none;
+  background: none;
+  color: var(--river);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+  font: inherit;
+}
+.link-button:hover {
+  color: var(--ink);
+}
+
+.forecast {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.forecast-day {
+  display: grid;
+  justify-items: center;
+  min-width: 4.4em;
+  padding: 3px 4px;
+  border-radius: 8px;
+  font-size: 0.8rem;
+  line-height: 1.15;
+}
+.forecast-day.today {
+  background: color-mix(in srgb, var(--season-ink, var(--sage)) 14%, transparent);
+}
+.forecast-day .weather-glyph {
+  width: 24px;
+  height: 24px;
+}
+.frozen-note,
+.event-note {
+  flex-basis: 100%;
+  margin: 2px 0 0;
+}
+
+.report-spread {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0;
+  text-align: left;
+  margin-top: 4px;
+}
+.report-page {
+  padding: 8px 14px;
+}
+.report-page + .report-page {
+  border-left: 1.5px solid color-mix(in srgb, var(--ink-line) 35%, transparent);
+  box-shadow: inset 8px 0 10px -10px rgba(60, 40, 20, 0.35);
+}
+.report-page h3 {
+  margin: 0 0 6px;
+  font-family: 'Alegreya', Georgia, serif;
+  color: var(--hearth);
+}
+.report-page.lens-ledger h3 {
+  color: var(--ledger);
+}
+.report-page ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 7px;
+}
+.report-line {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0 6px;
+  font-family: 'Alegreya', Georgia, serif;
+  line-height: 1.3;
+}
+.report-mark {
+  grid-column: 1 / -1;
+  font-family: 'Alegreya Sans', sans-serif;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--ink-soft);
+}
+.report-value {
+  align-self: start;
+  font-family: 'Alegreya Sans', sans-serif;
+}
+.page-turn {
+  display: none;
+  gap: 6px;
+}
+@media (max-width: 620px) {
+  .page-turn {
+    display: inline-flex;
+  }
+  .report-spread {
+    grid-template-columns: 1fr;
+  }
+  .on-page-0 .report-page.lens-ledger,
+  .on-page-1 .report-page.lens-hearth {
+    display: none;
+  }
+  .report-page + .report-page {
+    border-left: none;
+    box-shadow: none;
+  }
+  .almanac-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Weather and renown in the top bar */
+.weather-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 1px 8px 1px 5px;
+  border-radius: 999px;
+  border: 1.5px solid var(--line);
+  background: rgba(95, 147, 179, 0.1);
+  box-shadow: none;
+  font-size: 0.8rem;
+  line-height: 1.2;
+  cursor: pointer;
+}
+.weather-chip .weather-glyph {
+  width: 18px;
+  height: 18px;
+}
+.weather-chip .weather-glyph.next {
+  width: 13px;
+  height: 13px;
+  opacity: 0.55;
+}
+.weather-glyph .w-sun {
+  fill: rgba(243, 210, 122, 0.55);
+}
+.weather-glyph .w-cloud {
+  fill: rgba(255, 255, 255, 0.6);
+}
+.frozen-mark {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  transform: rotate(45deg);
+  background: #b9d4e6;
+  border: 1px solid var(--ink-line);
+}
+.stat-chip.renown .ribbon {
+  width: 13px;
+  height: 16px;
+  fill: #e5c46b;
+  stroke: var(--ink-line);
+  stroke-width: 1.2;
+}
+.stat-chip.renown.lvl-0 .ribbon {
+  fill: #e9dcc0;
+}
+
+/* The Field Guide: a naturalist's notebook */
+.field-guide .panel-head {
+  border-bottom: 1px solid rgba(90, 66, 49, 0.2);
+}
+.notebook-page {
+  position: relative;
+  padding: 4px 6px 8px 22px;
+  background: repeating-linear-gradient(to bottom, transparent 0 23px, rgba(95, 147, 179, 0.16) 23px 24px);
+}
+.notebook-page::before {
+  /* The margin rule. */
+  content: '';
+  position: absolute;
+  left: 12px;
+  top: 0;
+  bottom: 0;
+  border-left: 1.5px solid rgba(217, 138, 118, 0.45);
+}
+.notebook-count {
+  margin: 0 0 6px;
+  font-family: 'Alegreya', Georgia, serif;
+  font-style: italic;
+}
+.guide-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+  gap: 8px;
+}
+.guide-entry {
+  width: 100%;
+  display: grid;
+  justify-items: center;
+  gap: 1px;
+  padding: 5px 4px;
+  border-radius: 8px;
+  border: 1.5px solid rgba(90, 66, 49, 0.25);
+  background: rgba(255, 252, 242, 0.75);
+  box-shadow: 1px 2px 0 rgba(90, 66, 49, 0.08);
+  transform: rotate(-0.6deg);
+}
+.guide-list li:nth-child(even) .guide-entry {
+  transform: rotate(0.7deg);
+}
+.guide-entry:hover {
+  border-color: var(--ink-line);
+}
+.guide-name {
+  font-family: 'Alegreya', Georgia, serif;
+  font-weight: 700;
+}
+.guide-blank {
+  display: grid;
+  place-items: center;
+  min-height: 92px;
+  border-radius: 8px;
+  border: 1.5px dashed rgba(90, 66, 49, 0.25);
+  color: rgba(90, 66, 49, 0.35);
+  font-family: 'Alegreya', Georgia, serif;
+  font-size: 1.6rem;
+}
+.creature-art {
+  width: 72px;
+  height: 54px;
+}
+.creature-art .c-fill {
+  fill: rgba(232, 214, 176, 0.6);
+}
+.creature-art .c-wing {
+  fill: rgba(200, 210, 230, 0.45);
+}
+.guide-hints {
+  margin-top: 10px;
+}
+.guide-hints h4 {
+  margin: 0;
+  font-family: 'Alegreya', Georgia, serif;
+  font-style: italic;
+}
+.guide-hints ul {
+  margin: 2px 0 0;
+  padding-left: 18px;
+  font-family: 'Alegreya', Georgia, serif;
+  font-style: italic;
+  color: var(--ink-soft);
+}
+.species-page .back {
+  font-size: 0.85rem;
+}
+.species-name {
+  margin: 4px 0 0;
+  font-family: 'Alegreya', Georgia, serif;
+  font-size: 1.5rem;
+}
+.species-art {
+  display: grid;
+  place-items: center;
+  margin: 4px 0;
+}
+.species-art .creature-art {
+  width: 180px;
+  height: 135px;
+}
+.species-flavor {
+  font-family: 'Alegreya', Georgia, serif;
+  font-style: italic;
+}
+.species-facts {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 2px 10px;
+  margin: 6px 0;
+}
+.species-facts dt {
+  color: var(--ink-soft);
+}
+.species-facts dd {
+  margin: 0;
+}
+
+/* The festival planner: a village poster */
+.festival-poster {
+  background:
+    linear-gradient(
+      90deg,
+      transparent 0 14px,
+      rgba(196, 138, 63, 0.08) 14px calc(100% - 14px),
+      transparent 0
+    ),
+    var(--grain);
+  border-style: double;
+  border-width: 4px;
+}
+.festival-poster .panel-titles h3 {
+  font-family: 'Alegreya', Georgia, serif;
+  font-size: 1.45rem;
+  letter-spacing: 0.02em;
+}
+.poster-head {
+  text-align: center;
+}
+.poster-head .season-vignette {
+  max-width: 200px;
+}
+.poster-when {
+  margin: 0;
+  font-family: 'Alegreya', Georgia, serif;
+  font-weight: 700;
+  font-variant: small-caps;
+  letter-spacing: 0.04em;
+}
+.poster-live {
+  margin: 2px 0 0;
+  color: var(--sage-deep);
+}
+.poster-block {
+  margin-top: 9px;
+  padding: 7px 10px;
+  border-top: 1.5px dashed rgba(90, 66, 49, 0.3);
+}
+.poster-block h4 {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 4px;
+  font-family: 'Alegreya', Georgia, serif;
+  font-variant: small-caps;
+  letter-spacing: 0.05em;
+}
+.poster-block p {
+  margin: 0 0 4px;
+}
+.poster-pair,
+.board-pair {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.row-actions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-top: 4px;
+}
+.menu-line {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  grid-template-areas: 'good step' 'note off';
+  gap: 1px 8px;
+  align-items: center;
+  padding: 3px 0;
+}
+.menu-good {
+  grid-area: good;
+  font-weight: 700;
+}
+.menu-line .stepper {
+  grid-area: step;
+}
+.menu-line .short {
+  color: var(--ochre-deep);
+}
+.stepper button {
+  width: 1.9em;
+  padding: 1px 0;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  background: transparent;
+  font-weight: 700;
+  line-height: 1.3;
+}
+.stepper b {
+  min-width: 2.2em;
+  text-align: center;
+}
+.menu-add {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 4px;
+}
+.chip-button {
+  padding: 2px 9px;
+  border-radius: 999px;
+  font-size: 0.85rem;
+  box-shadow: none;
+}
+.radio-line,
+.toggle-line {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 2px 0;
+  cursor: pointer;
+}
+.poster-block select {
+  width: 100%;
+  font: inherit;
+  padding: 3px 6px;
+  border-radius: 8px;
+  border: 1.5px solid var(--line);
+  background: var(--paper-light);
+}
+.poster-block.joy h4 .stars {
+  margin-left: auto;
+}
+
+.stars {
+  display: inline-flex;
+  gap: 1px;
+}
+.stars svg {
+  width: 1.05em;
+  height: 1.05em;
+  stroke: var(--ink-line);
+  stroke-width: 1.3;
+  stroke-linejoin: round;
+}
+.stars svg.on {
+  fill: #e8bf4f;
+}
+.stars svg.off {
+  fill: transparent;
+  opacity: 0.45;
+}
+.festival-result .stars svg {
+  width: 2rem;
+  height: 2rem;
+}
+.result-parts {
+  display: grid;
+  gap: 4px;
+  text-align: left;
+  margin-top: 8px;
+}
+
+/* The Watch: a duty roster pinned to a board */
+.watch-board {
+  background:
+    repeating-linear-gradient(98deg, rgba(150, 105, 60, 0.07) 0 3px, transparent 3px 11px),
+    linear-gradient(170deg, #ead8b6, #dfc79c);
+}
+.board-card {
+  position: relative;
+  margin-top: 10px;
+  padding: 10px 11px 8px;
+  background: var(--paper-light);
+  border: 1px solid rgba(90, 66, 49, 0.35);
+  border-radius: 3px;
+  box-shadow: 1px 3px 0 rgba(90, 66, 49, 0.14);
+}
+.board-card::before {
+  /* A brass pin. */
+  content: '';
+  position: absolute;
+  top: -5px;
+  left: 50%;
+  width: 10px;
+  height: 10px;
+  margin-left: -5px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, #f7e3a0, #b98f3b);
+  border: 1px solid var(--ink-line);
+}
+.board-pair .board-card:first-child {
+  transform: rotate(-0.8deg);
+}
+.board-pair .board-card:last-child {
+  transform: rotate(0.6deg);
+}
+.board-card h4 {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  margin: 0 0 4px;
+  font-family: 'Alegreya', Georgia, serif;
+}
+.board-card p {
+  margin: 4px 0 0;
+}
+.roster ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  columns: 2;
+  column-gap: 12px;
+}
+.roster li {
+  padding: 1px 0;
+  border-bottom: 1px dotted rgba(90, 66, 49, 0.3);
+  break-inside: avoid;
+}
+.duty-tag {
+  margin-left: 4px;
+  padding: 0 5px;
+  border-radius: 4px;
+  font-size: 0.72rem;
+  background: rgba(127, 156, 108, 0.22);
+}
+.strength {
+  margin-left: auto;
+  font-size: 1.2rem;
+}
+.morale-parts {
+  list-style: none;
+  margin: 6px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 2px;
+  font-size: 0.85rem;
+}
+.morale-parts li {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+.morale-parts li::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  margin-top: 0.45em;
+  border-radius: 50%;
+  background: var(--sage);
+  flex: none;
+}
+.morale-parts li.down::before {
+  background: var(--ink-soft);
+  opacity: 0.5;
+}
+.morale-parts li span:first-of-type {
+  flex: 1;
+}
+.posture ol {
+  margin: 0;
+  padding-left: 18px;
+}
+.board-note {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-top: 6px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  background: rgba(253, 248, 236, 0.85);
+  border: 1px solid rgba(196, 138, 63, 0.5);
+}
+.board-note p {
+  margin: 0;
+}
+
+.compass {
+  width: 38px;
+  height: 38px;
+  flex: none;
+}
+
+/* The raid: a small bar, a result card and the captive choice. Calm colors, no flashing. */
+.raid-bar {
+  position: absolute;
+  left: 50%;
+  top: calc(64px + 46px * var(--ui-scale));
+  transform: translateX(-50%);
+  z-index: 12;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 12px;
+  max-width: calc(100% - 20px);
+  flex-wrap: wrap;
+  border-color: var(--ochre-deep);
+  background: linear-gradient(170deg, rgba(255, 244, 220, 0.96), rgba(240, 222, 186, 0.96));
+}
+.raid-words {
+  display: grid;
+  gap: 2px;
+}
+.raid-progress {
+  display: flex;
+  gap: 3px;
+}
+.raid-progress i {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  border: 1px solid var(--ink-line);
+}
+.raid-progress i.about {
+  background: #d9b36c;
+}
+.raid-progress i.fled {
+  background: transparent;
+}
+.raid-progress i.caught {
+  background: var(--sage);
+}
+.gate-pair {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.result-facts {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 3px 14px;
+  margin: 10px auto 0;
+  max-width: 360px;
+  text-align: left;
+}
+.result-facts dt {
+  color: var(--ink-soft);
+}
+.result-facts dd {
+  margin: 0;
+}
+.captive-card {
+  position: absolute;
+  right: 12px;
+  bottom: calc(86px * var(--ui-scale));
+  z-index: 14;
+  width: min(330px, calc(100% - 24px));
+  padding: 10px 14px;
+}
+.captive-card p {
+  margin: 4px 0;
+}
+.captive-card .actions {
+  display: flex;
+  gap: 8px;
+  margin: 6px 0 2px;
+  flex-wrap: wrap;
+}
+
+/* The trial card */
+.trial-body {
+  text-align: center;
+}
+.trial-seal .seal {
+  width: 74px;
+  height: 74px;
+}
+.seal .seal-wax {
+  fill: #c9a98f;
+  opacity: 0.4;
+}
+.seal.pressed .seal-wax {
+  fill: #b04a3c;
+  opacity: 1;
+}
+.seal.pressed path:not(.seal-wax) {
+  stroke: #f7e6d0;
+}
+.trial-blurb {
+  font-family: 'Alegreya', Georgia, serif;
+  font-size: 1.08rem;
+}
+.trial-progress {
+  text-align: left;
+}
+.trial-progress h4 {
+  margin: 4px 0;
+}
+.trial-progress ul {
+  margin: 0;
+  padding-left: 18px;
+}
+.trial-word {
+  font-family: 'Alegreya', Georgia, serif;
+}
+
+/* The Trade book's river pages */
+.frozen-notice {
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: rgba(185, 212, 230, 0.35);
+  border: 1.5px solid rgba(95, 147, 179, 0.45);
+}
+.boat-list,
+.commission-past {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+}
+.boat,
+.commission {
+  padding: 7px 10px;
+  border-radius: 10px;
+  border: 1.5px solid rgba(90, 66, 49, 0.25);
+  background: rgba(255, 252, 242, 0.7);
+}
+.boat h5,
+.commission h5 {
+  margin: 0 0 2px;
+  font-size: 0.95rem;
+}
+.commission + .commission {
+  margin-top: 6px;
+}
+.commission p {
+  margin: 2px 0;
+}
+.town-rhythm {
+  margin-top: 8px;
+}
+
+/* The Chronicle's pictures */
+.gazette-picture {
+  margin: 4px 0 6px;
+  padding: 4px 4px 12px;
+  background: #fffdf7;
+  border: 1px solid rgba(90, 66, 49, 0.25);
+  box-shadow: 1px 2px 0 rgba(90, 66, 49, 0.12);
+  transform: rotate(-0.8deg);
+}
+.gazette-picture img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  object-fit: cover;
+  filter: sepia(0.18) saturate(0.95);
+}
+
+/* Photo mode and the together note */
+.game-ui.photo-mode {
+  pointer-events: none;
+}
+.photo-strip {
+  pointer-events: auto;
+  position: absolute;
+  left: 50%;
+  bottom: 14px;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 7px 14px;
+  flex-wrap: wrap;
+  max-width: calc(100% - 20px);
+  opacity: 0.94;
+}
+.photo-title {
+  font-family: 'Alegreya', Georgia, serif;
+  font-weight: 700;
+}
+.photo-slider {
+  display: grid;
+  font-size: 0.8rem;
+  gap: 1px;
+}
+.photo-slider input {
+  width: 140px;
+}
+.together-note {
+  position: absolute;
+  left: 50%;
+  bottom: calc(90px * var(--ui-scale));
+  transform: translateX(-50%);
+  z-index: 11;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 12px;
+  font-family: 'Alegreya', Georgia, serif;
+  max-width: calc(100% - 24px);
+}
+.together-hearts {
+  color: var(--rose);
+  letter-spacing: -2px;
+}
+.together-note .close {
+  margin-left: 4px;
+}
+
+:root.reduced-motion .almanac-card,
+:root.reduced-motion .almanac-report,
+:root.reduced-motion .festival-result,
+:root.reduced-motion .raid-result {
+  animation: none;
+}
+
+/* Modules in the Customize panel */
+.module-picker {
+  margin-top: 4px;
+}
+.module-preview {
+  display: block;
+  width: 120px;
+  height: 80px;
+  margin: 0 auto 4px;
+}
+.module-preview .slot-dot {
+  fill: rgba(196, 138, 63, 0.3);
+  stroke: var(--ink-line);
+  stroke-width: 1;
+  transition: r 120ms ease;
+}
+.module-preview .slot-dot.fitted {
+  fill: var(--sage);
+}
+.module-slot {
+  display: grid;
+  gap: 2px;
+  margin-bottom: 6px;
+}
+.season-lines {
+  list-style: none;
+  margin: 6px 0;
+  padding: 0;
+  display: grid;
+  gap: 3px;
+  font-size: 0.9rem;
+}
+.season-lines .cold {
+  color: var(--river);
+}
+.season-lines.building p {
+  margin: 4px 0;
+}

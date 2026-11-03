@@ -109,7 +109,9 @@ describe('dev server', () => {
     expect((await put(server.port, valley.tokens[0]!, png(1))).status).toBe(201);
     expect((await put(server.port, valley.tokens[1]!, png(2))).status).toBe(200);
     expect((await put(server.port, null, png(3), 13)).status).toBe(401);
-    expect((await put(server.port, valley.tokens[0]!, new Uint8Array(300 * 1024).fill(0x89), 14)).status).toBe(413);
+    expect(
+      (await put(server.port, valley.tokens[0]!, new Uint8Array(300 * 1024).fill(0x89), 14)).status,
+    ).toBe(413);
     expect((await fetch(url(server.port, 12))).status).toBe(401);
     await server.close();
     servers.splice(servers.indexOf(server), 1);
@@ -117,7 +119,9 @@ describe('dev server', () => {
     const again = await startDevServer({ port: 0, dataDir, log: () => {} });
     servers.push(again);
     dirs.push(dataDir);
-    const res = await fetch(url(again.port, 12), { headers: { authorization: `Bearer ${valley.tokens[1]!}` } });
+    const res = await fetch(url(again.port, 12), {
+      headers: { authorization: `Bearer ${valley.tokens[1]!}` },
+    });
     expect(res.status).toBe(200);
     expect(res.headers.get('content-type')).toBe('image/png');
     expect(new Uint8Array(await res.arrayBuffer())[99]).toBe(1);

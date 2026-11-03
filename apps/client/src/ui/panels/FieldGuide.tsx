@@ -44,11 +44,17 @@ export function fieldGuideHints(seen: ReadonlySet<string>, season: number): stri
   const out: string[] = [];
   const waiting = content.wildlife
     .filter((w) => !seen.has(w.id))
-    .sort((a, b) => Number(b.seasons.includes(season)) - Number(a.seasons.includes(season)) || b.rarity - a.rarity);
+    .sort(
+      (a, b) =>
+        Number(b.seasons.includes(season)) - Number(a.seasons.includes(season)) || b.rarity - a.rarity,
+    );
   for (const w of waiting.slice(0, 3)) {
     const where = w.habitats.map(([h]) => HABITAT_WORD[h] ?? h).join(' and ') || 'somewhere quiet';
-    const when = w.seasons.length >= 4 ? 'any time of year' : w.seasons.map((s) => SEASON_NAMES[s]).join(' or ');
-    out.push(`Something ${KIND_WORD[w.kind]?.toLowerCase() ?? 'small'}-ish likes ${where}, ${when}, ${hourWord(w.hours)}.`);
+    const when =
+      w.seasons.length >= 4 ? 'any time of year' : w.seasons.map((s) => SEASON_NAMES[s]).join(' or ');
+    out.push(
+      `Something ${KIND_WORD[w.kind]?.toLowerCase() ?? 'small'}-ish likes ${where}, ${when}, ${hourWord(w.hours)}.`,
+    );
   }
   while (out.length < 3)
     out.push(
@@ -62,7 +68,11 @@ export function fieldGuideHints(seen: ReadonlySet<string>, season: number): stri
 }
 
 /** Tiles of the chunks where a habitat scores at least `min`, for the valley highlight. */
-export function habitatTiles(habitats: ReadonlyMap<number, number[]>, habitat: string, min = 40): [number, number][] {
+export function habitatTiles(
+  habitats: ReadonlyMap<number, number[]>,
+  habitat: string,
+  min = 40,
+): [number, number][] {
   const h = HABITAT_IDS.indexOf(habitat as (typeof HABITAT_IDS)[number]);
   if (h < 0) return [];
   const out: [number, number][] = [];
@@ -71,7 +81,8 @@ export function habitatTiles(habitats: ReadonlyMap<number, number[]>, habitat: s
     const cx = (chunk % CHUNKS_PER_SIDE) * CHUNK_SIZE;
     const cz = Math.floor(chunk / CHUNKS_PER_SIDE) * CHUNK_SIZE;
     // Every other tile is plenty for a wash and keeps the highlight light.
-    for (let z = 0; z < CHUNK_SIZE; z += 2) for (let x = (z / 2) % 2; x < CHUNK_SIZE; x += 2) out.push([cx + x, cz + z]);
+    for (let z = 0; z < CHUNK_SIZE; z += 2)
+      for (let x = (z / 2) % 2; x < CHUNK_SIZE; x += 2) out.push([cx + x, cz + z]);
   }
   return out;
 }
@@ -157,7 +168,8 @@ function SpeciesPage({ session, entry }: { session: Session; entry: FieldGuideEn
   const c = calendar(entry.firstTick);
   const seats = m.seats.value;
   const by = entry.seats.map((s) => seats.find((x) => x.seat === s)?.name ?? `Seat ${s + 1}`);
-  const show = (habitat: string) => session.render?.highlight?.({ tiles: habitatTiles(m.habitats, habitat), tone: 'hearth' });
+  const show = (habitat: string) =>
+    session.render?.highlight?.({ tiles: habitatTiles(m.habitats, habitat), tone: 'hearth' });
   return (
     <article class="notebook-page species-page" data-testid="species-page">
       <button type="button" class="link-button back" onClick={() => (session.ui.guidePage.value = null)}>

@@ -45,6 +45,7 @@ export function Title({ onStart }: { onStart: (t: SessionTarget, opts?: { invite
   // ?creative starts with the creative box ticked (the I0 end to end specs play sandbox valleys).
   const [creative, setCreative] = useState(() => new URLSearchParams(location.search).has('creative'));
   const [economy, setEconomy] = useState<ValleySettings['economy']>('standard');
+  const [threat, setThreat] = useState<ValleySettings['threat']>('standard');
   const [imported, setImported] = useState<ValleyFile | null>(null);
   const welcome = useMemo(() => welcomeLine(), []);
   const [profile, setProfileState] = useState<PlayerProfile>(() => loadProfile());
@@ -59,6 +60,7 @@ export function Title({ onStart }: { onStart: (t: SessionTarget, opts?: { invite
   const settings: Partial<ValleySettings> = {
     mode: creative ? 'sandbox' : 'standard',
     economy,
+    threat: creative ? 'peaceful' : threat,
     ...(town.trim() ? { townName: town.trim() } : {}),
   };
   const body = { ...(seed.trim() ? { seed: seed.trim() } : {}), settings };
@@ -281,6 +283,29 @@ export function Title({ onStart }: { onStart: (t: SessionTarget, opts?: { invite
               {creative
                 ? copy.title.creativeHint
                 : copy.title.economyOptions.find(([id]) => id === economy)?.[2]}
+            </p>
+          </fieldset>
+          <fieldset class="economy threat" disabled={creative}>
+            <legend>{copy.title.threat}</legend>
+            <div class="dial" role="radiogroup" aria-label={copy.title.threat}>
+              {copy.title.threatOptions.map(([id, label]) => (
+                <button
+                  key={id}
+                  type="button"
+                  role="radio"
+                  aria-checked={threat === id}
+                  class={threat === id ? 'active' : ''}
+                  data-testid={`threat-${id}`}
+                  onClick={() => setThreat(id)}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+            <p class="muted dial-note">
+              {creative
+                ? copy.title.creativeHint
+                : copy.title.threatOptions.find(([id]) => id === threat)?.[2]}
             </p>
           </fieldset>
           <label class="open-file">

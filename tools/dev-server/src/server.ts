@@ -96,7 +96,10 @@ export function startDevServer(opts: DevServerOptions): Promise<DevServer> {
           Date.now(),
         );
         if (out.bytes) {
-          res.writeHead(out.status, { 'content-type': out.type ?? 'application/octet-stream', 'cache-control': 'private, max-age=31536000, immutable' });
+          res.writeHead(out.status, {
+            'content-type': out.type ?? 'application/octet-stream',
+            'cache-control': 'private, max-age=31536000, immutable',
+          });
           res.end(Buffer.from(out.bytes));
         } else json(res, out.status, out.json ?? {});
         return;

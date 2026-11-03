@@ -11,7 +11,9 @@ export function TogetherNote({ session }: { session: Session }) {
   if (!text || session.ui.photo.value) return null;
   return (
     <div class="together-note panel" role="status" data-testid="together-note">
-      <span class="together-hearts" aria-hidden="true">♥♥</span>
+      <span class="together-hearts" aria-hidden="true">
+        ♥♥
+      </span>
       <span>{text}</span>
       <button type="button" class="close" title="Close" onClick={() => (session.ui.together.value = null)}>
         ×
@@ -38,7 +40,10 @@ export function PhotoStrip({ session }: { session: Session }) {
   return (
     <div class="photo-strip panel" role="toolbar" aria-label="Photo mode" data-testid="photo-strip">
       <span class="photo-title">Photo mode</span>
-      <label class="photo-slider" title={api?.setDepthOfField ? 'Blur near and far' : 'Depth of field comes with the new renderer'}>
+      <label
+        class="photo-slider"
+        title={api?.setDepthOfField ? 'Blur near and far' : 'Depth of field comes with the new renderer'}
+      >
         Depth of field
         <input
           type="range"
@@ -71,7 +76,13 @@ export function PhotoStrip({ session }: { session: Session }) {
           }}
         />
       </label>
-      <button type="button" class="primary" data-testid="photo-save" disabled={saving} onClick={() => void save()}>
+      <button
+        type="button"
+        class="primary"
+        data-testid="photo-save"
+        disabled={saving}
+        onClick={() => void save()}
+      >
         {saving ? 'Developing' : 'Save PNG'}
       </button>
       <button type="button" class="ghost-button" data-testid="photo-exit" onClick={exit}>

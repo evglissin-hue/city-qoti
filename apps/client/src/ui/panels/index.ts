@@ -13,6 +13,8 @@ import { AwayLetterPanel } from './AwayLetter';
 import { CharterPanel } from './Charter';
 import { ChroniclePanel } from './Chronicle';
 import { CustomizePanel } from './Customize';
+import { FestivalPanel, FestivalResultPanel } from './Festival';
+import { FieldGuidePanel } from './FieldGuide';
 import { InspectorPanel } from './Inspector';
 import { LettersPanel } from './Letters';
 import { MarketPanel } from './Market';
@@ -20,12 +22,17 @@ import { NotebookPanel } from './Notebook';
 import { NotesPanel } from './Notes';
 import { PatternBookPanel } from './PatternBook';
 import { PeoplePanel } from './People';
+import { PhotoStrip, TogetherNote } from './Photo';
 import { PlansPanel } from './Plans';
 import { PoliciesPanel } from './Policies';
+import { RaidPanel } from './Raid';
 import { RankUpPanel } from './RankUp';
 import { ReportsPanel } from './Reports';
+import { SeasonCardPanel } from './SeasonCard';
 import { StoryLetterPanel } from './StoryLetter';
 import { TradePanel } from './Trade';
+import { TrialPanel } from './Trial';
+import { WatchPanel } from './Watch';
 import { WishesPanel } from './Wishes';
 
 export interface PanelDef {
@@ -60,6 +67,9 @@ export const panels: readonly PanelDef[] = [
   { id: 'charter', side: 'book', component: CharterPanel, lens: 'shared', label: 'Charter', icon: 'charter', key: 'h', modes: STANDARD, hidden: true },
   { id: 'chronicle', side: 'book', component: ChroniclePanel, lens: 'hearth', label: 'Chronicle', icon: 'chronicle', key: 'c', modes: STANDARD, order: 30 },
   { id: 'customize', side: 'right', component: CustomizePanel },
+  { id: 'festival', side: 'book', component: FestivalPanel, lens: 'hearth', label: 'Festival', icon: 'festival', modes: STANDARD, order: 15 },
+  { id: 'festival-result', side: 'overlay', component: FestivalResultPanel },
+  { id: 'field-guide', side: 'book', component: FieldGuidePanel, lens: 'hearth', label: 'Field Guide', icon: 'fieldguide', modes: STANDARD, order: 25 },
   { id: 'inspector', side: 'right', component: InspectorPanel },
   { id: 'letters', side: 'book', component: LettersPanel, lens: 'hearth', label: 'Letters', icon: 'letter', key: 'o', modes: STANDARD, order: 35 },
   { id: 'market', side: 'book', component: MarketPanel, lens: 'ledger', label: 'Market', icon: 'market', key: 'm', modes: STANDARD, order: 10 },
@@ -68,12 +78,18 @@ export const panels: readonly PanelDef[] = [
   { id: 'notes', side: 'left', component: NotesPanel },
   { id: 'patterns', side: 'book', component: PatternBookPanel, lens: 'shared', label: 'Patterns', icon: 'patterns', key: 'b', modes: STANDARD, order: 20, wide: true },
   { id: 'people', side: 'book', component: PeoplePanel, lens: 'shared', label: 'Townsfolk', icon: 'people', key: 'k', modes: STANDARD, hidden: true },
+  { id: 'photo', side: 'overlay', component: PhotoStrip },
   { id: 'plans', side: 'book', component: PlansPanel, lens: 'shared', label: 'Plans', icon: 'plan', hidden: true },
   { id: 'policies', side: 'book', component: PoliciesPanel, lens: 'ledger', label: 'Policies', icon: 'policies', key: 'p', modes: STANDARD, order: 30 },
+  { id: 'raid', side: 'overlay', component: RaidPanel },
   { id: 'rankup', side: 'overlay', component: RankUpPanel },
   { id: 'reports', side: 'book', component: ReportsPanel, lens: 'ledger', label: 'Reports', icon: 'reports', key: 'l', modes: STANDARD, order: 50 },
+  { id: 'season-card', side: 'overlay', component: SeasonCardPanel },
   { id: 'story-letter', side: 'overlay', component: StoryLetterPanel },
+  { id: 'together', side: 'overlay', component: TogetherNote },
   { id: 'trade', side: 'book', component: TradePanel, lens: 'ledger', label: 'Trade', icon: 'trade', modes: STANDARD, order: 20 },
+  { id: 'trial', side: 'book', component: TrialPanel, lens: 'shared', label: 'Trial', icon: 'trial', modes: STANDARD, hidden: true },
+  { id: 'watch', side: 'book', component: WatchPanel, lens: 'ledger', label: 'Watch', icon: 'watch', modes: STANDARD, order: 40 },
   { id: 'wishes', side: 'book', component: WishesPanel, lens: 'hearth', label: 'Wishes', icon: 'wishes', key: 'j', modes: STANDARD, order: 10 },
 ];
 

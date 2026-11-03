@@ -24,9 +24,18 @@ export const WEATHER_WORD: Record<WeatherKind, { word: string; line: string }> =
 };
 
 /** A raid's strength band, gently. */
-export const BAND_WORD: Record<RaidBand, string> = { small: 'A small band', medium: 'A middling band', large: 'A large band' };
+export const BAND_WORD: Record<RaidBand, string> = {
+  small: 'A small band',
+  medium: 'A middling band',
+  large: 'A large band',
+};
 
-export const SIDE_WORD: Record<RaidSide, string> = { n: 'the north', e: 'the east', s: 'the south', w: 'the west' };
+export const SIDE_WORD: Record<RaidSide, string> = {
+  n: 'the north',
+  e: 'the east',
+  s: 'the south',
+  w: 'the west',
+};
 
 /** Signs of a coming raid, in words. */
 export const SIGN_WORD: Record<string, string> = {
@@ -55,6 +64,12 @@ export function whenWord(daysAhead: number): string {
   if (daysAhead <= 0) return 'tonight';
   if (daysAhead === 1) return 'tomorrow';
   return `in ${daysAhead} days`;
+}
+
+/** A tick ahead as "today", "tomorrow" or "in 3 days". */
+export function inDays(tick: number, now: number): string {
+  const d = today(tick) - today(now);
+  return d <= 0 ? 'today' : d === 1 ? 'tomorrow' : `in ${d} days`;
 }
 
 /** The season's CSS key, for paper tints and flourishes. */

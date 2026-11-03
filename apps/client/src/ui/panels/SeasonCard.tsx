@@ -6,7 +6,16 @@ import type { ComponentChildren } from 'preact';
 import type { Session } from '../../app/session';
 import { closeAlmanac } from '../../app/seasonsHook';
 import { CompassArrow, SeasonVignette, Stars, WeatherGlyph } from '../art';
-import { BAND_WORD, dayName, SEASON_KEY, SIDE_WORD, signWord, today, WEATHER_WORD, whenWord } from '../seasons';
+import {
+  BAND_WORD,
+  dayName,
+  SEASON_KEY,
+  SIDE_WORD,
+  signWord,
+  today,
+  WEATHER_WORD,
+  whenWord,
+} from '../seasons';
 import { toggleBook } from '.';
 
 const TRACK_MARK: Record<SeasonReportLine['track'], string> = {
@@ -42,7 +51,8 @@ export function SeasonCard({
 }) {
   const now = today(session.mirror.tick.value);
   const trial = session.mirror.trial.value;
-  const trialNow = trial && (trial.status === 'running' || trial.status === 'upcoming') && trial.season === view.season;
+  const trialNow =
+    trial && (trial.status === 'running' || trial.status === 'upcoming') && trial.season === view.season;
   const t = view.threat;
   const festivalIn = view.festival.day - now;
   return (
@@ -147,7 +157,9 @@ export function Forecast({ session, weather }: { session: Session; weather: Seas
         .filter((e) => e.active || e.start > session.mirror.tick.value)
         .map((e) => (
           <p key={e.id} class="small event-note" data-testid={`event-${e.event}`}>
-            {e.active ? `${e.name} now, until ${dayName(Math.floor(e.end / TICKS_PER_DAY))}.` : `${e.name} expected ${dayName(Math.floor(e.start / TICKS_PER_DAY))}.`}
+            {e.active
+              ? `${e.name} now, until ${dayName(Math.floor(e.end / TICKS_PER_DAY))}.`
+              : `${e.name} expected ${dayName(Math.floor(e.start / TICKS_PER_DAY))}.`}
           </p>
         ))}
     </div>

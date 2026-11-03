@@ -60,7 +60,9 @@ export class Rooms {
     });
     const imagesFile = this.imagesFile(id);
     const images = existsSync(imagesFile)
-      ? MemoryImages.restore(JSON.parse(readFileSync(imagesFile, 'utf8')) as Parameters<typeof MemoryImages.restore>[0])
+      ? MemoryImages.restore(
+          JSON.parse(readFileSync(imagesFile, 'utf8')) as Parameters<typeof MemoryImages.restore>[0],
+        )
       : new MemoryImages();
     const room: Room = { core, storage, images, sockets: 0, timer: null, saveTimer: null };
     storage.onChange = () => {

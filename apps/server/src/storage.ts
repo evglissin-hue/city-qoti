@@ -106,7 +106,14 @@ export class SqliteStorage implements RoomStorage, ImageStorage {
         entry,
       )
       .toArray()[0];
-    return row ? { entry: row.entry, type: row.type as ImageType, created: row.created, data: new Uint8Array(row.data) } : null;
+    return row
+      ? {
+          entry: row.entry,
+          type: row.type as ImageType,
+          created: row.created,
+          data: new Uint8Array(row.data),
+        }
+      : null;
   }
 
   async putImageIfAbsent(image: StoredImage): Promise<boolean> {

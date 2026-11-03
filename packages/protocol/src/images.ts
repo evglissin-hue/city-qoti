@@ -37,7 +37,11 @@ export interface ImageStorage {
 }
 
 /** Stores the image (first write wins) and prunes the oldest past the cap. */
-export async function storeImage(storage: ImageStorage, image: StoredImage, cap = IMAGES_PER_VALLEY): Promise<boolean> {
+export async function storeImage(
+  storage: ImageStorage,
+  image: StoredImage,
+  cap = IMAGES_PER_VALLEY,
+): Promise<boolean> {
   const stored = await storage.putImageIfAbsent(image);
   if (stored) {
     const all = await storage.listImages();
@@ -93,19 +97,24 @@ export async function handleImage(
   now: number,
 ): Promise<ImageResponse> {
   if (!meta) return { status: 404, json: { error: 'No such valley' } };
-  if ((await seatOf(meta, req.authorization)) === null) return { status: 401, json: { error: 'A seat token is needed' } };
+  if ((await seatOf(meta, req.authorization)) === null)
+    return { status: 401, json: { error: 'A seat token is needed' } };
   if (req.entry === null) {
     if (req.method !== 'GET') return { status: 405, json: { error: 'Method not allowed' } };
     return { status: 200, json: { entries: await storage.listImages() } };
   }
   if (req.method === 'GET') {
     const img = await storage.getImage(req.entry);
-    return img ? { status: 200, bytes: img.data, type: img.type } : { status: 404, json: { error: 'No picture' } };
+    return img
+      ? { status: 200, bytes: img.data, type: img.type }
+      : { status: 404, json: { error: 'No picture' } };
   }
   if (req.method !== 'PUT') return { status: 405, json: { error: 'Method not allowed' } };
   const type = (req.contentType ?? '').split(';')[0]!.trim().toLowerCase();
-  if (!(IMAGE_TYPES as readonly string[]).includes(type)) return { status: 415, json: { error: 'Pictures only' } };
-  if (req.contentLength !== null && req.contentLength > MAX_IMAGE_BYTES) return { status: 413, json: { error: 'Too large' } };
+  if (!(IMAGE_TYPES as readonly string[]).includes(type))
+    return { status: 415, json: { error: 'Pictures only' } };
+  if (req.contentLength !== null && req.contentLength > MAX_IMAGE_BYTES)
+    return { status: 413, json: { error: 'Too large' } };
   const data = await req.body(MAX_IMAGE_BYTES);
   if (!data) return { status: 413, json: { error: 'Too large' } };
   if (data.length === 0 || !sniffImage(type, data)) return { status: 400, json: { error: 'Not a picture' } };
@@ -120,14 +129,16 @@ export class MemoryImages implements ImageStorage {
 
   static restore(list: { entry: number; type: ImageType; created: number; data: string }[]): MemoryImages {
     const s = new MemoryImages();
-    for (const i of list) s.images.set(i.entry, { ...i, data: Uint8Array.from(atob(i.data), (c) => c.charCodeAt(0)) });
+    for (const i of list)
+      s.images.set(i.entry, { ...i, data: Uint8Array.from(atob(i.data), (c) => c.charCodeAt(0)) });
     return s;
   }
 
   dump(): { entry: number; type: ImageType; created: number; data: string }[] {
     return [...this.images.values()].map((i) => {
       let bin = '';
-      for (let k = 0; k < i.data.length; k += 0x8000) bin += String.fromCharCode(...i.data.subarray(k, k + 0x8000));
+      for (let k = 0; k < i.data.length; k += 0x8000)
+        bin += String.fromCharCode(...i.data.subarray(k, k + 0x8000));
       return { entry: i.entry, type: i.type, created: i.created, data: btoa(bin) };
     });
   }

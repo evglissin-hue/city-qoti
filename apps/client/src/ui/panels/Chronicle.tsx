@@ -12,6 +12,21 @@ const KIND_MARK: Record<string, string> = {
   achievement: 'Plaques',
   'wishes-digest': 'Wishes',
   'season-summary': 'The season',
+  // I3 (C5F)
+  festival: 'Festivities',
+  raid: 'The Watch',
+  'trial-passed': 'The County',
+  'trial-failed': 'The County',
+  'cold-snap': 'Weather',
+  'first-frost': 'Weather',
+  circus: 'Visitors',
+  trial: 'The County',
+  flood: 'High water',
+  'rank-up': 'Proclaimed',
+  sighting: 'Nature notes',
+  'species-sighted': 'Nature notes',
+  'first-winter': 'Winter',
+  'settings-threat': 'Notices',
 };
 
 /** Groups entries by in-game day, newest day first, entries in order within a day. */
@@ -39,6 +54,7 @@ export function ChroniclePanel({ session }: { session: Session }) {
   const entries = m.chronicle.value;
   const town = m.settings.value.townName;
   const days = chronicleDays(entries);
+  const pictures = session.ui.snapshots.value;
   const close = () => (session.ui.panel.value = null);
   return (
     <Frame id="chronicle" class="book-panel chronicle" onClose={close} title={<Masthead town={town} />}>
@@ -56,8 +72,16 @@ export function ChroniclePanel({ session }: { session: Session }) {
             <section key={day} class={`gazette-day ${i === 0 ? 'lead' : ''}`}>
               <h4 class="gazette-day-head">{dayLine(list[0]!.tick)}</h4>
               {list.map((e) => (
-                <article key={e.id} class={`gazette-entry kind-${e.kind}`}>
+                <article
+                  key={e.id}
+                  class={`gazette-entry kind-${e.kind} ${pictures.has(e.id) ? 'with-picture' : ''}`}
+                >
                   {KIND_MARK[e.kind] && <span class="gazette-kind">{KIND_MARK[e.kind]}</span>}
+                  {pictures.has(e.id) && (
+                    <figure class="gazette-picture" data-testid={`chronicle-picture-${e.id}`}>
+                      <img src={pictures.get(e.id)} alt="" loading="lazy" />
+                    </figure>
+                  )}
                   <p>{e.text}</p>
                 </article>
               ))}

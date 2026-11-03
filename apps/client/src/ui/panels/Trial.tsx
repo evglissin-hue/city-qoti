@@ -8,7 +8,8 @@ import { SEASON_KEY } from '../seasons';
 import { Empty, Frame } from './parts';
 
 const MEASURE_WORD: Record<string, (v: number) => string> = {
-  coldHouseholdDays: (v) => (v === 0 ? 'Nobody cold for a whole day yet' : `${v} household-${v === 1 ? 'day' : 'days'} spent cold`),
+  coldHouseholdDays: (v) =>
+    v === 0 ? 'Nobody cold for a whole day yet' : `${v} household-${v === 1 ? 'day' : 'days'} spent cold`,
   foodDays: (v) => `${v} ${v === 1 ? 'day' : 'days'} of food in store`,
   firewoodDays: (v) => `${v} ${v === 1 ? 'day' : 'days'} of firewood in store`,
   stolen: (v) => (v === 0 ? 'Nothing stolen' : `${v} goods carried off`),
@@ -26,8 +27,19 @@ export function TrialPanel({ session }: { session: Session }) {
   const t = m.trial.value;
   const close = () => (session.ui.panel.value = null);
   return (
-    <Frame id="trial" class={`book-panel trial-card ${t ? `paper-${SEASON_KEY[t.season]}` : ''}`} icon="trial" kicker="The County's trial" title={t?.name ?? 'Trials'} onClose={close}>
-      {t ? <TrialBody session={session} trial={t} /> : <Empty>No trial on hand. The County will write when it has one in mind.</Empty>}
+    <Frame
+      id="trial"
+      class={`book-panel trial-card ${t ? `paper-${SEASON_KEY[t.season]}` : ''}`}
+      icon="trial"
+      kicker="The County's trial"
+      title={t?.name ?? 'Trials'}
+      onClose={close}
+    >
+      {t ? (
+        <TrialBody session={session} trial={t} />
+      ) : (
+        <Empty>No trial on hand. The County will write when it has one in mind.</Empty>
+      )}
     </Frame>
   );
 }
@@ -51,12 +63,18 @@ function TrialBody({ session, trial: t }: { session: Session; trial: TrialView }
               <li key={name}>{measureWord(name, value)}</li>
             ))}
             {cold !== undefined && t.kind === 'winter' && (
-              <li>{cold === 0 ? 'Every hearth is lit today' : `${cold} ${cold === 1 ? 'home is' : 'homes are'} cold right now`}</li>
+              <li>
+                {cold === 0
+                  ? 'Every hearth is lit today'
+                  : `${cold} ${cold === 1 ? 'home is' : 'homes are'} cold right now`}
+              </li>
             )}
           </ul>
         </section>
       )}
-      {t.status === 'upcoming' && <p>It starts with the season. Stock up, and keep an eye on the forecast.</p>}
+      {t.status === 'upcoming' && (
+        <p>It starts with the season. Stock up, and keep an eye on the forecast.</p>
+      )}
       {t.status === 'passed' && (
         <p class="trial-word" data-testid="trial-passed">
           Sealed. The County is pleased, in its quiet way, and the Town Charter board is open.
@@ -64,8 +82,8 @@ function TrialBody({ session, trial: t }: { session: Session; trial: TrialView }
       )}
       {t.status === 'failed' && (
         <p class="trial-word" data-testid="trial-failed">
-          Not this time, and no harm done: everyone is still here and the kettle still works. The trial
-          comes round again next {SEASON_WORDS[t.season]}, in year {t.year + 2}.
+          Not this time, and no harm done: everyone is still here and the kettle still works. The trial comes
+          round again next {SEASON_WORDS[t.season]}, in year {t.year + 2}.
         </p>
       )}
     </div>

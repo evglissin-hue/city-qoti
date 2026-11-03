@@ -47,8 +47,7 @@ export interface Sketch {
 
 /** I3 (C5F): the almanac page on the desk: the card that opens a season or the report closing it. */
 export type Almanac =
-  | { kind: 'card'; view: SeasonCardView }
-  | { kind: 'report'; view: SeasonReportView; page: 0 | 1 };
+  { kind: 'card'; view: SeasonCardView } | { kind: 'report'; view: SeasonReportView; page: 0 | 1 };
 
 /** I3 (C5F): the festival planner's working copy. */
 export interface FestivalDraft {

@@ -93,7 +93,9 @@ export function FestivalPanel({ session }: { session: Session }) {
     music: draft.music,
     twist: !!draft.twist,
   });
-  const foods = stocks.filter((l) => content.goodById.get(l.good)?.food || ['cider', 'pies', 'honey'].includes(l.good));
+  const foods = stocks.filter(
+    (l) => content.goodById.get(l.good)?.food || ['cider', 'pies', 'honey'].includes(l.good),
+  );
   const onMenu = new Set(draft.menu.map(([g]) => g));
   const changed = !!session.ui.festivalDraft.value;
   const send = () => {
@@ -169,7 +171,13 @@ export function FestivalPanel({ session }: { session: Session }) {
             <div key={g} class="menu-line" data-testid={`menu-${g}`}>
               <span class="menu-good">{goodName(g)}</span>
               <span class="stepper">
-                <button type="button" aria-label="Less" onClick={() => set({ menu: draft.menu.map(([x, n]) => [x, x === g ? Math.max(1, n - 5) : n]) })}>
+                <button
+                  type="button"
+                  aria-label="Less"
+                  onClick={() =>
+                    set({ menu: draft.menu.map(([x, n]) => [x, x === g ? Math.max(1, n - 5) : n]) })
+                  }
+                >
                   −
                 </button>
                 <b>{q}</b>
@@ -177,7 +185,9 @@ export function FestivalPanel({ session }: { session: Session }) {
                   type="button"
                   aria-label="More"
                   data-testid={`menu-more-${g}`}
-                  onClick={() => set({ menu: draft.menu.map(([x, n]) => [x, x === g ? Math.min(500, n + 5) : n]) })}
+                  onClick={() =>
+                    set({ menu: draft.menu.map(([x, n]) => [x, x === g ? Math.min(500, n + 5) : n]) })
+                  }
                 >
                   +
                 </button>
@@ -185,7 +195,11 @@ export function FestivalPanel({ session }: { session: Session }) {
               <span class={`small ${stock < q ? 'short' : 'muted'}`}>
                 {stock} in store{put > 0 ? `, ${put} put by` : ''}
               </span>
-              <button type="button" class="link-button" onClick={() => set({ menu: draft.menu.filter(([x]) => x !== g) })}>
+              <button
+                type="button"
+                class="link-button"
+                onClick={() => set({ menu: draft.menu.filter(([x]) => x !== g) })}
+              >
                 Take off
               </button>
             </div>
@@ -202,7 +216,14 @@ export function FestivalPanel({ session }: { session: Session }) {
                   type="button"
                   class="chip-button"
                   data-testid={`menu-add-${l.good}`}
-                  onClick={() => set({ menu: [...draft.menu, [l.good, Math.min(l.stock, Math.max(5, Math.round(attendees / 4)))]] })}
+                  onClick={() =>
+                    set({
+                      menu: [
+                        ...draft.menu,
+                        [l.good, Math.min(l.stock, Math.max(5, Math.round(attendees / 4)))],
+                      ],
+                    })
+                  }
                 >
                   + {goodName(l.good)} <span class="muted">({l.stock})</span>
                 </button>
@@ -216,7 +237,12 @@ export function FestivalPanel({ session }: { session: Session }) {
           <h4>Music</h4>
           {MUSIC.map((mu) => (
             <label key={mu.id} class="radio-line" title={mu.note}>
-              <input type="radio" name="festival-music" checked={draft.music === mu.id} onChange={() => set({ music: mu.id })} />
+              <input
+                type="radio"
+                name="festival-music"
+                checked={draft.music === mu.id}
+                onChange={() => set({ music: mu.id })}
+              />
               {mu.label}
             </label>
           ))}
@@ -240,7 +266,13 @@ export function FestivalPanel({ session }: { session: Session }) {
           How it might go <Stars n={est.stars} testid="estimate-stars" />
         </h4>
         {JOY_PARTS.map(([k, label]) => (
-          <Meter key={k} label={label} value={est.parts[k] / 100} note={est.parts[k]} tone={k === 'menu' ? 'ochre' : 'sage'} />
+          <Meter
+            key={k}
+            label={label}
+            value={est.parts[k] / 100}
+            note={est.parts[k]}
+            tone={k === 'menu' ? 'ochre' : 'sage'}
+          />
         ))}
         <p class="small muted">
           About {attendees} folk could come; rain thins the crowd. An estimate, mind: the night decides.
@@ -248,7 +280,13 @@ export function FestivalPanel({ session }: { session: Session }) {
       </section>
 
       <div class="actions">
-        <button type="button" class="primary" data-testid="festival-send" disabled={!draft.site || f.live} onClick={send}>
+        <button
+          type="button"
+          class="primary"
+          data-testid="festival-send"
+          disabled={!draft.site || f.live}
+          onClick={send}
+        >
           {plan ? (changed ? 'Pin up the new poster' : 'Poster is up') : 'Pin up the poster'}
         </button>
         {plan && (
@@ -273,7 +311,13 @@ export function FestivalResultPanel({ session }: { session: Session }) {
   );
 }
 
-export function FestivalResultCard({ result: r, onClose }: { result: FestivalResultView; onClose: () => void }) {
+export function FestivalResultCard({
+  result: r,
+  onClose,
+}: {
+  result: FestivalResultView;
+  onClose: () => void;
+}) {
   const line =
     r.stars >= 5
       ? 'People will be talking about this one until next year, and then some.'
@@ -285,7 +329,12 @@ export function FestivalResultCard({ result: r, onClose }: { result: FestivalRes
             ? 'Pleasant enough. Next time, a little more of everything.'
             : 'A quiet one. The folk who came had a nice chat, at least.';
   return (
-    <div class="festival-result" role="dialog" aria-label={`${festivalName(r.festival)}: ${r.stars} stars`} data-testid="festival-result">
+    <div
+      class="festival-result"
+      role="dialog"
+      aria-label={`${festivalName(r.festival)}: ${r.stars} stars`}
+      data-testid="festival-result"
+    >
       <p class="kicker">The morning after</p>
       <h2>{festivalName(r.festival)}</h2>
       <Stars n={r.stars} testid="result-stars" />

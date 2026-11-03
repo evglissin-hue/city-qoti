@@ -34,7 +34,15 @@ export function SeasonVignette({ season, class: cls }: { season: number; class?:
           {[44, 76, 108, 140, 172].map((x, i) => (
             <g key={i}>
               <path d={`M${x} ${30 + (i % 2) * 3} v6`} stroke={INK} stroke-width="1" />
-              <ellipse cx={x} cy={40 + (i % 2) * 3} rx="5" ry="6" class="v-lantern" stroke={INK} stroke-width="1" />
+              <ellipse
+                cx={x}
+                cy={40 + (i % 2) * 3}
+                rx="5"
+                ry="6"
+                class="v-lantern"
+                stroke={INK}
+                stroke-width="1"
+              />
             </g>
           ))}
         </g>
@@ -62,7 +70,13 @@ export function SeasonVignette({ season, class: cls }: { season: number; class?:
           <path d="M74 40 L110 14 L146 40" class="v-snowroof" stroke={INK} stroke-width="1.6" fill="none" />
           <rect x="102" y="42" width="12" height="10" class="v-window" stroke={INK} stroke-width="1.2" />
           <path d="M128 24 v-10 h6 v14" class="v-house" stroke={INK} stroke-width="1.2" />
-          <path d="M131 10 q-4 -5 1 -9 q4 -3 0 -7" stroke={INK} stroke-width="0.9" fill="none" class="v-smoke" />
+          <path
+            d="M131 10 q-4 -5 1 -9 q4 -3 0 -7"
+            stroke={INK}
+            stroke-width="0.9"
+            fill="none"
+            class="v-smoke"
+          />
           {[
             [24, 18],
             [46, 30],
@@ -134,10 +148,19 @@ export function CreatureArt({ kind, seed = 0 }: { kind: string; seed?: number })
   const tilt = (seed % 7) - 3;
   return (
     <svg class={`creature-art k-${kind || 'bird'}`} viewBox="0 0 120 90" aria-hidden="true">
-      <g transform={`rotate(${tilt} 60 45)`} fill="none" stroke={INK} stroke-width="1.5" stroke-linecap="round">
+      <g
+        transform={`rotate(${tilt} 60 45)`}
+        fill="none"
+        stroke={INK}
+        stroke-width="1.5"
+        stroke-linecap="round"
+      >
         {(kind === 'bird' || !kind) && (
           <>
-            <path d="M30 52 q10 -24 36 -18 q14 3 22 -6 q-2 12 -12 16 q-4 18 -26 18 q-12 0 -20 -10z" class="c-fill" />
+            <path
+              d="M30 52 q10 -24 36 -18 q14 3 22 -6 q-2 12 -12 16 q-4 18 -26 18 q-12 0 -20 -10z"
+              class="c-fill"
+            />
             <circle cx="78" cy="34" r="1.8" fill={INK} />
             <path d="M86 32 l8 2 l-8 2" />
             <path d="M40 54 q-12 6 -18 2 q8 -2 10 -8" />
@@ -210,7 +233,9 @@ export function Seal({ pressed, label }: { pressed: boolean; label?: string }) {
         stroke-width="1.2"
       />
       <circle cx="30" cy="30" r="14" fill="none" stroke={INK} stroke-width="1" class="seal-ring" />
-      {pressed && <path d="M22 30 l6 6 l11 -12" fill="none" stroke={INK} stroke-width="2.4" stroke-linecap="round" />}
+      {pressed && (
+        <path d="M22 30 l6 6 l11 -12" fill="none" stroke={INK} stroke-width="2.4" stroke-linecap="round" />
+      )}
     </svg>
   );
 }

@@ -41,6 +41,7 @@ import { audio } from '../audio/api';
 import { cueForCommand } from '../audio/cues/index';
 import { installAudio } from '../audio/install';
 import { seasonsAfterUpdate, seasonsEscape } from './seasonsHook';
+import { loadSnapshots, photoApi, snapshotsAfterUpdate } from './snapshots';
 
 export interface SessionTarget {
   valleyId: string;
@@ -228,6 +229,7 @@ export class Session {
     const firstVisit = this.phase.value !== 'ready';
     this.phase.value = 'ready';
     if (firstVisit) void this.checkAway();
+    if (firstVisit) void loadSnapshots(this);
     updateRecent(this.target.valleyId, {
       name: w.valley.settings.townName,
       lastPlayed: Date.now(),
@@ -256,6 +258,8 @@ export class Session {
       globalKey: (e) => this.globalKey(e),
       undo: () => this.undoLast(),
     });
+    // C5F: photo mode tells the renderer (C5E) when it starts and ends.
+    this.ui.photo.subscribe((on) => photoApi(this)?.setPhoto?.(on));
   }
 
   /** Send an emote over the existing emote message and show it here too. */
@@ -411,6 +415,7 @@ export class Session {
     }
     if (change.rankUp) this.ui.rankUp.value = change.rankUp;
     seasonsAfterUpdate(this, change);
+    snapshotsAfterUpdate(this, change);
     const focus = this.ui.planFocus.value;
     if (focus !== null && change.village && this.mirror.plans.get(focus)?.status !== 'open') {
       this.ui.planFocus.value = null;
@@ -539,6 +544,9 @@ export class Session {
         return true;
       case '?':
         this.ui.helpOpen.value = !this.ui.helpOpen.value;
+        return true;
+      case 'F2':
+        this.ui.photo.value = !this.ui.photo.value;
         return true;
       case 'Escape':
         this.ui.helpOpen.value = false;

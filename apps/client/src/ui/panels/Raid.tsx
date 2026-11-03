@@ -31,7 +31,11 @@ export function RaidPanel({ session }: { session: Session }) {
           class="modal-backdrop letter-backdrop"
           onClick={(e) => e.target === e.currentTarget && (session.ui.raidCard.value = null)}
         >
-          <RaidResultCard result={card} onClose={() => (session.ui.raidCard.value = null)} captives={captives.length} />
+          <RaidResultCard
+            result={card}
+            onClose={() => (session.ui.raidCard.value = null)}
+            captives={captives.length}
+          />
         </div>
       )}
     </>
@@ -58,7 +62,8 @@ export function RaidBar({ session }: { session: Session }) {
       <div class="raid-words">
         <b>Visitors of the unwelcome sort.</b>{' '}
         <span class="small">
-          {BAND_WORD[r.band]} from {SIDE_WORD[r.side]}: {left} still about, {r.fled} fled, {r.captured} caught.
+          {BAND_WORD[r.band]} from {SIDE_WORD[r.side]}: {left} still about, {r.fled} fled, {r.captured}{' '}
+          caught.
         </span>
         <span class="raid-progress" aria-hidden="true">
           {Array.from({ length: r.raiders }, (_, i) => (
@@ -88,10 +93,22 @@ export function RaidBar({ session }: { session: Session }) {
       </button>
       {gs.length > 0 && (
         <span class="gate-pair">
-          <button type="button" class="ghost-button" data-testid="raid-gates-shut" title="Raiders must break through" onClick={() => setGates(false)}>
+          <button
+            type="button"
+            class="ghost-button"
+            data-testid="raid-gates-shut"
+            title="Raiders must break through"
+            onClick={() => setGates(false)}
+          >
             Shut the gates
           </button>
-          <button type="button" class="link-button" data-testid="raid-gates-open" title="Let folk through again" onClick={() => setGates(true)}>
+          <button
+            type="button"
+            class="link-button"
+            data-testid="raid-gates-open"
+            title="Let folk through again"
+            onClick={() => setGates(true)}
+          >
             open
           </button>
         </span>
@@ -150,12 +167,10 @@ export function CaptiveChoice({ session, ids }: { session: Session; ids: EntityI
   const decide = (choice: 'home' | 'send') => session.submit({ t: 'bandit.decide', id, choice });
   return (
     <div class="captive-card panel" role="dialog" aria-label="A captured raider" data-testid="captive-choice">
-      <p class="kicker">
-        {ids.length > 1 ? `${ids.length} captured, one at a time` : 'Caught by the Watch'}
-      </p>
+      <p class="kicker">{ids.length > 1 ? `${ids.length} captured, one at a time` : 'Caught by the Watch'}</p>
       <p>
-        They look cold, a bit sheepish and very hungry. Bandits are a gang, not a species: anyone
-        might be one, and anyone might stop.
+        They look cold, a bit sheepish and very hungry. Bandits are a gang, not a species: anyone might be
+        one, and anyone might stop.
       </p>
       <div class="actions">
         <button type="button" class="primary" data-testid="captive-home" onClick={() => decide('home')}>
@@ -165,7 +180,9 @@ export function CaptiveChoice({ session, ids }: { session: Session; ids: EntityI
           Send them off
         </button>
       </div>
-      <p class="small muted">A home means a new neighbor with a past. Sending them off spreads the word: renown +1.</p>
+      <p class="small muted">
+        A home means a new neighbor with a past. Sending them off spreads the word: renown +1.
+      </p>
     </div>
   );
 }

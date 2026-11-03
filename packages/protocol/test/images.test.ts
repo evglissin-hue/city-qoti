@@ -44,7 +44,12 @@ describe('chronicle snapshots', () => {
     const store = new MemoryImages();
     const m = await meta();
     const first = await handleImage(req({ data: PNG(64, 1) }), store, m, 1);
-    const second = await handleImage(req({ authorization: 'Bearer seat-1-token', data: PNG(64, 2) }), store, m, 2);
+    const second = await handleImage(
+      req({ authorization: 'Bearer seat-1-token', data: PNG(64, 2) }),
+      store,
+      m,
+      2,
+    );
     expect(first).toMatchObject({ status: 201, json: { stored: true } });
     expect(second).toMatchObject({ status: 200, json: { stored: false } });
     const got = await handleImage(req({ method: 'GET', authorization: 'Bearer seat-1-token' }), store, m, 3);
@@ -66,7 +71,9 @@ describe('chronicle snapshots', () => {
     // A body larger than it said is still refused while it is read.
     expect((await handleImage(req({ data: big, contentLength: null }), store, m, 1)).status).toBe(413);
     expect((await handleImage(req({ contentType: 'text/html' }), store, m, 1)).status).toBe(415);
-    expect((await handleImage(req({ data: new TextEncoder().encode('<script>') }), store, m, 1)).status).toBe(400);
+    expect((await handleImage(req({ data: new TextEncoder().encode('<script>') }), store, m, 1)).status).toBe(
+      400,
+    );
     expect((await handleImage(req({}), store, null, 1)).status).toBe(404);
     expect(await store.listImages()).toEqual([]);
   });

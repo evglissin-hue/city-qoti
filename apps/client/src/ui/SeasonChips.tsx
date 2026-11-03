@@ -20,7 +20,13 @@ export function WeatherChip({ session }: { session: Session }) {
     if (card) session.ui.almanac.value = { kind: 'card', view: { ...card, weather: w } };
   };
   return (
-    <button type="button" class={`weather-chip w-${w.today}`} data-testid="weather" title={title} onClick={open}>
+    <button
+      type="button"
+      class={`weather-chip w-${w.today}`}
+      data-testid="weather"
+      title={title}
+      onClick={open}
+    >
       <WeatherGlyph kind={w.today} />
       <span class="weather-word">{WEATHER_WORD[w.today].word}</span>
       {w.forecast[0] && <WeatherGlyph kind={w.forecast[0][1]} class="next" />}

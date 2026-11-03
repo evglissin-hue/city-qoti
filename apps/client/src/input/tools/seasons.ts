@@ -40,7 +40,10 @@ export function festivalSiteOk(
   const w = Math.abs(a[0] - b[0]) + 1;
   const d = Math.abs(a[1] - b[1]) + 1;
   if (w < FESTIVAL_SITE_MIN || d < FESTIVAL_SITE_MIN)
-    return { ok: false, why: `A festival wants at least ${FESTIVAL_SITE_MIN} by ${FESTIVAL_SITE_MIN} tiles (${w} by ${d}).` };
+    return {
+      ok: false,
+      why: `A festival wants at least ${FESTIVAL_SITE_MIN} by ${FESTIVAL_SITE_MIN} tiles (${w} by ${d}).`,
+    };
   if (w > FESTIVAL_SITE_MAX || d > FESTIVAL_SITE_MAX)
     return { ok: false, why: `At most ${FESTIVAL_SITE_MAX} a side, or nobody finds the pies.` };
   let blocked = 0;
@@ -65,7 +68,9 @@ export function festivalSiteTool(ctx: ToolContext): Tool {
   let end: Tile | null = null;
   let cx = 0;
   let cy = 0;
-  const done = (site: NonNullable<ReturnType<typeof patternSiteAt>> | { rect: [number, number, number, number] }) => {
+  const done = (
+    site: NonNullable<ReturnType<typeof patternSiteAt>> | { rect: [number, number, number, number] },
+  ) => {
     const draft = ctx.ui.drafts?.().festival;
     if (draft) draft.value = { ...(draft.value ?? { menu: [], twist: '', music: 'none' }), site };
     ctx.ui.openPanel?.('festival');
@@ -92,7 +97,13 @@ export function festivalSiteTool(ctx: ToolContext): Tool {
       if (!start) {
         const site = patternSiteAt(ctx, p.tile.x, p.tile.z);
         ctx.render.setGhost({ kind: 'tiles', tiles: [[p.tile.x, p.tile.z]], valid: true });
-        cursorHint(site ? `${content.patternById.get(site.pattern)?.name ?? 'A pattern site'}: click to hold it here` : 'Drag a box', cx, cy);
+        cursorHint(
+          site
+            ? `${content.patternById.get(site.pattern)?.name ?? 'A pattern site'}: click to hold it here`
+            : 'Drag a box',
+          cx,
+          cy,
+        );
         return;
       }
       end = [p.tile.x, p.tile.z];
@@ -121,7 +132,9 @@ export function festivalSiteTool(ctx: ToolContext): Tool {
         ctx.ui.toast(ok.why ?? 'That will not do for a festival.');
         return;
       }
-      done({ rect: [Math.min(a[0], b[0]), Math.min(a[1], b[1]), Math.max(a[0], b[0]), Math.max(a[1], b[1])] });
+      done({
+        rect: [Math.min(a[0], b[0]), Math.min(a[1], b[1]), Math.max(a[0], b[0]), Math.max(a[1], b[1])],
+      });
     },
     exit: clear,
   };
@@ -130,7 +143,8 @@ export function festivalSiteTool(ctx: ToolContext): Tool {
 /** Guard points for the Watch: click to add (up to three), click one again to lift it. */
 export function guardTool(ctx: ToolContext): Tool {
   const draft = () => ctx.ui.drafts?.().posture;
-  const current = (): Tile[] => draft()?.value ?? (ctx.mirror.watch.value?.posture ?? []).map(([x, z]) => [x, z]);
+  const current = (): Tile[] =>
+    draft()?.value ?? (ctx.mirror.watch.value?.posture ?? []).map(([x, z]) => [x, z]);
   return {
     id: 'guard',
     lane: 'ledger',
@@ -146,7 +160,15 @@ export function guardTool(ctx: ToolContext): Tool {
       const full = tiles.length >= WATCH_POSTURE_MAX;
       const on = tiles.some(([x, z]) => x === p.tile!.x && z === p.tile!.z);
       ctx.render.setGhost({ kind: 'tiles', tiles: [...tiles, [p.tile.x, p.tile.z]], valid: on || !full });
-      cursorHint(on ? 'Click to lift this guard point' : full ? 'Three is plenty. Lift one first.' : 'A guard point here', p.clientX, p.clientY);
+      cursorHint(
+        on
+          ? 'Click to lift this guard point'
+          : full
+            ? 'Three is plenty. Lift one first.'
+            : 'A guard point here',
+        p.clientX,
+        p.clientY,
+      );
     },
     pointerDown(p) {
       if (!p.tile) return;
@@ -168,7 +190,10 @@ export function guardTool(ctx: ToolContext): Tool {
 
 /** The wall ghost: the sim's own rule on the Mirror (rules/walls.ts), so it agrees with wall.paint. */
 export function wallGhost(ctx: Pick<ToolContext, 'mirror'>, def: string, tiles: Tile[]): RoadPlacement {
-  return canPaintWall(ctx.mirror, def, tiles, { gate: ctx.mirror.meta.valleyGate, buildings: ctx.mirror.buildings.values() });
+  return canPaintWall(ctx.mirror, def, tiles, {
+    gate: ctx.mirror.meta.valleyGate,
+    buildings: ctx.mirror.buildings.values(),
+  });
 }
 
 export const WALL_DEFS = ['palisade', 'stone-wall'] as const;
@@ -188,7 +213,11 @@ export function wallTool(ctx: ToolContext): Tool {
     const r = wallGhost(ctx, variant.value, tiles);
     ctx.render.setGhost({ kind: 'tiles', tiles, valid: r.ok });
     const name = content.buildingById.get(variant.value)?.name ?? 'Wall';
-    cursorHint(r.ok ? `${name}: ${tiles.length} ${tiles.length === 1 ? 'piece' : 'pieces'}` : rejectText(r.reason), x, y);
+    cursorHint(
+      r.ok ? `${name}: ${tiles.length} ${tiles.length === 1 ? 'piece' : 'pieces'}` : rejectText(r.reason),
+      x,
+      y,
+    );
   };
   return {
     id: 'wall',
@@ -249,7 +278,8 @@ export function pondOk(ctx: Pick<ToolContext, 'mirror'>, tiles: Tile[]): { ok: b
   for (const [x, z] of tiles) {
     const i = z * MAP_SIZE + x;
     if (m.water(x, z)) return { ok: false, why: rejectText('WATER') };
-    if (m.occupant(x, z) || m.road(x, z) || m.layers.fieldOwner[i]) return { ok: false, why: rejectText('OCCUPIED') };
+    if (m.occupant(x, z) || m.road(x, z) || m.layers.fieldOwner[i])
+      return { ok: false, why: rejectText('OCCUPIED') };
     if (!m.parcelUnlocked(x, z)) return { ok: false, why: rejectText('LOCKED_PARCEL') };
     const near = m.decorNear(x * TILE_FP + TILE_FP / 2, z * TILE_FP + TILE_FP / 2, TILE_FP * 2);
     if (near.some((d) => Math.floor(d.fx / TILE_FP) === x && Math.floor(d.fz / TILE_FP) === z))
@@ -273,14 +303,18 @@ export function pondTool(ctx: ToolContext): Tool {
     icon: 'pond',
     label: 'Pond',
     hint: 'Drag to dig a pond on open grass. Frogs will hear of it.',
-    order: 45,
+    order: 62,
     modes: ['standard'],
     pointerMove(p) {
       if (!p.tile) return;
       const tiles = start ? boxTiles(start, (end = [p.tile.x, p.tile.z])) : [[p.tile.x, p.tile.z] as Tile];
       const ok = pondOk(ctx, tiles);
       ctx.render.setGhost({ kind: 'tiles', tiles, valid: ok.ok });
-      cursorHint(ok.ok ? (start ? `A pond of ${tiles.length} tiles` : null) : (ok.why ?? null), p.clientX, p.clientY);
+      cursorHint(
+        ok.ok ? (start ? `A pond of ${tiles.length} tiles` : null) : (ok.why ?? null),
+        p.clientX,
+        p.clientY,
+      );
     },
     pointerDown(p) {
       if (!p.tile) return;
