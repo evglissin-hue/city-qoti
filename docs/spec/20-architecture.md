@@ -501,6 +501,13 @@ The V0 concept of the Painted Miniature look ran at about 20 to 25 fps on High o
 - **Levels** (`render/lod.ts`): the building distance has a floor of 75 tiles (`BUILDING_DETAIL_FLOOR`, as before V1D) until V1B's far levels carry lit windows, since today's far level has none and a town past 60 tiles went dark at night; `levelFor` keeps an instance's level within 5% either side of the distance; buildings queue their swaps and apply the nearest first, at most 24 or 4 ms a frame (all at once on the first look after a load), and a new building starts at the level its distance asks for. Decor is an `InstanceField`: per chunk frustum culling and a level per instance by the decor distance; small props (bounding radius under 0.9 tiles, nothing lit) shrink away over the last 15% and are gone beyond it.
 - **Chunks** report a change only when a chunk's mesh really changed (an empty chunk rebuilt empty is none), so a streaming valley does not keep dropping the still-frame cache.
 
+**As built (V1C)**:
+
+- **Ground** (`render/ground.ts`): a third ground texture, `detail` (filtered, a texel a tile): mown lawn within 4 tiles of a building, worn earth (seats, door fronts), fertility, meadow. The shader adds the pattern array's grass grain, calmer lawns, combed meadow, clover on rich soil and a little bare earth on thin, worn earth, stone banks where lawns meet the water, the ground AO texture, and a snow hook for C5E (`material.userData.snow`, 0 until then). Streets that make a square of four tiles are flagged (`qFlags` in `layers/roads.ts`).
+- **Ground AO texture** (`render/groundAo.ts`): 480 x 480 R8 from occupant lots, forest crowns, decor trees, walls, hedges and fences, blurred twice (box radius 2 and 6 texels, two passes each, weights 0.7 and 0.25), softly lifted deep inside a lot. Edits rebuild the touched tiles plus the blur's reach (about 1.5 ms a chunk) and the terrain layer's `frame()` reports it. `groundAoFor(env)` is the uniform for other materials.
+- **Trees** (`kits/trees.ts`, `render/scatter.ts`): `low` is 16 triangles for every tree with the near level's outline; per-instance hysteresis of 10% of the swap distance; forest trees (no building within 6 tiles) swap at 0.4 of the distance on Low and Medium. Hedgerows (kit `hedgerow`) line field edges and lily pads (kit `lily-pads`) float on still water, both from the nature layer.
+- **Blob shadows** (`render/layers/blobs.ts`, moving): channels filled by the animals and carts layers each frame; residents keep the agents layer's own.
+
 ## Content pipeline
 
 - TypeScript data modules in `packages/content/src/<kind>.ts` (buildings, decor, roads, trees; later goods, patterns, wishes, achievements, names), aggregated in `index.ts`.
