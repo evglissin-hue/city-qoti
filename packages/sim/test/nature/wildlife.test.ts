@@ -23,6 +23,8 @@ function builtFor(
   const scores: Record<string, number> = {};
   def.habitats.forEach(([h, min], i) => (scores[h] = opts.short && i === 0 ? min - 1 : min));
   setHabitats(s, EMPTY_CHUNK, scores);
+  // Somebody lives here to notice.
+  placeFree(s, 'cottage', EX + 10, EZ + 10);
   if (def.needs === 'hive') placeFree(s, 'apiary', EX + 4, EZ + 4);
   else if (def.needs === 'fisher') placeFree(s, 'fishers-hut', EX + 4, EZ + 4).rt!.present = 1;
   else for (let x = EX; x < EX + 6; x++) s.map.road[(EZ + 8) * S + x] = Road.path;
@@ -61,6 +63,13 @@ describe('wildlife', () => {
     expect(sightedWithin(frozen, 'trout', 200)).toBe(false);
   });
 
+  it('wild country far from homes keeps its secrets', () => {
+    const def = content.wildlifeById.get('mallard')!;
+    const s = builtFor(def);
+    s.buildings = s.buildings.filter((b) => b.def !== 'cottage' || b.x !== EX + 10);
+    expect(sightedWithin(s, def.id, 300)).toBe(false);
+  });
+
   it('honeybees need an apiary', () => {
     const bee = content.wildlifeById.get('honeybee')!;
     const s = builtFor(bee);
@@ -76,7 +85,7 @@ describe('wildlife', () => {
     const id = addDecorAt(s, flower, EX + 2.5, EZ + 2.5);
     s.decor.find((d) => d.id === id)!.builtBy = 1;
     const ctx = createTickCtx(s);
-    while (!s.nature.guide.some((e) => e.species === def.id)) rollSightings(s, ctx);
+    for (let k = 0; k < 600 && !s.nature.guide.some((e) => e.species === def.id); k++) rollSightings(s, ctx);
     const entry = s.nature.guide.find((e) => e.species === def.id)!;
     expect(entry.seats).toEqual([1]);
     expect(entry.count).toBe(1);

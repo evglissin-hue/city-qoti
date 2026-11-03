@@ -24,6 +24,7 @@ import { benchEconomy } from './economy';
 import { growthBench } from './growth';
 import { benchMarket } from './market';
 import { syntheticValley } from './synthetic';
+import { natureBench } from './nature.bench';
 import { seasonsBench } from './seasons.bench';
 import { villageBench } from './village.bench';
 
@@ -161,6 +162,10 @@ failures.push(...village.failures);
 const seasons = seasonsBench();
 lines.push(...seasons.lines);
 failures.push(...seasons.failures);
+// 11. Nature (C5C): the habitats pass on the synthetic map, the wildlife pass at 150 residents.
+const nature = natureBench();
+lines.push(...nature.lines);
+failures.push(...nature.failures);
 
 const heapMb = process.memoryUsage().heapUsed / 1024 / 1024;
 lines.push(`memory          ${heapMb.toFixed(0)} MB heap in use`);
@@ -190,6 +195,7 @@ const report = {
   market: market.report,
   village: village.report,
   seasons: seasons.report,
+  nature: nature.report,
   heapMb,
   failures,
 };

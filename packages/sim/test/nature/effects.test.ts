@@ -39,6 +39,16 @@ describe('pollinators', () => {
     expect(yieldOf(s, farm)).toBe(Math.floor((plain * (1000 + POLLINATOR_BONUS)) / 1000));
   });
 
+  it('and the pests leave a Hamlet alone', () => {
+    const s = natureFixture().state;
+    s.charter.rank = 'hamlet';
+    const farm = place(s, 'farmhouse', EX + 4, EZ + 4);
+    setHabitats(s, EMPTY_CHUNK, { pollinator: 255 });
+    expect(pollinatorFactor(s, farm.id)).toBe(1000);
+    updatePests(s);
+    expect(s.nature.pests).toEqual([]);
+  });
+
   it('leave workshops alone', () => {
     const s = natureFixture().state;
     const smithy = place(s, 'smithy', EX + 4, EZ + 4);

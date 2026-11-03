@@ -8,6 +8,7 @@
 import { content, type WildlifeDef } from '@qoti/content';
 import { CHUNK_SIZE, CHUNKS_PER_SIDE, MAP_SIZE } from '../../constants';
 import type { FieldGuideEntry, SeatId, TickCtx, WorldState } from '../../contracts';
+import { isHomeDef } from '../../conditions/geo';
 import { seasonAt } from '../../state/seasons';
 import { fieldGuideEntryView } from '../../view/seasons';
 import { chronicle } from '../chronicle/api';
@@ -48,14 +49,39 @@ function roadChunks(state: WorldState): Uint8Array {
   return out;
 }
 
-/** Chunks someone is watching: a path or lane, or a resident outdoors. */
+/** Chunks with a home in them, or next to one (residents notice what lives near them). */
+function nearHomes(state: WorldState): Uint8Array {
+  const out = new Uint8Array(CHUNKS);
+  for (const b of state.buildings) {
+    if (b.stage !== 'built' || !isHomeDef(content.buildingById.get(b.def))) continue;
+    const c = buildingChunk(b);
+    const cx = c % CHUNKS_PER_SIDE;
+    const cz = Math.floor(c / CHUNKS_PER_SIDE);
+    for (let dz = -1; dz <= 1; dz++) {
+      for (let dx = -1; dx <= 1; dx++) {
+        const x = cx + dx;
+        const z = cz + dz;
+        if (x >= 0 && z >= 0 && x < CHUNKS_PER_SIDE && z < CHUNKS_PER_SIDE) out[z * CHUNKS_PER_SIDE + x] = 1;
+      }
+    }
+  }
+  return out;
+}
+
+/**
+ * Chunks someone is watching: near homes (the chunk of one or next to it), with a path or lane in
+ * them or a resident outdoors. Wild country far from town keeps its secrets.
+ */
 export function watchedChunks(state: WorldState): Uint8Array {
-  const out = roadChunks(state);
+  const roads = roadChunks(state);
+  const out = nearHomes(state);
+  const folk = new Uint8Array(CHUNKS);
   for (const r of state.residents) {
     if (r.inside) continue;
     const x = r.tile % S;
-    out[chunkOfTile(x, (r.tile - x) / S)] = 1;
+    folk[chunkOfTile(x, (r.tile - x) / S)] = 1;
   }
+  for (let c = 0; c < CHUNKS; c++) out[c] = out[c]! & (roads[c]! | folk[c]!);
   return out;
 }
 
@@ -154,11 +180,14 @@ export function sight(state: WorldState, ctx: TickCtx, def: WildlifeDef, c: numb
   refreshHints(state);
   ctx.events.push({ e: 'species.sighted', s: fieldGuideEntryView(entry) });
   const tile = chunkCenter(c);
+  // The wording comes from the nature stream, so a sighting leaves the town's other dice alone.
+  const words: TickCtx = { ...ctx, rng: () => ctx.rng('nature') };
   chronicle(state, ctx, 'first-sighting', {
+    variant: ctx.rng('nature').int(1000),
     text: [
       ['species', def.name.charAt(0).toLowerCase() + def.name.slice(1)],
-      ['place', placeName(state, ctx, tile)],
-      ['credit', creditText(state, ctx, entry.seats)],
+      ['place', placeName(state, words, tile)],
+      ['credit', creditText(state, words, entry.seats)],
     ],
     seats: entry.seats,
     snapshot: { focus: [tile % S, Math.floor(tile / S)], radius: CHUNK_SIZE / 2 },

@@ -202,6 +202,10 @@ export {
 // I3 (C5A): the floodplain test, for the autoplayer keeping off it when a flood is forecast.
 export { onFloodplain } from './systems/weather';
 export { habitatAt, hasSpecies, pestLoss, pollinatorFactor } from './systems/habitats/api';
+// I3 (C5C): ponds (for the ghost and the autoplayer), habitats and sightings (for benches and tools).
+export { pondBlocked, pondCost, POND_FERTILITY, POND_MAX_HEIGHT, POND_MAX_TILES } from './commands/pond';
+export { CHUNKS, chunkScores, scoreChunks, updateHabitats } from './systems/nature/habitats';
+export { rollSightings } from './systems/nature/wildlife';
 export { deterrenceAt, isRaidActive, lanternLit, watchStrength, wealth } from './systems/threats/api';
 // I3 (C5A): the winter stores, for the autoplayer and the tuner.
 export { larder, woodpile } from './systems/seasons/stores';

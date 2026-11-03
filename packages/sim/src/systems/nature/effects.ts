@@ -8,6 +8,7 @@ import { HABITAT_IDS } from '../../constants';
 import type { Building, EntityId, WorldState } from '../../contracts';
 import { findById } from '../../state/entities';
 import { seasonAt } from '../../state/seasons';
+import { rankAtLeast } from '../../state/village';
 import { buildingChunk, scoreAt } from './habitats';
 
 /** Pollinator score at which the bonus is full. */
@@ -43,8 +44,14 @@ function pollinatorScore(state: WorldState, b: Building): number {
   return Math.min(POLLINATOR_FULL, scoreAt(state, POLLINATOR, buildingChunk(b)));
 }
 
-/** Permille on a building's crop or honey yield from the bees about (1000 = no effect). */
+/**
+ * Permille on a building's crop or honey yield from the bees about (1000 = no effect). From Village
+ * rank, like the pests: a Hamlet's handful of plots is too small for either to notice (and the I2
+ * Hamlet's pace stays as tuned; with bees from the first day the autoplayer reached Village a season
+ * later on five seeds of eight).
+ */
 export function pollinatorPermille(state: WorldState, b: Building, def: BuildingDef | undefined): number {
+  if (!rankAtLeast(state, 'village')) return 1000;
   if (isHive(def))
     return HIVE_FLOOR + Math.floor(((1000 - HIVE_FLOOR) * pollinatorScore(state, b)) / POLLINATOR_FULL);
   if (!isCropGrower(def)) return 1000;
@@ -94,9 +101,12 @@ export function pestLossFor(state: WorldState, b: Building): number {
   return Math.floor((PEST_MAX * (1000 - Math.min(1000, cut))) / 1000);
 }
 
-/** Each morning: pests per crop grower in summer, none otherwise. */
+/**
+ * Each morning: pests per crop grower in summer, none otherwise. A Hamlet's few plots are beneath a
+ * pest's notice: they come from Village rank on, when the habitats that keep them down can be built.
+ */
 export function updatePests(state: WorldState): void {
-  if (seasonAt(state.tick).season !== SUMMER) {
+  if (seasonAt(state.tick).season !== SUMMER || !rankAtLeast(state, 'village')) {
     state.nature.pests = [];
     return;
   }
