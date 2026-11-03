@@ -95,7 +95,7 @@ The look gets much more detailed and stays cozy (owner, 2026-11-01; `17-presenta
 
 The concept viewer (`docs/concepts/v0-look/index.html`) with three directions, three eras and three times of day, and a live fps, draw call and triangle readout; stills (`docs/build/screenshots/v0-*.jpg`); this eras doc; the budgets by preset (`22-quality.md`). The owner and Kat picked B, the Painted Miniature (2026-11-01). The owner measured the first concept at about 20 to 25 fps on High, so the concept was rebuilt on the lean renderer (`20-architecture.md`, Lean renderer [V1]) to prove the look can run on the weaker laptop; the first engine stays as `docs/concepts/v0-look/v1-engine.html` for comparison. The V1 briefs are written (`docs/build/cycle-v1-*.md`).
 
-### V1 Look foundation (next)
+### V1 Look foundation (done in V1X, 2026-11-03; the laptop runs and the playtest evening still to come)
 
 Runs alongside the I3 wave's C5B, C5C, C5D, C5F and C5H; C5E waits for V1X.
 
@@ -107,6 +107,8 @@ Runs alongside the I3 wave's C5B, C5C, C5D, C5F and C5H; C5E waits for V1X.
 - **V1C ground, water and nature**: ground variety (mown grass, meadow, worn edges, soil you can see), kerbs and road edges, the ground AO texture and its chunk updates, trees v2 with two levels, water and banks, blob shadows under residents and carts.
 - **V1D lean renderer**: one scene pass, a quarter resolution blur chain and one final pass; cached sun shadows; level choice per preset; the still-frame cache (idle frames draw only the moving layers); dynamic resolution judged on moving frames with a cool-down; Ultra; the budgets measured on both laptops.
 - **V1X integration**: merges and tunes; before and after shots of every scene; fps and GPU time from both laptops on each preset, moving and idle; a playtest evening; C5E's brief updated; planning notes for V2 and V3.
+
+**As built (V1X)**: V1A, V1B and V1C merged on V1D (PRs #13, #14 and #16). Before and after shots of every scene are `docs/build/screenshots/v1-before-*.png` and `v1-after-*.png`, with side-by-side sheets (concept, before, after) in `v1x-compare-*.jpg`. Software numbers (`22-quality.md`, As built V1X): the town on Medium moves at 0.58 M triangles (2.66 M before V1) in 122 draws, and with the sim held every rest frame is idle. V1X fixed resting redraws (static layers that invalidated on sim changes that changed nothing), retired the classic chain, and turned the day sun to the concept's height and azimuth so shadows read from the default camera. Left for humans: the laptop perf runs and the playtest evening (`docs/playtests/V1.md`).
 
 **Acceptance**: the scenes read as the B concept from the default camera and close up, by day, golden hour and night; every budget in `22-quality.md` holds on the weaker laptop on Medium, moving and idle; nothing in the sim changes, and hashes match.
 

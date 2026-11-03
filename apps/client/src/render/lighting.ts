@@ -97,10 +97,13 @@ const GOLDEN: Omit<Key, 'hour'> = {
   sunI: 2.7,
   hemiSky: 0xead0b8,
   hemiGround: 0x6a5a4c,
-  hemiI: 1.0,
+  // V1X: more sky fill, so the long golden shadows stay warm rather than olive (the concept's
+  // golden ground is bright honey green even in shade).
+  hemiI: 1.3,
   fill: 0x9aa4e8,
   fillI: 0.25,
-  exposure: 1.0,
+  // V1X: a little over the concept's 1.08; at 1.0 the low sun left the grass olive and dull.
+  exposure: 1.12,
   night: 0.05,
   warmth: 0.3,
 };
@@ -199,6 +202,19 @@ float qWindowLit(vec3 p, float s) {
 }
 `;
 
+/**
+ * V1X: the day sun's direction from the arc's angle (0 at 6:00, pi at 18:00) and its height (0 to
+ * 1). It stands 12 to 50 degrees up (the concept's day is 47, its golden hour 21) and swings
+ * evenly from 20 degrees east of the default camera's line of sight at 6:00 to 100 west at 18:00
+ * (-40 at noon, near the concept's -38), so shadows fall to the side where the camera sees them. Before V1X it
+ * climbed to about 69 degrees behind the camera, and the town looked shadowless from 10 to 14.
+ */
+function daySun(angle: number, elevation: number): [number, number, number] {
+  const el = ((12 + 38 * elevation) * Math.PI) / 180;
+  const az = ((20 - (120 * angle) / Math.PI) * Math.PI) / 180;
+  return [Math.cos(el) * Math.sin(az), Math.sin(el), Math.cos(el) * Math.cos(az)];
+}
+
 /** Light colors and sun direction for an hour of the day (fractional hours are fine). */
 export function lightingAt(hour: number): Lighting {
   const h = ((hour % 24) + 24) % 24;
@@ -220,14 +236,7 @@ export function lightingAt(hour: number): Lighting {
     hemiSky: mix(k0.hemiSky, k1.hemiSky, t),
     hemiGround: mix(k0.hemiGround, k1.hemiGround, t),
     hemiIntensity: lerp(k0.hemiI, k1.hemiI),
-    // V1X: by day the sun stands at most about 50 degrees up (the concept's day is 47, its golden
-    // hour 21) and, at noon, a little to the west of the default camera's line of sight (the
-    // concept's azimuth, -38 degrees), so shadows fall to the side where the camera sees them. It
-    // used to climb to about 69 degrees straight behind the camera, and the town looked shadowless
-    // from 10 to 14. The moon keeps its old place.
-    sunDir: day
-      ? [Math.cos(angle) * 0.8 - 0.32, 0.28 + elevation * 0.3, 0.45]
-      : [Math.cos(angle) * 0.8, elevation + 0.3, 0.45],
+    sunDir: day ? daySun(angle, elevation) : [Math.cos(angle) * 0.8, elevation + 0.3, 0.45],
     skyTop: mix(k0.skyTop, k1.skyTop, t),
     fill: mix(k0.fill, k1.fill, t),
     fillIntensity: lerp(k0.fillI, k1.fillI),
