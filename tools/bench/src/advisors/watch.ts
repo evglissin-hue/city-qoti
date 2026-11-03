@@ -5,7 +5,8 @@
 //   is away from work one day in four, so each spare hand covers four members), except two once a
 //   raid is real (a pressing want may use the labor reserve, as the planner's do); a small stipend
 //   (two coins a day) while the season pays its way.
-// - Posture: the most valuable store's door, the market's when there is a second.
+// - Posture: the most valuable store's door (two members to a point, so they can hold it and
+//   catch a raider), the next store's too with four members.
 // - When a raid is telegraphed: a bell tower (it rings itself at dusk, so everyone goes indoors and
 //   the gates shut), and a palisade ring with gates round the richest store, if the logs and coins
 //   are there. During a raid (if a visit ever falls in one) it rings the bell and lights the lanterns.
@@ -115,7 +116,8 @@ class Watch implements Advisor {
 
   private posture(): void {
     const w = this.w;
-    const stores = richest(w).slice(0, 2);
+    // Two to a guard point: one store with up to three members, the second with four.
+    const stores = richest(w).slice(0, w.watch.members.length >= 4 ? 2 : 1);
     const guards = stores.map((b) => {
       const t = frontOf(b);
       return [t % S, Math.floor(t / S)] as [number, number];

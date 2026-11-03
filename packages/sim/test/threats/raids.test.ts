@@ -1,7 +1,9 @@
 // C5D: raid resolution, step by step (14-challenge.md, Raid resolution), and its determinism.
 import { content } from '@qoti/content';
 import { describe, expect, it } from 'vitest';
-import { MAP_SIZE, RAIDER_CARRY, TICKS_PER_HOUR } from '../../src/constants';
+import { AGENT_STRIDE, AgentFlags, MAP_SIZE, RAIDER_CARRY, TICKS_PER_HOUR } from '../../src/constants';
+import { agentFrame } from '../../src/view/agents';
+import { threatLines } from '../../src/view/season/threat';
 import type { Raider, WorldState } from '../../src/contracts';
 import { evaluate } from '../../src/conditions';
 import { findById } from '../../src/state/entities';
@@ -307,16 +309,20 @@ describe('the whole raid', () => {
 });
 
 describe('the view', () => {
-  it('raiders ride in the agent frame; the season report tells both pages', async () => {
-    const { agentFrame } = await import('../../src/view/agents');
-    const { threatLines } = await import('../../src/view/season/threat');
-    const { AGENT_STRIDE, AgentFlags } = await import('../../src/constants');
+  it('raiders ride in the agent frame; the season report tells both pages', () => {
     const d = raidAtDusk();
     const frame = agentFrame(d.state);
     let raiders = 0;
     for (let o = 0; o < frame.length; o += AGENT_STRIDE) if (frame[o + 7]! & AgentFlags.raider) raiders++;
     expect(raiders).toBe(6);
-    d.state.threats.history.push({ tick: d.state.tick, band: 'medium', side: 'n', stolen: 4, captured: 2, repelled: true });
+    d.state.threats.history.push({
+      tick: d.state.tick,
+      band: 'medium',
+      side: 'n',
+      stolen: 4,
+      captured: 2,
+      repelled: true,
+    });
     const lines = threatLines(d.state);
     expect(lines.hearth.length).toBeGreaterThan(0);
     expect(lines.ledger.some((l) => l.value === 4)).toBe(true);

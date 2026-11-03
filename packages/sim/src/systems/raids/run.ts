@@ -8,7 +8,8 @@
 //    captured with 2 or more Watch members beside them; a member at 0 is shaken, goes home and
 //    rests a day. Nobody is hurt.
 // 5. A raider at a store takes up to 8 of its most valuable goods, lowers its condition by 20%,
-//    and runs for the edge; goods carried by a captured raider are recovered.
+//    and runs for the edge; goods carried by a captured raider are recovered. A store with the
+//    Watch at its door holds: the raider waits beside them, losing heart, until one side breaks.
 // 6. The bell sends everyone indoors (systems/watch/overrides); folk caught outside near raiders
 //    get a fright (-10 mood).
 // 7. The raid ends when no raiders are left on the map, or at dawn.
@@ -331,6 +332,16 @@ function atGoal(state: WorldState, r: Raider): boolean {
   return !!b && r.tile === frontOf(b);
 }
 
+/** True when a Watch member on their feet stands on or beside a tile. */
+function guarded(state: WorldState, tile: number): boolean {
+  for (const w of state.raid!.watch) {
+    if (w.state !== 'guard' && w.state !== 'intercept') continue;
+    const res = findById(state.residents, w.resident);
+    if (res && !res.inside && adjacent(res.tile, tile)) return true;
+  }
+  return false;
+}
+
 /** Moves a raider a tick along its path; a wall ahead stops it (systems/defenses breaks it). */
 function stepRaider(state: WorldState, r: Raider): boolean {
   const m = r.move;
@@ -441,6 +452,9 @@ export function raidTick(state: WorldState, ctx: TickCtx): boolean {
     const b = findById(state.buildings, r.target);
     if (b && r.tile === frontOf(b)) {
       r.state = 'loot';
+      // A store with the Watch at its door holds: the raider waits there, losing heart, until the
+      // guard is broken or it is.
+      if (guarded(state, r.tile)) continue;
       loot(state, r, b);
       if (r.load.length === 0) {
         // Nothing left here: try the next richest store once, else go home empty-handed.

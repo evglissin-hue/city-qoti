@@ -18,11 +18,11 @@ export const THRESHOLD = 1000;
 export const FIERCE_THRESHOLD = 600;
 /** Pressure never climbs past this (a raid's size stops growing). */
 export const PRESSURE_MAX = 3000;
-/** k(rank): pennies of wealth per permille of pressure a day (a Village of about 1,200 coins gains ~170). */
+/** k(rank): pennies of wealth per permille of pressure a day (a Village worth 1,500 coins gains 100). */
 export const PRESSURE_K: readonly [rank: string, k: number][] = [
-  ['village', 700],
-  ['town', 1400],
-  ['city', 2800],
+  ['village', 1500],
+  ['town', 3000],
+  ['city', 6000],
 ];
 /** Raiders: 2 plus 4 per threshold of pressure, 3 to 12 (x1.5 on Fierce). */
 export const RAIDERS_MIN = 3;
