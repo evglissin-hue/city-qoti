@@ -82,7 +82,7 @@ export const DETER_WATCH_PER = 30;
 export const DETER_CAP = 850;
 
 /** A walled area larger than this (tiles) is the open valley, as far as deterrence goes. */
-export const WALLED_MAX = 1600;
+export const WALLED_MAX = 1024;
 
 const QUEUE = new Int32Array(S * S);
 const STAMP = new Uint32Array(S * S);
