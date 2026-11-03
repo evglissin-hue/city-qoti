@@ -21,6 +21,8 @@ export interface AutoplayOptions {
   standInPost?: boolean;
   /** C4D: the two players also work together at 15:00 (requests, plans, the Charter). */
   together?: boolean;
+  /** C5D: the threat dial for the run (default Peaceful, as a new valley's): raids and the Watch play when on. */
+  threat?: ValleySettings['threat'];
   /** C4C: play the Village chains, services and tiers (and claim the Charter when ready). */
   village?: boolean;
   /** Called after each day's line is recorded (tuning scripts read the books here). */

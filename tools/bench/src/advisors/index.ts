@@ -11,6 +11,7 @@ import { street } from './street';
 import { together } from './together';
 import type { AdvisorDef } from './types';
 import { village } from './village';
+import { watch } from './watch';
 
 export type { Advisor, AdvisorDef, AutoplayOptions, Visit } from './types';
 
@@ -24,4 +25,5 @@ export const advisors: readonly AdvisorDef[] = [
   street,
   together,
   village,
+  watch,
 ];

@@ -66,6 +66,10 @@ export const RENOWN_REPELLED = 2;
 export const RENOWN_HELD = 3;
 /** Watch morale after a raid: up for a win, down for a loss. */
 export const MORALE_SWING = 5;
+/** Raiders come out of the strip this deep along their side. */
+export const SPAWN_DEPTH = 8;
+/** Raiders run: percent of a walker's ticks per tile. */
+export const RAIDER_PACE = 60;
 /** A raid lasts until dawn: twelve hours from dusk. */
 export const RAID_TICKS = 12 * TICKS_PER_HOUR;
 
@@ -88,28 +92,42 @@ export function sideName(side: RaidSide): string {
   return SIDE_NAMES.find(([s]) => s === side)![1];
 }
 
-/** The edge tile nearest `tile` on a side (where raiders come from and run to). */
-export function edgeTile(side: RaidSide, tile: number): number {
+/** True when a tile lies in the strip along a side that raiders come from and run back to. */
+export function onSide(side: RaidSide, tile: number): boolean {
   const x = tile % S;
   const z = Math.floor(tile / S);
   switch (side) {
     case 'n':
-      return x;
+      return z < SPAWN_DEPTH;
     case 's':
-      return (S - 1) * S + x;
+      return z >= S - SPAWN_DEPTH;
     case 'w':
-      return z * S;
+      return x < SPAWN_DEPTH;
     default:
-      return z * S + S - 1;
+      return x >= S - SPAWN_DEPTH;
   }
 }
 
-/** Tiles a raider could walk to `from` from (the raiders' grid, cliffs block). */
-function reachable(state: WorldState, from: number): Uint8Array {
+/** The tile on a raid's side a raider at `from` can reach in the fewest steps, or -1. */
+export function exitFor(state: WorldState, side: RaidSide, from: number): number {
+  const steps = stepsTo(state, from);
+  let best = -1;
+  let bestD = Infinity;
+  for (let i = 0; i < S * S; i++) {
+    const d = steps[i]!;
+    if (d < 0 || d >= bestD || !onSide(side, i)) continue;
+    best = i;
+    bestD = d;
+  }
+  return best;
+}
+
+/** Steps from `from` to every tile a raider could walk it from (-1 where it cannot): raiders' grid, cliffs block. */
+function stepsTo(state: WorldState, from: number): Int32Array {
   const grid = raiderGrid(state);
   const h = state.map.height;
-  const out = new Uint8Array(S * S);
-  out[from] = 1;
+  const out = new Int32Array(S * S).fill(-1);
+  out[from] = 0;
   const queue = [from];
   for (let q = 0; q < queue.length; q++) {
     const t = queue[q]!;
@@ -120,10 +138,10 @@ function reachable(state: WorldState, from: number): Uint8Array {
       const nz = d === 2 ? z + 1 : d === 3 ? z - 1 : z;
       if (nx < 0 || nz < 0 || nx >= S || nz >= S) continue;
       const n = nz * S + nx;
-      if (out[n] || grid.cost[n] === 0) continue;
+      if (out[n]! >= 0 || grid.cost[n] === 0) continue;
       const dh = h[n]! - h[t]!;
       if (dh >= 2 || dh <= -2) continue;
-      out[n] = 1;
+      out[n] = out[t]! + 1;
       queue.push(n);
     }
   }
@@ -131,18 +149,16 @@ function reachable(state: WorldState, from: number): Uint8Array {
 }
 
 /**
- * Spawn tiles along a side, from its middle outward, two apart, a row or a few in from the edge,
- * where a raider could walk to `goal` (the first store) from.
+ * Spawn tiles in the strip along a side (up to SPAWN_DEPTH in from the edge): the ones nearest the
+ * first store by walking, two apart, so a raid comes out of the telegraphed woods and reaches the
+ * town before dawn.
  */
 function spawnTiles(state: WorldState, side: RaidSide, n: number, goal: number): number[] {
   const grid = raiderGrid(state);
-  const ok = goal >= 0 ? reachable(state, goal) : null;
-  const out: number[] = [];
-  const mid = S >> 1;
-  for (let off = 0; off < S && out.length < n; off++) {
-    const a = mid + (off % 2 === 0 ? off / 2 : -(off + 1) / 2) * 2;
-    if (a < 0 || a >= S) continue;
-    for (let depth = 0; depth < 6 && out.length < n; depth++) {
+  const steps = goal >= 0 ? stepsTo(state, goal) : null;
+  const cand: [tile: number, d: number][] = [];
+  for (let a = 0; a < S; a++) {
+    for (let depth = 0; depth < SPAWN_DEPTH; depth++) {
       const i =
         side === 'n'
           ? depth * S + a
@@ -151,11 +167,18 @@ function spawnTiles(state: WorldState, side: RaidSide, n: number, goal: number):
             : side === 'w'
               ? a * S + depth
               : a * S + (S - 1 - depth);
-      if (grid.cost[i]! > 0 && (!ok || ok[i]) && !out.includes(i)) {
-        out.push(i);
-        break;
-      }
+      if (grid.cost[i] === 0) continue;
+      const d = steps ? steps[i]! : Math.abs(a - (S >> 1));
+      if (d < 0) continue;
+      cand.push([i, d]);
     }
+  }
+  cand.sort((x, y) => x[1] - y[1] || x[0] - y[0]);
+  const out: number[] = [];
+  for (const [i] of cand) {
+    if (out.length >= n) break;
+    if (out.some((o) => dist(o, i) < 2)) continue;
+    out.push(i);
   }
   return out;
 }
@@ -201,7 +224,7 @@ export function startRaid(state: WorldState, ctx: TickCtx): void {
     if (r.target) plan(state, r, frontOf(findById(state.buildings, r.target)!));
     else {
       r.state = 'flee';
-      plan(state, r, edgeTile(s.side, r.tile));
+      plan(state, r, r.tile);
     }
     raiders.push(r);
   }
@@ -303,7 +326,7 @@ export function guardTile(state: WorldState, k: number): number {
 
 /** True when a raider stands where it was going (its store's door, or the edge when running). */
 function atGoal(state: WorldState, r: Raider): boolean {
-  if (r.state === 'flee') return r.tile === edgeTile(state.raid!.side, r.tile);
+  if (r.state === 'flee') return onSide(state.raid!.side, r.tile);
   const b = findById(state.buildings, r.target);
   return !!b && r.tile === frontOf(b);
 }
@@ -323,7 +346,7 @@ function stepRaider(state: WorldState, r: Raider): boolean {
     return false;
   }
   const p = walkPermille(state, { kind: 'raider', id: r.id }, next);
-  const T = tileTicks(grid.ticks[next]!, (100 * p) / 1000);
+  const T = tileTicks(grid.ticks[next]!, (RAIDER_PACE * p) / 1000);
   m.progress = advance(m.progress, T);
   if (m.progress < 256) return false;
   r.tile = next;
@@ -379,7 +402,13 @@ export function capture(state: WorldState, ctx: TickCtx, r: Raider): void {
 
 function flee(state: WorldState, r: Raider): void {
   r.state = 'flee';
-  plan(state, r, edgeTile(state.raid!.side, r.tile));
+  if (onSide(state.raid!.side, r.tile)) {
+    r.move = null;
+    return;
+  }
+  const exit = exitFor(state, state.raid!.side, r.tile);
+  if (exit >= 0) plan(state, r, exit);
+  else r.move = null;
 }
 
 /** One tick of the raid (systems/raids). Returns true when it ended. */
@@ -388,6 +417,11 @@ export function raidTick(state: WorldState, ctx: TickCtx): boolean {
   // Raiders walk, loot and run.
   for (const r of raid.raiders) {
     if (!active(r)) continue;
+    if (!r.move && !atGoal(state, r) && r.state !== 'flee') {
+      // Not yet on its way (a raider placed by hand, or after a store emptied): plan the walk.
+      const b = findById(state.buildings, r.target);
+      if (b) plan(state, r, frontOf(b));
+    }
     if (!r.move && !atGoal(state, r)) {
       // No way there: an approach turns back, a runaway slips off the map where they stand.
       const running = r.state === 'flee';
@@ -398,7 +432,7 @@ export function raidTick(state: WorldState, ctx: TickCtx): boolean {
     const arrived = stepRaider(state, r);
     if (!arrived) continue;
     if (r.state === 'flee') {
-      if (r.tile === edgeTile(raid.side, r.tile)) {
+      if (onSide(raid.side, r.tile)) {
         r.state = 'gone';
         r.move = null;
       } else flee(state, r);

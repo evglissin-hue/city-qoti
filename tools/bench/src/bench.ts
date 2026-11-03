@@ -24,6 +24,7 @@ import { benchEconomy } from './economy';
 import { growthBench } from './growth';
 import { benchMarket } from './market';
 import { syntheticValley } from './synthetic';
+import { raidsBench } from './raids.bench';
 import { seasonsBench } from './seasons.bench';
 import { villageBench } from './village.bench';
 
@@ -161,6 +162,10 @@ failures.push(...village.failures);
 const seasons = seasonsBench();
 lines.push(...seasons.lines);
 failures.push(...seasons.failures);
+// 11. Raids (C5D): a Large raid at 150 residents, and the daily threat pass.
+const raidsResult = raidsBench();
+lines.push(...raidsResult.lines);
+failures.push(...raidsResult.failures);
 
 const heapMb = process.memoryUsage().heapUsed / 1024 / 1024;
 lines.push(`memory          ${heapMb.toFixed(0)} MB heap in use`);
@@ -190,6 +195,7 @@ const report = {
   market: market.report,
   village: village.report,
   seasons: seasons.report,
+  raids: raidsResult.report,
   heapMb,
   failures,
 };

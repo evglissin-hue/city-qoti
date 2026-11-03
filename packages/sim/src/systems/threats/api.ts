@@ -81,45 +81,64 @@ export const DETER_WATCH_PER = 30;
 /** The most deterrence can take off a day's pressure gain, permille. */
 export const DETER_CAP = 850;
 
+/** A walled area larger than this (tiles) is the open valley, as far as deterrence goes. */
+export const WALLED_MAX = 1600;
+
+const QUEUE = new Int32Array(S * S);
+const STAMP = new Uint32Array(S * S);
+let stamp = 0;
+
 /**
- * Tiles raiders could reach from the valley's land edge with every gate shut: walls, gates and
- * buildings block, water blocks unless a road bridges it, and cliffs (two levels) block.
+ * Which door fronts sit inside walls: raiders could not walk to them from the valley's edge with
+ * every gate shut (walls, gates and buildings block, water blocks unless a road bridges it, cliffs
+ * block). A flood from each front, shared by fronts in the same area, gives up as open at the map
+ * edge or past WALLED_MAX tiles, so an open town costs one capped flood.
  */
-export function raiderReach(state: WorldState): Uint8Array {
-  const out = new Uint8Array(S * S);
+export function walledFronts(state: WorldState, fronts: readonly number[]): boolean[] {
   const { occupant, water, road, height } = state.map;
-  const open = (i: number) => !occupant[i] && (road[i]! > 0 || water[i] === 0);
-  const queue: number[] = [];
-  for (let k = 0; k < S; k++) {
-    for (const i of [k, (S - 1) * S + k, k * S, k * S + S - 1]) {
-      if (out[i] || !open(i)) continue;
-      out[i] = 1;
-      queue.push(i);
+  const out: boolean[] = [];
+  const results: boolean[] = [];
+  const first = stamp + 1;
+  for (const f of fronts) {
+    if (f < 0 || f >= S * S) {
+      out.push(false);
+      continue;
     }
+    if (STAMP[f]! >= first) {
+      out.push(results[STAMP[f]! - first]!);
+      continue;
+    }
+    const mark = ++stamp;
+    let tail = 0;
+    STAMP[f] = mark;
+    QUEUE[tail++] = f;
+    let open = false;
+    for (let q = 0; q < tail && !open; q++) {
+      const t = QUEUE[q]!;
+      const x = t % S;
+      const z = (t - x) / S;
+      if (x === 0 || z === 0 || x === S - 1 || z === S - 1 || tail > WALLED_MAX) {
+        open = true;
+        break;
+      }
+      const h = height[t]!;
+      for (let d = 0; d < 4; d++) {
+        const n = d === 0 ? t + 1 : d === 1 ? t - 1 : d === 2 ? t + S : t - S;
+        if (STAMP[n]! === mark || occupant[n] || (road[n] === 0 && water[n] !== 0)) continue;
+        const dh = height[n]! - h;
+        if (dh >= 2 || dh <= -2) continue;
+        STAMP[n] = mark;
+        QUEUE[tail++] = n;
+      }
+    }
+    results[mark - first] = !open;
+    out.push(!open);
   }
-  for (let q = 0; q < queue.length; q++) {
-    const t = queue[q]!;
-    const x = t % S;
-    const z = (t - x) / S;
-    const h = height[t]!;
-    for (let d = 0; d < 4; d++) {
-      const nx = d === 0 ? x + 1 : d === 1 ? x - 1 : x;
-      const nz = d === 2 ? z + 1 : d === 3 ? z - 1 : z;
-      if (nx < 0 || nz < 0 || nx >= S || nz >= S) continue;
-      const n = nz * S + nx;
-      if (out[n] || !open(n)) continue;
-      const dh = height[n]! - h;
-      if (dh >= 2 || dh <= -2) continue;
-      out[n] = 1;
-      queue.push(n);
-    }
+  if (stamp > 0xfffff000) {
+    STAMP.fill(0);
+    stamp = 0;
   }
   return out;
-}
-
-/** True when a door front sits inside walls (raiders could not walk to it with the gates shut). */
-function walled(reach: Uint8Array, front: number): boolean {
-  return front >= 0 && front < S * S && !reach[front];
 }
 
 /** Built watchtowers. */
@@ -148,16 +167,22 @@ export function deterrenceParts(state: WorldState): {
   const stores = valuables(state);
   const watch = Math.min(DETER_WATCH_MAX, watchStrength(state) * DETER_WATCH_PER);
   if (stores.length === 0) return { walls: 0, towers: 0, lanterns: 0, watch };
-  const reach = raiderReach(state);
+  const fronts = stores.map(frontOf);
+  const walls = state.buildings.some(
+    (b) => b.stage === 'built' && !!content.buildingById.get(b.def)?.defense?.blocks,
+  );
+  const shut = walls ? walledFronts(state, fronts) : fronts.map(() => false);
   const tw = towers(state);
+  const lit = litTiles(state);
   let w = 0;
   let t = 0;
   let l = 0;
-  for (const b of stores) {
-    const front = frontOf(b);
-    if (walled(reach, front)) w++;
+  for (let k = 0; k < stores.length; k++) {
+    const b = stores[k]!;
+    const front = fronts[k]!;
+    if (shut[k]) w++;
     if (tw.some((x) => near(b, x.x, x.z, towerRange(x)))) t++;
-    if (lanternLit(state, front)) l++;
+    if (lit.has(front)) l++;
   }
   const n = stores.length;
   return {

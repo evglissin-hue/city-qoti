@@ -24,7 +24,9 @@ const handsOff = process.argv[6] ? Number(process.argv[6]) : undefined;
 const year: string[] = [];
 const onDay = (w: WorldState, line: { day: number }) => year.push(yearRow(w, line.day));
 const t0 = performance.now();
-const run = autoplay(seed, days, { economy, villageDay, handsOff, village: true, onDay });
+// C5D: every system on, raids included (the threat dial, argument 7; Standard unless given).
+const threat = (process.argv[7] ?? 'standard') as 'peaceful' | 'standard' | 'fierce';
+const run = autoplay(seed, days, { economy, villageDay, handsOff, village: true, threat, onDay });
 console.log(`Autoplay ${seed}, ${economy}, ${days} days (${((performance.now() - t0) / 1000).toFixed(1)} s)`);
 console.log(formatDays(run.days));
 if (run.street) {
