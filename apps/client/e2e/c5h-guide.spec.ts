@@ -1,5 +1,5 @@
 import { expect as baseExpect, test, type Browser, type Page } from '@playwright/test';
-import { HAMLET_QUERY } from './helpers';
+import { GUIDE_QUERY } from './helpers';
 
 // C5H acceptance: a new standard valley opens the County surveyor's first letter on both seats,
 // with an arrow at the tool it is about; finishing the step (a woodcutter with its door on the
@@ -30,7 +30,7 @@ async function waitLive(page: Page): Promise<void> {
 
 async function twoSeats(browser: Browser) {
   const a = await (await browser.newContext({ viewport: { width: 1280, height: 800 } })).newPage();
-  await a.goto(`/${HAMLET_QUERY}`);
+  await a.goto(`/${GUIDE_QUERY}`);
   await baseExpect(a.getByTestId('guide-new')).toBeChecked();
   await a.getByTestId('new-online').click();
   await waitLive(a);
@@ -38,7 +38,7 @@ async function twoSeats(browser: Browser) {
   await a.getByRole('button', { name: 'Done' }).click();
   const b = await (await browser.newContext({ viewport: { width: 1280, height: 800 } })).newPage();
   const invite = new URL(link);
-  invite.search = HAMLET_QUERY;
+  invite.search = GUIDE_QUERY;
   await b.goto(invite.toString());
   await b.getByTestId('join').click();
   await waitLive(b);
@@ -116,7 +116,7 @@ test('the first letter, its arrow, the next step on both screens, and hiding per
 test('a valley made with the box unticked shows no guide', async ({ browser }) => {
   test.setTimeout(600_000);
   const p = await (await browser.newContext()).newPage();
-  await p.goto(`/${HAMLET_QUERY}`);
+  await p.goto(`/${GUIDE_QUERY}`);
   await p.getByTestId('guide-new').uncheck();
   await p.getByTestId('new-solo').click();
   await waitLive(p);

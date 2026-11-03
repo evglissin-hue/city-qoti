@@ -46,8 +46,9 @@ export function Title({ onStart }: { onStart: (t: SessionTarget, opts?: { invite
   // ?creative starts with the creative box ticked (the I0 end to end specs play sandbox valleys).
   const [creative, setCreative] = useState(() => new URLSearchParams(location.search).has('creative'));
   const [economy, setEconomy] = useState<ValleySettings['economy']>('standard');
-  // C5H: the first days guide, on by default for standard valleys.
-  const [guide, setGuide] = useState(true);
+  // C5H: the first days guide, on by default for standard valleys (?noguide starts it unticked,
+  // so the end to end specs that are not about the guide play without its letters).
+  const [guide, setGuide] = useState(() => !new URLSearchParams(location.search).has('noguide'));
   const [imported, setImported] = useState<ValleyFile | null>(null);
   const welcome = useMemo(() => welcomeLine(), []);
   const [profile, setProfileState] = useState<PlayerProfile>(() => loadProfile());

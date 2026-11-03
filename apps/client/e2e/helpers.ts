@@ -45,7 +45,10 @@ declare global {
 
 /** I0 specs play creative (sandbox) valleys; HAMLET_QUERY starts standard ones. */
 export const DEBUG_QUERY = '?debug&quality=low&creative';
-export const HAMLET_QUERY = '?debug&quality=low';
+/** C5H: without the first days guide, whose first letter would sit over the valley. */
+export const HAMLET_QUERY = '?debug&quality=low&noguide';
+/** C5H: a standard valley with the first days guide, as New valley makes it by default. */
+export const GUIDE_QUERY = '?debug&quality=low';
 
 export async function waitLive(page: Page): Promise<void> {
   await page.waitForFunction(() => window.__qoti?.status() === 'live', null, { timeout: 60_000 });
