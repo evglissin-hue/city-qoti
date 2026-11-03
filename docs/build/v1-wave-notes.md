@@ -45,6 +45,8 @@ From `docs/spec/31-parallel-development.md`, with the files V1.0 added:
 
 **Fresnel and glint.** V1A exports them from `render/material.ts` as GLSL (sky fresnel and a sun glint for glass and water); V1C's water shader uses them. Until then the water keeps its own.
 
+*V1A as built*: the season reaches the kit material through three new env uniforms, `env.snow`, `env.seasonTint` and `env.sway` (set by `applySeasonLook` in `render/env.ts`, which the renderer calls from the calendar's season), so V1C's ground shader and C5E can bind the same objects. The final pass's dither and tilt curve are look functions now (`lookDither`, `lookTiltMix`, one line each in `post.ts`), and `applyGrade` takes the night (one line in `LeanFrame.setNight`), so grass under the moon reads blue-green. Bloom is off by day (`bloomFor(0)` is 0), so the bloom chain only runs at golden hour and night.
+
 ## Animation inside static layers
 
 V1.0 looked at every static layer for anything that moves on its own. Each decision keeps the still-frame cache honest:
@@ -65,10 +67,10 @@ How it works: `env.staticTime` is the same object as `env.time` until V1D, so to
 
 | What | Stand-in until the owner lands | Owner |
 |---|---|---|
-| Pattern generators | `createPatternArray()` is flat (R 128): a material that samples it draws as today | V1A |
+| Pattern generators | `createPatternArray()` is flat (R 128): a material that samples it draws as today. *V1A as built*: the generators fill it (`fill` 'flat' keeps the stub), one array per page | V1A (done) |
 | Surface ids on kits | every kit writes plain (0) | V1B (buildings, props, residents), V1C (trees, nature, ground) |
-| The lean kit material | `createWorldMaterial(env)`: today's `MeshStandardMaterial` with the night glow; it ignores `surface` | V1A |
-| Fresnel and glint for glass and water | the water layer's own shader; no glint on glass | V1A |
+| The lean kit material | `createWorldMaterial(env)`: today's `MeshStandardMaterial` with the night glow; it ignores `surface`. *V1A as built*: Lambert, reads `surface`, the pattern array and the env's season, snow and sway; plain (0) faces draw as before but for snow | V1A (done) |
+| Fresnel and glint for glass and water | the water layer's own shader; no glint on glass. *V1A as built*: `FRESNEL_GLSL` in `render/material.ts` (`qFresnel`, `qSkyFresnel`, `qSunGlint`), used by the kit material on glass (9) and water (12) | V1A (done); V1C's water shader may adopt it |
 | High and low levels | today's `lod: 'low'` versions; V1D swaps buildings (`env.buildingDetail`, hysteresis, a few a frame) and decor (`env.detailDistance`, culled per chunk); trees keep scatter.ts's own swap | V1B, V1C build; V1D swaps (done) |
 | Building distance floor | 75 tiles on every preset but Ultra (`BUILDING_DETAIL_FLOOR` in `quality.ts`), because today's far level of a building has no windows and Medium's 60 tiles turned much of a town dark at night. V1B's far levels keep windows as flat quads; give them the `glow` attribute (lit at night like the near level's panes) and set the floor to 0 | V1B (or V1X) |
 | The frame graph | V1D: one scene pass, the quarter resolution chain and one final pass calling the look's functions (`post.ts`); `PostChain` moved to `postClassic.ts` behind `?engine=classic` until V1X | V1D (done) |

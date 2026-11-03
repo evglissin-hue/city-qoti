@@ -377,17 +377,21 @@ float qShiny = 0.0;
 // weathering from the noise layer, the season tint, then snow on upward faces. Branches only for
 // plain faces (no pattern fetch), glass, water and flowers.
 vec3 qKitSurface(vec3 c) {
+  int si = int(vQSurf + 0.5);
+  bool plain = si < 1 || si >= ${PATTERN_LAYERS - 1};
+  // Plain faces cost nothing over a flat color unless it snows. The id is the same on every vertex
+  // of a face, so this branch never splits a 2 x 2 pixel quad and the derivatives below stay valid.
+  if (plain && uSnow <= 0.0) return c;
   vec3 n = normalize(vQWNor);
-  // Gradients first, outside any branch: textureGrad keeps mipmaps right across face edges.
+  // Gradients before the branches that follow: textureGrad keeps mipmaps right across face edges.
   vec3 dx = dFdx(vQWPos);
   vec3 dy = dFdy(vQWPos);
   const float nk = 1.0 / ${NOISE_SCALE}.0;
   vec2 nuv = vQWPos.xz * nk + vec2(vQWPos.y * 0.02);
-  float big = textureGrad(uPat, vec3(nuv, ${NOISE_LAYER}.0), dx.xz * nk, dy.xz * nk).r;
-  int si = int(vQSurf + 0.5);
   float up = smoothstep(0.3, 0.75, n.y);
+  float big = textureGrad(uPat, vec3(nuv, ${NOISE_LAYER}.0), dx.xz * nk, dy.xz * nk).r;
   float cover = up * clamp(uSnow * 1.3 - (1.0 - big) * 0.3, 0.0, 1.0);
-  if (si < 1 || si >= ${PATTERN_LAYERS - 1}) return mix(c, uSnowColor, cover);
+  if (plain) return mix(c, uSnowColor, cover);
   vec4 sp = uSurf[si];
   vec4 sx = uSurfExtra[si];
   bool top = sp.y > 1.5 || abs(n.y) > (sp.y > 0.5 ? 0.97 : 0.9);

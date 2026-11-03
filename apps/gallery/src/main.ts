@@ -502,6 +502,11 @@ if (sceneName === 'lineup') {
   ground.scale.setScalar(3);
   state.spin = false;
   info.textContent = `surfaces (${seasonParam}): ${SURFACE_ORDER.join(', ')}`;
+  // For the shimmer check: a script steps the camera back along the same line, frame by frame.
+  (window as unknown as { surfacesView: (d: number) => void }).surfacesView = (d) => {
+    camera.position.set(Math.sin(yaw) * d * 0.7, d * 0.72, Math.cos(yaw) * d * 0.7);
+    controls.update();
+  };
 } else if (sceneName === 'residents') {
   buildResidents();
   camera.position.set(0.1, 1.1, 3.6);

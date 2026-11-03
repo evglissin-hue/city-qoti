@@ -46,6 +46,17 @@ All colors are tokens in `packages/art/src/palette.ts`. Customization swatches a
 | UI | paper `#F7F0E1`, paper shade `#E9DEC6`, ink `#3B3229`, ink soft `#6B5E50`, Hearth `#C7604A`, Ledger `#3E6E5A`, warning `#C98B2B`, danger `#A8473B` |
 | Seats | 6 seat palettes: lantern gold, rose, teal, plum, sky, moss |
 
+**Palette 2.0 [V1A]** (`palette2`, the Painted Miniature tokens from the concept's palette B, each a little greyed toward its neighbors; kits move their reads to it in V1B and V1C, and the customization swatches read it now: the old plaster, roof and accent tokens they use hold these values):
+
+| Group | Tokens |
+|---|---|
+| Ground | grass `#93AD66`, meadow `#B7C27C`, forest floor `#5F7A47`, dirt `#C4A67E`, lane `#B09673`, cobble `#A39A8C`, flags `#CDC4B2`, fields `#D0B673` / `#A6B866` / `#A07F5A` |
+| Walls | plasters `#EFE3CC` `#E6C6B5` `#CDD2B3` `#C3CFD0` `#EDDAA6` `#E2C9A0`; stuccos, deco and pastels (Age of Steam and Bright Age, in `palette.ts`); bricks `#AE6A52` `#9F5E4A` `#B67D5F` `#94583F` with mortar `#C4BCB1`; stones `#C8BFAE` `#D4CAB6` `#B9B09F`; timber `#5A4434`; foundation `#938A7C` |
+| Roofs | tiles `#BB6E4C` `#A95F43` `#C27B55` `#9A5A42`, slates `#67707D` `#5D6773` `#707A83`, thatch `#C2A16A` `#B8975F`, zinc `#8A959B`, moss `#74805A`, plum `#7A5A6C`, flat `#857D73`, copper `#76A594`, chimney `#A1604B` |
+| Accents | frames `#F4ECDD`, doors `#4E7C78` `#9C4F43` `#D1A24A` `#45607A` `#6F8B68` `#7A5468`, shutters, shopfronts, awnings `#B2564A` `#4E7C78` `#D1A24A` `#45607A` `#7A5468` with the stripe `#EFE7D7`, glass `#34434F`, metal `#33403A`, wood `#957050` |
+| Foliage and water | leaves `#67904A` `#86AD55` `#5A8243` `#76984C`, pine `#466D4C`, bark `#6A4C36`, water `#6AAAB4`, riverbed `#3D5C66` |
+| Customization | walls: the first five plasters; roofs: tile, slate, thatch, moss, plum; accents: the first four doors and the frame cream |
+
 ## Style kit (`packages/art`)
 
 Pure functions from parameters (and a seed) to `BufferGeometry` with vertex colors and baked vertex ambient occlusion. Deterministic, cached by parameter key, with a high and a low level of detail.
@@ -68,9 +79,12 @@ Pure functions from parameters (and a seed) to `BufferGeometry` with vertex colo
 | Phase | Sun color | Ambient (sky / ground) | Notes |
 |---|---|---|---|
 | Dawn | `#F6C28B` | `#E9C9B0` / `#6B5E50` | long soft shadows |
-| Day | `#FFF4E0` | `#DDE8F0` / `#7A8F5A` | |
-| Dusk | `#F4A261` | `#E2A88A` / `#5E4A44` | windows start to glow |
-| Night | moon `#9DB4D8` | `#2B3A55` / `#1E2433` | lit windows, lanterns, bloom |
+| Day | `#FFF4E0` | `#DDE8F0` / `#7A8F5A` | haze `#D8E2E3`, exposure 0.9 |
+| Golden hour [V1A] | `#F7B878` | `#EAD0B8` / `#6A5A4C` | peach haze `#ECCAA6`, gentle bloom |
+| Dusk | `#F4A261` | `#D9A8B4` / `#4E4660` | windows start to glow |
+| Night | moon `#A9BFE0` | `#3A4B6B` / `#232A3A` | haze `#2B3A55`, lit windows, lanterns, bloom |
+
+V1A retuned the table for the Lambert kit material and Khronos Neutral tone mapping, with the concept's day, golden hour and night as the target (`render/lighting.ts`). The warm haze is fog that follows the view: near at 0.93 and far at 4.2 times the camera's distance to what it looks at (`hazeFor`), in the hour's horizon color.
 
 - One directional light with shadows (Medium 2048, High 4096, Low off), hemisphere ambient, fog by weather.
 - Night: a share of windows in occupied homes glow (seeded per building, varying by hour); lanterns are emissive with bloom and a soft ground glow decal (no real point lights beyond 8 nearest the camera).
@@ -80,7 +94,7 @@ Pure functions from parameters (and a seed) to `BufferGeometry` with vertex colo
 ## Seasons and weather visuals [I3]
 
 - Grass and foliage tints per season; blossoms on fruit trees in spring; autumn leaf colors and falling leaves; bare deciduous trees and snow-capped pines in winter.
-- Snow cover shader on upward-facing surfaces in winter; frozen river; puddles and wet sheen after rain [I4].
+- Snow cover shader on upward-facing surfaces in winter; frozen river; puddles and wet sheen after rain [I4]. [V1A] The kit material draws the snow (patchy as it starts, keeping a hint of courses on thatch, slate and tile), the season tint on grass, leaf and field surfaces, and sway on leaf and flower faces, from `env.snow`, `env.seasonTint` and `env.sway`, which the renderer sets from the calendar's season (`applySeasonLook`); the ground shader's snow is V1C's and C5E's.
 - Rain, snow and fog particles sized for the miniature look.
 
 ## Camera
@@ -93,7 +107,7 @@ Pure functions from parameters (and a seed) to `BufferGeometry` with vertex colo
 
 ## Post-processing
 
-Tone mapping (AgX, ACES or Khronos Neutral, whichever matches the concept stills), bloom (golden hour and night), tilt-shift (vertical gradient blur, stronger when zoomed out, none close up), subtle vignette, gentle seasonal grading (lift, gamma, gain, saturation), MSAA where the preset allows. [V1] All of it runs in one final full-screen pass after a quarter resolution blur chain, and ambient occlusion is baked (vertex AO in the kits and a ground AO texture); screen-space AO runs only on Ultra, on still frames (`20-architecture.md`, Lean renderer).
+Tone mapping (Khronos PBR Neutral, V1A's pick: it matches the concept stills and keeps the pastel palette's hues, where ACES pushed them toward orange and crushed the darks), bloom (golden hour and night only; none by day, so the bloom chain is skipped), tilt-shift (vertical gradient blur from 45 tiles back, full from about 160, none close up), a soft oval vignette, gentle seasonal grading (lift, gamma, gain, saturation and a slight S-curve: spring fresh, summer warmest, autumn golden, winter cool and quieter; dusk warmth and a little less saturation at night), dither, MSAA where the preset allows. The values and GLSL live in `render/look.ts`. [V1] All of it runs in one final full-screen pass after a quarter resolution blur chain, and ambient occlusion is baked (vertex AO in the kits and a ground AO texture); screen-space AO runs only on Ultra, on still frames (`20-architecture.md`, Lean renderer).
 
 ## Quality presets
 
