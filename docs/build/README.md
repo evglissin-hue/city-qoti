@@ -34,7 +34,7 @@ One row per cycle. A cycle is one agent session working from one brief on one br
 | C5E Seasons art and rendering | I3 | parallel | `cycle-05e-seasons-art.md` | C5.0, V1X | waits for V1 (builds on the new look) |
 | C5F Seasons UI | I3 | parallel | `cycle-05f-seasons-ui.md` | C5.0 | in review (https://github.com/evglissin-hue/city-qoti/pull/15); screenshots `c5f-*`, stand-ins in `i3-wave-notes.md` |
 | C5G Music and sound | I3 | parallel | `cycle-05g-audio.md` | C5.0 | done on `claude/epic-hawking-e32pnd`, synthesized (see As built in the brief) |
-| C5H The first days guide | I3 | parallel | `cycle-05h-first-days.md` | C5.0 | ready (C5.0 is done) |
+| C5H The first days guide | I3 | parallel | `cycle-05h-first-days.md` | C5.0 | done on `cycle/05h-first-days` (see As built in the brief) |
 | C5X I3 integration and I4 planning | I3 | integration | `cycle-05x-integration.md` | C5A to C5H | waiting |
 | V0 Concept and direction | V0 | serial | none (this session) | none | done on `claude/compassionate-dirac-9c0pyz`: B (Painted Miniature) picked by the owner and Kat; concept viewer on the lean renderer (`docs/concepts/v0-look/index.html`, first engine `v1-engine.html`), stills `v0-*`, `18-eras.md`, budgets by preset, the V1 briefs |
 | V1.0 Look contracts | V1 | serial | `cycle-v1-0-look-contracts.md` | V0 merged | done (https://github.com/evglissin-hue/city-qoti/pull/12): surface ids, palette 2.0, the pattern array, `Era`, static and moving layers, Ultra, the GPU timer, the `material.ts` and `look.ts` split, the town showcase, the shots and perf scripts and the before numbers (`v1-wave-notes.md`) |

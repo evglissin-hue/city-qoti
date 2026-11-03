@@ -58,6 +58,8 @@ export function normalizeSettings(partial: Partial<ValleySettings> = {}): Valley
     togetherOnly: partial.togetherOnly === true,
     townName: name(partial.townName, 'Qoti'),
     valleyName: name(partial.valleyName, 'Riverbend'),
+    // I3 (C5H): the first days guide box at New valley; absent means on for standard valleys.
+    ...(typeof partial.guide === 'boolean' && { guide: partial.guide }),
   };
 }
 

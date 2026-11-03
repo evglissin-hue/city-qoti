@@ -15,6 +15,7 @@ import { ChroniclePanel } from './Chronicle';
 import { CustomizePanel } from './Customize';
 import { FestivalPanel, FestivalResultPanel } from './Festival';
 import { FieldGuidePanel } from './FieldGuide';
+import { GuidePanel } from './Guide';
 import { InspectorPanel } from './Inspector';
 import { LettersPanel } from './Letters';
 import { MarketPanel } from './Market';
@@ -70,6 +71,7 @@ export const panels: readonly PanelDef[] = [
   { id: 'festival', side: 'book', component: FestivalPanel, lens: 'hearth', label: 'Festival', icon: 'festival', modes: STANDARD, order: 15 },
   { id: 'festival-result', side: 'overlay', component: FestivalResultPanel },
   { id: 'field-guide', side: 'book', component: FieldGuidePanel, lens: 'hearth', label: 'Field Guide', icon: 'fieldguide', modes: STANDARD, order: 25 },
+  { id: 'guide', side: 'overlay', component: GuidePanel, modes: STANDARD },
   { id: 'inspector', side: 'right', component: InspectorPanel },
   { id: 'letters', side: 'book', component: LettersPanel, lens: 'hearth', label: 'Letters', icon: 'letter', key: 'o', modes: STANDARD, order: 35 },
   { id: 'market', side: 'book', component: MarketPanel, lens: 'ledger', label: 'Market', icon: 'market', key: 'm', modes: STANDARD, order: 10 },

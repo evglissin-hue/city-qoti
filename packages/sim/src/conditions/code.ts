@@ -23,6 +23,8 @@ import {
 import { festivalByWater, festivalMenu, festivalPieces, riverFrozen } from '../systems/festivals/predicates';
 // I3 (C5D): Barnaby Ashcombe's arc.
 import { bridgeBuilt, dressedWall, raidSeen, watchPosted } from '../systems/threats/conditions';
+// I3 (C5H): the first days guide's goals.
+import { guideFoodWorked, guideInBlack, guideLane } from '../systems/guide/goals';
 
 export type CodePredicate = (
   state: WorldState,
@@ -99,6 +101,9 @@ export const codePredicates: ReadonlyMap<string, CodePredicate> = new Map<string
   ['festivalByWater', festivalByWater],
   ['festivalMenu', festivalMenu],
   ['festivalPieces', festivalPieces],
+  ['guideFoodWorked', guideFoodWorked],
+  ['guideInBlack', guideInBlack],
+  ['guideLane', guideLane],
   ['lanternRoute', lanternRoute],
   ['pathRoute', pathRoute],
   ['plankRate', plankRate],

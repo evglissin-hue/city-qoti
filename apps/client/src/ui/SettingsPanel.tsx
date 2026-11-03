@@ -4,6 +4,7 @@ import { copy } from './copy';
 import { clampScale, loadSettings, saveSettings, type UiSettings } from './settings';
 import { clampVolume, type AudioSettings } from '../audio/settings';
 import { audioSettings, setAudioSettings } from '../audio/store';
+import { GuideSetting } from './panels/Guide';
 
 type Quality = 'low' | 'medium' | 'high' | 'ultra';
 const QUALITY_KEY = 'qoti.quality.v1';
@@ -96,6 +97,7 @@ export function SettingsPanel({ session }: { session: Session }) {
           </span>
         </label>
         {session.mirror.settings.value.mode === 'standard' && <ValleyDials session={session} />}
+        <GuideSetting session={session} />
         <SoundSettings />
         <fieldset class="keep-copy">
           <legend>{copy.settings.keepCopy}</legend>

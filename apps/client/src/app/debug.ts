@@ -124,6 +124,21 @@ export function installDebugHook(getSession: () => Session | null): void {
       }
       return null;
     },
+    /** I3 (C5H): a spot for `def` with its door on a road (any turn), for the guide's lane step. */
+    findRoadSpot: (def: string) => {
+      const session = s();
+      const d = content.buildingById.get(def);
+      if (!session || !d) return null;
+      for (const [x, z] of nearbyTiles(session, 20)) {
+        for (const rot of [0, 1, 2, 3] as Rot4[]) {
+          const check = canPlaceBuilding(session.mirror, d, x, z, rot);
+          if (check.ok && !check.warnings?.includes('NO_ROAD')) return { x, z, rot };
+        }
+      }
+      return null;
+    },
+    /** I3 (C5H): the first days guide as this seat's mirror has it. */
+    guide: () => s()?.mirror.guide.value ?? null,
     /** The center of a tile where `def` fits with room to spare. */
     findDecorSpot: (def: string) => {
       const session = s();

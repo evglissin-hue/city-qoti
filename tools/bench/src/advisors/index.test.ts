@@ -25,6 +25,7 @@ describe('the advisors', () => {
       // I3 (C5C)
       'nature',
       'together',
+      'guide',
     ]);
   });
 });

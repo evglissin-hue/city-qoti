@@ -84,6 +84,8 @@ describe('the Chronicle', () => {
     'raid-lost': ['side', 'stolen'],
     'raid-repelled': ['side', 'stolen'],
     wolves: ['place'],
+    // I3 (C5H)
+    'guide-done': ['surveyor'],
   };
 
   it('has at least three variants per kind, using only the params its callers pass', () => {

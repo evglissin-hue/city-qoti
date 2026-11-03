@@ -1015,4 +1015,8 @@ export interface GuideDef {
   id: string;
   from: ResidentTemplate;
   steps: GuideStep[];
+  /** C5H: the last letter, once every step is done ({town}); Pippa Quill is on her way. */
+  farewell?: string;
+  /** C5H: the last letter when Pippa Quill already lives in the valley. */
+  farewellAfterPippa?: string;
 }

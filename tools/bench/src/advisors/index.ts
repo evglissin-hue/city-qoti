@@ -4,6 +4,7 @@
 // every system it finds.
 import { charter } from './charter';
 import { festivals } from './festivals';
+import { guide } from './guide';
 import { hamlet } from './hamlet';
 import { hearth } from './hearth';
 import { money } from './money';
@@ -21,6 +22,7 @@ export type { Advisor, AdvisorDef, AutoplayOptions, Visit } from './types';
 export const advisors: readonly AdvisorDef[] = [
   charter,
   festivals,
+  guide,
   hamlet,
   hearth,
   money,

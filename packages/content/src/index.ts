@@ -340,6 +340,7 @@ export const chronicle: readonly ChronicleTemplate[] = [
   SC.firstWinter,
   SC.flood,
   C.founding,
+  Gu.guideDone,
   C.householdArrived,
   C.householdLeft,
   C.patternDiscovered,
