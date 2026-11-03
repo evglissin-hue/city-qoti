@@ -1,8 +1,10 @@
 // Market days and quiet hours (C5.0 baseline; C5B owns what they do). docs/spec/13-ledger.md,
-// Levers (I3 rows). They only set the levers; C5B's passes read them.
+// Levers (I3 rows). They set the levers and ask for the charm to be redone; systems/festivals/levers.ts
+// says what they do.
 import { DAYS_PER_SEASON } from '../constants';
 import { isInt } from '../rules/geometry';
 import { isStandard } from '../state/hamlet';
+import { recharm } from '../systems/festivals/levers';
 import { leversView } from '../view/village';
 import type { HandlerFor } from './util';
 
@@ -15,6 +17,7 @@ export const setMarketDay: HandlerFor<'ledger.setMarketDay'> = {
   },
   apply(state, _seat, cmd, ctx) {
     state.levers.marketDay = cmd.day;
+    recharm(state);
     ctx.events.push({ e: 'levers.updated', l: leversView(state) });
   },
 };
@@ -27,6 +30,7 @@ export const setQuietHours: HandlerFor<'ledger.setQuietHours'> = {
   },
   apply(state, _seat, cmd, ctx) {
     state.levers.quietHours = cmd.on;
+    recharm(state);
     ctx.events.push({ e: 'levers.updated', l: leversView(state) });
   },
 };

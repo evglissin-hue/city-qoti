@@ -46,7 +46,9 @@ export const YOUNG_TREE: Source = { type: EXTRA, cat: CAT.nature, value: 1, nigh
 export const CONSTRUCTION: Source = { type: EXTRA + 1, cat: CAT.noise, value: -3, night: -3, radius: 2 };
 /** Customized window boxes count as a small flower piece. */
 export const WINDOW_BOXES: Source = { type: EXTRA + 2, cat: CAT.nature, value: 2, night: 2, radius: 1 };
-export const TYPE_COUNT = EXTRA + 3;
+/** I3 (C5B): an outlet on market day (systems/festivals/levers.ts, MARKET_CHARM). */
+export const MARKET_DAY: Source = { type: EXTRA + 3, cat: CAT.comfort, value: 3, night: 3, radius: 3 };
+export const TYPE_COUNT = EXTRA + 4;
 
 export const WATER_VIEW = { value: 6, radius: 3 } as const;
 export const HEIGHT_VIEW = { value: 3, above: 4, window: 5 } as const;

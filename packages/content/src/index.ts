@@ -8,7 +8,9 @@ import * as Ca from './carts';
 import * as Ch from './charters';
 import * as C from './chronicle';
 import * as D from './decor';
+import * as Co from './commissions';
 import * as Fe from './festivals';
+import * as FC from './festivalsChronicle';
 import * as G from './goods';
 import * as Gu from './guide';
 import * as He from './herbalist';
@@ -72,6 +74,7 @@ import type {
 } from './types';
 
 export { chroniclePhrases } from './chronicle';
+export { festivalTuning } from './festivals';
 export { lifePhrases } from './lives';
 export { familyNames, valleyNamePrefixes, valleyNameSuffixes } from './names';
 export { villagePhrases } from './villageText';
@@ -315,6 +318,9 @@ export const chronicle: readonly ChronicleTemplate[] = [
   L.birth,
   SC.circus,
   SC.coldSnap,
+  FC.commissionDone,
+  FC.festival,
+  FC.firstBoat,
   SC.firstFrost,
   C.firstOf,
   SC.firstWinter,
@@ -324,8 +330,10 @@ export const chronicle: readonly ChronicleTemplate[] = [
   C.householdLeft,
   C.patternDiscovered,
   L.rankUp,
+  FC.renownLevel,
   L.seaside,
   C.seasonSummary,
+  FC.shopOpened,
   L.storyArrived,
   L.storyFinale,
   C.threatDial,
@@ -492,6 +500,13 @@ export const modules: readonly ModuleDef[] = [
 /** C5B writes the commissions (one line each, alphabetical). */
 // prettier-ignore
 export const commissions: readonly CommissionDef[] = [
+  Co.countySurveyor,
+  Co.millhavenBread,
+  Co.millhavenFurniture,
+  Co.minstrelCandles,
+  Co.stonecrossCoats,
+  Co.stonecrossPlanks,
+  Co.theDowager,
 ];
 
 /** In level order, 0 to 5. */

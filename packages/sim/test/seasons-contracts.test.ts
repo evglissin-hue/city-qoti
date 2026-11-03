@@ -69,7 +69,7 @@ describe('I3 fixtures', () => {
       expect(seasonCardView(s)).toMatchObject({ season: 3, year: 1, festival: { id: 'hearth-feast' } });
       // C5A: the trial's line first, then the winter stores.
       expect(seasonCardView(s).steps[0]).toBe(content.charterById.get('village')!.trial!.blurb);
-      expect(renownView(s)).toMatchObject({ level: 1, next: 30 });
+      expect(renownView(s)).toMatchObject({ level: 1, next: content.renown[2]!.points });
       expect(festivalMorale(s)).toBe(5);
       // Smoke: it builds every view and keeps going for a few hours.
       expect(buildView(s).buildings.length).toBeGreaterThan(25);
@@ -211,7 +211,7 @@ describe('cross-track APIs', () => {
     expect(ctx.events.some((e) => e.e === 'renown.updated')).toBe(true);
     expect(seasonNow(s).season).toBe(0);
     expect(habitatAt(s, 10, 10, 'meadow')).toBe(0);
-    expect(dockView(s)).toEqual({ boats: [], frozen: false });
+    expect(dockView(s)).toMatchObject({ boats: [], frozen: false });
   });
 
   it('names the Water Wheel story by arc id, wherever the arc sits in the list', () => {

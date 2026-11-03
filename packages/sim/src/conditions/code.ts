@@ -19,6 +19,8 @@ import {
   stoneRate,
   storyStep,
 } from '../systems/innovations/measures';
+// I3 (C5B): the festival twists' goals.
+import { festivalByWater, festivalMenu, festivalPieces, riverFrozen } from '../systems/festivals/predicates';
 
 export type CodePredicate = (
   state: WorldState,
@@ -90,11 +92,15 @@ export function pathRoute(state: WorldState, bind: Binding): boolean {
 export const codePredicates: ReadonlyMap<string, CodePredicate> = new Map<string, CodePredicate>([
   ['clayPitWorked', clayPitWorked],
   ['desireLines', desireLines],
+  ['festivalByWater', festivalByWater],
+  ['festivalMenu', festivalMenu],
+  ['festivalPieces', festivalPieces],
   ['lanternRoute', lanternRoute],
   ['pathRoute', pathRoute],
   ['plankRate', plankRate],
   ['portersBusy', portersBusy],
   ['rankAtLeast', rankAtLeastCode],
+  ['riverFrozen', riverFrozen],
   ['sawpitByRiver', sawpitByRiver],
   ['seasonIs', seasonIs],
   ['stoneRate', stoneRate],

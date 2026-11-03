@@ -99,6 +99,11 @@ export interface FestivalResultView {
   joy: { site: number; variety: number; menu: number; music: number; twist: number };
   stars: number;
   twist: string;
+  // C5B additions.
+  /** Residents in walking reach (attendance is out of these). */
+  invited?: number;
+  /** Joy x turnout, 0 to 100: what the stars come from. */
+  score?: number;
 }
 
 export interface RenownView {
@@ -135,6 +140,11 @@ export interface DockView {
   }[];
   /** The river is frozen: no boats until spring. */
   frozen: boolean;
+  // C5B additions.
+  /** The dock's standing orders. */
+  orders?: { good: string; min: number; max: number; floor: number; ceiling: number }[];
+  /** A River Dock stands. */
+  built?: boolean;
 }
 
 export interface FieldGuideEntryView {

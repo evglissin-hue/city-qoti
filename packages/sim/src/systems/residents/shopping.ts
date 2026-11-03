@@ -6,6 +6,7 @@ import { PANTRY_CAPACITY, PORTER_CARRY } from '../../constants';
 import type { Household, Resident, TickCtx, WorldState } from '../../contracts';
 import { findById } from '../../state/entities';
 import { nearestOutletWithFood, outletFood, takeFromOutlet } from '../economy/outlets';
+import { isMarketDay, MARKET_CARRY } from '../festivals/levers';
 import { marketOpen } from '../market/api';
 import { shopFood } from '../market/baskets';
 import { moveResident } from '../movement/api';
@@ -49,7 +50,8 @@ export function buyAtOutlet(state: WorldState, r: Resident, h: Household): void 
   if (r.activity.kind !== 'shop') return;
   const outlet = r.activity.outlet;
   const room = PANTRY_CAPACITY - pantryFood(h);
-  const want = Math.min(PORTER_CARRY, room);
+  // I3 (C5B): on market day shoppers bring home more a trip.
+  const want = Math.min(PORTER_CARRY * (isMarketDay(state) ? MARKET_CARRY : 1), room);
   let took = 0;
   if (want > 0 && marketOpen(state)) {
     // I2 (C4A): with the market open, food is paid for at the till (systems/market/baskets.ts).

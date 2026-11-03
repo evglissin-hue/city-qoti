@@ -70,6 +70,12 @@ describe('the Chronicle', () => {
     flood: ['place'],
     'trial-failed': ['trial'],
     'trial-passed': ['trial', 'charter'],
+    // I3 (C5B)
+    'commission-done': ['commission', 'from'],
+    festival: ['festival', 'stars', 'guests', 'place'],
+    'first-boat': ['neighbor'],
+    'renown-level': ['level'],
+    'shop-opened': ['name', 'shop'],
   };
 
   it('has at least three variants per kind, using only the params its callers pass', () => {

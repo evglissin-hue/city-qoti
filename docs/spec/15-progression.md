@@ -25,6 +25,8 @@ The Charter board at the Town Hall lists the goals for the next rank, each tagge
 
 Points from festivals, repelled raids, discovered patterns, kept contracts, royal visits and story finales. Levels 0 to 5. Effects: more and better arrivals, better trade terms (+2% per level), visitors and tourism coins [I4], notable visitors (commissions).
 
+*As built (C5B)*: levels at 0, 8, 25, 50, 90 and 150 points (Unknown, Spoken Of, Well Regarded, Admired, Celebrated, Storied). Sources: a festival 1 to 9 by stars, a newly discovered pattern 2, a story finale 5 (the three I2 finales carry `renown`), a commission 2 to 5, the sealed Charter's trial (C5A), repelled raids and send-offs (C5D's calls). Each change sends `renown.updated`; a new level writes a `renown-level` Chronicle line and a letter. Effects by level (`RenownDef.effects`): `trade` 2% a level better on the Trading Post's and the River Dock's prices (sell higher, buy lower), `arrivals` +5% a level on the town's pull, `visitors` notable visitors' commissions open at once (one from level 2, two from level 4). The River Dock needs renown 1 (`BuildingDef.requires.renown`).
+
 ## Innovations [I2]
 
 Technology arrives through conditions in the town, shown as progress bars in the inventor's notebook (P41). Each innovation adds a production method, building or capability.

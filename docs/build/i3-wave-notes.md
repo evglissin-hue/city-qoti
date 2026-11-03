@@ -82,6 +82,9 @@ Daily (`every: TICKS_PER_DAY`, `offset: dailyOffset(hour, extra)`): 00:02 season
 | Track | Stand-in it relies on until the owner lands | Owner |
 |---|---|---|
 | C5B | weather is always clear (`weatherToday`); C5A's weather is in (00:04), so this stand-in is gone | C5A |
+| C5B | a musician when Juniper Reed is not in town: the first Artistic grown-up plays at half the part (`musicianFor`, `musicPart`); remove once more musicians come with I4's arcs | C5B, I4 |
+| C5B | the bandstand is Juniper's `bandstand-green` unlock (`hasBandstand`), as there is no bandstand building yet; swap for a built bandstand (a tag) when one lands | C5E, I4 |
+| C5B | honey for the beeswax candles and honey pies comes from Millhaven at the post until C5C's apiary makes it (content `neighbors.ts`); keep both, the post is a fallback | C5C |
 | C5C | seasons from `seasonNow` only; no pests until C5C itself (C5A's seasonal growth for gardens and orchards is a yield modifier, `seasonal`, beside yours) | C5A |
 | C5D | Watch morale without festivals (`festivalMorale` is 0 with no history) | C5B |
 | C5E | the winter and raid fixtures for every visual | C5A, C5D |
@@ -105,6 +108,14 @@ Daily (`every: TICKS_PER_DAY`, `offset: dailyOffset(hour, extra)`): 00:02 season
 - Warmth is a held `cold` mood modifier (no new need). `isCold` and `warmthReport` read `Household.warmth`, set at 07:30 each winter day.
 - Gardens, orchards and herb gardens gather by `GoodDef.seasons` (yield modifier `seasonal`); a test that counts a gatherer's full rate picks a season where its table reads 1000.
 - `BuildingDef.requires.story`: a building only a story unlocks (Mother Thornbury's cottage); `meetsRequires` takes the def id.
+
+## C5B as built (read if you meet these)
+
+- `festivalMorale(state)` reads the last two festivals' stars (3 is neutral, -10 to +10). `addRenown(state, ctx, n, source)` is safe to call from anywhere with or without a ctx; a new level writes a Chronicle line (with a ctx).
+- The festival evening has its own hourly system, `festivalEvening` (77, on the hour); its schedule override is `festival` (50). The bell (C5D, 100) beats it. Guests are chosen at 18:00 and listed in `festival.guests` (sorted) until 22:00; `atFestival(state, r)` is true for a guest standing on the site.
+- Festival pieces placed with the decor tool while a festival is planned carry `Decor.festival` and come down at 04:00 on day 1 of the next season (the `festivals` system, 75).
+- `together.moment` kinds: `dance`, `fireworks`, `stroll` (rules in `16-coop.md`); C5E draws them, C5G may sound them.
+- Commissions use `book('commissions')`, the River Dock `book('dock')` (net: sales positive, purchases negative on the same line), market day fees `pay(household, 'treasury', 'fees')`, Generous gifts to the menu `pay(household, 'treasury', 'sales')`.
 
 ## Registries
 

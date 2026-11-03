@@ -45,5 +45,6 @@ export interface AdvisorDef {
   slot: number;
   /** Whether it plays this run: the system it minds exists (in content or state) and the options allow it. */
   plays(opts: AutoplayOptions, w: WorldState): boolean;
-  create(p: Planner): Advisor;
+  /** C5B: `opts` is passed too (an advisor may play part of its area only in some runs). */
+  create(p: Planner, opts?: AutoplayOptions): Advisor;
 }

@@ -29,6 +29,9 @@ export const craftsfolk: NeedsBasket = {
       goods: [
         ['cider', 2],
         ['cheese', 1],
+        // I3 (C5B): pies and candles, the festival goods, are treats the rest of the season.
+        ['pies', 2],
+        ['candles', 1],
       ],
     },
   ],

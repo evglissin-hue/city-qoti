@@ -10,6 +10,10 @@ import { tickOfDay } from '../systems/residents/time';
 import { isSkating } from '../systems/seasons/river';
 import { moodBand } from './hamlet';
 import { writeVisitorRows } from './season/visitors';
+import { DANCE_HOUR } from '../systems/festivals';
+import { atFestival } from '../systems/festivals/override';
+import { bothConnected } from '../systems/festivals/together';
+import { hourOf } from '../systems/economy/time';
 
 /** Headings for the four grid directions: +x, +z, -x, -z. */
 const HEAD_PX = Math.PI / 2;
@@ -45,12 +49,17 @@ export function agentFrame(state: WorldState): Float32Array {
   for (const hh of state.households)
     if (hh.warmth && hh.warmth.coldHours > 0) (cold ??= new Set()).add(hh.id);
   const frozen = state.weather.river.frozen;
+  const festive = state.festival.live;
+  const dancing = festive && hourOf(state.tick) >= DANCE_HOUR && bothConnected(state);
   let n = 0;
   for (const r of state.residents) {
     if (r.inside) continue;
     let extra = 0;
     if (cold?.has(r.householdId)) extra |= AgentFlags.cold;
     if (frozen && r.activity.kind === 'leisure' && isSkating(state, r)) extra |= AgentFlags.skating;
+    // I3 (C5B): festival guests on the site; in the closing dance's hour, with both seats here, they dance.
+    const guest = festive && atFestival(state, r);
+    if (guest) extra |= AgentFlags.festival;
     if ((n + 1) * AGENT_STRIDE > scratch.length) {
       const bigger = new Float32Array(scratch.length * 2);
       bigger.set(scratch);
@@ -62,6 +71,7 @@ export function agentFrame(state: WorldState): Float32Array {
       standing.set(r.tile, crowd + 1);
     }
     writeRow(scratch, n * AGENT_STRIDE, r, S, h, crowd, night, extra);
+    if (guest && dancing && !r.move) scratch[n * AGENT_STRIDE + 5] = AgentAnim.dance;
     n++;
   }
   // I2 (C4.0): carts out on the roads, as rows with anim `cart` and their first load good.
