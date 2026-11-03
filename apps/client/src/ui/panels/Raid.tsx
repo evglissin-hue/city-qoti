@@ -161,23 +161,50 @@ export function RaidResultCard({
   );
 }
 
+/**
+ * C5X: whether a home stands empty for a captive (bandit.decide 'home' needs one; without it the
+ * offer was refused with no word to the player).
+ */
+export function homeFree(session: Session): boolean {
+  const m = session.mirror;
+  const taken = new Map<EntityId, number>();
+  for (const h of m.households.values()) taken.set(h.homeId, (taken.get(h.homeId) ?? 0) + 1);
+  for (const b of m.buildings.values()) {
+    const room = content.buildingById.get(b.def)?.housing?.households ?? 0;
+    if (b.stage === 'built' && room > (taken.get(b.id) ?? 0)) return true;
+  }
+  return false;
+}
+
 /** The captive choice: one card per captured raider. Either seat decides; the first answer stands. */
 export function CaptiveChoice({ session, ids }: { session: Session; ids: EntityId[] }) {
   const id = ids[0]!;
   const decide = (choice: 'home' | 'send') => session.submit({ t: 'bandit.decide', id, choice });
+  const free = homeFree(session);
   return (
     <div class="captive-card panel" role="dialog" aria-label="A captured raider" data-testid="captive-choice">
       <p class="kicker">{ids.length > 1 ? `${ids.length} captured, one at a time` : 'Caught by the Watch'}</p>
       <p>Cold, a bit sheepish and very hungry. Anyone might be a bandit, and anyone might stop.</p>
       <div class="actions">
-        <button type="button" class="primary" data-testid="captive-home" onClick={() => decide('home')}>
+        <button
+          type="button"
+          class="primary"
+          data-testid="captive-home"
+          disabled={!free}
+          title={free ? undefined : 'No home stands empty yet. Build one, or send them off.'}
+          onClick={() => decide('home')}
+        >
           Offer them a home
         </button>
         <button type="button" class="ghost-button" data-testid="captive-send" onClick={() => decide('send')}>
           Send them off
         </button>
       </div>
-      <p class="small muted">A home: a new neighbor with a past. Off: the word spreads, renown +1.</p>
+      <p class="small muted">
+        {free
+          ? 'A home: a new neighbor with a past. Off: the word spreads, renown +1.'
+          : 'Every home is taken, so a home will have to wait. Off: the word spreads, renown +1.'}
+      </p>
     </div>
   );
 }

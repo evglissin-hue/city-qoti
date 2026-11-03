@@ -124,6 +124,31 @@ export function installDebugHook(getSession: () => Session | null): void {
       }
       return null;
     },
+    /**
+     * C5X: an n-by-n box of open ground (no building, water or tree, as festival.plan wants) with a
+     * free tile round it, on screen clear of the left-hand book and the bars, for dragging a site.
+     */
+    findOpenGround: (n = 7) => {
+      const session = s();
+      const r = session?.renderer;
+      if (!session || !r) return null;
+      const m = session.mirror;
+      const free = (x: number, z: number) => !m.occupant(x, z) && !m.water(x, z) && !m.tree(x, z);
+      const clear = (x: number, z: number) => {
+        const p = r.screenOf(x, z);
+        return (
+          !!p && p.x > 440 && p.x < window.innerWidth - 200 && p.y > 120 && p.y < window.innerHeight - 220
+        );
+      };
+      for (const [x0, z0] of nearbyTiles(session, 20)) {
+        let ok = clear(x0, z0) && clear(x0 + n - 1, z0 + n - 1);
+        for (let z = z0 - 1; ok && z <= z0 + n; z++)
+          for (let x = x0 - 1; ok && x <= x0 + n; x++) ok = free(x, z);
+        if (ok)
+          return { from: [x0, z0] as [number, number], to: [x0 + n - 1, z0 + n - 1] as [number, number] };
+      }
+      return null;
+    },
     /** I3 (C5H): a spot for `def` with its door on a road (any turn), for the guide's lane step. */
     findRoadSpot: (def: string) => {
       const session = s();

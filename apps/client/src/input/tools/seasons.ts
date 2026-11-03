@@ -48,10 +48,12 @@ export function festivalSiteOk(
     };
   if (w > FESTIVAL_SITE_MAX || d > FESTIVAL_SITE_MAX)
     return { ok: false, why: `At most ${FESTIVAL_SITE_MAX} a side, or nobody finds the pies.` };
-  let blocked = 0;
-  for (const [x, z] of boxTiles(a, b)) if (ctx.mirror.occupant(x, z) || ctx.mirror.water(x, z)) blocked++;
-  // Stalls go round a cottage or two; a site that is mostly buildings is no site.
-  if (blocked * 3 > w * d) return { ok: false, why: 'Too much of that is buildings or water.' };
+  // C5X: the sim's own rule (festival.plan, openGround): open ground means no building, water or
+  // tree anywhere on it (C5F let a third of it be buildings, and the sim then refused the poster).
+  for (const [x, z] of boxTiles(a, b)) {
+    if (ctx.mirror.occupant(x, z) || ctx.mirror.water(x, z) || ctx.mirror.tree(x, z))
+      return { ok: false, why: 'A festival wants open ground: no buildings, water or trees on it.' };
+  }
   return { ok: true };
 }
 

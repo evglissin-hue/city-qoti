@@ -96,6 +96,18 @@ Daily (`every: TICKS_PER_DAY`, `offset: dailyOffset(hour, extra)`): 00:02 season
 | C5G | the silent `audio()` stub until its engine lands | C5G |
 | C5H | goals use existing `CountWhat`s; new ones are added additively | C5H |
 
+### Stand-ins after C5X part 1
+
+Gone: C5B's clear-weather stand-in (C5A's weather runs); C5C's "seasons only" row (C5A is in); C5D's Watch morale without festivals (`festivalMorale` reads C5B's history); C5G's silent `audio()` stub (the engine is installed); the defense pieces' `modes: []` (C5D unhid them; the unused `HIDDEN` helper in `seasonsBuildings.ts` is gone); C5F's own `rules/walls.ts` (the wall ghost now runs C5D's `canPaintWall` from `rules/wall.ts`, the rule `wall.paint` runs, so it agrees by construction). The C5F mocks now serve only the unit tests and the `?debug&fixture` overlay; the live panels read the sim's views.
+
+Remaining, and why:
+
+- C5B's musician and bandstand stand-ins: no owner until I4's arcs and a bandstand building.
+- C5B's honey from Millhaven: kept on purpose as the post's fallback beside C5C's apiary.
+- C5C's borrowed decor kits and undrawn modules, ponds as plain water, no critters; C5F's renderer stand-ins (`capture`, `photo`, the habitats overlay); C5E's fixtures: all wait for C5E (C5X part 2, after V1X).
+- C5F's `raidWithCaptive` in `app/fixture.ts`: kept as a fixture convenience, not a stand-in. C5D's raids catch their own, but only later in the night, and the `c5f-seasons` e2e needs a captive at once.
+- C5F's Watch morale parts as words: `WatchView` has no parts; an additive field for I4.
+
 ## Testing and benches
 
 - Fixtures: `packages/sim/test/fixtures/winter.ts` and `threat.ts` (with `raidAtDusk()`) are shared. Add helpers next to them in your own files; keep existing ids and positions (the UI mocks are built from them). `seasonsPlace.ts` has `placeFree`, `tickAt` and `addDecorAt`.

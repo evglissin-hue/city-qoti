@@ -23,6 +23,23 @@ async function waitLive(page: Page): Promise<void> {
   await page.waitForFunction(() => window.__qoti?.status() === 'live', null, { timeout: 240_000 });
 }
 
+/**
+ * C5X: under software rendering the second seat can take long enough to join that C5D's raid has
+ * ended and the season turned, so the season report, the almanac or the raid result card may sit
+ * on the desk; put them away until the captive choice shows (it waits behind the result card).
+ */
+async function captiveCard(page: Page): Promise<void> {
+  await expect
+    .poll(async () => {
+      for (const id of ['season-report-close', 'season-card-close', 'raid-result-close']) {
+        const b = page.getByTestId(id);
+        if (await b.isVisible()) await b.click();
+      }
+      return page.getByTestId('captive-choice').isVisible();
+    })
+    .toBe(true);
+}
+
 async function openBook(page: Page, lens: 'hearth' | 'ledger', id: string): Promise<void> {
   await page.getByTestId(`lens-${lens}`).click();
   await page.getByTestId(`book-${id}`).click();
@@ -74,6 +91,9 @@ async function raidForTwo(browser: Browser) {
   const a = await (await browser.newContext()).newPage();
   await a.goto('/?debug&quality=low&fixture=raid');
   await waitLive(a);
+  // C5X: paused, so C5D's raid (which now ends at dawn) is still on when the partner arrives; under
+  // software rendering moving online and joining took longer than the night.
+  await a.getByTestId('speed-0').click();
   await a.getByTestId('settings-open').click();
   await a.getByTestId('move-online').click();
   await a.getByTestId('move-online-yes').click();
@@ -95,19 +115,23 @@ test('festival, posture, captives and the threat dial round trip between two sea
   const { a, b } = await raidForTwo(browser);
 
   // The captive choice: seat 1 offers a home, and the card leaves both screens.
-  await expect(a.getByTestId('captive-choice')).toBeVisible();
-  await expect(b.getByTestId('captive-choice')).toBeVisible();
-  await b.getByTestId('captive-home').click();
+  await captiveCard(a);
+  await captiveCard(b);
+  // C5X: C5D's decision needs an empty home for 'home'; by the time both seats are in, the fixture
+  // town may have none, and the card then offers only sending them off.
+  const home = b.getByTestId('captive-home');
+  await ((await home.isEnabled()) ? home : b.getByTestId('captive-send')).click();
   await expect(a.getByTestId('captive-choice')).toHaveCount(0);
   await expect(b.getByTestId('captive-choice')).toHaveCount(0);
 
   // Seat 1 plans the festival on the poster: a site by the map tool's draft, a dish on the menu.
   await openBook(b, 'hearth', 'festival');
   await b.getByTestId('festival-pick-site').click();
-  const spot = await b.evaluate(() => window.__qoti.findBuildingSpot('town-hall'));
-  // The site box goes on open ground near the start; drag it on the map like a player.
-  const from = await b.evaluate(([x, z]) => window.__qoti.screenOf(x!, z!), [spot!.x - 3, spot!.z - 3]);
-  const to = await b.evaluate(([x, z]) => window.__qoti.screenOf(x!, z!), [spot!.x + 3, spot!.z + 3]);
+  // C5X: on open ground as the sim wants it (no building, water or tree), clear of the poster.
+  const ground = await b.evaluate(() => window.__qoti.findOpenGround(7));
+  expect(ground).not.toBeNull();
+  const from = await b.evaluate(([x, z]) => window.__qoti.screenOf(x!, z!), ground!.from);
+  const to = await b.evaluate(([x, z]) => window.__qoti.screenOf(x!, z!), ground!.to);
   await b.mouse.move(from!.x, from!.y);
   await b.mouse.down();
   await b.mouse.move(to!.x, to!.y, { steps: 8 });

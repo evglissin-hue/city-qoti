@@ -13,6 +13,7 @@ export interface QotiHook {
   screenOf(x: number, z: number): { x: number; y: number } | null;
   screenOfFp(fx: number, fz: number): { x: number; y: number } | null;
   findBuildingSpot(def: string, rot?: number): { x: number; z: number; tile: [number, number] } | null;
+  findOpenGround(n?: number): { from: [number, number]; to: [number, number] } | null;
   findDecorSpot(def: string): { fx: number; fz: number; tile: [number, number] } | null;
   findRoadRun(len: number): [number, number][] | null;
   runGolden(script: unknown): Promise<string>;
