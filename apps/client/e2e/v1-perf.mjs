@@ -9,7 +9,8 @@
 // for timings. Env: QOTI_PRESETS (low,medium,high,ultra), QOTI_MOVE and QOTI_REST (seconds, 10),
 // QOTI_SIZE (1440x900), QOTI_SETTLE (ms after a scene loads, 12000; V1D: then until no static
 // layer changes, at most QOTI_SETTLE_MAX, 300000), QOTI_ENGINE (V1D: `classic`
-// measures the chain before the lean renderer on the same build, until V1X).
+// measures the chain before the lean renderer on the same build, until V1X), QOTI_FIXEDRES=1
+// (dynamic resolution off) and QOTI_HOLD=1 (the sim paused and the hour pinned; see below).
 import { chromium } from '@playwright/test';
 
 const clientPort = Number(process.env.QOTI_CLIENT_PORT ?? 5173);
@@ -62,6 +63,15 @@ for (const [scene, def] of Object.entries(SCENES)) {
     const [x0, z0, x1, z1] = await page.evaluate(() => window.__qoti.startArea());
     center = [(x0 + x1 + 1) / 2, (z0 + z1 + 1) / 2];
   }
+  // V1D: QOTI_HOLD=1 pauses the sim and pins the hour. In a software renderer a frame spans dozens
+  // of turns, so a busy valley changes something static (a stock pile, the sun's quarter-hour step)
+  // in every frame and the still-frame cache is drawn again each time; holding still measures what
+  // an idle frame costs (water and smoke still move, so idle frames keep drawing).
+  if (process.env.QOTI_HOLD === '1')
+    await page.evaluate(() => {
+      window.__qoti.submit({ t: 'time.setSpeed', speed: 0 });
+      window.__qoti.setHour(11);
+    });
   await page.evaluate(([x, z, d]) => window.__qoti.look(x, z, d), [center[0], center[1], def.dist ?? 45]);
   await page.waitForTimeout(Number(process.env.QOTI_SETTLE ?? 12000));
   // V1D: then until the valley has streamed in (no static layer changed over three looks, three
@@ -99,6 +109,6 @@ await browser.close();
 // One table for all scenes: the header once, then every scene's rows.
 const lines = tables.flatMap((t, i) => t.split('\n').slice(i === 0 ? 0 : 2));
 console.log(
-  `\n${headed ? 'headed' : 'headless (software renderer)'}, ${engine ? 'classic' : 'lean'} engine${fixedres ? ', fixed resolution' : ''}, ${vw} x ${vh}, ${move} s moving, ${rest} s idle:\n`,
+  `\n${headed ? 'headed' : 'headless (software renderer)'}, ${engine ? 'classic' : 'lean'} engine${fixedres ? ', fixed resolution' : ''}${process.env.QOTI_HOLD === '1' ? ', sim paused' : ''}, ${vw} x ${vh}, ${move} s moving, ${rest} s idle:\n`,
 );
 console.log(lines.join('\n'));

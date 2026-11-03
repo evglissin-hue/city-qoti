@@ -26,6 +26,21 @@ Acceptance criteria for every cycle that touches the area. Reference machines: a
 
 **Moving and idle frames (V1)**: the render budgets above are measured on moving frames (V1.0's perf script pans, orbits and zooms across each scene); a frame with the camera at rest has its own row, because the lean renderer draws only the moving layers then. The V0 concept on its first engine ran at about 20 to 25 fps on High on the owner's laptop, which is what the lean renderer answers.
 
+**As built (V1D, 2026-11-03)**: the lean renderer, measured so far only in a container without a GPU (headless Chromium in SwiftShader, 1440 x 900, Medium, `QOTI_FIXEDRES=1 QOTI_PRESETS=medium node apps/client/e2e/v1-perf.mjs`, both engines on the same build; `QOTI_ENGINE=classic` is the chain before V1D). Every millisecond is the CPU doing the GPU's work, and each 10 s phase holds only a few frames, so read them as ratios. Draws and triangles are real. The laptop rows (every budget above, moving and idle, on both laptops) are still to be taken with `QOTI_HEADED=1` or `await __qoti.perf()`.
+
+| Scene | Engine | Moving GPU ms (avg) | Idle GPU ms (avg) | Draws (moving) | Triangles (moving) | Rest frames: moving / still / idle |
+|---|---|---|---|---|---|---|
+| hamlet | classic | 2280 | 3927 | 94 | 0.13 M | 2 / 0 / 0 |
+| hamlet | lean | 959 | 575 | 68 | 0.10 M | 0 / 3 / 10 |
+| hamlet | lean, sim paused | 868 | 325 | 66 | 0.10 M | 0 / 0 / 28 |
+| village of 130 | classic | 4457 | 4495 | 225 | 0.88 M | 2 / 0 / 0 |
+| village of 130 | lean | 1651 | 4386 | 159 | 0.66 M | 0 / 3 / 0 |
+| town | classic | 5780 | 5033 | 176 | 1.26 M | 1 / 0 / 0 |
+| town | lean | 1998 | 3075 | 108 | 0.64 M | 0 / 3 / 0 |
+| town | lean, sim paused | 402 | 3189 | 91 | 0.43 M | 0 / 1 / 3 |
+
+Moving frames cost the GPU 2.4 to 2.9 times less than the classic chain's on the same build (one scene pass, no full-resolution post passes, and the shadow map drawn only when due); held still (`QOTI_HOLD=1`), the town's moving frames skip the shadow pass altogether. An idle frame (the cache restored, the moving layers, the blur and the final pass) costs a twelfth of a classic frame in the hamlet. In the village and the town the software rest is still mostly still frames: a frame there takes seconds, so the sim moves dozens of turns between frames and something static (a stock pile, the sun's quarter-hour step, a building's level swap after the zoom) changes in nearly every one, which a laptop at 60 fps sees once in a hundred frames or more. Compared with V1.0's before table (which drew every frame at a lower dynamic resolution, so its milliseconds are not comparable), the town's moving triangles on Medium went from 2.66 M to 0.64 M. That run predates the building distance floor (`20-architecture.md`, Lean renderer, As built), so it drew buildings to 60 tiles on Medium; with the floor they go to 75 as before. The final shots (`v1-shots.mjs v1d`, stills `docs/build/screenshots/v1-v1d-*.png`): the town's camera pass went from 1.31 M to 0.58 M triangles in the wide shot, 1.47 M to 0.95 M at night and 1.18 M to 0.63 M in the street, almost all from decor culled per chunk and leveled (800 k to 62 k, 337 k and 256 k); its night frame, still frame and shadow pass included, from 3.46 M (over Medium's budget) to 2.47 M. The hamlet and the village of 130 draw what they drew (their big layers are trees and buildings, V1C's and V1B's). The shots' own draws and triangles columns now show the last frame drawn, which at rest is an idle one (a hamlet at dusk: 13 draws, a few thousand triangles), so compare per layer.
+
 `tools/bench` builds synthetic valleys (I0: 1,000 buildings and 6,000 decor; I1: a 40-resident hamlet; later a synthetic 2,000-resident town) and reports ms per tick, memory and snapshot size. CI fails when a sim or worldgen budget is exceeded.
 
 ## Tests

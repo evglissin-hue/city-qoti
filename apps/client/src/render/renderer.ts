@@ -556,7 +556,11 @@ export class Renderer implements RenderApi {
     // At rest, the still frame is drawn once even if nothing else moves: it is the preset's own
     // sharpness (not the moving step's) and, on Ultra, has its ambient occlusion.
     const stillDue = resting && !this.still.valid(this.stillKey());
-    if (!dirty && !this.needsRender && !stillDue) {
+    // With the camera at rest, shadows catch up with static changes made while it moved (on Low,
+    // with no still frame to draw, this is the only frame that would).
+    const shadowsDue =
+      this.three.shadowMap.enabled && this.still.rested(now) && this.staticRevision !== this.shadowStatic;
+    if (!dirty && !this.needsRender && !stillDue && !shadowsDue) {
       this.gpuTimer.poll();
       this.resolution.frame(now, false, this.basePixelRatio);
       return;

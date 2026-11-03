@@ -6,7 +6,14 @@ import { GpuTimer } from './gpuTimer';
 import { layerFactories } from './layers';
 import { layerRoot, MOVING_LAYER, STATIC_LAYER, tagTree } from './layerTags';
 import { applyGrade, bloomFor, lookUniforms, tiltFor } from './look';
-import { buildingDetailNow, detectQuality, isQuality, pixelRatios, QUALITY_PRESETS } from './quality';
+import {
+  BUILDING_DETAIL_FLOOR,
+  buildingDetailNow,
+  detectQuality,
+  isQuality,
+  pixelRatios,
+  QUALITY_PRESETS,
+} from './quality';
 
 const only = (o: Object3D, n: number): boolean => o.layers.mask === 1 << n;
 
@@ -118,9 +125,13 @@ describe('quality presets (V1.0)', () => {
     ]);
   });
 
-  it('V1D: every preset uses its own building distance, and Low gets cached shadows', () => {
+  it('V1D: every preset uses its own building distance above the stand-in floor, and Low gets cached shadows', () => {
     for (const q of ['low', 'medium', 'high', 'ultra'] as const)
-      expect(buildingDetailNow(q)).toBe(QUALITY_PRESETS[q].buildingDetail);
+      expect(buildingDetailNow(q)).toBe(Math.max(QUALITY_PRESETS[q].buildingDetail, BUILDING_DETAIL_FLOOR));
+    // Until V1B's far levels have lit windows, nothing swaps nearer than before V1D.
+    expect([buildingDetailNow('low'), buildingDetailNow('medium'), buildingDetailNow('ultra')]).toEqual([
+      75, 75, 110,
+    ]);
     expect(QUALITY_PRESETS.low.shadowMap).toBe(1024);
     // The classic engine (?engine=classic, until V1X) keeps reading the old cap.
     expect(QUALITY_PRESETS.medium.maxDpr).toBe(2);

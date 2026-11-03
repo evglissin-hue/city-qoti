@@ -111,9 +111,17 @@ export const QUALITY_PRESETS: Record<Quality, QualityPreset> = {
   },
 };
 
-/** The building detail distance in tiles (`env.buildingDetail`): the preset's own (V1D). */
+/**
+ * Stand-in until V1B's far levels carry lit windows: today's low level of a building has no windows
+ * at all, so at night a building past its detail distance goes dark, and Medium's 60 tiles turned
+ * much of a town's night dark. Until then no preset swaps nearer than this (as before V1D); V1B or
+ * V1X sets it to 0 so the presets' own distances apply (docs/build/v1-wave-notes.md, Stand-ins).
+ */
+export const BUILDING_DETAIL_FLOOR = 75;
+
+/** The building detail distance in tiles (`env.buildingDetail`): the preset's own, above the floor. */
 export function buildingDetailNow(q: Quality): number {
-  return QUALITY_PRESETS[q].buildingDetail;
+  return Math.max(QUALITY_PRESETS[q].buildingDetail, BUILDING_DETAIL_FLOOR);
 }
 
 /**

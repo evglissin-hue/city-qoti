@@ -81,6 +81,40 @@ const DOWN_FRAGMENT = /* glsl */ `
   }
 `;
 
+/**
+ * The bloom's bright pass: each of the 4 x 4 source texels under a quarter resolution texel is kept
+ * only if it is brighter than the threshold (by luminance, whole colors, as UnrealBloomPass's high
+ * pass did), then they are averaged. A lit window keeps its light even when it is a pixel or two
+ * across, and the blur spreads it into a halo; thresholding the blurred image (or a bilinear tap,
+ * which already averages 2 x 2 texels) would average a small window away into the dark around it.
+ * Sixteen fetches a quarter texel is one read a full resolution pixel, and no full resolution write.
+ */
+const BRIGHT_FRAGMENT = /* glsl */ `
+  uniform sampler2D tSrc;
+  uniform vec2 uSrcSize;
+  uniform float uThreshold;
+  varying vec2 vUv;
+  void main() {
+    ivec2 base = ivec2(floor(vUv * uSrcSize - 1.5));
+    ivec2 last = ivec2(uSrcSize) - 1;
+    vec3 sum = vec3(0.0);
+    for (int y = 0; y < 4; y++) {
+      for (int x = 0; x < 4; x++) {
+        vec3 c = texelFetch(tSrc, clamp(base + ivec2(x, y), ivec2(0), last), 0).rgb;
+        sum += c * smoothstep(uThreshold, uThreshold + 0.1, dot(c, vec3(0.2126, 0.7152, 0.0722)));
+      }
+    }
+    gl_FragColor = vec4(sum / 16.0, 1.0);
+  }
+`;
+
+/**
+ * The bloom chain's blurred bright light is this many times the look's bloom strength, so the
+ * halo matches UnrealBloomPass's five mip levels (bloom factors 1, 0.8, 0.6, 0.4 and 0.2) with
+ * one quarter resolution blur run twice.
+ */
+export const BLOOM_GAIN = 2.5;
+
 /** A 9-tap Gaussian along one axis in five fetches (linear sampling between texel pairs). */
 const BLUR_FRAGMENT = /* glsl */ `
   uniform sampler2D tSrc;
@@ -98,14 +132,19 @@ const BLUR_FRAGMENT = /* glsl */ `
 
 /**
  * The final pass, in the wave notes' order: tilt-shift mix, bloom, tone mapping, sRGB, then the
- * grade times the vignette, then dither. Without blur (close up by day) it skips both blurred
- * fetches.
+ * grade times the vignette, then dither. Without tilt-shift in view (close up) it skips the
+ * blurred fetch, and without bloom (Low, or a strength of 0) the bloom fetch. `lookBloomMix` adds
+ * the part of its second argument above the threshold; the bloom chain has taken that part
+ * already, so it gets the bright light plus the threshold.
  */
 const FINAL_FRAGMENT = /* glsl */ `
   uniform sampler2D tScene;
   uniform sampler2D tBlur;
+  uniform sampler2D tBloom;
   uniform float uTilt;
   uniform float uBlurOn;
+  uniform float uBloomOn;
+  uniform float uBloomGain;
   ${LOOK_GLSL}
   varying vec2 vUv;
   void main() {
@@ -113,7 +152,10 @@ const FINAL_FRAGMENT = /* glsl */ `
     if (uBlurOn > 0.5) {
       vec3 b = texture2D(tBlur, vUv).rgb;
       c = mix(c, b, smoothstep(0.0, 1.0, lookTiltMask(vUv) * uTilt));
-      c = lookBloomMix(c, b);
+    }
+    if (uBloomOn > 0.5) {
+      vec3 glow = texture2D(tBloom, vUv).rgb * uBloomGain;
+      c = lookBloomMix(c, glow + vec3(uLookBloomThreshold));
     }
     c = lookToneMap(c);
     vec4 o = lookSrgb(vec4(c, 1.0));
@@ -216,6 +258,10 @@ export class LeanFrame {
   private still: WebGLRenderTarget | null = null;
   private qa: WebGLRenderTarget | null = null;
   private qb: WebGLRenderTarget | null = null;
+  /** The bloom chain's quarter resolution targets. */
+  private qc: WebGLRenderTarget | null = null;
+  private qd: WebGLRenderTarget | null = null;
+  private readonly brightPass: ShaderMaterial;
   private layout: FrameLayout | null = null;
   private blurPasses = 1;
   private tilt = 0;
@@ -245,6 +291,11 @@ export class LeanFrame {
         toneMapped: false,
       });
     this.down = pass('LeanDown', DOWN_FRAGMENT, { tSrc: { value: null }, uTexel: { value: new Vector2() } });
+    this.brightPass = pass('LeanBright', BRIGHT_FRAGMENT, {
+      tSrc: { value: null },
+      uSrcSize: { value: new Vector2() },
+      uThreshold: { value: 1 },
+    });
     this.blur = pass('LeanBlur', BLUR_FRAGMENT, {
       tSrc: { value: null },
       uTexel: { value: new Vector2() },
@@ -253,8 +304,11 @@ export class LeanFrame {
     this.final = pass('LeanFinal', FINAL_FRAGMENT, {
       tScene: { value: null },
       tBlur: { value: null },
+      tBloom: { value: null },
       uTilt: { value: 0 },
       uBlurOn: { value: 0 },
+      uBloomOn: { value: 0 },
+      uBloomGain: { value: BLOOM_GAIN },
       ...this.look,
     });
     this.setSeason('spring');
@@ -285,14 +339,15 @@ export class LeanFrame {
     if (!stillSame) {
       this.disposeMoving();
       this.still?.dispose();
-      this.qa?.dispose();
-      this.qb?.dispose();
+      for (const t of [this.qa, this.qb, this.qc, this.qd]) t?.dispose();
       const [sw, sh] = deviceSize(l.width, l.height, l.stillRatio);
       this.still = colorTarget(sw, sh, this.format, { samples, depth: true, depthTexture: l.stillDepth });
       const qw = Math.max(2, Math.ceil(sw / 4));
       const qh = Math.max(2, Math.ceil(sh / 4));
       this.qa = colorTarget(qw, qh, this.format);
       this.qb = colorTarget(qw, qh, this.format);
+      this.qc = colorTarget(qw, qh, this.format);
+      this.qd = colorTarget(qw, qh, this.format);
       this.blur.uniforms.uTexel!.value.set(1 / qw, 1 / qh);
       this.down.uniforms.uTexel!.value.set(0.25 / qw, 0.25 / qh);
       // The blur is sized in quarter texels of the still target, so it stays the same size on
@@ -365,33 +420,54 @@ export class LeanFrame {
     this.tilt = tiltFor(distance);
   }
 
-  /** Whether this frame needs the blur chain: tilt-shift in view, or bloom to add. */
+  /** Whether this frame needs the tilt-shift blur chain. */
   get blurs(): boolean {
-    return this.tilt > 0.02 || this.look.uLookBloomStrength.value > 0;
+    return this.tilt > 0.02;
+  }
+
+  /** Whether this frame adds bloom. */
+  get blooms(): boolean {
+    return this.look.uLookBloomStrength.value > 0;
+  }
+
+  /** A horizontal then a vertical blur of `a` (through `b`), `rounds` times; the result is in `a`. */
+  private blurInPlace(a: WebGLRenderTarget, b: WebGLRenderTarget, rounds: number): void {
+    for (let i = 0; i < rounds; i++) {
+      this.blur.uniforms.tSrc!.value = a.texture;
+      this.blur.uniforms.uDir!.value.set(1, 0);
+      this.pass(this.blur, b);
+      this.blur.uniforms.tSrc!.value = b.texture;
+      this.blur.uniforms.uDir!.value.set(0, 1);
+      this.pass(this.blur, a);
+    }
   }
 
   /**
-   * The blur chain (when it is needed) and the final pass from `src`, the scene target this frame
-   * drew into, to the canvas.
+   * The blur chains (each only when needed) and the final pass from `src`, the scene target this
+   * frame drew into, to the canvas.
    */
   finish(src: WebGLRenderTarget): void {
-    const blurs = this.blurs;
     const f = this.final.uniforms;
-    if (blurs && this.qa && this.qb) {
+    const blurs = this.blurs && this.qa !== null && this.qb !== null;
+    const blooms = this.blooms && this.qc !== null && this.qd !== null;
+    if (blurs) {
       this.down.uniforms.tSrc!.value = src.texture;
       this.pass(this.down, this.qa);
-      for (let i = 0; i < this.blurPasses; i++) {
-        this.blur.uniforms.tSrc!.value = this.qa.texture;
-        this.blur.uniforms.uDir!.value.set(1, 0);
-        this.pass(this.blur, this.qb);
-        this.blur.uniforms.tSrc!.value = this.qb.texture;
-        this.blur.uniforms.uDir!.value.set(0, 1);
-        this.pass(this.blur, this.qa);
-      }
-      f.tBlur!.value = this.qa.texture;
+      this.blurInPlace(this.qa!, this.qb!, this.blurPasses);
+      f.tBlur!.value = this.qa!.texture;
+    }
+    if (blooms) {
+      this.brightPass.uniforms.tSrc!.value = src.texture;
+      this.brightPass.uniforms.uSrcSize!.value.set(src.width, src.height);
+      this.brightPass.uniforms.uThreshold!.value = this.look.uLookBloomThreshold.value;
+      this.pass(this.brightPass, this.qc);
+      // A halo wider than the tilt-shift's blur: always at least two rounds.
+      this.blurInPlace(this.qc!, this.qd!, this.blurPasses + 1);
+      f.tBloom!.value = this.qc!.texture;
     }
     f.tScene!.value = src.texture;
     f.uBlurOn!.value = blurs ? 1 : 0;
+    f.uBloomOn!.value = blooms ? 1 : 0;
     f.uTilt!.value = this.tilt * TILT_MIX;
     this.pass(this.final, null);
   }
@@ -399,11 +475,11 @@ export class LeanFrame {
   dispose(): void {
     this.disposeMoving();
     this.still?.dispose();
-    this.qa?.dispose();
-    this.qb?.dispose();
-    this.still = this.qa = this.qb = null;
+    for (const t of [this.qa, this.qb, this.qc, this.qd]) t?.dispose();
+    this.still = this.qa = this.qb = this.qc = this.qd = null;
     this.layout = null;
     this.down.dispose();
+    this.brightPass.dispose();
     this.blur.dispose();
     this.final.dispose();
     this.fsMesh.geometry.dispose();
