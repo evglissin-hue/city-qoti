@@ -1,4 +1,5 @@
-import { palette } from '@qoti/art';
+import { palette, palette2, SURFACE, SURFACES } from '@qoti/art';
+import { content } from '@qoti/content';
 import { entranceTiles, MAP_SIZE, Terrain, type Rect } from '@qoti/sim';
 import {
   DataTexture,
@@ -10,9 +11,10 @@ import {
   UnsignedByteType,
 } from 'three';
 import type { Mirror } from '../state/mirror';
-import { hash2 } from './coords';
+import { fpToWorld, hash2 } from './coords';
 import { MAX_GROUND_LIGHTS, NOISE_GLSL, type WorldEnv } from './env';
 import { drawDef } from './defs';
+import { GROUND_AO_GLSL, groundAoFor } from './groundAo';
 import { DOOR_KIND, ROAD_GLSL } from './layers/roads';
 import { WATER_Y } from './surface';
 
@@ -22,13 +24,24 @@ import { WATER_Y } from './surface';
  *   variation, canopy shade under trees and sandy banks; alpha is wildflower density.
  * - data (exact): road kind (or a door, see DOOR_KIND), terrain, crop growth (wear off fields, C4E)
  *   and flags, for roads, doorsteps, field furrows, crops and desire paths.
- * The ground shader adds the detail on top: mottling, flowers, furrows, roads with ruts, wet
- * banks, drifting cloud shade, lantern glow pools at night and mist at the valley's rim.
+ * - detail (filtered, V1C): R mown grass (lawns within a few tiles of buildings), G worn earth (under
+ *   benches and seats, in front of doors), B soil fertility (0 thin to 255 rich), A meadow (long
+ *   grass in patches away from homes).
+ * The ground shader adds the detail on top: mottling, meadow and lawn, flowers, worn earth, the
+ * soil showing through, furrows, roads with ruts, wet banks, the ground AO texture (groundAo.ts),
+ * drifting cloud shade, lantern glow pools at night and mist at the valley's rim.
  */
 
 export const GroundFlag = { water: 1, rowsAlongX: 2, built: 4, tree: 8 } as const;
 
 const N = MAP_SIZE;
+/** Tiles from a building within which lawns are mown. */
+export const MOWN = 4;
+
+function smoothstep(a: number, b: number, x: number): number {
+  const t = Math.max(0, Math.min(1, (x - a) / (b - a)));
+  return t * t * (3 - 2 * t);
+}
 
 type RGB = [number, number, number];
 const rgb = (hex: number): RGB => [(hex >> 16) & 255, (hex >> 8) & 255, hex & 255];
@@ -38,15 +51,16 @@ const mix = (a: RGB, b: RGB, t: number): RGB => [
   a[2] + (b[2] - a[2]) * t,
 ];
 
-const GRASS = rgb(palette.grass);
-const GRASS_WARM = rgb(0xa8bf60);
-const GRASS_LUSH = rgb(0x6f9d4a);
+// V1C: the Painted Miniature ground (palette2): a softer, less saturated grass.
+const GRASS = rgb(palette2.grass);
+const GRASS_WARM = rgb(0xadb86c);
+const GRASS_LUSH = rgb(0x789d55);
 /** Playtest round six: thin soil reads dry and straw-pale, rich soil deep and lush. */
-const GRASS_DRY = rgb(0xbdbb74);
-const GRASS_RICH = rgb(0x5a8f3c);
-const MEADOW = rgb(palette.meadow);
-const FOREST = rgb(palette.forestFloor);
-const CANOPY = rgb(0x4b6a35);
+const GRASS_DRY = rgb(0xc2bb7c);
+const GRASS_RICH = rgb(0x5f8a43);
+const MEADOW = rgb(palette2.meadow);
+const FOREST = rgb(palette2.forestFloor);
+const CANOPY = rgb(0x4f6a3c);
 const SAND = rgb(palette.sand);
 const ROCK = rgb(palette.rock);
 const MOUNTAIN = rgb(palette.mountain);
@@ -74,8 +88,13 @@ export function patch(x: number, z: number, scale: number, salt: number): number
 export class GroundTextures {
   readonly color: DataTexture;
   readonly data: DataTexture;
+  /** V1C: mown, worn, soil and meadow (see the header). */
+  readonly detail: DataTexture;
   private readonly colorBytes = new Uint8Array(N * N * 4);
   private readonly dataBytes = new Uint8Array(N * N * 4);
+  private readonly detailBytes = new Uint8Array(N * N * 4);
+  /** Tiles worn by seats (decor tagged seat or bench): index to wear, 0 to 1. */
+  private seats = new Map<number, number>();
 
   constructor(private readonly mirror: Mirror) {
     this.color = new DataTexture(this.colorBytes, N, N, RGBAFormat, UnsignedByteType);
@@ -87,7 +106,43 @@ export class GroundTextures {
     this.data.magFilter = NearestFilter;
     this.data.minFilter = NearestFilter;
     this.data.generateMipmaps = false;
+    this.detail = new DataTexture(this.detailBytes, N, N, RGBAFormat, UnsignedByteType);
+    this.detail.magFilter = LinearFilter;
+    this.detail.minFilter = LinearFilter;
+    this.detail.generateMipmaps = false;
+    this.seats = this.readSeats();
     this.refresh([0, 0, N - 1, N - 1]);
+  }
+
+  /** Where seats wear the grass: each seat's tile, a little on its neighbors. */
+  private readSeats(): Map<number, number> {
+    const out = new Map<number, number>();
+    for (const d of this.mirror.decor.values()) {
+      const def = content.decorById.get(d.def);
+      if (!def || !(def.tags.includes('seat') || def.tags.includes('bench'))) continue;
+      const x = Math.floor(fpToWorld(d.fx));
+      const z = Math.floor(fpToWorld(d.fz));
+      for (let dz = -1; dz <= 1; dz++)
+        for (let dx = -1; dx <= 1; dx++) {
+          const nx = x + dx;
+          const nz = z + dz;
+          if (nx < 0 || nz < 0 || nx >= N || nz >= N) continue;
+          const v = dx === 0 && dz === 0 ? 0.85 : dx === 0 || dz === 0 ? 0.3 : 0.12;
+          const i = nz * N + nx;
+          out.set(i, Math.max(out.get(i) ?? 0, v));
+        }
+    }
+    return out;
+  }
+
+  /** Decor changed: repaints the tiles around seats that came, went or moved. */
+  syncDecor(): void {
+    const next = this.readSeats();
+    const changed: number[] = [];
+    for (const [i, v] of next) if (this.seats.get(i) !== v) changed.push(i);
+    for (const [i] of this.seats) if (!next.has(i)) changed.push(i);
+    this.seats = next;
+    for (const i of changed) this.refresh([i % N, Math.floor(i / N), i % N, Math.floor(i / N)], 0);
   }
 
   /** Recomputes the tiles of a rect (inclusive) plus the neighbors whose tint depends on them. */
@@ -99,6 +154,7 @@ export class GroundTextures {
     for (let z = z0; z <= z1; z++) for (let x = x0; x <= x1; x++) this.tile(x, z);
     this.color.needsUpdate = true;
     this.data.needsUpdate = true;
+    this.detail.needsUpdate = true;
   }
 
   private tile(x: number, z: number): void {
@@ -130,6 +186,18 @@ export class GroundTextures {
         if (near && !L.water[j] && Math.abs(L.height[j]! - level) >= 2) cliff = true;
       }
     }
+    // V1C: lawns are mown within a few tiles of a building; long grass grows farther out.
+    let home = 99;
+    for (let dz = -MOWN; dz <= MOWN; dz++) {
+      const nz = z + dz;
+      if (nz < 0 || nz >= N) continue;
+      for (let dx = -MOWN; dx <= MOWN; dx++) {
+        const nx = x + dx;
+        if (nx < 0 || nx >= N || !L.occupant[nz * N + nx]) continue;
+        home = Math.min(home, dx * dx + dz * dz);
+      }
+    }
+    const homeDist = Math.sqrt(home);
 
     const warm = patch(x, z, 9, 3);
     const lush = patch(x, z, 23, 5);
@@ -142,7 +210,8 @@ export class GroundTextures {
         flowers = 0.45 + bloom * 0.55;
         break;
       case Terrain.forestFloor:
-        c = mix(FOREST, GRASS, 0.18 + warm * 0.2);
+        // Darker, mossier under the trees.
+        c = mix(FOREST, GRASS, 0.08 + warm * 0.16);
         break;
       case Terrain.sand:
         // The shader paints the strip at the waterline; tiles only lend a warm sandy hint.
@@ -165,14 +234,30 @@ export class GroundTextures {
         c = mix(c, GRASS_LUSH, Math.max(0, lush - 0.55) * 0.5);
         flowers = Math.max(0, bloom - 0.62) * 1.6;
     }
+    // V1C: lawns near homes are mown short and even; meadow patches (and meadow terrain) away
+    // from them grow long, paler and flowery.
+    const mown = homeDist > MOWN ? 0 : 1 - smoothstep(1.5, MOWN, homeDist);
+    let meadow = terrain === Terrain.meadow ? 1 : 0;
+    if (terrain === Terrain.grass) meadow = smoothstep(0.52, 0.72, patch(x, z, 13, 71)) * 0.85;
+    meadow *= 1 - mown;
+    if (terrain === Terrain.grass && meadow > 0) {
+      c = mix(c, MEADOW, meadow * 0.6);
+      flowers = Math.max(flowers, meadow * (0.35 + bloom * 0.5));
+    }
+    if (mown > 0 && (terrain === Terrain.grass || terrain === Terrain.meadow)) {
+      c = mix(c, GRASS_LUSH, mown * 0.22);
+      flowers *= 1 - mown * 0.8;
+    }
     // Playtest round six: the soil shows in the grass, so rich and thin ground look different
-    // before a plot or farm is chosen. Rich ground also flowers a little more.
+    // before a plot or farm is chosen. Rich ground also flowers a little more. V1C makes it
+    // plainer (the shader adds clover on rich soil and bare specks on thin).
+    const fertility = L.fertility[i] ?? 50;
     if (terrain === Terrain.grass || terrain === Terrain.meadow || terrain === Terrain.forestFloor) {
-      const soil = ((L.fertility[i] ?? 50) - 50) / 50;
+      const soil = (fertility - 50) / 50;
       if (soil > 0) {
-        c = mix(c, GRASS_RICH, soil * 0.6);
+        c = mix(c, GRASS_RICH, soil * 0.7);
         flowers += soil * 0.25;
-      } else c = mix(c, GRASS_DRY, -soil * 0.4);
+      } else c = mix(c, GRASS_DRY, -soil * 0.6);
     }
     if (!water && wet && terrain !== Terrain.sand && terrain !== Terrain.rock)
       c = mix(c, GRASS_WARM, wet === 2 ? 0.3 : 0.1);
@@ -188,6 +273,13 @@ export class GroundTextures {
     this.colorBytes[o + 1] = Math.min(255, c[1] * k);
     this.colorBytes[o + 2] = Math.min(255, c[2] * k);
     this.colorBytes[o + 3] = Math.round(Math.min(1, flowers) * 255);
+    const built = L.occupant[i] !== 0;
+    let worn = water || built ? 0 : (this.seats.get(i) ?? 0);
+    if (!water && !built && !road) worn = Math.max(worn, this.doorFront(x, z));
+    this.detailBytes[o] = Math.round(mown * 255);
+    this.detailBytes[o + 1] = Math.round(worn * 255);
+    this.detailBytes[o + 2] = Math.round(Math.max(0, Math.min(100, fertility)) * 2.55);
+    this.detailBytes[o + 3] = Math.round(meadow * 255);
 
     if (terrain === Terrain.field) {
       // Rows run along the field's longer side, measured through this tile, so every tile of a
@@ -211,6 +303,21 @@ export class GroundTextures {
     this.dataBytes[o + 3] = flags;
   }
 
+  /** Wear in front of a door that opens onto this tile (the doorstep fans out into the grass). */
+  private doorFront(x: number, z: number): number {
+    const L = this.mirror.layers;
+    for (let r = 0; r < 4; r++) {
+      // The way a door at rotation r faces (as ROAD_GLSL's door walks).
+      const fx = r === 1 ? -1 : r === 3 ? 1 : 0;
+      const fz = r === 0 ? 1 : r === 2 ? -1 : 0;
+      const nx = x - fx;
+      const nz = z - fz;
+      if (nx < 0 || nz < 0 || nx >= N || nz >= N) continue;
+      if (this.door(nx, nz, L.occupant[nz * N + nx]!) === DOOR_KIND + r) return 0.7;
+    }
+    return 0;
+  }
+
   /** DOOR_KIND plus the building's rotation on the tile its door is in, else 0. */
   private door(x: number, z: number, occupant: number): number {
     if (!occupant) return 0;
@@ -224,6 +331,7 @@ export class GroundTextures {
   dispose(): void {
     this.color.dispose();
     this.data.dispose();
+    this.detail.dispose();
   }
 }
 
@@ -236,6 +344,10 @@ bool qBit(float flags, float bit) { return mod(floor(flags / bit), 2.0) >= 1.0; 
 `;
 
 const GROUND_FRAGMENT = /* glsl */ `
+vec3 qGroundSeason(vec3 col, vec2 wp);
+float qPat(float layer, vec2 uv, float strength) {
+  return mix(1.0, texture(uPatterns, vec3(uv, layer)).r * 2.0, strength);
+}
 vec3 qFieldColor(vec2 wp, vec3 ground, float flags, float crop) {
   bool alongX = qBit(flags, 2.0);
   float across = alongX ? wp.y : wp.x;
@@ -285,6 +397,41 @@ vec3 qGround(vec3 base) {
   bool water = qBit(flags, 1.0);
   bool built = qBit(flags, 4.0);
 
+  // V1C: lawn, meadow, soil and wear (the detail texture), and the pattern array's grass grain.
+  vec4 gd = texture2D(uGroundDetail, wp / ${N.toFixed(1)});
+  float mown = gd.r;
+  float worn = gd.g;
+  float soil = gd.b * 2.0 - 1.0;
+  float meadowK = gd.a;
+  bool grassy = terrain < 2.5;
+  if (grassy) {
+    col *= qPat(${SURFACE.grass.toFixed(1)}, wp / ${SURFACES[SURFACE.grass]!.scale.toFixed(1)}, ${SURFACES[SURFACE.grass]!.strength.toFixed(2)});
+    // Mown lawn: even, a touch fresher, the mottling calmed.
+    col = mix(col, col * (1.02 - 0.06 * m1) * vec3(0.98, 1.02, 0.96), mown * 0.6);
+    // Meadow: long grass in combed, sunlit strokes with seed heads catching the light.
+    float comb = qNoise(vec2(wp.x * 3.0 + wp.y * 7.5, wp.y * 2.0 - wp.x * 1.2));
+    col = mix(col, col * vec3(1.1, 1.07, 0.82), meadowK * smoothstep(0.45, 0.85, comb) * 0.55);
+    col *= 1.0 - meadowK * 0.06 * (1.0 - comb);
+    // Soil you can see: clover and lush tufts on rich ground, bare earth showing through on thin.
+    float speck = qHash(floor(wp * 6.0) + 2.0);
+    vec2 sc = fract(wp * 6.0) - 0.5;
+    float dotK = (1.0 - smoothstep(0.22, 0.4, length(sc))) * fade;
+    vec3 clover = col * vec3(0.78, 0.92, 0.74);
+    col = mix(col, clover, step(0.62, speck) * dotK * clamp(soil, 0.0, 1.0) * 0.9);
+    vec3 bare = qSrgb(vec3(0.62, 0.52, 0.37)) * (0.9 + 0.15 * qNoise(wp * 7.0));
+    float thin = clamp(-soil, 0.0, 1.0);
+    float patchy = smoothstep(0.45, 0.8, qNoise(wp * 1.7 + 21.0));
+    col = mix(col, bare, thin * (step(0.7, speck) * dotK * 0.75 + patchy * 0.28));
+    // Far away the specks melt into a tint, so the two soils still read apart.
+    col = mix(col, col * mix(vec3(1.0), soil > 0.0 ? vec3(0.9, 0.97, 0.86) : vec3(1.07, 1.02, 0.86), abs(soil)), (1.0 - fade) * 0.6);
+  }
+  // Worn earth under benches and seats and in front of doors, ragged at the edge.
+  if (worn > 0.02 && !built && !water) {
+    float wv = smoothstep(0.22, 0.58, worn + (qNoise(wp * 4.3) - 0.5) * 0.28 + (qNoise(wp * 13.0) - 0.5) * 0.08);
+    vec3 earth = qSrgb(vec3(0.70, 0.59, 0.42)) * (0.9 + 0.14 * qNoise(wp * 9.0));
+    col = mix(col, earth, wv * 0.8);
+  }
+
   // Wildflower speckles, five cells per tile; far away they melt into a soft tint.
   float flowers = gc.a;
   if (flowers > 0.01 && !built) {
@@ -328,7 +475,20 @@ vec3 qGround(vec3 base) {
   col = mix(col, qSrgb(vec3(0.89, 0.82, 0.63)) * (0.94 + 0.1 * qNoise(wp * 5.0)), strip * 0.85);
   col *= mix(0.72, 1.0, smoothstep(-0.02, 0.07, above));
   col = mix(col, qSrgb(vec3(0.38, 0.42, 0.30)), smoothstep(0.0, -0.4, above) * 0.6);
-  return col;
+
+  // V1C: the ground AO texture, soft pools beside walls, in courtyards and narrow streets, under
+  // crowns. Under a building's own lot (its yard, its garden) it is gentler.
+  float ao = qGroundAo(wp);
+  if (built) ao = mix(ao, 1.0, 0.55);
+  col *= ao * mix(1.0, 0.97, 1.0 - ao) + (1.0 - ao) * vec3(0.0, 0.004, 0.012);
+  return qGroundSeason(col, wp);
+}
+
+// C5E's hook: snow cover on the ground (uSnow 0 to 1, set by the seasons art). Off until then.
+vec3 qGroundSeason(vec3 col, vec2 wp) {
+  if (uSnow < 0.001) return col;
+  float drift = smoothstep(0.3, 0.7, qNoise(wp * 0.7) + uSnow * 0.6);
+  return mix(col, qSrgb(vec3(0.93, 0.95, 0.98)), uSnow * drift);
 }
 
 vec3 qGlow() {
@@ -362,10 +522,17 @@ float qRimMist(vec2 wp) {
  */
 export function createGroundMaterial(tex: GroundTextures, env: WorldEnv): MeshStandardMaterial {
   const m = new MeshStandardMaterial({ vertexColors: true, roughness: 0.95, metalness: 0 });
+  // C5E sets this (0 to 1) for snow on the ground.
+  const snow = { value: 0 };
+  m.userData.snow = snow;
   m.onBeforeCompile = (shader) => {
     Object.assign(shader.uniforms, {
       uGroundColor: { value: tex.color },
       uGroundData: { value: tex.data },
+      uGroundDetail: { value: tex.detail },
+      uGroundAo: groundAoFor(env),
+      uPatterns: env.patterns,
+      uSnow: snow,
       uTime: env.staticTime,
       uNight: env.night,
       uClouds: env.clouds,
@@ -388,6 +555,10 @@ export function createGroundMaterial(tex: GroundTextures, env: WorldEnv): MeshSt
           '#include <common>',
           'uniform sampler2D uGroundColor;',
           'uniform sampler2D uGroundData;',
+          'uniform sampler2D uGroundDetail;',
+          'precision highp sampler2DArray;',
+          'uniform sampler2DArray uPatterns;',
+          'uniform float uSnow;',
           'uniform float uTime;',
           'uniform float uNight;',
           'uniform float uClouds;',
@@ -397,6 +568,7 @@ export function createGroundMaterial(tex: GroundTextures, env: WorldEnv): MeshSt
           'varying vec3 vQWorld;',
           NOISE_GLSL,
           GROUND_HELPERS,
+          GROUND_AO_GLSL,
           ROAD_GLSL,
           GROUND_FRAGMENT,
         ].join('\n'),
