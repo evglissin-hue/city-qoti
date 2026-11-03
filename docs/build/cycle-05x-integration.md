@@ -95,7 +95,7 @@ All sim and worldgen budgets are met. The seasons day was over 1 ms on `main` (1
 
 ### e2e
 
-`co-op` (its 250 ms check misses under SwiftShader load) and `guardrail` (seat two's 60 s wait to go live after joining, under the same load) fail only in the full run and pass alone; they are timing, not behavior.
+The final full run (SwiftShader, `QOTI_CHROMIUM=/opt/pw-browsers/chromium`): 23 passed, 1 skipped (the soak, which needs `QOTI_SOAK_MINUTES`). Earlier full runs saw `co-op` (its 250 ms check under SwiftShader load) and `guardrail` (seat two's 60 s wait to go live after joining, under the same load) fail; both passed alone and in the final run, so they are timing, not behavior. C5D's report of a guardrail failure is this.
 
 ### Stand-ins
 
