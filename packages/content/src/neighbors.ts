@@ -14,6 +14,8 @@ export const millhaven: NeighborDef = {
     ['wool', 90],
     ['milk', 95],
     ['apples', 90],
+    // C5B: Millhaven's hives, until the valley keeps its own (C5C's apiary).
+    ['honey', 110],
   ],
   buys: [
     ['tools', 125],
@@ -21,6 +23,9 @@ export const millhaven: NeighborDef = {
     ['bricks', 110],
     ['cider', 105],
     ['logs', 95],
+    // C5B: Millhaven's farmhouses want chairs, and its harvest suppers want pies.
+    ['furniture', 115],
+    ['pies', 105],
   ],
   seasonal: [
     ['wheat', 1, 80],
@@ -46,10 +51,14 @@ export const stonecross: NeighborDef = {
     ['cheese', 115],
     ['fish', 110],
     ['vegetables', 100],
+    // C5B: a cold hill town buys coats, dearest in winter, and candles for its long evenings.
+    ['coats', 120],
+    ['candles', 110],
   ],
   seasonal: [
     ['firewood', 3, 130],
     ['cloth', 3, 120],
+    ['coats', 3, 125],
   ],
   days: 3,
 };

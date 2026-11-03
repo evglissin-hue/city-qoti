@@ -4,6 +4,7 @@ import type { Decor, RejectReason, SeatId, TickCtx, WorldState } from '../contra
 import { canPlaceDecor, canPlaceDecorRun } from '../rules/decor';
 import { findById, removeById } from '../state/entities';
 import { worldIndex } from '../state/worldIndex';
+import { currentPlan } from '../systems/festivals/api';
 import { markCharmSoon } from '../systems/hearth/charm/dirty';
 import { decorView } from '../view';
 import { checkIds, type HandlerFor, takeId, worldChanged } from './util';
@@ -15,10 +16,25 @@ function decorRect(fx: number, fz: number): [number, number, number, number] {
   return [x - 1, z - 1, x + 1, z + 1];
 }
 
-/** Standard valleys offer Pattern Book pieces only once unlocked. Sandbox valleys offer everything. */
+/**
+ * Standard valleys offer Pattern Book pieces only once unlocked. Sandbox valleys offer everything.
+ * I3 (C5B): festival pieces may also be placed while this season's festival is planned (they come
+ * down the morning after it unless kept).
+ */
 function lockedReason(state: WorldState, def: DecorDef): 'LOCKED' | null {
   if (!def.locked || state.settings.mode !== 'standard') return null;
-  return state.hearth.unlocked.includes(def.id) ? null : 'LOCKED';
+  if (state.hearth.unlocked.includes(def.id)) return null;
+  return def.festival && currentPlan(state) ? null : 'LOCKED';
+}
+
+/** A festival piece placed for this season's festival (not one unlocked as ordinary decor). */
+function temporaryPiece(state: WorldState, def: DecorDef | undefined): boolean {
+  return (
+    !!def?.festival &&
+    state.settings.mode === 'standard' &&
+    !state.hearth.unlocked.includes(def.id) &&
+    !!currentPlan(state)
+  );
 }
 
 function addDecor(
@@ -31,6 +47,10 @@ function addDecor(
   rot: number,
 ): void {
   const d: Decor = { id: takeId(state), def, fx, fz, rot, builtBy: seat };
+  if (temporaryPiece(state, content.decorById.get(def))) {
+    d.festival = { kept: false };
+    state.festival.pieces.push(d.id);
+  }
   state.decor.push(d);
   worldIndex(state).decorGrid.add(d);
   ctx.events.push({ e: 'decor.added', d: decorView(d) });
@@ -85,6 +105,7 @@ export const remove: HandlerFor<'decor.remove'> = {
     for (const id of cmd.ids) {
       const d = removeById(state.decor, id);
       if (!d) continue;
+      if (d.festival) state.festival.pieces = state.festival.pieces.filter((p) => p !== id);
       grid.remove(d);
       ctx.events.push({ e: 'decor.removed', id });
       worldChanged(state, decorRect(d.fx, d.fz), !!content.decorById.get(d.def)?.blocksWalking);

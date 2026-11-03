@@ -178,14 +178,62 @@ export const flood: EventDef = {
   blurb: 'The river is rising. The low ground by the water may flood.',
 };
 
-// --- Renown (in level order; C5B tunes the curve) ---------------------------------------------
+// --- Renown (in level order; C5B's curve) ------------------------------------------------------
+// Effects: `trade` percent better prices at the Trading Post and the River Dock (2 a level);
+// `arrivals` permille more pull for newcomers; `visitors` notable visitors' commissions that may be
+// open at once. A festival is worth 1 to 9 points, a pattern 2, a repelled raid 4, a commission 2 to
+// 5, a story finale 5 and the sealed Charter 10, so a Village is Spoken Of within its first year.
 
 export const renown0: RenownDef = { level: 0, name: 'Unknown', points: 0, effects: [] };
-export const renown1: RenownDef = { level: 1, name: 'Spoken Of', points: 10, effects: [['trade', 2]] };
-export const renown2: RenownDef = { level: 2, name: 'Well Regarded', points: 30, effects: [['trade', 4]] };
-export const renown3: RenownDef = { level: 3, name: 'Admired', points: 60, effects: [['trade', 6]] };
-export const renown4: RenownDef = { level: 4, name: 'Celebrated', points: 100, effects: [['trade', 8]] };
-export const renown5: RenownDef = { level: 5, name: 'Storied', points: 160, effects: [['trade', 10]] };
+export const renown1: RenownDef = {
+  level: 1,
+  name: 'Spoken Of',
+  points: 8,
+  effects: [
+    ['trade', 2],
+    ['arrivals', 50],
+  ],
+};
+export const renown2: RenownDef = {
+  level: 2,
+  name: 'Well Regarded',
+  points: 25,
+  effects: [
+    ['trade', 4],
+    ['arrivals', 100],
+    ['visitors', 1],
+  ],
+};
+export const renown3: RenownDef = {
+  level: 3,
+  name: 'Admired',
+  points: 50,
+  effects: [
+    ['trade', 6],
+    ['arrivals', 150],
+    ['visitors', 1],
+  ],
+};
+export const renown4: RenownDef = {
+  level: 4,
+  name: 'Celebrated',
+  points: 90,
+  effects: [
+    ['trade', 8],
+    ['arrivals', 200],
+    ['visitors', 2],
+  ],
+};
+export const renown5: RenownDef = {
+  level: 5,
+  name: 'Storied',
+  points: 150,
+  effects: [
+    ['trade', 10],
+    ['arrivals', 250],
+    ['visitors', 2],
+  ],
+};
 
 // --- Threats (alphabetical; C5D writes the numbers) -------------------------------------------
 

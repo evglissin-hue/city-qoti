@@ -7,7 +7,7 @@
 // and morale, all recoverable.
 import type { MoveState } from './hamlet';
 import type { EntityId, Rect, SeatId } from './ids';
-import type { TradeLogEntry } from './village';
+import type { StandingOrder, TradeLogEntry } from './village';
 
 /** Season index: 0 spring, 1 summer, 2 autumn, 3 winter (SEASON_IDS in constants). */
 export type SeasonIndex = 0 | 1 | 2 | 3;
@@ -101,6 +101,13 @@ export interface FestivalOutcome {
   joy: { site: number; variety: number; menu: number; music: number; twist: number };
   /** 1 to 5. */
   stars: number;
+  // C5B additions (absent in valleys before them).
+  /** Residents within walking reach of the site (attendance is out of these). */
+  invited?: number;
+  /** The score stars come from: joy x turnout, 0 to 100. */
+  score?: number;
+  /** Menu units eaten. */
+  eaten?: number;
 }
 
 export interface FestivalRecord {
@@ -122,6 +129,8 @@ export interface FestivalState {
   outcome: FestivalOutcome | null;
   /** Last FESTIVAL_HISTORY_MAX festivals, oldest first. */
   history: FestivalRecord[];
+  /** C5B: residents going to tonight's festival (chosen at 18:00, sorted), absent outside one. */
+  guests?: EntityId[];
 }
 
 export interface RenownEntry {
@@ -174,6 +183,8 @@ export interface Boat {
 export interface DockState {
   /** Sorted by id. */
   boats: Boat[];
+  /** C5B: the dock's own standing orders (sorted by good), absent until one is set. */
+  orders?: StandingOrder[];
   /** Last TRADE_LOG_MAX entries, oldest first. */
   log: TradeLogEntry[];
 }

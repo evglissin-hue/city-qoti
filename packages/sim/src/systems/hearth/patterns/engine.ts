@@ -16,6 +16,7 @@ import { creditText, fill, listJoin, pick, placeName } from '../../chronicle/tex
 import { markCharmDirty, markCharmSoon } from '../charm/dirty';
 import { detectors } from './detectors';
 import { beginPass, endPass, type SiteCandidate } from './shared';
+import { addRenown, PATTERN_RENOWN } from '../../renown/api';
 
 const S = MAP_SIZE;
 export const MAX_HINTS = 3;
@@ -211,6 +212,8 @@ function discover(state: WorldState, ctx: TickCtx, def: PatternDef, site: Patter
     at: [x, (site.anchor - x) / S],
   });
   ctx.events.push({ e: 'pattern.discovered', p: patternView(state, def.id) });
+  // I3 (C5B): a discovery is talked about up and down the valley.
+  addRenown(state, ctx, PATTERN_RENOWN, 'pattern');
   if (unlocked.length) ctx.events.push({ e: 'town.updated', t: townView(state) });
 }
 
