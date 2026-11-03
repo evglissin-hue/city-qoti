@@ -2,7 +2,8 @@
 // with its bell cote and playground, the tavern with its inn sign on a post and a beer garden under
 // festoon lanterns, the herbalist's crooked cottage hung with bunches and bottles, the Trading Post's
 // veranda of crates under neighbor pennants, and the cart shed with its wide bay and pony stall.
-import { ShapeBuilder, vary, type V3 } from '../geometry';
+import type { ShapeBuilder } from '../geometry';
+import { vary, type V3 } from '../geometry';
 import { palette } from '../palette';
 import { beam, cylX, panel } from '../shapes';
 import { shell, signBoard, windowRow, windowStyle, type Built } from './buildings';
@@ -20,6 +21,7 @@ import {
   windowPart,
   type Face,
   type WallMaterial,
+  kitBuilder,
 } from './parts';
 import { barrel, bench, flowerPot, groundPatch, hayBale, wallLantern, wattle, weathervane } from './props';
 import { roofPart, type RoofMaterial } from './roofs';
@@ -29,8 +31,8 @@ import { villageKit } from './village';
 
 const IRON = 0x4b4f55;
 
-function start(): Built {
-  return { s: new ShapeBuilder(), anchors: { smoke: [], lights: [] } };
+function start(opts?: KitBuildOptions): Built {
+  return { s: kitBuilder(opts), anchors: { smoke: [], lights: [] } };
 }
 
 /** A string of festoon lanterns between two points, sagging a little; lit every night. */
@@ -109,8 +111,7 @@ function school(opts: KitBuildOptions | undefined): Built {
   const [ex] = opts?.entrance ?? [1, d - 1];
   const { rnd, look } = streams(opts, 61);
   const c = customOf(opts);
-  const { s, anchors } = start();
-  const plain = opts?.lod === 'low';
+  const { s, anchors } = start(opts);
   const x0 = 0.3;
   const x1 = w - 0.3;
   const z0 = 0.25;
@@ -136,7 +137,6 @@ function school(opts: KitBuildOptions | undefined): Built {
       ridgeAlongX: false,
     },
     rnd,
-    plain,
   });
   const front: Face = { dir: 'z+', plane: z1 };
   const doorU = ex + 0.5;
@@ -157,7 +157,7 @@ function school(opts: KitBuildOptions | undefined): Built {
   s.gable(pu - 0.32, z1 - 0.02, pu + 0.32, pz + 0.06, 0.72, 0.96, vary(sh.roof.color, rnd, 0.3), false);
   doorPart(s, { dir: 'z+', plane: pz }, pu, 0.3, 0.56, accent, palette.white, 'double', 0.0);
   faceBox(s, { dir: 'z+', plane: pz }, pu - 0.12, 0.62, 0, pu + 0.12, 0.7, 0.012, palette.paper);
-  if (!plain) {
+  s.detail(() => {
     const style = { ...windowStyle(c, accent, { box: false, shutters: false }), arch: true };
     for (const f of [
       { dir: 'x+', plane: x1 },
@@ -169,11 +169,11 @@ function school(opts: KitBuildOptions | undefined): Built {
         windowPart(s, front, u, 0.62, 0.2, 0.42, style, rnd, anchors.lights, claddingDepth(wall));
     // A round window high in the gable.
     windowPart(s, front, cu, sh.top + 0.35, 0.2, 0.08, { ...style, box: false }, rnd, anchors.lights, 0.015);
-  }
+  });
   bellCote(s, cu, sh.ridge - 0.12, z1 - 0.12, sh.roof.color, rnd);
   if (c.chimney ?? true)
     anchors.smoke!.push(chimneyPart(s, x1 - 0.25, z0 + 0.35, sh.top - 0.1, sh.ridge - 0.1, palette.brick));
-  if (!plain) {
+  s.detail(() => {
     // The playground: gravel, railings with a gate, hopscotch chalked on the ground, a tree.
     groundPatch(s, 0.1, z1 + 0.05, w - 0.1, d - 0.1, vary(0xc9b89a, rnd, 0.3), rnd);
     railing(s, [0.08, d - 0.08], [doorU - 0.22, d - 0.08]);
@@ -205,7 +205,7 @@ function school(opts: KitBuildOptions | undefined): Built {
       vary(palette.accentRed, rnd, 0.4),
     );
     anchors.lights!.push(wallLantern(s, facePoint({ dir: 'z+', plane: pz }, pu - 0.22, 0.6, 0.0), [0, 0, 1]));
-  }
+  });
   if (c.sign) signBoard(s, { dir: 'z+', plane: z1 }, cu, sh.top + 0.08, 0.6, 0.02, anchors);
   return { s, anchors };
 }
@@ -232,8 +232,7 @@ function tavern(opts: KitBuildOptions | undefined): Built {
   const [ex] = opts?.entrance ?? [1, d - 1];
   const { rnd, look } = streams(opts, 62);
   const c = customOf(opts);
-  const { s, anchors } = start();
-  const plain = opts?.lod === 'low';
+  const { s, anchors } = start(opts);
   const x0 = 0.2;
   const x1 = w - 0.2;
   const z0 = 0.2;
@@ -267,7 +266,6 @@ function tavern(opts: KitBuildOptions | undefined): Built {
       ridgeAlongX: true,
     },
     rnd,
-    plain,
   });
   const [ox0, oz0, ox1, oz1] = sh.outer;
   const front: Face = { dir: 'z+', plane: z1 };
@@ -276,7 +274,7 @@ function tavern(opts: KitBuildOptions | undefined): Built {
   const accent = c.accent ?? (look() < 0.5 ? palette.accentRed : 0x2f5a46);
   const clad = claddingDepth(lower);
   doorPart(s, front, doorU, 0.32, 0.62, accent, palette.timber, 'plank', clad);
-  if (!plain) {
+  s.detail(() => {
     porchPart(s, front, doorU, 0.38, 0.8, 0.28, vary(sh.roof.color, rnd, 0.3), palette.timber, true);
     // Bay windows either side of the door, glowing warm at night; casements upstairs.
     const left = (x0 + doorU - 0.25) / 2;
@@ -384,7 +382,7 @@ function tavern(opts: KitBuildOptions | undefined): Built {
     barrel(s, doorU < w / 2 ? x1 - 0.2 : x0 + 0.2, 0.16, z1 + 0.14, rnd, 0.85);
     flowerPot(s, doorU - 0.3, 0, z1 + 0.14, rnd);
     flowerPot(s, doorU + 0.3, 0, z1 + 0.14, rnd);
-  }
+  });
   if (c.chimney ?? true) {
     anchors.smoke!.push(
       chimneyPart(s, x0 + 0.25, (z0 + z1) / 2, sh.top - 0.1, sh.ridge + 0.16, palette.brick, true),
@@ -404,8 +402,7 @@ function herbalist(opts: KitBuildOptions | undefined): Built {
   const [ex] = opts?.entrance ?? [1, d - 1];
   const { rnd, look } = streams(opts, 63);
   const c = customOf(opts);
-  const { s, anchors } = start();
-  const plain = opts?.lod === 'low';
+  const { s, anchors } = start(opts);
   const x0 = 0.26;
   const x1 = w - 0.26;
   const z0 = 0.3;
@@ -430,13 +427,12 @@ function herbalist(opts: KitBuildOptions | undefined): Built {
       ridgeAlongX: true,
     },
     rnd,
-    plain,
   });
   const front: Face = { dir: 'z+', plane: z1 };
   const doorU = ex + 0.5;
   const accent = c.accent ?? 0x6e8a5a;
   doorPart(s, front, doorU, 0.26, 0.56, accent, palette.timber, 'dutch', 0.012);
-  if (!plain) {
+  s.detail(() => {
     // A window of bottles: colored glass catching the light, glowing softly at night.
     const wu = doorU < w / 2 ? x1 - 0.32 : x0 + 0.32;
     windowPart(
@@ -505,7 +501,7 @@ function herbalist(opts: KitBuildOptions | undefined): Built {
     // The cat on the step, naturally.
     s.blob(doorU + 0.14, 0.06, z1 + 0.12, 0.05, 0.035, 0.035, 0x3b3229, 0);
     s.blob(doorU + 0.18, 0.09, z1 + 0.12, 0.025, 0.025, 0.025, 0x3b3229, 0);
-  }
+  });
   if (c.chimney ?? true)
     anchors.smoke!.push(
       chimneyPart(
@@ -573,8 +569,7 @@ function tradingPost(opts: KitBuildOptions | undefined): Built {
   const [ex] = opts?.entrance ?? [1, d - 1];
   const { rnd, look } = streams(opts, 64);
   const c = customOf(opts);
-  const { s, anchors } = start();
-  const plain = opts?.lod === 'low';
+  const { s, anchors } = start(opts);
   const x0 = 0.2;
   const x1 = w - 0.2;
   const z0 = 0.2;
@@ -599,7 +594,6 @@ function tradingPost(opts: KitBuildOptions | undefined): Built {
       ridgeAlongX: true,
     },
     rnd,
-    plain,
   });
   const front: Face = { dir: 'z+', plane: z1 };
   const doorU = Math.min(Math.max(ex + 0.5, x0 + 0.5), x1 - 0.5);
@@ -660,7 +654,7 @@ function tradingPost(opts: KitBuildOptions | undefined): Built {
     ridgeAlongX: true,
     rnd,
   });
-  if (!plain) {
+  s.detail(() => {
     const style = windowStyle(c, accent, { box: false, shutters: true });
     windowRow(s, front, x0, x1, 0.55, style, rnd, anchors.lights!, [doorU], 0.6, [0.22, 0.26], 0.02);
     for (const f of [
@@ -694,7 +688,7 @@ function tradingPost(opts: KitBuildOptions | undefined): Built {
     for (const u of [doorU - 0.38, doorU + 0.38])
       anchors.lights!.push(wallLantern(s, facePoint(front, u, 0.72, 0.02), [0, 0, 1]));
     cylX(s, x1 + 0.03, x1 + 0.07, 0.17, z0 + 0.4, 0.16, palette.darkWood, 10);
-  }
+  });
   if (c.chimney ?? true)
     anchors.smoke!.push(chimneyPart(s, x0 + 0.3, z0 + 0.35, sh.top - 0.1, sh.ridge + 0.05, palette.brick));
   return { s, anchors };
@@ -707,8 +701,7 @@ function cartShed(opts: KitBuildOptions | undefined): Built {
   const [ex] = opts?.entrance ?? [1, d - 1];
   const { rnd, look } = streams(opts, 65);
   const c = customOf(opts);
-  const { s, anchors } = start();
-  const plain = opts?.lod === 'low';
+  const { s, anchors } = start(opts);
   const x0 = 0.16;
   const x1 = w - 0.16;
   const z0 = 0.16;
@@ -734,7 +727,6 @@ function cartShed(opts: KitBuildOptions | undefined): Built {
       ridgeAlongX: false,
     },
     rnd,
-    plain,
   });
   const front: Face = { dir: 'z+', plane: z1 };
   const doorU = ex + 0.5;
@@ -755,7 +747,7 @@ function cartShed(opts: KitBuildOptions | undefined): Built {
     0.022,
     palette.timber,
   );
-  if (!plain) {
+  s.detail(() => {
     // The pony's stall on the side, its head over the half door.
     const sideX = doorU < w / 2 ? x1 : x0;
     const side: Face = { dir: doorU < w / 2 ? 'x+' : 'x-', plane: sideX };
@@ -803,7 +795,7 @@ function cartShed(opts: KitBuildOptions | undefined): Built {
       [0.16, 0.16],
       0.02,
     );
-  }
+  });
   weathervane(s, (x0 + x1) / 2, sh.ridge + 0.02, (z0 + z1) / 2);
   if (c.sign) signBoard(s, front, bu, 0.88, 0.5, 0.03, anchors);
   return { s, anchors };

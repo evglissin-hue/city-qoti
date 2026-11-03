@@ -2,7 +2,8 @@
 // hall, the well and the windmill. Every building gets its own variety from its seed (roof shape
 // and material, wall material, porches, props) and honors the player's customization (wall, roof
 // and accent swatches, roof material, window boxes, shutters, chimney, sign) from `opts.params`.
-import { seeded, ShapeBuilder, vary, type V3 } from '../geometry';
+import type { ShapeBuilder } from '../geometry';
+import { seeded, vary, type V3 } from '../geometry';
 import { palette, PLASTERS } from '../palette';
 import { beam, panel } from '../shapes';
 import {
@@ -19,6 +20,7 @@ import {
   type Face,
   type WallMaterial,
   type WindowStyle,
+  kitBuilder,
 } from './parts';
 import { barrel, bench, flowerPot, wallLantern, weathervane } from './props';
 import { gableEnds, roofPart, type RoofMaterial, type RoofShape, type RoofSpec } from './roofs';
@@ -51,7 +53,6 @@ export interface ShellSpec {
     ridgeAlongX: boolean;
   };
   rnd: () => number;
-  plain?: boolean;
 }
 
 export interface Shell {
@@ -84,7 +85,6 @@ export function shell(s: ShapeBuilder, sp: ShellSpec): Shell {
       color: sp.wallColor,
       trim: sp.trim,
       rnd,
-      ...(sp.plain ? { plain: true } : {}),
     });
     const j = sp.upper.jetty;
     outer = [x0 - j, z0 - j, x1 + j, z1 + j];
@@ -101,7 +101,6 @@ export function shell(s: ShapeBuilder, sp: ShellSpec): Shell {
       color: sp.upper.color,
       trim: sp.trim,
       rnd,
-      ...(sp.plain ? { plain: true } : {}),
     });
     topMaterial = sp.upper.wall;
     topColor = sp.upper.color;
@@ -117,7 +116,6 @@ export function shell(s: ShapeBuilder, sp: ShellSpec): Shell {
       color: sp.wallColor,
       trim: sp.trim,
       rnd,
-      ...(sp.plain ? { plain: true } : {}),
     });
   }
   const r = sp.roof;
@@ -140,7 +138,6 @@ export function shell(s: ShapeBuilder, sp: ShellSpec): Shell {
     trim: vary(palette.timber, rnd, 0.4),
     ridgeAlongX: r.ridgeAlongX,
     rnd,
-    ...(sp.plain ? { plain: true } : {}),
   };
   const gableColor =
     topMaterial === 'stone' || topMaterial === 'brick' || topMaterial === 'log'
@@ -149,8 +146,7 @@ export function shell(s: ShapeBuilder, sp: ShellSpec): Shell {
         : topColor
       : topColor;
   gableEnds(s, roof, outer[0], outer[1], outer[2], outer[3], top, gableColor);
-  if (topMaterial === 'timber' && !sp.plain && roof.shape !== 'hip')
-    gableTimbers(s, roof, outer, top, sp.trim);
+  if (topMaterial === 'timber' && roof.shape !== 'hip') gableTimbers(s, roof, outer, top, sp.trim);
   roofPart(s, roof);
   return { top, ridge, roof, outer };
 }
@@ -285,8 +281,7 @@ export function cottageOf(opts: KitBuildOptions | undefined): Built {
   const [w, d] = opts?.size ?? [2, 2];
   const [ex] = opts?.entrance ?? [Math.floor(w / 2), d - 1];
   const { shape, material, wallMat, wallColor, accent, porch, rnd, look, c } = cottageChoices(opts);
-  const plain = opts?.lod === 'low';
-  const s = new ShapeBuilder();
+  const s = kitBuilder(opts);
   const anchors: KitAnchors = { smoke: [], lights: [] };
   const x0 = 0.22;
   const x1 = w - 0.22;
@@ -311,13 +306,12 @@ export function cottageOf(opts: KitBuildOptions | undefined): Built {
       ridgeAlongX: true,
     },
     rnd,
-    plain,
   });
   const clad = claddingDepth(wallMat);
   const front: Face = { dir: 'z+', plane: z1 };
   const doorU = ex + 0.5;
   doorPart(s, front, doorU, 0.28, 0.62, accent, palette.timber, 'arched', clad);
-  if (porch && !plain)
+  if (porch)
     porchPart(
       s,
       front,
@@ -329,7 +323,7 @@ export function cottageOf(opts: KitBuildOptions | undefined): Built {
       palette.timber,
       false,
     );
-  if (!plain) {
+  s.detail(() => {
     const style = windowStyle(c, accent, { box: true, shutters: true });
     windowRow(s, front, x0, x1, 0.52, style, rnd, anchors.lights!, [doorU], 0.6, [0.2, 0.22], clad);
     const side = { ...style, box: false };
@@ -351,7 +345,7 @@ export function cottageOf(opts: KitBuildOptions | undefined): Built {
         vary(palette.stone, rnd, 1.2),
         0.01,
       );
-  }
+  });
   if (c.chimney ?? true) {
     const cx = look() < 0.5 ? x1 - 0.32 : x0 + 0.32;
     anchors.smoke!.push(
@@ -374,7 +368,6 @@ function houseOf(opts: KitBuildOptions | undefined): Built {
   const [ex] = opts?.entrance ?? [1, d - 1];
   const { rnd, look } = streams(opts, 2);
   const c = customOf(opts);
-  const plain = opts?.lod === 'low';
   const material =
     c.roofMaterial ??
     pickWeighted<RoofMaterial>(look, [
@@ -397,7 +390,7 @@ function houseOf(opts: KitBuildOptions | undefined): Built {
         : upperColor;
   const accent = c.accent ?? [palette.accentRed, palette.navy, palette.teal][Math.floor(look() * 3)]!;
   const gableFront = look() < 0.6;
-  const s = new ShapeBuilder();
+  const s = kitBuilder(opts);
   const anchors: KitAnchors = { smoke: [], lights: [] };
   const x0 = 0.2;
   const x1 = w - 0.2;
@@ -424,7 +417,6 @@ function houseOf(opts: KitBuildOptions | undefined): Built {
       ridgeAlongX: !gableFront,
     },
     rnd,
-    plain,
   });
   const [ox0, oz0, ox1, oz1] = sh.outer;
   const clad = claddingDepth(lower);
@@ -432,7 +424,7 @@ function houseOf(opts: KitBuildOptions | undefined): Built {
   const upFront: Face = { dir: 'z+', plane: oz1 };
   const doorU = ex + 0.5;
   doorPart(s, front, doorU, 0.28, 0.6, accent, palette.timber, look() < 0.5 ? 'arched' : 'dutch', clad);
-  if (!plain) {
+  s.detail(() => {
     const style = windowStyle(c, accent, { box: true, shutters: true });
     windowRow(s, front, x0, x1, 0.45, style, rnd, anchors.lights!, [doorU], 0.6, [0.2, 0.22], clad);
     windowRow(s, upFront, ox0, ox1, 1.12, style, rnd, anchors.lights!, [], 0.6, [0.22, 0.24], 0.012);
@@ -503,7 +495,7 @@ function houseOf(opts: KitBuildOptions | undefined): Built {
     porchPart(s, front, doorU, 0.32, 0.72, 0.24, vary(sh.roof.color, rnd, 0.5), palette.timber, false);
     flowerPot(s, doorU - 0.26, 0, z1 + 0.1, rnd);
     flowerPot(s, doorU + 0.26, 0, z1 + 0.1, rnd);
-  }
+  });
   if (c.chimney ?? true) {
     const cx = gableFront ? x1 - 0.22 : x1 - 0.3;
     const cz = gableFront ? (z0 + z1) / 2 : (z0 + z1) / 2 - 0.2;
@@ -517,7 +509,7 @@ function shedOf(opts: KitBuildOptions | undefined): Built {
   const [w, d] = opts?.size ?? [1, 2];
   const { rnd, look } = streams(opts, 3);
   const c = customOf(opts);
-  const s = new ShapeBuilder();
+  const s = kitBuilder(opts);
   const anchors: KitAnchors = { smoke: [], lights: [] };
   const x0 = 0.14;
   const x1 = w - 0.14;
@@ -583,8 +575,7 @@ function hall(opts: KitBuildOptions | undefined): Built {
   const [ex] = opts?.entrance ?? [2, 3];
   const { rnd } = streams(opts, 4);
   const c = customOf(opts);
-  const plain = opts?.lod === 'low';
-  const s = new ShapeBuilder();
+  const s = kitBuilder(opts);
   const anchors: KitAnchors = { smoke: [], lights: [] };
   const x0 = 0.3;
   const x1 = w - 0.3;
@@ -613,7 +604,6 @@ function hall(opts: KitBuildOptions | undefined): Built {
       ridgeAlongX: true,
     },
     rnd,
-    plain,
   });
   const [ox0, , ox1, oz1] = sh.outer;
   const front: Face = { dir: 'z+', plane: z1 };
@@ -631,7 +621,7 @@ function hall(opts: KitBuildOptions | undefined): Built {
       0.01,
     );
   doorPart(s, front, doorU, 0.42, 0.72, accent, palette.white, 'double', 0.015);
-  if (!plain) {
+  s.detail(() => {
     for (const du of [-0.45, 0.45]) {
       s.cylinder(doorU + du, z1 + 0.36, 0.05, 0.045, 0.16, 0.95, palette.white, 8);
       s.box(doorU + du - 0.07, 0.95, z1 + 0.29, doorU + du + 0.07, 0.99, z1 + 0.43, palette.white);
@@ -740,7 +730,7 @@ function hall(opts: KitBuildOptions | undefined): Built {
       vary(palette.accentRed, rnd, 1.5),
     );
     bench(s, doorU - 1.05, z1 + 0.4, true, rnd);
-  }
+  });
   // The clock tower on the ridge, with an open belfry and a pyramid roof.
   const cx = w / 2;
   const cz = (z0 + z1) / 2;
@@ -808,7 +798,7 @@ export const well: Kit = {
   kind: 'building',
   build: (opts) => {
     const rnd = seeded(opts?.seed ?? 1);
-    const s = new ShapeBuilder();
+    const s = kitBuilder(opts);
     // A ring of chunky stones, a winch on two posts with a bucket, under a little tiled roof.
     const n = 10;
     for (let row = 0; row < 3; row++) {
@@ -895,7 +885,7 @@ function mill(opts: KitBuildOptions | undefined): Built {
   const c = customOf(opts);
   const cx = w / 2;
   const cz = d / 2;
-  const s = new ShapeBuilder();
+  const s = kitBuilder(opts);
   const anchors: KitAnchors = { smoke: [], lights: [] };
   // A stone base, then a tapering white tower in timber bands, a reefing stage and a boat cap.
   s.cylinder(cx, cz, 0.84, 0.8, 0, 0.42, vary(palette.stone, rnd, 0.6), 8, Math.PI / 8);
@@ -1027,7 +1017,7 @@ export const windmill: Kit = {
   anchors: (opts) => mill(opts).anchors,
   parts: (opts): KitPart[] => {
     const [hx, hy, hz] = hubOf(opts);
-    const s = new ShapeBuilder();
+    const s = kitBuilder(opts);
     // Four lattice sails with half-furled cloth, built around the hub so the pivot is its center.
     s.cylinder(hx, hz + 0.05, 0.09, 0.09, hy - 0.05, hy + 0.05, palette.timber, 6);
     for (let k = 0; k < 4; k++) {

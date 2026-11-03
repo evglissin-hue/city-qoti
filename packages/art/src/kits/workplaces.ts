@@ -4,7 +4,8 @@
 // the vegetable plot's beds, the fisher's jetty and boat, the storehouse yard and the market stall.
 // Runtime detail arrives in params: 'out:<good>', 'in:<good>' and 'stock:<good>' levels 0 to 4
 // and 'growth' 0 to 3, so piles and crops follow what the building is doing.
-import { mixHex, ShapeBuilder, vary, type V3 } from '../geometry';
+import type { ShapeBuilder } from '../geometry';
+import { mixHex, vary, type V3 } from '../geometry';
 import { palette } from '../palette';
 import { beam, cylX, cylZ, panel } from '../shapes';
 import { shell, signBoard, windowRow, windowStyle, type Built } from './buildings';
@@ -21,6 +22,7 @@ import {
   porchPart,
   windowPart,
   type Face,
+  kitBuilder,
 } from './parts';
 import {
   barrel,
@@ -62,8 +64,8 @@ function kit(id: string, make: (o: KitBuildOptions | undefined) => Built): Kit {
   };
 }
 
-function start(): Built {
-  return { s: new ShapeBuilder(), anchors: { smoke: [], lights: [] } };
+function start(opts?: KitBuildOptions): Built {
+  return { s: kitBuilder(opts), anchors: { smoke: [], lights: [] } };
 }
 
 /** A lantern on a post, always lit at night. Returns the flame position. */
@@ -85,7 +87,7 @@ function bakery(opts: KitBuildOptions | undefined): Built {
   const [ex] = opts?.entrance ?? [1, 1];
   const { rnd } = streams(opts, 11);
   const c = customOf(opts);
-  const { s, anchors } = start();
+  const { s, anchors } = start(opts);
   const x0 = 0.2;
   const x1 = w - 0.2;
   const z0 = 0.32;
@@ -210,7 +212,7 @@ function farmhouse(opts: KitBuildOptions | undefined): Built {
   const [w, d] = opts?.size ?? [2, 2];
   const { rnd, look } = streams(opts, 12);
   const c = customOf(opts);
-  const { s, anchors } = start();
+  const { s, anchors } = start(opts);
   const x0 = 0.22;
   const x1 = w - 0.22;
   const z0 = 0.22;
@@ -300,7 +302,7 @@ function woodcutter(opts: KitBuildOptions | undefined): Built {
   const [ex] = opts?.entrance ?? [1, 1];
   const { rnd } = streams(opts, 13);
   const c = customOf(opts);
-  const { s, anchors } = start();
+  const { s, anchors } = start(opts);
   groundPatch(s, 0.08, 1.05, w - 0.08, d - 0.05, 0xb5946a, rnd);
   for (let i = 0; i < 14; i++) {
     const x = 0.2 + rnd() * (w - 0.4);
@@ -398,7 +400,7 @@ function forester(opts: KitBuildOptions | undefined): Built {
   const [ex] = opts?.entrance ?? [1, 1];
   const { rnd } = streams(opts, 14);
   const c = customOf(opts);
-  const { s, anchors } = start();
+  const { s, anchors } = start(opts);
   const x0 = 0.2;
   const x1 = w - 0.2;
   const z0 = 0.2;
@@ -484,7 +486,7 @@ function sawpit(opts: KitBuildOptions | undefined): Built {
   const [w, d] = opts?.size ?? [2, 3];
   const { rnd } = streams(opts, 15);
   const c = customOf(opts);
-  const { s, anchors } = start();
+  const { s, anchors } = start(opts);
   groundPatch(s, 0.08, 0.1, w - 0.08, d - 0.08, 0xc2a57a, rnd);
   // The pit, with a timber rim.
   const px0 = 0.62;
@@ -544,7 +546,7 @@ function quarry(opts: KitBuildOptions | undefined): Built {
   const [w, d] = opts?.size ?? [3, 3];
   const { rnd } = streams(opts, 16);
   const c = customOf(opts);
-  const { s, anchors } = start();
+  const { s, anchors } = start(opts);
   groundPatch(s, 0.05, 0.05, w - 0.05, d - 0.05, GRAVEL, rnd);
   // Cut terraces stepping up toward the back, faced with fresh pale cuts and darker weathered rock.
   const terraces: [number, number, number, number][] = [
@@ -606,7 +608,7 @@ function vegetablePlot(opts: KitBuildOptions | undefined): Built {
   const [ex] = opts?.entrance ?? [1, 1];
   const { rnd } = streams(opts, 17);
   const c = customOf(opts);
-  const { s, anchors } = start();
+  const { s, anchors } = start(opts);
   const growth = Math.max(0, Math.min(3, Math.round(level(opts, 'growth'))));
   // Playtest round six: the soil shows. 'soil' 1 (thin) to 4 (rich); absent reads as good soil.
   const soil = Math.max(1, Math.min(4, Math.round(level(opts, 'soil')) || 3));
@@ -692,7 +694,7 @@ function fishersHut(opts: KitBuildOptions | undefined): Built {
   const [ex] = opts?.entrance ?? [1, 1];
   const { rnd } = streams(opts, 18);
   const c = customOf(opts);
-  const { s, anchors } = start();
+  const { s, anchors } = start(opts);
   const x0 = 0.18;
   const x1 = 1.55;
   const z0 = 0.15;
@@ -779,7 +781,7 @@ function storehouse(opts: KitBuildOptions | undefined): Built {
   const [ex] = opts?.entrance ?? [1, 2];
   const { rnd, look } = streams(opts, 19);
   const c = customOf(opts);
-  const { s, anchors } = start();
+  const { s, anchors } = start(opts);
   groundPatch(s, 0.08, 1.85, w - 0.08, d - 0.06, EARTH, rnd);
   const x0 = 0.18;
   const x1 = w - 0.18;
@@ -897,7 +899,7 @@ function marketStall(opts: KitBuildOptions | undefined): Built {
   const [w, d] = opts?.size ?? [1, 2];
   const { rnd, look } = streams(opts, 20);
   const c = customOf(opts);
-  const { s, anchors } = start();
+  const { s, anchors } = start(opts);
   const accent =
     c.accent ?? [palette.accentRed, palette.teal, palette.navy, palette.mustard][Math.floor(look() * 4)]!;
   const x0 = 0.1;
@@ -999,7 +1001,7 @@ function buildersYard(opts: KitBuildOptions | undefined): Built {
   const [w, d] = opts?.size ?? [3, 3];
   const { rnd } = streams(opts, 21);
   const c = customOf(opts);
-  const { s, anchors } = start();
+  const { s, anchors } = start(opts);
   groundPatch(s, 0.06, 0.95, w - 0.06, d - 0.06, EARTH, rnd);
   // The workshop: an open-fronted lean-to along the back, with a workbench and tools.
   const x0 = 0.12;

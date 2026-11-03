@@ -14,6 +14,11 @@ export function cylX(
   seg = 6,
   capHex = hex,
 ): void {
+  // V1B: small logs drop out of the far level.
+  if (s.isMinor(x1 - x0, r * 2, r * 2) && !s.silent) {
+    s.nearOnly(() => cylX(s, x0, x1, y, z, r, hex, seg, capHex));
+    return;
+  }
   for (let i = 0; i < seg; i++) {
     const a0 = (i / seg) * Math.PI * 2;
     const a1 = ((i + 1) / seg) * Math.PI * 2;
@@ -37,6 +42,10 @@ export function cylZ(
   seg = 6,
   capHex = hex,
 ): void {
+  if (s.isMinor(z1 - z0, r * 2, r * 2) && !s.silent) {
+    s.nearOnly(() => cylZ(s, z0, z1, x, y, r, hex, seg, capHex));
+    return;
+  }
   for (let i = 0; i < seg; i++) {
     const a0 = (i / seg) * Math.PI * 2;
     const a1 = ((i + 1) / seg) * Math.PI * 2;
@@ -53,6 +62,11 @@ export function beam(s: ShapeBuilder, a: V3, b: V3, t: number, hex: number): voi
   const d: V3 = [b[0] - a[0], b[1] - a[1], b[2] - a[2]];
   const len = Math.sqrt(d[0] * d[0] + d[1] * d[1] + d[2] * d[2]);
   if (len < 1e-6) return;
+  // V1B: posts, rails and braces thinner than a few pixels drop out of the far level.
+  if (s.isMinor(len, t * 2, t * 2) && !s.silent) {
+    s.nearOnly(() => beam(s, a, b, t, hex));
+    return;
+  }
   const f: V3 = [d[0] / len, d[1] / len, d[2] / len];
   const ref: V3 = Math.abs(f[1]) < 0.9 ? [0, 1, 0] : [1, 0, 0];
   let u: V3 = [f[1] * ref[2] - f[2] * ref[1], f[2] * ref[0] - f[0] * ref[2], f[0] * ref[1] - f[1] * ref[0]];

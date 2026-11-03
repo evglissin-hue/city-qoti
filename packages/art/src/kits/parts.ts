@@ -2,9 +2,20 @@
 // windows with shutters and flower boxes; doors (arched, plank, double barn); chimneys; porches;
 // dormers; hanging signs and awnings. Faces are addressed in a local frame (u along the face, y up,
 // o outward from the wall plane) so one part works on any of the four sides.
-import { vary, type ShapeBuilder, type V3 } from '../geometry';
+import { ShapeBuilder, vary, type V3 } from '../geometry';
 import { palette } from '../palette';
 import { beam, cylX, cylZ } from '../shapes';
+import { SURFACE } from '../surface';
+
+import type { KitBuildOptions } from './types';
+
+/**
+ * V1B: the builder every building kit draws with: the level from `opts.lod` (parts draw their far
+ * versions at 'low') and the kit AO bake.
+ */
+export function kitBuilder(opts?: KitBuildOptions): ShapeBuilder {
+  return new ShapeBuilder(opts?.lod ?? 'high', 'kit');
+}
 
 export type FaceDir = 'z+' | 'z-' | 'x+' | 'x-';
 
@@ -122,6 +133,8 @@ export interface WallSpec {
   beams?: number[];
   /** Low detail: no studs, stones or boards. */
   plain?: boolean;
+  /** V1B: faces left out (box skip letters, 'l' and 'r' for party walls). */
+  skip?: string;
 }
 
 /** How far cladding stands proud of the wall plane: windows and doors sit on top of it. */
@@ -129,41 +142,141 @@ export function claddingDepth(m: WallMaterial): number {
   return m === 'log' ? 0.05 : m === 'weatherboard' ? 0.02 : m === 'stone' ? 0.015 : 0.012;
 }
 
+/** V1B: the surface a wall material is drawn in (V1A's material lays its pattern on it). */
+export function wallSurface(m: WallMaterial): number {
+  switch (m) {
+    case 'brick':
+      return SURFACE.brick;
+    case 'stone':
+      return SURFACE.stone;
+    case 'weatherboard':
+    case 'log':
+      return SURFACE.timber;
+    default:
+      return SURFACE.plaster;
+  }
+}
+
+/** V1B: how much each wall face's color varies, hashed from where it is (both levels alike). */
+export const WALL_JITTER = 0.03;
+
 export function wallsOf(s: ShapeBuilder, w: WallSpec): void {
+  // V1B: a structural part: it draws its far version even inside a kit's decoration.
+  s.essential(() => wallsBody(s, w));
+}
+
+function wallsBody(s: ShapeBuilder, w: WallSpec): void {
   const { x0, z0, x1, z1, y0, y1, rnd } = w;
   const core = w.material === 'log' ? vary(palette.darkWood, rnd, 0.5) : w.color;
-  s.box(x0, y0, z0, x1, y1, z1, core);
-  if (w.plain) {
-    if (w.material === 'timber' || w.material === 'plaster') cornerPosts(s, w);
+  // V1B: the wall body in its surface, never its bottom; at the far level never its top either (a
+  // roof or the floor above covers it). `skip` leaves out party walls.
+  const skip = (w.skip ?? '') + 'b' + (s.low ? 't' : '');
+  s.surface(wallSurface(w.material)).jitter(WALL_JITTER);
+  s.box(x0, y0, z0, x1, y1, z1, w.material === 'log' && s.low ? w.color : core, skip);
+  s.jitter(0).surface(SURFACE.timber);
+  s.levels(
+    () => {
+      if (w.plain) {
+        if (w.material === 'timber' || w.material === 'plaster') cornerPosts(s, w);
+        return;
+      }
+      switch (w.material) {
+        case 'plaster':
+          cornerPosts(s, w);
+          for (const y of w.beams ?? []) ringBox(s, w, 0.03, y - 0.03, y + 0.03, w.trim);
+          break;
+        case 'timber':
+          cornerPosts(s, w);
+          for (const y of w.beams ?? []) ringBox(s, w, 0.03, y - 0.03, y + 0.03, w.trim);
+          timberFrame(s, w);
+          break;
+        case 'stone':
+          s.surface(SURFACE.stone);
+          stones(s, w);
+          break;
+        case 'brick':
+          s.surface(SURFACE.stone);
+          ringBox(s, w, 0.01, y0, y0 + 0.08, palette.foundation);
+          quoins(s, w, palette.stone);
+          ringBox(s, w, 0.015, y1 - 0.05, y1, palette.stone);
+          break;
+        case 'weatherboard':
+          boards(s, w);
+          break;
+        case 'log':
+          logs(s, w);
+          break;
+      }
+    },
+    () => farTrim(s, w),
+  );
+  s.surface(SURFACE.plain);
+}
+
+/**
+ * V1B: the far level's trim as flat strips on the wall faces: timber framing keeps its corner posts,
+ * plates and floor beams (the black and white reads from across the valley), plaster its corner
+ * posts and wall plate, brick and stone their coping band.
+ */
+function farTrim(s: ShapeBuilder, w: WallSpec): void {
+  const { x0, z0, x1, z1, y0, y1 } = w;
+  const m = w.material;
+  if (m === 'log' || m === 'weatherboard') return;
+  const o = claddingDepth(m) * 0.6 + 0.004;
+  const skip = w.skip ?? '';
+  const faces = facesOf(x0, z0, x1, z1).filter(({ f }) => !skip.includes(FACE_LETTER[f.dir]));
+  const strip = (f: Face, u0: number, ya: number, u1: number, yb: number, hex: number): void =>
+    faceQuad(s, f, u0, ya, u1, yb, o, hex);
+  if (m === 'stone' || m === 'brick') {
+    s.surface(SURFACE.stone);
+    for (const { f, u0, u1 } of faces) strip(f, u0, y1 - 0.05, u1, y1, palette.stone);
     return;
   }
-  switch (w.material) {
-    case 'plaster':
-      cornerPosts(s, w);
-      for (const y of w.beams ?? [])
-        s.box(x0 - 0.03, y - 0.03, z0 - 0.03, x1 + 0.03, y + 0.03, z1 + 0.03, w.trim);
-      break;
-    case 'timber':
-      cornerPosts(s, w);
-      for (const y of w.beams ?? [])
-        s.box(x0 - 0.03, y - 0.03, z0 - 0.03, x1 + 0.03, y + 0.03, z1 + 0.03, w.trim);
-      timberFrame(s, w);
-      break;
-    case 'stone':
-      stones(s, w);
-      break;
-    case 'brick':
-      s.box(x0 - 0.01, y0, z0 - 0.01, x1 + 0.01, y0 + 0.08, z1 + 0.01, palette.foundation);
-      quoins(s, w, palette.stone);
-      s.box(x0 - 0.015, y1 - 0.05, z0 - 0.015, x1 + 0.015, y1, z1 + 0.015, palette.stone);
-      break;
-    case 'weatherboard':
-      boards(s, w);
-      break;
-    case 'log':
-      logs(s, w);
-      break;
+  s.surface(SURFACE.timber);
+  for (const { f, u0, u1 } of faces) {
+    strip(f, u0, y1 - 0.055, u1, y1, w.trim);
+    if (m === 'timber') for (const y of w.beams ?? []) strip(f, u0, y - 0.03, u1, y + 0.03, w.trim);
+    strip(f, u0, y0, u0 + 0.045, y1 - 0.055, w.trim);
+    strip(f, u1 - 0.045, y0, u1, y1 - 0.055, w.trim);
   }
+}
+
+/** Box face letters (`ShapeBuilder.box` skip) for each face direction. */
+export const FACE_LETTER: Record<FaceDir, string> = { 'z+': 'f', 'z-': 'k', 'x+': 'r', 'x-': 'l' };
+
+/**
+ * V1B: the wall outline grown by `d`, except on party walls (`skip`), which stay flush so nothing
+ * pokes into the neighbor's house; and a box through it that leaves those faces out.
+ */
+function ringBox(s: ShapeBuilder, w: WallSpec, d: number, ya: number, yb: number, hex: number): void {
+  const k = w.skip ?? '';
+  s.box(
+    w.x0 - (k.includes('l') ? 0 : d),
+    ya,
+    w.z0 - (k.includes('k') ? 0 : d),
+    w.x1 + (k.includes('r') ? 0 : d),
+    yb,
+    w.z1 + (k.includes('f') ? 0 : d),
+    hex,
+    k,
+  );
+}
+
+/** V1B: the faces of a wall that show (party walls left out). */
+function wallFaces(w: WallSpec): { f: Face; u0: number; u1: number }[] {
+  const k = w.skip ?? '';
+  return facesOf(w.x0, w.z0, w.x1, w.z1).filter(({ f }) => !k.includes(FACE_LETTER[f.dir]));
+}
+
+/** V1B: true when a corner at (x, z) of the outline stands on a party wall. */
+function partyCorner(w: WallSpec, x: number, z: number): boolean {
+  const k = w.skip ?? '';
+  return (
+    (k.includes('l') && x === w.x0) ||
+    (k.includes('r') && x === w.x1) ||
+    (k.includes('f') && z === w.z1) ||
+    (k.includes('k') && z === w.z0)
+  );
 }
 
 function cornerPosts(s: ShapeBuilder, w: WallSpec): void {
@@ -175,16 +288,17 @@ function cornerPosts(s: ShapeBuilder, w: WallSpec): void {
     [x1, z1],
     [x0, z1],
   ] as const) {
+    if (partyCorner(w, x, z)) continue;
     s.box(x - p, y0, z - p, x + p, y1, z + p, w.trim);
   }
-  s.box(x0 - 0.035, y1 - 0.055, z0 - 0.035, x1 + 0.035, y1, z1 + 0.035, w.trim);
-  s.box(x0 - 0.03, y0, z0 - 0.03, x1 + 0.03, y0 + 0.05, z1 + 0.03, w.trim);
+  ringBox(s, w, 0.035, y1 - 0.055, y1, w.trim);
+  ringBox(s, w, 0.03, y0, y0 + 0.05, w.trim);
 }
 
 /** Studs and diagonal braces on every face, between the floor beams. */
 function timberFrame(s: ShapeBuilder, w: WallSpec): void {
   const levels = [w.y0, ...(w.beams ?? []), w.y1];
-  for (const { f, u0, u1 } of facesOf(w.x0, w.z0, w.x1, w.z1)) {
+  for (const { f, u0, u1 } of wallFaces(w)) {
     const len = u1 - u0;
     const bays = Math.max(1, Math.round(len / 0.5));
     for (let l = 0; l < levels.length - 1; l++) {
@@ -219,6 +333,7 @@ function quoins(s: ShapeBuilder, w: WallSpec, hex: number): void {
       const lx = k % 2 ? 0.16 : 0.09;
       const lz = k % 2 ? 0.09 : 0.16;
       const c = vary(hex, rnd, 1.2);
+      if (partyCorner(w, x, z)) continue;
       s.box(
         Math.min(x, x + sx * lx) - 0.012,
         y,
@@ -247,23 +362,17 @@ function stones(s: ShapeBuilder, w: WallSpec): void {
   for (const { f, u0, u1 } of facesOf(w.x0, w.z0, w.x1, w.z1)) {
     const len = u1 - u0;
     const n = Math.round(len * 5);
+    const hidden = (w.skip ?? '').includes(FACE_LETTER[f.dir]);
     for (let i = 0; i < n; i++) {
       const u = u0 + 0.12 + w.rnd() * (len - 0.24);
       const y = w.y0 + 0.06 + w.rnd() * (w.y1 - w.y0 - 0.14);
       const sw = 0.07 + w.rnd() * 0.07;
       const sh = 0.045 + w.rnd() * 0.04;
-      faceBox(s, f, u - sw / 2, y, 0, u + sw / 2, y + sh, 0.014, vary(w.color, w.rnd, 2));
+      const c = vary(w.color, w.rnd, 2);
+      if (!hidden) faceBox(s, f, u - sw / 2, y, 0, u + sw / 2, y + sh, 0.014, c);
     }
   }
-  s.box(
-    w.x0 - 0.02,
-    w.y0,
-    w.z0 - 0.02,
-    w.x1 + 0.02,
-    w.y0 + 0.06,
-    w.z1 + 0.02,
-    vary(palette.foundation, w.rnd, 0.5),
-  );
+  ringBox(s, w, 0.02, w.y0, w.y0 + 0.06, vary(palette.foundation, w.rnd, 0.5));
 }
 
 /** Horizontal clapboards: each board slightly kicked out at its foot, with corner boards. */
@@ -272,10 +381,15 @@ function boards(s: ShapeBuilder, w: WallSpec): void {
   const step = (w.y1 - w.y0) / n;
   for (const { f, u0, u1 } of facesOf(w.x0, w.z0, w.x1, w.z1)) {
     const out = outwardOf(f);
+    const hidden = (w.skip ?? '').includes(FACE_LETTER[f.dir]);
     for (let i = 0; i < n; i++) {
       const ya = w.y0 + i * step;
       const yb = ya + step;
       const hex = vary(w.color, w.rnd, 0.35);
+      if (hidden) {
+        vary(hex, w.rnd, 0.4);
+        continue;
+      }
       s.quad(
         facePoint(f, u0, ya, 0.02),
         facePoint(f, u1, ya, 0.02),
@@ -293,10 +407,11 @@ function boards(s: ShapeBuilder, w: WallSpec): void {
         [out[0], -1, out[2]],
       );
     }
+    if (hidden) continue;
     faceBox(s, f, u0 - 0.02, w.y0, 0, u0 + 0.05, w.y1, 0.03, w.trim);
     faceBox(s, f, u1 - 0.05, w.y0, 0, u1 + 0.02, w.y1, 0.03, w.trim);
   }
-  s.box(w.x0 - 0.03, w.y1 - 0.05, w.z0 - 0.03, w.x1 + 0.03, w.y1, w.z1 + 0.03, w.trim);
+  ringBox(s, w, 0.03, w.y1 - 0.05, w.y1, w.trim);
 }
 
 /** Log cabin walls: stacked logs whose ends cross and stick out at the corners. */
@@ -327,9 +442,26 @@ export interface WindowStyle {
   flowers: readonly number[];
   /** Arched top (round-headed), for halls and mills. */
   arch?: boolean;
+  /** V1B: a lintel over the window in this color (stone or brick styles), none when absent. */
+  lintel?: number;
+  /** V1B: the sill's color (the frame's when absent). */
+  sill?: number;
+  /** V1B: panes per row and rows (muntins between them), 2 by 2 when absent. */
+  panes?: [number, number];
 }
 
-/** A window centered at (u, y) on a face: frame, glowing pane, mullions, shutters and a flower box. */
+/** V1B: a window's lintel and sill color for a wall material (stone dressings on brick and stone). */
+export function dressingsOf(m: WallMaterial, frame: number): { lintel?: number; sill: number } {
+  if (m === 'brick') return { lintel: palette.stone, sill: palette.stone };
+  if (m === 'stone') return { lintel: vary(palette.stone, () => 0.7, 1), sill: palette.stone };
+  return { sill: frame };
+}
+
+/**
+ * A window centered at (u, y) on a face. Near: a frame with a reveal, a glowing pane, muntins, a
+ * sill, a lintel where the style has one, ledged shutters and a flower box. Far (V1B): the frame,
+ * pane, shutters and box as flat quads, the pane still glowing at night.
+ */
 export function windowPart(
   s: ShapeBuilder,
   f: Face,
@@ -343,9 +475,50 @@ export function windowPart(
   o = 0,
 ): void {
   const fw = 0.035;
-  faceBox(s, f, u - w / 2 - fw, y - h / 2 - fw, o, u + w / 2 + fw, y + h / 2 + fw, o + 0.02, style.frame);
-  s.glow(1);
-  faceBox(s, f, u - w / 2, y - h / 2, o + 0.02, u + w / 2, y + h / 2, o + 0.028, palette.windowDay);
+  s.levels(
+    () => windowNear(s, f, u, y, w, h, style, rnd, o),
+    () => {
+      s.surface(SURFACE.plain);
+      faceQuad(s, f, u - w / 2 - fw, y - h / 2 - fw, u + w / 2 + fw, y + h / 2 + fw, o + 0.012, style.frame);
+      s.glow(1).surface(SURFACE.glass);
+      faceQuad(s, f, u - w / 2, y - h / 2, u + w / 2, y + h / 2, o + 0.018, palette.windowDay);
+      s.glow(0);
+      if (style.shutter !== null) {
+        s.surface(SURFACE.timber);
+        const sw = w * 0.42;
+        faceQuad(s, f, u - w / 2 - fw - sw, y - h / 2, u - w / 2 - fw, y + h / 2, o + 0.016, style.shutter);
+        faceQuad(s, f, u + w / 2 + fw, y - h / 2, u + w / 2 + fw + sw, y + h / 2, o + 0.016, style.shutter);
+      }
+      if (style.box) {
+        s.surface(SURFACE.flowers);
+        const by = y - h / 2 - 0.05;
+        faceQuad(s, f, u - w / 2 - 0.02, by - 0.07, u + w / 2 + 0.02, by + 0.04, o + 0.08, palette.leaf);
+      }
+      s.surface(SURFACE.plain);
+    },
+  );
+  lights?.push(facePoint(f, u, y, o + 0.05));
+}
+
+function windowNear(
+  s: ShapeBuilder,
+  f: Face,
+  u: number,
+  y: number,
+  w: number,
+  h: number,
+  style: WindowStyle,
+  rnd: () => number,
+  o: number,
+): void {
+  const fw = 0.035;
+  const top = y + h / 2;
+  const bot = y - h / 2;
+  s.surface(SURFACE.plain);
+  // The frame stands proud of the wall; the pane sits back in it, so the frame casts a reveal.
+  faceBox(s, f, u - w / 2 - fw, bot - fw, o, u + w / 2 + fw, top + fw, o + 0.024, style.frame);
+  s.glow(1).surface(SURFACE.glass);
+  faceQuad(s, f, u - w / 2, bot, u + w / 2, top, o + 0.026, palette.windowDay);
   if (style.arch) {
     const seg = 4;
     for (let i = 0; i < seg; i++) {
@@ -353,92 +526,73 @@ export function windowPart(
       const a1 = ((i + 1) / seg) * Math.PI;
       const r = w / 2;
       s.tri(
-        facePoint(f, u, y + h / 2, o + 0.028),
-        facePoint(f, u + Math.cos(a0) * r, y + h / 2 + Math.sin(a0) * r, o + 0.028),
-        facePoint(f, u + Math.cos(a1) * r, y + h / 2 + Math.sin(a1) * r, o + 0.028),
+        facePoint(f, u, top, o + 0.026),
+        facePoint(f, u + Math.cos(a0) * r, top + Math.sin(a0) * r, o + 0.026),
+        facePoint(f, u + Math.cos(a1) * r, top + Math.sin(a1) * r, o + 0.026),
         palette.windowDay,
         outwardOf(f),
       );
     }
   }
-  s.glow(0);
+  s.glow(0).surface(SURFACE.plain);
   if (style.arch)
     faceBox(
       s,
       f,
       u - w / 2 - fw,
-      y + h / 2 + w / 2 - 0.01,
+      top + w / 2 - 0.01,
       o,
       u + w / 2 + fw,
-      y + h / 2 + w / 2 + fw,
-      o + 0.02,
+      top + w / 2 + fw,
+      o + 0.024,
       style.frame,
     );
-  faceBox(s, f, u - 0.012, y - h / 2, o + 0.028, u + 0.012, y + h / 2, o + 0.038, style.frame);
-  faceBox(s, f, u - w / 2, y - 0.012, o + 0.028, u + w / 2, y + 0.012, o + 0.038, style.frame);
-  // Sill.
+  // Muntins: glazing bars between the panes, as thin strips over the glass.
+  const [cols, rows] = style.panes ?? [2, 2];
+  for (let i = 1; i < cols; i++) {
+    const mu = u - w / 2 + (w * i) / cols;
+    faceQuad(s, f, mu - 0.009, bot, mu + 0.009, top, o + 0.03, style.frame);
+  }
+  for (let j = 1; j < rows; j++) {
+    const my = bot + (h * j) / rows;
+    faceQuad(s, f, u - w / 2, my - 0.009, u + w / 2, my + 0.009, o + 0.031, style.frame);
+  }
+  // Sill and lintel.
+  s.surface(style.lintel !== undefined || style.sill !== undefined ? SURFACE.stone : SURFACE.plain);
   faceBox(
     s,
     f,
-    u - w / 2 - 0.05,
-    y - h / 2 - 0.05,
+    u - w / 2 - 0.055,
+    bot - fw - 0.04,
     o,
-    u + w / 2 + 0.05,
-    y - h / 2 - 0.02,
-    o + 0.05,
-    style.frame,
+    u + w / 2 + 0.055,
+    bot - fw + 0.004,
+    o + 0.065,
+    style.sill ?? style.frame,
   );
+  if (style.lintel !== undefined && !style.arch) {
+    s.surface(SURFACE.stone);
+    faceBox(s, f, u - w / 2 - 0.05, top + fw, o, u + w / 2 + 0.05, top + fw + 0.06, o + 0.03, style.lintel);
+  }
   if (style.shutter !== null) {
+    s.surface(SURFACE.timber);
     const sw = w * 0.42;
-    faceBox(
-      s,
-      f,
-      u - w / 2 - fw - sw,
-      y - h / 2,
-      o + 0.005,
-      u - w / 2 - fw,
-      y + h / 2,
-      o + 0.03,
-      style.shutter,
-    );
-    faceBox(
-      s,
-      f,
-      u + w / 2 + fw,
-      y - h / 2,
-      o + 0.005,
-      u + w / 2 + fw + sw,
-      y + h / 2,
-      o + 0.03,
-      style.shutter,
-    );
-    // A cut-out heart would be lovely but costs triangles; a darker rail reads as planks.
-    faceBox(
-      s,
-      f,
-      u - w / 2 - fw - sw,
-      y - 0.01,
-      o + 0.03,
-      u - w / 2 - fw,
-      y + 0.01,
-      o + 0.034,
-      vary(style.shutter, rnd, 2),
-    );
-    faceBox(
-      s,
-      f,
-      u + w / 2 + fw,
-      y - 0.01,
-      o + 0.03,
-      u + w / 2 + fw + sw,
-      y + 0.01,
-      o + 0.034,
-      vary(style.shutter, rnd, 2),
-    );
+    for (const [a, b] of [
+      [u - w / 2 - fw - sw, u - w / 2 - fw - 0.004],
+      [u + w / 2 + fw + 0.004, u + w / 2 + fw + sw],
+    ] as const) {
+      faceBox(s, f, a, bot, o + 0.005, b, top, o + 0.026, style.shutter);
+      // Ledges: two darker rails read as a ledged and braced shutter.
+      const rail = vary(style.shutter, rnd, 2);
+      for (const ry of [bot + h * 0.2, top - h * 0.2])
+        faceQuad(s, f, a, ry - 0.012, b, ry + 0.012, o + 0.028, rail);
+    }
   }
   if (style.box) {
-    const by = y - h / 2 - 0.05;
+    s.surface(SURFACE.timber);
+    const by = bot - fw - 0.04;
     faceBox(s, f, u - w / 2 - 0.02, by - 0.07, o + 0.02, u + w / 2 + 0.02, by, o + 0.1, palette.wood);
+    s.surface(SURFACE.leaf);
     const n = 3;
     for (let i = 0; i < n; i++) {
       const fu = u - w / 2 + (w * (i + 0.5)) / n;
@@ -446,16 +600,100 @@ export function windowPart(
       s.blob(p[0], p[1], p[2], 0.045, 0.035, 0.045, vary(palette.leaf, rnd, 0.8), 0);
       const c = style.flowers[Math.floor(rnd() * style.flowers.length)] ?? palette.flowerA;
       const q = facePoint(f, fu + (rnd() - 0.5) * 0.03, by + 0.05, o + 0.07);
+      s.surface(SURFACE.plain);
       s.blob(q[0], q[1], q[2], 0.028, 0.024, 0.028, c, 0);
+      s.surface(SURFACE.leaf);
     }
   }
-  lights?.push(facePoint(f, u, y, o + 0.05));
+  s.surface(SURFACE.plain);
 }
 
 export type DoorKind = 'arched' | 'plank' | 'double' | 'dutch';
 
-/** A door: arched plank door with a step, a square plank door, a dutch door or barn doors. */
+/** V1B: what dresses a door beyond its leaf: a fanlight over it, a hood on brackets. */
+export interface DoorExtras {
+  /** A half-round glazed fanlight over the door (brick and stucco styles). */
+  fanlight?: boolean;
+  /** A flat hood on two brackets over the door, in this color (timber styles). */
+  hood?: number;
+}
+
+/**
+ * A door: arched plank door with a step, a square plank door, a dutch door or barn doors. V1B: the
+ * far level is the frame and the leaf as flat quads (and the fanlight's glass, lit at night).
+ */
 export function doorPart(
+  s: ShapeBuilder,
+  f: Face,
+  u: number,
+  w: number,
+  h: number,
+  hex: number,
+  frame: number,
+  kind: DoorKind = 'arched',
+  o = 0,
+  extras: DoorExtras = {},
+): void {
+  const r = w / 2;
+  s.levels(
+    () => {
+      doorNear(s, f, u, w, h, hex, frame, kind, o);
+      if (extras.fanlight) {
+        const fy = h + 0.04;
+        const fr = r + 0.02;
+        s.surface(SURFACE.plain);
+        faceBox(s, f, u - fr - 0.03, fy - 0.01, o, u + fr + 0.03, fy + 0.02, o + 0.03, frame);
+        for (const [rad, oo, hx] of [
+          [fr + 0.03, o + 0.012, frame],
+          [fr - 0.01, o + 0.02, palette.windowDay],
+        ] as const) {
+          if (hx === palette.windowDay) s.glow(1).surface(SURFACE.glass);
+          for (let i = 0; i < 4; i++) {
+            const a0 = (i / 4) * Math.PI;
+            const a1 = ((i + 1) / 4) * Math.PI;
+            s.tri(
+              facePoint(f, u, fy + 0.02, oo),
+              facePoint(f, u + Math.cos(a0) * rad, fy + 0.02 + Math.sin(a0) * rad * 0.8, oo),
+              facePoint(f, u + Math.cos(a1) * rad, fy + 0.02 + Math.sin(a1) * rad * 0.8, oo),
+              hx,
+              outwardOf(f),
+            );
+          }
+          s.glow(0).surface(SURFACE.plain);
+        }
+      }
+      if (extras.hood !== undefined) {
+        s.surface(SURFACE.timber);
+        const hy = h + 0.06;
+        faceBox(s, f, u - r - 0.1, hy, o, u + r + 0.1, hy + 0.035, o + 0.2, extras.hood);
+        for (const side of [-1, 1])
+          beam(
+            s,
+            facePoint(f, u + side * (r + 0.05), hy - 0.14, o),
+            facePoint(f, u + side * (r + 0.05), hy, o + 0.16),
+            0.014,
+            extras.hood,
+          );
+        s.surface(SURFACE.plain);
+      }
+    },
+    () => {
+      const top = kind === 'arched' ? h - r * 0.4 : h;
+      s.surface(SURFACE.plain);
+      faceQuad(s, f, u - r - 0.04, 0.03, u + r + 0.04, top + 0.04, o + 0.012, frame);
+      s.surface(SURFACE.timber);
+      faceQuad(s, f, u - r, 0.04, u + r, top, o + 0.018, hex);
+      if (extras.fanlight) {
+        s.glow(1).surface(SURFACE.glass);
+        faceQuad(s, f, u - r, h + 0.06, u + r, h + 0.06 + r * 0.7, o + 0.016, palette.windowDay);
+        s.glow(0);
+      }
+      s.surface(SURFACE.plain);
+    },
+  );
+}
+
+function doorNear(
   s: ShapeBuilder,
   f: Face,
   u: number,
@@ -469,7 +707,9 @@ export function doorPart(
   const r = w / 2;
   const out = outwardOf(f);
   // Step.
+  s.surface(SURFACE.stone);
   faceBox(s, f, u - r - 0.06, 0, o, u + r + 0.06, 0.035, o + 0.12, palette.stone);
+  s.surface(SURFACE.timber);
   if (kind === 'double') {
     faceBox(s, f, u - r - 0.04, 0, o, u + r + 0.04, h + 0.04, o + 0.02, frame);
     for (const side of [-1, 1]) {
@@ -548,7 +788,10 @@ export function doorPart(
 
 // --- Chimneys, porches, dormers ----------------------------------------------------------------------
 
-/** A chunky chimney (brick or stone) with a cap and a pot; returns the smoke anchor at its top. */
+/**
+ * A chunky chimney (brick or stone) with a cap and pots; returns the smoke anchor at its top. V1B:
+ * the far level is the stack as a box; `pots` 2 puts a pair on the cap (party walls, big stacks).
+ */
 export function chimneyPart(
   s: ShapeBuilder,
   x: number,
@@ -557,24 +800,42 @@ export function chimneyPart(
   y1: number,
   hex: number,
   big = false,
+  pots = big ? 2 : 1,
 ): V3 {
   const r = big ? 0.15 : 0.1;
-  s.rbox(x - r, y0, z - r, x + r, y1, z + r, hex, 0.015);
-  s.box(
-    x - r - 0.012,
-    y1 - 0.18,
-    z - r - 0.012,
-    x + r + 0.012,
-    y1 - 0.14,
-    z + r + 0.012,
-    vary(hex, () => 0.3, 2),
+  const rz = big ? 0.12 : r;
+  const surf =
+    hex === palette.brick || ((hex >> 16) & 255) > ((hex >> 8) & 255) + 30 ? SURFACE.brick : SURFACE.stone;
+  s.surface(surf);
+  s.levels(
+    () => {
+      s.rbox(x - r, y0, z - rz, x + r, y1, z + rz, hex, 0.015);
+      // A string course below the cap, the cap stone, and the pots.
+      s.box(
+        x - r - 0.012,
+        y1 - 0.18,
+        z - rz - 0.012,
+        x + r + 0.012,
+        y1 - 0.14,
+        z + rz + 0.012,
+        vary(hex, () => 0.3, 2),
+      );
+      s.surface(SURFACE.stone);
+      s.rbox(x - r - 0.03, y1, z - rz - 0.03, x + r + 0.03, y1 + 0.06, z + rz + 0.03, palette.stone, 0.015);
+      s.surface(SURFACE.plain);
+      for (let i = 0; i < pots; i++) {
+        const px = pots === 1 ? x : x + (i === 0 ? -r * 0.5 : r * 0.5);
+        s.cylinder(px, z, 0.042, 0.048, y1 + 0.06, y1 + 0.14 - i * 0.02, palette.roofTerracotta, 6);
+        s.cylinder(px, z, 0.05, 0.05, y1 + 0.14 - i * 0.02, y1 + 0.155 - i * 0.02, palette.roofTerracotta, 6);
+      }
+    },
+    () => s.box(x - r, y0, z - rz, x + r, y1 + 0.06, z + rz, hex),
   );
-  s.rbox(x - r - 0.03, y1, z - r - 0.03, x + r + 0.03, y1 + 0.06, z + r + 0.03, palette.stone, 0.015);
-  s.cylinder(x, z, 0.045, 0.05, y1 + 0.06, y1 + 0.13, palette.roofTerracotta, 6);
+  s.surface(SURFACE.plain);
   return [x, y1 + 0.15, z];
 }
 
-/** A low stone foundation, slightly wider than the walls. */
+/** A low stone foundation, slightly wider than the walls. V1B: `skip` leaves out party walls. */
 export function foundationPart(
   s: ShapeBuilder,
   x0: number,
@@ -582,8 +843,13 @@ export function foundationPart(
   x1: number,
   z1: number,
   h: number,
+  skip = '',
 ): void {
-  s.rbox(x0, 0, z0, x1, h, z1, palette.foundation, 0.035);
+  s.surface(SURFACE.stone).jitter(WALL_JITTER);
+  if (skip || s.low)
+    s.essential(() => s.box(x0, 0, z0, x1, h, z1, palette.foundation, skip + (s.low ? 't' : '')));
+  else s.rbox(x0, 0, z0, x1, h, z1, palette.foundation, 0.035);
+  s.jitter(0).surface(SURFACE.plain);
 }
 
 /** Legacy simple walls (plaster box with corner posts, a top plate and an optional beam). */
@@ -630,16 +896,26 @@ export function porchPart(
   const p = (uu: number, yy: number, o: number): V3 => facePoint(f, uu, yy, o);
   const half = w / 2 + 0.08;
   const peak = y + 0.2;
-  // Two slopes running out from the wall.
+  // Two slopes running out from the wall (V1B: the far level keeps the slopes and the gable).
+  s.surface(SURFACE.tile);
   for (const side of [-1, 1]) {
     const a = p(u + side * half, y, 0);
     const b = p(u + side * half, y, depth);
     const c = p(u, peak, depth);
     const d = p(u, peak, 0);
-    s.quad(a, b, c, d, roof, [out[0] * 0 + (f.dir[0] === 'x' ? 0 : side), 1, f.dir[0] === 'x' ? side : 0]);
-    s.quad(a, b, c, d, trim, [0, -1, 0]);
+    s.essential(() =>
+      s.quad(a, b, c, d, roof, [out[0] * 0 + (f.dir[0] === 'x' ? 0 : side), 1, f.dir[0] === 'x' ? side : 0]),
+    );
+    s.surface(SURFACE.timber);
+    s.nearOnly(() => s.quad(a, b, c, d, trim, [0, -1, 0]));
+    s.surface(SURFACE.tile);
   }
-  s.tri(p(u - half, y, depth), p(u + half, y, depth), p(u, peak, depth), trim, out);
+  s.surface(SURFACE.timber);
+  s.essential(() => s.tri(p(u - half, y, depth), p(u + half, y, depth), p(u, peak, depth), trim, out));
+  // Shade on the wall and step under the hood.
+  const c0 = p(u - half, 0, 0);
+  const c1 = p(u + half, y, depth);
+  s.occlude(c0[0], 0, c0[2], c1[0], y, c1[2], 0.12, 0.12);
   if (posts) {
     for (const side of [-1, 1])
       faceBox(
@@ -663,6 +939,7 @@ export function porchPart(
         trim,
       );
   }
+  s.surface(SURFACE.plain);
 }
 
 /** A dormer on a roof slope facing `f`: a small box with a window and its own little gable. */
@@ -678,8 +955,25 @@ export function dormerPart(
   rnd: () => number,
   lights?: V3[],
 ): void {
+  // V1B: dormers are near-only detail (the far level keeps the plain roof plane).
+  s.nearOnly(() => dormerNear(s, f, u, yBase, depth, wall, roof, trim, rnd, lights));
+}
+
+function dormerNear(
+  s: ShapeBuilder,
+  f: Face,
+  u: number,
+  yBase: number,
+  depth: number,
+  wall: number,
+  roof: number,
+  trim: number,
+  rnd: () => number,
+  lights?: V3[],
+): void {
   const w = 0.32;
   const h = 0.26;
+  s.surface(SURFACE.plaster);
   faceBox(s, f, u - w / 2, yBase, -depth, u + w / 2, yBase + h, 0, wall);
   windowPart(
     s,
@@ -695,6 +989,7 @@ export function dormerPart(
   const out = outwardOf(f);
   const p = (uu: number, yy: number, o: number): V3 => facePoint(f, uu, yy, o);
   const peak = yBase + h + 0.16;
+  s.surface(SURFACE.tile);
   for (const side of [-1, 1]) {
     s.quad(
       p(u + side * (w / 2 + 0.05), yBase + h, 0.05),
@@ -705,8 +1000,11 @@ export function dormerPart(
       [f.dir[0] === 'x' ? 0 : side, 1, f.dir[0] === 'x' ? side : 0],
     );
   }
+  s.surface(SURFACE.plaster);
   s.tri(p(u - w / 2, yBase + h, 0.001), p(u + w / 2, yBase + h, 0.001), p(u, peak - 0.03, 0.001), wall, out);
+  s.surface(SURFACE.timber);
   faceBox(s, f, u - w / 2 - 0.02, yBase + h - 0.02, 0, u + w / 2 + 0.02, yBase + h + 0.01, 0.03, trim);
+  s.surface(SURFACE.plain);
 }
 
 /** A hanging sign on an iron bracket, sticking out from a face at height y. Returns the board's center. */
@@ -719,16 +1017,21 @@ export function hangingSign(
   emblem: ((s: ShapeBuilder, c: V3, f: Face) => void) | null,
 ): { center: V3; normal: V3 } {
   const p = (uu: number, yy: number, o: number): V3 => facePoint(f, uu, yy, o);
-  // The bracket runs out from the wall; the board hangs edge-on to the street (facing along u).
-  beam(s, p(u, y, 0), p(u, y, 0.36), 0.012, palette.metal);
-  beam(s, p(u, y - 0.12, 0), p(u, y, 0.2), 0.008, palette.metal);
   const o0 = 0.08;
   const o1 = 0.34;
-  for (const o of [o0 + 0.03, o1 - 0.03]) beam(s, p(u, y, o), p(u, y - 0.05, o), 0.004, palette.metal);
-  faceBox(s, f, u - 0.015, y - 0.27, o0, u + 0.015, y - 0.05, o1, board);
-  faceBox(s, f, u - 0.02, y - 0.285, o0 - 0.01, u + 0.02, y - 0.265, o1 + 0.01, palette.timber);
   const center = p(u, y - 0.16, (o0 + o1) / 2);
-  if (emblem) emblem(s, center, f);
+  // V1B: a near-only detail.
+  s.nearOnly(() => {
+    // The bracket runs out from the wall; the board hangs edge-on to the street (facing along u).
+    beam(s, p(u, y, 0), p(u, y, 0.36), 0.012, palette.metal);
+    beam(s, p(u, y - 0.12, 0), p(u, y, 0.2), 0.008, palette.metal);
+    for (const o of [o0 + 0.03, o1 - 0.03]) beam(s, p(u, y, o), p(u, y - 0.05, o), 0.004, palette.metal);
+    s.surface(SURFACE.timber);
+    faceBox(s, f, u - 0.015, y - 0.27, o0, u + 0.015, y - 0.05, o1, board);
+    faceBox(s, f, u - 0.02, y - 0.285, o0 - 0.01, u + 0.02, y - 0.265, o1 + 0.01, palette.timber);
+    s.surface(SURFACE.plain);
+    if (emblem) emblem(s, center, f);
+  });
   const normal: V3 = f.dir[0] === 'z' ? [1, 0, 0] : [0, 0, 1];
   return { center, normal };
 }
@@ -747,6 +1050,22 @@ export function awningPart(
 ): void {
   const out = outwardOf(f);
   const drop = 0.16;
+  s.surface(SURFACE.awning);
+  if (s.low) {
+    // V1B: the far level is the canvas as one sloping quad (the awning pattern draws the stripes).
+    s.essential(() =>
+      s.quad(
+        facePoint(f, u0, y, 0),
+        facePoint(f, u1, y, 0),
+        facePoint(f, u1, y - drop, depth),
+        facePoint(f, u0, y - drop, depth),
+        a,
+        [out[0], 1, out[2]],
+      ),
+    );
+    s.surface(SURFACE.plain);
+    return;
+  }
   for (let i = 0; i < stripes; i++) {
     const ua = u0 + ((u1 - u0) * i) / stripes;
     const ub = u0 + ((u1 - u0) * (i + 1)) / stripes;
@@ -773,4 +1092,5 @@ export function awningPart(
     s.tri(v0, v1, vm, hex, out);
     s.tri(v0, v1, vm, hex, [-out[0], 0, -out[2]]);
   }
+  s.surface(SURFACE.plain);
 }

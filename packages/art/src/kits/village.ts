@@ -6,13 +6,23 @@
 // woodstack, the herb garden's skeps and beds, and the smithy's forge. Runtime piles follow
 // 'out:<good>' and 'in:<good>' levels like the I1 kits; 'season' (0 spring to 3 winter, or a name)
 // dresses the fruit trees.
-import { mixHex, ShapeBuilder, vary, type V3 } from '../geometry';
+import type { ShapeBuilder } from '../geometry';
+import { mixHex, vary, type V3 } from '../geometry';
 import { palette } from '../palette';
 import { beam, cylX, cylZ, panel } from '../shapes';
 import { shell, signBoard, windowRow, windowStyle, type Built } from './buildings';
 import { postAndRail, trough } from './details';
 import { cheeseWheel, GOOD_COLORS, pileOf, skein } from './goods';
-import { chimneyPart, doorPart, faceBox, facePoint, hangingSign, windowPart, type Face } from './parts';
+import {
+  chimneyPart,
+  doorPart,
+  faceBox,
+  facePoint,
+  hangingSign,
+  kitBuilder,
+  windowPart,
+  type Face,
+} from './parts';
 import {
   choppingBlock,
   flowerPot,
@@ -33,8 +43,8 @@ const CLAY = GOOD_COLORS.clay;
 const CLAY_DARK = GOOD_COLORS.clayDark;
 const IRON = 0x4b4f55;
 
-function start(): Built {
-  return { s: new ShapeBuilder(), anchors: { smoke: [], lights: [] } };
+function start(opts?: KitBuildOptions): Built {
+  return { s: kitBuilder(opts), anchors: { smoke: [], lights: [] } };
 }
 
 /** A building kit with the footprint it is drawn for (until its def says otherwise). */
@@ -110,8 +120,8 @@ export function orchardTree(
   k: number,
   season: number,
   rnd: () => number,
-  lowDetail = false,
 ): void {
+  // V1B: one path for both levels (the far one drops the boughs, fruit and side crowns by itself).
   const trunk = vary(palette.bark, rnd, 0.6);
   s.cylinder(x, z, 0.05 * k, 0.035 * k, 0, 0.32 * k, trunk, 5);
   // Three short boughs splaying out to hold the crown.
@@ -121,7 +131,7 @@ export function orchardTree(
     const a = a0 + (i / 3) * Math.PI * 2;
     const tip: V3 = [x + Math.cos(a) * 0.17 * k, 0.5 * k, z + Math.sin(a) * 0.17 * k];
     tips.push(tip);
-    if (!lowDetail || season === 3) beam(s, [x, 0.28 * k, z], tip, 0.02 * k, trunk);
+    beam(s, [x, 0.28 * k, z], tip, 0.02 * k, trunk);
   }
   if (season === 3) {
     // Winter: twigs and a last few stubborn apples.
@@ -146,8 +156,11 @@ export function orchardTree(
         ? vary(mixHex(palette.leaf, palette.autumnGold, 0.35), rnd, 0.8)
         : vary(palette.leaf, rnd, 0.7);
   const top = mixHex(leaf, season === 0 ? 0xf7e8ee : 0xc8e070, season === 0 ? 0.25 : 0.15);
-  s.blob(x, 0.6 * k, z, 0.3 * k, 0.22 * k, 0.3 * k, leaf, lowDetail ? 0 : 1, rnd, 0.1, top);
-  if (!lowDetail) {
+  s.levels(
+    () => s.blob(x, 0.6 * k, z, 0.3 * k, 0.22 * k, 0.3 * k, leaf, 1, rnd, 0.1, top),
+    () => s.blob(x, 0.6 * k, z, 0.3 * k, 0.22 * k, 0.3 * k, leaf, 0, undefined, 0, top),
+  );
+  {
     for (const t of tips)
       s.blob(
         t[0],
@@ -163,8 +176,7 @@ export function orchardTree(
         top,
       );
   }
-  const n = lowDetail ? 3 : 9;
-  for (let i = 0; i < n; i++) {
+  for (let i = 0; i < 9; i++) {
     const a = rnd() * Math.PI * 2;
     const r = (0.22 + rnd() * 0.12) * k;
     const y = (0.48 + rnd() * 0.24) * k;
@@ -222,8 +234,7 @@ function spade(s: ShapeBuilder, x: number, z: number, lean: number): void {
 function clayPit(opts: KitBuildOptions | undefined): Built {
   const [w, d] = opts?.size ?? [3, 3];
   const { rnd } = streams(opts, 41);
-  const { s, anchors } = start();
-  const plain = opts?.lod === 'low';
+  const { s, anchors } = start(opts);
   // The pit: dug banks of clay round three sides, turf still on top, cut in steps down to a floor
   // of wet clay with a puddle; the open side faces the lane for the barrows.
   const px0 = 0.2;
@@ -246,7 +257,7 @@ function clayPit(opts: KitBuildOptions | undefined): Built {
   bank(px0, pz0 + 0.32, px0 + 0.3, pz1, 0.34);
   bank(px1 - 0.3, pz0 + 0.32, px1, pz1 - 0.2, 0.26);
   bank(px0, pz1, px0 + 0.3, pz1 + 0.25, 0.16);
-  if (!plain) {
+  s.detail(() => {
     // Spade marks in the fresh cut of the back bank.
     for (let i = 0; i < 8; i++) {
       const x = px0 + 0.4 + i * ((px1 - px0 - 0.8) / 7);
@@ -298,7 +309,7 @@ function clayPit(opts: KitBuildOptions | undefined): Built {
         s.box(x - 0.03, 0.12, z - 0.05, x + 0.03, 0.17, z + 0.05, vary(CLAY, rnd, 0.6));
       }
     }
-  }
+  });
   pileOf(s, 'clay', Math.max(1, level(opts, 'out:clay')), w - 1.1, 0, d - 0.45, rnd);
   return { s, anchors };
 }
@@ -363,8 +374,7 @@ function brickKiln(opts: KitBuildOptions | undefined): Built {
   const [w, d] = opts?.size ?? [3, 3];
   const { rnd } = streams(opts, 42);
   const c = customOf(opts);
-  const { s, anchors } = start();
-  const plain = opts?.lod === 'low';
+  const { s, anchors } = start(opts);
   groundPatch(s, 0.08, 0.08, w - 0.08, d - 0.08, vary(0xa89276, rnd, 0.4), rnd);
   const kx = 0.85;
   const kz = 0.95;
@@ -394,7 +404,7 @@ function brickKiln(opts: KitBuildOptions | undefined): Built {
       ridgeAlongX: false,
       rnd,
     });
-    if (!plain) {
+    s.detail(() => {
       for (let r = 0; r < 2; r++) {
         const x = hx0 + 0.15 + r * (hx1 - hx0 - 0.3);
         for (let l = 0; l < 3; l++) {
@@ -414,9 +424,9 @@ function brickKiln(opts: KitBuildOptions | undefined): Built {
           }
         }
       }
-    }
+    });
   }
-  if (!plain) {
+  s.detail(() => {
     // Fuel for the firing, a barrow and the moulding bench.
     pileOf(s, 'firewood', Math.max(1, level(opts, 'in:firewood')), kx - 0.05, 0, d - 0.35, rnd);
     wheelbarrow(s, kx + 0.75, kz + 0.75, CLAY, rnd);
@@ -424,7 +434,7 @@ function brickKiln(opts: KitBuildOptions | undefined): Built {
     for (const x of [0.2, 0.55]) beam(s, [x, 0, 0.25], [x, 0.18, 0.25], 0.015, palette.timber);
     for (let i = 0; i < 3; i++)
       s.box(0.25 + i * 0.1, 0.21, 0.2, 0.32 + i * 0.1, 0.25, 0.3, vary(CLAY, rnd, 0.5));
-  }
+  });
   // Fired bricks stacked on pallets in front, rising with the output.
   pileOf(s, 'bricks', Math.max(1, level(opts, 'out:bricks')), w - 0.75, 0, d - 0.4, rnd);
   if (c.sign) signBoard(s, { dir: 'z+', plane: hz1 + 0.1 }, (hx0 + hx1) / 2, 0.42, 0.4, 0.02, anchors);
@@ -479,8 +489,7 @@ function sheepPasture(opts: KitBuildOptions | undefined): Built {
   const [w, d] = opts?.size ?? [4, 4];
   const [ex] = opts?.entrance ?? [1, d - 1];
   const { rnd } = streams(opts, 43);
-  const { s, anchors } = start();
-  const plain = opts?.lod === 'low';
+  const { s, anchors } = start(opts);
   const gateU = ex + 0.5;
   paddock(s, 0.08, 0.08, w - 0.08, d - 0.08, gateU, rnd);
   // A field shelter in the back corner: three closed sides and a lean roof.
@@ -506,7 +515,7 @@ function sheepPasture(opts: KitBuildOptions | undefined): Built {
     ridgeAlongX: true,
     rnd,
   });
-  if (!plain) {
+  s.detail(() => {
     // A hay rack under the shelter, a trough, the shepherd's hut by the gate.
     s.box(sx0 + 0.15, 0.18, sz0 + 0.08, sx1 - 0.15, 0.36, sz0 + 0.2, vary(palette.wood, rnd, 0.6));
     s.blob((sx0 + sx1) / 2, 0.36, sz0 + 0.14, (sx1 - sx0) / 2 - 0.15, 0.06, 0.07, 0xdcbc6a, 1);
@@ -514,7 +523,7 @@ function sheepPasture(opts: KitBuildOptions | undefined): Built {
     shepherdsHut(s, 0.6, d - 0.55, rnd, anchors);
     hayBale(s, w - 0.45, 0, d - 0.4, false, rnd);
     pileOf(s, 'wool', Math.max(1, level(opts, 'out:wool')), gateU + 0.6, 0, d - 0.42, rnd);
-  }
+  });
   const n = Math.max(3, Math.round((w * d) / 3));
   anchors.animals = [{ kind: 'sheep', pen: [0.3, 0.95, w - 0.3, d - 0.9], count: n }];
   return { s, anchors };
@@ -569,8 +578,7 @@ function spinner(opts: KitBuildOptions | undefined): Built {
   const [ex] = opts?.entrance ?? [1, d - 1];
   const { rnd, look } = streams(opts, 44);
   const c = customOf(opts);
-  const { s, anchors } = start();
-  const plain = opts?.lod === 'low';
+  const { s, anchors } = start(opts);
   const x0 = 0.22;
   const x1 = w - 0.22;
   const z0 = 0.25;
@@ -602,7 +610,6 @@ function spinner(opts: KitBuildOptions | undefined): Built {
       ridgeAlongX: true,
     },
     rnd,
-    plain,
   });
   const front: Face = { dir: 'z+', plane: z1 };
   const doorU = ex + 0.5;
@@ -626,7 +633,7 @@ function spinner(opts: KitBuildOptions | undefined): Built {
     ridgeAlongX: true,
     rnd,
   });
-  if (!plain) {
+  s.detail(() => {
     spinningWheel(s, x0 + 0.35, 0.05, z1 + 0.2, rnd);
     s.cylinder(x0 + 0.62, z1 + 0.18, 0.07, 0.08, 0.05, 0.14, vary(GOOD_COLORS.wicker, rnd, 0.5), 8);
     s.blob(x0 + 0.62, 0.16, z1 + 0.18, 0.08, 0.05, 0.08, GOOD_COLORS.wool, 1);
@@ -678,7 +685,7 @@ function spinner(opts: KitBuildOptions | undefined): Built {
       for (const k of [-1, 1]) skein(ss, ctr[0] + k * 0.022, ctr[1], ctr[2], GOOD_COLORS.yarnB, rnd);
     });
     flowerPot(s, doorU + 0.22, 0.05, z1 + 0.1, rnd);
-  }
+  });
   if (c.chimney ?? true)
     anchors.smoke!.push(chimneyPart(s, x1 - 0.3, (z0 + z1) / 2, sh.top - 0.1, sh.ridge + 0.1, palette.brick));
   pileOf(s, 'yarn', level(opts, 'out:yarn'), 0.45, 0, d - 0.18, rnd);
@@ -717,8 +724,7 @@ function weaver(opts: KitBuildOptions | undefined): Built {
   const [ex] = opts?.entrance ?? [1, d - 1];
   const { rnd, look } = streams(opts, 45);
   const c = customOf(opts);
-  const { s, anchors } = start();
-  const plain = opts?.lod === 'low';
+  const { s, anchors } = start(opts);
   const x0 = 0.2;
   const x1 = w - 0.2;
   const z0 = 0.2;
@@ -749,13 +755,12 @@ function weaver(opts: KitBuildOptions | undefined): Built {
       ridgeAlongX: false,
     },
     rnd,
-    plain,
   });
   const [ox0, oz0, ox1, oz1] = sh.outer;
   const front: Face = { dir: 'z+', plane: z1 };
   const doorU = ex + 0.5;
   doorPart(s, front, doorU, 0.26, 0.56, c.accent ?? palette.navy, palette.timber, 'plank', 0.015);
-  if (!plain) {
+  s.detail(() => {
     // The weavers' windows: long bands of small panes along the loom floor, both sides.
     const loom: Face[] = [
       { dir: 'x+', plane: ox1 },
@@ -797,7 +802,7 @@ function weaver(opts: KitBuildOptions | undefined): Built {
         ss.blob(ctr[0] + k * 0.02, ctr[1], ctr[2], 0.012, 0.03, 0.07, GOOD_COLORS.cloth, 0);
     });
     anchors.lights!.push(wallLantern(s, facePoint(front, doorU - 0.24, 0.66, 0.015), [0, 0, 1]));
-  }
+  });
   pileOf(s, 'cloth', level(opts, 'out:cloth'), x0 + 0.42, 0, z1 + 0.28, rnd);
   pileOf(s, 'yarn', level(opts, 'in:yarn'), x1 - 0.3, 0, z1 + 0.25, rnd);
   if (c.chimney ?? true)
@@ -815,8 +820,7 @@ function dairy(opts: KitBuildOptions | undefined): Built {
   const [ex] = opts?.entrance ?? [1, d - 1];
   const { rnd, look } = streams(opts, 46);
   const c = customOf(opts);
-  const { s, anchors } = start();
-  const plain = opts?.lod === 'low';
+  const { s, anchors } = start(opts);
   // The byre along the back, its long side to the yard; the paddock in front of it.
   const x0 = 0.2;
   const x1 = w - 0.2;
@@ -842,7 +846,6 @@ function dairy(opts: KitBuildOptions | undefined): Built {
       ridgeAlongX: true,
     },
     rnd,
-    plain,
   });
   const front: Face = { dir: 'z+', plane: z1 };
   const accent = c.accent ?? palette.navy;
@@ -877,14 +880,14 @@ function dairy(opts: KitBuildOptions | undefined): Built {
     vary(sh.roof.color, rnd, 0.3),
     true,
   );
-  if (!plain) weathervane(s, vx, sh.ridge + 0.25, vz);
+  s.detail(() => weathervane(s, vx, sh.ridge + 0.25, vz));
   // The paddock: cows graze between the byre and the lane.
   const gateU = ex + 0.5;
   paddock(s, 0.1, z1 + 0.25, w - 0.1, d - 0.08, gateU, rnd);
   anchors.animals = [
     { kind: 'cow', pen: [0.4, z1 + 0.5, w - 0.4, d - 0.35], count: Math.max(2, Math.round(w * 0.8)) },
   ];
-  if (!plain) {
+  s.detail(() => {
     trough(s, w - 0.45, z1 + 0.45, true, true);
     // The churn stand by the gate: a platform at cart height with churns waiting.
     const cx = gateU < w / 2 ? w - 0.55 : 0.55;
@@ -916,7 +919,7 @@ function dairy(opts: KitBuildOptions | undefined): Built {
       [0.16, 0.16],
       0.015,
     );
-  }
+  });
   if (c.chimney ?? true)
     anchors.smoke!.push(chimneyPart(s, x0 + 0.3, vz, sh.top - 0.1, sh.ridge + 0.08, palette.brick));
   if (c.sign) signBoard(s, front, (x0 + x1) / 2, 0.58, 0.4, 0.015, anchors);
@@ -930,8 +933,7 @@ function cheesemaker(opts: KitBuildOptions | undefined): Built {
   const [ex] = opts?.entrance ?? [1, d - 1];
   const { rnd } = streams(opts, 47);
   const c = customOf(opts);
-  const { s, anchors } = start();
-  const plain = opts?.lod === 'low';
+  const { s, anchors } = start(opts);
   const x0 = 0.22;
   const x1 = w - 0.22;
   const z0 = 0.25;
@@ -956,13 +958,12 @@ function cheesemaker(opts: KitBuildOptions | undefined): Built {
       ridgeAlongX: true,
     },
     rnd,
-    plain,
   });
   const front: Face = { dir: 'z+', plane: z1 };
   const doorU = ex + 0.5;
   const accent = c.accent ?? palette.mustard;
   doorPart(s, front, doorU, 0.26, 0.6, accent, palette.timber, 'arched', 0.015);
-  if (!plain) {
+  s.detail(() => {
     // The maturing room: a wide shuttered window thrown open on shelves of wheels.
     const wu = doorU < w / 2 ? x1 - 0.42 : x0 + 0.42;
     faceBox(s, front, wu - 0.25, 0.36, -0.01, wu + 0.25, 0.72, 0.02, 0x3b3229);
@@ -1033,7 +1034,7 @@ function cheesemaker(opts: KitBuildOptions | undefined): Built {
       0.015,
     );
     milkChurn(s, doorU - 0.25, z1 + 0.12);
-  }
+  });
   // A louvred vent on the hip for the curing air.
   const vx = (x0 + x1) / 2;
   const vz = (z0 + z1) / 2;
@@ -1050,8 +1051,7 @@ function orchard(opts: KitBuildOptions | undefined): Built {
   const [w, d] = opts?.size ?? [3, 3];
   const [ex] = opts?.entrance ?? [1, d - 1];
   const { rnd, look } = streams(opts, 48);
-  const { s, anchors } = start();
-  const plain = opts?.lod === 'low';
+  const { s, anchors } = start(opts);
   const season = seasonOf(opts);
   // Mown grass between the rows, a low stone wall or hedge round the edge.
   groundPatch(s, 0.06, 0.06, w - 0.06, d - 0.06, vary(0x8fb35a, rnd, 0.4), rnd);
@@ -1072,10 +1072,10 @@ function orchard(opts: KitBuildOptions | undefined): Built {
       const x = 0.42 + ((w - 0.84) * (k + (r % 2) * 0.5)) / Math.max(1, cols - 0.5);
       const z = 0.42 + ((d - 1.1) * r) / Math.max(1, rows - 1);
       if (x > w - 0.3 || Math.abs(x - gate) < 0.25) continue;
-      orchardTree(s, x, z, 0.92 + rnd() * 0.18, season, rnd, plain);
+      orchardTree(s, x, z, 0.92 + rnd() * 0.18, season, rnd);
     }
   }
-  if (!plain) {
+  s.detail(() => {
     // A ladder in a tree, baskets under it, a picker's shed in the corner.
     ladder(s, [0.62, 0, 0.75], [0.48, 0.55, 0.62], [0.7, 0, -0.7]);
     if (season === 1 || season === 2) {
@@ -1104,7 +1104,7 @@ function orchard(opts: KitBuildOptions | undefined): Built {
       rnd,
     });
     s.box(sx - 0.08, 0.02, sz + 0.18, sx + 0.08, 0.3, sz + 0.19, vary(palette.wood, rnd, 1.2));
-  }
+  });
   pileOf(
     s,
     'apples',
@@ -1157,8 +1157,7 @@ function ciderPress(opts: KitBuildOptions | undefined): Built {
   const [ex] = opts?.entrance ?? [1, d - 1];
   const { rnd, look } = streams(opts, 49);
   const c = customOf(opts);
-  const { s, anchors } = start();
-  const plain = opts?.lod === 'low';
+  const { s, anchors } = start(opts);
   const x0 = 0.18;
   const x1 = w - 0.18;
   const z0 = 0.18;
@@ -1183,7 +1182,6 @@ function ciderPress(opts: KitBuildOptions | undefined): Built {
       ridgeAlongX: false,
     },
     rnd,
-    plain,
   });
   const front: Face = { dir: 'z+', plane: z1 };
   const doorU = ex + 0.5;
@@ -1205,7 +1203,7 @@ function ciderPress(opts: KitBuildOptions | undefined): Built {
     ridgeAlongX: true,
     rnd,
   });
-  if (!plain) {
+  s.detail(() => {
     screwPress(s, doorU < w / 2 ? x1 - 0.42 : x0 + 0.42, (z1 + pz) / 2, rnd);
     appleMill(s, doorU < w / 2 ? x0 + 0.42 : x1 - 0.5, (z1 + pz) / 2 + 0.05, rnd);
     hangingSign(
@@ -1234,7 +1232,7 @@ function ciderPress(opts: KitBuildOptions | undefined): Built {
       0.015,
     );
     anchors.lights!.push(wallLantern(s, facePoint(front, doorU + 0.32, 0.62, 0.015), [0, 0, 1]));
-  }
+  });
   pileOf(s, 'cider', Math.max(1, level(opts, 'out:cider')), x0 + 0.35, 0, d - 0.17, rnd);
   pileOf(s, 'apples', level(opts, 'in:apples'), x1 - 0.35, 0, d - 0.17, rnd);
   if (c.sign) signBoard(s, front, doorU, 0.74, 0.42, 0.015, anchors);
@@ -1273,8 +1271,7 @@ function choppingShed(opts: KitBuildOptions | undefined): Built {
   const [w, d] = opts?.size ?? [2, 2];
   const { rnd } = streams(opts, 50);
   const c = customOf(opts);
-  const { s, anchors } = start();
-  const plain = opts?.lod === 'low';
+  const { s, anchors } = start(opts);
   groundPatch(s, 0.08, 0.08, w - 0.08, d - 0.08, vary(0xc0a27a, rnd, 0.4), rnd);
   // The log store: a roof on posts, its back and sides walled with stacked firewood.
   const x0 = 0.16;
@@ -1326,13 +1323,13 @@ function choppingShed(opts: KitBuildOptions | undefined): Built {
       );
     }
   }
-  if (!plain) {
+  s.detail(() => {
     // A round stack in the yard, the chopping block, logs waiting and a sawhorse.
     roundStack(s, x1 - 0.32, d - 0.42, 0.26, 0.42, rnd);
     choppingBlock(s, x0 + 0.38, z1 + 0.36, rnd);
     sawhorse(s, x0 + 0.42, d - 0.3, true, rnd);
     pileOf(s, 'logs', Math.max(1, level(opts, 'in:logs')), (x0 + x1) / 2, 0, z0 + 0.62, rnd);
-  }
+  });
   return { s, anchors };
 }
 
@@ -1367,8 +1364,7 @@ function herbGarden(opts: KitBuildOptions | undefined): Built {
   const [w, d] = opts?.size ?? [2, 2];
   const [ex] = opts?.entrance ?? [1, d - 1];
   const { rnd, look } = streams(opts, 51);
-  const { s, anchors } = start();
-  const plain = opts?.lod === 'low';
+  const { s, anchors } = start(opts);
   const gate = ex + 0.5;
   groundPatch(s, 0.06, 0.06, w - 0.06, d - 0.06, vary(0xc9b48a, rnd, 0.4), rnd);
   wattle(s, [0.06, 0.06], [w - 0.06, 0.06], rnd);
@@ -1392,27 +1388,32 @@ function herbGarden(opts: KitBuildOptions | undefined): Built {
     const col = HERB_BEDS[(i + Math.floor(look() * HERB_BEDS.length)) % HERB_BEDS.length]!;
     const nx = Math.max(2, Math.round((x1 - x0) / 0.12));
     const nz = Math.max(1, Math.round((z1 - z0) / 0.12));
-    if (plain) {
-      s.box(
-        x0 + 0.03,
-        0.075,
-        z0 + 0.03,
-        x1 - 0.03,
-        0.14,
-        z1 - 0.03,
-        vary(mixHex(0x6f9a4a, col, 0.35), rnd, 0.4),
-      );
-      return;
-    }
-    // Clumps in rows: a leafy mound each, flowering on top in the bed's color.
-    for (let a = 0; a < nx; a++)
-      for (let b = 0; b < nz; b++) {
-        const px = x0 + ((x1 - x0) * (a + 0.5)) / nx;
-        const pz = z0 + ((z1 - z0) * (b + 0.5)) / nz;
-        s.blob(px, 0.115, pz, 0.06, 0.05, 0.06, vary(0x6f9a4a, rnd, 0.8), 0, rnd, 0.15, vary(col, rnd, 0.4));
-      }
+    // Clumps in rows: a leafy mound each, flowering on top in the bed's color (one mound far off).
+    s.levels(
+      () => {
+        for (let a = 0; a < nx; a++)
+          for (let b = 0; b < nz; b++) {
+            const px = x0 + ((x1 - x0) * (a + 0.5)) / nx;
+            const pz = z0 + ((z1 - z0) * (b + 0.5)) / nz;
+            s.blob(
+              px,
+              0.115,
+              pz,
+              0.06,
+              0.05,
+              0.06,
+              vary(0x6f9a4a, rnd, 0.8),
+              0,
+              rnd,
+              0.15,
+              vary(col, rnd, 0.4),
+            );
+          }
+      },
+      () => s.box(x0 + 0.03, 0.075, z0 + 0.03, x1 - 0.03, 0.14, z1 - 0.03, mixHex(0x6f9a4a, col, 0.35)),
+    );
   });
-  if (!plain) {
+  s.detail(() => {
     // A drying rack of bunches, two skeps by the back fence and a sundial at the crossing.
     const rx = w - 0.3;
     const rz = d - 0.35;
@@ -1436,7 +1437,7 @@ function herbGarden(opts: KitBuildOptions | undefined): Built {
       vary(palette.stone, rnd, 0.6),
     );
     beam(s, [w / 2, 0.2, (d - 0.2) / 2], [w / 2, 0.25, (d - 0.2) / 2 + 0.04], 0.004, IRON);
-  }
+  });
   pileOf(s, 'herbs', level(opts, 'out:herbs'), 0.45, 0, d - 0.3, rnd);
   return { s, anchors };
 }
@@ -1456,8 +1457,7 @@ function smithy(opts: KitBuildOptions | undefined): Built {
   const [ex] = opts?.entrance ?? [1, d - 1];
   const { rnd, look } = streams(opts, 52);
   const c = customOf(opts);
-  const { s, anchors } = start();
-  const plain = opts?.lod === 'low';
+  const { s, anchors } = start(opts);
   const x0 = 0.2;
   const x1 = w - 0.2;
   const z0 = 0.2;
@@ -1482,7 +1482,6 @@ function smithy(opts: KitBuildOptions | undefined): Built {
       ridgeAlongX: false,
     },
     rnd,
-    plain,
   });
   const front: Face = { dir: 'z+', plane: z1 };
   const doorU = ex + 0.5;
@@ -1514,7 +1513,7 @@ function smithy(opts: KitBuildOptions | undefined): Built {
   s.cylinder(hx, z1 + 0.18, 0.2, 0.08, 0.5, 0.8, vary(palette.brick, rnd, 0.4), 4, Math.PI / 4);
   anchors.lights!.push([hx, 0.4, z1 + 0.25]);
   anchors.smoke!.push(chimneyPart(s, hx, z1 - 0.12, sh.top - 0.2, sh.ridge + 0.32, palette.brick, true));
-  if (!plain) {
+  s.detail(() => {
     anvil(s, (x0 + x1) / 2, z1 + 0.5);
     // Bellows beside the hearth, a quench tub, a rack of tongs, horseshoes nailed up.
     const bx = hx + (hx < w / 2 ? 0.32 : -0.32);
@@ -1559,7 +1558,7 @@ function smithy(opts: KitBuildOptions | undefined): Built {
       [0.16, 0.18],
       0.015,
     );
-  }
+  });
   pileOf(s, 'tools', level(opts, 'out:tools'), doorU < w / 2 ? x0 + 0.3 : x1 - 0.3, 0, d - 0.15, rnd);
   if (c.sign) signBoard(s, front, (x0 + x1) / 2, 0.72, 0.42, 0.015, anchors);
   return { s, anchors };
