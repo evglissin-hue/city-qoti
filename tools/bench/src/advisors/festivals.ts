@@ -220,7 +220,7 @@ class Festivals implements Advisor {
       if (c.status !== 'offered') continue;
       const def = content.commissionById.get(c.def);
       if (!def) continue;
-      let meet = false;
+      let meet: boolean;
       if (!this.village) {
         meet = false;
       } else if ('goods' in def.ask) {
