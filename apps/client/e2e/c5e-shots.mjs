@@ -33,6 +33,8 @@ const SHOTS = {
   'winter-dusk': ['winter', '', 18.6, 40],
   'winter-night': ['winter', '', 21.5, 40],
   'winter-snowfall': ['winter', 'weather=snow', 13, 35],
+  'critters-day': ['hamlet', 'season=summer&day=3', 11, 16],
+  'critters-night': ['hamlet', 'season=summer&day=3', 22.5, 18],
   'rain-hamlet': ['hamlet', 'season=summer&weather=rain', 12, 40],
   'storm-hamlet': ['hamlet', 'season=autumn&weather=storm', 16, 40],
   'fog-hamlet': ['hamlet', 'season=autumn&weather=fog', 9, 50],

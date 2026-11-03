@@ -350,6 +350,9 @@ export class Renderer implements RenderApi {
     const quarter = hour + Math.floor(minute / 15) / 4;
     this.applySeason(SEASONS[season]!, season, day, quarter);
     const h = this.timeOfDay ?? this.hourOverride ?? quarter;
+    this.env.shown.season = season;
+    this.env.shown.day = day;
+    this.env.shown.hour = h;
     if (h === this.lightHour) return;
     this.lightHour = h;
     this.lightRevision++;
@@ -367,7 +370,11 @@ export class Renderer implements RenderApi {
     this.hemi.groundColor.copy(l.hemiGround);
     this.hemi.intensity = l.hemiIntensity;
     this.sun.color.copy(l.sun);
-    this.sun.intensity = l.sunIntensity;
+    // C5E: an overcast sky softens the sun and lifts the sky's fill, so rain and storms read as
+    // soft grey days with gentle shadows.
+    const over = this.env.overcast.value;
+    this.sun.intensity = l.sunIntensity * (1 - 0.7 * over);
+    this.hemi.intensity = l.hemiIntensity * (1 + 0.35 * over);
     this.sunDir.set(l.sunDir[0], l.sunDir[1], l.sunDir[2]).normalize();
     // The light's direction for shading. Where the shadow camera sits is set when the shadow map
     // renders (shadows.ts), along the same direction;
@@ -382,7 +389,7 @@ export class Renderer implements RenderApi {
     this.env.skyTop.value.copy(l.skyTop);
     this.env.sunDir.value.copy(this.sunDir);
     this.env.sunColor.value.copy(l.sun);
-    this.env.clouds.value = 1 - l.night;
+    this.env.clouds.value = (1 - l.night) * (1 - 0.8 * this.env.overcast.value);
     this.env.windowShare.value = l.windowShare;
     this.invalidate();
   }
@@ -434,6 +441,7 @@ export class Renderer implements RenderApi {
     const n = this.weatherNow;
     const e = this.env;
     e.wet.value = n.rain;
+    e.snowfall.value = n.snowfall;
     e.fog.value = n.fog;
     e.storm.value = n.storm;
     e.overcast.value = n.overcast;
@@ -443,6 +451,8 @@ export class Renderer implements RenderApi {
     const step = [n.rain, n.dry, n.overcast, n.fog].map((v) => Math.round(v * 20)).join('|');
     if (step !== this.weatherStep) {
       this.weatherStep = step;
+      // The light depends on the overcast: recompute it (a light change redraws the still frame).
+      this.lightHour = -1;
       this.invalidateStatic('weather');
     }
     return true;
@@ -765,6 +775,7 @@ export class Renderer implements RenderApi {
       this.invalidateStatic();
     this.env.motion = preset.ambientMotion;
     this.env.detailDistance = preset.decorDistance;
+    this.env.critters = preset.critters;
     this.env.buildingDetail = buildingDetailNow(q);
     this.env.viewRevision++;
     if (shadows && this.sun.shadow.mapSize.x !== preset.shadowMap) {

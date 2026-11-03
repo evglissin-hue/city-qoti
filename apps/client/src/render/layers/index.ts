@@ -5,6 +5,7 @@ import { animalsLayer } from './animals';
 import { blobsLayer } from './blobs';
 import { buildingsLayer } from './buildings';
 import { cartsLayer } from './carts';
+import { crittersLayer } from './critters';
 import { decorLayer } from './decor';
 import { effectsLayer } from './effects';
 import { fieldsLayer } from './fields';
@@ -21,6 +22,7 @@ import { terrainLayer } from './terrain';
 import { treesLayer } from './trees';
 import type { LayerFactory } from './types';
 import { waterLayer } from './water';
+import { weatherLayer } from './weather';
 
 // prettier-ignore
 export const layerFactories: readonly LayerFactory[] = [
@@ -29,6 +31,7 @@ export const layerFactories: readonly LayerFactory[] = [
   blobsLayer,
   buildingsLayer,
   cartsLayer,
+  crittersLayer,
   decorLayer,
   effectsLayer,
   fieldsLayer,
@@ -44,6 +47,7 @@ export const layerFactories: readonly LayerFactory[] = [
   terrainLayer,
   treesLayer,
   waterLayer,
+  weatherLayer,
 ];
 
 export type { AgentsLayer } from './agents';

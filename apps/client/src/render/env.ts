@@ -70,10 +70,18 @@ export interface WorldEnv {
   bare: { value: number };
   blossom: { value: number };
   wet: { value: number };
+  snowfall: { value: number };
   fog: { value: number };
   storm: { value: number };
   overcast: { value: number };
   dry: { value: number };
+  /**
+   * C5E: the season (0 spring to 3 winter), day and hour the picture shows (the calendar's, or a
+   * debug or photo mode pin), for layers that change with them (critters).
+   */
+  shown: { season: number; day: number; hour: number };
+  /** C5E: ambient critters and weather particles by preset (`QualityPreset.critters`). */
+  critters: 'none' | 'some' | 'all';
   /** C5E: the river is frozen (0 or 1, eased over a few seconds in the water shader). */
   frozen: { value: number };
 }
@@ -169,11 +177,14 @@ export function createWorldEnv(camera: PerspectiveCamera): WorldEnv {
     bare: { value: 0 },
     blossom: { value: 0 },
     wet: { value: 0 },
+    snowfall: { value: 0 },
     fog: { value: 0 },
     storm: { value: 0 },
     overcast: { value: 0 },
     dry: { value: 0 },
     frozen: { value: 0 },
+    critters: 'some',
+    shown: { season: 0, day: 1, hour: 12 },
   };
 }
 

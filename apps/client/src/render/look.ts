@@ -212,7 +212,7 @@ vec3 lookWeather(vec3 c, vec2 uv) {
   c = mix(c, mix(vec3(l), c, 0.86) * vec3(0.985, 1.0, 1.02), uLookOvercast * 0.7);
   c = mix(c, vec3(0.5) + (c - 0.5) * 0.9, uLookOvercast * 0.5);
   // Rain and storm: a touch darker and bluer; the storm more, lifted by its slow glow.
-  c *= 1.0 - rain * 0.05 - storm * 0.11;
+  c *= 1.0 - rain * 0.06 - storm * 0.16;
   c = mix(c, c * vec3(0.94, 0.98, 1.06), storm * 0.6 + rain * 0.25);
   c += vec3(0.96, 0.95, 1.0) * uLookGlow * (0.35 + 0.65 * uv.y) * 0.07;
   // Heat and drought: greens go straw, the light a shade warmer.

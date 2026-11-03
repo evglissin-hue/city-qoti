@@ -521,9 +521,9 @@ vec3 qGroundSeason(vec3 col, vec2 wp, float road, float above, float ao, float g
   cover *= smoothstep(0.0, 0.08, above);
   // Windswept patches on open ground where the old grass shows, and tufts poking through.
   float swept = smoothstep(0.58, 0.85, qNoise(wp * 0.23 + 31.0)) * (1.0 - shelter) * grassy;
-  cover *= 1.0 - 0.45 * swept;
-  float tuft = step(0.86 - swept * 0.2, qHash(floor(wp * 6.0) + 3.0)) * fade * (1.0 - shelter);
-  cover *= 1.0 - 0.55 * tuft * grassy;
+  cover *= 1.0 - 0.18 * swept;
+  float tuft = smoothstep(0.62, 0.8, qNoise(wp * 4.3 + 3.0) + swept * 0.15) * fade * (1.0 - shelter);
+  cover *= 1.0 - 0.22 * tuft * grassy;
   // What lies under it shows a little (furrows, darker kerbs), more where it is thin.
   cover *= mix(1.0, 0.7 + 0.6 * clamp(lum * 2.5, 0.0, 1.0), 0.45 * (1.0 - shelter));
   // Trodden roads: thinner, in lines along the way, so the streets still read.
