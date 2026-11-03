@@ -107,26 +107,38 @@ function kitAndSize(spec: string): {
 /** C3D-1 lineups: trees by stage (and low detail, far right), or nature props by variant. */
 function lineup(set: string): boolean {
   if (set === 'trees') {
-    ['oak', 'birch', 'pine'].forEach((id, row) => {
+    // V1C: each tree at both levels: stages 0 to 3 near, then stages 1 and 3 far, and a hedgerow
+    // row; the label gives the triangles of a mature tree at each level.
+    const counts: string[] = [];
+    ['oak', 'birch', 'pine', 'hedgerow'].forEach((id, row) => {
       const kit = kitById.get(id)!;
-      const opts: KitBuildOptions[] = [0, 1, 2, 3].map((stage) => ({ stage, seed: state.seed }));
-      opts.push({ stage: 3, seed: state.seed, lod: 'low' });
+      const opts: KitBuildOptions[] =
+        id === 'hedgerow'
+          ? [{ seed: state.seed }, { seed: state.seed, lod: 'low' }]
+          : [0, 1, 2, 3].map((stage) => ({ stage, seed: state.seed }));
+      if (id !== 'hedgerow')
+        opts.push({ stage: 1, seed: state.seed, lod: 'low' }, { stage: 3, seed: state.seed, lod: 'low' });
+      const tris = (o: KitBuildOptions) => kit.build(o).getAttribute('position').count / 3;
+      counts.push(`${id} ${tris({ seed: state.seed })}/${tris({ seed: state.seed, lod: 'low' })}`);
       opts.forEach((o, col) => {
         const mesh = new Mesh(kit.build(o), material);
-        mesh.position.set((col - 2) * 1.3, 0, (row - 1) * 1.4);
+        mesh.position.set((col - 2.5) * 1.3, 0, (row - 1.5) * 1.4);
         holder.add(mesh);
       });
     });
-    info.textContent = 'trees: stages 0 to 3, then low detail';
+    info.textContent = `trees: stages 0 to 3, then far at 1 and 3 (triangles near/far: ${counts.join(', ')})`;
     return true;
   }
   if (set === 'nature') {
     const nature = kits.filter((k) => k.kind === 'nature');
     nature.forEach((kit, i) => {
-      for (let v = 0; v < 2; v++) {
-        const mesh = new Mesh(kit.build({ seed: state.seed + v * 13 }), material);
+      // V1C: two variants near, and a third row at the far level.
+      for (let v = 0; v < 3; v++) {
+        const opts: KitBuildOptions =
+          v < 2 ? { seed: state.seed + v * 13 } : { seed: state.seed, lod: 'low' };
+        const mesh = new Mesh(kit.build(opts), material);
         mesh.scale.setScalar(2.4);
-        mesh.position.set((i - (nature.length - 1) / 2) * 1.35, 0, (v - 0.5) * 1.6);
+        mesh.position.set((i - (nature.length - 1) / 2) * 1.35, 0, (v - 1) * 1.6);
         holder.add(mesh);
       }
     });
