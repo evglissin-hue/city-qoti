@@ -107,6 +107,20 @@ function buildGrid(state: WorldState, reuse: WalkGrid | undefined): WalkGrid {
     cost[z * S + x] = 0;
     ticks[z * S + x] = 0;
   }
+  // I3 (C5D): an open gate lets walkers through (as the ground under it); a shut one blocks.
+  for (const b of state.buildings) {
+    if (content.buildingById.get(b.def)?.defense?.passable !== 'gate') continue;
+    const i = b.z * S + b.x;
+    if (b.rt && b.rt.open === false) continue;
+    if (road[i]) {
+      cost[i] = ROAD_COST;
+      ticks[i] = ROAD_TICKS;
+    } else {
+      const t = terrain[i]!;
+      cost[i] = TERRAIN_COST[t] ?? 2;
+      ticks[i] = TERRAIN_TICKS[t] ?? 10;
+    }
+  }
   return { cost, ticks, epoch: ++epochs };
 }
 

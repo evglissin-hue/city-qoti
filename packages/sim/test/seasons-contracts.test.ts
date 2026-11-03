@@ -286,11 +286,12 @@ describe('command baselines', () => {
     expect(s.renown.points).toBe(1);
   });
 
-  it('gates open and close; walls wait for C5D; modules need a slot', () => {
+  it('gates open and close; stone walls wait for Town or Barnaby; modules need a slot', () => {
     const f = threatFixture();
     expect(rejection(run(f.state, { t: 'gate.set', id: f.gate, open: false }))).toBeUndefined();
     expect(findById(f.state.buildings, f.gate)!.rt!.open).toBe(false);
-    expect(rejection(run(f.state, { t: 'wall.paint', def: 'palisade', tiles: [[20, 60]] }))).toBe('LOCKED');
+    // C5D: walls are written; a sandbox-only or stone wall before its unlock stays LOCKED.
+    expect(rejection(run(f.state, { t: 'wall.paint', def: 'stone-wall', tiles: [[20, 60]] }))).toBe('LOCKED');
     expect(rejection(run(f.state, { t: 'wall.paint', def: 'cottage', tiles: [[20, 60]] }))).toBe('INVALID');
     expect(rejection(run(f.state, { t: 'wall.remove', tiles: [[20, 60]] }))).toBe('NOT_FOUND');
     const cottage = f.village.b.cottages[0]!;
