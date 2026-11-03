@@ -70,6 +70,12 @@ describe('the Chronicle', () => {
     flood: ['place'],
     'trial-failed': ['trial'],
     'trial-passed': ['trial', 'charter'],
+    // I3 (C5D)
+    'bandit-home': ['name'],
+    'raid-held': ['side'],
+    'raid-lost': ['side', 'stolen'],
+    'raid-repelled': ['side', 'stolen'],
+    wolves: ['place'],
   };
 
   it('has at least three variants per kind, using only the params its callers pass', () => {

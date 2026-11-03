@@ -66,6 +66,7 @@ export const fence: DecorDef = {
   blocksWalking: true,
   tags: ['fence'],
   art: { kit: 'fence' },
+  slows: 20,
 };
 
 export const flowerBed: DecorDef = {
@@ -88,6 +89,7 @@ export const hedge: DecorDef = {
   tags: ['hedge'],
   art: { kit: 'hedge' },
   charm: [{ category: 'nature', value: 2, radius: 1 }],
+  slows: 30,
 };
 
 export const lantern: DecorDef = {

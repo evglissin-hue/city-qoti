@@ -116,6 +116,7 @@ describe('content', () => {
         'pie-shop',
         'pit-trap',
         'river-dock',
+        'stone-bridge',
         'stone-wall',
         'tailor',
         'watch-house',
