@@ -3,7 +3,7 @@
 .guide-card {
   position: fixed;
   left: 12px;
-  bottom: 96px;
+  bottom: 116px;
   z-index: 12;
   display: flex;
   gap: 10px;
