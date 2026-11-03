@@ -32,6 +32,7 @@ import {
   chimneyPart,
   claddingDepth,
   doorPart,
+  dressingsOf,
   dormerPart,
   faceBox,
   facePoint,
@@ -90,7 +91,10 @@ export function homeLook(opts: KitBuildOptions | undefined, salt: number): Distr
 }
 
 function windowsOf(L: DistrictLook, box = L.windowBoxes): WindowStyle {
-  return { frame: L.frame, shutter: L.shutters ? L.accent : null, box, flowers: FLOWERS };
+  // V1B: stone sills and lintels on brick and stone fronts (both floors of masonry).
+  const masonry = (m: WallMaterial): boolean => m === 'brick' || m === 'stone';
+  const dress = masonry(L.wall) && masonry(L.upper) ? dressingsOf(L.wall, L.frame) : {};
+  return { frame: L.frame, shutter: L.shutters ? L.accent : null, box, flowers: FLOWERS, ...dress };
 }
 
 /**

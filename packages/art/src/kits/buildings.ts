@@ -195,8 +195,67 @@ export function shell(s: ShapeBuilder, sp: ShellSpec): Shell {
     s.nearOnly(() => gableTimbers(s, roof, outer, top, sp.trim));
   // Shade on the walls under deep eaves.
   if (ov >= 0.15) s.occlude(outer[0], top - 0.12, outer[1], outer[2], top + 0.2, outer[3], 0.1, 0.25);
+  s.nearOnly(() => dressings(s, sp, outer, top, roof, skip));
   roofPart(s, roof);
   return { top, ridge, roof, outer };
+}
+
+/**
+ * V1B: the near level's masonry and rainwater: a string course at the floor line and a cornice
+ * under the eaves of brick and stone fronts, gutters along tiled and slated eaves, and a downpipe
+ * at an open front corner.
+ */
+function dressings(
+  s: ShapeBuilder,
+  sp: ShellSpec,
+  outer: [number, number, number, number],
+  top: number,
+  roof: RoofSpec,
+  skip: string,
+): void {
+  const masonry = (m: WallMaterial): boolean => m === 'brick' || m === 'stone';
+  const [ox0, oz0, ox1, oz1] = outer;
+  const band = (x0: number, z0: number, x1: number, z1: number, d: number, y0: number, y1: number): void => {
+    s.box(
+      skip.includes('l') ? x0 : x0 - d,
+      y0,
+      z0 - d,
+      skip.includes('r') ? x1 : x1 + d,
+      y1,
+      z1 + d,
+      palette.stone,
+      skip,
+    );
+  };
+  s.surface(SURFACE.stone);
+  if (sp.upper && masonry(sp.wall) && masonry(sp.upper.wall)) {
+    const yu = sp.base + sp.upper.at;
+    band(sp.x0, sp.z0, sp.x1, sp.z1, 0.03, yu - 0.035, yu + 0.015);
+  }
+  const topWall = sp.upper?.wall ?? sp.wall;
+  if (topWall === 'brick') {
+    band(ox0, oz0, ox1, oz1, 0.035, top - 0.1, top - 0.065);
+    band(ox0, oz0, ox1, oz1, 0.05, top - 0.065, top - 0.02);
+  }
+  s.surface(SURFACE.plain);
+  if (roof.material === 'thatch' || roof.shape === 'lean') return;
+  // Gutters run along the eaves (the roof's low edges), a downpipe drops at an open front corner.
+  const gy = roof.y0 - 0.05;
+  const metal = palette.metal;
+  if (roof.ridgeAlongX) {
+    for (const z of [roof.z0 + 0.03, roof.z1 - 0.03])
+      s.box(roof.x0, gy - 0.04, z - 0.025, roof.x1, gy, z + 0.025, metal, 'b' + skip);
+  } else {
+    for (const x of [roof.x0 + 0.03, roof.x1 - 0.03])
+      s.box(x - 0.025, gy - 0.04, roof.z0, x + 0.025, gy, roof.z1, metal, 'b');
+  }
+  if (skip.includes('l') && skip.includes('r')) return;
+  const right = !skip.includes('r');
+  const px = right ? ox1 - 0.03 : ox0 + 0.03;
+  const pz = roof.ridgeAlongX ? oz1 + 0.035 : oz1 - 0.03;
+  const gx = roof.ridgeAlongX ? px : right ? roof.x1 - 0.03 : roof.x0 + 0.03;
+  beam(s, [gx, gy - 0.03, roof.ridgeAlongX ? roof.z1 - 0.03 : pz], [px, gy - 0.12, pz], 0.014, metal);
+  beam(s, [px, gy - 0.12, pz], [px, 0.04, pz], 0.014, metal);
 }
 
 /** A king post and two struts in each gable end, for timber-framed buildings. */

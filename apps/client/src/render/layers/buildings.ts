@@ -1,6 +1,6 @@
 import { drawDef } from '../defs';
 import { footprintSize, type BuildingView } from '@qoti/sim';
-import { Matrix4, Vector3 } from 'three';
+import { Matrix4, Vector3, type BufferGeometry } from 'three';
 import type { Mirror } from '../../state/mirror';
 import { KeyedBatch } from '../batch';
 import {
@@ -19,6 +19,32 @@ import type { LayerContext, RenderLayer } from './types';
 
 /** Beyond this many tiles from the camera, buildings swap to their low detail version (V1.0: the preset's). */
 const LOD_DISTANCE = 75;
+
+/**
+ * V1B: what building keys cost to build (the chunk rebuild budget is 4 ms a key): every rebuild
+ * that builds keys adds to these, and logs its own total in a dev or ?debug session.
+ */
+export const buildingBuildStats = { keys: 0, ms: 0, worst: 0, worstKey: '' };
+let runKeys = 0;
+let runMs = 0;
+const logBuilds =
+  typeof location !== 'undefined' && (import.meta.env?.DEV === true || location.search.includes('debug'));
+
+function timedBuild(key: string, make: () => BufferGeometry): BufferGeometry {
+  const t0 = performance.now();
+  const g = make();
+  const ms = performance.now() - t0;
+  const st = buildingBuildStats;
+  st.keys++;
+  st.ms += ms;
+  runKeys++;
+  runMs += ms;
+  if (ms > st.worst) {
+    st.worst = ms;
+    st.worstKey = key;
+  }
+  return g;
+}
 
 const probe = new Vector3();
 const toLocal = new Matrix4();
@@ -94,11 +120,14 @@ export function buildingsLayer(): RenderLayer {
       lod = c ? levelFor(undefined, c.distanceTo(camPos), ctx.env?.buildingDetail ?? LOD_DISTANCE) : 'high';
       lods.set(b.id, lod);
     }
-    batch.set(b.id, buildingKey(b, lod), () => buildingVariantGeometry(b, lod), m);
+    const key = buildingKey(b, lod);
+    batch.set(b.id, key, () => timedBuild(key, () => buildingVariantGeometry(b, lod)), m);
   }
 
   function rebuild(): void {
     if (!ctx || !batch) return;
+    runKeys = 0;
+    runMs = 0;
     const seen = new Set<number>();
     for (const b of ctx.mirror.buildings.values()) {
       seen.add(b.id);
@@ -116,6 +145,12 @@ export function buildingsLayer(): RenderLayer {
     }
     lastCam.set(Infinity, 0, 0);
     ctx.invalidate();
+    if (logBuilds && runKeys > 0) {
+      const st = buildingBuildStats;
+      console.info(
+        `[buildings] built ${runKeys} keys in ${runMs.toFixed(1)} ms (worst so far ${st.worst.toFixed(2)} ms: ${st.worstKey})`,
+      );
+    }
   }
 
   /**
