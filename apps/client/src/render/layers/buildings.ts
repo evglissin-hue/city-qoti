@@ -108,8 +108,8 @@ export function buildingsLayer(): RenderLayer {
   const m = new Matrix4();
   let lodTimer = 0;
 
-  function place(b: BuildingView): void {
-    if (!ctx || !batch) return;
+  function place(b: BuildingView): boolean {
+    if (!ctx || !batch) return false;
     buildingMatrix(b.def, b.x, b.z, b.rot, standLevel(ctx.mirror, b.def, b.x, b.z, b.rot), m);
     let lod = lods.get(b.id);
     if (!lod) {
@@ -121,7 +121,7 @@ export function buildingsLayer(): RenderLayer {
       lods.set(b.id, lod);
     }
     const key = buildingKey(b, lod);
-    batch.set(b.id, key, () => timedBuild(key, () => buildingVariantGeometry(b, lod)), m);
+    return batch.set(b.id, key, () => timedBuild(key, () => buildingVariantGeometry(b, lod)), m);
   }
 
   function rebuild(): void {
@@ -129,22 +129,26 @@ export function buildingsLayer(): RenderLayer {
     runKeys = 0;
     runMs = 0;
     const seen = new Set<number>();
+    // V1X: the sim reports building changes that leave the picture as it was (a resident moving
+    // in, a counter ticking over); only a real change drops the still-frame cache.
+    let changed = false;
     for (const b of ctx.mirror.buildings.values()) {
       seen.add(b.id);
       const def = drawDef(b.def);
       const [w, d] = def ? footprintSize(def, b.rot) : [1, 1];
       centers.set(b.id, new Vector3(b.x + w / 2, 0, b.z + d / 2));
-      place(b);
+      if (place(b)) changed = true;
     }
     for (const id of batch.ids()) {
       if (seen.has(id)) continue;
+      changed = true;
       batch.remove(id);
       lods.delete(id);
       swaps.delete(id);
       centers.delete(id);
     }
     lastCam.set(Infinity, 0, 0);
-    ctx.invalidate();
+    if (changed) ctx.invalidate();
     if (logBuilds && runKeys > 0) {
       const st = buildingBuildStats;
       console.info(

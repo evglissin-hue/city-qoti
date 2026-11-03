@@ -60,7 +60,9 @@ describe('ground AO texture', () => {
     const times: number[] = [];
     for (let k = 0; k < 7; k++) {
       ao.markRect([96, 96, 111, 111]);
-      expect(ao.update()).toBe(true);
+      // V1X: the first rebuild changes the texture; the same rect again changes nothing, so it
+      // leaves the still-frame cache alone.
+      expect(ao.update()).toBe(k === 0);
       times.push(ao.lastMs);
     }
     expect(ao.pending).toBe(false);

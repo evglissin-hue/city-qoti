@@ -188,7 +188,8 @@ export class GroundAo {
 
   /**
    * Rebuilds what is dirty, merged into one rect when the edits lie close together. Returns true
-   * when the texture changed. A single building or a chunk takes well under the 4 ms budget.
+   * when the texture changed (V1X: only if a texel did, so an occupant change that leaves every
+   * footprint where it was, such as a building finishing on its own site, keeps the still frame). A single building or a chunk takes well under the 4 ms budget.
    */
   update(): boolean {
     if (this.dirty.length === 0) return false;
@@ -205,13 +206,17 @@ export class GroundAo {
       box[3] = Math.max(box[3], r[3]);
     }
     const t0 = now();
+    const before = this.changed;
     let texels = 0;
     if ((box[2] - box[0] + 1) * (box[3] - box[1] + 1) <= area * 2 + 256) texels = this.rebuildRect(box);
     else for (const r of rects) texels += this.rebuildRect(r);
     this.lastMs = now() - t0;
     this.lastTexels = texels;
-    return true;
+    return this.changed !== before;
   }
+
+  /** V1X: texel writes that changed a value, so `update` can tell a real change from a repaint. */
+  private changed = 0;
 
   /** Recomputes the mask for a tile rect and the light around it. Returns texels written. */
   private rebuildRect(rect: Rect): number {
@@ -242,6 +247,7 @@ export class GroundAo {
       src.set(this.mask.subarray((iz0 + z) * S + ix0, (iz0 + z) * S + ix0 + w), z * w);
     blur(src, near, tmp, w, h, CONTACT_RADIUS);
     blur(src, wide, tmp, w, h, ENCLOSURE_RADIUS);
+    const changedBefore = this.changed;
     for (let z = oz0; z <= oz1; z++) {
       const lz = z - iz0;
       for (let x = ox0; x <= ox1; x++) {
@@ -254,10 +260,14 @@ export class GroundAo {
         // the change is as soft as the blur and never a lighter square with a hard rim.
         const inside = Math.max(0, Math.min(1, (near[li]! - 0.6) / 0.4));
         light += (1 - light) * LOT_LIFT * inside * inside * (3 - 2 * inside);
-        this.bytes[z * S + x] = Math.round(255 * light);
+        const v = Math.round(255 * light);
+        if (this.bytes[z * S + x] !== v) {
+          this.bytes[z * S + x] = v;
+          this.changed++;
+        }
       }
     }
-    this.texture.needsUpdate = true;
+    if (this.changed !== changedBefore) this.texture.needsUpdate = true;
     this.rebuilds++;
     return (ox1 - ox0 + 1) * (oz1 - oz0 + 1);
   }

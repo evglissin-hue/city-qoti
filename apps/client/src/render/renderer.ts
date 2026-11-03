@@ -252,7 +252,7 @@ export class Renderer implements RenderApi {
         scene: root,
         mirror,
         material: this.material,
-        invalidate: () => (moving ? this.invalidate() : this.invalidateStatic()),
+        invalidate: () => (moving ? this.invalidate() : this.invalidateStatic(layer.id)),
         camera: this.camera,
         env: this.env,
       });
@@ -290,12 +290,20 @@ export class Renderer implements RenderApi {
   staticRevision = 0;
 
   /**
+   * V1X: what bumped `staticRevision`, per static layer id (its `invalidate` or a `frame()` that
+   * returned true) and `renderer` for changes from outside a layer, so a resting view that keeps
+   * drawing still frames can be traced (`__qoti.staticChanges()` in a `?debug` valley).
+   */
+  readonly staticChanges = new Map<string, number>();
+
+  /**
    * V1D: a change to the static picture (a static layer's `ctx.invalidate()`, or, from outside a
    * layer, a texture or material uniform that changes what static layers look like, such as a
    * ground AO swap): drops the still-frame cache, re-renders shadows at rest, and draws again.
    */
-  invalidateStatic(): void {
+  invalidateStatic(source = 'renderer'): void {
     this.staticRevision++;
+    this.staticChanges.set(source, (this.staticChanges.get(source) ?? 0) + 1);
     this.contentAt = performance.now();
     this.needsRender = true;
   }
@@ -510,7 +518,10 @@ export class Renderer implements RenderApi {
     for (const layer of this.layers) {
       if (!layer.frame?.(dt)) continue;
       dirty = true;
-      if (layer.motion !== 'moving') this.staticRevision++;
+      if (layer.motion !== 'moving') {
+        this.staticRevision++;
+        this.staticChanges.set(layer.id, (this.staticChanges.get(layer.id) ?? 0) + 1);
+      }
     }
     this.updateLighting();
     if (this.lean) this.drawLean(now, dirty, resting);

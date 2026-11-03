@@ -308,6 +308,14 @@ export function installDebugHook(getSession: () => Session | null): void {
       return r ? layerTriangles(r) : null;
     },
     /**
+     * V1X: what dropped the still-frame cache so far, per static layer (`renderer` for changes from
+     * outside a layer). A resting view should add nothing here.
+     */
+    staticChanges: () => {
+      const r = s()?.renderer;
+      return r ? Object.fromEntries(r.staticChanges) : null;
+    },
+    /**
      * V1C: the ground AO texture's last rebuild (ms, texels written, rebuilds so far) and its light
      * at a world point, if given.
      */
