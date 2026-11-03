@@ -68,10 +68,10 @@ export function soloValley(state: WorldState): boolean {
 }
 
 /**
- * The Chronicle line for the guide's end. The variant goes by the day (no RNG draw), and the entry takes the
- * half step below the next id instead of an id of its own: unique (every entity id is whole), in
- * order among the entries (loading sorts them by id), and every id after it is what it would have
- * been without the guide.
+ * The Chronicle line for the guide's end. The variant goes by the day (no RNG draw), and the entry
+ * takes the half step below the next id instead of an id of its own: unique (every entity id is
+ * whole), in order among the entries (loading sorts them by id), and every id after it is what it
+ * would have been without the guide.
  */
 function farewellLine(state: WorldState, ctx: TickCtx): void {
   const next = state.nextId;

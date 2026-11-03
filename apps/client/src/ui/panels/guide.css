@@ -157,10 +157,6 @@
   filter: drop-shadow(0 1px 0 rgba(253, 248, 236, 0.9));
 }
 
-.guide-arrow .shaft {
-  stroke-dasharray: 2 0;
-}
-
 @keyframes guide-pulse {
   0%,
   100% {
