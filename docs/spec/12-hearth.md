@@ -204,5 +204,6 @@ interface ChronicleEntry {
 - Ledger draws districts; Hearth assigns or edits the style (P22). Grown buildings pick variant parameters from the style with RNG keyed by building id.
 - Restyling an existing district costs paint and materials and is applied by builders over time.
 - Starter styles: Riverside Timber, Hill Stone, Market Brick, Garden Plaster.
+- Styles are keyed by era [I4] (`18-eras.md`): restyling to a newer era's style modernizes a district, and an older era's style is a revival, allowed at the same cost. An Old Town (a preserved older-era cluster) is a pattern of its own.
 - *As built (C4B, I2 ahead of districts)*: the four are content (`packages/content/src/styles.ts`, ids `timber`, `stone`, `brick`, `plaster`, with names, a blurb and where each comes naturally). Until districts arrive the zoning pass picks one per lot: its neighbors' on the same side of the same road, or what the place suits (`13-ledger.md`, Zoning and growth). `Lot.style` and `Building.style` carry the id.
 - As built in C4E: the art kit draws the four starter styles (ids `timber`, `stone`, `brick`, `plaster`; longer names containing them work too) from `Building.style`; see `17-presentation.md`, Village.

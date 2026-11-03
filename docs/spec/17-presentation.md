@@ -1,6 +1,33 @@
 # 17. Presentation
 
-A storybook miniature: soft-lit, warm, low-poly but dense with small details, never grimy, never babyish (P4, P44 to P49).
+A storybook miniature: soft-lit, warm, richly detailed, never grimy, never babyish (P4, P44 to P49).
+
+## Visual direction [V0]
+
+The game should stay cozy and get much more detailed (owner, 2026-11-01). The V0 concept viewer (`docs/concepts/v0-look/index.html`, open it in a browser; stills in `docs/build/screenshots/v0-*.jpg`) draws one generated town three ways, in each era (`18-eras.md`) and at day, golden hour and night, with a live fps, draw call and triangle readout to try on both laptops.
+
+| Direction | What it is | Cost |
+|---|---|---|
+| A. Polished Storybook | Today's palette and chunky shapes, plus joined rows, window frames, roof courses and ground variety | cheapest; close to today's budgets |
+| **B. Painted Miniature (picked)** | A softened, harmonious palette; surface detail drawn in the shader (brick courses, roof tile rows, thatch, plaster grain, timber); ambient occlusion, warm haze, tilt-shift; a model village under a warm lamp | moderate: one material system, then detail everywhere for free |
+| C. Grand Diorama | Closest to Anno: taller three to four storey buildings, mansards, cornices and more ornament, a natural palette, stronger haze and little tilt-shift | most geometry and the least cozy |
+
+**Status**: B picked by the owner and Kat (2026-11-01); A and C stay recorded as the alternatives. The V1 briefs (`docs/build/cycle-v1-*.md`) build B into the game; until V1X merges, the art direction below describes the game as it is.
+
+**Performance**: on High the first concept ran at about 20 to 25 fps on the owner's laptop. The concept now runs on the lean renderer (`20-architecture.md`, Lean renderer), the same look drawn far more cheaply; the first engine stays in `docs/concepts/v0-look/v1-engine.html` for comparison. V1 builds the lean renderer into the game.
+
+Measured in a software renderer (the build container has no GPU, so only the ratios mean anything), at 1280 x 800 on a 2x screen, B in the Age of Steam, three frames each:
+
+| View | First engine, High | Lean, High, moving | Lean, High, camera at rest | Lean, Ultra, moving (same pixel ratio as the first engine's High) |
+|---|---|---|---|---|
+| Town | 12.6 s | 1.6 s (7.8x less) | 0.39 s (32x less) | 2.6 s (4.8x less) |
+| Street | 13.4 s | 2.0 s (6.6x less) | 0.33 s (40x less) | 3.6 s (3.7x less) |
+
+The first engine drew 4.9 M triangles a frame (shadows, the scene and the AO normals, each from scratch); the lean renderer draws 0.2 M while moving and 0.04 M at rest. Medium: 3.0 s and 3.3 s on the first engine, 0.83 s and 1.0 s moving, 0.19 s and 0.16 s at rest. Stills of the lean renderer: `docs/build/screenshots/v0-lean-*.jpg`.
+
+Concept numbers (Age of Steam, 249 buildings, about 3,000 trees and the valley around them, every post pass on): A 0.49 M triangles, B 1.24 M, C 1.28 M, under 100 draw calls. The concept merges each look into a few meshes, so the game will draw more calls than this; the triangles are a fair guide to what each look costs.
+
+Whatever the pick, the gap to close is the same: buildings standing alone on lawns instead of joining into streets, flat roof planes with no courses or thickness, one saturated grass, and little ambient occlusion where things meet.
 
 ## Palette
 
@@ -33,6 +60,7 @@ Pure functions from parameters (and a seed) to `BufferGeometry` with vertex colo
 - **Residents** [I1]: one parametric body (rounded, about 0.3 tile tall) with species parts (ears, tails, stripes, spines), fur palette, clothing colors, tier details (aprons, scarves, hats) and seasonal clothing.
 - **Critters** [I3]: tiny ambient wildlife (butterflies, bees, ducks, frogs, fireflies).
 - **Village** [I2, C4E]: district styles (`kits/district.ts`: Riverside Timber `timber`, Hill Stone `stone`, Market Brick `brick`, Garden Plaster `plaster`) set wall and upper-floor materials, plaster, roof shape, material and tint, accents and detail odds (window boxes, shutters, ivy, porches, lean-tos, dormers, benches, garden edges: picket, wattle, dry stone, hedge, railings). Grown generators fit any 2x2 to 3x3 lot: the district cottage (side gardens: vegetables, washing, a fruit tree or hens), the Craftsfolk townhouse (jettied upper floor, bay window, fanlight, two stacks), the shop with a flat above (shopfront, gilt fascia lettering, awning, a trade sign), the workshop with its yard and what it makes, and the farmstead (house, barn, yard and a produce corner: pen, fruit trees, wheat or rows). A home's look comes from its seed and district alone, so a cottage that upgrades in place becomes a townhouse in the same walls and paint, with scaffolding while the upgrade is under way. Each I2 building has its own silhouette (clay pit banks and pug mill, bottle kiln, shepherd's hut, spinning wheel porch and dye pots, weavers' windows and tenter frame, byre and churn stand, cheese room, orchard rows by season, apple mill and screw press, round woodstack, skeps and herb beds, open forge, bell cote and playground, inn sign on a post and beer garden, herbalist's bottles and bunches, Trading Post veranda and pennants, cart shed bay and pony stall). Sheep, cows and ponies are animated parts; the cart has a body, wheels and a load per good.
+- **Eras** (`18-eras.md`): kits take `era` beside `style`, and an era is a parameter set, not a fork. Old Age [today]: thatch, timber frame, plaster, wattle, dry stone, steep gables, oil lanterns. Age of Steam [I4, V3]: brick and stucco, slate and mansards, sash windows, cast iron railings and lamp posts, gas lamps, chimney stacks, canal locks and barges, terraces of two to four storeys. Bright Age [I5, V4]: stucco in soft pastels, art deco details (stepped parapets, round windows, fluted pilasters), striped awnings, electric globe lamps, tram wires, station canopies; pitched roofs stay the rule.
 - **Gallery** (`apps/gallery`): every generator with parameter sliders, all seasons, day and night. Used for art review.
 
 ## Lighting and time of day
@@ -65,20 +93,30 @@ Pure functions from parameters (and a seed) to `BufferGeometry` with vertex colo
 
 ## Post-processing
 
-Tone mapping (AgX or ACES), bloom (strong at night), tilt-shift (vertical gradient blur, stronger when zoomed out), subtle vignette, gentle seasonal grading (lift, gamma, gain), MSAA where supported.
+Tone mapping (AgX, ACES or Khronos Neutral, whichever matches the concept stills), bloom (golden hour and night), tilt-shift (vertical gradient blur, stronger when zoomed out, none close up), subtle vignette, gentle seasonal grading (lift, gamma, gain, saturation), MSAA where the preset allows. [V1] All of it runs in one final full-screen pass after a quarter resolution blur chain, and ambient occlusion is baked (vertex AO in the kits and a ground AO texture); screen-space AO runs only on Ultra, on still frames (`20-architecture.md`, Lean renderer).
 
 ## Quality presets
 
-| | Low | Medium (target) | High |
-|---|---|---|---|
-| Shadows | off | 2048, soft | 4096, softer |
-| Post | tone mapping only | + bloom, tilt-shift on wide views (none close up) | + ambient occlusion, more bloom detail |
-| Render scale | 0.75 | 1.0 (device pixel ratio up to 2) | 1.0 (device pixel ratio up to 2) |
-| Resident detail distance | 30 tiles | 60 | 100 |
-| Decor detail distance | 40 | 80 | 140 |
-| Ambient critters | none | some | all |
+From V1 (the lean renderer, `20-architecture.md`):
 
-Auto-detect picks a preset (Low on phones and two-core machines, otherwise Medium; High is a choice in settings, because core counts say little about the GPU behind a Retina screen); the settings menu can override it. On every preset, dynamic resolution steps the render scale down (to 0.85, 0.72, 0.6 and 0.5 of the preset's, never below a pixel ratio of 0.6) when frames average slower than about 45 fps, and back up after a few seconds above about 66 fps (`apps/client/src/render/resolution.ts`; `?debug&fixedres` turns it off for screenshots).
+| | Low | Medium (target) | High | Ultra [V1] |
+|---|---|---|---|---|
+| Render scale | 0.75 of a pixel ratio of 1 | pixel ratio up to 1 | pixel ratio up to 1.5 | pixel ratio up to 2 |
+| Antialiasing | none | MSAA 4 on the scene pass | MSAA 4 | MSAA 4 |
+| Sun shadows (cached) | 1024 | 2048 | 4096 | 4096, softest filtering |
+| Ambient occlusion | baked | baked | baked | baked, plus screen-space on still frames |
+| Still-frame cache | off | on | on | on, at the device pixel ratio |
+| Post (one final pass) | tilt-shift, grade, tone mapping | + bloom at golden hour and night | as Medium | as Medium |
+| Buildings at full detail within | 40 tiles | 60 | 75 | 110 *(tune)* |
+| Resident detail distance | 30 tiles | 60 | 100 | 140 |
+| Decor detail distance | 40 | 80 | 140 | 200 |
+| Ambient critters | none | some | all | all |
+
+Ultra is for the stronger laptop or a desktop; it is never auto-detected. Budgets per preset: `22-quality.md`. Before V1 the game runs Low without post or shadows, and Medium and High at a device pixel ratio up to 2 with bloom, two tilt-shift passes and the grade (`render/quality.ts`).
+
+Medium caps the pixel ratio at 1 for moving frames. Playtest round three found 1.5 soft on a Retina screen (Medium was raised to 2 then), so V1D checks cap 1 against cap 2 with dynamic resolution on the Retina laptop, may let the still-frame cache draw at the device pixel ratio on Medium and High if the idle budget allows, and records what it kept here.
+
+Auto-detect picks a preset (Low on phones and two-core machines, otherwise Medium; High is a choice in settings, because core counts say little about the GPU behind a Retina screen); the settings menu can override it. On every preset, dynamic resolution steps the render scale down (to 0.85, 0.72, 0.6 and 0.5 of the preset's, never below a pixel ratio of 0.6) when frames average slower than about 45 fps, and back up after a few seconds above about 66 fps (`apps/client/src/render/resolution.ts`; `?debug&fixedres` turns it off for screenshots). [V1] It judges moving frames only and waits longer before retrying a step-up that failed.
 
 ## UI
 
