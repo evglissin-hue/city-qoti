@@ -80,7 +80,7 @@ export function rosterDay(state: WorldState, ctx: TickCtx): void {
     return;
   }
   // Who serves: still here and able, up to the target.
-  let members = w.members.filter((id) => {
+  const members = w.members.filter((id) => {
     const r = findById(state.residents, id);
     return !!r && canServe(r);
   });

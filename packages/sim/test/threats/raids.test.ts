@@ -305,3 +305,22 @@ describe('the whole raid', () => {
     expectMoneyInvariant(before, a.s);
   }, 180000);
 });
+
+describe('the view', () => {
+  it('raiders ride in the agent frame; the season report tells both pages', async () => {
+    const { agentFrame } = await import('../../src/view/agents');
+    const { threatLines } = await import('../../src/view/season/threat');
+    const { AGENT_STRIDE, AgentFlags } = await import('../../src/constants');
+    const d = raidAtDusk();
+    const frame = agentFrame(d.state);
+    let raiders = 0;
+    for (let o = 0; o < frame.length; o += AGENT_STRIDE) if (frame[o + 7]! & AgentFlags.raider) raiders++;
+    expect(raiders).toBe(6);
+    d.state.threats.history.push({ tick: d.state.tick, band: 'medium', side: 'n', stolen: 4, captured: 2, repelled: true });
+    const lines = threatLines(d.state);
+    expect(lines.hearth.length).toBeGreaterThan(0);
+    expect(lines.ledger.some((l) => l.value === 4)).toBe(true);
+    // The Hearth's page never shows raw pressure (P36).
+    expect(lines.hearth.some((l) => l.value === d.state.threats.pressure)).toBe(false);
+  });
+});

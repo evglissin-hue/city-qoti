@@ -1,4 +1,4 @@
-import type { BuildingDef, ChronicleTemplate } from './types';
+import type { BuildingDef, ChronicleTemplate, DecorDef } from './types';
 
 // C5D: threats, defenses and the Watch (docs/spec/14-challenge.md). Chronicle kinds and Barnaby
 // Ashcombe's finale landmark. Params by kind:
@@ -76,6 +76,34 @@ export const wolvesHowl: ChronicleTemplate = {
     'The wolves sang at the edge of the trees until midnight. {town} pulled its blankets up and decided it was a lovely tune, from a distance.',
     'Howling in the forest after dark. The wolves are letting {town} know they exist, which is very considerate of them.',
   ],
+};
+
+// Pieces the two C5D patterns unlock (stand-in kits; the kit C5E should draw is in params.kit).
+
+/** Town Gate unlocks a banner on a pole, for the gate's two sides. */
+export const gateBanner: DecorDef = {
+  id: 'gate-banner',
+  name: 'Gate banner',
+  lane: 'shared',
+  radius: 24,
+  onRoad: true,
+  tags: ['banner', 'sign'],
+  art: { kit: 'signpost', params: { kit: 'gate-banner' } },
+  charm: [{ category: 'view', value: 3, radius: 2 }],
+  locked: true,
+};
+
+/** Watch Lookout unlocks a bench with a spyglass on a post beside it. */
+export const lookoutBench: DecorDef = {
+  id: 'lookout-bench',
+  name: 'Lookout bench',
+  lane: 'hearth',
+  radius: 48,
+  onRoad: true,
+  tags: ['bench', 'seat'],
+  art: { kit: 'bench', params: { kit: 'lookout-bench', spyglass: true } },
+  charm: [{ category: 'comfort', value: 3, radius: 2 }],
+  locked: true,
 };
 
 /** Barnaby Ashcombe's finale: a stone bridge by the water, a landmark the whole valley can see. */
