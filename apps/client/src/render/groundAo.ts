@@ -28,7 +28,7 @@ export const AO_SIZE = Math.round(MAP_SIZE * AO_TEXELS_PER_TILE);
 export const CONTACT_RADIUS = 2;
 export const ENCLOSURE_RADIUS = 6;
 /** How much each blur darkens, and the darkest the ground gets. *(tune)* */
-export const CONTACT_WEIGHT = 0.75;
+export const CONTACT_WEIGHT = 0.7;
 export const ENCLOSURE_WEIGHT = 0.25;
 export const AO_FLOOR = 0.36;
 /**
@@ -250,7 +250,10 @@ export class GroundAo {
           AO_FLOOR,
           Math.min(1, 1 - near[li]! * CONTACT_WEIGHT - wide[li]! * ENCLOSURE_WEIGHT),
         );
-        if (src[li] === 1) light += (1 - light) * LOT_LIFT;
+        // Deep inside a lot (the contact blur near 1) the light lifts; at its edge it does not, so
+        // the change is as soft as the blur and never a lighter square with a hard rim.
+        const inside = Math.max(0, Math.min(1, (near[li]! - 0.6) / 0.4));
+        light += (1 - light) * LOT_LIFT * inside * inside * (3 - 2 * inside);
         this.bytes[z * S + x] = Math.round(255 * light);
       }
     }

@@ -170,7 +170,7 @@ export const oak: Kit = {
       t.stick(0.1, 0.07, 0.66, palette.bark);
       t.s.surface(SURFACE.leaf);
       // The near crown's whole outline: its clumps reach about 0.6 out and 1.4 up.
-      t.dome([lx, 0.98, lz], [0.62, 0.46, 0.62], leaf, sunlit(leaf, 0.2), phase, rnd);
+      t.dome([lx, 0.98, lz], [0.74, 0.5, 0.74], leaf, sunlit(leaf, 0.2), phase, rnd);
       return t.build(STAGE_SCALE[stage]!);
     }
     if (stage === 0) {
@@ -228,7 +228,7 @@ export const birch: Kit = {
       t.s.surface(SURFACE.timber);
       t.stick(0.05, 0.035, 1.0, palette.birchBark);
       t.s.surface(SURFACE.leaf);
-      t.dome([lx, 1.15, lz], [0.33, 0.47, 0.33], leaf, sunlit(leaf, 0.2), phase, rnd);
+      t.dome([lx, 1.15, lz], [0.38, 0.5, 0.38], leaf, sunlit(leaf, 0.2), phase, rnd);
       return t.build(STAGE_SCALE[stage]!);
     }
     t.s.surface(SURFACE.timber);
@@ -293,8 +293,8 @@ export const pine: Kit = {
       t.s.surface(SURFACE.timber);
       t.stick(0.07, 0.05, 0.36, palette.bark);
       t.s.surface(SURFACE.leaf);
-      t.cone(0, 0, 0.52, 0.26, 1.0, mixHex(green, 0x2f4a33, 0.12), 5, phase);
-      t.cone(0, 0, 0.36, 0.72, 1.42, mixHex(green, palette.birchLeaf, 0.18), 5, phase + 0.6);
+      t.cone(0, 0, 0.6, 0.24, 1.0, mixHex(green, 0x2f4a33, 0.12), 5, phase);
+      t.cone(0, 0, 0.44, 0.7, 1.45, mixHex(green, palette.birchLeaf, 0.18), 5, phase + 0.6);
       return t.build(STAGE_SCALE[stage]!);
     }
     t.s.surface(SURFACE.timber);

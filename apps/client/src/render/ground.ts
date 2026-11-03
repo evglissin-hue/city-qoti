@@ -473,7 +473,21 @@ vec3 qGround(vec3 base) {
   // Banks: a sandy strip that follows the shore, damp sand at the waterline, the bed below it.
   float above = vQWorld.y - ${WATER_Y.toFixed(3)};
   float strip = 1.0 - smoothstep(0.1, 0.22, above + (qNoise(wp * 2.3) - 0.5) * 0.1);
-  col = mix(col, qSrgb(vec3(0.89, 0.82, 0.63)) * (0.94 + 0.1 * qNoise(wp * 5.0)), strip * 0.85);
+  vec3 sandy = qSrgb(vec3(0.89, 0.82, 0.63)) * (0.94 + 0.1 * qNoise(wp * 5.0));
+  // V1C: where the town reaches the water (its lawns) the bank is dressed stone, set in courses;
+  // out in the country it stays earth and sand.
+  float town = smoothstep(0.35, 0.8, mown);
+  if (town > 0.01) {
+    vec2 bu = wp * vec2(2.6, 2.6);
+    float course = floor(bu.y);
+    vec2 bc = vec2(floor(bu.x + mod(course, 2.0) * 0.5), course);
+    vec2 bf = fract(vec2(bu.x + mod(course, 2.0) * 0.5, bu.y));
+    float joint = smoothstep(0.0, 0.08, min(min(bf.x, 1.0 - bf.x), min(bf.y, 1.0 - bf.y)));
+    vec3 stone = mix(qSrgb(vec3(0.66, 0.63, 0.57)), qSrgb(vec3(0.76, 0.72, 0.64)), qHash(bc));
+    stone = mix(qSrgb(vec3(0.36, 0.34, 0.30)), stone, joint);
+    sandy = mix(sandy, stone, town);
+  }
+  col = mix(col, sandy, strip * 0.85);
   col *= mix(0.72, 1.0, smoothstep(-0.02, 0.07, above));
   col = mix(col, qSrgb(vec3(0.38, 0.42, 0.30)), smoothstep(0.0, -0.4, above) * 0.6);
 

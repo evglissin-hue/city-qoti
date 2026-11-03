@@ -56,6 +56,7 @@ export const kits: readonly Kit[] = [
   Sv.herbalistKit,
   B.house2,
   D.lantern,
+  N.lilyPads,
   D.lowWall,
   W.marketStallKit,
   Gd.mooringPost,
