@@ -13,7 +13,9 @@ describe('two players, three evenings', { timeout: 120_000 }, () => {
       const days = run.days;
       const last = days[days.length - 1]!;
       const why = `\n${formatDays(days)}`;
-      expect(last.residents, why).toBeGreaterThanOrEqual(28);
+      // C5B: the festival evenings (guests walking to the green, the mood they bring home) move
+      // willow's third evening by a household.
+      expect(last.residents, why).toBeGreaterThanOrEqual(27);
       expect(last.departures, why).toBe(0);
       for (const d of days) {
         expect(d.leanTimes, why).toBe(false);
@@ -106,7 +108,10 @@ describe('a Village run', { timeout: 400_000 }, () => {
     expect(village, why).toBeGreaterThan(0);
     expect(village + 1, why).toBeLessThanOrEqual(40);
     const last = days[days.length - 1]!;
-    expect(last.residents, why).toBeGreaterThan(days[village]!.residents + 100);
+    // C5B: with festivals the Hamlet grows bigger before the claim (oak claims at about 85 rather
+    // than 37), so the Village half adds fewer but ends the run about as big.
+    expect(last.residents, why).toBeGreaterThan(days[village]!.residents + 75);
+    expect(last.residents, why).toBeGreaterThanOrEqual(150);
     expect(last.departures, why).toBeLessThanOrEqual(2);
     for (const d of days) expect(d.leanTimes, why).toBe(false);
     // The town never stalls: every ten days of the Village half add residents.

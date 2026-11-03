@@ -184,8 +184,20 @@ export { seasonReportView } from './view/season';
 export { emptySeasonsSlices, markFloodplain, seasonAt, startGuide } from './state/seasons';
 export { FESTIVAL_SITE_MAX, FESTIVAL_SITE_MIN } from './commands/festival';
 export { WATCH_BUDGET_MAX, WATCH_MAX } from './commands/watch';
-export { addRenown, levelFor, renownLevel } from './systems/renown/api';
+export { addRenown, levelFor, renownEffect, renownLevel } from './systems/renown/api';
 export { festivalMorale } from './systems/festivals/api';
+// I3 (C5B): what the autoplayer's festivals advisor reads.
+export {
+  availableInTown,
+  currentPlan,
+  hasBandstand,
+  inReach,
+  musicianFor,
+  reserveMenu,
+} from './systems/festivals/api';
+export { openGround, patternRect, siteRect } from './systems/festivals/site';
+export { canMeet, progressOf } from './systems/commissions';
+export { BOAT_UNITS, dockSellPrice, riverDock } from './systems/dock';
 export {
   forecast,
   isCold,

@@ -19,6 +19,7 @@ describe('the advisors', () => {
       'money',
       'hamlet',
       'seasons',
+      'festivals',
       'hearth',
       'together',
     ]);

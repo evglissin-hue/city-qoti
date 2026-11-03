@@ -1,6 +1,6 @@
 // The festival evening's schedule override (C5B; the schedule hook, priority 50: below the bell and
 // storms, above Watch duty, skating and leisure). Tonight's guests walk to a spot on the site from
-// 18:00 and stay until 22:00; then the day table sends them home to bed.
+// 18:00 (finishing a shopping trip first) and stay until 22:00; then the day table sends them home.
 import type { Activity, Resident, WorldState } from '../../contracts';
 import { FESTIVAL } from '../../constants';
 import { currentSite } from './api';
@@ -12,6 +12,8 @@ export function festivalGuest(state: WorldState, r: Resident, hour: number): Act
   const f = state.festival;
   if (!f.live || !f.guests || hour < FESTIVAL.from || hour >= FESTIVAL.to) return null;
   if (!binaryHas(f.guests, r.id)) return null;
+  // An errand under way is finished first: the pantry still wants filling.
+  if (r.activity.kind === 'shop') return null;
   const rect = currentSite(state);
   if (!rect) return null;
   const tile = standTile(state, rect, r.id);

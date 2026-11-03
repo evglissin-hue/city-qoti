@@ -24,8 +24,8 @@ export function grantFestival(
   const stars = outcome.stars;
   const mood = t.mood[stars] ?? 0;
   if (mood > 0) {
-    for (const r of state.residents) {
-      addMoodModifier(state, r.id, { kind: 'festival', value: mood, ticks: t.moodDays * TICKS_PER_DAY });
+    for (const id of guests) {
+      addMoodModifier(state, id, { kind: 'festival', value: mood, ticks: t.moodDays * TICKS_PER_DAY });
     }
   }
   // One bond heart a guest: there is one festival a season, so this is the season's cap.

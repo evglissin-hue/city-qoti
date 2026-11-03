@@ -98,7 +98,7 @@ export const snowSculptures: FestivalTwistDef = {
 export const festivalTuning: FestivalTuning = {
   weights: { site: 20, variety: 20, menu: 30, music: 15, twist: 15 },
   stars: [20, 40, 60, 80],
-  reach: 40,
+  reach: 24,
   weather: [
     ['rain', 700],
     ['storm', 450],
