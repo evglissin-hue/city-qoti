@@ -106,8 +106,8 @@ test('festival, posture, captives and the threat dial round trip between two sea
   await b.getByTestId('festival-pick-site').click();
   const spot = await b.evaluate(() => window.__qoti.findBuildingSpot('town-hall'));
   // The site box goes on open ground near the start; drag it on the map like a player.
-  const from = await b.evaluate(([x, z]) => window.__qoti.screenOf(x, z), [spot!.x - 3, spot!.z - 3]);
-  const to = await b.evaluate(([x, z]) => window.__qoti.screenOf(x, z), [spot!.x + 3, spot!.z + 3]);
+  const from = await b.evaluate(([x, z]) => window.__qoti.screenOf(x!, z!), [spot!.x - 3, spot!.z - 3]);
+  const to = await b.evaluate(([x, z]) => window.__qoti.screenOf(x!, z!), [spot!.x + 3, spot!.z + 3]);
   await b.mouse.move(from!.x, from!.y);
   await b.mouse.down();
   await b.mouse.move(to!.x, to!.y, { steps: 8 });

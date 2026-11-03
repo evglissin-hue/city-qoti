@@ -132,7 +132,7 @@ export function WatchPanel({ session }: { session: Session }) {
                   >
                     {r ? personName(r) : `Member ${id}`}
                   </button>
-                  {duty.has(id) && <span class="duty-tag">on duty today</span>}
+                  {duty.has(id) && <span class="duty-tag">on duty</span>}
                 </li>
               );
             })}

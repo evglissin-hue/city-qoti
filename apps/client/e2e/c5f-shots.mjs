@@ -78,7 +78,7 @@ for (const scale of scales) {
       await reset(page);
       await panel('field-guide');
       await snap('field-guide');
-      await page.locator('[data-testid^="guide-"]').first().click();
+      await page.locator('.guide-entry').first().click();
       await snap('field-guide-page');
       await reset(page);
       await panel('trial');

@@ -245,7 +245,11 @@ function ReportPage({
             <li key={i} class={`report-line track-${l.track}`}>
               <span class="report-mark">{TRACK_MARK[l.track]}</span>
               <span>{l.text}</span>
-              {l.value !== undefined && l.track !== 'festival' && <b class="report-value">{l.value}</b>}
+              {l.value !== undefined && l.track === 'nature' && (
+                <b class="report-value" title="New in the Field Guide">
+                  +{l.value}
+                </b>
+              )}
             </li>
           ))}
         </ul>

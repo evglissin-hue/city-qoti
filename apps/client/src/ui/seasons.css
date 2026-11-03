@@ -211,9 +211,9 @@
 }
 
 .forecast {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 4px;
 }
 .forecast-day {
   display: grid;
@@ -656,7 +656,7 @@
   /* A brass pin. */
   content: '';
   position: absolute;
-  top: -5px;
+  top: 2px;
   left: 50%;
   width: 10px;
   height: 10px;
@@ -694,6 +694,7 @@
   break-inside: avoid;
 }
 .duty-tag {
+  white-space: nowrap;
   margin-left: 4px;
   padding: 0 5px;
   border-radius: 4px;
@@ -761,7 +762,7 @@
 .raid-bar {
   position: absolute;
   left: 50%;
-  top: calc(64px + 46px * var(--ui-scale));
+  bottom: calc(30px + 74px * var(--ui-scale));
   transform: translateX(-50%);
   z-index: 12;
   display: flex;
@@ -817,10 +818,11 @@
 }
 .captive-card {
   position: absolute;
-  right: 12px;
-  bottom: calc(86px * var(--ui-scale));
+  right: 10px;
+  /* Above the minimap (which sits at 22px + 74px, 148px wide and square plus its padding). */
+  bottom: calc(40px + 74px * var(--ui-scale) + 160px * var(--ui-scale));
   z-index: 14;
-  width: min(330px, calc(100% - 24px));
+  width: min(calc(290px * var(--ui-scale)), calc(100% - 24px));
   padding: 10px 14px;
 }
 .captive-card p {
@@ -957,7 +959,7 @@
 .together-note {
   position: absolute;
   left: 50%;
-  bottom: calc(90px * var(--ui-scale));
+  top: calc(70px + 46px * var(--ui-scale));
   transform: translateX(-50%);
   z-index: 11;
   display: flex;
@@ -1031,10 +1033,11 @@
   justify-content: flex-start;
   text-align: left;
 }
-/* The raid bar steps right of an open book. */
-.game-ui:has(> .book-slot) .raid-bar {
-  left: calc(50% + 200px * var(--ui-scale));
-  max-width: calc(100% - 420px * var(--ui-scale));
+/* The raid bar keeps to the lane between whatever is open on the left and the minimap. */
+.raid-bar {
+  --raid-r: max(var(--strip-r, 10px), calc(24px + 160px * var(--ui-scale)));
+  left: calc(var(--strip-l, 10px) + (100% - var(--strip-l, 10px) - var(--raid-r)) / 2);
+  max-width: calc(100% - var(--strip-l, 10px) - var(--raid-r));
 }
 
 /* The top bar is tight on a laptop: the weather keeps its glyph (the tooltip has the words). */
@@ -1051,4 +1054,24 @@
 .ui-large .topbar .weather-chip .next,
 .ui-large .topbar .stat-chip.renown span {
   display: none;
+}
+
+/* Second-opinion fixes: tabs that wrap in the Trade book, calmer pressure, tidier line ends. */
+.trade .tabs {
+  flex-wrap: wrap;
+}
+.watch-board .meter.tone-ochre .meter-track i {
+  background: var(--ochre);
+}
+.guide-hints li,
+.poster-when,
+.report-line span,
+.trial-blurb {
+  text-wrap: pretty;
+}
+.poster-when {
+  text-wrap: balance;
+}
+.morale-parts {
+  font-size: 0.9rem;
 }

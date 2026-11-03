@@ -109,7 +109,7 @@ export function RaidBar({ session }: { session: Session }) {
             title="Let folk through again"
             onClick={() => setGates(true)}
           >
-            open
+            or open them
           </button>
         </span>
       )}
@@ -168,10 +168,7 @@ export function CaptiveChoice({ session, ids }: { session: Session; ids: EntityI
   return (
     <div class="captive-card panel" role="dialog" aria-label="A captured raider" data-testid="captive-choice">
       <p class="kicker">{ids.length > 1 ? `${ids.length} captured, one at a time` : 'Caught by the Watch'}</p>
-      <p>
-        They look cold, a bit sheepish and very hungry. Bandits are a gang, not a species: anyone might be
-        one, and anyone might stop.
-      </p>
+      <p>Cold, a bit sheepish and very hungry. Anyone might be a bandit, and anyone might stop.</p>
       <div class="actions">
         <button type="button" class="primary" data-testid="captive-home" onClick={() => decide('home')}>
           Offer them a home
@@ -180,9 +177,7 @@ export function CaptiveChoice({ session, ids }: { session: Session; ids: EntityI
           Send them off
         </button>
       </div>
-      <p class="small muted">
-        A home means a new neighbor with a past. Sending them off spreads the word: renown +1.
-      </p>
+      <p class="small muted">A home: a new neighbor with a past. Off: the word spreads, renown +1.</p>
     </div>
   );
 }
