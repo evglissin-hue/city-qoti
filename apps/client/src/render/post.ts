@@ -151,7 +151,7 @@ const FINAL_FRAGMENT = /* glsl */ `
     vec3 c = texture2D(tScene, vUv).rgb;
     if (uBlurOn > 0.5) {
       vec3 b = texture2D(tBlur, vUv).rgb;
-      c = mix(c, b, smoothstep(0.0, 1.0, lookTiltMask(vUv) * uTilt));
+      c = mix(c, b, lookTiltMix(vUv, uTilt));
     }
     if (uBloomOn > 0.5) {
       vec3 glow = texture2D(tBloom, vUv).rgb * uBloomGain;
@@ -160,9 +160,7 @@ const FINAL_FRAGMENT = /* glsl */ `
     c = lookToneMap(c);
     vec4 o = lookSrgb(vec4(c, 1.0));
     o.rgb = lookGrade(o.rgb) * lookVignette(vUv);
-    // Dither (interleaved gradient noise) so slow gradients like the sky never band in 8 bits.
-    float n = fract(52.9829189 * fract(dot(gl_FragCoord.xy, vec2(0.06711056, 0.00583715))));
-    gl_FragColor = vec4(o.rgb + (n - 0.5) / 255.0, 1.0);
+    gl_FragColor = vec4(lookDither(o.rgb, gl_FragCoord.xy), 1.0);
   }
 `;
 
