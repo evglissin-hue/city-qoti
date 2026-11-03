@@ -11,7 +11,7 @@ import { createHousehold } from '../systems/residents/generate';
 import { gateTile } from '../systems/residents/lifecycle';
 import { doorOf, vacantHomes } from '../systems/residents/places';
 import { announceHousehold, announceResident, announceTown } from '../systems/residents/records';
-import { threatView } from '../view/seasons';
+import { raidView, threatView } from '../view/seasons';
 import type { HandlerFor } from './util';
 
 /** Renown for sending a captured bandit off. */
@@ -57,5 +57,7 @@ export const decide: HandlerFor<'bandit.decide'> = {
       });
     }
     ctx.events.push({ e: 'threat.updated', t: threatView(state) });
+    // C5F: during a raid the live view lists the captures too, so both seats' cards close.
+    if (state.raid) ctx.events.push({ e: 'raid.updated', r: raidView(state)! });
   },
 };

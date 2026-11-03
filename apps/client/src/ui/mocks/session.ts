@@ -214,3 +214,28 @@ export function mockVillageSession(seat: 0 | 1 = 0, opts: { charter?: boolean } 
     Promise.resolve(villageInspect(kind, id));
   return out;
 }
+
+/**
+ * I3 (C5F): a session on the winter fixture (or the threat valley, or the raid at dusk) with the I3
+ * mocks' history laid over it, answering inspect from the fixture.
+ */
+export async function mockSeasonsSession(
+  which: 'winter' | 'raid' | 'threat' = 'winter',
+  seat: 0 | 1 = 0,
+): Promise<MockSession> {
+  const s = await import('./seasons');
+  const base = which === 'winter' ? s.mockWinterView : which === 'raid' ? s.mockRaidView : s.mockThreatView;
+  const view: ViewSnapshot = { ...base, seats: mockView().seats };
+  const out = mockSession(view, seat);
+  const m = out.session.mirror;
+  if (which === 'winter') {
+    for (const c of s.mockCommissions) m.commissions.set(c.id, c);
+    m.dock.value = s.mockDock;
+    m.renown.value = s.mockRenown;
+    m.festivalResult.value = s.mockFestivalResult;
+    m.seasonsRevision.value++;
+  }
+  (out.session as { inspect: Session['inspect'] }).inspect = (kind, id) =>
+    Promise.resolve(s.seasonsInspect(which, kind, id));
+  return out;
+}

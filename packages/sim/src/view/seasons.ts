@@ -77,6 +77,8 @@ export function threatView(state: WorldState): ThreatView {
     signs: shown ? [...r!.signs] : [],
     wolvesTonight: state.threats.wolves.includes(today),
     pressure: state.threats.pressure,
+    // C5F: captured raiders waiting for bandit.decide, so either seat can decide after dawn.
+    ...(state.threats.captives.length ? { captives: [...state.threats.captives] } : {}),
   };
 }
 

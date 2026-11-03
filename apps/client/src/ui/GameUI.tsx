@@ -11,6 +11,8 @@ import { Toolbar } from './Toolbar';
 import { StockStrip, TopBar } from './TopBar';
 import './hamlet.css';
 import './village.css';
+import './seasons.css';
+import { seasonKey } from './seasons';
 
 /** ?clean hides the debug numbers, for screenshots. */
 const CLEAN = new URLSearchParams(location.search).has('clean');
@@ -19,8 +21,15 @@ const CLEAN = new URLSearchParams(location.search).has('clean');
 export function GameUI({ session, onLeave }: { session: Session; onLeave: () => void }) {
   const open = session.ui.panel.value;
   const book = open ? panels.find((p) => p.id === open && p.side === 'book') : undefined;
+  // I3 (C5F): photo mode hides everything but its own strip.
+  if (session.ui.photo.value) {
+    const strip = panels.find((p) => p.id === 'photo');
+    return <div class="game-ui photo-mode">{strip && <strip.component session={session} />}</div>;
+  }
+  // I3 (C5F): the paper takes a faint tint of the season.
+  const season = seasonKey(session.mirror.tick.value);
   return (
-    <div class={`game-ui ${minimapShown(session) ? 'with-minimap' : ''}`}>
+    <div class={`game-ui season-${season} ${minimapShown(session) ? 'with-minimap' : ''}`}>
       {panels
         .filter((p) => p.side === 'world')
         .map((p) => (

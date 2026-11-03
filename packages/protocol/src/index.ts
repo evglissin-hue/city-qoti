@@ -1,3 +1,18 @@
+export {
+  handleImage,
+  IMAGE_ROUTE,
+  IMAGE_TYPES,
+  IMAGES_PER_VALLEY,
+  MAX_IMAGE_BYTES,
+  MemoryImages,
+  sniffImage,
+  storeImage,
+  type ImageRequest,
+  type ImageResponse,
+  type ImageStorage,
+  type ImageType,
+  type StoredImage,
+} from './images';
 export * from './limits';
 export type * from './messages';
 export { SerialQueue } from './queue';

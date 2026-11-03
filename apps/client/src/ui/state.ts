@@ -1,5 +1,15 @@
 import { signal } from '@preact/signals';
-import type { AwayLetter, LetterView, Lens, PlanItem, RankId } from '@qoti/sim';
+import type {
+  AwayLetter,
+  FestivalResultView,
+  LetterView,
+  Lens,
+  PlanItem,
+  RaidResultView,
+  RankId,
+  SeasonCardView,
+  SeasonReportView,
+} from '@qoti/sim';
 import type { Selection } from '../input/context';
 
 export interface Toast {
@@ -26,13 +36,25 @@ export type ReportTab = 'stocks' | 'workforce' | 'budget' | 'buildings';
 
 // I2 (C4F)
 export type MarketTab = 'prices' | 'profit';
-export type TradeTab = 'neighbors' | 'orders' | 'caravans';
+export type TradeTab = 'neighbors' | 'orders' | 'caravans' | 'dock' | 'commissions';
 
 /** A plan being sketched: commands the tools would have sent, kept here until proposed. */
 export interface Sketch {
   items: PlanItem[];
   /** A plan being added to (its items come first), or null for a new one. */
   basedOn: number | null;
+}
+
+/** I3 (C5F): the almanac page on the desk: the card that opens a season or the report closing it. */
+export type Almanac =
+  { kind: 'card'; view: SeasonCardView } | { kind: 'report'; view: SeasonReportView; page: 0 | 1 };
+
+/** I3 (C5F): the festival planner's working copy. */
+export interface FestivalDraft {
+  site: { rect: [number, number, number, number] } | { pattern: string; anchor: number } | null;
+  menu: [good: string, qty: number][];
+  twist: string;
+  music: 'none' | 'resident' | 'bandstand';
 }
 
 export function createUiState() {
@@ -94,6 +116,25 @@ export function createUiState() {
     minimapOpen: signal(true),
     /** The rank-up moment, while it is on screen. */
     rankUp: signal<{ rank: RankId; text: string } | null>(null),
+    // I3 (C5F)
+    /** The season card or the season report on the desk, while it is open. */
+    almanac: signal<Almanac | null>(null),
+    /** The raid's result card, while it is open. */
+    raidCard: signal<RaidResultView | null>(null),
+    /** The festival's result card, while it is open. */
+    festivalCard: signal<FestivalResultView | null>(null),
+    /** A quiet note while a together moment is on, or null. */
+    together: signal<string | null>(null),
+    /** Photo mode: the interface hidden, the camera free. */
+    photo: signal(false),
+    /** Field Guide page on display (a species id), or null for the contents. */
+    guidePage: signal<string | null>(null),
+    /** The festival planner's draft until it is sent. */
+    festivalDraft: signal<FestivalDraft | null>(null),
+    /** The Watch's guard points while they are being placed, before they are sent. */
+    postureDraft: signal<[number, number][] | null>(null),
+    /** Chronicle snapshots this device has fetched or taken: entry id to an object URL. */
+    snapshots: signal<ReadonlyMap<number, string>>(new Map()),
   };
 }
 

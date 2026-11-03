@@ -12,6 +12,7 @@ export {
   gateTiles,
   isGateDef,
   isWallDef,
+  MAX_WALL_TILES,
   mustReach,
   wouldEnclose,
   type WallBuilding,

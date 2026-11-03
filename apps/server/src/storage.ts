@@ -1,4 +1,12 @@
-import { SNAPSHOTS_KEPT, type RoomStorage, type StoredMeta, type StoredSnapshot } from '@qoti/protocol';
+import {
+  SNAPSHOTS_KEPT,
+  type ImageStorage,
+  type ImageType,
+  type RoomStorage,
+  type StoredImage,
+  type StoredMeta,
+  type StoredSnapshot,
+} from '@qoti/protocol';
 import type { SeatedCommand, Turn } from '@qoti/sim';
 
 // The schema from docs/spec/21-networking-and-saves.md, Hosting.
@@ -6,6 +14,7 @@ const SCHEMA = `
 CREATE TABLE IF NOT EXISTS meta (k TEXT PRIMARY KEY, v TEXT);
 CREATE TABLE IF NOT EXISTS turns (t INTEGER PRIMARY KEY, cmds TEXT);
 CREATE TABLE IF NOT EXISTS snapshots (t INTEGER PRIMARY KEY, sim_version TEXT, label TEXT, created INTEGER, data BLOB);
+CREATE TABLE IF NOT EXISTS images (entry INTEGER PRIMARY KEY, type TEXT, created INTEGER, data BLOB);
 `;
 
 function toBase64(bytes: Uint8Array): string {
@@ -23,8 +32,11 @@ function fromBase64(text: string): Uint8Array {
   return out;
 }
 
-/** RoomStorage on a Durable Object's SQLite database. Snapshots are stored as raw gzip bytes. */
-export class SqliteStorage implements RoomStorage {
+/**
+ * RoomStorage on a Durable Object's SQLite database. Snapshots are stored as raw gzip bytes. C5F:
+ * also the valley's Chronicle pictures (ImageStorage), capped and pruned by the protocol's storeImage.
+ */
+export class SqliteStorage implements RoomStorage, ImageStorage {
   constructor(private readonly sql: SqlStorage) {
     sql.exec(SCHEMA);
   }
@@ -85,5 +97,44 @@ export class SqliteStorage implements RoomStorage {
 
   async pruneTurnsUpTo(t: number): Promise<void> {
     this.sql.exec('DELETE FROM turns WHERE t <= ?', t);
+  }
+
+  async getImage(entry: number): Promise<StoredImage | null> {
+    const row = this.sql
+      .exec<{ entry: number; type: string; created: number; data: ArrayBuffer }>(
+        'SELECT entry, type, created, data FROM images WHERE entry = ?',
+        entry,
+      )
+      .toArray()[0];
+    return row
+      ? {
+          entry: row.entry,
+          type: row.type as ImageType,
+          created: row.created,
+          data: new Uint8Array(row.data),
+        }
+      : null;
+  }
+
+  async putImageIfAbsent(image: StoredImage): Promise<boolean> {
+    const cursor = this.sql.exec(
+      'INSERT OR IGNORE INTO images (entry, type, created, data) VALUES (?, ?, ?, ?)',
+      image.entry,
+      image.type,
+      image.created,
+      image.data.buffer.slice(image.data.byteOffset, image.data.byteOffset + image.data.byteLength),
+    );
+    return cursor.rowsWritten > 0;
+  }
+
+  async listImages(): Promise<number[]> {
+    return this.sql
+      .exec<{ entry: number }>('SELECT entry FROM images ORDER BY entry')
+      .toArray()
+      .map((r) => r.entry);
+  }
+
+  async deleteImages(entries: number[]): Promise<void> {
+    for (const e of entries) this.sql.exec('DELETE FROM images WHERE entry = ?', e);
   }
 }

@@ -6,13 +6,16 @@
 // open, since a gate shut by the bell opens again at dawn, so nothing can deadlock residents or
 // porters.
 import { content } from '@qoti/content';
-import { MAP_SIZE } from '../constants';
+import { MAP_SIZE, MAX_ZONE_TILES } from '../constants';
 import type { MapReader, RejectReason } from '../contracts';
 import { canPlaceBuilding } from './building';
 import { isInt } from './geometry';
 import { doorFront, reachesTile, townReach, type ReachBuilding } from './reach';
 
 const S = MAP_SIZE;
+
+/** Most tiles in one painted run (wall.paint checks the zone limit). */
+export const MAX_WALL_TILES = MAX_ZONE_TILES;
 
 /** A building as the wall rules see it (BuildingView and Building both fit). */
 export interface WallBuilding extends ReachBuilding {
