@@ -39,7 +39,14 @@ export type OverlayKind =
   | 'needs'
   | `deposit:${string}`
   // Playtest round three: soil quality everywhere, while placing a farmhouse or a plot.
-  | 'soil';
+  | 'soil'
+  // C5E: habitats (all, by the strongest per chunk, or one), the floodplain, threat (the Watch's
+  // reach and the raid's side) and warmth (cold homes).
+  | 'habitats'
+  | `habitat:${string}`
+  | 'floodplain'
+  | 'threat'
+  | 'warmth';
 
 export interface GhostSegment {
   fx: number;

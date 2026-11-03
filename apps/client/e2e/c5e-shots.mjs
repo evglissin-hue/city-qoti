@@ -39,6 +39,10 @@ const SHOTS = {
   'storm-hamlet': ['hamlet', 'season=autumn&weather=storm', 16, 40],
   'fog-hamlet': ['hamlet', 'season=autumn&weather=fog', 9, 50],
   'drought-hamlet': ['hamlet', 'season=summer&weather=drought', 13, 50],
+  'overlay-habitats': ['village', 'season=summer', 11, 110, 'village', null, 0, 'habitats'],
+  'overlay-floodplain': ['village', 'season=spring', 11, 110, 'village', null, 0, 'floodplain'],
+  'overlay-threat': ['raid', '', 12, 90, null, null, 0, 'threat'],
+  'overlay-warmth': ['winter', '', 12, 50, null, null, 0, 'warmth'],
   'raid-close': ['raid', '', 19.2, 16, 'abs', [61, 8], -0.1],
   'raid-night-close': ['raid', '', 22, 16, 'abs', [61, 8], -0.1],
   'raid-wide': ['raid', '', 19.2, 60],
@@ -51,7 +55,7 @@ const browser = await chromium.launch({
   args: ['--enable-unsafe-swiftshader', '--use-angle=swiftshader', '--ignore-gpu-blocklist'],
 });
 const rows = [];
-for (const [name, [fixture, q, hour, dist, setup, at, tilt]] of Object.entries(SHOTS)) {
+for (const [name, [fixture, q, hour, dist, setup, at, tilt, overlay]] of Object.entries(SHOTS)) {
   if (only.length && !only.some((o) => name.startsWith(o))) continue;
   const page = await browser.newPage({ viewport: { width: vw, height: vh } });
   page.on('pageerror', (e) => console.log('pageerror:', e.message));
@@ -91,6 +95,7 @@ for (const [name, [fixture, q, hour, dist, setup, at, tilt]] of Object.entries(S
     },
     [x, z, dist, hour, tilt ?? 0],
   );
+  if (overlay) await page.evaluate((k) => window.__qoti.renderer().setOverlay(k), overlay);
   await page.waitForTimeout(wait);
   if (name.startsWith('raid-c') || name.startsWith('raid-n')) {
     // They will have run on while the scene drew: catch up with them, and hold the sim still.
