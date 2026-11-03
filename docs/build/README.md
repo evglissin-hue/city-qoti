@@ -28,14 +28,14 @@ One row per cycle. A cycle is one agent session working from one brief on one br
 | C4P Roads and folk polish | I2 polish | alongside C5.0 | `cycle-04p-polish.md` | C4X | done on `claude/epic-hawking-e32pnd` (stairs, roads, folk looks and motions; screenshots `c4p-*`) |
 | C5.0 Seasons contracts | I3 | serial | `cycle-05-0-seasons-contracts.md` | C4X | done on `claude/epic-hawking-e32pnd`; wave notes in `i3-wave-notes.md` |
 | C5A Seasons, weather and the first winter | I3 | parallel | `cycle-05a-seasons-weather.md` | C5.0 | merged into `main` (built on `claude/stoic-gauss-cshmwm`, finished on `claude/great-rubin-8f16hk`; see As built in the brief) |
-| C5B Festivals, renown, commissions and the River Dock | I3 | parallel | `cycle-05b-festivals-renown.md` | C5.0 | in review on `cycle/05b-festivals-renown` (see As built in the brief) |
-| C5C Nature, the Field Guide and Hearth craft | I3 | parallel | `cycle-05c-nature-field-guide.md` | C5.0 | in review on `cycle/05c-nature-field-guide` (see As built in the brief) |
-| C5D Threats, defenses and the Watch | I3 | parallel | `cycle-05d-threats-watch.md` | C5.0 | done on `cycle/05d-threats-watch` (see As built in the brief) |
+| C5B Festivals, renown, commissions and the River Dock | I3 | parallel | `cycle-05b-festivals-renown.md` | C5.0 | merged into `main` by C5X part 1 (#19) |
+| C5C Nature, the Field Guide and Hearth craft | I3 | parallel | `cycle-05c-nature-field-guide.md` | C5.0 | merged into `main` by C5X part 1 (#20) |
+| C5D Threats, defenses and the Watch | I3 | parallel | `cycle-05d-threats-watch.md` | C5.0 | merged into `main` by C5X part 1 (#17) |
 | C5E Seasons art and rendering | I3 | parallel | `cycle-05e-seasons-art.md` | C5.0, V1X | waits for V1 (builds on the new look) |
-| C5F Seasons UI | I3 | parallel | `cycle-05f-seasons-ui.md` | C5.0 | in review (https://github.com/evglissin-hue/city-qoti/pull/15); screenshots `c5f-*`, stand-ins in `i3-wave-notes.md` |
+| C5F Seasons UI | I3 | parallel | `cycle-05f-seasons-ui.md` | C5.0 | merged into `main` by C5X part 1 (#15); screenshots `c5f-*` |
 | C5G Music and sound | I3 | parallel | `cycle-05g-audio.md` | C5.0 | done on `claude/epic-hawking-e32pnd`, synthesized (see As built in the brief) |
-| C5H The first days guide | I3 | parallel | `cycle-05h-first-days.md` | C5.0 | done on `cycle/05h-first-days` (see As built in the brief) |
-| C5X I3 integration and I4 planning | I3 | integration | `cycle-05x-integration.md` | C5A to C5H | waiting |
+| C5H The first days guide | I3 | parallel | `cycle-05h-first-days.md` | C5.0 | merged into `main` by C5X part 1 (#18) |
+| C5X I3 integration and I4 planning | I3 | integration | `cycle-05x-integration.md` | C5A to C5H | part 1 done on `cycle/05x-integration` (the five gameplay PRs merged, tuned, dead ends fixed; see As built in the brief); part 2 (C5E, the playtest sheet, I4 briefs) waits for V1X |
 | V0 Concept and direction | V0 | serial | none (this session) | none | done on `claude/compassionate-dirac-9c0pyz`: B (Painted Miniature) picked by the owner and Kat; concept viewer on the lean renderer (`docs/concepts/v0-look/index.html`, first engine `v1-engine.html`), stills `v0-*`, `18-eras.md`, budgets by preset, the V1 briefs |
 | V1.0 Look contracts | V1 | serial | `cycle-v1-0-look-contracts.md` | V0 merged | done (https://github.com/evglissin-hue/city-qoti/pull/12): surface ids, palette 2.0, the pattern array, `Era`, static and moving layers, Ultra, the GPU timer, the `material.ts` and `look.ts` split, the town showcase, the shots and perf scripts and the before numbers (`v1-wave-notes.md`) |
 | V1A Materials and light | V1 | parallel | `cycle-v1a-materials-light.md` | V1.0 | ready (V1.0 is done; read `v1-wave-notes.md` first) |
