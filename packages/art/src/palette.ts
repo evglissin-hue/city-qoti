@@ -1,14 +1,12 @@
 // Palette tokens for the style kit, from docs/spec/17-presentation.md. Older C1 token names are
-// kept (some now share a value with a spec token) so existing callers keep working.
+// kept (some now share a value with a spec token) so existing callers keep working; V1X retired
+// the ones nothing read any more (palette 2.0 below is where new kits read from).
 
 export const palette = {
   // Ground.
   grass: 0x8db360,
-  grassSummer: 0x7fa650,
-  grassAutumn: 0xb5a048,
   meadow: 0xa7c46a,
   forestFloor: 0x5e7f43,
-  dirtPath: 0xc9a877,
   sand: 0xe3d2a1,
   rock: 0x9a9a92,
   snow: 0xeef2f5,
@@ -21,7 +19,6 @@ export const palette = {
   waterShallow: 0x6fb7c2,
   waterDeep: 0x3e8fa6,
   foam: 0xe8f4f2,
-  ice: 0xcfe3ea,
 
   path: 0xc9a877,
   lane: 0xb39a70,
@@ -30,10 +27,7 @@ export const palette = {
   leaf: 0x5c8a3a,
   oakLeaf: 0x5c8a3a,
   birchLeaf: 0x8db84a,
-  leafLight: 0x8db84a,
   pine: 0x3f6b45,
-  autumnOrange: 0xd98a3a,
-  autumnRed: 0xc9603a,
   autumnGold: 0xe0b84a,
   blossom: 0xf2b8c6,
   birchBark: 0xf1ece0,
@@ -49,16 +43,12 @@ export const palette = {
   plasterSage: 0xcdd2b3,
   plasterSky: 0xc3cfd0,
   plasterButter: 0xeddaa6,
-  wallCream: 0xf1e6cf,
-  wallSand: 0xf0dda0,
-  wallStone: 0xcfc5b2,
 
   // Structure.
   timber: 0x5b4232,
   stone: 0xb9b1a3,
   brick: 0xb5654b,
   foundation: 0x8f877a,
-  plinth: 0x8f877a,
   wood: 0x9a6b43,
   darkWood: 0x6e4a2e,
   door: 0x4a3324,
@@ -69,7 +59,6 @@ export const palette = {
   roofThatch: 0xc2a16a,
   roofMoss: 0x74805a,
   roofPlum: 0x7a5a6c,
-  roofRed: 0x8e3b2c,
 
   // Accents.
   teal: 0x4e7c78,
@@ -88,12 +77,8 @@ export const palette = {
 
   // Light.
   lantern: 0xffc977,
-  lampGlow: 0xffc977,
   window: 0xffd58a,
   windowDay: 0x7d95a6,
-  sunset: 0xf4a261,
-  nightAmbient: 0x2b3a55,
-  moon: 0x9db4d8,
 
   // UI.
   paper: 0xf7f0e1,
@@ -115,8 +100,8 @@ export const palette = {
  * concepts/v0-look/index.html): softer, more harmonious colors, each a little greyed toward its
  * neighbors, for a material that draws brick courses, tile rows and plaster grain on top. V1A tuned
  * the values against the concept stills and points the customization swatches at them (the old
- * tokens they read now hold palette 2.0 values); V1B and V1C move their kits' reads over, and V1X
- * retires the old tokens above. Lists are swatches a kit picks from by seed, in the
+ * tokens they read now hold palette 2.0 values); V1B and V1C move their kits' reads over; V1X
+ * retired the old tokens nothing read. Lists are swatches a kit picks from by seed, in the
  * concept's order. `stuccos` are the Age of Steam's walls, `deco` and `pastels` the Bright Age's.
  */
 export const palette2 = {

@@ -4,8 +4,8 @@
 // each); one final full-screen pass to the canvas mixes the sharp and blurred images for tilt-shift,
 // adds bloom from the blurred image, tone maps, converts to sRGB, grades, vignettes and dithers. What
 // those steps do to color is look.ts (V1A's); this file only calls its functions, in the order the
-// wave notes fix. It replaces the classic chain (postClassic.ts: RenderPass, UnrealBloomPass, two
-// tilt-shift passes, OutputPass and a grade pass), which stays behind `?engine=classic` until V1X.
+// wave notes fix. It replaced the classic chain (RenderPass, UnrealBloomPass, two tilt-shift passes,
+// OutputPass and a grade pass), which V1X retired along with `?engine=classic`.
 import {
   BufferGeometry,
   DepthTexture,

@@ -136,8 +136,6 @@ describe('quality presets (V1.0)', () => {
       40, 60, 110,
     ]);
     expect(QUALITY_PRESETS.low.shadowMap).toBe(1024);
-    // The classic engine (?engine=classic, until V1X) keeps reading the old cap.
-    expect(QUALITY_PRESETS.medium.maxDpr).toBe(2);
   });
 
   it('V1D: moving frames draw at the preset’s cap, still ones as sharp as the screen allows', () => {

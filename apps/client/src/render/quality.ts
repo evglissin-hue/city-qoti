@@ -5,10 +5,13 @@ export type CritterLevel = 'none' | 'some' | 'all';
 
 /**
  * A quality preset, with the values in docs/spec/17-presentation.md, Quality presets. The lean
- * renderer (V1D) reads every field; `maxDpr` is kept for the classic engine (`?engine=classic`).
+ * renderer (V1D) reads every field but `maxDpr`, which only the classic engine read (V1X retired it).
  */
 export interface QualityPreset {
-  /** Cap on the device pixel ratio for the classic engine (`?engine=classic`); V1D reads `renderScale`. */
+  /**
+   * The classic engine's cap on the device pixel ratio. Unread since V1X retired that engine (the
+   * lean one reads `renderScale`); kept so the preset contract only ever grows.
+   */
   maxDpr: number;
   /** Size of the cached sun shadow map (V1D: every preset has shadows; 0 would turn them off). */
   shadowMap: number;

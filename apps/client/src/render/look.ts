@@ -2,9 +2,7 @@
 // post.ts and the frame loop in renderer.ts are V1D's). The color code of the last passes lives
 // here as GLSL functions and their uniforms: the seasonal grade with the dusk split tone, the
 // vignette, the tilt-shift mask, the bloom mix and tone mapping, plus the values they take from
-// the season, the hour and the camera distance. Today's PostChain calls them from its passes (the
-// bloom mix aside: UnrealBloomPass still composites its own bloom, with the strength and threshold
-// from `bloomFor`); V1D's one final pass will call them all.
+// the season, the hour and the camera distance. V1D's one final pass (post.ts) calls them all.
 //
 // V1A: matched to the Painted Miniature concept stills: Khronos PBR Neutral tone mapping (it keeps
 // the pastel palette's hues where ACES pushed them toward orange and crushed the darks), a gentle
@@ -57,13 +55,11 @@ const GRADES: Record<
 };
 
 /**
- * Tone mapping for frames drawn without post (the classic engine's Low), where three applies it
- * inside every material. Keep it the same operator as `lookToneMap` in LOOK_GLSL.
+ * The tone mapping operator, for anything three draws straight to the canvas (the lean engine's
+ * scene passes go to float targets, where three applies none, and the final pass calls
+ * `lookToneMap`). Keep it the same operator as `lookToneMap` in LOOK_GLSL.
  */
 export const LOOK_TONE_MAPPING: ToneMapping = NeutralToneMapping;
-
-/** UnrealBloomPass's radius (how far the glow spreads), until V1D's blur chain replaces it. */
-export const LOOK_BLOOM_RADIUS = 0.5;
 
 /** The uniforms LOOK_GLSL reads. Share one set between every pass that includes it. */
 export interface LookUniforms {
