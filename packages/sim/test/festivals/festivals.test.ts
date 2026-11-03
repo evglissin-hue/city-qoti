@@ -171,6 +171,21 @@ describe('the evening', () => {
     expectMoneyInvariant(before, state);
   });
 
+  it('still happens round its anchor when the pattern site it named stops standing (C5X)', () => {
+    const { state } = feastFixture(6, 11);
+    const anchor = 52 * MAP_SIZE + 60;
+    expect(
+      rejection(run(state, plan({ site: { pattern: 'well-gathering-place', anchor }, menu: [] }))),
+    ).toBeUndefined();
+    const held = state.festival.history.length;
+    // The site is gone by the evening (as when a piece moves or a home is built in its corner).
+    state.hearth.sites = state.hearth.sites.filter((s) => s.anchor !== anchor);
+    expect(siteRect(state, state.festival.plan!.site)).toBeNull();
+    const events = runUntil(state, todayAt(state, FESTIVAL.to) + 1);
+    expect(events.some((e) => e.e === 'festival.ended')).toBe(true);
+    expect(state.festival.history.length).toBe(held + 1);
+  });
+
   it('is a quiet evening when nothing is planned', () => {
     const { state } = feastFixture(6, 11);
     state.festival.plan = null;

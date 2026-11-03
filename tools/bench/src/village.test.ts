@@ -25,8 +25,12 @@ describe('a Village grows its high street', { timeout: 180_000 }, () => {
       expect(claimed, why).toBeGreaterThan(0);
       // Fifteen days; a season more when the claim comes in autumn or winter, when the winter's
       // firewood and larder (C5A) hold building back until the thaw.
-      const season = Math.floor((days[claimed]!.day - 1) / DAYS_PER_SEASON) % 4;
-      const window = season >= 2 ? 15 + DAYS_PER_SEASON : 15;
+      // C5X: or whenever the fifteen days cross a winter (hazel claims on summer's first day with
+      // every I3 system on, and its window ran into the winter's held arrivals).
+      const winterIn = (d: number) => Math.floor((d - 1) / DAYS_PER_SEASON) % 4 === 3;
+      const day0 = days[claimed]!.day;
+      const crosses = Array.from({ length: 16 }, (_, k) => day0 + k).some(winterIn);
+      const window = crosses ? 15 + DAYS_PER_SEASON : 15;
       expect(claimed + window, why).toBeLessThan(days.length);
       const first = days[claimed]!;
       const later = days[claimed + window]!;

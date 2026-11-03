@@ -196,8 +196,10 @@ export function autoplay(seed: string, days: number, opts: AutoplayOptions = {})
   if (opts.threat) h.world.settings.threat = opts.threat;
   const planner = new Planner(h);
   // Every advisor that plays this run, in visit order.
+  // C5X: TUNE_SKIP=nature,festivals leaves advisors out, to see what each one costs (tuning only).
+  const skip = (process.env.TUNE_SKIP ?? '').split(',');
   const team = advisors
-    .filter((a) => a.plays(opts, h.world))
+    .filter((a) => a.plays(opts, h.world) && !skip.includes(a.id))
     .sort((a, b) => a.slot - b.slot)
     .map((a) => a.create(planner, opts));
   const out: DayLine[] = [];

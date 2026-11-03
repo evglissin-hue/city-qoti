@@ -36,7 +36,7 @@ import { rankAtLeast } from '../../state/village';
 import { isMarketDay, marketFees, recharm } from './levers';
 import { grantFestival } from './rewards';
 import { scoreFestival } from './score';
-import { rectCenter, siteRect } from './site';
+import { heldRect, rectCenter, siteRect } from './site';
 import { celebrationDue, togetherMoment } from './together';
 
 /** The hour of the closing dance and the fireworks. */
@@ -100,7 +100,7 @@ export const festivals: System = {
 export function startFestival(state: WorldState, ctx: TickCtx): boolean {
   const f = state.festival;
   const p = currentPlan(state);
-  const rect = p ? siteRect(state, p.site) : null;
+  const rect = p ? heldRect(state, p.site) : null;
   if (!p || !rect || f.live) return false;
   f.live = true;
   f.outcome = null;
@@ -118,7 +118,7 @@ export function endFestival(state: WorldState, ctx: TickCtx): boolean {
     delete f.guests;
     return false;
   }
-  const rect: Rect | null = siteRect(state, p.site);
+  const rect: Rect | null = heldRect(state, p.site);
   const guests = f.guests ?? [];
   f.live = false;
   delete f.guests;

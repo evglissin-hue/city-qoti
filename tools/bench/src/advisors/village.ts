@@ -12,6 +12,8 @@
 // a want's priority is the build queue it will join (I2's `maxSites`).
 import { content } from '@qoti/content';
 import {
+  creditLimit,
+  loansOwed,
   BuildingStatus,
   calendar,
   TILE_FP,
@@ -101,7 +103,10 @@ class Village implements Advisor {
         content.buildingById.get(b.def)?.housing &&
         (b.stage === 'construction' || !w.households.some((h) => h.homeId === b.id)),
     ).length;
-    if (vacant < 2) this.want('cottage', 6);
+    // C5X: past half the County Bank's line, one home waiting for the next family rather than two
+    // (with festivals and renown pulling families in, the Village borrowed for every second home).
+    const indebted = loansOwed(w) * 2 > creditLimit(w);
+    if (vacant < (indebted ? 1 : 2)) this.want('cottage', 6);
     // Builders: a yard per forty residents, or the sites queue up behind two town hall builders
     // (C4X: per thirty, six yards kept sixteen builders from the bakeries).
     // Pressing while sites wait their turn for a builder (C4X: they used to be cancelled as stuck).

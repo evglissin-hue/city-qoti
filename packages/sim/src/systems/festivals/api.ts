@@ -16,7 +16,7 @@ import { stowNearest } from '../logistics/stores';
 import { priceOf } from '../market/api';
 import { doorOf } from '../residents/places';
 import { seasonNow, weatherToday } from '../seasons/api';
-import { siteRect } from './site';
+import { heldRect } from './site';
 
 /** The tuning the sim reads (tests swap it with withFestivalTuning). */
 let tuning: FestivalTuning = festivalTuning;
@@ -75,10 +75,10 @@ export function currentPlan(state: WorldState) {
   return p.season === season && p.year === year ? p : null;
 }
 
-/** The current plan's site rect, or null. */
+/** The current plan's site rect (C5X: held round the anchor when its pattern site is gone), or null. */
 export function currentSite(state: WorldState): Rect | null {
   const p = currentPlan(state);
-  return p ? siteRect(state, p.site) : null;
+  return p ? heldRect(state, p.site) : null;
 }
 
 function isFood(good: number): boolean {

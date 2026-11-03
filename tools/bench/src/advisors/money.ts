@@ -7,6 +7,7 @@
 import { content } from '@qoti/content';
 import {
   basketScore,
+  BuildingStatus,
   calendar,
   creditLimit,
   expenses,
@@ -15,6 +16,7 @@ import {
   PENNIES_PER_COIN,
   rankAtLeast,
   tradingPost,
+  type WorldState,
 } from '@qoti/sim';
 import type { Planner } from '../planner';
 import { count, G } from '../town';
@@ -79,7 +81,9 @@ class Money implements Advisor {
     const book: [good: string, min: number, max: number][] = [
       // C4X: 60 planks in hand, not 30, so a tavern (24) or a townhouse can still be started.
       ['planks', 0, 60],
-      ['logs', 0, 40],
+      // C5X: with no woodcutter at work (the patch felled), buy in a woodcutter's logs: a town with
+      // none could never build the next one (hazel sat at 45 residents with no logs or planks).
+      ['logs', woodcutting(w) ? 0 : 16, 40],
       ['bread', low, keep],
       ['fish', 0, keep],
       ['vegetables', low, keep],
@@ -112,3 +116,10 @@ export const money: AdvisorDef = {
   plays: () => true,
   create: (p) => new Money(p),
 };
+
+/** C5X: a woodcutter stands with trees to fell. */
+function woodcutting(w: WorldState): boolean {
+  return w.buildings.some(
+    (b) => b.def === 'woodcutter' && b.stage === 'built' && (b.rt!.status & BuildingStatus.noTrees) === 0,
+  );
+}

@@ -136,3 +136,16 @@ export function standTile(state: WorldState, r: Rect, seed: number): number {
   }
   return -1;
 }
+
+/**
+ * C5X: where a planned festival is held tonight: its site, or, when the pattern site it named has
+ * stopped standing since the plan (a piece moved, a home built in its corner), the smallest ground
+ * round that site's anchor, so the evening still happens where the town expects it.
+ */
+export function heldRect(state: WorldState, site: FestivalSite | null): Rect | null {
+  const r = siteRect(state, site);
+  if (r || !site || 'rect' in site) return r;
+  const x = site.anchor % MAP_SIZE;
+  const z = Math.floor(site.anchor / MAP_SIZE);
+  return clampRect(atLeastMin([x, z, x, z]));
+}
