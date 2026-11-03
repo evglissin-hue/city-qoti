@@ -32,7 +32,7 @@ One row per cycle. A cycle is one agent session working from one brief on one br
 | C5C Nature, the Field Guide and Hearth craft | I3 | parallel | `cycle-05c-nature-field-guide.md` | C5.0 | ready (C5.0 is done) |
 | C5D Threats, defenses and the Watch | I3 | parallel | `cycle-05d-threats-watch.md` | C5.0 | ready (C5.0 is done) |
 | C5E Seasons art and rendering | I3 | parallel | `cycle-05e-seasons-art.md` | C5.0, V1X | waits for V1 (builds on the new look) |
-| C5F Seasons UI | I3 | parallel | `cycle-05f-seasons-ui.md` | C5.0 | in review on `cycle/05f-seasons-ui`; screenshots `c5f-*`, stand-ins in `i3-wave-notes.md` |
+| C5F Seasons UI | I3 | parallel | `cycle-05f-seasons-ui.md` | C5.0 | in review (https://github.com/evglissin-hue/city-qoti/pull/15); screenshots `c5f-*`, stand-ins in `i3-wave-notes.md` |
 | C5G Music and sound | I3 | parallel | `cycle-05g-audio.md` | C5.0 | done on `claude/epic-hawking-e32pnd`, synthesized (see As built in the brief) |
 | C5H The first days guide | I3 | parallel | `cycle-05h-first-days.md` | C5.0 | ready (C5.0 is done) |
 | C5X I3 integration and I4 planning | I3 | integration | `cycle-05x-integration.md` | C5A to C5H | waiting |
