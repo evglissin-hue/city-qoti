@@ -51,7 +51,13 @@ export function outwardOf(f: Face): V3 {
   }
 }
 
-/** An axis-aligned box given in face-local coordinates. */
+/** Box face letters of the side of a box toward the wall it stands on, by face direction. */
+const WALL_SIDE: Record<FaceDir, string> = { 'z+': 'k', 'z-': 'f', 'x+': 'l', 'x-': 'r' };
+
+/**
+ * An axis-aligned box given in face-local coordinates. V1B: `flush` leaves out the side against
+ * the wall and the bottom (stones, quoins and boards proud of a wall, which nobody sees from there).
+ */
 export function faceBox(
   s: ShapeBuilder,
   f: Face,
@@ -62,6 +68,7 @@ export function faceBox(
   y1: number,
   o1: number,
   hex: number,
+  flush = false,
 ): void {
   const a = facePoint(f, u0, y0, o0);
   const b = facePoint(f, u1, y1, o1);
@@ -73,6 +80,7 @@ export function faceBox(
     Math.max(a[1], b[1]),
     Math.max(a[2], b[2]),
     hex,
+    flush ? WALL_SIDE[f.dir] + 'b' : '',
   );
 }
 
@@ -354,6 +362,8 @@ function quoins(s: ShapeBuilder, w: WallSpec, hex: number): void {
         y + h - 0.012,
         Math.max(z, z + sz * 0.012) + 0.012,
         c,
+        // The side inside the wall and the bottom never show.
+        (sz > 0 ? 'f' : 'k') + 'b',
       );
       s.box(
         Math.min(x, x + sx * 0.012) - 0.012,
@@ -363,6 +373,7 @@ function quoins(s: ShapeBuilder, w: WallSpec, hex: number): void {
         y + h - 0.012,
         Math.max(z, z + sz * lz) + 0.012,
         c,
+        (sx > 0 ? 'r' : 'l') + 'b',
       );
     }
   }
@@ -381,7 +392,7 @@ function stones(s: ShapeBuilder, w: WallSpec): void {
       const sw = 0.07 + w.rnd() * 0.07;
       const sh = 0.045 + w.rnd() * 0.04;
       const c = vary(w.color, w.rnd, 2);
-      if (!hidden) faceBox(s, f, u - sw / 2, y, 0, u + sw / 2, y + sh, 0.014, c);
+      if (!hidden) faceBox(s, f, u - sw / 2, y, 0, u + sw / 2, y + sh, 0.014, c, true);
     }
   }
   ringBox(s, w, 0.02, w.y0, w.y0 + 0.06, vary(palette.foundation, w.rnd, 0.5));

@@ -9,6 +9,8 @@ const STYLES = ['', 'timber', 'stone', 'brick', 'plaster'];
 /** Homes: at most this many triangles at the far level (docs/build/cycle-v1b-buildings-detail.md). */
 const HOME_LOW = 150;
 const HOMES = ['cottage', 'house', 'shop', 'townhouse', 'workshop'];
+/** Homes (and farmsteads) at the near level. */
+const HOME_HIGH = 4000;
 /** A farmstead is a house and a barn on one lot. */
 const FARM_LOW = 220;
 /** Everything else, landmarks included. */
