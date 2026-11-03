@@ -151,9 +151,11 @@ describe('lens toolbars', () => {
     expect(view.get('overlays').textContent).toContain('Soil and stone');
     expect(ids(view.root, 'overlay-').filter((id) => id !== 'list')).toEqual([
       'coverage',
+      'floodplain',
       'flows',
       'resources',
       'status',
+      'threat',
       'clear',
     ]);
     await view.click('overlay-flows');

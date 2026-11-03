@@ -70,12 +70,15 @@ describe('static and moving layers (V1.0)', () => {
       // V1C: blob shadows under animals and carts.
       'blobs',
       'carts',
+      // C5E: ambient critters and the weather's particles.
+      'critters',
       'effects',
       'ghosts',
       'notes',
       'overlays',
       'presence',
       'water',
+      'weather',
     ]);
   });
 });

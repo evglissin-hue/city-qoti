@@ -91,6 +91,8 @@ Camera pass triangles per layer (`QOTI_LAYERS=1`), against V1.0's before table: 
 
 `tools/bench` builds synthetic valleys (I0: 1,000 buildings and 6,000 decor; I1: a 40-resident hamlet; later a synthetic 2,000-resident town) and reports ms per tick, memory and snapshot size. CI fails when a sim or worldgen budget is exceeded.
 
+**As built (C5E, 2026-11-03)**: seasons and weather on the V1 renderer, same container and method (`QOTI_HOLD=1 QOTI_FIXEDRES=1 QOTI_PRESETS=medium v1-perf.mjs village village-winter village-crowd raid`, Medium, 1440 x 900): the village of 130 draws 134 calls and 0.22 M triangles clear, 139 and 0.24 M in winter with snow falling, 145 and 0.24 M with 80 more folk about, and the raid fixture 48 and 0.07 M, all within Medium's budgets. In software the snowy village's idle frame costs about twice the clear one's (transparent snow is slow to rasterize on the CPU); the laptop numbers decide it (`cycle-05e-seasons-art.md`, As built).
+
 ## Tests
 
 | Layer | What | Where |

@@ -89,7 +89,7 @@ How it works: `env.staticTime` is the same object as `env.time` until V1D, so to
 | Cached sun shadows | rendered on a sun step, a frustum refit, a size change or a static change (`shadows.ts`) | V1D (done) |
 | Blob shadows | residents have their own (from C3D; they never cast); animals and carts have V1C's (`layers/blobs.ts`); the windmill's sails still have none. *V1X as built*: checked in the shots (every animal and cart has its blob); the sails stay shadowless, since the tower casts and a spinning sail's shadow on the cached map would be a frozen cross on every idle frame | V1C (done) |
 | Ground AO texture | `render/groundAo.ts`, sampled by the ground shader; `groundAoFor(env)` is the uniform for V1A's kit material | V1C (done) |
-| Ambient critters (`critters`) | none drawn on any preset | C5E (seasons art) |
+| Ambient critters (`critters`) | none drawn on any preset. *C5E as built*: `layers/critters.ts`, seven kinds, two instanced draws (`17-presentation.md`, Critters); the weather particles follow the same level | C5E (done) |
 
 ## Ports
 
