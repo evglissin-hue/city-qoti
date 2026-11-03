@@ -29,8 +29,8 @@ const grids = new WeakMap<WorldState, GridEntry>();
 let epochs = 0;
 
 /** Cost and ticks per tile for terrain kinds, indexed by Terrain value. */
-const TERRAIN_COST = new Uint8Array(16);
-const TERRAIN_TICKS = new Uint8Array(16);
+export const TERRAIN_COST = new Uint8Array(16);
+export const TERRAIN_TICKS = new Uint8Array(16);
 for (const [t, cost, ticks] of [
   [Terrain.grass, 2, 10],
   [Terrain.meadow, 2, 10],

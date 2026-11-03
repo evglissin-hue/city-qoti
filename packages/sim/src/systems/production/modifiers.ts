@@ -9,6 +9,7 @@ import { seasonalGrowth } from '../seasons/growing';
 import { frozenRiver } from '../seasons/river';
 import { farmWeather } from '../weather/effects';
 import { soilYield } from './soil';
+import { scaredAnimals } from '../raids/wolves';
 
 export type YieldModifier = (
   state: WorldState,
@@ -24,6 +25,7 @@ export const yieldModifiers: readonly [id: string, modifier: YieldModifier][] = 
   ['seasonal', seasonalGrowth],
   ['soil', soilYield],
   ['weather', farmWeather],
+  ['wolves', scaredAnimals],
 ];
 
 let extra: readonly [string, YieldModifier][] = [];
