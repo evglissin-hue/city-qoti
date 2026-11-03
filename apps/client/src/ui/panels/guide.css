@@ -118,6 +118,7 @@
   cursor: pointer;
 }
 
+.game-ui > .guide-layer,
 .guide-layer {
   position: fixed;
   inset: 0;
