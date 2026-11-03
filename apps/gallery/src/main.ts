@@ -367,6 +367,71 @@ function buildLevels(): void {
 }
 
 /**
+ * V1B: the swap, for a clip (?scene=swap&kits=cottage,townhouse,shop&style=brick&at=14): a row of
+ * homes, each built at both levels; the camera dollies out and back in, and each home shows its far
+ * level beyond `at` tiles (5% hysteresis either side, as lod.ts swaps). `window.__swap(t)` puts the
+ * camera at time t (0 to 1) and draws, so a script can step through frames.
+ */
+const swapItems: { high: Mesh; low: Mesh; near: Sprite; far: Sprite; low_: boolean }[] = [];
+function buildSwap(): void {
+  for (const c of [...holder.children]) holder.remove(c);
+  const ids = (q.get('kits') ?? 'cottage,townhouse,shop,cottage').split(',');
+  const style = q.get('style') ?? 'brick';
+  let x = 0;
+  const row = new Group();
+  ids.forEach((spec, i) => {
+    const { id, fp } = kitAndSize(spec);
+    const kit = kitById.get(id);
+    if (!kit || !fp) return;
+    const joins: Record<string, string> = {};
+    const kitOf = (k: number): string => kitAndSize(ids[k] ?? '').id;
+    if (i > 0 && isRowKit(kitOf(i - 1)) && isRowKit(id)) joins.joinL = kitOf(i - 1);
+    if (i < ids.length - 1 && isRowKit(kitOf(i + 1)) && isRowKit(id)) joins.joinR = kitOf(i + 1);
+    const opts: KitBuildOptions = { seed: state.seed + i, ...fp, params: { style, ...joins } };
+    const high = new Mesh(kit.build(opts), material);
+    const low = new Mesh(kit.build({ ...opts, lod: 'low' }), material);
+    for (const m of [high, low]) {
+      m.position.set(x, 0, -fp.size[1]);
+      row.add(m);
+    }
+    const near = label('near', 0.9);
+    const far = label('far', 0.9);
+    for (const t of [near, far]) {
+      t.position.set(x + fp.size[0] / 2, 0.05, 0.45);
+      row.add(t);
+    }
+    swapItems.push({ high, low, near, far, low_: false });
+    x += fp.size[0];
+  });
+  row.position.x = -x / 2;
+  holder.add(row);
+  state.spin = false;
+}
+
+function swapAt(t: number): void {
+  const at = Number(q.get('at') ?? 14);
+  // Out from close up to twice the swap distance and back, along a fixed bearing.
+  const k = t < 0.5 ? t * 2 : 2 - t * 2;
+  const dist = 4 + (at * 2 - 4) * (0.5 - 0.5 * Math.cos(Math.PI * k));
+  const yaw = 0.45;
+  camera.position.set(Math.sin(yaw) * dist, dist * 0.7, Math.cos(yaw) * dist);
+  controls.target.set(0, 0.6, 0);
+  camera.lookAt(controls.target);
+  for (const it of swapItems) {
+    const d = camera.position.distanceTo(it.high.position.clone().add(holder.children[0]!.position));
+    it.low_ = it.low_ ? d > at * 0.95 : d > at * 1.05;
+    it.high.visible = !it.low_;
+    it.low.visible = it.low_;
+    it.near.visible = !it.low_;
+    it.far.visible = it.low_;
+  }
+}
+(window as unknown as { __swap: (t: number) => void }).__swap = (t: number) => {
+  swapAt(t);
+  renderer.render(scene, camera);
+};
+
+/**
  * C4E: village folk (?scene=folk): the story characters in their outfits, a couple hand in hand,
  * a parent with a baby in a sling, and the farm animals and the cart beside them.
  */
@@ -548,12 +613,15 @@ if (sceneName === 'lineup') {
   state.spin = false;
 } else if (sceneName === 'levels') {
   buildLevels();
-  const dist = Number(q.get('dist') ?? Math.max(levelsSize[0]! * 1.05, levelsSize[1]! * 1.7));
+  const dist = Number(q.get('dist') ?? Math.max(levelsSize[0]! * 0.92, levelsSize[1]! * 1.7));
   const yaw = Number(q.get('yaw') ?? 0.3);
   camera.position.set(Math.sin(yaw) * dist, dist * Number(q.get('pitch') ?? 0.8), Math.cos(yaw) * dist);
   controls.target.set(0, 0.3, 0.2);
   ground.scale.setScalar(2.5);
   state.spin = false;
+} else if (sceneName === 'swap') {
+  buildSwap();
+  swapAt(Number(q.get('t') ?? 0));
 } else if (sceneName === 'folk') {
   buildFolk();
   camera.position.set(0.3, 1.5, 3.6);
@@ -582,6 +650,7 @@ renderer.setAnimationLoop(() => {
     const hop = f.anim === 3 ? Math.abs(Math.sin(residentTime.value * 5.5)) * 0.1 : 0;
     for (const m of f.fig.meshes) m.position.y = (bob + hop) / f.fig.group.scale.y;
   }
+  if (sceneName === 'swap') return;
   controls.update();
   renderer.render(scene, camera);
 });

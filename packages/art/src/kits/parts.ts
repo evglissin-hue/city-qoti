@@ -501,8 +501,10 @@ export function windowPart(
       s.surface(SURFACE.plain);
       if (style.shutter === null)
         faceQuad(s, f, u - w / 2 - fw, y - h / 2 - fw, u + w / 2 + fw, y + h / 2 + fw, o + 0.02, style.frame);
+      // The glass sits exactly where the near level's does: the night glow picks lit windows by
+      // where their panes are, so the same windows stay lit across a swap.
       s.glow(1).surface(SURFACE.glass);
-      faceQuad(s, f, u - w / 2, y - h / 2, u + w / 2, y + h / 2, o + 0.03, palette.windowDay);
+      faceQuad(s, f, u - w / 2, y - h / 2, u + w / 2, y + h / 2, o + 0.026, palette.windowDay);
       s.glow(0);
       if (style.box) {
         s.surface(SURFACE.flowers);
