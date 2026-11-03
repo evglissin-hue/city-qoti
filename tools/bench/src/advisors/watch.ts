@@ -98,7 +98,8 @@ class Watch implements Advisor {
       priority: pressing ? URGENT : 4,
       cost: costOf('watch-house'),
       pressing,
-      essential: false,
+      // Once raids are real the Watch keeps the town going: it may spend the timber reserve.
+      essential: pressing,
     });
   }
 

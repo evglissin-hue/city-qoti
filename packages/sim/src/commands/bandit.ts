@@ -29,7 +29,7 @@ export const decide: HandlerFor<'bandit.decide'> = {
     state.threats.captives = state.threats.captives.filter((id) => id !== cmd.id);
     if (cmd.choice === 'send') {
       addRenown(state, ctx, SEND_OFF_RENOWN, 'send-off');
-      chronicle(state, ctx, 'bandit-sent', { text: [] });
+      chronicle(state, ctx, 'bandit-sent', { text: [], variant: cmd.id });
     } else {
       const rng = ctx.rng('threats');
       const home = vacantHomes(state)[0]!.building;
@@ -53,6 +53,7 @@ export const decide: HandlerFor<'bandit.decide'> = {
       chronicle(state, ctx, 'bandit-home', {
         text: [['name', `${r.given} ${r.family}`]],
         refs: [r.id, home.id],
+        variant: cmd.id,
       });
     }
     ctx.events.push({ e: 'threat.updated', t: threatView(state) });

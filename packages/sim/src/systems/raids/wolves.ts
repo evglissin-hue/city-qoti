@@ -167,7 +167,8 @@ export function wolvesTick(state: WorldState, ctx: TickCtx): void {
   const h = hourOf(state.tick);
   if (!state.threats.wolves.includes(nightOf(state.tick))) return;
   const come = wolvesCome(state);
-  if (h === WOLF_FROM && !come) chronicle(state, ctx, 'wolves-howl', { text: [] });
+  if (h === WOLF_FROM && !come)
+    chronicle(state, ctx, 'wolves-howl', { text: [], variant: nightOf(state.tick) });
   if (!come || !wolfNight(state)) {
     if (h === WOLF_TO && come) morning(state, ctx);
     return;
@@ -193,6 +194,7 @@ function morning(state: WorldState, ctx: TickCtx): void {
   const at = p.farm ? frontOf(p.farm) : p.den;
   chronicle(state, ctx, 'wolves', {
     text: [['place', p.farm ? `the ${place}` : place]],
+    variant: nightOf(state.tick),
     refs: p.farm ? [p.farm.id] : [],
     snapshot: { focus: [at % S, Math.floor(at / S)], radius: 10 },
   });

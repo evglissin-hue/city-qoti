@@ -595,6 +595,8 @@ export function endRaid(state: WorldState, ctx: TickCtx): void {
       ['stolen', stolenText(stolenBy)],
     ],
     snapshot: { focus: [focus % S, Math.floor(focus / S)], radius: 12 },
+    // The variant from the raid, not the shared misc stream (C5D draws only from its own).
+    variant: raid.id,
   });
   const card: RaidResultView = {
     tick: state.tick,
