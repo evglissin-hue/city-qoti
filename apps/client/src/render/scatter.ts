@@ -13,7 +13,7 @@ import {
   type PerspectiveCamera,
   type Scene,
 } from 'three';
-import type { WorldEnv } from './env';
+import { NOISE_GLSL, type WorldEnv } from './env';
 
 /**
  * C3D-1: instanced scatter with per-chunk culling and level of detail, for trees and small nature
@@ -349,29 +349,140 @@ export class ScatterField {
  * The foliage material: the kit's matte vertex-colored look with a gentle wind sway that grows
  * with height, so canopies, grass and reeds breathe a little. Instance tints come in through the
  * standard instance color.
+ *
+ * C5E: the seasons on trees and plants, from the world env. Leaf faces (`surface` 13) take the
+ * season's tint; deciduous crowns (`tkind` 0, set by the trees layer; pines are 1) turn gold, rust
+ * and red through autumn, thin to lacy bare twigs in winter (a slimmer crown in twig colors, with
+ * gaps you can see the boughs through) and carry blossom in early spring. Snow lies on every
+ * upward face, deepest on the pines' tiers. The storm bends crowns a little further. All of it is
+ * static between steps (the sway runs on `env.staticTime`), so the still-frame cache holds.
  */
 export function createFoliageMaterial(env: WorldEnv): MeshStandardMaterial {
   const m = new MeshStandardMaterial({ vertexColors: true, roughness: 0.92, metalness: 0 });
   m.onBeforeCompile = (shader) => {
-    shader.uniforms.uTime = env.staticTime;
+    Object.assign(shader.uniforms, {
+      uTime: env.staticTime,
+      uSnow: env.snow,
+      uSeasonTint: env.seasonTint,
+      uAutumn: env.autumn,
+      uBare: env.bare,
+      uBlossom: env.blossom,
+      uStorm: env.storm,
+    });
     shader.vertexShader = shader.vertexShader
-      .replace('#include <common>', '#include <common>\nuniform float uTime;')
+      .replace(
+        '#include <common>',
+        [
+          '#include <common>',
+          'uniform float uTime;',
+          'uniform float uBare;',
+          'uniform float uStorm;',
+          'attribute float surface;',
+          'attribute float tkind;',
+          'varying float vQLeaf;',
+          'varying float vQPine;',
+          'varying vec3 vQWorld;',
+          'varying vec3 vQUp;',
+          'varying float vQSeed;',
+        ].join('\n'),
+      )
       .replace(
         '#include <begin_vertex>',
         [
           '#include <begin_vertex>',
           '#ifdef USE_INSTANCING',
           'vec3 qBase = instanceMatrix[3].xyz;',
+          'mat4 qModel = modelMatrix * instanceMatrix;',
           '#else',
           'vec3 qBase = vec3(0.0);',
+          'mat4 qModel = modelMatrix;',
           '#endif',
+          'vQLeaf = step(abs(surface - 13.0), 0.5);',
+          'vQPine = tkind;',
+          'vQSeed = fract(sin(dot(qBase.xz, vec2(12.9898, 78.233))) * 43758.5453);',
+          // Bare branches: a deciduous crown draws in toward its trunk.
+          'float qThin = vQLeaf * (1.0 - tkind) * uBare;',
+          'transformed.xz *= 1.0 - 0.18 * qThin;',
           'float qPhase = qBase.x * 0.37 + qBase.z * 0.61;',
           'float qSway = max(transformed.y - 0.25, 0.0);',
-          'transformed.x += sin(uTime * 1.3 + qPhase) * qSway * qSway * 0.035;',
-          'transformed.z += cos(uTime * 1.05 + qPhase * 1.3) * qSway * qSway * 0.025;',
+          'float qWind = 1.0 + uStorm * 1.6;',
+          'transformed.x += sin(uTime * (1.3 + uStorm) + qPhase) * qSway * qSway * 0.035 * qWind;',
+          'transformed.z += cos(uTime * (1.05 + uStorm) + qPhase * 1.3) * qSway * qSway * 0.025 * qWind;',
+          'vQWorld = (qModel * vec4(transformed, 1.0)).xyz;',
+          'vQUp = normalize(mat3(qModel) * objectNormal);',
+        ].join('\n'),
+      );
+    shader.fragmentShader = shader.fragmentShader
+      .replace(
+        '#include <common>',
+        [
+          '#include <common>',
+          'uniform float uSnow;',
+          'uniform vec3 uSeasonTint;',
+          'uniform float uAutumn;',
+          'uniform float uBare;',
+          'uniform float uBlossom;',
+          'varying float vQLeaf;',
+          'varying float vQPine;',
+          'varying vec3 vQWorld;',
+          'varying vec3 vQUp;',
+          'varying float vQSeed;',
+          NOISE_GLSL,
+        ].join('\n'),
+      )
+      .replace(
+        '#include <color_fragment>',
+        [
+          '#include <color_fragment>',
+          '{',
+          '  vec3 c = diffuseColor.rgb;',
+          '  float decid = vQLeaf * (1.0 - vQPine);',
+          '  float far = clamp(length(fwidth(vQWorld.xz)) * 4.0, 0.0, 1.0);',
+          '  if (vQLeaf > 0.5) {',
+          '    c *= uSeasonTint;',
+          '    float lum = dot(c, vec3(0.2126, 0.7152, 0.0722));',
+          '    if (decid > 0.5 && uAutumn > 0.001) {',
+          // Each tree its own autumn: gold, amber, rust or red, with a little green left low down.
+          '      vec3 gold = vec3(0.78, 0.5, 0.08);',
+          '      vec3 amber = vec3(0.8, 0.33, 0.06);',
+          '      vec3 rust = vec3(0.6, 0.18, 0.05);',
+          '      vec3 red = vec3(0.62, 0.11, 0.07);',
+          '      float s = vQSeed;',
+          '      vec3 au = s < 0.35 ? gold : s < 0.65 ? amber : s < 0.85 ? rust : red;',
+          '      au = mix(au, gold, qNoise(vQWorld.xz * 2.5 + s * 10.0) * 0.4);',
+          '      float k = uAutumn * (0.75 + 0.25 * qNoise(vQWorld.xz * 1.7));',
+          '      c = mix(c, au * (0.55 + lum * 2.4), k);',
+          '    }',
+          '    if (decid > 0.5 && uBlossom > 0.001) {',
+          // Blossom: soft pink and white speckles over the fresh green, in clusters.
+          '      vec2 bp = vQWorld.xz * 7.0 + vQWorld.y * 3.0;',
+          '      float cl = qNoise(bp) * 0.7 + qNoise(bp * 2.3) * 0.3;',
+          '      vec3 petal = vQSeed < 0.5 ? vec3(0.98, 0.72, 0.78) : vec3(0.97, 0.93, 0.92);',
+          '      float on = smoothstep(0.62 - uBlossom * 0.25, 0.7 - uBlossom * 0.2, cl);',
+          '      c = mix(c, petal * 0.85, mix(on, uBlossom * 0.35, far) * uBlossom);',
+          '    }',
+          '    if (decid > 0.5 && uBare > 0.001) {',
+          // Bare: warm grey-brown twigs, mottled, with holes through to the boughs.
+          '      float tw = qNoise(vQWorld.xz * 6.0 + vQWorld.y * 4.0);',
+          '      vec3 twig = mix(vec3(0.13, 0.08, 0.05), vec3(0.3, 0.2, 0.13), tw);',
+          '      c = mix(c, twig, uBare);',
+          '      float hole = qNoise(vQWorld.xz * 3.6 + vQWorld.y * 5.0 + vQSeed * 7.0);',
+          '      if (hole < (uBare - 0.3) * 0.85 * (1.0 - far)) discard;',
+          '    }',
+          '  }',
+          // Snow on upward faces: the pines hold it in thick tiers, bare twigs a dusting.
+          '  if (uSnow > 0.001) {',
+          '    float up = smoothstep(0.3, 0.85, vQUp.y);',
+          '    float hold = mix(0.85, 0.8, vQPine) * (1.0 - decid * uBare * 0.7);',
+          '    float n = qNoise(vQWorld.xz * 5.0 + vQWorld.y * 2.0);',
+          '    float cover = up * hold * smoothstep(0.2, 0.6, uSnow * 1.2 + n * 0.4 - 0.2);',
+          '    c = mix(c, vec3(0.86, 0.89, 0.94), clamp(cover, 0.0, 0.95));',
+          '  }',
+          '  diffuseColor.rgb = c;',
+          '}',
         ].join('\n'),
       );
   };
-  m.customProgramCacheKey = () => 'qoti-foliage';
+  m.customProgramCacheKey = () => 'qoti-foliage-c5e';
   return m;
 }

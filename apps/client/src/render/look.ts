@@ -9,7 +9,7 @@
 // S-curve and warmth in the grade per season, the concept's soft oval vignette, a gentler
 // tilt-shift that only starts once the camera is well back, bloom at golden hour and night only,
 // and the dither as a look function (`lookDither`), with the tilt mix (`lookTiltMix`).
-import { NeutralToneMapping, Vector3, type ToneMapping } from 'three';
+import { Color, NeutralToneMapping, Vector3, Vector4, type ToneMapping } from 'three';
 
 export type GradeSeason = 'spring' | 'summer' | 'autumn' | 'winter';
 
@@ -79,6 +79,13 @@ export interface LookUniforms {
   uLookBloomThreshold: { value: number };
   /** Exposure before tone mapping. */
   uLookExposure: { value: number };
+  /** C5E: the weather (rain, fog, storm, dryness), overcast, and the storm's soft glow, 0 to 1. */
+  uLookWeather: { value: Vector4 };
+  uLookOvercast: { value: number };
+  uLookGlow: { value: number };
+  /** C5E: the fog's color (the hour's horizon) and the clock its wisps drift on (seconds). */
+  uLookFogColor: { value: Color };
+  uLookTime: { value: number };
 }
 
 export function lookUniforms(): LookUniforms {
@@ -93,6 +100,11 @@ export function lookUniforms(): LookUniforms {
     uLookBloomStrength: { value: 0 },
     uLookBloomThreshold: { value: 0.9 },
     uLookExposure: { value: 1 },
+    uLookWeather: { value: new Vector4(0, 0, 0, 0) },
+    uLookOvercast: { value: 0 },
+    uLookGlow: { value: 0 },
+    uLookFogColor: { value: new Color(0xcfe6ef) },
+    uLookTime: { value: 0 },
   };
 }
 
@@ -108,6 +120,10 @@ export function lookUniforms(): LookUniforms {
  * - `lookToneMap(rgb)`: exposure and Khronos PBR Neutral, exactly as three's NeutralToneMapping.
  * - `lookSrgb(rgba)`: linear to sRGB, exactly as three's sRGBTransferOETF.
  * - `lookDither(rgb, fragCoord)`: V1A, half a level of noise either way, last.
+ * - `lookWeather(rgb, uv)`: C5E, the day's weather on display colors, after the grade: overcast
+ *   and rain soften and cool the light, a storm darkens it with a slow warm-white glow behind the
+ *   clouds now and then (never a flash), fog drifts in soft wisps that thicken with distance (the
+ *   top of the screen), and heat or drought yellows the greens.
  */
 export const LOOK_GLSL = /* glsl */ `
 uniform vec3 uLookLift;
@@ -120,6 +136,11 @@ uniform float uLookTiltCenter;
 uniform float uLookBloomStrength;
 uniform float uLookBloomThreshold;
 uniform float uLookExposure;
+uniform vec4 uLookWeather;
+uniform float uLookOvercast;
+uniform float uLookGlow;
+uniform vec3 uLookFogColor;
+uniform float uLookTime;
 
 vec3 lookGrade(vec3 c) {
   vec3 x = clamp(c * uLookGain + uLookLift * (1.0 - c), 0.0, 1.0);
@@ -167,6 +188,44 @@ vec3 lookToneMap(vec3 color) {
 
 vec4 lookSrgb(vec4 value) {
   return vec4(mix(pow(value.rgb, vec3(0.41666)) * 1.055 - vec3(0.055), value.rgb * 12.92, vec3(lessThanEqual(value.rgb, vec3(0.0031308)))), value.a);
+}
+
+float lookWNoise(vec2 p) {
+  vec2 i = floor(p);
+  vec2 f = fract(p);
+  vec2 u = f * f * (3.0 - 2.0 * f);
+  float a = fract(sin(dot(i, vec2(127.1, 311.7))) * 43758.5453);
+  float b = fract(sin(dot(i + vec2(1.0, 0.0), vec2(127.1, 311.7))) * 43758.5453);
+  float c = fract(sin(dot(i + vec2(0.0, 1.0), vec2(127.1, 311.7))) * 43758.5453);
+  float d = fract(sin(dot(i + vec2(1.0, 1.0), vec2(127.1, 311.7))) * 43758.5453);
+  return mix(mix(a, b, u.x), mix(c, d, u.x), u.y);
+}
+
+vec3 lookWeather(vec3 c, vec2 uv) {
+  float rain = uLookWeather.x;
+  float fog = uLookWeather.y;
+  float storm = uLookWeather.z;
+  float dry = uLookWeather.w;
+  if (uLookOvercast + rain + fog + storm + dry < 0.001) return c;
+  float l = dot(c, vec3(0.2126, 0.7152, 0.0722));
+  // Overcast: softer contrast and a little less color, a cool pearl light.
+  c = mix(c, mix(vec3(l), c, 0.86) * vec3(0.985, 1.0, 1.02), uLookOvercast * 0.7);
+  c = mix(c, vec3(0.5) + (c - 0.5) * 0.9, uLookOvercast * 0.5);
+  // Rain and storm: a touch darker and bluer; the storm more, lifted by its slow glow.
+  c *= 1.0 - rain * 0.05 - storm * 0.11;
+  c = mix(c, c * vec3(0.94, 0.98, 1.06), storm * 0.6 + rain * 0.25);
+  c += vec3(0.96, 0.95, 1.0) * uLookGlow * (0.35 + 0.65 * uv.y) * 0.07;
+  // Heat and drought: greens go straw, the light a shade warmer.
+  float green = clamp((c.g - max(c.r, c.b)) * 6.0, 0.0, 1.0);
+  c = mix(c, c * vec3(1.06, 0.99, 0.84), dry * (0.35 + 0.4 * green));
+  // Fog: thicker toward the top of the screen (farther away), in soft drifting wisps.
+  if (fog > 0.001) {
+    vec2 p = vec2(uv.x * 3.2 + uLookTime * 0.012, uv.y * 4.0 - uLookTime * 0.004);
+    float wisp = lookWNoise(p) * 0.6 + lookWNoise(p * 2.3 + 7.0) * 0.4;
+    float k = fog * clamp(0.22 + 0.45 * uv.y + (wisp - 0.5) * 0.3, 0.0, 0.75);
+    c = mix(c, lookSrgb(vec4(uLookFogColor, 1.0)).rgb, k);
+  }
+  return c;
 }
 
 // Half a level of interleaved gradient noise either way, so slow gradients never band in 8 bits.

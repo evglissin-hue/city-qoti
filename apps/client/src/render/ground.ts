@@ -345,7 +345,7 @@ bool qBit(float flags, float bit) { return mod(floor(flags / bit), 2.0) >= 1.0; 
 `;
 
 const GROUND_FRAGMENT = /* glsl */ `
-vec3 qGroundSeason(vec3 col, vec2 wp);
+vec3 qGroundSeason(vec3 col, vec2 wp, float road, float above, float ao, float grassy, float fade);
 float qPat(float layer, vec2 uv, float strength) {
   return mix(1.0, texture(uPatterns, vec3(uv, layer)).r * 2.0, strength);
 }
@@ -468,7 +468,10 @@ vec3 qGround(vec3 base) {
   }
 
   if (!water && !built) col = qTrailPaint(wp, col);
+  // C5E: where a road or path is painted (the snow on it is trodden, the rain darkens it more).
+  vec3 preRoad = col;
   if (!water) col = qRoadPaint(wp, col);
+  float road = clamp(length(col - preRoad) * 6.0, 0.0, 1.0);
 
   // Banks: a sandy strip that follows the shore, damp sand at the waterline, the bed below it.
   float above = vQWorld.y - ${WATER_Y.toFixed(3)};
@@ -495,14 +498,41 @@ vec3 qGround(vec3 base) {
   // crowns (gentler under a building's own lot, see groundAo.ts LOT_LIFT).
   float ao = qGroundAo(wp);
   col *= ao * mix(1.0, 0.97, 1.0 - ao) + (1.0 - ao) * vec3(0.0, 0.004, 0.012);
-  return qGroundSeason(col, wp);
+  return qGroundSeason(col, wp, road, above, ao, grassy ? 1.0 : 0.0, fade);
 }
 
-// C5E's hook: snow cover on the ground (uSnow 0 to 1, set by the seasons art). Off until then.
-vec3 qGroundSeason(vec3 col, vec2 wp) {
+// C5E: the season and the weather on the ground. Snow (uSnow, the world env's) settles first in
+// the hollows and against walls (the ground AO), patchy where it is thin, with a hint of what is
+// under it (furrows, kerbs); roads and paths keep trodden snow with darker wheel and boot lines;
+// none on the water or the wet margin. Rain darkens the ground a little, roads more; heat and
+// drought turn the grass to straw.
+vec3 qGroundSeason(vec3 col, vec2 wp, float road, float above, float ao, float grassy, float fade) {
+  if (uDry > 0.001 && grassy > 0.5) {
+    float patchy = 0.6 + 0.4 * qNoise(wp * 0.6 + 4.0);
+    col = mix(col, col * vec3(1.12, 1.0, 0.68), uDry * 0.55 * patchy);
+  }
+  if (uWet > 0.001) col *= 1.0 - uWet * (0.08 + 0.1 * road);
   if (uSnow < 0.001) return col;
-  float drift = smoothstep(0.3, 0.7, qNoise(wp * 0.7) + uSnow * 0.6);
-  return mix(col, qSrgb(vec3(0.93, 0.95, 0.98)), uSnow * drift);
+  float lum = dot(col, vec3(0.2126, 0.7152, 0.0722));
+  // Drifts: deeper where the AO is (walls, hedges, crowns), thinner on open ground as it starts.
+  float shelter = clamp((1.0 - ao) * 4.0, 0.0, 1.0);
+  float n = qNoise(wp * 0.7) * 0.65 + qNoise(wp * 2.9 + 9.0) * 0.35;
+  float cover = smoothstep(0.25, 0.65, n * 0.8 + uSnow * 0.75 + shelter * 0.35 * uSnow - 0.2);
+  cover *= smoothstep(0.0, 0.08, above);
+  // Windswept patches on open ground where the old grass shows, and tufts poking through.
+  float swept = smoothstep(0.58, 0.85, qNoise(wp * 0.23 + 31.0)) * (1.0 - shelter) * grassy;
+  cover *= 1.0 - 0.45 * swept;
+  float tuft = step(0.86 - swept * 0.2, qHash(floor(wp * 6.0) + 3.0)) * fade * (1.0 - shelter);
+  cover *= 1.0 - 0.55 * tuft * grassy;
+  // What lies under it shows a little (furrows, darker kerbs), more where it is thin.
+  cover *= mix(1.0, 0.7 + 0.6 * clamp(lum * 2.5, 0.0, 1.0), 0.45 * (1.0 - shelter));
+  // Trodden roads: thinner, in lines along the way, so the streets still read.
+  float tread = qNoise(vec2(wp.x * 5.0, wp.y * 0.7)) * qNoise(vec2(wp.x * 0.7, wp.y * 5.0));
+  cover = mix(cover, cover * (0.3 + 0.28 * smoothstep(0.15, 0.45, tread)), road);
+  // Warm in the sun, a soft lavender blue in the sheltered hollows where the drift is deepest.
+  vec3 white = qSrgb(vec3(0.95, 0.94, 0.91)) * (0.96 + 0.05 * qNoise(wp * 6.0) * fade);
+  white = mix(white, white * vec3(0.88, 0.9, 1.0), shelter * 0.55);
+  return mix(col, white, clamp(cover * uSnow, 0.0, 0.94));
 }
 
 vec3 qGlow() {
@@ -536,8 +566,9 @@ float qRimMist(vec2 wp) {
  */
 export function createGroundMaterial(tex: GroundTextures, env: WorldEnv): MeshStandardMaterial {
   const m = new MeshStandardMaterial({ vertexColors: true, roughness: 0.95, metalness: 0 });
-  // C5E sets this (0 to 1) for snow on the ground.
-  const snow = { value: 0 };
+  // C5E: the ground's snow is the world env's (the same object as the kit material's), so roofs
+  // and the ground settle and melt together.
+  const snow = env.snow;
   m.userData.snow = snow;
   m.onBeforeCompile = (shader) => {
     Object.assign(shader.uniforms, {
@@ -547,6 +578,8 @@ export function createGroundMaterial(tex: GroundTextures, env: WorldEnv): MeshSt
       uGroundAo: groundAoFor(env),
       uPatterns: env.patterns,
       uSnow: snow,
+      uWet: env.wet,
+      uDry: env.dry,
       uTime: env.staticTime,
       uNight: env.night,
       uClouds: env.clouds,
@@ -573,6 +606,8 @@ export function createGroundMaterial(tex: GroundTextures, env: WorldEnv): MeshSt
           'precision highp sampler2DArray;',
           'uniform sampler2DArray uPatterns;',
           'uniform float uSnow;',
+          'uniform float uWet;',
+          'uniform float uDry;',
           'uniform float uTime;',
           'uniform float uNight;',
           'uniform float uClouds;',

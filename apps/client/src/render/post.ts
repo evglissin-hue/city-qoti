@@ -160,6 +160,7 @@ const FINAL_FRAGMENT = /* glsl */ `
     c = lookToneMap(c);
     vec4 o = lookSrgb(vec4(c, 1.0));
     o.rgb = lookGrade(o.rgb) * lookVignette(vUv);
+    o.rgb = lookWeather(o.rgb, vUv);
     gl_FragColor = vec4(lookDither(o.rgb, gl_FragCoord.xy), 1.0);
   }
 `;
@@ -407,6 +408,19 @@ export class LeanFrame {
     if (Math.abs(w - this.warmth) < 0.005) return;
     this.warmth = w;
     applyGrade(this.look, this.season, this.warmth);
+  }
+
+  /** C5E: the weather's look in the final pass (look.ts `lookWeather`). */
+  setWeather(w: { rain: number; fog: number; storm: number; dry: number; overcast: number }): void {
+    this.look.uLookWeather.value.set(w.rain, w.fog, w.storm, w.dry);
+    this.look.uLookOvercast.value = w.overcast;
+  }
+
+  /** C5E: the storm's slow glow (0 to 1), the fog's color and the wisps' clock, every frame. */
+  setWeatherFrame(glow: number, fogColor: { r: number; g: number; b: number }, time: number): void {
+    this.look.uLookGlow.value = glow;
+    this.look.uLookFogColor.value.setRGB(fogColor.r, fogColor.g, fogColor.b);
+    this.look.uLookTime.value = time;
   }
 
   /** Exposure before tone mapping, from the light (lighting.ts). */

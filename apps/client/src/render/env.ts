@@ -1,6 +1,7 @@
 import { createPatternArray, lastPatternMs, SEASON_LOOK, type Season } from '@qoti/art';
 import { Color, Vector3, Vector4, type DataArrayTexture, type PerspectiveCamera } from 'three';
 import type { Quality } from './quality';
+import type { SeasonBlend } from './seasons';
 
 /** Most ground glow pools (lanterns, lit windows) drawn at once, nearest the view first. */
 export const MAX_GROUND_LIGHTS = 32;
@@ -60,6 +61,21 @@ export interface WorldEnv {
   snow: { value: number };
   seasonTint: { value: Color };
   sway: { value: number };
+  /**
+   * C5E: the trees' season (autumn color, bare branches, blossom, 0 to 1 each; `seasonBlendAt` in
+   * render/seasons.ts) and the weather's look (rain wetness, fog, storm wind, overcast, dryness).
+   * Static pictures read them, so a step drops the still frame (`renderer.invalidateStatic()`).
+   */
+  autumn: { value: number };
+  bare: { value: number };
+  blossom: { value: number };
+  wet: { value: number };
+  fog: { value: number };
+  storm: { value: number };
+  overcast: { value: number };
+  dry: { value: number };
+  /** C5E: the river is frozen (0 or 1, eased over a few seconds in the water shader). */
+  frozen: { value: number };
 }
 
 /** The renderer's season names, in the sim calendar's order (0 spring to 3 winter). */
@@ -75,6 +91,28 @@ export function applySeasonLook(env: WorldEnv, season: Season): boolean {
   if (env.snow.value === look.snow && env.seasonTint.value.equals(tint)) return false;
   env.snow.value = look.snow;
   env.seasonTint.value.copy(tint);
+  return true;
+}
+
+/**
+ * C5E: sets the hour's blend of the season (snow, foliage tint, the trees' weights). Returns true
+ * when anything changed, so the caller can drop the still frame.
+ */
+export function applySeasonBlend(env: WorldEnv, b: SeasonBlend): boolean {
+  const tint = new Color(b.tint);
+  if (
+    env.snow.value === b.snow &&
+    env.seasonTint.value.equals(tint) &&
+    env.autumn.value === b.autumn &&
+    env.bare.value === b.bare &&
+    env.blossom.value === b.blossom
+  )
+    return false;
+  env.snow.value = b.snow;
+  env.seasonTint.value.copy(tint);
+  env.autumn.value = b.autumn;
+  env.bare.value = b.bare;
+  env.blossom.value = b.blossom;
   return true;
 }
 
@@ -127,6 +165,15 @@ export function createWorldEnv(camera: PerspectiveCamera): WorldEnv {
     snow: { value: 0 },
     seasonTint: { value: new Color(SEASON_LOOK.spring.tint) },
     sway: { value: 1 },
+    autumn: { value: 0 },
+    bare: { value: 0 },
+    blossom: { value: 0 },
+    wet: { value: 0 },
+    fog: { value: 0 },
+    storm: { value: 0 },
+    overcast: { value: 0 },
+    dry: { value: 0 },
+    frozen: { value: 0 },
   };
 }
 

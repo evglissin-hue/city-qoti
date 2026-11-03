@@ -1,5 +1,5 @@
 import type { Season } from '@qoti/art';
-import { calendar, MAP_SIZE, TILE_FP, type SeatId } from '@qoti/sim';
+import { calendar, MAP_SIZE, TILE_FP, type SeatId, type WeatherKind } from '@qoti/sim';
 import {
   Color,
   DirectionalLight,
@@ -23,7 +23,8 @@ import { CameraController, FOV } from '../input/camera';
 import type { Mirror } from '../state/mirror';
 import type { EntityPick, Ghost, RenderApi, TilePick } from './api';
 import { fpToWorld, levelY } from './coords';
-import { applySeasonLook, createWorldEnv, SEASONS, setPatternAnisotropy, type WorldEnv } from './env';
+import { applySeasonBlend, createWorldEnv, SEASONS, setPatternAnisotropy, type WorldEnv } from './env';
+import { CLEAR_WEATHER, easeWeather, seasonBlendAt, weatherLookFor, type WeatherLook } from './seasons';
 import {
   layerFactories,
   type AgentsLayer,
@@ -173,6 +174,20 @@ export class Renderer implements RenderApi {
     const q = new URLSearchParams(location.search);
     const v = q.has('debug') ? Number(q.get('hour') ?? NaN) : NaN;
     return Number.isFinite(v) ? v : null;
+  })();
+  /**
+   * C5E, debug only: `?debug&season=autumn&day=3` pins the season's look and `&weather=storm` (or
+   * `drought`, `frozen`) the weather's, for screenshots and look checks; the sim is untouched.
+   */
+  private readonly lookOverride = ((): { season: number | null; day: number; weather: string | null } => {
+    const q = new URLSearchParams(location.search);
+    if (!q.has('debug')) return { season: null, day: 1, weather: null };
+    const si = SEASONS.indexOf((q.get('season') ?? '') as Season);
+    return {
+      season: si >= 0 ? si : null,
+      day: Math.max(1, Math.min(6, Number(q.get('day') ?? 3) || 3)),
+      weather: q.get('weather'),
+    };
   })();
   private readonly unsubscribe: () => void;
   private readonly resizeObserver: ResizeObserver;
@@ -328,9 +343,13 @@ export class Renderer implements RenderApi {
   }
 
   private updateLighting(): void {
-    const { hour, minute, season } = calendar(this.mirror.tick.value);
-    this.applySeason(SEASONS[season]!);
-    const h = this.hourOverride ?? hour + Math.floor(minute / 15) / 4;
+    const cal = calendar(this.mirror.tick.value);
+    const { hour, minute } = cal;
+    const season = this.lookOverride.season ?? cal.season;
+    const day = this.lookOverride.season !== null ? this.lookOverride.day : cal.day;
+    const quarter = hour + Math.floor(minute / 15) / 4;
+    this.applySeason(SEASONS[season]!, season, day, quarter);
+    const h = this.timeOfDay ?? this.hourOverride ?? quarter;
     if (h === this.lightHour) return;
     this.lightHour = h;
     this.lightRevision++;
@@ -370,16 +389,67 @@ export class Renderer implements RenderApi {
 
   private readonly sunDir = new Vector3(0, 1, 0);
 
-  /** V1A: the season's look (snow, foliage tint, the grade); drops the still frame on a change. */
-  private applySeason(season: Season): void {
-    if (season === this.season) return;
-    this.season = season;
-    applySeasonLook(this.env, season);
-    this.lean.setSeason(season);
-    this.invalidateStatic();
+  /**
+   * V1A: the season's look (snow, foliage tint, the grade); drops the still frame on a change.
+   * C5E: blended through the day (render/seasons.ts), stepping at most once a quarter hour.
+   */
+  private applySeason(name: Season, season: number, day: number, hour: number): void {
+    const key = `${season}|${day}|${hour}`;
+    if (key === this.seasonKey) return;
+    this.seasonKey = key;
+    let changed = applySeasonBlend(this.env, seasonBlendAt(season, day, hour));
+    if (name !== this.season) {
+      this.season = name;
+      this.lean.setSeason(name);
+      changed = true;
+    }
+    if (changed) this.invalidateStatic('season');
   }
 
   private season: Season | null = null;
+  private seasonKey = '';
+
+  /** C5E: the weather's look, eased toward today's over a few seconds. */
+  private readonly weatherNow: WeatherLook = { ...CLEAR_WEATHER };
+  private weatherStep = '';
+
+  /** C5E: eases the weather's look and drops the still frame when a step shows. */
+  private updateWeather(dt: number): boolean {
+    const w = this.mirror.weather.value;
+    const pin = this.lookOverride.weather;
+    const drought = pin === 'drought' || !!w?.events.some((e) => e.event === 'drought' && e.active);
+    const kind = pin && pin !== 'drought' && pin !== 'frozen' ? (pin as WeatherKind) : w?.today;
+    const to = weatherLookFor(kind, drought);
+    const ice = w?.frozen || pin === 'frozen' ? 1 : 0;
+    const f = this.env.frozen;
+    let iced = false;
+    if (f.value !== ice) {
+      f.value =
+        Math.abs(ice - f.value) < 0.01
+          ? ice
+          : f.value + Math.sign(ice - f.value) * Math.min(Math.abs(ice - f.value), dt * 0.5);
+      iced = true;
+    }
+    if (!easeWeather(this.weatherNow, to, dt)) return iced;
+    const n = this.weatherNow;
+    const e = this.env;
+    e.wet.value = n.rain;
+    e.fog.value = n.fog;
+    e.storm.value = n.storm;
+    e.overcast.value = n.overcast;
+    e.dry.value = n.dry;
+    this.lean.setWeather(n);
+    // Static pictures read wetness, dryness and overcast: step them in twentieths.
+    const step = [n.rain, n.dry, n.overcast, n.fog].map((v) => Math.round(v * 20)).join('|');
+    if (step !== this.weatherStep) {
+      this.weatherStep = step;
+      this.invalidateStatic('weather');
+    }
+    return true;
+  }
+
+  /** C5E: photo mode's time of day (light only; the sim's clock never moves), or null. */
+  private timeOfDay: number | null = null;
 
   /** Ground point the camera looks at (camera ray against the ground plane of its height). */
   private viewTarget(): Vector3 {
@@ -398,6 +468,12 @@ export class Renderer implements RenderApi {
     this.env.focus.copy(target);
     this.lean.setViewDistance(dist);
     Object.assign(fog, hazeFor(dist));
+    // C5E: fog days pull the haze in (a weather step drops the still frame).
+    const thick = this.env.fog.value;
+    if (thick > 0) {
+      fog.near *= 1 - 0.6 * thick;
+      fog.far *= 1 - 0.45 * thick;
+    }
   }
 
   /**
@@ -467,6 +543,20 @@ export class Renderer implements RenderApi {
       }
     }
     this.updateLighting();
+    if (this.updateWeather(dt)) dirty = true;
+    // C5E: the storm's glow behind the clouds: a slow swell every eleven seconds or so, a few
+    // percent of brightness over more than a second, never a flash (accessibility).
+    const storm = this.env.storm.value;
+    let glow = 0;
+    if (storm > 0 && this.env.motion) {
+      const t = this.env.time.value / 11.3;
+      const phase = t - Math.floor(t);
+      const which = Math.floor(t) % 3;
+      if (phase < 0.22 && which !== 1) glow = storm * Math.sin((Math.PI * phase) / 0.22) ** 2;
+      dirty = true;
+    }
+    this.lean.setWeatherFrame(glow, this.env.sky.value, this.env.time.value);
+    if (this.env.fog.value > 0 && this.env.motion) dirty = true;
     this.drawLean(now, dirty, resting);
     this.stats.gpuMs = this.gpuTimer.ms;
     if (now - this.fpsWindow >= 1000) {
