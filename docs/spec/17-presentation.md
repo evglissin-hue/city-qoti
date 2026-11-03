@@ -12,7 +12,7 @@ The game should stay cozy and get much more detailed (owner, 2026-11-01). The V0
 | **B. Painted Miniature (picked)** | A softened, harmonious palette; surface detail drawn in the shader (brick courses, roof tile rows, thatch, plaster grain, timber); ambient occlusion, warm haze, tilt-shift; a model village under a warm lamp | moderate: one material system, then detail everywhere for free |
 | C. Grand Diorama | Closest to Anno: taller three to four storey buildings, mansards, cornices and more ornament, a natural palette, stronger haze and little tilt-shift | most geometry and the least cozy |
 
-**Status**: B picked by the owner and Kat (2026-11-01); A and C stay recorded as the alternatives. The V1 briefs (`docs/build/cycle-v1-*.md`) build B into the game; until V1X merges, the art direction below describes the game as it is.
+**Status**: B picked by the owner and Kat (2026-11-01); A and C stay recorded as the alternatives. The V1 briefs (`docs/build/cycle-v1-*.md`) built B into the game, merged by V1X (2026-11-03). From the default camera and close up, by day, golden hour and night, the game now reads as the B concept for the Old Age (`docs/build/screenshots/v1-after-*.png` beside `v0-lean-b-*.jpg`): the palette, the pattern detail on every building, the lit far windows, the warm haze and the shadows match. What still differs: the concept's stills are Age of Steam towns of joined terraces (V2 and V3, `docs/build/i4-visual-planning-notes.md`), its night lamp pools are larger and warmer, and its trees are rounder at a distance. The concept viewer stays the reference.
 
 **Performance**: on High the first concept ran at about 20 to 25 fps on the owner's laptop. The concept now runs on the lean renderer (`20-architecture.md`, Lean renderer), the same look drawn far more cheaply; the first engine stays in `docs/concepts/v0-look/v1-engine.html` for comparison. V1 builds the lean renderer into the game.
 
@@ -46,6 +46,17 @@ All colors are tokens in `packages/art/src/palette.ts`. Customization swatches a
 | UI | paper `#F7F0E1`, paper shade `#E9DEC6`, ink `#3B3229`, ink soft `#6B5E50`, Hearth `#C7604A`, Ledger `#3E6E5A`, warning `#C98B2B`, danger `#A8473B` |
 | Seats | 6 seat palettes: lantern gold, rose, teal, plum, sky, moss |
 
+**Palette 2.0 [V1A]** (`palette2`, the Painted Miniature tokens from the concept's palette B, each a little greyed toward its neighbors; kits move their reads to it in V1B and V1C, and the customization swatches read it now: the old plaster, roof and accent tokens they use hold these values):
+
+| Group | Tokens |
+|---|---|
+| Ground | grass `#93AD66`, meadow `#B7C27C`, forest floor `#5F7A47`, dirt `#C4A67E`, lane `#B09673`, cobble `#A39A8C`, flags `#CDC4B2`, fields `#D0B673` / `#A6B866` / `#A07F5A` |
+| Walls | plasters `#EFE3CC` `#E6C6B5` `#CDD2B3` `#C3CFD0` `#EDDAA6` `#E2C9A0`; stuccos, deco and pastels (Age of Steam and Bright Age, in `palette.ts`); bricks `#AE6A52` `#9F5E4A` `#B67D5F` `#94583F` with mortar `#C4BCB1`; stones `#C8BFAE` `#D4CAB6` `#B9B09F`; timber `#5A4434`; foundation `#938A7C` |
+| Roofs | tiles `#BB6E4C` `#A95F43` `#C27B55` `#9A5A42`, slates `#67707D` `#5D6773` `#707A83`, thatch `#C2A16A` `#B8975F`, zinc `#8A959B`, moss `#74805A`, plum `#7A5A6C`, flat `#857D73`, copper `#76A594`, chimney `#A1604B` |
+| Accents | frames `#F4ECDD`, doors `#4E7C78` `#9C4F43` `#D1A24A` `#45607A` `#6F8B68` `#7A5468`, shutters, shopfronts, awnings `#B2564A` `#4E7C78` `#D1A24A` `#45607A` `#7A5468` with the stripe `#EFE7D7`, glass `#34434F`, metal `#33403A`, wood `#957050` |
+| Foliage and water | leaves `#67904A` `#86AD55` `#5A8243` `#76984C`, pine `#466D4C`, bark `#6A4C36`, water `#6AAAB4`, riverbed `#3D5C66` |
+| Customization | walls: the first five plasters; roofs: tile, slate, thatch, moss, plum; accents: the first four doors and the frame cream |
+
 ## Style kit (`packages/art`)
 
 Pure functions from parameters (and a seed) to `BufferGeometry` with vertex colors and baked vertex ambient occlusion. Deterministic, cached by parameter key, with a high and a low level of detail.
@@ -53,10 +64,10 @@ Pure functions from parameters (and a seed) to `BufferGeometry` with vertex colo
 - **Terrain**: chunk meshes (16 x 16 tiles) with smooth slopes between levels, soft cliff faces where levels differ by 2+, terrain colors blended at tile edges, field furrows [I1].
 - **Water**: river and pond surfaces with gentle animated waves and foam at banks; frozen variant [I3].
 - **Roads**: path (worn dirt with grass edges), lane (packed dirt with ruts), street (cobbles) [I2]; joins and corners from neighbors; bridges (plank and stone). C4E: streets are granite setts in rows across the street between pale kerbs with a gutter shadow; desire paths (the `wear` layer) are narrow trodden lines joining worn tiles; stone stairs climb where a path with the stairs flag meets a road a level up. C4P: paths and lanes are one dirt (a lane a little darker and packed, with soft ruts and a ragged grass crown), and a path running into a lane changes width and dirt over the middle of the joint; a square of four road tiles is paved across; desire paths are trampled earth of the same dirt, never paler than the roads; stairs are cut into the drawn slope (each tread's back flush with the ground, its front one riser above it, all heights from `groundY`) in warm sandstone between sloped kerbs that sink into the ground at both ends, so no tread floats where a hillside falls away to the side.
-- **Buildings**: modular parts (walls: plaster, timber frame, stone, brick; roofs: gable, hip, half-hip in thatch, slate, tile; windows with shutters and boxes; doors; chimneys with smoke; porches; dormers; signs). Generators: cottage, house, workshop, mill, farm, storehouse, stall, town hall, landmarks. Construction stages (staked plot, foundation, frame, roof).
+- **Buildings**: modular parts (walls: plaster, timber frame, stone, brick; roofs: gable, hip, half-hip in thatch, slate, tile; windows with shutters and boxes; doors; chimneys with smoke; porches; dormers; signs). Generators: cottage, house, workshop, mill, farm, storehouse, stall, town hall, landmarks. Construction stages (staked plot, foundation, frame, roof). V1B: the Painted Miniature detail kit on every generator (framed windows with a reveal, muntins, sills, stone lintels on brick and stone, ledged shutters and window boxes; doors on a step with a fanlight on brick and stone or a hood on timber; string courses and cornices on brick; eave fascias, verge boards and ridge caps; dormers; chimney stacks with a cap and pots; gutters and a downpipe; timber framing with posts, rails and braces; jettied upper floors; ivy), surface ids on every face, and a far level of each kit (about 75 to 150 triangles for a home). Homes that touch a neighbor on the same frontage join into rows (`kits/rows.ts`): party walls, stepped rooflines, chimneys on the party wall, one plinth; a corner house dresses its street side.
 - **Props**: bench, curved and ring bench, lantern, hanging lantern, well, fountain, birdbath, fence, low wall, planter wall, hedge, flower bed, planter, wildflower verge, signpost, barrels, crates, carts, laundry lines, festival pieces [I3].
-- **Trees**: oak, birch, pine, apple, cherry, willow; growth stages; seasonal variants.
-- **Nature** [I1]: bush, grass tuft, wildflowers, reeds, rock, fern, mushrooms, fallen log (kind `nature`). Never placed by players: the renderer scatters them from the map with a seeded hash (forest floor and edges, open grass, meadows, banks, stony ground), clear of roads, buildings and decor, and fades them out at the decor detail distance.
+- **Trees**: oak, birch, pine, apple, cherry, willow; growth stages; seasonal variants. [V1C] Round-shaded crowns of a few blobs and root flares near, a 16-triangle far level for forests; hedgerows along fields from the same kit.
+- **Nature** [I1]: bush, grass tuft, wildflowers, reeds, rock, fern, mushrooms, fallen log, and [V1C] lily pads and hedgerows (kind `nature`). Never placed by players: the renderer scatters them from the map with a seeded hash (forest floor and edges, open grass, meadows, banks, stony ground), clear of roads, buildings and decor, and fades them out at the decor detail distance.
 - **Residents** [I1]: one parametric body (rounded, about 0.3 tile tall) with species parts (ears, tails, stripes, spines), fur palette, clothing colors, tier details (aprons, scarves, hats) and seasonal clothing.
 - **Critters** [I3]: tiny ambient wildlife (butterflies, bees, ducks, frogs, fireflies).
 - **Village** [I2, C4E]: district styles (`kits/district.ts`: Riverside Timber `timber`, Hill Stone `stone`, Market Brick `brick`, Garden Plaster `plaster`) set wall and upper-floor materials, plaster, roof shape, material and tint, accents and detail odds (window boxes, shutters, ivy, porches, lean-tos, dormers, benches, garden edges: picket, wattle, dry stone, hedge, railings). Grown generators fit any 2x2 to 3x3 lot: the district cottage (side gardens: vegetables, washing, a fruit tree or hens), the Craftsfolk townhouse (jettied upper floor, bay window, fanlight, two stacks), the shop with a flat above (shopfront, gilt fascia lettering, awning, a trade sign), the workshop with its yard and what it makes, and the farmstead (house, barn, yard and a produce corner: pen, fruit trees, wheat or rows). A home's look comes from its seed and district alone, so a cottage that upgrades in place becomes a townhouse in the same walls and paint, with scaffolding while the upgrade is under way. Each I2 building has its own silhouette (clay pit banks and pug mill, bottle kiln, shepherd's hut, spinning wheel porch and dye pots, weavers' windows and tenter frame, byre and churn stand, cheese room, orchard rows by season, apple mill and screw press, round woodstack, skeps and herb beds, open forge, bell cote and playground, inn sign on a post and beer garden, herbalist's bottles and bunches, Trading Post veranda and pennants, cart shed bay and pony stall). Sheep, cows and ponies are animated parts; the cart has a body, wheels and a load per good.
@@ -68,9 +79,12 @@ Pure functions from parameters (and a seed) to `BufferGeometry` with vertex colo
 | Phase | Sun color | Ambient (sky / ground) | Notes |
 |---|---|---|---|
 | Dawn | `#F6C28B` | `#E9C9B0` / `#6B5E50` | long soft shadows |
-| Day | `#FFF4E0` | `#DDE8F0` / `#7A8F5A` | |
-| Dusk | `#F4A261` | `#E2A88A` / `#5E4A44` | windows start to glow |
-| Night | moon `#9DB4D8` | `#2B3A55` / `#1E2433` | lit windows, lanterns, bloom |
+| Day | `#FFF4E0` | `#DDE8F0` / `#7A8F5A` | haze `#D8E2E3`, exposure 0.9 |
+| Golden hour [V1A] | `#F7B878` | `#EAD0B8` / `#6A5A4C` | peach haze `#ECCAA6`, gentle bloom |
+| Dusk | `#F4A261` | `#D9A8B4` / `#4E4660` | windows start to glow |
+| Night | moon `#A9BFE0` | `#3A4B6B` / `#232A3A` | haze `#2B3A55`, lit windows, lanterns, bloom |
+
+V1A retuned the table for the Lambert kit material and Khronos Neutral tone mapping, with the concept's day, golden hour and night as the target (`render/lighting.ts`). The warm haze is fog that follows the view: near at 0.93 and far at 4.2 times the camera's distance to what it looks at (`hazeFor`), in the hour's horizon color.
 
 - One directional light with shadows (Medium 2048, High 4096, Low off), hemisphere ambient, fog by weather.
 - Night: a share of windows in occupied homes glow (seeded per building, varying by hour); lanterns are emissive with bloom and a soft ground glow decal (no real point lights beyond 8 nearest the camera).
@@ -80,7 +94,7 @@ Pure functions from parameters (and a seed) to `BufferGeometry` with vertex colo
 ## Seasons and weather visuals [I3]
 
 - Grass and foliage tints per season; blossoms on fruit trees in spring; autumn leaf colors and falling leaves; bare deciduous trees and snow-capped pines in winter.
-- Snow cover shader on upward-facing surfaces in winter; frozen river; puddles and wet sheen after rain [I4].
+- Snow cover shader on upward-facing surfaces in winter; frozen river; puddles and wet sheen after rain [I4]. [V1A] The kit material draws the snow (patchy as it starts, keeping a hint of courses on thatch, slate and tile), the season tint on grass, leaf and field surfaces, and sway on leaf and flower faces, from `env.snow`, `env.seasonTint` and `env.sway`, which the renderer sets from the calendar's season (`applySeasonLook`); the ground shader's snow is V1C's and C5E's.
 - Rain, snow and fog particles sized for the miniature look.
 
 ## Camera
@@ -93,7 +107,7 @@ Pure functions from parameters (and a seed) to `BufferGeometry` with vertex colo
 
 ## Post-processing
 
-Tone mapping (AgX, ACES or Khronos Neutral, whichever matches the concept stills), bloom (golden hour and night), tilt-shift (vertical gradient blur, stronger when zoomed out, none close up), subtle vignette, gentle seasonal grading (lift, gamma, gain, saturation), MSAA where the preset allows. [V1] All of it runs in one final full-screen pass after a quarter resolution blur chain, and ambient occlusion is baked (vertex AO in the kits and a ground AO texture); screen-space AO runs only on Ultra, on still frames (`20-architecture.md`, Lean renderer).
+Tone mapping (Khronos PBR Neutral, V1A's pick: it matches the concept stills and keeps the pastel palette's hues, where ACES pushed them toward orange and crushed the darks), bloom (golden hour and night only; none by day, so the bloom chain is skipped), tilt-shift (vertical gradient blur from 45 tiles back, full from about 160, none close up), a soft oval vignette, gentle seasonal grading (lift, gamma, gain, saturation and a slight S-curve: spring fresh, summer warmest, autumn golden, winter cool and quieter; dusk warmth and a little less saturation at night), dither, MSAA where the preset allows. The values and GLSL live in `render/look.ts`. [V1] All of it runs in one final full-screen pass after a quarter resolution blur chain, and ambient occlusion is baked (vertex AO in the kits and a ground AO texture); screen-space AO runs only on Ultra, on still frames (`20-architecture.md`, Lean renderer).
 
 ## Quality presets
 

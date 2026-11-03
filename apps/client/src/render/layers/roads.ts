@@ -80,6 +80,22 @@ vec3 qStreet(vec2 wp, vec3 grass, float e, vec2 dir) {
   return col;
 }
 
+// V1C: flagstones where streets make a square (four street tiles round a corner): big pale slabs in
+// staggered courses, each a little different, with fine dark joints.
+vec3 qFlags(vec2 wp) {
+  vec2 u = wp * vec2(2.2, 2.9);
+  float course = floor(u.y);
+  float shift = qHash(vec2(course, 3.1)) * 0.8;
+  vec2 cell = vec2(floor(u.x + shift), course);
+  vec2 f = vec2(fract(u.x + shift), fract(u.y));
+  float h = qHash(cell + 0.7);
+  vec3 slab = mix(qSrgb(vec3(0.78, 0.75, 0.68)), qSrgb(vec3(0.86, 0.82, 0.73)), h);
+  slab = mix(slab, qSrgb(vec3(0.74, 0.70, 0.63)), step(0.85, qHash(cell + 4.2)) * 0.6);
+  slab *= 0.94 + 0.1 * qNoise(wp * 9.0) + 0.04 * (1.0 - length(f - 0.5));
+  float joint = smoothstep(0.0, 0.05, min(min(f.x, 1.0 - f.x), min(f.y, 1.0 - f.y)) * 1.6);
+  return mix(qSrgb(vec3(0.42, 0.40, 0.36)), slab, joint);
+}
+
 vec3 qRoadPaint(vec2 wp, vec3 col) {
   ivec2 t = ivec2(floor(wp));
   float k[9];
@@ -98,6 +114,7 @@ vec3 qRoadPaint(vec2 wp, vec3 col) {
   float center = 9.0;
   float kind = 0.0;
   float best = 9.0;
+  float square = 0.0;
   vec2 dir = vec2(1.0, 0.0);
   vec2 o = vec2(t) - 0.5;
   for (int j = 0; j < 3; j++) {
@@ -127,6 +144,7 @@ vec3 qRoadPaint(vec2 wp, vec3 col) {
       vec2 q = abs(wp - (o + vec2(float(i), float(j)) + 0.5)) - 0.5;
       float sq = length(max(q, 0.0)) + min(max(q.x, q.y), 0.0);
       edge = qSmin(edge, sq, 0.14);
+      if (lo > 2.5) square = max(square, 1.0 - smoothstep(-0.12, -0.02, sq));
     }
   }
   if (k[4] > 0.5 && k[4] < 15.5 && qRoadOnly(k[1]) + qRoadOnly(k[3]) + qRoadOnly(k[5]) + qRoadOnly(k[7]) < 0.5) {
@@ -173,7 +191,11 @@ vec3 qRoadPaint(vec2 wp, vec3 col) {
   col *= 1.0 - 0.08 * (1.0 - smoothstep(0.0, 0.09, e));
   float inside = 1.0 - smoothstep(-0.015, 0.02, e);
   if (inside <= 0.0) return col;
-  if (street) return mix(col, qStreet(wp, col, e, dir), inside);
+  if (street) {
+    vec3 paved = qStreet(wp, col, e, dir);
+    if (square > 0.0) paved = mix(paved, qFlags(wp), square);
+    return mix(col, paved, inside);
+  }
   // C4P: paths and lanes are one dirt. A lane (lw 1) is the same earth packed a little darker by
   // cart wheels, with two soft ruts and a ragged grass crown; a path (lw 0) is lighter where feet
   // wear its middle. Joins blend lw, so a path running into a lane changes over gradually.

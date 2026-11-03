@@ -4,30 +4,41 @@
 // detail version; ?set=nature lines up the scattered nature props in two variants each.
 import {
   constructionGeometry,
-  createKitMaterial,
+  createPatternArray,
+  isRowKit,
   createResidentMaterial,
   kitById,
   kits,
+  kitSurfaceUniforms,
   palette,
+  patchKitShader,
+  setKitMaterialHooks,
   SPECIES_IDS,
   type KitBuildOptions,
+  type Season,
 } from '@qoti/art';
 import { content } from '@qoti/content';
 import type { BufferGeometry } from 'three';
 import {
+  CanvasTexture,
   Color,
   DirectionalLight,
   Group,
   HemisphereLight,
   Mesh,
+  MeshLambertMaterial,
   MeshStandardMaterial,
+  NeutralToneMapping,
   PerspectiveCamera,
   PlaneGeometry,
   Scene,
+  Sprite,
+  SpriteMaterial,
   WebGLRenderer,
 } from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { makeFigure, type Figure } from './figures';
+import { buildSurfaces, SURFACE_ORDER } from './surfaces';
 
 const q = new URLSearchParams(location.search);
 const renderer = new WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
@@ -47,9 +58,14 @@ const ground = new Mesh(
 ground.rotation.x = -Math.PI / 2;
 scene.add(ground);
 
-const material = createKitMaterial();
-// Window panes and flames glow at night: a copy of the vertex colors blended toward window light.
+// V1A: the game's lean kit material (Lambert, the pattern array by surface id, glass and water
+// glint), with the gallery's own night glow: window panes and flames blend toward window light.
+const kitUniforms = kitSurfaceUniforms(createPatternArray());
+kitUniforms.uPat.value.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy());
+const material = new MeshLambertMaterial({ vertexColors: true });
+material.userData.kitUniforms = kitUniforms;
 material.onBeforeCompile = (shader) => {
+  patchKitShader(shader, kitUniforms);
   shader.uniforms.uNight = nightUniform;
   shader.vertexShader = shader.vertexShader
     .replace('#include <common>', '#include <common>\nattribute float glow;\nvarying float vGlow;')
@@ -58,9 +74,12 @@ material.onBeforeCompile = (shader) => {
     .replace('#include <common>', '#include <common>\nuniform float uNight;\nvarying float vGlow;')
     .replace(
       '#include <emissivemap_fragment>',
-      '#include <emissivemap_fragment>\ntotalEmissiveRadiance += vec3(1.0, 0.8, 0.5) * vGlow * uNight * 1.4;',
+      '#include <emissivemap_fragment>\ntotalEmissiveRadiance += vec3(1.0, 0.8, 0.5) * vGlow * uNight * 1.4 + qKitGlint(vGlow * uNight);',
     );
 };
+material.customProgramCacheKey = () => 'gallery-lean-kit';
+const seasonParam = (q.get('season') ?? 'spring') as Season;
+setKitMaterialHooks(material, { season: seasonParam, snow: seasonParam === 'winter' ? 1 : 0, sway: 1 });
 const nightUniform = { value: 0 };
 
 const holder = new Group();
@@ -107,26 +126,38 @@ function kitAndSize(spec: string): {
 /** C3D-1 lineups: trees by stage (and low detail, far right), or nature props by variant. */
 function lineup(set: string): boolean {
   if (set === 'trees') {
-    ['oak', 'birch', 'pine'].forEach((id, row) => {
+    // V1C: each tree at both levels: stages 0 to 3 near, then stages 1 and 3 far, and a hedgerow
+    // row; the label gives the triangles of a mature tree at each level.
+    const counts: string[] = [];
+    ['oak', 'birch', 'pine', 'hedgerow'].forEach((id, row) => {
       const kit = kitById.get(id)!;
-      const opts: KitBuildOptions[] = [0, 1, 2, 3].map((stage) => ({ stage, seed: state.seed }));
-      opts.push({ stage: 3, seed: state.seed, lod: 'low' });
+      const opts: KitBuildOptions[] =
+        id === 'hedgerow'
+          ? [{ seed: state.seed }, { seed: state.seed, lod: 'low' }]
+          : [0, 1, 2, 3].map((stage) => ({ stage, seed: state.seed }));
+      if (id !== 'hedgerow')
+        opts.push({ stage: 1, seed: state.seed, lod: 'low' }, { stage: 3, seed: state.seed, lod: 'low' });
+      const tris = (o: KitBuildOptions) => kit.build(o).getAttribute('position').count / 3;
+      counts.push(`${id} ${tris({ seed: state.seed })}/${tris({ seed: state.seed, lod: 'low' })}`);
       opts.forEach((o, col) => {
         const mesh = new Mesh(kit.build(o), material);
-        mesh.position.set((col - 2) * 1.3, 0, (row - 1) * 1.4);
+        mesh.position.set((col - 2.5) * 1.3, 0, (row - 1.5) * 1.4);
         holder.add(mesh);
       });
     });
-    info.textContent = 'trees: stages 0 to 3, then low detail';
+    info.textContent = `trees: stages 0 to 3, then far at 1 and 3 (triangles near/far: ${counts.join(', ')})`;
     return true;
   }
   if (set === 'nature') {
     const nature = kits.filter((k) => k.kind === 'nature');
     nature.forEach((kit, i) => {
-      for (let v = 0; v < 2; v++) {
-        const mesh = new Mesh(kit.build({ seed: state.seed + v * 13 }), material);
+      // V1C: two variants near, and a third row at the far level.
+      for (let v = 0; v < 3; v++) {
+        const opts: KitBuildOptions =
+          v < 2 ? { seed: state.seed + v * 13 } : { seed: state.seed, lod: 'low' };
+        const mesh = new Mesh(kit.build(opts), material);
         mesh.scale.setScalar(2.4);
-        mesh.position.set((i - (nature.length - 1) / 2) * 1.35, 0, (v - 0.5) * 1.6);
+        mesh.position.set((i - (nature.length - 1) / 2) * 1.35, 0, (v - 1) * 1.6);
         holder.add(mesh);
       }
     });
@@ -189,6 +220,9 @@ function buildLineup(): Group {
   }
   const row = new Group();
   let x = 0;
+  // V1B: &join=1 stands the buildings side by side on one frontage and joins row kits into a row.
+  const join = q.get('join') === '1';
+  const kitOf = (k: number): string => kitAndSize(ids[k] ?? '').id;
   ids.forEach((id, i) => {
     // site:<kit>:<stage> shows a construction site for that kit.
     if (id.startsWith('site:')) {
@@ -207,15 +241,20 @@ function buildLineup(): Group {
     const { id: kitId, fp } = kitAndSize(id);
     const kit = kitById.get(kitId);
     if (!kit) return;
+    const joins: Record<string, string> = {};
+    if (join && isRowKit(kitId)) {
+      if (i > 0 && isRowKit(kitOf(i - 1))) joins.joinL = kitOf(i - 1);
+      if (i < ids.length - 1 && isRowKit(kitOf(i + 1))) joins.joinR = kitOf(i + 1);
+    }
     const opts: KitBuildOptions = {
       seed: Number.isFinite(seeds[i]) && seeds[i]! > 0 ? seeds[i]! : state.seed + i,
       ...(fp ?? {}),
-      params,
+      params: { ...params, ...joins },
       ...(state.lod === 'low' ? { lod: 'low' as const } : {}),
     };
     const w = fp ? fp.size[0] : 0.7;
     const mesh = new Mesh(kit.build(opts), material);
-    mesh.position.set(x + (fp ? 0 : 0.35), 0, fp ? -fp.size[1] / 2 : 0);
+    mesh.position.set(x + (fp ? 0 : 0.35), 0, fp ? (join ? -fp.size[1] : -fp.size[1] / 2) : 0);
     row.add(mesh);
     for (const p of kit.parts?.(opts) ?? []) {
       const pg = p.geometry.clone().translate(-p.pivot[0], -p.pivot[1], -p.pivot[2]);
@@ -224,7 +263,7 @@ function buildLineup(): Group {
       row.add(pm);
       parts.push({ mesh: pm, speed: p.spinSpeed ?? 0 });
     }
-    x += w + (fp ? 0.6 : 0.15);
+    x += w + (fp ? (join ? 0 : 0.6) : 0.15);
   });
   row.position.x = -(x - 0.6) / 2;
   holder.add(row);
@@ -286,6 +325,138 @@ function buildGrid(): void {
   info.textContent = `grid: ${rows.join(', ')} x ${specs.join(', ')}`;
   gridSize = [total, rows.length * (rowD + gap)];
 }
+
+/** V1B: a text label as a sprite lying under a model (`size` is its width in tiles). */
+function label(text: string, size: number): Sprite {
+  const c = document.createElement('canvas');
+  c.width = 512;
+  c.height = 96;
+  const g = c.getContext('2d')!;
+  g.fillStyle = 'rgba(255, 250, 240, 0.92)';
+  g.fillRect(0, 0, c.width, c.height);
+  g.fillStyle = '#3a2e26';
+  g.font = '600 40px system-ui, sans-serif';
+  g.textAlign = 'center';
+  g.textBaseline = 'middle';
+  g.fillText(text, c.width / 2, c.height / 2);
+  const sprite = new Sprite(new SpriteMaterial({ map: new CanvasTexture(c), depthTest: false }));
+  sprite.scale.set(size, (size * c.height) / c.width, 1);
+  sprite.renderOrder = 10;
+  return sprite;
+}
+
+/**
+ * V1B: every generator at both levels (?scene=levels&page=0, or &kits=cottage,shop): the near level
+ * on the left of each pair, the far level on the right, and the triangle counts printed under
+ * each. `style` passes a district style to every kit; `per` sets kits per page.
+ */
+const LEVEL_KITS = kits.filter((k) => k.kind === 'building').map((k) => k.id);
+let levelsSize = [8, 6];
+function buildLevels(): void {
+  for (const c of [...holder.children]) holder.remove(c);
+  const per = Number(q.get('per') ?? 6);
+  const page = Number(q.get('page') ?? 0);
+  const list = q.get('kits') ? q.get('kits')!.split(',') : LEVEL_KITS.slice(page * per, page * per + per);
+  const style = q.get('style') ?? '';
+  const cols = Number(q.get('cols') ?? 3);
+  const cells = list.map(kitAndSize);
+  const cellW = Math.max(...cells.map((c) => (c.fp?.size[0] ?? 1) * 2 + 0.5)) + 0.7;
+  const cellD = Math.max(...cells.map((c) => c.fp?.size[1] ?? 1)) + 1.1;
+  const rows = Math.ceil(cells.length / cols);
+  const counts: string[] = [];
+  cells.forEach(({ id, fp }, i) => {
+    const kit = kitById.get(id);
+    if (!kit) return;
+    const cx = ((i % cols) - (cols - 1) / 2) * cellW;
+    const cz = (Math.floor(i / cols) - (rows - 1) / 2) * cellD;
+    const [w, d] = fp?.size ?? [1, 1];
+    const tris: number[] = [];
+    (['high', 'low'] as const).forEach((lod, k) => {
+      const opts: KitBuildOptions = {
+        seed: state.seed + i,
+        ...(fp ?? {}),
+        params: style ? { style } : {},
+        lod,
+      };
+      const g = kit.build(opts);
+      tris.push(g.getAttribute('position').count / 3);
+      const mesh = new Mesh(g, material);
+      mesh.position.set(cx + (k === 0 ? -w - 0.25 : 0.25), 0, cz - d / 2);
+      holder.add(mesh);
+    });
+    const tag = label(`${id}: ${tris[0]} / ${tris[1]}`, Math.min(2.6, cellW * 0.6));
+    tag.position.set(cx, 0.05, cz + d / 2 + 0.38);
+    holder.add(tag);
+    counts.push(`${id} ${tris[0]}/${tris[1]}`);
+  });
+  info.textContent = `levels (near / far triangles): ${counts.join(', ')}`;
+  levelsSize = [cols * cellW, rows * cellD];
+}
+
+/**
+ * V1B: the swap, for a clip (?scene=swap&kits=cottage,townhouse,shop&style=brick&at=14): a row of
+ * homes, each built at both levels; the camera dollies out and back in, and each home shows its far
+ * level beyond `at` tiles (5% hysteresis either side, as lod.ts swaps). `window.__swap(t)` puts the
+ * camera at time t (0 to 1) and draws, so a script can step through frames.
+ */
+const swapItems: { high: Mesh; low: Mesh; near: Sprite; far: Sprite; low_: boolean }[] = [];
+function buildSwap(): void {
+  for (const c of [...holder.children]) holder.remove(c);
+  const ids = (q.get('kits') ?? 'cottage,townhouse,shop,cottage').split(',');
+  const style = q.get('style') ?? 'brick';
+  let x = 0;
+  const row = new Group();
+  ids.forEach((spec, i) => {
+    const { id, fp } = kitAndSize(spec);
+    const kit = kitById.get(id);
+    if (!kit || !fp) return;
+    const joins: Record<string, string> = {};
+    const kitOf = (k: number): string => kitAndSize(ids[k] ?? '').id;
+    if (i > 0 && isRowKit(kitOf(i - 1)) && isRowKit(id)) joins.joinL = kitOf(i - 1);
+    if (i < ids.length - 1 && isRowKit(kitOf(i + 1)) && isRowKit(id)) joins.joinR = kitOf(i + 1);
+    const opts: KitBuildOptions = { seed: state.seed + i, ...fp, params: { style, ...joins } };
+    const high = new Mesh(kit.build(opts), material);
+    const low = new Mesh(kit.build({ ...opts, lod: 'low' }), material);
+    for (const m of [high, low]) {
+      m.position.set(x, 0, -fp.size[1]);
+      row.add(m);
+    }
+    const near = label('near', 0.9);
+    const far = label('far', 0.9);
+    for (const t of [near, far]) {
+      t.position.set(x + fp.size[0] / 2, 0.05, 0.45);
+      row.add(t);
+    }
+    swapItems.push({ high, low, near, far, low_: false });
+    x += fp.size[0];
+  });
+  row.position.x = -x / 2;
+  holder.add(row);
+  state.spin = false;
+}
+
+function swapAt(t: number): void {
+  const at = Number(q.get('at') ?? 14);
+  // Out from close up to twice the swap distance and back, along a fixed bearing.
+  const k = t < 0.5 ? t * 2 : 2 - t * 2;
+  const dist = 4 + (at * 2 - 4) * (0.5 - 0.5 * Math.cos(Math.PI * k));
+  const yaw = 0.45;
+  camera.position.set(Math.sin(yaw) * dist, dist * 0.7, Math.cos(yaw) * dist);
+  controls.target.set(0, 0.6, 0);
+  camera.lookAt(controls.target);
+  for (const it of swapItems) {
+    const d = camera.position.distanceTo(it.high.position.clone().add(holder.children[0]!.position));
+    it.low_ = it.low_ ? d > at * 0.95 : d > at * 1.05;
+    it.high.visible = !it.low_;
+    it.low.visible = it.low_;
+    it.near.visible = !it.low_;
+    it.far.visible = it.low_;
+  }
+}
+(window as unknown as { __swap: (t: number) => void }).__swap = (t: number) => {
+  swapAt(t);
+  renderer.render(scene, camera);
+};
 
 /**
  * C4E: village folk (?scene=folk): the story characters in their outfits, a couple hand in hand,
@@ -467,11 +638,42 @@ if (sceneName === 'lineup') {
   controls.target.set(0, Number(q.get('ty') ?? 0.4), 0);
   ground.scale.setScalar(2);
   state.spin = false;
+} else if (sceneName === 'levels') {
+  buildLevels();
+  const dist = Number(q.get('dist') ?? Math.max(levelsSize[0]! * 0.92, levelsSize[1]! * 1.7));
+  const yaw = Number(q.get('yaw') ?? 0.3);
+  camera.position.set(Math.sin(yaw) * dist, dist * Number(q.get('pitch') ?? 0.8), Math.cos(yaw) * dist);
+  controls.target.set(0, 0.3, 0.2);
+  ground.scale.setScalar(2.5);
+  state.spin = false;
+} else if (sceneName === 'swap') {
+  buildSwap();
+  swapAt(Number(q.get('t') ?? 0));
 } else if (sceneName === 'folk') {
   buildFolk();
   camera.position.set(0.3, 1.5, 3.6);
   controls.target.set(0.1, 0.12, -0.15);
   state.spin = false;
+} else if (sceneName === 'surfaces') {
+  // V1A: every surface at three sizes; ?dist sets how far back the camera stands.
+  const { group } = buildSurfaces(material);
+  holder.add(group);
+  renderer.toneMapping = NeutralToneMapping;
+  const dist = Number(q.get('dist') ?? 26);
+  const yaw = Number(q.get('yaw') ?? 0.25);
+  camera.fov = 30;
+  camera.far = 400;
+  camera.updateProjectionMatrix();
+  camera.position.set(Math.sin(yaw) * dist * 0.7, dist * 0.72, Math.cos(yaw) * dist * 0.7);
+  controls.target.set(0, 0.2, 0.4);
+  ground.scale.setScalar(3);
+  state.spin = false;
+  info.textContent = `surfaces (${seasonParam}): ${SURFACE_ORDER.join(', ')}`;
+  // For the shimmer check: a script steps the camera back along the same line, frame by frame.
+  (window as unknown as { surfacesView: (d: number) => void }).surfacesView = (d) => {
+    camera.position.set(Math.sin(yaw) * d * 0.7, d * 0.72, Math.cos(yaw) * d * 0.7);
+    controls.update();
+  };
 } else if (sceneName === 'residents') {
   buildResidents();
   camera.position.set(0.1, 1.1, 3.6);
@@ -495,6 +697,7 @@ renderer.setAnimationLoop(() => {
     const hop = f.anim === 3 ? Math.abs(Math.sin(residentTime.value * 5.5)) * 0.1 : 0;
     for (const m of f.fig.meshes) m.position.y = (bob + hop) / f.fig.group.scale.y;
   }
+  if (sceneName === 'swap') return;
   controls.update();
   renderer.render(scene, camera);
 });

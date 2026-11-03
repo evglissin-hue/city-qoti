@@ -1,7 +1,9 @@
 // C3D: one BatchedMesh for many distinct geometries (every building with its own variant,
 // customization and stock piles) in a single draw call. Geometries are keyed and shared between
 // items with the same key; the batch grows (and compacts) as needed.
-import { BatchedMesh, type BufferGeometry, type Material, type Matrix4, type Scene } from 'three';
+import { BatchedMesh, Matrix4, type BufferGeometry, type Material, type Scene } from 'three';
+
+const held = new Matrix4();
 
 interface Geo {
   id: number;
@@ -23,12 +25,17 @@ export class KeyedBatch {
     scene.add(this.mesh);
   }
 
-  /** Shows geometry `key` for item `id` at matrix `m`; `make` builds the geometry when it is new. */
-  set(id: number, key: string, make: () => BufferGeometry, m: Matrix4): void {
+  /**
+   * Shows geometry `key` for item `id` at matrix `m`; `make` builds the geometry when it is new.
+   * V1X: returns whether anything on screen changed (a new item, a new key or a new matrix), so a
+   * static layer can leave the still-frame cache alone when a rebuild changed nothing.
+   */
+  set(id: number, key: string, make: () => BufferGeometry, m: Matrix4): boolean {
     const cur = this.items.get(id);
     if (cur && cur.key === key) {
+      if (this.mesh.getMatrixAt(cur.instance, held).equals(m)) return false;
       this.mesh.setMatrixAt(cur.instance, m);
-      return;
+      return true;
     }
     const geo = this.acquire(key, make);
     if (cur) {
@@ -36,11 +43,12 @@ export class KeyedBatch {
       this.release(cur.key);
       cur.key = key;
       this.mesh.setMatrixAt(cur.instance, m);
-      return;
+      return true;
     }
     const instance = this.addInstance(geo);
     this.mesh.setMatrixAt(instance, m);
     this.items.set(id, { instance, key });
+    return true;
   }
 
   /** The key an item shows now. */

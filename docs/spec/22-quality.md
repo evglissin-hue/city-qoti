@@ -41,6 +41,54 @@ Acceptance criteria for every cycle that touches the area. Reference machines: a
 
 Moving frames cost the GPU 2.4 to 2.9 times less than the classic chain's on the same build (one scene pass, no full-resolution post passes, and the shadow map drawn only when due); held still (`QOTI_HOLD=1`), the town's moving frames skip the shadow pass altogether. An idle frame (the cache restored, the moving layers, the blur and the final pass) costs a twelfth of a classic frame in the hamlet. In the village and the town the software rest is still mostly still frames: a frame there takes seconds, so the sim moves dozens of turns between frames and something static (a stock pile, the sun's quarter-hour step, a building's level swap after the zoom) changes in nearly every one, which a laptop at 60 fps sees once in a hundred frames or more. Compared with V1.0's before table (which drew every frame at a lower dynamic resolution, so its milliseconds are not comparable), the town's moving triangles on Medium went from 2.66 M to 0.64 M. That run predates the building distance floor (`20-architecture.md`, Lean renderer, As built), so it drew buildings to 60 tiles on Medium; with the floor they go to 75 as before. The final shots (`v1-shots.mjs v1d`, stills `docs/build/screenshots/v1-v1d-*.png`): the town's camera pass went from 1.31 M to 0.58 M triangles in the wide shot, 1.47 M to 0.95 M at night and 1.18 M to 0.63 M in the street, almost all from decor culled per chunk and leveled (800 k to 62 k, 337 k and 256 k); its night frame, still frame and shadow pass included, from 3.46 M (over Medium's budget) to 2.47 M. The hamlet and the village of 130 draw what they drew (their big layers are trees and buildings, V1C's and V1B's). The shots' own draws and triangles columns now show the last frame drawn, which at rest is an idle one (a hamlet at dusk: 13 draws, a few thousand triangles), so compare per layer.
 
+**As built (V1X, 2026-11-03)**: V1A, V1B and V1C merged on V1D, in the same container's software renderer (headless Chromium in SwiftShader, no GPU; milliseconds are the CPU doing the GPU's work, good for ratios only; draws and triangles are real). `QOTI_FIXEDRES=1 node apps/client/e2e/v1-perf.mjs`, every scene and preset, the sim running:
+
+| town | ultra | 2187.4 / 3683.2 | 3166.8 / 3825.5 | 2304.1 / 2833.2 | 2261.4 / 2770.0 | 163 | 1.98 M | 0 / 3 / 1, 3 |
+| Scene | Preset | Moving frame ms (avg / p95) | Moving GPU ms (avg / p95) | Idle frame ms (avg / p95) | Idle GPU ms (avg / p95) | Draws | Triangles | Rest: moving / still / idle frames, shadow renders |
+| hamlet | low | 418.8 / 866.7 | 396.9 / 445.8 | 395.4 / 416.7 | 381.1 / 403.8 | 53 | 0.04 M | 22 / 0 / 0, 1 |
+| hamlet | medium | 943.3 / 1100.0 | 910.2 / 1011.6 | 305.7 / 1083.2 | 288.5 / 1080.8 | 70 | 0.10 M | 0 / 2 / 27, 2 |
+| hamlet | high | 791.6 / 1149.9 | 764.1 / 1091.6 | 240.7 / 1083.3 | 223.9 / 1035.1 | 66 | 0.14 M | 0 / 1 / 35, 1 |
+| hamlet | ultra | 780.5 / 1066.6 | 840.0 / 2013.4 | 722.2 / 1850.0 | 633.6 / 1788.4 | 67 | 0.17 M | 0 / 3 / 9, 3 |
+| village | low | 499.1 / 1216.7 | 497.8 / 619.1 | 1064.5 / 1399.9 | 1032.2 / 1358.9 | 105 | 0.20 M | 8 / 0 / 0, 3 |
+| village | medium | 1319.0 / 1416.6 | 1279.8 / 1394.5 | 1603.3 / 2150.0 | 1559.5 / 2091.8 | 160 | 0.31 M | 0 / 3 / 2, 3 |
+| village | high | 1713.3 / 1799.9 | 1666.7 / 1801.1 | 2404.1 / 2749.9 | 2376.6 / 2702.6 | 174 | 1.21 M | 0 / 4 / 0, 4 |
+| village | ultra | 2074.9 / 6766.4 | 2086.1 / 3393.7 | 2722.1 / 3199.8 | 2704.7 / 3188.2 | 145 | 1.43 M | 0 / 2 / 1, 2 |
+| town | low | 650.0 / 1783.3 | 623.5 / 771.9 | 600.0 / 1049.9 | 563.4 / 990.1 | 90 | 0.41 M | 15 / 0 / 0, 1 |
+| town | medium | 1147.2 / 1666.6 | 1100.3 / 1615.7 | 1147.9 / 1550.0 | 1271.5 / 1520.0 | 122 | 0.58 M | 0 / 8 / 0, 8 |
+| town | high | 2404.1 / 3416.5 | 2347.6 / 3353.8 | 1786.6 / 2249.9 | 1737.6 / 2231.5 | 135 | 1.27 M | 0 / 3 / 2, 3 |
+| town | ultra | 2187.4 / 3683.2 | 3166.8 / 3825.5 | 2304.1 / 2833.2 | 2261.4 / 2770.0 | 163 | 1.98 M | 0 / 3 / 1, 3 |
+
+The same on Medium with the sim held (`QOTI_HOLD=1`), which is what a laptop at 60 fps sees between the sun's quarter-hour steps:
+
+| town | medium | 993.3 / 4433.1 | 1093.4 / 1707.3 | 434.8 / 1616.7 | 426.2 / 1598.9 | 116 | 0.37 M | 0 / 1 / 22, 1 |
+| Scene | Preset | Moving frame ms (avg / p95) | Moving GPU ms (avg / p95) | Idle frame ms (avg / p95) | Idle GPU ms (avg / p95) | Draws | Triangles | Rest: moving / still / idle frames, shadow renders |
+| hamlet | medium | 667.8 / 2199.8 | 660.5 / 944.5 | 183.3 / 966.5 | 177.9 / 914.9 | 62 | 0.09 M | 0 / 0 / 47, 0 |
+| village | medium | 831.8 / 2400.0 | 821.7 / 1273.0 | 468.5 / 2183.3 | 459.6 / 2178.4 | 139 | 0.25 M | 0 / 0 / 18, 0 |
+| town | medium | 993.3 / 4433.1 | 1093.4 / 1707.3 | 434.8 / 1616.7 | 426.2 / 1598.9 | 116 | 0.37 M | 0 / 1 / 22, 1 |
+
+- **Budgets that can be read here hold**: at most 174 draws (the village on High; budget 450) and 160 on Medium (budget 300); Medium moves at 0.10 M (hamlet), 0.31 M (village) and 0.58 M (town) triangles against a 3 M budget, and Ultra's town at 1.98 M against 12 M. The town on Medium moved at 2.66 M before V1 (V1.0's table): V1D's decor culling, V1B's far levels and V1C's tree levels took it down 4.6 times while the near buildings gained their whole detail kit.
+- **Resting**: with the sim held every rest frame is idle in all three scenes (V1C's run had the village at 7 still frames and no idle ones), and an idle frame costs a quarter to a half of a moving one in software (hamlet 178 ms against 660, village 460 against 822, town 426 against 1,093). With the sim running, a software frame spans over a second, so the sun's quarter-hour step (every 5 s of real time at 1x) and real changes (a site rising, a stock pile) still land in most rest frames; on a laptop at 60 fps that is one still frame in about 300. `__qoti.staticChanges()` shows what dropped the cache.
+- **Not measured: every GPU millisecond on the laptops.** The acceptance rows (Medium within 12 ms moving and 4 ms idle on the weaker laptop, High at 60 fps moving on the stronger one) need `QOTI_HEADED=1 node apps/client/e2e/v1-perf.mjs` (or `await __qoti.perf()` in a `?debug` valley's console, scene by scene) on Kat's laptop and the owner's, plugged in with the battery frame cap off. That is the first human step left from V1X.
+
+**Shots (V1X)**: `v1-shots.mjs after`, Medium, 1440 x 900, software renderer; stills `docs/build/screenshots/v1-after-*.png`, sheets with the concept and the before still beside them `v1x-compare-*.jpg`. Draws and triangles are the last frame drawn, which at rest is an idle frame (the moving layers over the still-frame cache), so they are far below V1.0's before table, which drew everything every frame; compare per layer below.
+
+| Scene | Shot | Draws | Triangles (idle frame) | GPU ms (software) |
+|---|---|---|---|---|
+| hamlet | default | 7 | 0.00 M | 890 |
+| hamlet | close | 3 | 0.00 M | 85 |
+| hamlet | dusk | 12 | 0.00 M | 105 |
+| hamlet | night | 12 | 0.00 M | 138 |
+| village of 130 | wide | 148 | 0.34 M | 1454 |
+| village of 130 | golden | 75 | 0.07 M | 1075 |
+| village of 130 | night | 73 | 0.07 M | 150 |
+| village of 130 | street | 67 | 0.06 M | 456 |
+| town | wide | 117 | 0.49 M | 1543 |
+| town | night | 45 | 0.14 M | 1314 |
+| town | street | 29 | 0.08 M | 827 |
+| winter | wide | 78 | 0.06 M | 1091 |
+
+Camera pass triangles per layer (`QOTI_LAYERS=1`), against V1.0's before table: village wide 0.48 M to 0.22 M (trees 283 k to 89 k, buildings 77 k to 18 k); village street 0.45 M to 0.25 M (trees 220 k to 37 k); town wide 1.31 M to 0.28 M (decor 800 k to 62 k, buildings 335 k to 79 k); town night 1.47 M to 0.68 M; town street 1.18 M to 0.62 M (buildings 193 k to 162 k at the full near detail kit, decor 800 k to 256 k). The effects layer (smoke, sails) is a steady 32 k in every village and town shot.
+
 `tools/bench` builds synthetic valleys (I0: 1,000 buildings and 6,000 decor; I1: a 40-resident hamlet; later a synthetic 2,000-resident town) and reports ms per tick, memory and snapshot size. CI fails when a sim or worldgen budget is exceeded.
 
 ## Tests

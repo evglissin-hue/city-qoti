@@ -211,3 +211,53 @@ export const fallenLog: Kit = {
     return s.build();
   },
 };
+
+const PAD = 0x5f8a45;
+const PAD_LIGHT = 0x86a95a;
+
+/**
+ * V1C: lily pads on still water: a few flat round leaves, each with its notch, and now and then a
+ * pale flower. Lies flat at y 0 (the renderer sets it on the water line). Low: the pads alone.
+ */
+export const lilyPads: Kit = {
+  id: 'lily-pads',
+  kind: 'nature',
+  build: (opts) => {
+    const rnd = seeded(opts?.seed ?? 23);
+    const s = new ShapeBuilder();
+    const low = opts?.lod === 'low';
+    const pads = 3 + Math.floor(rnd() * 3);
+    const flower = rnd() < 0.6;
+    const seg = low ? 5 : 8;
+    for (let i = 0; i < pads; i++) {
+      const a = rnd() * Math.PI * 2;
+      const d = i === 0 ? 0 : 0.05 + rnd() * 0.1;
+      const cx = Math.cos(a) * d;
+      const cz = Math.sin(a) * d;
+      const r = 0.035 + rnd() * 0.03;
+      const turn = rnd() * Math.PI * 2;
+      const c = vary(mixHex(PAD, PAD_LIGHT, rnd() * 0.5), rnd, 0.8);
+      const mid: V3 = [cx, 0.006, cz];
+      // A fan round the middle, one wedge left out for the notch.
+      for (let k = 1; k < seg; k++) {
+        const a0 = turn + (k / seg) * Math.PI * 2;
+        const a1 = turn + ((k + 1) / seg) * Math.PI * 2;
+        s.tri(
+          mid,
+          [cx + Math.cos(a0) * r, 0.002, cz + Math.sin(a0) * r],
+          [cx + Math.cos(a1) * r, 0.002, cz + Math.sin(a1) * r],
+          c,
+          [0, 1, 0],
+        );
+      }
+    }
+    if (flower && !low) {
+      const a = rnd() * Math.PI * 2;
+      const hex = rnd() < 0.5 ? 0xf3e9ee : 0xe9a9bf;
+      // Petals: a small star of blades around a golden heart.
+      for (let k = 0; k < 6; k++) s.blade(0, 0, 0.022, 0.014, 0.018, a + (k / 6) * Math.PI * 2, hex, hex);
+      s.blob(0, 0.016, 0, 0.007, 0.006, 0.007, 0xe8c24a, 0);
+    }
+    return s.build(false);
+  },
+};

@@ -4,6 +4,15 @@
 // light. Thatch is thick and soft-edged with a rolled ridge. Gable ends are closed by `gableEnds`.
 import { vary, type ShapeBuilder, type V3 } from '../geometry';
 import { palette } from '../palette';
+import { SURFACE } from '../surface';
+
+/** V1B: the surface each roof material is drawn in (shingles take the tile courses). */
+export const ROOF_SURFACE: Record<RoofMaterial, number> = {
+  tile: SURFACE.tile,
+  slate: SURFACE.slate,
+  thatch: SURFACE.thatch,
+  shingle: SURFACE.tile,
+};
 
 export type RoofShape = 'gable' | 'hip' | 'halfHip' | 'gambrel' | 'lean';
 export type RoofMaterial = 'tile' | 'slate' | 'thatch' | 'shingle';
@@ -30,6 +39,8 @@ export interface RoofSpec {
   soffit?: number;
   /** C4E: a lean-to's high side at c1 instead of c0 (for lean-tos on the low sides of a wall). */
   highAtC1?: boolean;
+  /** V1B: sides flush with a party wall ('l' x-, 'r' x+): no verge boards there. */
+  flush?: string;
 }
 
 /** Base colors per roof material when no swatch is chosen. */
@@ -82,7 +93,52 @@ function slope(
 ): void {
   const n = normalOf(bl, br, tl[0] === tr[0] && tl[1] === tr[1] && tl[2] === tr[2] ? tr : tl, out);
   const m = spec.material;
+  const roofSurface = ROOF_SURFACE[m];
+  if (s.low) {
+    // V1B: the far level is the plane itself (half a lip up, the courses' average) and the eave's
+    // thickness; the courses run silently so the random draws match the near level.
+    s.nearOnly(() => slopeNear(s, spec, bl, br, tr, tl, n, color));
+    s.essential(() => {
+      const lip = LIP[m] * 0.5;
+      s.surface(roofSurface).jitter(0.025);
+      s.quad(add(bl, n, lip), add(br, n, lip), add(tr, n, lip), add(tl, n, lip), color, n);
+      s.jitter(0);
+      // Only a slope that starts at the eaves shows its thickness (not a half-hip's or gambrel's
+      // upper slope, which starts at the break).
+      if (Math.abs(bl[1] - spec.y0) > 1e-3) {
+        s.surface(SURFACE.plain);
+        return;
+      }
+      const eaveOut: V3 = [bl[0] - tl[0], 0, bl[2] - tl[2]];
+      s.surface(m === 'thatch' ? roofSurface : SURFACE.timber);
+      s.quad(
+        add(bl, n, -THICK[m]),
+        add(br, n, -THICK[m]),
+        add(br, n, lip),
+        add(bl, n, lip),
+        m === 'thatch' ? color : spec.trim,
+        eaveOut,
+      );
+      s.surface(SURFACE.plain);
+    });
+    return;
+  }
+  slopeNear(s, spec, bl, br, tr, tl, n, color);
+}
+
+function slopeNear(
+  s: ShapeBuilder,
+  spec: RoofSpec,
+  bl: V3,
+  br: V3,
+  tr: V3,
+  tl: V3,
+  n: V3,
+  color: number,
+): void {
+  const m = spec.material;
   const rnd = spec.rnd;
+  const roofSurface = ROOF_SURFACE[m];
   const len = Math.sqrt((tl[0] - bl[0]) ** 2 + (tl[1] - bl[1]) ** 2 + (tl[2] - bl[2]) ** 2);
   const courses = spec.plain ? 1 : Math.max(2, Math.round(len / COURSE_DEPTH[m]));
   const lip = spec.plain ? 0 : LIP[m];
@@ -100,12 +156,14 @@ function slope(
     const hex = m === 'thatch' ? vary(color, rnd, 0.5) : vary(color, rnd, m === 'slate' ? 0.9 : 0.6);
     const a2 = add(a, n, lip);
     const b2 = add(b, n, lip);
+    s.surface(roofSurface);
     s.quad(a2, b2, c, d, hex, n);
     // Thatch rows show a sunlit, combed edge; tiles and slates a shadowed lip.
     if (lip > 0) s.quad(a, b, b2, a2, m === 'thatch' ? lighten(hex, 1.12) : vary(hex, rnd, 0.3), downhill);
   }
   // Underside and the eave fascia.
   const down: V3 = [-n[0], -n[1], -n[2]];
+  s.surface(SURFACE.timber);
   s.quad(
     add(bl, n, -t),
     add(br, n, -t),
@@ -123,10 +181,16 @@ function slope(
     m === 'thatch' ? vary(color, rnd, 1.2) : spec.trim,
     eaveOut,
   );
+  s.surface(SURFACE.plain);
 }
 
 /** The roof proper. Returns the ridge height actually used (thatch sits a little higher). */
 export function roofPart(s: ShapeBuilder, spec: RoofSpec): void {
+  // V1B: a structural part: its far version draws even inside a kit's decoration.
+  s.essential(() => roofBody(s, spec));
+}
+
+function roofBody(s: ShapeBuilder, spec: RoofSpec): void {
   const { x0, z0, x1, z1, y0, y1, ridgeAlongX } = spec;
   // Work in (a along the ridge, c across it) and map back to x, z.
   const P = (a: number, y: number, c: number): V3 => (ridgeAlongX ? [a, y, c] : [c, y, a]);
@@ -242,6 +306,9 @@ export function roofPart(s: ShapeBuilder, spec: RoofSpec): void {
 
 /** A flat verge or barge board along an edge, facing `out`. */
 function board(s: ShapeBuilder, spec: RoofSpec, a: V3, b: V3, out: V3): void {
+  // V1B: verge (barge) boards are near-only (no random draws, so the far level just skips them).
+  if (s.low) return;
+  s.surface(spec.material === 'thatch' ? SURFACE.thatch : SURFACE.timber);
   const t = THICK[spec.material] + 0.03;
   const lip = spec.plain ? 0.01 : LIP[spec.material] + 0.01;
   const o: V3 = [out[0] * 0.012, 0, out[2] * 0.012];
@@ -254,6 +321,7 @@ function board(s: ShapeBuilder, spec: RoofSpec, a: V3, b: V3, out: V3): void {
     hex,
     out,
   );
+  s.surface(SURFACE.plain);
 }
 
 function verges(
@@ -272,6 +340,7 @@ function verges(
 ): void {
   for (const ae of [a0, a1]) {
     const da = ae === a0 ? -1 : 1;
+    if (spec.ridgeAlongX && spec.flush?.includes(da < 0 ? 'l' : 'r')) continue;
     const out: V3 = spec.ridgeAlongX ? [da, 0, 0] : [0, 0, da];
     board(s, spec, P(ae, y0, c0), P(ae, yTop, cc0), out);
     board(s, spec, P(ae, y0, c1), P(ae, yTop, cc1), out);
@@ -287,6 +356,9 @@ function ridge(s: ShapeBuilder, spec: RoofSpec, a: V3, b: V3, r = 0.05): void {
     : spec.material === 'shingle'
       ? spec.trim
       : vary(spec.color, spec.rnd, 1.6);
+  // V1B: ridge and hip caps are near-only (drawn after their random draw, so the far level matches).
+  if (s.low) return;
+  s.surface(ROOF_SURFACE[spec.material]);
   const d: V3 = [b[0] - a[0], b[1] - a[1], b[2] - a[2]];
   const len = Math.sqrt(d[0] * d[0] + d[1] * d[1] + d[2] * d[2]);
   if (len < 1e-4) return;
@@ -319,6 +391,7 @@ function ridge(s: ShapeBuilder, spec: RoofSpec, a: V3, b: V3, r = 0.05): void {
     for (let i = 1; i < prof.length - 1; i++)
       s.tri(pt(base, 0), pt(base, i), pt(base, i + 1), hex, [f[0] * dir, 0, f[2] * dir]);
   }
+  s.surface(SURFACE.plain);
 }
 
 /** Height of the roof's top surface across the ridge at `c` (in the roof's across coordinate). */
@@ -401,8 +474,10 @@ export function gableEnds(
     .map((c) => [c, Math.max(y, roofAt(c) - t)] as const);
   for (const ae of [a0, a1]) {
     const out: V3 = along ? [ae === a0 ? -1 : 1, 0, 0] : [0, 0, ae === a0 ? -1 : 1];
-    const base = P(ae, y, (c0 + c1) / 2);
+    // V1B: the gable is convex, so a fan from its first corner closes it in the fewest triangles.
     const ring: V3[] = [P(ae, y, c0), ...top.map(([c, yy]) => P(ae, yy, c)), P(ae, y, c1)];
-    for (let i = 0; i < ring.length - 1; i++) s.tri(base, ring[i]!, ring[i + 1]!, hex, out);
+    s.essential(() => {
+      for (let i = 1; i < ring.length - 1; i++) s.tri(ring[0]!, ring[i]!, ring[i + 1]!, hex, out);
+    });
   }
 }

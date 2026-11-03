@@ -1,5 +1,6 @@
 import {
   constructionGeometry,
+  isRowKit,
   kitById,
   mergeFlat,
   ShapeBuilder,
@@ -98,6 +99,18 @@ function plotSoil(b: BuildingView): number {
   return soilLevel(sum / (w * d));
 }
 
+/**
+ * V1B: joined facades. The buildings layer hands in a reader for a home's place in its row (the
+ * neighbor's kit on each joined side, and the sides that face a road), read from the Mirror's
+ * occupant layer; the params carry it, so the key changes, and both houses rebuild, when a
+ * neighbor comes, goes or changes.
+ */
+let rowAt: ((b: BuildingView) => Record<string, string | boolean>) | null = null;
+
+export function setRowReader(read: ((b: BuildingView) => Record<string, string | boolean>) | null): void {
+  rowAt = read;
+}
+
 export function isSeasonal(defId: string): boolean {
   const kit = drawDef(defId)?.art.kit;
   return !!kit && SEASONAL_KITS.has(kit);
@@ -112,6 +125,7 @@ export function buildingParams(b: BuildingView): Record<string, number | string 
   if (b.style) p.style = b.style;
   if (def && SEASONAL_KITS.has(def.art.kit)) p.season = drawSeason;
   if (def?.tags?.includes('plot')) p.soil = plotSoil(b);
+  if (rowAt && def && isRowKit(def.art.kit)) Object.assign(p, rowAt(b));
   const rt = b.rt;
   if (rt?.method) {
     // What a grown craft or farm is making, by its method's first output.
@@ -147,7 +161,8 @@ export function buildingKey(b: BuildingView, lod: 'high' | 'low' = 'high'): stri
       .map(([g, q]) => `${g}${pile(q, 10)}`)
       .sort()
       .join(',');
-    return `site:${b.def}:${stage}:${variantSeed(b)}:${delivered}`;
+    // V1B: sites have two levels too (the far one drops tools, poles and small stock).
+    return `site:${b.def}:${stage}:${variantSeed(b)}:${delivered}${lod === 'low' ? ':low' : ''}`;
   }
   const params = buildingParams(b);
   const keys = Object.keys(params).sort();
@@ -177,12 +192,19 @@ export function buildingVariantGeometry(b: BuildingView, lod: 'high' | 'low' = '
   if (stage !== null) {
     const delivered: Record<string, number> = {};
     for (const [good, qty] of b.rt?.construction?.delivered ?? []) delivered[good] = pile(qty, 10);
-    return constructionGeometry({ kit: def.art.kit, size: def.size, stage, delivered, seed: variantSeed(b) });
+    return constructionGeometry({
+      kit: def.art.kit,
+      size: def.size,
+      stage,
+      delivered,
+      seed: variantSeed(b),
+      ...(lod === 'low' ? { lod } : {}),
+    });
   }
   const g = kit.build({ ...buildingKitOptions(b), lod });
   if (!b.rt?.upgrading) return g;
   // C4E: a home upgrade under way: scaffolding round the house as it stands.
-  const merged = mergeFlat([g, upgradeScaffold(def.art.kit, def.size, variantSeed(b))]);
+  const merged = mergeFlat([g, upgradeScaffold(def.art.kit, def.size, variantSeed(b), lod)]);
   g.dispose();
   return merged;
 }

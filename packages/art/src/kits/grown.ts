@@ -4,7 +4,8 @@
 // road). A home keeps its seed when it upgrades in place, so the townhouse wears the cottage's
 // walls, roof and paint, just taller and finer. Runtime detail arrives in params like the I1 kits
 // ('make' names the good a grown craft or farm is making, 'out:<good>' its output pile).
-import { mixHex, seeded, ShapeBuilder, vary, type V3 } from '../geometry';
+import type { ShapeBuilder } from '../geometry';
+import { mixHex, seeded, vary, type V3 } from '../geometry';
 import { palette } from '../palette';
 import { beam, cylX } from '../shapes';
 import { cottageChoices, cottageOf, houseKit, shell, signBoard, windowRow, type Built } from './buildings';
@@ -23,6 +24,7 @@ import {
   washingLine,
 } from './details';
 import { districtLook, VILLAGE_MIX, type DistrictLook } from './district';
+import { fitRow, rowOf } from './rows';
 import { orchardTree, seasonOf } from './village';
 import { crateOf, GOOD_COLORS, pileOf } from './goods';
 import {
@@ -30,16 +32,19 @@ import {
   chimneyPart,
   claddingDepth,
   doorPart,
+  dressingsOf,
   dormerPart,
   faceBox,
   facePoint,
   hangingSign,
   porchPart,
   windowPart,
+  type DoorExtras,
   type DoorKind,
   type Face,
   type WallMaterial,
   type WindowStyle,
+  kitBuilder,
 } from './parts';
 import { barrel, bench, flowerPot, hayBale, sawhorse, wallLantern, weathervane } from './props';
 import { roofColor, FLOWERS } from './style';
@@ -86,11 +91,42 @@ export function homeLook(opts: KitBuildOptions | undefined, salt: number): Distr
 }
 
 function windowsOf(L: DistrictLook, box = L.windowBoxes): WindowStyle {
-  return { frame: L.frame, shutter: L.shutters ? L.accent : null, box, flowers: FLOWERS };
+  // V1B: stone sills and lintels on brick and stone fronts (both floors of masonry).
+  const masonry = (m: WallMaterial): boolean => m === 'brick' || m === 'stone';
+  const dress = masonry(L.wall) && masonry(L.upper) ? dressingsOf(L.wall, L.frame) : {};
+  return { frame: L.frame, shutter: L.shutters ? L.accent : null, box, flowers: FLOWERS, ...dress };
 }
 
-function start(): Built {
-  return { s: new ShapeBuilder(), anchors: { smoke: [], lights: [] } };
+/**
+ * V1B: a side wall's windows: one in the middle, or a full row on a corner house's street side
+ * (`street`), so a corner dresses both its faces.
+ */
+function sideWindows(
+  s: ShapeBuilder,
+  f: Face,
+  u0: number,
+  u1: number,
+  y: number,
+  style: WindowStyle,
+  rnd: () => number,
+  lights: V3[],
+  o: number,
+  street: boolean,
+  size: [number, number] = [0.18, 0.2],
+): void {
+  if (street) windowRow(s, f, u0, u1, y, { ...style, box: true }, rnd, lights, [], 0.5, size, o);
+  else windowPart(s, f, (u0 + u1) / 2, y, size[0], size[1], style, rnd, lights, o);
+}
+
+/** V1B: what dresses a home's front door: a fanlight in brick and stone, a hood on timber. */
+function doorExtras(L: DistrictLook): DoorExtras {
+  if (L.wall === 'brick' || L.wall === 'stone') return { fanlight: true };
+  if (L.wall === 'timber' && !L.porch) return { hood: L.trim };
+  return {};
+}
+
+function start(opts?: KitBuildOptions): Built {
+  return { s: kitBuilder(opts), anchors: { smoke: [], lights: [] } };
 }
 
 function clamp(v: number, lo: number, hi: number): number {
@@ -201,16 +237,25 @@ function sideGarden(
 function grownCottage(opts: KitBuildOptions | undefined, L: DistrictLook): Built {
   const [w, d] = opts?.size ?? [2, 2];
   const [ex] = opts?.entrance ?? [Math.floor(w / 2), d - 1];
-  const plain = opts?.lod === 'low';
   const { rnd, look } = L;
-  const { s, anchors } = start();
+  const { s, anchors } = start(opts);
   const doorU = ex + 0.5;
-  const lean = L.leanTo && !plain;
-  const bw = clamp(w - 0.44 - (lean && w < 3 ? 0.32 : 0), 1.2, w >= 3 ? 1.85 : 1.56);
-  const x0 = clamp(doorU - bw / 2, lean && w < 3 && doorU > w / 2 ? 0.52 : 0.22, w - 0.22 - bw);
-  const x1 = x0 + bw;
-  const z1 = d >= 3 ? d - 0.95 : d - 0.28;
-  const z0 = Math.max(0.28, z1 - (d >= 3 ? 1.6 : 1.42));
+  const lean = L.leanTo;
+  const row = rowOf(opts);
+  const bw0 = clamp(w - 0.44 - (lean && w < 3 ? 0.32 : 0), 1.2, w >= 3 ? 1.85 : 1.56);
+  const bx0 = clamp(doorU - bw0 / 2, lean && w < 3 && doorU > w / 2 ? 0.52 : 0.22, w - 0.22 - bw0);
+  const bz1 = d >= 3 ? d - 0.95 : d - 0.28;
+  // V1B: a joined cottage builds to its party walls, in the row's shared band.
+  const [x0, z0, x1, z1] = fitRow(
+    row,
+    w,
+    d,
+    bx0,
+    bx0 + bw0,
+    Math.max(0.28, bz1 - (d >= 3 ? 1.6 : 1.42)),
+    bz1,
+  );
+  const bw = x1 - x0;
   const sh = shell(s, {
     x0,
     z0,
@@ -227,20 +272,22 @@ function grownCottage(opts: KitBuildOptions | undefined, L: DistrictLook): Built
       color: L.roofColor,
       rise: L.roofMaterial === 'thatch' ? 0.66 : 0.6,
       overhang: 0.18,
-      ridgeAlongX: bw >= z1 - z0,
+      ridgeAlongX: bw >= z1 - z0 || row.joined,
     },
     rnd,
-    plain,
+    party: row.party,
   });
   const clad = claddingDepth(L.wall);
   const front: Face = { dir: 'z+', plane: z1 };
-  doorPart(s, front, doorU, 0.28, 0.62, L.accent, L.trim, doorKind(L, look), clad);
-  if (!plain) {
+  doorPart(s, front, doorU, 0.28, 0.62, L.accent, L.trim, doorKind(L, look), clad, doorExtras(L));
+  s.detail(() => {
     const style = windowsOf(L);
     windowRow(s, front, x0, x1, 0.52, style, rnd, anchors.lights!, [doorU], 0.6, [0.2, 0.22], clad);
     const side = { ...style, box: false };
-    windowPart(s, { dir: 'x+', plane: x1 }, (z0 + z1) / 2, 0.52, 0.18, 0.2, side, rnd, anchors.lights, clad);
-    windowPart(s, { dir: 'x-', plane: x0 }, (z0 + z1) / 2, 0.52, 0.18, 0.2, side, rnd, anchors.lights, clad);
+    if (!row.r)
+      sideWindows(s, { dir: 'x+', plane: x1 }, z0, z1, 0.52, side, rnd, anchors.lights!, clad, row.streetR);
+    if (!row.l)
+      sideWindows(s, { dir: 'x-', plane: x0 }, z0, z1, 0.52, side, rnd, anchors.lights!, clad, row.streetL);
     windowPart(s, { dir: 'z-', plane: z0 }, (x0 + x1) / 2, 0.52, 0.2, 0.22, side, rnd, anchors.lights, clad);
     if (L.porch)
       porchPart(
@@ -276,7 +323,9 @@ function grownCottage(opts: KitBuildOptions | undefined, L: DistrictLook): Built
     }
     if (lean) {
       const right = x0 < 0.4;
-      if (right && w - x1 > 0.3)
+      if (row.joined) {
+        // No room for a lean-to against a party wall.
+      } else if (right && w - x1 > 0.3)
         leanToPart(
           s,
           { dir: 'x+', plane: x1 },
@@ -317,17 +366,21 @@ function grownCottage(opts: KitBuildOptions | undefined, L: DistrictLook): Built
     else if (x0 > 0.6) sideGarden(s, 0.08, z0, x0 - 0.08, d - 0.25, look(), rnd);
     if (look() < 0.25)
       anchors.lights!.push(wallLantern(s, facePoint(front, doorU - 0.24, 0.62, clad), [0, 0, 1]));
-  }
+  });
   if (L.chimney) {
-    const cx = look() < 0.5 ? x1 - 0.3 : x0 + 0.3;
+    const side = look() < 0.5;
+    // In a row the stack stands on the right party wall (its neighbor leaves that wall's stack to
+    // it), a pair of pots for the two hearths it serves.
+    const cx = row.r ? x1 : side ? x1 - 0.3 : x0 + 0.3;
     anchors.smoke!.push(
       chimneyPart(
         s,
         cx,
-        (z0 + z1) / 2 - 0.18,
+        row.r ? (z0 + z1) / 2 : (z0 + z1) / 2 - 0.18,
         sh.top - 0.1,
         sh.ridge + 0.12,
         L.wall === 'stone' ? vary(L.wallColor, rnd) : palette.brick,
+        row.r,
       ),
     );
   }
@@ -346,19 +399,21 @@ export const cottage: Kit = houseKit('cottage', (opts) => {
 function townhouseOf(opts: KitBuildOptions | undefined): Built {
   const [w, d] = opts?.size ?? [2, 2];
   const [ex] = opts?.entrance ?? [Math.floor(w / 2), d - 1];
-  const plain = opts?.lod === 'low';
   const L = homeLook(opts, 31);
   const { rnd, look } = L;
-  const { s, anchors } = start();
+  const { s, anchors } = start(opts);
   const doorU = ex + 0.5;
-  const bw = clamp(w - 0.36, 1.4, 2.3);
-  const x0 = clamp(doorU - bw / 2, 0.18, w - 0.18 - bw);
-  const x1 = x0 + bw;
-  const z1 = d >= 3 ? d - 0.72 : d - 0.26;
-  const z0 = Math.max(0.2, z1 - (d >= 3 ? 1.95 : 1.5));
-  const deep = z1 - z0;
+  const row = rowOf(opts);
+  const bw0 = clamp(w - 0.36, 1.4, 2.3);
+  const bx0 = clamp(doorU - bw0 / 2, 0.18, w - 0.18 - bw0);
+  const bz1 = d >= 3 ? d - 0.72 : d - 0.26;
+  const bz0 = Math.max(0.2, bz1 - (d >= 3 ? 1.95 : 1.5));
+  const [x0, z0, x1, z1] = fitRow(row, w, d, bx0, bx0 + bw0, bz0, bz1);
+  const bw = x1 - x0;
   // Narrow houses turn a gable to the street; wider ones run their ridge along it with dormers.
-  const gableFront = bw <= deep + 0.1 ? look() < 0.75 : look() < 0.25;
+  // V1B: in a row the ridge always runs along the street.
+  const gableRoll = bw0 <= bz1 - bz0 + 0.1 ? look() < 0.75 : look() < 0.25;
+  const gableFront = gableRoll && !row.joined;
   const timberUpper = L.upper === 'timber';
   const sh = shell(s, {
     x0,
@@ -380,7 +435,7 @@ function townhouseOf(opts: KitBuildOptions | undefined): Built {
       ridgeAlongX: !gableFront,
     },
     rnd,
-    plain,
+    party: row.party,
   });
   const [ox0, oz0, ox1, oz1] = sh.outer;
   const clad = claddingDepth(L.wall);
@@ -388,8 +443,9 @@ function townhouseOf(opts: KitBuildOptions | undefined): Built {
   const upFront: Face = { dir: 'z+', plane: oz1 };
   // A front door with a fanlight under a bracketed hood, up two steps.
   doorPart(s, front, doorU, 0.26, 0.56, L.accent, L.trim, L.wall === 'brick' ? 'plank' : 'dutch', clad);
-  s.rbox(doorU - 0.2, 0, z1 + clad, doorU + 0.2, 0.06, z1 + clad + 0.22, vary(palette.stone, rnd, 0.6), 0.01);
-  if (!plain) {
+  const stepColor = vary(palette.stone, rnd, 0.6);
+  s.nearOnly(() => s.rbox(doorU - 0.2, 0, z1 + clad, doorU + 0.2, 0.06, z1 + clad + 0.22, stepColor, 0.01));
+  s.detail(() => {
     windowPart(
       s,
       front,
@@ -449,18 +505,23 @@ function townhouseOf(opts: KitBuildOptions | undefined): Built {
       { dir: 'x+', plane: ox1 },
       { dir: 'x-', plane: ox0 },
     ] as Face[]) {
-      windowRow(s, f, oz0, oz1, 1.12, side, rnd, anchors.lights!, [], 0.85, [0.18, 0.26], 0.012);
+      const right = f.dir === 'x+';
+      if (right ? row.r : row.l) continue;
+      // A corner house's street side gets the front's windows, boxes and all.
+      const street = right ? row.streetR : row.streetL;
+      const st = street ? { ...style, box: true } : side;
+      windowRow(s, f, oz0, oz1, 1.12, st, rnd, anchors.lights!, [], street ? 0.5 : 0.85, [0.18, 0.26], 0.012);
       windowRow(
         s,
-        { dir: f.dir, plane: f.dir === 'x+' ? x1 : x0 },
+        { dir: f.dir, plane: right ? x1 : x0 },
         z0,
         z1,
         0.42,
-        side,
+        st,
         rnd,
         anchors.lights!,
         [],
-        1.0,
+        street ? 0.55 : 1.0,
         [0.18, 0.24],
         clad,
       );
@@ -537,17 +598,21 @@ function townhouseOf(opts: KitBuildOptions | undefined): Built {
       gardenEdge(s, 'railing', [x0, rz], [doorU - 0.22, rz], rnd);
       gardenEdge(s, 'railing', [doorU + 0.22, rz], [x1, rz], rnd);
     }
-  }
+  });
   // Chimney stacks at both ends: a home that can afford to keep two fires.
   if (L.chimney) {
     const brick = L.wall === 'stone' ? vary(L.wallColor, rnd) : palette.brick;
     if (gableFront) {
       anchors.smoke!.push(chimneyPart(s, x1 - 0.18, z0 + 0.35, sh.top - 0.1, sh.ridge + 0.05, brick, true));
     } else {
+      // In a row the left stack is the neighbor's (on the party wall), the right one stands on it.
+      if (!row.l)
+        anchors.smoke!.push(
+          chimneyPart(s, x0 + 0.22, (z0 + z1) / 2, sh.top - 0.1, sh.ridge + 0.14, brick, true),
+        );
       anchors.smoke!.push(
-        chimneyPart(s, x0 + 0.22, (z0 + z1) / 2, sh.top - 0.1, sh.ridge + 0.14, brick, true),
+        chimneyPart(s, row.r ? x1 : x1 - 0.22, (z0 + z1) / 2, sh.top - 0.1, sh.ridge + 0.14, brick, row.r),
       );
-      anchors.smoke!.push(chimneyPart(s, x1 - 0.22, (z0 + z1) / 2, sh.top - 0.1, sh.ridge + 0.14, brick));
     }
   }
   if (L.custom.sign) signBoard(s, front, doorU, 0.92, 0.44, clad, anchors);
@@ -652,15 +717,21 @@ function makingOf(opts: KitBuildOptions | undefined): string | null {
 function shopOf(opts: KitBuildOptions | undefined): Built {
   const [w, d] = opts?.size ?? [2, 3];
   const [ex] = opts?.entrance ?? [Math.floor(w / 2), d - 1];
-  const plain = opts?.lod === 'low';
   const L = homeLook(opts, 41);
   const { rnd, look } = L;
-  const { s, anchors } = start();
+  const { s, anchors } = start(opts);
   const doorU = ex + 0.5;
-  const x0 = 0.16;
-  const x1 = w - 0.16;
-  const z1 = d - 0.24;
-  const z0 = Math.max(0.22, z1 - (d >= 3 ? 2.2 : 1.55));
+  const row = rowOf(opts);
+  const bz1 = d - 0.24;
+  const [x0, z0, x1, z1] = fitRow(
+    row,
+    w,
+    d,
+    0.16,
+    w - 0.16,
+    Math.max(0.22, bz1 - (d >= 3 ? 2.2 : 1.55)),
+    bz1,
+  );
   const wide = w >= 3;
   const sh = shell(s, {
     x0,
@@ -682,7 +753,7 @@ function shopOf(opts: KitBuildOptions | undefined): Built {
       ridgeAlongX: wide,
     },
     rnd,
-    plain,
+    party: row.party,
   });
   const [ox0, oz0, ox1, oz1] = sh.outer;
   const front: Face = { dir: 'z+', plane: z1 };
@@ -699,27 +770,30 @@ function shopOf(opts: KitBuildOptions | undefined): Built {
   // Painted lettering on the fascia unless the player wrote their own.
   if (L.custom.sign) {
     anchors.sign = { center: fascia, normal: [0, 0, 1], width: fasciaW, height: 0.12 };
-  } else if (!plain) {
-    // Gilt lettering: a word or two of letters with ascenders, centered on the fascia.
-    const words =
-      fasciaW > 0.9 ? [4 + Math.floor(look() * 3), 3 + Math.floor(look() * 4)] : [4 + Math.floor(look() * 3)];
-    const lw = 0.026;
-    const gap = 0.012;
-    const total = words.reduce((t, n) => t + n * (lw + gap), 0) + (words.length - 1) * 0.05;
-    let u = (sf0 + sf1) / 2 - total / 2;
-    const gilt = L.accent === palette.mustard ? palette.white : 0xe8c35a;
-    for (const n of words) {
-      for (let i = 0; i < n; i++) {
-        const tall = i === 0 || rnd() < 0.25;
-        const y0 = 0.715;
-        const y1 = y0 + (tall ? 0.062 : 0.044);
-        faceBox(s, front, u, y0, 0.074, u + lw, y1, 0.08, gilt);
-        u += lw + gap;
+  } else
+    s.detail(() => {
+      // Gilt lettering: a word or two of letters with ascenders, centered on the fascia.
+      const words =
+        fasciaW > 0.9
+          ? [4 + Math.floor(look() * 3), 3 + Math.floor(look() * 4)]
+          : [4 + Math.floor(look() * 3)];
+      const lw = 0.026;
+      const gap = 0.012;
+      const total = words.reduce((t, n) => t + n * (lw + gap), 0) + (words.length - 1) * 0.05;
+      let u = (sf0 + sf1) / 2 - total / 2;
+      const gilt = L.accent === palette.mustard ? palette.white : 0xe8c35a;
+      for (const n of words) {
+        for (let i = 0; i < n; i++) {
+          const tall = i === 0 || rnd() < 0.25;
+          const y0 = 0.715;
+          const y1 = y0 + (tall ? 0.062 : 0.044);
+          faceBox(s, front, u, y0, 0.074, u + lw, y1, 0.08, gilt);
+          u += lw + gap;
+        }
+        u += 0.05;
       }
-      u += 0.05;
-    }
-  }
-  if (!plain) {
+    });
+  s.detail(() => {
     if (look() < 0.65)
       awningPart(
         s,
@@ -743,34 +817,24 @@ function shopOf(opts: KitBuildOptions | undefined): Built {
     const style = windowsOf(L, true);
     windowRow(s, upFront, ox0, ox1, 1.2, style, rnd, anchors.lights!, [], 0.5, [0.2, 0.28], 0.012);
     const side = { ...style, box: false };
-    windowRow(
-      s,
-      { dir: 'x+', plane: ox1 },
-      oz0,
-      oz1,
-      1.2,
-      side,
-      rnd,
-      anchors.lights!,
-      [],
-      0.9,
-      [0.18, 0.24],
-      0.012,
-    );
-    windowRow(
-      s,
-      { dir: 'x-', plane: ox0 },
-      oz0,
-      oz1,
-      1.2,
-      side,
-      rnd,
-      anchors.lights!,
-      [],
-      0.9,
-      [0.18, 0.24],
-      0.012,
-    );
+    for (const right of [true, false]) {
+      if (right ? row.r : row.l) continue;
+      const street = right ? row.streetR : row.streetL;
+      windowRow(
+        s,
+        { dir: right ? 'x+' : 'x-', plane: right ? ox1 : ox0 },
+        oz0,
+        oz1,
+        1.2,
+        street ? style : side,
+        rnd,
+        anchors.lights!,
+        [],
+        street ? 0.5 : 0.9,
+        [0.18, 0.24],
+        0.012,
+      );
+    }
     windowRow(
       s,
       { dir: 'z-', plane: oz0 },
@@ -823,14 +887,14 @@ function shopOf(opts: KitBuildOptions | undefined): Built {
     flowerPot(s, doorU - 0.24, 0, z1 + 0.12, rnd);
     if (look() < 0.5) barrel(s, doorU + 0.26, 0, z1 + 0.12, rnd, 0.8);
     anchors.lights!.push(wallLantern(s, facePoint(front, sf0 - 0.02, 0.8, 0.02), [0, 0, 1]));
-    if (L.ivy && !wide) ivyPart(s, { dir: 'x+', plane: x1 }, z0 + 0.1, z0 + 0.5, 1.2, rnd);
-  }
+    if (L.ivy && !wide && !row.r) ivyPart(s, { dir: 'x+', plane: x1 }, z0 + 0.1, z0 + 0.5, 1.2, rnd);
+  });
   if (L.chimney) {
     const brick = L.wall === 'stone' ? vary(L.wallColor, rnd) : palette.brick;
     anchors.smoke!.push(
       wide
-        ? chimneyPart(s, x1 - 0.3, (z0 + z1) / 2, sh.top - 0.1, sh.ridge + 0.12, brick, true)
-        : chimneyPart(s, x0 + 0.3, z0 + 0.3, sh.top - 0.1, sh.ridge - 0.05, brick, true),
+        ? chimneyPart(s, row.r ? x1 : x1 - 0.3, (z0 + z1) / 2, sh.top - 0.1, sh.ridge + 0.12, brick, true)
+        : chimneyPart(s, row.l ? x0 + 0.42 : x0 + 0.3, z0 + 0.3, sh.top - 0.1, sh.ridge - 0.05, brick, true),
     );
   }
   return { s, anchors };
@@ -874,10 +938,9 @@ function workbench(s: ShapeBuilder, x: number, z: number, alongX: boolean, rnd: 
 function workshopOf(opts: KitBuildOptions | undefined): Built {
   const [w, d] = opts?.size ?? [3, 3];
   const [ex] = opts?.entrance ?? [1, d - 1];
-  const plain = opts?.lod === 'low';
   const L = homeLook(opts, 51);
   const { rnd, look } = L;
-  const { s, anchors } = start();
+  const { s, anchors } = start(opts);
   const doorU = ex + 0.5;
   const yardRight = doorU < w / 2;
   const bw = w >= 3 ? 1.75 : w - 0.36;
@@ -906,7 +969,6 @@ function workshopOf(opts: KitBuildOptions | undefined): Built {
       ridgeAlongX: false,
     },
     rnd,
-    plain,
   });
   const clad = claddingDepth(wall);
   const front: Face = { dir: 'z+', plane: z1 };
@@ -923,7 +985,7 @@ function workshopOf(opts: KitBuildOptions | undefined): Built {
     clad,
   );
   const trade = makingOf(opts);
-  if (!plain) {
+  s.detail(() => {
     // Wide multi-pane workshop windows down the long sides, a loft door with a hoist at the front.
     const style: WindowStyle = { frame: L.frame, shutter: null, box: false, flowers: [] };
     for (const f of [
@@ -1028,7 +1090,7 @@ function workshopOf(opts: KitBuildOptions | undefined): Built {
         L.trim,
         rnd,
       );
-  }
+  });
   // A brick flue or a stovepipe, smoking while the bench is busy.
   const fx = (x0 + x1) / 2 + (look() < 0.5 ? 0.3 : -0.3);
   const fz = z0 + 0.4;
@@ -1052,10 +1114,9 @@ export const workshop: Kit = {
 function farmsteadOf(opts: KitBuildOptions | undefined): Built {
   const [w, d] = opts?.size ?? [3, 3];
   const [ex] = opts?.entrance ?? [1, d - 1];
-  const plain = opts?.lod === 'low';
   const L = homeLook(opts, 61);
   const { rnd, look } = L;
-  const { s, anchors } = start();
+  const { s, anchors } = start(opts);
   const doorU = ex + 0.5;
   const left = doorU <= w / 2 + 0.01;
   // The farmhouse faces the road on one side, the barn stands at the back on the other with the
@@ -1083,7 +1144,6 @@ function farmsteadOf(opts: KitBuildOptions | undefined): Built {
       ridgeAlongX: true,
     },
     rnd,
-    plain,
   });
   const clad = claddingDepth(L.wall);
   const hFront: Face = { dir: 'z+', plane: hz1 };
@@ -1125,11 +1185,10 @@ function farmsteadOf(opts: KitBuildOptions | undefined): Built {
       ridgeAlongX: false,
     },
     rnd,
-    plain,
   });
   const bFront: Face = { dir: 'z+', plane: bz1 };
   doorPart(s, bFront, (bx0 + bx1) / 2, 0.56, 0.56, vary(0x8f3a30, rnd, 0.5), palette.white, 'double', 0.02);
-  if (!plain) {
+  s.detail(() => {
     weathervane(s, (bx0 + bx1) / 2, barn.ridge + 0.02, (bz0 + bz1) / 2);
     const style = windowsOf(L);
     windowRow(s, hFront, hx0, hx1, 0.5, style, rnd, anchors.lights!, [hdoor], 0.55, [0.18, 0.2], clad);
@@ -1218,7 +1277,7 @@ function farmsteadOf(opts: KitBuildOptions | undefined): Built {
         for (let i = 0; i < 2; i++) {
           const tx = px0 + (px1 - px0) * (0.3 + i * 0.4);
           const tz = pz0 + (pz1 - pz0) * (i === 0 ? 0.35 : 0.65);
-          orchardTree(s, tx, tz, 0.85, seasonOf(opts), rnd, plain);
+          orchardTree(s, tx, tz, 0.85, seasonOf(opts), rnd);
         }
       } else if (make === 'wheat') {
         s.rbox(px0, 0, pz0, px1, 0.012, pz1, 0x9a7a48, 0.03);
@@ -1250,7 +1309,7 @@ function farmsteadOf(opts: KitBuildOptions | undefined): Built {
     }
     postAndRail(s, [fx, d - 0.06], [w - 0.06, d - 0.06], rnd);
     steppingStones(s, hdoor, hz1 + 0.15, d - 0.08, rnd);
-  }
+  });
   return { s, anchors };
 }
 

@@ -2,7 +2,8 @@
 // hall, the well and the windmill. Every building gets its own variety from its seed (roof shape
 // and material, wall material, porches, props) and honors the player's customization (wall, roof
 // and accent swatches, roof material, window boxes, shutters, chimney, sign) from `opts.params`.
-import { seeded, ShapeBuilder, vary, type V3 } from '../geometry';
+import type { ShapeBuilder } from '../geometry';
+import { seeded, vary, type V3 } from '../geometry';
 import { palette, PLASTERS } from '../palette';
 import { beam, panel } from '../shapes';
 import {
@@ -19,7 +20,13 @@ import {
   type Face,
   type WallMaterial,
   type WindowStyle,
+  type WallSpec,
+  kitBuilder,
+  WALL_JITTER,
+  wallSurface,
 } from './parts';
+import { SURFACE } from '../surface';
+import { fitRow, rowOf } from './rows';
 import { barrel, bench, flowerPot, wallLantern, weathervane } from './props';
 import { gableEnds, roofPart, type RoofMaterial, type RoofShape, type RoofSpec } from './roofs';
 import { customOf, FLOWERS, pickWeighted, roofColor, streams, type Custom } from './style';
@@ -51,7 +58,18 @@ export interface ShellSpec {
     ridgeAlongX: boolean;
   };
   rnd: () => number;
-  plain?: boolean;
+  /**
+   * V1B: party walls, where the house joins a neighbor on its left (x-) or right (x+) side: the
+   * neighbor's eave height on that side. Those faces are left out below it (shown above, where a
+   * taller house steps up), the plinth runs through, and the roof stops flush with no verge.
+   */
+  party?: PartySides;
+}
+
+/** V1B: a house's party walls: the neighbor's eave height on each joined side. */
+export interface PartySides {
+  l?: number;
+  r?: number;
 }
 
 export interface Shell {
@@ -66,11 +84,17 @@ export interface Shell {
 /** Foundation, walls (one or two materials), gable ends and the roof. */
 export function shell(s: ShapeBuilder, sp: ShellSpec): Shell {
   const { x0, z0, x1, z1, base, rnd } = sp;
-  foundationPart(s, x0 - 0.05, z0 - 0.05, x1 + 0.05, z1 + 0.05, base);
+  const party = sp.party ?? {};
+  const pl = party.l !== undefined;
+  const pr = party.r !== undefined;
+  const skip = (pl ? 'l' : '') + (pr ? 'r' : '');
+  foundationPart(s, pl ? x0 : x0 - 0.05, z0 - 0.05, pr ? x1 : x1 + 0.05, z1 + 0.05, base, skip);
   const top = base + sp.wallH;
   let outer: [number, number, number, number] = [x0, z0, x1, z1];
   let topMaterial = sp.wall;
   let topColor = sp.wallColor;
+  const partyWalls = (): Partial<Pick<WallSpec, 'skip' | 'partyFrom'>> =>
+    skip ? { skip, partyFrom: { ...(pl ? { l: party.l! } : {}), ...(pr ? { r: party.r! } : {}) } } : {};
   if (sp.upper) {
     const yu = base + sp.upper.at;
     wallsOf(s, {
@@ -84,12 +108,25 @@ export function shell(s: ShapeBuilder, sp: ShellSpec): Shell {
       color: sp.wallColor,
       trim: sp.trim,
       rnd,
-      ...(sp.plain ? { plain: true } : {}),
+      capped: true,
+      ...partyWalls(),
     });
     const j = sp.upper.jetty;
-    outer = [x0 - j, z0 - j, x1 + j, z1 + j];
-    // The jetty's joist ends and sill beam.
-    s.box(outer[0] - 0.02, yu - 0.06, outer[1] - 0.02, outer[2] + 0.02, yu + 0.02, outer[3] + 0.02, sp.trim);
+    outer = [pl ? x0 : x0 - j, z0 - j, pr ? x1 : x1 + j, z1 + j];
+    // The jetty's joist ends and sill beam (flush with a party wall), and shade under the jetty.
+    s.surface(SURFACE.timber);
+    s.box(
+      pl ? outer[0] : outer[0] - 0.02,
+      yu - 0.06,
+      outer[1] - 0.02,
+      pr ? outer[2] : outer[2] + 0.02,
+      yu + 0.02,
+      outer[3] + 0.02,
+      sp.trim,
+      skip + (s.low ? 't' : ''),
+    );
+    s.surface(SURFACE.plain);
+    if (j > 0.04) s.occlude(x0 - 0.02, yu - 0.25, z0 - 0.02, x1 + 0.02, yu, z1 + 0.02, 0.18, 0.12);
     wallsOf(s, {
       material: sp.upper.wall,
       x0: outer[0],
@@ -101,7 +138,7 @@ export function shell(s: ShapeBuilder, sp: ShellSpec): Shell {
       color: sp.upper.color,
       trim: sp.trim,
       rnd,
-      ...(sp.plain ? { plain: true } : {}),
+      ...partyWalls(),
     });
     topMaterial = sp.upper.wall;
     topColor = sp.upper.color;
@@ -117,22 +154,25 @@ export function shell(s: ShapeBuilder, sp: ShellSpec): Shell {
       color: sp.wallColor,
       trim: sp.trim,
       rnd,
-      ...(sp.plain ? { plain: true } : {}),
+      ...partyWalls(),
     });
   }
   const r = sp.roof;
+  // A hipped end cannot meet a party wall: a joined end is a gable.
+  const endJoined = r.ridgeAlongX && (pl || pr);
+  const shape: RoofShape = endJoined && (r.shape === 'hip' || r.shape === 'halfHip') ? 'gable' : r.shape;
   const ov = r.overhang + (r.material === 'thatch' ? 0.06 : 0);
   // Gable ends overhang only a little (verges); eaves get the full overhang.
-  const verge = r.shape === 'hip' ? ov : Math.min(ov, 0.09);
+  const verge = shape === 'hip' ? ov : Math.min(ov, 0.09);
   const ox = r.ridgeAlongX ? verge : ov;
   const oz = r.ridgeAlongX ? ov : verge;
   const ridge = top + r.rise + (r.material === 'thatch' ? 0.08 : 0);
   const roof: RoofSpec = {
-    shape: r.shape,
+    shape,
     material: r.material,
-    x0: outer[0] - ox,
+    x0: pl ? outer[0] : outer[0] - ox,
     z0: outer[1] - oz,
-    x1: outer[2] + ox,
+    x1: pr ? outer[2] : outer[2] + ox,
     z1: outer[3] + oz,
     y0: top - 0.05 - (r.material === 'thatch' ? 0.04 : 0),
     y1: ridge,
@@ -140,7 +180,7 @@ export function shell(s: ShapeBuilder, sp: ShellSpec): Shell {
     trim: vary(palette.timber, rnd, 0.4),
     ridgeAlongX: r.ridgeAlongX,
     rnd,
-    ...(sp.plain ? { plain: true } : {}),
+    ...(skip ? { flush: skip } : {}),
   };
   const gableColor =
     topMaterial === 'stone' || topMaterial === 'brick' || topMaterial === 'log'
@@ -148,11 +188,74 @@ export function shell(s: ShapeBuilder, sp: ShellSpec): Shell {
         ? vary(palette.wood, rnd, 0.6)
         : topColor
       : topColor;
+  s.surface(wallSurface(topMaterial)).jitter(WALL_JITTER);
   gableEnds(s, roof, outer[0], outer[1], outer[2], outer[3], top, gableColor);
-  if (topMaterial === 'timber' && !sp.plain && roof.shape !== 'hip')
-    gableTimbers(s, roof, outer, top, sp.trim);
+  s.jitter(0).surface(SURFACE.plain);
+  if (topMaterial === 'timber' && roof.shape !== 'hip')
+    s.nearOnly(() => gableTimbers(s, roof, outer, top, sp.trim));
+  // Shade on the walls under deep eaves.
+  if (ov >= 0.15) s.occlude(outer[0], top - 0.12, outer[1], outer[2], top + 0.2, outer[3], 0.1, 0.25);
+  s.nearOnly(() => dressings(s, sp, outer, top, roof, skip));
   roofPart(s, roof);
   return { top, ridge, roof, outer };
+}
+
+/**
+ * V1B: the near level's masonry and rainwater: a string course at the floor line and a cornice
+ * under the eaves of brick and stone fronts, gutters along tiled and slated eaves, and a downpipe
+ * at an open front corner.
+ */
+function dressings(
+  s: ShapeBuilder,
+  sp: ShellSpec,
+  outer: [number, number, number, number],
+  top: number,
+  roof: RoofSpec,
+  skip: string,
+): void {
+  const masonry = (m: WallMaterial): boolean => m === 'brick' || m === 'stone';
+  const [ox0, oz0, ox1, oz1] = outer;
+  const band = (x0: number, z0: number, x1: number, z1: number, d: number, y0: number, y1: number): void => {
+    s.box(
+      skip.includes('l') ? x0 : x0 - d,
+      y0,
+      z0 - d,
+      skip.includes('r') ? x1 : x1 + d,
+      y1,
+      z1 + d,
+      palette.stone,
+      skip,
+    );
+  };
+  s.surface(SURFACE.stone);
+  if (sp.upper && masonry(sp.wall) && masonry(sp.upper.wall)) {
+    const yu = sp.base + sp.upper.at;
+    band(sp.x0, sp.z0, sp.x1, sp.z1, 0.03, yu - 0.035, yu + 0.015);
+  }
+  const topWall = sp.upper?.wall ?? sp.wall;
+  if (topWall === 'brick') {
+    band(ox0, oz0, ox1, oz1, 0.035, top - 0.1, top - 0.065);
+    band(ox0, oz0, ox1, oz1, 0.05, top - 0.065, top - 0.02);
+  }
+  s.surface(SURFACE.plain);
+  if (roof.material === 'thatch' || roof.shape === 'lean') return;
+  // Gutters run along the eaves (the roof's low edges), a downpipe drops at an open front corner.
+  const gy = roof.y0 - 0.05;
+  const metal = palette.metal;
+  if (roof.ridgeAlongX) {
+    for (const z of [roof.z0 + 0.03, roof.z1 - 0.03])
+      s.box(roof.x0, gy - 0.04, z - 0.025, roof.x1, gy, z + 0.025, metal, 'b' + skip);
+  } else {
+    for (const x of [roof.x0 + 0.03, roof.x1 - 0.03])
+      s.box(x - 0.025, gy - 0.04, roof.z0, x + 0.025, gy, roof.z1, metal, 'b');
+  }
+  if (skip.includes('l') && skip.includes('r')) return;
+  const right = !skip.includes('r');
+  const px = right ? ox1 - 0.03 : ox0 + 0.03;
+  const pz = roof.ridgeAlongX ? oz1 + 0.035 : oz1 - 0.03;
+  const gx = roof.ridgeAlongX ? px : right ? roof.x1 - 0.03 : roof.x0 + 0.03;
+  beam(s, [gx, gy - 0.03, roof.ridgeAlongX ? roof.z1 - 0.03 : pz], [px, gy - 0.12, pz], 0.014, metal);
+  beam(s, [px, gy - 0.12, pz], [px, 0.04, pz], 0.014, metal);
 }
 
 /** A king post and two struts in each gable end, for timber-framed buildings. */
@@ -285,13 +388,10 @@ export function cottageOf(opts: KitBuildOptions | undefined): Built {
   const [w, d] = opts?.size ?? [2, 2];
   const [ex] = opts?.entrance ?? [Math.floor(w / 2), d - 1];
   const { shape, material, wallMat, wallColor, accent, porch, rnd, look, c } = cottageChoices(opts);
-  const plain = opts?.lod === 'low';
-  const s = new ShapeBuilder();
+  const s = kitBuilder(opts);
   const anchors: KitAnchors = { smoke: [], lights: [] };
-  const x0 = 0.22;
-  const x1 = w - 0.22;
-  const z0 = 0.3;
-  const z1 = d - 0.26;
+  const row = rowOf(opts);
+  const [x0, z0, x1, z1] = fitRow(row, w, d, 0.22, w - 0.22, 0.3, d - 0.26);
   const sh = shell(s, {
     x0,
     z0,
@@ -311,13 +411,13 @@ export function cottageOf(opts: KitBuildOptions | undefined): Built {
       ridgeAlongX: true,
     },
     rnd,
-    plain,
+    party: row.party,
   });
   const clad = claddingDepth(wallMat);
   const front: Face = { dir: 'z+', plane: z1 };
   const doorU = ex + 0.5;
   doorPart(s, front, doorU, 0.28, 0.62, accent, palette.timber, 'arched', clad);
-  if (porch && !plain)
+  if (porch)
     porchPart(
       s,
       front,
@@ -329,12 +429,36 @@ export function cottageOf(opts: KitBuildOptions | undefined): Built {
       palette.timber,
       false,
     );
-  if (!plain) {
+  s.detail(() => {
     const style = windowStyle(c, accent, { box: true, shutters: true });
     windowRow(s, front, x0, x1, 0.52, style, rnd, anchors.lights!, [doorU], 0.6, [0.2, 0.22], clad);
     const side = { ...style, box: false };
-    windowPart(s, { dir: 'x+', plane: x1 }, (z0 + z1) / 2, 0.52, 0.18, 0.2, side, rnd, anchors.lights, clad);
-    windowPart(s, { dir: 'x-', plane: x0 }, (z0 + z1) / 2, 0.52, 0.18, 0.2, side, rnd, anchors.lights, clad);
+    if (!row.r)
+      windowPart(
+        s,
+        { dir: 'x+', plane: x1 },
+        (z0 + z1) / 2,
+        0.52,
+        0.18,
+        0.2,
+        side,
+        rnd,
+        anchors.lights,
+        clad,
+      );
+    if (!row.l)
+      windowPart(
+        s,
+        { dir: 'x-', plane: x0 },
+        (z0 + z1) / 2,
+        0.52,
+        0.18,
+        0.2,
+        side,
+        rnd,
+        anchors.lights,
+        clad,
+      );
     windowPart(s, { dir: 'z-', plane: z0 }, (x0 + x1) / 2, 0.52, 0.2, 0.22, side, rnd, anchors.lights, clad);
     // Doorstep life: pots, a bench or a rain barrel, stepping stones.
     flowerPot(s, doorU + 0.26, 0, z1 + 0.1, rnd);
@@ -351,17 +475,19 @@ export function cottageOf(opts: KitBuildOptions | undefined): Built {
         vary(palette.stone, rnd, 1.2),
         0.01,
       );
-  }
+  });
   if (c.chimney ?? true) {
-    const cx = look() < 0.5 ? x1 - 0.32 : x0 + 0.32;
+    const side = look() < 0.5;
+    const cx = row.r ? x1 : side ? x1 - 0.32 : x0 + 0.32;
     anchors.smoke!.push(
       chimneyPart(
         s,
         cx,
-        (z0 + z1) / 2 - 0.18,
+        row.r ? (z0 + z1) / 2 : (z0 + z1) / 2 - 0.18,
         sh.top - 0.1,
         sh.ridge + 0.12,
         wallMat === 'stone' ? vary(palette.stone, rnd) : palette.brick,
+        row.r,
       ),
     );
   }
@@ -374,7 +500,6 @@ function houseOf(opts: KitBuildOptions | undefined): Built {
   const [ex] = opts?.entrance ?? [1, d - 1];
   const { rnd, look } = streams(opts, 2);
   const c = customOf(opts);
-  const plain = opts?.lod === 'low';
   const material =
     c.roofMaterial ??
     pickWeighted<RoofMaterial>(look, [
@@ -396,13 +521,11 @@ function houseOf(opts: KitBuildOptions | undefined): Built {
         ? vary(palette.brick, rnd, 0.6)
         : upperColor;
   const accent = c.accent ?? [palette.accentRed, palette.navy, palette.teal][Math.floor(look() * 3)]!;
-  const gableFront = look() < 0.6;
-  const s = new ShapeBuilder();
+  const gableFront = look() < 0.6 && !rowOf(opts).joined;
+  const s = kitBuilder(opts);
   const anchors: KitAnchors = { smoke: [], lights: [] };
-  const x0 = 0.2;
-  const x1 = w - 0.2;
-  const z0 = 0.25;
-  const z1 = d - 0.3;
+  const row = rowOf(opts);
+  const [x0, z0, x1, z1] = fitRow(row, w, d, 0.2, w - 0.2, 0.25, d - 0.3);
   const jetty = 0.08;
   const sh = shell(s, {
     x0,
@@ -424,7 +547,7 @@ function houseOf(opts: KitBuildOptions | undefined): Built {
       ridgeAlongX: !gableFront,
     },
     rnd,
-    plain,
+    party: row.party,
   });
   const [ox0, oz0, ox1, oz1] = sh.outer;
   const clad = claddingDepth(lower);
@@ -432,7 +555,7 @@ function houseOf(opts: KitBuildOptions | undefined): Built {
   const upFront: Face = { dir: 'z+', plane: oz1 };
   const doorU = ex + 0.5;
   doorPart(s, front, doorU, 0.28, 0.6, accent, palette.timber, look() < 0.5 ? 'arched' : 'dutch', clad);
-  if (!plain) {
+  s.detail(() => {
     const style = windowStyle(c, accent, { box: true, shutters: true });
     windowRow(s, front, x0, x1, 0.45, style, rnd, anchors.lights!, [doorU], 0.6, [0.2, 0.22], clad);
     windowRow(s, upFront, ox0, ox1, 1.12, style, rnd, anchors.lights!, [], 0.6, [0.22, 0.24], 0.012);
@@ -441,6 +564,7 @@ function houseOf(opts: KitBuildOptions | undefined): Built {
       { dir: 'x+', plane: ox1 },
       { dir: 'x-', plane: ox0 },
     ] as Face[]) {
+      if (f.dir === 'x+' ? row.r : row.l) continue;
       windowRow(s, f, oz0, oz1, 1.12, side, rnd, anchors.lights!, [], 0.9, [0.18, 0.2], 0.012);
       windowRow(
         s,
@@ -503,11 +627,11 @@ function houseOf(opts: KitBuildOptions | undefined): Built {
     porchPart(s, front, doorU, 0.32, 0.72, 0.24, vary(sh.roof.color, rnd, 0.5), palette.timber, false);
     flowerPot(s, doorU - 0.26, 0, z1 + 0.1, rnd);
     flowerPot(s, doorU + 0.26, 0, z1 + 0.1, rnd);
-  }
+  });
   if (c.chimney ?? true) {
-    const cx = gableFront ? x1 - 0.22 : x1 - 0.3;
-    const cz = gableFront ? (z0 + z1) / 2 : (z0 + z1) / 2 - 0.2;
-    anchors.smoke!.push(chimneyPart(s, cx, cz, sh.top - 0.1, sh.ridge + 0.1, palette.brick));
+    const cx = row.r ? x1 : gableFront ? x1 - 0.22 : x1 - 0.3;
+    const cz = gableFront || row.r ? (z0 + z1) / 2 : (z0 + z1) / 2 - 0.2;
+    anchors.smoke!.push(chimneyPart(s, cx, cz, sh.top - 0.1, sh.ridge + 0.1, palette.brick, row.r));
   }
   if (c.sign) signBoard(s, front, doorU, 0.78, 0.44, clad, anchors);
   return { s, anchors };
@@ -517,7 +641,7 @@ function shedOf(opts: KitBuildOptions | undefined): Built {
   const [w, d] = opts?.size ?? [1, 2];
   const { rnd, look } = streams(opts, 3);
   const c = customOf(opts);
-  const s = new ShapeBuilder();
+  const s = kitBuilder(opts);
   const anchors: KitAnchors = { smoke: [], lights: [] };
   const x0 = 0.14;
   const x1 = w - 0.14;
@@ -583,8 +707,7 @@ function hall(opts: KitBuildOptions | undefined): Built {
   const [ex] = opts?.entrance ?? [2, 3];
   const { rnd } = streams(opts, 4);
   const c = customOf(opts);
-  const plain = opts?.lod === 'low';
-  const s = new ShapeBuilder();
+  const s = kitBuilder(opts);
   const anchors: KitAnchors = { smoke: [], lights: [] };
   const x0 = 0.3;
   const x1 = w - 0.3;
@@ -613,7 +736,6 @@ function hall(opts: KitBuildOptions | undefined): Built {
       ridgeAlongX: true,
     },
     rnd,
-    plain,
   });
   const [ox0, , ox1, oz1] = sh.outer;
   const front: Face = { dir: 'z+', plane: z1 };
@@ -631,7 +753,7 @@ function hall(opts: KitBuildOptions | undefined): Built {
       0.01,
     );
   doorPart(s, front, doorU, 0.42, 0.72, accent, palette.white, 'double', 0.015);
-  if (!plain) {
+  s.detail(() => {
     for (const du of [-0.45, 0.45]) {
       s.cylinder(doorU + du, z1 + 0.36, 0.05, 0.045, 0.16, 0.95, palette.white, 8);
       s.box(doorU + du - 0.07, 0.95, z1 + 0.29, doorU + du + 0.07, 0.99, z1 + 0.43, palette.white);
@@ -740,7 +862,7 @@ function hall(opts: KitBuildOptions | undefined): Built {
       vary(palette.accentRed, rnd, 1.5),
     );
     bench(s, doorU - 1.05, z1 + 0.4, true, rnd);
-  }
+  });
   // The clock tower on the ridge, with an open belfry and a pyramid roof.
   const cx = w / 2;
   const cz = (z0 + z1) / 2;
@@ -808,7 +930,7 @@ export const well: Kit = {
   kind: 'building',
   build: (opts) => {
     const rnd = seeded(opts?.seed ?? 1);
-    const s = new ShapeBuilder();
+    const s = kitBuilder(opts);
     // A ring of chunky stones, a winch on two posts with a bucket, under a little tiled roof.
     const n = 10;
     for (let row = 0; row < 3; row++) {
@@ -895,7 +1017,7 @@ function mill(opts: KitBuildOptions | undefined): Built {
   const c = customOf(opts);
   const cx = w / 2;
   const cz = d / 2;
-  const s = new ShapeBuilder();
+  const s = kitBuilder(opts);
   const anchors: KitAnchors = { smoke: [], lights: [] };
   // A stone base, then a tapering white tower in timber bands, a reefing stage and a boat cap.
   s.cylinder(cx, cz, 0.84, 0.8, 0, 0.42, vary(palette.stone, rnd, 0.6), 8, Math.PI / 8);
@@ -1027,7 +1149,7 @@ export const windmill: Kit = {
   anchors: (opts) => mill(opts).anchors,
   parts: (opts): KitPart[] => {
     const [hx, hy, hz] = hubOf(opts);
-    const s = new ShapeBuilder();
+    const s = kitBuilder(opts);
     // Four lattice sails with half-furled cloth, built around the hub so the pivot is its center.
     s.cylinder(hx, hz + 0.05, 0.09, 0.09, hy - 0.05, hy + 0.05, palette.timber, 6);
     for (let k = 0; k < 4; k++) {

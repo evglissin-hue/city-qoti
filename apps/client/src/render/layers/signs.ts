@@ -57,28 +57,30 @@ export function signsLayer(): RenderLayer {
   const look = new Matrix4();
   const up = new Vector3(0, 1, 0);
 
-  function drop(id: number): void {
+  function drop(id: number): boolean {
     const s = signs.get(id);
-    if (!s) return;
+    if (!s) return false;
     s.mesh.removeFromParent();
     s.mesh.geometry.dispose();
     s.material.map?.dispose();
     s.material.dispose();
     signs.delete(id);
+    return true;
   }
 
-  function place(b: BuildingView): void {
-    if (!ctx) return;
+  /** Places or replaces a building's sign; V1X: returns whether anything changed. */
+  function place(b: BuildingView): boolean {
+    if (!ctx) return false;
     const text = typeof b.custom?.sign === 'string' ? b.custom.sign.trim() : '';
     if (!text || b.stage !== 'built') return drop(b.id);
     const level = standLevel(ctx.mirror, b.def, b.x, b.z, b.rot);
     const key = `${text}|${b.x},${b.z},${b.rot},${level}|${JSON.stringify(b.custom)}`;
-    if (signs.get(b.id)?.key === key) return;
-    drop(b.id);
+    if (signs.get(b.id)?.key === key) return false;
+    const dropped = drop(b.id);
     const def = drawDef(b.def);
     const kit = def ? kitById.get(def.art.kit) : undefined;
     const sign = kit?.anchors?.(buildingKitOptions(b)).sign;
-    if (!sign) return;
+    if (!sign) return dropped;
     const material = new MeshStandardMaterial({
       map: signTexture(text, sign.width / sign.height),
       roughness: 0.9,
@@ -96,13 +98,16 @@ export function signsLayer(): RenderLayer {
     mesh.userData.noCast = true;
     ctx.scene.add(mesh);
     signs.set(b.id, { key, mesh, material });
+    return true;
   }
 
   function rebuild(): void {
     if (!ctx) return;
-    for (const id of [...signs.keys()]) if (!ctx.mirror.buildings.has(id)) drop(id);
-    for (const b of ctx.mirror.buildings.values()) place(b);
-    ctx.invalidate();
+    // V1X: only a sign that appeared, changed or went drops the still-frame cache.
+    let changed = false;
+    for (const id of [...signs.keys()]) if (!ctx.mirror.buildings.has(id) && drop(id)) changed = true;
+    for (const b of ctx.mirror.buildings.values()) if (place(b)) changed = true;
+    if (changed) ctx.invalidate();
   }
 
   return {

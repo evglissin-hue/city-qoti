@@ -4,8 +4,8 @@
 // each); one final full-screen pass to the canvas mixes the sharp and blurred images for tilt-shift,
 // adds bloom from the blurred image, tone maps, converts to sRGB, grades, vignettes and dithers. What
 // those steps do to color is look.ts (V1A's); this file only calls its functions, in the order the
-// wave notes fix. It replaces the classic chain (postClassic.ts: RenderPass, UnrealBloomPass, two
-// tilt-shift passes, OutputPass and a grade pass), which stays behind `?engine=classic` until V1X.
+// wave notes fix. It replaced the classic chain (RenderPass, UnrealBloomPass, two tilt-shift passes,
+// OutputPass and a grade pass), which V1X retired along with `?engine=classic`.
 import {
   BufferGeometry,
   DepthTexture,
@@ -151,7 +151,7 @@ const FINAL_FRAGMENT = /* glsl */ `
     vec3 c = texture2D(tScene, vUv).rgb;
     if (uBlurOn > 0.5) {
       vec3 b = texture2D(tBlur, vUv).rgb;
-      c = mix(c, b, smoothstep(0.0, 1.0, lookTiltMask(vUv) * uTilt));
+      c = mix(c, b, lookTiltMix(vUv, uTilt));
     }
     if (uBloomOn > 0.5) {
       vec3 glow = texture2D(tBloom, vUv).rgb * uBloomGain;
@@ -160,9 +160,7 @@ const FINAL_FRAGMENT = /* glsl */ `
     c = lookToneMap(c);
     vec4 o = lookSrgb(vec4(c, 1.0));
     o.rgb = lookGrade(o.rgb) * lookVignette(vUv);
-    // Dither (interleaved gradient noise) so slow gradients like the sky never band in 8 bits.
-    float n = fract(52.9829189 * fract(dot(gl_FragCoord.xy, vec2(0.06711056, 0.00583715))));
-    gl_FragColor = vec4(o.rgb + (n - 0.5) / 255.0, 1.0);
+    gl_FragColor = vec4(lookDither(o.rgb, gl_FragCoord.xy), 1.0);
   }
 `;
 
@@ -395,6 +393,7 @@ export class LeanFrame {
     const b = bloomFor(night);
     this.look.uLookBloomStrength.value = this.bloom ? b.strength : 0;
     this.look.uLookBloomThreshold.value = b.threshold;
+    applyGrade(this.look, this.season, this.warmth, night);
   }
 
   /** The seasonal grade hook (look.ts). */

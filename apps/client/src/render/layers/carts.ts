@@ -23,6 +23,7 @@ import { AgentPlayback } from '../agentPlayback';
 import { hash2 } from '../coords';
 import { FramePool } from '../pool';
 import { groundY } from '../surface';
+import { blobChannel, type BlobChannel } from './blobs';
 import type { LayerContext, RenderLayer } from './types';
 
 const VARIANTS = 3;
@@ -56,6 +57,7 @@ export interface CartsLayer extends RenderLayer {
 
 export function cartsLayer(): CartsLayer {
   let ctx: LayerContext | null = null;
+  let blobs: BlobChannel | null = null;
   const playback = new AgentPlayback();
   let lastLatest: Float32Array | null = null;
   const tracks = new Map<number, CartTrack>();
@@ -113,6 +115,7 @@ export function cartsLayer(): CartsLayer {
     const prevIndex = sample?.a.index;
     const alpha = sample?.alpha ?? 0;
     for (const pl of bodies) pl.begin();
+    blobs?.begin();
     for (const pp of ponyParts) {
       pp.body.begin();
       pp.head.begin();
@@ -211,8 +214,18 @@ export function cartsLayer(): CartsLayer {
         const swing = walking ? Math.sin(t.gait + diag) * 0.45 : 0;
         pony.leg.push(at(base, hx, hy + bob, hz, swing, m));
       });
+      // V1C: one long soft blob under the cart and its pony (render/layers/blobs.ts).
+      blobs?.push(
+        (t.x + ponyX) / 2,
+        (cy + py) / 2,
+        (t.z + ponyZ) / 2,
+        0.26,
+        0.2 + Math.abs(PONY_OFFSET[2]) * 0.55,
+        h,
+      );
       drawn++;
     }
+    blobs?.end();
 
     for (const pl of bodies) pl.finish();
     for (const pp of ponyParts) {
@@ -235,6 +248,7 @@ export function cartsLayer(): CartsLayer {
     },
     init(c) {
       ctx = c;
+      blobs = blobChannel(c, 'carts');
       for (let v = 0; v < VARIANTS; v++) {
         bodies.push(new FramePool(c.scene, cartBodyGeometry(v), c.material));
         const art = animalArt('pony', v);

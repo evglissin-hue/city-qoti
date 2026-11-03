@@ -11,6 +11,7 @@ import { drawDef } from '../defs';
 import { buildingKitOptions, buildingMatrix, standLevel } from '../kitGeometry';
 import { FramePool } from '../pool';
 import { groundY } from '../surface';
+import { blobChannel, type BlobChannel } from './blobs';
 import type { LayerContext, RenderLayer } from './types';
 
 interface Beast {
@@ -48,6 +49,7 @@ export interface AnimalsLayer extends RenderLayer {
 
 export function animalsLayer(): AnimalsLayer {
   let ctx: LayerContext | null = null;
+  let blobs: BlobChannel | null = null;
   let beasts: Beast[] = [];
   const pools = new Map<string, { body: FramePool; head: FramePool; leg: FramePool; art: AnimalArt }>();
   let dirty = true;
@@ -215,6 +217,7 @@ export function animalsLayer(): AnimalsLayer {
       pl.head.begin();
       pl.leg.begin();
     }
+    blobs?.begin();
     const night = (ctx.env?.night.value ?? 0) > 0.7;
     camPos.setFromMatrixPosition(ctx.camera.matrixWorld);
     const far = (ctx.env?.detailDistance ?? 80) * 1.5;
@@ -235,6 +238,8 @@ export function animalsLayer(): AnimalsLayer {
       p.set(b.x, y + bob - sink, b.z);
       base.compose(p, q, one);
       pl.body.push(base);
+      // V1C: a soft blob under each beast (they cast no sun shadow, render/layers/blobs.ts).
+      blobs?.push(b.x, y, b.z, art.stride * 0.55, art.stride * 0.85, b.heading);
       // Head: down to graze (with a little chew), level to look about, lowered asleep.
       const grazing = b.mode === 'graze' && !night;
       const chew = grazing ? Math.sin(clock * 3 + b.seed) * 0.05 : 0;
@@ -271,6 +276,7 @@ export function animalsLayer(): AnimalsLayer {
       pl.head.finish();
       pl.leg.finish();
     }
+    blobs?.end();
     return beasts.length > 0;
   }
 
@@ -282,6 +288,7 @@ export function animalsLayer(): AnimalsLayer {
     },
     init(c) {
       ctx = c;
+      blobs = blobChannel(c, 'animals');
       dirty = true;
     },
     update(change) {

@@ -1,6 +1,6 @@
+import type { Season } from '@qoti/art';
 import { calendar, MAP_SIZE, TILE_FP, type SeatId } from '@qoti/sim';
 import {
-  CanvasTexture,
   Color,
   DirectionalLight,
   Fog,
@@ -16,14 +16,14 @@ import {
   Vector3,
   WebGLRenderer,
   type Material,
-  type MeshStandardMaterial,
+  type MeshLambertMaterial,
   type WebGLRenderTarget,
 } from 'three';
 import { CameraController, FOV } from '../input/camera';
 import type { Mirror } from '../state/mirror';
 import type { EntityPick, Ghost, RenderApi, TilePick } from './api';
 import { fpToWorld, levelY } from './coords';
-import { createWorldEnv, type WorldEnv } from './env';
+import { applySeasonLook, createWorldEnv, SEASONS, setPatternAnisotropy, type WorldEnv } from './env';
 import {
   layerFactories,
   type AgentsLayer,
@@ -37,12 +37,11 @@ import {
 import { StillCache } from './cache';
 import { GpuTimer } from './gpuTimer';
 import { layerRoot, MOVING_LAYER, STATIC_LAYER } from './layerTags';
-import { lightingAt } from './lighting';
+import { hazeFor, lightingAt } from './lighting';
 import { LOOK_TONE_MAPPING } from './look';
 import { createWorldMaterial } from './material';
 import { pickTileFromRay } from './picking';
 import { LeanFrame } from './post';
-import { PostChain } from './postClassic';
 import { buildingDetailNow, pixelRatios, QUALITY_PRESETS, type Quality } from './quality';
 import { DynamicResolution } from './resolution';
 import { ShadowCache, type ShadowView } from './shadows';
@@ -70,14 +69,14 @@ export interface RenderStats {
   shadowRenders: number;
   /** V1D: still frames drawn so far (the still-frame cache drawn again). */
   stillRenders: number;
-  /** V1D: the engine drawing: `lean`, or `classic` (`?engine=classic`, until V1X). */
+  /** V1D: the engine drawing; always `lean` since V1X retired the classic chain. */
   engine: Engine;
   /** V1D: frames drawn so far (perf runs count modes per drawn frame). */
   drawn: number;
 }
 
-/** V1D: the lean renderer, or the classic chain kept behind `?engine=classic` until V1X. */
-export type Engine = 'lean' | 'classic';
+/** V1D: the engine drawing. V1X retired the classic chain (`?engine=classic`), so only the lean one. */
+export type Engine = 'lean';
 
 /**
  * During camera moves, a static layer's content change (its `ctx.invalidate()`) re-renders the
@@ -85,12 +84,6 @@ export type Engine = 'lean' | 'classic';
  * it. At rest, any static change re-renders it on the frame it happens.
  */
 const CONTENT_SETTLE_MS = 300;
-
-/** Whether the URL asks for the classic engine (`?engine=classic`, kept until V1X to compare). */
-function engineFromUrl(): Engine {
-  const q = new URLSearchParams(typeof location === 'undefined' ? '' : location.search);
-  return q.get('engine') === 'classic' ? 'classic' : 'lean';
-}
 
 /** `?debug&dpr=2`: overrides the preset's cap on moving frames (to compare caps on one screen). */
 function dprCapFromUrl(): number | undefined {
@@ -114,8 +107,8 @@ export class Renderer implements RenderApi {
   readonly scene = new Scene();
   readonly camera = new PerspectiveCamera(FOV, 1, 0.5, 2000);
   readonly rig: CameraController;
-  /** V1D: which engine draws (`?engine=classic` for the chain before V1D, until V1X). */
-  readonly engine: Engine = engineFromUrl();
+  /** V1D: which engine draws (only the lean one since V1X). */
+  readonly engine: Engine = 'lean';
   readonly stats: RenderStats = {
     fps: 0,
     frameMs: 0,
@@ -132,7 +125,7 @@ export class Renderer implements RenderApi {
   /** V1.0: GPU time per drawn frame, where the browser offers a timer (`?debug` overlay, perf). */
   readonly gpuTimer: GpuTimer;
   /** The kit material every layer shares (material.ts). */
-  private readonly material: MeshStandardMaterial;
+  private readonly material: MeshLambertMaterial;
   private readonly layers: RenderLayer[];
   /** Each render layer's root, and whether it is a moving layer. */
   private readonly roots: { root: Scene; moving: boolean }[] = [];
@@ -142,8 +135,6 @@ export class Renderer implements RenderApi {
   private readonly night = { value: 0 };
   /** C3D-1: shared look state for world layers (time, night, sky, ground lights, camera). */
   readonly env: WorldEnv;
-  private readonly skyCanvas = document.createElement('canvas');
-  private readonly skyTexture: CanvasTexture;
   private quality: Quality = 'medium';
   /** The preset's pixel ratio for this screen; dynamic resolution scales it down when frames lag. */
   private basePixelRatio = 1;
@@ -153,10 +144,8 @@ export class Renderer implements RenderApi {
     r.enabled = !(q.has('debug') && q.has('fixedres'));
     return r;
   })();
-  /** V1D: the lean frame graph (targets, blur chain, final pass); null on the classic engine. */
-  private readonly lean: LeanFrame | null;
-  /** The classic engine's post chain on Medium and up (`?engine=classic`); Low draws to the canvas. */
-  private post: PostChain | null = null;
+  /** V1D: the lean frame graph (targets, blur chain, final pass). */
+  private readonly lean: LeanFrame;
   /** V1D: the still-frame cache and the cached sun shadows. */
   private readonly still: StillCache;
   private readonly shadowCache = new ShadowCache();
@@ -170,7 +159,6 @@ export class Renderer implements RenderApi {
   /** `staticRevision` when the shadow map last rendered. */
   private shadowStatic = -1;
   private viewDistance = 60;
-  private shadowsDirty = true;
   private readonly target = new Vector3();
   private readonly raycaster = new Raycaster();
   private readonly ndc = new Vector2();
@@ -196,33 +184,29 @@ export class Renderer implements RenderApi {
   ) {
     this.env = createWorldEnv(this.camera);
     this.env.night = this.night;
-    const classic = this.engine === 'classic';
     // V1D: animation inside static layers runs on a clock of its own, which stops while the camera
     // rests so the still-frame cache stays true (docs/build/v1-wave-notes.md). Set before any
     // material or layer binds it.
-    if (!classic) this.env.staticTime = { value: 0 };
+    this.env.staticTime = { value: 0 };
     this.material = createWorldMaterial(this.env);
     // V1D: only the final pass draws to the canvas, so it needs no antialiasing, depth or stencil;
     // multisampling lives on the scene target.
-    this.three = new WebGLRenderer(
-      classic
-        ? { antialias: QUALITY_PRESETS[quality].msaa > 0, powerPreference: 'high-performance' }
-        : { antialias: false, depth: false, stencil: false, powerPreference: 'high-performance' },
-    );
+    this.three = new WebGLRenderer({
+      antialias: false,
+      depth: false,
+      stencil: false,
+      powerPreference: 'high-performance',
+    });
     this.gpuTimer = new GpuTimer(this.three.getContext() as WebGL2RenderingContext);
     this.three.domElement.className = 'game-canvas';
     this.three.domElement.tabIndex = 0;
     this.three.toneMapping = LOOK_TONE_MAPPING;
     this.three.outputColorSpace = SRGBColorSpace;
     this.three.shadowMap.type = PCFShadowMap;
-    this.three.shadowMap.autoUpdate = classic;
+    this.three.shadowMap.autoUpdate = false;
     container.appendChild(this.three.domElement);
-    this.skyCanvas.width = 2;
-    this.skyCanvas.height = 128;
-    this.skyTexture = new CanvasTexture(this.skyCanvas);
-    this.skyTexture.colorSpace = SRGBColorSpace;
-    // The sky layer's dome covers the whole view; the lean engine skips the background under it.
-    this.scene.background = classic ? this.skyTexture : null;
+    // The sky layer's dome covers the whole view, so the scene has no background under it.
+    this.scene.background = null;
     this.scene.fog = new Fog(0xcfe6ef, 120, 400);
     this.sun.shadow.bias = -0.0004;
     this.sun.shadow.normalBias = 0.03;
@@ -235,7 +219,7 @@ export class Renderer implements RenderApi {
       o.layers.enable(MOVING_LAYER);
     }
     this.still = new StillCache(this.scene, this.camera);
-    this.lean = classic ? null : new LeanFrame(this.three, QUALITY_PRESETS.ultra.msaa);
+    this.lean = new LeanFrame(this.three, QUALITY_PRESETS.ultra.msaa);
     this.setQuality(quality);
     this.rig = new CameraController(this.camera, mirror, this.three.domElement);
 
@@ -251,7 +235,7 @@ export class Renderer implements RenderApi {
         scene: root,
         mirror,
         material: this.material,
-        invalidate: () => (moving ? this.invalidate() : this.invalidateStatic()),
+        invalidate: () => (moving ? this.invalidate() : this.invalidateStatic(layer.id)),
         camera: this.camera,
         env: this.env,
       });
@@ -260,7 +244,6 @@ export class Renderer implements RenderApi {
     this.layer<AgentsLayer>('agents').setDetail(QUALITY_PRESETS[quality].residentDetail);
     this.unsubscribe = mirror.onChange((change) => {
       for (const layer of this.layers) layer.update(change);
-      this.shadowsDirty = true;
       this.invalidate();
     });
 
@@ -289,12 +272,20 @@ export class Renderer implements RenderApi {
   staticRevision = 0;
 
   /**
+   * V1X: what bumped `staticRevision`, per static layer id (its `invalidate` or a `frame()` that
+   * returned true) and `renderer` for changes from outside a layer, so a resting view that keeps
+   * drawing still frames can be traced (`__qoti.staticChanges()` in a `?debug` valley).
+   */
+  readonly staticChanges = new Map<string, number>();
+
+  /**
    * V1D: a change to the static picture (a static layer's `ctx.invalidate()`, or, from outside a
    * layer, a texture or material uniform that changes what static layers look like, such as a
    * ground AO swap): drops the still-frame cache, re-renders shadows at rest, and draws again.
    */
-  invalidateStatic(): void {
+  invalidateStatic(source = 'renderer'): void {
     this.staticRevision++;
+    this.staticChanges.set(source, (this.staticChanges.get(source) ?? 0) + 1);
     this.contentAt = performance.now();
     this.needsRender = true;
   }
@@ -304,11 +295,7 @@ export class Renderer implements RenderApi {
     const h = this.container.clientHeight || 1;
     this.camera.aspect = w / h;
     this.camera.updateProjectionMatrix();
-    if (this.lean) this.applyLayout();
-    else {
-      this.three.setSize(w, h, false);
-      this.post?.setSize(w, h, this.three.getPixelRatio());
-    }
+    this.applyLayout();
     this.invalidate();
   }
 
@@ -318,7 +305,6 @@ export class Renderer implements RenderApi {
    */
   private applyLayout(): void {
     const lean = this.lean;
-    if (!lean) return;
     const preset = QUALITY_PRESETS[this.quality];
     const w = this.container.clientWidth || 1;
     const h = this.container.clientHeight || 1;
@@ -342,23 +328,20 @@ export class Renderer implements RenderApi {
   }
 
   private updateLighting(): void {
-    const { hour, minute } = calendar(this.mirror.tick.value);
+    const { hour, minute, season } = calendar(this.mirror.tick.value);
+    this.applySeason(SEASONS[season]!);
     const h = this.hourOverride ?? hour + Math.floor(minute / 15) / 4;
     if (h === this.lightHour) return;
     this.lightHour = h;
     this.lightRevision++;
     const l = lightingAt(h);
-    if (this.lean) {
-      this.lean.setNight(l.night);
-      this.lean.setWarmth(l.warmth);
-      this.lean.setExposure(l.exposure);
-      this.three.setClearColor(l.sky);
-    } else this.paintSky(l.skyTop, l.sky);
+    this.lean.setNight(l.night);
+    this.lean.setWarmth(l.warmth);
+    this.lean.setExposure(l.exposure);
+    this.three.setClearColor(l.sky);
     (this.scene.fog as Fog).color.copy(l.sky);
     this.three.toneMappingExposure = l.exposure;
     this.night.value = l.night;
-    this.post?.setNight(l.night);
-    this.post?.setWarmth(l.warmth);
     this.fill.color.copy(l.fill);
     this.fill.intensity = l.fillIntensity;
     this.hemi.color.copy(l.hemiSky);
@@ -368,7 +351,7 @@ export class Renderer implements RenderApi {
     this.sun.intensity = l.sunIntensity;
     this.sunDir.set(l.sunDir[0], l.sunDir[1], l.sunDir[2]).normalize();
     // The light's direction for shading. Where the shadow camera sits is set when the shadow map
-    // renders (fitView on the classic engine, shadows.ts on the lean one), along the same direction;
+    // renders (shadows.ts), along the same direction;
     // the map's own matrix only changes when it renders, so moving the light here never shifts it.
     this.sun.position.set(
       MAP_SIZE / 2 + l.sunDir[0] * 100,
@@ -387,18 +370,16 @@ export class Renderer implements RenderApi {
 
   private readonly sunDir = new Vector3(0, 1, 0);
 
-  /** A soft vertical sky gradient from the top color down to the horizon (which matches the fog). */
-  private paintSky(top: Color, horizon: Color): void {
-    const g = this.skyCanvas.getContext('2d');
-    if (!g) return;
-    const grad = g.createLinearGradient(0, 0, 0, this.skyCanvas.height);
-    grad.addColorStop(0, `#${top.getHexString()}`);
-    grad.addColorStop(0.75, `#${horizon.getHexString()}`);
-    grad.addColorStop(1, `#${horizon.getHexString()}`);
-    g.fillStyle = grad;
-    g.fillRect(0, 0, this.skyCanvas.width, this.skyCanvas.height);
-    this.skyTexture.needsUpdate = true;
+  /** V1A: the season's look (snow, foliage tint, the grade); drops the still frame on a change. */
+  private applySeason(season: Season): void {
+    if (season === this.season) return;
+    this.season = season;
+    applySeasonLook(this.env, season);
+    this.lean.setSeason(season);
+    this.invalidateStatic();
   }
+
+  private season: Season | null = null;
 
   /** Ground point the camera looks at (camera ray against the ground plane of its height). */
   private viewTarget(): Vector3 {
@@ -408,30 +389,15 @@ export class Renderer implements RenderApi {
     return this.target.copy(pos).addScaledVector(dir, t);
   }
 
-  /** Keeps fog (and, on the classic engine, the shadow frustum) tight around what the camera sees. */
+  /** Keeps the haze tight around what the camera sees (the shadow frustum is shadows.ts's). */
   private fitView(): void {
     const target = this.viewTarget();
     const dist = this.camera.position.distanceTo(target);
     this.viewDistance = dist;
     const fog = this.scene.fog as Fog;
     this.env.focus.copy(target);
-    this.post?.setViewDistance(dist);
-    this.lean?.setViewDistance(dist);
-    fog.near = dist * 1.3 + 30;
-    fog.far = dist * 3.2 + 140;
-    if (this.lean || !this.three.shadowMap.enabled) return;
-    const half = Math.min(140, Math.max(18, dist * 0.95));
-    const cam = this.sun.shadow.camera;
-    cam.left = -half;
-    cam.right = half;
-    cam.top = half;
-    cam.bottom = -half;
-    cam.near = 1;
-    cam.far = half * 4 + 200;
-    cam.updateProjectionMatrix();
-    this.sun.target.position.copy(target);
-    this.sun.position.copy(target).addScaledVector(this.sunDir, half * 2 + 80);
-    this.sun.target.updateMatrixWorld();
+    this.lean.setViewDistance(dist);
+    Object.assign(fog, hazeFor(dist));
   }
 
   /**
@@ -440,13 +406,11 @@ export class Renderer implements RenderApi {
    * since the shadow map is kept between frames.
    */
   private updateShadowFlags(): void {
-    this.shadowsDirty = false;
-    const lean = this.lean !== null;
     this.scene.traverse((o) => {
       if (!(o instanceof Mesh)) return;
       const m = o.material as Material;
       const solid = !m.transparent;
-      const moving = lean && o.layers.isEnabled(MOVING_LAYER);
+      const moving = o.layers.isEnabled(MOVING_LAYER);
       // C3D-1: scattered grass and flowers opt out (userData.qotiShadows false); C3D-2: noCast.
       o.castShadow = solid && !moving && !o.userData.noCast && o.userData.qotiShadows !== false;
       o.receiveShadow = solid;
@@ -487,7 +451,7 @@ export class Renderer implements RenderApi {
       this.env.viewRevision++;
       this.still.noteMove(now);
     }
-    const resting = this.lean !== null && this.still.resting(now);
+    const resting = this.still.resting(now);
     if (this.env.motion) {
       this.env.time.value += dt;
       // V1D: animation in static layers holds still while the camera rests (the cache is true).
@@ -497,11 +461,13 @@ export class Renderer implements RenderApi {
     for (const layer of this.layers) {
       if (!layer.frame?.(dt)) continue;
       dirty = true;
-      if (layer.motion !== 'moving') this.staticRevision++;
+      if (layer.motion !== 'moving') {
+        this.staticRevision++;
+        this.staticChanges.set(layer.id, (this.staticChanges.get(layer.id) ?? 0) + 1);
+      }
     }
     this.updateLighting();
-    if (this.lean) this.drawLean(now, dirty, resting);
-    else this.drawClassic(now, dirty);
+    this.drawLean(now, dirty, resting);
     this.stats.gpuMs = this.gpuTimer.ms;
     if (now - this.fpsWindow >= 1000) {
       this.stats.fps = Math.round((this.frames * 1000) / (now - this.fpsWindow));
@@ -509,31 +475,6 @@ export class Renderer implements RenderApi {
       this.fpsWindow = now;
     }
   };
-
-  /** The classic engine's frame (`?engine=classic`): the chain and shadows as before V1D. */
-  private drawClassic(now: number, dirty: boolean): void {
-    const drew = dirty || this.needsRender;
-    if (drew) {
-      const start = performance.now();
-      this.fitView();
-      if (this.shadowsDirty && this.three.shadowMap.enabled) this.updateShadowFlags();
-      // Count every pass of the frame, not just the last one, so stats stay honest with post on.
-      this.three.info.autoReset = false;
-      this.three.info.reset();
-      this.gpuTimer.begin();
-      if (this.post) this.post.render();
-      else this.three.render(this.scene, this.camera);
-      this.gpuTimer.end();
-      this.needsRender = false;
-      this.stats.frameMs = performance.now() - start;
-      this.stats.drawCalls = this.three.info.render.calls;
-      this.stats.triangles = this.three.info.render.triangles;
-      this.stats.mode = 'moving';
-      this.stats.drawn++;
-      this.frames++;
-    } else this.gpuTimer.poll();
-    if (this.resolution.frame(now, drew, this.basePixelRatio)) this.applyPixelRatio();
-  }
 
   /**
    * What the still-frame cache was drawn for: the targets, the preset, the view, every static
@@ -552,7 +493,7 @@ export class Renderer implements RenderApi {
 
   /** The lean engine's frame: a moving, still or idle scene pass, then the blur and final pass. */
   private drawLean(now: number, dirty: boolean, resting: boolean): void {
-    const lean = this.lean!;
+    const lean = this.lean;
     // At rest, the still frame is drawn once even if nothing else moves: it is the preset's own
     // sharpness (not the moving step's) and, on Ultra, has its ambient occlusion.
     const stillDue = resting && !this.still.valid(this.stillKey());
@@ -717,15 +658,6 @@ export class Renderer implements RenderApi {
     this.rig.focus(x + 0.5, z + 0.5, distance);
   }
 
-  /** The classic engine: applies the dynamic resolution scale to the canvas and the post chain. */
-  private applyPixelRatio(): void {
-    const ratio = this.basePixelRatio * this.resolution.scale;
-    this.three.setPixelRatio(ratio);
-    this.stats.pixelRatio = ratio;
-    this.post?.setSize(this.container.clientWidth || 1, this.container.clientHeight || 1, ratio);
-    this.invalidate();
-  }
-
   setQuality(q: Quality): void {
     const preset = QUALITY_PRESETS[q];
     this.quality = q;
@@ -739,6 +671,8 @@ export class Renderer implements RenderApi {
       });
     }
     this.sun.castShadow = shadows;
+    if (setPatternAnisotropy(this.env, q, this.three.capabilities.getMaxAnisotropy()))
+      this.invalidateStatic();
     this.env.motion = preset.ambientMotion;
     this.env.detailDistance = preset.decorDistance;
     this.env.buildingDetail = buildingDetailNow(q);
@@ -748,39 +682,14 @@ export class Renderer implements RenderApi {
       this.sun.shadow.map?.dispose();
       this.sun.shadow.map = null;
     }
-    this.shadowsDirty = true;
     this.lightHour = -1;
-    if (this.lean) {
-      this.still.enabled = preset.stillCache;
-      this.still.ao = preset.stillAo;
-      this.still.invalidate();
-      this.shadowCache.force();
-      this.lean.setBloom(preset.bloom);
-      // The constructor applies the first preset before the container is laid out; resize() follows.
-      if ((this.layers as RenderLayer[] | undefined) !== undefined) this.applyLayout();
-    } else {
-      // The classic engine (`?engine=classic`): as before V1D.
-      const dpr = window.devicePixelRatio || 1;
-      this.basePixelRatio = Math.min(dpr, preset.maxDpr);
-      this.three.setPixelRatio(this.basePixelRatio);
-      this.stats.pixelRatio = this.basePixelRatio;
-      const wantPost = q !== 'low';
-      if (wantPost && !this.post) {
-        try {
-          this.post = new PostChain(this.three, this.scene, this.camera);
-          this.post.setSize(
-            this.container.clientWidth || 1,
-            this.container.clientHeight || 1,
-            this.three.getPixelRatio(),
-          );
-        } catch {
-          this.post = null;
-        }
-      } else if (!wantPost && this.post) {
-        this.post.dispose();
-        this.post = null;
-      }
-    }
+    this.still.enabled = preset.stillCache;
+    this.still.ao = preset.stillAo;
+    this.still.invalidate();
+    this.shadowCache.force();
+    this.lean.setBloom(preset.bloom);
+    // The constructor applies the first preset before the container is laid out; resize() follows.
+    if ((this.layers as RenderLayer[] | undefined) !== undefined) this.applyLayout();
     // Layers do not exist yet while the constructor applies the first preset.
     (this.layers as RenderLayer[] | undefined)
       ?.find((l): l is EffectsLayer => l.id === 'effects')
@@ -878,10 +787,8 @@ export class Renderer implements RenderApi {
     for (const layer of this.layers) layer.dispose();
     this.material.dispose();
     this.gpuTimer.dispose();
-    this.post?.dispose();
-    this.lean?.dispose();
+    this.lean.dispose();
     this.still.dispose();
-    this.skyTexture.dispose();
     this.three.dispose();
     this.three.domElement.remove();
     this.scene.background = new Color(0);

@@ -1,11 +1,22 @@
-import { Color, MeshBasicMaterial, MeshStandardMaterial } from 'three';
-import { palette } from './palette';
+import {
+  Color,
+  MeshBasicMaterial,
+  MeshLambertMaterial,
+  MeshStandardMaterial,
+  Vector3,
+  type Material,
+  Vector4,
+  type DataArrayTexture,
+  type WebGLProgramParametersWithUniforms,
+} from 'three';
+import { palette, palette2 } from './palette';
+import { NOISE_LAYER, NOISE_SCALE, PATTERN_LAYERS, SURFACE, SURFACES } from './surface';
 
 export type Season = 'spring' | 'summer' | 'autumn' | 'winter';
 
 /**
- * Hooks on the shared kit material. Season tint, snow and wind sway are stubbed to Spring in I0:
- * the values are stored on `material.userData` for a later shader pass (I3) and change nothing yet.
+ * Hooks on the shared kit material: season tint, snow cover and wind sway. V1A: the lean kit
+ * material draws them (the client sets them from the world env each season; C5E builds on them).
  */
 export interface KitMaterialHooks {
   season: Season;
@@ -23,14 +34,24 @@ export function createKitMaterial(): MeshStandardMaterial {
   return m;
 }
 
-/** Updates the hooks; a no-op on the look until the I3 seasons pass. */
-export function setKitMaterialHooks(m: MeshStandardMaterial, hooks: Partial<KitMaterialHooks>): void {
+/**
+ * Updates the hooks. V1A: on a lean kit material (`createLeanKitMaterial`) they set its uniforms:
+ * the season tint, snow cover and sway strength. On the old standard material they are only
+ * stored, as before.
+ */
+export function setKitMaterialHooks(m: Material, hooks: Partial<KitMaterialHooks>): void {
   const cur = (m.userData.kitHooks as KitMaterialHooks | undefined) ?? {
     season: 'spring',
     snow: 0,
     sway: 0,
   };
-  m.userData.kitHooks = { ...cur, ...hooks, season: 'spring' };
+  const next: KitMaterialHooks = { ...cur, ...hooks };
+  m.userData.kitHooks = next;
+  const u = m.userData.kitUniforms as KitSurfaceUniforms | undefined;
+  if (!u) return;
+  u.uSeasonTint.value.setHex(SEASON_LOOK[next.season].tint);
+  u.uSnow.value = next.snow;
+  u.uSway.value = next.sway;
 }
 
 /**
@@ -64,8 +85,9 @@ export function createEmissiveKitMaterial(night = 1): MeshStandardMaterial {
  */
 export const MOTION = { talk: 16, wave: 17, waveStill: 18, sit: 19 } as const;
 
-export function createResidentMaterial(): MeshStandardMaterial {
-  const m = new MeshStandardMaterial({ vertexColors: true, roughness: 0.85, metalness: 0 });
+export function createResidentMaterial(): MeshLambertMaterial {
+  // V1A: Lambert like the kit material; the old matte standard material had next to no specular.
+  const m = new MeshLambertMaterial({ vertexColors: true });
   const time = { value: 0 };
   m.userData.time = time;
   m.onBeforeCompile = (shader) => {
@@ -180,4 +202,281 @@ export function createGhostMaterial(valid: boolean): MeshBasicMaterial {
     opacity: 0.5,
     depthWrite: false,
   });
+}
+
+// ---------------------------------------------------------------- V1A: the lean kit material
+
+/**
+ * The uniforms the lean kit material reads. Pass shared `{ value }` objects (the client binds the
+ * world env's, so one change reaches every material without a recompile).
+ */
+export interface KitSurfaceUniforms {
+  /** The pattern array (patterns.ts), shared with the ground shader. */
+  uPat: { value: DataArrayTexture };
+  /** Per surface id: 1 / scale, mapping (0 facade, 1 roof, 2 top), strength, accent mix. */
+  uSurf: { value: Vector4[] };
+  /** Per surface id: the accent color (linear). */
+  uSurfAccent: { value: Color[] };
+  /** Per surface id: snow hint (how much of the pattern shows through snow), foliage (season tint). */
+  uSurfExtra: { value: Vector4[] };
+  /** Global pattern strength, 0 (flat colors) to 1. */
+  uPatternK: { value: number };
+  /** Grass flower dots, 0 to 1. */
+  uFlowerK: { value: number };
+  /** Meadow patches on grass (linear). */
+  uMeadow: { value: Color };
+  /** The horizon and the top of the sky, for the fresnel on glass and water. */
+  uSky: { value: Color };
+  uSkyTop: { value: Color };
+  /** Towards the sun, and its color, for the glint. */
+  uSunDir: { value: Vector3 };
+  uSunColor: { value: Color };
+  /** Snow cover on upward faces, 0 to 1 (winter), and its color. */
+  uSnow: { value: number };
+  uSnowColor: { value: Color };
+  /** Season tint multiplied into foliage surfaces (grass, leaf, field). */
+  uSeasonTint: { value: Color };
+  /** Wind sway on leaf and flower surfaces: strength and its clock (static time). */
+  uSway: { value: number };
+  uSwayTime: { value: number };
+}
+
+/** Snow shows a hint of courses on these roofs (C5E can tune it per surface). */
+const SNOW_HINT: Partial<Record<number, number>> = {
+  [SURFACE.thatch]: 0.35,
+  [SURFACE.slate]: 0.3,
+  [SURFACE.tile]: 0.25,
+  [SURFACE.cobble]: 0.2,
+  [SURFACE.flags]: 0.2,
+};
+/** Surfaces the season tint reaches. */
+const FOLIAGE = new Set<number>([SURFACE.grass, SURFACE.leaf, SURFACE.field]);
+
+/** The surface table as uniform arrays (from surface.ts and palette 2.0). */
+export function surfaceTable(): Pick<KitSurfaceUniforms, 'uSurf' | 'uSurfAccent' | 'uSurfExtra'> {
+  const surf: Vector4[] = [];
+  const accent: Color[] = [];
+  const extra: Vector4[] = [];
+  for (let id = 0; id < PATTERN_LAYERS; id++) {
+    const d = SURFACES[id];
+    const mapping = !d ? 0 : d.mapping === 'roof' ? 1 : d.mapping === 'top' ? 2 : 0;
+    surf.push(new Vector4(d ? 1 / d.scale : 1 / NOISE_SCALE, mapping, d?.strength ?? 0, d?.accent?.mix ?? 0));
+    accent.push(new Color(d?.accent ? palette2[d.accent.token] : 0x000000));
+    extra.push(new Vector4(SNOW_HINT[id] ?? 0.1, FOLIAGE.has(id) ? 1 : 0, 0, 0));
+  }
+  return { uSurf: { value: surf }, uSurfAccent: { value: accent }, uSurfExtra: { value: extra } };
+}
+
+/** Season tints for foliage surfaces and how much snow lies, per season. */
+export const SEASON_LOOK: Record<Season, { tint: number; snow: number }> = {
+  spring: { tint: 0xfdfff2, snow: 0 },
+  summer: { tint: 0xf2f7e4, snow: 0 },
+  autumn: { tint: 0xffe9b8, snow: 0 },
+  winter: { tint: 0xe6e8e2, snow: 1 },
+};
+
+/** Fresh uniforms for a kit material outside the game (the gallery); the client binds its env's. */
+export function kitSurfaceUniforms(patterns: DataArrayTexture): KitSurfaceUniforms {
+  return {
+    uPat: { value: patterns },
+    ...surfaceTable(),
+    uPatternK: { value: 1 },
+    uFlowerK: { value: 1 },
+    uMeadow: { value: new Color(palette2.meadow) },
+    uSky: { value: new Color(0xd8e2e3) },
+    uSkyTop: { value: new Color(0x8fb6d8) },
+    uSunDir: { value: new Vector3(0.4, 0.8, 0.45).normalize() },
+    uSunColor: { value: new Color(0xfff4e0) },
+    uSnow: { value: 0 },
+    uSnowColor: { value: new Color(palette.snow) },
+    uSeasonTint: { value: new Color(SEASON_LOOK.spring.tint) },
+    uSway: { value: 1 },
+    uSwayTime: { value: 0 },
+  };
+}
+
+/**
+ * Sky fresnel and sun glint as GLSL, for glass and water (the kit material here, V1C's water
+ * shader). `n` and `v` are world-space unit vectors (normal, and towards the camera).
+ * - `qFresnel(n, v, power)`: 0 facing the camera, 1 at grazing angles.
+ * - `qSkyFresnel(c, sky, n, v, base, k, power)`: mixes a color toward the sky by base + k * fresnel.
+ * - `qSunGlint(n, v, sunDir, sunColor, shininess, k)`: a cheap Blinn highlight, to add to emissive.
+ */
+export const KIT_FRESNEL_GLSL = /* glsl */ `
+float qFresnel(vec3 n, vec3 v, float power) {
+  return pow(1.0 - clamp(dot(n, v), 0.0, 1.0), power);
+}
+vec3 qSkyFresnel(vec3 c, vec3 sky, vec3 n, vec3 v, float base, float k, float power) {
+  return mix(c, sky, clamp(base + k * qFresnel(n, v, power), 0.0, 1.0));
+}
+vec3 qSunGlint(vec3 n, vec3 v, vec3 sunDir, vec3 sunColor, float shininess, float k) {
+  vec3 h = normalize(sunDir + v);
+  return sunColor * pow(max(dot(n, h), 0.0), shininess) * k;
+}
+`;
+
+const KIT_VERTEX_HEAD = /* glsl */ `
+attribute float surface;
+varying vec3 vQWPos;
+varying vec3 vQWNor;
+varying float vQSurf;
+uniform float uSway;
+uniform float uSwayTime;
+`;
+
+/** Sway: leaf and flower faces (hedges, planters, window boxes) breathe a little with height. */
+const KIT_SWAY_VERTEX = /* glsl */ `
+vQSurf = surface;
+{
+  float qLeafy = step(abs(surface - ${SURFACE.leaf}.0), 0.5) + step(abs(surface - ${SURFACE.flowers}.0), 0.5);
+  float qH = max(transformed.y - 0.15, 0.0) * qLeafy * uSway;
+  float qPh = transformed.x * 2.1 + transformed.z * 1.7;
+  transformed.x += sin(uSwayTime * 1.3 + qPh) * qH * 0.02;
+  transformed.z += cos(uSwayTime * 1.05 + qPh * 1.3) * qH * 0.015;
+}
+`;
+
+const KIT_WORLD_VERTEX = /* glsl */ `
+{
+  vec4 qW = vec4(transformed, 1.0);
+#ifdef USE_INSTANCING
+  qW = instanceMatrix * qW;
+#endif
+#ifdef USE_BATCHING
+  qW = batchingMatrix * qW;
+#endif
+  vQWPos = (modelMatrix * qW).xyz;
+  vQWNor = inverseTransformDirection(transformedNormal, viewMatrix);
+}
+`;
+
+const KIT_FRAGMENT_HEAD = /* glsl */ `
+precision highp sampler2DArray;
+uniform sampler2DArray uPat;
+uniform vec4 uSurf[${PATTERN_LAYERS}];
+uniform vec3 uSurfAccent[${PATTERN_LAYERS}];
+uniform vec4 uSurfExtra[${PATTERN_LAYERS}];
+uniform float uPatternK;
+uniform float uFlowerK;
+uniform vec3 uMeadow;
+uniform vec3 uSky;
+uniform vec3 uSkyTop;
+uniform vec3 uSunDir;
+uniform vec3 uSunColor;
+uniform float uSnow;
+uniform vec3 uSnowColor;
+uniform vec3 uSeasonTint;
+varying vec3 vQWPos;
+varying vec3 vQWNor;
+varying float vQSurf;
+${KIT_FRESNEL_GLSL}
+// Set by qKitSurface for the emissive glint: 1 on glass, 2 on water, else 0.
+float qShiny = 0.0;
+
+// The pattern laid on a face as the surface table says, the accent, meadow and flowers on grass,
+// weathering from the noise layer, the season tint, then snow on upward faces. Branches only for
+// plain faces (no pattern fetch), glass, water and flowers.
+vec3 qKitSurface(vec3 c) {
+  int si = int(vQSurf + 0.5);
+  bool plain = si < 1 || si >= ${PATTERN_LAYERS - 1};
+  // Plain faces cost nothing over a flat color unless it snows. The id is the same on every vertex
+  // of a face, so this branch never splits a 2 x 2 pixel quad and the derivatives below stay valid.
+  if (plain && uSnow <= 0.0) return c;
+  vec3 n = normalize(vQWNor);
+  // Gradients before the branches that follow: textureGrad keeps mipmaps right across face edges.
+  vec3 dx = dFdx(vQWPos);
+  vec3 dy = dFdy(vQWPos);
+  const float nk = 1.0 / ${NOISE_SCALE}.0;
+  vec2 nuv = vQWPos.xz * nk + vec2(vQWPos.y * 0.02);
+  float up = smoothstep(0.3, 0.75, n.y);
+  float big = textureGrad(uPat, vec3(nuv, ${NOISE_LAYER}.0), dx.xz * nk, dy.xz * nk).r;
+  float cover = up * clamp(uSnow * 1.3 - (1.0 - big) * 0.3, 0.0, 1.0);
+  if (plain) return mix(c, uSnowColor, cover);
+  vec4 sp = uSurf[si];
+  vec4 sx = uSurfExtra[si];
+  bool top = sp.y > 1.5 || abs(n.y) > (sp.y > 0.5 ? 0.97 : 0.9);
+  vec2 uv;
+  vec2 gx;
+  vec2 gy;
+  if (top) {
+    uv = vQWPos.xz; gx = dx.xz; gy = dy.xz;
+  } else {
+    float hl = length(n.xz);
+    vec2 t = hl > 1e-3 ? vec2(-n.z, n.x) / hl : vec2(1.0, 0.0);
+    // Roof courses: v runs along the slope, so a steep and a shallow roof get the same courses.
+    float vk = sp.y > 0.5 ? 1.0 / max(hl, 0.35) : 1.0;
+    uv = vec2(dot(vQWPos.xz, t), vQWPos.y * vk);
+    gx = vec2(dot(dx.xz, t), dx.y * vk);
+    gy = vec2(dot(dy.xz, t), dy.y * vk);
+  }
+  vec4 p = textureGrad(uPat, vec3(uv * sp.x, float(si)), gx * sp.x, gy * sp.x);
+  vec3 o;
+  if (si == ${SURFACE.flowers}) {
+    o = mix(c, p.rgb, p.a);
+  } else if (si == ${SURFACE.glass} || si == ${SURFACE.water}) {
+    vec3 v = normalize(cameraPosition - vQWPos);
+    vec3 sky = mix(uSky, uSkyTop, 0.35);
+    bool water = si == ${SURFACE.water};
+    o = qSkyFresnel(c, sky, n, v, water ? 0.22 : 0.16, water ? 0.5 : 0.45, water ? 3.0 : 2.0);
+    qShiny = water ? 2.0 : 1.0;
+  } else {
+    o = c * mix(1.0, p.r * 2.0, sp.z * uPatternK);
+    o = mix(o, uSurfAccent[si], p.g * sp.w * (si == ${SURFACE.awning} ? 1.0 : uPatternK));
+    float grass = si == ${SURFACE.grass} ? 1.0 : 0.0;
+    o = mix(o, uMeadow, smoothstep(0.42, 0.72, big) * 0.5 * uPatternK * grass);
+    vec3 fc = p.b > 0.5 ? vec3(0.92, 0.86, 0.9) : vec3(0.95, 0.78, 0.3);
+    o = mix(o, fc, p.g * 0.85 * uFlowerK * grass);
+    // Weathering: broad, soft patches of light and shade on walls, roofs and ground.
+    o *= mix(1.0, 0.9 + 0.2 * big, uPatternK * 0.8 * sp.z);
+    o *= mix(vec3(1.0), uSeasonTint, sx.y);
+  }
+  // Snow covers the pattern gradually and keeps a hint of courses on thatch, slate and tile.
+  vec3 snow = uSnowColor * (1.0 + (p.r * 2.0 - 1.0) * sx.x);
+  return mix(o, snow, cover);
+}
+
+// The glint on glass and water, for the emissive term (none on a lit window pane).
+vec3 qKitGlint(float lit) {
+  if (qShiny < 0.5) return vec3(0.0);
+  vec3 n = normalize(vQWNor);
+  vec3 v = normalize(cameraPosition - vQWPos);
+  bool water = qShiny > 1.5;
+  return qSunGlint(n, v, uSunDir, uSunColor, water ? 120.0 : 60.0, water ? 0.9 : 0.35) * (1.0 - lit);
+}
+`;
+
+/**
+ * Patches a Lambert material's shaders into the lean kit material: call it first inside
+ * `onBeforeCompile`, then add any further replacements (the client's night glow). The fragment
+ * shader's emissive step adds the glint through `qKitGlint(lit)`; the caller adds it after its own
+ * emissive (see the client's render/material.ts), passing how lit the face is (0 to 1).
+ */
+export function patchKitShader(shader: WebGLProgramParametersWithUniforms, u: KitSurfaceUniforms): void {
+  Object.assign(shader.uniforms, u);
+  shader.vertexShader = shader.vertexShader
+    .replace('#include <common>', `#include <common>\n${KIT_VERTEX_HEAD}`)
+    .replace('#include <begin_vertex>', `#include <begin_vertex>\n${KIT_SWAY_VERTEX}`)
+    .replace('#include <project_vertex>', `#include <project_vertex>\n${KIT_WORLD_VERTEX}`);
+  shader.fragmentShader = shader.fragmentShader
+    .replace('#include <common>', `#include <common>\n${KIT_FRAGMENT_HEAD}`)
+    .replace(
+      '#include <color_fragment>',
+      '#include <color_fragment>\ndiffuseColor.rgb = qKitSurface(diffuseColor.rgb);',
+    );
+}
+
+/** A Lambert kit material with vertex colors, patched by `patchKitShader` (the gallery's). */
+export function createLeanKitMaterial(u: KitSurfaceUniforms): MeshLambertMaterial {
+  const m = new MeshLambertMaterial({ vertexColors: true });
+  m.onBeforeCompile = (shader) => {
+    patchKitShader(shader, u);
+    shader.fragmentShader = shader.fragmentShader.replace(
+      '#include <emissivemap_fragment>',
+      '#include <emissivemap_fragment>\ntotalEmissiveRadiance += qKitGlint(0.0);',
+    );
+  };
+  m.customProgramCacheKey = () => 'qoti-lean-kit';
+  m.userData.kitHooks = { season: 'spring', snow: 0, sway: 1 } satisfies KitMaterialHooks;
+  m.userData.kitUniforms = u;
+  return m;
 }

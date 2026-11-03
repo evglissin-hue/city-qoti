@@ -1,5 +1,5 @@
 import { kitById } from '@qoti/art';
-import { CHUNK_SIZE, CHUNKS_PER_SIDE, MAP_SIZE, Terrain, TILE_FP } from '@qoti/sim';
+import { CHUNK_SIZE, CHUNKS_PER_SIDE, MAP_SIZE, Terrain, TILE_FP, Water } from '@qoti/sim';
 import { PerspectiveCamera, type MeshStandardMaterial } from 'three';
 import type { Mirror } from '../../state/mirror';
 import { ChunkDirt } from '../chunkDirt';
@@ -39,6 +39,8 @@ const PROPS: readonly PropSpec[] = [
   { kit: 'fallen-log', variants: 2, max: 90, shadows: true },
   { kit: 'fern', variants: 2, max: 72, shadows: false },
   { kit: 'grass-tuft', variants: 2, max: 72, lod: 40, shadows: false },
+  { kit: 'hedgerow', variants: 3, max: 200, lod: 60, shadows: true },
+  { kit: 'lily-pads', variants: 3, max: 90, lod: 45, shadows: false },
   { kit: 'mushrooms', variants: 2, max: 40, shadows: false },
   { kit: 'reeds', variants: 2, max: 80, shadows: false },
   { kit: 'rock', variants: 2, max: 140, lod: 60, shadows: true },
@@ -80,12 +82,13 @@ class Placer {
     scale = 1,
     sink = 0,
     tint: [number, number, number] = [1, 1, 1],
+    at?: { y?: number; yaw?: number },
   ): void {
     const spec = PROP_BY_KIT.get(kit)!;
     const v = Math.floor(hash2(Math.floor(x * 7), Math.floor(z * 7), salt) * spec.variants);
     const kind = this.field.kindIndex(`${kit}:${v}`);
-    const y = surfaceY(this.tiles, x, z) - sink * scale;
-    const yaw = hash2(Math.floor(x * 11), Math.floor(z * 11), salt + 1) * Math.PI * 2;
+    const y = at?.y ?? surfaceY(this.tiles, x, z) - sink * scale;
+    const yaw = at?.yaw ?? hash2(Math.floor(x * 11), Math.floor(z * 11), salt + 1) * Math.PI * 2;
     addInstance(this.chunk, kind, x, y, z, yaw, scale, 0, 0, tint[0], tint[1], tint[2], 0.4);
   }
 }
@@ -110,10 +113,42 @@ export function buildNatureChunk(
   for (let z = z0; z < z0 + CHUNK_SIZE; z++) {
     for (let x = x0; x < x0 + CHUNK_SIZE; x++) {
       const i = at(x, z);
+      // V1C: lily pads on still water near a bank (ponds and the river's slow edges).
+      if (L.water[i] && !L.road[i] && !L.occupant[i]) {
+        let bank = false;
+        for (let dz = -1; dz <= 1 && !bank; dz++)
+          for (let dx = -1; dx <= 1 && !bank; dx++)
+            if (inMap(x + dx, z + dz) && !L.water[at(x + dx, z + dz)]) bank = true;
+        const still = L.water[i] === Water.pond || L.water[i] === Water.canal;
+        if ((still || bank) && hash2(x, z, 150) < (still ? 0.4 : 0.22)) {
+          const px = x + 0.15 + hash2(x, z, 151) * 0.7;
+          const pz = z + 0.15 + hash2(x, z, 152) * 0.7;
+          if (surfaceY(tiles, px, pz) < WATER_Y - 0.08)
+            place.put('lily-pads', px, pz, 153, 0.9 + hash2(x, z, 154) * 0.6, 0, [1, 1, 1], {
+              y: WATER_Y + 0.002,
+            });
+        }
+        continue;
+      }
       if (L.water[i] || L.road[i] || L.occupant[i]) continue;
       if (decorTiles.has(i)) continue;
       const terrain = L.terrain[i]!;
       if (terrain === Terrain.field) continue;
+      // V1C: hedgerows along the edges this tile shares with a field, just inside this tile.
+      for (const [dx, dz] of [
+        [1, 0],
+        [-1, 0],
+        [0, 1],
+        [0, -1],
+      ] as const) {
+        if (!inMap(x + dx, z + dz) || L.terrain[at(x + dx, z + dz)] !== Terrain.field) continue;
+        if (hash2(x * 4 + dx + 2, z * 4 + dz + 2, 160) > 0.85) continue;
+        const hx = x + 0.5 + dx * 0.38;
+        const hz = z + 0.5 + dz * 0.38;
+        place.put('hedgerow', hx, hz, 161, 0.9 + hash2(x, z, 162 + dx + dz * 3) * 0.25, 0, [1, 1, 1], {
+          yaw: dx !== 0 ? Math.PI / 2 : 0,
+        });
+      }
       let trees = 0;
       let wet = 0;
       let roadSide = 0;

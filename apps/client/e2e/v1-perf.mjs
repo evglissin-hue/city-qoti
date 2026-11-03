@@ -8,8 +8,7 @@
 // QOTI_HEADED=1 on a laptop (or paste `await __qoti.perf()` into the console of a `?debug` valley)
 // for timings. Env: QOTI_PRESETS (low,medium,high,ultra), QOTI_MOVE and QOTI_REST (seconds, 10),
 // QOTI_SIZE (1440x900), QOTI_SETTLE (ms after a scene loads, 12000; V1D: then until no static
-// layer changes, at most QOTI_SETTLE_MAX, 300000), QOTI_ENGINE (V1D: `classic`
-// measures the chain before the lean renderer on the same build, until V1X), QOTI_FIXEDRES=1
+// layer changes, at most QOTI_SETTLE_MAX, 300000), QOTI_FIXEDRES=1
 // (dynamic resolution off) and QOTI_HOLD=1 (the sim paused and the hour pinned; see below).
 import { chromium } from '@playwright/test';
 
@@ -20,8 +19,7 @@ const [vw, vh] = (process.env.QOTI_SIZE ?? '1440x900').split('x').map(Number);
 const move = Number(process.env.QOTI_MOVE ?? 10);
 const rest = Number(process.env.QOTI_REST ?? 10);
 const headed = process.env.QOTI_HEADED === '1';
-const engine = process.env.QOTI_ENGINE === 'classic' ? '&engine=classic' : '';
-// V1D: QOTI_FIXEDRES=1 turns dynamic resolution off, so both engines draw the same pixels (in a
+// V1D: QOTI_FIXEDRES=1 turns dynamic resolution off, so runs draw the same pixels (in a
 // software renderer every frame is slow, so it would otherwise step moving frames down).
 const fixedres = process.env.QOTI_FIXEDRES === '1' ? '&fixedres' : '';
 
@@ -45,7 +43,7 @@ for (const [scene, def] of Object.entries(SCENES)) {
   page.on('pageerror', (e) => console.log('pageerror:', e.message));
   page.on('console', (m) => m.type() === 'error' && console.log('console:', m.text()));
   await page.route('**/api/**', (r) => r.abort());
-  await page.goto(`${base}/?debug&fixture=${def.fixture}&clean&quality=medium${engine}${fixedres}`);
+  await page.goto(`${base}/?debug&fixture=${def.fixture}&clean&quality=medium${fixedres}`);
   await page.waitForFunction(() => window.__qoti?.status() === 'live', null, { timeout: 240000 });
   for (const name of ['Done', 'Close', 'Later']) {
     const b = page.getByRole('button', { name, exact: true });
@@ -109,6 +107,6 @@ await browser.close();
 // One table for all scenes: the header once, then every scene's rows.
 const lines = tables.flatMap((t, i) => t.split('\n').slice(i === 0 ? 0 : 2));
 console.log(
-  `\n${headed ? 'headed' : 'headless (software renderer)'}, ${engine ? 'classic' : 'lean'} engine${fixedres ? ', fixed resolution' : ''}${process.env.QOTI_HOLD === '1' ? ', sim paused' : ''}, ${vw} x ${vh}, ${move} s moving, ${rest} s idle:\n`,
+  `\n${headed ? 'headed' : 'headless (software renderer)'}, lean engine${fixedres ? ', fixed resolution' : ''}${process.env.QOTI_HOLD === '1' ? ', sim paused' : ''}, ${vw} x ${vh}, ${move} s moving, ${rest} s idle:\n`,
 );
 console.log(lines.join('\n'));

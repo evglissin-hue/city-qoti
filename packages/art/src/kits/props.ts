@@ -4,8 +4,9 @@
 import { vary, type ShapeBuilder, type V3 } from '../geometry';
 import { palette } from '../palette';
 import { beam, cylX, cylZ, panel } from '../shapes';
+import { SURFACE } from '../surface';
 
-export function barrel(s: ShapeBuilder, x: number, y: number, z: number, rnd: () => number, k = 1): void {
+function barrelNear(s: ShapeBuilder, x: number, y: number, z: number, rnd: () => number, k = 1): void {
   const r = 0.07 * k;
   const h = 0.18 * k;
   const wood = vary(palette.wood, rnd);
@@ -15,7 +16,7 @@ export function barrel(s: ShapeBuilder, x: number, y: number, z: number, rnd: ()
   s.cylinder(x, z, r * 0.95, r * 0.93, y + h * 0.76, y + h * 0.82, palette.metal, 8);
 }
 
-export function bench(
+function benchNear(
   s: ShapeBuilder,
   x: number,
   z: number,
@@ -37,7 +38,7 @@ export function bench(
   }
 }
 
-export function flowerPot(
+function flowerPotNear(
   s: ShapeBuilder,
   x: number,
   y: number,
@@ -52,7 +53,7 @@ export function flowerPot(
 }
 
 /** A square hay bale with two twine bands, lying along x or z. */
-export function hayBale(
+function hayBaleNear(
   s: ShapeBuilder,
   x: number,
   y: number,
@@ -71,7 +72,7 @@ export function hayBale(
   }
 }
 
-export function sawhorse(s: ShapeBuilder, x: number, z: number, alongX: boolean, rnd: () => number): void {
+function sawhorseNear(s: ShapeBuilder, x: number, z: number, alongX: boolean, rnd: () => number): void {
   const wood = vary(palette.wood, rnd, 0.6);
   const L = 0.16;
   const P = (a: number, y: number, c: number): V3 => (alongX ? [x + a, y, z + c] : [x + c, y, z + a]);
@@ -82,7 +83,7 @@ export function sawhorse(s: ShapeBuilder, x: number, z: number, alongX: boolean,
   }
 }
 
-export function ladder(s: ShapeBuilder, a: V3, b: V3, side: V3): void {
+function ladderNear(s: ShapeBuilder, a: V3, b: V3, side: V3): void {
   const w = 0.07;
   const rail = (k: number): [V3, V3] => [
     [a[0] + side[0] * k, a[1], a[2] + side[2] * k],
@@ -105,7 +106,7 @@ export function ladder(s: ShapeBuilder, a: V3, b: V3, side: V3): void {
 }
 
 /** A stump with an axe bitten into it and a few split logs around. */
-export function choppingBlock(s: ShapeBuilder, x: number, z: number, rnd: () => number): void {
+function choppingBlockNear(s: ShapeBuilder, x: number, z: number, rnd: () => number): void {
   s.cylinder(x, z, 0.1, 0.09, 0, 0.16, vary(palette.bark, rnd, 0.5), 8);
   s.cylinder(x, z, 0.088, 0.088, 0.16, 0.165, 0xd9b98a, 8);
   // Axe: handle leaning, head buried in the top.
@@ -120,7 +121,7 @@ export function choppingBlock(s: ShapeBuilder, x: number, z: number, rnd: () => 
 }
 
 /** A scarecrow: a post and crossbar in an old coat with a straw hat. */
-export function scarecrow(s: ShapeBuilder, x: number, z: number, coat: number): void {
+function scarecrowNear(s: ShapeBuilder, x: number, z: number, coat: number): void {
   beam(s, [x, 0, z], [x, 0.62, z], 0.018, palette.timber);
   beam(s, [x - 0.2, 0.44, z], [x + 0.2, 0.44, z], 0.015, palette.timber);
   s.rbox(x - 0.09, 0.26, z - 0.05, x + 0.09, 0.47, z + 0.05, coat, 0.02);
@@ -135,7 +136,7 @@ export function scarecrow(s: ShapeBuilder, x: number, z: number, coat: number): 
 }
 
 /** A small rowboat resting on the ground, bow toward +z (or +x). */
-export function rowboat(
+function rowboatNear(
   s: ShapeBuilder,
   x: number,
   y: number,
@@ -193,7 +194,7 @@ export function rowboat(
 }
 
 /** A frame with fish hanging to dry. */
-export function dryingRack(
+function dryingRackNear(
   s: ShapeBuilder,
   x: number,
   z: number,
@@ -217,7 +218,7 @@ export function dryingRack(
 }
 
 /** Two poles with a net draped between them, a few floats on the hem. */
-export function netFrame(s: ShapeBuilder, x: number, z: number, alongX: boolean): void {
+function netFrameNear(s: ShapeBuilder, x: number, z: number, alongX: boolean): void {
   const L = 0.24;
   const P = (a: number, y: number, c: number): V3 => (alongX ? [x + a, y, z + c] : [x + c, y, z + a]);
   for (const a of [-L, L]) beam(s, P(a, 0, 0), P(a, 0.46, 0), 0.014, palette.timber);
@@ -239,26 +240,26 @@ export function netFrame(s: ShapeBuilder, x: number, z: number, alongX: boolean)
 }
 
 /** A wicker fish trap. */
-export function trap(s: ShapeBuilder, x: number, z: number, alongX: boolean): void {
+function trapNear(s: ShapeBuilder, x: number, z: number, alongX: boolean): void {
   if (alongX) cylX(s, x - 0.1, x + 0.1, 0.06, z, 0.06, 0xa8794a, 6, 0x6b4a30);
   else cylZ(s, z - 0.1, z + 0.1, x, 0.06, 0.06, 0xa8794a, 6, 0x6b4a30);
 }
 
-export function birdBox(s: ShapeBuilder, x: number, z: number, hex: number): void {
+function birdBoxNear(s: ShapeBuilder, x: number, z: number, hex: number): void {
   beam(s, [x, 0, z], [x, 0.55, z], 0.014, palette.timber);
   s.box(x - 0.05, 0.52, z - 0.045, x + 0.05, 0.64, z + 0.045, hex);
   s.gable(x - 0.065, z - 0.06, x + 0.065, z + 0.06, 0.64, 0.7, palette.roofTerracotta, false);
   s.box(x - 0.015, 0.575, z + 0.045, x + 0.015, 0.605, z + 0.05, palette.ink);
 }
 
-export function wateringCan(s: ShapeBuilder, x: number, y: number, z: number): void {
+function wateringCanNear(s: ShapeBuilder, x: number, y: number, z: number): void {
   s.cylinder(x, z, 0.035, 0.035, y, y + 0.06, palette.teal, 8);
   beam(s, [x + 0.03, y + 0.02, z], [x + 0.08, y + 0.07, z], 0.006, palette.teal);
   beam(s, [x - 0.02, y + 0.07, z], [x + 0.02, y + 0.07, z], 0.005, palette.teal);
 }
 
 /** A flat ground patch (packed earth, gravel, chips), drawn just above the grass. */
-export function groundPatch(
+function groundPatchNear(
   s: ShapeBuilder,
   x0: number,
   z0: number,
@@ -286,7 +287,7 @@ export function groundPatch(
 }
 
 /** A woven wattle fence along a line: stakes and two woven rails. */
-export function wattle(s: ShapeBuilder, a: [number, number], b: [number, number], rnd: () => number): void {
+function wattleNear(s: ShapeBuilder, a: [number, number], b: [number, number], rnd: () => number): void {
   const dx = b[0] - a[0];
   const dz = b[1] - a[1];
   const len = Math.sqrt(dx * dx + dz * dz);
@@ -302,7 +303,7 @@ export function wattle(s: ShapeBuilder, a: [number, number], b: [number, number]
 }
 
 /** A picket fence run (low, painted). */
-export function picket(s: ShapeBuilder, a: [number, number], b: [number, number], hex: number): void {
+function picketNear(s: ShapeBuilder, a: [number, number], b: [number, number], hex: number): void {
   const dx = b[0] - a[0];
   const dz = b[1] - a[1];
   const len = Math.sqrt(dx * dx + dz * dz);
@@ -315,7 +316,7 @@ export function picket(s: ShapeBuilder, a: [number, number], b: [number, number]
 }
 
 /** A sapling in the nursery: a stem and a small cone or puff of leaves. */
-export function sapling(
+function saplingNear(
   s: ShapeBuilder,
   x: number,
   z: number,
@@ -329,7 +330,7 @@ export function sapling(
 }
 
 /** A rooster weathervane on a short spike. */
-export function weathervane(s: ShapeBuilder, x: number, y: number, z: number): void {
+function weathervaneNear(s: ShapeBuilder, x: number, y: number, z: number): void {
   beam(s, [x, y, z], [x, y + 0.26, z], 0.008, palette.metal);
   beam(s, [x - 0.07, y + 0.16, z], [x + 0.07, y + 0.16, z], 0.004, palette.metal);
   beam(s, [x, y + 0.16, z - 0.07], [x, y + 0.16, z + 0.07], 0.004, palette.metal);
@@ -361,7 +362,7 @@ export function weathervane(s: ShapeBuilder, x: number, y: number, z: number): v
 }
 
 /** A lantern on a wall bracket; returns the flame position for night lights. */
-export function wallLantern(s: ShapeBuilder, p: V3, out: V3): V3 {
+function wallLanternNear(s: ShapeBuilder, p: V3, out: V3): V3 {
   const q: V3 = [p[0] + out[0] * 0.1, p[1], p[2] + out[2] * 0.1];
   beam(s, p, q, 0.008, palette.metal);
   s.box(q[0] - 0.035, q[1] - 0.12, q[2] - 0.035, q[0] + 0.035, q[1] - 0.105, q[2] + 0.035, palette.metal);
@@ -373,7 +374,7 @@ export function wallLantern(s: ShapeBuilder, p: V3, out: V3): V3 {
 }
 
 /** Split firewood stacked against something, along x or z. */
-export function firewood(
+function firewoodNear(
   s: ShapeBuilder,
   x: number,
   z: number,
@@ -394,8 +395,60 @@ export function firewood(
   }
 }
 
-export function milkChurn(s: ShapeBuilder, x: number, z: number): void {
+function milkChurnNear(s: ShapeBuilder, x: number, z: number): void {
   s.cylinder(x, z, 0.045, 0.045, 0, 0.12, 0xb9bdc0, 8);
   s.cylinder(x, z, 0.045, 0.025, 0.12, 0.15, 0xb9bdc0, 8);
   s.cylinder(x, z, 0.03, 0.03, 0.15, 0.17, 0x8d9296, 8);
 }
+
+/**
+ * V1B: props are near-only detail on a building: at the low level they run silently (so random
+ * draws match the high level) and draw nothing. Decor kits build at the high level and keep them.
+ */
+function quiet<A extends unknown[], R>(fn: (s: ShapeBuilder, ...a: A) => R): (s: ShapeBuilder, ...a: A) => R {
+  return (s, ...a) => {
+    let r!: R;
+    s.nearOnly(() => {
+      r = fn(s, ...a);
+    });
+    return r;
+  };
+}
+
+export const barrel = quiet(barrelNear);
+export const bench = quiet(benchNear);
+export const flowerPot = quiet(flowerPotNear);
+export const hayBale = quiet(hayBaleNear);
+export const sawhorse = quiet(sawhorseNear);
+export const ladder = quiet(ladderNear);
+export const choppingBlock = quiet(choppingBlockNear);
+export const scarecrow = quiet(scarecrowNear);
+export const rowboat = quiet(rowboatNear);
+export const dryingRack = quiet(dryingRackNear);
+export const netFrame = quiet(netFrameNear);
+export const trap = quiet(trapNear);
+export const birdBox = quiet(birdBoxNear);
+export const wateringCan = quiet(wateringCanNear);
+/** Yards stay at the far level (they color the ground, so dropping them would pop). */
+export function groundPatch(
+  s: ShapeBuilder,
+  x0: number,
+  z0: number,
+  x1: number,
+  z1: number,
+  hex: number,
+  rnd: () => number,
+): void {
+  s.essential(() => {
+    s.surface(SURFACE.dirt);
+    groundPatchNear(s, x0, z0, x1, z1, hex, rnd);
+    s.surface(SURFACE.plain);
+  });
+}
+export const wattle = quiet(wattleNear);
+export const picket = quiet(picketNear);
+export const sapling = quiet(saplingNear);
+export const weathervane = quiet(weathervaneNear);
+export const wallLantern = quiet(wallLanternNear);
+export const firewood = quiet(firewoodNear);
+export const milkChurn = quiet(milkChurnNear);

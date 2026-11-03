@@ -1,14 +1,12 @@
 // Palette tokens for the style kit, from docs/spec/17-presentation.md. Older C1 token names are
-// kept (some now share a value with a spec token) so existing callers keep working.
+// kept (some now share a value with a spec token) so existing callers keep working; V1X retired
+// the ones nothing read any more (palette 2.0 below is where new kits read from).
 
 export const palette = {
   // Ground.
   grass: 0x8db360,
-  grassSummer: 0x7fa650,
-  grassAutumn: 0xb5a048,
   meadow: 0xa7c46a,
   forestFloor: 0x5e7f43,
-  dirtPath: 0xc9a877,
   sand: 0xe3d2a1,
   rock: 0x9a9a92,
   snow: 0xeef2f5,
@@ -21,7 +19,6 @@ export const palette = {
   waterShallow: 0x6fb7c2,
   waterDeep: 0x3e8fa6,
   foam: 0xe8f4f2,
-  ice: 0xcfe3ea,
 
   path: 0xc9a877,
   lane: 0xb39a70,
@@ -30,10 +27,7 @@ export const palette = {
   leaf: 0x5c8a3a,
   oakLeaf: 0x5c8a3a,
   birchLeaf: 0x8db84a,
-  leafLight: 0x8db84a,
   pine: 0x3f6b45,
-  autumnOrange: 0xd98a3a,
-  autumnRed: 0xc9603a,
   autumnGold: 0xe0b84a,
   blossom: 0xf2b8c6,
   birchBark: 0xf1ece0,
@@ -42,39 +36,36 @@ export const palette = {
   apple: 0xc7432f,
 
   // Plaster.
-  plasterCream: 0xf1e6cf,
-  plasterRose: 0xebc7b9,
-  plasterSage: 0xc9d3b4,
-  plasterSky: 0xbfd0d8,
-  plasterButter: 0xf0dda0,
-  wallCream: 0xf1e6cf,
-  wallSand: 0xf0dda0,
-  wallStone: 0xcfc5b2,
+  // V1A: the customization swatches read palette 2.0 (palette2.plasters, tiles, slates, thatch,
+  // moss, plum, doors and frames), so a player's choice keeps meaning the same color.
+  plasterCream: 0xefe3cc,
+  plasterRose: 0xe6c6b5,
+  plasterSage: 0xcdd2b3,
+  plasterSky: 0xc3cfd0,
+  plasterButter: 0xeddaa6,
 
   // Structure.
   timber: 0x5b4232,
   stone: 0xb9b1a3,
   brick: 0xb5654b,
   foundation: 0x8f877a,
-  plinth: 0x8f877a,
   wood: 0x9a6b43,
   darkWood: 0x6e4a2e,
   door: 0x4a3324,
 
   // Roofs.
-  roofTerracotta: 0xc0643e,
-  roofSlate: 0x5e6b7a,
-  roofThatch: 0xc9a35f,
-  roofMoss: 0x6e7f4e,
-  roofPlum: 0x7a5468,
-  roofRed: 0x8e3b2c,
+  roofTerracotta: 0xbb6e4c,
+  roofSlate: 0x67707d,
+  roofThatch: 0xc2a16a,
+  roofMoss: 0x74805a,
+  roofPlum: 0x7a5a6c,
 
   // Accents.
-  teal: 0x3f7f7a,
-  accentRed: 0xa8473b,
-  mustard: 0xd6a73e,
-  navy: 0x34506b,
-  white: 0xf7f4ec,
+  teal: 0x4e7c78,
+  accentRed: 0x9c4f43,
+  mustard: 0xd1a24a,
+  navy: 0x45607a,
+  white: 0xf4ecdd,
 
   // Flowers and small things.
   flowerA: 0xe9707a,
@@ -86,12 +77,8 @@ export const palette = {
 
   // Light.
   lantern: 0xffc977,
-  lampGlow: 0xffc977,
   window: 0xffd58a,
   windowDay: 0x7d95a6,
-  sunset: 0xf4a261,
-  nightAmbient: 0x2b3a55,
-  moon: 0x9db4d8,
 
   // UI.
   paper: 0xf7f0e1,
@@ -111,9 +98,10 @@ export const palette = {
 /**
  * Palette 2.0 (V1.0): the Painted Miniature look (B) from the V0 concept viewer (`PALHEX.b`, docs/
  * concepts/v0-look/index.html): softer, more harmonious colors, each a little greyed toward its
- * neighbors, for a material that draws brick courses, tile rows and plaster grain on top. Nothing
- * reads it yet: V1A tunes the values (and the table in 17-presentation.md) and moves the kits over,
- * and V1X retires the old tokens above. Lists are swatches a kit picks from by seed, in the
+ * neighbors, for a material that draws brick courses, tile rows and plaster grain on top. V1A tuned
+ * the values against the concept stills and points the customization swatches at them (the old
+ * tokens they read now hold palette 2.0 values); V1B and V1C move their kits' reads over; V1X
+ * retired the old tokens nothing read. Lists are swatches a kit picks from by seed, in the
  * concept's order. `stuccos` are the Age of Steam's walls, `deco` and `pastels` the Bright Age's.
  */
 export const palette2 = {
@@ -145,6 +133,9 @@ export const palette2 = {
   slates: [0x67707d, 0x5d6773, 0x707a83],
   thatch: [0xc2a16a, 0xb8975f],
   zinc: 0x8a959b,
+  /** Customization roofs beyond the concept's: a mossy green and a soft plum. */
+  moss: 0x74805a,
+  plum: 0x7a5a6c,
   flatRoof: 0x857d73,
   copper: 0x76a594,
   chimney: 0xa1604b,

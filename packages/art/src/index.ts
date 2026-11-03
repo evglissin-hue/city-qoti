@@ -43,6 +43,7 @@ export {
 export { wheatTileGeometry } from './kits/fields';
 export { constructionGeometry, upgradeScaffold, type ConstructionOptions } from './kits/construction';
 export { ACCENT_SWATCHES, ROOF_MATERIALS, ROOF_SWATCHES, WALL_SWATCHES } from './kits/style';
+export { isRowKit, ROW_EAVES } from './kits/rows';
 export { BUNDLE_GOODS, bundleGeometry, crateOf, GOOD_COLORS, pileLevel, pileOf } from './kits/goods';
 export { PAINT, RIG, RIG_PIVOTS, RigBuilder, type Channel } from './rig';
 export { beam, cylX, cylZ, panel } from './shapes';
@@ -50,10 +51,17 @@ export {
   createEmissiveKitMaterial,
   createGhostMaterial,
   createKitMaterial,
+  createLeanKitMaterial,
   createResidentMaterial,
+  KIT_FRESNEL_GLSL,
+  kitSurfaceUniforms,
   MOTION,
+  patchKitShader,
+  SEASON_LOOK,
   setKitMaterialHooks,
+  surfaceTable,
   type KitMaterialHooks,
+  type KitSurfaceUniforms,
   type Season,
 } from './materials';
 export {
@@ -66,7 +74,15 @@ export {
   TERRAIN_COLORS,
   type Palette2Single,
 } from './palette';
-export { createPatternArray, PATTERN_CHANNELS, PATTERN_ONE, PATTERN_SIZE } from './patterns';
+export {
+  createPatternArray,
+  generatePatterns,
+  lastPatternMs,
+  PATTERN_CHANNELS,
+  PATTERN_ONE,
+  PATTERN_SIZE,
+  type PatternFill,
+} from './patterns';
 export {
   NOISE_LAYER,
   NOISE_SCALE,
