@@ -233,3 +233,48 @@ function animalKit(id: AnimalKind): Kit {
 export const cowKit = animalKit('cow');
 export const ponyKit = animalKit('pony');
 export const sheepKit = animalKit('sheep');
+
+/**
+ * C5E: a wolf from the forest's edge, merged in one geometry (the agents layer trots it with its
+ * instance matrix). Storybook, not menacing: a soft grey coat with a pale chest, a rounded muzzle,
+ * pointed ears and a full brush of a tail. Facing +z, about 0.5 long, standing on y 0.
+ */
+export function wolfGeometry(variant = 0): BufferGeometry {
+  const coats: [coat: number, pale: number, dark: number][] = [
+    [0x8a8580, 0xd8d0c2, 0x45403b],
+    [0x9a8a78, 0xe0d4c0, 0x4f4337],
+    [0x6f6d6c, 0xc8c4bc, 0x34312f],
+  ];
+  const [coat, pale, dark] = coats[variant % coats.length]!;
+  const rnd = seeded(variant * 53 + 5);
+  const s = new ShapeBuilder();
+  // Body and chest.
+  s.blob(0, 0.2, -0.02, 0.085, 0.085, 0.19, coat, 1, rnd, 0.06, vary(coat, rnd, 0.4));
+  s.blob(0, 0.2, 0.12, 0.075, 0.08, 0.07, pale, 0);
+  // Head and muzzle, a little raised.
+  s.blob(0, 0.3, 0.2, 0.06, 0.055, 0.06, coat, 1);
+  s.blob(0, 0.28, 0.27, 0.03, 0.026, 0.045, pale, 0);
+  s.blob(0, 0.288, 0.312, 0.012, 0.01, 0.009, dark, 0);
+  for (const sx of [-1, 1]) {
+    // Ears: two small pyramids.
+    const bx = sx * 0.032;
+    s.tri([bx - 0.016, 0.335, 0.2], [bx + 0.016, 0.335, 0.2], [bx, 0.385, 0.19], coat, [0, 0.2, 1]);
+    s.tri([bx + 0.016, 0.335, 0.2], [bx - 0.016, 0.335, 0.2], [bx, 0.385, 0.19], dark, [0, 0.2, -1]);
+    // Eyes: small dark dots.
+    s.blob(sx * 0.024, 0.31, 0.25, 0.007, 0.008, 0.005, dark, 0);
+  }
+  // Tail: a full brush held low.
+  s.blob(0, 0.17, -0.25, 0.04, 0.04, 0.09, coat, 0, rnd, 0.1);
+  s.blob(0, 0.14, -0.32, 0.03, 0.03, 0.04, pale, 0);
+  // Legs.
+  for (const [x, z] of [
+    [0.045, 0.1],
+    [-0.045, 0.1],
+    [0.045, -0.12],
+    [-0.045, -0.12],
+  ] as const) {
+    s.cylinder(x, z, 0.016, 0.02, 0, 0.17, coat, 5);
+    s.cylinder(x, z, 0.018, 0.016, 0, 0.025, dark, 5);
+  }
+  return s.build(false);
+}

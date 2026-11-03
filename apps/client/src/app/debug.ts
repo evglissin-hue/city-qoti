@@ -4,6 +4,7 @@ import {
   canPaintRoad,
   canPlaceBuilding,
   canPlaceDecor,
+  AGENT_STRIDE,
   footprintSize,
   MAP_SIZE,
   TILE_FP,
@@ -82,6 +83,15 @@ export function installDebugHook(getSession: () => Session | null): void {
       };
     },
     lastTurn: () => s()?.mirror.lastTurn.value ?? 0,
+    /** C5E: [id, x, z] of the agents in the latest frame carrying an AgentFlags bit (raiders 256). */
+    agentsWith: (flag: number) => {
+      const L = s()?.mirror.agents.latest;
+      const out: [number, number, number][] = [];
+      if (!L) return out;
+      for (let o = 0; o + AGENT_STRIDE <= L.length; o += AGENT_STRIDE)
+        if (L[o + 7]! & flag) out.push([L[o]!, L[o + 1]!, L[o + 2]!]);
+      return out;
+    },
     clock: () => {
       const m = s()?.mirror;
       return m ? { ...m.clock.value, tick: m.tick.value } : null;

@@ -39,6 +39,8 @@ const SHOTS = {
   'storm-hamlet': ['hamlet', 'season=autumn&weather=storm', 16, 40],
   'fog-hamlet': ['hamlet', 'season=autumn&weather=fog', 9, 50],
   'drought-hamlet': ['hamlet', 'season=summer&weather=drought', 13, 50],
+  'raid-close': ['raid', '', 19.2, 16, 'abs', [61, 8], -0.1],
+  'raid-night-close': ['raid', '', 22, 16, 'abs', [61, 8], -0.1],
   'raid-wide': ['raid', '', 19.2, 60],
   'raid-dusk': ['raid', '', 19.2, 30],
   'raid-night': ['raid', '', 22, 30],
@@ -67,14 +69,21 @@ for (const [name, [fixture, q, hour, dist, setup, at, tilt]] of Object.entries(S
   }
   if (process.env.QOTI_HUD !== '1')
     await page.addStyleTag({ content: '.game-ui { display: none !important; }' });
-  let center = setup === 'village' ? [64, 60] : null;
+  let center = setup === 'village' ? [64, 60] : setup === 'abs' ? [0, 0] : null;
   if (setup === 'village') await page.evaluate(() => window.__qoti.villageShowcase(true));
   if (setup === 'town') center = (await page.evaluate(() => window.__qoti.townShowcase())).center;
   if (!center) {
     const [x0, z0, x1, z1] = await page.evaluate(() => window.__qoti.startArea());
     center = [(x0 + x1 + 1) / 2, (z0 + z1 + 1) / 2];
   }
-  const [x, z] = at ? [center[0] + at[0], center[1] + at[1]] : center;
+  let [x, z] = at ? [center[0] + at[0], center[1] + at[1]] : center;
+  // Raid close-ups follow the raiders (AgentFlags.raider), wherever they have got to.
+  if (name.startsWith('raid-c') || name.startsWith('raid-n')) {
+    await page.waitForTimeout(4000);
+    const r = await page.evaluate(() => window.__qoti.agentsWith(256));
+    if (r.length)
+      [x, z] = [r.reduce((a, v) => a + v[1], 0) / r.length, r.reduce((a, v) => a + v[2], 0) / r.length];
+  }
   await page.evaluate(
     ([x, z, d, h, t]) => {
       window.__qoti.setHour(h);
@@ -83,6 +92,15 @@ for (const [name, [fixture, q, hour, dist, setup, at, tilt]] of Object.entries(S
     [x, z, dist, hour, tilt ?? 0],
   );
   await page.waitForTimeout(wait);
+  if (name.startsWith('raid-c') || name.startsWith('raid-n')) {
+    // They will have run on while the scene drew: catch up with them, and hold the sim still.
+    const r = await page.evaluate(() => window.__qoti.agentsWith(256));
+    if (r.length) {
+      const c = [r.reduce((a, v) => a + v[1], 0) / r.length, r.reduce((a, v) => a + v[2], 0) / r.length];
+      await page.evaluate(([x, z, d]) => window.__qoti.look(x, z, d, 0, -0.1), [c[0], c[1] - 2, dist]);
+      await page.waitForTimeout(2500);
+    }
+  }
   const s = await page.evaluate(() => {
     const st = window.__qoti.stats();
     return { draws: st?.drawCalls ?? 0, tris: st?.triangles ?? 0, mode: st?.mode };

@@ -17,6 +17,7 @@ import {
   SPECIES_IDS,
   type ExtraKind,
   type ResidentDetail,
+  wolfGeometry,
 } from '@qoti/art';
 import { content } from '@qoti/content';
 import {
@@ -129,7 +130,14 @@ interface Look {
   full: Pool;
   simple: Pool;
   extraPools: Pool[];
+  /** C5E: the outfit variant this look was dressed for (`dressKey`). */
+  dress: number;
 }
+
+/** C5E: raiders' cloaks: muted plum, moss, slate and russet, storybook rather than sinister. */
+const RAIDER_CLOAKS = [0x6b4a63, 0x56633f, 0x4d5866, 0x7a4a3a];
+/** C5E: knitted winter wool, warm and cheerful. */
+const WINTER_WOOL = [0xc0523e, 0xd9a441, 0x3f6e8c, 0x7a9a5a, 0xd88a8a, 0xf2ead8];
 
 interface Track {
   x: number;
@@ -277,6 +285,8 @@ const WHITE = new Color(1, 1, 1);
 
 export function agentsLayer(): AgentsLayer {
   let ctx: LayerContext | null = null;
+  /** C5E: snow lies (folk wrap up), set each frame from the world env. */
+  let winter = false;
   const material = createResidentMaterial();
   const time = material.userData.time as { value: number };
   const pools = new Map<string, Pool>();
@@ -352,9 +362,42 @@ export function agentsLayer(): AgentsLayer {
     return pl!;
   }
 
+  /** C5E: the outfit's variant (the Watch on duty, winter wraps), so a change dresses them again. */
+  function dressKey(flags: number): number {
+    return (flags & (AgentFlags.watch | AgentFlags.raider | AgentFlags.cold)) | (winter ? 1 << 20 : 0);
+  }
+
+  /**
+   * C5E: dress for the season and the night's work. Raiders (any species) wear storybook cloaks and
+   * hoods in muted plum, moss or slate, a loot sack over the shoulder; the Watch carries a lantern
+   * and a staff; in winter (or when their home is cold) folk wrap up in a knitted hat and a scarf.
+   */
+  function dress(id: number, flags: number, extras: { kind: ExtraKind; color: number }[]): void {
+    if (flags & AgentFlags.raider) {
+      const cloakColor = RAIDER_CLOAKS[Math.floor(hash2(id, 19, 3) * RAIDER_CLOAKS.length)]!;
+      extras.length = 0;
+      extras.push(
+        { kind: 'cloak', color: cloakColor },
+        { kind: 'hood', color: cloakColor },
+        { kind: 'sack', color: 0xb89c6c },
+      );
+      return;
+    }
+    if (flags & AgentFlags.watch) {
+      extras.push({ kind: 'lantern', color: 0x3b3229 }, { kind: 'staff', color: 0x8a5a3a });
+      if (!extras.some((e) => e.kind.startsWith('hat:'))) extras.push({ kind: 'hat:felt', color: 0x4f6a3e });
+    }
+    if (winter || flags & AgentFlags.cold) {
+      const warm = WINTER_WOOL[Math.floor(hash2(id, 23, 9) * WINTER_WOOL.length)]!;
+      if (!extras.some((e) => e.kind.startsWith('hat:'))) extras.push({ kind: 'hat:knit', color: warm });
+      if (!extras.some((e) => e.kind === 'scarf' || e.kind === 'longscarf' || e.kind === 'kerchief'))
+        extras.push({ kind: 'scarf', color: warm });
+    }
+  }
+
   function lookOf(id: number, flags: number): Look {
     let l = looks.get(id);
-    if (l) return l;
+    if (l && l.dress === dressKey(flags)) return l;
     const r = ctx?.mirror.residents.get(id);
     const job = r?.jobId ? ctx?.mirror.buildings.get(r.jobId)?.def : undefined;
     const look = residentLook({
@@ -365,6 +408,9 @@ export function agentsLayer(): AgentsLayer {
       ...(job && { job }),
       ...((r?.flags ?? 0) & ResidentFlags.story ? { story: true } : {}),
     });
+    dress(id, flags, look.extras);
+    // Raiders read by their cloaks from afar too (the simple figure and the dot take the vest color).
+    if (flags & AgentFlags.raider) look.cloth = look.extras[0]!.color;
     l = {
       species: look.species,
       fur: new Color(look.fur),
@@ -380,8 +426,10 @@ export function agentsLayer(): AgentsLayer {
       sling: SLING_COLORS[Math.floor(hash2(id, 13, 5) * SLING_COLORS.length)]!,
       full: pool(`${look.species}:full`, () => residentGeometry(look.species, 'full')),
       simple: pool(`${look.species}:simple`, () => residentGeometry(look.species, 'simple')),
-      extraPools: look.extras.map((x) => pool(`extra:${x.kind}`, () => extraGeometry(x.kind))),
+      extraPools: [],
+      dress: dressKey(flags),
     };
+    l.extraPools = l.extras.map((x) => pool(`extra:${x.kind}`, () => extraGeometry(x.kind)));
     looks.set(id, l);
     return l;
   }
@@ -559,6 +607,7 @@ export function agentsLayer(): AgentsLayer {
   }
 
   function draw(dt: number): boolean {
+    winter = (ctx?.env?.snow.value ?? 0) > 0.4;
     if (!ctx) return false;
     const mirror = ctx.mirror;
     const camera = ctx.camera as PerspectiveCamera;
@@ -613,7 +662,12 @@ export function agentsLayer(): AgentsLayer {
       let z = L[o + 2]!;
       let y = L[o + 3]!;
       let heading = L[o + 4]!;
-      const anim = L[o + 5]!;
+      // C5E: raiders and the Watch run (a quicker walk), the festival dances (a hop and a turn).
+      const rawAnim = L[o + 5]!;
+      const anim =
+        rawAnim === AgentAnim.run ? AgentAnim.walk : rawAnim === AgentAnim.dance ? AgentAnim.hop : rawAnim;
+      const running = rawAnim === AgentAnim.run;
+      const dancing = rawAnim === AgentAnim.dance;
       const carry = L[o + 6]!;
       const flags = L[o + 7]!;
       const po = prevIndex?.get(id);
@@ -654,6 +708,24 @@ export function agentsLayer(): AgentsLayer {
       if (step < 0.5) t.phase += (step / STRIDE) * Math.PI * 2;
       t.heading = fresh ? heading : t.heading + angleDelta(t.heading, heading) * smooth;
 
+      // C5E: wolves at the forest's edge are wolves, never a resident species.
+      if (flags & AgentFlags.wolf) {
+        const wy = ctx ? groundY(ctx.mirror, x, z) : levelY(y);
+        p.set(x, wy + 0.15, z);
+        const d2 = p.distanceToSquared(camPos);
+        if (d2 > simpleD2) continue;
+        sphere.center.copy(p);
+        if (!frustum.intersectsSphere(sphere)) continue;
+        const trot = moving ? Math.abs(Math.sin(t.phase * 1.6)) : 0;
+        e.set(moving ? -0.04 + trot * 0.05 : 0, t.heading, 0);
+        q.setFromEuler(e);
+        p.set(x, wy + trot * 0.025, z);
+        s.set(1.1, 1.1, 1.1);
+        m.compose(p, q, s);
+        pool(`wolf:${id % 3}`, () => wolfGeometry(id % 3)).push(m, zero, WHITE, WHITE, 0, 0, 0);
+        pushShadow(x, wy, z, 0.3);
+        continue;
+      }
       // A baby in a parent's sling is drawn there, not on its own.
       if (hiddenBabies.has(id)) continue;
       const look = lookOf(id, flags);
@@ -773,7 +845,16 @@ export function agentsLayer(): AgentsLayer {
       let roll = 0;
       let yaw = h;
       const unhappy = (flags & (AgentFlags.unhappy | AgentFlags.slow)) !== 0;
-      if (shown === AgentAnim.walk || (shown === AgentAnim.carry && moving)) {
+      const skating = (flags & AgentFlags.skating) !== 0;
+      if (skating) {
+        // C5E: skaters glide: no steps, a lean into each long stroke, swaying side to side.
+        const stroke = Math.sin(clock * 1.7 + seed);
+        sy = 1;
+        lean = 0.16;
+        roll = stroke * 0.16;
+        yaw += stroke * 0.22;
+        motion = AgentAnim.idle;
+      } else if (shown === AgentAnim.walk || (shown === AgentAnim.carry && moving)) {
         // Up as the feet pass under the body, down with a little squash as a foot lands (feet are
         // furthest apart at sin(phase) = +-1, see the rig in @qoti/art materials).
         const k = Math.abs(Math.cos(t.phase));
@@ -782,11 +863,17 @@ export function agentsLayer(): AgentsLayer {
         sxz = 1.03 - 0.035 * k;
         roll = Math.sin(t.phase) * 0.06;
         lean = shown === AgentAnim.carry ? -0.03 : unhappy ? 0.16 : 0.1;
+        if (running) {
+          bob *= 1.3;
+          lean = 0.22;
+        }
       } else if (shown === AgentAnim.hop) {
         const k = Math.abs(Math.sin(clock * 5.5 + seed));
-        bob = k * 0.1;
+        bob = k * (dancing ? 0.06 : 0.1);
         sy = 0.9 + 0.18 * k;
         sxz = 1.05 - 0.07 * k;
+        // C5E: the dance turns about as it bounces, partners in step by their seed.
+        if (dancing) yaw += clock * 1.8 + seed;
       } else if (shown === AgentAnim.work) {
         const k = Math.sin(clock * 9 + seed);
         lean = 0.12 + k * 0.07;
