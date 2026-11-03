@@ -4,6 +4,7 @@
 import { vary, type ShapeBuilder, type V3 } from '../geometry';
 import { palette } from '../palette';
 import { beam, cylX, cylZ, panel } from '../shapes';
+import { SURFACE } from '../surface';
 
 function barrelNear(s: ShapeBuilder, x: number, y: number, z: number, rnd: () => number, k = 1): void {
   const r = 0.07 * k;
@@ -428,7 +429,22 @@ export const netFrame = quiet(netFrameNear);
 export const trap = quiet(trapNear);
 export const birdBox = quiet(birdBoxNear);
 export const wateringCan = quiet(wateringCanNear);
-export const groundPatch = quiet(groundPatchNear);
+/** Yards stay at the far level (they color the ground, so dropping them would pop). */
+export function groundPatch(
+  s: ShapeBuilder,
+  x0: number,
+  z0: number,
+  x1: number,
+  z1: number,
+  hex: number,
+  rnd: () => number,
+): void {
+  s.essential(() => {
+    s.surface(SURFACE.dirt);
+    groundPatchNear(s, x0, z0, x1, z1, hex, rnd);
+    s.surface(SURFACE.plain);
+  });
+}
 export const wattle = quiet(wattleNear);
 export const picket = quiet(picketNear);
 export const sapling = quiet(saplingNear);

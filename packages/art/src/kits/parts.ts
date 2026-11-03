@@ -135,6 +135,11 @@ export interface WallSpec {
   plain?: boolean;
   /** V1B: faces left out (box skip letters, 'l' and 'r' for party walls). */
   skip?: string;
+  /**
+   * V1B: a party wall shows above the neighbor's eaves (a taller house stepping up): the height on
+   * each skipped side from which its face is drawn after all.
+   */
+  partyFrom?: { l?: number; r?: number };
 }
 
 /** How far cladding stands proud of the wall plane: windows and doors sit on top of it. */
@@ -173,6 +178,12 @@ function wallsBody(s: ShapeBuilder, w: WallSpec): void {
   const skip = (w.skip ?? '') + 'b' + (s.low ? 't' : '');
   s.surface(wallSurface(w.material)).jitter(WALL_JITTER);
   s.box(x0, y0, z0, x1, y1, z1, w.material === 'log' && s.low ? w.color : core, skip);
+  for (const side of ['l', 'r'] as const) {
+    const from = w.partyFrom?.[side];
+    if (from === undefined || from >= y1 - 0.01) continue;
+    const ya = Math.max(y0, from);
+    faceQuad(s, { dir: side === 'l' ? 'x-' : 'x+', plane: side === 'l' ? x0 : x1 }, z0, ya, z1, y1, 0, core);
+  }
   s.jitter(0).surface(SURFACE.timber);
   s.levels(
     () => {
@@ -219,7 +230,7 @@ function wallsBody(s: ShapeBuilder, w: WallSpec): void {
  * posts and wall plate, brick and stone their coping band.
  */
 function farTrim(s: ShapeBuilder, w: WallSpec): void {
-  const { x0, z0, x1, z1, y0, y1 } = w;
+  const { x0, z0, x1, z1, y1 } = w;
   const m = w.material;
   if (m === 'log' || m === 'weatherboard') return;
   const o = claddingDepth(m) * 0.6 + 0.004;
@@ -232,12 +243,11 @@ function farTrim(s: ShapeBuilder, w: WallSpec): void {
     for (const { f, u0, u1 } of faces) strip(f, u0, y1 - 0.05, u1, y1, palette.stone);
     return;
   }
+  // Posts are a pixel wide from where the far level shows; the plates and floor beams still read.
   s.surface(SURFACE.timber);
   for (const { f, u0, u1 } of faces) {
     strip(f, u0, y1 - 0.055, u1, y1, w.trim);
     if (m === 'timber') for (const y of w.beams ?? []) strip(f, u0, y - 0.03, u1, y + 0.03, w.trim);
-    strip(f, u0, y0, u0 + 0.045, y1 - 0.055, w.trim);
-    strip(f, u1 - 0.045, y0, u1, y1 - 0.055, w.trim);
   }
 }
 
@@ -478,17 +488,20 @@ export function windowPart(
   s.levels(
     () => windowNear(s, f, u, y, w, h, style, rnd, o),
     () => {
-      s.surface(SURFACE.plain);
-      faceQuad(s, f, u - w / 2 - fw, y - h / 2 - fw, u + w / 2 + fw, y + h / 2 + fw, o + 0.012, style.frame);
-      s.glow(1).surface(SURFACE.glass);
-      faceQuad(s, f, u - w / 2, y - h / 2, u + w / 2, y + h / 2, o + 0.018, palette.windowDay);
-      s.glow(0);
+      // Layered quads, far enough apart not to fight in depth: the shutters as one board behind the
+      // glass (or the frame, for a window without them), the glass; the flower box in front.
       if (style.shutter !== null) {
         s.surface(SURFACE.timber);
-        const sw = w * 0.42;
-        faceQuad(s, f, u - w / 2 - fw - sw, y - h / 2, u - w / 2 - fw, y + h / 2, o + 0.016, style.shutter);
-        faceQuad(s, f, u + w / 2 + fw, y - h / 2, u + w / 2 + fw + sw, y + h / 2, o + 0.016, style.shutter);
+        const sw = w * 0.42 + fw;
+        faceQuad(s, f, u - w / 2 - sw, y - h / 2, u + w / 2 + sw, y + h / 2, o + 0.01, style.shutter);
       }
+      // A frame a pixel wide is lost beside shutters at this distance: only bare windows keep it.
+      s.surface(SURFACE.plain);
+      if (style.shutter === null)
+        faceQuad(s, f, u - w / 2 - fw, y - h / 2 - fw, u + w / 2 + fw, y + h / 2 + fw, o + 0.02, style.frame);
+      s.glow(1).surface(SURFACE.glass);
+      faceQuad(s, f, u - w / 2, y - h / 2, u + w / 2, y + h / 2, o + 0.03, palette.windowDay);
+      s.glow(0);
       if (style.box) {
         s.surface(SURFACE.flowers);
         const by = y - h / 2 - 0.05;

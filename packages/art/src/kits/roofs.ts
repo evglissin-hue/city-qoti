@@ -39,6 +39,8 @@ export interface RoofSpec {
   soffit?: number;
   /** C4E: a lean-to's high side at c1 instead of c0 (for lean-tos on the low sides of a wall). */
   highAtC1?: boolean;
+  /** V1B: sides flush with a party wall ('l' x-, 'r' x+): no verge boards there. */
+  flush?: string;
 }
 
 /** Base colors per roof material when no swatch is chosen. */
@@ -101,6 +103,12 @@ function slope(
       s.surface(roofSurface).jitter(0.025);
       s.quad(add(bl, n, lip), add(br, n, lip), add(tr, n, lip), add(tl, n, lip), color, n);
       s.jitter(0);
+      // Only a slope that starts at the eaves shows its thickness (not a half-hip's or gambrel's
+      // upper slope, which starts at the break).
+      if (Math.abs(bl[1] - spec.y0) > 1e-3) {
+        s.surface(SURFACE.plain);
+        return;
+      }
       const eaveOut: V3 = [bl[0] - tl[0], 0, bl[2] - tl[2]];
       s.surface(m === 'thatch' ? roofSurface : SURFACE.timber);
       s.quad(
@@ -332,6 +340,7 @@ function verges(
 ): void {
   for (const ae of [a0, a1]) {
     const da = ae === a0 ? -1 : 1;
+    if (spec.ridgeAlongX && spec.flush?.includes(da < 0 ? 'l' : 'r')) continue;
     const out: V3 = spec.ridgeAlongX ? [da, 0, 0] : [0, 0, da];
     board(s, spec, P(ae, y0, c0), P(ae, yTop, cc0), out);
     board(s, spec, P(ae, y0, c1), P(ae, yTop, cc1), out);
@@ -465,10 +474,10 @@ export function gableEnds(
     .map((c) => [c, Math.max(y, roofAt(c) - t)] as const);
   for (const ae of [a0, a1]) {
     const out: V3 = along ? [ae === a0 ? -1 : 1, 0, 0] : [0, 0, ae === a0 ? -1 : 1];
-    const base = P(ae, y, (c0 + c1) / 2);
+    // V1B: the gable is convex, so a fan from its first corner closes it in the fewest triangles.
     const ring: V3[] = [P(ae, y, c0), ...top.map(([c, yy]) => P(ae, yy, c)), P(ae, y, c1)];
     s.essential(() => {
-      for (let i = 0; i < ring.length - 1; i++) s.tri(base, ring[i]!, ring[i + 1]!, hex, out);
+      for (let i = 1; i < ring.length - 1; i++) s.tri(ring[0]!, ring[i]!, ring[i + 1]!, hex, out);
     });
   }
 }

@@ -158,7 +158,7 @@ export function orchardTree(
   const top = mixHex(leaf, season === 0 ? 0xf7e8ee : 0xc8e070, season === 0 ? 0.25 : 0.15);
   s.levels(
     () => s.blob(x, 0.6 * k, z, 0.3 * k, 0.22 * k, 0.3 * k, leaf, 1, rnd, 0.1, top),
-    () => s.blob(x, 0.6 * k, z, 0.3 * k, 0.22 * k, 0.3 * k, leaf, 0, undefined, 0, top),
+    () => s.blob(x, 0.6 * k, z, 0.3 * k, 0.22 * k, 0.3 * k, leaf, 1, undefined, 0, top),
   );
   {
     for (const t of tips)

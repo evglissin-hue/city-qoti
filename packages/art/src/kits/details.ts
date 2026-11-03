@@ -6,10 +6,11 @@ import { vary, type ShapeBuilder, type V3 } from '../geometry';
 import { palette } from '../palette';
 import { beam, cylX, cylZ, panel } from '../shapes';
 import type { GardenEdge } from './district';
-import { faceBox, facePoint, outwardOf, type Face } from './parts';
+import { faceBox, facePoint, faceQuad, outwardOf, type Face } from './parts';
 import { picket, wattle } from './props';
 import { roofPart, type RoofMaterial } from './roofs';
 import { FLOWERS } from './style';
+import { SURFACE } from '../surface';
 
 export const IVY = 0x47703a;
 export const IVY_LIGHT = 0x5f8a45;
@@ -23,6 +24,11 @@ export function ivyPart(
   top: number,
   rnd: () => number,
 ): void {
+  s.nearOnly(() => ivyNear(s, f, u0, u1, top, rnd));
+}
+
+function ivyNear(s: ShapeBuilder, f: Face, u0: number, u1: number, top: number, rnd: () => number): void {
+  s.surface(SURFACE.leaf);
   const n = Math.max(4, Math.round((u1 - u0) * 9 + top * 7));
   for (let i = 0; i < n; i++) {
     const t = rnd();
@@ -34,6 +40,7 @@ export function ivyPart(
     const r = 0.045 + rnd() * 0.04;
     s.blob(p[0], p[1], p[2], r, r * 0.9, r, vary(rnd() < 0.5 ? IVY : IVY_LIGHT, rnd, 0.8), 0);
   }
+  s.surface(SURFACE.plain);
 }
 
 /** A lean-to shed against a wall face: posts or boards, a sloping roof, logs or tools inside. */
@@ -308,6 +315,62 @@ export function bayWindow(
 ): void {
   const half = w / 2;
   const front = half * 0.62;
+  const out0 = outwardOf(f);
+  // V1B: the far level is the three lights as flat glass (lit at night) under the lead roof.
+  if (s.low) {
+    s.nearOnly(() => bayNear(s, f, u, y0, w, h, depth, frame, roof, rnd, [], o, box));
+    s.essential(() => {
+      const p = (uu: number, yy: number, oo: number): V3 => facePoint(f, uu, yy, o + oo);
+      const ring: [number, number][] = [
+        [u - half, 0],
+        [u - front, depth],
+        [u + front, depth],
+        [u + half, 0],
+      ];
+      s.glow(1).surface(SURFACE.glass);
+      for (let i = 0; i < 3; i++) {
+        const [ua, oa] = ring[i]!;
+        const [ub, ob] = ring[i + 1]!;
+        s.quad(p(ua, y0, oa), p(ub, y0, ob), p(ub, y0 + h, ob), p(ua, y0 + h, oa), palette.windowDay, [
+          out0[0],
+          0,
+          out0[2],
+        ]);
+      }
+      s.glow(0).surface(SURFACE.plain);
+      const ry = y0 + h;
+      s.quad(
+        p(u - half, ry, 0),
+        p(u + half, ry, 0),
+        p(u + front, ry + 0.02, depth + 0.04),
+        p(u - front, ry + 0.02, depth + 0.04),
+        roof,
+        [out0[0], 1, out0[2]],
+      );
+    });
+    lights.push(facePoint(f, u, y0 + h / 2, o + depth + 0.05));
+    return;
+  }
+  bayNear(s, f, u, y0, w, h, depth, frame, roof, rnd, lights, o, box);
+}
+
+function bayNear(
+  s: ShapeBuilder,
+  f: Face,
+  u: number,
+  y0: number,
+  w: number,
+  h: number,
+  depth: number,
+  frame: number,
+  roof: number,
+  rnd: () => number,
+  lights: V3[],
+  o: number,
+  box: boolean,
+): void {
+  const half = w / 2;
+  const front = half * 0.62;
   const p = (uu: number, yy: number, oo: number): V3 => facePoint(f, uu, yy, o + oo);
   const out = outwardOf(f);
   // Sill block and the three faces of the bay.
@@ -394,6 +457,47 @@ export function shopfront(
   rnd: () => number,
   lights: V3[],
   o = 0,
+): { fascia: V3; fasciaW: number } {
+  let r = { fascia: facePoint(f, (u0 + u1) / 2, h + 0.075, o + 0.062), fasciaW: u1 - u0 - 0.1 };
+  s.levels(
+    () => {
+      r = shopfrontNear(s, f, u0, u1, doorU, h, paint, rnd, lights, o);
+    },
+    () => {
+      // V1B: the far level: fascia, stall riser, the two display windows (lit) and the door, flat.
+      const riser = 0.16;
+      const door = 0.15;
+      s.surface(SURFACE.timber);
+      faceQuad(s, f, u0 - 0.04, h, u1 + 0.04, h + 0.18, o + 0.07, paint);
+      faceQuad(s, f, u0, 0, u1, h, o + 0.02, paint);
+      s.glow(1).surface(SURFACE.glass);
+      for (const [a, b] of [
+        [u0 + 0.03, doorU - door - 0.03],
+        [doorU + door + 0.03, u1 - 0.03],
+      ] as const) {
+        if (b - a < 0.08) continue;
+        faceQuad(s, f, a, riser + 0.02, b, h - 0.04, o + 0.035, palette.windowDay);
+        lights.push(facePoint(f, (a + b) / 2, (riser + h) / 2, o + 0.08));
+      }
+      s.glow(0).surface(SURFACE.timber);
+      faceQuad(s, f, doorU - door + 0.03, 0.02, doorU + door - 0.03, h - 0.02, o + 0.035, paint);
+      s.surface(SURFACE.plain);
+    },
+  );
+  return r;
+}
+
+function shopfrontNear(
+  s: ShapeBuilder,
+  f: Face,
+  u0: number,
+  u1: number,
+  doorU: number,
+  h: number,
+  paint: number,
+  rnd: () => number,
+  lights: V3[],
+  o: number,
 ): { fascia: V3; fasciaW: number } {
   const riser = 0.16;
   const door = 0.15;

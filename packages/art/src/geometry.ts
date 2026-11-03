@@ -195,7 +195,8 @@ export class ShapeBuilder {
     const z = Math.abs(c);
     const hi = Math.max(x, y, z);
     const mid = x + y + z - hi - Math.min(x, y, z);
-    return hi < 0.16 || mid < 0.045;
+    // Long posts and beams stay a little thinner than short pieces, so roofs keep their supports.
+    return hi < 0.16 || mid < (hi > 0.45 ? 0.03 : 0.045);
   }
 
   /** V1B: runs a primitive, silently when it is minor at the low level (its random draws still run). */
@@ -491,6 +492,8 @@ export class ShapeBuilder {
     segments = 8,
     phase = 0,
   ): this {
+    // V1B: the far level rounds with fewer sides and never draws a bottom.
+    if (this.low && segments > 8) segments = Math.max(8, Math.round(segments / 2));
     const r = Math.max(rBottom, rTop);
     if (this.isMinor(r * 2, r * 2, y1 - y0) && !this.silent)
       return this.nearOnly(() => this.cylinder(cx, cz, rBottom, rTop, y0, y1, hex, segments, phase));
@@ -506,7 +509,7 @@ export class ShapeBuilder {
       if (rTop > 0) this.quad(b0, b1, t1, t0, hex, out);
       else this.tri(b0, b1, [cx, y1, cz], hex, out);
       if (rTop > 0) this.tri([cx, y1, cz], t0, t1, hex, [0, 1, 0]);
-      this.tri([cx, y0, cz], b0, b1, hex, [0, -1, 0]);
+      if (!this.low) this.tri([cx, y0, cz], b0, b1, hex, [0, -1, 0]);
     }
     return this;
   }

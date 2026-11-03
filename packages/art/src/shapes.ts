@@ -96,6 +96,8 @@ export function beam(s: ShapeBuilder, a: V3, b: V3, t: number, hex: number): voi
     ];
     s.quad(c(a, s0, t0), c(a, s1, t1), c(b, s1, t1), c(b, s0, t0), hex, out);
   }
+  // V1B: the far level leaves out a beam's end caps.
+  if (s.low) return;
   s.quad(c(b, -1, -1), c(b, 1, -1), c(b, 1, 1), c(b, -1, 1), hex, f);
   s.quad(c(a, -1, -1), c(a, 1, -1), c(a, 1, 1), c(a, -1, 1), hex, [-f[0], -f[1], -f[2]]);
 }
