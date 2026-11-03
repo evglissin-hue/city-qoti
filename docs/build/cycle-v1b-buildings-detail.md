@@ -38,7 +38,7 @@ V1.0: `ShapeBuilder.surface(id)` and the surface table, `palette2`, `KitBuildOpt
 - [x] Close `v1-shots.mjs` shots of the village of 130 read like the concept's street stills.
 - [x] Touching homes in the village fixture show joined rows (in the town showcase and the gallery, since the village's homes all stand apart): no hidden walls drawn, no z-fighting, chimneys on party walls (close shots).
 - [x] No color or silhouette pop when a building swaps level (a short clip zooming through the swap distance).
-- [x] Every building key builds within the chunk rebuild budget (4 ms each); all keys of the village of 130 build in under 300 ms (logged).
+- [ ] Every building key builds within the chunk rebuild budget (4 ms each); all keys of the village of 130 build in under 300 ms (logged). In Node every key averages under 4.3 ms (the town hall; homes under 3.6); in this container's browser (SwiftShader sharing the CPU) the village's 113 keys took 340 ms over two rebuilds, and a kit's first build pays the JIT (the town hall's up to 48 ms cold). To check on a laptop: the `[buildings]` log in a `?debug` session.
 - [ ] Definition of done in `docs/spec/22-quality.md`.
 
 ## Out of scope
@@ -105,6 +105,6 @@ The material and its patterns (V1A), ground, roads, trees, nature and water (V1C
 
 Homes (cottage, townhouse, shop, house, workshop, farmhouse) stay within 150 at the far level and 4,000 near (the worst, a stone shop with its flat, is 3,900, after proud stones and quoins lost the faces against the wall). The farmstead is a house and a barn on one lot: 157 far at most, 3,515 near. Nothing is over 430 far; the town hall is 338.
 
-**Builds**: `ShapeBuilder` keeps vertices in growable typed arrays and converts each color once, so building is about three times faster (the profile run of 720 builds: 8.6 s before, 2.8 s after). In Node the slowest keys average 1.3 to 4.3 ms (the town hall); in the browser (SwiftShader, sharing the CPU) the town showcase built 621 keys in 1,557 ms and the village of 130 its keys in the time logged below.
+**Builds**: `ShapeBuilder` keeps vertices in growable typed arrays and converts each color once, so building is about three times faster (the profile run of 720 builds: 8.6 s before, 2.8 s after). In Node the slowest keys average 1.3 to 4.3 ms (the town hall); in the browser (SwiftShader, sharing the CPU) the town showcase built 621 keys in 1,557 ms and the village of 130 its 113 keys in 340 ms over two rebuilds (26 keys in 67 ms, then 87 in 273 ms).
 
 **Not done** (follow-ups for V1X): the customization swatches still map to the old palette tokens (palette 2.0's values are V1A's to settle); decor props other than the fruit trees keep one level (small props shrink away at the decor distance anyway); props, decor and residents still write plain surfaces; the far town's dense window bloom at night is for V1A (see the wave notes).
