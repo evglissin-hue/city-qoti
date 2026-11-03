@@ -1,5 +1,6 @@
-import { createPatternArray } from '@qoti/art';
+import { createPatternArray, lastPatternMs, SEASON_LOOK, type Season } from '@qoti/art';
 import { Color, Vector3, Vector4, type DataArrayTexture, type PerspectiveCamera } from 'three';
+import type { Quality } from './quality';
 
 /** Most ground glow pools (lanterns, lit windows) drawn at once, nearest the view first. */
 export const MAX_GROUND_LIGHTS = 32;
@@ -51,6 +52,46 @@ export interface WorldEnv {
    * material (V1A) and the ground shader (V1C). Flat until V1A writes the generators.
    */
   patterns: { value: DataArrayTexture };
+  /**
+   * V1A: the season's look on the kit material (C5E builds on these): snow cover on upward faces
+   * (0 to 1), the tint multiplied into foliage surfaces, and the sway strength of leaf and flower
+   * faces. Set by `applySeasonLook`.
+   */
+  snow: { value: number };
+  seasonTint: { value: Color };
+  sway: { value: number };
+}
+
+/** The renderer's season names, in the sim calendar's order (0 spring to 3 winter). */
+export const SEASONS: readonly Season[] = ['spring', 'summer', 'autumn', 'winter'];
+
+/**
+ * V1A: sets the season's look on the env (snow, foliage tint). Returns true when it changed, so
+ * the caller can drop the still-frame cache (`renderer.invalidateStatic()`).
+ */
+export function applySeasonLook(env: WorldEnv, season: Season): boolean {
+  const look = SEASON_LOOK[season];
+  const tint = new Color(look.tint);
+  if (env.snow.value === look.snow && env.seasonTint.value.equals(tint)) return false;
+  env.snow.value = look.snow;
+  env.seasonTint.value.copy(tint);
+  return true;
+}
+
+/** V1A: anisotropic filtering of the pattern array per preset (capped by the GPU's maximum). */
+export const PATTERN_ANISOTROPY: Record<Quality, number> = { low: 2, medium: 4, high: 8, ultra: 16 };
+
+/**
+ * V1A: applies the preset's anisotropy to the pattern array (a re-upload of the texture on a
+ * change, so call it on a quality change only). Returns true when it changed.
+ */
+export function setPatternAnisotropy(env: WorldEnv, quality: Quality, max: number): boolean {
+  const a = Math.max(1, Math.min(PATTERN_ANISOTROPY[quality], max));
+  const tex = env.patterns.value;
+  if (tex.anisotropy === a) return false;
+  tex.anisotropy = a;
+  tex.needsUpdate = true;
+  return true;
 }
 
 /** Where to build first: the view's focus once the renderer has drawn, else the start area. */
@@ -82,8 +123,21 @@ export function createWorldEnv(camera: PerspectiveCamera): WorldEnv {
     detailDistance: 80,
     buildingDetail: 75,
     viewRevision: 0,
-    patterns: { value: createPatternArray() },
+    patterns: { value: createPatterns() },
+    snow: { value: 0 },
+    seasonTint: { value: new Color(SEASON_LOOK.spring.tint) },
+    sway: { value: 1 },
   };
+}
+
+/** The pattern array, generated once per page (both laptops build the same texels) and logged. */
+let shared: DataArrayTexture | null = null;
+function createPatterns(): DataArrayTexture {
+  if (shared) return shared;
+  shared = createPatternArray();
+  if (typeof location !== 'undefined' && location.search.includes('debug'))
+    console.info(`[qoti] pattern array generated in ${lastPatternMs().toFixed(1)} ms`);
+  return shared;
 }
 
 /** Shared GLSL helpers: a cheap hash, value noise and a small fbm. */

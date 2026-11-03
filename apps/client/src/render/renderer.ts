@@ -1,3 +1,4 @@
+import type { Season } from '@qoti/art';
 import { calendar, MAP_SIZE, TILE_FP, type SeatId } from '@qoti/sim';
 import {
   CanvasTexture,
@@ -16,14 +17,14 @@ import {
   Vector3,
   WebGLRenderer,
   type Material,
-  type MeshStandardMaterial,
+  type MeshLambertMaterial,
   type WebGLRenderTarget,
 } from 'three';
 import { CameraController, FOV } from '../input/camera';
 import type { Mirror } from '../state/mirror';
 import type { EntityPick, Ghost, RenderApi, TilePick } from './api';
 import { fpToWorld, levelY } from './coords';
-import { createWorldEnv, type WorldEnv } from './env';
+import { applySeasonLook, createWorldEnv, SEASONS, setPatternAnisotropy, type WorldEnv } from './env';
 import {
   layerFactories,
   type AgentsLayer,
@@ -37,7 +38,7 @@ import {
 import { StillCache } from './cache';
 import { GpuTimer } from './gpuTimer';
 import { layerRoot, MOVING_LAYER, STATIC_LAYER } from './layerTags';
-import { lightingAt } from './lighting';
+import { hazeFor, lightingAt } from './lighting';
 import { LOOK_TONE_MAPPING } from './look';
 import { createWorldMaterial } from './material';
 import { pickTileFromRay } from './picking';
@@ -132,7 +133,7 @@ export class Renderer implements RenderApi {
   /** V1.0: GPU time per drawn frame, where the browser offers a timer (`?debug` overlay, perf). */
   readonly gpuTimer: GpuTimer;
   /** The kit material every layer shares (material.ts). */
-  private readonly material: MeshStandardMaterial;
+  private readonly material: MeshLambertMaterial;
   private readonly layers: RenderLayer[];
   /** Each render layer's root, and whether it is a moving layer. */
   private readonly roots: { root: Scene; moving: boolean }[] = [];
@@ -342,7 +343,8 @@ export class Renderer implements RenderApi {
   }
 
   private updateLighting(): void {
-    const { hour, minute } = calendar(this.mirror.tick.value);
+    const { hour, minute, season } = calendar(this.mirror.tick.value);
+    this.applySeason(SEASONS[season]!);
     const h = this.hourOverride ?? hour + Math.floor(minute / 15) / 4;
     if (h === this.lightHour) return;
     this.lightHour = h;
@@ -387,6 +389,18 @@ export class Renderer implements RenderApi {
 
   private readonly sunDir = new Vector3(0, 1, 0);
 
+  /** V1A: the season's look (snow, foliage tint, the grade); drops the still frame on a change. */
+  private applySeason(season: Season): void {
+    if (season === this.season) return;
+    this.season = season;
+    applySeasonLook(this.env, season);
+    this.lean?.setSeason(season);
+    this.post?.setSeason(season);
+    this.invalidateStatic();
+  }
+
+  private season: Season | null = null;
+
   /** A soft vertical sky gradient from the top color down to the horizon (which matches the fog). */
   private paintSky(top: Color, horizon: Color): void {
     const g = this.skyCanvas.getContext('2d');
@@ -417,8 +431,7 @@ export class Renderer implements RenderApi {
     this.env.focus.copy(target);
     this.post?.setViewDistance(dist);
     this.lean?.setViewDistance(dist);
-    fog.near = dist * 1.3 + 30;
-    fog.far = dist * 3.2 + 140;
+    Object.assign(fog, hazeFor(dist));
     if (this.lean || !this.three.shadowMap.enabled) return;
     const half = Math.min(140, Math.max(18, dist * 0.95));
     const cam = this.sun.shadow.camera;
@@ -739,6 +752,8 @@ export class Renderer implements RenderApi {
       });
     }
     this.sun.castShadow = shadows;
+    if (setPatternAnisotropy(this.env, q, this.three.capabilities.getMaxAnisotropy()))
+      this.invalidateStatic();
     this.env.motion = preset.ambientMotion;
     this.env.detailDistance = preset.decorDistance;
     this.env.buildingDetail = buildingDetailNow(q);

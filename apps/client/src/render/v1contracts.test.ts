@@ -160,22 +160,24 @@ describe('quality presets (V1.0)', () => {
   });
 });
 
-describe('the look (V1.0 split)', () => {
-  it('keeps the values post.ts used before the split', () => {
-    expect(bloomFor(0)).toEqual({ strength: 0.25, threshold: 0.92 });
-    expect(bloomFor(1).strength).toBeCloseTo(0.7);
-    expect(bloomFor(1).threshold).toBeCloseTo(0.72);
+describe('the look (V1A values)', () => {
+  it('blooms at golden hour and night only, tilts only well back, and grades by season', () => {
+    expect(bloomFor(0)).toEqual({ strength: 0, threshold: 0.9 });
+    expect(bloomFor(0.05).strength).toBeGreaterThan(0);
+    expect(bloomFor(1).strength).toBeCloseTo(0.25);
+    expect(bloomFor(1).threshold).toBeCloseTo(0.7);
     expect(tiltFor(40)).toBe(0);
-    expect(tiltFor(115)).toBeCloseTo(1.1);
-    expect(tiltFor(400)).toBeCloseTo(2.2);
+    expect(tiltFor(102.5)).toBeCloseTo(0.4);
+    expect(tiltFor(400)).toBeCloseTo(0.8);
     const u = lookUniforms();
     applyGrade(u, 'spring', 0);
-    expect(u.uLookLift.value.toArray()).toEqual([0, 0.012, 0.03]);
-    expect(u.uLookSaturation.value).toBeCloseTo(1.06);
+    expect(u.uLookLift.value.toArray()).toEqual([0, 0.008, 0.024]);
+    expect(u.uLookSaturation.value).toBeCloseTo(1);
     applyGrade(u, 'spring', 1);
     expect(u.uLookLift.value.x).toBeCloseTo(0.018);
-    expect(u.uLookGain.value.y).toBeCloseTo(0.955);
-    expect(u.uLookVignette.value).toBe(0.8);
+    applyGrade(u, 'winter', 0);
+    expect(u.uLookSaturation.value).toBeLessThan(0.9);
+    expect(u.uLookVignette.value).toBe(0.14);
     expect(u.uLookTiltCenter.value).toBe(0.5);
   });
 });

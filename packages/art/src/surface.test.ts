@@ -103,8 +103,8 @@ describe('ShapeBuilder surfaces (V1.0)', () => {
 });
 
 describe('pattern array (V1.0)', () => {
-  it('has a layer per surface plus the noise layer, flat until V1A', () => {
-    const tex = createPatternArray();
+  it('has a layer per surface plus the noise layer, and fills flat on request', () => {
+    const tex = createPatternArray(256, 'flat');
     expect(tex.image.width).toBe(256);
     expect(tex.image.height).toBe(256);
     expect(tex.image.depth).toBe(20);
@@ -116,7 +116,7 @@ describe('pattern array (V1.0)', () => {
         throw new Error(`texel ${i / 4} is not flat`);
       }
     }
-    expect(createPatternArray(64).image.width).toBe(64);
+    expect(createPatternArray(64, 'flat').image.width).toBe(64);
   });
 });
 

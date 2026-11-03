@@ -50,10 +50,17 @@ export {
   createEmissiveKitMaterial,
   createGhostMaterial,
   createKitMaterial,
+  createLeanKitMaterial,
   createResidentMaterial,
+  KIT_FRESNEL_GLSL,
+  kitSurfaceUniforms,
   MOTION,
+  patchKitShader,
+  SEASON_LOOK,
   setKitMaterialHooks,
+  surfaceTable,
   type KitMaterialHooks,
+  type KitSurfaceUniforms,
   type Season,
 } from './materials';
 export {
@@ -66,7 +73,15 @@ export {
   TERRAIN_COLORS,
   type Palette2Single,
 } from './palette';
-export { createPatternArray, PATTERN_CHANNELS, PATTERN_ONE, PATTERN_SIZE } from './patterns';
+export {
+  createPatternArray,
+  generatePatterns,
+  lastPatternMs,
+  PATTERN_CHANNELS,
+  PATTERN_ONE,
+  PATTERN_SIZE,
+  type PatternFill,
+} from './patterns';
 export {
   NOISE_LAYER,
   NOISE_SCALE,
