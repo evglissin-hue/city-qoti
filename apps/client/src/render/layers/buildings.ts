@@ -1,6 +1,7 @@
 import { drawDef } from '../defs';
 import { footprintSize, type BuildingView } from '@qoti/sim';
-import { Matrix4, Vector3 } from 'three';
+import { Matrix4, Vector3, type BufferGeometry } from 'three';
+import type { Mirror } from '../../state/mirror';
 import { KeyedBatch } from '../batch';
 import {
   buildingKey,
@@ -8,14 +9,85 @@ import {
   buildingVariantGeometry,
   isSeasonal,
   setDrawSeason,
+  setRowReader,
   setSoilReader,
   standLevel,
 } from '../kitGeometry';
+import { isRowKit } from '@qoti/art';
 import { levelFor, SwapQueue, type Level } from '../lod';
 import type { LayerContext, RenderLayer } from './types';
 
 /** Beyond this many tiles from the camera, buildings swap to their low detail version (V1.0: the preset's). */
 const LOD_DISTANCE = 75;
+
+/**
+ * V1B: what building keys cost to build (the chunk rebuild budget is 4 ms a key): every rebuild
+ * that builds keys adds to these, and logs its own total in a dev or ?debug session.
+ */
+export const buildingBuildStats = { keys: 0, ms: 0, worst: 0, worstKey: '' };
+let runKeys = 0;
+let runMs = 0;
+const logBuilds =
+  typeof location !== 'undefined' && (import.meta.env?.DEV === true || location.search.includes('debug'));
+
+function timedBuild(key: string, make: () => BufferGeometry): BufferGeometry {
+  const t0 = performance.now();
+  const g = make();
+  const ms = performance.now() - t0;
+  const st = buildingBuildStats;
+  st.keys++;
+  st.ms += ms;
+  runKeys++;
+  runMs += ms;
+  if (ms > st.worst) {
+    st.worst = ms;
+    st.worstKey = key;
+  }
+  return g;
+}
+
+const probe = new Vector3();
+const toLocal = new Matrix4();
+const local = new Matrix4();
+
+/**
+ * V1B: a home's place in a row, for joined facades: on each side (the kit's x- and x+, at its
+ * front row) the neighbor it joins (a built row kit with the same facing, its front on the same
+ * line, standing at the same level) as `joinL` or `joinR` with the neighbor's kit, or `streetL` /
+ * `streetR` where a road runs past that side instead (a corner house dresses it).
+ */
+export function rowNeighbors(mirror: Mirror, b: BuildingView): Record<string, string | boolean> {
+  const out: Record<string, string | boolean> = {};
+  const def = drawDef(b.def);
+  if (!def || b.stage !== 'built' || !isRowKit(def.art.kit)) return out;
+  const [w, d] = def.size;
+  const level = standLevel(mirror, b.def, b.x, b.z, b.rot);
+  buildingMatrix(b.def, b.x, b.z, b.rot, 0, local);
+  for (const [side, u] of [
+    ['L', -0.5],
+    ['R', w + 0.5],
+  ] as const) {
+    probe.set(u, 0, d - 0.5).applyMatrix4(local);
+    const tx = Math.floor(probe.x);
+    const tz = Math.floor(probe.z);
+    const id = mirror.occupant(tx, tz);
+    const nb = id && id !== b.id ? mirror.buildings.get(id) : undefined;
+    const ndef = nb ? drawDef(nb.def) : undefined;
+    if (nb && ndef && nb.stage === 'built' && nb.rot === b.rot && isRowKit(ndef.art.kit)) {
+      // The probe must fall in the neighbor's front row, on its facing edge.
+      toLocal.copy(buildingMatrix(nb.def, nb.x, nb.z, nb.rot, 0, toLocal)).invert();
+      probe.set(tx + 0.5, 0, tz + 0.5).applyMatrix4(toLocal);
+      const [nw, nd] = ndef.size;
+      const edge = side === 'L' ? probe.x > nw - 1 : probe.x < 1;
+      if (edge && probe.z > nd - 1 && standLevel(mirror, nb.def, nb.x, nb.z, nb.rot) === level) {
+        out[`join${side}`] = ndef.art.kit;
+        continue;
+      }
+    }
+    if (mirror.road(tx, tz) > 0) out[`street${side}`] = true;
+  }
+  return out;
+}
 
 /**
  * Buildings (C3D): every building as it stands (its seeded variant, the player's customization,
@@ -48,11 +120,14 @@ export function buildingsLayer(): RenderLayer {
       lod = c ? levelFor(undefined, c.distanceTo(camPos), ctx.env?.buildingDetail ?? LOD_DISTANCE) : 'high';
       lods.set(b.id, lod);
     }
-    batch.set(b.id, buildingKey(b, lod), () => buildingVariantGeometry(b, lod), m);
+    const key = buildingKey(b, lod);
+    batch.set(b.id, key, () => timedBuild(key, () => buildingVariantGeometry(b, lod)), m);
   }
 
   function rebuild(): void {
     if (!ctx || !batch) return;
+    runKeys = 0;
+    runMs = 0;
     const seen = new Set<number>();
     for (const b of ctx.mirror.buildings.values()) {
       seen.add(b.id);
@@ -70,6 +145,12 @@ export function buildingsLayer(): RenderLayer {
     }
     lastCam.set(Infinity, 0, 0);
     ctx.invalidate();
+    if (logBuilds && runKeys > 0) {
+      const st = buildingBuildStats;
+      console.info(
+        `[buildings] built ${runKeys} keys in ${runMs.toFixed(1)} ms (worst so far ${st.worst.toFixed(2)} ms: ${st.worstKey})`,
+      );
+    }
   }
 
   /**
@@ -113,6 +194,7 @@ export function buildingsLayer(): RenderLayer {
       ctx = c;
       setDrawSeason(c.mirror.clock.value.season);
       setSoilReader((x, z) => c.mirror.fertility(x, z));
+      setRowReader((b) => rowNeighbors(c.mirror, b));
       batch = new KeyedBatch(c.scene, c.material);
       rebuild();
     },

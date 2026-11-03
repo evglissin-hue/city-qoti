@@ -472,6 +472,19 @@ export function pileOf(
   rnd: () => number,
 ): void {
   if (level <= 0) return;
+  // V1B: far off, a pile is a block of its size and color.
+  s.proxy((b) => pileNear(b, good, level, x, y, z, rnd));
+}
+
+function pileNear(
+  s: ShapeBuilder,
+  good: string,
+  level: number,
+  x: number,
+  y: number,
+  z: number,
+  rnd: () => number,
+): void {
   const lv = Math.min(4, Math.round(level));
   switch (good) {
     case 'logs': {

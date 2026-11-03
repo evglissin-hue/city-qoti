@@ -10,6 +10,7 @@ const BUILDING_BUDGETS: Record<string, number> = {
   'herb-garden': 2800,
   cheesemaker: 3400,
   cottage: 3500,
+  dairy: 3000,
   farmstead: 4800,
   house: 3800,
   orchard: 3200,

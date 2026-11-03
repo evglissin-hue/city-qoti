@@ -81,6 +81,8 @@ export interface ConstructionOptions {
   /** Delivered material levels (0 to 4) by good id. */
   delivered?: Record<string, number>;
   seed?: number;
+  /** V1B: the level of detail (the far level drops props, poles and small stock by size). */
+  lod?: 'high' | 'low';
 }
 
 const FRAME = 0xb88a58;
@@ -205,11 +207,16 @@ function materials(
  * Craftsfolk townhouse): poles and planks up past the eaves, a ladder, a rope hoist and bricks
  * waiting on the planks. Drawn on top of the building as it stands.
  */
-export function upgradeScaffold(kit: string, size: [number, number], seed = 1): BufferGeometry {
+export function upgradeScaffold(
+  kit: string,
+  size: [number, number],
+  seed = 1,
+  lod: 'high' | 'low' = 'high',
+): BufferGeometry {
   const m: Massing = { ...DEFAULT_MASSING, ...(MASSING[kit] ?? {}) };
   const [w, d] = size;
   const rnd = seeded(seed * 29 + 3);
-  const s = new ShapeBuilder();
+  const s = new ShapeBuilder(lod);
   const x0 = m.inset[0];
   const z0 = m.inset[1];
   const x1 = w - m.inset[2];
@@ -249,7 +256,7 @@ export function constructionGeometry(o: ConstructionOptions): BufferGeometry {
   const m: Massing = { ...DEFAULT_MASSING, ...(MASSING[o.kit] ?? {}) };
   const [w, d] = o.size;
   const rnd = seeded((o.seed ?? 1) * 17 + o.stage);
-  const s = new ShapeBuilder();
+  const s = new ShapeBuilder(o.lod ?? 'high');
   const x0 = m.inset[0];
   const z0 = m.inset[1];
   const x1 = w - m.inset[2];
@@ -306,18 +313,11 @@ export function constructionGeometry(o: ConstructionOptions): BufferGeometry {
   s.rbox(x0 - 0.05, 0, z0 - 0.05, x1 + 0.05, fh * 0.6, z1 + 0.05, vary(palette.foundation, rnd, 0.5), 0.02);
   const n = Math.max(4, Math.round(((x1 - x0) * 2 + (z1 - z0) * 2) / 0.22));
   const per = stage === 1 ? Math.floor(n * 0.6) : n;
-  for (let i = 0; i < per; i++) {
-    const t = i / n;
-    const perim = (x1 - x0) * 2 + (z1 - z0) * 2;
-    let p = t * perim;
-    let x: number;
-    let z: number;
-    if (p < x1 - x0) [x, z] = [x0 + p, z0];
-    else if ((p -= x1 - x0) < z1 - z0) [x, z] = [x1, z0 + p];
-    else if ((p -= z1 - z0) < x1 - x0) [x, z] = [x1 - p, z1];
-    else [x, z] = [x0, z1 - (p - (x1 - x0))];
-    s.rbox(x - 0.09, fh * 0.6, z - 0.07, x + 0.09, fh, z + 0.07, vary(palette.stone, rnd, 1.4), 0.012);
-  }
+  // V1B: far off, the course of stones is one band round the foundation.
+  s.levels(
+    () => course(s, x0, z0, x1, z1, fh, n, per, rnd),
+    () => s.box(x0 - 0.09, fh * 0.6, z0 - 0.07, x1 + 0.09, fh, z1 + 0.07, palette.stone),
+  );
   if (stage === 1) {
     s.cylinder(x1 + 0.2, z1 + 0.05, 0.08, 0.09, 0, 0.09, vary(palette.wood, rnd, 0.5), 8);
     s.cylinder(x1 + 0.2, z1 + 0.05, 0.075, 0.075, 0.085, 0.09, 0xd8d2c4, 8);
@@ -370,4 +370,30 @@ export function constructionGeometry(o: ConstructionOptions): BufferGeometry {
   }
   materials(s, w, d, o.delivered ?? {}, rnd);
   return s.build();
+}
+
+/** The foundation's top course of stones, laid round the outline (all of it, or `per` of `n`). */
+function course(
+  s: ShapeBuilder,
+  x0: number,
+  z0: number,
+  x1: number,
+  z1: number,
+  fh: number,
+  n: number,
+  per: number,
+  rnd: () => number,
+): void {
+  for (let i = 0; i < per; i++) {
+    const t = i / n;
+    const perim = (x1 - x0) * 2 + (z1 - z0) * 2;
+    let p = t * perim;
+    let x: number;
+    let z: number;
+    if (p < x1 - x0) [x, z] = [x0 + p, z0];
+    else if ((p -= x1 - x0) < z1 - z0) [x, z] = [x1, z0 + p];
+    else if ((p -= z1 - z0) < x1 - x0) [x, z] = [x1 - p, z1];
+    else [x, z] = [x0, z1 - (p - (x1 - x0))];
+    s.rbox(x - 0.09, fh * 0.6, z - 0.07, x + 0.09, fh, z + 0.07, vary(palette.stone, rnd, 1.4), 0.012);
+  }
 }
