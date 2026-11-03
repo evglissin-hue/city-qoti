@@ -21,11 +21,19 @@ export function GuidePanel({ session }: { session: Session }) {
   const [farewellRead, setFarewellRead] = useState(() => readFarewell(session));
   const shown = guideShown(g, seat) && !(g.id === 'farewell' && farewellRead);
   // A new valley opens its first letter; the end opens the farewell. Other letters wait on the card.
+  // It waits its turn behind the invite, the away letter, a story letter and any dialog.
+  const ui = session.ui;
+  const busy =
+    ui.inviteOpen.value ||
+    !!ui.letter.value ||
+    !!ui.storyLetter.value ||
+    !!ui.dialog.value ||
+    !!ui.rankUp.value;
   useEffect(() => {
-    if (!shown || !g || opened.current === g.step) return;
+    if (!shown || !g || busy || opened.current === g.step) return;
     opened.current = g.step;
     if (g.step === 0 || g.id === 'farewell') setReading(g.step);
-  }, [shown, g?.step, g?.id]);
+  }, [shown, busy, g?.step, g?.id]);
   if (!shown || !g) return null;
   const letterOpen = reading === g.step;
   const close = () => {
