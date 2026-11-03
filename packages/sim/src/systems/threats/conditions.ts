@@ -27,4 +27,3 @@ export function bridgeBuilt(state: WorldState): boolean {
   for (let i = 0; i < road.length; i++) if (road[i] && water[i]) return true;
   return false;
 }
-

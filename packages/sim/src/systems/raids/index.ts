@@ -18,7 +18,8 @@ export const raids: System = {
       if (s.signs.length === 0) telegraph(state, ctx);
       if (!state.raid) {
         const start = raidStartTick(s);
-        if (state.tick >= start && state.tick < start + RAID_TICKS && raidsPossible(state)) startRaid(state, ctx);
+        if (state.tick >= start && state.tick < start + RAID_TICKS && raidsPossible(state))
+          startRaid(state, ctx);
       }
     }
     if (state.raid) raidTick(state, ctx);

@@ -103,7 +103,8 @@ export function signsFor(season: number): string[] {
 /** Days of warning today: two, a third with a built watchtower. */
 export function warningDays(state: WorldState): number {
   let n = WARNING_DAYS;
-  for (const b of towers(state)) n = Math.max(n, WARNING_DAYS + (content.buildingById.get(b.def)?.defense?.warningDays ?? 0));
+  for (const b of towers(state))
+    n = Math.max(n, WARNING_DAYS + (content.buildingById.get(b.def)?.defense?.warningDays ?? 0));
   return n;
 }
 
@@ -163,7 +164,10 @@ export function threatDay(state: WorldState, ctx: TickCtx): void {
       telegraphTick: 0,
       signs: [],
     };
-    r.telegraphTick = Math.min(latestTelegraph(r), Math.max(state.tick, raidStartTick(r) - warningDays(state) * TICKS_PER_DAY));
+    r.telegraphTick = Math.min(
+      latestTelegraph(r),
+      Math.max(state.tick, raidStartTick(r) - warningDays(state) * TICKS_PER_DAY),
+    );
     t.scheduled = r;
     changed = true;
   }

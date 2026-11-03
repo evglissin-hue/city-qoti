@@ -41,7 +41,9 @@ describe('volunteers', () => {
     s.watch.target = 1;
     rosterDay(s, createTickCtx(s));
     expect(s.watch.members).toHaveLength(1);
-    expect(findById(s.residents, adults[3]!.id)!.watch ?? null).toBe(adults[3]!.id === s.watch.members[0] ? findById(s.residents, adults[3]!.id)!.watch : null);
+    expect(findById(s.residents, adults[3]!.id)!.watch ?? null).toBe(
+      adults[3]!.id === s.watch.members[0] ? findById(s.residents, adults[3]!.id)!.watch : null,
+    );
   });
 
   it('nobody signs on without a Watch House, and the Watch stands down if it goes', () => {
@@ -145,8 +147,30 @@ describe('strength', () => {
     const f = threatFixture();
     const s = f.state;
     expect(watchStrength(s)).toBe(Math.round((5 * 120 * 70) / 10000));
-    expect(rejection(run(s, { t: 'watch.setPosture', guards: [[1, 1], [2, 2], [3, 3], [4, 4]] }))).toBe('TOO_MANY');
-    expect(rejection(run(s, { t: 'watch.setPosture', guards: [[40, 50], [70, 50]] }))).toBeUndefined();
+    expect(
+      rejection(
+        run(s, {
+          t: 'watch.setPosture',
+          guards: [
+            [1, 1],
+            [2, 2],
+            [3, 3],
+            [4, 4],
+          ],
+        }),
+      ),
+    ).toBe('TOO_MANY');
+    expect(
+      rejection(
+        run(s, {
+          t: 'watch.setPosture',
+          guards: [
+            [40, 50],
+            [70, 50],
+          ],
+        }),
+      ),
+    ).toBeUndefined();
     expect(s.watch.posture).toEqual([50 * S + 40, 50 * S + 70]);
   });
 

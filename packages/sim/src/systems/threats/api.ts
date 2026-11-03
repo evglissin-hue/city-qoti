@@ -124,7 +124,9 @@ function walled(reach: Uint8Array, front: number): boolean {
 
 /** Built watchtowers. */
 export function towers(state: WorldState): Building[] {
-  return state.buildings.filter((b) => b.stage === 'built' && !!content.buildingById.get(b.def)?.defense?.towerRange);
+  return state.buildings.filter(
+    (b) => b.stage === 'built' && !!content.buildingById.get(b.def)?.defense?.towerRange,
+  );
 }
 
 /** A tower's morale range in tiles. */
@@ -137,7 +139,12 @@ function near(b: Building, x: number, z: number, r: number): boolean {
 }
 
 /** Today's deterrence parts, permille each (walls, towers, lanterns, the Watch). */
-export function deterrenceParts(state: WorldState): { walls: number; towers: number; lanterns: number; watch: number } {
+export function deterrenceParts(state: WorldState): {
+  walls: number;
+  towers: number;
+  lanterns: number;
+  watch: number;
+} {
   const stores = valuables(state);
   const watch = Math.min(DETER_WATCH_MAX, watchStrength(state) * DETER_WATCH_PER);
   if (stores.length === 0) return { walls: 0, towers: 0, lanterns: 0, watch };
@@ -166,8 +173,7 @@ export function deterrenceAt(state: WorldState, tile: number): number {
   const x = tile % S;
   const z = Math.floor(tile / S);
   let d = Math.min(DETER_WATCH_MAX, watchStrength(state) * DETER_WATCH_PER);
-  if (towers(state).some((b) => near(b, x, z, towerRange(b))))
-    d += DETER_TOWERS;
+  if (towers(state).some((b) => near(b, x, z, towerRange(b)))) d += DETER_TOWERS;
   if (lanternLit(state, tile)) d += DETER_LANTERNS;
   return d;
 }

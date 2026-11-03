@@ -50,7 +50,10 @@ export const decide: HandlerFor<'bandit.decide'> = {
       announceResident(state, ctx, r);
       announceHousehold(state, ctx, household.id, true);
       announceTown(state, ctx);
-      chronicle(state, ctx, 'bandit-home', { text: [['name', `${r.given} ${r.family}`]], refs: [r.id, home.id] });
+      chronicle(state, ctx, 'bandit-home', {
+        text: [['name', `${r.given} ${r.family}`]],
+        refs: [r.id, home.id],
+      });
     }
     ctx.events.push({ e: 'threat.updated', t: threatView(state) });
   },

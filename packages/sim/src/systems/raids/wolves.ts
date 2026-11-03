@@ -145,7 +145,7 @@ export function packTile(state: WorldState, tick = state.tick): number {
   const p = packFor(state);
   if (!p.farm) return p.den;
   const to = frontOf(p.farm);
-  const half = (24 - WOLF_FROM + WOLF_TO) * TICKS_PER_HOUR / 2;
+  const half = ((24 - WOLF_FROM + WOLF_TO) * TICKS_PER_HOUR) / 2;
   const t = nightTicks(tick);
   const f = t <= half ? t : 2 * half - t;
   const ax = p.den % S;
@@ -181,7 +181,9 @@ export function wolvesTick(state: WorldState, ctx: TickCtx): void {
 
 function morning(state: WorldState, ctx: TickCtx): void {
   const p = packFor(state);
-  const place = p.farm ? (content.buildingById.get(p.farm.def)?.name.toLowerCase() ?? 'a farm') : 'the forest edge';
+  const place = p.farm
+    ? (content.buildingById.get(p.farm.def)?.name.toLowerCase() ?? 'a farm')
+    : 'the forest edge';
   const at = p.farm ? frontOf(p.farm) : p.den;
   chronicle(state, ctx, 'wolves', {
     text: [['place', p.farm ? `the ${place}` : place]],

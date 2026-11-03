@@ -103,7 +103,10 @@ export function rosterDay(state: WorldState, ctx: TickCtx): void {
   const raidToday = state.threats.scheduled !== null && raidDay(state.threats.scheduled) === today;
   w.duty = raidToday
     ? []
-    : members.filter((id) => (today + id) % DUTY_EVERY === 0 && findById(state.residents, id)!.watch!.shakenUntil <= state.tick);
+    : members.filter(
+        (id) =>
+          (today + id) % DUTY_EVERY === 0 && findById(state.residents, id)!.watch!.shakenUntil <= state.tick,
+      );
   for (const id of w.duty) findById(state.residents, id)!.watch!.dutyDay = nextDuty(id, today + 1);
 
   // The stipend and training.

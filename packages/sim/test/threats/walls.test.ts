@@ -40,7 +40,11 @@ describe('wall runs', () => {
     const s = villageFixture().state;
     const before = moneySnapshot(s);
     const inside = moneyInside(s);
-    const tiles: [number, number][] = [[20, 100], [21, 100], [22, 100]];
+    const tiles: [number, number][] = [
+      [20, 100],
+      [21, 100],
+      [22, 100],
+    ];
     expect(rejection(run(s, { t: 'wall.paint', def: 'palisade', tiles }))).toBeUndefined();
     const pieces = s.buildings.filter((b) => b.def === 'palisade');
     expect(pieces).toHaveLength(3);
@@ -58,7 +62,8 @@ describe('wall runs', () => {
   it('puts a gate where a run crosses a road', () => {
     const s = villageFixture().state;
     let road = -1;
-    for (let i = 0; i < S * S && road < 0; i++) if (s.map.road[i] && !s.map.water[i] && !s.map.occupant[i]) road = i;
+    for (let i = 0; i < S * S && road < 0; i++)
+      if (s.map.road[i] && !s.map.water[i] && !s.map.occupant[i]) road = i;
     const x = road % S;
     const z = Math.floor(road / S);
     const plan = canPaintWall(worldIndex(s).reader, 'palisade', [[x, z]], s.buildings, s.meta.valleyGate);

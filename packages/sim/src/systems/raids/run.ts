@@ -144,7 +144,13 @@ function spawnTiles(state: WorldState, side: RaidSide, n: number, goal: number):
     if (a < 0 || a >= S) continue;
     for (let depth = 0; depth < 6 && out.length < n; depth++) {
       const i =
-        side === 'n' ? depth * S + a : side === 's' ? (S - 1 - depth) * S + a : side === 'w' ? a * S + depth : a * S + (S - 1 - depth);
+        side === 'n'
+          ? depth * S + a
+          : side === 's'
+            ? (S - 1 - depth) * S + a
+            : side === 'w'
+              ? a * S + depth
+              : a * S + (S - 1 - depth);
       if (grid.cost[i]! > 0 && (!ok || ok[i]) && !out.includes(i)) {
         out.push(i);
         break;
@@ -170,7 +176,10 @@ function plan(state: WorldState, r: Raider, to: number): void {
     return;
   }
   const path = findPath(raiderGrid(state), state.map.height, r.tile, to);
-  r.move = path && path.length > 0 ? { path, step: 0, progress: 0, target: to, reason: 'task', version: state.networkVersion } : null;
+  r.move =
+    path && path.length > 0
+      ? { path, step: 0, progress: 0, target: to, reason: 'task', version: state.networkVersion }
+      : null;
 }
 
 /** Step 1: the raid comes at dusk. */
@@ -241,8 +250,12 @@ function dist(a: number, b: number): number {
 export function towerCrews(state: WorldState): [tower: Building, crew: number[]][] {
   const raid = state.raid;
   if (!raid) return [];
-  const hands = raid.watch.filter((w) => w.state === 'guard' || w.state === 'intercept').map((w) => w.resident);
-  const tw = state.buildings.filter((b) => b.stage === 'built' && !!content.buildingById.get(b.def)?.defense?.towerRange);
+  const hands = raid.watch
+    .filter((w) => w.state === 'guard' || w.state === 'intercept')
+    .map((w) => w.resident);
+  const tw = state.buildings.filter(
+    (b) => b.stage === 'built' && !!content.buildingById.get(b.def)?.defense?.towerRange,
+  );
   const posts = Math.min(tw.length, Math.floor(hands.length / 2));
   const two = posts > 0 && hands.length >= posts * 2 + 4;
   const out: [Building, number[]][] = [];
@@ -327,9 +340,7 @@ function stepRaider(state: WorldState, r: Raider): boolean {
 function loot(state: WorldState, r: Raider, b: Building): void {
   const rt = b.rt;
   if (!rt) return;
-  const order = content.goods
-    .map((g, i) => ({ i, p: g.basePrice }))
-    .sort((a, c) => c.p - a.p || a.i - c.i);
+  const order = content.goods.map((g, i) => ({ i, p: g.basePrice })).sort((a, c) => c.p - a.p || a.i - c.i);
   let room = RAIDER_CARRY;
   for (const { i } of order) {
     if (room === 0) break;
@@ -528,7 +539,7 @@ export function endRaid(state: WorldState, ctx: TickCtx): void {
     state.networkVersion += 1;
   }
   const focusB = findById(state.buildings, raid.raiders.find((r) => r.target)?.target ?? 0);
-  const focus = focusB ? frontOf(focusB) : raid.raiders[0]?.tile ?? 0;
+  const focus = focusB ? frontOf(focusB) : (raid.raiders[0]?.tile ?? 0);
   const kind = held ? 'raid-held' : repelled ? 'raid-repelled' : 'raid-lost';
   chronicle(state, ctx, kind, {
     text: [
