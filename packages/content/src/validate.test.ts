@@ -116,6 +116,7 @@ describe('content', () => {
         'pie-shop',
         'pit-trap',
         'river-dock',
+        'stone-bridge',
         'stone-wall',
         'tailor',
         'watch-house',
@@ -151,6 +152,9 @@ describe('content', () => {
         'lamp-post',
         'maypole',
         'notice-board',
+        // I3 (C5D): the Town Gate and Watch Lookout pieces
+        'gate-banner',
+        'lookout-bench',
         // I3 (C5.0): festival pieces
         'bonfire',
         'bunting',

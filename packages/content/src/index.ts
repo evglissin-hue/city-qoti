@@ -34,6 +34,7 @@ import * as St from './styles';
 import * as Sm from './stonemason';
 import * as Sw from './swatches';
 import * as T from './trees';
+import * as Th from './threats';
 import * as Tr from './traits';
 import * as VB from './villageBuildings';
 import * as VD from './villageDecor';
@@ -124,6 +125,7 @@ export const buildings: readonly BuildingDef[] = [
   VB.sheepPasture,
   VB.smithy,
   VB.spinner,
+  Th.stoneBridge,
   SB.stoneWall,
   B.storehouse,
   SB.tailor,
@@ -162,11 +164,13 @@ export const decor: readonly DecorDef[] = [
   D.flowerBed,
   VD.flowerCart,
   VD.fountain,
+  Th.gateBanner,
   D.hangingLantern,
   D.hedge,
   D.herbPlanter,
   VD.lampPost,
   D.lantern,
+  Th.lookoutBench,
   D.lowWall,
   VD.maypole,
   D.mooringPost,
@@ -322,6 +326,8 @@ export const achievements: readonly AchievementDef[] = [
 // prettier-ignore
 export const chronicle: readonly ChronicleTemplate[] = [
   C.achievement,
+  Th.banditHome,
+  Th.banditSent,
   L.birth,
   SC.circus,
   SC.coldSnap,
@@ -337,6 +343,9 @@ export const chronicle: readonly ChronicleTemplate[] = [
   C.householdArrived,
   C.householdLeft,
   C.patternDiscovered,
+  Th.raidHeld,
+  Th.raidLost,
+  Th.raidRepelled,
   L.rankUp,
   FC.renownLevel,
   L.seaside,
@@ -349,6 +358,8 @@ export const chronicle: readonly ChronicleTemplate[] = [
   SC.trialPassed,
   L.wedding,
   C.wishesDigest,
+  Th.wolves,
+  Th.wolvesHowl,
 ];
 
 // prettier-ignore

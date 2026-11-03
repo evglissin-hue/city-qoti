@@ -192,6 +192,8 @@ function untilHour(h: Hamlet, hour: number, hourly?: () => void): void {
  */
 export function autoplay(seed: string, days: number, opts: AutoplayOptions = {}): AutoplayResult {
   const h = startingTown(seed, { economy: opts.economy ?? 'standard' });
+  // C5D: the threat dial (valleys start Peaceful).
+  if (opts.threat) h.world.settings.threat = opts.threat;
   const planner = new Planner(h);
   // Every advisor that plays this run, in visit order.
   const team = advisors

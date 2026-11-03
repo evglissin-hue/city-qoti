@@ -16,6 +16,7 @@ export interface QotiHook {
   findDecorSpot(def: string): { fx: number; fz: number; tile: [number, number] } | null;
   findRoadRun(len: number): [number, number][] | null;
   runGolden(script: unknown): Promise<string>;
+  runSnapshot(data: string, to: number): Promise<string>;
   resyncs(): number;
   corrupt(): void;
   // I1 (C3E)

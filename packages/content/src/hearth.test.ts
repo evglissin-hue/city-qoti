@@ -78,6 +78,12 @@ describe('the Chronicle', () => {
     'shop-opened': ['name', 'shop'],
     // I3 (C5C)
     'first-sighting': ['species', 'place', 'credit'],
+    // I3 (C5D)
+    'bandit-home': ['name'],
+    'raid-held': ['side'],
+    'raid-lost': ['side', 'stolen'],
+    'raid-repelled': ['side', 'stolen'],
+    wolves: ['place'],
   };
 
   it('has at least three variants per kind, using only the params its callers pass', () => {

@@ -3,6 +3,7 @@
 // 1300 = 30% slower); they multiply. C5A: snow (-30%); C5D: fences and hedges for raiders only.
 import type { WorldState } from '../../contracts';
 import { snowWalk } from '../weather/effects';
+import { slowedByDecor } from '../defenses/factors';
 
 /** Who is moving: residents and carts here; raiders and wolves use the same hook in C5D. */
 export type Mover =
@@ -13,6 +14,7 @@ export type WalkFactor = (state: WorldState, mover: Mover, tile: number) => numb
 // Registry: one line per source, alphabetical by id.
 // prettier-ignore
 export const walkFactors: readonly [id: string, factor: WalkFactor][] = [
+  ['fences-hedges', slowedByDecor],
   ['snow', snowWalk],
 ];
 

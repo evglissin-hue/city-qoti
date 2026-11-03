@@ -21,6 +21,8 @@ import {
 } from '../systems/innovations/measures';
 // I3 (C5B): the festival twists' goals.
 import { festivalByWater, festivalMenu, festivalPieces, riverFrozen } from '../systems/festivals/predicates';
+// I3 (C5D): Barnaby Ashcombe's arc.
+import { bridgeBuilt, dressedWall, raidSeen, watchPosted } from '../systems/threats/conditions';
 
 export type CodePredicate = (
   state: WorldState,
@@ -90,8 +92,10 @@ export function pathRoute(state: WorldState, bind: Binding): boolean {
 // Registry: one line per predicate, alphabetical.
 // prettier-ignore
 export const codePredicates: ReadonlyMap<string, CodePredicate> = new Map<string, CodePredicate>([
+  ['bridgeBuilt', bridgeBuilt],
   ['clayPitWorked', clayPitWorked],
   ['desireLines', desireLines],
+  ['dressedWall', dressedWall],
   ['festivalByWater', festivalByWater],
   ['festivalMenu', festivalMenu],
   ['festivalPieces', festivalPieces],
@@ -99,10 +103,12 @@ export const codePredicates: ReadonlyMap<string, CodePredicate> = new Map<string
   ['pathRoute', pathRoute],
   ['plankRate', plankRate],
   ['portersBusy', portersBusy],
+  ['raidSeen', raidSeen],
   ['rankAtLeast', rankAtLeastCode],
   ['riverFrozen', riverFrozen],
   ['sawpitByRiver', sawpitByRiver],
   ['seasonIs', seasonIs],
   ['stoneRate', stoneRate],
   ['storyStep', storyStep],
+  ['watchPosted', watchPosted],
 ]);

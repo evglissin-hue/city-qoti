@@ -9,6 +9,7 @@ import type { Cart, Resident, WorldState } from '../contracts';
 import { tickOfDay } from '../systems/residents/time';
 import { isSkating } from '../systems/seasons/river';
 import { moodBand } from './hamlet';
+import { writeRaiderRows } from './season/raiders';
 import { writeVisitorRows } from './season/visitors';
 import { DANCE_HOUR } from '../systems/festivals';
 import { atFestival } from '../systems/festivals/override';
@@ -60,6 +61,8 @@ export function agentFrame(state: WorldState): Float32Array {
     // I3 (C5B): festival guests on the site; in the closing dance's hour, with both seats here, they dance.
     const guest = festive && atFestival(state, r);
     if (guest) extra |= AgentFlags.festival;
+    // I3 (C5D): the Watch on its feet (duty or a raid).
+    if (r.watch && (state.raid || state.watch.duty.includes(r.id))) extra |= AgentFlags.watch;
     if ((n + 1) * AGENT_STRIDE > scratch.length) {
       const bigger = new Float32Array(scratch.length * 2);
       bigger.set(scratch);
@@ -96,6 +99,17 @@ export function agentFrame(state: WorldState): Float32Array {
   });
   scratch = v.out;
   n = v.n;
+  // I3 (C5D): raiders on the map and the wolves on a wolf night.
+  const w = writeRaiderRows(state, scratch, n, (rows) => {
+    let size = scratch.length;
+    while (rows * AGENT_STRIDE > size) size *= 2;
+    const bigger = new Float32Array(size);
+    bigger.set(scratch);
+    scratch = bigger;
+    return scratch;
+  });
+  scratch = w.out;
+  n = w.n;
   return scratch.slice(0, n * AGENT_STRIDE);
 }
 
@@ -170,7 +184,7 @@ function pointAt(r: Resident, m: NonNullable<Resident['move']>, S: number, q: nu
 }
 
 /** Heading for any direction, snapped to eight (0 faces +z, clockwise from above). */
-function headingFor8(dx: number, dz: number): number {
+export function headingFor8(dx: number, dz: number): number {
   const ax = Math.abs(dx);
   const az = Math.abs(dz);
   // tan(22.5 degrees) is about 0.414: within that of an axis, face along the axis.

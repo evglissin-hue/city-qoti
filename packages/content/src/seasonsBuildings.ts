@@ -1,11 +1,9 @@
 import type { BuildingDef } from './types';
 
 // I3 building stubs (C5.0): ids, names, footprints and lanes so every I3 track agrees on them.
-// `modes: []` keeps each out of the build picker until its owner writes the numbers and the art
-// (then drop `modes`). Owners: the new trades and the River Dock C5B, the apiary C5C, the bath
-// house C5A, defenses and the Watch House C5D. Stand-in kits until C5E draws them.
-
-const HIDDEN = { modes: [] as BuildingDef['modes'] };
+// Owners: the new trades and the River Dock C5B, the apiary C5C, the bath house C5A, defenses and
+// the Watch House C5D. C5X: every stub now has its owner's numbers, so none is hidden from the
+// build picker any more. Stand-in kits until C5E draws them.
 
 /**
  * C5C: a row of hives and a keeper. Honey comes in as fast as the flowers around it allow: the
@@ -88,11 +86,18 @@ export const bellTower: BuildingDef = {
   category: 'defense',
   size: [1, 1],
   entrance: [0, 0],
+  cost: {
+    coins: 15,
+    goods: [
+      ['planks', 6],
+      ['stone', 4],
+    ],
+  },
+  work: 6,
   art: { kit: 'shed', params: { kit: 'bell-tower' } },
   tags: ['bell'],
   requires: { rank: 'village' },
   defense: {},
-  ...HIDDEN,
 };
 
 /**
@@ -189,11 +194,18 @@ export const gate: BuildingDef = {
   category: 'defense',
   size: [1, 1],
   entrance: [0, 0],
+  cost: {
+    coins: 4,
+    goods: [
+      ['logs', 3],
+      ['planks', 2],
+    ],
+  },
+  work: 3,
   art: { kit: 'shed', params: { kit: 'gate' } },
   tags: ['gate', 'wall'],
   requires: { rank: 'village' },
-  defense: { passable: 'gate' },
-  ...HIDDEN,
+  defense: { hp: 100, passable: 'gate' },
 };
 
 export const netTrap: BuildingDef = {
@@ -203,11 +215,12 @@ export const netTrap: BuildingDef = {
   category: 'defense',
   size: [1, 1],
   entrance: [0, 0],
+  cost: { coins: 4, goods: [['planks', 1]] },
+  work: 1,
   art: { kit: 'shed', params: { kit: 'net-trap' } },
   tags: ['trap'],
   requires: { rank: 'village' },
   defense: { trap: 'net' },
-  ...HIDDEN,
 };
 
 export const palisade: BuildingDef = {
@@ -217,11 +230,12 @@ export const palisade: BuildingDef = {
   category: 'defense',
   size: [1, 1],
   entrance: [0, 0],
+  cost: { coins: 1, goods: [['logs', 3]] },
+  work: 2,
   art: { kit: 'shed', params: { kit: 'palisade' } },
   tags: ['wall'],
   requires: { rank: 'village' },
   defense: { hp: 100, blocks: true },
-  ...HIDDEN,
 };
 
 /**
@@ -285,11 +299,12 @@ export const pitTrap: BuildingDef = {
   category: 'defense',
   size: [1, 1],
   entrance: [0, 0],
+  cost: { coins: 3 },
+  work: 1,
   art: { kit: 'shed', params: { kit: 'pit-trap' } },
   tags: ['trap'],
   requires: { rank: 'village' },
   defense: { trap: 'pit' },
-  ...HIDDEN,
 };
 
 /**
@@ -327,12 +342,14 @@ export const stoneWall: BuildingDef = {
   category: 'defense',
   size: [1, 1],
   entrance: [0, 0],
+  cost: { coins: 2, goods: [['stone', 4]] },
+  work: 4,
   art: { kit: 'shed', params: { kit: 'stone-wall' } },
   tags: ['wall'],
+  // Town rank, or earlier once Barnaby Ashcombe's arc unlocks it (hearth.unlocked; wall.paint).
   requires: { rank: 'town' },
   defense: { hp: 400, blocks: true },
   moduleSlots: [['wall', 1]],
-  ...HIDDEN,
 };
 
 /** C5B: cloth into coats. A bolt of cloth (6 coins) makes a coat worth 12 in three hours. */
@@ -377,11 +394,19 @@ export const watchHouse: BuildingDef = {
   category: 'defense',
   size: [2, 2],
   entrance: [0, 1],
+  cost: {
+    coins: 30,
+    goods: [
+      ['planks', 10],
+      ['stone', 6],
+    ],
+  },
+  upkeep: 1,
+  work: 12,
   art: { kit: 'house', params: { kit: 'watch-house' } },
   tags: ['watch-house'],
   requires: { rank: 'village' },
   defense: {},
-  ...HIDDEN,
 };
 
 export const watchtower: BuildingDef = {
@@ -391,9 +416,16 @@ export const watchtower: BuildingDef = {
   category: 'defense',
   size: [1, 1],
   entrance: [0, 0],
+  cost: {
+    coins: 12,
+    goods: [
+      ['logs', 6],
+      ['planks', 4],
+    ],
+  },
+  work: 8,
   art: { kit: 'shed', params: { kit: 'watchtower' } },
   tags: ['tower'],
   requires: { rank: 'village' },
   defense: { towerRange: 6, warningDays: 1 },
-  ...HIDDEN,
 };

@@ -117,6 +117,15 @@ Daily (`every: TICKS_PER_DAY`, `offset: dailyOffset(hour, extra)`): 00:02 season
 - Festival pieces placed with the decor tool while a festival is planned carry `Decor.festival` and come down at 04:00 on day 1 of the next season (the `festivals` system, 75).
 - `together.moment` kinds: `dance`, `fireworks`, `stroll` (rules in `16-coop.md`); C5E draws them, C5G may sound them.
 - Commissions use `book('commissions')`, the River Dock `book('dock')` (net: sales positive, purchases negative on the same line), market day fees `pay(household, 'treasury', 'fees')`, Generous gifts to the menu `pay(household, 'treasury', 'sales')`.
+## C5D as built (read if you meet these)
+
+- The threat fixture now sets the threat dial to Standard (valleys default to Peaceful, and Peaceful has no raids); ids and positions are unchanged. `raidAtDusk()` raiders start with no path: the raids system plans them on the next tick.
+- `canPaintWall(reader, def, tiles, buildings, valleyGate)` (rules, exported) is the wall ghost's answer: the pieces (a gate where the run crosses a road) or the reason, with `enclosed` ids for `WOULD_ENCLOSE`. `townReach` takes an optional set of tiles to pass through (gates).
+- Gates on roads: a run over a road puts a gate there, occupying the tile with the road kept; carts drive on roads, so they pass gates whatever their state; walkers pass open gates only.
+- Raiders ride in the agent frame (anim `run`, `AgentFlags.raider`, their first good as the carry); the wolf pack is three view-only rows from `1 << 23` + `1 << 20` (`AgentFlags.wolf`); Watch members on duty or in a raid carry `AgentFlags.watch`.
+- The result card is the `raid.ended` event's own `RaidResultView` (goods by id, condition points lost, renown, morale change); `raidResultView(record)` still gives the history's lighter card.
+- The bell's override (100) sends everyone but the Watch on its feet home; a festival evening (50) gives way to it, as the notes asked.
+- The autoplayer plays raids when `threat` is passed (`AutoplayOptions.threat`; `npm run tune` passes Standard as its seventh argument's default); other runs stay Peaceful, so their numbers do not move.
 
 ## Registries
 

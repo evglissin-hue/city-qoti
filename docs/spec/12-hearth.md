@@ -112,6 +112,8 @@ The four unlocks and the Swing are new decor with stand-in art until C5E draws t
 **Later patterns** (rules written in their iteration's planning cycle):
 
 - **I3**: Orchard Path, Children's Corner, Reading Nook, Town Gate, Watch Lookout, Pond Garden.
+  - **Town Gate** (C5D, Village rank): a built gate in a wall run (a palisade or stone wall piece beside it), with two lanterns within two tiles and a stone wall dressed with a module (C5C) within three tiles. Site bonus view +6 within 3; unlocks the gate banner.
+  - **Watch Lookout** (C5D, Village rank): a built watchtower with a bench within three tiles and a view over a lane (or a better road) or water within six. Site bonus view +5 within 3; unlocks the lookout bench.
 - **I4**: Arcade Street, Quiet Lane, Festival Ground, Allotments, Riverside Steps, Rooftop Garden, Bandstand Green, Old Tree Sanctuary.
 - **I5**: Grand Avenue, Clock Square, Harbor Quay, Cathedral Close, Night Market, Garden City Block, and more per new valley.
 

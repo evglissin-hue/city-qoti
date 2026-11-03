@@ -1,5 +1,6 @@
 import { content } from '@qoti/content';
 import {
+  base64ToBytes,
   canPaintRoad,
   canPlaceBuilding,
   canPlaceDecor,
@@ -162,6 +163,16 @@ export function installDebugHook(getSession: () => Session | null): void {
         const turns = [...script.turns];
         if ((turns[turns.length - 1]?.t ?? 0) < script.lastTurn) turns.push({ t: script.lastTurn, cmds: [] });
         await host.init({ kind: 'new', seed: script.seed, settings: script.settings }, turns);
+        return (await host.hash()).h;
+      } finally {
+        host.terminate();
+      }
+    },
+    /** I3 (C5D): replays a snapshot (base64) to turn `to` in a fresh sim worker; resolves with the hash. */
+    runSnapshot: async (data: string, to: number) => {
+      const host = new SimHost();
+      try {
+        await host.init({ kind: 'snapshot', data: base64ToBytes(data) }, [{ t: to, cmds: [] }]);
         return (await host.hash()).h;
       } finally {
         host.terminate();

@@ -39,3 +39,24 @@ test('the golden hamlet script hashes the same in a browser worker and in Node',
   console.log(`golden i1-hamlet: node ${nodeHash}, browser ${browserHash}`);
   expect(browserHash).toBe(nodeHash);
 });
+
+// C5D: the threat fixture's raid (an hour before dusk on the raid day, through to the end of the
+// raid) replays to the same hash in a browser worker as in Node.
+test('the threat fixture raid hashes the same in a browser worker and in Node', async ({ page }) => {
+  const out = execFileSync('npx', ['tsx', 'packages/sim/scripts/raid-hash.ts'], {
+    cwd: root,
+    encoding: 'utf8',
+    maxBuffer: 64 * 1024 * 1024,
+  }).trim();
+  const node = JSON.parse(out) as { data: string; to: number; hash: string };
+  expect(node.hash).toMatch(/^[0-9a-f]{16}$/);
+
+  await page.goto(`/${DEBUG_QUERY}`);
+  await page.waitForFunction(() => typeof window.__qoti?.runSnapshot === 'function');
+  const browserHash = await page.evaluate(([data, to]) => window.__qoti.runSnapshot(data, to), [
+    node.data,
+    node.to,
+  ] as const);
+  console.log(`threat fixture raid: node ${node.hash}, browser ${browserHash}`);
+  expect(browserHash).toBe(node.hash);
+});

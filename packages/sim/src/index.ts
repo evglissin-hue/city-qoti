@@ -218,6 +218,23 @@ export { habitatAt, hasSpecies, pestLoss, pollinatorFactor } from './systems/hab
 export { pondBlocked, pondCost, POND_FERTILITY, POND_MAX_HEIGHT, POND_MAX_TILES } from './commands/pond';
 export { CHUNKS, chunkScores, scoreChunks, updateHabitats } from './systems/nature/habitats';
 export { rollSightings } from './systems/nature/wildlife';
-export { deterrenceAt, isRaidActive, lanternLit, watchStrength, wealth } from './systems/threats/api';
+export {
+  deterrenceAt,
+  deterrenceParts,
+  frontOf,
+  heldValue,
+  isRaidActive,
+  lanternLit,
+  raidStartTick,
+  valuables,
+  watchStrength,
+  wealth,
+} from './systems/threats/api';
+// I3 (C5D): the threat schedule, the Watch and raids, for the autoplayer, the tuner and the bench.
+export { raidsPossible, thresholdFor } from './systems/threats/pressure';
+export { DUTY_EVERY } from './systems/watch';
+export { RAID_TICKS, raidTargets } from './systems/raids/run';
+export { pressureBand } from './view/season/threat';
+export { vacantHomes } from './systems/residents/places';
 // I3 (C5A): the winter stores, for the autoplayer and the tuner.
 export { larder, woodpile } from './systems/seasons/stores';
