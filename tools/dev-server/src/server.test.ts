@@ -88,4 +88,40 @@ describe('dev server', () => {
       timeout: 3000,
     });
   });
+
+  it('stores one Chronicle picture an entry, keeps it across restarts, and refuses strangers', async () => {
+    const { server, dataDir } = await start();
+    const valley = await createValley(server.port);
+    const url = (port: number, entry?: number) =>
+      `http://localhost:${port}/api/valleys/${valley.valleyId}/images${entry === undefined ? '' : `/${entry}`}`;
+    const png = (tag: number) => {
+      const b = new Uint8Array(100);
+      b.set([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+      b[99] = tag;
+      return b;
+    };
+    const put = (port: number, token: string | null, body: Uint8Array, entry = 12) =>
+      fetch(url(port, entry), {
+        method: 'PUT',
+        headers: { 'content-type': 'image/png', ...(token ? { authorization: `Bearer ${token}` } : {}) },
+        body,
+      });
+    expect((await put(server.port, valley.tokens[0]!, png(1))).status).toBe(201);
+    expect((await put(server.port, valley.tokens[1]!, png(2))).status).toBe(200);
+    expect((await put(server.port, null, png(3), 13)).status).toBe(401);
+    expect((await put(server.port, valley.tokens[0]!, new Uint8Array(300 * 1024).fill(0x89), 14)).status).toBe(413);
+    expect((await fetch(url(server.port, 12))).status).toBe(401);
+    await server.close();
+    servers.splice(servers.indexOf(server), 1);
+
+    const again = await startDevServer({ port: 0, dataDir, log: () => {} });
+    servers.push(again);
+    dirs.push(dataDir);
+    const res = await fetch(url(again.port, 12), { headers: { authorization: `Bearer ${valley.tokens[1]!}` } });
+    expect(res.status).toBe(200);
+    expect(res.headers.get('content-type')).toBe('image/png');
+    expect(new Uint8Array(await res.arrayBuffer())[99]).toBe(1);
+    const list = await fetch(url(again.port), { headers: { authorization: `Bearer ${valley.tokens[0]!}` } });
+    expect(await list.json()).toEqual({ entries: [12] });
+  });
 });

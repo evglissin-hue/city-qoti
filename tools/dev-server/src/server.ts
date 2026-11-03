@@ -1,5 +1,7 @@
 import {
   createValley,
+  handleImage,
+  IMAGE_ROUTE,
   MAX_IMPORT_CHARS,
   MAX_SNAPSHOT_BYTES,
   MemoryStorage,
@@ -30,7 +32,7 @@ function json(res: ServerResponse, status: number, body: unknown): void {
   res.end(JSON.stringify(body));
 }
 
-async function readBody(req: IncomingMessage, limit = 64 * 1024): Promise<string> {
+async function readBytes(req: IncomingMessage, limit: number): Promise<Buffer> {
   let size = 0;
   const chunks: Buffer[] = [];
   for await (const chunk of req) {
@@ -38,7 +40,11 @@ async function readBody(req: IncomingMessage, limit = 64 * 1024): Promise<string
     if (size > limit) throw new Error('Body too large');
     chunks.push(chunk as Buffer);
   }
-  return Buffer.concat(chunks).toString('utf8');
+  return Buffer.concat(chunks);
+}
+
+async function readBody(req: IncomingMessage, limit = 64 * 1024): Promise<string> {
+  return (await readBytes(req, limit)).toString('utf8');
 }
 
 /** The local relay: POST /api/valleys and the valley WebSocket, rooms kept in dataDir. */
@@ -65,6 +71,36 @@ export function startDevServer(opts: DevServerOptions): Promise<DevServer> {
         return;
       }
       if (req.method === 'GET' && url.pathname === '/api/health') return json(res, 200, { ok: true });
+      const image = IMAGE_ROUTE.exec(url.pathname);
+      if (image) {
+        const room = rooms.get(image[1]!);
+        if (!room) return json(res, 404, { error: 'No such valley' });
+        const length = req.headers['content-length'];
+        const out = await handleImage(
+          {
+            method: req.method ?? 'GET',
+            entry: image[2] === undefined ? null : Number(image[2]),
+            authorization: req.headers.authorization ?? null,
+            contentType: req.headers['content-type'] ?? null,
+            contentLength: length === undefined ? null : Number(length),
+            body: async (limit) => {
+              try {
+                return new Uint8Array(await readBytes(req, limit));
+              } catch {
+                return null;
+              }
+            },
+          },
+          room.images,
+          await room.storage.getMeta(),
+          Date.now(),
+        );
+        if (out.bytes) {
+          res.writeHead(out.status, { 'content-type': out.type ?? 'application/octet-stream', 'cache-control': 'private, max-age=31536000, immutable' });
+          res.end(Buffer.from(out.bytes));
+        } else json(res, out.status, out.json ?? {});
+        return;
+      }
       json(res, 404, { error: 'Not found' });
     })();
   });

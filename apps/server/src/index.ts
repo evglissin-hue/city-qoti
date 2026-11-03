@@ -2,6 +2,8 @@
 // valley relaying the room protocol. Routes: docs/spec/21-networking-and-saves.md, Hosting.
 import {
   createValley,
+  handleImage,
+  IMAGE_ROUTE,
   MAX_IMPORT_CHARS,
   randomId,
   RoomCore,
@@ -58,6 +60,13 @@ export default {
       return env.VALLEY.get(env.VALLEY.idFromName(ws[1]!)).fetch(request);
     }
 
+    // C5F: Chronicle pictures, handled by the valley's own object (its SQLite holds them).
+    const image = IMAGE_ROUTE.exec(url.pathname);
+    if (image) {
+      if (!sameOrigin(request, url)) return json({ error: 'Forbidden' }, 403);
+      return env.VALLEY.get(env.VALLEY.idFromName(image[1]!)).image(request, image[2] === undefined ? null : Number(image[2]));
+    }
+
     if (url.pathname.startsWith('/api/')) return json({ error: 'Not found' }, 404);
 
     // The client build, with single-page fallback to index.html (see wrangler.toml).
@@ -88,6 +97,53 @@ export class ValleyRoom extends DurableObject<Env> {
   /** Writes a new valley's meta and returns its tokens and invite fragments (once). */
   async create(valleyId: string, body: CreateValleyRequest) {
     return createValley(this.storage, valleyId, body, Date.now());
+  }
+
+  /** C5F: the image route (protocol handleImage) over this valley's SQLite, seat token required. */
+  async image(request: Request, entry: number | null): Promise<Response> {
+    const length = request.headers.get('content-length');
+    const out = await handleImage(
+      {
+        method: request.method,
+        entry,
+        authorization: request.headers.get('authorization'),
+        contentType: request.headers.get('content-type'),
+        contentLength: length === null ? null : Number(length),
+        body: async (limit) => {
+          const reader = request.body?.getReader();
+          if (!reader) return new Uint8Array(0);
+          const chunks: Uint8Array[] = [];
+          let size = 0;
+          for (;;) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            size += value.byteLength;
+            if (size > limit) {
+              await reader.cancel();
+              return null;
+            }
+            chunks.push(value);
+          }
+          const out = new Uint8Array(size);
+          let at = 0;
+          for (const c of chunks) {
+            out.set(c, at);
+            at += c.byteLength;
+          }
+          return out;
+        },
+      },
+      this.storage,
+      await this.storage.getMeta(),
+      Date.now(),
+    );
+    if (out.bytes) {
+      return new Response(out.bytes, {
+        status: out.status,
+        headers: { 'content-type': out.type ?? 'application/octet-stream', 'cache-control': 'private, max-age=31536000, immutable' },
+      });
+    }
+    return json(out.json ?? {}, out.status);
   }
 
   override async fetch(_request: Request): Promise<Response> {
