@@ -48,7 +48,9 @@ export const DEBUG_QUERY = '?debug&quality=low&creative';
 export const HAMLET_QUERY = '?debug&quality=low';
 
 export async function waitLive(page: Page): Promise<void> {
-  await page.waitForFunction(() => window.__qoti?.status() === 'live', null, { timeout: 60_000 });
+  // V1X: a joiner catching up beside a partner's page, both drawing in software on a 2-core CI
+  // runner, can take over a minute.
+  await page.waitForFunction(() => window.__qoti?.status() === 'live', null, { timeout: 120_000 });
 }
 
 export async function counts(page: Page) {

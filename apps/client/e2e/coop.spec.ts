@@ -5,7 +5,9 @@ import { clickTile, counts, DEBUG_QUERY, dragTiles, hashesAt, waitLive } from '.
 // within 250 ms, keep equal hashes, pause together, and a reloaded tab catches up.
 test('two seats build together in one valley', async ({ browser }) => {
   // Two seats rendering on SwiftShader share a few cores; the reload catch-up needs headroom.
-  test.setTimeout(240_000);
+  // V1X: two seats drawing the V1 look in software on a 2-core CI runner need the room (C4D's
+  // two-seat specs take up to 900 s for the same reason).
+  test.setTimeout(480_000);
   const contextA = await browser.newContext();
   const a = await contextA.newPage();
   await a.goto(`/${DEBUG_QUERY}`);

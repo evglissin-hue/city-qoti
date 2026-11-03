@@ -9,6 +9,8 @@ test.afterEach(async ({ browser }) => {
 
 // Guardrail: removing the partner's handmade decor asks first and leaves them a note.
 test("removing the partner's decor asks first and leaves them a note", async ({ browser }) => {
+  // V1X: two seats drawing the V1 look in software on a 2-core CI runner (see coop.spec.ts).
+  test.setTimeout(300_000);
   const a = await (await browser.newContext()).newPage();
   await a.goto(`/${DEBUG_QUERY}`);
   await a.getByTestId('new-online').click();
