@@ -205,6 +205,60 @@ export class ShapeBuilder {
     return this;
   }
 
+  /**
+   * V1B: clutter with a stand-in. At the high level `fn` draws into this builder; at the low level it
+   * draws into a scratch builder (the same random draws) and this one gets a single box over what it
+   * drew, in its average color: a log pile or a crate stack far off is a block of the right size and
+   * tint. Nothing is drawn while silent.
+   */
+  proxy(fn: (s: ShapeBuilder) => void): this {
+    if (!this.low) {
+      fn(this);
+      return this;
+    }
+    const t = new ShapeBuilder('high', this.bake);
+    fn(t);
+    if (this.silent || t.n === 0) return this;
+    let x0 = Infinity;
+    let y0 = Infinity;
+    let z0 = Infinity;
+    let x1 = -Infinity;
+    let y1 = -Infinity;
+    let z1 = -Infinity;
+    let r = 0;
+    let g = 0;
+    let b = 0;
+    for (let v = 0; v < t.n; v++) {
+      const x = t.positions[v * 3]!;
+      const y = t.positions[v * 3 + 1]!;
+      const z = t.positions[v * 3 + 2]!;
+      x0 = Math.min(x0, x);
+      y0 = Math.min(y0, y);
+      z0 = Math.min(z0, z);
+      x1 = Math.max(x1, x);
+      y1 = Math.max(y1, y);
+      z1 = Math.max(z1, z);
+      r += t.colors[v * 3]!;
+      g += t.colors[v * 3 + 1]!;
+      b += t.colors[v * 3 + 2]!;
+    }
+    // Back from linear to a hex color, so `box` takes it like any other.
+    tmpColor.setRGB(r / t.n, g / t.n, b / t.n);
+    const hex = tmpColor.getHex();
+    const k = 0.92;
+    const cx = (x0 + x1) / 2;
+    const cz = (z0 + z1) / 2;
+    return this.box(
+      cx - ((x1 - x0) / 2) * k,
+      y0,
+      cz - ((z1 - z0) / 2) * k,
+      cx + ((x1 - x0) / 2) * k,
+      y0 + (y1 - y0) * k,
+      cz + ((z1 - z0) / 2) * k,
+      hex,
+    );
+  }
+
   /** V1B: true when a primitive of these extents is dropped at the low level: largest under 0.16
    * tiles, or middle under 0.045 (knobs, pots, rails, pickets). */
   isMinor(a: number, b: number, c: number): boolean {

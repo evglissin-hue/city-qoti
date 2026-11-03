@@ -161,7 +161,8 @@ export function buildingKey(b: BuildingView, lod: 'high' | 'low' = 'high'): stri
       .map(([g, q]) => `${g}${pile(q, 10)}`)
       .sort()
       .join(',');
-    return `site:${b.def}:${stage}:${variantSeed(b)}:${delivered}`;
+    // V1B: sites have two levels too (the far one drops tools, poles and small stock).
+    return `site:${b.def}:${stage}:${variantSeed(b)}:${delivered}${lod === 'low' ? ':low' : ''}`;
   }
   const params = buildingParams(b);
   const keys = Object.keys(params).sort();
@@ -191,12 +192,19 @@ export function buildingVariantGeometry(b: BuildingView, lod: 'high' | 'low' = '
   if (stage !== null) {
     const delivered: Record<string, number> = {};
     for (const [good, qty] of b.rt?.construction?.delivered ?? []) delivered[good] = pile(qty, 10);
-    return constructionGeometry({ kit: def.art.kit, size: def.size, stage, delivered, seed: variantSeed(b) });
+    return constructionGeometry({
+      kit: def.art.kit,
+      size: def.size,
+      stage,
+      delivered,
+      seed: variantSeed(b),
+      ...(lod === 'low' ? { lod } : {}),
+    });
   }
   const g = kit.build({ ...buildingKitOptions(b), lod });
   if (!b.rt?.upgrading) return g;
   // C4E: a home upgrade under way: scaffolding round the house as it stands.
-  const merged = mergeFlat([g, upgradeScaffold(def.art.kit, def.size, variantSeed(b))]);
+  const merged = mergeFlat([g, upgradeScaffold(def.art.kit, def.size, variantSeed(b), lod)]);
   g.dispose();
   return merged;
 }
