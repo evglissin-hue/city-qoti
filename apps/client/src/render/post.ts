@@ -393,6 +393,7 @@ export class LeanFrame {
     const b = bloomFor(night);
     this.look.uLookBloomStrength.value = this.bloom ? b.strength : 0;
     this.look.uLookBloomThreshold.value = b.threshold;
+    applyGrade(this.look, this.season, this.warmth, night);
   }
 
   /** The seasonal grade hook (look.ts). */

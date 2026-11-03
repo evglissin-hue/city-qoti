@@ -4,13 +4,17 @@
 // detail version; ?set=nature lines up the scattered nature props in two variants each.
 import {
   constructionGeometry,
-  createKitMaterial,
+  createPatternArray,
   createResidentMaterial,
   kitById,
   kits,
+  kitSurfaceUniforms,
   palette,
+  patchKitShader,
+  setKitMaterialHooks,
   SPECIES_IDS,
   type KitBuildOptions,
+  type Season,
 } from '@qoti/art';
 import { content } from '@qoti/content';
 import type { BufferGeometry } from 'three';
@@ -20,7 +24,9 @@ import {
   Group,
   HemisphereLight,
   Mesh,
+  MeshLambertMaterial,
   MeshStandardMaterial,
+  NeutralToneMapping,
   PerspectiveCamera,
   PlaneGeometry,
   Scene,
@@ -28,6 +34,7 @@ import {
 } from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { makeFigure, type Figure } from './figures';
+import { buildSurfaces, SURFACE_ORDER } from './surfaces';
 
 const q = new URLSearchParams(location.search);
 const renderer = new WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
@@ -47,9 +54,14 @@ const ground = new Mesh(
 ground.rotation.x = -Math.PI / 2;
 scene.add(ground);
 
-const material = createKitMaterial();
-// Window panes and flames glow at night: a copy of the vertex colors blended toward window light.
+// V1A: the game's lean kit material (Lambert, the pattern array by surface id, glass and water
+// glint), with the gallery's own night glow: window panes and flames blend toward window light.
+const kitUniforms = kitSurfaceUniforms(createPatternArray());
+kitUniforms.uPat.value.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy());
+const material = new MeshLambertMaterial({ vertexColors: true });
+material.userData.kitUniforms = kitUniforms;
 material.onBeforeCompile = (shader) => {
+  patchKitShader(shader, kitUniforms);
   shader.uniforms.uNight = nightUniform;
   shader.vertexShader = shader.vertexShader
     .replace('#include <common>', '#include <common>\nattribute float glow;\nvarying float vGlow;')
@@ -58,9 +70,12 @@ material.onBeforeCompile = (shader) => {
     .replace('#include <common>', '#include <common>\nuniform float uNight;\nvarying float vGlow;')
     .replace(
       '#include <emissivemap_fragment>',
-      '#include <emissivemap_fragment>\ntotalEmissiveRadiance += vec3(1.0, 0.8, 0.5) * vGlow * uNight * 1.4;',
+      '#include <emissivemap_fragment>\ntotalEmissiveRadiance += vec3(1.0, 0.8, 0.5) * vGlow * uNight * 1.4 + qKitGlint(vGlow * uNight);',
     );
 };
+material.customProgramCacheKey = () => 'gallery-lean-kit';
+const seasonParam = (q.get('season') ?? 'spring') as Season;
+setKitMaterialHooks(material, { season: seasonParam, snow: seasonParam === 'winter' ? 1 : 0, sway: 1 });
 const nightUniform = { value: 0 };
 
 const holder = new Group();
@@ -472,6 +487,21 @@ if (sceneName === 'lineup') {
   camera.position.set(0.3, 1.5, 3.6);
   controls.target.set(0.1, 0.12, -0.15);
   state.spin = false;
+} else if (sceneName === 'surfaces') {
+  // V1A: every surface at three sizes; ?dist sets how far back the camera stands.
+  const { group } = buildSurfaces(material);
+  holder.add(group);
+  renderer.toneMapping = NeutralToneMapping;
+  const dist = Number(q.get('dist') ?? 26);
+  const yaw = Number(q.get('yaw') ?? 0.25);
+  camera.fov = 30;
+  camera.far = 400;
+  camera.updateProjectionMatrix();
+  camera.position.set(Math.sin(yaw) * dist * 0.7, dist * 0.72, Math.cos(yaw) * dist * 0.7);
+  controls.target.set(0, 0.2, 0.4);
+  ground.scale.setScalar(3);
+  state.spin = false;
+  info.textContent = `surfaces (${seasonParam}): ${SURFACE_ORDER.join(', ')}`;
 } else if (sceneName === 'residents') {
   buildResidents();
   camera.position.set(0.1, 1.1, 3.6);

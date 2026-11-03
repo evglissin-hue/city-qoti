@@ -156,18 +156,28 @@ vec3 lookDither(vec3 c, vec2 fragCoord) {
 }
 `;
 
-/** The grade for a season, with the dusk and dawn split tone (`warmth` 0 to 1: rose highs, violet lows). */
-export function applyGrade(u: LookUniforms, season: GradeSeason, warmth: number): void {
+/** The night each look's uniforms were last graded for (applyGrade keeps it between calls). */
+const nights = new WeakMap<LookUniforms, number>();
+
+/**
+ * The grade for a season, with the dusk and dawn split tone (`warmth` 0 to 1: rose highs, violet
+ * lows) and, V1A, the night (0 to 1: a little less saturation and bluer lows, so grass under the
+ * moon reads blue-green, not lawn green). `night` is remembered per uniform set, so a season or
+ * warmth change keeps it.
+ */
+export function applyGrade(u: LookUniforms, season: GradeSeason, warmth: number, night?: number): void {
   const g = GRADES[season];
   const w = warmth;
-  u.uLookLift.value.set(g.lift[0]! + 0.018 * w, g.lift[1]!, g.lift[2]! + 0.05 * w);
+  const n = night ?? nights.get(u) ?? 0;
+  nights.set(u, n);
+  u.uLookLift.value.set(g.lift[0]! + 0.018 * w, g.lift[1]! + 0.004 * n, g.lift[2]! + 0.05 * w + 0.018 * n);
   u.uLookGamma.value.fromArray(g.gamma);
   u.uLookGain.value.set(
     g.gain[0]! * (1 + 0.03 * w),
     g.gain[1]! * (1 - 0.045 * w),
     g.gain[2]! * (1 + 0.02 * w),
   );
-  u.uLookSaturation.value = g.saturation * (1 + 0.06 * w);
+  u.uLookSaturation.value = g.saturation * (1 + 0.06 * w) * (1 - 0.22 * n);
   u.uLookContrast.value = g.contrast;
 }
 

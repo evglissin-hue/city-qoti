@@ -85,8 +85,8 @@ const DAY: Omit<Key, 'hour'> = {
   hemiGround: 0x7a8f5a,
   hemiI: 1.0,
   fill: 0x9cc4ff,
-  fillI: 0.25,
-  exposure: 1.0,
+  fillI: 0.2,
+  exposure: 0.9,
   night: 0,
   warmth: 0,
 };
@@ -99,8 +99,8 @@ const GOLDEN: Omit<Key, 'hour'> = {
   hemiGround: 0x6a5a4c,
   hemiI: 1.0,
   fill: 0x9aa4e8,
-  fillI: 0.3,
-  exposure: 1.08,
+  fillI: 0.25,
+  exposure: 1.0,
   night: 0.05,
   warmth: 0.3,
 };
