@@ -236,6 +236,9 @@ export interface Content {
   threatById: ReadonlyMap<string, ThreatDef>;
   modules: readonly ModuleDef[];
   moduleById: ReadonlyMap<string, ModuleDef>;
+  /** C5C (additive): the six habitats in HABITAT_IDS order, and what scores each. */
+  habitats: readonly HabitatDef[];
+  habitatSources: readonly HabitatSource[];
   commissions: readonly CommissionDef[];
   commissionById: ReadonlyMap<string, CommissionDef>;
   /** In level order, 0 to 5. */
@@ -845,6 +848,29 @@ export interface WildlifeDef {
   effect?: [name: string, factor: Permille][];
   /** The Field Guide's line. */
   flavor: string;
+  /** C5C (additive): the Field Guide's hint before it is found, in words a player can act on. */
+  hint?: string;
+}
+
+/** A habitat (C5C): its name and what makes it, for the overlay and the Field Guide. */
+export interface HabitatDef {
+  id: HabitatName;
+  name: string;
+  blurb: string;
+}
+
+/**
+ * What adds to a chunk's habitat score (C5C), summed per chunk and capped at 255. `from` says what
+ * is counted and `ref` which: a decor or building tag (each piece, in the chunk of its tile or its
+ * footprint's center), a module id (each building wearing it), a map terrain name or water name
+ * (each tile), a tree stage name ('grown' or 'mature', each tile), a pattern id (each site anchored
+ * in the chunk), or 'windowBoxes' (each building with window boxes on).
+ */
+export interface HabitatSource {
+  habitat: HabitatName;
+  from: 'decor' | 'building' | 'module' | 'terrain' | 'water' | 'tree' | 'site' | 'custom';
+  ref: string;
+  points: number;
 }
 
 /** A threat (C5D). Raiders are a gang, not a species. */

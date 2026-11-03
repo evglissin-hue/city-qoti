@@ -158,6 +158,12 @@ describe('content', () => {
         'festival-stall',
         'festival-table',
         'flower-arch',
+        // I3 (C5C): play, and the I3 Hearth patterns' unlocks
+        'arbor-seat',
+        'pear-tree',
+        'reed-bed',
+        'see-saw',
+        'swing',
       ].sort(),
     );
     expect(roads.map((r) => r.id).sort()).toEqual(['lane', 'path', 'street']);

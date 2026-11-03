@@ -16,6 +16,8 @@ import * as I from './innovations';
 import * as L from './lives';
 import { familyNames } from './names';
 import * as N from './neighbors';
+import * as Na from './nature';
+import * as ND from './natureDecor';
 import * as P from './patterns';
 import * as R from './roads';
 import * as SA from './seasonsAchievements';
@@ -139,6 +141,7 @@ export const buildings: readonly BuildingDef[] = [
 // prettier-ignore
 export const decor: readonly DecorDef[] = [
   D.appleTree,
+  ND.arborSeat,
   D.barrels,
   D.bench,
   D.birdbath,
@@ -165,10 +168,14 @@ export const decor: readonly DecorDef[] = [
   VD.maypole,
   D.mooringPost,
   VD.noticeBoard,
+  ND.pearTree,
   D.planter,
   D.planterWall,
+  ND.reedBed,
   D.ringBench,
+  ND.seeSaw,
   D.signpost,
+  ND.swing,
   D.wildflowerVerge,
 ];
 
@@ -317,6 +324,7 @@ export const chronicle: readonly ChronicleTemplate[] = [
   SC.coldSnap,
   SC.firstFrost,
   C.firstOf,
+  ND.firstSighting,
   SC.firstWinter,
   SC.flood,
   C.founding,
@@ -476,6 +484,38 @@ export const twists: readonly FestivalTwistDef[] = [
 /** C5C writes about 30 species (one line each, alphabetical). */
 // prettier-ignore
 export const wildlife: readonly WildlifeDef[] = [
+  Na.blueTit,
+  Na.bumblebee,
+  Na.commonBlue,
+  Na.commonFrog,
+  Na.commonToad,
+  Na.dragonfly,
+  Na.elephantHawkMoth,
+  Na.firefly,
+  Na.gardenSnail,
+  Na.glowWorm,
+  Na.goldfinch,
+  Na.greatSpottedWoodpecker,
+  Na.greyHeron,
+  Na.honeybee,
+  Na.kingfisher,
+  Na.ladybird,
+  Na.mallard,
+  Na.muteSwan,
+  Na.peacockButterfly,
+  Na.perch,
+  Na.pipistrelle,
+  Na.robin,
+  Na.roeDeer,
+  Na.smoothNewt,
+  Na.songThrush,
+  Na.stagBeetle,
+  Na.stoat,
+  Na.swallow,
+  Na.tawnyOwl,
+  Na.trout,
+  Na.waterVole,
+  Na.wren,
 ];
 
 // prettier-ignore
@@ -487,6 +527,15 @@ export const threats: readonly ThreatDef[] = [
 /** C5C writes the modules (one line each, alphabetical). */
 // prettier-ignore
 export const modules: readonly ModuleDef[] = [
+  Na.arcade,
+  Na.balcony,
+  Na.bayWindow,
+  Na.dormer,
+  Na.extraFloor,
+  Na.flowerBoxes,
+  Na.ivy,
+  Na.porch,
+  Na.tower,
 ];
 
 /** C5B writes the commissions (one line each, alphabetical). */
@@ -567,6 +616,8 @@ export const content: Content = {
   threatById: byId(threats),
   modules,
   moduleById: byId(modules),
+  habitats: Na.habitats,
+  habitatSources: Na.habitatSources,
   commissions,
   commissionById: byId(commissions),
   renown,

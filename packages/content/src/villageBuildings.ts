@@ -523,6 +523,12 @@ export const tavern: BuildingDef = {
     { category: 'light', value: 1, radius: 3, nightValue: 5 },
   ],
   tags: ['tavern', 'cafe'],
+  // C5C: a porch or arcade, a bay window, flower boxes.
+  moduleSlots: [
+    ['front', 1],
+    ['side', 1],
+    ['wall', 1],
+  ],
   requires: { rank: 'village' },
   art: { kit: 'tavern' },
 };
@@ -647,6 +653,14 @@ export const townhouse: BuildingDef = {
   housing: { households: 1, residents: 5 },
   work: 12,
   tags: ['home'],
+  // C5C: customization phase 2.
+  moduleSlots: [
+    ['front', 1],
+    ['roof', 1],
+    ['side', 1],
+    ['top', 1],
+    ['wall', 1],
+  ],
   tier: 'craftsfolk',
   grows: { zone: 'homes-medium' },
   requires: { rank: 'village' },
