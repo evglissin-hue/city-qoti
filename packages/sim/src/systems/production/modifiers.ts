@@ -5,6 +5,7 @@
 // Felling and planting are never modified.
 import type { BuildingDef, ProductionMethod } from '@qoti/content';
 import type { Building, WorldState } from '../../contracts';
+import { quietYield } from '../festivals/levers';
 import { seasonalGrowth } from '../seasons/growing';
 import { frozenRiver } from '../seasons/river';
 import { farmWeather } from '../weather/effects';
@@ -21,6 +22,7 @@ export type YieldModifier = (
 // prettier-ignore
 export const yieldModifiers: readonly [id: string, modifier: YieldModifier][] = [
   ['frozen-river', frozenRiver],
+  ['quiet-hours', quietYield],
   ['seasonal', seasonalGrowth],
   ['soil', soilYield],
   ['weather', farmWeather],

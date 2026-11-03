@@ -7,7 +7,8 @@
 //   ./override.ts walks them to the site), the closing dance comes at 21:00 when both seats are
 //   here, and at 22:00 the festival is scored and rewarded and everyone goes home. Every evening it
 //   also looks for the other together moments (fireworks, the stroll). An unplanned day 6 is a
-//   quiet evening and costs nothing.
+//   quiet evening and costs nothing. The same pass carries C5B's other hourly beats: market day's
+//   fees and charm (./levers.ts) and a resident opening a shop (systems/residents/shops.ts).
 import { content } from '@qoti/content';
 import { FESTIVAL, MAP_SIZE, TICKS_PER_DAY, TICKS_PER_HOUR, TILE_FP } from '../../constants';
 import type { Rect, System, TickCtx, WorldState } from '../../contracts';
@@ -15,6 +16,7 @@ import { removeById } from '../../state/entities';
 import { isStandard } from '../../state/hamlet';
 import { worldIndex } from '../../state/worldIndex';
 import { festivalResultView, festivalView } from '../../view/seasons';
+import { emitMoney } from '../economy/emit';
 import { dailyOffset, hourOf } from '../economy/time';
 import { markCharmDirty, markCharmSoon } from '../hearth/charm/dirty';
 import { seasonNow, weatherToday } from '../seasons/api';
@@ -29,6 +31,9 @@ import {
   reserveMenu,
   returnReserved,
 } from './api';
+import { shopsHour } from '../residents/shops';
+import { rankAtLeast } from '../../state/village';
+import { isMarketDay, marketFees, recharm } from './levers';
 import { grantFestival } from './rewards';
 import { scoreFestival } from './score';
 import { rectCenter, siteRect } from './site';
@@ -157,6 +162,13 @@ export function festivalHour(state: WorldState, ctx: TickCtx): void {
     }
   }
   if (hour === DANCE_HOUR && celebrationDue(state)) togetherMoment(state, ctx, 'fireworks');
+  // Opening a shop (systems/residents/shops.ts), once a season at 10:00.
+  if (rankAtLeast(state, 'village')) shopsHour(state, ctx, hour);
+  // Market day: the outlets' charm comes and goes at midnight, and the stall fees at 18:00.
+  if (state.levers.marketDay) {
+    if (hour === 0) recharm(state);
+    if (hour === FESTIVAL.from && isMarketDay(state) && marketFees(state) > 0) emitMoney(state, ctx);
+  }
   if (hour === STROLL.hour && seasonNow(state).day === STROLL.day) {
     const w = weatherToday(state);
     if (w === 'clear' || w === 'cloudy') togetherMoment(state, ctx, 'stroll');

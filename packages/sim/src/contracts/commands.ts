@@ -51,7 +51,8 @@ export type Command =
   /** Price cap in pennies (0 = none) and subsidy in percent (0 to 50) for a food. */
   | { t: 'ledger.setPriceCap'; good: string; cap: number; subsidy: number }
   /** Set or clear (null) the Trading Post's standing order for a good. */
-  | { t: 'trade.setStandingOrder'; good: string; order: StandingOrderInput | null }
+  /** I3 (C5B): `via: 'dock'` sets the River Dock's own order (boats to Millhaven) instead of the post's. */
+  | { t: 'trade.setStandingOrder'; good: string; order: StandingOrderInput | null; via?: 'post' | 'dock' }
   /** Borrow coins from the County Bank, up to the credit limit. */
   | { t: 'loan.take'; coins: number }
   /** Repay coins on a loan (more than the balance repays it). */
