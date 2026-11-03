@@ -32,7 +32,8 @@ describe('pattern generators (V1A)', () => {
     for (const id of [SURFACE.plain, SURFACE.glass, SURFACE.water]) {
       const l = layerOf(data, id);
       for (let i = 0; i < l.length; i += 4) {
-        if (l[i] !== PATTERN_ONE || l[i + 1] !== 0 || l[i + 3] !== 0) throw new Error(`layer ${id} is not flat`);
+        if (l[i] !== PATTERN_ONE || l[i + 1] !== 0 || l[i + 3] !== 0)
+          throw new Error(`layer ${id} is not flat`);
       }
     }
   });

@@ -26,10 +26,34 @@ const GRADES: Record<
   GradeSeason,
   { lift: number[]; gamma: number[]; gain: number[]; saturation: number; contrast: number }
 > = {
-  spring: { lift: [0.0, 0.008, 0.024], gamma: [1.0, 1.015, 1.0], gain: [1.03, 1.01, 0.96], saturation: 1.0, contrast: 0.16 },
-  summer: { lift: [0.008, 0.006, 0.016], gamma: [1.0, 1.0, 0.99], gain: [1.045, 1.01, 0.94], saturation: 1.03, contrast: 0.2 },
-  autumn: { lift: [0.014, 0.006, 0.01], gamma: [1.01, 1.0, 0.98], gain: [1.06, 1.0, 0.9], saturation: 1.05, contrast: 0.18 },
-  winter: { lift: [0.0, 0.012, 0.04], gamma: [0.99, 1.0, 1.02], gain: [0.99, 1.0, 1.03], saturation: 0.86, contrast: 0.1 },
+  spring: {
+    lift: [0.0, 0.008, 0.024],
+    gamma: [1.0, 1.015, 1.0],
+    gain: [1.03, 1.01, 0.96],
+    saturation: 1.0,
+    contrast: 0.16,
+  },
+  summer: {
+    lift: [0.008, 0.006, 0.016],
+    gamma: [1.0, 1.0, 0.99],
+    gain: [1.045, 1.01, 0.94],
+    saturation: 1.03,
+    contrast: 0.2,
+  },
+  autumn: {
+    lift: [0.014, 0.006, 0.01],
+    gamma: [1.01, 1.0, 0.98],
+    gain: [1.06, 1.0, 0.9],
+    saturation: 1.05,
+    contrast: 0.18,
+  },
+  winter: {
+    lift: [0.0, 0.012, 0.04],
+    gamma: [0.99, 1.0, 1.02],
+    gain: [0.99, 1.0, 1.03],
+    saturation: 0.86,
+    contrast: 0.1,
+  },
 };
 
 /**

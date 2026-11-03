@@ -265,7 +265,8 @@ export function generatePatterns(data: Uint8Array, size: number): void {
       const curve = 0.86 + 0.18 * bump(b.fx);
       const course = b.fy > 0.86 ? 0.68 : 0.8 + 0.28 * smooth(1, 0.15, b.fy);
       const joint = b.fx < 0.04 ? 0.86 : 1;
-      out.r = course * curve * joint * (0.86 + 0.28 * tone[b.row * 10 + b.col]!) * (1 + (grain[i]! - 0.5) * 0.1);
+      out.r =
+        course * curve * joint * (0.86 + 0.28 * tone[b.row * 10 + b.col]!) * (1 + (grain[i]! - 0.5) * 0.1);
     });
   }
 
@@ -289,7 +290,8 @@ export function generatePatterns(data: Uint8Array, size: number): void {
     const clumps = fbm(size, 4, 4, 3, 72);
     put(SURFACE.thatch, (_x, y, i) => {
       const fy = y * 8 - Math.floor(y * 8);
-      out.r = (0.8 + 0.36 * fibers[i]!) * (0.88 + 0.12 * smooth(0, 0.45, fy)) * (1 + (clumps[i]! - 0.5) * 0.24);
+      out.r =
+        (0.8 + 0.36 * fibers[i]!) * (0.88 + 0.12 * smooth(0, 0.45, fy)) * (1 + (clumps[i]! - 0.5) * 0.24);
     });
   }
 
@@ -305,7 +307,9 @@ export function generatePatterns(data: Uint8Array, size: number): void {
       out.r =
         r > 0.42
           ? 0.56
-          : (0.84 + 0.32 * tone[b.row * 8 + b.col]!) * (1.06 - 0.5 * (fx * fx + fy * fy)) * (1 + (grain[i]! - 0.5) * 0.1);
+          : (0.84 + 0.32 * tone[b.row * 8 + b.col]!) *
+            (1.06 - 0.5 * (fx * fx + fy * fy)) *
+            (1 + (grain[i]! - 0.5) * 0.1);
     });
   }
 

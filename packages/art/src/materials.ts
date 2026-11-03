@@ -459,7 +459,10 @@ export function patchKitShader(shader: WebGLProgramParametersWithUniforms, u: Ki
     .replace('#include <project_vertex>', `#include <project_vertex>\n${KIT_WORLD_VERTEX}`);
   shader.fragmentShader = shader.fragmentShader
     .replace('#include <common>', `#include <common>\n${KIT_FRAGMENT_HEAD}`)
-    .replace('#include <color_fragment>', '#include <color_fragment>\ndiffuseColor.rgb = qKitSurface(diffuseColor.rgb);');
+    .replace(
+      '#include <color_fragment>',
+      '#include <color_fragment>\ndiffuseColor.rgb = qKitSurface(diffuseColor.rgb);',
+    );
 }
 
 /** A Lambert kit material with vertex colors, patched by `patchKitShader` (the gallery's). */

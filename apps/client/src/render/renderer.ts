@@ -752,7 +752,8 @@ export class Renderer implements RenderApi {
       });
     }
     this.sun.castShadow = shadows;
-    if (setPatternAnisotropy(this.env, q, this.three.capabilities.getMaxAnisotropy())) this.invalidateStatic();
+    if (setPatternAnisotropy(this.env, q, this.three.capabilities.getMaxAnisotropy()))
+      this.invalidateStatic();
     this.env.motion = preset.ambientMotion;
     this.env.detailDistance = preset.decorDistance;
     this.env.buildingDetail = buildingDetailNow(q);
