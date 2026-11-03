@@ -197,7 +197,9 @@ export function applyGrade(u: LookUniforms, season: GradeSeason, warmth: number,
     g.gain[1]! * (1 - 0.045 * w),
     g.gain[2]! * (1 + 0.02 * w),
   );
-  u.uLookSaturation.value = g.saturation * (1 + 0.06 * w) * (1 - 0.22 * n);
+  // V1X: night keeps most of its color (the concept's night is a saturated blue with warm windows;
+  // 22% grey at full night made the town read as a dim photo of itself).
+  u.uLookSaturation.value = g.saturation * (1 + 0.06 * w) * (1 - 0.08 * n);
   u.uLookContrast.value = g.contrast;
 }
 

@@ -31,18 +31,18 @@ One row per cycle. A cycle is one agent session working from one brief on one br
 | C5B Festivals, renown, commissions and the River Dock | I3 | parallel | `cycle-05b-festivals-renown.md` | C5.0 | ready (C5.0 is done) |
 | C5C Nature, the Field Guide and Hearth craft | I3 | parallel | `cycle-05c-nature-field-guide.md` | C5.0 | ready (C5.0 is done) |
 | C5D Threats, defenses and the Watch | I3 | parallel | `cycle-05d-threats-watch.md` | C5.0 | ready (C5.0 is done) |
-| C5E Seasons art and rendering | I3 | parallel | `cycle-05e-seasons-art.md` | C5.0, V1X | waits for V1 (builds on the new look) |
+| C5E Seasons art and rendering | I3 | parallel | `cycle-05e-seasons-art.md` | C5.0, V1X | ready: V1X merged; the brief builds on the V1 material, kits, levels, static and moving layers and budgets |
 | C5F Seasons UI | I3 | parallel | `cycle-05f-seasons-ui.md` | C5.0 | ready (C5.0 is done) |
 | C5G Music and sound | I3 | parallel | `cycle-05g-audio.md` | C5.0 | done on `claude/epic-hawking-e32pnd`, synthesized (see As built in the brief) |
 | C5H The first days guide | I3 | parallel | `cycle-05h-first-days.md` | C5.0 | ready (C5.0 is done) |
 | C5X I3 integration and I4 planning | I3 | integration | `cycle-05x-integration.md` | C5A to C5H | waiting |
 | V0 Concept and direction | V0 | serial | none (this session) | none | done on `claude/compassionate-dirac-9c0pyz`: B (Painted Miniature) picked by the owner and Kat; concept viewer on the lean renderer (`docs/concepts/v0-look/index.html`, first engine `v1-engine.html`), stills `v0-*`, `18-eras.md`, budgets by preset, the V1 briefs |
 | V1.0 Look contracts | V1 | serial | `cycle-v1-0-look-contracts.md` | V0 merged | done (https://github.com/evglissin-hue/city-qoti/pull/12): surface ids, palette 2.0, the pattern array, `Era`, static and moving layers, Ultra, the GPU timer, the `material.ts` and `look.ts` split, the town showcase, the shots and perf scripts and the before numbers (`v1-wave-notes.md`) |
-| V1A Materials and light | V1 | parallel | `cycle-v1a-materials-light.md` | V1.0 | PR open (https://github.com/evglissin-hue/city-qoti/pull/14) |
-| V1B Buildings detail | V1 | parallel | `cycle-v1b-buildings-detail.md` | V1.0 | PR open: the detail kit on every generator, far levels from one code path (homes 75 to 150 triangles, lit panes, the floor at 0), joined rows, the kit AO bake, builds three times faster; see As built in the brief |
-| V1C Ground, water and nature | V1 | parallel | `cycle-v1c-ground-nature.md` | V1.0 | in review (branch `cycle/v1c-ground-nature`): the ground shader, the ground AO texture, trees v2 with a far level, hedgerows, lily pads, stone banks, flagstones on squares, the blob layer; see As built in `v1-wave-notes.md` |
+| V1A Materials and light | V1 | parallel | `cycle-v1a-materials-light.md` | V1.0 | merged in V1X (#14) |
+| V1B Buildings detail | V1 | parallel | `cycle-v1b-buildings-detail.md` | V1.0 | merged in V1X (#16) |
+| V1C Ground, water and nature | V1 | parallel | `cycle-v1c-ground-nature.md` | V1.0 | merged in V1X (#13) |
 | V1D Lean renderer | V1 | parallel | `cycle-v1d-lean-renderer.md` | V1.0 | done, pushed to `main` at the owner's request (no PR): the lean frame graph, the still-frame cache, cached shadows, levels for buildings and decor, moving-only dynamic resolution, every preset field; laptop timings remain (see As built in the brief) |
-| V1X V1 integration | V1 | integration | `cycle-v1x-integration.md` | V1A to V1D | waiting |
+| V1X V1 integration | V1 | integration | `cycle-v1x-integration.md` | V1A to V1D | merged: V1A to V1C on V1D, the resting redraws fixed, the classic chain retired, sun and night tuned, shots and software numbers; laptop perf runs and the playtest evening left for humans |
 
 Status values: waiting (dependencies not merged), ready, in progress (add the session link), PR open (add the PR link), merged.
 

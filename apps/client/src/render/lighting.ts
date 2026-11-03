@@ -220,7 +220,14 @@ export function lightingAt(hour: number): Lighting {
     hemiSky: mix(k0.hemiSky, k1.hemiSky, t),
     hemiGround: mix(k0.hemiGround, k1.hemiGround, t),
     hemiIntensity: lerp(k0.hemiI, k1.hemiI),
-    sunDir: [Math.cos(angle) * 0.8, elevation + 0.3, 0.45],
+    // V1X: by day the sun stands at most about 50 degrees up (the concept's day is 47, its golden
+    // hour 21) and, at noon, a little to the west of the default camera's line of sight (the
+    // concept's azimuth, -38 degrees), so shadows fall to the side where the camera sees them. It
+    // used to climb to about 69 degrees straight behind the camera, and the town looked shadowless
+    // from 10 to 14. The moon keeps its old place.
+    sunDir: day
+      ? [Math.cos(angle) * 0.8 - 0.32, 0.28 + elevation * 0.3, 0.45]
+      : [Math.cos(angle) * 0.8, elevation + 0.3, 0.45],
     skyTop: mix(k0.skyTop, k1.skyTop, t),
     fill: mix(k0.fill, k1.fill, t),
     fillIntensity: lerp(k0.fillI, k1.fillI),
