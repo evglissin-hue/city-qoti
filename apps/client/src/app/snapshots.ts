@@ -4,9 +4,8 @@
 // entry gets one picture whichever seat sent it. The other seat fetches it a little later. Pictures
 // never enter sim state, and a `.qoti` export leaves them out (I3).
 //
-// Stand-ins until C5E lands (docs/build/i3-wave-notes.md): without `capture`, the picture is the
-// middle of the canvas as it is, scaled down; without `photo`, photo mode only hides the interface
-// and saves the canvas.
+// C5X part 2: C5E's renderer has `capture` and `photo`, so C5F's stand-ins (a crop of the canvas as
+// drawn, photo mode that only hid the interface) are gone; with no renderer there is no picture.
 import type { ChronicleSnapshot, EntityId } from '@qoti/sim';
 import { snapshotStore, type SnapshotStore } from '../net/images';
 import type { RenderApi } from '../render/api';
@@ -67,38 +66,9 @@ export function isPhotographer(s: SnapshotSession): boolean {
   return (on.length ? Math.min(...on) : s.seat) === s.seat;
 }
 
-function canvas(): HTMLCanvasElement | null {
-  return typeof document === 'undefined'
-    ? null
-    : document.querySelector<HTMLCanvasElement>('canvas.game-canvas');
-}
-
-/** The canvas as drawn this frame, cropped and scaled (the stand-in for C5E's capture). */
-function canvasBlob(size?: [number, number]): Promise<Blob | null> {
-  return new Promise((resolve) => {
-    requestAnimationFrame(() => {
-      const src = canvas();
-      if (!src) return resolve(null);
-      const out = document.createElement('canvas');
-      const [w, h] = size ?? [src.width, src.height];
-      out.width = w;
-      out.height = h;
-      const g = out.getContext('2d');
-      if (!g) return resolve(null);
-      // The middle of the view at the thumbnail's shape.
-      const scale = Math.min(src.width / w, src.height / h) * (size ? 0.8 : 1);
-      const sw = w * scale;
-      const sh = h * scale;
-      g.drawImage(src, (src.width - sw) / 2, (src.height - sh) / 2, sw, sh, 0, 0, w, h);
-      out.toBlob((b) => resolve(b), size ? 'image/webp' : 'image/png', 0.82);
-    });
-  });
-}
-
 async function capture(s: SnapshotSession, snap: ChronicleSnapshot): Promise<Blob | null> {
   const r = s.render as SeasonRender | null;
-  if (r?.capture) return r.capture({ focus: snap.focus, radius: snap.radius, size: SNAPSHOT_SIZE });
-  return canvasBlob(SNAPSHOT_SIZE);
+  return r?.capture ? r.capture({ focus: snap.focus, radius: snap.radius, size: SNAPSHOT_SIZE }) : null;
 }
 
 function remember(ui: UiState, entry: EntityId, blob: Blob): void {
@@ -154,7 +124,7 @@ export function snapshotsAfterUpdate(s: SnapshotSession, change: MirrorChange): 
 /** Photo mode: tells the renderer, and saves the picture as a PNG download. */
 export async function savePhoto(s: SnapshotSession & { mirror: unknown }): Promise<void> {
   const api = photoApi(s);
-  const blob = api?.savePng ? await api.savePng() : await canvasBlob();
+  const blob = api?.savePng ? await api.savePng() : null;
   if (!blob) return;
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);

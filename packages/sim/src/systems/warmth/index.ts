@@ -7,7 +7,8 @@
 //           Warm Hearths.
 // This is the winter basket's firewood line for every tier: a Hamlet (no market yet) takes it free
 // from the storehouses, a Village buys it at the till with buy() (so demand reaches the price), and
-// a household on the slate (newcomers, nobody in work) takes what it cannot pay for, as at breakfast.
+// in winter a household that cannot pay takes what it needs on the slate, as at breakfast (C5X part 2:
+// any household, not only newcomers and those with nobody in work; before, only those).
 // A Bath House within reach (and the herbalist's health cover) softens the cold; the bath house
 // takes a small fee from each household it serves (pay, category `fees`). Nobody is ever hurt
 // (P3): the worst of winter is a cold, cross household that may move away.
@@ -19,8 +20,7 @@ import { isStandard } from '../../state/hamlet';
 import { pay } from '../economy/money';
 import { dailyOffset, dayIndex } from '../economy/time';
 import { defOf, isStorage } from '../logistics/stores';
-import { buy, marketOpen } from '../market/api';
-import { onTheSlate } from '../market/baskets';
+import { buy, marketOpen, tillPrice } from '../market/api';
 import { doorTile } from '../movement/api';
 import { consume } from '../production/produce';
 import { announceHousehold } from '../residents/records';
@@ -99,9 +99,25 @@ export function fetchFirewood(state: WorldState, h: Household, to: number): numb
   let got = 0;
   if (marketOpen(state)) {
     got = buy(state, h.id, g, want);
-    // On the slate, as with breakfast: newcomers and households with nobody in work are not left
-    // cold for want of a coin, for the days the winter is on (not to stock up in autumn).
-    if (got >= want || !onTheSlate(state, h) || seasonNow(state).season !== 3) return got;
+    if (got >= want || seasonNow(state).season !== 3) return got;
+    // C5X part 2: in winter, when the shelves are bare (07:30 comes before the porters' morning
+    // round), a household buys from the woodpile at the till price. Before, only the slate could
+    // take from it: hazel's trial failed with 170 firewood in the storehouses and a family of four,
+    // coins in hand, cold all day.
+    const price = tillPrice(state, g);
+    const afford = price > 0 ? Math.floor(Math.max(0, h.savings) / price) : want - got;
+    const fromPile = takeFree(state, g, Math.min(want - got, afford));
+    if (fromPile > 0) {
+      h.pantry[g] = (h.pantry[g] ?? 0) + fromPile;
+      pay(state, { household: h.id }, 'treasury', price * fromPile, 'sales');
+      got += fromPile;
+    }
+    // On the slate, as with breakfast, for the days the winter is on (not to stock up in autumn).
+    // C5X part 2: and not only newcomers and households with nobody in work: nobody is left cold
+    // for want of a coin while the woodpile has firewood (a working family spends its wages by
+    // supper and has none left at 07:30, so hazel's trial failed with the woodpile full). The
+    // winter is about putting firewood by, not about the morning's purse.
+    if (got >= want) return got;
   }
   const free = takeFree(state, g, want - got);
   got += free;

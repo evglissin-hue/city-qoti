@@ -49,6 +49,8 @@ import type { Advisor, AdvisorDef, Visit } from './types';
 export const MENU_GOODS_WANTED = 3;
 /** Days of food a resident the menu always leaves in store. */
 export const MENU_RESERVE_DAYS = 6;
+/** C5X part 2: days of eating kept back from a spring or summer menu. */
+export const MENU_SPRING_DAYS = 3;
 /** Pieces the Hearth puts up for a festival. */
 export const PIECES = 3;
 /** Stock of a good the dock keeps before selling it. */
@@ -130,7 +132,10 @@ class Festivals implements Advisor {
     // from autumn to the thaw the days left of winter too.
     // Before winter the larder must also see the town through to the thaw.
     const winter = winterDaysAhead(w);
-    let spare = Math.max(0, food - pop * (MENU_RESERVE_DAYS + winter) - 8);
+    // C5X part 2: out of winter three days a head are enough to keep back (a growing Village never
+    // held six in its storehouses, so willow's spring and summer tables stayed empty).
+    const keep = winter > 0 ? MENU_RESERVE_DAYS + winter : MENU_SPRING_DAYS;
+    let spare = Math.max(0, food - pop * keep - 8);
     if (winter > 0) spare = Math.min(spare, Math.max(0, larder(w) - pop * (MENU_RESERVE_DAYS + winter) - 8));
     const out: [string, number][] = [];
     let units = 0;

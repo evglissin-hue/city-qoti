@@ -8,6 +8,7 @@ import type { Household, WorldState } from '../../src/contracts';
 import { findById } from '../../src/state/entities';
 import { isCold, warmthReport } from '../../src/systems/seasons/api';
 import { closeWinter } from '../../src/systems/seasons';
+import { defOf, isStorage } from '../../src/systems/logistics/stores';
 import { marketOpen } from '../../src/systems/market/api';
 import {
   AUTUMN_STOCK,
@@ -137,6 +138,31 @@ describe('warmth', () => {
     for (const h of s.households) expect(isCold(s, h.id)).toBe(false);
     expect(s.economy.treasury).toBeGreaterThan(treasury);
     expect(s.market.demandToday[FIREWOOD]).toBeGreaterThanOrEqual(s.households.length);
+    expectMoneyInvariant(before, s);
+  });
+
+  it('buys from the woodpile at the till price in a Village winter when the shelves are bare (C5X)', () => {
+    const f = winterFixture();
+    const s = f.state;
+    expect(marketOpen(s)).toBe(true);
+    emptyFirewood(s);
+    // No outlet holds any; the pile waits at a workplace's door (a chopping shed's, say).
+    const pile = s.buildings.find(
+      (b) =>
+        b.stage === 'built' &&
+        b.rt &&
+        !isStorage(defOf(b)) &&
+        !content.buildingById.get(b.def)?.tags?.includes('outlet'),
+    )!;
+    pile.rt!.output[FIREWOOD] = 200;
+    for (const h of s.households) h.savings = 50_00;
+    const before = moneySnapshot(s);
+    const treasury = s.economy.treasury;
+    burnDay(s, createTickCtx(s));
+    for (const h of s.households) expect(isCold(s, h.id)).toBe(false);
+    expect(pile.rt!.output[FIREWOOD]).toBe(200 - s.households.length * WARMTH_PER_HOUSEHOLD);
+    // Paid for at the till price, into the treasury.
+    expect(s.economy.treasury).toBeGreaterThan(treasury);
     expectMoneyInvariant(before, s);
   });
 

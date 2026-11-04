@@ -108,6 +108,18 @@ Remaining, and why:
 - C5F's `raidWithCaptive` in `app/fixture.ts`: kept as a fixture convenience, not a stand-in. C5D's raids catch their own, but only later in the night, and the `c5f-seasons` e2e needs a captive at once.
 - C5F's Watch morale parts as words: `WatchView` has no parts; an additive field for I4.
 
+### Stand-ins after C5X part 2
+
+Gone: C5C's borrowed decor kits and undrawn modules, ponds as plain water, no critters (C5E: every I3 def draws the kit in its `params.kit`, modules fit any home, ponds have reeds, critters by habitat); C5F's renderer stand-ins (`app/snapshots.ts` no longer crops the canvas for a Chronicle picture or saves the canvas for photo mode: C5E's `capture` and `photo` do it, and with no renderer there is no picture); C5F's habitat wash in the Field Guide (a species page's habitats now open C5E's `habitat:<id>` overlay, and `habitatTiles` is gone); C5E's fixtures are its review scenes, not stand-ins.
+
+Remaining, and why:
+
+- C5B's musician and bandstand stand-ins: no owner until I4's arcs and a bandstand building.
+- C5B's honey from Millhaven: kept on purpose as the post's fallback beside C5C's apiary.
+- C5F's `raidWithCaptive` in `app/fixture.ts`: a fixture convenience (the `c5f-seasons` e2e needs a captive at once; C5D's raids catch theirs later in the night).
+- C5F's Watch morale parts as words: `WatchView` has no parts; an additive field later.
+- The C5F mocks: they serve the unit tests and the `?debug&fixture` overlays only.
+
 ## Testing and benches
 
 - Fixtures: `packages/sim/test/fixtures/winter.ts` and `threat.ts` (with `raidAtDusk()`) are shared. Add helpers next to them in your own files; keep existing ids and positions (the UI mocks are built from them). `seasonsPlace.ts` has `placeFree`, `tickAt` and `addDecorAt`.
