@@ -11,6 +11,7 @@ import { effectsLayer } from './effects';
 import { festivalLayer } from './festival';
 import { festivalFxLayer } from './festivalFx';
 import { fieldsLayer } from './fields';
+import { floodLayer } from './flood';
 import { ghostsLayer } from './ghosts';
 import { lightsLayer } from './lights';
 import { natureLayer } from './nature';
@@ -20,6 +21,7 @@ import { presenceLayer } from './presence';
 import { roadsLayer } from './roads';
 import { signsLayer } from './signs';
 import { skyLayer } from './sky';
+import { telegraphLayer } from './telegraph';
 import { terrainLayer } from './terrain';
 import { treesLayer } from './trees';
 import type { LayerFactory } from './types';
@@ -39,6 +41,7 @@ export const layerFactories: readonly LayerFactory[] = [
   festivalFxLayer,
   festivalLayer,
   fieldsLayer,
+  floodLayer,
   ghostsLayer,
   lightsLayer,
   natureLayer,
@@ -48,6 +51,7 @@ export const layerFactories: readonly LayerFactory[] = [
   roadsLayer,
   signsLayer,
   skyLayer,
+  telegraphLayer,
   terrainLayer,
   treesLayer,
   waterLayer,

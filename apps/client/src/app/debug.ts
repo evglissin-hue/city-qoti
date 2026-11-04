@@ -441,10 +441,13 @@ export function installDebugHook(getSession: () => Session | null): void {
       return session ? seasonsShowcase(session.mirror, x, z) : null;
     },
     /** C5E part 2: a fireworks show over a point (or the town's middle), as for a rank-up. */
-    fireworks: (x?: number, z?: number) => {
+    fireworks: (x?: number, z?: number, skip?: number) => {
       const r = s()?.renderer as unknown as
-        { layers?: { id: string; fireworks?: (x?: number, z?: number) => void }[] } | undefined;
-      r?.layers?.find((l) => l.id === 'festival-fx')?.fireworks?.(x, z);
+        | { layers?: { id: string; fireworks?: (x?: number, z?: number, skip?: number) => void }[] }
+        | undefined;
+      const layer = r?.layers?.find((l) => l.id === 'festival-fx');
+      layer?.fireworks?.(x, z, skip);
+      return !!layer;
     },
     /** C3D: a made-up charm field for overlay screenshots (until the charm system runs). */
     synthCharm: () => {

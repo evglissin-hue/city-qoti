@@ -75,10 +75,14 @@ describe('static and moving layers (V1.0)', () => {
       'effects',
       // C5E part 2: the bonfire's flames and the fireworks.
       'festival-fx',
+      // C5E part 2: flood water rising and falling over the floodplain.
+      'flood',
       'ghosts',
       'notes',
       'overlays',
       'presence',
+      // C5E part 2: a raid's telegraph signs (tracks, and crows that peck and wheel).
+      'telegraph',
       'water',
       'weather',
     ]);

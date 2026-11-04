@@ -6,6 +6,7 @@
 // trades, the bath house, apiary, dock and bridge, and homes with modules fitted.
 import { content } from '@qoti/content';
 import {
+  Flags,
   MAP_SIZE,
   START_HOUR,
   TICKS_PER_DAY,
@@ -268,12 +269,51 @@ export function seasonsShowcase(mirror: Mirror, cx?: number, cz?: number): Seaso
   spots.push(['greens', x0 + 16.5, zm + 1.5]);
   spots.push(['festival', fx + 3.5, fz + 3.5]);
 
-  const all = [0, 0, N - 1, N - 1] as [number, number, number, number];
-  mirror.apply({
-    t: mirror.lastTurn.value,
-    events,
-    patches: [{ layer: 'occupant', rect: all, data: occupant }],
-  });
+  // Fixture valleys have high banks and no floodplain: mark one along the river (the land within
+  // four tiles of it), so a pinned flood (`?debug&flood=0.8`) has somewhere to stand.
+  const flags = new Uint8Array(mirror.layers.flags as Uint8Array);
+  const markPlain = !flags.some((f) => f & Flags.floodplain);
+  if (markPlain) {
+    for (let z = 0; z < N; z++)
+      for (let xx = 0; xx < N; xx++) {
+        if (water[z * N + xx]) continue;
+        let near = false;
+        for (let dz = -4; dz <= 4 && !near; dz++)
+          for (let dx = -4; dx <= 4 && !near; dx++) {
+            const tx = xx + dx;
+            const tz = z + dz;
+            if (tx >= 0 && tz >= 0 && tx < N && tz < N && water[tz * N + tx]) near = true;
+          }
+        if (near) flags[z * N + xx]! |= Flags.floodplain;
+      }
+  }
+  // Patch only the rect the pieces cover, so the ground's caches redraw just that.
+  let bx0 = N;
+  let bz0 = N;
+  let bx1 = -1;
+  let bz1 = -1;
+  for (let i = 0; i < N * N; i++) {
+    if (occupant[i] === (mirror.layers.occupant as Int32Array)[i]) continue;
+    const x = i % N;
+    const z = Math.floor(i / N);
+    bx0 = Math.min(bx0, x);
+    bz0 = Math.min(bz0, z);
+    bx1 = Math.max(bx1, x);
+    bz1 = Math.max(bz1, z);
+  }
+  const patches: {
+    layer: 'occupant' | 'flags';
+    rect: [number, number, number, number];
+    data: Uint8Array | Int32Array;
+  }[] = [];
+  if (bx1 >= 0) {
+    const w = bx1 - bx0 + 1;
+    const data = new Int32Array(w * (bz1 - bz0 + 1));
+    for (let z = bz0; z <= bz1; z++) data.set(occupant.subarray(z * N + bx0, z * N + bx1 + 1), (z - bz0) * w);
+    patches.push({ layer: 'occupant', rect: [bx0, bz0, bx1, bz1], data });
+  }
+  if (markPlain) patches.push({ layer: 'flags', rect: [0, 0, N - 1, N - 1], data: flags });
+  mirror.apply({ t: mirror.lastTurn.value, events, patches });
 
   // The festival, planned on the square for today, and the circus on a green to the north.
   const tick = mirror.tick.value;

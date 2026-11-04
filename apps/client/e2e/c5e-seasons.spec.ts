@@ -107,3 +107,40 @@ test('a resting winter valley in falling snow draws idle frames', async ({ page 
   expect(modes.has('idle')).toBe(true);
   for (const key of ['season', 'weather']) expect(after?.[key] ?? 0).toBe(before?.[key] ?? 0);
 });
+
+// C5E part 2: the I3 pieces on show (defenses, a festival laid out for tonight with its bonfire,
+// the circus, fireworks going up, a flood, and a raid's tracks and crows) still leave a resting
+// valley drawing idle frames: what moves is in moving layers, and the festival's static pieces
+// drop the still frame only when they change.
+test('a resting valley with a festival, fireworks, a flood and omens draws idle frames', async ({ page }) => {
+  test.setTimeout(300_000);
+  await openWinter(page, '&omens&flood=0.6');
+  await page.evaluate(() => {
+    const q = window.__qoti as unknown as {
+      submit(c: unknown): void;
+      setHour(h: number): void;
+      look(x: number, z: number, d: number): void;
+      seasonsShowcase(): { center: [number, number] } | null;
+      fireworks(x?: number, z?: number): boolean;
+    };
+    q.submit({ t: 'time.setSpeed', speed: 0 });
+    const sc = q.seasonsShowcase();
+    const [x, z] = sc?.center ?? [64, 64];
+    q.setHour(20.5);
+    q.look(x + 8, z + 4, 28);
+    q.fireworks(x + 8, z + 2);
+  });
+  const mode = () =>
+    page.evaluate(() => (window.__qoti as unknown as { renderer(): Render }).renderer().stats.mode);
+  await expect.poll(mode, { timeout: 150_000, intervals: [2000] }).toBe('idle');
+  const before = await staticChanges(page);
+  const modes = new Set<string>();
+  for (let i = 0; i < 6; i++) {
+    await page.waitForTimeout(2000);
+    modes.add(await mode());
+  }
+  const after = await staticChanges(page);
+  expect(modes.has('idle')).toBe(true);
+  for (const key of ['festival', 'buildings', 'decor', 'season', 'weather'])
+    expect(after?.[key] ?? 0).toBe(before?.[key] ?? 0);
+});

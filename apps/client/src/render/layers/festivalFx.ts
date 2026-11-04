@@ -19,7 +19,7 @@ const MAX_FIRES = 24;
 /** A show is this many rockets, one every SHOW_GAP seconds. */
 const ROCKETS = 16;
 const SHOW_GAP = 2.4;
-const SPARKS = 36;
+const SPARKS = 48;
 const RISE = 2.6;
 const BURST = 3.2;
 /** Soft, warm firework colors: gold, rose, sky, mint, lilac. Never white-hot. */
@@ -40,8 +40,11 @@ interface Rocket {
  * soft colors, and nothing lights the sky or the town: no flashing.
  */
 export interface FestivalFxLayer extends RenderLayer {
-  /** Starts a fireworks show over a point (world x, z), or over the town's middle. */
-  fireworks(x?: number, z?: number): void;
+  /**
+   * Starts a fireworks show over a point (world x, z), or over the town's middle; `skip` (debug)
+   * starts it that many seconds in, for screenshots.
+   */
+  fireworks(x?: number, z?: number, skip?: number): void;
 }
 
 export function festivalFxLayer(): FestivalFxLayer {
@@ -54,7 +57,7 @@ export function festivalFxLayer(): FestivalFxLayer {
   let time = 0;
   const flameGeo = new ConeGeometry(0.11, 0.46, 7, 1, false).translate(0, 0.23, 0);
   const emberGeo = new IcosahedronGeometry(0.012, 0);
-  const sparkGeo = new IcosahedronGeometry(0.05, 0);
+  const sparkGeo = new IcosahedronGeometry(0.075, 0);
   const flameMat = new MeshBasicMaterial({
     color: 0xffa040,
     transparent: true,
@@ -107,17 +110,18 @@ export function festivalFxLayer(): FestivalFxLayer {
     ctx.invalidate();
   }
 
-  function startShow(x: number, z: number): void {
+  function startShow(x: number, z: number, skip = 0): void {
     if (!ctx) return;
     const rnd = seeded(Math.floor(time * 1000) + 1);
     const y = 0;
     rockets = [];
     for (let i = 0; i < ROCKETS; i++) {
       rockets.push({
-        at: new Vector3(x + (rnd() - 0.5) * 8, y, z + (rnd() - 0.5) * 8),
-        start: time + 0.5 + i * SHOW_GAP + rnd() * 0.8,
-        color: new Color(SPARK_COLORS[Math.floor(rnd() * SPARK_COLORS.length)]!),
-        height: 7 + rnd() * 4,
+        at: new Vector3(x + (rnd() - 0.5) * 6, y, z + (rnd() - 0.5) * 6),
+        start: time + 0.5 + i * SHOW_GAP + rnd() * 0.8 - skip,
+        // A little over white's brightness so the night's bloom gives each spark a soft halo.
+        color: new Color(SPARK_COLORS[Math.floor(rnd() * SPARK_COLORS.length)]!).multiplyScalar(1.3),
+        height: 3.6 + rnd() * 2.2,
       });
     }
     if (!sparks) {
@@ -209,10 +213,10 @@ export function festivalFxLayer(): FestivalFxLayer {
           const yk = 1 - (2 * (k + 0.5)) / SPARKS;
           const rk2 = Math.sqrt(1 - yk * yk);
           const th = k * 2.39996;
-          const reach = 2.2 * (1 - (1 - Math.min(1, u * 1.6)) ** 2);
+          const reach = 1.9 * (1 - (1 - Math.min(1, u * 1.6)) ** 2);
           p.set(
             rk.at.x + Math.cos(th) * rk2 * reach,
-            rk.at.y + rk.height + yk * reach - u * u * 1.4,
+            rk.at.y + rk.height + yk * reach - u * u * 0.9,
             rk.at.z + Math.sin(th) * rk2 * reach,
           );
           const size = Math.min(1, u * 4) * (1 - u) * 1.3;
@@ -253,10 +257,10 @@ export function festivalFxLayer(): FestivalFxLayer {
       animate(dt);
       return true;
     },
-    fireworks(x, z) {
+    fireworks(x, z, skip) {
       if (!ctx) return;
       const [mx, mz] = townMiddle();
-      startShow(x ?? mx, z ?? mz);
+      startShow(x ?? mx, z ?? mz, skip ?? 0);
     },
     dispose() {
       clearFires();
