@@ -14,6 +14,7 @@ import {
   fieldCap,
   fieldTileProblem,
   income,
+  larder,
   larderWelcomes,
   loansOwed,
   rankAtLeast,
@@ -277,13 +278,18 @@ class Hamlet implements Advisor {
       }
       // Rest from 60 planks, 40 stone or 30 logs, reopen under 30, 20 or 15 (a gap, so it does not
       // flip daily); for the winter from 24 planks and 16 stone, reopening under 12 and 8.
+      // C5X part 2: in autumn with under three days of food a head put by, the quarry rests
+      // whatever the stone and the woodcutters from 15 logs: oak went into its first winter with 60
+      // food for 27 and ate nothing for four days, its plots half empty while three quarrymen and six
+      // woodcutters worked on.
+      const dire = winter && calendar(w.tick).season >= 1 && larder(w) < w.residents.length * 4;
       const [have, high, low] =
         b.def === 'sawpit'
           ? [stock[G('planks')]!, winter ? 24 : 60, winter ? 12 : 30]
           : b.def === 'quarry'
-            ? [stock[G('stone')]!, winter ? 16 : 40, winter ? 8 : 20]
+            ? [stock[G('stone')]!, dire ? 0 : winter ? 16 : 40, dire ? 0 : winter ? 8 : 20]
             : b.def === 'woodcutter'
-              ? [stock[G('logs')]!, 30, 15]
+              ? [stock[G('logs')]!, dire ? 15 : 30, dire ? 8 : 15]
               : [0, -1, -1];
       if (high < 0) continue;
       // From Village rank everything rested for the larder reopens (the Village advisor decides).

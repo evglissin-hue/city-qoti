@@ -26,6 +26,8 @@ export const millhaven: NeighborDef = {
     // C5B: Millhaven's farmhouses want chairs, and its harvest suppers want pies.
     ['furniture', 115],
     ['pies', 105],
+    // C5X part 2: stone for its barns and field walls (a Village's quarries had no buyer anywhere).
+    ['stone', 90],
   ],
   seasonal: [
     ['wheat', 1, 80],
@@ -44,6 +46,9 @@ export const stonecross: NeighborDef = {
     ['clay', 90],
     ['tools', 105],
     ['firewood', 95],
+    // C5X part 2: logs off the hill woods. Nobody sold logs, so a Village whose woodcutters had
+    // felled their patch could never rebuild one, and its chopping sheds and woodpile stood empty.
+    ['logs', 115],
   ],
   buys: [
     ['bread', 120],
@@ -54,6 +59,11 @@ export const stonecross: NeighborDef = {
     // C5B: a cold hill town buys coats, dearest in winter, and candles for its long evenings.
     ['coats', 120],
     ['candles', 110],
+    // C5X part 2: a town short of bread takes the grain to bake it, and wool for its own looms (a
+    // Village of farmsteads held 1,500 wheat with nowhere to sell a sack).
+    ['flour', 105],
+    ['wheat', 95],
+    ['wool', 100],
   ],
   seasonal: [
     ['firewood', 3, 130],

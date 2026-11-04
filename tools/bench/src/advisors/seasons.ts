@@ -190,14 +190,15 @@ class Seasons implements Advisor {
     this.bread(season, pop);
     const behind = pop * WINTER_FOOD_DAYS - larder(w);
     // Summer and autumn: short of a winter's larder, the plots should make it up before the frost
-    // (gardens grow until winter; nothing does after).
+    // (gardens grow until winter; nothing does after). C5X part 2: up to a plot for every two
+    // residents, not three (oak's first winter ate nothing for four days with nine plots for 27).
     p.larderShort = (season === 1 || season === 2) && pop > 0 && behind > 0;
     if (!p.larderShort) return;
     const daysLeft = (season === 1 ? DAYS_PER_SEASON : 0) + DAYS_PER_SEASON - day + 1;
     const made = FOODS.reduce((n, g) => n + (w.economy.yesterday.produced[g] ?? 0), 0);
     // The last two days of autumn are too late for a new plot to pay for its planks.
     const late = season === 2 && day >= DAYS_PER_SEASON - 1;
-    if (!late && made < pop + behind / daysLeft && count(w, 'vegetable-plot') < 2 + Math.floor(pop / 3)) {
+    if (!late && made < pop + behind / daysLeft && count(w, 'vegetable-plot') < 2 + Math.floor(pop / 2)) {
       p.propose({
         def: 'vegetable-plot',
         priority: season === 2 ? 4 : 3,

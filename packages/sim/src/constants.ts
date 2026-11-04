@@ -226,7 +226,7 @@ export const Zone = { none: 0, homesLow: 1, homesMedium: 2, shops: 3, crafts: 4,
 export const WAGES = [350, 575, 900, 1400] as const;
 export const WAGE_LEVEL_RANGE = [80, 120] as const;
 export const DEFAULT_WAGE_LEVEL = 100;
-export const TAX_RATE_RANGE = [0, 20] as const;
+export const TAX_RATE_RANGE = [0, 30] as const;
 export const DEFAULT_TAX_RATE = 10;
 export const MAX_SUBSIDY = 50;
 

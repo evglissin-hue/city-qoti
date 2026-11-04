@@ -10,7 +10,7 @@ import { Empty, Frame, Heading, Meter } from './parts';
 import { Dial, Locked, Stepper } from './villageParts';
 
 const WAGE_STEPS = [80, 90, 100, 110, 120] as const;
-const TAX_STEPS = [0, 5, 10, 15, 20] as const;
+const TAX_STEPS = [0, 5, 10, 15, 20, 25, 30] as const;
 
 const WAGE_WORD: Record<number, string> = {
   80: 'Tight. The treasury breathes easier; the households do not.',
@@ -89,7 +89,7 @@ export function WagesAndTaxes({ session }: { session: Session }) {
       <p class="policy-word">
         {levers.taxRate === 0
           ? 'No income tax. Very popular, oddly enough.'
-          : `Of every wage, ${levers.taxRate}% comes back to the treasury.`}
+          : `Of every wage and upkeep share, ${levers.taxRate}% comes back to the treasury.`}
       </p>
       <Dial
         label="Income tax"

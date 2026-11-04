@@ -105,6 +105,15 @@ function payUpkeep(state: WorldState, upkeep: number): void {
     const extra = rest > 0 ? 1 : 0;
     rest -= extra;
     pay(state, 'treasury', { household: h.id }, share + extra, 'upkeep');
+    // C5X: the income tax is taken on it as on wages (the comment above always said so; it never
+    // was, and a Village at the levers' limits lost on the upkeep it paid out).
+    pay(
+      state,
+      { household: h.id },
+      'treasury',
+      Math.floor(((share + extra) * state.levers.taxRate) / 100),
+      'taxes',
+    );
   }
 }
 

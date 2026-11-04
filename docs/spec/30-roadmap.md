@@ -124,7 +124,14 @@ Era state in the sim and saves (`18-eras.md`, Data), the Age of Steam kit (brick
 
 The Bright Age kit (stucco, art deco touches, electric lamps, tram wires, the station), electric methods and the electric tram, grand landmarks, and the Bright Age's gentle threats.
 
+## P1 Quality audit and polish (before I4)
+
+The owner's call (2026-11-04): before going wide with I4 Town, a quality audit and polish pass over what I0 to I3 and V1 already ship: the rough edges, the playtest flags, the follow-ups the wave PRs listed, performance on the laptops. The owner starts it. No I4 briefs are written until P1 is done; C5X, which was to write them, ships I3 and stops there.
+
 ## I4 Town
+
+*Waits for P1 (above).*
+
 
 **Scope**: Town Charter and the bandit raid trial; the Age of Steam (`18-eras.md`: era state, the Steam kit and systems, the era moment, restyling across eras, Old Town; V2 and V3 run with this wave); Merchants tier; districts, district policies and styles; contracts; Port Amberly; canals and barges; parcels and expansion (purchase, bridges, camps and dens with Watch expeditions); great owl, river raiders, bandit chief; block builder for landmarks; library, theater, post office, inn and tourism; levees and irrigation; time-lapse; 8 new patterns; Captain Wendell Rook; more achievements.
 

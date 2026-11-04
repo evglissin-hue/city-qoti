@@ -113,11 +113,38 @@ describe('wages', () => {
 describe('income tax replaces the flat tax at Village rank', () => {
   it('books no flat tax at midnight once the market is open, and the I1 tax before it', () => {
     const village = villageFixture().state;
+    village.levers.taxRate = 0;
     withoutSystems(ISOLATE, () => untilDaily(village, 0, 1));
+    // C5X part 2: at midnight only the income tax on upkeep (none at 0%) is booked, no flat tax.
     expect(village.economy.today.money[cat('taxes')]).toBe(0);
     const hamlet = villageFixture().state;
     hamlet.charter.rank = 'hamlet';
     withoutSystems(ISOLATE, () => untilDaily(hamlet, 0, 1));
     expect(hamlet.economy.today.money[cat('taxes')]).toBeGreaterThan(0);
+  });
+});
+
+describe('income tax on upkeep (C5X part 2)', () => {
+  it('takes the income tax back on the upkeep a Village pays its households, as on wages', () => {
+    const { state } = villageFixture();
+    withoutSystems(ISOLATE, () => {
+      run(state, { t: 'ledger.setTaxRate', percent: 25 });
+      const before = moneySnapshot(state);
+      untilDaily(state, 0, 1);
+      const upkeep = state.economy.today.money[cat('upkeep')]!;
+      expect(upkeep).toBeGreaterThan(0);
+      // Each household's share, taxed at 25% (rounded down), comes straight back.
+      const n = state.households.length;
+      const share = Math.floor(upkeep / n);
+      let rest = upkeep - share * n;
+      let tax = 0;
+      for (let i = 0; i < n; i++) {
+        const extra = rest > 0 ? 1 : 0;
+        rest -= extra;
+        tax += Math.floor(((share + extra) * 25) / 100);
+      }
+      expect(state.economy.today.money[cat('taxes')]).toBe(tax);
+      expectMoneyInvariant(before, state);
+    });
   });
 });

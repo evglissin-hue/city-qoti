@@ -16,6 +16,7 @@ import {
   PENNIES_PER_COIN,
   rankAtLeast,
   tradingPost,
+  TAX_RATE_RANGE,
   type WorldState,
 } from '@qoti/sim';
 import type { Planner } from '../planner';
@@ -41,15 +42,18 @@ class Money implements Advisor {
       percent !== l.taxRate && p.do(why, [{ t: 'ledger.setTaxRate', percent }]);
     // C4X: or whenever the treasury is nearly empty while households get by (purses held four
     // thousand coins while the town could not afford a cider press).
-    if ((net < 0 && coins < 300 && basket >= 65) || (coins < 100 && basket >= 75)) {
+    // C5X part 2: or while the town owes more than half its credit line and households get by (the
+    // Village's loans grew with its purses and nothing ever firmed the tax past the first dip).
+    const deep = loansOwed(w) * 2 > creditLimit(w);
+    if ((net < 0 && coins < 300 && basket >= 65) || (coins < 100 && basket >= 75) || (deep && basket >= 60)) {
       // The treasury slides while households get by: trim wages a little, then firm up the tax.
       if (l.wageLevel > 85) setWage(l.wageLevel - 5, 'trim wages');
-      else if (l.taxRate < 20) setTax(l.taxRate + 2, 'raise the income tax');
+      else if (l.taxRate < TAX_RATE_RANGE[1]) setTax(l.taxRate + 2, 'raise the income tax');
     } else if (basket < 65 && coins > 150) {
       // Households going short while the treasury can spare it: ease off.
       if (l.taxRate > 6) setTax(l.taxRate - 2, 'ease the income tax');
       else if (l.wageLevel < 110) setWage(l.wageLevel + 5, 'raise wages');
-    } else if (net > 0 && coins > 500) {
+    } else if (net > 0 && coins > 500 && loansOwed(w) === 0) {
       // Flush: drift back toward the usual levels.
       if (l.wageLevel < 100) setWage(l.wageLevel + 5, 'restore wages');
       else if (l.taxRate > 10) setTax(l.taxRate - 2, 'ease the income tax');
@@ -75,10 +79,14 @@ class Money implements Advisor {
     // C5A: from late spring to the thaw the seasons advisor raises the food reserve; the book keeps
     // a winter's food and buys a little in when the larder runs low in winter.
     const winter = p.foodReserveDays >= 8;
-    const keep = winter ? pop * 6 + 10 : pop + 10;
+    // C5X part 2: and out of winter about nine days a head across the three foods, not three: the
+    // festival menu spends only food above six days a head, so selling down to three left every
+    // spring and summer festival with an empty table (willow's first Village year never passed two
+    // stars).
+    const keep = winter ? pop * 6 + 10 : pop * 3 + 10;
     const low = winter && calendar(w.tick).season === 3 ? pop : 0;
     // Sell what the town has plenty of; buy food only when the larder runs low.
-    const book: [good: string, min: number, max: number][] = [
+    const book: [good: string, min: number, max: number, ceiling?: number][] = [
       // C4X: 60 planks in hand, not 30, so a tavern (24) or a townhouse can still be started.
       ['planks', 0, 60],
       // C5X: with no woodcutter at work (the patch felled), buy in a woodcutter's logs: a town with
@@ -93,8 +101,19 @@ class Money implements Advisor {
       ['bricks', 0, 60],
       ['cider', 0, Math.max(20, Math.ceil(pop / 4))],
       ['cloth', 0, Math.max(20, Math.ceil(pop / 5))],
+      // C5X part 2: the farmsteads' grain and the quarries' stone past what the mills, bakeries and
+      // sites can use (hazel held 1,517 wheat, 360 flour and 212 stone by day 72 and never sold a
+      // sack, while its loans sat at their peak).
+      ['wheat', 0, Math.max(60, pop)],
+      ['flour', 0, Math.max(60, pop)],
+      ['stone', 0, 100],
+      ['wool', 0, 40],
+      // C5X part 2: in autumn and winter a woodpile under three days of burning is topped up from
+      // Stonecross (hazel's felled patch left its sheds idle and 38 homes cold at the year's end).
+      // Stonecross asks 130% in winter, and the post adds its share: up to 2.5 times base.
+      ['firewood', calendar(w.tick).season >= 2 ? w.households.length * 3 : 0, 1000, 2.5],
     ];
-    for (const [good, min, max] of book) {
+    for (const [good, min, max, ceil = 1.6] of book) {
       const g = G(good);
       const o = w.trade.orders.find((x) => x.good === g);
       if (o && o.min === min && o.max === max) continue;
@@ -103,7 +122,13 @@ class Money implements Advisor {
         {
           t: 'trade.setStandingOrder',
           good,
-          order: { min, max, floor: 0, ceiling: Math.round(content.goods[g]!.basePrice * 1.6), neighbor: '' },
+          order: {
+            min,
+            max,
+            floor: 0,
+            ceiling: Math.round(content.goods[g]!.basePrice * ceil),
+            neighbor: '',
+          },
         },
       ]);
     }

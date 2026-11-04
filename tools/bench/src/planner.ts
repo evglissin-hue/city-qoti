@@ -55,6 +55,8 @@ export const TIMBER_RESERVE: ReadonlyMap<string, number> = new Map([
   ['logs', 16],
   ['planks', 24],
 ]);
+/** C5X part 2: coins a want that can wait leaves in the treasury while the town owes the bank (the money advisor repays above it). */
+export const REPAY_RESERVE = 350;
 /** A want with this priority joins any build queue. */
 export const URGENT = Infinity;
 /** C5X: coins a new building's path may cost, kept back while the Charter wants a season in surplus. */
@@ -229,6 +231,16 @@ export class Planner {
     if (this.keepSurplus && !want.pressing && want.cost.coins + this.seasonCommitted() > this.seasonBalance())
       return false;
     if (!want.pressing && !want.essential && loansOwed(w) * 2 > creditLimit(w)) return false;
+    // C5X part 2: while the town owes the bank, what can wait keeps the repayment reserve back (the
+    // Village spent every coin over 60 on taverns and wells and never had the 350 to repay; willow's
+    // loans sat at the line, paying a fifth a year in interest).
+    if (
+      !want.pressing &&
+      !want.essential &&
+      loansOwed(w) > 0 &&
+      this.coins() < want.cost.coins + REPAY_RESERVE
+    )
+      return false;
     const free = want.tally ?? this.freeStock();
     for (const [g, q] of want.cost.goods) {
       const keep = want.essential ? 0 : (TIMBER_RESERVE.get(g) ?? 0);
