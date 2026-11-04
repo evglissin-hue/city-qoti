@@ -79,3 +79,40 @@ Simulation (C5A to C5D); panels, the photo mode UI and image storage (C5F).
 - Critters are cosmetic and client-side; the sim's sightings decide the Field Guide. Never draw a resident species as wildlife.
 - Do not pin exact colors or counts in tests where the palette or content can be read.
 - Stand-in art for pieces another track adds late goes through stand-in defs (`render/defs.ts`) and the wave notes' stand-ins table.
+
+## As built (C5E, 2026-11-03)
+
+Shipped as a first, solid slice of the brief, polished for the look rather than spread thin; the rest is listed below as follow-ups for the quality audit to rank. Measured in the build container's software renderer (no GPU): draws and triangles are real, milliseconds are ratios only.
+
+**In**
+
+- Seasons (task 1): `render/seasons.ts` blends the season through each turning day (snow settling over winter's first day and melting over spring's, the foliage tint turning over the first day, autumn color, bare branches and blossom weights), stepping at most once a quarter hour and dropping the still frame only then (`staticChanges` key `season`). Trees take it in the foliage shader: autumn gold, amber, rust and red per tree, lacy bare crowns in winter, blossom in spring, snow on the pines (evergreens marked by a `tkind` attribute). Winter clothes: knitted hats and scarves in winter or a cold home. The four grades in `look.ts` are untouched (they read well with the new ground).
+- Winter (task 2): ground snow through the ground shader's hook (`material.userData.snow` is now `env.snow`): drifts against walls and under crowns from the ground AO, windswept patches, trodden roads, none on the water. The frozen river and ponds are ice (cracks, skate marks, drifting snow); skaters glide.
+- Weather (task 3): `lookWeather` in the final pass (overcast, rain, storm, fog wisps, drought), an overcast sky softening the sun, wet and dry ground, the storm's slow glow (no flashing), and rain, snow and falling leaves in one instanced moving layer (`layers/weather.ts`).
+- Defense and the Watch (task 5, figures only): raiders in storybook cloaks and hoods with loot sacks (their far figures and dots in cloak colors), the Watch with lanterns and staffs, wolves as wolves (never a resident species) with blob shadows; run and dance animations.
+- Critters (task 6, part): seven kinds in `layers/critters.ts` by habitat, season, hour and weather, counted by `QualityPreset.critters`.
+- Overlays (task 7): `habitats` (and `habitat:<id>`), `floodplain`, `threat` and `warmth`, Okabe and Ito colors, checked with `colorblind.py` (deuteranopia); one lens entry each.
+- Photo mode and thumbnails (task 8): `photo { setPhoto, setDepthOfField, setTimeOfDay, savePng }` and `capture({ focus, radius, size })` on the Renderer; C5F's stand-ins fall away untouched.
+- Tools: `?debug&season=&day=&weather=` pins the look; `__qoti.agentsWith(flag)`; `e2e/c5e-shots.mjs` (stills `docs/build/screenshots/c5e-*.png`); `v1-perf.mjs` scenes `village-winter`, `village-crowd` and `raid` and `QOTI_QUERY`; `e2e/c5e-seasons.spec.ts` (photo PNG, capture thumbnail, a resting winter valley in falling snow draws idle frames with no season or weather cache drops).
+
+**Numbers** (Medium, 1440 x 900, `QOTI_HOLD=1 QOTI_FIXEDRES=1 QOTI_PRESETS=medium v1-perf.mjs`, 8 s moving and 8 s idle, software renderer):
+
+| Scene | Moving frame ms (avg / p95) | Idle frame ms (avg / p95) | Draws | Triangles |
+|---|---|---|---|---|
+| village of 130 (before: summer, clear) | 906 / 2700 | 1100 / 2217 | 134 | 0.22 M |
+| village in winter, snow falling | 833 / 1567 | 2092 / 2217 | 139 | 0.24 M |
+| village, summer evening, 80 more folk | 774 / 1283 | 1889 / 2117 | 145 | 0.24 M |
+| raid fixture at dusk (6 raiders) | 861 / 3167 | 346 / 1167 | 48 | 0.07 M |
+
+Draws and triangles sit far inside Medium's 300 and 3 M. In software the snowy village's idle frame costs about twice the clear one's (falling snow is transparent overdraw that software rasterizes slowly, and it keeps the idle frames coming); on a GPU 1,600 small quads are cheap, but this is the number to watch on Kat's laptop. `?debug&dpr=2` in this container (device ratio 1) gives the same numbers; the Retina numbers, the resolution step reached and every millisecond budget are for the laptops (`QOTI_HEADED=1` or `await __qoti.perf()`). `capture` took 2.3 to 3.6 s of main thread here, because the software renderer does the GPU's work inside `readPixels`; on a GPU it is one small scene pass and a 320 by 200 read, expected well under 50 ms, still to be confirmed on a laptop.
+
+**Follow-ups** (not in this PR)
+
+- Festival art (task 4): stalls, bunting, festival lanterns, stage, tables, bonfire, fireworks, the circus tent and visitors on the green; the crowd uses residents as they are.
+- Defense buildings (task 5): palisades, stone walls with ivy and flower box modules, gates open and shut, watchtower, Watch House, bell tower, traps, broken pieces and mending, telegraph signs (tracks in the snow, crows).
+- Buildings and nature (task 6): the Bath House, River Dock with boats, apiary skeps, pie shop, chandler, tailor, carpenter, Herbalist's Cottage, Stone Bridge, ponds with reeds and lily pads, the modules (porch, dormer, bay window, extra floor, balcony, tower, arcade); critters still to come: frogs, the kingfisher, swans' cygnets, the heron and the rest of the Field Guide.
+- Winter extras: snow drifts as geometry against walls (now only in the ground), breath in the cold and thicker chimney smoke, cozier windows; scarves for the dots and simple far figures.
+- Weather extras: flood water rising over floodplain tiles (the overlay shows the plain), heat shimmer, puddles. The drifting cloud shade still lives in the ground shader and pauses at rest (an overcast sky now mutes it); moving it into the final pass needs the moving target's depth (V1X's note stands).
+- The gallery shows kits by season (`?season=`) but not the seasonal trees, weather or critters; the season set is in the game shots instead.
+- Shadows of bare trees: the cached shadow map still draws full crowns in winter.
+- Laptop measurements: every millisecond budget, the Retina step, `capture`'s 50 ms, and the floaty walk and half-lit lanterns checks in motion.

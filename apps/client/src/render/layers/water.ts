@@ -86,6 +86,40 @@ function waterGeometry(tiles: SurfaceTiles, cx: number, cz: number): BufferGeome
 }
 
 const WATER_GLSL = /* glsl */ `
+// C5E: ice. Cracks are the edges of a jittered cell pattern; skate marks are long, gently curving
+// scratches along the river; snow lies in drifts toward the banks.
+float qIceCracks(vec2 p) {
+  vec2 i = floor(p);
+  vec2 f = fract(p);
+  float d1 = 8.0;
+  float d2 = 8.0;
+  for (int y = -1; y <= 1; y++)
+    for (int x = -1; x <= 1; x++) {
+      vec2 g = vec2(float(x), float(y));
+      vec2 o = vec2(qHash(i + g), qHash(i + g + 19.7));
+      float d = length(g + o - f);
+      if (d < d1) { d2 = d1; d1 = d; } else if (d < d2) d2 = d;
+    }
+  return 1.0 - smoothstep(0.0, 0.05, d2 - d1);
+}
+vec3 qIce(vec2 wp, vec3 waterCol, float depth, float snow, float fine) {
+  vec2 along = uFlow.x != 0.0 ? wp : wp.yx;
+  vec3 ice = vec3(0.72, 0.83, 0.88) * (0.94 + 0.08 * qNoise(wp * 1.3));
+  // Clear black ice over the deep middle, milky at the edges.
+  ice = mix(ice, mix(waterCol, vec3(0.5, 0.64, 0.7), 0.55), smoothstep(0.15, 0.5, depth) * 0.45 * qNoise(wp * 0.6 + 3.0));
+  float crack = qIceCracks(wp * 1.4) * fine;
+  ice = mix(ice, ice * vec3(0.72, 0.8, 0.86), crack * 0.55);
+  float lanes = 0.0;
+  for (int k = 0; k < 3; k++) {
+    float fk = float(k);
+    float y = along.y + sin(along.x * (0.35 + fk * 0.11) + fk * 2.1) * 0.6;
+    lanes += 1.0 - smoothstep(0.0, 0.03, abs(fract(y * 0.8 + fk * 0.31) - 0.5));
+  }
+  ice = mix(ice, vec3(0.92, 0.95, 0.97), clamp(lanes, 0.0, 1.0) * 0.35 * fine);
+  float drift = smoothstep(0.35, 0.75, qNoise(wp * 0.9) + (1.0 - smoothstep(0.0, 0.25, depth)) * 0.5);
+  return mix(ice, vec3(0.93, 0.95, 0.98), drift * snow * 0.85);
+}
+
 vec3 qWaterNormal(vec2 p) {
   vec2 f = uFlow * uTime;
   float e = 0.06;
@@ -115,6 +149,8 @@ function createWaterMaterial(env: WorldEnv, flow: Vector2): MeshStandardMaterial
       uSun: env.sunColor,
       uSunDir: env.sunDir,
       uFlow: { value: flow },
+      uFrozen: env.frozen,
+      uSnow: env.snow,
       uShallow: { value: shallow },
       uDeep: { value: deep },
       uFoam: { value: foam },
@@ -139,6 +175,8 @@ function createWaterMaterial(env: WorldEnv, flow: Vector2): MeshStandardMaterial
           'uniform vec3 uSun;',
           'uniform vec3 uSunDir;',
           'uniform vec2 uFlow;',
+          'uniform float uFrozen;',
+          'uniform float uSnow;',
           'uniform vec3 uShallow;',
           'uniform vec3 uDeep;',
           'uniform vec3 uFoam;',
@@ -167,6 +205,13 @@ function createWaterMaterial(env: WorldEnv, flow: Vector2): MeshStandardMaterial
           'diffuseColor.rgb = mix(waterCol, uFoam, foam * 0.85);',
           // See-through shallows over the sand; deep water nearly opaque.
           'diffuseColor.a = mix(0.35, 0.9, smoothstep(0.0, 0.35, vDepth)) + foam * 0.4;',
+          // C5E: frozen, the river is still and nearly opaque: ice, cracks, skate marks, snow.
+          'if (uFrozen > 0.001) {',
+          '  float fine = clamp(1.0 - length(fwidth(wp)) * 5.0, 0.0, 1.0);',
+          '  diffuseColor.rgb = mix(diffuseColor.rgb, qIce(wp, waterCol, vDepth, uSnow, fine), uFrozen);',
+          '  diffuseColor.a = mix(diffuseColor.a, 0.96, uFrozen);',
+          '  wn = normalize(mix(wn, vec3(0.0, 1.0, 0.0), uFrozen));',
+          '}',
         ].join('\n'),
       )
       .replace(
@@ -186,7 +231,7 @@ function createWaterMaterial(env: WorldEnv, flow: Vector2): MeshStandardMaterial
           'float twinkle = step(0.8, qHash(floor(wp * 9.0) + floor(uTime * 3.0)));',
           // Far away the glints are smaller than a pixel: let them go rather than shimmer.
           'glint *= clamp(1.0 - length(fwidth(wp)) * 16.0, 0.0, 1.0);',
-          'totalEmissiveRadiance += uSun * glint * (0.25 + 1.1 * twinkle) * (1.0 - uNight);',
+          'totalEmissiveRadiance += uSun * glint * (0.25 + 1.1 * twinkle) * (1.0 - uNight) * (1.0 - uFrozen * 0.8);',
         ].join('\n'),
       );
   };

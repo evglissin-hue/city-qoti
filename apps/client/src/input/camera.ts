@@ -6,10 +6,26 @@ import { WheelClassifier } from './gesture';
 // Camera rules from docs/spec/17-presentation.md: FOV 30, pitch 30 to 65 (default 45), free yaw,
 // distance 12 to 320 tiles, smooth damping, clamped to the valley.
 export const FOV = 30;
-const PITCH_MIN = MathUtils.degToRad(30);
-const PITCH_MAX = MathUtils.degToRad(65);
-const DIST_MIN = 12;
-const DIST_MAX = 320;
+const PLAY = {
+  pitchMin: MathUtils.degToRad(30),
+  pitchMax: MathUtils.degToRad(65),
+  distMin: 12,
+  distMax: 320,
+  margin: 0,
+};
+// C5E: photo mode's free camera, beyond the play clamp (17-presentation.md, Camera).
+const FREE = {
+  pitchMin: MathUtils.degToRad(8),
+  pitchMax: MathUtils.degToRad(85),
+  distMin: 3,
+  distMax: 420,
+  margin: 48,
+};
+let limits = PLAY;
+/** C5E: photo mode lifts the play clamp (pitch, distance and the valley's edge); off restores it. */
+export function setFreeCamera(on: boolean): void {
+  limits = on ? FREE : PLAY;
+}
 // Critically damped smoothing times in seconds: hands-on input settles fast, a focus glides.
 const SMOOTH_INPUT = 0.16;
 const SMOOTH_FOCUS = 0.42;
@@ -200,12 +216,12 @@ export class CameraController {
   rotateBy(dYaw: number, dPitch: number): void {
     this.smooth = SMOOTH_INPUT;
     this.goal.yaw += dYaw;
-    this.goal.pitch = MathUtils.clamp(this.goal.pitch + dPitch, PITCH_MIN, PITCH_MAX);
+    this.goal.pitch = MathUtils.clamp(this.goal.pitch + dPitch, limits.pitchMin, limits.pitchMax);
   }
 
   zoomBy(factor: number): void {
     this.smooth = SMOOTH_INPUT;
-    this.goal.distance = MathUtils.clamp(this.goal.distance * factor, DIST_MIN, DIST_MAX);
+    this.goal.distance = MathUtils.clamp(this.goal.distance * factor, limits.distMin, limits.distMax);
   }
 
   /** Zooms toward (or away from) the ground point under the cursor, so it stays put. */
@@ -239,7 +255,8 @@ export class CameraController {
     this.smooth = SMOOTH_FOCUS;
     this.goal.x = x;
     this.goal.z = z;
-    if (distance !== undefined) this.goal.distance = MathUtils.clamp(distance, DIST_MIN, DIST_MAX);
+    if (distance !== undefined)
+      this.goal.distance = MathUtils.clamp(distance, limits.distMin, limits.distMax);
     this.clamp();
     if (this.reducedMotion) {
       Object.assign(this.view, this.goal);
@@ -256,8 +273,8 @@ export class CameraController {
   }
 
   private clamp(): void {
-    this.goal.x = MathUtils.clamp(this.goal.x, 0, MAP_SIZE);
-    this.goal.z = MathUtils.clamp(this.goal.z, 0, MAP_SIZE);
+    this.goal.x = MathUtils.clamp(this.goal.x, -limits.margin, MAP_SIZE + limits.margin);
+    this.goal.z = MathUtils.clamp(this.goal.z, -limits.margin, MAP_SIZE + limits.margin);
   }
 
   private targetGround(): number {

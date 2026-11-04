@@ -27,6 +27,26 @@ const SCENES = {
   hamlet: { fixture: 'hamlet' },
   village: { fixture: 'village', setup: 'village', center: [64, 60], dist: 70 },
   town: { fixture: 'village', setup: 'town', dist: 90 },
+  // C5E: the village of 130 in winter with snow falling, on a summer evening with 80 more folk
+  // about (the festival's crowd), and the raid fixture at dusk (only on request: not in the default run).
+  'village-winter': {
+    fixture: 'village',
+    setup: 'village',
+    center: [64, 60],
+    dist: 70,
+    q: 'season=winter&day=3&weather=snow',
+    only: true,
+  },
+  'village-crowd': {
+    fixture: 'village',
+    setup: 'village',
+    center: [64, 60],
+    dist: 70,
+    q: 'season=summer&day=5',
+    crowd: 80,
+    only: true,
+  },
+  raid: { fixture: 'raid', dist: 60, only: true },
 };
 
 const browser = await chromium.launch({
@@ -38,12 +58,14 @@ const browser = await chromium.launch({
 });
 const tables = [];
 for (const [scene, def] of Object.entries(SCENES)) {
-  if (only.length && !only.includes(scene)) continue;
+  if (only.length ? !only.includes(scene) : def.only) continue;
   const page = await browser.newPage({ viewport: { width: vw, height: vh } });
   page.on('pageerror', (e) => console.log('pageerror:', e.message));
   page.on('console', (m) => m.type() === 'error' && console.log('console:', m.text()));
   await page.route('**/api/**', (r) => r.abort());
-  await page.goto(`${base}/?debug&fixture=${def.fixture}&clean&quality=medium${fixedres}`);
+  await page.goto(
+    `${base}/?debug&fixture=${def.fixture}&clean&quality=medium${fixedres}${def.q ? `&${def.q}` : ''}${process.env.QOTI_QUERY ? `&${process.env.QOTI_QUERY}` : ''}`,
+  );
   await page.waitForFunction(() => window.__qoti?.status() === 'live', null, { timeout: 240000 });
   for (const name of ['Done', 'Close', 'Later']) {
     const b = page.getByRole('button', { name, exact: true });
@@ -55,8 +77,9 @@ for (const [scene, def] of Object.entries(SCENES)) {
   }
   let center = def.center;
   if (def.setup === 'village') await page.evaluate(() => window.__qoti.villageShowcase(true));
+  if (def.crowd) await page.evaluate((n) => window.__qoti.synthResidents(n), def.crowd);
   else if (def.setup === 'town') center = (await page.evaluate(() => window.__qoti.townShowcase())).center;
-  else await page.evaluate(() => window.__qoti.synthResidents(60));
+  else if (def.fixture === 'hamlet') await page.evaluate(() => window.__qoti.synthResidents(60));
   if (!center) {
     const [x0, z0, x1, z1] = await page.evaluate(() => window.__qoti.startArea());
     center = [(x0 + x1 + 1) / 2, (z0 + z1 + 1) / 2];

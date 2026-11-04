@@ -1,7 +1,7 @@
 export { mixHex, seeded, ShapeBuilder, vary, type V3 } from './geometry';
 export { kitById, kits, type Kit, type KitAnchors, type KitBuildOptions, type KitPart } from './kits';
 export type { AnimalKind } from './kits/types';
-export { animalArt, standingAnimal, type AnimalArt } from './kits/animals';
+export { animalArt, standingAnimal, wolfGeometry, type AnimalArt } from './kits/animals';
 export {
   BED_Y,
   CARTER_SEAT,

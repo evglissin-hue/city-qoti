@@ -1,10 +1,12 @@
 import type { Season } from '@qoti/art';
-import { calendar, MAP_SIZE, TILE_FP, type SeatId } from '@qoti/sim';
+import { calendar, MAP_SIZE, TILE_FP, type SeatId, type WeatherKind } from '@qoti/sim';
 import {
   Color,
   DirectionalLight,
+  FloatType,
   Fog,
   HemisphereLight,
+  MathUtils,
   Mesh,
   PCFShadowMap,
   PerspectiveCamera,
@@ -15,15 +17,16 @@ import {
   Vector2,
   Vector3,
   WebGLRenderer,
+  WebGLRenderTarget,
   type Material,
   type MeshLambertMaterial,
-  type WebGLRenderTarget,
 } from 'three';
-import { CameraController, FOV } from '../input/camera';
+import { CameraController, FOV, setFreeCamera } from '../input/camera';
 import type { Mirror } from '../state/mirror';
 import type { EntityPick, Ghost, RenderApi, TilePick } from './api';
 import { fpToWorld, levelY } from './coords';
-import { applySeasonLook, createWorldEnv, SEASONS, setPatternAnisotropy, type WorldEnv } from './env';
+import { applySeasonBlend, createWorldEnv, SEASONS, setPatternAnisotropy, type WorldEnv } from './env';
+import { CLEAR_WEATHER, easeWeather, seasonBlendAt, weatherLookFor, type WeatherLook } from './seasons';
 import {
   layerFactories,
   type AgentsLayer,
@@ -174,6 +177,20 @@ export class Renderer implements RenderApi {
     const v = q.has('debug') ? Number(q.get('hour') ?? NaN) : NaN;
     return Number.isFinite(v) ? v : null;
   })();
+  /**
+   * C5E, debug only: `?debug&season=autumn&day=3` pins the season's look and `&weather=storm` (or
+   * `drought`, `frozen`) the weather's, for screenshots and look checks; the sim is untouched.
+   */
+  private readonly lookOverride = ((): { season: number | null; day: number; weather: string | null } => {
+    const q = new URLSearchParams(location.search);
+    if (!q.has('debug')) return { season: null, day: 1, weather: null };
+    const si = SEASONS.indexOf((q.get('season') ?? '') as Season);
+    return {
+      season: si >= 0 ? si : null,
+      day: Math.max(1, Math.min(6, Number(q.get('day') ?? 3) || 3)),
+      weather: q.get('weather'),
+    };
+  })();
   private readonly unsubscribe: () => void;
   private readonly resizeObserver: ResizeObserver;
 
@@ -309,6 +326,7 @@ export class Renderer implements RenderApi {
     const w = this.container.clientWidth || 1;
     const h = this.container.clientHeight || 1;
     const r = pixelRatios(preset, window.devicePixelRatio || 1, this.dprCap);
+    r.still *= this.photoBoost;
     this.basePixelRatio = r.moving;
     const moving = r.moving * this.resolution.scale;
     // Without the still-frame cache every frame is a moving one: one target, and the canvas follows.
@@ -328,9 +346,16 @@ export class Renderer implements RenderApi {
   }
 
   private updateLighting(): void {
-    const { hour, minute, season } = calendar(this.mirror.tick.value);
-    this.applySeason(SEASONS[season]!);
-    const h = this.hourOverride ?? hour + Math.floor(minute / 15) / 4;
+    const cal = calendar(this.mirror.tick.value);
+    const { hour, minute } = cal;
+    const season = this.lookOverride.season ?? cal.season;
+    const day = this.lookOverride.season !== null ? this.lookOverride.day : cal.day;
+    const quarter = hour + Math.floor(minute / 15) / 4;
+    this.applySeason(SEASONS[season]!, season, day, quarter);
+    const h = this.timeOfDay ?? this.hourOverride ?? quarter;
+    this.env.shown.season = season;
+    this.env.shown.day = day;
+    this.env.shown.hour = h;
     if (h === this.lightHour) return;
     this.lightHour = h;
     this.lightRevision++;
@@ -348,7 +373,11 @@ export class Renderer implements RenderApi {
     this.hemi.groundColor.copy(l.hemiGround);
     this.hemi.intensity = l.hemiIntensity;
     this.sun.color.copy(l.sun);
-    this.sun.intensity = l.sunIntensity;
+    // C5E: an overcast sky softens the sun and lifts the sky's fill, so rain and storms read as
+    // soft grey days with gentle shadows.
+    const over = this.env.overcast.value;
+    this.sun.intensity = l.sunIntensity * (1 - 0.7 * over);
+    this.hemi.intensity = l.hemiIntensity * (1 + 0.35 * over);
     this.sunDir.set(l.sunDir[0], l.sunDir[1], l.sunDir[2]).normalize();
     // The light's direction for shading. Where the shadow camera sits is set when the shadow map
     // renders (shadows.ts), along the same direction;
@@ -363,23 +392,83 @@ export class Renderer implements RenderApi {
     this.env.skyTop.value.copy(l.skyTop);
     this.env.sunDir.value.copy(this.sunDir);
     this.env.sunColor.value.copy(l.sun);
-    this.env.clouds.value = 1 - l.night;
+    this.env.clouds.value = (1 - l.night) * (1 - 0.8 * this.env.overcast.value);
     this.env.windowShare.value = l.windowShare;
     this.invalidate();
   }
 
   private readonly sunDir = new Vector3(0, 1, 0);
 
-  /** V1A: the season's look (snow, foliage tint, the grade); drops the still frame on a change. */
-  private applySeason(season: Season): void {
-    if (season === this.season) return;
-    this.season = season;
-    applySeasonLook(this.env, season);
-    this.lean.setSeason(season);
-    this.invalidateStatic();
+  /**
+   * V1A: the season's look (snow, foliage tint, the grade); drops the still frame on a change.
+   * C5E: blended through the day (render/seasons.ts), stepping at most once a quarter hour.
+   */
+  private applySeason(name: Season, season: number, day: number, hour: number): void {
+    const key = `${season}|${day}|${hour}`;
+    if (key === this.seasonKey) return;
+    this.seasonKey = key;
+    let changed = applySeasonBlend(this.env, seasonBlendAt(season, day, hour));
+    if (name !== this.season) {
+      this.season = name;
+      this.lean.setSeason(name);
+      changed = true;
+    }
+    if (changed) this.invalidateStatic('season');
   }
 
   private season: Season | null = null;
+  private seasonKey = '';
+
+  /** C5E: the weather's look, eased toward today's over a few seconds. */
+  private readonly weatherNow: WeatherLook = { ...CLEAR_WEATHER };
+  private weatherStep = '';
+
+  /** C5E: eases the weather's look and drops the still frame when a step shows. */
+  private weatherAt = -1;
+
+  private updateWeather(): boolean {
+    // Wall time, not the frame's capped step: a slow frame must not stretch the change out.
+    const now = performance.now();
+    const dt = this.weatherAt < 0 ? 0 : Math.min(2, (now - this.weatherAt) / 1000);
+    this.weatherAt = now;
+    const w = this.mirror.weather.value;
+    const pin = this.lookOverride.weather;
+    const drought = pin === 'drought' || !!w?.events.some((e) => e.event === 'drought' && e.active);
+    const kind = pin && pin !== 'drought' && pin !== 'frozen' ? (pin as WeatherKind) : w?.today;
+    const to = weatherLookFor(kind, drought);
+    const ice = w?.frozen || pin === 'frozen' ? 1 : 0;
+    const f = this.env.frozen;
+    let iced = false;
+    if (f.value !== ice) {
+      f.value =
+        Math.abs(ice - f.value) < 0.01
+          ? ice
+          : f.value + Math.sign(ice - f.value) * Math.min(Math.abs(ice - f.value), dt * 0.5);
+      iced = true;
+    }
+    if (!easeWeather(this.weatherNow, to, dt)) return iced;
+    const n = this.weatherNow;
+    const e = this.env;
+    e.wet.value = n.rain;
+    e.snowfall.value = n.snowfall;
+    e.fog.value = n.fog;
+    e.storm.value = n.storm;
+    e.overcast.value = n.overcast;
+    e.dry.value = n.dry;
+    this.lean.setWeather(n);
+    // Static pictures read wetness, dryness and overcast: step them in twentieths.
+    const step = [n.rain, n.dry, n.overcast, n.fog].map((v) => Math.round(v * 20)).join('|');
+    if (step !== this.weatherStep) {
+      this.weatherStep = step;
+      // The light depends on the overcast: recompute it (a light change redraws the still frame).
+      this.lightHour = -1;
+      this.invalidateStatic('weather');
+    }
+    return true;
+  }
+
+  /** C5E: photo mode's time of day (light only; the sim's clock never moves), or null. */
+  private timeOfDay: number | null = null;
 
   /** Ground point the camera looks at (camera ray against the ground plane of its height). */
   private viewTarget(): Vector3 {
@@ -398,6 +487,12 @@ export class Renderer implements RenderApi {
     this.env.focus.copy(target);
     this.lean.setViewDistance(dist);
     Object.assign(fog, hazeFor(dist));
+    // C5E: fog days pull the haze in (a weather step drops the still frame).
+    const thick = this.env.fog.value;
+    if (thick > 0) {
+      fog.near *= 1 - 0.6 * thick;
+      fog.far *= 1 - 0.45 * thick;
+    }
   }
 
   /**
@@ -467,6 +562,20 @@ export class Renderer implements RenderApi {
       }
     }
     this.updateLighting();
+    if (this.updateWeather()) dirty = true;
+    // C5E: the storm's glow behind the clouds: a slow swell every eleven seconds or so, a few
+    // percent of brightness over more than a second, never a flash (accessibility).
+    const storm = this.env.storm.value;
+    let glow = 0;
+    if (storm > 0 && this.env.motion) {
+      const t = this.env.time.value / 11.3;
+      const phase = t - Math.floor(t);
+      const which = Math.floor(t) % 3;
+      if (phase < 0.22 && which !== 1) glow = storm * Math.sin((Math.PI * phase) / 0.22) ** 2;
+      dirty = true;
+    }
+    this.lean.setWeatherFrame(glow, this.env.sky.value, this.env.time.value);
+    if (this.env.fog.value > 0 && this.env.motion) dirty = true;
     this.drawLean(now, dirty, resting);
     this.stats.gpuMs = this.gpuTimer.ms;
     if (now - this.fpsWindow >= 1000) {
@@ -675,6 +784,7 @@ export class Renderer implements RenderApi {
       this.invalidateStatic();
     this.env.motion = preset.ambientMotion;
     this.env.detailDistance = preset.decorDistance;
+    this.env.critters = preset.critters;
     this.env.buildingDetail = buildingDetailNow(q);
     this.env.viewRevision++;
     if (shadows && this.sun.shadow.mapSize.x !== preset.shadowMap) {
@@ -738,6 +848,142 @@ export class Renderer implements RenderApi {
     this.invalidate();
   }
 
+  /**
+   * C5E: photo mode (17-presentation.md, Camera; C5F's strip drives it through `SeasonRender`): a
+   * free camera beyond the play clamp, depth of field (a stronger tilt-shift about the focus), a
+   * time of day for the light alone (the sim's clock never moves), and a PNG at one and a half times
+   * the still frame's resolution (up to the GPU's limit).
+   */
+  readonly photo = {
+    setPhoto: (on: boolean): void => {
+      setFreeCamera(on);
+      if (!on) {
+        this.timeOfDay = null;
+        this.lean.setDepthOfField(0);
+        this.lightHour = -1;
+      }
+      this.invalidate();
+    },
+    setDepthOfField: (amount: number): void => {
+      this.lean.setDepthOfField(Math.min(1, Math.max(0, amount)));
+      this.invalidate();
+    },
+    setTimeOfDay: (hour: number | null): void => {
+      this.timeOfDay = hour !== null && Number.isFinite(hour) ? ((hour % 24) + 24) % 24 : null;
+      this.lightHour = -1;
+      this.invalidate();
+    },
+    savePng: (): Promise<Blob> => this.savePng(),
+  };
+
+  /** C5E: extra resolution for photo mode's PNG (1 otherwise). */
+  private photoBoost = 1;
+
+  private async savePng(): Promise<Blob> {
+    const canvas = this.three.domElement;
+    const max = this.three.capabilities.maxTextureSize || 4096;
+    const big = Math.max(canvas.width, canvas.height) || 1;
+    this.photoBoost = Math.max(1, Math.min(1.5, (max * 0.9) / big));
+    this.applyLayout();
+    // Draw the picture now, at rest, and take the canvas in the same task (before it is cleared).
+    this.updateLighting();
+    this.drawLean(performance.now(), true, QUALITY_PRESETS[this.quality].stillCache);
+    const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/png'));
+    this.photoBoost = 1;
+    this.applyLayout();
+    this.invalidate();
+    return blob ?? new Blob([], { type: 'image/png' });
+  }
+
+  private captureTarget: WebGLRenderTarget | null = null;
+  private readonly captureCamera = new PerspectiveCamera(FOV, 1.6, 0.5, 2000);
+
+  /**
+   * C5E: a small picture of the valley about `focus` (tiles), `radius` tiles across, for the
+   * Chronicle's snapshots. Drawn offscreen in one scene pass at twice the size into a float target,
+   * then tone mapped, graded to sRGB and halved on the CPU into a PNG; the canvas never shows it.
+   * The camera looks from the player's own bearing at 50 degrees. What the main view's culling has
+   * put away (far chunks) may be missing from a snapshot of somewhere else.
+   */
+  async capture(opts: {
+    focus: [number, number];
+    radius: number;
+    size: [number, number];
+  }): Promise<Blob | null> {
+    const [w, h] = opts.size;
+    const sw = Math.max(2, Math.round(w * 2));
+    const sh = Math.max(2, Math.round(h * 2));
+    if (!this.captureTarget || this.captureTarget.width !== sw || this.captureTarget.height !== sh) {
+      this.captureTarget?.dispose();
+      this.captureTarget = new WebGLRenderTarget(sw, sh, { type: FloatType, depthBuffer: true });
+    }
+    const cam = this.captureCamera;
+    cam.aspect = w / h;
+    cam.fov = FOV;
+    const [fx, fz] = opts.focus;
+    const tx = Math.min(MAP_SIZE - 1, Math.max(0, Math.floor(fx)));
+    const tz = Math.min(MAP_SIZE - 1, Math.max(0, Math.floor(fz)));
+    const y = levelY(this.mirror.height(tx, tz));
+    const dist = (Math.max(10, opts.radius) / Math.tan(MathUtils.degToRad(FOV / 2))) * 0.62;
+    const dir = this.camera.getWorldDirection(new Vector3());
+    const yaw = Math.atan2(dir.x, dir.z);
+    const pitch = MathUtils.degToRad(50);
+    cam.position.set(
+      fx - Math.sin(yaw) * Math.cos(pitch) * dist,
+      y + Math.sin(pitch) * dist,
+      fz - Math.cos(yaw) * Math.cos(pitch) * dist,
+    );
+    cam.lookAt(fx, y, fz);
+    cam.near = Math.max(0.5, dist * 0.05);
+    cam.far = dist * 6;
+    cam.updateProjectionMatrix();
+    cam.layers.mask = this.camera.layers.mask;
+    const three = this.three;
+    const prev = three.getRenderTarget();
+    const fog = this.scene.fog as Fog;
+    const fogSave = { near: fog.near, far: fog.far };
+    Object.assign(fog, hazeFor(dist));
+    three.setRenderTarget(this.captureTarget);
+    three.clear();
+    three.render(this.scene, cam);
+    three.setRenderTarget(prev);
+    Object.assign(fog, fogSave);
+    const px = new Float32Array(sw * sh * 4);
+    three.readRenderTargetPixels(this.captureTarget, 0, 0, sw, sh, px);
+    const canvas = document.createElement('canvas');
+    canvas.width = w;
+    canvas.height = h;
+    const g = canvas.getContext('2d');
+    if (!g) return null;
+    const img = g.createImageData(w, h);
+    const exposure = this.lean.exposure;
+    const sky = this.env.sky.value;
+    for (let j = 0; j < h; j++) {
+      for (let i = 0; i < w; i++) {
+        let r = 0;
+        let gg = 0;
+        let b = 0;
+        for (let dj = 0; dj < 2; dj++)
+          for (let di = 0; di < 2; di++) {
+            const o = ((sh - 1 - (j * 2 + dj)) * sw + (i * 2 + di)) * 4;
+            // Where nothing drew (beyond the valley), the sky's haze.
+            const a = px[o + 3]!;
+            r += a > 0 ? px[o]! : sky.r;
+            gg += a > 0 ? px[o + 1]! : sky.g;
+            b += a > 0 ? px[o + 2]! : sky.b;
+          }
+        const [tr, tg, tb] = neutralToneMap(r / 4, gg / 4, b / 4, exposure);
+        const q = (j * w + i) * 4;
+        img.data[q] = srgb8(tr);
+        img.data[q + 1] = srgb8(tg);
+        img.data[q + 2] = srgb8(tb);
+        img.data[q + 3] = 255;
+      }
+    }
+    g.putImageData(img, 0, 0);
+    return new Promise((resolve) => canvas.toBlob(resolve, 'image/png'));
+  }
+
   /** The active quality preset. */
   get qualityLevel(): Quality {
     return this.quality;
@@ -793,4 +1039,35 @@ export class Renderer implements RenderApi {
     this.three.domElement.remove();
     this.scene.background = new Color(0);
   }
+}
+
+/** C5E: Khronos PBR Neutral, as look.ts `lookToneMap` (for `capture`, on the CPU). */
+function neutralToneMap(r: number, g: number, b: number, exposure: number): [number, number, number] {
+  r *= exposure;
+  g *= exposure;
+  b *= exposure;
+  const start = 0.8 - 0.04;
+  const desat = 0.15;
+  const x = Math.min(r, g, b);
+  const offset = x < 0.08 ? x - 6.25 * x * x : 0.04;
+  r -= offset;
+  g -= offset;
+  b -= offset;
+  const peak = Math.max(r, g, b);
+  if (peak < start) return [r, g, b];
+  const d = 1 - start;
+  const np = 1 - (d * d) / (peak + d - start);
+  const k = np / peak;
+  r *= k;
+  g *= k;
+  b *= k;
+  const t = 1 - 1 / (desat * (peak - np) + 1);
+  return [r + (np - r) * t, g + (np - g) * t, b + (np - b) * t];
+}
+
+/** Linear to an sRGB byte. */
+function srgb8(v: number): number {
+  const c = Math.max(0, Math.min(1, v));
+  const s = c <= 0.0031308 ? c * 12.92 : 1.055 * c ** (1 / 2.4) - 0.055;
+  return Math.round(s * 255);
 }

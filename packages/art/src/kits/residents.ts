@@ -12,7 +12,7 @@ import type { Kit } from './types';
 export type SpeciesId = 'badger' | 'fox' | 'hedgehog' | 'mouse' | 'otter' | 'rabbit' | 'squirrel';
 export type ResidentDetail = 'full' | 'simple' | 'dot';
 export type HatKind =
-  'baker' | 'beret' | 'bowler' | 'cap' | 'captain' | 'felt' | 'souwester' | 'straw' | 'top' | 'wide';
+  'baker' | 'beret' | 'bowler' | 'cap' | 'captain' | 'felt' | 'knit' | 'souwester' | 'straw' | 'top' | 'wide';
 /**
  * C4E: story characters' signature pieces (a satchel, a long scarf, goggles, a lute, a shawl) and
  * the sling a parent carries a baby in.
@@ -20,16 +20,21 @@ export type HatKind =
 export type ExtraKind =
   | 'apron'
   | 'bow'
+  | 'cloak'
   | 'goggles'
+  | 'hood'
   | 'kerchief'
+  | 'lantern'
   | 'longscarf'
   | 'lute'
   | 'overalls'
+  | 'sack'
   | 'satchel'
   | 'scarf'
   | 'shawl'
   | 'skirt'
   | 'sling'
+  | 'staff'
   | `hat:${HatKind}`;
 
 export const SPECIES_IDS: readonly SpeciesId[] = [
@@ -48,6 +53,7 @@ export const HAT_KINDS: readonly HatKind[] = [
   'cap',
   'captain',
   'felt',
+  'knit',
   'souwester',
   'straw',
   'top',
@@ -56,16 +62,21 @@ export const HAT_KINDS: readonly HatKind[] = [
 export const EXTRA_KINDS: readonly ExtraKind[] = [
   'apron',
   'bow',
+  'cloak',
   'goggles',
+  'hood',
   'kerchief',
+  'lantern',
   'longscarf',
   'lute',
   'overalls',
+  'sack',
   'satchel',
   'scarf',
   'shawl',
   'skirt',
   'sling',
+  'staff',
   ...HAT_KINDS.map((h) => `hat:${h}` as const),
 ];
 
@@ -514,10 +525,88 @@ function scarf(b: RigBuilder): void {
   b.box(0.018, 0.098, 0.05, 0.046, 0.108, 0.068, fixed(0xf7f4ec));
 }
 
+/**
+ * C5E: the raiders' storybook cloak, a cape from the shoulders to the knees, open at the front.
+ */
+function cloak(b: RigBuilder): void {
+  b.ellipsoid([0, 0.13, -0.012], [0.085, 0.13, 0.078], 10, 3, () => cloth, Math.PI / 10, 0.45, 2.2);
+  b.nub([0, 0.172, 0.062], [0.01, 0.01, 0.006], fixed(BRASS));
+}
+
+/** C5E: a deep hood, pulled forward so the face shows under its rim. */
+function hood(b: RigBuilder): void {
+  b.ellipsoid([0, 0.245, -0.022], [0.078, 0.072, 0.074], 10, 3, () => cloth, Math.PI / 10, 0, 2.0);
+  b.tube(
+    [
+      [0, 0.29, -0.06],
+      [0, 0.27, -0.1],
+      [0, 0.23, -0.12],
+    ],
+    [0.018, 0.012, 0],
+    4,
+    cloth,
+  );
+}
+
+/** C5E: a lumpy burlap sack of loot over the shoulder, tied at the neck. */
+function sack(b: RigBuilder): void {
+  const burlap = fixed(0xb89c6c);
+  b.ellipsoid([0.03, 0.17, -0.085], [0.055, 0.065, 0.048], 8, 3, () => burlap);
+  b.ellipsoid([0.05, 0.14, -0.09], [0.035, 0.035, 0.035], 6, 2, () => burlap);
+  b.nub([0.02, 0.235, -0.07], [0.016, 0.012, 0.012], fixed(0x8a7048));
+  b.tube(
+    [
+      [0.02, 0.235, -0.07],
+      [0.045, 0.2, 0.0],
+      [0.05, 0.17, 0.04],
+    ],
+    [0.005, 0.005, 0.005],
+    3,
+    fixed(0x8a7048),
+  );
+}
+
+/** C5E: the Watch's lantern, held out at the side on a short hook, its glass warm. */
+function lantern(b: RigBuilder): void {
+  const iron = fixed(0x3b3229);
+  b.tube(
+    [
+      [-0.075, 0.12, 0.03],
+      [-0.085, 0.1, 0.045],
+    ],
+    [0.004, 0.004],
+    3,
+    iron,
+  );
+  b.box(-0.1, 0.05, 0.03, -0.07, 0.056, 0.06, iron);
+  b.ellipsoid([-0.085, 0.072, 0.045], [0.016, 0.018, 0.016], 6, 2, () => fixed(0xffe08a));
+  b.box(-0.096, 0.088, 0.034, -0.074, 0.096, 0.056, iron);
+}
+
+/** C5E: a walking staff (or a sling's pole) in the right hand. */
+function staff(b: RigBuilder): void {
+  b.tube(
+    [
+      [0.085, 0.0, 0.035],
+      [0.088, 0.16, 0.04],
+      [0.09, 0.34, 0.045],
+    ],
+    [0.007, 0.007, 0.009],
+    4,
+    fixed(0x8a5a3a),
+  );
+}
+
 function hat(b: RigBuilder, kind: HatKind): void {
   const y = 0.262;
   const band = fixed(palette.accentRed);
   switch (kind) {
+    case 'knit':
+      // C5E: a knitted winter hat with a turned-up band and a bobble.
+      b.ellipsoid([0, y - 0.01, 0.0], [0.064, 0.05, 0.062], 8, 2, () => cloth, Math.PI / 8, 0, Math.PI / 2);
+      b.ellipsoid([0, y - 0.012, 0.0], [0.067, 0.014, 0.065], 8, 1, () => cloth, Math.PI / 8, 1.3, 1.85);
+      b.nub([0, y + 0.045, -0.004], [0.02, 0.02, 0.02], fixed(0xf7f4ec));
+      break;
     case 'cap':
       b.ellipsoid(
         [0, y - 0.004, 0.004],
@@ -892,6 +981,11 @@ export function extraGeometry(kind: ExtraKind): BufferGeometry {
   else if (kind === 'lute') lute(b);
   else if (kind === 'shawl') shawl(b);
   else if (kind === 'sling') sling(b);
+  else if (kind === 'cloak') cloak(b);
+  else if (kind === 'hood') hood(b);
+  else if (kind === 'sack') sack(b);
+  else if (kind === 'lantern') lantern(b);
+  else if (kind === 'staff') staff(b);
   else hat(b, kind.slice(4) as HatKind);
   return b.build(0.3);
 }

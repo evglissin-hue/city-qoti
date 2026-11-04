@@ -160,6 +160,7 @@ const FINAL_FRAGMENT = /* glsl */ `
     c = lookToneMap(c);
     vec4 o = lookSrgb(vec4(c, 1.0));
     o.rgb = lookGrade(o.rgb) * lookVignette(vUv);
+    o.rgb = lookWeather(o.rgb, vUv);
     gl_FragColor = vec4(lookDither(o.rgb, gl_FragCoord.xy), 1.0);
   }
 `;
@@ -263,6 +264,18 @@ export class LeanFrame {
   private layout: FrameLayout | null = null;
   private blurPasses = 1;
   private tilt = 0;
+  /** C5E: photo mode's depth of field, 0 to 1 (a floor under the tilt-shift's strength). */
+  private dof = 0;
+
+  setDepthOfField(amount: number): void {
+    this.dof = amount;
+    this.tilt = Math.max(this.tilt, amount);
+  }
+
+  /** The exposure before tone mapping (for `capture`'s tone mapping on the CPU). */
+  get exposure(): number {
+    return this.look.uLookExposure.value;
+  }
   private bloom = true;
   private night = 0;
   private season: GradeSeason = 'spring';
@@ -409,6 +422,19 @@ export class LeanFrame {
     applyGrade(this.look, this.season, this.warmth);
   }
 
+  /** C5E: the weather's look in the final pass (look.ts `lookWeather`). */
+  setWeather(w: { rain: number; fog: number; storm: number; dry: number; overcast: number }): void {
+    this.look.uLookWeather.value.set(w.rain, w.fog, w.storm, w.dry);
+    this.look.uLookOvercast.value = w.overcast;
+  }
+
+  /** C5E: the storm's slow glow (0 to 1), the fog's color and the wisps' clock, every frame. */
+  setWeatherFrame(glow: number, fogColor: { r: number; g: number; b: number }, time: number): void {
+    this.look.uLookGlow.value = glow;
+    this.look.uLookFogColor.value.setRGB(fogColor.r, fogColor.g, fogColor.b);
+    this.look.uLookTime.value = time;
+  }
+
   /** Exposure before tone mapping, from the light (lighting.ts). */
   setExposure(e: number): void {
     this.look.uLookExposure.value = e;
@@ -416,7 +442,7 @@ export class LeanFrame {
 
   /** Tilt-shift strength from the camera distance (look.ts `tiltFor`). */
   setViewDistance(distance: number): void {
-    this.tilt = tiltFor(distance);
+    this.tilt = Math.max(tiltFor(distance), this.dof);
   }
 
   /** Whether this frame needs the tilt-shift blur chain. */

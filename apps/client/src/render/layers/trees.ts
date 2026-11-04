@@ -1,6 +1,11 @@
 import { kitById } from '@qoti/art';
 import { CHUNK_SIZE, CHUNKS_PER_SIDE, MAP_SIZE, treeSpecies, treeStage } from '@qoti/sim';
-import { PerspectiveCamera, type BufferGeometry, type MeshStandardMaterial } from 'three';
+import {
+  Float32BufferAttribute,
+  PerspectiveCamera,
+  type BufferGeometry,
+  type MeshStandardMaterial,
+} from 'three';
 import { ChunkDirt } from '../chunkDirt';
 import { hash2 } from '../coords';
 import { createWorldEnv, FIRST_FRAME_RADIUS, nearOf, type WorldEnv } from '../env';
@@ -46,6 +51,8 @@ function treeKinds(): ScatterKind[] {
         const seed = 17 + v * 31 + species * 7;
         const high: BufferGeometry = kit.build({ stage, seed });
         const low: BufferGeometry = kit.build({ stage, seed, lod: 'low' });
+        // C5E: pines keep their needles (and their snow) in winter; the foliage shader reads it.
+        for (const g of [high, low]) markPine(g, species === 3);
         kinds.push({
           id: kindId(species, stage, v),
           high,
@@ -57,6 +64,12 @@ function treeKinds(): ScatterKind[] {
     }
   }
   return kinds;
+}
+
+/** C5E: the foliage shader's `tkind` attribute (1 for an evergreen, 0 for a deciduous tree). */
+export function markPine(g: BufferGeometry, pine: boolean): void {
+  const n = g.getAttribute('position').count;
+  g.setAttribute('tkind', new Float32BufferAttribute(new Float32Array(n).fill(pine ? 1 : 0), 1));
 }
 
 /** Tints: warm, cool and plain, a little brighter or darker. */

@@ -17,6 +17,8 @@ import { palette } from '@qoti/art';
 import { content } from '@qoti/content';
 import { drawDef } from '../defs';
 import {
+  AGENT_STRIDE,
+  AgentFlags,
   BuildingStatus,
   CHUNK_SIZE,
   CHUNKS_PER_SIDE,
@@ -24,6 +26,7 @@ import {
   FIELD_GOOD_FERTILITY,
   FIELD_MIN_FERTILITY,
   footprintSize,
+  HABITAT_IDS,
   MAP_SIZE,
   type LayerName,
   type Rect,
@@ -206,6 +209,9 @@ void main() {
   #include <colorspace_fragment>
 }
 `;
+
+/** C5E: one colorblind-safe hue per habitat, in HABITAT_IDS order (Okabe and Ito). */
+export const HABITAT_COLORS = [0xe69f00, 0x56b4e9, 0x009e73, 0x0072b2, 0xf0e442, 0xcc79a7];
 
 export function overlaysLayer(): OverlaysLayer {
   let ctx: LayerContext | null = null;
@@ -762,6 +768,164 @@ export function overlaysLayer(): OverlaysLayer {
    * Playtest round three: the soil everywhere, for placing a farmhouse or a plot: deep green on
    * rich soil, pale sage on good, sandy on thin (slower), nothing where no field can go.
    */
+  // --- C5E: habitats, floodplain, threat and warmth ---------------------------------------------
+  // Colorblind-safe (Okabe and Ito's palette): each habitat its own hue, never told apart by red and
+  // green alone; threat and warmth are blue against orange.
+
+  /** One wash per chunk: the strongest habitat (`habitats`) or one (`habitat:<id>`), by score. */
+  function habitats(only: string | null): void {
+    if (!ctx) return;
+    const m = ctx.mirror;
+    const want = only ? HABITAT_IDS.indexOf(only as (typeof HABITAT_IDS)[number]) : -1;
+    // Before the first habitats pass (02:00) a valley has no scores: estimate them from the land
+    // (water for wetland, trees for woodland, open grass for meadow) so the view is never blank.
+    const scored: [number, number[]][] = [...m.habitats];
+    if (scored.length === 0) {
+      for (let c = 0; c < CHUNKS_PER_SIDE * CHUNKS_PER_SIDE; c++) {
+        const x0 = (c % CHUNKS_PER_SIDE) * CHUNK_SIZE;
+        const z0 = Math.floor(c / CHUNKS_PER_SIDE) * CHUNK_SIZE;
+        let water = 0;
+        let trees = 0;
+        let grass = 0;
+        for (let z = z0; z < z0 + CHUNK_SIZE; z++)
+          for (let x = x0; x < x0 + CHUNK_SIZE; x++) {
+            if (m.water(x, z)) water++;
+            else if (m.tree(x, z)) trees++;
+            else if (!m.occupant(x, z) && !m.road(x, z) && m.terrain(x, z) <= 2) grass++;
+          }
+        const n = CHUNK_SIZE * CHUNK_SIZE;
+        const k = (v: number) => Math.min(255, Math.round((v / n) * 400));
+        scored.push([c, [0, k(water), 0, k(trees), Math.round(k(grass) * 0.45), 0]]);
+      }
+    }
+    // One color and alpha per chunk, drawn as one smooth sheet over the valley (one draw).
+    const per = new Map<number, Rgba>();
+    for (const [chunk, scores] of scored) {
+      let h = want;
+      if (h < 0) {
+        h = 0;
+        for (let i = 1; i < scores.length; i++) if ((scores[i] ?? 0) > (scores[h] ?? 0)) h = i;
+      }
+      const score = (scores[h] ?? 0) / 255;
+      if (score < 0.04) continue;
+      const c = new Color(HABITAT_COLORS[h] ?? 0x999999);
+      per.set(chunk, [c.r, c.g, c.b, 0.1 + 0.18 * Math.min(1, score * 1.4)]);
+    }
+    if (per.size === 0) return;
+    add(
+      drapeGrid(m, 0, 0, MAP_SIZE - 1, MAP_SIZE - 1, (x, z) => {
+        const cx = Math.min(CHUNKS_PER_SIDE - 1, Math.floor(x / CHUNK_SIZE));
+        const cz = Math.min(CHUNKS_PER_SIDE - 1, Math.floor(z / CHUNK_SIZE));
+        return per.get(cz * CHUNKS_PER_SIDE + cx) ?? [0, 0, 0, 0];
+      }),
+    );
+  }
+
+  /** The floodplain in sky blue, deeper where a flood stands on it now. */
+  function floodplain(): void {
+    if (!ctx) return;
+    const m = ctx.mirror;
+    const plain = new Color(0x56b4e9);
+    const flags = m.layers.flags;
+    const tiles: { x: number; z: number; rgba: Rgba }[] = [];
+    const flooding = !!m.weather.value?.events.some((e) => e.event === 'flood' && e.active);
+    for (let z = 0; z < MAP_SIZE; z++)
+      for (let x = 0; x < MAP_SIZE; x++) {
+        if (!((flags[z * MAP_SIZE + x] ?? 0) & 1) || m.water(x, z)) continue;
+        tiles.push({ x, z, rgba: [plain.r, plain.g, plain.b, flooding ? 0.5 : 0.3] });
+      }
+    if (tiles.length) add(drapeTiles(m, tiles, 0.05));
+  }
+
+  /**
+   * Threat: the Watch's reach in blue (watchtower ranges, and a few tiles about each member on
+   * duty), the side the coming raid is expected from as an orange band along the valley's edge.
+   */
+  function threat(): void {
+    if (!ctx) return;
+    const m = ctx.mirror;
+    const blue = new Color(0x0072b2);
+    const orange = new Color(0xe69f00);
+    const disc = (cx: number, cz: number, r: number, a: number) => {
+      add(
+        drapeGrid(
+          m,
+          Math.floor(cx - r - 1),
+          Math.floor(cz - r - 1),
+          Math.ceil(cx + r + 1),
+          Math.ceil(cz + r + 1),
+          (x, z) => {
+            const d = Math.sqrt((x - cx) ** 2 + (z - cz) ** 2);
+            return [blue.r, blue.g, blue.b, d > r ? 0 : a * (0.6 + 0.4 * (d / r) ** 2)];
+          },
+        ),
+      );
+      add(drapeRing(m, cx, cz, r, 0.12, [blue.r, blue.g, blue.b, 0.85]));
+    };
+    for (const b of m.buildings.values()) {
+      const range = content.buildingById.get(b.def)?.defense?.towerRange;
+      if (!range) continue;
+      const c = centerOf(b.id);
+      if (c) disc(c[0], c[2], range, 0.22);
+    }
+    const L = m.agents.latest;
+    for (let o = 0; o + AGENT_STRIDE <= L.length; o += AGENT_STRIDE)
+      if (L[o + 7]! & AgentFlags.watch) disc(L[o + 1]!, L[o + 2]!, 3, 0.16);
+    const side = m.threat.value?.side;
+    if (side) {
+      const deep = 14;
+      const tiles: { x: number; z: number; rgba: Rgba }[] = [];
+      for (let i = 0; i < MAP_SIZE; i++)
+        for (let d = 0; d < deep; d++) {
+          const [x, z] =
+            side === 'n'
+              ? [i, d]
+              : side === 's'
+                ? [i, MAP_SIZE - 1 - d]
+                : side === 'w'
+                  ? [d, i]
+                  : [MAP_SIZE - 1 - d, i];
+          tiles.push({ x, z, rgba: [orange.r, orange.g, orange.b, 0.38 * (1 - d / deep)] });
+        }
+      add(drapeTiles(m, tiles, 0.05));
+    }
+  }
+
+  /** Warmth: homes with someone cold in blue, warm homes a faint orange. */
+  function warmth(): void {
+    if (!ctx) return;
+    const m = ctx.mirror;
+    const cold = new Set<number>();
+    const L = m.agents.latest;
+    for (let o = 0; o + AGENT_STRIDE <= L.length; o += AGENT_STRIDE) {
+      if (!(L[o + 7]! & AgentFlags.cold)) continue;
+      const home = m.residents.get(L[o]!)?.homeId;
+      if (home) cold.add(home);
+    }
+    const blue = new Color(0x0072b2);
+    const orange = new Color(0xe69f00);
+    // A band just outside each home's walls (a wash under the house would hide beneath it).
+    for (const b of m.buildings.values()) {
+      const def = drawDef(b.def);
+      if (!def?.housing && !def?.tags?.includes('home')) continue;
+      const isCold = cold.has(b.id);
+      const c = isCold ? blue : orange;
+      const [w, d] = footprintSize(def, b.rot);
+      put(
+        drapeOutline(
+          m,
+          b.x,
+          b.z,
+          b.x + w,
+          b.z + d,
+          isCold ? 0.42 : 0.26,
+          [c.r, c.g, c.b, isCold ? 0.85 : 0.6],
+          -0.45,
+        ),
+      );
+    }
+  }
+
   function soil(): void {
     if (!ctx) return;
     const m = ctx.mirror;
@@ -824,6 +988,11 @@ export function overlaysLayer(): OverlaysLayer {
     else if (kind === 'needs') merged(needs);
     else if (kind?.startsWith('deposit:')) deposits(kind.slice('deposit:'.length));
     else if (kind === 'soil') soil();
+    else if (kind === 'habitats' || kind?.startsWith('habitat:'))
+      habitats(kind === 'habitats' ? null : kind.slice(8));
+    else if (kind === 'floodplain') floodplain();
+    else if (kind === 'threat') threat();
+    else if (kind === 'warmth') merged(warmth);
     else if (kind === 'resources') resources();
     statusRebuild = true;
     ctx.invalidate();
