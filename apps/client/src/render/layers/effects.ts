@@ -1,4 +1,11 @@
-import { kitById, type KitAnchors, type KitBuildOptions, type KitPart } from '@qoti/art';
+import {
+  artKitId,
+  kitById,
+  moduleAnchors,
+  type KitAnchors,
+  type KitBuildOptions,
+  type KitPart,
+} from '@qoti/art';
 import { drawDef } from '../defs';
 import {
   DynamicDrawUsage,
@@ -23,7 +30,7 @@ function kitOptions(defId: string): { kitId: string; opts: KitBuildOptions } | n
   const def = drawDef(defId);
   if (!def) return null;
   return {
-    kitId: def.art.kit,
+    kitId: artKitId(def.art),
     opts: {
       size: def.size,
       entrance: def.entrance,
@@ -39,8 +46,9 @@ function anchorsOf(b: BuildingView): KitAnchors {
   let a = anchorCache.get(key);
   if (!a) {
     const def = drawDef(b.def);
-    const kit = def ? kitById.get(def.art.kit) : undefined;
-    a = kit?.anchors?.(buildingKitOptions(b)) || {};
+    const kit = def ? kitById.get(artKitId(def.art)) : undefined;
+    const opts = buildingKitOptions(b);
+    a = moduleAnchors(kit?.anchors?.(opts) || {}, opts);
     anchorCache.set(key, a);
   }
   return a;
@@ -163,16 +171,21 @@ export function effectsLayer(): EffectsLayer {
       sp.mesh.matrixWorldNeedsUpdate = true;
     }
     if (!smoke) return;
+    // C5E part 2: every hearth is lit in the cold, so winter smoke is fuller, whiter and slower.
+    const cold = Math.min(1, ctx?.env?.snow.value ?? 0);
+    smokeMaterial.opacity = 0.55 + cold * 0.2;
+    const swell = 1 + cold * 0.5;
+    const climb = 0.9 - cold * 0.15;
     let i = 0;
     for (let c = 0; c < chimneys.length && i < smoke.count; c++) {
       const base = chimneys[c]!;
       for (let k = 0; k < PUFFS_PER_CHIMNEY && i < smoke.count; k++, i++) {
         // Each puff rises, drifts with a gentle breeze, swells and shrinks away at the end of its life.
         const life = (time / PUFF_LIFE + k / PUFFS_PER_CHIMNEY + c * 0.37) % 1;
-        const size = Math.sin(life * Math.PI) * (0.7 + life * 1.6);
+        const size = Math.sin(life * Math.PI) * (0.7 + life * 1.6) * swell;
         p.set(
           base.x + life * 0.35 + Math.sin(time + c) * 0.03,
-          base.y + 0.05 + life * 0.9,
+          base.y + 0.05 + life * climb,
           base.z + life * 0.15,
         );
         m.compose(p, q.identity(), s.setScalar(Math.max(0.001, size)));

@@ -3,6 +3,7 @@
 // screenshots. C3D-1: ?set=trees lines up every forest tree at each growth stage plus its low
 // detail version; ?set=nature lines up the scattered nature props in two variants each.
 import {
+  artKitId,
   constructionGeometry,
   createPatternArray,
   isRowKit,
@@ -38,6 +39,7 @@ import {
 } from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { makeFigure, type Figure } from './figures';
+import { buildSeasons, SEASON_NAMES } from './seasons';
 import { buildSurfaces, SURFACE_ORDER } from './surfaces';
 
 const q = new URLSearchParams(location.search);
@@ -105,7 +107,7 @@ const state = {
 };
 
 function sizeOf(id: string): { size: [number, number]; entrance: [number, number] } | null {
-  const def = content.buildings.find((b) => b.art.kit === id);
+  const def = content.buildings.find((b) => artKitId(b.art) === id);
   if (def) return { size: def.size, entrance: def.entrance };
   // C4E: kits whose defs are not in content yet carry the footprint they are drawn for.
   const fp = kitById.get(id)?.footprint;
@@ -674,6 +676,17 @@ if (sceneName === 'lineup') {
     camera.position.set(Math.sin(yaw) * d * 0.7, d * 0.72, Math.cos(yaw) * d * 0.7);
     controls.update();
   };
+} else if (sceneName === 'seasons') {
+  // C5E part 2: the trees in each season, with the game's foliage material.
+  const { group, size } = buildSeasons(state.seed);
+  holder.add(group);
+  const dist = Number(q.get('dist') ?? Math.max(size[0], size[1]) * 1.7 + 2);
+  const yaw = Number(q.get('yaw') ?? 0.15);
+  camera.position.set(Math.sin(yaw) * dist, dist * Number(q.get('pitch') ?? 0.7), Math.cos(yaw) * dist);
+  controls.target.set(0.6, 0.4, -1.2);
+  ground.scale.setScalar(2);
+  state.spin = false;
+  info.textContent = `seasons, left to right: ${SEASON_NAMES.join(', ')} (oak, birch, pine, apple, cherry, pear)`;
 } else if (sceneName === 'residents') {
   buildResidents();
   camera.position.set(0.1, 1.1, 3.6);

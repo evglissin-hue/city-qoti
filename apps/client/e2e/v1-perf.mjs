@@ -47,6 +47,15 @@ const SCENES = {
     only: true,
   },
   raid: { fixture: 'raid', dist: 60, only: true },
+  // C5E part 2: the I3 pieces side by side (defenses, the trades and modules, a festival with its
+  // bonfire and lanterns, the circus, fireworks going up, a flood and a raid's omens).
+  'i3-pieces': {
+    fixture: 'hamlet',
+    setup: 'seasons',
+    dist: 40,
+    q: 'season=autumn&day=3&omens&flood=0.5',
+    only: true,
+  },
 };
 
 const browser = await chromium.launch({
@@ -77,9 +86,15 @@ for (const [scene, def] of Object.entries(SCENES)) {
   }
   let center = def.center;
   if (def.setup === 'village') await page.evaluate(() => window.__qoti.villageShowcase(true));
+  if (def.setup === 'seasons') {
+    const sc = await page.evaluate(() => window.__qoti.seasonsShowcase());
+    center = [sc.center[0] + 8, sc.center[1] + 6];
+    await page.evaluate(([x, z]) => window.__qoti.fireworks(x, z), center);
+  }
   if (def.crowd) await page.evaluate((n) => window.__qoti.synthResidents(n), def.crowd);
   else if (def.setup === 'town') center = (await page.evaluate(() => window.__qoti.townShowcase())).center;
-  else if (def.fixture === 'hamlet') await page.evaluate(() => window.__qoti.synthResidents(60));
+  else if (def.fixture === 'hamlet' && !def.setup)
+    await page.evaluate(() => window.__qoti.synthResidents(60));
   if (!center) {
     const [x0, z0, x1, z1] = await page.evaluate(() => window.__qoti.startArea());
     center = [(x0 + x1 + 1) / 2, (z0 + z1 + 1) / 2];

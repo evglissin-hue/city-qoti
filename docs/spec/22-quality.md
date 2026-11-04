@@ -93,6 +93,8 @@ Camera pass triangles per layer (`QOTI_LAYERS=1`), against V1.0's before table: 
 
 **As built (C5E, 2026-11-03)**: seasons and weather on the V1 renderer, same container and method (`QOTI_HOLD=1 QOTI_FIXEDRES=1 QOTI_PRESETS=medium v1-perf.mjs village village-winter village-crowd raid`, Medium, 1440 x 900): the village of 130 draws 134 calls and 0.22 M triangles clear, 139 and 0.24 M in winter with snow falling, 145 and 0.24 M with 80 more folk about, and the raid fixture 48 and 0.07 M, all within Medium's budgets. In software the snowy village's idle frame costs about twice the clear one's (transparent snow is slow to rasterize on the CPU); the laptop numbers decide it (`cycle-05e-seasons-art.md`, As built).
 
+**As built (C5E part 2, 2026-11-04)**: the I3 pieces drawn (defenses, festival art and fireworks, the new buildings and modules, flood water, telegraph signs), same container and method (`QOTI_HOLD=1 QOTI_FIXEDRES=1 QOTI_PRESETS=medium v1-perf.mjs village i3-pieces raid`): the village of 130 draws 129 calls and 0.20 M triangles, the raid fixture with its defenses 50 and 0.08 M, and the `i3-pieces` scene (every new piece, a festival, the circus, fireworks, a flood and omens) 67 and 0.14 M, all far within Medium's budgets. A resting valley with all of it on show reaches idle frames (`c5e-seasons.spec.ts`); the laptop timings are still to take (`cycle-05e-seasons-art.md`, As built part 2).
+
 ## Tests
 
 | Layer | What | Where |
