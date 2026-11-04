@@ -16,7 +16,7 @@ const [vw, vh] = (process.env.QOTI_SIZE ?? '1440x900').split('x').map(Number);
 const wait = Number(process.env.QOTI_WAIT ?? 7000);
 
 // name: [fixture, query, hour, dist, at: spot name from the showcase or [dx, dz] from its center or
-// 'raiders', fireworks]
+// 'raiders', or { abs: [x, z] }, fireworks]
 const SHOTS = {
   overview: ['hamlet', 'season=summer&day=3', 12, 36, [8, 6]],
   defenses: ['hamlet', 'season=summer&day=3', 12, 11, [2, 2]],
@@ -34,8 +34,10 @@ const SHOTS = {
   'winter-defenses': ['hamlet', 'season=winter&day=3&weather=frozen', 11, 11, [2, 2]],
   'winter-festival-night': ['hamlet', 'season=winter&day=3', 21.5, 12, 'festival'],
   'winter-omens': ['winter', 'omens', 12, 18, [0, -12]],
-  'raid-dusk': ['raid', '', 19.2, 16, 'raiders'],
-  'raid-night': ['raid', '', 22, 16, 'raiders'],
+  // The raid fixture's palisade and gate (38 to 42, 45 to 49), with the raiders where they are.
+  'raid-dusk': ['raid', '', 19.2, 14, { abs: [41, 49] }],
+  'raid-night': ['raid', '', 22, 14, { abs: [41, 49] }],
+  'raid-wide': ['raid', '', 19.2, 40, 'raiders'],
 };
 
 const browser = await chromium.launch({
@@ -74,6 +76,7 @@ for (const [name, [fixture, q, hour, dist, at, fireworks]] of Object.entries(SHO
     const [x0, z0, x1, z1] = await page.evaluate(() => window.__qoti.startArea());
     [x, z] = [(x0 + x1 + 1) / 2, (z0 + z1 + 1) / 2];
     if (Array.isArray(at)) [x, z] = [x + at[0], z + at[1]];
+    if (at?.abs) [x, z] = at.abs;
     if (at === 'raiders') {
       await page.waitForTimeout(4000);
       const r = await page.evaluate(() => window.__qoti.agentsWith(256));

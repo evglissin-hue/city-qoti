@@ -2,6 +2,7 @@ import { seeded, ShapeBuilder } from '@qoti/art';
 import { MAP_SIZE } from '@qoti/sim';
 import {
   BufferGeometry,
+  DoubleSide,
   DynamicDrawUsage,
   Euler,
   Float32BufferAttribute,
@@ -61,6 +62,8 @@ export function telegraphLayer(): RenderLayer {
     polygonOffset: true,
     polygonOffsetFactor: -2,
     polygonOffsetUnits: -2,
+    // The prints' winding follows the way they walk: draw both faces.
+    side: DoubleSide,
   });
   const m = new Matrix4();
   const q = new Quaternion();

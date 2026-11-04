@@ -51,8 +51,7 @@ export function floodLayer(): RenderLayer {
     const mirror = ctx!.mirror;
     const flags = mirror.layers.flags as Uint8Array;
     const N = MAP_SIZE;
-    // The plain, and the river beside it (the river swells too), in runs along x, one quad each,
-    // padded a little so the sheet leaves no seam.
+    // The plain, and the river beside it (the river swells too), in runs along x, one quad each.
     const wet = new Uint8Array(N * N);
     let high = 0;
     for (let z = 0; z < N; z++)
@@ -77,10 +76,11 @@ export function floodLayer(): RenderLayer {
         }
         const x0 = x;
         while (x < N && wet[z * N + x]) x++;
-        const a = x0 - 0.25;
-        const b = x + 0.25;
-        const c = z - 0.25;
-        const d = z + 1.25;
+        // Exact tile edges: overlapping runs would double the water's alpha in stripes.
+        const a = x0;
+        const b = x;
+        const c = z;
+        const d = z + 1;
         pos.push(a, 0, c, a, 0, d, b, 0, d, a, 0, c, b, 0, d, b, 0, c);
       }
     }
