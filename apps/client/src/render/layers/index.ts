@@ -8,6 +8,8 @@ import { cartsLayer } from './carts';
 import { crittersLayer } from './critters';
 import { decorLayer } from './decor';
 import { effectsLayer } from './effects';
+import { festivalLayer } from './festival';
+import { festivalFxLayer } from './festivalFx';
 import { fieldsLayer } from './fields';
 import { ghostsLayer } from './ghosts';
 import { lightsLayer } from './lights';
@@ -34,6 +36,8 @@ export const layerFactories: readonly LayerFactory[] = [
   crittersLayer,
   decorLayer,
   effectsLayer,
+  festivalFxLayer,
+  festivalLayer,
   fieldsLayer,
   ghostsLayer,
   lightsLayer,
@@ -54,6 +58,7 @@ export type { AgentsLayer } from './agents';
 export type { AnimalsLayer } from './animals';
 export type { CartsLayer } from './carts';
 export type { EffectsLayer } from './effects';
+export type { FestivalFxLayer } from './festivalFx';
 export type { GhostLayer } from './ghosts';
 export type { HighlightArea, OverlaysLayer } from './overlays';
 export type { PresenceLayer } from './presence';

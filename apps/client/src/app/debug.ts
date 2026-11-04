@@ -24,6 +24,7 @@ import { roadsShowcase } from '../render/roadShowcase';
 import { audio, type SoundCueId } from '../audio/api';
 import { audioEngine } from '../audio/install';
 import { villageShowcase } from '../render/showcase';
+import { seasonsShowcase } from '../render/seasonsShowcase';
 import { townShowcase, type TownShowcaseOptions } from '../render/townShowcase';
 import { fakeCharm, fakeRuntime, startSyntheticResidents, type SyntheticOptions } from '../render/synthetic';
 import { SimHost } from '../worker/host';
@@ -433,6 +434,17 @@ export function installDebugHook(getSession: () => Session | null): void {
     fitShowcase: (x?: number, z?: number) => {
       const session = s();
       return session ? fitShowcase(session.mirror, x, z) : null;
+    },
+    /** C5E part 2: every I3 building, defense and festival piece side by side, for art review. */
+    seasonsShowcase: (x?: number, z?: number) => {
+      const session = s();
+      return session ? seasonsShowcase(session.mirror, x, z) : null;
+    },
+    /** C5E part 2: a fireworks show over a point (or the town's middle), as for a rank-up. */
+    fireworks: (x?: number, z?: number) => {
+      const r = s()?.renderer as unknown as
+        { layers?: { id: string; fireworks?: (x?: number, z?: number) => void }[] } | undefined;
+      r?.layers?.find((l) => l.id === 'festival-fx')?.fireworks?.(x, z);
     },
     /** C3D: a made-up charm field for overlay screenshots (until the charm system runs). */
     synthCharm: () => {

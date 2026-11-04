@@ -4,6 +4,7 @@ import * as An from './animals';
 import * as B from './buildings';
 import * as D from './decor';
 import * as Df from './defenses';
+import * as Fe from './festival';
 import * as Gd from './garden';
 import * as G from './goods';
 import * as Gr from './grown';
@@ -25,8 +26,10 @@ export const kits: readonly Kit[] = [
   D.bench,
   T.birch,
   Gd.birdbath,
+  Fe.bonfire,
   V.brickKilnKit,
   W.buildersYardKit,
+  Fe.bunting,
   N.bush,
   Ve.cart,
   Sv.cartShedKit,
@@ -45,7 +48,11 @@ export const kits: readonly Kit[] = [
   Gr.farmstead,
   D.fence,
   N.fern,
+  Fe.festivalStage,
+  Fe.festivalStall,
+  Fe.festivalTable,
   W.fishersHutKit,
+  Fe.flowerArch,
   D.flowerBed,
   W.forestersLodgeKit,
   Df.gateKitDef,

@@ -73,6 +73,8 @@ describe('static and moving layers (V1.0)', () => {
       // C5E: ambient critters and the weather's particles.
       'critters',
       'effects',
+      // C5E part 2: the bonfire's flames and the fireworks.
+      'festival-fx',
       'ghosts',
       'notes',
       'overlays',

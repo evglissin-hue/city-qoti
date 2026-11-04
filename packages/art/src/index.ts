@@ -1,5 +1,14 @@
 export { mixHex, seeded, ShapeBuilder, vary, type V3 } from './geometry';
-export { artKitId, kitById, kits, WALL_KITS, type Kit, type KitAnchors, type KitBuildOptions, type KitPart } from './kits';
+export {
+  artKitId,
+  kitById,
+  kits,
+  WALL_KITS,
+  type Kit,
+  type KitAnchors,
+  type KitBuildOptions,
+  type KitPart,
+} from './kits';
 export type { AnimalKind } from './kits/types';
 export { animalArt, standingAnimal, wolfGeometry, type AnimalArt } from './kits/animals';
 export {
@@ -95,3 +104,4 @@ export {
   type SurfaceMapping,
   type SurfaceName,
 } from './surface';
+export { BONFIRE_FLAME, circusGeometry, FESTIVAL_COLORS, festoonPosts, STALL_COUNTER } from './kits/festival';

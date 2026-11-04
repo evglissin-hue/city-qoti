@@ -263,10 +263,23 @@ function stoneWall(opts: KitBuildOptions | undefined): Built {
   }
   // Modules: ivy over the stones, or a box of flowers on the coping.
   if (mod === 'ivy' && dmg < 3) {
-    const arm = arms[0]!;
-    const f: Face = arm[0] !== 0 ? { dir: 'z+', plane: 0.5 + T } : { dir: 'x+', plane: 0.5 + T };
-    const u0 = arm[0] !== 0 ? 0.1 : 0.1;
-    ivyPart(s, f, u0, 0.9, H, rnd);
+    // Ivy up both faces of the run, spilling over the coping.
+    const alongX = arms.some((a) => a[0] !== 0);
+    for (const sign of [1, -1]) {
+      const f: Face = alongX
+        ? { dir: sign > 0 ? 'z+' : 'z-', plane: 0.5 + sign * T }
+        : { dir: sign > 0 ? 'x+' : 'x-', plane: 0.5 + sign * T };
+      ivyPart(s, f, 0.05, 0.95, H + 0.04, rnd);
+    }
+    s.nearOnly(() => {
+      s.surface(SURFACE.leaf);
+      for (let i = 0; i < 5; i++) {
+        const t = 0.1 + i * 0.2 + rnd() * 0.05;
+        const [px, pz] = alongX ? [t, 0.5] : [0.5, t];
+        s.blob(px, H + 0.07, pz, 0.08, 0.04, 0.08, vary(i % 2 ? 0x47703a : 0x5f8a45, rnd, 0.6), 0, rnd, 0.2);
+      }
+      s.surface(SURFACE.plain);
+    });
   } else if (mod === 'flower-boxes' && dmg < 2) {
     s.detail(() => {
       for (const arm of arms) {
