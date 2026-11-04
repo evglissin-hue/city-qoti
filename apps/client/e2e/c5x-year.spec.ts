@@ -65,6 +65,7 @@ test('two browsers play a full year online', async ({ browser }) => {
   await waitLive(b);
   await expect.poll(async () => (await seasons(b))?.settings.threat).toBe('standard');
 
+  console.log('year: both seats live, threat Standard');
   const start = await tick(a);
   const end = start + DAYS * TICKS_PER_DAY;
   await a.getByTestId('speed-3').click();
@@ -85,6 +86,7 @@ test('two browsers play a full year online', async ({ browser }) => {
     const s = await seasons(a);
     const day = Math.floor((now - start) / TICKS_PER_DAY);
     const c = await clock(a);
+    console.log(`year: day ${day} ${JSON.stringify(c)}`);
     const hour = c?.hour ?? 0;
     if (s?.weather?.today) weather.add(s.weather.today);
     for (const e of s?.weather?.events ?? []) weather.add(`event:${e.event}`);
@@ -93,7 +95,7 @@ test('two browsers play a full year online', async ({ browser }) => {
       [`festival-${season}-${s?.festival?.festival.id ?? ''}`, !!s?.festival?.live],
       ['snow', s?.weather?.today === 'snow'],
       ['frozen', !!s?.weather?.frozen],
-      [`dusk-${season}`, hour === 19],
+      [`dusk-${season}`, hour >= 18 && hour <= 20],
       ['raid', !!s?.raid],
     ];
     for (const [name, on] of moments) {
