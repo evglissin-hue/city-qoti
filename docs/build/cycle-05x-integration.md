@@ -106,3 +106,28 @@ See "Stand-ins after C5X part 1" in `i3-wave-notes.md`: what is gone, and what r
 - Merge C5E (after V1X lands), remove its stand-ins (the borrowed decor kits, undrawn modules, ponds, critters, `capture` and `photo`, the habitats overlay, C5E's fixtures) and re-run every check.
 - Tune the open items above: Village debt and exports with festivals on, hazel's third year, oak's first winter and stars.
 - Task 4 (two browsers, a full year), the rest of task 5 (an I2 valley loads and migrates online, image upload online), `docs/playtests/I3.md`, the I3 acceptance list in `30-roadmap.md` with evidence (As built (C5X)), and task 7 (the I4 briefs).
+
+## As built (C5X part 2)
+
+Part 2 ran on `cycle/05x-integration-2` from `main` after V1X (#21) and C5E's first slice (#23), with C5E part 2 (#24) building the rest of the seasons art beside it. The owner replaced task 7 (I4 briefs): before I4 comes P1, a quality audit and polish pass the owner starts (`30-roadmap.md`).
+
+### Tuning and the dead ends
+
+`npm run tune:summary -w @qoti/bench [days] [seeds...]` (new) plays each seed with every system on and the threat dial at Standard and prints one block per seed against the targets. Final numbers are in `30-roadmap.md` (I3, As built). What it found and what changed:
+
+- **The Village borrowed and never paid it back.** The books by category showed two causes: the autoplayer built on borrowed money (a year's construction close to its deficit, at a fifth a year in interest), and with wages at the floor and the tax at its 20% top a Village still lost on the upkeep it paid its own households, which were never taxed on it (the code's own comment said they were). Now: upkeep shares are taxed like wages, the lever reaches 30% (`TAX_RATE_RANGE`, the Policies dial adds 25 and 30), and the autoplayer keeps 350 coins back from anything that can wait while it owes, and firms the tax while past half its line. Loans now come down in the third year on every seed and are paid off or nearly on three.
+- **A Village with no exports.** Nobody bought wheat, flour, stone or wool, and nobody sold logs: hazel held 1,517 wheat with no buyer, and part 1's "the Trading Post buys a woodcutter's logs" could never happen. Stonecross now sells logs and buys wheat, flour and wool; Millhaven buys stone (`13-ledger.md`).
+- **Cold beside a full woodpile.** A Village household bought firewood only from outlet shelves at 07:30, before the porters' morning round, and only the slate (newcomers, nobody in work) could take from the storehouses; working families spend their wages by supper. Hazel and oak failed The First Winter with 170 firewood in store. Now the woodpile sells at the till price when the shelves are bare, and anyone short of coins takes it on the slate in winter (`14-challenge.md`, Warmth). All four seeds weather the trial first time.
+- **Oak's hungry first winter.** Nine plots for 27, half unstaffed while the quarry and six woodcutters worked on. The seasons advisor now allows a plot for every two residents while the larder is short of a winter, and the quarry and woodcutters rest when it is under four days a head from summer on.
+- **Empty festival tables.** The menu spent only food above six days a head, which a growing Village never held in its storehouses; out of winter it keeps three (`MENU_SPRING_DAYS`). Willow's first Village year had stayed at two stars.
+- The book buys winter firewood from Stonecross up to 2.5 times base (its winter price plus the post's share was over the old 1.6 ceiling).
+
+Still open: oak, the slowest-growing and most labor-starved seed, ends its third year with loans near its peak and a cold snap on its last day leaving 22 households cold; no seed raises Craftsfolk in these runs (part 1's notes; I2's open item).
+
+### Stand-ins
+
+C5F's canvas stand-ins for `capture` and photo mode are gone (C5E's renderer has both). See "Stand-ins after C5X part 2" in `i3-wave-notes.md` for what remains and why.
+
+### Benches
+
+All sim budgets met; the seasons day is 0.5 to 0.8 ms (part 1's warm-up fix holds). The charm chunk's dense block at night measures 1.4 to 2.3 ms against 2 ms in this container from run to run, the same on `main` (a warm-up did not steady it); it is the bench's own stress case, not a town, and is left for P1.

@@ -87,6 +87,28 @@ Each iteration (gameplay I0 to I5, visual V1 to V4; V0 was a concept) ends with 
 - A new standard valley's first days are guided for both lanes, and the guide can be hidden by either player.
 - Benches within budget at Village scale in winter, during a festival and during a raid; hashes match over a full year, including a raid, in Node and a browser worker.
 
+**As built (C5X)**, with evidence (part 1 #22 merged and tuned the gameplay wave; part 2 tuned the rest, fixed the dead ends below and shipped; the two-player evening is `docs/playtests/I3.md`):
+
+- [x] **The first winter**: the autoplayer (`npm run tune:summary -w @qoti/bench`, every system on, threat Standard, 72 days) weathers The First Winter first time on all four seeds (willow, hazel, oak, alpha), no household leaves, every winter is eaten through on stored food, and no household is cold in any winter but oak's third (22 on its last day, a cold snap with its sheds short of hands). Unprepared: a household with no firewood is cold, cross and counted, and nothing worse (`packages/sim/test/seasons/warmth.test.ts`, `trials.test.ts`).
+- [x] **Festivals**: one every season on every seed; 3 stars or more in the first Village year on all four; 5 stars on hazel and oak (`tools/bench/src/advisors/festivals.test.ts` holds willow and hazel to it Peaceful); stars follow site, pieces, menu, music and twist (`packages/sim/test/festivals`).
+- [x] **Raids**: every raid telegraphed (band, side, days, signs), 2 to 4 a run, losses 32 to 88 units and recovered with no lean days, some held outright; walls, lanterns and the Watch move the outcome and captives can join (`packages/sim/test/threats`, C5D). Nobody is hurt.
+- [x] **Nature**: 32 species in content; 17 to 22 in the autoplayer's first Village year; the Field Guide is per valley and shows to both seats; bees and songbirds are yield modifiers (`packages/sim/test/nature`).
+- [x] **Weather and events**: flood, drought, early frost, cold snap and the circus forecast on the season card and felt in both lanes (C5A tests, C5F's season card).
+- [x] **Renown, commissions, the River Dock, modules, photo mode, Chronicle pictures**; 6 new patterns and 5 new achievements with detector and unlock tests (C5B, C5C, C5E, C5F).
+- [x] **Each lane needs the other**: festival menus and winter stock share one larder, walls carry charm, festival morale feeds the Watch.
+- [x] **Music and sound**: the hour, the season and the camera (C5G). Every sound is synthesized in the browser or a CC0 recording (VSCO-2 CE), credited in the manifest; the CC0 hosts were blocked in the build container, so most of the score is synthesized, as the owner allowed.
+- [x] **First days guide** for both lanes, hidden by either seat (C5H, `c5h-guide.spec.ts`).
+- [x] **Benches and hashes**: every sim budget met at Village scale (seasons day 0.5 to 0.8 ms, festivals 0.46 ms an outcome, habitats 1.8 ms a day, raids 0.18 ms a tick and 0.85 ms the daily pass; the charm chunk's dense block at night sits at 1.4 to 2.3 ms against 2 ms in this container, the same on `main`); a year of the threat fixture with its raid hashes the same in Node and a browser worker (`determinism.spec.ts`), and two browsers play a year online with matching hashes (`c5x-year.spec.ts`, `QOTI_YEAR=1`).
+
+| Seed | Village day | Festivals (stars by season) | Species, first Village year | Raids | Loans at the end (peak) | Lean days | Cold households | Trial |
+|---|---|---|---|---|---|---|---|---|
+| willow | 19 | 1 3 2 2, 3 4 4 3 | 17 | 3, lost 32 to 40, 3 caught | 111 (1,598) | 0 | 0 | weathered first time |
+| hazel | 19 | 2 4 3 2, 5 4 4 4 | 21 | 3, lost 48 and 56, one held | 225 (1,740) | 0 | 0 | weathered first time |
+| oak | 30 | 2 2 2 2, 3 5 4 3 | 18 | 2, lost 48 and 88 | 2,325 (2,564) | 0 | 22 on the last day (year 3) | weathered first time |
+| alpha | 13 | 3 4 4 3, 3 4 3 3 | 22 | 4, lost 48 and 56, two held | 0 (1,349) | 0 | 0 | weathered first time |
+
+Left for humans: the two-player evening on the live link (`docs/playtests/I3.md`) and the laptop numbers (`docs/playtests/V1.md`).
+
 ## Visual overhaul (V iterations)
 
 The look gets much more detailed and stays cozy (owner, 2026-11-01; `17-presentation.md`, Visual direction; `18-eras.md`). Like the gameplay iterations, each V iteration is a serial contracts cycle, a parallel wave and an integration cycle, ends playable on the live link and gets a playtest evening. V iterations interleave with the gameplay ones: a V wave owns render and art paths, so gameplay cycles that own sim and UI paths can run beside it.
