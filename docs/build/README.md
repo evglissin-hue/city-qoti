@@ -31,7 +31,7 @@ One row per cycle. A cycle is one agent session working from one brief on one br
 | C5B Festivals, renown, commissions and the River Dock | I3 | parallel | `cycle-05b-festivals-renown.md` | C5.0 | merged into `main` by C5X part 1 (#19) |
 | C5C Nature, the Field Guide and Hearth craft | I3 | parallel | `cycle-05c-nature-field-guide.md` | C5.0 | merged into `main` by C5X part 1 (#20) |
 | C5D Threats, defenses and the Watch | I3 | parallel | `cycle-05d-threats-watch.md` | C5.0 | merged into `main` by C5X part 1 (#17) |
-| C5E Seasons art and rendering | I3 | parallel | `cycle-05e-seasons-art.md` | C5.0, V1X | first slice merged: seasons through the day, ground snow, seasonal trees, ice, weather, critters, raid and Watch figures, four overlays, photo mode and capture; festival, defense and building art are follow-ups (As built in the brief) |
+| C5E Seasons art and rendering | I3 | parallel | `cycle-05e-seasons-art.md` | C5.0, V1X | done in two slices: seasons, weather, critters, figures, overlays and photo mode (first); defenses with damage and mending, festival art and fireworks, the new buildings and modules, flood water, breath and winter smoke, telegraph signs and the gallery's seasonal trees (part 2); what is left for the laptops is in the brief's As built |
 | C5F Seasons UI | I3 | parallel | `cycle-05f-seasons-ui.md` | C5.0 | merged into `main` by C5X part 1 (#15); screenshots `c5f-*` |
 | C5G Music and sound | I3 | parallel | `cycle-05g-audio.md` | C5.0 | done on `claude/epic-hawking-e32pnd`, synthesized (see As built in the brief) |
 | C5H The first days guide | I3 | parallel | `cycle-05h-first-days.md` | C5.0 | merged into `main` by C5X part 1 (#18) |
