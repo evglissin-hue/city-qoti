@@ -2,14 +2,7 @@
 // blank pages still waiting (with three hints), then a page per species: line art, where and when
 // it was first seen, by whom, how often since, its line, and its habitats drawn on the valley.
 import { content } from '@qoti/content';
-import {
-  calendar,
-  CHUNK_SIZE,
-  CHUNKS_PER_SIDE,
-  HABITAT_IDS,
-  SEASON_NAMES,
-  type FieldGuideEntryView,
-} from '@qoti/sim';
+import { calendar, SEASON_NAMES, type FieldGuideEntryView } from '@qoti/sim';
 import type { Session } from '../../app/session';
 import { CreatureArt } from '../art';
 import { Empty, Frame } from './parts';
@@ -64,26 +57,6 @@ export function fieldGuideHints(seen: ReadonlySet<string>, season: number): stri
         'Hedges are hotels with no front desk.',
       ][out.length]!,
     );
-  return out;
-}
-
-/** Tiles of the chunks where a habitat scores at least `min`, for the valley highlight. */
-export function habitatTiles(
-  habitats: ReadonlyMap<number, number[]>,
-  habitat: string,
-  min = 40,
-): [number, number][] {
-  const h = HABITAT_IDS.indexOf(habitat as (typeof HABITAT_IDS)[number]);
-  if (h < 0) return [];
-  const out: [number, number][] = [];
-  for (const [chunk, scores] of habitats) {
-    if ((scores[h] ?? 0) < min) continue;
-    const cx = (chunk % CHUNKS_PER_SIDE) * CHUNK_SIZE;
-    const cz = Math.floor(chunk / CHUNKS_PER_SIDE) * CHUNK_SIZE;
-    // Every other tile is plenty for a wash and keeps the highlight light.
-    for (let z = 0; z < CHUNK_SIZE; z += 2)
-      for (let x = (z / 2) % 2; x < CHUNK_SIZE; x += 2) out.push([cx + x, cz + z]);
-  }
   return out;
 }
 
@@ -168,8 +141,8 @@ function SpeciesPage({ session, entry }: { session: Session; entry: FieldGuideEn
   const c = calendar(entry.firstTick);
   const seats = m.seats.value;
   const by = entry.seats.map((s) => seats.find((x) => x.seat === s)?.name ?? `Seat ${s + 1}`);
-  const show = (habitat: string) =>
-    session.render?.highlight?.({ tiles: habitatTiles(m.habitats, habitat), tone: 'hearth' });
+  // C5X part 2: C5E's own overlay for the habitat (was C5F's stand-in, a wash on its chunks' tiles).
+  const show = (habitat: string) => (session.ui.overlay.value = `habitat:${habitat}`);
   return (
     <article class="notebook-page species-page" data-testid="species-page">
       <button type="button" class="link-button back" onClick={() => (session.ui.guidePage.value = null)}>
