@@ -77,7 +77,7 @@ test('photo mode saves a PNG and capture returns a thumbnail', async ({ page }) 
 });
 
 test('a resting winter valley in falling snow draws idle frames', async ({ page }) => {
-  test.setTimeout(240_000);
+  test.setTimeout(300_000);
   const [x0, z0, x1, z1] = await openWinter(page, '&weather=snow');
   await page.evaluate(
     ([x, z]) => {
@@ -92,15 +92,16 @@ test('a resting winter valley in falling snow draws idle frames', async ({ page 
     },
     [(x0 + x1 + 1) / 2, (z0 + z1 + 1) / 2] as [number, number],
   );
-  // Let the snow ease in and the valley stream and settle.
-  await page.waitForTimeout(15_000);
+  // Let the snow ease in and the valley stream and settle: wait for the first idle frame (a slow
+  // software runner can take a minute or two), then watch a while more.
+  const mode = () =>
+    page.evaluate(() => (window.__qoti as unknown as { renderer(): Render }).renderer().stats.mode);
+  await expect.poll(mode, { timeout: 150_000, intervals: [2000] }).toBe('idle');
   const before = await staticChanges(page);
   const modes = new Set<string>();
   for (let i = 0; i < 6; i++) {
-    await page.waitForTimeout(1500);
-    modes.add(
-      await page.evaluate(() => (window.__qoti as unknown as { renderer(): Render }).renderer().stats.mode),
-    );
+    await page.waitForTimeout(2000);
+    modes.add(await mode());
   }
   const after = await staticChanges(page);
   expect(modes.has('idle')).toBe(true);
