@@ -4,6 +4,7 @@ import {
   isRowKit,
   kitById,
   mergeFlat,
+  fitModules,
   ShapeBuilder,
   upgradeScaffold,
   type KitBuildOptions,
@@ -124,6 +125,33 @@ export function setWallReader(read: ((b: BuildingView) => Record<string, boolean
   wallAt = read;
 }
 
+/**
+ * C5E: waterside buildings (the River Dock, the Stone Bridge) reach out over the water behind them;
+ * `span` is how many tiles of water lie straight behind the footprint's middle (up to 8), so the
+ * bridge lands on the far bank.
+ */
+let waterAt: ((x: number, z: number) => boolean) | null = null;
+
+export function setWaterReader(read: ((x: number, z: number) => boolean) | null): void {
+  waterAt = read;
+}
+
+const spanProbe = new Vector3();
+const spanMatrix = new Matrix4();
+
+function waterSpan(b: BuildingView): number {
+  const def = drawDef(b.def);
+  if (!waterAt || !def) return 0;
+  buildingMatrix(b.def, b.x, b.z, b.rot, 0, spanMatrix);
+  let n = 0;
+  for (let k = 0; k < 8; k++) {
+    spanProbe.set(def.size[0] / 2, 0, -0.5 - k).applyMatrix4(spanMatrix);
+    if (!waterAt(Math.floor(spanProbe.x), Math.floor(spanProbe.z))) break;
+    n++;
+  }
+  return n;
+}
+
 /** C5E: wall damage as the kits draw it, from hit points left in percent (0 whole to 3 down). */
 export function damageLevel(hp: number | undefined): number {
   if (hp === undefined || hp >= 85) return 0;
@@ -147,6 +175,7 @@ export function buildingParams(b: BuildingView): Record<string, number | string 
   if (def?.tags?.includes('plot')) p.soil = plotSoil(b);
   if (rowAt && def && isRowKit(artKitId(def.art))) Object.assign(p, rowAt(b));
   if (wallAt && def && WALL_KITS.has(artKitId(def.art))) Object.assign(p, wallAt(b));
+  if (def?.placement?.some((r) => r.kind === 'waterEdge')) p.span = waterSpan(b);
   // C5E: modules fitted (`mod:<slot>`), wall damage, a shut gate, a sprung trap.
   for (const [slot, m] of b.modules ?? []) p[`mod:${slot}`] = m;
   const rt = b.rt;
@@ -233,7 +262,14 @@ export function buildingVariantGeometry(b: BuildingView, lod: 'high' | 'low' = '
       ...(lod === 'low' ? { lod } : {}),
     });
   }
-  const g = kit.build({ ...buildingKitOptions(b), lod });
+  const opts = { ...buildingKitOptions(b), lod };
+  let g = kit.build(opts);
+  // C5E: modules fitted to the kit as built (the wall kits draw their own).
+  if (b.modules?.length && !WALL_KITS.has(artKitId(def.art))) {
+    const fitted = fitModules(g, opts);
+    g.dispose();
+    g = fitted;
+  }
   if (!b.rt?.upgrading) return g;
   // C4E: a home upgrade under way: scaffolding round the house as it stands.
   const merged = mergeFlat([g, upgradeScaffold(artKitId(def.art), def.size, variantSeed(b), lod)]);

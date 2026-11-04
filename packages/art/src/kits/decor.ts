@@ -5,7 +5,7 @@ import { palette } from '../palette';
 import type { Kit, KitBuildOptions } from './types';
 
 /** A small orchard tree: a sturdy trunk, a lumpy layered canopy and dots of fruit or blossom. */
-function fruitTree(
+export function fruitTree(
   opts: KitBuildOptions | undefined,
   canopy: number,
   dot: number,

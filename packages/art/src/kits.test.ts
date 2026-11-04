@@ -4,6 +4,7 @@ import { artKitId, kitById, kits } from './kits';
 
 /** Triangle budgets for the bigger buildings (the rest get 2,600). */
 const BUILDING_BUDGETS: Record<string, number> = {
+  'bath-house': 3400,
   'brick-kiln': 4000,
   'chopping-shed': 2800,
   herbalist: 3000,

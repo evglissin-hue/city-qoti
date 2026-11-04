@@ -17,6 +17,8 @@ import {
 } from '@qoti/sim';
 import type { Mirror } from '../state/mirror';
 import { drawDef } from './defs';
+import { buildingMatrix } from './kitGeometry';
+import { Vector3 } from 'three';
 
 const N = MAP_SIZE;
 const FIRST_ID = 760000;
@@ -132,6 +134,53 @@ export function seasonsShowcase(mirror: Mirror, cx?: number, cz?: number): Seaso
   });
   spots.push(['modules', x0 + 1, zm + 1]);
 
+  // The dock and the bridge on the nearest bank whose water lies behind them.
+  const waterL = mirror.layers.water as Uint8Array;
+  const roadL = mirror.layers.road as Uint8Array;
+  const occL = mirror.layers.occupant as Int32Array;
+  const v = new Vector3();
+  const bank = (def: string, near: [number, number], avoid: [number, number] | null): Piece | null => {
+    const d = drawDef(def);
+    if (!d) return null;
+    let best: Piece | null = null;
+    let bestD = Infinity;
+    for (let z = Math.max(2, near[1] - 30); z < Math.min(N - 4, near[1] + 30); z++)
+      for (let xx = Math.max(2, near[0] - 30); xx < Math.min(N - 4, near[0] + 30); xx++)
+        for (const rot of [0, 1, 2, 3] as Rot4[]) {
+          const [w, dd] = rot % 2 ? [d.size[1], d.size[0]] : d.size;
+          let ok = true;
+          for (let tz = z; tz < z + dd && ok; tz++)
+            for (let tx = xx; tx < xx + w && ok; tx++) {
+              const i = tz * N + tx;
+              if (waterL[i] || roadL[i] || occL[i]) ok = false;
+            }
+          if (!ok) continue;
+          const m = buildingMatrix(def, xx, z, rot, 0);
+          for (let u = 0; u < d.size[0] && ok; u++) {
+            v.set(u + 0.5, 0, -0.5).applyMatrix4(m);
+            if (!waterL[Math.floor(v.z) * N + Math.floor(v.x)]) ok = false;
+          }
+          if (!ok) continue;
+          const dist = Math.hypot(xx - near[0], z - near[1]);
+          if (avoid && Math.hypot(xx - avoid[0], z - avoid[1]) < 6) continue;
+          if (dist < bestD) {
+            bestD = dist;
+            best = { def, x: xx, z, rot };
+          }
+        }
+    return best;
+  };
+  const dock = bank('river-dock', [x0 + 22, z0 + 10], null);
+  if (dock) {
+    pieces.push(dock);
+    spots.push(['dock', dock.x + 1, dock.z + 1]);
+  }
+  const bridge = bank('stone-bridge', [x0 + 22, z0 + 18], dock ? [dock.x, dock.z] : null);
+  if (bridge) {
+    pieces.push(bridge);
+    spots.push(['bridge', bridge.x + 1.5, bridge.z + 1]);
+  }
+
   // Place them.
   const occupant = new Int32Array(mirror.layers.occupant as Int32Array);
   const road = mirror.layers.road as Uint8Array;
@@ -211,6 +260,12 @@ export function seasonsShowcase(mirror: Mirror, cx?: number, cz?: number): Seaso
   put('gate-banner', x0 + 5.6, z0 + 0.7);
   put('gate-banner', x0 + 7.4 + 0, z0 - 0.4);
   put('lookout-bench', x0 - 1.5, z0 - 1.2);
+  put('arbor-seat', x0 + 15.5, zm + 0.6);
+  put('pear-tree', x0 + 16.6, zm + 1.8);
+  put('reed-bed', x0 + 17.8, zm + 0.6);
+  put('see-saw', x0 + 15.4, zm + 2.6, 16);
+  put('swing', x0 + 17.6, zm + 2.7);
+  spots.push(['greens', x0 + 16.5, zm + 1.5]);
   spots.push(['festival', fx + 3.5, fz + 3.5]);
 
   const all = [0, 0, N - 1, N - 1] as [number, number, number, number];

@@ -151,6 +151,7 @@ export function buildNatureChunk(
       }
       let trees = 0;
       let wet = 0;
+      let pond = false;
       let roadSide = 0;
       let tx = 0;
       let tz = 0;
@@ -164,6 +165,7 @@ export function buildNatureChunk(
             tz += dz;
           }
           if (L.water[j]) wet++;
+          if (L.water[j] === Water.pond) pond = true;
           if (L.road[j] || L.occupant[j]) roadSide++;
         }
       }
@@ -178,10 +180,11 @@ export function buildNatureChunk(
 
       // Reeds at the water line: try a few spots on the bank.
       if (wet) {
-        for (let k = 0; k < 4; k++) {
+        // C5E: ponds are ringed more thickly than the river's banks.
+        for (let k = 0; k < (pond ? 6 : 4); k++) {
           const [px, pz] = spot(10 + k * 2);
           const y = surfaceY(tiles, px, pz);
-          if (y > WATER_Y - 0.1 && y < WATER_Y + 0.07 && h(30 + k) < 0.75)
+          if (y > WATER_Y - 0.1 && y < WATER_Y + 0.07 && h(30 + k) < (pond ? 0.92 : 0.75))
             place.put('reeds', px, pz, 30 + k, 0.85 + h(40 + k) * 0.4);
         }
         if (h(50) < 0.12) place.put('rock', ...spot(51), 52, 0.5 + h(53) * 0.4, 0.2);

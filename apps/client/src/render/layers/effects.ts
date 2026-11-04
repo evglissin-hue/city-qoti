@@ -1,4 +1,11 @@
-import { artKitId, kitById, type KitAnchors, type KitBuildOptions, type KitPart } from '@qoti/art';
+import {
+  artKitId,
+  kitById,
+  moduleAnchors,
+  type KitAnchors,
+  type KitBuildOptions,
+  type KitPart,
+} from '@qoti/art';
 import { drawDef } from '../defs';
 import {
   DynamicDrawUsage,
@@ -40,7 +47,8 @@ function anchorsOf(b: BuildingView): KitAnchors {
   if (!a) {
     const def = drawDef(b.def);
     const kit = def ? kitById.get(artKitId(def.art)) : undefined;
-    a = kit?.anchors?.(buildingKitOptions(b)) || {};
+    const opts = buildingKitOptions(b);
+    a = moduleAnchors(kit?.anchors?.(opts) || {}, opts);
     anchorCache.set(key, a);
   }
   return a;

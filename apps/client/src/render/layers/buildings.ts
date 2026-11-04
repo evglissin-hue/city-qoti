@@ -11,6 +11,7 @@ import {
   setDrawSeason,
   setRowReader,
   setWallReader,
+  setWaterReader,
   setSoilReader,
   standLevel,
 } from '../kitGeometry';
@@ -231,6 +232,7 @@ export function buildingsLayer(): RenderLayer {
       setSoilReader((x, z) => c.mirror.fertility(x, z));
       setRowReader((b) => rowNeighbors(c.mirror, b));
       setWallReader((b) => wallNeighbors(c.mirror, b));
+      setWaterReader((x, z) => !!c.mirror.water(x, z));
       batch = new KeyedBatch(c.scene, c.material);
       rebuild();
     },

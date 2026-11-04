@@ -6,12 +6,14 @@ import * as D from './decor';
 import * as Df from './defenses';
 import * as Fe from './festival';
 import * as Gd from './garden';
+import * as Gn from './greens';
 import * as G from './goods';
 import * as Gr from './grown';
 import * as N from './nature';
 import * as R from './residents';
 import * as Sv from './services';
 import * as T from './trees';
+import * as Tr from './trades';
 import * as Ve from './vehicles';
 import type { Kit } from './types';
 import * as V from './village';
@@ -19,9 +21,12 @@ import * as W from './workplaces';
 
 // prettier-ignore
 export const kits: readonly Kit[] = [
+  Tr.apiaryKit,
   D.appleTree,
+  Gn.arborSeat,
   W.bakeryKit,
   D.barrels,
+  Tr.bathHouseKit,
   Df.bellTowerKit,
   D.bench,
   T.birch,
@@ -31,8 +36,10 @@ export const kits: readonly Kit[] = [
   W.buildersYardKit,
   Fe.bunting,
   N.bush,
+  Tr.carpenterKit,
   Ve.cart,
   Sv.cartShedKit,
+  Tr.chandlerKit,
   V.cheesemakerKit,
   D.cherryTree,
   V.choppingShedKit,
@@ -65,6 +72,7 @@ export const kits: readonly Kit[] = [
   V.herbGardenKit,
   Gd.herbPlanter,
   Sv.herbalistKit,
+  Tr.herbalistsCottageKit,
   B.house2,
   D.lantern,
   N.lilyPads,
@@ -77,18 +85,23 @@ export const kits: readonly Kit[] = [
   T.oak,
   V.orchardKit,
   Df.palisadeKit,
+  Gn.pearTree,
+  Tr.pieShopKit,
   T.pine,
   Df.pitTrapKit,
   D.planter,
   Gd.planterWall,
   An.ponyKit,
   W.quarryKit,
+  Gn.reedBed,
   N.reeds,
   R.resident,
   Gd.ringBench,
+  Tr.riverDockKit,
   N.rock,
   W.sawpitKit,
   Sv.schoolKit,
+  Gn.seeSaw,
   B.shed,
   An.sheepKit,
   V.sheepPastureKit,
@@ -96,8 +109,11 @@ export const kits: readonly Kit[] = [
   D.signpost,
   V.smithyKit,
   V.spinnerKit,
+  Tr.stoneBridgeKit,
   Df.stoneWallKit,
   W.storehouseKit,
+  Gn.swing,
+  Tr.tailorKit,
   Sv.tavernKit,
   B.townHall,
   Gr.townhouse,

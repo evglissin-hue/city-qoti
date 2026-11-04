@@ -105,3 +105,4 @@ export {
   type SurfaceName,
 } from './surface';
 export { BONFIRE_FLAME, circusGeometry, FESTIVAL_COLORS, festoonPosts, STALL_COUNTER } from './kits/festival';
+export { fitModules, moduleAnchors } from './kits/modules';
