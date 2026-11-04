@@ -203,6 +203,12 @@ export interface BuildingRuntimeView {
   method?: string;
   /** I2 (C4E): a home upgrade is under way (materials still to come), for the scaffolding. */
   upgrading?: boolean;
+  /** I3 (C5E, additive): wall pieces and traps, hit points left in percent of the most (absent when whole). */
+  hp?: number;
+  /** I3 (C5E, additive): gates, false while shut (absent when open). */
+  open?: boolean;
+  /** I3 (C5E, additive): standing in flood water, until this tick. */
+  flooded?: number;
 }
 
 export interface StockLine {

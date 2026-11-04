@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { content } from '@qoti/content';
-import { kitById, kits } from './kits';
+import { artKitId, kitById, kits } from './kits';
 
 /** Triangle budgets for the bigger buildings (the rest get 2,600). */
 const BUILDING_BUDGETS: Record<string, number> = {
+  'bath-house': 3400,
   'brick-kiln': 4000,
   'chopping-shed': 2800,
   herbalist: 3000,
@@ -71,7 +72,7 @@ describe('art kits', () => {
     }
     for (const kit of kits) {
       if (kit.kind === 'building') {
-        const def = content.buildings.find((b) => b.art.kit === kit.id);
+        const def = content.buildings.find((b) => artKitId(b.art) === kit.id);
         const size = def?.size ?? kit.footprint?.size ?? [2, 2];
         const entrance = def?.entrance ?? kit.footprint?.entrance ?? [0, 1];
         const budget = BUILDING_BUDGETS[kit.id] ?? 2600;

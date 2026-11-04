@@ -1,4 +1,4 @@
-import { kitById, type KitAnchors } from '@qoti/art';
+import { artKitId, kitById, type KitAnchors } from '@qoti/art';
 import { content } from '@qoti/content';
 import { drawDef } from '../defs';
 import { Matrix4, PerspectiveCamera, Vector3 } from 'three';
@@ -30,7 +30,7 @@ function anchorsForDecor(defId: string): KitAnchors {
   let a = decorAnchors.get(defId);
   if (!a) {
     const def = content.decorById.get(defId);
-    const kit = def ? kitById.get(def.art.kit) : undefined;
+    const kit = def ? kitById.get(artKitId(def.art)) : undefined;
     a = kit?.anchors?.(def?.art.params ? { params: def.art.params } : {}) ?? {};
     decorAnchors.set(defId, a);
   }
@@ -41,7 +41,7 @@ function anchorsForBuilding(defId: string): KitAnchors {
   let a = buildingAnchors.get(defId);
   if (!a) {
     const def = drawDef(defId);
-    const kit = def ? kitById.get(def.art.kit) : undefined;
+    const kit = def ? kitById.get(artKitId(def.art)) : undefined;
     a =
       (def &&
         kit?.anchors?.({

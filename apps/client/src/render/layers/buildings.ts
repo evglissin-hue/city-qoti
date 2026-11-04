@@ -10,10 +10,12 @@ import {
   isSeasonal,
   setDrawSeason,
   setRowReader,
+  setWallReader,
+  setWaterReader,
   setSoilReader,
   standLevel,
 } from '../kitGeometry';
-import { isRowKit } from '@qoti/art';
+import { artKitId, isRowKit, WALL_KITS } from '@qoti/art';
 import { levelFor, SwapQueue, type Level } from '../lod';
 import type { LayerContext, RenderLayer } from './types';
 
@@ -59,7 +61,7 @@ const local = new Matrix4();
 export function rowNeighbors(mirror: Mirror, b: BuildingView): Record<string, string | boolean> {
   const out: Record<string, string | boolean> = {};
   const def = drawDef(b.def);
-  if (!def || b.stage !== 'built' || !isRowKit(def.art.kit)) return out;
+  if (!def || b.stage !== 'built' || !isRowKit(artKitId(def.art))) return out;
   const [w, d] = def.size;
   const level = standLevel(mirror, b.def, b.x, b.z, b.rot);
   buildingMatrix(b.def, b.x, b.z, b.rot, 0, local);
@@ -73,18 +75,48 @@ export function rowNeighbors(mirror: Mirror, b: BuildingView): Record<string, st
     const id = mirror.occupant(tx, tz);
     const nb = id && id !== b.id ? mirror.buildings.get(id) : undefined;
     const ndef = nb ? drawDef(nb.def) : undefined;
-    if (nb && ndef && nb.stage === 'built' && nb.rot === b.rot && isRowKit(ndef.art.kit)) {
+    if (nb && ndef && nb.stage === 'built' && nb.rot === b.rot && isRowKit(artKitId(ndef.art))) {
       // The probe must fall in the neighbor's front row, on its facing edge.
       toLocal.copy(buildingMatrix(nb.def, nb.x, nb.z, nb.rot, 0, toLocal)).invert();
       probe.set(tx + 0.5, 0, tz + 0.5).applyMatrix4(toLocal);
       const [nw, nd] = ndef.size;
       const edge = side === 'L' ? probe.x > nw - 1 : probe.x < 1;
       if (edge && probe.z > nd - 1 && standLevel(mirror, nb.def, nb.x, nb.z, nb.rot) === level) {
-        out[`join${side}`] = ndef.art.kit;
+        out[`join${side}`] = artKitId(ndef.art);
         continue;
       }
     }
     if (mirror.road(tx, tz) > 0) out[`street${side}`] = true;
+  }
+  return out;
+}
+
+/**
+ * C5E: the kit-local sides of a wall piece (palisade, stone wall, gate) that a built wall piece
+ * stands beside, so runs join up and corners turn. A gate joins along its own run only (its x
+ * sides), so a wall meeting it head-on does not poke through its leaves.
+ */
+export function wallNeighbors(mirror: Mirror, b: BuildingView): Record<string, boolean> {
+  const out: Record<string, boolean> = {};
+  const def = drawDef(b.def);
+  if (!def || b.stage !== 'built') return out;
+  const gate = artKitId(def.art) === 'gate';
+  buildingMatrix(b.def, b.x, b.z, b.rot, 0, local);
+  for (const [key, u, w] of [
+    ['wx-', -0.5, 0.5],
+    ['wx+', 1.5, 0.5],
+    ['wz-', 0.5, -0.5],
+    ['wz+', 0.5, 1.5],
+  ] as const) {
+    if (gate && key[1] === 'z') continue;
+    probe.set(u, 0, w).applyMatrix4(local);
+    const id = mirror.occupant(Math.floor(probe.x), Math.floor(probe.z));
+    const nb = id && id !== b.id ? mirror.buildings.get(id) : undefined;
+    const ndef = nb ? drawDef(nb.def) : undefined;
+    if (!nb || !ndef || nb.stage !== 'built' || !WALL_KITS.has(artKitId(ndef.art))) continue;
+    // A gate only takes a wall at its run's ends (its run is along world x at rotations 0 and 2).
+    if (artKitId(ndef.art) === 'gate' && (nb.rot % 2 === 0 ? nb.z !== b.z : nb.x !== b.x)) continue;
+    out[key] = true;
   }
   return out;
 }
@@ -199,6 +231,8 @@ export function buildingsLayer(): RenderLayer {
       setDrawSeason(c.mirror.clock.value.season);
       setSoilReader((x, z) => c.mirror.fertility(x, z));
       setRowReader((b) => rowNeighbors(c.mirror, b));
+      setWallReader((b) => wallNeighbors(c.mirror, b));
+      setWaterReader((x, z) => !!c.mirror.water(x, z));
       batch = new KeyedBatch(c.scene, c.material);
       rebuild();
     },

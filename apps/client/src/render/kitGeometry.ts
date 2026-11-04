@@ -1,11 +1,14 @@
 import {
+  artKitId,
   constructionGeometry,
   isRowKit,
   kitById,
   mergeFlat,
+  fitModules,
   ShapeBuilder,
   upgradeScaffold,
   type KitBuildOptions,
+  WALL_KITS,
 } from '@qoti/art';
 import { content } from '@qoti/content';
 import { drawDef } from './defs';
@@ -34,7 +37,7 @@ export function buildingGeometry(defId: string): BufferGeometry {
   let g = cache.get(key);
   if (!g) {
     const def = drawDef(defId);
-    const kit = def ? kitById.get(def.art.kit) : undefined;
+    const kit = def ? kitById.get(artKitId(def.art)) : undefined;
     g =
       def && kit
         ? kit.build({
@@ -111,8 +114,53 @@ export function setRowReader(read: ((b: BuildingView) => Record<string, string |
   rowAt = read;
 }
 
+/**
+ * C5E: wall pieces join the wall pieces beside them. The buildings layer hands in a reader for the
+ * kit-local sides a piece has a wall neighbor on (`wx-`, `wx+`, `wz-`, `wz+`), so a run of palisade
+ * or stone wall reads as one wall and turns its corners.
+ */
+let wallAt: ((b: BuildingView) => Record<string, boolean>) | null = null;
+
+export function setWallReader(read: ((b: BuildingView) => Record<string, boolean>) | null): void {
+  wallAt = read;
+}
+
+/**
+ * C5E: waterside buildings (the River Dock, the Stone Bridge) reach out over the water behind them;
+ * `span` is how many tiles of water lie straight behind the footprint's middle (up to 8), so the
+ * bridge lands on the far bank.
+ */
+let waterAt: ((x: number, z: number) => boolean) | null = null;
+
+export function setWaterReader(read: ((x: number, z: number) => boolean) | null): void {
+  waterAt = read;
+}
+
+const spanProbe = new Vector3();
+const spanMatrix = new Matrix4();
+
+function waterSpan(b: BuildingView): number {
+  const def = drawDef(b.def);
+  if (!waterAt || !def) return 0;
+  buildingMatrix(b.def, b.x, b.z, b.rot, 0, spanMatrix);
+  let n = 0;
+  for (let k = 0; k < 8; k++) {
+    spanProbe.set(def.size[0] / 2, 0, -0.5 - k).applyMatrix4(spanMatrix);
+    if (!waterAt(Math.floor(spanProbe.x), Math.floor(spanProbe.z))) break;
+    n++;
+  }
+  return n;
+}
+
+/** C5E: wall damage as the kits draw it, from hit points left in percent (0 whole to 3 down). */
+export function damageLevel(hp: number | undefined): number {
+  if (hp === undefined || hp >= 85) return 0;
+  return hp <= 0 ? 3 : hp < 50 ? 2 : 1;
+}
+
 export function isSeasonal(defId: string): boolean {
-  const kit = drawDef(defId)?.art.kit;
+  const def = drawDef(defId);
+  const kit = def ? artKitId(def.art) : undefined;
   return !!kit && SEASONAL_KITS.has(kit);
 }
 
@@ -123,10 +171,23 @@ export function buildingParams(b: BuildingView): Record<string, number | string 
   for (const [k, v] of Object.entries(b.custom ?? {})) p[k] = v;
   // C4E: grown buildings take their district's look; seasonal kits the season.
   if (b.style) p.style = b.style;
-  if (def && SEASONAL_KITS.has(def.art.kit)) p.season = drawSeason;
+  if (def && SEASONAL_KITS.has(artKitId(def.art))) p.season = drawSeason;
   if (def?.tags?.includes('plot')) p.soil = plotSoil(b);
-  if (rowAt && def && isRowKit(def.art.kit)) Object.assign(p, rowAt(b));
+  if (rowAt && def && isRowKit(artKitId(def.art))) Object.assign(p, rowAt(b));
+  if (wallAt && def && WALL_KITS.has(artKitId(def.art))) Object.assign(p, wallAt(b));
+  if (def?.placement?.some((r) => r.kind === 'waterEdge')) p.span = waterSpan(b);
+  // C5E: modules fitted (`mod:<slot>`), wall damage, a shut gate, a sprung trap.
+  for (const [slot, m] of b.modules ?? []) p[`mod:${slot}`] = m;
   const rt = b.rt;
+  if (rt && b.stage === 'built') {
+    if (def?.defense?.trap) {
+      if (rt.hp === 0) p.sprung = true;
+    } else if (rt.hp !== undefined) {
+      const dmg = damageLevel(rt.hp);
+      if (dmg) p.dmg = dmg;
+    }
+    if (rt.open === false) p.open = false;
+  }
   if (rt?.method) {
     // What a grown craft or farm is making, by its method's first output.
     const out = def?.methods?.find((m) => m.id === rt.method)?.outputs[0]?.[0];
@@ -186,14 +247,14 @@ export function buildingKitOptions(b: BuildingView): KitBuildOptions {
  */
 export function buildingVariantGeometry(b: BuildingView, lod: 'high' | 'low' = 'high'): BufferGeometry {
   const def = drawDef(b.def);
-  const kit = def ? kitById.get(def.art.kit) : undefined;
+  const kit = def ? kitById.get(artKitId(def.art)) : undefined;
   const stage = constructionStage(b);
   if (!def || !kit) return missing();
   if (stage !== null) {
     const delivered: Record<string, number> = {};
     for (const [good, qty] of b.rt?.construction?.delivered ?? []) delivered[good] = pile(qty, 10);
     return constructionGeometry({
-      kit: def.art.kit,
+      kit: artKitId(def.art),
       size: def.size,
       stage,
       delivered,
@@ -201,10 +262,17 @@ export function buildingVariantGeometry(b: BuildingView, lod: 'high' | 'low' = '
       ...(lod === 'low' ? { lod } : {}),
     });
   }
-  const g = kit.build({ ...buildingKitOptions(b), lod });
+  const opts = { ...buildingKitOptions(b), lod };
+  let g = kit.build(opts);
+  // C5E: modules fitted to the kit as built (the wall kits draw their own).
+  if (b.modules?.length && !WALL_KITS.has(artKitId(def.art))) {
+    const fitted = fitModules(g, opts);
+    g.dispose();
+    g = fitted;
+  }
   if (!b.rt?.upgrading) return g;
   // C4E: a home upgrade under way: scaffolding round the house as it stands.
-  const merged = mergeFlat([g, upgradeScaffold(def.art.kit, def.size, variantSeed(b), lod)]);
+  const merged = mergeFlat([g, upgradeScaffold(artKitId(def.art), def.size, variantSeed(b), lod)]);
   g.dispose();
   return merged;
 }
@@ -215,7 +283,7 @@ export function decorGeometry(defId: string, lod: 'high' | 'low' = 'high'): Buff
   let g = cache.get(key);
   if (!g) {
     const def = content.decorById.get(defId);
-    const kit = def ? kitById.get(def.art.kit) : undefined;
+    const kit = def ? kitById.get(artKitId(def.art)) : undefined;
     const params = def?.art.params ? { params: def.art.params } : {};
     g = kit ? kit.build(lod === 'high' ? params : { ...params, lod }) : missing();
     cache.set(key, g);

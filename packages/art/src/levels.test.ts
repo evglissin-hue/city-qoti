@@ -1,7 +1,7 @@
 // V1B: the two levels of every building kit and joined facades.
 import { describe, expect, it } from 'vitest';
 import { content } from '@qoti/content';
-import { kitById, kits } from './kits';
+import { artKitId, kitById, kits } from './kits';
 import { ROW_EAVES } from './kits/rows';
 import type { KitBuildOptions } from './kits/types';
 
@@ -18,7 +18,7 @@ const OTHER_LOW = 600;
 
 function optsOf(id: string, style: string, seed: number): KitBuildOptions {
   const kit = kitById.get(id)!;
-  const def = content.buildings.find((b) => b.art.kit === id);
+  const def = content.buildings.find((b) => artKitId(b.art) === id);
   return {
     size: def?.size ?? kit.footprint?.size ?? [2, 2],
     entrance: def?.entrance ?? kit.footprint?.entrance ?? [1, 1],

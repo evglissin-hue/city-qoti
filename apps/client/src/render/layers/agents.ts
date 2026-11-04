@@ -37,6 +37,7 @@ import {
   Euler,
   Frustum,
   InstancedBufferAttribute,
+  IcosahedronGeometry,
   InstancedMesh,
   Matrix4,
   MeshBasicMaterial,
@@ -305,6 +306,21 @@ export function agentsLayer(): AgentsLayer {
   });
   const shadowGeometry = new PlaneGeometry(1, 1).rotateX(-Math.PI / 2);
   let shadowCount = 0;
+  // C5E part 2: breath in the cold, a little puff in front of each near face now and then.
+  const BREATH_MAX = 256;
+  const breathGeometry = new IcosahedronGeometry(0.03, 1);
+  const breathMaterial = new MeshBasicMaterial({
+    color: 0xf4f6f8,
+    transparent: true,
+    opacity: 0.42,
+    depthWrite: false,
+  });
+  let breath: InstancedMesh | null = null;
+  let breathCount = 0;
+  const breathLocal = new Matrix4();
+  const breathAt = new Vector3();
+  const breathQ = new Quaternion();
+  const breathS = new Vector3();
   let bubbles: IconSprites | null = null;
   let bubblesOn = false;
   let detail = 60;
@@ -459,6 +475,31 @@ export function agentsLayer(): AgentsLayer {
     m.makeScale(r, 1, r).setPosition(x, y + 0.012, z);
     m.toArray(sh.instanceMatrix.array as Float32Array, shadowCount * 16);
     shadowCount++;
+  }
+
+  /** C5E: one breath puff for a figure (its matrix `fm`), on its own slow beat. */
+  function pushBreath(fm: Matrix4, seed: number, ky: number): void {
+    if (!ctx || breathCount >= BREATH_MAX) return;
+    const life = (clock / 2.8 + seed * 0.37) % 1;
+    if (life > 0.5) return;
+    const u = life / 0.5;
+    if (!breath) {
+      breath = new InstancedMesh(breathGeometry, breathMaterial, BREATH_MAX);
+      breath.instanceMatrix.setUsage(DynamicDrawUsage);
+      breath.frustumCulled = false;
+      breath.castShadow = false;
+      breath.userData.noCast = true;
+      breath.renderOrder = 3;
+      ctx.scene.add(breath);
+    }
+    // In figure space: from the mouth, drifting forward and up, swelling, then gone.
+    breathLocal.makeTranslation(0, 0.25 + u * 0.05, 0.08 + u * 0.08);
+    breathLocal.premultiply(fm);
+    breathAt.setFromMatrixPosition(breathLocal);
+    const k = Math.sin(u * Math.PI) * (0.7 + u * 0.9) * ky;
+    breathLocal.compose(breathAt, breathQ.identity(), breathS.setScalar(Math.max(0.001, k)));
+    breathLocal.toArray(breath.instanceMatrix.array as Float32Array, breathCount * 16);
+    breathCount++;
   }
 
   function pushVisible(id: number, x: number, y: number, z: number, k: number): void {
@@ -639,6 +680,7 @@ export function agentsLayer(): AgentsLayer {
     for (const pl of pools.values()) pl.n = 0;
     for (const pl of bundles.values()) pl.n = 0;
     shadowCount = 0;
+    breathCount = 0;
     visibleCount = 0;
     drawn.full = drawn.simple = drawn.dot = 0;
     bubbles?.begin(clock);
@@ -935,6 +977,7 @@ export function agentsLayer(): AgentsLayer {
         bundlePool(carry - 1).push(local, zero, WHITE, WHITE, 0, 0, 0);
       }
       pushShadow(wx, wy, wz, 0.2 * kx);
+      if (level === 'full' && (winter || flags & AgentFlags.cold) && !look.baby) pushBreath(m, seed, ky);
       pushVisible(id, wx, wy + 0.15 * ky, wz, kx);
       if (bubbles && bubblesOn) {
         const icon =
@@ -953,6 +996,10 @@ export function agentsLayer(): AgentsLayer {
 
     for (const pl of pools.values()) pl.finish();
     for (const pl of bundles.values()) pl.finish();
+    if (breath) {
+      breath.count = breathCount;
+      breath.instanceMatrix.needsUpdate = true;
+    }
     if (shadows) {
       shadows.count = shadowCount;
       shadows.instanceMatrix.clearUpdateRanges();
@@ -1043,6 +1090,12 @@ export function agentsLayer(): AgentsLayer {
       bubbles?.dispose();
       shadowGeometry.dispose();
       shadowMaterial.dispose();
+      if (breath) {
+        ctx?.scene.remove(breath);
+        breath.dispose();
+      }
+      breathGeometry.dispose();
+      breathMaterial.dispose();
       shadowTex?.dispose();
       material.dispose();
     },

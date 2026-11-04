@@ -133,6 +133,14 @@ export function runtimeView(defId: string, rt: BuildingRuntime): BuildingRuntime
   // C4E: what a grown craft is making, and a home upgrade under way, for the art.
   if (method && (def?.methods?.length ?? 0) > 1) view.method = method.id;
   if (rt.upgrade && rt.upgrade.some((q) => q > 0)) view.upgrading = true;
+  // C5E: damage, a shut gate and flood water, for the art.
+  if (rt.hp !== undefined) {
+    const max = def?.defense?.hp ?? 0;
+    const hp = max > 0 ? Math.min(100, Math.floor((rt.hp * 100) / max)) : rt.hp > 0 ? 100 : 0;
+    if (hp < 100) view.hp = hp;
+  }
+  if (rt.open === false) view.open = false;
+  if (rt.flooded !== undefined) view.flooded = rt.flooded;
   const c = rt.construction;
   if (c) {
     view.construction = {

@@ -1,4 +1,4 @@
-import { kitById, palette } from '@qoti/art';
+import { artKitId, kitById, palette } from '@qoti/art';
 import { drawDef } from '../defs';
 import type { BuildingView } from '@qoti/sim';
 import {
@@ -78,7 +78,7 @@ export function signsLayer(): RenderLayer {
     if (signs.get(b.id)?.key === key) return false;
     const dropped = drop(b.id);
     const def = drawDef(b.def);
-    const kit = def ? kitById.get(def.art.kit) : undefined;
+    const kit = def ? kitById.get(artKitId(def.art)) : undefined;
     const sign = kit?.anchors?.(buildingKitOptions(b)).sign;
     if (!sign) return dropped;
     const material = new MeshStandardMaterial({

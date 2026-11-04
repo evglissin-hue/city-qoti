@@ -397,7 +397,7 @@ function tavern(opts: KitBuildOptions | undefined): Built {
 
 // --- Herbalist ----------------------------------------------------------------------------------
 
-function herbalist(opts: KitBuildOptions | undefined): Built {
+export function herbalist(opts: KitBuildOptions | undefined): Built {
   const [w, d] = opts?.size ?? [2, 2];
   const [ex] = opts?.entrance ?? [1, d - 1];
   const { rnd, look } = streams(opts, 63);
