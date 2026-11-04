@@ -3,6 +3,7 @@
 import * as An from './animals';
 import * as B from './buildings';
 import * as D from './decor';
+import * as Df from './defenses';
 import * as Gd from './garden';
 import * as G from './goods';
 import * as Gr from './grown';
@@ -20,6 +21,7 @@ export const kits: readonly Kit[] = [
   D.appleTree,
   W.bakeryKit,
   D.barrels,
+  Df.bellTowerKit,
   D.bench,
   T.birch,
   Gd.birdbath,
@@ -46,6 +48,8 @@ export const kits: readonly Kit[] = [
   W.fishersHutKit,
   D.flowerBed,
   W.forestersLodgeKit,
+  Df.gateKitDef,
+  Df.gateBanner,
   N.grassTuft,
   G.handcart,
   Gd.hangingLantern,
@@ -57,13 +61,17 @@ export const kits: readonly Kit[] = [
   B.house2,
   D.lantern,
   N.lilyPads,
+  Df.lookoutBench,
   D.lowWall,
   W.marketStallKit,
   Gd.mooringPost,
   N.mushrooms,
+  Df.netTrapKit,
   T.oak,
   V.orchardKit,
+  Df.palisadeKit,
   T.pine,
+  Df.pitTrapKit,
   D.planter,
   Gd.planterWall,
   An.ponyKit,
@@ -81,12 +89,15 @@ export const kits: readonly Kit[] = [
   D.signpost,
   V.smithyKit,
   V.spinnerKit,
+  Df.stoneWallKit,
   W.storehouseKit,
   Sv.tavernKit,
   B.townHall,
   Gr.townhouse,
   Sv.tradingPostKit,
   W.vegetablePlotKit,
+  Df.watchHouseKit,
+  Df.watchtowerKit,
   V.weaverKit,
   B.well,
   Gd.wildflowerVerge,
@@ -97,5 +108,17 @@ export const kits: readonly Kit[] = [
 ];
 
 export const kitById: ReadonlyMap<string, Kit> = new Map(kits.map((k) => [k.id, k]));
+
+/**
+ * C5E: the kit a def draws with. I3 defs name a stand-in kit in `art.kit` and the kit they are
+ * meant to draw with in `art.params.kit` (C5.0); once that kit exists it is the one, so content
+ * never has to change when the art lands.
+ */
+export function artKitId(art: { kit: string; params?: Record<string, unknown> }): string {
+  const want = art.params?.kit;
+  return typeof want === 'string' && kitById.has(want) ? want : art.kit;
+}
+
+export { WALL_KITS } from './defenses';
 
 export type { Kit, KitAnchors, KitBuildOptions, KitPart } from './types';

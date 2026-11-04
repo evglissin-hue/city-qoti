@@ -3,7 +3,7 @@
 // animals in them, purely for looks: they graze with their heads down, wander a few steps at an
 // unhurried pace with their legs in step with the ground covered, look up now and then, and lie
 // down for the night. Placement is seeded by building, so both players see the same flock.
-import { animalArt, kitById, type AnimalArt, type AnimalKind } from '@qoti/art';
+import { animalArt, artKitId, kitById, type AnimalArt, type AnimalKind } from '@qoti/art';
 import type { BuildingView } from '@qoti/sim';
 import { Euler, Matrix4, Quaternion, Vector3 } from 'three';
 import { hash2 } from '../coords';
@@ -98,8 +98,8 @@ export function animalsLayer(): AnimalsLayer {
     for (const b of ctx.mirror.buildings.values()) {
       if (b.stage !== 'built') continue;
       const def = drawDef(b.def);
-      if (!def || !PEN_KITS.has(def.art.kit)) continue;
-      const kit = kitById.get(def.art.kit);
+      if (!def || !PEN_KITS.has(artKitId(def.art))) continue;
+      const kit = kitById.get(artKitId(def.art));
       const pens = kit?.anchors?.(buildingKitOptions(b)).animals;
       if (!pens) continue;
       penAnimals(b, pens, old, next);
