@@ -8,6 +8,7 @@ import * as Ca from './carts';
 import * as Ch from './charters';
 import * as C from './chronicle';
 import * as D from './decor';
+import * as Dr from './dressing';
 import * as Co from './commissions';
 import * as Fe from './festivals';
 import * as FC from './festivalsChronicle';
@@ -663,4 +664,5 @@ export const content: Content = {
   commissionById: byId(commissions),
   renown,
   guide: Gu.firstDays,
+  dressing: Dr.dressingSteps,
 };
