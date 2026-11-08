@@ -72,23 +72,31 @@ export function postSellPrice(state: WorldState, neighbor: string, good: number)
 }
 
 /** What the post charges per unit for a good a neighbor sells, pennies; null when it does not. */
-export function postBuyPrice(state: WorldState, neighbor: string, good: number): number | null {
+export function postBuyPrice(
+  state: WorldState,
+  neighbor: string,
+  good: number,
+  percent: number = TRADE_BUY_PERCENT,
+): number | null {
   const id = content.goods[good]?.id;
   if (!content.neighborById.get(neighbor)?.sells.some(([g]) => g === id)) return null;
   const p = regionalPrice(state, neighbor, good);
-  return p === null
-    ? null
-    : Math.round((p * TRADE_BUY_PERCENT * (100 - renownEffect(state, 'trade'))) / 10000);
+  return p === null ? null : Math.round((p * percent * (100 - renownEffect(state, 'trade'))) / 10000);
 }
 
 /** The neighbor to deal with for an order: the one named, else the best price today. */
-function partner(state: WorldState, o: StandingOrder, selling: boolean): NeighborState | null {
+export function partner(
+  state: WorldState,
+  o: StandingOrder,
+  selling: boolean,
+  buyPercent: number = TRADE_BUY_PERCENT,
+): NeighborState | null {
   let best: NeighborState | null = null;
   let bestPrice = 0;
   for (const n of state.trade.neighbors) {
     if (o.neighbor && n.id !== o.neighbor) continue;
     if (!trades(state, n.id)) continue;
-    const p = selling ? postSellPrice(state, n.id, o.good) : postBuyPrice(state, n.id, o.good);
+    const p = selling ? postSellPrice(state, n.id, o.good) : postBuyPrice(state, n.id, o.good, buyPercent);
     if (p === null) continue;
     if (!best || (selling ? p > bestPrice : p < bestPrice)) {
       best = n;
@@ -98,7 +106,7 @@ function partner(state: WorldState, o: StandingOrder, selling: boolean): Neighbo
   return best;
 }
 
-function nudge(n: NeighborState, good: number, by: number): void {
+export function nudge(n: NeighborState, good: number, by: number): void {
   n.impact[good] = Math.max(IMPACT_RANGE[0], Math.min(IMPACT_RANGE[1], (n.impact[good] ?? 1000) + by));
 }
 
