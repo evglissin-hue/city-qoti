@@ -6,6 +6,7 @@ import { chosenCalling } from './chosen';
 export const callingYield: YieldModifier = (state, _b, def) => {
   const boost = chosenCalling(state)?.yieldBoost;
   if (!boost) return 1000;
-  if (boost.ids.includes(def.id) || boost.tags.some((t) => def.tags?.includes(t))) return 1000 + boost.permille;
+  if (boost.ids.includes(def.id) || boost.tags.some((t) => def.tags?.includes(t)))
+    return 1000 + boost.permille;
   return 1000;
 };

@@ -87,7 +87,10 @@ describe('the Calling card', () => {
     expect((view.get('calling-choose-mill-town') as HTMLButtonElement).disabled).toBe(false);
     view.unmount();
     const solo = open(offer({ together: false }));
-    solo.session.mirror.seats.value = solo.session.mirror.seats.value.map((s) => ({ ...s, connected: s.seat === 0 }));
+    solo.session.mirror.seats.value = solo.session.mirror.seats.value.map((s) => ({
+      ...s,
+      connected: s.seat === 0,
+    }));
     view = await mount(h(CallingPanel, { session: solo.session }));
     expect((view.get('calling-choose-mill-town') as HTMLButtonElement).disabled).toBe(false);
   });

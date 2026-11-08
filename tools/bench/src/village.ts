@@ -9,6 +9,7 @@ import {
   canPaintRoad,
   canPlaceBuilding,
   doorTile,
+  ensureOffer,
   FIELD_GOOD_FERTILITY,
   growthDemand,
   MAP_SIZE,
@@ -34,6 +35,7 @@ export function promoteToVillage(w: WorldState): void {
   w.charter.ready = false;
   w.charter.history.push({ rank: 'village', tick: w.tick, seats: [0, 1] });
   for (const u of charter?.unlocks ?? []) if (!w.hearth.unlocked.includes(u)) w.hearth.unlocked.push(u);
+  ensureOffer(w, null);
 }
 
 export interface HighStreet {

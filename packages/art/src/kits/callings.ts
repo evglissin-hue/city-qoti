@@ -7,7 +7,15 @@ import { SURFACE } from '../surface';
 import type { Kit } from './types';
 
 /** An upright disc facing +z and -z (a millstone on its edge), with a rim and a hub. */
-function upright(s: ShapeBuilder, cx: number, cy: number, z: number, thick: number, r: number, hex: number): void {
+function upright(
+  s: ShapeBuilder,
+  cx: number,
+  cy: number,
+  z: number,
+  thick: number,
+  r: number,
+  hex: number,
+): void {
   const n = 12;
   for (let i = 0; i < n; i++) {
     const a0 = (i / n) * Math.PI * 2;
@@ -46,7 +54,8 @@ export const millstoneBench: Kit = {
     for (const x of [-0.19, 0.15]) s.rbox(x, 0, -0.05, x + 0.05, 0.12, 0.13, palette.stone, 0.012);
     s.rbox(-0.24, 0.12, -0.06, 0.24, 0.16, 0.15, vary(palette.wood, rnd, 0.6), 0.01);
     s.rbox(-0.22, 0.16, -0.03, 0.22, 0.175, 0.12, vary(palette.wood, rnd, 0.5), 0.008);
-    for (const x of [-0.12, 0.12]) s.rbox(x - 0.03, 0, -0.17, x + 0.03, 0.06, -0.09, palette.foundation, 0.01);
+    for (const x of [-0.12, 0.12])
+      s.rbox(x - 0.03, 0, -0.17, x + 0.03, 0.06, -0.09, palette.foundation, 0.01);
     upright(s, 0, 0.25, -0.09, 0.05, 0.2, palette.stone);
     // A little flour dust left in the grooves, and a sack someone has sat the cat on.
     s.blob(0.3, 0.07, 0.02, 0.07, 0.07, 0.06, palette.plasterCream, 0);

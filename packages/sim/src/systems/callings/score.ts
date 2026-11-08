@@ -110,17 +110,19 @@ export function scoreCallings(state: WorldState): CallingScore[] {
   const f = readMap(state);
   const mean = (list: number[]) => Math.floor(list.reduce((a, b) => a + b, 0) / list.length);
   const table: [string, number[]][] = [
-    ['garden-village', [
-      scaled(f.meadow, SCALE.meadow),
-      scaled(f.richSoil, SCALE.richSoil),
-      scaled(f.waterEdge, SCALE.waterEdge),
-    ]],
+    [
+      'garden-village',
+      [
+        scaled(f.meadow, SCALE.meadow),
+        scaled(f.richSoil, SCALE.richSoil),
+        scaled(f.waterEdge, SCALE.waterEdge),
+      ],
+    ],
     ['mill-town', [scaled(f.deposits, SCALE.deposits), scaled(f.river, SCALE.river)]],
-    ['pilgrims-rest', [
-      scaled(f.high, SCALE.high),
-      scaled(f.forest, SCALE.forest),
-      scaled(f.summitWalk, SCALE.summitWalk),
-    ]],
+    [
+      'pilgrims-rest',
+      [scaled(f.high, SCALE.high), scaled(f.forest, SCALE.forest), scaled(f.summitWalk, SCALE.summitWalk)],
+    ],
   ];
   return table
     .map(([id, factors]) => ({ id, score: mean(factors), factors }))

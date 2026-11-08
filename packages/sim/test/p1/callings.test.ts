@@ -44,7 +44,12 @@ function choose(s: WorldState, id: string): WorldState {
 
 /** Pins the offer so a test can pick any calling without caring what the fixture's map suggests. */
 function offerAll(s: WorldState): void {
-  s.calling = { offered: ['garden-village', 'mill-town', 'pilgrims-rest'], reasons: ['a', 'b', 'c'], chosen: null, day: 0 };
+  s.calling = {
+    offered: ['garden-village', 'mill-town', 'pilgrims-rest'],
+    reasons: ['a', 'b', 'c'],
+    chosen: null,
+    day: 0,
+  };
 }
 
 describe('the offer', () => {
@@ -86,8 +91,12 @@ describe('the offer', () => {
     expect(c.offered).toHaveLength(2);
     expect(c.reasons).toHaveLength(2);
     expect(c.chosen).toBeNull();
-    const letter = events.find((e) => e.e === 'notify' && e.kind === 'letter' && e.text.includes('Calling card'));
-    expect(letter && letter.e === 'notify' && letter.text).toContain(content.callingById.get(c.offered[0]!)!.name);
+    const letter = events.find(
+      (e) => e.e === 'notify' && e.kind === 'letter' && e.text.includes('Calling card'),
+    );
+    expect(letter && letter.e === 'notify' && letter.text).toContain(
+      content.callingById.get(c.offered[0]!)!.name,
+    );
     expect(letter && letter.e === 'notify' && letter.text).toContain(c.reasons[1]!);
     // The map changes, the County is asked again: nothing moves.
     const before = JSON.stringify(c);
@@ -96,7 +105,9 @@ describe('the offer', () => {
     run(s, { t: 'time.setSpeed', speed: 1 });
     expect(JSON.stringify(s.calling)).toBe(before);
     // And it shows on the Charter view the card reads.
-    const view = run(s, { t: 'calling.choose', id: c.offered[0]! }).events.find((e) => e.e === 'charter.updated');
+    const view = run(s, { t: 'calling.choose', id: c.offered[0]! }).events.find(
+      (e) => e.e === 'charter.updated',
+    );
     expect(view && view.e === 'charter.updated' && view.c.calling?.chosen).toBe(c.offered[0]);
   });
 });
@@ -138,7 +149,9 @@ describe('calling.choose', () => {
     expect(s.calling!.chosen).toBe(id);
     expect(s.hearth.unlocked).toContain(def.signature);
     expect(s.chronicle.some((c) => c.kind === 'calling' && c.text.includes(def.name))).toBe(true);
-    expect(ctx.events.some((e) => e.e === 'notify' && e.kind === 'letter' && e.text.includes(def.name))).toBe(true);
+    expect(ctx.events.some((e) => e.e === 'notify' && e.kind === 'letter' && e.text.includes(def.name))).toBe(
+      true,
+    );
     // Once only, whichever it was.
     expect(rejection(run(s, { t: 'calling.choose', id: s.calling!.offered[0]! }))).toBe('NOT_ALLOWED');
     expect(s.calling!.chosen).toBe(id);
@@ -349,9 +362,10 @@ describe('district styles', () => {
     const none = shares(null);
     const garden = shares('garden-village');
     const mill = shares('mill-town');
-    const pilgrim = shares("pilgrims-rest");
+    const pilgrim = shares('pilgrims-rest');
     const known = new Set(content.styles.map((x) => x.id));
-    for (const m of [none, garden, mill, pilgrim]) for (const id of m.keys()) expect(known.has(id)).toBe(true);
+    for (const m of [none, garden, mill, pilgrim])
+      for (const id of m.keys()) expect(known.has(id)).toBe(true);
     expect(garden.get('plaster') ?? 0).toBeGreaterThan(none.get('plaster') ?? 0);
     expect(mill.get('brick') ?? 0).toBeGreaterThan(none.get('brick') ?? 0);
     expect(pilgrim.get('stone') ?? 0).toBeGreaterThan(none.get('stone') ?? 0);
@@ -372,7 +386,8 @@ describe('the signature pieces', () => {
       expect(s.hearth.unlocked).not.toContain(c.signature);
       choose(s, c.id);
       expect(s.hearth.unlocked).toContain(c.signature);
-      for (const other of content.callings) if (other.id !== c.id) expect(s.hearth.unlocked).not.toContain(other.signature);
+      for (const other of content.callings)
+        if (other.id !== c.id) expect(s.hearth.unlocked).not.toContain(other.signature);
     }
   });
 });
