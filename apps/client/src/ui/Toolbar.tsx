@@ -493,6 +493,11 @@ function DecorPicker({ session, tool, linear }: { session: Session; tool: Tool; 
           Set these out on the festival site. They come down the morning after, unless you keep one.
         </p>
       )}
+      {showing === 'work' && (
+        <p class="muted hint picker-hint" data-testid="work-pieces-hint">
+          Pricier pieces that make the work beside them go faster. Each card says which.
+        </p>
+      )}
       <div class="picker-cards">
         {choices.map(({ def, locked, hint }) => {
           const on = tool.variant?.value === def.id;
@@ -511,7 +516,9 @@ function DecorPicker({ session, tool, linear }: { session: Session; tool: Tool; 
               <span class="card-text">
                 <strong>{def.name}</strong>
                 {locked ? (
-                  <span class="cost muted">In the Pattern Book</span>
+                  <span class="cost muted">
+                    {def.festival ? 'With a festival plan' : 'In the Pattern Book'}
+                  </span>
                 ) : (
                   !free && def.cost && <CostLine coins={def.cost.coins} goods={def.cost.goods} free={false} />
                 )}

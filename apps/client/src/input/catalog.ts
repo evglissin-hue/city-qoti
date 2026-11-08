@@ -102,7 +102,7 @@ export function unlockedIds(m: Mirror): ReadonlySet<string> {
   return new Set(m.town.value?.unlocked ?? []);
 }
 
-export type DecorGroup = 'festival' | 'seats' | 'lights' | 'greenery' | 'water' | 'odds';
+export type DecorGroup = 'festival' | 'seats' | 'lights' | 'greenery' | 'water' | 'work' | 'odds';
 
 export const DECOR_GROUP_LABEL: Record<DecorGroup, string> = {
   festival: 'Festival',
@@ -110,12 +110,15 @@ export const DECOR_GROUP_LABEL: Record<DecorGroup, string> = {
   lights: 'Lights',
   greenery: 'Greenery',
   water: 'By the water',
+  work: 'For the work',
   odds: 'Odds and ends',
 };
 
-const DECOR_GROUP_ORDER: DecorGroup[] = ['festival', 'seats', 'lights', 'greenery', 'water', 'odds'];
+const DECOR_GROUP_ORDER: DecorGroup[] = ['festival', 'seats', 'lights', 'greenery', 'water', 'work', 'odds'];
 
 export function decorGroup(def: DecorDef): DecorGroup {
+  // P1 (player's chair): the pieces that help a workplace get a group of their own, not odds and ends.
+  if (def.boost) return 'work';
   const t = def.tags;
   if (t.includes('seat') && !t.includes('wall')) return 'seats';
   if (t.includes('light')) return 'lights';
@@ -155,10 +158,15 @@ export function decorChoices(m: Mirror, lens: Lens, linear: boolean): DecorChoic
       // season's festival is planned.
       const festival = standard && !!def.festival && planned;
       const locked = standard && !!def.locked && !unlocked.has(def.id) && !festival;
-      return { def, locked, hint: locked ? lockHint(m, def.id) : '', ...(festival && { festival }) };
+      const hint = !locked ? '' : def.festival ? FESTIVAL_LOCK : lockHint(m, def.id);
+      return { def, locked, hint, ...(festival && { festival }) };
     })
     .sort((a, b) => Number(a.locked) - Number(b.locked));
 }
+
+/** P1 (player's chair): festival pieces come out with a festival plan, not from the Pattern Book. */
+export const FESTIVAL_LOCK =
+  'Out for festivals: plan one in the Festival book and these come out of the shed.';
 
 /** "Found in the Pattern Book: <hint>" for a locked piece. */
 export function lockHint(m: Mirror, id: string): string {

@@ -177,7 +177,11 @@ export function buildingParams(b: BuildingView): Record<string, number | string 
   if (wallAt && def && WALL_KITS.has(artKitId(def.art))) Object.assign(p, wallAt(b));
   if (def?.placement?.some((r) => r.kind === 'waterEdge')) p.span = waterSpan(b);
   // C5E: modules fitted (`mod:<slot>`), wall damage, a shut gate, a sprung trap.
-  for (const [slot, m] of b.modules ?? []) p[`mod:${slot}`] = m;
+  for (const [slot, m] of b.modules ?? []) {
+    p[`mod:${slot}`] = m;
+    // P1: the flower-boxes module brings its own boxes; the kit's would sit on the same sills.
+    if (m === 'flower-boxes') p.windowBoxes = false;
+  }
   const rt = b.rt;
   if (rt && b.stage === 'built') {
     if (def?.defense?.trap) {
