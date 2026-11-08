@@ -125,7 +125,13 @@ describe('the goal pill', () => {
       opens: 'trial',
     });
     expect(goalLine(claimed, trial('running'), 0)?.text).toContain('keep every home warm and fed');
-    expect(goalLine(claimed, trial('passed'), 0)?.text).toBe('The First Winter weathered');
+    // P1 (playtest item 13): once the winter is weathered the pill names the chapter and opens it.
+    expect(goalLine(claimed, trial('passed'), 0)).toMatchObject({
+      text: 'Village chapter complete',
+      opens: 'chapter',
+      tone: 'rest',
+    });
+    expect(goalLine(claimed, trial('failed'), 0)?.opens).toBe('trial');
     expect(goalLine(claimed, null, 0)?.text).toBe('The County has nothing more to ask, for now');
   });
 });

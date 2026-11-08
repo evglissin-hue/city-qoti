@@ -30,6 +30,9 @@ export function App() {
     return target ? { target, invite: false } : null;
   });
 
+  // P1: set by the chapter card's "Found a new valley", so the title opens on a fresh seed.
+  const [fresh, setFresh] = useState(false);
+
   // ?debug&fixture=hamlet (=village, =winter, =raid): straight into a fresh copy of the sim's fixture.
   useEffect(() => {
     if (play || !DEBUG || !FIXTURE_KINDS.includes(FIXTURE as FixtureKind)) return;
@@ -45,7 +48,9 @@ export function App() {
   if (!play) {
     return (
       <Title
+        fresh={fresh}
         onStart={(target, opts) => {
+          setFresh(false);
           setPlayHash(target.valleyId);
           setPlay({ target, invite: opts?.invite ?? false });
         }}
@@ -58,6 +63,12 @@ export function App() {
       target={play.target}
       openInvite={play.invite}
       onLeave={() => {
+        setFresh(false);
+        setPlayHash(null);
+        setPlay(null);
+      }}
+      onNewValley={() => {
+        setFresh(true);
         setPlayHash(null);
         setPlay(null);
       }}

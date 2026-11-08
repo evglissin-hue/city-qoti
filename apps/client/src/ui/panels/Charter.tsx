@@ -73,7 +73,7 @@ function Board({ session, c }: { session: Session; c: CharterView }) {
         {trial ? (
           <p class="proclamation" data-testid="charter-trial">
             {trial.status === 'passed'
-              ? `${trial.name} is weathered and sealed. The County has nothing more to ask of ${town} for now. Enjoy it.`
+              ? `${trial.name} is weathered and sealed. The Village chapter of ${town} is complete, and the County has nothing more to ask for now.`
               : trial.status === 'failed'
                 ? `${trial.name} did not go the way anyone hoped, and it comes round again. The Charter holds meanwhile.`
                 : trial.status === 'running'
@@ -87,6 +87,19 @@ function Board({ session, c }: { session: Session; c: CharterView }) {
             >
               <Glyph id="trial" /> See the trial
             </button>
+            {trial.status === 'passed' && (
+              <>
+                {' '}
+                <button
+                  type="button"
+                  class="link"
+                  data-testid="open-chapter"
+                  onClick={() => (session.ui.chapter.value = true)}
+                >
+                  <Glyph id="chronicle" /> Read the chapter again
+                </button>
+              </>
+            )}
           </p>
         ) : (
           <p class="proclamation">The County has nothing more to ask of {town} for now. Enjoy it.</p>

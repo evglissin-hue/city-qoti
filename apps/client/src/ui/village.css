@@ -2059,6 +2059,43 @@ li.plan.settled p {
   justify-content: center;
 }
 
+.chapter-card {
+  width: min(520px, 94vw);
+  max-height: 92vh;
+  overflow-y: auto;
+  text-align: left;
+}
+
+.chapter-card h2,
+.chapter-card .kicker,
+.chapter-card .proclamation {
+  text-align: center;
+}
+
+.chapter-head {
+  margin: 12px 0 4px;
+}
+
+.chapter-story {
+  margin: 0;
+  padding-left: 1.1em;
+}
+
+.chapter-story li {
+  margin: 2px 0;
+}
+
+.chapter-quote {
+  margin: 6px 0 0;
+  font-style: italic;
+}
+
+.chapter-card .actions {
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+}
+
 .rank-card .actions button {
   display: inline-flex;
   align-items: center;

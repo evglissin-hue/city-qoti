@@ -342,6 +342,8 @@ export interface TownView {
   coldHouseholds?: number;
   /** A telegraphed raid's band, or null. */
   threatBand?: string | null;
+  /** P1 (playtest item 13): festivals held (Chronicle pages) and the best stars so far, for the chapter card. */
+  festivals?: { held: number; bestStars: number };
   /** The first days guide, while it is open (C5H). */
   guide?: GuideView;
 }

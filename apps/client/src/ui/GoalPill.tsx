@@ -18,7 +18,7 @@ export interface GoalLine {
   detail: string[];
   ready: boolean;
   /** Where a click goes. */
-  opens: 'charter' | 'trial';
+  opens: 'charter' | 'trial' | 'chapter';
   tone: 'charter' | 'trial' | 'rest';
 }
 
@@ -82,20 +82,29 @@ export function goalLine(c: CharterView | null, trial: TrialView | null, tick: n
       tone: 'charter',
     };
   }
+  // P1 (playtest item 13): the First Winter weathered closes the Village chapter; the pill reopens it.
+  if (trial && trial.status === 'passed') {
+    return {
+      text: 'Village chapter complete',
+      count: 'Read it again',
+      progress: 1,
+      detail: [`${trial.name} is weathered and the Charter is sealed.`],
+      ready: false,
+      opens: 'chapter',
+      tone: 'rest',
+    };
+  }
   if (trial && trial.status !== 'failed') {
     const cal = calendar(tick);
     const running = trial.status === 'running';
     const day = running && cal.season === trial.season ? Math.min(DAYS_PER_SEASON, cal.day) : 0;
-    const text =
-      trial.status === 'passed'
-        ? `${trial.name} weathered`
-        : running
-          ? `${trial.name}: day ${Math.max(1, day)} of ${DAYS_PER_SEASON}, ${TRIAL_KEEP[trial.kind]}`
-          : `${trial.name}: comes with the snow`;
+    const text = running
+      ? `${trial.name}: day ${Math.max(1, day)} of ${DAYS_PER_SEASON}, ${TRIAL_KEEP[trial.kind]}`
+      : `${trial.name}: comes with the snow`;
     return {
       text,
-      count: trial.status === 'passed' ? 'Sealed' : 'The trial',
-      progress: trial.status === 'passed' ? 1 : running ? day / DAYS_PER_SEASON : 0,
+      count: 'The trial',
+      progress: running ? day / DAYS_PER_SEASON : 0,
       detail: [trial.blurb],
       ready: false,
       opens: 'trial',
@@ -128,15 +137,18 @@ export function GoalPill({ session }: { session: Session }) {
   const m = session.mirror;
   const line = goalLine(m.charter.value, m.trial.value, m.tick.value);
   if (!line) return null;
-  const open = session.ui.panel.value === line.opens;
+  const open = line.opens === 'chapter' ? session.ui.chapter.value : session.ui.panel.value === line.opens;
   const title = [line.text + (line.count ? ` (${line.count})` : ''), ...line.detail].join('\n');
   return (
     <button
       type="button"
       class={`goal-pill tone-${line.tone} ${line.ready ? 'ready' : ''} ${open ? 'open' : ''}`}
       data-testid="goal-pill"
-      title={`${title}\nClick for the ${line.opens === 'trial' ? 'trial' : 'Charter board'}.`}
-      onClick={() => (session.ui.panel.value = open ? null : line.opens)}
+      title={`${title}\nClick for the ${line.opens === 'trial' ? 'trial' : line.opens === 'chapter' ? 'chapter' : 'Charter board'}.`}
+      onClick={() => {
+        if (line.opens === 'chapter') session.ui.chapter.value = !open;
+        else session.ui.panel.value = open ? null : line.opens;
+      }}
     >
       <Glyph id={line.tone === 'trial' ? 'trial' : 'charter'} />
       <span class="goal-body">

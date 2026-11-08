@@ -19,6 +19,8 @@ describe('content and art', () => {
 
 describe('valley settings defaults', () => {
   it('match between the sim and the protocol', () => {
-    expect(normalizeSettings({})).toEqual(defaultSettings());
+    // The one difference: no typed valley name stays empty in the protocol, and the sim names the
+    // valley from its seed (createWorld; see packages/sim/test/p1/valley-name.test.ts).
+    expect(normalizeSettings({})).toEqual({ ...defaultSettings(), valleyName: '' });
   });
 });

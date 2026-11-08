@@ -96,6 +96,7 @@ export function SettingsPanel({ session }: { session: Session }) {
             {copy.settings.reducedMotion} <span class="muted">{copy.settings.reducedMotionHint}</span>
           </span>
         </label>
+        <ValleySeed session={session} />
         {session.mirror.settings.value.mode === 'standard' && <ValleyDials session={session} />}
         <GuideSetting session={session} />
         <SoundSettings />
@@ -114,6 +115,29 @@ export function SettingsPanel({ session }: { session: Session }) {
         </div>
       </div>
     </div>
+  );
+}
+
+/** P1 (playtest item 13): the valley's seed, with a button to copy it for a friend. */
+function ValleySeed({ session }: { session: Session }) {
+  const [copied, setCopied] = useState(false);
+  const seed = session.valley?.value?.seed;
+  if (!seed) return null;
+  const copySeed = async () => {
+    try {
+      await navigator.clipboard.writeText(seed);
+      setCopied(true);
+    } catch {
+      // Clipboard blocked: the seed is on screen to copy by hand.
+    }
+  };
+  return (
+    <p class="valley-seed" data-testid="valley-seed">
+      <span class="seed-line">{copy.settings.seedLine(seed)}</span>{' '}
+      <button type="button" data-testid="copy-seed" onClick={() => void copySeed()}>
+        {copied ? copy.settings.copiedSeed : copy.settings.copySeed}
+      </button>
+    </p>
   );
 }
 
