@@ -258,6 +258,8 @@ export interface Content {
   renown: readonly RenownDef[];
   /** The first days guide (C5H). */
   guide: GuideDef;
+  /** P1: the ladder homes climb on their own, in order (systems/dressing). */
+  dressing: readonly DressingStep[];
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -922,6 +924,21 @@ export interface ModuleDef {
   cost?: Cost;
   charm?: CharmSource[];
   art: ArtRef;
+}
+
+/**
+ * One rung of the ladder homes climb by themselves (P1, systems/dressing). `custom` steps switch on a
+ * customization field (`ref`: 'windowBoxes'); `module` steps fit the module `ref` free, in its slot.
+ * Steps are tried in order; each needs the door charm (radius 3 average) at `charm` or more, and a town
+ * of at least `rank`. `notice` is the gentle line sent when a home takes the step ({family}).
+ */
+export interface DressingStep {
+  id: string;
+  kind: 'custom' | 'module';
+  ref: string;
+  charm: number;
+  rank: RankName;
+  notice: string;
 }
 
 /** A commission a neighbor or notable visitor asks for (C5B). */
