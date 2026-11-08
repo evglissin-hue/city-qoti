@@ -98,7 +98,7 @@ An integration cycle (C2X, C3X, ...):
 The owner's call (2026-11-08, from P1 on): every big build iteration (a cycle, a wave, an integration, a polish pass) runs as this loop.
 
 1. **Master**: one session on Opus at max effort. It plans, writes a short brief per task (goal, owned paths, acceptance checks) and owns the result. It keeps the hard calls for itself: contracts, determinism, saves, anything that crosses packages.
-2. **Executors**: the master spawns several agents on a lower tier (Sonnet; Haiku for mechanical chores), one well-scoped task each, in separate worktrees when tasks could collide. The `executor` agent (`.claude/agents/executor.md`) is pinned to Sonnet for this. Executors build what the brief says; they do not redesign, and they stop and report when the brief is wrong.
+2. **Executors**: the master spawns several agents on a lower tier (Sonnet; Haiku for mechanical chores), one well-scoped task each, in separate worktrees when tasks could collide. The `executor` agent (`.claude/agents/executor.md`) is pinned to Sonnet for this. Agent worktrees start from `main`, not from the master's branch, so each brief's first step is merging the master's branch into the worktree. Executors build what the brief says; they do not redesign, and they stop and report when the brief is wrong.
 3. **Quality check**: the master reviews every diff against its brief and the hard rules in `CLAUDE.md`, and runs typecheck, lint, tests, build, bench and e2e.
 4. **Dead-end hunt**: automated checks and simulations find what a player would get stuck on, before a human playtest does. The playability audit (`npm run audit -w @qoti/bench`) plays several seeds through a full year with the autoplayer, and the repo tests check content and contracts statically. Between them they flag:
    - wishes, goals and commissions that are offered but cannot be met;
@@ -121,7 +121,9 @@ Adopt this build process and save it so it outlives this session.
 Build and review loop, for every big build iteration:
 1. Master: you run on Opus at max effort. Plan the work and write a short brief per task.
 2. Executors: spawn several agents on a lower model (Sonnet; Haiku for chores), one task
-   each, in separate worktrees when they could collide. They execute; you design.
+   each, in separate worktrees when they could collide. They execute; you design. A new
+   worktree may start from the default branch: have each executor merge your working
+   branch first.
 3. Quality check: review each diff against its brief and the repo's rules; run typecheck,
    lint, tests and build.
 4. Dead-end hunt: automated checks and simulations (scripted or AI play across several
