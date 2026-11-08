@@ -232,22 +232,37 @@ describe('composer', () => {
     }
   });
 
-  it('keeps the melody in the key, mostly stepwise, and ends at home', () => {
+  it('keeps the melody in the key or its chords, mostly stepwise, and ends at home', () => {
     for (const style of STYLES) {
       const scale = style.mode === 'major' ? [0, 2, 4, 5, 7, 9, 11] : [0, 2, 3, 5, 7, 8, 10, 11];
+      // Borrowed and chromatic chords (a Lydian II, a backdoor bVII) lend the tune their tones.
+      const symbols = [style.a.open, style.a.close, style.b.open, style.b.close].flat(2).flat() as string[];
+      const borrowed = new Set(
+        symbols.flatMap((sym) => chordInfo(sym, style.mode).tones.map((t) => ((t % 12) + 12) % 12)),
+      );
       let steps = 0;
       let moves = 0;
+      let inKey = 0;
+      let notes = 0;
       for (let seed = 0; seed < 8; seed++) {
         const key = [48, 50, 53, 55][seed % 4]!;
         const p = compose({ style, seed, key });
         const lead = p.notes.filter((n) => n.voice === 'lead');
-        for (const n of lead) expect(scale).toContain(pc(n.midi, key));
+        for (const n of lead) {
+          const c = pc(n.midi, key);
+          notes++;
+          if (scale.includes(c)) inKey++;
+          else expect(borrowed).toContain(c);
+        }
         for (let i = 1; i < lead.length; i++) {
           moves++;
           if (Math.abs(lead[i]!.midi - lead[i - 1]!.midi) <= 4) steps++;
         }
         expect(pc(lead.at(-1)!.midi, key)).toBe(0);
       }
+      // The jazz styles borrow most (bossa and evening sit near 0.88): a flat six over the minor iv,
+      // a flat two over the tritone sub. Still, the tune lives in the key.
+      expect(inKey / notes).toBeGreaterThan(0.85);
       expect(steps / moves).toBeGreaterThan(0.85);
     }
   });

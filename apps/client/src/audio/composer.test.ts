@@ -143,7 +143,7 @@ describe('compose', () => {
     );
     const inTwoBars = m.rhythm
       .reduce<number[]>((a, r) => [...a, (a[a.length - 1] ?? 0) + r], [])
-      .filter((e, i, all) => (all[i - 1] ?? 0) < 8).length;
+      .filter((_e, i, all) => (all[i - 1] ?? 0) < 8).length;
     expect(firstA.length).toBe(inTwoBars);
     expect(without.notes.length).toBeGreaterThan(0);
     // Without a valley seed there is no motif.
