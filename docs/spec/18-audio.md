@@ -32,7 +32,7 @@ One file per tune in `packages/content/src/audio/songbook/`. Tunes are original:
 | `feel` | folk, bossa, swing, ballad, waltz, lightFunk, stomp, rubato |
 | `form` | named sections and bar counts: AABA 32, ABAC, folk 16 |
 | `bars` | chord symbol per bar (two symbols split the bar): maj7, maj9, 6/9, m7, m9, m11, 7, 9, 13, m7b5, sus4, slash chords |
-| `melody` | notes as `[bar, beat, pitch, beats]`, per section |
+| `melody` | notes as `[bar, beat, pitch, beats]`, per section; a beat is a quarter note in 4/4 and 3/4 and an eighth note in 6/8 (strong beats 1 and 4) |
 | `tags` | phases, seasons [I3], `minRank`, moods, `festival` id, `building` (plays only when one exists, e.g. the Market Square), `diegetic` flags |
 
 ```ts
