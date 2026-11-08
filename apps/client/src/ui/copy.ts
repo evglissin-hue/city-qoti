@@ -25,7 +25,7 @@ export const copy = {
     seed: 'Seed',
     seedPlaceholder: 'Leave empty for a surprise',
     // P1 (playtest item 13): arriving from the chapter card.
-    freshNote: 'Every valley is new land. This seed is a fresh one; change it, or keep it for a surprise.',
+    freshNote: "Every valley is new land. Here is a fresh seed; keep it, or type a friend's to found the very same valley.",
     seedTag: (seed: string) => `seed ${seed}`,
     continue: 'Pick up where you left off',
     // Playtest round six: tidying the list.
