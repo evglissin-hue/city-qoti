@@ -18,8 +18,9 @@ One row per cycle. A cycle is one agent session working from one brief on one br
 | C3E Hamlet UI | I1 | parallel | `cycle-03e-hamlet-ui.md` | C3.0 | waiting |
 | C3X I1 integration and I2 planning | I1 | integration | `cycle-03x-integration.md` | C3A to C3E | waiting |
 | C4.0 onward | I2 | | written by C3X | C3X | |
+| C4 Audio: Band v1 | I2 | parallel | `cycle-04-audio-band-v1-draft.md` | C4.0 | draft (C3X finalizes) |
 
-Status values: waiting (dependencies not merged), ready, in progress (add the session link), PR open (add the PR link), merged.
+Status values: draft (brief written early, finalized by an integration cycle), waiting (dependencies not merged), ready, in progress (add the session link), PR open (add the PR link), merged.
 
 ## Starting a cycle
 
