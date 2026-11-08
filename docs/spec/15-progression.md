@@ -84,6 +84,22 @@ Feats and stories, never "build 100 roads" (P42). Data-driven conditions, checke
 
 Target: about 60 achievements by I5.
 
+## Callings: what the village is known for [P1 slice, I4]
+
+The owner's playtest (2026-11-08): development paths that follow the map and the place, an industrious village or a pretty one for visitors or pilgrims, with the chosen path shaping how the village looks as it grows.
+
+- **When**: once the Village Charter is claimed, the County writes to ask what the village means to be known for. Until it is chosen the goal pill says so. In a valley for two the choice is made with both seats present; a solo valley chooses alone.
+- **What is offered**: the valley offers the two callings its land suits best, scored once from the map at the moment of asking and shown with the reasons, so two valleys rarely offer the same pair.
+  - **Mill Town** (industry): stone and clay in open land, a long reach of river.
+  - **Garden Village** (visitors): meadow, rich soil, ponds and water's edge.
+  - **Pilgrims' Rest** (pilgrimage): high ground and a summit, the quiet far from the valley gate, old woods.
+- **What it does** (first slice, kept modest):
+  - **Mill Town**: workshops, mills and the quarry work 10% faster (a yield modifier line), and grown districts lean to Market Brick and Hill Stone.
+  - **Garden Village**: day visitors spend in the town each afternoon in proportion to its charm and renown (booked as visitors), homes dress themselves up sooner, and districts lean to Garden Plaster.
+  - **Pilgrims' Rest**: festivals draw more guests and one more renown, lanterns count for more charm, and districts lean to Hill Stone and Riverside Timber.
+  - Each calling unlocks one signature decor piece.
+- **Later (I4)**: a second choice at the Town Charter that deepens or changes the calling, district policies by calling, tourism and pilgrim buildings (the inn, the chapel, the guest house), and callings that give each valley's Old Town its character (`18-eras.md`).
+
 ## Expansion [I4]
 
 - 16 parcels (see `10-world-and-building.md`). Each has an unlock rule in content: rank, a coin price (Ledger), a bridge built to it, or a feature to clear.

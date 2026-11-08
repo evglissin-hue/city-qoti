@@ -181,7 +181,9 @@ class Hamlet implements Advisor {
     // C4X: and one per twenty residents after that (one storehouse for fifty-six left the plots'
     // baskets full and the sawpits without logs).
     want(pop >= 20 && count(w, 'storehouse') < Math.max(2, 1 + Math.floor(pop / 20)), 'storehouse', true);
-    want(pop >= 20 && count(w, 'well') < 2, 'well');
+    // P1: the second well used to come from A Well Closer, which asked from inside the first well's
+    // radius; a growing hamlet puts one up on its own now, for its comfort and its gathering place.
+    want(pop >= 12 && count(w, 'well') < 2, 'well');
     // I2 (C4A): a Village pays its upkeep with what it sells beyond the valley, so when the books
     // run short the Ledger sets up a trade: another sawpit for every thirty residents, and a
     // woodcutter to feed each pair.

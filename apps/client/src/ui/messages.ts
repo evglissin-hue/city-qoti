@@ -29,6 +29,9 @@ export const REJECT_TEXT: Record<RejectReason, string> = {
   // Playtest round three
   CUT_OFF:
     'Nobody can walk to that door: a cliff or the river is in the way. Turn it, or build where a path can reach.',
+  // P1 (playtest)
+  HALL_STAYS:
+    'The town hall stays. Its builders raise everything else, and nobody wants to learn who would raise a new one.',
   // Playtest round four
   TOO_LATE: 'Too late for that. The evening has begun, so the plans will have to wait for next season.',
 };
