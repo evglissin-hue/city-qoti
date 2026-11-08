@@ -186,7 +186,7 @@ Initial cast:
 | Mother Thornbury | hedgehog | an herbalist; herb gardens, a clinic, the first remedies | Herbalist's Cottage and clinic upgrade |
 | Barnaby Ashcombe | badger | a stonemason; quarries, walls, the Watch, a proper bridge | Stone Bridge landmark |
 | Odette Fenwick | fox | a merchant; market days, the trading post, the first contract | Market Hall |
-| Juniper Reed | rabbit | a musician; a bandstand, festivals, a choir | Bandstand Green and festival music upgrade |
+| Juniper Reed | rabbit | a musician; a bandstand, festivals, a choir | Bandstand Green, festival music upgrade and the choir |
 
 Story residents never leave and are marked in the UI. Their letters are the main way new systems are introduced (P6: teach through residents).
 

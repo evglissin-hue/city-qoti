@@ -13,7 +13,8 @@ Status: v1, accepted 2026-10-25. Built in iterations I0 to I5 (see `30-roadmap.m
 | `14-challenge.md` | Threats, defenses, the Watch, raid resolution, seasons, weather and events, difficulty dials. |
 | `15-progression.md` | Ranks, Charters, trials, renown, innovations, achievements, expansion, new valleys. |
 | `16-coop.md` | Seats, links, presence, notes, plans, requests, guardrails, undo, time and speed, lenses. |
-| `17-presentation.md` | Art direction, palette, style kit, lighting, seasons, camera, post, quality presets, UI, audio, accessibility. |
+| `17-presentation.md` | Art direction, palette, style kit, lighting, seasons, camera, post, quality presets, UI, audio summary, accessibility. |
+| `18-audio.md` | Audio: the Valley Band, Songbook, adaptive music, valley motif, stingers, diegetic music, same-room co-op, ambience, UI sounds, audio engine. |
 | `20-architecture.md` | Monorepo, boundaries, simulation design, determinism, I0 contracts, client, rendering, content pipeline. |
 | `21-networking-and-saves.md` | Lockstep protocol, rooms, join and catch-up, desync, persistence, migrations, hosting, security. |
 | `22-quality.md` | Tests, performance budgets, CI, definition of done, playtests. |

@@ -18,6 +18,10 @@ Acceptance criteria for every cycle that touches the area. Reference machines: a
 | State hash | 30 ms |
 | Memory | 600 MB per tab |
 | Load | interactive in 5 s cold, 2 s warm; initial JS 1.5 MB gzipped |
+| Audio CPU and voices | 0.5 ms per frame average on the main thread; at most 48 simultaneous voices (steal the quietest) |
+| Audio download | 4 MB compressed before the first tune; 25 MB total at City; lazy, never in initial JS; first tune within 3 s of entering a valley (warm) |
+| Audio memory | 120 MB decoded samples at City, inside the 600 MB tab budget |
+| Loudness | music -18 LUFS, ambience -24, UI -20, true peak below -1 dBTP; every gain change ramped 10 ms or more (no clicks); zero dropouts at Medium |
 | Input | ghost follows the cursor within 1 frame; online command visible within 250 ms |
 
 `tools/bench` builds synthetic valleys (I0: 1,000 buildings and 6,000 decor; I1: a 40-resident hamlet; later a synthetic 2,000-resident town) and reports ms per tick, memory and snapshot size. CI fails when a sim or worldgen budget is exceeded.
@@ -32,6 +36,7 @@ Acceptance criteria for every cycle that touches the area. Reference machines: a
 | Protocol | RoomCore with fake connections: ordering, `sys.*` injection, empty turns, snapshots and pruning, desync and version flows, limits | `packages/protocol` |
 | Client unit | road route proposals, mirror patching, ghost validity equals sim validation (property test) | `apps/client/src/**/*.test.ts` |
 | End to end | two browser contexts on the dev server: create, invite, join, both build, both see the same thing, hashes match, reload and catch up, pause from one pauses both | `apps/client/e2e/` |
+| Audio | every chart (bars match form, chords parse, melody in range and fits chords), arranger determinism and voice leading, OfflineAudioContext render per phase (no NaN, peak, RMS), two-context sync within 20 ms | `packages/content`, `apps/client/src/audio/**/*.test.ts`, `apps/client/e2e/audio.spec.ts` |
 | Visual review | gallery screenshots at fixed seeds, uploaded as CI artifacts (no pixel assertions) | `apps/gallery/e2e/` |
 
 ## CI
@@ -60,4 +65,4 @@ At the end of each iteration the two players play at least one evening together 
 
 ## Issue labels
 
-`bug`, `desync`, `perf`, `art`, `ux`, `balance`, `content`, `spec`, plus the iteration (`I1`) and track (`track:render`).
+`bug`, `desync`, `perf`, `art`, `ux`, `balance`, `content`, `audio`, `spec`, plus the iteration (`I1`) and track (`track:render`).

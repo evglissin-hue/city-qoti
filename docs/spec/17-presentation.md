@@ -91,12 +91,13 @@ Auto-detect picks a preset; the settings menu can override it.
 - Bubbles (toggleable): wish, happy, unhappy, sleepy, cold [I3].
 - Far away, residents become simple instanced shapes, then dots.
 
-## Audio [I5, designed now]
+## Audio [I2]
 
-- **Music**: acoustic guitar, piano, upright bass and brushes; light jazz chords in the evening, a waltz in winter. Layered stems that follow time of day and season.
-- **Ambience**: emitters from what is nearby: river, wind, birds by habitat, market chatter by stall density, mill creak, saw, festival crowd, the watch bell.
-- **UI**: paper rustle, soft clicks, pencil scratch for plans.
-- Sources: royalty-free or CC0 libraries, or commissioned. Volume sliders per channel.
+- **The Valley Band**: original, jazz and folk tinged tunes from a Songbook, played live by a band made in code. The ensemble grows with rank, from a lone guitar in the hamlet to a small orchestra in the city.
+- Follows the hour, season and weather. Your valley has a 4-bar motif generated from its seed that recurs in stingers, fanfares and festivals.
+- Two laptops in one room never play two songs at once (shared speaker or synced mode).
+- **Ambience**: emitters from what is nearby (river, wind, birds, market chatter, mill, festival crowd, the watch bell). **UI**: paper rustle, soft clicks, pencil scratch for plans. Volume sliders per channel.
+- Full design: `18-audio.md`.
 
 ## Accessibility [I1]
 

@@ -24,6 +24,7 @@ Each brief names the paths it owns. Owners may change anything inside them. Outs
 | Render and art | `packages/art`, `apps/gallery`, `apps/client/src/render` |
 | Co-op and saves | `packages/protocol`, `apps/server`, `tools/dev-server`, `apps/client/src/net`, `packages/sim/src/state` (serialize, hash, migrations) |
 | Client UX | `apps/client/src/app`, `src/input`, `src/ui`, `src/state` |
+| Audio | `apps/client/src/audio`, `packages/content/src/audio`, `CREDITS.md` |
 | Integration | everything, but only to merge, fix and tune |
 
 ## Contracts policy
@@ -33,7 +34,7 @@ Contracts are the shared types every track codes against:
 - `packages/sim/src/contracts/**`
 - `packages/protocol/src/messages.ts`
 - `packages/content/src/types.ts`
-- `apps/client/src/render/api.ts`, `src/input/tool.ts`, `src/net/connection.ts`, `src/worker/messages.ts`
+- `apps/client/src/render/api.ts`, `src/input/tool.ts`, `src/net/connection.ts`, `src/worker/messages.ts`, `src/audio/api.ts`
 
 Rules:
 
@@ -54,6 +55,10 @@ To keep parallel PRs from colliding, every extensible list is a registry with on
 - lens toolbars: `apps/client/src/ui/lenses.ts`
 - panels: `apps/client/src/ui/panels/index.ts`
 - art kits: `packages/art/src/kits/index.ts`
+- tunes: `packages/content/src/audio/songbook/index.ts`
+- instruments: `packages/content/src/audio/instruments/index.ts`
+- ambience emitters: `apps/client/src/audio/ambience/index.ts`
+- stingers: `apps/client/src/audio/stingers/index.ts`
 
 Keep registry entries sorted alphabetically: two PRs adding different lines then merge cleanly in almost every case.
 

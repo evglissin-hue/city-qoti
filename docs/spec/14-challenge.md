@@ -15,6 +15,7 @@ Real stakes, never a game over (P3). Light defense, not tower defense (P35). Thr
 - Two in-game days before a raid, signs appear: tracks in the snow, crows gathering, a merchant's or scout's letter.
 - The season card and an alert show the approach side and a strength band (Small, Medium, Large).
 - Watchtowers add a day of warning. Fog shortens warnings.
+- **Music**: on a trial or raid night a low ostinato slips under the band at dusk, tense but never horror; if the gate holds, the band returns with the valley motif in major. See `18-audio.md`.
 
 ## Threat types
 

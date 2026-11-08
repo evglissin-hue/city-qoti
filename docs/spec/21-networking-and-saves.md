@@ -18,6 +18,7 @@ type C2S =
   | { k: 'presence'; cursor?: [number, number]; tool?: string; cam?: [x: number, z: number, dist: number, yaw: number] }
   | { k: 'ping'; x: number; z: number; kind: 'look' | 'help' | 'build' }
   | { k: 'emote'; id: string }
+  | { k: 'time.sync'; t0: number }
   | { k: 'hash'; t: number; h: string }
   | { k: 'snapshot'; t: number; simVersion: string; data: string }   // base64 of gzip
   | { k: 'bye' };
@@ -31,6 +32,7 @@ type S2C =
   | { k: 'ping'; seat: SeatId; x: number; z: number; kind: 'look' | 'help' | 'build' }
   | { k: 'emote'; seat: SeatId; id: string }
   | { k: 'roster'; roster: RosterEntry[] }
+  | { k: 'time.sync'; t0: number; server: number }
   | { k: 'needSnapshot'; reason: 'periodic' | 'desync' | 'version' }
   | { k: 'resync'; snapshot: { t: number; simVersion: string; data: string }; log: Turn[]; nextTurn: number }
   | { k: 'reloadRequired'; simVersion: string }
@@ -96,6 +98,7 @@ interface RoomStorage {
 ## Presence
 
 - Never part of sim state. Presence is throttled to 5 messages per second per seat and sent only while something changes. Pings and emotes are rate-limited to 2 per second.
+- `time.sync` [I2]: the client sends its clock as `t0`; the room answers at once with `t0` and its own clock. The client keeps the median offset of 5 round trips, re-estimates every 60 s, and uses it only to align synced music between two laptops in one room (`18-audio.md`). Never part of sim state; rate-limited to 1 per second.
 - The room relays presence to the other seats immediately (not in turns).
 
 ## Offline solo

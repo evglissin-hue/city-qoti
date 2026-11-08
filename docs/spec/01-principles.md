@@ -18,10 +18,10 @@ Accepted as v1 on 2026-10-25. The numbers are stable; other spec docs cite them 
 
 - **I0 Valley sandbox:** generated valley, camera, paths and cottages, day and night, saves, both laptops building live together.
 - **I1 Hamlet:** first named residents and wishes, first goods and budget, first patterns and achievements.
-- **I2 Village:** zoning, market prices, production chains, second tier, Charters.
+- **I2 Village:** zoning, market prices, production chains, second tier, Charters, the valley band v1.
 - **I3 Seasons and the Watch:** winter prep, festivals, Field Guide, Chronicle, first threats and defenses.
 - **I4 Town:** districts and styles, trade and contracts, weather, innovations, raids and trials.
-- **I5 onward:** Market Town and City, new land and valleys, stroll mode, music, polish.
+- **I5 onward:** Market Town and City, new land and valleys, stroll mode, the full band, polish.
 
 **Not doing.** Unit micromanagement or tower-defense waves, PvP, monetization, mobile-first, metropolis-scale traffic simulation, losing the whole town.
 
@@ -94,7 +94,7 @@ Accepted as v1 on 2026-10-25. The numbers are stable; other spec docs cite them 
 45. **Soft-lit miniature 3D.** Low-poly but dense with detail (chimney smoke, washing lines, ducks on the canal, lit windows at night), warm palette, tilt-shift. Day, night, seasons and weather transform the whole town.
 46. **Art made in code.** Buildings, residents and props are generated from one style kit of shapes and palettes: coherent, and content scales without an art team.
 47. **Dollhouse camera.** Tilted top-down view, free rotation, zoom from valley to street. Later: a stroll mode to walk the streets you built.
-48. **Sound.** Gentle acoustic and jazz-tinged music that shifts with the hour and season; ambient sound from what's nearby (market chatter, the mill, birdsong, the watch bell).
+48. **Sound.** A small valley band plays original, jazz and folk tinged tunes that shift with the hour, the season and the weather, and grows from a lone guitar in the hamlet to a full little orchestra in the city. Your valley has its own tune. Ambient sound comes from what's nearby (market chatter, the mill, birdsong, the watch bell). Two laptops in one room never play two songs at once.
 49. **Laptop-first controls.** Mouse or trackpad plus keyboard: pinch to zoom, two-finger pan, no middle click needed. Gamepads and a one-screen couch mode can come later.
 
 ### Tech

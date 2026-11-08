@@ -30,6 +30,7 @@ apps/
     src/render/        Renderer (RenderApi), layers, picking, ghosts, overlays, time of day, post
     src/input/         camera controller, tool manager, tools, shortcuts
     src/ui/            Preact components, lens toolbars, panels, theme
+    src/audio/         AudioApi, engine, music director, band, sampler, ambience, sfx
   gallery/             style kit viewer (Vite)
   server/              Cloudflare Worker + ValleyRoom Durable Object (wraps RoomCore)
 packages/
@@ -295,7 +296,8 @@ interface Tool {
 
 - **Boot**: title screen → create or join → `RoomConnection` → `SimHost.init` (new from seed, or snapshot) → `ready` → Mirror built from the view → Renderer and UI mount → live turns flow to the worker.
 - **Mirror** (`state/`): typed-array copies of the layers (patched by `LayerPatch`), entity maps, seats, clock, and a decor spatial hash. Implements `MapReader`. Exposes Preact signals for UI.
-- **Registries** (one line per addition): render layers (`render/layers/index.ts`), tools (`input/tools/index.ts`), lens toolbars (`ui/lenses.ts`), panels (`ui/panels/index.ts`), overlays.
+- **Registries** (one line per addition): render layers (`render/layers/index.ts`), tools (`input/tools/index.ts`), lens toolbars (`ui/lenses.ts`), panels (`ui/panels/index.ts`), overlays, tunes (`packages/content/src/audio/songbook/index.ts`), instruments (`packages/content/src/audio/instruments/index.ts`), ambience emitters (`audio/ambience/index.ts`), stingers (`audio/stingers/index.ts`).
+- **Audio** (`audio/`): the Valley Band and ambience. Reads Mirror signals and worker events, never sim state, and never affects state. See `18-audio.md`.
 - **Optimistic feel**: a placed ghost stays visible until the turn carrying its command arrives (about 100 to 200 ms), then the real piece replaces it; a rejection shows a gentle message at the spot.
 - **Settings**: `localStorage` wrapped in try/catch; the game works without it.
 
