@@ -124,7 +124,7 @@ export const firstDays: GuideDef = {
       letter: [
         'Dear both,',
         'My last request, and the one I care about most. A valley is never built by one pair of hands, and the good ones are built by two people who answer each other.',
-        'One of you sketch a plan for the other to approve, or ask the other for something and see it delivered. Then I can write to the County that {town} has a partnership.',
+        'One of you sketch a plan for the other to approve, and watch it go up between you. Then I can write to the County that {town} has a partnership.',
         'Tobias Merriweather',
       ].join('\n'),
       goal: {
@@ -133,7 +133,7 @@ export const firstDays: GuideDef = {
           { count: { what: 'requestsFulfilled', atLeast: 1 } },
         ],
       },
-      hint: 'A plan approved by the partner who did not draw it, or a request filled.',
+      hint: 'A plan approved by the partner who did not draw it.',
       point: { tool: 'plan' },
     },
   ],

@@ -2,22 +2,26 @@ import { content } from '@qoti/content';
 import { calendar, SEASON_NAMES, type MoodBand, type Speed } from '@qoti/sim';
 import type { Session } from '../app/session';
 import { copy } from './copy';
-import { coinCount, coins, formatDate, formatTime, speedNote } from './format';
+import { coinCount, coins, formatTime, speedNote } from './format';
 import { GoodIcon } from './goodIcons';
 import { MOOD_WORD } from './hamlet';
+import { GoalPill } from './GoalPill';
 import { Glyph } from './icons';
 import { goodPurpose } from './purpose';
 import { toggleBook } from './panels';
+import { revealStores } from './panels/Stores';
 import { GoToPartner } from './Presence';
 import { RANK_WORD } from './village';
 import { FestivalChip, RenownChip, WeatherChip } from './SeasonChips';
 
-const SPEEDS: { speed: Speed; label: string; title: string }[] = [
-  { speed: 0, label: '❚❚', title: 'Pause (Space)' },
-  { speed: 1, label: '1×', title: 'Normal speed (1)' },
-  { speed: 2, label: '2×', title: 'Double speed (2)' },
-  { speed: 3, label: '3×', title: 'Triple speed (3)' },
+const SPEEDS: { speed: Speed; icon: string; title: string }[] = [
+  { speed: 0, icon: 'pause', title: 'Pause (Space)' },
+  { speed: 1, icon: 'play', title: 'Normal speed (1)' },
+  { speed: 2, icon: 'fast', title: 'Double speed (2)' },
+  { speed: 3, icon: 'faster', title: 'Triple speed (3)' },
 ];
+
+const SEASON_ICON = ['spring', 'summer', 'autumn', 'winter'] as const;
 
 const STATUS_TEXT = {
   connecting: 'Connecting',
@@ -45,29 +49,41 @@ export function TopBar({ session, onLeave }: { session: Session; onLeave: () => 
       </div>
       {settings.mode === 'standard' && <TownStats session={session} />}
       <div class="topbar-clock" data-testid="clock">
-        <span>{formatDate(tick)}</span>
-        <span class="clock-time">{formatTime(tick)}</span>
-        <span class="season-chip" data-testid="season">
-          {SEASON_NAMES[calendar(tick).season]}
+        <span
+          class={`date-chip season-${calendar(tick).season}`}
+          data-testid="season"
+          title={`Year ${calendar(tick).year}, ${SEASON_NAMES[calendar(tick).season]}, day ${calendar(tick).day}`}
+        >
+          <Glyph id={SEASON_ICON[calendar(tick).season]!} />
+          <span class="date-season">{SEASON_NAMES[calendar(tick).season]}, </span>
+          day {calendar(tick).day}
         </span>
+        <span class="clock-time">{formatTime(tick)}</span>
         <WeatherChip session={session} />
         <FestivalChip session={session} />
       </div>
-      <div class="topbar-speed">
+      <div
+        class="topbar-speed"
+        role="group"
+        aria-label="Game speed"
+        title={`Game speed${note ? `. ${note}` : ''}`}
+      >
         {SPEEDS.map((s) => (
           <button
             key={s.speed}
             type="button"
             class={`speed ${speed === s.speed ? 'effective' : ''} ${mine === s.speed ? 'mine' : ''}`}
-            title={s.title}
+            title={note ? `${s.title}. ${note}` : s.title}
+            aria-label={s.title}
             data-testid={`speed-${s.speed}`}
             onClick={() => session.setSpeed(s.speed)}
           >
-            {s.label}
+            <Glyph id={s.icon} />
           </button>
         ))}
+        {/* The note rides in the group's tooltip; screen readers still get it. */}
         {note && (
-          <span class="speed-note" data-testid="speed-note" title={note}>
+          <span class="sr-only" data-testid="speed-note">
             {note}
           </span>
         )}
@@ -78,10 +94,10 @@ export function TopBar({ session, onLeave }: { session: Session; onLeave: () => 
             <span
               key={s.seat}
               class={`seat ${s.connected ? 'on' : 'off'}`}
-              title={s.connected ? 'Here' : 'Away'}
+              title={`${s.seat === session.seat ? `${s.name} (you)` : s.name}: ${s.connected ? 'here' : 'away'}`}
             >
               <i style={{ background: `#${s.color.toString(16).padStart(6, '0')}` }} />
-              {s.seat === session.seat ? `${s.name} (you)` : s.name}
+              <span class="seat-name">{s.seat === session.seat ? `${s.name} (you)` : s.name}</span>
             </span>
           ))}
         </span>
@@ -92,24 +108,34 @@ export function TopBar({ session, onLeave }: { session: Session; onLeave: () => 
         {online && (
           <button
             type="button"
-            class="ghost-button"
+            class="ghost-button icon-button"
             data-testid="invite-open"
+            title="Invite your partner"
+            aria-label="Invite your partner"
             onClick={() => (session.ui.inviteOpen.value = true)}
           >
-            Invite
+            <Glyph id="invite" />
           </button>
         )}
         <button
           type="button"
-          class="ghost-button"
+          class="ghost-button icon-button"
           data-testid="settings-open"
           title={copy.settings.open}
+          aria-label={copy.settings.open}
           onClick={() => (session.ui.settingsOpen.value = true)}
         >
-          {copy.settings.open}
+          <Glyph id="settings" />
         </button>
-        <button type="button" class="ghost-button" onClick={onLeave} title="Back to the title screen">
-          Leave
+        <button
+          type="button"
+          class="ghost-button icon-button"
+          data-testid="leave"
+          onClick={onLeave}
+          title="Leave: back to the title screen"
+          aria-label="Leave, back to the title screen"
+        >
+          <Glyph id="exit" />
         </button>
       </div>
     </header>
@@ -163,8 +189,12 @@ export function StockStrip({ session }: { session: Session }) {
     session.ui.panel.value = session.ui.panel.value === 'reports' ? null : 'reports';
   };
   const shown = chips.slice(0, MAX_CHIPS);
+  const hidden = chips.length - shown.length;
   return (
-    <div class={`stock-strip panel ${fitClass(1 + shown.length)}`} data-testid="stock-strip">
+    <div
+      class={`stock-strip panel ${fitClass(1 + shown.length + (hidden > 0 ? 1 : 0))}`}
+      data-testid="stock-strip"
+    >
       <button
         type="button"
         class="stock-chip"
@@ -190,6 +220,18 @@ export function StockStrip({ session }: { session: Session }) {
           <span class="stock-word">{content.goodById.get(c.good)?.label ?? c.good}</span>
         </button>
       ))}
+      {hidden > 0 && (
+        <button
+          type="button"
+          class="stock-chip more"
+          data-testid="stock-more"
+          title={`${hidden} more ${hidden === 1 ? 'good' : 'goods'} in store. Click for the Stores panel.`}
+          onClick={() => revealStores(session)}
+        >
+          <span>+{hidden}</span>
+          <span class="stock-word">more</span>
+        </button>
+      )}
     </div>
   );
 }
@@ -298,6 +340,7 @@ function TownStats({ session }: { session: Session }) {
         {lean && <span class="lean-word">lean times</span>}
       </button>
       <RankChip session={session} />
+      <GoalPill session={session} />
       <RenownChip session={session} />
       <button
         type="button"
@@ -343,13 +386,6 @@ function RankChip({ session }: { session: Session }) {
     >
       <Glyph id="rank" />
       <span class="rank-word">{RANK_WORD[rank]}</span>
-      {next && total > 0 && (
-        <span class="pips" aria-label={`${done} of ${total}`}>
-          {goals.length
-            ? goals.map((g) => <i key={g.id} class={`${g.done ? 'on' : ''} lane-${g.lane}`} />)
-            : Array.from({ length: total }, (_, i) => <i key={i} class={i < done ? 'on' : ''} />)}
-        </span>
-      )}
     </button>
   );
 }

@@ -46,6 +46,8 @@ export function GameUI({ session, onLeave }: { session: Session; onLeave: () => 
         <aside class="side left">
           {panels
             .filter((p) => p.side === 'left')
+            // The stores sit at the top of the column, above the alerts and notes.
+            .sort((a, b) => Number(b.id === 'stores') - Number(a.id === 'stores'))
             .map((p) => (
               <p.component key={p.id} session={session} />
             ))}
