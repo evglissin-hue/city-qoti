@@ -396,6 +396,8 @@ export interface BuildingDetail {
   served?: { residents: number; capacity: number };
   /** I1 (C3C): goods per work day with the full crew, after condition and any height bonus. */
   rates?: { inputs: [good: string, perDay: number][]; outputs: [good: string, perDay: number][] };
+  /** Playtest round seven (additive): decor within reach is speeding this building up. */
+  decorBoost?: { permille: number; pieces: string[] };
   /** I1 (C3C): units made today. */
   producedToday?: [good: string, qty: number][];
   // I2 (C4.0)

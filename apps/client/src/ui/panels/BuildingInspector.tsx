@@ -4,6 +4,7 @@ import type { BuildingDetail, BuildingView } from '@qoti/sim';
 import { useState } from 'preact/hooks';
 import type { Session } from '../../app/session';
 import { removeWithCare } from '../../input/removal';
+import { decorBoostLine } from '../decorText';
 import { buildingName, capital, coins, seatLabel } from '../format';
 import { rejectText } from '../messages';
 import { CATEGORY_WORD, CONSTRUCTION_STAGES, statusWords, TIER_WORD } from '../hamlet';
@@ -345,6 +346,11 @@ function VillageDetail({ session, detail }: { session: Session; detail: Building
       {detail.tier && (
         <p class="small" data-testid="building-tier">
           A {TIER_WORD[detail.tier]?.toLowerCase() ?? detail.tier} home.
+        </p>
+      )}
+      {detail.decorBoost && (
+        <p class="small decor-boost" data-testid="building-decor-boost">
+          {decorBoostLine(detail.decorBoost.permille, detail.decorBoost.pieces)}
         </p>
       )}
       {detail.upgrade && (

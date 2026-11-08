@@ -466,16 +466,7 @@ export function fitModules(base: BufferGeometry, opts: KitBuildOptions | undefin
             s.surface(SURFACE.flowers);
             const seeded = FLOWERS[Math.floor(rnd() * FLOWERS.length)]!;
             const pick = bloom ?? seeded;
-            s.blob(
-              q[0]!,
-              q[1]! + 0.02,
-              q[2]!,
-              0.02,
-              0.018,
-              0.02,
-              pick,
-              0,
-            );
+            s.blob(q[0]!, q[1]! + 0.02, q[2]!, 0.02, 0.018, 0.02, pick, 0);
             s.surface(SURFACE.leaf);
           }
         }

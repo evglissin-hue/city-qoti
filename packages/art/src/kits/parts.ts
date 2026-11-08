@@ -632,7 +632,8 @@ function windowNear(
       const c = style.flowers[Math.floor(rnd() * style.flowers.length)] ?? palette.flowerA;
       const q = facePoint(f, fu + (rnd() - 0.5) * 0.03, by + 0.05, o + 0.07);
       s.surface(SURFACE.plain);
-      s.blob(q[0], q[1], q[2], 0.028, 0.024, 0.028, c, 0);
+      const big = style.flowers.length === 1 ? 1.4 : 1;
+      s.blob(q[0], q[1], q[2], 0.028 * big, 0.024 * big, 0.028 * big, c, 0);
       s.surface(SURFACE.leaf);
     }
   }
