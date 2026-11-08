@@ -25,6 +25,7 @@ export const aGardenPlot: WishTemplate = {
     any: [
       { near: { building: 'vegetable-plot', of: 'home', within: 3 } },
       { near: { tag: 'herb', of: 'home', within: 3 } },
+      { near: { buildingTag: 'herb', of: 'home', within: 3 } },
     ],
   },
   reward: { mood: 15, bond: 1 },
@@ -145,6 +146,8 @@ export const freshFish: WishTemplate = {
       HAS_HOME,
       { resident: { species: ['otter', 'fox', 'badger'] } },
       { near: { buildingTag: 'market', of: 'home', within: 40 } },
+      // The river gives nothing while it is frozen, and nobody sells fish.
+      { not: { code: 'riverFrozen' } },
     ],
   },
   target: { stock: { good: 'fish', at: 'nearestMarket', atLeast: 1 } },
@@ -192,7 +195,18 @@ export const neighbors: WishTemplate = {
     '{name} has started naming the crows. A neighbor would be better company.',
     '{name} bakes for two out of habit and eats both portions out of politeness. Neighbors, please.',
   ],
-  when: HAS_HOME,
+  // Arrivals pause from autumn to the thaw, so this is only asked for in spring and summer.
+  when: {
+    all: [
+      HAS_HOME,
+      {
+        any: [
+          { code: 'seasonIs', params: [['index', 0]] },
+          { code: 'seasonIs', params: [['index', 1]] },
+        ],
+      },
+    ],
+  },
   target: { near: { home: 'occupied', of: 'home', within: 4, excludeSelf: true } },
   reward: { mood: 15, bond: 1 },
   thanks: [
