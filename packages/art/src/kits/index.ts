@@ -79,6 +79,7 @@ export const kits: readonly Kit[] = [
   Df.lookoutBench,
   D.lowWall,
   W.marketStallKit,
+  N.meadowTuft,
   Gd.mooringPost,
   N.mushrooms,
   Df.netTrapKit,
