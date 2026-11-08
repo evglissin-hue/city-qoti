@@ -131,6 +131,7 @@ describe('lens toolbars', () => {
       'street',
       'building',
       'wall',
+      'terrain',
       'zone',
       'note',
       'plan',

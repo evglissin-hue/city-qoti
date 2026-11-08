@@ -38,6 +38,7 @@ const ICONS: Record<string, () => JSX.Element> = {
   customize: () => svg([<path key="b" d="M14.5 4.5 19.5 9.5 11 18l-3.6.6.6-3.6z" />, <path key="h" d="m13 6 5 5" />, <path key="d" d="M4.5 19.5c1.2 0 2-.5 2.4-1.5" />]),
   decor: () => svg([<circle key="c" cx="12" cy="10" r="2.2" />, <path key="p" d="M12 7.8c0-2.6 3-2.6 3-.4M14.2 10c2.6 0 2.6 3 .4 3M12 12.2c0 2.6-3 2.6-3 .4M9.8 10c-2.6 0-2.6-3-.4-3" />, <path key="s" d="M12 12.5V20M12 17c-2 0-3.5-1-4-2.5" />]),
   dock: () => svg([<path key="w" d="M3 17.5q2.2-1.5 4.5 0t4.5 0 4.5 0 4.5 0" />, <path key="p" d="M5 14h14M7 14v-3M12 14v-3M17 14v-3" />, <path key="b" d="M9 8.5h6l-1 2.5h-4z" />, <path key="m" d="M12 8.5V4.5l3 2.2" />]),
+  earthworks: () => svg([<path key="m" d="M3.5 20.5h17" />, <path key="h" d="M5.5 20.5c1.2-3.6 3.4-5.5 6.5-5.5s5.3 1.9 6.5 5.5" />, <path key="s" d="M17 3.5 12.8 11" />, <path key="g" d="M15.4 4.6l3-1.6" />, <path key="b" d="M10.6 10l3.9 2.2-1.6 2.8-3.9-2.2z" />]),
   erase: () => svg([<path key="a" d="M7 17.5h10" />, <path key="b" d="M6.5 13.5 13 7l4 4-6.5 6.5H8.5z" />]),
   eye: () => svg([<path key="a" d="M3.5 12s3-5.5 8.5-5.5 8.5 5.5 8.5 5.5-3 5.5-8.5 5.5S3.5 12 3.5 12z" />, <circle key="b" cx="12" cy="12" r="2.4" />]),
   fence: () => svg([<path key="a" d="M6 20V7l1.5-2L9 7v13M15 20V7l1.5-2L18 7v13" />, <path key="b" d="M4 10.5h16M4 15.5h16" />]),
