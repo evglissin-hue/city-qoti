@@ -288,6 +288,10 @@ Tests:
 | I4 Town | piano and clarinet join; tavern piano; theater; 6 more tunes; Juniper Reed's choir |
 | I5 | vibraphone, horns, strings; Market Town and City tunes (8 more, 28 total); captions; Calm; optional featured recordings; polish |
 
+## Working material
+
+`docs/audio/` holds drafts the audio cycles port into data: `songbook-drafts.md` (lead sheets for the first 10 tunes), `motifs-and-stingers.md` (motif shapes, the generator, stinger notes and captions) and `sources.md` (sample libraries and their licenses). The draft brief for the I2 cycle is `docs/build/cycle-04-audio-band-v1-draft.md`.
+
 ## Audition sketch
 
 `docs/sketches/music/index.html` is a synthesized sketch of the harmony, grooves and layering, for direction only; production uses sampled instruments.
