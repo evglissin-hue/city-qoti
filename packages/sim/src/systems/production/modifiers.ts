@@ -10,6 +10,7 @@ import { pests, pollinators } from '../nature/effects';
 import { seasonalGrowth } from '../seasons/growing';
 import { frozenRiver } from '../seasons/river';
 import { farmWeather } from '../weather/effects';
+import { decorYield } from './decorBoost';
 import { soilYield } from './soil';
 import { scaredAnimals } from '../raids/wolves';
 
@@ -23,6 +24,7 @@ export type YieldModifier = (
 // Registry: one line per source, alphabetical by id.
 // prettier-ignore
 export const yieldModifiers: readonly [id: string, modifier: YieldModifier][] = [
+  ['decor', decorYield],
   ['frozen-river', frozenRiver],
   ['pests', pests],
   ['pollinators', pollinators],

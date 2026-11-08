@@ -11,6 +11,7 @@ import * as D from './decor';
 import * as Co from './commissions';
 import * as Fe from './festivals';
 import * as FC from './festivalsChronicle';
+import * as FD from './fineDecor';
 import * as G from './goods';
 import * as Gu from './guide';
 import * as He from './herbalist';
@@ -163,6 +164,7 @@ export const decor: readonly DecorDef[] = [
   Fe.flowerArch,
   D.flowerBed,
   VD.flowerCart,
+  FD.flowerTrellis,
   VD.fountain,
   Th.gateBanner,
   D.hangingLantern,
@@ -175,14 +177,18 @@ export const decor: readonly DecorDef[] = [
   VD.maypole,
   D.mooringPost,
   VD.noticeBoard,
+  FD.paintedShopSign,
   ND.pearTree,
   D.planter,
   D.planterWall,
+  FD.rainBarrel,
   ND.reedBed,
   D.ringBench,
   ND.seeSaw,
   D.signpost,
   ND.swing,
+  FD.toolRack,
+  FD.weathervane,
   D.wildflowerVerge,
 ];
 
@@ -371,6 +377,12 @@ export const swatches: readonly SwatchDef[] = [
   Sw.accentRed,
   Sw.accentTeal,
   Sw.accentWhite,
+  Sw.flowersButtercup,
+  Sw.flowersCornflower,
+  Sw.flowersCream,
+  Sw.flowersGeranium,
+  Sw.flowersMixed,
+  Sw.flowersRose,
   Sw.materialShingle,
   Sw.materialSlate,
   Sw.materialThatch,

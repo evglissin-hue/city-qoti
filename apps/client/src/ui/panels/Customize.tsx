@@ -32,6 +32,9 @@ export function CustomizePanel({ session }: { session: Session }) {
     setDraft({ ...draft, ...custom });
     session.submit({ t: 'build.customize', id: b.id, custom });
   };
+  // A hand-placed home whose kit draws boxes on its own has them until they are turned off.
+  const boxesOn =
+    value('windowBoxes') === null ? def?.boxesByDefault === true && !b.lot : value('windowBoxes') === true;
   const shop = !def?.housing && def?.category !== 'civic';
   const close = () => (session.ui.customize.value = null);
   const commitSign = () => {
@@ -53,7 +56,7 @@ export function CustomizePanel({ session }: { session: Session }) {
         wall={swatchHex('wall', value('wall') as string, '#f1e6cf')}
         roof={swatchHex('roof', value('roof') as string, '#c0643e')}
         accent={swatchHex('accent', value('accent') as string, '#3f7f7a')}
-        boxes={value('windowBoxes') === true}
+        boxes={boxesOn}
         shutters={value('shutters') === true}
         chimney={value('chimney') !== false}
         sign={shop ? (value('sign') as string | null) : null}
@@ -98,7 +101,7 @@ export function CustomizePanel({ session }: { session: Session }) {
       <Heading>Details</Heading>
       <div class="detail-toggles">
         <Toggle
-          on={value('windowBoxes') === true}
+          on={boxesOn}
           label="Window boxes"
           testid="detail-windowBoxes"
           onChange={(on) => set({ windowBoxes: on })}
@@ -116,6 +119,15 @@ export function CustomizePanel({ session }: { session: Session }) {
           onChange={(on) => set({ chimney: on })}
         />
       </div>
+      {boxesOn && (
+        <SwatchRow
+          label="Flowers"
+          group="flowers"
+          swatches={groups.flowers}
+          current={(value('windowFlowers') as string | null) ?? 'mixed'}
+          onPick={(v) => set({ windowFlowers: v === 'mixed' ? null : v })}
+        />
+      )}
       {shop && (
         <label class="sign-field">
           <span>Sign over the door</span>
@@ -143,6 +155,7 @@ export function CustomizePanel({ session }: { session: Session }) {
               roofMaterial: null,
               accent: null,
               windowBoxes: null,
+              windowFlowers: null,
               shutters: null,
               chimney: null,
             })
@@ -163,6 +176,9 @@ function signPlaceholder(def: string): string {
   if (def === 'market-stall') return 'Fresh Today';
   return 'Something with character';
 }
+
+/** The mixed-blooms chip: every color at once. */
+const MIXED = 'conic-gradient(#d6403a, #f3d35b, #8f7fd9, #f7f4ec, #f2b8c6, #d6403a)';
 
 function SwatchRow({
   label,
@@ -189,7 +205,7 @@ function SwatchRow({
             aria-checked={current === s.id}
             title={s.label}
             class={`swatch ${current === s.id ? 'active' : ''}`}
-            style={{ '--swatch': s.hex }}
+            style={{ '--swatch': group === 'flowers' && s.id === 'mixed' ? MIXED : s.hex }}
             data-testid={`swatch-${group}-${s.id}`}
             onClick={() => onPick(current === s.id ? null : s.id)}
           />

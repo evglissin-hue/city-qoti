@@ -168,6 +168,12 @@ describe('content', () => {
         'reed-bed',
         'see-saw',
         'swing',
+        // Playtest round seven: pricier decor that helps a workplace
+        'flower-trellis',
+        'painted-shop-sign',
+        'rain-barrel',
+        'tool-rack',
+        'weathervane',
       ].sort(),
     );
     expect(roads.map((r) => r.id).sort()).toEqual(['lane', 'path', 'street']);

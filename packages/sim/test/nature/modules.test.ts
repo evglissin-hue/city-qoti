@@ -26,8 +26,11 @@ const setModule = (s: WorldState, b: Building, slot: string, module: string | nu
 describe('modules', () => {
   it('fit only the slots a def offers, one at a time, from Village rank', () => {
     const { s, b } = townhouse();
-    const cottage = s.buildings.find((x) => x.def === 'cottage')!;
-    expect(setModule(s, cottage, 'front', 'porch')).toBe('NOT_ALLOWED');
+    // A built building whose def offers no slots (the cottage did not, until playtest round seven).
+    const bare = s.buildings.find(
+      (x) => x.stage === 'built' && x.rt && !content.buildingById.get(x.def)?.moduleSlots,
+    )!;
+    expect(setModule(s, bare, 'front', 'porch')).toBe('NOT_ALLOWED');
     expect(setModule(s, b, 'front', 'dormer')).toBe('INVALID');
     expect(setModule(s, b, 'front', 'no-such-module')).toBe('INVALID');
     expect(setModule(s, b, 'front', null)).toBe('NOT_FOUND');

@@ -65,19 +65,30 @@ describe('build.customize', () => {
     let seq = 1;
     for (const s of content.swatches) {
       // The custom field for each swatch group has the group's name.
-      const custom = { [s.group]: s.id } as BuildingCustom;
+      const field = s.group === 'flowers' ? 'windowFlowers' : s.group;
+      const custom = { [field]: s.id } as BuildingCustom;
       const ctx = run(f.state, { t: 'build.customize', id: f.b.cottages[0], custom }, 0, seq++);
       expect(rejection(ctx), s.id).toBeUndefined();
     }
   });
 
   it('window boxes add a little nature on the next tick', () => {
-    const { f, b } = customize({ windowBoxes: true });
-    expect(b.custom).toEqual({ windowBoxes: true });
+    // A hand-placed cottage draws boxes by default (content `boxesByDefault`), so the choice that
+    // changes the charm is turning them off; a bakery gains them by choosing them.
+    const { f, b } = customize({ windowBoxes: false });
+    expect(b.custom).toEqual({ windowBoxes: false });
     const before = hamletFixture();
     settle(before.state);
-    expect(charm(f.state, 'charmNature', b.x, b.z - 1)).toBeGreaterThan(
+    settle(f.state);
+    expect(charm(f.state, 'charmNature', b.x, b.z - 1)).toBeLessThan(
       charm(before.state, 'charmNature', b.x, b.z - 1),
     );
+    const g = hamletFixture();
+    const bakery = findById(g.state.buildings, g.b.bakery)!;
+    settle(g.state);
+    const plain = charm(g.state, 'charmNature', bakery.x, bakery.z - 1);
+    run(g.state, { t: 'build.customize', id: bakery.id, custom: { windowBoxes: true } }, 0, 5);
+    settle(g.state);
+    expect(charm(g.state, 'charmNature', bakery.x, bakery.z - 1)).toBeGreaterThan(plain);
   });
 });

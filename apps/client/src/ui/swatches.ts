@@ -1,6 +1,8 @@
-// Customization swatches by group. Ids are palette token names (docs/spec/17-presentation.md,
-// Palette), the values build.customize carries. When packages/content grows its own swatch list
-// (C3B), `swatchGroups` reads it from there; until then these are the spec's tokens.
+// Customization swatches by group. Ids are the values build.customize carries; content lists them
+// flat (packages/content/src/swatches.ts, each with its group and a palette token), and
+// `swatchGroups` groups them and looks each token up in the art palette. The spec's tokens below
+// stand in for any group content leaves empty.
+import { palette } from '@qoti/art';
 import { content } from '@qoti/content';
 
 export interface Swatch {
@@ -14,6 +16,7 @@ export interface SwatchGroups {
   roof: Swatch[];
   roofMaterial: Swatch[];
   accent: Swatch[];
+  flowers: Swatch[];
 }
 
 const FALLBACK: SwatchGroups = {
@@ -44,41 +47,42 @@ const FALLBACK: SwatchGroups = {
     { id: 'navy', label: 'Navy', hex: '#34506b' },
     { id: 'white', label: 'White', hex: '#f7f4ec' },
   ],
+  flowers: [
+    { id: 'geranium', label: 'Geranium', hex: '#d6403a' },
+    { id: 'rose', label: 'Rose', hex: '#f2b8c6' },
+    { id: 'cream', label: 'Cream', hex: '#f7f4ec' },
+    { id: 'cornflower', label: 'Cornflower', hex: '#5b86d6' },
+    { id: 'buttercup', label: 'Buttercup', hex: '#f3d35b' },
+    { id: 'mixed', label: 'Mixed', hex: '#8f7fd9' },
+  ],
 };
 
-type ContentSwatch = {
-  id: string;
-  name?: string;
-  label?: string;
-  hex?: string | number;
-  color?: string | number;
-};
+const GROUPS = Object.keys(FALLBACK) as (keyof SwatchGroups)[];
 
-function toHex(v: string | number | undefined, fallback: string): string {
-  if (typeof v === 'number') return `#${v.toString(16).padStart(6, '0')}`;
-  return typeof v === 'string' && v ? v : fallback;
+function tokenHex(token: string, fallback: string): string {
+  const v = (palette as unknown as Record<string, unknown>)[token];
+  return typeof v === 'number' ? `#${v.toString(16).padStart(6, '0')}` : fallback;
 }
 
-/** The swatch groups, from content when it has them (C3B), else the spec's palette tokens. */
+let cached: SwatchGroups | null = null;
+
+/**
+ * The swatch groups: content's flat list grouped by each swatch's own group, colors from the art
+ * palette. (It once read content as if it were already grouped by name and so always showed the
+ * fallback list; the client test keeps it honest.)
+ */
 export function swatchGroups(): SwatchGroups {
-  const from = (content as unknown as { swatches?: Partial<Record<keyof SwatchGroups, ContentSwatch[]>> })
-    .swatches;
-  if (!from || typeof from !== 'object') return FALLBACK;
-  const pick = (key: keyof SwatchGroups): Swatch[] => {
-    const list = from[key];
-    if (!Array.isArray(list) || !list.length) return FALLBACK[key];
-    return list.map((s) => ({
-      id: s.id,
-      label: s.label ?? s.name ?? s.id,
-      hex: toHex(s.hex ?? s.color, FALLBACK[key].find((f) => f.id === s.id)?.hex ?? '#cccccc'),
-    }));
-  };
-  return {
-    wall: pick('wall'),
-    roof: pick('roof'),
-    roofMaterial: pick('roofMaterial'),
-    accent: pick('accent'),
-  };
+  if (cached) return cached;
+  const out: SwatchGroups = { wall: [], roof: [], roofMaterial: [], accent: [], flowers: [] };
+  for (const s of content.swatches) {
+    const list = out[s.group];
+    if (!list) continue;
+    const fallback = FALLBACK[s.group].find((f) => f.id === s.id)?.hex ?? '#cccccc';
+    list.push({ id: s.id, label: s.name, hex: tokenHex(s.token, fallback) });
+  }
+  for (const g of GROUPS) if (out[g].length === 0) out[g] = FALLBACK[g];
+  cached = out;
+  return out;
 }
 
 export function swatchHex(

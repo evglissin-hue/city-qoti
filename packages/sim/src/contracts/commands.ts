@@ -138,6 +138,8 @@ export interface BuildingCustom {
   roofMaterial?: string | null;
   accent?: string | null;
   windowBoxes?: boolean | null;
+  /** Flower color for window boxes: 'geranium' | 'rose' | 'cream' | 'cornflower' | 'buttercup' | 'mixed'. */
+  windowFlowers?: string | null;
   shutters?: boolean | null;
   chimney?: boolean | null;
   /** Shop sign text, max 24 chars. */

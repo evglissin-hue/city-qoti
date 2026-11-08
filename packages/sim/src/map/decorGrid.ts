@@ -11,6 +11,8 @@ const CELL_FP = CELL_TILES * TILE_FP;
 export class DecorGrid<D extends DecorView = DecorView> {
   private readonly side: number;
   private readonly cells: D[][];
+  /** Counts every add, remove and clear, so a cache of anything derived from the pieces can tell. */
+  version = 0;
 
   constructor(size = MAP_SIZE) {
     this.side = Math.ceil(size / CELL_TILES);
@@ -24,16 +26,19 @@ export class DecorGrid<D extends DecorView = DecorView> {
   }
 
   add(d: D): void {
+    this.version++;
     this.cells[this.cellOf(d.fx, d.fz)]!.push(d);
   }
 
   remove(d: D): void {
+    this.version++;
     const cell = this.cells[this.cellOf(d.fx, d.fz)]!;
     const i = cell.findIndex((c) => c.id === d.id);
     if (i >= 0) cell.splice(i, 1);
   }
 
   clear(): void {
+    this.version++;
     for (const cell of this.cells) cell.length = 0;
   }
 
