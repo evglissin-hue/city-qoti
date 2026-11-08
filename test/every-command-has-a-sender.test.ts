@@ -16,7 +16,6 @@ export const NO_CLIENT_SENDER: Record<string, string> = {
   'sys.seatLeft': 'system command, sent only by RoomCore when a seat disconnects',
   // Honest gaps: the sim takes them, but no tool or button sends them yet. Each is a feature to
   // build, not a reason to keep the entry; the test says so when a sender appears.
-  'festival.keepPiece': 'NO UI YET: the sim can keep bunting or a flower arch as decor, no button asks it',
   'plan.edit': 'NO UI YET: the sim can edit an open plan, the plans panel only adds, comments and resolves',
   // Covered another way.
   'wall.remove': 'walls are buildings: the demolish tool takes them down with build.remove',

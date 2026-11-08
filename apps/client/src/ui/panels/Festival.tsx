@@ -423,13 +423,32 @@ export function FestivalPanel({ session }: { session: Session }) {
 }
 
 /** The morning after: stars, the crowd and the joy parts, on a card. */
+/**
+ * P1 (the dead-end hunt): the sim could keep a festival piece as ordinary decor, but no button ever
+ * asked it to. The keepable pieces still standing (they come down at 04:00) can be kept from the card.
+ */
+export function keepablePieces(session: Session): { id: number; name: string }[] {
+  const f = session.mirror.festival.value;
+  const out: { id: number; name: string }[] = [];
+  for (const id of f?.pieces ?? []) {
+    const d = session.mirror.decor.get(id);
+    const def = d ? content.decorById.get(d.def) : undefined;
+    if (def?.festival?.keepable) out.push({ id, name: def.name });
+  }
+  return out;
+}
+
 export function FestivalResultPanel({ session }: { session: Session }) {
   const r = session.ui.festivalCard.value;
   if (!r) return null;
   const close = () => (session.ui.festivalCard.value = null);
+  const pieces = keepablePieces(session);
+  const keep = pieces.length
+    ? { pieces, onKeep: (id: number) => void session.submit({ t: 'festival.keepPiece', decor: id }) }
+    : undefined;
   return (
     <div class="modal-backdrop letter-backdrop" onClick={(e) => e.target === e.currentTarget && close()}>
-      <FestivalResultCard result={r} onClose={close} />
+      <FestivalResultCard result={r} onClose={close} keep={keep} />
     </div>
   );
 }
@@ -437,9 +456,12 @@ export function FestivalResultPanel({ session }: { session: Session }) {
 export function FestivalResultCard({
   result: r,
   onClose,
+  keep,
 }: {
   result: FestivalResultView;
   onClose: () => void;
+  /** Keepable pieces still up, and how to keep one (P1). */
+  keep?: { pieces: { id: number; name: string }[]; onKeep: (id: number) => void };
 }) {
   const line =
     r.stars >= 5
@@ -470,6 +492,21 @@ export function FestivalResultCard({
           <Meter key={k} label={label} value={r.joy[k] / 100} note={r.joy[k]} />
         ))}
       </div>
+      {keep && keep.pieces.length > 0 && (
+        <div class="keep-pieces" data-testid="festival-keep">
+          <p class="small">Some of it could stay up for good, as ordinary decor:</p>
+          {keep.pieces.map((p) => (
+            <button
+              type="button"
+              key={p.id}
+              data-testid={`festival-keep-${p.id}`}
+              onClick={() => keep.onKeep(p.id)}
+            >
+              Keep the {p.name.toLowerCase()}
+            </button>
+          ))}
+        </div>
+      )}
       <div class="actions">
         <button type="button" class="primary" data-testid="festival-result-close" onClick={onClose}>
           Sweep up the bunting
