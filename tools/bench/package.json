@@ -6,6 +6,7 @@
   "description": "Headless simulation benchmarks with budget checks.",
   "scripts": {
     "bench": "tsx src/bench.ts",
+    "audit": "tsx src/audit.ts",
     "tune": "tsx src/tune.ts",
     "tune:summary": "tsx src/tuneSummary.ts",
     "typecheck": "tsc -p . --noEmit"

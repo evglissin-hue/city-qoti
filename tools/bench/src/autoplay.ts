@@ -212,6 +212,7 @@ export function autoplay(seed: string, days: number, opts: AutoplayOptions = {})
   const health = new Map<string, HealthIssue>();
   const look = () => {
     for (const i of watch.check(h.world)) if (!health.has(i.kind + i.id)) health.set(i.kind + i.id, i);
+    opts.onHour?.(h.world);
   };
   try {
     for (let d = 1; d <= days; d++) {
