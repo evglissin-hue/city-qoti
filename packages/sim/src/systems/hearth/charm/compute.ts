@@ -20,6 +20,7 @@ import {
   CONSTRUCTION,
   MARKET_DAY,
   DECOR_LINEAR,
+  DECOR_MUFFLES,
   DECOR_REACH,
   DECOR_SOURCES,
   ENCLOSURE,
@@ -33,6 +34,8 @@ import {
   WATER_VIEW,
   WINDOW_BOXES,
   MODULE_SOURCES,
+  MUFFLE_EACH,
+  MUFFLE_MAX,
   YOUNG_TREE,
 } from './sources';
 import { isMarketDay, quietHours } from '../../festivals/levers';
@@ -331,6 +334,8 @@ export function recomputeChunk(
       touchedCount = 0;
       let seen = 0;
       let clutter = 0;
+      // Hedges, walls and mature trees right beside the tile (P1, Quiet, Please).
+      let muffle = 0;
 
       const lr = tz - rz0;
       const k0 = rowStart[Math.max(0, lr - DECOR_REACH)]!;
@@ -346,6 +351,7 @@ export function recomputeChunk(
           seenList[seen++] = def;
         }
         if (d2 <= cR && !DECOR_LINEAR[def]) clutter++;
+        if (d2 <= 2.25 && DECOR_MUFFLES[def]) muffle++;
         const sources = DECOR_SOURCES[def]!;
         if (sources.length === 0) continue;
         const d = Math.sqrt(d2);
@@ -367,6 +373,7 @@ export function recomputeChunk(
           if (!v) continue;
           // Forest trees are nature, not decor: they count for no-spam but not for variety.
           add((v & 7) >= 3 ? MATURE_TREE : YOUNG_TREE, Math.sqrt(dx * dx + dz * dz));
+          if ((v & 7) >= 3 && dx >= -1 && dx <= 1 && dz >= -1 && dz <= 1) muffle++;
         }
       }
 
@@ -376,8 +383,9 @@ export function recomputeChunk(
         cats[key % 5]! += best1[key]! + best2[key]!;
         keyUsed[key] = 0;
       }
-      // I2 (C4B): streets and the carts on them are heard too.
-      cats[CAT.noise] = noise + streetNoise(state, tx, tz);
+      // I2 (C4B): streets and the carts on them are heard too. P1: muffled by what stands beside.
+      cats[CAT.noise] =
+        ((noise + streetNoise(state, tx, tz)) * (1000 - Math.min(MUFFLE_MAX, muffle * MUFFLE_EACH))) / 1000;
 
       // Water in view: the nearest river or pond tile within the radius.
       let w2 = Infinity;

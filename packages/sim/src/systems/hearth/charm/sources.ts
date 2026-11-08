@@ -66,6 +66,17 @@ export const ENCLOSURE = { bonus: 5, reach: 4, sides: 3 } as const;
 /** Index of decor defs that never count as clutter (fences, walls and hedges are boundaries). */
 export const DECOR_LINEAR: readonly boolean[] = content.decor.map((d) => !!d.linear);
 
+/**
+ * P1 (the dead-end hunt): Quiet, Please was never granted, since nothing but moving the noise helped.
+ * Hedges and walls muffle it at the tiles right beside them, and so do mature trees: each takes
+ * MUFFLE_EACH permille off a tile's noise, up to MUFFLE_MAX.
+ */
+export const DECOR_MUFFLES: readonly boolean[] = content.decor.map(
+  (d) => d.tags.includes('hedge') || d.tags.includes('wall'),
+);
+export const MUFFLE_EACH = 150;
+export const MUFFLE_MAX = 450;
+
 const MAX_PIECE_RADIUS = Math.max(
   2,
   ...content.decor.flatMap((d) => (d.charm ?? []).map((s) => s.radius)),

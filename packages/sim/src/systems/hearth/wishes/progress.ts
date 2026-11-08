@@ -117,7 +117,10 @@ function routeText(
   return share < want ? `lanterns along ${want}% of the walk home from work (${share}% lit now)` : null;
 }
 
-/** The noisiest building near a place, and the remedies the town has: move it, or quiet hours. */
+/**
+ * The noisiest building near a place, and the remedies the town has: a hedge, a wall or trees beside
+ * the home (P1), moving it, or quiet hours.
+ */
 function noiseAdvice(state: WorldState, place: Rect): string {
   let loud = '';
   let loudV = 0;
@@ -140,9 +143,10 @@ function noiseAdvice(state: WorldState, place: Rect): string {
     }
   }
   const quiet = rankAtLeast(state, 'village') ? ', or set Quiet Hours in the Policies book' : '';
+  const soften = 'a hedge, a low wall or a few trees beside the home soften it';
   return loud
-    ? ` (loudest near the home: the ${loud}; move it${quiet})`
-    : ` (move the noisy neighbor${quiet})`;
+    ? ` (loudest near the home: the ${loud}; ${soften}, or move it${quiet})`
+    : ` (${soften}, or move the noisy neighbor${quiet})`;
 }
 
 function explain(state: WorldState, cond: Condition, bind: Binding): string | null {
