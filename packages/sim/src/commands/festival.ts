@@ -5,14 +5,22 @@
 // already put by that leave the menu go back to the storehouses. C5B's systems put the menu by at
 // noon on day 6, run the evening and tidy the pieces.
 import { content } from '@qoti/content';
-import { FESTIVAL_MENU_MAX, MAP_SIZE } from '../constants';
+import { FESTIVAL, FESTIVAL_MENU_MAX, MAP_SIZE } from '../constants';
 import type { FestivalSite, RejectReason, SeasonIndex, WorldState } from '../contracts';
 import { inBounds } from '../map/layers';
 import { isInt } from '../rules/geometry';
 import { findById } from '../state/entities';
 import { isStandard } from '../state/hamlet';
 import { seasonAt } from '../state/seasons';
-import { hasBandstand, musicianFor, returnReserved } from '../systems/festivals/api';
+import { hourOf } from '../systems/economy/time';
+import {
+  hasBandstand,
+  isFestivalDay,
+  musicianFor,
+  RESERVE_HOUR,
+  reserveMenu,
+  returnReserved,
+} from '../systems/festivals/api';
 import {
   FESTIVAL_SITE_MIN,
   openGround,
@@ -74,6 +82,8 @@ export const plan: HandlerFor<'festival.plan'> = {
   type: 'festival.plan',
   validate(state, _seat, cmd) {
     if (!isStandard(state)) return 'NOT_ALLOWED';
+    // The evening has begun (or is over): a plan now would never be held.
+    if (isFestivalDay(state) && hourOf(state.tick) >= FESTIVAL.from) return 'TOO_LATE';
     const bad = checkSite(state, cmd.site) ?? checkMenu(cmd.menu);
     if (bad) return bad;
     if (cmd.twist !== undefined && cmd.twist !== '') {
@@ -121,6 +131,8 @@ export const plan: HandlerFor<'festival.plan'> = {
       by: seat,
       tick: state.tick,
     };
+    // Planned on the festival day after the menu hour: the noon pass has gone, so put it by now.
+    if (isFestivalDay(state) && hourOf(state.tick) >= RESERVE_HOUR) reserveMenu(state, null);
     ctx.events.push({ e: 'festival.updated', f: festivalView(state) });
   },
 };

@@ -2,7 +2,7 @@
 // opens this season's card again), and renown as a little ribbon beside the rank pennant.
 import type { Session } from '../app/session';
 import { WeatherGlyph } from './art';
-import { dayName, today, WEATHER_WORD } from './seasons';
+import { dayName, festivalChipText, today, WEATHER_WORD } from './seasons';
 
 export function WeatherChip({ session }: { session: Session }) {
   const m = session.mirror;
@@ -50,5 +50,23 @@ export function RenownChip({ session }: { session: Session }) {
       </svg>
       <span>{r.level}</span>
     </span>
+  );
+}
+
+/** The countdown to this season's festival while a plan is up; a click opens the Festival book. */
+export function FestivalChip({ session }: { session: Session }) {
+  const m = session.mirror;
+  const text = festivalChipText(m.festival.value, m.tick.value);
+  if (!text) return null;
+  return (
+    <button
+      type="button"
+      class="festival-chip"
+      data-testid="festival-chip"
+      title="The poster is up. Click to open the Festival book."
+      onClick={() => (session.ui.panel.value = 'festival')}
+    >
+      {text}
+    </button>
   );
 }

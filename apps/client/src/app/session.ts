@@ -30,6 +30,7 @@ import { UndoStack } from '../state/undo';
 import { rejectText, undoText } from '../ui/messages';
 import { panels, toggleBook } from '../ui/panels';
 import { sketchWith } from '../ui/plans';
+import { posterUpText } from '../ui/seasons';
 import { INPUT_COPY } from '../input/copy';
 import { buildingChoices, buildingLock } from '../input/catalog';
 import { createUiState } from '../ui/state';
@@ -394,7 +395,14 @@ export class Session {
     }
     this.undo.observe(change, this.mirror);
     for (const n of change.notices) {
-      if (n.kind !== 'letter' || (n.seat !== undefined && n.seat !== this.seat)) continue;
+      if (n.kind === 'festival.planned') {
+        const f = this.mirror.festival.value;
+        if (f) this.toast(posterUpText(f, this.mirror.tick.value));
+        continue;
+      }
+      // The festival's start joins the Hearth's news, with a pin on the site.
+      if ((n.kind !== 'letter' && n.kind !== 'festival') || (n.seat !== undefined && n.seat !== this.seat))
+        continue;
       const letter = { key: this.nextLetter++, kind: n.kind, text: n.text, tick: this.mirror.tick.value };
       this.ui.letters.value = [...this.ui.letters.value.slice(-19), n.at ? { ...letter, at: n.at } : letter];
     }

@@ -196,7 +196,7 @@ export {
   musicianFor,
   reserveMenu,
 } from './systems/festivals/api';
-export { openGround, patternRect, siteRect } from './systems/festivals/site';
+export { FESTIVAL_SITE_MARGIN, openGround, patternRect, siteRect } from './systems/festivals/site';
 export { canMeet, progressOf } from './systems/commissions';
 export { BOAT_UNITS, dockSellPrice, riverDock } from './systems/dock';
 export {

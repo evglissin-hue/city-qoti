@@ -171,6 +171,7 @@ describe('I0 contracts', () => {
       | 'CUT_OFF'
       // P1 (playtest)
       | 'HALL_STAYS'
+      | 'TOO_LATE'
     >();
   });
 

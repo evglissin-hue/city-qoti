@@ -32,6 +32,8 @@ export const REJECT_TEXT: Record<RejectReason, string> = {
   // P1 (playtest)
   HALL_STAYS:
     'The town hall stays. Its builders raise everything else, and nobody wants to learn who would raise a new one.',
+  // Playtest round four
+  TOO_LATE: 'Too late for that. The evening has begun, so the plans will have to wait for next season.',
 };
 
 export function rejectText(reason: RejectReason | undefined): string {
