@@ -6,7 +6,7 @@
 // - an electric piano: two-operator FM (the warm tone and the bell of the tine);
 // - mallets (marimba, vibraphone, celesta, glockenspiel, kalimba): struck bars, modal partials;
 // - a flute with breath (and a clarinet, its odd harmonics), a harp, soft strings for pads;
-//   brushes, a ride and a shaker.
+//   brushes, a ride, a shaker, a soft kick and a rim click.
 // Each note renders once (per loudness layer) into a Float32Array; the engine caches it. The
 // instruments with recordings (audio/sampler.ts) play those instead; these stand in when a
 // recording cannot load, and for the cues.
@@ -37,9 +37,11 @@ export type Instrument =
   | 'guitar'
   | 'harp'
   | 'kalimba'
+  | 'kick'
   | 'marimba'
   | 'piano'
   | 'ride'
+  | 'rim'
   | 'shaker'
   | 'strings'
   | 'vibes';
@@ -55,16 +57,18 @@ export const INSTRUMENTS: readonly Instrument[] = [
   'guitar',
   'harp',
   'kalimba',
+  'kick',
   'marimba',
   'piano',
   'ride',
+  'rim',
   'shaker',
   'strings',
   'vibes',
 ];
 
 /** Instruments with no pitch (the midi number picks a variation). */
-export const UNPITCHED: ReadonlySet<Instrument> = new Set(['brush', 'ride', 'shaker']);
+export const UNPITCHED: ReadonlySet<Instrument> = new Set(['brush', 'kick', 'ride', 'rim', 'shaker']);
 
 /** How a note ends: sustained instruments are held and released; struck ones ring out. */
 export const SUSTAINED: ReadonlySet<Instrument> = new Set(['clarinet', 'flute', 'strings']);
@@ -99,6 +103,10 @@ export function noteSeconds(inst: Instrument, midi: number): number {
       return 5;
     case 'brush':
       return 0.5;
+    case 'kick':
+      return 0.4;
+    case 'rim':
+      return 0.12;
     case 'ride':
       return 1.6;
     case 'shaker':
@@ -454,6 +462,37 @@ function shaker(variant: number): Float32Array {
   return fadeEdges(normalize(out, 0.5), 0.001, 0.02);
 }
 
+/** A soft kick: a sine that drops from 110 to 45 Hz in a quarter second. Gentle, not a club. */
+function kick(): Float32Array {
+  const n = len(noteSeconds('kick', 0));
+  const out = new Float32Array(n);
+  const lp = new Biquad('lowpass', 900);
+  let phase = 0;
+  for (let i = 0; i < n; i++) {
+    const t = i / RENDER_RATE;
+    const f = 45 + 65 * Math.exp(-t / 0.05);
+    phase += (2 * Math.PI * f) / RENDER_RATE;
+    const env = Math.min(1, t / 0.004) * Math.exp(-t / 0.09);
+    out[i] = lp.run(Math.sin(phase) * env);
+  }
+  return fadeEdges(normalize(out, 0.55), 0.002, 0.05);
+}
+
+/** A rim click: a short burst of noise through a narrow band near 1.8 kHz, with a woody tick. */
+function rim(variant: number): Float32Array {
+  const rand = seeded(variant * 401);
+  const n = len(noteSeconds('rim', 0));
+  const out = new Float32Array(n);
+  const bp = new Biquad('bandpass', 1600 + variant * 100, 2.5);
+  const tick = new Partial(820 + variant * 20, 0.3, t60Per(0.04));
+  for (let i = 0; i < n; i++) {
+    const t = i / RENDER_RATE;
+    const env = Math.min(1, t / 0.0015) * Math.exp(-t / 0.014);
+    out[i] = bp.run(noise(rand)) * env + tick.run() * Math.exp(-t / 0.02);
+  }
+  return fadeEdges(normalize(out, 0.5), 0.0005, 0.02);
+}
+
 /**
  * Renders one note. `layer` 0 is a soft touch and 1 a firm one (brighter, not just louder).
  * Unpitched instruments read `midi` as a variation (1 to 4).
@@ -480,12 +519,16 @@ export function renderNote(inst: Instrument, midi: number, layer = 1): Float32Ar
       return harp(midi, layer);
     case 'kalimba':
       return kalimba(midi, layer);
+    case 'kick':
+      return kick();
     case 'marimba':
       return marimba(midi, layer);
     case 'piano':
       return piano(midi, layer);
     case 'ride':
       return ride(midi);
+    case 'rim':
+      return rim(midi);
     case 'shaker':
       return shaker(midi);
     case 'strings':
@@ -507,9 +550,11 @@ export const INSTRUMENT_LEVEL: Record<Instrument, number> = {
   guitar: 1.4,
   harp: 0.9,
   kalimba: 0.9,
+  kick: 0.8,
   marimba: 0.85,
   piano: 0.9,
   ride: 0.7,
+  rim: 0.7,
   shaker: 0.75,
   strings: 0.4,
   vibes: 0.7,
@@ -527,9 +572,11 @@ export const RELEASE: Record<Instrument, number> = {
   guitar: 0.25,
   harp: 0.6,
   kalimba: 0.5,
+  kick: 0.05,
   marimba: 0.3,
   piano: 0.12,
   ride: 0.4,
+  rim: 0.03,
   shaker: 0.05,
   strings: 0.6,
   vibes: 0.9,
@@ -547,9 +594,11 @@ export const INSTRUMENT_PAN: Record<Instrument, number> = {
   guitar: -0.25,
   harp: -0.3,
   kalimba: 0.2,
+  kick: 0,
   marimba: 0.15,
   piano: 0,
   ride: 0.35,
+  rim: 0.3,
   shaker: 0.4,
   strings: -0.3,
   vibes: 0.2,
