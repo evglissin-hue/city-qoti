@@ -2,10 +2,10 @@
 // within 6 tiles of a farmhouse on open ground (fertility 15+). The farmhouse's workers tend up to
 // 12 tiles each, during the work day, in the `crop` layer (0 bare to 255 ripe).
 //
-// I3 (C5A): wheat follows the year (docs/spec/14-challenge.md, Seasons). Bare tiles are sown on
-// Spring days 1 to 3 (content SeasonDef.sow), grow through spring, summer and autumn (one tended
+// I3 (C5A): wheat follows the year (docs/spec/14-challenge.md, Seasons). Bare tiles are sown from
+// Spring day 1 to Summer day 3 (content SeasonDef.sow), grow through spring, summer and autumn (one tended
 // step in GROW_EVERY, a quarter slower on fair soil and half on thin), and turn golden at
-// HARVEST_MIN. From Autumn day 1 (SeasonDef.harvest) golden tiles are brought in: each tended step
+// HARVEST_MIN. From the first day of summer (SeasonDef.harvest) golden tiles are brought in as they ripen: each tended step
 // takes HARVEST_YIELD wheat while the farm has room and lowers the tile by HARVEST_STEP, so a fully
 // ripe tile gives about 26 wheat, about what a year of I2's tending gave. Sheaves left standing keep
 // through winter (nothing grows, but the harvest goes on as room allows) until the spring ploughing
@@ -242,7 +242,7 @@ export function fieldPhase(state: WorldState): FieldPhase {
   const { season, day } = seasonAt(state.tick);
   const def = content.seasons[season];
   const sow = !!def?.sow && day >= def.sow[0] && day <= def.sow[1];
-  const harvest = season === WINTER || (!!def?.harvest && day >= def.harvest[0]);
+  const harvest = season === WINTER || (!!def?.harvest && day >= def.harvest[0] && day <= def.harvest[1]);
   return { sow, grow: season !== WINTER, harvest };
 }
 

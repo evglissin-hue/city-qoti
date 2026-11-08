@@ -42,6 +42,8 @@ export interface Alert {
 /** Days of food in store below which the Ledger hears about it. */
 const FOOD_DAYS_WARN = 2;
 const MAX_IDLE = 4;
+/** Stone in store below which a waiting site raises the quarry alert. */
+const STONE_LOW = 10;
 
 export function computeAlerts(
   m: Mirror,
@@ -120,6 +122,22 @@ export function computeAlerts(
       text: `No ${goodName(good).toLowerCase()} in store. The ${names.join(' and the ')} ${names.length === 1 && who.length === 1 ? 'is' : 'are'} waiting.`,
       action: { kind: 'panel', panel: 'reports', page: 'stocks' },
     });
+  }
+  // Playtest round six: a site waiting on stone, with the stone nearly gone, wants a quarry.
+  if (stocks.length && (stockOf.get('stone') ?? 0) < STONE_LOW) {
+    for (const b of m.buildings.values()) {
+      if (b.stage !== 'construction') continue;
+      if (!content.buildingById.get(b.def)?.cost?.goods?.some(([g]) => g === 'stone')) continue;
+      out.push({
+        key: 'stone-low',
+        lens: 'ledger',
+        tone: 'warn',
+        icon: 'reports',
+        text: 'Stone is running low. A quarry on a grey outcrop keeps it coming.',
+        action: { kind: 'panel', panel: 'reports', page: 'stocks' },
+      });
+      break;
+    }
   }
   out.push(...idle.slice(0, MAX_IDLE));
   if (idle.length > MAX_IDLE) {

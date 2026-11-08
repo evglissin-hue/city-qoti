@@ -267,14 +267,10 @@ describe('farms', () => {
     expect(stockOf(farm, 'output', 'wheat')).toBe(0);
   });
 
-  it('brings in golden wheat from Autumn day 1, 2 wheat a step, and a ripe tile gives about a year of I2 tending', () => {
+  it('brings in golden wheat as it ripens (here in autumn), 2 wheat a step, and a ripe tile gives about a year of I2 tending', () => {
     const { f, farm } = farmWithFields(12, 1);
     const tiles = fieldsOf(f.state, farm, content.buildingById.get('farmhouse')!);
     for (const i of tiles) f.state.map.crop[i] = CROP_RIPE;
-    // Summer: golden, but not yet.
-    f.state.tick = tickAt(0, 1, 5, 9);
-    ticks(f.state, 4 * CROP_STEP_TICKS);
-    expect(stockOf(farm, 'output', 'wheat')).toBe(0);
     f.state.tick = tickAt(0, 2, 1, 9);
     let wheat = 0;
     ticks(f.state, 40 * CROP_STEP_TICKS, () => {
@@ -303,7 +299,7 @@ describe('farms', () => {
     expect(farm.rt!.status & BuildingStatus.outputFull).toBeTruthy();
   });
 
-  it('grows from the spring sowing to golden by the autumn on good soil, and rests in winter', () => {
+  it('grows from the spring sowing to the first summer cut on good soil, and rests in winter', () => {
     const { f, farm } = farmWithFields(12, 1);
     const def = content.buildingById.get('farmhouse')!;
     const wheat = good('wheat');
@@ -318,7 +314,8 @@ describe('farms', () => {
       }
     }
     const tiles = fieldsOf(f.state, farm, def);
-    for (const i of tiles) expect(f.state.map.crop[i]).toBeGreaterThanOrEqual(HARVEST_MIN);
+    // Sown on Spring day 1, the wheat is cut as it ripens from the first days of summer.
+    expect(stockOf(farm, 'output', 'wheat')).toBeGreaterThan(0);
     // Winter: green wheat stays as it is.
     f.state.map.crop[tiles[0]!] = 100;
     for (let q = 0; q < 40; q++) {
@@ -339,7 +336,7 @@ describe('farms', () => {
 
   it('a farm that missed the sowing grows vegetables and says its fields lie ready', () => {
     const { f, farm } = farmWithFields(12, 1);
-    f.state.tick = tickAt(0, 1, 2, 8);
+    f.state.tick = tickAt(0, 1, 4, 8);
     ticks(f.state, 24 * H);
     expect(farm.rt!.status & BuildingStatus.fallow).toBeTruthy();
     expect(stockOf(farm, 'output', 'vegetables')).toBeGreaterThan(0);

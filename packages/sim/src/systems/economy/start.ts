@@ -16,7 +16,7 @@ import { worldIndex } from '../../state/worldIndex';
 export const START_GOODS: readonly [string, number][] = [
   ['logs', 40],
   ['planks', 50],
-  ['stone', 30],
+  ['stone', 40],
   ['bread', 16],
   ['vegetables', 16],
   ['fish', 8],

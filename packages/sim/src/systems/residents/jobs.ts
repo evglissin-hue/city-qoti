@@ -46,7 +46,12 @@ export interface Shortages {
    * with full output), so the extra porters of each storehouse are hired like any other work.
    */
   haul?: boolean;
+  /** Playtest round six: town stone is under STONE_RUSH and an open site still needs stone. */
+  stoneRush?: boolean;
 }
+
+/** Town stone below which a site waiting on stone puts the quarry's first hand ahead of all work. */
+export const STONE_RUSH = 20;
 
 /** Share of producing buildings with full output at which porters count as short (C4X). */
 export const HAUL_SHORT_SHARE = 0.25;
@@ -73,6 +78,8 @@ export function shortages(state: WorldState): Shortages {
     const c = b.rt?.construction;
     if (c) for (let g = 0; g < needs.length; g++) needs[g]! += c.needs[g] ?? 0;
   }
+  const stoneGood = content.goodIndex.get('stone')!;
+  const stoneRush = stock[stoneGood]! < STONE_RUSH && needs[stoneGood]! > 0;
   for (const id of ['logs', 'planks', 'stone']) {
     const g = content.goodIndex.get(id)!;
     if (stock[g]! < needs[g]! + 20) goods.add(id);
@@ -96,6 +103,7 @@ export function shortages(state: WorldState): Shortages {
     goods,
     plenty: food > PLENTY_DAYS * state.residents.length,
     haul: producing > 0 && full >= producing * HAUL_SHORT_SHARE,
+    stoneRush,
   };
 }
 
@@ -132,6 +140,10 @@ export function slotPriority(def: BuildingDef, k: number, short: Shortages = NO_
   // I2 (C4C): a tavern, herbalist or school open matters like a stall's vendor; and a town sitting on
   // more than eight days of food lets its plots, farms and fishers go to other work first.
   if (def.category === 'service') return k === 0 ? 0 : 1;
+  // Playtest round six: a site waiting on the last of the stone puts the quarry's first hand ahead
+  // of everything (never poached from, see rebalanceJobs: only a first-hand hire goes this high).
+  if (short.stoneRush && k === 0 && (def.methods ?? []).some((m) => m.outputs.some(([g]) => g === 'stone')))
+    return -1;
   const kind = makes(def, short);
   if (kind === 'short') return 0;
   // C5A: food work, with the larder short of the winter in autumn: ahead of other workplaces, never
@@ -275,7 +287,7 @@ export function rebalanceJobs(state: WorldState): boolean {
     if (!rt || !def || b === target || rt.workers.length === 0) continue;
     const p = jobPriority(b, def, rt.workers.length - 1, short);
     // Only a clear step up is worth the walk: two levels, or anything into a shortage.
-    if (p <= fromP || (targetP > 0 && p < targetP + 2)) continue;
+    if (p <= fromP || p < (targetP > 0 ? targetP + 2 : 1)) continue;
     // The newest hand at that building moves; never someone mid-task.
     for (let i = rt.workers.length - 1; i >= 0; i--) {
       const r = findById(state.residents, rt.workers[i]!);

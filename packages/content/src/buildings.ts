@@ -15,7 +15,7 @@ export const bakery: BuildingDef = {
     coins: 50,
     goods: [
       ['planks', 20],
-      ['stone', 16],
+      ['stone', 10],
     ],
   },
   upkeep: 2,
@@ -400,7 +400,7 @@ export const windmill: BuildingDef = {
     coins: 50,
     goods: [
       ['planks', 24],
-      ['stone', 12],
+      ['stone', 8],
     ],
   },
   upkeep: 2,
