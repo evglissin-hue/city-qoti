@@ -382,7 +382,7 @@ function init(){
 function applyBus(){
   if(!ctx)return;const t=ctx.currentTime;
   /* phase trim: the band already plays softer late, this keeps night about 2.5 dB under day, not 4.5 */
-  let cut={clear:16000,fog:6000,rain:2800,snow:7500}[state.weather],lvl={dawn:1.1,day:1,dusk:1.05,night:1.2}[state.phase];
+  let cut={clear:16000,fog:6000,rain:2800,snow:7500}[state.weather],lvl={dawn:1.45,day:1,dusk:1.05,night:1.2}[state.phase];
   if(state.pause){cut=Math.min(cut,520);lvl*=0.6;}
   musicLP.frequency.setTargetAtTime(cut,t,0.15);
   musicGain.gain.setTargetAtTime(S.playing?lvl:0,t,S.playing?0.12:0.05);
