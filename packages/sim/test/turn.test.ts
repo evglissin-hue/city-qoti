@@ -128,6 +128,7 @@ describe('systems and views', () => {
       ['construction', 20],
       ['defenses', 86],
       ['dock', 68],
+      ['dressing', 71],
       ['economy', 60],
       ['festivalEvening', 77],
       ['festivals', 75],
