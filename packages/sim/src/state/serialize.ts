@@ -61,6 +61,8 @@ interface SaveFile {
   trial: WorldState['trial'];
   guide: WorldState['guide'];
   seasons: WorldState['seasons'];
+  /** P1 (callings): absent until the Village claim. */
+  calling?: WorldState['calling'];
 }
 
 export function serialize(state: WorldState): Uint8Array {
@@ -119,6 +121,7 @@ export function serialize(state: WorldState): Uint8Array {
     trial: state.trial,
     guide: state.guide,
     seasons: state.seasons,
+    ...(state.calling && { calling: state.calling }),
   };
   // mtime 0 keeps the bytes a pure function of the state.
   return gzipSync(strToU8(JSON.stringify(save)), { level: 6, mtime: 0 });
@@ -194,5 +197,6 @@ export function deserialize(data: Uint8Array): WorldState {
     trial: save.trial,
     guide: save.guide,
     seasons: save.seasons,
+    ...(save.calling && { calling: save.calling }),
   };
 }

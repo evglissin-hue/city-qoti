@@ -2627,3 +2627,97 @@ li.plan.settled p {
 .ui-large .goal-pill .goal-count {
   display: none;
 }
+
+/* The Calling card (P1, playtest item 19): the County's question and the two answers the map suggests. */
+
+.calling-card {
+  width: min(720px, 94vw);
+  max-height: 92vh;
+  overflow-y: auto;
+  text-align: left;
+}
+
+.calling-card h2,
+.calling-card .kicker,
+.calling-card .proclamation {
+  text-align: center;
+}
+
+.calling-options {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 12px;
+  margin: 14px 0 6px;
+}
+
+.calling-option {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px 14px;
+  border: 1.5px solid var(--line);
+  border-radius: 10px;
+  background: var(--paper-light);
+}
+
+.calling-option.picked {
+  border-color: var(--brass-deep);
+  background: linear-gradient(180deg, #fdf0c8, #f3dc9a);
+}
+
+.calling-option.passed {
+  opacity: 0.6;
+}
+
+.calling-option h3 {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  font-size: 1.15rem;
+}
+
+.calling-option .glyph {
+  width: 1.4em;
+  height: 1.4em;
+}
+
+.calling-blurb,
+.calling-reason {
+  margin: 0;
+}
+
+.calling-reason .label {
+  display: block;
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+
+.calling-effects {
+  margin: 0;
+  padding-left: 1.1em;
+  font-size: 0.9rem;
+}
+
+.calling-effects li {
+  margin: 2px 0;
+}
+
+.calling-option button.primary {
+  margin-top: auto;
+}
+
+.calling-picked {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: auto 0 0;
+  font-weight: 700;
+}
+
+.charter-calling {
+  margin: 8px 0;
+  text-align: center;
+}

@@ -7,6 +7,8 @@ import { CHUNKS_PER_SIDE, CHUNK_SIZE, LEDGER_CATEGORIES, MAP_SIZE, TICKS_PER_DAY
 import type { WorldState } from '../../src/contracts';
 import { Terrain } from '../../src/map/layers';
 import { createWorld, defaultSettings } from '../../src/state/create';
+import { hashState } from '../../src/state/hash';
+import { deserialize, serialize } from '../../src/state/serialize';
 import { startCharter } from '../../src/state/village';
 import { ensureOffer, makeOffer } from '../../src/systems/callings/api';
 import { callings } from '../../src/systems/callings';
@@ -96,6 +98,22 @@ describe('the offer', () => {
     // And it shows on the Charter view the card reads.
     const view = run(s, { t: 'calling.choose', id: c.offered[0]! }).events.find((e) => e.e === 'charter.updated');
     expect(view && view.e === 'charter.updated' && view.c.calling?.chosen).toBe(c.offered[0]);
+  });
+});
+
+describe('saving', () => {
+  it('keeps the offer and the choice through a save, and states without one hash as before', () => {
+    const { s } = claimed();
+    run(s, { t: 'calling.choose', id: s.calling!.offered[0]! });
+    const back = deserialize(serialize(s));
+    expect(back.calling).toEqual(s.calling);
+    expect(hashState(back)).toBe(hashState(s));
+    const plain = villageFixture().state;
+    const withKey = JSON.stringify(deserialize(serialize(plain)).calling);
+    expect(withKey).toBeUndefined();
+    const before = hashState(plain);
+    plain.calling = { offered: ['mill-town'], reasons: ['x'], chosen: null, day: 0 };
+    expect(hashState(plain)).not.toBe(before);
   });
 });
 
