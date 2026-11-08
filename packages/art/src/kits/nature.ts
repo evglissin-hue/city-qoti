@@ -93,15 +93,15 @@ export const meadowTuft: Kit = {
     const low = opts?.lod === 'low';
     const n = low ? 5 : 10 + Math.floor(rnd() * 5);
     const warm = rnd();
-    const stalks = Math.floor(rnd() * 4);
+    const stalks = rnd() < 0.25 ? 0 : 1 + Math.floor(rnd() * 3);
     const blade = (i: number, count: number, segments: number): void => {
       const a = (i / count) * Math.PI * 2 + rnd() * 0.9;
-      const r = 0.015 + rnd() * 0.05;
+      const r = 0.02 + rnd() * 0.06;
       const tall = 0.16 + rnd() * 0.16;
       const foot = vary(mixHex(MEADOW_FOOT, GRASS_FOOT, rnd()), rnd, 1.2);
       const tip = vary(mixHex(GRASS_TIP, MEADOW_TIP, 0.3 + rnd() * 0.5 + warm * 0.2), rnd, 1.6);
-      const wide = 0.034 + rnd() * 0.012;
-      const bend = 0.04 + rnd() * 0.1;
+      const wide = 0.05 + rnd() * 0.02;
+      const bend = 0.05 + rnd() * 0.16;
       s.grassBlade(Math.cos(a) * r, Math.sin(a) * r, tall, wide, bend, a, foot, tip, segments);
     };
     if (low) {
