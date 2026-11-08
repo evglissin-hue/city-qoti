@@ -60,7 +60,7 @@ export function seasonAlerts(m: Mirror): Alert[] {
         key: `firewood-${season}-${Math.floor(have / 10)}`,
         lens: 'ledger',
         tone: season === 3 ? 'warn' : 'quiet',
-        icon: 'reports',
+        icon: 'good:firewood',
         text: `Firewood for the winter: ${have} in store, ${need} wanted for ${households} ${households === 1 ? 'home' : 'homes'}.`,
         action: { kind: 'panel', panel: 'reports', page: 'stocks' },
       });
@@ -74,7 +74,7 @@ export function seasonAlerts(m: Mirror): Alert[] {
       key: `winter-food-${day}`,
       lens: 'ledger',
       tone: days < DAYS_PER_SEASON ? 'warn' : 'quiet',
-      icon: 'reports',
+      icon: 'snowflake',
       text:
         days >= DAYS_PER_SEASON
           ? `Winter is here and the larders hold ${days} days of food. Nothing grows till spring; that will do.`

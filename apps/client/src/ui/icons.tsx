@@ -1,6 +1,7 @@
 // Hand-inked line-art icons for the toolbar and panels, keyed by id. Tools without an entry fall
 // back to their own text glyph.
 import type { JSX } from 'preact';
+import { GoodIcon } from './goodIcons';
 
 const S = {
   fill: 'none',
@@ -117,6 +118,8 @@ export function ToolIcon({ id, fallback }: { id: string; fallback: string }) {
 
 /** A small inline icon by id (panels and chips). Unknown ids draw nothing. */
 export function Glyph({ id, class: cls }: { id: string; class?: string }) {
+  // "good:bread" borrows a good's own portrait (alerts name the good they are about).
+  if (id.startsWith('good:')) return <GoodIcon good={id.slice(5)} class={cls} />;
   const icon = ICONS[id];
   return icon ? <span class={`glyph ${cls ?? ''}`}>{icon()}</span> : null;
 }

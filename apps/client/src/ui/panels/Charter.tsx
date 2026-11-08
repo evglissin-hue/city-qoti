@@ -66,11 +66,31 @@ export function CharterPanel({ session }: { session: Session }) {
 
 function Board({ session, c }: { session: Session; c: CharterView }) {
   if (!c.next) {
+    const trial = session.mirror.trial.value;
+    const town = session.mirror.settings.value.townName;
     return (
       <div class="charter-board done" data-testid="charter-board">
-        <p class="proclamation">
-          The County has nothing more to ask of {session.mirror.settings.value.townName} for now. Enjoy it.
-        </p>
+        {trial ? (
+          <p class="proclamation" data-testid="charter-trial">
+            {trial.status === 'passed'
+              ? `${trial.name} is weathered and sealed. The County has nothing more to ask of ${town} for now. Enjoy it.`
+              : trial.status === 'failed'
+                ? `${trial.name} did not go the way anyone hoped, and it comes round again. The Charter holds meanwhile.`
+                : trial.status === 'running'
+                  ? `${trial.name} is under way, and the County is watching the chimneys.`
+                  : `${trial.name} is next: it comes with the season, and it seals the Charter.`}{' '}
+            <button
+              type="button"
+              class="link"
+              data-testid="open-trial"
+              onClick={() => (session.ui.panel.value = 'trial')}
+            >
+              <Glyph id="trial" /> See the trial
+            </button>
+          </p>
+        ) : (
+          <p class="proclamation">The County has nothing more to ask of {town} for now. Enjoy it.</p>
+        )}
         <History session={session} c={c} />
       </div>
     );

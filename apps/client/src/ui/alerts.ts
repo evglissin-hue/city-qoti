@@ -75,7 +75,7 @@ export function computeAlerts(
         key: 'food-low',
         lens: 'ledger',
         tone: 'warn',
-        icon: 'reports',
+        icon: 'good:bread',
         text:
           food === 0
             ? 'The larders are empty. Bread, vegetables or fish, quickly please.'
@@ -116,7 +116,7 @@ export function computeAlerts(
       key: `short-${good}`,
       lens: 'ledger',
       tone: 'warn',
-      icon: 'reports',
+      icon: `good:${good}`,
       text: `No ${goodName(good).toLowerCase()} in store. The ${names.join(' and the ')} ${names.length === 1 && who.length === 1 ? 'is' : 'are'} waiting.`,
       action: { kind: 'panel', panel: 'reports', page: 'stocks' },
     });

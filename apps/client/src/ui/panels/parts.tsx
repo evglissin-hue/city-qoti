@@ -4,6 +4,7 @@ import type { ComponentChildren } from 'preact';
 import { useEffect, useState } from 'preact/hooks';
 import type { InspectKind, InspectResult } from '@qoti/sim';
 import { goodName } from '../format';
+import { GoodIcon } from '../goodIcons';
 import { Glyph } from '../icons';
 
 /** A paper panel with a title row and a close button. */
@@ -93,7 +94,7 @@ export function Meter({
 export function GoodChip({ good, qty, of }: { good: string; qty: number; of?: number }) {
   return (
     <span class={`good-chip good-${good}`}>
-      <i class="good-dot" />
+      <GoodIcon good={good} />
       <b>{of === undefined ? qty : `${qty}/${of}`}</b> {goodName(good).toLowerCase()}
     </span>
   );
