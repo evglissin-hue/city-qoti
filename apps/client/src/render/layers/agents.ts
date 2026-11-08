@@ -54,6 +54,8 @@ import { fpToWorld, hash2, levelY } from '../coords';
 import { groundY } from '../surface';
 import { BUBBLE_ICONS, iconAtlas, IconSprites } from '../icons';
 import { AgentPlayback } from '../agentPlayback';
+import { pushEase, SeparationField } from '../separation';
+import type { CartsLayer } from './carts';
 import type { LayerContext, RenderLayer } from './types';
 
 /**
@@ -61,8 +63,15 @@ import type { LayerContext, RenderLayer } from './types';
  * folk and keep the cadence in step with how far the body travels, so nobody glides.
  */
 const STRIDE = 0.36;
-/** How far apart residents walk side by side on a path, in tiles (each keeps a lane). */
-const LANE_SPREAD = 0.34;
+/**
+ * Walkers who share a path take one of three lanes around the sim's keep-left line, by id (tiles),
+ * so a household leaving together does not stack up.
+ */
+const LANES = [-0.18, 0, 0.18];
+/** Walkers also hang back by up to this many tiles by id, easing in over the first tile they walk. */
+const STAGGER_MAX = 0.3;
+/** Seconds for the stagger to ease out once a walker stops. */
+const STAGGER_OUT = 0.35;
 /** Figures are drawn larger than the kit's 0.3 tiles so they read from the default camera (C3X: 1.4). */
 const FIGURE_SCALE = 1.4;
 /** C4E: children younger than this many days are babies: carried in a sling when a parent is near. */
@@ -106,6 +115,8 @@ export interface AgentsLayer extends RenderLayer {
   setBubbles(on: boolean): void;
   /** The resident nearest a ray, if any is close to it. */
   pick(origin: Vector3, dir: Vector3): number | null;
+  /** Lets walkers step aside for carts: the carts layer whose tracks they keep out of. */
+  setCarts(carts: CartsLayer | null): void;
   /** Where a resident is drawn right now (world units), or null when not outdoors. */
   positionOf(id: number): Vector3 | null;
   /** Residents drawn last frame per level of detail (debug overlay and tests). */
@@ -123,6 +134,8 @@ interface Look {
   /** C4P: their household, so family wave to each other. */
   household: number;
   lane: number;
+  /** How far this walker hangs back along the path (tiles). */
+  stagger: number;
   /** C4E: their partner (couples walk together), whether they are a baby, and a sling color. */
   partner: number;
   baby: boolean;
@@ -155,6 +168,16 @@ interface Track {
   face: number;
   sit: number;
   seat: number;
+  /** Where this figure stood before pushes (or where it is fixed), and whether it is a fixed obstacle. */
+  bx: number;
+  bz: number;
+  fixed: boolean;
+  /** False for a baby in a sling, which neither pushes nor is pushed. */
+  solid: boolean;
+  /** The smoothed separation push (tiles) and how far into its stagger a walker is (0 to 1). */
+  sx: number;
+  sz: number;
+  stag: number;
 }
 
 /** A growable InstancedMesh with the resident instance attributes. */
@@ -332,6 +355,8 @@ export function agentsLayer(): AgentsLayer {
   const slingers = new Set<number>();
   const hiddenBabies = new Set<number>();
   const tracks = new Map<number, Track>();
+  const sep = new SeparationField();
+  let carts: CartsLayer | null = null;
   /** C4P: bench seats (rebuilt when decor changes), who sits where, the last frame's neighbors. */
   let seats: Seat[] = [];
   let seatsDirty = true;
@@ -436,7 +461,8 @@ export function agentsLayer(): AgentsLayer {
       extras: look.extras.map((x) => ({ kind: x.kind, color: new Color(x.color) })),
       seed: hash2(id, 3, 17) * 40,
       household: r?.householdId ?? 0,
-      lane: (hash2(id, 7, 29) - 0.5) * LANE_SPREAD,
+      lane: LANES[Math.min(LANES.length - 1, Math.floor(hash2(id, 7, 29) * LANES.length))]!,
+      stagger: hash2(id, 11, 3) * STAGGER_MAX,
       partner: r?.partner ?? 0,
       baby: babies.some((b) => b.id === id),
       sling: SLING_COLORS[Math.floor(hash2(id, 13, 5) * SLING_COLORS.length)]!,
@@ -611,13 +637,20 @@ export function agentsLayer(): AgentsLayer {
   /** Last frame's residents by tile, for chats and waves. */
   function buildGrid(): void {
     for (const list of grid.values()) list.length = 0;
+    sep.begin();
+    if (carts) {
+      const cs = carts.serial;
+      for (const c of carts.tracks.values()) if (c.seen >= cs - 1) sep.addCart(c.x, c.z, c.heading);
+    }
     for (const [id, t] of tracks) {
       if (t.seen < serial - 1) continue;
+      if (t.solid) sep.add(id, t.bx, t.bz, t.fixed);
       const key = Math.floor(t.x) * 4096 + Math.floor(t.z);
       let list = grid.get(key);
       if (!list) grid.set(key, (list = []));
       list.push(id);
     }
+    sep.build();
   }
 
   /** Calls `visit` with each resident seen last frame within `r` tiles of (x, z), in no order; true stops. */
@@ -693,6 +726,7 @@ export function agentsLayer(): AgentsLayer {
     const simpleD2 = fullD2 * 6.25;
     const dotD2 = fullD2 * 64;
     const smooth = 1 - Math.exp(-dt * 10);
+    const pushK = pushEase(dt);
 
     carryBabies();
 
@@ -739,6 +773,13 @@ export function agentsLayer(): AgentsLayer {
           face: heading,
           sit: 0,
           seat: -1,
+          bx: x,
+          bz: z,
+          fixed: false,
+          solid: true,
+          sx: 0,
+          sz: 0,
+          stag: 0,
         };
         tracks.set(id, t);
       }
@@ -748,6 +789,11 @@ export function agentsLayer(): AgentsLayer {
       t.z = z;
       t.seen = serial;
       if (step < 0.5) t.phase += (step / STRIDE) * Math.PI * 2;
+      if (moving) t.stag = Math.min(1, t.stag + (fresh ? 0 : step));
+      else t.stag = Math.max(0, t.stag - dt / STAGGER_OUT);
+      t.bx = x;
+      t.bz = z;
+      t.solid = true;
       t.heading = fresh ? heading : t.heading + angleDelta(t.heading, heading) * smooth;
 
       // C5E: wolves at the forest's edge are wolves, never a resident species.
@@ -769,14 +815,27 @@ export function agentsLayer(): AgentsLayer {
         continue;
       }
       // A baby in a parent's sling is drawn there, not on its own.
-      if (hiddenBabies.has(id)) continue;
+      if (hiddenBabies.has(id)) {
+        t.solid = false;
+        continue;
+      }
       const look = lookOf(id, flags);
       const walkLike = anim === AgentAnim.walk || anim === AgentAnim.carry;
       const shown =
         walkLike && !moving ? (anim === AgentAnim.carry ? AgentAnim.carry : AgentAnim.idle) : anim;
       let h = t.heading;
-      let wx = x + Math.cos(h) * look.lane;
-      let wz = z - Math.sin(h) * look.lane;
+      // A lane by id and a little hang back, eased in over the first tile walked, then pushed
+      // clear of whoever is close (separation.ts); couples, sitters and chats are placed below.
+      const back = look.stagger * ease(t.stag);
+      const baseX = x + Math.cos(h) * look.lane - Math.sin(h) * back;
+      const baseZ = z - Math.sin(h) * look.lane - Math.cos(h) * back;
+      sep.pushFor(id, baseX, baseZ, h, moving, t.fixed);
+      t.bx = baseX;
+      t.bz = baseZ;
+      t.sx += (sep.px - t.sx) * pushK;
+      t.sz += (sep.pz - t.sz) * pushK;
+      let wx = baseX + t.sx;
+      let wz = baseZ + t.sz;
       // C4E: partners near each other walk side by side, facing the same way, hand in hand.
       let hold = 0;
       const partner = look.partner;
@@ -870,6 +929,12 @@ export function agentsLayer(): AgentsLayer {
       t.wx = wx;
       t.wy = wy;
       t.wz = wz;
+      // Couples and sitters are fixed obstacles for next frame's pushes, where they are drawn.
+      t.fixed = hold > 0 || sb > 0;
+      if (t.fixed) {
+        t.bx = wx;
+        t.bz = wz;
+      }
 
       p.set(wx, wy + 0.15, wz);
       const d2 = p.distanceToSquared(camPos);
@@ -1073,6 +1138,9 @@ export function agentsLayer(): AgentsLayer {
         }
       }
       return best;
+    },
+    setCarts(c) {
+      carts = c;
     },
     positionOf(id) {
       const t = tracks.get(id);

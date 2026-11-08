@@ -30,6 +30,7 @@ import { CLEAR_WEATHER, easeWeather, seasonBlendAt, weatherLookFor, type Weather
 import {
   layerFactories,
   type AgentsLayer,
+  type CartsLayer,
   type EffectsLayer,
   type GhostLayer,
   type HighlightArea,
@@ -259,6 +260,7 @@ export class Renderer implements RenderApi {
     }
     this.layer<EffectsLayer>('effects').setSmoke(QUALITY_PRESETS[quality].ambientMotion);
     this.layer<AgentsLayer>('agents').setDetail(QUALITY_PRESETS[quality].residentDetail);
+    this.layer<AgentsLayer>('agents').setCarts(this.layer<CartsLayer>('carts'));
     this.unsubscribe = mirror.onChange((change) => {
       for (const layer of this.layers) layer.update(change);
       this.invalidate();
