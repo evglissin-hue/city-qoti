@@ -4,6 +4,7 @@
 import { content } from '@qoti/content';
 import { isStandard } from '../state/hamlet';
 import { startCharter } from '../state/village';
+import { ensureOffer } from '../systems/callings/api';
 import { celebrateRank, refreshCharter } from '../systems/charter';
 import { townView } from '../view';
 import { charterView } from '../view/village';
@@ -28,6 +29,8 @@ export const claim: HandlerFor<'charter.claim'> = {
     const text = def.proclamation.split('{town}').join(state.settings.townName);
     celebrateRank(state, ctx, def.rank, text);
     ctx.events.push({ e: 'rank.up', rank: def.rank, text });
+    // P1 (playtest item 19): the Village asks what it means to be known for, scored from the map now.
+    if (def.rank === 'village') ensureOffer(state, ctx);
     ctx.events.push({ e: 'charter.updated', c: charterView(state) });
     ctx.events.push({ e: 'town.updated', t: townView(state) });
   },

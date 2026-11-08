@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   achievements,
   buildings,
+  callings,
   chronicle,
   content,
   decor,
@@ -174,6 +175,10 @@ describe('content', () => {
         'rain-barrel',
         'tool-rack',
         'weathervane',
+        // P1: signature pieces of the callings
+        'millstone-bench',
+        'rose-arch',
+        'wayside-shrine',
       ].sort(),
     );
     expect(roads.map((r) => r.id).sort()).toEqual(['lane', 'path', 'street']);
@@ -373,7 +378,8 @@ describe('I1 content', () => {
     for (const a of achievements) {
       for (const ref of conditionRefs(a.condition)) expect(known(ref), `${a.id} ${ref}`).toBe(true);
     }
-    const unlockable = new Set(patterns.flatMap((p) => p.unlocks));
+    // Signature pieces [P1] are unlocked by a calling.
+    const unlockable = new Set([...patterns.flatMap((p) => p.unlocks), ...callings.map((c) => c.signature)]);
     // Festival pieces [I3] are placed by the festival planner, not unlocked by a pattern.
     for (const d of decor.filter((x) => x.locked && !x.festival))
       expect(unlockable.has(d.id), `${d.id} has an unlock`).toBe(true);

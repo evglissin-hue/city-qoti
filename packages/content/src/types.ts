@@ -258,6 +258,9 @@ export interface Content {
   renown: readonly RenownDef[];
   /** The first days guide (C5H). */
   guide: GuideDef;
+  /** P1 (additive): what the village can be known for, alphabetical by id. */
+  callings: readonly CallingDef[];
+  callingById: ReadonlyMap<string, CallingDef>;
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -1030,4 +1033,41 @@ export interface GuideDef {
   farewell?: string;
   /** C5H: the last letter when Pippa Quill already lives in the valley. */
   farewellAfterPippa?: string;
+}
+
+// --- Callings (P1, playtest item 19; docs/spec/15-progression.md, Callings) -------------------
+
+/** What a calling does, as data. Every number lives here; the sim only reads them. */
+export interface CallingDef {
+  id: string;
+  name: string;
+  blurb: string;
+  /** Glyph id for the card (apps/client/src/ui/icons). */
+  icon: string;
+  /** Plain words, one line per effect, for the card. */
+  effectLines: string[];
+  /** Production buildings (def ids or tags) that work faster, permille added (100 = 10%). */
+  yieldBoost?: { ids: string[]; tags: string[]; permille: number };
+  /** Day visitors spend in the town each afternoon (CallingTuning.visitors). */
+  visitors?: boolean;
+  /** Festivals draw more guests (permille added to each resident's chance) and give extra renown. */
+  festival?: { guestsPermille: number; renown: number; minStars: number };
+  /** Added to the night value of every lantern's light charm. */
+  lanternCharm?: number;
+  /** Added to a style's score when the land picks a district style: [style id, weight]. */
+  styleWeights: [style: string, weight: number][];
+  /** The decor piece the calling unlocks (a locked decor id). */
+  signature: string;
+  /**
+   * One lowercase clause per map factor the offer scores, in the sim's factor order, ready to follow
+   * "Your" ("hills are full of stone"). The County's letter joins the two strongest.
+   */
+  reasons: string[];
+}
+
+export interface CallingTuning {
+  /** How many callings the valley offers. */
+  offered: number;
+  /** Garden Village visitors: the hour they spend, pennies per average door charm point and per renown level, and the daily cap. */
+  visitors: { hour: number; perCharm: number; perRenown: number; cap: number; noticeEveryDays: number };
 }

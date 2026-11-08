@@ -33,6 +33,21 @@ function toSources(type: number, list: readonly CharmSource[] | undefined): Sour
 
 /** Decor sources by decor def index. */
 export const DECOR_SOURCES: readonly Source[][] = content.decor.map((d, i) => toSources(i, d.charm));
+const lanternTables = new Map<number, readonly Source[][]>();
+/**
+ * P1 (callings): decor sources with `bonus` more light charm in every lit lantern (a light source
+ * whose night value beats its day value). The table for a bonus is built once.
+ */
+export function lanternSources(bonus: number): readonly Source[][] {
+  let t = lanternTables.get(bonus);
+  if (!t) {
+    t = DECOR_SOURCES.map((list) =>
+      list.map((s) => (s.cat === CAT.light && s.night > s.value ? { ...s, night: s.night + bonus } : s)),
+    );
+    lanternTables.set(bonus, t);
+  }
+  return t;
+}
 /** Building sources by building def index. */
 export const BUILDING_SOURCES: readonly Source[][] = content.buildings.map((b, i) =>
   toSources(content.decor.length + i, b.charm),

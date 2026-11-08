@@ -131,6 +131,8 @@ export {
 export { foodDays, goodsAtMarket } from './conditions';
 export { findRoute } from './conditions/route';
 export { emptyVillageSlices, hasInnovation, rankAtLeast } from './state/village';
+export { chosenCalling, ensureOffer, offerOpen } from './systems/callings/api';
+export { scoreCallings } from './systems/callings/score';
 export { moneyBalance, moneyInside, pay, type Purse } from './systems/economy/money';
 export { buy, marketOpen, outletsWith, priceOf, sell, tillPrice } from './systems/market/api';
 // I2 (C4A)

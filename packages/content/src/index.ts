@@ -7,6 +7,7 @@ import * as B from './buildings';
 import * as Ca from './carts';
 import * as Ch from './charters';
 import * as C from './chronicle';
+import * as Cl from './callings';
 import * as D from './decor';
 import * as Co from './commissions';
 import * as Fe from './festivals';
@@ -46,6 +47,7 @@ import * as Z from './zones';
 import type {
   AchievementDef,
   BuildingDef,
+  CallingDef,
   CartDef,
   CharterDef,
   CommissionDef,
@@ -78,6 +80,7 @@ import type {
 } from './types';
 
 export { chroniclePhrases } from './chronicle';
+export { callingPhrases, callingTuning } from './callings';
 export { festivalTuning } from './festivals';
 export { lifePhrases } from './lives';
 export { familyNames, valleyNamePrefixes, valleyNameSuffixes } from './names';
@@ -175,6 +178,7 @@ export const decor: readonly DecorDef[] = [
   Th.lookoutBench,
   D.lowWall,
   VD.maypole,
+  Cl.millstoneBench,
   D.mooringPost,
   VD.noticeBoard,
   FD.paintedShopSign,
@@ -184,10 +188,12 @@ export const decor: readonly DecorDef[] = [
   FD.rainBarrel,
   ND.reedBed,
   D.ringBench,
+  Cl.roseArch,
   ND.seeSaw,
   D.signpost,
   ND.swing,
   FD.toolRack,
+  Cl.waysideShrine,
   FD.weathervane,
   D.wildflowerVerge,
 ];
@@ -337,6 +343,7 @@ export const chronicle: readonly ChronicleTemplate[] = [
   Th.banditHome,
   Th.banditSent,
   L.birth,
+  Cl.calling,
   SC.circus,
   SC.coldSnap,
   FC.commissionDone,
@@ -595,6 +602,13 @@ export const renown: readonly RenownDef[] = [
   Se.renown5,
 ];
 
+// prettier-ignore
+export const callings: readonly CallingDef[] = [
+  Cl.gardenVillage,
+  Cl.millTown,
+  Cl.pilgrimsRest,
+];
+
 function byId<T extends { id: string }>(list: readonly T[]): ReadonlyMap<string, T> {
   return new Map(list.map((item) => [item.id, item]));
 }
@@ -604,6 +618,8 @@ export const content: Content = {
   decor,
   roads,
   trees,
+  callings,
+  callingById: byId(callings),
   buildingById: byId(buildings),
   decorById: byId(decor),
   roadById: byId(roads),

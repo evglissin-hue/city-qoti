@@ -296,6 +296,13 @@ export function charterView(state: WorldState): CharterView {
     }),
     ready: c.ready,
     history: c.history.map((h) => ({ ...h, seats: [...h.seats] })),
+    ...(state.calling && {
+      calling: {
+        offered: state.calling.offered.map((id, i) => ({ id, reason: state.calling!.reasons[i] ?? '' })),
+        chosen: state.calling.chosen,
+        together: state.seats.length >= 2,
+      },
+    }),
   };
 }
 

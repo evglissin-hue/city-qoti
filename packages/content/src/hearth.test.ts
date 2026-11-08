@@ -86,6 +86,8 @@ describe('the Chronicle', () => {
     wolves: ['place'],
     // I3 (C5H)
     'guide-done': ['surveyor'],
+    // P1 (callings)
+    calling: ['calling', 'credit'],
   };
 
   it('has at least three variants per kind, using only the params its callers pass', () => {

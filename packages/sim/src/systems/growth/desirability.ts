@@ -10,6 +10,7 @@ import { MAP_SIZE, Zone } from '../../constants';
 import type { Lot, TickCtx, WorldState } from '../../contracts';
 import { Road } from '../../map/layers';
 import { lotView } from '../../view/village';
+import { chosenCalling } from '../callings/chosen';
 import { storehouseReach, within } from '../logistics/range';
 import { doorTile } from '../movement/api';
 import { averageAround, homeCount, tasteScore, treeCount, waterWithin } from '../residents/desirability';
@@ -194,6 +195,7 @@ export function pickStyle(state: WorldState, lot: Lot): string {
   const high = isHigh(state, x, z);
   const street = state.map.road[lot.frontage] === Road.street;
   const nature = treeCount(state, x, z, 3) >= 3 || averageAround(state.map.charmNature, x, z, 3) >= 10;
+  const lean = chosenCalling(state)?.styleWeights ?? [];
   let best = 0;
   let bestScore = -1;
   for (let j = 0; j < styles.length; j++) {
@@ -206,6 +208,8 @@ export function pickStyle(state: WorldState, lot: Lot): string {
     if (s.street && street) v += 2;
     if (s.nature && nature) v += 2;
     if (s.zones?.includes(zoneId)) v += 3;
+    // P1: the village's calling leans every district its way.
+    for (const [id, w] of lean) if (id === styles[k]!.id) v += w;
     if (v > bestScore) {
       bestScore = v;
       best = k;

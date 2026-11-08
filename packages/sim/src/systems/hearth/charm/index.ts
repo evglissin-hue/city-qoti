@@ -56,7 +56,7 @@ export function recomputeDirty(state: WorldState, ctx: TickCtx | null): number {
 }
 
 /** Marks the chunks around every light source whose value differs by night; false when none. */
-function markLanterns(state: WorldState): boolean {
+export function markLanterns(state: WorldState): boolean {
   let any = false;
   for (const d of state.decor) {
     const i = DECOR_INDEX.get(d.def);

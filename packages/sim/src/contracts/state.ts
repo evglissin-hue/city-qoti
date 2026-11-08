@@ -213,4 +213,23 @@ export interface WorldState {
   /** The first days guide (C5H). */
   guide: GuideState;
   seasons: SeasonsStats;
+  /**
+   * P1 (additive, playtest item 19): what the village is known for. Absent until the Village
+   * Charter is claimed, then fixed: the offer never changes.
+   */
+  calling?: CallingState;
+}
+
+/** The offer of callings made at the Village claim, and the choice once it is made. */
+export interface CallingState {
+  /** Calling ids offered, best fit first (ties by id). */
+  offered: string[];
+  /** The reason for each offered calling, in the County's words (parallel to `offered`). */
+  reasons: string[];
+  /** The chosen calling id, or null while the offer is open. */
+  chosen: string | null;
+  /** The day (tick / TICKS_PER_DAY) the offer was made, then the day the choice was made. */
+  day: number;
+  /** Garden Village: pennies of visitors' spending since the last weekly notice. */
+  weekPennies?: number;
 }

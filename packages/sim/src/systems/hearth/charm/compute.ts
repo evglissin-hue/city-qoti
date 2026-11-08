@@ -11,6 +11,7 @@ import { buildingRect, decorInRect, expandRect, rectGap2 } from '../../../condit
 import { windowBoxesOn } from '../../../rules/windowBoxes';
 import { findById } from '../../../state/entities';
 import { skatingSpots } from '../../seasons/place';
+import { chosenCalling } from '../../callings/chosen';
 import { streetNoise } from '../../traffic/noise';
 import {
   BUILDING_SOURCES,
@@ -24,6 +25,7 @@ import {
   DECOR_SOURCES,
   ENCLOSURE,
   HEIGHT_VIEW,
+  lanternSources,
   MATURE_TREE,
   PATH_COMFORT,
   SKATING_COMFORT,
@@ -177,6 +179,9 @@ export function recomputeChunk(
   lit = nightLights;
   const quiet = quietHours(state);
   const marketDay = isMarketDay(state);
+  // P1: Pilgrims' Rest lights its lanterns a little brighter.
+  const lanternBonus = nightLights ? (chosenCalling(state)?.lanternCharm ?? 0) : 0;
+  const decorSources = lanternBonus > 0 ? lanternSources(lanternBonus) : DECOR_SOURCES;
   const m = state.map;
   const rect = chunkRect(chunk);
   const [cx0, cz0, cx1, cz1] = rect;
@@ -346,7 +351,7 @@ export function recomputeChunk(
           seenList[seen++] = def;
         }
         if (d2 <= cR && !DECOR_LINEAR[def]) clutter++;
-        const sources = DECOR_SOURCES[def]!;
+        const sources = decorSources[def]!;
         if (sources.length === 0) continue;
         const d = Math.sqrt(d2);
         for (const s of sources) add(s, d);
