@@ -35,19 +35,45 @@ export function revealStores(session: Session): void {
   if (open && open !== 'stores') session.ui.panel.value = null;
 }
 
-type Group = 'food' | 'building' | 'crafts';
+type Group = 'food' | 'grain' | 'building' | 'home' | 'crafts';
 const GROUPS: { id: Group; title: string }[] = [
   { id: 'food', title: 'Food' },
+  { id: 'grain', title: 'Grain and flour' },
   { id: 'building', title: 'Building' },
+  { id: 'home', title: 'Hearth and home' },
   { id: 'crafts', title: 'Crafts' },
 ];
 
-function groupOf(good: string): Group {
+let costGoods: ReadonlySet<string> | null = null;
+/** Goods some building costs: what the Ledger builds with. */
+function buildingGoods(): ReadonlySet<string> {
+  costGoods ??= new Set(content.buildings.flatMap((b) => (b.cost?.goods ?? []).map(([g]) => g)));
+  return costGoods;
+}
+
+/** P1: food is what folk eat (the cover counts it), grain waits on the mill, fuel and treats keep house. */
+export function groupOf(good: string): Group {
   const def = content.goodById.get(good);
   if (!def) return 'crafts';
-  if (def.food || def.category === 'rawFood' || def.category === 'processed') return 'food';
-  if (def.category === 'material' || def.category === 'fuel') return 'building';
+  if (def.food) return 'food';
+  if (def.category === 'rawFood' || def.category === 'processed') return 'grain';
+  if (def.category === 'fuel' || def.category === 'treat') return 'home';
+  if (buildingGoods().has(good)) return 'building';
   return 'crafts';
+}
+
+/**
+ * P1 (player's chair): true while the Stores panel is on screen (the Ledger lens, unfolded, no book
+ * over the left column), when the goods strip under the top bar would only repeat it.
+ */
+export function storesShowing(session: Session, bookOpen: boolean): boolean {
+  return (
+    !bookOpen &&
+    !storesCollapsed.value &&
+    session.ui.lens.value === 'ledger' &&
+    session.mirror.settings.value.mode === 'standard' &&
+    !!session.mirror.stocks.value
+  );
 }
 
 /** Days of food in store for the town, as the Ledger's alert counts them (alerts.ts). */
