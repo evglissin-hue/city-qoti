@@ -72,6 +72,8 @@ export const palette = {
   flowerB: 0xf3d35b,
   flowerC: 0x8f7fd9,
   flowerD: 0xf7f4ec,
+  flowerGeranium: 0xd6403a,
+  flowerCornflower: 0x5b86d6,
   soil: 0x6b4e35,
   metal: 0x4b4f55,
 

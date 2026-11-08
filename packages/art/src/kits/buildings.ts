@@ -293,7 +293,7 @@ export function windowStyle(
     frame: palette.white,
     shutter: (c.shutters ?? defaults.shutters) ? accent : null,
     box: c.windowBoxes ?? defaults.box,
-    flowers: FLOWERS,
+    flowers: c.windowFlowers === null ? FLOWERS : [c.windowFlowers],
   };
 }
 

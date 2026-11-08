@@ -11,6 +11,29 @@ export const accentRed: SwatchDef = { id: 'red', name: 'Red', group: 'accent', t
 export const accentTeal: SwatchDef = { id: 'teal', name: 'Teal', group: 'accent', token: 'teal' };
 export const accentWhite: SwatchDef = { id: 'white', name: 'White', group: 'accent', token: 'white' };
 
+// Window box flowers (playtest round seven). `mixed` is the default: each box seeds its own blooms.
+export const flowersButtercup: SwatchDef = {
+  id: 'buttercup',
+  name: 'Buttercup',
+  group: 'flowers',
+  token: 'flowerB',
+};
+export const flowersCornflower: SwatchDef = {
+  id: 'cornflower',
+  name: 'Cornflower',
+  group: 'flowers',
+  token: 'flowerCornflower',
+};
+export const flowersCream: SwatchDef = { id: 'cream', name: 'Cream', group: 'flowers', token: 'flowerD' };
+export const flowersGeranium: SwatchDef = {
+  id: 'geranium',
+  name: 'Geranium',
+  group: 'flowers',
+  token: 'flowerGeranium',
+};
+export const flowersMixed: SwatchDef = { id: 'mixed', name: 'Mixed', group: 'flowers', token: 'flowerC' };
+export const flowersRose: SwatchDef = { id: 'rose', name: 'Rose', group: 'flowers', token: 'blossom' };
+
 // Roof materials (shape and texture; the roof color is a separate swatch).
 export const materialShingle: SwatchDef = {
   id: 'shingle',

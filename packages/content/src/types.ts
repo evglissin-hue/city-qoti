@@ -97,6 +97,11 @@ export interface BuildingDef {
   defense?: DefenseDef;
   /** Module slots for customization phase 2 (C5C): [slot, how many]. */
   moduleSlots?: [slot: ModuleSlot, count: number][];
+  /**
+   * Playtest round seven: the kit draws window boxes on its own unless the player says otherwise
+   * (hand-placed homes only), so an unset `custom.windowBoxes` means on, with the charm they bring.
+   */
+  boxesByDefault?: boolean;
   // V1 additions (V1.0).
   /** Eras this building belongs to (18-eras.md); absent means every era. Reserved, filled in I4. */
   eras?: Era[];
@@ -133,6 +138,12 @@ export interface DecorDef {
   // V1 additions (V1.0).
   /** Eras this piece belongs to (18-eras.md); absent means every era. Reserved, filled in I4. */
   eras?: Era[];
+  // Playtest round seven additions.
+  /**
+   * Production buildings within `radius` tiles whose def id or tag is in `tags` work faster by
+   * `permille` (1000 = double). Boosts from nearby pieces add up to a cap (systems/production/decorBoost).
+   */
+  boost?: { radius: number; permille: number; tags: string[] };
 }
 
 export interface RoadDef {
@@ -547,7 +558,7 @@ export interface ChronicleTemplate {
 
 // --- Customization (C3B) ----------------------------------------------------------------------
 
-export type SwatchGroup = 'wall' | 'roof' | 'roofMaterial' | 'accent';
+export type SwatchGroup = 'wall' | 'roof' | 'roofMaterial' | 'accent' | 'flowers';
 
 /**
  * A customization choice for build.customize. The sim validates ids per group; the renderer maps

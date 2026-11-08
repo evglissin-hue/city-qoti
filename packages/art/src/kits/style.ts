@@ -7,6 +7,8 @@ import { ROOF_MATERIAL_COLORS, type RoofMaterial } from './roofs';
 import type { KitBuildOptions } from './types';
 
 export const WALL_SWATCHES: Readonly<Record<string, number>> = {
+  brick: palette.brick,
+  stone: palette.stone,
   cream: palette.plasterCream,
   rose: palette.plasterRose,
   sage: palette.plasterSage,
@@ -30,6 +32,15 @@ export const ACCENT_SWATCHES: Readonly<Record<string, number>> = {
   white: palette.white,
 };
 
+/** Window box flower colors by swatch id; `mixed` (or none) keeps each box's seeded blooms. */
+export const FLOWER_SWATCHES: Readonly<Record<string, number>> = {
+  geranium: palette.flowerGeranium,
+  rose: palette.blossom,
+  cream: palette.flowerD,
+  cornflower: palette.flowerCornflower,
+  buttercup: palette.flowerB,
+};
+
 export const ROOF_MATERIALS: readonly RoofMaterial[] = ['tile', 'slate', 'thatch', 'shingle'];
 
 function swatch(map: Readonly<Record<string, number>>, list: readonly number[], v: unknown): number | null {
@@ -49,6 +60,8 @@ export interface Custom {
   roofMaterial: RoofMaterial | null;
   accent: number | null;
   windowBoxes: boolean | null;
+  /** Window box bloom color; null for the seeded mix. */
+  windowFlowers: number | null;
   shutters: boolean | null;
   chimney: boolean | null;
   sign: string | null;
@@ -68,6 +81,7 @@ export function customOf(opts: KitBuildOptions | undefined): Custom {
           : null,
     accent: swatch(ACCENT_SWATCHES, ACCENTS, p.accent),
     windowBoxes: flag(p.windowBoxes),
+    windowFlowers: swatch(FLOWER_SWATCHES, FLOWERS, p.windowFlowers),
     shutters: flag(p.shutters),
     chimney: flag(p.chimney),
     sign: typeof p.sign === 'string' && p.sign.length > 0 ? p.sign : null,

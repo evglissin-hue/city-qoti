@@ -80,6 +80,12 @@ export const cottage: BuildingDef = {
   housing: { households: 1, residents: 4 },
   work: 8,
   tags: ['home'],
+  // Playtest round seven: the cottage kit draws window boxes, and a porch, ivy or boxes fit by module.
+  boxesByDefault: true,
+  moduleSlots: [
+    ['front', 1],
+    ['wall', 1],
+  ],
   // I2 (C4C): grows on low-density home lots, and becomes a townhouse when its household reaches
   // the Craftsfolk (materials by porter).
   grows: { zone: 'homes-low', handPlaced: true },

@@ -521,6 +521,9 @@ export function windowPart(
         s.surface(SURFACE.flowers);
         const by = y - h / 2 - 0.05;
         faceQuad(s, f, u - w / 2 - 0.02, by - 0.07, u + w / 2 + 0.02, by + 0.04, o + 0.08, palette.leaf);
+        // A chosen bloom color shows from afar as a band of it along the top of the box.
+        if (style.flowers.length === 1)
+          faceQuad(s, f, u - w / 2, by + 0.0, u + w / 2, by + 0.045, o + 0.086, style.flowers[0]!);
       }
       s.surface(SURFACE.plain);
     },

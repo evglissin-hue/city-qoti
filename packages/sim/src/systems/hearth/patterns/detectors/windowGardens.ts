@@ -5,6 +5,7 @@ import { content } from '@qoti/content';
 import { MAP_SIZE } from '../../../../constants';
 import type { Building, Rect } from '../../../../contracts';
 import { buildingRect, isHomeDef } from '../../../../conditions/geo';
+import { windowBoxesOn } from '../../../../rules/windowBoxes';
 import { doorTile } from '../../../movement/api';
 import { type Detector, param, type SiteCandidate } from '../shared';
 
@@ -22,8 +23,9 @@ export const windowGardens: Detector = (state, def) => {
   const gap = param(def, 'gap', 1);
   const rows: Row[] = [];
   for (const b of state.buildings) {
-    if (b.stage !== 'built' || b.custom?.windowBoxes !== true) continue;
-    if (!isHomeDef(content.buildingById.get(b.def))) continue;
+    const bdef = content.buildingById.get(b.def);
+    if (b.stage !== 'built' || !windowBoxesOn(b, bdef)) continue;
+    if (!isHomeDef(bdef)) continue;
     const door = doorTile(b);
     const dx = door % S;
     const dz = (door - dx) / S;
