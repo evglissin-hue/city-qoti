@@ -140,14 +140,14 @@ One per season, day 6 from 18:00 to 22:00 (P23).
 - **Site**: a pattern site or an open area of 6x6+ tiles.
 - **Layout**: temporary festival pieces (stalls, bunting, lanterns, a stage, tables, a bonfire in autumn and winter) placed like decor; removed automatically the next morning (or kept as permanent decor where allowed).
 - **Menu**: up to 4 goods from stock, quantities reserved (for example pies, cider, bread, fish).
-- **Music**: requires a musician resident or a bandstand; quality from both. No musician: a lone fiddle. Musician resident: a trio. Musician plus bandstand: the full band and a dance tune. Juniper Reed's finale adds a choir. See `18-audio.md`.
+- **Music**: quality from a musician and the site. No musician in town: a lone fiddle. Juniper Reed in town: a trio. Held at the Bandstand Green [I4]: the full band and a dance tune. Juniper Reed's finale adds a choir [I4]. See `18-audio.md`.
 - **Theme twist**: a rotating secondary goal so no two festivals feel alike (a pie contest, lanterns on the water, a costume parade, a harvest display, a snow sculpture contest).
 
 **Outcome**: attendance = residents within walking reach x mood factor x weather; joy = site charm + piece variety + menu variety and sufficiency per attendee + music + twist bonus. Rating 1 to 5 stars.
 
 **Rewards**: town mood +5 to +15 for 2 days, bond +1 for attendees (cap per season), renown, Watch morale, a Chronicle entry with a snapshot, unlocks at milestones (first 3, 4 and 5 stars). A poor festival only yields less.
 
-**Seasonal festivals**: Spring Blossom Fair, Midsummer Lantern Night, Harvest Supper, Winter Hearth Feast. Each has its own tune: a folk 6/8 for the Blossom Fair, a light disco-funk dance for Lantern Night, a Dorian stomp for the Supper, a jazz waltz for the Feast.
+**Seasonal festivals**: Spring Blossom Fair, Midsummer Lantern Night, Harvest Supper, Winter Hearth Feast. Each has its own tune: a folk 6/8 for the Blossom Fair, a light funk dance for Lantern Night, a Dorian stomp for the Supper, a jazz waltz for the Feast.
 
 ## Nature and the Field Guide [I3]
 

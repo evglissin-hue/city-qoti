@@ -98,7 +98,7 @@ interface RoomStorage {
 ## Presence
 
 - Never part of sim state. Presence is throttled to 5 messages per second per seat and sent only while something changes. Pings and emotes are rate-limited to 2 per second.
-- `time.sync` [I2]: the client sends its clock as `t0`; the room answers at once with `t0` and its own clock. The client keeps the median offset of 5 round trips, re-estimates every 60 s, and uses it only to align synced music between two laptops in one room (`18-audio.md`). Never part of sim state; rate-limited to 1 per second.
+- `time.sync` [I2]: the client sends its clock as `t0`; the room answers at once with `t0` and its own clock (`server`, milliseconds from the Durable Object's `Date.now()`). The client sends a burst of 5 on connect, keeps the median offset, re-estimates every 60 s, and uses it only to align synced music between two laptops in one room (`18-audio.md`). Never part of sim state; rate-limited to a burst of 5 on connect, then 1 per second.
 - The room relays presence to the other seats immediately (not in turns).
 
 ## Offline solo
