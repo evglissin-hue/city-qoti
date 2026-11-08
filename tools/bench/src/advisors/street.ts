@@ -43,7 +43,10 @@ class Street implements Advisor {
     const p = this.p;
     const w = p.w;
     if (!p.street || this.streets >= MAX_STREETS || p.coins() < 80) return;
-    const homes: number[] = [Zone.homesLow, Zone.homesMedium];
+    // Playtest round six: townhouse lots count as open only while there are bricks to build them
+    // (a street whose right side waited for bricks nobody made held back the next street for days).
+    const homes: number[] = [Zone.homesLow];
+    if (townStock(w)[G('bricks')]! >= 10) homes.push(Zone.homesMedium);
     if (w.lots.some((l) => !l.buildingId && homes.includes(l.zone))) return;
     if (growthDemand(w).homes <= 0) return;
     const street = planHighStreet(w);
