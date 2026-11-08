@@ -44,7 +44,8 @@ await page.evaluate(([x, z]) => window.__qoti.synthResidents(300, { center: [x, 
 await page.waitForTimeout(4000);
 const samples = [];
 for (let i = 0; i < 15; i++) samples.push(await page.evaluate(() => window.__qoti.layerCpu('agents', 200)));
+samples.sort((a, b) => a - b);
 console.log(
-  `agents layer CPU ms per frame (300 residents), 5 runs: ${samples.map((v) => v.toFixed(3)).join(' ')}`,
+  `agents layer CPU ms per frame (300 residents), 15 runs: min ${samples[0].toFixed(3)} median ${samples[7].toFixed(3)}`,
 );
 await browser.close();
