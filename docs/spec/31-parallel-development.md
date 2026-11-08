@@ -100,8 +100,18 @@ The owner's call (2026-11-08, from P1 on): every big build iteration (a cycle, a
 1. **Master**: one session on Opus at max effort. It plans, writes a short brief per task (goal, owned paths, acceptance checks) and owns the result. It keeps the hard calls for itself: contracts, determinism, saves, anything that crosses packages.
 2. **Executors**: the master spawns several agents on a lower tier (Sonnet; Haiku for mechanical chores), one well-scoped task each, in separate worktrees when tasks could collide. The `executor` agent (`.claude/agents/executor.md`) is pinned to Sonnet for this. Executors build what the brief says; they do not redesign, and they stop and report when the brief is wrong.
 3. **Quality check**: the master reviews every diff against its brief and the hard rules in `CLAUDE.md`, and runs typecheck, lint, tests, build, bench and e2e.
-4. **Player's chair**: the master then plays the change as a player would. It launches the game, takes screenshots and walks through the situations a player actually meets: the first hour, a busy town, both seats at once, winter, a mistake and its undo. It reads every new line of text in place. It asks what a newcomer would misread, where they would get stuck, and whether it is fun, and then makes the improvements itself or through another executor round.
-5. **Rounds**: one or two rounds of steps 3 and 4 after each big iteration, before the PR. The PR says what each round found and fixed.
+4. **Dead-end hunt**: automated checks and simulations find what a player would get stuck on, before a human playtest does. The playability audit (`npm run audit -w @qoti/bench`) plays several seeds through a full year with the autoplayer, and the repo tests check content and contracts statically. Between them they flag:
+   - wishes, goals and commissions that are offered but cannot be met;
+   - anything that can be removed but not rebuilt;
+   - buildings idle for a season for want of an input;
+   - goods that run dry and stall building with no way to get more;
+   - plans, festivals and orders that change nothing;
+   - sim commands no tool or button can send;
+   - stuck sites, walkers and builders.
+
+   Every flag is fixed or explained in the PR. When a playtest finds something the hunt missed, add a check for that whole class of problem, not only for the one case.
+5. **Player's chair**: the master then plays the change as a player would. It launches the game, takes screenshots and walks through the situations a player actually meets: the first hour, a busy town, both seats at once, winter, a mistake and its undo. It reads every new line of text in place. It asks what a newcomer would misread, where they would get stuck, and whether it is fun, and then makes the improvements itself or through another executor round.
+6. **Rounds**: one or two rounds of steps 3 to 5 after each big iteration, before the PR. The PR says what each round found and fixed.
 
 Portable prompt (paste into another account or session to adopt the loop there):
 
@@ -114,10 +124,18 @@ Build and review loop, for every big build iteration:
    each, in separate worktrees when they could collide. They execute; you design.
 3. Quality check: review each diff against its brief and the repo's rules; run typecheck,
    lint, tests and build.
-4. Player's chair: play it as a player would. Launch it, screenshot it, walk through the
+4. Dead-end hunt: automated checks and simulations (scripted or AI play across several
+   seeds and a long stretch of game time, plus static checks of content and code) must
+   find what a player would get stuck on before a human does: requests or goals that
+   can't be met, things that can be removed but not rebuilt, buildings idle for lack of
+   input, resources that run dry with no way to get more, actions that silently do
+   nothing, features with no button. Build these checks if the repo lacks them. Fix or
+   explain every flag. When a human playtest finds something they missed, add a check
+   for that whole class of problem.
+5. Player's chair: play it as a player would. Launch it, screenshot it, walk through the
    real situations a player meets, read every new line of text in place, and ask what a
    newcomer would misread, get stuck on or find dull. Then make the improvements.
-5. One or two rounds of steps 3 and 4 after each big iteration, before the PR; the PR
+6. One or two rounds of steps 3 to 5 after each big iteration, before the PR; the PR
    lists what each round found and fixed.
 
 Save it:
