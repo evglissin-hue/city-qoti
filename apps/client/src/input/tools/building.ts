@@ -6,6 +6,7 @@ import {
   FIELD_GOOD_FERTILITY,
   FIELD_MIN_FERTILITY,
   footprintSize,
+  TERRAFORM_COST,
   soilPermille,
   TREE_MATURE,
   type Rot4,
@@ -122,6 +123,20 @@ function fieldRoomHint(m: Mirror, def: BuildingDef, x: number, z: number, rot: R
 }
 
 /**
+ * Playtest item 5: about what Earthworks would charge to level a footprint to its door tile, one
+ * coin tally per level above or below it. Null in a sandbox, where the work is free.
+ */
+export function levelingCoins(m: Mirror, def: BuildingDef, x: number, z: number, rot: Rot4): number | null {
+  const [w, d] = footprintSize(def, rot);
+  const [dx, dz] = entranceTiles(def, x, z, rot).entrance;
+  const door = m.height(dx, dz);
+  let levels = 0;
+  for (let tz = z; tz < z + d; tz++)
+    for (let tx = x; tx < x + w; tx++) levels += Math.abs(m.height(tx, tz) - door);
+  return m.settings.value.mode === 'standard' ? levels * TERRAFORM_COST : null;
+}
+
+/**
  * Place buildings with the cursor at the footprint's center; R turns it clockwise and Shift+R (or
  * T) back, and the cursor says so. The picker offers what the
  * valley's mode allows (and, in the Hearth lens, the homely ones), with costs; a refusal says why.
@@ -168,7 +183,9 @@ export function buildingTool(ctx: ToolContext): Tool {
       ? [road, trees, soil, room].filter(Boolean).join(' ') || null
       : check.reason === 'NEEDS_DEPOSIT' && where
         ? (DEPOSIT_HINT[where] ?? rejectText(check.reason))
-        : rejectText(check.reason);
+        : check.reason === 'TOO_STEEP'
+          ? `${rejectText(check.reason)} ${INPUT_COPY.earthSteep(levelingCoins(ctx.mirror, def, x, z, rot))}`
+          : rejectText(check.reason);
     // Playtest round five: nobody found R, so the cursor always says how to turn the building.
     cursorHint(why ? `${why} ${INPUT_COPY.turnHint}` : INPUT_COPY.turnHint, cx, cy);
     return { def, x, z, check };

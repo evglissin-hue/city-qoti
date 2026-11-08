@@ -13,6 +13,7 @@ import { noteTool } from './note';
 import { planTool } from './plan';
 import { roadTool } from './road';
 import { festivalSiteTool, guardTool, pondTool, wallTool } from './seasons';
+import { terrainTool } from './terrain';
 import { treeTool } from './tree';
 import { zoneTool } from './zone';
 
@@ -35,6 +36,7 @@ export const toolFactories: readonly ToolFactory[] = [
   planTool,
   pondTool,
   roadTool('street'),
+  terrainTool,
   treeTool,
   wallTool,
   zoneTool,
