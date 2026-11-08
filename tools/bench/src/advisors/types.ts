@@ -27,6 +27,8 @@ export interface AutoplayOptions {
   village?: boolean;
   /** Called after each day's line is recorded (tuning scripts read the books here). */
   onDay?: (w: WorldState, line: DayLine) => void;
+  /** Called at every hourly look, where the health watch also looks (the playability audit reads here). */
+  onHour?: (w: WorldState) => void;
 }
 
 export interface Visit {
