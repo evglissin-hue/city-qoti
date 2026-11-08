@@ -196,4 +196,7 @@ export type RejectReason =
   | 'NO_RAID'
   // Playtest round three
   /** Nobody from the town can walk to the door: cut off by a cliff or water. */
-  | 'CUT_OFF';
+  | 'CUT_OFF'
+  // Playtest round four
+  /** Too late for this: a festival cannot be planned once its evening has begun. */
+  | 'TOO_LATE';
