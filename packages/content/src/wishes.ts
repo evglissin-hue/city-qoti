@@ -58,6 +58,31 @@ export const aProperPath: WishTemplate = {
   weight: 3,
 };
 
+/**
+ * P1 (playtest): home lies inside a well's radius, but that well already serves all it can (30 a
+ * well, fewer in a heat wave), so what the household needs is a second well, not a closer one.
+ */
+export const aSecondWell: WishTemplate = {
+  id: 'a-second-well',
+  name: 'A Second Well',
+  lane: 'hearth',
+  text: [
+    'The queue at the well has started its own gossip column. {name} would like a second well nearby.',
+    '{name} reached the well this morning to find it spoken for many times over. Another near the {place}, please.',
+    '{name} has nothing against the old well. It is simply full. A second one close by would keep the peace.',
+  ],
+  when: { all: [HAS_HOME, { code: 'wellInReach' }] },
+  target: { code: 'waterServed' },
+  reward: { mood: 15, bond: 1 },
+  thanks: [
+    'No queue this morning. I did not know what to do with the spare ten minutes, so I had a second cup.',
+    'The new well is lovely, and the old one seems relieved.',
+    'Water without the waiting. The gossip has moved to the bakery, where it belongs.',
+  ],
+  digest: ['a second well for {name}', 'a shorter queue for water', 'a well with room for the {family}s'],
+  weight: 2,
+};
+
 export const aWellCloser: WishTemplate = {
   id: 'a-well-closer',
   name: 'A Well Closer',
@@ -67,8 +92,10 @@ export const aWellCloser: WishTemplate = {
     "{name}'s arms are now noticeably longer. A nearby well would let them shrink back.",
     '{name} has done the sums: four buckets a day, and far too many steps each. A well nearby, please.',
   ],
-  when: HAS_HOME,
-  target: { near: { building: 'well', of: 'home', within: 4 } },
+  // P1 (playtest): asked for a well while home sat inside one's radius. Now offered only where no
+  // well's radius reaches home, and granted once a well serves them (aSecondWell covers a full one).
+  when: { all: [HAS_HOME, { not: { code: 'wellInReach' } }] },
+  target: { code: 'waterServed' },
   reward: { mood: 18, bond: 1 },
   thanks: [
     'Water at the doorstep. I will never take it for granted. Probably.',

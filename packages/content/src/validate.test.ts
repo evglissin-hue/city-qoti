@@ -348,8 +348,9 @@ describe('I1 content', () => {
     }
   });
 
-  it('has the twelve wishes, twenty patterns (eight I1, six I2, six I3) and fifteen achievements, with valid references', () => {
-    expect(wishes).toHaveLength(12);
+  it('has the thirteen wishes, twenty patterns (eight I1, six I2, six I3) and fifteen achievements, with valid references', () => {
+    // P1 (playtest): A Second Well joined the twelve I1 wishes.
+    expect(wishes).toHaveLength(13);
     expect(patterns).toHaveLength(20);
     expect(achievements).toHaveLength(15);
     for (const w of wishes) {

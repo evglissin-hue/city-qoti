@@ -198,4 +198,7 @@ export type RejectReason =
   | 'NO_RAID'
   // Playtest round three
   /** Nobody from the town can walk to the door: cut off by a cliff or water. */
-  | 'CUT_OFF';
+  | 'CUT_OFF'
+  // P1 (playtest)
+  /** A standard valley's town hall stays: its builders raise everything else. */
+  | 'HALL_STAYS';

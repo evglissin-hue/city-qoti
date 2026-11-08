@@ -25,6 +25,8 @@ import { festivalByWater, festivalMenu, festivalPieces, riverFrozen } from '../s
 import { bridgeBuilt, dressedWall, raidSeen, watchPosted } from '../systems/threats/conditions';
 // I3 (C5H): the first days guide's goals.
 import { guideFoodWorked, guideInBlack, guideLane } from '../systems/guide/goals';
+// P1 (playtest): water wishes ask what the water need itself measures.
+import { waterServedCode, wellInReach } from '../systems/residents/needs';
 
 export type CodePredicate = (
   state: WorldState,
@@ -116,4 +118,6 @@ export const codePredicates: ReadonlyMap<string, CodePredicate> = new Map<string
   ['stoneRate', stoneRate],
   ['storyStep', storyStep],
   ['watchPosted', watchPosted],
+  ['waterServed', waterServedCode],
+  ['wellInReach', wellInReach],
 ]);

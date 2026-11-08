@@ -133,7 +133,9 @@ class Hearth implements Advisor {
         case 'lantern-on-my-way-home':
           ok = this.commuteLanterns(wish.home, wish.work);
           break;
+        // P1: A Second Well (home inside a full well's radius) is answered with another well too.
         case 'a-well-closer':
+        case 'a-second-well':
           // C4C: one well per ten residents is plenty (a Village run built forty).
           if (
             p.coins() > 60 &&

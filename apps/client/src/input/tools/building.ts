@@ -13,7 +13,7 @@ import {
 import type { TilePick } from '../../render/api';
 import type { Mirror } from '../../state/mirror';
 import { rejectText } from '../../ui/messages';
-import { buildingChoices, costBlock } from '../catalog';
+import { buildingChoices, costBlock, lostTownHall } from '../catalog';
 import type { ToolContext } from '../context';
 import { INPUT_COPY } from '../copy';
 import { cursorHint } from '../hint';
@@ -134,7 +134,8 @@ export function buildingTool(ctx: ToolContext): Tool {
   let cy = 0;
   let stop: (() => void) | null = null;
 
-  const choices = () => buildingChoices(ctx.mirror.settings.value.mode, ctx.ui.lens());
+  const choices = () =>
+    buildingChoices(ctx.mirror.settings.value.mode, ctx.ui.lens(), lostTownHall(ctx.mirror));
 
   function preview() {
     const def = content.buildingById.get(variant.value);
