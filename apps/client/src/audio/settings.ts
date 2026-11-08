@@ -56,3 +56,17 @@ export function busGain(s: AudioSettings, bus: 'music' | 'ambience' | 'effects')
   const v = s.master * s[bus];
   return v * v;
 }
+
+/**
+ * The seed of a valley's music: FNV-1a of its names, so both seats of a valley write the same
+ * pieces (nothing is random per laptop).
+ */
+export function valleySeed(valleyName: string, townName: string): number {
+  const text = `${valleyName}|${townName}`;
+  let h = 0x811c9dc5;
+  for (let i = 0; i < text.length; i++) {
+    h ^= text.charCodeAt(i);
+    h = Math.imul(h, 0x01000193) >>> 0;
+  }
+  return h;
+}

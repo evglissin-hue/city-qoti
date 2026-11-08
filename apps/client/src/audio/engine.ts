@@ -8,11 +8,14 @@ import { mixAmbience, type EmitterLevel } from './ambience';
 import { SoundBank } from './bank';
 import { CUE_GAP, CueLimiter } from './cues/limiter';
 import { cueForCommand, cueScene, cuesFor, type CueScene } from './cues/index';
+import { RANKS } from '@qoti/sim';
+import type { MusicContext } from './director';
+import { buildAmbienceHighpass, buildMasterChain, buildMusicEq, buildReverb } from './mixbus';
 import { MusicPlayer } from './music';
 import { Sampler } from './sampler';
 import { sampleScene } from './scene';
 import { TUNED_CUES } from './synth/cues';
-import { busGain, type AudioSettings } from './settings';
+import { busGain, valleySeed, type AudioSettings } from './settings';
 import type { AmbienceId } from './synth/ambience';
 
 /** Where the camera looks: ground focus in tiles, yaw in radians, distance in world units. */
@@ -51,6 +54,23 @@ export function keyShift(key: number): number {
   return s > 6 ? s - 12 : s;
 }
 
+/** Early reflections, [milliseconds, amplitude], per channel. */
+const EARLY_L: [number, number][] = [
+  [7, 0.5],
+  [13, 0.4],
+  [19, 0.32],
+  [29, 0.26],
+  [41, 0.2],
+];
+const EARLY_R: [number, number][] = [
+  [9, 0.48],
+  [16, 0.38],
+  [23, 0.3],
+  [34, 0.24],
+  [47, 0.18],
+  [53, 0.14],
+];
+
 /** A soft room: two channels of decaying noise, darker as it fades. */
 function roomImpulse(ctx: BaseAudioContext, seconds = 2.4): AudioBuffer {
   const rate = ctx.sampleRate;
@@ -70,6 +90,12 @@ function roomImpulse(ctx: BaseAudioContext, seconds = 2.4): AudioBuffer {
       lp += (rnd() * 2 - 1 - lp) * k;
       d[i] = lp * Math.pow(1 - t, 3) * (i < rate * 0.01 ? i / (rate * 0.01) : 1);
     }
+    // Early reflections off the walls, at different times left and right.
+    const taps = c === 0 ? EARLY_L : EARLY_R;
+    taps.forEach(([ms, amp], k) => {
+      const at = Math.floor((ms / 1000) * rate);
+      if (at < len) d[at] = (d[at] ?? 0) + (k % 2 === 0 ? amp : -amp);
+    });
   }
   return ir;
 }
@@ -90,6 +116,8 @@ export class AudioEngine implements AudioApi {
   private lastMix = -1;
   private nextThunder = 0;
   private raidDuck = false;
+  /** The valley's music seed (the same on both seats), set on attach. */
+  private seed = 0;
   private focus: { x: number; z: number; zoom: number } | null = null;
   private readonly cleanup: (() => void)[] = [];
   /** Main-thread milliseconds spent in the last few updates, for the budget check. */
@@ -101,23 +129,18 @@ export class AudioEngine implements AudioApi {
   ) {
     this.settings = settings;
     this.bank = new SoundBank(ctx);
-    const comp = ctx.createDynamicsCompressor();
-    comp.threshold.value = -14;
-    comp.ratio.value = 3;
-    comp.attack.value = 0.01;
-    comp.release.value = 0.3;
-    comp.connect(ctx.destination);
-    this.master = ctx.createGain();
-    this.master.connect(comp);
-    const reverb = ctx.createConvolver();
-    reverb.buffer = roomImpulse(ctx);
+    this.master = buildMasterChain(ctx);
+    const room = buildReverb(ctx, roomImpulse(ctx));
+    const reverb = room.input;
     const wet = ctx.createGain();
     wet.gain.value = 0.32;
-    reverb.connect(wet).connect(this.master);
+    room.output.connect(wet).connect(this.master);
     this.buses = { music: ctx.createGain(), ambience: ctx.createGain(), effects: ctx.createGain() };
     this.duckGain = ctx.createGain();
-    this.buses.music.connect(this.duckGain).connect(this.master);
-    this.buses.ambience.connect(this.master);
+    const eq = buildMusicEq(ctx);
+    this.buses.music.connect(eq.input);
+    eq.output.connect(this.duckGain).connect(this.master);
+    this.buses.ambience.connect(buildAmbienceHighpass(ctx)).connect(this.master);
     this.buses.effects.connect(this.master);
     const send = (bus: GainNode, amount: number): void => {
       const g = ctx.createGain();
@@ -127,13 +150,7 @@ export class AudioEngine implements AudioApi {
     send(this.duckGain, 0.55);
     send(this.buses.effects, 0.25);
     send(this.buses.ambience, 0.08);
-    this.music = new MusicPlayer(
-      ctx,
-      this.bank,
-      this.buses.music,
-      Math.floor(Math.random() * 1e9),
-      new Sampler(ctx),
-    );
+    this.music = new MusicPlayer(ctx, this.bank, this.buses.music, valleySeed('', ''), new Sampler(ctx));
     this.apply(settings, true);
     // Cues are short; render them all up front so the first click already has its sound.
     for (const id of Object.keys(CUE_GAP) as SoundCueId[]) this.bank.want({ kind: 'cue', id });
@@ -142,6 +159,10 @@ export class AudioEngine implements AudioApi {
   /** Starts listening to a valley: music, ambience and cues. */
   attach(source: AudioSource): void {
     this.source = source;
+    // Both seats of a valley share its names, so they share the music's seed.
+    const names = source.mirror.settings.value;
+    this.seed = valleySeed(names.valleyName, names.townName);
+    this.music.reseed(this.seed);
     this.scene = cueScene(source.mirror);
     this.cleanup.push(source.mirror.onChange((c) => this.onChange(c)));
     this.timer = setInterval(() => this.update(), 100);
@@ -247,7 +268,14 @@ export class AudioEngine implements AudioApi {
     const m = this.source.mirror;
     const clock = m.clock.value;
     const hour = clock.hour + clock.minute / 60;
-    this.music.update(hour, clock.season);
+    const town = m.town.value;
+    const ctx: MusicContext = {
+      rank: Math.max(0, RANKS.indexOf(town?.rank ?? 'hamlet')),
+      weather: m.weather.value?.today ?? 'clear',
+      festival: m.festival.value?.live ?? false,
+      valleySeed: this.seed,
+    };
+    this.music.update(hour, clock.season, ctx);
     // Raids keep the music low while they last.
     const raid = m.raid.value !== null;
     if (raid !== this.raidDuck) {

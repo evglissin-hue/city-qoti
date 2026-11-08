@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { DEBUG_QUERY, waitLive } from './helpers';
+import type * as Mixbus from '../src/audio/mixbus';
 
 // C5G acceptance: the title screen loads no audio; the first click in the valley starts the
 // context; the sliders change the bus gains; nothing complains in the console.
@@ -80,4 +81,54 @@ test('sound starts on the first gesture and follows the sliders', async ({ page 
   // Main-thread audio work stays far under its 0.3 ms a frame (it runs ten times a second).
   expect(await page.evaluate(() => window.__qoti.audio.cost())).toBeLessThan(1.5);
   expect(errors).toEqual([]);
+});
+
+// Mix and master: the master chain (glue compressor, limiter, soft clipper) holds a very loud signal
+// under -1 dBFS and passes a quiet one at about unity. Runs the real chain in an OfflineAudioContext.
+test('the master chain keeps peaks under -1 dBFS and quiet music near unity', async ({ page }) => {
+  await page.goto(`/${DEBUG_QUERY}`);
+  const r = await page.evaluate(async () => {
+    const { buildMasterChain } = (await import(/* @vite-ignore */ '/src/audio/mixbus.ts')) as typeof Mixbus;
+    async function run(amp: number, freq: number): Promise<{ peak: number; rms: number }> {
+      const rate = 48000;
+      const ctx = new OfflineAudioContext(2, rate * 3, rate);
+      const input = buildMasterChain(ctx);
+      const buf = ctx.createBuffer(2, rate * 3, rate);
+      for (let c = 0; c < 2; c++) {
+        const d = buf.getChannelData(c);
+        for (let i = 0; i < d.length; i++)
+          d[i] =
+            amp *
+            (Math.sin((2 * Math.PI * freq * i) / rate) +
+              0.5 * Math.sin((2 * Math.PI * freq * 2.7 * i) / rate));
+      }
+      const src = ctx.createBufferSource();
+      src.buffer = buf;
+      src.connect(input);
+      src.start();
+      const out = (await ctx.startRendering()).getChannelData(0);
+      let peak = 0;
+      let sum = 0;
+      let n = 0;
+      for (let i = rate; i < out.length; i++) {
+        peak = Math.max(peak, Math.abs(out[i]!));
+        sum += out[i]! * out[i]!;
+        n++;
+      }
+      return { peak, rms: Math.sqrt(sum / n) };
+    }
+    const quietIn = 0.02;
+    const quiet = await run(quietIn, 440);
+    // The test signal's own rms is amp * sqrt(0.5 + 0.125).
+    return {
+      quietGainDb: 20 * Math.log10(quiet.rms / (quietIn * Math.sqrt(0.625))),
+      loud: (await run(4, 440)).peak,
+      louder: (await run(40, 110)).peak,
+    };
+  });
+  console.log('master chain', JSON.stringify(r));
+  expect(Math.abs(r.quietGainDb)).toBeLessThan(1.5);
+  const ceiling = Math.pow(10, -1 / 20) + 1e-4;
+  expect(r.loud).toBeLessThanOrEqual(ceiling);
+  expect(r.louder).toBeLessThanOrEqual(ceiling);
 });
