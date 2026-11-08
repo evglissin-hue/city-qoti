@@ -11,6 +11,7 @@ The hamlet shipped and tuned, deployed, ready for a playtest evening, and the I2
 
 - `CLAUDE.md`
 - `docs/spec/30-roadmap.md`: I1 and I2
+- `docs/spec/18-audio.md`: Delivery by iteration (for the I2 audio brief)
 - `docs/spec/31-parallel-development.md`: Integration cycles, Writing a brief
 - `docs/spec/13-ledger.md`: I1 buildings (sanity check)
 - The five wave-3 PR descriptions and `docs/playtests/I0.md`
@@ -26,7 +27,7 @@ Everything, for merging, fixing and tuning, plus new briefs.
 3. Play the hamlet manually with two browsers for a full in-game season; fix what feels wrong.
 4. Deploy (if credentials exist); create `docs/playtests/I1.md`.
 5. Update the spec and the board.
-6. Write the I2 briefs from `30-roadmap.md` (I2 scope) and the playtests: a short contracts cycle (C4.0) and parallel tracks, for example market and money (prices, wages, households, invariant), growth (zoning, lots, streets, traffic, desire paths, terraforming), Village chains and services, co-op tools (plans, requests) and story characters, Village art, Village UI. Keep each brief to about two pages.
+6. Write the I2 briefs from `30-roadmap.md` (I2 scope) and the playtests: a short contracts cycle (C4.0) and parallel tracks, for example market and money (prices, wages, households, invariant), growth (zoning, lots, streets, traffic, desire paths, terraforming), Village chains and services, co-op tools (plans, requests) and story characters, Village art, Village UI, and audio (Band v1 from `docs/spec/18-audio.md`: engine, Songbook, arranger, the first 6 tunes, the valley motif, stingers, UI sounds, same-room sync). C4.0 adds the audio contracts (`AudioApi`, the `TuneChart`, `InstrumentDef`, `MotifShape` and `StingerDef` content types, the `time.sync` messages). Keep each brief to about two pages.
 
 ## Acceptance criteria
 
