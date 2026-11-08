@@ -14,7 +14,6 @@ import { DRIFT_RANGE, DRIFT_STEP, IMPACT_RECOVERY, TICKS_PER_DAY } from '../../c
 import type { NeighborState, System, WorldState } from '../../contracts';
 import { cyrb128 } from '../../rng/cyrb128';
 import { isStandard } from '../../state/hamlet';
-import { rankAtLeast } from '../../state/village';
 import { tradeView } from '../../view/village';
 import { dailyOffset, dayIndex } from '../economy/time';
 
@@ -65,6 +64,7 @@ export const trade: System = {
     if (!isStandard(state)) return;
     const seedWord = cyrb128(`${state.seed}:trade`)[0];
     for (const n of state.trade.neighbors) stepNeighbor(state, n, seedWord);
-    if (rankAtLeast(state, 'village')) ctx.events.push({ e: 'trade.updated', t: tradeView(state) });
+    // Below Village too: the Trade book's prices are live from the first day.
+    ctx.events.push({ e: 'trade.updated', t: tradeView(state) });
   },
 };
