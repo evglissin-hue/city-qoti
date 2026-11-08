@@ -82,6 +82,7 @@ import type {
 
 export { chroniclePhrases } from './chronicle';
 export { callingPhrases, callingTuning } from './callings';
+export { dealUse, dealUseDefault } from './dealUse';
 export { festivalTuning } from './festivals';
 export { lifePhrases } from './lives';
 export { familyNames, valleyNamePrefixes, valleyNameSuffixes } from './names';

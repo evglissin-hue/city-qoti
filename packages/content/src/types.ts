@@ -646,6 +646,8 @@ export interface NeighborDef {
   id: string;
   name: string;
   blurb: string;
+  /** Playtest item 9: its character in one line, for the Trade book's Deals page. */
+  character?: string;
   /** Goods it sells to the valley, with a price factor on base in percent (90 = cheap there). */
   sells: [good: string, percent: number][];
   /** Goods it buys from the valley, with a price factor on base in percent (120 = keen buyer). */

@@ -2726,3 +2726,64 @@ li.plan.settled p {
   margin-left: 10px;
   font-size: 0.85rem;
 }
+
+/* Deals (playtest item 9) */
+
+.deals {
+  display: grid;
+  gap: 9px;
+}
+
+.deals .intro {
+  margin: 0;
+}
+
+.trip-days {
+  font-family: inherit;
+  font-weight: 400;
+}
+
+.deal-lists {
+  display: grid;
+  gap: 6px;
+}
+
+.deal-rows {
+  list-style: none;
+  margin: 2px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 3px;
+  font-size: 0.86rem;
+}
+
+.deal-row {
+  display: grid;
+  grid-template-columns: auto 1fr auto minmax(4.5rem, auto) auto;
+  align-items: center;
+  gap: 6px;
+}
+
+.deal-row .deal-hand {
+  grid-column: 2 / -1;
+  margin-top: -2px;
+}
+
+.deal-flag.yes {
+  color: var(--sage-deep, #4d6b3a);
+  font-weight: 700;
+}
+
+.deal-toggle {
+  white-space: nowrap;
+}
+
+@media (max-width: 520px) {
+  .deal-row {
+    grid-template-columns: auto 1fr auto auto;
+  }
+  .deal-row .deal-flag {
+    grid-column: 2 / -1;
+    grid-row: 2;
+  }
+}
