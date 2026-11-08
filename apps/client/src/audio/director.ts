@@ -23,9 +23,31 @@ export type Bar = string | readonly [string, string];
 /** Four bars: a phrase's harmony. */
 export type Phrase = readonly [Bar, Bar, Bar, Bar];
 
-export type CompPattern = 'arp' | 'block' | 'broken' | 'charleston' | 'oompah' | 'pad' | 'travis';
-export type BassPattern = 'pedal' | 'root5' | 'sparse' | 'walk';
-export type DrumPattern = 'brushes' | 'jazz' | 'shaker';
+export type CompPattern =
+  | 'arp'
+  | 'block'
+  | 'broken'
+  | 'charleston'
+  | 'oompah'
+  | 'pad'
+  | 'travis'
+  // Combined pass (Valley Band): a bossa guitar, light funk chops, a jazz waltz comp.
+  | 'bossa'
+  | 'chops'
+  | 'jazzwaltz';
+export type BassPattern = 'pedal' | 'root5' | 'sparse' | 'walk' | 'bossa' | 'funk' | 'waltz';
+export type DrumPattern = 'brushes' | 'jazz' | 'shaker' | 'bossa' | 'funk' | 'waltz';
+
+/**
+ * What the valley tells the music besides the hour and season (combined pass). Optional everywhere,
+ * so old callers keep working. `rank` 0 hamlet to 4 city; `valleySeed` is shared by both seats.
+ */
+export interface MusicContext {
+  rank: number;
+  weather: 'clear' | 'rain' | 'storm' | 'fog' | 'snow' | string;
+  festival: boolean;
+  valleySeed: number;
+}
 
 /** A style the composer writes in. */
 export interface Style {
@@ -312,7 +334,7 @@ export const STYLES: readonly Style[] = [
 ];
 
 /** The style for an hour of a season (0 spring to 3 winter). */
-export function styleFor(hour: number, season: number): Style {
+export function styleFor(hour: number, season: number, _ctx?: MusicContext): Style {
   const phase = phaseOf(hour);
   if (season === 3) return phase === 'morning' ? WINTER_MORNING : WALTZ;
   if (phase === 'morning') return season === 1 ? SUMMER_MORNING : MORNING;
@@ -346,6 +368,12 @@ export interface PieceChoice {
   style: Style;
   seed: number;
   key: number;
+  /** Combined pass: the valley's seed, for its motif (absent: no motif). */
+  valleySeed?: number;
+  /** Combined pass: how big the band is, 0 hamlet to 4 city (absent: the full style). */
+  ensemble?: number;
+  /** Combined pass: the weather softens or thins the band (absent: clear). */
+  weather?: string;
 }
 
 /**
@@ -359,6 +387,7 @@ export function stepDirector(
   season: number,
   rand: Rand,
   pieceSeconds: (choice: PieceChoice) => number,
+  _ctx?: MusicContext,
 ): PieceChoice | null {
   if (now < d.until) return null;
   if (d.mode === 'playing') {
