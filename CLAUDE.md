@@ -47,6 +47,7 @@ Your brief says which paths you own. Outside them, make only small, necessary ed
 
 ## Workflow
 
+- **Start from the latest `main`, every session.** Run `git fetch origin main` and check that your branch contains `origin/main` before you design anything; the session start hook (`.claude/hooks/session-start.sh`) warns when it does not. A checkout can arrive far behind `main`. Then look in the code (`apps/`, `packages/`, `tools/`) and the build board for what already exists: the docs alone do not tell you what is built.
 - Branch `cycle/<id>-<slug>` from `main`; one PR per cycle into `main`, using the PR template.
 - Before opening the PR: typecheck, lint, unit tests, build, e2e and bench pass.
 - Update the spec where behavior differs from it, add a line to `CHANGELOG.md`, and update your row in `docs/build/README.md`.
