@@ -28,6 +28,11 @@ export async function createFixtureValley(
         : kind === 'village'
           ? (await import('../../../../packages/sim/test/fixtures/village')).villageFixture().state
           : (await import('../../../../packages/sim/test/fixtures/hamlet')).hamletFixture().state;
+  // P1 (playtest item 13): ?trial=passed starts at the end of the Village chapter, for screenshots.
+  if (new URLSearchParams(location.search).get('trial') === 'passed') {
+    state.charter.rank = 'village';
+    state.trial = { kind: 'winter', charter: 'village', season: 3, year: 0, status: 'passed', measured: [] };
+  }
   state.settings.townName = townName;
   state.settings.valleyName = 'Fixture Vale';
   state.time.connected = [];

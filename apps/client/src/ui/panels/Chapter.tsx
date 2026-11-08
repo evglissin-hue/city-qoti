@@ -14,6 +14,10 @@ const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one :
  */
 export function ChapterPanel({ session }: { session: Session }) {
   const m = session.mirror;
+  // The counts move as plaques, patterns and the Field Guide fill in, so follow those revisions.
+  void m.hamletRevision.value;
+  void m.seasonsRevision.value;
+  void m.revision.value;
   const done = chapterDone(m);
   const open = session.ui.chapter.value;
   const { valleyId } = session.target;
@@ -65,8 +69,10 @@ export function ChapterPanel({ session }: { session: Session }) {
 
         <h4 class="chapter-head">The story so far</h4>
         <ul class="chapter-story" data-testid="chapter-story">
-          <li>
-            Founded in {story.founded}; it is {story.now} now.
+          <li data-testid="chapter-founded">
+            {story.founded === story.now
+              ? `Founded in ${story.founded}, and still going.`
+              : `Founded in ${story.founded}; it is ${story.now} now.`}
           </li>
           <li data-testid="chapter-people">
             {plural(story.residents, 'resident', 'residents')} in{' '}
