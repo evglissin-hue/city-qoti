@@ -77,30 +77,59 @@ export interface Style {
   level: number;
 }
 
-const MAJOR_A = {
+const MORNING_A = {
   open: [
-    ['Iadd9', 'vi7', 'IVmaj7', 'V'],
-    ['I', 'iii7', 'IVadd9', 'V'],
-    ['Imaj7', 'IVmaj7', 'Imaj7', ['ii7', 'V']],
-    ['I', 'V', 'vi7', 'IVadd9'],
+    ['Iadd9', 'IIadd9', 'IVmaj7', 'Iadd9'],
+    ['Imaj9', 'vi9', 'IVmaj9', 'V7sus4'],
+    ['I', 'iii7', 'IVadd9', 'iv6'],
+    ['vi9', 'IVmaj7#11', 'Iadd9', 'V9sus4'],
   ],
   close: [
-    ['Iadd9', 'vi7', ['ii7', 'V7'], 'I'],
-    ['IVmaj7', 'iii7', ['ii7', 'V7'], 'Iadd9'],
-    ['vi7', 'IVmaj7', ['IV', 'V7'], 'I'],
+    ['IVmaj9', 'iv6', 'Iadd9', 'Iadd9'],
+    ['ii9', 'V7sus4', 'V7', 'Imaj9'],
+    ['vi9', ['ii9', 'V13'], 'Imaj9', 'I69'],
   ],
 } as const;
 
-const MAJOR_B = {
+const MORNING_B = {
   open: [
-    ['IVmaj7', 'V', 'iii7', 'vi7'],
-    ['vi7', 'iii7', 'IVmaj7', 'Iadd9'],
-    ['IVadd9', 'I', 'IVadd9', 'I'],
+    ['IVmaj7#11', 'iii7', 'vi9', 'IIadd9'],
+    ['bVIImaj7', 'IVmaj7', 'Iadd9', 'Iadd9'],
+    ['iii7', 'VI7', 'ii9', 'V7sus4'],
   ],
   close: [
-    ['ii7', 'V', 'iii7', 'vi7'],
-    ['IVmaj7', 'iii7', 'ii7', 'V7sus4'],
-    ['ii7', 'iii7', 'IVmaj7', 'V7'],
+    ['IVmaj9', 'iv6', 'iii7', 'V7sus4'],
+    ['ii9', 'iii7', 'IVmaj7', 'V13'],
+  ],
+} as const;
+
+const WINTER_MORNING_A = {
+  open: [...MORNING_A.open, ['Imaj7', 'IVmaj7#11', 'Imaj7', 'iv6']],
+  close: MORNING_A.close,
+} as const;
+
+const AFTERNOON_A = {
+  open: [
+    ['Imaj9', 'vi9', 'ii9', 'V13'],
+    ['Imaj9', 'VI7', 'ii9', 'V9'],
+    ['iii7', 'VI7', 'ii9', 'V13'],
+    ['IVmaj9', 'iv6', 'iii7', 'VI7'],
+  ],
+  close: [
+    ['ii9', 'V13', 'Imaj9', 'I69'],
+    ['IVmaj9', ['iii7', 'VI7'], ['ii9', 'bII7'], 'Imaj9'],
+    ['iv9', 'bVII13', 'Imaj9', 'I69'],
+  ],
+} as const;
+
+const AFTERNOON_B = {
+  open: [
+    ['IVmaj7#11', 'iv9', 'iii7', 'VI7'],
+    ['ii9', 'V9', 'iii7', 'VI7b9'],
+  ],
+  close: [
+    ['ii9', 'V13', 'iii7', 'V7sus4'],
+    ['IVmaj9', 'bVII9', 'iii7', 'V13'],
   ],
 } as const;
 
@@ -126,8 +155,8 @@ const MORNING: Style = {
   bass: { inst: 'bass', pattern: 'sparse' },
   drums: 'shaker',
   sparkle: 'glock',
-  a: MAJOR_A,
-  b: MAJOR_B,
+  a: MORNING_A,
+  b: MORNING_B,
   rhythms: RHYTHMS_4,
   level: 0.85,
 };
@@ -153,6 +182,7 @@ const WINTER_MORNING: Style = {
   drums: null,
   pad: 'strings',
   sparkle: undefined,
+  a: WINTER_MORNING_A,
   level: 0.75,
 };
 
@@ -168,10 +198,94 @@ const AFTERNOON: Style = {
   bass: { inst: 'bass', pattern: 'root5' },
   drums: 'brushes',
   sparkle: 'glock',
-  a: MAJOR_A,
-  b: MAJOR_B,
+  a: AFTERNOON_A,
+  b: AFTERNOON_B,
   rhythms: RHYTHMS_4,
   level: 0.85,
+};
+
+/** Summer afternoons: a bossa nova, nylon guitar and brushes. */
+const BOSSA: Style = {
+  id: 'bossa',
+  tempo: [112, 126],
+  meter: 4,
+  swing: 0.5,
+  mode: 'major',
+  lead: ['flute', 'vibes', 'clarinet'],
+  range: [62, 84],
+  comp: { inst: 'guitar', pattern: 'bossa' },
+  bass: { inst: 'bass', pattern: 'bossa' },
+  drums: 'bossa',
+  sparkle: 'vibes',
+  a: {
+    open: [
+      ['Imaj9', 'Imaj9', 'II7', 'II7'],
+      ['Imaj9', 'VI7b9', 'ii9', 'V13'],
+      ['ii9', 'V13', 'Imaj9', 'IVmaj7#11'],
+    ],
+    close: [
+      ['ii9', 'bII7', 'Imaj9', 'I69'],
+      ['iv9', 'bVII13', 'Imaj9', 'I69'],
+    ],
+  },
+  b: {
+    open: [
+      ['IVmaj9', 'IVmaj9', 'iv9', 'bVII13'],
+      ['iii7', 'VI7b9', 'ii9', 'V7sus4'],
+    ],
+    close: [
+      ['ii9', 'V13', 'iii7', 'VI7'],
+      ['IVmaj9', 'iv9', 'ii9', 'V13'],
+    ],
+  },
+  rhythms: [
+    [0, 1.5, 3],
+    [0.5, 2, 3.5],
+    [0, 1, 2.5],
+    [1.5, 2.5, 3],
+    [0, 0.5, 2],
+  ],
+  level: 0.85,
+};
+
+/** Festival afternoons and evenings: light funk in a Dorian minor. */
+const FESTIVAL: Style = {
+  id: 'festival',
+  tempo: [100, 108],
+  meter: 4,
+  swing: 0.5,
+  mode: 'minor',
+  lead: ['vibes', 'flute', 'clarinet'],
+  range: [62, 84],
+  comp: { inst: 'guitar', pattern: 'chops' },
+  bass: { inst: 'bass', pattern: 'funk' },
+  drums: 'funk',
+  a: {
+    open: [
+      ['i9', 'IV9', 'i9', 'IV9'],
+      ['i9', 'i9', 'IV13', 'IV13'],
+    ],
+    close: [
+      ['VImaj7', 'V7b9', 'i9', 'i9'],
+      ['iv9', 'VII13', 'i9', 'i9'],
+    ],
+  },
+  b: {
+    open: [
+      ['VImaj7', 'VII13', 'IIImaj7', 'VImaj7'],
+      ['iv9', 'iv9', 'i9', 'i9'],
+    ],
+    close: [
+      ['VImaj7', 'VII13', 'V7sus4', 'V7b9'],
+      ['iv9', 'VII13', 'IIImaj7', 'V7sus4'],
+    ],
+  },
+  rhythms: [
+    [0.5, 1.5, 2.5],
+    [0, 0.75, 1.5, 3],
+    [1, 1.5, 2.75, 3.5],
+  ],
+  level: 0.9,
 };
 
 const AUTUMN: Style = {
@@ -188,23 +302,24 @@ const AUTUMN: Style = {
   pad: 'strings',
   a: {
     open: [
-      ['i', 'VI', 'III', 'VII'],
-      ['i', 'iv7', 'VII', 'III'],
-      ['i7', 'VImaj7', 'iv7', 'V'],
+      ['i9', 'IV9', 'i9', 'IV9'],
+      ['i9', 'VImaj7', 'iv9', 'V7b9'],
+      ['i11', 'VII9', 'IIImaj7', 'VImaj7'],
     ],
     close: [
-      ['VI', 'iv7', 'V', 'i'],
-      ['iv7', 'VII', ['iv', 'V7'], 'i'],
+      ['VImaj7', 'iv9', 'V7sus4', 'i9'],
+      ['iv9', 'VII13', 'i9', 'i9'],
+      ['iiø7', 'V7b9', 'i9', 'i69'],
     ],
   },
   b: {
     open: [
-      ['III', 'VII', 'VI', 'III'],
-      ['VImaj7', 'VII', 'III', 'VI'],
+      ['IIImaj7', 'VII9', 'VImaj7', 'IIImaj7'],
+      ['VImaj7', 'VII13', 'IIImaj7', 'VImaj7'],
     ],
     close: [
-      ['iv7', 'VII', 'III', 'V'],
-      ['VI', 'iv7', 'VII', 'V7'],
+      ['iv9', 'VII13', 'IIImaj7', 'V7sus4'],
+      ['VImaj7', 'iiø7', 'V7sus4', 'V7b9'],
     ],
   },
   rhythms: RHYTHMS_4,
@@ -224,24 +339,26 @@ const EVENING: Style = {
   drums: 'jazz',
   a: {
     open: [
-      ['Imaj7', 'vi9', 'ii9', 'V9'],
-      ['Imaj7', 'IVmaj7', 'iii7', 'vi9'],
-      ['iii7', 'vi7', 'ii9', 'V7'],
+      ['Imaj7', 'VI7b9', 'ii9', 'V13'],
+      ['Imaj9', 'vi9', 'ii9', 'bII7'],
+      ['iii7', 'VI7', 'ii9', 'V7b9'],
+      ['Imaj7', 'I7', 'IVmaj7', 'iv7'],
     ],
     close: [
-      ['ii9', 'V9', 'Imaj7', 'vi9'],
-      ['IVmaj7', 'iii7', ['ii9', 'V9'], 'Imaj7'],
-      [['iii7', 'vi7'], ['ii9', 'V9'], 'Imaj7', 'I6'],
+      ['ii9', 'V13', 'Imaj9', 'I69'],
+      ['iv9', 'bVII13', 'Imaj9', 'I69'],
+      [['iii7', 'VI7'], ['ii9', 'bII7'], 'Imaj9', 'I69'],
     ],
   },
   b: {
     open: [
-      ['IVmaj7', 'IVmaj7', 'iii7', 'vi9'],
-      ['ii9', 'V9', 'iii7', 'vi9'],
+      ['IVmaj7', 'IVmaj7', 'iv7', 'bVII9'],
+      ['ii9', 'V9', 'iii7', 'VI7b9'],
+      ['vi9', 'II7', 'ii9', 'V7sus4'],
     ],
     close: [
-      ['ii9', 'V9', 'iii7', 'V7sus4'],
-      ['IVmaj7', 'iii7', 'ii9', 'V9'],
+      ['ii9', 'V13', 'iii7', 'V7sus4'],
+      ['IVmaj7', 'bVII9', 'ii9', 'V13'],
     ],
   },
   rhythms: [
@@ -267,23 +384,27 @@ const NIGHT: Style = {
   drums: null,
   a: {
     open: [
-      ['Imaj7', 'IVmaj7', 'Imaj7', 'IVmaj7'],
-      ['Iadd9', 'vi7', 'IVmaj7', 'Iadd9'],
+      ['Imaj7', 'IVmaj7#11', 'Imaj7', 'IVmaj7#11'],
+      ['Iadd9', 'vi9', 'IVmaj9', 'iv6'],
+      ['Imaj9', 'bVImaj7', 'Imaj9', 'bVImaj7'],
     ],
     close: [
-      ['vi7', 'IVmaj7', 'V7sus4', 'Iadd9'],
-      ['IVmaj7', 'iii7', 'IVmaj7', 'Imaj7'],
+      ['vi9', 'IVmaj9', 'V9sus4', 'Iadd9'],
+      ['IVmaj9', 'iv6', 'Imaj9', 'Imaj9'],
     ],
   },
   b: {
-    open: [['vi7', 'iii7', 'IVmaj7', 'Imaj7']],
-    close: [['IVmaj7', 'Iadd9', 'IVmaj7', 'V7sus4']],
+    open: [
+      ['vi9', 'iii7', 'IVmaj7#11', 'Imaj9'],
+      ['bVImaj7', 'bVIImaj7', 'Imaj9', 'Imaj9'],
+    ],
+    close: [['IVmaj9', 'Iadd9', 'iv6', 'V9sus4']],
   },
   rhythms: [[0, 2], [0, 1.5, 3], [0], [1, 2.5], [0, 3]],
   level: 0.65,
 };
 
-/** Winter afternoons, evenings and nights waltz. */
+/** Winter afternoons, evenings and nights: a jazz waltz. */
 const WALTZ: Style = {
   id: 'waltz',
   tempo: [108, 124],
@@ -292,30 +413,31 @@ const WALTZ: Style = {
   mode: 'major',
   lead: ['piano', 'celesta'],
   range: [64, 86],
-  comp: { inst: 'piano', pattern: 'oompah' },
-  bass: null,
-  drums: null,
+  comp: { inst: 'piano', pattern: 'jazzwaltz' },
+  bass: { inst: 'bass', pattern: 'waltz' },
+  drums: 'waltz',
   pad: 'strings',
   sparkle: 'glock',
   a: {
     open: [
-      ['I', 'I', 'IV', 'V'],
-      ['I', 'vi', 'ii', 'V'],
-      ['I', 'iii', 'IV', 'V7'],
+      ['Imaj7', 'VI7', 'ii9', 'V7'],
+      ['I', 'iii7', 'IVmaj7', 'iv6'],
+      ['Imaj7', 'I7', 'IVmaj7', 'iv6'],
     ],
     close: [
-      ['I', 'IV', 'V7', 'I'],
-      ['vi', 'ii', 'V7', 'I'],
+      ['ii9', 'V7', 'Imaj7', 'I6'],
+      ['IVmaj7', 'iv6', 'Imaj7', 'Imaj7'],
+      ['vi7', 'ii9', 'V7', 'I6'],
     ],
   },
   b: {
     open: [
-      ['IV', 'I', 'IV', 'I'],
-      ['vi', 'iii', 'IV', 'I'],
+      ['IVmaj7', 'IVmaj7', 'iii7', 'VI7'],
+      ['ii9', 'V7', 'iii7', 'VI7b9'],
     ],
     close: [
-      ['ii', 'V', 'iii', 'vi'],
-      ['IV', 'I', 'ii', 'V7'],
+      ['ii9', 'V7', 'iii7', 'V7sus4'],
+      ['IVmaj7', 'iv6', 'ii9', 'V7'],
     ],
   },
   rhythms: [[0, 1, 2], [0, 2], [0], [0, 1.5, 2], [1, 2]],
@@ -327,23 +449,31 @@ export const STYLES: readonly Style[] = [
   SUMMER_MORNING,
   WINTER_MORNING,
   AFTERNOON,
+  BOSSA,
+  FESTIVAL,
   AUTUMN,
   EVENING,
   NIGHT,
   WALTZ,
 ];
 
-/** The style for an hour of a season (0 spring to 3 winter). */
-export function styleFor(hour: number, season: number, _ctx?: MusicContext): Style {
+/**
+ * The style for an hour of a season (0 spring to 3 winter). A festival, outside winter, takes the
+ * afternoon and the evening; summer afternoons play bossa.
+ */
+export function styleFor(hour: number, season: number, ctx?: MusicContext): Style {
   const phase = phaseOf(hour);
   if (season === 3) return phase === 'morning' ? WINTER_MORNING : WALTZ;
+  if (ctx?.festival && (phase === 'afternoon' || phase === 'evening')) return FESTIVAL;
   if (phase === 'morning') return season === 1 ? SUMMER_MORNING : MORNING;
-  if (phase === 'afternoon') return season === 2 ? AUTUMN : AFTERNOON;
+  if (phase === 'afternoon') return season === 1 ? BOSSA : season === 2 ? AUTUMN : AFTERNOON;
   return phase === 'evening' ? EVENING : NIGHT;
 }
 
 /** Quiet between pieces, seconds. */
 export const GAP_SECONDS: [number, number] = [20, 90];
+/** Quiet between pieces while a festival is on, seconds: the band plays nearly on. */
+export const FESTIVAL_GAP_SECONDS: [number, number] = [5, 15];
 /** Crossfade when the hour turns to a new style mid-piece, seconds. */
 export const CROSSFADE_SECONDS = 4;
 /** Keys a piece may be in (MIDI note of the tonic in the bass register). */
@@ -387,18 +517,24 @@ export function stepDirector(
   season: number,
   rand: Rand,
   pieceSeconds: (choice: PieceChoice) => number,
-  _ctx?: MusicContext,
+  ctx?: MusicContext,
 ): PieceChoice | null {
   if (now < d.until) return null;
   if (d.mode === 'playing') {
     d.mode = 'quiet';
-    d.until = now + GAP_SECONDS[0] + rand() * (GAP_SECONDS[1] - GAP_SECONDS[0]);
+    const [lo, hi] = ctx?.festival ? FESTIVAL_GAP_SECONDS : GAP_SECONDS;
+    d.until = now + lo + rand() * (hi - lo);
     return null;
   }
-  const style = styleFor(hour, season);
+  const style = styleFor(hour, season, ctx);
   let seed = Math.floor(rand() * 64);
   for (let i = 0; i < 8 && d.recent.includes(seed); i++) seed = Math.floor(rand() * 64);
   const choice: PieceChoice = { style, seed, key: pick(rand, KEYS) };
+  if (ctx) {
+    choice.valleySeed = ctx.valleySeed;
+    choice.ensemble = ctx.rank;
+    choice.weather = ctx.weather;
+  }
   d.recent = [...d.recent, seed].slice(-2);
   d.mode = 'playing';
   d.style = style.id;
