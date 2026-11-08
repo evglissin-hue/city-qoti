@@ -177,7 +177,11 @@ export function computeAlerts(
       key: `letter-${l.key}`,
       lens: 'hearth',
       tone: 'news',
-      icon: l.kind.startsWith('life-') ? (LIFE_ICON[l.kind.slice(5)] ?? 'heart') : 'letter',
+      icon: l.kind.startsWith('life-')
+        ? (LIFE_ICON[l.kind.slice(5)] ?? 'heart')
+        : l.kind === 'festival'
+          ? 'festival'
+          : 'letter',
       text: l.text,
       ...(l.at ? { action: { kind: 'place' as const, x: l.at[0], z: l.at[1] } } : {}),
     });

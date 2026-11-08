@@ -10,7 +10,7 @@ import {
   costBlock,
   DECOR_GROUP_LABEL,
   decorChoices,
-  decorGroup,
+  choiceGroup,
   decorGroupsOf,
   GROUP_LABEL,
   groupsOf,
@@ -464,8 +464,8 @@ function DecorPicker({ session, tool, linear }: { session: Session; tool: Tool; 
   const selected = all.find((c) => c.def.id === tool.variant?.value);
   const [group, setGroup] = useState<DecorGroup | null>(null);
   const showing =
-    group && groups.includes(group) ? group : selected ? decorGroup(selected.def) : (groups[0] ?? null);
-  const choices = showing ? all.filter((c) => decorGroup(c.def) === showing) : all;
+    group && groups.includes(group) ? group : selected ? choiceGroup(selected) : (groups[0] ?? null);
+  const choices = showing ? all.filter((c) => choiceGroup(c) === showing) : all;
   return (
     <div class="picker panel decor-picker" data-testid={linear ? 'fence-picker' : 'decor-picker'}>
       {groups.length > 1 && (
@@ -485,6 +485,11 @@ function DecorPicker({ session, tool, linear }: { session: Session; tool: Tool; 
           ))}
           {tool.hint && <span class="muted hint">{tool.hint}</span>}
         </div>
+      )}
+      {showing === 'festival' && (
+        <p class="muted hint picker-hint" data-testid="festival-pieces-hint">
+          Set these out on the festival site. They come down the morning after, unless you keep one.
+        </p>
       )}
       <div class="picker-cards">
         {choices.map(({ def, locked, hint }) => {

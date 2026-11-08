@@ -569,10 +569,18 @@ export class Mirror implements MapReader {
           break;
         }
         case 'festival.updated':
-        case 'festival.started':
+        case 'festival.started': {
+          // A poster newly pinned up or changed (not the menu being put by, nor a new season's
+          // empty view): the session tells the planner it was accepted.
+          const before = this.festival.value?.plan;
+          const after = e.f.plan;
+          if (e.e === 'festival.updated' && after && before !== undefined && !samePlan(before, after)) {
+            change.notices.push({ kind: 'festival.planned', text: '' });
+          }
           this.festival.value = e.f;
           change.seasons = true;
           break;
+        }
         case 'festival.ended':
           this.festivalResult.value = e.r;
           change.seasons = true;
@@ -756,4 +764,15 @@ export class Mirror implements MapReader {
   decorNear(fx: number, fz: number, radius: number): DecorView[] {
     return this.grid.near(fx, fz, radius);
   }
+}
+
+/** Two festival plans that say the same thing (what is put by does not count). */
+export function samePlan(a: FestivalView['plan'], b: FestivalView['plan']): boolean {
+  if (!a || !b) return a === b;
+  return (
+    JSON.stringify(a.site) === JSON.stringify(b.site) &&
+    JSON.stringify(a.menu.map(([g, q]) => [g, q])) === JSON.stringify(b.menu.map(([g, q]) => [g, q])) &&
+    a.twist === b.twist &&
+    a.music === b.music
+  );
 }

@@ -4,6 +4,7 @@
 import { content, type BuildingDef, type Cost, type DecorDef, type ValleyMode } from '@qoti/content';
 import { countsAsBuilt, PENNIES_PER_COIN, type Lens, type RejectReason } from '@qoti/sim';
 import type { Mirror } from '../state/mirror';
+import { currentFestivalPlan } from '../ui/seasons';
 import { RANK_WORD, rankAtLeast } from '../ui/village';
 
 export type BuildingGroup = 'homes' | 'food' | 'materials' | 'services';
@@ -79,13 +80,19 @@ export function groupsOf(defs: readonly BuildingDef[]): BuildingGroup[] {
 }
 
 /** Unlocked content ids (town view), plus everything when the valley is creative. */
+/** True while this season's festival has a plan (the sim's currentPlan). */
+export function festivalPlanned(m: Mirror): boolean {
+  return currentFestivalPlan(m.festival.value, m.tick.value) !== null;
+}
+
 export function unlockedIds(m: Mirror): ReadonlySet<string> {
   return new Set(m.town.value?.unlocked ?? []);
 }
 
-export type DecorGroup = 'seats' | 'lights' | 'greenery' | 'water' | 'odds';
+export type DecorGroup = 'festival' | 'seats' | 'lights' | 'greenery' | 'water' | 'odds';
 
 export const DECOR_GROUP_LABEL: Record<DecorGroup, string> = {
+  festival: 'Festival',
   seats: 'Seats',
   lights: 'Lights',
   greenery: 'Greenery',
@@ -93,7 +100,7 @@ export const DECOR_GROUP_LABEL: Record<DecorGroup, string> = {
   odds: 'Odds and ends',
 };
 
-const DECOR_GROUP_ORDER: DecorGroup[] = ['seats', 'lights', 'greenery', 'water', 'odds'];
+const DECOR_GROUP_ORDER: DecorGroup[] = ['festival', 'seats', 'lights', 'greenery', 'water', 'odds'];
 
 export function decorGroup(def: DecorDef): DecorGroup {
   const t = def.tags;
@@ -104,8 +111,13 @@ export function decorGroup(def: DecorDef): DecorGroup {
   return 'odds';
 }
 
+/** The picker group of a choice: festival pieces on offer for this season's plan go in their own. */
+export function choiceGroup(c: DecorChoice): DecorGroup {
+  return c.festival ? 'festival' : decorGroup(c.def);
+}
+
 export function decorGroupsOf(choices: readonly DecorChoice[]): DecorGroup[] {
-  return DECOR_GROUP_ORDER.filter((g) => choices.some((c) => decorGroup(c.def) === g));
+  return DECOR_GROUP_ORDER.filter((g) => choices.some((c) => choiceGroup(c) === g));
 }
 
 export interface DecorChoice {
@@ -113,18 +125,24 @@ export interface DecorChoice {
   locked: boolean;
   /** Why it is locked: the hint of the pattern that unlocks it, when that hint is showing. */
   hint: string;
+  /** A festival piece on offer because this season's festival is planned (the sim's rule). */
+  festival?: boolean;
 }
 
 /** Decor the picker offers: Pattern Book pieces stay locked in standard valleys until found. */
 export function decorChoices(m: Mirror, lens: Lens, linear: boolean): DecorChoice[] {
   const standard = m.settings.value.mode === 'standard';
   const unlocked = unlockedIds(m);
+  const planned = festivalPlanned(m);
   return content.decor
     .filter((d) => !!d.linear === linear)
     .filter((d) => lens === 'hearth' || d.lane !== 'hearth' || linear)
-    .map((def) => {
-      const locked = standard && !!def.locked && !unlocked.has(def.id);
-      return { def, locked, hint: locked ? lockHint(m, def.id) : '' };
+    .map((def): DecorChoice => {
+      // The sim's rule (commands/decor.ts lockedReason): festival pieces are open while this
+      // season's festival is planned.
+      const festival = standard && !!def.festival && planned;
+      const locked = standard && !!def.locked && !unlocked.has(def.id) && !festival;
+      return { def, locked, hint: locked ? lockHint(m, def.id) : '', ...(festival && { festival }) };
     })
     .sort((a, b) => Number(a.locked) - Number(b.locked));
 }

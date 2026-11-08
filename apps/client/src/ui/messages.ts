@@ -29,6 +29,8 @@ export const REJECT_TEXT: Record<RejectReason, string> = {
   // Playtest round three
   CUT_OFF:
     'Nobody can walk to that door: a cliff or the river is in the way. Turn it, or build where a path can reach.',
+  // Playtest round four
+  TOO_LATE: 'Too late for that. The evening has begun, so the plans will have to wait for next season.',
 };
 
 export function rejectText(reason: RejectReason | undefined): string {
