@@ -8,6 +8,7 @@
 // 71 dressing (10:00), 80 threats, 82 watch, 84 raids, 86 defenses, 91 renown, 93 commissions, 95 trials, 99 guide. C5B adds 77 festivalEvening (hourly).
 import type { System } from '../contracts';
 import { achievements } from './achievements';
+import { callings } from './callings';
 import { charter } from './charter';
 import { chronicle } from './chronicle';
 import { clock } from './clock';
@@ -57,6 +58,7 @@ import { zoning } from './zoning';
 export const systems: readonly System[] = [
   achievements,
   baskets,
+  callings,
   caravans,
   charm,
   charter,

@@ -3,7 +3,7 @@
 // &mock, the fixture's missing history (wishes, pages, Chronicle, stocks, budget) is laid over the
 // Mirror from the UI mocks, whose ids match the fixture.
 import { randomId } from '@qoti/protocol';
-import { bytesToBase64, serialize, SIM_VERSION, type WorldState } from '@qoti/sim';
+import { bytesToBase64, ensureOffer, serialize, SIM_VERSION, type WorldState } from '@qoti/sim';
 import { LocalRoom } from '../net/local';
 import { IdbStorage } from '../net/idb';
 import type { Session } from './session';
@@ -32,6 +32,15 @@ export async function createFixtureValley(
   if (new URLSearchParams(location.search).get('trial') === 'passed') {
     state.charter.rank = 'village';
     state.trial = { kind: 'winter', charter: 'village', season: 3, year: 0, status: 'passed', measured: [] };
+  }
+  // P1 (callings): ?calling=offer (a solo valley), =together (two seats, the partner away) or =chosen
+  // puts the County's question, or its answer, on the fixture's Charter board, for screenshots.
+  const callingMode = new URLSearchParams(location.search).get('calling');
+  if (callingMode) {
+    state.charter = { ...state.charter, rank: 'village' };
+    if (callingMode !== 'together') state.seats = state.seats.slice(0, 1);
+    ensureOffer(state, null);
+    if (callingMode === 'chosen' && state.calling) state.calling.chosen = state.calling.offered[0]!;
   }
   state.settings.townName = townName;
   state.settings.valleyName = 'Fixture Vale';

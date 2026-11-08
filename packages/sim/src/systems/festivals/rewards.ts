@@ -6,6 +6,7 @@
 import { content } from '@qoti/content';
 import { FESTIVAL_HISTORY_MAX, TICKS_PER_DAY } from '../../constants';
 import type { EntityId, FestivalOutcome, FestivalPlan, Rect, TickCtx, WorldState } from '../../contracts';
+import { chosenCalling } from '../callings/chosen';
 import { chronicle } from '../chronicle/api';
 import { addRenown } from '../renown/api';
 import { addBond, addMoodModifier } from '../residents/api';
@@ -31,6 +32,9 @@ export function grantFestival(
   // One bond heart a guest: there is one festival a season, so this is the season's cap.
   for (const id of guests) addBond(state, id, 1, 'other');
   addRenown(state, ctx, t.renown[stars] ?? 0, 'festival');
+  // P1: Pilgrims' Rest earns one more renown from a festival of 2 stars or better.
+  const pilgrims = chosenCalling(state)?.festival;
+  if (pilgrims && stars >= pilgrims.minStars) addRenown(state, ctx, pilgrims.renown, 'calling');
 
   const before = state.seasons.bestStars;
   for (const [at, ids] of t.unlocks) {

@@ -73,6 +73,8 @@ export type Command =
   | { t: 'request.resolve'; id: EntityId; status: 'done' | 'withdrawn' }
   /** Claim the rank once every Charter goal is met. */
   | { t: 'charter.claim' }
+  /** P1 (additive): choose what the village is known for, from the two the County offered. */
+  | { t: 'calling.choose'; id: string }
   /** Raise or lower land by one level. Max TERRAFORM_MAX_TILES tiles, costs per tile. */
   | { t: 'terrain.raise'; tiles: [number, number][] }
   | { t: 'terrain.lower'; tiles: [number, number][] }

@@ -2,6 +2,7 @@
 // in `art.kit`; the client test checks that every one of them exists here.
 import * as An from './animals';
 import * as B from './buildings';
+import * as Cg from './callings';
 import * as D from './decor';
 import * as Df from './defenses';
 import * as Fe from './festival';
@@ -87,6 +88,7 @@ export const kits: readonly Kit[] = [
   W.marketStallKit,
   Fd.maypole,
   N.meadowTuft,
+  Cg.millstoneBench,
   Gd.mooringPost,
   N.mushrooms,
   Df.netTrapKit,
@@ -109,6 +111,7 @@ export const kits: readonly Kit[] = [
   Gd.ringBench,
   Tr.riverDockKit,
   N.rock,
+  Cg.roseArch,
   W.sawpitKit,
   Sv.schoolKit,
   Gn.seeSaw,
@@ -133,6 +136,7 @@ export const kits: readonly Kit[] = [
   W.vegetablePlotKit,
   Df.watchHouseKit,
   Df.watchtowerKit,
+  Cg.waysideShrine,
   Fd.weathervane,
   V.weaverKit,
   B.well,

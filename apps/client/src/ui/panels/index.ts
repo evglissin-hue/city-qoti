@@ -10,6 +10,7 @@ import { Minimap } from '../Minimap';
 import { AchievementsPanel } from './Achievements';
 import { AlertsPanel } from './Alerts';
 import { AwayLetterPanel } from './AwayLetter';
+import { CallingPanel } from './Calling';
 import { ChapterPanel } from './Chapter';
 import { CharterPanel } from './Charter';
 import { ChroniclePanel } from './Chronicle';
@@ -67,6 +68,7 @@ export const panels: readonly PanelDef[] = [
   { id: 'alerts', side: 'left', component: AlertsPanel },
   { id: 'away', side: 'overlay', component: AwayLetterPanel },
   { id: 'blueprints', side: 'world', component: Blueprints },
+  { id: 'calling', side: 'overlay', component: CallingPanel, modes: STANDARD },
   { id: 'chapter', side: 'overlay', component: ChapterPanel, modes: STANDARD },
   { id: 'charter', side: 'book', component: CharterPanel, lens: 'shared', label: 'Charter', icon: 'charter', key: 'h', modes: STANDARD, hidden: true },
   { id: 'chronicle', side: 'book', component: ChroniclePanel, lens: 'hearth', label: 'Chronicle', icon: 'chronicle', key: 'c', modes: STANDARD, order: 30 },

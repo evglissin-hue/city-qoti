@@ -118,6 +118,7 @@ describe('I0 contracts', () => {
       | 'request.add'
       | 'request.resolve'
       | 'charter.claim'
+      | 'calling.choose'
       | 'terrain.raise'
       | 'terrain.lower'
       | 'build.pinRecipe'

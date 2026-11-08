@@ -4,6 +4,7 @@ import type { Session } from '../../app/session';
 import { seatList, shortDate } from '../format';
 import { Glyph } from '../icons';
 import { RANK_WORD } from '../village';
+import { CallingNote } from './Calling';
 import { Empty, Frame, Meter } from './parts';
 import { LaneTag } from './villageParts';
 
@@ -104,6 +105,7 @@ function Board({ session, c }: { session: Session; c: CharterView }) {
         ) : (
           <p class="proclamation">The County has nothing more to ask of {town} for now. Enjoy it.</p>
         )}
+        <CallingNote session={session} calling={c.calling} />
         <History session={session} c={c} />
       </div>
     );

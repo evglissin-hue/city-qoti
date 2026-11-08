@@ -2,6 +2,7 @@
 import type { Command, CommandType } from '../contracts';
 import * as bandit from './bandit';
 import * as build from './build';
+import * as calling from './calling';
 import * as charter from './charter';
 import * as commission from './commission';
 import * as customize from './customize';
@@ -43,6 +44,7 @@ export const commandHandlers: readonly AnyHandler[] = [
   module.setModule,
   runtime.setPaused,
   runtime.setPriority,
+  calling.choose,
   charter.claim,
   commission.accept,
   commission.decline,

@@ -584,6 +584,17 @@ export interface CharterView {
   }[];
   ready: boolean;
   history: { rank: RankId; tick: number; seats: SeatId[] }[];
+  /** P1 (additive): the callings on offer, or the one chosen. Absent before the Village claim. */
+  calling?: CallingView;
+}
+
+/** The callings offer (docs/spec/15-progression.md, Callings). */
+export interface CallingView {
+  offered: { id: string; reason: string }[];
+  /** The chosen calling id, or null while the offer is open. */
+  chosen: string | null;
+  /** Two seats share the valley, so both must be present to choose. */
+  together: boolean;
 }
 
 export interface InnovationView {
