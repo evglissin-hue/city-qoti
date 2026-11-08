@@ -1,4 +1,4 @@
-import type { ValleySettings } from '@qoti/sim';
+import { valleyNameFor, type ValleySettings } from '@qoti/sim';
 import type { RoomStorage, StoredMeta } from './storage';
 import { randomId, sha256Hex } from './tokens';
 
@@ -7,6 +7,11 @@ export interface NewValley {
   /** One token per seat (seat 0 creates, seat 1 joins with the invite link). */
   tokens: string[];
   seed: string;
+}
+
+/** The seed a valley takes: the typed one (trimmed, 64 characters at most) or 12 random hex characters. */
+export function seedFor(typed?: string): string {
+  return typed && typed.trim() ? typed.trim().slice(0, 64) : randomId().slice(0, 12);
 }
 
 /** Writes a new valley's meta into empty storage and returns the plain seat tokens once. */
@@ -22,7 +27,7 @@ export async function initValley(
   },
 ): Promise<NewValley> {
   const tokens = Array.from({ length: opts.seats ?? 2 }, () => randomId());
-  const seed = opts.seed && opts.seed.trim() ? opts.seed.trim().slice(0, 64) : randomId().slice(0, 12);
+  const seed = seedFor(opts.seed);
   const meta: StoredMeta = {
     valley: { id: opts.valleyId, seed, settings: opts.settings, createdAt: opts.now },
     tokenHashes: await Promise.all(tokens.map((t) => sha256Hex(t))),
@@ -44,9 +49,10 @@ export function inviteFragment(valleyId: string, seat: number, token: string): s
 
 /**
  * Valley settings with defaults filled in. Mirrors defaultSettings() in @qoti/sim (the protocol
- * may not import sim code); a client test keeps the two in step.
+ * may not import sim code); a client test keeps the two in step. A valley with no typed name takes
+ * the one its seed gives it (valleyNameFor), so no two lands share "Riverbend" by default.
  */
-export function normalizeSettings(partial: Partial<ValleySettings> = {}): ValleySettings {
+export function normalizeSettings(partial: Partial<ValleySettings> = {}, seed?: string): ValleySettings {
   const pick = <T extends string>(value: unknown, allowed: readonly T[], fallback: T): T =>
     allowed.includes(value as T) ? (value as T) : fallback;
   const name = (value: unknown, fallback: string) =>
@@ -57,7 +63,7 @@ export function normalizeSettings(partial: Partial<ValleySettings> = {}): Valley
     threat: pick(partial.threat, ['peaceful', 'standard', 'fierce'], 'peaceful'),
     togetherOnly: partial.togetherOnly === true,
     townName: name(partial.townName, 'Qoti'),
-    valleyName: name(partial.valleyName, 'Riverbend'),
+    valleyName: name(partial.valleyName, seed ? valleyNameFor(seed) : 'Riverbend'),
     // I3 (C5H): the first days guide box at New valley; absent means on for standard valleys.
     ...(typeof partial.guide === 'boolean' && { guide: partial.guide }),
   };
@@ -110,8 +116,11 @@ export async function createValley(
   body: CreateValleyRequest,
   now: number,
 ): Promise<CreateValleyResponse> {
-  const settings = normalizeSettings(typeof body.settings === 'object' && body.settings ? body.settings : {});
-  const seed = typeof body.seed === 'string' ? body.seed : undefined;
+  const seed = seedFor(typeof body.seed === 'string' ? body.seed : undefined);
+  const settings = normalizeSettings(
+    typeof body.settings === 'object' && body.settings ? body.settings : {},
+    seed,
+  );
   const snapshot = importedSnapshot(body.snapshot);
   const v = await initValley(storage, { valleyId, seed, settings, now, ...(snapshot && { snapshot }) });
   return {

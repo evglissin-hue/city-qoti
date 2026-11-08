@@ -35,6 +35,15 @@ export const theRiverRunsClean: AchievementDef = {
   condition: { count: { what: 'sighted', ref: 'kingfisher', atLeast: 1 } },
 };
 
+// P1 (playtest item 13): the plaque the County's letter promises when the first winter is weathered.
+export const theFirstWinter: AchievementDef = {
+  id: 'the-first-winter',
+  name: 'The First Winter',
+  description: 'The Village stood its first winter, and the County sealed the Charter with a plaque.',
+  lane: 'shared',
+  condition: { code: 'trialPassed', ref: 'village' },
+};
+
 export const warmHearths: AchievementDef = {
   id: 'warm-hearths',
   name: 'Warm Hearths',

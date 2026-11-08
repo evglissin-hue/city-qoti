@@ -316,6 +316,7 @@ export const achievements: readonly AchievementDef[] = [
   SA.fiveStars,
   A.hearthAndHome,
   A.plankByPlank,
+  SA.theFirstWinter,
   SA.theGateHeld,
   A.theLongWalkHome,
   SA.theRiverRunsClean,
