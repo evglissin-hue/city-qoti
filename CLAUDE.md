@@ -48,6 +48,7 @@ Your brief says which paths you own. Outside them, make only small, necessary ed
 ## Workflow
 
 - Branch `cycle/<id>-<slug>` from `main`; one PR per cycle into `main`, using the PR template.
+- Every big build iteration follows the build and review loop (master plans and reviews, `executor` agents in `.claude/agents/executor.md` build, then dead-end hunt and player's chair rounds before the PR): see "Build and review loop" in `docs/spec/31-parallel-development.md`.
 - Before opening the PR: typecheck, lint, unit tests, build, e2e and bench pass.
 - Update the spec where behavior differs from it, add a line to `CHANGELOG.md`, and update your row in `docs/build/README.md`.
 - If you run out of time or context: push, open a draft PR, and list what is done and what remains.

@@ -109,6 +109,17 @@ Repository: github.com/evglissin-hue/city-qoti
 5. Report back: the PR link, what passed, bench numbers, and anything you could not do.
 ```
 
+## Build and review loop
+
+Every big build iteration (a batch of playtest notes, a new feature set, a phase or milestone) runs through this loop. One master session plans and reviews; cheaper executor agents build.
+
+1. **Master plans.** The master runs on Opus at max effort. It turns the request (playtest notes, ideas) into a numbered list, traces each item in the code (read-only explorer agents are fine for this), makes the design calls, and writes a short brief per task: goal, owned paths, decisions, acceptance checks.
+2. **Executors build.** The master spawns several `executor` agents (`.claude/agents/executor.md`, pinned to Sonnet; use Haiku for chores), one task each, in separate git worktrees when tasks could touch the same files. A new worktree may start from the default branch, so each executor first merges the master's working branch. Executors build what the brief says, add tests, run the checks and report. They do not redesign; if the brief is wrong they stop and say so.
+3. **Quality check.** The master reviews every diff against its brief and this repo's rules (`CLAUDE.md`), merges, and runs typecheck, lint, unit tests, build, e2e and benchmarks (`npm run typecheck`, `npm run lint`, `npm test`, `npm run build`, `npm run e2e`, `npm run bench`).
+4. **Dead-end hunt.** Automated checks and simulations must find what a player would get stuck on before a human does: scripted or AI play across several seeds and a long stretch of game time, plus static checks of content and code. They look for requests or goals that cannot be met, things that can be removed but not rebuilt, buildings idle for lack of input, resources that run dry with no way to get more, actions that silently do nothing, and features with no button. If the repo lacks these checks, build them. Fix or explain every flag. When a human playtest finds something the checks missed, add a check for that whole class of problem, not just the one case.
+5. **Player's chair.** The master plays it as a player would: launch it, screenshot it, and walk through the real situations a player meets (the first hour, a busy late game, every mode, a mistake and its undo). Read every new line of text in place and ask what a newcomer would misread, get stuck on or find dull. Then make the improvements directly or through another executor round.
+6. **Rounds.** Run one or two rounds of steps 3 to 5 after each big iteration, before the PR. The PR lists what each round found and fixed.
+
 ## Writing a brief
 
 Use `docs/build/_template.md`: goal, read list (as short as possible), owned paths, inputs it can rely on, tasks, acceptance criteria, out of scope, notes. A good brief fits in about two pages and links to spec sections instead of copying them.
