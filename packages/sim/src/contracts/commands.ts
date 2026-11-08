@@ -200,6 +200,5 @@ export type RejectReason =
   // P1 (playtest)
   /** A standard valley's town hall stays: its builders raise everything else. */
   | 'HALL_STAYS'
-  // Playtest round four
   /** Too late for this: a festival cannot be planned once its evening has begun. */
   | 'TOO_LATE';

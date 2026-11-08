@@ -92,12 +92,12 @@ export function groupsOf(defs: readonly BuildingDef[]): BuildingGroup[] {
   return GROUP_ORDER.filter((g) => defs.some((d) => buildingGroup(d) === g));
 }
 
-/** Unlocked content ids (town view), plus everything when the valley is creative. */
 /** True while this season's festival has a plan (the sim's currentPlan). */
 export function festivalPlanned(m: Mirror): boolean {
   return currentFestivalPlan(m.festival.value, m.tick.value) !== null;
 }
 
+/** Unlocked content ids (town view), plus everything when the valley is creative. */
 export function unlockedIds(m: Mirror): ReadonlySet<string> {
   return new Set(m.town.value?.unlocked ?? []);
 }
