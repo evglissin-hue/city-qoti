@@ -47,7 +47,6 @@ export function CallingPanel({ session }: { session: Session }) {
             const def = content.callingById.get(o.id);
             if (!def) return null;
             const picked = c.chosen === def.id;
-            const piece = content.decorById.get(def.signature);
             return (
               <section
                 key={def.id}
@@ -66,7 +65,6 @@ export function CallingPanel({ session }: { session: Session }) {
                     <li key={line}>{line}</li>
                   ))}
                 </ul>
-                {piece && <p class="small muted">A gift to place: the {piece.name.toLowerCase()}.</p>}
                 {picked ? (
                   <p class="calling-picked" data-testid={`calling-picked-${def.id}`}>
                     <Glyph id="check" /> Chosen
