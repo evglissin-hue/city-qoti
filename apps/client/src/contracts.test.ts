@@ -169,6 +169,8 @@ describe('I0 contracts', () => {
       | 'NO_RAID'
       // Playtest round three
       | 'CUT_OFF'
+      // P1 (playtest)
+      | 'HALL_STAYS'
     >();
   });
 

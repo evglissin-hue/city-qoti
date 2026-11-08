@@ -268,6 +268,7 @@ export const traits: readonly TraitDef[] = [
 export const wishes: readonly WishTemplate[] = [
   W.aGardenPlot,
   W.aProperPath,
+  W.aSecondWell,
   W.aWellCloser,
   W.bakeryNearby,
   W.flowersOnTheLane,
