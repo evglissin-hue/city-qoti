@@ -106,6 +106,7 @@ Camera pass triangles per layer (`QOTI_LAYERS=1`), against V1.0's before table: 
 | Client unit | road route proposals, mirror patching, ghost validity equals sim validation (property test) | `apps/client/src/**/*.test.ts` |
 | End to end | two browser contexts on the dev server: create, invite, join, both build, both see the same thing, hashes match, reload and catch up, pause from one pauses both | `apps/client/e2e/` |
 | Visual review | gallery screenshots at fixed seeds, uploaded as CI artifacts (no pixel assertions) | `apps/gallery/e2e/` |
+| Playability (P1) | the dead-end hunt: `npm run audit -w @qoti/bench` plays several seeds through a year and one through the Village chapter, watching for no builders, a building idle for want of an input a whole season, a wish nobody could grant, a festival that never started, a standing order never filled (`HealthWatch`, read-only), and reports wishes offered and never granted; the repo tests check statically that every player command has a sender in the client, every removable building can be placed again, and every wish, goal, guide step and plaque can be met by content | `tools/bench/src/audit.ts`, `test/every-command-has-a-sender.test.ts`, `packages/sim/test/p1/` |
 
 ## CI
 
@@ -119,7 +120,8 @@ GitHub Actions on every pull request and on `main`: install (cached), typecheck,
 4. Budgets for the touched areas are met; numbers are in the PR.
 5. Spec sections updated where behavior differs from the docs; one line in `CHANGELOG.md`.
 6. No em dashes in any text; UI copy follows the tone in `17-presentation.md`.
-7. A PR into `main` with what changed, how to try it, screenshots or a short clip for anything visual, and follow-ups.
+7. The playability audit runs clean (`npm run audit -w @qoti/bench`), or the PR explains each flag; a playtest problem the audit missed gets a check for its whole class (P1, `31-parallel-development.md`, Build and review loop).
+8. A PR into `main` with what changed, how to try it, screenshots or a short clip for anything visual, and follow-ups.
 
 ## Playtests
 

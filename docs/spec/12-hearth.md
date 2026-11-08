@@ -10,6 +10,12 @@ A per-tile integer field, 0 to 100 (P20). Stored in sim state as `hearth.charm` 
 
 *As built (C3B):* `markCharmDirty(rect)` grows the rect by the charm reach (6 tiles: the largest source radius plus one, enclosure and the height window) before marking chunks, so "and their neighbors" means exactly the chunks a change can reach. The hourly pass runs at offset 50. Hearth commands (decor, trees, `build.customize`) set `hearth.charmSoon`, and the next tick recomputes. When the lanterns are lit (18:00) and put out (07:00) the chunks around every light source are recomputed. A valley's first tick computes the whole map. Recomputed layers are marked on `ctx.dirty`, so clients get LayerPatches only for layers that changed. Budget: under 2 ms per chunk (0.25 ms on the hamlet, 1.5 ms on a block packed with 300 pieces at night).
 
+*As built (P1, the owner's playtest)*:
+
+- **Window boxes are added, never assumed**: no kit draws them until a seat turns them on in Customize (choosing the flowers: geranium, rose, cream, cornflower, buttercup or a mixed bunch, `custom.windowFlowers`) or the household puts them up as its street grows pleasant (`13-ledger.md`, Homes improve on their own). What is drawn is what counts for charm and habitats. A fitted flower-boxes module replaces the kit's own boxes rather than doubling them.
+- **Pieces that help the work**: five priced pieces (tool rack, flower trellis, painted shop sign, brass weathervane, rain barrel; `fineDecor.ts`) cost coins and goods like a building (refunded in full when removed) and make the workplaces of the kinds they name within their radius work 5 to 10% faster (the `decor` line of the yield registry, at most +15% a building). They sit in their own For the work group of the decor picker, and the six Village pieces have art of their own.
+- **Muffling**: hedges and walls beside a tile, and mature trees, each take 15% off its noise (45% at most), so a home troubled by a workshop has a gentler remedy than moving it.
+
 **Sources** (value at the source tile, linear falloff to 0 at the radius) *(tune)*. As built: value x (radius + 1 - d) / (radius + 1), where d is the distance in tiles from the tile's center to the piece (or to a building's footprint), so the last tile inside the radius still gets a little and nothing past it does. Sources come from content (`charm` on decor and buildings) plus the map:
 
 | Source | Category | Value | Radius |
@@ -144,7 +150,7 @@ interface WishTemplate {
 }
 ```
 
-**I1 templates (12):**
+**I1 templates (12), and P1's A Second Well:**
 
 | Wish | Target |
 |---|---|
@@ -158,8 +164,11 @@ interface WishTemplate {
 | A Proper Path | a road route from home to work with no grass tiles (Ledger) |
 | Quiet, Please | noise at home under 3 |
 | Fresh Fish | fish in stock at the nearest market stall (Ledger) |
-| A Well Closer | a well within 4 tiles of home |
+| A Well Closer | a well whose radius reaches home with room for the household (P1: was a well within 4 tiles; offered only where no well's radius reaches home) |
+| A Second Well (P1) | room at a well, for a home inside a full well's radius |
 | Neighbors | another occupied home within 4 tiles |
+
+*As built (P1, the owner's playtest)*: a wish is offered only when the town can do what it asks now: every building, tag or category its target names must already stand or be placeable (rank, innovation, mode, not grown-only), every decor piece unlocked (`wishes/achievable.ts`; the playability audit checks every template and goal statically). Fresh Fish is not offered while the river is frozen and Neighbors only in spring and summer (arrivals pause from autumn). A wish whose workplace or market is gone is rebound to the current one, or let go quietly. Routes for Lantern on My Way Home cross bridges and open gates. A Garden Plot counts the herb garden. The Wishes book names the gentlest remedy it can (for Quiet, Please: a hedge, a low wall or trees beside the home, then moving the noise, then Quiet Hours).
 
 **Feedback**: a wish icon above the home; the Wishes panel; selecting a wish highlights the target area as a soft ghost; on grant, the resident does a little hop, sends a thank-you letter and the Chronicle may note it (weekly digest to avoid spam).
 
@@ -189,6 +198,7 @@ One per season, day 6 from 18:00 to 22:00 (P23).
 - **Outcome** at 22:00 (content `festivalTuning`): site = average charm over the site against 40 (a pattern site adds 25); variety = distinct festival pieces on the site out of 4; menu = half distinct goods put by out of 3, half units put by a guest; music = none 0, a stand-in musician 35, Juniper with her festival music 70, the bandstand 80, both 100; twist = 100 when its goal holds (pie contest: 10 pies on the menu; harvest display: 12 vegetables; lanterns on the water: within 6 tiles of open water with 2 lights on the site; snow sculptures: the river frozen and 3 festival pieces; costume parade: 8 cloth or 2 coats in stock). Joy is the weighted sum (site 20, variety 20, menu 30, music 15, twist 15); the score is joy x turnout (60% with nobody in reach coming, 100% when everyone does); stars at 20, 40, 60 and 80. A bare Hamlet green with bread and vegetables earns two stars; a planned site with a few pieces, a full table and a twist, three or more.
 - **Rewards**: guests eat up to a unit each (the rest goes back to store); the mood lift (+5, 8, 10, 13, 15 by stars, two days) goes to those who came (most of the town; a town-wide lift brought Village claims forward through the mood-weighted tax in a way the tuning did not want); a bond heart for each guest (one festival a season is the cap); renown 1, 2, 4, 6, 9; the history feeds `festivalMorale`; a `festival` Chronicle entry marked for a snapshot; unlocks the first time the town reaches 3 stars (bunting), 4 (the flower arch) and 5 (the festival stage); `seasons.bestStars` for Five Stars. An unplanned day 6 is a quiet evening.
 - **A site that goes** (C5X): a festival planned on a pattern site that has stopped standing by the evening (a piece moved, a home built in its corner) is still held, on the smallest ground round the site's anchor (`heldRect`, 6x6), where the guests gather and the stars are scored. Before, the evening silently never happened.
+- *As built (P1)*: planning on the festival day from 18:00 is refused (`TOO_LATE`); a plan made after the noon menu pass puts its menu by at once. A countdown chip in the top bar ("Festival in 2 days", "tonight at 18:00") opens the poster, a toast says when the poster is up and the feed when the evening begins. While a plan is up, the decor picker shows the festival pieces in a Festival group (otherwise they say "With a festival plan"). The poster keeps a rejected draft, greys out what cannot work now (last festival's twist, a musician nobody in town is, an unmet twist's goods), counts the homes within reach of the site and estimates with the sim's own weights and thresholds; a Pattern Book site can be picked anywhere inside it. The morning-after card offers to keep each keepable piece still standing (`festival.keepPiece`).
 - **Together**: with both seats connected the closing dance comes at 21:00 (`together.moment { kind: 'dance' }`, the guests on the site dance in the agent frame). See `16-coop.md`.
 
 ## Nature and the Field Guide [I3]
