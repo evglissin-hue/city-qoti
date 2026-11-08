@@ -6,6 +6,7 @@ import {
   buildingChoices,
   buildingGroup,
   buildingLock,
+  teasableLater,
   chainsOf,
   choiceGroup,
   costBlock,
@@ -305,7 +306,7 @@ function BuildingPicker({ session, tool }: { session: Session; tool: Tool }) {
   const all = buildingChoices(mode, session.ui.lens.value, lostTownHall(m));
   const locks = new Map(all.map((d) => [d.id, buildingLock(m, d)] as const));
   const defs = all.filter((d) => locks.get(d.id)?.kind !== 'rank');
-  const later = all.filter((d) => locks.get(d.id)?.kind === 'rank');
+  const later = teasableLater(all.filter((d) => locks.get(d.id)?.kind === 'rank'));
   const groups = groupsOf(defs);
   const selected = content.buildingById.get(tool.variant?.value ?? '');
   const [group, setGroup] = useState<BuildingGroup | null>(null);

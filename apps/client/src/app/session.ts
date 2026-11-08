@@ -235,6 +235,9 @@ export class Session {
       name: w.valley.settings.townName,
       lastPlayed: Date.now(),
       pending: false,
+      // P1 (playtest item 13): the title list shows the valley's seed and rank.
+      seed: w.valley.seed,
+      ...(this.mirror.town.value?.rank && { rank: this.mirror.town.value.rank }),
     });
   }
 
@@ -421,7 +424,10 @@ export class Session {
         home ? { ...item, at: [home.x, home.z] as [number, number] } : item,
       ];
     }
-    if (change.rankUp) this.ui.rankUp.value = change.rankUp;
+    if (change.rankUp) {
+      this.ui.rankUp.value = change.rankUp;
+      updateRecent(this.target.valleyId, { rank: change.rankUp.rank });
+    }
     seasonsAfterUpdate(this, change);
     snapshotsAfterUpdate(this, change);
     const focus = this.ui.planFocus.value;
@@ -563,9 +569,10 @@ export class Session {
         this.ui.letter.value = null;
         // I2 (C4F): a story letter or the rank-up card goes first.
         if (seasonsEscape(this.ui)) return true;
-        if (this.ui.storyLetter.value || this.ui.rankUp.value) {
+        if (this.ui.storyLetter.value || this.ui.rankUp.value || this.ui.chapter.value) {
           this.ui.storyLetter.value = null;
           this.ui.rankUp.value = null;
+          this.ui.chapter.value = false;
           return true;
         }
         // Esc steps back one thing at a time: an open book or the paint box first, then the tool.
@@ -605,6 +612,8 @@ export class Session {
 
   /** C4D: called with the new online valley once a solo valley has moved online. */
   onMove: ((target: SessionTarget) => void) | null = null;
+  /** P1: "Found a new valley" on the chapter card: back to the title screen with a fresh seed. */
+  onNewValley: (() => void) | null = null;
 
   /**
    * C4D: moves this solo valley online (a snapshot through the valley-file path) and hands the new

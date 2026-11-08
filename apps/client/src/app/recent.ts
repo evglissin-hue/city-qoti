@@ -1,4 +1,4 @@
-import type { SeatId } from '@qoti/sim';
+import type { RankId, SeatId } from '@qoti/sim';
 import { readJson, writeJson } from './storage';
 
 export interface RecentValley {
@@ -15,6 +15,9 @@ export interface RecentValley {
   pending?: boolean;
   /** I1: a creative (sandbox) valley, labeled as such in the list. */
   creative?: boolean;
+  /** P1 (playtest item 13): the valley's seed, so it can be shared, and its rank, for the list. */
+  seed?: string;
+  rank?: RankId;
 }
 
 const KEY = 'qoti.recent';

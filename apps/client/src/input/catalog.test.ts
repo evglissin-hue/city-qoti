@@ -2,7 +2,15 @@ import { content } from '@qoti/content';
 import { describe, expect, it } from 'vitest';
 import { mockView } from '../ui/mocks/session';
 import { Mirror } from '../state/mirror';
-import { buildingChoices, buildingGroup, costBlock, decorChoices, lockHint } from './catalog';
+import {
+  buildingChoices,
+  buildingGroup,
+  costBlock,
+  decorChoices,
+  lockHint,
+  teasableLater,
+  buildingLock,
+} from './catalog';
 
 function mirror(overrides: Parameters<typeof mockView>[0] = {}): Mirror {
   const m = new Mirror();
@@ -53,5 +61,18 @@ describe('catalog', () => {
     const creative = mirror({ settings: { ...mockView().settings, mode: 'sandbox' } });
     expect(decorChoices(creative, 'hearth', false).every((c) => !c.locked)).toBe(true);
     expect(decorChoices(m, 'hearth', true).map((c) => c.def.id)).toContain('fence');
+  });
+
+  it('does not tease buildings for a rank whose Charter does not exist (no Town rank dead end)', () => {
+    const wall = content.buildingById.get('stone-wall')!;
+    expect(wall.requires?.rank).toBe('town');
+    expect(content.charters.some((c) => c.rank === 'town')).toBe(false);
+    const village = content.buildings.filter((b) => b.requires?.rank === 'village');
+    expect(village.length).toBeGreaterThan(0);
+    const teased = teasableLater([wall, ...village]).map((d) => d.id);
+    expect(teased).not.toContain('stone-wall');
+    expect(teased.sort()).toEqual(village.map((d) => d.id).sort());
+    // And the locked-in-the-picker behavior is unchanged: the wall still reports its rank lock.
+    expect(buildingLock(mirror(), wall)?.kind).toBe('rank');
   });
 });

@@ -199,6 +199,14 @@ export function builtCount(m: Mirror, def: string): number {
   return n;
 }
 
+/**
+ * P1 (playtest item 13): the buildings the picker may tease as "At Town rank: ...". A rank whose
+ * Charter does not exist in content (Town, for now) is a dead end for players, so it is not teased.
+ */
+export function teasableLater(defs: readonly BuildingDef[]): BuildingDef[] {
+  return defs.filter((d) => d.requires?.rank && content.charters.some((c) => c.rank === d.requires!.rank));
+}
+
 export function buildingLock(m: Mirror, def: BuildingDef): BuildingLock | null {
   const req = def.requires;
   if (!req || m.settings.value.mode !== 'standard') return null;

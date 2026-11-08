@@ -32,7 +32,6 @@ export {
   inviteFragment,
   MAX_IMPORT_CHARS,
   normalizeSettings,
-  seedFor,
   type CreateValleyRequest,
   type ImportedSnapshot,
   type CreateValleyResponse,
