@@ -65,7 +65,17 @@ const segments: {
       ['river', 0.25],
     ],
   },
-  { label: 'night', style: 'night', seed: 6, key: 46, ambience: [['crickets', 0.3]] },
+  {
+    label: 'night',
+    style: 'night',
+    seed: 6,
+    key: 46,
+    ambience: [
+      ['crickets', 0.3],
+      ['night-air', 0.16],
+      ['owl', 0.3],
+    ],
+  },
   { label: 'winter morning', style: 'winter-morning', seed: 9, key: 50, ambience: [['wind', 0.3]] },
   {
     label: 'winter evening',

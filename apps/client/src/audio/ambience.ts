@@ -49,6 +49,8 @@ export interface AmbienceConditions {
   zoom: number;
   /** Camera yaw, radians (for panning). */
   yaw: number;
+  /** Which night this is (the day it began on), so the owls keep their own nights. Omitted: owls call. */
+  night?: number;
 }
 
 export interface EmitterLevel {
@@ -56,6 +58,8 @@ export interface EmitterLevel {
   gain: number;
   /** -1 left to 1 right. */
   pan: number;
+  /** Playback speed of the loop when not 1 (crickets chirp slower on cool nights). */
+  rate?: number;
 }
 
 export function emptyPresence(): Presence {
@@ -70,6 +74,11 @@ export function hourWindow(hour: number, from: number, to: number, ramp = 1): nu
   const into = (hour - from + 24) % 24;
   if (into >= span) return 0;
   return clamp(Math.min(into / ramp, (span - into) / ramp), 0, 1);
+}
+
+/** Whether the owls call on a given night: most nights, not all (a fixed hash of the night). */
+export function owlNight(night: number): boolean {
+  return Math.imul(night | 0, 2654435761) >>> 28 >= 4;
 }
 
 /** Pan from an offset in tiles: the camera's right is (cos yaw, -sin yaw). */
@@ -96,9 +105,12 @@ export function mixAmbience(scene: AmbienceScene, c: AmbienceConditions): Emitte
   const wet = c.weather === 'rain' || c.weather === 'storm';
   const day = hourWindow(c.hour, 5, 20, 1);
   const work = hourWindow(c.hour, 7, 18, 0.5);
-  const push = (id: AmbienceId, gain: number, p: Presence | null): void => {
+  const push = (id: AmbienceId, gain: number, p: Presence | null, rate?: number): void => {
     const g = clamp(gain, 0, 1);
-    if (g >= MIN_GAIN) out.push({ id, gain: g, pan: p ? panOf(p.dx, p.dz, c.yaw, scene.radius) : 0 });
+    if (g < MIN_GAIN) return;
+    const e: EmitterLevel = { id, gain: g, pan: p ? panOf(p.dx, p.dz, c.yaw, scene.radius) : 0 };
+    if (rate !== undefined && rate !== 1) e.rate = rate;
+    out.push(e);
   };
   // How much of a kind is near, scaled by `k`, softened by its distance and the zoom.
   const level = (p: Presence, k: number): number =>
@@ -117,7 +129,17 @@ export function mixAmbience(scene: AmbienceScene, c: AmbienceConditions): Emitte
     'crickets',
     c.season === 3 || wet ? 0 : level(scene.grass, 1.6) * 0.45 * night * (c.season === 1 ? 1 : 0.6),
     scene.grass,
+    // Warm nights chirp faster; cool ones slower and a little lower.
+    c.season === 1 ? 1 : 0.88,
   );
+  // The rest of a night in the fields: a low rustle under everything, owls by the woods from
+  // nine until four on most nights, frogs by the water on spring and summer nights.
+  push('night-air', wet ? 0 : 0.16 * night, null);
+  const owls = c.night === undefined || owlNight(c.night) ? hourWindow(c.hour, 21, 4, 0.75) : 0;
+  push('owl', wet ? 0 : level(scene.forest, 2.5) * 0.6 * owls, scene.forest);
+  const warm = c.season === 1 ? 1 : c.season === 0 ? 0.6 : 0;
+  const rainy = c.weather === 'storm' ? 0 : c.weather === 'rain' ? 0.6 : 1;
+  push('frogs', level(scene.water, 4) * 0.5 * hourWindow(c.hour, 20, 4.5, 1.5) * warm * rainy, scene.water);
   const gusty = c.weather === 'storm' ? 0.5 : c.weather === 'snow' ? 0.25 : 0;
   push('wind', 0.12 + scene.height * 0.35 + (1 - near) * 0.5 + gusty, null);
   push('rain', c.weather === 'storm' ? 0.9 : c.weather === 'rain' ? 0.6 : 0, null);
