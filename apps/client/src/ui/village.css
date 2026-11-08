@@ -2721,3 +2721,8 @@ li.plan.settled p {
   margin: 8px 0;
   text-align: center;
 }
+
+.charter-calling .link {
+  margin-left: 10px;
+  font-size: 0.85rem;
+}
