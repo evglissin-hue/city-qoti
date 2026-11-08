@@ -5,11 +5,17 @@
 // `opts.lod` 'low' is a cheaper version where one makes sense.
 import { mixHex, seeded, ShapeBuilder, vary, type V3 } from '../geometry';
 import { palette } from '../palette';
+import { SURFACE } from '../surface';
 import type { Kit } from './types';
 
 const LEAF_DARK = 0x4f7a34;
 const GRASS_BLADE = 0x7fa24c;
 const GRASS_TIP = 0xb3c766;
+const GRASS_FOOT = 0x5a8138;
+const MEADOW_FOOT = 0x477332;
+const MEADOW_TIP = 0xc2d072;
+const SEED_STEM = 0xb0a860;
+const SEED_HEAD = 0xdcc47e;
 const REED = 0x8b9a52;
 const CATTAIL = 0x6b4a2f;
 const MOSS = 0x7d8f4e;
@@ -46,18 +52,77 @@ export const bush: Kit = {
   },
 };
 
+/**
+ * A short, neat tuft for lawns near homes: a few straight blades, deeper at the foot and lighter at
+ * the tip. P1: tagged with the grass surface, so the foliage shader sways it by its own height and
+ * gives it the season's tint (and a little snow on its tips).
+ */
 export const grassTuft: Kit = {
   id: 'grass-tuft',
   kind: 'nature',
   build: (opts) => {
     const rnd = seeded(opts?.seed ?? 5);
     const s = new ShapeBuilder();
+    s.surface(SURFACE.grass);
     const n = opts?.lod === 'low' ? 3 : 6;
     for (let i = 0; i < n; i++) {
       const a = (i / n) * Math.PI * 2 + rnd() * 0.8;
       const r = rnd() * 0.04;
-      const c = vary(mixHex(GRASS_BLADE, GRASS_TIP, rnd() * 0.6), rnd, 1.5);
-      s.blade(Math.cos(a) * r, Math.sin(a) * r, 0.08 + rnd() * 0.07, 0.025, 0.03 + rnd() * 0.04, a, c, c);
+      const foot = vary(mixHex(GRASS_FOOT, GRASS_BLADE, rnd() * 0.5), rnd, 1.2);
+      const tip = vary(mixHex(GRASS_BLADE, GRASS_TIP, 0.35 + rnd() * 0.65), rnd, 1.5);
+      const h = 0.08 + rnd() * 0.07;
+      s.grassBlade(Math.cos(a) * r, Math.sin(a) * r, h, 0.03, 0.03 + rnd() * 0.04, a, foot, tip, 1);
+    }
+    return s.build(false);
+  },
+};
+
+/**
+ * P1: a fluffy meadow tuft, 0.16 to 0.32 tall: 10 to 14 curved blades (2 or 3 segments, bowing
+ * outward), deep green at the foot and warm and light at the tips, and in most tufts a few
+ * seed-head stalks (a thin stem with a small drooping oat head) standing a little above. Far: five
+ * single-segment blades and no stalks.
+ */
+export const meadowTuft: Kit = {
+  id: 'meadow-tuft',
+  kind: 'nature',
+  build: (opts) => {
+    const rnd = seeded(opts?.seed ?? 7);
+    const s = new ShapeBuilder();
+    s.surface(SURFACE.grass);
+    const low = opts?.lod === 'low';
+    const n = low ? 5 : 10 + Math.floor(rnd() * 5);
+    const warm = rnd();
+    const stalks = rnd() < 0.25 ? 0 : 1 + Math.floor(rnd() * 3);
+    const blade = (i: number, count: number, segments: number): void => {
+      const a = (i / count) * Math.PI * 2 + rnd() * 0.9;
+      const r = 0.02 + rnd() * 0.06;
+      const tall = 0.16 + rnd() * 0.16;
+      const foot = vary(mixHex(MEADOW_FOOT, GRASS_FOOT, rnd()), rnd, 1.2);
+      const tip = vary(mixHex(GRASS_TIP, MEADOW_TIP, 0.3 + rnd() * 0.5 + warm * 0.2), rnd, 1.6);
+      const wide = 0.05 + rnd() * 0.02;
+      const bend = 0.05 + rnd() * 0.16;
+      s.grassBlade(Math.cos(a) * r, Math.sin(a) * r, tall, wide, bend, a, foot, tip, segments);
+    };
+    if (low) {
+      for (let i = 0; i < n; i++) blade(i, n, 1);
+      return s.build(false);
+    }
+    for (let i = 0; i < n; i++) blade(i, n, i % 3 === 0 ? 3 : 2);
+    for (let k = 0; k < stalks; k++) {
+      const a = rnd() * Math.PI * 2;
+      const r = 0.01 + rnd() * 0.04;
+      const x = Math.cos(a) * r;
+      const z = Math.sin(a) * r;
+      const h = 0.27 + rnd() * 0.08;
+      const lean = 0.02 + rnd() * 0.03;
+      const head = vary(SEED_HEAD, rnd, 1.5);
+      s.grassBlade(x, z, h, 0.011, lean, a, GRASS_FOOT, SEED_STEM, 1);
+      // The seed head droops from the stem's top: a short, fat blade on the way it leans.
+      const hx = x + Math.cos(a) * lean;
+      const hz = z + Math.sin(a) * lean;
+      const dir = a + (rnd() - 0.5) * 0.8;
+      s.grassBlade(hx, hz, 0.055, 0.026, 0.03, dir, mixHex(head, SEED_STEM, 0.4), head, 2, h - 0.01);
     }
     return s.build(false);
   },
@@ -78,8 +143,10 @@ export const wildflowers: Kit = {
       const z = Math.sin(a) * r;
       const h = 0.07 + rnd() * 0.06;
       const lean = 0.01 + rnd() * 0.015;
-      s.blade(x, z, h, 0.012, lean, a, GRASS_BLADE, GRASS_BLADE);
+      s.surface(SURFACE.grass);
+      s.grassBlade(x, z, h, 0.014, lean, a, GRASS_FOOT, GRASS_BLADE, 1);
       const c = rnd() < 0.8 ? head : colors[Math.floor(rnd() * colors.length)]!;
+      s.surface(SURFACE.plain);
       s.blob(x + Math.cos(a) * lean, h, z + Math.sin(a) * lean, 0.022, 0.014, 0.022, c, 0);
     }
     return s.build(false);
@@ -92,12 +159,25 @@ export const reeds: Kit = {
   build: (opts) => {
     const rnd = seeded(opts?.seed ?? 4);
     const s = new ShapeBuilder();
+    s.surface(SURFACE.grass);
     for (let i = 0; i < 7; i++) {
       const a = rnd() * Math.PI * 2;
       const r = rnd() * 0.07;
       const c = vary(REED, rnd, 1.5);
-      s.blade(Math.cos(a) * r, Math.sin(a) * r, 0.16 + rnd() * 0.12, 0.022, 0.02 + rnd() * 0.05, a, c, c);
+      const h = 0.16 + rnd() * 0.12;
+      s.grassBlade(
+        Math.cos(a) * r,
+        Math.sin(a) * r,
+        h,
+        0.024,
+        0.02 + rnd() * 0.05,
+        a,
+        mixHex(c, GRASS_FOOT, 0.3),
+        c,
+        1,
+      );
     }
+    s.surface(SURFACE.plain);
     // Two cattails standing above the blades.
     for (let i = 0; i < 2; i++) {
       const x = (rnd() - 0.5) * 0.08;
@@ -146,6 +226,7 @@ export const fern: Kit = {
     const rnd = seeded(opts?.seed ?? 6);
     const s = new ShapeBuilder();
     const n = 6;
+    s.surface(SURFACE.grass);
     for (let i = 0; i < n; i++) {
       const a = (i / n) * Math.PI * 2 + rnd() * 0.5;
       const c = vary(FERN, rnd, 1.6);

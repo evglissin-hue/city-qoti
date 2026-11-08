@@ -29,7 +29,7 @@ import type { LayerContext, RenderLayer } from './types';
 
 const SPECIES_KIT = ['', 'oak', 'birch', 'pine'];
 /** Mature trees come in this many shapes per species; young stages in one. */
-const VARIANTS = 2;
+const VARIANTS = 3;
 /** Camera distance (world units, at Medium) beyond which trees use their low detail mesh. */
 export const TREE_LOD_DISTANCE = 72;
 /** V1C: a tree with no building within this many tiles is forest (far level sooner on Low and Medium). */
@@ -75,7 +75,7 @@ export function markPine(g: BufferGeometry, pine: boolean): void {
 /** Tints: warm, cool and plain, a little brighter or darker. */
 function tint(species: number, x: number, z: number): [number, number, number] {
   const warm = hash2(x, z, 51);
-  const value = 0.8 + hash2(x, z, 53) * 0.2;
+  const value = 0.77 + hash2(x, z, 53) * 0.23;
   // Broad patches share a mood, so the forest varies in swathes as well as tree by tree.
   const mood = hash2(x >> 3, z >> 3, 57);
   let r = 1;

@@ -356,6 +356,11 @@ export class ScatterField {
  * gaps you can see the boughs through) and carry blossom in early spring. Snow lies on every
  * upward face, deepest on the pines' tiers. The storm bends crowns a little further. All of it is
  * static between steps (the sway runs on `env.staticTime`), so the still-frame cache holds.
+ *
+ * P1: grass faces (`surface` 10: tufts, reeds, ferns, flower stems) sway by their own height along
+ * the blade (a weight growing towards the tip, whatever the tuft's height in the world), in gusts
+ * that travel across the field from the world position, stronger in a storm. They take the season's
+ * tint, go to straw and gold in autumn, dull in winter, and carry snow on their upper blades.
  */
 export function createFoliageMaterial(env: WorldEnv): MeshStandardMaterial {
   const m = new MeshStandardMaterial({ vertexColors: true, roughness: 0.92, metalness: 0 });
@@ -384,6 +389,8 @@ export function createFoliageMaterial(env: WorldEnv): MeshStandardMaterial {
           'varying vec3 vQWorld;',
           'varying vec3 vQUp;',
           'varying float vQSeed;',
+          'varying float vQGrass;',
+          'varying float vQBlade;',
         ].join('\n'),
       )
       .replace(
@@ -398,16 +405,32 @@ export function createFoliageMaterial(env: WorldEnv): MeshStandardMaterial {
           'mat4 qModel = modelMatrix;',
           '#endif',
           'vQLeaf = step(abs(surface - 13.0), 0.5);',
+          // P1: grass (surface 10) sways by its own height along the blade, not the world's.
+          'float qGrass = step(abs(surface - 10.0), 0.5);',
+          'float qBlade = clamp(transformed.y / 0.34, 0.0, 1.0);',
+          'vQGrass = qGrass;',
+          'vQBlade = qBlade * qGrass;',
           'vQPine = tkind;',
           'vQSeed = fract(sin(dot(qBase.xz, vec2(12.9898, 78.233))) * 43758.5453);',
           // Bare branches: a deciduous crown draws in toward its trunk.
           'float qThin = vQLeaf * (1.0 - tkind) * uBare;',
           'transformed.xz *= 1.0 - 0.18 * qThin;',
           'float qPhase = qBase.x * 0.37 + qBase.z * 0.61;',
-          'float qSway = max(transformed.y - 0.25, 0.0);',
+          'float qSway = max(transformed.y - 0.25, 0.0) * (1.0 - qGrass);',
           'float qWind = 1.0 + uStorm * 1.6;',
           'transformed.x += sin(uTime * (1.3 + uStorm) + qPhase) * qSway * qSway * 0.035 * qWind;',
           'transformed.z += cos(uTime * (1.05 + uStorm) + qPhase * 1.3) * qSway * qSway * 0.025 * qWind;',
+          // Gusts travel across the field (the phase comes from the world position), patchy and
+          // stronger in a storm, with a small steady rustle under them.
+          'if (qGrass > 0.5) {',
+          '  float qw = qBlade * qBlade;',
+          '  float qGust = 0.5 + 0.5 * sin(dot(qBase.xz, vec2(0.17, 0.13)) - uTime * 1.6);',
+          '  float qPatch = 0.5 + 0.5 * sin(dot(qBase.xz, vec2(-0.045, 0.06)) + uTime * 0.31);',
+          '  float qA = (0.22 * sin(uTime * 1.7 + qPhase) + 0.78 * qGust * (0.35 + 0.65 * qPatch)) * qw * 0.075 * qWind;',
+          '  float qB = 0.02 * cos(uTime * 2.3 + qPhase * 1.7) * qw * qWind;',
+          '  vec3 qD = (vec4(0.8 * qA - 0.6 * qB, 0.0, 0.6 * qA + 0.8 * qB, 0.0) * qModel).xyz;',
+          '  transformed += qD / max(dot(qModel[0].xyz, qModel[0].xyz), 0.0001);',
+          '}',
           'vQWorld = (qModel * vec4(transformed, 1.0)).xyz;',
           'vQUp = normalize(mat3(qModel) * objectNormal);',
         ].join('\n'),
@@ -427,6 +450,8 @@ export function createFoliageMaterial(env: WorldEnv): MeshStandardMaterial {
           'varying vec3 vQWorld;',
           'varying vec3 vQUp;',
           'varying float vQSeed;',
+          'varying float vQGrass;',
+          'varying float vQBlade;',
           NOISE_GLSL,
         ].join('\n'),
       )
@@ -470,9 +495,22 @@ export function createFoliageMaterial(env: WorldEnv): MeshStandardMaterial {
           '      if (hole < (uBare - 0.3) * 0.85 * (1.0 - far)) discard;',
           '    }',
           '  }',
-          // Snow on upward faces: the pines hold it in thick tiers, bare twigs a dusting.
+          // P1: grass takes the season's tint, goes to straw and gold in autumn (the tips first) and
+          // dull and flat in winter.
+          '  if (vQGrass > 0.5) {',
+          '    c *= uSeasonTint;',
+          '    float glum = dot(c, vec3(0.2126, 0.7152, 0.0722));',
+          '    float gn = qNoise(vQWorld.xz * 1.3 + 4.0);',
+          '    vec3 straw = mix(vec3(0.74, 0.58, 0.24), vec3(0.64, 0.4, 0.13), gn);',
+          '    float ak = uAutumn * (0.55 + 0.45 * vQBlade) * (0.75 + 0.25 * gn);',
+          '    c = mix(c, straw * (0.5 + glum * 1.5), clamp(ak, 0.0, 0.9));',
+          '    float dull = clamp(uSnow * 0.55 + uBare * 0.3, 0.0, 0.7);',
+          '    c = mix(c, vec3(0.52, 0.47, 0.34) * (0.75 + glum * 1.6), dull);',
+          '  }',
+          // Snow on upward faces: the pines hold it in thick tiers, bare twigs a dusting. Blades
+          // take it by their own height, on the upper part, since they stand nearly upright.
           '  if (uSnow > 0.001) {',
-          '    float up = smoothstep(0.3, 0.85, vQUp.y);',
+          '    float up = mix(smoothstep(0.3, 0.85, vQUp.y), mix(0.45, 1.0, smoothstep(0.1, 0.6, vQBlade)), vQGrass);',
           '    float hold = mix(0.85, 0.8, vQPine) * (1.0 - decid * uBare * 0.7);',
           '    float n = qNoise(vQWorld.xz * 5.0 + vQWorld.y * 2.0);',
           '    float cover = up * hold * smoothstep(0.2, 0.6, uSnow * 1.2 + n * 0.4 - 0.2);',
@@ -483,6 +521,6 @@ export function createFoliageMaterial(env: WorldEnv): MeshStandardMaterial {
         ].join('\n'),
       );
   };
-  m.customProgramCacheKey = () => 'qoti-foliage-c5e';
+  m.customProgramCacheKey = () => 'qoti-foliage-p1';
   return m;
 }
