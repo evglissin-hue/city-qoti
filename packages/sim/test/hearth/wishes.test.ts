@@ -50,7 +50,28 @@ const CASES: Record<string, Case> = {
     },
     grant: (f) => road(f.state, 'path', 81, 51, 81, 55),
   },
+  // P1 (playtest): offered only where no well's radius reaches home, granted once a well serves it.
   'a-well-closer': {
+    setup: (f) => {
+      rehouse(f, f.households[2], 140, 140);
+    },
+    grant: (f, w) => build(f.state, 'well', homeOf(f.state, w).x, homeOf(f.state, w).z - 2),
+  },
+  // P1 (playtest): home is inside the well's radius, but the well already serves all it can.
+  'a-second-well': {
+    setup: (f) => {
+      // The Thistledowns, served first (lowest id), grow to 28 and leave the well no room.
+      const h = findById(f.state.households, f.households[0])!;
+      const base = findById(f.state.residents, h.members[0]!)!;
+      for (let k = 0; k < 25; k++) {
+        const r = JSON.parse(JSON.stringify(base)) as typeof base;
+        r.id = f.state.nextId++;
+        r.given = `Cousin ${k + 1}`;
+        r.bond = 5;
+        f.state.residents.push(r);
+        h.members.push(r.id);
+      }
+    },
     grant: (f, w) => build(f.state, 'well', homeOf(f.state, w).x, homeOf(f.state, w).z - 2),
   },
   'bakery-nearby': {
@@ -124,7 +145,8 @@ const CASES: Record<string, Case> = {
 describe('every template', () => {
   it('has a test case', () => {
     for (const t of content.wishes) expect(CASES[t.id], t.id).toBeDefined();
-    expect(content.wishes).toHaveLength(12);
+    // The twelve I1 wishes and P1's A Second Well.
+    expect(content.wishes).toHaveLength(13);
   });
 
   for (const t of content.wishes) {

@@ -14,6 +14,7 @@ import {
   decorGroupsOf,
   GROUP_LABEL,
   groupsOf,
+  lostTownHall,
   type BuildingGroup,
   type BuildingLock,
   type Chain,
@@ -301,7 +302,7 @@ function BuildingPicker({ session, tool }: { session: Session; tool: Tool }) {
   void m.revision.value;
   void m.town.value;
   const mode = m.settings.value.mode;
-  const all = buildingChoices(mode, session.ui.lens.value);
+  const all = buildingChoices(mode, session.ui.lens.value, lostTownHall(m));
   const locks = new Map(all.map((d) => [d.id, buildingLock(m, d)] as const));
   const defs = all.filter((d) => locks.get(d.id)?.kind !== 'rank');
   const later = all.filter((d) => locks.get(d.id)?.kind === 'rank');

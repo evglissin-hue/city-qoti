@@ -57,11 +57,24 @@ export function buildingGroup(def: BuildingDef): BuildingGroup {
   return groupOfChain(def);
 }
 
-/** Buildings the picker offers: the valley mode's, and in the Hearth lens only the homely ones. */
-export function buildingChoices(mode: ValleyMode, lens: Lens): BuildingDef[] {
+/**
+ * P1 (playtest): true when a standard valley has lost its town hall (saves from before the hall was
+ * kept), so the picker offers a replacement the townsfolk raise at once.
+ */
+export function lostTownHall(m: Pick<Mirror, 'buildings' | 'settings'>): boolean {
+  if (m.settings.value.mode !== 'standard') return false;
+  for (const b of m.buildings.values()) if (b.def === 'town-hall') return false;
+  return true;
+}
+
+/**
+ * Buildings the picker offers: the valley mode's, and in the Hearth lens only the homely ones.
+ * `raiseHall` adds the town hall to a standard valley that has lost its own (P1).
+ */
+export function buildingChoices(mode: ValleyMode, lens: Lens, raiseHall = false): BuildingDef[] {
   return (
     content.buildings
-      .filter((d) => !d.modes || d.modes.includes(mode))
+      .filter((d) => !d.modes || d.modes.includes(mode) || (raiseHall && d.id === 'town-hall'))
       // I2 (C4C): grown-only defs (shops, workshops, farmsteads, townhouses) come up on lots.
       .filter((d) => mode !== 'standard' || !d.grows || !!d.grows.handPlaced)
       .filter((d) => lens === 'ledger' || d.lane !== 'ledger')
