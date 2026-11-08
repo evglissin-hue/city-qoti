@@ -47,6 +47,7 @@ Your brief says which paths you own. Outside them, make only small, necessary ed
 
 ## Workflow
 
+- **Build and review loop** (standing rule): every big build iteration runs as the loop in `docs/spec/31-parallel-development.md`: an Opus max-effort master plans and briefs, lower-tier `executor` agents (`.claude/agents/executor.md`, Sonnet) build, then the master checks quality and plays it from the player's chair, one or two rounds before the PR.
 - Branch `cycle/<id>-<slug>` from `main`; one PR per cycle into `main`, using the PR template.
 - Before opening the PR: typecheck, lint, unit tests, build, e2e and bench pass.
 - Update the spec where behavior differs from it, add a line to `CHANGELOG.md`, and update your row in `docs/build/README.md`.
