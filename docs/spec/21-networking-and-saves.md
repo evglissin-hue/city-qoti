@@ -4,7 +4,7 @@
 
 Deterministic lockstep with a relay (P48). Both browsers run the same simulation. The room (a Cloudflare Durable Object online, `LocalRoom` offline) collects commands, orders them into **turns**, stores the log and snapshots, and relays presence. It never runs the simulation.
 
-- A turn is emitted every 100 ms of real time while at least one seat is connected. Each turn carries the commands received since the last one, in arrival order, with server-injected `sys.*` commands first.
+- A turn is emitted every 100 ms of real time while at least one seat is connected (and once more after the last seat leaves, to record its `sys.seatLeft`). Each turn carries the commands received since the last one, in arrival order, with server-injected `sys.*` commands first.
 - The sim decides how many ticks a turn advances (`effectiveSpeed`, see `20-architecture.md`). Turns therefore carry no speed.
 - Empty turns are broadcast (they advance time) but not stored: the log stores only turns with commands; replay fills the gaps.
 
@@ -18,7 +18,6 @@ type C2S =
   | { k: 'presence'; cursor?: [number, number]; tool?: string; cam?: [x: number, z: number, dist: number, yaw: number] }
   | { k: 'ping'; x: number; z: number; kind: 'look' | 'help' | 'build' }
   | { k: 'emote'; id: string }
-  | { k: 'time.sync'; t0: number }
   | { k: 'hash'; t: number; h: string }
   | { k: 'snapshot'; t: number; simVersion: string; data: string }   // base64 of gzip
   | { k: 'bye' };
@@ -32,7 +31,6 @@ type S2C =
   | { k: 'ping'; seat: SeatId; x: number; z: number; kind: 'look' | 'help' | 'build' }
   | { k: 'emote'; seat: SeatId; id: string }
   | { k: 'roster'; roster: RosterEntry[] }
-  | { k: 'time.sync'; t0: number; server: number }
   | { k: 'needSnapshot'; reason: 'periodic' | 'desync' | 'version' }
   | { k: 'resync'; snapshot: { t: number; simVersion: string; data: string }; log: Turn[]; nextTurn: number }
   | { k: 'reloadRequired'; simVersion: string }
@@ -55,6 +53,9 @@ class RoomCore {
   message(conn: Conn, msg: C2S): void;
   close(conn: Conn): void;
   step(): void;                            // the adapter calls this every turnMs
+  receive(conn: Conn, raw: string): void;  // C1: parses a frame and enforces the size limits
+  ready(): Promise<void>;                  // C1: storage loaded
+  flush(): Promise<void>;                  // C1: queued storage writes done
 }
 interface Conn { send(msg: S2C): void; close(code: number, reason: string): void }
 interface RoomStorage {
@@ -66,7 +67,7 @@ interface RoomStorage {
 }
 ```
 
-- `StoredMeta` holds the valley meta, SHA-256 hashes of the seat tokens, `nextTurn` and the active `simVersion`.
+- `StoredMeta` holds the valley meta, SHA-256 hashes of the seat tokens, `nextTurn` (written every 50 turns and when the last seat leaves) and the active `simVersion`.
 - Storage operations are queued so their order matches turn order.
 - A seat can be connected once; a second connection for the same seat replaces the first (handy after a laptop sleeps).
 
@@ -76,29 +77,30 @@ interface RoomStorage {
 2. The room replies `welcome` with the latest snapshot (or `null` for a fresh valley, which the client generates from the seed), the stored turns after it, and `nextTurn`. It then injects `sys.seatJoined` into the next turn.
 3. The client's worker loads the snapshot, replays turns up to `nextTurn - 1` as fast as it can (filling empty turns), and buffers live turns meanwhile. Status shows "catching up" until done.
 4. Snapshots every 300 turns keep catch-up under about a second.
+5. Reconnects: when the socket closes, or no frame arrives for 5 s (the room sends a turn every 100 ms, so silence means a sleeping laptop or lost wifi), the client replaces it after 0.5 s, then 1 s, 2 s and so on up to 30 s, with 25 percent jitter. The `online` event and the tab becoming visible retry at once. Closes that retrying cannot fix (bad hello, replaced by another tab, bad token, unknown valley, version mismatch) stop the retries. Each new `welcome` re-initializes the worker from its snapshot and log while the valley stays on screen; status goes `offline`, `connecting`, `catching-up`, then `live`.
 
 ## Snapshots and backups
 
-- Every 300 turns (30 s) the room sends `needSnapshot` to the seat connected longest; the client replies with a snapshot of its current turn. The room stores it and prunes turns up to it.
-- Clients also send a snapshot when someone pauses and on `bye` (closing the tab, `visibilitychange` to hidden).
+- Every 300 turns (30 s) the room sends `needSnapshot` to the seat connected longest; the client replies with a snapshot of its current turn. The room stores it and prunes turns up to it. It accepts unsolicited snapshots too, ignores ones older than its latest, and keeps the latest 20 plus the newest snapshot of each in-game season (`retainSnapshots`).
+- The room also asks the longest-connected seat for a snapshot when a turn sets speed 0. Clients send one when they pause and when the tab is hidden (`visibilitychange`), and label every snapshot with the season ("Year 2, Summer", the optional `label` on the `snapshot` message).
 - **Retention**: the latest 20 snapshots, plus one per in-game season as a named backup ("Year 2, Summer").
 - **Export** (`.qoti`): gzip JSON `{ format: 1, meta, snapshot, log }`. **Import** creates a new valley from a file.
 
 ## Desync detection
 
 - Every 50 turns each client sends `hash` for that turn.
-- If two seats report different hashes for the same turn: the room asks the seat connected longest for a snapshot, then sends `resync` to the other seat(s). Both clients keep a debug dump (snapshot plus the last 300 turns) for download from the debug overlay.
+- If two seats report different hashes for the same turn: the room asks the seat connected longest for a snapshot (`needSnapshot` with reason `desync`, once until it answers or leaves), stores it like any snapshot, then sends `resync` to the other seat(s) with the snapshot, the stored turns after it and `nextTurn`; live turns emitted meanwhile are buffered and follow the `resync`. With `?debug`, `window.__qoti.corrupt()` applies a local-only turn so tests can force this. Both clients keep a debug dump (snapshot plus the last 300 turns) for download from the debug overlay.
 - More than 3 desyncs in an hour shows a "this is a bug, please send the dump" notice.
 
 ## Version changes
 
+- Until C2C builds this hand-over, a hello with a different `simVersion` is refused with `VERSION_MISMATCH` while another seat is connected; with nobody else connected, the newcomer's version becomes the active one.
 - A client whose `simVersion` differs from the room's active version, while seats with the old version are connected: the room asks an old client for a snapshot, sends `reloadRequired` to the old clients, then admits the new client from that snapshot. Nothing is lost.
 - If no one is connected, the new client loads the latest snapshot (migrating by `saveVersion`) and becomes the active version. Turns after that snapshot from an older `simVersion` cannot be replayed and are dropped (at most about 30 s of play, rarer thanks to snapshots on pause and leave). The client shows a short notice.
 
 ## Presence
 
-- Never part of sim state. Presence is throttled to 5 messages per second per seat and sent only while something changes. Pings and emotes are rate-limited to 2 per second.
-- `time.sync` [I2]: the client sends its clock as `t0`; the room answers at once with `t0` and its own clock (`server`, milliseconds from the Durable Object's `Date.now()`). The client sends a burst of 5 on connect, keeps the median offset, re-estimates every 60 s, and uses it only to align synced music between two laptops in one room (`18-audio.md`). Never part of sim state; rate-limited to a burst of 5 on connect, then 1 per second.
+- Never part of sim state. A cursor is the world point under the pointer, to a 32nd of a tile, sent up to 10 times a second while it moves (the room allows 12 per second per seat) and an empty presence once the pointer has been off the valley for a moment. The receiving client plays the points back a gap or so behind, at the pace they came, and smooths the corners, so a partner's cursor glides instead of hopping between tiles. Pings and emotes are rate-limited to 2 per second. The roster counts a seat as connected from its hello until it leaves.
 - The room relays presence to the other seats immediately (not in turns).
 
 ## Offline solo
@@ -114,9 +116,12 @@ One Cloudflare Worker named `city-qoti` serving the client build as static asset
 | `GET /*` | client (single-page fallback to `index.html`) |
 | `POST /api/valleys` | create: returns `valleyId` and two seat tokens with invite links |
 | `GET /api/valleys/:id/ws` | WebSocket upgrade, handled by the valley's Durable Object |
-| `GET /api/valleys/:id/export` | download `.qoti` (seat token in an `Authorization` header) |
-| `POST /api/valleys/import` | create a valley from a `.qoti` file |
-| `GET /version.json` | `{ simVersion, build }` for update checks |
+| `GET /api/valleys/:id/export` | download `.qoti` (seat token in an `Authorization` header; C2C, answers 501 until then) |
+| `POST /api/valleys/import` | create a valley from a `.qoti` file (C2C, answers 501 until then) |
+| `GET /version.json` | `{ simVersion, build }` for update checks (a static file emitted by the client build) |
+| `PUT /api/valleys/:id/images/:entry` | [I3] store a Chronicle snapshot for an entry (seat token in an `Authorization` header) |
+| `GET /api/valleys/:id/images/:entry` | [I3] that snapshot, or 404 (seat token required) |
+| `GET /api/valleys/:id/images` | [I3] the entry ids that have a snapshot (seat token required) |
 
 Durable Object SQLite schema:
 
@@ -124,7 +129,16 @@ Durable Object SQLite schema:
 CREATE TABLE meta (k TEXT PRIMARY KEY, v TEXT);
 CREATE TABLE turns (t INTEGER PRIMARY KEY, cmds TEXT);
 CREATE TABLE snapshots (t INTEGER PRIMARY KEY, sim_version TEXT, label TEXT, created INTEGER, data BLOB);
+CREATE TABLE images (entry INTEGER PRIMARY KEY, type TEXT, created INTEGER, data BLOB); -- [I3]
 ```
+
+**Chronicle snapshots** [I3] (C5F; `packages/protocol/src/images.ts`): when a notable Chronicle entry arrives with a `snapshot` (focus and radius), the lowest connected seat's client takes a small picture with the renderer's `capture` (320 by 200, WebP) and uploads it keyed by valley and entry id. The other seat fetches it a few seconds later. One `handleImage` serves the Worker's `ValleyRoom` (its SQLite `images` table), the dev relay (memory, saved beside the valley as `<id>.images.json`) and solo valleys (IndexedDB, an `images` store, through the same function), so the rules hold everywhere:
+
+- A seat token in `Authorization: Bearer <token>` on every call; anything else is 401.
+- WebP, PNG or JPEG only (415 otherwise; the first bytes must match the type, 400 otherwise), at most 256 KB (413).
+- The first write for an entry wins (a second PUT answers 200 with `stored: false`), so an entry gets one picture whichever seat sent it.
+- At most 200 pictures a valley; past that the oldest entries' pictures go.
+- Pictures never enter sim state, hashes or turns, and in I3 a `.qoti` export leaves them out (a valley moved online or opened from a file starts with an empty album).
 
 - The turn timer is a `setInterval` while at least one socket is open (standard WebSocket accept, not hibernation). If timers prove unreliable on the platform, fall back to client heartbeats: each client sends a heartbeat every 100 ms and the room emits a turn on the first heartbeat of each new 100 ms slot.
 - Invite links look like `https://<host>/#v=<valleyId>&s=1&k=<token>`. The fragment never reaches servers or logs; the client moves it into local storage and clears it from the address bar.
@@ -141,4 +155,5 @@ Two players for a few hours a day should fit comfortably in the free tier; check
 
 - Valley ids and seat tokens are 128-bit random values. Tokens are stored only as SHA-256 hashes and never logged.
 - Limits: `cmd` 8 KB, `snapshot` 8 MB, `presence` 256 B; 30 commands per second per seat. Oversized or excessive messages get an `error` and are dropped.
+- [I3] Chronicle pictures are the only stored files: seat token required to read or write, 256 KB each, images only (type and first bytes checked), 200 a valley, never shared beyond the valley's two seats.
 - Same-origin only. No analytics, no third-party scripts, no personal data beyond display names.

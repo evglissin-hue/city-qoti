@@ -64,7 +64,7 @@ Two per resident, compatible pairs only (no Cheerful + Grumpy).
 | Sporty | wants greens and paths; walks faster |
 | Romantic | forms couples [I2]; loves lantern-lit spots |
 | Thrifty | buys cheapest substitutes [I2]; saves more |
-| Generous | gifts to friends; donates to festivals [I3] |
+| Generous | gifts to friends; donates to festivals [I3] (C5B: buys a unit of the menu at noon on the festival day when the household can pay) |
 | Artistic | loves variety (charm variety weight x2); paints signs |
 | Practical | productivity +5%; dislikes clutter |
 | Night Owl | schedule +2 h |
@@ -82,7 +82,8 @@ Two per resident, compatible pairs only (no Cheerful + Grumpy).
 ## Arrival and departure [I1]
 
 - **Attractiveness** `A` (0 to 100), recomputed each morning: vacant homes (weight 30), food cover in days (20), open jobs (20), average charm near vacant homes (15), average mood (15).
-- **Arrivals** at 08:00 if there is a vacant home and `A >= 40` *(tune)*: `k = 1 + floor(vacancies / 4)` households, max 3 per day. They walk in from the valley gate and claim homes in order of desirability for their species.
+- **Arrivals** in waves every two hours from 08:00 to 16:00 (playtest round five; once a morning was too slow) if there is a vacant home and `A >= 40` *(tune)*, with `A` weighed afresh at each wave after the first: `k = 1 + floor(vacancies / 4)` households, max 3 per wave. They walk in from the valley gate and claim homes in order of desirability for their species.
+- **Arrivals weigh the winter** [I3, C5A]: from autumn to the thaw a family comes only while the larder could feed the town, them included, to the thaw with a little in hand (`14-challenge.md`, Seasons, As built).
 - **Household makeup** *(tune)*: single 25%, couple 30%, family with 1 to 3 children 35%, elder pair 10%.
 - **Departure**: a household whose average mood stays below the departure threshold (25 at Standard, see dials) for 3 consecutive days leaves at 09:00, with a Chronicle line and a short farewell note.
 - Sandbox: no residents.
@@ -99,7 +100,7 @@ Years are 24 days. Stages *(tune)*: child 0 to 3 years, young 3 to 5, adult 5 to
 | Weddings | I2 | a couple marries at the next festival or on a chosen day; mini event, Chronicle entry |
 | Births | I2 | a couple with a spare bed and mood 60+ may have a child (chance per season) |
 | Apprenticeships | I2 | young residents learn a trade at a workshop for 1 season, then take skilled jobs |
-| Opening a shop | I3 | an adult with savings, a fitting trait and a vacant shop lot opens a named shop |
+| Opening a shop | I3 | an adult with savings, a fitting trait and a vacant shop lot opens a named shop. As built (C5B): once a season, on day 2 at 10:00 from Village rank, the first grown-up whose household has 40 coins put by and who is Artistic, Cheerful, Generous, Practical, Sweet-toothed or Thrifty grows the shop zone's shop on a free shop lot (`growLot`) with a sign of their family name and their kind of shop ("Thistledown Sweets"), a Chronicle line and a letter; the town's builders put it up, so no money moves; one shop a family |
 | Retiring | I2 | elders stop working |
 | Moving to the seaside | I2 | elders past 20 years may leave to "live by the sea with family" (warm Chronicle entry). Nobody dies in City Qoti. |
 
@@ -113,7 +114,7 @@ Default day, shifted by Night Owl (+2 h) and Early Bird (-2 h):
 | 06:00 to 07:30 | morning at home, breakfast | home | home |
 | 07:30 to 08:00 | commute | school [I2] or play near home | stroll |
 | 08:00 to 17:00 | work (if employed), else errands and leisure | school or play | leisure, visiting friends |
-| 17:00 to 21:00 | shopping if pantry low, leisure, visiting friends | play | leisure |
+| 17:00 to 21:00 | shopping if pantry low, leisure, visiting friends (builders and porters work until 19:00) | play | leisure |
 | 21:00 to 22:00 | walk home | home | home |
 
 - **Leisure spot**: the highest-charm reachable tile within 15 walking minutes, weighted by species tastes and traits; friends often choose the same spot.
@@ -186,7 +187,7 @@ Initial cast:
 | Mother Thornbury | hedgehog | an herbalist; herb gardens, a clinic, the first remedies | Herbalist's Cottage and clinic upgrade |
 | Barnaby Ashcombe | badger | a stonemason; quarries, walls, the Watch, a proper bridge | Stone Bridge landmark |
 | Odette Fenwick | fox | a merchant; market days, the trading post, the first contract | Market Hall |
-| Juniper Reed | rabbit | a musician; a bandstand, festivals, a choir | Bandstand Green, festival music upgrade and the choir |
+| Juniper Reed | rabbit | a musician; a bandstand, festivals, a choir | Bandstand Green and festival music upgrade |
 
 Story residents never leave and are marked in the UI. Their letters are the main way new systems are introduced (P6: teach through residents).
 
@@ -195,3 +196,57 @@ Story residents never leave and are marked in the UI. Their letters are the main
 - Resident inspector: portrait, name, species, traits, household, home, job, mood with breakdown, needs, friends, wish, short bio and history.
 - Follow camera on any resident.
 - Mood and wish bubbles above heads (toggleable).
+
+## As built in I1 (C3A)
+
+Where the I1 implementation fills in or differs from the sections above (`packages/sim/src/systems/residents`, `systems/movement`):
+
+- **Tastes**: each `Taste` is measured as a presence from 0 to 1 around the home door (charm category averages, tags of buildings and decor, water, homes nearby for crowds, trees, height above the low ground, quiet) times its weight; `absent: true` counts the missing part ("far from water", "treeless streets"). Home desirability adds 0.15 x average charm (radius 3) and +4 for a well within 8 tiles.
+- **Arrivals**: the founding arrival (first day, empty valley) fills every vacant home, up to 3, with working families of four of different species. Later arrivals pick a species weighted by the best vacant home for it, less likely the more households of that species live here, then claim that home.
+- **Departure** thresholds follow the economy dial (15, 25, 35); a household whose home is removed moves to the best vacant home for its species, or leaves at once.
+- **Schedules**: every resident thinks every 10 ticks at their own phase; departures carry a personal jitter of about 12 minutes. Free time is spent in outings of about an hour (home, a leisure spot, a friend's home, a stroll from home; children play within 4 tiles of home), re-chosen at each resident's own hour boundary. Hedgehogs ramble round the hedges after 22:00 on two nights in three. Children keep Early Bird hours but not Night Owl ones.
+- **Leisure spot**: features within 12 tiles (Manhattan; Curious x1.5, Homebody x0.5): benches and seats, flowers, trees, the well, water's edge, the market for foxes and the bakery for mice, scored by appeal, charm, species, traits (Romantic and lanterns, Shy and quiet, Sporty and greenery, Sweet Tooth and the bakery), distance, friends already there (+8) and a little whim.
+- **Food** is eaten at 07:00 (breakfast), not 06:00. Households of 4 or more always want a full pantry, so someone shops most evenings.
+- **Water**: wells serve households in id order, each from its nearest well in range with capacity left. Needs other than food move a quarter of the way to their target each hour, staggered by household.
+- **Beauty** target: 0.7 x min(100, charm x 100 / tier threshold (settler 25)) + 30 + the home's taste score, clamped.
+- **Friendships**: an hour together is worth 3 points at a friend's home, 2 outdoors at the same spot, 1 at work (counted every other hour); neighbors within 6 tiles gain 1 point a day with their three nearest neighboring households; children befriend children, family does not count. A full list makes room only by dropping its weakest level 0 acquaintance. Shy friendships decay every other day.
+- **Bond**: `addBond` gains from wishes stop at 3 hearts; `addBond(..., 'other')` reaches 5; long residence adds a heart every 2 years.
+- **Movement**: a tile takes exactly its ticks (road 5, grass 10, forest floor and fields 15, rock 20; Sporty x0.8), by the tile being entered. Walks replan when the next tile becomes blocked; with no way left the walker stops, marked stuck, goes home, and after an hour finds their way in regardless.
+- **Agent frames**: walkers keep to the left of their way, residents sharing a tile spread round it, and idle residents face what they came to see.
+
+## Lives and story characters (as built in I2, C4D)
+
+`packages/sim/src/systems/residents/life.ts` and `systems/stories`; content in `packages/content/src/lives.ts` and `stories.ts`. Every life draw comes from the `misc` stream, so life events never change who arrives next.
+
+- **Couples** (06:00): two young or adult residents of different households, not parent and child or siblings, with compatible traits (no clash) and a mutual friendship of level 2 when one is Romantic, level 3 otherwise *(tuned down from 4 and 5: most households arrive married)*; a 50% chance each morning, at most two couples a day. They move in together when a home fits: one who lives alone joins the other's home if it has a bed, else both take the best vacant home as a new household named for both families ("Thistledown-Underbough"); otherwise they retry each morning. Savings follow: a share of the old household's, or all of it from the last member.
+- **Arrivals come married**: the first two grown-ups of an arriving couple, family or elder pair are partners, married on arrival.
+- **Weddings** (18:00): a couple of at least two days marries on the season's festival day (day 6), or on any evening if one of them is Romantic ("a day of their own choosing"). Mood +15 for three days, a hop, +5 for friends of level 2+, a Chronicle entry, `life.event`.
+- **Births** (06:00): a married couple living together, both mood 60+, with a spare bed and no child in the last three seasons, has a child with a 3.5% chance each morning *(tune)*. The child takes a parent's species, the family name (the household's when the parents' differ), one trait from a parent and one of their own.
+- **Apprenticeships** (06:00): with a school open (a built building tagged `school` or with id `school`) and education satisfaction 50+, a young resident starts a season (`APPRENTICE_DAYS`) at a workshop: the one they work at, or the nearest with an open job. At most two start a day; the job rebalance leaves apprentices be. Finished apprentices count as trained (`isTrained`) and move to the nearest open Craftsfolk job if there is one.
+- **Retiring**: elders stop working (`retired`), with a line when they leave a job.
+- **The seaside**: an elder past 20 years (with an elder partner, together) may go to live by the sea: 12% each morning, one departure a day. Their share of the household's savings leaves with them (`pay(..., 'outside')`), a Chronicle entry, and they walk out through the valley gate. Story characters never go.
+- **Words**: Chronicle and notice lines rotate through all their variants before any repeats, starting where the valley's seed says.
+- **Story characters** (hourly, offset 120, 07:00 to 21:00): an arc whose arrival condition holds moves its character in when at least two homes are vacant (they never take the last one), as a household of one walking in from the gate, with a Chronicle line and the hello letter. The first step opens four hours later; each step stays open at least twelve hours, then closes when its goal holds (goals bind to the character's home and nearest market). One letter an hour across all arcs. Story households never leave (no low-mood departure; with their home gone they wait for another).
+- **The cast in I2**: Pippa Quill (`inventor`, mouse: bread chain, a lantern, a sawpit by the river that brings the Water Wheel, six workshops, three innovations; finale: plans for a printing press), Odette Fenwick (`merchant`, fox: four goods at market, a request fulfilled, a seat and flowers by the stall, the Village Charter, a Trading Post, a standing order; finale: the Market Hall), Juniper Reed (`musician`, rabbit: charm 25 around her home, a plan approved, a wedding, four patterns, four lanterns; finale: the Bandstand Green and festival music). Arc ids name the calling so the registry puts the inventor first (the Water Wheel's condition names arc 0).
+
+## Jobs (as built, C3X)
+
+Residents take the open job that matters most, nearest first among equals:
+
+| Priority | Jobs |
+|---|---|
+| 0 | the first builder (town hall or yard), the first porter of each storehouse, and producers of whatever the town is short of: food when under three days of eating are in town (shelves, buffers and pantries), logs, planks or stone when stock is under what open sites need plus 20 |
+| 1 | the second builder, the second porter, stall vendors |
+| 2 | food producers when food is plentiful |
+| 3 | other producers |
+| 4 | further builders and porters |
+| 5 | jobs at a building that is stuck (no trees in reach, no fields, missing inputs) |
+
+Each hour one worker may move from a job two levels less important (or any job, when the open one makes something short) to the most important open job; workers on a Ledger task finish it first. Pausing a building lets its workers go, which is the Ledger's lever on labor.
+
+*As built (C4X tuning)*: the jobs rules did not change. Measured with the autoplayer over five seeds and 90 days:
+
+- About 65% of residents can work (the rest are children, elders and the retired).
+- Workers are at their workplace for about 95% of the working day, but a plot or hut makes only 2.5 to 3 food a worker a day against 6 to 9 on paper. The rest is lost to full output buffers waiting for porters, so storehouses (porters at priority 0 and 1) matter as much as farms.
+- A Village of 150 to 220 has 40 to 55% of its hands in food. Porters, builders, services and timber take most of the rest, which leaves few hands for the Craftsfolk chains (bread, cider, cloth, firewood).
+- Households save toward the next tier and treat themselves only from what is left over (see 13-ledger.md, Market and prices, C4X).

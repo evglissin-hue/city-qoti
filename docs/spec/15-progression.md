@@ -13,11 +13,19 @@ The Charter board at the Town Hall lists the goals for the next rank, each tagge
 | Market Town | I5 | 400 residents including 80 Merchants; 15 patterns; a 4-star festival; 20 Field Guide species; a weekly market with 10 goods; 2 seasons in surplus | a great flood or the Bandit Chief | Patrons, library, theater, tram, gas lamps, glassworks |
 | City | I5 | 900 residents including 100 Patrons; 25 patterns; a 5-star festival; 3 contracts kept; renown 4 | the Long Winter (two cold snaps) | city hall, railway, grand landmarks, new valleys |
 
+**Eras** [I4]: sealing the Town Charter opens the Age of Steam and sealing the City Charter the Bright Age (`18-eras.md`), each with its own moment, look and systems in both lanes.
+
+**The rank-up moment (I2, C4D)**: when the last goal is met, the County Clerk writes to both seats that the claim is open. Claiming at the Town Hall (`charter.claim`) puts the proclamation in the Chronicle, credited to the seats present, gives every resident a mood lift for two days and a hop for an hour, and sends `rank.up` with the proclamation for the UI's celebration (C4F). No trial in I2.
+
+*As built (C5A), trials*: the claim grants the rank as in I2; the trials system (00:08) then opens the Charter's trial for the next time its season comes round (a letter), runs it through that season measuring each day, and judges it the morning after. The Village's first winter is weathered when no household went a whole day without firewood and the larder (food, wheat and flour) never ran dry; weathered seals the Charter (a County letter, a Chronicle page, 3 renown), failed returns next winter and takes nothing. Kinds are rows in `TRIAL_KINDS` (winter now; raid and flood later). The Barometer needs a Watch House and a bell tower, the Seed Drill three farms and a smithy (both from Village rank).
+
 **Trials**: completing a Charter's goals announces the trial for day 5 of the next season, so there is an evening to prepare and one tense dusk to see it through. The rank is granted when the trial is weathered: the town keeps at least half of its food stock, or the raid is repelled, or everyone stays warm. A failed trial returns the next season; nothing else is lost beyond the trial's own damage.
 
 ## Renown [I3]
 
 Points from festivals, repelled raids, discovered patterns, kept contracts, royal visits and story finales. Levels 0 to 5. Effects: more and better arrivals, better trade terms (+2% per level), visitors and tourism coins [I4], notable visitors (commissions).
+
+*As built (C5B)*: levels at 0, 8, 25, 50, 90 and 150 points (Unknown, Spoken Of, Well Regarded, Admired, Celebrated, Storied). Sources: a festival 1 to 9 by stars, a newly discovered pattern 2, a story finale 5 (the three I2 finales carry `renown`), a commission 2 to 5, the sealed Charter's trial (C5A), repelled raids and send-offs (C5D's calls). Each change sends `renown.updated`; a new level writes a `renown-level` Chronicle line and a letter. Effects by level (`RenownDef.effects`): `trade` 2% a level better on the Trading Post's and the River Dock's prices (sell higher, buy lower), `arrivals` +5% a level on the town's pull, `visitors` notable visitors' commissions open at once (one from level 2, two from level 4). The River Dock needs renown 1 (`BuildingDef.requires.renown`).
 
 ## Innovations [I2]
 
@@ -25,11 +33,13 @@ Technology arrives through conditions in the town, shown as progress bars in the
 
 | Innovation | From | Condition | Unlocks |
 |---|---|---|---|
-| Wheelbarrows | I2 | a storehouse whose porters were 80%+ busy for 3 days | porters carry 6 |
+| Wheelbarrows | I2 | a storehouse whose porters were 80%+ busy for 3 days | porters carry 8 |
 | Carts | I2 | Village rank and 20+ planks per day | Cart Shed |
 | Cobbles | I2 | quarry output 20+ per day | streets |
 | Brick Kiln | I2 | a clay pit worked for 2 days | bricks |
 | Water Wheel | I2 | a sawpit within 3 tiles of the river and Pippa Quill's step 2 | water-powered sawmill (+80% output, noise) |
+
+*As built (C4C)*: hourly at offset 170 each innovation whose rank is reached updates its measure and bar (`innovation.updated` when it moves) and unlocks when its condition holds, with a notice. Brick Kiln counts days a clay pit dug clay (Hamlet rank, so the kiln is ready for the Village); Cobbles and Carts read yesterday's stone and planks; Wheelbarrows samples the busiest storehouse's share of porters out on trips each work hour and needs an average of 80% for three days in a row, from Village rank (a Hamlet's two porters are always busy, and I1 stays as tuned); Water Wheel is half for a sawpit within 3 tiles of water and half for the story step (`storyStep` arc 0, C4D's first arc). It unlocks the Water Sawmill.
 | Barometer | I3 | Watch House and Town Hall upgrade | 2-day forecasts |
 | Seed Drill | I3 | 3 farms and a smithy | +20% wheat |
 | Printing Press | I4 | library and paper mill | newspaper: +bond, +renown |
@@ -40,7 +50,7 @@ Technology arrives through conditions in the town, shown as progress bars in the
 
 ## Achievements [I1]
 
-Feats and stories, never "build 100 roads" (P42). Data-driven conditions, checked hourly. Rewards are cosmetics and options (a plaque, a decor piece, a title, a style), never raw power. Shared achievements hang as plaques in the Town Hall; each seat also keeps a personal journal of the feats it was credited with.
+Feats and stories, never "build 100 roads" (P42). Data-driven conditions, checked hourly (C3B: offset 150, after the patterns pass; credit goes to the seats behind the underlying event, such as the seat credited with a discovery or both seats for Built Together, else to the seats connected at the time). Rewards are cosmetics and options (a plaque, a decor piece, a title, a style), never raw power. Shared achievements hang as plaques in the Town Hall; each seat also keeps a personal journal of the feats it was credited with.
 
 | Achievement | From | Condition |
 |---|---|---|

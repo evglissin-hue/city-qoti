@@ -1,0 +1,1360 @@
+/* City Qoti paper theme: cream stationery, warm ink, storybook valley. */
+:root {
+  --paper: #f8f0de;
+  --paper-light: #fdf8ec;
+  --paper-deep: #efe2c4;
+  --ink: #4a3626;
+  --ink-soft: rgba(74, 54, 38, 0.66);
+  --ink-line: #5a4231;
+  --line: rgba(90, 66, 49, 0.42);
+  --sage: #7f9c6c;
+  --sage-deep: #5f7f50;
+  --ochre: #c48a3f;
+  --ochre-deep: #a8702c;
+  --river: #5f93b3;
+  --rose: #d98a76;
+  --hearth: var(--sage);
+  --ledger: var(--ochre);
+  --danger: #b0503f;
+  --radius: 12px;
+  --shadow:
+    0 1px 0 rgba(255, 255, 255, 0.7) inset, 0 3px 0 rgba(90, 66, 49, 0.12), 0 10px 24px rgba(60, 40, 20, 0.16);
+  --grain:
+    radial-gradient(circle at 20% 30%, rgba(140, 100, 60, 0.05) 0 1px, transparent 1.5px),
+    radial-gradient(circle at 70% 80%, rgba(140, 100, 60, 0.045) 0 1px, transparent 1.5px),
+    linear-gradient(170deg, var(--paper-light), var(--paper) 55%, var(--paper-deep));
+  --ui-scale: 1;
+  font-family: 'Alegreya Sans', 'Segoe UI', system-ui, sans-serif;
+  font-size: calc(16px * var(--ui-scale));
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#app {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  background: #b9dbe9;
+}
+
+h1,
+h2,
+h3 {
+  font-family: 'Alegreya', Georgia, serif;
+  font-weight: 700;
+  margin: 0;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+  background: var(--paper-light);
+  border: 1.5px solid var(--line);
+  border-radius: 10px;
+  padding: 6px 12px;
+  cursor: pointer;
+  box-shadow: 0 2px 0 rgba(90, 66, 49, 0.14);
+  transition:
+    background 140ms ease,
+    border-color 140ms ease,
+    box-shadow 140ms ease,
+    transform 140ms ease;
+}
+
+button:hover:not(:disabled) {
+  background: #fff6e2;
+  border-color: var(--ink-line);
+  transform: translateY(-1px);
+  box-shadow: 0 3px 0 rgba(90, 66, 49, 0.16);
+}
+
+button:active:not(:disabled) {
+  transform: translateY(1px);
+  box-shadow: 0 1px 0 rgba(90, 66, 49, 0.14);
+}
+
+/* The valley file picker's button, in the same paper as every other button (it was the browser's
+   own gray one on the title card). */
+input[type='file']::file-selector-button {
+  margin-right: 10px;
+  font: inherit;
+  color: var(--ink);
+  background: var(--paper-light);
+  border: 1.5px solid var(--line);
+  border-radius: 10px;
+  padding: 3px 12px;
+  cursor: pointer;
+  box-shadow: 0 2px 0 rgba(90, 66, 49, 0.14);
+}
+
+input[type='file']::file-selector-button:hover {
+  background: #fff6e2;
+  border-color: var(--ink-line);
+}
+
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+summary:focus-visible {
+  outline: 2px solid var(--river);
+  outline-offset: 2px;
+}
+
+button:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+button.primary {
+  background: linear-gradient(180deg, #8fad7b, var(--sage-deep));
+  border-color: var(--ink-line);
+  color: #fffaf0;
+  text-shadow: 0 1px 0 rgba(40, 50, 30, 0.35);
+}
+
+button.primary:hover:not(:disabled) {
+  background: linear-gradient(180deg, #9cba88, #6a8a5a);
+}
+
+button.danger {
+  color: var(--danger);
+  border-color: rgba(176, 80, 63, 0.55);
+}
+
+button.big {
+  padding: 11px 20px;
+  font-size: 1.08rem;
+  font-weight: 700;
+  border-radius: 14px;
+}
+
+input,
+select {
+  font: inherit;
+  color: inherit;
+  width: 100%;
+  padding: 7px 10px;
+  border: 1.5px solid var(--line);
+  border-radius: 10px;
+  background: #fffbf1;
+}
+
+input::placeholder {
+  color: rgba(74, 54, 38, 0.42);
+  font-style: italic;
+}
+
+.panel {
+  background: var(--grain);
+  border: 2px solid var(--ink-line);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+
+.muted {
+  color: var(--ink-soft);
+  font-size: 0.9em;
+}
+
+.error {
+  color: var(--danger);
+}
+
+/* Title screen: a storybook valley drawn with gradients only. */
+.title-screen {
+  position: relative;
+  height: 100%;
+  display: grid;
+  place-items: center;
+  overflow: auto;
+  background:
+    radial-gradient(circle at 78% 18%, #fff4cf 0 46px, rgba(255, 236, 180, 0.55) 47px 70px, transparent 71px),
+    radial-gradient(ellipse 120px 34px at 18% 22%, rgba(255, 255, 255, 0.85) 60%, transparent 62%),
+    radial-gradient(ellipse 80px 24px at 24% 19%, rgba(255, 255, 255, 0.9) 60%, transparent 62%),
+    radial-gradient(ellipse 110px 30px at 62% 12%, rgba(255, 255, 255, 0.7) 60%, transparent 62%),
+    linear-gradient(180deg, #a9d3e8 0%, #cfe6e6 45%, #f6e7c6 75%, #f3dcb0 100%);
+}
+
+/* Fixed, like the sky behind them: the title scrolls when More is open on a short screen, and
+   hills that scrolled away left a bare band of sand along the bottom. */
+.title-screen::before,
+.title-screen::after {
+  content: '';
+  position: fixed;
+  left: -10%;
+  right: -10%;
+  pointer-events: none;
+}
+
+.title-screen::before {
+  bottom: 0;
+  height: 42%;
+  background:
+    radial-gradient(ellipse 34% 60% at 15% 100%, #9dbb84 98%, transparent 100%),
+    radial-gradient(ellipse 40% 70% at 82% 100%, #a9c48e 98%, transparent 100%),
+    radial-gradient(ellipse 50% 46% at 50% 100%, #8eae78 98%, transparent 100%);
+}
+
+.title-screen::after {
+  bottom: 0;
+  height: 18%;
+  background:
+    radial-gradient(ellipse 60% 100% at 30% 100%, #7f9f69 98%, transparent 100%),
+    radial-gradient(ellipse 50% 90% at 85% 100%, #86a670 98%, transparent 100%);
+}
+
+.title-card {
+  position: relative;
+  z-index: 1;
+  width: min(480px, 92vw);
+  margin: 24px 0;
+  padding: 30px 32px 26px;
+  display: grid;
+  gap: 16px;
+  border-radius: 20px;
+  animation: card-in 420ms ease-out;
+}
+
+.title-card::before {
+  content: '';
+  position: absolute;
+  inset: 6px;
+  border: 1.5px dashed rgba(90, 66, 49, 0.25);
+  border-radius: 15px;
+  pointer-events: none;
+}
+
+@keyframes card-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.985);
+  }
+}
+
+.title-card h1 {
+  font-size: 3.3rem;
+  line-height: 1;
+  text-align: center;
+  letter-spacing: 0.01em;
+  color: var(--ink);
+  text-shadow:
+    2px 2px 0 #f0d9a8,
+    3px 3px 0 rgba(90, 66, 49, 0.18);
+}
+
+.title-card h1 .qoti {
+  color: var(--sage-deep);
+  font-style: italic;
+}
+
+.title-mark {
+  display: flex;
+  justify-content: center;
+  margin-bottom: -6px;
+}
+
+.tagline {
+  margin: -6px 0 0;
+  color: var(--ink-soft);
+  text-align: center;
+  font-family: 'Alegreya', Georgia, serif;
+  font-style: italic;
+  font-size: 1.08rem;
+}
+
+.title-actions {
+  display: grid;
+  gap: 10px;
+}
+
+.invite-banner {
+  display: grid;
+  gap: 8px;
+  padding: 12px 14px;
+  border: 1.5px dashed var(--river);
+  border-radius: var(--radius);
+  background: rgba(95, 147, 179, 0.08);
+}
+
+.invite-banner p {
+  margin: 0;
+}
+
+.title-options summary {
+  cursor: pointer;
+  color: var(--ink-soft);
+  font-weight: 700;
+}
+
+.title-options label {
+  display: grid;
+  gap: 4px;
+  margin-top: 10px;
+  font-size: 0.92rem;
+}
+
+.continue h2 {
+  font-size: 1.15rem;
+}
+
+.continue ul {
+  list-style: none;
+  padding: 0;
+  margin: 8px 0 0;
+  display: grid;
+  gap: 6px;
+}
+
+.continue-row {
+  display: flex;
+  gap: 6px;
+}
+
+.continue .continue-row button.forget {
+  width: auto;
+  flex: none;
+  padding: 0 10px;
+  color: rgba(90, 66, 49, 0.6);
+}
+
+.forget-confirm {
+  padding: 8px 10px;
+  border: 1.5px dashed rgba(90, 66, 49, 0.35);
+  border-radius: 10px;
+}
+
+.forget-confirm p {
+  margin: 0 0 6px;
+}
+
+.forget-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.continue .forget-actions button {
+  width: auto;
+}
+
+.continue button {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 10px;
+  text-align: left;
+}
+
+/* Game */
+.game,
+.viewport {
+  position: absolute;
+  inset: 0;
+}
+
+.game-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  outline: none;
+  touch-action: none;
+}
+
+.game-ui {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.game-ui > * {
+  pointer-events: auto;
+}
+
+.loading {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: rgba(185, 219, 233, 0.6);
+}
+
+.loading-card {
+  padding: 18px 24px;
+  display: grid;
+  gap: 10px;
+  justify-items: center;
+}
+
+.topbar {
+  position: absolute;
+  top: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: max-content;
+  max-width: calc(100% - 20px);
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 5px 12px;
+  border-radius: 14px;
+}
+
+.topbar-town {
+  display: grid;
+  line-height: 1.1;
+}
+
+.topbar-town strong {
+  font-family: 'Alegreya', Georgia, serif;
+  font-size: 1.1rem;
+}
+
+.topbar-clock {
+  display: flex;
+  gap: 10px;
+  align-items: baseline;
+}
+
+.clock-time {
+  font-weight: 700;
+  font-size: 1.1rem;
+}
+
+.topbar-speed {
+  display: flex;
+  gap: 3px;
+  align-items: center;
+}
+
+.speed {
+  padding: 2px 8px;
+  min-width: 36px;
+  border-radius: 8px;
+  box-shadow: none;
+}
+
+.speed.mine {
+  border-color: var(--ink-line);
+}
+
+.speed.effective {
+  background: var(--ink);
+  color: var(--paper);
+}
+
+.speed-note {
+  margin-left: 6px;
+  font-style: italic;
+  color: var(--ink-soft);
+}
+
+.topbar-right {
+  margin-left: auto;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.seats {
+  display: flex;
+  gap: 10px;
+}
+
+.seat {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.seat i {
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  display: inline-block;
+  border: 1.5px solid var(--ink-line);
+}
+
+.seat.off {
+  opacity: 0.45;
+}
+
+.chip {
+  font-size: 0.8rem;
+  padding: 2px 9px;
+  border-radius: 999px;
+  border: 1.5px solid var(--line);
+}
+
+.status-live {
+  background: #dde9cf;
+}
+
+.status-connecting,
+.status-catching-up {
+  background: #f3e3bd;
+}
+
+.status-offline {
+  background: #f1d2c8;
+}
+
+.ghost-button {
+  padding: 2px 10px;
+  box-shadow: none;
+}
+
+.side {
+  position: absolute;
+  /* Just under the top bar, whose bottom sits near 24px + 35px per unit of interface size. */
+  top: calc(35px + 35px * var(--ui-scale));
+  width: 270px;
+  display: grid;
+  gap: 10px;
+  pointer-events: none;
+}
+
+.side > * {
+  pointer-events: auto;
+}
+
+.side.left {
+  left: 10px;
+}
+
+.side.right {
+  right: 10px;
+}
+
+.inspector,
+.notes {
+  padding: 10px 14px;
+  animation: panel-in 200ms ease-out;
+}
+
+@keyframes panel-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+}
+
+.inspector header,
+.notes header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 6px;
+  margin-bottom: 4px;
+  border-bottom: 1.5px dashed var(--line);
+}
+
+.inspector p {
+  margin: 6px 0;
+}
+
+.close {
+  padding: 0 8px;
+  border: none;
+  background: transparent;
+  box-shadow: none;
+  font-size: 1.2rem;
+}
+
+.notes ul {
+  list-style: none;
+  padding: 0;
+  margin: 6px 0 0;
+  display: grid;
+  gap: 4px;
+  max-height: 40vh;
+  overflow: auto;
+}
+
+.notes li button {
+  width: 100%;
+  display: grid;
+  text-align: left;
+  border: none;
+  background: transparent;
+  box-shadow: none;
+  padding: 4px 6px;
+}
+
+.note-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.toolbar {
+  position: absolute;
+  bottom: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+  pointer-events: none;
+}
+
+.toolbar > * {
+  pointer-events: auto;
+}
+
+.toolbar-row {
+  display: flex;
+  gap: 6px;
+  padding: 6px 8px;
+  align-items: center;
+  border-radius: 16px;
+  border-top: 3px solid var(--accent, var(--ink-line));
+  max-width: calc(100vw - 16px);
+}
+
+/* The toolbar is one quiet strip: its buttons have no boxes of their own, only the chosen tool
+   wears the lens color, and a little air (not lines) keeps the groups apart. */
+.toolbar-row button {
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+}
+
+.toolbar-row button:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--ink) 7%, transparent);
+  border-color: transparent;
+  box-shadow: none;
+  transform: none;
+}
+
+.lenses {
+  display: flex;
+  padding: 2px;
+  margin-right: 4px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--ink) 8%, var(--paper-light));
+}
+
+.toolbar-row .lens {
+  font-family: 'Alegreya', Georgia, serif;
+  font-weight: 700;
+  font-size: 0.95rem;
+  padding: 5px 12px;
+  border-radius: 10px;
+  color: var(--ink-soft);
+}
+
+.toolbar-row .lens.active,
+.toolbar-row .lens.active:hover:not(:disabled) {
+  background: var(--lens);
+  color: #fffaf0;
+  box-shadow: 0 1px 0 rgba(90, 66, 49, 0.25);
+}
+
+.tools {
+  display: flex;
+  gap: 1px;
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.tool {
+  display: grid;
+  justify-items: center;
+  gap: 1px;
+  min-width: 50px;
+  padding: 4px 6px 3px;
+  border-radius: 10px;
+  font-size: 0.78rem;
+  color: var(--ink);
+}
+
+.tool.band {
+  margin-left: 10px;
+}
+
+/* The bar sizes to its narrowest fit, so a two-word label ("Cart lane") would break over two
+   lines and make the Ledger's bar taller than the Hearth's. */
+.tool .label {
+  white-space: nowrap;
+}
+
+.tool .icon {
+  font-size: 1.1rem;
+  line-height: 1;
+  display: grid;
+  place-items: center;
+  height: 22px;
+}
+
+.tool .icon svg {
+  width: 21px;
+  height: 21px;
+}
+
+.toolbar-row .tool.active,
+.toolbar-row .tool.active:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--accent) 18%, var(--paper-light));
+  box-shadow: inset 0 0 0 1.5px var(--accent);
+}
+
+/* Books: small spines with a tooltip, apart from the tools. */
+.books {
+  display: flex;
+  gap: 1px;
+  margin-left: 6px;
+  padding-left: 8px;
+  border-left: 1px solid color-mix(in srgb, var(--ink) 14%, transparent);
+}
+
+.toolbar-row .book {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border-radius: 10px;
+  color: var(--ink-soft);
+}
+
+.toolbar-row .book .glyph,
+.toolbar-row .book svg {
+  width: 20px;
+  height: 20px;
+}
+
+.toolbar-row .book.active,
+.toolbar-row .book.active:hover:not(:disabled) {
+  color: var(--ink);
+  background: color-mix(in srgb, var(--accent) 18%, var(--paper-light));
+  box-shadow: inset 0 0 0 1.5px var(--accent);
+}
+
+/* Overlays: one button that names the overlay showing and opens a short list above it. */
+.overlay-menu {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.toolbar-row .overlay-button {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  height: 36px;
+  padding: 0 10px;
+  border-radius: 10px;
+  font-size: 0.82rem;
+  color: var(--ink-soft);
+  white-space: nowrap;
+}
+
+.overlay-button .glyph {
+  width: 17px;
+  height: 17px;
+}
+
+.toolbar-row .overlay-button.active {
+  color: var(--ink);
+  background: color-mix(in srgb, var(--accent) 18%, var(--paper-light));
+  box-shadow: inset 0 0 0 1.5px var(--accent);
+}
+
+.toolbar-row .overlay-clear {
+  padding: 0 6px;
+  height: 24px;
+  margin-left: -2px;
+  font-size: 1rem;
+  line-height: 1;
+  color: var(--ink-soft);
+}
+
+.overlay-list {
+  position: absolute;
+  bottom: calc(100% + 12px);
+  right: -8px;
+  display: grid;
+  gap: 2px;
+  width: 260px;
+  padding: 6px;
+  border-radius: 14px;
+}
+
+.overlay-list button {
+  display: flex;
+  gap: 9px;
+  align-items: flex-start;
+  text-align: left;
+  padding: 6px 8px;
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+  font-size: 0.84rem;
+}
+
+.overlay-list button:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--ink) 7%, transparent);
+  border-color: transparent;
+  box-shadow: none;
+  transform: none;
+}
+
+.overlay-list button.active {
+  background: color-mix(in srgb, var(--accent) 18%, var(--paper-light));
+}
+
+.overlay-list .glyph {
+  width: 17px;
+  height: 17px;
+  margin-top: 1px;
+  flex: none;
+}
+
+.overlay-list b {
+  display: block;
+}
+
+.overlay-list .muted {
+  display: block;
+  font-size: 0.76rem;
+  line-height: 1.25;
+}
+
+.toolbar-row .undo-button {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border-radius: 50%;
+  color: var(--ink-soft);
+}
+
+.undo-button .glyph {
+  width: 18px;
+  height: 18px;
+}
+
+/* Quick tooltips for the icon-only buttons (the title attribute waits too long). */
+.toolbar-row [data-tip] {
+  position: relative;
+}
+
+.toolbar-row [data-tip]:hover::after {
+  content: attr(data-tip);
+  position: absolute;
+  bottom: calc(100% + 10px);
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 4px 8px;
+  border-radius: 8px;
+  background: var(--ink);
+  color: var(--paper-light);
+  font-size: 0.76rem;
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 2;
+}
+
+/* At large interface sizes the tools drop their labels (tooltips keep them). */
+.ui-large .toolbar-row .tool .label,
+.ui-large .overlay-button > span:not(.glyph) {
+  display: none;
+}
+
+.ui-large .toolbar-row .tool {
+  min-width: 40px;
+}
+
+.variants {
+  display: flex;
+  gap: 4px;
+  padding: 6px 8px;
+  align-items: center;
+}
+
+.variants button.active {
+  background: var(--accent);
+  color: #fffaf0;
+  border-color: var(--ink-line);
+}
+
+.hint {
+  margin-left: 6px;
+}
+
+.toasts {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.toast {
+  position: absolute;
+  transform: translateX(-50%);
+  padding: 6px 12px;
+  white-space: nowrap;
+  pointer-events: none;
+  animation: toast-in 180ms ease-out;
+}
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 6px);
+  }
+}
+
+.modal-backdrop {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: rgba(60, 40, 20, 0.22);
+}
+
+.modal {
+  width: min(440px, 92vw);
+  padding: 20px 22px;
+  display: grid;
+  gap: 12px;
+  border-radius: 16px;
+  animation: card-in 220ms ease-out;
+}
+
+.modal p {
+  margin: 0;
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.debug-overlay {
+  position: absolute;
+  left: 10px;
+  bottom: 12px;
+  margin: 0;
+  padding: 8px 10px;
+  font:
+    11px/1.4 ui-monospace,
+    monospace;
+  color: #f6efdf;
+  background: rgba(30, 24, 18, 0.72);
+  border-radius: 8px;
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition: none !important;
+    animation: none !important;
+  }
+}
+
+:root.reduced-motion * {
+  transition: none !important;
+  animation: none !important;
+}
+
+.modal.settings {
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.settings fieldset {
+  border: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.settings legend {
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+
+/* V1.0: four presets sit two by two rather than three and a straggler. */
+.settings fieldset.quality {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+}
+
+.settings fieldset button.active {
+  background: var(--sage);
+  color: #fffaf0;
+  border-color: var(--ink-line);
+}
+
+.settings label.scale {
+  display: grid;
+  gap: 6px;
+  font-weight: 700;
+}
+
+.settings input[type='range'] {
+  accent-color: var(--sage-deep);
+  padding: 0;
+  border: none;
+  background: transparent;
+}
+
+.settings fieldset.sound {
+  display: grid;
+  gap: 8px;
+}
+
+.settings fieldset.sound label.scale {
+  font-weight: 600;
+}
+
+.settings label.check {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.settings label.check input {
+  width: auto;
+  accent-color: var(--sage-deep);
+}
+
+.help dl {
+  margin: 0;
+  display: grid;
+  gap: 6px;
+}
+
+.help dl div {
+  display: grid;
+  grid-template-columns: 11em 1fr;
+  gap: 10px;
+  align-items: baseline;
+}
+
+.help dt,
+.help dd {
+  margin: 0;
+}
+
+kbd {
+  font-family: inherit;
+  font-size: 0.85em;
+  font-weight: 700;
+  padding: 1px 7px;
+  border: 1.5px solid var(--line);
+  border-bottom-width: 3px;
+  border-radius: 7px;
+  background: var(--paper-light);
+  white-space: nowrap;
+}
+
+.season-chip {
+  font-size: 0.8rem;
+  padding: 1px 9px;
+  border-radius: 999px;
+  border: 1.5px solid var(--line);
+  background: rgba(127, 156, 108, 0.16);
+}
+
+.presence-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none !important;
+  overflow: hidden;
+}
+
+.presence-cursor {
+  position: absolute;
+  left: 0;
+  top: 0;
+  will-change: transform, opacity;
+}
+
+.presence-pointer {
+  position: absolute;
+  left: -2px;
+  top: -1px;
+  overflow: visible;
+  filter: drop-shadow(0 2px 2px rgba(60, 40, 20, 0.25));
+}
+
+.presence-pointer path {
+  fill: var(--seat);
+  stroke: #fffaf0;
+  stroke-width: 1.6;
+  stroke-linejoin: round;
+}
+
+.presence-label {
+  position: absolute;
+  left: 15px;
+  top: 19px;
+  padding: 1px 9px 2px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #fffaf0;
+  background: var(--seat);
+  border: 1.5px solid var(--ink-line);
+  border-radius: 4px 999px 999px 999px;
+  box-shadow: 0 2px 6px rgba(60, 40, 20, 0.2);
+  white-space: nowrap;
+}
+
+.presence-label small {
+  font-size: 0.72rem;
+  font-weight: 600;
+  opacity: 0.85;
+}
+
+.presence-arrow {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  display: grid;
+  justify-items: center;
+  gap: 2px;
+}
+
+.presence-arrow i {
+  width: 0;
+  height: 0;
+  border-top: 9px solid transparent;
+  border-bottom: 9px solid transparent;
+  border-left: 16px solid var(--seat);
+  filter: drop-shadow(0 1px 0 var(--ink-line));
+}
+
+.presence-arrow b {
+  font-size: 0.75rem;
+  padding: 0 7px;
+  border-radius: 999px;
+  background: var(--paper-light);
+  border: 1.5px solid var(--seat);
+}
+
+/* Active states keep their fill under hover, so white labels never land on cream. */
+.lens.active:hover:not(:disabled) {
+  background: var(--lens);
+  border-color: var(--ink-line);
+}
+
+.speed.effective:hover:not(:disabled) {
+  background: var(--ink);
+  color: var(--paper);
+}
+
+.title-card .welcome {
+  margin: -4px 0 4px;
+  text-align: center;
+}
+
+.you {
+  border: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 10px;
+}
+
+.you label,
+.title-card label.town {
+  display: grid;
+  gap: 4px;
+  font-size: 0.92rem;
+  font-weight: 700;
+}
+
+.swatches {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.swatch-label {
+  font-size: 0.92rem;
+  font-weight: 700;
+  margin-right: 4px;
+}
+
+.swatch {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border-radius: 50%;
+  background: var(--swatch);
+  border: 2px solid var(--ink-line);
+  box-shadow: 0 2px 0 rgba(90, 66, 49, 0.18);
+}
+
+.swatch:hover:not(:disabled) {
+  background: var(--swatch);
+}
+
+.swatch.active {
+  box-shadow:
+    0 0 0 3px var(--paper-light),
+    0 0 0 5px var(--ink-line);
+}
+
+.ping-menu-backdrop {
+  position: absolute;
+  inset: 0;
+}
+
+.ping-menu {
+  position: absolute;
+  transform: translate(8px, 8px);
+  display: grid;
+  gap: 4px;
+  padding: 6px;
+  border-radius: 12px;
+  animation: panel-in 160ms ease-out;
+}
+
+.ping-menu button {
+  text-align: left;
+  box-shadow: none;
+}
+
+.ping-look {
+  border-left: 4px solid var(--river) !important;
+}
+
+.ping-help {
+  border-left: 4px solid var(--rose) !important;
+}
+
+.ping-build {
+  border-left: 4px solid var(--sage) !important;
+}
+
+.emote-backdrop {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+}
+
+.emote-wheel {
+  position: relative;
+  width: 240px;
+  height: 240px;
+  border-radius: 50%;
+  background: var(--grain);
+  border: 2px solid var(--ink-line);
+  box-shadow: var(--shadow);
+  animation: card-in 180ms ease-out;
+}
+
+.emote {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  width: 46px;
+  height: 46px;
+  padding: 0;
+  border-radius: 50%;
+  font-size: 1.4rem;
+  line-height: 1;
+}
+
+.emote:hover:not(:disabled) {
+  transform: translate(-50%, -50%) scale(1.12);
+}
+
+.emote-bubbles {
+  position: absolute;
+  top: 66px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 6px;
+  pointer-events: none !important;
+}
+
+.emote-bubble {
+  padding: 3px 10px;
+  border-radius: 999px;
+  animation: panel-in 200ms ease-out;
+}
+
+/* I1 title options: the creative valley toggle and the economy dial. */
+.creative-toggle {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.92rem;
+  cursor: pointer;
+}
+
+.creative-toggle input {
+  width: auto;
+  margin: 0;
+  accent-color: var(--sage-deep);
+}
+
+.title-options fieldset.economy {
+  border: none;
+  margin: 12px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+}
+
+.title-options fieldset.economy legend {
+  font-size: 0.92rem;
+  font-weight: 700;
+  padding: 0;
+  margin-bottom: 4px;
+}
+
+.title-options fieldset.economy:disabled {
+  opacity: 0.55;
+}
+
+.dial {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0;
+  border: 1.5px solid var(--line);
+  border-radius: 11px;
+  overflow: hidden;
+  background: #fffbf1;
+}
+
+.dial button {
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  background: transparent;
+  padding: 6px 8px;
+}
+
+.dial button + button {
+  border-left: 1.5px dashed var(--line);
+}
+
+.dial button.active,
+.dial button.active:hover:not(:disabled) {
+  background: var(--sage);
+  color: #fffaf0;
+}
+
+.dial-note {
+  margin: 0;
+  font-style: italic;
+}
+
+.toolbar-row [aria-expanded='true']:hover::after {
+  display: none;
+}

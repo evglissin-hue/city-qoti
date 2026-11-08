@@ -2,6 +2,8 @@
 
 Accepted as v1 on 2026-10-25. The numbers are stable; other spec docs cite them as P1 to P54. When a detailed spec conflicts with a principle, the principle wins until both players agree to change it.
 
+Amended 2026-11-01 by the owner and agreed by Kat on 2026-11-02: P44 (eras), P45 (richly detailed rather than low-poly) and P50 (measured by GPU frame time, richer presets for the stronger laptop). See `18-eras.md`, `17-presentation.md` (Visual direction) and `22-quality.md`.
+
 ## Broad spec
 
 **Pitch.** A cozy two-player town builder in the browser. Two players on two laptops grow a hamlet in a storybook river valley into a lively little city over many evenings, with real stakes along the way: lean winters, floods and the odd raid on the granary. Built for a pair where one leans toward logistics and efficiency and the other toward building and decorating, though either can do everything.
@@ -18,10 +20,10 @@ Accepted as v1 on 2026-10-25. The numbers are stable; other spec docs cite them 
 
 - **I0 Valley sandbox:** generated valley, camera, paths and cottages, day and night, saves, both laptops building live together.
 - **I1 Hamlet:** first named residents and wishes, first goods and budget, first patterns and achievements.
-- **I2 Village:** zoning, market prices, production chains, second tier, Charters, the valley band v1.
-- **I3 Seasons and the Watch:** winter prep, weather, festivals, Field Guide, Chronicle, first threats and defenses.
-- **I4 Town:** districts and styles, trade and contracts, innovations, raids and trials.
-- **I5 onward:** Market Town and City, new land and valleys, stroll mode, the full band, polish.
+- **I2 Village:** zoning, market prices, production chains, second tier, Charters.
+- **I3 Seasons and the Watch:** winter prep, festivals, Field Guide, Chronicle, first threats and defenses, music and sound, a guide for the first days.
+- **I4 Town:** districts and styles, trade and contracts, weather, innovations, raids and trials.
+- **I5 onward:** Market Town and City, new land and valleys, stroll mode, polish.
 
 **Not doing.** Unit micromanagement or tower-defense waves, PvP, monetization, mobile-first, metropolis-scale traffic simulation, losing the whole town.
 
@@ -41,7 +43,7 @@ Accepted as v1 on 2026-10-25. The numbers are stable; other spec docs cite them 
 7. **One shared town, co-owned.** You build in the same world at the same time, each on your own laptop with your own camera, as equals (no host). Rejected alternative: two neighboring towns that trade, which gives more ownership but less time together.
 8. **Your own lens.** Each screen defaults to its player's lane (tools, overlays, alerts); one key flips to the other.
 9. **Either of you can play alone.** Whoever opens the town can play; the other comes back to a "while you were away" letter. Optional setting: the town only runs when you're both in.
-10. **Time passes only while someone is in.** Leave for a month and nothing changes. Either player can pause; fast-forward needs both to opt in.
+10. **Time passes only while someone is in.** Leave for a month and nothing changes. Either player can pause or change the speed, and the speed is shared: whoever changed it last decides (playtest round three: waiting on a partner who never touched the clock read as a bug).
 11. **Presence.** See each other's cursor and tool, ping a spot, pin notes to the map, emote. Voice stays outside the game.
 12. **Plans layer.** Sketch ghost plans (roads, zones, buildings, decor) for the other to comment on, tweak and approve, live or asynchronously.
 13. **Requests between lanes.** "I need 40 lanterns for the Autumn Walk." "Can Mill Lane get nicer so merchants move in?" Requests are tracked and count toward shared goals.
@@ -90,16 +92,16 @@ Accepted as v1 on 2026-10-25. The numbers are stable; other spec docs cite them 
 
 ### Look, sound, controls
 
-44. **Storybook valley.** A timeless, European-flavored country town: cobbles, timber frames, canals, windmills, lanterns, slowly modernizing (gas lamps, trams, a little railway).
-45. **Soft-lit miniature 3D.** Low-poly but dense with detail (chimney smoke, washing lines, ducks on the canal, lit windows at night), warm palette, tilt-shift. Day, night, seasons and weather transform the whole town.
+44. **Storybook valley, through three eras.** A European-flavored country town that grows up with its rank: the Old Age (thatch, timber frames, oil lanterns), the Age of Steam (brick, slate, canals, gas lamps) and the Bright Age (stucco, electric light, trams, a little railway, about the 1950s). Eras layer rather than replace, so an old core sits inside newer rings. It stops around the 1950s and never becomes a modern metropolis.
+45. **Soft-lit, richly detailed miniature 3D.** Cozy first, and dense with detail: surface detail drawn in the shader (brick courses, roof tiles, thatch, plaster grain), streets whose buildings join into rows, rich rooflines, and small life everywhere (chimney smoke, washing lines, ducks on the canal, lit windows at night). Warm palette, tilt-shift. Day, night, seasons and weather transform the whole town.
 46. **Art made in code.** Buildings, residents and props are generated from one style kit of shapes and palettes: coherent, and content scales without an art team.
 47. **Dollhouse camera.** Tilted top-down view, free rotation, zoom from valley to street. Later: a stroll mode to walk the streets you built.
-48. **Sound.** A small valley band plays original, jazz and folk tinged tunes that shift with the hour, the season and the weather, and grows from a lone guitar in the hamlet to a full little orchestra in the city. Your valley has its own tune. Ambient sound comes from what's nearby (market chatter, the mill, birdsong, the watch bell). Two laptops in one room never play two songs at once.
+48. **Sound.** Gentle acoustic and jazz-tinged music that shifts with the hour and season; ambient sound from what's nearby (market chatter, the mill, birdsong, the watch bell).
 49. **Laptop-first controls.** Mouse or trackpad plus keyboard: pinch to zoom, two-finger pan, no middle click needed. Gamepads and a one-screen couch mode can come later.
 
 ### Tech
 
-50. **Runs on the weaker laptop.** 60 fps at 1080p on integrated graphics, with quality presets; the simulation runs in a background worker and never stutters the frame rate.
+50. **Runs on the weaker laptop.** 60 fps at 1080p on Medium on the weaker of the two laptops (integrated graphics), measured by GPU frame time; richer presets (High, Ultra) let the stronger laptop show more. The simulation runs in a background worker and never stutters the frame rate.
 51. **One deterministic simulation, in lockstep.** The same simulation runs in both browsers and the server only orders commands and stores the town: no host to wait for, tiny bandwidth, easy to test.
 52. **Cheap, private hosting.** Cloudflare for the game plus one Durable Object per town; the free tier should cover two players. A private link, no public accounts. You'd create a free Cloudflare account for the live link.
 53. **Your town survives every update.** Versioned saves with migrations, automatic backups, export and import, since we'll keep building while you play.

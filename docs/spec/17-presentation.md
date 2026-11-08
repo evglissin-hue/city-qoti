@@ -1,6 +1,33 @@
 # 17. Presentation
 
-A storybook miniature: soft-lit, warm, low-poly but dense with small details, never grimy, never babyish (P4, P44 to P49).
+A storybook miniature: soft-lit, warm, richly detailed, never grimy, never babyish (P4, P44 to P49).
+
+## Visual direction [V0]
+
+The game should stay cozy and get much more detailed (owner, 2026-11-01). The V0 concept viewer (`docs/concepts/v0-look/index.html`, open it in a browser; stills in `docs/build/screenshots/v0-*.jpg`) draws one generated town three ways, in each era (`18-eras.md`) and at day, golden hour and night, with a live fps, draw call and triangle readout to try on both laptops.
+
+| Direction | What it is | Cost |
+|---|---|---|
+| A. Polished Storybook | Today's palette and chunky shapes, plus joined rows, window frames, roof courses and ground variety | cheapest; close to today's budgets |
+| **B. Painted Miniature (picked)** | A softened, harmonious palette; surface detail drawn in the shader (brick courses, roof tile rows, thatch, plaster grain, timber); ambient occlusion, warm haze, tilt-shift; a model village under a warm lamp | moderate: one material system, then detail everywhere for free |
+| C. Grand Diorama | Closest to Anno: taller three to four storey buildings, mansards, cornices and more ornament, a natural palette, stronger haze and little tilt-shift | most geometry and the least cozy |
+
+**Status**: B picked by the owner and Kat (2026-11-01); A and C stay recorded as the alternatives. The V1 briefs (`docs/build/cycle-v1-*.md`) built B into the game, merged by V1X (2026-11-03). From the default camera and close up, by day, golden hour and night, the game now reads as the B concept for the Old Age (`docs/build/screenshots/v1-after-*.png` beside `v0-lean-b-*.jpg`): the palette, the pattern detail on every building, the lit far windows, the warm haze and the shadows match. What still differs: the concept's stills are Age of Steam towns of joined terraces (V2 and V3, `docs/build/i4-visual-planning-notes.md`), its night lamp pools are larger and warmer, and its trees are rounder at a distance. The concept viewer stays the reference.
+
+**Performance**: on High the first concept ran at about 20 to 25 fps on the owner's laptop. The concept now runs on the lean renderer (`20-architecture.md`, Lean renderer), the same look drawn far more cheaply; the first engine stays in `docs/concepts/v0-look/v1-engine.html` for comparison. V1 builds the lean renderer into the game.
+
+Measured in a software renderer (the build container has no GPU, so only the ratios mean anything), at 1280 x 800 on a 2x screen, B in the Age of Steam, three frames each:
+
+| View | First engine, High | Lean, High, moving | Lean, High, camera at rest | Lean, Ultra, moving (same pixel ratio as the first engine's High) |
+|---|---|---|---|---|
+| Town | 12.6 s | 1.6 s (7.8x less) | 0.39 s (32x less) | 2.6 s (4.8x less) |
+| Street | 13.4 s | 2.0 s (6.6x less) | 0.33 s (40x less) | 3.6 s (3.7x less) |
+
+The first engine drew 4.9 M triangles a frame (shadows, the scene and the AO normals, each from scratch); the lean renderer draws 0.2 M while moving and 0.04 M at rest. Medium: 3.0 s and 3.3 s on the first engine, 0.83 s and 1.0 s moving, 0.19 s and 0.16 s at rest. Stills of the lean renderer: `docs/build/screenshots/v0-lean-*.jpg`.
+
+Concept numbers (Age of Steam, 249 buildings, about 3,000 trees and the valley around them, every post pass on): A 0.49 M triangles, B 1.24 M, C 1.28 M, under 100 draw calls. The concept merges each look into a few meshes, so the game will draw more calls than this; the triangles are a fair guide to what each look costs.
+
+Whatever the pick, the gap to close is the same: buildings standing alone on lawns instead of joining into streets, flat roof planes with no courses or thickness, one saturated grass, and little ambient occlusion where things meet.
 
 ## Palette
 
@@ -19,18 +46,33 @@ All colors are tokens in `packages/art/src/palette.ts`. Customization swatches a
 | UI | paper `#F7F0E1`, paper shade `#E9DEC6`, ink `#3B3229`, ink soft `#6B5E50`, Hearth `#C7604A`, Ledger `#3E6E5A`, warning `#C98B2B`, danger `#A8473B` |
 | Seats | 6 seat palettes: lantern gold, rose, teal, plum, sky, moss |
 
+**Palette 2.0 [V1A]** (`palette2`, the Painted Miniature tokens from the concept's palette B, each a little greyed toward its neighbors; kits move their reads to it in V1B and V1C, and the customization swatches read it now: the old plaster, roof and accent tokens they use hold these values):
+
+| Group | Tokens |
+|---|---|
+| Ground | grass `#93AD66`, meadow `#B7C27C`, forest floor `#5F7A47`, dirt `#C4A67E`, lane `#B09673`, cobble `#A39A8C`, flags `#CDC4B2`, fields `#D0B673` / `#A6B866` / `#A07F5A` |
+| Walls | plasters `#EFE3CC` `#E6C6B5` `#CDD2B3` `#C3CFD0` `#EDDAA6` `#E2C9A0`; stuccos, deco and pastels (Age of Steam and Bright Age, in `palette.ts`); bricks `#AE6A52` `#9F5E4A` `#B67D5F` `#94583F` with mortar `#C4BCB1`; stones `#C8BFAE` `#D4CAB6` `#B9B09F`; timber `#5A4434`; foundation `#938A7C` |
+| Roofs | tiles `#BB6E4C` `#A95F43` `#C27B55` `#9A5A42`, slates `#67707D` `#5D6773` `#707A83`, thatch `#C2A16A` `#B8975F`, zinc `#8A959B`, moss `#74805A`, plum `#7A5A6C`, flat `#857D73`, copper `#76A594`, chimney `#A1604B` |
+| Accents | frames `#F4ECDD`, doors `#4E7C78` `#9C4F43` `#D1A24A` `#45607A` `#6F8B68` `#7A5468`, shutters, shopfronts, awnings `#B2564A` `#4E7C78` `#D1A24A` `#45607A` `#7A5468` with the stripe `#EFE7D7`, glass `#34434F`, metal `#33403A`, wood `#957050` |
+| Foliage and water | leaves `#67904A` `#86AD55` `#5A8243` `#76984C`, pine `#466D4C`, bark `#6A4C36`, water `#6AAAB4`, riverbed `#3D5C66` |
+| Customization | walls: the first five plasters; roofs: tile, slate, thatch, moss, plum; accents: the first four doors and the frame cream |
+
 ## Style kit (`packages/art`)
 
 Pure functions from parameters (and a seed) to `BufferGeometry` with vertex colors and baked vertex ambient occlusion. Deterministic, cached by parameter key, with a high and a low level of detail.
 
 - **Terrain**: chunk meshes (16 x 16 tiles) with smooth slopes between levels, soft cliff faces where levels differ by 2+, terrain colors blended at tile edges, field furrows [I1].
 - **Water**: river and pond surfaces with gentle animated waves and foam at banks; frozen variant [I3].
-- **Roads**: path (worn dirt with grass edges), lane (packed dirt with ruts), street (cobbles) [I2]; joins and corners from neighbors; bridges (plank and stone).
-- **Buildings**: modular parts (walls: plaster, timber frame, stone, brick; roofs: gable, hip, half-hip in thatch, slate, tile; windows with shutters and boxes; doors; chimneys with smoke; porches; dormers; signs). Generators: cottage, house, workshop, mill, farm, storehouse, stall, town hall, landmarks. Construction stages (staked plot, foundation, frame, roof).
+- **Roads**: path (worn dirt with grass edges), lane (packed dirt with ruts), street (cobbles) [I2]; joins and corners from neighbors; bridges (plank and stone). C4E: streets are granite setts in rows across the street between pale kerbs with a gutter shadow; desire paths (the `wear` layer) are narrow trodden lines joining worn tiles; stone stairs climb where a path with the stairs flag meets a road a level up. C4P: paths and lanes are one dirt (a lane a little darker and packed, with soft ruts and a ragged grass crown), and a path running into a lane changes width and dirt over the middle of the joint; a square of four road tiles is paved across; desire paths are trampled earth of the same dirt, never paler than the roads; stairs are cut into the drawn slope (each tread's back flush with the ground, its front one riser above it, all heights from `groundY`) in warm sandstone between sloped kerbs that sink into the ground at both ends, so no tread floats where a hillside falls away to the side.
+- **Buildings**: modular parts (walls: plaster, timber frame, stone, brick; roofs: gable, hip, half-hip in thatch, slate, tile; windows with shutters and boxes; doors; chimneys with smoke; porches; dormers; signs). Generators: cottage, house, workshop, mill, farm, storehouse, stall, town hall, landmarks. Construction stages (staked plot, foundation, frame, roof). V1B: the Painted Miniature detail kit on every generator (framed windows with a reveal, muntins, sills, stone lintels on brick and stone, ledged shutters and window boxes; doors on a step with a fanlight on brick and stone or a hood on timber; string courses and cornices on brick; eave fascias, verge boards and ridge caps; dormers; chimney stacks with a cap and pots; gutters and a downpipe; timber framing with posts, rails and braces; jettied upper floors; ivy), surface ids on every face, and a far level of each kit (about 75 to 150 triangles for a home). Homes that touch a neighbor on the same frontage join into rows (`kits/rows.ts`): party walls, stepped rooflines, chimneys on the party wall, one plinth; a corner house dresses its street side.
 - **Props**: bench, curved and ring bench, lantern, hanging lantern, well, fountain, birdbath, fence, low wall, planter wall, hedge, flower bed, planter, wildflower verge, signpost, barrels, crates, carts, laundry lines, festival pieces [I3].
-- **Trees**: oak, birch, pine, apple, cherry, willow; growth stages; seasonal variants.
+- **Trees**: oak, birch, pine, apple, cherry, willow; growth stages; seasonal variants. [V1C] Round-shaded crowns of a few blobs and root flares near, a 16-triangle far level for forests; hedgerows along fields from the same kit.
+- **Nature** [I1]: bush, grass tuft, wildflowers, reeds, rock, fern, mushrooms, fallen log, and [V1C] lily pads and hedgerows (kind `nature`). Never placed by players: the renderer scatters them from the map with a seeded hash (forest floor and edges, open grass, meadows, banks, stony ground), clear of roads, buildings and decor, and fades them out at the decor detail distance.
 - **Residents** [I1]: one parametric body (rounded, about 0.3 tile tall) with species parts (ears, tails, stripes, spines), fur palette, clothing colors, tier details (aprons, scarves, hats) and seasonal clothing.
-- **Critters** [I3]: tiny ambient wildlife (butterflies, bees, ducks, frogs, fireflies).
+- **Critters** [I3]: tiny ambient wildlife (butterflies, bees, ducks, frogs, fireflies). As built (C5E): `layers/critters.ts`, cosmetic and client-side, seven kinds near the habitats that draw them (`habitats.updated` scores; a light share of butterflies, songbirds and fireflies anywhere green): butterflies and bees by pollinator patches and gardens on warm dry days, fireflies over summer meadows at night (slow, unsynchronized pulses), songbirds (some with a robin's red breast) about hedgerows and woods, dragonflies over summer wetland, ducks and the odd swan on open water. Two instanced draws, animated in the vertex shaders; up to 48 flyers and 10 swimmers on Medium, 140 and 24 on High and Ultra, none on Low. Frogs, the kingfisher, the heron and the rest of the Field Guide are still to come.
+- **Raid and the Watch** [I3]: As built (C5E): raiders of any species wear storybook cloaks and hoods (muted plum, moss, slate or russet, which their far figures and dots take too) and carry a lumpy loot sack; the Watch carries a lantern and a staff; wolves are a soft grey storybook wolf with a blob shadow, never a resident species; running is a quicker, leaning walk.
+- **Village** [I2, C4E]: district styles (`kits/district.ts`: Riverside Timber `timber`, Hill Stone `stone`, Market Brick `brick`, Garden Plaster `plaster`) set wall and upper-floor materials, plaster, roof shape, material and tint, accents and detail odds (window boxes, shutters, ivy, porches, lean-tos, dormers, benches, garden edges: picket, wattle, dry stone, hedge, railings). Grown generators fit any 2x2 to 3x3 lot: the district cottage (side gardens: vegetables, washing, a fruit tree or hens), the Craftsfolk townhouse (jettied upper floor, bay window, fanlight, two stacks), the shop with a flat above (shopfront, gilt fascia lettering, awning, a trade sign), the workshop with its yard and what it makes, and the farmstead (house, barn, yard and a produce corner: pen, fruit trees, wheat or rows). A home's look comes from its seed and district alone, so a cottage that upgrades in place becomes a townhouse in the same walls and paint, with scaffolding while the upgrade is under way. Each I2 building has its own silhouette (clay pit banks and pug mill, bottle kiln, shepherd's hut, spinning wheel porch and dye pots, weavers' windows and tenter frame, byre and churn stand, cheese room, orchard rows by season, apple mill and screw press, round woodstack, skeps and herb beds, open forge, bell cote and playground, inn sign on a post and beer garden, herbalist's bottles and bunches, Trading Post veranda and pennants, cart shed bay and pony stall). Sheep, cows and ponies are animated parts; the cart has a body, wheels and a load per good.
+- **Eras** (`18-eras.md`): kits take `era` beside `style`, and an era is a parameter set, not a fork. Old Age [today]: thatch, timber frame, plaster, wattle, dry stone, steep gables, oil lanterns. Age of Steam [I4, V3]: brick and stucco, slate and mansards, sash windows, cast iron railings and lamp posts, gas lamps, chimney stacks, canal locks and barges, terraces of two to four storeys. Bright Age [I5, V4]: stucco in soft pastels, art deco details (stepped parapets, round windows, fluted pilasters), striped awnings, electric globe lamps, tram wires, station canopies; pitched roofs stay the rule.
 - **Gallery** (`apps/gallery`): every generator with parameter sliders, all seasons, day and night. Used for art review.
 
 ## Lighting and time of day
@@ -38,49 +80,73 @@ Pure functions from parameters (and a seed) to `BufferGeometry` with vertex colo
 | Phase | Sun color | Ambient (sky / ground) | Notes |
 |---|---|---|---|
 | Dawn | `#F6C28B` | `#E9C9B0` / `#6B5E50` | long soft shadows |
-| Day | `#FFF4E0` | `#DDE8F0` / `#7A8F5A` | |
-| Dusk | `#F4A261` | `#E2A88A` / `#5E4A44` | windows start to glow |
-| Night | moon `#9DB4D8` | `#2B3A55` / `#1E2433` | lit windows, lanterns, bloom |
+| Day | `#FFF4E0` | `#DDE8F0` / `#7A8F5A` | haze `#D8E2E3`, exposure 0.9 |
+| Golden hour [V1A] | `#F7B878` | `#EAD0B8` / `#6A5A4C` | peach haze `#ECCAA6`, gentle bloom |
+| Dusk | `#F4A261` | `#D9A8B4` / `#4E4660` | windows start to glow |
+| Night | moon `#A9BFE0` | `#3A4B6B` / `#232A3A` | haze `#2B3A55`, lit windows, lanterns, bloom |
+
+V1A retuned the table for the Lambert kit material and Khronos Neutral tone mapping, with the concept's day, golden hour and night as the target (`render/lighting.ts`). The warm haze is fog that follows the view: near at 0.93 and far at 4.2 times the camera's distance to what it looks at (`hazeFor`), in the hour's horizon color.
 
 - One directional light with shadows (Medium 2048, High 4096, Low off), hemisphere ambient, fog by weather.
 - Night: a share of windows in occupied homes glow (seeded per building, varying by hour); lanterns are emissive with bloom and a soft ground glow decal (no real point lights beyond 8 nearest the camera).
+- C3D-1: the table gains a golden hour (18:00) and a violet twilight (20:30) between its keys; a dusk split tone in the post grade keeps evening greens from turning to mud. Ground glow pools are drawn by the ground shader from the 32 lights nearest the view (lanterns, and spill under lit windows, chosen by the same integer hash as the panes). The sky is a dome with drifting clouds and stars; clouds also drift their shade over the ground by day.
 - Sun direction from the in-game hour on the client (any math is fine outside the sim).
 
 ## Seasons and weather visuals [I3]
 
 - Grass and foliage tints per season; blossoms on fruit trees in spring; autumn leaf colors and falling leaves; bare deciduous trees and snow-capped pines in winter.
-- Snow cover shader on upward-facing surfaces in winter; frozen river; puddles and wet sheen after rain [I4].
+- Snow cover shader on upward-facing surfaces in winter; frozen river; puddles and wet sheen after rain [I4]. [V1A] The kit material draws the snow (patchy as it starts, keeping a hint of courses on thatch, slate and tile), the season tint on grass, leaf and field surfaces, and sway on leaf and flower faces, from `env.snow`, `env.seasonTint` and `env.sway`, which the renderer sets from the calendar's season (`applySeasonLook`); the ground shader's snow is V1C's and C5E's.
 - Rain, snow and fog particles sized for the miniature look.
+- As built (C5E): the season's look blends through each turning day (`render/seasons.ts`, `seasonBlendAt`, stepping at most once a quarter hour): the first snow settles over the first day of winter and melts over the first day of spring, crowns turn gold, amber, rust and red through autumn and thin from day 4, deciduous trees stand bare (slimmer crowns in twig colors with gaps through to the boughs) in winter while pines hold thick snow, and blossom opens over early spring. Trees take it in the foliage shader (`scatter.ts`; the trees layer marks evergreens with a `tkind` attribute). The ground shader's snow hook binds `env.snow` (the kit material's own), so roofs and ground settle together: drifts deepen against walls and under crowns (the ground AO), windswept patches let the old grass show, roads and paths keep trodden snow so the streets still read, and nothing lies on the water. The frozen river (and ponds) is ice in the water shader, with cracks, skate marks and drifting snow. Weather is a look in the final pass (`lookWeather` in `look.ts`: overcast, rain, a storm's darker light, fog wisps that thicken with distance, a straw-yellow drought), an overcast sky softens the sun and lifts the fill, wet ground darkens, and a storm swells a slow warm glow behind the clouds every eleven seconds or so (a few percent of brightness over more than a second, never a flash). Rain streaks, snowflakes and falling autumn leaves are one instanced moving layer (`layers/weather.ts`, 700, 1,600 and 3,200 particles on Low, Medium and High), placed on the GPU in a box that follows the view. Folk wear knitted hats and scarves in winter or when their home is cold; skaters glide; the dance is a turning bounce. Debug pins for looks: `?debug&season=autumn&day=4&weather=storm` (also `drought`, `frozen`).
+
+- As built (C5E part 2): the I3 pieces are drawn. Defs that name a stand-in kit draw the kit in their `art.params.kit` once it exists (`artKitId` in `packages/art`), so content never changes when art lands. Defenses (`kits/defenses.ts`): a palisade of pointed logs and a dry stone wall that join the wall pieces beside them and turn corners, a lychgate with a lantern on each post whose leaves stand open or barred shut, a log watchtower, the Watch House, a bell tower, a net trap and a pit trap (sprung or set). Damage reads from the wall's hit points (`rt.hp` in percent): a snapped log or a missing coping stone, then a breach with the pieces lying beside it, then the piece down to its stumps, each with fresh timber or dressed stone stacked ready for mending. Festivals (`kits/festival.ts`, `layers/festival.ts`, `layers/festivalFx.ts`): a bonfire (flames that lick and lean, embers that drift up and shrink away), bunting, a stage under a striped canopy, stalls with the menu's goods in crates on the counter, trestle tables, a flower arch, festoon lanterns on posts round the site all through its day, the circus tent and wagons on the Village Green while the circus is in, and fireworks for the `fireworks` together moment: soft bursts that bloom over a second and fade over three, no flash and no light on the town. The new trades, the bath house (a steaming vent), the apiary, the River Dock (a jetty over the water behind it, a moored boat) and the Stone Bridge (spanning the river behind it to the far bank) are kits of their own; modules are fitted to any home after it is built (`kits/modules.ts` reads the kit's walls, eave and ridge from its surface ids). Flood water is a sheet over the floodplain and the river beside it that rises to just over the plain's highest ground and falls away with the event (`layers/flood.ts`); a raid's telegraph signs show on its side once seen: trails of prints walking in from the valley's edge and crows gathering (`layers/telegraph.ts`); folk breathe little clouds in the cold and winter chimneys smoke fuller. Debug: `__qoti.seasonsShowcase()`, `__qoti.fireworks()`, `?debug&flood=0.6`, `?debug&omens`.
 
 ## Camera
 
 - Perspective, FOV 30 degrees (miniature feel). Pitch 30 to 65 degrees (default 45). Free yaw. Distance 12 to 320 tiles. Smooth damping. Clamped to the valley.
 - Mouse: left click acts, right-drag rotates, middle-drag (or left-drag on empty ground with the inspect tool) pans, wheel zooms. Trackpad: two-finger pan, pinch zoom, Shift+two-finger rotate. Keyboard: WASD or arrows pan, Q and E rotate, T and G tilt, + and - zoom. Space is reserved for pause (`16-coop.md`) and R for rotating the piece being placed.
 - Focus animation for "go to" actions; follow mode for residents [I1].
-- Photo mode [I3]: hides UI, free camera, depth of field and time-of-day sliders, saves a PNG.
+- Photo mode [I3]: hides UI, free camera, depth of field and time-of-day sliders, saves a PNG. As built (C5F): F2 or the camera button at the toolbar's end; a slim strip keeps the sliders, Save PNG and Back (Esc). The time of day changes the picture's light only. As built (C5E): the renderer's `photo` (`setPhoto` lifts the play clamp to pitch 8 to 85 degrees, distance 3 to 420 tiles and 48 tiles past the valley's edge; `setDepthOfField` raises the tilt-shift; `setTimeOfDay` pins the light's hour; `savePng` draws a still frame at one and a half times its resolution) and `capture({ focus, radius, size })` (one offscreen scene pass at twice the size into a float target, tone mapped and halved on the CPU into a PNG, from the player's bearing at 50 degrees).
 - Stroll mode [I5]: walk the streets at resident eye level.
 
 ## Post-processing
 
-Tone mapping (AgX or ACES), bloom (strong at night), tilt-shift (vertical gradient blur, stronger when zoomed out), subtle vignette, gentle seasonal grading (lift, gamma, gain), MSAA where supported.
+Tone mapping (Khronos PBR Neutral, V1A's pick: it matches the concept stills and keeps the pastel palette's hues, where ACES pushed them toward orange and crushed the darks), bloom (golden hour and night only; none by day, so the bloom chain is skipped), tilt-shift (vertical gradient blur from 45 tiles back, full from about 160, none close up), a soft oval vignette, gentle seasonal grading (lift, gamma, gain, saturation and a slight S-curve: spring fresh, summer warmest, autumn golden, winter cool and quieter; dusk warmth and a little less saturation at night), dither, MSAA where the preset allows. The values and GLSL live in `render/look.ts`. [V1] All of it runs in one final full-screen pass after a quarter resolution blur chain, and ambient occlusion is baked (vertex AO in the kits and a ground AO texture); screen-space AO runs only on Ultra, on still frames (`20-architecture.md`, Lean renderer).
 
 ## Quality presets
 
-| | Low | Medium (target) | High |
-|---|---|---|---|
-| Shadows | off | 2048, soft | 4096, softer |
-| Post | tone mapping only | + bloom, tilt-shift | + ambient occlusion, more bloom detail |
-| Render scale | 0.75 | 1.0 | 1.0 (device pixel ratio up to 2) |
-| Resident detail distance | 30 tiles | 60 | 100 |
-| Decor detail distance | 40 | 80 | 140 |
-| Ambient critters | none | some | all |
+From V1 (the lean renderer, `20-architecture.md`):
 
-Auto-detect picks a preset; the settings menu can override it.
+| | Low | Medium (target) | High | Ultra [V1] |
+|---|---|---|---|---|
+| Render scale, moving | 0.75 of a pixel ratio of 1 | pixel ratio up to 1 | pixel ratio up to 1.5 | pixel ratio up to 2 |
+| Render scale, at rest [V1D] | as moving | pixel ratio up to 2 | pixel ratio up to 2 | the device's, up to 3 |
+| Antialiasing | none | MSAA 4 on the scene pass | MSAA 4 | MSAA 4 |
+| Sun shadows (cached) | 1024 | 2048 | 4096 | 4096, softest filtering |
+| Ambient occlusion | baked | baked | baked | baked, plus screen-space on still frames |
+| Still-frame cache | off | on | on | on, at the device pixel ratio |
+| Post (one final pass) | tilt-shift, grade, tone mapping | + bloom at golden hour and night | as Medium | as Medium |
+| Buildings at full detail within | 40 tiles | 60 | 75 | 110 *(tune)* |
+| Resident detail distance | 30 tiles | 60 | 100 | 140 |
+| Decor detail distance | 40 | 80 | 140 | 200 |
+| Ambient critters | none | some | all | all |
+
+Ultra is for the stronger laptop or a desktop; it is never auto-detected. Budgets per preset: `22-quality.md`. The settings menu offers Ultra ("Spare no candles") and `?quality=ultra` picks it. From V1D every preset runs the lean renderer (`20-architecture.md`, Lean renderer): Low too gets the one final pass (tilt-shift, grade, tone mapping, no bloom) and cached 1024 shadows, every preset reads its own building distance (with a floor of 75 tiles until V1B's far levels carry lit windows: today's far level has none, and at 60 tiles much of a town went dark at night), and decor reads the decor distance (small props shrink away beyond it; lit pieces like lanterns and larger ones switch to their far level). `?engine=classic` keeps the chain from before V1D on the same build until V1X, for comparing the two.
+
+**Medium on a Retina screen (V1D's choice)**: moving frames draw at a pixel ratio of 1 (dynamic resolution below that when they lag), and once the camera rests the still-frame cache draws at the device's ratio, up to 2 (`QualityPreset.stillScale`); High does the same from 1.5. Playtest round three found 1.5 soft on a Retina screen and Medium was raised to 2 for every frame; with the still-frame cache the sharp picture costs one full frame per rest instead of every frame, so the view is crisp whenever you stop to look and quick while you pan, and the camera at rest sharpens a moment (200 ms) after it stops. Not yet measured on the Retina laptop (the build container has no GPU): `?debug&dpr=2` draws moving frames at 2 for comparing caps on the same screen, and the `?debug` overlay shows GPU ms, the frame mode and the ratio. If cap 1 looks soft while panning, Medium's `renderScale` goes to 2 with dynamic resolution doing the rest.
+
+Auto-detect picks a preset (Low on phones and two-core machines, otherwise Medium; High is a choice in settings, because core counts say little about the GPU behind a Retina screen); the settings menu can override it. On every preset, dynamic resolution steps the render scale down (to 0.85, 0.72, 0.6 and 0.5 of the preset's, never below a pixel ratio of 0.6) when frames average slower than about 45 fps, and back up after a few seconds above about 66 fps (`apps/client/src/render/resolution.ts`; `?debug&fixedres` turns it off for screenshots). [V1D] It judges moving frames only (30-frame windows), steps back up after 2.5 s of moving time with headroom, and when frames turn slow within 3 s of a step-up, that step-up failed and the next one waits twice as long (up to 40 s); a quality change starts over. Still and idle frames always draw at the preset's own ratio.
 
 ## UI
 
 - **Look**: paper panels (`paper`) with soft shadows and thin ink outlines, line-art icons, small hand-drawn flourishes. Fonts: Alegreya (headings) and Alegreya Sans (UI, tabular numbers), self-hosted.
-- **Layout**: top bar (date, time and season, weather, effective speed, treasury, population, rank progress), bottom toolbar (the lens's tools), right inspector panel, left feed (alerts, notes, wishes, requests), minimap bottom right [I2].
+- **Layout**: top bar (date, time and season, weather, effective speed, treasury, population (opens the townsfolk: jobs, homes and moods, K), rank progress), bottom toolbar (a lens switch; a click inspects by default, so the toolbar has no Inspect button, and Esc, a right-click or clicking the chosen tool again puts a tool away; the lens's tools as one quiet strip, grouped by a little air into looking, making, talking and taking away, only the chosen tool in the lens color; the books as small icon spines with quick tooltips; one View button that names the overlay showing and opens the lens's overlays as a short list; then undo), right inspector panel, left feed (alerts, notes once there is one, wishes, requests), minimap bottom right [I2]. Playtest round five: under the top bar, a strip of the town's stocks in both lenses (food as one chip; logs, planks and stone always; anything else the town holds or made lately), each chip saying where the good comes from and goes, a click opening the stocks report; the pointer resting on a building says what it is for and what holds it up, and on the ground its terrain, soil (a number and rich, good, thin or poor) and any deposit; the Build picker says what the chosen building is for; the building ghost has an arrow on the doorstep, and its cursor always says R turns it (Shift+R or T turns it back), and warns of no road at the door, grown trees in a woodcutter's reach and the soil under a plot or farm; a "no road at the door" icon shows over a building whatever the overlay; the Pattern Book is on both lenses' shelves. Playtest round six: the lenses look different. The Ledger keeps the stocks strip and shows the land by default (rich soil a soft green wash, clay and stone in their colors; "Soil and stone" in its View list, cleared to stay off); the Hearth's strip is about how folk are doing (the valley's mood, Pattern Book pages, wishes waiting, plaques), each chip opening its book. The Build picker shows Food and Materials as production chains, a row each, labeled by what they make and from what ("Bread, from wheat"), columns from the buildings that start from nothing to the ones that finish the goods, the goods that pass between them on the arrows; services and homes are plain cards. Roads are named for what they do: Footpath (Hearth: folk on foot, cheap and cozy), Cart lane and Street (Ledger). The Fields tool waits until there is a farmhouse. Labels following the cursor leave as soon as the pointer is over the interface or the wheel moves the camera, and the hover label goes after four seconds or a key. The title screen's list of valleys has a remove button on each (solo valleys are deleted from the device; online ones only leave the list).
+- **Season pages** [I3, C5F]: an almanac card opens each season and a two-page report (the Hearth's page and the Ledger's) closes it; weather and renown sit in the top bar (the weather keeps only its glyph on a laptop or at large sizes); the Hearth's books add the Festival poster and the Field Guide, the Ledger's the Watch board; the River Dock and commissions are tabs of Trade; the trial card opens from the season card; a raid brings a small bar under the top bar and a captive card bottom right, never red and never flashing; panel paper takes a faint tint of the season.
+- **Village pages** [I2]: the Charter board opens from the rank pennant in the top bar (H), not the toolbar; the Ledger's books are Market (M), Trade, Policies (P), Reports (L) and the inventor's notebook (N); the Hearth adds Letters (O); plans open with the shared Plans tool and are drawn on the valley as ink-blue blueprints; requests live in the left feed with an ask card; the minimap floats above the toolbar's right end and steps aside while an inspector holds the right column.
+- **Books** [I1]: Wishes, the Pattern Book, the Chronicle, Plaques and the Ledger's Reports open from the toolbar one at a time; the left feed steps aside while one is open. The Pattern Book is a two-page spread in the middle of the screen; the Chronicle is a small gazette; plaques are brass. Keys: B Pattern Book, C Chronicle, J Wishes, L Reports, Esc closes.
+- **Portraits** [I1]: an inked SVG badge per resident from species, life stage, mood and look seed, until the art kit renders 3D portraits.
+- **Picker portraits**: every card in the Build, Decor and Fence pickers shows the piece itself, drawn from its art kit as a little diorama on a round patch of meadow, in warm light (`apps/client/src/render/thumbnails.ts`, drawn once per piece on a small offscreen canvas).
+- **Interface size**: at 120% and above the toolbar drops its labels (tooltips keep them); side panels grow with the size.
 - **Lenses**: Hearth uses the warm accent, Ledger the green accent; Tab toggles.
 - **Motion**: 100 to 200 ms transitions; reduced-motion setting.
 - **Writing**: warm, dry, witty; short sentences; never babyish; no em dashes anywhere.
@@ -88,16 +154,18 @@ Auto-detect picks a preset; the settings menu can override it.
 ## Residents on screen [I1]
 
 - Walk bob and squash in the vertex shader (no skeletons); carried bundles; little hops for joy; slower walk when unhappy.
+- [I2 polish, C4P] Round eyes with a catchlight, blush on most species, rounder heads. Everyday outfits over the vest from the look seed: skirts, overalls (mostly field and yard hands, never under an apron), neckerchiefs and hair bows. Between walks, motions the client derives from the frames (the sim never hears of them, `MOTION` in `@qoti/art`): an idle resident by a bench sits on it, idle neighbors within 0.75 tiles turn to each other and take turns talking with a hand while the other nods, and folk who know each other (family, partners and a stable third of the neighbors) wave once in a while as they pass.
 - Bubbles (toggleable): wish, happy, unhappy, sleepy, cold [I3].
-- Far away, residents become simple instanced shapes, then dots.
+- [I2, C4E] Story characters wear a signature outfit by species (Pippa Quill: goggles, cap and satchel; Odette Fenwick: wide hat, long scarf and ledger bag; Juniper Reed: beret, long scarf and lute). Partners near each other walk side by side, hand in hand. Babies (under a year) ride in a parent's sling. Carts glide on a damped follow, turn at a pony's pace and tilt with the slope; the pony's legs and the wheels move with the ground covered; a carter stands at the front board. Animals graze, wander a few steps, look up and lie down at night in the pens their buildings declare (`KitAnchors.animals`).
+- Far away, residents become simple instanced shapes (beyond the resident detail distance), then dots (beyond 2.5 times it). Figures are drawn at 1.15 times the kit's 0.3 tiles so they read from the default camera; clothes follow the job (bakers in toques, farmers in straw hats, fishers in sou'westers) and tier (bowler, top hat).
 
-## Audio [I2]
+## Audio [I3]
 
-- **The Valley Band**: original, jazz and folk tinged tunes from a Songbook, played live by a band made in code. The ensemble grows with rank, from a lone guitar in the hamlet to a small orchestra in the city.
-- Follows the hour, season and weather. Your valley has a 4-bar motif generated from its seed that recurs in stingers, fanfares and festivals.
-- Two laptops in one room never play two songs at once (shared speaker or synced mode).
-- **Ambience**: emitters from what is nearby (river, wind, birds, market chatter, mill, festival crowd, the watch bell). **UI**: paper rustle, soft clicks, pencil scratch for plans. Volume sliders per channel.
-- Full design: `18-audio.md`.
+- **Music**: acoustic guitar, piano, upright bass and brushes; light jazz chords in the evening, a waltz in winter. Layered stems that follow time of day and season.
+- **Ambience**: emitters from what is nearby: river, wind, birds by habitat, market chatter by stall density, mill creak, saw, festival crowd, the watch bell.
+- **UI**: paper rustle, soft clicks, pencil scratch for plans.
+- Sources: CC0 or public domain recordings only (decided after I2), listed in `tools/audio/manifest.json` with their source pages and credited in `apps/client/public/audio/CREDITS.md`. Volume sliders per channel and a mute (C5G).
+- As built (C5G, recordings added after it): the piano, double bass, string section, flute, clarinet, harp and marimba are recorded samples from the VS Chamber Orchestra: Community Edition (CC0; `npm run audio:samples` prepares them, `audio/sampler.ts` plays them, about 7 MB fetched note by note as pieces need them), and everything else is synthesized in the browser, as is any recorded note that cannot load in time. Real-instrument models (tuned plucked strings, a felt piano, FM electric piano, mallets, flute, strings, brushes) play pieces a composer writes from a seed in the hour's style: spring guitar and flute mornings, summer marimba mornings, winter celesta mornings, piano afternoons, minor autumn afternoons, swung evening jazz, celesta nights, the winter waltz. Each piece has an A A B A form with phrases that close, the theme returning, chords voice-led and a slowing outro, and music follows the hour and the season by style rather than by stems, with a 4 s crossfade when the style changes and quiet gaps of 20 to 90 s. Cues use the same instruments and are tuned to the music's key. Ambience loops and cues are synthesized too (`apps/client/src/audio/synth`), rendered once in a worker. The UI's pencil scratch for plans is not in yet; plans use the place and remove sounds.
 
 ## Accessibility [I1]
 

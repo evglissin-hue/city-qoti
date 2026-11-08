@@ -1,6 +1,6 @@
 # 30. Roadmap
 
-Each iteration ends with something both players can play on the live link (P54), a playtest (`22-quality.md`), and an integration cycle that writes the next iteration's briefs. Cycle ids refer to `docs/build/`.
+Each iteration (gameplay I0 to I5, visual V1 to V4; V0 was a concept) ends with something both players can play on the live link (P54), a playtest (`22-quality.md`), and an integration cycle that writes the next iteration's briefs. Cycle ids refer to `docs/build/`.
 
 ## I0 Valley sandbox
 
@@ -36,18 +36,144 @@ Each iteration ends with something both players can play on the live link (P54),
 - The Ledger player has a reason to look at reports; the Hearth player has a reason to look at wishes and the Pattern Book; each needs the other at least once per evening.
 - The hamlet bench stays within budget; hashes still match over a full evening.
 
+**As built (C3X)**, with evidence:
+
+- Growth: the autoplayer (`tools/bench/src/autoplay.ts`) plays a sensible Ledger and Hearth; seeds reach 20 to 41 residents by in-game day 18 (three evenings), most 28+, with no lean times, departures or famine (`autoplay.test.ts` holds willow and hazel to 28+). Human players who tend the Hearth side better should beat it; the first playtest will tell.
+- Buildings, food and budget: per-building production at full and partial staffing, construction, logistics reservations, outlets, taxes, upkeep, the peddler and lean times are unit tested (`packages/sim/test/ledger`); a three-day run from the standard start keeps food ahead of eating (`tools/bench/src/hamlet.test.ts`).
+- Patterns, wishes and achievements: each of the 8 detectors has positive and negative fixtures, each of the 12 wish templates is generated and granted, each of the 10 achievements unlocks (`packages/sim/test/hearth`).
+- Each lane needs the other: residents' wishes ask for Ledger things (a bakery, fish at the stall, a proper path) and Ledger growth needs residents, who come for charm and leave over unhappiness; the alert feed tells each lens what to look at.
+- Budgets: hamlet tick 0.03 to 0.06 ms, 2,000-resident movement 0.5 ms, charm under 2 ms per chunk, patterns under 3 ms per hour (`npm run bench`); the i1-hamlet golden script hashes the same twice in Node and in a browser worker.
+- Looks: an autoplayed 30-resident hamlet (Thistlecombe, seed willow) at day, close up, dusk and night, under 130 draws and 0.9M triangles on Medium (`docs/build/screenshots/c3x-*.png`, shot with `apps/client/e2e/c3x-shots.mjs`).
+
 ## I2 Village
 
-**Scope**: Village Charter; zoning and organic growth; market prices, wages and household budgets (money invariant tested); Craftsfolk tier and home upgrades; goods and chains: clay and bricks, wool to cloth, dairy and cheese, orchards and cider, firewood, herbs, tools; carts; streets and traffic; school, tavern, herbalist; Trading Post, Millhaven and Stonecross, standing orders; loans; plans layer and requests; story characters (Pippa Quill, Odette Fenwick, Juniper Reed); first innovations (wheelbarrows, carts, cobbles, brick kiln, water wheel); 6 new patterns; couples, weddings, births, apprenticeships, retiring; desire paths; terraforming; stairs; minimap; moving a solo valley online; the valley band v1 (engine, Songbook format, arranger for guitar, whistle, upright bass and brushes, 6 tunes, the valley motif, arrival, wish, pattern, achievement, Charter and birth or wedding stingers, river and wind ambience, UI sounds, same-room setting, volume sliders, audio budgets and tests).
+**Scope**: Village Charter; zoning and organic growth; market prices, wages and household budgets (money invariant tested); Craftsfolk tier and home upgrades; goods and chains: clay and bricks, wool to cloth, dairy and cheese, orchards and cider, firewood, herbs, tools; carts; streets and traffic; school, tavern, herbalist; Trading Post, Millhaven and Stonecross, standing orders; loans; plans layer and requests; story characters (Pippa Quill, Odette Fenwick, Juniper Reed); first innovations (wheelbarrows, carts, cobbles, brick kiln, water wheel); 6 new patterns; couples, weddings, births, apprenticeships, retiring; desire paths; terraforming; stairs; minimap; moving a solo valley online.
+
+**Cycles**: C4.0 village contracts (serial) → C4A market and money, C4B growth, C4C village chains, services and tiers, C4D lives, story characters and co-op tools, C4E village art, C4F village UI (parallel) → C4X integration, tuning and I3 planning.
+
+**As built (C4X)**, with evidence:
+
+- From the standard start the autoplayer claims the Village Charter by itself on day 25 to 37 (five seeds), then grows to 138 to 268 residents by day 90 with no lean days and no departures (`tools/bench/src/autoplay.test.ts`, `npm run tune -w @qoti/bench`, the Village half, which C5.0 made the default run):
+
+  | Seed | Village day | Pop / Craftsfolk d60 | Pop / Craftsfolk d90 | Craftsfolk peak | Owed max → d90 (coins) |
+  |---|---|---|---|---|---|
+  | hazel | 25 | 115 / 0 | 138 / 0 | 0 | 1500 → 0 |
+  | willow | 31 | 164 / 0 | 268 / 12 | 22 | 2115 → 66 |
+  | oak | 31 | 148 / 0 | 209 / 0 | 12 | 1971 → 0 |
+  | alder | 37 | 119 / 0 | 183 / 6 | 18 | 3600 → 3600 |
+  | rowan | 35 | 109 / 0 | 181 / 18 | 22 | 1214 → 0 |
+
+- Money: the invariant (`treasury + savings - external` never changes) holds in every economy test and a 10-day village run; from Village rank upkeep is paid to the village's own households, so loans come down again on four of five seeds.
+- Not met: 40 Craftsfolk by day 90. The autoplayer peaks at 0 to 22, held back by its own timber and cloth strategy (woodcutters left on felled patches, yarn waiting for a weaver) more than by the rules; the first human playtest decides how much further to lower the bar.
+- Integration fixes found by running everything together: the Trading Post costs no bricks (a new Village could not trade before its kiln); every workplace gets its first hand before any gets a second; extra porters are hired while goods pile up, and wheelbarrows carry 8; from Village rank, construction deliveries compete with workshop inputs instead of waiting behind them; taverns and herbalists serve 14 tiles and 100 residents; Craftsfolk need 20 coins put by.
+- Looks: an autoplayed village of 130 at day 70 draws 97 to 152 calls and 0.8M to 1.15M triangles on Medium; the I1 playtest's walking, lag, menu icon and lantern notes are fixed and live.
 
 ## I3 Seasons and the Watch
 
-**Scope**: seasons (seasonal farming, frozen river, warmth and firewood); weather and events (flood, drought, early frost, cold snap, travelling circus); festivals; habitats and the Field Guide (about 30 species); threat pressure, telegraphing, bandit gangs and winter wolves; defenses; the Watch and raid resolution; threat dial; River Dock; commissions; renown; customization phase 2 (modules); photo mode; Chronicle snapshots; 6 new patterns; together moments; story characters Mother Thornbury and Barnaby Ashcombe; the first winter trial for Village; seasons and weather in the music director, 8 more tunes (4 festival tunes, 2 winter waltzes), a diegetic festival stage with the first music quality tiers, challenge music, ambience emitters, the Field Guide stinger.
+**Scope**: seasons (seasonal farming, frozen river, warmth and firewood); weather and events (flood, drought, early frost, cold snap, travelling circus); festivals; habitats and the Field Guide (about 30 species); threat pressure, telegraphing, bandit gangs and winter wolves; defenses; the Watch and raid resolution; threat dial; River Dock; commissions; renown; customization phase 2 (modules); photo mode; Chronicle snapshots; 6 new patterns; together moments; story characters Mother Thornbury and Barnaby Ashcombe; the first winter trial for Village; music, ambience and sound effects from CC0 recordings (pulled forward from I5); a guide for a new valley's first days.
+
+**Cycles**: C5.0 seasons contracts (serial, with C4P roads and folk polish alongside) → C5A seasons and weather, C5B festivals and renown, C5C nature and the Field Guide, C5D threats and the Watch, C5E seasons art, C5F seasons UI, C5G music and sound, C5H the first days guide (parallel) → C5X integration and I4 planning. C5E waits for V1 (below) and then builds the seasons, festivals and defenses on the new look; the other I3 cycles own sim and UI paths and run alongside V1.
+
+**Acceptance** (C5.0, from C5X's proposal):
+
+- A Village prepares for and gets through its first winter: everyone fed on stored food, everyone warm, the trial weathered; unprepared, some are cold and a few leave, and nothing worse.
+- Every season ends in a planned festival whose stars follow its site, menu, music and twist; a 5-star festival is reachable.
+- Every raid is telegraphed with time to prepare; defenses, lanterns and the Watch visibly change its outcome; nobody is hurt and every loss can be rebuilt; captured bandits can join the town.
+- About 30 species can be found; the Field Guide fills for both seats; bees and songbirds change yields.
+- Weather and events (flood, drought, early frost, cold snap, circus) are forecast and felt in both lanes.
+- Renown, commissions, the River Dock, modules, photo mode and Chronicle pictures work; the 6 new patterns and 5 new achievements can be earned.
+- Each lane has seasonal work and needs the other (festival supplies, winter stock, walls dressed for charm, morale from festivals).
+- Music follows the hour and the season, ambience follows the camera, and every recording is CC0 and credited.
+- A new standard valley's first days are guided for both lanes, and the guide can be hidden by either player.
+- Benches within budget at Village scale in winter, during a festival and during a raid; hashes match over a full year, including a raid, in Node and a browser worker.
+
+**As built (C5X)**, with evidence (part 1 #22 merged and tuned the gameplay wave; part 2 tuned the rest, fixed the dead ends below and shipped; the two-player evening is `docs/playtests/I3.md`):
+
+- [x] **The first winter**: the autoplayer (`npm run tune:summary -w @qoti/bench`, every system on, threat Standard, 72 days) weathers The First Winter first time on all four seeds (willow, hazel, oak, alpha), no household leaves, every winter is eaten through on stored food, and no household is cold in any winter but oak's third (22 on its last day, a cold snap with its sheds short of hands). Unprepared: a household with no firewood is cold, cross and counted, and nothing worse (`packages/sim/test/seasons/warmth.test.ts`, `trials.test.ts`).
+- [x] **Festivals**: one every season on every seed; 3 stars or more in the first Village year on all four; 5 stars on hazel and oak (`tools/bench/src/advisors/festivals.test.ts` holds willow and hazel to it Peaceful); stars follow site, pieces, menu, music and twist (`packages/sim/test/festivals`).
+- [x] **Raids**: every raid telegraphed (band, side, days, signs), 2 to 4 a run, losses 32 to 88 units and recovered with no lean days, some held outright; walls, lanterns and the Watch move the outcome and captives can join (`packages/sim/test/threats`, C5D). Nobody is hurt.
+- [x] **Nature**: 32 species in content; 17 to 22 in the autoplayer's first Village year; the Field Guide is per valley and shows to both seats; bees and songbirds are yield modifiers (`packages/sim/test/nature`).
+- [x] **Weather and events**: flood, drought, early frost, cold snap and the circus forecast on the season card and felt in both lanes (C5A tests, C5F's season card).
+- [x] **Renown, commissions, the River Dock, modules, photo mode, Chronicle pictures**; 6 new patterns and 5 new achievements with detector and unlock tests (C5B, C5C, C5E, C5F).
+- [x] **Each lane needs the other**: festival menus and winter stock share one larder, walls carry charm, festival morale feeds the Watch.
+- [x] **Music and sound**: the hour, the season and the camera (C5G). Every sound is synthesized in the browser or a CC0 recording (VSCO-2 CE), credited in the manifest; the CC0 hosts were blocked in the build container, so most of the score is synthesized, as the owner allowed.
+- [x] **First days guide** for both lanes, hidden by either seat (C5H, `c5h-guide.spec.ts`).
+- [x] **Benches and hashes**: every sim budget met at Village scale (seasons day 0.5 to 0.8 ms, festivals 0.46 ms an outcome, habitats 1.8 ms a day, raids 0.18 ms a tick and 0.85 ms the daily pass; the charm chunk's dense block at night sits at 1.4 to 2.3 ms against 2 ms in this container, the same on `main`); a year of the threat fixture with its raid hashes the same in Node and a browser worker (`determinism.spec.ts`), and two browsers play a year online with all 24 daily hash checks matching and no resyncs, through a drought, an early frost, a cold snap and the frozen river (`c5x-year.spec.ts`, `QOTI_YEAR=1`).
+
+| Seed | Village day | Festivals (stars by season) | Species, first Village year | Raids | Loans at the end (peak) | Lean days | Cold households | Trial |
+|---|---|---|---|---|---|---|---|---|
+| willow | 19 | 1 3 2 2, 3 4 4 3 | 17 | 3, lost 32 to 40, 3 caught | 111 (1,598) | 0 | 0 | weathered first time |
+| hazel | 19 | 2 4 3 2, 5 4 4 4 | 21 | 3, lost 48 and 56, one held | 225 (1,740) | 0 | 0 | weathered first time |
+| oak | 30 | 2 2 2 2, 3 5 4 3 | 18 | 2, lost 48 and 88 | 2,325 (2,564) | 0 | 22 on the last day (year 3) | weathered first time |
+| alpha | 13 | 3 4 4 3, 3 4 3 3 | 22 | 4, lost 48 and 56, two held | 0 (1,349) | 0 | 0 | weathered first time |
+
+Left for humans: the two-player evening on the live link (`docs/playtests/I3.md`) and the laptop numbers (`docs/playtests/V1.md`).
+
+## Visual overhaul (V iterations)
+
+The look gets much more detailed and stays cozy (owner, 2026-11-01; `17-presentation.md`, Visual direction; `18-eras.md`). Like the gameplay iterations, each V iteration is a serial contracts cycle, a parallel wave and an integration cycle, ends playable on the live link and gets a playtest evening. V iterations interleave with the gameplay ones: a V wave owns render and art paths, so gameplay cycles that own sim and UI paths can run beside it.
+
+### V0 Concept and direction (done)
+
+The concept viewer (`docs/concepts/v0-look/index.html`) with three directions, three eras and three times of day, and a live fps, draw call and triangle readout; stills (`docs/build/screenshots/v0-*.jpg`); this eras doc; the budgets by preset (`22-quality.md`). The owner and Kat picked B, the Painted Miniature (2026-11-01). The owner measured the first concept at about 20 to 25 fps on High, so the concept was rebuilt on the lean renderer (`20-architecture.md`, Lean renderer [V1]) to prove the look can run on the weaker laptop; the first engine stays as `docs/concepts/v0-look/v1-engine.html` for comparison. The V1 briefs are written (`docs/build/cycle-v1-*.md`).
+
+### V1 Look foundation (done in V1X, 2026-11-03; the laptop runs and the playtest evening still to come)
+
+Runs alongside the I3 wave's C5B, C5C, C5D, C5F and C5H; C5E waits for V1X.
+
+**Cycles**: V1.0 look contracts (serial) → V1A materials and light, V1B buildings detail, V1C ground, water and nature, V1D lean renderer (parallel) → V1X integration.
+
+- **V1.0 look contracts**: the per-vertex surface id every kit writes and its table; palette 2.0 from the B concept; the pattern texture array interface; `Era` and `eras` reserved in content types; render layers marked static or moving; the quality presets with Ultra; a GPU timer in the `?debug` overlay; the split of `renderer.ts` and `post.ts` so V1A and V1D never share a file; fixed scenes (the hamlet, the village of 130, a 1,000-building town with 2,000 synthetic residents) with a shots script and a perf script that measures moving and idle frames.
+- **V1A materials and light**: the Lambert-based kit material with the pattern array generated in code (brick, curved clay tiles, slate, thatch, plaster, timber, cobbles, flags, grass with flowers and the rest), palette 2.0, sky fresnel and sun glint on glass and water, warm haze, night windows and lamp pools, the season, snow and sway hooks on the new material, and the final pass's look (grade, tilt-shift, bloom, tone mapping).
+- **V1B buildings detail**: the B detail kit on every generator (frames, sills, lintels, string courses, cornices, roof courses, eave and verge boards, dormers, chimney pots, shutters, window boxes, ivy), joined facades and party walls where neighbors touch, a near and a far level for every kit, baked vertex AO.
+- **V1C ground, water and nature**: ground variety (mown grass, meadow, worn edges, soil you can see), kerbs and road edges, the ground AO texture and its chunk updates, trees v2 with two levels, water and banks, blob shadows under residents and carts.
+- **V1D lean renderer**: one scene pass, a quarter resolution blur chain and one final pass; cached sun shadows; level choice per preset; the still-frame cache (idle frames draw only the moving layers); dynamic resolution judged on moving frames with a cool-down; Ultra; the budgets measured on both laptops.
+- **V1X integration**: merges and tunes; before and after shots of every scene; fps and GPU time from both laptops on each preset, moving and idle; a playtest evening; C5E's brief updated; planning notes for V2 and V3.
+
+**As built (V1X)**: V1A, V1B and V1C merged on V1D (PRs #13, #14 and #16). Before and after shots of every scene are `docs/build/screenshots/v1-before-*.png` and `v1-after-*.png`, with side-by-side sheets (concept, before, after) in `v1x-compare-*.jpg`. Software numbers (`22-quality.md`, As built V1X): the town on Medium moves at 0.58 M triangles (2.66 M before V1) in 122 draws, and with the sim held every rest frame is idle. V1X fixed resting redraws (static layers that invalidated on sim changes that changed nothing), retired the classic chain, and turned the day sun to the concept's height and azimuth so shadows read from the default camera. Left for humans: the laptop perf runs and the playtest evening (`docs/playtests/V1.md`).
+
+**Acceptance**: the scenes read as the B concept from the default camera and close up, by day, golden hour and night; every budget in `22-quality.md` holds on the weaker laptop on Medium, moving and idle; nothing in the sim changes, and hashes match.
+
+### V2 Streets that feel like a town (with the I4 wave)
+
+Zoned buildings fill their street frontage and join into terraces around back gardens and courtyards; corner buildings; stepped rooflines and heights by tier; street furniture density by district. It changes how lots are cut and grown, so its sim half goes through I4's contracts cycle and its art half joins the I4 art cycle.
+
+### V3 Age of Steam (with I4 Town)
+
+Era state in the sim and saves (`18-eras.md`, Data), the Age of Steam kit (brick, slate, mansards, ironwork, gas lamps, canal locks, barges, factory stacks and smoke), the era moment at the sealed Town Charter, restyling across eras, the Old Town pattern, steam as a production method and smoke as a Charm cost.
+
+### V4 Bright Age and grand landmarks (with I5)
+
+The Bright Age kit (stucco, art deco touches, electric lamps, tram wires, the station), electric methods and the electric tram, grand landmarks, and the Bright Age's gentle threats.
+
+## P1 Quality audit and polish (before I4)
+
+The owner's call (2026-11-04): before going wide with I4 Town, a quality audit and polish pass over what I0 to I3 and V1 already ship: the rough edges, the playtest flags, the follow-ups the wave PRs listed, performance on the laptops. The owner starts it. No I4 briefs are written until P1 is done; C5X, which was to write them, ships I3 and stops there.
 
 ## I4 Town
 
-**Scope**: Town Charter and the bandit raid trial; Merchants tier; districts, district policies and styles; contracts; Port Amberly; canals and barges; parcels and expansion (purchase, bridges, camps and dens with Watch expeditions); great owl, river raiders, bandit chief; block builder for landmarks; library, theater, post office, inn and tourism; levees and irrigation; time-lapse; 8 new patterns; Captain Wendell Rook; more achievements; piano and clarinet join the band, the tavern piano, the theater, 6 more tunes, Juniper Reed's choir.
+*Waits for P1 (above).*
+
+
+**Scope**: Town Charter and the bandit raid trial; the Age of Steam (`18-eras.md`: era state, the Steam kit and systems, the era moment, restyling across eras, Old Town; V2 and V3 run with this wave); Merchants tier; districts, district policies and styles; contracts; Port Amberly; canals and barges; parcels and expansion (purchase, bridges, camps and dens with Watch expeditions); great owl, river raiders, bandit chief; block builder for landmarks; library, theater, post office, inn and tourism; levees and irrigation; time-lapse; 8 new patterns; Captain Wendell Rook; more achievements.
 
 ## I5 Market Town, City and beyond
 
-**Scope**: Market Town and City Charters and trials; Patrons tier; tram, gas lamps, railway, glassworks; grand landmarks; the full band (vibraphone, horns, strings) and the last tunes (8 more, 28 total); stroll mode; optional Claude-written letters; new valleys (coast, highlands, lakes); gamepads and a one-screen couch mode; remappable keys; captions; the Calm setting; optional featured recordings; polish.
+**Scope**: Market Town and City Charters and trials; the Bright Age at City (`18-eras.md`; V4 runs with this wave); Patrons tier; tram, gas lamps, railway, glassworks; grand landmarks; music stems that follow the town; stroll mode; optional Claude-written letters; new valleys (coast, highlands, lakes); gamepads and a one-screen couch mode; remappable keys; captions; polish.
+
+## Ideas from playtests (not scheduled)
+
+Raised by the owner and Kat after playtest round three; for later increments, not the current one.
+
+- **A little RimWorld flavor, not obviously**: residents already have personalities; lean on them so every villager feels like someone in particular.
+- **Ideology and belief**: once a village has grown into a bigger place (Town at the earliest, maybe later), the two players pick what the town believes and values, and it colors the town: festivals, buildings, wishes, moods.
+- **A light technology tree**, kept basic.
+- **Decor that is cozy and varied from the start**: no edgy, angular furniture-pack look (Kat's RimWorld comparison: the base game's furniture is too angular until mods make it cute). Start with a small set of basic pieces and combinations that are already charming, and unlock much more with ranks and achievements, with a bit of challenge in earning them.
+- **A move mode**: pick up a building or a piece of decor and set it down elsewhere, as in games that let you rearrange the town freely.
+
+Raised in playtest round five, not yet done (round five did the rest; see the changelog):
+
+- **Soil you can see**: ground of different fertility looks alike until a plot or farm is chosen (the soil tint) or the pointer rests on it (the hover label). Shade rich and thin soil a little in the ground itself. *V1C*: rich ground is a deeper green with clover, thin a paler straw with a little bare earth showing.
+- **Residents easier to spot** from the usual camera height.
+- **A first-days tutorial**: what to build first and why (C5H's guide is the place for it).
+- **The town hall's door walk** did not seem to meet the road; check the door walk against the road on every rotation.

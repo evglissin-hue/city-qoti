@@ -11,6 +11,22 @@ A **cycle** is one agent session working from one brief on one branch, ending in
 | I0 | C1 foundation | C2A world and sim, C2B render and art kit, C2C co-op and saves, C2D client UX | C2X |
 | I1 | C3.0 hamlet contracts | C3A residents, C3B Hearth v1, C3C Ledger v1, C3D hamlet art and rendering, C3E hamlet UI | C3X (also writes the I2 briefs) |
 | I2 to I5 | written by the previous integration cycle | | |
+| V1 | V1.0 look contracts (surface ids, palette 2.0, the pattern array interface, reserved `Era`, static and moving layers, presets with Ultra, GPU timer, the file split, scenes and perf scripts) | V1A materials and light, V1B buildings detail, V1C ground, water and nature, V1D lean renderer | V1X |
+| V2 to V4 | inside I4 and I5's contracts cycles | with the I4 and I5 waves | with I4X and I5X |
+
+V1 splits the render and art track by subpath so its four cycles can run at once on V1.0's shared contract:
+
+| V1 cycle | Owns |
+|---|---|
+| V1.0 | the contract and split files listed in its brief (`docs/build/cycle-v1-0-look-contracts.md`) |
+| V1A | `packages/art/src/{materials,palette,patterns}.ts` and the values in `surface.ts`; `apps/client/src/render/{material,look,lighting,env}.ts`; the gallery's surfaces section |
+| V1B | `packages/art/src/kits/` (buildings, props, residents) except `nature.ts` and `trees.ts`; helpers in `packages/art/src/{shapes,geometry}.ts`; `apps/client/src/render/{kitGeometry.ts,layers/buildings.ts}` |
+| V1C | `packages/art/src/kits/{nature,trees}.ts`; `render/layers/{terrain,roads,water,nature,trees,blobs}.ts`; `render/{ground,surface,scatter,groundAo}.ts` |
+| V1D | `apps/client/src/render/{renderer,post,quality,resolution,chunks,batch,gpuTimer,cache,shadows,lod}.ts`, `apps/client/e2e/v1-perf.mjs` |
+
+Two files would otherwise be shared, so V1.0 splits them: the kit material moves from `renderer.ts` to `material.ts` (V1A), and the final pass's color code moves from `post.ts` to `look.ts` (V1A), leaving the frame graph in `post.ts` and the frame loop in `renderer.ts` to V1D.
+
+A V1 wave runs beside gameplay cycles that own sim and UI paths (I3's C5B, C5C, C5D, C5F, C5H); a gameplay cycle that owns render or art paths (C5E) waits for V1X.
 
 Briefs live in `docs/build/`. The board in `docs/build/README.md` tracks status.
 
@@ -24,7 +40,6 @@ Each brief names the paths it owns. Owners may change anything inside them. Outs
 | Render and art | `packages/art`, `apps/gallery`, `apps/client/src/render` |
 | Co-op and saves | `packages/protocol`, `apps/server`, `tools/dev-server`, `apps/client/src/net`, `packages/sim/src/state` (serialize, hash, migrations) |
 | Client UX | `apps/client/src/app`, `src/input`, `src/ui`, `src/state` |
-| Audio | `apps/client/src/audio`, `packages/content/src/audio`, `CREDITS.md` |
 | Integration | everything, but only to merge, fix and tune |
 
 ## Contracts policy
@@ -34,7 +49,7 @@ Contracts are the shared types every track codes against:
 - `packages/sim/src/contracts/**`
 - `packages/protocol/src/messages.ts`
 - `packages/content/src/types.ts`
-- `apps/client/src/render/api.ts`, `src/input/tool.ts`, `src/net/connection.ts`, `src/worker/messages.ts`, `src/audio/api.ts`
+- `apps/client/src/render/api.ts`, `src/input/tool.ts`, `src/net/connection.ts`, `src/worker/messages.ts`, `src/audio/api.ts` (from C5.0)
 
 Rules:
 
@@ -55,10 +70,6 @@ To keep parallel PRs from colliding, every extensible list is a registry with on
 - lens toolbars: `apps/client/src/ui/lenses.ts`
 - panels: `apps/client/src/ui/panels/index.ts`
 - art kits: `packages/art/src/kits/index.ts`
-- tunes: `packages/content/src/audio/songbook/index.ts`
-- instruments: `packages/content/src/audio/instruments/index.ts`
-- ambience emitters: `apps/client/src/audio/ambience/index.ts`
-- stingers: `apps/client/src/audio/stingers/index.ts`
 
 Keep registry entries sorted alphabetically: two PRs adding different lines then merge cleanly in almost every case.
 

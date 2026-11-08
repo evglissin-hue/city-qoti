@@ -1,0 +1,7 @@
+// Linted as if it lived in packages/sim/src. Nothing here may be reported.
+export function dist(dx: number, dz: number): number {
+  return Math.sqrt(dx * dx + dz * dz);
+}
+export const mixed = Math.imul(7, 9) ^ (Math.floor(3.5) + Math.round(1.2) + Math.abs(-2));
+export const items = new Map<number, string>([[1, 'one']]);
+for (const [id, name] of items) void [id, name];

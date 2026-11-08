@@ -1,0 +1,16 @@
+{
+  "name": "@qoti/protocol",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Network messages, RoomCore and room storage adapters.",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p . --noEmit"
+  },
+  "dependencies": {
+    "@qoti/sim": "*"
+  }
+}

@@ -1,0 +1,119 @@
+// Named code predicates for the Condition DSL's escape hatch ({ code: 'lanternRoute' }), for the
+// rules a JSON condition cannot say well: anything about the route a resident actually walks.
+import { content } from '@qoti/content';
+import { MAP_SIZE } from '../constants';
+import type { Rect, WorldState } from '../contracts';
+import { seasonAt } from '../state/seasons';
+import { doorTileOf } from '../systems/movement/api';
+import { pavedDesireTiles } from '../systems/traffic/wear';
+import { decorInRect, decorTileX, decorTileZ, expandRect } from './geo';
+import type { Binding } from './index';
+import { findRoute } from './route';
+// I2 (C4C): the innovations' predicates live with their measures.
+import {
+  clayPitWorked,
+  plankRate,
+  portersBusy,
+  rankAtLeastCode,
+  sawpitByRiver,
+  stoneRate,
+  storyStep,
+} from '../systems/innovations/measures';
+// I3 (C5B): the festival twists' goals.
+import { festivalByWater, festivalMenu, festivalPieces, riverFrozen } from '../systems/festivals/predicates';
+// I3 (C5D): Barnaby Ashcombe's arc.
+import { bridgeBuilt, dressedWall, raidSeen, watchPosted } from '../systems/threats/conditions';
+// I3 (C5H): the first days guide's goals.
+import { guideFoodWorked, guideInBlack, guideLane } from '../systems/guide/goals';
+
+export type CodePredicate = (
+  state: WorldState,
+  bind: Binding,
+  params: readonly [string, number][],
+  /** I3 (C5.0): the condition's `ref` (a content id), when it has one. */
+  ref?: string,
+) => boolean;
+
+function param(params: readonly [string, number][], name: string, fallback: number): number {
+  for (const [k, v] of params) if (k === name) return v;
+  return fallback;
+}
+
+/** The walk from work to home, door to door, or null when either is missing or unreachable. */
+function commute(state: WorldState, bind: Binding, roadsOnly: boolean): number[] | null {
+  if (!bind.home || !bind.work) return null;
+  const from = doorTileOf(state, bind.work);
+  const to = doorTileOf(state, bind.home);
+  if (from < 0 || to < 0) return null;
+  return findRoute(state, from, to, roadsOnly);
+}
+
+/**
+ * Lanterns along `share` percent (default 50) of the route home from work: a route tile is lit
+ * when a lantern stands on it or on one of its eight neighbors.
+ */
+export function lanternRoute(state: WorldState, bind: Binding, params: readonly [string, number][]): boolean {
+  const route = commute(state, bind, false);
+  if (!route || route.length === 0) return false;
+  let rect: Rect = [MAP_SIZE, MAP_SIZE, -1, -1];
+  for (const i of route) {
+    const x = i % MAP_SIZE;
+    const z = (i - x) / MAP_SIZE;
+    rect = [Math.min(rect[0], x), Math.min(rect[1], z), Math.max(rect[2], x), Math.max(rect[3], z)];
+  }
+  const lit = new Set<number>();
+  for (const d of decorInRect(state, expandRect(rect, 1))) {
+    if (!content.decorById.get(d.def)?.tags.includes('lantern')) continue;
+    const x = decorTileX(d);
+    const z = decorTileZ(d);
+    for (let dz = -1; dz <= 1; dz++) for (let dx = -1; dx <= 1; dx++) lit.add((z + dz) * MAP_SIZE + x + dx);
+  }
+  let n = 0;
+  for (const i of route) if (lit.has(i)) n++;
+  return n * 100 >= param(params, 'share', 50) * route.length;
+}
+
+/**
+ * I2 (C4B): at least `tiles` (default 12) path tiles laid where residents had already worn a
+ * desire path into the grass (the Desire Lines achievement).
+ */
+export function desireLines(state: WorldState, _bind: Binding, params: readonly [string, number][]): boolean {
+  return pavedDesireTiles(state) >= param(params, 'tiles', 12);
+}
+
+/** I3 (C5A): the season now is `index` (0 spring to 3 winter); stories time their arrivals by it. */
+export function seasonIs(state: WorldState, _bind: Binding, params: readonly [string, number][]): boolean {
+  return seasonAt(state.tick).season === param(params, 'index', 0);
+}
+
+/** A road route from home to work: door to door without setting foot on grass. */
+export function pathRoute(state: WorldState, bind: Binding): boolean {
+  return commute(state, bind, true) !== null;
+}
+
+// Registry: one line per predicate, alphabetical.
+// prettier-ignore
+export const codePredicates: ReadonlyMap<string, CodePredicate> = new Map<string, CodePredicate>([
+  ['bridgeBuilt', bridgeBuilt],
+  ['clayPitWorked', clayPitWorked],
+  ['desireLines', desireLines],
+  ['dressedWall', dressedWall],
+  ['festivalByWater', festivalByWater],
+  ['festivalMenu', festivalMenu],
+  ['festivalPieces', festivalPieces],
+  ['guideFoodWorked', guideFoodWorked],
+  ['guideInBlack', guideInBlack],
+  ['guideLane', guideLane],
+  ['lanternRoute', lanternRoute],
+  ['pathRoute', pathRoute],
+  ['plankRate', plankRate],
+  ['portersBusy', portersBusy],
+  ['raidSeen', raidSeen],
+  ['rankAtLeast', rankAtLeastCode],
+  ['riverFrozen', riverFrozen],
+  ['sawpitByRiver', sawpitByRiver],
+  ['seasonIs', seasonIs],
+  ['stoneRate', stoneRate],
+  ['storyStep', storyStep],
+  ['watchPosted', watchPosted],
+]);

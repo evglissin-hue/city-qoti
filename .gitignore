@@ -1,0 +1,19 @@
+node_modules/
+dist/
+coverage/
+*.log
+*.tsbuildinfo
+*.generated.ts
+.vite/
+.wrangler/
+.devdata/
+.dev.vars
+playwright-report/
+test-results/
+blob-report/
+playwright/.cache/
+bench-report.json
+.DS_Store
+.claude/worktrees/
+# Stray output from tools run inside a worktree root.
+.claude/docs/

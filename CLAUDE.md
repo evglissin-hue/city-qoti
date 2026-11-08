@@ -12,12 +12,13 @@ A cozy two-player town builder for the browser. TypeScript monorepo: a determini
 
 These are created in cycle C1; keep this list accurate.
 
-- `npm ci`: install
-- `npm run dev`: client and local relay (client on http://localhost:5173)
-- `npm test`: unit tests (Vitest); `npm run e2e`: Playwright
-- `npm run typecheck`, `npm run lint`, `npm run build`
+- `npm ci`: install (also generates `packages/sim/src/version.generated.ts`)
+- `npm run dev`: client and local relay (client on http://localhost:5173, relay on :8787)
+- `npm test`: unit tests (Vitest); `npm run e2e`: Playwright (starts its own servers; first run needs `npx playwright install chromium`)
+- `npm run typecheck`, `npm run lint` (ESLint and Prettier check), `npm run format`, `npm run build`
 - `npm run bench`: headless simulation benchmarks with budget checks
 - `npm run deploy`: Cloudflare deploy (needs credentials)
+- `npm run golden -w @qoti/sim`: regenerate `packages/sim/test/golden/i0-basic.json` (only when the script format changes)
 
 ## Layout
 
