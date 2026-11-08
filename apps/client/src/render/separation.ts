@@ -76,7 +76,7 @@ export class SeparationField {
   addCart(x: number, z: number, heading: number): void {
     const i = this.nc;
     if (i >= this.cx.length) {
-      const grow = (a: Float64Array): Float64Array => {
+      const grow = (a: Float64Array): Float64Array<ArrayBuffer> => {
         const b = new Float64Array(a.length * 2);
         b.set(a);
         return b;
@@ -206,7 +206,7 @@ export class SeparationField {
 
   private growBodies(): void {
     const n = this.ids.length * 2;
-    const f64 = (a: Float64Array): Float64Array => {
+    const f64 = (a: Float64Array): Float64Array<ArrayBuffer> => {
       const b = new Float64Array(n);
       b.set(a);
       return b;

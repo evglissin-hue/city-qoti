@@ -379,7 +379,7 @@ export function outdoorImpulse(rate: number, seconds = 0.7): [Float32Array, Floa
   ];
   const chans: [Float32Array, Float32Array] = [new Float32Array(len), new Float32Array(len)];
   for (let c = 0; c < 2; c++) {
-    const d = chans[c];
+    const d = chans[c]!;
     taps.forEach((tap, k) => {
       const at = Math.floor(tap[c]! * rate);
       const g = 0.5 * Math.pow(0.7, k);
