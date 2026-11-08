@@ -262,25 +262,29 @@ function owlCall(out: Float32Array, at: number, rand: Rand, f0: number, amp: num
     [1.3, 0.17, 0.97, 0.94, 0.6, 0],
     [1.62, 1.5, 0.98, 0.86, 0.9, 0.022],
   ];
-  const breath = new Biquad('bandpass', 750, 1.5);
+  const breath = new Biquad('bandpass', 620, 1.3);
   const tail = Math.floor(3.4 * R);
   const mine = new Float32Array(tail);
   const f0j = f0 * (0.97 + rand() * 0.06);
   for (const [s, d, p0, p1, loud, vib] of notes) {
     const n = Math.floor(d * R);
     let phase = 0;
+    // P1 (player's ear): a living voice wanders a little in pitch; a steady one reads as a whistle.
+    const wander = rand() * 2 * Math.PI;
     addAt(mine, Math.floor(s * R), n, (i) => {
       const x = i / n;
-      const f = f0j * (p0 + (p1 - p0) * x) * (1 + vib * Math.sin((2 * Math.PI * 5.5 * i) / R));
+      const drift = 1 + 0.006 * Math.sin((2 * Math.PI * 1.3 * i) / R + wander);
+      const f = f0j * (p0 + (p1 - p0) * x) * (1 + vib * Math.sin((2 * Math.PI * 5.5 * i) / R)) * drift;
       phase += (2 * Math.PI * f) / R;
-      // The hoot's harmonics, weighted toward a vowel formant near 600 Hz.
+      // The hoot's harmonics: a soft, round "hoo" is mostly its fundamental (the second harmonic
+      // about 20 dB down), with a vowel formant sitting on the hoot itself.
       let v = 0;
       for (let h = 1; h <= 8; h++) {
-        const df = (h * f - 600) / 280;
-        v += (Math.sin(h * phase) / Math.pow(h, 1.25)) * (1 + 2.2 * Math.exp(-df * df));
+        const df = (h * f - 480) / 220;
+        v += (Math.sin(h * phase) / Math.pow(h, 2.1)) * (1 + 2.2 * Math.exp(-df * df));
       }
       const env = Math.pow(Math.sin(Math.PI * Math.pow(x, 0.7)), 1.2);
-      return (v * 0.4 + breath.run(noise(rand)) * 0.07) * env * loud;
+      return (v * 0.4 + breath.run(noise(rand)) * 0.1) * env * loud;
     });
   }
   // Heard from across the wood: a dull edge and two soft echoes off the trees.
