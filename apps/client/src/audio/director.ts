@@ -458,13 +458,13 @@ export const STYLES: readonly Style[] = [
 ];
 
 /**
- * The style for an hour of a season (0 spring to 3 winter). A festival, outside winter, takes the
- * afternoon and the evening; summer afternoons play bossa.
+ * The style for an hour of a season (0 spring to 3 winter). A festival, outside winter, takes every
+ * phase but the morning (they run to 22:00); summer afternoons play bossa.
  */
 export function styleFor(hour: number, season: number, ctx?: MusicContext): Style {
   const phase = phaseOf(hour);
   if (season === 3) return phase === 'morning' ? WINTER_MORNING : WALTZ;
-  if (ctx?.festival && (phase === 'afternoon' || phase === 'evening')) return FESTIVAL;
+  if (ctx?.festival && phase !== 'morning') return FESTIVAL;
   if (phase === 'morning') return season === 1 ? SUMMER_MORNING : MORNING;
   if (phase === 'afternoon') return season === 1 ? BOSSA : season === 2 ? AUTUMN : AFTERNOON;
   return phase === 'evening' ? EVENING : NIGHT;

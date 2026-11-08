@@ -95,13 +95,15 @@ describe('music director with the valley context', () => {
     }
   });
 
-  it('plays the festival style in the afternoon and evening, but not in winter, morning or night', () => {
+  it('plays the festival style while one is on, except in the morning and in winter', () => {
     const f = ctx({ festival: true });
     for (const season of [0, 1, 2]) {
       expect(styleFor(14, season, f).id).toBe('festival');
       expect(styleFor(19, season, f).id).toBe('festival');
       expect(styleFor(7, season, f).id).not.toBe('festival');
-      expect(styleFor(23, season, f).id).toBe('night');
+      // Festivals run to 22:00, past the evening: the dance plays on into the night.
+      expect(styleFor(21.5, season, f).id).toBe('festival');
+      expect(styleFor(23, season).id).toBe('night');
     }
     expect(styleFor(14, 3, f).id).toBe('waltz');
     expect(styleFor(19, 3, f).id).toBe('waltz');
