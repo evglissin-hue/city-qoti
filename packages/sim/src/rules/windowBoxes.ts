@@ -1,7 +1,6 @@
-// Window boxes, as the player sees them. A home whose kit draws boxes on its own (a hand-placed
-// cottage: `boxesByDefault` in content) has them until the player turns them off, so an unset
-// `custom.windowBoxes` means on there and the charm and habitat points follow what is drawn.
-// Grown homes take their district's look instead and only count the boxes the player chose.
+// Window boxes, as the player sees them: what is drawn is what counts. P1: hand-placed kits draw no
+// boxes until someone adds them, so an unset `custom.windowBoxes` is off; a def may still opt in with
+// `boxesByDefault`. Grown homes take their district's look and only count the boxes chosen for them.
 import type { BuildingDef } from '@qoti/content';
 import type { Building } from '../contracts';
 

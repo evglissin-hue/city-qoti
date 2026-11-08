@@ -80,8 +80,8 @@ export const cottage: BuildingDef = {
   housing: { households: 1, residents: 4 },
   work: 8,
   tags: ['home'],
-  // Playtest round seven: the cottage kit draws window boxes, and a porch, ivy or boxes fit by module.
-  boxesByDefault: true,
+  // A porch, ivy or flower boxes fit by module. P1: window boxes are added, by the players in
+  // Customize (in a color of their choosing) or by the household as its street grows pleasant.
   moduleSlots: [
     ['front', 1],
     ['wall', 1],

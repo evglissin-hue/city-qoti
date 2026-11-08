@@ -186,23 +186,23 @@ describe('decor boost', () => {
   });
 });
 
-describe('window boxes by default', () => {
-  it('a hand-placed cottage has boxes until they are turned off, and the charm follows', () => {
+describe('window boxes are added, never assumed', () => {
+  it('a hand-placed cottage has none until someone adds them, and the charm follows', () => {
     const f = hamletFixture();
     const c = findById(f.state.buildings, f.b.cottages[0])!;
     const def = content.buildingById.get('cottage')!;
-    expect(windowBoxesOn(c, def)).toBe(true);
-    settle(f.state);
-    const withBoxes = charm(f.state, 'charmNature', c.x, c.z - 1);
-    run(f.state, { t: 'build.customize', id: c.id, custom: { windowBoxes: false } }, 0, seq++);
     expect(windowBoxesOn(c, def)).toBe(false);
     settle(f.state);
-    expect(charm(f.state, 'charmNature', c.x, c.z - 1)).toBeLessThan(withBoxes);
-    run(f.state, { t: 'build.customize', id: c.id, custom: { windowBoxes: null } }, 0, seq++);
+    const plain = charm(f.state, 'charmNature', c.x, c.z - 1);
+    run(f.state, { t: 'build.customize', id: c.id, custom: { windowBoxes: true } }, 0, seq++);
     expect(windowBoxesOn(c, def)).toBe(true);
+    settle(f.state);
+    expect(charm(f.state, 'charmNature', c.x, c.z - 1)).toBeGreaterThan(plain);
+    run(f.state, { t: 'build.customize', id: c.id, custom: { windowBoxes: null } }, 0, seq++);
+    expect(windowBoxesOn(c, def)).toBe(false);
   });
 
-  it('homes with no such default count only the boxes the player chose', () => {
+  it('counts only the boxes somebody chose, on any building', () => {
     const f = hamletFixture();
     const bakery = findById(f.state.buildings, f.b.bakery)!;
     expect(windowBoxesOn(bakery, content.buildingById.get('bakery'))).toBe(false);

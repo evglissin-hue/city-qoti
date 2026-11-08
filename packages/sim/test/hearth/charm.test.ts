@@ -170,10 +170,10 @@ describe('charm sources', () => {
     b.custom = { windowBoxes: true };
     settle(w);
     expect(charm(w, 'charmNature', 132, 41)).toBeGreaterThan(before);
-    // Unset means the kit's default, and a hand-placed cottage draws boxes.
+    // P1: unset means none; boxes are something somebody adds.
     delete b.custom;
     settle(w);
-    expect(charm(w, 'charmNature', 132, 41)).toBeGreaterThan(before);
+    expect(charm(w, 'charmNature', 132, 41)).toBe(before);
   });
 });
 

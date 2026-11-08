@@ -73,14 +73,13 @@ describe('build.customize', () => {
   });
 
   it('window boxes add a little nature on the next tick', () => {
-    // A hand-placed cottage draws boxes by default (content `boxesByDefault`), so the choice that
-    // changes the charm is turning them off; a bakery gains them by choosing them.
-    const { f, b } = customize({ windowBoxes: false });
-    expect(b.custom).toEqual({ windowBoxes: false });
+    // P1: no kit draws boxes until someone adds them, so choosing them is what changes the charm.
+    const { f, b } = customize({ windowBoxes: true });
+    expect(b.custom).toEqual({ windowBoxes: true });
     const before = hamletFixture();
     settle(before.state);
     settle(f.state);
-    expect(charm(f.state, 'charmNature', b.x, b.z - 1)).toBeLessThan(
+    expect(charm(f.state, 'charmNature', b.x, b.z - 1)).toBeGreaterThan(
       charm(before.state, 'charmNature', b.x, b.z - 1),
     );
     const g = hamletFixture();
