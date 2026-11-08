@@ -8,6 +8,7 @@ import { charmAt, countNear, placeRect, placeBuildingId, type Binding } from '..
 import { decorInRect, decorTileX, decorTileZ, expandRect } from '../../../conditions/geo';
 import { findRoute } from '../../../conditions/route';
 import { doorTileOf } from '../../movement/api';
+import { waterServedCode, wellInReach } from '../../residents/needs';
 import { wishBinding } from './index';
 
 const S = MAP_SIZE;
@@ -55,6 +56,15 @@ function nearText(
   return need === 1
     ? `a ${word(n, 1)} within ${n.within} steps of ${where}${also}`
     : `${have} of ${need} ${word(n, need)} within ${n.within} steps of ${where}${also}`;
+}
+
+/** P1 (playtest): what a water wish still wants, by why the household goes without. */
+function waterText(state: WorldState, bind: Binding): string | null {
+  if (waterServedCode(state, bind)) return null;
+  if (wellInReach(state, bind))
+    return 'room at a well: the one whose radius reaches the home serves all it can';
+  const radius = content.buildingById.get('well')?.coverage?.find((c) => c.kind === 'water')?.radius ?? 8;
+  return `a well within ${radius} steps of the door at home`;
 }
 
 function routeText(
@@ -110,6 +120,7 @@ function explain(state: WorldState, cond: Condition, bind: Binding): string | nu
   }
   if ('code' in cond && (cond.code === 'pathRoute' || cond.code === 'lanternRoute'))
     return routeText(state, cond.code, bind, cond.params ?? []);
+  if ('code' in cond && cond.code === 'waterServed') return waterText(state, bind);
   if ('charm' in cond && cond.charm.atMost !== undefined) {
     const place = placeRect(state, cond.charm.of, bind);
     if (!place) return null;

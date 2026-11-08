@@ -3,6 +3,7 @@
 // their targets; mood is the weighted average of needs plus modifiers and traits, clamped 0 to 100.
 import { content } from '@qoti/content';
 import { MOOD_PRODUCTIVITY, NEED_IDS, TICKS_PER_DAY } from '../../constants';
+import type { Binding } from '../../conditions';
 import type { Household, Resident, TickCtx, WorldState } from '../../contracts';
 import { findById } from '../../state/entities';
 import { moodBand } from '../../view/hamlet';
@@ -117,6 +118,35 @@ export function waterServed(state: WorldState): Set<number> {
     }
   }
   return served;
+}
+
+/**
+ * P1 (playtest): code predicate 'waterServed'. The bound resident's household draws water from a
+ * well, by the same test the water need uses, so a wish for water is granted exactly when it is met.
+ */
+export function waterServedCode(state: WorldState, bind: Binding): boolean {
+  const r = bind.residentId ? findById(state.residents, bind.residentId) : undefined;
+  return !!r && r.householdId > 0 && servedNow(state).has(r.householdId);
+}
+
+/**
+ * P1 (playtest): code predicate 'wellInReach'. A built well's radius (the one its overlay draws)
+ * reaches the bound home's door, whether or not that well has room for one more household.
+ */
+export function wellInReach(state: WorldState, bind: Binding): boolean {
+  const door = bind.home ? doorOf(state, bind.home) : -1;
+  if (door < 0) return false;
+  const x = tileX(door);
+  const z = tileZ(door);
+  for (const b of wellsOf(state)) {
+    if (b.stage !== 'built') continue;
+    const cov = content.buildingById.get(b.def)?.coverage?.find((c) => c.kind === 'water');
+    if (!cov) continue;
+    const dx = b.x - x;
+    const dz = b.z - z;
+    if (dx * dx + dz * dz <= cov.radius * cov.radius) return true;
+  }
+  return false;
 }
 
 /** Moves a need a quarter of the way to its target each hour (at least one point). */

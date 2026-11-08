@@ -132,3 +132,19 @@ export function createRuntime(def: BuildingDef, site: boolean): BuildingRuntime 
 export function isStandard(state: WorldState): boolean {
   return state.settings.mode === 'standard';
 }
+
+/** The def id of the building every standard valley starts with and keeps (P1). */
+export const TOWN_HALL = 'town-hall';
+
+/**
+ * P1 (playtest): a standard valley keeps its town hall, since its builders raise everything else.
+ * A valley that lost it before P1 may raise one again, so this says whether one still stands.
+ */
+export function hasTownHall(state: WorldState): boolean {
+  return state.buildings.some((b) => b.def === TOWN_HALL);
+}
+
+/** P1: true when a standard valley has lost its town hall and may raise a replacement. */
+export function mayRaiseTownHall(state: WorldState, defId: string): boolean {
+  return defId === TOWN_HALL && isStandard(state) && !hasTownHall(state);
+}
