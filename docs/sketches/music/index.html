@@ -538,61 +538,85 @@ function pick(){
 function bm(pc){return 36+(((pc-36)%12)+12)%12;}
 function buildBar(tune,bi,rng){
   const st=S.st,bpb=tune.bpb,E=ens(),I=state.intensity,W=state.weather,evs=[];
-  const add=(pos,run)=>evs.push({pos,run});
-  const PL={dawn:.85,day:1,dusk:.92,night:.78}[state.phase]*[.75,.9,1,1.1][I];
+  const PL0=({dawn:.85,day:1,dusk:.92,night:.78}[state.phase])*[.75,.9,1,1.1][I];
+  let PL=PL0;
+  /* human feel: every event gets a seeded timing offset (dt, seconds) and a velocity multiplier (applied through PL while it runs) */
+  const AMP={guitar:7,piano:5,bass:4,brush:3,mel:8,pad:5};
+  const laidBack=tune.comp==='ballad'||tune.comp==='night';
+  const accent=pos=>{
+    const bt=Math.floor(pos+1e-9),fr=pos-bt;
+    if(fr>1e-6)return .93;
+    if(bpb===3)return bt===0?1.07:.97;
+    return bt===0?1.08:bt===2?1.03:.98;
+  };
+  const add=(pos,run,part,o)=>{
+    o=o||{};
+    const vm=(1+(rng()*2-1)*.07)*(o.flat?1:accent(pos))*(o.vm||1);
+    const dt=((rng()*2-1)*AMP[part||'pad']+(o.late||0))/1000;
+    evs.push({pos,dt,run:(t,bd)=>{PL=PL0*vm;try{run(t,bd);}finally{PL=PL0;}}});
+  };
   const cb=tune.cb[bi],nextRoot=tune.cb[(bi+1)%tune.nbars][0].c.bass;
   const V=cb.map(x=>{const pv=voiceLead(x.c,st.pno,57,74,false);st.pno=pv;const gv=voiceLead(x.c,st.gtr,50,68,true);st.gtr=gv;return {c:x.c,start:x.start,len:x.len,pv,gv};});
   const at=b=>{let r=V[0];for(const x of V)if(b>=x.start-1e-9)r=x;return r;};
   const prefPiano=tune.prefer==='piano',primary=(prefPiano&&E.piano)?'piano':'guitar';
   const second=primary==='piano'?'guitar':(E.piano&&I>=2?'piano':null);
   const rain=W==='rain';
-  const chordP=(t,x,vel,dur,roll)=>x.pv.forEach((m,i)=>piano(t+i*roll,m,vel*PL*(1-i*.04),dur));
-  const chordG=(t,x,vel,damp,sp)=>strum(t,x.gv,vel*PL,damp,sp);
+  const chordP=(t,x,vel,dur,roll)=>{
+    let top=0;x.pv.forEach((m,i)=>{if(m>x.pv[top])top=i;});
+    x.pv.forEach((m,i)=>piano(t+i*roll,m,vel*PL*(1-i*.04)*(i===top?1.12:.95),dur));
+  };
+  /* on-beat strums go down; offbeat strums go up (reversed, softer, tighter) */
+  const strumDir=(pos,t,notes,vel,damp,sp)=>{
+    const off=Math.abs(pos-Math.round(pos))>1e-6;
+    if(off)strum(t,notes.slice().reverse(),vel*.88,damp,(sp||.014)*.85);else strum(t,notes,vel,damp,sp);
+  };
+  const chordG=(pos,t,x,vel,damp,sp)=>strumDir(pos,t,x.gv,vel*PL,damp,sp);
   const swingy=tune.swing>0;
   /* comping */
   switch(tune.comp){
     case 'arp':{
       const ord=[0,1,2,3,2,1,3,2];
-      for(let i=0;i<8;i++){const pos=i*.5;add(pos,(t,bd)=>pluck(t,at(pos).gv[ord[i]],.5*PL*(i%4===0?1.1:.8)));}
-      if(E.piano&&I>=1)add(0,(t,bd)=>chordP(t,at(0),.32,bd*bpb,.035));
+      for(let i=0;i<8;i++){const pos=i*.5;add(pos,(t,bd)=>pluck(t,at(pos).gv[ord[i]],.5*PL*(i%4===0?1.1:.8)),'guitar');}
+      if(E.piano&&I>=1)add(0,(t,bd)=>chordP(t,at(0),.32,bd*bpb,.035),'piano');
       break;}
     case 'strum':
-      for(let b=0;b<bpb;b++)add(b,(t,bd)=>chordG(t,at(b),(b%2?.7:.55),bd*.55,.011));
-      if(second==='piano'&&bi%2===0)add(1.5,(t,bd)=>chordP(t,at(1.5),.38,bd*.6,.006));
+      for(let b=0;b<bpb;b++)add(b,(t,bd)=>chordG(b,t,at(b),(b%2?.7:.55),bd*.55,.011),'guitar');
+      if(second==='piano'&&bi%2===0)add(1.5,(t,bd)=>chordP(t,at(1.5),.38,bd*.6,.006),'piano');
       break;
     case 'bossa':
-      [0,1.5,3].forEach(p=>add(p,(t,bd)=>chordG(t,at(p),p===0?.7:.55,bd*.7,.009)));
-      if(second==='piano'&&bi%2===1)add(2.5,(t,bd)=>chordP(t,at(2.5),.36,bd*.8,.006));
+      [0,1.5,3].forEach(p=>add(p,(t,bd)=>chordG(p,t,at(p),p===0?.7:.55,bd*.7,.009),'guitar'));
+      if(second==='piano'&&bi%2===1)add(2.5,(t,bd)=>chordP(t,at(2.5),.36,bd*.8,.006),'piano');
       break;
     case 'ballad':
       if(primary==='piano'){
-        add(0,(t,bd)=>chordP(t,at(0),.55,bd*3,.03));add(2.5,(t,bd)=>chordP(t,at(2.5),.36,bd*1.2,.02));
-        if(I>=1){add(1,(t,bd)=>pluck(t,at(1).gv[2],.4*PL));add(3,(t,bd)=>pluck(t,at(3).gv[1],.34*PL));}
+        add(0,(t,bd)=>chordP(t,at(0),.55,bd*3,.03),'piano');add(2.5,(t,bd)=>chordP(t,at(2.5),.36,bd*1.2,.02),'piano');
+        if(I>=1){add(1,(t,bd)=>pluck(t,at(1).gv[2],.4*PL),'guitar');add(3,(t,bd)=>pluck(t,at(3).gv[1],.34*PL),'guitar');}
       }else{
-        add(0,(t,bd)=>chordG(t,at(0),.6,0,.03));add(2,(t,bd)=>pluck(t,at(2).gv[2],.45*PL));add(3,(t,bd)=>pluck(t,at(3).gv[1],.4*PL));
+        add(0,(t,bd)=>chordG(0,t,at(0),.6,0,.03),'guitar');add(2,(t,bd)=>pluck(t,at(2).gv[2],.45*PL),'guitar');add(3,(t,bd)=>pluck(t,at(3).gv[1],.4*PL),'guitar');
       }
       break;
     case 'night':
       if(primary==='piano'){
-        add(0,(t,bd)=>chordP(t,at(0),.5,bd*4,.045));
-        add(2.5,(t,bd)=>piano(t,at(2.5).pv[3],.3*PL,bd*1.5));
-        if(rng()<.5)add(1.5,(t,bd)=>piano(t,at(1.5).pv[2],.22*PL,bd));
-      }else{add(0,(t,bd)=>chordG(t,at(0),.55,0,.04));add(2.5,(t,bd)=>pluck(t,at(2.5).gv[3],.4*PL));}
-      if(second==='guitar'&&I>=2)add(3,(t,bd)=>pluck(t,at(3).gv[1],.3*PL));
+        add(0,(t,bd)=>chordP(t,at(0),.5,bd*4,.045),'piano');
+        add(2.5,(t,bd)=>piano(t,at(2.5).pv[3],.3*PL,bd*1.5),'piano');
+        if(rng()<.5)add(1.5,(t,bd)=>piano(t,at(1.5).pv[2],.22*PL,bd),'piano');
+      }else{add(0,(t,bd)=>chordG(0,t,at(0),.55,0,.04),'guitar');add(2.5,(t,bd)=>pluck(t,at(2.5).gv[3],.4*PL),'guitar');}
+      if(second==='guitar'&&I>=2)add(3,(t,bd)=>pluck(t,at(3).gv[1],.3*PL),'guitar');
       break;
     case 'waltz':
-      add(1,(t,bd)=>chordG(t,at(1),.5,bd*.8,.008));add(2,(t,bd)=>chordG(t,at(2),.42,bd*.8,.008));
-      if(second==='piano')add(0,(t,bd)=>chordP(t,at(0),.3,bd*2.5,.025));
+      add(1,(t,bd)=>chordG(1,t,at(1),.5,bd*.8,.008),'guitar');add(2,(t,bd)=>chordG(2,t,at(2),.42,bd*.8,.008),'guitar');
+      if(second==='piano')add(0,(t,bd)=>chordP(t,at(0),.3,bd*2.5,.025),'piano');
       break;
     case 'funk':
-      [.5,1.5,1.75,2.5,3.5].forEach(p=>add(p,(t,bd)=>strum(t,at(p).gv.slice(1),(p===1.75?.4:.62)*PL,bd*.14,.006)));
-      if(second==='piano'){[.75,2.75].forEach(p=>add(p,(t,bd)=>chordP(t,at(p),.34,bd*.3,.004)));}
+      [.5,1.5,1.75,2.5,3.5].forEach(p=>add(p,(t,bd)=>strumDir(p,t,at(p).gv.slice(1),(p===1.75?.4:.62)*PL,bd*.14,.006),'guitar'));
+      if(second==='piano'){[.75,2.75].forEach(p=>add(p,(t,bd)=>chordP(t,at(p),.34,bd*.3,.004),'piano'));}
       break;
   }
   /* bass */
   if(E.bass){
     const bn=(x,iv,mx)=>{let m=bm(x.c.bass)+iv;if(m>(mx||52))m-=12;return m;};
-    const bv=(x,iv,pos,dur,vel,mx)=>add(pos,(t,bd)=>bassN(t,bn(x,iv,mx),vel*PL,bd*dur));
+    const bo={late:laidBack?6:0};
+    const bv=(x,iv,pos,dur,vel,mx)=>add(pos,(t,bd)=>bassN(t,bn(x,iv,mx),vel*PL,bd*dur),'bass',bo);
     switch(tune.bass){
       case 'twofeel':
         for(const x of V){bv(x,0,x.start,1.7,.8);if(x.len>=3)bv(x,x.c.fifth===6?6:7,x.start+2,1.5,.65);}
@@ -600,21 +624,21 @@ function buildBar(tune,bi,rng){
       case 'walking':{
         const vr=bi%3;
         for(let b=0;b<bpb;b++){
-          const x=at(b),k=b-x.start;
-          if(k===0)bv(x,0,b,.95,.8);
-          else if(b===bpb-1){const nr=bm(nextRoot),cur=bm(x.c.bass);let m=nr+(cur<=nr?-1:1);if(m<33)m+=12;add(b,(t,bd)=>bassN(t,m,.7*PL,bd*.9));}
-          else{const sv=x.c.sev!==null?x.c.sev:7;const arr=[[x.c.third,7],[7,sv],[x.c.third,sv]][vr];bv(x,arr[(k-1)%2],b,.95,.7);}
+          const x=at(b),k=b-x.start,sd=(b===1||b===3)?.85:1;
+          if(k===0)bv(x,0,b,.95*sd,.8);
+          else if(b===bpb-1){const nr=bm(nextRoot),cur=bm(x.c.bass);let m=nr+(cur<=nr?-1:1);if(m<33)m+=12;add(b,(t,bd)=>bassN(t,m,.7*.9*PL,bd*.9*sd),'bass',bo);}
+          else{const sv=x.c.sev!==null?x.c.sev:7;const arr=[[x.c.third,7],[7,sv],[x.c.third,sv]][vr];bv(x,arr[(k-1)%2],b,.95*sd,.7);}
         }
         break;}
       case 'bossa':
         bv(at(0),0,0,1.4,.8);bv(at(1.5),7,1.5,.45,.6);bv(at(2),0,2,.7,.7);
-        add(3.5,(t,bd)=>bassN(t,bm(nextRoot),.65*PL,bd*.45));
+        add(3.5,(t,bd)=>bassN(t,bm(nextRoot),.65*PL,bd*.45),'bass',bo);
         break;
       case 'waltz':{
         bv(at(0),0,0,1.6,.8);const x=at(2);bv(x,x.start===2?0:7,2,.9,.65);break;}
       case 'funk':{
         const P=[[0,0,.6,.85],[.75,12,.2,.5],[1.5,0,.4,.7],[2,0,.4,.75],[2.75,12,.2,.5],[3.25,null,.3,.6],[3.5,7,.3,.65]];
-        for(const [p,iv,d,v] of P){const x=at(p);bv(x,iv===null?(x.c.sev!==null?x.c.sev:10):iv,p,d,v,62);}
+        for(const [p,iv,d,v] of P){const x=at(p);bv(x,iv===null?(x.c.sev!==null?x.c.sev:10):iv,p,d+(rng()*2-1)*.03,v,62);}
         break;}
     }
   }
@@ -623,49 +647,81 @@ function buildBar(tune,bi,rng){
     const rl=rain?.5:1;
     switch(tune.brush){
       case 'swing':
-        for(let b=0;b<bpb;b++)add(b,(t,bd)=>swish(t,(b%2?1:.6)*rl*PL,.14));
-        add(1.5,(t,bd)=>swish(t,.35*rl*PL,.1));add(3.5,(t,bd)=>swish(t,.35*rl*PL,.1));break;
+        for(let b=0;b<bpb;b++)add(b,(t,bd)=>swish(t,(b%2?1:.6)*rl*PL,.14),'brush');
+        add(1.5,(t,bd)=>swish(t,.35*rl*PL,.1),'brush');add(3.5,(t,bd)=>swish(t,.35*rl*PL,.1),'brush');
+        if(I>=2)[.5,2.5].forEach(p=>{if(p<bpb&&rng()<.45)add(p,(t,bd)=>swish(t,.2*rl*PL,.07),'brush',{flat:true});});
+        break;
       case 'ballad':
-        [1,3].forEach(p=>add(p,(t,bd)=>swish(t,.6*rl*PL,.35)));[0,2].forEach(p=>add(p,(t,bd)=>swish(t,.25*rl*PL,.3)));break;
+        [1,3].forEach(p=>add(p,(t,bd)=>swish(t,.6*rl*PL,.35),'brush'));[0,2].forEach(p=>add(p,(t,bd)=>swish(t,.25*rl*PL,.3),'brush'));break;
       case 'night':
-        if(I>=2)[1,3].forEach(p=>add(p,(t,bd)=>swish(t,.35*rl*PL,.4)));break;
+        if(I>=2)[1,3].forEach(p=>add(p,(t,bd)=>swish(t,.35*rl*PL,.4),'brush'));break;
       case 'waltz':
-        add(0,(t,bd)=>swish(t,.8*rl*PL,.14));add(1,(t,bd)=>swish(t,.5*rl*PL,.12));add(2,(t,bd)=>swish(t,.5*rl*PL,.12));break;
+        add(0,(t,bd)=>swish(t,.8*rl*PL,.14),'brush');add(1,(t,bd)=>swish(t,.5*rl*PL,.12),'brush');add(2,(t,bd)=>swish(t,.5*rl*PL,.12),'brush');break;
       case 'bossa':
-        for(let p=0;p<bpb;p+=.5)add(p,(t,bd)=>swish(t,(p%1===0?.5:.3)*rl*PL,.06,7000));
-        if(I>=2)[0,1.5,3].forEach(p=>add(p,(t,bd)=>rim(t,.5*PL)));break;
+        for(let p=0;p<bpb;p+=.5)add(p,(t,bd)=>swish(t,(p%1===0?.5:.3)*rl*PL,.06,7000),'brush');
+        if(I>=2){
+          [0,1.5,3].forEach(p=>add(p,(t,bd)=>rim(t,.5*PL),'brush'));
+          [.75,2.75].forEach(p=>{if(rng()<.4)add(p,(t,bd)=>swish(t,.2*rl*PL,.05,7000),'brush',{flat:true});});
+        }
+        break;
       case 'funk':
-        for(let b=0;b<bpb;b++)add(b,(t,bd)=>kick(t,.55*rl*PL));
-        if(!rain){for(let b=0;b<bpb;b++)add(b+.5,(t,bd)=>hat(t,.6*PL));if(I>=3)for(let b=0;b<bpb;b++){add(b+.25,(t,bd)=>hat(t,.25*PL));add(b+.75,(t,bd)=>hat(t,.25*PL));}}
+        for(let b=0;b<bpb;b++)add(b,(t,bd)=>kick(t,.55*rl*PL),'brush');
+        if(!rain){for(let b=0;b<bpb;b++)add(b+.5,(t,bd)=>hat(t,.6*PL),'brush');if(I>=3)for(let b=0;b<bpb;b++){add(b+.25,(t,bd)=>hat(t,.25*PL),'brush');add(b+.75,(t,bd)=>hat(t,.25*PL),'brush');}}
         break;
       case 'none':
-        if(I>=3)[0,2].forEach(p=>add(p,(t,bd)=>swish(t,.3*rl*PL,.4)));break;
+        if(I>=3)[0,2].forEach(p=>add(p,(t,bd)=>swish(t,.3*rl*PL,.4),'brush'));break;
     }
-    if(I>=3&&bi%4===3&&tune.brush!=='funk'){[bpb-1,bpb-.5,bpb-.25].forEach((p,i)=>add(p,(t,bd)=>swish(t,(.5+i*.15)*rl*PL,.08)));}
+    if(I>=3&&bi%4===3&&tune.brush!=='funk'){[bpb-1,bpb-.5,bpb-.25].forEach((p,i)=>add(p,(t,bd)=>swish(t,(.5+i*.15)*rl*PL,.08),'brush'));}
   }
-  /* melody */
+  /* melody with phrase shape */
   const winter=state.season==='winter',autumnClar=state.season==='autumn'&&E.rank>=2;
+  const lateStart=(state.phase==='dusk'||state.phase==='night')?10:0;
   if(E.mel){
     const stac=tune.comp==='funk'?.8:.95;
+    const ps=bi-bi%4,pe=Math.min(ps+3,tune.nbars-1),plen=(pe-ps+1)*bpb;
+    const flat=[];
+    for(let b=ps;b<=pe;b++)for(const n of tune.mel[b])flat.push({n,abs:(b-ps)*bpb+n.pos});
+    let hi=null;for(const f of flat)if(!hi||f.n.midi>hi.n.midi)hi=f;
+    const xh=hi?hi.abs/plen:0,lastF=flat.length?flat[flat.length-1]:null;
+    const firstF=flat.length?flat[0]:null;
+    const arcOf=abs=>{
+      const x=abs/plen;
+      const g=(xh>.001&&x<=xh)?x/xh:1-(x-xh)/Math.max(1-xh,.001)*.7;
+      return 1+.10*g;
+    };
     for(const n of tune.mel[bi]){
+      const abs=(bi-ps)*bpb+n.pos,isLast=!!lastF&&lastF.n===n;
+      const isStart=!!firstF&&firstF.n===n;
+      let dm=1;
+      if(isLast&&abs+n.dur*1.15<=plen+1e-6)dm=1.15;
+      const vmul=arcOf(abs)*(isLast?.92:1);
       add(n.pos,(t,bd)=>{
-        const d=n.dur*bd*stac,v=(tune.comp==='arp'?.8:1)*PL;
+        const d=n.dur*dm*bd*stac,v=(tune.comp==='arp'?.8:1)*PL;
         if(winter)celesta(t,n.midi,d,v*1.1);else if(autumnClar)clar(t,n.midi,d,v*1.2);else breathy(t,n.midi,d,v);
         if(W==='snow'&&!winter)celesta(t+.004,n.midi+12,d,v*.5);
         if(E.clar&&!autumnClar&&I>=2)clar(t+.012,n.midi-12,d,v*.6);
-      });
+      },'mel',{flat:true,vm:vmul,late:isStart?lateStart:0});
+    }
+  }
+  /* soft guitar pickup into the next chord, every 8th bar */
+  if(I>=2&&bi%8===7){
+    const p=bpb-.5,busy=tune.mel[bi].some(n=>n.pos<=p+1e-6&&n.pos+n.dur>p+1e-6);
+    if(!busy){
+      const ng=voiceLead(tune.cb[(bi+1)%tune.nbars][0].c,st.gtr,50,68,true);
+      add(p,(t,bd)=>pluck(t,ng[1],.3*PL),'guitar',{flat:true});
+      add(p+.25,(t,bd)=>pluck(t,ng[2],.28*PL),'guitar',{flat:true});
     }
   }
   if(E.horn&&bi%2===0){
     const x=V[0],pc=(x.c.root+x.c.third)%12;let m=60+(((pc-60)%12)+12)%12;if(m>72)m-=12;
-    add(0,(t,bd)=>horn(t,m,bd*bpb*2*.96,.5*PL));
+    add(0,(t,bd)=>horn(t,m,bd*bpb*2*.96,.5*PL),'pad');
   }
   if(E.vibes){
-    add(0,(t,bd)=>{vibes(t,V[0].pv[1],.5*PL);vibes(t+.01,V[0].pv[3],.45*PL);});
-    const p=bpb===3?1.5:2.5;add(p,(t,bd)=>vibes(t,at(p).pv[2],.4*PL));
+    add(0,(t,bd)=>{vibes(t,V[0].pv[1],.5*PL);vibes(t+.01,V[0].pv[3],.45*PL);},'pad');
+    const p=bpb===3?1.5:2.5;add(p,(t,bd)=>vibes(t,at(p).pv[2],.4*PL),'pad');
   }
   if(E.str){
-    for(const x of V)add(x.start,(t,bd)=>{const ns=I>=3?x.pv:x.pv.slice(0,3);ns.forEach(m=>strings(t,m-12,x.len*bd*.98,.5*PL));});
+    for(const x of V)add(x.start,(t,bd)=>{const ns=I>=3?x.pv:x.pv.slice(0,3);ns.forEach(m=>strings(t,m-12,x.len*bd*.98,.5*PL));},'pad',{flat:true});
   }
   return evs;
 }
@@ -690,7 +746,8 @@ function scheduleBeat(){
   for(const ev of S.evs){
     const b=Math.floor(ev.pos+1e-9);if(b!==S.beat)continue;
     let fr=ev.pos-b;if(tune.swing&&Math.abs(fr-.5)<1e-6)fr=.5+tune.swing*0.1667;
-    try{ev.run(t+fr*bd,bd);}catch(e){console.warn(e);}
+    const tt=Math.max(t+fr*bd+(ev.dt||0),ctx.currentTime+0.005);
+    try{ev.run(tt,bd);}catch(e){console.warn(e);}
   }
   for(let i=S.stingers.length-1;i>=0;i--){
     const s=S.stingers[i];
