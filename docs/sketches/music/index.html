@@ -276,8 +276,40 @@ let ctx=null,master,comp,musicIn,sat,musicLP,musicHP,musicGain,bandDuck,stingIn,
 const S={playing:false,nextTime:0,beat:0,bar:0,barTotal:0,beatCount:0,tune:null,evs:[],st:{},stingers:[],timer:null,ui:[],dirty:true,valleyReq:false,picks:0,hist:[],noiseN:0};
 
 /* ---------- audio graph ---------- */
+/* Persistent channel strips: trim -> EQ -> pan -> band bus, plus a post-pan reverb send.
+   EQ rows are [type, Hz, gain dB, Q]; lowpass and highpass Q is in dB, so -3.01 is Butterworth.
+   Trims set the City balance (solo LUFS vs the melody): bass level with it, comping 2 to 5 under,
+   vibes and celesta colors 6 under, horn and strings 9 under, brushes 12, hats and rim about 14, kick 15. */
+const BW=-3.01;
+const CHANNELS={
+  bass:{trim:0.53,pan:0,send:0.04,eq:[['lowpass',2400,0,BW],['lowshelf',90,1],['peaking',110,2,1.4]]},
+  brushL:{trim:0.95,pan:-0.35,send:0.12,eq:[['highpass',1800,0,BW]]},
+  brushR:{trim:0.95,pan:0.4,send:0.12,eq:[['highpass',1800,0,BW]]},
+  cel:{trim:1,pan:0.4,send:0.38,eq:[['highpass',400,0,BW]]},
+  clar:{trim:0.715,pan:-0.45,send:0.28,eq:[['highpass',150,0,BW]]},
+  gtr:{trim:0.45,pan:-0.5,send:0.22,eq:[['highpass',90,0,BW],['peaking',250,-2,1],['lowpass',5000,0,0.5]]},
+  hat:{trim:2.2,pan:0.4,send:0.05,eq:[['highpass',6000,0,BW]]},
+  horn:{trim:0.9,pan:-0.25,send:0.3,eq:[['highpass',120,0,BW],['peaking',480,-1.5,1]]},
+  kick:{trim:0.375,pan:0,send:0.02,eq:[['highpass',35,0,BW]]},
+  mel:{trim:0.75,pan:0.06,send:0.32,eq:[['highpass',220,0,BW]]},
+  pno:{trim:0.875,pan:0.45,send:0.28,eq:[['highpass',60,0,BW],['peaking',320,-2.5,1],['lowpass',4800,0,1]]},
+  rim:{trim:1.55,pan:0.45,send:0.1,eq:[]},
+  strC:{trim:1.25,pan:0,send:0.4,eq:[['highpass',140,0,BW],['peaking',450,-2,1],['lowpass',1100,0,0.5]]},
+  strL:{trim:1.25,pan:-0.6,send:0.4,eq:[['highpass',140,0,BW],['peaking',450,-2,1],['lowpass',1100,0,0.5]]},
+  strR:{trim:1.25,pan:0.6,send:0.4,eq:[['highpass',140,0,BW],['peaking',450,-2,1],['lowpass',1100,0,0.5]]},
+  vib:{trim:1.45,pan:0.55,send:0.32,eq:[['highpass',180,0,BW]]}
+};
+/* Stingers get their own strips into stingIn, so the band duck never touches them. */
+const STING_CH=['cel','clar','horn','mel','strC','strL','strR','vib'];
+/* Chrome's DynamicsCompressor adds its own makeup gain (about +4.8 dB glue, +1.4 dB limiter); makeup offsets it. */
+const MIX={master:1,makeup:0.5,rev:4.2,pre:0.8};
+/* which instrument feeds each strip; a test harness may set window.__mute to a Set of instrument names */
+const CH_INSTR={bass:'bassN',brushL:'swish',brushR:'swish',cel:'celesta',clar:'clar',gtr:'pluck',hat:'hat',horn:'horn',kick:'kick',mel:'breathy',pno:'piano',rim:'rim',strC:'strings',strL:'strings',strR:'strings',vib:'vibes'};
+let CH={},CHS={},bandSend,revIn,limiter,makeup,clipper,softBuf,brushAlt=0;
 function makeIR(sec){
   const sr=ctx.sampleRate,len=Math.floor(sr*sec),b=ctx.createBuffer(2,len,sr);
+  /* early reflections: sparse decaying taps in the first 40 ms, different per side */
+  const ER=[[0.0073,0.0131,0.0197,0.0279,0.0364],[0.0091,0.0158,0.0226,0.0312,0.0389]],ERG=[3,-2.4,1.9,-1.5,1.2];
   for(let ch=0;ch<2;ch++){
     const d=b.getChannelData(ch);let y=0,seed=1234+ch*77;
     for(let i=0;i<len;i++){
@@ -287,60 +319,95 @@ function makeIR(sec){
       const env=Math.exp(-6.2*u)*Math.min(1,i/(sr*0.012));
       d[i]=y*env*1.4;
     }
+    ER[ch].forEach((s,k)=>{const i=Math.floor(s*sr);if(i+1<len){d[i-1]+=ERG[k]*0.5;d[i]+=ERG[k];d[i+1]+=ERG[k]*0.5;}});
   }
   return b;
 }
 function setReverb(sec){
   irSec=sec;const t=ctx.currentTime;
   revRet.gain.setTargetAtTime(0,t,0.03);
-  setTimeout(()=>{conv.buffer=makeIR(sec);revRet.gain.setTargetAtTime(0.55,ctx.currentTime,0.08);},160);
+  setTimeout(()=>{conv.buffer=makeIR(sec);revRet.gain.setTargetAtTime(MIX.rev,ctx.currentTime,0.08);},160);
 }
+function biq(type,f,g,q){const b=ctx.createBiquadFilter();b.type=type;b.frequency.value=f;if(g!==undefined)b.gain.value=g;if(q!==undefined)b.Q.value=q;return b;}
+function makeStrip(c,out,sendBus){
+  const inp=ctx.createGain();inp.gain.value=c.trim;let node=inp;
+  for(const e of c.eq){const b=biq(e[0],e[1],e[2],e[3]);node.connect(b);node=b;}
+  const p=ctx.createStereoPanner();p.pan.value=c.pan;node.connect(p);p.connect(out);
+  const s=ctx.createGain();s.gain.value=c.send;p.connect(s);s.connect(sendBus);
+  return {in:inp,pan:p,send:s};
+}
+function shaper(fn,n,os){const w=ctx.createWaveShaper(),cv=new Float32Array(n);for(let i=0;i<n;i++)cv[i]=fn(i/(n-1)*2-1);w.curve=cv;w.oversample=os;return w;}
 function init(){
   if(ctx)return;
   ctx=new (window.AudioContext||window.webkitAudioContext)();
-  master=ctx.createGain();master.gain.value=0.7;
+  /* master: gain -> glue -> makeup -> limiter -> safety clipper (ceiling 0.89, -1 dBFS) */
+  master=ctx.createGain();master.gain.value=MIX.master;
   comp=ctx.createDynamicsCompressor();
-  comp.threshold.value=-20;comp.knee.value=24;comp.ratio.value=3;comp.attack.value=0.02;comp.release.value=0.25;
-  master.connect(comp);comp.connect(ctx.destination);
+  comp.threshold.value=-16;comp.knee.value=6;comp.ratio.value=2;comp.attack.value=0.025;comp.release.value=0.25;
+  makeup=ctx.createGain();makeup.gain.value=MIX.makeup;
+  limiter=ctx.createDynamicsCompressor();
+  limiter.threshold.value=-2.5;limiter.knee.value=0;limiter.ratio.value=20;limiter.attack.value=0.001;limiter.release.value=0.08;
+  clipper=shaper(x=>{const a=Math.abs(x);return a<=0.8?x:Math.sign(x)*(0.8+0.09*Math.tanh((a-0.8)/0.09));},8193,'4x');
+  master.connect(comp);comp.connect(makeup);makeup.connect(limiter);limiter.connect(clipper);clipper.connect(ctx.destination);
+  /* music bus: pre-gain -> tanh saturator -> weather LP -> HP 32 x2 -> mud dip -> air shelf -> level */
   musicGain=ctx.createGain();musicGain.gain.value=0;musicGain.connect(master);
-  musicHP=ctx.createBiquadFilter();musicHP.type='highpass';musicHP.frequency.value=40;musicHP.Q.value=0.7;musicHP.connect(musicGain);
-  musicLP=ctx.createBiquadFilter();musicLP.type='lowpass';musicLP.frequency.value=16000;musicLP.Q.value=0.6;musicLP.connect(musicHP);
-  sat=ctx.createWaveShaper();
-  const n=2048,cv=new Float32Array(n);
-  for(let i=0;i<n;i++){const x=i/(n-1)*2-1;cv[i]=(1+2)*x/(1+2*Math.abs(x));}
-  sat.curve=cv;sat.oversample='2x';sat.connect(musicLP);
-  musicIn=ctx.createGain();musicIn.gain.value=1.1;musicIn.connect(sat);
+  const air=biq('highshelf',10000,1.5);air.connect(musicGain);
+  const mud=biq('peaking',320,-1.5,0.8);mud.connect(air);
+  const hp2=biq('highpass',32,0,BW);hp2.connect(mud);
+  musicHP=biq('highpass',32,0,BW);musicHP.connect(hp2);
+  musicLP=biq('lowpass',16000,0,0.6);musicLP.connect(musicHP);
+  const K=1.6,tk=Math.tanh(K);
+  sat=shaper(x=>Math.tanh(K*x)/tk,4097,'4x');sat.connect(musicLP);
+  musicIn=ctx.createGain();musicIn.gain.value=MIX.pre;musicIn.connect(sat);
   bandDuck=ctx.createGain();bandDuck.connect(musicIn);
   stingIn=ctx.createGain();stingIn.connect(musicIn);
-  conv=ctx.createConvolver();revRet=ctx.createGain();revRet.gain.value=0.55;
-  conv.connect(revRet);revRet.connect(musicIn);
+  /* reverb: sends -> 18 ms pre-delay -> HP 240 -> convolver -> LP 7.5k -> return, after the saturator */
+  revIn=ctx.createGain();bandSend=ctx.createGain();bandSend.connect(revIn);
+  const pre=ctx.createDelay(0.1);pre.delayTime.value=0.018;
+  const rhp=biq('highpass',240,0,BW),rlp=biq('lowpass',7500,0,BW);
+  conv=ctx.createConvolver();revRet=ctx.createGain();revRet.gain.value=MIX.rev;
+  revIn.connect(pre);pre.connect(rhp);rhp.connect(conv);conv.connect(rlp);rlp.connect(revRet);revRet.connect(musicLP);
   noiseBuf=ctx.createBuffer(1,ctx.sampleRate*2,ctx.sampleRate);
   const nd=noiseBuf.getChannelData(0);let sd=99;
   for(let i=0;i<nd.length;i++){sd=(Math.imul(sd,1664525)+1013904223)>>>0;nd[i]=sd/2147483648-1;}
+  /* soft noise: two-pole lowpass near 1.2 kHz, unit RMS; playbackRate shifts its color */
+  softBuf=ctx.createBuffer(1,ctx.sampleRate,ctx.sampleRate);
+  const sb=softBuf.getChannelData(0),ca=1-Math.exp(-2*Math.PI*1200/ctx.sampleRate);let l1=0,l2=0,ss=0;
+  for(let i=0;i<sb.length;i++){l1+=(nd[i]-l1)*ca;l2+=(l1-l2)*ca;sb[i]=l2;ss+=l2*l2;}
+  const nr=1/Math.sqrt(ss/sb.length);for(let i=0;i<sb.length;i++)sb[i]*=nr;
   conv.buffer=makeIR(1.8);irSec=1.8;
+  for(const k of Object.keys(CHANNELS))CH[k]=makeStrip(CHANNELS[k],bandDuck,bandSend);
+  for(const k of STING_CH)CHS[k]=makeStrip(CHANNELS[k],stingIn,revIn);
 }
 function applyBus(){
   if(!ctx)return;const t=ctx.currentTime;
-  let cut={clear:16000,fog:6000,rain:2800,snow:7500}[state.weather],lvl=1;
-  if(state.pause){cut=Math.min(cut,520);lvl=0.6;}
+  /* phase trim: the band already plays softer late, this keeps night about 2.5 dB under day, not 4.5 */
+  let cut={clear:16000,fog:6000,rain:2800,snow:7500}[state.weather],lvl={dawn:1.1,day:1,dusk:1.05,night:1.2}[state.phase];
+  if(state.pause){cut=Math.min(cut,520);lvl*=0.6;}
   musicLP.frequency.setTargetAtTime(cut,t,0.15);
   musicGain.gain.setTargetAtTime(S.playing?lvl:0,t,S.playing?0.12:0.05);
   const sec=(state.phase==='night'?2.6:1.8)+(state.weather==='rain'?0.5:0);
   if(Math.abs(sec-irSec)>0.01)setReverb(sec);
 }
-function emit(n,wet,sting){
-  n.connect(sting?stingIn:bandDuck);
-  if(wet>0){const w=ctx.createGain();w.gain.value=wet;n.connect(w);w.connect(conv);}
+function emit(n,ch,sting){
+  if(window.__mute&&window.__mute.has(CH_INSTR[ch]))return;
+  n.connect(((sting&&CHS[ch])||CH[ch]).in);
 }
 function duck(t,len){
-  bandDuck.gain.setTargetAtTime(0.708,t,0.04);
-  bandDuck.gain.setTargetAtTime(1,t+len,0.25);
+  for(const g of [bandDuck.gain,bandSend.gain]){g.setTargetAtTime(0.708,t,0.04);g.setTargetAtTime(1,t+len,0.25);}
 }
 
 /* ---------- instruments ---------- */
 function osc(type,f,t,stop){const o=ctx.createOscillator();o.type=type;o.frequency.value=f;o.start(t);o.stop(stop);return o;}
 function noiseSrc(t,stop){const s=ctx.createBufferSource();s.buffer=noiseBuf;S.noiseN++;s.start(t,(S.noiseN*0.37)%1.5);s.stop(stop);return s;}
+function softSrc(t,stop,rate){const s=ctx.createBufferSource();s.buffer=softBuf;s.playbackRate.value=rate;S.noiseN++;s.start(t,(S.noiseN*0.13)%0.6);s.stop(stop);return s;}
 function envG(t,a,peak,end){const g=ctx.createGain();g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(peak,t+a);return g;}
+/* a short decaying burst of soft noise: finger and felt-hammer transients (2 nodes) */
+function transient(t,amp,tau,rate,ch){
+  const s=softSrc(t,t+tau*8+0.01,rate),g=ctx.createGain();
+  g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(amp,t+0.0015);g.gain.setTargetAtTime(0,t+0.002,tau);
+  s.connect(g);emit(g,ch);
+}
 
 const pluckCache=new Map();
 function pluckBuf(m){
@@ -356,54 +423,57 @@ function pluckBuf(m){
   const r={buf,rate:f/fa};pluckCache.set(m,r);return r;
 }
 function pluck(t,m,vel,damp){
+  /* the 3.2 kHz lowpass lives on the guitar strip */
   const p=pluckBuf(m),s=ctx.createBufferSource();s.buffer=p.buf;s.playbackRate.value=p.rate;
-  const lp=ctx.createBiquadFilter();lp.type='lowpass';lp.frequency.value=3200;lp.Q.value=0.5;
   const g=ctx.createGain();g.gain.setValueAtTime(vel*0.55,t);
   if(damp){g.gain.setTargetAtTime(0,t+damp,0.03);}
-  s.connect(lp);lp.connect(g);s.start(t);s.stop(t+(damp?damp+0.4:1.7));emit(g,0.28);
+  s.connect(g);s.start(t);s.stop(t+(damp?damp+0.4:1.7));emit(g,'gtr');
+  transient(t,vel*0.55*0.035,0.004,1.7,'gtr');
 }
 function strum(t,notes,vel,damp,spread){
   spread=spread||0.014;notes.forEach((m,i)=>pluck(t+i*spread,m,vel*(1-i*0.05),damp));
 }
 function piano(t,m,vel,dur){
+  /* the 3.6 kHz lowpass lives on the piano strip */
   const f=mtof(m),tau=Math.max(0.3,1.1-(m-48)*0.018),end=t+tau*6+0.5;
   const g=ctx.createGain();g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(vel*0.2,t+0.006);
   g.gain.setTargetAtTime(0,t+0.01,tau);
   if(dur)g.gain.setTargetAtTime(0,t+dur,0.1);
-  const lp=ctx.createBiquadFilter();lp.type='lowpass';lp.frequency.value=3600;
   const a=osc('sine',f,t,end),b=osc('sine',f*1.0016,t,end),c=osc('triangle',f*2.003,t,end);
   const gb=ctx.createGain();gb.gain.value=0.5;const gc=ctx.createGain();
   gc.gain.setValueAtTime(0.28,t);gc.gain.setTargetAtTime(0.03,t+0.01,tau*0.3);
-  a.connect(g);b.connect(gb);gb.connect(g);c.connect(gc);gc.connect(g);g.connect(lp);emit(lp,0.3);
+  a.connect(g);b.connect(gb);gb.connect(g);c.connect(gc);gc.connect(g);emit(g,'pno');
+  transient(t,vel*0.2*0.05,0.009,0.45,'pno');
 }
 function bassN(t,m,vel,dur){
+  /* body resonance (peaking 110 Hz) lives on the bass strip */
   const f=mtof(m),end=t+dur+0.4;
   const lp=ctx.createBiquadFilter();lp.type='lowpass';lp.frequency.setValueAtTime(900,t);lp.frequency.setTargetAtTime(260,t,0.05);
   const g=ctx.createGain();g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(vel*0.42,t+0.012);
   g.gain.setTargetAtTime(vel*0.2,t+0.03,0.18);g.gain.setTargetAtTime(0,t+dur,0.07);
   const a=osc('triangle',f,t,end),b=osc('sawtooth',f,t,end),gb=ctx.createGain();gb.gain.value=0.22;
-  a.connect(lp);b.connect(gb);gb.connect(lp);lp.connect(g);emit(g,0.05);
+  a.connect(lp);b.connect(gb);gb.connect(lp);lp.connect(g);emit(g,'bass');
 }
 function swish(t,vel,len,cf){
   len=len||0.14;const n=noiseSrc(t,t+len*3+0.1);
   const bp=ctx.createBiquadFilter();bp.type='bandpass';bp.frequency.value=cf||5200;bp.Q.value=0.8;
   const g=ctx.createGain();g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(vel*0.16,t+len*0.3);g.gain.setTargetAtTime(0,t+len*0.3,len*0.35);
-  n.connect(bp);bp.connect(g);emit(g,0.12);
+  n.connect(bp);bp.connect(g);emit(g,(brushAlt++)%2?'brushR':'brushL');
 }
 function rim(t,vel){
   const o=osc('triangle',1750,t,t+0.12),bp=ctx.createBiquadFilter();bp.type='bandpass';bp.frequency.value=1900;bp.Q.value=2;
-  const g=ctx.createGain();g.gain.setValueAtTime(vel*0.18,t);g.gain.setTargetAtTime(0,t+0.002,0.012);
-  o.connect(bp);bp.connect(g);emit(g,0.1);
+  const g=ctx.createGain();g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(vel*0.18,t+0.0008);g.gain.setTargetAtTime(0,t+0.002,0.012);
+  o.connect(bp);bp.connect(g);emit(g,'rim');
 }
 function kick(t,vel){
   const o=osc('sine',120,t,t+0.4);o.frequency.setTargetAtTime(46,t,0.03);
   const g=ctx.createGain();g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(vel*0.4,t+0.004);g.gain.setTargetAtTime(0,t+0.01,0.08);
-  o.connect(g);emit(g,0.03);
+  o.connect(g);emit(g,'kick');
 }
 function hat(t,vel){
   const n=noiseSrc(t,t+0.15),hp=ctx.createBiquadFilter();hp.type='highpass';hp.frequency.value=7500;
-  const g=ctx.createGain();g.gain.setValueAtTime(vel*0.1,t);g.gain.setTargetAtTime(0,t+0.002,0.02);
-  n.connect(hp);hp.connect(g);emit(g,0.06);
+  const g=ctx.createGain();g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(vel*0.1,t+0.0008);g.gain.setTargetAtTime(0,t+0.002,0.02);
+  n.connect(hp);hp.connect(g);emit(g,'hat');
 }
 function breathy(t,m,dur,vel,sting){
   const f=mtof(m),end=t+dur+0.4;
@@ -415,7 +485,7 @@ function breathy(t,m,dur,vel,sting){
   lfo.connect(lg);lg.connect(a.frequency);lg.connect(b.frequency);
   const n=noiseSrc(t,end),bp=ctx.createBiquadFilter();bp.type='bandpass';bp.frequency.value=f*2;bp.Q.value=3;
   const gn=ctx.createGain();gn.gain.value=0.25;
-  a.connect(g);b.connect(gb);gb.connect(g);n.connect(bp);bp.connect(gn);gn.connect(g);emit(g,0.35,sting);
+  a.connect(g);b.connect(gb);gb.connect(g);n.connect(bp);bp.connect(gn);gn.connect(g);emit(g,'mel',sting);
 }
 function celesta(t,m,dur,vel,sting){
   const f=mtof(m),tau=0.5,end=t+tau*6;
@@ -423,7 +493,7 @@ function celesta(t,m,dur,vel,sting){
   const a=osc('sine',f,t,end),b=osc('sine',f*4,t,end),c=osc('sine',f*5.4,t,end);
   const gb=ctx.createGain(),gc=ctx.createGain();
   gb.gain.setValueAtTime(0.25,t);gb.gain.setTargetAtTime(0,t+0.01,0.12);gc.gain.setValueAtTime(0.1,t);gc.gain.setTargetAtTime(0,t+0.01,0.05);
-  a.connect(g);b.connect(gb);gb.connect(g);c.connect(gc);gc.connect(g);emit(g,0.4,sting);
+  a.connect(g);b.connect(gb);gb.connect(g);c.connect(gc);gc.connect(g);emit(g,'cel',sting);
 }
 function clar(t,m,dur,vel,sting){
   const f=mtof(m),end=t+dur+0.4;
@@ -432,14 +502,14 @@ function clar(t,m,dur,vel,sting){
   const a=osc('square',f,t,end),b=osc('sine',f,t,end),gb=ctx.createGain();gb.gain.value=0.6;
   const lfo=osc('sine',4.8,t,end),lg=ctx.createGain();lg.gain.setValueAtTime(0,t);lg.gain.linearRampToValueAtTime(f*0.004,t+0.4);
   lfo.connect(lg);lg.connect(a.frequency);
-  a.connect(lp);b.connect(gb);gb.connect(lp);lp.connect(g);emit(g,0.3,sting);
+  a.connect(lp);b.connect(gb);gb.connect(lp);lp.connect(g);emit(g,'clar',sting);
 }
 function horn(t,m,dur,vel,sting){
   const f=mtof(m),end=t+dur+0.6;
   const lp=ctx.createBiquadFilter();lp.type='lowpass';lp.frequency.setValueAtTime(450,t);lp.frequency.linearRampToValueAtTime(950,t+0.25);lp.Q.value=0.8;
   const g=ctx.createGain();g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(vel*0.09,t+0.12);g.gain.setTargetAtTime(0,t+Math.max(0.15,dur-0.05),0.12);
   const a=osc('sawtooth',f,t,end),b=osc('sawtooth',f*1.004,t,end);
-  a.connect(lp);b.connect(lp);lp.connect(g);emit(g,0.3,sting);
+  a.connect(lp);b.connect(lp);lp.connect(g);emit(g,'horn',sting);
 }
 function vibes(t,m,vel,sting){
   const f=mtof(m),end=t+4;
@@ -447,14 +517,15 @@ function vibes(t,m,vel,sting){
   const lfo=osc('sine',5,t,end),lg=ctx.createGain();lg.gain.value=0.28;lfo.connect(lg);lg.connect(trem.gain);
   const g=ctx.createGain();g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(vel*0.15,t+0.006);g.gain.setTargetAtTime(0,t+0.01,0.9);
   const a=osc('sine',f,t,end),b=osc('sine',f*4,t,end),gb=ctx.createGain();gb.gain.setValueAtTime(0.14,t);gb.gain.setTargetAtTime(0,t+0.01,0.1);
-  a.connect(g);b.connect(gb);gb.connect(g);g.connect(trem);emit(trem,0.35,sting);
+  a.connect(g);b.connect(gb);gb.connect(g);g.connect(trem);emit(trem,'vib',sting);
 }
 function strings(t,m,dur,vel,sting){
+  /* three detuned saws spread left, center, right; the 1.1 kHz lowpass lives on the strips */
   const f=mtof(m),end=t+dur+1.6;
-  const lp=ctx.createBiquadFilter();lp.type='lowpass';lp.frequency.value=1100;lp.Q.value=0.5;
-  const g=ctx.createGain();g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(vel*0.03,t+0.7);g.gain.setTargetAtTime(0,t+dur,0.5);
-  [0.996,1,1.004].forEach(r=>{const o=osc('sawtooth',f*r,t,end);o.connect(lp);});
-  lp.connect(g);emit(g,0.4,sting);
+  [[0.996,'strL'],[1,'strC'],[1.004,'strR']].forEach(([r,ch])=>{
+    const g=ctx.createGain();g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(vel*0.03,t+0.7);g.gain.setTargetAtTime(0,t+dur,0.5);
+    osc('sawtooth',f*r,t,end).connect(g);emit(g,ch,sting);
+  });
 }
 
 /* ---------- valley motif ---------- */
