@@ -24,6 +24,8 @@ export interface UndoEntry {
   inverse: Command[];
   /** True while the world still looks the way the command left it. */
   intact(m: Mirror): boolean;
+  /** Earthworks: the last command seq and turn folded in, so one gesture is one undo. */
+  group?: { seq: number; turn: number; heights: Map<number, number> };
 }
 
 /** What a command needs remembered from before it ran, to build its inverse later. */
@@ -74,6 +76,8 @@ function capture(cmd: Command, m: Mirror): Before | null {
     case 'decor.placeRun':
     case 'tree.plant':
     case 'note.pin':
+    case 'terrain.lower':
+    case 'terrain.raise':
       return { t: 'none' };
     case 'build.remove': {
       const views = cmd.ids.map((id) => m.buildings.get(id)).filter((b): b is BuildingView => !!b);
@@ -229,6 +233,19 @@ function inverseOf(p: Pending, m: Mirror, change: MirrorChange, seat: SeatId): U
         label: 'clearing the road',
         inverse,
         intact: (mm) => removed.every(([x, z]) => mm.road(x, z) === 0),
+      };
+    }
+    case 'terrain.lower':
+    case 'terrain.raise': {
+      // Raising is lowering's inverse. The coins are not refunded.
+      const heights = new Map<number, number>();
+      for (const [x, z] of cmd.tiles) heights.set(idx(x, z), m.height(x, z));
+      return {
+        label: 'the earthworks',
+        inverse: [{ t: cmd.t === 'terrain.raise' ? 'terrain.lower' : 'terrain.raise', tiles: cmd.tiles }],
+        intact: (mm) =>
+          [...heights].every(([i, h]) => mm.height(i % MAP_SIZE, Math.floor(i / MAP_SIZE)) === h),
+        group: { seq: p.seq, turn: p.turn, heights },
       };
     }
     case 'tree.plant':
@@ -404,6 +421,21 @@ export class UndoStack {
   }
 
   private push(entry: UndoEntry): void {
+    // One earthworks gesture is many commands in a row: they undo together, last one first.
+    const top = this.entries[this.entries.length - 1];
+    if (
+      entry.group &&
+      top?.group &&
+      entry.group.seq === top.group.seq + 1 &&
+      entry.group.turn - top.group.turn <= 1
+    ) {
+      const heights = new Map([...top.group.heights, ...entry.group.heights]);
+      top.inverse = [...entry.inverse, ...top.inverse];
+      top.group = { seq: entry.group.seq, turn: entry.group.turn, heights };
+      top.intact = (mm) =>
+        [...heights].every(([i, h]) => mm.height(i % MAP_SIZE, Math.floor(i / MAP_SIZE)) === h);
+      return;
+    }
     this.entries.push(entry);
     if (this.entries.length > this.depth) this.entries.splice(0, this.entries.length - this.depth);
     this.size.value = this.entries.length;
