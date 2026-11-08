@@ -3,13 +3,36 @@
 // by), choose the music and the twist, and watch a live joy estimate with its parts. The result
 // card hands out the stars the night after.
 import { content } from '@qoti/content';
-import { FESTIVAL_MENU_MAX, MAP_SIZE, type FestivalResultView } from '@qoti/sim';
+import {
+  FESTIVAL_MENU_MAX,
+  MAP_SIZE,
+  TILE_FP,
+  type FestivalPlanView,
+  type FestivalResultView,
+  type FestivalView,
+} from '@qoti/sim';
+import { useEffect } from 'preact/hooks';
 import type { Session } from '../../app/session';
 import { SeasonVignette, Stars } from '../art';
 import { goodName } from '../format';
-import { dayName, festivalName, JOY_PARTS, joyEstimate, today, twistName, whenWord } from '../seasons';
+import {
+  currentFestivalPlan,
+  dayName,
+  festivalName,
+  festivalPhase,
+  festivalReach,
+  festivalSiteRect,
+  festivalTooLate,
+  JOY_PARTS,
+  joyEstimate,
+  twistName,
+  twistNeeds,
+  whenWord,
+} from '../seasons';
 import type { FestivalDraft } from '../state';
 import { Frame, Meter } from './parts';
+
+type Rect = [number, number, number, number];
 
 const MUSIC: { id: FestivalDraft['music']; label: string; note: string }[] = [
   { id: 'none', label: 'No music', note: 'Folk will hum. Badly.' },
@@ -21,36 +44,50 @@ const MUSIC: { id: FestivalDraft['music']; label: string; note: string }[] = [
 export function currentDraft(session: Session): FestivalDraft {
   const d = session.ui.festivalDraft.value;
   if (d) return d;
-  const plan = session.mirror.festival.value?.plan;
+  const plan = currentFestivalPlan(session.mirror.festival.value, session.mirror.tick.value);
   return plan
     ? { site: plan.site, menu: plan.menu.map(([g, q]) => [g, q]), twist: plan.twist, music: plan.music }
     : { site: null, menu: [], twist: '', music: 'none' };
 }
 
-/** Average charm over the site's tiles (the charm layer), 0 to 100. */
-function siteCharm(session: Session, site: FestivalDraft['site']): number {
+/** True when a draft says what the plan on the poster says (so there is nothing left to send). */
+export function draftMatchesPlan(draft: FestivalDraft, plan: FestivalPlanView | null): boolean {
+  if (!plan) return false;
+  const menu = (l: readonly (readonly [string, number, ...number[]])[]) =>
+    JSON.stringify(l.filter(([, q]) => q > 0).map(([g, q]) => [g, q]));
+  return (
+    JSON.stringify(draft.site) === JSON.stringify(plan.site) &&
+    menu(draft.menu) === menu(plan.menu) &&
+    draft.twist === plan.twist &&
+    draft.music === plan.music
+  );
+}
+
+/** Average charm over the site's tiles (the charm layer, its own scale), and whether it is a Pattern Book site. */
+function siteCharm(session: Session, rect: Rect | null): number {
   const charm = session.mirror.layers.charm;
-  if (!site || !charm) return 0;
+  if (!rect || !charm) return 0;
   let sum = 0;
   let n = 0;
-  if ('rect' in site) {
-    const [x0, z0, x1, z1] = site.rect;
-    for (let z = z0; z <= z1; z++)
-      for (let x = x0; x <= x1; x++) {
-        sum += charm[z * MAP_SIZE + x] ?? 0;
-        n++;
-      }
-  } else {
-    const p = session.mirror.patterns.get(site.pattern);
-    const s = p?.sites.find((x) => x.z * MAP_SIZE + x.x === site.anchor) ?? p?.sites[0];
-    for (const t of s?.tiles ?? [site.anchor]) {
-      sum += charm[t] ?? 0;
+  for (let z = rect[1]; z <= rect[3]; z++)
+    for (let x = rect[0]; x <= rect[2]; x++) {
+      sum += charm[z * MAP_SIZE + x] ?? 0;
       n++;
     }
-    // A Pattern Book site is a lovely spot by definition.
-    return Math.min(100, (n ? sum / n : 0) + 15);
-  }
   return n ? sum / n : 0;
+}
+
+/** Distinct festival pieces standing on the site (the sim's pieceVariety). */
+function piecesOnSite(session: Session, rect: Rect | null): number {
+  if (!rect) return 0;
+  const seen = new Set<string>();
+  for (const d of session.mirror.decor.values()) {
+    if (!content.decorById.get(d.def)?.festival) continue;
+    const x = Math.floor(d.fx / TILE_FP);
+    const z = Math.floor(d.fz / TILE_FP);
+    if (x >= rect[0] && x <= rect[2] && z >= rect[1] && z <= rect[3]) seen.add(d.def);
+  }
+  return seen.size;
 }
 
 function siteLabel(site: FestivalDraft['site']): string {
@@ -62,18 +99,43 @@ function siteLabel(site: FestivalDraft['site']): string {
   return content.patternById.get(site.pattern)?.name ?? 'A Pattern Book site';
 }
 
+/** Whether somebody in town can play: Juniper Reed, or an Artistic grown-up (the sim's musicianFor). */
+function hasMusician(m: Session['mirror']): boolean {
+  const arc = m.stories.get('musician');
+  if (arc?.residentId && m.residents.has(arc.residentId)) return true;
+  for (const r of m.residents.values()) if (r.stage === 'adult' && r.traits.includes('artistic')) return true;
+  return false;
+}
+
+/** The poster's "when" line, by where the festival day stands. */
+function whenLine(f: FestivalView, tick: number): string {
+  const { phase, daysAhead } = festivalPhase(f, tick);
+  const base = `${dayName(f.day)}, six till ten in the evening`;
+  if (phase === 'ahead') return `${base} (${whenWord(daysAhead)})`;
+  if (phase === 'tonight') return `${base} (tonight)`;
+  if (phase === 'live') return `${base} (on now)`;
+  return `${dayName(f.day)}: this season's festival is over. The next poster goes up with the next season.`;
+}
+
 export function FestivalPanel({ session }: { session: Session }) {
   const m = session.mirror;
   const f = m.festival.value;
   const draft = currentDraft(session);
   const stocks = m.stocks.value?.lines ?? [];
-  const plan = f?.plan ?? null;
+  const tick = m.tick.value;
+  const plan = currentFestivalPlan(f, tick);
   const reserved = new Map((plan?.menu ?? []).map(([g, , r]) => [g, r]));
   const set = (patch: Partial<FestivalDraft>) => (session.ui.festivalDraft.value = { ...draft, ...patch });
   const close = () => {
     session.ui.panel.value = null;
     session.render?.highlight?.(null);
   };
+  const matches = draftMatchesPlan(draft, plan);
+  // The draft stays until the accepted plan comes back (festival.updated carrying it); a refusal
+  // keeps it, so nothing the player set up is lost.
+  useEffect(() => {
+    if (matches && session.ui.festivalDraft.value) session.ui.festivalDraft.value = null;
+  }, [matches]);
   if (!f) {
     return (
       <Frame id="festival" class="book-panel festival-poster" onClose={close} title="Festivals">
@@ -81,24 +143,58 @@ export function FestivalPanel({ session }: { session: Session }) {
       </Frame>
     );
   }
-  const now = today(m.tick.value);
-  const attendees = m.town.value?.population ?? m.residents.size;
+  const stockOf = (g: string) => stocks.find((l) => l.good === g)?.stock ?? 0;
+  const rect = festivalSiteRect(m, draft.site);
+  const reach = festivalReach(m, rect);
+  const attendees = draft.site ? reach.near : (m.town.value?.population ?? m.residents.size);
   const season = content.festivalById.get(f.festival.id)?.season ?? f.festival.season;
-  const twists = content.twists.filter((t) => !t.seasons || t.seasons.includes(season));
+  const lastTwist = m.festivalResult.value?.twist ?? '';
+  const twists = content.twists
+    .filter((t) => !t.seasons || t.seasons.includes(season))
+    .map((t) => ({
+      def: t,
+      why: t.id === lastTwist ? 'used last time' : twistNeeds(t.id, stockOf),
+    }));
+  const twistOk = !twists.some((t) => t.def.id === draft.twist && t.why);
   const est = joyEstimate({
-    siteCharm: siteCharm(session, draft.site),
-    pieces: f.pieces.length,
-    menu: draft.menu,
+    siteCharm: siteCharm(session, rect),
+    pattern: !!draft.site && 'pattern' in draft.site,
+    pieces: piecesOnSite(session, rect),
+    // What the menu can actually put by: the stock, plus what is already set aside.
+    menu: draft.menu.map(([g, q]) => [g, Math.min(q, stockOf(g) + (reserved.get(g) ?? 0))]),
     attendees,
     music: draft.music,
-    twist: !!draft.twist,
+    twist: !!draft.twist && twistOk,
   });
+  const musician = hasMusician(m);
+  const bandstand = (m.town.value?.unlocked ?? []).includes('bandstand-green');
+  const musicWhy = (id: FestivalDraft['music']): string | null =>
+    id === 'resident' && !musician
+      ? 'Nobody in town plays yet'
+      : id === 'bandstand' && !bandstand
+        ? 'The bandstand is not found yet'
+        : null;
   const foods = stocks.filter(
     (l) => content.goodById.get(l.good)?.food || ['cider', 'pies', 'honey'].includes(l.good),
   );
   const onMenu = new Set(draft.menu.map(([g]) => g));
-  const changed = !!session.ui.festivalDraft.value;
+  const phase = festivalPhase(f, tick).phase;
+  const tooLate = festivalTooLate(f, tick);
+  const twistWhy = draft.twist ? twists.find((t) => t.def.id === draft.twist)?.why : null;
+  // Why Send is off, in a few words; the same reasons the sim would refuse for.
+  const blocked = tooLate
+    ? 'Too late for this season: the evening has begun.'
+    : f.live
+      ? 'It is on right now.'
+      : !draft.site
+        ? 'Choose a site first.'
+        : twistWhy
+          ? `The twist is ${twistWhy === 'used last time' ? 'the one used last time' : `out of reach (needs ${twistWhy})`}.`
+          : musicWhy(draft.music)
+            ? `${musicWhy(draft.music)}, so pick other music.`
+            : null;
   const send = () => {
+    // The draft stays: the effect above clears it when the accepted plan comes back.
     session.submit({
       t: 'festival.plan',
       site: draft.site,
@@ -106,7 +202,12 @@ export function FestivalPanel({ session }: { session: Session }) {
       ...(draft.twist ? { twist: draft.twist } : {}),
       music: draft.music,
     });
-    session.ui.festivalDraft.value = null;
+  };
+  const setOut = () => {
+    const piece = content.festivalById.get(f.festival.id)?.pieces[0];
+    close();
+    if (piece) session.tools?.select('decor', piece);
+    if (rect) session.render?.focus((rect[0] + rect[2]) / 2, (rect[1] + rect[3]) / 2);
   };
   const pickSite = () => {
     session.ui.festivalDraft.value = draft;
@@ -115,15 +216,11 @@ export function FestivalPanel({ session }: { session: Session }) {
     session.tools?.select('festival-site');
   };
   const showSite = () => {
-    const s = draft.site;
-    if (!s) return;
-    if ('rect' in s) {
-      const [x0, z0, x1, z1] = s.rect;
-      session.render?.focus((x0 + x1) / 2, (z0 + z1) / 2);
-      const tiles: [number, number][] = [];
-      for (let z = z0; z <= z1; z++) for (let x = x0; x <= x1; x++) tiles.push([x, z]);
-      session.render?.highlight?.({ tiles, tone: 'hearth' });
-    } else session.render?.focus(s.anchor % MAP_SIZE, Math.floor(s.anchor / MAP_SIZE));
+    if (!rect) return;
+    session.render?.focus((rect[0] + rect[2]) / 2, (rect[1] + rect[3]) / 2);
+    const tiles: [number, number][] = [];
+    for (let z = rect[1]; z <= rect[3]; z++) for (let x = rect[0]; x <= rect[2]; x++) tiles.push([x, z]);
+    session.render?.highlight?.({ tiles, tone: 'hearth' });
   };
   return (
     <Frame
@@ -137,9 +234,16 @@ export function FestivalPanel({ session }: { session: Session }) {
       <div class="poster-head">
         <SeasonVignette season={season} />
         <p class="poster-when" data-testid="festival-when">
-          {dayName(f.day)}, six till ten in the evening{f.day >= now ? ` (${whenWord(f.day - now)})` : ''}
+          {whenLine(f, tick)}
         </p>
         {f.live && <p class="poster-live">It is on right now. Go and look.</p>}
+        {plan && phase !== 'over' && !tooLate && (
+          <div class="row-actions">
+            <button type="button" class="ghost-button" data-testid="festival-set-out" onClick={setOut}>
+              Set out the pieces
+            </button>
+          </div>
+        )}
       </div>
 
       <section class="poster-block" data-testid="festival-site">
@@ -167,7 +271,7 @@ export function FestivalPanel({ session }: { session: Session }) {
           </span>
         </h4>
         {draft.menu.map(([g, q]) => {
-          const stock = stocks.find((l) => l.good === g)?.stock ?? 0;
+          const stock = stockOf(g);
           const put = reserved.get(g) ?? 0;
           return (
             <div key={g} class="menu-line" data-testid={`menu-${g}`}>
@@ -237,25 +341,31 @@ export function FestivalPanel({ session }: { session: Session }) {
       <div class="poster-pair">
         <section class="poster-block" data-testid="festival-music">
           <h4>Music</h4>
-          {MUSIC.map((mu) => (
-            <label key={mu.id} class="radio-line" title={mu.note}>
-              <input
-                type="radio"
-                name="festival-music"
-                checked={draft.music === mu.id}
-                onChange={() => set({ music: mu.id })}
-              />
-              {mu.label}
-            </label>
-          ))}
+          {MUSIC.map((mu) => {
+            const why = musicWhy(mu.id);
+            return (
+              <label key={mu.id} class="radio-line" title={why ?? mu.note}>
+                <input
+                  type="radio"
+                  name="festival-music"
+                  checked={draft.music === mu.id}
+                  disabled={!!why && draft.music !== mu.id}
+                  onChange={() => set({ music: mu.id })}
+                />
+                {mu.label}
+                {why && <span class="small muted"> ({why})</span>}
+              </label>
+            );
+          })}
         </section>
         <section class="poster-block" data-testid="festival-twist">
           <h4>The twist</h4>
           <select value={draft.twist} onChange={(e) => set({ twist: (e.target as HTMLSelectElement).value })}>
             <option value="">None this time</option>
-            {twists.map((t) => (
-              <option key={t.id} value={t.id}>
-                {t.name}
+            {twists.map(({ def, why }) => (
+              <option key={def.id} value={def.id} disabled={!!why && draft.twist !== def.id}>
+                {def.name}
+                {why ? (why === 'used last time' ? ' (used last time)' : ` (needs ${why})`) : ''}
               </option>
             ))}
           </select>
@@ -276,8 +386,13 @@ export function FestivalPanel({ session }: { session: Session }) {
             tone={k === 'menu' ? 'ochre' : 'sage'}
           />
         ))}
-        <p class="small muted">
-          About {attendees} folk could come; rain thins the crowd. An estimate, mind: the night decides.
+        <p class="small muted" data-testid="festival-reach">
+          {draft.site
+            ? `About ${reach.near} folk live close enough to come${
+                reach.far > 0 ? `, and ${reach.far} live too far away` : ''
+              }.`
+            : `About ${attendees} folk live in the valley; the site decides who is close enough.`}{' '}
+          Rain thins the crowd. An estimate, mind: the night decides.
         </p>
       </section>
 
@@ -286,12 +401,18 @@ export function FestivalPanel({ session }: { session: Session }) {
           type="button"
           class="primary"
           data-testid="festival-send"
-          disabled={!draft.site || f.live}
+          disabled={!!blocked}
+          title={blocked ?? undefined}
           onClick={send}
         >
-          {plan ? (changed ? 'Pin up the new poster' : 'Poster is up') : 'Pin up the poster'}
+          {plan ? (matches ? 'Poster is up' : 'Pin up the new poster') : 'Pin up the poster'}
         </button>
-        {plan && (
+        {blocked && (
+          <span class="small short" data-testid="festival-blocked">
+            {blocked}
+          </span>
+        )}
+        {plan && !blocked && (
           <span class="small muted" data-testid="festival-planned">
             Planned by {m.seats.value.find((s) => s.seat === plan.by)?.name ?? 'someone'}.
           </span>
@@ -302,13 +423,32 @@ export function FestivalPanel({ session }: { session: Session }) {
 }
 
 /** The morning after: stars, the crowd and the joy parts, on a card. */
+/**
+ * P1 (the dead-end hunt): the sim could keep a festival piece as ordinary decor, but no button ever
+ * asked it to. The keepable pieces still standing (they come down at 04:00) can be kept from the card.
+ */
+export function keepablePieces(session: Session): { id: number; name: string }[] {
+  const f = session.mirror.festival.value;
+  const out: { id: number; name: string }[] = [];
+  for (const id of f?.pieces ?? []) {
+    const d = session.mirror.decor.get(id);
+    const def = d ? content.decorById.get(d.def) : undefined;
+    if (def?.festival?.keepable) out.push({ id, name: def.name });
+  }
+  return out;
+}
+
 export function FestivalResultPanel({ session }: { session: Session }) {
   const r = session.ui.festivalCard.value;
   if (!r) return null;
   const close = () => (session.ui.festivalCard.value = null);
+  const pieces = keepablePieces(session);
+  const keep = pieces.length
+    ? { pieces, onKeep: (id: number) => void session.submit({ t: 'festival.keepPiece', decor: id }) }
+    : undefined;
   return (
     <div class="modal-backdrop letter-backdrop" onClick={(e) => e.target === e.currentTarget && close()}>
-      <FestivalResultCard result={r} onClose={close} />
+      <FestivalResultCard result={r} onClose={close} keep={keep} />
     </div>
   );
 }
@@ -316,9 +456,12 @@ export function FestivalResultPanel({ session }: { session: Session }) {
 export function FestivalResultCard({
   result: r,
   onClose,
+  keep,
 }: {
   result: FestivalResultView;
   onClose: () => void;
+  /** Keepable pieces still up, and how to keep one (P1). */
+  keep?: { pieces: { id: number; name: string }[]; onKeep: (id: number) => void };
 }) {
   const line =
     r.stars >= 5
@@ -349,6 +492,21 @@ export function FestivalResultCard({
           <Meter key={k} label={label} value={r.joy[k] / 100} note={r.joy[k]} />
         ))}
       </div>
+      {keep && keep.pieces.length > 0 && (
+        <div class="keep-pieces" data-testid="festival-keep">
+          <p class="small">Some of it could stay up for good, as ordinary decor:</p>
+          {keep.pieces.map((p) => (
+            <button
+              type="button"
+              key={p.id}
+              data-testid={`festival-keep-${p.id}`}
+              onClick={() => keep.onKeep(p.id)}
+            >
+              Keep the {p.name.toLowerCase()}
+            </button>
+          ))}
+        </div>
+      )}
       <div class="actions">
         <button type="button" class="primary" data-testid="festival-result-close" onClick={onClose}>
           Sweep up the bunting

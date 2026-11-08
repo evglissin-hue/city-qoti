@@ -6,7 +6,15 @@ import { content } from '@qoti/content';
 import { DAYS_PER_SEASON, TICKS_PER_DAY, type Lens } from '@qoti/sim';
 import type { Mirror } from '../state/mirror';
 import type { Alert } from './alerts';
-import { BAND_WORD, SIDE_WORD, speciesName, today, whenWord } from './seasons';
+import {
+  BAND_WORD,
+  currentFestivalPlan,
+  festivalTooLate,
+  SIDE_WORD,
+  speciesName,
+  today,
+  whenWord,
+} from './seasons';
 
 /** Festival prep: nag from this many days out, if nothing is planned. */
 const FESTIVAL_PREP_DAYS = 3;
@@ -60,7 +68,7 @@ export function seasonAlerts(m: Mirror): Alert[] {
         key: `firewood-${season}-${Math.floor(have / 10)}`,
         lens: 'ledger',
         tone: season === 3 ? 'warn' : 'quiet',
-        icon: 'reports',
+        icon: 'good:firewood',
         text: `Firewood for the winter: ${have} in store, ${need} wanted for ${households} ${households === 1 ? 'home' : 'homes'}.`,
         action: { kind: 'panel', panel: 'reports', page: 'stocks' },
       });
@@ -74,7 +82,7 @@ export function seasonAlerts(m: Mirror): Alert[] {
       key: `winter-food-${day}`,
       lens: 'ledger',
       tone: days < DAYS_PER_SEASON ? 'warn' : 'quiet',
-      icon: 'reports',
+      icon: 'snowflake',
       text:
         days >= DAYS_PER_SEASON
           ? `Winter is here and the larders hold ${days} days of food. Nothing grows till spring; that will do.`
@@ -98,7 +106,14 @@ export function seasonAlerts(m: Mirror): Alert[] {
 
   // Festival prep
   const f = m.festival.value;
-  if (f && !f.live && f.day >= day && f.day - day <= FESTIVAL_PREP_DAYS && !f.plan) {
+  if (
+    f &&
+    !f.live &&
+    f.day >= day &&
+    f.day - day <= FESTIVAL_PREP_DAYS &&
+    !currentFestivalPlan(f, now) &&
+    !festivalTooLate(f, now)
+  ) {
     out.push({
       key: `festival-prep-${f.day}`,
       lens: 'hearth',

@@ -1815,6 +1815,12 @@ li.alert.tone-news {
   overflow: hidden;
 }
 
+.alert-body .good-icon {
+  flex: none;
+  margin-top: -1px;
+  font-size: 1.05em;
+}
+
 .alert-body .glyph {
   margin-top: 1px;
   color: var(--ink-line);
@@ -2033,8 +2039,8 @@ li.alert .dismiss {
 }
 
 .stat-chip .glyph {
-  width: 16px;
-  height: 16px;
+  width: 1.15em;
+  height: 1.15em;
 }
 
 .stat-chip.coins .glyph {
@@ -2280,15 +2286,16 @@ ul.people-list {
   justify-content: center;
   border-radius: 1.1em;
   overflow: hidden;
-  font-size: 0.86rem;
+  /* Playtest round seven: the counts are the point of the strip, so they read at a glance. */
+  font-size: 1rem;
   pointer-events: auto;
 }
 
 .stock-chip {
   display: inline-flex;
   align-items: center;
-  gap: 3px;
-  padding: 0 7px 0 4px;
+  gap: 0.25em;
+  padding: 0 0.5em 0 0.25em;
   border: 0;
   border-radius: 999px;
   background: transparent;
@@ -2302,13 +2309,24 @@ ul.people-list {
 }
 
 .stock-chip .good-icon {
-  width: 16px;
-  height: 16px;
+  width: 1.5em;
+  height: 1.5em;
+}
+
+/* The count and the word both read big and bold; the word is the quieter ink. */
+.stock-chip > span:not(.good-icon):not(.stock-word) {
+  font-size: 1.08rem;
+  font-weight: 700;
 }
 
 .stock-chip .stock-word {
-  font-weight: 400;
-  color: rgba(90, 66, 49, 0.7);
+  font-size: 1.08rem;
+  font-weight: 700;
+  color: rgba(90, 66, 49, 0.72);
+}
+
+.stock-chip.more {
+  font-style: italic;
 }
 
 .stock-chip.empty {
@@ -2318,19 +2336,19 @@ ul.people-list {
 /* A narrow lane (a small window, or a book and the inspector both open) keeps the icons and
    numbers; each chip's tooltip still names its good. A chip with its word runs about 5rem, so the
    threshold follows how many chips the strip holds (fitClass in TopBar.tsx). */
-@container strip (max-width: 51rem) {
+@container strip (max-width: 64rem) {
   .stock-strip.fit-l .stock-word {
     display: none;
   }
 }
 
-@container strip (max-width: 41rem) {
+@container strip (max-width: 52rem) {
   .stock-strip.fit-m .stock-word {
     display: none;
   }
 }
 
-@container strip (max-width: 26rem) {
+@container strip (max-width: 32rem) {
   .stock-strip.fit-s .stock-word {
     display: none;
   }

@@ -4,6 +4,7 @@
 import { content, type BuildingDef, type Cost, type DecorDef, type ValleyMode } from '@qoti/content';
 import { countsAsBuilt, PENNIES_PER_COIN, type Lens, type RejectReason } from '@qoti/sim';
 import type { Mirror } from '../state/mirror';
+import { currentFestivalPlan } from '../ui/seasons';
 import { RANK_WORD, rankAtLeast } from '../ui/village';
 
 export type BuildingGroup = 'homes' | 'food' | 'materials' | 'services';
@@ -91,24 +92,33 @@ export function groupsOf(defs: readonly BuildingDef[]): BuildingGroup[] {
   return GROUP_ORDER.filter((g) => defs.some((d) => buildingGroup(d) === g));
 }
 
+/** True while this season's festival has a plan (the sim's currentPlan). */
+export function festivalPlanned(m: Mirror): boolean {
+  return currentFestivalPlan(m.festival.value, m.tick.value) !== null;
+}
+
 /** Unlocked content ids (town view), plus everything when the valley is creative. */
 export function unlockedIds(m: Mirror): ReadonlySet<string> {
   return new Set(m.town.value?.unlocked ?? []);
 }
 
-export type DecorGroup = 'seats' | 'lights' | 'greenery' | 'water' | 'odds';
+export type DecorGroup = 'festival' | 'seats' | 'lights' | 'greenery' | 'water' | 'work' | 'odds';
 
 export const DECOR_GROUP_LABEL: Record<DecorGroup, string> = {
+  festival: 'Festival',
   seats: 'Seats',
   lights: 'Lights',
   greenery: 'Greenery',
   water: 'By the water',
+  work: 'For the work',
   odds: 'Odds and ends',
 };
 
-const DECOR_GROUP_ORDER: DecorGroup[] = ['seats', 'lights', 'greenery', 'water', 'odds'];
+const DECOR_GROUP_ORDER: DecorGroup[] = ['festival', 'seats', 'lights', 'greenery', 'water', 'work', 'odds'];
 
 export function decorGroup(def: DecorDef): DecorGroup {
+  // P1 (player's chair): the pieces that help a workplace get a group of their own, not odds and ends.
+  if (def.boost) return 'work';
   const t = def.tags;
   if (t.includes('seat') && !t.includes('wall')) return 'seats';
   if (t.includes('light')) return 'lights';
@@ -117,8 +127,13 @@ export function decorGroup(def: DecorDef): DecorGroup {
   return 'odds';
 }
 
+/** The picker group of a choice: festival pieces on offer for this season's plan go in their own. */
+export function choiceGroup(c: DecorChoice): DecorGroup {
+  return c.festival ? 'festival' : decorGroup(c.def);
+}
+
 export function decorGroupsOf(choices: readonly DecorChoice[]): DecorGroup[] {
-  return DECOR_GROUP_ORDER.filter((g) => choices.some((c) => decorGroup(c.def) === g));
+  return DECOR_GROUP_ORDER.filter((g) => choices.some((c) => choiceGroup(c) === g));
 }
 
 export interface DecorChoice {
@@ -126,21 +141,32 @@ export interface DecorChoice {
   locked: boolean;
   /** Why it is locked: the hint of the pattern that unlocks it, when that hint is showing. */
   hint: string;
+  /** A festival piece on offer because this season's festival is planned (the sim's rule). */
+  festival?: boolean;
 }
 
 /** Decor the picker offers: Pattern Book pieces stay locked in standard valleys until found. */
 export function decorChoices(m: Mirror, lens: Lens, linear: boolean): DecorChoice[] {
   const standard = m.settings.value.mode === 'standard';
   const unlocked = unlockedIds(m);
+  const planned = festivalPlanned(m);
   return content.decor
     .filter((d) => !!d.linear === linear)
     .filter((d) => lens === 'hearth' || d.lane !== 'hearth' || linear)
-    .map((def) => {
-      const locked = standard && !!def.locked && !unlocked.has(def.id);
-      return { def, locked, hint: locked ? lockHint(m, def.id) : '' };
+    .map((def): DecorChoice => {
+      // The sim's rule (commands/decor.ts lockedReason): festival pieces are open while this
+      // season's festival is planned.
+      const festival = standard && !!def.festival && planned;
+      const locked = standard && !!def.locked && !unlocked.has(def.id) && !festival;
+      const hint = !locked ? '' : def.festival ? FESTIVAL_LOCK : lockHint(m, def.id);
+      return { def, locked, hint, ...(festival && { festival }) };
     })
     .sort((a, b) => Number(a.locked) - Number(b.locked));
 }
+
+/** P1 (player's chair): festival pieces come out with a festival plan, not from the Pattern Book. */
+export const FESTIVAL_LOCK =
+  'Out for festivals: plan one in the Festival book and these come out of the shed.';
 
 /** "Found in the Pattern Book: <hint>" for a locked piece. */
 export function lockHint(m: Mirror, id: string): string {
@@ -179,6 +205,14 @@ export function builtCount(m: Mirror, def: string): number {
   let n = 0;
   for (const b of m.buildings.values()) if (b.stage === 'built' && countsAsBuilt(b.def, def)) n++;
   return n;
+}
+
+/**
+ * P1 (playtest item 13): the buildings the picker may tease as "At Town rank: ...". A rank whose
+ * Charter does not exist in content (Town, for now) is a dead end for players, so it is not teased.
+ */
+export function teasableLater(defs: readonly BuildingDef[]): BuildingDef[] {
+  return defs.filter((d) => d.requires?.rank && content.charters.some((c) => c.rank === d.requires!.rank));
 }
 
 export function buildingLock(m: Mirror, def: BuildingDef): BuildingLock | null {

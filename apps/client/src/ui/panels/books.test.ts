@@ -3,6 +3,7 @@ import { content } from '@qoti/content';
 import { h } from 'preact';
 import { afterEach, describe, expect, it } from 'vitest';
 import { mockAwayLetter } from '../mocks/hamlet';
+import { swatchHex } from '../swatches';
 import { mockSession, mockView } from '../mocks/session';
 import { button, mount, settle, type Mounted } from '../test/dom';
 import { AchievementsPanel } from './Achievements';
@@ -126,7 +127,7 @@ describe('plaques', () => {
   it('shows earned plaques first, with dates and who, and the rest as outlines', async () => {
     const { session } = mockSession();
     view = await mount(h(AchievementsPanel, { session }));
-    expect(view.text()).toContain('5 of 15 earned');
+    expect(view.text()).toContain('5 of 16 earned');
     expect(view.get('plaque-well-met').className).toContain('earned');
     expect(view.get('plaque-well-met').textContent).toContain('you and Bo');
     expect(view.get('plaque-balanced-books').className).toContain('waiting');
@@ -223,9 +224,23 @@ describe('customization', () => {
       { t: 'build.customize', id: 6, custom: { shutters: true } },
       { t: 'build.customize', id: 6, custom: { wall: null } },
     ]);
+    const slate = swatchHex('roof', 'slate', '#000000');
     expect(
-      view.root.querySelector('svg.house-sketch rect[fill="#5e6b7a"], svg.house-sketch path[fill="#5e6b7a"]'),
+      view.root.querySelector(
+        `svg.house-sketch rect[fill="${slate}"], svg.house-sketch path[fill="${slate}"]`,
+      ),
     ).not.toBeNull();
+  });
+
+  it('offers flower colors for window boxes, and sends the one picked', async () => {
+    const { session, submitted } = mockSession();
+    session.ui.customize.value = 6;
+    view = await mount(h(CustomizePanel, { session }));
+    // The mock bakery has window boxes on, so the flower row shows with Mixed as the default.
+    expect(view.get('swatch-flowers-mixed').getAttribute('aria-checked')).toBe('true');
+    await view.click('swatch-flowers-cornflower');
+    expect(submitted).toEqual([{ t: 'build.customize', id: 6, custom: { windowFlowers: 'cornflower' } }]);
+    expect(view.get('swatch-flowers-cornflower').getAttribute('aria-checked')).toBe('true');
   });
 
   it('writes the sign on Enter, trimmed to 24 characters', async () => {

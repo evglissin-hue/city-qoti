@@ -293,7 +293,7 @@ export function windowStyle(
     frame: palette.white,
     shutter: (c.shutters ?? defaults.shutters) ? accent : null,
     box: c.windowBoxes ?? defaults.box,
-    flowers: FLOWERS,
+    flowers: c.windowFlowers === null ? FLOWERS : [c.windowFlowers],
   };
 }
 
@@ -430,7 +430,7 @@ export function cottageOf(opts: KitBuildOptions | undefined): Built {
       false,
     );
   s.detail(() => {
-    const style = windowStyle(c, accent, { box: true, shutters: true });
+    const style = windowStyle(c, accent, { box: false, shutters: true });
     windowRow(s, front, x0, x1, 0.52, style, rnd, anchors.lights!, [doorU], 0.6, [0.2, 0.22], clad);
     const side = { ...style, box: false };
     if (!row.r)
@@ -556,7 +556,7 @@ function houseOf(opts: KitBuildOptions | undefined): Built {
   const doorU = ex + 0.5;
   doorPart(s, front, doorU, 0.28, 0.6, accent, palette.timber, look() < 0.5 ? 'arched' : 'dutch', clad);
   s.detail(() => {
-    const style = windowStyle(c, accent, { box: true, shutters: true });
+    const style = windowStyle(c, accent, { box: false, shutters: true });
     windowRow(s, front, x0, x1, 0.45, style, rnd, anchors.lights!, [doorU], 0.6, [0.2, 0.22], clad);
     windowRow(s, upFront, ox0, ox1, 1.12, style, rnd, anchors.lights!, [], 0.6, [0.22, 0.24], 0.012);
     const side = { ...style, box: false };
@@ -767,7 +767,7 @@ function hall(opts: KitBuildOptions | undefined): Built {
       palette.white,
       [0, 0, 1],
     );
-    const style = windowStyle(c, accent, { box: true, shutters: true });
+    const style = windowStyle(c, accent, { box: false, shutters: true });
     windowRow(
       s,
       front,
@@ -1104,7 +1104,7 @@ function mill(opts: KitBuildOptions | undefined): Built {
   s.box(hx - 0.1, hy - 0.1, hz - 0.24, hx + 0.1, hy + 0.1, hz, palette.timber);
   const face: Face = { dir: 'z+', plane: cz + 0.72 };
   doorPart(s, face, cx, 0.28, 0.66, c.accent ?? palette.mustard, palette.timber, 'arched', 0.02);
-  const style = windowStyle(c, c.accent ?? palette.teal, { box: true, shutters: true });
+  const style = windowStyle(c, c.accent ?? palette.teal, { box: false, shutters: true });
   windowPart(s, { dir: 'z+', plane: cz + 0.6 }, cx, 1.62, 0.16, 0.2, style, rnd, anchors.lights);
   windowPart(
     s,

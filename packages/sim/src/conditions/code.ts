@@ -93,6 +93,19 @@ export function pathRoute(state: WorldState, bind: Binding): boolean {
   return commute(state, bind, true) !== null;
 }
 
+/**
+ * P1 (playtest item 13): the First Winter trial of the Charter named by `ref` (a Charter id) has
+ * been weathered. The trial stays "passed" for good, so the plaque's condition keeps holding.
+ */
+export function trialPassed(
+  state: WorldState,
+  _bind: Binding,
+  _params: readonly [string, number][],
+  ref?: string,
+): boolean {
+  return state.trial?.status === 'passed' && state.trial.charter === ref;
+}
+
 // Registry: one line per predicate, alphabetical.
 // prettier-ignore
 export const codePredicates: ReadonlyMap<string, CodePredicate> = new Map<string, CodePredicate>([
@@ -117,6 +130,7 @@ export const codePredicates: ReadonlyMap<string, CodePredicate> = new Map<string
   ['seasonIs', seasonIs],
   ['stoneRate', stoneRate],
   ['storyStep', storyStep],
+  ['trialPassed', trialPassed],
   ['watchPosted', watchPosted],
   ['waterServed', waterServedCode],
   ['wellInReach', wellInReach],

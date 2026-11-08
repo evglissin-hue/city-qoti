@@ -116,6 +116,10 @@ export function createUiState() {
     minimapOpen: signal(true),
     /** The rank-up moment, while it is on screen. */
     rankUp: signal<{ rank: RankId; text: string } | null>(null),
+    /** P1: the Village chapter card, while it is open. */
+    chapter: signal(false),
+    /** P1 (callings): the Calling card, while it is open. */
+    calling: signal(false),
     // I3 (C5F)
     /** The season card or the season report on the desk, while it is open. */
     almanac: signal<Almanac | null>(null),

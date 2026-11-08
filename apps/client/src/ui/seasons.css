@@ -309,6 +309,20 @@
   }
 }
 
+/* The festival countdown in the top bar */
+.festival-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 8px;
+  border-radius: 999px;
+  border: 1.5px solid var(--line);
+  background: rgba(214, 160, 70, 0.14);
+  box-shadow: none;
+  font-size: 0.8rem;
+  line-height: 1.2;
+  cursor: pointer;
+}
+
 /* Weather and renown in the top bar */
 .weather-chip {
   display: inline-flex;

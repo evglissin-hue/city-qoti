@@ -418,6 +418,20 @@ export function installDebugHook(getSession: () => Session | null): void {
         ...(x !== undefined && z !== undefined ? { light: ao.sample(x, z) } : {}),
       };
     },
+    /**
+     * P1: CPU milliseconds per call of one render layer's `frame` (by id, such as `agents`), over
+     * `n` calls with a 1/60 s step; for timing a crowd before and after a change.
+     */
+    layerCpu: (id: string, n = 200) => {
+      const r = s()?.renderer as unknown as
+        { layers?: { id: string; frame?: (dt: number) => boolean }[] } | undefined;
+      const layer = r?.layers?.find((l) => l.id === id);
+      if (!layer?.frame) return null;
+      for (let i = 0; i < 20; i++) layer.frame(1 / 60);
+      const t0 = performance.now();
+      for (let i = 0; i < n; i++) layer.frame(1 / 60);
+      return (performance.now() - t0) / n;
+    },
     /** C4P: folk sitting on benches, chatting and waving, in this client's Mirror, for art review. */
     folkShowcase: (x?: number, z?: number) => {
       const session = s();

@@ -32,7 +32,7 @@ const FOLLOW = 5;
 const TURN_RATE = 2.4;
 const CARTERS = ['badger', 'otter', 'rabbit'];
 
-interface CartTrack {
+export interface CartTrack {
   x: number;
   z: number;
   heading: number;
@@ -53,6 +53,10 @@ function angleDelta(a: number, b: number): number {
 export interface CartsLayer extends RenderLayer {
   /** Carts drawn last frame. */
   readonly drawn: number;
+  /** Where each cart is drawn (tiles, heading), for walkers stepping aside; `seen` is a frame count. */
+  readonly tracks: ReadonlyMap<number, Readonly<CartTrack>>;
+  /** The frame count that `seen` is measured against: a cart with `seen >= serial - 1` is current. */
+  readonly serial: number;
 }
 
 export function cartsLayer(): CartsLayer {
@@ -245,6 +249,10 @@ export function cartsLayer(): CartsLayer {
     motion: 'moving',
     get drawn() {
       return drawn;
+    },
+    tracks,
+    get serial() {
+      return serial;
     },
     init(c) {
       ctx = c;

@@ -98,7 +98,7 @@ An integration cycle (C2X, C3X, ...):
 The owner's call (2026-11-08, from P1 on): every big build iteration (a cycle, a wave, an integration, a polish pass) runs as this loop.
 
 1. **Master**: one session on Opus at max effort. It plans, writes a short brief per task (goal, owned paths, acceptance checks) and owns the result. It keeps the hard calls for itself: contracts, determinism, saves, anything that crosses packages.
-2. **Executors**: the master spawns several agents on a lower tier (Sonnet; Haiku for mechanical chores), one well-scoped task each, in separate worktrees when tasks could collide. The `executor` agent (`.claude/agents/executor.md`) is pinned to Sonnet for this. Executors build what the brief says; they do not redesign, and they stop and report when the brief is wrong.
+2. **Executors**: the master spawns several agents on a lower tier (Sonnet; Haiku for mechanical chores), one well-scoped task each, in separate worktrees when tasks could collide. The `executor` agent (`.claude/agents/executor.md`) is pinned to Sonnet for this. Agent worktrees start from `main`, not from the master's branch, so each brief's first step is merging the master's branch into the worktree. Executors build what the brief says; they do not redesign, and they stop and report when the brief is wrong.
 3. **Quality check**: the master reviews every diff against its brief and the hard rules in `CLAUDE.md`, and runs typecheck, lint, tests, build, bench and e2e.
 4. **Dead-end hunt**: automated checks and simulations find what a player would get stuck on, before a human playtest does. The playability audit (`npm run audit -w @qoti/bench`) plays several seeds through a full year with the autoplayer, and the repo tests check content and contracts statically. Between them they flag:
    - wishes, goals and commissions that are offered but cannot be met;
@@ -113,17 +113,22 @@ The owner's call (2026-11-08, from P1 on): every big build iteration (a cycle, a
 5. **Player's chair**: the master then plays the change as a player would. It launches the game, takes screenshots and walks through the situations a player actually meets: the first hour, a busy town, both seats at once, winter, a mistake and its undo. It reads every new line of text in place. It asks what a newcomer would misread, where they would get stuck, and whether it is fun, and then makes the improvements itself or through another executor round.
 6. **Rounds**: one or two rounds of steps 3 to 5 after each big iteration, before the PR. The PR says what each round found and fixed.
 
-Portable prompt (paste into another account or session to adopt the loop there):
+Portable prompt (paste into another account, session or game to adopt the loop there):
 
 ```
-Adopt this build process and save it so it outlives this session.
+Adopt this way of building and save it so it outlives this session.
 
-Build and review loop, for every big build iteration:
-1. Master: you run on Opus at max effort. Plan the work and write a short brief per task.
+Build and review loop, for every big build iteration of this game:
+1. Master: you run on Opus at max effort. Turn the request (playtest notes, ideas) into a
+   numbered list, trace each item in the code (read-only explorer agents are fine), make
+   the design calls, and write a short brief per task: goal, owned paths, decisions,
+   acceptance checks.
 2. Executors: spawn several agents on a lower model (Sonnet; Haiku for chores), one task
-   each, in separate worktrees when they could collide. They execute; you design.
-3. Quality check: review each diff against its brief and the repo's rules; run typecheck,
-   lint, tests and build.
+   each, in separate worktrees when they could collide. A new worktree may start from the
+   default branch, so each executor first merges your working branch. They build what the
+   brief says, add tests, run the checks and report; they do not redesign.
+3. Quality check: review every diff against its brief and the repo's rules, merge, and run
+   typecheck, lint, tests, build and benchmarks.
 4. Dead-end hunt: automated checks and simulations (scripted or AI play across several
    seeds and a long stretch of game time, plus static checks of content and code) must
    find what a player would get stuck on before a human does: requests or goals that
@@ -133,15 +138,19 @@ Build and review loop, for every big build iteration:
    explain every flag. When a human playtest finds something they missed, add a check
    for that whole class of problem.
 5. Player's chair: play it as a player would. Launch it, screenshot it, walk through the
-   real situations a player meets, read every new line of text in place, and ask what a
-   newcomer would misread, get stuck on or find dull. Then make the improvements.
-6. One or two rounds of steps 3 to 5 after each big iteration, before the PR; the PR
-   lists what each round found and fixed.
+   real situations a player meets (the first hour, a busy late game, every mode, a mistake
+   and its undo), read every new line of text in place, and ask what a newcomer would
+   misread, get stuck on or find dull. Then make the improvements yourself or through
+   another executor round.
+6. Rounds: one or two rounds of steps 3 to 5 after each big iteration, before the PR; the
+   PR lists what each round found and fixed.
 
 Save it:
-- In your memory (your user-level CLAUDE.md or memory file) as a standing rule.
+- In your memory (your user-level CLAUDE.md or memory file) as a standing rule for all
+  projects.
 - In this repo: a one-line rule in CLAUDE.md, a "Build and review loop" section in the
-  spec that says how work is built, and .claude/agents/executor.md pinned to model: sonnet.
+  docs that say how work is built, and .claude/agents/executor.md (an executor agent
+  pinned to model: sonnet that follows briefs, stays inside its paths, tests and reports).
 Commit those on your working branch and tell me where you put them.
 ```
 

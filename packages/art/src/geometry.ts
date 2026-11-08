@@ -741,6 +741,127 @@ export class ShapeBuilder {
     return this;
   }
 
+  /**
+   * P1: a triangle with a color at each corner (a gradient across the face). Normals lean `lift`
+   * towards the sky so grass and other thin plants shade soft from above rather than by facet.
+   */
+  triC(a: V3, b: V3, c: V3, ha: number, hb: number, hc: number, outward?: V3, lift = 0.7): this {
+    if (this.silent) return this;
+    const ux = b[0] - a[0];
+    const uy = b[1] - a[1];
+    const uz = b[2] - a[2];
+    const vx = c[0] - a[0];
+    const vy = c[1] - a[1];
+    const vz = c[2] - a[2];
+    let nx = uy * vz - uz * vy;
+    let ny = uz * vx - ux * vz;
+    let nz = ux * vy - uy * vx;
+    if (nx * nx + ny * ny + nz * nz === 0) return this;
+    const ca = ha;
+    let cb = hb;
+    let cc = hc;
+    if (outward && nx * outward[0] + ny * outward[1] + nz * outward[2] < 0) {
+      [b, c] = [c, b];
+      [cb, cc] = [cc, cb];
+      nx = -nx;
+      ny = -ny;
+      nz = -nz;
+    }
+    const len = Math.sqrt(nx * nx + ny * ny + nz * nz);
+    nx /= len;
+    ny = ny / len + lift;
+    nz /= len;
+    const l2 = Math.sqrt(nx * nx + ny * ny + nz * nz);
+    nx /= l2;
+    ny /= l2;
+    nz /= l2;
+    this.reserve(3);
+    const v = this.n;
+    for (let i = 0; i < 3; i++) {
+      const p = i === 0 ? a : i === 1 ? b : c;
+      const hex = i === 0 ? ca : i === 1 ? cb : cc;
+      let rgb = linearCache.get(hex);
+      if (!rgb) {
+        tmpColor.setHex(hex);
+        rgb = [tmpColor.r, tmpColor.g, tmpColor.b];
+        linearCache.set(hex, rgb);
+      }
+      const o = (v + i) * 3;
+      this.positions[o] = p[0];
+      this.positions[o + 1] = p[1];
+      this.positions[o + 2] = p[2];
+      this.normals[o] = nx;
+      this.normals[o + 1] = ny;
+      this.normals[o + 2] = nz;
+      this.colors[o] = rgb[0];
+      this.colors[o + 1] = rgb[1];
+      this.colors[o + 2] = rgb[2];
+      this.glows[v + i] = this.glowValue;
+      this.surfaces[v + i] = this.surfaceValue;
+    }
+    this.n = v + 3;
+    return this;
+  }
+
+  /**
+   * P1: a curved grass blade from (x, y0, z), `segments` (1 to 3) long, arching out towards `dir`
+   * (radians) by `bend` at the tip and narrowing to a point. The color runs from `baseHex` at the
+   * foot to `tipHex` at the tip (vertex colors). Two sides back to back, 2 triangles a segment
+   * pair plus one at the tip, so `segments` 1 is 2 triangles, 2 is 6 and 3 is 10.
+   */
+  grassBlade(
+    x: number,
+    z: number,
+    height: number,
+    width: number,
+    bend: number,
+    dir: number,
+    baseHex: number,
+    tipHex: number,
+    segments = 2,
+    y0 = 0,
+  ): this {
+    const dx = Math.cos(dir);
+    const dz = Math.sin(dir);
+    const sx = -dz * 0.5;
+    const sz = dx * 0.5;
+    const n = Math.max(1, Math.min(3, Math.floor(segments)));
+    const cols: number[] = [];
+    const left: V3[] = [];
+    const right: V3[] = [];
+    const mid: V3[] = [];
+    for (let i = 0; i <= n; i++) {
+      const t = i / n;
+      // Rises steadily, bows outward more and more, and sags a little at the end.
+      const h = y0 + (height * (t - 0.14 * t * t)) / 0.86;
+      const out = bend * t * t;
+      const w = width * Math.pow(1 - t, 0.75);
+      const cx = x + dx * out;
+      const cz = z + dz * out;
+      mid.push([cx, h, cz]);
+      left.push([cx - sx * w, h, cz - sz * w]);
+      right.push([cx + sx * w, h, cz + sz * w]);
+      cols.push(i === 0 ? baseHex : i === n ? tipHex : mixHex(baseHex, tipHex, t));
+    }
+    const front: V3 = [-dz, 0.2, dx];
+    const back: V3 = [dz, 0.2, -dx];
+    for (let i = 0; i < n; i++) {
+      const last = i === n - 1;
+      const c0 = cols[i]!;
+      const c1 = cols[i + 1]!;
+      if (last) {
+        this.triC(left[i]!, right[i]!, mid[i + 1]!, c0, c0, c1, front);
+        this.triC(left[i]!, right[i]!, mid[i + 1]!, c0, c0, c1, back);
+      } else {
+        this.triC(left[i]!, right[i]!, right[i + 1]!, c0, c0, c1, front);
+        this.triC(left[i]!, right[i + 1]!, left[i + 1]!, c0, c1, c1, front);
+        this.triC(left[i]!, right[i]!, right[i + 1]!, c0, c0, c1, back);
+        this.triC(left[i]!, right[i + 1]!, left[i + 1]!, c0, c1, c1, back);
+      }
+    }
+    return this;
+  }
+
   /** C3D-1: moves everything built so far (used to lift or offset a finished piece). */
   translate(x: number, y: number, z: number): this {
     for (let i = 0; i < this.n * 3; i += 3) {

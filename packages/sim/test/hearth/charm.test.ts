@@ -118,18 +118,22 @@ describe('charm sources', () => {
   });
 
   it('an open tile with buildings on three sides within 4 tiles feels enclosed', () => {
+    // Plain cottages: a hand-placed one wears window boxes (a little nature) unless told not to.
+    const cottage = (w: ReturnType<typeof standardWorld>, x: number, z: number): void => {
+      build(w, 'cottage', x, z).custom = { windowBoxes: false };
+    };
     const w = standardWorld();
-    build(w, 'cottage', 127, 39);
-    build(w, 'cottage', 132, 39);
+    cottage(w, 127, 39);
+    cottage(w, 132, 39);
     settle(w);
     expect(charm(w, 'charm', 130, 40)).toBe(0);
-    build(w, 'cottage', 129, 36);
+    cottage(w, 129, 36);
     settle(w);
     expect(charm(w, 'charm', 130, 40)).toBe(5);
     // A one-tile well does not close a square.
     const v = standardWorld();
-    build(v, 'cottage', 127, 39);
-    build(v, 'cottage', 132, 39);
+    cottage(v, 127, 39);
+    cottage(v, 132, 39);
     build(v, 'well', 130, 37);
     settle(v);
     expect(charm(v, 'charm', 130, 43)).toBe(0);
@@ -160,11 +164,16 @@ describe('charm sources', () => {
   it('window boxes count as a little flower piece', () => {
     const w = standardWorld();
     const b = build(w, 'cottage', 130, 40);
+    b.custom = { windowBoxes: false };
     settle(w);
     const before = charm(w, 'charmNature', 132, 41);
     b.custom = { windowBoxes: true };
     settle(w);
     expect(charm(w, 'charmNature', 132, 41)).toBeGreaterThan(before);
+    // P1: unset means none; boxes are something somebody adds.
+    delete b.custom;
+    settle(w);
+    expect(charm(w, 'charmNature', 132, 41)).toBe(before);
   });
 });
 

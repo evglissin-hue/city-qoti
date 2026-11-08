@@ -408,7 +408,7 @@ describe('save version 4', () => {
       const before = f.state.households.map((h) => h.pantry[firewood] ?? 0);
       const s = deserialize(gzipSync(strToU8(JSON.stringify(shrinkToV3(f.state)))));
       expect(s.saveVersion).toBe(SAVE_VERSION);
-      expect(SAVE_VERSION).toBe(4);
+      expect(SAVE_VERSION).toBe(5);
       expect(s.rng.length).toBe(RNG_STREAMS.length * 4);
       expect(s.economy.forSale).toHaveLength(content.goods.length);
       expect(s.economy.today.money).toHaveLength(LEDGER_CATEGORIES.length);

@@ -4,6 +4,7 @@ import {
   emptyPresence,
   hourWindow,
   mixAmbience,
+  owlNight,
   panOf,
   zoomGain,
   type AmbienceConditions,
@@ -56,6 +57,50 @@ describe('ambience mix', () => {
     expect(ids(s, { ...night, season: 3 })).not.toContain('crickets');
     expect(ids(s, { ...NOON, weather: 'rain' })).not.toContain('birds');
     expect(ids(s, { ...NOON, weather: 'rain' })).toContain('rain');
+  });
+
+  it('keeps owls to the woods at night on most nights, and frogs to water on warm nights', () => {
+    const s = scene({
+      forest: { amount: 0.4, dx: 3, dz: 0 },
+      water: { amount: 0.15, dx: 3, dz: 0 },
+      grass: { amount: 0.3, dx: 0, dz: 0 },
+    });
+    const night = { ...NOON, hour: 23, night: 1 };
+    const on = [...Array(40).keys()].filter((n) => owlNight(n));
+    const off = [...Array(40).keys()].filter((n) => !owlNight(n));
+    expect(on.length).toBeGreaterThan(20);
+    expect(off.length).toBeGreaterThan(2);
+    expect(ids(s, { ...night, night: on[0]! })).toContain('owl');
+    expect(ids(s, { ...night, night: off[0]! })).not.toContain('owl');
+    // No owls by day, in rain, or with no wood near; no frogs without water or off season.
+    expect(ids(s, { ...NOON, night: on[0]! })).not.toContain('owl');
+    expect(ids(s, { ...night, night: on[0]!, weather: 'rain' })).not.toContain('owl');
+    expect(ids(scene({ grass: s.grass, water: s.water }), { ...night, night: on[0]! })).not.toContain('owl');
+    expect(ids(s, night)).toContain('frogs');
+    expect(ids(s, { ...night, season: 0 })).toContain('frogs');
+    expect(ids(s, { ...night, season: 2 })).not.toContain('frogs');
+    expect(ids(s, { ...night, season: 3 })).not.toContain('frogs');
+    expect(ids(s, { ...NOON })).not.toContain('frogs');
+    expect(ids(scene({ forest: s.forest }), night)).not.toContain('frogs');
+    expect(ids(s, { ...night, weather: 'storm' })).not.toContain('frogs');
+    // Night air is under everything at night, and not by day.
+    expect(ids(scene(), night)).toContain('night-air');
+    expect(ids(scene(), NOON)).not.toContain('night-air');
+  });
+
+  it('chirps faster on warm nights than cool ones, and louder by the wood than far from it', () => {
+    const s = scene({ grass: { amount: 0.5, dx: 0, dz: 0 } });
+    const rate = (season: number) =>
+      mixAmbience(s, { ...NOON, hour: 23, season }).find((l) => l.id === 'crickets')?.rate ?? 1;
+    expect(rate(1)).toBe(1);
+    expect(rate(0)).toBeLessThan(rate(1));
+    expect(rate(2)).toBeLessThan(rate(1));
+  });
+
+  it('plays at most eight voices on a busy summer night', () => {
+    const p = { amount: 1, dx: 0, dz: 0 };
+    const busy = scene({ water: p, forest: p, grass: p, market: p, homes: { amount: 9, dx: 0, dz: 0 } });
+    expect(mixAmbience(busy, { ...NOON, hour: 21, night: 3 }).length).toBeLessThanOrEqual(MAX_VOICES);
   });
 
   it('works by day: the smithy rings at noon and rests at night', () => {

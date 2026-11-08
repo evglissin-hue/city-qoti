@@ -86,6 +86,7 @@ export {
   type InspectResult,
 } from './view/inspect';
 export { evaluate, type Binding } from './conditions';
+export { achievable, placeableNow } from './systems/hearth/wishes/achievable';
 export { HealthWatch, type HealthIssue, type HealthKind } from './view/health';
 
 export { base64ToBytes, bytesToBase64 } from './state/base64';
@@ -131,6 +132,8 @@ export {
 export { foodDays, goodsAtMarket } from './conditions';
 export { findRoute } from './conditions/route';
 export { emptyVillageSlices, hasInnovation, rankAtLeast } from './state/village';
+export { chosenCalling, ensureOffer, offerOpen } from './systems/callings/api';
+export { scoreCallings } from './systems/callings/score';
 export { moneyBalance, moneyInside, pay, type Purse } from './systems/economy/money';
 export { buy, marketOpen, outletsWith, priceOf, sell, tillPrice } from './systems/market/api';
 // I2 (C4A)
@@ -196,7 +199,7 @@ export {
   musicianFor,
   reserveMenu,
 } from './systems/festivals/api';
-export { openGround, patternRect, siteRect } from './systems/festivals/site';
+export { FESTIVAL_SITE_MARGIN, openGround, patternRect, siteRect } from './systems/festivals/site';
 export { canMeet, progressOf } from './systems/commissions';
 export { BOAT_UNITS, dockSellPrice, riverDock } from './systems/dock';
 export {

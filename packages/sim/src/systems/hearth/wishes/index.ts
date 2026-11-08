@@ -4,7 +4,7 @@
 // wishes are made up to the active cap (2 + population / 15, max 12), at most two a day: residents
 // are picked weighted toward low mood (no active wish, bond under 5), then a template whose offer
 // conditions match and whose target is not already met, weighted by template.
-import { chroniclePhrases, content, type WishTemplate } from '@qoti/content';
+import { chroniclePhrases, type Condition, content, type WishTemplate } from '@qoti/content';
 import {
   MAX_WISHES,
   ResidentFlags,
@@ -32,6 +32,7 @@ import { residentView, townView, wishView } from '../../../view/hamlet';
 import { fill, pick } from '../../chronicle/text';
 import { addBond, addMoodModifier } from '../../residents/api';
 import { HINT_ORDER } from '../patterns/engine';
+import { achievable } from './achievable';
 
 export const WISH_HOUR = 7;
 /** New wishes per morning at most (tune). */
@@ -91,6 +92,37 @@ export function wishBinding(w: Wish): Binding {
   return { residentId: w.residentId, home: w.home, work: w.work, market: w.market };
 }
 
+/** True when a condition measures from `place` (work, or the market) or walks to work. */
+function usesPlace(c: Condition, place: 'work' | 'nearestMarket'): boolean {
+  if ('all' in c) return c.all.some((x) => usesPlace(x, place));
+  if ('any' in c) return c.any.some((x) => usesPlace(x, place));
+  if ('not' in c) return usesPlace(c.not, place);
+  if ('near' in c) return c.near.of === place;
+  if ('charm' in c) return c.charm.of === place;
+  if ('stock' in c) return c.stock.at === place;
+  if ('code' in c) return place === 'work' && (c.code === 'pathRoute' || c.code === 'lanternRoute');
+  return false;
+}
+
+/**
+ * The places a wish is checked against now: its bound workplace or market while it stands, else
+ * the resident's current job or the nearest market. `gone` is set when a place the target needs
+ * has nothing to rebind to, so the wish should be let go.
+ */
+export function liveBinding(state: WorldState, w: Wish, t: WishTemplate): Binding & { gone: boolean } {
+  const r = findById(state.residents, w.residentId);
+  let work = w.work;
+  if (work && !findById(state.buildings, work)) {
+    work = r && r.jobId && findById(state.buildings, r.jobId) ? r.jobId : 0;
+  }
+  let market = w.market;
+  if (market && !findById(state.buildings, market)) market = nearestMarket(state, w.home);
+  const gone =
+    (work === 0 && w.work !== 0 && usesPlace(t.target, 'work')) ||
+    (market === 0 && w.market !== 0 && usesPlace(t.target, 'nearestMarket'));
+  return { residentId: w.residentId, home: w.home, work, market, gone };
+}
+
 // --- Generation ---------------------------------------------------------------------------------
 
 /** Makes the morning's new wishes from `templates` (all of them in play). Returns how many were made. */
@@ -119,6 +151,8 @@ export function generateWishes(
     for (const t of templates) {
       if (activeAtHome(state, t.id, bind.home!)) continue;
       if (!evaluate(state, t.when, bind) || evaluate(state, t.target, bind)) continue;
+      // Playtest item 4: never ask for what the town cannot do yet.
+      if (!achievable(state, t.target)) continue;
       options.push(t);
       weights += templateWeight(t);
     }
@@ -185,7 +219,18 @@ export function checkWishes(state: WorldState, ctx: TickCtx): [number, number] {
     if (!t || !r || r.wishId !== w.id || !findById(state.buildings, w.home)) {
       endWish(state, ctx, w, r && r.wishId === w.id ? r : undefined);
       expired++;
-    } else if (evaluate(state, t.target, wishBinding(w))) {
+      continue;
+    }
+    const live = liveBinding(state, w, t);
+    if (live.gone) {
+      // Its workplace or market is gone with nothing to take its place: let the wish go quietly.
+      endWish(state, ctx, w, r);
+      expired++;
+      continue;
+    }
+    w.work = live.work ?? 0;
+    w.market = live.market ?? 0;
+    if (evaluate(state, t.target, live)) {
       grantWish(state, ctx, w, r, t);
       granted++;
     } else if (state.tick >= w.expiresTick) {

@@ -50,6 +50,7 @@ describe('registries', () => {
       'plan',
       'pond',
       'street',
+      'terrain',
       'tree',
       'wall',
       'zone',

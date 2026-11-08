@@ -27,6 +27,7 @@ import { porterServed, storehouseReach } from '../systems/logistics/range';
 import { doorTile } from '../systems/movement/api';
 import { HARVEST_MIN } from '../systems/production/fields';
 import { WORN_CONDITION } from '../systems/production/produce';
+import { decorBoostOf } from '../systems/production/decorBoost';
 import { dailyRates } from '../systems/production/rates';
 import { buildingView, noteView } from './index';
 import { chronicleView, fillText, goodPairs, nameOf, townStock } from './hamlet';
@@ -319,6 +320,8 @@ export function buildingDetail(state: WorldState, id: EntityId): BuildingDetail 
   if (def && rt && b.stage === 'built') {
     const rates = dailyRates(state, b, def);
     if (rates && (rates.inputs.length > 0 || rates.outputs.length > 0)) detail.rates = rates;
+    const boost = method ? decorBoostOf(state, b, def) : null;
+    if (boost && boost.permille > 0) detail.decorBoost = { permille: boost.permille, pieces: boost.defs };
     const made = goodPairs(rt.producedToday);
     if (method) detail.producedToday = made;
   }

@@ -6,11 +6,12 @@ import {
   buildingChoices,
   buildingGroup,
   buildingLock,
+  teasableLater,
   chainsOf,
+  choiceGroup,
   costBlock,
   DECOR_GROUP_LABEL,
   decorChoices,
-  decorGroup,
   decorGroupsOf,
   GROUP_LABEL,
   groupsOf,
@@ -21,6 +22,7 @@ import {
   type DecorGroup,
 } from '../input/catalog';
 import type { Tool } from '../input/tool';
+import { boostText } from './decorText';
 import { goodName, thousands } from './format';
 import { thumbnail, type ThumbnailKind } from '../render/thumbnails';
 import { Glyph, ToolIcon } from './icons';
@@ -305,7 +307,7 @@ function BuildingPicker({ session, tool }: { session: Session; tool: Tool }) {
   const all = buildingChoices(mode, session.ui.lens.value, lostTownHall(m));
   const locks = new Map(all.map((d) => [d.id, buildingLock(m, d)] as const));
   const defs = all.filter((d) => locks.get(d.id)?.kind !== 'rank');
-  const later = all.filter((d) => locks.get(d.id)?.kind === 'rank');
+  const later = teasableLater(all.filter((d) => locks.get(d.id)?.kind === 'rank'));
   const groups = groupsOf(defs);
   const selected = content.buildingById.get(tool.variant?.value ?? '');
   const [group, setGroup] = useState<BuildingGroup | null>(null);
@@ -465,8 +467,8 @@ function DecorPicker({ session, tool, linear }: { session: Session; tool: Tool; 
   const selected = all.find((c) => c.def.id === tool.variant?.value);
   const [group, setGroup] = useState<DecorGroup | null>(null);
   const showing =
-    group && groups.includes(group) ? group : selected ? decorGroup(selected.def) : (groups[0] ?? null);
-  const choices = showing ? all.filter((c) => decorGroup(c.def) === showing) : all;
+    group && groups.includes(group) ? group : selected ? choiceGroup(selected) : (groups[0] ?? null);
+  const choices = showing ? all.filter((c) => choiceGroup(c) === showing) : all;
   return (
     <div class="picker panel decor-picker" data-testid={linear ? 'fence-picker' : 'decor-picker'}>
       {groups.length > 1 && (
@@ -487,6 +489,16 @@ function DecorPicker({ session, tool, linear }: { session: Session; tool: Tool; 
           {tool.hint && <span class="muted hint">{tool.hint}</span>}
         </div>
       )}
+      {showing === 'festival' && (
+        <p class="muted hint picker-hint" data-testid="festival-pieces-hint">
+          Set these out on the festival site. They come down the morning after, unless you keep one.
+        </p>
+      )}
+      {showing === 'work' && (
+        <p class="muted hint picker-hint" data-testid="work-pieces-hint">
+          Pricier pieces that make the work beside them go faster. Each card says which.
+        </p>
+      )}
       <div class="picker-cards">
         {choices.map(({ def, locked, hint }) => {
           const on = tool.variant?.value === def.id;
@@ -505,10 +517,13 @@ function DecorPicker({ session, tool, linear }: { session: Session; tool: Tool; 
               <span class="card-text">
                 <strong>{def.name}</strong>
                 {locked ? (
-                  <span class="cost muted">In the Pattern Book</span>
+                  <span class="cost muted">
+                    {def.festival ? 'With a festival plan' : 'In the Pattern Book'}
+                  </span>
                 ) : (
-                  !free && def.cost?.coins && <CostLine coins={def.cost.coins} free={false} />
+                  !free && def.cost && <CostLine coins={def.cost.coins} goods={def.cost.goods} free={false} />
                 )}
+                {!locked && boostText(def) && <span class="decor-effect muted">{boostText(def)}</span>}
               </span>
             </button>
           );

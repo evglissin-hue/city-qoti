@@ -53,6 +53,12 @@ function setInstalled(b: Building, slot: string, module: string | null): void {
   else delete rt.modules;
 }
 
+/** Fits a module at once, free and without marking the building handmade (systems/dressing). */
+export function fitModule(state: WorldState, b: Building, slot: string, module: string): void {
+  setInstalled(b, slot, module);
+  touched(state, b);
+}
+
 /** Orders a module into a slot (paid now; goods by porter), or fits it at once without goods. */
 export function orderModule(state: WorldState, ctx: TickCtx, b: Building, slot: string, m: ModuleDef): void {
   const rt = b.rt!;

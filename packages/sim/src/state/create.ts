@@ -1,6 +1,6 @@
 import { DEFAULT_SPEED } from '../constants';
 import type { ValleySettings, WorldState } from '../contracts';
-import { generateValley } from '../map/worldgen';
+import { generateValley, valleyNameFor } from '../map/worldgen';
 import { seedStreams, streamIndex } from '../rng/streams';
 import { setupStandardStart } from '../systems/economy/start';
 import { emptyHamletSlices } from './hamlet';
@@ -31,7 +31,8 @@ export function createWorld(seed: string, settings: ValleySettings): WorldState 
   const state: WorldState = {
     saveVersion: SAVE_VERSION,
     seed,
-    settings: { ...settings },
+    // P1 (playtest item 13): a valley with no typed name takes the one its seed gives it.
+    settings: { ...settings, valleyName: settings.valleyName.trim() || valleyNameFor(seed) },
     lastTurn: 0,
     tick: 0,
     time: { desired: [DEFAULT_SPEED, DEFAULT_SPEED, DEFAULT_SPEED, DEFAULT_SPEED], connected: [] },

@@ -84,6 +84,37 @@ export function patch(x: number, z: number, scale: number, salt: number): number
   return a + (b - a) * sx + (c - a) * sz + (a - b - c + d) * sx * sz;
 }
 
+/** P1: tiles from (x, z) to the nearest building within MOWN tiles (99 when there is none). */
+export function homeDistance(occupant: ArrayLike<number>, x: number, z: number): number {
+  let home = 99;
+  for (let dz = -MOWN; dz <= MOWN; dz++) {
+    const nz = z + dz;
+    if (nz < 0 || nz >= N) continue;
+    for (let dx = -MOWN; dx <= MOWN; dx++) {
+      const nx = x + dx;
+      if (nx < 0 || nx >= N || !occupant[nz * N + nx]) continue;
+      home = Math.min(home, dx * dx + dz * dz);
+    }
+  }
+  return Math.sqrt(home);
+}
+
+/** P1: how mown a tile's lawn is (1 beside a building, 0 beyond MOWN tiles), from its distance to one. */
+export function mownAmount(homeDist: number): number {
+  return homeDist > MOWN ? 0 : 1 - smoothstep(1.5, MOWN, homeDist);
+}
+
+/**
+ * P1: how much long meadow grass a tile has (0 to 1): all of meadow terrain, patches of plain grass
+ * away from homes, none on the mown lawn. The painted ground and the 3D tufts both read it, so the
+ * tall grass stands where the ground says it grows.
+ */
+export function meadowAmount(terrain: number, x: number, z: number, mown: number): number {
+  let meadow = terrain === Terrain.meadow ? 1 : 0;
+  if (terrain === Terrain.grass) meadow = smoothstep(0.52, 0.72, patch(x, z, 13, 71)) * 0.85;
+  return meadow * (1 - mown);
+}
+
 /** The two ground textures, kept in step with the Mirror. */
 export class GroundTextures {
   readonly color: DataTexture;
@@ -188,17 +219,7 @@ export class GroundTextures {
       }
     }
     // V1C: lawns are mown within a few tiles of a building; long grass grows farther out.
-    let home = 99;
-    for (let dz = -MOWN; dz <= MOWN; dz++) {
-      const nz = z + dz;
-      if (nz < 0 || nz >= N) continue;
-      for (let dx = -MOWN; dx <= MOWN; dx++) {
-        const nx = x + dx;
-        if (nx < 0 || nx >= N || !L.occupant[nz * N + nx]) continue;
-        home = Math.min(home, dx * dx + dz * dz);
-      }
-    }
-    const homeDist = Math.sqrt(home);
+    const homeDist = homeDistance(L.occupant, x, z);
 
     const warm = patch(x, z, 9, 3);
     const lush = patch(x, z, 23, 5);
@@ -237,10 +258,8 @@ export class GroundTextures {
     }
     // V1C: lawns near homes are mown short and even; meadow patches (and meadow terrain) away
     // from them grow long, paler and flowery.
-    const mown = homeDist > MOWN ? 0 : 1 - smoothstep(1.5, MOWN, homeDist);
-    let meadow = terrain === Terrain.meadow ? 1 : 0;
-    if (terrain === Terrain.grass) meadow = smoothstep(0.52, 0.72, patch(x, z, 13, 71)) * 0.85;
-    meadow *= 1 - mown;
+    const mown = mownAmount(homeDist);
+    const meadow = meadowAmount(terrain, x, z, mown);
     if (terrain === Terrain.grass && meadow > 0) {
       c = mix(c, MEADOW, meadow * 0.45);
       flowers = Math.max(flowers, meadow * (0.35 + bloom * 0.5));
@@ -413,6 +432,17 @@ vec3 qGround(vec3 base) {
     float comb = qNoise(vec2(wp.x * 3.0 + wp.y * 7.5, wp.y * 2.0 - wp.x * 1.2));
     col = mix(col, col * vec3(1.1, 1.07, 0.82), meadowK * smoothstep(0.45, 0.85, comb) * 0.55);
     col *= 1.0 - meadowK * 0.06 * (1.0 - comb);
+    // P1: depth under the strokes (the deep green between the tufts), so long grass reads as a
+    // thick pile, and color that follows the year: fresh and varied while it grows, straw and gold
+    // in autumn (a gentle wash on lawns too).
+    col = mix(col, col * vec3(0.8, 0.9, 0.7), meadowK * (1.0 - smoothstep(0.2, 0.5, comb)) * 0.35);
+    float grow = (1.0 - uAutumn) * (1.0 - uBare);
+    float v1 = qNoise(wp * 0.55 + 17.0);
+    float v2 = qNoise(wp * 1.7 + 5.0);
+    col = mix(col, col * mix(vec3(0.93, 1.05, 0.89), vec3(1.08, 1.03, 0.8), v1), meadowK * grow * 0.55);
+    col = mix(col, col * vec3(1.04, 1.0, 1.08), meadowK * grow * smoothstep(0.7, 0.9, v2) * 0.25);
+    vec3 gold = mix(vec3(1.22, 0.96, 0.54), vec3(1.06, 0.78, 0.48), v2);
+    col = mix(col, col * gold, uAutumn * (0.22 + 0.45 * meadowK) * (0.7 + 0.3 * v1));
     // Soil you can see: clover leaves on rich ground, a little bare earth on thin, both sparse and
     // small; the tile tint (above) carries most of it, so it reads from the default camera too.
     vec2 cell = floor(wp * 4.0);
@@ -580,6 +610,8 @@ export function createGroundMaterial(tex: GroundTextures, env: WorldEnv): MeshSt
       uSnow: snow,
       uWet: env.wet,
       uDry: env.dry,
+      uAutumn: env.autumn,
+      uBare: env.bare,
       uTime: env.staticTime,
       uNight: env.night,
       uClouds: env.clouds,
@@ -608,6 +640,8 @@ export function createGroundMaterial(tex: GroundTextures, env: WorldEnv): MeshSt
           'uniform float uSnow;',
           'uniform float uWet;',
           'uniform float uDry;',
+          'uniform float uAutumn;',
+          'uniform float uBare;',
           'uniform float uTime;',
           'uniform float uNight;',
           'uniform float uClouds;',

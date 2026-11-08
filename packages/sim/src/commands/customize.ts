@@ -2,20 +2,26 @@
 // phase 1. Swatch ids come from content (packages/content/src/swatches.ts), never from art. Each
 // field is optional; null clears it back to the kit default (false turns a detail off). Any change marks the building
 // handmade. Window boxes count as a small flower piece for charm, so the charm chunk is marked.
+// `windowFlowers` picks their bloom color (art only; 'mixed' is the default mix).
 import { content, type SwatchGroup } from '@qoti/content';
 import { MAX_SIGN_CHARS } from '../constants';
 import type { BuildingCustom, RejectReason } from '../contracts';
 import { buildingRect } from '../conditions/geo';
+import { windowBoxesOn } from '../rules/windowBoxes';
 import { findById } from '../state/entities';
 import { markCharmDirty, markCharmSoon } from '../systems/hearth/charm/dirty';
 import { buildingView } from '../view';
 import type { HandlerFor } from './util';
 
-const SWATCH_FIELDS: readonly [field: 'wall' | 'roof' | 'roofMaterial' | 'accent', group: SwatchGroup][] = [
+const SWATCH_FIELDS: readonly [
+  field: 'wall' | 'roof' | 'roofMaterial' | 'accent' | 'windowFlowers',
+  group: SwatchGroup,
+][] = [
   ['wall', 'wall'],
   ['roof', 'roof'],
   ['roofMaterial', 'roofMaterial'],
   ['accent', 'accent'],
+  ['windowFlowers', 'flowers'],
 ];
 const FLAG_FIELDS = ['windowBoxes', 'shutters', 'chimney'] as const;
 const KNOWN = new Set<string>([
@@ -23,6 +29,7 @@ const KNOWN = new Set<string>([
   'roof',
   'roofMaterial',
   'accent',
+  'windowFlowers',
   'windowBoxes',
   'shutters',
   'chimney',
@@ -78,7 +85,8 @@ export const customize: HandlerFor<'build.customize'> = {
   apply(state, _seat, cmd, ctx) {
     const b = findById(state.buildings, cmd.id)!;
     const custom: Record<string, string | boolean> = { ...(b.custom ?? {}) };
-    const before = custom.windowBoxes === true;
+    const def = content.buildingById.get(b.def);
+    const before = windowBoxesOn(b, def);
     // Fixed field order, so the stored object has the same key order on every machine.
     for (const [field] of SWATCH_FIELDS) apply1(custom, field, cmd.custom[field]);
     for (const field of FLAG_FIELDS) apply1(custom, field, cmd.custom[field]);
@@ -95,7 +103,7 @@ export const customize: HandlerFor<'build.customize'> = {
     else delete b.custom;
     b.handmade = true;
     ctx.events.push({ e: 'building.updated', b: buildingView(b) });
-    if ((ordered.windowBoxes === true) !== before) {
+    if (windowBoxesOn(b, def) !== before) {
       markCharmDirty(state, buildingRect(b));
       markCharmSoon(state);
     }

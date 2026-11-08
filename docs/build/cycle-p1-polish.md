@@ -60,6 +60,13 @@ After each wave: the quality check, the dead-end hunt and the player's chair, on
 - [ ] Typecheck, lint, unit tests, build and bench pass; e2e as far as this machine allows.
 - [ ] Definition of done in `docs/spec/22-quality.md`.
 
+## Notes
+
+- **Music**: a separate session is merging a new music system; P1 stays out of music. P1's night ambience touched two audio files a music rework may share, so whichever lands second resolves them:
+  - `apps/client/src/audio/engine.ts`: the ambience bus no longer sends 0.08 to the music's room reverb but feeds an outdoor convolver (send 0.3, wet 0.4); `mix()` takes a `night` index (owls skip some nights); each ambience voice takes an optional playback `rate` (cool nights chirp slower).
+  - `apps/client/src/audio/bank.ts`: the bank's limit rose from 8 M to 11 M samples (the longer night loops are about 7 M in all).
+  - Everything else P1 changed in audio is ambience only (`synth/ambience.ts`, `ambience.ts`, their tests, `tools/audio/night.ts` and `stats.ts`).
+
 ## As built
 
 To be filled in at the end of the cycle.

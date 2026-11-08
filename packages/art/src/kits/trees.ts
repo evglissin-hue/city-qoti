@@ -151,6 +151,81 @@ class TreeBuilder {
   }
 }
 
+/** P1: a clump's own leaf color: the tree's, nudged towards sunny yellow-green, deep green or olive. */
+function clumpColor(leaf: number, rnd: () => number): number {
+  const roll = rnd();
+  const toward = roll < 0.4 ? 0x9bb84c : roll < 0.7 ? 0x3c6a36 : 0x7a9a3c;
+  return vary(mixHex(leaf, toward, 0.15 + rnd() * 0.25), rnd, 1.8);
+}
+
+/** P1: which of a species' three mature shapes a build seed picks (the stages below keep one). */
+function shapeOf(seed: number | undefined, stage: number): number {
+  return stage === 3 ? Math.abs(Math.floor(seed ?? 0)) % 3 : 0;
+}
+
+interface OakShape {
+  /** Main crown: center height and radii. */
+  y: number;
+  main: V3;
+  /** Clumps around it: how many, how far out, how low they sit, the spread above that, their radii. */
+  ring: number;
+  reach: number;
+  low: number;
+  spread: number;
+  clump: V3;
+  /** The crown on top. */
+  topY: number;
+  top: V3;
+  /** The far level's dome: radii (it must not poke out of the near crown). */
+  dome: V3;
+  domeY: number;
+}
+
+const OAK_SHAPES: readonly OakShape[] = [
+  // Round: a full ball of six clumps.
+  {
+    y: 0.98,
+    main: [0.44, 0.36, 0.44],
+    ring: 6,
+    reach: 0.32,
+    low: 0.84,
+    spread: 0.16,
+    clump: [0.28, 0.24, 0.28],
+    topY: 1.25,
+    top: [0.3, 0.22, 0.3],
+    dome: [0.74, 0.5, 0.74],
+    domeY: 0.98,
+  },
+  // Broad: wide and low, spreading like an old field oak.
+  {
+    y: 0.92,
+    main: [0.52, 0.3, 0.52],
+    ring: 6,
+    reach: 0.44,
+    low: 0.76,
+    spread: 0.12,
+    clump: [0.3, 0.2, 0.3],
+    topY: 1.1,
+    top: [0.34, 0.2, 0.34],
+    dome: [0.86, 0.42, 0.86],
+    domeY: 0.9,
+  },
+  // Tall: an upright, egg-shaped crown of clumps stacked up the bole.
+  {
+    y: 1.02,
+    main: [0.38, 0.42, 0.38],
+    ring: 5,
+    reach: 0.24,
+    low: 0.9,
+    spread: 0.34,
+    clump: [0.25, 0.26, 0.25],
+    topY: 1.42,
+    top: [0.26, 0.26, 0.26],
+    dome: [0.58, 0.62, 0.58],
+    domeY: 1.08,
+  },
+];
+
 export const oak: Kit = {
   id: 'oak',
   kind: 'tree',
@@ -165,12 +240,14 @@ export const oak: Kit = {
     const lx = Math.cos(la) * 0.05;
     const lz = Math.sin(la) * 0.05;
     const phase = rnd() * Math.PI * 2;
+    const shape = shapeOf(opts?.seed, stage);
     if (opts?.lod === 'low') {
       t.s.surface(SURFACE.timber);
       t.stick(0.1, 0.07, 0.66, palette.bark);
       t.s.surface(SURFACE.leaf);
       // The near crown's whole outline: its clumps reach about 0.6 out and 1.4 up.
-      t.dome([lx, 0.98, lz], [0.74, 0.5, 0.74], leaf, sunlit(leaf, 0.2), phase, rnd);
+      const D = OAK_SHAPES[shape]!;
+      t.dome([lx, D.domeY, lz], D.dome, leaf, sunlit(leaf, 0.2), phase, rnd);
       return t.build(STAGE_SCALE[stage]!);
     }
     if (stage === 0) {
@@ -185,17 +262,21 @@ export const oak: Kit = {
     // A low bough reaching out under the crown.
     t.s.cylinder(0.05, 0, 0.035, 0.025, 0.42, 0.52, palette.bark, 3);
     t.s.surface(SURFACE.leaf);
-    t.crown([lx, 0.98, lz], [0.44, 0.36, 0.44], leaf, 1, rnd, 0.08, sunlit(leaf));
+    const O = OAK_SHAPES[shape]!;
+    t.crown([lx, O.y, lz], O.main, leaf, 1, rnd, 0.08, sunlit(leaf));
     if (stage >= 2) {
-      // Fuller: four clumps around the main crown, and one high on top, all overlapping.
-      for (let i = 0; i < 4; i++) {
-        const a = phase + (i / 4) * Math.PI * 2 + (rnd() - 0.5) * 0.6;
-        const r = 0.3 + rnd() * 0.08;
-        const c = vary(leaf, rnd, 1.4);
-        const y = 0.86 + rnd() * 0.14;
+      // Fuller: clumps around the main crown, each with its own tint, and one high on top, all
+      // overlapping. The mature oaks come in three shapes (round, broad and tall).
+      const ring = stage === 3 ? O.ring : 4;
+      for (let i = 0; i < ring; i++) {
+        const a = phase + (i / ring) * Math.PI * 2 + (rnd() - 0.5) * 0.6;
+        const r = O.reach + rnd() * 0.08;
+        const c = clumpColor(leaf, rnd);
+        const y = O.low + rnd() * O.spread;
+        const k = 0.9 + rnd() * 0.2;
         t.crown(
           [lx + Math.cos(a) * r, y, lz + Math.sin(a) * r],
-          [0.28, 0.24, 0.28],
+          [O.clump[0] * k, O.clump[1] * k, O.clump[2] * k],
           c,
           1,
           rnd,
@@ -204,13 +285,64 @@ export const oak: Kit = {
         );
       }
       const top = vary(mixHex(leaf, palette.birchLeaf, 0.3), rnd);
-      t.crown([lx * 2, 1.25, lz * 2], [0.3, 0.22, 0.3], top, 1, rnd, 0.08, sunlit(top, 0.2));
+      t.crown([lx * 2, O.topY, lz * 2], O.top, top, 1, rnd, 0.08, sunlit(top, 0.2));
     } else {
       t.crown([lx + 0.18, 0.9, lz], [0.22, 0.2, 0.22], vary(leaf, rnd), 1, rnd, 0.1, sunlit(leaf));
     }
     return t.build(STAGE_SCALE[stage]!);
   },
 };
+
+interface BirchShape {
+  y: number;
+  main: V3;
+  ring: number;
+  reach: number;
+  low: number;
+  spread: number;
+  clump: V3;
+  dome: V3;
+  domeY: number;
+}
+
+const BIRCH_SHAPES: readonly BirchShape[] = [
+  // Airy: a slender crown with pale clumps round it.
+  {
+    y: 1.12,
+    main: [0.24, 0.38, 0.24],
+    ring: 5,
+    reach: 0.2,
+    low: 0.92,
+    spread: 0.5,
+    clump: [0.16, 0.2, 0.16],
+    dome: [0.4, 0.46, 0.4],
+    domeY: 1.08,
+  },
+  // Weeping: wider and lower, the clumps hanging.
+  {
+    y: 1.04,
+    main: [0.29, 0.32, 0.29],
+    ring: 5,
+    reach: 0.27,
+    low: 0.82,
+    spread: 0.36,
+    clump: [0.18, 0.18, 0.18],
+    dome: [0.5, 0.4, 0.5],
+    domeY: 1.0,
+  },
+  // Slim: a tall, narrow crown reaching up the trunk.
+  {
+    y: 1.2,
+    main: [0.19, 0.4, 0.19],
+    ring: 5,
+    reach: 0.14,
+    low: 0.98,
+    spread: 0.62,
+    clump: [0.14, 0.2, 0.14],
+    dome: [0.3, 0.52, 0.3],
+    domeY: 1.18,
+  },
+];
 
 export const birch: Kit = {
   id: 'birch',
@@ -224,11 +356,14 @@ export const birch: Kit = {
     const lx = Math.cos(la) * 0.04;
     const lz = Math.sin(la) * 0.04;
     const phase = rnd() * Math.PI * 2;
+    const shape = shapeOf(opts?.seed, stage);
+    const B = BIRCH_SHAPES[shape]!;
     if (opts?.lod === 'low') {
       t.s.surface(SURFACE.timber);
       t.stick(0.05, 0.035, 1.0, palette.birchBark);
       t.s.surface(SURFACE.leaf);
-      t.dome([lx, 1.15, lz], [0.38, 0.5, 0.38], leaf, sunlit(leaf, 0.2), phase, rnd);
+      const d = stage === 3 ? B.dome : ([0.38, 0.5, 0.38] as V3);
+      t.dome([lx, stage === 3 ? B.domeY : 1.15, lz], d, leaf, sunlit(leaf, 0.2), phase, rnd);
       return t.build(STAGE_SCALE[stage]!);
     }
     t.s.surface(SURFACE.timber);
@@ -236,6 +371,29 @@ export const birch: Kit = {
     // Dark bark marks.
     for (const y of [0.2, 0.47]) t.s.box(-0.058, y, -0.022, 0.058, y + 0.035, 0.022, palette.birchMark);
     t.s.surface(SURFACE.leaf);
+    if (stage === 3) {
+      // P1: airier and lighter: a smaller main crown with five small, pale clumps hanging round
+      // it at different heights, each a shade of its own, and gaps between them.
+      const light = mixHex(leaf, 0xd9e27a, 0.14);
+      t.crown([lx, B.y, lz], B.main, light, 1, rnd, 0.12, sunlit(light, 0.18));
+      for (let i = 0; i < B.ring; i++) {
+        const a = phase + (i / B.ring) * Math.PI * 2 + (rnd() - 0.5) * 0.7;
+        const r = B.reach * (0.8 + rnd() * 0.4);
+        const y = B.low + rnd() * B.spread;
+        const c = vary(mixHex(light, rnd() < 0.5 ? 0xe3e88a : 0x8fb04a, 0.15 + rnd() * 0.2), rnd, 1.8);
+        const k = 0.88 + rnd() * 0.24;
+        t.crown(
+          [lx + Math.cos(a) * r, y, lz + Math.sin(a) * r],
+          [B.clump[0] * k, B.clump[1] * k, B.clump[2] * k],
+          c,
+          1,
+          rnd,
+          0.12,
+          sunlit(c, 0.2),
+        );
+      }
+      return t.build(STAGE_SCALE[stage]!);
+    }
     t.crown([lx, 1.12, lz], [0.27, 0.42, 0.27], leaf, 1, rnd, 0.12, sunlit(leaf));
     if (stage >= 1) {
       const a = phase;
@@ -278,6 +436,12 @@ export const birch: Kit = {
   },
 };
 
+const PINE_SHAPES: readonly { tiers: number; width: number; rise: number; tip: number }[] = [
+  { tiers: 4, width: 1, rise: 1, tip: 1.45 },
+  { tiers: 5, width: 0.82, rise: 1.15, tip: 1.62 },
+  { tiers: 4, width: 1.14, rise: 0.9, tip: 1.38 },
+];
+
 export const pine: Kit = {
   id: 'pine',
   kind: 'tree',
@@ -288,13 +452,15 @@ export const pine: Kit = {
     const low = opts?.lod === 'low';
     const t = new TreeBuilder();
     const phase = rnd() * Math.PI;
+    // P1: three mature shapes: classic, tall and slim (five tiers), and low and wide.
+    const P = PINE_SHAPES[shapeOf(opts?.seed, stage)]!;
     if (low) {
       // Two open cones over a stick: the near tiers' outline from 0.26 to the tip at 1.4.
       t.s.surface(SURFACE.timber);
       t.stick(0.07, 0.05, 0.36, palette.bark);
       t.s.surface(SURFACE.leaf);
-      t.cone(0, 0, 0.6, 0.24, 1.0, mixHex(green, 0x2f4a33, 0.12), 5, phase);
-      t.cone(0, 0, 0.44, 0.7, 1.45, mixHex(green, palette.birchLeaf, 0.18), 5, phase + 0.6);
+      t.cone(0, 0, 0.6 * P.width, 0.24, 1.0, mixHex(green, 0x2f4a33, 0.12), 5, phase);
+      t.cone(0, 0, 0.44 * P.width, 0.7, P.tip, mixHex(green, palette.birchLeaf, 0.18), 5, phase + 0.6);
       return t.build(STAGE_SCALE[stage]!);
     }
     t.s.surface(SURFACE.timber);
@@ -302,15 +468,17 @@ export const pine: Kit = {
     t.s.surface(SURFACE.leaf);
     // Tiers from the bottom up: wide and dark below, narrower and lighter above, each tilted a
     // little and turned so the edges do not line up.
-    const tiers = stage >= 2 ? 4 : stage === 1 ? 3 : 2;
+    const tiers = stage === 3 ? P.tiers : stage >= 2 ? 4 : stage === 1 ? 3 : 2;
+    // Mature tiers are jittered: off the axis, a little wider or narrower, higher or lower.
+    const jit = stage === 3 ? 1 : 0;
     for (let k = 0; k < tiers; k++) {
       const f = k / Math.max(1, tiers - 1);
-      const r = 0.52 - f * 0.27;
-      const y0 = 0.26 + k * (1.05 / tiers);
-      const h = 0.6 - f * 0.14;
-      const col = vary(mixHex(green, mixHex(green, palette.birchLeaf, 0.3), f), rnd, 1.2);
-      const ox = (rnd() - 0.5) * 0.04;
-      const oz = (rnd() - 0.5) * 0.04;
+      const r = (0.52 - f * 0.27) * P.width * (1 + jit * (rnd() - 0.5) * 0.24);
+      const y0 = 0.26 + k * ((1.05 * P.rise) / tiers) + jit * (rnd() - 0.5) * 0.06;
+      const h = (0.6 - f * 0.14) * (1 + jit * (rnd() - 0.5) * 0.2);
+      const col = vary(mixHex(green, mixHex(green, palette.birchLeaf, 0.3), f), rnd, 1.2 + jit * 0.8);
+      const ox = (rnd() - 0.5) * (0.04 + jit * 0.06);
+      const oz = (rnd() - 0.5) * (0.04 + jit * 0.06);
       t.s.cylinder(ox, oz, r, 0, y0, y0 + h, col, 8, phase + rnd() * Math.PI);
     }
     return t.build(STAGE_SCALE[stage]!);

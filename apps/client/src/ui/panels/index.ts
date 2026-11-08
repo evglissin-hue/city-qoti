@@ -10,6 +10,8 @@ import { Minimap } from '../Minimap';
 import { AchievementsPanel } from './Achievements';
 import { AlertsPanel } from './Alerts';
 import { AwayLetterPanel } from './AwayLetter';
+import { CallingPanel } from './Calling';
+import { ChapterPanel } from './Chapter';
 import { CharterPanel } from './Charter';
 import { ChroniclePanel } from './Chronicle';
 import { CustomizePanel } from './Customize';
@@ -30,6 +32,7 @@ import { RaidPanel } from './Raid';
 import { RankUpPanel } from './RankUp';
 import { ReportsPanel } from './Reports';
 import { SeasonCardPanel } from './SeasonCard';
+import { StoresPanel } from './Stores';
 import { StoryLetterPanel } from './StoryLetter';
 import { TradePanel } from './Trade';
 import { TrialPanel } from './Trial';
@@ -65,6 +68,8 @@ export const panels: readonly PanelDef[] = [
   { id: 'alerts', side: 'left', component: AlertsPanel },
   { id: 'away', side: 'overlay', component: AwayLetterPanel },
   { id: 'blueprints', side: 'world', component: Blueprints },
+  { id: 'calling', side: 'overlay', component: CallingPanel, modes: STANDARD },
+  { id: 'chapter', side: 'overlay', component: ChapterPanel, modes: STANDARD },
   { id: 'charter', side: 'book', component: CharterPanel, lens: 'shared', label: 'Charter', icon: 'charter', key: 'h', modes: STANDARD, hidden: true },
   { id: 'chronicle', side: 'book', component: ChroniclePanel, lens: 'hearth', label: 'Chronicle', icon: 'chronicle', key: 'c', modes: STANDARD, order: 30 },
   { id: 'customize', side: 'right', component: CustomizePanel },
@@ -87,6 +92,7 @@ export const panels: readonly PanelDef[] = [
   { id: 'rankup', side: 'overlay', component: RankUpPanel },
   { id: 'reports', side: 'book', component: ReportsPanel, lens: 'ledger', label: 'Reports', icon: 'reports', key: 'l', modes: STANDARD, order: 50 },
   { id: 'season-card', side: 'overlay', component: SeasonCardPanel },
+  { id: 'stores', side: 'left', component: StoresPanel },
   { id: 'story-letter', side: 'overlay', component: StoryLetterPanel },
   { id: 'together', side: 'overlay', component: TogetherNote },
   { id: 'trade', side: 'book', component: TradePanel, lens: 'ledger', label: 'Trade', icon: 'trade', modes: STANDARD, order: 20 },

@@ -1,9 +1,12 @@
 // Walking routes for the named predicates (lanternRoute, pathRoute). A small Dial's-algorithm
 // search over the tile grid with integer costs: roads are cheap, open ground dearer, buildings and
-// water impassable. It mirrors how residents prefer roads without depending on C3A's pathfinder,
+// water impassable, except that (as on the walk grid) roads cross water as bridges and an open
+// gate stands passable on its road. It mirrors how residents prefer roads without depending on C3A's pathfinder,
 // so wish checks stay cheap and stable. Buffers are reused between searches.
+import { content } from '@qoti/content';
 import { MAP_SIZE } from '../constants';
 import type { WorldState } from '../contracts';
+import { findById } from '../state/entities';
 
 const N = MAP_SIZE * MAP_SIZE;
 const ROAD_COST = 2;
@@ -24,8 +27,13 @@ const STEPS = [1, -1, MAP_SIZE, -MAP_SIZE] as const;
 export function findRoute(state: WorldState, from: number, to: number, roadsOnly: boolean): number[] | null {
   if (from < 0 || to < 0 || from >= N || to >= N) return null;
   const m = state.map;
-  const passable = (i: number): boolean =>
-    roadsOnly ? m.road[i]! > 0 : m.occupant[i] === 0 && m.water[i] === 0;
+  const passable = (i: number): boolean => {
+    if (roadsOnly) return m.road[i]! > 0;
+    const occ = m.occupant[i]!;
+    // As on the walk grid: a road crosses water as a bridge, and an open gate stands on a road.
+    if (occ === 0) return m.road[i]! > 0 || m.water[i] === 0;
+    return m.road[i]! > 0 && isOpenGate(state, occ);
+  };
   if (!passable(from) || !passable(to)) return null;
   generation = (generation + 1) >>> 0;
   if (generation === 0) {
@@ -64,6 +72,13 @@ export function findRoute(state: WorldState, from: number, to: number, roadsOnly
     d++;
   }
   return null;
+}
+
+/** A building on a road tile that walkers pass through: a gate in a wall, standing open. */
+function isOpenGate(state: WorldState, id: number): boolean {
+  const b = findById(state.buildings, id);
+  if (!b || content.buildingById.get(b.def)?.defense?.passable !== 'gate') return false;
+  return !(b.rt && b.rt.open === false);
 }
 
 function unwind(to: number): number[] {

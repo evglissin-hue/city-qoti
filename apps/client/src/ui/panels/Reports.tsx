@@ -3,6 +3,7 @@ import type { BudgetLine, BuildingView } from '@qoti/sim';
 import { useState } from 'preact/hooks';
 import type { Session } from '../../app/session';
 import { buildingName, coinCount, coins, goodName } from '../format';
+import { GoodIcon } from '../goodIcons';
 import { statusWords } from '../hamlet';
 import type { ReportTab } from '../state';
 import { Empty, Frame, Sparkline, Toggle } from './parts';
@@ -87,7 +88,7 @@ export function Stocks({ session }: { session: Session }) {
             return (
               <tr key={l.good} class={l.stock === 0 ? 'out' : ''}>
                 <th scope="row">
-                  <i class={`good-dot good-${l.good}`} /> {goodName(l.good)}
+                  <GoodIcon good={l.good} /> {goodName(l.good)}
                 </th>
                 <td class="num stock">{l.stock}</td>
                 <td class="num flow" title={`${l.producedToday} made, ${l.consumedToday} used today`}>
