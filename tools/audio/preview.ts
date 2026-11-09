@@ -8,7 +8,15 @@ import { join } from 'node:path';
 import type { SoundCueId } from '../../apps/client/src/audio/api';
 import { compose } from '../../apps/client/src/audio/composer';
 import { STYLES } from '../../apps/client/src/audio/director';
-import { noteGain, noteJob, noteLayer, notePan, noteRelease } from '../../apps/client/src/audio/music';
+import {
+  noteGain,
+  noteJob,
+  noteLayer,
+  notePan,
+  noteRelease,
+  pieceEnergy,
+  pieceGain,
+} from '../../apps/client/src/audio/music';
 import { zoneFor } from '../../apps/client/src/audio/sampler';
 import { renderAmbience, type AmbienceId } from '../../apps/client/src/audio/synth/ambience';
 import { renderCue } from '../../apps/client/src/audio/synth/cues';
@@ -23,6 +31,10 @@ const segments: {
   seed: number;
   key: number;
   ambience: [AmbienceId, number][];
+  /** How big the band is (0 hamlet to 4 city), the valley's seed for its motif, the weather. */
+  ensemble?: number;
+  valleySeed?: number;
+  weather?: string;
 }[] = [
   {
     label: 'spring morning',
@@ -37,7 +49,7 @@ const segments: {
   { label: 'summer morning', style: 'summer-morning', seed: 11, key: 53, ambience: [['birds', 0.5]] },
   {
     label: 'summer afternoon',
-    style: 'afternoon',
+    style: 'bossa',
     seed: 8,
     key: 48,
     ambience: [
@@ -87,6 +99,40 @@ const segments: {
       ['wind', 0.25],
     ],
   },
+  {
+    label: 'festival night (a light funk dance)',
+    style: 'festival',
+    seed: 7,
+    key: 50,
+    ambience: [['murmur', 0.35]],
+  },
+  {
+    label: 'hamlet spring morning (a guitar and a flute)',
+    style: 'morning',
+    seed: 3,
+    key: 50,
+    ensemble: 0,
+    valleySeed: 4242,
+    ambience: [['birds', 0.55]],
+  },
+  {
+    label: 'city summer evening (the full band, the valley tune)',
+    style: 'evening',
+    seed: 6,
+    key: 51,
+    ensemble: 4,
+    valleySeed: 4242,
+    ambience: [['crickets', 0.3]],
+  },
+  {
+    label: 'rainy autumn afternoon',
+    style: 'autumn',
+    seed: 12,
+    key: 55,
+    ensemble: 2,
+    weather: 'rain',
+    ambience: [['rain', 0.5]],
+  },
 ].filter((s) => !only || only.includes(s.style));
 
 const cache = new Map<string, Float32Array>();
@@ -126,19 +172,89 @@ function recording(file: string): Float32Array {
   return r;
 }
 
+/** One RBJ biquad run over a channel in place (the engine's music bus EQ, see mixbus.ts). */
+function biquad(
+  x: Float32Array,
+  type: 'highpass' | 'peaking' | 'highshelf',
+  freq: number,
+  q: number,
+  gainDb: number,
+): void {
+  const w = (2 * Math.PI * freq) / RATE;
+  const cw = Math.cos(w);
+  const sw = Math.sin(w);
+  const A = Math.pow(10, gainDb / 40);
+  const alpha = sw / (2 * q);
+  let b0: number, b1: number, b2: number, a0: number, a1: number, a2: number;
+  if (type === 'highpass') {
+    b0 = (1 + cw) / 2;
+    b1 = -(1 + cw);
+    b2 = (1 + cw) / 2;
+    a0 = 1 + alpha;
+    a1 = -2 * cw;
+    a2 = 1 - alpha;
+  } else if (type === 'peaking') {
+    b0 = 1 + alpha * A;
+    b1 = -2 * cw;
+    b2 = 1 - alpha * A;
+    a0 = 1 + alpha / A;
+    a1 = -2 * cw;
+    a2 = 1 - alpha / A;
+  } else {
+    const t = 2 * Math.sqrt(A) * alpha;
+    b0 = A * (A + 1 + (A - 1) * cw + t);
+    b1 = -2 * A * (A - 1 + (A + 1) * cw);
+    b2 = A * (A + 1 + (A - 1) * cw - t);
+    a0 = A + 1 - (A - 1) * cw + t;
+    a1 = 2 * (A - 1 - (A + 1) * cw);
+    a2 = A + 1 - (A - 1) * cw - t;
+  }
+  let x1 = 0,
+    x2 = 0,
+    y1 = 0,
+    y2 = 0;
+  for (let i = 0; i < x.length; i++) {
+    const x0 = x[i]!;
+    const y0 = (b0 * x0 + b1 * x1 + b2 * x2 - a1 * y1 - a2 * y2) / a0;
+    x2 = x1;
+    x1 = x0;
+    y2 = y1;
+    y1 = y0;
+    x[i] = y0;
+  }
+}
+function musicEq(x: Float32Array): void {
+  biquad(x, 'highpass', 35, Math.SQRT1_2, 0);
+  biquad(x, 'highpass', 35, Math.SQRT1_2, 0);
+  biquad(x, 'peaking', 300, 0.8, -2);
+  biquad(x, 'highshelf', 8000, Math.SQRT1_2, 2);
+}
+
 const parts: { L: Float32Array; R: Float32Array }[] = [];
+/** Each music segment's label and length in samples, for measuring (QOTI_PREVIEW_SEGMENTS=<file.json>). */
+const lengths: { label: string; style: string; samples: number }[] = [];
 for (const seg of segments) {
   const style = STYLES.find((s) => s.id === seg.style)!;
-  const piece = compose({ style, seed: seg.seed, key: seg.key });
+  const piece = compose({
+    style,
+    seed: seg.seed,
+    key: seg.key,
+    ensemble: seg.ensemble,
+    valleySeed: seg.valleySeed,
+    weather: seg.weather,
+  });
   const len = Math.floor((piece.seconds + 1) * RATE);
+  lengths.push({ label: seg.label, style: seg.style, samples: len });
   const L = new Float32Array(len);
   const R = new Float32Array(len);
+  // The engine plays each piece at a gain that evens out loudness between styles.
+  const pg = pieceGain(piece);
   for (const n of piece.notes) {
     const v = process.env.QOTI_PREVIEW_SYNTH ? null : zoneFor(n.inst, n.midi, noteLayer(n));
     const buf = v ? recording(v.file) : sample(n);
     const rate = v?.rate ?? 1;
     const at = Math.floor(n.time * RATE);
-    const g = noteGain(n) * (v?.gain ?? 1);
+    const g = noteGain(n) * pg * (v?.gain ?? 1);
     const pan = notePan(n);
     const gl = g * Math.cos(((pan + 1) * Math.PI) / 4);
     const gr = g * Math.sin(((pan + 1) * Math.PI) / 4);
@@ -156,6 +272,8 @@ for (const seg of segments) {
       R[at + j] += x * gr * e;
     }
   }
+  // The music bus EQ.
+  for (const ch of [L, R]) musicEq(ch);
   // At the default sliders the ambience bus is about 1.35 times the music bus.
   for (const [id, gain] of process.env.QOTI_PREVIEW_DRY ? [] : seg.ambience) {
     const loop = renderAmbience(id);
@@ -168,7 +286,7 @@ for (const seg of segments) {
   }
   parts.push({ L, R });
   console.log(
-    `${seg.label}: ${style.id}, ${piece.tempo} bpm, ${piece.bars} bars, ${piece.seconds.toFixed(0)} s`,
+    `${seg.label}: ${style.id}, ${piece.tempo} bpm, ${piece.bars} bars, ${piece.seconds.toFixed(0)} s, energy ${pieceEnergy(piece).toFixed(3)}, gain ${pg.toFixed(2)}`,
   );
 }
 
@@ -265,4 +383,7 @@ for (let i = 0; i < total; i++) {
 }
 const out = process.argv[2] ?? 'qoti-audio-preview.wav';
 writeFileSync(out, data);
+if (process.env.QOTI_PREVIEW_SEGMENTS) {
+  writeFileSync(process.env.QOTI_PREVIEW_SEGMENTS, JSON.stringify({ rate: RATE, segments: lengths }));
+}
 console.log(`wrote ${out}: ${(total / RATE).toFixed(0)} s, ${cache.size} notes rendered`);

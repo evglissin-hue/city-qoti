@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { AUDIO_DEFAULTS, busGain, clampVolume } from './settings';
+import { AUDIO_DEFAULTS, busGain, clampVolume, valleySeed } from './settings';
 
 describe('audio settings', () => {
   it('clamps volumes to 0 to 1 in steps of 0.05', () => {
@@ -13,5 +13,13 @@ describe('audio settings', () => {
     const s = { ...AUDIO_DEFAULTS, master: 1, music: 0.5 };
     expect(busGain(s, 'music')).toBeCloseTo(0.25);
     expect(busGain({ ...s, muted: true }, 'music')).toBe(0);
+  });
+});
+
+describe('valley seed', () => {
+  it('is the same for the same names and differs for others', () => {
+    expect(valleySeed('Qoti', 'Hearth')).toBe(valleySeed('Qoti', 'Hearth'));
+    expect(valleySeed('Qoti', 'Hearth')).not.toBe(valleySeed('Qoti', 'Hollow'));
+    expect(valleySeed('', '')).toBe(4178332219);
   });
 });

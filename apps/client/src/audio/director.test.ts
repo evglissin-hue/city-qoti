@@ -1,12 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import { chordInfo, compose } from './composer';
 import {
+  FESTIVAL_GAP_SECONDS,
   GAP_SECONDS,
   STYLES,
   phaseOf,
   startDirector,
   stepDirector,
   styleFor,
+  type MusicContext,
   type PieceChoice,
 } from './director';
 import { seededRand } from './rng';
@@ -20,7 +22,8 @@ describe('music director', () => {
     expect(phaseOf(3)).toBe('night');
     expect(styleFor(7, 0).id).toBe('morning');
     expect(styleFor(7, 1).id).toBe('summer-morning');
-    expect(styleFor(14, 1).id).toBe('afternoon');
+    expect(styleFor(14, 0).id).toBe('afternoon');
+    expect(styleFor(14, 1).id).toBe('bossa');
     expect(styleFor(14, 2).id).toBe('autumn');
     expect(styleFor(19, 1).id).toBe('evening');
     expect(styleFor(23, 0).id).toBe('night');
@@ -57,6 +60,128 @@ describe('music director', () => {
       seeds.push(stepDirector(d, now, 20, 1, rand, () => 30)!.seed);
       now = d.until;
       stepDirector(d, now, 20, 1, rand, () => 30);
+      now = d.until;
+    }
+    for (let i = 2; i < seeds.length; i++) {
+      expect(seeds[i]).not.toBe(seeds[i - 1]);
+      expect(seeds[i]).not.toBe(seeds[i - 2]);
+    }
+  });
+});
+
+const ctx = (over: Partial<MusicContext> = {}): MusicContext => ({
+  rank: 2,
+  weather: 'clear',
+  festival: false,
+  valleySeed: 1234,
+  ...over,
+});
+
+describe('music director with the valley context', () => {
+  it('picks the style for every branch, with and without a context', () => {
+    for (const c of [undefined, ctx()]) {
+      expect(styleFor(7, 0, c).id).toBe('morning');
+      expect(styleFor(7, 1, c).id).toBe('summer-morning');
+      expect(styleFor(7, 2, c).id).toBe('morning');
+      expect(styleFor(7, 3, c).id).toBe('winter-morning');
+      expect(styleFor(14, 0, c).id).toBe('afternoon');
+      expect(styleFor(14, 1, c).id).toBe('bossa');
+      expect(styleFor(14, 2, c).id).toBe('autumn');
+      expect(styleFor(14, 3, c).id).toBe('waltz');
+      expect(styleFor(19, 0, c).id).toBe('evening');
+      expect(styleFor(19, 3, c).id).toBe('waltz');
+      expect(styleFor(23, 1, c).id).toBe('night');
+      expect(styleFor(23, 3, c).id).toBe('waltz');
+    }
+  });
+
+  it('plays the festival style while one is on, except in the morning and in winter', () => {
+    const f = ctx({ festival: true });
+    for (const season of [0, 1, 2]) {
+      expect(styleFor(14, season, f).id).toBe('festival');
+      expect(styleFor(19, season, f).id).toBe('festival');
+      expect(styleFor(7, season, f).id).not.toBe('festival');
+      // Festivals run to 22:00, past the evening: the dance plays on into the night.
+      expect(styleFor(21.5, season, f).id).toBe('festival');
+      expect(styleFor(23, season).id).toBe('night');
+    }
+    expect(styleFor(14, 3, f).id).toBe('waltz');
+    expect(styleFor(19, 3, f).id).toBe('waltz');
+  });
+
+  it('lists the new styles with their grooves', () => {
+    const bossa = STYLES.find((s) => s.id === 'bossa')!;
+    expect(bossa.comp).toEqual({ inst: 'guitar', pattern: 'bossa' });
+    expect(bossa.drums).toBe('bossa');
+    const festival = STYLES.find((s) => s.id === 'festival')!;
+    expect(festival.mode).toBe('minor');
+    expect(festival.bass?.pattern).toBe('funk');
+    expect(STYLES.find((s) => s.id === 'waltz')!.comp.pattern).toBe('jazzwaltz');
+    expect(new Set(STYLES.map((s) => s.id)).size).toBe(STYLES.length);
+  });
+
+  it('keeps every phrase four bars of non-empty chords', () => {
+    for (const style of STYLES) {
+      for (const bank of [style.a.open, style.a.close, style.b.open, style.b.close]) {
+        expect(bank.length).toBeGreaterThan(0);
+        for (const phrase of bank) {
+          expect(phrase).toHaveLength(4);
+          for (const bar of phrase) {
+            const chords = typeof bar === 'string' ? [bar] : bar;
+            for (const c of chords) expect(c.length).toBeGreaterThan(0);
+          }
+        }
+      }
+    }
+  });
+
+  it('puts the valley seed, rank and weather on the choice, only when given a context', () => {
+    const rand = seededRand(5);
+    const d = startDirector(0);
+    const choice = stepDirector(d, 6, 14, 1, rand, () => 60, ctx({ rank: 3, weather: 'rain' }))!;
+    expect(choice.valleySeed).toBe(1234);
+    expect(choice.ensemble).toBe(3);
+    expect(choice.weather).toBe('rain');
+    expect(choice.style.id).toBe('bossa');
+    const bare = stepDirector(startDirector(0), 6, 14, 1, seededRand(5), () => 60)!;
+    expect(bare.valleySeed).toBeUndefined();
+    expect(bare.ensemble).toBeUndefined();
+    expect(bare.weather).toBeUndefined();
+  });
+
+  it('stays a pure function of state, random stream and inputs', () => {
+    const run = () => stepDirector(startDirector(0), 6, 19, 0, seededRand(9), () => 60, ctx());
+    expect(run()).toEqual(run());
+  });
+
+  it('keeps the gaps short during a festival and normal otherwise', () => {
+    const rand = seededRand(2);
+    const d = startDirector(0);
+    let now = 6;
+    for (let i = 0; i < 20; i++) {
+      stepDirector(d, now, 14, 0, rand, () => 40, ctx({ festival: true }));
+      now = d.until;
+      stepDirector(d, now, 14, 0, rand, () => 40, ctx({ festival: true }));
+      const gap = d.until - now;
+      expect(gap).toBeGreaterThanOrEqual(FESTIVAL_GAP_SECONDS[0]);
+      expect(gap).toBeLessThanOrEqual(FESTIVAL_GAP_SECONDS[1]);
+      now = d.until;
+    }
+    const d2 = startDirector(0);
+    stepDirector(d2, 6, 14, 0, rand, () => 40, ctx());
+    stepDirector(d2, d2.until, 14, 0, rand, () => 40, ctx());
+    expect(d2.until - 46).toBeGreaterThanOrEqual(GAP_SECONDS[0]);
+  });
+
+  it('never repeats one of the last two pieces with a context either', () => {
+    const d = startDirector(0);
+    const rand = seededRand(21);
+    const seeds: number[] = [];
+    let now = 6;
+    for (let i = 0; i < 100; i++) {
+      seeds.push(stepDirector(d, now, 14, 1, rand, () => 30, ctx({ festival: i % 2 === 0 }))!.seed);
+      now = d.until;
+      stepDirector(d, now, 14, 1, rand, () => 30, ctx());
       now = d.until;
     }
     for (let i = 2; i < seeds.length; i++) {
@@ -107,22 +232,37 @@ describe('composer', () => {
     }
   });
 
-  it('keeps the melody in the key, mostly stepwise, and ends at home', () => {
+  it('keeps the melody in the key or its chords, mostly stepwise, and ends at home', () => {
     for (const style of STYLES) {
       const scale = style.mode === 'major' ? [0, 2, 4, 5, 7, 9, 11] : [0, 2, 3, 5, 7, 8, 10, 11];
+      // Borrowed and chromatic chords (a Lydian II, a backdoor bVII) lend the tune their tones.
+      const symbols = [style.a.open, style.a.close, style.b.open, style.b.close].flat(2).flat() as string[];
+      const borrowed = new Set(
+        symbols.flatMap((sym) => chordInfo(sym, style.mode).tones.map((t) => ((t % 12) + 12) % 12)),
+      );
       let steps = 0;
       let moves = 0;
+      let inKey = 0;
+      let notes = 0;
       for (let seed = 0; seed < 8; seed++) {
         const key = [48, 50, 53, 55][seed % 4]!;
         const p = compose({ style, seed, key });
         const lead = p.notes.filter((n) => n.voice === 'lead');
-        for (const n of lead) expect(scale).toContain(pc(n.midi, key));
+        for (const n of lead) {
+          const c = pc(n.midi, key);
+          notes++;
+          if (scale.includes(c)) inKey++;
+          else expect(borrowed).toContain(c);
+        }
         for (let i = 1; i < lead.length; i++) {
           moves++;
           if (Math.abs(lead[i]!.midi - lead[i - 1]!.midi) <= 4) steps++;
         }
         expect(pc(lead.at(-1)!.midi, key)).toBe(0);
       }
+      // The jazz styles borrow most (bossa and evening sit near 0.88): a flat six over the minor iv,
+      // a flat two over the tritone sub. Still, the tune lives in the key.
+      expect(inKey / notes).toBeGreaterThan(0.85);
       expect(steps / moves).toBeGreaterThan(0.85);
     }
   });
