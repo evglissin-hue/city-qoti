@@ -31,6 +31,10 @@ const segments: {
   seed: number;
   key: number;
   ambience: [AmbienceId, number][];
+  /** How big the band is (0 hamlet to 4 city), the valley's seed for its motif, the weather. */
+  ensemble?: number;
+  valleySeed?: number;
+  weather?: string;
 }[] = [
   {
     label: 'spring morning',
@@ -45,7 +49,7 @@ const segments: {
   { label: 'summer morning', style: 'summer-morning', seed: 11, key: 53, ambience: [['birds', 0.5]] },
   {
     label: 'summer afternoon',
-    style: 'afternoon',
+    style: 'bossa',
     seed: 8,
     key: 48,
     ambience: [
@@ -84,6 +88,40 @@ const segments: {
       ['hearth', 0.45],
       ['wind', 0.25],
     ],
+  },
+  {
+    label: 'festival night (a light funk dance)',
+    style: 'festival',
+    seed: 7,
+    key: 50,
+    ambience: [['murmur', 0.35]],
+  },
+  {
+    label: 'hamlet spring morning (a guitar and a flute)',
+    style: 'morning',
+    seed: 3,
+    key: 50,
+    ensemble: 0,
+    valleySeed: 4242,
+    ambience: [['birds', 0.55]],
+  },
+  {
+    label: 'city summer evening (the full band, the valley tune)',
+    style: 'evening',
+    seed: 6,
+    key: 51,
+    ensemble: 4,
+    valleySeed: 4242,
+    ambience: [['crickets', 0.3]],
+  },
+  {
+    label: 'rainy autumn afternoon',
+    style: 'autumn',
+    seed: 12,
+    key: 55,
+    ensemble: 2,
+    weather: 'rain',
+    ambience: [['rain', 0.5]],
   },
 ].filter((s) => !only || only.includes(s.style));
 
@@ -183,10 +221,20 @@ function musicEq(x: Float32Array): void {
 }
 
 const parts: { L: Float32Array; R: Float32Array }[] = [];
+/** Each music segment's label and length in samples, for measuring (QOTI_PREVIEW_SEGMENTS=<file.json>). */
+const lengths: { label: string; style: string; samples: number }[] = [];
 for (const seg of segments) {
   const style = STYLES.find((s) => s.id === seg.style)!;
-  const piece = compose({ style, seed: seg.seed, key: seg.key });
+  const piece = compose({
+    style,
+    seed: seg.seed,
+    key: seg.key,
+    ensemble: seg.ensemble,
+    valleySeed: seg.valleySeed,
+    weather: seg.weather,
+  });
   const len = Math.floor((piece.seconds + 1) * RATE);
+  lengths.push({ label: seg.label, style: seg.style, samples: len });
   const L = new Float32Array(len);
   const R = new Float32Array(len);
   // The engine plays each piece at a gain that evens out loudness between styles.
@@ -325,4 +373,7 @@ for (let i = 0; i < total; i++) {
 }
 const out = process.argv[2] ?? 'qoti-audio-preview.wav';
 writeFileSync(out, data);
+if (process.env.QOTI_PREVIEW_SEGMENTS) {
+  writeFileSync(process.env.QOTI_PREVIEW_SEGMENTS, JSON.stringify({ rate: RATE, segments: lengths }));
+}
 console.log(`wrote ${out}: ${(total / RATE).toFixed(0)} s, ${cache.size} notes rendered`);

@@ -88,7 +88,9 @@ test('sound starts on the first gesture and follows the sliders', async ({ page 
 test('the master chain keeps peaks under -1 dBFS and quiet music near unity', async ({ page }) => {
   await page.goto(`/${DEBUG_QUERY}`);
   const r = await page.evaluate(async () => {
-    const { buildMasterChain } = (await import(/* @vite-ignore */ '/src/audio/mixbus.ts')) as typeof Mixbus;
+    // A path the dev server serves, held in a variable so the type checker does not try to resolve it.
+    const mixbusUrl = '/src/audio/mixbus.ts';
+    const { buildMasterChain } = (await import(/* @vite-ignore */ mixbusUrl)) as typeof Mixbus;
     async function run(amp: number, freq: number): Promise<{ peak: number; rms: number }> {
       const rate = 48000;
       const ctx = new OfflineAudioContext(2, rate * 3, rate);

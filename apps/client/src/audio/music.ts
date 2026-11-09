@@ -65,10 +65,12 @@ export function noteGain(n: Pick<Note, 'inst' | 'vel' | 'voice'>): number {
 const ENERGY_TARGET = 0.12;
 /**
  * Per-style offsets in dB on top of the loudness match: night sits low by design, festivals lift,
- * and the afternoon measures about 2 dB quiet in the preview, which the estimate does not see.
+ * and the afternoon (about 2 dB) and autumn (about 1 dB) measure quiet in the preview, which the
+ * estimate does not see.
  */
 const STYLE_OFFSET_DB: Record<string, number> = {
   afternoon: 2,
+  autumn: 1,
   festival: 1,
   night: -2.5,
   'winter-morning': -1,
