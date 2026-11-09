@@ -23,6 +23,22 @@ const CATEGORY_LABEL: Record<string, string> = {
   construction: 'Construction',
   roads: 'Roads',
   fields: 'Fields',
+  wages: 'Wages',
+  sales: 'Market sales',
+  exports: 'Exports',
+  imports: 'Imports',
+  loans: 'Loans taken',
+  interest: 'Interest',
+  repayments: 'Loan repayments',
+  subsidies: 'Subsidies',
+  terraforming: 'Terraforming',
+  grants: 'County grants',
+  festival: 'Festivals',
+  dock: 'River Dock',
+  commissions: 'Commissions',
+  watch: 'The Watch',
+  visitors: 'Visitors',
+  fees: 'Fees',
 };
 
 /** The Ledger's reports: stocks, workforce, budget and building status, one tab at a time. */

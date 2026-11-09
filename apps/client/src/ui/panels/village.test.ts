@@ -70,6 +70,7 @@ describe('market', () => {
 describe('trade', () => {
   it('shows each neighbor with what they sell and buy, and says when there is no post', async () => {
     const { session } = mockVillageSession();
+    session.ui.tradeTab.value = 'neighbors';
     view = await mount(h(TradePanel, { session }));
     expect(view.get('no-post').textContent).toContain('No Trading Post yet');
     for (const n of content.neighbors) expect(view.get(`neighbor-${n.id}`).textContent).toContain(n.name);
