@@ -115,8 +115,16 @@ const ICONS: Record<string, () => JSX.Element> = {
 // The Cart lane tool's id is "lane"; it wears the cart.
 ICONS.lane = ICONS.cart!;
 
+/**
+ * A tool's icon: by its id, else by the icon it names. P1 player's chair: Earthworks (id "terrain",
+ * icon "earthworks") showed the word "earthworks" in the Ledger's toolbar.
+ */
+export function toolIcon(id: string, icon: string): (() => JSX.Element) | null {
+  return ICONS[id] ?? ICONS[icon] ?? null;
+}
+
 export function ToolIcon({ id, fallback }: { id: string; fallback: string }) {
-  const icon = ICONS[id];
+  const icon = toolIcon(id, fallback);
   return icon ? icon() : <>{fallback}</>;
 }
 

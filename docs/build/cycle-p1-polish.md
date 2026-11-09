@@ -54,10 +54,10 @@ After each wave: the quality check, the dead-end hunt and the player's chair, on
 
 ## Acceptance criteria
 
-- [ ] Each of the 19 items is fixed, built as a first slice, or written into the spec with the reason, and the As built below says which.
-- [ ] A test for each fixed bug, and a check for its whole class where one is cheap (every wish, every building, every command).
-- [ ] The playability audit runs clean on its seeds, or every flag is explained.
-- [ ] Typecheck, lint, unit tests, build and bench pass; e2e as far as this machine allows.
+- [x] Each of the 19 items is fixed, built as a first slice, or written into the spec with the reason, and the As built below says which.
+- [x] A test for each fixed bug, and a check for its whole class where one is cheap (every wish, every building, every command).
+- [x] The playability audit runs clean on its seeds, or every flag is explained.
+- [x] Typecheck, lint, unit tests, build and bench pass; e2e as far as this machine allows.
 - [ ] Definition of done in `docs/spec/22-quality.md`.
 
 ## Notes
@@ -101,8 +101,11 @@ Every item is fixed or built as a first slice; the spec says how in the sections
 - The audit flagged the windmill and bakery waiting through winter and spring. That is the year's shape once wheat comes in from summer, and the windmill's line says so; the audit now skips field-crop waits in winter and spring and still flags one through a summer or an autumn.
 - P1 had raised the starting stone to 40 and moved the autoplayer's quarry earlier to match. That moved every valley's first days: on willow the guide closed on its food step and the first winter ran its larder dry. Back to 30 and the old quarry rule; the cheaper windmill and bakery keep item 7 fixed.
 - The autoplayer keeps a 120-coin cushion before borrowing and a winter's grain from summer.
+- Player's chair: Earthworks and the festival site tool showed their icon's name as a word in the toolbar (it looked icons up by tool id only). Fixed, with a check that every registered tool draws an icon.
 
 **Bench**, residents at day 70 in the Village run, six seeds (oak, hazel, willow, birch, alder, rowan): main 168 137 142 137 119 127 (mean 138); P1 114 120 177 165 157 191 (mean 154). Oak is P1's lowest (its Hamlet claims on day 38, not 30), so the oak test's floor is 110 (was 140), with the table in the test; its other checks are unchanged.
+
+**e2e**: 27 pass and 2 are skipped, run here with the preinstalled Chromium (`QOTI_CHROMIUM=/opt/pw-browsers/chromium`; the pinned Playwright wants a newer build). The co-op test now finds the partner by the seat dot's tooltip, since a bar under 1361 px shows the partners as dots.
 
 **Audit**: clean on its seeds. One warning: Quiet, Please is offered and never granted by the autoplayer, which plants no hedges; it is achievable.
 
