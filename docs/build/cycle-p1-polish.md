@@ -69,4 +69,41 @@ After each wave: the quality check, the dead-end hunt and the player's chair, on
 
 ## As built
 
-To be filled in at the end of the cycle.
+Every item is fixed or built as a first slice; the spec says how in the sections named (`12` Hearth, `13` Ledger, `15` Progression, `17` UI and art, `10` world, `11` residents, `30` roadmap).
+
+| # | Item | As built |
+|---|---|---|
+| 1 | Town hall soft lock | Fixed: the town hall cannot be removed (`HALL_STAYS`); a valley that lost it before P1 may raise one. Test, plus the class check that everything removable can be rebuilt. |
+| 2 | Well wish inside a well's radius | Fixed: A Well Closer is asked only from outside every well's reach; a crowded well asks for A Second Well instead. The autoplayer answers both. |
+| 3 | Planning a festival did nothing | Fixed: the plan says when it is too late, the poster follows the season, a toast says it has begun, the chip and the Festival decor group lead to it, and a piece can be kept from the result card. |
+| 4 | Dead-end wishes | Fixed: a wish nobody could grant is not voiced (`achievable`), routes count bridges and gates, Fresh Fish waits out a frozen river, and hedges, walls and trees muffle noise so Quiet, Please can be granted. Class check: every goal and wish is achievable. |
+| 5 | Land cannot be flattened | Built: the Earthworks tool raises, lowers and levels a box, with its cost, one undo per drag, and a hint on steep sites. |
+| 6 | Wheat only in spring | Fixed: sown from Spring day 1 to Summer day 3, cut from the first day of summer at full yield (golden is ripe). See the quality check below. |
+| 7 | Stone short at the windmill | Fixed: the windmill takes 8 stone and the bakery 10 (both were 16); the quarry's first hand is hired first while stone is short and a site waits; the feed says when stone runs low. The start stays 30. |
+| 8 | Residents walk through each other | Fixed in the renderer: walkers keep lanes, stagger and step around each other, carts keep their tracks. |
+| 9 | A simple trade system | Built: the Deals tab, one switch a deal, sizes its own orders and keeps its numbers fresh each day; each neighbor has a character and its wants; River Dock deals; a hamlet's peddler brings up to 20 units a day at 140%. |
+| 10 | A clearer goal | Built: the goal pill says what to aim for next, through to "Village chapter complete". |
+| 11 | More icons, less clutter | Built: the top bar's counts carry icons; the Stores strip folds away while the Stores panel shows. |
+| 12 | Bigger resource counts | Built: the Stores panel, larger counts grouped as food, grain, building, home and crafts. |
+| 13 | The end of the game | First slice: the Village chapter card when the First Winter is weathered (its own plaque), an honest line about the Town Charter, an invitation to a new valley named from its seed. |
+| 14 | Decor variety | Built: window boxes in colors, added by hand (never assumed), and the fine pieces. |
+| 15 | Trees and grass | Built: meadow tufts and blades that sway, three tree shapes, autumn and winter colors. |
+| 16 | Pricier decor that boosts work | Built: fine pieces with a price raise a workplace's output nearby (the decor boost line), refunded on removal. |
+| 17 | Night ambience | Built: field crickets over a night bed, a softer owl on some nights, frogs, an outdoor reverb. |
+| 18 | Zoning that grows on its own | First slice: zoned lots already grow (C5X); homes now dress themselves up as their street's charm rises (30, 36, 42), and hand decoration still counts. I4 takes the rest (`30-roadmap.md`). |
+| 19 | Development paths | First slice: at the Village claim the valley offers the two callings its land suits (Mill Town, Garden Village, Pilgrims' Rest), each with an effect, a district style lean and a signature piece. |
+
+**The loop.** Wave 1 and wave 2 ran as executors in worktrees; each merge had a quality check and a player's chair round (window boxes made opt-in, a "For the work" decor group, the Stores grouping, the Calling card naming each gift once, a softer owl, the seed note). The dead-end hunt added the playability audit (`npm run audit -w @qoti/bench`) and its health kinds (no builders, idle for want of an input, a wish nobody can grant, a festival that never started, an order never filled).
+
+**The last round's finds** (bench and audit, before the player's chair):
+
+- The wheat change ploughed each year's crop under as it turned golden in spring's longer sowing, and cut tiles the hour they turned golden for 2 wheat instead of 26: a farm brought in a quarter of its harvest (72 wheat a year from 12 tiles against 312) while every window test passed. Fixed, with a one-year yield test as the class check.
+- The audit flagged the windmill and bakery waiting through winter and spring. That is the year's shape once wheat comes in from summer, and the windmill's line says so; the audit now skips field-crop waits in winter and spring and still flags one through a summer or an autumn.
+- P1 had raised the starting stone to 40 and moved the autoplayer's quarry earlier to match. That moved every valley's first days: on willow the guide closed on its food step and the first winter ran its larder dry. Back to 30 and the old quarry rule; the cheaper windmill and bakery keep item 7 fixed.
+- The autoplayer keeps a 120-coin cushion before borrowing and a winter's grain from summer.
+
+**Bench**, residents at day 70 in the Village run, six seeds (oak, hazel, willow, birch, alder, rowan): main 168 137 142 137 119 127 (mean 138); P1 114 120 177 165 157 191 (mean 154). Oak is P1's lowest (its Hamlet claims on day 38, not 30), so the oak test's floor is 110 (was 140), with the table in the test; its other checks are unchanged.
+
+**Audit**: clean on its seeds. One warning: Quiet, Please is offered and never granted by the autoplayer, which plants no hedges; it is achievable.
+
+**Left for later**: `plan.edit` has no UI yet (allowlisted in the command sender test); the I4 ideas in `30-roadmap.md`.
