@@ -16,16 +16,20 @@ export function GameView({
   openInvite,
   onLeave,
   onMove,
+  onNewValley,
 }: {
   target: SessionTarget;
   openInvite: boolean;
   onLeave: () => void;
   /** C4D: a solo valley moved online; open the new one. */
   onMove?: (target: SessionTarget) => void;
+  /** P1: the chapter card's "Found a new valley": leave for the title with a fresh seed. */
+  onNewValley?: () => void;
 }) {
   const container = useRef<HTMLDivElement>(null);
   const [session] = useState(() => new Session(target));
   session.onMove = onMove ?? null;
+  session.onNewValley = onNewValley ?? null;
 
   useEffect(() => {
     current = session;

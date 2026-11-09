@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { AMBIENCE_IDS, renderAmbience } from './ambience';
+import { AMBIENCE_IDS, LOOP, outdoorImpulse, renderAmbience } from './ambience';
 import { CUE_IDS, TUNED_CUES, renderCue } from './cues';
 import { RENDER_RATE, cents, estimatePitch, loopable, midiToHz } from './dsp';
 import { INSTRUMENTS, UNPITCHED, renderNote } from './instruments';
@@ -21,6 +21,8 @@ function check(buf: Float32Array, oneShot = true): void {
   // No click at the start (loops start anywhere; they never start from silence).
   if (oneShot) expect(Math.abs(buf[0]!)).toBeLessThan(0.05);
 }
+
+const peakOf = (b: Float32Array): number => b.reduce((a, v) => Math.max(a, Math.abs(v)), 0);
 
 describe('synthesized sounds', () => {
   it('renders every instrument, both touches, clean and in bounds', () => {
@@ -55,13 +57,53 @@ describe('synthesized sounds', () => {
       const b = renderAmbience(id);
       check(b, false);
       const secs = b.length / RENDER_RATE;
-      expect(secs).toBeGreaterThanOrEqual(7);
-      expect(secs).toBeLessThanOrEqual(20);
+      expect(secs).toBe(LOOP[id]);
       // The seam is no larger a jump than the loop's own sample-to-sample motion.
       let step = 0;
       for (let i = 1; i < b.length; i++) step = Math.max(step, Math.abs(b[i]! - b[i - 1]!));
       expect(Math.abs(b[0]! - b[b.length - 1]!)).toBeLessThanOrEqual(step + 1e-6);
     }
+  });
+
+  it('renders the night layers finite, in level, and in the lengths asked for', () => {
+    const rms = (b: Float32Array): number =>
+      20 * Math.log10(Math.sqrt(b.reduce((a, v) => a + v * v, 0) / b.length));
+    // Crickets are a long loop (24 to 32 s) so the pattern is not heard to repeat, and sit 4 dB under the old -27.
+    expect(renderAmbience('crickets').length / RENDER_RATE).toBeGreaterThanOrEqual(24);
+    expect(renderAmbience('crickets').length / RENDER_RATE).toBeLessThanOrEqual(32);
+    const target = { crickets: -31, frogs: -30, 'night-air': -31, owl: -33 } as const;
+    for (const id of ['crickets', 'frogs', 'night-air', 'owl'] as const) {
+      const b = renderAmbience(id);
+      expect(b.every(Number.isFinite), id).toBe(true);
+      expect(rms(b), id).toBeCloseTo(target[id], 0);
+      expect(peakOf(b), id).toBeLessThan(0.5);
+    }
+  });
+
+  it('keeps the owl to a few calls and the frogs low', () => {
+    // Owl: sparse, so most of its loop is quiet; its hoots sit under a kilohertz or two.
+    const owl = renderAmbience('owl');
+    const win = RENDER_RATE / 2;
+    let loud = 0;
+    let wins = 0;
+    for (let i = 0; i + win <= owl.length; i += win) {
+      let e = 0;
+      for (let j = 0; j < win; j++) e += owl[i + j]! * owl[i + j]!;
+      wins++;
+      if (Math.sqrt(e / win) > 0.01) loud++;
+    }
+    expect(loud / wins).toBeGreaterThan(0.1);
+    expect(loud / wins).toBeLessThan(0.45);
+  });
+
+  it('makes a short outdoor space, not a room', () => {
+    const [l, r] = outdoorImpulse(48000);
+    expect(l.length).toBe(r.length);
+    expect(l.length / 48000).toBeLessThan(1);
+    expect(l.every(Number.isFinite) && r.every(Number.isFinite)).toBe(true);
+    // The tail is gone well before the end.
+    const last = l.slice(Math.floor(l.length * 0.9));
+    expect(peakOf(last)).toBeLessThan(0.01);
   });
 
   it('crossfades a loop seam', () => {

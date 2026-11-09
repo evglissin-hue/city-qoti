@@ -97,6 +97,7 @@ interface RoomStorage {
 - Until C2C builds this hand-over, a hello with a different `simVersion` is refused with `VERSION_MISMATCH` while another seat is connected; with nobody else connected, the newcomer's version becomes the active one.
 - A client whose `simVersion` differs from the room's active version, while seats with the old version are connected: the room asks an old client for a snapshot, sends `reloadRequired` to the old clients, then admits the new client from that snapshot. Nothing is lost.
 - If no one is connected, the new client loads the latest snapshot (migrating by `saveVersion`) and becomes the active version. Turns after that snapshot from an older `simVersion` cannot be replayed and are dropped (at most about 30 s of play, rarer thanks to snapshots on pause and leave). The client shows a short notice.
+- *Save versions*: 1 (I0), 2 (I1), 3 (I2), 4 (I3) and 5 (P1: a town's optional `calling`, and a building's optional `custom.windowFlowers`; the v4 to v5 migration rewrites nothing, and a Village from before P1 is offered its calling when it loads, in `deserialize`).
 
 ## Presence
 

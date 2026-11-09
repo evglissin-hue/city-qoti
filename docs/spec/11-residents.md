@@ -213,6 +213,7 @@ Where the I1 implementation fills in or differs from the sections above (`packag
 - **Bond**: `addBond` gains from wishes stop at 3 hearts; `addBond(..., 'other')` reaches 5; long residence adds a heart every 2 years.
 - **Movement**: a tile takes exactly its ticks (road 5, grass 10, forest floor and fields 15, rock 20; Sporty x0.8), by the tile being entered. Walks replan when the next tile becomes blocked; with no way left the walker stops, marked stuck, goes home, and after an hour finds their way in regardless.
 - **Agent frames**: walkers keep to the left of their way, residents sharing a tile spread round it, and idle residents face what they came to see.
+- *As built (P1, the owner's playtest: "characters clip through each other")*: the renderer keeps figures apart without touching the sim. Each walker takes one of three lanes by id round the keep-left line and hangs back up to 0.3 tiles by id, so a household leaving together walks in a little file; figures closer than about 0.32 tiles push apart (smoothed, at most 0.25 tiles, never forward for a walker; couples and sitters are fixed obstacles); and walkers step aside out of a passing cart's footprint (`render/separation.ts`).
 
 ## Lives and story characters (as built in I2, C4D)
 

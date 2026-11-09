@@ -6,6 +6,7 @@ import { LocalRoom } from '../net/local';
 import { copy, welcomeLine } from '../ui/copy';
 import { ago } from '../ui/format';
 import { guideCopy } from '../ui/guide';
+import { RANK_WORD } from '../ui/village';
 import { loadProfile, saveProfile, SWATCHES, type PlayerProfile } from './profile';
 import { forgetValley, listRecent, rememberValley, type RecentValley } from './recent';
 import { valleyDbName } from '../net/idb';
@@ -22,7 +23,14 @@ function targetOf(v: RecentValley): SessionTarget {
   };
 }
 
-export function Title({ onStart }: { onStart: (t: SessionTarget, opts?: { invite?: boolean }) => void }) {
+export function Title({
+  onStart,
+  fresh = false,
+}: {
+  onStart: (t: SessionTarget, opts?: { invite?: boolean }) => void;
+  /** P1: arrived from the chapter card, so the seed field starts on a fresh seed, in view. */
+  fresh?: boolean;
+}) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   // Playtest round six: the valley asking "are you sure?", and a bump to redraw the list after.
@@ -41,7 +49,7 @@ export function Title({ onStart }: { onStart: (t: SessionTarget, opts?: { invite
     setForgetting(null);
     setListVersion((n) => n + 1);
   };
-  const [seed, setSeed] = useState('');
+  const [seed, setSeed] = useState(() => (fresh ? randomId().slice(0, 12) : ''));
   const [town, setTown] = useState('');
   // ?creative starts with the creative box ticked (the I0 end to end specs play sandbox valleys).
   const [creative, setCreative] = useState(() => new URLSearchParams(location.search).has('creative'));
@@ -93,6 +101,7 @@ export function Title({ onStart }: { onStart: (t: SessionTarget, opts?: { invite
         mode: 'online',
         name: town.trim() || 'Qoti',
         lastPlayed: Date.now(),
+        seed: v.seed,
         ...(creative ? { creative: true } : {}),
         ...(v.invites[1] ? { invite: v.invites[1] } : {}),
       };
@@ -103,7 +112,7 @@ export function Title({ onStart }: { onStart: (t: SessionTarget, opts?: { invite
   const newSolo = () =>
     run(async () => {
       const valleyId = randomId();
-      const { token } = await LocalRoom.create(valleyId, body);
+      const { token, seed: made } = await LocalRoom.create(valleyId, body);
       const recentValley: RecentValley = {
         valleyId,
         seat: 0,
@@ -111,6 +120,7 @@ export function Title({ onStart }: { onStart: (t: SessionTarget, opts?: { invite
         mode: 'solo',
         name: town.trim() || 'Qoti',
         lastPlayed: Date.now(),
+        seed: made,
         ...(creative ? { creative: true } : {}),
       };
       rememberValley(recentValley);
@@ -268,8 +278,13 @@ export function Title({ onStart }: { onStart: (t: SessionTarget, opts?: { invite
             </label>
           )}
         </div>
-        <details class="title-options">
+        <details class="title-options" open={fresh || undefined}>
           <summary>{copy.title.more}</summary>
+          {fresh && (
+            <p class="muted small" data-testid="fresh-note">
+              {copy.title.freshNote}
+            </p>
+          )}
           <label>
             {copy.title.seed}
             <input
@@ -400,7 +415,9 @@ export function Title({ onStart }: { onStart: (t: SessionTarget, opts?: { invite
                       <strong>{v.name}</strong>
                       <span class="muted">
                         {v.creative ? `${copy.title.creativeTag}, ` : ''}
+                        {v.rank ? `${RANK_WORD[v.rank]}, ` : ''}
                         {v.mode === 'solo' ? copy.title.solo : copy.title.online}, {ago(v.lastPlayed)}
+                        {v.seed ? `, ${copy.title.seedTag(v.seed)}` : ''}
                       </span>
                     </button>
                     <button

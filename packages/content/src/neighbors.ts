@@ -9,6 +9,7 @@ export const millhaven: NeighborDef = {
   id: 'millhaven',
   name: 'Millhaven',
   blurb: 'A farm town downstream: sacks of wheat, bales of wool, and a soft spot for good planks.',
+  character: 'Farm country: cheap grain and wool, and it pays well for tools and planks.',
   sells: [
     ['wheat', 85],
     ['wool', 90],
@@ -41,6 +42,7 @@ export const stonecross: NeighborDef = {
   id: 'stonecross',
   name: 'Stonecross',
   blurb: 'A hill town of quarries and chimneys, always short of bread and warm cloth.',
+  character: 'Quarry country: cheap stone and firewood, and it pays well for bread, cloth and cheese.',
   sells: [
     ['stone', 80],
     ['clay', 90],

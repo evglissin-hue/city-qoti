@@ -9,6 +9,7 @@ import type {
   RankId,
   SeasonCardView,
   SeasonReportView,
+  StandingOrderInput,
 } from '@qoti/sim';
 import type { Selection } from '../input/context';
 
@@ -36,7 +37,7 @@ export type ReportTab = 'stocks' | 'workforce' | 'budget' | 'buildings';
 
 // I2 (C4F)
 export type MarketTab = 'prices' | 'profit';
-export type TradeTab = 'neighbors' | 'orders' | 'caravans' | 'dock' | 'commissions';
+export type TradeTab = 'deals' | 'neighbors' | 'orders' | 'caravans' | 'dock' | 'commissions';
 
 /** A plan being sketched: commands the tools would have sent, kept here until proposed. */
 export interface Sketch {
@@ -99,7 +100,9 @@ export function createUiState() {
     marketTab: signal<MarketTab>('prices'),
     /** The good whose price history the market page draws large. */
     marketGood: signal<string | null>(null),
-    tradeTab: signal<TradeTab>('neighbors'),
+    tradeTab: signal<TradeTab>('deals'),
+    /** Playtest item 9: the numbers each one-click deal last sent, by `via:good`; hand edits break the match. */
+    dealMarks: new Map<string, StandingOrderInput>(),
     /** The story letter on the desk, while it is open. */
     storyLetter: signal<LetterView | null>(null),
     /** Story letters already opened this visit (arc and step), so the feed stops waving them. */
@@ -116,6 +119,10 @@ export function createUiState() {
     minimapOpen: signal(true),
     /** The rank-up moment, while it is on screen. */
     rankUp: signal<{ rank: RankId; text: string } | null>(null),
+    /** P1: the Village chapter card, while it is open. */
+    chapter: signal(false),
+    /** P1 (callings): the Calling card, while it is open. */
+    calling: signal(false),
     // I3 (C5F)
     /** The season card or the season report on the desk, while it is open. */
     almanac: signal<Almanac | null>(null),

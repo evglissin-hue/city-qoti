@@ -77,7 +77,8 @@ function TrialBody({ session, trial: t }: { session: Session; trial: TrialView }
       )}
       {t.status === 'passed' && (
         <p class="trial-word" data-testid="trial-passed">
-          Sealed. The County is pleased, in its quiet way, and the Town Charter board is open.
+          Sealed. The County is pleased, in its quiet way, and has put the Village Charter in the drawer
+          marked done.
         </p>
       )}
       {t.status === 'failed' && (

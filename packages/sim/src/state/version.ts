@@ -7,7 +7,7 @@ import { emptySeasonsSlices, markFloodplain, seasonAt } from './seasons';
 import { emptyVillageSlices, lockedInnovations, unstartedStories } from './village';
 
 /** Bump whenever the shape of saved state changes, and add a migration with a test. */
-export const SAVE_VERSION = 4;
+export const SAVE_VERSION = 5;
 
 export type SaveObject = Record<string, unknown> & { saveVersion: number };
 export type Migration = (save: SaveObject) => SaveObject;
@@ -19,6 +19,7 @@ export const migrations: ReadonlyMap<number, Migration> = new Map<number, Migrat
   [1, toV2],
   [2, toV3],
   [3, toV4],
+  [4, toV5],
 ]);
 
 /**
@@ -246,6 +247,15 @@ function toV4(save: SaveObject): SaveObject {
     innovations,
     saveVersion: 4,
   };
+}
+
+/**
+ * v4 (I3) to v5 (P1): additions only, all optional, so nothing is rewritten. A town's `calling`
+ * (absent until the Village claim; a Village from before P1 gets its offer when it loads, in
+ * deserialize) and a building's `custom.windowFlowers` (absent means the mixed bunch).
+ */
+function toV5(save: SaveObject): SaveObject {
+  return { ...save, saveVersion: 5 };
 }
 
 /** Brings a parsed save up to SAVE_VERSION, one migration at a time. */

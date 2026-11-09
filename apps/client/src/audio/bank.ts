@@ -4,8 +4,8 @@
 import { RENDER_RATE } from './synth/dsp';
 import { jobKey, renderJob, type RenderJob } from './synth/jobs';
 
-/** The bank's limit in samples (32 MB of floats): a few pieces' notes, the cues and the loops. */
-const MAX_SAMPLES = 8_000_000;
+/** The bank's limit in samples (44 MB of floats): a few pieces' notes, the cues and the loops (about 7 million samples). */
+const MAX_SAMPLES = 11_000_000;
 
 export class SoundBank {
   private readonly buffers = new Map<string, AudioBuffer>();

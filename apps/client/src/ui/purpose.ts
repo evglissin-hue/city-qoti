@@ -17,10 +17,12 @@ function methodLine(m: ProductionMethod): string | null {
     case 'fell':
       return `Cuts ${out} from grown trees within ${m.range ?? 8} tiles`;
     case 'farm':
-      return `Grows ${out} in the fields painted around it`;
+      return `Grows ${out} in the fields painted around it, sown from spring to early summer`;
     case 'gather':
       return `Gathers ${out}`;
     default:
+      if (m.inputs.some(([g]) => g === 'wheat'))
+        return `Makes ${out} from ${list(m.inputs)}, which first ripens in summer`;
       return m.inputs.length ? `Makes ${out} from ${list(m.inputs)}` : `Makes ${out}`;
   }
 }

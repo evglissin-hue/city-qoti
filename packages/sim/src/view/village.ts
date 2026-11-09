@@ -43,6 +43,7 @@ import { findById } from '../state/entities';
 import { calendar } from '../systems/clock/calendar';
 import { dayIndex } from '../systems/economy/time';
 import { marketOpen } from '../systems/market/api';
+import { renownEffect } from '../systems/renown/api';
 import { targetPrice } from '../systems/market/prices';
 import { profitReport } from '../systems/market/profit';
 import { charmAt } from '../conditions';
@@ -234,7 +235,12 @@ export function regionalPrice(state: WorldState, neighbor: string, good: number)
 }
 
 export function tradeView(state: WorldState): TradeView {
-  const post = state.buildings.find((b) => content.buildingById.get(b.def)?.tags?.includes('trading-post'));
+  // Only a built post counts: a construction site is not yet a Trading Post.
+  const post = state.buildings.find(
+    (b) => b.stage === 'built' && content.buildingById.get(b.def)?.tags?.includes('trading-post'),
+  );
+  // Renown earns better terms, the same percent the post itself applies (trade/caravans.ts).
+  const terms = renownEffect(state, 'trade');
   return {
     neighbors: content.neighbors
       .filter((n) => !n.rank || RANKS.indexOf(state.charter.rank) >= RANKS.indexOf(n.rank))
@@ -251,8 +257,8 @@ export function tradeView(state: WorldState): TradeView {
             const buys = n.buys.some(([x]) => x === good);
             return {
               good,
-              buy: p !== null && sells ? Math.round((p * TRADE_BUY_PERCENT) / 100) : null,
-              sell: p !== null && buys ? Math.round((p * TRADE_SELL_PERCENT) / 100) : null,
+              buy: p !== null && sells ? Math.round((p * TRADE_BUY_PERCENT * (100 - terms)) / 10000) : null,
+              sell: p !== null && buys ? Math.round((p * TRADE_SELL_PERCENT * (100 + terms)) / 10000) : null,
             };
           }),
         };
@@ -296,6 +302,13 @@ export function charterView(state: WorldState): CharterView {
     }),
     ready: c.ready,
     history: c.history.map((h) => ({ ...h, seats: [...h.seats] })),
+    ...(state.calling && {
+      calling: {
+        offered: state.calling.offered.map((id, i) => ({ id, reason: state.calling!.reasons[i] ?? '' })),
+        chosen: state.calling.chosen,
+        together: state.seats.length >= 2,
+      },
+    }),
   };
 }
 

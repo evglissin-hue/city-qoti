@@ -4,6 +4,7 @@ import type { LayerName, MapLayers, WorldState } from '../contracts';
 import { createLayers, INT32_LAYERS, LAYER_NAMES } from '../map/layers';
 import { RNG_STREAMS } from '../rng/streams';
 import { base64ToBytes, bytesToBase64, bytesToWords, wordsToBytes } from './base64';
+import { ensureOffer } from '../systems/callings/api';
 import { migrateSave, type SaveObject } from './version';
 
 // Save format: JSON where typed arrays are base64 (little-endian), then gzip. fflate keeps
@@ -61,6 +62,8 @@ interface SaveFile {
   trial: WorldState['trial'];
   guide: WorldState['guide'];
   seasons: WorldState['seasons'];
+  /** P1 (callings): absent until the Village claim. */
+  calling?: WorldState['calling'];
 }
 
 export function serialize(state: WorldState): Uint8Array {
@@ -119,6 +122,7 @@ export function serialize(state: WorldState): Uint8Array {
     trial: state.trial,
     guide: state.guide,
     seasons: state.seasons,
+    ...(state.calling && { calling: state.calling }),
   };
   // mtime 0 keeps the bytes a pure function of the state.
   return gzipSync(strToU8(JSON.stringify(save)), { level: 6, mtime: 0 });
@@ -126,7 +130,15 @@ export function serialize(state: WorldState): Uint8Array {
 
 export function deserialize(data: Uint8Array): WorldState {
   const parsed = JSON.parse(strFromU8(gunzipSync(data))) as SaveObject;
-  const save = migrateSave(parsed) as unknown as SaveFile;
+  const from = parsed.saveVersion;
+  const state = build(migrateSave(parsed) as unknown as SaveFile);
+  // P1: a town that was already a Village before callings existed is asked now, from its own map,
+  // as it would have been at the claim (deterministic, so both seats and the room agree).
+  if (typeof from === 'number' && from < 5) ensureOffer(state, null);
+  return state;
+}
+
+function build(save: SaveFile): WorldState {
   const n = MAP_SIZE * MAP_SIZE;
   const map: MapLayers = createLayers(MAP_SIZE);
   for (const name of LAYER_NAMES) {
@@ -194,5 +206,6 @@ export function deserialize(data: Uint8Array): WorldState {
     trial: save.trial,
     guide: save.guide,
     seasons: save.seasons,
+    ...(save.calling && { calling: save.calling }),
   };
 }

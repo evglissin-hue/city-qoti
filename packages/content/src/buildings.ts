@@ -15,7 +15,7 @@ export const bakery: BuildingDef = {
     coins: 50,
     goods: [
       ['planks', 20],
-      ['stone', 16],
+      ['stone', 10],
     ],
   },
   upkeep: 2,
@@ -80,6 +80,12 @@ export const cottage: BuildingDef = {
   housing: { households: 1, residents: 4 },
   work: 8,
   tags: ['home'],
+  // A porch, ivy or flower boxes fit by module. P1: window boxes are added, by the players in
+  // Customize (in a color of their choosing) or by the household as its street grows pleasant.
+  moduleSlots: [
+    ['front', 1],
+    ['wall', 1],
+  ],
   // I2 (C4C): grows on low-density home lots, and becomes a townhouse when its household reaches
   // the Craftsfolk (materials by porter).
   grows: { zone: 'homes-low', handPlaced: true },
@@ -394,7 +400,7 @@ export const windmill: BuildingDef = {
     coins: 50,
     goods: [
       ['planks', 24],
-      ['stone', 12],
+      ['stone', 8],
     ],
   },
   upkeep: 2,

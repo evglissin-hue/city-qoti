@@ -67,6 +67,12 @@ const SETUPS = new Map<string, (s: WorldState) => void>([
     },
   ],
   [
+    'the-first-winter',
+    (s) => {
+      s.trial = { kind: 'winter', charter: 'village', season: 3, year: 0, status: 'passed', measured: [] };
+    },
+  ],
+  [
     'the-gate-held',
     (s) => {
       s.seasons.raidsHeld = 1;

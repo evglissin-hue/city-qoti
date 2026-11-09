@@ -24,6 +24,10 @@ export const copy = {
     more: 'More',
     seed: 'Seed',
     seedPlaceholder: 'Leave empty for a surprise',
+    // P1 (playtest item 13): arriving from the chapter card.
+    freshNote:
+      "Every valley is new land. Here is a fresh seed; keep it, or type a friend's to found the very same valley.",
+    seedTag: (seed: string) => `seed ${seed}`,
     continue: 'Pick up where you left off',
     // Playtest round six: tidying the list.
     forget: 'Remove',
@@ -57,6 +61,10 @@ export const copy = {
     ],
   },
   settings: {
+    // P1 (playtest item 13): the seed, shareable.
+    seedLine: (seed: string) => `Valley seed: ${seed}. Share it and a friend can found the very same valley.`,
+    copySeed: 'Copy the seed',
+    copiedSeed: 'Copied',
     open: 'Settings',
     heading: 'Settings',
     quality: 'Picture quality',

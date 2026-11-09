@@ -10,7 +10,7 @@ export const spring: SeasonDef = {
   id: 'spring',
   name: 'Spring',
   index: 0,
-  sow: [1, 3],
+  sow: [1, 6],
   river: 'high',
   events: ['flood'],
   festival: 'blossom-fair',
@@ -20,6 +20,8 @@ export const summer: SeasonDef = {
   id: 'summer',
   name: 'Summer',
   index: 1,
+  sow: [1, 3],
+  harvest: [1, 6],
   river: 'best',
   events: ['circus', 'drought'],
   festival: 'lantern-night',
@@ -29,7 +31,7 @@ export const autumn: SeasonDef = {
   id: 'autumn',
   name: 'Autumn',
   index: 2,
-  harvest: [1, 4],
+  harvest: [1, 6],
   river: 'normal',
   events: ['early-frost'],
   festival: 'harvest-supper',
@@ -182,7 +184,7 @@ export const flood: EventDef = {
 // Effects: `trade` percent better prices at the Trading Post and the River Dock (2 a level);
 // `arrivals` permille more pull for newcomers; `visitors` notable visitors' commissions that may be
 // open at once. A festival is worth 1 to 9 points, a pattern 2, a repelled raid 4, a commission 2 to
-// 5, a story finale 5 and the sealed Charter 10, so a Village is Spoken Of within its first year.
+// 5, a story finale 5 and the sealed Charter 3, so a Village is Spoken Of within its first year.
 
 export const renown0: RenownDef = { level: 0, name: 'Unknown', points: 0, effects: [] };
 export const renown1: RenownDef = {

@@ -73,6 +73,8 @@ export type Command =
   | { t: 'request.resolve'; id: EntityId; status: 'done' | 'withdrawn' }
   /** Claim the rank once every Charter goal is met. */
   | { t: 'charter.claim' }
+  /** P1 (additive): choose what the village is known for, from the two the County offered. */
+  | { t: 'calling.choose'; id: string }
   /** Raise or lower land by one level. Max TERRAFORM_MAX_TILES tiles, costs per tile. */
   | { t: 'terrain.raise'; tiles: [number, number][] }
   | { t: 'terrain.lower'; tiles: [number, number][] }
@@ -138,6 +140,8 @@ export interface BuildingCustom {
   roofMaterial?: string | null;
   accent?: string | null;
   windowBoxes?: boolean | null;
+  /** Flower color for window boxes: 'geranium' | 'rose' | 'cream' | 'cornflower' | 'buttercup' | 'mixed'. */
+  windowFlowers?: string | null;
   shutters?: boolean | null;
   chimney?: boolean | null;
   /** Shop sign text, max 24 chars. */
@@ -196,4 +200,9 @@ export type RejectReason =
   | 'NO_RAID'
   // Playtest round three
   /** Nobody from the town can walk to the door: cut off by a cliff or water. */
-  | 'CUT_OFF';
+  | 'CUT_OFF'
+  // P1 (playtest)
+  /** A standard valley's town hall stays: its builders raise everything else. */
+  | 'HALL_STAYS'
+  /** Too late for this: a festival cannot be planned once its evening has begun. */
+  | 'TOO_LATE';

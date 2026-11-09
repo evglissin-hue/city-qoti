@@ -22,6 +22,7 @@ export const windowGardens: Detector = (state, def) => {
   const gap = param(def, 'gap', 1);
   const rows: Row[] = [];
   for (const b of state.buildings) {
+    // Only boxes the player chose count: a pattern found by a deliberate act, not by default looks.
     if (b.stage !== 'built' || b.custom?.windowBoxes !== true) continue;
     if (!isHomeDef(content.buildingById.get(b.def))) continue;
     const door = doorTile(b);

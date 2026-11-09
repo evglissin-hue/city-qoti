@@ -17,6 +17,7 @@ import {
   type RoadPlacement,
 } from '@qoti/sim';
 import { rejectText } from '../../ui/messages';
+import { patternSiteRect } from '../../ui/seasons';
 import { rankAtLeast } from '../../ui/village';
 import type { ToolContext } from '../context';
 import { cursorHint } from '../hint';
@@ -57,12 +58,28 @@ export function festivalSiteOk(
   return { ok: true };
 }
 
-/** The pattern site whose tiles include (x, z), if any. */
-function patternSiteAt(ctx: ToolContext, x: number, z: number): { pattern: string; anchor: number } | null {
+/**
+ * The pattern site at (x, z), if any: one whose tiles include it, or, for sites that list no tiles
+ * (Kitchen Garden, Children's Corner, Window Gardens, Reading Nook), one whose ground (its members
+ * grown by the margin) covers it.
+ */
+export function patternSiteAt(
+  ctx: Pick<ToolContext, 'mirror'>,
+  x: number,
+  z: number,
+): { pattern: string; anchor: number } | null {
   const i = z * MAP_SIZE + x;
   for (const p of ctx.mirror.patterns.values()) {
     if (!p.discovered) continue;
-    for (const s of p.sites) if (s.tiles.includes(i)) return { pattern: p.id, anchor: s.z * MAP_SIZE + s.x };
+    for (const s of p.sites) {
+      const anchor = s.z * MAP_SIZE + s.x;
+      if (s.tiles.length > 0) {
+        if (s.tiles.includes(i)) return { pattern: p.id, anchor };
+        continue;
+      }
+      const r = patternSiteRect(ctx.mirror, anchor, s.tiles, s.members);
+      if (x >= r[0] && x <= r[2] && z >= r[1] && z <= r[3]) return { pattern: p.id, anchor };
+    }
   }
   return null;
 }
@@ -129,6 +146,7 @@ export function festivalSiteTool(ctx: ToolContext): Tool {
       if (a[0] === b[0] && a[1] === b[1]) {
         const site = patternSiteAt(ctx, a[0], a[1]);
         if (site) done(site);
+        else ctx.ui.toast('No Pattern Book site there. Drag a box of open ground, or click inside a site.');
         return;
       }
       const ok = festivalSiteOk(ctx, a, b);

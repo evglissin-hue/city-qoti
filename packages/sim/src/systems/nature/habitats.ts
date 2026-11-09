@@ -8,6 +8,7 @@ import { CHUNK_SIZE, CHUNKS_PER_SIDE, HABITAT_IDS, MAP_SIZE, TICKS_PER_DAY, TILE
 import type { TickCtx, WorldState } from '../../contracts';
 import { Terrain, treeStage, Water } from '../../map/layers';
 import { footprintSize } from '../../rules/footprint';
+import { windowBoxesOn } from '../../rules/windowBoxes';
 
 const S = MAP_SIZE;
 const H = HABITAT_IDS.length;
@@ -187,7 +188,7 @@ export function scoreChunks(state: WorldState, chunks: readonly number[]): numbe
     const c = buildingChunk(b);
     if (!want[c]) continue;
     addPts(c, buildingPts.get(b.def));
-    if (b.custom?.windowBoxes === true) addPts(c, customPts.get('windowBoxes'));
+    if (windowBoxesOn(b, content.buildingById.get(b.def))) addPts(c, customPts.get('windowBoxes'));
     for (const [, mod] of b.rt?.modules ?? []) addPts(c, modulePts.get(mod));
   }
   for (const site of state.hearth.sites) {

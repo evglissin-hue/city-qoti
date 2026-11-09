@@ -86,6 +86,9 @@ class Village implements Advisor {
     const w = this.w;
     if (afternoon) this.tidySites();
     if (w.charter.ready && w.charter.charter) this.p.do('claim the Charter', [{ t: 'charter.claim' }]);
+    // P1 (callings): the first calling the County offers, as soon as it asks.
+    if (w.calling && w.calling.chosen === null)
+      this.p.do('choose what the village is known for', [{ t: 'calling.choose', id: w.calling.offered[0]! }]);
     this.feed();
     const pit = w.buildings.find((b) => b.def === 'clay-pit' && b.stage === 'built');
     if (!rankAtLeast(w, 'village')) {

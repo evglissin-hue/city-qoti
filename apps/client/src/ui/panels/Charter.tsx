@@ -4,6 +4,7 @@ import type { Session } from '../../app/session';
 import { seatList, shortDate } from '../format';
 import { Glyph } from '../icons';
 import { RANK_WORD } from '../village';
+import { CallingNote } from './Calling';
 import { Empty, Frame, Meter } from './parts';
 import { LaneTag } from './villageParts';
 
@@ -66,11 +67,45 @@ export function CharterPanel({ session }: { session: Session }) {
 
 function Board({ session, c }: { session: Session; c: CharterView }) {
   if (!c.next) {
+    const trial = session.mirror.trial.value;
+    const town = session.mirror.settings.value.townName;
     return (
       <div class="charter-board done" data-testid="charter-board">
-        <p class="proclamation">
-          The County has nothing more to ask of {session.mirror.settings.value.townName} for now. Enjoy it.
-        </p>
+        {trial ? (
+          <p class="proclamation" data-testid="charter-trial">
+            {trial.status === 'passed'
+              ? `${trial.name} is weathered and sealed. The Village chapter of ${town} is complete, and the County has nothing more to ask for now.`
+              : trial.status === 'failed'
+                ? `${trial.name} did not go the way anyone hoped, and it comes round again. The Charter holds meanwhile.`
+                : trial.status === 'running'
+                  ? `${trial.name} is under way, and the County is watching the chimneys.`
+                  : `${trial.name} is next: it comes with the season, and it seals the Charter.`}{' '}
+            <button
+              type="button"
+              class="link"
+              data-testid="open-trial"
+              onClick={() => (session.ui.panel.value = 'trial')}
+            >
+              <Glyph id="trial" /> See the trial
+            </button>
+            {trial.status === 'passed' && (
+              <>
+                {' '}
+                <button
+                  type="button"
+                  class="link"
+                  data-testid="open-chapter"
+                  onClick={() => (session.ui.chapter.value = true)}
+                >
+                  <Glyph id="chronicle" /> Read the chapter again
+                </button>
+              </>
+            )}
+          </p>
+        ) : (
+          <p class="proclamation">The County has nothing more to ask of {town} for now. Enjoy it.</p>
+        )}
+        <CallingNote session={session} calling={c.calling} />
         <History session={session} c={c} />
       </div>
     );

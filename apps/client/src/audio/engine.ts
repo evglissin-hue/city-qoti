@@ -16,7 +16,7 @@ import { Sampler } from './sampler';
 import { sampleScene } from './scene';
 import { TUNED_CUES } from './synth/cues';
 import { busGain, valleySeed, type AudioSettings } from './settings';
-import type { AmbienceId } from './synth/ambience';
+import { outdoorImpulse, type AmbienceId } from './synth/ambience';
 
 /** Where the camera looks: ground focus in tiles, yaw in radians, distance in world units. */
 export interface Look {
@@ -100,6 +100,15 @@ function roomImpulse(ctx: BaseAudioContext, seconds = 2.4): AudioBuffer {
   return ir;
 }
 
+/** The outdoor space the ambience sits in: a few early reflections and a short, dark tail. */
+function outdoorSpace(ctx: BaseAudioContext): AudioBuffer {
+  const [l, r] = outdoorImpulse(ctx.sampleRate);
+  const ir = ctx.createBuffer(2, l.length, ctx.sampleRate);
+  ir.copyToChannel(l as Float32Array<ArrayBuffer>, 0);
+  ir.copyToChannel(r as Float32Array<ArrayBuffer>, 1);
+  return ir;
+}
+
 export class AudioEngine implements AudioApi {
   readonly bank: SoundBank;
   private readonly master: GainNode;
@@ -140,7 +149,8 @@ export class AudioEngine implements AudioApi {
     const eq = buildMusicEq(ctx);
     this.buses.music.connect(eq.input);
     eq.output.connect(this.duckGain).connect(this.master);
-    this.buses.ambience.connect(buildAmbienceHighpass(ctx)).connect(this.master);
+    const ambienceOut = buildAmbienceHighpass(ctx);
+    this.buses.ambience.connect(ambienceOut).connect(this.master);
     this.buses.effects.connect(this.master);
     const send = (bus: GainNode, amount: number): void => {
       const g = ctx.createGain();
@@ -149,7 +159,16 @@ export class AudioEngine implements AudioApi {
     };
     send(this.duckGain, 0.55);
     send(this.buses.effects, 0.25);
-    send(this.buses.ambience, 0.08);
+    // P1: the ambience gets the outdoors, not the music's room (it used to send 0.08 to the room). The
+    // send taps the ambience after its highpass, so the reverb carries no rumble the mix took out.
+    const outdoor = ctx.createConvolver();
+    outdoor.buffer = outdoorSpace(ctx);
+    const outdoorWet = ctx.createGain();
+    outdoorWet.gain.value = 0.4;
+    outdoor.connect(outdoorWet).connect(this.master);
+    const outdoorSend = ctx.createGain();
+    outdoorSend.gain.value = 0.3;
+    ambienceOut.connect(outdoorSend).connect(outdoor);
     this.music = new MusicPlayer(ctx, this.bank, this.buses.music, valleySeed('', ''), new Sampler(ctx));
     this.apply(settings, true);
     // Cues are short; render them all up front so the first click already has its sound.
@@ -285,12 +304,13 @@ export class AudioEngine implements AudioApi {
     const now = this.ctx.currentTime;
     if (now - this.lastMix >= AMBIENCE_EVERY) {
       this.lastMix = now;
-      this.mix(hour, clock.season);
+      // A night belongs to the day it began on, so after midnight it is still yesterday's.
+      this.mix(hour, clock.season, hour < 12 ? clock.day - 1 : clock.day);
     }
     this.track(t0);
   }
 
-  private mix(hour: number, season: number): void {
+  private mix(hour: number, season: number, night: number): void {
     const m = this.source!.mirror;
     const look = this.source!.look();
     const f =
@@ -306,6 +326,7 @@ export class AudioEngine implements AudioApi {
       festival: m.festival.value?.live ?? false,
       zoom: f.distance,
       yaw: f.yaw,
+      night,
     });
     const now = this.ctx.currentTime;
     const heard = new Set<AmbienceId>();
@@ -316,6 +337,7 @@ export class AudioEngine implements AudioApi {
       v.quietSince = -1;
       v.gain.gain.setTargetAtTime(lv.gain, now, AMBIENCE_FADE);
       v.pan.pan.setTargetAtTime(lv.pan, now, AMBIENCE_FADE);
+      v.src.playbackRate.setTargetAtTime(lv.rate ?? 1, now, 2);
     }
     for (const [id, v] of this.ambience) {
       if (heard.has(id)) continue;

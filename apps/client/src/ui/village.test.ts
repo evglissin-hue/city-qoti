@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 // I2 (C4F): village alerts, the rank pennant, plan words and shapes, and the minimap's paint,
 // against the village mocks.
-import { MAP_SIZE, type Command } from '@qoti/sim';
+import { MAP_SIZE, type Command, type TrialView } from '@qoti/sim';
 import { h } from 'preact';
 import { afterEach, describe, expect, it } from 'vitest';
 import { computeAlerts, alertsForLens } from './alerts';
@@ -10,6 +10,7 @@ import { mockVillageSession } from './mocks/session';
 import { mockCharter, villageIds } from './mocks/village';
 import { planCovers, planSummary, shapesOf, sketchWith } from './plans';
 import { mount, type Mounted } from './test/dom';
+import { goalLine, nextGoal } from './GoalPill';
 import { TopBar } from './TopBar';
 import { priceMood, priceText } from './village';
 
@@ -61,15 +62,77 @@ describe('village alerts', () => {
 });
 
 describe('the rank pennant', () => {
-  it('shows the rank with a pip per Charter goal and opens the board', async () => {
+  it('shows the rank, a goal pill with the next goal and its count, and opens the board', async () => {
     const { session } = mockVillageSession(0, { charter: true });
     view = await mount(h(TopBar, { session, onLeave: () => {} }));
     const chip = view.get('rank');
     expect(chip.textContent).toContain('Hamlet');
-    expect(chip.querySelectorAll('.pips i')).toHaveLength(mockCharter.goals.length);
-    expect(chip.querySelectorAll('.pips i.on')).toHaveLength(mockCharter.goals.filter((g) => g.done).length);
+    const pill = view.get('goal-pill');
+    const done = mockCharter.goals.filter((g) => g.done).length;
+    expect(pill.textContent).toContain('Village Charter');
+    expect(pill.textContent).toContain(`${done} of ${mockCharter.goals.length} goals`);
     await view.click('rank');
     expect(session.ui.panel.value).toBe('charter');
+    await view.click('goal-pill');
+    expect(session.ui.panel.value).toBe(null);
+  });
+});
+
+describe('the goal pill', () => {
+  const goal = (id: string, text: string, value: number, target: number) => ({
+    id,
+    text,
+    lane: 'shared' as const,
+    value,
+    target,
+    done: value >= target,
+  });
+  const charter = (goals: ReturnType<typeof goal>[], next: 'village' | null = 'village', ready = false) => ({
+    ...mockCharter,
+    next,
+    ready,
+    goals,
+  });
+  const trial = (status: TrialView['status']): TrialView => ({
+    kind: 'winter',
+    name: 'The First Winter',
+    blurb: 'b',
+    charter: 'village',
+    season: 3,
+    year: 0,
+    status,
+    measured: [],
+  });
+
+  it('picks the goal closest to done, ties in content order', () => {
+    const c = charter([
+      goal('a', '30 residents', 22, 30),
+      goal('b', '5 wishes granted', 4, 5),
+      goal('c', 'x', 4, 5),
+    ]);
+    expect(nextGoal(c)?.id).toBe('b');
+    expect(goalLine(c, null, 0)?.text).toBe('Village Charter: 4 of 5 wishes granted');
+    expect(goalLine(c, null, 0)?.count).toBe('0 of 3 goals');
+  });
+
+  it('says when the Charter is ready, then follows the trial, then rests', () => {
+    expect(goalLine(charter([goal('a', '1 thing', 1, 1)], 'village', true), null, 0)?.text).toBe(
+      'The Charter is ready to sign',
+    );
+    const claimed = charter([], null);
+    expect(goalLine(claimed, trial('upcoming'), 0)).toMatchObject({
+      text: 'The First Winter: comes with the snow',
+      opens: 'trial',
+    });
+    expect(goalLine(claimed, trial('running'), 0)?.text).toContain('keep every home warm and fed');
+    // P1 (playtest item 13): once the winter is weathered the pill names the chapter and opens it.
+    expect(goalLine(claimed, trial('passed'), 0)).toMatchObject({
+      text: 'Village chapter complete',
+      opens: 'chapter',
+      tone: 'rest',
+    });
+    expect(goalLine(claimed, trial('failed'), 0)?.opens).toBe('trial');
+    expect(goalLine(claimed, null, 0)?.text).toBe('The County has nothing more to ask, for now');
   });
 });
 

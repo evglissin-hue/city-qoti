@@ -172,6 +172,14 @@
 
 :root.reduced-motion .guide-outline,
 :root.reduced-motion .guide-ring,
+/* P1 player's chair: only one thing talks at a time, as the left feed does. While a book or a
+   picker is open the card steps aside (it covered the festival poster's music and the decor
+   picker's first piece); its arrows still point the way, and it is back when they close. */
+.game-ui:has(.book-slot) .guide-card,
+.game-ui:has(.picker.panel) .guide-card {
+  display: none;
+}
+
 :root.reduced-motion .guide-card {
   animation: none;
 }

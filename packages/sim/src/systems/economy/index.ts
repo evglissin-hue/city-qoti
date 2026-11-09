@@ -4,14 +4,21 @@
 // times: no new construction, unpaid upkeep wears buildings down, residents feel it. Never a game
 // over: taxes keep coming, and the next day in the black ends it.
 import { content } from '@qoti/content';
-import { DAYS_PER_SEASON, LEDGER_CATEGORIES, MAP_SIZE, TICKS_PER_HOUR } from '../../constants';
-import type { LedgerPeriod, System, TickCtx, WorldState } from '../../contracts';
+import {
+  DAYS_PER_SEASON,
+  IMPACT_PER_UNIT,
+  LEDGER_CATEGORIES,
+  MAP_SIZE,
+  TICKS_PER_HOUR,
+} from '../../constants';
+import type { Building, LedgerPeriod, System, TickCtx, WorldState } from '../../contracts';
 import { emptyPeriod, goodsArray, isStandard } from '../../state/hamlet';
 import { townStock } from '../../view/hamlet';
-import { defOf, isStorehouse } from '../logistics/stores';
+import { defOf, isStorehouse, stowNearest } from '../logistics/stores';
 import { addMoodModifier, moodTaxPercent, removeMoodModifier } from '../residents/api';
 import { overdraftLimit, isLean } from '../loans/credit';
 import { marketOpen } from '../market/api';
+import { nudge, partner, postBuyPrice } from '../trade/caravans';
 import { tradingPost } from '../trade/post';
 import { book } from './api';
 import { pay } from './money';
@@ -23,6 +30,10 @@ export const PEDDLER_HOUR = 10;
 export const PEDDLER_UNITS = 40;
 /** Percent of the base price the peddler pays. */
 export const PEDDLER_PERCENT = 60;
+/** Units the peddler brings a day for the standing orders, all goods together (playtest round six). */
+export const PEDDLER_IMPORT_UNITS = 20;
+/** Percent of the neighbor's regional price the peddler charges (the Trading Post's caravans pay 120). */
+export const PEDDLER_IMPORT_PERCENT = 140;
 export const LEAN_MOOD = -5;
 export const LEAN_MODIFIER = 'lean-times';
 /** Days of stock history kept for the sparklines. */
@@ -173,11 +184,30 @@ export function peddlerPrice(good: number): number {
  * what is plentiful. Goods promised to porters stay.
  */
 function peddler(state: WorldState, ctx: TickCtx): void {
-  const e = state.economy;
   // I2 (C4A): a valley with a Trading Post trades through its caravans; the peddler retires.
   if (tradingPost(state)) return;
   const houses = state.buildings.filter((b) => b.stage === 'built' && b.rt && isStorehouse(defOf(b)));
-  if (houses.length === 0 || !e.forSale.some(Boolean)) return;
+  if (houses.length === 0) return;
+  const lines: string[] = [];
+  const bought = peddlerSells(state, houses);
+  if (bought) lines.push(bought);
+  const brought = peddlerImports(state);
+  if (brought) lines.push(brought);
+  if (lines.length === 0) return;
+  const [gx, gz] = state.meta.valleyGate;
+  ctx.events.push({
+    e: 'notify',
+    kind: 'peddler',
+    text: lines.join(' '),
+    at: [Math.min(MAP_SIZE - 1, gx), Math.min(MAP_SIZE - 1, gz)],
+  });
+  emitMoney(state, ctx);
+}
+
+/** The buying half: goods marked for sale leave the storehouses. Returns the notice, or ''. */
+function peddlerSells(state: WorldState, houses: readonly Building[]): string {
+  const e = state.economy;
+  if (!e.forSale.some(Boolean)) return '';
   const sold = goodsArray();
   let units = 0;
   while (units < PEDDLER_UNITS) {
@@ -202,7 +232,7 @@ function peddler(state: WorldState, ctx: TickCtx): void {
     sold[good]! += 1;
     units++;
   }
-  if (units === 0) return;
+  if (units === 0) return '';
   let pennies = 0;
   const parts: string[] = [];
   for (let g = 0; g < sold.length; g++) {
@@ -211,14 +241,50 @@ function peddler(state: WorldState, ctx: TickCtx): void {
     parts.push(`${sold[g]} ${content.goods[g]!.name.toLowerCase()}`);
   }
   book(state, 'peddler', pennies);
+  return `The peddler's cart rattled off with ${listText(parts)}, leaving ${coinsText(pennies)} behind.`;
+}
+
+/**
+ * The selling half, for a hamlet with standing orders and no Trading Post: for each order in
+ * order, one unit at a time while the town holds less than its min, up to PEDDLER_IMPORT_UNITS in
+ * all. Only goods a neighbor sells (the order's neighbor if it names one that does, else the
+ * cheapest), at PEDDLER_IMPORT_PERCENT of its regional price, within the order's ceiling and the
+ * credit line. Delivered at once to the nearest storehouse and booked as imports. Returns the
+ * notice, or ''.
+ */
+function peddlerImports(state: WorldState): string {
+  const e = state.economy;
+  if (state.trade.orders.length === 0) return '';
+  const stock = townStock(state);
   const [gx, gz] = state.meta.valleyGate;
-  ctx.events.push({
-    e: 'notify',
-    kind: 'peddler',
-    text: `The peddler's cart rattled off with ${listText(parts)}, leaving ${coinsText(pennies)} behind.`,
-    at: [Math.min(MAP_SIZE - 1, gx), Math.min(MAP_SIZE - 1, gz)],
-  });
-  emitMoney(state, ctx);
+  const gate = Math.min(MAP_SIZE - 1, gz) * MAP_SIZE + Math.min(MAP_SIZE - 1, gx);
+  const floor = -overdraftLimit(state);
+  const got = goodsArray();
+  let units = 0;
+  let pennies = 0;
+  for (const o of state.trade.orders) {
+    if (units >= PEDDLER_IMPORT_UNITS) break;
+    if (e.forSale[o.good]) continue;
+    const n = partner(state, o, false, PEDDLER_IMPORT_PERCENT);
+    if (!n) continue;
+    while (units < PEDDLER_IMPORT_UNITS && (stock[o.good] ?? 0) + got[o.good]! < o.min) {
+      const p = postBuyPrice(state, n.id, o.good, PEDDLER_IMPORT_PERCENT)!;
+      if (o.ceiling > 0 && p > o.ceiling) break;
+      if (e.treasury - pennies - p < floor) break;
+      if (stowNearest(state, gate, o.good, 1, 0) < 1) break;
+      pennies += p;
+      got[o.good]! += 1;
+      units++;
+      nudge(n, o.good, IMPACT_PER_UNIT);
+    }
+  }
+  if (units === 0) return '';
+  const parts: string[] = [];
+  for (let g = 0; g < got.length; g++) {
+    if (got[g]) parts.push(`${got[g]} ${content.goods[g]!.name.toLowerCase()}`);
+  }
+  book(state, 'imports', pennies);
+  return `The peddler left ${listText(parts)} and took ${coinsText(pennies)} for it.`;
 }
 
 function listText(parts: readonly string[]): string {

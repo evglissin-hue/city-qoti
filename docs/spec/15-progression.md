@@ -17,6 +17,8 @@ The Charter board at the Town Hall lists the goals for the next rank, each tagge
 
 **The rank-up moment (I2, C4D)**: when the last goal is met, the County Clerk writes to both seats that the claim is open. Claiming at the Town Hall (`charter.claim`) puts the proclamation in the Chronicle, credited to the seats present, gives every resident a mood lift for two days and a hop for an hour, and sends `rank.up` with the proclamation for the UI's celebration (C4F). No trial in I2.
 
+**The end of the Village chapter** [P1, the owner's playtest: "the end of the game needs work"]: there is no Town Charter yet, so the Village chapter ends when the First Winter is weathered. Each seat then sees, once, "The Village chapter" card: the story so far (founding, residents and households, homes, festivals held and the best stars, species, patterns, plaques, wishes, renown, a Chronicle headline), what is still open (renown to the next level, plaques, the Field Guide, commissions) with one honest line that the Town Charter comes in a later update, and an invitation to found a new valley, whose land will be new. It can be read again from the Charter board and the goal pill ("Village chapter complete"). The First Winter has a plaque of its own, as the County letter promised (`the-first-winter`), and the Build picker no longer teases buildings for a rank no Charter leads to yet.
+
 *As built (C5A), trials*: the claim grants the rank as in I2; the trials system (00:08) then opens the Charter's trial for the next time its season comes round (a letter), runs it through that season measuring each day, and judges it the morning after. The Village's first winter is weathered when no household went a whole day without firewood and the larder (food, wheat and flour) never ran dry; weathered seals the Charter (a County letter, a Chronicle page, 3 renown), failed returns next winter and takes nothing. Kinds are rows in `TRIAL_KINDS` (winter now; raid and flood later). The Barometer needs a Watch House and a bell tower, the Seed Drill three farms and a smithy (both from Village rank).
 
 **Trials**: completing a Charter's goals announces the trial for day 5 of the next season, so there is an evening to prepare and one tense dusk to see it through. The rank is granted when the trial is weathered: the town keeps at least half of its food stock, or the raid is repelled, or everyone stays warm. A failed trial returns the next season; nothing else is lost beyond the trial's own damage.
@@ -83,6 +85,23 @@ Feats and stories, never "build 100 roads" (P42). Data-driven conditions, checke
 | Pattern Master | I5 | 40 patterns discovered |
 
 Target: about 60 achievements by I5.
+
+## Callings: what the village is known for [P1 slice, I4]
+
+The owner's playtest (2026-11-08): development paths that follow the map and the place, an industrious village or a pretty one for visitors or pilgrims, with the chosen path shaping how the village looks as it grows.
+
+- **When**: once the Village Charter is claimed, the County writes to ask what the village means to be known for. Until it is chosen the goal pill says so. In a valley for two the choice is made with both seats present; a solo valley chooses alone.
+- **What is offered**: the valley offers the two callings its land suits best, scored once from the map at the moment of asking and shown with the reasons, so two valleys rarely offer the same pair.
+  - **Mill Town** (industry): stone and clay in open land, a long reach of river.
+  - **Garden Village** (visitors): meadow, rich soil, ponds and water's edge.
+  - **Pilgrims' Rest** (pilgrimage): high ground and a summit, the quiet far from the valley gate, old woods.
+- **What it does** (first slice, kept modest):
+  - **Mill Town**: workshops, mills and the quarry work 10% faster (a yield modifier line), and grown districts lean to Market Brick and Hill Stone.
+  - **Garden Village**: day visitors spend in the town each afternoon in proportion to its charm and renown (booked as visitors), homes dress themselves up sooner, and districts lean to Garden Plaster.
+  - **Pilgrims' Rest**: festivals draw more guests and one more renown, lanterns count for more charm, and districts lean to Hill Stone and Riverside Timber.
+  - Each calling unlocks one signature decor piece.
+- **Later (I4)**: a second choice at the Town Charter that deepens or changes the calling, district policies by calling, tourism and pilgrim buildings (the inn, the chapel, the guest house), and callings that give each valley's Old Town its character (`18-eras.md`).
+- *As built (P1)*: content `callings.ts` (ids `mill-town`, `garden-village`, `pilgrims-rest`). At the Village claim the map is scored once with integer math (deposits and clay; meadow, rich soil and water's edge; high ground, forest and the summit's distance from the gate; the valley's height range and river length turned out the same on every seed, so they do not score) and the best two, ties by id, are stored with a reason each in words (`WorldState.calling`, save version 5; a Village from before P1 is offered its two when it loads). Forty seeds gave three different pairs. `calling.choose` (both seats present in a valley two have played) sets it once, writes a County letter and a Chronicle page and unlocks the signature piece (millstone bench, rose arch, wayside shrine). Mill Town is the `calling` line of the yield registry (+10%); Garden Village's visitors spend at 15:00, about 6 coins a day for a young village, booked as visitors; Pilgrims' Rest raises festival turnout by a fifth, gives a festival of 2 stars or more one more renown, and lit lanterns +1 light; the style weights shift the lots that pick their style from the land (one in five, and lots with no neighbors), so districts turn slowly. The goal pill and the Charter board lead to the Calling card until it is chosen.
 
 ## Expansion [I4]
 

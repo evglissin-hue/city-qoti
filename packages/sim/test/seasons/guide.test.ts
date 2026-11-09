@@ -10,6 +10,7 @@ import { Road } from '../../src/map/layers';
 import { createValley, defaultSettings } from '../../src/state/create';
 import { hashState } from '../../src/state/hash';
 import { deserialize, serialize } from '../../src/state/serialize';
+import { SAVE_VERSION } from '../../src/state/version';
 import { startGuide } from '../../src/state/seasons';
 import { advanceGuide, guide, stepDone } from '../../src/systems/guide';
 import { runningBalance } from '../../src/systems/guide/goals';
@@ -296,7 +297,7 @@ describe('a migrated I2 valley', () => {
     delete raw.guide;
     raw.saveVersion = 3;
     const s = deserialize(gzipSync(strToU8(JSON.stringify(raw))));
-    expect(s.saveVersion).toBe(4);
+    expect(s.saveVersion).toBe(SAVE_VERSION);
     expect(s.guide.over).toBe(true);
     everythingDone(s);
     for (let h = 0; h < 30; h++) {

@@ -4,7 +4,9 @@ import type { BuildingDetail, BuildingView } from '@qoti/sim';
 import { useState } from 'preact/hooks';
 import type { Session } from '../../app/session';
 import { removeWithCare } from '../../input/removal';
+import { decorBoostLine } from '../decorText';
 import { buildingName, capital, coins, seatLabel } from '../format';
+import { rejectText } from '../messages';
 import { CATEGORY_WORD, CONSTRUCTION_STAGES, statusWords, TIER_WORD } from '../hamlet';
 import { zoneInk } from '../village';
 import { Price } from './villageParts';
@@ -32,6 +34,8 @@ export function BuildingInspector({ session, id }: { session: Session; id: numbe
   const status = detail?.status.length ? detail.status : statusWords(rt?.status ?? 0);
   const household = detail?.household ?? findHousehold(session, b);
   const kicker = site ? 'Construction site' : (CATEGORY_WORD[def?.category ?? ''] ?? 'Building');
+  // P1 (playtest): a standard valley keeps its town hall, so it offers no Remove.
+  const keepsHall = b.def === 'town-hall' && m.settings.value.mode === 'standard';
 
   return (
     <Frame
@@ -221,19 +225,33 @@ export function BuildingInspector({ session, id }: { session: Session; id: numbe
         >
           <Glyph id="customize" /> Customize
         </button>
-        <button
-          type="button"
-          class="danger"
-          data-testid="remove"
-          onClick={() => {
-            const thing = (def?.name ?? b.def).toLowerCase();
-            const piece = { builtBy: b.builtBy, handmade: b.handmade, thing, x: b.x, z: b.z, building: true };
-            void removeWithCare(session, piece, { t: 'build.remove', ids: [b.id] });
-          }}
-        >
-          Remove
-        </button>
+        {!keepsHall && (
+          <button
+            type="button"
+            class="danger"
+            data-testid="remove"
+            onClick={() => {
+              const thing = (def?.name ?? b.def).toLowerCase();
+              const piece = {
+                builtBy: b.builtBy,
+                handmade: b.handmade,
+                thing,
+                x: b.x,
+                z: b.z,
+                building: true,
+              };
+              void removeWithCare(session, piece, { t: 'build.remove', ids: [b.id] });
+            }}
+          >
+            Remove
+          </button>
+        )}
       </div>
+      {keepsHall && (
+        <p class="muted small" data-testid="hall-stays">
+          {rejectText('HALL_STAYS')}
+        </p>
+      )}
     </Frame>
   );
 }
@@ -328,6 +346,11 @@ function VillageDetail({ session, detail }: { session: Session; detail: Building
       {detail.tier && (
         <p class="small" data-testid="building-tier">
           A {TIER_WORD[detail.tier]?.toLowerCase() ?? detail.tier} home.
+        </p>
+      )}
+      {detail.decorBoost && (
+        <p class="small decor-boost" data-testid="building-decor-boost">
+          {decorBoostLine(detail.decorBoost.permille, detail.decorBoost.pieces)}
         </p>
       )}
       {detail.upgrade && (

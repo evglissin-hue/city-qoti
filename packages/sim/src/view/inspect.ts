@@ -25,7 +25,9 @@ import { patternProgress } from '../systems/hearth/patterns/progress';
 import { wishProgress } from '../systems/hearth/wishes/progress';
 import { porterServed, storehouseReach } from '../systems/logistics/range';
 import { doorTile } from '../systems/movement/api';
+import { HARVEST_MIN } from '../systems/production/fields';
 import { WORN_CONDITION } from '../systems/production/produce';
+import { decorBoostOf } from '../systems/production/decorBoost';
 import { dailyRates } from '../systems/production/rates';
 import { buildingView, noteView } from './index';
 import { chronicleView, fillText, goodPairs, nameOf, townStock } from './hamlet';
@@ -116,7 +118,13 @@ function statusLines(state: WorldState, b: Building, def: BuildingDef | undefine
   if (has(BuildingStatus.noWorkers)) out.push('Nobody works here yet');
   if (has(BuildingStatus.missingInput) && method) {
     const short = method.inputs.filter(([g, q]) => (rt.input[content.goodIndex.get(g) ?? -1] ?? 0) < q);
-    out.push(`Waiting for ${short.map(([g]) => goodName(g)).join(' and ') || 'inputs'}`);
+    const names = short.map(([g]) => goodName(g)).join(' and ') || 'inputs';
+    const wheat = short.some(([g]) => g === 'wheat') && !anyGoldenWheat(state);
+    out.push(
+      wheat
+        ? `Waiting for ${names}: the first of it ripens in summer, so the sails rest until then`
+        : `Waiting for ${names}`,
+    );
   }
   if (has(BuildingStatus.outputFull)) out.push('Output is piling up, waiting for a porter');
   if (has(BuildingStatus.noTrees)) out.push(`No mature trees within ${method?.range ?? 8} tiles`);
@@ -125,8 +133,8 @@ function statusLines(state: WorldState, b: Building, def: BuildingDef | undefine
   if (has(BuildingStatus.fallow)) {
     out.push(
       seasonAt(state.tick).season === 3
-        ? 'The fields lie ready: wheat is sown on Spring days 1 to 3'
-        : 'Wheat is sown on Spring days 1 to 3; until then the fields grow vegetables',
+        ? 'The fields lie ready: wheat is sown from spring to early summer'
+        : 'Wheat is sown from spring to early summer and cut as soon as it ripens; until then the fields grow vegetables',
     );
   }
   if (has(BuildingStatus.noRoad)) out.push('No road at the door');
@@ -312,6 +320,8 @@ export function buildingDetail(state: WorldState, id: EntityId): BuildingDetail 
   if (def && rt && b.stage === 'built') {
     const rates = dailyRates(state, b, def);
     if (rates && (rates.inputs.length > 0 || rates.outputs.length > 0)) detail.rates = rates;
+    const boost = method ? decorBoostOf(state, b, def) : null;
+    if (boost && boost.permille > 0) detail.decorBoost = { permille: boost.permille, pieces: boost.defs };
     const made = goodPairs(rt.producedToday);
     if (method) detail.producedToday = made;
   }
@@ -423,4 +433,11 @@ export function awayLetter(state: WorldState, seat: SeatId): AwayLetter | null {
     opening: lines.join('\n'),
     more: notable.length - entries.length,
   };
+}
+
+/** True when any painted field tile stands golden, ready for the sickle. */
+function anyGoldenWheat(state: WorldState): boolean {
+  const m = state.map;
+  for (let i = 0; i < m.crop.length; i++) if (m.fieldOwner[i] && m.crop[i]! >= HARVEST_MIN) return true;
+  return false;
 }

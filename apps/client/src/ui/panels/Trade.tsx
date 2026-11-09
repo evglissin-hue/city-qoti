@@ -1,7 +1,8 @@
 import { content } from '@qoti/content';
-import type { StandingOrderInput, TradeView } from '@qoti/sim';
-import { useState } from 'preact/hooks';
+import { TICKS_PER_DAY, type StandingOrderInput, type TradeView } from '@qoti/sim';
+import { useEffect, useState } from 'preact/hooks';
 import type { Session } from '../../app/session';
+import { syncDeals } from '../deals';
 import { goodName, shortDate } from '../format';
 import { GoodIcon } from '../goodIcons';
 import { Glyph } from '../icons';
@@ -9,11 +10,13 @@ import type { TradeTab } from '../state';
 import { goodOrder, priceText } from '../village';
 import { Empty, Frame, Meter } from './parts';
 import { Price, Stepper } from './villageParts';
+import { Deals } from './Deals';
 import { CommissionsTab, DockTab } from './Dock';
 
 type Order = TradeView['orders'][number];
 
 const TABS: [TradeTab, string][] = [
+  ['deals', 'Deals'],
   ['neighbors', 'Neighbors'],
   ['orders', 'Standing orders'],
   ['caravans', 'Caravans'],
@@ -27,6 +30,11 @@ export function TradePanel({ session }: { session: Session }) {
   const tab = session.ui.tradeTab.value;
   const trade = session.mirror.trade.value;
   const close = () => (session.ui.panel.value = null);
+  // Deals keep their own numbers: check them when the book opens and on each new day.
+  const day = Math.floor(session.mirror.tick.value / TICKS_PER_DAY);
+  useEffect(() => {
+    syncDeals(session);
+  }, [session, day, !!trade]);
   return (
     <Frame id="trade" class="book-panel trade" icon="trade" kicker="The Ledger" title="Trade" onClose={close}>
       {trade && !trade.postId && (
@@ -55,6 +63,8 @@ export function TradePanel({ session }: { session: Session }) {
       <div class="tab-body">
         {!trade ? (
           <Empty>No trade in a creative valley.</Empty>
+        ) : tab === 'deals' ? (
+          <Deals session={session} trade={trade} />
         ) : tab === 'neighbors' ? (
           <Neighbors session={session} trade={trade} />
         ) : tab === 'orders' ? (

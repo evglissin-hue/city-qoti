@@ -7,10 +7,13 @@ import * as B from './buildings';
 import * as Ca from './carts';
 import * as Ch from './charters';
 import * as C from './chronicle';
+import * as Cl from './callings';
 import * as D from './decor';
+import * as Dr from './dressing';
 import * as Co from './commissions';
 import * as Fe from './festivals';
 import * as FC from './festivalsChronicle';
+import * as FD from './fineDecor';
 import * as G from './goods';
 import * as Gu from './guide';
 import * as He from './herbalist';
@@ -45,6 +48,7 @@ import * as Z from './zones';
 import type {
   AchievementDef,
   BuildingDef,
+  CallingDef,
   CartDef,
   CharterDef,
   CommissionDef,
@@ -77,6 +81,8 @@ import type {
 } from './types';
 
 export { chroniclePhrases } from './chronicle';
+export { callingPhrases, callingTuning } from './callings';
+export { dealUse, dealUseDefault } from './dealUse';
 export { festivalTuning } from './festivals';
 export { lifePhrases } from './lives';
 export { familyNames, valleyNamePrefixes, valleyNameSuffixes } from './names';
@@ -163,6 +169,7 @@ export const decor: readonly DecorDef[] = [
   Fe.flowerArch,
   D.flowerBed,
   VD.flowerCart,
+  FD.flowerTrellis,
   VD.fountain,
   Th.gateBanner,
   D.hangingLantern,
@@ -173,16 +180,23 @@ export const decor: readonly DecorDef[] = [
   Th.lookoutBench,
   D.lowWall,
   VD.maypole,
+  Cl.millstoneBench,
   D.mooringPost,
   VD.noticeBoard,
+  FD.paintedShopSign,
   ND.pearTree,
   D.planter,
   D.planterWall,
+  FD.rainBarrel,
   ND.reedBed,
   D.ringBench,
+  Cl.roseArch,
   ND.seeSaw,
   D.signpost,
   ND.swing,
+  FD.toolRack,
+  Cl.waysideShrine,
+  FD.weathervane,
   D.wildflowerVerge,
 ];
 
@@ -268,6 +282,7 @@ export const traits: readonly TraitDef[] = [
 export const wishes: readonly WishTemplate[] = [
   W.aGardenPlot,
   W.aProperPath,
+  W.aSecondWell,
   W.aWellCloser,
   W.bakeryNearby,
   W.flowersOnTheLane,
@@ -315,6 +330,7 @@ export const achievements: readonly AchievementDef[] = [
   SA.fiveStars,
   A.hearthAndHome,
   A.plankByPlank,
+  SA.theFirstWinter,
   SA.theGateHeld,
   A.theLongWalkHome,
   SA.theRiverRunsClean,
@@ -329,6 +345,7 @@ export const chronicle: readonly ChronicleTemplate[] = [
   Th.banditHome,
   Th.banditSent,
   L.birth,
+  Cl.calling,
   SC.circus,
   SC.coldSnap,
   FC.commissionDone,
@@ -370,6 +387,12 @@ export const swatches: readonly SwatchDef[] = [
   Sw.accentRed,
   Sw.accentTeal,
   Sw.accentWhite,
+  Sw.flowersButtercup,
+  Sw.flowersCornflower,
+  Sw.flowersCream,
+  Sw.flowersGeranium,
+  Sw.flowersMixed,
+  Sw.flowersRose,
   Sw.materialShingle,
   Sw.materialSlate,
   Sw.materialThatch,
@@ -581,6 +604,13 @@ export const renown: readonly RenownDef[] = [
   Se.renown5,
 ];
 
+// prettier-ignore
+export const callings: readonly CallingDef[] = [
+  Cl.gardenVillage,
+  Cl.millTown,
+  Cl.pilgrimsRest,
+];
+
 function byId<T extends { id: string }>(list: readonly T[]): ReadonlyMap<string, T> {
   return new Map(list.map((item) => [item.id, item]));
 }
@@ -590,6 +620,8 @@ export const content: Content = {
   decor,
   roads,
   trees,
+  callings,
+  callingById: byId(callings),
   buildingById: byId(buildings),
   decorById: byId(decor),
   roadById: byId(roads),
@@ -649,4 +681,5 @@ export const content: Content = {
   commissionById: byId(commissions),
   renown,
   guide: Gu.firstDays,
+  dressing: Dr.dressingSteps,
 };

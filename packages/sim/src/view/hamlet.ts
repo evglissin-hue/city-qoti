@@ -367,6 +367,10 @@ export function townView(state: WorldState): TownView {
       state.threats.scheduled && state.tick >= state.threats.scheduled.telegraphTick
         ? state.threats.scheduled.band
         : null,
+    festivals: {
+      held: state.chronicle.filter((c) => c.kind === 'festival').length,
+      bestStars: state.seasons.bestStars,
+    },
     ...(!state.guide.over && { guide: guideView(state) }),
   };
 }

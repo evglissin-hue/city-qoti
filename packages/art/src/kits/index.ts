@@ -2,9 +2,11 @@
 // in `art.kit`; the client test checks that every one of them exists here.
 import * as An from './animals';
 import * as B from './buildings';
+import * as Cg from './callings';
 import * as D from './decor';
 import * as Df from './defenses';
 import * as Fe from './festival';
+import * as Fd from './fineDecor';
 import * as Gd from './garden';
 import * as Gn from './greens';
 import * as G from './goods';
@@ -36,6 +38,7 @@ export const kits: readonly Kit[] = [
   W.buildersYardKit,
   Fe.bunting,
   N.bush,
+  Fd.cafeTable,
   Tr.carpenterKit,
   Ve.cart,
   Sv.cartShedKit,
@@ -61,7 +64,10 @@ export const kits: readonly Kit[] = [
   W.fishersHutKit,
   Fe.flowerArch,
   D.flowerBed,
+  Fd.flowerCart,
+  Fd.flowerTrellis,
   W.forestersLodgeKit,
+  Fd.fountain,
   Df.gateKitDef,
   Df.gateBanner,
   N.grassTuft,
@@ -74,14 +80,19 @@ export const kits: readonly Kit[] = [
   Sv.herbalistKit,
   Tr.herbalistsCottageKit,
   B.house2,
+  Fd.lampPost,
   D.lantern,
   N.lilyPads,
   Df.lookoutBench,
   D.lowWall,
   W.marketStallKit,
+  Fd.maypole,
+  N.meadowTuft,
+  Cg.millstoneBench,
   Gd.mooringPost,
   N.mushrooms,
   Df.netTrapKit,
+  Fd.noticeBoard,
   T.oak,
   V.orchardKit,
   Df.palisadeKit,
@@ -93,12 +104,14 @@ export const kits: readonly Kit[] = [
   Gd.planterWall,
   An.ponyKit,
   W.quarryKit,
+  Fd.rainBarrel,
   Gn.reedBed,
   N.reeds,
   R.resident,
   Gd.ringBench,
   Tr.riverDockKit,
   N.rock,
+  Cg.roseArch,
   W.sawpitKit,
   Sv.schoolKit,
   Gn.seeSaw,
@@ -106,6 +119,7 @@ export const kits: readonly Kit[] = [
   An.sheepKit,
   V.sheepPastureKit,
   Gr.shop,
+  Fd.paintedShopSign,
   D.signpost,
   V.smithyKit,
   V.spinnerKit,
@@ -115,12 +129,15 @@ export const kits: readonly Kit[] = [
   Gn.swing,
   Tr.tailorKit,
   Sv.tavernKit,
+  Fd.toolRack,
   B.townHall,
   Gr.townhouse,
   Sv.tradingPostKit,
   W.vegetablePlotKit,
   Df.watchHouseKit,
   Df.watchtowerKit,
+  Cg.waysideShrine,
+  Fd.weathervane,
   V.weaverKit,
   B.well,
   Gd.wildflowerVerge,

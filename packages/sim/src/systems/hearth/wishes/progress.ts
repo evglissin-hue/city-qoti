@@ -3,12 +3,22 @@
 // book. It reads the same conditions the wish is granted by.
 import { content, type Condition, type Target } from '@qoti/content';
 import { MAP_SIZE } from '../../../constants';
-import type { WishProgressView, WorldState } from '../../../contracts';
+import type { Rect, WishProgressView, WorldState } from '../../../contracts';
 import { charmAt, countNear, placeRect, placeBuildingId, type Binding } from '../../../conditions';
-import { decorInRect, decorTileX, decorTileZ, expandRect } from '../../../conditions/geo';
+import {
+  buildingRect,
+  decorInRect,
+  decorTileX,
+  decorTileZ,
+  expandRect,
+  rectGap2,
+} from '../../../conditions/geo';
+import { rankAtLeast } from '../../../state/village';
 import { findRoute } from '../../../conditions/route';
 import { doorTileOf } from '../../movement/api';
-import { wishBinding } from './index';
+import { achievable } from './achievable';
+import { liveBinding } from './index';
+import { waterServedCode, wellInReach } from '../../residents/needs';
 
 const S = MAP_SIZE;
 
@@ -22,7 +32,7 @@ function word(t: Target, n: number): string {
     );
   if ('decor' in t) return (content.decorById.get(t.decor)?.name ?? t.decor).toLowerCase();
   if ('building' in t) return (content.buildingById.get(t.building)?.name ?? t.building).toLowerCase();
-  if ('buildingTag' in t) return t.buildingTag;
+  if ('buildingTag' in t) return t.buildingTag === 'herb' ? 'herb garden' : t.buildingTag;
   if ('buildingCategory' in t) return t.buildingCategory;
   if ('tree' in t) return plural ? 'trees' : 'tree';
   if ('water' in t) return 'water';
@@ -55,6 +65,15 @@ function nearText(
   return need === 1
     ? `a ${word(n, 1)} within ${n.within} steps of ${where}${also}`
     : `${have} of ${need} ${word(n, need)} within ${n.within} steps of ${where}${also}`;
+}
+
+/** P1 (playtest): what a water wish still wants, by why the household goes without. */
+function waterText(state: WorldState, bind: Binding): string | null {
+  if (waterServedCode(state, bind)) return null;
+  if (wellInReach(state, bind))
+    return 'room at a well: the one whose radius reaches the home serves all it can';
+  const radius = content.buildingById.get('well')?.coverage?.find((c) => c.kind === 'water')?.radius ?? 8;
+  return `a well within ${radius} steps of the door at home`;
 }
 
 function routeText(
@@ -98,11 +117,46 @@ function routeText(
   return share < want ? `lanterns along ${want}% of the walk home from work (${share}% lit now)` : null;
 }
 
+/**
+ * The noisiest building near a place, and the remedies the town has: a hedge, a wall or trees beside
+ * the home (P1), moving it, or quiet hours.
+ */
+function noiseAdvice(state: WorldState, place: Rect): string {
+  let loud = '';
+  let loudV = 0;
+  for (const b of state.buildings) {
+    const def = content.buildingById.get(b.def);
+    if (!def) continue;
+    let v = 0;
+    if (b.stage === 'construction') v = 3 * 100;
+    else
+      for (const c of def.charm ?? []) {
+        if (c.category !== 'noise') continue;
+        const reach = c.radius + 1;
+        const d2 = rectGap2(buildingRect(b, def), place);
+        if (d2 >= reach * reach) continue;
+        v += Math.abs(c.value) * 100 - Math.trunc((Math.abs(c.value) * 100 * d2) / (reach * reach));
+      }
+    if (v > loudV) {
+      loudV = v;
+      loud = def.name.toLowerCase();
+    }
+  }
+  const quiet = rankAtLeast(state, 'village') ? ', or set Quiet Hours in the Policies book' : '';
+  const soften = 'a hedge, a low wall or a few trees beside the home soften it';
+  return loud
+    ? ` (loudest near the home: the ${loud}; ${soften}, or move it${quiet})`
+    : ` (${soften}, or move the noisy neighbor${quiet})`;
+}
+
 function explain(state: WorldState, cond: Condition, bind: Binding): string | null {
   if ('near' in cond) return nearText(state, cond, bind);
   if ('any' in cond) {
     const parts = cond.any.map((c) => explain(state, c, bind));
-    return parts.some((p) => p === null) ? null : parts.filter(Boolean).join(', or ');
+    if (parts.some((p) => p === null)) return null;
+    // Only name the ways the town can actually do now (a locked herb planter is not one of them).
+    const open = cond.any.flatMap((c, i) => (achievable(state, c) ? [parts[i]!] : []));
+    return (open.length ? open : parts.filter(Boolean)).join(', or ');
   }
   if ('all' in cond) {
     const parts = cond.all.map((c) => explain(state, c, bind)).filter((p): p is string => !!p);
@@ -110,13 +164,14 @@ function explain(state: WorldState, cond: Condition, bind: Binding): string | nu
   }
   if ('code' in cond && (cond.code === 'pathRoute' || cond.code === 'lanternRoute'))
     return routeText(state, cond.code, bind, cond.params ?? []);
+  if ('code' in cond && cond.code === 'waterServed') return waterText(state, bind);
   if ('charm' in cond && cond.charm.atMost !== undefined) {
     const place = placeRect(state, cond.charm.of, bind);
     if (!place) return null;
     const v = charmAt(state, place, cond.charm.layer, cond.charm.radius ?? 0);
-    return v > cond.charm.atMost
-      ? `less ${cond.charm.layer} at the home (${v} now, ${cond.charm.atMost} or less)`
-      : null;
+    if (v <= cond.charm.atMost) return null;
+    const base = `less ${cond.charm.layer} at the home (${v} now, ${cond.charm.atMost} or less)`;
+    return cond.charm.layer === 'noise' ? `${base}${noiseAdvice(state, place)}` : base;
   }
   return null;
 }
@@ -127,7 +182,7 @@ export function wishProgress(state: WorldState): WishProgressView[] {
   for (const w of state.wishes) {
     const t = content.wishById.get(w.template);
     if (!t) continue;
-    const wants = explain(state, t.target, wishBinding(w));
+    const wants = explain(state, t.target, liveBinding(state, w, t));
     if (wants) out.push({ id: w.id, wants });
   }
   return out;

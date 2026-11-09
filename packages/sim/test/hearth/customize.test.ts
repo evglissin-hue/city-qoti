@@ -65,19 +65,29 @@ describe('build.customize', () => {
     let seq = 1;
     for (const s of content.swatches) {
       // The custom field for each swatch group has the group's name.
-      const custom = { [s.group]: s.id } as BuildingCustom;
+      const field = s.group === 'flowers' ? 'windowFlowers' : s.group;
+      const custom = { [field]: s.id } as BuildingCustom;
       const ctx = run(f.state, { t: 'build.customize', id: f.b.cottages[0], custom }, 0, seq++);
       expect(rejection(ctx), s.id).toBeUndefined();
     }
   });
 
   it('window boxes add a little nature on the next tick', () => {
+    // P1: no kit draws boxes until someone adds them, so choosing them is what changes the charm.
     const { f, b } = customize({ windowBoxes: true });
     expect(b.custom).toEqual({ windowBoxes: true });
     const before = hamletFixture();
     settle(before.state);
+    settle(f.state);
     expect(charm(f.state, 'charmNature', b.x, b.z - 1)).toBeGreaterThan(
       charm(before.state, 'charmNature', b.x, b.z - 1),
     );
+    const g = hamletFixture();
+    const bakery = findById(g.state.buildings, g.b.bakery)!;
+    settle(g.state);
+    const plain = charm(g.state, 'charmNature', bakery.x, bakery.z - 1);
+    run(g.state, { t: 'build.customize', id: bakery.id, custom: { windowBoxes: true } }, 0, 5);
+    settle(g.state);
+    expect(charm(g.state, 'charmNature', bakery.x, bakery.z - 1)).toBeGreaterThan(plain);
   });
 });

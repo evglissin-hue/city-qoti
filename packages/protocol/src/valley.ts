@@ -57,7 +57,9 @@ export function normalizeSettings(partial: Partial<ValleySettings> = {}): Valley
     threat: pick(partial.threat, ['peaceful', 'standard', 'fierce'], 'peaceful'),
     togetherOnly: partial.togetherOnly === true,
     townName: name(partial.townName, 'Qoti'),
-    valleyName: name(partial.valleyName, 'Riverbend'),
+    // P1 (playtest item 13): no typed name leaves it empty; the sim names the valley from its seed
+    // (createWorld, valleyNameFor), since the protocol may only import sim types.
+    valleyName: name(partial.valleyName, ''),
     // I3 (C5H): the first days guide box at New valley; absent means on for standard valleys.
     ...(typeof partial.guide === 'boolean' && { guide: partial.guide }),
   };

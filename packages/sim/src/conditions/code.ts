@@ -25,6 +25,8 @@ import { festivalByWater, festivalMenu, festivalPieces, riverFrozen } from '../s
 import { bridgeBuilt, dressedWall, raidSeen, watchPosted } from '../systems/threats/conditions';
 // I3 (C5H): the first days guide's goals.
 import { guideFoodWorked, guideInBlack, guideLane } from '../systems/guide/goals';
+// P1 (playtest): water wishes ask what the water need itself measures.
+import { waterServedCode, wellInReach } from '../systems/residents/needs';
 
 export type CodePredicate = (
   state: WorldState,
@@ -91,6 +93,19 @@ export function pathRoute(state: WorldState, bind: Binding): boolean {
   return commute(state, bind, true) !== null;
 }
 
+/**
+ * P1 (playtest item 13): the First Winter trial of the Charter named by `ref` (a Charter id) has
+ * been weathered. The trial stays "passed" for good, so the plaque's condition keeps holding.
+ */
+export function trialPassed(
+  state: WorldState,
+  _bind: Binding,
+  _params: readonly [string, number][],
+  ref?: string,
+): boolean {
+  return state.trial?.status === 'passed' && state.trial.charter === ref;
+}
+
 // Registry: one line per predicate, alphabetical.
 // prettier-ignore
 export const codePredicates: ReadonlyMap<string, CodePredicate> = new Map<string, CodePredicate>([
@@ -115,5 +130,8 @@ export const codePredicates: ReadonlyMap<string, CodePredicate> = new Map<string
   ['seasonIs', seasonIs],
   ['stoneRate', stoneRate],
   ['storyStep', storyStep],
+  ['trialPassed', trialPassed],
   ['watchPosted', watchPosted],
+  ['waterServed', waterServedCode],
+  ['wellInReach', wellInReach],
 ]);

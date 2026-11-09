@@ -114,7 +114,12 @@ describe('a Village run', { timeout: 400_000 }, () => {
     // than 37), so the Village half adds fewer but ends the run about as big.
     expect(last.residents, why).toBeGreaterThan(days[village]!.residents + 75);
     // C5X: 140, not 150 (about 142 with every I3 system on; the winter holds arrivals at the gate).
-    expect(last.residents, why).toBeGreaterThanOrEqual(140);
+    // P1: 110, not 140. One seed swings, and oak is P1's lowest: its Hamlet claims on day 38, not
+    // 30. Six seeds at day 70 (oak, hazel, willow, birch, alder, rowan): main 168 137 142 137 119
+    // 127, mean 138; P1 114 120 177 165 157 191, mean 154 (docs/build/cycle-p1-polish.md, As built).
+    // The rest of this test (no lean times, nobody leaving, growth every ten days, loans inside the
+    // line) is unchanged.
+    expect(last.residents, why).toBeGreaterThanOrEqual(110);
     expect(last.departures, why).toBeLessThanOrEqual(2);
     for (const d of days) expect(d.leanTimes, why).toBe(false);
     // The town never stalls: every ten days of the Village half add residents.

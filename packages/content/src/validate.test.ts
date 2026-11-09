@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   achievements,
   buildings,
+  callings,
   chronicle,
   content,
   decor,
@@ -168,6 +169,16 @@ describe('content', () => {
         'reed-bed',
         'see-saw',
         'swing',
+        // Playtest round seven: pricier decor that helps a workplace
+        'flower-trellis',
+        'painted-shop-sign',
+        'rain-barrel',
+        'tool-rack',
+        'weathervane',
+        // P1: signature pieces of the callings
+        'millstone-bench',
+        'rose-arch',
+        'wayside-shrine',
       ].sort(),
     );
     expect(roads.map((r) => r.id).sort()).toEqual(['lane', 'path', 'street']);
@@ -348,10 +359,11 @@ describe('I1 content', () => {
     }
   });
 
-  it('has the twelve wishes, twenty patterns (eight I1, six I2, six I3) and fifteen achievements, with valid references', () => {
-    expect(wishes).toHaveLength(12);
+  it('has the thirteen wishes, twenty patterns (eight I1, six I2, six I3) and sixteen achievements, with valid references', () => {
+    // P1 (playtest): A Second Well joined the twelve I1 wishes.
+    expect(wishes).toHaveLength(13);
     expect(patterns).toHaveLength(20);
-    expect(achievements).toHaveLength(15);
+    expect(achievements).toHaveLength(16);
     for (const w of wishes) {
       for (const ref of [...conditionRefs(w.when), ...conditionRefs(w.target)]) {
         expect(known(ref), `${w.id} ${ref}`).toBe(true);
@@ -366,7 +378,8 @@ describe('I1 content', () => {
     for (const a of achievements) {
       for (const ref of conditionRefs(a.condition)) expect(known(ref), `${a.id} ${ref}`).toBe(true);
     }
-    const unlockable = new Set(patterns.flatMap((p) => p.unlocks));
+    // Signature pieces [P1] are unlocked by a calling.
+    const unlockable = new Set([...patterns.flatMap((p) => p.unlocks), ...callings.map((c) => c.signature)]);
     // Festival pieces [I3] are placed by the festival planner, not unlocked by a pattern.
     for (const d of decor.filter((x) => x.locked && !x.festival))
       expect(unlockable.has(d.id), `${d.id} has an unlock`).toBe(true);

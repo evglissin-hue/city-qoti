@@ -1,9 +1,12 @@
+import { TICKS_PER_DAY } from '@qoti/sim';
+import { useEffect } from 'preact/hooks';
 import { DEBUG } from '../app/debug';
 import type { Session } from '../app/session';
 import { DebugOverlay, Dialogs, InviteDialog, Toasts } from './Overlays';
 import { EmoteBubbles, EmoteWheel } from './Emotes';
 import { minimapShown } from './Minimap';
 import { panels } from './panels';
+import { storesShowing } from './panels/Stores';
 import { PresenceLabels } from './Presence';
 import { RemovalConfirm } from './RemovalConfirm';
 import { HelpOverlay, SettingsPanel } from './SettingsPanel';
@@ -13,12 +16,18 @@ import './hamlet.css';
 import './village.css';
 import './seasons.css';
 import { seasonKey } from './seasons';
+import { syncDeals } from './deals';
 
 /** ?clean hides the debug numbers, for screenshots. */
 const CLEAN = new URLSearchParams(location.search).has('clean');
 
 /** Everything drawn over the canvas once a valley is ready. */
 export function GameUI({ session, onLeave }: { session: Session; onLeave: () => void }) {
+  // Playtest item 9: one-click trade deals keep their numbers fresh, each new day.
+  const day = Math.floor(session.mirror.tick.value / TICKS_PER_DAY);
+  useEffect(() => {
+    syncDeals(session);
+  }, [session, day]);
   const open = session.ui.panel.value;
   const book = open ? panels.find((p) => p.id === open && p.side === 'book') : undefined;
   // I3 (C5F): photo mode hides everything but its own strip.
@@ -37,15 +46,20 @@ export function GameUI({ session, onLeave }: { session: Session; onLeave: () => 
         ))}
       <PresenceLabels session={session} />
       <TopBar session={session} onLeave={onLeave} />
-      {/* The lane is the gap between whatever is open on either side; the strip keeps to it. */}
-      <div class="strip-lane">
-        <StockStrip session={session} />
-      </div>
+      {/* The lane is the gap between whatever is open on either side; the strip keeps to it. P1:
+          the Ledger's strip steps aside while the Stores panel says the same, larger. */}
+      {!storesShowing(session, !!book) && (
+        <div class="strip-lane">
+          <StockStrip session={session} />
+        </div>
+      )}
       {/* The left feed steps aside while a book is open, so only one thing talks at a time. */}
       {!book && (
         <aside class="side left">
           {panels
             .filter((p) => p.side === 'left')
+            // The stores sit at the top of the column, above the alerts and notes.
+            .sort((a, b) => Number(b.id === 'stores') - Number(a.id === 'stores'))
             .map((p) => (
               <p.component key={p.id} session={session} />
             ))}

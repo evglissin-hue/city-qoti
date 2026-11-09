@@ -118,6 +118,7 @@ describe('I0 contracts', () => {
       | 'request.add'
       | 'request.resolve'
       | 'charter.claim'
+      | 'calling.choose'
       | 'terrain.raise'
       | 'terrain.lower'
       | 'build.pinRecipe'
@@ -169,6 +170,9 @@ describe('I0 contracts', () => {
       | 'NO_RAID'
       // Playtest round three
       | 'CUT_OFF'
+      // P1 (playtest)
+      | 'HALL_STAYS'
+      | 'TOO_LATE'
     >();
   });
 

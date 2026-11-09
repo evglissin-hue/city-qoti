@@ -8,8 +8,10 @@ import { content } from '@qoti/content';
 import { CHUNK_SIZE, CHUNKS_PER_SIDE, MAP_SIZE, TILE_FP } from '../../../constants';
 import type { LayerName, MapLayers, Rect, TickCtx, WorldState } from '../../../contracts';
 import { buildingRect, decorInRect, expandRect, rectGap2 } from '../../../conditions/geo';
+import { windowBoxesOn } from '../../../rules/windowBoxes';
 import { findById } from '../../../state/entities';
 import { skatingSpots } from '../../seasons/place';
+import { chosenCalling } from '../../callings/chosen';
 import { streetNoise } from '../../traffic/noise';
 import {
   BUILDING_SOURCES,
@@ -19,10 +21,12 @@ import {
   CONSTRUCTION,
   MARKET_DAY,
   DECOR_LINEAR,
+  DECOR_MUFFLES,
   DECOR_REACH,
   DECOR_SOURCES,
   ENCLOSURE,
   HEIGHT_VIEW,
+  lanternSources,
   MATURE_TREE,
   PATH_COMFORT,
   SKATING_COMFORT,
@@ -32,6 +36,8 @@ import {
   WATER_VIEW,
   WINDOW_BOXES,
   MODULE_SOURCES,
+  MUFFLE_EACH,
+  MUFFLE_MAX,
   YOUNG_TREE,
 } from './sources';
 import { isMarketDay, quietHours } from '../../festivals/levers';
@@ -176,6 +182,9 @@ export function recomputeChunk(
   lit = nightLights;
   const quiet = quietHours(state);
   const marketDay = isMarketDay(state);
+  // P1: Pilgrims' Rest lights its lanterns a little brighter.
+  const lanternBonus = nightLights ? (chosenCalling(state)?.lanternCharm ?? 0) : 0;
+  const decorSources = lanternBonus > 0 ? lanternSources(lanternBonus) : DECOR_SOURCES;
   const m = state.map;
   const rect = chunkRect(chunk);
   const [cx0, cz0, cx1, cz1] = rect;
@@ -223,7 +232,7 @@ export function recomputeChunk(
       for (const s of quiet && WORKSHOP[i] ? QUIET_SOURCES[i]! : BUILDING_SOURCES[i]!) sources.push(s);
       if (marketDay && OUTLET[i]) sources.push(MARKET_DAY);
     }
-    if (b.custom?.windowBoxes === true) sources.push(WINDOW_BOXES);
+    if (windowBoxesOn(b, def)) sources.push(WINDOW_BOXES);
     // I3 (C5C): modules fitted (customization phase 2).
     for (const [, mod] of b.rt?.modules ?? []) for (const s of MODULE_SOURCES.get(mod) ?? []) sources.push(s);
     if (sources.length > 0) nearBuildings.push({ x0: r[0], z0: r[1], x1: r[2] + 1, z1: r[3] + 1, sources });
@@ -330,6 +339,8 @@ export function recomputeChunk(
       touchedCount = 0;
       let seen = 0;
       let clutter = 0;
+      // Hedges, walls and mature trees right beside the tile (P1, Quiet, Please).
+      let muffle = 0;
 
       const lr = tz - rz0;
       const k0 = rowStart[Math.max(0, lr - DECOR_REACH)]!;
@@ -345,7 +356,8 @@ export function recomputeChunk(
           seenList[seen++] = def;
         }
         if (d2 <= cR && !DECOR_LINEAR[def]) clutter++;
-        const sources = DECOR_SOURCES[def]!;
+        if (d2 <= 2.25 && DECOR_MUFFLES[def]) muffle++;
+        const sources = decorSources[def]!;
         if (sources.length === 0) continue;
         const d = Math.sqrt(d2);
         for (const s of sources) add(s, d);
@@ -366,6 +378,7 @@ export function recomputeChunk(
           if (!v) continue;
           // Forest trees are nature, not decor: they count for no-spam but not for variety.
           add((v & 7) >= 3 ? MATURE_TREE : YOUNG_TREE, Math.sqrt(dx * dx + dz * dz));
+          if ((v & 7) >= 3 && dx >= -1 && dx <= 1 && dz >= -1 && dz <= 1) muffle++;
         }
       }
 
@@ -375,8 +388,9 @@ export function recomputeChunk(
         cats[key % 5]! += best1[key]! + best2[key]!;
         keyUsed[key] = 0;
       }
-      // I2 (C4B): streets and the carts on them are heard too.
-      cats[CAT.noise] = noise + streetNoise(state, tx, tz);
+      // I2 (C4B): streets and the carts on them are heard too. P1: muffled by what stands beside.
+      cats[CAT.noise] =
+        ((noise + streetNoise(state, tx, tz)) * (1000 - Math.min(MUFFLE_MAX, muffle * MUFFLE_EACH))) / 1000;
 
       // Water in view: the nearest river or pond tile within the radius.
       let w2 = Infinity;

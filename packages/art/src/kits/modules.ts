@@ -12,7 +12,7 @@ import { beam } from '../shapes';
 import { SURFACE } from '../surface';
 import { bayWindow, ivyPart } from './details';
 import { dormerPart, faceBox, porchPart, windowPart, type Face } from './parts';
-import { FLOWERS } from './style';
+import { customOf, FLOWERS } from './style';
 import { mergeFlat } from './vehicles';
 import type { KitAnchors, KitBuildOptions } from './types';
 
@@ -444,6 +444,8 @@ export function fitModules(base: BufferGeometry, opts: KitBuildOptions | undefin
     });
   }
   if (has('flower-boxes')) {
+    // The player's bloom color (build.customize windowFlowers), else the seeded mix.
+    const bloom = customOf(opts).windowFlowers;
     s.nearOnly(() => {
       const faces: [Face, 'z+' | 'x+' | 'x-'][] = [[front, 'z+']];
       if (side) faces.push([side, side.dir as 'x+' | 'x-']);
@@ -462,16 +464,9 @@ export function fitModules(base: BufferGeometry, opts: KitBuildOptions | undefin
                 : [f.plane + (f.dir === 'x+' ? 0.04 : -0.04), y0 - 0.01, u];
             s.blob(q[0]!, q[1]!, q[2]!, 0.03, 0.025, 0.03, vary(palette.leaf, rnd, 0.6), 0);
             s.surface(SURFACE.flowers);
-            s.blob(
-              q[0]!,
-              q[1]! + 0.02,
-              q[2]!,
-              0.02,
-              0.018,
-              0.02,
-              FLOWERS[Math.floor(rnd() * FLOWERS.length)]!,
-              0,
-            );
+            const seeded = FLOWERS[Math.floor(rnd() * FLOWERS.length)]!;
+            const pick = bloom ?? seeded;
+            s.blob(q[0]!, q[1]! + 0.02, q[2]!, 0.02, 0.018, 0.02, pick, 0);
             s.surface(SURFACE.leaf);
           }
         }

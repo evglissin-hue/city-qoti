@@ -97,6 +97,11 @@ export interface BuildingDef {
   defense?: DefenseDef;
   /** Module slots for customization phase 2 (C5C): [slot, how many]. */
   moduleSlots?: [slot: ModuleSlot, count: number][];
+  /**
+   * Playtest round seven: the kit draws window boxes on its own unless the player says otherwise
+   * (hand-placed homes only), so an unset `custom.windowBoxes` means on, with the charm they bring.
+   */
+  boxesByDefault?: boolean;
   // V1 additions (V1.0).
   /** Eras this building belongs to (18-eras.md); absent means every era. Reserved, filled in I4. */
   eras?: Era[];
@@ -133,6 +138,12 @@ export interface DecorDef {
   // V1 additions (V1.0).
   /** Eras this piece belongs to (18-eras.md); absent means every era. Reserved, filled in I4. */
   eras?: Era[];
+  // Playtest round seven additions.
+  /**
+   * Production buildings within `radius` tiles whose def id or tag is in `tags` work faster by
+   * `permille` (1000 = double). Boosts from nearby pieces add up to a cap (systems/production/decorBoost).
+   */
+  boost?: { radius: number; permille: number; tags: string[] };
 }
 
 export interface RoadDef {
@@ -247,6 +258,11 @@ export interface Content {
   renown: readonly RenownDef[];
   /** The first days guide (C5H). */
   guide: GuideDef;
+  /** P1: the ladder homes climb on their own, in order (systems/dressing). */
+  dressing: readonly DressingStep[];
+  /** P1 (additive): what the village can be known for, alphabetical by id. */
+  callings: readonly CallingDef[];
+  callingById: ReadonlyMap<string, CallingDef>;
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -547,7 +563,7 @@ export interface ChronicleTemplate {
 
 // --- Customization (C3B) ----------------------------------------------------------------------
 
-export type SwatchGroup = 'wall' | 'roof' | 'roofMaterial' | 'accent';
+export type SwatchGroup = 'wall' | 'roof' | 'roofMaterial' | 'accent' | 'flowers';
 
 /**
  * A customization choice for build.customize. The sim validates ids per group; the renderer maps
@@ -630,6 +646,8 @@ export interface NeighborDef {
   id: string;
   name: string;
   blurb: string;
+  /** Playtest item 9: its character in one line, for the Trade book's Deals page. */
+  character?: string;
   /** Goods it sells to the valley, with a price factor on base in percent (90 = cheap there). */
   sells: [good: string, percent: number][];
   /** Goods it buys from the valley, with a price factor on base in percent (120 = keen buyer). */
@@ -913,6 +931,21 @@ export interface ModuleDef {
   art: ArtRef;
 }
 
+/**
+ * One rung of the ladder homes climb by themselves (P1, systems/dressing). `custom` steps switch on a
+ * customization field (`ref`: 'windowBoxes'); `module` steps fit the module `ref` free, in its slot.
+ * Steps are tried in order; each needs the door charm (radius 3 average) at `charm` or more, and a town
+ * of at least `rank`. `notice` is the gentle line sent when a home takes the step ({family}).
+ */
+export interface DressingStep {
+  id: string;
+  kind: 'custom' | 'module';
+  ref: string;
+  charm: number;
+  rank: RankName;
+  notice: string;
+}
+
 /** A commission a neighbor or notable visitor asks for (C5B). */
 export interface CommissionDef {
   id: string;
@@ -1019,4 +1052,41 @@ export interface GuideDef {
   farewell?: string;
   /** C5H: the last letter when Pippa Quill already lives in the valley. */
   farewellAfterPippa?: string;
+}
+
+// --- Callings (P1, playtest item 19; docs/spec/15-progression.md, Callings) -------------------
+
+/** What a calling does, as data. Every number lives here; the sim only reads them. */
+export interface CallingDef {
+  id: string;
+  name: string;
+  blurb: string;
+  /** Glyph id for the card (apps/client/src/ui/icons). */
+  icon: string;
+  /** Plain words, one line per effect, for the card. */
+  effectLines: string[];
+  /** Production buildings (def ids or tags) that work faster, permille added (100 = 10%). */
+  yieldBoost?: { ids: string[]; tags: string[]; permille: number };
+  /** Day visitors spend in the town each afternoon (CallingTuning.visitors). */
+  visitors?: boolean;
+  /** Festivals draw more guests (permille added to each resident's chance) and give extra renown. */
+  festival?: { guestsPermille: number; renown: number; minStars: number };
+  /** Added to the night value of every lantern's light charm. */
+  lanternCharm?: number;
+  /** Added to a style's score when the land picks a district style: [style id, weight]. */
+  styleWeights: [style: string, weight: number][];
+  /** The decor piece the calling unlocks (a locked decor id). */
+  signature: string;
+  /**
+   * One lowercase clause per map factor the offer scores, in the sim's factor order, ready to follow
+   * "Your" ("hills are full of stone"). The County's letter joins the two strongest.
+   */
+  reasons: string[];
+}
+
+export interface CallingTuning {
+  /** How many callings the valley offers. */
+  offered: number;
+  /** Garden Village visitors: the hour they spend, pennies per average door charm point and per renown level, and the daily cap. */
+  visitors: { hour: number; perCharm: number; perRenown: number; cap: number; noticeEveryDays: number };
 }

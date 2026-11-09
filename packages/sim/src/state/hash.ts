@@ -139,6 +139,8 @@ export function hashState(state: WorldState): string {
       trial: state.trial,
       guide: state.guide,
       seasons: state.seasons,
+      // P1 (callings): absent until the Village claim, so earlier states hash the same.
+      ...(state.calling && { calling: state.calling }),
     }),
   );
   return h.hex();

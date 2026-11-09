@@ -4,6 +4,7 @@ import type { Decor, RejectReason, SeatId, TickCtx, WorldState } from '../contra
 import { canPlaceDecor, canPlaceDecorRun } from '../rules/decor';
 import { findById, removeById } from '../state/entities';
 import { worldIndex } from '../state/worldIndex';
+import { chargeDecor, decorBlocked, refundDecor } from '../systems/economy/decorCost';
 import { currentPlan } from '../systems/festivals/api';
 import { markCharmSoon } from '../systems/hearth/charm/dirty';
 import { decorView } from '../view';
@@ -67,9 +68,12 @@ export const place: HandlerFor<'decor.place'> = {
     if (locked) return locked;
     if (state.decor.length >= DECOR_CAP) return 'TOO_MANY';
     const result = canPlaceDecor(worldIndex(state).reader, def, cmd.fx, cmd.fz, cmd.rot);
-    return result.ok ? null : (result.reason ?? 'INVALID');
+    if (!result.ok) return result.reason ?? 'INVALID';
+    return temporaryPiece(state, def) ? null : decorBlocked(state, def);
   },
   apply(state, seat, cmd, ctx) {
+    const def = content.decorById.get(cmd.def)!;
+    if (!temporaryPiece(state, def)) chargeDecor(state, ctx, def);
     addDecor(state, ctx, seat, cmd.def, cmd.fx, cmd.fz, cmd.rot);
   },
 };
@@ -83,11 +87,13 @@ export const placeRun: HandlerFor<'decor.placeRun'> = {
     if (locked) return locked;
     const result = canPlaceDecorRun(worldIndex(state).reader, def, cmd.from, cmd.to);
     if (!result.ok) return result.reason ?? 'INVALID';
-    return state.decor.length + result.segments.length > DECOR_CAP ? 'TOO_MANY' : null;
+    if (state.decor.length + result.segments.length > DECOR_CAP) return 'TOO_MANY';
+    return temporaryPiece(state, def) ? null : decorBlocked(state, def, result.segments.length);
   },
   apply(state, seat, cmd, ctx) {
     const def = content.decorById.get(cmd.def)!;
     const { segments } = canPlaceDecorRun(worldIndex(state).reader, def, cmd.from, cmd.to);
+    if (!temporaryPiece(state, def)) chargeDecor(state, ctx, def, segments.length);
     for (const s of segments) addDecor(state, ctx, seat, def.id, s.fx, s.fz, s.rot);
   },
 };
@@ -105,6 +111,9 @@ export const remove: HandlerFor<'decor.remove'> = {
     for (const id of cmd.ids) {
       const d = removeById(state.decor, id);
       if (!d) continue;
+      // A piece that cost something comes back in full (festival pieces never cost anything).
+      const def = content.decorById.get(d.def);
+      if (def && !d.festival) refundDecor(state, ctx, def, d.fx, d.fz);
       if (d.festival) state.festival.pieces = state.festival.pieces.filter((p) => p !== id);
       grid.remove(d);
       ctx.events.push({ e: 'decor.removed', id });

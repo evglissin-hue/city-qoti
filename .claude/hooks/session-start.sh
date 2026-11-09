@@ -33,7 +33,7 @@ fi
 board="$(git show origin/main:docs/build/README.md 2>/dev/null || cat docs/build/README.md 2>/dev/null || true)"
 if [ -n "$board" ]; then
   echo "Build board on main (docs/build/README.md), latest rows:"
-  printf '%s\n' "$board" | grep '^| C' | tail -8 | cut -c1-160 | sed 's/^/  /'
+  printf '%s\n' "$board" | grep -E '^\| [CP][0-9]' | tail -8 | cut -c1-160 | sed 's/^/  /'
 fi
 echo "Before designing a feature, search the code for it (apps/, packages/, tools/), not only the docs."
 

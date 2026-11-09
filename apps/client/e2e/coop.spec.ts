@@ -26,7 +26,8 @@ test('two seats build together in one valley', async ({ browser }) => {
   await expect.poll(() => b.url()).not.toContain('k=');
   await b.getByTestId('join').click();
   await waitLive(b);
-  await expect(b.getByText('Player 2 (you)')).toBeVisible();
+  // P1: a bar under 1361 px shows the partners as colored dots and the tooltip names them.
+  await expect(b.getByTitle(/^Player 2 \(you\): here$/)).toBeVisible();
 
   // A paints a path; B sees it.
   await a.getByTestId('tool-path').click();

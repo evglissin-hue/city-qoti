@@ -3,6 +3,7 @@ import type { BudgetLine, BuildingView } from '@qoti/sim';
 import { useState } from 'preact/hooks';
 import type { Session } from '../../app/session';
 import { buildingName, coinCount, coins, goodName } from '../format';
+import { GoodIcon } from '../goodIcons';
 import { statusWords } from '../hamlet';
 import type { ReportTab } from '../state';
 import { Empty, Frame, Sparkline, Toggle } from './parts';
@@ -22,6 +23,22 @@ const CATEGORY_LABEL: Record<string, string> = {
   construction: 'Construction',
   roads: 'Roads',
   fields: 'Fields',
+  wages: 'Wages',
+  sales: 'Market sales',
+  exports: 'Exports',
+  imports: 'Imports',
+  loans: 'Loans taken',
+  interest: 'Interest',
+  repayments: 'Loan repayments',
+  subsidies: 'Subsidies',
+  terraforming: 'Terraforming',
+  grants: 'County grants',
+  festival: 'Festivals',
+  dock: 'River Dock',
+  commissions: 'Commissions',
+  watch: 'The Watch',
+  visitors: 'Visitors',
+  fees: 'Fees',
 };
 
 /** The Ledger's reports: stocks, workforce, budget and building status, one tab at a time. */
@@ -87,7 +104,7 @@ export function Stocks({ session }: { session: Session }) {
             return (
               <tr key={l.good} class={l.stock === 0 ? 'out' : ''}>
                 <th scope="row">
-                  <i class={`good-dot good-${l.good}`} /> {goodName(l.good)}
+                  <GoodIcon good={l.good} /> {goodName(l.good)}
                 </th>
                 <td class="num stock">{l.stock}</td>
                 <td class="num flow" title={`${l.producedToday} made, ${l.consumedToday} used today`}>

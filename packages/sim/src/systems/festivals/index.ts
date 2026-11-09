@@ -63,8 +63,11 @@ export function tidyFestival(state: WorldState, ctx: TickCtx): void {
   // Pieces removed by hand or kept leave the list.
   f.pieces = f.pieces.filter((id) => state.decor.some((d) => d.id === id && d.festival && !d.festival.kept));
   const stale = f.plan !== null && currentPlan(state) === null;
-  if (seasonNow(state).day !== 1 && !stale) return;
-  let changed = false;
+  const newSeason = seasonNow(state).day === 1;
+  if (!newSeason && !stale) return;
+  // A new season always tells the mirror its festival, plan or none (the poster must not keep
+  // showing last season's).
+  let changed = newSeason;
   if (f.pieces.length > 0) {
     for (const id of f.pieces) takeDown(state, ctx, id);
     f.pieces = [];
@@ -106,6 +109,12 @@ export function startFestival(state: WorldState, ctx: TickCtx): boolean {
   f.outcome = null;
   f.guests = chooseGuests(state, rect);
   ctx.events.push({ e: 'festival.started', f: festivalView(state) });
+  ctx.events.push({
+    e: 'notify',
+    kind: 'festival',
+    text: `The ${content.festivalById.get(p.festival)?.name ?? 'festival'} has begun. Folk are heading to the site.`,
+    at: rectCenter(rect),
+  });
   return true;
 }
 

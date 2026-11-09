@@ -118,6 +118,7 @@ describe('systems and views', () => {
     expect([...orders]).toEqual([
       ['achievements', 90],
       ['baskets', 67],
+      ['callings', 88],
       ['caravans', 65],
       ['charm', 70],
       ['charter', 94],
@@ -127,6 +128,7 @@ describe('systems and views', () => {
       ['construction', 20],
       ['defenses', 86],
       ['dock', 68],
+      ['dressing', 71],
       ['economy', 60],
       ['festivalEvening', 77],
       ['festivals', 75],

@@ -342,6 +342,8 @@ export interface TownView {
   coldHouseholds?: number;
   /** A telegraphed raid's band, or null. */
   threatBand?: string | null;
+  /** P1 (playtest item 13): festivals held (Chronicle pages) and the best stars so far, for the chapter card. */
+  festivals?: { held: number; bestStars: number };
   /** The first days guide, while it is open (C5H). */
   guide?: GuideView;
 }
@@ -396,6 +398,8 @@ export interface BuildingDetail {
   served?: { residents: number; capacity: number };
   /** I1 (C3C): goods per work day with the full crew, after condition and any height bonus. */
   rates?: { inputs: [good: string, perDay: number][]; outputs: [good: string, perDay: number][] };
+  /** Playtest round seven (additive): decor within reach is speeding this building up. */
+  decorBoost?: { permille: number; pieces: string[] };
   /** I1 (C3C): units made today. */
   producedToday?: [good: string, qty: number][];
   // I2 (C4.0)
@@ -580,6 +584,17 @@ export interface CharterView {
   }[];
   ready: boolean;
   history: { rank: RankId; tick: number; seats: SeatId[] }[];
+  /** P1 (additive): the callings on offer, or the one chosen. Absent before the Village claim. */
+  calling?: CallingView;
+}
+
+/** The callings offer (docs/spec/15-progression.md, Callings). */
+export interface CallingView {
+  offered: { id: string; reason: string }[];
+  /** The chosen calling id, or null while the offer is open. */
+  chosen: string | null;
+  /** Two seats share the valley, so both must be present to choose. */
+  together: boolean;
 }
 
 export interface InnovationView {

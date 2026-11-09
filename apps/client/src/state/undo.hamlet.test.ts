@@ -125,4 +125,31 @@ describe('undo for hamlet commands', () => {
     const out = r.undo.undo(r.mirror, r.raw);
     expect(out.ok && r.undo.undoSeqs.has(out.seqs[0]!)).toBe(true);
   });
+
+  it('earthworks: one gesture is one undo, inverse commands in reverse order, and CHANGED when the ground moved', () => {
+    const r = rig();
+    const at = (x: number, z: number) => r.mirror.height(x, z);
+    const h0 = at(30, 30);
+    const lower: [number, number][] = [[30, 30]];
+    const raise: [number, number][] = [[31, 30]];
+    const patch = (x: number, value: number) => [
+      {
+        layer: 'height' as const,
+        rect: [x, 30, x, 30] as [number, number, number, number],
+        data: new Uint8Array([value]),
+      },
+    ];
+    r.play({ t: 'terrain.lower', tiles: lower }, [], patch(30, h0 - 1));
+    r.play({ t: 'terrain.raise', tiles: raise }, [], patch(31, at(31, 30) + 1));
+    expect(r.undo.size.value).toBe(1);
+    expect(r.undo.undo(r.mirror, r.raw)).toMatchObject({ ok: true, label: 'the earthworks' });
+    expect(r.sent.slice(-2)).toEqual([
+      { t: 'terrain.lower', tiles: raise },
+      { t: 'terrain.raise', tiles: lower },
+    ]);
+
+    r.play({ t: 'terrain.raise', tiles: lower }, [], patch(30, at(30, 30) + 1));
+    r.happen([], patch(30, at(30, 30) + 1));
+    expect(r.undo.undo(r.mirror, r.raw)).toEqual({ ok: false, reason: 'CHANGED' });
+  });
 });

@@ -5,7 +5,7 @@ import type { Mirror } from '../../state/mirror';
 import { ChunkDirt } from '../chunkDirt';
 import { hash2 } from '../coords';
 import { createWorldEnv, nearOf, type WorldEnv } from '../env';
-import { patch } from '../ground';
+import { homeDistance, meadowAmount, mownAmount, MOWN, patch } from '../ground';
 import {
   addInstance,
   createFoliageMaterial,
@@ -41,11 +41,15 @@ const PROPS: readonly PropSpec[] = [
   { kit: 'grass-tuft', variants: 2, max: 72, lod: 40, shadows: false },
   { kit: 'hedgerow', variants: 3, max: 200, lod: 60, shadows: true },
   { kit: 'lily-pads', variants: 3, max: 90, lod: 45, shadows: false },
+  { kit: 'meadow-tuft', variants: 3, max: 72, lod: 40, shadows: false },
   { kit: 'mushrooms', variants: 2, max: 40, shadows: false },
   { kit: 'reeds', variants: 2, max: 80, shadows: false },
   { kit: 'rock', variants: 2, max: 140, lod: 60, shadows: true },
   { kit: 'wildflowers', variants: 3, max: 76, shadows: false },
 ];
+
+/** P1: spots tried on an open tile (the tuft count wanted is spread over them). */
+const TUFT_TRIES = 6;
 
 const PROP_BY_KIT = new Map(PROPS.map((p) => [p.kit, p]));
 
@@ -225,10 +229,20 @@ export function buildNatureChunk(
           // Open grass and meadow: tufts clump with a soft noise, flowers bloom in patches.
           const meadow = terrain === Terrain.meadow;
           const clump = patch(x, z, 4, 120);
-          const tufts = (meadow ? 0.5 : 0.35) + clump * 0.6 + (roadSide ? 0.25 : 0);
-          for (let k = 0; k < 2; k++) {
-            if (h(121 + k) < tufts)
-              place.put('grass-tuft', ...spot(123 + k * 2), 127 + k, 0.8 + h(129 + k) * 0.6, 0, grassTint);
+          // P1: about 5 tufts on a meadow tile and 2 to 3 on plain grass, clumped by the noise; lawns
+          // near homes a touch sparser and neat. Tall fluffy tufts stand where the ground paints
+          // long grass (the same weight as the ground shader), a few among wild grass; short ones
+          // elsewhere.
+          const mown = mownAmount(homeDistance(L.occupant, x, z));
+          const long = meadowAmount(terrain, x, z, mown);
+          const tall = long + (1 - mown) * (1 - long) * 0.5;
+          const want = (2.5 + long * 2.5) * (0.75 + clump * 0.5) * (1 - mown * 0.2) + (roadSide ? 0.6 : 0);
+          for (let k = 0; k < TUFT_TRIES; k++) {
+            if (h(200 + k * 6) >= want / TUFT_TRIES) continue;
+            const [px, pz] = spot(201 + k * 6);
+            if (h(203 + k * 6) < tall)
+              place.put('meadow-tuft', px, pz, 204 + k * 6, 0.9 + h(205 + k * 6) * 0.6, 0, grassTint);
+            else place.put('grass-tuft', px, pz, 204 + k * 6, 0.8 + h(205 + k * 6) * 0.6, 0, grassTint);
           }
           const bloom = patch(x, z, 7, 9);
           const flowers = meadow ? 0.25 + bloom * 0.4 : Math.max(0, bloom - 0.6) * 0.8;
@@ -310,7 +324,8 @@ export function natureLayer(): RenderLayer {
     update(change) {
       if (change.full) dirt.markAll();
       for (const layer of ['tree', 'height', 'water', 'occupant', 'road', 'terrain'] as const) {
-        for (const rect of change.rects.get(layer) ?? []) dirt.markRect(rect, 1);
+        for (const rect of change.rects.get(layer) ?? [])
+          dirt.markRect(rect, layer === 'occupant' ? MOWN : 1);
       }
       if (change.decor || change.full) {
         // Decor clears the ground under it: rebuild the chunks (and their neighbors) that changed.
