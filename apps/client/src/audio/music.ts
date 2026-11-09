@@ -12,6 +12,7 @@ import {
   stepDirector,
   styleFor,
   type DirectorState,
+  type MusicContext,
   type PieceChoice,
 } from './director';
 import { seededRand, type Rand } from './rng';
@@ -60,9 +61,69 @@ export function noteGain(n: Pick<Note, 'inst' | 'vel' | 'voice'>): number {
   return n.vel * INSTRUMENT_LEVEL[n.inst] * VOICE_LEVEL[n.voice];
 }
 
+/** The loudness a piece is brought to (see `pieceEnergy`). */
+const ENERGY_TARGET = 0.12;
+/**
+ * Per-style offsets in dB on top of the loudness match: night sits low by design, festivals lift,
+ * and the afternoon (about 2 dB) and autumn (about 1 dB) measure quiet in the preview, which the
+ * estimate does not see.
+ */
+const STYLE_OFFSET_DB: Record<string, number> = {
+  afternoon: 2,
+  autumn: 1,
+  festival: 1,
+  night: -2.5,
+  'winter-morning': -1,
+};
+/**
+ * How much sound a note makes per unit of gain squared: the mean of its recording's (or synthesized
+ * note's) squared samples summed over the note's life, in seconds. Measured over the preview pieces;
+ * the recordings differ widely in level (strings and flute are hot, shaker and ride are faint), so a
+ * loudness estimate from gains alone would be off by several dB.
+ */
+const SAMPLE_ENERGY: Partial<Record<string, number>> = {
+  bass: 0.0086,
+  brush: 0.0033,
+  celesta: 0.0225,
+  clarinet: 0.1308,
+  epiano: 0.0643,
+  flute: 0.1258,
+  glock: 0.0251,
+  guitar: 0.0141,
+  harp: 0.0209,
+  kalimba: 0.0185,
+  marimba: 0.0186,
+  piano: 0.0327,
+  ride: 0.0019,
+  shaker: 0.0012,
+  strings: 0.1681,
+  vibes: 0.0394,
+};
+/** For a synthesized instrument with no recording to measure. */
+const DEFAULT_ENERGY = 0.02;
+
+/** A rough loudness of a piece: the root of the mean sound power its notes make over its length. */
+export function pieceEnergy(piece: Pick<Piece, 'notes' | 'seconds'>): number {
+  let sum = 0;
+  for (const n of piece.notes) {
+    const g = noteGain(n);
+    sum += g * g * (SAMPLE_ENERGY[n.inst] ?? DEFAULT_ENERGY);
+  }
+  return Math.sqrt(sum / Math.max(1, piece.seconds));
+}
+
+/** The gain a whole piece plays at, so every style lands at about the same loudness. */
+export function pieceGain(piece: Pick<Piece, 'notes' | 'seconds' | 'style'>): number {
+  const e = pieceEnergy(piece);
+  const match = e > 0 ? Math.min(2.2, Math.max(0.4, ENERGY_TARGET / e)) : 1;
+  return match * Math.pow(10, (STYLE_OFFSET_DB[piece.style] ?? 0) / 20);
+}
+
 /** Where a note sits: the instrument's place, and pianos spread low to high. */
 export function notePan(n: Pick<Note, 'inst' | 'midi'>): number {
-  const spread = n.inst === 'piano' || n.inst === 'epiano' ? (n.midi - 64) / 70 : 0;
+  // A string section is spread wide: neighboring pitches sit on opposite sides.
+  if (n.inst === 'strings') return n.midi % 2 === 0 ? -0.55 : 0.55;
+  const spread = n.inst === 'piano' || n.inst === 'epiano' ? (n.midi - 64) / 36 : 0;
   return Math.max(-0.8, Math.min(0.8, INSTRUMENT_PAN[n.inst] + spread));
 }
 
@@ -91,7 +152,7 @@ interface Playing {
 
 export class MusicPlayer {
   private director: DirectorState;
-  private readonly rand: Rand;
+  private rand: Rand;
   private playing: Playing | null = null;
   private fading: Playing[] = [];
   /** A chosen piece waiting for its notes to render and its recordings to load. */
@@ -115,13 +176,18 @@ export class MusicPlayer {
     this.rand = seededRand(seed);
   }
 
+  /** Seeds the piece choices from the valley (both seats share it). */
+  reseed(seed: number): void {
+    this.rand = seededRand(seed);
+  }
+
   /** The style playing now, or '' in a quiet gap. */
   get style(): string {
     return this.playing ? this.playing.style : '';
   }
 
   /** Called a few times a second with the valley's hour and season. */
-  update(hour: number, season: number): void {
+  update(hour: number, season: number, ctx?: MusicContext): void {
     const now = this.ctx.currentTime;
     // The hour turned to a new style. Playtest round five ("the music stops abruptly"): a piece
     // near its end plays out; a longer one bows out over a slow fade, then the new style begins.
@@ -129,7 +195,7 @@ export class MusicPlayer {
     if (
       this.playing &&
       left > LET_FINISH &&
-      styleFor(hour, season).id !== this.playing.style &&
+      styleFor(hour, season, ctx).id !== this.playing.style &&
       !this.waiting
     ) {
       this.fadeOut(this.playing, now, STYLE_FADE_SECONDS);
@@ -139,7 +205,15 @@ export class MusicPlayer {
     }
     if (this.playing && now > this.playing.start + this.playing.piece.seconds) this.playing = null;
     if (!this.waiting) {
-      const choice = stepDirector(this.director, now, hour, season, this.rand, (c) => compose(c).seconds);
+      const choice = stepDirector(
+        this.director,
+        now,
+        hour,
+        season,
+        this.rand,
+        (c) => compose(c).seconds,
+        ctx,
+      );
       if (choice) {
         const piece = compose(choice);
         const voices = piece.notes.map((n) => this.sampler?.pick(n.inst, n.midi, noteLayer(n)) ?? null);
@@ -193,7 +267,10 @@ export class MusicPlayer {
   private begin(piece: Piece, voices: (SampledVoice | null)[], start: number): Playing {
     const out = this.ctx.createGain();
     out.gain.setValueAtTime(0, start);
-    out.gain.linearRampToValueAtTime(1, start + (this.fading.length ? CROSSFADE_SECONDS : 0.05));
+    out.gain.linearRampToValueAtTime(
+      pieceGain(piece),
+      start + (this.fading.length ? CROSSFADE_SECONDS : 0.05),
+    );
     out.connect(this.out);
     return { piece, voices, style: piece.style, start, next: 0, out, pans: new Map() };
   }

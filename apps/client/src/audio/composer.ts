@@ -9,8 +9,9 @@
 // and its second bar answers the first with the same rhythm a step away. Chords are voiced close
 // to the last voicing, so the hands barely move; the bass and the drums play figures that suit the
 // style; the off-beats swing in the evening; and the tempo eases off at the very end.
-import type { Bar, PieceChoice, Style } from './director';
+import type { Bar, CompPattern, PieceChoice, Style } from './director';
 import { pick, seededRand, type Rand } from './rng';
+import { adaptMotif, valleyMotif, type Motif } from './motif';
 import type { Instrument } from './synth/instruments';
 
 export type Voice = 'lead' | 'sparkle' | 'comp' | 'bass' | 'pad' | 'drums';
@@ -55,25 +56,74 @@ function step(scale: readonly number[], n: number): number {
   return scale[((n % 7) + 7) % 7]! + 12 * Math.floor(n / 7);
 }
 
-/** Reads 'IVmaj7', 'ii9', 'V7sus4', 'Iadd9', 'I6' in a major or minor key. */
+/**
+ * Reads a chord symbol: `[b|#]? NUMERAL QUALITY? EXTENSIONS*`, as in 'IVmaj7', 'bVII13', 'ii9',
+ * 'V7sus4', 'iiø7', 'Iadd9', 'I69'. The numeral's case sets the triad (upper major, lower minor);
+ * 'o' and 'ø7' are diminished and half-diminished; the extensions stack on top.
+ */
 export function chordInfo(symbol: string, mode: 'major' | 'minor'): ChordInfo {
-  const m = /^([ivIV]+)(.*)$/.exec(symbol);
-  const degree = Math.max(0, NUMERALS.indexOf((m?.[1] ?? 'i').toLowerCase()));
-  const color = m?.[2] ?? '';
+  const m = /^([b#]?)([ivIV]+)(.*)$/.exec(symbol);
+  const num = m?.[2] ?? 'i';
+  const degree = Math.max(0, NUMERALS.indexOf(num.toLowerCase()));
   const scale = mode === 'major' ? MAJOR : MINOR;
-  const root = step(scale, degree);
-  let third = step(scale, degree + 2);
-  // In a minor key the dominant borrows the raised leading tone, so it pulls home.
-  if (mode === 'minor' && degree === 4) third = step(scale, degree + 2) + 1;
-  if (color.includes('sus4')) third = step(scale, degree + 3);
-  const fifth = step(scale, degree + 4);
-  const tones = [root, third, fifth];
-  const ninth = color.includes('9');
-  const seventh = color.includes('7') || (ninth && !color.includes('add9'));
-  if (seventh) tones.push(step(scale, degree + 6));
-  if (color.includes('6')) tones.push(step(scale, degree + 5));
-  if (ninth) tones.push(step(scale, degree + 8));
-  return { degree, tones, triad: [root, third, fifth] };
+  const root = step(scale, degree) + (m?.[1] === 'b' ? -1 : m?.[1] === '#' ? 1 : 0);
+  let rest = m?.[3] ?? '';
+  const take = (t: string): boolean => {
+    const i = rest.indexOf(t);
+    if (i < 0) return false;
+    rest = rest.slice(0, i) + rest.slice(i + t.length);
+    return true;
+  };
+  let third = num === num.toUpperCase() ? 4 : 3;
+  let fifth = 7;
+  const ext = new Set<number>();
+  if (take('ø7')) {
+    third = 3;
+    fifth = 6;
+    ext.add(10);
+  } else if (take('o7')) {
+    third = 3;
+    fifth = 6;
+    ext.add(9);
+  } else if (take('o')) {
+    third = 3;
+    fifth = 6;
+  }
+  if (take('maj9')) {
+    ext.add(11);
+    ext.add(14);
+  }
+  if (take('maj7')) ext.add(11);
+  if (take('add9')) ext.add(14);
+  if (take('sus4')) third = 5;
+  if (take('#11')) ext.add(18);
+  if (take('7b9')) {
+    ext.add(10);
+    ext.add(13);
+  }
+  if (take('13')) {
+    ext.add(10);
+    ext.add(14);
+    ext.add(21);
+  }
+  if (take('69')) {
+    ext.add(9);
+    ext.add(14);
+  }
+  if (take('11')) {
+    ext.add(10);
+    ext.add(14);
+    ext.add(17);
+  }
+  if (take('9')) {
+    ext.add(10);
+    ext.add(14);
+  }
+  if (take('7')) ext.add(10);
+  if (take('6')) ext.add(9);
+  const triad = [root, root + third, root + fifth];
+  const tones = [...triad, ...[...ext].sort((x, y) => x - y).map((e) => root + e)];
+  return { degree, tones, triad };
 }
 
 const pc = (n: number): number => ((n % 12) + 12) % 12;
@@ -131,6 +181,8 @@ interface Draft {
   inst: Instrument;
   voice: Voice;
   vel: number;
+  /** Seconds after the beat (a guitar chord rolled across its strings). */
+  delay?: number;
 }
 
 // --- Melody ---------------------------------------------------------------------------------------
@@ -139,12 +191,42 @@ interface Tune {
   notes: { beat: number; beats: number; midi: number; vel: number }[];
 }
 
-/** The key's scale as MIDI notes across the melody's range (and a little beyond). */
-function scaleNotes(key: number, mode: 'major' | 'minor', lo: number, hi: number): number[] {
-  const scale = mode === 'major' ? MAJOR : MINOR;
+/** Pitch classes (above the tonic) as MIDI notes across the melody's range (and a little beyond). */
+function scaleNotes(key: number, pcs: readonly number[], lo: number, hi: number): number[] {
   const out: number[] = [];
-  for (let m = lo - 12; m <= hi + 12; m++) if (scale.includes(pc(m - key))) out.push(m);
+  for (let m = lo - 12; m <= hi + 12; m++) if (pcs.includes(pc(m - key))) out.push(m);
   return out;
+}
+
+/**
+ * The scale a melody may wander in over a chord with tones outside the key: the key's scale with
+ * each chromatic chord tone standing in for the nearest scale note, minus any note a half step
+ * above a chord tone (it would rub on a held note). Null when the chord sits in the key.
+ */
+export function chordScale(chord: ChordInfo, mode: 'major' | 'minor'): number[] | null {
+  const base = mode === 'major' ? MAJOR : MINOR;
+  const tonePcs = [...new Set(chord.tones.map(pc))];
+  // The minor key's dominant borrows the raised leading tone; the caller handles that one.
+  if (mode === 'minor' && chord.degree === 4 && tonePcs.every((t) => base.includes(t) || t === 11))
+    return null;
+  const chromatic = tonePcs.filter((t) => !base.includes(t));
+  if (!chromatic.length) return null;
+  let set = [...base];
+  for (const t of chromatic) {
+    let best = -1;
+    let bestD = 99;
+    for (const n of set) {
+      if (tonePcs.includes(n)) continue;
+      const d = Math.min(pc(n - t), pc(t - n));
+      if (d < bestD || (d === bestD && pc(n - t) > pc(t - n))) {
+        bestD = d;
+        best = n;
+      }
+    }
+    if (best >= 0) set = set.filter((n) => n !== best).concat(t);
+  }
+  const safe = set.filter((n) => tonePcs.includes(n) || !tonePcs.includes(pc(n - 1)));
+  return (safe.length >= 5 ? safe : set).sort((a, b) => a - b);
 }
 
 function chordAt(slots: Slot[], beat: number): Slot {
@@ -168,19 +250,32 @@ function phraseMelody(
   lift: number,
   /** Where the next phrase begins, so this one's last note leads into it. */
   endNear?: number,
+  /** The valley's motif, to open this phrase with (its first two bars). */
+  motif?: Motif,
 ): { notes: Tune['notes']; last: number } {
   const meter = style.meter;
   const [lo0, hi0] = style.range;
   const lo = lo0 + lift;
   const hi = hi0 + lift;
-  const scale = scaleNotes(key, style.mode, lo, hi);
-  const minorV = (s: Slot): number[] =>
-    style.mode === 'minor' && s.chord.degree === 4
-      ? [
-          ...scale.filter((n) => pc(n - key) !== 10),
-          ...scale.filter((n) => pc(n - key) === 10).map((n) => n + 1),
-        ].sort((a, b) => a - b)
-      : scale;
+  const scale = scaleNotes(key, style.mode === 'major' ? MAJOR : MINOR, lo, hi);
+  const chordScales = new Map<string, number[]>();
+  // Over a chord outside the key, steps follow the chord's own scale; the minor dominant's
+  // raised leading tone is the common case.
+  const minorV = (s: Slot): number[] => {
+    const hit = chordScales.get(s.sym);
+    if (hit) return hit;
+    const cs = chordScale(s.chord, style.mode);
+    const out = cs
+      ? scaleNotes(key, cs, lo, hi)
+      : style.mode === 'minor' && s.chord.degree === 4
+        ? [
+            ...scale.filter((n) => pc(n - key) !== 10),
+            ...scale.filter((n) => pc(n - key) === 10).map((n) => n + 1),
+          ].sort((a, b) => a - b)
+        : scale;
+    chordScales.set(s.sym, out);
+    return out;
+  };
   const rA = pick(rand, style.rhythms);
   const rB = rand() < 0.6 ? rA : pick(rand, style.rhythms);
   const rC = pick(rand, style.rhythms);
@@ -192,8 +287,46 @@ function phraseMelody(
   let p = Math.max(lo, Math.min(hi, start));
   let lastLeap = 0;
   const onsets: number[] = [];
-  bars.forEach((r, b) => r.forEach((o) => onsets.push((firstBar + b) * meter + o)));
+  bars.forEach((r, b) => {
+    if (!(motif && b < 2)) r.forEach((o) => onsets.push((firstBar + b) * meter + o));
+  });
   const end = (firstBar + 4) * meter;
+  if (motif) {
+    // The valley's tune opens the phrase: its first two bars, in this key and range, with the
+    // strong-beat notes nudged onto the chord.
+    const steps = style.mode === 'major' ? MAJOR : MINOR;
+    const sd = (d: number): number => step(steps, d - 1);
+    const mid = motif.degrees.reduce((a, d) => a + d, 0) / motif.degrees.length;
+    let tonic = key;
+    while (tonic + sd(mid) < (lo + hi) / 2 - 6) tonic += 12;
+    while (tonic + sd(mid) > (lo + hi) / 2 + 6) tonic -= 12;
+    let at = 0;
+    motif.degrees.forEach((d, i) => {
+      const onset = at;
+      at += motif.rhythm[i]!;
+      if (onset >= 2 * meter - 1e-6) return;
+      const beat = firstBar * meter + onset;
+      const s = chordAt(slots, beat);
+      let midi = tonic + sd(d);
+      const strong =
+        Math.abs(beat - s.at) < 1e-6 ||
+        (meter === 4 ? Math.abs(onset % 2) < 1e-6 : Math.abs(onset % 3) < 1e-6);
+      if (strong) {
+        const cands = s.chord.triad
+          .concat(s.chord.tones.slice(3))
+          .map((t) => nearestPc(pc(key + t), midi))
+          .filter((c) => c >= lo - 2 && c <= hi);
+        if (cands.length) midi = cands.reduce((a, c) => (Math.abs(c - midi) < Math.abs(a - midi) ? c : a));
+      }
+      out.push({
+        beat,
+        beats: Math.min(motif.rhythm[i]!, 2 * meter - onset),
+        midi,
+        vel: 0.62 + (strong ? 0.05 : 0) + (rand() - 0.5) * 0.04,
+      });
+      p = midi;
+    });
+  }
   // Bar 2 answers bar 1: the same rhythm, its scale steps moved by `shift`.
   const shift = pick(rand, [-1, 1, -2, 2, 1]);
   const bar1: number[] = [];
@@ -269,10 +402,35 @@ function phraseMelody(
     const arc = Math.sin(Math.PI * x);
     out.push({ beat, beats, midi, vel: 0.58 + 0.12 * arc + (strong ? 0.06 : 0) + (rand() - 0.5) * 0.06 });
   });
+  // A phrase breathes: a gentle swell toward its highest note, and the last note settles, a little
+  // softer and longer when there is room.
+  const lowest = Math.min(...out.map((n) => n.midi));
+  const highest = Math.max(...out.map((n) => n.midi));
+  for (const n of out) n.vel *= 1 + (0.1 * (n.midi - lowest)) / Math.max(1, highest - lowest);
+  const tail = out[out.length - 1];
+  if (tail) {
+    tail.vel *= 0.92;
+    if (tail.beat + tail.beats * 1.15 <= end + 0.5) tail.beats *= 1.15;
+  }
   return { notes: out, last: p };
 }
 
 // --- Accompaniment --------------------------------------------------------------------------------
+
+/**
+ * The four or so notes a hand plays for a chord. Plain triads stay triads; a chord with one color
+ * keeps its fifth (root, third, fifth, color); richer ones drop the fifth for the third and the
+ * colors (a 13th keeps its seventh and sixth, not its ninth). Jazz hands leave the root to the bass.
+ */
+function voiceTones(chord: ChordInfo, rootless: boolean): number[] {
+  const [root, third, fifth] = chord.triad as [number, number, number];
+  let ext = chord.tones.slice(3);
+  const has = (semis: number) => ext.includes(root + semis);
+  if (has(21) || has(17)) ext = ext.filter((t) => t !== root + 14);
+  if (!ext.length) return [root, third, fifth];
+  if (ext.length === 1) return rootless ? [third, fifth, ext[0]!] : [root, third, fifth, ext[0]!];
+  return rootless ? [third, fifth, ext[0]!, ext[1]!] : [root, third, ext[0]!, ext[1]!];
+}
 
 /** The voicing of a chord closest to the last one, within [lo, hi]. */
 function voice(
@@ -283,9 +441,7 @@ function voice(
   hi: number,
   rootless: boolean,
 ): number[] {
-  let tones = chord.tones.slice(0, 4);
-  // Jazz hands leave the root to the bass and keep the colors.
-  if (rootless && chord.tones.length >= 4) tones = chord.tones.slice(1, 5);
+  const tones = voiceTones(chord, rootless);
   const pcs = tones.map((t) => pc(key + t));
   const cands: number[][] = [];
   for (let inv = 0; inv < pcs.length; inv++) {
@@ -311,13 +467,17 @@ function voice(
   return cands.reduce((a, c) => (cost(c) < cost(a) ? c : a));
 }
 
-function comp(style: Style, key: number, slots: Slot[], rand: Rand, quiet: boolean): Draft[] {
+/** Patterns a single guitar can play, by meter, for the smallest band. */
+const GUITAR_ONLY: readonly CompPattern[] = ['block', 'charleston', 'oompah', 'jazzwaltz', 'pad', 'broken'];
+
+function comp(style: Style, key: number, slots: Slot[], rand: Rand, quiet: boolean, velMul = 1): Draft[] {
   const out: Draft[] = [];
   const { inst, pattern } = style.comp;
+  const meter = style.meter;
   let prev: number[] | null = null;
   const vel = quiet ? 0.42 : 0.5;
-  for (const s of slots) {
-    const rootless = pattern === 'charleston';
+  slots.forEach((s, si) => {
+    const rootless = pattern === 'charleston' || pattern === 'jazzwaltz';
     const [lo, hi] =
       pattern === 'pad'
         ? [55, 76]
@@ -325,14 +485,42 @@ function comp(style: Style, key: number, slots: Slot[], rand: Rand, quiet: boole
           ? [55, 72]
           : pattern === 'charleston'
             ? [53, 72]
-            : [52, 71];
+            : pattern === 'jazzwaltz'
+              ? [52, 70]
+              : [52, 71];
     const v = voice(s.chord, key, prev, lo, hi, rootless);
     prev = v;
     const root = fit(key + s.chord.tones[0]!, 40, 52);
     const fifth = fit(key + s.chord.tones[2]!, 43, 55);
+    const live = (beat: number) => beat >= s.at - 1e-6 && beat < s.at + s.beats - 1e-6;
     const add = (beat: number, beats: number, midi: number, vl: number) =>
-      beat < s.at + s.beats - 1e-6 &&
-      out.push({ beat, beats, midi, inst, voice: 'comp', vel: vl + (rand() - 0.5) * 0.05 });
+      live(beat) &&
+      out.push({ beat, beats, midi, inst, voice: 'comp', vel: (vl + (rand() - 0.5) * 0.05) * velMul });
+    /**
+     * A chord struck together. The top voice sings a little (x1.12), the inner ones sit back
+     * (x0.95). A guitar rolls it, 8 to 14 ms a string: low to high on a downstroke (on the beat),
+     * high to low on an upstroke (off it), a touch softer.
+     */
+    const chord = (beat: number, beats: number, voices: readonly number[], vl: number, roll = true) => {
+      if (!live(beat)) return;
+      const up = Math.abs(beat - Math.round(beat)) > 1e-6;
+      const rolled = roll && inst === 'guitar' && voices.length >= 3;
+      const ms = 8 + rand() * 6;
+      const order = rolled && up ? [...voices].reverse() : voices;
+      order.forEach((midi, k) => {
+        const top = midi === voices[voices.length - 1];
+        out.push({
+          beat,
+          beats,
+          midi,
+          inst,
+          voice: 'comp',
+          vel: (vl + (rand() - 0.5) * 0.05) * (top ? 1.12 : 0.95) * (rolled && up ? 0.88 : 1) * velMul,
+          delay: rolled ? (k * ms) / 1000 : 0,
+        });
+      });
+    };
+    const barsIn = Math.ceil(s.beats / meter - 1e-6);
     switch (pattern) {
       case 'travis': {
         // The thumb alternates the bass on the beat; the fingers pinch the top notes between.
@@ -360,44 +548,91 @@ function comp(style: Style, key: number, slots: Slot[], rand: Rand, quiet: boole
         break;
       }
       case 'block': {
-        for (const m of v) add(s.at, Math.min(2, s.beats), m, vel);
-        if (s.beats >= 4) for (const m of v) add(s.at + 2.5, 1.2, m, vel - 0.12);
+        chord(s.at, Math.min(2, s.beats), v, vel);
+        if (s.beats >= 4) chord(s.at + 2.5, 1.2, v, vel - 0.12);
         add(s.at, s.beats, root, vel);
         break;
       }
       case 'charleston': {
-        for (const m of v) add(s.at, 0.8, m, vel);
-        if (s.beats >= 4) {
-          const late = rand() < 0.5 ? 1.5 : 2.5;
-          for (const m of v) add(s.at + late, 1.1, m, vel - 0.08);
-        } else for (const m of v) add(s.at + 1.5, 0.4, m, vel - 0.1);
+        chord(s.at, 0.8, v, vel);
+        if (s.beats >= 4) chord(s.at + (rand() < 0.5 ? 1.5 : 2.5), 1.1, v, vel - 0.08);
+        else chord(s.at + 1.5, 0.4, v, vel - 0.1);
         break;
       }
       case 'oompah': {
         add(s.at, 0.9, fit(root - 12, 33, 45), vel + 0.06);
-        for (let b = 1; b < s.beats; b++) for (const m of v) add(s.at + b, 0.6, m, vel - 0.12);
+        for (let b = 1; b < s.beats; b++) chord(s.at + b, 0.6, v, vel - 0.12);
         break;
       }
       case 'pad': {
-        for (const m of v) add(s.at, s.beats + 0.1, m, vel - 0.05);
+        chord(s.at, s.beats + 0.1, v, vel - 0.05);
+        break;
+      }
+      case 'bossa': {
+        // The thumb walks root and fifth on the strong beats; the fingers answer off them, short
+        // and soft, the pattern leaning the other way every second bar.
+        for (let k = 0; k < barsIn; k++) {
+          const t = s.bar * meter + k * meter;
+          add(t, 1.5, root, 0.55);
+          add(t + 2, 1.5, fifth, 0.5);
+          const offs = (s.bar + k) % 2 === 0 ? [0, 1.5, 3] : [0.5, 2, 3.5];
+          for (const o of offs) chord(t + o, 0.4, v.slice(-(rand() < 0.4 ? 4 : 3)), 0.5 + rand() * 0.1);
+        }
+        break;
+      }
+      case 'chops': {
+        // Muted stabs on the off-beats, and a ghost before the last one.
+        for (let k = 0; k < barsIn; k++) {
+          const t = s.bar * meter + k * meter;
+          for (const o of [0.5, 1.5, 2.5, 3.5]) chord(t + o, 0.12, v.slice(-3), 0.6, false);
+          chord(t + 1.75, 0.12, v.slice(-3), 0.35, false);
+        }
+        break;
+      }
+      case 'jazzwaltz': {
+        // Rootless voicings on two and three (the bass has one); every fourth bar the next chord
+        // is anticipated a half beat early.
+        const next = slots[si + 1];
+        for (let k = 0; k < barsIn; k++) {
+          const t = s.bar * meter + k * meter;
+          const lean = (s.bar + k) % 4 === 3;
+          const nextV =
+            lean && next && Math.abs(next.at - (t + meter)) < 1e-6
+              ? voice(next.chord, key, v, lo, hi, true)
+              : null;
+          chord(t + 1, 0.9, v, vel);
+          if (nextV) chord(t + 2.5, 0.5, nextV, vel);
+          else chord(t + 2, 0.9, v, vel - 0.06);
+        }
         break;
       }
     }
-  }
+  });
   return out;
 }
 
-function bassLine(style: Style, key: number, slots: Slot[], rand: Rand): Draft[] {
+function bassLine(
+  style: Style,
+  key: number,
+  slots: Slot[],
+  rand: Rand,
+  /** Bars that end a phrase (the waltz bass walks into the next chord there). */
+  lastBars: ReadonlySet<number> = new Set(),
+): Draft[] {
   if (!style.bass) return [];
   const { inst, pattern } = style.bass;
   const out: Draft[] = [];
+  const meter = style.meter;
   const scale = style.mode === 'major' ? MAJOR : MINOR;
   slots.forEach((s, i) => {
     const next = slots[i + 1] ?? s;
     const root = fit(key + s.chord.tones[0]!, 38, 50);
     const nextRoot = fit(key + next.chord.tones[0]!, 38, 50);
     const add = (beat: number, beats: number, midi: number, vel: number) =>
+      beat >= s.at - 1e-6 &&
+      beat < s.at + s.beats - 1e-6 &&
       out.push({ beat, beats, midi, inst, voice: 'bass', vel });
+    const barsIn = Math.ceil(s.beats / meter - 1e-6);
     switch (pattern) {
       case 'pedal':
         add(s.at, s.beats, root, 0.42);
@@ -430,17 +665,71 @@ function bassLine(style: Style, key: number, slots: Slot[], rand: Rand): Draft[]
         line.forEach((m, b) => add(s.at + b, 0.9, fit(m, 36, 55), b === 0 ? 0.6 : 0.52));
         break;
       }
+      case 'bossa': {
+        const fifth = fit(key + s.chord.tones[2]!, root, root + 9);
+        for (let k = 0; k < barsIn; k++) {
+          const t = s.bar * meter + k * meter;
+          add(t, 1.5, root, 0.55);
+          add(t + 1.5, 0.5, fifth, 0.42);
+          add(t + 2, 1, root, 0.48);
+          add(t + 3, 0.5, fifth, 0.42);
+          // The next chord's root arrives a half beat early.
+          if (next !== s && k === barsIn - 1) add(t + 3.5, 0.5, nextRoot, 0.44);
+        }
+        break;
+      }
+      case 'funk': {
+        const fifth = fit(key + s.chord.tones[2]!, root, root + 9);
+        for (let k = 0; k < barsIn; k++) {
+          const t = s.bar * meter + k * meter;
+          add(t, 0.5, root, 0.62);
+          add(t + 0.75, 0.25, root + 12, 0.4);
+          add(t + 1.5, 0.4, root, 0.5);
+          add(t + 2, 0.4, root, 0.55);
+          add(t + 2.75, 0.25, root + 12, 0.4);
+          add(t + 3.25, 0.3, root - 2, 0.42);
+          add(t + 3.5, 0.3, fifth, 0.45);
+        }
+        break;
+      }
+      case 'waltz': {
+        const fifth = fit(key + s.chord.tones[2]!, root, root + 9);
+        for (let k = 0; k < barsIn; k++) {
+          const bar = s.bar + k;
+          const t = bar * meter;
+          add(t, 1.8, root, 0.55);
+          // At a phrase's last bar the third beat steps into the next root.
+          if (lastBars.has(bar) && next !== s) add(t + 2, 1, nextRoot + (nextRoot >= root ? -1 : 1), 0.46);
+          else add(t + 2, 1, fifth, 0.45);
+        }
+        break;
+      }
     }
   });
   return out;
 }
 
-function drums(style: Style, bars: number, firstBar: number, rand: Rand, soft: boolean): Draft[] {
+/**
+ * `vm` scales every hit (a quiet B, a rainy day). `density` (0 to 1) is how busy the kit gets: the
+ * ghost notes and fills come out when it is high.
+ */
+function drums(
+  style: Style,
+  bars: number,
+  firstBar: number,
+  rand: Rand,
+  vm: number,
+  density: number,
+): Draft[] {
   if (!style.drums) return [];
   const out: Draft[] = [];
   const meter = style.meter;
   const add = (beat: number, inst: Instrument, variant: number, vel: number) =>
-    out.push({ beat, beats: 0.25, midi: variant, inst, voice: 'drums', vel: vel * (soft ? 0.7 : 1) });
+    out.push({ beat, beats: 0.25, midi: variant, inst, voice: 'drums', vel: vel * vm });
+  // A brush's ghost note on a swung off-beat, only in a swinging style when the kit is busy.
+  const ghost = (t: number) => {
+    if (style.swing > 0.55 && rand() < density * 0.5) add(t + (rand() < 0.5 ? 0.5 : 2.5), 'brush', 2, 0.2);
+  };
   for (let b = firstBar; b < firstBar + bars; b++) {
     const t = b * meter;
     switch (style.drums) {
@@ -450,6 +739,7 @@ function drums(style: Style, bars: number, firstBar: number, rand: Rand, soft: b
         add(t + 2, 'brush', 2, 0.35);
         add(t + 3, 'brush', 4, 0.5);
         if (rand() < 0.35) add(t + 3.5, 'brush', 2, 0.25);
+        ghost(t);
         break;
       case 'jazz':
         for (const [o, v] of [
@@ -463,9 +753,32 @@ function drums(style: Style, bars: number, firstBar: number, rand: Rand, soft: b
           add(t + o, 'ride', 1 + ((b + o) % 2), v);
         add(t + 1, 'brush', 3, 0.4);
         add(t + 3, 'brush', 4, 0.4);
+        ghost(t);
         break;
       case 'shaker':
         for (let e = 0; e < meter * 2; e++) add(t + e / 2, 'shaker', 1 + (e % 3), e % 2 ? 0.5 : 0.3);
+        break;
+      case 'bossa':
+        // Shaker eighths leaning on the beats; a rim click that alternates its place every bar.
+        for (let e = 0; e < 8; e++) add(t + e / 2, 'shaker', 1 + (e % 3), e % 2 ? 0.26 : 0.42);
+        for (const o of b % 2 === 0 ? [1.5, 3] : [1, 2.5]) add(t + o, 'rim', 1 + (b % 2), 0.4);
+        break;
+      case 'funk':
+        // A soft kick on one and three (with a ghost before four when the kit is busy), a rim
+        // on two and four, and a shaker in sixteenths underneath.
+        add(t, 'kick', 1, 0.45);
+        add(t + 2, 'kick', 1, 0.42);
+        if (rand() < density) add(t + 2.75, 'kick', 1, 0.28);
+        add(t + 1, 'rim', 1, 0.42);
+        add(t + 3, 'rim', 2, 0.42);
+        for (let e = 0; e < 16; e++)
+          add(t + e / 4, 'shaker', 1 + (e % 3), e % 4 === 0 ? 0.28 : e % 2 === 0 ? 0.2 : 0.14);
+        break;
+      case 'waltz':
+        // A swish on one, light taps on two and three.
+        add(t, 'brush', 1, 0.5);
+        add(t + 1, 'brush', 3, 0.28);
+        add(t + 2, 'brush', 4, 0.28);
         break;
     }
   }
@@ -474,9 +787,80 @@ function drums(style: Style, bars: number, firstBar: number, rand: Rand, soft: b
 
 // --- The piece ------------------------------------------------------------------------------------
 
+interface Arrangement {
+  style: Style;
+  /** Scales the drums (a rainy day plays them softly). */
+  drumVel: number;
+  /** Scales the comping (fog hushes it). */
+  compVel: number;
+  /** The pad plays under the A sections too (a city's full band). */
+  padA: boolean;
+  /** The lead is doubled an octave below in the last A. */
+  doubled: boolean;
+  /** Snow brings a bell even where the style has none. */
+  snow: boolean;
+}
+
+/**
+ * The band the town can field and the weather it plays in. No `ensemble` is the style as written.
+ * 0 hamlet: lead and a guitar. 1 village: bass and a brushes or shaker kit. 2 town: the style's own
+ * comp and kit. 3 market town: a bell and a pad. 4 city: the pad under every A, the tune doubled.
+ */
+function arrange(choice: PieceChoice): Arrangement {
+  const base = choice.style;
+  let style: Style = base;
+  let doubled = false;
+  let padA = false;
+  const rank = choice.ensemble;
+  if (rank !== undefined) {
+    const r = Math.max(0, Math.min(4, Math.floor(rank)));
+    style = { ...base };
+    if (r <= 1) {
+      const pattern = GUITAR_ONLY.includes(base.comp.pattern)
+        ? base.meter === 3
+          ? 'arp'
+          : 'travis'
+        : base.comp.pattern;
+      style.comp = { inst: 'guitar', pattern };
+    }
+    if (r === 0) {
+      style.bass = null;
+      style.drums = null;
+    } else if (r === 1) {
+      style.drums =
+        base.drums === 'jazz' || base.drums === 'funk'
+          ? 'brushes'
+          : base.drums === 'bossa'
+            ? 'shaker'
+            : base.drums;
+    }
+    if (r < 3) {
+      style.pad = undefined;
+      style.sparkle = undefined;
+    }
+    padA = r >= 4;
+    doubled = r >= 4;
+  }
+  let drumVel = 1;
+  let compVel = 1;
+  let snow = false;
+  const weather = choice.weather ?? 'clear';
+  if (weather === 'rain' || weather === 'storm') {
+    drumVel = 0.6;
+    style = { ...style, pad: style.pad ?? 'strings' };
+    if (weather === 'storm') style.sparkle = undefined;
+  } else if (weather === 'fog') {
+    style = { ...style, drums: null };
+    compVel = 0.8;
+  } else if (weather === 'snow') snow = true;
+  return { style, drumVel, compVel, padA, doubled, snow };
+}
+
 /** Writes the piece a director's choice names. */
 export function compose(choice: PieceChoice): Piece {
-  const { style, key } = choice;
+  const { key } = choice;
+  const arr = arrange(choice);
+  const style = arr.style;
   const rand = seededRand(choice.seed * 7919 + key * 31 + style.id.length * 977);
   const tempo = Math.round(style.tempo[0] + rand() * (style.tempo[1] - style.tempo[0]));
   const meter = style.meter;
@@ -487,6 +871,11 @@ export function compose(choice: PieceChoice): Piece {
   const bOpen = pick(rand, style.b.open);
   const bClose = pick(rand, style.b.close);
   const short = style.id === 'night';
+  // Some pieces open with the valley's own tune.
+  const motif =
+    choice.valleySeed !== undefined && choice.seed % 3 === 0
+      ? adaptMotif(valleyMotif(choice.valleySeed), meter)
+      : undefined;
   const home = style.mode === 'major' ? (style.id === 'evening' ? 'Imaj7' : 'Iadd9') : 'i';
   const firstChord = typeof aOpen[0] === 'string' ? aOpen[0] : aOpen[0][0];
 
@@ -517,9 +906,12 @@ export function compose(choice: PieceChoice): Piece {
         sec.name === 'outro' ? slots.slice(0, 1).map((s) => ({ ...s, beats: meter * 2 })) : slots,
         rand,
         quiet,
+        arr.compVel,
       ),
     );
-    if (sec.name !== 'outro') drafts.push(...bassLine(style, key, slots, rand));
+    // Where a phrase ends, the waltz bass leans into the next chord.
+    const phraseEnds = new Set<number>(['A', 'A2', 'B', 'A3'].includes(sec.name) ? [bar + 3, bar + 7] : []);
+    if (sec.name !== 'outro') drafts.push(...bassLine(style, key, slots, rand, phraseEnds));
     else
       drafts.push(
         ...bassLine(
@@ -530,8 +922,22 @@ export function compose(choice: PieceChoice): Piece {
         ),
       );
     if (sec.name !== 'outro' && sec.name !== 'intro')
-      drafts.push(...drums(style, sec.bars.length, bar, rand, sec.name === 'B'));
-    if (style.pad && (sec.name === 'B' || sec.name === 'A3' || sec.name === 'outro')) {
+      drafts.push(
+        ...drums(
+          style,
+          sec.bars.length,
+          bar,
+          rand,
+          (sec.name === 'B' ? 0.7 : 1) * arr.drumVel,
+          sec.name === 'B' || sec.name === 'A3' ? 0.8 : 0.4,
+        ),
+      );
+    const padHere =
+      sec.name === 'B' ||
+      sec.name === 'A3' ||
+      sec.name === 'outro' ||
+      (arr.padA && (sec.name === 'A' || sec.name === 'A2'));
+    if (style.pad && padHere) {
       let prev: number[] | null = null;
       for (const s of sec.name === 'outro' ? slots.slice(0, 1) : slots) {
         const v = voice(s.chord, key, prev, 55, 74, false);
@@ -571,6 +977,8 @@ export function compose(choice: PieceChoice): Piece {
         'open',
         pitch,
         0,
+        undefined,
+        motif,
       );
       const close = phraseMelody(
         rand,
@@ -632,16 +1040,31 @@ export function compose(choice: PieceChoice): Piece {
     } else if (sec.name === 'A3' && themeOpen && themeClose) {
       const notes = [...themeOpen, ...themeClose].map((n) => at(n, bar * meter));
       emit(notes);
-      if (style.sparkle)
+      // The bell doubles the tune (the valley's motif bars with it) an octave up.
+      const bell = style.sparkle ?? (arr.snow ? (lead === 'celesta' ? 'glock' : 'celesta') : undefined);
+      if (bell)
         for (const n of notes)
           drafts.push({
             beat: n.beat,
             beats: n.beats,
             midi: n.midi + 12,
-            inst: style.sparkle,
+            inst: bell,
             voice: 'sparkle',
             vel: n.vel * 0.5,
           });
+      // A city's band doubles the tune an octave below, in clarinet or strings.
+      if (arr.doubled) {
+        const under = lead === 'clarinet' ? 'strings' : pick(rand, ['clarinet', 'strings'] as const);
+        for (const n of notes)
+          drafts.push({
+            beat: n.beat,
+            beats: n.beats,
+            midi: n.midi - 12,
+            inst: under,
+            voice: 'lead',
+            vel: n.vel * 0.45,
+          });
+      }
     } else if (sec.name === 'outro') {
       // The tune's last word: home, held.
       const last = themeClose?.[themeClose.length - 1]?.midi ?? key + 24;
@@ -675,15 +1098,23 @@ export function compose(choice: PieceChoice): Piece {
       const b = swing(d.beat);
       const loose = d.voice === 'bass' || d.voice === 'drums' ? 0.004 : d.voice === 'lead' ? 0.012 : 0.008;
       const lag = d.voice === 'lead' ? 0.008 : 0;
-      const time = Math.max(0, secondsAt(b) + (rand() - 0.5) * 2 * loose + lag);
+      const time = Math.max(0, secondsAt(b) + (rand() - 0.5) * 2 * loose + lag + (d.delay ?? 0));
       const dur = Math.max(0.05, secondsAt(swing(d.beat + d.beats)) - secondsAt(b) - 0.02);
+      // Metric accents: the downbeat leans, the off-beats lie back a little.
+      let accent = 1;
+      if (d.voice !== 'drums' && d.voice !== 'pad') {
+        const pos = (((d.beat % meter) + meter) % meter) as number;
+        if (Math.abs(pos - Math.round(pos)) > 1e-6) accent = 0.93;
+        else if (Math.round(pos) === 0) accent = meter === 4 ? 1.08 : 1.07;
+        else if (meter === 4 && Math.round(pos) === 2) accent = 1.03;
+      }
       return {
         time,
         dur,
         midi: d.midi,
         inst: d.inst,
         voice: d.voice,
-        vel: Math.max(0.05, Math.min(1, d.vel * style.level)),
+        vel: Math.max(0.05, Math.min(1, d.vel * accent * style.level)),
       };
     })
     .sort((a, b) => a.time - b.time || a.midi - b.midi);
