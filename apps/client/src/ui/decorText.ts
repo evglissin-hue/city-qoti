@@ -2,14 +2,18 @@
 // building inspector (playtest round seven; content DecorDef.boost).
 import { content, type DecorDef } from '@qoti/content';
 
-/** "a sawpit, quarry or smithy": the buildings a boost names (ids or tags), by name. */
+/** "a sawpit, quarry or smithy" or "an orchard or apiary": the buildings a boost names, by name. */
 function targetList(tags: readonly string[]): string {
   const names = tags.map((t) => {
     const def = content.buildingById.get(t);
     return (def?.name ?? t).toLowerCase();
   });
-  if (names.length <= 1) return `a ${names[0] ?? 'workplace'}`;
-  return `a ${names.slice(0, -1).join(', ')} or ${names[names.length - 1]}`;
+  const list =
+    names.length <= 1
+      ? (names[0] ?? 'workplace')
+      : `${names.slice(0, -1).join(', ')} or ${names[names.length - 1]}`;
+  // P1 player's chair: "an orchard", not "a orchard".
+  return `${/^[aeiou]/.test(list) ? 'an' : 'a'} ${list}`;
 }
 
 /** "+6% work at a sawpit or quarry within 2 tiles", or null for a piece that boosts nothing. */
