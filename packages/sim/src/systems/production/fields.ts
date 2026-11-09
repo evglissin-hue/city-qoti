@@ -4,12 +4,13 @@
 //
 // I3 (C5A): wheat follows the year (docs/spec/14-challenge.md, Seasons). Bare tiles are sown from
 // Spring day 1 to Summer day 3 (content SeasonDef.sow), grow through spring, summer and autumn (one tended
-// step in GROW_EVERY, a quarter slower on fair soil and half on thin), and turn golden at
-// HARVEST_MIN. From the first day of summer (SeasonDef.harvest) golden tiles are brought in as they ripen: each tended step
-// takes HARVEST_YIELD wheat while the farm has room and lowers the tile by HARVEST_STEP, so a fully
-// ripe tile gives about 26 wheat, about what a year of I2's tending gave. Sheaves left standing keep
-// through winter (nothing grows, but the harvest goes on as room allows) until the spring ploughing
-// turns them in. An early frost halves what is still standing (frostFields); the Seed Drill takes
+// step in GROW_EVERY, a quarter slower on fair soil and half on thin), and are ripe once golden
+// (HARVEST_MIN: the crop jumps to CROP_RIPE as it turns). From the first day of summer
+// (SeasonDef.harvest) ripe tiles are brought in: each tended step takes HARVEST_YIELD wheat while
+// the farm has room and lowers the tile by HARVEST_STEP, so a tile gives about 26 wheat whenever it
+// is cut, about what a year of I2's tending gave. Sheaves left standing keep through winter (nothing
+// grows, but the harvest goes on as room allows) until the first PLOUGH_DAYS of spring plough
+// them in. An early frost halves what is still standing (frostFields); the Seed Drill takes
 // smaller bites (DRILL_STEP), a fifth more per tile. A farm with nothing sown outside the sowing
 // window lies fallow until spring, and says so (BuildingStatus.fallow).
 import { content, type BuildingDef } from '@qoti/content';
@@ -34,6 +35,8 @@ export const CROP_RIPE = 255;
 export const CROP_YIELD = 2;
 /** I3 (C5A): a tile grows on one tended step in this many (staggered by tile). */
 export const GROW_EVERY = 4;
+/** P1: spring days on which last year's standing sheaves are ploughed in (I3's sowing window). */
+export const PLOUGH_DAYS = 3;
 /** Golden: from here a tile is standing wheat, brought in at harvest. */
 export const HARVEST_MIN = 192;
 /** Crop taken off a standing tile per harvest step, and with the Seed Drill. */
@@ -233,6 +236,8 @@ export interface FieldPhase {
   sow: boolean;
   grow: boolean;
   harvest: boolean;
+  /** P1: last year's standing sheaves are ploughed in during the first PLOUGH_DAYS of spring only. */
+  plough: boolean;
 }
 
 /** Season index of winter: nothing grows. */
@@ -243,7 +248,11 @@ export function fieldPhase(state: WorldState): FieldPhase {
   const def = content.seasons[season];
   const sow = !!def?.sow && day >= def.sow[0] && day <= def.sow[1];
   const harvest = season === WINTER || (!!def?.harvest && day >= def.harvest[0] && day <= def.harvest[1]);
-  return { sow, grow: season !== WINTER, harvest };
+  // P1 fix: with spring's sowing open to day 6, ploughing every golden tile in the window turned
+  // this year's crop under as it ripened (golden on day 6 for a day-1 sowing on good soil). Only
+  // the old window ploughs in what last year left; this year's crop is barely half grown by then.
+  const plough = sow && !harvest && season === 0 && day <= PLOUGH_DAYS;
+  return { sow, grow: season !== WINTER, harvest, plough };
 }
 
 /** True when nothing stands or grows in the fields and the sowing window is shut. */
@@ -283,8 +292,8 @@ function tendTile(
   room: boolean,
   vegNow: boolean,
 ): { next: number; wheat: number; veg: number; waiting: boolean } {
-  if (phase.sow && (c === 0 || (c >= HARVEST_MIN && !phase.harvest))) {
-    // Spring ploughing: bare ground and last year's standing sheaves are sown afresh.
+  if (phase.sow && (c === 0 || (c >= HARVEST_MIN && phase.plough))) {
+    // Bare ground is sown; early in spring, last year's standing sheaves are ploughed in too.
     return { next: 1, wheat: 0, veg: 0, waiting: false };
   }
   if (phase.harvest && c >= HARVEST_MIN) {
@@ -293,7 +302,15 @@ function tendTile(
     return { next: left < HARVEST_MIN ? 0 : left, wheat: CROP_YIELD, veg: 0, waiting: false };
   }
   if (phase.grow && c > 0 && c < CROP_RIPE && growsNow) {
-    return { next: Math.min(CROP_RIPE, c + grow), wheat: 0, veg: 0, waiting: false };
+    // P1 fix: golden is ripe. With the harvest open from summer, a tile cut the hour it turned golden
+    // gave 2 wheat instead of 26; now it turns ripe as it turns golden (the field looks the same).
+    const next = Math.min(CROP_RIPE, c + grow);
+    return {
+      next: c < HARVEST_MIN && next >= HARVEST_MIN ? CROP_RIPE : next,
+      wheat: 0,
+      veg: 0,
+      waiting: false,
+    };
   }
   // Missed the sowing: rows of vegetables keep the ground (and the larder) busy until spring.
   if (phase.grow && c === 0 && vegNow && room) return { next: 0, wheat: 0, veg: 1, waiting: false };

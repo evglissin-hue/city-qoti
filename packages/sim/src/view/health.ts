@@ -68,6 +68,46 @@ export const DAY_TICKS = TICKS_PER_DAY;
 /** An input short, an order unfilled: a season (6 days) before it counts. */
 export const SEASON_TICKS = DAYS_PER_SEASON * TICKS_PER_DAY;
 
+const quietCache = new Map<string, ReadonlySet<number>>();
+const ALL_YEAR: ReadonlySet<number> = new Set();
+/** Field crops come in from the first summer cutting until the last sheaf, so winter and spring wait. */
+const FIELD_QUIET: ReadonlySet<number> = new Set([3, 0]);
+
+/**
+ * P1: the seasons (0 spring to 3 winter) in which a good runs short by design, so a mill waiting on
+ * it then is no dead end: a field crop in winter and spring (the barn is empty until the summer
+ * cutting, and the windmill's line says so), a gathered good out of season, and what is made only
+ * from them. A good that some producer makes all year is never quiet.
+ */
+export function quietSeasons(good: string, seen: ReadonlySet<string> = new Set()): ReadonlySet<number> {
+  const hit = quietCache.get(good);
+  if (hit) return hit;
+  if (seen.has(good)) return ALL_YEAR;
+  const path = new Set(seen).add(good);
+  const producers: ReadonlySet<number>[] = [];
+  for (const def of content.buildings)
+    for (const m of def.methods ?? []) {
+      if (!m.outputs.some(([g]) => g === good)) continue;
+      let mine: ReadonlySet<number>;
+      if (m.kind === 'farm') mine = FIELD_QUIET;
+      else if (m.kind === 'gather') {
+        const table = content.goodById.get(good)?.seasons;
+        mine = new Set(table ? [0, 1, 2, 3].filter((i) => table[i] === 0) : []);
+      } else if (m.kind === 'craft' && m.inputs.length > 0) {
+        // Short whenever any input is short.
+        const any = new Set<number>();
+        for (const [g] of m.inputs) for (const q of quietSeasons(g, path)) any.add(q);
+        mine = any;
+      } else mine = ALL_YEAR;
+      producers.push(mine);
+    }
+  // Quiet only when every producer is.
+  const out: ReadonlySet<number> =
+    producers.length === 0 ? ALL_YEAR : new Set([0, 1, 2, 3].filter((q) => producers.every((p) => p.has(q))));
+  if (seen.size === 0) quietCache.set(good, out);
+  return out;
+}
+
 /**
  * Watches a valley over time. Call `check` as often as you like (every game hour is plenty); it
  * returns the issues that hold now, judged against what it saw on earlier calls.
@@ -202,14 +242,18 @@ export class HealthWatch {
       if (b.stage !== 'built' || !rt || !(rt.status & BuildingStatus.missingInput)) continue;
       const def = content.buildingById.get(b.def);
       if (!def || !(rt.workers.length > 0 || (def.jobs?.count ?? 0) > 0)) continue;
-      live.add(b.id);
-      const since = this.shortSince.get(b.id) ?? now;
-      this.shortSince.set(b.id, since);
-      if (now - since < SEASON_TICKS) continue;
       const method = def.methods?.[rt.method];
       const short = (method?.inputs ?? []).filter(
         ([g, q]) => (rt.input[content.goodIndex.get(g) ?? -1] ?? 0) < q,
       );
+      // P1: waiting on a field crop in winter and spring is the year's shape, not a dead end; the
+      // clock starts again in summer, so a windmill idle through a summer is still found.
+      const season = seasonNow(state).season;
+      if (short.length > 0 && short.every(([g]) => quietSeasons(g).has(season))) continue;
+      live.add(b.id);
+      const since = this.shortSince.get(b.id) ?? now;
+      this.shortSince.set(b.id, since);
+      if (now - since < SEASON_TICKS) continue;
       const goods = short.map(([g]) => g).join(' and ') || 'an input';
       out.push({
         kind: 'idle-for-input',

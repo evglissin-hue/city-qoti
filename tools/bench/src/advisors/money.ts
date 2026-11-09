@@ -63,11 +63,15 @@ class Money implements Advisor {
     const room = Math.floor((creditLimit(w) - owed) / PENNIES_PER_COIN);
     // C4X: near the end of the credit line, wages go to the floor (lean times are a step away).
     if (room < 400 && coins < 200 && l.wageLevel > 80) setWage(80, 'trim wages to the floor');
-    if (coins < 60 && room >= 100) {
+    // P1: a cushion of 120 coins, not 60, and repay only above 500, down to 350. P1 added coin
+    // sinks (the peddler's imports, priced decor), and a player who borrows at the last coin
+    // stalls the build queue for days (six seeds at day 70 with P1's first economy: 135 residents
+    // on average with the old cushion, 142 with this one; main 138 either way).
+    if (coins < 120 && room >= 100) {
       p.do('take a loan', [{ t: 'loan.take', coins: Math.min(room, 300) }]);
-    } else if (owed > 0 && coins > 350) {
+    } else if (owed > 0 && coins > 500) {
       const loan = w.loans.loans[0]!;
-      const pay = Math.min(Math.ceil(loan.balance / PENNIES_PER_COIN), Math.floor(coins - 250));
+      const pay = Math.min(Math.ceil(loan.balance / PENNIES_PER_COIN), Math.floor(coins - 350));
       if (pay > 0) p.do('repay a loan', [{ t: 'loan.repay', id: loan.id, coins: pay }]);
     }
     // The Trading Post, when the content has one: build it, then keep a standing order book.
@@ -104,8 +108,10 @@ class Money implements Advisor {
       // C5X part 2: the farmsteads' grain and the quarries' stone past what the mills, bakeries and
       // sites can use (hazel held 1,517 wheat, 360 flour and 212 stone by day 72 and never sold a
       // sack, while its loans sat at their peak).
-      ['wheat', 0, Math.max(60, pop)],
-      ['flour', 0, Math.max(60, pop)],
+      // P1: the wheat comes in from summer now, so from then to the thaw the grain a winter needs
+      // is kept, not sold (a day's bread a head from each 3 wheat: 6 days of winter, 2 a head).
+      ['wheat', 0, winter ? Math.max(60, pop * 12) : Math.max(60, pop)],
+      ['flour', 0, winter ? Math.max(60, pop * 8) : Math.max(60, pop)],
       ['stone', 0, 100],
       ['wool', 0, 40],
       // C5X part 2: in autumn and winter a woodpile under three days of burning is topped up from

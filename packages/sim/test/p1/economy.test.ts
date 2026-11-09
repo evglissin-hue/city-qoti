@@ -2,13 +2,20 @@
 // buy a little of what it lacks through the daily peddler.
 import { content } from '@qoti/content';
 import { describe, expect, it } from 'vitest';
-import { LEDGER_CATEGORIES } from '../../src/constants';
+import { DAYS_PER_SEASON, LEDGER_CATEGORIES, TICKS_PER_HOUR } from '../../src/constants';
 import type { SimEvent, WorldState } from '../../src/contracts';
 import { insertBuilding } from '../../src/state/place';
 import { PEDDLER_IMPORT_PERCENT, PEDDLER_IMPORT_UNITS } from '../../src/systems/economy';
 import { START_GOODS } from '../../src/systems/economy/start';
 import { overdraftLimit } from '../../src/systems/loans/credit';
-import { CROP_STEP_TICKS, fieldPhase, fieldsOf } from '../../src/systems/production/fields';
+import {
+  CROP_STEP_TICKS,
+  fieldPhase,
+  fieldsOf,
+  HARVEST_MIN,
+  HARVEST_STEP,
+  tileHarvest,
+} from '../../src/systems/production/fields';
 import { shortages, slotPriority, STONE_RUSH } from '../../src/systems/residents/jobs';
 import { postBuyPrice } from '../../src/systems/trade/caravans';
 import { townStock } from '../../src/view/hamlet';
@@ -68,6 +75,32 @@ describe('wheat windows', () => {
     for (const i of b.idx) expect(b.f.state.map.crop[i]).toBe(0);
   });
 
+  // The class check for a P1 slip the bench found: spring's longer sowing ploughed this year's crop
+  // under as it turned golden, and a tile cut the hour it turned golden gave 2 wheat, not 26. A farm
+  // made a quarter of its old harvest while every window test passed. So: a whole year's yield.
+  it('a year of tending brings in at least a full crop a tile, from summer on', () => {
+    const { f, farm, idx } = farmWithFields(12);
+    const wheat = content.goodIndex.get('wheat')!;
+    const crew = [...farm.rt!.workers];
+    f.state.tick = tickAt(0, 0, 1, 0);
+    const bySeason = [0, 0, 0, 0];
+    let goldenBySpringEnd = 0;
+    for (let h = 0; h < 24 * 24; h++) {
+      if (h % 24 === 7) toWork(f.state, crew);
+      ticks(f.state, TICKS_PER_HOUR);
+      bySeason[Math.floor(h / (24 * DAYS_PER_SEASON))]! += farm.rt!.output[wheat]!;
+      farm.rt!.output[wheat] = 0;
+      if (h === 24 * DAYS_PER_SEASON - 1)
+        goldenBySpringEnd = idx.filter((i) => f.state.map.crop[i]! >= HARVEST_MIN).length;
+    }
+    // Nothing ploughed under: the spring sowing stands golden at the end of spring.
+    expect(goldenBySpringEnd).toBe(idx.length);
+    const year = bySeason.reduce((a, b) => a + b, 0);
+    expect(year).toBeGreaterThanOrEqual(idx.length * tileHarvest(HARVEST_STEP));
+    // The windmill has wheat in summer (the owner's playtest).
+    expect(bySeason[1]).toBeGreaterThanOrEqual(idx.length * tileHarvest(HARVEST_STEP));
+  });
+
   it('winter still cuts what is golden', () => {
     const { f, farm, idx } = farmWithFields(4);
     for (const i of idx) f.state.map.crop[i] = 230;
@@ -78,8 +111,11 @@ describe('wheat windows', () => {
 });
 
 describe('stone', () => {
-  it('starts at 40, and the windmill and bakery ask for less', () => {
-    expect(START_GOODS.find(([g]) => g === 'stone')?.[1]).toBe(40);
+  // P1 dead-end hunt: 30 as before, not 40. The cheaper windmill and bakery answer "stone scarce at
+  // the windmill" (two more homes, a farmhouse and the windmill now take 26); 40 moved every
+  // valley's first days, and willow's guide closed on its food step.
+  it('starts at 30, and the windmill and bakery ask for less', () => {
+    expect(START_GOODS.find(([g]) => g === 'stone')?.[1]).toBe(30);
     const stone = (id: string) => content.buildingById.get(id)!.cost!.goods!.find(([g]) => g === 'stone')![1];
     expect(stone('windmill')).toBe(8);
     expect(stone('bakery')).toBe(10);

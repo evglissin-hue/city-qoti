@@ -4,7 +4,7 @@ import { BuildingStatus, DAYS_PER_SEASON, TICKS_PER_DAY, TICKS_PER_HOUR } from '
 import { content } from '@qoti/content';
 import { describe, expect, it } from 'vitest';
 import { insertBuilding } from '../../src/state/place';
-import { HealthWatch } from '../../src/view/health';
+import { HealthWatch, quietSeasons } from '../../src/view/health';
 import { hamletFixture } from '../fixtures/hamlet';
 import { run } from '../helpers';
 
@@ -41,16 +41,35 @@ describe('the playability health kinds', () => {
     const mill = s.buildings.find((b) => b.id === f.b.windmill)!;
     mill.rt!.status |= BuildingStatus.missingInput;
     const w = new HealthWatch();
-    s.tick = 0;
+    // From the first day of summer, when the fields are cut (the owner's playtest: "a built windmill
+    // useless in summer").
+    const summer = DAYS_PER_SEASON * TICKS_PER_DAY;
+    s.tick = summer;
     expect(kinds(w, s)).not.toContain('idle-for-input');
-    s.tick = (DAYS_PER_SEASON - 1) * TICKS_PER_DAY;
+    s.tick = summer + (DAYS_PER_SEASON - 1) * TICKS_PER_DAY;
     expect(kinds(w, s)).not.toContain('idle-for-input');
-    s.tick = DAYS_PER_SEASON * TICKS_PER_DAY;
+    s.tick = summer + DAYS_PER_SEASON * TICKS_PER_DAY;
     const issue = w.check(s).find((i) => i.kind === 'idle-for-input');
     expect(issue?.text).toContain('windmill');
     // A clear look resets the clock.
     mill.rt!.status &= ~BuildingStatus.missingInput;
     expect(kinds(w, s)).not.toContain('idle-for-input');
+  });
+
+  it('idle-for-input: waiting on wheat through winter and spring is the year, not a dead end', () => {
+    expect([...quietSeasons('wheat')].sort()).toEqual([0, 3]);
+    expect([...quietSeasons('flour')].sort()).toEqual([0, 3]);
+    expect(quietSeasons('planks').size).toBe(0);
+    const f = hamletFixture();
+    const s = f.state;
+    const mill = s.buildings.find((b) => b.id === f.b.windmill)!;
+    mill.rt!.status |= BuildingStatus.missingInput;
+    const w = new HealthWatch();
+    // Winter day 1 of the first year to the last hour of spring in the second: never flagged.
+    for (let d = 3 * DAYS_PER_SEASON; d <= 5 * DAYS_PER_SEASON; d++) {
+      s.tick = d * TICKS_PER_DAY - 1;
+      expect(kinds(w, s)).not.toContain('idle-for-input');
+    }
   });
 
   it('festival-no-show: a plan that was current on the day and never started', () => {

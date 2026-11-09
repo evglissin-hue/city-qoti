@@ -127,10 +127,7 @@ class Hamlet implements Advisor {
     if (working) for (const b of felled) p.do('retire a woodcutter', [{ t: 'build.remove', ids: [b.id] }]);
     // C4X: urgent, as homes wait on stone (a hamlet ran out on day five and grew no homes for a week).
     // Round seven: ahead of the homes, so the last of the stone never goes into a cottage first.
-    // Playtest round six: from 26, not 16. The hamlet starts with 40 stone now (34 once the first
-    // buildings are up), so the quarry still goes up on the second day, as it did when the stone was
-    // 30 and fell under 16 by then (oak stood at 18 residents through its summer without it).
-    want(stock[G('stone')]! < 26 && count(w, 'quarry') === 0, 'quarry', true);
+    want(stock[G('stone')]! < 16 && count(w, 'quarry') === 0, 'quarry', true);
     // Food first: a day's eating for everyone should come in each day, with a few days in hand.
     const foodPlaces = count(w, 'vegetable-plot') + count(w, 'fishers-hut') * 2 + count(w, 'farmhouse') * 3;
     wantFood(foodMade < pop + 4 && foodPlaces * 3 < pop + 6);
