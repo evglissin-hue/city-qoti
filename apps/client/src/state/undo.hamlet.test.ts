@@ -104,16 +104,6 @@ describe('undo for hamlet commands', () => {
     ]);
     r.undo.undo(r.mirror, r.raw);
     expect(r.sent.pop()).toEqual({ t: 'build.setPriority', id: 8, priority: true });
-
-    const stocks = mockView().stocks!;
-    r.play({ t: 'ledger.setForSale', good: 'bread', forSale: true }, [
-      {
-        e: 'stocks.updated',
-        s: { lines: stocks.lines.map((l) => (l.good === 'bread' ? { ...l, forSale: true } : l)) },
-      },
-    ]);
-    r.undo.undo(r.mirror, r.raw);
-    expect(r.sent.pop()).toEqual({ t: 'ledger.setForSale', good: 'bread', forSale: false });
   });
 
   it('a rejected inverse is remembered as an undo, so its toast can say so', () => {

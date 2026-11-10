@@ -1,5 +1,3 @@
-import { TICKS_PER_DAY } from '@qoti/sim';
-import { useEffect } from 'preact/hooks';
 import { DEBUG } from '../app/debug';
 import type { Session } from '../app/session';
 import { DebugOverlay, Dialogs, InviteDialog, Toasts } from './Overlays';
@@ -16,18 +14,12 @@ import './hamlet.css';
 import './village.css';
 import './seasons.css';
 import { seasonKey } from './seasons';
-import { syncDeals } from './deals';
 
 /** ?clean hides the debug numbers, for screenshots. */
 const CLEAN = new URLSearchParams(location.search).has('clean');
 
 /** Everything drawn over the canvas once a valley is ready. */
 export function GameUI({ session, onLeave }: { session: Session; onLeave: () => void }) {
-  // Playtest item 9: one-click trade deals keep their numbers fresh, each new day.
-  const day = Math.floor(session.mirror.tick.value / TICKS_PER_DAY);
-  useEffect(() => {
-    syncDeals(session);
-  }, [session, day]);
   const open = session.ui.panel.value;
   const book = open ? panels.find((p) => p.id === open && p.side === 'book') : undefined;
   // I3 (C5F): photo mode hides everything but its own strip.

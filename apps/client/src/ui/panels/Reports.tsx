@@ -6,7 +6,7 @@ import { buildingName, coinCount, coins, goodName } from '../format';
 import { GoodIcon } from '../goodIcons';
 import { statusWords } from '../hamlet';
 import type { ReportTab } from '../state';
-import { Empty, Frame, Sparkline, Toggle } from './parts';
+import { Empty, Frame, Sparkline } from './parts';
 
 const TABS: [ReportTab, string][] = [
   ['stocks', 'Stocks'],
@@ -17,7 +17,6 @@ const TABS: [ReportTab, string][] = [
 
 const CATEGORY_LABEL: Record<string, string> = {
   taxes: 'Resident taxes',
-  peddler: 'Peddler sales',
   refunds: 'Refunds',
   upkeep: 'Upkeep',
   construction: 'Construction',
@@ -95,7 +94,6 @@ export function Stocks({ session }: { session: Session }) {
               Today
             </th>
             <th>Last days</th>
-            <th title="The peddler buys goods marked for sale">Sell</th>
           </tr>
         </thead>
         <tbody>
@@ -117,22 +115,12 @@ export function Stocks({ session }: { session: Session }) {
                 <td>
                   <Sparkline values={[...l.history, l.stock]} />
                 </td>
-                <td>
-                  <Toggle
-                    on={l.forSale}
-                    label={<span class="sr-only">Sell {goodName(l.good).toLowerCase()}</span>}
-                    testid={`sell-${l.good}`}
-                    onChange={(on) => session.submit({ t: 'ledger.setForSale', good: l.good, forSale: on })}
-                  />
-                </td>
               </tr>
             );
           })}
         </tbody>
       </table>
-      <p class="muted small foot">
-        The peddler calls at 10:00 and buys up to 40 units of whatever is marked to sell.
-      </p>
+      <p class="muted small foot">The carrier calls at the valley gate at 10:00, by the Ledger&apos;s terms.</p>
     </>
   );
 }

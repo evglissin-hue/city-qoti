@@ -117,10 +117,6 @@ function capture(cmd: Command, m: Mirror): Before | null {
       const b = m.buildings.get(cmd.id);
       return b ? { t: 'flag', value: b.rt?.paused ?? false } : null;
     }
-    case 'ledger.setForSale': {
-      const line = m.stocks.value?.lines.find((l) => l.good === cmd.good);
-      return { t: 'flag', value: line?.forSale ?? false };
-    }
     default:
       return null;
   }
@@ -345,15 +341,6 @@ function inverseOf(p: Pending, m: Mirror, change: MirrorChange, seat: SeatId): U
         label: cmd.paused ? 'the pause' : 'the restart',
         inverse: [{ t: 'build.setPaused', id: cmd.id, paused: before.value }],
         intact: (mm) => (mm.buildings.get(cmd.id)?.rt?.paused ?? false) === cmd.paused,
-      };
-    }
-    case 'ledger.setForSale': {
-      if (before.t !== 'flag') return null;
-      return {
-        label: cmd.forSale ? 'putting it up for sale' : 'taking it off sale',
-        inverse: [{ t: 'ledger.setForSale', good: cmd.good, forSale: before.value }],
-        intact: (mm) =>
-          (mm.stocks.value?.lines.find((l) => l.good === cmd.good)?.forSale ?? cmd.forSale) === cmd.forSale,
       };
     }
     default:

@@ -187,10 +187,6 @@ describe('UndoStack', () => {
       t: 'tiles',
       values: [0],
     });
-    expect(r.undo.prepare({ t: 'ledger.setForSale', good: 'logs', forSale: true }, r.mirror)).toEqual({
-      t: 'flag',
-      value: false,
-    });
     // Speed and profile changes are not undoable.
     expect(r.undo.prepare({ t: 'time.setSpeed', speed: 2 }, r.mirror)).toBeNull();
   });
