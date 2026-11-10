@@ -47,6 +47,13 @@ One row per cycle. A cycle is one agent session working from one brief on one br
 | D1 The redesign's spec | R1 to R3, V2 to V4 | serial | none (this session) | P1 | done on `claude/zealous-goodall-35jfp6` (2026-11-10): the owner's step back turned into spec: `13-ledger.md` rewritten zones first (the chain economy archived), `19-evenings.md` new, the look's second pass and the interface in `17-presentation.md`, the principles amended (Kat's agreement still to record), the roadmap's R1 to R3 and V2 to V6 on fresh valleys. A review the same day fixed four small inconsistencies (the winter draw penalty, a field hand's keep, the carrier's Village service, a first workshop that a well-fed Hamlet never opened) and wrote the V2.0 and R1.0 briefs on `claude/funny-noether-28i3x9` |
 | V2.0 Look contracts and measuring | V2 | serial | `cycle-v2-0-look-contracts.md` | P1 | in progress on `cycle/v2-0-look-contracts`; writes the V2A to V2X briefs |
 | R1.0 Zones contracts | R1 | serial | `cycle-r1-0-zones-contracts.md` | P1 | in progress on `cycle/r1-0-zones-contracts`; ends by creating `cycle/r1x-integration` and writes the R1A to R1X briefs |
+| R1A The economy core | R1 | parallel | `cycle-r1a-economy-core.md` | R1.0 | waiting; branches from `cycle/r1x-integration`, PR into it |
+| R1B Land and businesses | R1 | parallel | `cycle-r1b-land-businesses.md` | R1.0 | waiting; branches from `cycle/r1x-integration`, PR into it |
+| R1C The interface | R1 | parallel | `cycle-r1c-interface.md` | R1.0 | waiting; branches from `cycle/r1x-integration`, PR into it |
+| R1D The Hearth's tools and the first days | R1 | parallel | `cycle-r1d-hearth-first-days.md` | R1.0 | waiting; branches from `cycle/r1x-integration`, PR into it |
+| R1E Art for trades | R1 | parallel | `cycle-r1e-trade-art.md` | R1.0, V2.0 | waiting; branches from `cycle/r1x-integration`, PR into it |
+| R1F The bench | R1 | parallel | `cycle-r1f-bench.md` | R1.0 | waiting; branches from `cycle/r1x-integration`, PR into it |
+| R1X R1 integration and tuning | R1 | integration | `cycle-r1x-integration.md` | R1A to R1F | waiting; merges the wave on `cycle/r1x-integration`, tags `chains-final`, one PR into `main` |
 
 Status values: waiting (dependencies not merged), ready, in progress (add the session link), PR open (add the PR link), merged.
 
