@@ -14,11 +14,12 @@
 //   festival), bumping `env.lightMapRevision`.
 // - Readers bind `lightMapUniforms(env)` and include `LIGHT_MAP_GLSL`, then call `qLightMap(xz)`.
 //
-// V2.0 stub: `drawLightMap` draws nothing (the target is never rendered into or bound, so it takes
-// no GPU memory and reads as black), no shader reads it yet, and the ground's 32-light loop
+// V2.0 stub: `drawLightMap` draws no discs (it clears the target to black on a redraw), no shader
+// reads it yet, and the ground's 32-light loop
 // (`MAX_GROUND_LIGHTS`, layers/lights.ts) stays in charge. V2A owns this file from here.
 import { MAP_SIZE } from '@qoti/sim';
 import {
+  Color,
   HalfFloatType,
   LinearFilter,
   RGBAFormat,
@@ -151,14 +152,30 @@ export function resizeLightMap(env: LightMapEnv, quality: Quality): boolean {
 
 /**
  * Redraws the map when a writer changed it; the renderer calls this once a frame after the layers'
- * `frame()`. Returns true when it redrew. V2.0 stub: draws nothing (the map stays black and
- * unallocated) and only bumps the revision.
+ * `frame()`. Returns true when it redrew. V2.0 stub: clears the map to black and bumps the revision.
  */
 export function drawLightMap(three: WebGLRenderer | null, env: LightMapEnv): boolean {
   if (!env.lightWriter.takeDirty()) return false;
-  void three;
+  // The stub clears the target to black, so a reader that binds it before V2A draws reads a real
+  // black texture rather than an unallocated one.
+  if (three) clearTarget(three, env.lightMap);
   env.lightMapRevision++;
   return true;
+}
+
+const black = new Color(0);
+const saved = new Color();
+
+/** Clears a target to transparent black and puts the renderer's target and clear color back. */
+function clearTarget(three: WebGLRenderer, target: WebGLRenderTarget): void {
+  const before = three.getRenderTarget();
+  three.getClearColor(saved);
+  const alpha = three.getClearAlpha();
+  three.setRenderTarget(target);
+  three.setClearColor(black, 0);
+  three.clear(true, false, false);
+  three.setRenderTarget(before);
+  three.setClearColor(saved, alpha);
 }
 
 /** What a reader binds: the map's texture and the world-to-map transform (uv = xz * xy + zw). */

@@ -138,7 +138,7 @@ What drops the still-frame cache in V2, beyond V1's list:
 
 | What | Stand-in until the owner lands | Owner |
 |---|---|---|
-| The light map | `env.lightMap` (preset-sized `HalfFloat` target), never rendered into or bound, so black and unallocated; `drawLightMap` only bumps `env.lightMapRevision`; the ground's 32-light loop (`MAX_GROUND_LIGHTS`) is in charge; `layers/lights.ts` feeds `lanterns` and `windows` | V2A |
+| The light map | `env.lightMap` (preset-sized `HalfFloat` target), cleared to black by `drawLightMap` on each redraw (no discs drawn), which bumps `env.lightMapRevision`; the ground's 32-light loop (`MAX_GROUND_LIGHTS`) is in charge; `layers/lights.ts` feeds `lanterns` and `windows` | V2A |
 | Light map readers | none; `lightMapUniforms(env)` and `LIGHT_MAP_GLSL` exist, so a reader bound now reads black | V2A (ground, walls, folk, water), V2B (trees), V2C (smoke) |
 | A static change without a shadow render | none: every static change re-renders the shadow map at rest | V2A |
 | Rooms behind windows | eight flat layers at `ROOM_LAYER` (25 to 32); glass draws as today; Low keeps the flat glow for good (`17-presentation.md`, Quality presets) | V2A |
