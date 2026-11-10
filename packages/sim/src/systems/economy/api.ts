@@ -97,15 +97,16 @@ export function chargePlacement(
   const cost = placementCost(def);
   book(state, 'construction', cost);
   b.rt.construction.paid = cost;
-  const logs = content.goodIndex.get('logs');
-  if (clearedTrees > 0 && logs !== undefined) {
+  // R1: cleared trees give timber (logs and planks are one good now).
+  const timber = content.goodIndex.get('timber');
+  if (clearedTrees > 0 && timber !== undefined) {
     const c = b.rt.construction;
     const n = clearedTrees * CLEARED_TREE_LOGS;
-    const used = Math.min(n, c.needs[logs]!);
-    c.needs[logs]! -= used;
-    c.delivered[logs]! += used;
-    if (n > used) stowNearest(state, doorTile(b, def), logs, n - used, b.id);
-    bookProduced(state, ctx, b, logs, n);
+    const used = Math.min(n, c.needs[timber]!);
+    c.needs[timber]! -= used;
+    c.delivered[timber]! += used;
+    if (n > used) stowNearest(state, doorTile(b, def), timber, n - used, b.id);
+    bookProduced(state, ctx, b, timber, n);
   }
   emitMoney(state, ctx);
 }
@@ -115,7 +116,7 @@ export function chargePlacement(
  * returns delivered materials and buffers to the nearest storehouse, cancels porter jobs.
  */
 export function refundRemoval(state: WorldState, ctx: TickCtx, b: Building, def: BuildingDef): void {
-  if (isFarm(def)) {
+  if (isFarm(b)) {
     const fields = fieldsOf(state, b, def);
     if (fields.length > 0) clearFields(state, ctx, fields);
   }

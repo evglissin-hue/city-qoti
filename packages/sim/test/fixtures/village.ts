@@ -2,19 +2,25 @@
 // directly in state on the flat test world (grass at height 2, river at x 100 and 101), so every
 // I2 track can test against the same town before the others land.
 //
-//   z=46..49  north of lane A (z=50, x 32 to 96): town hall, storehouse A, seven cottages, bakery,
-//             windmill, sawpit, two market stalls, all facing the lane
+//   z=46..49  north of lane A (z=50, x 32 to 96): town hall, storehouse A, seven cottages, a baker's
+//             workshop (a level 2 business, trade 'baker') in the windmill's reach, the windmill, a
+//             Forester's Lodge, two market stalls, all facing the lane
 //   z=50      lane A; a path crosses at x 64 from z 40 to 80; a lane joins A and B at x 32
 //   z=51..53  shops zoned south of lane A (x 66 to 81), cut into four 2x3 lots facing north
 //   z=66..69  north of street B (z=70, x 32 to 96, cobbled): eight houses (four of Craftsfolk),
-//             storehouse B, wells at (60, 52) and (60, 72)
+//             storehouse B, the granary (66, 67), wells at (60, 52) and (60, 72)
 //   z=71..73  homes zoned south of street B (x 40 to 61), cut into seven 2x2 lots facing north;
 //             the first holds a grown cottage (style 'timber')
 //
 // Fifteen households, 60 residents: seven Settler families in the cottages, four Settler and four
 // Craftsfolk families in the houses. Jobs: builders, porters at both storehouses, bakers, a miller,
-// sawyers and two vendors. Savings: Settlers 20 coins, Craftsfolk 60. One open plan, one open
-// goods request, a standing order and a small loan; Cobbles unlocked; five days of price history.
+// foresters and two vendors. Savings: Settlers 20 coins, Craftsfolk 60. One open plan, one open
+// goods request and a small loan; Cobbles unlocked; five days of price history.
+//
+// R1 (R1.0): the bakery is a workshop business with trade 'baker' at level 2 (two hands; key
+// `bakery`), the sawpit's place holds a Forester's Lodge (key `sawpit`), the Food keeps in a granary
+// (placed last, so the other ids are as before), clay became brick, and the standing order is gone.
+// The carrier follows the Village's default rules (applyRankDefaults).
 import { content } from '@qoti/content';
 import { MAP_SIZE, NEED_IDS, PENNIES_PER_COIN, START_TREASURY, Zone } from '../../src/constants';
 import type {
@@ -33,6 +39,7 @@ import { goodsArray } from '../../src/state/hamlet';
 import { insertBuilding } from '../../src/state/place';
 import { doorTile } from '../../src/systems/movement/api';
 import { charterFrom } from '../../src/state/village';
+import { applyRankDefaults } from '../../src/state/zones';
 import { flatWorld, S } from '../helpers';
 
 export interface VillageFixture {
@@ -42,9 +49,13 @@ export interface VillageFixture {
     storehouses: [EntityId, EntityId];
     cottages: EntityId[];
     houses: EntityId[];
+    /** A workshop business with trade 'baker' at level 2, in the windmill's reach. */
     bakery: EntityId;
     windmill: EntityId;
+    /** A Forester's Lodge (R1: where the sawpit stood). */
     sawpit: EntityId;
+    /** The granary, where the Food keeps (R1). */
+    granary: EntityId;
     stalls: [EntityId, EntityId];
     wells: [EntityId, EntityId];
     /** The cottage grown on the first homes lot. */
@@ -81,8 +92,12 @@ function place(
   z: number,
   rot: Rot4 = 0,
   seat: 0 | 1 = 0,
+  trade?: string,
 ): Building {
-  return insertBuilding(state, null, content.buildingById.get(def)!, x, z, rot, seat, { site: false });
+  return insertBuilding(state, null, content.buildingById.get(def)!, x, z, rot, seat, {
+    site: false,
+    ...(trade !== undefined && { trade }),
+  });
 }
 
 function stock(b: Building, pairs: [string, number][], where: 'store' | 'input' = 'store'): void {
@@ -204,9 +219,10 @@ export function villageFixture(): VillageFixture {
   const storeA = place(state, 'storehouse', 39, 47);
   const cottages: Building[] = [];
   for (let i = 0; i < 7; i++) cottages.push(place(state, 'cottage', 43 + i * 3, 48, 0, (i % 2) as 0 | 1));
-  const bakery = place(state, 'bakery', 66, 48);
+  const bakery = place(state, 'workshop', 66, 47, 0, 0, 'baker');
+  bakery.level = 2;
   const windmill = place(state, 'windmill', 69, 48);
-  const sawpit = place(state, 'sawpit', 72, 47);
+  const sawpit = place(state, 'foresters-lodge', 72, 48);
   const stallA = place(state, 'market-stall', 76, 48, 0, 1);
   const stallB = place(state, 'market-stall', 79, 48, 0, 1);
   const wellA = place(state, 'well', 60, 52);
@@ -219,18 +235,13 @@ export function villageFixture(): VillageFixture {
   for (let i = 0; i < 4; i++) houses[i]!.rt!.tier = 'craftsfolk';
 
   stock(storeA, [
-    ['logs', 40],
-    ['planks', 60],
+    ['timber', 100],
     ['stone', 30],
-    ['wheat', 20],
-    ['bread', 30],
-    ['vegetables', 30],
-    ['fish', 10],
   ]);
   stock(storeB, [
-    ['planks', 20],
+    ['timber', 20],
     ['stone', 20],
-    ['clay', 12],
+    ['brick', 12],
     ['wool', 8],
     ['firewood', 24],
     ['cloth', 6],
@@ -244,8 +255,7 @@ export function villageFixture(): VillageFixture {
     ['cheese', 4],
     ['firewood', 8],
   ]);
-  stock(bakery, [['flour', 4]], 'input');
-  stock(sawpit, [['logs', 4]], 'input');
+  stock(bakery, [['grain', 4]], 'input');
 
   // Lots: shops facing lane A from the south, homes facing street B from the south.
   const shopLots = [0, 1, 2, 3].map((i) => cutLot(state, Zone.shops, 66 + i * 4, 51, 2, 3, 2, 'plaster').id);
@@ -306,6 +316,7 @@ export function villageFixture(): VillageFixture {
   cobbles.unlockedTick = 0;
   cobbles.progress = 100;
   state.hearth.unlocked.push('street');
+  applyRankDefaults(state);
 
   // Five days of prices: bread climbing as stock runs short, the rest at base.
   const bread = content.goodIndex.get('bread')!;
@@ -318,14 +329,6 @@ export function villageFixture(): VillageFixture {
   state.market.demand[bread] = 70;
   state.market.cover[bread] = 60;
 
-  state.trade.orders.push({
-    good: content.goodIndex.get('planks')!,
-    min: 0,
-    max: 60,
-    floor: 250,
-    ceiling: 0,
-    neighbor: '',
-  });
   const loan = {
     id: state.nextId++,
     principal: 100 * PENNIES_PER_COIN,
@@ -360,6 +363,15 @@ export function villageFixture(): VillageFixture {
   state.hearth.hints = content.patterns.slice(0, 3).map((p) => p.id);
   for (let c = 0; c < (MAP_SIZE / 16) * (MAP_SIZE / 16); c++) state.hearth.dirtyChunks.push(c);
 
+  // R1: the Food keeps in the granary on street B, placed last so every id above is as it was.
+  const granary = place(state, 'granary', 66, 67);
+  stock(granary, [
+    ['grain', 20],
+    ['bread', 30],
+    ['vegetables', 30],
+    ['fish', 10],
+  ]);
+
   return {
     state,
     b: {
@@ -370,6 +382,7 @@ export function villageFixture(): VillageFixture {
       bakery: bakery.id,
       windmill: windmill.id,
       sawpit: sawpit.id,
+      granary: granary.id,
       stalls: [stallA.id, stallB.id],
       wells: [wellA.id, wellB.id],
       grown: grown.id,

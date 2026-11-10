@@ -12,10 +12,12 @@ describe('.qoti valley files', () => {
     expect(file.snapshot.t).toBe(420);
     expect(file.snapshot.simVersion).toBe(SIM_VERSION);
     expect(file.summary.townName).toBe('Fernhollow');
-    expect(file.summary.buildings).toBe(5);
+    // The starting town's buildings, however many R1's start lays out (a Granary joined in R1.0).
+    expect(file.summary.buildings).toBe(w.buildings.length);
+    expect(w.buildings.length).toBeGreaterThanOrEqual(5);
     const back = deserialize(base64ToBytes(file.snapshot.data));
     expect(back.time.connected).toEqual([]);
-    expect(back.buildings).toHaveLength(5);
+    expect(back.buildings).toHaveLength(w.buildings.length);
   });
 
   it('refuses files that are not valleys', () => {

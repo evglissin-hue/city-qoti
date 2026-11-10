@@ -1,6 +1,7 @@
 // @vitest-environment happy-dom
 // I2 (C4F): village alerts, the rank pennant, plan words and shapes, and the minimap's paint,
 // against the village mocks.
+import { content } from '@qoti/content';
 import { MAP_SIZE, type Command, type TrialView } from '@qoti/sim';
 import { h } from 'preact';
 import { afterEach, describe, expect, it } from 'vitest';
@@ -28,13 +29,17 @@ describe('village alerts', () => {
       lines: m.market.value!.lines.map((l) => (l.good === 'bread' ? { ...l, price: l.base * 2 } : l)),
     };
     m.stocks.value = {
-      lines: m.stocks.value!.lines.map((l) => (l.good === 'cloth' ? { ...l, stock: 0 } : l)),
+      // R1: wants are by family, so the town is out of every flavor of Wares.
+      lines: m.stocks.value!.lines.map((l) =>
+        content.goodById.get(l.good)?.family === 'wares' ? { ...l, stock: 0 } : l,
+      ),
     };
     const ledger = alertsForLens(computeAlerts(m, [], { seat: 0 }), 'ledger', new Set());
     const price = ledger.find((a) => a.key === 'price-bread-dear');
     expect(price?.text).toContain('Bread is dear');
     expect(price?.action).toEqual({ kind: 'market', good: 'bread' });
-    expect(ledger.find((a) => a.key === 'tier-short-craftsfolk-cloth')?.text).toContain('Craftsfolk');
+    const wares = ledger.find((a) => a.key === 'tier-short-craftsfolk-wares');
+    expect(wares?.text).toContain("Craftsfolk households can't find wares anywhere");
     // The Hearth hears none of it.
     const hearth = alertsForLens(computeAlerts(m, [], { seat: 0 }), 'hearth', new Set());
     expect(hearth.some((a) => a.key.startsWith('price-') || a.key.startsWith('tier-short'))).toBe(false);

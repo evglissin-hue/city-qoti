@@ -116,20 +116,16 @@ export function finish(state: WorldState, ctx: TickCtx, b: Building): void {
 }
 
 const FINISHED: readonly [id: string, text: string][] = [
-  ['bakery', 'The bakery is finished. Expect visitors who were just passing, every morning.'],
   ['builders-yard', "The builder's yard is open. Everyone suddenly has opinions about fences."],
   ['cottage', 'A new cottage is finished. The paint is dry, mostly.'],
-  ['farmhouse', 'The farmhouse is finished. The fields are waiting to be told where they are.'],
-  ['fishers-hut', "The fisher's hut is finished. The river has been warned."],
-  ['foresters-lodge', "The forester's lodge is finished. Somebody has to put the trees back."],
+  ['fishery', 'The fishery is finished. The river has been warned.'],
+  ['foresters-lodge', "The forester's lodge is finished. The nearest trees look nervous."],
+  ['granary', 'The granary is finished. It smells of sacks and good intentions.'],
   ['market-stall', 'A market stall is up. The awning is already doing its best.'],
   ['quarry', 'The quarry is open. It will be loud, and it will be worth it.'],
-  ['sawpit', 'The sawpit is finished. Logs go in, planks come out, sawdust goes everywhere.'],
   ['storehouse', 'The new storehouse is finished. It echoes, for now.'],
-  ['vegetable-plot', 'The vegetable plot is dug. The cabbages have a lot to live up to.'],
   ['well', 'The well is finished. The water tastes faintly of achievement.'],
   ['windmill', 'The windmill is finished and turning, slowly, like it means it.'],
-  ['woodcutter', "The woodcutter's hut is finished. The nearest trees look nervous."],
 ];
 
 function finishedLine(def: BuildingDef | undefined): string {

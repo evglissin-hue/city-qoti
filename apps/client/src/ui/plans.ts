@@ -1,4 +1,4 @@
-// Plans (I2, C4F): which commands a sketch may hold, plans in words ("a bakery, a bench and 12
+// Plans (I2, C4F): which commands a sketch may hold, plans in words ("a windmill, a bench and 12
 // tiles of lane"), and their blueprint shapes on the ground. docs/spec/16-coop.md, Plans layer.
 import { content } from '@qoti/content';
 import { footprintSize, TILE_FP, type Command, type CommandType, type PlanItem } from '@qoti/sim';
@@ -45,7 +45,7 @@ function list(parts: string[]): string {
   return `${parts.slice(0, -1).join(', ')} and ${parts[parts.length - 1]}`;
 }
 
-/** A plan's contents in a line: "a bakery, two benches and 12 tiles of lane". */
+/** A plan's contents in a line: "a windmill, two benches and 12 tiles of lane". */
 export function planSummary(items: readonly PlanItem[]): string {
   const builds = new Map<string, number>();
   const decor = new Map<string, number>();

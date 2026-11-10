@@ -2,12 +2,11 @@
 // town that quietly stops working is noticed by a test, the autoplayer or a developer, not by two
 // players wondering why nothing gets built. Read-only and outside the simulation: the watcher keeps
 // what it has seen in its own memory, never in state, so it changes nothing and hashes nothing.
-import { content } from '@qoti/content';
+import { content, type ProductionMethod } from '@qoti/content';
 import {
   BuildingStatus,
   DAYS_PER_SEASON,
   FESTIVAL,
-  RANKS,
   ResidentFlags,
   SEASON_NAMES,
   TICKS_PER_DAY,
@@ -15,14 +14,12 @@ import {
 } from '../constants';
 import type { Building, WorldState } from '../contracts';
 import { townReachesDoor } from '../state/reach';
+import { familyIndex, jobsOf, methodOf } from '../state/zones';
 import { isStandard } from '../state/hamlet';
 import { hourOf, isBuildTime } from '../systems/economy/time';
 import { currentPlan, isFestivalDay } from '../systems/festivals/api';
 import { achievable } from '../systems/hearth/wishes/achievable';
-import { overdraftLimit } from '../systems/loans/credit';
 import { seasonNow } from '../systems/seasons/api';
-import { postBuyPrice } from '../systems/trade/caravans';
-import { tradingPost } from '../systems/trade/post';
 import { MAX_BUILDERS_PER_SITE } from '../systems/construction';
 import { available } from '../systems/logistics/tasks';
 import { allowedWork } from '../systems/production/status';
@@ -46,9 +43,7 @@ export type HealthKind =
   /** A voiced wish whose target cannot be met by anything the town can do, for a whole day. */
   | 'wish-dead-end'
   /** A festival plan that was current on the festival day and never started. */
-  | 'festival-no-show'
-  /** A standing order below its min for a season, with credit and a neighbor selling the good. */
-  | 'order-never-filled';
+  | 'festival-no-show';
 
 export interface HealthIssue {
   kind: HealthKind;
@@ -68,6 +63,12 @@ export const DAY_TICKS = TICKS_PER_DAY;
 /** An input short, an order unfilled: a season (6 days) before it counts. */
 export const SEASON_TICKS = DAYS_PER_SEASON * TICKS_PER_DAY;
 
+/** Every production method in content: specialized buildings' and trades' (R1). */
+const ALL_METHODS: readonly ProductionMethod[] = [
+  ...content.buildings.flatMap((d) => d.methods ?? []),
+  ...content.trades.flatMap((t) => (t.method ? [t.method] : [])),
+];
+
 const quietCache = new Map<string, ReadonlySet<number>>();
 const ALL_YEAR: ReadonlySet<number> = new Set();
 /** Field crops come in from the first summer cutting until the last sheaf, so winter and spring wait. */
@@ -85,22 +86,21 @@ export function quietSeasons(good: string, seen: ReadonlySet<string> = new Set()
   if (seen.has(good)) return ALL_YEAR;
   const path = new Set(seen).add(good);
   const producers: ReadonlySet<number>[] = [];
-  for (const def of content.buildings)
-    for (const m of def.methods ?? []) {
-      if (!m.outputs.some(([g]) => g === good)) continue;
-      let mine: ReadonlySet<number>;
-      if (m.kind === 'farm') mine = FIELD_QUIET;
-      else if (m.kind === 'gather') {
-        const table = content.goodById.get(good)?.seasons;
-        mine = new Set(table ? [0, 1, 2, 3].filter((i) => table[i] === 0) : []);
-      } else if (m.kind === 'craft' && m.inputs.length > 0) {
-        // Short whenever any input is short.
-        const any = new Set<number>();
-        for (const [g] of m.inputs) for (const q of quietSeasons(g, path)) any.add(q);
-        mine = any;
-      } else mine = ALL_YEAR;
-      producers.push(mine);
-    }
+  for (const m of ALL_METHODS) {
+    if (!m.outputs.some(([g]) => g === good)) continue;
+    let mine: ReadonlySet<number>;
+    if (m.kind === 'farm') mine = FIELD_QUIET;
+    else if (m.kind === 'gather') {
+      const table = content.goodById.get(good)?.seasons;
+      mine = new Set(table ? [0, 1, 2, 3].filter((i) => table[i] === 0) : []);
+    } else if (m.kind === 'craft' && m.inputs.length > 0) {
+      // Short whenever any input is short.
+      const any = new Set<number>();
+      for (const [g] of m.inputs) for (const q of quietSeasons(g, path)) any.add(q);
+      mine = any;
+    } else mine = ALL_YEAR;
+    producers.push(mine);
+  }
   // Quiet only when every producer is.
   const out: ReadonlySet<number> =
     producers.length === 0 ? ALL_YEAR : new Set([0, 1, 2, 3].filter((q) => producers.every((p) => p.has(q))));
@@ -127,7 +127,6 @@ export class HealthWatch {
   private festivalDay = -1;
   private festivalReported = false;
   /** Good index → tick a standing order was first seen below its min. */
-  private readonly unfilledSince = new Map<number, number>();
 
   check(state: WorldState): HealthIssue[] {
     if (!isStandard(state)) return [];
@@ -241,8 +240,8 @@ export class HealthWatch {
       const rt = b.rt;
       if (b.stage !== 'built' || !rt || !(rt.status & BuildingStatus.missingInput)) continue;
       const def = content.buildingById.get(b.def);
-      if (!def || !(rt.workers.length > 0 || (def.jobs?.count ?? 0) > 0)) continue;
-      const method = def.methods?.[rt.method];
+      if (!def || !(rt.workers.length > 0 || jobsOf(b) > 0)) continue;
+      const method = methodOf(b);
       const short = (method?.inputs ?? []).filter(
         ([g, q]) => (rt.input[content.goodIndex.get(g) ?? -1] ?? 0) < q,
       );
@@ -299,37 +298,6 @@ export class HealthWatch {
         });
       }
     }
-
-    // Standing orders below their min for a season though a neighbor sells and the treasury can pay.
-    const post = tradingPost(state);
-    const stock = townStock(state);
-    const open = new Set<number>();
-    for (const o of post ? state.trade.orders : []) {
-      if ((stock[o.good] ?? 0) >= o.min) continue;
-      const sold = state.trade.neighbors.some((n) => {
-        const p = postBuyPrice(state, n.id, o.good);
-        const named = !o.neighbor || o.neighbor === n.id;
-        const rank = content.neighborById.get(n.id)?.rank;
-        if (rank && RANKS.indexOf(state.charter.rank) < RANKS.indexOf(rank)) return false;
-        return (
-          named &&
-          p !== null &&
-          (o.ceiling === 0 || p <= o.ceiling) &&
-          state.economy.treasury - p > -overdraftLimit(state)
-        );
-      });
-      if (!sold) continue;
-      open.add(o.good);
-      const since = this.unfilledSince.get(o.good) ?? now;
-      this.unfilledSince.set(o.good, since);
-      if (now - since >= SEASON_TICKS)
-        out.push({
-          kind: 'order-never-filled',
-          id: o.good,
-          text: `the standing order for ${content.goods[o.good]?.id} has sat below its minimum of ${o.min} for a season`,
-        });
-    }
-    for (const g of [...this.unfilledSince.keys()]) if (!open.has(g)) this.unfilledSince.delete(g);
   }
 }
 
@@ -353,14 +321,13 @@ function deadlocked(state: WorldState, site: Building): string[] {
   c.needs.forEach((need, g) => {
     if (need <= 0 || (stock[g] ?? 0) > 0) return;
     const good = content.goods[g]!.id;
-    const makers = new Set(
-      content.buildings
-        .filter((d) => d.methods?.some((m) => m.outputs.some(([o]) => o === good)))
-        .map((d) => d.id),
-    );
     // A maker built or rising counts (one waiting on its own inputs shows up as its own issue).
-    const coming = state.buildings.some((b) => makers.has(b.def));
-    if (!coming) out.push(good);
+    const coming = state.buildings.some((b) => !!methodOf(b)?.outputs.some(([o]) => o === good));
+    // R1: so does the carrier, when its rule for the family lets it buy and a neighbor sells the good.
+    const family = state.carrier.families[familyIndex(content.goods[g]!.family)];
+    const carried =
+      !!family && family.rule !== 'never' && content.neighbors.some((n) => n.sells.some(([x]) => x === good));
+    if (!coming && !carried) out.push(good);
   });
   return out;
 }

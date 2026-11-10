@@ -1,4 +1,5 @@
 // @vitest-environment happy-dom
+import { content } from '@qoti/content';
 import { h } from 'preact';
 import { afterEach, describe, expect, it } from 'vitest';
 import { removalRequest } from '../../input/removal';
@@ -70,13 +71,13 @@ describe('building inspector', () => {
     view = await mount(h(InspectorPanel, { session }));
     const text = view.text();
     expect(text).toContain('The Warm Loaf');
-    expect(text).toContain('Bakery');
+    expect(text).toContain('Baker');
     expect(view.get('building-status').textContent).toContain('Waiting for inputs');
     expect(text).toContain('Hazel Thistledown');
     expect(text).toContain('1 in, 1 of 2 jobs filled');
     expect(text).toContain('1 job open');
     expect(text).toContain('Bake bread');
-    expect(text).toContain('4 flour');
+    expect(text).toContain('4 grain');
     expect(text).toContain('3 bread');
     expect(text).toContain('Condition');
     expect(text).toContain('Built by you with a personal touch');
@@ -95,7 +96,7 @@ describe('building inspector', () => {
     expect(text).toContain('Construction site');
     expect(text).toContain('Foundation');
     expect(view.get('construction-progress').textContent).toContain('35%');
-    expect(text).toContain('10/16 logs');
+    expect(text).toContain('10/16 timber');
     expect(text).toContain('6/6 stone');
     expect(text).toContain('Built by Bo');
     expect(view.root.querySelector('[data-testid="priority"]')?.getAttribute('aria-checked')).toBe('true');
@@ -107,13 +108,33 @@ describe('building inspector', () => {
     const { session } = mockSession();
     session.ui.selection.value = { kind: 'building', id: 2 };
     view = await mount(h(InspectorPanel, { session }));
-    expect(view.text()).toContain('142 of 400');
-    expect(view.text()).toContain('40 logs');
+    expect(view.text()).toContain(`142 of ${content.buildingById.get('storehouse')!.storage}`);
+    expect(view.text()).toContain('40 timber');
     view.unmount();
     session.ui.selection.value = { kind: 'building', id: 3 };
     view = await mount(h(InspectorPanel, { session }));
     expect(view.text()).toContain('Home of the Thistledown family');
     expect(view.text()).toContain('Pip Thistledown');
+  });
+
+  it("a business: goes by its trade's name, and its trade dial sends build.pinRecipe", async () => {
+    const { session, submitted } = mockSession();
+    session.ui.lens.value = 'ledger';
+    session.ui.selection.value = { kind: 'building', id: 6 };
+    view = await mount(h(InspectorPanel, { session }));
+    // The sign is the title; the trade, not "Workshop", is the line under it.
+    expect(view.text()).toContain('Baker');
+    expect(view.text()).toContain('Business');
+    expect(view.text()).not.toContain('Workshop');
+    const dial = view.get('pin-trade');
+    expect(view.get('pin-none').getAttribute('aria-checked')).toBe('true');
+    await view.click('pin-carpenter');
+    await view.click('pin-none');
+    expect(dial.textContent).toContain('Chandler');
+    expect(submitted).toEqual([
+      { t: 'build.pinRecipe', id: 6, trade: 'carpenter' },
+      { t: 'build.pinRecipe', id: 6, trade: null },
+    ]);
   });
 
   it('removes through a command', async () => {
@@ -131,7 +152,7 @@ describe('building inspector', () => {
     view = await mount(h(InspectorPanel, { session }));
     await view.click('remove');
     expect(submitted).toEqual([]);
-    expect(removalRequest.value?.title).toBe('Bo built this bakery and dressed it up by hand.');
+    expect(removalRequest.value?.title).toBe('Bo built this workshop and dressed it up by hand.');
     removalRequest.value!.resolve('The mill needs the spot');
     await new Promise((r) => setTimeout(r, 0));
     expect(submitted[0]).toEqual({ t: 'build.remove', ids: [6] });
@@ -139,7 +160,7 @@ describe('building inspector', () => {
       t: 'note.pin',
       x: 65,
       z: 48,
-      text: 'Ada removed your bakery: The mill needs the spot',
+      text: 'Ada removed your workshop: The mill needs the spot',
     });
   });
 });

@@ -21,7 +21,9 @@ function mirror(overrides: Parameters<typeof mockView>[0] = {}): Mirror {
 describe('catalog', () => {
   it('offers buildings by valley mode, and only homely ones in the Hearth lens', () => {
     const standard = buildingChoices('standard', 'ledger').map((d) => d.id);
-    expect(standard).toContain('bakery');
+    expect(standard).toContain('windmill');
+    // R1: businesses grow on zoned lots; the picker never offers them.
+    for (const grown of ['workshop', 'farmstead', 'corner-shop']) expect(standard).not.toContain(grown);
     expect(standard).not.toContain('house');
     expect(standard).not.toContain('town-hall');
     const sandbox = buildingChoices('sandbox', 'ledger').map((d) => d.id);
@@ -29,10 +31,17 @@ describe('catalog', () => {
     const hearth = buildingChoices('standard', 'hearth').map((d) => d.id);
     expect(hearth).toContain('cottage');
     expect(hearth).toContain('well');
-    expect(hearth).not.toContain('bakery');
-    expect(buildingGroup(content.buildingById.get('storehouse')!)).toBe('services');
-    expect(buildingGroup(content.buildingById.get('windmill')!)).toBe('food');
-    expect(buildingGroup(content.buildingById.get('sawpit')!)).toBe('materials');
+    expect(hearth).not.toContain('windmill');
+    expect(buildingGroup(content.buildingById.get('cottage')!)).toBe('homes');
+    expect(buildingGroup(content.buildingById.get('well')!)).toBe('services');
+    expect(buildingGroup(content.buildingById.get('windmill')!)).toBe('specialized');
+    expect(buildingGroup(content.buildingById.get('apiary')!)).toBe('specialized');
+  });
+
+  it('shelves every specialized building as Specialized (R1.0 stand-in for R1C)', () => {
+    const specialized = content.buildings.filter((d) => d.specialized);
+    expect(specialized.length).toBe(13);
+    for (const d of specialized) expect(buildingGroup(d), d.id).toBe('specialized');
   });
 
   it('explains a refusal by coins or lean times before the sim has to', () => {

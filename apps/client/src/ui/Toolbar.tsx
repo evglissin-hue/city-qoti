@@ -1,5 +1,4 @@
 import { content, type BuildingDef } from '@qoti/content';
-import { Fragment } from 'preact';
 import { useEffect, useState } from 'preact/hooks';
 import type { Session } from '../app/session';
 import {
@@ -7,7 +6,6 @@ import {
   buildingGroup,
   buildingLock,
   teasableLater,
-  chainsOf,
   choiceGroup,
   costBlock,
   DECOR_GROUP_LABEL,
@@ -18,11 +16,9 @@ import {
   lostTownHall,
   type BuildingGroup,
   type BuildingLock,
-  type Chain,
   type DecorGroup,
 } from '../input/catalog';
 import type { Tool } from '../input/tool';
-import { boostText } from './decorText';
 import { goodName, thousands } from './format';
 import { thumbnail, type ThumbnailKind } from '../render/thumbnails';
 import { Glyph, ToolIcon } from './icons';
@@ -33,8 +29,7 @@ import { planSummary } from './plans';
 import { INPUT_COPY } from '../input/copy';
 import { UNZONE } from './village';
 import { rankAtLeast, zoneInk } from './village';
-import { GoodIcon } from './goodIcons';
-import { buildingPurpose, goodPurpose } from './purpose';
+import { buildingPurpose } from './purpose';
 
 export function Toolbar({ session }: { session: Session }) {
   const manager = session.tools;
@@ -294,10 +289,9 @@ function Thumb({ kind, id }: { kind: ThumbnailKind; id: string }) {
 }
 
 /**
- * The Build picker: the valley's buildings by group. Playtest round six: Food and Materials show
- * their production chains, a row each, from the buildings that start from nothing to the ones that
- * finish the goods, with the goods that pass between them; buildings the town has not opened yet
- * stay in their chain, greyed, saying what opens them; those for a later rank wait off the page.
+ * The Build picker: the valley's buildings by group (R1.0 stand-in until R1C's three shelves).
+ * Buildings the town has not opened yet show greyed, saying what opens them; those for a later
+ * rank wait off the page.
  */
 function BuildingPicker({ session, tool }: { session: Session; tool: Tool }) {
   const m = session.mirror;
@@ -314,7 +308,6 @@ function BuildingPicker({ session, tool }: { session: Session; tool: Tool }) {
   const showing = group && groups.includes(group) ? group : selected ? buildingGroup(selected) : groups[0];
   const cards = defs.filter((d) => buildingGroup(d) === showing);
   const free = mode !== 'standard';
-  const chained = showing === 'food' || showing === 'materials';
   const card = (d: BuildingDef) => (
     <BuildCard
       key={d.id}
@@ -323,7 +316,6 @@ function BuildingPicker({ session, tool }: { session: Session; tool: Tool }) {
       lock={locks.get(d.id) ?? null}
       on={tool.variant?.value === d.id}
       free={free}
-      compact={chained}
     />
   );
   const laterHere = later.filter((d) => buildingGroup(d) === showing);
@@ -347,34 +339,7 @@ function BuildingPicker({ session, tool }: { session: Session; tool: Tool }) {
           <span class="muted hint">{tool.hint}</span>
         </div>
       )}
-      {chained ? (
-        <div class="picker-chains" data-testid="building-chains">
-          {chainsOf(cards).map((c) => (
-            <div class="chain-row" key={c.columns[0]![0]!.id}>
-              <span class="chain-label" title={c.makes.map(goodPurpose).join(' ')}>
-                {chainLabel(c)}
-              </span>
-              {c.columns.map((col, i) => (
-                <Fragment key={i}>
-                  {i > 0 && (
-                    <span class="chain-flow" title={c.flows[i - 1]!.map(goodPurpose).join(' ')}>
-                      {c.flows[i - 1]!.map((g) => (
-                        <GoodIcon key={g} good={g} />
-                      ))}
-                      <span class="arrow" aria-hidden="true">
-                        →
-                      </span>
-                    </span>
-                  )}
-                  <span class="chain-col">{col.map(card)}</span>
-                </Fragment>
-              ))}
-            </div>
-          ))}
-        </div>
-      ) : (
-        <div class="picker-cards">{cards.map(card)}</div>
-      )}
+      <div class="picker-cards">{cards.map(card)}</div>
       {laterHere.length > 0 && (
         <p class="picker-later muted" data-testid="building-later">
           {buildingLock(m, laterHere[0]!)?.text}: {laterHere.map((d) => d.name).join(', ')}.
@@ -391,18 +356,6 @@ function BuildingPicker({ session, tool }: { session: Session; tool: Tool }) {
   );
 }
 
-/** "Bread, from wheat": what a chain ends in, and what it starts from when that is different. */
-function chainLabel(c: Chain): string {
-  const end = c.makes.map((g) => goodName(g)).join(', ');
-  if (c.columns.length < 2) return end || 'Upkeep';
-  const raw = [
-    ...new Set(c.columns[0]!.flatMap((d) => (d.methods ?? []).flatMap((m) => m.outputs.map(([g]) => g)))),
-  ];
-  const from = raw.filter((g) => !c.makes.includes(g)).map((g) => goodName(g).toLowerCase());
-  if (!from.length) return end;
-  return `${end}, from ${from.length > 1 ? `${from.slice(0, -1).join(', ')} and ${from[from.length - 1]}` : from[0]}`;
-}
-
 /** One building in the picker: portrait, name, cost; greyed with its reason while locked. */
 function BuildCard({
   session,
@@ -410,14 +363,12 @@ function BuildCard({
   lock,
   on,
   free,
-  compact,
 }: {
   session: Session;
   def: BuildingDef;
   lock: BuildingLock | null;
   on: boolean;
   free: boolean;
-  compact: boolean;
 }) {
   const m = session.mirror;
   const blocked = free || lock ? null : costBlock(m, d.cost);
@@ -427,7 +378,7 @@ function BuildCard({
   return (
     <button
       type="button"
-      class={`card ${compact ? 'compact' : ''} ${on ? 'active' : ''} ${blocked ? 'short' : ''} ${lock ? 'locked' : ''}`}
+      class={`card ${on ? 'active' : ''} ${blocked ? 'short' : ''} ${lock ? 'locked' : ''}`}
       data-testid={`variant-${d.id}`}
       title={title}
       disabled={!!lock}
@@ -440,17 +391,13 @@ function BuildCard({
           <span class="lock-why muted">{lock.text}</span>
         ) : (
           <>
-            {!compact && (
-              <span class="size">
-                {d.size[0]} × {d.size[1]}
-                {!free && d.jobs ? `, ${d.jobs.count} ${d.jobs.count === 1 ? 'job' : 'jobs'}` : ''}
-                {!free && d.housing ? `, homes ${d.housing.residents}` : ''}
-              </span>
-            )}
+            <span class="size">
+              {d.size[0]} × {d.size[1]}
+              {!free && d.jobs ? `, ${d.jobs.count} ${d.jobs.count === 1 ? 'job' : 'jobs'}` : ''}
+              {!free && d.housing ? `, homes ${d.housing.residents}` : ''}
+            </span>
             <CostLine coins={d.cost?.coins} goods={d.cost?.goods} free={free} />
-            {!compact && !free && d.upkeep ? (
-              <span class="upkeep muted">{d.upkeep} a day to keep</span>
-            ) : null}
+            {!free && d.upkeep ? <span class="upkeep muted">{d.upkeep} a day to keep</span> : null}
           </>
         )}
       </span>
@@ -494,11 +441,6 @@ function DecorPicker({ session, tool, linear }: { session: Session; tool: Tool; 
           Set these out on the festival site. They come down the morning after, unless you keep one.
         </p>
       )}
-      {showing === 'work' && (
-        <p class="muted hint picker-hint" data-testid="work-pieces-hint">
-          Pricier pieces that make the work beside them go faster. Each card says which.
-        </p>
-      )}
       <div class="picker-cards">
         {choices.map(({ def, locked, hint }) => {
           const on = tool.variant?.value === def.id;
@@ -523,7 +465,6 @@ function DecorPicker({ session, tool, linear }: { session: Session; tool: Tool; 
                 ) : (
                   !free && def.cost && <CostLine coins={def.cost.coins} goods={def.cost.goods} free={false} />
                 )}
-                {!locked && boostText(def) && <span class="decor-effect muted">{boostText(def)}</span>}
               </span>
             </button>
           );
@@ -534,7 +475,7 @@ function DecorPicker({ session, tool, linear }: { session: Session; tool: Tool; 
   );
 }
 
-/** Which farmhouse the field tool is sowing for. */
+/** Which grain farm the field tool is sowing for. */
 function FieldHint({ session }: { session: Session }) {
   const id = session.ui.farm.value;
   const b = id !== null ? session.mirror.buildings.get(id) : undefined;
@@ -543,8 +484,8 @@ function FieldHint({ session }: { session: Session }) {
       <Glyph id="field" />
       <span>
         {b
-          ? 'Sowing for the farmhouse. Drag a box within reach; the tint shows the soil, and Shift+drag clears. A coin a tile.'
-          : 'Click a farmhouse first. Fields have to be within reach of someone with a hoe.'}
+          ? 'Sowing for the grain farm. Drag a box within reach; the tint shows the soil, and Shift+drag clears. A coin a tile.'
+          : 'Click a grain farm first. Fields have to be within reach of someone with a hoe.'}
       </span>
     </div>
   );

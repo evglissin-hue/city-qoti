@@ -1,5 +1,6 @@
 // I1 view builders (C3.0). Their output never feeds back into state, so floats are fine here.
 // Tracks may enrich these (C3A residents, C3B Hearth, C3C Ledger) without changing their shapes.
+import { isFood, jobsOf, methodOf } from '../state/zones';
 import { seasonAt } from '../state/seasons';
 import { guideView } from './seasons';
 import { type Condition, content } from '@qoti/content';
@@ -68,7 +69,7 @@ export function residentView(state: WorldState, r: Resident): ResidentView {
 
 export function householdView(h: Household): HouseholdView {
   let food = 0;
-  for (let i = 0; i < content.goods.length; i++) if (content.goods[i]!.food) food += h.pantry[i] ?? 0;
+  for (let i = 0; i < content.goods.length; i++) if (isFood(i)) food += h.pantry[i] ?? 0;
   return {
     id: h.id,
     family: h.family,
@@ -113,13 +114,18 @@ export function constructionProgress(rt: BuildingRuntime): number {
   return Math.min(1, 0.5 * mats + 0.5 * work);
 }
 
-export function runtimeView(defId: string, rt: BuildingRuntime): BuildingRuntimeView {
+export function runtimeView(
+  defId: string,
+  rt: BuildingRuntime,
+  owner: Pick<Building, 'trade' | 'level'> = {},
+): BuildingRuntimeView {
   const def = content.buildingById.get(defId);
-  const method = def?.methods?.[rt.method];
+  const b = { def: defId, ...owner };
+  const method = methodOf(b);
   // Farms keep the average ripeness of their tended fields (0 to 255) as progress.
   const cycle = !method ? 0 : method.kind === 'farm' ? 255 : cycleWork(method);
   const view: BuildingRuntimeView = {
-    jobs: def?.jobs?.count ?? 0,
+    jobs: jobsOf(b),
     workers: rt.workers.length,
     present: rt.present,
     status: rt.status,
@@ -130,8 +136,8 @@ export function runtimeView(defId: string, rt: BuildingRuntime): BuildingRuntime
     output: goodPairs(rt.output),
     store: goodPairs(rt.store),
   };
-  // C4E: what a grown craft is making, and a home upgrade under way, for the art.
-  if (method && (def?.methods?.length ?? 0) > 1) view.method = method.id;
+  // C4E: what a grown craft is making (R1: a business's trade method), and a home upgrade under way.
+  if (method && owner.trade) view.method = method.id;
   if (rt.upgrade && rt.upgrade.some((q) => q > 0)) view.upgrading = true;
   // C5E: damage, a shut gate and flood water, for the art.
   if (rt.hp !== undefined) {
@@ -177,7 +183,6 @@ export function stocksView(state: WorldState): StocksView {
       producedYesterday: e.yesterday.produced[i] ?? 0,
       consumedYesterday: e.yesterday.consumed[i] ?? 0,
       history: e.stockHistory.map((day) => day[i] ?? 0),
-      forSale: e.forSale[i] ?? false,
     })),
   };
 }
@@ -189,12 +194,12 @@ export function workforceView(state: WorldState): WorkforceView {
   let employed = 0;
   for (const b of state.buildings) {
     const def = content.buildingById.get(b.def);
-    const count = def?.jobs?.count ?? 0;
+    const count = jobsOf(b);
     if (!b.rt || count === 0) continue;
     lines.push({
       id: b.id,
       def: b.def,
-      role: def!.jobs!.role,
+      role: def?.jobs?.role ?? 'worker',
       jobs: count,
       workers: b.rt.workers.length,
       present: b.rt.present,

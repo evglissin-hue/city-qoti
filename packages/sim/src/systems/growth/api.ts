@@ -40,7 +40,7 @@ export function lotPlacement(state: WorldState, lot: Lot, def: BuildingDef): [x:
 }
 
 /**
- * Grows `defId` on the lot, facing its road, in its style (or `style`). Returns the new building,
+ * Grows `defId` on the lot, facing its road, in its style (or `style`); R1: a business of `trade`. Returns the new building,
  * or null when the lot is taken, the def does not fit the lot, or the ground says no.
  */
 export function growLot(
@@ -49,6 +49,7 @@ export function growLot(
   lotId: EntityId,
   defId: string,
   style?: string,
+  trade?: string,
 ): Building | null {
   const lot = findById(state.lots, lotId);
   const def = content.buildingById.get(defId);
@@ -58,6 +59,7 @@ export function growLot(
   const b = insertBuilding(state, ctx, def, at[0], at[1], lot.rot, 0, {
     lot: lot.id,
     style: style ?? lot.style,
+    ...(trade !== undefined && { trade }),
   });
   lot.buildingId = b.id;
   if (style) lot.style = style;

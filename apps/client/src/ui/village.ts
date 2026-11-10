@@ -1,6 +1,6 @@
 // Words and small helpers for the village panels (I2, C4F): ranks, zones, prices, lanes and life
 // events. Warm, dry and short, like the rest of the valley's paperwork.
-import { content } from '@qoti/content';
+import { content, type GoodFamily } from '@qoti/content';
 import { RANKS, TICKS_PER_DAY, type MarketLine, type RankId, type SeatView } from '@qoti/sim';
 import { seatLabel } from './format';
 
@@ -40,6 +40,15 @@ export function zoneInkByValue(value: number): string | null {
 }
 
 export const LANE_WORD = { hearth: 'Hearth', ledger: 'Ledger', shared: 'Together' } as const;
+
+/** R1: the five families of goods, by name. */
+export const FAMILY_WORD: Record<GoodFamily, string> = {
+  food: 'Food',
+  fuel: 'Fuel',
+  materials: 'Materials',
+  wares: 'Wares',
+  treats: 'Treats',
+};
 
 // --- Money and prices ---------------------------------------------------------------------------
 
@@ -90,8 +99,8 @@ export function inPlay(l: MarketLine): boolean {
 export function goodOrder(a: string, b: string): number {
   const ga = content.goodById.get(a);
   const gb = content.goodById.get(b);
-  const fa = ga?.food ? 0 : 1;
-  const fb = gb?.food ? 0 : 1;
+  const fa = ga?.family === 'food' ? 0 : 1;
+  const fb = gb?.family === 'food' ? 0 : 1;
   if (fa !== fb) return fa - fb;
   return (content.goodIndex.get(a) ?? 99) - (content.goodIndex.get(b) ?? 99);
 }

@@ -2,8 +2,8 @@ import { expect as baseExpect, test, type Browser, type Page } from '@playwright
 import { GUIDE_QUERY } from './helpers';
 
 // C5H acceptance: a new standard valley opens the County surveyor's first letter on both seats,
-// with an arrow at the tool it is about; finishing the step (a woodcutter with its door on the
-// lane) opens the next on both screens; one seat hiding the guide leaves it on the other; and a
+// with an arrow at the tool it is about; finishing the step (a Forester's Lodge with its door on
+// the lane) opens the next on both screens; one seat hiding the guide leaves it on the other; and a
 // valley made with the box unticked shows nothing. Commands go in through the debug hook; the
 // letters, cards and arrows are the real interface.
 
@@ -88,14 +88,14 @@ test('the first letter, its arrow, the next step on both screens, and hiding per
     .not.toContain('tool-lane');
   await a.keyboard.press('Escape');
 
-  // A woodcutter with its door on the lane: the step ticks within the hour and the next opens on both.
+  // A Forester's Lodge with its door on the lane: the step ticks within the hour and the next opens on both.
   const spot = await a.evaluate(() =>
     (
       window.__qoti as unknown as { findRoadSpot(d: string): { x: number; z: number; rot: number } | null }
-    ).findRoadSpot('woodcutter'),
+    ).findRoadSpot('foresters-lodge'),
   );
   expect(spot).not.toBeNull();
-  await submit(a, { t: 'build.place', def: 'woodcutter', x: spot!.x, z: spot!.z, rot: spot!.rot });
+  await submit(a, { t: 'build.place', def: 'foresters-lodge', x: spot!.x, z: spot!.z, rot: spot!.rot });
   await a.getByTestId('speed-3').click();
   await b.getByTestId('speed-3').click();
   for (const p of [a, b]) {

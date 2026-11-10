@@ -76,7 +76,7 @@ export function seasonAlerts(m: Mirror): Alert[] {
   }
   if (season === 3 && dayOfSeason <= 2 && (town?.population ?? 0) > 0) {
     let food = 0;
-    for (const l of stocks) if (content.goodById.get(l.good)?.food) food += l.stock;
+    for (const l of stocks) if (content.goodById.get(l.good)?.family === 'food') food += l.stock;
     const days = Math.floor(food / (town?.population ?? 1));
     out.push({
       key: `winter-food-${day}`,

@@ -13,8 +13,6 @@ import {
   START_HOUR,
   TICKS_PER_DAY,
   TICKS_PER_HOUR,
-  TRADE_BUY_PERCENT,
-  TRADE_SELL_PERCENT,
   WAGES,
 } from '../constants';
 import type {
@@ -43,7 +41,8 @@ import { findById } from '../state/entities';
 import { calendar } from '../systems/clock/calendar';
 import { dayIndex } from '../systems/economy/time';
 import { marketOpen } from '../systems/market/api';
-import { renownEffect } from '../systems/renown/api';
+import { carrierBuyPrice, carrierSellPrice, carrierTerms, tradingPost } from '../systems/carrier/terms';
+import { basketGroups } from '../systems/market/baskets';
 import { targetPrice } from '../systems/market/prices';
 import { profitReport } from '../systems/market/profit';
 import { charmAt } from '../conditions';
@@ -145,9 +144,9 @@ export function tierBaskets(state: WorldState): TierBasketView[] {
       tier,
       households: hs.length,
       savings: Math.round(savings / hs.length),
-      groups: (basket?.groups ?? []).map((g, i) => {
+      groups: (basket ? basketGroups(basket) : []).map((g, i, all) => {
         let sum = 0;
-        for (const h of hs) sum += h.basket?.length === basket!.groups.length ? (h.basket[i] ?? 100) : 100;
+        for (const h of hs) sum += h.basket && h.basket.length === all.length ? (h.basket[i] ?? 100) : 100;
         return { id: g.id, name: g.name, satisfaction: Math.round(sum / hs.length) };
       }),
     });
@@ -162,15 +161,10 @@ export function wagesAt(level: number): number[] {
 
 export function leversView(state: WorldState): LeversView {
   const l = state.levers;
-  const bans: string[] = [];
-  l.exportBans.forEach((b, i) => {
-    if (b) bans.push(goodId(i));
-  });
   return {
     wageLevel: l.wageLevel,
     taxRate: l.taxRate,
     wages: wagesAt(l.wageLevel),
-    exportBans: bans,
     ...(l.marketDay !== undefined && { marketDay: l.marketDay }),
     ...(l.quietHours !== undefined && { quietHours: l.quietHours }),
   };
@@ -236,11 +230,9 @@ export function regionalPrice(state: WorldState, neighbor: string, good: number)
 
 export function tradeView(state: WorldState): TradeView {
   // Only a built post counts: a construction site is not yet a Trading Post.
-  const post = state.buildings.find(
-    (b) => b.stage === 'built' && content.buildingById.get(b.def)?.tags?.includes('trading-post'),
-  );
-  // Renown earns better terms, the same percent the post itself applies (trade/caravans.ts).
-  const terms = renownEffect(state, 'trade');
+  const post = tradingPost(state);
+  // The carrier's terms today (the peddler's, or the post's), with renown's (systems/carrier/terms.ts).
+  const terms = carrierTerms(state);
   return {
     neighbors: content.neighbors
       .filter((n) => !n.rank || RANKS.indexOf(state.charter.rank) >= RANKS.indexOf(n.rank))
@@ -252,33 +244,14 @@ export function tradeView(state: WorldState): TradeView {
           blurb: n.blurb,
           prices: [...goods].sort().map((good) => {
             const i = content.goodIndex.get(good)!;
-            const p = regionalPrice(state, n.id, i);
-            const sells = n.sells.some(([x]) => x === good);
-            const buys = n.buys.some(([x]) => x === good);
             return {
               good,
-              buy: p !== null && sells ? Math.round((p * TRADE_BUY_PERCENT * (100 - terms)) / 10000) : null,
-              sell: p !== null && buys ? Math.round((p * TRADE_SELL_PERCENT * (100 + terms)) / 10000) : null,
+              buy: carrierBuyPrice(state, n.id, i, terms.buy),
+              sell: carrierSellPrice(state, n.id, i, terms.sell),
             };
           }),
         };
       }),
-    orders: state.trade.orders.map((o) => ({
-      good: goodId(o.good),
-      min: o.min,
-      max: o.max,
-      floor: o.floor,
-      ceiling: o.ceiling,
-      neighbor: o.neighbor,
-    })),
-    caravans: state.trade.caravans.map((c) => ({
-      id: c.id,
-      neighbor: c.neighbor,
-      selling: c.selling.map(([g, q]) => [goodId(g), q]),
-      buying: c.buying.map(([g, q]) => [goodId(g), q]),
-      departTick: c.departTick,
-      returnTick: c.returnTick,
-    })),
     log: state.trade.log.map((e) => ({ ...e, good: goodId(e.good) })),
     postId: post?.id ?? 0,
   };
@@ -302,13 +275,6 @@ export function charterView(state: WorldState): CharterView {
     }),
     ready: c.ready,
     history: c.history.map((h) => ({ ...h, seats: [...h.seats] })),
-    ...(state.calling && {
-      calling: {
-        offered: state.calling.offered.map((id, i) => ({ id, reason: state.calling!.reasons[i] ?? '' })),
-        chosen: state.calling.chosen,
-        together: state.seats.length >= 2,
-      },
-    }),
   };
 }
 

@@ -17,7 +17,7 @@ export const paint: HandlerFor<'field.paint'> = {
     if (bad) return bad;
     const farm = findById(state.buildings, cmd.farm);
     const def = farm ? content.buildingById.get(farm.def) : undefined;
-    if (!farm || !isFarm(def)) return 'NOT_FOUND';
+    if (!farm || !isFarm(farm)) return 'NOT_FOUND';
     const plan = planFields(state, farm, def!, cmd.tiles);
     if (plan.reason) return plan.reason;
     return spendBlocked(state, fieldCost(plan.tiles.length));

@@ -1,6 +1,7 @@
 // Building status bits (docs/spec/13-ledger.md, Reports: no workers, missing input, output full,
 // no road, no porters, plus paused, disrepair and the construction waits). Refreshed hourly for
 // every building and right away after construction milestones; a change sends building.updated.
+import { jobsOf, methodOf } from '../../state/zones';
 import type { BuildingDef, ProductionMethod } from '@qoti/content';
 import { content } from '@qoti/content';
 import { BuildingStatus, MAP_SIZE } from '../../constants';
@@ -102,13 +103,13 @@ export function computeStatus(
       s |= BuildingStatus.waitingBuilders;
     return s;
   }
-  if ((def.jobs?.count ?? 0) > 0 && rt.workers.length === 0) s |= BuildingStatus.noWorkers;
+  if (jobsOf(b) > 0 && rt.workers.length === 0) s |= BuildingStatus.noWorkers;
   if (wantsRoad(def) && !roadAtDoor) s |= BuildingStatus.noRoad;
   if (rt.condition < DISREPAIR_CONDITION) s |= BuildingStatus.disrepair;
   // I2 (C4C): a home waiting for upgrade materials, a cart shed with no cart road out.
   if (rt.upgrade) s |= BuildingStatus.upgrading;
   s |= cartShedStatus(state, b);
-  const method = def.methods?.[rt.method];
+  const method = methodOf(b) ?? undefined;
   if (wantsPorters(def, method) && !porterReachable(reaches, doorTile(b, def))) s |= BuildingStatus.noPorters;
   if (!method) return s;
   if (method.kind === 'craft' && inputsShort(rt, method)) s |= BuildingStatus.missingInput;

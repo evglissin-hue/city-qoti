@@ -1,6 +1,7 @@
-// Wheat fields (docs/spec/13-ledger.md, Farmhouse and Wheat Field). Field tiles are painted
-// within 6 tiles of a farmhouse on open ground (fertility 15+). The farmhouse's workers tend up to
-// 12 tiles each, during the work day, in the `crop` layer (0 bare to 255 ripe).
+// Grain fields (docs/spec/13-ledger.md, Farmland). Field tiles are painted within 6 tiles of a
+// grain farm (R1: a farmstead business whose trade's method is a `farm`, methodOf) on open ground
+// (fertility 15+). Its hands tend up to 12 tiles each, during the work day, in the `crop` layer
+// (0 bare to 255 ripe). The rest of this header still says wheat for grain.
 //
 // I3 (C5A): wheat follows the year (docs/spec/14-challenge.md, Seasons). Bare tiles are sown from
 // Spring day 1 to Summer day 3 (content SeasonDef.sow), grow through spring, summer and autumn (one tended
@@ -13,6 +14,8 @@
 // them in. An early frost halves what is still standing (frostFields); the Seed Drill takes
 // smaller bites (DRILL_STEP), a fifth more per tile. A farm with nothing sown outside the sowing
 // window lies fallow until spring, and says so (BuildingStatus.fallow).
+// R1 stand-in (R1B): the Seed Drill's smaller bites are gone (an unlock is never a percentage);
+// its 'resow-same-day' does nothing yet.
 import { content, type BuildingDef } from '@qoti/content';
 import { FIELD_GOOD_FERTILITY, FIELD_MIN_FERTILITY, MAP_SIZE, TILE_FP } from '../../constants';
 import type { Building, Rect, RejectReason, TickCtx, WorldState } from '../../contracts';
@@ -20,7 +23,7 @@ import { inBounds, Terrain } from '../../map/layers';
 import { MAX_DECOR_RADIUS } from '../../rules/geometry';
 import { footprintSize } from '../../rules/footprint';
 import { seasonAt } from '../../state/seasons';
-import { hasInnovation } from '../../state/village';
+import { jobsOf, methodOf } from '../../state/zones';
 import { worldIndex } from '../../state/worldIndex';
 import { markCharmDirty } from '../hearth/charm/dirty';
 import { outputCap } from '../logistics/stores';
@@ -66,23 +69,27 @@ const FIELD_TERRAIN: ReadonlySet<number> = new Set<number>([
   Terrain.field,
 ]);
 
-export function isFarm(def: BuildingDef | undefined): boolean {
-  return !!def?.methods?.some((m) => m.kind === 'farm');
+type FarmRef = Pick<Building, 'def' | 'trade' | 'level'>;
+
+/** R1: a grain farm is a building whose method (its trade's, for a business) tends fields. */
+export function isFarm(b: FarmRef | undefined): boolean {
+  return !!b && methodOf(b)?.kind === 'farm';
 }
 
-export function fieldRange(def: BuildingDef | undefined): number {
-  return def?.methods?.find((m) => m.kind === 'farm')?.range ?? FIELD_RANGE;
+export function fieldRange(b: FarmRef): number {
+  const m = methodOf(b);
+  return (m?.kind === 'farm' ? m.range : undefined) ?? FIELD_RANGE;
 }
 
-/** Field tiles one farmhouse may own: 12 per job. */
-export function fieldCap(def: BuildingDef | undefined): number {
-  return FIELD_TILES_PER_WORKER * Math.max(1, def?.jobs?.count ?? 1);
+/** Field tiles one grain farm may own: 12 per hand its level wants. */
+export function fieldCap(b: FarmRef): number {
+  return FIELD_TILES_PER_WORKER * Math.max(1, jobsOf(b));
 }
 
 /** The footprint rect grown by the field range, clamped to the map. */
 export function fieldArea(b: Building, def: BuildingDef): Rect {
   const [w, d] = footprintSize(def, b.rot);
-  const r = fieldRange(def);
+  const r = fieldRange(b);
   return [
     Math.max(0, b.x - r),
     Math.max(0, b.z - r),
@@ -148,7 +155,7 @@ export function planFields(
 ): FieldPlan {
   const seen = new Set<number>();
   const out: number[] = [];
-  let room = fieldCap(def) - ownedFields(state, farm, def);
+  let room = fieldCap(farm) - ownedFields(state, farm, def);
   let reason: RejectReason | null = null;
   for (const [x, z] of tiles) {
     const problem = fieldTileProblem(state, farm, def, x, z);
@@ -329,7 +336,7 @@ export function tendFields(
   b: Building,
   def: BuildingDef,
   power: number,
-  wheat: number,
+  grain: number,
 ): boolean {
   const rt = b.rt!;
   const m = state.map;
@@ -337,7 +344,7 @@ export function tendFields(
   const [x0, z0, x1, z1] = fieldArea(b, def);
   const room = outputCap(def);
   const phase = fieldPhase(state);
-  const bite = hasInnovation(state, 'seed-drill') ? DRILL_STEP : HARVEST_STEP;
+  const bite = HARVEST_STEP;
   const step = Math.floor(state.tick / CROP_STEP_TICKS);
   const vegetables = content.goodIndex.get('vegetables') ?? -1;
   let tended = 0;
@@ -365,11 +372,11 @@ export function tendFields(
         cropGrowth(m.fertility[i]!),
         (step + i) % GROW_EVERY === 0,
         bite,
-        rt.output[wheat]! + CROP_YIELD <= room,
+        rt.output[grain]! + CROP_YIELD <= room,
         (step + i) % VEG_EVERY === 0,
       );
       const next = t.next;
-      if (t.wheat > 0) produce(state, ctx, b, wheat, t.wheat);
+      if (t.wheat > 0) produce(state, ctx, b, grain, t.wheat);
       if (t.veg > 0 && vegetables >= 0 && rt.output[vegetables]! < room)
         produce(state, ctx, b, vegetables, t.veg);
       if (t.waiting) full = true;

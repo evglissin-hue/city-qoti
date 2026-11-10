@@ -65,10 +65,10 @@ export const mockBuildings: BuildingView[] = [
       input: [],
       output: [],
       store: [
-        ['logs', 40],
-        ['planks', 30],
+        ['timber', 40],
+        ['firewood', 30],
         ['stone', 20],
-        ['wheat', 12],
+        ['grain', 12],
         ['bread', 16],
         ['vegetables', 16],
         ['fish', 8],
@@ -77,7 +77,10 @@ export const mockBuildings: BuildingView[] = [
   },
   {
     id: 6,
-    def: 'bakery',
+    def: 'workshop',
+    trade: 'baker',
+    level: 1,
+    keeperId: 13,
     x: 65,
     z: 48,
     rot: 0,
@@ -94,14 +97,14 @@ export const mockBuildings: BuildingView[] = [
       condition: 92,
       paused: false,
       progress: 0.4,
-      input: [['flour', 4]],
+      input: [['grain', 4]],
       output: [['bread', 3]],
       store: [],
     },
   },
   {
     id: 8,
-    def: 'sawpit',
+    def: 'foresters-lodge',
     x: 71,
     z: 47,
     rot: 0,
@@ -123,9 +126,9 @@ export const mockBuildings: BuildingView[] = [
       construction: {
         stage: 1,
         progress: 0.35,
-        needs: [['logs', 6]],
+        needs: [['timber', 6]],
         delivered: [
-          ['logs', 10],
+          ['timber', 10],
           ['stone', 6],
         ],
         priority: true,
@@ -302,24 +305,22 @@ const history = (start: number, step: number) =>
 export const mockStocks: StocksView = {
   lines: [
     {
-      good: 'logs',
+      good: 'timber',
       stock: 40,
       producedToday: 8,
       consumedToday: 12,
       producedYesterday: 16,
       consumedYesterday: 10,
       history: history(52, -2),
-      forSale: false,
     },
     {
-      good: 'planks',
+      good: 'firewood',
       stock: 30,
       producedToday: 6,
       consumedToday: 20,
       producedYesterday: 9,
       consumedYesterday: 0,
       history: history(14, 3),
-      forSale: true,
     },
     {
       good: 'stone',
@@ -329,27 +330,24 @@ export const mockStocks: StocksView = {
       producedYesterday: 0,
       consumedYesterday: 6,
       history: history(34, -2),
-      forSale: false,
     },
     {
-      good: 'wheat',
+      good: 'grain',
       stock: 12,
       producedToday: 0,
       consumedToday: 0,
       producedYesterday: 0,
       consumedYesterday: 0,
       history: history(12, 0),
-      forSale: false,
     },
     {
-      good: 'flour',
+      good: 'cheese',
       stock: 4,
       producedToday: 0,
       consumedToday: 0,
       producedYesterday: 0,
       consumedYesterday: 0,
       history: history(4, 0),
-      forSale: false,
     },
     {
       good: 'bread',
@@ -359,7 +357,6 @@ export const mockStocks: StocksView = {
       producedYesterday: 10,
       consumedYesterday: 7,
       history: history(26, 1),
-      forSale: false,
     },
     {
       good: 'vegetables',
@@ -369,7 +366,6 @@ export const mockStocks: StocksView = {
       producedYesterday: 3,
       consumedYesterday: 4,
       history: history(25, 0),
-      forSale: false,
     },
     {
       good: 'fish',
@@ -379,20 +375,19 @@ export const mockStocks: StocksView = {
       producedYesterday: 0,
       consumedYesterday: 2,
       history: history(14, -1),
-      forSale: false,
     },
   ],
 };
 
 const lines = (
   taxes: number,
-  peddler: number,
+  exports: number,
   upkeep: number,
   construction: number,
   roads: number,
 ): BudgetView['today'] => [
   { category: 'taxes', kind: 'income', pennies: taxes },
-  { category: 'peddler', kind: 'income', pennies: peddler },
+  { category: 'exports', kind: 'income', pennies: exports },
   { category: 'refunds', kind: 'income', pennies: 0 },
   { category: 'upkeep', kind: 'expense', pennies: upkeep },
   { category: 'construction', kind: 'expense', pennies: construction },
@@ -589,6 +584,12 @@ export const mockBuildingDetail: BuildingDetail = {
   workers: [{ id: 13, name: 'Hazel Thistledown', present: true }],
   status: ['Waiting for inputs'],
   method: { name: 'Bake bread', hours: 2 },
+  trades: [
+    { id: 'baker', name: 'Baker' },
+    { id: 'carpenter', name: 'Carpenter' },
+    { id: 'chandler', name: 'Chandler' },
+  ],
+  pinned: false,
 };
 
 export const mockAwayLetter: AwayLetter = {
@@ -607,7 +608,7 @@ export const mockAwayLetter: AwayLetter = {
       id: 50,
       x: 60,
       z: 52,
-      text: 'Put the bakery here? Smells better than the sawpit.',
+      text: 'Put the baker here? Smells better than the brickworks.',
       by: 0,
       tick: 2 * DAY,
     },

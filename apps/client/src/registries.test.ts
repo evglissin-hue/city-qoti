@@ -33,6 +33,11 @@ describe('registries', () => {
     });
   }
 
+  it('R1.0 took the Calling card and the Deals off the shelf', () => {
+    expect(registries.panels).not.toContain('calling');
+    expect(registries.panels).not.toContain('deals');
+  });
+
   it('ships the I0 to I3 tools', () => {
     expect(registries.tools).toEqual([
       'building',

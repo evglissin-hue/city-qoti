@@ -30,7 +30,6 @@ describe('village mocks', () => {
   it('carry something for every I2 panel to show', () => {
     expect(mockMarket.lines.find((l) => l.good === 'bread')!.history.length).toBeGreaterThan(1);
     expect(mockTrade.log.length).toBeGreaterThan(0);
-    expect(mockTrade.caravans.length).toBe(1);
     expect(mockCharter.goals.some((g) => !g.done)).toBe(true);
     expect(mockLetters.length).toBeGreaterThan(0);
     expect(mockVillageResidentDetail.partner?.married).toBe(true);

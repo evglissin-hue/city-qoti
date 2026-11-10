@@ -90,10 +90,11 @@ test('the hamlet fixture: residents and buildings inspected live from the sim wo
   await expect(resident).toContainText('Hazel Thistledown');
 
   await page.evaluate(() => window.__qoti.select({ kind: 'building', id: 6 }));
-  const bakery = page.getByTestId('building-inspector');
-  await expect(bakery).toContainText('Bakery');
-  await expect(bakery).toContainText('Hazel Thistledown');
-  await expect(bakery).toContainText('4 flour');
+  // R1: the fixture's bakery is a workshop business keeping the baker's trade, baking from grain.
+  const baker = page.getByTestId('building-inspector');
+  await expect(baker).toContainText('Baker');
+  await expect(baker).toContainText('Hazel Thistledown');
+  await expect(baker).toContainText('4 grain');
 
   await page.getByTestId('book-patterns').click();
   await expect(page.getByTestId('patterns')).toContainText('Hints in the margin');

@@ -1,14 +1,14 @@
 // @vitest-environment happy-dom
 // I2 (C4F): the village panels against the village mocks (the sim's village fixture through the
-// sim's own view builders, plus a story under way, a caravan and a Charter board in progress).
+// sim's own view builders, plus a story under way, a trade log and a Charter board in progress).
 import { content } from '@qoti/content';
 import { TICKS_PER_DAY, type Command } from '@qoti/sim';
 import { h } from 'preact';
 import { afterEach, describe, expect, it } from 'vitest';
-import { mockCharter, mockLetters, mockLoans, mockTrade, villageIds } from '../mocks/village';
+import { mockCharter, mockLetters, mockLoans, villageIds } from '../mocks/village';
 import { mockVillageSession } from '../mocks/session';
-import { button, mount, settle, typeInto, type Mounted } from '../test/dom';
-import { CharterPanel } from './Charter';
+import { mount, settle, typeInto, type Mounted } from '../test/dom';
+import { CharterPanel, knownUnlockName } from './Charter';
 import { InspectorPanel } from './Inspector';
 import { LettersPanel } from './Letters';
 import { MarketPanel } from './Market';
@@ -37,9 +37,9 @@ describe('market', () => {
     expect(bread.textContent).toContain('Bread');
     expect(bread.textContent).toMatch(/dear|steep/);
     // Goods nobody trades stay out of the way until asked for.
-    expect(view.find('price-tools')).toBeNull();
+    expect(view.find('price-candles')).toBeNull();
     await view.click('prices-all');
-    expect(view.find('price-tools')).not.toBeNull();
+    expect(view.find('price-candles')).not.toBeNull();
 
     await view.click('price-bread');
     expect(session.ui.marketGood.value).toBe('bread');
@@ -60,7 +60,8 @@ describe('market', () => {
     const rows = [...view.root.querySelectorAll('[data-testid^="profit-"] .profit-name')].map(
       (e) => e.textContent,
     );
-    expect(rows).toContain('Bakery');
+    // R1: the fixture's bakery is a workshop business keeping the baker's trade.
+    expect(rows).toContain('Baker');
     await view.click(view.get(`profit-${villageIds.buildings.bakery}`).querySelector('button')!);
     expect(view.text()).toContain('Goods made');
     expect(view.text()).toContain('Wages');
@@ -76,47 +77,25 @@ describe('trade', () => {
     for (const n of content.neighbors) expect(view.get(`neighbor-${n.id}`).textContent).toContain(n.name);
     const millhaven = view.get('neighbor-millhaven').textContent ?? '';
     expect(millhaven).toContain('They sell');
-    expect(millhaven).toContain('Wheat');
-    expect(millhaven).toContain('Planks');
+    expect(millhaven).toContain('Grain');
+    expect(millhaven).toContain('Wool');
   });
 
-  it('edits, adds and drops standing orders', async () => {
-    const { session, submitted } = mockVillageSession();
-    session.ui.tradeTab.value = 'orders';
-    view = await mount(h(TradePanel, { session }));
-    const order = mockTrade.orders[0]!;
-    expect(view.get(`order-${order.good}`).textContent).toContain(`Keep ${order.min} to ${order.max}`);
-    await view.click(button(view.get(`order-${order.good}`), 'Change'));
-    await view.click('order-max-more');
-    await view.click('order-save');
-    expect(last(submitted, 'trade.setStandingOrder')).toMatchObject({
-      good: order.good,
-      order: { min: order.min, max: order.max + 5 },
-    });
-    await view.click(button(view.get(`order-${order.good}`), 'Change'));
-    await view.click('order-remove');
-    expect(last(submitted, 'trade.setStandingOrder')).toEqual({
-      t: 'trade.setStandingOrder',
-      good: order.good,
-      order: null,
-    });
-
-    await view.click('order-add');
-    await view.click('order-good-wool');
-    await view.click('order-min-more');
-    await view.click('order-save');
-    expect(last(submitted, 'trade.setStandingOrder')).toMatchObject({ good: 'wool', order: { min: 5 } });
-  });
-
-  it('follows caravans on the road and keeps the ledger of deals', async () => {
+  it('keeps the trade log, newest first', async () => {
     const { session } = mockVillageSession();
-    session.ui.tradeTab.value = 'caravans';
+    session.ui.tradeTab.value = 'log';
     view = await mount(h(TradePanel, { session }));
-    const caravan = mockTrade.caravans[0]!;
-    expect(view.get(`caravan-${caravan.id}`).textContent).toContain('To Stonecross');
-    const log = view.get('trade-log').textContent ?? '';
-    expect(log).toContain('Sold 20 planks');
-    expect(log).toContain('Bought 8');
+    const log = view.get('trade-log-table').textContent ?? '';
+    expect(log).toContain('Sold 20 vegetables');
+    expect(log).toContain('Bought 8 wool');
+  });
+
+  it('offers no standing orders, deals or caravans any more (R1: the carrier trades)', async () => {
+    const { session } = mockVillageSession();
+    view = await mount(h(TradePanel, { session }));
+    for (const gone of ['trade-orders', 'trade-deals', 'trade-caravans']) expect(view.find(gone)).toBeNull();
+    expect(view.find('trade-neighbors')).not.toBeNull();
+    expect(view.find('trade-log')).not.toBeNull();
   });
 });
 
@@ -182,7 +161,15 @@ describe('the Charter board and the notebook', () => {
     for (const i of content.innovations) expect(view.find(`idea-${i.id}`)).not.toBeNull();
     expect(view.get('idea-cobbles').classList.contains('unlocked')).toBe(true);
     expect(view.get('idea-wheelbarrows').textContent).toContain('66%');
-    expect(view.get('idea-wheelbarrows').textContent).toContain('Porters carry six');
+    expect(view.get('idea-wheelbarrows').textContent).toContain('Porters carry eight');
+  });
+
+  it('names every Charter and innovation unlock in words, never by its id', () => {
+    const ids = [
+      ...content.charters.flatMap((c) => c.unlocks),
+      ...content.innovations.flatMap((i) => i.unlocks),
+    ];
+    for (const id of ids) expect(knownUnlockName(id), id).toBeTruthy();
   });
 
   it('celebrates a rank-up with the proclamation and what it opens', async () => {
@@ -191,7 +178,7 @@ describe('the Charter board and the notebook', () => {
     view = await mount(h(RankUpPanel, { session }));
     const text = view.get('rank-up').textContent ?? '';
     expect(text).toContain('Thistlecombe is a Village');
-    expect(text).toContain('Zoning');
+    expect(text).toContain('The Shops zone');
     await view.click('rank-up-close');
     expect(session.ui.rankUp.value).toBeNull();
   });
@@ -204,7 +191,7 @@ describe('letters', () => {
     const card = view.get('story-pippa-quill');
     expect(card.textContent).toContain('Pippa Quill');
     expect(card.textContent).toContain('Step 2 of 5');
-    expect(card.textContent).toContain('sawpit');
+    expect(card.textContent).toContain("Forester's Lodge");
     const newest = mockLetters[mockLetters.length - 1]!;
     await view.click(`envelope-${newest.arc}-${newest.step}`);
     expect(session.ui.storyLetter.value).toEqual(newest);
@@ -217,7 +204,7 @@ describe('letters', () => {
     view = await mount(h(StoryLetterPanel, { session }));
     const text = view.get('story-letter').textContent ?? '';
     expect(text).toContain('Dear neighbors,');
-    expect(text).toContain('Put a sawpit near it');
+    expect(text).toContain("Put a Forester's Lodge near it");
     expect(text).toContain('Pippa Quill');
     expect(view.get('letter-ps').textContent).toContain('P.S.');
     await view.click('letter-visit');
@@ -312,7 +299,7 @@ describe('plans', () => {
     session.ui.sketch.value = {
       basedOn: null,
       items: [
-        { cmd: { t: 'build.place', def: 'bakery', x: 50, z: 52, rot: 0 } },
+        { cmd: { t: 'build.place', def: 'windmill', x: 50, z: 52, rot: 0 } },
         {
           cmd: {
             t: 'road.paint',
@@ -329,13 +316,13 @@ describe('plans', () => {
     await settle();
     expect(view.get('sketch-card').textContent).toContain('3 tiles of lane');
     await view.click('sketch-undo');
-    expect(view.get('sketch-card').textContent).toContain('a bakery');
+    expect(view.get('sketch-card').textContent).toContain('a windmill');
     await typeInto(view.get('sketch-name'), 'Bread for the south side');
     await view.click('sketch-propose');
     expect(last(submitted, 'plan.add')).toEqual({
       t: 'plan.add',
       name: 'Bread for the south side',
-      items: [{ cmd: { t: 'build.place', def: 'bakery', x: 50, z: 52, rot: 0 } }],
+      items: [{ cmd: { t: 'build.place', def: 'windmill', x: 50, z: 52, rot: 0 } }],
     });
     expect(session.ui.sketch.value).toBeNull();
   });

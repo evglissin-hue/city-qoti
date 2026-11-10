@@ -4,6 +4,7 @@
 import { content } from '@qoti/content';
 import { isInt } from '../rules/geometry';
 import { findById } from '../state/entities';
+import { isStandard } from '../state/hamlet';
 import { hasInnovation, rankAtLeast } from '../state/village';
 import { emitBuilding } from '../systems/economy/emit';
 import { businessView } from '../view/zones';
@@ -12,6 +13,7 @@ import type { HandlerFor } from './util';
 export const pinRecipe: HandlerFor<'build.pinRecipe'> = {
   type: 'build.pinRecipe',
   validate(state, _seat, cmd) {
+    if (!isStandard(state)) return 'NOT_ALLOWED';
     const b = isInt(cmd.id) ? findById(state.buildings, cmd.id) : undefined;
     if (!b) return 'NOT_FOUND';
     const current = b.trade ? content.tradeById.get(b.trade) : undefined;

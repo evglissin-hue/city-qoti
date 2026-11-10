@@ -3,7 +3,7 @@ import { content } from '@qoti/content';
 import { NEED_IDS, NEED_WEIGHTS, type ResidentDetail } from '@qoti/sim';
 import { useState } from 'preact/hooks';
 import type { Session } from '../../app/session';
-import { buildingName, coins, dayDate } from '../format';
+import { buildingName, coins, dayDate, placeName } from '../format';
 import { HISTORY_WORD, MOOD_LINE, MOOD_WORD, NEED_LABEL, STAGE_WORD, TIER_WORD } from '../hamlet';
 import { lettersOf, stepWord } from '../letters';
 import { openLetter } from './StoryLetter';
@@ -126,7 +126,7 @@ export function ResidentInspector({ session, id }: { session: Session; id: numbe
           <dd>
             {job ? (
               <button type="button" class="link" onClick={() => goTo(job.id)}>
-                {buildingName(job.def)}
+                {placeName(job)}
               </button>
             ) : (
               <span class="muted">{r.stage === 'child' ? 'Too busy being small' : 'Between jobs'}</span>

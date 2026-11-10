@@ -11,13 +11,13 @@ import type { Binding } from './index';
 import { findRoute } from './route';
 // I2 (C4C): the innovations' predicates live with their measures.
 import {
-  clayPitWorked,
-  plankRate,
+  lodgeByRiver,
   portersBusy,
+  quarryWorked,
   rankAtLeastCode,
-  sawpitByRiver,
   stoneRate,
   storyStep,
+  timberRate,
 } from '../systems/innovations/measures';
 // I3 (C5B): the festival twists' goals.
 import { festivalByWater, festivalMenu, festivalPieces, riverFrozen } from '../systems/festivals/predicates';
@@ -110,7 +110,6 @@ export function trialPassed(
 // prettier-ignore
 export const codePredicates: ReadonlyMap<string, CodePredicate> = new Map<string, CodePredicate>([
   ['bridgeBuilt', bridgeBuilt],
-  ['clayPitWorked', clayPitWorked],
   ['desireLines', desireLines],
   ['dressedWall', dressedWall],
   ['festivalByWater', festivalByWater],
@@ -120,16 +119,17 @@ export const codePredicates: ReadonlyMap<string, CodePredicate> = new Map<string
   ['guideInBlack', guideInBlack],
   ['guideLane', guideLane],
   ['lanternRoute', lanternRoute],
+  ['lodgeByRiver', lodgeByRiver],
   ['pathRoute', pathRoute],
-  ['plankRate', plankRate],
   ['portersBusy', portersBusy],
+  ['quarryWorked', quarryWorked],
   ['raidSeen', raidSeen],
   ['rankAtLeast', rankAtLeastCode],
   ['riverFrozen', riverFrozen],
-  ['sawpitByRiver', sawpitByRiver],
   ['seasonIs', seasonIs],
   ['stoneRate', stoneRate],
   ['storyStep', storyStep],
+  ['timberRate', timberRate],
   ['trialPassed', trialPassed],
   ['watchPosted', watchPosted],
   ['waterServed', waterServedCode],

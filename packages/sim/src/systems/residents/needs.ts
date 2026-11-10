@@ -1,6 +1,7 @@
 // Needs and mood (docs/spec/11-residents.md, Needs and Mood). Food is eaten at 07:00 from the
 // household pantry, preferring variety; water, shelter, belonging and beauty move hourly toward
 // their targets; mood is the weighted average of needs plus modifiers and traits, clamped 0 to 100.
+import { isFood } from '../../state/zones';
 import { content } from '@qoti/content';
 import { MOOD_PRODUCTIVITY, NEED_IDS, TICKS_PER_DAY } from '../../constants';
 import type { Binding } from '../../conditions';
@@ -26,7 +27,7 @@ let foodGoods: number[] | null = null;
 export function foodIndexes(): number[] {
   if (!foodGoods) {
     foodGoods = [];
-    for (let i = 0; i < content.goods.length; i++) if (content.goods[i]!.food) foodGoods.push(i);
+    for (let i = 0; i < content.goods.length; i++) if (isFood(i)) foodGoods.push(i);
   }
   return foodGoods;
 }

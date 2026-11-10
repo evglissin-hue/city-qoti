@@ -6,6 +6,7 @@
 // fenced farms. In the first Hamlet winter (the tutorial) and on Peaceful they only howl at the
 // forest edge. The pack is derived from the clock and the map, so it is never saved: the view
 // draws it from the same arithmetic (agent rows with AgentFlags.wolf).
+import { hasTag } from '../../state/zones';
 import type { BuildingDef, ProductionMethod } from '@qoti/content';
 import { content } from '@qoti/content';
 import { MAP_SIZE, TICKS_PER_HOUR } from '../../constants';
@@ -62,10 +63,9 @@ function footprintNear(b: Building, x: number, z: number, r: number): boolean {
   return x >= b.x - r && x < b.x + ww + r && z >= b.z - r && z < b.z + dd + r;
 }
 
-/** Farms and pastures: what wolves come for (a farmhouse's fields, a pasture's sheep). */
+/** Farms and pastures: what wolves come for (a grain farm's fields, a sheep run's flock). */
 export function hasAnimals(b: Building): boolean {
-  const def = content.buildingById.get(b.def);
-  return isFarm(def) || !!def?.tags?.includes('farm');
+  return isFarm(b) || hasTag(b, 'farm');
 }
 
 /** True when a farm has a fence, hedge or wall by it (within 2 tiles) or a lantern at its door. */
@@ -204,11 +204,10 @@ function morning(state: WorldState, ctx: TickCtx): void {
 export function scaredAnimals(
   state: WorldState,
   b: Building,
-  def: BuildingDef,
+  _def: BuildingDef,
   _method: ProductionMethod,
 ): number {
-  if (state.threats.wolves.length === 0 || !(isFarm(def) || def.tags?.includes('farm')) || !wolvesCome(state))
-    return 1000;
+  if (state.threats.wolves.length === 0 || !hasAnimals(b) || !wolvesCome(state)) return 1000;
   const last = dayIndex(state.tick) - 1;
   if (hourOf(state.tick) < WOLF_TO || !state.threats.wolves.includes(last)) return 1000;
   return packFor(state, last).farm?.id === b.id ? SCARED_YIELD : 1000;

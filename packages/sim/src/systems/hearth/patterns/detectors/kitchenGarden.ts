@@ -4,6 +4,7 @@ import { content } from '@qoti/content';
 import { MAP_SIZE } from '../../../../constants';
 import type { Building, EntityId, Rect, WorldState } from '../../../../contracts';
 import { buildingRect, decorInRect, expandRect, isHomeDef } from '../../../../conditions/geo';
+import { hasTag as hasBuildingTag } from '../../../../state/zones';
 import { buildingHasTag, type Detector, hasTag, param, type SiteCandidate, tileOf } from '../shared';
 
 const S = MAP_SIZE;
@@ -39,7 +40,9 @@ export function gardenAt(state: WorldState, home: Building, within: number): Gar
   const members: EntityId[] = [home.id];
   const candidates: { id: EntityId; rect: Rect }[] = [];
   for (const b of state.buildings) {
-    if (b.stage === 'built' && buildingHasTag(b.def, 'plot'))
+    // R1 stand-in (R1D): the garden bed. Until then a 'plot'-tagged building or a market-garden
+    // business counts as a plot.
+    if (b.stage === 'built' && (buildingHasTag(b.def, 'plot') || hasBuildingTag(b, 'market-garden')))
       candidates.push({ id: b.id, rect: buildingRect(b) });
   }
   const near = (rect: Rect) =>

@@ -100,13 +100,11 @@ describe('I0 contracts', () => {
       | 'build.setPaused'
       | 'field.paint'
       | 'field.remove'
-      | 'ledger.setForSale'
       | 'zone.paint'
       | 'zone.clear'
       | 'ledger.setWageLevel'
       | 'ledger.setTaxRate'
       | 'ledger.setPriceCap'
-      | 'trade.setStandingOrder'
       | 'loan.take'
       | 'loan.repay'
       | 'plan.add'
@@ -118,7 +116,6 @@ describe('I0 contracts', () => {
       | 'request.add'
       | 'request.resolve'
       | 'charter.claim'
-      | 'calling.choose'
       | 'terrain.raise'
       | 'terrain.lower'
       | 'build.pinRecipe'
@@ -141,6 +138,13 @@ describe('I0 contracts', () => {
       | 'watch.lightLanterns'
       | 'bandit.decide'
       | 'guide.setHidden'
+      // R1 (R1.0)
+      | 'carrier.setRule'
+      | 'carrier.setReserve'
+      | 'carrier.setBudget'
+      | 'season.setPlan'
+      | 'decor.move'
+      | 'build.move'
     >();
     expectTypeOf<SeatedCommand>().toEqualTypeOf<{ seat: SeatId; seq: number; cmd: Command }>();
     expectTypeOf<Turn>().toEqualTypeOf<{ t: number; cmds: SeatedCommand[] }>();
@@ -173,6 +177,12 @@ describe('I0 contracts', () => {
       // P1 (playtest)
       | 'HALL_STAYS'
       | 'TOO_LATE'
+      // R1 (R1.0)
+      | 'NEEDS_WOODS'
+      | 'NEEDS_RIVER'
+      | 'NEEDS_OPEN_GROUND'
+      | 'NEEDS_ROAD'
+      | 'NEEDS_VALLEY_ROAD'
     >();
   });
 
@@ -226,6 +236,10 @@ describe('I0 contracts', () => {
       | 'raid'
       | 'trial'
       | 'guide'
+      // R1 (R1.0)
+      | 'demand'
+      | 'balances'
+      | 'businesses'
     >();
     expectTypeOf<ViewSnapshot['meta']>().toEqualTypeOf<WorldState['meta']>();
     expectTypeOf<keyof ClockView>().toEqualTypeOf<
@@ -313,6 +327,10 @@ describe('I0 contracts', () => {
       | 'bandit.captured'
       | 'trial.updated'
       | 'guide.step'
+      // R1 (R1.0)
+      | 'demand.updated'
+      | 'balances.updated'
+      | 'business.updated'
     >();
     expectTypeOf<keyof LayerPatch>().toEqualTypeOf<'layer' | 'rect' | 'data'>();
   });
@@ -395,7 +413,18 @@ describe('I0 contracts', () => {
     expectTypeOf<RoadDef>().toHaveProperty('layerValue');
     expectTypeOf<TreeDef>().toHaveProperty('species');
     expectTypeOf<Cost>().toHaveProperty('coins');
-    expectTypeOf<PlacementRule['kind']>().toEqualTypeOf<'waterEdge' | 'deposit' | 'fertility' | 'height'>();
+    expectTypeOf<PlacementRule['kind']>().toEqualTypeOf<
+      // R1 (R1.0): the site rules of specialized buildings
+      | 'waterEdge'
+      | 'deposit'
+      | 'fertility'
+      | 'height'
+      | 'woods'
+      | 'river'
+      | 'openGround'
+      | 'road'
+      | 'valleyRoad'
+    >();
     expectTypeOf<Content>().toHaveProperty('buildingById');
   });
 });

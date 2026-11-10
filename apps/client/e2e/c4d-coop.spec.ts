@@ -3,7 +3,7 @@ import { counts, HAMLET_QUERY, hashesAt } from './helpers';
 
 // C4D acceptance: plans and requests round trip through the sim and both clients. Seat 0 sketches
 // a plan, seat 1 sees the ghost proposal, comments and approves it, and both see the bench it
-// builds; seat 1 asks seat 0 for planks and the request closes itself when the town has them; a
+// builds; seat 1 asks seat 0 for timber and the request closes itself when the town has them; a
 // text request is closed by hand by the other seat. Then a solo valley moves online and a partner
 // joins it with everything in place. Commands go in through the debug hook (the panels are
 // C4F's); everything else is the real relay, sims and mirrors.
@@ -100,8 +100,8 @@ test('plans and requests round trip between two seats', async ({ browser }) => {
   await expect.poll(async () => (await counts(a)).decor).toBe(decorBefore + 1);
   await expect.poll(async () => (await counts(b)).decor).toBe(decorBefore + 1);
 
-  // Requests: seat 1 asks for planks (the start has 50), seat 0 for something only words can do.
-  await submit(b, { t: 'request.add', ask: { kind: 'goods', good: 'planks', qty: 10, byDay: 3, at: 0 } });
+  // Requests: seat 1 asks for timber (the start has 60), seat 0 for something only words can do.
+  await submit(b, { t: 'request.add', ask: { kind: 'goods', good: 'timber', qty: 10, byDay: 3, at: 0 } });
   await submit(a, {
     t: 'request.add',
     ask: { kind: 'text', text: 'Could we keep the meadow by the river?' },
@@ -115,13 +115,13 @@ test('plans and requests round trip between two seats', async ({ browser }) => {
   await b.getByTestId('speed-3').click();
   await expect.poll(async () => (await requests(a)).find((r) => r.ask.kind === 'goods')?.status).toBe('done');
   await expect.poll(async () => (await requests(b)).find((r) => r.ask.kind === 'goods')?.status).toBe('done');
-  expect((await requests(b)).find((r) => r.ask.kind === 'goods')!.text).toContain('10 planks');
+  expect((await requests(b)).find((r) => r.ask.kind === 'goods')!.text).toContain('10 timber');
   // The text request waits for a person: seat 1 marks it done.
   expect((await requests(a)).find((r) => r.id === text.id)!.status).toBe('open');
   await submit(b, { t: 'request.resolve', id: text.id, status: 'done' });
   await expect.poll(async () => (await requests(a)).find((r) => r.id === text.id)?.status).toBe('done');
 
-  // And both sims agree on every last plank.
+  // And both sims agree on every last log of timber.
   const turn = await a.evaluate(() => window.__qoti.lastTurn());
   const after = await hashesAt(a, b, turn + 50);
   expect(after.a).toBe(after.b);

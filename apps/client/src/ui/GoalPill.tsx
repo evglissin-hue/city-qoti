@@ -2,7 +2,6 @@
 // with a slim progress bar, beside the rank pennant in both lenses. It follows the Charter goals,
 // then the trial that seals the Charter, then rests. Hover lists every goal; a click opens the
 // board (or the trial card).
-import { content } from '@qoti/content';
 import { calendar, DAYS_PER_SEASON, type CharterView, type TrialView } from '@qoti/sim';
 import type { Session } from '../app/session';
 import { Glyph } from './icons';
@@ -19,7 +18,7 @@ export interface GoalLine {
   detail: string[];
   ready: boolean;
   /** Where a click goes. */
-  opens: 'charter' | 'trial' | 'chapter' | 'calling';
+  opens: 'charter' | 'trial' | 'chapter';
   tone: 'charter' | 'trial' | 'rest';
 }
 
@@ -51,25 +50,8 @@ export function nextGoal(c: CharterView): CharterView['goals'][number] | null {
 }
 
 /** What the pill says, from the Charter and the trial. Pure, so it can be tested. */
-export function goalLine(
-  c: CharterView | null,
-  trial: TrialView | null,
-  tick: number,
-  town = 'the village',
-): GoalLine | null {
+export function goalLine(c: CharterView | null, trial: TrialView | null, tick: number): GoalLine | null {
   if (!c) return null;
-  // P1 (callings): while the County's question is open it comes first, and a click opens the card.
-  if (c.calling && c.calling.chosen === null) {
-    return {
-      text: `Choose what ${town} is known for`,
-      count: 'The County asks once',
-      progress: 0,
-      detail: c.calling.offered.map((o) => `○ ${content.callingById.get(o.id)?.name ?? o.id}: ${o.reason}`),
-      ready: true,
-      opens: 'calling',
-      tone: 'charter',
-    };
-  }
   if (c.next) {
     const done = c.goals.filter((g) => g.done).length;
     const detail = c.goals.map(
@@ -153,24 +135,18 @@ export function goalLine(
 
 export function GoalPill({ session }: { session: Session }) {
   const m = session.mirror;
-  const line = goalLine(m.charter.value, m.trial.value, m.tick.value, m.settings.value.townName);
+  const line = goalLine(m.charter.value, m.trial.value, m.tick.value);
   if (!line) return null;
-  const open =
-    line.opens === 'chapter'
-      ? session.ui.chapter.value
-      : line.opens === 'calling'
-        ? session.ui.calling.value
-        : session.ui.panel.value === line.opens;
+  const open = line.opens === 'chapter' ? session.ui.chapter.value : session.ui.panel.value === line.opens;
   const title = [line.text + (line.count ? ` (${line.count})` : ''), ...line.detail].join('\n');
   return (
     <button
       type="button"
       class={`goal-pill tone-${line.tone} ${line.ready ? 'ready' : ''} ${open ? 'open' : ''}`}
       data-testid="goal-pill"
-      title={`${title}\nClick for the ${line.opens === 'trial' ? 'trial' : line.opens === 'chapter' ? 'chapter' : line.opens === 'calling' ? 'Calling card' : 'Charter board'}.`}
+      title={`${title}\nClick for the ${line.opens === 'trial' ? 'trial' : line.opens === 'chapter' ? 'chapter' : 'Charter board'}.`}
       onClick={() => {
         if (line.opens === 'chapter') session.ui.chapter.value = !open;
-        else if (line.opens === 'calling') session.ui.calling.value = !open;
         else session.ui.panel.value = open ? null : line.opens;
       }}
     >

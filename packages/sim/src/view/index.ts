@@ -85,7 +85,7 @@ export function buildingView(b: Building): BuildingView {
   if (b.lot) view.lot = b.lot;
   if (b.style) view.style = b.style;
   if (b.rt?.modules?.length) view.modules = b.rt.modules.map(([s, m]) => [s, m]);
-  if (b.rt) view.rt = runtimeView(b.def, b.rt);
+  if (b.rt) view.rt = runtimeView(b.def, b.rt, b);
   if (b.trade) view.trade = b.trade;
   if (b.level && b.level > 1) view.level = b.level;
   if (b.keeperId) view.keeperId = b.keeperId;
