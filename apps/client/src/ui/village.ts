@@ -21,6 +21,15 @@ export function rankAtLeast(rank: RankId | undefined, min: RankId): boolean {
   return rankIndex(rank) >= RANKS.indexOf(min);
 }
 
+/**
+ * R1: whether a zone may be painted at this rank: Homes, Workshops and Farmland from founding,
+ * Shops and Townhouses from their `ZoneDef.requires.rank` (the sim's zone.paint says the same).
+ */
+export function zoneOpen(rank: RankId | undefined, zoneId: string): boolean {
+  const need = content.zoneById.get(zoneId)?.requires?.rank;
+  return !need || rankAtLeast(rank, need);
+}
+
 /** Ink for each zone's palette token (content `ZoneDef.token`), for swatches, outlines and the minimap. */
 export const ZONE_INK: Record<string, string> = {
   rose: '#d07f6c',

@@ -16,7 +16,7 @@ export const INPUT_COPY = {
   // I2 (C4F)
   streetLocked: (innovation: string) =>
     `Streets want ${innovation} first. Cut plenty of stone and the notebook will work it out.`,
-  zoneLocked: 'Zoning comes with the Village Charter. The County likes its paperwork in order.',
+  zoneLocked: 'Shops and Townhouses come with the Village Charter. The County likes its paperwork in order.',
   zoneHint: 'Drag a box to zone it. Shift+drag unzones.',
   zonePreview: (n: number, road: string) =>
     n === 0

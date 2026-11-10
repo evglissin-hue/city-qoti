@@ -28,7 +28,7 @@ import { booksFor, toggleBook } from './panels';
 import { planSummary } from './plans';
 import { INPUT_COPY } from '../input/copy';
 import { UNZONE } from './village';
-import { rankAtLeast, zoneInk } from './village';
+import { zoneInk, zoneOpen } from './village';
 import { buildingPurpose } from './purpose';
 
 export function Toolbar({ session }: { session: Session }) {
@@ -494,7 +494,7 @@ function FieldHint({ session }: { session: Session }) {
 /** I2 (C4F): the zone picker: each zone with its color and lot shapes, the chosen one's line below. */
 function ZonePicker({ session, tool }: { session: Session; tool: Tool }) {
   const m = session.mirror;
-  const open = rankAtLeast(m.town.value?.rank, 'village');
+  const rank = m.town.value?.rank;
   const on = tool.variant?.value;
   const zones = [...content.zones].sort((a, b) => a.layerValue - b.layerValue);
   const chosen = zones.find((z) => z.id === on);
@@ -505,8 +505,8 @@ function ZonePicker({ session, tool }: { session: Session; tool: Tool }) {
           <button
             key={z.id}
             type="button"
-            class={`card zone-card ${on === z.id ? 'active' : ''} ${open ? '' : 'locked'}`}
-            aria-disabled={!open}
+            class={`card zone-card ${on === z.id ? 'active' : ''} ${zoneOpen(rank, z.id) ? '' : 'locked'}`}
+            aria-disabled={!zoneOpen(rank, z.id)}
             data-testid={`variant-${z.id}`}
             title={z.blurb}
             onClick={() => session.tools?.select('zone', z.id)}
@@ -536,7 +536,7 @@ function ZonePicker({ session, tool }: { session: Session; tool: Tool }) {
           </span>
         </button>
       </div>
-      {open ? (
+      {on === UNZONE || zoneOpen(rank, on ?? '') ? (
         <p class="zone-line">
           {chosen ? (
             <>
