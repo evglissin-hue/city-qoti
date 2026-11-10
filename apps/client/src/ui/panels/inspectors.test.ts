@@ -117,6 +117,26 @@ describe('building inspector', () => {
     expect(view.text()).toContain('Pip Thistledown');
   });
 
+  it("a business: goes by its trade's name, and its trade dial sends build.pinRecipe", async () => {
+    const { session, submitted } = mockSession();
+    session.ui.lens.value = 'ledger';
+    session.ui.selection.value = { kind: 'building', id: 6 };
+    view = await mount(h(InspectorPanel, { session }));
+    // The sign is the title; the trade, not "Workshop", is the line under it.
+    expect(view.text()).toContain('Baker');
+    expect(view.text()).toContain('Business');
+    expect(view.text()).not.toContain('Workshop');
+    const dial = view.get('pin-trade');
+    expect(view.get('pin-none').getAttribute('aria-checked')).toBe('true');
+    await view.click('pin-carpenter');
+    await view.click('pin-none');
+    expect(dial.textContent).toContain('Chandler');
+    expect(submitted).toEqual([
+      { t: 'build.pinRecipe', id: 6, trade: 'carpenter' },
+      { t: 'build.pinRecipe', id: 6, trade: null },
+    ]);
+  });
+
   it('removes through a command', async () => {
     const { session, submitted } = mockSession();
     session.ui.selection.value = { kind: 'building', id: 6 };

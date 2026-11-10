@@ -32,7 +32,12 @@ export function BuildingInspector({ session, id }: { session: Session; id: numbe
   // The worker's words when it has any; the status bits the Mirror holds otherwise.
   const status = detail?.status.length ? detail.status : statusWords(rt?.status ?? 0);
   const household = detail?.household ?? findHousehold(session, b);
-  const kicker = site ? 'Construction site' : (CATEGORY_WORD[def?.category ?? ''] ?? 'Building');
+  // R1: a business (a farmstead, workshop or shop with a trade) says so, whatever its building.
+  const kicker = site
+    ? 'Construction site'
+    : b.trade
+      ? 'Business'
+      : (CATEGORY_WORD[def?.category ?? ''] ?? 'Building');
   // P1 (playtest): a standard valley keeps its town hall, so it offers no Remove.
   const keepsHall = b.def === 'town-hall' && m.settings.value.mode === 'standard';
 
