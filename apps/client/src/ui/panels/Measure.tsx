@@ -30,6 +30,7 @@ export const MEASURE_COPY = {
     `Twelve short runs: every preset in this valley, then in a showcase village and a showcase town. It takes ${minutes}. Plug the laptop in, close everything else and leave the mouse be; the valley comes back exactly as it was.`,
   start: 'Start measuring',
   notNow: 'Not now',
+  ready: 'Getting ready',
   loading: (scene: string) => `Setting out the ${scene.toLowerCase()}`,
   measuring: (scene: string, preset: string) => `${scene}, ${preset}`,
   restoring: 'Putting your valley back',
@@ -275,7 +276,7 @@ function KeptRuns({ session }: { session: Session }) {
 function Progress({ state }: { state: Extract<MeasureState, { k: 'running' }> }) {
   const p = state.progress;
   const line = !p
-    ? MEASURE_COPY.loading(SCENE_NAMES.valley)
+    ? MEASURE_COPY.ready
     : p.stage === 'restoring'
       ? MEASURE_COPY.restoring
       : p.stage === 'loading'
