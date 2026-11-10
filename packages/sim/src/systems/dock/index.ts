@@ -17,7 +17,7 @@ import { isFrozen } from '../seasons/api';
 
 /** The neighbor downstream, the only one boats reach. */
 export const DOCK_NEIGHBOR = 'millhaven';
-/** Units a boat carries, out and back together (the post's caravans carry 40). */
+/** Units a boat carries, out and back together (the carrier's cart carries 20, or 40 with a post). */
 export const BOAT_UNITS = 120;
 /** Days a boat takes there and back. */
 export const BOAT_DAYS = 3;

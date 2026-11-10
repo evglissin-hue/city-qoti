@@ -6,6 +6,7 @@ import { defaultSettings } from '../src/state/create';
 import { emptyHamletSlices } from '../src/state/hamlet';
 import { emptySeasonsSlices } from '../src/state/seasons';
 import { emptyVillageSlices } from '../src/state/village';
+import { emptyZonesSlices } from '../src/state/zones';
 import { SAVE_VERSION } from '../src/state/version';
 import { worldIndex } from '../src/state/worldIndex';
 import { applyTurn, createTickCtx, type SimCtx } from '../src/turn';
@@ -50,6 +51,7 @@ export function flatWorld(): WorldState {
     ...emptyHamletSlices(),
     ...emptyVillageSlices(),
     ...emptySeasonsSlices(),
+    ...emptyZonesSlices(),
   };
 }
 

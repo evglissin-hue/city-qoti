@@ -1,8 +1,9 @@
 // The books (docs/spec/13-ledger.md, Budget). At 00:00 the day rolls over (stock history, the
 // season at its end), residents pay their taxes and buildings their upkeep, and the reports and the
-// balances go out. R1: the peddler is the carrier now (systems/carrier, 10:00). While the treasury is below zero the valley is in lean
-// times: no new construction, unpaid upkeep wears buildings down, residents feel it. Never a game
-// over: taxes keep coming, and the next day in the black ends it.
+// balances go out. R1: the peddler is the carrier now (systems/carrier, 10:00). While the treasury
+// is below zero the valley is in lean times: no new construction, unpaid upkeep wears buildings
+// down, residents feel it. Never a game over: taxes keep coming, and the next day in the black
+// ends it.
 import { DAYS_PER_SEASON, LEDGER_CATEGORIES, TICKS_PER_HOUR } from '../../constants';
 import type { LedgerPeriod, System, TickCtx, WorldState } from '../../contracts';
 import { emptyPeriod, isStandard } from '../../state/hamlet';

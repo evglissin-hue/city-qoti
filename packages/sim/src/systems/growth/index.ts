@@ -6,7 +6,8 @@
 //      and has open jobs for them: enough homes going up to keep two or so empty ones waiting;
 //    - shops, for households no outlet reaches, or one per eight households;
 //    - crafts, for a good the town is short of that a Workshops trade can make and feed;
-//    - farms, while there are under four days of food in hand.
+//    - farms, while there are under four days of food in hand, or the carrier brought more than
+//      a third of a day's eating at its last visit (R1 stand-in (R1B): Farmland's 'imported').
 // 3. Starts grown sites on the best lots, a couple a day and a few at a time, only while the
 //    storehouses can spare half their materials beyond what other sites still wait for.
 // 4. Writes the four demand bars (state.demand) and sends demand.updated.
@@ -27,6 +28,7 @@ import {
 } from '../../constants';
 import type { DemandReason, Lot, System, TickCtx, WorldState } from '../../contracts';
 import { findById } from '../../state/entities';
+import { FOOD_GOODS } from '../../state/zones';
 import { isStandard } from '../../state/hamlet';
 import { hasInnovation, rankAtLeast } from '../../state/village';
 import { hasBuilt } from '../innovations/api';
@@ -213,6 +215,23 @@ function outletCount(state: WorldState): number {
   return n;
 }
 
+/**
+ * The Food good the carrier brought most of at its last visit, when that visit brought more than a
+ * third of a day's eating (a resident a day); else -1. R1 stand-in (R1B): Farmland's 'imported'.
+ */
+export function importedFood(state: WorldState): number {
+  const last = state.carrier.bought[state.carrier.bought.length - 1];
+  if (!last) return -1;
+  let total = 0;
+  let most = -1;
+  for (const g of FOOD_GOODS) {
+    const n = last[g] ?? 0;
+    total += n;
+    if (n > 0 && (most < 0 || n > (last[most] ?? 0))) most = g;
+  }
+  return total * 3 > state.residents.length ? most : -1;
+}
+
 /** What the village wants grown now, in sites per zone kind (before the daily and site limits). */
 export function growthDemand(state: WorldState, services = servicesOf(state)): GrowthDemand {
   return demandDetail(state, services).demand;
@@ -222,7 +241,13 @@ export function growthDemand(state: WorldState, services = servicesOf(state)): G
 function demandDetail(
   state: WorldState,
   services: ReturnType<typeof servicesOf>,
-): { demand: GrowthDemand; doors: [number, number][]; craft: TradeDef | null; foodDays: number } {
+): {
+  demand: GrowthDemand;
+  doors: [number, number][];
+  craft: TradeDef | null;
+  foodDays: number;
+  imported: number;
+} {
   const stock = townStock(state);
   const pop = state.residents.length;
   // Homes: newcomers would come, and there is work for them.
@@ -263,10 +288,12 @@ function demandDetail(
     }
   }
   const foodDays = foodDaysInHand(state, stock);
-  const farms = foodDays < FARM_FOOD_DAYS ? 1 : 0;
+  const imported = importedFood(state);
+  const farms = foodDays < FARM_FOOD_DAYS || imported >= 0 ? 1 : 0;
   return {
     craft,
     foodDays,
+    imported,
     demand: {
       homes,
       shops: Math.max(0, shops - grownSites(state, [Zone.shops])),
@@ -504,7 +531,7 @@ function barOf(sites: number): number {
  */
 export function writeDemand(state: WorldState, ctx: TickCtx | null): void {
   const services = servicesOf(state);
-  const { demand, doors, craft, foodDays } = demandDetail(state, services);
+  const { demand, doors, craft, foodDays, imported } = demandDetail(state, services);
   const waiting = (zones: readonly number[]): boolean =>
     state.lots.some((l) => !l.buildingId && zones.includes(l.zone) && state.map.road[l.frontage]! > 0);
   const craftReason: DemandReason | null = craft?.makes
@@ -520,7 +547,13 @@ export function writeDemand(state: WorldState, ctx: TickCtx | null): void {
       doors.length >= SHOP_HOUSEHOLDS ? { code: 'noOutlet', value: doors.length } : { code: 'crowded' },
     ],
     [demand.crafts, [Zone.crafts], craftReason],
-    [demand.farms, [Zone.farms], { code: 'foodCover', value: Math.floor(foodDays * 100) }],
+    [
+      demand.farms,
+      [Zone.farms],
+      foodDays < FARM_FOOD_DAYS
+        ? { code: 'foodCover', value: Math.floor(foodDays * 100) }
+        : { code: 'imported', good: content.goods[imported]?.id ?? 'grain' },
+    ],
   ];
   const d = state.demand;
   for (let i = 0; i < DEMAND_KINDS.length; i++) {
