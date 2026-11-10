@@ -98,7 +98,7 @@ Deterministic sim, played out in full view; no unit control (P35).
 
 Winter is the gentle exam: prepared, it is the coziest season; unprepared, residents are cold, unhappy, and some move away.
 
-[R1] **Prepared has a number.** The Ledger's season plan sets the winter reserve, days of Food and Fuel to hold by Winter day 1 (8 and 8 by default), and a reserve bar shows from Summer day 4 (`13-ledger.md`, The season plan). [R2] Winter evenings want warm places: an open-air place with no fire draws 30 less, so the tavern, the Bath House and a lit bonfire are what keep winter cozy (`19-evenings.md`, Places).
+[R1] **Prepared has a number.** The Ledger's season plan sets the winter reserve, days of Food and Fuel to hold by Winter day 1 (8 and 8 by default), and a reserve bar shows from Summer day 4 (`13-ledger.md`, The season plan). [R2] Winter evenings want warm places: an open-air place with no fire and no ice draws 20 less, so the tavern, the Bath House and a lit bonfire are what keep winter cozy (`19-evenings.md`, Places).
 
 From I3, farming becomes seasonal: wheat sown in spring, harvested in autumn; fields lie fallow in winter.
 
