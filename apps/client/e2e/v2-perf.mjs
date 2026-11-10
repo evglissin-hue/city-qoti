@@ -29,8 +29,10 @@ const SCENES = {
   hamlet: { fixture: 'hamlet' },
   village: { fixture: 'village', setup: 'village', center: [64, 60], dist: 70 },
   town: { fixture: 'village', setup: 'town', dist: 90 },
-  // V2.0: the grown village, looked at from the middle of its buildings (__qoti.grownInfo()).
-  grown: { fixture: 'grown', dist: 70 },
+  // V2.0: the grown village, looked at from the middle of its buildings (__qoti.grownInfo()). Its
+  // look is pinned to summer: the snapshot starts an hour before autumn, whose first day blends in
+  // a quarter hour at a time (each step a static change) without it.
+  grown: { fixture: 'grown', dist: 70, q: 'season=summer&day=3&weather=clear' },
   // C5E: the village of 130 in winter with snow falling, on a summer evening with 80 more folk
   // about (the festival's crowd), and the raid fixture at dusk (only on request: not in the default run).
   'village-winter': {

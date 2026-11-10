@@ -27,9 +27,15 @@ const [vw, vh] = (process.env.QOTI_SIZE ?? '1440x900').split('x').map(Number);
 // Town shots take `at` as an offset from the town's center; the others as absolute tiles. The
 // grown village's center is the middle of its buildings, and `street: true` looks at its high
 // street instead (both from `__qoti.grownInfo()`).
+// V2.0: every scene pins its season's look and clear weather (`look`, the renderer's debug
+// override; the sim is untouched). The hour is pinned per shot, but the season blend follows the
+// sim's clock: the hamlet fixture starts on the first morning of spring, mid-thaw, so unpinned its
+// day shot was snowy and its night shot green, and the grown village starts an hour before autumn.
+const SUMMER = 'season=summer&day=3&weather=clear';
 const SCENES = {
   hamlet: {
     fixture: 'hamlet',
+    look: SUMMER,
     shots: [
       { name: 'day', hour: 11, dist: 60 },
       { name: 'golden', hour: 18, dist: 30 },
@@ -40,6 +46,7 @@ const SCENES = {
   // The village of 130: the village fixture dressed by the dense village showcase.
   village: {
     fixture: 'village',
+    look: SUMMER,
     setup: 'village',
     center: [64, 60],
     shots: [
@@ -52,6 +59,7 @@ const SCENES = {
   // About 1,000 buildings, 6,000 decor and trees and 2,000 synthetic residents.
   town: {
     fixture: 'village',
+    look: SUMMER,
     setup: 'town',
     shots: [
       { name: 'wide', hour: 11, dist: 170 },
@@ -62,6 +70,7 @@ const SCENES = {
   },
   winter: {
     fixture: 'winter',
+    look: 'season=winter&day=3&weather=clear',
     shots: [
       { name: 'day', hour: 11, dist: 80 },
       { name: 'night', hour: 22.3, dist: 45 },
@@ -70,6 +79,7 @@ const SCENES = {
   // V2.0: the grown village (about 150 residents at Village rank, as the autoplayer left it).
   grown: {
     fixture: 'grown',
+    look: SUMMER,
     setup: 'grown',
     shots: [
       { name: 'wide', hour: 11, dist: 110 },
@@ -118,7 +128,7 @@ for (const [scene, def] of Object.entries(SCENES)) {
   page.on('pageerror', (e) => console.log('pageerror:', e.message));
   page.on('console', (m) => m.type() === 'error' && console.log('console:', m.text()));
   await page.route('**/api/**', (r) => r.abort());
-  await page.goto(`${base}/?debug&fixture=${def.fixture}&clean&fixedres&quality=${quality}`);
+  await page.goto(`${base}/?debug&fixture=${def.fixture}&clean&fixedres&quality=${quality}&${def.look}`);
   await page.waitForFunction(() => window.__qoti?.status() === 'live', null, { timeout: 240000 });
   for (const name of ['Done', 'Close', 'Later']) {
     const b = page.getByRole('button', { name, exact: true });
