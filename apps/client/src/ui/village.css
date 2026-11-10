@@ -9,10 +9,10 @@
 
 /* Goods: a little inked portrait on a soft patch of the good's own color. */
 
-.good-apples {
+.good-fruit {
   --good: #d9604a;
 }
-.good-bricks {
+.good-brick {
   --good: #b5654b;
 }
 .good-candles {
@@ -24,14 +24,8 @@
 .good-cider {
   --good: #d9a441;
 }
-.good-clay {
-  --good: #b9805c;
-}
 .good-cloth {
   --good: #8fa6c8;
-}
-.good-coats {
-  --good: #b8694f;
 }
 .good-firewood {
   --good: #9a6b43;
@@ -39,26 +33,11 @@
 .good-furniture {
   --good: #b58a5a;
 }
-.good-herbs {
-  --good: #7fae6a;
-}
 .good-honey {
   --good: #eab53a;
 }
-.good-milk {
-  --good: #eef0f2;
-}
-.good-pies {
-  --good: #d99a52;
-}
-.good-tools {
-  --good: #8b9096;
-}
 .good-wool {
   --good: #efe6d6;
-}
-.good-yarn {
-  --good: #c98aa0;
 }
 
 .good-icon {

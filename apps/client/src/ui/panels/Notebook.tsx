@@ -9,10 +9,10 @@ import { Frame } from './parts';
 
 /** What sets each idea going, in the notebook's own words (the sim names its conditions in code). */
 const NUDGE: Record<string, string> = {
-  'brick-kiln': 'Keep a clay pit dug for a couple of days and someone will want to bake it.',
-  carts: 'Once the village saws twenty planks a day, somebody is bound to put wheels on it.',
+  'brick-kiln': 'Work a quarry for a couple of days and someone will notice the clay beside it.',
+  carts: 'Once the village brings in twenty timber a day, somebody is bound to put wheels on it.',
   cobbles: 'Cut twenty stone a day and the streets start to suggest themselves.',
-  'water-wheel': 'A sawpit near the river, and a word from a certain inventor.',
+  'water-wheel': "A Forester's Lodge working near the river, or a word from a certain inventor.",
   wheelbarrows: 'Keep the porters run off their feet for three days running.',
 };
 

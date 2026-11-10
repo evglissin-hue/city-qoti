@@ -9,7 +9,7 @@ import { IDLE_BITS, statusWords, TIER_WORD } from './hamlet';
 import { letterKey } from './letters';
 import { askText } from './panels/Requests';
 import type { Letter } from './state';
-import { inPlay, LIFE_ICON, priceText } from './village';
+import { FAMILY_WORD, inPlay, LIFE_ICON, priceText } from './village';
 import { seasonAlerts } from './seasonAlerts';
 
 export type AlertAction =
@@ -70,7 +70,7 @@ export function computeAlerts(
   const population = town?.population ?? m.residents.size;
   if (population > 0 && stocks.length) {
     let food = 0;
-    for (const l of stocks) if (content.goodById.get(l.good)?.food) food += l.stock;
+    for (const l of stocks) if (content.goodById.get(l.good)?.family === 'food') food += l.stock;
     const days = food / population;
     if (days < FOOD_DAYS_WARN) {
       out.push({
@@ -247,7 +247,7 @@ function villageAlerts(m: Mirror, who: AlertContext): Alert[] {
     });
   }
 
-  // Goods a tier wants that nobody has, group by group (Settler food has its own alert).
+  // Families a tier wants that nobody has any of (Settler food has its own alert).
   const tiers = m.town.value?.tiers ?? [];
   const stock = new Map((m.stocks.value?.lines ?? []).map((l) => [l.good, l.stock]));
   const season = calendar(now).season;
@@ -255,18 +255,18 @@ function villageAlerts(m: Mirror, who: AlertContext): Alert[] {
     if (!(tiers[t] ?? 0)) continue;
     const tier = TIERS[t]!;
     const basket = content.basketByTier.get(tier);
-    for (const g of basket?.groups ?? []) {
-      if (g.season !== undefined && g.season !== season) continue;
-      if (tier === 'settler' && g.id === 'food') continue;
-      if (g.goods.some(([good]) => (stock.get(good) ?? 0) > 0)) continue;
-      const first = g.goods[0]?.[0] ?? g.id;
+    for (const w of basket?.wants ?? []) {
+      if (w.season !== undefined && w.season !== season) continue;
+      if (tier === 'settler' && w.family === 'food') continue;
+      const goods = content.goods.filter((g) => g.family === w.family);
+      if (goods.some((g) => (stock.get(g.id) ?? 0) > 0)) continue;
       out.push({
-        key: `tier-short-${tier}-${g.id}`,
+        key: `tier-short-${tier}-${w.family}`,
         lens: 'ledger',
         tone: 'warn',
         icon: 'people',
-        text: `${TIER_WORD[tier] ?? tier} households can't find ${g.name.toLowerCase()} anywhere. Their baskets come home light.`,
-        action: { kind: 'market', good: first },
+        text: `${TIER_WORD[tier] ?? tier} households can't find ${FAMILY_WORD[w.family].toLowerCase()} anywhere. Their baskets come home light.`,
+        action: { kind: 'market', good: goods[0]?.id ?? w.family },
       });
     }
   }

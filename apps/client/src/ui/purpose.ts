@@ -10,7 +10,7 @@ function list(goods: readonly [string, number][]): string {
 }
 
 function methodLine(m: ProductionMethod): string | null {
-  if (m.kind === 'plant') return 'Plants saplings beside the groves, so the woodcutters never run out';
+  if (m.kind === 'plant') return 'Plants saplings beside the groves, so the foresters never run out';
   if (m.outputs.length === 0) return null;
   const out = list(m.outputs);
   switch (m.kind) {
@@ -21,7 +21,7 @@ function methodLine(m: ProductionMethod): string | null {
     case 'gather':
       return `Gathers ${out}`;
     default:
-      if (m.inputs.some(([g]) => g === 'wheat'))
+      if (m.inputs.some(([g]) => g === 'grain'))
         return `Makes ${out} from ${list(m.inputs)}, which first ripens in summer`;
       return m.inputs.length ? `Makes ${out} from ${list(m.inputs)}` : `Makes ${out}`;
   }
@@ -32,6 +32,12 @@ function placementLine(def: BuildingDef): string | null {
     if (r.kind === 'deposit') return `Must sit on ${r.deposit}`;
     if (r.kind === 'waterEdge') return 'Must touch the water';
     if (r.kind === 'fertility') return `Wants soil of ${r.min} or better`;
+    // R1 (R1.0): the site rules of specialized buildings.
+    if (r.kind === 'woods') return `Wants ${r.trees} grown trees within ${r.within} tiles`;
+    if (r.kind === 'river') return "Wants its door on the river's edge";
+    if (r.kind === 'openGround') return `Wants open ground, no building within ${r.clear} tiles`;
+    if (r.kind === 'road') return r.roads ? 'Wants a lane or a street at the door' : 'Wants a road at the door';
+    if (r.kind === 'valleyRoad') return `Wants to be within ${r.within} tiles of the valley road`;
   }
   return null;
 }
@@ -45,9 +51,21 @@ const WRITTEN: Record<string, string> = {
   shed: 'Keeps a few odds and ends out of the rain',
 };
 
-/** One or two short sentences on what a building is for. */
-export function buildingPurpose(def: BuildingDef): string {
+/** "the baker" or "the baker and the carpenter": trades a building enables, by name. */
+function tradeList(ids: readonly string[]): string {
+  const names = ids.map((id) => `a ${(content.tradeById.get(id)?.name ?? id).toLowerCase()}`);
+  if (names.length <= 1) return names[0] ?? '';
+  return `${names.slice(0, -1).join(', ')} or ${names[names.length - 1]}`;
+}
+
+/**
+ * One or two short sentences on what a building is for. R1: a business (`trade` given) says what
+ * its trade does; a business building without one is still finding its trade.
+ */
+export function buildingPurpose(def: BuildingDef, trade?: string): string {
   const parts: string[] = [];
+  const tradeDef = trade ? content.tradeById.get(trade) : undefined;
+  if (tradeDef) return `${tradeDef.blurb.replace(/\.$/, '')}.`;
   const written = WRITTEN[def.id];
   if (written) parts.push(written);
   if (def.housing) {
@@ -75,11 +93,17 @@ export function buildingPurpose(def: BuildingDef): string {
     else if (c.kind === 'health') parts.push(`Looks after the health of folk within ${c.radius} tiles`);
     else if (c.kind === 'education') parts.push(`Lessons for children within ${c.radius} tiles`);
   }
+  if (def.enables?.length) {
+    const room = def.capacity ? `, room for ${def.capacity}` : '';
+    parts.push(`Lets ${tradeList(def.enables)} set up within ${def.reach ?? 24} tiles${room}`);
+  }
   if (def.jobs?.role === 'builder') parts.push('Builders work from here: more hands, quicker sites');
   if (def.jobs?.role === 'porter' && !def.coverage?.some((c) => c.kind === 'logistics'))
     parts.push('Its hands carry goods around town');
   if (parts.length === 0 && def.storage) parts.push(`Keeps up to ${def.storage} goods`);
-  if (parts.length === 0 && def.category === 'production') parts.push('A workshop still finding its trade');
+  if (parts.length === 0 && content.trades.some((t) => t.building === def.id))
+    parts.push(`A ${def.name.toLowerCase()} still finding its trade`);
+  if (parts.length === 0 && def.category === 'production') parts.push('A workplace still finding its work');
   if (parts.length === 0 && def.defense) parts.push('Helps keep the valley safe');
   if (parts.length === 0) parts.push('Makes the place look lived in');
   const where = placementLine(def);
@@ -88,10 +112,10 @@ export function buildingPurpose(def: BuildingDef): string {
   return `${parts.join('. ')}.`;
 }
 
-/** The purpose line by building id, or null for an unknown id. */
-export function purposeOf(id: string): string | null {
+/** The purpose line by building id (and a business's trade), or null for an unknown id. */
+export function purposeOf(id: string, trade?: string): string | null {
   const def = content.buildingById.get(id);
-  return def ? buildingPurpose(def) : null;
+  return def ? buildingPurpose(def, trade) : null;
 }
 
 /** Playtest round five ("firewood: it's not clear"): where a good comes from and where it goes. */
@@ -107,6 +131,11 @@ export function goodPurpose(id: string): string {
     }
     if (b.cost?.goods?.some(([g]) => g === id) && !used.includes('building')) used.push('building');
   }
+  // R1: businesses make and use goods by their trade.
+  for (const t of content.trades) {
+    if (t.makes === id && !made.includes(t.name)) made.push(t.name);
+    if (t.from.includes(id) && !used.includes(t.name)) used.push(t.name);
+  }
   const parts: string[] = [];
   if (made.length)
     parts.push(
@@ -115,7 +144,7 @@ export function goodPurpose(id: string): string {
         .map((m) => `the ${m.toLowerCase()}`)
         .join(', ')}`,
     );
-  if (content.goodById.get(id)?.food) parts.push('folk eat it');
+  if (content.goodById.get(id)?.family === 'food') parts.push('folk eat it');
   if (used.length) {
     const named = used.filter((u) => u !== 'building').map((u) => `the ${u.toLowerCase()}`);
     const goes = [...(used.includes('building') ? ['building'] : []), ...named.slice(0, 3)];

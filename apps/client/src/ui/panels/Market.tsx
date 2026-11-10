@@ -108,7 +108,7 @@ function GoodCard({ session, line }: { session: Session; line: MarketLine }) {
   const good = content.goodById.get(line.good);
   const mood = priceMood(line.price, line.base);
   const history = [...line.history, line.price];
-  const food = !!good?.food;
+  const food = good?.family === 'food';
   const set = (cap: number, subsidy: number) =>
     session.submit({ t: 'ledger.setPriceCap', good: line.good, cap, subsidy });
   const capOn = line.cap > 0;

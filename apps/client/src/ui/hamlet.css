@@ -305,20 +305,14 @@ h4.flourish .muted {
   flex: none;
 }
 
-.good-logs {
-  --good: #8a6448;
-}
-.good-planks {
+.good-timber {
   --good: #d6b07a;
 }
 .good-stone {
   --good: #b9b1a3;
 }
-.good-wheat {
+.good-grain {
   --good: #e0b84a;
-}
-.good-flour {
-  --good: #f6efe0;
 }
 .good-bread {
   --good: #c98a4a;
