@@ -2,7 +2,7 @@
 // (a wall for facade surfaces, a gable for roofs, a slab for the ground), each drawn at three sizes
 // in its cell, so one view shows the pattern close, at the default camera and far off, where it
 // must melt into its color without shimmer. ?season=winter shows the snow, ?night=1 the night.
-import { palette2, ShapeBuilder, SURFACE, SURFACES, type SurfaceName } from '@qoti/art';
+import { NOISE_LAYER, palette2, ShapeBuilder, SURFACE, SURFACES, type SurfaceName } from '@qoti/art';
 import { Group, Mesh, type Material } from 'three';
 
 /** The color each surface's sample is painted, from palette 2.0. */
@@ -56,7 +56,7 @@ const SIZES = [1, 0.4, 0.16];
 /** The grid of samples: six to a row, each cell the sample at three sizes. */
 export function buildSurfaces(material: Material): { group: Group; width: number; depth: number } {
   const group = new Group();
-  const names = (Object.keys(SURFACE) as SurfaceName[]).filter((n) => n !== 'plain');
+  const names = SURFACE_ORDER;
   const cols = 6;
   const cell = 3.2;
   names.forEach((name, i) => {
@@ -77,5 +77,10 @@ export function buildSurfaces(material: Material): { group: Group; width: number
   return { group, width: cols * cell, depth: 3 * cell };
 }
 
-/** The surface names in grid order, for the info line. */
-export const SURFACE_ORDER = (Object.keys(SURFACE) as SurfaceName[]).filter((n) => n !== 'plain');
+/**
+ * The surface names in grid order, for the grid and the info line. V2.0: the V2 surfaces (after the
+ * noise layer's slot) stay out until V2C gives them patterns, so the gallery's screenshots hold.
+ */
+export const SURFACE_ORDER = (Object.keys(SURFACE) as SurfaceName[]).filter(
+  (n) => n !== 'plain' && SURFACE[n] < NOISE_LAYER,
+);

@@ -10,7 +10,7 @@ import {
   type WebGLProgramParametersWithUniforms,
 } from 'three';
 import { palette, palette2 } from './palette';
-import { NOISE_LAYER, NOISE_SCALE, PATTERN_LAYERS, SURFACE, SURFACES } from './surface';
+import { NOISE_LAYER, NOISE_SCALE, SURFACE, SURFACE_LAYERS, SURFACES } from './surface';
 
 export type Season = 'spring' | 'summer' | 'autumn' | 'winter';
 
@@ -257,7 +257,7 @@ export function surfaceTable(): Pick<KitSurfaceUniforms, 'uSurf' | 'uSurfAccent'
   const surf: Vector4[] = [];
   const accent: Color[] = [];
   const extra: Vector4[] = [];
-  for (let id = 0; id < PATTERN_LAYERS; id++) {
+  for (let id = 0; id < SURFACE_LAYERS; id++) {
     const d = SURFACES[id];
     const mapping = !d ? 0 : d.mapping === 'roof' ? 1 : d.mapping === 'top' ? 2 : 0;
     surf.push(new Vector4(d ? 1 / d.scale : 1 / NOISE_SCALE, mapping, d?.strength ?? 0, d?.accent?.mix ?? 0));
@@ -353,9 +353,9 @@ const KIT_WORLD_VERTEX = /* glsl */ `
 const KIT_FRAGMENT_HEAD = /* glsl */ `
 precision highp sampler2DArray;
 uniform sampler2DArray uPat;
-uniform vec4 uSurf[${PATTERN_LAYERS}];
-uniform vec3 uSurfAccent[${PATTERN_LAYERS}];
-uniform vec4 uSurfExtra[${PATTERN_LAYERS}];
+uniform vec4 uSurf[${SURFACE_LAYERS}];
+uniform vec3 uSurfAccent[${SURFACE_LAYERS}];
+uniform vec4 uSurfExtra[${SURFACE_LAYERS}];
 uniform float uPatternK;
 uniform float uFlowerK;
 uniform vec3 uMeadow;
@@ -378,7 +378,7 @@ float qShiny = 0.0;
 // plain faces (no pattern fetch), glass, water and flowers.
 vec3 qKitSurface(vec3 c) {
   int si = int(vQSurf + 0.5);
-  bool plain = si < 1 || si >= ${PATTERN_LAYERS - 1};
+  bool plain = si < 1 || si == ${NOISE_LAYER} || si >= ${SURFACE_LAYERS};
   // Plain faces cost nothing over a flat color unless it snows. The id is the same on every vertex
   // of a face, so this branch never splits a 2 x 2 pixel quad and the derivatives below stay valid.
   if (plain && uSnow <= 0.0) return c;
