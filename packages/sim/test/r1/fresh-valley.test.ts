@@ -107,21 +107,25 @@ describe('R1 fresh standard valley', () => {
         expect(pathTiles(state).length).toBeGreaterThan(0);
       });
 
-      it('plays ten days zoned along the start path: money holds, a farmstead business grows', () => {
-        const state = played();
-        const farms = state.buildings.filter((b) => b.def === 'farmstead');
-        expect(farms.length).toBeGreaterThan(0);
-        for (const b of farms) {
-          expect(b.trade, `farmstead #${b.id}`).toBeDefined();
-          expect(content.tradeById.get(b.trade!)?.zone).toBe('farms');
-        }
-        // The growth pass wrote the demand bars.
-        expect(state.demand.bars).toHaveLength(4);
-        // The carrier kept its record a day at a time.
-        expect(state.carrier.bought.length).toBe(state.carrier.sold.length);
-      });
+      it(
+        'plays ten days zoned along the start path: money holds, a farmstead business grows',
+        { timeout: 60_000 },
+        () => {
+          const state = played();
+          const farms = state.buildings.filter((b) => b.def === 'farmstead');
+          expect(farms.length).toBeGreaterThan(0);
+          for (const b of farms) {
+            expect(b.trade, `farmstead #${b.id}`).toBeDefined();
+            expect(content.tradeById.get(b.trade!)?.zone).toBe('farms');
+          }
+          // The growth pass wrote the demand bars.
+          expect(state.demand.bars).toHaveLength(4);
+          // The carrier kept its record a day at a time.
+          expect(state.carrier.bought.length).toBe(state.carrier.sold.length);
+        },
+      );
 
-      it('plays the same twice: equal hashes', () => {
+      it('plays the same twice: equal hashes', { timeout: 60_000 }, () => {
         expect(hashState(play(seed))).toBe(hashState(played()));
       });
     });

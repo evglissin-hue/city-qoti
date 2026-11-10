@@ -26,7 +26,6 @@ export const aGardenPlot: WishTemplate = {
       // R1 stand-in (R1D): a market garden beside the home, until the Hearth's garden bed arrives.
       { near: { buildingTag: 'market-garden', of: 'home', within: 3 } },
       { near: { tag: 'herb', of: 'home', within: 3 } },
-      { near: { buildingTag: 'herb', of: 'home', within: 3 } },
     ],
   },
   reward: { mood: 15, bond: 1 },
