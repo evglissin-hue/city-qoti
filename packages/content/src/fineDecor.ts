@@ -1,9 +1,8 @@
 import type { DecorDef } from './types';
 
-// Playtest round seven: pricier, prettier decor that helps the workplace beside it. `boost` is
-// read by systems/production/decorBoost: buildings within `radius` tiles whose id or tag is listed
-// work faster by `permille`, up to +150 for any one building. Nothing here names a woodcutter or a
-// forester: felling and planting are never modified. All are open from the start.
+// Playtest round seven: pricier, prettier decor for beside a workplace. R1 removed the yield
+// registry's `decor` line (an unlock is never "+5%", P6), so these five stay as decor with their
+// charm and cost, refunded in full when removed. All are open from the start.
 
 export const flowerTrellis: DecorDef = {
   id: 'flower-trellis',
@@ -16,9 +15,8 @@ export const flowerTrellis: DecorDef = {
   charm: [{ category: 'nature', value: 3, radius: 2 }],
   cost: {
     coins: 10,
-    goods: [['planks', 4]],
+    goods: [['timber', 4]],
   },
-  boost: { radius: 2, permille: 60, tags: ['orchard', 'apiary', 'herb-garden'] },
 };
 
 export const paintedShopSign: DecorDef = {
@@ -32,12 +30,7 @@ export const paintedShopSign: DecorDef = {
   charm: [{ category: 'comfort', value: 2, radius: 1 }],
   cost: {
     coins: 14,
-    goods: [['planks', 4]],
-  },
-  boost: {
-    radius: 1,
-    permille: 60,
-    tags: ['bakery', 'cheesemaker', 'cider-press', 'spinner', 'weaver', 'workshop'],
+    goods: [['timber', 4]],
   },
 };
 
@@ -53,9 +46,8 @@ export const rainBarrel: DecorDef = {
   charm: [{ category: 'comfort', value: 1, radius: 1 }],
   cost: {
     coins: 8,
-    goods: [['planks', 4]],
+    goods: [['timber', 4]],
   },
-  boost: { radius: 2, permille: 50, tags: ['vegetable-plot', 'farmhouse'] },
 };
 
 export const toolRack: DecorDef = {
@@ -64,17 +56,16 @@ export const toolRack: DecorDef = {
   lane: 'ledger',
   radius: 40,
   onRoad: true,
-  tags: ['tools', 'rack'],
+  tags: ['rack', 'garden-tools'],
   art: { kit: 'tool-rack' },
   charm: [{ category: 'comfort', value: 1, radius: 1 }],
   cost: {
     coins: 12,
     goods: [
-      ['planks', 6],
+      ['timber', 6],
       ['stone', 2],
     ],
   },
-  boost: { radius: 2, permille: 60, tags: ['sawpit', 'quarry', 'smithy', 'chopping-shed'] },
 };
 
 export const weathervane: DecorDef = {
@@ -90,5 +81,4 @@ export const weathervane: DecorDef = {
     coins: 18,
     goods: [['stone', 2]],
   },
-  boost: { radius: 1, permille: 100, tags: ['windmill', 'sawmill'] },
 };

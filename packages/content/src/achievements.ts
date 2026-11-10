@@ -56,9 +56,9 @@ export const hearthAndHome: AchievementDef = {
 export const plankByPlank: AchievementDef = {
   id: 'plank-by-plank',
   name: 'Plank by Plank',
-  description: 'The first planks were sawn, measured twice and cut once.',
+  description: 'The first timber was cut, measured twice and cut once.',
   lane: 'ledger',
-  condition: { count: { what: 'goodProduced', ref: 'planks', atLeast: 1 } },
+  condition: { count: { what: 'goodProduced', ref: 'timber', atLeast: 1 } },
 };
 
 export const theLongWalkHome: AchievementDef = {

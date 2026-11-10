@@ -15,12 +15,8 @@ describe('I2 content', () => {
 
   it('baskets and neighbors name real goods', () => {
     expect(baskets.map((b) => b.tier).sort()).toEqual(['craftsfolk', 'settler']);
-    for (const b of baskets) {
-      for (const g of b.groups) {
-        expect(g.perDay, `${b.tier}.${g.id}`).toBeGreaterThan(0);
-        for (const id of goods(g.goods)) expect(content.goodById.has(id), id).toBe(true);
-      }
-    }
+    // R1: baskets want families, never a named good (validate.test.ts checks their shape).
+    for (const b of baskets) expect(b.wants.length, b.tier).toBeGreaterThan(0);
     for (const n of neighbors) {
       for (const id of [...goods(n.sells), ...goods(n.buys)]) expect(content.goodById.has(id), id).toBe(true);
       for (const [id, season, p] of n.seasonal ?? []) {
@@ -47,33 +43,20 @@ describe('I2 content', () => {
   });
 });
 
-// I2 chains, services and homes (C4C).
+// I2 services and homes (C4C), and what R1 left of the Village's buildings.
 describe('I2 buildings', () => {
-  const I2_GOODS = [
-    'clay',
-    'bricks',
-    'wool',
-    'yarn',
-    'cloth',
-    'milk',
-    'cheese',
-    'apples',
-    'cider',
-    'firewood',
-    'herbs',
-    'tools',
-  ];
   /** Daily wages per job tier in coins at wage level 100 (docs/spec/13-ledger.md, Wages). */
   const WAGE = { settler: 6, craftsfolk: 10, merchant: 16, patron: 26 } as const;
   const price = (g: string) => content.goodById.get(g)!.basePrice / 100;
 
-  it('makes every I2 good somewhere, and every craft input too', () => {
-    const made = new Set(
-      content.buildings.flatMap((b) => (b.methods ?? []).flatMap((m) => m.outputs.map(([g]) => g))),
-    );
-    // I3 (C5B): a good a neighbor sells counts as one the town can get (honey before the apiary).
+  it('makes or sells every good, and every method input too', () => {
+    const made = new Set([
+      ...content.buildings.flatMap((b) => (b.methods ?? []).flatMap((m) => m.outputs.map(([g]) => g))),
+      ...content.trades.flatMap((t) => (t.makes ? [t.makes] : [])),
+    ]);
+    // A good a neighbor sells counts as one the town can get: the carrier brings it.
     for (const n of content.neighbors) for (const [g] of n.sells) made.add(g);
-    for (const g of I2_GOODS) expect(made.has(g), g).toBe(true);
+    for (const g of content.goods) expect(made.has(g.id), g.id).toBe(true);
     for (const b of content.buildings)
       for (const m of b.methods ?? [])
         for (const [g] of m.inputs) expect(made.has(g), `${b.id} needs ${g}`).toBe(true);
@@ -97,11 +80,12 @@ describe('I2 buildings', () => {
     }
     for (const i of content.innovations)
       for (const u of i.unlocks) {
-        // Capabilities: porter-carry-6 [I2]; forecast-days-2 and wheat-yield-120 [I3].
+        // Capabilities: porter-carry-8 (R1), forecast-days-2 [I3], resow-same-day (R1's Seed Drill).
         const known =
           content.buildingById.has(u) ||
           content.roadById.has(u) ||
-          /^(porter-carry|forecast-days|wheat-yield)-\d+$/.test(u);
+          u === 'resow-same-day' ||
+          /^(porter-carry|forecast-days)-\d+$/.test(u);
         expect(known, `${i.id} unlocks ${u}`).toBe(true);
       }
   });

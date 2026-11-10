@@ -27,16 +27,24 @@ export const villageCharter: CharterDef = {
       target: 1,
     },
   ],
+  // R1: Homes, Workshops and Farmland are zoned from founding, so the Village opens the Shops and
+  // Townhouses zones (ZoneDef.requires), and the carrier's default rule for Wares and Treats turns
+  // to Always (docs/spec/15-progression.md, From the redesign).
   unlocks: [
-    'zoning',
+    'shops-zone',
+    'townhouses-zone',
     'market-prices',
     'craftsfolk',
+    'sawmill',
+    'brickworks',
+    'market-square',
+    'trading-post',
+    'carrier-wares-treats',
     'school',
     'tavern',
     'herbalist',
     'carts',
     'street',
-    'trading-post',
     'loans',
   ],
   proclamation: 'By order of the County, {town} is a village. Somebody fetch the bunting.',

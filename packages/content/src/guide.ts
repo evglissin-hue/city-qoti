@@ -29,7 +29,7 @@ export const firstDays: GuideDef = {
         'Tobias Merriweather, County Surveyor',
       ].join('\n'),
       goal: { code: 'guideLane' },
-      hint: 'A workplace (a woodcutter, a plot, anything with jobs) with its door on a lane or path that runs back to the valley gate.',
+      hint: 'A workplace (a quarry, a fishery, anything with jobs) with its door on a lane or path that runs back to the valley gate.',
       point: { tool: 'lane', tile: 'gate' },
     },
     {
@@ -42,7 +42,7 @@ export const firstDays: GuideDef = {
         'Tobias Merriweather',
       ].join('\n'),
       goal: { count: { what: 'buildings', ref: 'home', atLeast: 4 } },
-      hint: 'Four homes built in town. The builders at the town hall raise them from planks and stone.',
+      hint: 'Four homes built in town. The builders at the town hall raise them from timber and stone.',
       point: { tool: 'building', tile: 'start' },
     },
     {
@@ -63,33 +63,33 @@ export const firstDays: GuideDef = {
       lens: 'ledger',
       letter: [
         'Dear both,',
-        'The County sent bread and vegetables with the deeds, and the County, I am sorry to say, will not be sending more. Food has to come from the valley now.',
-        'A vegetable plot on decent soil or a fisher at the river, with someone working it, and a couple of days of food in the storehouse. Then nobody counts the loaves at supper.',
+        'The County sent grain and vegetables with the deeds, and the County, I am sorry to say, will not be sending more. Food has to come from the valley now.',
+        'A fishery at the river, or a farm on land you have zoned for it, with someone working it, and a couple of days of food in store. Then nobody counts the porridge at supper.',
         'Tobias Merriweather',
       ].join('\n'),
       goal: {
         all: [{ code: 'guideFoodWorked' }, { count: { what: 'foodDays', atLeast: 2 } }],
       },
-      hint: "A vegetable plot or a fisher's hut with a worker, and two days of food in store for everyone.",
+      // R1 stand-in (R1D): R1D rewrites the letters for the new first days (02-game-overview.md).
+      hint: 'A fishery or a farm with a worker, and two days of food in store for everyone.',
       point: { tool: 'building', tile: 'storehouse' },
     },
     {
-      id: 'planks',
+      id: 'timber',
       lens: 'both',
       letter: [
         'Dear both,',
-        'Every building in this valley is made of planks, and the planks the County lent you will not last the week. Planks come from logs, logs come from trees, and trees are the part the valley already has.',
-        'A woodcutter and a sawpit, then, and a building finished from what they make. One of you choose the trees to keep and the other the trees to fell; it saves arguments later.',
+        'Every building in this valley is made of timber, and the timber the County lent you will not last the week. Timber comes from trees, and trees are the part the valley already has.',
+        "A Forester's Lodge by a good stand of woods, then, and the first timber out of it. One of you choose the trees to keep and the other the trees to fell; it saves arguments later.",
         'Tobias Merriweather',
       ].join('\n'),
       goal: {
         all: [
-          { count: { what: 'buildings', ref: 'woodcutter', atLeast: 1 } },
-          { count: { what: 'buildings', ref: 'sawpit', atLeast: 1 } },
-          { count: { what: 'goodProduced', ref: 'planks', atLeast: 4 } },
+          { count: { what: 'buildings', ref: 'foresters-lodge', atLeast: 1 } },
+          { count: { what: 'goodProduced', ref: 'timber', atLeast: 4 } },
         ],
       },
-      hint: 'A woodcutter and a sawpit built, and the first planks out of the pit.',
+      hint: "A Forester's Lodge built, and the first timber cut.",
       point: { tool: 'building' },
     },
     {
@@ -158,6 +158,6 @@ export const guideDone: ChronicleTemplate = {
   text: [
     '{surveyor}, the County surveyor, rolled up the maps and left {town} in the hands of its founders, with a note to the County that it would do.',
     'The County surveyor, {surveyor}, signed off on {town} this hour and took the coach home. The chain and the opinions went too.',
-    '{surveyor} wrote the last line in the County survey of {town}: "Lane, homes, food, planks, wishes, charm, books and a partnership. Will do nicely."',
+    '{surveyor} wrote the last line in the County survey of {town}: "Lane, homes, food, timber, wishes, charm, books and a partnership. Will do nicely."',
   ],
 };

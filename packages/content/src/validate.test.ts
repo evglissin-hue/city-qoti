@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest';
 import {
   achievements,
   buildings,
-  callings,
   chronicle,
   content,
   decor,
@@ -11,6 +10,7 @@ import {
   patterns,
   roads,
   species,
+  trades,
   traits,
   trees,
   wishes,
@@ -43,6 +43,19 @@ function expectSaneRule(rule: PlacementRule, where: string): void {
       expect((rule.min ?? 0) <= (rule.max ?? 15), `${where} height range`).toBe(true);
       break;
     case 'waterEdge':
+    case 'river':
+      break;
+    case 'woods':
+      expect(rule.trees > 0 && rule.within > 0, `${where} woods`).toBe(true);
+      break;
+    case 'openGround':
+      expect(rule.clear > 0, `${where} open ground`).toBe(true);
+      break;
+    case 'road':
+      for (const r of rule.roads ?? []) expect(['path', 'lane', 'street'], `${where} road`).toContain(r);
+      break;
+    case 'valleyRoad':
+      expect(rule.within > 0, `${where} valley road`).toBe(true);
       break;
   }
 }
@@ -64,62 +77,45 @@ describe('content', () => {
   it('ships the I0 to I3 content lists', () => {
     expect(buildings.map((b) => b.id).sort()).toEqual(
       [
-        'bakery',
         'builders-yard',
         'cottage',
-        'farmhouse',
-        'fishers-hut',
-        'foresters-lodge',
         'house',
+        'shed',
+        'town-hall',
+        'well',
+        // R1: the thirteen specialized buildings (docs/spec/13-ledger.md, Land and specialized buildings)
+        'brickworks',
+        'cart-shed',
+        'fishery',
+        'foresters-lodge',
+        'granary',
+        'market-square',
         'market-stall',
         'quarry',
-        'sawpit',
-        'shed',
-        'storehouse',
-        'town-hall',
-        'vegetable-plot',
-        'well',
-        'windmill',
-        'woodcutter',
-        // I2 (C4C)
-        'brick-kiln',
-        'cart-shed',
-        'cheesemaker',
-        'chopping-shed',
-        'cider-press',
-        'clay-pit',
-        'corner-shop',
-        'dairy',
-        'farmstead',
-        'herb-garden',
-        'herbalist',
-        'herbalists-cottage',
-        'orchard',
+        'river-dock',
         'sawmill',
-        'school',
-        'sheep-pasture',
-        'smithy',
-        'spinner',
-        'tavern',
-        'townhouse',
+        'storehouse',
         'trading-post',
-        'weaver',
-        'workshop',
-        // I3 (C5.0 stubs)
+        'windmill',
+        // R1: the business defs a trade grows as, and the Hearth's Apiary (hives placed by hand)
         'apiary',
+        'corner-shop',
+        'farmstead',
+        'workshop',
+        // Services, homes and civic buildings as built
         'bath-house',
         'bell-tower',
-        'carpenter',
-        'chandler',
         'gate',
+        'herbalist',
+        'herbalists-cottage',
         'net-trap',
         'palisade',
-        'pie-shop',
         'pit-trap',
-        'river-dock',
+        'school',
         'stone-bridge',
         'stone-wall',
-        'tailor',
+        'tavern',
+        'townhouse',
         'watch-house',
         'watchtower',
       ].sort(),
@@ -175,7 +171,7 @@ describe('content', () => {
         'rain-barrel',
         'tool-rack',
         'weathervane',
-        // P1: signature pieces of the callings
+        // P1: signature pieces of the callings (locked until R3 brings callings back)
         'millstone-bench',
         'rose-arch',
         'wayside-shrine',
@@ -274,34 +270,24 @@ describe('I1 content', () => {
   };
 
   it('keeps the goods order fixed (saves index per-good arrays by it)', () => {
+    // R1.0: the sixteen goods of docs/spec/13-ledger.md, in its order; append-only from here.
     expect(goods.map((g) => g.id)).toEqual([
-      'logs',
-      'planks',
-      'stone',
-      'wheat',
-      'flour',
-      'bread',
+      'grain',
       'vegetables',
+      'fruit',
       'fish',
-      // I2 (C4.0)
-      'clay',
-      'bricks',
-      'wool',
-      'yarn',
-      'cloth',
-      'milk',
       'cheese',
-      'apples',
-      'cider',
+      'bread',
       'firewood',
-      'herbs',
-      'tools',
-      // I3 (C5.0)
-      'coats',
+      'timber',
+      'stone',
+      'brick',
+      'wool',
+      'cloth',
       'furniture',
-      'pies',
-      'honey',
       'candles',
+      'honey',
+      'cider',
     ]);
     goods.forEach((g, i) => expect(content.goodIndex.get(g.id)).toBe(i));
     for (const g of goods) expect(g.basePrice > 0 && g.carry > 0, g.id).toBe(true);
@@ -317,6 +303,10 @@ describe('I1 content', () => {
         expect(m.hours > 0 && m.workers >= 1, `${b.id} ${m.id}`).toBe(true);
         expect(m.workers, `${b.id} ${m.id} workers`).toBeLessThanOrEqual(b.jobs?.count ?? 0);
       }
+      // R1: method switching is gone; a building has at most one method.
+      expect((b.methods ?? []).length, `${b.id} methods`).toBeLessThanOrEqual(1);
+      for (const [good] of b.upgradesTo?.goods ?? [])
+        expect(ids.good.has(good), `${b.id} upgrade ${good}`).toBe(true);
     }
   });
 
@@ -378,10 +368,10 @@ describe('I1 content', () => {
     for (const a of achievements) {
       for (const ref of conditionRefs(a.condition)) expect(known(ref), `${a.id} ${ref}`).toBe(true);
     }
-    // Signature pieces [P1] are unlocked by a calling.
-    const unlockable = new Set([...patterns.flatMap((p) => p.unlocks), ...callings.map((c) => c.signature)]);
-    // Festival pieces [I3] are placed by the festival planner, not unlocked by a pattern.
-    for (const d of decor.filter((x) => x.locked && !x.festival))
+    const unlockable = new Set(patterns.flatMap((p) => p.unlocks));
+    // Festival pieces [I3] are placed by the festival planner, not unlocked by a pattern. The
+    // callings' signature pieces [P1] wait, locked, for R3 to bring callings back earned.
+    for (const d of decor.filter((x) => x.locked && !x.festival && !x.tags.includes('calling')))
       expect(unlockable.has(d.id), `${d.id} has an unlock`).toBe(true);
   });
 
@@ -415,5 +405,168 @@ describe('building unlocks (playtest round six)', () => {
       for (const [def] of content.buildingById.get(id)?.requires?.built ?? []) visit(def, [...path, id]);
     };
     for (const b of buildings) visit(b.id, []);
+  });
+});
+
+// --- R1 (R1.0): the zones-first Ledger's content rules (docs/spec/13-ledger.md) -----------------
+
+const FAMILIES = ['food', 'fuel', 'materials', 'wares', 'treats'] as const;
+
+describe('R1 content', () => {
+  const goodIds = new Set(goods.map((g) => g.id));
+
+  it('puts every good in exactly one of the five families, raw or made', () => {
+    for (const g of goods) {
+      expect(FAMILIES, g.id).toContain(g.family);
+      expect(typeof g.raw, g.id).toBe('boolean');
+    }
+    // Every family but Fuel has a made good to add variety; Fuel is firewood alone.
+    for (const f of FAMILIES)
+      expect(
+        goods.some((g) => g.family === f),
+        f,
+      ).toBe(true);
+    expect(goods.filter((g) => !g.raw).map((g) => g.id)).toEqual([
+      'bread',
+      'brick',
+      'cloth',
+      'furniture',
+      'candles',
+      'cider',
+    ]);
+  });
+
+  it('never uses a made good as an input (rule 2), in any trade or production method', () => {
+    const made = new Set(goods.filter((g) => !g.raw).map((g) => g.id));
+    // A method that makes something; a service that only uses a good up (the tavern pours cider,
+    // the Bath House burns firewood) makes nothing, so no workshop waits on it.
+    const methods = [
+      ...buildings.flatMap((b) =>
+        (b.methods ?? []).filter((m) => m.outputs.length > 0).map((m) => [b.id, m] as const),
+      ),
+      ...trades.flatMap((t) => (t.method ? [[t.id, t.method] as const] : [])),
+    ];
+    for (const [where, m] of methods) {
+      for (const [good] of m.inputs) expect(made.has(good), `${where} takes ${good}`).toBe(false);
+    }
+    for (const t of trades)
+      for (const good of t.from) expect(made.has(good), `${t.id} from ${good}`).toBe(false);
+  });
+
+  it('gives every trade real goods, a zone, a business def, a crew and a consistent method', () => {
+    expect(trades.map((t) => t.id)).toEqual([
+      'baker',
+      'carpenter',
+      'chandler',
+      'cider-maker',
+      'dairy',
+      'grain-farm',
+      'hives',
+      'market-garden',
+      'orchard',
+      'sheep-run',
+      'shop',
+      'weaver',
+    ]);
+    for (const t of trades) {
+      expect(t.id, t.id).toMatch(KEBAB);
+      expect(content.zoneById.has(t.zone), `${t.id} zone`).toBe(true);
+      const b = content.buildingById.get(t.building);
+      expect(b?.grows?.zone, `${t.id} grows as ${t.building}`).toBe(t.zone);
+      expect(t.crew[0] >= 1 && t.crew[0] <= t.crew[1] && t.crew[1] <= t.crew[2], `${t.id} crew`).toBe(true);
+      // A business of the trade starts at level 1 with its def's jobs.
+      expect(b?.jobs?.count, `${t.id} level 1 crew`).toBe(t.crew[0]);
+      for (const good of t.from) expect(goodIds.has(good), `${t.id} from ${good}`).toBe(true);
+      if (t.makes === null) {
+        expect(t.method, `${t.id} shop has no method`).toBeNull();
+        expect(t.sells?.length, `${t.id} sells by level`).toBe(3);
+        continue;
+      }
+      expect(goodIds.has(t.makes), `${t.id} makes ${t.makes}`).toBe(true);
+      const m = t.method!;
+      expect(
+        m.outputs.map(([g]) => g),
+        `${t.id} method makes it`,
+      ).toEqual([t.makes]);
+      expect(m.inputs.map(([g]) => g).sort(), `${t.id} method takes from`).toEqual([...t.from].sort());
+      expect(m.workers, `${t.id} workers`).toBe(t.crew[0]);
+      for (const [good, qty] of [...m.inputs, ...m.outputs])
+        expect(goodIds.has(good) && qty > 0, `${t.id} ${good}`).toBe(true);
+      // A raw good comes from land (a Farmland trade); a made good from a workshop, from raw goods.
+      expect(t.zone === 'farms', `${t.id} raw from land`).toBe(content.goodById.get(t.makes)!.raw);
+    }
+  });
+
+  it('wires reach wants to the specialized building that enables the trade', () => {
+    for (const t of trades) {
+      const at = t.wants.reach;
+      if (!at) continue;
+      const b = content.buildingById.get(at);
+      expect(b?.specialized, `${t.id} wants ${at}`).toBe(true);
+      expect(b?.enables, `${at} enables ${t.id}`).toContain(t.id);
+      expect((b?.reach ?? 0) > 0 && (b?.capacity ?? 0) > 0, `${at} reach and capacity`).toBe(true);
+    }
+    for (const b of buildings)
+      for (const id of b.enables ?? [])
+        expect(content.tradeById.get(id)?.wants.reach, `${b.id} enables ${id}`).toBe(b.id);
+  });
+
+  it('gives every specialized building a site rule, and the thirteen are the spec list', () => {
+    const specialized = buildings.filter((b) => b.specialized).map((b) => b.id);
+    expect(specialized.sort()).toEqual(
+      [
+        'brickworks',
+        'cart-shed',
+        'fishery',
+        'foresters-lodge',
+        'granary',
+        'market-square',
+        'market-stall',
+        'quarry',
+        'river-dock',
+        'sawmill',
+        'storehouse',
+        'trading-post',
+        'windmill',
+      ].sort(),
+    );
+    for (const b of buildings.filter((x) => x.specialized)) {
+      expect((b.placement ?? []).length, `${b.id} site rule`).toBeGreaterThan(0);
+      expect(b.grows, `${b.id} is hand-placed`).toBeUndefined();
+      for (const f of b.stores ?? []) expect(FAMILIES, `${b.id} stores`).toContain(f);
+    }
+  });
+
+  it('gives each tier a basket by family, with amount and variety wants', () => {
+    for (const basket of content.baskets) {
+      const families = basket.wants.map((w) => w.family);
+      expect(families, basket.tier).not.toContain('materials');
+      expect(families, `${basket.tier} in family order`).toEqual(
+        FAMILIES.filter((f) => families.includes(f)),
+      );
+      for (const w of basket.wants) {
+        expect(
+          w.amount >= 0 && Number.isInteger(w.variety) && w.variety >= 0,
+          `${basket.tier} ${w.family}`,
+        ).toBe(true);
+        if (w.season !== undefined) expect(w.season >= 0 && w.season <= 3).toBe(true);
+      }
+    }
+  });
+
+  it('opens Homes, Workshops and Farmland at founding, and Shops and Townhouses from Village rank', () => {
+    const open = content.zones.filter((z) => !z.requires?.rank).map((z) => z.id);
+    expect(open.sort()).toEqual(['crafts', 'farms', 'homes-low']);
+    for (const z of content.zones.filter((x) => x.requires?.rank)) expect(z.requires!.rank).toBe('village');
+  });
+
+  it('lets the neighbors sell something of every family, in real goods', () => {
+    const sold = new Set(
+      content.neighbors.flatMap((n) => n.sells.map(([g]) => content.goodById.get(g)!.family)),
+    );
+    for (const f of FAMILIES) expect(sold.has(f), `a neighbor sells ${f}`).toBe(true);
+    for (const n of content.neighbors)
+      for (const [g] of [...n.sells, ...n.buys, ...(n.seasonal ?? [])])
+        expect(goodIds.has(g), `${n.id} ${g}`).toBe(true);
   });
 });

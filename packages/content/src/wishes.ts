@@ -15,7 +15,7 @@ export const aGardenPlot: WishTemplate = {
   name: 'A Garden Plot',
   lane: 'hearth',
   text: [
-    '{name} would like a vegetable plot near the {place}. Something to fuss over that fusses back.',
+    '{name} would like a garden plot near the {place}. Something to fuss over that fusses back.',
     '{name} has been reading seed catalogues again. A garden plot within a short stroll would do.',
     '{name} has strong opinions about carrots and nowhere to put them. A plot near home, please.',
     '{name} keeps a trowel by the door, just in case. A garden plot would give it a purpose.',
@@ -23,7 +23,8 @@ export const aGardenPlot: WishTemplate = {
   when: HAS_HOME,
   target: {
     any: [
-      { near: { building: 'vegetable-plot', of: 'home', within: 3 } },
+      // R1 stand-in (R1D): a market garden beside the home, until the Hearth's garden bed arrives.
+      { near: { buildingTag: 'market-garden', of: 'home', within: 3 } },
       { near: { tag: 'herb', of: 'home', within: 3 } },
       { near: { buildingTag: 'herb', of: 'home', within: 3 } },
     ],
@@ -34,7 +35,7 @@ export const aGardenPlot: WishTemplate = {
     'I have been out in the garden since dawn and I have never been happier to have mud on my sleeves.',
     'Thank you for the plot. The slugs also send their thanks, though I did not ask them to.',
   ],
-  digest: ['a garden plot for {name}', 'somewhere for {name} to grow things', "{name}'s vegetable plot"],
+  digest: ['a garden plot for {name}', 'somewhere for {name} to grow things', "{name}'s garden plot"],
   weight: 3,
 };
 
@@ -127,7 +128,8 @@ export const bakeryNearby: WishTemplate = {
       },
     ],
   },
-  target: { near: { buildingTag: 'bakery', of: 'home', within: 12 } },
+  // R1: a baker's business counts by its trade (docs/spec/12-hearth.md, Wishes, the R1 note).
+  target: { near: { buildingTag: 'baker', of: 'home', within: 12 } },
   reward: { mood: 15, bond: 1 },
   thanks: [
     'The smell alone has improved my mornings. The bread does the rest.',

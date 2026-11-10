@@ -4,40 +4,6 @@ import type { BuildingDef } from './types';
 // Numbers follow docs/spec/13-ledger.md (I1 buildings) and are marked (tune) there.
 // Coin costs and upkeep are in coins; the sim keeps money in pennies.
 
-export const bakery: BuildingDef = {
-  id: 'bakery',
-  name: 'Bakery',
-  lane: 'ledger',
-  category: 'production',
-  size: [2, 2],
-  entrance: [1, 1],
-  cost: {
-    coins: 50,
-    goods: [
-      ['planks', 20],
-      ['stone', 10],
-    ],
-  },
-  upkeep: 2,
-  jobs: { count: 2, role: 'worker' },
-  methods: [
-    {
-      id: 'bake-bread',
-      name: 'Bake bread',
-      kind: 'craft',
-      inputs: [['flour', 2]],
-      outputs: [['bread', 5]],
-      hours: 2,
-      workers: 2,
-    },
-  ],
-  work: 12,
-  charm: [{ category: 'comfort', value: 2, radius: 2 }],
-  tags: ['bakery', 'workshop', 'cafe'],
-  requires: { built: [['windmill', 1]] },
-  art: { kit: 'bakery' },
-};
-
 export const buildersYard: BuildingDef = {
   id: 'builders-yard',
   name: "Builder's yard",
@@ -48,7 +14,7 @@ export const buildersYard: BuildingDef = {
   cost: {
     coins: 30,
     goods: [
-      ['logs', 20],
+      ['timber', 20],
       ['stone', 10],
     ],
   },
@@ -71,7 +37,7 @@ export const cottage: BuildingDef = {
   cost: {
     coins: 20,
     goods: [
-      ['planks', 16],
+      ['timber', 16],
       ['stone', 6],
     ],
   },
@@ -92,59 +58,24 @@ export const cottage: BuildingDef = {
   upgradesTo: {
     def: 'townhouse',
     goods: [
-      ['bricks', 10],
-      ['planks', 6],
+      ['brick', 10],
+      ['timber', 6],
     ],
   },
   art: { kit: 'cottage' },
 };
 
-export const farmhouse: BuildingDef = {
-  id: 'farmhouse',
-  name: 'Farmhouse',
-  lane: 'ledger',
-  category: 'production',
-  size: [2, 2],
-  entrance: [1, 1],
-  cost: {
-    coins: 30,
-    goods: [
-      ['planks', 16],
-      ['stone', 6],
-    ],
-  },
-  upkeep: 1,
-  jobs: { count: 3, role: 'worker' },
-  methods: [
-    {
-      id: 'tend-wheat',
-      name: 'Tend wheat fields',
-      kind: 'farm',
-      inputs: [],
-      outputs: [['wheat', 1]],
-      hours: 24,
-      workers: 3,
-      range: 6,
-    },
-  ],
-  outputBuffer: 30,
-  work: 12,
-  tags: ['farm'],
-  requires: { built: [['vegetable-plot', 2]] },
-  art: { kit: 'farmhouse' },
-};
-
-export const fishersHut: BuildingDef = {
-  id: 'fishers-hut',
-  name: "Fisher's hut",
+export const fishery: BuildingDef = {
+  id: 'fishery',
+  name: 'Fishery',
   lane: 'ledger',
   category: 'production',
   size: [2, 2],
   entrance: [1, 1],
   placement: [{ kind: 'waterEdge' }],
-  cost: { coins: 20, goods: [['planks', 14]] },
+  cost: { coins: 20, goods: [['timber', 14]] },
   upkeep: 1,
-  jobs: { count: 2, role: 'worker' },
+  jobs: { count: 3, role: 'worker' },
   methods: [
     {
       id: 'fish',
@@ -153,13 +84,14 @@ export const fishersHut: BuildingDef = {
       inputs: [],
       outputs: [['fish', 2]],
       hours: 2,
-      workers: 2,
+      workers: 3,
       perWorker: true,
     },
   ],
   work: 12,
   charm: [{ category: 'noise', value: -6, radius: 3 }],
-  tags: ['smelly', 'workshop'],
+  tags: ['smelly', 'workshop', 'fishery'],
+  specialized: true,
   art: { kit: 'fishers-hut' },
 };
 
@@ -170,31 +102,36 @@ export const forestersLodge: BuildingDef = {
   category: 'production',
   size: [2, 2],
   entrance: [1, 1],
+  placement: [{ kind: 'woods', trees: 12, within: 8 }],
   cost: {
     coins: 20,
     goods: [
-      ['logs', 12],
+      ['timber', 12],
       ['stone', 6],
     ],
   },
   upkeep: 1,
-  jobs: { count: 1, role: 'worker' },
+  jobs: { count: 3, role: 'worker' },
+  // R1 stand-in (R1B): the lodge fells as the woodcutter did; replanting its own wood and cutting
+  // firewood toward the season plan's Fuel mark are R1B's.
   methods: [
     {
-      id: 'plant-saplings',
-      name: 'Plant saplings',
-      kind: 'plant',
+      id: 'fell-trees',
+      name: 'Fell trees',
+      kind: 'fell',
       inputs: [],
-      outputs: [],
-      hours: 2,
-      workers: 1,
+      outputs: [['timber', 4]],
+      hours: 3,
+      workers: 3,
       perWorker: true,
       range: 8,
     },
   ],
   work: 12,
-  tags: ['forestry'],
-  requires: { built: [['woodcutter', 1]] },
+  charm: [{ category: 'noise', value: -6, radius: 3 }],
+  tags: ['workshop', 'forestry'],
+  specialized: true,
+  reach: 8,
   art: { kit: 'foresters-lodge' },
 };
 
@@ -215,11 +152,12 @@ export const house: BuildingDef = {
 export const marketStall: BuildingDef = {
   id: 'market-stall',
   name: 'Market stall',
-  lane: 'ledger',
+  lane: 'shared',
   category: 'service',
   size: [1, 2],
   entrance: [0, 1],
-  cost: { coins: 10, goods: [['planks', 8]] },
+  placement: [{ kind: 'road' }],
+  cost: { coins: 10, goods: [['timber', 8]] },
   upkeep: 1,
   jobs: { count: 1, role: 'vendor' },
   storage: 40,
@@ -227,6 +165,9 @@ export const marketStall: BuildingDef = {
   work: 6,
   charm: [{ category: 'comfort', value: 2, radius: 2 }],
   tags: ['outlet', 'market'],
+  specialized: true,
+  reach: 14,
+  stores: ['food', 'treats'],
   art: { kit: 'market-stall' },
 };
 
@@ -238,8 +179,7 @@ export const quarry: BuildingDef = {
   size: [3, 3],
   entrance: [1, 2],
   placement: [{ kind: 'deposit', deposit: 'stone', minTiles: 4 }],
-  // Playtest round three: fewer planks (20 before), and the sawpit no longer needs stone.
-  cost: { coins: 40, goods: [['planks', 12]] },
+  cost: { coins: 40, goods: [['timber', 12]] },
   upkeep: 2,
   jobs: { count: 3, role: 'worker' },
   methods: [
@@ -257,35 +197,8 @@ export const quarry: BuildingDef = {
   work: 12,
   charm: [{ category: 'noise', value: -10, radius: 4 }],
   tags: ['workshop'],
+  specialized: true,
   art: { kit: 'quarry' },
-};
-
-export const sawpit: BuildingDef = {
-  id: 'sawpit',
-  name: 'Sawpit',
-  lane: 'ledger',
-  category: 'production',
-  size: [2, 3],
-  entrance: [1, 2],
-  // Playtest round three: logs only (no stone), so stone and planks never wait on each other.
-  cost: { coins: 30, goods: [['logs', 16]] },
-  upkeep: 1,
-  jobs: { count: 2, role: 'worker' },
-  methods: [
-    {
-      id: 'saw-planks',
-      name: 'Saw planks',
-      kind: 'craft',
-      inputs: [['logs', 2]],
-      outputs: [['planks', 4]],
-      hours: 2,
-      workers: 2,
-    },
-  ],
-  work: 12,
-  charm: [{ category: 'noise', value: -8, radius: 3 }],
-  tags: ['workshop'],
-  art: { kit: 'sawpit' },
 };
 
 /** Sandbox only. */
@@ -307,21 +220,57 @@ export const storehouse: BuildingDef = {
   category: 'storage',
   size: [3, 3],
   entrance: [1, 2],
+  placement: [{ kind: 'road' }],
   cost: {
     coins: 40,
     goods: [
-      ['planks', 30],
+      ['timber', 30],
       ['stone', 10],
     ],
   },
   upkeep: 2,
   jobs: { count: 4, role: 'porter' },
-  storage: 400,
+  storage: 800,
   coverage: [{ kind: 'logistics', radius: 24 }],
   work: 16,
   charm: [{ category: 'noise', value: -3, radius: 2 }],
   tags: ['storehouse', 'outlet'],
+  specialized: true,
+  reach: 24,
+  stores: ['fuel', 'materials', 'wares', 'treats'],
   art: { kit: 'storehouse' },
+};
+
+/**
+ * R1: the Food store. Keeps 1,200 Food, which spoils half as fast in store; homes and shops in
+ * reach draw on it (docs/spec/13-ledger.md, Land and specialized buildings).
+ */
+export const granary: BuildingDef = {
+  id: 'granary',
+  name: 'Granary',
+  lane: 'ledger',
+  category: 'storage',
+  size: [3, 3],
+  entrance: [1, 2],
+  placement: [{ kind: 'road' }],
+  cost: {
+    coins: 40,
+    goods: [
+      ['timber', 30],
+      ['stone', 10],
+    ],
+  },
+  upkeep: 2,
+  jobs: { count: 2, role: 'porter' },
+  storage: 1200,
+  coverage: [{ kind: 'logistics', radius: 24 }],
+  work: 16,
+  charm: [{ category: 'noise', value: -2, radius: 2 }],
+  tags: ['storehouse', 'outlet', 'granary'],
+  specialized: true,
+  reach: 24,
+  stores: ['food'],
+  art: { kit: 'storehouse', params: { kit: 'granary' } },
 };
 
 /** Standard valleys start with one; only sandbox valleys offer it in the toolbar. */
@@ -346,33 +295,6 @@ export const townHall: BuildingDef = {
   art: { kit: 'town-hall' },
 };
 
-export const vegetablePlot: BuildingDef = {
-  id: 'vegetable-plot',
-  name: 'Vegetable plot',
-  lane: 'shared',
-  category: 'production',
-  size: [2, 2],
-  entrance: [1, 1],
-  cost: { coins: 5, goods: [['planks', 4]] },
-  upkeep: 0,
-  jobs: { count: 1, role: 'worker' },
-  methods: [
-    {
-      id: 'grow-vegetables',
-      name: 'Grow vegetables',
-      kind: 'gather',
-      inputs: [],
-      outputs: [['vegetables', 3]],
-      hours: 4,
-      workers: 1,
-    },
-  ],
-  work: 4,
-  charm: [{ category: 'nature', value: 2, radius: 1 }],
-  tags: ['plot', 'garden', 'soil'],
-  art: { kit: 'vegetable-plot' },
-};
-
 export const well: BuildingDef = {
   id: 'well',
   name: 'Well',
@@ -389,6 +311,10 @@ export const well: BuildingDef = {
   art: { kit: 'well' },
 };
 
+/**
+ * R1: the windmill no longer grinds; it lets bakers set up in its reach (2, or 4 when it stands 4+
+ * levels above the ground around it). Its miller keeps it turning.
+ */
 export const windmill: BuildingDef = {
   id: 'windmill',
   name: 'Windmill',
@@ -396,59 +322,23 @@ export const windmill: BuildingDef = {
   category: 'production',
   size: [2, 2],
   entrance: [1, 1],
+  placement: [{ kind: 'openGround', clear: 2 }],
   cost: {
     coins: 50,
     goods: [
-      ['planks', 24],
+      ['timber', 24],
       ['stone', 8],
     ],
   },
   upkeep: 2,
   jobs: { count: 1, role: 'worker' },
-  methods: [
-    {
-      id: 'grind-flour',
-      name: 'Grind flour',
-      kind: 'craft',
-      inputs: [['wheat', 3]],
-      outputs: [['flour', 2]],
-      hours: 1,
-      workers: 1,
-      heightBonus: { heightMin: 4, percent: 25 },
-    },
-  ],
   work: 20,
   charm: [{ category: 'view', value: 2, radius: 2 }],
-  tags: ['mill', 'workshop'],
-  requires: { built: [['farmhouse', 1]] },
+  tags: ['mill'],
+  specialized: true,
+  reach: 24,
+  capacity: 2,
+  raisedCapacity: [4, 4],
+  enables: ['baker'],
   art: { kit: 'windmill' },
-};
-
-export const woodcutter: BuildingDef = {
-  id: 'woodcutter',
-  name: "Woodcutter's hut",
-  lane: 'ledger',
-  category: 'production',
-  size: [2, 2],
-  entrance: [1, 1],
-  cost: { coins: 20, goods: [['logs', 12]] },
-  upkeep: 1,
-  jobs: { count: 2, role: 'worker' },
-  methods: [
-    {
-      id: 'fell-trees',
-      name: 'Fell trees',
-      kind: 'fell',
-      inputs: [],
-      outputs: [['logs', 4]],
-      hours: 3,
-      workers: 2,
-      perWorker: true,
-      range: 8,
-    },
-  ],
-  work: 12,
-  charm: [{ category: 'noise', value: -6, radius: 3 }],
-  tags: ['workshop', 'forestry'],
-  art: { kit: 'woodcutter' },
 };

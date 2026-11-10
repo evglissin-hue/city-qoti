@@ -24,7 +24,7 @@ export const cornerCafe: PatternDef = {
   id: 'corner-cafe',
   name: 'Corner Cafe',
   flavor: 'A table by a door on a corner lets you be out in the village and sat down at the same time.',
-  hint: 'A tavern, bakery or shop on a corner where two roads meet, with seats and flowers outside.',
+  hint: 'A tavern, baker or shop on a corner where two roads meet, with seats and flowers outside.',
   rank: 'village',
   detector: 'cornerCafe',
   params: [

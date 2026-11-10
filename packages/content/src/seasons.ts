@@ -165,8 +165,8 @@ export const earlyFrost: EventDef = {
   odds: 350,
   forecastDays: [1, 2],
   durationDays: [1, 1],
-  effects: [['wheat', 500]],
-  blurb: 'Frost is early this year. Wheat still in the field will suffer.',
+  effects: [['grain', 500]],
+  blurb: 'Frost is early this year. Grain still in the field will suffer.',
 };
 
 export const flood: EventDef = {
