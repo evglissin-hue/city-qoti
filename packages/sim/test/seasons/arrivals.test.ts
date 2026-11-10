@@ -2,12 +2,14 @@
 // Seasons, As built): from autumn to the thaw a family moves in only while the larder could see the
 // town, them included, through the winter, and while it could not the jobs system puts the gardens
 // first; the chopping sheds come first while the woodpile could not. The days are read from the
-// seasons API and the bakery's rate from content, not pinned.
+// seasons API, not pinned. R1: grain is Food (porridge), so the larder counts it in full; the
+// bakeries' rate no longer limits it.
 import { content } from '@qoti/content';
 import { describe, expect, it } from 'vitest';
-import { DAYS_PER_SEASON, WARMTH_PER_HOUSEHOLD, WORK_HOURS } from '../../src/constants';
+import { DAYS_PER_SEASON, WARMTH_PER_HOUSEHOLD } from '../../src/constants';
 import type { WorldState } from '../../src/contracts';
 import { rngFromSeed } from '../../src/rng/streams';
+import { isFood } from '../../src/state/zones';
 import { createTickCtx } from '../../src/turn';
 import { shortages } from '../../src/systems/residents/jobs';
 import { arrivals } from '../../src/systems/residents/lifecycle';
@@ -18,14 +20,13 @@ import { tickAt } from '../fixtures/seasonsPlace';
 import { placeBuilding } from '../residents/helpers';
 
 const G = (id: string) => content.goodIndex.get(id)!;
-const GRAIN = new Set([G('wheat'), G('flour')]);
 
-/** Empties the town's food, grain and firewood, then stores `food` vegetables and `wheat` wheat. */
+/** Empties the town's Food (grain too) and firewood, then stores `food` vegetables and `wheat` grain. */
 function stock(state: WorldState, food: number, wheat = 0, firewood = 0): void {
   for (const b of state.buildings) {
     if (!b.rt) continue;
     for (let g = 0; g < content.goods.length; g++) {
-      if (!content.goods[g]!.food && !GRAIN.has(g) && g !== G('firewood')) continue;
+      if (!isFood(g) && g !== G('firewood')) continue;
       b.rt.store[g] = 0;
       b.rt.output[g] = 0;
     }
@@ -33,15 +34,8 @@ function stock(state: WorldState, food: number, wheat = 0, firewood = 0): void {
   for (const h of state.households) h.pantry = h.pantry.map(() => 0);
   const store = state.buildings.find((b) => b.def === 'storehouse')!;
   store.rt!.store[G('vegetables')] = food;
-  store.rt!.store[G('wheat')] = wheat;
+  store.rt!.store[G('grain')] = wheat;
   store.rt!.store[G('firewood')] = firewood;
-}
-
-/** Bread a bakery bakes in a full work day, from its content method. */
-function bakeryDay(): number {
-  const m = content.buildingById.get('bakery')!.methods![0]!;
-  const bread = m.outputs.find(([g]) => g === 'bread')![1];
-  return (bread * (WORK_HOURS[1] - WORK_HOURS[0]) * (m.perWorker ? m.workers : 1)) / m.hours;
 }
 
 describe('arrivals weigh the winter', () => {
@@ -68,15 +62,12 @@ describe('arrivals weigh the winter', () => {
     expect(larderWelcomes(state, 4)).toBe(true);
   });
 
-  it('count wheat in autumn only as far as the bakeries can bake it by the thaw', () => {
+  it('count grain in autumn in full, as it is eaten', () => {
     const { state } = hamletFixture();
     state.tick = tickAt(0, 2, 1, 10);
-    const bakeries = state.buildings.filter((b) => b.def === 'bakery').length;
-    expect(bakeries).toBeGreaterThan(0);
     const days = winterDaysAhead(state);
-    const bakeable = Math.floor(bakeries * bakeryDay() * days);
-    stock(state, 30, bakeable + 500);
-    expect(larderWithin(state, days)).toBe(30 + bakeable);
+    stock(state, 30, 500);
+    expect(larderWithin(state, days)).toBe(530);
     stock(state, 30, 20);
     expect(larderWithin(state, days)).toBe(50);
   });
@@ -87,10 +78,12 @@ describe('arrivals weigh the winter', () => {
     const days = DAYS_PER_SEASON - 4 + 1 + THAW_DAYS[1];
     expect(winterDaysAhead(state)).toBe(days);
     const need = (state.residents.length + 1) * days;
-    // A barn full of wheat feeds no newcomer this winter.
-    stock(state, need - 1, 10_000);
+    stock(state, need - 1);
     expect(larderWelcomes(state, 1)).toBe(false);
     stock(state, need);
+    expect(larderWelcomes(state, 1)).toBe(true);
+    // Grain on the shelves feeds them too.
+    stock(state, 0, need);
     expect(larderWelcomes(state, 1)).toBe(true);
   });
 
