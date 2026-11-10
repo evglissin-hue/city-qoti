@@ -131,7 +131,7 @@ export const mockSeasonReport: SeasonReportView = {
     { track: 'nature', text: 'A robin moved into the hedge by the well.', value: 1 },
   ],
   ledger: [
-    { track: 'weather', text: 'An early frost took a third of the wheat still in the fields.', value: 12 },
+    { track: 'weather', text: 'An early frost took a third of the grain still in the fields.', value: 12 },
     { track: 'threat', text: 'No raid this season. The Watch practiced looking stern.' },
   ],
 };

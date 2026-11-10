@@ -7,15 +7,15 @@ import type { Mirror } from '../state/mirror';
 import { currentFestivalPlan } from '../ui/seasons';
 import { RANK_WORD, rankAtLeast } from '../ui/village';
 
-export type BuildingGroup = 'homes' | 'workplaces' | 'services';
+export type BuildingGroup = 'homes' | 'specialized' | 'services';
 
 export const GROUP_LABEL: Record<BuildingGroup, string> = {
   homes: 'Homes',
-  workplaces: 'Workplaces',
+  specialized: 'Specialized',
   services: 'Services',
 };
 
-const GROUP_ORDER: BuildingGroup[] = ['homes', 'workplaces', 'services'];
+const GROUP_ORDER: BuildingGroup[] = ['homes', 'specialized', 'services'];
 
 /** Makes goods (or fells the trees): the apiary and the specialized buildings that make something. */
 function isProducer(def: BuildingDef): boolean {
@@ -23,12 +23,12 @@ function isProducer(def: BuildingDef): boolean {
 }
 
 /**
- * R1.0 stand-in until R1C's three shelves: homes, then the specialized buildings (and the apiary,
- * which makes honey) as Workplaces, then everything that serves the town.
+ * R1.0 stand-in until R1C's three shelves (docs/spec/17-presentation.md, The Build picker): homes,
+ * the specialized buildings (with the apiary, which makes honey), then everything that serves.
  */
 export function buildingGroup(def: BuildingDef): BuildingGroup {
   if (def.category === 'home') return 'homes';
-  if (def.specialized || isProducer(def)) return 'workplaces';
+  if (def.specialized || isProducer(def)) return 'specialized';
   return 'services';
 }
 

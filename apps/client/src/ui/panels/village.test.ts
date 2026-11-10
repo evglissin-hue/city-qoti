@@ -60,7 +60,8 @@ describe('market', () => {
     const rows = [...view.root.querySelectorAll('[data-testid^="profit-"] .profit-name')].map(
       (e) => e.textContent,
     );
-    expect(rows).toContain('Bakery');
+    // R1: the fixture's bakery is a workshop business keeping the baker's trade.
+    expect(rows).toContain('Baker');
     await view.click(view.get(`profit-${villageIds.buildings.bakery}`).querySelector('button')!);
     expect(view.text()).toContain('Goods made');
     expect(view.text()).toContain('Wages');
@@ -182,7 +183,7 @@ describe('letters', () => {
     const card = view.get('story-pippa-quill');
     expect(card.textContent).toContain('Pippa Quill');
     expect(card.textContent).toContain('Step 2 of 5');
-    expect(card.textContent).toContain('sawpit');
+    expect(card.textContent).toContain("Forester's Lodge");
     const newest = mockLetters[mockLetters.length - 1]!;
     await view.click(`envelope-${newest.arc}-${newest.step}`);
     expect(session.ui.storyLetter.value).toEqual(newest);
@@ -195,7 +196,7 @@ describe('letters', () => {
     view = await mount(h(StoryLetterPanel, { session }));
     const text = view.get('story-letter').textContent ?? '';
     expect(text).toContain('Dear neighbors,');
-    expect(text).toContain('Put a sawpit near it');
+    expect(text).toContain("Put a Forester's Lodge near it");
     expect(text).toContain('Pippa Quill');
     expect(view.get('letter-ps').textContent).toContain('P.S.');
     await view.click('letter-visit');
@@ -290,7 +291,7 @@ describe('plans', () => {
     session.ui.sketch.value = {
       basedOn: null,
       items: [
-        { cmd: { t: 'build.place', def: 'bakery', x: 50, z: 52, rot: 0 } },
+        { cmd: { t: 'build.place', def: 'windmill', x: 50, z: 52, rot: 0 } },
         {
           cmd: {
             t: 'road.paint',
@@ -307,13 +308,13 @@ describe('plans', () => {
     await settle();
     expect(view.get('sketch-card').textContent).toContain('3 tiles of lane');
     await view.click('sketch-undo');
-    expect(view.get('sketch-card').textContent).toContain('a bakery');
+    expect(view.get('sketch-card').textContent).toContain('a windmill');
     await typeInto(view.get('sketch-name'), 'Bread for the south side');
     await view.click('sketch-propose');
     expect(last(submitted, 'plan.add')).toEqual({
       t: 'plan.add',
       name: 'Bread for the south side',
-      items: [{ cmd: { t: 'build.place', def: 'bakery', x: 50, z: 52, rot: 0 } }],
+      items: [{ cmd: { t: 'build.place', def: 'windmill', x: 50, z: 52, rot: 0 } }],
     });
     expect(session.ui.sketch.value).toBeNull();
   });

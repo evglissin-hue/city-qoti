@@ -80,7 +80,7 @@ export function createUiState() {
     bookPage: signal<string | null>(null),
     /** Building being customized. */
     customize: signal<number | null>(null),
-    /** Farmhouse whose fields the field tool paints. */
+    /** The grain farm whose fields the field tool paints. */
     farm: signal<number | null>(null),
     /** Overlay shown by the lens toolbar toggles. */
     overlay: signal<string | null>(null),

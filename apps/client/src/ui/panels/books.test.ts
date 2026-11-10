@@ -138,18 +138,18 @@ describe('plaques', () => {
 });
 
 describe('reports', () => {
-  it('stocks: stock, today, a sparkline and sale toggles that send ledger.setForSale', async () => {
-    const { session, submitted } = mockSession();
+  it('stocks: stock, today and a sparkline, in goods order, with no Sell column (R1: the carrier sells)', async () => {
+    const { session } = mockSession();
     view = await mount(h(ReportsPanel, { session }));
-    const rows = view.root.querySelectorAll('table.stocks tbody tr');
+    const rows = [...view.root.querySelectorAll('table.stocks tbody tr')];
     expect(rows).toHaveLength(8);
-    expect(rows[0]!.textContent).toContain('Logs');
-    expect(rows[0]!.textContent).toContain('40');
-    expect(rows[0]!.textContent).toContain('+8');
-    expect(rows[0]!.querySelector('svg.sparkline.down')).not.toBeNull();
-    expect(view.get('sell-planks').getAttribute('aria-checked')).toBe('true');
-    await view.click('sell-bread');
-    expect(submitted).toEqual([{ t: 'ledger.setForSale', good: 'bread', forSale: true }]);
+    expect(rows[0]!.textContent).toContain('Grain');
+    const timber = rows.find((r) => r.textContent?.includes('Timber'))!;
+    expect(timber.textContent).toContain('40');
+    expect(timber.textContent).toContain('+8');
+    expect(timber.querySelector('svg.sparkline.down')).not.toBeNull();
+    expect(view.find('sell-bread')).toBeNull();
+    expect(view.text()).not.toContain('Sell');
   });
 
   it('workforce: jobs filled and open per workplace', async () => {
@@ -166,7 +166,7 @@ describe('reports', () => {
     await view.click('report-budget');
     const text = view.text();
     expect(text).toContain('412 coins');
-    expect(text).toContain('Peddler sales');
+    expect(text).toContain('Exports');
     expect(view.get('budget-net').textContent).toBe('16 coins');
     expect(text).toContain('Behind by');
     await view.click('budget-season');
@@ -198,10 +198,10 @@ describe('reports', () => {
     session.ui.reportTab.value = 'buildings';
     view = await mount(h(ReportsPanel, { session }));
     const list = view.get('building-statuses');
-    expect(list.textContent).toContain('Bakery');
+    expect(list.textContent).toContain('Baker');
     expect(list.textContent).toContain('Waiting for inputs');
-    expect(list.textContent).toContain('Sawpit');
-    await view.click(button(list, 'Bakery'));
+    expect(list.textContent).toContain("Forester's Lodge");
+    await view.click(button(list, 'Baker'));
     expect(session.ui.selection.value).toEqual({ kind: 'building', id: 6 });
   });
 });
@@ -236,7 +236,7 @@ describe('customization', () => {
     const { session, submitted } = mockSession();
     session.ui.customize.value = 6;
     view = await mount(h(CustomizePanel, { session }));
-    // The mock bakery has window boxes on, so the flower row shows with Mixed as the default.
+    // The mock baker's workshop has window boxes on, so the flower row shows with Mixed as the default.
     expect(view.get('swatch-flowers-mixed').getAttribute('aria-checked')).toBe('true');
     await view.click('swatch-flowers-cornflower');
     expect(submitted).toEqual([{ t: 'build.customize', id: 6, custom: { windowFlowers: 'cornflower' } }]);
@@ -281,7 +281,7 @@ describe('while you were away', () => {
     expect(text).toContain('380');
     expect(text).toContain('412');
     expect(text).toContain('The first bread in Qoti');
-    expect(text).toContain('Smells better than the sawpit');
+    expect(text).toContain('Smells better than the brickworks');
     expect(text).toContain('Bo and the valley');
     await view.click('letter-close');
     expect(session.ui.letter.value).toBeNull();
@@ -297,16 +297,16 @@ describe('alerts', () => {
     expect(text).toContain('News from the lanes');
     expect(text).toContain('fresh fish');
     expect(text).toContain('3 hints in the margins of the Pattern Book');
-    expect(text).not.toContain('Bakery');
+    expect(text).not.toContain('Baker:');
     view.unmount();
 
     session.ui.lens.value = 'ledger';
     view = await mount(h(AlertsPanel, { session }));
     text = view.text();
     expect(text).toContain('For the books');
-    expect(text).toContain('Bakery: waiting for inputs.');
+    expect(text).toContain('Baker: waiting for inputs.');
     expect(text).not.toContain('fresh fish');
-    await view.click(button(view.root, 'Bakery'));
+    await view.click(button(view.root, 'Baker'));
     expect(session.ui.selection.value).toEqual({ kind: 'building', id: 6 });
   });
 

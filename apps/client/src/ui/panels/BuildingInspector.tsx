@@ -230,7 +230,7 @@ export function BuildingInspector({ session, id }: { session: Session; id: numbe
             class="danger"
             data-testid="remove"
             onClick={() => {
-              const thing = placeName(b).toLowerCase();
+              const thing = (def?.name ?? b.def).toLowerCase();
               const piece = {
                 builtBy: b.builtBy,
                 handmade: b.handmade,
