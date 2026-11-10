@@ -26,7 +26,7 @@ function builtFor(
   // Somebody lives here to notice.
   placeFree(s, 'cottage', EX + 10, EZ + 10);
   if (def.needs === 'hive') placeFree(s, 'apiary', EX + 4, EZ + 4);
-  else if (def.needs === 'fisher') placeFree(s, 'fishers-hut', EX + 4, EZ + 4).rt!.present = 1;
+  else if (def.needs === 'fisher') placeFree(s, 'fishery', EX + 4, EZ + 4).rt!.present = 1;
   else for (let x = EX; x < EX + 6; x++) s.map.road[(EZ + 8) * S + x] = Road.path;
   s.tick = tickAt(0, opts.season ?? def.seasons[0]!, 2, opts.hour ?? hoursOf(def)[0]!);
   return s;
@@ -56,7 +56,7 @@ describe('wildlife', () => {
   it('fish need a fisher at work and open water', () => {
     const trout = content.wildlifeById.get('trout')!;
     const s = builtFor(trout);
-    for (const b of s.buildings) if (b.def === 'fishers-hut') b.rt!.present = 0;
+    for (const b of s.buildings) if (b.def === 'fishery') b.rt!.present = 0;
     expect(sightedWithin(s, 'trout', 200)).toBe(false);
     const frozen = builtFor(trout);
     frozen.weather.river = { frozen: true, frozenTick: 0 };
