@@ -154,7 +154,7 @@ Filled in by R1.0 as the sweep lands; R1X checks each is rewritten or back on.
 | `carrierBrought(state, good, days)`: units the carrier bought of a good over the last `days` days | `systems/carrier/api.ts` | R1A (R1B's need term reads it) |
 | `familyCover(state, family)`: days of cover in hundredths; `flavorsOnOffer(state, family)`: flavors on a shelf in reach of some home over three days | `systems/market/balances.ts` | R1A (R1B's need term, R1D's Porridge No More, the Village goal) |
 | `winterMark(state, family)`: the plan's mark from Summer day 4, else null | `systems/carrier/api.ts` | R1A (R1B's foresters read it) |
-| `inReach(state, specialized, tile)`, `served(state, specialized)`, `capacityOf(state, specialized)` | `systems/specialized/api.ts` | R1B (R1C's ghost ring and Businesses book, R1A's granary draw) |
+| `withinReach(state, specialized, tile)`, `served(state, specialized)`, `capacityOf(state, specialized)` | `systems/specialized/api.ts` | R1B (R1C's ghost ring and Businesses book, R1A's granary draw) |
 | `tradeScore(state, lot, trade)` | `systems/growth/trades.ts` | R1B (R1F's advisors may ask why a lot grew what it did) |
 | `demandWhy(reason)` | `view/demand.ts` | R1B (R1C words the hover through the view, never itself) |
 

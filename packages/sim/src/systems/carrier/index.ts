@@ -8,11 +8,12 @@
 //   zeroes `spentToday`.
 // - Units it may carry today: PEDDLER_TERMS.units, or 40 at TRADE_BUY_PERCENT and
 //   TRADE_SELL_PERCENT once a Trading Post stands (the peddler's 140% and 60% before).
-// - Buying, Food, Fuel, Materials, Wares, Treats in that order: Always buys up to the reserve (days
-//   of the family's use: Food a resident a day, Fuel a household a day, Wares and Treats the Settler
-//   basket; Materials: what open sites still need beyond stock, plus the reserve in units).
-//   Essentials, for Materials, buys only what open sites wait for beyond stock; for the other
-//   families it buys nothing yet. Never buys nothing. Within a family it takes the cheapest good a
+// - Buying, in two passes. Essentials first, in every family whose rule is not Never: Food a
+//   household would go without today (under one day's use in town), Fuel on a winter day likewise,
+//   and Materials an open site waits for beyond stock. Then reserves, for families on Always, in
+//   the order Food, Fuel, Materials, Wares, Treats: up to the reserve in days of the family's use
+//   (Food a resident a day, Fuel a household a day, Wares and Treats the Settler basket; Materials
+//   the reserve in units beyond what open sites need). Within a family it takes the cheapest good a
 //   neighbor sells, unit by unit, while the budget and the treasury's credit line hold; the goods go
 //   to the nearest store with room (stowNearest), each unit nudging that neighbor's price.
 // - Selling, with what load is left: a family with `sell` on and a rule other than Never sells what
@@ -30,6 +31,7 @@ import {
 } from '../../constants';
 import type { Building, System, TickCtx, WorldState } from '../../contracts';
 import { goodsArray, isStandard } from '../../state/hamlet';
+import { seasonAt } from '../../state/seasons';
 import { GOODS_BY_FAMILY } from '../../state/zones';
 import { townStock } from '../../view/hamlet';
 import { tradeView } from '../../view/village';
@@ -210,19 +212,34 @@ export function carrierDay(state: WorldState, ctx: TickCtx): void {
   const needs = siteNeeds(state);
   const families = state.carrier.families;
 
-  // Buying: shortfalls first, family by family.
+  // Buying, in two passes. R1 stand-in (R1A): essentials first in every family whose rule is not
+  // Never (Food a household would go without today, Fuel on a winter day, Materials an open site
+  // waits for beyond stock), then reserves for the families on Always, in family order. With the
+  // spec's one fixed order and the peddler's 20 units, the Food reserve took the whole load every
+  // day and a site waiting on the only timber the valley lacked never got it (R1.0's bench found it).
+  const winter = seasonAt(state.tick).season === 3;
+  const shelfGoods = (f: number) => GOODS_BY_FAMILY[f]!.filter((g) => !INPUT_ONLY.has(content.goods[g]!.id));
   for (let f = 0; f < families.length && day.room > 0; f++) {
-    const rule = families[f]!.rule;
-    if (rule === 'never') continue;
-    const goods = GOODS_BY_FAMILY[f]!.filter((g) => !INPUT_ONLY.has(content.goods[g]!.id));
+    if (families[f]!.rule === 'never') continue;
+    const goods = shelfGoods(f);
     if (f === MATERIALS) {
-      // What open sites wait for beyond stock, good by good.
       for (const g of goods) {
         let want = (needs[g] ?? 0) - (stock[g] ?? 0) - day.bought[g]!;
         while (want > 0 && buyOne(state, day, g, gate)) want--;
       }
-      if (rule !== 'always') continue;
-    } else if (rule !== 'always') continue;
+      continue;
+    }
+    if (f !== FOOD && !(f === FUEL && winter)) continue;
+    let want = useOf(state, f) - familyStock(stock, f) - familyStock(day.bought, f);
+    while (want > 0) {
+      const g = cheapest(state, goods);
+      if (g < 0 || !buyOne(state, day, g, gate)) break;
+      want--;
+    }
+  }
+  for (let f = 0; f < families.length && day.room > 0; f++) {
+    if (families[f]!.rule !== 'always') continue;
+    const goods = shelfGoods(f);
     let want = reserveUnits(state, f, needs) - familyStock(stock, f) - familyStock(day.bought, f);
     while (want > 0) {
       const g = cheapest(state, goods);
