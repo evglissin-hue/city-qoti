@@ -8,7 +8,7 @@ Read this with your brief. R1.0 fixed the types and shapes (`docs/spec/20-archit
 - **Contracts are additive again** (`31-parallel-development.md`, Contracts policy). New optional fields, new union members and new types only, each new command or event in its own commit.
 - **Saves are at version 6.** A change to the shape of saved state in the wave adds an optional field (absent until used) rather than bumping the version; if a cycle must change a saved shape, it bumps to 7 with a migration and a test, and says so in its PR. R1X decides whether the wave's merge ships as 6 or 7.
 - **Mark your stand-ins.** R1.0 marked each stand-in in code with `// R1 stand-in (R1x): ...`. When you replace one, delete the comment. R1X's first step is `grep -rn "R1 stand-in" packages apps tools`: anything left is a cycle's unfinished work.
-- **Ports** (dev server and relay, so cycles can run their e2e side by side): R1A 5221 and 8831, R1B 5222 and 8832, R1C 5223 and 8833, R1D 5224 and 8834, R1E 5225 and 8835, R1F 5226 and 8836, R1X 5227 and 8837. V2.0 and its wave keep 5220 and 8830 and up from V2's own notes.
+- **Ports** (dev server and relay, so cycles can run their e2e side by side): R1A 5221 and 8831, R1B 5222 and 8832, R1C 5223 and 8833, R1D 5224 and 8834, R1E 5225 and 8835, R1F 5226 and 8836, R1X 5227 and 8837 (R1.0 had 5220 and 8830; V2.0 has 5210 and 8820, and V2's wave takes its own from V2's notes).
 
 ## Lessons carried over (read first)
 
