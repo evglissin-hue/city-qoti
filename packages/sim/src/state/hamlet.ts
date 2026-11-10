@@ -28,7 +28,6 @@ export function emptyPeriod(): LedgerPeriod {
 export function emptyEconomy(): EconomyState {
   return {
     treasury: 0,
-    forSale: new Array<boolean>(content.goods.length).fill(false),
     today: emptyPeriod(),
     yesterday: emptyPeriod(),
     season: emptyPeriod(),

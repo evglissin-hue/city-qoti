@@ -4,6 +4,7 @@
 import { content, type BuildingDef } from '@qoti/content';
 import { TIERS } from '../../constants';
 import type { Building, ProfitLine, WorldState } from '../../contracts';
+import { jobsOf } from '../../state/zones';
 import { wagesAt } from '../../view/village';
 import { upkeepPennies } from '../economy/dial';
 import { dailyRates } from '../production/rates';
@@ -26,7 +27,7 @@ export function buildingProfit(state: WorldState, b: Building, def: BuildingDef)
   let used = 0;
   for (const [g, n] of rates?.inputs ?? []) used += Math.round(priceOf(state, content.goodIndex.get(g)!) * n);
   const tier = Math.max(0, TIERS.indexOf(def.jobs?.tier ?? 'settler'));
-  const wages = (def.jobs?.count ?? 0) * (wagesAt(state.levers.wageLevel)[tier] ?? 0);
+  const wages = jobsOf(b) * (wagesAt(state.levers.wageLevel)[tier] ?? 0);
   const upkeep = def.upkeep ? upkeepPennies(state, def.upkeep) : 0;
   if (made) lines.push({ label: 'Goods made', pennies: made });
   if (used) lines.push({ label: 'Goods used', pennies: -used });

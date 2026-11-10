@@ -1,16 +1,18 @@
 // Production (docs/spec/13-ledger.md, I1 buildings). Each tick, every built, unpaused producer
 // with workers inside adds their work to its cycle; a cycle completes when its work is done, its
 // inputs are in the input buffer and its output buffer has room. Kinds:
-//   craft   inputs to outputs (sawpit, windmill, bakery)
-//   gather  outputs from nothing (quarry, fisher's hut, vegetable plot)
-//   fell    a mature tree in range becomes logs (woodcutter)
-//   plant   a sapling in range (forester)
-//   farm    painted field tiles grow and are harvested for wheat (farmhouse), in steps
+//   craft   inputs to outputs (a baker's or weaver's business, the Brickworks)
+//   gather  outputs from nothing (quarry, fishery, a market garden or dairy)
+//   fell    a mature tree in range becomes timber (Forester's Lodge)
+//   plant   a sapling in range
+//   farm    painted field tiles grow and are harvested for grain (a grain farm), in steps
+// R1: a building runs one method, methodOf(b): its trade's for a business, else its def's.
 import type { BuildingDef, ProductionMethod } from '@qoti/content';
 import { content } from '@qoti/content';
 import { BuildingStatus, TICKS_PER_HOUR } from '../../constants';
 import type { Building, BuildingRuntime, System, TickCtx, WorldState } from '../../contracts';
 import { isStandard } from '../../state/hamlet';
+import { methodOf } from '../../state/zones';
 import { tickOfDay } from '../economy/time';
 import { defOf } from '../logistics/stores';
 import { CROP_STEP_TICKS, tendFields } from './fields';
@@ -33,7 +35,7 @@ export const production: System = {
       const rt = b.rt;
       if (!rt || b.stage !== 'built' || rt.paused) continue;
       const def = defOf(b);
-      const method = def?.methods?.[rt.method];
+      const method = methodOf(b);
       if (!def || !method) continue;
       if (method.kind === 'farm') {
         if (farmStep) farm(state, ctx, b, def, rt, method);
@@ -128,9 +130,9 @@ function farm(
 ): void {
   const crew = crewPower(state, b, rt, Math.max(1, method.workers));
   if (crew === 0) return;
-  const wheat = content.goodIndex.get(method.outputs[0]?.[0] ?? 'wheat');
-  if (wheat === undefined) return;
+  const grain = content.goodIndex.get(method.outputs[0]?.[0] ?? 'grain');
+  if (grain === undefined) return;
   const work = Math.floor((crew * conditionPercent(rt)) / 100);
   const p = yieldPermille(state, b, def, method);
-  tendFields(state, ctx, b, def, p === 1000 ? work : Math.floor((work * p) / 1000), wheat);
+  tendFields(state, ctx, b, def, p === 1000 ? work : Math.floor((work * p) / 1000), grain);
 }

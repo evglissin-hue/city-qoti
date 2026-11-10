@@ -1,6 +1,7 @@
 // Outlet API (C3.0 contract; C3C owns it). Residents (C3A) shop through it: market stalls first,
 // storehouses when no stall is within reach. Porters keep stalls stocked to STALL_RESTOCK_TARGET
 // food (logistics); goods a porter has been promised (reservedOut) are never handed out.
+import { isFood } from '../../state/zones';
 import { content } from '@qoti/content';
 import { MAP_SIZE } from '../../constants';
 import type { EntityId, WorldState } from '../../contracts';
@@ -31,7 +32,7 @@ export function outletFood(state: WorldState, buildingId: EntityId): number {
   if (!rt) return 0;
   let n = 0;
   for (let i = 0; i < content.goods.length; i++) {
-    if (content.goods[i]!.food) n += Math.max(0, (rt.store[i] ?? 0) - (rt.reservedOut[i] ?? 0));
+    if (isFood(i)) n += Math.max(0, (rt.store[i] ?? 0) - (rt.reservedOut[i] ?? 0));
   }
   return n;
 }

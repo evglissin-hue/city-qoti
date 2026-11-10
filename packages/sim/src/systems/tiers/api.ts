@@ -7,6 +7,8 @@ import { content, villagePhrases } from '@qoti/content';
 import { BuildingStatus, MAP_SIZE, PENNIES_PER_COIN, TIER_UP_DAYS, TIERS } from '../../constants';
 import type { Building, EntityId, Household, TickCtx, TierId, WorldState } from '../../contracts';
 import { findById } from '../../state/entities';
+import { calendar } from '../clock/calendar';
+import { basketGroups } from '../market/baskets';
 import { goodsArray, isStandard } from '../../state/hamlet';
 import { householdView } from '../../view/hamlet';
 import { emitBuilding } from '../economy/emit';
@@ -113,19 +115,15 @@ export function checkTier(
   const def = home ? content.buildingById.get(home.def) : undefined;
   if (aspiring && !homeRoute(def, basket.tier)) missing.push(M.home ?? 'home');
   const own = !aspiring && h.basket && h.tier === basket.tier;
-  // Two kinds of food lately, bread among them (docs/spec/13-ledger.md, Craftsfolk).
-  const bread = content.goodIndex.get('bread')!;
-  const wantsBread = basket.groups.some((g) => g.goods.some(([id]) => id === 'bread'));
-  if (aspiring && wantsBread) {
-    const kinds = new Set(h.recentFoods);
-    if (kinds.size < 2 || !kinds.has(bread)) missing.push(M.food ?? 'food');
-  }
-  basket.groups.forEach((group, gi) => {
+  // R1 stand-in (R1A): tiers read amount only; variety from R1A. Every want with an amount (in its
+  // season) must have some good of its family on a shelf or in the pantry; no single good is named.
+  const season = calendar(state.tick).season;
+  basketGroups(basket).forEach((group, gi) => {
     if (own) {
       if ((h.basket![gi] ?? 100) < BASKET_MET) missing.push(group.name.toLowerCase());
       return;
     }
-    if (group.id === 'food') return;
+    if (group.perDay <= 0 || (group.season !== undefined && group.season !== season)) return;
     const need = groupNeed(h, group.perDay, group.perHousehold);
     let ok = false;
     for (const [id] of group.goods) {
@@ -312,9 +310,9 @@ export function jobFits(residentTier: TierId, def: BuildingDef | undefined): boo
 /**
  * Goods the Village is short of for its tiers (C4C), so the residents' hiring puts hands on them
  * first (systems/residents/jobs.ts): each Craftsfolk basket group with less than a day of it on
- * the shelves for the whole town, bricks while homes wait to upgrade, herbs while a herbalist is
- * out of them; with the goods their workshops are waiting on (wool for the loom's yarn, flour for
- * the bakery). Empty until the valley unlocks Craftsfolk, so a Hamlet hires as in I1.
+ * the shelves for the whole town, the upgrade goods while homes wait to upgrade, and the raw goods
+ * their makers take (wool for the weaver). Empty until the valley unlocks Craftsfolk, so a Hamlet
+ * hires as in I1.
  */
 export function tierShortages(state: WorldState, stock: readonly number[]): string[] {
   if (!tiersActive(state)) return [];
@@ -323,21 +321,26 @@ export function tierShortages(state: WorldState, stock: readonly number[]): stri
   const out = new Set<string>();
   const pop = state.residents.length;
   const homes = state.households.length;
-  for (const group of basket.groups) {
-    if (group.id === 'food') continue;
+  for (const group of basketGroups(basket)) {
+    if (group.id === 'food' || group.perDay <= 0) continue;
     const need = Math.max(4, Math.ceil(group.perDay * (group.perHousehold ? homes : pop)));
     let have = 0;
     for (const [id] of group.goods) have += stock[content.goodIndex.get(id) ?? -1] ?? 0;
     if (have < need) for (const [id] of group.goods) out.add(id);
   }
-  if (state.buildings.some((b) => upgradeDue(b))) out.add('bricks');
-  // Upstream: whatever the makers of a short good take in.
-  for (let pass = 0; pass < 2; pass++) {
-    for (const def of content.buildings) {
-      for (const m of def.methods ?? []) {
-        if (!m.outputs.some(([g]) => out.has(g))) continue;
-        for (const [g] of m.inputs) out.add(g);
-      }
+  // R1: what homes waiting to upgrade take, from content (brick and timber for a townhouse).
+  for (const b of state.buildings) {
+    if (!upgradeDue(b)) continue;
+    for (const [id] of content.buildingById.get(b.def)?.upgradesTo?.goods ?? []) out.add(id);
+  }
+  // Upstream: whatever the makers of a short good take in (rule 2: one step, raw goods only).
+  for (const t of content.trades) {
+    if (t.makes && out.has(t.makes)) for (const g of t.from) out.add(g);
+  }
+  for (const def of content.buildings) {
+    for (const m of def.methods ?? []) {
+      if (!m.outputs.some(([g]) => out.has(g))) continue;
+      for (const [g] of m.inputs) out.add(g);
     }
   }
   return [...out].sort();

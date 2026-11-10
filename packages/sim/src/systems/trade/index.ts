@@ -1,14 +1,13 @@
-// The Trading Post (docs/spec/13-ledger.md, Trade). Two passes:
+// Neighbor prices (docs/spec/13-ledger.md, The carrier and trade). Two passes:
 // - 00:20 (`trade`): each neighbor's prices move. Drift is a deterministic random walk of up to 2%
 //   a day per good it trades, bounded 0.7x to 1.4x, with a gentle pull home so it wanders rather
 //   than sticks at a bound; impact (what the valley's own trading did) recovers 10% of the price
 //   a day. The
 //   walk's steps come from a hash of the valley seed, the day, the neighbor and the good rather
 //   than an RNG stream, so trade never shifts the dice other systems roll.
-// - 08:00 (`caravans`, caravans.ts): caravans come home and new ones set off with what the
-//   standing orders call for.
+// - 10:00 (`carrier`, systems/carrier): the carrier buys and sells at these prices (R1).
 // Regional price = base x the neighbor's factor x season x drift x impact (regionalPrice); the
-// valley buys at 1.2x and sells at 0.85x of it.
+// carrier pays and takes a percent of it by its terms (systems/carrier/terms.ts).
 import { content } from '@qoti/content';
 import { DRIFT_RANGE, DRIFT_STEP, IMPACT_RECOVERY, TICKS_PER_DAY } from '../../constants';
 import type { NeighborState, System, WorldState } from '../../contracts';

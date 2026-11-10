@@ -1,5 +1,6 @@
 // Resident inspector detail (C3A): what they are doing and where, a mood breakdown in plain words,
 // needs, friends, family, a short bio and their history. View code: nothing here feeds back.
+import { hasTag } from '../state/zones';
 import { content } from '@qoti/content';
 import { DAYS_PER_YEAR, MAP_SIZE, NEED_IDS, TILE_FP } from '../constants';
 import type { Building, EntityId, HistoryItem, Resident, ResidentDetail, WorldState } from '../contracts';
@@ -50,7 +51,7 @@ function spotText(state: WorldState, feature: number, here: boolean): string {
     const tags = content.buildingById.get(occupant.def)?.tags ?? [];
     if (tags.includes('well')) return here ? 'Chatting by the well' : 'Off to the well';
     if (tags.includes('market')) return here ? 'Browsing the market' : 'Off to the market';
-    if (tags.includes('bakery'))
+    if (hasTag(occupant, 'baker'))
       return here ? 'Breathing in the bakery' : 'Following their nose to the bakery';
   }
   const tv = state.map.tree[feature] ?? 0;

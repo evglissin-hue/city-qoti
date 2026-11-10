@@ -209,13 +209,6 @@ export function dockView(state: WorldState): DockView {
       moored: b.tile >= 0,
     })),
     frozen: state.weather.river.frozen,
-    orders: (state.dock.orders ?? []).map((o) => ({
-      good: goodId(o.good),
-      min: o.min,
-      max: o.max,
-      floor: o.floor,
-      ceiling: o.ceiling,
-    })),
     built: state.buildings.some((b) => b.def === 'river-dock' && b.stage === 'built'),
   };
 }
