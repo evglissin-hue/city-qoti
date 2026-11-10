@@ -17,8 +17,11 @@
 //   Village player kept 30 back).
 // - Materials: a want needs its goods free of what sites have been promised. An advisor that tallies
 //   its own turn passes the tally and the planner takes each start out of it; otherwise free stock
-//   is read fresh (upgrades count as promised), and the timber kept for rebuilding woodcutters and
-//   sawpits (`TIMBER_RESERVE`) is off limits unless the want is essential.
+//   is read fresh (upgrades count as promised), and the timber kept for rebuilding a Forester's
+//   Lodge (`TIMBER_RESERVE`) is off limits unless the want is essential.
+// R1.0: the hand-placed chains are gone. Food comes from fisheries and from Farmland businesses,
+// materials from Forester's Lodges and quarries; Homes, Workshops and Farmland are zoned from the
+// first day (the street advisor) and grow by themselves.
 // - Credit: past half the County Bank's line only pressing or essential wants are started.
 import { content } from '@qoti/content';
 import {
@@ -30,6 +33,7 @@ import {
   doorTile,
   expenses,
   income,
+  isFrozen,
   loansOwed,
   onFloodplain,
   PENNIES_PER_COIN,
@@ -43,18 +47,15 @@ import {
 } from '@qoti/sim';
 import { command, findSpot, type Hamlet } from './hamlet';
 import { canStaff } from './labor';
-import { count, G, idx, S, sites } from './town';
+import { G, idx, S, sites } from './town';
 import type { HighStreet } from './village';
 
 /** Coins kept in the treasury after a want's cost. */
 export const MONEY_RESERVE = 20;
 /** What the Village advisor adds to its costs (I2's Village player kept 30 coins back, not 20). */
 export const VILLAGE_MARGIN = 10;
-/** Logs and planks kept so the woodcutters and sawpits can always be rebuilt. */
-export const TIMBER_RESERVE: ReadonlyMap<string, number> = new Map([
-  ['logs', 16],
-  ['planks', 24],
-]);
+/** Timber kept so a Forester's Lodge can always be rebuilt (R1: timber is what logs and planks were). */
+export const TIMBER_RESERVE: ReadonlyMap<string, number> = new Map([['timber', 16]]);
 /** C5X part 2: coins a want that can wait leaves in the treasury while the town owes the bank (the money advisor repays above it). */
 export const REPAY_RESERVE = 350;
 /** A want with this priority joins any build queue. */
@@ -131,24 +132,24 @@ function pathToRoad(w: WorldState, from: number): [number, number][] | null {
 export class Planner {
   /** Everything the player tried and whether the sim took it, for reading a run. */
   readonly actions: string[] = [];
-  /** The high street laid and zoned at the Village rank (C4B), once there is one. */
+  /** The high street, laid and zoned on the first visit (R1: from the first day; C4B laid it at Village rank). */
   street: HighStreet | null = null;
-  /** Days of food kept back from the peddler (C4C: a Village run keeps six, for the Charter). */
+  /**
+   * Days of food a resident the festival menu and commissions leave in store (C4C: a Village run
+   * keeps six, for the Charter; the seasons advisor raises it before winter). R1: the carrier buys
+   * and sells by its own reserves, so this no longer steers what leaves the valley.
+   */
   foodReserveDays = 2;
   /** C5A: set by the seasons advisor while a flood is forecast or running: new buildings keep off the floodplain. */
   keepOffFloodplain = false;
-  /** C5A: set by the seasons advisor while the woodpile is short of the winter ahead (sawpits leave logs for the sheds). */
-  woodShort = false;
-  /** C5A: set by the seasons advisor in summer and autumn while the larder is short of a winter (hands go to the plots). */
+  /** C5A: set by the seasons advisor in summer and autumn while the larder is short of a winter. */
   larderShort = false;
-  /** C5A: set by the hamlet advisor while the last woodcutter's patch thins and logs are few (the sheds leave them be). */
-  logsForWoodcutter = false;
   /** C5A: set by the charter advisor late in a season while the Charter waits on one ended in surplus. */
   keepSurplus = false;
   /**
    * C4X: defs that found no spot, and the day they last failed. A valley with no free river edge
-   * left kept asking for a fishers' hut (154 times in a willow run) and never built the vegetable
-   * plot it could have; for the rest of that day the other food building is chosen instead.
+   * left kept asking for a fishers' hut (154 times in a willow run); for the rest of that day it is
+   * not asked for again.
    */
   private readonly noSpot = new Map<string, number>();
 
@@ -190,11 +191,13 @@ export class Planner {
     return this.noSpot.get(def) === calendar(this.w.tick).day;
   }
 
-  /** The next food building: a fishers' hut for every two plots, while the river has room. */
-  foodBuilding(): string {
-    const w = this.w;
-    const fish = count(w, 'fishers-hut') <= count(w, 'vegetable-plot') / 2 && !this.blocked('fishers-hut');
-    return fish || this.blocked('vegetable-plot') ? 'fishers-hut' : 'vegetable-plot';
+  /**
+   * The next hand-placed food building, or null: R1 leaves one, the fishery, while the river has
+   * room and is not frozen. The rest of the town's food grows on Farmland by itself.
+   */
+  foodBuilding(): string | null {
+    if (this.blocked('fishery') || isFrozen(this.w)) return null;
+    return 'fishery';
   }
 
   /** The labor budget: whether a new `def` can be staffed (pressing wants may use the reserve). */

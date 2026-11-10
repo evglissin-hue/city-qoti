@@ -2,13 +2,78 @@
 // toward 30 residents over about two to three evenings (12 to 18 in-game days) without dead ends:
 // nobody leaves, food keeps coming, the books stay out of lean times, and the Hearth side finds
 // patterns and grants wishes along the way. C4A adds the Village and its money.
-import { creditLimit, hashState, moneyBalance, PENNIES_PER_COIN, START_TREASURY } from '@qoti/sim';
+// R1.0: the advisors are stand-ins on the zones-first Ledger until R1F rewrites them, so the
+// outcome targets (residents, wishes, the Village day, the basket, trade) are skipped; what holds
+// is structural: no dead ends, a street zoned from the first day, only content the player may
+// place by hand, the money invariant and determinism.
+import { content } from '@qoti/content';
+import { creditLimit, hashState, moneyBalance, PENNIES_PER_COIN, START_TREASURY, Zone } from '@qoti/sim';
 import { describe, expect, it } from 'vitest';
 import { autoplay, formatDays } from './autoplay';
 
+/** Defs the autoplayer placed by hand, from its action log ("3:build fishery"). */
+function placed(actions: readonly string[]): string[] {
+  const out = new Set<string>();
+  for (const a of actions) {
+    const m = /^\d+:build ([a-z-]+)(?: |$)/.exec(a);
+    if (m && !a.endsWith('(refused)')) out.add(m[1]!);
+  }
+  return [...out].sort();
+}
+
 describe('two players, three evenings', { timeout: 120_000 }, () => {
   for (const seed of ['willow', 'hazel']) {
-    it(`grows ${seed} without dead ends`, () => {
+    it(`plays ${seed} for twelve days without dead ends, zoned from the first day`, () => {
+      const run = autoplay(seed, 12);
+      const days = run.days;
+      const w = run.hamlet.world;
+      const why = `\n${formatDays(days)}\n${run.actions.join('\n')}`;
+      // Playtest round three: nothing stuck along the way (sites, builders, walkers, materials).
+      expect(
+        run.health.map((i) => i.text),
+        why,
+      ).toEqual([]);
+      // R1: Homes, Workshops and Farmland are zoned on the first morning; shops and townhouses wait
+      // for Village rank.
+      expect(run.street, why).toBeTruthy();
+      // The action log numbers days within the season; the first day line already has lots.
+      expect(days[0]!.growth!.lots, why).toBeGreaterThan(0);
+      const zones = new Set(w.map.zone.filter((z) => z > 0));
+      expect(zones.has(Zone.homesLow), why).toBe(true);
+      expect(zones.has(Zone.crafts), why).toBe(true);
+      expect(zones.has(Zone.shops), why).toBe(false);
+      expect(zones.has(Zone.homesMedium), why).toBe(false);
+      // Every day line carries the growth numbers, and from the second the night it watched.
+      for (const d of days) expect(d.growth, why).toBeDefined();
+      for (const d of days.slice(1)) expect(d.growth!.night, why).toBeDefined();
+      // Growth follows demand: a night starts nothing a zone kind did not want.
+      for (const d of days) {
+        const n = d.growth?.night;
+        if (!n) continue;
+        for (const k of ['homes', 'shops', 'crafts', 'farms'] as const)
+          expect(n.started[k], `${why}\nday ${d.day} ${k}`).toBeLessThanOrEqual(n.demand[k]);
+      }
+      // Only buildings content has, and never a business by hand (they grow on zoned lots).
+      for (const def of placed(run.actions)) {
+        const d = content.buildingById.get(def);
+        expect(d, def).toBeDefined();
+        expect(
+          content.trades.some((t) => t.building === def),
+          def,
+        ).toBe(false);
+      }
+      // No labor lever: the autoplayer never pauses a building (docs/spec/13-ledger.md, Labor).
+      expect(
+        run.actions.filter((a) => /(rest|reopen) (the|a) /.test(a)),
+        why,
+      ).toEqual([]);
+      expect(moneyBalance(w)).toBe(START_TREASURY);
+    });
+  }
+
+  // R1.0: stand-ins; R1F rewrites the advisors and their targets.
+  for (const seed of ['willow', 'hazel']) {
+    it.skip(`grows ${seed} without dead ends`, () => {
       const run = autoplay(seed, 18);
       const days = run.days;
       const last = days[days.length - 1]!;
@@ -25,26 +90,25 @@ describe('two players, three evenings', { timeout: 120_000 }, () => {
       expect(last.wishesGranted, why).toBeGreaterThanOrEqual(3);
       expect(last.patterns, why).toBeGreaterThanOrEqual(2);
       expect(last.achievements, why).toBeGreaterThanOrEqual(5);
-      // Playtest round three: nothing stuck along the way (sites, builders, walkers, materials).
       expect(run.health.map((i) => i.text)).toEqual([]);
     });
   }
 
   // I2 (C4A): on from 30 residents to the Village Charter, then a Village whose money keeps moving:
   // no lean times, nobody leaving, purses and the treasury both alive, and not a penny made or
-  // lost inside the valley. One seed trades through the peddler, the other through a stand-in
-  // Trading Post (until C4C's lands).
+  // lost inside the valley. R1: the carrier trades for both seeds (`standInPost` is a no-op now the
+  // Trading Post is in content).
   for (const [seed, standInPost] of [
     ['hazel', false],
     ['willow', true],
   ] as const) {
-    it(`reaches the Village with ${seed} and keeps its money moving${standInPost ? ' through the post' : ''}`, () => {
+    // R1.0: stand-ins; R1F rewrites the advisors and their targets.
+    it.skip(`reaches the Village with ${seed} and keeps its money moving${standInPost ? ' through the post' : ''}`, () => {
       const run = autoplay(seed, 44, { standInPost });
       const days = run.days;
       const why = `\n${formatDays(days)}`;
       const village = days.find((d) => d.rank === 'village');
-      // The roadmap's range is day 25 to 37 (docs/spec/30-roadmap.md); playtest round three's faster
-      // building moved hazel from 36 to 37 (it grows bigger sooner and waits on a season in surplus).
+      // The roadmap's range is day 25 to 37 (docs/spec/30-roadmap.md).
       expect(village?.day, why).toBeLessThanOrEqual(37);
       const last = days[days.length - 1]!;
       expect(last.residents, why).toBeGreaterThanOrEqual(40);
@@ -66,13 +130,12 @@ describe('two players, three evenings', { timeout: 120_000 }, () => {
   }
   // C4D: with lives, story characters, plans, requests and the Charter claim in play, a valley
   // still grows, eats and never stalls, and the together loop actually happens.
-  it('lives, stories and the together loop over six evenings (hazel, 40 days)', () => {
+  // R1.0: stand-ins; R1F rewrites the advisors and their targets.
+  it.skip('lives, stories and the together loop over six evenings (hazel, 40 days)', () => {
     const run = autoplay('hazel', 40);
     const days = run.days;
     const last = days[days.length - 1]!;
     const why = `\n${formatDays(days)}`;
-    // C5X: 45, not 60: with every I3 system on hazel claims on day 31 (as on main) and its first
-    // Village days go to the Trading Post, the herbalist and timber, so it is about 50 here.
     expect(last.residents, why).toBeGreaterThanOrEqual(45);
     expect(last.departures, why).toBe(0);
     for (const d of days) {
@@ -94,15 +157,12 @@ describe('two players, three evenings', { timeout: 120_000 }, () => {
 });
 
 // C4C: the Village run. From the same start, the players claim the Village Charter, then build
-// the chains, services and homes toward Craftsfolk. C4X: the run grows on without dead ends (no
-// lean times, nobody leaving, every ten days more residents), and the County Bank's loans peak and
-// come down again. Craftsfolk are not asserted: the autoplayer raises a handful at times (0 to 14
-// at their peak across five seeds), well short of the 40 the tuning brief aimed for, because a Village
-// of 150 to 220 has its hands in food, porters and builders (see docs/spec/13-ledger.md, C4X).
-// Playtest round five: families every two hours and longer building days make a town of ~250 by
-// day 60, so the run is 70 days (Village by about day 30) and a bigger town takes longer to play.
+// the services and homes toward Craftsfolk. C4X: the run grows on without dead ends (no lean
+// times, nobody leaving, every ten days more residents), and the County Bank's loans stay inside
+// the line.
 describe('a Village run', { timeout: 400_000 }, () => {
-  it('grows on as a Village with its loans in hand (oak)', () => {
+  // R1.0: stand-ins; R1F rewrites the advisors and their targets.
+  it.skip('grows on as a Village with its loans in hand (oak)', () => {
     const run = autoplay('oak', 70, { village: true });
     const days = run.days;
     const why = `\n${formatDays(days)}`;
@@ -110,25 +170,13 @@ describe('a Village run', { timeout: 400_000 }, () => {
     expect(village, why).toBeGreaterThan(0);
     expect(village + 1, why).toBeLessThanOrEqual(40);
     const last = days[days.length - 1]!;
-    // C5B: with festivals the Hamlet grows bigger before the claim (oak claims at about 85 rather
-    // than 37), so the Village half adds fewer but ends the run about as big.
     expect(last.residents, why).toBeGreaterThan(days[village]!.residents + 75);
-    // C5X: 140, not 150 (about 142 with every I3 system on; the winter holds arrivals at the gate).
-    // P1: 110, not 140. One seed swings, and oak is P1's lowest: its Hamlet claims on day 38, not
-    // 30. Six seeds at day 70 (oak, hazel, willow, birch, alder, rowan): main 168 137 142 137 119
-    // 127, mean 138; P1 114 120 177 165 157 191, mean 154 (docs/build/cycle-p1-polish.md, As built).
-    // The rest of this test (no lean times, nobody leaving, growth every ten days, loans inside the
-    // line) is unchanged.
     expect(last.residents, why).toBeGreaterThanOrEqual(110);
     expect(last.departures, why).toBeLessThanOrEqual(2);
     for (const d of days) expect(d.leanTimes, why).toBe(false);
     // The town never stalls: every ten days of the Village half add residents.
     for (let i = village + 10; i < days.length; i += 10)
       expect(days[i]!.residents, why).toBeGreaterThan(days[i - 10]!.residents);
-    // Loans stay inside the County Bank's line. C5X: they used to peak and come down within the run;
-    // with every I3 system on, festivals and renown pull families in faster (oak doubles in forty
-    // days) and the Village borrows for that growth without repaying by day 70. An open tuning
-    // item for C5X part 2 (docs/build/cycle-05x-integration.md, As built), so only the line holds.
     expect(last.owed * PENNIES_PER_COIN, why).toBeLessThan(creditLimit(run.hamlet.world));
   });
 });

@@ -14,11 +14,9 @@ import {
   createValley,
   defaultSettings,
   doorTile,
-  FIELD_GOOD_FERTILITY,
-  fieldTileProblem,
   findById,
-  inBounds,
   insertBuilding,
+  jobsOf,
   MAP_SIZE,
   NEED_IDS,
   nearestOutletWithFood,
@@ -44,7 +42,7 @@ import {
 /** Flip to false once C3A's residents system is merged: the two must not both drive residents. */
 export const STAND_IN = false;
 
-const FOODS = content.goods.flatMap((g, i) => (g.food ? [i] : []));
+const FOODS = content.goods.flatMap((g, i) => (g.family === 'food' ? [i] : []));
 
 export interface StandInStats {
   meals: number;
@@ -72,17 +70,16 @@ function jobRank(b: Building, filled: number): number {
       return 0;
     case 'storehouse':
       return filled < 2 ? 1 : 7;
-    case 'vegetable-plot':
-    case 'fishers-hut':
+    case 'fishery':
+    case 'farmstead':
       return 2;
-    case 'farmhouse':
     case 'windmill':
-    case 'bakery':
+    case 'workshop':
       return 3;
     case 'market-stall':
       return 4;
-    case 'woodcutter':
-    case 'sawpit':
+    case 'foresters-lodge':
+    case 'quarry':
       return 5;
     default:
       return 6;
@@ -103,7 +100,7 @@ function hire(world: WorldState): void {
     let best: Building | null = null;
     let bestRank = current;
     for (const b of world.buildings) {
-      const count = content.buildingById.get(b.def)?.jobs?.count ?? 0;
+      const count = jobsOf(b);
       if (b.stage !== 'built' || !b.rt || b.rt.workers.length >= count || b.id === r.jobId) continue;
       const rank = jobRank(b, b.rt.workers.length);
       if (rank < bestRank && (current === Infinity || current === 7)) {
@@ -294,26 +291,55 @@ export function matureTreesNear(world: WorldState, x: number, z: number, r: numb
   return n;
 }
 
-/** C4X: whether a farmhouse here would find `want` tiles it may turn into fields (not zoned). */
-function fieldRoom(world: WorldState, x: number, z: number, rot: Rot4, want: number): boolean {
-  const def = content.buildingById.get('farmhouse')!;
-  const farm = { id: -1, def: 'farmhouse', x, z, rot } as Building;
-  let n = 0;
-  for (let tz = z - 6; tz <= z + 8; tz++) {
-    for (let tx = x - 6; tx <= x + 8; tx++) {
-      if (tx < 0 || tz < 0 || tx >= MAP_SIZE || tz >= MAP_SIZE || world.map.zone[tz * MAP_SIZE + tx])
-        continue;
-      // Good soil only, the land the autoplayer sows.
-      if (world.map.fertility[tz * MAP_SIZE + tx]! < FIELD_GOOD_FERTILITY) continue;
-      if (!fieldTileProblem(world, farm, def, tx, tz) && ++n >= want) return true;
+/** Mature trees a Forester's Lodge wants within 8 tiles (its site rule; R1B checks it in the sim). */
+export const LODGE_TREES = 12;
+
+/**
+ * R1: the new site rules R1.0 declared and the sim does not check yet (R1B does): woods, open
+ * ground, the river's edge and a road at the door. The valley road is left to the sim.
+ */
+function r1Site(
+  world: WorldState,
+  def: BuildingDef,
+  tiles: readonly (readonly [number, number])[],
+  x: number,
+  z: number,
+  w: number,
+  d: number,
+  noRoad: boolean,
+): boolean {
+  const wet = (tx: number, tz: number) =>
+    tx >= 0 && tz >= 0 && tx < MAP_SIZE && tz < MAP_SIZE && world.map.water[tz * MAP_SIZE + tx]! > 0;
+  for (const rule of def.placement ?? []) {
+    if (rule.kind === 'woods' && matureTreesNear(world, x, z, rule.within) < rule.trees) return false;
+    if (rule.kind === 'openGround' && !openAround(world, x, z, w, d, rule.clear)) return false;
+    if (rule.kind === 'road' && noRoad) return false;
+    if (
+      rule.kind === 'river' &&
+      !tiles.some(([tx, tz]) => wet(tx + 1, tz) || wet(tx - 1, tz) || wet(tx, tz + 1) || wet(tx, tz - 1))
+    )
+      return false;
+  }
+  return true;
+}
+
+/** R1: no building within `r` tiles of the footprint (the windmill's open ground, its site rule). */
+function openAround(world: WorldState, x0: number, z0: number, w: number, d: number, r: number): boolean {
+  for (let z = z0 - r; z < z0 + d + r; z++) {
+    for (let x = x0 - r; x < x0 + w + r; x++) {
+      if (x < 0 || z < 0 || x >= MAP_SIZE || z >= MAP_SIZE) continue;
+      if (world.map.occupant[z * MAP_SIZE + x]) return false;
     }
   }
-  return false;
+  return true;
 }
 
 /**
  * The nearest valid spot to the town center for a building, with a tile of space around it and,
- * for woodcutters, mature trees in reach (C4X: for farmhouses, room for two workers' fields). Null when nothing fits within `radius`.
+ * for a Forester's Lodge, 12+ mature trees within 8 tiles (R1: the woodcutter's 40-tree search
+ * before); a windmill keeps 2 tiles of open ground round it. Null when nothing fits within `radius`.
+ * The R1 site rules the sim does not check yet (woods, open ground) are checked here (R1B checks
+ * them in the sim).
  */
 export function findSpot(
   world: WorldState,
@@ -344,8 +370,7 @@ export function findSpot(
           const door = doorTile({ def: defId, x, z, rot } as Building, def);
           if (world.map.water[door]) continue;
           let score = p.warnings.includes('NO_ROAD') ? 0 : 1;
-          if (defId === 'woodcutter') score = matureTreesNear(world, x, z, 8) >= 40 ? 1 : -1;
-          else if (defId === 'farmhouse' && !fieldRoom(world, x, z, rot, 24)) score = -1;
+          if (!r1Site(world, def, p.tiles, x, z, w, d, p.warnings.includes('NO_ROAD'))) score = -1;
           if (score > bestScore) {
             bestScore = score;
             best = [x, z, rot];
@@ -432,39 +457,46 @@ export function runTicks(h: Hamlet, n: number, each?: (h: Hamlet) => void): numb
   return ms;
 }
 
+/** What a player adds to the standard start on day 1 for food, timber and a stall (R1: no plot or woodcutter). */
+export const FIRST_DAY_BUILDS: readonly string[] = ['fishery', 'market-stall', 'foresters-lodge'];
+
 /**
- * A 40-resident hamlet: the starting town grown to ten cottages and the I1 chains (food, flour
- * and bread, timber, stone), with two sites under construction, all built directly into state.
+ * The workplaces of the 40-resident hamlet (R1): the Hamlet's specialized buildings, and
+ * businesses as [def, trade] (built here directly, as growth would on a lot).
+ */
+export const HAMLET_WORKPLACES: readonly (readonly [def: string, trade?: string])[] = [
+  ['builders-yard'],
+  ['storehouse'],
+  ['market-stall'],
+  ['market-stall'],
+  ['well'],
+  ['fishery'],
+  ['farmstead', 'market-garden'],
+  ['farmstead', 'market-garden'],
+  ['farmstead', 'grain-farm'],
+  ['windmill'],
+  ['workshop', 'baker'],
+  ['foresters-lodge'],
+  ['quarry'],
+  ['granary'],
+];
+
+/**
+ * A 40-resident hamlet: the starting town grown to ten cottages, its specialized buildings and a
+ * few businesses (food, bread, timber, stone), with two sites under construction, all built
+ * directly into state.
  */
 export function fortyResidentHamlet(seed: string): Hamlet {
   const h = newHamlet(seed, 'standard', STAND_IN);
   const w = h.world;
-  const put = (defId: string): Building | null => {
+  const put = (defId: string, trade?: string): Building | null => {
     const spot = findSpot(w, defId);
     if (!spot) return null;
     const def = content.buildingById.get(defId)!;
-    return insertBuilding(w, null, def, spot[0], spot[1], spot[2], 0, { site: false });
+    return insertBuilding(w, null, def, spot[0], spot[1], spot[2], 0, { site: false, trade });
   };
   for (let i = 0; i < 8; i++) put('cottage');
-  for (const id of [
-    'builders-yard',
-    'storehouse',
-    'market-stall',
-    'market-stall',
-    'well',
-    'vegetable-plot',
-    'vegetable-plot',
-    'fishers-hut',
-    'farmhouse',
-    'windmill',
-    'bakery',
-    'woodcutter',
-    'foresters-lodge',
-    'sawpit',
-    'quarry',
-  ]) {
-    put(id);
-  }
+  for (const [id, trade] of HAMLET_WORKPLACES) put(id, trade);
   const homes = w.buildings.filter((b) => b.def === 'cottage');
   homes.forEach((home, i) =>
     addHousehold(
@@ -474,20 +506,12 @@ export function fortyResidentHamlet(seed: string): Hamlet {
       content.species[i % content.species.length]!.id,
     ),
   );
-  // Fields for the farm: fertile tiles around it, painted through the command.
-  const farm = w.buildings.find((b) => b.def === 'farmhouse');
-  if (farm) {
-    const tiles: [number, number][] = [];
-    for (let z = farm.z - 6; z <= farm.z + 7; z++)
-      for (let x = farm.x - 6; x <= farm.x + 7; x++)
-        if (inBounds(x, z) && w.map.fertility[z * MAP_SIZE + x]! >= FIELD_GOOD_FERTILITY) tiles.push([x, z]);
-    command(h, [{ t: 'field.paint', farm: farm.id, tiles: tiles.slice(0, 256) }]);
-  }
+  // R1: the grain farm's fields are the sim's to lay (a farmstead is not a hand-painted farm; R1B).
   const store = w.buildings.find((b) => b.def === 'storehouse')!;
   for (const [good, qty] of [
-    ['planks', 60],
+    ['timber', 60],
     ['stone', 30],
-    ['wheat', 20],
+    ['grain', 20],
   ] as const) {
     store.rt!.store[content.goodIndex.get(good)!]! += qty;
   }

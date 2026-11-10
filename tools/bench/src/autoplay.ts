@@ -21,6 +21,12 @@
 // side is the street, charter, money and hamlet advisors, the Hearth's the hearth advisor, the C4D
 // loop the together advisor and the C4C Village half the village advisor. They play as the two
 // players did, to the coin (TUNE-RESTRUCTURE.md).
+//
+// R1.0: the zones-first Ledger. The street advisor zones Homes, Workshops and Farmland on the first
+// morning and the businesses grow by themselves; the advisors place only specialized buildings and
+// services, and send no standing order, sale, calling or labor pause (the carrier imports what is
+// short by itself). The night's growth pass is watched from the second day, and every day line
+// carries the growth numbers. R1 stand-in (R1F): R1F rewrites the advisors and their targets.
 import { content } from '@qoti/content';
 import {
   basketScore,
@@ -58,7 +64,7 @@ export interface DayLine {
   food: number;
   foodMade: number;
   foodEaten: number;
-  planks: number;
+  timber: number;
   stone: number;
   avgMood: number;
   miserable: number;
@@ -70,7 +76,7 @@ export interface DayLine {
   leanTimes: boolean;
   built: number;
   sites: number;
-  /** Village runs (C4B): lots, grown buildings by zone kind and demand. */
+  /** Lots, grown buildings by zone kind and demand (C4B; R1: every run, from the first day). */
   growth?: GrowthLine;
   // I2 (C4A)
   rank: string;
@@ -128,7 +134,7 @@ function dayLine(w: WorldState, day: number): DayLine {
     food: FOODS.reduce((n, g) => n + stock[g]!, 0),
     foodMade: FOODS.reduce((n, g) => n + (w.economy.yesterday.produced[g] ?? 0), 0),
     foodEaten: FOODS.reduce((n, g) => n + (w.economy.yesterday.consumed[g] ?? 0), 0),
-    planks: stock[G('planks')]!,
+    timber: stock[G('timber')]!,
     stone: stock[G('stone')]!,
     avgMood: moods.length ? Math.round(moods.reduce((a, b) => a + b, 0) / moods.length) : 0,
     miserable: w.residents.filter((r) => moodBand(r.mood) <= 1).length,
@@ -146,7 +152,8 @@ function dayLine(w: WorldState, day: number): DayLine {
     wages: coinsOf(y[cat('wages')]!),
     sales: coinsOf(y[cat('sales')]!),
     taxes: coinsOf(y[cat('taxes')]!),
-    trade: coinsOf(y[cat('exports')]! - y[cat('imports')]! + y[cat('peddler')]!),
+    // R1: the carrier books its sales and purchases as exports and imports (the peddler line is gone).
+    trade: coinsOf(y[cat('exports')]! - y[cat('imports')]!),
     owed: coinsOf(loansOwed(w)),
     basket: Math.round(w.households.reduce((n, h) => n + basketScore(h), 0) / hh),
     wageLevel: w.levers.wageLevel,
@@ -217,9 +224,10 @@ export function autoplay(seed: string, days: number, opts: AutoplayOptions = {})
   try {
     for (let d = 1; d <= days; d++) {
       const playing = opts.handsOff === undefined || d < opts.handsOff;
-      // Village runs watch the night's growth pass (01:00): what it wanted, and what it started.
+      // The night's growth pass (01:00): what it wanted, and what it started. R1: from the second
+      // day (the first starts after 01:00), not from the Village claim: the zones are open from founding.
       let night: GrowthNight | undefined;
-      if (villageFrom > 0 && d > villageFrom) {
+      if (d > 1) {
         untilHour(h, 1, look);
         const before = growthLine(h.world);
         runTicks(h, 1);
@@ -244,7 +252,7 @@ export function autoplay(seed: string, days: number, opts: AutoplayOptions = {})
       if (playing) for (const a of team) a.visit({ afternoon: true });
       untilHour(h, 23, look);
       const line = dayLine(h.world, d);
-      if (villageFrom > 0) line.growth = { ...growthLine(h.world), night };
+      line.growth = { ...growthLine(h.world), night };
       out.push(line);
       opts.onDay?.(h.world, line);
     }
@@ -265,10 +273,10 @@ function kinds(k: GrowthDemand | undefined): string {
   return k ? `${k.homes}${k.shops}${k.crafts}${k.farms}` : '-';
 }
 
-/** The table `npm run tune` prints (Village runs add the night's growth: wanted and started). */
+/** The table `npm run tune` prints (with the night's growth: wanted and started). */
 export function formatDays(days: readonly DayLine[]): string {
   const head =
-    'day  pop hh vac coins food made eaten plank stone mood mis wish grant pat ach left lean built sites' +
+    'day  pop hh vac coins food made eaten timbr stone mood mis wish grant pat ach left lean built sites' +
     '  cpl wed born sea story req plan | rank    charter        sav wage sale  tax trade owed bask wl tx crafts inv' +
     (days.some((d) => d.growth) ? ' lots hom sh cr fa grw want+ grew+' : '');
   const rows = days.map((d) =>
@@ -281,7 +289,7 @@ export function formatDays(days: readonly DayLine[]): string {
       String(d.food).padStart(4),
       String(d.foodMade).padStart(4),
       String(d.foodEaten).padStart(5),
-      String(d.planks).padStart(5),
+      String(d.timber).padStart(5),
       String(d.stone).padStart(5),
       String(d.avgMood).padStart(4),
       String(d.miserable).padStart(3),

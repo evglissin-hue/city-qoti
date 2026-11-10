@@ -8,10 +8,10 @@
 //   never takes what a lean one needs.
 // - Pieces: on the festival's eve and morning the Hearth puts up the festival's own pieces (a few,
 //   each different) on the site; they come down by themselves the morning after.
-// - Wants: a pie shop once the Village's menu runs thin (fewer than three goods to offer); a River
-//   Dock once the rank, renown and the river allow and the town has sixty residents, with dock
-//   orders selling planks and bricks above a comfortable stock. Both wait for timber to spare (twice
-//   their planks over the planner's reserve), so the high street's homes come first.
+// - Wants: a River Dock once the rank, renown and the river allow and the town has sixty
+//   residents. It waits for timber to spare (twice its timber over the planner's reserve), so the
+//   high street's homes come first. R1.0: no pie shop (pies wait for R3) and no dock orders (the
+//   carrier sails the boat by its own rules).
 // - Commissions: accepts an offer the town can meet now from its surplus, or a building it will put
 //   up anyway (the dock); declines the rest so the list stays tidy (all of them in runs that do not
 //   play the Village).
@@ -32,7 +32,6 @@ import {
   openGround,
   patternRect,
   rankAtLeast,
-  riverDock,
   siteRect,
   TILE_FP,
   winterDaysAhead,
@@ -45,17 +44,13 @@ import { costOf, TIMBER_RESERVE, type Planner } from '../planner';
 import { count, FOODS, G } from '../town';
 import type { Advisor, AdvisorDef, Visit } from './types';
 
-/** Menu goods the town would like on a Village table before it asks for a pie shop. */
-export const MENU_GOODS_WANTED = 3;
 /** Days of food a resident the menu always leaves in store. */
 export const MENU_RESERVE_DAYS = 6;
 /** C5X part 2: days of eating kept back from a spring or summer menu. */
 export const MENU_SPRING_DAYS = 3;
 /** Pieces the Hearth puts up for a festival. */
 export const PIECES = 3;
-/** Stock of a good the dock keeps before selling it. */
-export const DOCK_KEEP = 60;
-const TREATS = ['pies', 'cider', 'cheese', 'candles', 'honey'];
+const TREATS = ['cider', 'cheese', 'candles', 'honey'];
 
 /** Units of a good free in town now. */
 function free(w: WorldState, id: string): number {
@@ -149,7 +144,7 @@ class Festivals implements Advisor {
       units += q;
       if (isFood) spare -= q;
     };
-    for (const id of TREATS) offer(id, !!content.goodById.get(id)?.food);
+    for (const id of TREATS) offer(id, content.goodById.get(id)?.family === 'food');
     const foods = FOODS.map((g) => content.goods[g]!.id).sort((a, b) => free(w, b) - free(w, a));
     for (const id of foods) offer(id, true);
     return out;
@@ -160,10 +155,9 @@ class Festivals implements Advisor {
     const { season } = calendar(w.tick);
     const last = w.festival.history[w.festival.history.length - 1]?.twist ?? '';
     const ok = content.twists.filter((t) => t.id !== last && (!t.seasons || t.seasons.includes(season)));
-    const pies = menu.find(([g]) => g === 'pies')?.[1] ?? 0;
+    // R1: no Pie Contest (pies wait for a master baker, R3; the twist is offered in no season).
     const veg = menu.find(([g]) => g === 'vegetables')?.[1] ?? 0;
     const pick =
-      ok.find((t) => t.id === 'pie-contest' && pies >= 10) ??
       ok.find((t) => t.id === 'harvest-display' && veg >= 12) ??
       ok.find((t) => t.id === 'snow-sculptures') ??
       ok.find((t) => t.id === 'costume-parade' && free(w, 'cloth') >= 8) ??
@@ -232,7 +226,8 @@ class Festivals implements Advisor {
         // Only from a real surplus: food over the reserve, timber twice over and the timber reserve,
         // anything else twice over (the town keeps using what it makes).
         meet = def.ask.goods.every(([g, q]) => {
-          if (content.goodById.get(g)?.food) return free(w, g) >= q + pop * (this.p.foodReserveDays + 1);
+          if (content.goodById.get(g)?.family === 'food')
+            return free(w, g) >= q + pop * (this.p.foodReserveDays + 1);
           return free(w, g) >= 2 * q + (TIMBER_RESERVE.get(g) ?? 0);
         });
       } else {
@@ -244,10 +239,10 @@ class Festivals implements Advisor {
     }
   }
 
-  /** Planks for `def` twice over and the planner's timber reserve to spare. */
+  /** Timber for `def` twice over and the planner's timber reserve to spare. */
   private timberFor(def: string): boolean {
-    const planks = content.buildingById.get(def)?.cost?.goods?.find(([g]) => g === 'planks')?.[1] ?? 0;
-    return free(this.w, 'planks') >= 2 * planks + (TIMBER_RESERVE.get('planks') ?? 0);
+    const timber = content.buildingById.get(def)?.cost?.goods?.find(([g]) => g === 'timber')?.[1] ?? 0;
+    return free(this.w, 'timber') >= 2 * timber + (TIMBER_RESERVE.get('timber') ?? 0);
   }
 
   /** The players would build a River Dock now. */
@@ -271,25 +266,8 @@ class Festivals implements Advisor {
     const p = this.p;
     const w = this.w;
     if (!rankAtLeast(w, 'village')) return;
-    // Festival trades wait for comfortable timber: homes on the high street come first.
-    if (!this.timberFor('pie-shop') && !this.timberFor('river-dock')) return;
-    // A pie shop once the menu runs thin and there are apples to bake.
-    const plan = currentPlan(w);
-    if (
-      count(w, 'pie-shop') === 0 &&
-      this.timberFor('pie-shop') &&
-      (plan?.menu.length ?? 0) < MENU_GOODS_WANTED &&
-      (count(w, 'orchard', true) > 0 || free(w, 'apples') >= 10)
-    ) {
-      p.propose({
-        def: 'pie-shop',
-        priority: 2,
-        cost: costOf('pie-shop', 10),
-        pressing: false,
-        essential: false,
-      });
-    }
-    // The River Dock, when the river and renown allow.
+    // The River Dock, when the river and renown allow (R1: the carrier sails the boat by its own
+    // rules; there are no dock orders to set). It waits for comfortable timber: homes come first.
     if (this.wantsDock()) {
       p.propose({
         def: 'river-dock',
@@ -298,18 +276,6 @@ class Festivals implements Advisor {
         pressing: false,
         essential: false,
       });
-    }
-    if (riverDock(w) && !w.dock.orders && !isFrozen(w)) {
-      for (const g of ['planks', 'bricks']) {
-        p.do(`dock order: sell ${g} above ${DOCK_KEEP}`, [
-          {
-            t: 'trade.setStandingOrder',
-            good: g,
-            via: 'dock',
-            order: { min: 0, max: DOCK_KEEP, floor: 0, ceiling: 0, neighbor: '' },
-          },
-        ]);
-      }
     }
   }
 }

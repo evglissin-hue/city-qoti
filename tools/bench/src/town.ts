@@ -3,7 +3,8 @@
 import { content } from '@qoti/content';
 import { evaluate, MAP_SIZE, type WorldState } from '@qoti/sim';
 
-export const FOODS = content.goods.flatMap((g, i) => (g.food ? [i] : []));
+/** Good indexes of the Food family (R1: `GoodDef.family`, grain is porridge). */
+export const FOODS = content.goods.flatMap((g, i) => (g.family === 'food' ? [i] : []));
 export const G = (id: string) => content.goodIndex.get(id)!;
 export const S = MAP_SIZE;
 export const idx = (x: number, z: number) => z * S + x;
@@ -11,6 +12,11 @@ export const idx = (x: number, z: number) => z * S + x;
 /** Buildings of a def, standing or going up (only standing with `built`). */
 export function count(w: WorldState, def: string, built = false): number {
   return w.buildings.filter((b) => b.def === def && (!built || b.stage === 'built')).length;
+}
+
+/** R1: businesses of a trade (a grown workshop or farmstead with `Building.trade`); only standing with `built`. */
+export function countTrade(w: WorldState, trade: string, built = false): number {
+  return w.buildings.filter((b) => b.trade === trade && (!built || b.stage === 'built')).length;
 }
 
 /** Construction sites under way: the build queue. */

@@ -1,8 +1,7 @@
-// The village advisor (C4C, ported in C5.0): claims the Charter when it is ready, then plays the I2
-// chains, services and homes toward Craftsfolk: a tavern and a herbalist near the homes, firewood,
-// cloth, bricks (once the kiln is invented), cider and cheese, a school, carts, more storehouses,
-// and flowers by the doors so the streets reach the Craftsfolk's charm. A clay pit goes in while
-// still a Hamlet so the Brick Kiln is ready when the Village is.
+// The village advisor (C4C, ported in C5.0): claims the Charter when it is ready, then plays the
+// Village's services and homes toward Craftsfolk: a tavern and a herbalist near the homes, a school,
+// more storehouses and builders, timber and stone for a bigger town, and flowers by the doors so
+// the streets reach the Craftsfolk's charm.
 //
 // C4X: the stand-ins this half carried while the wave ran (wages paid from outside, the Village
 // rank granted on day 24, a loan taken on day one) are gone: C4A's wages and loans and the real
@@ -10,6 +9,13 @@
 //
 // C5.0: its wants go to the planner, priced `VILLAGE_MARGIN` over the def (I2 kept 30 coins back);
 // a want's priority is the build queue it will join (I2's `maxSites`).
+//
+// R1.0 (stand-ins until R1F rewrites the advisors): no chain buildings and no calling. Bread, cloth,
+// cider, cheese and the rest are made by businesses that grow on the zoned streets; this advisor
+// places the Village's specialized buildings once they open (the Trading Post, the Market Square,
+// the Sawmill with the Water Wheel, the Brickworks with the Brick Kiln, the Cart Shed with Carts),
+// fisheries and stalls for a bigger town, and services as before. It pauses nothing: labor needs
+// no lever.
 import { content } from '@qoti/content';
 import {
   creditLimit,
@@ -29,23 +35,15 @@ import {
   type Rot4,
   type WorldState,
 } from '@qoti/sim';
+import { LODGE_TREES } from '../hamlet';
 import { materialsPressing } from '../labor';
 import { costOf, MONEY_RESERVE, VILLAGE_MARGIN, type Budget, type Planner } from '../planner';
-import { count, craftsfolk, G } from '../town';
-import { firewoodInTown, woodNeed } from './seasons';
+import { count, craftsfolk, FOODS, G } from '../town';
 import type { Advisor, AdvisorDef, Visit } from './types';
 
-/** Timber and food buildings may dip into the reserve. */
+/** Timber, stone and food buildings may dip into the reserve. */
 function essential(def: string): boolean {
-  return [
-    'woodcutter',
-    'sawpit',
-    'vegetable-plot',
-    'fishers-hut',
-    'farmhouse',
-    'market-stall',
-    'cottage',
-  ].includes(def);
+  return ['foresters-lodge', 'quarry', 'fishery', 'market-stall', 'cottage'].includes(def);
 }
 
 class Village implements Advisor {
@@ -64,7 +62,7 @@ class Village implements Advisor {
 
   /**
    * A site that has not moved for three days (cut off by the river, or out of every porter's
-   * reach) is cancelled, so it stops holding a place in the queue. A player would notice.
+   * reach) is canceled, so it stops holding a place in the queue. A player would notice.
    */
   private tidySites(): void {
     const w = this.w;
@@ -86,21 +84,10 @@ class Village implements Advisor {
     const w = this.w;
     if (afternoon) this.tidySites();
     if (w.charter.ready && w.charter.charter) this.p.do('claim the Charter', [{ t: 'charter.claim' }]);
-    // P1 (callings): the first calling the County offers, as soon as it asks.
-    if (w.calling && w.calling.chosen === null)
-      this.p.do('choose what the village is known for', [{ t: 'calling.choose', id: w.calling.offered[0]! }]);
+    if (!rankAtLeast(w, 'village')) return;
     this.feed();
-    const pit = w.buildings.find((b) => b.def === 'clay-pit' && b.stage === 'built');
-    if (!rankAtLeast(w, 'village')) {
-      // Dig for two days to invent the kiln, then rest the pit until bricks are wanted.
-      if (w.residents.length >= 28 && count(w, 'clay-pit') === 0) this.want('clay-pit', 2);
-      if (pit && hasInnovation(w, 'brick-kiln') && !pit.rt!.paused)
-        this.p.do('rest the clay pit', [{ t: 'build.setPaused', id: pit.id, paused: true }]);
-      return;
-    }
-    if (pit?.rt!.paused)
-      this.p.do('reopen the clay pit', [{ t: 'build.setPaused', id: pit.id, paused: false }]);
-    // Homes before anything else: a Village grows by the families that move in.
+    // Homes before anything else: a Village grows by the families that move in. R1: by hand only
+    // while no street is zoned; Homes lots grow their own after that.
     const vacant = w.buildings.filter(
       (b) =>
         content.buildingById.get(b.def)?.housing &&
@@ -109,10 +96,10 @@ class Village implements Advisor {
     // C5X: past half the County Bank's line, one home waiting for the next family rather than two
     // (with festivals and renown pulling families in, the Village borrowed for every second home).
     const indebted = loansOwed(w) * 2 > creditLimit(w);
-    if (vacant < (indebted ? 1 : 2)) this.want('cottage', 6);
+    if (!this.p.street && vacant < (indebted ? 1 : 2)) this.want('cottage', 6);
     // Builders: a yard per forty residents, or the sites queue up behind two town hall builders
-    // (C4X: per thirty, six yards kept sixteen builders from the bakeries).
-    // Pressing while sites wait their turn for a builder (C4X: they used to be cancelled as stuck).
+    // (C4X: per thirty, six yards kept sixteen builders from the workshops).
+    // Pressing while sites wait their turn for a builder (C4X: they used to be canceled as stuck).
     const queued = w.buildings.some(
       (b) => b.stage === 'construction' && ((b.rt?.status ?? 0) & BuildingStatus.waitingBuilders) !== 0,
     );
@@ -120,7 +107,7 @@ class Village implements Advisor {
       this.want('builders-yard', 8, queued);
     // More porters next: a storehouse per 20 residents, raised to the front, and another whenever
     // three workplaces sit with their output full (C4X: bread, cloth and cider waited at the
-    // bakeries and the weaver while the shelves stood empty, so nobody became Craftsfolk).
+    // workshops while the shelves stood empty, so nobody became Craftsfolk).
     const backed = w.buildings.filter((b) => (b.rt?.status ?? 0) & BuildingStatus.outputFull).length;
     const building = w.buildings.some((b) => b.def === 'storehouse' && b.stage === 'construction');
     if (
@@ -130,7 +117,7 @@ class Village implements Advisor {
       const site = w.buildings[w.buildings.length - 1]!;
       this.p.do('raise the storehouse', [{ t: 'build.setPriority', id: site.id, priority: true }]);
     }
-    this.timber();
+    this.materials();
     this.buildVillage();
     if (afternoon) this.dress();
   }
@@ -138,9 +125,8 @@ class Village implements Advisor {
   /**
    * Proposes `def` to the planner, joining a build queue of at most `priority` sites. C4X: only
    * workplaces someone can work (see labor.ts); past half the County Bank's line only what is
-   * pressing or keeps the town going is started (the Village borrowed its way to the edge of lean
-   * times on new workshops); and a reserve of timber stays so the woodcutters and sawpits can always
-   * be rebuilt (a village that spends its last logs on a tavern has no way back).
+   * pressing or keeps the town going is started; and a reserve of timber stays so a Forester's
+   * Lodge can always be rebuilt (a village that spends its last timber on a tavern has no way back).
    */
   private want(def: string, priority = 5, pressing = false, budget?: Budget): boolean {
     return !!this.p.propose({
@@ -153,184 +139,80 @@ class Village implements Advisor {
     });
   }
 
+  /** The Village's specialized buildings as they open, services and a school. */
   private buildVillage(): void {
     const w = this.w;
     const pop = w.residents.length;
     const crafts = craftsfolk(w);
     const budget: Budget = { left: 3 };
     const go = (cond: boolean, def: string, pressing = false) => {
-      if (cond) this.want(def, 5, pressing, budget);
+      if (cond && content.buildingById.has(def)) this.want(def, 5, pressing, budget);
     };
-    // C4X: bread is pressing while the shelves hold under a third of a loaf a head (Craftsfolk eat
-    // it daily), so the farm, mill and bakery may draw hands from spare porters.
-    const breadShort = townStock(w)[G('bread')]! < pop / 2;
-    // Bread: a farm, the mill and the bakery (Craftsfolk eat it every day; C4X: a Village whose
-    // food came from plots and huts never built the farm, so never baked).
     // Services: Craftsfolk want a tavern and a herbalist in reach (C4X: first, and outside the
-    // turn's budget, one site of each at a time; behind the chains they came too late).
+    // turn's budget, one site of each at a time).
     this.serve('tavern', 'social');
     this.serve('herbalist', 'health');
-    // C4X: a pile of wool, yarn or apples gets its spinner, weaver or press before anything else (466 yarn and
-    // 160 apples waited while the Village kept starting other things, and nobody had cloth or
-    // cider).
-    // Nothing else is started until they are, so the coins are there for them.
-    const piles = townStock(w);
-    const spinner = piles[G('wool')]! >= 20 && count(w, 'spinner') < count(w, 'sheep-pasture', true);
-    const weaver = piles[G('yarn')]! >= 20 && count(w, 'weaver') < count(w, 'spinner', true);
-    const press = piles[G('apples')]! >= 40 && count(w, 'cider-press') < count(w, 'orchard', true);
-    // Wool as well (C4X: 256 wool waited with no spinner, so no Settler household ever had cloth).
-    if (spinner && !this.want('spinner', 8, true)) return;
-    if (weaver && !this.want('weaver', 8, true)) return;
-    if (press && !this.want('cider-press', 8, true)) return;
-    go(count(w, 'farmhouse') === 0, 'farmhouse');
-    // A mill per farm and a bakery per mill while bread is short; another farm only once every
-    // farm's wheat is being milled (C4X: six farms stood with full barns behind two mills).
-    const backedUp = (def: string) =>
-      w.buildings.some((b) => b.def === def && ((b.rt?.status ?? 0) & BuildingStatus.outputFull) !== 0);
-    go(
-      count(w, 'farmhouse', true) > 0 &&
-        count(w, 'windmill') <
-          Math.max(1 + Math.floor(pop / 60), breadShort ? count(w, 'farmhouse', true) : 0),
-      'windmill',
-      breadShort,
-    );
-    go(
-      count(w, 'windmill', true) > 0 &&
-        count(w, 'bakery') < Math.max(1 + Math.floor(pop / 50), breadShort ? count(w, 'windmill', true) : 0),
-      'bakery',
-      breadShort,
-    );
-    go(
-      breadShort &&
-        !backedUp('farmhouse') &&
-        !backedUp('windmill') &&
-        count(w, 'farmhouse') < 1 + Math.floor(pop / 50),
-      'farmhouse',
-      true,
-    );
     const stock = townStock(w);
-    // Bricks first (taverns and townhouses are made of them): a clay pit (two days of digging
-    // invent the kiln), firewood for the kiln, then the kiln.
-    if (budget.left > 0 && count(w, 'clay-pit') === 0 && !this.want('clay-pit') && this.p.blocked('clay-pit'))
-      this.outpost('clay-pit');
-    go(count(w, 'chopping-shed') < 1 + Math.floor(crafts / 24), 'chopping-shed');
-    // C4X: bricks and cloth by the size of the town, not its Craftsfolk: what the Village sells
-    // beyond the valley pays for its sites and loans (and there were no Craftsfolk to count yet).
-    // Pressing while there are too few bricks for the next tavern or townhouse.
-    const bricksShort = stock[G('bricks')]! < 20;
-    go(
-      hasInnovation(w, 'brick-kiln') && count(w, 'brick-kiln') < 1 + Math.floor(pop / 80),
-      'brick-kiln',
-      bricksShort,
-    );
-    go(
-      hasInnovation(w, 'brick-kiln') && count(w, 'clay-pit') < count(w, 'brick-kiln', true),
-      'clay-pit',
-      bricksShort,
-    );
-    // Cloth and treats for the basket, by the size of the town, not its Craftsfolk (there were
-    // none to count while the shelves had no cloth or cider), and pressing, like bread, while the
-    // shelves hold too little of them (C4X: every Settler household waited on cloth and cider).
-    const clothShort = stock[G('cloth')]! < w.households.length / 2;
-    const ciderShort = stock[G('cider')]! < pop / 8;
-    go(count(w, 'sheep-pasture') < 1 + Math.floor(pop / 60), 'sheep-pasture', clothShort);
-    go(count(w, 'spinner') < count(w, 'sheep-pasture', true), 'spinner', clothShort);
-    go(count(w, 'weaver') < count(w, 'spinner', true), 'weaver', clothShort);
-    go(
-      count(w, 'orchard') < 2 + Math.floor(pop / 40) + Math.floor(count(w, 'tavern') / 2),
-      'orchard',
-      ciderShort,
-    );
-    go(
-      count(w, 'orchard', true) > 0 && count(w, 'cider-press') < count(w, 'orchard', true),
-      'cider-press',
-      ciderShort,
-    );
-    go(count(w, 'herb-garden') < count(w, 'herbalist', true), 'herb-garden');
+    // R1: the carrier's depot, for more carried a day and better terms, and the town's main outlet.
+    go(count(w, 'trading-post') === 0 && this.coins() > 150, 'trading-post');
+    go(count(w, 'market-square') === 0 && pop >= 40, 'market-square');
+    // R1: the Sawmill lets carpenters set up in its reach; the Brickworks fires brick on its clay
+    // (pressing while there is too little brick for the next tavern or townhouse).
+    go(hasInnovation(w, 'water-wheel') && count(w, 'sawmill') === 0, 'sawmill');
+    const brickShort = stock[G('brick')]! < 20;
+    if (
+      budget.left > 0 &&
+      hasInnovation(w, 'brick-kiln') &&
+      count(w, 'brickworks') < 1 + Math.floor(pop / 80) &&
+      !this.want('brickworks', 5, brickShort, budget) &&
+      this.p.blocked('brickworks')
+    )
+      this.outpost('brickworks');
+    go(hasInnovation(w, 'carts') && count(w, 'cart-shed') === 0, 'cart-shed');
     // Skilled work, once there are Craftsfolk to do it.
-    go(crafts >= 8 && count(w, 'dairy') === 0, 'dairy');
-    go(crafts >= 8 && count(w, 'dairy', true) > 0 && count(w, 'cheesemaker') === 0, 'cheesemaker');
     go(crafts >= 8 && count(w, 'school') === 0, 'school');
-    go(
-      hasInnovation(w, 'carts') && count(w, 'cart-shed') === 0 && townStock(w)[G('tools')]! >= 2,
-      'cart-shed',
-    );
-    go(crafts >= 12 && count(w, 'smithy') === 0, 'smithy');
-    // A bigger town needs more hands moving goods, more timber and more bread.
-    go(pop >= 50 && count(w, 'sawpit') < 3, 'sawpit');
-    go(pop >= 50 && count(w, 'woodcutter') < 3, 'woodcutter');
-    go(pop >= 50 && count(w, 'farmhouse') < 2, 'farmhouse');
   }
 
   /**
-   * Food for the Charter's five days in stock and for a bigger town: more plots, huts and farms
-   * while there are fewer than five days in hand, and a market stall per thirty residents so the
-   * shopping trips are short.
+   * Food for the Charter's five days in stock and for a bigger town: a fishery while there are
+   * fewer than four days in hand (the Farmland businesses grow by themselves), and a market stall
+   * per forty residents so the shopping trips are short.
    */
   private feed(): void {
     const w = this.w;
     const pop = w.residents.length;
-    const foods = content.goods.flatMap((g, i) => (g.food ? [i] : []));
     const stock = townStock(w);
-    const food = foods.reduce((n, g) => n + stock[g]!, 0);
-    const made = foods.reduce((n, g) => n + (w.economy.yesterday.produced[g] ?? 0), 0);
-    // C4X: a little over a day's eating made a day is enough (at 1.4 a Village of 200 kept a third
-    // of its hands on plots and huts while the Craftsfolk chains stood empty).
-    // C5A: not in winter, when plots and huts make nothing.
-    if (pop >= 30 && food < pop * 4 && made < pop * 1.15 && calendar(w.tick).season !== 3) {
-      // C4X: plots and huts (wheat is not food; the farms come with the bread chain).
-      const def = this.p.foodBuilding();
+    const food = FOODS.reduce((n, g) => n + stock[g]!, 0);
+    const made = FOODS.reduce((n, g) => n + (w.economy.yesterday.produced[g] ?? 0), 0);
+    // C4X: a little over a day's eating made a day is enough. C5A: not in winter.
+    const def = this.p.foodBuilding();
+    if (def && pop >= 30 && food < pop * 4 && made < pop * 1.15 && calendar(w.tick).season !== 3)
       this.want(def, 5, true);
-    }
     if (pop >= 30 && count(w, 'market-stall') < 1 + Math.floor(pop / 40)) this.want('market-stall', 5);
   }
 
   /**
-   * Logs go straight from the woodcutters to the sawpits, so none pile up to build another
-   * woodcutter or a chopping shed. While logs are short and wanted, rest a sawpit; open it again
-   * once there are logs in hand.
+   * Timber and stone for a bigger town: a Forester's Lodge per fifty residents while timber runs
+   * short and a quarry per forty while stone does (with a storehouse out toward them when none
+   * finds a spot near the town), and saplings round a lodge whose wood is thinning.
    */
-  private timber(): void {
+  private materials(): void {
     const w = this.w;
     const pop = w.residents.length;
     const stock = townStock(w);
-    const logs = stock[G('logs')]!;
-    const planks = stock[G('planks')]!;
-    const cutters = count(w, 'woodcutter');
-    // C5A: and while a chopping shed waits on logs with the woodpile short of the winter ahead.
-    const shedWaits = w.buildings.some(
-      (b) =>
-        b.def === 'chopping-shed' &&
-        b.stage === 'built' &&
-        !b.rt!.paused &&
-        (b.rt!.status & BuildingStatus.missingInput) !== 0,
-    );
-    const wantLogs =
-      cutters < 2 + Math.floor(pop / 50) || count(w, 'chopping-shed') < 1 || (this.p.woodShort && shedWaits);
-    const pits = w.buildings.filter((b) => b.def === 'sawpit' && b.stage === 'built');
-    // Plenty of planks, or logs wanted for building: keep one sawpit going (none with 120 planks).
-    // C4X: none while the next woodcutter waits for its twelve logs (one woodcutter's logs all went
-    // to the sawpits, so a Village of 130 never built a second and ran out of planks for good).
-    const keep = planks >= 120 || (wantLogs && logs < 16) ? 0 : pits.length;
-    pits.forEach((b, i) => {
-      const rest = i >= keep;
-      if (b.rt!.paused !== rest)
-        this.p.do(rest ? 'rest a sawpit' : 'reopen a sawpit', [
-          { t: 'build.setPaused', id: b.id, paused: rest },
-        ]);
-    });
     // An outpost only when there was no spot for it (C4X: not when it was refused for want of
     // hands, which built a storehouse toward the forest every turn: eighteen of them by day 70).
     if (
-      cutters < 2 + Math.floor(pop / 50) &&
-      !this.want('woodcutter', 6, materialsPressing(w, 'woodcutter')) &&
-      this.p.blocked('woodcutter')
+      stock[G('timber')]! < 100 &&
+      count(w, 'foresters-lodge') < 2 + Math.floor(pop / 50) &&
+      !this.want('foresters-lodge', 6, materialsPressing(w, 'foresters-lodge')) &&
+      this.p.blocked('foresters-lodge')
     )
-      this.outpost('woodcutter');
-    // Replant around a woodcutter running short of grown trees, so its patch comes back (a valley
-    // with no logs cannot build another one: it would be stuck for good).
+      this.outpost('foresters-lodge');
+    // Replant round a lodge running short of grown trees, so its wood comes back (R1 stand-in
+    // (R1B): the lodge does not replant its own wood yet).
     for (const b of w.buildings) {
-      if (b.def !== 'woodcutter' || b.stage !== 'built' || treesNear(w, b.x, b.z, 8) >= 16) continue;
+      if (b.def !== 'foresters-lodge' || b.stage !== 'built' || treesNear(w, b.x, b.z, 8) >= 16) continue;
       let planted = 0;
       for (let k = 0; k < 120 && planted < 6; k++) {
         const x = b.x - 8 + ((k * 7 + b.id) % 18);
@@ -339,37 +221,11 @@ class Village implements Advisor {
         const i = z * 192 + x;
         if (w.map.tree[i] || w.map.road[i] || w.map.occupant[i] || w.map.water[i] || w.map.fieldOwner[i])
           continue;
-        if (this.p.do('plant a sapling for the woodcutter', [{ t: 'tree.plant', species: 'oak', x, z }]))
+        if (w.map.zone[i]) continue;
+        if (this.p.do('plant a sapling for the lodge', [{ t: 'tree.plant', species: 'oak', x, z }]))
           planted++;
       }
     }
-    // C4X: the chopping sheds rest once there is firewood for days (one turned every log into 280
-    // firewood while the sawpits stood idle), and reopen when it runs low.
-    const firewood = stock[G('firewood')]!;
-    const homes = w.households.length;
-    // C5A: from autumn the woodpile (stores and pantries) has a winter to see through: a shed rests
-    // only with the winter ahead in hand and some over, and reopens once the pile is short of it.
-    const need = woodNeed(w);
-    const pile = firewoodInTown(w);
-    for (const b of w.buildings) {
-      if (b.def !== 'chopping-shed' || b.stage !== 'built' || !b.rt) continue;
-      // The woodcutter's logs come first while the last patch thins (the hamlet advisor says so).
-      const rest =
-        this.p.logsForWoodcutter ||
-        (calendar(w.tick).season >= 2
-          ? b.rt.paused
-            ? pile >= need
-            : pile >= need + Math.max(40, homes * 2)
-          : b.rt.paused
-            ? firewood >= homes * 2
-            : firewood >= Math.max(40, homes * 5));
-      if (b.rt.paused !== rest)
-        this.p.do(rest ? 'rest the chopping shed' : 'reopen the chopping shed', [
-          { t: 'build.setPaused', id: b.id, paused: rest },
-        ]);
-    }
-    // C4X: a forester per sixty residents while logs run short (five stood by 400 logs).
-    if (logs < 100 && count(w, 'foresters-lodge') < 1 + Math.floor(pop / 60)) this.want('foresters-lodge', 6);
     if (
       stock[G('stone')]! < 60 &&
       count(w, 'quarry') < 1 + Math.floor(pop / 40) &&
@@ -377,8 +233,6 @@ class Village implements Advisor {
       this.p.blocked('quarry')
     )
       this.outpost('quarry');
-    if (planks < 60 && pits.length < 2 + Math.floor(pop / 60))
-      this.want('sawpit', 6, materialsPressing(w, 'sawpit'));
   }
 
   /**
@@ -438,7 +292,7 @@ class Village implements Advisor {
       Math.abs((a % 192) - (b % 192)) + Math.abs(Math.floor(a / 192) - Math.floor(b / 192));
     const fits = (x: number, z: number) => {
       if (!canPlaceBuilding(reader, d, x, z, 0).ok) return false;
-      return def !== 'woodcutter' || treesNear(w, x, z, 8) >= 30;
+      return def !== 'foresters-lodge' || treesNear(w, x, z, 8) >= LODGE_TREES;
     };
     // A spot for the building between 22 and 40 tiles from a storehouse, then a new storehouse
     // between the two, so porters from the old one can stock the new one.
@@ -544,10 +398,10 @@ function decorSpot(w: WorldState, def: string, x: number, z: number): [number, n
 export const village: AdvisorDef = {
   id: 'village',
   slot: 10,
-  // The Village chains, services and tiers, once the content has them (I2) and the run plays them.
+  // The Village's services, specialized buildings and tiers, once the content has them (I2) and the run plays them.
   plays: (opts) => !!opts.village && content.buildingById.has('tavern'),
   create: (p) => {
-    // C4C: the Village run keeps six days of food from the peddler, for the Charter.
+    // C4C: the Village run keeps six days of food a resident from the festival menu, for the Charter.
     p.foodReserveDays = 6;
     return new Village(p);
   },

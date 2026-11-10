@@ -8,14 +8,19 @@ import { describe, expect, it } from 'vitest';
 import { worldIndex } from '../../../packages/sim/src/state/worldIndex';
 import { command, runTicks, startingTown } from './hamlet';
 
+// R1.0: the vegetable plot is gone; R1D's garden bed brings back the Kitchen Garden a player builds
+// by hand (its def is R1D's to name). Until then this waits, skipped.
+const PLOT = 'garden-bed';
+
 describe('a Kitchen Garden as a player builds it', { timeout: 60_000 }, () => {
-  it('two plots off to one side of a cottage, a fence drawn along them', () => {
+  // R1.0: stand-ins; R1D's garden bed brings the hand-built Kitchen Garden back.
+  it.skip('two plots off to one side of a cottage, a fence drawn along them', () => {
     const h = startingTown('kat-1', { standIn: false });
     const w = h.world;
     w.time.connected = [0, 1];
     runTicks(h, 2 * TICKS_PER_HOUR);
     const home = w.buildings.find((b) => b.def === 'cottage')!;
-    const plot = content.buildingById.get('vegetable-plot')!;
+    const plot = content.buildingById.get(PLOT)!;
     const reader = createStateReader(w, worldIndex(w).decorGrid);
     const spots: [number, number][] = [];
     for (let dz = -4; dz <= 4 && spots.length < 2; dz++) {
@@ -28,7 +33,7 @@ describe('a Kitchen Garden as a player builds it', { timeout: 60_000 }, () => {
     }
     expect(spots).toHaveLength(2);
     for (const [x, z] of spots)
-      expect(command(h, [{ t: 'build.place', def: 'vegetable-plot', x, z, rot: 0 }])).toEqual([true]);
+      expect(command(h, [{ t: 'build.place', def: PLOT, x, z, rot: 0 }])).toEqual([true]);
     for (let i = 0; i < 48 && w.buildings.some((b) => b.stage === 'construction'); i++)
       runTicks(h, TICKS_PER_HOUR);
     const status = () => (inspect(w, 'building', home.id) as { status: string[] }).status.join(' ');
