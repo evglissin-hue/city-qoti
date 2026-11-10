@@ -146,7 +146,7 @@ describe('warmth', () => {
     const s = f.state;
     expect(marketOpen(s)).toBe(true);
     emptyFirewood(s);
-    // No outlet holds any; the pile waits at a workplace's door (a chopping shed's, say).
+    // No outlet holds any; the pile waits at a workplace's door (a Forester's Lodge's, say).
     const pile = s.buildings.find(
       (b) =>
         b.stage === 'built' &&
@@ -193,19 +193,20 @@ describe('warmth', () => {
     expectMoneyInvariant(before, s);
   });
 
-  it("takes it from the chopping shed's pile in a Hamlet when the storehouses have none", () => {
+  // R1: the chopping shed is gone; a Forester's Lodge's pile (firewood is R1B's to cut) stands in.
+  it("takes it from a workplace's pile in a Hamlet when the storehouses have none", () => {
     const f = hamletFixture();
     const s = f.state;
     s.tick = tickAt(0, 3, 1, 8);
     emptyFirewood(s);
-    const shed = placeFree(s, 'chopping-shed', 80, 46);
+    const lodge = placeFree(s, 'foresters-lodge', 80, 46);
     const want = s.households.length * WARMTH_PER_HOUSEHOLD;
-    shed.rt!.output[FIREWOOD] = want + 3;
-    shed.rt!.reservedOut[FIREWOOD] = 2;
+    lodge.rt!.output[FIREWOOD] = want + 3;
+    lodge.rt!.reservedOut[FIREWOOD] = 2;
     burnDay(s, createTickCtx(s));
     for (const h of s.households) expect(isCold(s, h.id)).toBe(false);
     // What a porter has already been promised stays for the porter.
-    expect(shed.rt!.output[FIREWOOD]).toBe(3);
+    expect(lodge.rt!.output[FIREWOOD]).toBe(3);
   });
 
   it('counts a winter where nobody was cold toward Warm Hearths, and clears the winter in spring', () => {

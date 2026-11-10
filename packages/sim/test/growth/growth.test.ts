@@ -2,29 +2,32 @@
 // (docs/spec/13-ledger.md, Zoning and growth). Most tests call growthPass directly on the village
 // fixture; the one that runs the clock switches off residents, so the fixture's households stay as
 // they are, and checks the site goes up through ordinary construction.
-import { content, type BuildingDef } from '@qoti/content';
+import { content } from '@qoti/content';
 import { describe, expect, it } from 'vitest';
 import { TICKS_PER_DAY, Zone } from '../../src/constants';
 import type { Building, WorldState } from '../../src/contracts';
 import { findById } from '../../src/state/entities';
+import { isFood, methodOf } from '../../src/state/zones';
 import { insertBuilding } from '../../src/state/place';
 import { growLot, lotPlacement } from '../../src/systems/growth/api';
 import { GROWTH_MAX_SITES, GROWTH_SHARE, growthDemand, growthPass } from '../../src/systems/growth';
-import { bestMethod, shortages } from '../../src/systems/growth/recipes';
+import { shortages } from '../../src/systems/growth/recipes';
 import { withoutSystems } from '../../src/systems';
 import { doorTile } from '../../src/systems/movement/api';
+import { openJobCount } from '../../src/systems/residents/jobs';
 import { advanceTo, createTickCtx } from '../../src/turn';
-import { townStock } from '../../src/view/hamlet';
 import { villageFixture } from '../fixtures/village';
-import { run, S } from '../helpers';
+import { S } from '../helpers';
 import { expectMoneyInvariant, moneySnapshot } from '../money';
 import { frontageMap, lotsIn, paintZone, zoneNow } from './helpers';
 
 const good = (id: string) => content.goodIndex.get(id)!;
 
-/** A built workplace nobody works at yet, so the town has open jobs. */
+/** A built workplace nobody works at yet, so the town has open jobs (R1: a Forester's Lodge). */
 function openWork(state: WorldState, x = 88, z = 46): Building {
-  return insertBuilding(state, null, content.buildingById.get('sawpit')!, x, z, 0, 0, { site: false });
+  return insertBuilding(state, null, content.buildingById.get('foresters-lodge')!, x, z, 0, 0, {
+    site: false,
+  });
 }
 
 function grown(state: WorldState): Building[] {
@@ -57,10 +60,13 @@ describe('the nightly growth pass', () => {
     const f = villageFixture();
     const s = f.state;
     // The fixture staffs two of the town hall's four builder jobs (playtest round three); this test
-    // counts only the work it opens, so hiring there is paused (no ticks run, nobody builds).
-    s.buildings.find((b) => b.def === 'town-hall')!.rt!.paused = true;
+    // counts only the work it opens, so hiring there is paused (no ticks run, nobody builds). R1:
+    // the granary and the Forester's Lodge have open jobs too; paused alike.
+    for (const id of ['town-hall', 'granary', 'foresters-lodge'])
+      s.buildings.find((b) => b.def === id)!.rt!.paused = true;
+    // Three jobs: two homes' worth, as many as a night starts.
     openWork(s);
-    openWork(s, 91, 46);
+    expect(openJobCount(s)).toBe(3);
     const before = moneySnapshot(s);
     const demand = growthDemand(s);
     expect(demand.homes).toBeGreaterThan(0);
@@ -108,6 +114,8 @@ describe('the nightly growth pass', () => {
     for (const id of f.lots.shops) expect(findById(s.lots, id)!.buildingId).toBe(0);
   });
 
+  // R1.0 stand-in: R1A/R1B rewrites this. A Workshops lot takes the trade with the best shortage
+  // score among those it can feed.
   it('grows a workshop for what the market is short of, and none when nothing is', () => {
     const f = villageFixture();
     const s = f.state;
@@ -120,17 +128,20 @@ describe('the nightly growth pass', () => {
     expect(growthDemand(s).crafts).toBe(0);
     night(s);
     expect(grown(s).some((b) => findById(s.lots, b.lot!)!.zone === Zone.crafts)).toBe(false);
-    // Firewood runs short: a workshop (which the logs in stock can feed) grows, set to chopping.
-    s.market.demand[good('firewood')] = 40;
+    // Cloth runs short: a workshop (which the wool in stock can feed) grows as a weaver's.
+    s.market.demand[good('cloth')] = 40;
     expect(growthDemand(s).crafts).toBe(1);
     night(s);
     const shop = grown(s).find((b) => findById(s.lots, b.lot!)!.zone === Zone.crafts);
     const def = content.buildingById.get(shop?.def ?? '');
     expect(def?.grows?.zone).toBe('crafts');
-    expect(def?.methods?.[shop!.rt!.method]?.outputs[0]?.[0]).toBe('firewood');
+    expect(shop!.trade).toBe('weaver');
+    expect(methodOf(shop!)?.outputs[0]?.[0]).toBe('cloth');
   });
 
-  it('grows a farm when food runs low, and gives a field farm the farm land behind', () => {
+  // R1.0 stand-in: R1A/R1B rewrites this. Farmland takes the trade whose good is shortest (here
+  // grain, the only Food the market asks for), on soil it suits.
+  it('grows a farm when food runs low, and gives a grain farm the farm land behind', () => {
     const f = villageFixture();
     const s = f.state;
     // Fertile farm land north of lane A, east of the stalls; empty the larders.
@@ -139,18 +150,22 @@ describe('the nightly growth pass', () => {
     zoneNow(s);
     for (const b of s.buildings) {
       if (!b.rt) continue;
-      for (const g of content.goods.filter((x) => x.food)) {
-        b.rt.store[good(g.id)] = 0;
-        b.rt.output[good(g.id)] = 0;
+      for (let g = 0; g < content.goods.length; g++) {
+        if (!isFood(g)) continue;
+        b.rt.store[g] = 0;
+        b.rt.output[g] = 0;
       }
     }
     for (const h of s.households) h.pantry.fill(0);
+    s.market.demand.fill(0);
+    s.economy.yesterday.consumed.fill(0);
+    s.market.demand[good('grain')] = 40;
     expect(growthDemand(s).farms).toBe(1);
     night(s);
     const farm = grown(s).find((b) => findById(s.lots, b.lot!)!.zone === Zone.farms)!;
     expect(farm).toBeDefined();
-    // C4C's farmstead keeps its crops in its own yard; a field farm (a farmhouse) takes the land.
-    if (!content.buildingById.get(farm.def)?.methods?.some((m) => m.kind === 'farm')) return;
+    expect(farm.def).toBe('farmstead');
+    expect(farm.trade).toBe('grain-farm');
     // Finished, it takes fields on the zoned land behind the lots, nearest first.
     farm.stage = 'built';
     farm.rt!.construction = null;
@@ -170,16 +185,16 @@ describe('the nightly growth pass', () => {
     const s = f.state;
     openWork(s);
     openWork(s, 91, 46);
-    const planks = good('planks');
+    const planks = good('timber');
     for (const b of s.buildings) if (b.rt) b.rt.store[planks] = 0;
-    // Just under the share of the cheapest stand-in's planks (a stall's) that must be in hand.
+    // Just under the share of the cheapest stand-in's timber (a stall's) that must be in hand.
     const stall = content.buildingById.get('market-stall')!;
-    const need = stall.cost!.goods!.find(([g]) => g === 'planks')![1];
+    const need = stall.cost!.goods!.find(([g]) => g === 'timber')![1];
     const share = Math.ceil((need * GROWTH_SHARE) / 100) - 1;
     findById(s.buildings, f.b.storehouses[0])!.rt!.store[planks] = share;
     expect(growthDemand(s).homes).toBeGreaterThan(0);
     expect(night(s)).toBe(0);
-    // A home waiting on planks would make planks short: a workshop that makes them is wanted.
+    // A home waiting on timber would make timber short.
     growLot(s, createTickCtx(s), f.lots.homes[2]!, 'cottage');
     expect(shortages(s)[planks]).toBeGreaterThan(0);
     findById(s.buildings, f.b.storehouses[0])!.rt!.store[planks] = 400;
@@ -226,103 +241,30 @@ describe('the nightly growth pass', () => {
   });
 });
 
-describe('grown crafts and farms choose what to make', () => {
-  const workshop: BuildingDef = {
-    id: 'test-workshop',
-    name: 'Test workshop',
-    lane: 'ledger',
-    category: 'production',
-    size: [2, 2],
-    entrance: [1, 1],
-    cost: { goods: [['planks', 4]] },
-    jobs: { count: 2, role: 'worker' },
-    methods: [
-      {
-        id: 'saw',
-        name: 'Saw',
-        kind: 'craft',
-        inputs: [['logs', 2]],
-        outputs: [['planks', 2]],
-        hours: 4,
-        workers: 2,
-      },
-      {
-        id: 'grind',
-        name: 'Grind',
-        kind: 'craft',
-        inputs: [['wheat', 2]],
-        outputs: [['flour', 2]],
-        hours: 4,
-        workers: 2,
-      },
-      {
-        id: 'yarn',
-        name: 'Spin',
-        kind: 'craft',
-        inputs: [['wool', 2]],
-        outputs: [['yarn', 2]],
-        hours: 4,
-        workers: 2,
-      },
-    ],
-    grows: { zone: 'crafts' },
-    art: { kit: 'workshop' },
-  };
-
-  function withWorkshop<T>(fn: () => T): T {
-    const list = content.buildings as BuildingDef[];
-    const byId = content.buildingById as Map<string, BuildingDef>;
-    list.push(workshop);
-    byId.set(workshop.id, workshop);
-    try {
-      return fn();
-    } finally {
-      list.splice(list.indexOf(workshop), 1);
-      byId.delete(workshop.id);
-    }
-  }
-
-  it('picks the method for the shortest good it can feed, and never one it cannot', () => {
+describe('grown workshops choose what to make', () => {
+  // R1.0 stand-in: R1A/R1B rewrites this. Method choosing and switching are gone: a business takes
+  // one trade when it grows (chooseTrade's shortage score) and keeps it.
+  it('takes the trade for the shortest good it can feed, and never one it cannot', () => {
     const f = villageFixture();
     const s = f.state;
-    const stock = townStock(s);
+    paintZone(s, 'crafts', [83, 44, 95, 49]);
+    zoneNow(s);
     s.market.demand.fill(0);
     s.economy.yesterday.consumed.fill(0);
-    s.market.demand[good('flour')] = 30;
-    s.market.demand[good('yarn')] = 90;
-    // No wool in town, and none ever made: spinning cannot be fed.
+    s.market.demand[good('candles')] = 30;
+    s.market.demand[good('cloth')] = 90;
+    // No wool in town, and none ever made: a weaver cannot be fed. Some honey for a chandler.
     for (const b of s.buildings) if (b.rt) b.rt.store[good('wool')] = 0;
-    const [k] = bestMethod(s, workshop, shortages(s, townStock(s)), townStock(s));
-    expect(workshop.methods![k]!.id).toBe('grind');
-    expect(stock.length).toBe(content.goods.length);
-  });
-
-  it('switches to a much shorter good by night, but never away from a pinned method', () => {
-    withWorkshop(() => {
-      const f = villageFixture();
-      const s = f.state;
-      paintZone(s, 'crafts', [83, 44, 95, 49]);
-      zoneNow(s);
-      s.market.demand.fill(0);
-      s.economy.yesterday.consumed.fill(0);
-      // Flour a little short (a third of a day), nothing else wanted.
-      s.market.demand[good('flour')] = 30;
-      findById(s.buildings, f.b.storehouses[0])!.rt!.store[good('flour')] = 80;
-      night(s);
-      const b = grown(s).find((x) => x.def === 'test-workshop')!;
-      expect(b).toBeDefined();
-      expect(b.rt!.method).toBe(1);
-      b.stage = 'built';
-      b.rt!.construction = null;
-      // Planks run far shorter than flour now: it changes over at night.
-      s.market.demand[good('planks')] = 200;
-      night(s);
-      expect(b.rt!.method).toBe(0);
-      // Pinned to grinding, it grinds whatever the market says.
-      run(s, { t: 'build.pinRecipe', id: b.id, method: 'grind' });
-      night(s);
-      expect(b.rt!.method).toBe(1);
-      expect(b.rt!.pinned).toBe('grind');
-    });
+    findById(s.buildings, f.b.storehouses[0])!.rt!.store[good('honey')] = 5;
+    night(s);
+    const b = grown(s).find((x) => findById(s.lots, x.lot!)!.zone === Zone.crafts)!;
+    expect(b).toBeDefined();
+    expect(b.trade).toBe('chandler');
+    // It keeps its trade when the market changes its mind.
+    b.stage = 'built';
+    b.rt!.construction = null;
+    s.market.demand[good('cider')] = 200;
+    night(s);
+    expect(b.trade).toBe('chandler');
   });
 });

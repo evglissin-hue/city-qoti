@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest';
 import type { WorldState } from '../../src/contracts';
 import { Road } from '../../src/map/layers';
 import { removeById } from '../../src/state/entities';
+import { insertBuilding } from '../../src/state/place';
 import { worldIndex } from '../../src/state/worldIndex';
 import { detectors } from '../../src/systems/hearth/patterns/detectors';
 import { refillHints, runPatterns } from '../../src/systems/hearth/patterns/engine';
@@ -70,9 +71,12 @@ describe('Small Square', () => {
 });
 
 describe('Corner Cafe', () => {
-  function scene(def = 'tavern') {
+  function scene(def = 'tavern', trade?: string) {
     const w = standardWorld();
-    const cafe = build(w, def, 130, 60); // door at (131, 62)
+    // A tavern's door at (131, 62); a 3x3 workshop one row further north, its door there too.
+    const cafe = trade
+      ? insertBuilding(w, null, content.buildingById.get(def)!, 130, 59, 0, 0, { site: false, trade })
+      : build(w, def, 130, 60);
     paint(w, 'lane', 126, 62, 136, 62);
     paint(w, 'lane', 133, 56, 133, 61); // a corner at (133, 62)
     const seats = [decor(w, 'bench', 129, 61), decor(w, 'bench', 132, 59)];
@@ -85,7 +89,9 @@ describe('Corner Cafe', () => {
     const sites = detect(s.w, 'corner-cafe');
     expect(sites).toHaveLength(1);
     expect(sites[0]!.members).toEqual(expect.arrayContaining([s.cafe.id, ...s.seats, s.flowers]));
-    expect(detect(scene('bakery').w, 'corner-cafe')).toHaveLength(1);
+    // R1: a baker's business is a cafe as the bakery was.
+    expect(detect(scene('workshop', 'baker').w, 'corner-cafe')).toHaveLength(1);
+    expect(detect(scene('workshop', 'weaver').w, 'corner-cafe')).toHaveLength(0);
   });
 
   it('needs the corner, two seats, flowers and a cafe', () => {

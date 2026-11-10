@@ -5,7 +5,14 @@ import { base64ToBytes, bytesToBase64, bytesToWords, wordsToBytes } from '../src
 import { createWorld, defaultSettings } from '../src/state/create';
 import { fnv64Hex, hashState } from '../src/state/hash';
 import { deserialize, serialize } from '../src/state/serialize';
-import { migrateSave, SAVE_VERSION, type Migration, type SaveObject } from '../src/state/version';
+import {
+  checkSaveVersion,
+  migrateSave,
+  OldValleyError,
+  SAVE_VERSION,
+  type Migration,
+  type SaveObject,
+} from '../src/state/version';
 import { worldIndex } from '../src/state/worldIndex';
 import { flatWorld, run } from './helpers';
 
@@ -93,9 +100,10 @@ describe('serialize', () => {
     expect(hashState(back)).toBe(hashState(w));
   });
 
-  it('refuses saves from the future and broken layers', () => {
-    expect(() => migrateSave({ saveVersion: SAVE_VERSION + 1 })).toThrow(/newer/);
-    expect(() => migrateSave({} as SaveObject)).toThrow(/saveVersion/);
+  it('refuses saves from the future, from before the fresh start and without a version', () => {
+    expect(() => checkSaveVersion({ saveVersion: SAVE_VERSION + 1 })).toThrow(/newer/);
+    expect(() => checkSaveVersion({ saveVersion: 5 })).toThrow(OldValleyError);
+    expect(() => checkSaveVersion({} as SaveObject)).toThrow(/saveVersion/);
   });
 });
 

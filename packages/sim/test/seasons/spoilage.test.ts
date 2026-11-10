@@ -7,7 +7,7 @@ import { villageFixture } from '../fixtures/village';
 
 const FISH = content.goodIndex.get('fish')!;
 const BREAD = content.goodIndex.get('bread')!;
-const WHEAT = content.goodIndex.get('wheat')!;
+const GRAIN = content.goodIndex.get('grain')!;
 
 function clear(state: ReturnType<typeof villageFixture>['state'], g: number): void {
   for (const b of state.buildings)
@@ -38,8 +38,8 @@ describe('spoilage', () => {
     expect(bakery.rt!.output[FISH]).toBe(200 - Math.floor((loss * 200) / 400));
     expect(store.rt!.store[FISH]).toBe(200 - (Math.floor((loss * 200) / 400) >> 1));
     expect(lost[FISH]).toBeGreaterThan(0);
-    // Wheat never spoils.
-    expect(lost[WHEAT]).toBe(0);
+    // Grain never spoils.
+    expect(lost[GRAIN]).toBe(0);
   });
 
   it('a town eating what it makes loses nothing, and pantries never spoil', () => {

@@ -122,7 +122,7 @@ function statusLines(state: WorldState, b: Building, def: BuildingDef | undefine
     const grain = short.some(([g]) => g === 'grain') && !anyGoldenWheat(state);
     out.push(
       grain
-        ? `Waiting for ${names}: the first of it ripens in summer, so the sails rest until then`
+        ? `Waiting for ${names}: the first of it ripens in summer, so the ovens rest until then`
         : `Waiting for ${names}`,
     );
   }

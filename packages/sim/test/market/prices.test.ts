@@ -94,37 +94,38 @@ describe('the daily market pass', () => {
   it('raises a short good and lowers a glut, with cover and history', () => {
     const { state } = villageFixture();
     const bread = good('bread');
-    const logs = good('logs');
-    // Bread: wanted 40 a day, 12 on the shelves (0.1 of the target cover). Logs: nobody asks.
+    const timber = good('timber');
+    // Bread: wanted 40 a day, short on the shelves. Timber: nobody asks.
     state.market.prices[bread] = content.goods[bread]!.basePrice;
     state.market.demand[bread] = 40;
-    state.market.demand[logs] = 0;
+    state.market.demand[timber] = 0;
     state.economy.yesterday.consumed.fill(0);
     const stock = townStock(state);
     updatePrices(state);
     expect(state.market.cover[bread]).toBe(coverOf(stock[bread]!, 40));
     expect(state.market.prices[bread]).toBeGreaterThan(content.goods[bread]!.basePrice);
-    expect(state.market.prices[logs]).toBeLessThan(content.goods[logs]!.basePrice);
+    expect(state.market.prices[timber]).toBeLessThan(content.goods[timber]!.basePrice);
   });
 
   it('reads demand as what households wanted or the town used, whichever is more', () => {
     const { state } = villageFixture();
-    const planks = good('planks');
-    state.market.demand[planks] = 0;
-    state.economy.yesterday.consumed[planks] = 200;
+    const timber = good('timber');
+    state.market.demand[timber] = 0;
+    state.economy.yesterday.consumed[timber] = 200;
     updatePrices(state);
-    expect(state.market.cover[planks]).toBe(coverOf(townStock(state)[planks]!, 200));
-    expect(state.market.prices[planks]).toBeGreaterThan(content.goods[planks]!.basePrice);
+    expect(state.market.cover[timber]).toBe(coverOf(townStock(state)[timber]!, 200));
+    expect(state.market.prices[timber]).toBeGreaterThan(content.goods[timber]!.basePrice);
   });
 
   it('lets a good nobody makes or wants drift back to base', () => {
     const { state } = villageFixture();
-    const tools = good('tools');
-    const base = content.goods[tools]!.basePrice;
-    state.market.prices[tools] = base * 2;
-    state.market.demand[tools] = 0;
+    // Cider: no cider maker in the village and none in store.
+    const cider = good('cider');
+    const base = content.goods[cider]!.basePrice;
+    state.market.prices[cider] = base * 2;
+    state.market.demand[cider] = 0;
     for (let d = 0; d < 30; d++) updatePrices(state);
-    expect(state.market.prices[tools]).toBe(base);
+    expect(state.market.prices[cider]).toBe(base);
   });
 
   it('runs at 00:10 once the market is open: prices move, history grows, market.updated goes out', () => {
