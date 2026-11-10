@@ -31,8 +31,9 @@ A business looks like its trade and its level: a baker's workshop smells of brea
 2. **Levels drawn**: level 1, 2 and 3 a bigger yard, a painted sign with the keeper's family name, goods out front (17-presentation.md and 13-ledger.md, "Levels are drawn"); never a different footprint.
 3. **New kits**: the Brickworks (clay pit and kiln in one, on clay), the Granary, the Market Square (six stalls, 3x3; Odette's finale roofs it into the Market Hall later), and the Forester's Lodge (the old woodcutter, forester and chopping shed in one), each with its registry line.
 4. **The reach ring** is an overlay (V2's path): if R1C asks for one, agree the API with V2 rather than drawing it in the buildings layer.
-5. The gallery shows every trade at every level and the four new kits: `apps/gallery` is V2's path, so add one section through the gallery's existing registry and list it in your PR.
-6. Budgets: `22-quality.md` (the frame budget on Medium; the buildings layer's draws within V1's numbers). Measure the village scene before and after.
+5. Turn back on the two render tests R1.0 skipped for you (`render/hamlet.test.ts`, pile levels and a plot's growth; `render/village.test.ts`, what a craft makes and the orchard's season; wave notes, Skipped and deleted tests), rewritten for trades: a market garden's growth, a baker's look, an orchard farmstead's season.
+6. The gallery shows every trade at every level and the four new kits: `apps/gallery` is V2's path, so add one section through the gallery's existing registry and list it in your PR.
+7. Budgets: `22-quality.md` (the frame budget on Medium; the buildings layer's draws within V1's numbers). Measure the village scene before and after.
 
 ## Acceptance criteria
 

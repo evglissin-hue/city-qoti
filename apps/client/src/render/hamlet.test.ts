@@ -35,7 +35,9 @@ const rt = (over: Partial<NonNullable<BuildingView['rt']>> = {}): NonNullable<Bu
 });
 
 describe('building variants', () => {
-  it('turn runtime stock, output and growth into pile levels', () => {
+  // R1.0: the vegetable plot left content (docs/build/r1-wave-notes.md); R1E draws trades and turns
+  // this back on with a market garden's growth.
+  it.skip('turn runtime stock, output and growth into pile levels', () => {
     const p = buildingParams(
       view({
         rt: rt({
@@ -87,7 +89,10 @@ describe('overlays', () => {
   it('estimate flows from runtimes when the sim sends none', () => {
     const m = new Mirror();
     m.buildings.set(1, view({ id: 1, def: 'storehouse', x: 0, z: 0, rt: rt() }));
-    m.buildings.set(2, view({ id: 2, def: 'woodcutter', x: 8, z: 0, rt: rt({ output: [['logs', 6]] }) }));
+    m.buildings.set(
+      2,
+      view({ id: 2, def: 'foresters-lodge', x: 8, z: 0, rt: rt({ output: [['timber', 6]] }) }),
+    );
     m.buildings.set(3, view({ id: 3, def: 'market-stall', x: 0, z: 8, rt: rt() }));
     const flows = flowsOf(m);
     expect(flows).toContainEqual([2, 1, 6]);

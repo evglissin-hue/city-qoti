@@ -79,7 +79,9 @@ describe('stand-in defs', () => {
 });
 
 describe('grown building params', () => {
-  it('carry the district style, what a craft makes, the season and an upgrade', () => {
+  // R1.0: the bakery and orchard defs left content; a business's look comes from BuildingView.trade.
+  // R1E draws trades and turns this back on (docs/build/r1-wave-notes.md).
+  it.skip('carry the district style, what a craft makes, the season and an upgrade', () => {
     expect(buildingParams(view({ style: 'brick' })).style).toBe('brick');
     const bakery = buildingParams(view({ def: 'bakery', rt: rt({ method: 'bake-bread' }) }));
     expect(bakery.make).toBe('bread');
