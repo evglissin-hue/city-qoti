@@ -2,7 +2,7 @@ import { content } from '@qoti/content';
 import type { BudgetLine, BuildingView } from '@qoti/sim';
 import { useState } from 'preact/hooks';
 import type { Session } from '../../app/session';
-import { buildingName, coinCount, coins, goodName } from '../format';
+import { coinCount, coins, goodName, placeName } from '../format';
 import { GoodIcon } from '../goodIcons';
 import { statusWords } from '../hamlet';
 import type { ReportTab } from '../state';
@@ -120,7 +120,9 @@ export function Stocks({ session }: { session: Session }) {
           })}
         </tbody>
       </table>
-      <p class="muted small foot">The carrier calls at the valley gate at 10:00, by the Ledger&apos;s terms.</p>
+      <p class="muted small foot">
+        The carrier calls at the valley gate at 10:00, by the Ledger&apos;s terms.
+      </p>
     </>
   );
 }
@@ -131,7 +133,7 @@ export function Workforce({ session }: { session: Session }) {
   void m.hamletRevision.value;
   const rows = [...m.buildings.values()]
     .filter((b) => (b.rt?.jobs ?? 0) > 0 && b.stage === 'built')
-    .sort((a, b) => buildingName(a.def).localeCompare(buildingName(b.def)) || a.id - b.id);
+    .sort((a, b) => placeName(a).localeCompare(placeName(b)) || a.id - b.id);
   const jobs = rows.reduce((n, b) => n + b.rt!.jobs, 0);
   const filled = rows.reduce((n, b) => n + b.rt!.workers, 0);
   const idle = [...m.residents.values()].filter(
@@ -158,7 +160,7 @@ export function Workforce({ session }: { session: Session }) {
         <tbody>
           {rows.map((b) => (
             <tr key={b.id} class="clickable" onClick={() => select(session, b)}>
-              <th scope="row">{buildingName(b.def)}</th>
+              <th scope="row">{placeName(b)}</th>
               <td class="num">
                 {b.rt!.workers}/{b.rt!.jobs}
               </td>
@@ -268,7 +270,7 @@ export function Buildings({ session }: { session: Session }) {
       {rows.map(({ b, words }) => (
         <li key={b.id}>
           <button type="button" onClick={() => select(session, b)}>
-            <strong>{buildingName(b.def)}</strong>
+            <strong>{placeName(b)}</strong>
             <span class="muted">{words.join(', ')}</span>
           </button>
         </li>

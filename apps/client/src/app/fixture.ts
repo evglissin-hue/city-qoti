@@ -95,7 +95,7 @@ export async function overlayMocks(session: Session): Promise<void> {
 
 /**
  * I2 (C4F): the village mocks over the live village fixture: a story under way with its letters,
- * the couple, a caravan and the trade log, an innovation halfway. With `charter`, an in-progress
+ * the couple, the trade log, an innovation halfway. With `charter`, an in-progress
  * Charter board (the fixture is already a Village, and no Town Charter exists in I2).
  */
 export async function overlayVillageMocks(session: Session, opts: { charter?: boolean } = {}): Promise<void> {

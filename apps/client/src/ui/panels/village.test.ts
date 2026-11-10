@@ -1,13 +1,13 @@
 // @vitest-environment happy-dom
 // I2 (C4F): the village panels against the village mocks (the sim's village fixture through the
-// sim's own view builders, plus a story under way, a caravan and a Charter board in progress).
+// sim's own view builders, plus a story under way, a trade log and a Charter board in progress).
 import { content } from '@qoti/content';
 import { TICKS_PER_DAY, type Command } from '@qoti/sim';
 import { h } from 'preact';
 import { afterEach, describe, expect, it } from 'vitest';
-import { mockCharter, mockLetters, mockLoans, mockTrade, villageIds } from '../mocks/village';
+import { mockCharter, mockLetters, mockLoans, villageIds } from '../mocks/village';
 import { mockVillageSession } from '../mocks/session';
-import { button, mount, settle, typeInto, type Mounted } from '../test/dom';
+import { mount, settle, typeInto, type Mounted } from '../test/dom';
 import { CharterPanel } from './Charter';
 import { InspectorPanel } from './Inspector';
 import { LettersPanel } from './Letters';
@@ -76,47 +76,25 @@ describe('trade', () => {
     for (const n of content.neighbors) expect(view.get(`neighbor-${n.id}`).textContent).toContain(n.name);
     const millhaven = view.get('neighbor-millhaven').textContent ?? '';
     expect(millhaven).toContain('They sell');
-    expect(millhaven).toContain('Wheat');
-    expect(millhaven).toContain('Planks');
+    expect(millhaven).toContain('Grain');
+    expect(millhaven).toContain('Wool');
   });
 
-  it('edits, adds and drops standing orders', async () => {
-    const { session, submitted } = mockVillageSession();
-    session.ui.tradeTab.value = 'orders';
-    view = await mount(h(TradePanel, { session }));
-    const order = mockTrade.orders[0]!;
-    expect(view.get(`order-${order.good}`).textContent).toContain(`Keep ${order.min} to ${order.max}`);
-    await view.click(button(view.get(`order-${order.good}`), 'Change'));
-    await view.click('order-max-more');
-    await view.click('order-save');
-    expect(last(submitted, 'trade.setStandingOrder')).toMatchObject({
-      good: order.good,
-      order: { min: order.min, max: order.max + 5 },
-    });
-    await view.click(button(view.get(`order-${order.good}`), 'Change'));
-    await view.click('order-remove');
-    expect(last(submitted, 'trade.setStandingOrder')).toEqual({
-      t: 'trade.setStandingOrder',
-      good: order.good,
-      order: null,
-    });
-
-    await view.click('order-add');
-    await view.click('order-good-wool');
-    await view.click('order-min-more');
-    await view.click('order-save');
-    expect(last(submitted, 'trade.setStandingOrder')).toMatchObject({ good: 'wool', order: { min: 5 } });
-  });
-
-  it('follows caravans on the road and keeps the ledger of deals', async () => {
+  it('keeps the trade log, newest first', async () => {
     const { session } = mockVillageSession();
-    session.ui.tradeTab.value = 'caravans';
+    session.ui.tradeTab.value = 'log';
     view = await mount(h(TradePanel, { session }));
-    const caravan = mockTrade.caravans[0]!;
-    expect(view.get(`caravan-${caravan.id}`).textContent).toContain('To Stonecross');
-    const log = view.get('trade-log').textContent ?? '';
-    expect(log).toContain('Sold 20 planks');
-    expect(log).toContain('Bought 8');
+    const log = view.get('trade-log-table').textContent ?? '';
+    expect(log).toContain('Sold 20 vegetables');
+    expect(log).toContain('Bought 8 wool');
+  });
+
+  it('offers no standing orders, deals or caravans any more (R1: the carrier trades)', async () => {
+    const { session } = mockVillageSession();
+    view = await mount(h(TradePanel, { session }));
+    for (const gone of ['trade-orders', 'trade-deals', 'trade-caravans']) expect(view.find(gone)).toBeNull();
+    expect(view.find('trade-neighbors')).not.toBeNull();
+    expect(view.find('trade-log')).not.toBeNull();
   });
 });
 

@@ -161,10 +161,10 @@ export function buildingTool(ctx: ToolContext): Tool {
       : check.reason === 'NEEDS_WOODS' && trees
         ? trees
         : check.reason === 'NEEDS_DEPOSIT' && where
-        ? (DEPOSIT_HINT[where] ?? rejectText(check.reason))
-        : check.reason === 'TOO_STEEP'
-          ? `${rejectText(check.reason)} ${INPUT_COPY.earthSteep(levelingCoins(ctx.mirror, def, x, z, rot))}`
-          : rejectText(check.reason);
+          ? (DEPOSIT_HINT[where] ?? rejectText(check.reason))
+          : check.reason === 'TOO_STEEP'
+            ? `${rejectText(check.reason)} ${INPUT_COPY.earthSteep(levelingCoins(ctx.mirror, def, x, z, rot))}`
+            : rejectText(check.reason);
     // Playtest round five: nobody found R, so the cursor always says how to turn the building.
     cursorHint(why ? `${why} ${INPUT_COPY.turnHint}` : INPUT_COPY.turnHint, cx, cy);
     return { def, x, z, check };

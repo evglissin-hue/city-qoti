@@ -36,7 +36,8 @@ function placementLine(def: BuildingDef): string | null {
     if (r.kind === 'woods') return `Wants ${r.trees} grown trees within ${r.within} tiles`;
     if (r.kind === 'river') return "Wants its door on the river's edge";
     if (r.kind === 'openGround') return `Wants open ground, no building within ${r.clear} tiles`;
-    if (r.kind === 'road') return r.roads ? 'Wants a lane or a street at the door' : 'Wants a road at the door';
+    if (r.kind === 'road')
+      return r.roads ? 'Wants a lane or a street at the door' : 'Wants a road at the door';
     if (r.kind === 'valleyRoad') return `Wants to be within ${r.within} tiles of the valley road`;
   }
   return null;

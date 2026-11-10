@@ -397,9 +397,7 @@ function BuildCard({
               {!free && d.housing ? `, homes ${d.housing.residents}` : ''}
             </span>
             <CostLine coins={d.cost?.coins} goods={d.cost?.goods} free={free} />
-            {!free && d.upkeep ? (
-              <span class="upkeep muted">{d.upkeep} a day to keep</span>
-            ) : null}
+            {!free && d.upkeep ? <span class="upkeep muted">{d.upkeep} a day to keep</span> : null}
           </>
         )}
       </span>

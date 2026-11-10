@@ -3,6 +3,7 @@
 // names and numbers match the live ?debug&fixture=winter and =raid valleys exactly. On top: a little
 // history the fixtures cannot have yet (a season report, a festival result, a raid's card, a
 // commission and a boat, a guide step). C5F builds the I3 pages against these first.
+import { content } from '@qoti/content';
 import {
   buildView,
   commissionView,
@@ -49,7 +50,7 @@ const dusk = raidAtDusk();
 // History the fixtures lack: a commission offered, a boat moored before the ice, a captive.
 w.commissions.list.push({
   id: w.nextId++,
-  def: 'millhaven-coats',
+  def: 'millhaven-furniture',
   from: 'millhaven',
   status: 'offered',
   offeredTick: w.tick - 4800,
@@ -59,8 +60,8 @@ w.commissions.list.push({
 w.dock.boats.push({
   id: w.nextId++,
   neighbor: 'millhaven',
-  selling: [[0, 20]],
-  buying: [[5, 10]],
+  selling: [[content.goodIndex.get('grain')!, 20]],
+  buying: [[content.goodIndex.get('bread')!, 10]],
   arriveTick: w.tick - 9600,
   departTick: w.tick - 4800,
   tile: -1,

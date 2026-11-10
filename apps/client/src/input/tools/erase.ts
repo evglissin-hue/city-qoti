@@ -1,5 +1,6 @@
 import { content } from '@qoti/content';
 import { footprintTiles, MAP_SIZE } from '@qoti/sim';
+import { placeName } from '../../ui/format';
 import type { ToolContext } from '../context';
 import { INPUT_COPY } from '../copy';
 import { removeWithCare } from '../removal';
@@ -54,7 +55,7 @@ export function eraseTool(ctx: ToolContext): Tool {
       const b = ctx.mirror.buildings.get(hit.id);
       // I1: a building the partner customized is handmade too: ask first, and tell them.
       if (b) {
-        const thing = content.buildingById.get(b.def)?.name.toLowerCase() ?? INPUT_COPY.piece;
+        const thing = content.buildingById.has(b.def) ? placeName(b).toLowerCase() : INPUT_COPY.piece;
         const piece = { builtBy: b.builtBy, handmade: b.handmade, thing, x: b.x, z: b.z, building: true };
         await removeWithCare(ctx, piece, { t: 'build.remove', ids: [b.id] });
       }

@@ -2,9 +2,17 @@
 // shortages, idle buildings and lean times; the Hearth about new wishes, pattern hints and letters.
 // Derived from the Mirror each time, so they clear themselves when the trouble does.
 import { content } from '@qoti/content';
-import { BuildingStatus, calendar, TICKS_PER_DAY, TIERS, type Lens, type LetterView } from '@qoti/sim';
+import {
+  BuildingStatus,
+  calendar,
+  methodOf,
+  TICKS_PER_DAY,
+  TIERS,
+  type Lens,
+  type LetterView,
+} from '@qoti/sim';
 import type { Mirror } from '../state/mirror';
-import { buildingName, goodName, seatLabel } from './format';
+import { goodName, placeName, seatLabel } from './format';
 import { IDLE_BITS, statusWords, TIER_WORD } from './hamlet';
 import { letterKey } from './letters';
 import { askText } from './panels/Requests';
@@ -92,12 +100,11 @@ export function computeAlerts(
   for (const b of m.buildings.values()) {
     const bits = b.rt?.status ?? 0;
     if (b.stage !== 'built' || !(bits & IDLE_BITS)) continue;
-    const def = content.buildingById.get(b.def);
     if (bits & BuildingStatus.missingInput) {
-      for (const [good] of def?.methods?.[0]?.inputs ?? []) {
+      for (const [good] of methodOf(b)?.inputs ?? []) {
         if ((stockOf.get(good) ?? 0) > 0) continue;
         const list = short.get(good) ?? [];
-        list.push(buildingName(b.def).toLowerCase());
+        list.push(placeName(b).toLowerCase());
         short.set(good, list);
       }
     }
@@ -106,7 +113,7 @@ export function computeAlerts(
       lens: 'ledger',
       tone: 'quiet',
       icon: 'status',
-      text: `${buildingName(b.def)}: ${statusWords(bits & IDLE_BITS)
+      text: `${placeName(b)}: ${statusWords(bits & IDLE_BITS)
         .join(', ')
         .toLowerCase()}.`,
       action: { kind: 'building', id: b.id },

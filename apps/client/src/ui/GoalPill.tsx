@@ -50,11 +50,7 @@ export function nextGoal(c: CharterView): CharterView['goals'][number] | null {
 }
 
 /** What the pill says, from the Charter and the trial. Pure, so it can be tested. */
-export function goalLine(
-  c: CharterView | null,
-  trial: TrialView | null,
-  tick: number,
-): GoalLine | null {
+export function goalLine(c: CharterView | null, trial: TrialView | null, tick: number): GoalLine | null {
   if (!c) return null;
   if (c.next) {
     const done = c.goals.filter((g) => g.done).length;
@@ -141,8 +137,7 @@ export function GoalPill({ session }: { session: Session }) {
   const m = session.mirror;
   const line = goalLine(m.charter.value, m.trial.value, m.tick.value);
   if (!line) return null;
-  const open =
-    line.opens === 'chapter' ? session.ui.chapter.value : session.ui.panel.value === line.opens;
+  const open = line.opens === 'chapter' ? session.ui.chapter.value : session.ui.panel.value === line.opens;
   const title = [line.text + (line.count ? ` (${line.count})` : ''), ...line.detail].join('\n');
   return (
     <button
