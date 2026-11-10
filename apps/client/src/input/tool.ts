@@ -47,7 +47,7 @@ export interface Tool {
   modes?: readonly ('sandbox' | 'standard')[];
   /**
    * Playtest round six addition: true while the tool has nothing to work on yet, so the toolbar
-   * leaves it out (the Fields tool before there is a farmhouse).
+   * leaves it out (the Fields tool before there is a grain farm).
    */
   hidden?(): boolean;
   /** Playtest addition: the overlay the tool shows while out (the toolbar's own waits), if any. */

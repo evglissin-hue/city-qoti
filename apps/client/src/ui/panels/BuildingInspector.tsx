@@ -4,8 +4,7 @@ import type { BuildingDetail, BuildingView } from '@qoti/sim';
 import { useState } from 'preact/hooks';
 import type { Session } from '../../app/session';
 import { removeWithCare } from '../../input/removal';
-import { decorBoostLine } from '../decorText';
-import { buildingName, capital, coins, seatLabel } from '../format';
+import { buildingName, capital, coins, placeName, seatLabel } from '../format';
 import { rejectText } from '../messages';
 import { CATEGORY_WORD, CONSTRUCTION_STAGES, statusWords, TIER_WORD } from '../hamlet';
 import { zoneInk } from '../village';
@@ -33,7 +32,12 @@ export function BuildingInspector({ session, id }: { session: Session; id: numbe
   // The worker's words when it has any; the status bits the Mirror holds otherwise.
   const status = detail?.status.length ? detail.status : statusWords(rt?.status ?? 0);
   const household = detail?.household ?? findHousehold(session, b);
-  const kicker = site ? 'Construction site' : (CATEGORY_WORD[def?.category ?? ''] ?? 'Building');
+  // R1: a business (a farmstead, workshop or shop with a trade) says so, whatever its building.
+  const kicker = site
+    ? 'Construction site'
+    : b.trade
+      ? 'Business'
+      : (CATEGORY_WORD[def?.category ?? ''] ?? 'Building');
   // P1 (playtest): a standard valley keeps its town hall, so it offers no Remove.
   const keepsHall = b.def === 'town-hall' && m.settings.value.mode === 'standard';
 
@@ -42,10 +46,10 @@ export function BuildingInspector({ session, id }: { session: Session; id: numbe
       id="building-inspector"
       class="inspector-panel building"
       kicker={kicker}
-      title={signTitle(b) ?? def?.name ?? b.def}
+      title={signTitle(b) ?? placeName(b)}
       onClose={close}
     >
-      {signTitle(b) && <p class="muted subtitle">{def?.name}</p>}
+      {signTitle(b) && <p class="muted subtitle">{placeName(b)}</p>}
       {rt && (
         <p class={`status-line ${status.length ? 'warn' : 'ok'}`} data-testid="building-status">
           <i class="status-dot" />
@@ -348,44 +352,44 @@ function VillageDetail({ session, detail }: { session: Session; detail: Building
           A {TIER_WORD[detail.tier]?.toLowerCase() ?? detail.tier} home.
         </p>
       )}
-      {detail.decorBoost && (
-        <p class="small decor-boost" data-testid="building-decor-boost">
-          {decorBoostLine(detail.decorBoost.permille, detail.decorBoost.pieces)}
-        </p>
-      )}
       {detail.upgrade && (
         <div class="upgrade" data-testid="building-upgrade">
           <Heading>Becoming a {buildingName(detail.upgrade.to).toLowerCase()}</Heading>
           <GoodList items={detail.upgrade.waiting} empty="Everything has arrived; the builders are on it." />
         </div>
       )}
-      {detail.methods && detail.methods.length > 1 && (
-        <div class="pin-recipe" data-testid="pin-recipe">
-          <Heading>Makes</Heading>
-          <div class="dial small village-dial" role="radiogroup" aria-label="Recipe">
+      {detail.trades && detail.trades.length > 0 && (
+        // R1.0 stand-in: R1C's Businesses book designs the real one.
+        <div class="pin-recipe" data-testid="pin-trade">
+          <Heading>Trade</Heading>
+          <div class="dial small village-dial" role="radiogroup" aria-label="Trade">
             <button
               type="button"
               role="radio"
               aria-checked={!detail.pinned}
               class={!detail.pinned ? 'active' : ''}
-              title="Whatever the market is shortest of"
-              onClick={() => session.submit({ t: 'build.pinRecipe', id: b.id, method: null })}
+              title="It picks whatever the town is short of"
+              data-testid="pin-none"
+              onClick={() => session.submit({ t: 'build.pinRecipe', id: b.id, trade: null })}
             >
-              Whatever is short
+              Its own choice
             </button>
-            {detail.methods.map((mt) => (
-              <button
-                key={mt.id}
-                type="button"
-                role="radio"
-                aria-checked={detail.pinned === mt.id}
-                class={detail.pinned === mt.id ? 'active' : ''}
-                data-testid={`pin-${mt.id}`}
-                onClick={() => session.submit({ t: 'build.pinRecipe', id: b.id, method: mt.id })}
-              >
-                {mt.name}
-              </button>
-            ))}
+            {detail.trades.map((tr) => {
+              const on = !!detail.pinned && b.trade === tr.id;
+              return (
+                <button
+                  key={tr.id}
+                  type="button"
+                  role="radio"
+                  aria-checked={on}
+                  class={on ? 'active' : ''}
+                  data-testid={`pin-${tr.id}`}
+                  onClick={() => session.submit({ t: 'build.pinRecipe', id: b.id, trade: tr.id })}
+                >
+                  {tr.name}
+                </button>
+              );
+            })}
           </div>
         </div>
       )}

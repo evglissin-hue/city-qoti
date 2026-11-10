@@ -124,7 +124,7 @@ describe('lens toolbars', () => {
     expect(session.ui.panel.value).toBeNull();
 
     await view.click('lens-ledger');
-    // Playtest round six: Fields waits for a farmhouse (the mock valley has none). C5X: walls show
+    // Playtest round six: Fields waits for a grain farm (the mock valley has none). C5X: walls show
     // now that C5D opened the defense pieces (the mock valley is a Village).
     expect(ids(view.root, 'tool-')).toEqual([
       'lane',
@@ -190,25 +190,24 @@ describe('lens toolbars', () => {
     session.ui.lens.value = 'ledger';
     session.tools!.select('building');
     view = await mount(h(Toolbar, { session }));
-    expect(ids(view.root, 'group-')).toEqual(['homes', 'food', 'materials', 'services']);
+    expect(ids(view.root, 'group-')).toEqual(['homes', 'specialized', 'services']);
     const cottage = view.get('variant-cottage');
     expect(cottage.textContent).toContain('20');
-    expect(cottage.textContent).toContain('16 planks');
+    expect(cottage.textContent).toContain('16 timber');
     // Homes have no upkeep (C3X tuning), so the card shows none.
     expect(cottage.textContent).not.toContain('a day to keep');
-    await view.click('group-food');
-    // Playtest round six: food as chains; the steps the valley has not opened say what opens them.
+    await view.click('group-specialized');
+    // R1.0: the specialized buildings as plain cards until R1C's shelves; the chain rows are gone.
     expect(ids(view.root, 'variant-')).toEqual(
-      expect.arrayContaining(['bakery', 'farmhouse', 'fishers-hut', 'vegetable-plot', 'windmill']),
+      expect.arrayContaining(['foresters-lodge', 'quarry', 'fishery', 'windmill', 'granary', 'storehouse']),
     );
-    expect(view.get('building-chains')).toBeTruthy();
-    const bakery = view.get('variant-bakery');
-    if (bakery.classList.contains('locked')) expect(bakery.textContent).toContain('After a windmill');
-    await view.click('group-services');
-    expect(ids(view.root, 'variant-')).toContain('market-stall');
-    expect(ids(view.root, 'variant-')).not.toContain('town-hall');
+    expect(view.find('building-chains')).toBeNull();
+    expect(ids(view.root, 'variant-')).not.toContain('workshop');
     await view.click('variant-storehouse');
     expect(session.tools!.tool('building')!.variant!.value).toBe('storehouse');
+    await view.click('group-services');
+    expect(ids(view.root, 'variant-')).toContain('well');
+    expect(ids(view.root, 'variant-')).not.toContain('town-hall');
   });
 
   it('in a creative valley the picker says building is free and offers the sandbox pieces', async () => {

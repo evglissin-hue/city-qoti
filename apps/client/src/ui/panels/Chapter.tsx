@@ -124,7 +124,7 @@ export function ChapterPanel({ session }: { session: Session }) {
 
         <h4 class="chapter-head">Found a new valley</h4>
         <p class="small">
-          Every valley&apos;s land is new: other hills, another river, different places to put the bakery.
+          Every valley&apos;s land is new: other hills, another river, different places to put the windmill.
           Yours stays right here, and you can come back to it.
         </p>
         <div class="actions">

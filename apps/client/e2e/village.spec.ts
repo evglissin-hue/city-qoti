@@ -30,15 +30,14 @@ test('every village panel opens and works against a live village', async ({ page
   await page.getByTestId('price-bread').click();
   await expect(page.getByTestId('good-card')).toContainText('Households wanted');
   await page.getByTestId('market-profit').click();
-  await expect(page.getByTestId('profit')).toContainText('Bakery');
+  // R1: the fixture's bakery is a workshop business keeping the baker's trade.
+  await expect(page.getByTestId('profit')).toContainText('Baker');
+  // R1.0: the Deals, Orders and Caravans tabs are gone (the carrier trades); R1C rewrites this book.
   await page.getByTestId('book-trade').click();
-  await expect(page.getByTestId('deals-millhaven')).toContainText('Millhaven');
   await page.getByTestId('trade-neighbors').click();
   await expect(page.getByTestId('neighbor-millhaven')).toContainText('Millhaven');
-  await page.getByTestId('trade-orders').click();
-  await expect(page.getByTestId('order-planks')).toBeVisible();
-  await page.getByTestId('trade-caravans').click();
-  await expect(page.getByTestId('caravans')).toBeVisible();
+  await page.getByTestId('trade-log').click();
+  await expect(page.getByTestId('trade-ledger')).toBeVisible();
   await page.getByTestId('book-policies').click();
   await page.getByTestId('wage-110').click();
   await expect(page.getByTestId('wage-110')).toHaveAttribute('aria-checked', 'true');

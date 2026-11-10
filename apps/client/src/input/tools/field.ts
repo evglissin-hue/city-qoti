@@ -6,6 +6,7 @@ import {
   footprintTiles,
   MAP_SIZE,
   MAX_FIELD_TILES,
+  methodOf,
   PENNIES_PER_COIN,
   type BuildingView,
 } from '@qoti/sim';
@@ -21,17 +22,22 @@ const DEFAULT_RANGE = 6;
 export function soilWord(fertility: number): string {
   if (fertility >= 70) return 'Rich soil';
   if (fertility >= FIELD_GOOD_FERTILITY) return 'Good soil';
-  if (fertility >= FIELD_MIN_FERTILITY) return 'Thin soil: the wheat will take its time';
-  return 'Too stony for wheat';
+  if (fertility >= FIELD_MIN_FERTILITY) return 'Thin soil: the grain will take its time';
+  return 'Too stony for grain';
 }
 
-/** Field tiles a farmhouse can tend: within its method's range of the footprint (square reach). */
+/** R1: a grain farm, the business whose fields the tool paints (its trade, or a farm method). */
+export function isGrainFarm(b: Pick<BuildingView, 'def' | 'trade'>): boolean {
+  return b.trade === 'grain-farm' || methodOf(b)?.kind === 'farm';
+}
+
+/** Field tiles a grain farm can tend: within its method's range of the footprint (square reach). */
 export function fieldReach(b: BuildingView): {
   tiles: [number, number][];
   contains(x: number, z: number): boolean;
 } {
   const def = content.buildingById.get(b.def);
-  const range = def?.methods?.find((m) => m.kind === 'farm')?.range ?? DEFAULT_RANGE;
+  const range = methodOf(b)?.range ?? DEFAULT_RANGE;
   const foot = def ? footprintTiles(def, b.x, b.z, b.rot) : [[b.x, b.z] as [number, number]];
   const xs = foot.map(([x]) => x);
   const zs = foot.map(([, z]) => z);
@@ -45,7 +51,7 @@ export function fieldReach(b: BuildingView): {
 }
 
 /**
- * Wheat fields for a farmhouse (Ledger, standard valleys): pick a farmhouse, then drag a box to
+ * Grain fields for a grain farm (Ledger, standard valleys): pick a grain farm, then drag a box to
  * paint fertile tiles within its reach. Shift+drag clears fields. The reach shows while painting.
  */
 export function fieldTool(ctx: ToolContext): Tool {
@@ -58,7 +64,7 @@ export function fieldTool(ctx: ToolContext): Tool {
   const farm = (): BuildingView | null => {
     const id = ctx.ui.farm?.() ?? null;
     const b = id !== null ? ctx.mirror.buildings.get(id) : undefined;
-    return b && b.def === 'farmhouse' ? b : null;
+    return b && isGrainFarm(b) ? b : null;
   };
 
   function showReach(): void {
@@ -70,7 +76,7 @@ export function fieldTool(ctx: ToolContext): Tool {
   function pickFarm(p: PointerInfo): boolean {
     const hit = ctx.render.pickEntity(p.clientX, p.clientY);
     const b = hit?.kind === 'building' ? ctx.mirror.buildings.get(hit.id) : undefined;
-    if (b?.def !== 'farmhouse') return false;
+    if (!b || !isGrainFarm(b)) return false;
     ctx.ui.setFarm?.(b.id);
     ctx.ui.select({ kind: 'building', id: b.id });
     showReach();
@@ -134,7 +140,7 @@ export function fieldTool(ctx: ToolContext): Tool {
       blocked
         ? rejectText(blocked)
         : good.length
-          ? `${good.length} ${good.length === 1 ? 'tile' : 'tiles'} of wheat, ${coins} ${coins === 1 ? 'coin' : 'coins'}${thin ? ` (${thin === good.length ? 'all' : thin} on thin soil, slower)` : ''}${bad.length && reason ? `. Some are not: ${reason.toLowerCase()}` : ''}`
+          ? `${good.length} ${good.length === 1 ? 'tile' : 'tiles'} of grain, ${coins} ${coins === 1 ? 'coin' : 'coins'}${thin ? ` (${thin === good.length ? 'all' : thin} on thin soil, slower)` : ''}${bad.length && reason ? `. Some are not: ${reason.toLowerCase()}` : ''}`
           : (reason ?? 'Nothing to plant here'),
       cx,
       cy,
@@ -146,20 +152,18 @@ export function fieldTool(ctx: ToolContext): Tool {
     lane: 'ledger',
     icon: '⁂',
     label: 'Fields',
-    hint: 'Pick a farmhouse, drag to sow, Shift+drag to clear',
+    hint: 'Pick a grain farm, drag to sow, Shift+drag to clear',
     order: 25,
     modes: ['standard'],
-    // Playtest round six: fields belong to a farmhouse; until one is going up, the tool waits.
-    hidden: () => ![...ctx.mirror.buildings.values()].some((b) => b.def === 'farmhouse'),
+    // Playtest round six: fields belong to a grain farm; until one has grown, the tool waits.
+    hidden: () => ![...ctx.mirror.buildings.values()].some(isGrainFarm),
     overlay: () => 'fields',
     enter() {
       const sel = ctx.ui.selection?.();
-      if (sel?.kind === 'building' && ctx.mirror.buildings.get(sel.id)?.def === 'farmhouse')
-        ctx.ui.setFarm?.(sel.id);
+      const picked = sel?.kind === 'building' ? ctx.mirror.buildings.get(sel.id) : undefined;
+      if (picked && isGrainFarm(picked)) ctx.ui.setFarm?.(picked.id);
       if (!farm()) {
-        const first = [...ctx.mirror.buildings.values()].find(
-          (b) => b.def === 'farmhouse' && b.stage === 'built',
-        );
+        const first = [...ctx.mirror.buildings.values()].find((b) => isGrainFarm(b) && b.stage === 'built');
         ctx.ui.setFarm?.(first?.id ?? null);
       }
       showReach();
@@ -178,7 +182,7 @@ export function fieldTool(ctx: ToolContext): Tool {
       ctx.render.setGhost({ kind: 'tiles', tiles: [[p.tile.x, p.tile.z]], valid: !!b });
       cursorHint(
         !b
-          ? 'Pick a farmhouse first: its fields go within reach of the door.'
+          ? 'Pick a grain farm first: its fields go within reach of the door.'
           : inReach
             ? soilWord(ctx.mirror.fertility(p.tile.x, p.tile.z))
             : null,
@@ -191,7 +195,7 @@ export function fieldTool(ctx: ToolContext): Tool {
       cy = p.clientY;
       if (pickFarm(p)) return;
       if (!farm()) {
-        ctx.ui.toast('Pick a farmhouse first. Fields need someone to tend them.');
+        ctx.ui.toast('Pick a grain farm first. Fields need someone to tend them.');
         return;
       }
       if (!p.tile) return;

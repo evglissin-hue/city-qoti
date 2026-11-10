@@ -7,55 +7,29 @@ import type { Mirror } from '../state/mirror';
 import { currentFestivalPlan } from '../ui/seasons';
 import { RANK_WORD, rankAtLeast } from '../ui/village';
 
-export type BuildingGroup = 'homes' | 'food' | 'materials' | 'services';
+export type BuildingGroup = 'homes' | 'specialized' | 'services';
 
 export const GROUP_LABEL: Record<BuildingGroup, string> = {
   homes: 'Homes',
-  food: 'Food',
-  materials: 'Materials',
+  specialized: 'Specialized',
   services: 'Services',
 };
 
-const GROUP_ORDER: BuildingGroup[] = ['homes', 'food', 'materials', 'services'];
+const GROUP_ORDER: BuildingGroup[] = ['homes', 'specialized', 'services'];
 
-/** Makes goods (or plants the trees others fell): a link in some production chain. */
+/** Makes goods (or fells the trees): the apiary and the specialized buildings that make something. */
 function isProducer(def: BuildingDef): boolean {
-  return (def.methods ?? []).some(
-    (m) => m.kind === 'plant' || m.outputs.some(([g]) => content.goodIndex.has(g)),
-  );
+  return (def.methods ?? []).some((m) => m.outputs.length > 0 || m.kind === 'fell' || m.kind === 'plant');
 }
-
-/** Serves the town rather than making goods: water, selling, schooling, a pint, a remedy. */
-function isService(def: BuildingDef): boolean {
-  return (def.coverage ?? []).some((c) => c.kind !== 'logistics') || !isProducer(def);
-}
-
-let chainGroups: Map<string, BuildingGroup> | null = null;
 
 /**
- * Playtest round six: producers are grouped by the chain they belong to, so a chain is never split
- * across tabs: one that ends in something folk eat is Food (bread, cider, cheese), the rest are
- * Materials (timber, bricks, cloth).
+ * R1.0 stand-in until R1C's three shelves (docs/spec/17-presentation.md, The Build picker): homes,
+ * the specialized buildings (with the apiary, which makes honey), then everything that serves.
  */
-function groupOfChain(def: BuildingDef): BuildingGroup {
-  if (!chainGroups) {
-    chainGroups = new Map();
-    const producers = content.buildings.filter(
-      (d) => d.category !== 'home' && !isService(d) && (!d.grows || !!d.grows.handPlaced),
-    );
-    for (const chain of chainsOf(producers)) {
-      const all = chain.columns.flat();
-      const food = all.some((d) => outputsOf(d).some((g) => content.goodById.get(g)?.food));
-      for (const d of all) chainGroups.set(d.id, food ? 'food' : 'materials');
-    }
-  }
-  return chainGroups.get(def.id) ?? 'materials';
-}
-
 export function buildingGroup(def: BuildingDef): BuildingGroup {
   if (def.category === 'home') return 'homes';
-  if (isService(def)) return 'services';
-  return groupOfChain(def);
+  if (def.specialized || isProducer(def)) return 'specialized';
+  return 'services';
 }
 
 /**
@@ -102,7 +76,7 @@ export function unlockedIds(m: Mirror): ReadonlySet<string> {
   return new Set(m.town.value?.unlocked ?? []);
 }
 
-export type DecorGroup = 'festival' | 'seats' | 'lights' | 'greenery' | 'water' | 'work' | 'odds';
+export type DecorGroup = 'festival' | 'seats' | 'lights' | 'greenery' | 'water' | 'odds';
 
 export const DECOR_GROUP_LABEL: Record<DecorGroup, string> = {
   festival: 'Festival',
@@ -110,15 +84,12 @@ export const DECOR_GROUP_LABEL: Record<DecorGroup, string> = {
   lights: 'Lights',
   greenery: 'Greenery',
   water: 'By the water',
-  work: 'For the work',
   odds: 'Odds and ends',
 };
 
-const DECOR_GROUP_ORDER: DecorGroup[] = ['festival', 'seats', 'lights', 'greenery', 'water', 'work', 'odds'];
+const DECOR_GROUP_ORDER: DecorGroup[] = ['festival', 'seats', 'lights', 'greenery', 'water', 'odds'];
 
 export function decorGroup(def: DecorDef): DecorGroup {
-  // P1 (player's chair): the pieces that help a workplace get a group of their own, not odds and ends.
-  if (def.boost) return 'work';
   const t = def.tags;
   if (t.includes('seat') && !t.includes('wall')) return 'seats';
   if (t.includes('light')) return 'lights';
@@ -235,85 +206,4 @@ export function buildingLock(m: Mirror, def: BuildingDef): BuildingLock | null {
     missing.push(count === 1 ? `a ${name}` : `${count} ${name}s (${have} so far)`);
   }
   return missing.length ? { kind: 'built', text: `After ${missing.join(' and ')}` } : null;
-}
-
-/**
- * Playtest round six: a group's buildings as production chains. Buildings that hand goods to each
- * other (one's output is another's input) share a chain; within it, columns run from the
- * buildings that start from nothing to the ones that finish the goods. Each step names the goods
- * that flow on to the next column.
- */
-export interface Chain {
-  /** Columns, first to last; each is the buildings at that step. */
-  columns: BuildingDef[][];
-  /** Goods flowing from column i to column i + 1. */
-  flows: string[][];
-  /** What the chain ends in, for its label: the goods its last column makes. */
-  makes: string[];
-}
-
-function outputsOf(d: BuildingDef): string[] {
-  return (d.methods ?? []).flatMap((m) => m.outputs.map(([g]) => g));
-}
-
-export function inputsOf(d: BuildingDef): string[] {
-  return (d.methods ?? []).flatMap((m) => m.inputs.map(([g]) => g));
-}
-
-export function chainsOf(defs: readonly BuildingDef[]): Chain[] {
-  // A forester feeds the woodcutters (it plants what they fell), though no goods change hands.
-  const plants = (d: BuildingDef) => (d.methods ?? []).some((m) => m.kind === 'plant');
-  const fells = (d: BuildingDef) => (d.methods ?? []).some((m) => m.kind === 'fell');
-  const supplies = (a: BuildingDef, b: BuildingDef) =>
-    a !== b && outputsOf(a).some((g) => inputsOf(b).includes(g));
-  const feeds = (a: BuildingDef, b: BuildingDef) => supplies(a, b) || (a !== b && plants(a) && fells(b));
-  // Connected groups, in the order their first building comes.
-  const seen = new Set<BuildingDef>();
-  const groups: BuildingDef[][] = [];
-  for (const d of defs) {
-    if (seen.has(d)) continue;
-    const group: BuildingDef[] = [];
-    const stack = [d];
-    seen.add(d);
-    while (stack.length) {
-      const x = stack.pop()!;
-      group.push(x);
-      for (const y of defs) {
-        if (seen.has(y) || !(feeds(x, y) || feeds(y, x))) continue;
-        seen.add(y);
-        stack.push(y);
-      }
-    }
-    groups.push(defs.filter((x) => group.includes(x)));
-  }
-  return groups.map((group) => {
-    // Step: the longest run of suppliers before a building (cycles are cut by the visit guard).
-    const depth = new Map<BuildingDef, number>();
-    const step = (d: BuildingDef, guard: Set<BuildingDef>): number => {
-      const known = depth.get(d);
-      if (known !== undefined) return known;
-      if (guard.has(d)) return 0;
-      guard.add(d);
-      let n = 0;
-      for (const s of group) if (supplies(s, d)) n = Math.max(n, step(s, guard) + 1);
-      // A forester stands beside the woodcutters it plants for.
-      if (plants(d)) for (const w of group) if (fells(w)) n = Math.max(n, step(w, guard));
-      guard.delete(d);
-      depth.set(d, n);
-      return n;
-    };
-    for (const d of group) step(d, new Set());
-    const last = Math.max(...group.map((d) => depth.get(d)!));
-    const columns: BuildingDef[][] = [];
-    for (let i = 0; i <= last; i++) columns.push(group.filter((d) => depth.get(d) === i));
-    const flows: string[][] = [];
-    for (let i = 0; i < last; i++) {
-      const goods = new Set<string>();
-      for (const a of columns[i]!)
-        for (const b of columns[i + 1]!)
-          for (const g of outputsOf(a)) if (inputsOf(b).includes(g)) goods.add(g);
-      flows.push([...goods]);
-    }
-    return { columns, flows, makes: [...new Set(columns[last]!.flatMap(outputsOf))] };
-  });
 }

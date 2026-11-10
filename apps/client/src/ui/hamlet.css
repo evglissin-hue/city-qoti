@@ -305,20 +305,14 @@ h4.flourish .muted {
   flex: none;
 }
 
-.good-logs {
-  --good: #8a6448;
-}
-.good-planks {
+.good-timber {
   --good: #d6b07a;
 }
 .good-stone {
   --good: #b9b1a3;
 }
-.good-wheat {
+.good-grain {
   --good: #e0b84a;
-}
-.good-flour {
-  --good: #f6efe0;
 }
 .good-bread {
   --good: #c98a4a;
@@ -2359,86 +2353,6 @@ ul.people-list {
   font-size: 0.86rem;
   color: rgba(90, 66, 49, 0.85);
   max-width: 640px;
-}
-
-/* Playtest round six: the Build picker's production chains. */
-.picker-chains {
-  display: grid;
-  gap: 6px;
-  max-height: calc(300px * var(--ui-scale));
-  overflow-y: auto;
-  scrollbar-width: thin;
-  padding-bottom: 2px;
-}
-
-.chain-row {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  padding: 3px 4px;
-  border-radius: 10px;
-  background: rgba(90, 66, 49, 0.04);
-}
-
-.chain-label {
-  flex: none;
-  width: 92px;
-  font-family: 'Alegreya', Georgia, serif;
-  font-weight: 700;
-  font-size: 0.86rem;
-  line-height: 1.1;
-  color: var(--ink-soft);
-}
-
-.chain-col {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-  align-items: center;
-}
-
-.chain-flow {
-  flex: none;
-  display: inline-flex;
-  align-items: center;
-  gap: 1px;
-  color: rgba(90, 66, 49, 0.55);
-}
-
-.chain-flow .good-icon {
-  width: 15px;
-  height: 15px;
-}
-
-.chain-flow .arrow {
-  font-size: 1.05rem;
-  margin-left: 1px;
-}
-
-.picker .card.compact {
-  width: auto;
-  min-width: 128px;
-  max-width: 190px;
-  padding: 3px 8px 3px 3px;
-}
-
-.picker .card.compact .thumb {
-  width: 40px;
-  height: 40px;
-}
-
-.picker .card.compact .thumb img {
-  width: 46px;
-  height: 46px;
-  margin-top: -5px;
-}
-
-.picker .card.compact.locked {
-  padding-right: 8px;
-  opacity: 0.62;
-  filter: saturate(0.4);
-  border-style: dashed;
-  cursor: help;
 }
 
 .picker .card.locked:disabled {

@@ -1,6 +1,6 @@
 // I3 (C5F): the Trade book's river pages. The River Dock (boats moored and expected, what they sell
 // and buy, a frozen notice in winter) and commissions (offers to accept or decline, progress and the
-// time left on the ones taken).
+// time left on the ones taken). R1.0 dropped the dock's own deals: the carrier trades now.
 import { content, type Reward } from '@qoti/content';
 import type { CommissionView } from '@qoti/sim';
 import type { Session } from '../../app/session';
@@ -8,7 +8,6 @@ import { goodName } from '../format';
 import { Glyph } from '../icons';
 import { inDays, neighborName } from '../seasons';
 import { Empty, Meter } from './parts';
-import { DealList } from './Deals';
 
 export function DockTab({ session }: { session: Session }) {
   const m = session.mirror;
@@ -54,20 +53,6 @@ export function DockTab({ session }: { session: Session }) {
           ))}
         </ul>
       )}
-      <h4 class="flourish">
-        <span>Deals by boat</span>
-      </h4>
-      <p class="intro muted small">
-        The same one-click deals as the post, for Millhaven only. The dock does the haggling; boats carry more
-        than carts and sail when the river is open.
-      </p>
-      <DealList
-        session={session}
-        neighborId="millhaven"
-        via="dock"
-        trade={m.trade.value}
-        off={!dock ? 'Build a River Dock first' : d?.frozen ? 'The river is frozen' : null}
-      />
     </div>
   );
 }

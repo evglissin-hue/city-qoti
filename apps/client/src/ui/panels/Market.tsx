@@ -1,8 +1,8 @@
 import { content } from '@qoti/content';
-import { MAX_SUBSIDY, type BuildingDetail, type MarketLine } from '@qoti/sim';
+import { MAX_SUBSIDY, methodOf, type BuildingDetail, type MarketLine } from '@qoti/sim';
 import { useEffect, useState } from 'preact/hooks';
 import type { Session } from '../../app/session';
-import { buildingName, goodName } from '../format';
+import { goodName, placeName } from '../format';
 import { GoodIcon } from '../goodIcons';
 import { Glyph } from '../icons';
 import { coverText, goodOrder, inPlay, MOOD_WORD, priceMood } from '../village';
@@ -108,7 +108,7 @@ function GoodCard({ session, line }: { session: Session; line: MarketLine }) {
   const good = content.goodById.get(line.good);
   const mood = priceMood(line.price, line.base);
   const history = [...line.history, line.price];
-  const food = !!good?.food;
+  const food = good?.family === 'food';
   const set = (cap: number, subsidy: number) =>
     session.submit({ t: 'ledger.setPriceCap', good: line.good, cap, subsidy });
   const capOn = line.cap > 0;
@@ -202,7 +202,8 @@ function useProfits(session: Session): ProfitRow[] | null {
     const load = async () => {
       const ids = [...m.buildings.values()]
         .filter((b) => b.stage === 'built' && (b.rt?.jobs ?? 0) > 0)
-        .filter((b) => content.buildingById.get(b.def)?.methods?.length)
+        // R1: a business works by its trade's method, a specialized building by its own.
+        .filter((b) => methodOf(b) !== null)
         .map((b) => b.id);
       const out: ProfitRow[] = [];
       for (const id of ids) {
@@ -244,7 +245,7 @@ export function Profit({ session }: { session: Session }) {
           return (
             <li key={r.id} class={r.perDay >= 0 ? 'gain' : 'loss'} data-testid={`profit-${r.id}`}>
               <button type="button" class="profit-row" onClick={() => setOpen(open === r.id ? null : r.id)}>
-                <span class="profit-name">{buildingName(r.def)}</span>
+                <span class="profit-name">{placeName(session.mirror.buildings.get(r.id) ?? r)}</span>
                 <span class="profit-bar" aria-hidden="true">
                   <i style={{ width: `${(share * 50).toFixed(1)}%` }} />
                 </span>

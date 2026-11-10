@@ -1,10 +1,11 @@
-import { content } from '@qoti/content';
+import { content, type GoodFamily } from '@qoti/content';
 import { signal } from '@preact/signals';
 import type { Session } from '../../app/session';
 import { goodName } from '../format';
 import { GoodIcon } from '../goodIcons';
 import { Glyph } from '../icons';
 import { goodPurpose } from '../purpose';
+import { FAMILY_WORD } from '../village';
 
 const KEY = 'qoti.stores.collapsed';
 
@@ -35,31 +36,14 @@ export function revealStores(session: Session): void {
   if (open && open !== 'stores') session.ui.panel.value = null;
 }
 
-type Group = 'food' | 'grain' | 'building' | 'home' | 'crafts';
-const GROUPS: { id: Group; title: string }[] = [
-  { id: 'food', title: 'Food' },
-  { id: 'grain', title: 'Grain and flour' },
-  { id: 'building', title: 'Building' },
-  { id: 'home', title: 'Hearth and home' },
-  { id: 'crafts', title: 'Crafts' },
-];
+/** R1.0 stand-in: the five families, in GOOD_FAMILIES order (R1C's Balances book does the rest). */
+const GROUPS: { id: GoodFamily; title: string }[] = (
+  ['food', 'fuel', 'materials', 'wares', 'treats'] as const
+).map((id) => ({ id, title: FAMILY_WORD[id] }));
 
-let costGoods: ReadonlySet<string> | null = null;
-/** Goods some building costs: what the Ledger builds with. */
-function buildingGoods(): ReadonlySet<string> {
-  costGoods ??= new Set(content.buildings.flatMap((b) => (b.cost?.goods ?? []).map(([g]) => g)));
-  return costGoods;
-}
-
-/** P1: food is what folk eat (the cover counts it), grain waits on the mill, fuel and treats keep house. */
-export function groupOf(good: string): Group {
-  const def = content.goodById.get(good);
-  if (!def) return 'crafts';
-  if (def.food) return 'food';
-  if (def.category === 'rawFood' || def.category === 'processed') return 'grain';
-  if (def.category === 'fuel' || def.category === 'treat') return 'home';
-  if (buildingGoods().has(good)) return 'building';
-  return 'crafts';
+/** The family a good's row sits under. */
+export function groupOf(good: string): GoodFamily {
+  return content.goodById.get(good)?.family ?? 'wares';
 }
 
 /**
@@ -102,7 +86,7 @@ export function StoresPanel({ session }: { session: Session }) {
   const sorted = [...lines].sort((a, b) => (order.get(a.good) ?? 99) - (order.get(b.good) ?? 99));
   const held = sorted.filter((l) => l.stock > 0 || l.producedToday > 0 || l.consumedToday > 0);
   let food = 0;
-  for (const l of lines) if (content.goodById.get(l.good)?.food) food += l.stock;
+  for (const l of lines) if (groupOf(l.good) === 'food') food += l.stock;
   const cover = coverWords(foodCover(food, m.town.value?.population ?? m.residents.size));
   const open = () => {
     session.ui.reportTab.value = 'stocks';

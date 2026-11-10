@@ -14,8 +14,11 @@ import {
   MAP_SIZE,
   pasteRect,
   type AchievementView,
+  type BalancesView,
+  type BusinessView,
   type ChronicleSnapshot,
   type CommissionView,
+  type DemandView,
   type DockView,
   type FestivalResultView,
   type FestivalView,
@@ -235,6 +238,11 @@ export class Mirror implements MapReader {
   readonly raidResult = signal<RaidResultView | null>(null);
   readonly trial = signal<TrialView | null>(null);
   readonly guide = signal<GuideView | null>(null);
+  // R1 (R1.0): the zones-first Ledger's views. A business changing bumps villageRevision.
+  readonly demand = signal<DemandView | null>(null);
+  readonly balances = signal<BalancesView | null>(null);
+  /** Every business and specialized building, by id. */
+  readonly businesses = new Map<EntityId, BusinessView>();
   /** Bumps whenever commissions, the Field Guide or habitats change. */
   readonly seasonsRevision = signal(0);
   agents: AgentFrames = { prev: EMPTY_FRAME, prevAt: 0, latest: EMPTY_FRAME, latestAt: 0, t: 0 };
@@ -315,6 +323,10 @@ export class Mirror implements MapReader {
     for (const p of view.plans ?? []) this.plans.set(p.id, p);
     for (const r of view.requests ?? []) this.requests.set(r.id, r);
     for (const st of view.stories ?? []) this.stories.set(st.arc, st);
+    this.demand.value = view.demand ?? null;
+    this.balances.value = view.balances ?? null;
+    this.businesses.clear();
+    for (const b of view.businesses ?? []) this.businesses.set(b.id, b);
     this.villageRevision.value++;
     this.seasonCard.value = view.seasonCard ?? null;
     this.weather.value = view.weather ?? null;
@@ -366,6 +378,7 @@ export class Mirror implements MapReader {
         case 'building.removed':
           this.buildings.delete(e.id);
           this.pads.delete(e.id);
+          if (this.businesses.delete(e.id)) change.village = true;
           change.buildings = true;
           break;
         case 'decor.added':
@@ -643,6 +656,17 @@ export class Mirror implements MapReader {
         case 'guide.step':
           this.guide.value = e.g;
           change.seasons = true;
+          break;
+        // R1 (R1.0)
+        case 'demand.updated':
+          this.demand.value = e.d;
+          break;
+        case 'balances.updated':
+          this.balances.value = e.b;
+          break;
+        case 'business.updated':
+          this.businesses.set(e.b.id, e.b);
+          change.village = true;
           break;
       }
     }

@@ -143,7 +143,7 @@ export function TopBar({ session, onLeave }: { session: Session; onLeave: () => 
 }
 
 /** Always on show (playtest round five): what building takes, whether or not any is in. */
-const ALWAYS = ['logs', 'planks', 'stone'] as const;
+const ALWAYS = ['timber', 'stone'] as const;
 const MAX_CHIPS = 9;
 
 /**
@@ -170,7 +170,7 @@ export function StockStrip({ session }: { session: Session }) {
   const chips: { good: string; n: number; made: number; used: number }[] = [];
   for (const l of lines) {
     const def = content.goodById.get(l.good);
-    if (def?.food) {
+    if (def?.family === 'food') {
       food += l.stock;
       if (l.stock > 0) foodNames.push(`${l.stock} ${def.label}`);
       continue;

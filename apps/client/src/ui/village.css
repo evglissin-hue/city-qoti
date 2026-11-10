@@ -9,10 +9,10 @@
 
 /* Goods: a little inked portrait on a soft patch of the good's own color. */
 
-.good-apples {
+.good-fruit {
   --good: #d9604a;
 }
-.good-bricks {
+.good-brick {
   --good: #b5654b;
 }
 .good-candles {
@@ -24,14 +24,8 @@
 .good-cider {
   --good: #d9a441;
 }
-.good-clay {
-  --good: #b9805c;
-}
 .good-cloth {
   --good: #8fa6c8;
-}
-.good-coats {
-  --good: #b8694f;
 }
 .good-firewood {
   --good: #9a6b43;
@@ -39,26 +33,11 @@
 .good-furniture {
   --good: #b58a5a;
 }
-.good-herbs {
-  --good: #7fae6a;
-}
 .good-honey {
   --good: #eab53a;
 }
-.good-milk {
-  --good: #eef0f2;
-}
-.good-pies {
-  --good: #d99a52;
-}
-.good-tools {
-  --good: #8b9096;
-}
 .good-wool {
   --good: #efe6d6;
-}
-.good-yarn {
-  --good: #c98aa0;
 }
 
 .good-icon {
@@ -599,60 +578,12 @@ li.loss .profit-bar i {
   border: 1px solid var(--ink-line);
 }
 
-.trip {
-  margin: 6px 0 0;
-}
-
-ul.order-list,
-ul.caravan-list,
 ul.loan-list {
   list-style: none;
   margin: 0;
   padding: 0;
   display: grid;
   gap: 6px;
-}
-
-li.order {
-  display: grid;
-  grid-template-columns: auto 1fr auto;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 8px;
-  border-radius: 10px;
-  border: 1.5px solid var(--line);
-  background: rgba(255, 251, 241, 0.7);
-}
-
-.order-text {
-  display: grid;
-  line-height: 1.25;
-}
-
-.order-editor,
-.order-add {
-  padding: 8px 10px;
-  border-radius: 10px;
-  border: 1.5px solid rgba(196, 138, 63, 0.55);
-  background: rgba(255, 249, 234, 0.85);
-}
-
-.order-add {
-  margin-top: 6px;
-}
-
-.order-add .order-editor {
-  border: none;
-  padding: 4px 0 0;
-  background: transparent;
-}
-
-.order-editor h5 {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  margin: 0 0 4px;
-  font-size: 0.95rem;
 }
 
 .good-pick {
@@ -687,32 +618,6 @@ li.order {
 
 .row-actions .spacer {
   flex: 1;
-}
-
-button.add {
-  margin-top: 8px;
-}
-
-li.caravan {
-  padding: 6px 9px;
-  border-radius: 10px;
-  border: 1.5px solid var(--line);
-  background: rgba(255, 251, 241, 0.7);
-}
-
-li.caravan header {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-li.caravan header .muted {
-  margin-left: auto;
-}
-
-.caravan-goods {
-  display: grid;
-  gap: 2px;
 }
 
 .trade-log th {
@@ -2626,164 +2531,4 @@ li.plan.settled p {
 
 .ui-large .goal-pill .goal-count {
   display: none;
-}
-
-/* The Calling card (P1, playtest item 19): the County's question and the two answers the map suggests. */
-
-.calling-card {
-  width: min(720px, 94vw);
-  max-height: 92vh;
-  overflow-y: auto;
-  text-align: left;
-}
-
-.calling-card h2,
-.calling-card .kicker,
-.calling-card .proclamation {
-  text-align: center;
-}
-
-.calling-options {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-  gap: 12px;
-  margin: 14px 0 6px;
-}
-
-.calling-option {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  padding: 12px 14px;
-  border: 1.5px solid var(--line);
-  border-radius: 10px;
-  background: var(--paper-light);
-}
-
-.calling-option.picked {
-  border-color: var(--brass-deep);
-  background: linear-gradient(180deg, #fdf0c8, #f3dc9a);
-}
-
-.calling-option.passed {
-  opacity: 0.6;
-}
-
-.calling-option h3 {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin: 0;
-  font-size: 1.15rem;
-}
-
-.calling-option .glyph {
-  width: 1.4em;
-  height: 1.4em;
-}
-
-.calling-blurb,
-.calling-reason {
-  margin: 0;
-}
-
-.calling-reason .label {
-  display: block;
-  font-size: 0.72rem;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--ink-soft);
-}
-
-.calling-effects {
-  margin: 0;
-  padding-left: 1.1em;
-  font-size: 0.9rem;
-}
-
-.calling-effects li {
-  margin: 2px 0;
-}
-
-.calling-option button.primary {
-  margin-top: auto;
-}
-
-.calling-picked {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  margin: auto 0 0;
-  font-weight: 700;
-}
-
-.charter-calling {
-  margin: 8px 0;
-  text-align: center;
-}
-
-.charter-calling .link {
-  margin-left: 10px;
-  font-size: 0.85rem;
-}
-
-/* Deals (playtest item 9) */
-
-.deals {
-  display: grid;
-  gap: 9px;
-}
-
-.deals .intro {
-  margin: 0;
-}
-
-.trip-days {
-  font-family: inherit;
-  font-weight: 400;
-}
-
-.deal-lists {
-  display: grid;
-  gap: 6px;
-}
-
-.deal-rows {
-  list-style: none;
-  margin: 2px 0 0;
-  padding: 0;
-  display: grid;
-  gap: 3px;
-  font-size: 0.86rem;
-}
-
-.deal-row {
-  display: grid;
-  grid-template-columns: auto 1fr auto minmax(4.5rem, auto) auto;
-  align-items: center;
-  gap: 6px;
-}
-
-.deal-row .deal-hand {
-  grid-column: 2 / -1;
-  margin-top: -2px;
-}
-
-.deal-flag.yes {
-  color: var(--ochre-deep);
-  font-weight: 700;
-}
-
-.deal-toggle {
-  white-space: nowrap;
-}
-
-@media (max-width: 520px) {
-  .deal-row {
-    grid-template-columns: auto 1fr auto auto;
-  }
-  .deal-row .deal-flag {
-    grid-column: 2 / -1;
-    grid-row: 2;
-  }
 }
