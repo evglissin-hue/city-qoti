@@ -199,6 +199,21 @@ On day one R1A and R1B each move their builder out of `view/zones.ts` into their
 | 18:00 | baskets (67) | Wares and Treats bought; Food on the shopping outings through the day |
 | 23:30 | levels (69) | level days counted (R1B) |
 
+## Found in R1.0's sweep, for the wave
+
+Observations from building the stand-ins and fixing the tests; each names the cycle it falls to.
+
+- **Start labor** (R1B): the Granary's two porter jobs rank like the Storehouse's, so a fresh town's six working residents all start as builders and porters (the town hall gets only two builders) and Farmland's businesses get hands only once newcomers arrive.
+- **Food cover and Farmland** (R1A, R1B): the carrier's Food reserve (3 days) holds a fresh valley near four days of cover, under which Farmland stops asking; R1.0 added the `'imported'` reason so farms still grow. R1B's real Farmland bar reads the carrier's share of a farm good's use.
+- **Craftsfolk savings** (R1A, R1X): 20 coins is what most Settler households already hold, so every household aspires at once; the tiers tests isolate one household.
+- **The carrier in tests** (R1A): at 10:00 it buys Materials, sells Food and stocks the granary, so construction, carts, lean times and shopping tests switch it off or time their counts around it; keep that in mind when it grows.
+- **Fuel all year** (R1A): the stand-in reads Fuel's use as a household a day in every season (as the spec's balance does), so a Hamlet's carrier buys firewood in summer too.
+- **"Grain ripens in summer"** (R1B): the status line looks at the fields only, so it shows even when the granary holds grain.
+- **The village fixture's market stall** (R1B) still holds 8 firewood although a stall now stores only Food and Treats (`BuildingDef.stores`, which R1.0's logistics reads through `takes(def, good)`); kept so the tests that read it still find it.
+- **Fisheries out of reach** (R1F): on kat-1 and willow every fishery spot lies beyond the porters' range from the starting storehouse.
+- **Inspector wording** (R1C): a baker's workshop reads "At work at the workshop"; trade names do not fit "at the ...".
+- **Fixed in R1.0**: the Village charter listed the Sawmill and the Brickworks among its unlocks, which let both skip their innovations; an apprentice recorded the workshop def instead of the trade; A Garden Plot named a building tag nothing carries; the Corner Cafe could no longer find bakers (a baker's business now counts as a cafe); the dressing pass and the carrier shared a tick (dressing runs at 10:30).
+
 ## Calls that proved wrong in the code, and what R1.0 did
 
 - **Rule 2 and services.** The tavern pours cider and the Bath House burns firewood: a service uses a good up and makes nothing. The rule-2 content test checks every trade and every method that makes something; services that only use a good up are outside it. Accepted by the master: `13-ledger.md`, rule 2, now reads "A made good is never an input to making something" and says a service may use a made good up.
