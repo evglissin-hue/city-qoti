@@ -93,10 +93,12 @@ export const MOOD_PRODUCTIVITY = [50, 75, 90, 100, 110] as const;
 /** Tax factor percent by mood band. */
 export const MOOD_TAX = [20, 50, 80, 100, 120] as const;
 
-/** Ledger categories, index order of LedgerPeriod.money. Append-only. */
+/**
+ * Ledger categories, index order of LedgerPeriod.money. Append-only (R1.0 removed the peddler's:
+ * the carrier books its buying and selling as imports and exports).
+ */
 export const LEDGER_CATEGORIES = [
   { id: 'taxes', kind: 'income' },
-  { id: 'peddler', kind: 'income' },
   { id: 'refunds', kind: 'income' },
   { id: 'upkeep', kind: 'expense' },
   { id: 'construction', kind: 'expense' },
@@ -258,7 +260,6 @@ export const DRIFT_STEP = 20;
 export const DRIFT_RANGE = [700, 1400] as const;
 export const IMPACT_PER_UNIT = 5;
 export const IMPACT_RECOVERY = 10;
-export const CARAVAN_HOUR = 8;
 export const TRADE_LOG_MAX = 60;
 
 /** Loans: interest per season in percent, and the credit limit in coins per resident (tune). */
@@ -323,3 +324,50 @@ export const RAIDER_MORALE = 10;
 export const RAIDER_CARRY = 8;
 /** The first days guide (C5H) ends by this day at the latest (absolute day index). */
 export const GUIDE_LAST_DAY = 6;
+
+// --- R1 (R1.0): the zones-first Ledger. docs/spec/13-ledger.md; 20-architecture.md, R1 contracts ----
+
+/** The five families, in the order of every per-family array (rule 4: five balances). */
+export const GOOD_FAMILIES = ['food', 'fuel', 'materials', 'wares', 'treats'] as const;
+/** The four demand bars, in DemandState order. */
+export const DEMAND_KINDS = ['homes', 'shops', 'workshops', 'farmland'] as const;
+
+/**
+ * The carrier's defaults by family, in GOOD_FAMILIES order: its rule in a Hamlet and from Village
+ * rank (a rule the Ledger set keeps), the reserve (days of cover; Materials: units beyond what open
+ * sites need) and whether it sells what is over twice the reserve (off for Fuel and Materials).
+ */
+export const CARRIER_DEFAULTS: readonly {
+  hamlet: 'always' | 'essentials' | 'never';
+  village: 'always' | 'essentials' | 'never';
+  reserve: number;
+  sell: boolean;
+}[] = [
+  { hamlet: 'always', village: 'always', reserve: 3, sell: true },
+  { hamlet: 'always', village: 'always', reserve: 3, sell: false },
+  { hamlet: 'essentials', village: 'essentials', reserve: 20, sell: false },
+  { hamlet: 'never', village: 'always', reserve: 1, sell: true },
+  { hamlet: 'never', village: 'always', reserve: 1, sell: true },
+];
+/** The most a family's reserve may be set to, in GOOD_FAMILIES order (days; Materials: units). */
+export const CARRIER_RESERVE_MAX = [30, 30, 500, 10, 10] as const;
+/** The carrier's daily import budget: the default and the most it may be set to, in coins. */
+export const CARRIER_BUDGET = 40;
+export const CARRIER_BUDGET_MAX = 1000;
+/** The hour the carrier reaches the valley gate. */
+export const CARRIER_HOUR = 10;
+/** Days of what the carrier bought and sold kept in state (today and the three before). */
+export const CARRIER_DAYS = 4;
+/** The peddler's terms before a Trading Post stands: units a day, percent paid and taken of the regional price. */
+export const PEDDLER_TERMS = { units: 20, buy: 140, sell: 60 } as const;
+/** The County tab's cap, coins a resident. */
+export const TAB_PER_RESIDENT = 20;
+
+/** The season plan: the winter reserve's default and most, in days. */
+export const WINTER_RESERVE_DAYS = 8;
+export const WINTER_RESERVE_MAX = 30;
+
+/** Business levels: 1 to 3. */
+export const BUSINESS_LEVEL_MAX = 3;
+/** A porter's load with Wheelbarrows (R1: 8, was 6). */
+export const WHEELBARROW_CARRY = 8;

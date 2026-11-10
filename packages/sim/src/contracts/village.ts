@@ -36,8 +36,6 @@ export interface LeversState {
   priceCaps: number[];
   /** Subsidy per good in percent of the price the treasury pays, 0 to 50 (foods). */
   subsidies: number[];
-  /** Goods the Trading Post may not sell. */
-  exportBans: boolean[];
   // I3 (C5.0, C5B), absent until set, so I2 valleys save and hash as before.
   /** Weekly market day (day of the season 1 to 6), or null for none. */
   marketDay?: number | null;
@@ -102,30 +100,6 @@ export interface NeighborState {
   impact: number[];
 }
 
-/** Keep stock of a good between min and max through the Trading Post. */
-export interface StandingOrder {
-  good: number;
-  /** Buy below this stock if the price is at most `ceiling`. */
-  min: number;
-  /** Sell above this stock if the price is at least `floor`. */
-  max: number;
-  /** Pennies per unit; 0 = any. */
-  floor: number;
-  ceiling: number;
-  /** Neighbor id, or '' for the best price. */
-  neighbor: string;
-}
-
-export interface Caravan {
-  id: EntityId;
-  neighbor: string;
-  /** Goods out to sell and back to deliver: [good, qty]. */
-  selling: [good: number, qty: number][];
-  buying: [good: number, qty: number][];
-  departTick: number;
-  returnTick: number;
-}
-
 export interface TradeLogEntry {
   tick: number;
   neighbor: string;
@@ -136,13 +110,13 @@ export interface TradeLogEntry {
   pennies: number;
 }
 
+/**
+ * The neighbors' prices and what was traded with them (R1: the carrier, `state.carrier`, does the
+ * trading; standing orders and caravans are gone).
+ */
 export interface TradeState {
   /** One per content neighbor, in content order. */
   neighbors: NeighborState[];
-  /** Sorted by good. */
-  orders: StandingOrder[];
-  /** Sorted by id. */
-  caravans: Caravan[];
   /** Last TRADE_LOG_MAX entries, oldest first. */
   log: TradeLogEntry[];
 }
@@ -265,7 +239,7 @@ export interface StoryState {
 /** Apprenticeship at a workshop for a season (docs/spec/11-residents.md, Ages and life events). */
 export interface Apprenticeship {
   at: EntityId;
-  /** The trade: the workshop's def id. */
+  /** The trade: the business's trade id (R1), else the workplace's def id. */
   trade: string;
   untilDay: number;
 }

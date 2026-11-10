@@ -1,9 +1,11 @@
 // I0 contract (docs/spec/20-architecture.md). Additive changes only during parallel waves:
-// add a new command in its own commit so merges stay trivial.
+// add a new command in its own commit so merges stay trivial. Write each command on one line where
+// it fits; the sender test (test/every-command-has-a-sender.test.ts) reads this union.
 import type { EntityId, Lens, RoadKind, Rot4, SeatId, Speed, TreeSpecies } from './ids';
 import type { ValleySettings } from './settings';
 import type { FestivalSite } from './seasons';
 import type { PlanItem, RequestAsk } from './village';
+import type { CarrierRule, GoodFamily, SeasonPlanInput } from './zones';
 
 export type Command =
   /** Max 256 tiles. */
@@ -37,8 +39,6 @@ export type Command =
   /** Paint wheat field tiles for a farmhouse (within its range, fertility 40+). Max 256 tiles. */
   | { t: 'field.paint'; farm: EntityId; tiles: [number, number][] }
   | { t: 'field.remove'; tiles: [number, number][] }
-  /** Mark a good for the peddler. */
-  | { t: 'ledger.setForSale'; good: string; forSale: boolean }
   // I2 (C4.0). docs/spec/20-architecture.md, "I2 contracts".
   /** Paint a zone (content zone id) on tiles. Max 256 tiles. Roads, water and buildings are skipped. */
   | { t: 'zone.paint'; zone: string; tiles: [number, number][] }
@@ -50,9 +50,6 @@ export type Command =
   | { t: 'ledger.setTaxRate'; percent: number }
   /** Price cap in pennies (0 = none) and subsidy in percent (0 to 50) for a food. */
   | { t: 'ledger.setPriceCap'; good: string; cap: number; subsidy: number }
-  /** Set or clear (null) the Trading Post's standing order for a good. */
-  /** I3 (C5B): `via: 'dock'` sets the River Dock's own order (boats to Millhaven) instead of the post's. */
-  | { t: 'trade.setStandingOrder'; good: string; order: StandingOrderInput | null; via?: 'post' | 'dock' }
   /** Borrow coins from the County Bank, up to the credit limit. */
   | { t: 'loan.take'; coins: number }
   /** Repay coins on a loan (more than the balance repays it). */
@@ -73,13 +70,11 @@ export type Command =
   | { t: 'request.resolve'; id: EntityId; status: 'done' | 'withdrawn' }
   /** Claim the rank once every Charter goal is met. */
   | { t: 'charter.claim' }
-  /** P1 (additive): choose what the village is known for, from the two the County offered. */
-  | { t: 'calling.choose'; id: string }
   /** Raise or lower land by one level. Max TERRAFORM_MAX_TILES tiles, costs per tile. */
   | { t: 'terrain.raise'; tiles: [number, number][] }
   | { t: 'terrain.lower'; tiles: [number, number][] }
-  /** Pin a production method (content method id) on a building, or null to let it choose. */
-  | { t: 'build.pinRecipe'; id: EntityId; method: string | null }
+  /** R1: pin a business's trade (content trade id), or null to let it choose again (13-ledger.md, Choosing a trade). */
+  | { t: 'build.pinRecipe'; id: EntityId; trade: string | null }
   // I3 (C5.0). docs/spec/20-architecture.md, "I3 contracts". Owners in each handler's header.
   /** Plan this season's festival: site, menu as [good id, qty] (up to 4), twist and music (C5B). */
   | {
@@ -116,18 +111,20 @@ export type Command =
   /** A captured raider: offer a home or send them off (C5D). */
   | { t: 'bandit.decide'; id: EntityId; choice: 'home' | 'send' }
   /** Hide or show the first days guide for the sending seat only (C5H). */
-  | { t: 'guide.setHidden'; on: boolean };
-
-/** A standing order as a command carries it (good ids, not indexes). */
-export interface StandingOrderInput {
-  min: number;
-  max: number;
-  /** Pennies; 0 = any. */
-  floor: number;
-  ceiling: number;
-  /** Neighbor id, or '' for the best price. */
-  neighbor: string;
-}
+  | { t: 'guide.setHidden'; on: boolean }
+  // R1 (R1.0). docs/spec/20-architecture.md, "R1 contracts"; docs/spec/13-ledger.md.
+  /** The carrier's rule for a family, and whether it sells what is over twice the reserve. */
+  | { t: 'carrier.setRule'; family: GoodFamily; rule: CarrierRule; sell: boolean }
+  /** The reserve for a family: days of cover (Food, Fuel, Wares, Treats) or units (Materials). */
+  | { t: 'carrier.setReserve'; family: GoodFamily; reserve: number }
+  /** Most coins a day the carrier may spend on imports. */
+  | { t: 'carrier.setBudget'; coins: number }
+  /** Answer the season card's questions; answers keep until changed. */
+  | { t: 'season.setPlan'; plan: SeasonPlanInput }
+  /** Pick up a decor piece and set it down elsewhere, keeping its identity (12-hearth.md, Move). */
+  | { t: 'decor.move'; id: EntityId; fx: number; fz: number; rot: number }
+  /** Move a hand-placed building: the builders take it down and raise it again for a third of its work. */
+  | { t: 'build.move'; id: EntityId; x: number; z: number; rot: Rot4 };
 
 /**
  * Customization fields (all optional; null clears a field back to the kit default). Swatch values
@@ -205,4 +202,15 @@ export type RejectReason =
   /** A standard valley's town hall stays: its builders raise everything else. */
   | 'HALL_STAYS'
   /** Too late for this: a festival cannot be planned once its evening has begun. */
-  | 'TOO_LATE';
+  | 'TOO_LATE'
+  // R1 (R1.0): the site rules of specialized buildings (10-world-and-building.md, From the redesign).
+  /** Forester's Lodge: too few mature trees within reach. */
+  | 'NEEDS_WOODS'
+  /** Sawmill and River Dock: the door must be on the river's edge. */
+  | 'NEEDS_RIVER'
+  /** Windmill: another building stands too close. */
+  | 'NEEDS_OPEN_GROUND'
+  /** Granary, Storehouse, Market Stall, Market Square, Cart Shed: no road (of the right kind) at the door. */
+  | 'NEEDS_ROAD'
+  /** Trading Post: too far from the valley road. */
+  | 'NEEDS_VALLEY_ROAD';

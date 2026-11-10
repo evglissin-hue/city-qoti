@@ -143,8 +143,6 @@ export interface DockView {
   /** The river is frozen: no boats until spring. */
   frozen: boolean;
   // C5B additions.
-  /** The dock's standing orders. */
-  orders?: { good: string; min: number; max: number; floor: number; ceiling: number }[];
   /** A River Dock stands. */
   built?: boolean;
 }

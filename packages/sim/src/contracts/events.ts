@@ -31,6 +31,7 @@ import type {
   WishView,
 } from './views';
 import type { RankId } from './village';
+import type { BalancesView, BusinessView, DemandView } from './zones';
 import type {
   ChronicleSnapshot,
   CommissionView,
@@ -146,7 +147,14 @@ export type SimEvent =
   | { e: 'bandit.captured'; id: EntityId; at: [number, number] }
   | { e: 'trial.updated'; t: TrialView }
   /** The first days guide moved on (C5H). */
-  | { e: 'guide.step'; g: GuideView };
+  | { e: 'guide.step'; g: GuideView }
+  // R1 (R1.0): the zones-first Ledger's views (docs/spec/20-architecture.md, R1 contracts).
+  /** The four demand bars, after the 01:00 growth pass and when a zone is painted. */
+  | { e: 'demand.updated'; d: DemandView }
+  /** The five families and the carrier's purse: at 00:00, after the carrier, and on carrier and plan commands. */
+  | { e: 'balances.updated'; b: BalancesView }
+  /** A business or specialized building's level, keeper, trade or status changed. */
+  | { e: 'business.updated'; b: BusinessView };
 
 export interface LayerPatch {
   layer: LayerName;

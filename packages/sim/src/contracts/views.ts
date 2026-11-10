@@ -20,6 +20,7 @@ import type {
   WeatherView,
 } from './seasonViews';
 import type { PlanItem, RankId, RequestAsk } from './village';
+import type { BalancesView, BusinessView, DemandView } from './zones';
 
 export interface BuildingView {
   id: EntityId;
@@ -39,6 +40,13 @@ export interface BuildingView {
   modules?: [slot: string, module: string][];
   /** I1: runtime summary in standard valleys (sent on building.updated). */
   rt?: BuildingRuntimeView;
+  // R1 (R1.0): businesses, for the art (R1E draws trades and levels) and the inspector.
+  /** The trade (content trade id). */
+  trade?: string;
+  /** 1 to 3; absent means 1. */
+  level?: number;
+  /** The keeper, whose family name goes on the sign. */
+  keeperId?: EntityId;
 }
 
 export interface DecorView {
@@ -132,6 +140,11 @@ export interface ViewSnapshot {
   raid?: RaidView | null;
   trial?: TrialView | null;
   guide?: GuideView;
+  // R1 (R1.0)
+  demand?: DemandView;
+  balances?: BalancesView;
+  /** Every business and specialized building, sorted by id. */
+  businesses?: BusinessView[];
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -199,7 +212,10 @@ export interface BuildingRuntimeView {
     delivered: [good: string, qty: number][];
     priority: boolean;
   };
-  /** I2 (C4E): the production method's id, for buildings with a choice of methods (grown crafts). */
+  /**
+   * I2 (C4E): the production method's id. R1: a specialized building's one method, or a business's
+   * trade's method; the art reads BuildingView.trade for a business's look from R1E.
+   */
   method?: string;
   /** I2 (C4E): a home upgrade is under way (materials still to come), for the scaffolding. */
   upgrading?: boolean;
@@ -221,7 +237,6 @@ export interface StockLine {
   consumedYesterday: number;
   /** Stock at the end of each of the last days, oldest first (sparkline). */
   history: number[];
-  forSale: boolean;
 }
 
 export interface StocksView {
@@ -398,16 +413,14 @@ export interface BuildingDetail {
   served?: { residents: number; capacity: number };
   /** I1 (C3C): goods per work day with the full crew, after condition and any height bonus. */
   rates?: { inputs: [good: string, perDay: number][]; outputs: [good: string, perDay: number][] };
-  /** Playtest round seven (additive): decor within reach is speeding this building up. */
-  decorBoost?: { permille: number; pieces: string[] };
   /** I1 (C3C): units made today. */
   producedToday?: [good: string, qty: number][];
   // I2 (C4.0)
   /** Output at market price minus wages, upkeep and inputs at market price, per work day (pennies). */
   profit?: { perDay: number; lines: { label: string; pennies: number }[] };
-  /** Methods the Ledger may pin, and the pinned one. */
-  methods?: { id: string; name: string }[];
-  pinned?: string;
+  /** R1: businesses, the trades the Ledger may pin here (its zone's, its site allowing), and whether it is pinned. */
+  trades?: { id: string; name: string }[];
+  pinned?: boolean;
   /** Grown buildings: their lot. */
   lot?: LotView;
   /** Homes: the tier housed and an upgrade under way. */
@@ -519,7 +532,6 @@ export interface LeversView {
   taxRate: number;
   /** Wages per day per job tier at the current level, pennies, in TIERS order. */
   wages: number[];
-  exportBans: string[];
   // I3 (C5.0, C5B)
   marketDay?: number | null;
   quietHours?: boolean;
@@ -546,22 +558,14 @@ export interface LotView {
   buildingId: EntityId;
 }
 
+/** The neighbors and the trade log (R1: the carrier trades; BalancesView carries its terms). */
 export interface TradeView {
-  /** Neighbors trading now, with prices at the post (you buy at 1.2x, sell at 0.85x the regional price). */
+  /** Neighbors trading now, with the carrier's prices (buy and sell, pennies, by its current terms). */
   neighbors: {
     id: string;
     name: string;
     blurb: string;
     prices: { good: string; buy: number | null; sell: number | null }[];
-  }[];
-  orders: { good: string; min: number; max: number; floor: number; ceiling: number; neighbor: string }[];
-  caravans: {
-    id: EntityId;
-    neighbor: string;
-    selling: [good: string, qty: number][];
-    buying: [good: string, qty: number][];
-    departTick: number;
-    returnTick: number;
   }[];
   /** Newest last. */
   log: { tick: number; neighbor: string; good: string; qty: number; pennies: number }[];
@@ -584,17 +588,6 @@ export interface CharterView {
   }[];
   ready: boolean;
   history: { rank: RankId; tick: number; seats: SeatId[] }[];
-  /** P1 (additive): the callings on offer, or the one chosen. Absent before the Village claim. */
-  calling?: CallingView;
-}
-
-/** The callings offer (docs/spec/15-progression.md, Callings). */
-export interface CallingView {
-  offered: { id: string; reason: string }[];
-  /** The chosen calling id, or null while the offer is open. */
-  chosen: string | null;
-  /** Two seats share the valley, so both must be present to choose. */
-  together: boolean;
 }
 
 export interface InnovationView {
