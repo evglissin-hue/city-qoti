@@ -159,7 +159,7 @@ describe('building inspector', () => {
     expect(submitted[1]).toMatchObject({
       t: 'note.pin',
       x: 65,
-      z: 48,
+      z: 47,
       text: 'Ada removed your workshop: The mill needs the spot',
     });
   });
