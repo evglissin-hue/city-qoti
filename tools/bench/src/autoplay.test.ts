@@ -36,10 +36,8 @@ describe('two players, three evenings', { timeout: 120_000 }, () => {
       // R1: Homes, Workshops and Farmland are zoned on the first morning; shops and townhouses wait
       // for Village rank.
       expect(run.street, why).toBeTruthy();
-      expect(
-        run.actions.some((a) => /^1:zone the high street$/.test(a)),
-        why,
-      ).toBe(true);
+      // The action log numbers days within the season; the first day line already has lots.
+      expect(days[0]!.growth!.lots, why).toBeGreaterThan(0);
       const zones = new Set(w.map.zone.filter((z) => z > 0));
       expect(zones.has(Zone.homesLow), why).toBe(true);
       expect(zones.has(Zone.crafts), why).toBe(true);
@@ -59,7 +57,10 @@ describe('two players, three evenings', { timeout: 120_000 }, () => {
       for (const def of placed(run.actions)) {
         const d = content.buildingById.get(def);
         expect(d, def).toBeDefined();
-        expect(d!.grows, def).toBeUndefined();
+        expect(
+          content.trades.some((t) => t.building === def),
+          def,
+        ).toBe(false);
       }
       // No labor lever: the autoplayer never pauses a building (docs/spec/13-ledger.md, Labor).
       expect(

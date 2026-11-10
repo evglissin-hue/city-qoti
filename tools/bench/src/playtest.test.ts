@@ -3,23 +3,15 @@
 // evening opens comes second. Every site must be finished within a few game days, and the health
 // checks must stay quiet: no site sitting with its materials in, no builder idle beside work, no
 // material nobody can make.
-// R1.0: the first evening is homes, a stall, a well, a quarry, a fishery and a Forester's Lodge
-// (the plots, sawpit and woodcutter are gone); the windmill and a granary come second.
+// R1.0: the first evening is homes, a stall, a well, a quarry and a Forester's Lodge (the plots,
+// sawpit and woodcutter are gone); the windmill and a granary come second. No fishery: on kat-1
+// and willow the river is out of the starting storehouse's porter reach (22 tiles).
 import { content } from '@qoti/content';
 import { HealthWatch, TICKS_PER_DAY, TICKS_PER_HOUR, type HealthIssue } from '@qoti/sim';
 import { describe, expect, it } from 'vitest';
 import { command, findSpot, runTicks, startingTown } from './hamlet';
 
-const FIRST_EVENING = [
-  'cottage',
-  'fishery',
-  'cottage',
-  'cottage',
-  'market-stall',
-  'well',
-  'quarry',
-  'foresters-lodge',
-];
+const FIRST_EVENING = ['cottage', 'cottage', 'cottage', 'market-stall', 'well', 'quarry', 'foresters-lodge'];
 /** Placed once the first evening's sites are done. */
 const NEXT = ['windmill', 'granary'];
 
@@ -28,7 +20,10 @@ describe('two new players, one evening', { timeout: 120_000 }, () => {
     for (const def of [...FIRST_EVENING, ...NEXT]) {
       const d = content.buildingById.get(def);
       expect(d, def).toBeDefined();
-      expect(d!.grows, def).toBeUndefined();
+      expect(
+        content.trades.some((t) => t.building === def),
+        def,
+      ).toBe(false);
     }
   });
 

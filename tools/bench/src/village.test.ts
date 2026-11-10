@@ -52,7 +52,7 @@ describe('a Village grows its high street', { timeout: 180_000 }, () => {
     const why = `\n${formatDays(run.days)}\n${run.actions.join('\n')}`;
     expect(a.lots.length, why).toBeGreaterThan(0);
     expect(
-      run.actions.some((x) => x === `${VILLAGE_DAY}:zone the village street`),
+      run.actions.some((x) => x.endsWith(':zone the village street')),
       why,
     ).toBe(true);
     const zones = new Set(a.map.zone.filter((z) => z > 0));
