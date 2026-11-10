@@ -147,7 +147,9 @@ async function phase(
   for (;;) {
     const now = await nextFrame(signal);
     const t = (now - start) / 1000;
-    if (t > seconds) break;
+    // V2.0: a measured part keeps at least one frame, even when a single frame outlasts it (a short
+    // run in a software renderer); otherwise its row would read as zeros.
+    if (t > seconds && (samples.length > 0 || skip >= seconds)) break;
     step(t, (now - last) / 1000);
     if (t >= skip) {
       const s = renderer.stats;

@@ -81,6 +81,8 @@ test('Measure this laptop: the table, Copy, kept per seat, the valley put back; 
   const table = page.getByTestId('measure-table');
   for (const scene of ['This valley', 'Village showcase', 'Town showcase'])
     await expect(table).toContainText(scene);
+  // Every part caught a frame, even where one frame outlasts a quick run: no row reads as zeros.
+  await expect(table).not.toContainText('0.0 / 0.0');
   expectSame(await snapshot(page), before);
 
   // Kept with the valley for this seat, and listed.

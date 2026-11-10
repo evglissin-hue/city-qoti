@@ -178,6 +178,9 @@ function CopyButton({ text, testid, primary }: { text: string; testid: string; p
 }
 
 const ms = (v: number | null): string => (v === null ? 'n/a' : v.toFixed(1));
+/** A part's average and 95th percentile, or n/a when it caught no frames at all. */
+const pair = (frames: number, avg: number | null, p95: number | null): string =>
+  frames > 0 && avg !== null ? `${ms(avg)} / ${ms(p95)}` : 'n/a';
 
 /** The rows as a table: frame and GPU ms (average and 95th percentile), moving and idle. */
 export function MeasureTable({ rows }: { rows: readonly PerfRow[] }) {
@@ -209,20 +212,12 @@ export function MeasureTable({ rows }: { rows: readonly PerfRow[] }) {
             >
               <td>{i === 0 || rows[i - 1]!.scene !== r.scene ? sceneName(r.scene) : ''}</td>
               <td>{presetName(r.quality)}</td>
-              <td>
-                {ms(r.moving.frameAvg)} / {ms(r.moving.frameP95)}
-              </td>
-              <td>
-                {ms(r.moving.gpuAvg)} / {ms(r.moving.gpuP95)}
-              </td>
-              <td>
-                {ms(r.idle.frameAvg)} / {ms(r.idle.frameP95)}
-              </td>
-              <td>
-                {ms(r.idle.gpuAvg)} / {ms(r.idle.gpuP95)}
-              </td>
-              <td>{r.moving.draws}</td>
-              <td>{(r.moving.triangles / 1e6).toFixed(2)} M</td>
+              <td>{pair(r.moving.frames, r.moving.frameAvg, r.moving.frameP95)}</td>
+              <td>{pair(r.moving.frames, r.moving.gpuAvg, r.moving.gpuP95)}</td>
+              <td>{pair(r.idle.frames, r.idle.frameAvg, r.idle.frameP95)}</td>
+              <td>{pair(r.idle.frames, r.idle.gpuAvg, r.idle.gpuP95)}</td>
+              <td>{r.moving.frames > 0 ? r.moving.draws : 'n/a'}</td>
+              <td>{r.moving.frames > 0 ? `${(r.moving.triangles / 1e6).toFixed(2)} M` : 'n/a'}</td>
             </tr>
           ))}
         </tbody>

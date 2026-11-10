@@ -76,8 +76,17 @@ describe('Measure this laptop', () => {
     expect(m.root.querySelectorAll('[data-testid="measure-row"]')).toHaveLength(12);
     expect(m.text()).toContain('Village showcase');
     expect(m.text()).toContain('10.0 / 15.0');
-    expect(m.text()).toContain('n/a / n/a');
+    expect(m.text()).toContain('2.0 / 3.0n/a');
+    expect(m.text()).not.toContain('n/a / n/a');
     expect(m.text()).toContain('1.25 M');
+    m.unmount();
+  });
+
+  it('says n/a for a part that caught no frames, never zeros that look measured', async () => {
+    const empty: PerfPart = { ...part(0, null), frames: 0, frameP95: 0, draws: 0, triangles: 0 };
+    const m = await mount(h(MeasureTable, { rows: [{ ...rows[0]!, moving: empty, idle: empty }] }));
+    const cells = [...m.root.querySelectorAll('[data-testid="measure-row"] td')].map((td) => td.textContent);
+    expect(cells.slice(2)).toEqual(['n/a', 'n/a', 'n/a', 'n/a', 'n/a', 'n/a']);
     m.unmount();
   });
 
