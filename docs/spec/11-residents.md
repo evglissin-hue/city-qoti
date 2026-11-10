@@ -70,10 +70,10 @@ Two per resident, compatible pairs only (no Cheerful + Grumpy).
 | Thrifty | buys cheapest substitutes [I2]; saves more |
 | Generous | gifts to friends; donates to festivals [I3] (C5B: buys a unit of the menu at noon on the festival day when the household can pay) |
 | Artistic | loves variety (charm variety weight x2); paints signs |
-| Practical | productivity +5%; dislikes clutter (as built the +5% never reached production, which read a mood-only productivity; R1 fixes it) |
+| Practical | productivity +5%; dislikes clutter (as built the +5% never reached production, which read a mood-only productivity; R1 wires it: a trait is a person, not an unlock, so P6 has no quarrel with it) |
 | Night Owl | schedule +2 h |
 | Early Bird | schedule -2 h |
-| Green-Fingered | garden plots +20% yield; garden wishes |
+| Green-Fingered | garden plots +20% yield; garden wishes [R1: market gardens and garden beds in their hands, and a keeper bonus for the gardener's trade] |
 | Sweet Tooth | wants bakery and treats; likes to bake [R1: a keeper bonus for the baker's trade]; buys a treat first on the round [R2] |
 | Homebody | short leisure trips; loves Kitchen Gardens |
 
@@ -104,7 +104,7 @@ Years are 24 days. Stages *(tune)*: child 0 to 3 years, young 3 to 5, adult 5 to
 | Weddings | I2 | a couple marries at the next festival or on a chosen day; mini event, Chronicle entry |
 | Births | I2 | a couple with a spare bed and mood 60+ may have a child (chance per season) |
 | Apprenticeships | I2 | young residents learn a trade at a workshop for 1 season, then take skilled jobs. [R3] An apprentice under a master becomes a master sooner (`19-evenings.md`, Masters) |
-| Keeping a business | R1 | every grown business has a keeper, the grown-up who opened it, with the family name on the sign (C5B's named shops, for every trade). A keeper who leaves is replaced by the longest-serving hand |
+| Keeping a business | R1 | every grown business has a keeper (the first hand hired, or the resident whose trait or apprenticeship tipped the trade, `13-ledger.md`), with the family name on the sign, as C5B's named shops had; the seasonal shop-opening above folds into this, so a family may keep more than one kind of business over the years. A keeper who leaves is replaced by the longest-serving hand |
 | Mastery | R3 | four hearts and twenty working days in one trade make a master, who brings the business a level and a good of their own (`19-evenings.md`, Masters) |
 | Opening a shop | I3 | an adult with savings, a fitting trait and a vacant shop lot opens a named shop. As built (C5B): once a season, on day 2 at 10:00 from Village rank, the first grown-up whose household has 40 coins put by and who is Artistic, Cheerful, Generous, Practical, Sweet-toothed or Thrifty grows the shop zone's shop on a free shop lot (`growLot`) with a sign of their family name and their kind of shop ("Thistledown Sweets"), a Chronicle line and a letter; the town's builders put it up, so no money moves; one shop a family |
 | Retiring | I2 | elders stop working |
@@ -122,6 +122,8 @@ Default day, shifted by Night Owl (+2 h) and Early Bird (-2 h):
 | 08:00 to 17:00 | work (if employed), else errands and leisure | school or play | leisure, visiting friends |
 | 17:00 to 21:00 | shopping if pantry low, leisure, visiting friends (builders and porters work until 19:00) | play | leisure |
 | 21:00 to 22:00 | walk home | home | home |
+
+[R2] From 17:00 to 21:00 grown-ups make their round (`19-evenings.md`): one whose pantry is low shops first and that shop is the round's first stop; the walk home at 21:00 stands.
 
 - **Leisure spot**: the highest-charm reachable tile within 15 walking minutes, weighted by species tastes and traits; friends often choose the same spot.
 - **The round** [R2]: the evening's outings become a planned round of one to three places, with seats, routes that prefer the pleasant way, and treats bought where folk stop (`19-evenings.md`). The scoring below (appeal, charm, species, traits, friends, distance, whim) carries over as a place's draw and a resident's taste for it.

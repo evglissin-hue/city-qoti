@@ -147,9 +147,9 @@ Besides two stone clusters of 12+ tiles and a clay cluster within 40 tiles of th
 Small additions here; the designs are in `13-ledger.md` and `19-evenings.md`.
 
 - **Site rules** [R1]: specialized buildings add reason codes to the placement rules above: `NEEDS_WOODS` (Forester's Lodge: 12+ mature trees within 8 tiles), `NEEDS_RIVER` (Sawmill and River Dock: the door on the river's edge), `NEEDS_OPEN_GROUND` (Windmill: no building within 2 tiles), beside `NEEDS_DEPOSIT` (Quarry, Brickworks) and `NEEDS_WATER_EDGE` (Fishery). The ghost shows the building's reach as a ring on the roads it follows, with a count of the businesses and homes inside it.
-- **Zoned from the first street** [R1]: Homes, Workshops and Farmland zones are open at founding; lots are cut as built. A building placed by hand may stand on zoned land and takes its lot.
+- **Zoned from the first street** [R1]: Homes, Workshops and Farmland zones are open at founding; lots are cut as built. A building placed by hand may stand on zoned land and takes its lot. The `zone` layer in the table above, tagged [I2], is therefore painted from the first day. Trees cleared from a footprint give timber where the rules above say logs.
 - **Moving** [R1]: `decor.move` and `build.move` (`12-hearth.md`, Decorating that composes itself) run the same validators as placing, at the new spot, with the piece itself left out of the collision test.
 - **Deposits**: worldgen keeps its guarantees (stone and clay near the start). The clay cluster now serves the Brickworks.
-- **Roads** [R2]: a road tile may carry the `evening` flag (`road.setEvening`), stored in the road layer's spare bits. Street names are generated from what stands on them ("Mill Lane", "Underbank Row") for the endpaper map, and either seat may rename one.
+- **Roads** [R2]: a road tile may carry the `evening` flag (`road.setEvening`), stored in the road layer's spare bits. Street names are generated from what stands on them ("Mill Lane", "Underbank Row") for the endpaper map, and either seat may rename one (`road.rename`).
 - **Decor** [R2, R3]: `DecorDef.seats` (room for sitters, `19-evenings.md`, Places) and `DecorDef.supply` (what a piece draws on, and how it rests).
 

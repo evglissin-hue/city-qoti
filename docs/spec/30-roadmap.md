@@ -175,7 +175,7 @@ The owner asked for a step back and a few moonshots: a look that really shines w
 | 2 | V3 Yards, streets and the long view | R2 The evening round |
 | 3 | V4 The developing picture | R3 Masters and the Town Book |
 
-Then I4 Town with V5, and I5 with V6. Within a pair the waves share no files: R1's art cycle keeps to the building kits (`packages/art/src/kits/` for buildings, workplaces and services) while V2 holds materials, patterns, surfaces, nature, props and the renderer. Across pairs: V3's dressing needs R1's businesses and its rows need R2.0's lot fields, so V3 starts after R1X and R2.0; the endpaper map's two inks are wired by whichever of V3X and R2X lands second.
+Then I4 Town with V5, and I5 with V6. Within a pair the waves share no files: R1's art cycle keeps to the building kits (`packages/art/src/kits/` for buildings, workplaces and services) while V2 holds materials, patterns, surfaces, nature, props and the renderer. The few look items that live outside render and art paths are named and placed: Measure this laptop (a Settings entry and a server endpoint) is built by V2.0, which is serial and lands before either wave; the bubbles toggle is one line in the lens registry; paper by lamplight belongs to R1C; the tea-break camera is V4C's one file under `input/`. A V wave never changes sim state: the lot fields V3 draws from are R2's. Across pairs: V3's dressing needs R1's businesses and its rows need R2.0's lot fields, so V3 starts after R1X and R2.0; the endpaper map's two inks are wired by whichever of V3X and R2X lands second.
 
 Every wave runs the build and review loop (`31-parallel-development.md`), and each of its integration cycles writes the next wave's briefs.
 
@@ -183,9 +183,9 @@ Every wave runs the build and review loop (`31-parallel-development.md`), and ea
 
 **Goal**: a fresh valley grows from a hamlet to a Village and through its first winter on the zones-first Ledger: the players zone, site a dozen specialized buildings and read five balances, and the town builds, staffs and supplies itself.
 
-**Cycles**: R1.0 zones contracts (serial; it may remove the chain economy's contracts, `20-architecture.md`, Redesign outline) → R1A the economy core (goods and families, baskets, prices, tiers by amount and variety, the carrier), R1B land and businesses (trades and how they are chosen, levels, the farmland kinds, specialized buildings with reach, the season plan), R1C the Ledger's interface (the calmer top bar with demand bars and balances, the Build picker's shelves, the Balances, Purse and Businesses books, cards that wait their turn, editing a plan in place, the help card), R1D the Hearth's tools and the first days (the composing helpers and move, the guide's letters, story arcs, wishes and festival menus in the new goods), R1E art for trades (looks by trade and level from the kits that exist, the Brickworks, Granary, Market Square and Forester's Lodge), R1F the bench (new advisors, the audit's health kinds, the lanes test, the decisions count) (parallel) → R1X integration and tuning.
+**Cycles**: R1.0 zones contracts (serial; it may remove the chain economy's contracts, `20-architecture.md`, Redesign outline) → R1A the economy core (goods and families, baskets, prices, tiers by amount and variety, the carrier), R1B land and businesses (trades and how they are chosen, levels, the farmland kinds, specialized buildings with reach, the season plan), R1C the interface (the calmer top bar with demand bars and balances, the Build picker's shelves, the Balances, Purse and Businesses books, cards that wait their turn, paper by lamplight, editing a plan in place, the help card), R1D the Hearth's tools and the first days (the composing helpers and move, the guide's letters, story arcs, wishes and festival menus in the new goods), R1E art for trades (looks by trade and level from the kits that exist, the Brickworks, Granary, Market Square and Forester's Lodge), R1F the bench (new advisors, the audit's health kinds, the lanes test, the decisions count) (parallel) → R1X integration and tuning.
 
-**Scope**: `13-ledger.md` in full but its [R2], [R3] and [I4] notes; `12-hearth.md`, Decorating that composes itself and the [R1] notes; `11-residents.md` [R1] notes; `14-challenge.md`, the closed pass; the Village Charter in the new terms (`15-progression.md`); the fresh start (`21-networking-and-saves.md`).
+**Scope**: `13-ledger.md`, all but what it marks for R2, R3 or I4; everything tagged [R1] in `02-game-overview.md` (the start, the guide), `10-world-and-building.md` (site rules, moving), `11-residents.md`, `12-hearth.md` (with Decorating that composes itself), `14-challenge.md` (the closed pass), `15-progression.md` (the Village Charter, innovations, achievements), `16-coop.md` and `17-presentation.md` (the redesign's interface); the fresh start (`21-networking-and-saves.md`).
 
 **Acceptance**:
 
@@ -201,7 +201,7 @@ Every wave runs the build and review loop (`31-parallel-development.md`), and ea
 
 **Goal**: the night becomes the game's signature and the green half of the picture is painted like the buildings, at no cost to the frame, proven on both laptops.
 
-**Cycles**: V2.0 look contracts and measuring (serial: Measure this laptop and where its tables are kept; both laptops' before tables, which is the owner's and Kat's part; the light map's interface; the appended surfaces and room layers; the dab kit's interface; a grown, autoplayed village beside the showcases in the shots and perf scripts) → V2A night (the light map and everything that reads it, rooms behind windows, lamp color by era, paper by lamplight), V2B green (brush-dab trees, the meadow carpet, flower drifts, hedges, reeds and ivy), V2C what V1 left half-wired (surfaces on props, carts and residents, wall occlusion, ribbon smoke, bubbles on the View list, far levels for common decor) (parallel) → V2X integration.
+**Cycles**: V2.0 look contracts and measuring (serial: Measure this laptop and where its tables are kept; both laptops' before tables, which is the owner's and Kat's part; the light map's interface; the appended surfaces and room layers; the dab kit's interface; a grown, autoplayed village beside the showcases in the shots and perf scripts) → V2A night (the light map and everything that reads it, rooms behind windows, lamp color by era), V2B green (brush-dab trees, the meadow carpet, flower drifts, hedges, reeds and ivy), V2C what V1 left half-wired (surfaces on props, carts and residents, wall occlusion, ribbon smoke, bubbles on the View list, far levels for common decor) (parallel) → V2X integration.
 
 **Acceptance**:
 
@@ -214,9 +214,9 @@ Every wave runs the build and review loop (`31-parallel-development.md`), and ea
 
 **Goal**: the Hearth becomes the town's second flow. Residents spend their evenings at the places the Hearth composes, buy their treats there, and the Ledger's shops follow them; each lane can see what the other did for it.
 
-**Cycles**: R2.0 evenings contracts (serial; with the lot fields V3 needs) → R2A places and the round (the place registry, seats and draw, the planner, routes, footfall), R2B evening trade (Treats on the round, shops by footfall, cafes, evening streets, dusk at half speed, the evenings need and the tiers), R2C gaps and the evening's book, R2D the interface (one map with two inks, the place card, a resident's day, the evening edition, the joint season report, the Hearth's strip), R2E the bench (a Hearth advisor that composes places, a Ledger advisor that zones shops, the lanes test enforced) (parallel) → R2X integration and tuning.
+**Cycles**: R2.0 evenings contracts (serial; with the lot fields V3 needs) → R2A places and the round (the place registry, seats and draw, the planner, routes, footfall, names for places and streets), R2B evening trade (Treats on the round, shops by footfall, cafes, evening streets, dusk at half speed, the evenings need and the tiers), R2C gaps and the evening's book, R2D the interface (one map with two inks, the place card, a resident's day, the evening edition, the joint season report, the Hearth's strip), R2E the bench (a Hearth advisor that composes places, a Ledger advisor that zones shops, the lanes test enforced), R2F lots for streets (the cutter's rows without gaps, garden lots, corner lots and floors by tier, which V3B draws) (parallel) → R2X integration and tuning.
 
-**Scope**: `19-evenings.md` from The day in two acts to Gaps, and its R2 acceptance; the [R2] notes in `11-residents.md`, `12-hearth.md`, `13-ledger.md`, `16-coop.md` and `17-presentation.md`.
+**Scope**: `19-evenings.md` from The day in two acts to Gaps, with its data and its R2 acceptance; everything tagged [R2] or marked "from R2" in `02-game-overview.md`, `10-world-and-building.md`, `11-residents.md`, `12-hearth.md`, `13-ledger.md`, `14-challenge.md`, `15-progression.md`, `16-coop.md` and `17-presentation.md`.
 
 **Acceptance**: the R2 list in `19-evenings.md`, and:
 
@@ -228,7 +228,7 @@ Every wave runs the build and review loop (`31-parallel-development.md`), and ea
 
 **Goal**: detail that means something, from the doorstep to the horizon.
 
-**Cycles**: V3.0 contracts (serial: anchors, the dressing rules as data, the endpaper map's interface, on R2.0's lot fields) → V3A the dressing layer and goods you can see, V3B rows, gardens, corners, storeys and street furniture (the old V2; notes in `docs/build/i4-visual-planning-notes.md`), V3C the long view (horizon, haze with height, the river), V3D the endpaper map (parallel) → V3X integration.
+**Cycles**: V3.0 contracts (serial: anchors, the dressing rules as data, the endpaper map's interface, on R2.0's lot fields) → V3A the dressing layer and goods you can see, V3B rows, gardens, corners, floors by tier and street furniture (the old V2, drawn from R2F's lot fields; notes in `docs/build/i4-visual-planning-notes.md`), V3C the long view (horizon, haze with height, the river), V3D the endpaper map (parallel) → V3X integration.
 
 **Acceptance**:
 
@@ -241,9 +241,9 @@ Every wave runs the build and review loop (`31-parallel-development.md`), and ea
 
 **Goal**: good evenings turn into something lasting. Places come alive when supplied, residents grow into masters who bring the town new flavors, and what the town is known for is discovered where a place and a trade keep meeting.
 
-**Cycles**: R3.0 contracts (serial) → R3A supplies and the lamplighter (resting pieces, household candles, place priorities, the fourth gap), R3B masters, apprentices and masters' goods, R3C the Town Book and earned callings, R3D the interface (Follow the thread, the Town Book, the storybook's print layout), R3E the bench (parallel) → R3X integration and tuning.
+**Cycles**: R3.0 contracts (serial) → R3A supplies and the lamplighter (resting pieces, household candles, place priorities, the fourth gap), R3B masters, apprentices and masters' goods, R3C the Town Book and earned callings, R3D Follow the thread (its door-pair counts in the sim and its card), with the Town Book's pages and the storybook's print layout, R3E the bench (parallel) → R3X integration and tuning.
 
-**Scope**: `19-evenings.md` from Supplies to the Town Book, and its R3 acceptance; callings in `15-progression.md`; the storybook in `12-hearth.md`.
+**Scope**: `19-evenings.md` from Supplies to the Town Book, with its R3 acceptance; everything tagged [R3] in `11-residents.md`, `12-hearth.md` (the storybook), `13-ledger.md` (level 3, later flavors), `14-challenge.md` (lit lanterns), `15-progression.md` (callings, the Charters' new goals, achievements) and `17-presentation.md`.
 
 **Acceptance**: the R3 list in `19-evenings.md`, and:
 

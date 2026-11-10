@@ -2,7 +2,7 @@
 
 Real stakes, never a game over (P3). Light defense, not tower defense (P35). Threats are fair (P36), touch both lanes (P37), and sit beside seasons and weather (P38) under two difficulty dials (P39).
 
-**The redesign (owner, 2026-11-10)** changes little here and leans on it more. With a carrier that fills any shortfall (`13-ledger.md`), winter and the closed pass are what make the town's own stores matter, so the gentle exam keeps its teeth. Notes tagged [R1] and [R3] below; goods are named as in `13-ledger.md` (grain for wheat, timber for logs and planks, the granary beside the storehouse as a store raiders want).
+**The redesign (owner, 2026-11-10)** changes little here and leans on it more. With a carrier that fills any shortfall (`13-ledger.md`), winter and the closed pass are what make the town's own stores matter, so the gentle exam keeps its teeth. Notes tagged [R1] and [R3] below; goods are named as in `13-ledger.md` (grain for wheat, timber for logs and planks, the granary beside the storehouse as a store raiders want), and the sowing window is P1's (Spring day 1 to Summer day 3), where the Seasons table still says days 1 to 3.
 
 ## Threat pressure [I3]
 

@@ -31,7 +31,7 @@ Two files would otherwise be shared, so V1.0 splits them: the kit material moves
 
 A V1 wave runs beside gameplay cycles that own sim and UI paths (I3's C5B, C5C, C5D, C5F, C5H); a gameplay cycle that owns render or art paths (C5E) waits for V1X.
 
-The redesign's pairs split the same way (2026-11-10). In the first pair, V2 owns `packages/art/src/{materials,patterns,surface,palette}.ts`, the nature, trees, props, decor, vehicles and residents kits, and `apps/client/src/render` but the buildings layer; R1E owns the building, workplace and service kits and `render/layers/buildings.ts`; the other R1 cycles own `packages/sim`, `packages/content`, `tools/bench`, `apps/client/src/{ui,input,state}`. The contracts cycles write the exact lists in their briefs.
+The redesign's pairs split the same way (2026-11-10). In the first pair, V2 owns `packages/art/src/{materials,patterns,surface,palette}.ts`, the nature, trees, props, decor, vehicles and residents kits, and `apps/client/src/render` but the buildings layer; R1E owns the building, workplace and service kits and `render/layers/buildings.ts`; the other R1 cycles own `packages/sim`, `packages/content`, `tools/bench`, `apps/client/src/{ui,input,state}`. The contracts cycles write the exact lists in their briefs. A few look items sit outside render and art paths and are named in `30-roadmap.md` (The redesign, Order of work): V2.0 builds Measure this laptop before either wave starts, R1C takes paper by lamplight, V4C takes the tea-break camera's one file under `input/`.
 
 Briefs live in `docs/build/`. The board in `docs/build/README.md` tracks status.
 

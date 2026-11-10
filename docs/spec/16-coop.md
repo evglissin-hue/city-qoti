@@ -56,7 +56,7 @@ Ephemeral, never part of sim state (`21-networking-and-saves.md`).
 
 - Every entity records `builtBy` (seat) and whether it is handmade (decor, customization, landmarks).
 - **Removing the partner's handmade work** [I0] asks for confirmation and an optional reason, then leaves the partner a note: "<name> removed your bench by the mill: making room for the bakery."
-- **Undo** [I1]: each client keeps a stack of its own last 30 accepted commands with their inverses (place, remove, paint roads and fields, plant and fell, notes, customize, priority, pause, goods for sale). Ctrl+Z (Cmd+Z) or the toolbar's undo button submits the inverse as a new command. The client first checks that the target still looks the way the command left it and refuses gently (`CHANGED`) if not; the sim rejects the inverse if anything else moved on. Undoing a removal rebuilds the piece fresh (a felled tree comes back as a sapling).
+- **Undo** [I1]: each client keeps a stack of its own last 30 accepted commands with their inverses (place, remove, paint roads and fields, plant and fell, notes, customize, priority, pause, goods for sale; from R1 zones, the carrier's rules and the season plan in place of goods for sale, and move). Ctrl+Z (Cmd+Z) or the toolbar's undo button submits the inverse as a new command. The client first checks that the target still looks the way the command left it and refuses gently (`CHANGED`) if not; the sim rejects the inverse if anything else moved on. Undoing a removal rebuilds the piece fresh (a felled tree comes back as a sapling).
 - **Customized buildings are handmade** [I1]: removing one the partner customized asks first and leaves them a note, like decor.
 - **Who built this**: shown in every inspector.
 
@@ -77,7 +77,7 @@ Local UI state per laptop; Tab toggles (P8). The default comes from the seat pro
 
 | Lens | Toolbar (grows by iteration) | Overlays | Alerts |
 |---|---|---|---|
-| Hearth | decor, trees and gardens, customize [I1], Pattern Book [I1], wishes [I1], plaques [I1], festivals [I3], Field Guide [I3], Chronicle [I1]. [R1] move and the composing helpers; [R2] places and their priority; [R3] the Town Book | charm [I1], wishes [I1], habitats [I3]; [R2] Town (the two inks) | wishes, pattern hints, thank-you letters, festival prep; [R2] gaps, the evening's book |
+| Hearth | decor, trees and gardens, customize [I1], Pattern Book [I1], wishes [I1], plaques [I1], festivals [I3], Field Guide [I3], Chronicle [I1]. [R1] move and the composing helpers; [R2] places and their names; [R3] which places to keep supplied, and the Town Book | charm [I1], wishes [I1], habitats [I3]; [R2] Town (the two inks) | wishes, pattern hints, thank-you letters, festival prep; [R2] gaps, the evening's book |
 | Ledger | roads, buildings, fields [I1], storehouses [I1], budget and reports [I1], zoning [I2], trade [I2], policies [I2], Watch [I3]. [R1] zones, specialized buildings and streets; the Balances, Purse and Businesses books; the season plan | flows [I1], coverage [I1], status [I1], land value [I2], traffic [I2]; [R1] reach; [R2] Town (the two inks) | shortages, idle buildings, lean times; [R1] a demand bar that needs zoned land, the winter reserve; [R2] gaps |
 | Shared (both) | inspect, erase, notes, plans [I2], requests [I2], Charter board [I2], time | none | threats, Charter progress, partner pings |
 

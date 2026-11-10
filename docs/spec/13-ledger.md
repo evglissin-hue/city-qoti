@@ -2,7 +2,7 @@
 
 The Ledger lane is a complete game (P1): land, streets, trade and budgets, with levers instead of busywork (P32). Money is stored as integer pennies (100 pennies = 1 coin); the UI shows coins.
 
-**Status**: the zones-first Ledger, accepted by the owner on 2026-11-10 and built in R1 (`30-roadmap.md`). It replaces the chain economy of I1 to I3, whose spec is kept in `archive/13-ledger-chains.md`. Until R1X merges, the code on `main` still runs the archived rules, so read the archive for what exists and this doc for what to build. Sections marked *kept* carry over as built; their fine print is in the archive under the same heading.
+**Status**: the zones-first Ledger, accepted by the owner on 2026-11-10 and built in R1 (`30-roadmap.md`). It replaces the chain economy of I1 to I3, whose spec is kept in `archive/13-ledger-chains.md`. Until R1X merges, the code on `main` still runs the archived rules, so read the archive for what exists and this doc for what to build. Sections marked *kept* carry over as built; their fine print is in the archive, under the heading each one names.
 
 **Why it changed** (the owner, 2026-11-10: "not 30 different production chains"; measured the same day with the autoplayer on seed willow, 70 days): the chain economy had 25 goods and 27 kinds of hand-placed production building, with nine more goods planned for I4. In 70 days one sensible player placed 154 buildings by hand (69 production buildings of 16 kinds), paused or reopened a workplace 261 times, changed a trade order 321 times and painted a zone 5 times. No household reached Craftsfolk in 52 days at Village rank, on either seed tried. That is micromanagement, which P32 rules out.
 
@@ -31,12 +31,12 @@ Every good belongs to one family and is raw or made. A flavor is a good seen fro
 - **A made good takes one or two raw goods**, listed above. Bread feeds more than the grain it uses (2 grain to 3 bread *(tune)*).
 - **Spoiling** as built (archive, Goods): fish 2 days, bread 3, fruit 4 *(tune)*; cheese, grain and vegetables keep. A granary halves it.
 - **Seasons** as built: vegetables and fruit by season, no fishing on a frozen river, honey rests in winter, grain sown from Spring day 1 to Summer day 3 and cut when golden.
-- **Later flavors** never add work for the Ledger. They arrive through people and places (`19-evenings.md`): a master's good [R3] (about eight, such as pies, smoked fish, jam and coats, each made from the same raw good by the master's own business), a named specialty [R3], or a trade deal (tea from Port Amberly [I4]). Coal joins Fuel in the Age of Steam (`18-eras.md`).
+- **Later flavors** never add work for the Ledger. They arrive through people and places (`19-evenings.md`): a master's good [R3] (nine, such as pies, smoked fish, jam and coats, each made from the same raw good by the master's own business), a named specialty [R3], or a trade deal (tea from Port Amberly [I4]). Coal joins Fuel in the Age of Steam (`18-eras.md`).
 - Gone with the chains: logs, planks (now timber), flour, clay, yarn, milk, herbs, tools, coats, furniture's plank step, pies as a base good (they return as the master baker's). Per-good quantities stay arrays indexed by good index.
 
 ## Land and specialized buildings [R1]
 
-About a dozen hand-placed buildings, each one decision about the valley's ground. A specialized building has a **site rule**, and most have a **reach** (walking distance along roads, 24 tiles unless noted *(tune)*) and a **capacity** (how many businesses or homes it serves). Placing one shows its reach on the ground. None gives a percentage: each makes something, stores something or lets a trade exist.
+About a dozen hand-placed buildings, each one decision about the valley's ground. A specialized building has a **site rule**, and most have a **reach** (walking distance along roads, 24 tiles unless noted *(tune)*) and a **capacity** (how many businesses or homes it serves). Placing one shows its reach on the ground. None is a bonus on someone else's work: each makes something, stores something or lets a trade exist.
 
 | Building | Rank | Site rule | What it does | Crew |
 |---|---|---|---|---|
@@ -44,9 +44,9 @@ About a dozen hand-placed buildings, each one decision about the valley's ground
 | Quarry | Hamlet | 4+ stone deposit tiles in the footprint | stone | 3 |
 | Fishery | Hamlet | door on the water's edge | fish; rests while the river is frozen | 3 |
 | Windmill | Hamlet | open ground, no building within 2 tiles | lets bakers set up in its reach: 2 bakers, or 4 when it stands 4+ levels above the ground around it | 1 |
-| Granary | Hamlet | road at the door | keeps 1,200 Food *(tune)* and halves its spoiling; homes and shops in reach draw on it | 2 porters |
+| Granary | Hamlet | road at the door | keeps 1,200 Food *(tune)*, which spoils half as fast in store, as it does in today's storehouses; homes and shops in reach draw on it | 2 porters |
 | Storehouse | Hamlet | road at the door | keeps 800 units of Fuel, Materials, Wares and Treats *(tune)*; the porters' hub | 4 porters |
-| Market Stall | Hamlet | road at the door | an outlet for Food (and Treats from Village rank) for homes within 14 tiles; either lens may place it | 1 |
+| Market Stall | Hamlet | road at the door | an outlet for Food and Treats for homes within 14 tiles; either lens may place it | 1 |
 | Sawmill | Village (Water Wheel) | door on the river's edge | lets carpenters set up in its reach (3 carpenters); saws by hand, for one carpenter fewer, while the river is frozen | 2 |
 | Brickworks | Village (Brick Kiln) | 2+ clay deposit tiles in the footprint | brick, burning 1 firewood for 6 bricks | 3 |
 | Market Square | Village | 3x3 of open ground on a street or lane | six stalls in one place selling every family: the town's main outlet, where the carrier sets out what it brought, and the site of market day | 3 |
@@ -56,15 +56,15 @@ About a dozen hand-placed buildings, each one decision about the valley's ground
 
 - **Stores are sized for about one granary and one storehouse to every 150 residents** *(tune)*. The winter reserve counts Food and Fuel wherever they lie (granaries, storehouses, shelves, pantries, a farmstead's own buffer and sheaves still standing), so a reserve is never only a matter of building granaries.
 - Services and civic buildings stay hand-placed as built: Town Hall, Builder's Yard, Well, School, Herbalist, Tavern (also a place on the evening round from R2), Bath House, Watch House and the defenses (`14-challenge.md`).
-- The Forester's Lodge is the old woodcutter, forester and chopping shed in one; the Brickworks is the clay pit and kiln; the Market Square takes Odette Fenwick's place in the story (her finale roofs it into the Market Hall).
+- The Forester's Lodge is the old woodcutter, forester and chopping shed in one; the Brickworks is the clay pit and kiln; the Market Square is what Odette Fenwick's story builds toward, and her finale roofs it into the Market Hall.
 - Costs are in coins, timber, stone and brick; the archive's numbers convert planks to timber and bricks to brick one for one, and C4X's tuning is redone in R1X.
-- **Innovations** keep their conditions (`15-progression.md`) and now open specialized buildings and capabilities: the Water Wheel the Sawmill, the Brick Kiln the Brickworks, Carts the Cart Shed, Cobbles streets, Wheelbarrows a porter's load of 8. No innovation that opens a specialized building waits on a story step: a story character's letter may bring it early, and a plain condition always brings it in the end.
+- **Innovations** keep their conditions (`15-progression.md`) and now open specialized buildings and capabilities: the Water Wheel opens the Sawmill, the Brick Kiln opens the Brickworks, Carts open the Cart Shed, Cobbles let streets be laid, and Wheelbarrows raise a porter's load to 8. No innovation that opens a specialized building waits on a story step: a story character's letter may bring it early, and a plain condition always brings it in the end.
 
-## Zones, businesses and trades [R1]
+## Zoning and growth [R1]
 
-**Zones** (painted per tile, layer values as shipped): Homes (`homes-low`), Townhouses (`homes-medium`, from Village rank), Shops (`shops`, from Village rank), Workshops (`crafts`) and Farmland (`farms`). Homes, Workshops and Farmland are open from founding; the first evening still starts with a lane and a few buildings placed by hand (`02-game-overview.md`, New valley).
+**Zones** (painted per tile, layer values as shipped). There are four kinds, one for each demand bar: Homes (`homes-low`, with a second density, Townhouses, `homes-medium`, from Village rank), Shops (`shops`, from Village rank), Workshops (`crafts`) and Farmland (`farms`). Homes, Workshops and Farmland are open from founding; the first evening still starts with a lane and a few buildings placed by hand (`02-game-overview.md`, New valley).
 
-**Lots** *kept*: the sim cuts zoned frontage along roads into lots facing the road, as built in C4B (archive, Zoning and growth: frontage runs, shapes by weight, streets before lanes before paths, the hourly idempotent pass). V3 adds rows without gaps, garden lots and corner lots (`17-presentation.md`, V3).
+**Lots** *kept*: the sim cuts zoned frontage along roads into lots facing the road, as built in C4B (archive, Zoning and growth: frontage runs, shapes by weight, streets before lanes before paths, the hourly idempotent pass). R2 adds rows without gaps, garden lots and corner lots to the cutter, for V3 to draw (`17-presentation.md`, Visual direction, second pass, item 4; `30-roadmap.md`, R2).
 
 **A business** is what grows on a Workshops, Farmland or Shops lot: one building with a trade, a keeper (the first hand hired, or the resident whose trait or apprenticeship tipped the choice; the family name goes on the sign, as on C5B's named shops), a crew, a small input and output buffer and a level. Businesses belong to the town as every building does: wages come from the treasury and sales return to it.
 
@@ -93,7 +93,7 @@ About a dozen hand-placed buildings, each one decision about the valley's ground
 - Farmland: Food under four days of cover, or more than a third of a farm good's use (grain, vegetables, fruit, cheese, wool, honey) coming by carrier.
 - Hovering a bar says why in words ("Cloth is short and wool is plentiful"). A bar is quiet while a free, suitable lot exists (growth is on its way) and lit when the town needs more zoned land, so it asks only when it needs the player.
 
-**Choosing a trade** (the 01:00 growth pass, replacing `chooseMethod`'s shortage rule): for a lot about to grow, each trade the valley has unlocked scores `need x supply x site + keeper`:
+**Choosing a trade** (the 01:00 growth pass, replacing `chooseMethod`'s shortage rule): for a lot about to grow, each trade the valley's rank and innovations allow scores `need x supply x site + keeper`:
 
 - need: how short its good is (days of cover under the family's reserve, and whether a tier in town still lacks the flavor);
 - supply: 1 when the raw good is made in the valley or two days of it are in store, 0.5 when it would come by carrier, 0 when none is here and the carrier may not bring it (the rule that counts is the one for the family of the good the trade makes);
@@ -109,7 +109,7 @@ The best positive score grows; none positive, nothing grows and the bar stays lo
 - steady custom (it sold at least four fifths of what it made, or a shop served 12+ customers a day; from R2 a shop counts evening custom);
 - reliable inputs (no day without its raw good, the carrier's counting);
 - room to grow: for a workshop or shop a good street at the door (a lane or better for level 2, a street for level 3); for a farmstead enough free farm-zoned ground in reach for the larger crew;
-- for level 3, a master on the crew [R3]; until R3 the keeper's 20 working days there stand in *(tune)*.
+- for level 3, a master on the crew [R3]; until R3 the keeper's 20 working days there stand in *(tune)*. When R3 lands, a business that reached level 3 that way keeps it, and its keeper is counted a master once they have four hearts.
 
 It slides back one level after four failing days, keeping its walls, as homes do. Levels are drawn (`17-presentation.md`): a bigger yard, a painted sign, goods out front.
 
@@ -134,7 +134,7 @@ As built (archive, Logistics): buffers, needs and offers, porters taking the bes
 
 ## Households: amount and variety [R1]
 
-Baskets are per tier and per family (`content.baskets`), bought as built: Food on the residents' shopping outings, Fuel at the 07:30 warmth pass, Wares on the same daytime shopping trip as food (no extra walk), Treats at the 18:00 household pass until R2 moves them to the evening round.
+Baskets are per tier and per family (`content.baskets`), bought as built: Food on the residents' shopping outings, Fuel at the 07:30 warmth pass, Wares on the same shopping trip as food (no extra walk), Treats at the 18:00 household pass until R2 moves them to the evening round.
 
 | Tier | Food (a resident a day) | Fuel (a household a winter day) | Wares (a household a day) | Treats (a resident a day) |
 |---|---|---|---|---|
@@ -143,12 +143,14 @@ Baskets are per tier and per family (`content.baskets`), bought as built: Food o
 | Merchants [I4] | 1 | 1 | 0.4 | 0.5 |
 | Patrons [I5] | 1 | 1 | 0.6 | 0.7 |
 
+Every number in this table is *(tune)*. A day of Fuel is one firewood a household at any time of year, so the Fuel balance reads the same in June as in January.
+
 - **Amount**: a family's share of what the household wanted, as built (unmet units are let go; satisfaction moves halfway to the share it got).
 - **Variety**: the number of a family's flavors the household could buy in the last three days (on a shelf in reach, or in its pantry); from R3 a named specialty on its evening round counts as one more.
 - Within a family households choose by price and liking as built (Thrifty households weigh price more; species and traits have favorites), so substitution is the rule: dear bread means more porridge.
 - The `goods` need is the basket's average of amount and variety against the tier's wants below, and weighs 10 in mood.
 
-## Prices *kept*
+## Market and prices *kept*
 
 Per good, daily, from cover against a three-day target, as built (archive, Market and prices), with one addition: while the carrier runs for a family, a good's price cannot pass the carrier's price by more than a tenth. The Balances book shows a family's price as the average of its flavors, weighted by what was bought.
 
@@ -156,9 +158,10 @@ Per good, daily, from cover against a three-day target, as built (archive, Marke
 
 The carrier is the peddler grown up: a cart at the valley gate at 10:00 every day the pass is open, and the boat once there is a dock.
 
-- **What it does without being asked**: for each family, buys what is short of the **reserve** (days of cover) and sells what is over twice the reserve, never touching what a festival has put by or what sites are waiting for.
+- **What it does without being asked**: for each family, buys what is short of the **reserve** (days of cover) and sells what is over twice the reserve, never touching what a festival has put by or what sites are waiting for, and never selling Food or Fuel below the season plan's winter mark.
+- **Which goods**: raw and made alike, from what the neighbors sell (their lists, archive, Trade). Within a family it buys first a flavor some tier in town still lacks, then whatever is cheapest; it sells the flavor the town holds most of. What no neighbor sells it cannot bring, which is why no tier names a single good.
 - **Rules** per family (`carrier.setRule`): Always (it buys up to the reserve), Essentials only (Food and Fuel a household would otherwise go without today, Materials an open site is waiting for, raw goods a business is resting for want of; never Wares or Treats themselves) or Never. Defaults: Food and Fuel Always; Materials Essentials only; Wares and Treats Never in a Hamlet and Always from Village rank.
-- **Reserves** per family (`carrier.setReserve`): Food 3 days, Fuel 3 days in autumn and winter, Wares and Treats 1 day, Materials what open sites need plus 20 *(tune)*. The season plan raises Food and Fuel before winter.
+- **Reserves** per family (`carrier.setReserve`): Food 3 days, Fuel 3 days, Wares and Treats 1 day, Materials what open sites need plus 20 *(tune)*. From Summer day 4 to the thaw the season plan's winter marks stand in for the Food and Fuel reserves.
 - **Budget** (`carrier.setBudget`): most coins a day on imports, 40 by default *(tune)*. In lean times only Food and Fuel are bought, on the credit line, so a town in debt eats plainly rather than not at all.
 - **Terms** by what stands in the valley, on the neighbor's regional price (archive, Trade: seasons, drift and impact as built):
 
@@ -185,7 +188,7 @@ As built (archive, Streets and traffic): paths, cart lanes and streets, cart pas
 
 ## Services *kept*
 
-As built (archive, Services): wells, school, herbalist, tavern, Watch House, Bath House, their reach and capacity. From R2 the tavern is a place on the evening round and the `social` need folds into evenings.
+As built (archive, Services): wells, school, herbalist, tavern, Watch House, Bath House, their reach and capacity. Two inputs change with the goods: the herbalist grows what she brews in her own garden and needs no supply (herbs are no longer a good), and the tavern pours cider or any other Treat on its shelf. The Bath House burns firewood as built. From R2 the tavern is a place on the evening round and the `social` need folds into evenings.
 
 ## Population tiers [R1]
 
@@ -194,9 +197,11 @@ Homes upgrade in place when a household meets the next tier's wants for three da
 | Tier | From | Amount | Variety (flavors) | Also |
 |---|---|---|---|---|
 | Settlers | I1 | Food | Food 1 | water, a home, warmth in winter |
-| Craftsfolk | I2 | Food, Wares, Treats | Food 3 with bread, Wares 1, Treats 1 | the herbalist in reach and 20 coins put by; until R2 also a tavern in reach and charm 25 at the door, from R2 evenings of 50 in their place |
+| Craftsfolk | I2 | Food, Wares, Treats | Food 3, Wares 1, Treats 1 | the herbalist in reach and 20 coins put by; until R2 also a tavern in reach and charm 25 at the door, from R2 evenings of 50 in their place |
 | Merchants | I4 | as above | Food 5, Wares 3, Treats 3 | school and clinic, Watch cover, evenings of 65 |
 | Patrons | I5 | as above | Food 7, Wares 5, Treats 5 | library or theater, a festival attended this season, evenings of 80 |
+
+Every number in this table is *(tune)*. No tier names a single good: any flavors of the family count, so a town with no windmill can reach Craftsfolk on porridge, fish and cheese, and bread only makes it easier.
 
 - The base goods carry a town to Craftsfolk and most of the way to Merchants, whose third Treat is a master's good or comes by trade. Patrons need several flavors that only masters, specialties or far trade bring. So variety beyond the first rungs is the Hearth's to grow (`19-evenings.md`), and never something the Ledger wires.
 - In a Hamlet households have no purse (the flat tax, free food and free treats of I1, kept); baskets, prices and wages begin with the Village Charter as built.
@@ -230,7 +235,7 @@ Drawn by the Ledger and styled by the Hearth (P22), with policies in place of ne
 
 ## Reports and overlays
 
-- **Balances** (one book, replacing Market, the stocks report, the Stores panel's lists and the Trade book's orders): a row a family with its amount, variety (flavor icons, grayed when missing), price, what the carrier brought and took, and a year's history; a click opens the family's flavors and who makes them.
+- **Balances** (one book, replacing Market, the stocks report, the Stores panel's lists and the Trade book's orders): one row for each family with its amount, variety (flavor icons, grayed when missing), price, what the carrier brought and took, and a year's history; a click opens the family's flavors and who makes them.
 - **Purse**: budget by category, taxes and wages, loans.
 - **Businesses**: every business and specialized building by trade, level and status in words.
 - Overlays as built (flows, coverage, status, soil and stone, floodplain, traffic, zones), plus reach rings for specialized buildings and, from R2, the two inks (`17-presentation.md`).
@@ -238,7 +243,7 @@ Drawn by the Ledger and styled by the Hearth (P22), with policies in place of ne
 
 ## What R1 removes
 
-- The 27 hand-placed production buildings and their chain rows in the Build picker; the generic `workshop` and `farmstead` become businesses with trades, and their art kits become the looks of those trades.
+- The 27 hand-placed production buildings and their chain rows in the Build picker (the Hearth's Apiary stays, as the way to place a hives business by hand); the generic `workshop` and `farmstead` become businesses with trades, and their art kits become the looks of those trades.
 - Intermediate goods and the goods listed as gone above.
 - The vegetable plot and herb garden as workplaces: they return as the Hearth's garden bed (`12-hearth.md`, the Pattern Book), and the town's vegetables come from market gardens on Farmland.
 - Standing orders, goods for sale and the peddler's own rules.

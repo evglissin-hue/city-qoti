@@ -474,21 +474,21 @@ Written 2026-11-10 with the redesign's spec (`13-ledger.md`, `19-evenings.md`, `
 - Content: `GoodDef.family` and `GoodDef.raw`; the 16 goods; `TradeDef` (zone, makes, from, wants, needs reach, crew by level, look) in a trades registry; `BuildingDef.reach`, `capacity`, `enables` and the site rules for specialized buildings; baskets by family with variety wants. The hand-placed production defs go; their art kit ids stay as trade looks.
 - State: `Building.trade`, `keeperId`, `level` and custom counters for a business; `carrier` (a rule, a reserve and what it carried, by family; a budget); `seasonPlan`; `demand` (the four bars with their reasons, a view). Gone: standing orders, goods for sale, the calling.
 - Systems: `growth` chooses trades (`chooseMethod` becomes the trade score); `production` runs trades and asks the carrier before a business rests; `market/baskets` buys by family and tracks variety; `trade`, `caravans` and the peddler in `economy` fold into a `carrier` system; `tiers` reads amount and variety; a `levels` system moves businesses up and down; `callings` leaves the pipeline until R3.
-- Commands: `carrier.setRule`, `carrier.setReserve`, `carrier.setBudget`, `season.setPlan`, `decor.move`, `build.move`; `build.pinRecipe` pins a trade. Removed: `trade.setStandingOrder`, `ledger.setForSale`. Every command keeps a sender in the client (`test/every-command-has-a-sender.test.ts`).
+- Commands: `carrier.setRule`, `carrier.setReserve`, `carrier.setBudget`, `season.setPlan`, `decor.move`, `build.move`; `build.pinRecipe` pins a trade. Removed: `trade.setStandingOrder`, `ledger.setForSale` and `calling.choose` (callings come back earned in R3, with no command). Every command keeps a sender in the client (`test/every-command-has-a-sender.test.ts`).
 - Views: `demand.updated`, `balances.updated` (five families: amount, variety, price, carried in and out), `business.updated`.
 - Bench: new advisors (one that zones and sites, one that tends the season plan), the lanes test and the decisions count (`22-quality.md`).
 
 **R2, the evening round** (`packages/sim/src/systems/residents`, `movement`, `market`, `growth`, `zoning`; new `systems/places`, `systems/gaps`)
 
-- State: `map.footfallDay` and `map.footfallEve` (Uint16 layers), the `evening` road flag, the `evenings` need (in place of `beauty` and `social`), each resident's last evening, place names and priorities. The place registry is derived and rebuilt on load, like the decor index.
+- State: `map.footfallDay` and `map.footfallEve` (Uint16 layers), the `evening` road flag, street names, the `evenings` need (in place of `beauty` and `social`), each resident's last evening, open gaps, and for each place by its stable id a name and the counts rules read over time (`19-evenings.md`, Data and budgets). A place's seats, kinds, draw and what it serves are derived and rebuilt on load, like the decor index.
 - Systems: `places` (hourly with patterns: sites, sitting spots and hosts into `Place` rows with seats, kinds, draw, serves); `residents/outings.ts` grows into the round's planner; `movement` gains the evening cost; `market/baskets` moves Treats to the stops; `growth/desirability.ts` reads footfall for Shops; `gaps` opens and closes gaps; `sim/turn.ts` runs dusk at half speed.
 - A new RNG stream, `round`, so an evening's whims never move another system's dice.
 - Lots (the old V2's sim half, for V3): `Lot.row`, a `garden` lot kind, `Lot.corner` with a second frontage, `params.storeys` chosen by the sim.
-- Commands: `road.setEvening`, `place.setPriority`, `place.rename`. Views: `places.updated`, `evening.closed` (the edition's lines), `gaps.updated`.
+- Commands: `road.setEvening`, `road.rename`, `place.rename`. Views: `places.updated`, `evening.closed` (the edition's lines), `gaps.updated`.
 
 **R3, masters and the Town Book** (new `systems/supplies`, `systems/masters`, `systems/townbook`)
 
-- State: lantern lit bits, `Resident.craft` and the master flag, Town Book pages, the door-pair counts behind Follow the thread (maker to store, store to outlet, outlet to home or place; decaying, like the flows overlay's).
+- State: lantern lit bits, place priorities (`place.setPriority`), `Resident.craft` and the master flag, Town Book pages, the door-pair counts behind Follow the thread (maker to store, store to outlet, outlet to home or place; decaying, like the flows overlay's).
 - Content: `DecorDef.supply`, master's goods, the pairs of pattern and good, each page's leaning.
 - Systems: `supplies` (the lamplighter's round as a schedule override, resting pieces, household candles), `masters`, `townbook` (detectors like the patterns'), and `callings` again, reading the pages.
 
