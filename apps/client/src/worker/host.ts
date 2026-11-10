@@ -14,8 +14,11 @@ export class SimHost {
   private nextReq = 1;
   private readonly snapshotWaits = new Map<number, (s: { t: number; data: Uint8Array }) => void>();
   private readonly hashWaits = new Map<number, (h: { t: number; h: string }) => void>();
-  private readyWait: ((view: ViewSnapshot) => void) | null = null;
-  private failWait: ((err: Error) => void) | null = null;
+  /**
+   * Inits waiting for their view, oldest first: the worker answers them in order. V2.0: two can be
+   * out at once (a welcome while Measure this laptop reloads the Mirror), so each gets its own.
+   */
+  private readyWaits: { resolve: (view: ViewSnapshot) => void; reject: (err: Error) => void }[] = [];
   onUpdate: ((u: WorkerUpdate) => void) | null = null;
   onHash: ((t: number, h: string) => void) | null = null;
   /** I1: agent frames after each batch of turns. */
@@ -34,18 +37,16 @@ export class SimHost {
   }
 
   private fail(message: string): void {
-    this.failWait?.(new Error(message));
-    this.failWait = null;
-    this.readyWait = null;
+    const waits = this.readyWaits;
+    this.readyWaits = [];
+    for (const w of waits) w.reject(new Error(message));
     this.onError?.(message);
   }
 
   private receive(msg: FromWorker): void {
     switch (msg.k) {
       case 'ready':
-        this.readyWait?.(msg.view);
-        this.readyWait = null;
-        this.failWait = null;
+        this.readyWaits.shift()?.resolve(msg.view);
         break;
       case 'update':
         this.onUpdate?.(msg);
@@ -78,8 +79,7 @@ export class SimHost {
   /** Starts the world (from seed or snapshot), applies catch-up turns, resolves with its view. */
   init(source: InitSource, turns: Turn[] = []): Promise<ViewSnapshot> {
     const promise = new Promise<ViewSnapshot>((resolve, reject) => {
-      this.readyWait = resolve;
-      this.failWait = reject;
+      this.readyWaits.push({ resolve, reject });
     });
     this.post(
       { k: 'init', source, turns },

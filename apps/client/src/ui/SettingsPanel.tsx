@@ -5,6 +5,7 @@ import { clampScale, loadSettings, saveSettings, type UiSettings } from './setti
 import { clampVolume, type AudioSettings } from '../audio/settings';
 import { audioSettings, setAudioSettings } from '../audio/store';
 import { GuideSetting } from './panels/Guide';
+import { MEASURE_COPY, openMeasure } from './panels/Measure';
 
 type Quality = 'low' | 'medium' | 'high' | 'ultra';
 const QUALITY_KEY = 'qoti.quality.v1';
@@ -108,6 +109,13 @@ export function SettingsPanel({ session }: { session: Session }) {
           </button>
         </fieldset>
         {session.target.mode === 'solo' && <MoveOnline session={session} />}
+        <fieldset class="keep-copy" data-testid="measure-card">
+          <legend>{MEASURE_COPY.heading}</legend>
+          <p class="muted">{MEASURE_COPY.settingsHint}</p>
+          <button type="button" data-testid="measure-open" onClick={() => openMeasure(session)}>
+            {MEASURE_COPY.settingsButton}
+          </button>
+        </fieldset>
         <div class="actions">
           <button type="button" class="primary" onClick={() => (session.ui.settingsOpen.value = false)}>
             {copy.settings.done}
