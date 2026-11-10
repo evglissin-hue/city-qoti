@@ -26,6 +26,12 @@ const COLOR: Record<SurfaceName, number> = {
   field: palette2.fields[2]!,
   flags: palette2.flags,
   flowers: palette2.grass,
+  // V2.0: the V2 surfaces (left out of the grid until V2C gives them patterns, SURFACE_ORDER).
+  woodGrain: palette2.wood,
+  paintedWood: palette2.shutters[0]!,
+  wroughtIron: palette2.metal,
+  terracotta: palette2.chimney,
+  cloth: palette2.awnings[0]!,
 };
 
 /** One sample, about 1.6 tiles across, standing on y = 0. */
