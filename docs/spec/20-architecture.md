@@ -514,6 +514,30 @@ Written 2026-11-10 with the redesign's spec (`13-ledger.md`, `19-evenings.md`, `
 
 Determinism holds as ever: everything under R1 to R3 is integer sim code on seeded streams, and nothing under V2 to V4 touches sim state or the hash.
 
+## V2 contracts
+
+Defined in cycle V2.0, then changed only additively during the V2 wave (V2A night, V2B green, V2C what V1 left half-wired, merged in V2X). Render, art and the perf route only: no sim state, command or hash changes. Ownership by file, the handshakes, the light map's writers and readers, stand-ins and the before numbers are in `docs/build/v2-wave-notes.md`.
+
+**Art** (`packages/art`):
+
+- **Surface ids** (`surface.ts`), appended for props, carts and residents: `woodGrain` 20, `paintedWood` 21, `wroughtIron` 22, `terracotta` 23, `cloth` 24. A surface id is its pattern layer and 19 is the noise layer's (`NOISE_LAYER`, unchanged), so `SURFACES` is `readonly (SurfaceDef | undefined)[]` with `SURFACES[19]` undefined (`surfaceDef(id)` reads it as plain). `SURFACE_LAYERS` (25) is how many layers a surface id indexes, the noise slot included: the kit material's table (`surfaceTable()`: `uSurf`, `uSurfAccent`, `uSurfExtra`) has that many rows, and its plain test is `si < 1 || si == NOISE_LAYER || si >= SURFACE_LAYERS`. The five rows are flat (strength 0) until V2C.
+- **Room layers** (`surface.ts`, `patterns.ts`): `ROOM_LAYER` (25, after the surface layers) and `ROOM_LAYERS` (8), the little rooms behind lit windows; `PATTERN_LAYERS` is `ROOM_LAYER + ROOM_LAYERS` (33). `generatePatterns` leaves the five surfaces and the rooms flat (R 128) until V2C and V2A fill them. Every index is append-only.
+- **The dab kit** (`dabs.ts`): `brushDabs(b: ShapeBuilder, blobs: readonly DabBlob[], opts: DabOptions): number` lays brush dabs over the blobs into the caller's builder with surface leaf, restores the builder's surface id and returns the triangles written; `DabBlob { center, radii, normalFrom?, color }`, `DabOptions { count, size, tintSpread, skyLighten, gaps, thin, seed }` (all plain numbers; options appended, never reordered). A stub that writes nothing until V2B; no kit calls it yet.
+
+**Client** (`apps/client/src/render`):
+
+- **The light map** (`lightMap.ts`): `LIGHT_MAP_TEXELS` (low 2, medium 4, high 6, ultra 8 texels a tile) and `lightMapSize(quality, tiles = MAP_SIZE)` (384 to 1,536); `LightDisc { x, z, radius, color, intensity }` (world tiles, sRGB hex, 1 a lit lantern's pool); `LightMapWriter` (`set(source, discs)` and `clear(source)`, true when something changed; `discs()`, `count`, `dirty`, `requestRedraw()`, `takeDirty()`); `createLightMapTarget(quality)` (RGBA half float, linear, no depth); `resizeLightMap(env, quality)`, called from `Renderer.setQuality` (the texture object stays the same, so bound uniforms keep working); `drawLightMap(three, env)`, called once a frame after the layers' `frame()`, which redraws only when a writer changed something and bumps `env.lightMapRevision`. Readers bind `lightMapUniforms(env)` (`uLightMap`, `uLightMapXf` with uv = xz * xy + zw; one set per env) and include `LIGHT_MAP_GLSL` for `qLightMap(xz)`, the lamplight in linear RGB, which each reader scales by the night. V2.0's stub draws nothing: the map is black and unallocated, and the ground's 32-light loop (`MAX_GROUND_LIGHTS`) stays in charge.
+- **`WorldEnv`** gains `lightMap` (`WebGLRenderTarget`), `lightMapRevision` and `lightWriter` (`LightMapWriter`).
+- **The lights layer** (`layers/lights.ts`) feeds the writer under the sources `lanterns` (decor kits' `anchors().lights`) and `windows` (lit panes' spill, by `windowLit`), and its `frame()` returns true when they change, a static-layer event.
+- **The gallery** (`apps/gallery/src/surfaces.ts`): `SURFACE_ORDER` stops below `NOISE_LAYER`, so the V2 surfaces stay out of its shots until V2C gives them patterns.
+
+**Measuring**:
+
+- **The perf route** (`packages/protocol/src/perf.ts`): `PUT` and `GET /api/valleys/:id/perf` (`PERF_ROUTE`), one `handlePerf(req, storage, meta, now)` shared by the Worker's ValleyRoom and the dev relay, outside sim state. Every call needs a seat token (`Authorization: Bearer`); the seat and the time come from the server. The body is a `PerfRunInput { machine, rows, table }` (`PerfMachine { browser, screen, pixelRatio, gpu, build }`, `PerfRunRow { scene, quality, moving, idle }`, the Markdown table) of at most `MAX_PERF_CHARS` (64 KB), stored as a `PerfRun` (plus `seat` and `created`); `trimPerfRuns` keeps the last `PERF_RUNS_PER_SEAT` (3) of each seat. `PerfStorage` is the store (Durable Object storage, the dev relay's file; `MemoryPerf` for tests); a solo valley keeps its runs on the device with the same trimming.
+- **Measure this laptop** (Settings, with `app/perf.ts`): `__qoti.perf()`'s run on each preset in the valley on screen, then in the village and town showcases (in this client's Mirror, never the sim), the valley put back as it was; it shows `perfTable(rows)`, copies it as Markdown and stores the run through the perf route.
+- **The grown village**: `?debug&fixture=grown`, a town grown by the bench's autoplayer (about 150 residents, Village rank, a festival's worth of decor); `npm run fixture:grown -w @qoti/client` regrows it (`tools/bench/src/tune.ts` with `TUNE_SAVE`). The fresh start refuses the V2.0 snapshot, so R1X regrows it.
+- **Scripts**: `apps/client/e2e/v2-shots.mjs <stage>` (V1's scenes and the grown village by day, golden hour and night, saving `docs/build/screenshots/v2-<stage>-<scene>-<shot>.png`) and `v2-perf.mjs` (per scene and preset, moving and idle, the grown village and night included).
+
 ## Client
 
 - **Boot**: title screen → create or join → `RoomConnection` → `SimHost.init` (new from seed, or snapshot) → `ready` → Mirror built from the view → Renderer and UI mount → live turns flow to the worker.
