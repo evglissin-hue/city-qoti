@@ -493,9 +493,7 @@ export function fortyResidentHamlet(seed: string): Hamlet {
     const spot = findSpot(w, defId);
     if (!spot) return null;
     const def = content.buildingById.get(defId)!;
-    const b = insertBuilding(w, null, def, spot[0], spot[1], spot[2], 0, { site: false });
-    if (trade) b.trade = trade;
-    return b;
+    return insertBuilding(w, null, def, spot[0], spot[1], spot[2], 0, { site: false, trade });
   };
   for (let i = 0; i < 8; i++) put('cottage');
   for (const [id, trade] of HAMLET_WORKPLACES) put(id, trade);

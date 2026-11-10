@@ -49,10 +49,10 @@ function denseBlock(state: WorldState): number {
     // R1: a carpenter's workshop where the sawpit stood.
     const work = i % 3 === 2;
     const def = content.buildingById.get(work ? 'workshop' : 'cottage')!;
-    const b = insertBuilding(state, null, def, x0 + 1 + (i % 3) * 5, z0 + 1 + Math.floor(i / 3) * 10, 0, 0, {
+    insertBuilding(state, null, def, x0 + 1 + (i % 3) * 5, z0 + 1 + Math.floor(i / 3) * 10, 0, 0, {
       site: false,
+      trade: work ? 'carpenter' : undefined,
     });
-    if (work) b.trade = 'carpenter';
   }
   const pieces = ['bench', 'lantern', 'flower-bed', 'planter', 'barrels', 'crates', 'apple-tree', 'signpost'];
   let n = 0;

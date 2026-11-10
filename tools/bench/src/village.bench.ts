@@ -56,8 +56,7 @@ export function villageBench(): { lines: string[]; failures: string[]; report: R
   const { state } = villageFixture();
   const placed: Building[] = [];
   for (const [def, x, z, trade] of CHAIN) {
-    const b = insertBuilding(state, null, content.buildingById.get(def)!, x, z, 0, 0, { site: false });
-    if (trade) b.trade = trade;
+    const b = insertBuilding(state, null, content.buildingById.get(def)!, x, z, 0, 0, { site: false, trade });
     placed.push(b);
   }
   // Unemployed grown-ups take the new jobs over the day (the residents system hires hourly).

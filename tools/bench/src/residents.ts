@@ -83,8 +83,10 @@ export function flatTown(
   let placed = 0;
   const done = () => homes.length >= homesWanted && works >= worksWanted;
   const place = (def: string, x: number, z: number, rot: Rot4, trade?: string) => {
-    const b = insertBuilding(world, null, content.buildingById.get(def)!, x, z, rot, 0, { site: false });
-    if (trade) b.trade = trade;
+    const b = insertBuilding(world, null, content.buildingById.get(def)!, x, z, rot, 0, {
+      site: false,
+      trade,
+    });
     placed++;
     return b;
   };
