@@ -95,21 +95,22 @@ Traced before the cut with read-only explorers; R1.0's commits carry it out. Whe
 
 | Stand-in | Where | What it does now | Replaced by |
 |---|---|---|---|
-| The carrier | `systems/carrier/index.ts` | today's peddler mapped onto families: at 10:00 buys a family short of its reserve and sells what is over twice it, by the default rules, 20 units a day (40 with a Trading Post) at 140% and 60% (120% and 85% with the post); no County tab, deals, boat, closed pass or winter marks | R1A |
+| The carrier | `systems/carrier/index.ts`, `carrier/terms.ts` | today's peddler mapped onto families: at 10:00 it buys essentials first in every family not on Never (Food or winter Fuel a household would go without today, Materials an open site waits for), then each Always family up to its reserve, and sells what is over twice the reserve, 20 units a day (40 with a Trading Post) at 140% and 60% (120% and 85% with the post); no County tab, deals, boat, closed pass or winter marks | R1A |
 | Balances view | `view/zones.ts` `balancesView` | stock, use (Food a resident, Fuel a household, Wares and Treats the Settler basket), cover from town stock; flavors on offer means in stock anywhere; history from 14 days of stock | R1A |
 | Baskets by family | `systems/market/baskets.ts` | every flavor of a family weighs 1 (wool is on no shelf); variety is not tracked | R1A |
 | Tiers read amount only | `systems/tiers/api.ts` | moving up needs each wanted family on a shelf in reach, the services, charm and savings; no variety | R1A |
 | The boat sails nowhere | `systems/dock/index.ts` | boats stay at the dock until the carrier sails them | R1A |
-| Trade choice | `systems/growth/index.ts` | the best shortage score among trades whose site wants the lot meets (fertility, pollinators, a reach with room, households); farms fall back to the first fitting trade; no keeper term, no retooling | R1B |
-| Demand bars | `systems/growth/index.ts`, `view/zones.ts` `demandView` | bars from growth's site counts (50 a site wanted), lit when no empty lot of the zone has frontage, one reason each | R1B |
+| Trade choice | `systems/growth/index.ts`, `growth/recipes.ts`, `growth/trades.ts` | the best shortage score among trades whose site wants the lot meets (fertility, pollinators, a reach with room, households); farms fall back to the first fitting trade; no keeper term, no retooling | R1B |
+| Demand bars | `systems/growth/index.ts`, `view/zones.ts` `demandView` | bars from growth's site counts (50 a site wanted), lit when no empty lot of the zone has frontage, one reason each; Farmland also wants land when the carrier's last visit brought more than a third of a day's eating (`'imported'`), since the carrier's Food reserve holds a fresh valley near four days of cover | R1B |
 | Levels | `systems/levels/index.ts` | businesses stay at level 1; counters are not kept | R1B |
 | Keepers | growth | `keeperId` stays 0 | R1B |
 | Businesses view | `view/zones.ts` `businessView` | status in words from the stage and the hands at work; served counts businesses of the enabled trades within reach by footprint distance | R1B |
 | Site rules | `rules/building.ts` | the five new kinds (woods, river, openGround, road, valleyRoad) are declared in content and not yet checked; the old kinds (deposit, water edge) are | R1B |
-| Stores by family | `systems/logistics` | a granary and a storehouse take any good (`BuildingDef.stores` is not read yet) | R1B |
 | The Forester's Lodge | `content/buildings.ts` | fells as the woodcutter did (4 timber a tree); no replanting of its own wood, no firewood toward the Fuel mark | R1B |
 | The windmill and sawmill | content | no method; they only enable bakers and carpenters (the reach check is the trade choice's) | R1B (the frozen-river hand saw) |
-| The Seed Drill | `systems/production` | its `resow-same-day` unlock does nothing yet | R1B |
+| The Seed Drill | `systems/production/fields.ts` | its `resow-same-day` unlock does nothing yet | R1B |
+| The frozen Sawmill | `systems/seasons/river.ts` | a frozen river costs the Sawmill nothing yet | R1B |
+| Cross-track API stubs | `systems/carrier/api.ts`, `market/balances.ts` (R1A); `systems/specialized/api.ts`, `growth/trades.ts` (R1B) | simple readings of what exists (see each header) | R1A, R1B |
 | Innovations' measures | `systems/innovations/measures.ts` | quarryWorked, timberRate, lodgeByRiver (with a simple day counter) | R1B tunes |
 | The season plan | `state.seasonPlan` | set by `season.setPlan`; nothing reads it yet | R1A (marks for the carrier), R1B (the Fuel mark for foresters, where to build first) |
 | Moving | `commands/move.ts` | `decor.move` and `build.move` refuse with NOT_ALLOWED | R1D |
@@ -125,11 +126,14 @@ Traced before the cut with read-only explorers; R1.0's commits carry it out. Whe
 
 ## Skipped and deleted tests
 
-Filled in by R1.0 as the sweep lands; R1X checks each is rewritten or back on.
+R1X checks each skip is rewritten or back on before the merge into `main`.
 
-- Deleted with their feature (sim): `test/p1/callings.test.ts`, `test/p1/save-v5.test.ts`, `test/market/trade.test.ts`, `test/festivals/dock.test.ts`, `test/p1/trade-fixes.test.ts`, `test/village/chains.test.ts`, `test/festivals/trades.test.ts`, the migration tests in the three contracts tests.
-- Deleted with their feature (client): see R1.0's PR list below.
-- Skipped e2e: see below.
+- **Deleted with their feature (sim)**: `test/p1/callings.test.ts`, `test/p1/save-v5.test.ts`, `test/market/trade.test.ts`, `test/festivals/dock.test.ts`, `test/p1/trade-fixes.test.ts`, `test/village/chains.test.ts`, `test/festivals/trades.test.ts`, and the migration sections of the three contracts tests; other cases of removed features inside kept files are listed in R1.0's report.
+- **Deleted with their feature (client)**: `ui/panels/calling.test.ts`, `ui/deals.test.ts`, `ui/panels/deals.test.ts`, `ui/decorText.test.ts` (the decor boost lines); the standing order, caravan, Sell toggle and `ledger.setForSale` undo cases in `panels/village.test.ts`, `swatches.test.ts`, `books.test.ts`, the undo tests and `mocks/village.test.ts`.
+- **Skipped, for R1F** (comment `// R1.0: stand-ins; R1F rewrites the advisors and their targets`): `tools/bench/src/autoplay.test.ts` (grows willow and hazel without dead ends; reaches the Village with hazel, and with willow through the post; lives, stories and the together loop; grows on as a Village, oak), `village.test.ts` (homes and shops on willow and hazel), `advisors/festivals.test.ts` (a festival every season with three stars, hazel and willow), `advisors/guide.test.ts` (every step by day 6; also waits on R1D's letters).
+- **Skipped, for R1X**: `tools/bench/src/hamlet.test.ts` (keeps food flowing and the treasury in band).
+- **Skipped, for R1D**: `tools/bench/src/patterns.test.ts` (the Kitchen Garden built by hand, waiting for the garden bed; `'garden-bed'` in it is a placeholder id).
+- **e2e**: no spec needed a skip: `village.spec.ts` lost its Deals, Orders and Caravans steps; the hamlet spec checks the baker and grain, the coop request asks timber, the guide spec places a Forester's Lodge (which R1B's woods rule may refuse at the spot it picks: R1B checks it). The `.mjs` screenshot scripts `p1-calling-shots`, `p1-trade-shots`, `c4f-shots`, `c3d2-shots` and `c3e-shots` still name removed things and are not run by `npm run e2e`; R1C retires or rewrites them.
 
 ## Handshakes
 

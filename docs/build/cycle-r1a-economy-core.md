@@ -52,4 +52,5 @@ Trade choice, levels, specialized buildings and the season plan's other readers 
 
 - R1.0's design note (a): a made good no business in the valley makes yet, while its raw good is made here, counts as a little short in R1B's need term; your `familyCover` and `carrierBrought` feed that term, so keep them cheap.
 - Spoilage as built (a granary halves it); a festival's put-by goods are never sold.
+- R1.0's lesson: with the spec's one fixed buying order and the peddler's 20 units, the Food reserve took the whole load every day and a site waiting on timber never got it; the stand-in buys essentials in every family first, then reserves. Keep essentials ahead of reserves (or size the load so they never compete), and keep R1.0's bench playtest green.
 - If you need a saved-shape change beyond optional fields, say so in your PR (wave notes: Saves).
