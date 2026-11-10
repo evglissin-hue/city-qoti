@@ -22,7 +22,6 @@ import {
   type DecorGroup,
 } from '../input/catalog';
 import type { Tool } from '../input/tool';
-import { boostText } from './decorText';
 import { goodName, thousands } from './format';
 import { thumbnail, type ThumbnailKind } from '../render/thumbnails';
 import { Glyph, ToolIcon } from './icons';
@@ -523,7 +522,6 @@ function DecorPicker({ session, tool, linear }: { session: Session; tool: Tool; 
                 ) : (
                   !free && def.cost && <CostLine coins={def.cost.coins} goods={def.cost.goods} free={false} />
                 )}
-                {!locked && boostText(def) && <span class="decor-effect muted">{boostText(def)}</span>}
               </span>
             </button>
           );
