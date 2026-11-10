@@ -1,6 +1,6 @@
 # Build board
 
-One row per cycle. A cycle is one agent session working from one brief on one branch, ending in one PR into `main`. I1 ran as C3.0 then six parallel agents (C3D split into world look and hamlet art), merged and tuned in C3X on one branch. Wave 2 of I0 ran as six parallel agents (C2B and C2D were each split in two) and landed as one integration PR stacked on #1. The visual overhaul runs as V iterations between the gameplay ones (`docs/spec/30-roadmap.md`, Visual overhaul); V1 runs beside the I3 wave. How cycles work: `docs/spec/31-parallel-development.md`.
+One row per cycle. A cycle is one agent session working from one brief on one branch, ending in one PR into `main`. I1 ran as C3.0 then six parallel agents (C3D split into world look and hamlet art), merged and tuned in C3X on one branch. Wave 2 of I0 ran as six parallel agents (C2B and C2D were each split in two) and landed as one integration PR stacked on #1. The visual overhaul runs as V iterations between the gameplay ones (`docs/spec/30-roadmap.md`, Visual overhaul); V1 runs beside the I3 wave. From 2026-11-10 the plan of record is the redesign (`docs/spec/30-roadmap.md`, The redesign): V2 Light and green beside R1 Zones first, then V3 with R2 and V4 with R3, before I4. How cycles work: `docs/spec/31-parallel-development.md`.
 
 | Cycle | Iteration | Wave | Brief | Depends on | Status |
 |---|---|---|---|---|---|
@@ -44,6 +44,7 @@ One row per cycle. A cycle is one agent session working from one brief on one br
 | V1C Ground, water and nature | V1 | parallel | `cycle-v1c-ground-nature.md` | V1.0 | merged in V1X (#13) |
 | V1D Lean renderer | V1 | parallel | `cycle-v1d-lean-renderer.md` | V1.0 | done, pushed to `main` at the owner's request (no PR): the lean frame graph, the still-frame cache, cached shadows, levels for buildings and decor, moving-only dynamic resolution, every preset field; laptop timings remain (see As built in the brief) |
 | V1X V1 integration | V1 | integration | `cycle-v1x-integration.md` | V1A to V1D | merged: V1A to V1C on V1D, the resting redraws fixed, the classic chain retired, sun and night tuned, shots and software numbers; laptop perf runs and the playtest evening left for humans |
+| D1 The redesign's spec | R1 to R3, V2 to V4 | serial | none (this session) | P1 | done on `claude/zealous-goodall-35jfp6` (2026-11-10): the owner's step back turned into spec: `13-ledger.md` rewritten zones first (the chain economy archived), `19-evenings.md` new, the look's second pass and the interface in `17-presentation.md`, the principles amended (Kat's agreement still to record), the roadmap's R1 to R3 and V2 to V6 on fresh valleys. No briefs yet: V2.0 and R1.0 are the next two to write |
 
 Status values: waiting (dependencies not merged), ready, in progress (add the session link), PR open (add the PR link), merged.
 

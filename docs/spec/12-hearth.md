@@ -2,6 +2,8 @@
 
 The Hearth lane is a complete game (P1): real rules, its own progression (Pattern Book, bonds, Field Guide, festival renown) and its own achievements.
 
+**The redesign (owner, 2026-11-10)**: from R2 the Hearth has an economy of its own. The places it composes are where residents spend their evenings, buy their treats, make their friends and grow into masters (`19-evenings.md`). Charm stays the measure of how pleasant a spot is; what it earns the town now runs through those evenings. Tags [R1], [R2] and [R3] below mark what changes.
+
 ## Charm [I1]
 
 A per-tile integer field, 0 to 100 (P20). Stored in sim state as `hearth.charm` (Uint8Array) plus five category fields used for breakdowns and species tastes: `nature`, `comfort`, `light`, `view`, `noise`.
@@ -13,7 +15,7 @@ A per-tile integer field, 0 to 100 (P20). Stored in sim state as `hearth.charm` 
 *As built (P1, the owner's playtest)*:
 
 - **Window boxes are added, never assumed**: no kit draws them until a seat turns them on in Customize (choosing the flowers: geranium, rose, cream, cornflower, buttercup or a mixed bunch, `custom.windowFlowers`) or the household puts them up as its street grows pleasant (`13-ledger.md`, Homes improve on their own). What is drawn is what counts for charm and habitats. A fitted flower-boxes module replaces the kit's own boxes rather than doubling them.
-- **Pieces that help the work**: five priced pieces (tool rack, flower trellis, painted shop sign, brass weathervane, rain barrel; `fineDecor.ts`) cost coins and goods like a building (refunded in full when removed) and make the workplaces of the kinds they name within their radius work 5 to 10% faster (the `decor` line of the yield registry, at most +15% a building). They sit in their own For the work group of the decor picker, and the six Village pieces have art of their own.
+- **Pieces that help the work**: five priced pieces (tool rack, flower trellis, painted shop sign, brass weathervane, rain barrel; `fineDecor.ts`) cost coins and goods like a building (refunded in full when removed) and make the workplaces of the kinds they name within their radius work 5 to 10% faster (the `decor` line of the yield registry, at most +15% a building). They sit in their own For the work group of the decor picker, and the six Village pieces have art of their own. *[R1]*: the yield line goes (P6: never "+5%"); the five stay as priced decor with their charm, in a Fine pieces group, and V3's dressing hangs signs on businesses by their level.
 - **Muffling**: hedges and walls beside a tile, and mature trees, each take 15% off its noise (45% at most), so a home troubled by a workshop has a gentler remedy than moving it.
 
 **Sources** (value at the source tile, linear falloff to 0 at the radius) *(tune)*. As built: value x (radius + 1 - d) / (radius + 1), where d is the distance in tiles from the tile's center to the piece (or to a building's footprint), so the last tile inside the radius still gets a little and nothing past it does. Sources come from content (`charm` on decor and buildings) plus the map:
@@ -49,6 +51,8 @@ A per-tile integer field, 0 to 100 (P20). Stored in sim state as `hearth.charm` 
 
 **Effects**: home desirability and arrivals, the Beauty need, tier thresholds [I2], wish targets, pattern detection, tourism [I4], Watch morale near defenses [I3]. Charm overlay uses a colorblind-safe ramp.
 
+*[R2]*: charm becomes the larger part of a place's draw and the pleasant way of a route (`19-evenings.md`, Places, The round). The Beauty need and the tiers' charm threshold give way to the evenings need. Home desirability, arrivals and the dressing ladder read charm as before. The scoring rules above stay; what changes is that sprinkling pieces by every door no longer opens a tier, and a composed place with seats does.
+
 ## The Pattern Book [I1]
 
 The core of Hearth progression (P19). Good places are made of patterns, inspired by Christopher Alexander's *A Pattern Language*. Patterns are discovered by building them, never bought.
@@ -67,6 +71,8 @@ interface PatternDef {
   unlocks: string[];       // decor, building or style ids
 }
 ```
+
+*[R1]*: detectors that name buildings read the new ones by tag: a bakery is a baker's business, a corner shop a shop, market buildings are stalls, shops and the Market Square, an orchard is an orchard farmstead. The vegetable plot and the herb garden return as one Hearth piece, the garden bed: placed by hand beside a home for 4 timber, it feeds only that home (through the Kitchen Garden page's vegetable a day) and counts for charm, wishes and habitats as the plots did. No pattern is lost with the chains. *[R2]*: every standing pattern site is a place on the evening round, with seats from its pieces and a draw of its own, and its page shows who came last night. *[R3]*: a pattern pairs with a good in the Town Book (`19-evenings.md`).
 
 **Engine:**
 
@@ -172,6 +178,8 @@ interface WishTemplate {
 
 **Feedback**: a wish icon above the home; the Wishes panel; selecting a wish highlights the target area as a soft ghost; on grant, the resident does a little hop, sends a thank-you letter and the Chronicle may note it (weekly digest to avoid spam).
 
+*[R1]*: a wish that names a workplace names its trade instead (Bakery Nearby wants a baker within 12 tiles), and is voiced only where a Workshops lot inside a windmill's reach could put one there, or one already can (the achievable check). Fresh Fish wants fish on a shelf in reach. *[R3]*: a granted wish still gives a heart up to three; hearts now matter to the Ledger too, because four make a master (`19-evenings.md`, Masters).
+
 ## Festivals [I3]
 
 One per season, day 6 from 18:00 to 22:00 (P23).
@@ -189,6 +197,8 @@ One per season, day 6 from 18:00 to 22:00 (P23).
 **Rewards**: town mood +5 to +15 for 2 days, bond +1 for attendees (cap per season), renown, Watch morale, a Chronicle entry with a snapshot, unlocks at milestones (first 3, 4 and 5 stars). A poor festival only yields less.
 
 **Seasonal festivals**: Spring Blossom Fair, Midsummer Lantern Night, Harvest Supper, Winter Hearth Feast.
+
+*[R1]*: a menu is up to four flavors of Food and Treats (`13-ledger.md`, Goods), put by from the granaries and storehouses as built; the carrier never sells what a festival has put by. A twist that names a good the town cannot yet make is not offered: the pie contest waits for a master baker [R3], and the costume parade asks for cloth. *[R3]*: a specialty can go on the menu as a dish of its own and a custom can be the twist (`19-evenings.md`, The Town Book).
 
 *As built (C5B)*:
 
@@ -218,7 +228,7 @@ Wildlife you invite (P24).
 - **Hints**: the three commonest species not yet found (highest rarity, then id), each with content's `hint` in words a player can act on ("A pond near a garden, on spring and summer evenings"); `ViewSnapshot.fieldGuideHints`.
 - **Species**: 32 (`content.wildlife`): 9 birds besides the kingfisher, 11 insects (the garden snail files under insects, and says so), 3 amphibians, 2 fish, 4 small mammals (pipistrelle, water vole, roe deer, stoat). Specialists ask for what a player builds: the kingfisher wetland 170 (the river and a pond beside it), the mute swan 200, the woodpecker 200 woodland.
 - **Effects** (yield hook, `pollinators` and `pests`), from Village rank (a Hamlet's handful of plots is beneath the notice of bees and pests alike; with bees from the first day the autoplayer reached Village a season later on five seeds of eight, so the I2 Hamlet stays as tuned): a crop grower (a farm, or a gatherer of apples, herbs, vegetables or wheat) gains up to +20% at a pollinator score of 200 in its chunk; an apiary makes a quarter of its honey with no flowers about, all of it at 200 (honey rests in winter, `GoodDef.seasons`). Each summer morning every crop grower loses 15% to pests, less each Field Guide species with a `pests` effect (wren, song thrush, blue tit, swallow, ladybird, pipistrelle, common frog, common toad) whose habitat needs the farm's chunk meets: each cuts its share (a wren 30%), together up to all of it. A Hamlet's few plots are beneath a pest's notice.
-- **Apiary**: a Hearth building from Village rank (20 coins, 8 planks, one keeper), gathering 2 honey in 6 hours, by the pollinator score as above.
+- **Apiary**: a Hearth building from Village rank (20 coins, 8 planks, one keeper), gathering 2 honey in 6 hours, by the pollinator score as above. *[R1]*: hives are also a Farmland trade the town starts by itself where the pollinator score is 100 or more, and the Apiary stays the Hearth's way to place one by hand (8 timber). Honey now matters twice: it is a Treat, and the chandler's candles are made of it, which from R3 light the lanterns and the windows.
 - The season report's nature lines: new Field Guide pages, good habitat (60+) by chunks, and for the Ledger the bees' lift, the honey made and summer's pests.
 
 ## The Chronicle [I1]
@@ -240,6 +250,18 @@ interface ChronicleEntry {
 - **Snapshots** [I3]: the client captures a thumbnail for notable entries and uploads it to valley storage. *As built (C5F)*: the lowest connected seat's client takes it, keyed by the entry's id, first write wins; the gazette shows it as a small print beside the entry. Pictures stay out of sim state and, in I3, out of `.qoti` files (`21-networking-and-saves.md`, Chronicle snapshots).
 - **Time-lapse** [I4]: rendered from stored periodic snapshots.
 - **Claude-written letters** [I5, optional]: one client asks Claude (with an API key from settings) to write a resident letter from Chronicle data, then submits the text through a `letter.add` command, so both seats see the same text and the sim stays deterministic.
+- **The storybook of the valley** [V4, R3]: Chronicle pictures are taken as developed stills in ink and wash (`17-presentation.md`, Visual direction, second pass), so the gazette reads as an illustrated book. When a chapter closes (a sealed Charter), "Print the storybook" lays the chapter out for the browser's own print dialog, to paper or a file: the valley's endpaper map, the chapter's entries with their pictures, the Pattern Book and Town Book pages found, and the residents' portraits. It is made on the client from what the valley already stores, and nothing about it is sim state.
+
+## Decorating that composes itself [R1]
+
+The Hearth's tools do more of the arranging, so a place takes a few gestures and looks composed (the owner, 2026-11-10; Kat's move mode from playtest round three). The helpers live in the client; every result is still an ordinary command, so the sim and the partner see plain pieces.
+
+- **A seat faces what is worth looking at**: a bench, curved bench or arbor seat set down without turning it faces water within 4 tiles, else the open side, else the path. R still turns it.
+- **A dragged run spaces itself**: lanterns dragged along a path stand every third tile on alternating sides; flowers dragged along a wall or path follow it.
+- **Runs meet roads gracefully**: a hedge run that crosses a path leaves an arch, a fence or wall run a gate, as wall runs already do for defenses.
+- **A flower brush**: dragging paints a drift of mixed flower pieces, chosen by a seed from the pieces unlocked, as one undo step (`decor.placeRun`).
+- **Move**: pick up a decor piece, or a building placed by hand, and set it down elsewhere (`decor.move`, `build.move`). A piece keeps its identity, its builder and its customizing; a building is taken down and raised again by the builders for a third of its work and no materials. Moving the partner's handmade work asks first, as removing it does.
+- A pattern's page offers "Lay it out": a ghost of the pattern's pieces to place as a plan, once that pattern has been discovered.
 
 ## District styles [I4]
 

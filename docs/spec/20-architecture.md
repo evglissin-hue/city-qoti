@@ -463,6 +463,57 @@ Defined in cycle V1.0, then changed only additively during the V1 wave (V1A to V
 - **V1D additions** (additive): `RenderStats.shadowRenders`, `stillRenders` and `engine` (`Engine`: `lean`; the `classic` chain behind `?engine=classic` was retired by V1X), shown in the `?debug` overlay; `Renderer.invalidateStatic()` is public (a change to the static picture from outside a layer); `QualityPreset.stillScale` (the pixel ratio cap at rest), `pixelRatios(preset, dpr, cap?)` and `BUILDING_DETAIL_FLOOR`; `decorGeometry(def, lod)` takes a level; `render/{cache,shadows,lod}.ts`; the classic chain moved to `render/postClassic.ts` (V1X deletes it).
 - **Scenes and scripts**: `window.__qoti.townShowcase()` (about 1,000 of today's buildings in streets, 4,000 decor, 2,000 garden trees and 2,000 synthetic residents in this client's Mirror, never the sim) `window.__qoti.perf()` and `window.__qoti.layerTriangles()` (triangles per render layer from the current camera; `app/perf.ts`); `apps/client/e2e/v1-shots.mjs <stage>` (fixed cameras at 1440 x 900 on the hamlet, the village of 130, the town and the winter fixture) and `v1-perf.mjs` (per preset and scene, a scripted camera path and a rest, with average and 95th percentile frame and GPU ms).
 
+## Redesign outline [R1 to R3, V2 to V4]
+
+Written 2026-11-10 with the redesign's spec (`13-ledger.md`, `19-evenings.md`, `17-presentation.md`, `30-roadmap.md`). It names where the work lands so the contracts cycles (R1.0, R2.0, R3.0, V2.0, V3.0, V4.0) can write the exact types here, as C4.0, C5.0 and V1.0 did. Paths are as they stand on `main` today.
+
+**R1 is a rebuild, so its contracts cycle may rename and remove.** The contracts policy (`31-parallel-development.md`) is additive-only during parallel waves; R1.0 alone is allowed to delete the chain economy's contracts, and from R1.0's merge the policy is additive again. Fresh valleys only (`21-networking-and-saves.md`, The fresh start), so nothing needs converting.
+
+**R1, the zones-first Ledger** (`packages/sim`, `packages/content`, `tools/bench`, `apps/client/src/ui`)
+
+- Content: `GoodDef.family` and `GoodDef.raw`; the 16 goods; `TradeDef` (zone, makes, from, wants, needs reach, crew by level, look) in a trades registry; `BuildingDef.reach`, `capacity`, `enables` and the site rules for specialized buildings; baskets by family with variety wants. The hand-placed production defs go; their art kit ids stay as trade looks.
+- State: `Building.trade`, `keeperId`, `level` and custom counters for a business; `carrier` (a rule, a reserve and what it carried, by family; a budget); `seasonPlan`; `demand` (the four bars with their reasons, a view). Gone: standing orders, goods for sale, the calling.
+- Systems: `growth` chooses trades (`chooseMethod` becomes the trade score); `production` runs trades and asks the carrier before a business rests; `market/baskets` buys by family and tracks variety; `trade`, `caravans` and the peddler in `economy` fold into a `carrier` system; `tiers` reads amount and variety; a `levels` system moves businesses up and down; `callings` leaves the pipeline until R3.
+- Commands: `carrier.setRule`, `carrier.setReserve`, `carrier.setBudget`, `season.setPlan`, `decor.move`, `build.move`; `build.pinRecipe` pins a trade. Removed: `trade.setStandingOrder`, `ledger.setForSale`. Every command keeps a sender in the client (`test/every-command-has-a-sender.test.ts`).
+- Views: `demand.updated`, `balances.updated` (five families: amount, variety, price, carried in and out), `business.updated`.
+- Bench: new advisors (one that zones and sites, one that tends the season plan), the lanes test and the decisions count (`22-quality.md`).
+
+**R2, the evening round** (`packages/sim/src/systems/residents`, `movement`, `market`, `growth`, `zoning`; new `systems/places`, `systems/gaps`)
+
+- State: `map.footfallDay` and `map.footfallEve` (Uint16 layers), the `evening` road flag, the `evenings` need (in place of `beauty` and `social`), each resident's last evening, place names and priorities. The place registry is derived and rebuilt on load, like the decor index.
+- Systems: `places` (hourly with patterns: sites, sitting spots and hosts into `Place` rows with seats, kinds, draw, serves); `residents/outings.ts` grows into the round's planner; `movement` gains the evening cost; `market/baskets` moves Treats to the stops; `growth/desirability.ts` reads footfall for Shops; `gaps` opens and closes gaps; `sim/turn.ts` runs dusk at half speed.
+- A new RNG stream, `round`, so an evening's whims never move another system's dice.
+- Lots (the old V2's sim half, for V3): `Lot.row`, a `garden` lot kind, `Lot.corner` with a second frontage, `params.storeys` chosen by the sim.
+- Commands: `road.setEvening`, `place.setPriority`, `place.rename`. Views: `places.updated`, `evening.closed` (the edition's lines), `gaps.updated`.
+
+**R3, masters and the Town Book** (new `systems/supplies`, `systems/masters`, `systems/townbook`)
+
+- State: lantern lit bits, `Resident.craft` and the master flag, Town Book pages, the door-pair counts behind Follow the thread (maker to store, store to outlet, outlet to home or place; decaying, like the flows overlay's).
+- Content: `DecorDef.supply`, master's goods, the pairs of pattern and good, each page's leaning.
+- Systems: `supplies` (the lamplighter's round as a schedule override, resting pieces, household candles), `masters`, `townbook` (detectors like the patterns'), and `callings` again, reading the pages.
+
+**V2, light and green** (`apps/client/src/render`, `packages/art`; no sim change)
+
+- `env.lightMap`: a render target the lights layer redraws on a static-layer event; read by `material.ts` (walls, the glass rooms), `ground.ts` (in place of the `MAX_GROUND_LIGHTS` loop), `scatter.ts`, the agents' material, `layers/effects.ts` and `layers/water.ts`.
+- `patterns.ts`: eight room layers appended to the pattern array; `surface.ts`: ids appended for wood grain, painted wood, wrought iron, terracotta and cloth, and the props, vehicles and residents kits write them.
+- `kits/trees.ts` and `kits/nature.ts`: brush-dab crowns and the meadow carpet; `groundAo.ts`'s uniform bound in the kit material; ribbon smoke; `setBubbles` on the View list.
+- `app/perf.ts` and Settings: Measure this laptop, with `/api/valleys/:id/perf` in the server and the dev relay.
+
+**V3, yards, streets and the long view**
+
+- `layers/dressing.ts`: a static, instanced layer driven by rules in `packages/art/src/dressing.ts` (data: who gets what, at which anchor); `KitAnchors` gains door, yard, wall, eaves and garden anchors.
+- Rows, garden lots, corners and storeys in `kits/rows.ts` and the buildings layer, on R2.0's lot fields.
+- `layers/horizon.ts`; a height term in the shared fog chunk; flow in `layers/water.ts`.
+- `render/endpaper.ts`: the map drawn on an OffscreenCanvas in a worker, shown on one full-screen quad, with the scene pass skipped while it covers the view.
+
+**V4, the developing picture**
+
+- `cache.ts`: an accumulation target beside the still frame; jitter sequences for the pixel, the sun's disc (with a shadow re-render a sample) and the lens; sky samples; a governor on the measured GPU time.
+- `post.ts`: lens blur for moving layers from the cached depth, in the existing final pass.
+- `renderer.capture({ style: 'ink' })`; the tea-break camera in `input/camera.ts`.
+
+Determinism holds as ever: everything under R1 to R3 is integer sim code on seeded streams, and nothing under V2 to V4 touches sim state or the hash.
+
 ## Client
 
 - **Boot**: title screen → create or join → `RoomConnection` → `SimHost.init` (new from seed, or snapshot) → `ready` → Mirror built from the view → Renderer and UI mount → live turns flow to the worker.
