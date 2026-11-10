@@ -59,7 +59,7 @@ R1C and R1D share `apps/client/src/ui` and `input`; this split is by file.
 
 ### R1E, art for trades
 
-As `31-parallel-development.md` (the redesign's pairs) has it: the building, workplace and service kits in `packages/art/src/kits/` (looks by trade and level from the kits that exist; new kits for the Brickworks, Granary, Market Square and the Forester's Lodge as one), and `apps/client/src/render/layers/buildings.ts`. V2 owns every other render and art path, including `render/kitGeometry.ts` (which reads `BuildingRuntimeView.method` today: R1E asks V2 to read `BuildingView.trade` there, or draws the trade look in the buildings layer). R1E reads `BuildingView.trade`, `.level` and `.keeperId` (the family name for the sign comes from the Mirror's residents).
+As `31-parallel-development.md` (the redesign's pairs) has it: the building, workplace and service kits in `packages/art/src/kits/` (looks by trade and level from the kits that exist; new kits for the Brickworks, Granary, Market Square and the Forester's Lodge as one), and `apps/client/src/render/layers/buildings.ts`. V2 owns every other render and art path. Decided: R1E draws the trade looks in its own buildings layer; if `render/kitGeometry.ts` (which reads `BuildingRuntimeView.method` today) needs to read `BuildingView.trade`, that is one additive line in a shared file, listed in R1E's PR, not a request to V2. The gallery is V2's path too: R1E adds one section through its existing registry and lists it in its PR. R1E reads `BuildingView.trade`, `.level` and `.keeperId` (the family name for the sign comes from the Mirror's residents).
 
 ### R1F, the bench
 
@@ -196,7 +196,7 @@ On day one R1A and R1B each move their builder out of `view/zones.ts` into their
 
 ## Calls that proved wrong in the code, and what R1.0 did
 
-- **Rule 2 and services.** The tavern pours cider and the Bath House burns firewood: a service uses a good up and makes nothing. The rule-2 content test checks methods that make something; services that only consume are outside it. Proposal for the spec: "A made good is never an input to making something", which is what the five rules mean.
+- **Rule 2 and services.** The tavern pours cider and the Bath House burns firewood: a service uses a good up and makes nothing. The rule-2 content test checks every trade and every method that makes something; services that only use a good up are outside it. Accepted by the master: `13-ledger.md`, rule 2, now reads "A made good is never an input to making something" and says a service may use a made good up.
 - **Site rules.** The brief's shapes include five new placement rule kinds; R1.0 declared them and the reason codes but left the checks to R1B (above), because the autoplayer's spot finder would fail on them until R1F rewrites it.
 - **The Apiary.** The spec calls it "the way to place a hives business by hand". R1.0 kept it a plain building with its own keep-bees method (no `Building.trade`), since a business on a hand-placed lot with no zone needs R1B's rules for retooling and levels; R1B decides whether placing one sets `trade: 'hives'`.
 - **The Village Charter's food goal** still reads `foodDays`; "5 days of Food with 3 flavors" needs `flavorsOnOffer` (R1A) and a count for it (R1D's conditions).

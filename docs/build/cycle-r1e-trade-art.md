@@ -31,7 +31,7 @@ A business looks like its trade and its level: a baker's workshop smells of brea
 2. **Levels drawn**: level 1, 2 and 3 a bigger yard, a painted sign with the keeper's family name, goods out front (17-presentation.md and 13-ledger.md, "Levels are drawn"); never a different footprint.
 3. **New kits**: the Brickworks (clay pit and kiln in one, on clay), the Granary, the Market Square (six stalls, 3x3; Odette's finale roofs it into the Market Hall later), and the Forester's Lodge (the old woodcutter, forester and chopping shed in one), each with its registry line.
 4. **The reach ring** is an overlay (V2's path): if R1C asks for one, agree the API with V2 rather than drawing it in the buildings layer.
-5. The gallery shows every trade at every level and the four new kits (`apps/gallery` is V2's: ask, or add one section through its existing registry).
+5. The gallery shows every trade at every level and the four new kits: `apps/gallery` is V2's path, so add one section through the gallery's existing registry and list it in your PR.
 6. Budgets: `22-quality.md` (the frame budget on Medium; the buildings layer's draws within V1's numbers). Measure the village scene before and after.
 
 ## Acceptance criteria
@@ -46,5 +46,5 @@ Materials, surfaces, lights, nature and the renderer (V2); what trades a lot tak
 
 ## Notes
 
-- `render/kitGeometry.ts` (V2's) reads `BuildingRuntimeView.method` for a building's goods pile today; from R1 a business's look comes from `BuildingView.trade`. Agree with V2 where that read moves.
+- `render/kitGeometry.ts` (V2's) reads `BuildingRuntimeView.method` for a building's goods pile today; from R1 a business's look comes from `BuildingView.trade`. Decided: you draw the trade looks in your own buildings layer; if `kitGeometry.ts` needs to read `BuildingView.trade`, add that one additive line in the shared file and list it in your PR.
 - R1.0 kept every old kit id so trades can borrow them; retire a kit only once no trade or def names it, and say so in your PR.

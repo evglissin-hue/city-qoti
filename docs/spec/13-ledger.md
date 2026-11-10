@@ -9,7 +9,7 @@ The Ledger lane is a complete game (P1): land, streets, trade and budgets, with 
 ## The five rules [R1]
 
 1. **Zones are the economy.** The Ledger zones land and the town builds, staffs and runs the businesses on it. Hand placement is for specialized buildings, services and special homes.
-2. **Two steps at most.** Land gives raw goods; a workshop turns raw goods into a made good. A made good is never an input, so no workshop ever waits on another workshop.
+2. **Two steps at most.** Land gives raw goods; a workshop turns raw goods into a made good. A made good is never an input to making something, so no workshop ever waits on another workshop. A service may use a made good up (the tavern pours cider): it makes nothing, so nothing waits on it (R1.0's content test checks every trade and every method that makes something).
 3. **Nothing stalls.** The carrier imports any shortfall and sells any surplus by itself, within rules and a budget the Ledger sets and within what it can carry. Making things in the valley is cheaper, gives work and keeps the town safe when the pass is closed, but it is never a precondition.
 4. **Five balances.** The Ledger reads Food, Fuel, Materials, Wares and Treats, each as an amount (days of cover) and a variety (flavors on offer), never a list of every good.
 5. **Ranks add decisions, never chains.** A new rank or era may add a district policy, a kind of street, a trade route or a specialized building. It never adds a link the Ledger must place for something else to work. The raw goods below are the whole list for the life of the game, but for coal in the Age of Steam.
