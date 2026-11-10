@@ -39,8 +39,9 @@ function expectSame(after: Snapshot, before: Snapshot): void {
 test('Measure this laptop: the table, Copy, kept per seat, the valley put back; Escape stops', async ({
   browser,
 }) => {
-  // Twelve rows and two showcases (one of 1,000 buildings and 2,000 residents) drawn in software.
-  test.setTimeout(900_000);
+  // Twelve rows and two showcases (one of 1,000 buildings and 2,000 residents) drawn in software:
+  // about ten minutes here, so room for a slower CI runner.
+  test.setTimeout(1_800_000);
   const context = await browser.newContext({ permissions: ['clipboard-read', 'clipboard-write'] });
   const page = await context.newPage();
   page.on('pageerror', (e) => console.log('pageerror:', e.message));
@@ -76,7 +77,7 @@ test('Measure this laptop: the table, Copy, kept per seat, the valley put back; 
   await expect(page.getByTestId('measure-progress')).toContainText(/of 12/);
 
   // The table: twelve rows, four presets in three scenes.
-  await expect(page.getByTestId('measure-row')).toHaveCount(12, { timeout: 840_000 });
+  await expect(page.getByTestId('measure-row')).toHaveCount(12, { timeout: 1_200_000 });
   await expect(page.getByTestId('measure-done')).toContainText('back as it was');
   const table = page.getByTestId('measure-table');
   for (const scene of ['This valley', 'Village showcase', 'Town showcase'])
