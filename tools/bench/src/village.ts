@@ -4,12 +4,14 @@
 // further out and farms at the end where the soil is good. From then on the village grows itself;
 // the Ledger stops building homes by hand. Also: the frontage as a top-down map, and the numbers a
 // day line adds for growth.
+// R1.0: the street is laid on the first day (Homes, Workshops and Farmland are open from founding);
+// shops and townhouses join the layout from Village rank.
 import { content } from '@qoti/content';
 import {
+  applyRankDefaults,
   canPaintRoad,
   canPlaceBuilding,
   doorTile,
-  ensureOffer,
   FIELD_GOOD_FERTILITY,
   growthDemand,
   MAP_SIZE,
@@ -35,7 +37,8 @@ export function promoteToVillage(w: WorldState): void {
   w.charter.ready = false;
   w.charter.history.push({ rank: 'village', tick: w.tick, seats: [0, 1] });
   for (const u of charter?.unlocks ?? []) if (!w.hearth.unlocked.includes(u)) w.hearth.unlocked.push(u);
-  ensureOffer(w, null);
+  // R1: the carrier's Village defaults (Wares and Treats to Always), as the real claim sets them.
+  applyRankDefaults(w);
 }
 
 export interface HighStreet {
@@ -117,8 +120,12 @@ export function planHighStreet(w: WorldState): HighStreet | null {
   return best;
 }
 
-/** Zones along a high street: shops, homes (cottages left, townhouses right), crafts, farms. */
-export function zoneHighStreet(w: WorldState, street: HighStreet): Command[] {
+/**
+ * Zones along a high street: shops, homes (cottages left, townhouses right), crafts, farms. R1: a
+ * Hamlet's street (`village` false) has only the zones open from founding: workshops by the
+ * junction, cottages both sides, more workshops, then Farmland on good soil.
+ */
+export function zoneHighStreet(w: WorldState, street: HighStreet, village = true): Command[] {
   const byZone = new Map<string, [number, number][]>();
   const add = (zone: string, x: number, z: number) => {
     if (!open(w, x, z)) return;
@@ -136,9 +143,11 @@ export function zoneHighStreet(w: WorldState, street: HighStreet): Command[] {
       const farm = k >= 17 && fert / 3 >= FIELD_GOOD_FERTILITY;
       const zone =
         k < 4
-          ? 'shops'
+          ? village
+            ? 'shops'
+            : 'crafts'
           : k < 13
-            ? left
+            ? left || !village
               ? 'homes-low'
               : 'homes-medium'
             : k < 17
@@ -163,7 +172,7 @@ export function zoneHighStreet(w: WorldState, street: HighStreet): Command[] {
  * there: the free spot nearest the lots porters miss (C4X: on any street, not only the first), door onto a road, off the zoned land (C4X: and
  * within reach of a standing storehouse, whose porters must bring its own planks, and of at least
  * two lots no porter reaches yet; the spot at the very end was out of every porter's reach, so the
- * site stood unsupplied until it was cancelled, again and again).
+ * site stood unsupplied until it was canceled, again and again).
  */
 export function storehouseSpot(w: WorldState, street: HighStreet): [number, number, Rot4] | null {
   const def = content.buildingById.get('storehouse')!;

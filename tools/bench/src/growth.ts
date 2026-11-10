@@ -69,7 +69,7 @@ function paint(world: WorldState, stroke: readonly [number, number][]): void {
 function stockUp(world: WorldState): void {
   for (const b of world.buildings) {
     if (b.def !== 'storehouse' || !b.rt) continue;
-    for (const g of ['planks', 'stone', 'logs']) b.rt.store[content.goodIndex.get(g)!] = 200;
+    for (const g of ['timber', 'stone', 'brick']) b.rt.store[content.goodIndex.get(g)!] = 200;
   }
 }
 
@@ -85,7 +85,7 @@ function addCarts(world: WorldState, n: number): Cart[] {
       home: 0,
       tile: lanes[(k * 7919) % lanes.length]!,
       move: null,
-      load: [[content.goodIndex.get('planks')!, 16]],
+      load: [[content.goodIndex.get('timber')!, 16]],
       job: 0,
       dir: 0,
       parked: false,

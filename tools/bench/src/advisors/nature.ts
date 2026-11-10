@@ -1,6 +1,6 @@
 // The nature advisor (C5C): the Hearth hand inviting wildlife, from Village rank. It proposes; the
 // planner's money and build queue decide. One afternoon job a day at most, in this order:
-// - an apiary once the town has an orchard or a herb garden (a want, so it waits its turn);
+// - an apiary once the town has an orchard or a market garden (a want, so it waits its turn);
 // - flowers by each orchard and apiary (three within three tiles), for the pollinators;
 // - hedges along a lane near homes (a run of four, up to HEDGES), for the hedgerow birds;
 // - a pond near homes once affordable (a 2 x 3 dig of fertile low ground), then planting, a bench
@@ -12,6 +12,7 @@ import { content } from '@qoti/content';
 import {
   canPaintRoad,
   doorTile,
+  hasTag,
   pondBlocked,
   pondCost,
   rankAtLeast,
@@ -21,7 +22,7 @@ import {
   type WorldState,
 } from '@qoti/sim';
 import { costOf, MONEY_RESERVE, type Planner } from '../planner';
-import { count, S } from '../town';
+import { count, countTrade, S } from '../town';
 import type { Advisor, AdvisorDef, Visit } from './types';
 
 /** Coins the advisor keeps in hand above the planner's reserve before spending on nature. */
@@ -74,7 +75,7 @@ class Nature implements Advisor {
 
   private flowersBy(def: string): boolean {
     for (const b of this.w.buildings) {
-      if (b.def !== def || b.stage !== 'built') continue;
+      if (!hasTag(b, def) || b.stage !== 'built') continue;
       const door = doorTile(b);
       const x = door % S;
       const z = Math.floor(door / S);
@@ -185,7 +186,7 @@ class Nature implements Advisor {
     const w = this.w;
     if (!v.afternoon || !rankAtLeast(w, 'village')) return;
     this.day++;
-    if (count(w, 'apiary') === 0 && (count(w, 'orchard') > 0 || count(w, 'herb-garden') > 0)) {
+    if (count(w, 'apiary') === 0 && (countTrade(w, 'orchard') > 0 || countTrade(w, 'market-garden') > 0)) {
       this.p.propose({
         def: 'apiary',
         priority: 2,

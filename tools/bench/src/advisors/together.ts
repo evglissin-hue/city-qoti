@@ -2,7 +2,7 @@
 // (seat 1) claims the Charter once it is ready, asks the Ledger for food at the stall with a request
 // (it closes itself when the porters deliver), sketches lanterns and flowers as a plan that the
 // Ledger approves on its next visit, and both keep an eye on the story characters' hints (a lantern
-// by their door, a seat and flowers by the market, Pippa's sawpit by the river).
+// by their door, a seat and flowers by the market, Pippa's lodge by the river; R1: her sawpit was).
 import { content } from '@qoti/content';
 import {
   findById,
@@ -61,12 +61,15 @@ class Together implements Advisor {
     }
   }
 
-  /** Pippa's river letter: a sawpit within three tiles of the water. */
+  /** Pippa's river letter: the building it names (R1: a Forester's Lodge) within three tiles of the water. */
   private inventor(): void {
     const w = this.w;
     const s = w.stories.find((x) => x.arc === 'inventor');
     const step = s && s.step >= 0 ? content.storyById.get('inventor')?.steps[s.step] : undefined;
     if (!step || !('count' in step.goal) || step.goal.count.what !== 'byWater') return;
+    const ref = step.goal.count.ref;
+    const def = ref ? content.buildingById.get(ref) : undefined;
+    if (!def) return;
     // Within three steps of the footprint, corners rounded, as the goal counts it.
     const wet = (x: number, z: number, wd: number, d: number) => {
       for (let tz = z - 3; tz < z + d + 3; tz++) {
@@ -78,10 +81,11 @@ class Together implements Advisor {
       }
       return false;
     };
-    const turned = (b: Building) => (b.rot % 2 === 0 ? [2, 3] : [3, 2]) as [number, number];
-    if (w.buildings.some((b) => b.def === 'sawpit' && wet(b.x, b.z, ...turned(b)))) return;
+    const [sw, sd] = def.size;
+    const turned = (b: Building) => (b.rot % 2 === 0 ? [sw, sd] : [sd, sw]) as [number, number];
+    if (w.buildings.some((b) => b.def === def.id && wet(b.x, b.z, ...turned(b)))) return;
     if (this.p.coins() < 60) return;
-    this.p.build('sawpit', wet);
+    this.p.build(def.id, wet);
   }
 
   /** The Hearth asks for food at the first stall; withdraws a request nobody could meet in a week. */

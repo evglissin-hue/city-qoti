@@ -46,10 +46,13 @@ function denseBlock(state: WorldState): number {
   const z0 = 32;
   for (let z = z0; z < z0 + 16; z += 5) for (let x = x0; x < x0 + 16; x++) state.map.road[z * 192 + x] = 1;
   for (let i = 0; i < 6; i++) {
-    const def = content.buildingById.get(i % 3 === 2 ? 'sawpit' : 'cottage')!;
-    insertBuilding(state, null, def, x0 + 1 + (i % 3) * 5, z0 + 1 + Math.floor(i / 3) * 10, 0, 0, {
+    // R1: a carpenter's workshop where the sawpit stood.
+    const work = i % 3 === 2;
+    const def = content.buildingById.get(work ? 'workshop' : 'cottage')!;
+    const b = insertBuilding(state, null, def, x0 + 1 + (i % 3) * 5, z0 + 1 + Math.floor(i / 3) * 10, 0, 0, {
       site: false,
     });
+    if (work) b.trade = 'carpenter';
   }
   const pieces = ['bench', 'lantern', 'flower-bed', 'planter', 'barrels', 'crates', 'apple-tree', 'signpost'];
   let n = 0;

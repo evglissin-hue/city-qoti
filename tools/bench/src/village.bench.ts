@@ -1,6 +1,7 @@
 // Bench scenario for the Village systems (C4C): the shared village fixture (60 residents) dressed
-// with every I2 chain, the services and a cart shed, run for a day at 1x against the hamlet's
-// 0.5 ms tick budget, plus the services, tiers and patterns passes on their own.
+// with the Village's specialized buildings, a business of each trade (R1.0: in place of the I2
+// chains), the services and a cart shed, run for a day at 1x against the hamlet's 0.5 ms tick
+// budget, plus the services, tiers and patterns passes on their own.
 import { content } from '@qoti/content';
 import {
   applyTurn,
@@ -19,19 +20,23 @@ export const VILLAGE_TICK_BUDGET_MS = 0.5;
 /** Hourly and daily passes (tune). */
 export const VILLAGE_PASS_BUDGET_MS = 3;
 
-const CHAIN: [def: string, x: number, z: number][] = [
-  ['clay-pit', 40, 38],
-  ['brick-kiln', 44, 38],
-  ['chopping-shed', 48, 38],
-  ['sheep-pasture', 52, 37],
-  ['spinner', 56, 38],
-  ['weaver', 60, 38],
-  ['dairy', 64, 37],
-  ['cheesemaker', 68, 38],
-  ['orchard', 72, 37],
-  ['cider-press', 76, 38],
-  ['herb-garden', 80, 38],
-  ['smithy', 84, 38],
+/**
+ * R1: the Village's specialized buildings, a business of each workshop trade and of the farm trades
+ * that feed them (as [def, x, z, trade], built directly as growth would on a lot), and the services.
+ */
+export const CHAIN: readonly (readonly [def: string, x: number, z: number, trade?: string])[] = [
+  ['brickworks', 40, 38],
+  ['workshop', 44, 38, 'baker'],
+  ['workshop', 48, 38, 'weaver'],
+  ['farmstead', 52, 37, 'sheep-run'],
+  ['workshop', 56, 38, 'chandler'],
+  ['farmstead', 60, 37, 'dairy'],
+  ['farmstead', 64, 37, 'orchard'],
+  ['workshop', 68, 38, 'cider-maker'],
+  ['farmstead', 72, 37, 'hives'],
+  ['workshop', 76, 38, 'carpenter'],
+  ['sawmill', 80, 38],
+  ['market-square', 84, 38],
   ['tavern', 40, 58],
   ['herbalist', 45, 58],
   ['school', 49, 57],
@@ -50,8 +55,10 @@ export function villageBench(): { lines: string[]; failures: string[]; report: R
   const failures: string[] = [];
   const { state } = villageFixture();
   const placed: Building[] = [];
-  for (const [def, x, z] of CHAIN) {
-    placed.push(insertBuilding(state, null, content.buildingById.get(def)!, x, z, 0, 0, { site: false }));
+  for (const [def, x, z, trade] of CHAIN) {
+    const b = insertBuilding(state, null, content.buildingById.get(def)!, x, z, 0, 0, { site: false });
+    if (trade) b.trade = trade;
+    placed.push(b);
   }
   // Unemployed grown-ups take the new jobs over the day (the residents system hires hourly).
   const ctx = createTickCtx(state);
