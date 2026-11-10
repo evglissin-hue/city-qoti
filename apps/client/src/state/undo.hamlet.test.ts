@@ -46,7 +46,7 @@ describe('undo for hamlet commands', () => {
       { e: 'building.updated', b: { ...b, custom: { ...b.custom, wall: 'rose', shutters: true } } },
     ]);
     expect(r.undo.size.value).toBe(1);
-    expect(r.undo.undo(r.mirror, r.raw)).toMatchObject({ ok: true, label: 'the new look for the bakery' });
+    expect(r.undo.undo(r.mirror, r.raw)).toMatchObject({ ok: true, label: 'the new look for the workshop' });
     expect(r.sent.pop()).toEqual({ t: 'build.customize', id: 6, custom: { wall: 'butter', shutters: null } });
 
     r.play({ t: 'build.customize', id: 6, custom: { roof: 'slate' } }, [

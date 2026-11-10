@@ -1,5 +1,5 @@
 import { content } from '@qoti/content';
-import { MAX_SUBSIDY, type BuildingDetail, type MarketLine } from '@qoti/sim';
+import { MAX_SUBSIDY, methodOf, type BuildingDetail, type MarketLine } from '@qoti/sim';
 import { useEffect, useState } from 'preact/hooks';
 import type { Session } from '../../app/session';
 import { goodName, placeName } from '../format';
@@ -202,7 +202,8 @@ function useProfits(session: Session): ProfitRow[] | null {
     const load = async () => {
       const ids = [...m.buildings.values()]
         .filter((b) => b.stage === 'built' && (b.rt?.jobs ?? 0) > 0)
-        .filter((b) => content.buildingById.get(b.def)?.methods?.length)
+        // R1: a business works by its trade's method, a specialized building by its own.
+        .filter((b) => methodOf(b) !== null)
         .map((b) => b.id);
       const out: ProfitRow[] = [];
       for (const id of ids) {

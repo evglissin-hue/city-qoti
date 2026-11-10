@@ -200,7 +200,7 @@ describe('reports', () => {
     const list = view.get('building-statuses');
     expect(list.textContent).toContain('Baker');
     expect(list.textContent).toContain('Waiting for inputs');
-    expect(list.textContent).toContain("Forester's Lodge");
+    expect(list.textContent).toContain(content.buildingById.get('foresters-lodge')!.name);
     await view.click(button(list, 'Baker'));
     expect(session.ui.selection.value).toEqual({ kind: 'building', id: 6 });
   });

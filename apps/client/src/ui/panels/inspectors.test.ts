@@ -1,4 +1,5 @@
 // @vitest-environment happy-dom
+import { content } from '@qoti/content';
 import { h } from 'preact';
 import { afterEach, describe, expect, it } from 'vitest';
 import { removalRequest } from '../../input/removal';
@@ -107,7 +108,7 @@ describe('building inspector', () => {
     const { session } = mockSession();
     session.ui.selection.value = { kind: 'building', id: 2 };
     view = await mount(h(InspectorPanel, { session }));
-    expect(view.text()).toContain('142 of 400');
+    expect(view.text()).toContain(`142 of ${content.buildingById.get('storehouse')!.storage}`);
     expect(view.text()).toContain('40 timber');
     view.unmount();
     session.ui.selection.value = { kind: 'building', id: 3 };

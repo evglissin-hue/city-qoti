@@ -8,7 +8,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { mockCharter, mockLetters, mockLoans, villageIds } from '../mocks/village';
 import { mockVillageSession } from '../mocks/session';
 import { mount, settle, typeInto, type Mounted } from '../test/dom';
-import { CharterPanel } from './Charter';
+import { CharterPanel, knownUnlockName } from './Charter';
 import { InspectorPanel } from './Inspector';
 import { LettersPanel } from './Letters';
 import { MarketPanel } from './Market';
@@ -37,9 +37,9 @@ describe('market', () => {
     expect(bread.textContent).toContain('Bread');
     expect(bread.textContent).toMatch(/dear|steep/);
     // Goods nobody trades stay out of the way until asked for.
-    expect(view.find('price-tools')).toBeNull();
+    expect(view.find('price-candles')).toBeNull();
     await view.click('prices-all');
-    expect(view.find('price-tools')).not.toBeNull();
+    expect(view.find('price-candles')).not.toBeNull();
 
     await view.click('price-bread');
     expect(session.ui.marketGood.value).toBe('bread');
@@ -161,7 +161,15 @@ describe('the Charter board and the notebook', () => {
     for (const i of content.innovations) expect(view.find(`idea-${i.id}`)).not.toBeNull();
     expect(view.get('idea-cobbles').classList.contains('unlocked')).toBe(true);
     expect(view.get('idea-wheelbarrows').textContent).toContain('66%');
-    expect(view.get('idea-wheelbarrows').textContent).toContain('Porters carry six');
+    expect(view.get('idea-wheelbarrows').textContent).toContain('Porters carry eight');
+  });
+
+  it('names every Charter and innovation unlock in words, never by its id', () => {
+    const ids = [
+      ...content.charters.flatMap((c) => c.unlocks),
+      ...content.innovations.flatMap((i) => i.unlocks),
+    ];
+    for (const id of ids) expect(knownUnlockName(id), id).toBeTruthy();
   });
 
   it('celebrates a rank-up with the proclamation and what it opens', async () => {
@@ -170,7 +178,7 @@ describe('the Charter board and the notebook', () => {
     view = await mount(h(RankUpPanel, { session }));
     const text = view.get('rank-up').textContent ?? '';
     expect(text).toContain('Thistlecombe is a Village');
-    expect(text).toContain('Zoning');
+    expect(text).toContain('The Shops zone');
     await view.click('rank-up-close');
     expect(session.ui.rankUp.value).toBeNull();
   });
