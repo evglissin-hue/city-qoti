@@ -190,10 +190,11 @@ export class Session {
     const covered = turns[turns.length - 1]?.t ?? r.snapshot.t;
     if (r.nextTurn - 1 > covered) turns.push({ t: r.nextTurn - 1, cmds: [] });
     this.undo.clear();
+    this.simEpoch++;
     try {
-      this.mirror.load(
-        await this.host.init({ kind: 'snapshot', data: base64ToBytes(r.snapshot.data) }, turns),
-      );
+      const view = await this.host.init({ kind: 'snapshot', data: base64ToBytes(r.snapshot.data) }, turns);
+      // V2.0: while a showcase holds the Mirror, reloadMirror loads the mended valley when it ends.
+      if (!this.heldTurns) this.mirror.load(view);
     } catch (err) {
       this.fail(`Could not mend the valley: ${err instanceof Error ? err.message : String(err)}`);
       return;
@@ -213,6 +214,7 @@ export class Session {
     const turns = [...w.log];
     const covered = turns[turns.length - 1]?.t ?? w.snapshot?.t ?? 0;
     if (w.nextTurn - 1 > covered) turns.push({ t: w.nextTurn - 1, cmds: [] });
+    this.simEpoch++;
     let view;
     try {
       view = await this.host.init(source, turns);
@@ -220,14 +222,19 @@ export class Session {
       this.fail(`Could not load the valley: ${err instanceof Error ? err.message : String(err)}`);
       return;
     }
-    this.mirror.load(view);
+    // V2.0: a reconnect while a showcase holds the Mirror (Measure this laptop) leaves it be; the
+    // worker has the valley, and reloadMirror loads it when the run ends.
+    const held = this.heldTurns !== null;
+    if (!held) this.mirror.load(view);
     if (!this.renderer) this.mount();
     if (this.connection) this.connection.status.value = 'live';
     // Start in the lens this seat prefers; Tab still swaps freely afterwards.
-    const mine = this.mirror.seats.value.find((v) => v.seat === this.seat);
+    const mine = view.seats.find((v) => v.seat === this.seat);
     if (mine) this.ui.lens.value = mine.lens;
-    this.profileSynced = false;
-    this.syncProfile();
+    if (!held) {
+      this.profileSynced = false;
+      this.syncProfile();
+    }
     const firstVisit = this.phase.value !== 'ready';
     this.phase.value = 'ready';
     if (firstVisit) void this.checkAway();
@@ -238,7 +245,7 @@ export class Session {
       pending: false,
       // P1 (playtest item 13): the title list shows the valley's seed and rank.
       seed: w.valley.seed,
-      ...(this.mirror.town.value?.rank && { rank: this.mirror.town.value.rank }),
+      ...(view.town?.rank && { rank: view.town.rank }),
     });
   }
 
@@ -634,6 +641,8 @@ export class Session {
    * resync meanwhile is harmless: the worker skips turns it already has.
    */
   private heldTurns: Turn[] | null = null;
+  /** Bumped whenever the worker starts over (a welcome or a resync), for `reloadMirror`. */
+  private simEpoch = 0;
 
   holdTurns(): void {
     this.heldTurns ??= [];
@@ -647,11 +656,16 @@ export class Session {
   async reloadMirror(): Promise<void> {
     this.holdTurns();
     let snap: { t: number; data: Uint8Array };
-    try {
-      snap = await this.host.snapshot();
-    } catch (err) {
-      this.releaseTurns();
-      throw err;
+    for (;;) {
+      const epoch = this.simEpoch;
+      try {
+        snap = await this.host.snapshot();
+      } catch (err) {
+        this.releaseTurns();
+        throw err;
+      }
+      // A welcome or resync started the worker over meanwhile: snapshot again, after it.
+      if (epoch === this.simEpoch) break;
     }
     const held = this.heldTurns ?? [];
     this.heldTurns = null;
