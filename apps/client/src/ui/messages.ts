@@ -18,7 +18,7 @@ export const REJECT_TEXT: Record<RejectReason, string> = {
   INVALID: 'That did not quite work.',
   LEAN_TIMES: 'Lean times. New building waits until the books are back above zero.',
   LOCKED: 'Not yet. The Pattern Book has to find this one first.',
-  OUT_OF_RANGE: 'Too far from the farmhouse to tend.',
+  OUT_OF_RANGE: 'Too far from the grain farm to tend.',
   CHANGED: 'Things have moved on since then, so there is nothing to undo.',
   CREDIT_LIMIT: 'The County Bank has lent all it cares to for now. Pay some back first.',
   NOT_READY: 'Not every goal on the Charter is met yet. Close, though.',
@@ -33,6 +33,12 @@ export const REJECT_TEXT: Record<RejectReason, string> = {
   HALL_STAYS:
     'The town hall stays. Its builders raise everything else, and nobody wants to learn who would raise a new one.',
   TOO_LATE: 'Too late for that. The evening has begun, so the plans will have to wait for next season.',
+  // R1 (R1.0): the site rules of specialized buildings
+  NEEDS_WOODS: 'A forester needs woods to work in. Find a spot with more grown trees about.',
+  NEEDS_RIVER: 'This one wants its door on the river. A pond will not do; it has tried.',
+  NEEDS_OPEN_GROUND: 'A windmill needs elbow room. Move it clear of the neighbors and their washing.',
+  NEEDS_ROAD: 'This wants a proper road at the door. Carts do not do footpaths.',
+  NEEDS_VALLEY_ROAD: 'Too far from the valley road. The traders will not come looking.',
 };
 
 export function rejectText(reason: RejectReason | undefined): string {
