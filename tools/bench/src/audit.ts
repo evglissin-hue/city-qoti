@@ -2,8 +2,9 @@
 // plays several seeds through a full year (24 days) and one seed on through the Village chapter,
 // and everything that would stop a player is collected: the health watch's issues (stuck sites,
 // idle builders, a valley with no builders, a building idle for want of an input, a wish nobody can
-// grant, a festival that never started, an order never filled) and, per wish template, how many
-// were offered, granted and let go (and how many let go while impossible).
+// grant, a festival that never started) and, per wish template, how many were offered, granted and
+// let go (and how many let go while impossible). R1.0: standing orders are gone, so no order is
+// ever left unfilled; R1F adds the zones-first kinds (`packages/sim/src/view/health.ts`).
 //
 // `npm run audit -w @qoti/bench [seed ...]` (default willow hazel oak birch); AUDIT_JSON=<file>
 // writes the results; AUDIT_DAYS and AUDIT_VILLAGE_DAYS override the lengths (the unit test uses

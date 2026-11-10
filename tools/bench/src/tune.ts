@@ -5,8 +5,8 @@
 // TUNE_SAVE=<file.qoti> writes the valley out, to open in the game (title screen, More, Open a valley
 // file) or shoot with the e2e scripts. TUNE_ACTIONS=1 lists everything the player tried.
 //
-// C5.0: one run plays every advisor whose system it finds (the Village chains, services and
-// Craftsfolk included), so the old `TUNE_VILLAGE=1` is the default and `TUNE_POST` is gone (it lent
+// C5.0: one run plays every advisor whose system it finds (the Village's services and Craftsfolk
+// included; R1.0: the chains are gone, businesses grow on the zoned streets), so the old `TUNE_VILLAGE=1` is the default and `TUNE_POST` is gone (it lent
 // the storehouses the Trading Post's tag until C4C's post landed, and did nothing since). Last comes
 // the year view: a line per day with the season, weather, cold households, festival stars, threat
 // band and raid results ('-' until the I3 systems fill them).
