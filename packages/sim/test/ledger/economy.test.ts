@@ -1,16 +1,17 @@
 import { describe, expect, it } from 'vitest';
 import { DAYS_PER_SEASON, LEDGER_CATEGORIES, TICKS_PER_DAY, TICKS_PER_HOUR } from '../../src/constants';
-import type { SimEvent } from '../../src/contracts';
-import { LEAN_MODIFIER, PEDDLER_UNITS } from '../../src/systems/economy';
+import { LEAN_MODIFIER } from '../../src/systems/economy';
+import { townStock } from '../../src/view/hamlet';
 import { hamletFixture } from '../fixtures/hamlet';
 import { rejection, run } from '../helpers';
-import { building, everyoneToWork, good, stockOf, ticks, untilHour } from './helpers';
+import { building, everyoneToWork, good, ticks, untilHour } from './helpers';
 
 const cat = (id: string) => LEDGER_CATEGORIES.findIndex((c) => c.id === id);
 const H = TICKS_PER_HOUR;
 
-// The fixture's upkeep: storehouse 2, three cottages 1 each, bakery 2, windmill 2, sawpit 1 and
-// the stall 1 make 11 coins a day before the dial. Nine Content residents pay 9 coins of tax.
+// The fixture's upkeep (R1): storehouse 2, granary 2, the baker's workshop 1, windmill 2, the
+// Forester's Lodge 1 and the stall 1 make 9 coins a day before the dial (homes, the town hall and
+// the well have none). Nine Content residents pay 9 coins of tax.
 
 describe('the daily books', () => {
   it('collects taxes and pays upkeep at midnight, after the dial', () => {
@@ -19,14 +20,16 @@ describe('the daily books', () => {
     untilHour(f.state, 0);
     const today = f.state.economy.today.money;
     expect(today[cat('taxes')]).toBe(900);
-    // 8 coins of upkeep a day (homes have none since C3X tuning); gentle pays 70%.
-    expect(today[cat('upkeep')]).toBe(560);
-    expect(f.state.economy.treasury - before).toBe(340);
+    // 9 coins of upkeep a day; gentle pays 70%.
+    expect(today[cat('upkeep')]).toBe(630);
+    // R1: the carrier's trade at 10:00 (yesterday's imports and exports, now) is the rest.
+    const y = f.state.economy.yesterday.money;
+    expect(f.state.economy.treasury - before).toBe(900 - 630 - y[cat('imports')]! + y[cat('exports')]!);
 
     const g = hamletFixture();
     g.state.settings.economy = 'thoughtful';
     untilHour(g.state, 0);
-    expect(g.state.economy.today.money[cat('upkeep')]).toBe(1000);
+    expect(g.state.economy.today.money[cat('upkeep')]).toBe(1125);
   });
 
   it('taxes by mood: Glowing residents pay more, Miserable ones less', () => {
@@ -46,7 +49,8 @@ describe('the daily books', () => {
     expect(e.today.produced[good('bread')]).toBe(0);
     expect(building(f.state, f.b.bakery).rt!.producedToday[good('bread')]).toBe(0);
     expect(e.stockHistory).toHaveLength(1);
-    expect(e.stockHistory[0]![good('bread')]).toBe(26);
+    // The day's closing stock (the carrier traded at 10:00, so not the morning's).
+    expect(e.stockHistory[0]).toEqual(townStock(f.state));
     for (const kind of ['stocks.updated', 'budget.updated', 'town.updated'] as const) {
       expect(events.some((x) => x.e === kind)).toBe(true);
     }
@@ -67,38 +71,9 @@ describe('the daily books', () => {
     untilHour(f.state, 0);
     const quiet = ticks(f.state, 3 * H);
     expect(quiet.filter((e) => e.e === 'stocks.updated')).toHaveLength(0);
-    building(f.state, f.b.storehouse).rt!.store[good('logs')] = 5;
+    building(f.state, f.b.storehouse).rt!.store[good('timber')] = 5;
     const busy = ticks(f.state, H);
     expect(busy.filter((e) => e.e === 'stocks.updated')).toHaveLength(1);
-  });
-});
-
-describe('the peddler', () => {
-  it('buys up to 40 marked units at 10:00 for 60% of base price, plentiful goods first', () => {
-    const f = hamletFixture();
-    run(f.state, { t: 'ledger.setForSale', good: 'logs', forSale: true });
-    run(f.state, { t: 'ledger.setForSale', good: 'planks', forSale: true });
-    const before = f.state.economy.treasury;
-    const events = untilHour(f.state, 10);
-    const store = building(f.state, f.b.storehouse);
-    // Logs (40) go first until they match the planks (30), then both alternate.
-    expect(stockOf(store, 'store', 'logs') + stockOf(store, 'store', 'planks')).toBe(70 - PEDDLER_UNITS);
-    expect(stockOf(store, 'store', 'logs')).toBe(15);
-    expect(stockOf(store, 'store', 'planks')).toBe(15);
-    expect(f.state.economy.treasury - before).toBe(25 * 60 + 15 * 180);
-    const note = events.find(
-      (e): e is Extract<SimEvent, { e: 'notify' }> => e.e === 'notify' && e.kind === 'peddler',
-    );
-    expect(note?.text).toBe(
-      "The peddler's cart rattled off with 25 logs and 15 planks, leaving 42 coins behind.",
-    );
-  });
-
-  it('stays away when nothing is for sale', () => {
-    const f = hamletFixture();
-    const before = f.state.economy.treasury;
-    untilHour(f.state, 10);
-    expect(f.state.economy.treasury).toBe(before);
   });
 });
 
@@ -107,9 +82,12 @@ describe('lean times', () => {
     const f = hamletFixture();
     f.state.settings.economy = 'thoughtful';
     f.state.economy.treasury = 50;
+    // R1: the carrier stays home until the Ledger turns Food selling back on below.
+    for (const fam of f.state.carrier.families) fam.rule = 'never';
     const start = untilHour(f.state, 0);
     const e = f.state.economy;
-    expect(e.treasury).toBe(50 + 900 - 1000);
+    // Thoughtful upkeep is 125% of the 9 coins.
+    expect(e.treasury).toBe(50 + 900 - 1125);
     expect(e.leanTimes).toBe(true);
     expect(start.some((x) => x.e === 'notify' && x.kind === 'lean-times')).toBe(true);
     expect(
@@ -119,8 +97,9 @@ describe('lean times', () => {
       'LEAN_TIMES',
     );
 
-    run(f.state, { t: 'ledger.setForSale', good: 'stone', forSale: true });
-    const end = untilHour(f.state, 10);
+    // The carrier sells the Food over twice its reserve when it calls at 10:00.
+    run(f.state, { t: 'carrier.setRule', family: 'food', rule: 'always', sell: true });
+    const end = untilHour(f.state, 11);
     expect(e.treasury).toBeGreaterThan(0);
     expect(e.leanTimes).toBe(false);
     expect(end.some((x) => x.e === 'notify' && x.kind === 'lean-times-over')).toBe(true);
