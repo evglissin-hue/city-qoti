@@ -72,7 +72,7 @@ interface PatternDef {
 }
 ```
 
-*[R1]*: detectors that name buildings read the new ones by tag: a bakery is a baker's business, a corner shop a shop, market buildings are stalls, shops and the Market Square, an orchard is an orchard farmstead. The vegetable plot and the herb garden return as one Hearth piece, the garden bed: placed by hand beside a home for 4 timber, it feeds only that home (through the Kitchen Garden page's vegetable a day) and counts for charm, wishes and habitats as the plots did. No pattern is lost with the chains. *[R2]*: every standing pattern site is a place on the evening round, with seats from its pieces and a draw of its own, and its page shows who came last night. *[R3]*: a pattern pairs with a good in the Town Book (`19-evenings.md`).
+*[R1]*: detectors that name buildings read the new ones by tag: a bakery is a baker's business, a corner shop a shop, market buildings are stalls, shops and the Market Square, an orchard is an orchard farmstead. The vegetable plot and the herb garden return as one Hearth piece, the garden bed: placed by hand beside a home for 4 timber, it gives that home vegetables as a flavor through the growing seasons (variety, not volume: the Kitchen Garden page no longer adds food, so no town is fed by beds alone) and counts for charm, wishes and habitats as the plots did. No pattern is lost with the chains. *[R2]*: every standing pattern site is a place on the evening round, with seats from its pieces and a draw of its own, and its page shows who came last night. *[R3]*: a pattern pairs with a good in the Town Book (`19-evenings.md`).
 
 **Engine:**
 

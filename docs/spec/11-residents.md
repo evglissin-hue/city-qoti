@@ -26,7 +26,7 @@ interface Resident {
   wishId: EntityId | 0;
   history: { day: number; kind: string; ref?: EntityId }[]; // last 20
   flags: number;                           // reformed, story character, watch member, master [R3]...
-  craft?: { trade: string; days: number }; // working days in one trade [R3]
+  craft?: [trade: string, days: number][]; // working days by trade, kept across winters [R3]
   evening?: { score: number };             // last evening's score [R2]; the need is needs.evenings
 }
 

@@ -10,7 +10,7 @@ The Ledger lane is a complete game (P1): land, streets, trade and budgets, with 
 
 1. **Zones are the economy.** The Ledger zones land and the town builds, staffs and runs the businesses on it. Hand placement is for specialized buildings, services and special homes.
 2. **Two steps at most.** Land gives raw goods; a workshop turns raw goods into a made good. A made good is never an input, so no workshop ever waits on another workshop.
-3. **Nothing stalls.** The carrier imports any shortfall and sells any surplus by itself, within rules and a budget the Ledger sets. Making things in the valley is cheaper, gives work and keeps the town safe when the pass is closed, but it is never a precondition.
+3. **Nothing stalls.** The carrier imports any shortfall and sells any surplus by itself, within rules and a budget the Ledger sets and within what it can carry. Making things in the valley is cheaper, gives work and keeps the town safe when the pass is closed, but it is never a precondition.
 4. **Five balances.** The Ledger reads Food, Fuel, Materials, Wares and Treats, each as an amount (days of cover) and a variety (flavors on offer), never a list of every good.
 5. **Ranks add decisions, never chains.** A new rank or era may add a district policy, a kind of street, a trade route or a specialized building. It never adds a link the Ledger must place for something else to work. The raw goods below are the whole list for the life of the game, but for coal in the Age of Steam.
 
@@ -28,7 +28,7 @@ Every good belongs to one family and is raw or made. A flavor is a good seen fro
 
 - **16 goods** in R1: grain, vegetables, fruit, fish, cheese, bread, firewood, timber, stone, brick, wool, cloth, furniture, candles, honey, cider. Base prices carry over from the archive where the good existed (grain takes wheat's, timber planks', brick bricks'); all *(tune)*.
 - **Raw goods are useful as they are.** Raw food is eaten; timber and stone build. A workshop adds value and variety and is never a gate: without a baker the town eats porridge, fed and a little bored.
-- **A made good takes one or two raw goods**, listed above. Bread feeds more than the grain it uses (2 grain to 3 bread *(tune)*).
+- **A made good takes one or two raw goods**, listed above. Bread feeds more than the grain it uses (2 grain to 3 bread); 1 fruit presses 2 cider and 1 honey makes 3 candles *(all tune)*, so comforts never take many hands.
 - **Spoiling** as built (archive, Goods): fish 2 days, bread 3, fruit 4 *(tune)*; cheese, grain and vegetables keep. A granary halves it.
 - **Seasons** as built: vegetables and fruit by season, no fishing on a frozen river, honey rests in winter, grain sown from Spring day 1 to Summer day 3 and cut when golden.
 - **Later flavors** never add work for the Ledger. They arrive through people and places (`19-evenings.md`): a master's good [R3] (nine, such as pies, smoked fish, jam and coats, each made from the same raw good by the master's own business), a named specialty [R3], or a trade deal (tea from Port Amberly [I4]). Coal joins Fuel in the Age of Steam (`18-eras.md`).
@@ -93,25 +93,25 @@ About a dozen hand-placed buildings, each one decision about the valley's ground
 - Farmland: Food under four days of cover, or more than a third of a farm good's use (grain, vegetables, fruit, cheese, wool, honey) coming by carrier.
 - Hovering a bar says why in words ("Cloth is short and wool is plentiful"). A bar is quiet while a free, suitable lot exists (growth is on its way) and lit when the town needs more zoned land, so it asks only when it needs the player.
 
-**Choosing a trade** (the 01:00 growth pass, replacing `chooseMethod`'s shortage rule): for a lot about to grow, each trade the valley's rank and innovations allow scores `need x supply x site + keeper`:
+**Choosing a trade** (the 01:00 growth pass, replacing `chooseMethod`'s shortage rule): for a lot about to grow, each trade the valley's rank and innovations allow scores `need x supply x site x keeper`:
 
-- need: how short its good is (days of cover under the family's reserve, and whether a tier in town still lacks the flavor);
+- need: how short its good is. It counts days of cover under the family's reserve, whether a tier still lacks the flavor, and what the carrier had to bring in the last three days (a good the town keeps importing is short, however full the shelf). Wants are read for every tier the valley has unlocked, not only the tiers living in town: until the first household of a newly opened tier arrives, one household in ten counts as if it had *(tune)*, so Wares and Treats reach the shelves before anyone needs them to qualify;
 - supply: 1 when the raw good is made in the valley or two days of it are in store, 0.5 when it would come by carrier, 0 when none is here and the carrier may not bring it (the rule that counts is the one for the family of the good the trade makes);
 - site: 1 when the lot meets the trade's wants (soil, pollinators, a reach with room), else 0;
-- keeper: a small bonus when a resident wants the trade (a finished apprentice of it, or a fitting trait: Sweet Tooth bakes, Green-Fingered gardens).
+- keeper: 1, or a little more when a resident wants the trade (a finished apprentice of it, or a fitting trait: Sweet Tooth bakes, Green-Fingered gardens). It multiplies, so a keen baker never opens a bakery outside a windmill's reach.
 
-The best positive score grows; none positive, nothing grows and the bar stays low. A business retools to another trade only when its own good has been in surplus for six days and another is short (one a night across the town), keeping its keeper; a trade the Ledger pinned (`build.pinRecipe`, kept) never changes.
+The best positive score grows; none positive, nothing grows and the bar stays low. A business retools to another trade only when its own good has been in surplus for six days and another is short (one a night across the town), keeping its keeper; a trade the Ledger pinned (`build.pinRecipe`, kept) never changes. A business whose site wants stop being met (its windmill was moved) retools after three days, pinned or not.
 
 **Starting sites** *kept*: a couple a night, at most three grown sites at once, on the best lots porters can reach, free to the treasury, built from stock by the town's builders.
 
 **Levels** (businesses and shops; homes use tiers): 1, 2 and 3, each a bigger building with a larger crew (workshops 1, 2 and 4 hands; farmsteads 2, 3 and 4; shops 1, 2 and 3 *(tune)*), never a multiplier. A business moves up after three days running of:
 
-- steady custom (it sold at least four fifths of what it made, or a shop served 12+ customers a day; from R2 a shop counts evening custom);
+- steady custom (it sold at least four fifths of what it made; a shop served 6 customers a day for level 2 and 15 for level 3 *(tune)*, and from R2 every ten evening steps past its door count as one more);
 - reliable inputs (no day without its raw good, the carrier's counting);
 - room to grow: for a workshop or shop a good street at the door (a lane or better for level 2, a street for level 3); for a farmstead enough free farm-zoned ground in reach for the larger crew;
 - for level 3, a master on the crew [R3]; until R3 the keeper's 20 working days there stand in *(tune)*. When R3 lands, a business that reached level 3 that way keeps it, and its keeper is counted a master once they have four hearts.
 
-It slides back one level after four failing days, keeping its walls, as homes do. Levels are drawn (`17-presentation.md`): a bigger yard, a painted sign, goods out front.
+It slides back one level after four failing days, keeping its walls, as homes do. A business resting because its raw good is out of season (a cider maker in winter) neither fails nor counts those days: its level and its hands' working days wait for spring. Levels are drawn (`17-presentation.md`): a bigger yard, a painted sign, goods out front.
 
 **Homes improve on their own** *kept* (P1's dressing ladder, archive): window boxes, a porch, ivy.
 
@@ -139,11 +139,11 @@ Baskets are per tier and per family (`content.baskets`), bought as built: Food o
 | Tier | Food (a resident a day) | Fuel (a household a winter day) | Wares (a household a day) | Treats (a resident a day) |
 |---|---|---|---|---|
 | Settlers | 1 | 1 | 0 | 0.1 |
-| Craftsfolk | 1 | 1 | 0.2 | 0.3 |
-| Merchants [I4] | 1 | 1 | 0.4 | 0.5 |
-| Patrons [I5] | 1 | 1 | 0.6 | 0.7 |
+| Craftsfolk | 1 | 1 | 0.2 | 0.2 |
+| Merchants [I4] | 1 | 1 | 0.4 | 0.3 |
+| Patrons [I5] | 1 | 1 | 0.6 | 0.4 |
 
-Every number in this table is *(tune)*. A day of Fuel is one firewood a household at any time of year, so the Fuel balance reads the same in June as in January.
+Every number in this table is *(tune)*. A day of Fuel is one firewood a household at any time of year, so the Fuel balance reads the same in June as in January. A day of Wares or Treats counts the households that buy them and, while a newly opened tier has no household yet, one household in ten as if it had, so the carrier's one-day reserve is never a reserve of nothing.
 
 - **Amount**: a family's share of what the household wanted, as built (unmet units are let go; satisfaction moves halfway to the share it got).
 - **Variety**: the number of a family's flavors the household could buy in the last three days (on a shelf in reach, or in its pantry); from R3 a named specialty on its evening round counts as one more.
@@ -158,17 +158,18 @@ Per good, daily, from cover against a three-day target, as built (archive, Marke
 
 The carrier is the peddler grown up: a cart at the valley gate at 10:00 every day the pass is open, and the boat once there is a dock.
 
-- **What it does without being asked**: for each family, buys what is short of the **reserve** (days of cover) and sells what is over twice the reserve, never touching what a festival has put by or what sites are waiting for, and never selling Food or Fuel below the season plan's winter mark.
+- **What it does without being asked**: for each family, buys what is short of the **reserve** (days of cover). It buys in a fixed order while the day's budget and its load last: Food, Fuel, Materials a site waits for, raw goods a business is resting for, Wares, Treats.
+- **Selling** is a switch per family (`carrier.setRule`), off for Materials and Fuel by default, so the carrier never sells the town's timber, stone or woodpile unasked. Where it is on, it sells what is over twice the reserve, never what a festival has put by, and nothing under a winter mark from Summer day 4 to the thaw.
 - **Which goods**: raw and made alike, from what the neighbors sell (their lists, archive, Trade). Within a family it buys first a flavor some tier in town still lacks, then whatever is cheapest; it sells the flavor the town holds most of. What no neighbor sells it cannot bring, which is why no tier names a single good.
 - **Rules** per family (`carrier.setRule`): Always (it buys up to the reserve), Essentials only (Food and Fuel a household would otherwise go without today, Materials an open site is waiting for, raw goods a business is resting for want of; never Wares or Treats themselves) or Never. Defaults: Food and Fuel Always; Materials Essentials only; Wares and Treats Never in a Hamlet and Always from Village rank.
 - **Reserves** per family (`carrier.setReserve`): Food 3 days, Fuel 3 days, Wares and Treats 1 day, Materials what open sites need plus 20 *(tune)*. From Summer day 4 to the thaw the season plan's winter marks stand in for the Food and Fuel reserves.
-- **Budget** (`carrier.setBudget`): most coins a day on imports, 40 by default *(tune)*. In lean times only Food and Fuel are bought, on the credit line, so a town in debt eats plainly rather than not at all.
+- **Budget** (`carrier.setBudget`): most coins a day on imports, 40 by default *(tune)*. **Essentials are always carried**: when the treasury cannot pay, Food and Fuel for households that would otherwise go without still come, booked to a County tab that works as the bank's loans do (5% a season) and is capped at 20 coins a resident *(tune)*. Past the cap nothing comes and the town goes short, so a town in debt eats plainly, never for nothing and never forever.
 - **Terms** by what stands in the valley, on the neighbor's regional price (archive, Trade: seasons, drift and impact as built):
 
 | | Carried a day | Buys at | Sells at |
 |---|---|---|---|
 | The peddler (Hamlet, nothing built) | 20 units | 140% | 60% |
-| With a Trading Post | 40, and 16 more for each cart (up to three) | 120% | 85% |
+| With a Trading Post | 40 at Village rank, 120 at Town, 240 at Market Town, 400 at City, and 16 more for each cart (up to three) *(tune)* | 120% | 85% |
 | The boat (River Dock) | 120 units every 3 days | 110% | 92% |
 
 - **The pass**: heavy snow closes the valley road on some winter days, forecast on the season card (`14-challenge.md`). The carrier does not come and the boat does not sail on a frozen river, so a town that lives on imports must put by before winter.
@@ -212,7 +213,7 @@ Every number in this table is *(tune)*. No tier names a single good: any flavors
 
 The season card (`17-presentation.md`) puts two or three questions to the Ledger. Answers are optional, keep until changed and go through `season.setPlan`.
 
-1. **The winter reserve**: days of Food and Fuel to hold by the first day of winter, 8 and 8 by default *(tune)*. From Summer day 4 a reserve bar sits by the balances; the foresters cut toward the Fuel mark and the carrier buys toward both when the rules allow. Meeting it is what "prepared" means for the First Winter (`15-progression.md`).
+1. **The winter reserve**: days of every family the town uses to hold by the first day of winter, 8 by default *(tune)*, with Food and Fuel settable apart. Winter stops fruit, honey and fishing, so Treats and variety need putting by as much as bread does. From Summer day 4 a reserve bar sits by the balances and nothing under a mark is sold; the foresters cut toward the Fuel mark; the town's own makers get until Autumn day 4, and only then does the carrier buy toward the marks, when the rules allow. Meeting it is what "prepared" means for the First Winter (`15-progression.md`).
 2. **This season's deal**: one of the neighbors' offers, or none.
 3. **Where to build first**: one zone or district whose sites the builders take first.
 
@@ -253,7 +254,7 @@ Drawn by the Ledger and styled by the Hearth (P22), with policies in place of ne
 
 Starting values for R1X's tuning; record what holds here.
 
-- **Hands**: about a third of working residents in food (it was 40 to 55%), a sixth hauling and building, the rest in materials, workshops, shops and services. One field hand feeds about six.
+- **Hands**: about a third of working residents in food (it was 40 to 55%), a sixth hauling and building, the rest in materials, workshops, shops and services. One field hand feeds about eight through the growing seasons, which is what a third of the hands needs to carry the town through a winter in which almost nothing grows *(tune)*. The carrier's load is small beside a big town's appetite (a City eats 2,000 Food a day and the road carries about 450), so a Town or City lives on what it makes and imports only fill gaps.
 - **Decisions, not chores**: over 70 autoplayed days the Ledger takes under 150 actions, none of them a pause or an order.
 - **Tiers move**: on every bench seed the first Craftsfolk household by day 40 and a third of households by day 70.
 - **Nothing stalls**: the playability audit finds no business without its raw good for a whole day while its family's rule lets the carrier buy.
