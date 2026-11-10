@@ -19,7 +19,8 @@ describe('resident inspector', () => {
     const hazel = f.residents[0]![1]!;
     expect(detail(f.state, hazel).doing).toBe('At home');
     untilHour(r, 9);
-    expect(detail(f.state, hazel).doing).toBe('At work at the bakery');
+    // R1: the bakery is a baker's workshop, and reads by its building.
+    expect(detail(f.state, hazel).doing).toBe('At work at the workshop');
     untilHour(r, 2);
     expect(detail(f.state, hazel).doing).toBe('Asleep');
   });
