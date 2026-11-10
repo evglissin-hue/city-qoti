@@ -35,7 +35,7 @@ const SETUPS = new Map<string, (s: WorldState) => void>([
   [
     'plank-by-plank',
     (s) => {
-      s.economy.everProduced[content.goodIndex.get('planks')!] = 4;
+      s.economy.everProduced[content.goodIndex.get('timber')!] = 4;
     },
   ],
   [
