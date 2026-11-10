@@ -7,6 +7,7 @@
 // with ties going to the nearest source. A job reserves goods at the source (reservedOut) and
 // room at the destination (reservedIn), so nothing is promised twice. Trips walk through the
 // movement API and never assume arrival in the same tick.
+import { FOOD_GOODS, methodOf } from '../../state/zones';
 import type { BuildingDef } from '@qoti/content';
 import { content } from '@qoti/content';
 import { PORTER_CARRY, PORTER_MATCH_EVERY, STALL_RESTOCK_TARGET } from '../../constants';
@@ -37,6 +38,7 @@ import {
   isStorehouse,
   outputCap,
   storageSpace,
+  takes,
   stowNearest,
   tileDistance,
 } from './stores';
@@ -54,7 +56,6 @@ export const INPUT_TARGET_CYCLES = 2;
 const MATCH_OFFSET = 5;
 const NO_CLASS = 99;
 
-const FOOD_GOODS: readonly number[] = content.goods.flatMap((g, i) => (g.food ? [i] : []));
 
 interface Spot {
   b: Building;
@@ -160,7 +161,7 @@ function needsOf(spots: readonly Spot[]): Need[] {
       if (want > 0) out.push({ dest: s, good: -1, want, cls: JobClass.stallFood });
       continue;
     }
-    const method = def.methods?.[rt.method];
+    const method = methodOf(s.b);
     if (rt.paused || !method || method.kind !== 'craft') continue;
     for (const [id, qty] of method.inputs) {
       const g = content.goodIndex.get(id);
@@ -275,7 +276,7 @@ function assign(
         if (sourceAvail(s.b, s.def, g) < min) continue;
         const d = tileDistance(from, s.door);
         if (d >= bestD) continue;
-        const dest = nearestStorehouse(spots, reach, s);
+        const dest = nearestStorehouse(spots, reach, s, g);
         if (!dest) continue;
         bestCls = JobClass.clearing;
         bestD = d;
@@ -342,7 +343,7 @@ function findRelay(
       if (other.b === reach.b || !staffed(other) || !within(reach, other.door)) continue;
       if (!within(other, need.dest.door)) continue;
       const dest = spots.find((s) => s.b === other.b);
-      if (!dest || storageSpace(dest.def, dest.rt) <= 0) continue;
+      if (!dest || !takes(dest.def, g) || storageSpace(dest.def, dest.rt) <= 0) continue;
       if (dest.rt.store[g]! + dest.rt.reservedIn[g]! - dest.rt.reservedOut[g]! >= need.want) continue;
       let src: Spot | null = null;
       let bestD = Infinity;
@@ -361,11 +362,11 @@ function findRelay(
   return null;
 }
 
-function nearestStorehouse(spots: readonly Spot[], reach: Reach, src: Spot): Spot | null {
+function nearestStorehouse(spots: readonly Spot[], reach: Reach, src: Spot, good: number): Spot | null {
   let best: Spot | null = null;
   let bestD = Infinity;
   for (const s of spots) {
-    if (s === src || s.b.stage !== 'built' || !isStorehouse(s.def)) continue;
+    if (s === src || s.b.stage !== 'built' || !isStorehouse(s.def) || !takes(s.def, good)) continue;
     if (storageSpace(s.def, s.rt) <= 0 || !within(reach, s.door)) continue;
     const d = tileDistance(src.door, s.door);
     if (d < bestD) {
@@ -520,7 +521,7 @@ export function cancelJobsFor(state: WorldState, id: EntityId, workTime: boolean
     const dst = findById(state.buildings, job.to);
     const r = findById(state.residents, job.porter);
     if (job.stage === 1 && job.to === id && r) {
-      const next = rerouteTarget(state, r.tile, job.qty, id);
+      const next = rerouteTarget(state, r.tile, job.good, job.qty, id);
       if (next) {
         job.to = next.id;
         next.rt!.reservedIn[job.good]! += job.qty;
@@ -535,13 +536,19 @@ export function cancelJobsFor(state: WorldState, id: EntityId, workTime: boolean
   jobs.length = kept;
 }
 
-function rerouteTarget(state: WorldState, tile: number, qty: number, exclude: EntityId): Building | null {
+function rerouteTarget(
+  state: WorldState,
+  tile: number,
+  good: number,
+  qty: number,
+  exclude: EntityId,
+): Building | null {
   let best: Building | null = null;
   let bestD = Infinity;
   for (const b of state.buildings) {
     if (b.id === exclude || b.stage !== 'built' || !b.rt) continue;
     const def = defOf(b);
-    if (!isStorehouse(def) || storageSpace(def, b.rt) < qty) continue;
+    if (!isStorehouse(def) || !takes(def, good) || storageSpace(def, b.rt) < qty) continue;
     const d = tileDistance(tile, doorTile(b, def));
     if (d < bestD) {
       bestD = d;

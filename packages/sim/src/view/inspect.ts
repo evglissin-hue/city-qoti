@@ -13,6 +13,7 @@ import type {
   WorldState,
 } from '../contracts';
 import { findById } from '../state/entities';
+import { methodOf } from '../state/zones';
 import { seasonAt } from '../state/seasons';
 import { townReachesDoor } from '../state/reach';
 import { isBuildTime } from '../systems/economy/time';
@@ -27,7 +28,6 @@ import { porterServed, storehouseReach } from '../systems/logistics/range';
 import { doorTile } from '../systems/movement/api';
 import { HARVEST_MIN } from '../systems/production/fields';
 import { WORN_CONDITION } from '../systems/production/produce';
-import { decorBoostOf } from '../systems/production/decorBoost';
 import { dailyRates } from '../systems/production/rates';
 import { buildingView, noteView } from './index';
 import { chronicleView, fillText, goodPairs, nameOf, townStock } from './hamlet';
@@ -63,7 +63,7 @@ export function inspect(state: WorldState, kind: InspectKind, id: number): Inspe
 function farFromStores(state: WorldState, b: Building, def: BuildingDef | undefined): boolean {
   const rt = b.rt;
   if (!rt || !def) return false;
-  const method = def.methods?.[rt.method];
+  const method = methodOf(b);
   const waits =
     b.stage === 'construction'
       ? !!rt.construction && rt.construction.needs.some((n) => n > 0)
@@ -77,7 +77,7 @@ function statusLines(state: WorldState, b: Building, def: BuildingDef | undefine
   if (!rt) return [];
   const s = rt.status;
   const out: string[] = [];
-  const method = def?.methods?.[rt.method];
+  const method = methodOf(b);
   const has = (bit: number) => (s & bit) !== 0;
   if (has(BuildingStatus.paused)) out.push('Paused by the Ledger');
   if (b.stage === 'construction' && rt.construction) {
@@ -119,9 +119,9 @@ function statusLines(state: WorldState, b: Building, def: BuildingDef | undefine
   if (has(BuildingStatus.missingInput) && method) {
     const short = method.inputs.filter(([g, q]) => (rt.input[content.goodIndex.get(g) ?? -1] ?? 0) < q);
     const names = short.map(([g]) => goodName(g)).join(' and ') || 'inputs';
-    const wheat = short.some(([g]) => g === 'wheat') && !anyGoldenWheat(state);
+    const grain = short.some(([g]) => g === 'grain') && !anyGoldenWheat(state);
     out.push(
-      wheat
+      grain
         ? `Waiting for ${names}: the first of it ripens in summer, so the sails rest until then`
         : `Waiting for ${names}`,
     );
@@ -133,8 +133,8 @@ function statusLines(state: WorldState, b: Building, def: BuildingDef | undefine
   if (has(BuildingStatus.fallow)) {
     out.push(
       seasonAt(state.tick).season === 3
-        ? 'The fields lie ready: wheat is sown from spring to early summer'
-        : 'Wheat is sown from spring to early summer and cut as soon as it ripens; until then the fields grow vegetables',
+        ? 'The fields lie ready: grain is sown from spring to early summer'
+        : 'Grain is sown from spring to early summer and cut as soon as it ripens; until then the fields grow vegetables',
     );
   }
   if (has(BuildingStatus.noRoad)) out.push('No road at the door');
@@ -207,22 +207,29 @@ function costSize(d: BuildingDef): number {
   return (d.cost?.goods ?? []).reduce((n, [, q]) => n + q, 0);
 }
 
-/** True when a built, staffed building makes the good. */
+/** True when a built, staffed building (a business by its trade) makes the good. */
 function working(state: WorldState, good: string): boolean {
-  const makers = new Set(
-    content.buildings
-      .filter((d) => d.methods?.some((m) => m.outputs.some(([o]) => o === good)))
-      .map((d) => d.id),
-  );
   return state.buildings.some(
-    (x) => x.stage === 'built' && x.rt && x.rt.workers.length > 0 && makers.has(x.def),
+    (x) =>
+      x.stage === 'built' &&
+      x.rt &&
+      x.rt.workers.length > 0 &&
+      !!methodOf(x)?.outputs.some(([o]) => o === good),
   );
 }
 
-/** "a sawpit makes planks from logs, and a woodcutter's hut brings logs": one step down the chain. */
+/** R1: a trade that makes the good, as a hint: "a market garden may set up on Farmland". */
+function tradeHint(good: string): string {
+  const t = content.trades.find((x) => x.makes === good);
+  if (!t) return '';
+  const zone = content.zoneById.get(t.zone)?.name ?? t.zone;
+  return `${aOrAn(t.name.toLowerCase())} may set up on ${zone} land`;
+}
+
+/** "a quarry makes stone", or a trade that may set up for it: one step down the chain. */
 function makerHint(state: WorldState, good: string, stock: readonly number[]): string {
   const maker = makersOf(state, good)[0];
-  if (!maker) return '';
+  if (!maker) return tradeHint(good);
   const inputs = maker.methods?.find((m) => m.outputs.some(([o]) => o === good))?.inputs ?? [];
   let text = `${aOrAn(maker.name.toLowerCase())} makes ${goodName(good)}`;
   if (inputs.length) text += ` from ${inputs.map(([i]) => goodName(i)).join(' and ')}`;
@@ -294,7 +301,7 @@ export function buildingDetail(state: WorldState, id: EntityId): BuildingDetail 
     }),
     status: statusLines(state, b, def),
   };
-  const method = def?.methods?.[rt?.method ?? 0];
+  const method = methodOf(b);
   if (method) detail.method = { name: method.name, hours: method.hours };
   const h = state.households.find((x) => x.homeId === b.id);
   if (h) {
@@ -320,8 +327,6 @@ export function buildingDetail(state: WorldState, id: EntityId): BuildingDetail 
   if (def && rt && b.stage === 'built') {
     const rates = dailyRates(state, b, def);
     if (rates && (rates.inputs.length > 0 || rates.outputs.length > 0)) detail.rates = rates;
-    const boost = method ? decorBoostOf(state, b, def) : null;
-    if (boost && boost.permille > 0) detail.decorBoost = { permille: boost.permille, pieces: boost.defs };
     const made = goodPairs(rt.producedToday);
     if (method) detail.producedToday = made;
   }
@@ -330,13 +335,18 @@ export function buildingDetail(state: WorldState, id: EntityId): BuildingDetail 
 }
 
 /**
- * I2 (C4.0): methods to pin, the lot, the tier and an upgrade, and profit per work day: output
+ * I2 (C4.0): the trades to pin (R1: a business's zone's trades), the lot, the tier and an upgrade, and profit per work day: output
  * at market price minus wages, upkeep and inputs at market price (C4A, systems/market/profit.ts).
  */
 function addVillageDetail(state: WorldState, b: Building, def: BuildingDef, detail: BuildingDetail): void {
   const rt = b.rt!;
-  if ((def.methods?.length ?? 0) > 1) detail.methods = def.methods!.map((m) => ({ id: m.id, name: m.name }));
-  if (rt.pinned) detail.pinned = rt.pinned;
+  const trade = b.trade ? content.tradeById.get(b.trade) : undefined;
+  if (trade) {
+    detail.trades = content.trades
+      .filter((t) => t.zone === trade.zone && t.building === trade.building)
+      .map((t) => ({ id: t.id, name: t.name }));
+    if (b.pinned) detail.pinned = true;
+  }
   const lot = b.lot ? findById(state.lots, b.lot) : undefined;
   if (lot) detail.lot = lotView(lot);
   if (rt.tier) detail.tier = rt.tier;

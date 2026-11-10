@@ -139,8 +139,16 @@ export { basketScore, likeHalves } from './systems/market/baskets';
 export { coverOf, multiplierFor, stepPrice, targetPrice } from './systems/market/prices';
 export { incomeTax, wageBill } from './systems/market/wages';
 export { expenses, income } from './systems/economy';
-export { caravanCapacity, postBuyPrice, postSellPrice } from './systems/trade/caravans';
-export { tradingPost } from './systems/trade/post';
+// R1 (R1.0): the carrier's prices and terms, in place of the caravans' (postBuyPrice, postSellPrice).
+export {
+  carrierBuyPrice,
+  carrierSellPrice,
+  carrierTerms,
+  tradingPost,
+  type CarrierTerms,
+} from './systems/carrier/terms';
+export { carrierDay } from './systems/carrier';
+export { basketGroups, type NeedGroup } from './systems/market/baskets';
 export { isLean, overdraftLimit } from './systems/loans/credit';
 export { growLot, lotPlacement } from './systems/growth/api';
 export { cartAt, cartRoute, cartTile, requestCartMove } from './systems/traffic/api';

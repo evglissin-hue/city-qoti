@@ -11,7 +11,16 @@ import type { Building, Cart, PorterJob, TickCtx, WorldState } from '../../contr
 import { findById } from '../../state/entities';
 import { doorTile } from '../movement/api';
 import { cartAt, cartTile, requestCartMove } from '../traffic/api';
-import { defOf, isStorage, isStorehouse, outputCap, storageSpace, stowNearest, tileDistance } from './stores';
+import {
+  defOf,
+  isStorage,
+  isStorehouse,
+  outputCap,
+  storageSpace,
+  stowNearest,
+  takes,
+  tileDistance,
+} from './stores';
 
 /** A cart does not roll for less than this. */
 export const CART_MIN_LOAD = 8;
@@ -148,7 +157,8 @@ export function matchCarts(
         for (let g = 0; g < s.rt.output.length; g++) {
           if (hooks.sourceAvail(s.b, s.def, g) < Math.min(CART_MIN_LOAD, outputCap(s.def))) continue;
           for (const t of spots) {
-            if (t === s || t.b.stage !== 'built' || !isStorehouse(t.def) || !road(t)) continue;
+            if (t === s || t.b.stage !== 'built' || !isStorehouse(t.def) || !takes(t.def, g) || !road(t))
+              continue;
             if (storageSpace(t.def, t.rt) < CART_MIN_LOAD || tileDistance(s.door, t.door) < CART_MIN_TRIP)
               continue;
             const d = tileDistance(c.tile, s.door);

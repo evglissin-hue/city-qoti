@@ -4,6 +4,7 @@
 //
 // Distances are gaps between tile rectangles (conditions/geo.ts): a target on a tile touching the
 // home is 0 tiles away, so "within 3" means the home's own footprint plus three rings around it.
+import { isFood } from '../state/zones';
 import { type CharmCategory, type Condition, content, type PlaceRef, type Target } from '@qoti/content';
 import { MAP_SIZE, NEED_IDS, RANKS } from '../constants';
 import type { EntityId, MapLayers, Rect, WorldState } from '../contracts';
@@ -248,8 +249,6 @@ export function countOf(state: WorldState, what: string, ref?: string): number {
       return state.village.plansApproved;
     case 'weddings':
       return state.village.weddings;
-    case 'standingOrders':
-      return state.trade.orders.length;
     // I3 (C5.0)
     case 'renown':
       return state.renown.level;
@@ -299,7 +298,7 @@ export function foodDays(state: WorldState): number {
   for (const b of state.buildings) {
     if (!b.rt) continue;
     for (let g = 0; g < content.goods.length; g++) {
-      if (content.goods[g]!.food) food += (b.rt.store[g] ?? 0) + (b.rt.output[g] ?? 0);
+      if (isFood(g)) food += (b.rt.store[g] ?? 0) + (b.rt.output[g] ?? 0);
     }
   }
   return Math.floor(food / Math.max(1, state.residents.length));

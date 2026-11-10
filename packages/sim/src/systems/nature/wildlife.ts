@@ -7,7 +7,8 @@
 // habitat there, and a Chronicle line with a snapshot. Later sightings only count.
 import { content, type WildlifeDef } from '@qoti/content';
 import { CHUNK_SIZE, CHUNKS_PER_SIDE, MAP_SIZE } from '../../constants';
-import type { FieldGuideEntry, SeatId, TickCtx, WorldState } from '../../contracts';
+import type { Building, FieldGuideEntry, SeatId, TickCtx, WorldState } from '../../contracts';
+import { methodOf } from '../../state/zones';
 import { isHomeDef } from '../../conditions/geo';
 import { seasonAt } from '../../state/seasons';
 import { rankAtLeast } from '../../state/village';
@@ -92,18 +93,16 @@ function specialChunks(state: WorldState, needs: string): Uint8Array {
   if (needs === 'fisher' && isFrozen(state)) return out;
   for (const b of state.buildings) {
     if (b.stage !== 'built' || !b.rt) continue;
-    const def = content.buildingById.get(b.def);
-    if (needs === 'hive' ? isHive(def) : needs === 'fisher' && isFisher(def, b.rt.present)) {
+    if (needs === 'hive' ? isHive(b) : needs === 'fisher' && isFisher(b, b.rt.present)) {
       out[buildingChunk(b)] = 1;
     }
   }
   return out;
 }
 
-function isFisher(def: ReturnType<typeof content.buildingById.get>, present: number): boolean {
-  return (
-    present > 0 && !!def?.methods?.some((m) => m.kind === 'gather' && m.outputs.some(([g]) => g === 'fish'))
-  );
+function isFisher(b: Building, present: number): boolean {
+  const m = methodOf(b);
+  return present > 0 && !!m && m.kind === 'gather' && m.outputs.some(([g]) => g === 'fish');
 }
 
 /** Chunks where this species could be seen right now (habitat, watchers, needs), ascending. */

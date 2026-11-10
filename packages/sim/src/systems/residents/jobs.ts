@@ -3,10 +3,11 @@
 // released when the building goes or is paused, and `present` always equals the workers inside
 // their workplace. Each hour one worker may move from a less important job to a more important
 // open one, so a new farm or fishery gets hands even when everyone is already employed.
-import { content, type BuildingDef } from '@qoti/content';
+import { content, type BuildingDef, type ProductionMethod } from '@qoti/content';
 import { BuildingStatus } from '../../constants';
 import type { Building, Resident, TickCtx, WorldState } from '../../contracts';
 import { findById } from '../../state/entities';
+import { isFood, jobsOf, methodOf } from '../../state/zones';
 import { townStock } from '../../view/hamlet';
 import { setInside } from '../movement/api';
 import { doorOf, householdOf, isWorkingAge, manhattan } from './places';
@@ -18,13 +19,11 @@ import { dayIndex } from './time';
 /** Open job slots at a built building, or 0 (paused buildings hire nobody). */
 export function openJobs(b: Building): number {
   if (b.stage !== 'built' || !b.rt || b.rt.paused) return 0;
-  const count = content.buildingById.get(b.def)?.jobs?.count ?? 0;
-  return Math.max(0, count - b.rt.workers.length);
+  return Math.max(0, jobsOf(b) - b.rt.workers.length);
 }
 
-const FOOD = new Set(content.goods.filter((g) => g.food).map((g) => g.id));
-/** Grain on its way to bread counts with food. */
-const FOOD_CHAIN = new Set([...FOOD, 'wheat', 'flour']);
+/** Food goods by id: what a food job makes (grain is eaten as porridge, so it counts too). */
+const FOOD = new Set(content.goods.filter((g) => g.family === 'food').map((g) => g.id));
 
 /**
  * What the town is short of right now, recomputed each hour before hiring: food under three days
@@ -68,7 +67,7 @@ export function shortages(state: WorldState): Shortages {
   // stuck in buffers, and the first porter of each storehouse is never poached (slotPriority).
   let food = 0;
   for (let g = 0; g < content.goods.length; g++) {
-    if (!content.goods[g]!.food) continue;
+    if (!isFood(g)) continue;
     food += stock[g]!;
     for (const h of state.households) food += h.pantry[g] ?? 0;
   }
@@ -80,7 +79,7 @@ export function shortages(state: WorldState): Shortages {
   }
   const stoneGood = content.goodIndex.get('stone')!;
   const stoneRush = stock[stoneGood]! < STONE_RUSH && needs[stoneGood]! > 0;
-  for (const id of ['logs', 'planks', 'stone']) {
+  for (const id of ['timber', 'stone', 'brick']) {
     const g = content.goodIndex.get(id)!;
     if (stock[g]! < needs[g]! + 20) goods.add(id);
   }
@@ -93,7 +92,7 @@ export function shortages(state: WorldState): Shortages {
   for (const b of state.buildings) {
     if (b.stage !== 'built' || !b.rt || b.rt.paused) continue;
     const def = content.buildingById.get(b.def);
-    if (!def?.methods?.length || def.category === 'service') continue;
+    if (!methodOf(b) || def?.category === 'service') continue;
     producing++;
     if (b.rt.status & BuildingStatus.outputFull) full++;
   }
@@ -107,16 +106,13 @@ export function shortages(state: WorldState): Shortages {
   };
 }
 
-function makes(def: BuildingDef, short: Shortages): 'short' | 'food' | 'other' {
-  for (const m of def.methods ?? []) {
-    for (const [g] of m.outputs) {
-      if (short.goods.has(g) || (short.food && FOOD_CHAIN.has(g))) return 'short';
-    }
-    if (m.kind === 'farm' && short.food) return 'short';
+function makes(m: ProductionMethod | null, short: Shortages): 'short' | 'food' | 'other' {
+  if (!m) return 'other';
+  for (const [g] of m.outputs) {
+    if (short.goods.has(g) || (short.food && FOOD.has(g))) return 'short';
   }
-  return (def.methods ?? []).some((m) => m.kind === 'farm' || m.outputs.some(([g]) => FOOD_CHAIN.has(g)))
-    ? 'food'
-    : 'other';
+  if (m.kind === 'farm' && short.food) return 'short';
+  return m.kind === 'farm' || m.outputs.some(([g]) => FOOD.has(g)) ? 'food' : 'other';
 }
 
 /**
@@ -128,7 +124,12 @@ function makes(def: BuildingDef, short: Shortages): 'short' | 'food' | 'other' {
  * Without a porter nothing moves and without a builder nothing gets built, so those two are never
  * poached; past them a hamlet of eight keeps fed and keeps building before it hauls.
  */
-export function slotPriority(def: BuildingDef, k: number, short: Shortages = NO_SHORTAGES): number {
+export function slotPriority(
+  def: BuildingDef,
+  k: number,
+  short: Shortages = NO_SHORTAGES,
+  method: ProductionMethod | null = def.methods?.[0] ?? null,
+): number {
   const role = def.jobs?.role ?? 'worker';
   if (role === 'builder') return k === 0 ? 0 : k === 1 ? 1 : 4;
   // C5A: with the larder short of the winter in autumn and goods piling up for want of porters, a
@@ -142,9 +143,8 @@ export function slotPriority(def: BuildingDef, k: number, short: Shortages = NO_
   if (def.category === 'service') return k === 0 ? 0 : 1;
   // Playtest round six: a site waiting on the last of the stone puts the quarry's first hand ahead
   // of everything (never poached from, see rebalanceJobs: only a first-hand hire goes this high).
-  if (short.stoneRush && k === 0 && (def.methods ?? []).some((m) => m.outputs.some(([g]) => g === 'stone')))
-    return -1;
-  const kind = makes(def, short);
+  if (short.stoneRush && k === 0 && !!method?.outputs.some(([g]) => g === 'stone')) return -1;
+  const kind = makes(method, short);
   if (kind === 'short') return 0;
   // C5A: food work, with the larder short of the winter in autumn: ahead of other workplaces, never
   // ahead of the first two builders and porters (or nothing reaches the shelves).
@@ -153,7 +153,7 @@ export function slotPriority(def: BuildingDef, k: number, short: Shortages = NO_
   // places always starts (a clay pit that never digs never invents the kiln).
   if (k === 0) return 2;
   // The mill and the bakery keep their hands: bread is its own need for Craftsfolk.
-  const grows = (def.methods ?? []).every((m) => m.kind !== 'craft');
+  const grows = method?.kind !== 'craft';
   return kind === 'food' ? (short.plenty && grows ? 5 : 2) : 3;
 }
 
@@ -216,7 +216,7 @@ const STUCK = BuildingStatus.noTrees | BuildingStatus.noFields | BuildingStatus.
 function jobPriority(b: Building, def: BuildingDef, k: number, short: Shortages): number {
   // C4C: a tavern out of cider or a herbalist out of herbs still serves; it is never stuck.
   const stuck = def.category !== 'service' && !!b.rt && (b.rt.status & STUCK) !== 0;
-  return stuck ? 5 : slotPriority(def, k, short);
+  return stuck ? 5 : slotPriority(def, k, short, methodOf(b));
 }
 
 /** Priority of a building's next open slot (Infinity when it has none). */

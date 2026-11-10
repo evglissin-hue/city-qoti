@@ -1,5 +1,6 @@
 // The patterns system: the Pattern Book pass each in-game hour (offset 100), and each morning at
 // 06:30 every Kitchen Garden puts its extra food in the household's pantry, just before breakfast.
+import { isFood } from '../../../state/zones';
 import { content } from '@qoti/content';
 import { PANTRY_CAPACITY, TICKS_PER_DAY, TICKS_PER_HOUR } from '../../../constants';
 import type { System, TickCtx, WorldState } from '../../../contracts';
@@ -38,7 +39,7 @@ export function kitchenGardenHarvest(state: WorldState, ctx: TickCtx): void {
     const h = home ? householdIn(state, home) : undefined;
     if (!h) continue;
     let food = 0;
-    for (let i = 0; i < content.goods.length; i++) if (content.goods[i]!.food) food += h.pantry[i] ?? 0;
+    for (let i = 0; i < content.goods.length; i++) if (isFood(i)) food += h.pantry[i] ?? 0;
     const add = Math.min(perDay, PANTRY_CAPACITY - food);
     if (add <= 0) continue;
     h.pantry[VEGETABLES] = (h.pantry[VEGETABLES] ?? 0) + add;

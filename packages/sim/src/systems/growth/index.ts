@@ -310,8 +310,8 @@ function growFields(state: WorldState, ctx: TickCtx): void {
   for (const b of state.buildings) {
     if (!b.lot || b.stage !== 'built') continue;
     const def = content.buildingById.get(b.def);
-    if (!def || !isFarm(def)) continue;
-    const room = fieldCap(def) - fieldsOf(state, b, def).length;
+    if (!def || !isFarm(b)) continue;
+    const room = fieldCap(b) - fieldsOf(state, b, def).length;
     if (room <= 0) continue;
     const door = doorTile(b, def);
     const dx0 = door % S;
