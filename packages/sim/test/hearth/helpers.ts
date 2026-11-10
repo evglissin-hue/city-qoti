@@ -83,8 +83,17 @@ export function build(
   z: number,
   rot: Rot4 = 0,
   seat: SeatId = 0,
+  trade?: string,
 ): Building {
-  return insertBuilding(state, null, content.buildingById.get(def)!, x, z, rot, seat, { site: false });
+  return insertBuilding(state, null, content.buildingById.get(def)!, x, z, rot, seat, {
+    site: false,
+    ...(trade !== undefined && { trade }),
+  });
+}
+
+/** R1: a market-garden farmstead (3x3), what the Kitchen Garden and A Garden Plot count as a plot. */
+export function plot(state: WorldState, x: number, z: number, seat: SeatId = 0): Building {
+  return build(state, 'farmstead', x, z, 0, seat, 'market-garden');
 }
 
 export function road(

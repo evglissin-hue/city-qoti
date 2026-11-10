@@ -6,7 +6,13 @@
 // free or unlocked by something, a good a building makes, a pattern, sighting, trial or story
 // that exists. The sim's own `achievable()` (offer time) is tested in wish-dead-ends.test.ts; this
 // one needs no valley, so it covers every rank at once.
-import { type BuildingDef, type Condition, content, type Target } from '@qoti/content';
+//
+// R1: businesses grow on zoned lots, so a trade is reachable when its zone can be painted at a
+// reachable rank and what it asks (a rank, an innovation, a specialized building's reach) is
+// reachable too. A business answers to its trade id and its building's id and tags (hasTag), and
+// its trade's method makes goods. Story steps, the twists a season offers and commission asks are
+// walked as well (the R1 stand-ins rewrote several of them).
+import { type BuildingDef, type Condition, content, type Target, type TradeDef } from '@qoti/content';
 import { describe, expect, it } from 'vitest';
 import { codePredicates } from '../../src/conditions/code';
 
@@ -76,15 +82,37 @@ const reachable = (() => {
 
 const defsOf = (ids: Iterable<string>) => [...ids].map((id) => content.buildingById.get(id)!);
 
+/** R1: trades that can grow: their zone paintable at a reachable rank, their needs reachable. */
+const trades: readonly TradeDef[] = content.trades.filter((t) => {
+  const zone = content.zones.find((z) => z.id === t.zone);
+  if (!zone || (zone.requires?.rank && !ranks.has(zone.requires.rank))) return false;
+  const def = content.buildingById.get(t.building);
+  if (def?.grows?.zone !== t.zone) return false;
+  if (t.requires?.rank && !ranks.has(t.requires.rank)) return false;
+  if (t.requires?.innovation && !content.innovationById.has(t.requires.innovation)) return false;
+  return !t.wants.reach || reachable.has(t.wants.reach);
+});
+
+/** True when some reachable building (placed, or a business of a reachable trade) answers to `tag`. */
+function answersTo(tag: string): boolean {
+  const asDef = (d: BuildingDef) => d.id === tag || (d.tags ?? []).includes(tag);
+  return (
+    defsOf(reachable).some(asDef) ||
+    trades.some((t) => t.id === tag || asDef(content.buildingById.get(t.building)!))
+  );
+}
+
 function targetOk(t: Target): string | null {
   const live = defsOf(reachable);
-  if ('building' in t) return reachable.has(t.building) ? null : `no player can place ${t.building}`;
-  if ('buildingTag' in t)
-    return live.some((d) => (d.tags ?? []).includes(t.buildingTag))
+  if ('building' in t)
+    return reachable.has(t.building) || trades.some((x) => x.building === t.building)
       ? null
-      : `no placeable building tagged ${t.buildingTag}`;
+      : `no player can place ${t.building}`;
+  if ('buildingTag' in t)
+    return answersTo(t.buildingTag) ? null : `no placeable building tagged ${t.buildingTag}`;
   if ('buildingCategory' in t)
-    return live.some((d) => d.category === t.buildingCategory)
+    return live.some((d) => d.category === t.buildingCategory) ||
+      trades.some((x) => content.buildingById.get(x.building)?.category === t.buildingCategory)
       ? null
       : `no placeable building in ${t.buildingCategory}`;
   if ('decor' in t || 'tag' in t) {
@@ -97,7 +125,15 @@ function targetOk(t: Target): string | null {
 }
 
 function producible(good: string): boolean {
-  return defsOf(reachable).some((d) => d.methods?.some((m) => m.outputs.some(([o]) => o === good)));
+  return (
+    defsOf(reachable).some((d) => d.methods?.some((m) => m.outputs.some(([o]) => o === good))) ||
+    trades.some((t) => t.method?.outputs.some(([o]) => o === good))
+  );
+}
+
+/** A good the carrier can bring in: some neighbor sells it. */
+function importable(good: string): boolean {
+  return content.neighbors.some((n) => n.sells.some(([g]) => g === good));
 }
 
 const COUNT_REF: Partial<Record<string, (ref: string) => string | null>> = {
@@ -105,14 +141,8 @@ const COUNT_REF: Partial<Record<string, (ref: string) => string | null>> = {
   pattern: (ref) => (content.patternById.has(ref) ? null : `no pattern ${ref}`),
   sighted: (ref) => (content.wildlifeById.has(ref) ? null : `no wildlife ${ref}`),
   innovation: (ref) => (content.innovationById.has(ref) ? null : `no innovation ${ref}`),
-  buildings: (ref) =>
-    defsOf(reachable).some((d) => d.id === ref || (d.tags ?? []).includes(ref))
-      ? null
-      : `no placeable building or tag ${ref}`,
-  byWater: (ref) =>
-    defsOf(reachable).some((d) => d.id === ref || (d.tags ?? []).includes(ref))
-      ? null
-      : `no placeable building or tag ${ref}`,
+  buildings: (ref) => (answersTo(ref) ? null : `no placeable building or tag ${ref}`),
+  byWater: (ref) => (answersTo(ref) ? null : `no placeable building or tag ${ref}`),
 };
 
 /** Why a condition cannot be met by content alone, or null when it can. */
@@ -136,9 +166,8 @@ function problem(c: Condition): string | null {
   if ('stock' in c) {
     const g = c.stock.good;
     if (!content.goodById.has(g)) return `no good ${g}`;
-    return producible(g) || content.goodById.get(g)?.food === undefined
-      ? null
-      : `nothing placeable makes ${g}`;
+    // R1: what nothing in town makes, the carrier may still bring (a family's rule to Always).
+    return producible(g) || importable(g) ? null : `nothing placeable makes ${g} and no neighbor sells it`;
   }
   if ('count' in c) {
     const { what, ref } = c.count;
@@ -148,6 +177,9 @@ function problem(c: Condition): string | null {
     if (!codePredicates.has(c.code)) return `no code predicate ${c.code}`;
     if (c.code === 'trialPassed')
       return content.charters.some((x) => x.id === c.ref && x.trial) ? null : `no trial ${c.ref}`;
+    // A festival menu twist names a good: something must make it or bring it.
+    if (c.code === 'festivalMenu' && c.ref !== undefined)
+      return producible(c.ref) || importable(c.ref) ? null : `no way to put ${c.ref} on a menu`;
     return null;
   }
   return null;
@@ -169,7 +201,16 @@ describe('every goal can be met by content alone', () => {
   it('knows a reachable set of buildings', () => {
     expect(reachable.has('well')).toBe(true);
     expect(reachable.has('windmill')).toBe(true);
-    expect(reachable.size).toBeGreaterThan(30);
+    // R1: the chain economy's 22 hand-placed defs are gone, so the count is smaller; every
+    // hand-placed def is reachable save those behind a rank no Charter reaches yet (Town).
+    expect(reachable.size).toBeGreaterThan(25);
+    const behindRank = (d: BuildingDef) => !!d.requires?.rank && !ranks.has(d.requires.rank);
+    for (const d of content.buildings)
+      if (handPlaceable(d) && !behindRank(d)) expect(reachable.has(d.id), d.id).toBe(true);
+    // R1: every trade can grow somewhere, and a baker answers to 'baker'.
+    expect(trades.map((t) => t.id).sort()).toEqual(content.trades.map((t) => t.id).sort());
+    expect(answersTo('baker')).toBe(true);
+    expect(producible('bread')).toBe(true);
   });
 
   for (const w of content.wishes) it(`wish ${w.id}`, () => check('wish', w.id, w.target));
@@ -177,6 +218,20 @@ describe('every goal can be met by content alone', () => {
     it(`achievement ${a.id}`, () => check('achievement', a.id, a.condition));
   for (const s of content.guide.steps) it(`guide step ${s.id}`, () => check('guide', s.id, s.goal));
   for (const i of content.innovations) it(`innovation ${i.id}`, () => check('innovation', i.id, i.condition));
+
+  for (const arc of content.stories)
+    arc.steps.forEach((st, i) =>
+      it(`story ${arc.id} step ${i}`, () => check('story', `${arc.id}.${i}`, st.goal)),
+    );
+  // Twists a season offers (an empty list offers it in none: the Pie Contest waits for R3).
+  for (const t of content.twists)
+    if (t.goal && (t.seasons === undefined || t.seasons.length > 0))
+      it(`twist ${t.id}`, () => check('twist', t.id, t.goal!));
+  for (const c of content.commissions)
+    it(`commission ${c.id}`, () => {
+      if ('condition' in c.ask) check('commission', c.id, c.ask.condition);
+      else for (const [g] of c.ask.goods) check('commission', c.id, { stock: { good: g, atLeast: 1 } });
+    });
 
   for (const ch of content.charters)
     for (const g of ch.goals)
@@ -191,6 +246,13 @@ describe('every goal can be met by content alone', () => {
     expect(problem({ count: { what: 'goodProduced', ref: 'no-such-good' } })).not.toBeNull();
     expect(problem({ any: [{ count: { what: 'pattern', ref: 'nope' } }] })).not.toBeNull();
     expect(problem({ code: 'noSuchPredicate' })).not.toBeNull();
+    // R1: a removed good, a removed def's tag, a menu of pies.
+    expect(problem({ stock: { good: 'pies', atLeast: 1 } })).not.toBeNull();
+    expect(problem({ near: { buildingTag: 'bakery', of: 'home', within: 12 } })).not.toBeNull();
+    expect(problem({ code: 'festivalMenu', ref: 'pies', params: [['atLeast', 10]] })).not.toBeNull();
+    // A business answers to its trade.
+    expect(problem({ near: { buildingTag: 'market-garden', of: 'home', within: 3 } })).toBeNull();
+    expect(problem({ count: { what: 'goodProduced', ref: 'cider', atLeast: 1 } })).toBeNull();
     // A well needs nothing: a wish for one is not a dead end.
     expect(problem({ near: { building: 'well', of: 'home', within: 4 } })).toBeNull();
   });

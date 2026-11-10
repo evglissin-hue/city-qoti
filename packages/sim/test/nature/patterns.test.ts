@@ -6,6 +6,7 @@ import { MAP_SIZE } from '../../src/constants';
 import type { WorldState } from '../../src/contracts';
 import { Road, Terrain, Water } from '../../src/map/layers';
 import { removeById } from '../../src/state/entities';
+import { insertBuilding } from '../../src/state/place';
 import { worldIndex } from '../../src/state/worldIndex';
 import { detectors } from '../../src/systems/hearth/patterns/detectors';
 import { runPatterns } from '../../src/systems/hearth/patterns/engine';
@@ -27,6 +28,14 @@ function drop(state: WorldState, id: number): void {
   removeById(state.decor, id);
 }
 
+/** R1: an orchard is a farmstead business with trade 'orchard' (3x3). */
+function orchard(state: WorldState, x: number, z: number): void {
+  insertBuilding(state, null, content.buildingById.get('farmstead')!, x, z, 0, 0, {
+    site: false,
+    trade: 'orchard',
+  });
+}
+
 function path(state: WorldState, x0: number, x1: number, z: number): void {
   for (let x = x0; x <= x1; x++) state.map.road[z * S + x] = Road.path;
 }
@@ -43,7 +52,7 @@ describe('the I3 Hearth patterns (C5C)', () => {
 
   it('Orchard Path: a path along an orchard and a bench by it', () => {
     const s = natureFixture().state;
-    placeFree(s, 'orchard', EX + 4, EZ + 4);
+    orchard(s, EX + 4, EZ + 4);
     path(s, EX + 3, EX + 8, EZ + 7);
     expect(found(s, 'orchard-path')).toBe(0);
     const bench = addDecorAt(s, 'bench', EX + 5.5, EZ + 8.5);
@@ -96,7 +105,7 @@ describe('the I3 Hearth patterns (C5C)', () => {
 
   it('is discovered through the engine and unlocks its piece', () => {
     const s = natureFixture().state;
-    placeFree(s, 'orchard', EX + 4, EZ + 4);
+    orchard(s, EX + 4, EZ + 4);
     path(s, EX + 3, EX + 8, EZ + 7);
     addDecorAt(s, 'bench', EX + 5.5, EZ + 8.5);
     runPatterns(s, createTickCtx(s));

@@ -15,7 +15,7 @@ import { refillHints, runPatterns } from '../../src/systems/hearth/patterns/engi
 import { createTickCtx } from '../../src/turn';
 import { hamletFixture } from '../fixtures/hamlet';
 import { rejection, run } from '../helpers';
-import { build, colRun, decor, events, road, rowRun, S, standardWorld, tree } from './helpers';
+import { build, colRun, decor, events, plot, road, rowRun, S, standardWorld, tree } from './helpers';
 
 function detect(state: WorldState, pattern: string) {
   const def = content.patternById.get(pattern)!;
@@ -152,9 +152,10 @@ describe('Kitchen Garden', () => {
   function scene(plots: number, fence: boolean) {
     const w = standardWorld();
     const home = build(w, 'cottage', 160, 80);
-    if (plots >= 1) build(w, 'vegetable-plot', 163, 80);
-    if (plots >= 2) build(w, 'vegetable-plot', 160, 83);
-    if (fence) colRun(w, 'fence', 165, 80, 81);
+    // R1: a plot is a market-garden farmstead, 3x3 (163..165 by 80..82, and 160..162 by 83..85).
+    if (plots >= 1) plot(w, 163, 80);
+    if (plots >= 2) plot(w, 160, 83);
+    if (fence) colRun(w, 'fence', 167, 80, 81);
     return { w, home };
   }
 
@@ -187,12 +188,12 @@ describe('Kitchen Garden', () => {
   it('counts a row of plots running on from the home, fenced all round (playtest round six)', () => {
     const w = standardWorld();
     const home = build(w, 'cottage', 160, 80);
-    // Two plots side by side to the east: the second is four tiles from the home itself.
-    build(w, 'vegetable-plot', 163, 80);
-    build(w, 'vegetable-plot', 166, 80);
-    rowRun(w, 'fence', 162, 168, 78);
-    rowRun(w, 'fence', 162, 168, 83);
-    colRun(w, 'fence', 169, 78, 83);
+    // Two plots side by side to the east: the second is five tiles from the home itself.
+    plot(w, 163, 80);
+    plot(w, 167, 80);
+    rowRun(w, 'fence', 162, 170, 78);
+    rowRun(w, 'fence', 162, 170, 83);
+    colRun(w, 'fence', 171, 78, 83);
     const sites = detect(w, 'kitchen-garden');
     expect(sites).toHaveLength(1);
     expect(sites[0]!.anchor).toBe(home.z * S + home.x);
@@ -226,9 +227,10 @@ describe('Kitchen Garden', () => {
     const f = hamletFixture();
     const s = f.state;
     const home = s.buildings.find((b) => b.id === f.b.cottages[0])!;
-    build(s, 'vegetable-plot', home.x - 3, home.z);
-    build(s, 'vegetable-plot', home.x, home.z - 3);
-    colRun(s, 'fence', home.x - 4, home.z, home.z + 1);
+    // Two plots north of the cottages, clear of the storehouse and the lane.
+    plot(s, home.x - 3, home.z - 4);
+    plot(s, home.x, home.z - 4);
+    colRun(s, 'fence', home.x - 4, home.z - 4, home.z - 3);
     const ctx = createTickCtx(s);
     runPatterns(s, ctx);
     expect(s.hearth.sites.some((x) => x.pattern === 'kitchen-garden')).toBe(true);
@@ -468,7 +470,7 @@ describe('closest attempts (playtest round six)', () => {
     const well = build(w, 'well', 130, 40);
     decor(w, 'bench', 131, 41);
     const home = build(w, 'cottage', 160, 80);
-    build(w, 'vegetable-plot', 163, 80);
+    plot(w, 163, 80);
     road(w, 'path', 110, 90, 116, 90);
     decor(w, 'lantern', 112, 91);
     const byId = new Map(patternProgress(w).map((p) => [p.pattern, p]));
@@ -482,8 +484,8 @@ describe('closest attempts (playtest round six)', () => {
     expect(garden.wants.join(' ')).toContain('fence or hedge');
     expect(byId.get('lantern-walk')!.wants.join(' ')).toContain('2 more lanterns');
     // A page once found is no longer explained.
-    build(w, 'vegetable-plot', 160, 83);
-    colRun(w, 'fence', 165, 80, 81);
+    plot(w, 160, 83);
+    colRun(w, 'fence', 167, 80, 81);
     runPatterns(w, createTickCtx(w));
     expect(patternProgress(w).some((p) => p.pattern === 'kitchen-garden')).toBe(false);
   });
@@ -518,9 +520,9 @@ describe('closest attempts (playtest round six)', () => {
   it('counts a plot two tiles across and one down from the house (the round six screenshot)', () => {
     const w = standardWorld();
     const home = build(w, 'cottage', 160, 80);
-    build(w, 'vegetable-plot', 157, 76);
-    build(w, 'vegetable-plot', 154, 76);
-    rowRun(w, 'fence', 153, 159, 75);
+    plot(w, 156, 75);
+    plot(w, 153, 75);
+    rowRun(w, 'fence', 153, 159, 74);
     expect(detect(w, 'kitchen-garden').map((s) => s.anchor)).toEqual([home.z * S + home.x]);
   });
 });

@@ -38,11 +38,13 @@ describe('the playability health kinds', () => {
   it('idle-for-input: short of an input through a whole season', () => {
     const f = hamletFixture();
     const s = f.state;
-    const mill = s.buildings.find((b) => b.id === f.b.windmill)!;
+    // R1: the windmill makes nothing of its own; the baker's workshop in its reach waits on grain.
+    const mill = s.buildings.find((b) => b.id === f.b.bakery)!;
+    mill.rt!.input[content.goodIndex.get('grain')!] = 0;
     mill.rt!.status |= BuildingStatus.missingInput;
     const w = new HealthWatch();
     // From the first day of summer, when the fields are cut (the owner's playtest: "a built windmill
-    // useless in summer").
+    // useless in summer"; in R1 the baker beside it).
     const summer = DAYS_PER_SEASON * TICKS_PER_DAY;
     s.tick = summer;
     expect(kinds(w, s)).not.toContain('idle-for-input');
@@ -50,19 +52,21 @@ describe('the playability health kinds', () => {
     expect(kinds(w, s)).not.toContain('idle-for-input');
     s.tick = summer + DAYS_PER_SEASON * TICKS_PER_DAY;
     const issue = w.check(s).find((i) => i.kind === 'idle-for-input');
-    expect(issue?.text).toContain('windmill');
+    expect(issue?.text).toContain('workshop');
+    expect(issue?.text).toContain('grain');
     // A clear look resets the clock.
     mill.rt!.status &= ~BuildingStatus.missingInput;
     expect(kinds(w, s)).not.toContain('idle-for-input');
   });
 
-  it('idle-for-input: waiting on wheat through winter and spring is the year, not a dead end', () => {
-    expect([...quietSeasons('wheat')].sort()).toEqual([0, 3]);
-    expect([...quietSeasons('flour')].sort()).toEqual([0, 3]);
-    expect(quietSeasons('planks').size).toBe(0);
+  it('idle-for-input: waiting on grain through winter and spring is the year, not a dead end', () => {
+    expect([...quietSeasons('grain')].sort()).toEqual([0, 3]);
+    expect([...quietSeasons('bread')].sort()).toEqual([0, 3]);
+    expect(quietSeasons('timber').size).toBe(0);
     const f = hamletFixture();
     const s = f.state;
-    const mill = s.buildings.find((b) => b.id === f.b.windmill)!;
+    const mill = s.buildings.find((b) => b.id === f.b.bakery)!;
+    mill.rt!.input[content.goodIndex.get('grain')!] = 0;
     mill.rt!.status |= BuildingStatus.missingInput;
     const w = new HealthWatch();
     // Winter day 1 of the first year to the last hour of spring in the second: never flagged.

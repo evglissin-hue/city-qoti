@@ -2,16 +2,15 @@
 // system ticks one step an hour, skips the together step for a lone seat, closes on day 6, writes
 // its Chronicle line without taking an id, and never moves money or goods. Hiding is per seat.
 import { content } from '@qoti/content';
-import { gunzipSync, gzipSync, strFromU8, strToU8 } from 'fflate';
 import { describe, expect, it } from 'vitest';
 import { GUIDE_LAST_DAY, LEDGER_CATEGORIES, TICKS_PER_DAY, TICKS_PER_HOUR } from '../../src/constants';
-import type { WorldState } from '../../src/contracts';
+import type { Building, WorldState } from '../../src/contracts';
 import { Road } from '../../src/map/layers';
 import { createValley, defaultSettings } from '../../src/state/create';
 import { hashState } from '../../src/state/hash';
 import { deserialize, serialize } from '../../src/state/serialize';
-import { SAVE_VERSION } from '../../src/state/version';
 import { startGuide } from '../../src/state/seasons';
+import { emptyCounters } from '../../src/state/zones';
 import { advanceGuide, guide, stepDone } from '../../src/systems/guide';
 import { runningBalance } from '../../src/systems/guide/goals';
 import { createTickCtx } from '../../src/turn';
@@ -25,6 +24,15 @@ const steps = content.guide.steps;
 const at = (id: string) => steps.findIndex((s) => s.id === id);
 const cat = (id: string) => LEDGER_CATEGORIES.findIndex((c) => c.id === id);
 
+/** R1: a market-garden farmstead (3x3), a farm on Farmland. */
+function marketGarden(s: WorldState, x: number, z: number): Building {
+  const b = placeFree(s, 'farmstead', x, z);
+  b.trade = 'market-garden';
+  b.keeperId = 0;
+  b.counters = emptyCounters();
+  return b;
+}
+
 /** The hamlet fixture with the guide open (two seats, standard, at 06:00 on day 1). */
 function town() {
   const f = hamletFixture();
@@ -32,15 +40,14 @@ function town() {
   return f;
 }
 
-/** Every goal met: the lane reaches the gate, four homes, a wish, food, planks, a page, a good day, a plan. */
+/** Every goal met: the lane reaches the gate, four homes, a wish, food, timber, a page, a good day, a plan. */
 function everythingDone(s: WorldState): void {
   for (let x = 0; x < 40; x++) s.map.road[50 * S + x] = Road.lane;
   placeFree(s, 'cottage', 78, 47);
   s.stats.wishesGranted = 1;
-  const plot = placeFree(s, 'vegetable-plot', 80, 52);
-  plot.rt!.workers.push(s.residents[0]!.id);
-  placeFree(s, 'woodcutter', 85, 52);
-  s.economy.everProduced[content.goodIndex.get('planks')!] = 10;
+  marketGarden(s, 80, 52).rt!.workers.push(s.residents[0]!.id);
+  // The fixture's Forester's Lodge stands already.
+  s.economy.everProduced[content.goodIndex.get('timber')!] = 10;
   s.hearth.discovered.push({
     pattern: content.patterns[0]!.id,
     tick: 0,
@@ -59,7 +66,7 @@ describe('the first days guide: each goal', () => {
       'first-homes',
       'first-wish',
       'food-in-store',
-      'planks',
+      'timber',
       'first-pattern',
       'in-the-black',
       'together',
@@ -107,12 +114,17 @@ describe('the first days guide: each goal', () => {
     expect(stepDone(state, at('first-wish'))).toBe(true);
   });
 
-  it('food-in-store: a plot or fisher worked and two days of food in store', () => {
+  it('food-in-store: a farm or a fishery worked and two days of food in store', () => {
     const { state } = town();
     expect(stepDone(state, at('food-in-store'))).toBe(false);
-    const plot = placeFree(state, 'vegetable-plot', 80, 52);
+    const plot = marketGarden(state, 80, 52);
     expect(stepDone(state, at('food-in-store'))).toBe(false);
     plot.rt!.workers.push(state.residents[0]!.id);
+    expect(stepDone(state, at('food-in-store'))).toBe(true);
+    plot.rt!.workers.length = 0;
+    const fishery = placeFree(state, 'fishery', 97, 60);
+    expect(stepDone(state, at('food-in-store'))).toBe(false);
+    fishery.rt!.workers.push(state.residents[0]!.id);
     expect(stepDone(state, at('food-in-store'))).toBe(true);
     // Worked, but the stores are bare.
     for (const b of state.buildings) {
@@ -122,13 +134,18 @@ describe('the first days guide: each goal', () => {
     expect(stepDone(state, at('food-in-store'))).toBe(false);
   });
 
-  it('planks: a woodcutter, a sawpit and the first planks', () => {
-    const { state } = town();
-    expect(stepDone(state, at('planks'))).toBe(false);
-    placeFree(state, 'woodcutter', 85, 52);
-    expect(stepDone(state, at('planks'))).toBe(false);
-    state.economy.everProduced[content.goodIndex.get('planks')!] = 4;
-    expect(stepDone(state, at('planks'))).toBe(true);
+  it("timber: a Forester's Lodge and the first timber", () => {
+    const f = town();
+    const state = f.state;
+    // Without the fixture's lodge.
+    state.buildings = state.buildings.filter((b) => b.id !== f.b.sawpit);
+    expect(stepDone(state, at('timber'))).toBe(false);
+    state.economy.everProduced[content.goodIndex.get('timber')!] = 4;
+    expect(stepDone(state, at('timber'))).toBe(false);
+    placeFree(state, 'foresters-lodge', 85, 52);
+    expect(stepDone(state, at('timber'))).toBe(true);
+    state.economy.everProduced[content.goodIndex.get('timber')!] = 3;
+    expect(stepDone(state, at('timber'))).toBe(false);
   });
 
   it('first-pattern: a Pattern Book page', () => {
@@ -288,17 +305,12 @@ describe('the first days guide: the system', () => {
   });
 });
 
-describe('a migrated I2 valley', () => {
-  it('never shows the guide, even when every goal holds', () => {
-    // A standard valley saved before I3 had no guide slice; the v3 to v4 migration marks it over.
-    const w = town().state;
-    expect(w.guide.over).toBe(false);
-    const raw = JSON.parse(strFromU8(gunzipSync(serialize(w)))) as Record<string, unknown>;
-    delete raw.guide;
-    raw.saveVersion = 3;
-    const s = deserialize(gzipSync(strToU8(JSON.stringify(raw))));
-    expect(s.saveVersion).toBe(SAVE_VERSION);
-    expect(s.guide.over).toBe(true);
+// R1: the v3 to v4 migration is gone with every migration before version 6 (an older valley is
+// refused), so this checks the over flag it set, not the migration.
+describe('a guide that is over', () => {
+  it('never shows again, even when every goal holds', () => {
+    const s = town().state;
+    s.guide.over = true;
     everythingDone(s);
     for (let h = 0; h < 30; h++) {
       const ctx = createTickCtx(s);
