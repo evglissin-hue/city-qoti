@@ -4,13 +4,7 @@
 // effect improves both. Each unit moves the neighbor's price (nudge), so a flood of timber cheapens
 // timber; the trade log keeps the last TRADE_LOG_MAX deals. Moved here from the caravans (R1.0).
 import { content } from '@qoti/content';
-import {
-  PEDDLER_TERMS,
-  RANKS,
-  TRADE_BUY_PERCENT,
-  TRADE_LOG_MAX,
-  TRADE_SELL_PERCENT,
-} from '../../constants';
+import { PEDDLER_TERMS, RANKS, TRADE_BUY_PERCENT, TRADE_LOG_MAX, TRADE_SELL_PERCENT } from '../../constants';
 import type { Building, NeighborState, WorldState } from '../../contracts';
 import { regionalPrice } from '../../view/village';
 import { defOf } from '../logistics/stores';
@@ -101,7 +95,13 @@ export function nudge(n: NeighborState, good: number, by: number): void {
 }
 
 /** Appends a deal to the trade log: qty positive bought, negative sold; pennies the other way. */
-export function logTrade(state: WorldState, neighbor: string, good: number, qty: number, pennies: number): void {
+export function logTrade(
+  state: WorldState,
+  neighbor: string,
+  good: number,
+  qty: number,
+  pennies: number,
+): void {
   const l = state.trade.log;
   l.push({ tick: state.tick, neighbor, good, qty, pennies });
   if (l.length > TRADE_LOG_MAX) l.splice(0, l.length - TRADE_LOG_MAX);

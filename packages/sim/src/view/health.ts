@@ -87,20 +87,20 @@ export function quietSeasons(good: string, seen: ReadonlySet<string> = new Set()
   const path = new Set(seen).add(good);
   const producers: ReadonlySet<number>[] = [];
   for (const m of ALL_METHODS) {
-      if (!m.outputs.some(([g]) => g === good)) continue;
-      let mine: ReadonlySet<number>;
-      if (m.kind === 'farm') mine = FIELD_QUIET;
-      else if (m.kind === 'gather') {
-        const table = content.goodById.get(good)?.seasons;
-        mine = new Set(table ? [0, 1, 2, 3].filter((i) => table[i] === 0) : []);
-      } else if (m.kind === 'craft' && m.inputs.length > 0) {
-        // Short whenever any input is short.
-        const any = new Set<number>();
-        for (const [g] of m.inputs) for (const q of quietSeasons(g, path)) any.add(q);
-        mine = any;
-      } else mine = ALL_YEAR;
-      producers.push(mine);
-    }
+    if (!m.outputs.some(([g]) => g === good)) continue;
+    let mine: ReadonlySet<number>;
+    if (m.kind === 'farm') mine = FIELD_QUIET;
+    else if (m.kind === 'gather') {
+      const table = content.goodById.get(good)?.seasons;
+      mine = new Set(table ? [0, 1, 2, 3].filter((i) => table[i] === 0) : []);
+    } else if (m.kind === 'craft' && m.inputs.length > 0) {
+      // Short whenever any input is short.
+      const any = new Set<number>();
+      for (const [g] of m.inputs) for (const q of quietSeasons(g, path)) any.add(q);
+      mine = any;
+    } else mine = ALL_YEAR;
+    producers.push(mine);
+  }
   // Quiet only when every producer is.
   const out: ReadonlySet<number> =
     producers.length === 0 ? ALL_YEAR : new Set([0, 1, 2, 3].filter((q) => producers.every((p) => p.has(q))));
@@ -298,7 +298,6 @@ export class HealthWatch {
         });
       }
     }
-
   }
 }
 

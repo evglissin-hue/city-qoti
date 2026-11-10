@@ -148,7 +148,7 @@ export function creditFor(state: WorldState, def: WildlifeDef, c: number): SeatI
   }
   for (const b of state.buildings) {
     if (b.stage !== 'built' || buildingChunk(b) !== c) continue;
-    const pts = buildingHabitats(b.def);
+    const pts = buildingHabitats(b);
     if (helps(pts) || (b.handmade && (b.rt?.modules?.length ?? 0) > 0)) counts[b.builtBy]!++;
   }
   const seats: SeatId[] = [];

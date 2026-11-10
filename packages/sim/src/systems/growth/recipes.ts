@@ -1,8 +1,7 @@
-// What grown crafts make and grown farms grow (docs/spec/13-ledger.md, Zoning and growth): the
-// method whose outputs the town is shortest of, among those it can feed. A craft whose inputs the
-// valley has never seen waits; farms weigh the soil too. The Ledger can pin a method
-// (build.pinRecipe), and a pinned building never changes its mind.
-import type { BuildingDef, ProductionMethod } from '@qoti/content';
+// What the town is short of, and how much it wants a method run (docs/spec/13-ledger.md, Zoning and
+// growth). The growth pass scores a lot's trades with methodScore (R1 stand-in (R1B): the trade score
+// replaces it); a craft whose inputs the valley has never seen waits, and farms weigh the soil too.
+import type { ProductionMethod } from '@qoti/content';
 import { content } from '@qoti/content';
 import { TARGET_COVER } from '../../constants';
 import type { WorldState } from '../../contracts';
@@ -82,27 +81,3 @@ export function methodScore(
   if (method.kind === 'farm' || method.kind === 'plant') s = Math.floor((s * (50 + fertility / 2)) / 100);
   return s;
 }
-
-/** The best method index of a def and its score (the first method on ties; -1 when it has none). */
-export function bestMethod(
-  state: WorldState,
-  def: BuildingDef,
-  short: readonly number[],
-  stock: readonly number[],
-  fertility = 100,
-): [index: number, score: number] {
-  const methods = def.methods ?? [];
-  let best = methods.length > 0 ? 0 : -1;
-  let bestScore = -1;
-  for (let k = 0; k < methods.length; k++) {
-    const s = methodScore(state, methods[k]!, short, stock, fertility);
-    if (s > bestScore) {
-      bestScore = s;
-      best = k;
-    }
-  }
-  return [best, Math.max(0, bestScore)];
-}
-
-/** A grown building changes method only when the new one is wanted this much more (half a day short). */
-export const SWITCH_MARGIN = 50;

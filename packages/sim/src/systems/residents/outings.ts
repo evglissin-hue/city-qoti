@@ -2,6 +2,7 @@
 // beds, the well, a good tree, the water's edge, the market for a fox or the bakery for a mouse,
 // scored by charm, species tastes and traits, a little distance and a little whim. Friends tend to
 // pick the same spot. Children play near home; strolls follow the lanes; visits go to a friend's.
+import { hasTag } from '../../state/zones';
 import { content } from '@qoti/content';
 import { MAP_SIZE, TILE_FP } from '../../constants';
 import type { Resident, Rng, WorldState } from '../../contracts';
@@ -46,7 +47,7 @@ const DECOR_APPEAL: readonly [tag: string, base: number, species: string, bonus:
 const BUILDING_APPEAL: readonly [tag: string, base: number, species: string, bonus: number][] = [
   ['well', 8, '', 0],
   ['market', 4, 'fox', 8],
-  ['bakery', 3, 'mouse', 6],
+  ['baker', 3, 'mouse', 6],
   ['civic', 2, 'fox', 2],
   ['garden', 3, 'rabbit', 4],
   // I2 (C4C): the tavern of an evening (a third as tempting by day).
@@ -139,16 +140,14 @@ export function chooseLeisure(state: WorldState, rng: Rng, r: Resident, evening:
     consider(Math.floor(d.fx / TILE_FP), Math.floor(d.fz / TILE_FP), appeal, seat && !def.blocksWalking);
   }
 
-  // Buildings: the well, the market for a fox, the bakery for a mouse.
+  // Buildings: the well, the market for a fox, a baker's for a mouse (R1: a tag or a trade, hasTag).
   eachBuildingNear(state, cx, cz, R, (b, door) => {
     if (b.stage !== 'built') return;
-    const tags = content.buildingById.get(b.def)?.tags;
-    if (!tags) return;
     let appeal = 0;
     for (const [tag, base, species, bonus] of BUILDING_APPEAL) {
-      if (!tags.includes(tag)) continue;
+      if (!hasTag(b, tag)) continue;
       let v = base + (species === sp ? bonus : 0);
-      if (tag === 'bakery') v *= bakery;
+      if (tag === 'baker') v *= bakery;
       if (tag === 'tavern' && !evening) v /= 3;
       if (v > appeal) appeal = v;
     }

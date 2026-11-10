@@ -10,7 +10,7 @@
 import { FOOD_GOODS, methodOf } from '../../state/zones';
 import type { BuildingDef } from '@qoti/content';
 import { content } from '@qoti/content';
-import { PORTER_CARRY, PORTER_MATCH_EVERY, STALL_RESTOCK_TARGET } from '../../constants';
+import { PORTER_CARRY, PORTER_MATCH_EVERY, STALL_RESTOCK_TARGET, WHEELBARROW_CARRY } from '../../constants';
 import type {
   Building,
   BuildingRuntime,
@@ -56,7 +56,6 @@ export const INPUT_TARGET_CYCLES = 2;
 const MATCH_OFFSET = 5;
 const NO_CLASS = 99;
 
-
 interface Spot {
   b: Building;
   def: BuildingDef;
@@ -90,11 +89,11 @@ export const logistics: System = {
 };
 
 /**
- * Capability id the Wheelbarrows innovation unlocks. C4X: a wheelbarrow doubles a porter's load to 8
- * (the id keeps its I2 contract name): a Village's porters were a third of its workforce at 6.
+ * Capability id the Wheelbarrows innovation unlocks: a wheelbarrow doubles a porter's load to
+ * WHEELBARROW_CARRY (R1 renamed it from 'porter-carry-6', which it had kept since I2).
  */
-export const WHEELBARROW = 'porter-carry-6';
-export const WHEELBARROW_CARRY = 8;
+export const WHEELBARROW = 'porter-carry-8';
+export { WHEELBARROW_CARRY };
 
 /** Units a porter carries of a good: its `carry`, or 8 once the town has wheelbarrows. */
 export function carryOf(state: WorldState, good: number): number {

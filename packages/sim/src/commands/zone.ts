@@ -1,5 +1,5 @@
-// Zoning (C4.0 baseline; C4B owns it): paint and clear the `zone` layer. Zoning arrives with the
-// Village rank. Roads, water and buildings are never zoned; lots follow in the zoning system's
+// Zoning (C4.0 baseline; C4B owns it): paint and clear the `zone` layer. R1: Homes, Workshops and
+// Farmland are open from founding; a zone with `requires.rank` (Shops, Townhouses) waits for it. Roads, water and buildings are never zoned; lots follow in the zoning system's
 // next hourly pass (systems/zoning).
 import { content } from '@qoti/content';
 import { MAP_SIZE, MAX_ZONE_TILES } from '../constants';
@@ -14,10 +14,12 @@ export const paint: HandlerFor<'zone.paint'> = {
   type: 'zone.paint',
   validate(state, _seat, cmd) {
     if (!isStandard(state)) return 'NOT_ALLOWED';
-    if (typeof cmd.zone !== 'string' || !content.zoneById.has(cmd.zone)) return 'INVALID';
+    const zone = typeof cmd.zone === 'string' ? content.zoneById.get(cmd.zone) : undefined;
+    if (!zone) return 'INVALID';
     const bad = checkTiles(cmd.tiles, MAX_ZONE_TILES);
     if (bad) return bad;
-    return rankAtLeast(state, 'village') ? null : 'LOCKED';
+    const rank = zone.requires?.rank;
+    return !rank || rankAtLeast(state, rank) ? null : 'LOCKED';
   },
   apply(state, _seat, cmd, ctx) {
     const value = content.zoneById.get(cmd.zone)!.layerValue;

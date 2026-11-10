@@ -207,8 +207,7 @@ export function scaredAnimals(
   _def: BuildingDef,
   _method: ProductionMethod,
 ): number {
-  if (state.threats.wolves.length === 0 || !hasAnimals(b) || !wolvesCome(state))
-    return 1000;
+  if (state.threats.wolves.length === 0 || !hasAnimals(b) || !wolvesCome(state)) return 1000;
   const last = dayIndex(state.tick) - 1;
   if (hourOf(state.tick) < WOLF_TO || !state.threats.wolves.includes(last)) return 1000;
   return packFor(state, last).farm?.id === b.id ? SCARED_YIELD : 1000;

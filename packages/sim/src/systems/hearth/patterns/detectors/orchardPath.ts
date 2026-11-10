@@ -1,7 +1,7 @@
 // Orchard Path (C5C): an orchard with `pathTiles` (3) or more path or lane tiles running along it
 // (touching its footprint, diagonals too) and a bench within `benchReach` (2) tiles of the orchard.
 // Anchored on the orchard's anchor tile; members are the orchard and the benches.
-import { content } from '@qoti/content';
+import { hasTag } from '../../../../state/zones';
 import { MAP_SIZE } from '../../../../constants';
 import { buildingRect, expandRect, rectGap2, within } from '../../../../conditions/geo';
 import type { EntityId } from '../../../../contracts';
@@ -15,7 +15,8 @@ export const orchardPath: Detector = (state, def) => {
   const benchReach = param(def, 'benchReach', 2);
   const out: SiteCandidate[] = [];
   for (const b of state.buildings) {
-    if (b.stage !== 'built' || !content.buildingById.get(b.def)?.tags?.includes('orchard')) continue;
+    // R1: an orchard farmstead answers to 'orchard' through its trade.
+    if (b.stage !== 'built' || !hasTag(b, 'orchard')) continue;
     const r = buildingRect(b);
     const ring = expandRect(r, 1);
     const tiles: number[] = [];

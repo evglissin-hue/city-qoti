@@ -4,7 +4,7 @@
 //
 // Distances are gaps between tile rectangles (conditions/geo.ts): a target on a tile touching the
 // home is 0 tiles away, so "within 3" means the home's own footprint plus three rings around it.
-import { isFood } from '../state/zones';
+import { hasTag, isFood } from '../state/zones';
 import { type CharmCategory, type Condition, content, type PlaceRef, type Target } from '@qoti/content';
 import { MAP_SIZE, NEED_IDS, RANKS } from '../constants';
 import type { EntityId, MapLayers, Rect, WorldState } from '../contracts';
@@ -143,8 +143,8 @@ export function countNear(
       if (b.stage !== 'built' || b.id === exclude) continue;
       const def = content.buildingById.get(b.def);
       if (!def) continue;
-      if ('building' in target && b.def !== target.building) continue;
-      if ('buildingTag' in target && !(def.tags ?? []).includes(target.buildingTag)) continue;
+      if ('building' in target && b.def !== target.building && b.trade !== target.building) continue;
+      if ('buildingTag' in target && !hasTag(b, target.buildingTag)) continue;
       if ('buildingCategory' in target && def.category !== target.buildingCategory) continue;
       if ('home' in target && !(isHomeDef(def) && householdIn(state, b.id))) continue;
       const r = buildingRect(b, def);
@@ -274,7 +274,8 @@ function builtCount(state: WorldState, ref: string | undefined, byWater: boolean
   for (const b of state.buildings) {
     if (b.stage !== 'built') continue;
     const def = content.buildingById.get(b.def);
-    if (!def || (def.id !== ref && !def.tags?.includes(ref))) continue;
+    // R1: a business answers to its trade id too (hasTag).
+    if (!def || !hasTag(b, ref)) continue;
     if (byWater && !waterWithin(state, buildingRect(b, def), 3)) continue;
     n++;
   }

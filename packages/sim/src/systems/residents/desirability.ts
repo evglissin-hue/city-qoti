@@ -2,6 +2,7 @@
 // presence from 0 to 1 times its weight; an `absent` taste counts the missing part. Arrivals pick
 // homes by this, and the beauty of home blends it with the charm layer. Charm layers stay zero until
 // the Hearth (C3B) fills them, so tags, water and trees carry the tastes on their own until then.
+import { hasTag } from '../../state/zones';
 import { content, type SpeciesDef, type Taste } from '@qoti/content';
 import { MAP_SIZE, TILE_FP } from '../../constants';
 import type { Building, WorldState } from '../../contracts';
@@ -55,7 +56,7 @@ export function tagCount(state: WorldState, tag: string, x: number, z: number, r
   eachBuildingNear(state, x, z, r, (b, door) => {
     if (b.id === self || b.stage !== 'built') return;
     if (Math.abs(tileX(door) - x) > r || Math.abs(tileZ(door) - z) > r) return;
-    if (content.buildingById.get(b.def)?.tags?.includes(tag)) n++;
+    if (hasTag(b, tag)) n++;
   });
   const near = worldIndex(state).decorGrid.near(x * TILE_FP + 128, z * TILE_FP + 128, (r + 0.5) * TILE_FP);
   for (const d of near) if (content.decorById.get(d.def)?.tags.includes(tag)) n++;
@@ -187,7 +188,7 @@ export function describeHome(state: WorldState, home: Building): string {
   const options: string[] = [];
   if (tagCount(state, 'well', x, z, 5, home.id)) options.push(`${a} by the well`);
   if (tagCount(state, 'market', x, z, 6, home.id)) options.push(`${a} near the market`);
-  if (tagCount(state, 'bakery', x, z, 6, home.id)) options.push(`${a} that smells of the bakery`);
+  if (tagCount(state, 'baker', x, z, 6, home.id)) options.push(`${a} that smells of the bakery`);
   if (treeCount(state, x, z, 3) >= 4) options.push(`${a} under the trees`);
   if (tagCount(state, 'flower', x, z, 3, home.id) >= 2) options.push(`${a} among the flowers`);
   if (tagCount(state, 'civic', x, z, 8, home.id)) options.push(`${a} in the shadow of the town hall`);

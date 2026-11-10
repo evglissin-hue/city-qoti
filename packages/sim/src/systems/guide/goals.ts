@@ -31,12 +31,11 @@ function isOwnWorkplace(b: Building): boolean {
   return !def.tags?.includes('storehouse');
 }
 
-/** A vegetable plot or a fisher's hut, built, with someone on its books. */
+/** A fishery, or a farmstead business, built, with someone on its books. */
 export function guideFoodWorked(state: WorldState): boolean {
   for (const b of state.buildings) {
     if (b.stage !== 'built' || !b.rt || b.rt.workers.length === 0) continue;
-    const def = content.buildingById.get(b.def);
-    if (def && (def.id === 'fishers-hut' || def.tags?.includes('plot'))) return true;
+    if (b.def === 'fishery' || (b.def === 'farmstead' && !!b.trade)) return true;
   }
   return false;
 }

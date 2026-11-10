@@ -20,7 +20,14 @@
 //   what a festival put by.
 // - No County tab, no deals, no boat, no closed pass and no winter marks yet: R1A's.
 import { content } from '@qoti/content';
-import { CARRIER_DAYS, CARRIER_HOUR, GOOD_FAMILIES, IMPACT_PER_UNIT, MAP_SIZE, TICKS_PER_DAY } from '../../constants';
+import {
+  CARRIER_DAYS,
+  CARRIER_HOUR,
+  GOOD_FAMILIES,
+  IMPACT_PER_UNIT,
+  MAP_SIZE,
+  TICKS_PER_DAY,
+} from '../../constants';
 import type { Building, System, TickCtx, WorldState } from '../../contracts';
 import { goodsArray, isStandard } from '../../state/hamlet';
 import { GOODS_BY_FAMILY } from '../../state/zones';
@@ -264,7 +271,9 @@ export function carrierDay(state: WorldState, ctx: TickCtx): void {
 
   const lines: string[] = [];
   if (day.spent > 0)
-    lines.push(`The carrier left ${goodsText(day.bought)} at the gate and took ${coinsText(day.spent)} for it.`);
+    lines.push(
+      `The carrier left ${goodsText(day.bought)} at the gate and took ${coinsText(day.spent)} for it.`,
+    );
   if (day.earned > 0)
     lines.push(`It rattled off with ${goodsText(day.sold)}, leaving ${coinsText(day.earned)} behind.`);
   if (lines.length > 0) {

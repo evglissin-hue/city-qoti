@@ -27,7 +27,14 @@ export const START_FOOD: readonly [string, number][] = [
 ];
 
 /** Starting buildings in placement order; homes and the well cluster around the town hall. */
-const START_BUILDINGS: readonly string[] = ['town-hall', 'storehouse', 'granary', 'cottage', 'cottage', 'well'];
+const START_BUILDINGS: readonly string[] = [
+  'town-hall',
+  'storehouse',
+  'granary',
+  'cottage',
+  'cottage',
+  'well',
+];
 
 export function setupStandardStart(state: WorldState): void {
   const S = MAP_SIZE;
