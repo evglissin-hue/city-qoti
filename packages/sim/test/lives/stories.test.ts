@@ -1,7 +1,7 @@
 // Story arcs (C4D): each arc can be completed in the village fixture, from arrival to finale, with
 // every letter rendered from content (deterministic text, {town} filled in), rewards paid and the
-// money invariant kept. Goals are met by changing the fixture directly (a sawpit by the river, a
-// request resolved, lanterns by the door), then advanceStories runs as the hourly pass would. The
+// money invariant kept. Goals are met by changing the fixture directly (a Forester's Lodge by the
+// river, a request resolved, lanterns by the door), then advanceStories runs as the hourly pass would. The
 // school and the Trading Post are stand-in defs until C4C's buildings land.
 import { content, type StoryArc } from '@qoti/content';
 import { describe, expect, it } from 'vitest';
@@ -48,11 +48,16 @@ const SATISFY: Record<string, ((t: Scene) => void)[]> = {
       expect(placeDecorNear(s, 'lantern', home().x, home().z, 2)).toBe(true);
     },
     ({ s }) => {
-      insertBuilding(s, null, content.buildingById.get('sawpit')!, 97, 60, 0, 0, { site: false });
+      // A Forester's Lodge within three tiles of the river (x 100).
+      insertBuilding(s, null, content.buildingById.get('foresters-lodge')!, 97, 60, 0, 0, { site: false });
     },
     ({ s }) => {
-      insertBuilding(s, null, content.buildingById.get('woodcutter')!, 110, 60, 0, 0, { site: false });
-      insertBuilding(s, null, content.buildingById.get('windmill')!, 110, 64, 0, 0, { site: false });
+      // The fixture's baker's workshop and two lodges make three; a sawmill and two grown
+      // workshops make six.
+      insertBuilding(s, null, content.buildingById.get('sawmill')!, 110, 60, 0, 0, { site: false });
+      const workshop = content.buildingById.get('workshop')!;
+      insertBuilding(s, null, workshop, 110, 64, 0, 0, { site: false, trade: 'weaver' });
+      insertBuilding(s, null, workshop, 114, 64, 0, 0, { site: false, trade: 'chandler' });
     },
     ({ s, ctx }) => {
       unlockInnovation(s, ctx, 'wheelbarrows');
@@ -61,7 +66,10 @@ const SATISFY: Record<string, ((t: Scene) => void)[]> = {
   // C5A: Mother Thornbury's winter lessons.
   herbalist: [
     ({ s }) => {
-      insertBuilding(s, null, content.buildingById.get('herb-garden')!, 116, 60, 0, 0, { site: false });
+      insertBuilding(s, null, content.buildingById.get('farmstead')!, 116, 60, 0, 0, {
+        site: false,
+        trade: 'market-garden',
+      });
     },
     ({ s, f }) => {
       findById(s.buildings, f.b.storehouses[0])!.rt!.store[content.goodIndex.get('firewood')!] = 60;
@@ -70,8 +78,8 @@ const SATISFY: Record<string, ((t: Scene) => void)[]> = {
       insertBuilding(s, null, content.buildingById.get('bath-house')!, 116, 66, 0, 0, { site: false });
     },
     ({ s, f }) => {
-      insertBuilding(s, null, content.buildingById.get('chopping-shed')!, 122, 60, 0, 0, { site: false });
-      insertBuilding(s, null, content.buildingById.get('chopping-shed')!, 122, 66, 0, 0, { site: false });
+      insertBuilding(s, null, content.buildingById.get('foresters-lodge')!, 122, 60, 0, 0, { site: false });
+      insertBuilding(s, null, content.buildingById.get('foresters-lodge')!, 122, 66, 0, 0, { site: false });
       findById(s.buildings, f.b.storehouses[0])!.rt!.store[content.goodIndex.get('firewood')!] = 100;
     },
     ({ s }) => {
@@ -127,8 +135,8 @@ const SATISFY: Record<string, ((t: Scene) => void)[]> = {
     ({ s }) => {
       placeTest(s, content.buildingById.get('test-post')!, 110, 70);
     },
-    () => {
-      // The fixture has a standing order for planks.
+    ({ s }) => {
+      insertBuilding(s, null, content.buildingById.get('market-square')!, 110, 74, 0, 0, { site: false });
     },
   ],
   musician: [
