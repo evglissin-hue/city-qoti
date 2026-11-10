@@ -155,7 +155,8 @@ export class Session {
     c.onWelcome((w) => void this.welcome(w));
     c.onTurn((turn: Turn) => {
       this.undo.sawTurn(turn);
-      this.host.turns([turn]);
+      if (this.heldTurns) this.heldTurns.push(turn);
+      else this.host.turns([turn]);
     });
     c.onPresence((p) => this.onPresence(p));
     c.onNeedSnapshot(() => void this.uploadSnapshot());
@@ -303,7 +304,8 @@ export class Session {
       if (sketched.items.length === 1) this.toast(INPUT_COPY.sketched(1));
       return -1;
     }
-    if (!this.connection) return -1;
+    // V2.0: while the Mirror holds a showcase (Measure this laptop), nothing it shows may reach the sim.
+    if (!this.connection || this.heldTurns) return -1;
     this.debug.lastSubmitAt = Date.now();
     const before = record ? this.undo.prepare(cmd, this.mirror) : null;
     const seq = this.connection.submit(cmd);
@@ -624,6 +626,45 @@ export class Session {
     const snap = await this.host.snapshot();
     const target = await moveValleyOnline(snap.data, this.target);
     this.onMove?.(target);
+  }
+
+  /**
+   * V2.0 (Measure this laptop): live turns wait here instead of reaching the sim, while the Mirror
+   * holds a showcase that the sim never sees. `reloadMirror` lets them through. A welcome or a
+   * resync meanwhile is harmless: the worker skips turns it already has.
+   */
+  private heldTurns: Turn[] | null = null;
+
+  holdTurns(): void {
+    this.heldTurns ??= [];
+  }
+
+  /**
+   * V2.0: puts the Mirror back exactly as the sim has it, as a resync does (a snapshot from the
+   * worker, loaded fresh), then lets any held turns through to play out as usual. Turns wait while
+   * the snapshot is taken, so none is lost between the snapshot and the reload.
+   */
+  async reloadMirror(): Promise<void> {
+    this.holdTurns();
+    let snap: { t: number; data: Uint8Array };
+    try {
+      snap = await this.host.snapshot();
+    } catch (err) {
+      this.releaseTurns();
+      throw err;
+    }
+    const held = this.heldTurns ?? [];
+    this.heldTurns = null;
+    // Posted in order: the worker starts over from the snapshot, then plays the held turns live.
+    const ready = this.host.init({ kind: 'snapshot', data: snap.data });
+    if (held.length) this.host.turns(held);
+    this.mirror.load(await ready);
+  }
+
+  private releaseTurns(): void {
+    const held = this.heldTurns ?? [];
+    this.heldTurns = null;
+    if (held.length) this.host.turns(held);
   }
 
   /** Debug only (?debug): makes this seat's sim drift from the room's, for resync tests. */
