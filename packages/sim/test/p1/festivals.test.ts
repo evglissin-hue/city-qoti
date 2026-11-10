@@ -13,7 +13,7 @@ import { rejection, run } from '../helpers';
 const plan = (): Command => ({
   t: 'festival.plan',
   site: { rect: [51, 52, 57, 58] },
-  menu: [['pies', 10]],
+  menu: [['cider', 10]],
   twist: '',
   music: 'none',
 });
@@ -34,15 +34,15 @@ describe('late festival plans', () => {
   it('put the menu by at once when made between noon and the evening', () => {
     const { state } = feastFixture(6, 14);
     state.festival.plan = null;
-    stock(state, 'pies', 30);
+    stock(state, 'cider', 30);
     expect(rejection(run(state, plan()))).toBeUndefined();
-    expect(state.festival.plan!.reserved.find(([g]) => g === good('pies'))?.[1]).toBe(10);
+    expect(state.festival.plan!.reserved.find(([g]) => g === good('cider'))?.[1]).toBe(10);
   });
 
   it('wait for noon when made on the festival morning', () => {
     const { state } = feastFixture(6, 9);
     state.festival.plan = null;
-    stock(state, 'pies', 30);
+    stock(state, 'cider', 30);
     expect(rejection(run(state, plan()))).toBeUndefined();
     expect(state.festival.plan!.reserved).toEqual([]);
   });
