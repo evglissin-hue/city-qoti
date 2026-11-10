@@ -32,7 +32,11 @@ function word(t: Target, n: number): string {
     );
   if ('decor' in t) return (content.decorById.get(t.decor)?.name ?? t.decor).toLowerCase();
   if ('building' in t) return (content.buildingById.get(t.building)?.name ?? t.building).toLowerCase();
-  if ('buildingTag' in t) return t.buildingTag === 'herb' ? 'herb garden' : t.buildingTag;
+  if ('buildingTag' in t) {
+    if (t.buildingTag === 'herb') return 'herb garden';
+    // R1: a trade by its name ("a market garden", not "a market-garden").
+    return content.tradeById.get(t.buildingTag)?.name.toLowerCase() ?? t.buildingTag;
+  }
   if ('buildingCategory' in t) return t.buildingCategory;
   if ('tree' in t) return plural ? 'trees' : 'tree';
   if ('water' in t) return 'water';
