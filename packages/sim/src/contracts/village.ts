@@ -24,6 +24,11 @@ export interface MarketState {
   cover: number[];
   /** Price per good at each day's pass, last PRICE_HISTORY_DAYS days, oldest first. */
   history: number[][];
+  // R1 (R1A), absent until used.
+  /** Units households bought yesterday, per good (the Balances book weighs a family's price by it). */
+  bought?: number[];
+  /** Units households bought so far today; rolls into `bought` at the daily price pass. */
+  boughtToday?: number[];
 }
 
 /** The Ledger's levers (docs/spec/13-ledger.md, Levers and policies). Commands set them. */
