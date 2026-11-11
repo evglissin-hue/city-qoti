@@ -1,6 +1,11 @@
 // Needs baskets (docs/spec/13-ledger.md, Households: amount and variety; i2-wave-notes, Purchases).
 // R1: each tier lists a want per family (content FamilyWant); basketGroups turns each into a need
-// group of the family's goods a household uses, with the want's amount a day.
+// group of the family's shelf goods a household uses, with the want's amount a day.
+// Favorites (R1A): a household's weight for a good is the highest `flavorLikes` weight among its
+// members' species and traits, else 1 (favoriteWeights); groups keep every flavor at weight 1.
+// Variety (R1A): the 18:00 pass first marks what each household saw (markSeen, market/balances),
+// and the goods need averages the basket's amount scores with a variety score for each want that
+// asks for flavors on offer (householdVariety against `want.variety`).
 // Households buy the good with the best price for how much they like it: Thrifty households care
 // half as much which loaf it is, comfortable ones (savings in hand) a little more. The food group
 // is bought on the residents' shopping outings (C3A) through `shopFood`; every other group at the
@@ -14,11 +19,12 @@ import { PENNIES_PER_COIN, TICKS_PER_DAY, TIERS } from '../../constants';
 import type { EntityId, Household, Resident, System, TickCtx, WorldState } from '../../contracts';
 import { foodDays } from '../../conditions';
 import { findById } from '../../state/entities';
-import { familyIndex, GOODS_BY_FAMILY } from '../../state/zones';
+import { familyIndex } from '../../state/zones';
 import { calendar } from '../clock/calendar';
 import { dailyOffset, dayIndex } from '../economy/time';
 import { foodIndexes, pantryFood } from '../residents/needs';
 import { announceHousehold } from '../residents/records';
+import { householdVariety, markSeen, SHELF_GOODS } from './balances';
 import { inStock, marketOpen, outletFree, purchase, tillPrice } from './api';
 
 /** NEED_IDS index of the `goods` need. */
@@ -57,14 +63,11 @@ const FAMILY_NAMES: readonly [GoodFamily, string][] = [
   ['treats', 'Treats'],
 ];
 
-/** Goods only ever an input, never on a shelf (wool is the weaver's). */
-const INPUT_ONLY: ReadonlySet<string> = new Set(['wool']);
-
 const groupsByTier = new Map<string, readonly NeedGroup[]>();
 
 /**
- * The need groups of a basket, one per want, in the basket's order.
- * R1 stand-in (R1A): every flavor weighs 1; variety is not tracked.
+ * The need groups of a basket, one per want, in the basket's order. Every flavor weighs 1 here;
+ * favorites come from the household (favoriteWeights).
  */
 export function basketGroups(basket: NeedsBasket): readonly NeedGroup[] {
   let groups = groupsByTier.get(basket.tier);
@@ -73,10 +76,10 @@ export function basketGroups(basket: NeedsBasket): readonly NeedGroup[] {
       const group: NeedGroup = {
         id: w.family,
         name: FAMILY_NAMES.find(([f]) => f === w.family)?.[1] ?? w.family,
-        goods: (GOODS_BY_FAMILY[familyIndex(w.family)] ?? [])
-          .map((g) => content.goods[g]!.id)
-          .filter((id) => !INPUT_ONLY.has(id))
-          .map((id): [string, number] => [id, 1]),
+        goods: (SHELF_GOODS[familyIndex(w.family)] ?? []).map((g): [string, number] => [
+          content.goods[g]!.id,
+          1,
+        ]),
         perDay: w.amount,
       };
       if (w.perHousehold) group.perHousehold = true;
@@ -115,6 +118,26 @@ function valueOf(likes: number, price: number): number {
   return Math.floor((likes * 1_000_000) / Math.max(1, price));
 }
 
+/**
+ * A household's weight for each good, by good index: the highest `flavorLikes` weight among the
+ * species and traits of its members, else 1. Computed once per household per call.
+ */
+export function favoriteWeights(state: WorldState, h: Household): number[] {
+  const w = new Array<number>(content.goods.length).fill(1);
+  const have = new Set<string>();
+  for (const id of h.members) {
+    const r = findById(state.residents, id);
+    if (!r) continue;
+    have.add(r.species);
+    for (const t of r.traits) have.add(t);
+  }
+  for (const like of content.flavorLikes) {
+    const gi = content.goodIndex.get(like.good);
+    if (gi !== undefined && have.has(like.who) && like.weight > w[gi]!) w[gi] = like.weight;
+  }
+  return w;
+}
+
 interface Taste {
   thrifty: boolean;
   comfortable: boolean;
@@ -142,13 +165,29 @@ function satisfy(h: Household, group: number, to: number): void {
   h.basket![group] = Math.round((s + to) / 2);
 }
 
-/** Average satisfaction over the basket's groups, 100 when it has none. */
-export function basketScore(h: Household): number {
-  const b = h.basket;
-  if (!b || b.length === 0) return 100;
+/**
+ * The goods need: the average over the basket of an amount score (the group's satisfaction, for
+ * each want with an amount in season) and a variety score (flavors seen over flavors wanted, up
+ * to 100, for each want that asks for variety). 100 when nothing counts.
+ */
+export function basketScore(state: WorldState, h: Household): number {
+  const wants = basketOf(h)?.wants;
+  if (!wants) return 100;
+  const season = calendar(state.tick).season;
   let sum = 0;
-  for (const s of b) sum += s;
-  return Math.round(sum / b.length);
+  let n = 0;
+  wants.forEach((w, gi) => {
+    if (w.amount > 0 && (w.season === undefined || w.season === season)) {
+      sum += h.basket?.[gi] ?? 100;
+      n++;
+    }
+    if (w.variety > 0) {
+      const have = householdVariety(state, h, familyIndex(w.family));
+      sum += Math.min(100, Math.floor((100 * have) / w.variety));
+      n++;
+    }
+  });
+  return n === 0 ? 100 : Math.round(sum / n);
 }
 
 /**
@@ -168,8 +207,8 @@ export function shopFood(
   const basket = ensureBasket(h);
   const groups = basket ? basketGroups(basket) : [];
   const gi = groups.findIndex((g) => g.id === FOOD_GROUP);
-  const group = gi >= 0 ? groups[gi] : undefined;
   const taste = tasteOf(state, h);
+  const likes = favoriteWeights(state, h);
   let best = -1;
   let bestValue = -1;
   let cheapest = -1;
@@ -182,11 +221,9 @@ export function shopFood(
       cheapest = g;
     }
     if (price > h.savings) continue;
-    const id = content.goods[g]!.id;
-    const weight = group?.goods.find(([x]) => x === id)?.[1] ?? 1;
-    const likes = likeHalves(weight, taste.thrifty, taste.comfortable);
+    const liking = likeHalves(likes[g] ?? 1, taste.thrifty, taste.comfortable);
     // Variety: each unit already in the pantry makes another of it a little less tempting.
-    const value = Math.floor((valueOf(likes, price) * 4) / (4 + (h.pantry[g] ?? 0)));
+    const value = Math.floor((valueOf(liking, price) * 4) / (4 + (h.pantry[g] ?? 0)));
     if (value > bestValue) {
       bestValue = value;
       best = g;
@@ -240,18 +277,25 @@ function perDayHundredths(g: NeedGroup, h: Household): number {
  * Buys up to `units` of a group's goods across outlets, best value first, falling back to the
  * next good when one runs out or costs more than the purse. Returns the units bought.
  */
-function buyGroup(state: WorldState, h: Household, g: NeedGroup, units: number, taste: Taste): number {
+function buyGroup(
+  state: WorldState,
+  h: Household,
+  g: NeedGroup,
+  units: number,
+  taste: Taste,
+  likes: readonly number[],
+): number {
   let left = units;
   const tried: number[] = [];
   while (left > 0) {
     let best = -1;
     let bestValue = -1;
-    for (const [id, weight] of g.goods) {
+    for (const [id] of g.goods) {
       const gi = content.goodIndex.get(id);
       if (gi === undefined || tried.includes(gi)) continue;
       const price = tillPrice(state, gi);
       if (price > h.savings || !inStock(state, gi)) continue;
-      const value = valueOf(likeHalves(weight, taste.thrifty, taste.comfortable), price);
+      const value = valueOf(likeHalves(likes[gi] ?? 1, taste.thrifty, taste.comfortable), price);
       if (value > bestValue) {
         bestValue = value;
         best = gi;
@@ -302,16 +346,17 @@ function supperTreat(state: WorldState, h: Household, basket: NeedsBasket): void
   const group = basketGroups(basket).find((g) => g.id === FOOD_GROUP);
   if (!group) return;
   const reserve = Math.max(COMFORTABLE_SAVINGS * Math.max(1, h.members.length), savingFor(state, h));
+  const likes = favoriteWeights(state, h);
   let left = h.members.length;
   while (left > 0) {
     let best = -1;
     let bestValue = -1;
-    for (const [id, weight] of group.goods) {
+    for (const [id] of group.goods) {
       const gi = content.goodIndex.get(id);
       if (gi === undefined) continue;
       const price = tillPrice(state, gi);
       if (h.savings - price < reserve || !inStock(state, gi)) continue;
-      const value = valueOf(likeHalves(weight, false, true), price);
+      const value = valueOf(likeHalves(likes[gi] ?? 1, false, true), price);
       if (value > bestValue) {
         bestValue = value;
         best = gi;
@@ -341,6 +386,7 @@ export function shopBaskets(state: WorldState, ctx: TickCtx): void {
     const basket = ensureBasket(h);
     if (!basket) continue;
     const taste = tasteOf(state, h);
+    const likes = favoriteWeights(state, h);
     const before = h.savings;
     const groups = basketGroups(basket);
     for (let i = 0; i < groups.length; i++) {
@@ -351,7 +397,7 @@ export function shopBaskets(state: WorldState, ctx: TickCtx): void {
       h.owed![i]! += perDayHundredths(g, h);
       const units = Math.floor(h.owed![i]! / 100);
       if (units <= 0) continue;
-      const got = buyGroup(state, h, g, units, taste);
+      const got = buyGroup(state, h, g, units, taste, likes);
       h.owed![i]! -= units * 100;
       satisfy(h, i, Math.round((100 * got) / units));
     }
@@ -365,7 +411,7 @@ export function shopBaskets(state: WorldState, ctx: TickCtx): void {
 
 /** Every member's `goods` need: the basket's average, or 100 when the market is shut. */
 export function setGoodsNeed(state: WorldState, h: Household): void {
-  const score = marketOpen(state) ? basketScore(h) : 100;
+  const score = marketOpen(state) ? basketScore(state, h) : 100;
   for (const id of h.members) {
     const r: Resident | undefined = findById(state.residents, id);
     if (r && r.needs.length > GOODS_NEED) r.needs[GOODS_NEED] = score;
@@ -378,6 +424,8 @@ export const baskets: System = {
   every: TICKS_PER_DAY,
   offset: BASKETS_OFFSET,
   tick(state, ctx) {
+    // The day's sightings come before any buying, market open or not.
+    if (state.settings.mode === 'standard') markSeen(state);
     if (marketOpen(state)) {
       shopBaskets(state, ctx);
       return;

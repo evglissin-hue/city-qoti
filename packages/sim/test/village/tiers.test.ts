@@ -8,6 +8,7 @@ import { BuildingStatus, TIER_DOWN_DAYS, TIER_UP_DAYS, TICKS_PER_HOUR } from '..
 import type { Building, Household, WorldState } from '../../src/contracts';
 import { findById } from '../../src/state/entities';
 import { assignJobs } from '../../src/systems/residents/jobs';
+import { markSeen } from '../../src/systems/market/balances';
 import { basketGroups } from '../../src/systems/market/baskets';
 import { deliverUpgrade, tierProgress } from '../../src/systems/tiers/api';
 import { updateTiers } from '../../src/systems/tiers';
@@ -40,6 +41,8 @@ function aspiringTown(): Town {
   state.map.charm.fill(40);
   // Cider for the treats on a shelf.
   stocked(findById(state.buildings, f.b.storehouses[1])!, 'store', [['cider', 10]]);
+  // R1A: the household has seen the flavors on the shelves.
+  markSeen(state);
   return { state, h, cottage };
 }
 

@@ -135,7 +135,7 @@ describe('a food outing at the till', () => {
     stall(s, f.b.stalls[0], [['bread', 10]]);
     const got = shopFood(s, h, f.b.stalls[0], 4)!;
     expect(got[1]).toBe(Math.min(4, h.members.length));
-    expect(basketScore(h)).toBeLessThan(100);
+    expect(basketScore(s, h)).toBeLessThan(100);
     expect(h.savings).toBe(0);
     expectMoneyInvariant(before, s);
     // A full pantry and no coin: no slate.
@@ -185,8 +185,8 @@ describe('the household pass at 18:00', () => {
     expect(h.basket![wares]).toBe(50);
     // And the goods need follows the basket.
     const r = findById(s.residents, h.members[0]!)!;
-    expect(r.needs[GOODS_NEED]).toBe(basketScore(h));
-    expect(basketScore(h)).toBeLessThan(100);
+    expect(r.needs[GOODS_NEED]).toBe(basketScore(s, h));
+    expect(basketScore(s, h)).toBeLessThan(100);
   });
 
   it('keeps everyone content with the goods need before the market opens', () => {
