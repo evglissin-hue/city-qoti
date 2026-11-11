@@ -628,6 +628,7 @@ export const content: Content = {
   zoneByValue: new Map(zones.map((z) => [z.layerValue, z])),
   baskets,
   basketByTier: new Map(baskets.map((b) => [b.tier, b])),
+  flavorLikes: Ba.flavorLikes,
   neighbors,
   neighborById: byId(neighbors),
   innovations,

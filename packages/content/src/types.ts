@@ -249,6 +249,8 @@ export interface Content {
   zoneByValue: ReadonlyMap<number, ZoneDef>;
   baskets: readonly NeedsBasket[];
   basketByTier: ReadonlyMap<string, NeedsBasket>;
+  /** R1 (R1A): favorite flavors by species and trait, sorted by `who` then `good`. */
+  flavorLikes: readonly FlavorLike[];
   neighbors: readonly NeighborDef[];
   neighborById: ReadonlyMap<string, NeighborDef>;
   /** Innovation state in saves is keyed by id, so this list is alphabetical like the rest. */
@@ -690,6 +692,18 @@ export interface FamilyWant {
   variety: number;
 }
 
+/**
+ * R1 (R1A): a favorite flavor (docs/spec/13-ledger.md, Households: within a family households choose
+ * by price and liking). A household with a member of the species or the trait `who` likes `good`
+ * `weight` times as much as a plain flavor (which weighs 1).
+ */
+export interface FlavorLike {
+  /** A species id or a trait id. */
+  who: string;
+  good: string;
+  weight: number;
+}
+
 /** What a tier needs beyond shelter, water and belonging (docs/spec/13-ledger.md, Population tiers). */
 export interface NeedsBasket {
   tier: TierName;
@@ -745,6 +759,12 @@ export interface NeighborDef {
   days: number;
   /** Rank needed before it trades (Port Amberly waits for Town). */
   rank?: RankName;
+  /**
+   * R1 (R1A): the deals it offers, one a season in turn (docs/spec/13-ledger.md, The carrier and
+   * trade): the carrier buys a family from it (`buy`) or sells a family to it (`sell`) at `percent`
+   * of its regional price for the season, when the season plan takes the deal.
+   */
+  deals?: [family: GoodFamily, side: 'buy' | 'sell', percent: number][];
 }
 
 /** Technology that arrives through conditions in the town (docs/spec/15-progression.md). */
@@ -910,6 +930,8 @@ export interface EventDef {
   effects: [name: string, factor: Permille][];
   /** One line for the season card and the barometer. */
   blurb: string;
+  /** R1 (R1A): may come every year (the closed pass); others never come two of their seasons running. */
+  yearly?: true;
 }
 
 /** A seasonal festival (C5B). */
