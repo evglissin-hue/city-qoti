@@ -79,6 +79,12 @@ export function carrierBench(): CarrierBench {
   return {
     lines,
     failures,
-    report: { residents: state.residents.length, units, msPerDay: ms, worstMs: worst, budgetMs: CARRIER_BUDGET_MS },
+    report: {
+      residents: state.residents.length,
+      units,
+      msPerDay: ms,
+      worstMs: worst,
+      budgetMs: CARRIER_BUDGET_MS,
+    },
   };
 }

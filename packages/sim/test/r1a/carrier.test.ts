@@ -18,6 +18,7 @@ import { dayIndex } from '../../src/systems/economy/time';
 import { chargeInterest } from '../../src/systems/loans';
 import { carrierCap } from '../../src/systems/market';
 import { seasonOffers } from '../../src/systems/trade';
+import { markSeen } from '../../src/systems/market/balances';
 import { createTickCtx } from '../../src/turn';
 import { hamletFixture } from '../fixtures/hamlet';
 import { tickAt } from '../fixtures/seasonsPlace';
@@ -124,6 +125,20 @@ describe('a maker short of its raw good', () => {
     expect(today(f.state)[good('grain')]).toBeGreaterThanOrEqual(makersShort(f.state)[good('grain')]!);
   });
 
+  it('gets it on the County tab when the treasury cannot pay', () => {
+    const f = hamletFixture();
+    emptyTown(f.state);
+    for (const h of f.state.households) h.pantry[good('vegetables')] = 8;
+    const bakery = building(f.state, f.b.bakery);
+    if (bakery.rt!.workers.length === 0) hire(f.state, bakery.id, 1);
+    f.state.economy.treasury = 0;
+    const before = moneySnapshot(f.state);
+    visit(f.state);
+    expect(today(f.state)[good('grain')]).toBeGreaterThan(0);
+    expect(f.state.carrier.tab).toBeGreaterThan(0);
+    expectMoneyInvariant(before, f.state);
+  });
+
   it('waits on Never', () => {
     const f = hamletFixture();
     emptyTown(f.state);
@@ -159,6 +174,7 @@ describe('the County tab', () => {
   it('never carries Materials on the tab', () => {
     const f = hamletFixture();
     emptyTown(f.state);
+    building(f.state, f.b.bakery).rt!.input[good('grain')] = 8;
     for (const h of f.state.households) h.pantry[good('vegetables')] = 8;
     f.state.economy.treasury = 0;
     const site = insertBuilding(f.state, null, content.buildingById.get('windmill')!, 90, 90, 0, 0, {
@@ -261,6 +277,9 @@ describe('selling and the winter marks', () => {
     withTradingPost(f.state, () => {
       const residents = f.state.residents.length;
       building(f.state, f.b.granary).rt!.store[good('grain')] = 4 * residents;
+      // Grain on offer to every home, so no flavor is lacking and only the mark moves the carrier.
+      f.state.tick = tickAt(0, 2, 3, 10);
+      markSeen(f.state);
       visit(f.state, 2, 3);
       expect(familyUnits(today(f.state), 'food')).toBe(0);
       visit(f.state, 2, 4);

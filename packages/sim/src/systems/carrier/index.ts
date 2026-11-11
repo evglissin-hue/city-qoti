@@ -12,14 +12,16 @@
 //    Materials an open site waits for beyond stock, and raw goods a maker is resting for (a baker
 //    with no grain), under the rule for the family of what it makes. Essentials are always carried:
 //    the day's budget does not cap them. The treasury pays while it can (within the County Bank's
-//    credit line); past that, Food and Fuel for households still come on the County tab, up to
-//    TAB_PER_RESIDENT coins a resident, and past the cap nothing comes and the town goes short.
+//    credit line); past that, Food and Fuel for households and a maker's raw good still come on the
+//    County tab, up to TAB_PER_RESIDENT coins a resident, and past the cap nothing comes and the
+//    town goes short (a site's Materials never go on the tab: lean times stop building anyway).
 // 3. The tab is paid down from what is left of the day's budget.
-// 4. Reserves, for families on Always, in the order Food, Fuel, Materials, Wares, Treats: up to the
-//    reserve in days of the family's use (Materials: what open sites need plus the reserve in units),
-//    within the day's budget. From Autumn day 4 to the thaw it buys toward the season plan's winter
-//    mark when that is more. Within a family it buys first a flavor some tier in town still lacks,
-//    then whatever is cheapest.
+// 4. For families on Always, in the order Food, Fuel, Materials, Wares, Treats, within the day's
+//    budget: first a share of each flavor some tier in town still lacks (the cheapest not on offer),
+//    in every family before any bulk, so variety never waits behind another family's reserve; then
+//    each reserve, the cheapest unit by unit, up to days of the family's use (Materials: what open
+//    sites need plus the reserve in units). From Autumn day 4 to the thaw it buys toward the season
+//    plan's winter mark when that is more.
 // 5. Selling, with the load that is left, for families with `sell` on and a rule other than Never:
 //    what is over twice the reserve (from Summer day 4 to the thaw, never under the winter mark),
 //    the flavor the stores hold most of first. A festival's put-by goods are out of the stores, so
@@ -91,11 +93,15 @@ const ORDER = [0, 1, 2, 3, 4] as const;
 export const MAKER_CYCLES = 4;
 /** Hours the boat stays moored at the dock after it calls (for the dock view). */
 export const BOAT_MOORED_HOURS = 4;
-/** Units of a lacking flavor it brings at least, so a shelf shows it for a day or two. */
+/**
+ * A lacking flavor's share: a day of the family's use split among the flavors wanted, at least
+ * LACKING_MIN units (so a shelf shows it for a day or two) and at most a LACKING_LOAD-th of the day's load.
+ */
 export const LACKING_MIN = 2;
+export const LACKING_LOAD = 4;
 
-/** How a purchase is paid: within the budget; an essential outside it; a household's, on the tab if need be. */
-type Pay = 'budget' | 'essential' | 'household';
+/** How a purchase is paid: within the budget; an essential outside it; or outside it and on the tab if need be. */
+type Pay = 'budget' | 'essential' | 'tab';
 
 interface Store {
   b: Building;
@@ -241,7 +247,7 @@ function settle(state: WorldState, day: Day, price: number, pay: Pay): boolean {
     day.spent += price;
     return true;
   }
-  if (pay !== 'household') return false;
+  if (pay !== 'tab') return false;
   if (c.tab + day.onTab + price > tabCap(state)) {
     day.shortOfCredit = true;
     return false;
@@ -431,11 +437,11 @@ export function carrierDay(state: WorldState, ctx: TickCtx): void {
   // 2. Essentials, in the fixed order: Food, Fuel, Materials a site waits for, raw goods for makers.
   if (families[FOOD]!.rule !== 'never') {
     const want = dayUse(state, FOOD) - have(day, FOOD);
-    if (want > 0) buyCheapest(state, day, SHELF_GOODS[FOOD]!, want, 'household');
+    if (want > 0) buyCheapest(state, day, SHELF_GOODS[FOOD]!, want, 'tab');
   }
   if (families[FUEL]!.rule !== 'never' && seasonAt(state.tick).season === 3) {
     const want = WARMTH_PER_HOUSEHOLD * state.households.length - have(day, FUEL);
-    if (want > 0) buyCheapest(state, day, SHELF_GOODS[FUEL]!, want, 'household');
+    if (want > 0) buyCheapest(state, day, SHELF_GOODS[FUEL]!, want, 'tab');
   }
   if (families[MATERIALS]!.rule !== 'never') {
     for (const g of GOODS_BY_FAMILY[MATERIALS]!) {
@@ -443,10 +449,11 @@ export function carrierDay(state: WorldState, ctx: TickCtx): void {
       if (want > 0) buy(state, day, g, want, 'essential');
     }
   }
+  // A maker's raw good comes on the tab too when the treasury cannot pay: nothing stalls (rule 3).
   const makers = makersShort(state);
   for (let g = 0; g < n; g++) {
     const want = makers[g]! - (day.town[g] ?? 0);
-    if (want > 0) buy(state, day, g, want, 'essential');
+    if (want > 0) buy(state, day, g, want, 'tab');
   }
 
   // 3. The tab is paid down from what is left of the day's budget.
@@ -456,31 +463,35 @@ export function carrierDay(state: WorldState, ctx: TickCtx): void {
     day.repaid = Math.min(c.tab, left, cash);
   }
 
-  // 4. Reserves, for families on Always, in the fixed order, within the budget.
+  // 4. For families on Always, in the fixed order and within the budget: first a share of each
+  // flavor some tier in town still lacks (the cheapest not on offer, even when the reserve is met),
+  // so variety never waits behind another family's bulk; then the reserve, the cheapest unit by unit.
   const toward = buyingTowardMarks(state);
   const offered = onOfferGoods(state);
   for (const f of ORDER) {
     if (families[f]!.rule !== 'always') continue;
-    let want = reserveUnits(state, f, siteTotal, toward) - have(day, f);
-    if (want <= 0) continue;
-    const goods = SHELF_GOODS[f]!;
-    // A flavor some tier in town still lacks, first: the cheapest not on offer, a share each.
     const wanted = wantedVariety(state, f);
     let lacking = wanted - flavorsOnOffer(state, f, offered);
-    if (lacking > 0) {
-      const share = Math.max(LACKING_MIN, Math.ceil(dayUse(state, f) / Math.max(1, wanted)));
-      const tried: number[] = [];
-      while (lacking > 0 && want > 0) {
-        const fresh = goods.filter((g) => !offered[g] && !tried.includes(g) && (day.town[g] ?? 0) === 0);
-        const g = cheapest(state, day, fresh);
-        if (g < 0) break;
-        tried.push(g);
-        const got = buy(state, day, g, Math.min(want, share), 'budget');
-        if (got > 0) lacking--;
-        want -= got;
-      }
+    if (lacking <= 0) continue;
+    const share = Math.max(
+      LACKING_MIN,
+      Math.min(Math.ceil(dayUse(state, f) / Math.max(1, wanted)), Math.ceil(terms.units / LACKING_LOAD)),
+    );
+    const tried: number[] = [];
+    while (lacking > 0) {
+      const fresh = SHELF_GOODS[f]!.filter(
+        (g) => !offered[g] && !tried.includes(g) && (day.town[g] ?? 0) === 0,
+      );
+      const g = cheapest(state, day, fresh);
+      if (g < 0) break;
+      tried.push(g);
+      if (buy(state, day, g, share, 'budget') > 0) lacking--;
     }
-    if (want > 0) buyCheapest(state, day, goods, want, 'budget');
+  }
+  for (const f of ORDER) {
+    if (families[f]!.rule !== 'always') continue;
+    const want = reserveUnits(state, f, siteTotal, toward) - have(day, f);
+    if (want > 0) buyCheapest(state, day, SHELF_GOODS[f]!, want, 'budget');
   }
 
   // 5. Selling, with the load that is left: what is over twice the reserve, never under a mark.
