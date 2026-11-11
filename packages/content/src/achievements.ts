@@ -1,7 +1,8 @@
 import type { AchievementDef } from './types';
 
-// The ten I1 achievements (docs/spec/15-progression.md): feats and stories, checked hourly. The
-// description is the plaque's inscription and is quoted in the Chronicle.
+// The I1 achievements, and R1D's zones-first feats at the end (docs/spec/15-progression.md): feats
+// and stories, checked hourly. The description is the plaque's inscription and is quoted in the
+// Chronicle.
 
 export const balancedBooks: AchievementDef = {
   id: 'balanced-books',
@@ -83,4 +84,30 @@ export const wishesGranted: AchievementDef = {
   description: 'Five wishes came true, and five thank-you letters were pinned up.',
   lane: 'hearth',
   condition: { count: { what: 'wishesGranted', atLeast: 5 } },
+};
+
+// R1 (R1D): the zones-first feats (docs/spec/15-progression.md, Achievements, the [R1] note).
+
+export const aTownThatBuildsItself: AchievementDef = {
+  id: 'a-town-that-builds-itself',
+  name: 'A Town That Builds Itself',
+  description: 'Ten businesses opened that nobody drew. The town has started making its own arrangements.',
+  lane: 'ledger',
+  condition: { count: { what: 'businesses', atLeast: 10 } },
+};
+
+export const marketDay: AchievementDef = {
+  id: 'market-day',
+  name: 'Market Day',
+  description: 'Grain, vegetables, fruit, fish and cheese on the stalls at once, and a queue at every one.',
+  lane: 'ledger',
+  condition: { code: 'marketDay' },
+};
+
+export const porridgeNoMore: AchievementDef = {
+  id: 'porridge-no-more',
+  name: 'Porridge No More',
+  description: 'Every household had three kinds of Food within reach. Porridge is now a choice.',
+  lane: 'shared',
+  condition: { code: 'porridgeNoMore' },
 };

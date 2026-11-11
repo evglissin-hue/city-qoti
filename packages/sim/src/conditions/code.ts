@@ -24,7 +24,11 @@ import { festivalByWater, festivalMenu, festivalPieces, riverFrozen } from '../s
 // I3 (C5D): Barnaby Ashcombe's arc.
 import { bridgeBuilt, dressedWall, raidSeen, watchPosted } from '../systems/threats/conditions';
 // I3 (C5H): the first days guide's goals.
-import { guideFoodWorked, guideInBlack, guideLane } from '../systems/guide/goals';
+import { guideFarmland, guideFoodWorked, guideHomes, guideInBlack, guideLane } from '../systems/guide/goals';
+// R1 (R1D): the story arcs' goals.
+import { seasonDeal, stallFlavors } from '../systems/stories/predicates';
+// R1 (R1D): wishes that name a trade or a good on a shelf.
+import { shelfInReach, tradeCouldOpen } from '../systems/hearth/wishes/predicates';
 // P1 (playtest): water wishes ask what the water need itself measures.
 import { waterServedCode, wellInReach } from '../systems/residents/needs';
 
@@ -115,7 +119,9 @@ export const codePredicates: ReadonlyMap<string, CodePredicate> = new Map<string
   ['festivalByWater', festivalByWater],
   ['festivalMenu', festivalMenu],
   ['festivalPieces', festivalPieces],
+  ['guideFarmland', guideFarmland],
   ['guideFoodWorked', guideFoodWorked],
+  ['guideHomes', guideHomes],
   ['guideInBlack', guideInBlack],
   ['guideLane', guideLane],
   ['lanternRoute', lanternRoute],
@@ -126,10 +132,14 @@ export const codePredicates: ReadonlyMap<string, CodePredicate> = new Map<string
   ['raidSeen', raidSeen],
   ['rankAtLeast', rankAtLeastCode],
   ['riverFrozen', riverFrozen],
+  ['seasonDeal', seasonDeal],
   ['seasonIs', seasonIs],
+  ['shelfInReach', shelfInReach],
+  ['stallFlavors', stallFlavors],
   ['stoneRate', stoneRate],
   ['storyStep', storyStep],
   ['timberRate', timberRate],
+  ['tradeCouldOpen', tradeCouldOpen],
   ['trialPassed', trialPassed],
   ['watchPosted', watchPosted],
   ['waterServed', waterServedCode],

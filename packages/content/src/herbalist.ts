@@ -31,13 +31,12 @@ export const herbalist: StoryArc = {
       letter: [
         'My dears,',
         'First things first: a garden of herbs. Feverfew, thyme, a little sage and a great deal of mint, because mint will not take no for an answer. Dried in autumn they see a town through the coughs of January.',
-        'A market garden on some Farmland with a bit of sun will do to start. I will bring the cuttings and the opinions.',
+        'A garden bed by my door will do: four timber, a sunny step and someone to water it while I am lecturing. I will bring the cuttings and the opinions.',
         'Mother T.',
       ].join('\n'),
-      // R1 stand-in (R1D): the herb garden went with the chains; R1D rewrites the arc.
-      goal: { count: { what: 'buildings', ref: 'market-garden', atLeast: 1 } },
+      goal: { near: { building: 'garden-bed', of: 'home', within: 3 } },
       reward: { mood: 10, bond: 1 },
-      hint: 'A market garden on Farmland.',
+      hint: "A garden bed within three tiles of Mother Thornbury's home.",
     },
     {
       letter: [

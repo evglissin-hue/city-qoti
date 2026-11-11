@@ -349,11 +349,12 @@ describe('I1 content', () => {
     }
   });
 
-  it('has the thirteen wishes, twenty patterns (eight I1, six I2, six I3) and sixteen achievements, with valid references', () => {
+  it('has the thirteen wishes, twenty patterns (eight I1, six I2, six I3) and twenty achievements, with valid references', () => {
     // P1 (playtest): A Second Well joined the twelve I1 wishes.
     expect(wishes).toHaveLength(13);
     expect(patterns).toHaveLength(20);
-    expect(achievements).toHaveLength(16);
+    // R1 (R1D): Market Day, A Winter Without Imports, A Town That Builds Itself, Porridge No More.
+    expect(achievements).toHaveLength(20);
     for (const w of wishes) {
       for (const ref of [...conditionRefs(w.when), ...conditionRefs(w.target)]) {
         expect(known(ref), `${w.id} ${ref}`).toBe(true);

@@ -38,15 +38,14 @@ export const inventor: StoryArc = {
     {
       letter: [
         'Dear both,',
-        'Before I can improve anything I have to understand it, so this morning I followed a grain. It went from the field to the baker by the windmill, which made it bread, and then into a neighbor, which made it a contented sigh. Every good in this valley takes a little journey like that, and every journey can go faster.',
-        'I would like to see it running properly. Forty loaves out of the ovens, say, and I will know the wheels are turning. If something is missing, click the building and it will tell you what it is waiting for. Buildings are very honest about that.',
+        'Before I can improve anything I have to understand it, so this morning I followed a grain. It went from the field past the windmill to the baker, who made it bread, and then into a neighbor, which made it a contented sigh. Every good in this valley takes a little journey like that, and every journey can be shorter.',
+        'I would like to see the short one: a baker within reach of a windmill, so the grain does not have to hike. Zone a little Workshops land near the mill and a baker will hang out a sign once the town wants bread, which in my experience is always.',
         'Hungrily,',
         'Pippa',
       ].join('\n'),
-      goal: { count: { what: 'goodProduced', ref: 'bread', atLeast: 40 } },
+      goal: { count: { what: 'businesses', ref: 'baker', atLeast: 1 } },
       reward: { coins: 20, mood: 10 },
-      // R1 stand-in (R1D): R1D rewrites the arc (docs/spec/11-residents.md, the R1 note).
-      hint: "Bake 40 loaves: a grain farm, a windmill and a baker in the windmill's reach.",
+      hint: "A baker at work on a Workshops lot within a windmill's reach.",
     },
     {
       letter: [
@@ -77,19 +76,19 @@ export const inventor: StoryArc = {
       letter: [
         'Dear both,',
         'The wheel turns! The saw sings! Two sawyers have asked me to make it sing more quietly, which is not how wheels work.',
-        "I have been thinking about what comes next. A town that makes things needs a quarter where the making happens: the clatter of a joiner beside the hiss of a kiln, everyone borrowing everyone else's tools. Workshops like company. Zone land for workshops and they will grow there by themselves, which is the most efficient thing I have ever heard of, apart from my wheel.",
-        'Six workshops, I think. Then we will talk.',
+        "I have been thinking about what comes next. A town that makes things needs a quarter where the making happens: a carpenter beside a chandler beside a cider press, everyone borrowing everyone else's tools. Workshops like company, and they like it varied. Give them land and something to work with and they choose their own trades, which is the most efficient thing I have ever heard of, apart from my wheel.",
+        'Three different trades at work, I think. Then we will talk.',
         'Yours, sawdust and all,',
         'Pippa',
       ].join('\n'),
-      goal: { count: { what: 'buildings', ref: 'workshop', atLeast: 6 } },
+      goal: { count: { what: 'businessTrades', ref: 'workshop', atLeast: 3 } },
       reward: { coins: 30, bond: 1 },
-      hint: 'Six workshops in town. Grown workshops, mills, quarries and lodges all count.',
+      hint: 'Workshops of three different trades. A trade opens where its raw good is in town and, for some, a mill is in reach.',
     },
     {
       letter: [
         'Dear both,',
-        'Six workshops. I walked past all of them twice this morning, just to listen.',
+        'Three trades under one sky. I walked past every door twice this morning, just to listen.',
         'My notebook is filling up, and not only with my ideas. Good ideas turn up wherever folk are working hard at something: porters run off their feet start dreaming of wheelbarrows, and a quarry busy enough starts talking about cobbles. Keep the town busy in interesting ways and the notebook fills itself.',
         'When there are three new ideas in it, I will have something to show you. It is large, it has a great many letters in it, and that is all I am saying.',
         'Mysteriously,',
@@ -146,19 +145,19 @@ export const merchant: StoryArc = {
     {
       letter: [
         'To the management,',
-        'A market is not a place, it is a promise: whatever you need, somebody has it, at a price you can grumble about. At present your stalls promise very little, very sincerely.',
-        'Folk shop where there is choice. Four different goods on the stalls at once and I will call it a market day. Porters carry stock from the storehouses to the stalls, so a stall near a storehouse, with a porter to spare, is a happy stall.',
+        'A market is not a place, it is a promise: whatever you fancy, somebody has it, at a price you can grumble about. At present your stall promises porridge, very sincerely.',
+        'Folk shop where there is choice. Three kinds of Food on my nearest stall at once (fish, bread, cabbages, I am not fussy) and I will call it a market. Porters carry stock from the granary to the stalls, so a stall near the granary, with a porter to spare, is a happy stall.',
         'Stock is the root of all commerce,',
         'O. F.',
       ].join('\n'),
-      goal: { count: { what: 'goodsAtMarket', atLeast: 4 } },
+      goal: { code: 'stallFlavors', params: [['flavors', 3]] },
       reward: { coins: 25, mood: 10 },
-      hint: 'Four different goods on the market stalls at once.',
+      hint: "Three kinds of Food in stock at once on the market stall nearest Odette's home.",
     },
     {
       letter: [
         'To both of you,',
-        'Four goods! I bought a little of each, out of professional courtesy.',
+        'Three kinds of Food! I bought a little of each, out of professional courtesy.',
         'Now, a word about partnership. The two of you see the valley rather differently. One of you looks at a lane and sees a lovely spot for a bench; the other sees forty loads of timber an hour going the wrong way. Both of you are right, which is maddening.',
         'In my trade we call that a partnership. Make me one corner of the valley with both your hands in it: a pattern from the Pattern Book where one of you set the bench and the other the flowers, say. Do that and I will believe you are in business together.',
         'Contractually yours,',
@@ -202,36 +201,45 @@ export const merchant: StoryArc = {
     {
       letter: [
         'To the Village of {town} (how well that looks),',
-        "Prices! Proper ones, going up when bread is short and down when the bakers get carried away. Watch them on the market page and you can read the whole village's appetite like a book.",
-        'Next, the wider world. Millhaven and Stonecross trade with any village that has a Trading Post. They buy what you have too much of and sell what you have too little of, at prices that wander about with the seasons. Build one by the valley road and the carrier will do the rest. I have friends in both towns. Some of them still speak to me.',
+        "Prices! Proper ones, going up when bread is short and down when the bakers get carried away. You can read the whole village's appetite in them like a book.",
+        'Now, a confession. I have spent my life crying my wares down drafty lanes, and a good merchant does no such thing. She sets out her stalls in one place, everything a household wants under one sky, and lets the town come to her. Build a Market Square on a lane or a street. I will be there early, pretending not to watch.',
         'Commercially,',
         'Odette',
       ].join('\n'),
-      goal: { count: { what: 'buildings', ref: 'trading-post', atLeast: 1 } },
+      goal: { count: { what: 'buildings', ref: 'market-square', atLeast: 1 } },
       reward: { coins: 30, mood: 10 },
+      hint: 'Build a Market Square on a lane or a street.',
+    },
+    {
+      letter: [
+        'To both of you,',
+        'The square is everything I hoped: loud, crowded and full of people pretending they only came for one thing.',
+        'Next, the wider world. Millhaven and Stonecross trade with any village that has a Trading Post. They buy what you have too much of and sell what you have too little of, at prices that wander about with the seasons, and the carrier gets better terms with a post to work from. Build one by the valley road. I have friends in both towns. Some of them still speak to me.',
+        'With a firm handshake,',
+        'Odette',
+      ].join('\n'),
+      goal: { count: { what: 'buildings', ref: 'trading-post', atLeast: 1 } },
+      reward: { coins: 30 },
       hint: 'Build a Trading Post.',
     },
     {
       letter: [
         'To both of you,',
         'The Trading Post smells of rope and opportunity. I visit it daily.',
-        'One last lesson, and then I shall stop teaching and start haggling. A good merchant does not cry her wares down every lane. She sets out six stalls in one place, everything a household wants under one sky, and lets the town come to her. It is the most restful thing in commerce.',
-        'Build a Market Square on a lane or a street. I will be there early, pretending not to watch.',
-        'With a firm handshake,',
+        "One last lesson, and then I shall stop teaching and start haggling. At the start of every season the neighbors send their terms: cheap timber from one, a good price for your cheese at another. Take one on the season card. A deal is only a promise, but a season of promises kept is how a village gets its name into other towns' ledgers.",
+        'Shrewdly,',
         'Odette',
       ].join('\n'),
-      // R1 stand-in (R1D): standing orders are gone; the square is one of Odette's R1 steps.
-      goal: { count: { what: 'buildings', ref: 'market-square', atLeast: 1 } },
-      reward: { coins: 30 },
-      hint: 'Build a Market Square on a lane or a street.',
+      goal: { code: 'seasonDeal' },
+      reward: { coins: 30, bond: 1 },
+      hint: "A neighbor's deal taken on the season card.",
     },
   ],
   finale: {
     letter: [
       'To my partners in {town},',
-      'Your first market square! I had a print of it framed. The framer charged me twice the going rate and I paid it, because some things are worth overpaying for, and that is the only time you will ever hear me say so.',
-      'When I arrived, your market was one stall and a hopeful look. Now there are prices with opinions, a carrier on the road and two people who build things together and mean it. That last part is the rarest. Most towns never manage it.',
-      'I have drawn up plans for a Market Hall: a roof over the stalls, a clock everybody will argue about and a balcony from which I intend to make announcements. They are yours.',
+      'A square full of stalls, a deal on the books and a Trading Post that smells of rope. When I arrived, your market was one stall and a hopeful look. Now there are prices with opinions, neighbors who know your name and two people who build things together and mean it. That last part is the rarest. Most towns never manage it.',
+      'So I have drawn up plans to put a roof over the square: the Market Hall, with a clock everybody will argue about and a balcony from which I intend to make announcements. They are yours. Rain is very bad for haggling.',
       'I am staying. I have said that four times before, but this time I bought furniture.',
       'Ever yours, at a very fair price,',
       'Odette Fenwick',
