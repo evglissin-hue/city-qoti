@@ -1,5 +1,5 @@
 import { kitById } from '@qoti/art';
-import { CHUNK_SIZE, CHUNKS_PER_SIDE, MAP_SIZE, treeSpecies, treeStage } from '@qoti/sim';
+import { calendar, CHUNK_SIZE, CHUNKS_PER_SIDE, MAP_SIZE, treeSpecies, treeStage } from '@qoti/sim';
 import {
   Float32BufferAttribute,
   PerspectiveCamera,
@@ -238,7 +238,10 @@ export function treesLayer(): RenderLayer {
       ctx = c;
       env = c.env ?? createWorldEnv(new PerspectiveCamera());
       material = createFoliageMaterial(env);
-      onScreen = thinStep(env.shown.season, env.shown.day);
+      // The renderer sets `env.shown` on its first frame; until then the Mirror's calendar is the
+      // best guess (a debug season pin swaps once on that frame).
+      const cal = calendar(c.mirror.tick.value);
+      onScreen = thinStep(cal.season, cal.day);
       const made = treeKinds(onScreen);
       caches = made.caches;
       owned = made.owned;
