@@ -109,6 +109,29 @@ describe('the Pattern Book', () => {
   });
 });
 
+describe('Lay it out', () => {
+  it('shows on discovered pages with a layout and picks the layout tool', async () => {
+    const { session } = mockSession();
+    const picked: string[] = [];
+    (session as { tools: unknown }).tools = {
+      active: { value: 'decor' },
+      select: (id: string) => picked.push(id),
+    };
+    session.ui.panel.value = 'patterns';
+    view = await mount(h(PatternBookPanel, { session }));
+    expect(view.find('pattern-lay-out')).toBeNull();
+    await view.click('page-lantern-walk');
+    expect(view.find('pattern-lay-out')).toBeNull();
+    await view.click('page-well-gathering-place');
+    const lay = view.get('pattern-lay-out');
+    expect(lay.getAttribute('title')).toBe('Sketch this pattern as a plan you can approve');
+    expect(lay.textContent).toBe('Lay it out');
+    await view.click('pattern-lay-out');
+    expect(picked).toEqual(['layout']);
+    expect(session.ui.panel.value).toBeNull();
+  });
+});
+
 describe('the Chronicle', () => {
   it('groups entries by day, newest first, as a gazette', async () => {
     const { session } = mockSession();
