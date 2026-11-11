@@ -576,6 +576,11 @@ export const pine: Kit = {
     const tiers = stage === 3 ? P.tiers : stage >= 2 ? 4 : stage === 1 ? 3 : 2;
     // Mature tiers are jittered: off the axis, a little wider or narrower, higher or lower.
     const jit = stage === 3 ? 1 : 0;
+    // V2B: each tier's cone is the core, a shade deeper, and clumps of needle dabs hang round its
+    // rim and up its slope (from a stream of their own, so the tiers keep today's draws), so the
+    // outline reads as drooping skirts of needles rather than clean cones. Pines never thin.
+    const clumps: DabBlob[] = [];
+    const crnd = seeded((opts?.seed ?? 13) * 5 + 3);
     for (let k = 0; k < tiers; k++) {
       const f = k / Math.max(1, tiers - 1);
       const r = (0.52 - f * 0.27) * P.width * (1 + jit * (rnd() - 0.5) * 0.24);
@@ -584,8 +589,42 @@ export const pine: Kit = {
       const col = vary(mixHex(green, mixHex(green, palette.birchLeaf, 0.3), f), rnd, 1.2 + jit * 0.8);
       const ox = (rnd() - 0.5) * (0.04 + jit * 0.06);
       const oz = (rnd() - 0.5) * (0.04 + jit * 0.06);
-      t.s.cylinder(ox, oz, r, 0, y0, y0 + h, col, 8, phase + rnd() * Math.PI);
+      const turn = phase + rnd() * Math.PI;
+      t.s.cylinder(ox, oz, r * 0.92, 0, y0 + 0.02, y0 + h, mixHex(col, CORE_SHADE, 0.4), 8, turn);
+      // Normals from below the tier, as a cone's face turns out and up.
+      const axis: V3 = [ox, y0 - h * 0.3, oz];
+      // Round the rim, then smaller rings up the slope.
+      for (const [ring, at, size] of [
+        [8, 0.06, 0.28],
+        [6, 0.34, 0.25],
+        [4, 0.62, 0.22],
+      ] as const) {
+        const n = Math.max(3, ring - (stage < 2 ? 2 : 0));
+        for (let i = 0; i < n; i++) {
+          const a = turn + (i / n) * Math.PI * 2 + (crnd() - 0.5) * 0.5;
+          const rr = r * (1 - at) * (0.86 + crnd() * 0.12);
+          const cr = r * size * (0.85 + crnd() * 0.3);
+          clumps.push({
+            center: [ox + Math.cos(a) * rr, y0 + h * at, oz + Math.sin(a) * rr],
+            radii: [cr, cr * 0.7, cr],
+            normalFrom: axis,
+            color: vary(mixHex(col, palette.birchLeaf, 0.12), crnd, 1.2),
+          });
+        }
+      }
+      if (k === tiers - 1)
+        clumps.push({ center: [ox, y0 + h * 0.72, oz], radii: [r * 0.3, h * 0.28, r * 0.3], color: col });
     }
+    t.dabs(clumps, {
+      count: [60, 110, 170, 220][stage]!,
+      size: 0.1 / Math.sqrt(STAGE_SCALE[stage]!),
+      tintSpread: 0.55,
+      skyLighten: 0.75,
+      gaps: 0,
+      thin: 1,
+      seed: (opts?.seed ?? 13) * 3 + 3,
+      stretch: 1.5,
+    });
     return t.build(STAGE_SCALE[stage]!);
   },
 };
