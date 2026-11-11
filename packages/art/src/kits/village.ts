@@ -69,7 +69,7 @@ export function villageKit(
 }
 
 /** Post and rail all round a rect, with a gate gap at `gateU` on the front (z1) side. */
-function paddock(
+export function paddock(
   s: ShapeBuilder,
   x0: number,
   z0: number,
@@ -208,7 +208,7 @@ export function orchardTree(
 // --- Clay pit -----------------------------------------------------------------------------------
 
 /** A horse-gin pug mill: a round tub, a central shaft and a long sweep arm. */
-function pugMill(s: ShapeBuilder, x: number, z: number, rnd: () => number, tub = CLAY_DARK): void {
+export function pugMill(s: ShapeBuilder, x: number, z: number, rnd: () => number, tub = CLAY_DARK): void {
   s.cylinder(x, z, 0.24, 0.26, 0, 0.2, vary(palette.wood, rnd, 0.5), 10);
   s.cylinder(x, z, 0.21, 0.21, 0.2, 0.205, vary(tub, rnd, 0.5), 10);
   for (const y of [0.05, 0.16]) s.cylinder(x, z, 0.262, 0.262, y, y + 0.02, IRON, 10);
@@ -217,7 +217,7 @@ function pugMill(s: ShapeBuilder, x: number, z: number, rnd: () => number, tub =
   s.box(x - 0.04, 0.52, z - 0.04, x + 0.04, 0.56, z + 0.04, IRON);
 }
 
-function wheelbarrow(s: ShapeBuilder, x: number, z: number, load: number, rnd: () => number): void {
+export function wheelbarrow(s: ShapeBuilder, x: number, z: number, load: number, rnd: () => number): void {
   const wood = vary(palette.wood, rnd, 0.6);
   s.rbox(x - 0.09, 0.08, z - 0.12, x + 0.09, 0.16, z + 0.08, wood, 0.012);
   s.blob(x, 0.16, z - 0.02, 0.08, 0.04, 0.09, load, 0);
@@ -229,7 +229,7 @@ function wheelbarrow(s: ShapeBuilder, x: number, z: number, load: number, rnd: (
   }
 }
 
-function spade(s: ShapeBuilder, x: number, z: number, lean: number): void {
+export function spade(s: ShapeBuilder, x: number, z: number, lean: number): void {
   beam(s, [x, 0, z], [x + lean, 0.34, z + 0.02], 0.009, palette.wood);
   s.box(x - 0.03, -0.02, z - 0.008, x + 0.03, 0.07, z + 0.008, IRON);
   beam(s, [x + lean - 0.04, 0.34, z + 0.02], [x + lean + 0.04, 0.34, z + 0.02], 0.008, palette.wood);
@@ -321,7 +321,7 @@ function clayPit(opts: KitBuildOptions | undefined): Built {
 // --- Brick kiln ---------------------------------------------------------------------------------
 
 /** A bottle kiln: a flared brick hovel narrowing to a chimney neck. Returns the smoke anchor. */
-function bottleKiln(s: ShapeBuilder, x: number, z: number, rnd: () => number, lights: V3[]): V3 {
+export function bottleKiln(s: ShapeBuilder, x: number, z: number, rnd: () => number, lights: V3[]): V3 {
   const rings: [number, number][] = [
     [0, 0.62],
     [0.35, 0.6],
@@ -448,7 +448,13 @@ function brickKiln(opts: KitBuildOptions | undefined): Built {
 // --- Sheep pasture ------------------------------------------------------------------------------
 
 /** A shepherd's hut: a little wheeled cabin with a curved roof and a stovepipe. */
-function shepherdsHut(s: ShapeBuilder, x: number, z: number, rnd: () => number, anchors: KitAnchors): void {
+export function shepherdsHut(
+  s: ShapeBuilder,
+  x: number,
+  z: number,
+  rnd: () => number,
+  anchors: KitAnchors,
+): void {
   const L = 0.36;
   const W = 0.2;
   const body = vary(0x6e8a5a, rnd, 0.5);
@@ -1246,7 +1252,14 @@ function ciderPress(opts: KitBuildOptions | undefined): Built {
 // --- Chopping shed ------------------------------------------------------------------------------
 
 /** A round beehive woodstack (a holzhaufen): split logs in rings under a bark cap. */
-function roundStack(s: ShapeBuilder, x: number, z: number, r: number, h: number, rnd: () => number): void {
+export function roundStack(
+  s: ShapeBuilder,
+  x: number,
+  z: number,
+  r: number,
+  h: number,
+  rnd: () => number,
+): void {
   const rings = Math.max(3, Math.round(h / 0.06));
   for (let i = 0; i < rings; i++) {
     const y = i * (h / rings);
@@ -1340,7 +1353,7 @@ function choppingShed(opts: KitBuildOptions | undefined): Built {
 // --- Herb garden --------------------------------------------------------------------------------
 
 /** A straw bee skep on a little stand. */
-function skep(s: ShapeBuilder, x: number, z: number, rnd: () => number): void {
+export function skep(s: ShapeBuilder, x: number, z: number, rnd: () => number): void {
   s.box(x - 0.09, 0.14, z - 0.09, x + 0.09, 0.16, z + 0.09, vary(palette.wood, rnd, 0.5));
   beam(s, [x, 0, z], [x, 0.14, z], 0.018, palette.timber);
   const rings = 4;

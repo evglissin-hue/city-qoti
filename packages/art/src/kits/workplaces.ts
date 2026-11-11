@@ -19,7 +19,6 @@ import {
   faceBox,
   facePoint,
   hangingSign,
-  porchPart,
   windowPart,
   type Face,
   kitBuilder,
@@ -51,6 +50,7 @@ import {
 import { roofPart, type RoofMaterial } from './roofs';
 import { customOf, level, roofColor, streams } from './style';
 import type { Kit, KitBuildOptions } from './types';
+import { roundStack } from './village';
 
 const EARTH = 0xb59a6e;
 const GRAVEL = 0xa9a49a;
@@ -321,7 +321,7 @@ function farmhouse(opts: KitBuildOptions | undefined): Built {
 
 // --- Woodcutter's hut ----------------------------------------------------------------------------------
 
-function woodcutter(opts: KitBuildOptions | undefined): Built {
+export function woodcutter(opts: KitBuildOptions | undefined): Built {
   const [w, d] = opts?.size ?? [2, 2];
   const [ex] = opts?.entrance ?? [1, 1];
   const { rnd } = streams(opts, 13);
@@ -425,82 +425,117 @@ function forester(opts: KitBuildOptions | undefined): Built {
   const { rnd } = streams(opts, 14);
   const c = customOf(opts);
   const { s, anchors } = start(opts);
-  const x0 = 0.2;
-  const x1 = w - 0.2;
-  const z0 = 0.2;
-  const z1 = 1.15;
-  const material = c.roofMaterial ?? 'slate';
+  groundPatch(s, 0.08, 0.08, w - 0.08, d - 0.08, vary(0xb5946a, rnd, 0.4), rnd);
+  // The log lodge on the right, the open chopping shed against its left wall.
+  const x0 = 0.95;
+  const x1 = w - 0.12;
+  const z0 = 0.15;
+  const z1 = 0.97;
+  const material = c.roofMaterial ?? 'shingle';
   const green = c.accent ?? 0x4f7a43;
   const sh = shell(s, {
     x0,
     z0,
     x1,
     z1,
-    base: 0.1,
-    wallH: 0.74,
-    wall: 'timber',
-    wallColor: c.wall ?? vary(palette.plasterCream, rnd, 0.4),
-    trim: vary(palette.timber, rnd, 0.3),
+    base: 0.06,
+    wallH: 0.64,
+    wall: 'log',
+    wallColor: palette.wood,
+    trim: palette.timber,
     roof: {
-      shape: 'halfHip',
+      shape: 'gable',
       material,
       color: vary(roofColor(c, material, 0x55625a), rnd, 0.5),
-      rise: 0.78,
-      overhang: 0.2,
+      rise: 0.5,
+      overhang: 0.18,
       ridgeAlongX: true,
     },
     rnd,
   });
+  const clad = claddingDepth('log');
   const front: Face = { dir: 'z+', plane: z1 };
   const doorU = ex + 0.5;
-  doorPart(s, front, doorU, 0.28, 0.62, green, palette.timber, 'arched', 0.012);
-  porchPart(s, front, doorU, 0.36, 0.8, 0.3, vary(sh.roof.color, rnd, 0.4), palette.timber, true);
-  const style = windowStyle(c, green, { box: true, shutters: true });
-  windowPart(s, front, x0 + 0.4, 0.5, 0.2, 0.22, style, rnd, anchors.lights, 0.012);
+  doorPart(s, front, doorU, 0.26, 0.54, green, palette.timber, 'plank', clad);
   windowPart(
     s,
-    { dir: 'x-', plane: x0 },
-    (z0 + z1) / 2,
-    0.5,
-    0.18,
-    0.2,
-    { ...style, box: false },
+    front,
+    x1 - 0.2,
+    0.4,
+    0.16,
+    0.16,
+    windowStyle(c, green, { box: true, shutters: true }),
     rnd,
     anchors.lights,
-    0.012,
+    clad,
   );
   if (c.chimney ?? true)
     anchors.smoke!.push(
-      chimneyPart(s, x1 - 0.3, (z0 + z1) / 2 - 0.1, sh.top - 0.1, sh.ridge + 0.1, vary(palette.stone, rnd)),
+      chimneyPart(
+        s,
+        x1 - 0.18,
+        (z0 + z1) / 2 - 0.12,
+        sh.top - 0.1,
+        sh.ridge + 0.14,
+        vary(palette.stone, rnd),
+      ),
     );
-  // The nursery: two raised beds of saplings in rows, a watering can and a bird box.
-  for (const [bx0, bx1, bz] of [
-    [0.12, 1.12, 1.42],
-    [0.12, 1.12, 1.78],
-  ] as const) {
-    s.rbox(bx0, 0, bz - 0.13, bx1, 0.07, bz + 0.13, vary(palette.wood, rnd, 0.5), 0.01);
-    s.box(bx0 + 0.03, 0.06, bz - 0.1, bx1 - 0.03, 0.075, bz + 0.1, palette.soil);
-    const n = 6;
-    for (let i = 0; i < n; i++) {
-      const x = bx0 + 0.1 + ((bx1 - bx0 - 0.2) * i) / (n - 1);
-      for (const dz of [-0.05, 0.05])
-        sapling(s, x, bz + dz, 0.16 + rnd() * 0.08, rnd, (i + (bz > 1.6 ? 1 : 0)) % 2 === 0);
-    }
-  }
-  wateringCan(s, 1.28, 0, 1.55);
-  birdBox(s, w - 0.15, d - 0.25, green);
-  for (let i = 0; i < 3; i++)
-    s.cylinder(
-      1.3 + i * 0.02,
-      1.85 - i * 0.03,
-      0.045,
-      0.055,
-      i * 0.04,
-      i * 0.04 + 0.07,
-      vary(palette.roofTerracotta, rnd, 0.5),
-      6,
-    );
-  if (c.sign) signBoard(s, front, doorU, 0.84, 0.36, 0.012, anchors);
+  // The chopping shed: a lean-to roof on posts, its back and side walled with split firewood.
+  const sx0 = 0.14;
+  const sx1 = x0 + 0.02;
+  const fire = Math.max(0, Math.min(4, level(opts, 'out:firewood')));
+  const top = 0.26 + fire * 0.06;
+  for (const [x, z] of [
+    [sx0, z0 + 0.02],
+    [sx0, z1 - 0.02],
+    [sx1 - 0.1, z1 - 0.02],
+  ] as const)
+    beam(s, [x, 0, z], [x, 0.58, z], 0.022, palette.timber);
+  roofPart(s, {
+    shape: 'lean',
+    material,
+    x0: sx0 - 0.08,
+    z0: z0 - 0.07,
+    x1: sx1,
+    z1: z1 + 0.1,
+    y0: 0.54,
+    y1: 0.72,
+    color: vary(roofColor(c, material, 0x55625a), rnd, 0.5),
+    trim: palette.timber,
+    ridgeAlongX: true,
+    rnd,
+  });
+  s.box(sx0 + 0.03, 0, z0 + 0.03, sx1 - 0.05, top, z0 + 0.25, vary(0xd9b98a, rnd, 0.5));
+  s.box(sx0 + 0.03, 0, z0 + 0.25, sx0 + 0.2, top, z1 - 0.1, vary(0xc9a46e, rnd, 0.5));
+  // The round woodstack in the yard: the lodge's other signature, kept at the far level as a cone.
+  s.levels(
+    () => roundStack(s, 0.55, 1.5, 0.3, 0.46, rnd),
+    () => {
+      s.cylinder(0.55, 1.5, 0.28, 0.24, 0, 0.46, 0xd0aa74, 8);
+      s.cylinder(0.55, 1.5, 0.3, 0.03, 0.46, 0.7, palette.bark, 8);
+    },
+  );
+  // Felled logs by the output, waiting for the saw.
+  pileOf(s, 'logs', Math.max(1, level(opts, 'out:timber')), 1.2, 0, 1.62, rnd);
+  // The nursery: a bed of saplings for replanting, green from above.
+  const bx0 = 1.6;
+  const bx1 = w - 0.1;
+  s.rbox(bx0, 0, 1.2, bx1, 0.07, d - 0.1, vary(palette.wood, rnd, 0.5), 0.01);
+  s.box(bx0 + 0.03, 0.06, 1.23, bx1 - 0.03, 0.075, d - 0.13, 0x6b9a50);
+  s.detail(() => {
+    choppingBlock(s, 0.5, 0.62, rnd);
+    for (let i = 0; i < 4; i++)
+      s.cylinder(0.3 + rnd() * 0.45, 0.45 + rnd() * 0.3, 0.03, 0.03, 0, 0.06, vary(0xd9b98a, rnd, 0.6), 6);
+    sawhorse(s, 0.5, 1.9, true, rnd);
+    for (let k = 0; k < 4; k++)
+      for (const x of [bx0 + 0.09, bx1 - 0.09])
+        sapling(s, x, 1.34 + k * 0.17, 0.16 + rnd() * 0.08, rnd, (k + (x > 1.8 ? 1 : 0)) % 2 === 0);
+    wateringCan(s, bx0 - 0.12, 0, 1.3);
+    birdBox(s, w - 0.1, d - 0.12, green);
+    // A saw on the lodge wall.
+    faceBox(s, front, doorU + 0.2, 0.4, clad, doorU + 0.45, 0.46, clad + 0.006, palette.metal);
+  });
+  if (c.sign) signBoard(s, front, doorU, 0.78, 0.34, clad, anchors);
   return { s, anchors };
 }
 
