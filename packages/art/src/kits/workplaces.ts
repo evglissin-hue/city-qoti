@@ -93,6 +93,7 @@ export function bakeOven(
   dir: -1 | 1,
   rnd: () => number,
   k = 1,
+  detail = 1,
 ): V3 {
   const ox = wallX + dir * 0.22 * k;
   const edge = ox + dir * 0.06;
@@ -106,7 +107,7 @@ export function bakeOven(
     vary(palette.brick, rnd, 0.4),
     0.03,
   );
-  s.blob(ox - dir * 0.06, 0.3 * k, oz, 0.2 * k, 0.2 * k, 0.26 * k, vary(palette.brick, rnd, 0.6), 1);
+  s.blob(ox - dir * 0.06, 0.3 * k, oz, 0.2 * k, 0.2 * k, 0.26 * k, vary(palette.brick, rnd, 0.6), detail);
   return chimneyPart(s, ox - dir * 0.04, oz - 0.12 * k, 0.3 * k, 0.72 * k, palette.brick);
 }
 
