@@ -1,10 +1,14 @@
 // The playability audit (the dead-end hunt, docs/spec/31-parallel-development.md): the autoplayer
 // plays several seeds through a full year (24 days) and one seed on through the Village chapter,
-// and everything that would stop a player is collected: the health watch's issues (stuck sites,
-// idle builders, a valley with no builders, a building idle for want of an input, a wish nobody can
-// grant, a festival that never started) and, per wish template, how many were offered, granted and
-// let go (and how many let go while impossible). R1.0: standing orders are gone, so no order is
-// ever left unfilled; R1F adds the zones-first kinds (`packages/sim/src/view/health.ts`).
+// and everything that would stop a player is collected: the health watch's issues (site-stalled,
+// site-cut-off, builders-idle, resident-stuck, no-builders, festival-no-show and, for the zones-first
+// Ledger: business-short, a business or specialized building a whole day short of an input the
+// carrier may buy; site-unsupplied, a construction site waiting on a good no maker and no carrier
+// will bring; demand-unanswered, a demand bar lit three days with no empty lot of its zone;
+// site-rule-broken, a specialized building whose woods, open ground or road went; wish-dead-end,
+// guide-dead-end and story-dead-end, a goal nothing can meet) and, per wish template, how many were
+// offered, granted and let go (and how many let go while impossible). R1.0: standing orders are
+// gone, so no order is ever left unfilled (`packages/sim/src/view/health.ts`).
 //
 // `npm run audit -w @qoti/bench [seed ...]` (default willow hazel oak birch); AUDIT_JSON=<file>
 // writes the results; AUDIT_DAYS and AUDIT_VILLAGE_DAYS override the lengths (the unit test uses
