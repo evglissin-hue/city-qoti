@@ -132,7 +132,13 @@ class Village implements Advisor {
     // C5A (the seasons advisor's until R1F): a Village with a dozen homes asks for a Bath House.
     const homes = w.households.length;
     if (homes >= 12 && count(w, 'bath-house') < 1 + Math.floor(homes / 30))
-      this.p.propose({ def: 'bath-house', priority: 2, cost: costOf('bath-house', 10), pressing: false, essential: false });
+      this.p.propose({
+        def: 'bath-house',
+        priority: 2,
+        cost: costOf('bath-house', 10),
+        pressing: false,
+        essential: false,
+      });
   }
 
   /** A market stall per forty residents, so the shopping trips are short (R1F: fisheries are the land advisor's). */
@@ -179,7 +185,6 @@ class Village implements Advisor {
     }
     return false;
   }
-
 }
 
 export const village: AdvisorDef = {

@@ -153,7 +153,8 @@ class Land implements Advisor {
       const def = content.zoneById.get(zone);
       if (!def || !meetsRequires(w, def.requires)) return;
       const z = def.layerValue;
-      if (w.lots.some((l) => !l.buildingId && (l.zone === z || (i === 0 && l.zone === Zone.homesMedium)))) return;
+      if (w.lots.some((l) => !l.buildingId && (l.zone === z || (i === 0 && l.zone === Zone.homesMedium))))
+        return;
       const tiles = frontageFor(w, zone);
       if (tiles && p.do(`zone ${zone} for its bar`, [{ t: 'zone.paint', zone, tiles }])) {
         this.painted.set(zone, today);
@@ -234,7 +235,8 @@ class Land implements Advisor {
     // Timber first: a lodge needs only timber and stone, and everything else needs timber.
     this.lodges(pop, turn);
     // Stone next, urgent while the town has almost none (homes and lodges wait on it).
-    if (count(w, 'quarry') === 0 && stock[G('stone')]! < 16) this.withOutpost('quarry', { urgent: true, ...turn });
+    if (count(w, 'quarry') === 0 && stock[G('stone')]! < 16)
+      this.withOutpost('quarry', { urgent: true, ...turn });
     else if (stock[G('stone')]! < 60 && count(w, 'quarry') < 1 + Math.floor(pop / 40))
       this.withOutpost('quarry', turn);
 
@@ -321,7 +323,8 @@ class Land implements Advisor {
     )
       this.withOutpost('foresters-lodge', turn);
     if (lodges.some((b) => b.stage === 'built' && !felled(b)))
-      for (const b of lodges.filter(felled)) this.p.do('retire a felled lodge', [{ t: 'build.remove', ids: [b.id] }]);
+      for (const b of lodges.filter(felled))
+        this.p.do('retire a felled lodge', [{ t: 'build.remove', ids: [b.id] }]);
     // The next lodge's site is raised, so the porters bring it its timber first.
     for (const b of lodges)
       if (b.stage === 'construction' && !timberIn(b) && !b.rt?.construction?.priority)
@@ -334,7 +337,13 @@ class Land implements Advisor {
    * larder is short of the season plan's mark (`larderShort`, the plan advisor's). Never while
    * the river is frozen, and with a storehouse out by the river when every spot is out of reach.
    */
-  private fisheries(pop: number, food: number, stored: number, made: number, turn: { budget: Budget; tally: number[] }): void {
+  private fisheries(
+    pop: number,
+    food: number,
+    stored: number,
+    made: number,
+    turn: { budget: Budget; tally: number[] },
+  ): void {
     const p = this.p;
     const w = this.w;
     if (isFrozen(w)) return;
@@ -351,7 +360,9 @@ class Land implements Advisor {
       larder ||
       (beforeWinter && fisheries < 1 + Math.floor(pop / 8));
     if (!want) return;
-    if (!this.want('fishery', { urgent: short || larder, pressing: short || larder || beforeWinter, ...turn }))
+    if (
+      !this.want('fishery', { urgent: short || larder, pressing: short || larder || beforeWinter, ...turn })
+    )
       if (p.blocked('fishery')) this.outpost('fishery');
   }
 
@@ -381,7 +392,9 @@ class Land implements Advisor {
     const reader = worldIndex(w).reader;
     const d = content.buildingById.get(def)!;
     const store = content.buildingById.get('storehouse')!;
-    const doors = w.buildings.filter((b) => b.def === 'storehouse' && b.stage === 'built').map((b) => doorTile(b));
+    const doors = w.buildings
+      .filter((b) => b.def === 'storehouse' && b.stage === 'built')
+      .map((b) => doorTile(b));
     const man = (a: number, b: number) =>
       Math.abs((a % S) - (b % S)) + Math.abs(Math.floor(a / S) - Math.floor(b / S));
     const fits = (x: number, z: number) => {

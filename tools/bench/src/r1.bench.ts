@@ -135,7 +135,8 @@ export function r1Bench(): { lines: string[]; failures: string[]; report: object
   // R1 stand-in (R1X): the R1 lines time today's stand-in growth and carrier, which R1A and R1B are
   // replacing, so over budget they are recorded, not failed; R1X makes them fail (or BENCH_R1_STRICT=1).
   const strict = process.env.BENCH_R1_STRICT === '1';
-  const ok = (pass: boolean) => (pass ? 'ok' : strict ? 'OVER BUDGET' : 'OVER BUDGET (recorded, R1X enforces)');
+  const ok = (pass: boolean) =>
+    pass ? 'ok' : strict ? 'OVER BUDGET' : 'OVER BUDGET (recorded, R1X enforces)';
   const over = (line: string) => (strict ? failures.push(line) : undefined);
   const town = cityTown();
   const bytes = serialize(town.world);

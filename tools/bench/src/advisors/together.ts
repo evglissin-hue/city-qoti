@@ -130,7 +130,8 @@ class Together implements Advisor {
     for (const p of w.plans) {
       // R1F: the Hearth (seat 1) sketches and the Ledger (seat 0) approves, as the header says (the
       // seats were the other way round, which counted the Hearth's sketches as Ledger decisions).
-      if (p.status === 'open' && p.by === 1) this.p.do(`approve ${p.name}`, [{ t: 'plan.approve', id: p.id }]);
+      if (p.status === 'open' && p.by === 1)
+        this.p.do(`approve ${p.name}`, [{ t: 'plan.approve', id: p.id }]);
     }
     const items: Command[] = [];
     const add = (def: string, at: [number, number] | null) => {

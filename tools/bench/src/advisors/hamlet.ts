@@ -7,13 +7,7 @@
 // keeps the Hamlet's services and homes: cottages by hand only until the street is zoned, a market
 // stall, a builder's yard and wells. It sends no sale and pauses nothing: the carrier sells and
 // imports by its own rules, and labor needs no lever.
-import {
-  creditLimit,
-  larderWelcomes,
-  loansOwed,
-  rankAtLeast,
-  townStock,
-} from '@qoti/sim';
+import { creditLimit, larderWelcomes, loansOwed, rankAtLeast, townStock } from '@qoti/sim';
 import { costOf, URGENT, type Planner } from '../planner';
 import { charterOpen, count, FOODS, storyWaiting, vacantHomes } from '../town';
 import type { Advisor, AdvisorDef } from './types';

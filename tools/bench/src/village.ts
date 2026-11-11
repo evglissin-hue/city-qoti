@@ -332,7 +332,8 @@ export function zoneStreetFor(w: WorldState, street: HighStreet, zones: readonly
     for (const side of [-1, 1]) {
       const depth = zone === 'farms' ? 5 : 3;
       let fert = 0;
-      for (let d = 1; d <= depth; d++) fert += w.map.fertility[(tz + dx * side * d) * S + tx + -dz * side * d]!;
+      for (let d = 1; d <= depth; d++)
+        fert += w.map.fertility[(tz + dx * side * d) * S + tx + -dz * side * d]!;
       if (zone === 'farms' && fert / depth < FIELD_GOOD_FERTILITY) continue;
       for (let d = 1; d <= depth; d++) {
         const x = tx + -dz * side * d;
@@ -346,7 +347,8 @@ export function zoneStreetFor(w: WorldState, street: HighStreet, zones: readonly
   });
   const cmds: Command[] = [];
   for (const [zone, tiles] of byZone)
-    for (let k = 0; k < tiles.length; k += 256) cmds.push({ t: 'zone.paint', zone, tiles: tiles.slice(k, k + 256) });
+    for (let k = 0; k < tiles.length; k += 256)
+      cmds.push({ t: 'zone.paint', zone, tiles: tiles.slice(k, k + 256) });
   return cmds;
 }
 

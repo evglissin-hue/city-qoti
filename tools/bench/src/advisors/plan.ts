@@ -87,7 +87,11 @@ class Plan implements Advisor {
     // This season's deal, when one pays.
     let best: DealOffer | null = null;
     for (const o of w.carrier.offers)
-      if (familyIndex(o.family) >= 0 && dealValue(w, o) > 0 && (!best || dealValue(w, o) > dealValue(w, best)))
+      if (
+        familyIndex(o.family) >= 0 &&
+        dealValue(w, o) > 0 &&
+        (!best || dealValue(w, o) > dealValue(w, best))
+      )
         best = o;
     const current = w.carrier.offers.some((o) => o.id === plan.deal) ? plan.deal : null;
     if ((best?.id ?? null) !== current) answer.deal = best?.id ?? null;
@@ -101,7 +105,8 @@ class Plan implements Advisor {
       first = zone;
     });
     if (first !== plan.buildFirst) answer.buildFirst = first;
-    if (Object.keys(answer).length > 0) p.do('answer the season card', [{ t: 'season.setPlan', plan: answer }]);
+    if (Object.keys(answer).length > 0)
+      p.do('answer the season card', [{ t: 'season.setPlan', plan: answer }]);
   }
 
   /** The winter's larder: kept from the festival menu from late spring, and `larderShort` before the frost. */

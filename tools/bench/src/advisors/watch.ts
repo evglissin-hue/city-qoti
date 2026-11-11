@@ -114,7 +114,9 @@ class Watch implements Advisor {
     // R1F: with some slack either way, so the budget is not switched with every day's balance (a
     // lever turned thirteen times in seventy days is a chore).
     const on = w.watch.budget > 0;
-    const coins = (on ? this.p.coins() > 50 : this.p.seasonBalance() > 0 && this.p.coins() > 150) ? WATCH_BUDGET : 0;
+    const coins = (on ? this.p.coins() > 50 : this.p.seasonBalance() > 0 && this.p.coins() > 150)
+      ? WATCH_BUDGET
+      : 0;
     if (coins * 100 !== w.watch.budget) this.p.do(`watch budget ${coins}`, [{ t: 'watch.setBudget', coins }]);
   }
 
