@@ -46,6 +46,8 @@ import {
   type WorldState,
 } from '@qoti/sim';
 import { command, findSpot, type Hamlet } from './hamlet';
+import type { Lane, PlayLane } from './advisors/types';
+import type { DecisionRecord } from './decisions';
 import { canStaff } from './labor';
 import { G, idx, S, sites } from './town';
 import type { HighStreet } from './village';
@@ -151,6 +153,14 @@ export class Planner {
    * left kept asking for a fishers' hut (154 times in a willow run); for the rest of that day it is
    * not asked for again.
    */
+  /** R1F: the advisor visiting now (set by autoplay around its `visit` and `rankUp`); null for the harness and the planner's own calls. */
+  advisor: { id: string; lane: Lane } | null = null;
+  /** R1F: the run's absolute day (1 on the first day), set by autoplay each morning; what `DecisionRecord.day` holds. */
+  runDay = 1;
+  /** R1F lanes test: lanes that send nothing (autoplay updates it each day). */
+  offLanes = new Set<PlayLane>();
+  /** R1F: every command the players sent, by lane and kind (the decisions count). */
+  readonly decisions: DecisionRecord[] = [];
   private readonly noSpot = new Map<string, number>();
 
   constructor(readonly h: Hamlet) {}
@@ -179,9 +189,21 @@ export class Planner {
     return (income(s) - expenses(s)) / PENNIES_PER_COIN;
   }
 
-  /** Runs commands as a seat and logs them. */
+  /** Runs commands as a seat and logs them (R1F: and counts them by lane; a lane that is off sends nothing). */
   do(label: string, cmds: Command[], seat: 0 | 1 = 0): boolean {
-    const ok = command(this.h, cmds, seat).every(Boolean);
+    const day = this.runDay;
+    const advisor = this.advisor?.id ?? 'planner';
+    const adv = this.advisor?.lane ?? 'ledger';
+    const lane: PlayLane = adv === 'both' ? (seat === 0 ? 'ledger' : 'hearth') : adv;
+    if (this.offLanes.has(lane)) {
+      this.actions.push(`${calendar(this.w.tick).day}:${label} (lane off)`);
+      return false;
+    }
+    const oks = command(this.h, cmds, seat);
+    const ok = oks.every(Boolean);
+    cmds.forEach((cmd, i) =>
+      this.decisions.push({ day, advisor, lane, kind: cmd.t, ok: oks[i]!, label, cmd }),
+    );
     this.actions.push(`${calendar(this.w.tick).day}:${label}${ok ? '' : ' (refused)'}`);
     return ok;
   }

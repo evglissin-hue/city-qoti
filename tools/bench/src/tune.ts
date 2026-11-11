@@ -13,6 +13,7 @@
 import { serialize, type WorldState, type ValleySettings } from '@qoti/sim';
 import { writeFileSync } from 'node:fs';
 import { autoplay, formatDays } from './autoplay';
+import { DECISIONS_DAYS, formatDecisions } from './decisions';
 import { frontageAscii, grownSummary, streetRect } from './village';
 import { YEAR_HEAD, yearRow } from './yearRow';
 
@@ -42,4 +43,5 @@ if (process.env.TUNE_SAVE) {
   console.log(`saved ${process.env.TUNE_SAVE}`);
 }
 if (process.env.TUNE_ACTIONS) console.log(run.actions.join('\n'));
+console.log(`\nDecisions\n${formatDecisions(run.decisions, Math.min(days, DECISIONS_DAYS))}`);
 console.log(`\nYear view\n${YEAR_HEAD}\n${year.join('\n')}`);

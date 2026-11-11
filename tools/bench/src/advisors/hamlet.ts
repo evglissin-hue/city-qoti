@@ -163,6 +163,7 @@ class Hamlet implements Advisor {
 
 export const hamlet: AdvisorDef = {
   id: 'hamlet',
+  lane: 'ledger',
   slot: 50,
   plays: () => true,
   create: (p) => new Hamlet(p),

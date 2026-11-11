@@ -6,12 +6,21 @@ import type { ValleySettings, WorldState } from '@qoti/sim';
 import type { DayLine } from '../autoplay';
 import type { Planner } from '../planner';
 
+/** The two seats' lanes: the Ledger's (seat 0) and the Hearth's (seat 1). */
+export type PlayLane = 'ledger' | 'hearth';
+/** An advisor's lane; a `both` advisor's commands count by the seat that sends them. */
+export type Lane = PlayLane | 'both';
+
 /** The `autoplay` options an advisor may read to decide whether it plays. */
 export interface AutoplayOptions {
   economy?: ValleySettings['economy'];
   hearth?: boolean;
   /** Tuning: on this morning the County grants Village rank whether or not the Charter is done. */
   villageDay?: number;
+  /** R1F lanes test: from this day on the Hearth lane sends nothing. */
+  hearthOffFrom?: number;
+  /** R1F lanes test: from this day on the Ledger lane sends nothing. */
+  ledgerOffFrom?: number;
   /** From this day on the players only watch (C4B: does growth stop when demand does?). */
   handsOff?: number;
   /**
@@ -45,6 +54,8 @@ export interface Advisor {
 
 export interface AdvisorDef {
   id: string;
+  /** R1F: whose work it is, for the lanes test (a `both` advisor's commands count by the seat that sends them). */
+  lane: Lane;
   /** Visit order (lower first). The I2 order: village 10, then the Ledger (street, charter, money, hamlet), the Hearth, together. */
   slot: number;
   /** Whether it plays this run: the system it minds exists (in content or state) and the options allow it. */

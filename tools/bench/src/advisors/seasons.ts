@@ -84,6 +84,7 @@ class Seasons implements Advisor {
 
 export const seasons: AdvisorDef = {
   id: 'seasons',
+  lane: 'ledger',
   // After the Hamlet's homes and food (50), before the Hearth's decor (60).
   slot: 55,
   plays: (_opts, w) => w.settings.mode === 'standard',

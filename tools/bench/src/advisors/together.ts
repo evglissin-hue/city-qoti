@@ -159,6 +159,7 @@ class Together implements Advisor {
 
 export const together: AdvisorDef = {
   id: 'together',
+  lane: 'both',
   slot: 70,
   plays: (opts) => opts.together !== false,
   create: (p) => new Together(p),

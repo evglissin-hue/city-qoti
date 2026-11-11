@@ -44,8 +44,10 @@ import {
   type HealthIssue,
   type WorldState,
 } from '@qoti/sim';
-import { advisors, type AutoplayOptions } from './advisors';
+import { advisors, type Advisor, type AutoplayOptions } from './advisors';
+import type { Lane } from './advisors/types';
 import { command, runTicks, startingTown, type Hamlet } from './hamlet';
+import type { DecisionRecord } from './decisions';
 import { Planner } from './planner';
 import { charterLine, craftsfolk, FOODS, G, sites, storyLetters, vacantHomes } from './town';
 import { grownSince, growthLine, type GrowthLine, type GrowthNight, type HighStreet } from './village';
@@ -118,6 +120,8 @@ export interface AutoplayResult {
   street?: HighStreet | null;
   /** Playtest round three: every health issue seen, checked each game hour (first sighting kept). */
   health: HealthIssue[];
+  /** R1F: every command the players sent, by lane and kind (the decisions count). */
+  decisions: DecisionRecord[];
 }
 
 function dayLine(w: WorldState, day: number): DayLine {
@@ -208,7 +212,16 @@ export function autoplay(seed: string, days: number, opts: AutoplayOptions = {})
   const team = advisors
     .filter((a) => a.plays(opts, h.world) && !skip.includes(a.id))
     .sort((a, b) => a.slot - b.slot)
-    .map((a) => a.create(planner, opts));
+    .map((a) => ({ def: a, advisor: a.create(planner, opts) }));
+  /** R1F: runs an advisor's visit (or rank-up) with the planner told whose it is. */
+  const as = (t: { def: { id: string; lane: Lane }; advisor: Advisor }, f: (a: Advisor) => void) => {
+    planner.advisor = { id: t.def.id, lane: t.def.lane };
+    try {
+      f(t.advisor);
+    } finally {
+      planner.advisor = null;
+    }
+  };
   const out: DayLine[] = [];
   const store = content.buildingById.get('storehouse') as { tags: string[] };
   const tags = store.tags;
@@ -224,6 +237,12 @@ export function autoplay(seed: string, days: number, opts: AutoplayOptions = {})
   try {
     for (let d = 1; d <= days; d++) {
       const playing = opts.handsOff === undefined || d < opts.handsOff;
+      // R1F lanes test: a lane that is off sends nothing from its day on, and its own advisors stay home.
+      planner.runDay = d;
+      planner.offLanes.clear();
+      if (opts.hearthOffFrom !== undefined && d >= opts.hearthOffFrom) planner.offLanes.add('hearth');
+      if (opts.ledgerOffFrom !== undefined && d >= opts.ledgerOffFrom) planner.offLanes.add('ledger');
+      const visits = team.filter((t) => t.def.lane === 'both' || !planner.offLanes.has(t.def.lane));
       // The night's growth pass (01:00): what it wanted, and what it started. R1: from the second
       // day (the first starts after 01:00), not from the Village claim: the zones are open from founding.
       let night: GrowthNight | undefined;
@@ -243,13 +262,13 @@ export function autoplay(seed: string, days: number, opts: AutoplayOptions = {})
       // The first morning at Village rank, however it came, the Ledger lays and zones a high street.
       if (villageFrom === 0 && rankAtLeast(h.world, 'village')) {
         villageFrom = d;
-        if (playing) for (const a of team) a.rankUp?.();
+        if (playing) for (const t of visits) as(t, (a) => a.rankUp?.());
       }
       if (lend && rankAtLeast(h.world, 'village') && store.tags === tags)
         store.tags = [...tags, 'trading-post'];
-      if (playing) for (const a of team) a.visit({ afternoon: false });
+      if (playing) for (const t of visits) as(t, (a) => a.visit({ afternoon: false }));
       untilHour(h, 15, look);
-      if (playing) for (const a of team) a.visit({ afternoon: true });
+      if (playing) for (const t of visits) as(t, (a) => a.visit({ afternoon: true }));
       untilHour(h, 23, look);
       const line = dayLine(h.world, d);
       line.growth = { ...growthLine(h.world), night };
@@ -265,6 +284,7 @@ export function autoplay(seed: string, days: number, opts: AutoplayOptions = {})
     actions: planner.actions,
     street: planner.street,
     health: [...health.values()],
+    decisions: planner.decisions,
   };
 }
 

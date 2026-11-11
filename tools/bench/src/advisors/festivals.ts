@@ -289,6 +289,7 @@ function zoned(w: WorldState, r: Rect): boolean {
 
 export const festivals: AdvisorDef = {
   id: 'festivals',
+  lane: 'both',
   // After the seasons (55), with the Hearth's decor (60).
   slot: 58,
   plays: (_opts, w) => w.settings.mode === 'standard' && content.festivals.length > 0,

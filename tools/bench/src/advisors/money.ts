@@ -73,6 +73,7 @@ class Money implements Advisor {
 
 export const money: AdvisorDef = {
   id: 'money',
+  lane: 'ledger',
   slot: 40,
   plays: () => true,
   create: (p) => new Money(p),
