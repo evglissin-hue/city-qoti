@@ -15,7 +15,7 @@ import { palette } from '../palette';
 import { beam } from '../shapes';
 import { shell, windowRow, type Built } from './buildings';
 import { type BusinessDraw, goodsOutFront, levelOf, paintedSign, type BusinessLevel } from './business';
-import { dryStoneWall, gardenEdge, hen, postAndRail, trough } from './details';
+import { gardenEdge, hen, postAndRail, trough } from './details';
 import { clamp, homeLook, makingOf, start, steppingStones, windowsOf } from './grown';
 import { cheeseWheel, crateOf, GOOD_COLORS, pileOf } from './goods';
 import { chimneyPart, claddingDepth, doorPart, faceBox, type Face } from './parts';
@@ -50,7 +50,7 @@ interface Lot {
   xr: (x0: number, x1: number) => [number, number];
 }
 
-/** A plain outbuilding: weatherboard walls and a small gable roof, ridge along x or z. */
+/** A plain outbuilding: board walls under a small gable roof, ridge along x or z (about 60 triangles). */
 function shed(
   lot: Lot,
   x0: number,
@@ -63,32 +63,28 @@ function shed(
     roof?: number;
     rise?: number;
     ridgeAlongX?: boolean;
-    base?: number;
   } = {},
-): { top: number; ridge: number } {
+): void {
   const { s, rnd } = lot;
   const [a, b] = lot.xr(x0, x1);
-  const sh = shell(s, {
-    x0: a,
-    z0,
-    x1: b,
-    z1,
-    base: opts.base ?? 0.05,
-    wallH: opts.wallH ?? 0.42,
-    wall: 'weatherboard',
-    wallColor: vary(opts.wall ?? 0x9a7a58, rnd, 0.4),
-    trim: palette.white,
-    roof: {
-      shape: 'gable',
-      material: 'shingle',
-      color: vary(opts.roof ?? 0x6b625c, rnd, 0.5),
-      rise: opts.rise ?? 0.32,
-      overhang: 0.08,
-      ridgeAlongX: opts.ridgeAlongX ?? true,
-    },
-    rnd,
+  const wallH = opts.wallH ?? 0.42;
+  s.box(a, 0, z0, b, wallH, z1, vary(opts.wall ?? 0x9a7a58, rnd, 0.4));
+  s.gable(
+    a - 0.06,
+    z0 - 0.06,
+    b + 0.06,
+    z1 + 0.06,
+    wallH,
+    wallH + (opts.rise ?? 0.32),
+    vary(opts.roof ?? 0x6b625c, rnd, 0.5),
+    opts.ridgeAlongX ?? true,
+  );
+  // A plank door on the road side and a dark window slit on the end.
+  s.nearOnly(() => {
+    const cx = (a + b) / 2;
+    s.box(cx - 0.09, 0, z1, cx + 0.09, wallH * 0.75, z1 + 0.012, 0x5a4636);
+    s.box(a + 0.04, wallH * 0.5, z1, a + 0.12, wallH * 0.8, z1 + 0.012, 0x3b3229);
   });
-  return { top: sh.top, ridge: sh.ridge };
 }
 
 /** The shared lot: house, yard, gate, front fence, and (from level 2) the sign and goods out front. */
@@ -186,21 +182,21 @@ function lotOf(opts: KitBuildOptions | undefined, salt: number, paint: number): 
   const gates = [Math.min(hdoor, doorU), Math.max(hdoor, doorU)];
   let fx = 0.06;
   const edge = lvl === 3 ? L.garden : null;
-  const run = (a: [number, number], b: [number, number]): void => {
-    if (edge) gardenEdge(s, edge, a, b, rnd);
-    else postAndRail(s, a, b, rnd);
-  };
   for (const g of gates) {
-    run([fx, d - 0.06], [g - 0.2, d - 0.06]);
+    postAndRail(s, [fx, d - 0.06], [g - 0.2, d - 0.06], rnd);
     fx = g + 0.2;
   }
-  run([fx, d - 0.06], [w - 0.06, d - 0.06]);
+  // The long run past the last gate is the district's own edge at level 3.
+  if (edge) gardenEdge(s, edge, [fx, d - 0.06], [w - 0.06, d - 0.06], rnd);
+  else postAndRail(s, [fx, d - 0.06], [w - 0.06, d - 0.06], rnd);
   if (lvl >= 2) {
     // The sign on two posts by the gate, facing the road, and the good out front.
     const u = doorU + (left ? 0.62 : -0.62);
     const f: Face = { dir: 'z+', plane: d - 0.14 };
-    for (const dx of [-0.2, 0.2])
-      beam(s, [u + dx, 0, d - 0.12], [u + dx, 0.5, d - 0.12], 0.016, palette.timber);
+    s.nearOnly(() => {
+      for (const dx of [-0.2, 0.2])
+        beam(s, [u + dx, 0, d - 0.12], [u + dx, 0.5, d - 0.12], 0.016, palette.timber);
+    });
     paintedSign(s, f, u, 0.4, 0.34, 0, paint, anchors);
     goodsOutFront(s, lot.make, m(2.45), d - 0.32, rnd, lvl === 3 ? 3 : 2);
   }
@@ -228,14 +224,21 @@ function groundOf(
 
 /** A round hayrick under a thatched cap. */
 function hayrick(s: ShapeBuilder, x: number, z: number, k: number, rnd: () => number): void {
-  s.cylinder(x, z, 0.27 * k, 0.28 * k, 0.04, 0.38 * k, vary(0xd9b050, rnd, 0.5), 6);
-  s.cylinder(x, z, 0.36 * k, 0.0, 0.38 * k, 0.72 * k, vary(0xb8862e, rnd, 0.4), 6);
+  const body = vary(0xd9b050, rnd, 0.5);
+  const cap = vary(0xb8862e, rnd, 0.4);
+  s.levels(
+    () => {
+      s.cylinder(x, z, 0.27 * k, 0.28 * k, 0.04, 0.38 * k, body, 6);
+      s.cylinder(x, z, 0.36 * k, 0.0, 0.38 * k, 0.72 * k, cap, 6);
+    },
+    () => s.cylinder(x, z, 0.3 * k, 0.0, 0.04, 0.72 * k, body, 6),
+  );
 }
 
 function grainFarm(opts: KitBuildOptions | undefined): Built {
   const lot = lotOf(opts, 61, 0x8f3a30);
   const { s, anchors, L, rnd, look, lvl, season, m } = lot;
-  groundOf(lot, 0.1, 0.1, 2.9, lot.yardZ - 0.05, 0x9cc06a, 0x9cb85c, 0xa89a5a, 0xc9cfc0);
+  s.nearOnly(() => groundOf(lot, 0.1, 0.1, 2.9, lot.yardZ - 0.05, 0x9cc06a, 0x9cb85c, 0xa89a5a, 0xc9cfc0));
   // The barn: weatherboard in barn red (or the district's stone), a gambrel roof; it widens by level.
   const stoneBarn = L.wall === 'stone' || L.wall === 'brick';
   const bw = lvl === 1 ? 1.1 : lvl === 2 ? 1.28 : 1.42;
@@ -280,22 +283,28 @@ function grainFarm(opts: KitBuildOptions | undefined): Built {
   const x0 = Math.min(gx0, gx1);
   const x1 = Math.max(gx0, gx1);
   const gz1 = lot.yardZ - 0.1;
-  s.rbox(x0, 0, gz0, x1, 0.012, gz1, vary(season === 3 ? 0x8a7a66 : 0x6e5036, rnd, 0.4), 0.03);
+  const soilHex = vary(season === 3 ? 0x8a7a66 : 0x6e5036, rnd, 0.4);
+  s.nearOnly(() => s.rbox(x0, 0, gz0, x1, 0.012, gz1, soilHex, 0.03));
   const rows = Math.max(3, Math.round((gz1 - gz0) / 0.13));
   const hts = [0.07, 0.22, 0.035, 0.015];
   const cols = [0x8bbf4e, GOOD_COLORS.wheat, 0xc9ad62, 0xd8d2c0];
-  for (let r = 0; r < rows; r++) {
-    const z = gz0 + ((gz1 - gz0) * (r + 0.5)) / rows;
-    s.box(
-      x0 + 0.04,
-      0.012,
-      z - 0.035,
-      x1 - 0.04,
-      0.012 + hts[season]!,
-      z + 0.035,
-      vary(cols[season]!, rnd, 0.5),
-    );
-  }
+  s.levels(
+    () => {
+      for (let r = 0; r < rows; r++) {
+        const z = gz0 + ((gz1 - gz0) * (r + 0.5)) / rows;
+        s.box(
+          x0 + 0.04,
+          0.012,
+          z - 0.035,
+          x1 - 0.04,
+          0.012 + hts[season]!,
+          z + 0.035,
+          vary(cols[season]!, rnd, 0.5),
+        );
+      }
+    },
+    () => s.box(x0 + 0.04, 0.012, gz0, x1 - 0.04, 0.012 + hts[season]!, gz1, cols[season]!),
+  );
   // The rick (and at level 3 a second one) behind the house, stooks in the stubble in autumn.
   hayrick(s, m(0.62), 0.58, 1, rnd);
   if (lvl === 3) hayrick(s, m(1.18), 0.5, 0.82, rnd);
@@ -310,9 +319,13 @@ function grainFarm(opts: KitBuildOptions | undefined): Built {
     const [qx0, qx1] = lot.xr(0.2, 0.86);
     for (const sx of [qx0 + 0.06, qx1 - 0.06])
       for (const sz of [1.0, 1.36]) s.cylinder(sx, sz, 0.045, 0.03, 0, 0.14, palette.stone, 6);
-    s.box(qx0, 0.14, 0.94, qx1, 0.18, 1.42, palette.wood);
-    s.box(qx0 + 0.02, 0.18, 0.96, qx1 - 0.02, 0.5, 1.4, vary(0xb08a5e, rnd, 0.4));
-    s.gable(qx0 - 0.04, 0.9, qx1 + 0.04, 1.46, 0.5, 0.7, vary(0x6b625c, rnd, 0.4), false);
+    s.nearOnly(() => s.box(qx0, 0.14, 0.94, qx1, 0.18, 1.42, palette.wood));
+    s.box(qx0 + 0.02, 0.14, 0.96, qx1 - 0.02, 0.5, 1.4, vary(0xb08a5e, rnd, 0.4));
+    const roof = vary(0x6b625c, rnd, 0.4);
+    s.levels(
+      () => s.gable(qx0 - 0.04, 0.9, qx1 + 0.04, 1.46, 0.5, 0.7, roof, false),
+      () => s.cylinder((qx0 + qx1) / 2, 1.18, 0.42, 0, 0.5, 0.72, roof, 4, Math.PI / 4),
+    );
   }
   s.detail(() => {
     hayBale(s, m(1.32), 0, 1.3, true, rnd);
@@ -514,7 +527,7 @@ function orchard(opts: KitBuildOptions | undefined): Built {
             [1.3, 0.55],
           ];
   const k = lvl === 3 ? 0.8 : 0.9;
-  trees.forEach(([x, z], i) => fruitTree(s, m(x), z, k, season, rnd, lvl === 3 && i >= 3));
+  trees.forEach(([x, z], i) => fruitTree(s, m(x), z, k, season, rnd, lvl === 3 && i >= 2));
   // The packing shed at the back left, the crates of the harvest, ladders in the trees.
   const sx1 = lvl === 3 ? 0.88 : lvl === 2 ? 1.05 : 1.0;
   shed(lot, 0.16, 0.14, sx1, lvl === 1 ? 0.7 : 0.78, { wallH: 0.45, wall: 0xa8473b, rise: 0.3 });
@@ -545,8 +558,8 @@ function dairy(opts: KitBuildOptions | undefined): Built {
     z1,
     base: 0.06,
     wallH: 0.6,
-    wall: stone ? L.wall : 'plaster',
-    wallColor: stone ? L.wallColor : vary(0xf3ecdc, rnd, 0.4),
+    wall: 'plaster',
+    wallColor: vary(stone ? mixHex(0xf3ecdc, L.wallColor, 0.35) : 0xf3ecdc, rnd, 0.4),
     trim: palette.timber,
     roof: {
       shape: 'gable',
@@ -596,16 +609,16 @@ function dairy(opts: KitBuildOptions | undefined): Built {
     for (const dx of [-0.2, 0.2])
       for (const dz of [-0.11, 0.11])
         beam(s, [cx + dx, 0, d - 0.62 + dz], [cx + dx, 0.24, d - 0.62 + dz], 0.016, palette.timber);
-    for (let i = 0; i < 3; i++) {
-      const px = cx - 0.15 + i * 0.15;
+    for (let i = 0; i < (lvl === 3 ? 3 : 2); i++) {
+      const px = cx - 0.1 + i * 0.15;
       s.cylinder(px, d - 0.62, 0.045, 0.045, 0.27, 0.4, 0xb9bdc0, 8);
       s.cylinder(px, d - 0.62, 0.045, 0.024, 0.4, 0.43, 0xb9bdc0, 8);
     }
     if (lvl >= 2) {
-      cheeseWheel(s, m(2.3) - 0.1, 0.19, d - 0.32, 0.075, rnd);
-      cheeseWheel(s, m(2.3) + 0.1, 0.19, d - 0.32, 0.075, rnd);
+      cheeseWheel(s, m(2.45) - 0.1, 0.19, d - 0.32, 0.075, rnd);
+      if (lvl === 3) cheeseWheel(s, m(2.45) + 0.1, 0.19, d - 0.32, 0.075, rnd);
     }
-    hayBale(s, m(0.4), 0, 1.3, true, rnd);
+    if (lvl < 3) hayBale(s, m(0.4), 0, 1.3, true, rnd);
   });
   return { s, anchors };
 }
@@ -623,23 +636,52 @@ function sheepRun(opts: KitBuildOptions | undefined): Built {
   const x0 = Math.min(fa, fb);
   const x1 = Math.max(fa, fb);
   const stone = L.wall === 'stone';
-  const wall = (a: [number, number], b: [number, number]): void =>
-    stone ? dryStoneWall(s, a, b, rnd) : postAndRail(s, a, b, rnd);
-  wall([x0, 0.12], [x1, 0.12]);
-  wall([x0, 0.12], [x0, pz1]);
-  wall([x1, 0.12], [x1, pz1]);
+  // Dry stone is a few long blocks with coping stones on top (a full stone-by-stone wall would
+  // eat the budget of a fold this long).
+  const wall = (a: [number, number], b: [number, number]): void => {
+    if (!stone) return postAndRail(s, a, b, rnd);
+    const [xa, xb] = [Math.min(a[0], b[0]) - 0.04, Math.max(a[0], b[0]) + 0.04];
+    const [za, zb] = [Math.min(a[1], b[1]) - 0.04, Math.max(a[1], b[1]) + 0.04];
+    s.box(xa, 0, za, xb, 0.13, zb, vary(palette.stone, rnd, 0.6));
+    s.nearOnly(() => {
+      const along = xb - xa > zb - za;
+      const n = Math.max(1, Math.round((along ? xb - xa : zb - za) / 0.3));
+      for (let i = 0; i < n; i++) {
+        const k = (i + 0.5) / n;
+        const cx = along ? xa + (xb - xa) * k : (xa + xb) / 2;
+        const cz = along ? (za + zb) / 2 : za + (zb - za) * k;
+        s.box(cx - 0.1, 0.13, cz - 0.06, cx + 0.1, 0.17, cz + 0.06, vary(palette.stone, rnd, 1.1));
+      }
+    });
+  };
   const gx = (x0 + x1) / 2;
-  wall([x0, pz1], [gx - 0.22, pz1]);
-  wall([gx + 0.22, pz1], [x1, pz1]);
-  // Hurdles inside: a lambing pen in the back corner.
-  postAndRail(s, [x1 - 0.5, 0.12], [x1 - 0.5, 0.55], rnd);
-  postAndRail(s, [x1 - 0.5, 0.55], [x1, 0.55], rnd);
+  s.levels(
+    () => {
+      wall([x0, 0.12], [x1, 0.12]);
+      wall([x0, 0.12], [x0, pz1]);
+      wall([x1, 0.12], [x1, pz1]);
+      wall([x0, pz1], [gx - 0.22, pz1]);
+      wall([gx + 0.22, pz1], [x1, pz1]);
+      // Hurdles inside: a lambing pen in the back corner.
+      postAndRail(s, [x1 - 0.5, 0.12], [x1 - 0.5, 0.55], rnd);
+      postAndRail(s, [x1 - 0.5, 0.55], [x1, 0.55], rnd);
+    },
+    () => {
+      // Far off the fold is a low rim all round, with the gate gap.
+      const rim = stone ? palette.stone : 0x9a7a52;
+      s.box(x0, 0, 0.1, x1, 0.1, 0.16, rim);
+      s.box(x0, 0, 0.1, x0 + 0.06, 0.1, pz1, rim);
+      s.box(x1 - 0.06, 0, 0.1, x1, 0.1, pz1, rim);
+      s.box(x0, 0, pz1 - 0.06, gx - 0.22, 0.1, pz1, rim);
+      s.box(gx + 0.22, 0, pz1 - 0.06, x1, 0.1, pz1, rim);
+    },
+  );
   const [pa, pb] = [x0 + 0.15, x1 - 0.15];
   anchors.animals = [
     { kind: 'sheep', pen: [pa, 0.7, pb, pz1 - 0.2], count: lvl === 1 ? 3 : lvl === 2 ? 5 : 7 },
   ];
   // The shepherd's hut on wheels behind the house.
-  shepherdsHut(s, m(0.66), 0.55, rnd, anchors);
+  s.nearOnly(() => shepherdsHut(s, m(0.66), 0.55, rnd, anchors));
   if (lvl === 3) {
     // The shearing shed: an open lean-to on posts with a boarded floor.
     const [a, b] = lot.xr(0.2, 1.1);
@@ -675,14 +717,19 @@ function sheepRun(opts: KitBuildOptions | undefined): Built {
 // --- Hives ---------------------------------------------------------------------------------------
 
 function hiveBox(s: ShapeBuilder, x: number, z: number, hex: number, rnd: () => number): void {
-  s.box(x - 0.1, 0, z - 0.1, x + 0.1, 0.1, z + 0.1, palette.darkWood);
-  s.rbox(x - 0.12, 0.1, z - 0.12, x + 0.12, 0.3, z + 0.12, vary(hex, rnd, 0.2), 0.008);
-  s.gable(x - 0.14, z - 0.14, x + 0.14, z + 0.14, 0.3, 0.37, 0x8a9aa0, true);
+  s.levels(
+    () => {
+      s.box(x - 0.1, 0, z - 0.1, x + 0.1, 0.1, z + 0.1, palette.darkWood);
+      s.rbox(x - 0.12, 0.1, z - 0.12, x + 0.12, 0.3, z + 0.12, vary(hex, rnd, 0.2), 0.008);
+      s.gable(x - 0.14, z - 0.14, x + 0.14, z + 0.14, 0.3, 0.37, 0x8a9aa0, true);
+    },
+    () => s.box(x - 0.12, 0, z - 0.12, x + 0.12, 0.36, z + 0.12, hex),
+  );
 }
 
 function hives(opts: KitBuildOptions | undefined): Built {
   const lot = lotOf(opts, 66, 0xf3d35b);
-  const { s, anchors, L, rnd, lvl, season, m } = lot;
+  const { s, anchors, rnd, lvl, season, m } = lot;
   groundOf(lot, 0.1, 0.1, 2.9, lot.yardZ - 0.05, 0xa9c874, 0x9fb36a, 0xa8a460, 0xcdd2c4);
   // Flower strips between the rows: blossom, lavender, asters, bare straw.
   const flower = [0xf4d4e2, 0x9a82c4, 0xe0a83a, 0xc9b88a][season]!;
@@ -719,8 +766,14 @@ function hives(opts: KitBuildOptions | undefined): Built {
   boxes.forEach(([x, z], i) => hiveBox(s, m(x), z, colors[i % colors.length]!, rnd));
   const nSkeps = lvl === 1 ? 1 : lvl === 2 ? 2 : 3;
   const benchX = [0.3, 1.05];
-  s.box(m(benchX[0]!), 0.12, 1.28, m(benchX[1]!), 0.15, 1.52, palette.wood);
-  for (let i = 0; i < nSkeps; i++) skep(s, m(0.5 + i * 0.25), 1.4, rnd);
+  s.nearOnly(() => s.box(m(benchX[0]!), 0.12, 1.28, m(benchX[1]!), 0.15, 1.52, palette.wood));
+  for (let i = 0; i < nSkeps; i++) {
+    const x = m(0.5 + i * 0.25);
+    s.levels(
+      () => skep(s, x, 1.4, rnd),
+      () => s.cylinder(x, 1.4, 0.09, 0, 0.0, 0.3, 0xd9b96a, 6),
+    );
+  }
   // The honey house at the back left: a little thatched or tiled shed that grows.
   const ex = lvl === 1 ? 0.8 : lvl === 2 ? 0.95 : 1.1;
   shed(lot, 0.16, 0.14, ex, lvl === 1 ? 0.62 : 0.74, {
@@ -729,7 +782,6 @@ function hives(opts: KitBuildOptions | undefined): Built {
     roof: 0xb8862e,
     rise: 0.3,
   });
-  if (L.chimney && lvl >= 2) anchors.smoke!.push([m(0.3), 0.9, 0.4]);
   s.detail(() => {
     // Lavender tufts in the grass, the keeper's veiled hat on a peg, extra stands.
     for (let i = 0; i < 6 + lvl * 2; i++)
