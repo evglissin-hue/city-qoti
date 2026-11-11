@@ -476,6 +476,7 @@ export const events: readonly EventDef[] = [
   Se.drought,
   Se.earlyFrost,
   Se.flood,
+  Se.passClosed,
 ];
 
 // prettier-ignore

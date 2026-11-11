@@ -107,10 +107,10 @@ export function balanceStock(state: WorldState): number[] {
   return stock;
 }
 
-/** Units of a family in a stock array. */
+/** Units of a family in a stock array (its shelf goods: wool, only an input, is not Wares in hand). */
 export function familyStock(stock: readonly number[], family: number): number {
   let n = 0;
-  for (const g of GOODS_BY_FAMILY[family]!) n += stock[g] ?? 0;
+  for (const g of SHELF_GOODS[family]!) n += stock[g] ?? 0;
   return n;
 }
 

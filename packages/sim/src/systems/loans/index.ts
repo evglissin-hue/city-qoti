@@ -3,7 +3,7 @@
 // season's first day: LOAN_RATE percent of each loan's balance, paid from the treasury as
 // `interest` while it can, otherwise added to what the loan owes (the bank is patient, at a
 // price). Running the treasury into the credit line (credit.ts) is borrowing too: the overdraft
-// pays the same rate.
+// pays the same rate, and so does the carrier's County tab (R1A).
 import { DAYS_PER_SEASON, LOAN_RATE, TICKS_PER_DAY } from '../../constants';
 import type { System, TickCtx, WorldState } from '../../contracts';
 import { isStandard } from '../../state/hamlet';
@@ -32,6 +32,17 @@ export function chargeInterest(state: WorldState, ctx: TickCtx): number {
     } else {
       loan.balance += due;
       added += due;
+    }
+  }
+  // R1 (R1A): the County tab works as a loan does: paid while the treasury can, else added to it.
+  const tabDue = interestOn(state.carrier.tab, LOAN_RATE);
+  if (tabDue > 0) {
+    if (state.economy.treasury - tabDue >= 0) {
+      book(state, 'interest', tabDue);
+      charged += tabDue;
+    } else {
+      state.carrier.tab += tabDue;
+      added += tabDue;
     }
   }
   // The overdraft: only within the credit line, so it cannot run away with itself.
