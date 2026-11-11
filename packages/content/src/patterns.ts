@@ -18,6 +18,12 @@ export const hedgerowLane: PatternDef = {
   siteBonus: { charm: 5, radius: 1, category: 'nature' },
   unlocks: ['wildflower-verge'],
   hintOrder: 6,
+  // R1 (R1D): Lay it out.
+  layout: [
+    { road: 'lane', dx: 0, dz: 0, tx: 5, tz: 0 },
+    { run: 'hedge', dx: 0, dz: -1, tx: 5, tz: -1 },
+    { run: 'hedge', dx: 0, dz: 1, tx: 5, tz: 1 },
+  ],
 };
 
 export const kitchenGarden: PatternDef = {
@@ -35,6 +41,12 @@ export const kitchenGarden: PatternDef = {
   siteBonus: { charm: 5, radius: 2, category: 'nature' },
   unlocks: ['herb-planter'],
   hintOrder: 3,
+  // R1 (R1D): Lay it out.
+  layout: [
+    { building: 'garden-bed', dx: 0, dz: 0 },
+    { building: 'garden-bed', dx: 3, dz: 0 },
+    { run: 'fence', dx: 0, dz: 2, tx: 4, tz: 2 },
+  ],
 };
 
 export const lanternWalk: PatternDef = {
@@ -53,6 +65,14 @@ export const lanternWalk: PatternDef = {
   siteBonus: { charm: 6, radius: 1, category: 'light' },
   unlocks: ['hanging-lantern'],
   hintOrder: 4,
+  // R1 (R1D): Lay it out.
+  layout: [
+    { road: 'path', dx: 0, dz: 0, tx: 9, tz: 0 },
+    { decor: 'lantern', dx: 0, dz: -1 },
+    { decor: 'lantern', dx: 3, dz: 1 },
+    { decor: 'lantern', dx: 6, dz: -1 },
+    { decor: 'lantern', dx: 9, dz: 1 },
+  ],
 };
 
 export const pocketPark: PatternDef = {
@@ -73,6 +93,13 @@ export const pocketPark: PatternDef = {
   siteBonus: { charm: 6, radius: 3 },
   unlocks: ['birdbath'],
   hintOrder: 5,
+  // R1 (R1D): Lay it out.
+  layout: [
+    { tree: 'oak', dx: 1, dz: 1 },
+    { decor: 'bench', dx: 0, dz: 1 },
+    { decor: 'flower-bed', dx: 2, dz: 0 },
+    { decor: 'flower-bed', dx: 2, dz: 2 },
+  ],
 };
 
 export const promenadeByTheWater: PatternDef = {
@@ -91,6 +118,14 @@ export const promenadeByTheWater: PatternDef = {
   siteBonus: { charm: 10, radius: 2, category: 'view' },
   unlocks: ['mooring-post'],
   hintOrder: 8,
+  // R1 (R1D): Lay it out.
+  layout: [
+    { road: 'path', dx: 0, dz: 0, tx: 7, tz: 0 },
+    { decor: 'bench', dx: 2, dz: 1 },
+    { decor: 'bench', dx: 5, dz: 1 },
+    { decor: 'lantern', dx: 0, dz: -1 },
+    { decor: 'lantern', dx: 7, dz: -1 },
+  ],
 };
 
 export const sittingWall: PatternDef = {
@@ -107,6 +142,13 @@ export const sittingWall: PatternDef = {
   siteBonus: { charm: 6, radius: 3, category: 'comfort' },
   unlocks: ['planter-wall'],
   hintOrder: 7,
+  // R1 (R1D): Lay it out.
+  layout: [
+    { road: 'path', dx: 0, dz: -1, tx: 3, tz: -1 },
+    { run: 'low-wall', dx: 0, dz: 0, tx: 3, tz: 0 },
+    { decor: 'flower-bed', dx: 1, dz: 1 },
+    { decor: 'flower-bed', dx: 2, dz: 1 },
+  ],
 };
 
 export const treePlace: PatternDef = {
@@ -125,6 +167,14 @@ export const treePlace: PatternDef = {
   siteBonus: { charm: 8, radius: 3 },
   unlocks: ['ring-bench'],
   hintOrder: 2,
+  // R1 (R1D): Lay it out.
+  layout: [
+    { road: 'path', dx: -3, dz: 1, tx: 3, tz: 1 },
+    { road: 'path', dx: 1, dz: -3, tx: 1, tz: 0 },
+    { tree: 'oak', dx: 0, dz: 0 },
+    { decor: 'bench', dx: -1, dz: 0 },
+    { decor: 'bench', dx: 0, dz: -1 },
+  ],
 };
 
 export const wellGatheringPlace: PatternDef = {
@@ -144,4 +194,11 @@ export const wellGatheringPlace: PatternDef = {
   siteBonus: { charm: 8, radius: 4 },
   unlocks: ['curved-bench'],
   hintOrder: 1,
+  // R1 (R1D): Lay it out.
+  layout: [
+    { building: 'well', dx: 0, dz: 0 },
+    { decor: 'bench', dx: -1, dz: 2 },
+    { decor: 'bench', dx: 2, dz: 2 },
+    { tree: 'birch', dx: 2, dz: -1 },
+  ],
 };

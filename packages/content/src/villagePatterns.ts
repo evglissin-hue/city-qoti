@@ -36,6 +36,12 @@ export const cornerCafe: PatternDef = {
   siteBonus: { charm: 6, radius: 3, category: 'comfort' },
   unlocks: ['cafe-table'],
   hintOrder: 10,
+  // R1 (R1D): Lay it out.
+  layout: [
+    { decor: 'bench', dx: 0, dz: 0 },
+    { decor: 'bench', dx: 1, dz: 0 },
+    { decor: 'flower-bed', dx: 2, dz: 0 },
+  ],
 };
 
 export const marketCross: PatternDef = {
@@ -90,6 +96,11 @@ export const villageGreen: PatternDef = {
   siteBonus: { charm: 8, radius: 4, category: 'nature' },
   unlocks: ['maypole'],
   hintOrder: 11,
+  // R1 (R1D): Lay it out.
+  layout: [
+    { tree: 'oak', dx: 2, dz: 2 },
+    { decor: 'bench', dx: 2, dz: 5 },
+  ],
 };
 
 export const windowGardens: PatternDef = {
