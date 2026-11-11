@@ -124,11 +124,10 @@ class Watch implements Advisor {
       return [t % S, Math.floor(t / S)] as [number, number];
     });
     const now = w.watch.posture;
-    if (
-      guards.length === 0 ||
-      (now.length === guards.length && guards.every(([x, z], i) => now[i] === z * S + x))
-    )
-      return;
+    // R1F: a posture stands until the guard count changes or a guard point no longer fronts a
+    // store (it followed the richest store before, and moved with every day's stock).
+    const fronts = new Set(richest(w).map((b) => frontOf(b)));
+    if (guards.length === 0 || (now.length === guards.length && now.every((t) => fronts.has(t)))) return;
     this.p.do('watch posture', [{ t: 'watch.setPosture', guards }]);
   }
 

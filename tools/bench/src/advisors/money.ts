@@ -17,7 +17,13 @@ import {
 import type { Planner } from '../planner';
 import type { Advisor, AdvisorDef } from './types';
 
+/** R1F: days between two turns of the wage or tax lever (the levers moved most days, a chore). */
+const LEVER_DAYS = 3;
+
 class Money implements Advisor {
+  /** The day a wage or tax lever last moved. */
+  private moved = -LEVER_DAYS;
+
   constructor(readonly p: Planner) {}
 
   visit(): void {
@@ -30,10 +36,11 @@ class Money implements Advisor {
     const coins = p.coins();
     const y = w.economy.yesterday;
     const net = income(y) - expenses(y);
+    const rested = p.runDay - this.moved >= LEVER_DAYS;
     const setWage = (percent: number, why: string) =>
-      percent !== l.wageLevel && p.do(why, [{ t: 'ledger.setWageLevel', percent }]);
+      rested && percent !== l.wageLevel && p.do(why, [{ t: 'ledger.setWageLevel', percent }]) && (this.moved = p.runDay);
     const setTax = (percent: number, why: string) =>
-      percent !== l.taxRate && p.do(why, [{ t: 'ledger.setTaxRate', percent }]);
+      rested && percent !== l.taxRate && p.do(why, [{ t: 'ledger.setTaxRate', percent }]) && (this.moved = p.runDay);
     // C4X: or whenever the treasury is nearly empty while households get by (purses held four
     // thousand coins while the town could not afford a cider press).
     // C5X part 2: or while the town owes more than half its credit line and households get by (the

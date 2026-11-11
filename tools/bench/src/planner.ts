@@ -333,7 +333,8 @@ export class Planner {
   /** Paints a path from the door to the road network (the Ledger likes tidy frontage). */
   connect(b: Building): void {
     const path = pathToRoad(this.w, doorTile(b));
-    if (path && path.length > 0)
+    // R1F: a door a step or two from the road needs no path of its own (a chore the Ledger counted).
+    if (path && path.length > 2)
       this.do(`path for ${b.def}`, [{ t: 'road.paint', kind: 'path', tiles: path }]);
   }
 
