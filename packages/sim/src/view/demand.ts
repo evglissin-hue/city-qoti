@@ -30,6 +30,8 @@ export function demandWhy(r: DemandReason): string {
       return 'The town needs more zoned land for it.';
     case 'lotWaiting':
       return 'A lot is free and waiting: growth is on its way.';
+    case 'marketStall':
+      return 'Shops open with the Village charter. Until then, a Market Stall does the job.';
   }
 }
 
