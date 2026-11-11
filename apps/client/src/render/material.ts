@@ -15,7 +15,7 @@ import {
 import { Color, MeshLambertMaterial, type Material, type WebGLProgramParametersWithUniforms } from 'three';
 import type { WorldEnv } from './env';
 import type { Era } from '@qoti/content';
-import { kitLamp } from './lightMap';
+import { kitLamp, lampQuality } from './lightMap';
 import { lampEra, WINDOW_HASH_GLSL } from './lighting';
 
 /**
@@ -94,8 +94,9 @@ function patchNightGlow(
       [
         '#include <emissivemap_fragment>',
         lamp
-          ? // A flame burns its era's color at its flicker; a pane keeps the candle glow.
-            `totalEmissiveRadiance += (vFlame > 0.0 ? uFlame * vFlame : vec3(1.0, 0.7, 0.36)) * 2.4 * vGlow * uNight;`
+          ? // A flame burns its era's color at its flicker; a pane keeps the candle glow, lighting
+            // the little room behind it (qRoomTint, packages/art materials.ts; 1 with rooms off).
+            `totalEmissiveRadiance += (vFlame > 0.0 ? uFlame * vFlame : vec3(1.0, 0.7, 0.36) * qRoomTint) * 2.4 * vGlow * uNight;`
           : `totalEmissiveRadiance += ${GLOW} * vGlow * uNight;`,
         glint ? 'totalEmissiveRadiance += qKitGlint(min(vGlow * uNight * 2.0, 1.0));' : '',
       ].join('\n'),
@@ -158,7 +159,7 @@ export function createWorldMaterial(env: WorldEnv): MeshLambertMaterial {
   const flame = { value: flameColor(lampEra()) };
   material.onBeforeCompile = (shader) => {
     // V2A: walls, decor, carts and animals take the light map's lamplight (lightMap.ts).
-    patchKitShader(shader, u, kitLamp(env));
+    patchKitShader(shader, u, kitLamp(env), lampQuality(env).uRooms);
     patchNightGlow(shader, env.night, env.windowShare, true, { flame, time: env.staticTime });
   };
   material.customProgramCacheKey = () => 'qoti-lean-kit-world';

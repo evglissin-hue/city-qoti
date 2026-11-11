@@ -16,7 +16,8 @@ import {
   RGBAFormat,
   UnsignedByteType,
 } from 'three';
-import { NOISE_LAYER, PATTERN_LAYERS, ROOM_LAYER, ROOM_LAYERS, SURFACE } from './surface';
+import { fillRooms } from './rooms';
+import { NOISE_LAYER, PATTERN_LAYERS, SURFACE } from './surface';
 
 /**
  * What each texel holds (RGBA8):
@@ -439,5 +440,6 @@ export function generatePatterns(data: Uint8Array, size: number): void {
   put(SURFACE.wroughtIron, null);
   put(SURFACE.terracotta, null);
   put(SURFACE.cloth, null);
-  for (let r = 0; r < ROOM_LAYERS; r++) put(ROOM_LAYER + r, null);
+  // V2A: the little rooms behind lit windows (rooms.ts).
+  fillRooms(c8, size);
 }

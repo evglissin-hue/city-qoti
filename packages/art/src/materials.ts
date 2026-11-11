@@ -10,7 +10,15 @@ import {
   type WebGLProgramParametersWithUniforms,
 } from 'three';
 import { palette, palette2 } from './palette';
-import { NOISE_LAYER, NOISE_SCALE, SURFACE, SURFACE_LAYERS, SURFACES } from './surface';
+import {
+  NOISE_LAYER,
+  NOISE_SCALE,
+  ROOM_LAYER,
+  ROOM_LAYERS,
+  SURFACE,
+  SURFACE_LAYERS,
+  SURFACES,
+} from './surface';
 
 export type Season = 'spring' | 'summer' | 'autumn' | 'winter';
 
@@ -423,6 +431,12 @@ varying float vQSurf;
 ${KIT_FRESNEL_GLSL}
 // Set by qKitSurface for the emissive glint: 1 on glass, 2 on water, else 0.
 float qShiny = 0.0;
+// V2A: set by qKitSurface on glass when rooms are on: the little room's color for the window's
+// night glow to light (the client's glow multiplies by it); 1 is the flat glow.
+vec3 qRoomTint = vec3(1.0);
+#ifdef Q_ROOMS
+vec3 qKitRoom(vec3 n, vec3 dx, vec3 dy);
+#endif
 
 // The pattern laid on a face as the surface table says, the accent, meadow and flowers on grass,
 // weathering from the noise layer, the season tint, then snow on upward faces. Branches only for
@@ -470,6 +484,9 @@ vec3 qKitSurface(vec3 c) {
     bool water = si == ${SURFACE.water};
     o = qSkyFresnel(c, sky, n, v, water ? 0.22 : 0.16, water ? 0.5 : 0.45, water ? 3.0 : 2.0);
     qShiny = water ? 2.0 : 1.0;
+#ifdef Q_ROOMS
+    if (!water) qRoomTint = qKitRoom(n, dx, dy);
+#endif
   } else {
     o = c * mix(1.0, p.r * 2.0, sp.z * uPatternK);
     o = mix(o, uSurfAccent[si], p.g * sp.w * (si == ${SURFACE.awning} ? 1.0 : uPatternK));
@@ -520,7 +537,6 @@ const KIT_LAMP_GAIN = '0.8';
  */
 const KIT_LAMP_FRAGMENT = /* glsl */ `
 uniform float uLampNight;
-varying float vQUp;
 vec3 qKitLamp(vec3 albedo) {
   if (uLampNight < 0.01) return vec3(0.0);
   vec3 n = normalize(vQWNor);
@@ -532,22 +548,118 @@ vec3 qKitLamp(vec3 albedo) {
 `;
 
 /**
+ * V2A: the room a lit pane looks into (rooms.ts), by parallax. The facade is cut into room cells,
+ * a tile wide and a storey tall (0.72 tiles from 0.14 up, which keeps the kits' window rows inside
+ * one storey), measured from the building's origin, and each cell is a box half a tile deep. The
+ * view ray through the pane meets the box's back wall, a side wall, the floor or the ceiling, and
+ * that face is read from the room's layer with one fetch (the layer holds all five; rooms.ts). The
+ * room and whether someone is home come from the building's origin and the cell (`qRoomPick`, the
+ * twin of rooms.ts `roomFor`). Returns the room's color, lit warm, for the window's glow to take;
+ * 1 (the flat glow) with rooms off (`uRooms`, off on Low) or on a pane that is not upright.
+ */
+const KIT_ROOM_FRAGMENT = /* glsl */ `
+uniform float uRooms;
+varying vec3 vQOrigin;
+vec2 qRoomPick(vec2 o, vec2 cell) {
+  vec2 io = floor(o);
+  float v = io.x * 73.0 + io.y * 151.0 + cell.x * 37.0 + cell.y * 91.0 + io.x * io.y * 7.0;
+  float m = v - 40.0 * floor((v + 0.5) / 40.0);
+  float k = floor((m + 0.5) / ${ROOM_LAYERS}.0);
+  return vec2(m - ${ROOM_LAYERS}.0 * k, k < 1.5 ? 1.0 : 0.0);
+}
+vec3 qKitRoom(vec3 n, vec3 dx, vec3 dy) {
+  float hl = length(n.xz);
+  if (uRooms < 0.5 || hl < 0.7) return vec3(1.0);
+  vec2 t = vec2(-n.z, n.x) / hl;
+  vec3 v = normalize(cameraPosition - vQWPos);
+  const vec3 CELL = vec3(1.0, 0.72, 0.5);
+  float u = dot(vQWPos.xz - vQOrigin.xz, t) / CELL.x;
+  float w = (vQUp - 0.14) / CELL.y;
+  vec2 cell = floor(vec2(u, w));
+  vec3 p = vec3(u - cell.x, w - cell.y, 0.0);
+  vec3 rd = vec3(-dot(v.xz, t) / CELL.x, -v.y / CELL.y, max(dot(v, n), 0.05) / CELL.z);
+  rd.x = abs(rd.x) < 1e-4 ? 1e-4 : rd.x;
+  rd.y = abs(rd.y) < 1e-4 ? 1e-4 : rd.y;
+  vec3 tt = (step(vec3(0.0), rd) - p) / rd;
+  float tm = min(min(tt.x, tt.y), tt.z);
+  vec3 h = p + rd * tm;
+  vec2 uv;
+  float lit;
+  float back = 0.0;
+  if (tm >= tt.z) {
+    uv = vec2(0.06 + 0.88 * h.x, 0.1 + 0.8 * h.y);
+    lit = 1.0;
+    back = 1.0;
+  } else if (tm >= tt.y) {
+    uv = vec2(0.06 + 0.88 * h.x, rd.y < 0.0 ? 0.012 + 0.076 * h.z : 0.912 + 0.076 * h.z);
+    lit = rd.y < 0.0 ? 0.85 : 0.62;
+  } else {
+    uv = vec2(rd.x < 0.0 ? 0.008 + 0.044 * h.z : 0.992 - 0.044 * h.z, 0.1 + 0.8 * h.y);
+    lit = 0.78;
+  }
+  // The room's lamp stands near the window: a little dimmer toward the back.
+  lit *= 1.08 - 0.22 * h.z;
+  vec2 pick = qRoomPick(vQOrigin.xz, cell);
+  float lod = log2(max(max(length(dx), length(dy)) * 240.0, 1.0));
+  vec4 r = textureLod(uPat, vec3(uv, ${ROOM_LAYER}.0 + pick.x), lod);
+  vec3 c = r.rgb * r.rgb;
+  c = mix(c, vec3(0.06, 0.04, 0.03), r.a * pick.y * back);
+  vec3 room = c * (lit * 1.15);
+  // Far off a pane is a few pixels: it keeps the full glow with a hint of its room's color (livelier
+  // windows from the default camera), and the room shows as the camera comes in.
+  float far = smoothstep(2.6, 4.6, lod);
+  vec3 hue = room / max(dot(room, vec3(0.3, 0.55, 0.15)), 0.05);
+  return mix(room, mix(vec3(1.0), hue, 0.3), far);
+}
+`;
+
+/** The vertex side of the rooms: the building's origin, and the height above its foot. */
+const KIT_ROOM_VERTEX = /* glsl */ `
+{
+  vec4 qO = vec4(0.0, 0.0, 0.0, 1.0);
+#ifdef USE_INSTANCING
+  qO = instanceMatrix * qO;
+#endif
+#ifdef USE_BATCHING
+  qO = batchingMatrix * qO;
+#endif
+  vQOrigin = (modelMatrix * qO).xyz;
+}
+`;
+
+/**
  * Patches a Lambert material's shaders into the lean kit material: call it first inside
  * `onBeforeCompile`, then add any further replacements (the client's night glow). The fragment
  * shader's emissive step adds the glint through `qKitGlint(lit)`; the caller adds it after its own
  * emissive (see the client's render/material.ts), passing how lit the face is (0 to 1).
- * V2A: with `lamp`, faces also take the light map's lamplight (`KitLampOptions`).
+ * V2A: with `lamp`, faces also take the light map's lamplight (`KitLampOptions`); with `rooms` (1 on,
+ * 0 off), lit panes show a little room (`qRoomTint`, which the caller's window glow multiplies).
  */
 export function patchKitShader(
   shader: WebGLProgramParametersWithUniforms,
   u: KitSurfaceUniforms,
   lamp?: KitLampOptions,
+  rooms?: { value: number },
 ): void {
   Object.assign(shader.uniforms, u);
   if (lamp) Object.assign(shader.uniforms, lamp.uniforms, { uLampNight: lamp.night });
-  const vertexHead = lamp ? `${KIT_VERTEX_HEAD}\nvarying float vQUp;` : KIT_VERTEX_HEAD;
-  const world = lamp ? `${KIT_WORLD_VERTEX}\nvQUp = transformed.y;` : KIT_WORLD_VERTEX;
-  const fragmentHead = lamp ? `${KIT_FRAGMENT_HEAD}\n${lamp.glsl}\n${KIT_LAMP_FRAGMENT}` : KIT_FRAGMENT_HEAD;
+  if (rooms) shader.uniforms.uRooms = rooms;
+  const up = lamp !== undefined || rooms !== undefined;
+  const vertexHead = [
+    KIT_VERTEX_HEAD,
+    up ? 'varying float vQUp;' : '',
+    rooms ? 'varying vec3 vQOrigin;' : '',
+  ].join('\n');
+  const world = [KIT_WORLD_VERTEX, up ? 'vQUp = transformed.y;' : '', rooms ? KIT_ROOM_VERTEX : ''].join(
+    '\n',
+  );
+  const fragmentHead = [
+    rooms ? '#define Q_ROOMS' : '',
+    KIT_FRAGMENT_HEAD,
+    up ? 'varying float vQUp;' : '',
+    rooms ? KIT_ROOM_FRAGMENT : '',
+    lamp ? `${lamp.glsl}\n${KIT_LAMP_FRAGMENT}` : '',
+  ].join('\n');
   shader.vertexShader = shader.vertexShader
     .replace('#include <common>', `#include <common>\n${vertexHead}`)
     .replace('#include <begin_vertex>', `#include <begin_vertex>\n${KIT_SWAY_VERTEX}`)

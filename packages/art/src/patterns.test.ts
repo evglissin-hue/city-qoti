@@ -34,8 +34,7 @@ describe('pattern generators (V1A)', () => {
     expect(ROOM_LAYER + ROOM_LAYERS).toBe(PATTERN_LAYERS);
   });
 
-  it('leaves plain, glass and water flat, and (V2.0) the V2 surfaces and room layers until V2A and V2C', () => {
-    const rooms = Array.from({ length: ROOM_LAYERS }, (_, r) => ROOM_LAYER + r);
+  it('leaves plain, glass and water flat, and (V2.0) the V2 surfaces until V2C', () => {
     const v2 = [
       SURFACE.woodGrain,
       SURFACE.paintedWood,
@@ -43,7 +42,7 @@ describe('pattern generators (V1A)', () => {
       SURFACE.terracotta,
       SURFACE.cloth,
     ];
-    for (const id of [SURFACE.plain, SURFACE.glass, SURFACE.water, ...v2, ...rooms]) {
+    for (const id of [SURFACE.plain, SURFACE.glass, SURFACE.water, ...v2]) {
       const l = layerOf(data, id);
       for (let i = 0; i < l.length; i += 4) {
         if (l[i] !== PATTERN_ONE || l[i + 1] !== 0 || l[i + 3] !== 0)
