@@ -135,3 +135,11 @@ export function events<E extends SimCtx['events'][number]['e']>(
 ): Extract<SimCtx['events'][number], { e: E }>[] {
   return ctx.events.filter((x) => x.e === e) as Extract<SimCtx['events'][number], { e: E }>[];
 }
+
+/** R1 (R1D): Workshops land at (x, z) and a windmill whose reach holds it. */
+export function bakerCouldOpen(s: WorldState, x: number, z: number): void {
+  const crafts = content.zoneById.get('crafts')!.layerValue;
+  for (let dz = 0; dz < 3; dz++)
+    for (let dx = 0; dx < 3; dx++) s.map.zone[(z + dz) * MAP_SIZE + x + dx] = crafts;
+  build(s, 'windmill', x + 6, z + 6);
+}

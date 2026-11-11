@@ -100,7 +100,11 @@ function usesPlace(c: Condition, place: 'work' | 'nearestMarket'): boolean {
   if ('near' in c) return c.near.of === place;
   if ('charm' in c) return c.charm.of === place;
   if ('stock' in c) return c.stock.at === place;
-  if ('code' in c) return place === 'work' && (c.code === 'pathRoute' || c.code === 'lanternRoute');
+  if ('code' in c) {
+    if (place === 'work') return c.code === 'pathRoute' || c.code === 'lanternRoute';
+    // R1 (R1D): a shelf in reach needs some market to stand.
+    return c.code === 'shelfInReach';
+  }
   return false;
 }
 

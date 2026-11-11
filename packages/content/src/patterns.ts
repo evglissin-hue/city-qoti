@@ -29,8 +29,8 @@ export const hedgerowLane: PatternDef = {
 export const kitchenGarden: PatternDef = {
   id: 'kitchen-garden',
   name: 'Kitchen Garden',
-  flavor: 'A garden at the back door feeds the house twice: once at supper, once on the way there.',
-  hint: 'A home might like two plots growing just outside its door, with a bit of fence or hedge along them.',
+  flavor: 'A garden at the back door makes supper more interesting: the same table, a few more flavors.',
+  hint: 'A home might like two garden beds just outside its door, with a bit of fence or hedge along them.',
   rank: 'hamlet',
   detector: 'kitchenGarden',
   params: [

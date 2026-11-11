@@ -189,26 +189,14 @@ export const merchant: StoryArc = {
       letter: [
         'To both of you,',
         'I sat by the flowers for an hour yesterday and sold a scarf to a passing squirrel without even trying. You see? Business.',
-        'And now I must be frank. Prices here are whatever the stall minder had for breakfast. A real market needs real prices, and real prices need a village. The County keeps a Charter on the board at the Town Hall: so many residents, so much food put by, so many wishes granted. Meet it, claim it, and {town} becomes a village, with market prices, a Trading Post and folk who wear waistcoats on purpose.',
-        'I have already ordered the waistcoat.',
+        'Now I must be frank. I have spent my life crying my wares down drafty lanes, and a good merchant does no such thing: she sets out her stalls in one place, everything a household wants under one sky, and lets the town come to her. That wants a Market Square, and a square wants a village. The County keeps a Charter on the board at the Town Hall: so many residents, so much food put by, so many wishes granted. Claim it, then build the square on a lane or a street.',
+        'I have already ordered the waistcoat. I will be at the square early, pretending not to watch.',
         'Expectantly,',
         'Odette',
       ].join('\n'),
-      goal: { count: { what: 'rank', atLeast: 1 } },
-      reward: { coins: 40, bond: 1 },
-      hint: 'Meet the Village Charter and claim it at the Town Hall.',
-    },
-    {
-      letter: [
-        'To the Village of {town} (how well that looks),',
-        "Prices! Proper ones, going up when bread is short and down when the bakers get carried away. You can read the whole village's appetite in them like a book.",
-        'Now, a confession. I have spent my life crying my wares down drafty lanes, and a good merchant does no such thing. She sets out her stalls in one place, everything a household wants under one sky, and lets the town come to her. Build a Market Square on a lane or a street. I will be there early, pretending not to watch.',
-        'Commercially,',
-        'Odette',
-      ].join('\n'),
       goal: { count: { what: 'buildings', ref: 'market-square', atLeast: 1 } },
-      reward: { coins: 30, mood: 10 },
-      hint: 'Build a Market Square on a lane or a street.',
+      reward: { coins: 40, bond: 1, mood: 10 },
+      hint: 'Claim the Village Charter at the Town Hall, then build a Market Square on a lane or a street.',
     },
     {
       letter: [
