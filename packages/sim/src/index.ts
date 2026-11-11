@@ -200,7 +200,14 @@ export { demandView, demandWhy } from './view/demand';
 // R1 (R1.0): the cross-track APIs of docs/build/r1-wave-notes.md (stubs; their owners fill them).
 export { carrierBrought, winterMark } from './systems/carrier/api';
 export { familyCover, familyUse, flavorsOnOffer } from './systems/market/balances';
-export { capacityOf, served, withinReach } from './systems/specialized/api';
+export {
+  capacityOf,
+  hasRoomFor,
+  reachDistances,
+  served,
+  servedIds,
+  withinReach,
+} from './systems/specialized/api';
 export { tradeScore } from './systems/growth/trades';
 export { worldIndex, type WorldIndex } from './state/worldIndex';
 export { SIM_VERSION } from './version.generated';

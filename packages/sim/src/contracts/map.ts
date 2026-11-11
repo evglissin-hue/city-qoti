@@ -17,6 +17,10 @@ export interface MapReader {
   parcelUnlocked(x: number, z: number): boolean;
   /** Decor whose center lies within `radius` (fixed point) of (fx, fz). */
   decorNear(fx: number, fz: number, radius: number): DecorView[];
+  /** R1B: the tile where the valley's road comes in. Absent: the valley-road rule fails. */
+  readonly valleyGate?: readonly [number, number];
+  /** R1B: bumps whenever roads change; caches key on it. Absent: recompute every call. */
+  readonly roadVersion?: number;
 }
 
 export interface BuildingPlacement {

@@ -788,6 +788,16 @@ export class Mirror implements MapReader {
   decorNear(fx: number, fz: number, radius: number): DecorView[] {
     return this.grid.near(fx, fz, radius);
   }
+
+  /** MapReader (R1B): the tile where the valley's road comes in. */
+  get valleyGate(): readonly [number, number] {
+    return this.meta.valleyGate;
+  }
+
+  /** MapReader (R1B): bumps when any layer patch lands (roads included). */
+  get roadVersion(): number {
+    return this.layerRevision;
+  }
 }
 
 /** Two festival plans that say the same thing (what is put by does not count). */

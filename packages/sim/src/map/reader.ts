@@ -22,5 +22,11 @@ export function createStateReader(state: WorldState, grid: DecorGrid): MapReader
     // Parcels unlock with progression [I4]; every parcel is open until then.
     parcelUnlocked: (x, z) => inBounds(x, z, S),
     decorNear: (fx, fz, radius): DecorView[] => grid.near(fx, fz, radius),
+    get valleyGate() {
+      return state.meta.valleyGate;
+    },
+    get roadVersion() {
+      return state.networkVersion;
+    },
   };
 }

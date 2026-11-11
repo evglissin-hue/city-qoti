@@ -78,7 +78,7 @@ describe('innovations', () => {
     expect(progress(hamlet, 'carts')).toBe(0);
 
     const { state } = villageWith();
-    expect(rejection(run(state, { t: 'build.place', def: 'cart-shed', x: 44, z: 40, rot: 0 }))).toBe(
+    expect(rejection(run(state, { t: 'build.place', def: 'cart-shed', x: 88, z: 47, rot: 0 }))).toBe(
       'LOCKED',
     );
     state.economy.yesterday.produced[good('timber')] = 15;
@@ -90,7 +90,7 @@ describe('innovations', () => {
     expect(hasInnovation(state, 'carts')).toBe(true);
     expect(state.hearth.unlocked).toContain('cart-shed');
     expect(
-      rejection(run(state, { t: 'build.place', def: 'cart-shed', x: 44, z: 40, rot: 0 })),
+      rejection(run(state, { t: 'build.place', def: 'cart-shed', x: 88, z: 47, rot: 0 })),
     ).toBeUndefined();
   });
 
