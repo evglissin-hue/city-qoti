@@ -3,9 +3,11 @@
 // renderer picks spots from the map with a seeded hash. Centered on the origin, base at y = 0,
 // about the size they would be next to a 0.3 tile resident. `opts.seed` picks a variant;
 // `opts.lod` 'low' is a cheaper version where one makes sense.
+import { brushDabs, type DabBlob } from '../dabs';
 import { mixHex, seeded, ShapeBuilder, vary, type V3 } from '../geometry';
 import { palette } from '../palette';
 import { SURFACE } from '../surface';
+import { thinOf } from './trees';
 import type { Kit } from './types';
 
 const LEAF_DARK = 0x4f7a34;
@@ -36,17 +38,60 @@ export const bush: Kit = {
       s.blob(0, 0.18, 0, 0.24, 0.16, 0.22, leaf, 0, rnd, 0.1, top);
       return s.build();
     }
-    s.blob(0, 0.18, 0, 0.2, 0.15, 0.19, leaf, 1, rnd, 0.14, top);
-    s.blob(0.13, 0.13, 0.06, 0.13, 0.11, 0.13, vary(leaf, rnd), 1, rnd, 0.14, top);
-    if (rnd() < 0.6) {
-      // Some bushes flower: a few berries or blossoms dotted on the outside.
-      const dot = rnd() < 0.5 ? 0xf1e6f0 : 0xd8556b;
-      for (let i = 0; i < 4; i++) {
-        const a = rnd() * Math.PI * 2;
-        s.blob(Math.cos(a) * 0.19, 0.15 + rnd() * 0.1, Math.sin(a) * 0.17, 0.025, 0.025, 0.025, dot, 0);
+    // V2B: a small crown of dabs over a darker core, its lumps shading as one mass from below its
+    // middle; thins with the season (`params.thin`) like the trees.
+    const blobs: DabBlob[] = [
+      { center: [0, 0.2, 0], radii: [0.2, 0.14, 0.19], color: leaf },
+      { center: [0.13, 0.15, 0.06], radii: [0.13, 0.1, 0.13], color: vary(leaf, rnd) },
+    ];
+    const flowering = rnd() < 0.6;
+    const dot = rnd() < 0.5 ? 0xf1e6f0 : 0xd8556b;
+    if (!flowering)
+      blobs.push({ center: [-0.12, 0.14, -0.05], radii: [0.12, 0.09, 0.12], color: vary(leaf, rnd) });
+    const thin = thinOf(opts);
+    const crnd = seeded((opts?.seed ?? 3) * 7 + 1);
+    if (thin <= 0) {
+      // Bare (winter): today's round bush, which the foliage shader turns to twigs.
+      for (const bl of blobs) {
+        const [rx, ry, rz] = bl.radii;
+        s.blob(bl.center[0], bl.center[1], bl.center[2], rx, ry, rz, bl.color, 1, crnd, 0.14, top);
       }
     } else {
-      s.blob(-0.12, 0.12, -0.05, 0.12, 0.1, 0.12, vary(leaf, rnd), 1, rnd, 0.14, top);
+      for (const bl of blobs) {
+        const [rx, ry, rz] = bl.radii;
+        s.blob(
+          bl.center[0],
+          bl.center[1],
+          bl.center[2],
+          rx * 0.82,
+          ry * 0.82,
+          rz * 0.82,
+          mixHex(bl.color, 0x22361f, 0.45),
+          0,
+          crnd,
+          0.08,
+        );
+      }
+      brushDabs(
+        s,
+        blobs.map((bl) => ({ ...bl, normalFrom: [bl.center[0] * 0.5, 0.02, bl.center[2] * 0.5] })),
+        {
+          count: 64,
+          size: 0.075,
+          tintSpread: 0.55,
+          skyLighten: 0.55,
+          gaps: 0.04,
+          thin,
+          seed: (opts?.seed ?? 3) * 3 + 5,
+        },
+      );
+    }
+    if (flowering && thin > 0.6) {
+      // Some bushes flower: a few berries or blossoms dotted on the outside.
+      for (let i = 0; i < 5; i++) {
+        const a = rnd() * Math.PI * 2;
+        s.blob(Math.cos(a) * 0.21, 0.15 + rnd() * 0.12, Math.sin(a) * 0.19, 0.025, 0.025, 0.025, dot, 0);
+      }
     }
     return s.build();
   },

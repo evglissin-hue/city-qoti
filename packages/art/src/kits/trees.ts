@@ -98,7 +98,7 @@ class TreeBuilder {
    * shade, round (soft normals), showing through the gaps as depth. Bare (`thin` 0, no dabs left)
    * it is today's whole crown with its sunlit top, which the foliage shader turns to winter twigs.
    */
-  core(blobs: readonly DabBlob[], k: number, seed: number, shade: number, thin: number): this {
+  core(blobs: readonly DabBlob[], k: number, seed: number, shade: number, thin: number, detail = 1): this {
     const rnd = seeded(seed);
     for (const bl of blobs) {
       if (thin <= 0) {
@@ -106,7 +106,7 @@ class TreeBuilder {
         continue;
       }
       const r: V3 = [bl.radii[0] * k, bl.radii[1] * k, bl.radii[2] * k];
-      this.crown(bl.center, r, mixHex(bl.color, CORE_SHADE, shade), 1, rnd, 0.06);
+      this.crown(bl.center, r, mixHex(bl.color, CORE_SHADE, shade), detail, rnd, 0.06);
     }
     return this;
   }
@@ -650,10 +650,32 @@ export const hedgerow: Kit = {
       c: vary(leaf, rnd, 1.2),
       phase: rnd() * Math.PI,
     }));
-    for (const { x, h, c, phase } of parts) {
-      if (low) t.dome([x, h * 0.7, 0], [0.24, h * 0.6, 0.17], c, sunlit(c, 0.18), phase, rnd);
-      else t.crown([x, h * 0.7, 0], [0.24, h * 0.6, 0.17], c, 1, rnd, 0.12, sunlit(c, 0.18));
+    // V2B: near, a darker core under dabs, each lump shading from below its own middle (so the
+    // run's top catches the sky and joined segments shade alike); far, the domes painted with the
+    // dabs' mean tint. Thins with the season like the trees (`params.thin`).
+    const blobs: DabBlob[] = parts.map(({ x, h, c }) => ({
+      center: [x, h * 0.7, 0],
+      radii: [0.24, h * 0.6, 0.17],
+      normalFrom: [x, h * 0.7 - 0.22, 0],
+      color: c,
+    }));
+    if (low) {
+      for (const [i, { phase }] of parts.entries()) {
+        const bl = blobs[i]!;
+        t.paintedDome(bl.center, bl.radii, bl.color, 0.5, phase, rnd);
+      }
+      return t.build(1);
     }
+    t.core(blobs, 0.8, (opts?.seed ?? 19) + 1, 0.45, thinOf(opts), 0);
+    t.dabs(blobs, {
+      count: 110,
+      size: 0.1,
+      tintSpread: 0.55,
+      skyLighten: 0.5,
+      gaps: 0.05,
+      thin: thinOf(opts),
+      seed: (opts?.seed ?? 19) * 3 + 4,
+    });
     return t.build(1);
   },
 };

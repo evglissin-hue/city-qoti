@@ -1,7 +1,9 @@
 // Placeholder decor: small colored primitives. Centered on the origin; linear pieces run along +x
 // and span one tile (-0.5 to 0.5).
+import { brushDabs, dabTint, type DabBlob } from '../dabs';
 import { mixHex, seeded, ShapeBuilder, vary } from '../geometry';
 import { palette } from '../palette';
+import { CORE_SHADE, toward } from './trees';
 import type { Kit, KitBuildOptions } from './types';
 
 /** A small orchard tree: a sturdy trunk, a lumpy layered canopy and dots of fruit or blossom. */
@@ -17,19 +19,44 @@ export function fruitTree(
   const s = new ShapeBuilder(opts?.lod ?? 'high');
   s.cylinder(0, 0, 0.07, 0.05, 0, 0.46, palette.bark, 6);
   s.box(-0.015, 0.34, -0.015, 0.15, 0.38, 0.015, palette.bark);
+  // V2B: near, the crown is brush dabs (`dabs.ts`) over a deeper core, its clumps shading as one
+  // mass from the crown's heart; far, the one round crown lit a little toward the sky with the
+  // dabs' tint. Blossom crowns (the cherry) keep a pink core rather than a green one.
+  const seed = opts?.seed ?? 5;
+  const blobs: DabBlob[] = [
+    { center: [0, 0.7, 0], radii: [0.34, 0.27, 0.34], color: leaf },
+    { center: [0.2, 0.62, 0.1], radii: [0.2, 0.17, 0.2], color: vary(leaf, rnd) },
+    { center: [-0.16, 0.64, -0.12], radii: [0.21, 0.18, 0.21], color: vary(leaf, rnd) },
+    { center: [0.03, 0.88, 0.02], radii: [0.2, 0.15, 0.2], color: vary(leaf, rnd, 1.5) },
+  ];
+  const shade = petals ? 0x5a3a46 : CORE_SHADE;
   s.levels(
     () => {
-      s.blob(0, 0.7, 0, 0.34, 0.27, 0.34, leaf, 1, rnd, 0.08);
-      s.blob(0.2, 0.62, 0.1, 0.2, 0.17, 0.2, vary(leaf, rnd), 1, rnd, 0.08);
-      s.blob(-0.16, 0.64, -0.12, 0.21, 0.18, 0.21, vary(leaf, rnd), 1, rnd, 0.08);
-      s.blob(0.03, 0.88, 0.02, 0.2, 0.15, 0.2, vary(leaf, rnd, 1.5), 1, rnd, 0.06);
+      const crnd = seeded(seed * 7 + 2);
+      // The main clump's core round, the small ones' cheap (they hide under the dabs).
+      blobs.forEach((bl, i) => {
+        const [rx, ry, rz] = bl.radii;
+        const [cx, cy, cz] = bl.center;
+        const k = 0.82;
+        s.blob(cx, cy, cz, rx * k, ry * k, rz * k, mixHex(bl.color, shade, 0.4), i === 0 ? 1 : 0, crnd, 0.06);
+      });
+      brushDabs(s, toward(blobs, [0, 0.7, 0], 0.45), {
+        count: 190,
+        size: 0.085,
+        tintSpread: petals ? 0.45 : 0.55,
+        skyLighten: 0.5,
+        gaps: 0.06,
+        thin: 1,
+        seed: seed * 3 + 6,
+      });
     },
-    () => void s.blob(0.01, 0.7, -0.005, 0.4, 0.32, 0.4, leaf, 1),
+    () => void s.blob(0.01, 0.7, -0.005, 0.4, 0.32, 0.4, leaf, 1, undefined, 0, dabTint(leaf, 0.6, 0.35)),
   );
   for (let i = 0; i < 7; i++) {
     const a = (i / 7) * Math.PI * 2 + rnd() * 0.6;
     const y = 0.58 + rnd() * 0.3;
-    const r = 0.34 - Math.abs(y - 0.7) * 0.6;
+    // On the dabs, a little proud of the crown's blobs.
+    const r = (0.34 - Math.abs(y - 0.7) * 0.6) * 1.12;
     s.blob(Math.cos(a) * r, y, Math.sin(a) * r, 0.04, 0.04, 0.04, vary(dot, rnd, 0.5), 0);
   }
   if (petals) {
@@ -197,13 +224,35 @@ export const hedge: Kit = {
   build: (opts) => {
     const rnd = seeded(opts?.seed ?? 10);
     const leaf = vary(palette.oakLeaf, rnd, 0.6);
-    const s = new ShapeBuilder();
-    // A clipped hedge with softly chamfered edges and a row of lumps along the top.
-    s.rbox(-0.5, 0, -0.11, 0.5, 0.26, 0.11, leaf, 0.05);
-    for (let i = 0; i < 4; i++) {
-      const x = -0.375 + i * 0.25;
-      s.blob(x, 0.25, 0, 0.15, 0.06, 0.1, vary(leaf, rnd, 1.2), 1, rnd, 0.08);
-    }
+    const s = new ShapeBuilder(opts?.lod ?? 'high');
+    // A clipped hedge with softly chamfered edges and a row of lumps along the top. V2B: near, a
+    // deeper box under a clipped shell of dabs, shading from below its spine so the top catches
+    // the sky; far, as before.
+    const tops = [0, 1, 2, 3].map(() => vary(leaf, rnd, 1.2));
+    s.levels(
+      () => {
+        s.rbox(-0.49, 0, -0.1, 0.49, 0.25, 0.1, mixHex(leaf, CORE_SHADE, 0.35), 0.05);
+        const blobs: DabBlob[] = tops.map((c, i) => ({
+          center: [-0.375 + i * 0.25, 0.15, 0],
+          radii: [0.17, 0.14, 0.13],
+          normalFrom: [-0.375 + i * 0.25, -0.1, 0],
+          color: c,
+        }));
+        brushDabs(s, blobs, {
+          count: 110,
+          size: 0.075,
+          tintSpread: 0.5,
+          skyLighten: 0.55,
+          gaps: 0,
+          thin: 1,
+          seed: (opts?.seed ?? 10) * 3 + 7,
+        });
+      },
+      () => {
+        s.rbox(-0.5, 0, -0.11, 0.5, 0.26, 0.11, leaf, 0.05);
+        tops.forEach((c, i) => s.blob(-0.375 + i * 0.25, 0.25, 0, 0.15, 0.06, 0.1, c, 1));
+      },
+    );
     return s.build();
   },
 };
