@@ -4,7 +4,7 @@ import { CARRIER_BUDGET_MAX, CARRIER_RESERVE_MAX, GOOD_FAMILIES, PENNIES_PER_COI
 import type { CarrierRule } from '../contracts';
 import { isInt } from '../rules/geometry';
 import { isStandard } from '../state/hamlet';
-import { balancesView } from '../view/zones';
+import { balancesView } from '../view/balances';
 import type { HandlerFor } from './util';
 
 const RULES: readonly CarrierRule[] = ['always', 'essentials', 'never'];

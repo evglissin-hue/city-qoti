@@ -5,7 +5,7 @@ import { WINTER_RESERVE_MAX } from '../constants';
 import type { SeasonPlanInput, WorldState } from '../contracts';
 import { isInt } from '../rules/geometry';
 import { isStandard } from '../state/hamlet';
-import { balancesView } from '../view/zones';
+import { balancesView } from '../view/balances';
 import type { HandlerFor } from './util';
 
 const days = (v: unknown): boolean => isInt(v) && (v as number) >= 0 && (v as number) <= WINTER_RESERVE_MAX;

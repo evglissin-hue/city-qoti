@@ -8,7 +8,7 @@ import { applyRankDefaults } from '../state/zones';
 import { celebrateRank, refreshCharter } from '../systems/charter';
 import { townView } from '../view';
 import { charterView } from '../view/village';
-import { balancesView } from '../view/zones';
+import { balancesView } from '../view/balances';
 import type { HandlerFor } from './util';
 
 export const claim: HandlerFor<'charter.claim'> = {

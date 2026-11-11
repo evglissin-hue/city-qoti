@@ -8,7 +8,7 @@ import { DAYS_PER_SEASON, LEDGER_CATEGORIES, TICKS_PER_HOUR } from '../../consta
 import type { LedgerPeriod, System, TickCtx, WorldState } from '../../contracts';
 import { emptyPeriod, isStandard } from '../../state/hamlet';
 import { townStock } from '../../view/hamlet';
-import { balancesView } from '../../view/zones';
+import { balancesView } from '../../view/balances';
 import { defOf } from '../logistics/stores';
 import { addMoodModifier, moodTaxPercent, removeMoodModifier } from '../residents/api';
 import { overdraftLimit, isLean } from '../loans/credit';

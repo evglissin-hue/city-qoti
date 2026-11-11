@@ -35,7 +35,7 @@ import { seasonAt } from '../../state/seasons';
 import { GOODS_BY_FAMILY } from '../../state/zones';
 import { townStock } from '../../view/hamlet';
 import { tradeView } from '../../view/village';
-import { balancesView } from '../../view/zones';
+import { balancesView } from '../../view/balances';
 import { book } from '../economy/api';
 import { coinsText, listText } from '../economy';
 import { emitMoney, emitReports } from '../economy/emit';
