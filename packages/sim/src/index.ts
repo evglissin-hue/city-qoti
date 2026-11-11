@@ -194,14 +194,9 @@ export {
   levelOf,
   methodOf,
 } from './state/zones';
-export {
-  balancesView,
-  businessesView,
-  businessView,
-  demandView,
-  demandWhy,
-  isBusinessLike,
-} from './view/zones';
+export { balancesView } from './view/zones';
+export { businessesView, businessView, isBusinessLike } from './view/businesses';
+export { demandView, demandWhy } from './view/demand';
 // R1 (R1.0): the cross-track APIs of docs/build/r1-wave-notes.md (stubs; their owners fill them).
 export { carrierBrought, winterMark } from './systems/carrier/api';
 export { familyCover, familyUse, flavorsOnOffer } from './systems/market/balances';
