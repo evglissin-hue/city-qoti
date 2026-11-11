@@ -77,11 +77,10 @@ describe('building variants', () => {
       setDrawSeason(season);
       const geo = buildingVariantGeometry(garden);
       const pos = geo.getAttribute('position');
-      const out = [pos.count];
-      // The tallest point over the rows says how far the crop has grown.
-      let top = 0;
-      for (let i = 0; i < pos.count; i++) top = Math.max(top, pos.getY(i));
-      out.push(Math.round(top * 1000));
+      // The crop's height over the rows moves the sum of every vertex's height.
+      let sum = 0;
+      for (let i = 0; i < pos.count; i++) sum += pos.getY(i);
+      const out = [pos.count, Math.round(sum * 100)];
       geo.dispose();
       return out;
     };
