@@ -510,6 +510,9 @@ export function meadowLayer(): RenderLayer {
     geometry.setAttribute('aTile', new InterleavedBufferAttribute(buffer, 4, 0));
     geometry.setAttribute('aHeights', new InterleavedBufferAttribute(buffer, 4, 4));
     capacity = cap;
+    // Three fixes the draw's instance limit from the first instanced attribute it binds and keeps it;
+    // clearing it lets the new, larger buffer set it again.
+    (geometry as { _maxInstanceCount?: number })._maxInstanceCount = undefined;
   }
 
   function doFill(fx: number, fz: number, reach: number): void {
