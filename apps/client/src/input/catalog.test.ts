@@ -1,9 +1,16 @@
 import { content } from '@qoti/content';
+import { DEMAND_KINDS } from '@qoti/sim';
 import { describe, expect, it } from 'vitest';
 import { mockView } from '../ui/mocks/session';
 import { Mirror } from '../state/mirror';
+import { zoneOpen } from '../ui/village';
 import {
+  BRUSHES,
+  brushOfZone,
   buildingChoices,
+  ledgerShelf,
+  ledgerShelves,
+  SHOPS_STAND_IN,
   buildingGroup,
   costBlock,
   decorChoices,
@@ -38,10 +45,48 @@ describe('catalog', () => {
     expect(buildingGroup(content.buildingById.get('apiary')!)).toBe('specialized');
   });
 
-  it('shelves every specialized building as Specialized (R1.0 stand-in for R1C)', () => {
+  it('shelves every specialized building as Specialized', () => {
     const specialized = content.buildings.filter((d) => d.specialized);
     expect(specialized.length).toBe(13);
-    for (const d of specialized) expect(buildingGroup(d), d.id).toBe('specialized');
+    for (const d of specialized) {
+      expect(buildingGroup(d), d.id).toBe('specialized');
+      expect(ledgerShelf(d), d.id).toBe('specialized');
+    }
+  });
+
+  it('puts every Ledger-placeable building on exactly one shelf, in every mode', () => {
+    for (const mode of ['standard', 'sandbox'] as const) {
+      const placeable = buildingChoices(mode, 'ledger', true);
+      expect(placeable.length).toBeGreaterThan(10);
+      for (const d of placeable) {
+        const shelves = ledgerShelves(mode).filter((s) => s !== 'zones' && ledgerShelf(d) === s);
+        expect(shelves, `${mode} ${d.id}`).toHaveLength(1);
+        // Specialized defs stand on Specialized and nothing else does.
+        expect(ledgerShelf(d) === 'specialized', d.id).toBe(!!d.specialized);
+      }
+    }
+    // Hand-placed homes ride at the end of Services, never on a shelf of their own.
+    expect(ledgerShelf(content.buildingById.get('cottage')!)).toBe('services');
+    // The Zones shelf is for standard valleys, where zoning exists.
+    expect(ledgerShelves('standard')).toEqual(['zones', 'specialized', 'services']);
+    expect(ledgerShelves('sandbox')).toEqual(['specialized', 'services']);
+  });
+
+  it('has a brush for each demand bar, in demand order, and each zone belongs to one brush', () => {
+    expect(BRUSHES.map((b) => b.kind)).toEqual(DEMAND_KINDS);
+    for (const z of content.zones) expect(brushOfZone(z.id), z.id).toBeDefined();
+    expect(brushOfZone('homes-medium')?.kind).toBe('homes');
+  });
+
+  it('the Shops card is the Market Stall before Village, and the Shops brush from Village', () => {
+    expect(content.buildingById.get(SHOPS_STAND_IN)).toBeDefined();
+    expect(zoneOpen('hamlet', 'shops')).toBe(false);
+    expect(zoneOpen('village', 'shops')).toBe(true);
+    // The stall needs no rank, so the stand-in is always placeable.
+    expect(buildingLock(mirror(), content.buildingById.get(SHOPS_STAND_IN)!)).toBeNull();
+    // Townhouses wait for the same rank (the Homes card shows its second density only then).
+    expect(zoneOpen('hamlet', 'homes-medium')).toBe(false);
+    expect(zoneOpen('village', 'homes-medium')).toBe(true);
   });
 
   it('explains a refusal by coins or lean times before the sim has to', () => {

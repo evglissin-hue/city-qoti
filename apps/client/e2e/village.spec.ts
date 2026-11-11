@@ -48,7 +48,7 @@ test('every village panel opens and works against a live village', async ({ page
 
   // Zoning along lane A paints the zone layer and sketches lots while dragging.
   await page.evaluate(() => (window.__qoti as unknown as VillageHook).look(46, 53, 22));
-  await page.getByTestId('tool-zone').click();
+  await page.getByTestId('tool-building').click();
   await page.getByTestId('variant-homes-medium').click();
   await dragTiles(page, [42, 51], [47, 53]);
   await expect

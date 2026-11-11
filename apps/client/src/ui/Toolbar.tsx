@@ -7,7 +7,6 @@ import {
   buildingLock,
   teasableLater,
   choiceGroup,
-  costBlock,
   DECOR_GROUP_LABEL,
   decorChoices,
   decorGroupsOf,
@@ -15,20 +14,15 @@ import {
   groupsOf,
   lostTownHall,
   type BuildingGroup,
-  type BuildingLock,
   type DecorGroup,
 } from '../input/catalog';
 import type { Tool } from '../input/tool';
-import { goodName, thousands } from './format';
-import { thumbnail, type ThumbnailKind } from '../render/thumbnails';
 import { Glyph, ToolIcon } from './icons';
+import { LedgerPicker } from './Picker';
+import { BuildCard, CostLine, Thumb } from './pickerCards';
 import { lenses, overlays, toolsForLens, type OverlayDef } from './lenses';
-import { rejectText } from './messages';
 import { booksFor, toggleBook } from './panels';
 import { planSummary } from './plans';
-import { INPUT_COPY } from '../input/copy';
-import { UNZONE } from './village';
-import { zoneInk, zoneOpen } from './village';
 import { buildingPurpose } from './purpose';
 
 export function Toolbar({ session }: { session: Session }) {
@@ -68,11 +62,14 @@ export function Toolbar({ session }: { session: Session }) {
 
   return (
     <footer class="toolbar" style={{ '--accent': accent }}>
-      {current?.id === 'building' && <BuildingPicker session={session} tool={current} />}
+      {current?.id === 'building' && lens === 'hearth' && <BuildingPicker session={session} tool={current} />}
+      {/* R1C: the Ledger's picker has three shelves, and the zone brushes live on the first. */}
+      {(current?.id === 'building' || current?.id === 'zone') && lens === 'ledger' && (
+        <LedgerPicker session={session} tool={current} />
+      )}
       {(current?.id === 'decor' || current?.id === 'fence') && (
         <DecorPicker session={session} tool={current} linear={current.id === 'fence'} />
       )}
-      {current?.id === 'zone' && <ZonePicker session={session} tool={current} />}
       {session.ui.sketch.value && <SketchBar session={session} />}
       {current?.variants &&
         current.variant &&
@@ -111,21 +108,29 @@ export function Toolbar({ session }: { session: Session }) {
           ))}
         </div>
         <div class="tools">
-          {tools.map((t, i) => (
-            <button
-              key={t.id}
-              type="button"
-              class={`tool ${active === t.id ? 'active' : ''} ${i > 0 && toolBand(t) !== toolBand(tools[i - 1]!) ? 'band' : ''}`}
-              data-testid={`tool-${t.id}`}
-              title={`${t.hint ? `${t.label}: ${t.hint}` : t.label}. Esc or a right-click puts it away.`}
-              onClick={() => (active === t.id ? manager.putAway() : manager.select(t.id))}
-            >
-              <span class="icon">
-                <ToolIcon id={t.id} fallback={t.icon} />
-              </span>
-              <span class="label">{t.label}</span>
-            </button>
-          ))}
+          {tools.map((t, i) => {
+            // R1C: in a standard Ledger the Build button opens the picker on the Zones shelf (the
+            // zone tool has no button of its own), so it reads as chosen while a brush is out.
+            const zoning = t.id === 'building' && lens === 'ledger' && mode === 'standard';
+            const on = active === t.id || (zoning && active === 'zone');
+            return (
+              <button
+                key={t.id}
+                type="button"
+                class={`tool ${on ? 'active' : ''} ${i > 0 && toolBand(t) !== toolBand(tools[i - 1]!) ? 'band' : ''}`}
+                data-testid={`tool-${t.id}`}
+                title={`${t.hint ? `${t.label}: ${t.hint}` : t.label}. Esc or a right-click puts it away.`}
+                onClick={() =>
+                  on ? manager.putAway() : zoning ? manager.select('zone') : manager.select(t.id)
+                }
+              >
+                <span class="icon">
+                  <ToolIcon id={t.id} fallback={t.icon} />
+                </span>
+                <span class="label">{t.label}</span>
+              </button>
+            );
+          })}
         </div>
         {books.length > 0 && (
           <div class="books" role="group" aria-label="Books">
@@ -262,36 +267,10 @@ function OverlayMenu({
   );
 }
 
-function CostLine({ coins, goods, free }: { coins?: number; goods?: [string, number][]; free: boolean }) {
-  if (free) return <span class="cost muted">Free in a creative valley</span>;
-  if (!coins && !goods?.length) return <span class="cost muted">No cost</span>;
-  return (
-    <span class="cost">
-      {coins ? (
-        <span class="coins">
-          <Glyph id="coin" />
-          {thousands(coins)}
-        </span>
-      ) : null}
-      {goods?.map(([g, q]) => (
-        <span key={g} class="mat">
-          {q} {goodName(g).toLowerCase()}
-        </span>
-      ))}
-    </span>
-  );
-}
-
-/** A card's little portrait of the piece, drawn from its art kit (blank until it is ready). */
-function Thumb({ kind, id }: { kind: ThumbnailKind; id: string }) {
-  const url = thumbnail(kind, id).value;
-  return <span class="thumb">{url && <img src={url} alt="" draggable={false} />}</span>;
-}
-
 /**
- * The Build picker: the valley's buildings by group (R1.0 stand-in until R1C's three shelves).
- * Buildings the town has not opened yet show greyed, saying what opens them; those for a later
- * rank wait off the page.
+ * The Hearth's Build picker: homes, specialized pieces and services as groups (the Ledger has its
+ * three shelves in Picker.tsx). Buildings the town has not opened yet show greyed, saying what
+ * opens them; those for a later rank wait off the page.
  */
 function BuildingPicker({ session, tool }: { session: Session; tool: Tool }) {
   const m = session.mirror;
@@ -353,55 +332,6 @@ function BuildingPicker({ session, tool }: { session: Session; tool: Tool }) {
         </p>
       )}
     </div>
-  );
-}
-
-/** One building in the picker: portrait, name, cost; greyed with its reason while locked. */
-function BuildCard({
-  session,
-  def: d,
-  lock,
-  on,
-  free,
-}: {
-  session: Session;
-  def: BuildingDef;
-  lock: BuildingLock | null;
-  on: boolean;
-  free: boolean;
-}) {
-  const m = session.mirror;
-  const blocked = free || lock ? null : costBlock(m, d.cost);
-  const title = [lock?.text ? `${lock.text}.` : '', blocked ? rejectText(blocked) : '', buildingPurpose(d)]
-    .filter(Boolean)
-    .join(' ');
-  return (
-    <button
-      type="button"
-      class={`card ${on ? 'active' : ''} ${blocked ? 'short' : ''} ${lock ? 'locked' : ''}`}
-      data-testid={`variant-${d.id}`}
-      title={title}
-      disabled={!!lock}
-      onClick={() => session.tools?.select('building', d.id)}
-    >
-      <Thumb kind="building" id={d.id} />
-      <span class="card-text">
-        <strong>{d.name}</strong>
-        {lock ? (
-          <span class="lock-why muted">{lock.text}</span>
-        ) : (
-          <>
-            <span class="size">
-              {d.size[0]} × {d.size[1]}
-              {!free && d.jobs ? `, ${d.jobs.count} ${d.jobs.count === 1 ? 'job' : 'jobs'}` : ''}
-              {!free && d.housing ? `, homes ${d.housing.residents}` : ''}
-            </span>
-            <CostLine coins={d.cost?.coins} goods={d.cost?.goods} free={free} />
-            {!free && d.upkeep ? <span class="upkeep muted">{d.upkeep} a day to keep</span> : null}
-          </>
-        )}
-      </span>
-    </button>
   );
 }
 
@@ -488,86 +418,6 @@ function FieldHint({ session }: { session: Session }) {
           : 'Click a grain farm first. Fields have to be within reach of someone with a hoe.'}
       </span>
     </div>
-  );
-}
-
-/** I2 (C4F): the zone picker: each zone with its color and lot shapes, the chosen one's line below. */
-function ZonePicker({ session, tool }: { session: Session; tool: Tool }) {
-  const m = session.mirror;
-  const rank = m.town.value?.rank;
-  const on = tool.variant?.value;
-  const zones = [...content.zones].sort((a, b) => a.layerValue - b.layerValue);
-  const chosen = zones.find((z) => z.id === on);
-  return (
-    <div class="picker panel zone-picker" data-testid="zone-picker">
-      <div class="picker-cards zone-cards">
-        {zones.map((z) => (
-          <button
-            key={z.id}
-            type="button"
-            class={`card zone-card ${on === z.id ? 'active' : ''} ${zoneOpen(rank, z.id) ? '' : 'locked'}`}
-            aria-disabled={!zoneOpen(rank, z.id)}
-            data-testid={`variant-${z.id}`}
-            title={z.blurb}
-            onClick={() => session.tools?.select('zone', z.id)}
-          >
-            <span class="zone-swatch" style={{ '--zone': zoneInk(z.id) }}>
-              <LotShapes sizes={z.lots.map((l) => l.size)} />
-            </span>
-            <span class="card-text">
-              <strong>{z.name}</strong>
-              <span class="size">{z.density === 'medium' ? 'Snug' : 'Roomy'}</span>
-            </span>
-          </button>
-        ))}
-        <button
-          type="button"
-          class={`card zone-card unzone ${on === UNZONE ? 'active' : ''}`}
-          data-testid={`variant-${UNZONE}`}
-          title="Grown buildings stay put; empty lots fold away."
-          onClick={() => session.tools?.select('zone', UNZONE)}
-        >
-          <span class="zone-swatch unzone">
-            <Glyph id="erase" />
-          </span>
-          <span class="card-text">
-            <strong>Unzone</strong>
-            <span class="size">Clear it</span>
-          </span>
-        </button>
-      </div>
-      {on === UNZONE || zoneOpen(rank, on ?? '') ? (
-        <p class="zone-line">
-          {chosen ? (
-            <>
-              <b>{chosen.name}.</b> {chosen.blurb}{' '}
-            </>
-          ) : (
-            'Grown buildings stay put; empty lots fold away. '
-          )}
-          <span class="muted">{tool.hint}</span>
-        </p>
-      ) : (
-        <p class="zone-locked" data-testid="zone-locked">
-          <Glyph id="lock" /> {INPUT_COPY.zoneLocked}
-        </p>
-      )}
-    </div>
-  );
-}
-
-/** Tiny lot diagrams: the shapes a zone cuts, facing a road along the bottom. */
-function LotShapes({ sizes }: { sizes: [number, number][] }) {
-  let x = 2;
-  return (
-    <svg viewBox="0 0 30 24" aria-hidden="true">
-      <path d="M0 21.5h30" class="lot-road" />
-      {sizes.slice(0, 2).map(([w, d], i) => {
-        const rect = <rect key={i} x={x} y={20 - d * 4.5} width={w * 4.5} height={d * 4.5} rx="0.8" />;
-        x += w * 4.5 + 2;
-        return rect;
-      })}
-    </svg>
   );
 }
 
