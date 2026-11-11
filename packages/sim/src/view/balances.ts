@@ -1,74 +1,69 @@
-// The Balances view (docs/spec/13-ledger.md, Reports: Balances; R1A owns it). Moved out of
-// view/zones.ts on the wave's first day; view/zones.ts re-exports it. Views may use floats freely:
-// nothing here feeds state.
+// The Balances view (docs/spec/13-ledger.md, Reports: Balances; R1A owns it). Views may use floats
+// freely: nothing here feeds state. One line a family, in GOOD_FAMILIES order:
+// - stock: units across the town, with Food and Fuel in the pantries (familyStock of balanceStock);
+// - use: units the town uses a day (familyUse); cover: days of cover in hundredths (familyCover);
+// - flavors: one per shelf good of the family in goods order (wool is never listed): `onOffer` when
+//   a household saw it in the last three days, `made` when a built building's method outputs it,
+//   `stock` its units;
+// - price: pennies, the family's shelf goods' market prices averaged and weighted by what
+//   households bought yesterday (a plain average when nothing was bought);
+// - carriedIn and carriedOut: the carrier's units today and yesterday;
+// - rule, reserve, sell: the carrier's terms; mark: the season plan's winter mark, or null;
+// - history: the family's cover in hundredths at each day's end, oldest first, up to a year.
+// Around the lines: the carrier's budget and spend today, the County tab and its cap, whether the
+// pass is closed, the season plan and the deal offers.
 import { content } from '@qoti/content';
 import { GOOD_FAMILIES, PENNIES_PER_COIN, TAB_PER_RESIDENT } from '../constants';
 import type { BalanceLine, BalancesView, WorldState } from '../contracts';
-import { seasonAt } from '../state/seasons';
-import { GOODS_BY_FAMILY } from '../state/zones';
-import { townStock } from './hamlet';
+import { methodOf } from '../state/zones';
+import { passClosed, winterMark } from '../systems/carrier/api';
+import {
+  balanceStock,
+  familyCover,
+  familyStock,
+  familyUse,
+  onOfferGoods,
+  SHELF_GOODS,
+} from '../systems/market/balances';
 
-// --- Balances ----------------------------------------------------------------------------------
-
-/**
- * Units a day the town uses of each family. R1 stand-in (R1A): Food a resident a day, Fuel a
- * household a day (the same in June as in January), Materials what open sites still need, Wares and
- * Treats the Settler basket's amounts; R1A reads every tier's basket and yesterday's use.
- */
-function familyUse(state: WorldState): number[] {
-  const residents = state.residents.length;
-  const households = state.households.length;
-  let sites = 0;
-  for (const b of state.buildings) for (const n of b.rt?.construction?.needs ?? []) sites += n;
-  const basket = content.basketByTier.get('settler');
-  const want = (family: string): number => {
-    const w = basket?.wants.find((x) => x.family === family);
-    if (!w) return 0;
-    return w.amount * (w.perHousehold ? households : residents);
-  };
-  return [residents, households, sites, want('wares'), want('treats')];
-}
-
-/** The season plan's winter mark for a family, from Summer day 4 to the end of winter; else null. */
-function winterMark(state: WorldState, family: number): number | null {
-  const { season, day } = seasonAt(state.tick);
-  const on = (season === 1 && day >= 4) || season === 2 || season === 3;
-  if (!on) return null;
-  const plan = state.seasonPlan;
-  if (family === 0) return plan.food ?? plan.reserve;
-  if (family === 1) return plan.fuel ?? plan.reserve;
-  return plan.reserve;
-}
-
-/** `balances.updated`: the five families and the carrier's purse. R1 stand-in (R1A) inside. */
+/** `balances.updated`: the five families and the carrier's purse. */
 export function balancesView(state: WorldState): BalancesView {
-  const stock = townStock(state);
-  const use = familyUse(state);
+  const stock = balanceStock(state);
+  const offered = onOfferGoods(state);
   const c = state.carrier;
   const today = c.bought.length - 1;
   const sum = (row: readonly number[] | undefined, goods: readonly number[]): number =>
     goods.reduce((t, g) => t + (row?.[g] ?? 0), 0);
+  const made = new Set<string>();
+  for (const b of state.buildings) {
+    if (b.stage !== 'built') continue;
+    for (const [good] of methodOf(b)?.outputs ?? []) made.add(good);
+  }
+  const bought = state.market.bought;
   const lines: BalanceLine[] = GOOD_FAMILIES.map((family, f) => {
-    const goods = GOODS_BY_FAMILY[f]!;
-    const have = sum(stock, goods);
-    const perDay = use[f]!;
+    const goods = SHELF_GOODS[f]!;
+    const terms = c.families[f]!;
+    const priceOf = (g: number): number => state.market.prices[g] ?? content.goods[g]!.basePrice;
     let weight = 0;
     let priced = 0;
     for (const g of goods) {
-      const w = Math.max(1, state.market.demand[g] ?? 0);
+      const w = bought?.[g] ?? 0;
       weight += w;
-      priced += w * (state.market.prices[g] ?? content.goods[g]!.basePrice);
+      priced += w * priceOf(g);
     }
-    const terms = c.families[f]!;
+    if (weight === 0) {
+      for (const g of goods) priced += priceOf(g);
+      weight = goods.length;
+    }
     return {
       family,
-      stock: have,
-      use: perDay,
-      cover: perDay > 0 ? Math.floor((have * 100) / perDay) : 0,
+      stock: familyStock(stock, f),
+      use: familyUse(state, f),
+      cover: familyCover(state, f, stock),
       flavors: goods.map((g) => ({
         good: content.goods[g]!.id,
-        onOffer: (stock[g] ?? 0) > 0,
-        made: (state.economy.everProduced[g] ?? 0) > 0,
+        onOffer: offered[g] === true,
+        made: made.has(content.goods[g]!.id),
         stock: stock[g] ?? 0,
       })),
       price: weight > 0 ? Math.round(priced / weight) : 0,
@@ -80,9 +75,7 @@ export function balancesView(state: WorldState): BalancesView {
       reserve: terms.reserve,
       sell: terms.sell,
       mark: winterMark(state, f),
-      history: state.economy.stockHistory.map((row) =>
-        perDay > 0 ? Math.floor((sum(row, goods) * 100) / perDay) : 0,
-      ),
+      history: (c.history ?? []).map((row) => row[f] ?? 0),
     };
   });
   return {
@@ -91,7 +84,7 @@ export function balancesView(state: WorldState): BalancesView {
     spentToday: c.spentToday,
     tab: c.tab,
     tabCap: TAB_PER_RESIDENT * PENNIES_PER_COIN * state.residents.length,
-    passClosed: false,
+    passClosed: passClosed(state),
     plan: { ...state.seasonPlan },
     offers: c.offers.map((o) => ({ ...o })),
   };

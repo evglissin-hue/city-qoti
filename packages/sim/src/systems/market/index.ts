@@ -48,6 +48,10 @@ export const market: System = {
     const m = state.market;
     m.demand = m.demandToday;
     m.demandToday = m.demand.map(() => 0);
+    if (m.boughtToday) {
+      m.bought = m.boughtToday;
+      m.boughtToday = m.boughtToday.map(() => 0);
+    }
     const open = marketOpen(state);
     if (open) updatePrices(state);
     m.history.push([...m.prices]);
