@@ -35,9 +35,8 @@ await page.evaluate(() => {
 });
 
 if (!plain) {
-  const summary = await page.evaluate(async () => {
-    const { currentSession } = await import('/src/app/GameView.tsx');
-    const m = currentSession().mirror;
+  const summary = await page.evaluate(() => {
+    const m = window.__qoti.renderer().mirror;
     const WORKSHOPS = ['baker', 'weaver', 'carpenter', 'chandler', 'cider-maker'];
     const FARMS = ['grain-farm', 'market-garden', 'orchard', 'dairy', 'sheep-run', 'hives'];
     const FAMILIES = [
