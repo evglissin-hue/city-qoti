@@ -30,7 +30,6 @@ export const kitchenGarden: PatternDef = {
   params: [
     ['plots', 2],
     ['within', 3],
-    ['foodPerDay', 1],
   ],
   siteBonus: { charm: 5, radius: 2, category: 'nature' },
   unlocks: ['herb-planter'],

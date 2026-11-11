@@ -246,9 +246,8 @@ describe('what the garden and quiet wishes say they still want', () => {
     const w = makeWish(s, ctx, r, wish('a-garden-plot'));
     const home = findById(s.buildings, w.home)!;
     let wants = wishProgress(s).find((p) => p.id === w.id)!.wants;
-    // R1 stand-in (R1D): a market garden beside the home; the herb garden is gone.
-    expect(wants).toContain('market garden');
-    expect(wants).not.toContain('market-garden');
+    expect(wants).toContain('garden bed');
+    expect(wants).not.toContain('garden-bed');
     expect(wants).not.toContain('herb planter');
     expect(wants).not.toContain('herb garden');
     s.hearth.unlocked.push('herb-planter');

@@ -40,7 +40,7 @@ interface Case {
 
 const CASES: Record<string, Case> = {
   'a-garden-plot': {
-    // R1 stand-in (R1D): a market garden beside the home (a 3x3 farmstead, two tiles off it).
+    // A garden bed beside the home.
     grant: (f, w) => plot(f.state, homeOf(f.state, w).x, homeOf(f.state, w).z - 4),
   },
   'a-proper-path': {

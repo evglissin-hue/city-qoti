@@ -23,8 +23,7 @@ export const aGardenPlot: WishTemplate = {
   when: HAS_HOME,
   target: {
     any: [
-      // R1 stand-in (R1D): a market garden beside the home, until the Hearth's garden bed arrives.
-      { near: { buildingTag: 'market-garden', of: 'home', within: 3 } },
+      { near: { building: 'garden-bed', of: 'home', within: 3 } },
       { near: { tag: 'herb', of: 'home', within: 3 } },
     ],
   },

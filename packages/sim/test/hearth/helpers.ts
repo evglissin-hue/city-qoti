@@ -91,9 +91,9 @@ export function build(
   });
 }
 
-/** R1: a market-garden farmstead (3x3), what the Kitchen Garden and A Garden Plot count as a plot. */
+/** R1 (R1D): a garden bed (2x2), what the Kitchen Garden and A Garden Plot count as a plot. */
 export function plot(state: WorldState, x: number, z: number, seat: SeatId = 0): Building {
-  return build(state, 'farmstead', x, z, 0, seat, 'market-garden');
+  return build(state, 'garden-bed', x, z, 0, seat);
 }
 
 export function road(
