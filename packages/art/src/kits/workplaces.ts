@@ -82,6 +82,34 @@ function postLantern(s: ShapeBuilder, x: number, z: number, h = 0.62): V3 {
 
 // --- Bakery ---------------------------------------------------------------------------------------
 
+/**
+ * The bread oven: a brick dome on a side wall (`wallX`, bulging toward `dir`, -1 for x-, 1 for x+)
+ * centered at `oz` along the wall, with its own flue. `k` scales it. Returns the flue's smoke point.
+ */
+export function bakeOven(
+  s: ShapeBuilder,
+  wallX: number,
+  oz: number,
+  dir: -1 | 1,
+  rnd: () => number,
+  k = 1,
+): V3 {
+  const ox = wallX + dir * 0.22 * k;
+  const edge = ox + dir * 0.06;
+  s.rbox(
+    Math.min(wallX, edge),
+    0,
+    oz - 0.3 * k,
+    Math.max(wallX, edge),
+    0.3 * k,
+    oz + 0.3 * k,
+    vary(palette.brick, rnd, 0.4),
+    0.03,
+  );
+  s.blob(ox - dir * 0.06, 0.3 * k, oz, 0.2 * k, 0.2 * k, 0.26 * k, vary(palette.brick, rnd, 0.6), 1);
+  return chimneyPart(s, ox - dir * 0.04, oz - 0.12 * k, 0.3 * k, 0.72 * k, palette.brick);
+}
+
 function bakery(opts: KitBuildOptions | undefined): Built {
   const [w, d] = opts?.size ?? [2, 2];
   const [ex] = opts?.entrance ?? [1, 1];
@@ -177,11 +205,7 @@ function bakery(opts: KitBuildOptions | undefined): Built {
     anchors.lights,
   );
   // The bread oven: a brick dome on the side wall with its own flue, plus the main chimney.
-  const ox = x0 - 0.22;
-  const oz = (z0 + z1) / 2 - 0.15;
-  s.rbox(ox - 0.06, 0, oz - 0.3, x0, 0.3, oz + 0.3, vary(palette.brick, rnd, 0.4), 0.03);
-  s.blob(ox + 0.06, 0.3, oz, 0.2, 0.2, 0.26, vary(palette.brick, rnd, 0.6), 1);
-  anchors.smoke!.push(chimneyPart(s, ox + 0.04, oz - 0.12, 0.3, 0.72, palette.brick));
+  anchors.smoke!.push(bakeOven(s, x0, (z0 + z1) / 2 - 0.15, -1, rnd));
   if (c.chimney ?? true)
     anchors.smoke!.push(
       chimneyPart(s, x1 - 0.32, (z0 + z1) / 2 + 0.1, sh.top - 0.1, sh.ridge + 0.16, palette.brick, true),

@@ -700,7 +700,7 @@ function spinner(opts: KitBuildOptions | undefined): Built {
 // --- Weaver -------------------------------------------------------------------------------------
 
 /** A tenter frame: a long low frame with lengths of cloth stretched to dry. */
-function tenterFrame(
+export function tenterFrame(
   s: ShapeBuilder,
   x0: number,
   x1: number,
@@ -1124,7 +1124,7 @@ function orchard(opts: KitBuildOptions | undefined): Built {
 // --- Cider press --------------------------------------------------------------------------------
 
 /** An apple mill: a stone edge-runner wheel in a round stone trough with a sweep. */
-function appleMill(s: ShapeBuilder, x: number, z: number, rnd: () => number): void {
+export function appleMill(s: ShapeBuilder, x: number, z: number, rnd: () => number): void {
   s.cylinder(x, z, 0.32, 0.34, 0, 0.16, vary(palette.stone, rnd, 0.6), 12);
   s.cylinder(x, z, 0.24, 0.24, 0.16, 0.162, vary(0xb5854a, rnd, 0.5), 12);
   s.cylinder(x, z, 0.06, 0.06, 0.16, 0.3, palette.stone, 8);
@@ -1137,7 +1137,7 @@ function appleMill(s: ShapeBuilder, x: number, z: number, rnd: () => number): vo
 }
 
 /** A twin-screw press: a heavy frame, a beam, two screws and the cheese of pomace in straw. */
-function screwPress(s: ShapeBuilder, x: number, z: number, rnd: () => number): void {
+export function screwPress(s: ShapeBuilder, x: number, z: number, rnd: () => number): void {
   const wood = vary(0x7a5236, rnd, 0.4);
   s.box(x - 0.26, 0, z - 0.2, x + 0.26, 0.12, z + 0.2, wood);
   for (const dx of [-0.22, 0.22]) beam(s, [x + dx, 0.12, z], [x + dx, 0.66, z], 0.03, wood);

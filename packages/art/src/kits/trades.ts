@@ -5,7 +5,7 @@
 // with a moored boat, the Stone Bridge, and the Herbalist's Cottage. Waterside kits run their jetty
 // and arch out over the water behind them (z-, the side away from the entrance). Both levels from one code path;
 // surface ids on every face.
-import { seeded, vary, type V3 } from '../geometry';
+import { seeded, vary, type ShapeBuilder, type V3 } from '../geometry';
 import { palette } from '../palette';
 import { beam, cylX } from '../shapes';
 import { SURFACE } from '../surface';
@@ -208,6 +208,19 @@ function pieShop(opts: KitBuildOptions | undefined): Built {
 
 // --- Chandler ----------------------------------------------------------------------------------
 
+/** A dipping rack of drying tapers on a frame, and a pot of tallow beside it (centered at fx, fz). */
+export function dippingRack(s: ShapeBuilder, fx: number, fz: number, rnd: () => number): void {
+  for (const dx of [-0.16, 0.16]) beam(s, [fx + dx, 0, fz], [fx + dx, 0.42, fz], 0.012, palette.timber);
+  beam(s, [fx - 0.18, 0.42, fz], [fx + 0.18, 0.42, fz], 0.012, palette.timber);
+  for (let i = 0; i < 6; i++) {
+    const x = fx - 0.13 + i * 0.052;
+    beam(s, [x, 0.42, fz], [x, 0.36, fz], 0.002, 0xbfa27a);
+    s.cylinder(x, fz, 0.008, 0.01, 0.2, 0.36, vary(0xf3ecdc, rnd, 0.3), 4);
+  }
+  s.cylinder(fx + 0.3, fz, 0.07, 0.08, 0, 0.12, 0x4b4f55, 8);
+  s.cylinder(fx + 0.3, fz, 0.065, 0.065, 0.12, 0.125, 0xece4d2, 8);
+}
+
 function chandler(opts: KitBuildOptions | undefined): Built {
   const t = tradeHouse(opts, {
     seed: 109,
@@ -232,17 +245,7 @@ function chandler(opts: KitBuildOptions | undefined): Built {
       s.glow(0);
     }
     anchors.lights!.push(facePoint(front, u, 0.33, 0.04));
-    const fx = t.doorU < u ? t.x0 - 0.05 : t.x1 + 0.05;
-    const fz = t.z1 + 0.2;
-    for (const dx of [-0.16, 0.16]) beam(s, [fx + dx, 0, fz], [fx + dx, 0.42, fz], 0.012, palette.timber);
-    beam(s, [fx - 0.18, 0.42, fz], [fx + 0.18, 0.42, fz], 0.012, palette.timber);
-    for (let i = 0; i < 6; i++) {
-      const x = fx - 0.13 + i * 0.052;
-      beam(s, [x, 0.42, fz], [x, 0.36, fz], 0.002, 0xbfa27a);
-      s.cylinder(x, fz, 0.008, 0.01, 0.2, 0.36, vary(0xf3ecdc, rnd, 0.3), 4);
-    }
-    s.cylinder(fx + 0.3, fz, 0.07, 0.08, 0, 0.12, 0x4b4f55, 8);
-    s.cylinder(fx + 0.3, fz, 0.065, 0.065, 0.12, 0.125, 0xece4d2, 8);
+    dippingRack(s, t.doorU < u ? t.x0 - 0.05 : t.x1 + 0.05, t.z1 + 0.2, rnd);
     hangingSign(
       s,
       front,
@@ -321,6 +324,19 @@ function tailor(opts: KitBuildOptions | undefined): Built {
 
 // --- Carpenter ---------------------------------------------------------------------------------
 
+/** A little chair (a seat, four legs and a back) at (cx, cz) in the given wood. */
+export function chairOf(s: ShapeBuilder, cx: number, cz: number, wood: number): void {
+  s.box(cx - 0.07, 0.11, cz - 0.07, cx + 0.07, 0.125, cz + 0.07, wood);
+  for (const [dx, dz] of [
+    [-0.06, -0.06],
+    [0.05, -0.06],
+    [-0.06, 0.05],
+    [0.05, 0.05],
+  ] as const)
+    s.box(cx + dx, 0, cz + dz, cx + dx + 0.012, 0.11, cz + dz + 0.012, wood);
+  s.box(cx - 0.07, 0.125, cz - 0.07, cx + 0.07, 0.27, cz - 0.055, wood);
+}
+
 function carpenter(opts: KitBuildOptions | undefined): Built {
   const t = tradeHouse(opts, {
     seed: 127,
@@ -351,18 +367,7 @@ function carpenter(opts: KitBuildOptions | undefined): Built {
       t.z1 + 0.25,
       0xd8ae78,
     );
-    const cx = t.doorU - side * 0.4;
-    const cz = t.z1 + 0.22;
-    const wood = vary(0xa67445, rnd, 0.4);
-    s.box(cx - 0.07, 0.11, cz - 0.07, cx + 0.07, 0.125, cz + 0.07, wood);
-    for (const [dx, dz] of [
-      [-0.06, -0.06],
-      [0.05, -0.06],
-      [-0.06, 0.05],
-      [0.05, 0.05],
-    ] as const)
-      s.box(cx + dx, 0, cz + dz, cx + dx + 0.012, 0.11, cz + dz + 0.012, wood);
-    s.box(cx - 0.07, 0.125, cz - 0.07, cx + 0.07, 0.27, cz - 0.055, wood);
+    chairOf(s, t.doorU - side * 0.4, t.z1 + 0.22, vary(0xa67445, rnd, 0.4));
     hangingSign(s, front, t.doorU + side * 0.24, 0.72, vary(palette.paper, rnd, 0.3), (ss, c) => {
       ss.box(c[0] - 0.03, c[1] - 0.05, c[2] + 0.015, c[0] + 0.03, c[1] - 0.035, c[2] + 0.025, 0x6e4a2e);
       ss.box(c[0] - 0.03, c[1] - 0.035, c[2] + 0.015, c[0] - 0.02, c[1] + 0.05, c[2] + 0.025, 0x6e4a2e);
