@@ -89,7 +89,13 @@ function statusLines(state: WorldState, b: Building, def: BuildingDef | undefine
       );
     }
     if (has(BuildingStatus.waitingMaterials)) {
-      out.push(due ? `Waiting for ${due}` : 'Waiting for materials');
+      // R1B: the carrier buys Materials an open site waits for, unless its rule says never.
+      const carrier =
+        state.carrier.families[2]?.rule !== 'never' &&
+        rt.construction.needs.some((n, g) => n > 0 && content.goods[g]?.family === 'materials')
+          ? '; the carrier brings some at ten'
+          : '';
+      out.push(due ? `Waiting for ${due}${carrier}` : 'Waiting for materials');
       out.push(...materialAdvice(state, b));
     } else if (due) out.push(`Still to come: ${due}`);
     if (has(BuildingStatus.waitingBuilders)) out.push(builderAdvice(state, b));

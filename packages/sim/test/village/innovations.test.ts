@@ -34,22 +34,27 @@ describe('innovations', () => {
     const s = f.state;
     // Clay under the Brickworks' spot (it wants two tiles of it).
     for (let z = 40; z < 43; z++) for (let x = 70; x < 73; x++) s.map.deposit[z * S + x] = Deposit.clay;
-    const place = { t: 'build.place', def: 'brickworks', x: 70, z: 40, rot: 0 } as const;
-    expect(rejection(run(s, place))).toBe('LOCKED');
-    s.economy.yesterday.produced[good('stone')] = 12;
-    at(s, 1, 0);
+    const cmd = { t: 'build.place', def: 'brickworks', x: 70, z: 40, rot: 0 } as const;
+    expect(rejection(run(s, cmd))).toBe('LOCKED');
+    // R1B: a day counts when a quarry with hands cut stone that day (counted at 23:00).
+    const quarry = place(s, 'quarry', 120, 40);
+    quarry.rt!.workers.push(s.residents[0]!.id);
+    at(s, 1, 23);
+    pass(s);
+    expect(progress(s, 'brick-kiln')).toBe(0); // no stone cut yet
+    quarry.rt!.producedToday[good('stone')] = 12;
     const events = pass(s);
     expect(progress(s, 'brick-kiln')).toBe(50);
     expect(events.some((e) => e.e === 'innovation.updated' && e.i.id === 'brick-kiln')).toBe(true);
     at(s, 1, 5);
     pass(s);
     expect(progress(s, 'brick-kiln')).toBe(50); // counted once a day
-    at(s, 2, 0);
+    at(s, 2, 23);
     const done = pass(s);
     expect(hasInnovation(s, 'brick-kiln')).toBe(true);
     expect(done.some((e) => e.e === 'innovation.unlocked')).toBe(true);
     expect(done.some((e) => e.e === 'notify' && e.kind === 'innovation')).toBe(true);
-    expect(rejection(run(s, place))).toBeUndefined();
+    expect(rejection(run(s, cmd))).toBeUndefined();
   });
 
   it('Cobbles: twenty stone a day from the quarries', () => {
@@ -128,10 +133,10 @@ describe('innovations', () => {
     at(state, 1, 9);
     pass(state);
     expect(progress(state, 'water-wheel')).toBe(0);
-    place(state, 'foresters-lodge', 96, 90); // two tiles from the river at x 100
-    // A day of felling counts at midnight: one day of three.
-    state.economy.yesterday.produced[good('timber')] = 8;
-    at(state, 2, 0);
+    const lodge = place(state, 'foresters-lodge', 96, 90); // two tiles from the river at x 100
+    // A day of felling (timber or firewood) counts at 23:00: one day of three.
+    lodge.rt!.producedToday[good('firewood')] = 6;
+    at(state, 2, 23);
     pass(state);
     expect(progress(state, 'water-wheel')).toBe(33);
     // C5.0: the condition names Pippa's arc by id ('inventor'), wherever it sits in the list.
