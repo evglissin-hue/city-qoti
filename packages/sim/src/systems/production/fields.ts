@@ -11,11 +11,10 @@
 // the farm has room and lowers the tile by HARVEST_STEP, so a tile gives about 26 wheat whenever it
 // is cut, about what a year of I2's tending gave. Sheaves left standing keep through winter (nothing
 // grows, but the harvest goes on as room allows) until the first PLOUGH_DAYS of spring plough
-// them in. An early frost halves what is still standing (frostFields); the Seed Drill takes
-// smaller bites (DRILL_STEP), a fifth more per tile. A farm with nothing sown outside the sowing
-// window lies fallow until spring, and says so (BuildingStatus.fallow).
-// R1 stand-in (R1B): the Seed Drill's smaller bites are gone (an unlock is never a percentage);
-// its 'resow-same-day' does nothing yet.
+// them in. An early frost halves what is still standing (frostFields). With the Seed Drill
+// ('resow-same-day' unlocked) a tile cut bare inside the sowing window is sown again the same step
+// (an unlock is never a percentage, so it takes no smaller bites). A farm with nothing sown
+// outside the sowing window lies fallow until spring, and says so (BuildingStatus.fallow).
 import { content, type BuildingDef } from '@qoti/content';
 import { FIELD_GOOD_FERTILITY, FIELD_MIN_FERTILITY, MAP_SIZE, TILE_FP } from '../../constants';
 import type { Building, Rect, RejectReason, TickCtx, WorldState } from '../../contracts';
@@ -44,13 +43,14 @@ export const PLOUGH_DAYS = 3;
 export const HARVEST_MIN = 192;
 /** Crop taken off a standing tile per harvest step, and with the Seed Drill. */
 export const HARVEST_STEP = 5;
-export const DRILL_STEP = 4;
+/** The capability the Seed Drill unlocks: a cut field is sown again the same day, inside the window. */
+export const RESOW_SAME_DAY = 'resow-same-day';
 /**
  * A bare tile outside the sowing window grows vegetables in the growing seasons: one on a tended
  * step in this many (staggered by tile), so twelve tiles give what a vegetable plot's gardener does.
  */
 export const VEG_EVERY = 64;
-/** Wheat a fully ripe tile gives over its harvest, without and with the Seed Drill. */
+/** Wheat a fully ripe tile gives over its harvest, a tended step (`step` crop) at a time. */
 export function tileHarvest(step: number): number {
   return (Math.floor((CROP_RIPE - HARVEST_MIN) / step) + 1) * CROP_YIELD;
 }
@@ -298,6 +298,7 @@ function tendTile(
   bite: number,
   room: boolean,
   vegNow: boolean,
+  resow: boolean,
 ): { next: number; wheat: number; veg: number; waiting: boolean } {
   if (phase.sow && (c === 0 || (c >= HARVEST_MIN && phase.plough))) {
     // Bare ground is sown; early in spring, last year's standing sheaves are ploughed in too.
@@ -306,7 +307,13 @@ function tendTile(
   if (phase.harvest && c >= HARVEST_MIN) {
     if (!room) return { next: c, wheat: 0, veg: 0, waiting: true };
     const left = c - bite;
-    return { next: left < HARVEST_MIN ? 0 : left, wheat: CROP_YIELD, veg: 0, waiting: false };
+    // The Seed Drill sows a tile cut bare again at once while the sowing window is open.
+    return {
+      next: left < HARVEST_MIN ? (resow && phase.sow ? 1 : 0) : left,
+      wheat: CROP_YIELD,
+      veg: 0,
+      waiting: false,
+    };
   }
   if (phase.grow && c > 0 && c < CROP_RIPE && growsNow) {
     // P1 fix: golden is ripe. With the harvest open from summer, a tile cut the hour it turned golden
@@ -345,6 +352,7 @@ export function tendFields(
   const room = outputCap(def);
   const phase = fieldPhase(state);
   const bite = HARVEST_STEP;
+  const resow = state.hearth.unlocked.includes(RESOW_SAME_DAY);
   const step = Math.floor(state.tick / CROP_STEP_TICKS);
   const vegetables = content.goodIndex.get('vegetables') ?? -1;
   let tended = 0;
@@ -374,6 +382,7 @@ export function tendFields(
         bite,
         rt.output[grain]! + CROP_YIELD <= room,
         (step + i) % VEG_EVERY === 0,
+        resow,
       );
       const next = t.next;
       if (t.wheat > 0) produce(state, ctx, b, grain, t.wheat);
