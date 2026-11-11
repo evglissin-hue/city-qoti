@@ -20,6 +20,7 @@ import { endWinter } from '../warmth';
 import { dayIndex, hourOf } from '../economy/time';
 import { seasonNow } from './api';
 import { skatingSpots } from './place';
+import { closeImportTally, openImportTally, tallyImports } from './imports';
 import { spoil } from './spoilage';
 import { townFocus } from './place';
 
@@ -50,6 +51,8 @@ function report(state: WorldState, ctx: TickCtx): void {
 /** 00:02: what the new day brings the season and the river. */
 export function turnDay(state: WorldState, ctx: TickCtx): void {
   const { season, year, day } = seasonNow(state);
+  // R1 (R1D): yesterday's boat, read before the season turns (A Winter Without Imports).
+  if ((season === 3 && day > 1) || (season === 0 && day === 1)) tallyImports(state);
   if (day === 1) startSeason(state, ctx, season, year);
   if (season === 3 && day === RIVER_FREEZE_DAY && !state.weather.river.frozen) freeze(state, ctx);
   // A valley that missed the freeze day (loaded late in winter) still freezes.
@@ -68,6 +71,7 @@ function startSeason(state: WorldState, ctx: TickCtx, season: number, year: numb
 /** Winter day 1: the warmth counters start afresh; the very first winter gets a Chronicle page. */
 function openWinter(state: WorldState, ctx: TickCtx, year: number): void {
   state.warmth = { ...emptyWarmth(), winter: year };
+  openImportTally(state);
   if (year === 0 && dayIndex(state.tick) > 0) {
     chronicle(state, ctx, 'first-winter', { text: [], snapshot: { focus: townFocus(state), radius: 14 } });
   }
@@ -76,14 +80,9 @@ function openWinter(state: WorldState, ctx: TickCtx, year: number): void {
 /** Spring day 1: a winter where nobody was cold counts toward Warm Hearths; warmth goes away. */
 export function closeWinter(state: WorldState): void {
   const w = state.warmth;
-  if (
-    w.winter >= 0 &&
-    w.coldHouseholdDays === 0 &&
-    w.coldHouseholds.length === 0 &&
-    state.households.length > 0
-  ) {
-    state.seasons.warmWinters += 1;
-  }
+  const nobodyCold = w.winter >= 0 && w.coldHouseholdDays === 0 && w.coldHouseholds.length === 0;
+  if (nobodyCold && state.households.length > 0) state.seasons.warmWinters += 1;
+  closeImportTally(state, nobodyCold);
   endWinter(state);
 }
 
