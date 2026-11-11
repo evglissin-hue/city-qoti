@@ -96,7 +96,11 @@ describe('lens toolbars', () => {
       'path',
       'building',
       'decor',
+<<<<<<< HEAD
       'flowers',
+=======
+      'move',
+>>>>>>> worktree-agent-ab0363be593cd62bb
       'customize',
       'fence',
       'tree',
@@ -134,6 +138,7 @@ describe('lens toolbars', () => {
       'wall',
       'terrain',
       'zone',
+      'move',
       'note',
       'plan',
       'erase',
