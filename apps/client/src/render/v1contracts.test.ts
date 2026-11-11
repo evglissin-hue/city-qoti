@@ -263,7 +263,7 @@ describe('world env (V1.0)', () => {
     const env = createWorldEnv(new PerspectiveCamera());
     expect(env.staticTime).toBe(env.time);
     expect(env.buildingDetail).toBe(75);
-    expect(env.patterns.value.image.depth).toBe(20);
+    expect(env.patterns.value.image.depth).toBe(33); // V2.0: 20 surface and noise layers, 5 V2 surfaces, 8 rooms
     expect((env.patterns.value.image.data as Uint8Array)[0]).toBe(128);
   });
 });
