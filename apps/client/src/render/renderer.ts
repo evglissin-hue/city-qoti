@@ -26,7 +26,7 @@ import type { Mirror } from '../state/mirror';
 import type { EntityPick, Ghost, RenderApi, TilePick } from './api';
 import { fpToWorld, levelY } from './coords';
 import { applySeasonBlend, createWorldEnv, SEASONS, setPatternAnisotropy, type WorldEnv } from './env';
-import { drawLightMap, resizeLightMap } from './lightMap';
+import { disposeLightMap, drawLightMap, lampQuality, resizeLightMap } from './lightMap';
 import { CLEAR_WEATHER, easeWeather, seasonBlendAt, weatherLookFor, type WeatherLook } from './seasons';
 import {
   layerFactories,
@@ -785,6 +785,10 @@ export class Renderer implements RenderApi {
     if (setPatternAnisotropy(this.env, q, this.three.capabilities.getMaxAnisotropy()))
       this.invalidateStatic();
     resizeLightMap(this.env, q);
+    // V2A: the preset's night switches (lamplight on the river, rooms behind lit windows).
+    const lamps = lampQuality(this.env);
+    lamps.uLampWater.value = preset.lampWater ? 1 : 0;
+    lamps.uRooms.value = preset.rooms ? 1 : 0;
     this.env.motion = preset.ambientMotion;
     this.env.detailDistance = preset.decorDistance;
     this.env.critters = preset.critters;
@@ -1035,7 +1039,7 @@ export class Renderer implements RenderApi {
     this.rig.dispose();
     for (const layer of this.layers) layer.dispose();
     this.material.dispose();
-    this.env.lightMap.dispose();
+    disposeLightMap(this.env);
     this.gpuTimer.dispose();
     this.lean.dispose();
     this.still.dispose();

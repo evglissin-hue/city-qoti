@@ -46,6 +46,11 @@ export interface QualityPreset {
    * so a rest can afford a sharper picture than a pan (17-presentation.md, Quality presets).
    */
   stillScale: number;
+  // V2A additions.
+  /** Little rooms behind lit windows (17-presentation.md, Quality presets; Low keeps the flat glow). */
+  rooms: boolean;
+  /** Lamplight from the light map trembling on the river (none on Low). */
+  lampWater: boolean;
 }
 
 export const QUALITY_PRESETS: Record<Quality, QualityPreset> = {
@@ -63,6 +68,8 @@ export const QUALITY_PRESETS: Record<Quality, QualityPreset> = {
     bloom: true,
     critters: 'all',
     stillScale: 2,
+    rooms: true,
+    lampWater: true,
   },
   low: {
     maxDpr: 1,
@@ -78,6 +85,8 @@ export const QUALITY_PRESETS: Record<Quality, QualityPreset> = {
     bloom: false,
     critters: 'none',
     stillScale: 0.75,
+    rooms: false,
+    lampWater: false,
   },
   medium: {
     // Playtest round three: 1.5 on a Retina screen looked soft. V1D: moving frames draw at 1 (with
@@ -95,6 +104,8 @@ export const QUALITY_PRESETS: Record<Quality, QualityPreset> = {
     bloom: true,
     critters: 'some',
     stillScale: 2,
+    rooms: true,
+    lampWater: true,
   },
   // V1.0: for the stronger laptop or a desktop; never auto-detected.
   ultra: {
@@ -111,6 +122,8 @@ export const QUALITY_PRESETS: Record<Quality, QualityPreset> = {
     bloom: true,
     critters: 'all',
     stillScale: 3,
+    rooms: true,
+    lampWater: true,
   },
 };
 

@@ -1,11 +1,21 @@
 import { describe, expect, it } from 'vitest';
-import { PerspectiveCamera } from 'three';
+import {
+  Color,
+  PerspectiveCamera,
+  type InstancedBufferGeometry,
+  type Mesh,
+  type Scene,
+  type WebGLRenderer,
+  type WebGLRenderTarget,
+} from 'three';
 import { createWorldEnv } from './env';
 import {
+  discFalloff,
   drawLightMap,
   LIGHT_MAP_GLSL,
   LIGHT_MAP_TEXELS,
   lightMapSize,
+  lightMapStats,
   lightMapUniforms,
   LightMapWriter,
   resizeLightMap,
@@ -13,6 +23,29 @@ import {
 } from './lightMap';
 
 const lamp: LightDisc = { x: 10, z: 12, radius: 1.35, color: 0xffb366, intensity: 0.8 };
+
+/** Just enough of a WebGLRenderer to count what the light map draws, and where. */
+function fakeRenderer() {
+  const r = {
+    renders: [] as Scene[],
+    targets: [] as (WebGLRenderTarget | null)[],
+    target: null as WebGLRenderTarget | null,
+    autoClear: true,
+    clearColor: new Color(0x2b3a55),
+    getRenderTarget: () => r.target,
+    setRenderTarget: (t: WebGLRenderTarget | null) => {
+      r.target = t;
+      r.targets.push(t);
+    },
+    getClearColor: (c: Color) => c.copy(r.clearColor),
+    getClearAlpha: () => 1,
+    setClearColor: (c: Color) => void r.clearColor.copy(c),
+    clear: () => undefined,
+    render: (scene: Scene) => void r.renders.push(scene),
+    getContext: () => ({ finish: () => undefined }),
+  };
+  return r;
+}
 
 describe('the light map (V2.0)', () => {
   it('is sized by preset: 2, 4, 6 and 8 texels a tile on the 192-tile valley', () => {
@@ -64,6 +97,50 @@ describe('the light map (V2.0)', () => {
     expect(drawLightMap(null, env)).toBe(true);
     expect(drawLightMap(null, env)).toBe(false);
     expect(env.lightMapRevision).toBe(1);
+  });
+
+  it('draws every disc in one instanced draw and one blur, only on a change (V2A)', () => {
+    const env = createWorldEnv(new PerspectiveCamera());
+    const three = fakeRenderer();
+    const discs = Array.from({ length: 300 }, (_, i) => ({ ...lamp, x: i % 190, z: i / 2 }));
+    env.lightWriter.set('lanterns', discs.slice(0, 200));
+    env.lightWriter.set('windows', discs.slice(200));
+    expect(drawLightMap(three as unknown as WebGLRenderer, env)).toBe(true);
+    // One render of the disc scene (a single instanced mesh of 300) and one of the blur.
+    expect(three.renders).toHaveLength(2);
+    const [discScene, blurScene] = three.renders;
+    const mesh = discScene!.children[0] as Mesh<InstancedBufferGeometry>;
+    expect(discScene!.children).toHaveLength(1);
+    expect(mesh.geometry.instanceCount).toBe(300);
+    expect(blurScene!.children).toHaveLength(1);
+    expect(lightMapStats(env)).toMatchObject({ redraws: 1, discs: 300, draws: 2 });
+    // The map is the last target drawn, the renderer's own target and clear color are put back.
+    expect(three.targets.at(-2)).toBe(env.lightMap);
+    expect(three.targets.at(-1)).toBe(null);
+    expect(three.autoClear).toBe(true);
+    // A frame with no change draws nothing.
+    expect(drawLightMap(three as unknown as WebGLRenderer, env)).toBe(false);
+    expect(three.renders).toHaveLength(2);
+    // Nothing lit: the map is cleared, no draw.
+    env.lightWriter.clear('lanterns');
+    env.lightWriter.clear('windows');
+    expect(drawLightMap(three as unknown as WebGLRenderer, env)).toBe(true);
+    expect(three.renders).toHaveLength(2);
+    expect(lightMapStats(env)).toMatchObject({ redraws: 2, discs: 0, draws: 0 });
+    expect(env.lightMapRevision).toBe(2);
+  });
+
+  it('fades a pool from its middle to nothing at its edge, with no ring', () => {
+    expect(discFalloff(0)).toBe(1);
+    expect(discFalloff(1)).toBe(0);
+    let last = 1;
+    for (let t = 0.05; t < 1; t += 0.05) {
+      const v = discFalloff(t);
+      expect(v).toBeLessThan(last);
+      last = v;
+    }
+    expect(discFalloff(0.5)).toBeGreaterThan(0.2);
+    expect(discFalloff(0.9)).toBeLessThan(0.05);
   });
 
   it('gives readers one GLSL function over two uniforms', () => {
