@@ -175,7 +175,9 @@ function inverseOf(p: Pending, m: Mirror, change: MirrorChange, seat: SeatId): U
         .filter(
           (d) =>
             change.added.includes(`decor:${d.id}`) &&
-            d.def === cmd.def &&
+            (cmd.t === 'decor.placeRun' && cmd.pieces
+              ? cmd.pieces.some((p) => p.def === d.def && p.fx === d.fx && p.fz === d.fz)
+              : d.def === cmd.def) &&
             d.builtBy === seat &&
             (cmd.t === 'decor.placeRun' || (d.fx === cmd.fx && d.fz === cmd.fz)),
         )

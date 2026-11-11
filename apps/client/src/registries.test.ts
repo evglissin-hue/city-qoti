@@ -47,6 +47,7 @@ describe('registries', () => {
       'fence',
       'festival-site',
       'field',
+      'flowers',
       'guard',
       'inspect',
       'lane',

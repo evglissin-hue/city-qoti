@@ -96,6 +96,7 @@ describe('lens toolbars', () => {
       'path',
       'building',
       'decor',
+      'flowers',
       'customize',
       'fence',
       'tree',

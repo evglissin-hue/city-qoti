@@ -8,6 +8,7 @@ import { decorTool } from './decor';
 import { eraseTool } from './erase';
 import { fenceTool } from './fence';
 import { fieldTool } from './field';
+import { flowersTool } from './flowers';
 import { inspectTool } from './inspect';
 import { noteTool } from './note';
 import { planTool } from './plan';
@@ -28,6 +29,7 @@ export const toolFactories: readonly ToolFactory[] = [
   fenceTool,
   festivalSiteTool,
   fieldTool,
+  flowersTool,
   guardTool,
   inspectTool,
   roadTool('lane'),
