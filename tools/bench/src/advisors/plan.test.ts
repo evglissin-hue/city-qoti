@@ -1,13 +1,13 @@
-// C5A: the seasons advisor tells the one planner to keep new buildings off the floodplain once a
+// C5A: the seasons advisor (R1F: the plan advisor, which took its duties) tells the one planner to keep new buildings off the floodplain once a
 // flood is forecast, and lets it build there again when the flood has gone.
 import { describe, expect, it } from 'vitest';
 import { content } from '@qoti/content';
 import { Flags, MAP_SIZE, onFloodplain, TICKS_PER_DAY } from '@qoti/sim';
 import { startingTown } from '../hamlet';
 import { Planner } from '../planner';
-import { seasons } from './seasons';
+import { plan } from './plan';
 
-describe('the seasons advisor', () => {
+describe('the plan advisor', () => {
   it('keeps new buildings off the floodplain while a flood is forecast', () => {
     const where = (forecast: boolean) => {
       const h = startingTown('hazel');
@@ -27,7 +27,7 @@ describe('the seasons advisor', () => {
           forecastTick: w.tick,
         });
       const p = new Planner(h);
-      seasons.create(p).visit({ afternoon: false });
+      plan.create(p).visit({ afternoon: false });
       const b = p.build('well');
       expect(b).not.toBeNull();
       const [bw, bd] = content.buildingById.get('well')!.size;

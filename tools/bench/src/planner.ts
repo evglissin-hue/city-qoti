@@ -31,6 +31,7 @@ import {
   canPlaceDecor,
   creditLimit,
   doorTile,
+  familyIndex,
   expenses,
   income,
   isFrozen,
@@ -131,6 +132,18 @@ function pathToRoad(w: WorldState, from: number): [number, number][] | null {
     }
   }
   return null;
+}
+
+/** Whether the carrier may bring a good: its family's rule is not Never and a neighbor sells it. */
+export function carrierBrings(w: WorldState, g: number): boolean {
+  const good = content.goods[g]!;
+  const rule = w.carrier.families[familyIndex(good.family)]?.rule ?? 'never';
+  return rule !== 'never' && content.neighbors.some((n) => n.sells.some(([x]) => x === good.id));
+}
+
+/** Coins a unit costs by carrier, at the peddler's 140% of today's price (R1F: a planning estimate). */
+function importPrice(w: WorldState, g: number): number {
+  return ((w.market.prices[g] ?? content.goods[g]!.basePrice ?? 100) * 1.4) / PENNIES_PER_COIN;
 }
 
 export class Planner {
@@ -269,11 +282,19 @@ export class Planner {
     )
       return false;
     const free = want.tally ?? this.freeStock();
+    let imports = 0;
     for (const [g, q] of want.cost.goods) {
       const keep = want.essential ? 0 : (TIMBER_RESERVE.get(g) ?? 0);
-      if (free[G(g)]! < q + keep) return false;
+      const short = q + keep - free[G(g)]!;
+      if (short <= 0) continue;
+      // R1F: nothing stalls (13-ledger.md, rule 3). The carrier brings what an open site waits for,
+      // so a want that keeps the town going is placed short of its goods when the carrier may bring
+      // them and the treasury can pay its markup: a Hamlet whose lodge had felled its wood had no
+      // timber for the next lodge and waited forever.
+      if (!want.essential || !carrierBrings(w, G(g))) return false;
+      imports += Math.min(short, q) * importPrice(w, G(g));
     }
-    return true;
+    return imports === 0 || this.coins() >= want.cost.coins + imports + MONEY_RESERVE;
   }
 
   /** An advisor proposes a want; the planner starts it when the budgets allow. */
