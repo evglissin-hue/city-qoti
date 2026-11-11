@@ -1,6 +1,6 @@
 import { kitById } from '@qoti/art';
 import { CHUNK_SIZE, CHUNKS_PER_SIDE, MAP_SIZE, Terrain, TILE_FP, Water } from '@qoti/sim';
-import { PerspectiveCamera, type MeshStandardMaterial } from 'three';
+import { PerspectiveCamera, type BufferGeometry, type MeshStandardMaterial } from 'three';
 import type { Mirror } from '../../state/mirror';
 import { ChunkDirt } from '../chunkDirt';
 import { hash2 } from '../coords';
@@ -15,6 +15,7 @@ import {
   type ScatterKind,
 } from '../scatter';
 import { SurfaceTiles, surfaceY, WATER_Y } from '../surface';
+import { StepCache, thinStep } from '../thin';
 import type { LayerContext, RenderLayer } from './types';
 
 /**
@@ -53,22 +54,43 @@ const TUFT_TRIES = 6;
 
 const PROP_BY_KIT = new Map(PROPS.map((p) => [p.kit, p]));
 
-function propKinds(): ScatterKind[] {
+/** V2B: the deciduous props, whose near geometry thins with the season (their kits read `params.thin`). */
+const DECIDUOUS_PROPS = new Set(['bush', 'hedgerow']);
+
+/** V2B: a dev or ?debug session logs each thinning swap. */
+const logSwaps =
+  typeof location !== 'undefined' && (import.meta.env?.DEV === true || location.search.includes('debug'));
+
+function propKinds(thin: number): {
+  kinds: ScatterKind[];
+  caches: (StepCache<BufferGeometry> | null)[];
+  owned: BufferGeometry[];
+} {
   const kinds: ScatterKind[] = [];
+  const caches: (StepCache<BufferGeometry> | null)[] = [];
+  const owned: BufferGeometry[] = [];
   for (const p of PROPS) {
     const kit = kitById.get(p.kit)!;
     for (let v = 0; v < p.variants; v++) {
       const seed = 101 + v * 13;
+      const cache = DECIDUOUS_PROPS.has(p.kit)
+        ? new StepCache<BufferGeometry>((t) => kit.build({ seed, params: { thin: t } }))
+        : null;
+      const high = cache ? cache.get(thin) : kit.build({ seed });
+      if (!cache) owned.push(high);
+      const low = p.lod !== undefined ? kit.build({ seed, lod: 'low' }) : undefined;
+      if (low) owned.push(low);
+      caches.push(cache);
       kinds.push({
         id: `${p.kit}:${v}`,
-        high: kit.build({ seed }),
-        ...(p.lod !== undefined ? { low: kit.build({ seed, lod: 'low' }), lodDistance: p.lod } : {}),
+        high,
+        ...(low ? { low, lodDistance: p.lod } : {}),
         maxDistance: p.max,
         shadows: p.shadows,
       });
     }
   }
-  return kinds;
+  return { kinds, caches, owned };
 }
 
 class Placer {
@@ -105,6 +127,8 @@ export function buildNatureChunk(
   cz: number,
   /** Tiles with decor on or next to them (nothing grows there). */
   decorTiles: ReadonlySet<number>,
+  /** V2B: tiles of the meadow carpet's reach (`env.meadowCarpet`); above 0 it replaces the grass tufts. */
+  carpet = 0,
 ): ScatterChunk {
   const chunk = emptyScatterChunk(field.kinds.length);
   const L = mirror.layers;
@@ -237,7 +261,7 @@ export function buildNatureChunk(
           const long = meadowAmount(terrain, x, z, mown);
           const tall = long + (1 - mown) * (1 - long) * 0.5;
           const want = (2.5 + long * 2.5) * (0.75 + clump * 0.5) * (1 - mown * 0.2) + (roadSide ? 0.6 : 0);
-          for (let k = 0; k < TUFT_TRIES; k++) {
+          for (let k = 0; k < (carpet > 0 ? 0 : TUFT_TRIES); k++) {
             if (h(200 + k * 6) >= want / TUFT_TRIES) continue;
             const [px, pz] = spot(201 + k * 6);
             if (h(203 + k * 6) < tall)
@@ -269,6 +293,10 @@ export function natureLayer(): RenderLayer {
   /** Decor positions by chunk, to rebuild only the chunks whose decor changed. */
   let decorKeys = new Map<number, string>();
   let decorTiles = new Set<number>();
+  let caches: (StepCache<BufferGeometry> | null)[] = [];
+  let owned: BufferGeometry[] = [];
+  let onScreen = 1;
+  let carpet = 0;
 
   /** Decor fingerprints by chunk, and the tiles decor keeps clear (on it and around it). */
   function decorByChunk(): Map<number, string> {
@@ -304,6 +332,7 @@ export function natureLayer(): RenderLayer {
         i % CHUNKS_PER_SIDE,
         Math.floor(i / CHUNKS_PER_SIDE),
         decorTiles,
+        carpet,
       ),
     );
   }
@@ -314,7 +343,12 @@ export function natureLayer(): RenderLayer {
       ctx = c;
       env = c.env ?? createWorldEnv(new PerspectiveCamera());
       material = createFoliageMaterial(env);
-      field = new ScatterField(c.scene, material, propKinds(), env);
+      onScreen = thinStep(env.shown.season, env.shown.day);
+      const made = propKinds(onScreen);
+      caches = made.caches;
+      owned = made.owned;
+      carpet = env.meadowCarpet;
+      field = new ScatterField(c.scene, material, made.kinds, env);
       tiles = new SurfaceTiles(c.mirror);
       decorKeys = decorByChunk();
       dirt.markAll();
@@ -341,11 +375,37 @@ export function natureLayer(): RenderLayer {
     },
     frame() {
       if (!field || !env) return false;
+      // V2B: a quality change moves the carpet's reach, and with it where the tufts stand.
+      if (env.meadowCarpet !== carpet) {
+        carpet = env.meadowCarpet;
+        dirt.markAll();
+      }
       if (ctx) for (const i of dirt.take(3, nearOf(env, ctx.mirror.meta.startArea))) rebuildChunk(i);
       field.lodScale = env.detailDistance / 80;
-      return field.update(env.camera);
+      // V2B: the season's thinning of hedgerows and bushes, a static-layer event once a day at most.
+      const step = thinStep(env.shown.season, env.shown.day);
+      let swapped = false;
+      if (step !== onScreen) {
+        let built = 0;
+        let reused = 0;
+        caches.forEach((cache, i) => {
+          if (!cache) return;
+          const before = cache.builds;
+          const g = cache.get(step);
+          if (cache.builds > before) built++;
+          else reused++;
+          field!.setGeometry(i, g);
+        });
+        onScreen = step;
+        swapped = true;
+        if (logSwaps) console.info(`[v2b] nature thinning ${step}: ${built} built, ${reused} reused`);
+      }
+      const redrew = field.update(env.camera);
+      return swapped || redrew;
     },
     dispose() {
+      for (const cache of caches) if (cache) for (const g of cache.values()) g.dispose();
+      for (const g of owned) g.dispose();
       field?.dispose();
       material?.dispose();
     },
