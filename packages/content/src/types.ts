@@ -789,7 +789,12 @@ export interface CharterGoal {
   text: string;
   lane: 'hearth' | 'ledger' | 'shared';
   /** What is counted and the target (progress shows count / target). */
-  measure: { what: CountWhat; ref?: string };
+  measure: {
+    what: CountWhat;
+    ref?: string;
+    /** R1A: counts nothing until this many Food flavors are on offer (the Village's food goal). */
+    flavors?: number;
+  };
   target: number;
 }
 
