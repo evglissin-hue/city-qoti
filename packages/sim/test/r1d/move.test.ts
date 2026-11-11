@@ -98,7 +98,7 @@ describe('build.move', () => {
     const f = hamletFixture();
     const id = f.b.cottages[0];
     const move = (x: number, z: number, rot = 0) =>
-      rejection(run(f.state, { t: 'build.move', id, x, z, rot }));
+      rejection(run(f.state, { t: 'build.move', id, x, z, rot: rot as 0 }));
     expect(move(99, 60)).toBe('WATER');
     expect(move(56, 48)).toBe('OCCUPIED');
     expect(move(52, 50)).toBe('OCCUPIED');

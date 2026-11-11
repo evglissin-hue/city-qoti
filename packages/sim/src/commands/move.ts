@@ -3,17 +3,15 @@
 // the new spot, with the piece itself left out of the way. It costs nothing and refunds nothing. In
 // a standard valley the builders take a building down and raise it again for a third of its work
 // and no materials; in the sandbox it simply moves.
-import { content, type BuildingDef } from '@qoti/content';
+import { content } from '@qoti/content';
 import { MAP_SIZE, TICKS_PER_HOUR, TILE_FP } from '../constants';
-import type { Building, WorldState } from '../contracts';
+import type { Building } from '../contracts';
 import { tilesRect } from '../map/layers';
 import { canPlaceBuilding } from '../rules/building';
 import { canPlaceDecor } from '../rules/decor';
 import { footprintTiles } from '../rules/footprint';
 import { isInt } from '../rules/geometry';
-import { doorFront, reachesTile, townReach, townSources } from '../rules/reach';
-import { gateTiles, isWallDef } from '../rules/wall';
-import { readerWithout } from '../rules/without';
+import { movedReaches, readerWithout, staysPut } from '../rules/without';
 import { findById } from '../state/entities';
 import { isStandard, TOWN_HALL } from '../state/hamlet';
 import { worldIndex } from '../state/worldIndex';
@@ -65,30 +63,6 @@ export const moveDecor: HandlerFor<'decor.move'> = {
   },
 };
 
-/**
- * Pieces that stay where they were put: wall pieces and gates (painted in runs, and the enclosure
- * rule reads the whole run), and bridges and other story landmarks (the story chose the spot).
- */
-export function staysPut(def: BuildingDef): boolean {
-  return (
-    isWallDef(def.id) ||
-    !!def.defense?.blocks ||
-    def.defense?.passable === 'gate' ||
-    def.category === 'landmark' ||
-    !!def.tags?.includes('bridge')
-  );
-}
-
-/** Could the town still walk to the door if `b` stood at (x, z, rot)? Its own old tiles are left out. */
-function reachesMoved(state: WorldState, b: Building, x: number, z: number, rot: Building['rot']): boolean {
-  const others = state.buildings.filter((o) => o.id !== b.id);
-  if (!others.some((o) => o.stage === 'built')) return true;
-  const reader = readerWithout(worldIndex(state).reader, { building: b.id });
-  const reach = townReach(reader, townSources(others), gateTiles(others));
-  if (!reach.some((v) => v === 1)) return true;
-  return reachesTile(reach, reader, doorFront({ def: b.def, x, z, rot }));
-}
-
 export const moveBuilding: HandlerFor<'build.move'> = {
   type: 'build.move',
   validate(state, _seat, cmd) {
@@ -111,7 +85,8 @@ export const moveBuilding: HandlerFor<'build.move'> = {
       rot,
     );
     if (!placement.ok) return placement.reason ?? 'INVALID';
-    if (isStandard(state) && !reachesMoved(state, b, cmd.x, cmd.z, rot)) return 'CUT_OFF';
+    if (isStandard(state) && !movedReaches(worldIndex(state).reader, state.buildings, b, cmd.x, cmd.z, rot))
+      return 'CUT_OFF';
     return null;
   },
   apply(state, _seat, cmd, ctx) {

@@ -205,3 +205,51 @@ describe('UndoStack', () => {
     expect(r.undo.size.value).toBe(UNDO_DEPTH);
   });
 });
+
+describe('UndoStack, moves (R1D)', () => {
+  it('undoes a building move and a decor move by moving back', () => {
+    const r = rig('undo-move', { mode: 'sandbox' });
+    const [x, z] = buildingSpot(r, 'house');
+    r.submit({ t: 'build.place', def: 'house', x, z, rot: 0 });
+    r.turn();
+    const id = [...r.mirror.buildings.keys()][0]!;
+    r.submit({ t: 'build.move', id, x: x + 5, z, rot: 1 });
+    r.turn();
+    expect(r.mirror.buildings.get(id)).toMatchObject({ x: x + 5, z, rot: 1 });
+    expect(r.undo.labels().at(-1)).toBe('moving the house');
+    expect(r.undo.undo(r.mirror, r.raw)).toMatchObject({ ok: true });
+    r.turn();
+    expect(r.mirror.buildings.get(id)).toMatchObject({ x, z, rot: 0 });
+
+    const def = content.decorById.get('bench')!;
+    const reader = worldIndex(r.world).reader;
+    let spot: [number, number] | null = null;
+    for (let i = 0; i < 400 && !spot; i++) {
+      const fx = (r.center[0] + (i % 20) - 10) * 256 + 128;
+      const fz = (r.center[1] + Math.floor(i / 20) - 10) * 256 + 128;
+      if (canPlaceDecor(reader, def, fx, fz, 0).ok) spot = [fx, fz];
+    }
+    r.submit({ t: 'decor.place', def: 'bench', fx: spot![0], fz: spot![1], rot: 0 });
+    r.turn();
+    const did = [...r.mirror.decor.keys()][0]!;
+    r.submit({ t: 'decor.move', id: did, fx: spot![0] + 512, fz: spot![1], rot: 8 });
+    r.turn();
+    expect(r.mirror.decor.get(did)).toMatchObject({ fx: spot![0] + 512, rot: 8 });
+    r.undo.undo(r.mirror, r.raw);
+    r.turn();
+    expect(r.mirror.decor.get(did)).toMatchObject({ fx: spot![0], fz: spot![1], rot: 0 });
+  });
+
+  it('refuses to undo a move when the piece has moved on', () => {
+    const r = rig('undo-move-changed', { mode: 'sandbox' });
+    const [x, z] = buildingSpot(r, 'house');
+    r.submit({ t: 'build.place', def: 'house', x, z, rot: 0 });
+    r.turn();
+    const id = [...r.mirror.buildings.keys()][0]!;
+    r.submit({ t: 'build.move', id, x: x + 5, z, rot: 0 });
+    r.turn();
+    r.raw({ t: 'build.move', id, x: x + 9, z, rot: 0 });
+    r.turn();
+    expect(r.undo.undo(r.mirror, r.raw)).toEqual({ ok: false, reason: 'CHANGED' });
+  });
+});
