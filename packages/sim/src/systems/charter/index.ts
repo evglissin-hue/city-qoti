@@ -11,6 +11,7 @@ import { fillText } from '../../view/hamlet';
 import { charterView } from '../../view/village';
 import { chronicle } from '../chronicle/api';
 import { creditText } from '../chronicle/text';
+import { flavorsOnOffer } from '../market/balances';
 import { addMoodModifier } from '../residents/api';
 
 export const charter: System = {
@@ -31,7 +32,9 @@ export function refreshCharter(state: WorldState, ctx: TickCtx | null): void {
   let changed = c.progress.length !== def.goals.length;
   let ready = true;
   const progress = def.goals.map((g, i) => {
-    const v = countOf(state, g.measure.what, g.measure.ref);
+    // A goal that asks for flavors counts nothing until that many Food flavors are on offer.
+    const bare = g.measure.flavors !== undefined && flavorsOnOffer(state, 0) < g.measure.flavors;
+    const v = bare ? 0 : countOf(state, g.measure.what, g.measure.ref);
     if (v !== c.progress[i]) changed = true;
     if (v < g.target) ready = false;
     return v;

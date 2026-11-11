@@ -18,7 +18,13 @@ export const villageCharter: CharterDef = {
       target: 3,
     },
     { id: 'wishes', text: '5 wishes granted', lane: 'hearth', measure: { what: 'wishesGranted' }, target: 5 },
-    { id: 'food', text: '5 days of food in stock', lane: 'ledger', measure: { what: 'foodDays' }, target: 5 },
+    {
+      id: 'food',
+      text: '5 days of Food with 3 flavors',
+      lane: 'ledger',
+      measure: { what: 'foodDays', flavors: 3 },
+      target: 5,
+    },
     {
       id: 'surplus',
       text: 'A season ended in surplus',

@@ -4,7 +4,8 @@ import type { NeighborDef } from './types';
 // sell and sells to what they buy; what no neighbor sells, it cannot bring. Price factors are percent
 // of base, with drift and impact on top. R1.0 rewrote the lists in the sixteen goods so every family
 // has a seller: Millhaven is farm country downstream (grain and wool, the boat's port), Stonecross a
-// hill town of quarries and chimneys (stone and firewood). R1A and R1X tune them.
+// hill town of quarries and chimneys (stone and firewood). Deals are the seasonal family offers the
+// carrier can take. The numbers tune in R1X.
 
 export const millhaven: NeighborDef = {
   id: 'millhaven',
@@ -33,6 +34,11 @@ export const millhaven: NeighborDef = {
     ['grain', 1, 80],
     ['grain', 3, 120],
     ['fruit', 2, 75],
+  ],
+  deals: [
+    ['food', 'buy', 110],
+    ['wares', 'buy', 110],
+    ['materials', 'sell', 95],
   ],
   days: 2,
 };
@@ -63,6 +69,11 @@ export const stonecross: NeighborDef = {
   seasonal: [
     ['firewood', 3, 130],
     ['cloth', 3, 120],
+  ],
+  deals: [
+    ['fuel', 'buy', 110],
+    ['materials', 'buy', 110],
+    ['wares', 'sell', 95],
   ],
   days: 3,
 };
