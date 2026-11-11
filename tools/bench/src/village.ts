@@ -77,7 +77,7 @@ function open(w: WorldState, x: number, z: number): boolean {
  * land, gentle enough to pave, with the most open ground three tiles deep on both sides (trees
  * count against it, distance from the hall a little too).
  */
-export function planHighStreet(w: WorldState): HighStreet | null {
+export function planHighStreet(w: WorldState, length = LENGTH): HighStreet | null {
   const [cx, cz] = townCenter(w);
   const reader = worldIndex(w).reader;
   const stores = w.buildings
@@ -93,7 +93,7 @@ export function planHighStreet(w: WorldState): HighStreet | null {
       if (x < 0 || z < 0 || x >= S || z >= S || !w.map.road[z * S + x]) continue;
       for (const [dx, dz] of DIRS) {
         const tiles: [number, number][] = [];
-        for (let k = 1; k <= LENGTH; k++) tiles.push([x + dx * k, z + dz * k]);
+        for (let k = 1; k <= length; k++) tiles.push([x + dx * k, z + dz * k]);
         if (!tiles.every(([tx, tz]) => open(w, tx, tz))) continue;
         if (!canPaintRoad(reader, 'lane', tiles).ok) continue;
         let score = 0;
@@ -228,7 +228,27 @@ export const BAR_ZONES: readonly string[] = ['homes-low', 'shops', 'crafts', 'fa
 export function frontageFor(
   w: WorldState,
   zone: string,
-  opts: { minLen?: number; maxLen?: number; depth?: number } = {},
+  opts: { minLen?: number; maxLen?: number; depth?: number; tiles?: number } = {},
+): [number, number][] | null {
+  // R1F: several runs, best first, until about `tiles` tiles (a few lots) are found: one stroke a
+  // bar, not one lot a day.
+  const want = opts.tiles ?? 40;
+  const taken = new Set<number>();
+  const out: [number, number][] = [];
+  while (out.length < want) {
+    const run = bestRun(w, zone, opts, taken);
+    if (!run) break;
+    for (const [x, z] of run) taken.add(z * S + x);
+    out.push(...run);
+  }
+  return out.length > 0 ? out.slice(0, 256) : null;
+}
+
+function bestRun(
+  w: WorldState,
+  zone: string,
+  opts: { minLen?: number; maxLen?: number; depth?: number },
+  taken: ReadonlySet<number>,
 ): [number, number][] | null {
   const farms = zone === 'farms';
   const minLen = opts.minLen ?? 4;
@@ -249,7 +269,7 @@ export function frontageFor(
     for (let d = 1; d <= depth; d++) {
       const tx = x + px * d;
       const tz = z + pz * d;
-      if (!open(w, tx, tz) || w.map.tree[tz * S + tx]) return false;
+      if (!open(w, tx, tz) || w.map.tree[tz * S + tx] || taken.has(tz * S + tx)) return false;
       fert += w.map.fertility[tz * S + tx]!;
     }
     return !farms || fert / depth >= FIELD_GOOD_FERTILITY;
@@ -283,7 +303,7 @@ export function frontageFor(
             const mx = x + ax * (from + (n >> 1));
             const mz = z + az * (from + (n >> 1));
             const lane = w.map.road[z * S + x]! >= Road.lane ? 6 : 0;
-            const score = n + lane - (Math.abs(mx - cx) + Math.abs(mz - cz)) * 0.5;
+            const score = n * 2 + lane - (Math.abs(mx - cx) + Math.abs(mz - cz)) * 0.5;
             if (score <= bestScore) continue;
             bestScore = score;
             best = [];

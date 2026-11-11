@@ -25,6 +25,7 @@ import {
   worldIndex,
   type Building,
   type WorldState,
+  Zone,
 } from '@qoti/sim';
 import { LODGE_TREES, matureTreesNear } from '../hamlet';
 import { materialsPressing } from '../labor';
@@ -44,8 +45,13 @@ import type { Advisor, AdvisorDef, Visit } from './types';
 
 /** Streets the Ledger lays at most, the high street included. */
 const MAX_STREETS = 6;
-/** Coins in hand before another street: its 22 tiles of lane and the planner's reserve. */
-const STREET_COINS = 22 * (content.roadById.get('lane')?.cost?.coins ?? 2) + MONEY_RESERVE;
+/** Tiles of frontage that answer a bar for a while (a few lots); less, and a street is laid too. */
+const ENOUGH_FRONTAGE = 24;
+/** Coins a tile of lane costs. */
+const LANE_COINS = content.roadById.get('lane')?.cost?.coins ?? 2;
+/** A street's length in tiles: 22 when the treasury allows, never under 8 (a short lane still answers a bar). */
+const STREET_TILES = 22;
+const SHORT_STREET = 8;
 /** The Hamlet's build queue for specialized buildings (I1's three). */
 const QUEUE = 3;
 /** Food in store a resident before a granary goes up. */
@@ -92,7 +98,7 @@ class Land implements Advisor {
   private streets = 0;
   /** The Village's street (shops and townhouses) is laid. */
   private villageStreet = false;
-  /** Day each zone was last painted for its bar: its lots are cut within the hour, and the bar is read again at 01:00. */
+  /** Day each zone was last painted for its bar. */
   private readonly painted = new Map<string, number>();
 
   constructor(readonly p: Planner) {}
@@ -107,7 +113,11 @@ class Land implements Advisor {
   private lay(label: string, zones?: readonly string[]): boolean {
     const p = this.p;
     const village = rankAtLeast(p.w, 'village');
-    const street = planHighStreet(p.w);
+    // R1F: as long as the treasury allows, keeping the planner's reserve (a Hamlet down to fifty
+    // coins still lays a short lane for the homes its bar asks for).
+    const length = Math.min(STREET_TILES, Math.floor((p.coins() - MONEY_RESERVE) / LANE_COINS));
+    if (length < SHORT_STREET) return false;
+    const street = planHighStreet(p.w, length);
     if (!street) {
       p.actions.push(`no room for ${label}`);
       return false;
@@ -128,30 +138,30 @@ class Land implements Advisor {
   }
 
   /**
-   * A lit demand bar asks for land: paint its zone along open frontage by a lane or street, or lay
-   * a new street for the bars no frontage can answer. Each zone at most once in two days, since its
-   * lots are cut within the hour but the bar is only read again at 01:00.
+   * A lit demand bar asks for land: paint its zone along open frontage by a road, or lay a new street
+   * for the bars no frontage can answer (or only answer with a lot or two). A bar is answered once a
+   * day at most, and only while no empty lot of its zone is offered now (the bar is read at 01:00,
+   * and the land painted since may already answer it).
    */
   private answerBars(): void {
     const p = this.p;
     const w = this.w;
     const today = day(w);
-    const want: string[] = [];
+    const left: string[] = [];
     BAR_ZONES.forEach((zone, i) => {
-      if (!w.demand.lit[i]) return;
+      if (!w.demand.lit[i] || this.painted.get(zone) === today) return;
       const def = content.zoneById.get(zone);
       if (!def || !meetsRequires(w, def.requires)) return;
-      if ((this.painted.get(zone) ?? -9) >= today - 1) return;
-      want.push(zone);
-    });
-    const left: string[] = [];
-    for (const zone of want) {
+      const z = def.layerValue;
+      if (w.lots.some((l) => !l.buildingId && (l.zone === z || (i === 0 && l.zone === Zone.homesMedium)))) return;
       const tiles = frontageFor(w, zone);
-      if (tiles && p.do(`zone ${zone} for its bar`, [{ t: 'zone.paint', zone, tiles }]))
+      if (tiles && p.do(`zone ${zone} for its bar`, [{ t: 'zone.paint', zone, tiles }])) {
         this.painted.set(zone, today);
-      else left.push(zone);
-    }
-    if (left.length > 0 && this.streets < MAX_STREETS && p.coins() >= STREET_COINS) this.lay('another street', left);
+        if (tiles.length >= ENOUGH_FRONTAGE) return;
+      }
+      left.push(zone);
+    });
+    if (left.length > 0 && this.streets < MAX_STREETS) this.lay('another street', left);
   }
 
   /** A storehouse toward lots no porter reaches, raised to the front (one site at a time). */
@@ -232,9 +242,12 @@ class Land implements Advisor {
     this.fisheries(pop, stored + pantries, stored, made, turn);
 
     // The windmill once Farmland grows grain, on open high ground where it can serve four bakers.
-    if (countTrade(w, 'grain-farm') > 0 && count(w, 'windmill') === 0)
-      this.want('windmill', { ...turn, only: (x, z, wd, dp) => raisedBy(w, x, z, wd, dp) >= HIGH_GROUND }) ??
-        this.want('windmill', turn);
+    if (
+      countTrade(w, 'grain-farm') > 0 &&
+      count(w, 'windmill') === 0 &&
+      !this.want('windmill', { ...turn, only: (x, z, wd, dp) => raisedBy(w, x, z, wd, dp) >= HIGH_GROUND })
+    )
+      this.want('windmill', turn);
     // A granary once Food stocks grow, one to every 150 residents.
     if (
       pop >= 15 &&
