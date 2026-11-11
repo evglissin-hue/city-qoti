@@ -192,6 +192,7 @@ class Watch implements Advisor {
 
 export const watch: AdvisorDef = {
   id: 'watch',
+  lane: 'ledger',
   slot: 45,
   // Threats and the Watch, once the content has a Watch House and the run turns the threat dial on.
   plays: (opts) =>

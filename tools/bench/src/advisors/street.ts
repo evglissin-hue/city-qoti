@@ -94,6 +94,7 @@ class Street implements Advisor {
 
 export const street: AdvisorDef = {
   id: 'street',
+  lane: 'ledger',
   slot: 20,
   plays: () => true,
   create: (p) => new Street(p),

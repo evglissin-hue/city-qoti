@@ -184,6 +184,7 @@ class Village implements Advisor {
 
 export const village: AdvisorDef = {
   id: 'village',
+  lane: 'ledger',
   slot: 10,
   // The Village's services, specialized buildings and tiers, once the content has them (I2) and the run plays them.
   plays: (opts) => !!opts.village && content.buildingById.has('tavern'),

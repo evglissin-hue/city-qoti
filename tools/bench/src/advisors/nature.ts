@@ -300,6 +300,7 @@ function streetDecorSpot(w: WorldState, def: string, x: number, z: number): [num
 
 export const nature: AdvisorDef = {
   id: 'nature',
+  lane: 'hearth',
   // After the Hearth's wishes and decor (60).
   slot: 65,
   plays: (opts, w) => w.settings.mode === 'standard' && opts.hearth !== false && content.wildlife.length > 0,
