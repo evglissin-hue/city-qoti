@@ -4,7 +4,7 @@ import type { Decor, RejectReason, SeatId, TickCtx, WorldState } from '../contra
 import { canPlaceDecor, canPlaceDecorPieces, canPlaceDecorRun, type DecorPiece } from '../rules/decor';
 import { findById, removeById } from '../state/entities';
 import { worldIndex } from '../state/worldIndex';
-import { chargeDecor, decorBlocked, refundDecor } from '../systems/economy/decorCost';
+import { chargeDecor, decorBlocked, decorSetBlocked, refundDecor } from '../systems/economy/decorCost';
 import { currentPlan } from '../systems/festivals/api';
 import { markCharmSoon } from '../systems/hearth/charm/dirty';
 import { decorView } from '../view';
@@ -101,11 +101,7 @@ function validatePieces(state: WorldState, pieces: unknown): RejectReason | null
   if (state.decor.length + pieces.length > DECOR_CAP) return 'TOO_MANY';
   const result = canPlaceDecorPieces(worldIndex(state).reader, pieces as DecorPiece[]);
   if (!result.ok) return result.reason ?? 'INVALID';
-  for (const [def, n] of pieceCounts(state, pieces as DecorPiece[])) {
-    const blocked = n > 0 ? decorBlocked(state, def, n) : null;
-    if (blocked) return blocked;
-  }
-  return null;
+  return decorSetBlocked(state, pieceCounts(state, pieces as DecorPiece[]));
 }
 
 export const placeRun: HandlerFor<'decor.placeRun'> = {

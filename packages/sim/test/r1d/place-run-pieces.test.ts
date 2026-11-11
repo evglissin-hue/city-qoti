@@ -2,7 +2,8 @@
 import { describe, expect, it } from 'vitest';
 import { DECOR_CAP, TILE_FP } from '../../src/constants';
 import { rejection, run } from '../helpers';
-import { standardWorld } from '../hearth/helpers';
+import { content } from '@qoti/content';
+import { build, standardWorld } from '../hearth/helpers';
 
 const c = (t: number) => t * TILE_FP + TILE_FP / 2;
 const gesture = { from: [c(40), c(40)] as [number, number], to: [c(44), c(40)] as [number, number] };
@@ -113,5 +114,24 @@ describe('decor.placeRun with pieces', () => {
     run(w, { t: 'decor.placeRun', def: 'fence', from: [c(30), c(60)], to: [c(30), c(64)] });
     expect(w.decor.length).toBe(4);
     expect(w.decor.every((d) => d.def === 'fence')).toBe(true);
+  });
+
+  it('counts the cost of mixed pieces together', () => {
+    const w = standardWorld();
+    const store = build(w, 'storehouse', 20, 20);
+    store.rt!.store[content.goodIndex.get('timber')!] = 6;
+    const one = (def: string, x: number) => ({ def, fx: c(x), fz: c(40), rot: 0 });
+    const cmd = (pieces: ReturnType<typeof one>[]) => ({
+      t: 'decor.placeRun' as const,
+      def: pieces[0]!.def,
+      ...gesture,
+      pieces,
+    });
+    // Four timber each: either alone fits in six, both together do not.
+    expect(rejection(run(standardWorld(), cmd([one('flower-trellis', 40)])))).toBe('CANNOT_AFFORD');
+    expect(rejection(run(w, cmd([one('flower-trellis', 40), one('painted-shop-sign', 42)])))).toBe(
+      'CANNOT_AFFORD',
+    );
+    expect(rejection(run(w, cmd([one('flower-trellis', 40)])))).toBeUndefined();
   });
 });
