@@ -42,6 +42,7 @@ import {
   stowNearest,
   tileDistance,
 } from './stores';
+import { buildsFirst } from '../construction/first';
 import { deliverUpgrade } from '../tiers/api';
 import { deliverModule } from '../modules';
 import { isCartJob, keepCarts, matchCarts, stepCartJob, tickIdleCarts, type CartHooks } from './carts';
@@ -234,6 +235,7 @@ function assign(
   let bestSrc: Spot | null = null;
   let bestDest: Spot | null = null;
   let bestGood = -1;
+  let bestFirst = false;
 
   // C4X: from Village rank, sites and workshop inputs share a class (the nearer source wins; among
   // sites the oldest, so they finish one at a time). With inputs strictly first, a busy Village
@@ -245,13 +247,16 @@ function assign(
     const cls = fair && need.cls === JobClass.site ? JobClass.input : need.cls;
     if (need.want <= 0 || cls > bestCls || !within(reach, need.dest.door)) continue;
     const goods = need.good >= 0 ? [need.good] : stallOrder(need.dest.rt);
+    // R1B: among equal classes, a site on the season plan's "build first" zone is served first.
+    const first = buildsFirst(state, need.dest.b);
     for (const g of goods) {
       let found = false;
       for (const s of spots) {
         if (s === need.dest || sourceAvail(s.b, s.def, g) <= 0 || !within(reach, s.door)) continue;
         found = true;
         const d = tileDistance(from, s.door);
-        if (cls < bestCls || d < bestD) {
+        if (cls < bestCls || (first === bestFirst ? d < bestD : first)) {
+          bestFirst = first;
           bestCls = cls;
           bestD = d;
           bestNeed = need;

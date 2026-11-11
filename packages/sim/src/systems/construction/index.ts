@@ -2,7 +2,7 @@
 // (logistics); builders from the town hall and builder's yards walk to the site and add work,
 // which keeps pace with the materials delivered so far, so a site rises through its stages
 // (staked plot, foundation, frame, roof) in order. Sites are served in placement order, raised
-// sites first. Builders with no site to work on repair worn buildings when the town can afford it.
+// sites first, then the lots of the season plan's "build first" zone. Builders with no site to work on repair worn buildings when the town can afford it.
 import type { BuildingDef } from '@qoti/content';
 import { MAP_SIZE, TICKS_PER_HOUR } from '../../constants';
 import type { Building, Resident, System, TickCtx, WorldState } from '../../contracts';
@@ -18,6 +18,7 @@ import { doorTile } from '../movement/api';
 import { defOf } from '../logistics/stores';
 import { available, finishTask, productivity, startTask, walkTo } from '../logistics/tasks';
 import { storehouseReach } from '../logistics/range';
+import { buildsFirst } from './first';
 import { allowedWork, computeStatus, materialsDue } from '../production/status';
 
 export const MAX_BUILDERS_PER_SITE = 3;
@@ -155,7 +156,10 @@ function matchBuilders(state: WorldState): void {
   const sites = state.buildings
     .filter((b) => b.stage === 'construction' && workAt(state, b) === 'build')
     .sort(
-      (a, b) => Number(b.rt!.construction!.priority) - Number(a.rt!.construction!.priority) || a.id - b.id,
+      (a, b) =>
+        Number(b.rt!.construction!.priority) - Number(a.rt!.construction!.priority) ||
+        Number(buildsFirst(state, b)) - Number(buildsFirst(state, a)) ||
+        a.id - b.id,
     );
   const worn = state.economy.leanTimes
     ? []
