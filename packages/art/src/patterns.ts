@@ -439,7 +439,7 @@ export function generatePatterns(data: Uint8Array, size: number): void {
   // Wood grain: streaks along u (planks, seats and cart beds run level), finer lines between them,
   // and a knot in about one cell in seven of a 3 by 6 grid, drawn long along the grain.
   {
-    const streaks = fbm(size, 2, 14, 3, 201);
+    const streaks = fbm(size, 2, 14, 2, 201);
     const lines = noise(size, 3, 56, 202);
     const knotAt = cells(3, 6, 203);
     const knotX = cells(3, 6, 204);
@@ -464,17 +464,17 @@ export function generatePatterns(data: Uint8Array, size: number): void {
   // bare wood (G, the accent: palette 2.0 wood) where a fine mottle peaks, about one texel in twelve.
   {
     const strokes = fbm(size, 2, 24, 2, 211);
-    const tone = fbm(size, 5, 5, 3, 212);
-    const wear = fbm(size, 10, 12, 3, 213);
+    const tone = fbm(size, 5, 5, 2, 212);
+    const wear = fbm(size, 10, 12, 2, 213);
     put(SURFACE.paintedWood, (_x, _y, i) => {
       out.r = 1 + (strokes[i]! - 0.5) * 0.14 + (tone[i]! - 0.5) * 0.12;
-      out.g = smooth(0.64, 0.72, wear[i]!);
+      out.g = smooth(0.68, 0.76, wear[i]!);
     });
   }
 
   // Wrought iron: a hammered mottle, darker hollows and bright worn high spots.
   {
-    const mottle = fbm(size, 12, 12, 3, 221);
+    const mottle = fbm(size, 12, 12, 2, 221);
     const spots = cells(64, 64, 222);
     put(SURFACE.wroughtIron, (x, y, i) => {
       const p = spots[Math.floor(y * 64) * 64 + Math.floor(x * 64)]!;
@@ -485,10 +485,10 @@ export function generatePatterns(data: Uint8Array, size: number): void {
   // Terracotta: the potter's wheel's rings (level bands), mottled firing, a little grit, and pale
   // bloom where the clay has weathered (G, the accent: palette 2.0 stripe, a lime-washed cream).
   {
-    const firing = fbm(size, 6, 6, 3, 231);
+    const firing = fbm(size, 6, 6, 2, 231);
     const ringTone = noise(size, 1, 20, 232);
     const grit = cells(128, 128, 233);
-    const bloom = fbm(size, 4, 4, 4, 234);
+    const bloom = fbm(size, 4, 4, 3, 234);
     put(SURFACE.terracotta, (x, y, i) => {
       const fy = y * 20 - Math.floor(y * 20);
       const ring = 0.97 + 0.06 * bump(fy) + (ringTone[i]! - 0.5) * 0.08;
@@ -503,7 +503,7 @@ export function generatePatterns(data: Uint8Array, size: number): void {
   {
     const warp = cells(32, 1, 241);
     const weft = cells(1, 32, 242);
-    const dye = fbm(size, 4, 4, 3, 243);
+    const dye = fbm(size, 4, 4, 2, 243);
     put(SURFACE.cloth, (x, y, i) => {
       const tx = x * 32;
       const ty = y * 32;
