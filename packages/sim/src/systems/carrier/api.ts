@@ -12,6 +12,17 @@ export function carrierBrought(state: WorldState, good: number, days: number): n
   return n;
 }
 
+/** The closed pass's weather event id (content.events). */
+export const PASS_EVENT = 'pass-closed';
+
+/** True while snow closes the valley road: the carrier does not come (docs/spec/14-challenge.md). */
+export function passClosed(state: WorldState): boolean {
+  for (const v of state.weather.events) {
+    if (v.event === PASS_EVENT && v.start <= state.tick && state.tick < v.end) return true;
+  }
+  return false;
+}
+
 /**
  * The season plan's winter mark for a family (GOOD_FAMILIES index), in days, from Summer day 4 to
  * the end of winter; null outside that stretch. R1 stand-in (R1A): "to the thaw" is read as the end
