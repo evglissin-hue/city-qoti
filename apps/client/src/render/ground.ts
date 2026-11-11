@@ -571,7 +571,8 @@ vec3 qGlow() {
   if (uNight < 0.01) return sum;
 #ifdef Q_LIGHT_MAP
   // V2A: every lantern, lit window, oven, fire, festival light and shop front in one read.
-  return qLamp(vQWorld.xz, 0.0) * (uNight * uNight);
+  // (The caller's 1.3 times this; the map's pools are broader than the loop's, so a little less.)
+  return qLamp(vQWorld.xz, 0.0) * (uNight * uNight * 0.8);
 #else
   // Before V2A (and with ?debug&lights=loop): the 32 pools nearest the view.
   for (int i = 0; i < ${MAX_GROUND_LIGHTS}; i++) {

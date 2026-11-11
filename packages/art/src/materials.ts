@@ -508,13 +508,15 @@ export interface KitLampOptions {
 }
 
 /** How strongly kit faces take the lamplight (an emissive on the face's own color). */
-const KIT_LAMP_GAIN = '1.7';
+const KIT_LAMP_GAIN = '0.8';
 
 /**
  * V2A: walls, decor, carts and animals read the light map a little in front of the face along its
  * normal (a wall facing the lamp samples nearer it than one facing away, which gives the pool a
  * direction for free), fading out between 1.5 and 4 tiles up (`qLamp`'s curve, by the kit's own
- * height), as an emissive on the face's color, by night squared.
+ * height), as an emissive on the face's color, by night squared. A breath of light, not a wash:
+ * a wall takes most of it low down, less toward its eaves (lamps hang about a tile up), and roofs
+ * and other upward faces above a tile take little (the pools below them are not under the sky).
  */
 const KIT_LAMP_FRAGMENT = /* glsl */ `
 uniform float uLampNight;
@@ -523,7 +525,9 @@ vec3 qKitLamp(vec3 albedo) {
   if (uLampNight < 0.01) return vec3(0.0);
   vec3 n = normalize(vQWNor);
   vec2 xz = vQWPos.xz + n.xz * 0.45;
-  return albedo * qLamp(xz, vQUp) * (uLampNight * uLampNight * ${KIT_LAMP_GAIN});
+  float k = 1.0 - 0.45 * smoothstep(0.3, 1.4, vQUp);
+  k *= 1.0 - 0.85 * smoothstep(0.3, 0.7, n.y) * smoothstep(0.6, 1.1, vQUp);
+  return albedo * qLamp(xz, vQUp) * (k * uLampNight * uLampNight * ${KIT_LAMP_GAIN});
 }
 `;
 
