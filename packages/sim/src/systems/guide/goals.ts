@@ -49,7 +49,11 @@ export function guideHomes(state: WorldState, _bind: unknown, params: readonly [
 const FARMS_LAYER = content.zones.find((z) => z.id === 'farms')?.layerValue ?? -1;
 
 /** R1 (R1D): at least `tiles` (default 9) tiles zoned Farmland on good soil (FIELD_GOOD_FERTILITY). */
-export function guideFarmland(state: WorldState, _bind: unknown, params: readonly [string, number][]): boolean {
+export function guideFarmland(
+  state: WorldState,
+  _bind: unknown,
+  params: readonly [string, number][],
+): boolean {
   const need = paramOf(params, 'tiles', 9);
   const m = state.map;
   let n = 0;

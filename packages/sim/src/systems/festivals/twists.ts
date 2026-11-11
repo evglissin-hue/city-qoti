@@ -5,7 +5,6 @@ import { content, type Condition } from '@qoti/content';
 import type { WorldState } from '../../contracts';
 import { seasonAt } from '../../state/seasons';
 import { townStock } from '../../view/hamlet';
-import { placeableNow, tradeAvailable } from '../hearth/wishes/achievable';
 
 /** Goods a twist's goal names (stock goals and menu goals), by id. */
 export function goodsNamed(cond: Condition, out: string[] = []): string[] {
@@ -17,28 +16,20 @@ export function goodsNamed(cond: Condition, out: string[] = []): string[] {
 }
 
 /**
- * The town has the good, or can make it now: it is in stock, a standing building or business
- * makes it, a trade that makes it could open (its zone open, its reach to be had) with its raw
- * goods to hand by the same test, or a building that makes it can be placed.
+ * The town has the good or makes it now: some is in stock, or a standing building or business
+ * makes it. A trade that could open one day does not count: the twist waits until it has.
  */
-export function goodMakeable(state: WorldState, good: string, depth = 0): boolean {
+export function goodMakeable(state: WorldState, good: string): boolean {
   const g = content.goodIndex.get(good);
   if (g === undefined) return false;
   if ((townStock(state)[g] ?? 0) > 0) return true;
   for (const b of state.buildings) {
+    if (b.stage !== 'built') continue;
     if (b.trade && content.tradeById.get(b.trade)?.makes === good) return true;
     const def = content.buildingById.get(b.def);
-    if (def?.methods?.some((m) => m.outputs.some(([o]) => o === good))) return true;
+    if (!b.trade && def?.methods?.some((m) => m.outputs.some(([o]) => o === good))) return true;
   }
-  if (depth < 3) {
-    for (const t of content.trades) {
-      if (t.makes !== good || !tradeAvailable(state, t)) continue;
-      if (t.from.every((r) => goodMakeable(state, r, depth + 1))) return true;
-    }
-  }
-  return content.buildings.some(
-    (d) => d.methods?.some((m) => m.outputs.some(([o]) => o === good)) && placeableNow(state, d),
-  );
+  return false;
 }
 
 /** True when the twist can be planned now: in this season, and every good it names can be had. */
