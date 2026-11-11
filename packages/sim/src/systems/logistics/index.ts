@@ -50,6 +50,9 @@ import { available, finishTask, startTask, tickReturning, walkTo } from './tasks
 /** Job classes in matching order: lower is more urgent (PorterJob.priority). */
 export const JobClass = { prioritySite: 0, stallFood: 1, input: 2, site: 3, clearing: 4 } as const;
 
+/** Units of each Wares or Treats good a market keeps on its shelf (R1B). */
+export const MARKET_GOODS_TARGET = 8;
+
 /** Production inputs are topped up to this many cycles' worth. */
 export const INPUT_TARGET_CYCLES = 2;
 
@@ -158,6 +161,17 @@ function needsOf(spots: readonly Spot[]): Need[] {
     if (isMarket(def)) {
       const want = Math.min(STALL_RESTOCK_TARGET - foodIncoming(rt), storageSpace(def, rt));
       if (want > 0) out.push({ dest: s, good: -1, want, cls: JobClass.stallFood });
+      // R1B: an outlet that takes Wares or Treats (the Market Square takes every family, a stall
+      // Food and Treats) is kept stocked with them too, a few of each.
+      for (let g = 0; g < content.goods.length; g++) {
+        const family = content.goods[g]!.family;
+        if ((family !== 'wares' && family !== 'treats') || !takes(def, g)) continue;
+        const room = Math.min(
+          MARKET_GOODS_TARGET - (rt.store[g] ?? 0) - (rt.reservedIn[g] ?? 0),
+          storageSpace(def, rt),
+        );
+        if (room > 0) out.push({ dest: s, good: g, want: room, cls: JobClass.stallFood });
+      }
       continue;
     }
     const method = methodOf(s.b);

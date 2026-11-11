@@ -34,7 +34,9 @@ export const apiary: BuildingDef = {
   work: 6,
   charm: [{ category: 'nature', value: 3, radius: 2 }],
   art: { kit: 'shed', params: { kit: 'apiary' } },
-  tags: ['hive', 'farm'],
+  // Stays a Hearth building placed by hand (no trade): 'hives' lets detectors, wishes and the trade
+  // score's "made in the valley" find it, as they find a farmstead keeping hives.
+  tags: ['hive', 'hives', 'farm'],
   requires: { rank: 'village' },
 };
 

@@ -238,7 +238,8 @@ export const marketSquare: BuildingDef = {
   },
   upkeep: 2,
   jobs: { count: 3, role: 'vendor' },
-  storage: 120,
+  // Six stalls of 40, one for each family: no `stores`, so it takes every good.
+  storage: 240,
   coverage: [{ kind: 'food', radius: 20 }],
   work: 16,
   charm: [{ category: 'comfort', value: 5, radius: 4 }],

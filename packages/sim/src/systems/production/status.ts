@@ -58,10 +58,10 @@ export function outputBlocked(def: BuildingDef, rt: BuildingRuntime, method: Pro
     return g >= 0 && rt.output[g]! + CROP_YIELD > cap;
   }
   // A lodge makes one of its goods a cycle (timber or firewood): full only when neither fits.
-  const full = (([id, qty]: [string, number]): boolean => {
+  const full = ([id, qty]: [string, number]): boolean => {
     const g = content.goodIndex.get(id);
     return g !== undefined && rt.output[g]! + qty > cap;
-  });
+  };
   return method.kind === 'fell' ? method.outputs.every(full) : method.outputs.some(full);
 }
 
