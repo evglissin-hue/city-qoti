@@ -201,7 +201,7 @@ export function lightsLayer(): RenderLayer {
         const gx = p.x + ox * 0.3;
         const gz = p.z + oz * 0.3;
         // Upper floors spill less than the ground floor.
-        const disc: LightDisc = { x: gx, z: gz, radius: 1.15, color, intensity: l[1] < 0.9 ? 0.38 : 0.24 };
+        const disc: LightDisc = { x: gx, z: gz, radius: 1.15, color, intensity: l[1] < 0.9 ? 0.3 : 0.2 };
         windows.push({ pane, disc });
         if (LIGHT_LOOP) all.push({ x: gx, y: groundY(mirror, gx, gz) + 0.05, z: gz, strength: 0.2, pane });
       }

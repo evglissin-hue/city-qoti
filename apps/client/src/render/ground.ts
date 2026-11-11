@@ -572,7 +572,7 @@ vec3 qGlow() {
 #ifdef Q_LIGHT_MAP
   // V2A: every lantern, lit window, oven, fire, festival light and shop front in one read.
   // (The caller's 1.3 times this; the map's pools are broader than the loop's, so a little less.)
-  return qLamp(vQWorld.xz, 0.0) * (uNight * uNight * 0.8);
+  return qLamp(vQWorld.xz, 0.0) * (uNight * uNight * 0.65);
 #else
   // Before V2A (and with ?debug&lights=loop): the 32 pools nearest the view.
   for (int i = 0; i < ${MAX_GROUND_LIGHTS}; i++) {
@@ -675,7 +675,11 @@ export function createGroundMaterial(tex: GroundTextures, env: WorldEnv): MeshSt
       )
       .replace(
         '#include <emissivemap_fragment>',
-        '#include <emissivemap_fragment>\ntotalEmissiveRadiance += diffuseColor.rgb * qGlow() * 1.3;',
+        map
+          ? // V2A: on the albedo, and a breath of warm air over the pool, so lamplight on grass reads
+            // warm rather than olive.
+            '#include <emissivemap_fragment>\n{ vec3 qG = qGlow(); totalEmissiveRadiance += diffuseColor.rgb * qG * 1.3 + qG * 0.035; }'
+          : '#include <emissivemap_fragment>\ntotalEmissiveRadiance += diffuseColor.rgb * qGlow() * 1.3;',
       )
       .replace(
         '#include <fog_fragment>',

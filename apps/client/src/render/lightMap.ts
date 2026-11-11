@@ -214,7 +214,7 @@ export function discFalloff(t: number): number {
   const t2 = t * t;
   if (t2 >= 1) return 0;
   const w = (1 - t2) * (1 - t2);
-  return w * (0.35 + 0.65 / (1 + 10 * t2));
+  return w * (0.22 + 0.78 / (1 + 12 * t2));
 }
 
 const DISC_VERTEX = /* glsl */ `
@@ -239,7 +239,7 @@ void main() {
   float t2 = dot(vLocal, vLocal);
   if (t2 >= 1.0) discard;
   float w = (1.0 - t2) * (1.0 - t2);
-  gl_FragColor = vec4(vColor * (w * (0.35 + 0.65 / (1.0 + 10.0 * t2))), 1.0);
+  gl_FragColor = vec4(vColor * (w * (0.22 + 0.78 / (1.0 + 12.0 * t2))), 1.0);
 }
 `;
 

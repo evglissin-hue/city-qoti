@@ -121,7 +121,7 @@ describe('the lights layer sources', () => {
   it('spills light under lit windows, thinner above the ground floor', () => {
     const lit = run(m, 21, 1).sources.get('windows') ?? [];
     expect(lit.length).toBeGreaterThan(0);
-    expect(lit.every((d) => d.radius === 1.15 && (d.intensity === 0.38 || d.intensity === 0.24))).toBe(true);
+    expect(lit.every((d) => d.radius === 1.15 && (d.intensity === 0.3 || d.intensity === 0.2))).toBe(true);
     expect(run(m, 21, 0).sources.get('windows') ?? []).toHaveLength(0);
   });
 
