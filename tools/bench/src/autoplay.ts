@@ -48,6 +48,7 @@ import { advisors, type Advisor, type AutoplayOptions } from './advisors';
 import type { Lane } from './advisors/types';
 import { command, runTicks, startingTown, type Hamlet } from './hamlet';
 import type { DecisionRecord } from './decisions';
+import { ledgerLine, type LedgerLine } from './ledgerRow';
 import { Planner } from './planner';
 import { charterLine, craftsfolk, FOODS, G, sites, storyLetters, vacantHomes } from './town';
 import { grownSince, growthLine, type GrowthLine, type GrowthNight, type HighStreet } from './village';
@@ -109,6 +110,8 @@ export interface DayLine {
   // I2 (C4C)
   craftsfolk: number;
   innovations: number;
+  /** R1F: the zones-first ledger numbers (balances, bars, businesses, hands, carrier). */
+  ledger?: LedgerLine;
 }
 
 export interface AutoplayResult {
@@ -171,6 +174,7 @@ function dayLine(w: WorldState, day: number): DayLine {
     plans: w.village.plansApproved,
     craftsfolk: craftsfolk(w),
     innovations: w.innovations.filter((i) => i.unlockedTick >= 0).length,
+    ledger: ledgerLine(w),
   };
 }
 
