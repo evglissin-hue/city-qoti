@@ -11,7 +11,7 @@
 .ledger-picker .zone-cards {
   flex-wrap: wrap;
   max-height: none;
-  align-items: stretch;
+  align-items: flex-start;
 }
 
 .ledger-picker .card.zone-card {

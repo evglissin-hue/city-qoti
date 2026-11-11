@@ -199,7 +199,6 @@ function ZonesShelf({ session, tool, stay }: { session: Session; tool: Tool; sta
           ) : on === UNZONE ? (
             'Grown buildings stay put; empty lots fold away. '
           ) : null}
-          <span class="muted">{INPUT_COPY.zoneHint}</span>
         </p>
       )}
     </>
