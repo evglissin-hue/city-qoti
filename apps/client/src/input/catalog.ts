@@ -23,14 +23,59 @@ function isProducer(def: BuildingDef): boolean {
 }
 
 /**
- * R1.0 stand-in until R1C's three shelves (docs/spec/17-presentation.md, The Build picker): homes,
- * the specialized buildings (with the apiary, which makes honey), then everything that serves.
+ * The Hearth's picker groups: homes, the specialized pieces (with the apiary, which makes honey),
+ * then everything that serves. The Ledger's three shelves are `ledgerShelf` below.
  */
 export function buildingGroup(def: BuildingDef): BuildingGroup {
   if (def.category === 'home') return 'homes';
   if (def.specialized || isProducer(def)) return 'specialized';
   return 'services';
 }
+
+/** The Ledger's Build picker has three shelves (docs/spec/17-presentation.md, The Build picker). */
+export type LedgerShelf = 'zones' | 'specialized' | 'services';
+
+export const SHELF_LABEL: Record<LedgerShelf, string> = {
+  zones: 'Zones',
+  specialized: 'Specialized',
+  services: 'Services',
+};
+
+/**
+ * The shelf a hand-placed building stands on in the Ledger: every specialized def on Specialized,
+ * everything else (services, defenses, and the homes set by hand) on Services. Zones holds brushes,
+ * not buildings.
+ */
+export function ledgerShelf(def: BuildingDef): Exclude<LedgerShelf, 'zones'> {
+  return def.specialized ? 'specialized' : 'services';
+}
+
+/** The shelves the Ledger's picker shows: Zones only where zoning exists (standard valleys). */
+export function ledgerShelves(mode: ValleyMode): LedgerShelf[] {
+  return mode === 'standard' ? ['zones', 'specialized', 'services'] : ['specialized', 'services'];
+}
+
+/** The four zone brushes, in demand order (DEMAND_KINDS): the zone each paints, and Homes' denser one. */
+export interface Brush {
+  kind: 'homes' | 'shops' | 'workshops' | 'farmland';
+  zone: string;
+  dense?: string;
+}
+
+export const BRUSHES: readonly Brush[] = [
+  { kind: 'homes', zone: 'homes-low', dense: 'homes-medium' },
+  { kind: 'shops', zone: 'shops' },
+  { kind: 'workshops', zone: 'crafts' },
+  { kind: 'farmland', zone: 'farms' },
+];
+
+/** The brush a zone belongs to (so a demand bar and a zone id find each other). */
+export function brushOfZone(zone: string): Brush | undefined {
+  return BRUSHES.find((b) => b.zone === zone || b.dense === zone);
+}
+
+/** The Market Stall: what the Shops card sets by hand until the Shops zone opens. */
+export const SHOPS_STAND_IN = 'market-stall';
 
 /**
  * P1 (playtest): true when a standard valley has lost its town hall (saves from before the hall was

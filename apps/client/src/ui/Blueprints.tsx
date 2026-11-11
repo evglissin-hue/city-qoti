@@ -201,6 +201,18 @@ function draw(
     }
   }
   for (const mk of marks) {
+    if (mk.ring) {
+      const cx = mk.x + mk.w / 2;
+      const cz = mk.z + mk.d / 2;
+      const pts: [number, number][] = [];
+      for (let i = 0; i < 48; i++) {
+        const a = (i / 48) * Math.PI * 2;
+        pts.push([cx + Math.cos(a) * mk.ring, cz + Math.sin(a) * mk.ring]);
+      }
+      const d = poly(pts, true);
+      if (d) paths.push({ d, cls: `bp reach ${mk.dashed ? 'faint' : ''}`, ink: mk.ink });
+      continue;
+    }
     if (mk.fill) {
       const d = poly(rectPoints(mk.x, mk.z, mk.w, mk.d), true);
       if (d) paths.push({ d, cls: 'bp zone-wash', ink: mk.ink });

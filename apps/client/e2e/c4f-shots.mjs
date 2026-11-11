@@ -108,8 +108,8 @@ for (const scale of scales) {
   if (wanted(`c4f-zone-${scale}`)) {
     await q(page, () => window.__qoti.look(46, 54, 22));
     await page.waitForTimeout(2000);
-    await page.getByTestId('tool-zone').click();
-    await page.getByTestId('variant-homes-low').click();
+    await page.getByTestId('tool-building').click();
+    await page.getByTestId('brush-homes-low').click();
     const a = await q(page, () => window.__qoti.screenOf(42, 51));
     const b = await q(page, () => window.__qoti.screenOf(51, 53));
     await page.mouse.move(a.x, a.y);
