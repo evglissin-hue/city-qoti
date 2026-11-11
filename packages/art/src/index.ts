@@ -78,6 +78,7 @@ export {
 } from './materials';
 export {
   ACCENTS,
+  LAMP_COLORS,
   palette,
   palette2,
   PLASTERS,
