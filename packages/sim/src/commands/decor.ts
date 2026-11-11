@@ -1,7 +1,7 @@
 import { content, type DecorDef } from '@qoti/content';
-import { DECOR_CAP, TILE_FP } from '../constants';
+import { DECOR_CAP, MAX_RUN_SEGMENTS, TILE_FP } from '../constants';
 import type { Decor, RejectReason, SeatId, TickCtx, WorldState } from '../contracts';
-import { canPlaceDecor, canPlaceDecorRun } from '../rules/decor';
+import { canPlaceDecor, canPlaceDecorPieces, canPlaceDecorRun, type DecorPiece } from '../rules/decor';
 import { findById, removeById } from '../state/entities';
 import { worldIndex } from '../state/worldIndex';
 import { chargeDecor, decorBlocked, refundDecor } from '../systems/economy/decorCost';
@@ -78,11 +78,42 @@ export const place: HandlerFor<'decor.place'> = {
   },
 };
 
+/** Charged pieces per def (festival temporary pieces are free), in first-seen order. */
+function pieceCounts(state: WorldState, pieces: readonly DecorPiece[]): Map<DecorDef, number> {
+  const counts = new Map<DecorDef, number>();
+  for (const p of pieces) {
+    const def = content.decorById.get(p.def);
+    if (!def) continue;
+    counts.set(def, (counts.get(def) ?? 0) + (temporaryPiece(state, def) ? 0 : 1));
+  }
+  return counts;
+}
+
+function validatePieces(state: WorldState, pieces: unknown): RejectReason | null {
+  if (!Array.isArray(pieces) || pieces.length === 0) return 'INVALID';
+  if (pieces.length > MAX_RUN_SEGMENTS) return 'TOO_MANY';
+  for (const p of pieces as DecorPiece[]) {
+    const def = p && typeof p.def === 'string' ? content.decorById.get(p.def) : undefined;
+    if (!def) return 'INVALID';
+    const locked = lockedReason(state, def);
+    if (locked) return locked;
+  }
+  if (state.decor.length + pieces.length > DECOR_CAP) return 'TOO_MANY';
+  const result = canPlaceDecorPieces(worldIndex(state).reader, pieces as DecorPiece[]);
+  if (!result.ok) return result.reason ?? 'INVALID';
+  for (const [def, n] of pieceCounts(state, pieces as DecorPiece[])) {
+    const blocked = n > 0 ? decorBlocked(state, def, n) : null;
+    if (blocked) return blocked;
+  }
+  return null;
+}
+
 export const placeRun: HandlerFor<'decor.placeRun'> = {
   type: 'decor.placeRun',
   validate(state, _seat, cmd) {
     const def = typeof cmd.def === 'string' ? content.decorById.get(cmd.def) : undefined;
     if (!def || !Array.isArray(cmd.from) || !Array.isArray(cmd.to)) return 'INVALID';
+    if (cmd.pieces !== undefined) return validatePieces(state, cmd.pieces);
     const locked = lockedReason(state, def);
     if (locked) return locked;
     const result = canPlaceDecorRun(worldIndex(state).reader, def, cmd.from, cmd.to);
@@ -91,6 +122,11 @@ export const placeRun: HandlerFor<'decor.placeRun'> = {
     return temporaryPiece(state, def) ? null : decorBlocked(state, def, result.segments.length);
   },
   apply(state, seat, cmd, ctx) {
+    if (cmd.pieces) {
+      for (const [def, n] of pieceCounts(state, cmd.pieces)) if (n > 0) chargeDecor(state, ctx, def, n);
+      for (const p of cmd.pieces) addDecor(state, ctx, seat, p.def, p.fx, p.fz, p.rot);
+      return;
+    }
     const def = content.decorById.get(cmd.def)!;
     const { segments } = canPlaceDecorRun(worldIndex(state).reader, def, cmd.from, cmd.to);
     if (!temporaryPiece(state, def)) chargeDecor(state, ctx, def, segments.length);

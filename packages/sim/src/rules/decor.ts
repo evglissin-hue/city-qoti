@@ -1,4 +1,4 @@
-import type { DecorDef } from '@qoti/content';
+import { content, type DecorDef } from '@qoti/content';
 import { DECOR_BUILDING_MARGIN, DECOR_ROTATIONS, MAX_RUN_SEGMENTS, TILE_FP } from '../constants';
 import type { MapReader, Placement, RejectReason } from '../contracts';
 import { rotationForDirection } from '../map/directions';
@@ -104,4 +104,32 @@ export function canPlaceDecorRun(
     }
   }
   return { ok: true, segments };
+}
+
+export interface DecorPiece {
+  def: string;
+  fx: number;
+  fz: number;
+  rot: number;
+}
+
+/**
+ * R1D: validates a hand-composed set of pieces (point or linear decor, mixed defs): each piece as
+ * decor.place would, and the pieces keep their distance from one another. All or nothing.
+ */
+export function canPlaceDecorPieces(reader: MapReader, pieces: readonly DecorPiece[]): Placement {
+  if (pieces.length === 0 || pieces.length > MAX_RUN_SEGMENTS)
+    return fail(pieces.length ? 'TOO_MANY' : 'INVALID');
+  for (let i = 0; i < pieces.length; i++) {
+    const p = pieces[i]!;
+    const def = content.decorById.get(p.def);
+    if (!def) return fail('INVALID');
+    const placement = canPlaceDecor(reader, def, p.fx, p.fz, p.rot);
+    if (!placement.ok) return placement;
+    for (let j = 0; j < i; j++) {
+      const q = pieces[j]!;
+      if (decorTooClose(q.fx - p.fx, q.fz - p.fz, def.radius, decorRadius(q.def))) return fail('OCCUPIED');
+    }
+  }
+  return { ok: true };
 }
