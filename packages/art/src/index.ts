@@ -58,6 +58,7 @@ export { BUNDLE_GOODS, bundleGeometry, crateOf, GOOD_COLORS, pileLevel, pileOf }
 export { PAINT, RIG, RIG_PIVOTS, RigBuilder, type Channel } from './rig';
 export { beam, cylX, cylZ, panel } from './shapes';
 export {
+  bindResidentMaterial,
   createEmissiveKitMaterial,
   createGhostMaterial,
   createKitMaterial,
