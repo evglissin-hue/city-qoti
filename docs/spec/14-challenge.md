@@ -111,7 +111,7 @@ From I3, farming becomes seasonal: wheat sown in spring, harvested in autumn; fi
   - **Drought** (summer): farm yields -40% unless irrigated (ditches [I4]) or near wells.
   - **Early frost** (autumn days 1 to 3): unharvested wheat -50%.
   - **Cold snap** (winter): warmth needs x2 for 2 days.
-  - **The pass is closed** (winter) [R1]: heavy snow shuts the valley road for 1 to 3 days of the season *(tune; at most 1 on Gentle, up to 4 on Thoughtful)*, forecast like any event. The carrier does not come, and the boat is already held by the ice, so for those days the town lives on what it has put by and what it makes. This is the price of living on imports.
+  - **The pass is closed** (winter) [R1]: heavy snow shuts the valley road for 1 to 3 days of the season *(tune; at most 1 on Gentle, up to 4 on Thoughtful)*, forecast like any event. The carrier does not come, and the boat is already held by the ice, so for those days the town lives on what it has put by and what it makes. This is the price of living on imports. *As built (R1A)*: the `pass-closed` event comes every winter at the dial's odds (it may come two winters running: `EventDef.yearly`), 1 to 3 days, a day on Gentle and a day more on Thoughtful (up to 4).
   - **Travelling circus** (summer, Village+): needs a green; brings visitors, coins and mood.
   - **Royal visit** (Town+): an inspector judges charm, order and stock; renown up or a gentle embarrassment.
 

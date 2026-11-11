@@ -100,6 +100,19 @@ function groupNeed(h: Household, perDay: number, perHousehold: boolean | undefin
 }
 
 /**
+ * True when the household already buys this family in its own basket and gets what it wants (its
+ * satisfaction at BASKET_MET or more). Moving up then needs no shelf count, nor, for a want of under
+ * a unit a day, when it could buy the family in the last three days: the 05:00 check comes after the
+ * 18:00 pass emptied a one-day reserve of Wares or Treats, so the shelf alone reads short at the
+ * trough of every day.
+ */
+function gettingBy(h: Household, family: string): boolean {
+  const wants = content.basketByTier.get(h.tier)?.wants;
+  const gi = wants?.findIndex((w) => w.family === family && w.amount > 0) ?? -1;
+  return gi >= 0 && !!h.basket && (h.basket[gi] ?? 0) >= BASKET_MET;
+}
+
+/**
  * Checks a household against a tier's basket. `aspiring` is the move up: every group must be on
  * the shelves (or in the pantry), with savings and a home that can grow. Otherwise it is the check
  * to stay: C4A's basket satisfaction when the household buys this basket, else the shelves again,
@@ -118,9 +131,11 @@ export function checkTier(
   const def = home ? content.buildingById.get(home.def) : undefined;
   if (aspiring && !homeRoute(def, basket.tier)) missing.push(M.home ?? 'home');
   const own = !aspiring && h.basket && h.tier === basket.tier;
-  // Tiers read amount and variety; no tier names a single good. Moving up: the family's shelf
-  // goods together (outlet shelves plus the pantry) must cover a day's need, and the household
-  // must have seen the flavors wanted. Staying: the basket's satisfaction, and the same variety.
+  // Tiers read amount and variety; no tier names a single good. Moving up: the household gets the
+  // family in its own basket, or (for a want of under a unit a day, which one unit meets for days)
+  // saw some of it in the last three days, or the family's shelf goods
+  // together (outlet shelves plus the pantry) cover a day's need; and it must have seen the flavors
+  // wanted. Staying: the basket's satisfaction, and the same variety.
   const season = calendar(state.tick).season;
   const groups = basketGroups(basket);
   basket.wants.forEach((want, gi) => {
@@ -129,7 +144,10 @@ export function checkTier(
     if (want.amount > 0 && inSeason) {
       if (own) {
         if ((h.basket![gi] ?? 100) < BASKET_MET) missing.push(group.name.toLowerCase());
-      } else {
+      } else if (
+        !gettingBy(h, want.family) &&
+        !(want.amount < 1 && householdVariety(state, h, familyIndex(want.family)) > 0)
+      ) {
         const need = groupNeed(h, group.perDay, group.perHousehold);
         let have = 0;
         for (const g of SHELF_GOODS[familyIndex(want.family)] ?? [])

@@ -215,12 +215,20 @@ export function flavorsOnOffer(state: WorldState, family: number, offered?: read
 
 /**
  * The most flavors of a family any tier in town wants: the tiers its households hold, and every
- * tier the valley has opened (a newly opened tier is wanted before anyone qualifies for it).
+ * tier the valley has opened (a newly opened tier is wanted before anyone qualifies for it); for
+ * Food, also what the Charter being worked toward asks.
  */
 export function wantedVariety(state: WorldState, family: number): number {
   const id = GOOD_FAMILIES[family]!;
   const counts = tierCounts(state);
   let most = 0;
+  // The Charter being worked toward may ask for Food flavors (the Village's "5 days of Food with 3
+  // flavors"): a Hamlet wants them before any tier does, so the carrier can help it get there.
+  if (family === FOOD) {
+    for (const g of content.charterById.get(state.charter.charter)?.goals ?? []) {
+      if ((g.measure.flavors ?? 0) > most) most = g.measure.flavors!;
+    }
+  }
   for (let t = 0; t < TIERS.length; t++) {
     const tier = TIERS[t]!;
     if (counts[t]! === 0 && !tierOpen(state, tier)) continue;

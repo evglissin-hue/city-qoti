@@ -127,6 +127,8 @@ describe('moving up', () => {
     for (const b of state.buildings) if (b.def === 'tavern') b.rt!.workers.length = 0;
     for (const b of state.buildings)
       if (b.rt) for (const id of ['cloth', 'furniture', 'candles']) b.rt.store[good(id)] = 0;
+    // R1A: nor seen in the last three days (a want of under a unit a day is met by a recent sighting).
+    for (const id of ['cloth', 'furniture', 'candles']) h.seen![good(id)] = -1;
     const missing = tierProgress(state, h)!.missing;
     expect(missing).toContain(villagePhrases.missing.social);
     expect(missing).toContain('wares');

@@ -276,8 +276,12 @@ describe('selling and the winter marks', () => {
     run(f.state, { t: 'carrier.setBudget', coins: 1000 });
     withTradingPost(f.state, () => {
       const residents = f.state.residents.length;
-      building(f.state, f.b.granary).rt!.store[good('grain')] = 4 * residents;
-      // Grain on offer to every home, so no flavor is lacking and only the mark moves the carrier.
+      const granary = building(f.state, f.b.granary).rt!;
+      granary.store[good('grain')] = 2 * residents;
+      granary.store[good('vegetables')] = residents;
+      granary.store[good('cheese')] = residents;
+      // Three flavors on offer to every home (the Charter asks three), so none is lacking and only
+      // the mark moves the carrier.
       f.state.tick = tickAt(0, 2, 3, 10);
       markSeen(f.state);
       visit(f.state, 2, 3);
