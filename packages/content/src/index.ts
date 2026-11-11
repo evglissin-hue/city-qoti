@@ -100,6 +100,7 @@ export const buildings: readonly BuildingDef[] = [
   VB.farmstead,
   B.fishery,
   B.forestersLodge,
+  B.gardenBed,
   SB.gate,
   B.granary,
   VB.herbalist,

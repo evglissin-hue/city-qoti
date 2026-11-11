@@ -88,6 +88,7 @@ describe('content', () => {
         'cart-shed',
         'fishery',
         'foresters-lodge',
+        'garden-bed',
         'granary',
         'market-square',
         'market-stall',

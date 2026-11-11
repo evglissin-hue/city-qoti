@@ -8,6 +8,7 @@ import { doorTileOf } from '../systems/movement/api';
 import { pavedDesireTiles } from '../systems/traffic/wear';
 import { decorInRect, decorTileX, decorTileZ, expandRect } from './geo';
 import type { Binding } from './index';
+import { marketDay, porridgeNoMore } from './r1';
 import { findRoute } from './route';
 // I2 (C4C): the innovations' predicates live with their measures.
 import {
@@ -126,7 +127,9 @@ export const codePredicates: ReadonlyMap<string, CodePredicate> = new Map<string
   ['guideLane', guideLane],
   ['lanternRoute', lanternRoute],
   ['lodgeByRiver', lodgeByRiver],
+  ['marketDay', marketDay],
   ['pathRoute', pathRoute],
+  ['porridgeNoMore', porridgeNoMore],
   ['portersBusy', portersBusy],
   ['quarryWorked', quarryWorked],
   ['raidSeen', raidSeen],

@@ -586,7 +586,16 @@ export type CountWhat =
   /** Raids repelled with nothing stolen. */
   | 'raidsHeld'
   /** Winters where nobody was cold. */
-  | 'warmWinters';
+  | 'warmWinters'
+  // R1 (R1D)
+  /** Businesses standing that grew on a lot (nobody placed them by hand); `ref` a trade id, def id or tag keeps those that answer to it. */
+  | 'businesses'
+  /** Distinct trades among those businesses; `ref` (a def id or tag, such as 'workshop') keeps only those. */
+  | 'businessTrades'
+  /** Flavors of Food on offer in town (R1A's flavorsOnOffer); `ref` a family id counts that family instead. */
+  | 'foodFlavors'
+  /** Winters with no Food or Fuel imported and nobody hungry or cold. */
+  | 'importFreeWinters';
 
 // --- Hearth content ---------------------------------------------------------------------------
 
