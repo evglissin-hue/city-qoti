@@ -133,6 +133,7 @@ test('a solo valley moves online and a partner joins it', async ({ browser }) =>
   await a.goto(`/${HAMLET_QUERY}`);
   await a.getByTestId('new-solo').click();
   await waitLive(a);
+  await a.getByTestId('menu-open').click();
   await expect(a.getByTestId('connection')).toHaveText('Solo');
   const soloId = await a.evaluate(() => window.__qoti.valleyId());
   // Leave a mark to look for: a note by the town hall.
@@ -141,6 +142,7 @@ test('a solo valley moves online and a partner joins it', async ({ browser }) =>
   await expect.poll(async () => (await counts(a)).notes).toBe(1);
   const before = await counts(a);
 
+  await a.getByTestId('menu-open').click();
   await a.getByTestId('settings-open').click();
   await a.getByTestId('move-online-card').screenshot({ path: `${shots()}/c4d-move-online.png` });
   await a.getByTestId('move-online').click();

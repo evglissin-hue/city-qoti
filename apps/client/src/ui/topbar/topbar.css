@@ -1,0 +1,440 @@
+/* R1C: the calmer top bar. One row, the lens strip in the middle, one menu button. */
+
+header.topbar {
+  left: 10px;
+  right: 10px;
+  transform: none;
+  width: auto;
+  max-width: none;
+  gap: 10px;
+  flex-wrap: nowrap;
+  white-space: nowrap;
+}
+
+header.topbar > * {
+  flex: 0 0 auto;
+}
+
+header.topbar .topbar-town {
+  min-width: 0;
+  max-width: 8rem;
+}
+
+header.topbar .topbar-town strong,
+header.topbar .topbar-town .muted {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+header.topbar .topbar-town-stats {
+  flex: 0 1 auto;
+  min-width: 0;
+  gap: 6px;
+}
+
+header.topbar .topbar-town-stats > * {
+  flex: none;
+}
+
+header.topbar .topbar-town-stats > .goal-pill {
+  flex: 0 1 auto;
+  max-width: 14rem;
+  min-width: 4rem;
+}
+
+/* The strip takes whatever room is left and keeps itself centered in it. */
+header.topbar .topbar-middle {
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  justify-content: center;
+  container-type: inline-size;
+}
+
+.lens-strip {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+/* --- Demand bars --------------------------------------------------------------------------- */
+
+.demand-bars {
+  display: flex;
+  gap: 3px;
+  align-items: flex-end;
+}
+
+button.demand-bar {
+  display: grid;
+  justify-items: center;
+  gap: 1px;
+  padding: 1px 3px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  box-shadow: none;
+  cursor: pointer;
+  color: var(--ink-soft);
+}
+
+button.demand-bar:hover {
+  background: var(--paper-light);
+}
+
+.demand-well {
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  width: 11px;
+  height: 22px;
+  border-radius: 4px;
+  background: rgba(90, 66, 49, 0.1);
+  border: 1px solid rgba(90, 66, 49, 0.22);
+  overflow: hidden;
+}
+
+.demand-well i {
+  display: block;
+  width: 100%;
+  background: var(--zone-ink);
+  opacity: 0.4;
+  transition: height 0.4s;
+}
+
+.demand-bar.lit .demand-well {
+  border-color: var(--ledger);
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--ledger) 40%, transparent),
+    0 0 7px color-mix(in srgb, var(--ledger) 70%, transparent);
+  overflow: visible;
+}
+
+.demand-bar.lit .demand-well i {
+  opacity: 0.95;
+  border-radius: 3px;
+}
+
+.demand-dot {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--ledger);
+  border: 1px solid var(--paper-light);
+}
+
+.demand-letter {
+  font-size: 0.66rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.demand-bar.lit .demand-letter {
+  color: var(--ink);
+}
+
+/* --- Balance chips ------------------------------------------------------------------------- */
+
+.balance-chips {
+  display: flex;
+  gap: 2px;
+  align-items: center;
+}
+
+button.balance-chip,
+button.winter-reserve {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 5px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  box-shadow: none;
+  cursor: pointer;
+  font-weight: 700;
+}
+
+button.balance-chip:hover,
+button.winter-reserve:hover {
+  background: var(--paper-light);
+}
+
+.balance-chip .good-icon {
+  width: 1.25em;
+  height: 1.25em;
+}
+
+.cover-bar {
+  position: relative;
+  display: block;
+  width: 34px;
+  height: 7px;
+  border-radius: 4px;
+  background: rgba(90, 66, 49, 0.14);
+}
+
+.cover-bar i {
+  display: block;
+  height: 100%;
+  border-radius: 4px;
+  background: var(--sage-deep);
+}
+
+.balance-chip.low .cover-bar i {
+  background: #c2603f;
+}
+
+.cover-bar .tick {
+  position: absolute;
+  top: -2px;
+  bottom: -2px;
+  width: 2px;
+  margin-left: -1px;
+  border-radius: 1px;
+  background: var(--ink-line);
+  opacity: 0.7;
+}
+
+.cover-bar .tick.mark {
+  background: var(--river);
+  opacity: 1;
+}
+
+.cover-days {
+  min-width: 1.4em;
+  font-size: 0.92rem;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.balance-chip.low .cover-days {
+  color: #a8542e;
+}
+
+.flavor-pips {
+  display: inline-flex;
+  gap: 2px;
+}
+
+.flavor-pips i {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  border: 1px solid var(--ink-soft);
+  box-sizing: border-box;
+}
+
+.flavor-pips i.on {
+  background: var(--ink-soft);
+}
+
+button.winter-reserve {
+  margin-left: 2px;
+  color: var(--river);
+}
+
+.winter-reserve .glyph {
+  width: 1.2em;
+  height: 1.2em;
+}
+
+.winter-reserve .cover-bar {
+  width: 28px;
+  height: 5px;
+}
+
+.winter-reserve .cover-bar i {
+  background: var(--river);
+}
+
+/* --- Hearth strip -------------------------------------------------------------------------- */
+
+button.strip-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 9px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  box-shadow: none;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+button.strip-chip:hover {
+  background: var(--paper-light);
+}
+
+.strip-chip .glyph {
+  width: 1.2em;
+  height: 1.2em;
+}
+
+.strip-word {
+  font-weight: 400;
+  color: var(--ink-soft);
+}
+
+/* --- Clock, speed ------------------------------------------------------------------------- */
+
+header.topbar .topbar-clock {
+  gap: 8px;
+  align-items: center;
+}
+
+/* --- The menu ----------------------------------------------------------------------------- */
+
+.topbar-menu {
+  position: relative;
+}
+
+.menu-button {
+  position: relative;
+}
+
+.menu-dot {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--sage-deep);
+  border: 1.5px solid var(--paper-light);
+}
+
+.menu-dot.warn {
+  background: var(--ochre);
+}
+
+.menu-sheet {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 40;
+  display: grid;
+  gap: 2px;
+  min-width: 14rem;
+  padding: 8px;
+  border-radius: 12px;
+  white-space: nowrap;
+}
+
+.menu-seats {
+  display: grid;
+  gap: 4px;
+  padding: 2px 6px 6px;
+  border-bottom: 1px dashed var(--line);
+}
+
+.menu-seats .seat-where {
+  margin-left: auto;
+  padding-left: 10px;
+  color: var(--ink-soft);
+  font-size: 0.82rem;
+}
+
+.menu-row {
+  padding: 4px 6px;
+}
+
+button.menu-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 5px 8px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  box-shadow: none;
+  text-align: left;
+  cursor: pointer;
+}
+
+button.menu-item:hover {
+  background: var(--paper-light);
+}
+
+.menu-item .glyph {
+  width: 1.2em;
+  height: 1.2em;
+}
+
+.menu-count {
+  margin-left: auto;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+/* --- Tight screens ------------------------------------------------------------------------ */
+
+@media (max-width: 1500px) {
+  header.topbar .date-season,
+  header.topbar .weather-chip .weather-word,
+  header.topbar .weather-chip .next,
+  header.topbar .rank-word {
+    display: none;
+  }
+}
+
+@media (max-width: 1400px) {
+  header.topbar .topbar-town .muted {
+    display: none;
+  }
+
+  header.topbar .topbar-town-stats > .goal-pill {
+    max-width: 8rem;
+  }
+}
+
+/* The strip gives up its flavor pips, then shortens its bars, as its room runs out. */
+@container (max-width: 700px) {
+  .flavor-pips {
+    display: none;
+  }
+}
+
+@container (max-width: 620px) {
+  .cover-bar {
+    width: 20px;
+  }
+
+  button.balance-chip,
+  button.winter-reserve {
+    padding: 2px 3px;
+    gap: 3px;
+  }
+}
+
+@container (max-width: 500px) {
+  .demand-letter {
+    display: none;
+  }
+}
+
+@media (max-width: 1100px) {
+  header.topbar .goal-pill {
+    display: none;
+  }
+}
+
+:root.reduced-motion .demand-well i {
+  transition: none;
+}
+
+@media (max-width: 1400px) {
+  header.topbar {
+    gap: 8px;
+  }
+
+  header.topbar .speed {
+    padding: 3px 5px;
+  }
+}
