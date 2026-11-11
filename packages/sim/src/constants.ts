@@ -204,6 +204,9 @@ export const BuildingStatus = {
   // I3 (C5A)
   /** A farm whose fields lie ready for the spring sowing (nothing sown or standing). */
   fallow: 8192,
+  // R1 (R1B)
+  /** A business with nothing to do (out of season, no raw good, a full shelf): it frees its hands. */
+  resting: 16384,
 } as const;
 
 // ---------------------------------------------------------------------------------------------
