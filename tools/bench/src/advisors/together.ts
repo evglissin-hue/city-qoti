@@ -19,7 +19,13 @@ import type { Planner } from '../planner';
 import { FOODS, idx } from '../town';
 import type { Advisor, AdvisorDef, Visit } from './types';
 
+/** R1F: days between two plans the Hearth sketches. */
+const SKETCH_DAYS = 4;
+
 class Together implements Advisor {
+  /** The day the Hearth last sketched a plan. */
+  private sketched = -SKETCH_DAYS;
+
   constructor(readonly p: Planner) {}
 
   private get w(): WorldState {
@@ -150,7 +156,9 @@ class Together implements Advisor {
         add('flower-bed', this.p.decorSpot('flower-bed', stall.x, stall.z, 2));
       }
     }
-    if (items.length > 0) {
+    // R1F: a sketch every few days at most (one every afternoon made the Ledger approve 25 plans).
+    if (items.length > 0 && this.p.runDay - this.sketched >= SKETCH_DAYS) {
+      this.sketched = this.p.runDay;
       this.p.do(
         'sketch a plan',
         [{ t: 'plan.add', name: 'For our story folk', items: items.map((cmd) => ({ cmd })) }],

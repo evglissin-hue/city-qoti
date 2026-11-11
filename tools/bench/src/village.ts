@@ -218,8 +218,9 @@ export function storehouseSpot(w: WorldState, street: HighStreet): [number, numb
 export const BAR_ZONES: readonly string[] = ['homes-low', 'shops', 'crafts', 'farms'];
 
 /**
- * R1F: open frontage for `zone` along the town's lanes and streets, the way a player answers a lit
- * demand bar: a straight run of `minLen` to `maxLen` tiles beside a lane or street, `depth` tiles
+ * R1F: open frontage for `zone` along the town's roads, the way a player answers a lit demand bar:
+ * a straight run of `minLen` to `maxLen` tiles beside a lane or street (or a path, which costs no
+ * new road), `depth` tiles
  * deep on one side, all open (no road, building, water, field, zone or tree), within the porters'
  * 22 tiles of a storehouse door, and for Farmland on soil good enough to farm. The run nearest the
  * town center wins. Returns the tiles to paint, or null when no run fits.
@@ -239,8 +240,9 @@ export function frontageFor(
     .map((b) => doorTile(b));
   const reached = (x: number, z: number) =>
     doors.some((d) => Math.abs((d % S) - x) + Math.abs(Math.floor(d / S) - z) <= 22);
+  // Lots are cut along paths too; lanes and streets are preferred.
   const paved = (x: number, z: number) =>
-    x >= 0 && z >= 0 && x < S && z < S && w.map.road[z * S + x]! >= Road.lane;
+    x >= 0 && z >= 0 && x < S && z < S && w.map.road[z * S + x]! >= Road.path;
   const column = (x: number, z: number, px: number, pz: number): boolean => {
     if (!reached(x + px, z + pz)) return false;
     let fert = 0;
@@ -280,7 +282,8 @@ export function frontageFor(
             if (n < minLen) continue;
             const mx = x + ax * (from + (n >> 1));
             const mz = z + az * (from + (n >> 1));
-            const score = n - (Math.abs(mx - cx) + Math.abs(mz - cz)) * 0.5;
+            const lane = w.map.road[z * S + x]! >= Road.lane ? 6 : 0;
+            const score = n + lane - (Math.abs(mx - cx) + Math.abs(mz - cz)) * 0.5;
             if (score <= bestScore) continue;
             bestScore = score;
             best = [];

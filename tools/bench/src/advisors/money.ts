@@ -49,7 +49,7 @@ class Money implements Advisor {
     if ((net < 0 && coins < 300 && basket >= 65) || (coins < 100 && basket >= 75) || (deep && basket >= 60)) {
       // The treasury slides while households get by: trim wages a little, then firm up the tax.
       if (l.wageLevel > 85) setWage(l.wageLevel - 5, 'trim wages');
-      else if (l.taxRate < TAX_RATE_RANGE[1]) setTax(l.taxRate + 2, 'raise the income tax');
+      else if (l.taxRate < TAX_RATE_RANGE[1]) setTax(Math.min(TAX_RATE_RANGE[1], l.taxRate + 4), 'raise the income tax');
     } else if (basket < 65 && coins > 150) {
       // Households going short while the treasury can spare it: ease off.
       if (l.taxRate > 6) setTax(l.taxRate - 2, 'ease the income tax');

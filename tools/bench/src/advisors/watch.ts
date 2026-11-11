@@ -111,7 +111,10 @@ class Watch implements Advisor {
     const allowed = Math.max(0, spareHands(w) - 1) * DUTY_EVERY;
     const want = Math.min(WATCH_TARGET, Math.max(allowed, this.threatened() ? WATCH_MIN : 0));
     if (want !== w.watch.target) this.p.do(`watch target ${want}`, [{ t: 'watch.setTarget', size: want }]);
-    const coins = this.p.seasonBalance() > 0 && this.p.coins() > 100 ? WATCH_BUDGET : 0;
+    // R1F: with some slack either way, so the budget is not switched with every day's balance (a
+    // lever turned thirteen times in seventy days is a chore).
+    const on = w.watch.budget > 0;
+    const coins = (on ? this.p.coins() > 50 : this.p.seasonBalance() > 0 && this.p.coins() > 150) ? WATCH_BUDGET : 0;
     if (coins * 100 !== w.watch.budget) this.p.do(`watch budget ${coins}`, [{ t: 'watch.setBudget', coins }]);
   }
 

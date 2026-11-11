@@ -91,6 +91,8 @@ export interface Want {
   budget?: Budget;
   /** R1F: only spots this accepts (footprint min corner and turned size), as `build` takes. */
   only?: (x: number, z: number, w: number, d: number) => boolean;
+  /** R1F: how far from the town center to look (40 tiles unless given; 60 with `only`). */
+  radius?: number;
 }
 
 /** A def's own price, plus `margin` coins. */
@@ -300,7 +302,7 @@ export class Planner {
   /** An advisor proposes a want; the planner starts it when the budgets allow. */
   propose(want: Want): Building | null {
     if (!this.allows(want)) return null;
-    const b = this.build(want.def, want.only);
+    const b = this.build(want.def, want.only, want.radius);
     if (!b) return null;
     if (want.budget) want.budget.left--;
     if (want.tally) for (const [g, q] of want.cost.goods) want.tally[G(g)]! -= q;
@@ -308,12 +310,16 @@ export class Planner {
   }
 
   /** The build queue: `def` at the first spot that fits (within `only`), with a path to the road. */
-  build(def: string, only?: (x: number, z: number, w: number, d: number) => boolean): Building | null {
+  build(
+    def: string,
+    only?: (x: number, z: number, w: number, d: number) => boolean,
+    radius = only ? 60 : 40,
+  ): Building | null {
     const ok = this.keepOffFloodplain
       ? (x: number, z: number, w: number, d: number) =>
           !onFloodplain(this.w, x, z, w, d) && (!only || only(x, z, w, d))
       : only;
-    const spot = findSpot(this.w, def, only ? 60 : 40, ok);
+    const spot = findSpot(this.w, def, radius, ok);
     if (!spot) {
       this.actions.push(`no spot for ${def}`);
       if (!only) this.noSpot.set(def, calendar(this.w.tick).day);

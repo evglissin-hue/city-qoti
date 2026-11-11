@@ -15,6 +15,7 @@ import {
   calendar,
   canPlaceBuilding,
   doorTile,
+  familyIndex,
   hasInnovation,
   isFrozen,
   meetsRequires,
@@ -43,6 +44,8 @@ import type { Advisor, AdvisorDef, Visit } from './types';
 
 /** Streets the Ledger lays at most, the high street included. */
 const MAX_STREETS = 6;
+/** Coins in hand before another street: its 22 tiles of lane and the planner's reserve. */
+const STREET_COINS = 22 * (content.roadById.get('lane')?.cost?.coins ?? 2) + MONEY_RESERVE;
 /** The Hamlet's build queue for specialized buildings (I1's three). */
 const QUEUE = 3;
 /** Food in store a resident before a granary goes up. */
@@ -51,6 +54,9 @@ const GRANARY_FOOD_DAYS = 4;
 const GRANARY_RESIDENTS = 150;
 /** Levels above the ground around it at which a windmill serves four bakers, not two (`raisedCapacity`). */
 const HIGH_GROUND = content.buildingById.get('windmill')?.raisedCapacity?.[0] ?? 4;
+
+/** Buildings tied to a resource on the ground, looked for further out than the rest. */
+const GROUND = new Set(['foresters-lodge', 'quarry', 'fishery', 'brickworks', 'sawmill']);
 
 const day = (w: WorldState) => Math.floor(w.tick / TICKS_PER_DAY) + 1;
 
@@ -145,7 +151,7 @@ class Land implements Advisor {
         this.painted.set(zone, today);
       else left.push(zone);
     }
-    if (left.length > 0 && this.streets < MAX_STREETS && p.coins() >= 80) this.lay('another street', left);
+    if (left.length > 0 && this.streets < MAX_STREETS && p.coins() >= STREET_COINS) this.lay('another street', left);
   }
 
   /** A storehouse toward lots no porter reaches, raised to the front (one site at a time). */
@@ -192,6 +198,8 @@ class Land implements Advisor {
       tally: o.tally,
       budget: o.budget,
       only: o.only,
+      // Ground buildings go where their ground is: a valley's stone or river may lie far out.
+      radius: GROUND.has(def) ? 60 : undefined,
     });
   }
 
@@ -216,7 +224,7 @@ class Land implements Advisor {
     // Timber first: a lodge needs only timber and stone, and everything else needs timber.
     this.lodges(pop, turn);
     // Stone next, urgent while the town has almost none (homes and lodges wait on it).
-    if (count(w, 'quarry') === 0 && stock[G('stone')]! < 16) this.want('quarry', { urgent: true, ...turn });
+    if (count(w, 'quarry') === 0 && stock[G('stone')]! < 16) this.withOutpost('quarry', { urgent: true, ...turn });
     else if (stock[G('stone')]! < 60 && count(w, 'quarry') < 1 + Math.floor(pop / 40))
       this.withOutpost('quarry', turn);
 
@@ -235,6 +243,7 @@ class Land implements Advisor {
     )
       this.want('granary', turn);
     this.storehouses(pop);
+    this.materialsRule();
     if (!village) return;
 
     // The Village's buildings, three starts a turn.
@@ -245,6 +254,26 @@ class Land implements Advisor {
     if (hasInnovation(w, 'brick-kiln') && count(w, 'brickworks') < 1 + Math.floor(pop / 80))
       this.withOutpost('brickworks', { budget: vb, pressing: stock[G('brick')]! < 20 });
     if (hasInnovation(w, 'carts') && count(w, 'cart-shed') === 0) this.want('cart-shed', { budget: vb });
+  }
+
+  /**
+   * The carrier's Materials rule: Essentials (the default) brings only what an open site waits for,
+   * so a valley with no spot for a quarry (birch's deposits lie out of reach) or a lodge has no
+   * stone or timber for the town's own growth to start a site with. Then the Ledger sets Materials
+   * to Always, and back to Essentials once the valley makes both again: one lever, not a chore.
+   */
+  private materialsRule(): void {
+    const w = this.w;
+    const f = w.carrier.families[familyIndex('materials')];
+    if (!f) return;
+    const makes = (def: string) => count(w, def, true) > 0;
+    const stock = townStock(w);
+    const short =
+      (!makes('quarry') && stock[G('stone')]! < 16 && this.p.blocked('quarry')) ||
+      (!makes('foresters-lodge') && stock[G('timber')]! < 16 && this.p.blocked('foresters-lodge'));
+    const rule = short ? 'always' : makes('quarry') && makes('foresters-lodge') ? 'essentials' : f.rule;
+    if (rule !== f.rule)
+      this.p.do(`Materials to ${rule}`, [{ t: 'carrier.setRule', family: 'materials', rule, sell: f.sell }]);
   }
 
   /** `def`, or a storehouse out toward a spot for it when none lies within the porters' reach. */
