@@ -10,23 +10,20 @@
 // C5.0: its wants go to the planner, priced `VILLAGE_MARGIN` over the def (I2 kept 30 coins back);
 // a want's priority is the build queue it will join (I2's `maxSites`).
 //
-// R1.0 (stand-ins until R1F rewrites the advisors): no chain buildings and no calling. Bread, cloth,
-// cider, cheese and the rest are made by businesses that grow on the zoned streets; this advisor
-// places the Village's specialized buildings once they open (the Trading Post, the Market Square,
-// the Sawmill with the Water Wheel, the Brickworks with the Brick Kiln, the Cart Shed with Carts),
-// fisheries and stalls for a bigger town, and services as before. It pauses nothing: labor needs
-// no lever.
+// R1.0: no chain buildings and no calling; bread, cloth, cider, cheese and the rest are made by
+// businesses that grow on the zoned streets. R1F: the specialized buildings (the Trading Post, the
+// Market Square, the Sawmill, the Brickworks, the Cart Shed, lodges, quarries, fisheries and
+// storehouses) are the land advisor's, and the flowers by the doors are the Hearth's. This advisor
+// keeps the Village's services and homes: a tavern and a herbalist near the homes that lack them, a
+// school, a Bath House, market stalls and builders for a bigger town. It pauses nothing: labor
+// needs no lever.
 import { content } from '@qoti/content';
 import {
   creditLimit,
   loansOwed,
   BuildingStatus,
-  calendar,
-  TILE_FP,
   canPlaceBuilding,
-  canPlaceDecor,
   doorTile,
-  hasInnovation,
   rankAtLeast,
   serviceCoverage,
   townStock,
@@ -35,10 +32,8 @@ import {
   type Rot4,
   type WorldState,
 } from '@qoti/sim';
-import { LODGE_TREES } from '../hamlet';
-import { materialsPressing } from '../labor';
 import { costOf, MONEY_RESERVE, VILLAGE_MARGIN, type Budget, type Planner } from '../planner';
-import { count, craftsfolk, FOODS, G } from '../town';
+import { count, craftsfolk, G } from '../town';
 import type { Advisor, AdvisorDef, Visit } from './types';
 
 /** Timber, stone and food buildings may dip into the reserve. */
@@ -105,21 +100,7 @@ class Village implements Advisor {
     );
     if (count(w, 'builders-yard') < Math.floor(w.residents.length / 40))
       this.want('builders-yard', 8, queued);
-    // More porters next: a storehouse per 20 residents, raised to the front, and another whenever
-    // three workplaces sit with their output full (C4X: bread, cloth and cider waited at the
-    // workshops while the shelves stood empty, so nobody became Craftsfolk).
-    const backed = w.buildings.filter((b) => (b.rt?.status ?? 0) & BuildingStatus.outputFull).length;
-    const building = w.buildings.some((b) => b.def === 'storehouse' && b.stage === 'construction');
-    if (
-      (count(w, 'storehouse') < 1 + Math.floor(w.residents.length / 20) || (backed >= 3 && !building)) &&
-      this.want('storehouse', 8, backed >= 3)
-    ) {
-      const site = w.buildings[w.buildings.length - 1]!;
-      this.p.do('raise the storehouse', [{ t: 'build.setPriority', id: site.id, priority: true }]);
-    }
-    this.materials();
     this.buildVillage();
-    if (afternoon) this.dress();
   }
 
   /**
@@ -139,100 +120,26 @@ class Village implements Advisor {
     });
   }
 
-  /** The Village's specialized buildings as they open, services and a school. */
+  /** Services and a school (R1F: the specialized buildings are the land advisor's). */
   private buildVillage(): void {
     const w = this.w;
-    const pop = w.residents.length;
-    const crafts = craftsfolk(w);
-    const budget: Budget = { left: 3 };
-    const go = (cond: boolean, def: string, pressing = false) => {
-      if (cond && content.buildingById.has(def)) this.want(def, 5, pressing, budget);
-    };
     // Services: Craftsfolk want a tavern and a herbalist in reach (C4X: first, and outside the
     // turn's budget, one site of each at a time).
     this.serve('tavern', 'social');
     this.serve('herbalist', 'health');
-    const stock = townStock(w);
-    // R1: the carrier's depot, for more carried a day and better terms, and the town's main outlet.
-    go(count(w, 'trading-post') === 0 && this.coins() > 150, 'trading-post');
-    go(count(w, 'market-square') === 0 && pop >= 40, 'market-square');
-    // R1: the Sawmill lets carpenters set up in its reach; the Brickworks fires brick on its clay
-    // (pressing while there is too little brick for the next tavern or townhouse).
-    go(hasInnovation(w, 'water-wheel') && count(w, 'sawmill') === 0, 'sawmill');
-    const brickShort = stock[G('brick')]! < 20;
-    if (
-      budget.left > 0 &&
-      hasInnovation(w, 'brick-kiln') &&
-      count(w, 'brickworks') < 1 + Math.floor(pop / 80) &&
-      !this.want('brickworks', 5, brickShort, budget) &&
-      this.p.blocked('brickworks')
-    )
-      this.outpost('brickworks');
-    go(hasInnovation(w, 'carts') && count(w, 'cart-shed') === 0, 'cart-shed');
     // Skilled work, once there are Craftsfolk to do it.
-    go(crafts >= 8 && count(w, 'school') === 0, 'school');
+    if (craftsfolk(w) >= 8 && count(w, 'school') === 0) this.want('school', 5);
+    // C5A (the seasons advisor's until R1F): a Village with a dozen homes asks for a Bath House.
+    const homes = w.households.length;
+    if (homes >= 12 && count(w, 'bath-house') < 1 + Math.floor(homes / 30))
+      this.p.propose({ def: 'bath-house', priority: 2, cost: costOf('bath-house', 10), pressing: false, essential: false });
   }
 
-  /**
-   * Food for the Charter's five days in stock and for a bigger town: a fishery while there are
-   * fewer than four days in hand (the Farmland businesses grow by themselves), and a market stall
-   * per forty residents so the shopping trips are short.
-   */
+  /** A market stall per forty residents, so the shopping trips are short (R1F: fisheries are the land advisor's). */
   private feed(): void {
     const w = this.w;
     const pop = w.residents.length;
-    const stock = townStock(w);
-    const food = FOODS.reduce((n, g) => n + stock[g]!, 0);
-    const made = FOODS.reduce((n, g) => n + (w.economy.yesterday.produced[g] ?? 0), 0);
-    // C4X: a little over a day's eating made a day is enough. C5A: not in winter.
-    const def = this.p.foodBuilding();
-    if (def && pop >= 30 && food < pop * 4 && made < pop * 1.15 && calendar(w.tick).season !== 3)
-      this.want(def, 5, true);
     if (pop >= 30 && count(w, 'market-stall') < 1 + Math.floor(pop / 40)) this.want('market-stall', 5);
-  }
-
-  /**
-   * Timber and stone for a bigger town: a Forester's Lodge per fifty residents while timber runs
-   * short and a quarry per forty while stone does (with a storehouse out toward them when none
-   * finds a spot near the town), and saplings round a lodge whose wood is thinning.
-   */
-  private materials(): void {
-    const w = this.w;
-    const pop = w.residents.length;
-    const stock = townStock(w);
-    // An outpost only when there was no spot for it (C4X: not when it was refused for want of
-    // hands, which built a storehouse toward the forest every turn: eighteen of them by day 70).
-    if (
-      stock[G('timber')]! < 100 &&
-      count(w, 'foresters-lodge') < 2 + Math.floor(pop / 50) &&
-      !this.want('foresters-lodge', 6, materialsPressing(w, 'foresters-lodge')) &&
-      this.p.blocked('foresters-lodge')
-    )
-      this.outpost('foresters-lodge');
-    // Replant round a lodge running short of grown trees, so its wood comes back (R1 stand-in
-    // (R1B): the lodge does not replant its own wood yet).
-    for (const b of w.buildings) {
-      if (b.def !== 'foresters-lodge' || b.stage !== 'built' || treesNear(w, b.x, b.z, 8) >= 16) continue;
-      let planted = 0;
-      for (let k = 0; k < 120 && planted < 6; k++) {
-        const x = b.x - 8 + ((k * 7 + b.id) % 18);
-        const z = b.z - 8 + ((k * 11 + b.id * 3) % 18);
-        if (x < 1 || z < 1 || x > 190 || z > 190) continue;
-        const i = z * 192 + x;
-        if (w.map.tree[i] || w.map.road[i] || w.map.occupant[i] || w.map.water[i] || w.map.fieldOwner[i])
-          continue;
-        if (w.map.zone[i]) continue;
-        if (this.p.do('plant a sapling for the lodge', [{ t: 'tree.plant', species: 'oak', x, z }]))
-          planted++;
-      }
-    }
-    if (
-      stock[G('stone')]! < 60 &&
-      count(w, 'quarry') < 1 + Math.floor(pop / 40) &&
-      !this.want('quarry', 6, materialsPressing(w, 'quarry')) &&
-      this.p.blocked('quarry')
-    )
-      this.outpost('quarry');
   }
 
   /**
@@ -273,126 +180,6 @@ class Village implements Advisor {
     return false;
   }
 
-  /**
-   * No spot for a quarry near a storehouse: put a storehouse by the nearest stone deposit instead,
-   * so the next turn finds the quarry a place (one outpost under way at a time).
-   */
-  private outpost(def: string): void {
-    const w = this.w;
-    if (w.buildings.some((b) => b.def === 'storehouse' && b.stage === 'construction')) return;
-    // C4X: a storehouse per twenty residents is plenty (their porters are hands too).
-    if (count(w, 'storehouse') >= 2 + Math.floor(w.residents.length / 20)) return;
-    const reader = worldIndex(w).reader;
-    const d = content.buildingById.get(def)!;
-    const store = content.buildingById.get('storehouse')!;
-    const doors = w.buildings
-      .filter((b) => b.def === 'storehouse' && b.stage === 'built')
-      .map((b) => doorTile(b));
-    const man = (a: number, b: number) =>
-      Math.abs((a % 192) - (b % 192)) + Math.abs(Math.floor(a / 192) - Math.floor(b / 192));
-    const fits = (x: number, z: number) => {
-      if (!canPlaceBuilding(reader, d, x, z, 0).ok) return false;
-      return def !== 'foresters-lodge' || treesNear(w, x, z, 8) >= LODGE_TREES;
-    };
-    // A spot for the building between 22 and 40 tiles from a storehouse, then a new storehouse
-    // between the two, so porters from the old one can stock the new one.
-    for (const from of doors) {
-      const fx = from % 192;
-      const fz = Math.floor(from / 192);
-      for (let r = 12; r <= 44; r++) {
-        for (let dz = -r; dz <= r; dz++) {
-          for (let dx = -r; dx <= r; dx++) {
-            if (Math.max(Math.abs(dx), Math.abs(dz)) !== r) continue;
-            const x = fx + dx;
-            const z = fz + dz;
-            if (x < 2 || z < 2 || x > 188 || z > 188 || !fits(x, z)) continue;
-            const mx = (fx + x) >> 1;
-            const mz = (fz + z) >> 1;
-            for (let k = 0; k <= 6; k++) {
-              for (let oz = -k; oz <= k; oz++) {
-                for (let ox = -k; ox <= k; ox++) {
-                  if (Math.max(Math.abs(ox), Math.abs(oz)) !== k) continue;
-                  const sx = mx + ox;
-                  const sz = mz + oz;
-                  if (!canPlaceBuilding(reader, store, sx, sz, 0).ok) continue;
-                  const door = doorTile({ def: 'storehouse', x: sx, z: sz, rot: 0 } as Building, store);
-                  if (man(door, from) > 22 || man(door, z * 192 + x) > 20) continue;
-                  this.p.buildAt(`storehouse toward the ${def}`, 'storehouse', sx, sz, 0, true);
-                  return;
-                }
-              }
-            }
-          }
-        }
-      }
-    }
-  }
-
-  /** Flowers and a tree by the homes with the plainest streets, so they reach Craftsfolk charm. */
-  private dress(): void {
-    const w = this.w;
-    const homes = w.buildings
-      .filter((b) => b.stage === 'built' && content.buildingById.get(b.def)?.housing)
-      .map((b) => ({ b, charm: charmAt(w, b) }))
-      .filter((x) => x.charm < 32)
-      .sort((a, b) => a.charm - b.charm || a.b.id - b.b.id)
-      .slice(0, 10);
-    for (const { b } of homes) {
-      const door = doorTile(b);
-      const x = door % 192;
-      const z = Math.floor(door / 192);
-      for (const def of ['flower-bed', 'planter', 'cherry-tree']) {
-        const spot = decorSpot(w, def, x, z);
-        if (spot)
-          this.p.do(`${def} for the street`, [{ t: 'decor.place', def, fx: spot[0], fz: spot[1], rot: 0 }]);
-      }
-    }
-  }
-}
-
-function treesNear(w: WorldState, x: number, z: number, r: number): number {
-  let n = 0;
-  for (let tz = z - r; tz <= z + r; tz++)
-    for (let tx = x - r; tx <= x + r; tx++) {
-      if (tx < 0 || tz < 0 || tx >= 192 || tz >= 192) continue;
-      const v = w.map.tree[tz * 192 + tx]!;
-      if (v && (v & 7) >= 3) n++;
-    }
-  return n;
-}
-
-function charmAt(w: WorldState, b: Building): number {
-  const door = doorTile(b);
-  const x = door % 192;
-  const z = Math.floor(door / 192);
-  let sum = 0;
-  let n = 0;
-  for (let dz = -3; dz <= 3; dz++)
-    for (let dx = -3; dx <= 3; dx++) {
-      const i = (z + dz) * 192 + x + dx;
-      if (i >= 0 && i < w.map.charm.length) {
-        sum += w.map.charm[i]!;
-        n++;
-      }
-    }
-  return n ? sum / n : 0;
-}
-
-/** A free spot for decor within three tiles of a door, or null. */
-function decorSpot(w: WorldState, def: string, x: number, z: number): [number, number] | null {
-  const d = content.decorById.get(def)!;
-  const reader = worldIndex(w).reader;
-  for (let r = 1; r <= 3; r++) {
-    for (let dz = -r; dz <= r; dz++) {
-      for (let dx = -r; dx <= r; dx++) {
-        if (Math.max(Math.abs(dx), Math.abs(dz)) !== r) continue;
-        const fx = (x + dx) * TILE_FP + TILE_FP / 2;
-        const fz = (z + dz) * TILE_FP + TILE_FP / 2;
-        if (canPlaceDecor(reader, d, fx, fz, 0).ok) return [fx, fz];
-      }
-    }
-  }
-  return null;
 }
 
 export const village: AdvisorDef = {

@@ -15,6 +15,7 @@ import {
   FIELD_GOOD_FERTILITY,
   growthDemand,
   MAP_SIZE,
+  Road,
   type Building,
   type Command,
   type GrowthDemand,
@@ -211,6 +212,119 @@ export function storehouseSpot(w: WorldState, street: HighStreet): [number, numb
     }
   }
   return null;
+}
+
+/** R1F: the zone id a demand bar asks for, in DEMAND_KINDS order (Homes, Shops, Workshops, Farmland). */
+export const BAR_ZONES: readonly string[] = ['homes-low', 'shops', 'crafts', 'farms'];
+
+/**
+ * R1F: open frontage for `zone` along the town's lanes and streets, the way a player answers a lit
+ * demand bar: a straight run of `minLen` to `maxLen` tiles beside a lane or street, `depth` tiles
+ * deep on one side, all open (no road, building, water, field, zone or tree), within the porters'
+ * 22 tiles of a storehouse door, and for Farmland on soil good enough to farm. The run nearest the
+ * town center wins. Returns the tiles to paint, or null when no run fits.
+ */
+export function frontageFor(
+  w: WorldState,
+  zone: string,
+  opts: { minLen?: number; maxLen?: number; depth?: number } = {},
+): [number, number][] | null {
+  const farms = zone === 'farms';
+  const minLen = opts.minLen ?? 4;
+  const maxLen = opts.maxLen ?? 10;
+  const depth = opts.depth ?? (farms ? 5 : 3);
+  const [cx, cz] = townCenter(w);
+  const doors = w.buildings
+    .filter((b) => b.def === 'storehouse' && b.stage === 'built')
+    .map((b) => doorTile(b));
+  const reached = (x: number, z: number) =>
+    doors.some((d) => Math.abs((d % S) - x) + Math.abs(Math.floor(d / S) - z) <= 22);
+  const paved = (x: number, z: number) =>
+    x >= 0 && z >= 0 && x < S && z < S && w.map.road[z * S + x]! >= Road.lane;
+  const column = (x: number, z: number, px: number, pz: number): boolean => {
+    if (!reached(x + px, z + pz)) return false;
+    let fert = 0;
+    for (let d = 1; d <= depth; d++) {
+      const tx = x + px * d;
+      const tz = z + pz * d;
+      if (!open(w, tx, tz) || w.map.tree[tz * S + tx]) return false;
+      fert += w.map.fertility[tz * S + tx]!;
+    }
+    return !farms || fert / depth >= FIELD_GOOD_FERTILITY;
+  };
+  let best: [number, number][] | null = null;
+  let bestScore = -Infinity;
+  for (let z = Math.max(1, cz - 30); z <= Math.min(S - 2, cz + 30); z++) {
+    for (let x = Math.max(1, cx - 30); x <= Math.min(S - 2, cx + 30); x++) {
+      if (!paved(x, z)) continue;
+      for (const [ax, az] of [
+        [1, 0],
+        [0, 1],
+      ] as const) {
+        // Only from the start of a straight run.
+        if (paved(x - ax, z - az)) continue;
+        let len = 0;
+        while (paved(x + ax * len, z + az * len)) len++;
+        for (const side of [-1, 1]) {
+          const px = -az * side;
+          const pz = ax * side;
+          let k = 0;
+          while (k < len) {
+            if (!column(x + ax * k, z + az * k, px, pz)) {
+              k++;
+              continue;
+            }
+            const from = k;
+            while (k < len && k - from < maxLen && column(x + ax * k, z + az * k, px, pz)) k++;
+            const n = k - from;
+            if (n < minLen) continue;
+            const mx = x + ax * (from + (n >> 1));
+            const mz = z + az * (from + (n >> 1));
+            const score = n - (Math.abs(mx - cx) + Math.abs(mz - cz)) * 0.5;
+            if (score <= bestScore) continue;
+            bestScore = score;
+            best = [];
+            for (let j = from; j < k; j++)
+              for (let d = 1; d <= depth; d++) best.push([x + ax * j + px * d, z + az * j + pz * d]);
+          }
+        }
+      }
+    }
+  }
+  return best;
+}
+
+/**
+ * R1F: zones a new street for the bars that are lit, in the high street's order (shops by the
+ * junction, homes, workshops, farms at the end where the soil is good), an equal stretch each.
+ */
+export function zoneStreetFor(w: WorldState, street: HighStreet, zones: readonly string[]): Command[] {
+  const order = ['shops', 'homes-low', 'homes-medium', 'crafts', 'farms'].filter((z) => zones.includes(z));
+  if (order.length === 0) return [];
+  const byZone = new Map<string, [number, number][]>();
+  const { dx, dz } = street;
+  const per = Math.ceil(street.tiles.length / order.length);
+  street.tiles.forEach(([tx, tz], k) => {
+    const zone = order[Math.min(order.length - 1, Math.floor(k / per))]!;
+    for (const side of [-1, 1]) {
+      const depth = zone === 'farms' ? 5 : 3;
+      let fert = 0;
+      for (let d = 1; d <= depth; d++) fert += w.map.fertility[(tz + dx * side * d) * S + tx + -dz * side * d]!;
+      if (zone === 'farms' && fert / depth < FIELD_GOOD_FERTILITY) continue;
+      for (let d = 1; d <= depth; d++) {
+        const x = tx + -dz * side * d;
+        const z = tz + dx * side * d;
+        if (!open(w, x, z)) continue;
+        const list = byZone.get(zone) ?? [];
+        list.push([x, z]);
+        byZone.set(zone, list);
+      }
+    }
+  });
+  const cmds: Command[] = [];
+  for (const [zone, tiles] of byZone)
+    for (let k = 0; k < tiles.length; k += 256) cmds.push({ t: 'zone.paint', zone, tiles: tiles.slice(k, k + 256) });
+  return cmds;
 }
 
 /** Empty lots of the high street porters cannot reach yet. */

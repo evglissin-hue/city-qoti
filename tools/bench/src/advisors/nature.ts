@@ -11,6 +11,7 @@
 import { content } from '@qoti/content';
 import {
   canPaintRoad,
+  canPlaceDecor,
   doorTile,
   hasTag,
   pondBlocked,
@@ -182,9 +183,59 @@ class Nature implements Advisor {
     ]);
   }
 
+  /**
+   * R1F (the village advisor's in R1.0, a Hearth job): flowers and a tree by the homes with the
+   * plainest streets, so they reach the Craftsfolk's charm.
+   */
+  private dress(): void {
+    const w = this.w;
+    const homes = w.buildings
+      .filter((b) => b.stage === 'built' && content.buildingById.get(b.def)?.housing)
+      .map((b) => ({ b, charm: charmAt(w, b) }))
+      .filter((x) => x.charm < 32)
+      .sort((a, b) => a.charm - b.charm || a.b.id - b.b.id)
+      .slice(0, 10);
+    for (const { b } of homes) {
+      const door = doorTile(b);
+      const x = door % S;
+      const z = Math.floor(door / S);
+      for (const def of ['flower-bed', 'planter', 'cherry-tree']) {
+        const spot = streetDecorSpot(w, def, x, z);
+        if (spot)
+          this.p.do(`${def} for the street`, [{ t: 'decor.place', def, fx: spot[0], fz: spot[1], rot: 0 }]);
+      }
+    }
+  }
+
+  /**
+   * R1 stand-in (R1B): the Forester's Lodge does not replant its own wood yet, so the Hearth plants
+   * saplings round a lodge running short of grown trees (the village advisor did, in R1.0). Delete
+   * once the lodge replants.
+   */
+  private saplings(): void {
+    const w = this.w;
+    for (const b of w.buildings) {
+      if (b.def !== 'foresters-lodge' || b.stage !== 'built' || treesNear(w, b.x, b.z, 8) >= 16) continue;
+      let planted = 0;
+      for (let k = 0; k < 120 && planted < 6; k++) {
+        const x = b.x - 8 + ((k * 7 + b.id) % 18);
+        const z = b.z - 8 + ((k * 11 + b.id * 3) % 18);
+        if (x < 1 || z < 1 || x > S - 2 || z > S - 2) continue;
+        const i = z * S + x;
+        if (w.map.tree[i] || w.map.road[i] || w.map.occupant[i] || w.map.water[i] || w.map.fieldOwner[i])
+          continue;
+        if (w.map.zone[i]) continue;
+        if (this.p.do('plant a sapling for the lodge', [{ t: 'tree.plant', species: 'oak', x, z }], 1))
+          planted++;
+      }
+    }
+  }
+
   visit(v: Visit): void {
     const w = this.w;
     if (!v.afternoon || !rankAtLeast(w, 'village')) return;
+    this.dress();
+    this.saplings();
     this.day++;
     if (count(w, 'apiary') === 0 && (countTrade(w, 'orchard') > 0 || countTrade(w, 'market-garden') > 0)) {
       this.p.propose({
@@ -200,6 +251,51 @@ class Nature implements Advisor {
     if (this.dig() || this.pondGarden()) return;
     this.nooks();
   }
+}
+
+function treesNear(w: WorldState, x: number, z: number, r: number): number {
+  let n = 0;
+  for (let tz = z - r; tz <= z + r; tz++)
+    for (let tx = x - r; tx <= x + r; tx++) {
+      if (tx < 0 || tz < 0 || tx >= S || tz >= S) continue;
+      const v = w.map.tree[tz * S + tx]!;
+      if (v && (v & 7) >= 3) n++;
+    }
+  return n;
+}
+
+function charmAt(w: WorldState, b: Building): number {
+  const door = doorTile(b);
+  const x = door % S;
+  const z = Math.floor(door / S);
+  let sum = 0;
+  let n = 0;
+  for (let dz = -3; dz <= 3; dz++)
+    for (let dx = -3; dx <= 3; dx++) {
+      const i = (z + dz) * S + x + dx;
+      if (i >= 0 && i < w.map.charm.length) {
+        sum += w.map.charm[i]!;
+        n++;
+      }
+    }
+  return n ? sum / n : 0;
+}
+
+/** A free spot for decor within three tiles of a door, or null. */
+function streetDecorSpot(w: WorldState, def: string, x: number, z: number): [number, number] | null {
+  const d = content.decorById.get(def)!;
+  const reader = worldIndex(w).reader;
+  for (let r = 1; r <= 3; r++) {
+    for (let dz = -r; dz <= r; dz++) {
+      for (let dx = -r; dx <= r; dx++) {
+        if (Math.max(Math.abs(dx), Math.abs(dz)) !== r) continue;
+        const fx = (x + dx) * TILE_FP + TILE_FP / 2;
+        const fz = (z + dz) * TILE_FP + TILE_FP / 2;
+        if (canPlaceDecor(reader, d, fx, fz, 0).ok) return [fx, fz];
+      }
+    }
+  }
+  return null;
 }
 
 export const nature: AdvisorDef = {

@@ -86,6 +86,8 @@ export interface Want {
   tally?: number[];
   /** The allowance it counts against, if any. */
   budget?: Budget;
+  /** R1F: only spots this accepts (footprint min corner and turned size), as `build` takes. */
+  only?: (x: number, z: number, w: number, d: number) => boolean;
 }
 
 /** A def's own price, plus `margin` coins. */
@@ -255,7 +257,7 @@ export class Planner {
   /** An advisor proposes a want; the planner starts it when the budgets allow. */
   propose(want: Want): Building | null {
     if (!this.allows(want)) return null;
-    const b = this.build(want.def);
+    const b = this.build(want.def, want.only);
     if (!b) return null;
     if (want.budget) want.budget.left--;
     if (want.tally) for (const [g, q] of want.cost.goods) want.tally[G(g)]! -= q;
