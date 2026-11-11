@@ -384,12 +384,27 @@ function toolsBundle(b: RigBuilder): void {
 }
 
 /**
+ * R1E: the zones-first goods (docs/spec/13-ledger.md, Goods) drawn with the shape of the good they
+ * replaced: grain as sheaves of wheat, fruit as apples, timber as sawn planks, brick as bricks.
+ */
+export const GOOD_SHAPES: Readonly<Record<string, string>> = {
+  brick: 'bricks',
+  fruit: 'apples',
+  grain: 'wheat',
+  timber: 'planks',
+};
+
+function shapeOf(good: string): string {
+  return GOOD_SHAPES[good] ?? good;
+}
+
+/**
  * A carried bundle for a good id, in figure space with its base at y 0, about 0.15 wide along x,
  * for the resident material. Unknown goods travel as a little crate.
  */
 export function bundleGeometry(good: string): BufferGeometry {
   const b = new RigBuilder();
-  switch (good) {
+  switch (shapeOf(good)) {
     case 'logs':
       logBundle(b);
       break;
@@ -486,7 +501,7 @@ function pileNear(
   rnd: () => number,
 ): void {
   const lv = Math.min(4, Math.round(level));
-  switch (good) {
+  switch (shapeOf(good)) {
     case 'logs': {
       // A log stack between two posts, rows shrinking toward the top.
       const rows = lv === 1 ? 1 : lv === 2 ? 2 : 3;
@@ -652,7 +667,7 @@ function villagePile(
   rnd: () => number,
 ): boolean {
   const count = [0, 2, 4, 6, 8][lv]!;
-  switch (good) {
+  switch (shapeOf(good)) {
     case 'clay': {
       // A heap of dug clay with a few cut blocks drying beside it.
       s.blob(
@@ -859,7 +874,7 @@ export function crateOf(
   s.rbox(x - w, y, z - 0.08, x + w, y + h, z + 0.08, vary(C.crate, rnd, 0.8), 0.01);
   s.box(x - w - 0.004, y + h * 0.45, z - 0.084, x + w + 0.004, y + h * 0.55, z + 0.084, palette.darkWood);
   const top = y + h;
-  switch (good) {
+  switch (shapeOf(good)) {
     case 'bread':
       for (const dx of [-0.05, 0.05])
         s.blob(x + dx, top + 0.01, z, 0.05, 0.03, 0.035, vary(C.bread, rnd, 0.6), 1);

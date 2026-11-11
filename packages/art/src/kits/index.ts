@@ -2,6 +2,7 @@
 // in `art.kit`; the client test checks that every one of them exists here.
 import * as An from './animals';
 import * as B from './buildings';
+import * as Bz from './business';
 import * as Cg from './callings';
 import * as D from './decor';
 import * as Df from './defenses';
@@ -55,7 +56,7 @@ export const kits: readonly Kit[] = [
   V.dairyKit,
   N.fallenLog,
   W.farmhouseKit,
-  Gr.farmstead,
+  Bz.farmstead,
   D.fence,
   N.fern,
   Fe.festivalStage,
@@ -118,7 +119,7 @@ export const kits: readonly Kit[] = [
   B.shed,
   An.sheepKit,
   V.sheepPastureKit,
-  Gr.shop,
+  Bz.shop,
   Fd.paintedShopSign,
   D.signpost,
   V.smithyKit,
@@ -144,7 +145,7 @@ export const kits: readonly Kit[] = [
   N.wildflowers,
   B.windmill,
   W.woodcutterKit,
-  Gr.workshop,
+  Bz.workshop,
 ];
 
 export const kitById: ReadonlyMap<string, Kit> = new Map(kits.map((k) => [k.id, k]));

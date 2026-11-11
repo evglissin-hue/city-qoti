@@ -90,7 +90,7 @@ export function homeLook(opts: KitBuildOptions | undefined, salt: number): Distr
   };
 }
 
-function windowsOf(L: DistrictLook, box = L.windowBoxes): WindowStyle {
+export function windowsOf(L: DistrictLook, box = L.windowBoxes): WindowStyle {
   // V1B: stone sills and lintels on brick and stone fronts (both floors of masonry).
   const masonry = (m: WallMaterial): boolean => m === 'brick' || m === 'stone';
   const dress = masonry(L.wall) && masonry(L.upper) ? dressingsOf(L.wall, L.frame) : {};
@@ -132,11 +132,11 @@ function doorExtras(L: DistrictLook): DoorExtras {
   return {};
 }
 
-function start(opts?: KitBuildOptions): Built {
+export function start(opts?: KitBuildOptions): Built {
   return { s: kitBuilder(opts), anchors: { smoke: [], lights: [] } };
 }
 
-function clamp(v: number, lo: number, hi: number): number {
+export function clamp(v: number, lo: number, hi: number): number {
   return Math.max(lo, Math.min(hi, v));
 }
 
@@ -148,7 +148,7 @@ function doorKind(L: DistrictLook, look: () => number): DoorKind {
 }
 
 /** Stepping stones from a door out to the lot's front edge. */
-function steppingStones(s: ShapeBuilder, u: number, z0: number, z1: number, rnd: () => number): void {
+export function steppingStones(s: ShapeBuilder, u: number, z0: number, z1: number, rnd: () => number): void {
   const n = Math.max(1, Math.floor((z1 - z0) / 0.16));
   for (let i = 0; i < n; i++) {
     const z = z0 + 0.04 + i * 0.16;
@@ -633,7 +633,7 @@ export const townhouse: Kit = {
 
 // --- Shop (flats above) -------------------------------------------------------------------------
 
-type Emblem = (s: ShapeBuilder, c: V3, f: Face) => void;
+export type Emblem = (s: ShapeBuilder, c: V3, f: Face) => void;
 
 /** Sign emblems, drawn on both faces of a hanging board (the board faces along u). */
 function both(draw: (s: ShapeBuilder, c: V3, side: number, f: Face) => void): Emblem {
@@ -648,7 +648,7 @@ function off(c: V3, f: Face, side: number, dy = 0, du = 0): V3 {
   return f.dir[0] === 'z' ? [c[0] + k, c[1] + dy, c[2] + du] : [c[0] + du, c[1] + dy, c[2] + k];
 }
 
-const EMBLEMS: Record<string, Emblem> = {
+export const EMBLEMS: Record<string, Emblem> = {
   bread: both((s, c, side, f) => {
     const p = off(c, f, side);
     s.blob(p[0], p[1], p[2], 0.02, 0.04, 0.07, GOOD_COLORS.bread, 1);
@@ -713,7 +713,7 @@ const EMBLEMS: Record<string, Emblem> = {
 const SHOP_TRADES = ['boot', 'key', 'teapot', 'hat', 'bread', 'cloth', 'apples', 'cheese'];
 
 /** What a building is making: its 'make' param, else its first output pile. */
-function makingOf(opts: KitBuildOptions | undefined): string | null {
+export function makingOf(opts: KitBuildOptions | undefined): string | null {
   const m = opts?.params?.make;
   if (typeof m === 'string' && m.length > 0) return m;
   for (const [k, v] of Object.entries(opts?.params ?? {}))
@@ -721,7 +721,7 @@ function makingOf(opts: KitBuildOptions | undefined): string | null {
   return null;
 }
 
-function shopOf(opts: KitBuildOptions | undefined): Built {
+export function shopOf(opts: KitBuildOptions | undefined): Built {
   const [w, d] = opts?.size ?? [2, 3];
   const [ex] = opts?.entrance ?? [Math.floor(w / 2), d - 1];
   const L = homeLook(opts, 41);
@@ -907,11 +907,10 @@ function shopOf(opts: KitBuildOptions | undefined): Built {
   return { s, anchors };
 }
 
-export const shop: Kit = { ...houseKit('shop', shopOf), footprint: { size: [2, 3], entrance: [1, 2] } };
 
 // --- Workshop (crafts zone) ---------------------------------------------------------------------
 
-function workbench(s: ShapeBuilder, x: number, z: number, alongX: boolean, rnd: () => number): void {
+export function workbench(s: ShapeBuilder, x: number, z: number, alongX: boolean, rnd: () => number): void {
   const L = 0.24;
   const P = (a: number, y: number, c: number): V3 => (alongX ? [x + a, y, z + c] : [x + c, y, z + a]);
   const top = vary(palette.wood, rnd, 0.5);
@@ -942,7 +941,7 @@ function workbench(s: ShapeBuilder, x: number, z: number, alongX: boolean, rnd: 
   s.blob(sh[0], sh[1], sh[2], 0.04, 0.008, 0.03, 0xe6cfa0, 0);
 }
 
-function workshopOf(opts: KitBuildOptions | undefined): Built {
+export function workshopOf(opts: KitBuildOptions | undefined): Built {
   const [w, d] = opts?.size ?? [3, 3];
   const [ex] = opts?.entrance ?? [1, d - 1];
   const L = homeLook(opts, 51);
@@ -1111,14 +1110,10 @@ function workshopOf(opts: KitBuildOptions | undefined): Built {
   return { s, anchors };
 }
 
-export const workshop: Kit = {
-  ...houseKit('workshop', workshopOf),
-  footprint: { size: [3, 3], entrance: [1, 2] },
-};
 
 // --- Farmstead (farms zone) ---------------------------------------------------------------------
 
-function farmsteadOf(opts: KitBuildOptions | undefined): Built {
+export function farmsteadOf(opts: KitBuildOptions | undefined): Built {
   const [w, d] = opts?.size ?? [3, 3];
   const [ex] = opts?.entrance ?? [1, d - 1];
   const L = homeLook(opts, 61);
@@ -1320,10 +1315,3 @@ function farmsteadOf(opts: KitBuildOptions | undefined): Built {
   return { s, anchors };
 }
 
-export const farmstead: Kit = {
-  id: 'farmstead',
-  kind: 'building',
-  footprint: { size: [3, 3], entrance: [1, 2] },
-  build: (opts) => farmsteadOf(opts).s.build(),
-  anchors: (opts) => farmsteadOf(opts).anchors,
-};
