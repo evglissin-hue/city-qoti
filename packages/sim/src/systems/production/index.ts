@@ -69,7 +69,13 @@ export function crewWork(
   return p === 1000 ? work : Math.floor((work * p) / 1000);
 }
 
-function canRun(state: WorldState, b: Building, rt: BuildingRuntime, def: BuildingDef, method: ProductionMethod): boolean {
+function canRun(
+  state: WorldState,
+  b: Building,
+  rt: BuildingRuntime,
+  def: BuildingDef,
+  method: ProductionMethod,
+): boolean {
   if (method.kind === 'craft' && inputsShort(rt, method)) {
     // R1B: hands present and no raw good: the day does not count as reliable (levels).
     if (rt.present > 0 && isWorkTime(state.tick)) countShort(b);

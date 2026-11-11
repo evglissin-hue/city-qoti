@@ -233,7 +233,8 @@ export function hire(state: WorldState, r: Resident, b: Building, ctx?: TickCtx)
   if (b.trade && (!b.keeperId || !findById(state.residents, b.keeperId))) setKeeper(state, ctx, b, r.id);
   // A keeper who took work elsewhere no longer keeps an empty business.
   for (const o of state.buildings) {
-    if (o.keeperId === r.id && o.id !== b.id && o.rt && o.rt.workers.length === 0) setKeeper(state, ctx, o, 0);
+    if (o.keeperId === r.id && o.id !== b.id && o.rt && o.rt.workers.length === 0)
+      setKeeper(state, ctx, o, 0);
   }
 }
 
