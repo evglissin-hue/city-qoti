@@ -3,15 +3,14 @@
 // building's reach with room under its capacity, households in reach for a shop. A business already
 // standing asks the same of its own lot, counting itself among the served, so a third baker in a
 // windmill's reach of two finds no room while the first two do (`siteDays`, retooling).
-import { content, type TradeDef } from '@qoti/content';
+import type { TradeDef } from '@qoti/content';
 import { FIELD_GOOD_FERTILITY, HABITAT_IDS, MAP_SIZE, Zone } from '../../constants';
 import type { Building, EntityId, Lot, WorldState } from '../../contracts';
 import { findById } from '../../state/entities';
-import { hasTag } from '../../state/zones';
 import { doorTile } from '../movement/api';
 import { FIELD_TILES_PER_WORKER } from '../production/fields';
 import { chunkOfTile, scoreAt } from '../nature/habitats';
-import { capacityOf, withinReach } from '../specialized/api';
+import { capacityOf, servedIds, withinReach } from '../specialized/api';
 import { lotMiddle } from './desirability';
 
 const S = MAP_SIZE;
@@ -36,16 +35,7 @@ export class SiteCache {
   servedBy(sb: Building): EntityId[] {
     let ids = this.served.get(sb.id);
     if (!ids) {
-      const def = content.buildingById.get(sb.def);
-      const enables = def?.enables ?? [];
-      ids = [];
-      if (enables.length > 0) {
-        for (const o of this.state.buildings) {
-          if (o.id === sb.id || !enables.some((t) => hasTag(o, t))) continue;
-          if (withinReach(this.state, sb, doorTile(o))) ids.push(o.id);
-        }
-      }
-      ids.sort((a, b) => a - b);
+      ids = servedIds(this.state, sb);
       this.served.set(sb.id, ids);
     }
     return ids;

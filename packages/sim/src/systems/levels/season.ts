@@ -4,12 +4,12 @@
 // Sawmill cannot saw for (one fewer while the river is frozen) waits for the thaw the same way.
 import { content } from '@qoti/content';
 import type { Building, WorldState } from '../../contracts';
-import { hasTag, methodOf } from '../../state/zones';
+import { methodOf } from '../../state/zones';
 import { townStock } from '../../view/hamlet';
 import { doorTile } from '../movement/api';
 import { isFrozen } from '../seasons/api';
 import { fieldsBare, goodOutOfSeason } from '../seasons/growing';
-import { capacityOf, withinReach } from '../specialized/api';
+import { hasRoomFor, withinReach } from '../specialized/api';
 
 /**
  * True when the business's own good does not come this season (a farm in winter, an orchard or
@@ -47,15 +47,7 @@ export function frozenOut(state: WorldState, b: Building): boolean {
   for (const sb of state.buildings) {
     if (sb.def !== reach || sb.stage !== 'built' || !withinReach(state, sb, door)) continue;
     inReach = true;
-    const enables = content.buildingById.get(sb.def)?.enables ?? [];
-    const ids: number[] = [];
-    for (const o of state.buildings) {
-      if (o.id !== sb.id && enables.some((t) => hasTag(o, t)) && withinReach(state, sb, doorTile(o)))
-        ids.push(o.id);
-    }
-    ids.sort((p, q) => p - q);
-    const k = ids.indexOf(b.id);
-    if (k >= 0 && k < capacityOf(state, sb)) return false;
+    if (hasRoomFor(state, sb, b.id)) return false;
   }
   return inReach;
 }
