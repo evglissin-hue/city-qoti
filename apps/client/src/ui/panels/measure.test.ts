@@ -4,7 +4,11 @@ import { h } from 'preact';
 import { act } from 'preact/test-utils';
 import { afterEach, describe, expect, it } from 'vitest';
 import {
+  MEASURE_HOUR,
+  MEASURE_NIGHT_HOUR,
+  MEASURE_NIGHT_PRESETS,
   measureMarkdown,
+  measureRowCount,
   measureSeconds,
   MEASURE_PRESETS,
   MEASURE_SCENES,
@@ -28,9 +32,22 @@ const part = (frameAvg: number, gpu: number | null): PerfPart => ({
   shadowRenders: 1,
 });
 
-const rows: PerfRow[] = MEASURE_SCENES.flatMap((scene) =>
-  MEASURE_PRESETS.map((quality, i) => ({ scene, quality, moving: part(10 + i, 4), idle: part(2, null) })),
-);
+const rows: PerfRow[] = MEASURE_SCENES.flatMap((scene) => [
+  ...MEASURE_PRESETS.map((quality, i) => ({
+    scene,
+    quality,
+    hour: MEASURE_HOUR,
+    moving: part(10 + i, 4),
+    idle: part(2, null),
+  })),
+  ...MEASURE_NIGHT_PRESETS.map((quality, i) => ({
+    scene,
+    quality,
+    hour: MEASURE_NIGHT_HOUR,
+    moving: part(20 + i, 6),
+    idle: part(3, null),
+  })),
+]);
 
 const machine = {
   browser: 'Mozilla/5.0 test',
@@ -46,17 +63,21 @@ describe('Measure this laptop', () => {
     document.body.innerHTML = '';
   });
 
-  it('runs twelve rows: four presets in three scenes', () => {
-    expect(rows).toHaveLength(12);
+  it('runs eighteen rows: four presets by day and Medium and High at night, in three scenes', () => {
+    expect(MEASURE_HOUR).toBe(11);
+    expect(MEASURE_NIGHT_HOUR).toBe(22);
+    expect(MEASURE_NIGHT_PRESETS).toEqual(['medium', 'high']);
+    expect(measureRowCount()).toBe(18);
+    expect(rows).toHaveLength(18);
   });
 
-  it('estimates a full run honestly, and a quick one as under a minute', () => {
+  it('estimates a full run honestly, and a quick one as about a minute', () => {
     const full = measureSeconds();
-    expect(full).toBeGreaterThan(4 * 60);
-    expect(full).toBeLessThan(7 * 60);
-    expect(estimateText(full)).toMatch(/^about [5-6] minutes$/);
+    expect(full).toBeGreaterThan(6 * 60);
+    expect(full).toBeLessThan(8.5 * 60);
+    expect(estimateText(full)).toMatch(/^about [7-8] minutes$/);
     expect(estimateText(measureSeconds({ move: 1, rest: 1, settle: 0.5, settleMax: 4 }))).toBe(
-      'under a minute',
+      'about a minute',
     );
     expect(estimateText(80)).toBe('about a minute');
   });
@@ -67,13 +88,19 @@ describe('Measure this laptop', () => {
     expect(lines[0]).toContain('Test GPU');
     expect(lines[0]).toContain('1440 x 900 at 2x');
     expect(lines[0]).toContain('build abc-dev');
-    expect(text).toContain('| Scene | Preset | Moving frame ms (avg / p95) |');
-    expect(lines.filter((l) => l.startsWith('| village |'))).toHaveLength(4);
+    expect(lines[0]).toContain('11:00 (day rows) and 22:00 (night rows');
+    expect(text).toContain('| Scene | Preset | Hour | Moving frame ms (avg / p95) |');
+    expect(lines.filter((l) => l.startsWith('| village |'))).toHaveLength(6);
+    expect(lines.filter((l) => l.startsWith('| village | medium | 22:00 |'))).toHaveLength(1);
+    // Rows that carry no hour (v1-perf, v2-perf) keep V1's columns.
+    const plain = perfTable(rows.map(({ hour: _hour, ...r }) => r));
+    expect(plain).toContain('| Scene | Preset | Moving frame ms (avg / p95) |');
   });
 
   it('shows the table: one row each, GPU n/a where the browser has no timer', async () => {
     const m = await mount(h(MeasureTable, { rows }));
-    expect(m.root.querySelectorAll('[data-testid="measure-row"]')).toHaveLength(12);
+    expect(m.root.querySelectorAll('[data-testid="measure-row"]')).toHaveLength(18);
+    expect(m.text()).toContain('22:00');
     expect(m.text()).toContain('Village showcase');
     expect(m.text()).toContain('10.0 / 15.0');
     expect(m.text()).toContain('2.0 / 3.0n/a');
@@ -86,7 +113,8 @@ describe('Measure this laptop', () => {
     const empty: PerfPart = { ...part(0, null), frames: 0, frameP95: 0, draws: 0, triangles: 0 };
     const m = await mount(h(MeasureTable, { rows: [{ ...rows[0]!, moving: empty, idle: empty }] }));
     const cells = [...m.root.querySelectorAll('[data-testid="measure-row"] td')].map((td) => td.textContent);
-    expect(cells.slice(2)).toEqual(['n/a', 'n/a', 'n/a', 'n/a', 'n/a', 'n/a']);
+    expect(cells[2]).toBe('11:00');
+    expect(cells.slice(3)).toEqual(['n/a', 'n/a', 'n/a', 'n/a', 'n/a', 'n/a']);
     m.unmount();
   });
 

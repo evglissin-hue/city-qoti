@@ -44,6 +44,8 @@ export interface PerfRunPart {
 export interface PerfRunRow {
   scene: string;
   quality: string;
+  /** The hour the light was pinned to (11 by day, 22 at night); absent in runs from before it. */
+  hour?: number;
   moving: PerfRunPart;
   idle: PerfRunPart;
 }
@@ -116,6 +118,7 @@ export function isPerfRunInput(v: unknown): v is PerfRunInput {
     return (
       typeof row.scene === 'string' &&
       typeof row.quality === 'string' &&
+      (row.hour === undefined || isNum(row.hour)) &&
       isPart(row.moving) &&
       isPart(row.idle)
     );

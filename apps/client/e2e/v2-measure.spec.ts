@@ -39,7 +39,7 @@ function expectSame(after: Snapshot, before: Snapshot): void {
 test('Measure this laptop: the table, Copy, kept per seat, the valley put back; Escape stops', async ({
   browser,
 }) => {
-  // Twelve rows and two showcases (one of 1,000 buildings and 2,000 residents) drawn in software:
+  // Eighteen rows (every preset by day, Medium and High at night) and two showcases (one of 1,000 buildings and 2,000 residents) drawn in software:
   // about ten minutes here, so room for a slower CI runner.
   test.setTimeout(1_800_000);
   const context = await browser.newContext({ permissions: ['clipboard-read', 'clipboard-write'] });
@@ -70,14 +70,14 @@ test('Measure this laptop: the table, Copy, kept per seat, the valley put back; 
   await page.getByTestId('settings-open').click();
   await page.getByTestId('measure-open').click();
   await expect(page.getByTestId('settings')).toHaveCount(0);
-  await expect(page.getByTestId('measure-estimate')).toContainText('under a minute');
+  await expect(page.getByTestId('measure-estimate')).toContainText('about a minute');
   await expect(page.getByTestId('measure-kept')).toContainText('Nothing kept yet');
   await page.getByTestId('measure-start').click();
   await expect(page.getByTestId('measure-progress')).toBeVisible();
-  await expect(page.getByTestId('measure-progress')).toContainText(/of 12/);
+  await expect(page.getByTestId('measure-progress')).toContainText(/of 18/);
 
-  // The table: twelve rows, four presets in three scenes.
-  await expect(page.getByTestId('measure-row')).toHaveCount(12, { timeout: 1_200_000 });
+  // The table: eighteen rows, four presets by day and two at night in three scenes.
+  await expect(page.getByTestId('measure-row')).toHaveCount(18, { timeout: 1_500_000 });
   await expect(page.getByTestId('measure-done')).toContainText('back as it was');
   const table = page.getByTestId('measure-table');
   for (const scene of ['This valley', 'Village showcase', 'Town showcase'])
@@ -95,8 +95,9 @@ test('Measure this laptop: the table, Copy, kept per seat, the valley put back; 
   await page.getByTestId('measure-copy').click();
   await expect(page.getByTestId('measure-copy')).toHaveText('Copied');
   const text = await page.evaluate(() => navigator.clipboard.readText());
-  expect(text).toContain('| Scene | Preset | Moving frame ms (avg / p95) |');
-  expect(text.split('\n').filter((l) => /^\| (valley|village|town) \|/.test(l))).toHaveLength(12);
+  expect(text).toContain('| Scene | Preset | Hour | Moving frame ms (avg / p95) |');
+  expect(text.split('\n').filter((l) => /^\| (valley|village|town) \|/.test(l))).toHaveLength(18);
+  expect(text.split('\n').filter((l) => /^\| town \| (medium|high) \| 22:00 \|/.test(l))).toHaveLength(2);
   await page.getByTestId('measure-close').click();
   await expect(page.getByTestId('measure')).toHaveCount(0);
 

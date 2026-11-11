@@ -1,14 +1,17 @@
 // V2.0: Measure this laptop (docs/spec/22-quality.md, Measuring the laptops). Opened from Settings:
-// a confirm card with an honest estimate, a progress card while the twelve rows run (Escape or Stop
+// a confirm card with an honest estimate, a progress card while the eighteen rows run (every preset at 11:00, Medium and High at 22:00) (Escape or Stop
 // ends it at once, the valley put back), then the table with Copy, kept with the valley for this seat
 // (online) or on this device (solo), with the runs both seats kept before.
 import { signal } from '@preact/signals';
 import type { PerfMachine, PerfRun } from '@qoti/protocol';
 import { useEffect, useState } from 'preact/hooks';
 import {
+  hourText,
   isPerfAborted,
+  MEASURE_NIGHT_HOUR,
   measureLaptop,
   measureMarkdown,
+  measureRowCount,
   measureSeconds,
   perfMachine,
   type MeasureOptions,
@@ -27,12 +30,13 @@ export const MEASURE_COPY = {
     'Times every picture preset here and in two showcase towns, so the art knows what this laptop can carry.',
   settingsButton: 'Measure this laptop',
   confirm: (minutes: string) =>
-    `Twelve short runs: every preset in this valley, then in a showcase village and a showcase town. It takes ${minutes}. Plug the laptop in, close everything else and leave the mouse be; the valley comes back exactly as it was.`,
+    `Eighteen short runs: every preset by day and Medium and High by lamplight, in this valley, then in a showcase village and a showcase town. It takes ${minutes}. Plug the laptop in, close everything else and leave the mouse be; the valley comes back exactly as it was.`,
   start: 'Start measuring',
   notNow: 'Not now',
   ready: 'Getting ready',
   loading: (scene: string) => `Setting out the ${scene.toLowerCase()}`,
-  measuring: (scene: string, preset: string) => `${scene}, ${preset}`,
+  measuring: (scene: string, preset: string, night: boolean) =>
+    `${scene}, ${preset}${night ? ', at night' : ''}`,
   restoring: 'Putting your valley back',
   stepOf: (step: number, total: number) => `${step} of ${total}`,
   stopHint: 'Esc stops it at once.',
@@ -191,6 +195,7 @@ export function MeasureTable({ rows }: { rows: readonly PerfRow[] }) {
           <tr>
             <th rowSpan={2}>Scene</th>
             <th rowSpan={2}>Preset</th>
+            <th rowSpan={2}>Hour</th>
             <th colSpan={2}>Moving, ms avg / p95</th>
             <th colSpan={2}>Idle, ms avg / p95</th>
             <th rowSpan={2}>Draws</th>
@@ -212,6 +217,7 @@ export function MeasureTable({ rows }: { rows: readonly PerfRow[] }) {
             >
               <td>{i === 0 || rows[i - 1]!.scene !== r.scene ? sceneName(r.scene) : ''}</td>
               <td>{presetName(r.quality)}</td>
+              <td>{r.hour === undefined ? 'n/a' : hourText(r.hour)}</td>
               <td>{pair(r.moving.frames, r.moving.frameAvg, r.moving.frameP95)}</td>
               <td>{pair(r.moving.frames, r.moving.gpuAvg, r.moving.gpuP95)}</td>
               <td>{pair(r.idle.frames, r.idle.frameAvg, r.idle.frameP95)}</td>
@@ -276,9 +282,13 @@ function Progress({ state }: { state: Extract<MeasureState, { k: 'running' }> })
       ? MEASURE_COPY.restoring
       : p.stage === 'loading'
         ? MEASURE_COPY.loading(SCENE_NAMES[p.scene])
-        : MEASURE_COPY.measuring(SCENE_NAMES[p.scene], presetName(p.quality ?? ''));
+        : MEASURE_COPY.measuring(
+            SCENE_NAMES[p.scene],
+            presetName(p.quality ?? ''),
+            p.hour === MEASURE_NIGHT_HOUR,
+          );
   const step = p ? Math.max(p.step, 0) : 0;
-  const total = p?.total ?? 12;
+  const total = p?.total ?? measureRowCount();
   return (
     <>
       {/* Hands off the valley while it runs: a stray drag or key would spoil the numbers. */}

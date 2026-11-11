@@ -40,7 +40,7 @@ V2.0: `env.lightMap`, `env.lightMapRevision`, `env.lightWriter` (`LightMapWriter
 ## Acceptance criteria
 
 - [ ] In the grown village and the town at night, every lantern and every lit window lights the ground and the walls beside it, lamplight shows on the river, and a town reads as a glow from the valley's edge (`v2-shots.mjs v2a` night shots beside `v2-before-*`).
-- [ ] Night with the light map (`22-quality.md`): a night moving frame costs no more GPU time than the 32-light loop on the same scene (`v2-perf.mjs` at night, the map and the loop on the same build, both in the PR); the map redraws in under 2 ms, in one instanced draw, only when a light changes (test, and the redraw time logged in the PR).
+- [ ] Night with the light map (`22-quality.md`): a night moving frame costs no more GPU time than the 32-light loop on the same scene (`v2-perf.mjs` at night, the map and the loop on the same build, both in the PR; on the laptops, Measure this laptop's 22:00 rows on Medium and High against the before tables' 22:00 rows in `docs/playtests/V1.md`); the map redraws in under 2 ms, in one instanced draw, only when a light changes (test, and the redraw time logged in the PR).
 - [ ] Moving frames add no full-screen pass; draws stay within 300 on Medium and 450 on High and Ultra; the idle frame stays within 4 ms GPU on Medium.
 - [ ] The presets (`17-presentation.md`, Quality presets): light map 2, 4, 6 and 8 texels a tile, no water reflection on Low; rooms off on Low (flat glow), on from Medium.
 - [ ] Rooms read as varied little rooms at street zoom and as livelier windows from the default camera; the pattern array (with V2C's layers) stays under 150 ms at load (`lastPatternMs()`).

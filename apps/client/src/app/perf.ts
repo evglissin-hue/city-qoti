@@ -33,6 +33,8 @@ export interface PerfOptions {
   signal?: AbortSignal;
   /** V2.0: called as each preset starts, with its place in `presets`. */
   onPreset?: (quality: Quality, index: number) => void;
+  /** V2.0: the hour the light was pinned to, written on each row (the table then has an Hour column). */
+  hour?: number;
 }
 
 export interface PerfPart {
@@ -53,6 +55,8 @@ export interface PerfPart {
 export interface PerfRow {
   scene: string;
   quality: Quality;
+  /** V2.0: the hour the light was pinned to (Measure this laptop's day and night rows); absent when not pinned. */
+  hour?: number;
   moving: PerfPart;
   idle: PerfPart;
 }
@@ -170,16 +174,25 @@ async function phase(
 const fmt = (v: number | null): string => (v === null ? 'n/a' : v.toFixed(1));
 const pair = (a: number | null, b: number | null): string => `${fmt(a)} / ${fmt(b)}`;
 
+/** "11:00", "22:00": the hour column's cell. */
+export const hourText = (h: number): string =>
+  `${String(Math.floor(h)).padStart(2, '0')}:${String(Math.round((h % 1) * 60)).padStart(2, '0')}`;
+
+/**
+ * The rows as a Markdown table. V2.0: when any row carries its hour (Measure this laptop's day and
+ * night rows), an Hour column follows Preset; v1-perf and v2-perf rows carry none and keep V1's columns.
+ */
 export function perfTable(rows: PerfRow[]): string {
+  const hours = rows.some((r) => r.hour !== undefined);
   const head = [
-    '| Scene | Preset | Moving frame ms (avg / p95) | Moving GPU ms (avg / p95) | Idle frame ms (avg / p95) | Idle GPU ms (avg / p95) | Draws | Triangles | Rest: moving / still / idle frames, shadow renders |',
-    '|---|---|---|---|---|---|---|---|---|',
+    `| Scene | Preset |${hours ? ' Hour |' : ''} Moving frame ms (avg / p95) | Moving GPU ms (avg / p95) | Idle frame ms (avg / p95) | Idle GPU ms (avg / p95) | Draws | Triangles | Rest: moving / still / idle frames, shadow renders |`,
+    `|---|---|${hours ? '---|' : ''}---|---|---|---|---|---|---|`,
   ];
   return [
     ...head,
     ...rows.map(
       (r) =>
-        `| ${r.scene} | ${r.quality} | ${pair(r.moving.frameAvg, r.moving.frameP95)} | ${pair(r.moving.gpuAvg, r.moving.gpuP95)} | ${pair(r.idle.frameAvg, r.idle.frameP95)} | ${pair(r.idle.gpuAvg, r.idle.gpuP95)} | ${r.moving.draws} | ${(r.moving.triangles / 1e6).toFixed(2)} M | ${r.idle.modes.moving} / ${r.idle.modes.still} / ${r.idle.modes.idle}, ${r.idle.shadowRenders} |`,
+        `| ${r.scene} | ${r.quality} |${hours ? ` ${r.hour === undefined ? 'n/a' : hourText(r.hour)} |` : ''} ${pair(r.moving.frameAvg, r.moving.frameP95)} | ${pair(r.moving.gpuAvg, r.moving.gpuP95)} | ${pair(r.idle.frameAvg, r.idle.frameP95)} | ${pair(r.idle.gpuAvg, r.idle.gpuP95)} | ${r.moving.draws} | ${(r.moving.triangles / 1e6).toFixed(2)} M | ${r.idle.modes.moving} / ${r.idle.modes.still} / ${r.idle.modes.idle}, ${r.idle.shadowRenders} |`,
     ),
   ].join('\n');
 }
@@ -231,7 +244,7 @@ export async function runPerf(renderer: Renderer, opts: PerfOptions = {}): Promi
       rig.snap();
       renderer.invalidate();
       const idle = await phase(renderer, rest, Math.min(1.5, rest / 2), () => {}, signal);
-      rows.push({ scene, quality, moving, idle });
+      rows.push({ scene, quality, ...(opts.hour !== undefined && { hour: opts.hour }), moving, idle });
       goHome();
     }
   } finally {
@@ -291,8 +304,15 @@ export const MEASURE_PRESETS: readonly Quality[] = ['low', 'medium', 'high', 'ul
 export type MeasureScene = 'valley' | 'village' | 'town';
 export const MEASURE_SCENES: readonly MeasureScene[] = ['valley', 'village', 'town'];
 
-/** Every run takes the light at the same hour, so tables from two laptops compare. */
+/** Every run takes the light at the same hours, so tables from two laptops compare: 11:00 by day... */
 export const MEASURE_HOUR = 11;
+/**
+ * ...and 22:00 at night (V2's acceptance: a night moving frame on Medium costs no more GPU time
+ * than before V2; the light map's budget is a night one). Night runs Medium and High only, so a whole
+ * run stays near seven minutes.
+ */
+export const MEASURE_NIGHT_HOUR = 22;
+export const MEASURE_NIGHT_PRESETS: readonly Quality[] = ['medium', 'high'];
 
 /** What a run needs from the session (the Session itself, in the game). */
 export interface MeasureHost {
@@ -308,6 +328,8 @@ export interface MeasureProgress {
   stage: 'loading' | 'measuring' | 'restoring';
   scene: MeasureScene;
   quality: Quality | null;
+  /** The hour the light is pinned to for this row (MEASURE_HOUR or MEASURE_NIGHT_HOUR) while measuring. */
+  hour?: number;
   /** Rows started so far (1 to `total` while measuring), and how many there are. */
   step: number;
   total: number;
@@ -321,6 +343,8 @@ export interface MeasureOptions {
   /** Most seconds to wait for a showcase to stream in before measuring it (default 20). */
   settleMax?: number;
   presets?: readonly Quality[];
+  /** Presets measured again at night (MEASURE_NIGHT_HOUR) in each scene; [] for none. */
+  nightPresets?: readonly Quality[];
   scenes?: readonly MeasureScene[];
   signal?: AbortSignal;
   onProgress?: (p: MeasureProgress) => void;
@@ -366,7 +390,16 @@ export function measureSeconds(
 ): number {
   const row = (opts.settle ?? 1.5) + (opts.move ?? 10) + (opts.rest ?? 10) + 1;
   const load = Math.min(opts.settleMax ?? 20, 12) + 3;
-  return MEASURE_SCENES.length * MEASURE_PRESETS.length * row + (MEASURE_SCENES.length - 1) * load;
+  return measureRowCount() * row + (MEASURE_SCENES.length - 1) * load;
+}
+
+/** Rows in a whole run: every preset by day and the night presets at night, in each scene. */
+export function measureRowCount(
+  presets: readonly Quality[] = MEASURE_PRESETS,
+  night: readonly Quality[] = MEASURE_NIGHT_PRESETS,
+  scenes: readonly MeasureScene[] = MEASURE_SCENES,
+): number {
+  return scenes.length * (presets.length + night.length);
 }
 
 /** The browser, screen, GPU and build, for the stored run and the copied table. */
@@ -392,7 +425,7 @@ export function perfMachine(renderer: Renderer | null): PerfMachine {
 export function measureMarkdown(table: string, machine: PerfMachine): string {
   const [w, h] = machine.screen;
   return [
-    `Measure this laptop: ${machine.gpu ?? 'GPU not named by the browser'}, screen ${w} x ${h} at ${machine.pixelRatio}x, build ${machine.build}, light at ${MEASURE_HOUR}:00.`,
+    `Measure this laptop: ${machine.gpu ?? 'GPU not named by the browser'}, screen ${w} x ${h} at ${machine.pixelRatio}x, build ${machine.build}, light at ${hourText(MEASURE_HOUR)} (day rows) and ${hourText(MEASURE_NIGHT_HOUR)} (night rows, the Hour column).`,
     `Browser: ${machine.browser}`,
     '',
     table,
@@ -482,8 +515,10 @@ export async function measureLaptop(host: MeasureHost, opts: MeasureOptions = {}
   if (!renderer) throw new Error('No valley on screen to measure');
   const mirror = host.mirror;
   const presets = [...(opts.presets ?? MEASURE_PRESETS)];
+  const night = [...(opts.nightPresets ?? MEASURE_NIGHT_PRESETS)];
   const scenes = opts.scenes ?? MEASURE_SCENES;
-  const total = presets.length * scenes.length;
+  const perScene = presets.length + night.length;
+  const total = measureRowCount(presets, night, scenes);
   const { signal, onProgress } = opts;
   const rig = renderer.rig;
   const look = rig.look;
@@ -500,7 +535,7 @@ export async function measureLaptop(host: MeasureHost, opts: MeasureOptions = {}
     for (const [si, scene] of scenes.entries()) {
       if (signal?.aborted) throw new PerfAborted();
       if (scene !== 'valley') {
-        onProgress?.({ stage: 'loading', scene, quality: null, step: si * presets.length, total });
+        onProgress?.({ stage: 'loading', scene, quality: null, step: si * perScene, total });
         if (!before) {
           before = mirrorCounts(mirror);
           host.holdTurns();
@@ -516,17 +551,33 @@ export async function measureLaptop(host: MeasureHost, opts: MeasureOptions = {}
         renderer.invalidate();
         await settleView(renderer, opts.settleMax ?? 20, signal);
       }
-      const r = await runPerf(renderer, {
-        scene,
-        presets,
-        ...(opts.move !== undefined && { move: opts.move }),
-        ...(opts.rest !== undefined && { rest: opts.rest }),
-        ...(opts.settle !== undefined && { settle: opts.settle }),
-        ...(signal && { signal }),
-        onPreset: (q, i) =>
-          onProgress?.({ stage: 'measuring', scene, quality: q, step: si * presets.length + i + 1, total }),
-      });
-      rows.push(...r.rows);
+      // By day on every preset, then at night on the night presets, from the same view.
+      for (const [pass, list, at] of [
+        [0, presets, MEASURE_HOUR],
+        [presets.length, night, MEASURE_NIGHT_HOUR],
+      ] as const) {
+        if (list.length === 0) continue;
+        renderer.setDebugHour(at);
+        const r = await runPerf(renderer, {
+          scene,
+          presets: [...list],
+          hour: at,
+          ...(opts.move !== undefined && { move: opts.move }),
+          ...(opts.rest !== undefined && { rest: opts.rest }),
+          ...(opts.settle !== undefined && { settle: opts.settle }),
+          ...(signal && { signal }),
+          onPreset: (q, i) =>
+            onProgress?.({
+              stage: 'measuring',
+              scene,
+              quality: q,
+              hour: at,
+              step: si * perScene + pass + i + 1,
+              total,
+            }),
+        });
+        rows.push(...r.rows);
+      }
     }
   } finally {
     onProgress?.({ stage: 'restoring', scene: 'valley', quality: null, step: rows.length, total });

@@ -37,7 +37,7 @@ The three track PRs, the wave notes' stand-ins table as each track filled it, V2
 
 ## Acceptance criteria
 
-- [ ] On Kat's laptop on Medium a night moving frame costs no more GPU time than before V2, and every budget in `22-quality.md` holds, moving and idle; both laptops' tables are in `22-quality.md`.
+- [ ] On Kat's laptop on Medium a night moving frame costs no more GPU time than before V2 (Measure this laptop's 22:00 Medium rows, after against before), and every budget in `22-quality.md` holds, moving and idle; both laptops' tables are in `22-quality.md`.
 - [ ] Nothing in the sim changes and hashes match (the golden scripts replay identically).
 - [ ] Before and after shots of every scene and hour are in `docs/build/screenshots/` (`v2-before-*`, `v2-after-*`), and the track acceptances still hold after the merge and the tuning.
 - [ ] `docs/playtests/V2.md` is filled after the evening.
