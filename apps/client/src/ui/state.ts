@@ -2,6 +2,7 @@ import { signal } from '@preact/signals';
 import type {
   AwayLetter,
   FestivalResultView,
+  GoodFamily,
   LetterView,
   Lens,
   PlanItem,
@@ -35,8 +36,8 @@ export interface Letter {
 export type ReportTab = 'stocks' | 'workforce' | 'budget' | 'buildings';
 
 // I2 (C4F)
-export type MarketTab = 'prices' | 'profit';
-export type TradeTab = 'neighbors' | 'log' | 'dock' | 'commissions';
+/** R1C: the Balances book's two tabs. */
+export type BalancesTab = 'families' | 'neighbors';
 
 /** A plan being sketched: commands the tools would have sent, kept here until proposed. */
 export interface Sketch {
@@ -96,10 +97,12 @@ export function createUiState() {
     dismissed: signal<ReadonlySet<string>>(new Set()),
     alertsOpen: signal(true),
     // I2 (C4F)
-    marketTab: signal<MarketTab>('prices'),
-    /** The good whose price history the market page draws large. */
+    /** The good whose price history the Balances book draws large. */
     marketGood: signal<string | null>(null),
-    tradeTab: signal<TradeTab>('neighbors'),
+    // R1C
+    balancesTab: signal<BalancesTab>('families'),
+    /** The family whose row the Balances book holds open (the top bar's chips set it). */
+    balancesFamily: signal<GoodFamily | null>(null),
     /** The story letter on the desk, while it is open. */
     storyLetter: signal<LetterView | null>(null),
     /** Story letters already opened this visit (arc and step), so the feed stops waving them. */

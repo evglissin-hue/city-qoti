@@ -1,0 +1,241 @@
+/* R1C: the Balances book. Paper and ink; the Ledger's ochre for the bars, a warm red under the reserve. */
+
+.balances .carrier-head {
+  margin-bottom: 6px;
+}
+
+.family-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 5px;
+}
+
+.family-row {
+  border: 1.2px solid var(--line);
+  border-radius: 10px;
+  background: var(--paper-light);
+}
+
+.family-row.open {
+  border-color: rgba(196, 138, 63, 0.7);
+  background: rgba(196, 138, 63, 0.08);
+}
+
+.family-head {
+  display: grid;
+  grid-template-columns: 7.6em 1fr 2.4em 4.2em;
+  grid-template-areas:
+    'name bar days price'
+    'pips pips carried spark';
+  align-items: center;
+  gap: 3px 8px;
+  width: 100%;
+  padding: 5px 8px;
+  border: none;
+  border-radius: 10px;
+  background: transparent;
+  box-shadow: none;
+  text-align: left;
+}
+
+.family-head:hover:not(:disabled) {
+  transform: none;
+  box-shadow: none;
+  background: rgba(196, 138, 63, 0.09);
+}
+
+.family-head .family-name {
+  grid-area: name;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.family-head .cover-bar {
+  grid-area: bar;
+}
+
+.family-head .days {
+  grid-area: days;
+  text-align: right;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.family-head > .price {
+  grid-area: price;
+  justify-self: end;
+}
+
+.family-head .pips {
+  grid-area: pips;
+}
+
+.family-head .carried {
+  grid-area: carried;
+  justify-self: end;
+  white-space: nowrap;
+}
+
+.family-head .sparkline {
+  grid-area: spark;
+  justify-self: end;
+}
+
+.cover-bar {
+  position: relative;
+  display: block;
+  height: 9px;
+  border-radius: 999px;
+  border: 1.2px solid var(--line);
+  background: #fffbf1;
+}
+
+.cover-bar .fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: 999px;
+  background: var(--sage);
+}
+
+.cover-bar.low .fill {
+  background: var(--danger);
+}
+
+.cover-bar .tick {
+  position: absolute;
+  top: -3px;
+  bottom: -3px;
+  width: 2px;
+  margin-left: -1px;
+  background: var(--ink-line);
+  border-radius: 1px;
+}
+
+.cover-bar .tick.mark {
+  background: var(--river);
+  top: -4px;
+  bottom: -4px;
+}
+
+.pips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+}
+
+.pip {
+  display: inline-flex;
+  font-size: 0.95rem;
+  line-height: 1;
+}
+
+.pip.off {
+  opacity: 0.3;
+  filter: grayscale(1);
+}
+
+.family-detail {
+  padding: 2px 10px 10px;
+  display: grid;
+  gap: 6px;
+}
+
+.flavor-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.flavor {
+  display: grid;
+  grid-template-columns: auto 1fr 2.2em;
+  grid-template-areas:
+    'icon name stock'
+    'icon offer made';
+  align-items: center;
+  gap: 0 8px;
+  width: 100%;
+  padding: 3px 6px;
+  border: 1.2px solid transparent;
+  border-radius: 9px;
+  background: transparent;
+  box-shadow: none;
+  text-align: left;
+}
+
+.flavor:hover:not(:disabled) {
+  transform: none;
+  box-shadow: none;
+  background: rgba(196, 138, 63, 0.09);
+}
+
+.flavor.active {
+  background: rgba(196, 138, 63, 0.14);
+  border-color: rgba(196, 138, 63, 0.55);
+}
+
+.flavor .good-icon {
+  grid-area: icon;
+}
+
+.flavor-name {
+  grid-area: name;
+}
+
+.flavor-stock {
+  grid-area: stock;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+}
+
+.flavor-offer {
+  grid-area: offer;
+  font-size: 0.8rem;
+  color: var(--ink-soft);
+}
+
+.flavor-offer.on {
+  color: var(--sage-deep);
+}
+
+.flavor-made {
+  grid-area: made;
+  justify-self: end;
+}
+
+.terms {
+  border-top: 1.5px dashed var(--line);
+  padding-top: 6px;
+}
+
+.terms h5 {
+  margin: 0 0 2px;
+}
+
+.carrier-purse,
+.deals {
+  margin-top: 10px;
+}
+
+.deal-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.tab-line {
+  color: var(--danger);
+}
+
+.neighbors-tab {
+  display: grid;
+  gap: 8px;
+}

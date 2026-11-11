@@ -11,14 +11,12 @@ import { mount, settle, typeInto, type Mounted } from '../test/dom';
 import { CharterPanel, knownUnlockName } from './Charter';
 import { InspectorPanel } from './Inspector';
 import { LettersPanel } from './Letters';
-import { MarketPanel } from './Market';
 import { NotebookPanel } from './Notebook';
 import { PlansPanel } from './Plans';
 import { PoliciesPanel } from './Policies';
 import { RankUpPanel } from './RankUp';
 import { AskDialog, RequestsPanel } from './Requests';
 import { StoryLetterPanel } from './StoryLetter';
-import { TradePanel } from './Trade';
 
 let view: Mounted | null = null;
 afterEach(() => {
@@ -28,76 +26,6 @@ afterEach(() => {
 
 const last = <T extends Command['t']>(submitted: Command[], t: T) =>
   submitted.filter((c): c is Extract<Command, { t: T }> => c.t === t).pop();
-
-describe('market', () => {
-  it('lists the goods in play with price and mood, and draws one large with its levers', async () => {
-    const { session, submitted } = mockVillageSession();
-    view = await mount(h(MarketPanel, { session }));
-    const bread = view.get('price-bread');
-    expect(bread.textContent).toContain('Bread');
-    expect(bread.textContent).toMatch(/dear|steep/);
-    // Goods nobody trades stay out of the way until asked for.
-    expect(view.find('price-candles')).toBeNull();
-    await view.click('prices-all');
-    expect(view.find('price-candles')).not.toBeNull();
-
-    await view.click('price-bread');
-    expect(session.ui.marketGood.value).toBe('bread');
-    expect(view.get('good-card').textContent).toContain('Households wanted');
-    expect(view.root.querySelector('[data-testid="price-chart"] .chart-line')).not.toBeNull();
-    await view.click('cap-toggle');
-    const cap = last(submitted, 'ledger.setPriceCap')!;
-    expect(cap.good).toBe('bread');
-    expect(cap.cap).toBeGreaterThan(0);
-    await view.click('subsidy-more');
-    expect(last(submitted, 'ledger.setPriceCap')!.subsidy).toBe(5);
-  });
-
-  it('weighs up every workshop on the profit page, best first', async () => {
-    const { session } = mockVillageSession();
-    session.ui.marketTab.value = 'profit';
-    view = await mount(h(MarketPanel, { session }));
-    const rows = [...view.root.querySelectorAll('[data-testid^="profit-"] .profit-name')].map(
-      (e) => e.textContent,
-    );
-    // R1: the fixture's bakery is a workshop business keeping the baker's trade.
-    expect(rows).toContain('Baker');
-    await view.click(view.get(`profit-${villageIds.buildings.bakery}`).querySelector('button')!);
-    expect(view.text()).toContain('Goods made');
-    expect(view.text()).toContain('Wages');
-  });
-});
-
-describe('trade', () => {
-  it('shows each neighbor with what they sell and buy, and says when there is no post', async () => {
-    const { session } = mockVillageSession();
-    session.ui.tradeTab.value = 'neighbors';
-    view = await mount(h(TradePanel, { session }));
-    expect(view.get('no-post').textContent).toContain('No Trading Post yet');
-    for (const n of content.neighbors) expect(view.get(`neighbor-${n.id}`).textContent).toContain(n.name);
-    const millhaven = view.get('neighbor-millhaven').textContent ?? '';
-    expect(millhaven).toContain('They sell');
-    expect(millhaven).toContain('Grain');
-    expect(millhaven).toContain('Wool');
-  });
-
-  it('keeps the trade log, newest first', async () => {
-    const { session } = mockVillageSession();
-    session.ui.tradeTab.value = 'log';
-    view = await mount(h(TradePanel, { session }));
-    const log = view.get('trade-log-table').textContent ?? '';
-    expect(log).toContain('Sold 20 vegetables');
-    expect(log).toContain('Bought 8 wool');
-  });
-
-  it('offers no standing orders, deals or caravans any more (R1: the carrier trades)', async () => {
-    const { session } = mockVillageSession();
-    view = await mount(h(TradePanel, { session }));
-    for (const gone of ['trade-orders', 'trade-deals', 'trade-caravans']) expect(view.find(gone)).toBeNull();
-    expect(view.find('trade-neighbors')).not.toBeNull();
-    expect(view.find('trade-log')).not.toBeNull();
-  });
-});
 
 describe('policies', () => {
   it('sets wages and income tax from the dials, with the daily bill in words', async () => {

@@ -28,7 +28,7 @@ import { mount, settle, type Mounted } from '../test/dom';
 import { BAND_WORD, SIDE_WORD, speciesName, WEATHER_WORD } from '../seasons';
 import { TopBar } from '../TopBar';
 import { CustomizePanel } from './Customize';
-import { CommissionsTab, DockTab } from './Dock';
+import { CommissionsTab, DockTab } from './balancesNeighbors';
 import { FestivalPanel, FestivalResultPanel } from './Festival';
 import { FieldGuidePanel } from './FieldGuide';
 import { InspectorPanel } from './Inspector';

@@ -27,11 +27,7 @@ export const NO_CLIENT_SENDER: Record<string, string> = {
  */
 export const OWED_SENDERS: Record<string, { cycle: 'R1C' | 'R1D'; why: string }> = {
   'build.move': { cycle: 'R1D', why: 'the move tool picks a hand-placed building up and sets it down again' },
-  'carrier.setBudget': { cycle: 'R1C', why: "the Balances book sets the carrier's daily purse" },
-  'carrier.setReserve': { cycle: 'R1C', why: "the Balances book sets each family's reserve" },
-  'carrier.setRule': { cycle: 'R1C', why: "the Balances book sets each family's carrier rule and selling" },
   'decor.move': { cycle: 'R1D', why: 'the move tool picks a decor piece up and sets it down again' },
-  'season.setPlan': { cycle: 'R1C', why: 'the season card asks the Ledger its questions' },
 };
 
 function commandTypes(): string[] {

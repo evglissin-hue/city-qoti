@@ -60,10 +60,10 @@ test('the season pages open on the live winter fixture', async ({ page }) => {
   await expect(page.getByTestId('guide-entries')).toBeVisible();
   await openBook(page, 'ledger', 'watch');
   await expect(page.getByTestId('watch-roster')).toBeVisible();
-  await page.getByTestId('book-trade').click();
-  await page.getByTestId('trade-dock').click();
+  await page.getByTestId('book-balances').click();
+  await page.getByTestId('balances-neighbors').click();
   await expect(page.getByTestId('dock-frozen')).toBeVisible();
-  await page.getByTestId('trade-commissions').click();
+  await expect(page.getByTestId('commissions')).toBeVisible();
   await page.keyboard.press('Escape');
   await expect(page.getByTestId('weather')).toBeVisible();
   await page.getByTestId('weather').click();
