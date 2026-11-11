@@ -64,6 +64,7 @@ import type {
   NeedsBasket,
   NeighborDef,
   PatternDef,
+  PatternPiece,
   RenownDef,
   RoadDef,
   SeasonDef,

@@ -628,7 +628,23 @@ export interface PatternDef {
   unlocks: string[];
   /** Order in which hints are revealed, lowest first (C3B). Content order when absent. */
   hintOrder?: number;
+  /**
+   * R1 (R1D): the pieces its page's "Lay it out" ghost places as a plan once it is discovered, in
+   * tiles from the anchor (x east, z south) before the ghost is turned. Absent: no layout.
+   */
+  layout?: PatternPiece[];
 }
+
+/**
+ * R1 (R1D): one piece of a pattern's layout. Decor and trees stand at tile centers; a building's
+ * dx, dz are its footprint's corner; a run (linear decor) or a road goes from (dx, dz) to (tx, tz).
+ */
+export type PatternPiece =
+  | { decor: string; dx: number; dz: number; rot?: number }
+  | { tree: 'oak' | 'birch' | 'pine'; dx: number; dz: number }
+  | { building: string; dx: number; dz: number; rot?: 0 | 1 | 2 | 3 }
+  | { run: string; dx: number; dz: number; tx: number; tz: number }
+  | { road: 'path' | 'lane'; dx: number; dz: number; tx: number; tz: number };
 
 export interface AchievementDef {
   id: string;
