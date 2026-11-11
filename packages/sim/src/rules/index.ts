@@ -18,3 +18,4 @@ export {
   type WallBuilding,
   type WallPlan,
 } from './wall';
+export { readerWithout, type Leave } from './without';
