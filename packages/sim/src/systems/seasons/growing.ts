@@ -5,6 +5,21 @@ import { content, type BuildingDef, type ProductionMethod } from '@qoti/content'
 import type { Building, WorldState } from '../../contracts';
 import { seasonAt } from '../../state/seasons';
 
+/**
+ * R1B: true when a good does not come this season: its table says nothing grows (vegetables, fruit
+ * and honey in winter), or it is fish while the river is frozen. Goods with no table always come.
+ */
+export function goodOutOfSeason(state: WorldState, good: string): boolean {
+  if (good === 'fish') return state.weather.river.frozen;
+  const table = content.goodById.get(good)?.seasons;
+  return !!table && (table[seasonAt(state.tick).season] ?? 1000) === 0;
+}
+
+/** R1B: true in winter, when a farm's fields lie bare (grain is sown in spring and cut when golden). */
+export function fieldsBare(state: WorldState): boolean {
+  return seasonAt(state.tick).season === 3;
+}
+
 /** Yield hook: a gatherer's first output by the season's table. */
 export function seasonalGrowth(
   state: WorldState,

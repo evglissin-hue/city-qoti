@@ -21,6 +21,7 @@ import {
   takes,
   tileDistance,
 } from './stores';
+import { countSold } from '../levels/counters';
 
 /** A cart does not roll for less than this. */
 export const CART_MIN_LOAD = 8;
@@ -266,6 +267,7 @@ export function stepCartJob(state: WorldState, ctx: TickCtx, job: PorterJob, hoo
     const pile = isStorage(defOf(src)) ? src.rt.store : src.rt.output;
     const got = Math.max(0, Math.min(job.qty, pile[g]!));
     pile[g]! -= got;
+    if (pile === src.rt.output) countSold(src, got);
     src.rt.reservedOut[g] = Math.max(0, src.rt.reservedOut[g]! - job.qty);
     if (got < job.qty) dst.rt.reservedIn[g] = Math.max(0, dst.rt.reservedIn[g]! - (job.qty - got));
     job.qty = got;

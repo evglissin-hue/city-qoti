@@ -62,11 +62,11 @@ export function residentsTick(state: WorldState, ctx: TickCtx): void {
   if (tod === WEDDINGS) lifeEvening(state, ctx);
   if (t % UPKEEP_EVERY === 0) {
     rehouse(state, ctx);
-    auditJobs(state);
+    auditJobs(state, ctx);
   }
   if (t % HOUR === JOBS_OFFSET) {
     assignJobs(state, ctx);
-    rebalanceJobs(state);
+    rebalanceJobs(state, ctx);
   }
   if (t % HOUR === FRIENDS_OFFSET) hourlyFriendships(state);
 
