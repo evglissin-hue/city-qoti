@@ -142,6 +142,8 @@ export function lightsLayer(): RenderLayer {
 
   return {
     id: 'lights',
+    // V2A: light only, nothing here casts: a change redraws the still frame, not the shadow map.
+    shadowless: true,
     init(c) {
       ctx = c;
       env = c.env ?? createWorldEnv(new PerspectiveCamera());
