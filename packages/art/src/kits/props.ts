@@ -24,7 +24,7 @@ function benchNear(
   z: number,
   alongX: boolean,
   rnd: () => number,
-  hex = palette.wood,
+  hex: number = palette.wood,
 ): void {
   const wood = vary(hex, rnd, 0.6);
   const L = 0.2;
