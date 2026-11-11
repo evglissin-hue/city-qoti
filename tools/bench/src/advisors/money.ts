@@ -17,6 +17,8 @@ import {
 import type { Planner } from '../planner';
 import type { Advisor, AdvisorDef } from './types';
 
+/** R1F: what one visit to the County Bank borrows (it was 300, and a Village borrowed ten times in seventy days). */
+const LOAN_COINS = 600;
 /** R1F: days between two turns of the wage or tax lever (the levers moved most days, a chore). */
 const LEVER_DAYS = 3;
 
@@ -69,7 +71,7 @@ class Money implements Advisor {
     // stalls the build queue for days (six seeds at day 70 with P1's first economy: 135 residents
     // on average with the old cushion, 142 with this one; main 138 either way).
     if (coins < 120 && room >= 100) {
-      p.do('take a loan', [{ t: 'loan.take', coins: Math.min(room, 300) }]);
+      p.do('take a loan', [{ t: 'loan.take', coins: Math.min(room, LOAN_COINS) }]);
     } else if (owed > 0 && coins > 500) {
       const loan = w.loans.loans[0]!;
       const pay = Math.min(Math.ceil(loan.balance / PENNIES_PER_COIN), Math.floor(coins - 350));
