@@ -13,6 +13,7 @@ import {
 } from '@qoti/art';
 import { Color, MeshLambertMaterial, type Material, type WebGLProgramParametersWithUniforms } from 'three';
 import type { WorldEnv } from './env';
+import { kitLamp } from './lightMap';
 import { WINDOW_HASH_GLSL } from './lighting';
 
 /**
@@ -107,7 +108,8 @@ export function createWorldMaterial(env: WorldEnv): MeshLambertMaterial {
   const material = new MeshLambertMaterial({ vertexColors: true });
   const u = kitUniforms(env);
   material.onBeforeCompile = (shader) => {
-    patchKitShader(shader, u);
+    // V2A: walls, decor, carts and animals take the light map's lamplight (lightMap.ts).
+    patchKitShader(shader, u, kitLamp(env));
     patchNightGlow(shader, env.night, env.windowShare, true);
   };
   material.customProgramCacheKey = () => 'qoti-lean-kit-world';

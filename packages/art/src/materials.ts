@@ -446,22 +446,67 @@ vec3 qKitGlint(float lit) {
 `;
 
 /**
+ * V2A: what a kit or resident material needs to read the client's light map (the art package draws
+ * none of its own): GLSL declaring the reader's uniforms and `vec3 qLamp(vec2 xz, float up)` (the
+ * client's `LIGHT_MAP_GLSL`), those uniforms, and the night (0 by day, 1 at full night).
+ */
+export interface KitLampOptions {
+  glsl: string;
+  uniforms: Record<string, { value: unknown }>;
+  night: { value: number };
+}
+
+/** How strongly kit faces take the lamplight (an emissive on the face's own color). */
+const KIT_LAMP_GAIN = '1.7';
+
+/**
+ * V2A: walls, decor, carts and animals read the light map a little in front of the face along its
+ * normal (a wall facing the lamp samples nearer it than one facing away, which gives the pool a
+ * direction for free), fading out between 1.5 and 4 tiles up (`qLamp`'s curve, by the kit's own
+ * height), as an emissive on the face's color, by night squared.
+ */
+const KIT_LAMP_FRAGMENT = /* glsl */ `
+uniform float uLampNight;
+varying float vQUp;
+vec3 qKitLamp(vec3 albedo) {
+  if (uLampNight < 0.01) return vec3(0.0);
+  vec3 n = normalize(vQWNor);
+  vec2 xz = vQWPos.xz + n.xz * 0.45;
+  return albedo * qLamp(xz, vQUp) * (uLampNight * uLampNight * ${KIT_LAMP_GAIN});
+}
+`;
+
+/**
  * Patches a Lambert material's shaders into the lean kit material: call it first inside
  * `onBeforeCompile`, then add any further replacements (the client's night glow). The fragment
  * shader's emissive step adds the glint through `qKitGlint(lit)`; the caller adds it after its own
  * emissive (see the client's render/material.ts), passing how lit the face is (0 to 1).
+ * V2A: with `lamp`, faces also take the light map's lamplight (`KitLampOptions`).
  */
-export function patchKitShader(shader: WebGLProgramParametersWithUniforms, u: KitSurfaceUniforms): void {
+export function patchKitShader(
+  shader: WebGLProgramParametersWithUniforms,
+  u: KitSurfaceUniforms,
+  lamp?: KitLampOptions,
+): void {
   Object.assign(shader.uniforms, u);
+  if (lamp) Object.assign(shader.uniforms, lamp.uniforms, { uLampNight: lamp.night });
+  const vertexHead = lamp ? `${KIT_VERTEX_HEAD}\nvarying float vQUp;` : KIT_VERTEX_HEAD;
+  const world = lamp ? `${KIT_WORLD_VERTEX}\nvQUp = transformed.y;` : KIT_WORLD_VERTEX;
+  const fragmentHead = lamp ? `${KIT_FRAGMENT_HEAD}\n${lamp.glsl}\n${KIT_LAMP_FRAGMENT}` : KIT_FRAGMENT_HEAD;
   shader.vertexShader = shader.vertexShader
-    .replace('#include <common>', `#include <common>\n${KIT_VERTEX_HEAD}`)
+    .replace('#include <common>', `#include <common>\n${vertexHead}`)
     .replace('#include <begin_vertex>', `#include <begin_vertex>\n${KIT_SWAY_VERTEX}`)
-    .replace('#include <project_vertex>', `#include <project_vertex>\n${KIT_WORLD_VERTEX}`);
+    .replace('#include <project_vertex>', `#include <project_vertex>\n${world}`);
   shader.fragmentShader = shader.fragmentShader
-    .replace('#include <common>', `#include <common>\n${KIT_FRAGMENT_HEAD}`)
+    .replace('#include <common>', `#include <common>\n${fragmentHead}`)
     .replace(
       '#include <color_fragment>',
       '#include <color_fragment>\ndiffuseColor.rgb = qKitSurface(diffuseColor.rgb);',
+    );
+  if (lamp)
+    shader.fragmentShader = shader.fragmentShader.replace(
+      '#include <emissivemap_fragment>',
+      '#include <emissivemap_fragment>\ntotalEmissiveRadiance += qKitLamp(diffuseColor.rgb);',
     );
 }
 

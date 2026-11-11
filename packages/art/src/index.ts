@@ -70,6 +70,7 @@ export {
   SEASON_LOOK,
   setKitMaterialHooks,
   surfaceTable,
+  type KitLampOptions,
   type KitMaterialHooks,
   type KitSurfaceUniforms,
   type Season,

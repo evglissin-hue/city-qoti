@@ -17,6 +17,7 @@
 // V2.0 stub: `drawLightMap` draws no discs (it clears the target to black on a redraw), no shader
 // reads it yet, and the ground's 32-light loop
 // (`MAX_GROUND_LIGHTS`, layers/lights.ts) stays in charge. V2A owns this file from here.
+import type { KitLampOptions } from '@qoti/art';
 import { MAP_SIZE } from '@qoti/sim';
 import {
   Color,
@@ -178,6 +179,26 @@ function clearTarget(three: WebGLRenderer, target: WebGLRenderTarget): void {
   three.setClearColor(saved, alpha);
 }
 
+/**
+ * V2A, debug only: `?debug&lights=loop` keeps the ground's 32-light loop (`MAX_GROUND_LIGHTS`) and
+ * reads the map nowhere, the night before V2A, so V2X can measure both on one build
+ * (`v2-perf.mjs`) before it retires the loop. Read once a page.
+ */
+export const LIGHT_LOOP: boolean = ((): boolean => {
+  if (typeof location === 'undefined') return false;
+  const q = new URLSearchParams(location.search);
+  return q.has('debug') && q.get('lights') === 'loop';
+})();
+
+/**
+ * V2A: the light map for a kit or resident material (`patchKitShader`'s and
+ * `createResidentMaterial`'s `lamp`), or none with the loop switched on.
+ */
+export function kitLamp(env: LightMapEnv & { night: { value: number } }): KitLampOptions | undefined {
+  if (LIGHT_LOOP) return undefined;
+  return { glsl: LIGHT_MAP_GLSL, uniforms: { ...lightMapUniforms(env) }, night: env.night };
+}
+
 /** What a reader binds: the map's texture and the world-to-map transform (uv = xz * xy + zw). */
 export interface LightMapUniforms {
   uLightMap: { value: Texture };
@@ -208,5 +229,14 @@ uniform sampler2D uLightMap;
 uniform vec4 uLightMapXf;
 vec3 qLightMap(vec2 xz) {
   return texture(uLightMap, xz * uLightMapXf.xy + uLightMapXf.zw).rgb;
+}
+// V2A: the shared strength curve. The lamplight a surface \`up\` tiles above the ground takes at a
+// world point: a soft shoulder where pools crowd (a busy street glows rather than burns), fading out
+// between 1.5 and 4 tiles up. Readers still scale it by their own night (walls and the ground by
+// night squared, so at dusk the pools are a hint).
+vec3 qLamp(vec2 xz, float up) {
+  vec3 l = qLightMap(xz);
+  l *= 1.0 / (1.0 + dot(l, vec3(0.3, 0.55, 0.15)) * 0.45);
+  return l * (1.0 - smoothstep(1.5, 4.0, up));
 }
 `;
