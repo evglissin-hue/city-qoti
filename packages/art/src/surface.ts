@@ -98,7 +98,7 @@ const row = (
  * The surface table, indexed by id. Values from the concept viewer (`MATP`); glass and water carry
  * no pattern (the material gives them a sky fresnel and a sun glint), and flowers take their color
  * from the layer itself (its alpha is the mask). V2.0: index 19 is the noise layer's slot and holds
- * no row (`undefined`); the V2 surfaces after it are flat (strength 0) until V2C gives them patterns.
+ * no row (`undefined`); the V2 surfaces follow it (V2C's values).
  */
 export const SURFACES: readonly (SurfaceDef | undefined)[] = [
   row('plain', 'facade', 1, 0),
@@ -121,11 +121,13 @@ export const SURFACES: readonly (SurfaceDef | undefined)[] = [
   row('flags', 'top', 1.68, 1),
   row('flowers', 'top', 0.5, 0),
   undefined,
-  row('woodGrain', 'facade', 1, 0),
-  row('paintedWood', 'facade', 1, 0),
-  row('wroughtIron', 'facade', 1, 0),
-  row('terracotta', 'facade', 1, 0),
-  row('cloth', 'facade', 1, 0),
+  // V2C: props, carts and residents. Small pieces, so small pattern tiles, and strengths low
+  // enough that a cart still reads as a painted toy.
+  row('woodGrain', 'facade', 0.6, 0.6),
+  row('paintedWood', 'facade', 0.8, 0.5, { token: 'wood', mix: 0.75 }),
+  row('wroughtIron', 'facade', 0.5, 0.5),
+  row('terracotta', 'facade', 0.6, 0.55, { token: 'stripe', mix: 0.35 }),
+  row('cloth', 'facade', 0.5, 0.5),
 ];
 
 /** The table row for an id; unknown ids read as plain, like a missing attribute. */
