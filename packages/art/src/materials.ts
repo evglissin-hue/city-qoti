@@ -85,13 +85,43 @@ export function createEmissiveKitMaterial(night = 1): MeshStandardMaterial {
  */
 export const MOTION = { talk: 16, wave: 17, waveStill: 18, sit: 19 } as const;
 
-export function createResidentMaterial(): MeshLambertMaterial {
+/**
+ * V2A: the resident's rim of lamplight, added after the kit's plain lamplight read. Needs the
+ * `vQWNor`, `vQWPos`, `uLampNight` and `qLamp` that `patchKitShader` adds with a lamp.
+ */
+const RESIDENT_RIM_FRAGMENT = /* glsl */ `
+{
+  vec3 qn = normalize(vQWNor);
+  vec3 qv = normalize(cameraPosition - vQWPos);
+  float qRim = 1.0 - clamp(dot(qn, qv), 0.0, 1.0);
+  qRim *= qRim;
+  totalEmissiveRadiance += diffuseColor.rgb * qLamp(vQWPos.xz + qn.xz * 0.3, 0.0) * (uLampNight * uLampNight) * (2.2 * qRim);
+}`;
+
+interface ResidentBinding {
+  surface?: KitSurfaceUniforms;
+  lamp?: KitLampOptions;
+}
+
+/**
+ * V2A: with `surface`, residents draw the kit's surface ids through its surface table (wood grain,
+ * cloth, ...); with `lamp` as well they take the light map's lamplight plus a warm rim at night.
+ * `lamp` is ignored without `surface`. With neither, the material compiles as it always did.
+ * Both can also arrive later through `bindResidentMaterial`.
+ */
+export function createResidentMaterial(
+  surface?: KitSurfaceUniforms,
+  lamp?: KitLampOptions,
+): MeshLambertMaterial {
   // V1A: Lambert like the kit material; the old matte standard material had next to no specular.
   const m = new MeshLambertMaterial({ vertexColors: true });
   const time = { value: 0 };
   m.userData.time = time;
+  m.userData.residentBinding = { surface, lamp } satisfies ResidentBinding;
   m.onBeforeCompile = (shader) => {
+    const { surface: sf, lamp: lp } = m.userData.residentBinding as ResidentBinding;
     shader.uniforms.uTime = time;
+    if (sf) patchKitShader(shader, sf, lp);
     shader.vertexShader = shader.vertexShader
       .replace('#include <common>', `#include <common>\n${RESIDENT_VERTEX_HEAD}`)
       .replace(
@@ -100,9 +130,30 @@ export function createResidentMaterial(): MeshLambertMaterial {
       )
       .replace('#include <begin_vertex>', '#include <begin_vertex>\ntransformed = qRigPoint(transformed);')
       .replace('#include <color_vertex>', RESIDENT_COLOR_VERTEX);
+    if (sf && lp)
+      shader.fragmentShader = shader.fragmentShader.replace(
+        '#include <emissivemap_fragment>',
+        `#include <emissivemap_fragment>\n${RESIDENT_RIM_FRAGMENT}`,
+      );
   };
-  m.customProgramCacheKey = () => 'qoti-resident';
+  m.customProgramCacheKey = () => {
+    const { surface: sf, lamp: lp } = m.userData.residentBinding as ResidentBinding;
+    return `qoti-resident${sf ? '-surface' : ''}${sf && lp ? '-lamp' : ''}`;
+  };
   return m;
+}
+
+/**
+ * V2A: gives a resident material its surface table and lamp after creation (the env only exists
+ * once the layer is initialised). Call before the first render.
+ */
+export function bindResidentMaterial(
+  m: MeshLambertMaterial,
+  surface: KitSurfaceUniforms,
+  lamp?: KitLampOptions,
+): void {
+  m.userData.residentBinding = { surface, lamp } satisfies ResidentBinding;
+  m.needsUpdate = true;
 }
 
 const RESIDENT_VERTEX_HEAD = /* glsl */ `
