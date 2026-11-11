@@ -46,6 +46,7 @@ import { deliverUpgrade } from '../tiers/api';
 import { deliverModule } from '../modules';
 import { isCartJob, keepCarts, matchCarts, stepCartJob, tickIdleCarts, type CartHooks } from './carts';
 import { available, finishTask, startTask, tickReturning, walkTo } from './tasks';
+import { countSold } from '../levels/counters';
 
 /** Job classes in matching order: lower is more urgent (PorterJob.priority). */
 export const JobClass = { prioritySite: 0, stallFood: 1, input: 2, site: 3, clearing: 4 } as const;
@@ -415,6 +416,7 @@ function stepJob(state: WorldState, ctx: TickCtx, job: PorterJob, workTime: bool
     const pile = isStorage(defOf(src)) ? src.rt.store : src.rt.output;
     const got = Math.max(0, Math.min(job.qty, pile[g]!));
     pile[g]! -= got;
+    if (pile === src.rt.output) countSold(src, got);
     src.rt.reservedOut[g] = Math.max(0, src.rt.reservedOut[g]! - job.qty);
     if (got < job.qty) dst.rt.reservedIn[g] = Math.max(0, dst.rt.reservedIn[g]! - (job.qty - got));
     job.qty = got;

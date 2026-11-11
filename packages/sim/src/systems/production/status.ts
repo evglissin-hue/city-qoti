@@ -8,6 +8,7 @@ import { BuildingStatus, MAP_SIZE } from '../../constants';
 import type { Building, BuildingRuntime, TickCtx, WorldState } from '../../contracts';
 import { entranceTiles } from '../../rules/footprint';
 import { emitBuilding } from '../economy/emit';
+import { restsFor } from '../levels/resting';
 import { doorTile } from '../movement/api';
 import { porterReachable, storehouseReach, type Reach } from '../logistics/range';
 import { defOf, isMarket, outputCap } from '../logistics/stores';
@@ -120,6 +121,8 @@ export function computeStatus(
   if (method.kind === 'farm' && ownedFields(state, b, def) === 0) s |= BuildingStatus.noFields;
   // I3 (C5A): sown only in spring; until then the fields lie ready.
   if (method.kind === 'farm' && isFallow(state, b, def)) s |= BuildingStatus.fallow;
+  // R1 (R1B): a business with nothing to do rests and frees its hands (levels/resting.ts).
+  if (restsFor(state, b, s)) s |= BuildingStatus.resting;
   return s;
 }
 

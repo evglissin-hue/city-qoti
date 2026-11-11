@@ -6,6 +6,7 @@ import { content } from '@qoti/content';
 import { MAP_SIZE } from '../../constants';
 import type { EntityId, WorldState } from '../../contracts';
 import { findById } from '../../state/entities';
+import { countCustomer, countSold } from '../levels/counters';
 import { doorTile } from '../movement/api';
 
 /** Takes up to qty units of a good from an outlet's store; returns the units taken. */
@@ -22,6 +23,9 @@ export function takeFromOutlet(
   const n = Math.max(0, Math.min(qty, free));
   if (n > 0) {
     rt.store[goodIndex]! -= n;
+    // R1B: a shop counts what it sold and who came (levels).
+    countSold(b, n);
+    countCustomer(b);
   }
   return n;
 }
