@@ -4,6 +4,7 @@ import { PerspectiveCamera, type BufferGeometry, type MeshStandardMaterial } fro
 import type { Mirror } from '../../state/mirror';
 import { ChunkDirt } from '../chunkDirt';
 import { hash2 } from '../coords';
+import { driftHue, flowerDrift } from '../drifts';
 import { createWorldEnv, nearOf, type WorldEnv } from '../env';
 import { homeDistance, meadowAmount, mownAmount, MOWN, patch } from '../ground';
 import {
@@ -46,7 +47,7 @@ const PROPS: readonly PropSpec[] = [
   { kit: 'mushrooms', variants: 2, max: 40, shadows: false },
   { kit: 'reeds', variants: 2, max: 80, shadows: false },
   { kit: 'rock', variants: 2, max: 140, lod: 60, shadows: true },
-  { kit: 'wildflowers', variants: 3, max: 76, shadows: false },
+  { kit: 'wildflowers', variants: 5, max: 76, shadows: false },
 ];
 
 /** P1: spots tried on an open tile (the tuft count wanted is spread over them). */
@@ -76,7 +77,9 @@ function propKinds(thin: number): {
       const cache = DECIDUOUS_PROPS.has(p.kit)
         ? new StepCache<BufferGeometry>((t) => kit.build({ seed, params: { thin: t } }))
         : null;
-      const high = cache ? cache.get(thin) : kit.build({ seed });
+      // V2B: each wildflower variant is one drift color (`driftHue`).
+      const hue = p.kit === 'wildflowers' ? { params: { hue: v } } : {};
+      const high = cache ? cache.get(thin) : kit.build({ seed, ...hue });
       if (!cache) owned.push(high);
       const low = p.lod !== undefined ? kit.build({ seed, lod: 'low' }) : undefined;
       if (low) owned.push(low);
@@ -109,9 +112,10 @@ class Placer {
     sink = 0,
     tint: [number, number, number] = [1, 1, 1],
     at?: { y?: number; yaw?: number },
+    variant?: number,
   ): void {
     const spec = PROP_BY_KIT.get(kit)!;
-    const v = Math.floor(hash2(Math.floor(x * 7), Math.floor(z * 7), salt) * spec.variants);
+    const v = variant ?? Math.floor(hash2(Math.floor(x * 7), Math.floor(z * 7), salt) * spec.variants);
     const kind = this.field.kindIndex(`${kit}:${v}`);
     const y = at?.y ?? surfaceY(this.tiles, x, z) - sink * scale;
     const yaw = at?.yaw ?? hash2(Math.floor(x * 11), Math.floor(z * 11), salt + 1) * Math.PI * 2;
@@ -269,10 +273,32 @@ export function buildNatureChunk(
             else place.put('grass-tuft', px, pz, 204 + k * 6, 0.8 + h(205 + k * 6) * 0.6, 0, grassTint);
           }
           const bloom = patch(x, z, 7, 9);
-          const flowers = meadow ? 0.25 + bloom * 0.4 : Math.max(0, bloom - 0.6) * 0.8;
-          if (h(131) < flowers) place.put('wildflowers', ...spot(132), 133, 0.9 + h(134) * 0.4);
+          // V2B: flowers grow in drifts (the ground's painted dots take the same mask), a drift all
+          // one color with the odd stray.
+          const flowers = (meadow ? 0.25 + bloom * 0.4 : Math.max(0, bloom - 0.6) * 0.8) * flowerDrift(x, z);
+          const bloomHue = (salt: number) => (h(salt) < 0.85 ? driftHue(x, z) : Math.floor(h(salt + 1) * 5));
+          if (h(131) < flowers)
+            place.put(
+              'wildflowers',
+              ...spot(132),
+              133,
+              0.9 + h(134) * 0.4,
+              0,
+              [1, 1, 1],
+              undefined,
+              bloomHue(147),
+            );
           if (meadow && h(135) < flowers * 0.6)
-            place.put('wildflowers', ...spot(136), 137, 0.8 + h(138) * 0.4);
+            place.put(
+              'wildflowers',
+              ...spot(136),
+              137,
+              0.8 + h(138) * 0.4,
+              0,
+              [1, 1, 1],
+              undefined,
+              bloomHue(149),
+            );
           if (h(139) < 0.015) place.put('bush', ...spot(140), 141, 0.6 + h(142) * 0.4);
           if (h(143) < 0.01) place.put('rock', ...spot(144), 145, 0.5 + h(146) * 0.5, 0.25);
         }

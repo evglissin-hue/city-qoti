@@ -135,7 +135,10 @@ export const wildflowers: Kit = {
     const rnd = seeded(opts?.seed ?? 9);
     const s = new ShapeBuilder();
     const colors = [0xf2a1b4, 0xf3d35b, 0xa996e6, 0xf7f4ec, 0xe9707a];
-    const head = colors[Math.floor(rnd() * colors.length)]!;
+    // V2B: `params.hue` (0 to 4) fixes the head color (the draw is made either way, so the rest holds).
+    const picked = colors[Math.floor(rnd() * colors.length)]!;
+    const hue = opts?.params?.hue;
+    const head = typeof hue === 'number' ? colors[Math.min(4, Math.max(0, Math.floor(hue)))]! : picked;
     for (let i = 0; i < 4; i++) {
       const a = rnd() * Math.PI * 2;
       const r = 0.02 + rnd() * 0.05;

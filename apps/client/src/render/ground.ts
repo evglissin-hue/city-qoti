@@ -14,6 +14,7 @@ import type { Mirror } from '../state/mirror';
 import { fpToWorld, hash2 } from './coords';
 import { MAX_GROUND_LIGHTS, NOISE_GLSL, type WorldEnv } from './env';
 import { drawDef } from './defs';
+import { flowerDrift } from './drifts';
 import { GROUND_AO_GLSL, groundAoFor } from './groundAo';
 import { DOOR_KIND, ROAD_GLSL } from './layers/roads';
 import { WATER_Y } from './surface';
@@ -292,7 +293,7 @@ export class GroundTextures {
     this.colorBytes[o] = Math.min(255, c[0] * k);
     this.colorBytes[o + 1] = Math.min(255, c[1] * k);
     this.colorBytes[o + 2] = Math.min(255, c[2] * k);
-    this.colorBytes[o + 3] = Math.round(Math.min(1, flowers) * 255);
+    this.colorBytes[o + 3] = Math.round(Math.min(1, flowers * flowerDrift(x, z)) * 255);
     const built = L.occupant[i] !== 0;
     let worn = water || built ? 0 : (this.seats.get(i) ?? 0);
     if (!water && !built && !road) worn = Math.max(worn, this.doorFront(x, z));
