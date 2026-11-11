@@ -42,7 +42,7 @@ function endDay(state: WorldState, b: Building, today: Partial<BusinessCounters>
     shortToday: false,
     ...today,
   });
-  levels.tick(state, createTickCtx(state), undefined as never);
+  levels.tick(state, createTickCtx(state));
 }
 
 const GOOD = { madeToday: 10, soldToday: 9 };
@@ -209,7 +209,7 @@ describe('levels', () => {
   it('the crew grows with the level and production speeds up with it', () => {
     const { state, b } = bakery();
     const def = content.buildingById.get(b.def)!;
-    const method = content.tradeById.get('baker')!.method;
+    const method = content.tradeById.get('baker')!.method!;
     expect([1, 2, 3].map((l) => jobsOf({ ...b, level: l }))).toEqual([1, 2, 4]);
     hire(state, b.id, 3);
     toWork(state, b.rt!.workers);

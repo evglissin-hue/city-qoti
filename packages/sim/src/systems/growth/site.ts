@@ -4,17 +4,20 @@
 // standing asks the same of its own lot, counting itself among the served, so a third baker in a
 // windmill's reach of two finds no room while the first two do (`siteDays`, retooling).
 import { content, type TradeDef } from '@qoti/content';
-import { HABITAT_IDS, MAP_SIZE } from '../../constants';
+import { FIELD_GOOD_FERTILITY, HABITAT_IDS, MAP_SIZE, Zone } from '../../constants';
 import type { Building, EntityId, Lot, WorldState } from '../../contracts';
 import { findById } from '../../state/entities';
 import { hasTag } from '../../state/zones';
 import { doorTile } from '../movement/api';
+import { FIELD_TILES_PER_WORKER } from '../production/fields';
 import { chunkOfTile, scoreAt } from '../nature/habitats';
 import { capacityOf, withinReach } from '../specialized/api';
 import { lotMiddle } from './desirability';
 
 const S = MAP_SIZE;
 const POLLINATOR = (HABITAT_IDS as readonly string[]).indexOf('pollinator');
+/** Tiles around a lot a grain farm's fields may lie in (as the growth pass gives them). */
+export const FIELD_WINDOW = 8;
 
 /** Households whose door lies within this many tiles (straight line) of a shop lot's middle. */
 export const SHOP_REACH = 14;
@@ -89,6 +92,24 @@ export function reachWithRoom(cache: SiteCache, defId: string, tile: number, sel
   return false;
 }
 
+/**
+ * Free farm-zoned ground on good soil around the lot, for a grain farm's fields: tiles of the
+ * Farmland zone outside any lot, owned by no other farm, with fertility FIELD_GOOD_FERTILITY+.
+ */
+export function fieldGround(state: WorldState, lot: Lot, self: EntityId = 0): number {
+  const m = state.map;
+  let n = 0;
+  for (let z = Math.max(0, lot.z - FIELD_WINDOW); z < Math.min(S, lot.z + lot.d + FIELD_WINDOW); z++) {
+    for (let x = Math.max(0, lot.x - FIELD_WINDOW); x < Math.min(S, lot.x + lot.w + FIELD_WINDOW); x++) {
+      const i = z * S + x;
+      if (m.zone[i] !== Zone.farms || m.lot[i] || m.fertility[i]! < FIELD_GOOD_FERTILITY) continue;
+      if (m.fieldOwner[i] && m.fieldOwner[i] !== self) continue;
+      n++;
+    }
+  }
+  return n;
+}
+
 /** Average lot fertility of at least `min` (integer: the sum against min x area). */
 function fertileEnough(state: WorldState, lot: Lot, min: number): boolean {
   let sum = 0;
@@ -111,6 +132,9 @@ export function siteMeets(cache: SiteCache, lot: Lot, t: TradeDef, self: EntityI
   }
   if (w.reach !== undefined && !reachWithRoom(cache, w.reach, lot.frontage, self)) return false;
   if (w.households !== undefined && cache.householdsNear(lot) < w.households) return false;
+  // A grain farm wants Farmland left over behind its lot for a first hand's fields (12 tiles), so
+  // a farm never grows where every zoned tile was cut into lots and it could only rest.
+  if (t.method?.kind === 'farm' && fieldGround(state, lot, self) < FIELD_TILES_PER_WORKER) return false;
   return true;
 }
 
