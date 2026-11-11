@@ -47,6 +47,7 @@ import {
   kitBuilder,
 } from './parts';
 import { barrel, bench, flowerPot, hayBale, sawhorse, wallLantern, weathervane } from './props';
+import { chairOf } from './trades';
 import { roofColor, FLOWERS } from './style';
 import type { Kit, KitBuildOptions } from './types';
 
@@ -767,6 +768,9 @@ export function shopOf(opts: KitBuildOptions | undefined): Built {
   const upFront: Face = { dir: 'z+', plane: oz1 };
   const trade = makingOf(opts) ?? SHOP_TRADES[Math.floor(look() * SHOP_TRADES.length)]!;
   const paint = vary(L.accent === palette.white ? palette.navy : L.accent, rnd, 0.3);
+  // R1E: a shop drawn with a level (params.level) is level-driven; without one it draws as in C4E.
+  const lvParam = opts?.params?.level;
+  const lv = typeof lvParam === 'number' ? clamp(Math.round(lvParam), 1, 3) : 0;
   // The flat's own door to one side on wide fronts; the shop door in the middle of the front.
   const flatU = wide ? (doorU < w / 2 ? x1 - 0.28 : x0 + 0.28) : null;
   const sf0 = wide && flatU! < doorU ? flatU! + 0.22 : x0 + 0.06;
@@ -777,7 +781,15 @@ export function shopOf(opts: KitBuildOptions | undefined): Built {
   // Painted lettering on the fascia unless the player wrote their own.
   if (L.custom.sign) {
     anchors.sign = { center: fascia, normal: [0, 0, 1], width: fasciaW, height: 0.12 };
-  } else
+  } else if (lv >= 2) {
+    // R1E level 2 and up: the fascia carries the keeper's name, lettered by the buildings layer.
+    anchors.sign = {
+      center: [fascia[0], fascia[1], fascia[2] + 0.012],
+      normal: [0, 0, 1],
+      width: fasciaW,
+      height: 0.12,
+    };
+  } else if (lv === 0)
     s.detail(() => {
       // Gilt lettering: a word or two of letters with ascenders, centered on the fascia.
       const words =
@@ -801,7 +813,8 @@ export function shopOf(opts: KitBuildOptions | undefined): Built {
       }
     });
   s.detail(() => {
-    if (look() < 0.65)
+    const awned = look() < 0.65;
+    if (lv === 3 || (lv === 0 && awned))
       awningPart(
         s,
         front,
@@ -813,20 +826,22 @@ export function shopOf(opts: KitBuildOptions | undefined): Built {
         palette.white,
         Math.max(4, Math.round((sf1 - sf0) / 0.13)),
       );
-    hangingSign(
-      s,
-      upFront,
-      x0 + 0.08 < doorU - 0.5 ? x0 + 0.1 : x1 - 0.1,
-      1.1,
-      vary(palette.paper, rnd, 0.3),
-      EMBLEMS[trade] ?? EMBLEMS.key!,
-    );
+    if (lv <= 1)
+      hangingSign(
+        s,
+        upFront,
+        x0 + 0.08 < doorU - 0.5 ? x0 + 0.1 : x1 - 0.1,
+        1.1,
+        vary(palette.paper, rnd, 0.3),
+        EMBLEMS[trade] ?? EMBLEMS.key!,
+      );
     const style = windowsOf(L, true);
     windowRow(s, upFront, ox0, ox1, 1.2, style, rnd, anchors.lights!, [], 0.5, [0.2, 0.28], 0.012);
     const side = { ...style, box: false };
     for (const right of [true, false]) {
       if (right ? row.r : row.l) continue;
       const street = right ? row.streetR : row.streetL;
+      if (lv === 1 && !street) continue;
       windowRow(
         s,
         { dir: right ? 'x+' : 'x-', plane: right ? ox1 : ox0 },
@@ -842,20 +857,22 @@ export function shopOf(opts: KitBuildOptions | undefined): Built {
         0.012,
       );
     }
-    windowRow(
-      s,
-      { dir: 'z-', plane: oz0 },
-      ox0,
-      ox1,
-      1.2,
-      side,
-      rnd,
-      anchors.lights!,
-      [],
-      0.7,
-      [0.2, 0.24],
-      0.012,
-    );
+    // R1E: a level 1 shop leaves the back wall's windows out (the budget, and nobody looks).
+    if (lv !== 1)
+      windowRow(
+        s,
+        { dir: 'z-', plane: oz0 },
+        ox0,
+        ox1,
+        1.2,
+        side,
+        rnd,
+        anchors.lights!,
+        [],
+        0.7,
+        [0.2, 0.24],
+        0.012,
+      );
     if (wide) {
       for (const u of [ox0 + 0.55, ox1 - 0.55])
         dormerPart(
@@ -886,13 +903,66 @@ export function shopOf(opts: KitBuildOptions | undefined): Built {
     }
     // Wares out front: a display bench with the shop's goods, pots by the door.
     const goodsAt = doorU > (sf0 + sf1) / 2 ? sf0 + 0.28 : sf1 - 0.28;
-    s.box(goodsAt - 0.22, 0.12, z1 + 0.06, goodsAt + 0.22, 0.15, z1 + 0.24, vary(palette.wood, rnd, 0.5));
-    for (const dx of [-0.19, 0.19])
-      s.box(goodsAt + dx - 0.015, 0, z1 + 0.08, goodsAt + dx + 0.015, 0.12, z1 + 0.22, palette.timber);
     const ware = ['apples', 'bread', 'cheese', 'herbs', 'yarn', 'tools'].includes(trade) ? trade : '';
-    for (const dx of [-0.11, 0.11]) crateOf(s, ware, goodsAt + dx, 0.15, z1 + 0.15, rnd);
-    flowerPot(s, doorU - 0.24, 0, z1 + 0.12, rnd);
-    if (look() < 0.5) barrel(s, doorU + 0.26, 0, z1 + 0.12, rnd, 0.8);
+    const bench = (cx: number, half: number): void => {
+      s.box(cx - half, 0.12, z1 + 0.06, cx + half, 0.15, z1 + 0.24, vary(palette.wood, rnd, 0.5));
+      for (const dx of [-half + 0.03, half - 0.03])
+        s.box(cx + dx - 0.015, 0, z1 + 0.08, cx + dx + 0.015, 0.12, z1 + 0.22, palette.timber);
+      for (const dx of half > 0.18 ? [-0.11, 0.11] : [0]) crateOf(s, ware, cx + dx, 0.15, z1 + 0.15, rnd);
+    };
+    if (lv === 0) {
+      bench(goodsAt, 0.22);
+      flowerPot(s, doorU - 0.24, 0, z1 + 0.12, rnd);
+      if (look() < 0.5) barrel(s, doorU + 0.26, 0, z1 + 0.12, rnd, 0.8);
+    } else {
+      // R1E: away from the door the wares bench (two short ones at level 3), on the door's side a
+      // little table with two chairs (level 2 and up); level 3 adds tubs of flowers by the door.
+      const away = doorU > (sf0 + sf1) / 2 ? -1 : 1;
+      const at = (d: number): number => clamp(doorU + away * d, 0.14, w - 0.14);
+      if (lv === 1) bench(at(1.0), 0.17);
+      else if (lv === 2) bench(goodsAt, 0.22);
+      else {
+        bench(at(1.08), 0.14);
+        bench(at(0.78), 0.14);
+      }
+      if (lv >= 2) {
+        const tx = clamp(doorU - away * 0.32, 0.3, w - 0.3);
+        s.box(tx - 0.1, 0.19, z1 + 0.06, tx + 0.1, 0.205, z1 + 0.22, vary(palette.wood, rnd, 0.5));
+        for (const [dx, dz] of [
+          [-0.08, 0.08],
+          [0.08, 0.08],
+          [-0.08, 0.2],
+          [0.08, 0.2],
+        ] as const)
+          s.box(
+            tx + dx - 0.01,
+            0,
+            z1 + dz - 0.01 - 0.02,
+            tx + dx + 0.01,
+            0.19,
+            z1 + dz + 0.01 - 0.02,
+            palette.timber,
+          );
+        for (const dx of [-0.17, 0.17]) chairOf(s, tx + dx, z1 + 0.14, vary(0xa67445, rnd, 0.4));
+      }
+      if (lv === 3) {
+        for (const d of [0.5, 0.3]) {
+          const fx = at(d);
+          s.cylinder(fx, z1 + 0.14, 0.075, 0.065, 0, 0.1, vary(palette.wood, rnd, 0.5), 7);
+          for (let i = 0; i < 3; i++)
+            s.blob(
+              fx + (i - 1) * 0.04,
+              0.12,
+              z1 + 0.14 + (i % 2) * 0.02,
+              0.03,
+              0.03,
+              0.03,
+              vary(FLOWERS[i % FLOWERS.length]!, rnd, 0.5),
+              0,
+            );
+        }
+      } else flowerPot(s, doorU + away * 0.24, 0, z1 + 0.12, rnd);
+    }
     anchors.lights!.push(wallLantern(s, facePoint(front, sf0 - 0.02, 0.8, 0.02), [0, 0, 1]));
     if (L.ivy && !wide && !row.r) ivyPart(s, { dir: 'x+', plane: x1 }, z0 + 0.1, z0 + 0.5, 1.2, rnd);
   });
@@ -906,7 +976,6 @@ export function shopOf(opts: KitBuildOptions | undefined): Built {
   }
   return { s, anchors };
 }
-
 
 // --- Workshop (crafts zone) ---------------------------------------------------------------------
 
@@ -1109,7 +1178,6 @@ export function workshopOf(opts: KitBuildOptions | undefined): Built {
   if (L.custom.sign) signBoard(s, front, du, sh.top - 0.06, 0.5, clad, anchors);
   return { s, anchors };
 }
-
 
 // --- Farmstead (farms zone) ---------------------------------------------------------------------
 
@@ -1314,4 +1382,3 @@ export function farmsteadOf(opts: KitBuildOptions | undefined): Built {
   });
   return { s, anchors };
 }
-

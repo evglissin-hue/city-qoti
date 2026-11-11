@@ -1,4 +1,3 @@
-/* eslint-disable */
 // R1E: workshop trades by level (kits/business.ts has the rules every level follows). Each draw
 // fits its trade's look into the workshop's 3x3 lot in its district style: the baker's oven, the
 // weaver's long windows and tenter frame, the carpenter's open bay and timber, the chandler's
@@ -15,8 +14,8 @@ import { shell, signBoard, windowRow, type Built, type Shell } from './buildings
 import { awningPart, chimneyPart, claddingDepth, doorPart, faceBox, facePoint, hangingSign } from './parts';
 import type { Face, WallMaterial, WindowStyle } from './parts';
 import { gardenEdge } from './details';
-import type { DistrictLook } from './district';
-import { clamp, EMBLEMS, homeLook, makingOf, start, workbench, type Emblem } from './grown';
+import type { DistrictLook, GardenEdge } from './district';
+import { clamp, EMBLEMS, homeLook, makingOf, start, type Emblem } from './grown';
 import { crateOf, GOOD_COLORS, pileOf } from './goods';
 import { barrel, flowerPot, sawhorse, wallLantern } from './props';
 import { roofPart } from './roofs';
@@ -65,6 +64,10 @@ interface Body {
   /** Where the output pile and the level 2 trestle stand (a trade may move them). */
   pile: [number, number];
   goodsAt: [number, number];
+  /** Level 3 adds a second pile of the good by the quiet wall (a trade with dear piles skips it). */
+  second: boolean;
+  /** The least output pile level shown at levels 2 and 3 (a trade with dear piles shows 1). */
+  pileMin: number;
 }
 
 interface BodySpec {
@@ -128,7 +131,6 @@ function workshopBody(opts: KitBuildOptions | undefined, spec: BodySpec): Body {
   const clad = claddingDepth(wall);
   const front: Face = { dir: 'z+', plane: z1 };
   doorPart(s, front, du, 0.56, 0.62, vary(spec.paint, rnd, 0.3), L.trim, 'double', clad);
-  (globalThis as any).__T?.('door', (s as any).n / 3);
   const edge = side > 0 ? w - 0.1 : 0.1;
   const good = (typeof opts?.params?.make === 'string' && opts.params.make) || makingOf(opts);
   return {
@@ -155,6 +157,8 @@ function workshopBody(opts: KitBuildOptions | undefined, spec: BodySpec): Body {
     paint: spec.paint,
     pile: [clamp(du - side * 0.9, 0.35, w - 0.35), z1 + 0.4],
     goodsAt: [clamp(du - side * 0.8, 0.35, w - 0.35), d - 0.28],
+    second: true,
+    pileMin: 2,
   };
 }
 
@@ -181,13 +185,11 @@ function finish(
   quiet: 'windows' | 'none' = 'windows',
 ): Built {
   const { s, anchors, L, rnd, level, w, d, x0, x1, z0, z1, du, front, clad, sh, paint } = b;
-  (globalThis as any).__T?.('trade-start', (s as any).n / 3);
   const style: WindowStyle = { frame: L.frame, shutter: null, box: false, flowers: [] };
   const lights = anchors.lights!;
   const upFront: Face = { dir: 'z+', plane: sh.outer[3] };
   const upClad = claddingDepth(level === 3 ? L.upper : L.wall);
   // The painted sign (level 2 on the wall above the door, level 3 on the upper storey).
-(globalThis as any).__T?.('finish start', (s as any).n / 3);
   if (level === 2) paintedSign(s, front, du, sh.top - 0.13, 0.5, clad, paint, anchors);
   else if (level === 3) paintedSign(s, upFront, du, sh.top - 0.42, 0.5, upClad, paint, anchors);
   else if (L.custom.sign) signBoard(s, front, du, sh.top - 0.06, 0.5, clad, anchors);
@@ -204,13 +206,11 @@ function finish(
       palette.white,
       6,
     );
-(globalThis as any).__T?.('sign+awning', (s as any).n / 3);
   // The goods out front and a second pile and barrels at level 3.
   const good = b.good;
-  if (level >= 2) goodsOutFront(s, good, b.goodsAt[0], b.goodsAt[1], rnd, 2);
-  (globalThis as any).__T?.('goods+piles', (s as any).n / 3);
-  if (good) pileOf(s, good, outLevel(opts, good, level === 1 ? 1 : 2), b.pile[0], 0, b.pile[1], rnd);
-  if (level === 3 && good)
+  if (level >= 2) goodsOutFront(s, good, b.goodsAt[0], b.goodsAt[1], rnd, level === 3 ? 1 : 2);
+  if (good) pileOf(s, good, outLevel(opts, good, level === 1 ? 1 : b.pileMin), b.pile[0], 0, b.pile[1], rnd);
+  if (level === 3 && good && b.second)
     pileOf(
       s,
       good,
@@ -220,7 +220,6 @@ function finish(
       z0 + 0.5,
       rnd,
     );
-  (globalThis as any).__T?.('prefinish', (s as any).n / 3);
   s.detail(() => {
     // Windows: the quiet side wall, the front either side of the door, an upper storey at level 3.
     if (quiet === 'windows') {
@@ -235,7 +234,7 @@ function finish(
           u - 0.12,
           u + 0.12,
           0.46,
-          { ...style, box: L.windowBoxes },
+          { ...style, box: L.windowBoxes && level < 3 },
           rnd,
           lights,
           [],
@@ -278,35 +277,67 @@ function finish(
     if (level >= 2) {
       anchorLantern(b, du + 0.42);
     } else anchorLantern(b, du - 0.42);
-  (globalThis as any).__T?.('windows+yard', (s as any).n / 3);
     if (level === 3) {
       // A fenced yard in the district's edge, a gate on the path, barrels by the quiet wall.
       const edgeKind = L.garden ?? 'picket';
       const fz = d - 0.06;
-      gardenEdge(s, edgeKind, [0.3, fz], [w - 0.3, fz], rnd, [du, fz], paint);(globalThis as any).__T?.('fence front', (s as any).n / 3);
-      (globalThis as any).__T?.('fence all', (s as any).n / 3);
+      yardEdge(s, edgeKind, [0.3, fz], [w - 0.3, fz], du, rnd, paint);
       const qx = b.side > 0 ? x0 - 0.18 : x1 + 0.18;
-      barrel(s, qx, 0, z1 - 0.2, rnd);
-      barrel(s, qx, 0, z1 - 0.42, rnd, 0.85);
-(globalThis as any).__T?.('barrels', (s as any).n / 3);
-      flowerPot(s, du - 0.45, 0, z1 + 0.14, rnd);
-      flowerPot(s, du + 0.45, 0, z1 + 0.14, rnd);
+      if (b.second) barrel(s, qx, 0, z1 - 0.2, rnd);
+      flowerPot(s, du + b.side * 0.45, 0, z1 + 0.14, rnd);
     }
   });
-  (globalThis as any).__T?.('end', (s as any).n / 3);
   return { s, anchors };
+}
+
+/**
+ * The level 3 yard's front edge in the district's kind, with a gate gap at `gate`. Picket and wattle
+ * come from `gardenEdge`; the dear kinds (railing, dry wall, hedge) are drawn lighter, as low runs,
+ * so a fenced yard fits the triangle budget on every street.
+ */
+function yardEdge(
+  s: ShapeBuilder,
+  kind: GardenEdge,
+  a: [number, number],
+  b: [number, number],
+  gate: number,
+  rnd: () => number,
+  paint: number,
+): void {
+  const z = a[1];
+  if (kind === 'picket' || kind === 'wattle') {
+    gardenEdge(s, kind, a, b, rnd, [gate, z], paint);
+    return;
+  }
+  const runs: [number, number][] = [
+    [a[0], gate - 0.17],
+    [gate + 0.17, b[0]],
+  ];
+  for (const [u0, u1] of runs) {
+    if (kind === 'wall') s.rbox(u0, 0, z - 0.06, u1, 0.17, z + 0.06, vary(palette.stone, rnd, 1.2), 0.02);
+    else if (kind === 'hedge') s.rbox(u0, 0, z - 0.07, u1, 0.17, z + 0.07, vary(0x4f7d3a, rnd, 0.5), 0.05);
+    else {
+      s.box(u0, 0.2, z - 0.015, u1, 0.225, z + 0.015, palette.ink);
+      s.box(u0, 0, z - 0.04, u1, 0.04, z + 0.04, vary(palette.stone, rnd, 0.8));
+      const n = Math.max(2, Math.round((u1 - u0) / 0.28));
+      for (let i = 0; i <= n; i++) {
+        const x = u0 + ((u1 - u0) * i) / n;
+        s.box(x - 0.012, 0.04, z - 0.012, x + 0.012, 0.22, z + 0.012, palette.ink);
+      }
+    }
+  }
+  for (const x of [gate - 0.17, gate + 0.17])
+    s.box(x - 0.03, 0, z - 0.03, x + 0.03, 0.24, z + 0.03, kind === 'hedge' ? 0x4f7d3a : palette.stone);
 }
 
 function anchorLantern(b: Body, u: number): void {
   const { s, front, clad } = b;
-  (globalThis as any).__T?.('trade-start', (s as any).n / 3);
   b.anchors.lights!.push(wallLantern(s, facePoint(front, u, 0.7, clad), [0, 0, 1]));
 }
 
 /** A brick flue on the ridge side, smoking. */
 function flue(b: Body, dx = 0, big = false): void {
   const { s, anchors, x0, x1, z0, sh } = b;
-  (globalThis as any).__T?.('trade-start', (s as any).n / 3);
   if (!b.L.chimney && !big) return;
   const brick = b.L.wall === 'stone' ? vary(b.L.wallColor, b.rnd) : palette.brick;
   anchors.smoke!.push(chimneyPart(s, (x0 + x1) / 2 + dx, z0 + 0.4, sh.top - 0.1, sh.ridge + 0.1, brick, big));
@@ -318,14 +349,12 @@ function flue(b: Body, dx = 0, big = false): void {
 function bakery(opts: KitBuildOptions | undefined): ReturnType<BusinessDraw> {
   const b = workshopBody(opts, { salt: 61, paint: palette.accentRed });
   const { s, anchors, rnd, level, z0, z1, x0, x1, w, du, front, clad } = b;
-  (globalThis as any).__T?.('trade-start', (s as any).n / 3);
   // Signature: the oven (dome and flue) and its wood stack, far visible.
-  const k = [1, 1.12, 1.25][level - 1]!;
+  const k = [1.35, 1.5, 1.6][level - 1]!;
   anchors.smoke!.push(bakeOven(s, wallOf(b), (z0 + z1) / 2 - 0.1, b.side, rnd, k, 0));
   if (level >= 2)
     pileOf(s, 'firewood', level === 2 ? 1 : 2, clamp(outX(b, b.room * 0.5), 0.3, w - 0.3), 0, z0 + 0.12, rnd);
-(globalThis as any).__T?.('oven', (s as any).n / 3);
-  flue(b, -b.side * 0.4, level >= 2);(globalThis as any).__T?.('flue', (s as any).n / 3);
+  flue(b, -b.side * 0.4, level >= 2);
   s.detail(() => {
     // Loaves on a sill, flour sacks by the door and a warm window.
     const u0 = b.side > 0 ? x0 + 0.1 : x1 - 0.5;
@@ -347,7 +376,6 @@ function bakery(opts: KitBuildOptions | undefined): ReturnType<BusinessDraw> {
         1,
       );
   });
-  (globalThis as any).__T?.('trade-end', (s as any).n / 3);
   return finish(b, EMBLEMS.bread!, opts, 'windows');
 }
 
@@ -359,7 +387,6 @@ const DYES = [0xb5483c, 0x3f5f93, 0xd9b43a, 0xb5483c, 0x3f5f93];
 function weaver(opts: KitBuildOptions | undefined): ReturnType<BusinessDraw> {
   const b = workshopBody(opts, { salt: 63, paint: 0x3f5f93 });
   const { s, anchors, rnd, level, z0, z1, w, d, du, sh } = b;
-  (globalThis as any).__T?.('trade-start', (s as any).n / 3);
   const lights = anchors.lights!;
   // The weavers' windows: a long band of panes under the eaves, both side walls.
   s.detail(() => {
@@ -390,8 +417,8 @@ function weaver(opts: KitBuildOptions | undefined): ReturnType<BusinessDraw> {
   const tubX = (i: number): number => du + b.side * (0.5 + i * 0.26);
   for (let i = 0; i < 3; i++) {
     const x = tubX(i);
-    s.cylinder(x, z1 + 0.16, 0.1, 0.11, 0, 0.12, palette.darkWood, 8);
-    s.cylinder(x, z1 + 0.16, 0.085, 0.085, 0.12, 0.125, DYES[i]!, 8);
+    s.cylinder(x, z1 + 0.16, 0.1, 0.11, 0, 0.12, DYES[i]!, 6);
+    s.detail(() => s.cylinder(x, z1 + 0.16, 0.112, 0.112, 0.07, 0.085, palette.darkWood, 7));
   }
   b.pile = [clamp(du - b.side * 0.9, 0.35, w - 0.35), z1 + 0.4];
   flue(b);
@@ -437,22 +464,14 @@ function plankStack(
   });
 }
 
-/** The carpenter: an open bay on posts beside the shop with pale stacks, a half-made chair. */
-function carpenter(opts: KitBuildOptions | undefined): ReturnType<BusinessDraw> {
-  const b = workshopBody(opts, {
-    salt: 65,
-    paint: 0x5f7a52,
-    wall: (L) => (L.wall === 'plaster' || L.wall === 'brick' ? 'weatherboard' : L.wall),
-  });
-  const { s, rnd, level, z0, z1, w, du } = b;
-  (globalThis as any).__T?.('trade-start', (s as any).n / 3);
-  // Signature: the open bay (a lean-to roof on posts) and the pale plank stacks inside it.
-  const depth = Math.min(0.62, b.room - 0.04);
+/**
+ * An open bay on the feature side: a lean roof on posts against the wall, running from `bz0` back
+ * toward the street to `bz1` (past the front wall, so it shows from the road). Returns its depth.
+ */
+function openBay(b: Body, bz0: number, bz1: number, depth: number, top: number): void {
+  const { s, rnd } = b;
   const wx = wallOf(b);
   const ox = wx + b.side * depth;
-  const bz0 = z0 + 0.12;
-  const bz1 = z1 - 0.04;
-  const roofTop = 0.76;
   roofPart(s, {
     shape: 'lean',
     material: b.sh.roof.material,
@@ -460,30 +479,46 @@ function carpenter(opts: KitBuildOptions | undefined): ReturnType<BusinessDraw> 
     z0: bz0 - 0.06,
     x1: Math.max(wx, ox) + (b.side > 0 ? 0.08 : 0),
     z1: bz1 + 0.06,
-    y0: 0.5,
-    y1: roofTop,
+    y0: top - 0.26,
+    y1: top,
     color: vary(b.sh.roof.color, rnd, 0.3),
     trim: b.L.trim,
     ridgeAlongX: false,
     rnd,
     ...(b.side < 0 ? { highAtC1: true } : {}),
   });
-  for (const pz of [bz0, (bz0 + bz1) / 2, bz1]) beam(s, [ox, 0, pz], [ox, 0.54, pz], 0.022, b.L.trim);
+  for (const pz of [bz0, (bz0 + bz1) / 2, bz1]) beam(s, [ox, 0, pz], [ox, top - 0.24, pz], 0.024, b.L.trim);
+}
+
+/** The carpenter: an open bay on posts beside the shop with pale stacks, a half-made chair. */
+function carpenter(opts: KitBuildOptions | undefined): ReturnType<BusinessDraw> {
+  const b = workshopBody(opts, {
+    salt: 65,
+    paint: 0x5f7a52,
+    wall: (L) => (L.wall === 'plaster' || L.wall === 'brick' ? 'weatherboard' : L.wall),
+  });
+  b.second = false;
+  b.pileMin = 1;
+  const { s, rnd, level, z0, z1, w, du } = b;
+  // Signature: the open bay (a lean-to roof on posts, running out past the front wall) with tall
+  // stacks of pale planks in it.
+  const depth = Math.min(0.64, b.room - 0.04);
+  const wx = wallOf(b);
+  const bz0 = z0 + 0.1;
+  const bz1 = z1 + 0.42;
+  openBay(b, bz0, bz1, depth, 0.8);
   const half = (depth - 0.1) / 2;
   const sx = wx + b.side * (0.06 + half);
   const mid = (bz0 + bz1) / 2;
-  plankStack(s, sx, bz0 + 0.04, mid - 0.04, half, [5, 7, 9][level - 1]!, rnd);
-  plankStack(s, sx, mid + 0.04, bz1 - 0.04, half, [3, 5, 6][level - 1]!, rnd);
+  plankStack(s, sx, bz0 + 0.04, mid - 0.04, half, [9, 12, 14][level - 1]!, rnd);
+  plankStack(s, sx, mid + 0.04, bz1 - 0.04, half, [5, 8, 11][level - 1]!, rnd);
   s.detail(() => {
-    // A sawhorse with a board across and a half-made chair in the yard, shavings.
-    const hx = outX(b, b.room * 0.4);
-    sawhorse(s, hx, z1 + 0.3, true, rnd);
-    s.box(hx - 0.2, 0.2, z1 + 0.27, hx + 0.2, 0.215, z1 + 0.33, GOOD_COLORS.plank);
-    const cxx = hx;
-    const czz = z1 + 0.6;
-    chairOf(s, cxx, czz, vary(0xc79a62, rnd, 0.4));
-    workbench(s, hx, z1 + 0.9, true, rnd);
-    s.blob(hx + 0.2, 0.012, z1 + 0.5, 0.05, 0.01, 0.04, 0xe6cfa0, 0);
+    // A sawhorse with a board across and a half-made chair in the yard, a bench, shavings.
+    const hx = clamp(du + b.side * 0.85, 0.4, w - 0.4);
+    sawhorse(s, hx, z1 + 0.62, true, rnd);
+    s.box(hx - 0.2, 0.2, z1 + 0.59, hx + 0.2, 0.215, z1 + 0.65, GOOD_COLORS.plank);
+    chairOf(s, hx + 0.1, z1 + 0.36, vary(0xc79a62, rnd, 0.4));
+    s.blob(hx + 0.22, 0.012, z1 + 0.45, 0.05, 0.01, 0.04, 0xe6cfa0, 0);
   });
   b.pile = [clamp(du - b.side * 0.9, 0.35, w - 0.35), z1 + 0.42];
   const stove = (b.x0 + b.x1) / 2 - b.side * 0.3;
@@ -514,11 +549,10 @@ function candleRack(s: ShapeBuilder, x: number, z: number, rows: number, rnd: ()
   s.levels(
     () => {
       for (let r = 0; r < rows; r++)
-        for (let i = 0; i < 9; i++) {
-          const cx = x - 0.32 + i * 0.08;
-          const cz = z - 0.1 + r * (0.2 / Math.max(1, rows - 1));
-          s.cylinder(cx, cz, 0.012, 0.016, 0.22, 0.5, vary(GOOD_COLORS.candle, rnd, 0.3), 5);
-          s.cylinder(cx, cz, 0.004, 0.004, 0.18, 0.22, GOOD_COLORS.candleWick, 3);
+        for (let i = 0; i < 7; i++) {
+          const cx = x - 0.3 + i * 0.1;
+          const cz = rows === 1 ? z : z - 0.1 + r * (0.2 / (rows - 1));
+          s.cylinder(cx, cz, 0.02, 0.026, 0.2, 0.5, vary(GOOD_COLORS.candle, rnd, 0.3), 4);
         }
     },
     () => {
@@ -530,11 +564,12 @@ function candleRack(s: ShapeBuilder, x: number, z: number, rows: number, rnd: ()
 /** The chandler: a wide candle rack, a wax pot over a little fire, honey pots, a candle sign. */
 function chandler(opts: KitBuildOptions | undefined): ReturnType<BusinessDraw> {
   const b = workshopBody(opts, { salt: 67, paint: 0x45607a });
+  b.second = false;
+  b.pileMin = 1;
   const { s, anchors, rnd, level, z0, z1, w, du, front, clad } = b;
-  (globalThis as any).__T?.('trade-start', (s as any).n / 3);
   // Signature: the cream rack out front on the feature side.
   const rx = clamp(du + b.side * 0.85, 0.5, w - 0.5);
-  candleRack(s, rx, z1 + 0.4, level === 1 ? 2 : 3, rnd);
+  candleRack(s, rx, z1 + 0.4, [1, 2, 2][level - 1]!, rnd);
   // The wax pot over a little fire beside the wall, smoking.
   const px = outX(b, Math.min(0.28, b.room * 0.5));
   s.cylinder(px, z0 + 0.45, 0.11, 0.1, 0, 0.05, 0x8d8a82, 8);
@@ -566,7 +601,7 @@ function chandler(opts: KitBuildOptions | undefined): ReturnType<BusinessDraw> {
       }
       anchors.lights!.push(facePoint(front, u, 0.46, 0.06 + clad));
     }
-    dippingRack(s, b.side > 0 ? b.x0 - 0.25 : b.x1 + 0.25, z1 - 0.1, rnd);
+    if (level === 1) dippingRack(s, b.side > 0 ? b.x0 - 0.25 : b.x1 + 0.25, z1 - 0.1, rnd);
   });
   flue(b, -b.side * 0.3);
   return finish(
@@ -584,9 +619,9 @@ function chandler(opts: KitBuildOptions | undefined): ReturnType<BusinessDraw> {
 
 // --- Cider maker ---------------------------------------------------------------------------------
 
-/** Barrels lying on their sides in a pyramid (rows of `n`, n - 1 ... 1), along z, near the wall. */
+/** Barrels lying on their sides in a pyramid (rows of `rows`, one fewer each row), along z. */
 function barrelPyramid(s: ShapeBuilder, x: number, z: number, rows: number, rnd: () => number): void {
-  const r = 0.085;
+  const r = 0.09;
   s.proxy((p) => {
     for (let row = 0; row < rows; row++) {
       const n = rows - row;
@@ -594,8 +629,7 @@ function barrelPyramid(s: ShapeBuilder, x: number, z: number, rows: number, rnd:
         const bx = x + (i - (n - 1) / 2) * r * 2.05;
         const by = r + row * r * 1.8;
         const col = vary(i % 2 ? palette.wood : 0xb98a5a, rnd, 0.5);
-        cylZ(p, z - 0.13, z + 0.13, bx, by, r, col, 8, vary(0xc79a62, rnd, 0.4));
-        for (const dz of [-0.08, 0.08]) cylZ(p, z + dz - 0.01, z + dz + 0.01, bx, by, r + 0.004, 0x55595e, 8);
+        cylZ(p, z - 0.14, z + 0.14, bx, by, r, col, 7, vary(0xc79a62, rnd, 0.4));
       }
     }
   });
@@ -604,48 +638,25 @@ function barrelPyramid(s: ShapeBuilder, x: number, z: number, rows: number, rnd:
 /** The cider maker: the press shed with the screw press, the mill, a barrel pyramid, apple crates. */
 function ciderMaker(opts: KitBuildOptions | undefined): ReturnType<BusinessDraw> {
   const b = workshopBody(opts, { salt: 69, paint: 0x7f9a52, side: 1 });
-  const { s, rnd, level, z0, z1, x1, w, d, du } = b;
-  (globalThis as any).__T?.('trade-start', (s as any).n / 3);
-  // Signature: the barrel pyramid beside the wall.
-  const bx = clamp(outX(b, b.room * 0.5), 0.3, w - 0.34);
-  barrelPyramid(s, bx, z1 - 0.45, level + 1, rnd);
-  if (level >= 2) barrelPyramid(s, bx, z0 + 0.3, level, rnd);
-  // The open press shed: four posts and a lean roof over the screw press.
-  const sx0 = du + 0.42;
-  const sx1 = w - 0.1;
-  const sz0 = z1 + 0.1;
-  const sz1 = d - 0.45;
-  for (const px of [sx0, sx1])
-    for (const pz of [sz0 + 0.05, sz1]) beam(s, [px, 0, pz], [px, 0.62, pz], 0.022, palette.timber);
-  roofPart(s, {
-    shape: 'lean',
-    material: b.sh.roof.material,
-    x0: sx0 - 0.06,
-    z0: sz0 - 0.04,
-    x1: sx1 + 0.06,
-    z1: sz1 + 0.08,
-    y0: 0.56,
-    y1: 0.8,
-    color: vary(b.sh.roof.color, rnd, 0.3),
-    trim: b.L.trim,
-    ridgeAlongX: true,
-    rnd,
-  });
+  b.second = false;
+  b.pileMin = 1;
+  const { s, rnd, level, z0, z1, x0, w, d, du } = b;
+  // Signature: the barrel pyramid out front on the feature side.
+  const px = clamp(du + 0.85, 0.5, w - 0.55);
+  barrelPyramid(s, px, z1 + 0.42, level === 1 ? 2 : 3, rnd);
+  // The open press shed against the feature wall, running out past the front wall.
+  const depth = Math.min(0.62, b.room - 0.04);
+  const bz0 = z0 + 0.1;
+  const bz1 = z1 + 0.3;
+  openBay(b, bz0, bz1, depth, 0.8);
   s.detail(() => {
-    screwPress(s, (sx0 + sx1) / 2, (sz0 + sz1) / 2, rnd);
+    screwPress(s, wallOf(b) + b.side * (0.04 + depth / 2), (bz0 + bz1) / 2, rnd);
     appleMill(s, 0.46, z1 + 0.4, rnd);
-    for (let i = 0; i < 2 + level; i++)
-      crateOf(
-        s,
-        'apples',
-        x1 + 0.2 + (i % 3) * 0.0,
-        i > 2 ? 0.12 : 0,
-        d - 0.6 + (i % 3) * 0.0 - (i > 2 ? 0 : i) * 0.0,
-        rnd,
-      );
+    for (let i = 0; i < 2 + Math.min(level - 1, 1); i++)
+      crateOf(s, 'apples', clamp(x0 - 0.25, 0.3, w), i > 1 ? 0.12 : 0, z1 - 0.2 - (i % 2) * 0.18, rnd);
   });
-  b.pile = [clamp(b.x0 - 0.3, 0.32, w - 0.35), z0 + 0.55];
-  b.goodsAt = [(sx0 + sx1) / 2, d - 0.28];
+  b.pile = [clamp(x0 - 0.3, 0.32, w - 0.35), z0 + 0.55];
+  b.goodsAt = [clamp(du + 0.85, 0.4, w - 0.4), d - 0.28];
   flue(b, -0.3);
   return finish(
     b,
