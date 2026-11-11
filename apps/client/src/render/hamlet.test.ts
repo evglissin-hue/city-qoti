@@ -2,7 +2,13 @@ import type { BuildingView } from '@qoti/sim';
 import { Color } from 'three';
 import { describe, expect, it } from 'vitest';
 import { Mirror } from '../state/mirror';
-import { buildingKey, buildingParams, constructionStage } from './kitGeometry';
+import {
+  buildingKey,
+  buildingParams,
+  buildingVariantGeometry,
+  constructionStage,
+  setDrawSeason,
+} from './kitGeometry';
 import { flowsOf, ramp } from './layers/overlays';
 
 function view(over: Partial<BuildingView>): BuildingView {
@@ -35,9 +41,7 @@ const rt = (over: Partial<NonNullable<BuildingView['rt']>> = {}): NonNullable<Bu
 });
 
 describe('building variants', () => {
-  // R1.0: the vegetable plot left content (docs/build/r1-wave-notes.md); R1E draws trades and turns
-  // this back on with a market garden's growth.
-  it.skip('turn runtime stock, output and growth into pile levels', () => {
+  it('turn runtime stock, output and a market garden into pile levels and its look', () => {
     const p = buildingParams(
       view({
         rt: rt({
@@ -50,11 +54,44 @@ describe('building variants', () => {
     );
     expect(p['stock:logs']).toBe(4);
     expect(p['stock:stone']).toBe(1);
-    const plot = buildingParams(view({ def: 'vegetable-plot', rt: rt({ progress: 0.8 }) }));
-    expect(plot.growth).toBe(3);
+    // R1E: a market garden is a farmstead with its trade's look, level and good.
+    const garden = view({
+      def: 'farmstead',
+      trade: 'market-garden',
+      rt: rt({ output: [['vegetables', 6]] }),
+    });
+    const g = buildingParams(garden);
+    expect(g.look).toBe('vegetable-plot');
+    expect(g.make).toBe('vegetables');
+    expect(g.level).toBe(1);
+    expect(g['out:vegetables']).toBeGreaterThan(0);
+    expect(buildingParams({ ...garden, level: 3 }).level).toBe(3);
     const custom = buildingParams(view({ def: 'cottage', custom: { wall: 'rose', sign: 'Home' } }));
     expect(custom.wall).toBe('rose');
     expect(custom.sign).toBe('Home');
+  });
+
+  it("draw a market garden's growth through the seasons", () => {
+    const garden = view({ def: 'farmstead', trade: 'market-garden', rt: rt() });
+    const drawn = (season: number): number[] => {
+      setDrawSeason(season);
+      const geo = buildingVariantGeometry(garden);
+      const pos = geo.getAttribute('position');
+      const out = [pos.count];
+      // The tallest point over the rows says how far the crop has grown.
+      let top = 0;
+      for (let i = 0; i < pos.count; i++) top = Math.max(top, pos.getY(i));
+      out.push(Math.round(top * 1000));
+      geo.dispose();
+      return out;
+    };
+    const spring = drawn(0);
+    const summer = drawn(1);
+    const winter = drawn(3);
+    setDrawSeason(1);
+    expect(buildingKey({ ...garden }).includes('season=1')).toBe(true);
+    expect(spring).not.toEqual(summer);
+    expect(winter).not.toEqual(summer);
   });
 
   it('share keys within a pile bucket and change them across buckets and stages', () => {

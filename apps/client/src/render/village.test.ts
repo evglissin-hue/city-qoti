@@ -9,7 +9,8 @@ import { PerspectiveCamera, Scene, type Object3D } from 'three';
 import { describe, expect, it } from 'vitest';
 import { Mirror } from '../state/mirror';
 import { drawDef } from './defs';
-import { buildingKey, buildingParams, setDrawSeason } from './kitGeometry';
+import { buildingKey, buildingParams, buildingVariantGeometry, setDrawSeason } from './kitGeometry';
+import { buildingsLayer, businessSignText } from './layers/buildings';
 import { animalsLayer } from './layers/animals';
 import { cartsLayer } from './layers/carts';
 import { overlaysLayer } from './layers/overlays';
@@ -79,18 +80,80 @@ describe('stand-in defs', () => {
 });
 
 describe('grown building params', () => {
-  // R1.0: the bakery and orchard defs left content; a business's look comes from BuildingView.trade.
-  // R1E draws trades and turns this back on (docs/build/r1-wave-notes.md).
-  it.skip('carry the district style, what a craft makes, the season and an upgrade', () => {
+  it("carry the district style, a trade's look and level, the season and an upgrade", () => {
     expect(buildingParams(view({ style: 'brick' })).style).toBe('brick');
-    const bakery = buildingParams(view({ def: 'bakery', rt: rt({ method: 'bake-bread' }) }));
-    expect(bakery.make).toBe('bread');
+    // R1E: a baker's workshop draws the bakery look and makes bread, at its level.
+    const baker = buildingParams(view({ def: 'workshop', style: 'brick', trade: 'baker', level: 2 }));
+    expect(baker.look).toBe('bakery');
+    expect(baker.make).toBe('bread');
+    expect(baker.level).toBe(2);
+    expect(baker.style).toBe('brick');
+    expect(buildingParams(view({ def: 'workshop' })).look).toBeUndefined();
+    // An orchard farmstead follows the season; a cottage does not.
     setDrawSeason(3);
-    expect(buildingParams(view({ def: 'orchard' })).season).toBe(3);
+    const orchard = buildingParams(view({ def: 'farmstead', trade: 'orchard' }));
+    expect(orchard.season).toBe(3);
+    expect(orchard.look).toBe('orchard');
     expect(buildingParams(view({ def: 'cottage' })).season).toBeUndefined();
     setDrawSeason(1);
     expect(buildingKey(view({ rt: rt({ upgrading: true }) }))).toContain(':up');
     expect(buildingKey(view({ rt: rt() }))).not.toContain(':up');
+  });
+
+  it("draw a baker's look apart from a weaver's, and an orchard's seasons apart", () => {
+    const tris = (b: BuildingView): number => {
+      const g = buildingVariantGeometry(b);
+      const n = g.getAttribute('position').count;
+      g.dispose();
+      return n;
+    };
+    const baker = view({ def: 'workshop', style: 'brick', trade: 'baker' });
+    const weaver = view({ def: 'workshop', style: 'brick', trade: 'weaver' });
+    expect(tris(baker)).not.toBe(tris(weaver));
+    expect(tris({ ...baker, level: 3 })).toBeGreaterThan(tris(baker));
+    const orchard = view({ def: 'farmstead', trade: 'orchard' });
+    setDrawSeason(1);
+    const summer = buildingKey(orchard);
+    const summerTris = tris(orchard);
+    setDrawSeason(3);
+    expect(buildingKey(orchard)).not.toBe(summer);
+    expect(tris(orchard)).not.toBe(summerTris);
+    setDrawSeason(1);
+  });
+
+  it("letter the keeper's family name from level 2, and never over the players' own words", () => {
+    const b = view({ def: 'workshop', trade: 'baker', level: 2, keeperId: 3 });
+    expect(businessSignText(b, 'Fenwick')).toBe("Fenwick's Bakery");
+    expect(businessSignText({ ...b, level: 1 }, 'Fenwick')).toBeNull();
+    expect(businessSignText({ ...b, level: undefined }, 'Fenwick')).toBeNull();
+    expect(businessSignText(b, undefined)).toBeNull();
+    expect(businessSignText({ ...b, custom: { sign: 'Crumbs' } }, 'Fenwick')).toBeNull();
+    expect(businessSignText({ ...b, stage: 'construction' }, 'Fenwick')).toBeNull();
+    expect(businessSignText(view({ def: 'farmstead', trade: 'sheep-run', level: 3 }), 'Ashdown')).toBe(
+      "Ashdown's Fold",
+    );
+  });
+
+  it('draw every business name in one mesh, and drop a name when the level falls', () => {
+    const m = new Mirror();
+    const scene = new Scene();
+    m.buildings.set(1, view({ id: 1, def: 'workshop', trade: 'baker', level: 2, keeperId: 3 }));
+    m.buildings.set(2, view({ id: 2, def: 'shop', x: 20, trade: 'shop', level: 3, keeperId: 4 }));
+    m.residents.set(3, { id: 3, family: 'Fenwick' } as never);
+    m.residents.set(4, { id: 4, family: 'Hollis' } as never);
+    const layer = buildingsLayer();
+    layer.init(context(m, scene));
+    // The sign atlas is the one mesh the layer adds beside its batch.
+    const signMeshes = (): Mesh[] =>
+      scene.children.filter((o): o is Mesh => (o as Mesh).isMesh && o.userData.noCast === true);
+    const quads = (): number =>
+      signMeshes().reduce((n, o) => n + (o.visible ? (o.geometry.getIndex()?.count ?? 0) / 6 : 0), 0);
+    expect(signMeshes()).toHaveLength(1);
+    expect(quads()).toBe(2);
+    m.buildings.set(1, { ...m.buildings.get(1)!, level: 1 });
+    layer.update({ full: true, buildings: true, rects: new Map() } as never);
+    expect(quads()).toBe(1);
+    layer.dispose();
   });
 });
 
