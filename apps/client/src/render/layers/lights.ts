@@ -27,7 +27,7 @@ const LAMP_SHAPE: Readonly<Record<string, readonly [radius: number, intensity: n
   bunting: [1.4, 0.3],
   'hanging-lantern': [2.1, 0.75],
   'lamp-post': [2.8, 1.0],
-  lantern: [2.3, 0.85],
+  lantern: [2.0, 0.8],
 };
 const LAMP_DEFAULT: readonly [number, number] = [2.2, 0.8];
 
