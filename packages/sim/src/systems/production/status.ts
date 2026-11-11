@@ -57,11 +57,12 @@ export function outputBlocked(def: BuildingDef, rt: BuildingRuntime, method: Pro
     const g = content.goodIndex.get(method.outputs[0]?.[0] ?? '') ?? -1;
     return g >= 0 && rt.output[g]! + CROP_YIELD > cap;
   }
-  for (const [id, qty] of method.outputs) {
+  // A lodge makes one of its goods a cycle (timber or firewood): full only when neither fits.
+  const full = (([id, qty]: [string, number]): boolean => {
     const g = content.goodIndex.get(id);
-    if (g !== undefined && rt.output[g]! + qty > cap) return true;
-  }
-  return false;
+    return g !== undefined && rt.output[g]! + qty > cap;
+  });
+  return method.kind === 'fell' ? method.outputs.every(full) : method.outputs.some(full);
 }
 
 export function inputsShort(rt: BuildingRuntime, method: ProductionMethod): boolean {

@@ -177,9 +177,15 @@ describe('gathering', () => {
   });
 });
 
+/** A full woodpile, so a lodge makes timber (it cuts firewood while the town is under its Fuel target). */
+function fullWoodpile(f: ReturnType<typeof hamletFixture>): void {
+  building(f.state, f.b.stall).rt!.store[good('firewood')] = 500;
+}
+
 describe('forestry', () => {
   it("fells one mature tree per worker every 3 hours for 4 timber at a Forester's Lodge, thickest stand first", () => {
     const f = hamletFixture();
+    fullWoodpile(f);
     const hut = place(f.state, 'foresters-lodge', 120, 80);
     const grove = [
       [124, 84],
@@ -199,6 +205,7 @@ describe('forestry', () => {
 
   it('reports no trees once the woods in reach are gone', () => {
     const f = hamletFixture();
+    fullWoodpile(f);
     const hut = place(f.state, 'foresters-lodge', 120, 80);
     f.state.map.tree[84 * S + 124] = treeValue(TREE_SPECIES.pine, 3);
     f.state.map.tree[84 * S + 127] = treeValue(TREE_SPECIES.pine, 1);
@@ -447,6 +454,7 @@ describe('every producer at full and partial staffing', () => {
   for (const [def, trade, crew, hours, made, units] of cases) {
     it(`${trade ?? def} with ${crew} at work makes ${units} ${made} in ${hours} h`, () => {
       const f = hamletFixture();
+      fullWoodpile(f);
       const b = place(f.state, def, 120, 100, trade);
       for (const id of ['grain', 'timber', 'honey', 'fruit', 'wool', 'firewood']) b.rt!.input[good(id)] = 20;
       for (let z = 96; z < 108; z++) {

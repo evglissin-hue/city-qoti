@@ -14,9 +14,9 @@ import type { Building, BuildingRuntime, System, TickCtx, WorldState } from '../
 import { isStandard } from '../../state/hamlet';
 import { methodOf } from '../../state/zones';
 import { tickOfDay } from '../economy/time';
-import { defOf } from '../logistics/stores';
+import { defOf, outputCap } from '../logistics/stores';
 import { CROP_STEP_TICKS, tendFields } from './fields';
-import { FORESTRY_RANGE, fellTree, plantSapling, treeToFell } from './forestry';
+import { FORESTRY_RANGE, fellTree, lodgeYield, plantSapling, treeToFell } from './forestry';
 import { yieldPermille } from './modifiers';
 import { conditionPercent, consume, crewPower, cycleWork, heightPercent, produce } from './produce';
 import { inputsShort, outputBlocked, refreshAllStatus } from './status';
@@ -101,7 +101,22 @@ function finishCycle(
       rt.status |= BuildingStatus.noTrees;
       return false;
     }
+    // The lodge makes timber or firewood by the Fuel mark (lodgeYield), falls back to the other
+    // when the first has no room, and plants a sapling for the tree it took.
+    const [id, qty] = lodgeYield(state, b);
+    const other = method.outputs.find(([o]) => o !== id);
+    const pick = (gid: string): number => content.goodIndex.get(gid) ?? -1;
+    let g = pick(id);
+    let n = qty;
+    if (g >= 0 && rt.output[g]! + n > outputCap(def) && other) {
+      g = pick(other[0]);
+      n = other[1];
+    }
+    if (g < 0 || rt.output[g]! + n > outputCap(def)) return false;
     fellTree(state, ctx, tile);
+    plantSapling(state, ctx, b, def, method.range ?? FORESTRY_RANGE, ctx.rng('misc'));
+    produce(state, ctx, b, g, n);
+    return true;
   }
   if (method.kind === 'plant') {
     plantSapling(state, ctx, b, def, method.range ?? FORESTRY_RANGE, ctx.rng('misc'));

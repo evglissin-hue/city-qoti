@@ -12,6 +12,10 @@ import { worldIndex } from '../../state/worldIndex';
 import { markCharmDirty } from '../hearth/charm/dirty';
 import { doorTile } from '../movement/api';
 import { tileDistance } from '../logistics/stores';
+import { winterMark } from '../carrier/api';
+import { woodpile } from '../seasons/stores';
+import { townStock } from '../../view/hamlet';
+import { content } from '@qoti/content';
 
 export const FORESTRY_RANGE = 8;
 /** Candidate tiles a forester considers per sapling. */
@@ -163,4 +167,40 @@ function speciesFor(state: WorldState, i: number, rng: Rng): number {
   if (best > 0 && counts[best]! > 0) return best;
   const all = [TREE_SPECIES.oak, TREE_SPECIES.birch, TREE_SPECIES.pine];
   return all[rng.int(all.length)]!;
+}
+
+/** Timber a felled tree gives, and firewood when the lodge is cutting fuel. */
+export const TIMBER_PER_TREE = 4;
+export const FIREWOOD_PER_TREE = 6;
+
+/** Units of firewood the town should hold: the season plan's Fuel mark, else the carrier's reserve. */
+export function fuelTarget(state: WorldState): number {
+  const days = winterMark(state, 1) ?? state.carrier.families[1]?.reserve ?? 0;
+  return days * Math.max(1, state.households.length);
+}
+
+/** Timber is short when the town holds less than the open sites still need plus 20 (as the job rule reads it). */
+function timberShort(state: WorldState): boolean {
+  const g = content.goodIndex.get('timber');
+  if (g === undefined) return false;
+  let need = 0;
+  for (const b of state.buildings) need += b.rt?.construction?.needs[g] ?? 0;
+  return townStock(state)[g]! < need + 20;
+}
+
+/**
+ * What a lodge's next felled tree gives: firewood while the town's woodpile is under the Fuel
+ * target, else timber. When timber is short too, the lodge makes whichever it made less of today
+ * (fuel first on a tie), so neither starves.
+ */
+export function lodgeYield(state: WorldState, b: Building): [good: string, qty: number] {
+  const timber: [string, number] = ['timber', TIMBER_PER_TREE];
+  const fuel: [string, number] = ['firewood', FIREWOOD_PER_TREE];
+  if (woodpile(state) >= fuelTarget(state)) return timber;
+  if (!timberShort(state)) return fuel;
+  const rt = b.rt;
+  const tg = content.goodIndex.get('timber') ?? -1;
+  const fg = content.goodIndex.get('firewood') ?? -1;
+  if (!rt || tg < 0 || fg < 0) return fuel;
+  return (rt.producedToday[fg] ?? 0) <= (rt.producedToday[tg] ?? 0) ? fuel : timber;
 }
