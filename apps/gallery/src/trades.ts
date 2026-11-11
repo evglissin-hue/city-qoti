@@ -2,7 +2,7 @@
 // trades (a workshop, farmstead or shop drawn with its trade's look, as the game's buildings layer
 // does), columns are levels 1, 2 and 3, then level 3's far level; the last row is the four
 // specialized buildings R1E drew. Params: `trades` (ids, comma separated; default all), `style`
-// (a district style, default brick), `season` (0 spring to 3 winter, default 1), `special=0` to
+// (a district style, default brick), `season` (spring, summer, autumn or winter, default summer), `special=0` to
 // leave the specialized row out, `far=0` to leave the far column out.
 import { artKitId, businessParams, kitById, type KitBuildOptions } from '@qoti/art';
 import { content } from '@qoti/content';
@@ -23,7 +23,8 @@ export function buildTrades(q: URLSearchParams, material: Material, seed: number
   const ids = q.get('trades')?.split(',').filter(Boolean);
   const trades = ids ? content.trades.filter((t) => ids.includes(t.id)) : content.trades;
   const style = q.get('style') ?? 'brick';
-  const season = Number(q.get('season') ?? 1);
+  // The gallery names the season (?season=winter) for its materials; kits take its index.
+  const season = Math.max(0, ['spring', 'summer', 'autumn', 'winter'].indexOf(q.get('season') ?? 'summer'));
   const far = q.get('far') !== '0';
   const counts: string[] = [];
   const cellW = 3.8;
