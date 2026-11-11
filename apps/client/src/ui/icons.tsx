@@ -66,6 +66,7 @@ const ICONS: Record<string, () => JSX.Element> = {
   lock: () => svg([<rect key="b" x="6" y="11" width="12" height="8.5" rx="1.8" />, <path key="s" d="M8.5 11V8.5a3.5 3.5 0 0 1 7 0V11" />, <path key="k" d="M12 14.5v2" />]),
   map: () => svg([<path key="m" d="m4 6.5 5-2 6 2 5-2v13l-5 2-6-2-5 2z" />, <path key="f" d="M9 4.5v13M15 6.5v13" />, <path key="x" d="m11.2 10.2 1.6 1.6m0-1.6-1.6 1.6" />]),
   market: () => svg([<path key="a" d="M4 9.5 5.5 5h13L20 9.5" />, <path key="s" d="M4 9.5c0 1.4 1.2 2 2 2s2-.6 2-2c0 1.4 1.2 2 2 2s2-.6 2-2c0 1.4 1.2 2 2 2s2-.6 2-2c0 1.4 1.2 2 2 2s2-.6 2-2" />, <path key="p" d="M5.5 11.5v8M18.5 11.5v8M4 19.5h16" />, <path key="c" d="M9.5 19.5v-4.5h5v4.5" />]),
+  move: () => svg([<path key="v" d="M12 4v16M4 12h16" />, <path key="n" d="m9.5 6.5 2.5-2.5 2.5 2.5M9.5 17.5l2.5 2.5 2.5-2.5M6.5 9.5 4 12l2.5 2.5M17.5 9.5 20 12l-2.5 2.5" />]),
   needs: () => svg([<path key="r" d="M4.5 11.5 12 5.5l7.5 6" />, <path key="w" d="M6.5 10v9.5h11V10" />, <path key="h" d="M12 17.5s-2.6-1.6-2.6-3.4a1.4 1.4 0 0 1 2.6-.6 1.4 1.4 0 0 1 2.6.6c0 1.8-2.6 3.4-2.6 3.4z" />]),
   note: () => svg([<path key="p" d="M6 4.5h9l3 3v12H6z" />, <path key="l" d="M9 10h6M9 13.5h6M9 17h3.5" />]),
   notebook: () => svg([<path key="b" d="M12 3.5a5.5 5.5 0 0 0-3.2 10c.6.5 1 1.2 1 2v.5h4.4v-.5c0-.8.4-1.5 1-2A5.5 5.5 0 0 0 12 3.5z" />, <path key="s" d="M10 18.5h4M10.7 20.5h2.6" />, <path key="f" d="M11 9.5 12 12l1-2.5" />]),
