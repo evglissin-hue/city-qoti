@@ -102,6 +102,11 @@ export interface WorldEnv {
   lightMapRevision: number;
   /** V2.0: where layers feed the light map's discs, by source (`LightMapWriter`). */
   lightWriter: LightMapWriter;
+  /**
+   * V2B: the meadow carpet's reach in tiles round the view's focus for the active preset
+   * (`QualityPreset.meadowCarpet`; 0 none, and the nature layer keeps its tufts).
+   */
+  meadowCarpet: number;
 }
 
 /** The renderer's season names, in the sim calendar's order (0 spring to 3 winter). */
@@ -206,6 +211,7 @@ export function createWorldEnv(camera: PerspectiveCamera): WorldEnv {
     lightMap: createLightMapTarget(),
     lightMapRevision: 0,
     lightWriter: new LightMapWriter(),
+    meadowCarpet: 30,
   };
 }
 
