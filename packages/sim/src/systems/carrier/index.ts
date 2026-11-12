@@ -162,8 +162,11 @@ interface Day {
   town: number[];
   /** Food and Fuel in the pantries, by good. */
   pantry: number[];
-  /** [neighbor, good, units, pennies] per deal, for the trade log. */
-  deals: [string, number, number, number][];
+  /** The day's deals for the trade log: units and pennies by neighbor and good (cell = neighbor x goods + good). */
+  neighborIndex: Map<NeighborState, number>;
+  dealQty: number[];
+  dealPennies: number[];
+  dealCells: number[];
   /** Essentials it could not bring for want of money or tab. */
   shortOfCredit: boolean;
   /** Bumped when a store fills or a vehicle runs out of room. */
@@ -190,17 +193,12 @@ function have(day: Day, family: number): number {
   return n;
 }
 
-function addDeal(day: Day, neighbor: string, good: number, qty: number, pennies: number): void {
-  // Runs of the same deal are the rule (unit by unit from one neighbor), so the last comes first.
-  const tail = day.deals[day.deals.length - 1];
-  const d =
-    tail && tail[0] === neighbor && tail[1] === good
-      ? tail
-      : day.deals.find(([n, g]) => n === neighbor && g === good);
-  if (d) {
-    d[2] += qty;
-    d[3] += pennies;
-  } else day.deals.push([neighbor, good, qty, pennies]);
+function addDeal(day: Day, n: NeighborState, good: number, qty: number, pennies: number): void {
+  // A flat tally by neighbor and good: a unit at a time, so no list is searched.
+  const i = day.neighborIndex.get(n)! * content.goods.length + good;
+  if (day.dealQty[i] === 0 && day.dealPennies[i] === 0 && !day.dealCells.includes(i)) day.dealCells.push(i);
+  day.dealQty[i]! += qty;
+  day.dealPennies[i]! += pennies;
 }
 
 /** The nearest store in a vehicle's list with room for a good's family, or -1 (cached by family). */
@@ -357,7 +355,7 @@ function buy(state: WorldState, day: Day, good: number, n: number, pay: Pay): nu
     day.bought[good]! += 1;
     day.town[good]! += 1;
     if (o.v.boat) day.boatBought[good]! += 1;
-    addDeal(day, o.n.id, good, 1, -o.price);
+    addDeal(day, o.n, good, 1, -o.price);
     nudge(o.n, good, IMPACT_PER_UNIT);
     got++;
     // The next unit's offer, which buyCheapest reads too (`day.next`).
@@ -612,7 +610,10 @@ export function carrierDay(state: WorldState, ctx: TickCtx): void {
     boatSold: new Array<number>(n).fill(0),
     town: seen.town,
     pantry,
-    deals: [],
+    neighborIndex: new Map(state.trade.neighbors.map((x, i) => [x, i])),
+    dealQty: new Array<number>(state.trade.neighbors.length * n).fill(0),
+    dealPennies: new Array<number>(state.trade.neighbors.length * n).fill(0),
+    dealCells: [],
     shortOfCredit: false,
     changes: 0,
     buyScratch: { v: cartVehicle, n: state.trade.neighbors[0]!, price: 0 },
@@ -729,8 +730,14 @@ export function carrierDay(state: WorldState, ctx: TickCtx): void {
   if (day.spent > 0) book(state, 'imports', day.spent);
   if (day.repaid > 0) book(state, 'repayments', day.repaid);
   if (day.earned > 0) book(state, 'exports', day.earned);
-  day.deals.sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : a[1] - b[1]));
-  for (const [neighbor, good, qty, pennies] of day.deals) logTrade(state, neighbor, good, qty, pennies);
+  const deals: [string, number, number, number][] = day.dealCells.map((i) => [
+    state.trade.neighbors[Math.floor(i / n)]!.id,
+    i % n,
+    day.dealQty[i]!,
+    day.dealPennies[i]!,
+  ]);
+  deals.sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : a[1] - b[1]));
+  for (const [neighbor, good, qty, pennies] of deals) logTrade(state, neighbor, good, qty, pennies);
   if (day.boat?.traded) moorBoat(state, ctx, day);
 
   const lines = visitLines(state, day, closed);
@@ -770,7 +777,7 @@ function sellOne(day: Day, good: number): boolean {
   o.v.traded = true;
   day.sold[good]! += 1;
   if (o.v.boat) day.boatSold[good]! += 1;
-  addDeal(day, o.n.id, good, -1, o.price);
+  addDeal(day, o.n, good, -1, o.price);
   nudge(o.n, good, -IMPACT_PER_UNIT);
   return true;
 }

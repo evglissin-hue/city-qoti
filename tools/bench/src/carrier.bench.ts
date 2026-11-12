@@ -16,7 +16,7 @@ const RESIDENTS = 2000;
 const CITY_BUILDINGS = 1000;
 /** Days timed, after days of warm-up (the visit runs once a day, so the JIT needs a few). */
 const DAYS = 40;
-const WARM_UP = 25;
+const WARM_UP = 40;
 
 function median(values: number[]): number {
   const s = [...values].sort((a, b) => a - b);
