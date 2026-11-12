@@ -63,7 +63,7 @@ test('the season pages open on the live winter fixture', async ({ page }) => {
   await page.getByTestId('book-balances').click();
   await page.getByTestId('balances-neighbors').click();
   await expect(page.getByTestId('dock-frozen')).toBeVisible();
-  await expect(page.getByTestId('commissions')).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Commissions' })).toBeVisible();
   await page.keyboard.press('Escape');
   await expect(page.getByTestId('weather')).toBeVisible();
   await page.getByTestId('weather').click();

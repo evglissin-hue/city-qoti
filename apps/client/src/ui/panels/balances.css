@@ -153,7 +153,7 @@
 
 .flavor {
   display: grid;
-  grid-template-columns: auto 1fr 2.2em;
+  grid-template-columns: auto 1fr auto;
   grid-template-areas:
     'icon name stock'
     'icon offer made';
@@ -207,6 +207,7 @@
 .flavor-made {
   grid-area: made;
   justify-self: end;
+  white-space: nowrap;
 }
 
 .terms {
