@@ -166,7 +166,7 @@ export { CART_MIN_LOAD, CART_MIN_TRIP } from './systems/logistics/carts';
 export { terraformCost } from './commands/terrain';
 export { findById, findIndexById, removeById } from './state/entities';
 export { fnv64Hex, hashState } from './state/hash';
-export { deserialize, serialize } from './state/serialize';
+export { deserialize, peekSaveVersion, serialize } from './state/serialize';
 export {
   checkSaveVersion,
   isOldValley,

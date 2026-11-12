@@ -1,4 +1,4 @@
-import { gunzipSync, gzipSync, strFromU8, strToU8 } from 'fflate';
+import { Gunzip, gunzipSync, gzipSync, strFromU8, strToU8 } from 'fflate';
 import { MAP_SIZE } from '../constants';
 import type { LayerName, MapLayers, WorldState } from '../contracts';
 import { createLayers, INT32_LAYERS, LAYER_NAMES } from '../map/layers';
@@ -139,6 +139,24 @@ export function serialize(state: WorldState): Uint8Array {
 export function deserialize(data: Uint8Array): WorldState {
   const parsed = JSON.parse(strFromU8(gunzipSync(data))) as SaveObject;
   return build(checkSaveVersion(parsed) as unknown as SaveFile);
+}
+
+/**
+ * Reads a save's version from its first bytes, without inflating the rest or building a world
+ * (the title screen uses it to tell an old valley). Null when the bytes are not a save.
+ */
+export function peekSaveVersion(data: Uint8Array): number | null {
+  let head = '';
+  try {
+    const gz = new Gunzip((chunk) => {
+      if (head.length < 4096) head += strFromU8(chunk);
+    });
+    gz.push(data.subarray(0, Math.min(data.length, 4096)), false);
+  } catch {
+    // A truncated stream still yields what it inflated; anything else is not a save.
+  }
+  const m = /"saveVersion":\s*(\d+)/.exec(head);
+  return m ? Number(m[1]) : null;
 }
 
 function build(save: SaveFile): WorldState {

@@ -3,7 +3,8 @@
 // the save migrations. Importing re-serializes it with this game's sim, so the room sees a snapshot
 // of its own simVersion, with nobody connected yet.
 import type { ImportedSnapshot } from '@qoti/protocol';
-import { bytesToBase64, deserialize, serialize, SIM_VERSION, type ValleySettings } from '@qoti/sim';
+import { copy } from '../ui/copy';
+import { bytesToBase64, deserialize, isOldValley, serialize, SIM_VERSION, type ValleySettings } from '@qoti/sim';
 
 export const VALLEY_FILE_EXT = '.qoti';
 
@@ -21,6 +22,7 @@ export function readValleyFile(bytes: Uint8Array): ValleyFile {
   try {
     state = deserialize(bytes);
   } catch (err) {
+    if (isOldValley(err)) throw new Error(copy.title.oldValley, { cause: err });
     const why = err instanceof Error ? err.message : String(err);
     throw new Error(/newer than this game/.test(why) ? why : 'That file is not a City Qoti valley.', {
       cause: err,
@@ -50,6 +52,15 @@ export function valleyFileName(settings: ValleySettings, year: number, season: s
       .replace(/[^a-z0-9]+/g, '-')
       .replace(/^-|-$/g, '');
   return `${slug(settings.townName)}-${slug(settings.valleyName)}-year-${year}-${slug(season)}${VALLEY_FILE_EXT}`;
+}
+
+/** "mill-end.qoti": the file name for an old valley's stored snapshot. */
+export function oldValleyFileName(valleyName: string): string {
+  const slug = valleyName
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '');
+  return `${slug || 'valley'}${VALLEY_FILE_EXT}`;
 }
 
 /** Offers bytes to the browser as a download. */

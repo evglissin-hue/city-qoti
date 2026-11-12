@@ -43,6 +43,9 @@ export function GameView({
 
   const phase = session.phase.value;
   useEffect(() => {
+    if (phase === 'failed' && session.oldValley) onLeave();
+  }, [phase]);
+  useEffect(() => {
     if (phase === 'ready' && DEBUG && MOCK_OVERLAY) void overlayMocks(session);
   }, [phase === 'ready']);
   return (

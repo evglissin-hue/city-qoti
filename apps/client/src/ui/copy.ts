@@ -37,6 +37,9 @@ export const copy = {
       `Take ${name} off this list? It stays on the relay, so your partner keeps it, but this device forgets the way in.`,
     forgetYes: 'Remove it',
     forgetNo: 'Keep it',
+    // R1C: valleys founded under the old rules.
+    oldValley: 'Founded under the old rules. It cannot be opened in this version.',
+    saveItsFile: 'Save its file',
     solo: 'Solo',
     online: 'For two',
     relayDown: 'Could not reach the relay. Is the dev server running?',
