@@ -276,8 +276,9 @@ function bestRun(
   };
   let best: [number, number][] | null = null;
   let bestScore = -Infinity;
-  for (let z = Math.max(1, cz - 30); z <= Math.min(S - 2, cz + 30); z++) {
-    for (let x = Math.max(1, cx - 30); x <= Math.min(S - 2, cx + 30); x++) {
+  // R1F: as far out as the porters' storehouses go (a Village used up the frontage within 30 tiles).
+  for (let z = Math.max(1, cz - 45); z <= Math.min(S - 2, cz + 45); z++) {
+    for (let x = Math.max(1, cx - 45); x <= Math.min(S - 2, cx + 45); x++) {
       if (!paved(x, z)) continue;
       for (const [ax, az] of [
         [1, 0],

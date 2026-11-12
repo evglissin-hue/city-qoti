@@ -102,7 +102,7 @@ export function costOf(def: string, margin = 0): Cost {
 }
 
 /** A short path from a building's door to the nearest road (breadth-first, at most 30 tiles). */
-function pathToRoad(w: WorldState, from: number): [number, number][] | null {
+export function pathToRoad(w: WorldState, from: number): [number, number][] | null {
   const reader = worldIndex(w).reader;
   if (w.map.road[from]) return [];
   const prev = new Map<number, number>([[from, -1]]);
@@ -339,8 +339,10 @@ export class Planner {
   /** Paints a path from the door to the road network (the Ledger likes tidy frontage). */
   connect(b: Building): void {
     const path = pathToRoad(this.w, doorTile(b));
-    // R1F: a door a step or two from the road needs no path of its own (a chore the Ledger counted).
-    if (path && path.length > 2)
+    // R1F: a door a step or two from the road needs no path of its own (a chore the Ledger counted),
+    // unless its site rule wants a road at the door (a storehouse, a granary, a stall).
+    const roadRule = content.buildingById.get(b.def)?.placement?.some((r) => r.kind === 'road') ?? false;
+    if (path && path.length > (roadRule ? 0 : 2))
       this.do(`path for ${b.def}`, [{ t: 'road.paint', kind: 'path', tiles: path }]);
   }
 

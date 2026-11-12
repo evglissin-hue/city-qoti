@@ -29,7 +29,15 @@ import {
 } from '@qoti/sim';
 import { LODGE_TREES, matureTreesNear } from '../hamlet';
 import { materialsPressing } from '../labor';
-import { costOf, MONEY_RESERVE, URGENT, VILLAGE_MARGIN, type Budget, type Planner } from '../planner';
+import {
+  costOf,
+  MONEY_RESERVE,
+  pathToRoad,
+  URGENT,
+  VILLAGE_MARGIN,
+  type Budget,
+  type Planner,
+} from '../planner';
 import { count, countTrade, FOODS, G, S } from '../town';
 import {
   BAR_ZONES,
@@ -428,6 +436,9 @@ class Land implements Advisor {
                   if (!canPlaceBuilding(reader, store, sx, sz, 0).ok) continue;
                   const door = doorTile({ def: 'storehouse', x: sx, z: sz, rot: 0 } as Building, store);
                   if (man(door, from) > 22 || man(door, z * S + x) > 20) continue;
+                  // A storehouse wants a road at its door: only where a path can reach one (birch's
+                  // outpost stood out in the grass with no way to the road).
+                  if (!pathToRoad(w, door)) continue;
                   this.p.buildAt(`storehouse toward the ${def}`, 'storehouse', sx, sz, 0, true);
                   return;
                 }

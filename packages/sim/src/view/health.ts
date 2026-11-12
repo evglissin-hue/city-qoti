@@ -324,7 +324,7 @@ export class HealthWatch {
         out.push({
           kind: 'demand-unanswered',
           id: k,
-          text: `the ${kind} bar has been lit for three days and no empty ${paintable.map((z) => z.id).join(' or ')} lot is offered`,
+          text: `the ${kind} bar has been lit for three days and no empty ${paintable.map((z) => z.id).join(' or ')} lot is offered (treasury ${Math.floor(state.economy.treasury / 100)} coins)`,
         });
     });
     for (const k of [...this.demandSince.keys()]) if (!live.has(k)) this.demandSince.delete(k);

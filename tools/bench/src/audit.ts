@@ -37,6 +37,12 @@ export const EXPLAINED: readonly { kind: HealthIssue['kind']; match: RegExp; why
     match: /^foresters-lodge /,
     why: "R1B: the Forester's Lodge fells its wood and does not replant it yet",
   },
+  {
+    // Only while the town is in debt: a bar unanswered with coins in hand is the land advisor's.
+    kind: 'demand-unanswered',
+    match: /\(treasury -\d+ coins\)$/,
+    why: 'R1X: the stand-in Village economy runs the treasury into debt (wages outrun sales while no Wares or Treats are sold), and a town in debt lays no lane',
+  },
 ];
 
 /** Why a flag is a known stand-in's, or null when it is a dead end. */
