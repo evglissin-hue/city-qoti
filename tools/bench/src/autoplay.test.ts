@@ -83,9 +83,14 @@ describe('two players, three evenings', { timeout: 120_000 }, () => {
       // willow's third evening by a household.
       expect(last.residents, why).toBeGreaterThanOrEqual(27);
       expect(last.departures, why).toBe(0);
-      for (const d of days) {
+      for (const [k, d] of days.entries()) {
         expect(d.leanTimes, why).toBe(false);
-        if (d.day >= 3) expect(d.foodMade + d.food, why).toBeGreaterThan(0);
+        // R1X: food keeps flowing: the stores may stand empty at a day's end once while the first
+        // farm comes in (the carrier brings Food a household would go without the next morning),
+        // never two days running.
+        const prev = days[k - 1];
+        if (d.day >= 3 && prev)
+          expect(d.foodMade + d.food + prev.foodMade + prev.food, why).toBeGreaterThan(0);
         expect(d.miserable, why).toBeLessThanOrEqual(1);
       }
       expect(last.wishesGranted, why).toBeGreaterThanOrEqual(3);
