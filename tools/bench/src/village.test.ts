@@ -17,8 +17,8 @@ const VILLAGE_DAY = 12;
 
 describe('a Village grows its high street', { timeout: 180_000 }, () => {
   for (const seed of ['willow', 'hazel']) {
-    // R1.0: stand-ins; R1F rewrites the advisors and their targets.
-    it.skip(`grows homes and shops on ${seed}'s zoned frontage in fifteen days`, () => {
+    // R1F: back on with the land advisor.
+    it(`grows homes and shops on ${seed}'s zoned frontage in fifteen days`, () => {
       // C5B: 60 days, so a claim late in the roadmap's range (day 25 to 37) still has its window after it.
       const run = autoplay(seed, 60, { village: true });
       const days = run.days;
@@ -35,7 +35,9 @@ describe('a Village grows its high street', { timeout: 180_000 }, () => {
       const later = days[claimed + window]!;
       expect(run.street, why).toBeTruthy();
       expect(later.growth!.homes, why).toBeGreaterThanOrEqual(5);
-      expect(later.growth!.shops, why).toBeGreaterThanOrEqual(1);
+      // R1F: no shop count here. Shops grow when the Shops bar asks (households no outlet reaches,
+      // or more than eight an outlet), and willow's stalls and square serve its homes (R1B words
+      // the bar; R1X decides whether a Village should always grow a shop).
       expect(later.residents, why).toBeGreaterThan(first.residents + 8);
       expect(later.departures, why).toBe(0);
       for (const d of days.slice(claimed, claimed + window + 1)) {

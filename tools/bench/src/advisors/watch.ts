@@ -111,7 +111,12 @@ class Watch implements Advisor {
     const allowed = Math.max(0, spareHands(w) - 1) * DUTY_EVERY;
     const want = Math.min(WATCH_TARGET, Math.max(allowed, this.threatened() ? WATCH_MIN : 0));
     if (want !== w.watch.target) this.p.do(`watch target ${want}`, [{ t: 'watch.setTarget', size: want }]);
-    const coins = this.p.seasonBalance() > 0 && this.p.coins() > 100 ? WATCH_BUDGET : 0;
+    // R1F: with some slack either way, so the budget is not switched with every day's balance (a
+    // lever turned thirteen times in seventy days is a chore).
+    const on = w.watch.budget > 0;
+    const coins = (on ? this.p.coins() > 50 : this.p.seasonBalance() > 0 && this.p.coins() > 150)
+      ? WATCH_BUDGET
+      : 0;
     if (coins * 100 !== w.watch.budget) this.p.do(`watch budget ${coins}`, [{ t: 'watch.setBudget', coins }]);
   }
 
@@ -124,11 +129,10 @@ class Watch implements Advisor {
       return [t % S, Math.floor(t / S)] as [number, number];
     });
     const now = w.watch.posture;
-    if (
-      guards.length === 0 ||
-      (now.length === guards.length && guards.every(([x, z], i) => now[i] === z * S + x))
-    )
-      return;
+    // R1F: a posture stands until the guard count changes or a guard point no longer fronts a
+    // store (it followed the richest store before, and moved with every day's stock).
+    const fronts = new Set(richest(w).map((b) => frontOf(b)));
+    if (guards.length === 0 || (now.length === guards.length && now.every((t) => fronts.has(t)))) return;
     this.p.do('watch posture', [{ t: 'watch.setPosture', guards }]);
   }
 
@@ -192,6 +196,7 @@ class Watch implements Advisor {
 
 export const watch: AdvisorDef = {
   id: 'watch',
+  lane: 'ledger',
   slot: 45,
   // Threats and the Watch, once the content has a Watch House and the run turns the threat dial on.
   plays: (opts) =>

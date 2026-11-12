@@ -7,10 +7,10 @@ import { festivals } from './festivals';
 import { guide } from './guide';
 import { hamlet } from './hamlet';
 import { hearth } from './hearth';
+import { land } from './land';
 import { money } from './money';
 import { nature } from './nature';
-import { seasons } from './seasons';
-import { street } from './street';
+import { plan } from './plan';
 import { together } from './together';
 import type { AdvisorDef } from './types';
 import { village } from './village';
@@ -25,10 +25,10 @@ export const advisors: readonly AdvisorDef[] = [
   guide,
   hamlet,
   hearth,
+  land,
   money,
   nature,
-  seasons,
-  street,
+  plan,
   together,
   village,
   watch,

@@ -31,6 +31,7 @@ import {
   canPlaceDecor,
   creditLimit,
   doorTile,
+  familyIndex,
   expenses,
   income,
   isFrozen,
@@ -46,6 +47,8 @@ import {
   type WorldState,
 } from '@qoti/sim';
 import { command, findSpot, type Hamlet } from './hamlet';
+import type { Lane, PlayLane } from './advisors/types';
+import type { DecisionRecord } from './decisions';
 import { canStaff } from './labor';
 import { G, idx, S, sites } from './town';
 import type { HighStreet } from './village';
@@ -86,6 +89,10 @@ export interface Want {
   tally?: number[];
   /** The allowance it counts against, if any. */
   budget?: Budget;
+  /** R1F: only spots this accepts (footprint min corner and turned size), as `build` takes. */
+  only?: (x: number, z: number, w: number, d: number) => boolean;
+  /** R1F: how far from the town center to look (40 tiles unless given; 60 with `only`). */
+  radius?: number;
 }
 
 /** A def's own price, plus `margin` coins. */
@@ -95,7 +102,7 @@ export function costOf(def: string, margin = 0): Cost {
 }
 
 /** A short path from a building's door to the nearest road (breadth-first, at most 30 tiles). */
-function pathToRoad(w: WorldState, from: number): [number, number][] | null {
+export function pathToRoad(w: WorldState, from: number): [number, number][] | null {
   const reader = worldIndex(w).reader;
   if (w.map.road[from]) return [];
   const prev = new Map<number, number>([[from, -1]]);
@@ -129,6 +136,18 @@ function pathToRoad(w: WorldState, from: number): [number, number][] | null {
   return null;
 }
 
+/** Whether the carrier may bring a good: its family's rule is not Never and a neighbor sells it. */
+export function carrierBrings(w: WorldState, g: number): boolean {
+  const good = content.goods[g]!;
+  const rule = w.carrier.families[familyIndex(good.family)]?.rule ?? 'never';
+  return rule !== 'never' && content.neighbors.some((n) => n.sells.some(([x]) => x === good.id));
+}
+
+/** Coins a unit costs by carrier, at the peddler's 140% of today's price (R1F: a planning estimate). */
+function importPrice(w: WorldState, g: number): number {
+  return ((w.market.prices[g] ?? content.goods[g]!.basePrice ?? 100) * 1.4) / PENNIES_PER_COIN;
+}
+
 export class Planner {
   /** Everything the player tried and whether the sim took it, for reading a run. */
   readonly actions: string[] = [];
@@ -151,6 +170,14 @@ export class Planner {
    * left kept asking for a fishers' hut (154 times in a willow run); for the rest of that day it is
    * not asked for again.
    */
+  /** R1F: the advisor visiting now (set by autoplay around its `visit` and `rankUp`); null for the harness and the planner's own calls. */
+  advisor: { id: string; lane: Lane } | null = null;
+  /** R1F: the run's absolute day (1 on the first day), set by autoplay each morning; what `DecisionRecord.day` holds. */
+  runDay = 1;
+  /** R1F lanes test: lanes that send nothing (autoplay updates it each day). */
+  offLanes = new Set<PlayLane>();
+  /** R1F: every command the players sent, by lane and kind (the decisions count). */
+  readonly decisions: DecisionRecord[] = [];
   private readonly noSpot = new Map<string, number>();
 
   constructor(readonly h: Hamlet) {}
@@ -179,9 +206,21 @@ export class Planner {
     return (income(s) - expenses(s)) / PENNIES_PER_COIN;
   }
 
-  /** Runs commands as a seat and logs them. */
+  /** Runs commands as a seat and logs them (R1F: and counts them by lane; a lane that is off sends nothing). */
   do(label: string, cmds: Command[], seat: 0 | 1 = 0): boolean {
-    const ok = command(this.h, cmds, seat).every(Boolean);
+    const day = this.runDay;
+    const advisor = this.advisor?.id ?? 'planner';
+    const adv = this.advisor?.lane ?? 'ledger';
+    const lane: PlayLane = adv === 'both' ? (seat === 0 ? 'ledger' : 'hearth') : adv;
+    if (this.offLanes.has(lane)) {
+      this.actions.push(`${calendar(this.w.tick).day}:${label} (lane off)`);
+      return false;
+    }
+    const oks = command(this.h, cmds, seat);
+    const ok = oks.every(Boolean);
+    cmds.forEach((cmd, i) =>
+      this.decisions.push({ day, advisor, lane, kind: cmd.t, ok: oks[i]!, label, cmd }),
+    );
     this.actions.push(`${calendar(this.w.tick).day}:${label}${ok ? '' : ' (refused)'}`);
     return ok;
   }
@@ -245,17 +284,25 @@ export class Planner {
     )
       return false;
     const free = want.tally ?? this.freeStock();
+    let imports = 0;
     for (const [g, q] of want.cost.goods) {
       const keep = want.essential ? 0 : (TIMBER_RESERVE.get(g) ?? 0);
-      if (free[G(g)]! < q + keep) return false;
+      const short = q + keep - free[G(g)]!;
+      if (short <= 0) continue;
+      // R1F: nothing stalls (13-ledger.md, rule 3). The carrier brings what an open site waits for,
+      // so a want that keeps the town going is placed short of its goods when the carrier may bring
+      // them and the treasury can pay its markup: a Hamlet whose lodge had felled its wood had no
+      // timber for the next lodge and waited forever.
+      if (!want.essential || !carrierBrings(w, G(g))) return false;
+      imports += Math.min(short, q) * importPrice(w, G(g));
     }
-    return true;
+    return imports === 0 || this.coins() >= want.cost.coins + imports + MONEY_RESERVE;
   }
 
   /** An advisor proposes a want; the planner starts it when the budgets allow. */
   propose(want: Want): Building | null {
     if (!this.allows(want)) return null;
-    const b = this.build(want.def);
+    const b = this.build(want.def, want.only, want.radius);
     if (!b) return null;
     if (want.budget) want.budget.left--;
     if (want.tally) for (const [g, q] of want.cost.goods) want.tally[G(g)]! -= q;
@@ -263,12 +310,16 @@ export class Planner {
   }
 
   /** The build queue: `def` at the first spot that fits (within `only`), with a path to the road. */
-  build(def: string, only?: (x: number, z: number, w: number, d: number) => boolean): Building | null {
+  build(
+    def: string,
+    only?: (x: number, z: number, w: number, d: number) => boolean,
+    radius = only ? 60 : 40,
+  ): Building | null {
     const ok = this.keepOffFloodplain
       ? (x: number, z: number, w: number, d: number) =>
           !onFloodplain(this.w, x, z, w, d) && (!only || only(x, z, w, d))
       : only;
-    const spot = findSpot(this.w, def, only ? 60 : 40, ok);
+    const spot = findSpot(this.w, def, radius, ok);
     if (!spot) {
       this.actions.push(`no spot for ${def}`);
       if (!only) this.noSpot.set(def, calendar(this.w.tick).day);
@@ -288,7 +339,10 @@ export class Planner {
   /** Paints a path from the door to the road network (the Ledger likes tidy frontage). */
   connect(b: Building): void {
     const path = pathToRoad(this.w, doorTile(b));
-    if (path && path.length > 0)
+    // R1F: a door a step or two from the road needs no path of its own (a chore the Ledger counted),
+    // unless its site rule wants a road at the door (a storehouse, a granary, a stall).
+    const roadRule = content.buildingById.get(b.def)?.placement?.some((r) => r.kind === 'road') ?? false;
+    if (path && path.length > (roadRule ? 0 : 2))
       this.do(`path for ${b.def}`, [{ t: 'road.paint', kind: 'path', tiles: path }]);
   }
 

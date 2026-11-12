@@ -33,8 +33,8 @@ describe('the festivals advisor', { timeout: 300_000 }, () => {
   });
 
   for (const seed of ['hazel', 'willow']) {
-    // R1.0: stand-ins; R1F rewrites the advisors and their targets.
-    it.skip(`holds a festival every season on ${seed}, three stars in the first Village year, and keeps the larder`, () => {
+    // R1F: back on with the land and plan advisors.
+    it(`holds a festival every season on ${seed}, three stars in the first Village year, and keeps the larder`, () => {
       const short: string[] = [];
       const missed: number[] = [];
       const run = autoplay(seed, 60, {

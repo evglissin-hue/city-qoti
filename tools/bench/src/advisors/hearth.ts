@@ -282,6 +282,7 @@ class Hearth implements Advisor {
 
 export const hearth: AdvisorDef = {
   id: 'hearth',
+  lane: 'hearth',
   slot: 60,
   plays: (opts) => opts.hearth !== false,
   create: (p) => new Hearth(p),

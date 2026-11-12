@@ -13,7 +13,9 @@
 import { serialize, type WorldState, type ValleySettings } from '@qoti/sim';
 import { writeFileSync } from 'node:fs';
 import { autoplay, formatDays } from './autoplay';
+import { DECISIONS_DAYS, formatDecisions } from './decisions';
 import { frontageAscii, grownSummary, streetRect } from './village';
+import { businessesSummary, formatLedger, nextTierSummary } from './ledgerRow';
 import { YEAR_HEAD, yearRow } from './yearRow';
 
 const days = Number(process.argv[2] ?? 12);
@@ -29,6 +31,7 @@ const threat = (process.argv[7] ?? 'standard') as 'peaceful' | 'standard' | 'fie
 const run = autoplay(seed, days, { economy, villageDay, handsOff, village: true, threat, onDay });
 console.log(`Autoplay ${seed}, ${economy}, ${days} days (${((performance.now() - t0) / 1000).toFixed(1)} s)`);
 console.log(formatDays(run.days));
+console.log(`\nLedger view\n${formatLedger(run.days)}`);
 if (run.street) {
   const rect = streetRect(run.street);
   console.log(`\n${grownSummary(run.hamlet.world)}`);
@@ -42,4 +45,7 @@ if (process.env.TUNE_SAVE) {
   console.log(`saved ${process.env.TUNE_SAVE}`);
 }
 if (process.env.TUNE_ACTIONS) console.log(run.actions.join('\n'));
+console.log(`\nDecisions\n${formatDecisions(run.decisions, Math.min(days, DECISIONS_DAYS))}`);
+console.log(`\nBusinesses: ${businessesSummary(run.hamlet.world)}`);
+console.log(`Next tier: ${nextTierSummary(run.hamlet.world)}`);
 console.log(`\nYear view\n${YEAR_HEAD}\n${year.join('\n')}`);

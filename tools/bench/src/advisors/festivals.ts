@@ -13,8 +13,8 @@
 //   high street's homes come first. R1.0: no pie shop (pies wait for R3) and no dock orders (the
 //   carrier sails the boat by its own rules).
 // - Commissions: accepts an offer the town can meet now from its surplus, or a building it will put
-//   up anyway (the dock); declines the rest so the list stays tidy (all of them in runs that do not
-//   play the Village).
+//   up anyway (the dock); leaves the rest to lapse (R1F: it declined them before, which counted as
+//   Ledger decisions that changed nothing).
 // - Market day 3 once the market opens. The wants and the market day play only in runs that play
 //   the Village (`village`), like the village advisor. It never builds by itself: wants go to the
 //   planner.
@@ -233,9 +233,9 @@ class Festivals implements Advisor {
       } else {
         meet = def.builds === 'river-dock' && this.wantsDock();
       }
-      this.p.do(`${meet ? 'accept' : 'decline'} ${def.id}`, [
-        { t: meet ? 'commission.accept' : 'commission.decline', id: c.id },
-      ]);
+      // R1F: an offer the town will not take is left to lapse (OFFER_DAYS) rather than declined:
+      // declining is a decision that changes nothing, and the Ledger's are counted.
+      if (meet) this.p.do(`accept ${def.id}`, [{ t: 'commission.accept', id: c.id }]);
     }
   }
 
@@ -289,6 +289,7 @@ function zoned(w: WorldState, r: Rect): boolean {
 
 export const festivals: AdvisorDef = {
   id: 'festivals',
+  lane: 'both',
   // After the seasons (55), with the Hearth's decor (60).
   slot: 58,
   plays: (_opts, w) => w.settings.mode === 'standard' && content.festivals.length > 0,

@@ -14,12 +14,13 @@ describe('the advisors', () => {
     expect(new Set(advisors.map((a) => a.slot)).size).toBe(advisors.length);
     expect(order).toEqual([
       'village',
-      'street',
+      // R1F: the land advisor took the street advisor's slot, the plan advisor the seasons advisor's.
+      'land',
       'charter',
       'money',
       'watch',
       'hamlet',
-      'seasons',
+      'plan',
       'festivals',
       'hearth',
       // I3 (C5C)

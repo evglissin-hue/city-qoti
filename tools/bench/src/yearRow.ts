@@ -2,7 +2,7 @@
 // the river is frozen), how many households were cold, the last festival's stars, the telegraphed
 // raid's band and how the last raid went. It reads the I3 slices C5.0 added, which C5A to C5D fill;
 // until a slice has something to say its column prints '-'. Nothing here changes the valley.
-import { calendar, SEASON_NAMES, type WorldState } from '@qoti/sim';
+import { balancesView, calendar, SEASON_NAMES, type WorldState } from '@qoti/sim';
 
 const DASH = '-';
 
@@ -40,8 +40,15 @@ function raid(s: WorldState): string {
   return last.repelled ? (last.stolen === 0 ? 'held' : 'repelled') : `lost ${last.stolen}`;
 }
 
+/** The season plan's winter marks for Food and Fuel while they stand, else '-'. */
+function marks(s: WorldState): string {
+  const [food, fuel] = balancesView(s).lines;
+  if (food?.mark == null && fuel?.mark == null) return DASH;
+  return `${food?.mark ?? DASH}/${fuel?.mark ?? DASH}`;
+}
+
 /** Column heads for `yearRow`. */
-export const YEAR_HEAD = 'day  yr season    weather  cold stars threat     raid';
+export const YEAR_HEAD = 'day  yr season    weather  cold stars threat     raid       marks  road';
 
 /** One day of the year view (call at the day's end). */
 export function yearRow(state: WorldState, day: number): string {
@@ -54,6 +61,8 @@ export function yearRow(state: WorldState, day: number): string {
     cold(state).padStart(4),
     stars(state).padStart(5),
     band(state).padEnd(10),
-    raid(state),
+    raid(state).padEnd(10),
+    marks(state).padEnd(6),
+    balancesView(state).passClosed ? 'closed' : DASH,
   ].join(' ');
 }

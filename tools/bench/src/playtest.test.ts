@@ -61,7 +61,10 @@ describe('two new players, one evening', { timeout: 120_000 }, () => {
       settle();
       place(NEXT);
       settle();
-      expect([...issues.values()].map((i) => i.text).join('\n')).toBe('');
+      // R1F: these two place buildings and never zone, so a lit demand bar going unanswered is
+      // their choice, not a dead end (the autoplayer's runs check it).
+      const stuck = [...issues.values()].filter((i) => i.kind !== 'demand-unanswered');
+      expect(stuck.map((i) => i.text).join('\n')).toBe('');
     });
   }
 });

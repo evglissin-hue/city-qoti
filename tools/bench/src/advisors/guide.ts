@@ -21,6 +21,7 @@ class Guide implements Advisor {
 
 export const guide: AdvisorDef = {
   id: 'guide',
+  lane: 'hearth',
   slot: 90,
   plays: (_opts, w) => !w.guide.over,
   create: (p) => new Guide(p),

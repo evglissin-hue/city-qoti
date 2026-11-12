@@ -17,7 +17,15 @@ import {
 import type { Planner } from '../planner';
 import type { Advisor, AdvisorDef } from './types';
 
+/** R1F: what one visit to the County Bank borrows (it was 300, and a Village borrowed ten times in seventy days). */
+const LOAN_COINS = 600;
+/** R1F: days between two turns of the wage or tax lever (the levers moved most days, a chore). */
+const LEVER_DAYS = 3;
+
 class Money implements Advisor {
+  /** The day a wage or tax lever last moved. */
+  private moved = -LEVER_DAYS;
+
   constructor(readonly p: Planner) {}
 
   visit(): void {
@@ -30,10 +38,17 @@ class Money implements Advisor {
     const coins = p.coins();
     const y = w.economy.yesterday;
     const net = income(y) - expenses(y);
+    const rested = p.runDay - this.moved >= LEVER_DAYS;
     const setWage = (percent: number, why: string) =>
-      percent !== l.wageLevel && p.do(why, [{ t: 'ledger.setWageLevel', percent }]);
+      rested &&
+      percent !== l.wageLevel &&
+      p.do(why, [{ t: 'ledger.setWageLevel', percent }]) &&
+      (this.moved = p.runDay);
     const setTax = (percent: number, why: string) =>
-      percent !== l.taxRate && p.do(why, [{ t: 'ledger.setTaxRate', percent }]);
+      rested &&
+      percent !== l.taxRate &&
+      p.do(why, [{ t: 'ledger.setTaxRate', percent }]) &&
+      (this.moved = p.runDay);
     // C4X: or whenever the treasury is nearly empty while households get by (purses held four
     // thousand coins while the town could not afford a cider press).
     // C5X part 2: or while the town owes more than half its credit line and households get by (the
@@ -42,7 +57,8 @@ class Money implements Advisor {
     if ((net < 0 && coins < 300 && basket >= 65) || (coins < 100 && basket >= 75) || (deep && basket >= 60)) {
       // The treasury slides while households get by: trim wages a little, then firm up the tax.
       if (l.wageLevel > 85) setWage(l.wageLevel - 5, 'trim wages');
-      else if (l.taxRate < TAX_RATE_RANGE[1]) setTax(l.taxRate + 2, 'raise the income tax');
+      else if (l.taxRate < TAX_RATE_RANGE[1])
+        setTax(Math.min(TAX_RATE_RANGE[1], l.taxRate + 4), 'raise the income tax');
     } else if (basket < 65 && coins > 150) {
       // Households going short while the treasury can spare it: ease off.
       if (l.taxRate > 6) setTax(l.taxRate - 2, 'ease the income tax');
@@ -62,7 +78,7 @@ class Money implements Advisor {
     // stalls the build queue for days (six seeds at day 70 with P1's first economy: 135 residents
     // on average with the old cushion, 142 with this one; main 138 either way).
     if (coins < 120 && room >= 100) {
-      p.do('take a loan', [{ t: 'loan.take', coins: Math.min(room, 300) }]);
+      p.do('take a loan', [{ t: 'loan.take', coins: Math.min(room, LOAN_COINS) }]);
     } else if (owed > 0 && coins > 500) {
       const loan = w.loans.loans[0]!;
       const pay = Math.min(Math.ceil(loan.balance / PENNIES_PER_COIN), Math.floor(coins - 350));
@@ -73,6 +89,7 @@ class Money implements Advisor {
 
 export const money: AdvisorDef = {
   id: 'money',
+  lane: 'ledger',
   slot: 40,
   plays: () => true,
   create: (p) => new Money(p),

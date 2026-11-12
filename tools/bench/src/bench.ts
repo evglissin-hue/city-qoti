@@ -27,6 +27,7 @@ import { carrierBench } from './carrier.bench';
 import { syntheticValley } from './synthetic';
 import { festivalsBench } from './festivals.bench';
 import { natureBench } from './nature.bench';
+import { r1Bench } from './r1.bench';
 import { raidsBench } from './raids.bench';
 import { seasonsBench } from './seasons.bench';
 import { villageBench } from './village.bench';
@@ -183,6 +184,10 @@ failures.push(...nature.failures);
 const raidsResult = raidsBench();
 lines.push(...raidsResult.lines);
 failures.push(...raidsResult.failures);
+// 14. R1: the night's trade choice and growth, and the carrier's day, at City scale (2,000 residents).
+const r1 = r1Bench();
+lines.push(...r1.lines);
+failures.push(...r1.failures);
 
 const heapMb = process.memoryUsage().heapUsed / 1024 / 1024;
 lines.push(`memory          ${heapMb.toFixed(0)} MB heap in use`);
@@ -216,6 +221,7 @@ const report = {
   festivals: festivals.report,
   nature: nature.report,
   raids: raidsResult.report,
+  r1: r1.report,
   heapMb,
   failures,
 };

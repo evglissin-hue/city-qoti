@@ -19,7 +19,13 @@ import type { Planner } from '../planner';
 import { FOODS, idx } from '../town';
 import type { Advisor, AdvisorDef, Visit } from './types';
 
+/** R1F: days between two plans the Hearth sketches. */
+const SKETCH_DAYS = 4;
+
 class Together implements Advisor {
+  /** The day the Hearth last sketched a plan. */
+  private sketched = -SKETCH_DAYS;
+
   constructor(readonly p: Planner) {}
 
   private get w(): WorldState {
@@ -94,7 +100,7 @@ class Together implements Advisor {
     const today = Math.floor((w.tick + START_HOUR * TICKS_PER_HOUR) / TICKS_PER_DAY);
     for (const r of w.requests) {
       if (r.status === 'open' && w.tick - r.tick > 7 * TICKS_PER_DAY) {
-        this.p.do('withdraw a request', [{ t: 'request.resolve', id: r.id, status: 'withdrawn' }]);
+        this.p.do('withdraw a request', [{ t: 'request.resolve', id: r.id, status: 'withdrawn' }], 1);
       }
     }
     if (w.requests.some((r) => r.status === 'open')) return;
@@ -111,7 +117,7 @@ class Together implements Advisor {
       byDay: today + 3,
       at: stall.id,
     };
-    this.p.do(`ask for ${qty} ${ask.good}`, [{ t: 'request.add', ask }]);
+    this.p.do(`ask for ${qty} ${ask.good}`, [{ t: 'request.add', ask }], 1);
   }
 
   /**
@@ -122,8 +128,10 @@ class Together implements Advisor {
   private plans(): void {
     const w = this.w;
     for (const p of w.plans) {
-      if (p.status === 'open' && p.by === 0)
-        this.p.do(`approve ${p.name}`, [{ t: 'plan.approve', id: p.id }], 1);
+      // R1F: the Hearth (seat 1) sketches and the Ledger (seat 0) approves, as the header says (the
+      // seats were the other way round, which counted the Hearth's sketches as Ledger decisions).
+      if (p.status === 'open' && p.by === 1)
+        this.p.do(`approve ${p.name}`, [{ t: 'plan.approve', id: p.id }]);
     }
     const items: Command[] = [];
     const add = (def: string, at: [number, number] | null) => {
@@ -149,16 +157,21 @@ class Together implements Advisor {
         add('flower-bed', this.p.decorSpot('flower-bed', stall.x, stall.z, 2));
       }
     }
-    if (items.length > 0) {
-      this.p.do('sketch a plan', [
-        { t: 'plan.add', name: 'For our story folk', items: items.map((cmd) => ({ cmd })) },
-      ]);
+    // R1F: a sketch every few days at most (one every afternoon made the Ledger approve 25 plans).
+    if (items.length > 0 && this.p.runDay - this.sketched >= SKETCH_DAYS) {
+      this.sketched = this.p.runDay;
+      this.p.do(
+        'sketch a plan',
+        [{ t: 'plan.add', name: 'For our story folk', items: items.map((cmd) => ({ cmd })) }],
+        1,
+      );
     }
   }
 }
 
 export const together: AdvisorDef = {
   id: 'together',
+  lane: 'both',
   slot: 70,
   plays: (opts) => opts.together !== false,
   create: (p) => new Together(p),
