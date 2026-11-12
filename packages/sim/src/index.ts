@@ -246,6 +246,8 @@ export {
   reserveMenu,
 } from './systems/festivals/api';
 export { FESTIVAL_SITE_MARGIN, openGround, patternRect, siteRect } from './systems/festivals/site';
+// R1 (R1D): the twists a festival may be planned with now.
+export { twistOffered, twistsOffered } from './systems/festivals/twists';
 export { canMeet, progressOf } from './systems/commissions';
 export { BOAT_UNITS, dockSellPrice, riverDock } from './systems/dock';
 export {

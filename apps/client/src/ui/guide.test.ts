@@ -61,7 +61,8 @@ describe('the guide arrows', () => {
   });
 
   it("name only tools, books and overlays the client has (the content's points)", () => {
-    const tools = ['building', 'lane', 'path', 'plan'];
+    // R1D: the zone brush for the homes, Workshops and the first workshop.
+    const tools = ['building', 'lane', 'path', 'plan', 'zone'];
     for (const s of content.guide.steps) {
       const p = s.point;
       if (!p) continue;
