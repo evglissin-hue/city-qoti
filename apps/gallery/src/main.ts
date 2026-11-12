@@ -695,7 +695,8 @@ if (sceneName === 'lineup') {
   const dist = Number(q.get('dist') ?? Math.max(size[0] * 1.1, size[1] * 1.1) + 2);
   const yaw = Number(q.get('yaw') ?? 0.3);
   camera.position.set(Math.sin(yaw) * dist, dist * Number(q.get('pitch') ?? 0.85), Math.cos(yaw) * dist);
-  controls.target.set(0, 0.3, 0);
+  // The grid sits a little low, clear of the panel (?tz moves it).
+  controls.target.set(0, 0.3, Number(q.get('tz') ?? -size[1] * 0.18));
   ground.scale.setScalar(3);
   state.spin = false;
   info.textContent = `trades, levels 1 to 3 and far (triangles): ${counts.join(', ')}`;
