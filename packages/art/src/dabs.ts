@@ -56,7 +56,7 @@ export interface DabOptions {
    * slope like a leaf, 1 stands it up like a blade (reeds), 0 turns it any way.
    */
   lift?: number;
-  /** V2B: how much longer than wide a dab is (1.2 by default; reeds 2 or more). */
+  /** V2B: how much longer than wide a dab is (1 by default, a rounder leaf; reeds 2 or more). */
   stretch?: number;
 }
 
@@ -84,11 +84,40 @@ function hexFromHsl(h: number, s: number, l: number): number {
 export function dabTint(color: number, ny: number, skyLighten: number): number {
   tmp.setHex(color).getHSL(hsl);
   const up = clamp(ny, -1, 1);
+  const l = hsl.l + skyLighten * (up > 0 ? 0.15 : 0.11) * up;
   return hexFromHsl(
     hsl.h - skyLighten * 0.03 * Math.max(0, up),
     hsl.s + skyLighten * 0.08 * up,
-    hsl.l + skyLighten * (up > 0 ? 0.15 : 0.11) * up,
+    up > 0 ? Math.min(l, lightCap(hsl.l)) : l,
   );
+}
+
+/** V2X: the lightest a dab of a swatch of lightness `l` may get: its light tone, never toward white. */
+const SKY_REACH = 0.07;
+const SKY_CEILING = 0.82;
+function lightCap(l: number): number {
+  return Math.max(l, Math.min(l + SKY_REACH, SKY_CEILING));
+}
+
+/** A tint, held at its swatch's light tone at most (the wander and the sky together never pass it). */
+function capLight(hex: number, swatch: number): number {
+  tmp.setHex(swatch).getHSL(hsl);
+  const cap = lightCap(hsl.l);
+  tmp.setHex(hex).getHSL(hsl);
+  return hsl.l <= cap ? hex : hexFromHsl(hsl.h, hsl.s, cap);
+}
+
+/** Pulls `p` in to just outside the ellipsoid (`center`, `radii`) when it stands further off. */
+function hug(p: V3, center: V3, radii: V3): void {
+  const ex = (p[0] - center[0]) / radii[0];
+  const ey = (p[1] - center[1]) / radii[1];
+  const ez = (p[2] - center[2]) / radii[2];
+  const e = Math.sqrt(ex * ex + ey * ey + ez * ez);
+  if (e <= 1) return;
+  const k = 1 / e;
+  p[0] = center[0] + (p[0] - center[0]) * k;
+  p[1] = center[1] + (p[1] - center[1]) * k;
+  p[2] = center[2] + (p[2] - center[2]) * k;
 }
 
 /** Probe directions per blob for its exposed share. */
@@ -126,7 +155,7 @@ export function brushDabs(b: ShapeBuilder, blobs: readonly DabBlob[], opts: DabO
   b.surface(SURFACE.leaf);
   const rnd = seeded(Math.floor(opts.seed) * 7919 + 4099);
   const lift = opts.lift ?? -1;
-  const stretch = opts.stretch ?? 1.2;
+  const stretch = opts.stretch ?? 1;
   const thin = clamp(opts.thin, 0, 1);
   // A spherical cap of half-angle t covers (1 - cos t) / 2 of the sphere: HOLES caps cover `gaps`.
   const holeCos = 1 - (2 * clamp(opts.gaps, 0, 0.9)) / HOLES;
@@ -184,7 +213,7 @@ export function brushDabs(b: ShapeBuilder, blobs: readonly DabBlob[], opts: DabO
       const dx = Math.cos(phi) * k;
       const dz = Math.sin(phi) * k;
       // On the surface, some a little proud of it (a soft, broken outline).
-      const push = 0.95 + r[4]! * 0.1;
+      const push = 0.97 + r[4]! * 0.04;
       const px = cx + dx * rx * push;
       const py = cy + y * ry * push;
       const pz = cz + dz * rz * push;
@@ -217,9 +246,9 @@ export function brushDabs(b: ShapeBuilder, blobs: readonly DabBlob[], opts: DabO
       }
       if (open) continue;
       // The dab's own face: the soft normal tilted a little at random.
-      let fx = nx + (r[5]! - 0.5) * 0.3;
-      let fy = ny + (r[6]! - 0.5) * 0.3;
-      let fz = nz + (r[7]! - 0.5) * 0.3;
+      let fx = nx + (r[5]! - 0.5) * 0.12;
+      let fy = ny + (r[6]! - 0.5) * 0.12;
+      let fz = nz + (r[7]! - 0.5) * 0.12;
       nl = Math.sqrt(fx * fx + fy * fy + fz * fz) || 1;
       fx /= nl;
       fy /= nl;
@@ -248,7 +277,7 @@ export function brushDabs(b: ShapeBuilder, blobs: readonly DabBlob[], opts: DabO
       ay /= al;
       az /= al;
       // Turn it about the face by up to 40 degrees either way.
-      const turn = (r[9]! - 0.5) * 1.4;
+      const turn = (r[9]! - 0.5) * 0.8;
       const ct = Math.cos(turn);
       const st = Math.sin(turn);
       const bx = fy * az - fz * ay;
@@ -262,10 +291,23 @@ export function brushDabs(b: ShapeBuilder, blobs: readonly DabBlob[], opts: DabO
       const sz = fx * ey - fy * ex;
       const size = opts.size * (0.8 + r[10]! * 0.45);
       const L = size * stretch;
-      const W = size * 0.5;
-      const tip: V3 = [px + ex * L * 0.62, py + ey * L * 0.62, pz + ez * L * 0.62];
-      const b0: V3 = [px - ex * L * 0.38 + sx * W, py - ey * L * 0.38 + sy * W, pz - ez * L * 0.38 + sz * W];
-      const b1: V3 = [px - ex * L * 0.38 - sx * W, py - ey * L * 0.38 - sy * W, pz - ez * L * 0.38 - sz * W];
+      // A leaf-shaped dab sits evenly on its spot; a blade (`stretch` given) keeps its long tip.
+      const tipK = opts.stretch === undefined ? 0.5 : 0.62;
+      const W = size * (opts.stretch === undefined ? 0.62 : 0.5);
+      const tip: V3 = [px + ex * L * tipK, py + ey * L * tipK, pz + ez * L * tipK];
+      const b0: V3 = [
+        px - ex * L * (1 - tipK) + sx * W,
+        py - ey * L * (1 - tipK) + sy * W,
+        pz - ez * L * (1 - tipK) + sz * W,
+      ];
+      const b1: V3 = [
+        px - ex * L * (1 - tipK) - sx * W,
+        py - ey * L * (1 - tipK) - sy * W,
+        pz - ez * L * (1 - tipK) - sz * W,
+      ];
+      // V2X: a hanging dab's corners are laid back down to the blob's surface (they would stand off
+      // it, the flat triangle's tip riding proud of a round mass), so the outline stays round.
+      if (lift <= 0) for (const c of [tip, b0, b1]) hug(c, bl.center, bl.radii);
       // Its tint: the blob's color, wandering a little, shaded lighter toward the sky.
       tmp.setHex(bl.color).getHSL(hsl);
       const wander = hexFromHsl(
@@ -273,7 +315,7 @@ export function brushDabs(b: ShapeBuilder, blobs: readonly DabBlob[], opts: DabO
         hsl.s + (r[3]! - 0.5) * 0.18 * opts.tintSpread,
         hsl.l + (r[10]! - 0.5) * 0.12 * opts.tintSpread + (r[4]! - 0.5) * 0.06 * opts.tintSpread,
       );
-      const tipHex = dabTint(wander, ny, opts.skyLighten);
+      const tipHex = capLight(dabTint(wander, ny, opts.skyLighten), bl.color);
       tmp.setHex(tipHex).getHSL(hsl);
       const rootHex = hexFromHsl(hsl.h, hsl.s, hsl.l * 0.9);
       b.triN(tip, b0, b1, [nx, ny, nz], tipHex, rootHex, rootHex, [fx, fy, fz]);

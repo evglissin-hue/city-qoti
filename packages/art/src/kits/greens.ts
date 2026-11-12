@@ -99,9 +99,9 @@ export const reedBed: Kit = {
           });
         }
         brushDabs(s, blobs, {
-          count: 70,
-          size: 0.05,
-          tintSpread: 0.5,
+          count: 42,
+          size: 0.075,
+          tintSpread: 0.25,
           skyLighten: 0.5,
           gaps: 0,
           thin: 1,

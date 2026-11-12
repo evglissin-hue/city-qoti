@@ -179,7 +179,7 @@ describe('V2B grown homes with ivy and a hedge', () => {
     [3, 2],
     [2, 2],
   ];
-  /** A home whose near build lays both ivy dabs (size 0.045) and hedge dabs (size 0.06). */
+  /** A home whose near build lays both ivy dabs (size 0.068) and hedge dabs (size 0.09). */
   function find(): { id: string; seed: number; size: [number, number]; style: string } | null {
     for (const id of ['cottage', 'townhouse']) {
       for (const style of ['stone', 'timber']) {
@@ -189,8 +189,8 @@ describe('V2B grown homes with ivy and a hedge', () => {
             kitById
               .get(id)!
               .build({ seed, lod: 'high', size, entrance: [1, size[1] - 1], params: { style } });
-            const ivy = dabCalls.some((c) => c.size === 0.045);
-            const hedge = dabCalls.some((c) => c.size === 0.06);
+            const ivy = dabCalls.some((c) => c.size === 0.068);
+            const hedge = dabCalls.some((c) => c.size === 0.09);
             dabCalls.length = 0;
             if (ivy && hedge) return { id, seed, size, style };
           }
@@ -236,7 +236,7 @@ describe('V2B reed bed', () => {
     const far = kit.build({ lod: 'low', seed: 163 });
     expect(Object.keys(near.attributes).sort()).toEqual(Object.keys(far.attributes).sort());
     expect(far.getAttribute('position').count).toBeLessThan(near.getAttribute('position').count);
-    expect(dabCalls.some((c) => c.lift === 1 && c.count === 70)).toBe(true);
+    expect(dabCalls.some((c) => c.lift === 1 && c.count === 42)).toBe(true);
   });
 });
 

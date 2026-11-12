@@ -56,9 +56,9 @@ function ivyNear(s: ShapeBuilder, f: Face, u0: number, u1: number, top: number, 
     });
   }
   brushDabs(s, blobs, {
-    count: n * 8,
-    size: 0.045,
-    tintSpread: 0.6,
+    count: Math.round(n * 4.8),
+    size: 0.068,
+    tintSpread: 0.3,
     skyLighten: 0.4,
     gaps: 0,
     thin: 1,
@@ -296,9 +296,9 @@ export function hedgeRun(s: ShapeBuilder, a: [number, number], b: [number, numbe
     });
   }
   brushDabs(s, blobs, {
-    count: Math.max(6, Math.round(70 * len)),
-    size: 0.06,
-    tintSpread: 0.5,
+    count: Math.max(6, Math.round(42 * len)),
+    size: 0.09,
+    tintSpread: 0.25,
     skyLighten: 0.6,
     gaps: 0,
     thin: 1,
