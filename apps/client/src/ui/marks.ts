@@ -20,6 +20,11 @@ export interface GroundMark {
    * (the Specialized shelf's "how far does it serve", drawn as a pencil sketch of the road reach).
    */
   ring?: number;
+  /**
+   * R1X: with `fill`, a road tile in a specialized building's reach: a stronger wash than zoned
+   * ground, so the ochre still reads on a brown road by lamplight.
+   */
+  reach?: boolean;
 }
 
 export const groundMarks = signal<GroundMark[]>([]);

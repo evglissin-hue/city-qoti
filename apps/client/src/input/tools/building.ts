@@ -159,6 +159,7 @@ export function buildingTool(ctx: ToolContext): Tool {
         d: 1,
         ink: RING_INK,
         fill: true,
+        reach: true,
         dashed: faint,
       });
     }

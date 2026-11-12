@@ -1681,6 +1681,18 @@ li.plan.settled p {
   fill: color-mix(in srgb, var(--ink) 24%, transparent);
 }
 
+/* R1X: a specialized building's reach along the roads: strong enough to read on a brown road at
+   lamplight, the built ones' fainter than the ghost's. */
+.bp.reach-wash {
+  fill: color-mix(in srgb, var(--ink) 62%, transparent);
+  stroke: none;
+}
+
+.bp.reach-wash.faint {
+  fill: color-mix(in srgb, var(--ink) 36%, transparent);
+  stroke: none;
+}
+
 .bp.lot-door {
   stroke: var(--ink);
   stroke-width: 4;
