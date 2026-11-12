@@ -114,7 +114,14 @@ export function buildMeadowChunk(tiles: SurfaceTiles, mirror: Mirror, cx: number
       out[o + 1] = z;
       // The ground as the tile itself draws it (so a cliff's far side does not lift the blades).
       out[o + 2] = tileSurfaceY(tiles, x, z, x + 0.5, z + 0.5);
-      out[o + 3] = 0;
+      // Which sides border a tile without carpet (a lot, a road, water): blades shrink toward them,
+      // so the carpet's edge is soft, never a tile's square.
+      let edges = 0;
+      if (x === 0 || !keepsTile(L, z * MAP_SIZE + x - 1)) edges |= 1;
+      if (x === MAP_SIZE - 1 || !keepsTile(L, z * MAP_SIZE + x + 1)) edges |= 2;
+      if (z === 0 || !keepsTile(L, (z - 1) * MAP_SIZE + x)) edges |= 4;
+      if (z === MAP_SIZE - 1 || !keepsTile(L, (z + 1) * MAP_SIZE + x)) edges |= 8;
+      out[o + 3] = edges;
       out[o + 4] = tileSurfaceY(tiles, x, z, x, z);
       out[o + 5] = tileSurfaceY(tiles, x, z, x + 1, z);
       out[o + 6] = tileSurfaceY(tiles, x, z, x, z + 1);
@@ -301,6 +308,14 @@ void qBlade(out vec3 pos, out vec3 nrm, out vec3 col, out vec3 glow, out vec2 xz
   float r1 = fract(aBlade.z + qHash(aTile.xy * 2.3 + aBlade.xy * 5.0));
   float r2 = fract(aBlade.w + qHash(aTile.yx * 1.9 + 7.3));
   float h = mix(mix(0.13, 0.30, meadowK), 0.055, mown) * (0.7 + 0.6 * r1);
+  // Soft edges toward tiles without carpet (aTile.w: 1 left, 2 right, 4 down, 8 up).
+  float e = 1.0;
+  float bits = aTile.w;
+  if (mod(bits, 2.0) >= 1.0) e = min(e, uv.x);
+  if (mod(floor(bits / 2.0), 2.0) >= 1.0) e = min(e, 1.0 - uv.x);
+  if (mod(floor(bits / 4.0), 2.0) >= 1.0) e = min(e, uv.y);
+  if (mod(floor(bits / 8.0), 2.0) >= 1.0) e = min(e, 1.0 - uv.y);
+  h *= smoothstep(0.0, 0.5, e);
   float d = distance(root, uFocus.xz);
   h *= 1.0 - smoothstep(0.55 * uReach, uReach, d);
   h *= 1.0 - smoothstep(110.0, 150.0, distance(cameraPosition, uFocus));
@@ -365,11 +380,13 @@ void qBlade(out vec3 pos, out vec3 nrm, out vec3 col, out vec3 glow, out vec2 xz
   c *= ao * mix(1.0, 0.97, 1.0 - ao) + (1.0 - ao) * vec3(0.0, 0.004, 0.012);
 
   // The blade's own gradient: feet deep in the pile, the tip lighter and a touch warmer.
-  vec3 foot = c * 0.72;
-  vec3 top = c * (1.08 + 0.1 * r2) * vec3(1.03, 1.01, 0.95);
+  // Long grass keeps a deep pile; a mown lawn evens out to the painted ground's own value.
+  vec3 foot = c * mix(0.74, 0.9, mown);
+  vec3 top = c * mix(1.08 + 0.1 * r2, 1.03 + 0.05 * r2, mown) * vec3(1.03, 1.01, 0.95);
   // Wildflowers: a share of tips take the ground's flower colors where it has them.
   float bloom = gc.a;
-  if (bloom > 0.01 && qHash(root * 91.7) < 0.2 * bloom) {
+  // A flowering tip colors its whole blade down to the foot, a spike of color above the pile.
+  if (bloom > 0.01 && qHash(root * 91.7) < 0.45 * bloom) {
     float pick = qHash(root * 53.1);
     vec3 fc = pick < 0.3 ? qSrgb(vec3(0.95, 0.62, 0.70)) : pick < 0.55 ? qSrgb(vec3(0.97, 0.86, 0.38))
       : pick < 0.8 ? qSrgb(vec3(0.68, 0.60, 0.90)) : qSrgb(vec3(0.98, 0.97, 0.92));

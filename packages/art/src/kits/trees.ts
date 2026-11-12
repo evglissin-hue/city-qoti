@@ -118,10 +118,10 @@ class TreeBuilder {
   paintedDome(c: V3, r: V3, mean: number, skyLighten: number, phase: number, rnd: () => number): this {
     // Seen from afar the dabs' sunlit tops and the shade between them average out: the mean
     // color a touch deeper (the gaps and the dabs' darker roots), lit a little toward the top.
-    const body = mixHex(mean, CORE_SHADE, 0.12);
-    const top = dabTint(body, 0.6, skyLighten * 0.7);
+    const body = mixHex(mean, CORE_SHADE, 0.24);
+    const top = dabTint(body, 0.5, skyLighten * 0.5);
     const mid = body;
-    const low = mixHex(body, CORE_SHADE, 0.3);
+    const low = mixHex(body, CORE_SHADE, 0.35);
     const from = this.s.triangles * 3;
     const ring: V3[] = [];
     for (let i = 0; i < 5; i++) {
