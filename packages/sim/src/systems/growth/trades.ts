@@ -123,20 +123,20 @@ function unlockedTiers(state: WorldState): string[] {
  * household in ten while it has none yet (docs/spec/13-ledger.md, Choosing a trade). The larger of
  * this and the balances' own reading (R1A's familyUse).
  */
-function tierUse(state: WorldState, family: number): number {
+function tierUse(
+  state: WorldState,
+  family: number,
+  tiers: readonly string[],
+  stats: ReadonlyMap<string, { homes: number; folk: number }>,
+): number {
   const fam = GOOD_FAMILIES[family]!;
   let use = 0;
   const households = state.households.length;
-  for (const tier of unlockedTiers(state)) {
+  for (const tier of tiers) {
     const want = content.basketByTier.get(tier as never)?.wants.find((w) => w.family === fam);
     if (!want || want.amount <= 0 || want.season !== undefined) continue;
-    let homes = 0;
-    let folk = 0;
-    for (const h of state.households) {
-      if (h.tier !== tier) continue;
-      homes++;
-      folk += h.members.length;
-    }
+    let homes = stats.get(tier)?.homes ?? 0;
+    let folk = stats.get(tier)?.folk ?? 0;
     if (homes === 0) {
       if (tier === 'settler') continue;
       homes = Math.ceil(households / NEW_TIER_SHARE);
@@ -232,7 +232,10 @@ function lazyOnOffer(state: WorldState): (family: number) => number {
 /** Makers per good (built or going up) and whether a built one makes it, written into `n`. */
 export function countMakers(
   state: WorldState,
-  n: Pick<TownNeeds, 'makers' | 'madeHere'> & { memo?: Map<string, unknown>; supplyMemo?: Map<string, unknown> },
+  n: Pick<TownNeeds, 'makers' | 'madeHere'> & {
+    memo?: Map<string, unknown>;
+    supplyMemo?: Map<string, unknown>;
+  },
 ): void {
   n.memo?.clear();
   n.supplyMemo?.clear();
@@ -260,7 +263,17 @@ export function townNeeds(state: WorldState, shopNeed = 0): TownNeeds {
   const madeHere = new Array<boolean>(n).fill(false);
   countMakers(state, { makers, madeHere });
   const made = state.economy.yesterday.produced.slice();
-  const famUse = GOOD_FAMILIES.map((_, f) => tierUse(state, f));
+  // Homes and folk of each tier, counted once for every family's use.
+  const tiers = unlockedTiers(state);
+  const stats = new Map<string, { homes: number; folk: number }>();
+  for (const h of state.households) {
+    const t = stats.get(h.tier);
+    if (t) {
+      t.homes++;
+      t.folk += h.members.length;
+    } else stats.set(h.tier, { homes: 1, folk: h.members.length });
+  }
+  const famUse = GOOD_FAMILIES.map((_, f) => tierUse(state, f, tiers, stats));
   const famStock = GOOD_FAMILIES.map((_, f) => {
     let s = 0;
     for (const g of GOODS_BY_FAMILY[f]!) if (isFlavor(g)) s += stock[g] ?? 0;

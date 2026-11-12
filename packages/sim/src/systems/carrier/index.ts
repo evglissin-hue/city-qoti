@@ -241,6 +241,43 @@ function taken(day: Day, q: Quote, good: number, pct: number): number {
   return Math.round((regional(q, good) * pct * (100 + day.renown)) / 10000);
 }
 
+/** A neighbor's standing terms for one good (content is fixed, so worked out once). */
+interface Standing {
+  g: number;
+  sells: number | undefined;
+  buys: number | undefined;
+  base: number;
+  seasonal: [season: number, pct: number][];
+}
+
+const STANDING = new Map<string, Standing[]>();
+
+/** The goods a neighbor trades, in goods order, with what it sells and buys them at. */
+function standingOf(id: string): Standing[] {
+  let list = STANDING.get(id);
+  if (!list) {
+    list = [];
+    const def = content.neighborById.get(id);
+    if (def) {
+      for (let g = 0; g < content.goods.length; g++) {
+        const gid = content.goods[g]!.id;
+        const sells = def.sells.find(([x]) => x === gid)?.[1];
+        const buys = def.buys.find(([x]) => x === gid)?.[1];
+        if ((sells ?? buys) === undefined) continue;
+        list.push({
+          g,
+          sells,
+          buys,
+          base: content.goods[g]!.basePrice * (sells ?? buys)!,
+          seasonal: (def.seasonal ?? []).filter(([x]) => x === gid).map(([, s, pct]) => [s, pct]),
+        });
+      }
+    }
+    STANDING.set(id, list);
+  }
+  return list;
+}
+
 /** Every neighbor's quotes for every good today, sellers and buyers, in neighbor order. */
 function quotes(state: WorldState, terms: CarrierTerms, deal: DealOffer | null): [Quote[][], Quote[][]] {
   const n = content.goods.length;
@@ -249,17 +286,11 @@ function quotes(state: WorldState, terms: CarrierTerms, deal: DealOffer | null):
   const season = calendar(state.tick).season;
   for (const ns of state.trade.neighbors) {
     if (!neighborTrades(state, ns.id)) continue;
-    const def = content.neighborById.get(ns.id);
-    if (!def) continue;
-    for (let g = 0; g < n; g++) {
-      const id = content.goods[g]!.id;
-      const sells = def.sells.find(([x]) => x === id)?.[1];
-      const buys = def.buys.find(([x]) => x === id)?.[1];
-      const factor = sells ?? buys;
-      if (factor === undefined) continue;
+    if (!content.neighborById.get(ns.id)) continue;
+    for (const { g, sells, buys, base, seasonal: seasons } of standingOf(ns.id)) {
       let seasonal = 100;
-      for (const [x, s, pct] of def.seasonal ?? []) if (x === id && s === season) seasonal = pct;
-      const k = content.goods[g]!.basePrice * factor * seasonal;
+      for (const [s, pct] of seasons) if (s === season) seasonal = pct;
+      const k = base * seasonal;
       const boat = ns.id === BOAT_NEIGHBOR;
       if (sells !== undefined) {
         const cart = cartPercent(state, ns.id, g, false, terms, deal);
@@ -479,7 +510,16 @@ function boatDue(state: WorldState, dock: Building | null): Building | null {
 function makerWant(state: WorldState, b: Building, want: number[]): void {
   const rt = b.rt;
   if (b.stage !== 'built' || !rt || rt.paused || rt.workers.length === 0) return;
-  const info = methodInfo(b);
+  addMakerWant(state, rt, methodInfo(b), want);
+}
+
+/** makerWant for a runtime whose method info the caller already has. */
+function addMakerWant(
+  state: WorldState,
+  rt: NonNullable<Building['rt']>,
+  info: MethodInfo | null,
+  want: number[],
+): void {
   if (!info || info.inputs.length === 0 || info.family < 0) return;
   if (state.carrier.families[info.family]!.rule === 'never') return;
   for (const [g, qty] of info.inputs) {
@@ -538,12 +578,23 @@ export function makersShort(state: WorldState): number[] {
 /** What the scan needs of each def, worked out once: holds goods, a store, the families it takes. */
 const DEF_INFO: ReadonlyMap<
   string,
-  { def: BuildingDef; storage: boolean; methods: boolean; storehouse: boolean; takes: boolean[] }
+  {
+    def: BuildingDef;
+    storage: boolean;
+    methods: boolean;
+    storehouse: boolean;
+    takes: boolean[];
+    /** The def's own method info (a business's comes from its trade). */
+    method: MethodInfo | null;
+    dock: boolean;
+  }
 > = new Map(
   content.buildings.map((def) => [
     def.id,
     {
       def,
+      method: DEF_METHODS.get(def.id) ?? null,
+      dock: def.id === 'river-dock',
       storage: !!def.storage,
       methods: !!def.methods?.length,
       storehouse: isStorehouse(def),
@@ -605,7 +656,7 @@ function scan(state: WorldState): Scan {
       const op = rt.output;
       for (let g = 0; g < n; g++) out.town[g]! += (st[g] ?? 0) + (op[g] ?? 0);
     }
-    const mi = methodInfo(b);
+    const mi = b.trade ? (TRADE_METHODS.get(b.trade) ?? null) : info ? info.method : methodInfo(b);
     if (mi) {
       for (let k = 0; k < mi.outputs.length; k++) {
         const g = mi.outputs[k]!;
@@ -619,8 +670,9 @@ function scan(state: WorldState): Scan {
       out.stores.push({ b, def, space: storageSpace(def, rt), takes: info.takes, door: doorTile(b, def) });
       if (!out.post && def.tags?.includes('trading-post')) out.post = b;
     }
-    if (!out.dock && b.def === 'river-dock') out.dock = b;
-    if (rt.workers.length > 0 && mi && mi.inputs.length > 0) makerWant(state, b, out.makers);
+    if (!out.dock && (info ? info.dock : b.def === 'river-dock')) out.dock = b;
+    if (mi && mi.inputs.length > 0 && !rt.paused && rt.workers.length > 0)
+      addMakerWant(state, rt, mi, out.makers);
   }
   for (const g of GOODS_BY_FAMILY[MATERIALS]!) out.siteTotal += out.needs[g] ?? 0;
   return out;

@@ -69,15 +69,37 @@ function sameRoads(state: WorldState, g: ReachGrid): boolean {
  */
 const epochs = new WeakMap<WorldState, Map<string, { version: number; epoch: number; copy: Uint8Array }>>();
 
-/** The network version at which a layer (as `read` sees it) last changed, as roadEpoch says. */
-function layerEpoch(
-  state: WorldState,
-  name: string,
-  n: number,
-  read: (i: number) => number,
-  layer: Uint8Array,
-  flag: boolean,
-): number {
+/**
+ * True when the layer is as the copy saw it: byte for byte (`flag` false), or tile for tile as
+ * "above 0" (`flag` true, a road's kind may change and stay a road). The copy holds the layer's own
+ * bytes; where a flagged tile differs but still reads the same, the copy is brought up to date, so
+ * the next look runs over equal words. Four tiles at a time when both arrays sit on word boundaries.
+ */
+function sameLayer(layer: Uint8Array, copy: Uint8Array, flag: boolean): boolean {
+  const n = layer.length;
+  let i = 0;
+  if ((layer.byteOffset & 3) === 0 && (copy.byteOffset & 3) === 0) {
+    const words = n >> 2;
+    const a = new Uint32Array(layer.buffer, layer.byteOffset, words);
+    const b = new Uint32Array(copy.buffer, copy.byteOffset, words);
+    for (let w = 0; w < words; w++) {
+      if (a[w] === b[w]) continue;
+      if (!flag) return false;
+      for (let j = w << 2; j < (w << 2) + 4; j++) {
+        if (layer[j]! > 0 !== copy[j]! > 0) return false;
+        copy[j] = layer[j]!;
+      }
+    }
+    i = words << 2;
+  }
+  for (; i < n; i++) {
+    if (flag ? layer[i]! > 0 !== copy[i]! > 0 : layer[i] !== copy[i]) return false;
+  }
+  return true;
+}
+
+/** The network version at which a layer last changed, as roadEpoch says (`flag`: only "above 0" counts). */
+function layerEpoch(state: WorldState, name: string, layer: Uint8Array, flag: boolean): number {
   const v = state.networkVersion;
   let perState = epochs.get(state);
   if (!perState) {
@@ -87,45 +109,23 @@ function layerEpoch(
   const hit = perState.get(name);
   if (hit && hit.version === v) return hit.epoch;
   if (hit) {
-    // The same comparison as `read(i) !== copy[i]`, without the call per tile (the layer is read as it is, or as 0/1).
-    let same = true;
-    const copy = hit.copy;
-    if (flag) {
-      for (let i = 0; i < n; i++) {
-        if ((layer[i]! > 0 ? 1 : 0) !== copy[i]) {
-          same = false;
-          break;
-        }
-      }
-    } else {
-      for (let i = 0; i < n; i++) {
-        if (layer[i] !== copy[i]) {
-          same = false;
-          break;
-        }
-      }
-    }
     hit.version = v;
-    if (!same) {
+    if (!sameLayer(layer, hit.copy, flag)) {
       hit.epoch = v;
-      for (let i = 0; i < n; i++) hit.copy[i] = read(i);
+      hit.copy.set(layer);
     }
     return hit.epoch;
   }
-  const copy = new Uint8Array(n);
-  for (let i = 0; i < n; i++) copy[i] = read(i);
-  perState.set(name, { version: v, epoch: v, copy });
+  perState.set(name, { version: v, epoch: v, copy: layer.slice() });
   return v;
 }
 
 function roadEpoch(state: WorldState): number {
-  const road = state.map.road;
-  return layerEpoch(state, 'road', road.length, (i) => (road[i]! > 0 ? 1 : 0), road, true);
+  return layerEpoch(state, 'road', state.map.road, true);
 }
 
 function heightEpoch(state: WorldState): number {
-  const height = state.map.height;
-  return layerEpoch(state, 'height', height.length, (i) => height[i]!, height, false);
+  return layerEpoch(state, 'height', state.map.height, false);
 }
 
 /** The building's reach grid, walked again only when it moved or the roads in its box changed. */

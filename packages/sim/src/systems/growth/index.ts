@@ -21,7 +21,7 @@ import { content, type BuildingDef, type TradeDef } from '@qoti/content';
 import { FIELD_GOOD_FERTILITY, MAP_SIZE, TICKS_PER_DAY, Zone } from '../../constants';
 import type { Building, Lot, System, TickCtx, WorldState } from '../../contracts';
 import { findById } from '../../state/entities';
-import { familyIndex } from '../../state/zones';
+import { familyIndex, jobsOf } from '../../state/zones';
 import { isStandard } from '../../state/hamlet';
 import { hasInnovation, rankAtLeast } from '../../state/village';
 import { townStock } from '../../view/hamlet';
@@ -32,10 +32,10 @@ import { dailyOffset } from '../economy/time';
 import { doorTile } from '../movement/api';
 import { fieldCap, fieldsOf, fieldTileProblem, isFarm, paintFields } from '../production/fields';
 import { porterIndex, porterServed, type Reach } from '../logistics/range';
-import { openJobCount, openJobs } from '../residents/jobs';
+import { isResting } from '../levels/resting';
+import { openJobs } from '../residents/jobs';
 import { attractiveness } from '../residents/lifecycle';
 import { foodIndexes, pantryFood } from '../residents/needs';
-import { vacantHomes } from '../residents/places';
 import { announceServers } from '../specialized/announce';
 import { growLot, lotPlacement } from './api';
 import { computeBars, craftPull, HOME_ZONES, writeBars, type BarInputs } from './bars';
@@ -52,7 +52,16 @@ import {
 } from './outlets';
 import { retoolPass } from './retool';
 import { SiteCache } from './site';
-import { countMakers, FARM_FOOD_DAYS, NEED_FULL, tradeTerms, townNeeds, type TownNeeds } from './trades';
+import {
+  countMakers,
+  FARM_FOOD_DAYS,
+  NEED_FULL,
+  needOf,
+  supplyOf,
+  tradeTerms,
+  townNeeds,
+  type TownNeeds,
+} from './trades';
 
 export { FARM_FOOD_DAYS, HOUSEHOLDS_PER_SHOP, SHOP_HOUSEHOLDS };
 export { SHOP_REACH, siteFits } from './site';
@@ -107,6 +116,32 @@ export function tradesOf(state: WorldState, zoneId: string): TradeDef[] {
   });
 }
 
+/** tradesOf for the Workshops, Farmland and Shops zones in one walk of the trades. */
+function tradesOfBusinessZones(state: WorldState): {
+  crafts: TradeDef[];
+  farms: TradeDef[];
+  shops: TradeDef[];
+} {
+  const out = { crafts: [] as TradeDef[], farms: [] as TradeDef[], shops: [] as TradeDef[] };
+  for (const t of content.trades) {
+    const list =
+      t.zone === 'crafts'
+        ? out.crafts
+        : t.zone === 'farms'
+          ? out.farms
+          : t.zone === 'shops'
+            ? out.shops
+            : null;
+    if (!list) continue;
+    const def = content.buildingById.get(t.building);
+    if (!def || !available(state, def)) continue;
+    if (t.requires?.rank && !rankAtLeast(state, t.requires.rank)) continue;
+    if (t.requires?.innovation && !hasInnovation(state, t.requires.innovation)) continue;
+    list.push(t);
+  }
+  return out;
+}
+
 /** Grown buildings of a zone kind still under construction. */
 function grownSites(state: WorldState, zones?: readonly number[]): number {
   let n = 0;
@@ -137,14 +172,53 @@ export function foodDaysInHand(state: WorldState, stock: readonly number[] = tow
   return state.residents.length > 0 ? food / state.residents.length : FARM_FOOD_DAYS;
 }
 
-/** Homes wanted beyond those waiting: newcomers would come, and there is work for them. */
-function homesWanted(state: WorldState, stock?: readonly number[]): number {
-  const open = openJobCount(state);
-  if (open <= 0 || attractiveness(state, [], stock, open) < HOMES_PULL) return 0;
-  let waiting = vacantHomes(state).length;
-  for (const b of state.buildings) {
-    if (b.stage === 'construction' && content.buildingById.get(b.def)?.housing) waiting++;
+/** What one walk of the buildings tells the night: open jobs, homes waiting, outlets, businesses without hands. */
+interface Census {
+  /** Open job slots in town (openJobCount). */
+  open: number;
+  /** Built businesses with nobody at work that are not resting (businessesWaitingHands). */
+  handsWaiting: number;
+  /** Outlets in town, built or going up (outletCount). */
+  outlets: number;
+  /** Vacant homes and homes going up (vacantHomes, plus housing under construction). */
+  homesWaiting: number;
+}
+
+/** One walk over the buildings for what the night reads of them, each as its own function has it. */
+function census(state: WorldState): Census {
+  const living = new Map<number, number>();
+  for (const h of state.households) if (h.homeId) living.set(h.homeId, (living.get(h.homeId) ?? 0) + 1);
+  let open = 0;
+  let handsWaiting = 0;
+  let outlets = 0;
+  let homesWaiting = 0;
+  const buildings = state.buildings;
+  for (let i = 0; i < buildings.length; i++) {
+    const b = buildings[i]!;
+    const def = content.buildingById.get(b.def);
+    const rt = b.rt;
+    // openJobs, with the def already in hand: built, not paused, not resting, hands wanted less hands.
+    if (b.stage === 'built' && rt && !rt.paused && !isResting(b)) {
+      const o = Math.max(0, (b.trade ? jobsOf(b) : (def?.jobs?.count ?? 0)) - rt.workers.length);
+      open += o;
+      if (o > 0 && b.trade && rt.workers.length === 0) handsWaiting++;
+    }
+    if (!def) continue;
+    if (def.tags?.includes('outlet')) outlets++;
+    const housing = def.housing;
+    if (!housing) continue;
+    if (b.stage === 'built') {
+      if ((living.get(b.id) ?? 0) < housing.households) homesWaiting++;
+    } else if (b.stage === 'construction') homesWaiting++;
   }
+  return { open, handsWaiting, outlets, homesWaiting };
+}
+
+/** Homes wanted beyond those waiting: newcomers would come, and there is work for them. */
+function homesWanted(state: WorldState, stock: readonly number[] | undefined, seen: Census): number {
+  const open = seen.open;
+  if (open <= 0 || attractiveness(state, [], stock, open) < HOMES_PULL) return 0;
+  const waiting = seen.homesWaiting;
   const target = Math.min(HOMES_WAITING + Math.floor(state.residents.length / 30), Math.ceil(open / 2));
   return Math.max(0, target - waiting);
 }
@@ -177,6 +251,12 @@ interface Night {
   /** porterServed, and the looser "about in reach" (nearAStore), for many tiles. */
   porters: (tile: number) => boolean;
   nearStore: (tile: number) => boolean;
+}
+
+/** A tile question whose index is built when it is first asked (a night that asks nothing builds nothing). */
+function lazily(make: () => (tile: number) => boolean): (tile: number) => boolean {
+  let index: ((tile: number) => boolean) | null = null;
+  return (tile) => (index ??= make())(tile);
 }
 
 /** A per-lot question asked once a pass, however many bars ask it. */
@@ -218,18 +298,20 @@ function readNight(state: WorldState): Night {
   const village = rankAtLeast(state, 'village');
   const homes = homeDoorTiles(state);
   const doors = unservedDoors(state, services, homes);
-  const outlets = outletCount(state);
+  const seen = census(state);
+  const outlets = seen.outlets;
   const crowded = outletsCrowded(state, outlets);
+  const zoned = tradesOfBusinessZones(state);
   const night: Night = {
     services,
     doors,
     needs: townNeeds(state, village && (doors.length >= SHOP_HOUSEHOLDS || crowded) ? NEED_FULL : 0),
     cache: new SiteCache(state, homes),
-    crafts: tradesOf(state, 'crafts'),
-    farms: tradesOf(state, 'farms'),
-    shops: tradesOf(state, 'shops'),
+    crafts: zoned.crafts,
+    farms: zoned.farms,
+    shops: zoned.shops,
     homes: 0,
-    handsShort: businessesWaitingHands(state) >= HANDS_WAITING,
+    handsShort: seen.handsWaiting >= HANDS_WAITING,
     goingUp: new Set(),
     counts: new Map(),
     outlets,
@@ -237,10 +319,10 @@ function readNight(state: WorldState): Night {
     empty: state.lots
       .filter((l) => !l.buildingId && state.map.road[l.frontage])
       .sort((p, q) => q.desirability - p.desirability || p.id - q.id),
-    porters: porterIndex(services.reach),
-    nearStore: porterIndex(services.reach, NEAR_STORE_SLACK),
+    porters: lazily(() => porterIndex(services.reach)),
+    nearStore: lazily(() => porterIndex(services.reach, NEAR_STORE_SLACK)),
   };
-  night.homes = homesWanted(state, night.needs.stock);
+  night.homes = homesWanted(state, night.needs.stock, seen);
   countTrades(state, night);
   return night;
 }
@@ -380,6 +462,9 @@ function chooseTrade(
   let bestCount = 0;
   for (const t of trades) {
     if (night.goingUp.has(t.id)) continue;
+    // A trade with no need or no supply scores 0 whoever would keep it: skip it unread.
+    if (Math.floor((needOf(state, t, night.needs).need * supplyOf(state, t, night.needs)) / NEED_FULL) <= 0)
+      continue;
     const terms = tradeTerms(state, lot, t, night.needs, night.cache);
     if (terms.score <= 0) continue;
     const count = counts.get(t.id) ?? 0;

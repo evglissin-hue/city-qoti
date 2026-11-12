@@ -65,8 +65,11 @@ function freeFor(x: BarInputs, l: Lot, zones: readonly number[]): boolean {
 export function craftPull(state: WorldState, t: TradeDef, n: TownNeeds, cache: SiteCache): number {
   if (t.wants.reach !== undefined && !anyRoom(cache, t.wants.reach)) return 0;
   const { need } = needOf(state, t, n);
+  const base = Math.floor((need * supplyOf(state, t, n)) / NEED_FULL);
+  // No pull whatever the keeper: nobody is asked who is keen (a walk of the residents).
+  if (base <= 0) return 0;
   const keeper = n.keen.has(t.id) ? KEEPER_KEEN : KEEPER_PLAIN;
-  return Math.floor((Math.floor((need * supplyOf(state, t, n)) / NEED_FULL) * keeper) / 100);
+  return Math.floor((base * keeper) / 100);
 }
 
 /** True when a business of `trade` is going up already (one answer to a need at a time). */

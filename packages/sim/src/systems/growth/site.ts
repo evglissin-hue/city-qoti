@@ -21,6 +21,7 @@ export const FIELD_WINDOW = 8;
 /** Map tiles a side of the buckets specialized buildings are sorted into, and reach's hop (specialized/api). */
 const NEAR_BUCKET = 16;
 const REACH_HOP = 3;
+const NONE: readonly Building[] = [];
 
 /** Households whose door lies within this many tiles (straight line) of a shop lot's middle. */
 export const SHOP_REACH = 14;
@@ -58,6 +59,7 @@ export class SiteCache {
   private readonly capacity = new Map<EntityId, number>();
   private readonly households = new Map<EntityId, number>();
   private readonly byDef = new Map<string, Building[]>();
+  private builtFilled = false;
   private byTrade: Map<string, Building[]> | null = null;
   private doors: number[] | null = null;
   private homeBuckets: number[][] | null = null;
@@ -87,6 +89,7 @@ export class SiteCache {
     this.served.clear();
     this.households.clear();
     this.byDef.clear();
+    this.builtFilled = false;
     this.byTrade = null;
     this.doors = null;
     this.homeBuckets = null;
@@ -158,12 +161,17 @@ export class SiteCache {
 
   /** Built buildings of a def (the specialized buildings a trade's reach names). */
   built(defId: string): readonly Building[] {
-    let list = this.byDef.get(defId);
-    if (!list) {
-      list = this.state.buildings.filter((b) => b.def === defId && b.stage === 'built');
-      this.byDef.set(defId, list);
+    // One walk lists every def's built buildings (a night asks for several defs).
+    if (!this.builtFilled) {
+      this.builtFilled = true;
+      for (const b of this.state.buildings) {
+        if (b.stage !== 'built') continue;
+        const list = this.byDef.get(b.def);
+        if (list) list.push(b);
+        else this.byDef.set(b.def, [b]);
+      }
     }
-    return list;
+    return this.byDef.get(defId) ?? NONE;
   }
 
   /** How many `sb` may serve tonight. */
@@ -241,18 +249,22 @@ export class SiteCache {
       const sb = findById(this.state.buildings, id);
       if (sb) defs.add(sb.def);
     }
-    for (const def of [...defs].sort()) this.keep(def);
+    // The pass is over and nothing changes these lists in place any more, so they are kept as they are.
+    for (const def of [...defs].sort()) this.keep(def, false);
   }
 
-  /** Keeps tonight's served lists for the def (copies: the night's may change in place). */
-  private keep(defId: string): void {
+  /** Keeps tonight's served lists for the def (copies, unless the pass is over: the night's may change in place). */
+  private keep(defId: string, copy = true): void {
     let perState = remembered.get(this.state);
     if (!perState) {
       perState = new Map();
       remembered.set(this.state, perState);
     }
     const lists = new Map<EntityId, EntityId[]>();
-    for (const sb of this.built(defId)) lists.set(sb.id, (this.served.get(sb.id) ?? []).slice());
+    for (const sb of this.built(defId)) {
+      const ids = this.served.get(sb.id) ?? [];
+      lists.set(sb.id, copy ? ids.slice() : ids);
+    }
     perState.set(defId, { sig: this.signature(), lists });
   }
 
