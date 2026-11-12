@@ -11,7 +11,7 @@
 // reachable rank and what it asks (a rank, an innovation, a specialized building's reach) is
 // reachable too. A business answers to its trade id and its building's id and tags (hasTag), and
 // its trade's method makes goods. Story steps, the twists a season offers and commission asks are
-// walked as well (the R1 stand-ins rewrote several of them).
+// walked as well (R1.0 and R1D rewrote several of them).
 import { type BuildingDef, type Condition, content, type Target, type TradeDef } from '@qoti/content';
 import { describe, expect, it } from 'vitest';
 import { codePredicates } from '../../src/conditions/code';
