@@ -261,6 +261,26 @@ describe('the layer', () => {
   });
 });
 
+describe('streaming the carpet in', () => {
+  it('reports a static change once the chunks round the focus are built, not after each one', () => {
+    const m = mixed();
+    const scene = new Scene();
+    const camera = new PerspectiveCamera();
+    const env = createWorldEnv(camera);
+    env.meadowCarpet = 30;
+    env.focus.set(24, 0, 24);
+    camera.position.set(24, 40, 64);
+    groundTexturesFor(env).value = new GroundTextures(m);
+    const layer = meadowLayer();
+    layer.init({ scene, mirror: m, material: undefined as never, invalidate: () => {}, camera, env });
+    let changes = 0;
+    for (let f = 0; f < 60; f++) if (layer.frame?.(0.016)) changes++;
+    // The first (empty) fill, then one when the streaming is done, then the trim at rest.
+    expect(changes).toBeLessThanOrEqual(3);
+    layer.dispose();
+  });
+});
+
 describe('chunk build time', () => {
   it('builds a full chunk well within the 4 ms rebuild budget', () => {
     const m = mixed();

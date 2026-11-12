@@ -600,6 +600,8 @@ export function meadowLayer(): RenderLayer {
   let capacity = 0;
   let shown = true;
   let refill = false;
+  /** A chunk in the filled area was rebuilt; refill when the streaming round the focus is done. */
+  let pending = false;
   let worst = 0;
   const chunks = new Map<number, MeadowChunk>();
   const dirt = new ChunkDirt();
@@ -715,9 +717,16 @@ export function meadowLayer(): RenderLayer {
       }
       // Rebuild the dirty chunks round the focus (a chunk comes within the fill's reach).
       const F = reach * FILL_MARGIN;
-      for (const i of dirt.take(CHUNKS_PER_FRAME, { x: f.x, z: f.z }, F + CHUNK_SIZE * 0.75)) {
+      const taken = dirt.take(CHUNKS_PER_FRAME, { x: f.x, z: f.z }, F + CHUNK_SIZE * 0.75);
+      for (const i of taken) {
         rebuild(i);
-        if (chunkNear(i, rule.centerX, rule.centerZ, F) || Number.isNaN(rule.centerX)) refill = true;
+        if (chunkNear(i, rule.centerX, rule.centerZ, F) || Number.isNaN(rule.centerX)) pending = true;
+      }
+      // Refill once the chunks round the focus are all built, not after each one: every refill is a
+      // static change (a new still frame and, until V2A's shadowless change, a shadow render).
+      if (pending && taken.length < CHUNKS_PER_FRAME) {
+        pending = false;
+        refill = true;
       }
       if (rule.due(f.x, f.z, reach)) refill = true;
       if (refill) {
