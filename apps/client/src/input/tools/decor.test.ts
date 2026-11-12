@@ -100,7 +100,7 @@ describe('the flower brush tool', () => {
     const { session } = mockVillageSession();
     const sent: Command[] = [];
     const tool = flowersTool(toolCtx(session, sent));
-    expect(tool.label).toBe('Flower brush');
+    expect(tool.label).toBe('Flowers');
     expect(tool.hint).toBe('Drag to paint a drift of flowers');
     tool.pointerDown!(at(10, 30));
     for (let x = 11; x <= 18; x++) tool.pointerMove!(at(x, 30));

@@ -17,6 +17,7 @@ import {
   type ValleySettings,
 } from '@qoti/sim';
 import type { Selection } from '../input/context';
+import { layOut } from '../input/layoutPick';
 import { applySettings, loadSettings } from '../ui/settings';
 import { folkShowcase } from '../render/folkShowcase';
 import { fitShowcase } from '../render/fitShowcase';
@@ -238,6 +239,11 @@ export function installDebugHook(getSession: () => Session | null): void {
       session.renderer?.focus((x0 + x1) / 2, (z0 + z1) / 2, distance);
       // C3D-1: snap skips the glide, which crawls at SwiftShader frame rates.
       if (snap) session.renderer?.rig.snap();
+    },
+    /** R1D: holds a pattern's layout on the Lay it out tool, as the Pattern Book's button does. */
+    layOut: (pattern: string) => {
+      layOut(pattern);
+      s()?.tools?.select('layout');
     },
     /** R1D: points the camera at a tile (snapped: SwiftShader glides slowly). */
     focusTile: (x: number, z: number, distance = 14) => {

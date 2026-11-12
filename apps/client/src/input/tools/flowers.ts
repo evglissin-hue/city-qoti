@@ -65,7 +65,7 @@ export function flowersTool(ctx: ToolContext): Tool {
     id: 'flowers',
     lane: 'hearth',
     icon: '❀',
-    label: 'Flower brush',
+    label: 'Flowers',
     hint: 'Drag to paint a drift of flowers',
     order: 42,
     pointerDown(p) {

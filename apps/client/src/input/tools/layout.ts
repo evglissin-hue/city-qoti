@@ -52,7 +52,12 @@ export function layoutTool(ctx: ToolContext): Tool {
     return shown;
   }
 
-  const leave = putLayoutAway;
+  // The ghost and its hint go with the layout, whether or not there is a tool to go back to.
+  const leave = () => {
+    ctx.render.setGhost(null);
+    cursorHint(null);
+    putLayoutAway();
+  };
 
   return {
     id: 'layout',
