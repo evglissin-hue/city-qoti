@@ -39,12 +39,18 @@ function collect(session: Session): {
   const seats = m.seats.value;
   const plans: { id: number; label: string; items: PlanItem[]; sketch: boolean }[] = [];
   const sketch = ui.sketch.value;
+  const editing = sketch?.basedOn ?? null;
   if (sketch && sketch.items.length)
-    plans.push({ id: -1, label: 'Your sketch', items: sketch.items, sketch: true });
+    plans.push({
+      id: -1,
+      label: editing !== null ? `Editing: ${m.plans.get(editing)?.name ?? 'a plan'}` : 'Your sketch',
+      items: sketch.items,
+      sketch: true,
+    });
   const active = session.tools?.active.value;
   const focus = ui.planFocus.value;
   for (const p of m.plans.values()) {
-    if (p.status !== 'open') continue;
+    if (p.status !== 'open' || p.id === editing) continue;
     if (p.id !== focus && active !== 'plan') continue;
     const who = p.by === session.seat ? 'Your plan' : `${seatLabel(seats, p.by, session.seat)}'s plan`;
     plans.push({ id: p.id, label: `${who}: ${p.name}`, items: p.items, sketch: false });

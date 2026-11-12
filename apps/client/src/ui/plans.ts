@@ -34,6 +34,26 @@ export function sketchWith(sketch: Sketch | null, cmd: Command): Sketch | null {
   return { ...sketch, items: [...sketch.items, { cmd }] };
 }
 
+/** Editing an open plan in place: its items come back as the sketch, tied to the plan's id. */
+export function editSketch(plan: { id: number; items: readonly PlanItem[] }): Sketch {
+  return { items: plan.items.map((i) => ({ cmd: i.cmd })), basedOn: plan.id };
+}
+
+/** The sketch without its item at `index` (out of range leaves it as it was). */
+export function withoutItem(sketch: Sketch, index: number): Sketch {
+  if (index < 0 || index >= sketch.items.length) return sketch;
+  return { ...sketch, items: sketch.items.filter((_, i) => i !== index) };
+}
+
+/** "Save changes": the plan.edit that replaces the plan's items, or null when not editing a plan. */
+export function editCommand(sketch: Sketch): Extract<Command, { t: 'plan.edit' }> | null {
+  if (sketch.basedOn === null) return null;
+  return { t: 'plan.edit', id: sketch.basedOn, items: sketch.items };
+}
+
+/** "bench" to "benches", "cottage" to "cottages". */
+const plural = (name: string) => (/(s|x|ch|sh)$/.test(name) ? `${name}es` : `${name}s`);
+
 const a = (name: string) => (/^[aeiou]/i.test(name) ? `an ${name}` : `a ${name}`);
 
 function counted(n: number, one: string, many: string): string {
@@ -93,11 +113,11 @@ export function planSummary(items: readonly PlanItem[]): string {
   const parts: string[] = [];
   for (const [def, n] of builds) {
     const name = (content.buildingById.get(def)?.name ?? def).toLowerCase();
-    parts.push(n === 1 ? a(name) : `${n} ${name}s`);
+    parts.push(n === 1 ? a(name) : `${n} ${plural(name)}`);
   }
   for (const [def, n] of decor) {
     const name = (content.decorById.get(def)?.name ?? def).toLowerCase();
-    parts.push(n === 1 ? a(name) : `${n} ${name}s`);
+    parts.push(n === 1 ? a(name) : `${n} ${plural(name)}`);
   }
   if (roadTiles) parts.push(`${roadTiles} ${roadTiles === 1 ? 'tile' : 'tiles'} of ${roadKind}`);
   if (zoneTiles) parts.push(`${zoneTiles} zoned ${zoneTiles === 1 ? 'tile' : 'tiles'}`);
