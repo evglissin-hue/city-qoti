@@ -40,14 +40,25 @@ export function fruitTree(
         const [rx, ry, rz] = bl.radii;
         const [cx, cy, cz] = bl.center;
         const k = 0.82;
-        s.blob(cx, cy, cz, rx * k, ry * k, rz * k, mixHex(bl.color, shade, 0.4), i === 0 ? 1 : 0, crnd, 0.06);
+        s.blob(
+          cx,
+          cy,
+          cz,
+          rx * k,
+          ry * k,
+          rz * k,
+          mixHex(bl.color, shade, 0.22),
+          i === 0 ? 1 : 0,
+          crnd,
+          0.06,
+        );
       });
       brushDabs(s, toward(blobs, [0, 0.7, 0], 0.45), {
-        count: 190,
-        size: 0.085,
-        tintSpread: petals ? 0.45 : 0.55,
+        count: 140,
+        size: 0.14,
+        tintSpread: petals ? 0.22 : 0.28,
         skyLighten: 0.5,
-        gaps: 0.06,
+        gaps: 0.02,
         // V2X: orchard trees thin through autumn like the forest (`params.thin`, default 1).
         thin: typeof opts?.params?.thin === 'number' ? opts.params.thin : 1,
         seed: seed * 3 + 6,
@@ -59,8 +70,17 @@ export function fruitTree(
     const a = (i / 7) * Math.PI * 2 + rnd() * 0.6;
     const y = 0.58 + rnd() * 0.3;
     // On the dabs, a little proud of the crown's blobs.
-    const r = (0.34 - Math.abs(y - 0.7) * 0.6) * 1.12;
-    s.blob(Math.cos(a) * r, y, Math.sin(a) * r, 0.04, 0.04, 0.04, vary(dot, rnd, 0.5), 0);
+    const r = (0.34 - Math.abs(y - 0.7) * 0.6) * 1.0;
+    s.blob(
+      Math.cos(a) * r,
+      y,
+      Math.sin(a) * r,
+      0.032,
+      0.032,
+      0.032,
+      mixHex(vary(dot, rnd, 0.5), leaf, 0.3),
+      0,
+    );
   }
   if (petals) {
     // A few fallen petals on the grass.
@@ -152,7 +172,7 @@ export const bench: Kit = {
 export const cherryTree: Kit = {
   id: 'cherry-tree',
   kind: 'decor',
-  build: (opts) => fruitTree(opts, palette.blossom, 0xfff1f4, true).build(),
+  build: (opts) => fruitTree(opts, palette.blossom, 0xe6a2b5, true).build(),
 };
 
 export const crates: Kit = {
@@ -303,7 +323,7 @@ export const hedge: Kit = {
     const tops = [0, 1, 2, 3].map(() => vary(leaf, rnd, 1.2));
     s.levels(
       () => {
-        s.rbox(-0.49, 0, -0.1, 0.49, 0.25, 0.1, mixHex(leaf, CORE_SHADE, 0.35), 0.05);
+        s.rbox(-0.49, 0, -0.1, 0.49, 0.25, 0.1, mixHex(leaf, CORE_SHADE, 0.2), 0.05);
         const blobs: DabBlob[] = tops.map((c, i) => ({
           center: [-0.375 + i * 0.25, 0.15, 0],
           radii: [0.17, 0.14, 0.13],
@@ -311,9 +331,9 @@ export const hedge: Kit = {
           color: c,
         }));
         brushDabs(s, blobs, {
-          count: 110,
-          size: 0.075,
-          tintSpread: 0.5,
+          count: 84,
+          size: 0.105,
+          tintSpread: 0.25,
           skyLighten: 0.55,
           gaps: 0,
           thin: 1,

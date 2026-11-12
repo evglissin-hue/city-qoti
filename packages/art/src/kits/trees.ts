@@ -392,9 +392,9 @@ export const oak: Kit = {
     const heart: V3 = [lx, stage === 0 ? 0.85 : O.y, lz];
     t.core(blobs, 0.82, (opts?.seed ?? 7) + 1, 0.55, thinOf(opts));
     t.dabs(toward(blobs, heart, 0.45), {
-      count: [70, 140, 220, 300][stage]!,
-      size: 0.17 / Math.sqrt(STAGE_SCALE[stage]!),
-      tintSpread: 0.45,
+      count: [42, 84, 132, 180][stage]!,
+      size: 0.255 / Math.sqrt(STAGE_SCALE[stage]!),
+      tintSpread: 0.22,
       skyLighten: sky,
       gaps: 0.12,
       thin: thinOf(opts),
@@ -529,9 +529,9 @@ export const birch: Kit = {
     t.s.surface(SURFACE.leaf);
     t.core(blobs, 0.8, (opts?.seed ?? 11) + 1, 0.42, thinOf(opts));
     t.dabs(toward(blobs, [lx, stage === 3 ? B.y : 1.1, lz], 0.55), {
-      count: [60, 110, 170, 230][stage]!,
-      size: 0.14 / Math.sqrt(STAGE_SCALE[stage]!),
-      tintSpread: 0.7,
+      count: [36, 66, 102, 138][stage]!,
+      size: 0.21 / Math.sqrt(STAGE_SCALE[stage]!),
+      tintSpread: 0.35,
       skyLighten: sky,
       gaps: 0.2,
       thin: thinOf(opts),
@@ -616,9 +616,9 @@ export const pine: Kit = {
         clumps.push({ center: [ox, y0 + h * 0.72, oz], radii: [r * 0.3, h * 0.28, r * 0.3], color: col });
     }
     t.dabs(clumps, {
-      count: [60, 110, 170, 220][stage]!,
-      size: 0.1 / Math.sqrt(STAGE_SCALE[stage]!),
-      tintSpread: 0.55,
+      count: [36, 66, 102, 132][stage]!,
+      size: 0.14 / Math.sqrt(STAGE_SCALE[stage]!),
+      tintSpread: 0.28,
       skyLighten: 0.75,
       gaps: 0,
       thin: 1,
@@ -668,9 +668,9 @@ export const hedgerow: Kit = {
     }
     t.core(blobs, 0.8, (opts?.seed ?? 19) + 1, 0.45, thinOf(opts), 0);
     t.dabs(blobs, {
-      count: 110,
-      size: 0.1,
-      tintSpread: 0.55,
+      count: 66,
+      size: 0.15,
+      tintSpread: 0.28,
       skyLighten: 0.5,
       gaps: 0.05,
       thin: thinOf(opts),

@@ -136,6 +136,15 @@ describe('dab kit (V2B)', () => {
     expect(dabTint(0x5c8a3a, 1, 0)).toBe(0x5c8a3a);
   });
 
+  it('never lightens a dab toward white (a blossom swatch stays at its own light tone)', () => {
+    const lightness = (hex: number) => new Color(hex).getHSL({ h: 0, s: 0, l: 0 }).l;
+    for (const swatch of [0x5c8a3a, 0x8db84a, 0xf2b8c6]) {
+      const cap = Math.max(lightness(swatch), Math.min(lightness(swatch) + 0.07, 0.82));
+      expect(lightness(dabTint(swatch, 1, 1))).toBeLessThanOrEqual(cap + 0.01);
+    }
+    expect(lightness(dabTint(0xf2b8c6, 1, 1))).toBeLessThan(0.87);
+  });
+
   it('keeps both levels of a dabbed kit on the same attributes', () => {
     for (const id of ['oak', 'birch', 'pine', 'hedgerow']) {
       const kit = kitById.get(id)!;
