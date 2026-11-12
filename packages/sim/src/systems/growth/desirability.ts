@@ -11,6 +11,7 @@ import type { Lot, TickCtx, WorldState } from '../../contracts';
 import { Road } from '../../map/layers';
 import { lotView } from '../../view/village';
 import { storehouseReach, within } from '../logistics/range';
+import { type Defs, usable } from './defs';
 import { doorTile } from '../movement/api';
 import { averageAround, homeCount, tasteScore, treeCount, waterWithin } from '../residents/desirability';
 
@@ -49,11 +50,14 @@ interface Services {
 }
 
 /** Wells and food outlets (built or going up) by door, and storehouse reach; once per pass. */
-export function servicesOf(state: WorldState): Services {
+export function servicesOf(state: WorldState, known?: Defs): Services {
   const wells: Services['wells'] = [];
   const outlets: Services['outlets'] = [];
-  for (const b of state.buildings) {
-    const def = content.buildingById.get(b.def);
+  const bs = state.buildings;
+  const defs = usable(state, known);
+  for (let i = 0; i < bs.length; i++) {
+    const b = bs[i]!;
+    const def = defs ? defs[i] : content.buildingById.get(b.def);
     if (!def?.coverage) continue;
     const door = doorTile(b, def);
     for (const c of def.coverage) {
@@ -61,7 +65,7 @@ export function servicesOf(state: WorldState): Services {
       if (c.kind === 'food') outlets.push([door % S, Math.floor(door / S), c.radius]);
     }
   }
-  return { wells, outlets, reach: storehouseReach(state) };
+  return { wells, outlets, reach: storehouseReach(state, defs ?? undefined) };
 }
 
 function covered(list: Services['wells'], x: number, z: number): boolean {

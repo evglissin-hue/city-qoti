@@ -12,6 +12,7 @@ import { FIELD_TILES_PER_WORKER } from '../production/fields';
 import { chunkOfTile, scoreAt } from '../nature/habitats';
 import { capacityOf, reachTest, withinReach } from '../specialized/api';
 import { lotMiddle } from './desirability';
+import { type Defs, usable } from './defs';
 
 const S = MAP_SIZE;
 const POLLINATOR = (HABITAT_IDS as readonly string[]).indexOf('pollinator');
@@ -59,11 +60,11 @@ export class SiteCache {
   private readonly capacity = new Map<EntityId, number>();
   private readonly households = new Map<EntityId, number>();
   private readonly byDef = new Map<string, Building[]>();
-  private builtFilled = false;
   private byTrade: Map<string, Building[]> | null = null;
   private doors: number[] | null = null;
   private homeBuckets: number[][] | null = null;
   private sig: Int32Array | null = null;
+  private specialized: Building[] | null = null;
   private readonly doorOf = new Map<EntityId, number>();
   private readonly near = new Map<string, { n: number; buckets: Building[][] }>();
 
@@ -72,9 +73,14 @@ export class SiteCache {
   /** anyRoom by def, tonight (cleared whenever who is served changes). */
   private readonly room = new Map<string, boolean>();
 
+  /**
+   * `defs`: the night's building defs (defs.ts), kept up to date by the caller as buildings are added
+   * at the end; the cache reads them while they match the buildings one for one.
+   */
   constructor(
     readonly state: WorldState,
     homeDoors?: number[],
+    private readonly defs?: Defs,
   ) {
     if (homeDoors) this.doors = homeDoors;
     // The town as it stands as the pass begins: what remembered lists must match (see recall).
@@ -89,7 +95,7 @@ export class SiteCache {
     this.served.clear();
     this.households.clear();
     this.byDef.clear();
-    this.builtFilled = false;
+    this.specialized = null;
     this.byTrade = null;
     this.doors = null;
     this.homeBuckets = null;
@@ -159,19 +165,31 @@ export class SiteCache {
     return this.byTrade;
   }
 
+  /** The specialized buildings, in building order, found once (a few dozen in a town of a thousand). */
+  private specializedBuildings(): readonly Building[] {
+    if (!this.specialized) {
+      const bs = this.state.buildings;
+      const defs = usable(this.state, this.defs);
+      this.specialized = bs.filter((b, i) => (defs ? defs[i] : content.buildingById.get(b.def))?.specialized);
+    }
+    return this.specialized;
+  }
+
   /** Built buildings of a def (the specialized buildings a trade's reach names). */
   built(defId: string): readonly Building[] {
-    // One walk lists every def's built buildings (a night asks for several defs).
-    if (!this.builtFilled) {
-      this.builtFilled = true;
-      for (const b of this.state.buildings) {
-        if (b.stage !== 'built') continue;
-        const list = this.byDef.get(b.def);
-        if (list) list.push(b);
-        else this.byDef.set(b.def, [b]);
-      }
+    // A night asks for a few defs: each is found by one cheap walk and kept (every def listed at once
+    // would put all the town's homes into lists nobody reads).
+    let list = this.byDef.get(defId);
+    if (!list) {
+      list = [];
+      // A def that is not specialized (no trade names one, but a test might) takes the walk over all.
+      const from = content.buildingById.get(defId)?.specialized
+        ? this.specializedBuildings()
+        : this.state.buildings;
+      for (const b of from) if (b.def === defId && b.stage === 'built') list.push(b);
+      this.byDef.set(defId, list);
     }
-    return this.byDef.get(defId) ?? NONE;
+    return list.length > 0 ? list : NONE;
   }
 
   /** How many `sb` may serve tonight. */
@@ -203,12 +221,14 @@ export class SiteCache {
       const list = this.state.buildings;
       const sig = new Int32Array(list.length * 3 + 1);
       sig[0] = this.state.networkVersion;
+      const defs = usable(this.state, this.defs);
       for (let i = 0; i < list.length; i++) {
         const b = list[i]!;
         sig[1 + i * 3] = b.id;
         sig[2 + i * 3] = b.trade ? (TRADE_INDEX.get(b.trade) ?? -2) : -1;
         // A business counts going up or built alike; only a specialized building's stage matters.
-        sig[3 + i * 3] = b.stage === 'built' && SPECIALIZED.has(b.def) ? 1 : 0;
+        sig[3 + i * 3] =
+          b.stage === 'built' && (defs ? !!defs[i]?.specialized : SPECIALIZED.has(b.def)) ? 1 : 0;
       }
       this.sig = sig;
     }

@@ -224,6 +224,27 @@ export function regionalPrice(state: WorldState, neighbor: string, good: number)
   return priceWith(def, n, g.basePrice, id, factor, good, calendar(state.tick).season);
 }
 
+/** A neighbor's seasonal swings of one good as [season, percent], in content order (content is fixed, so listed once). */
+const SEASONAL = new WeakMap<object, Map<string, [number, number][]>>();
+const NO_SWINGS: [number, number][] = [];
+
+function seasonalOf(
+  def: { seasonal?: readonly (readonly [string, number, number])[] },
+  id: string,
+): [number, number][] {
+  let byGood = SEASONAL.get(def);
+  if (!byGood) {
+    byGood = new Map();
+    for (const [x, s, p] of def.seasonal ?? []) {
+      const list = byGood.get(x);
+      if (list) list.push([s, p]);
+      else byGood.set(x, [[s, p]]);
+    }
+    SEASONAL.set(def, byGood);
+  }
+  return byGood.get(id) ?? NO_SWINGS;
+}
+
 /** The regional price for a good the neighbor trades, in a given season (regionalPrice's formula). */
 function priceWith(
   def: { seasonal?: readonly (readonly [string, number, number])[] },
@@ -235,7 +256,8 @@ function priceWith(
   season: number,
 ): number {
   let seasonal = 100;
-  for (const [x, s, p] of def.seasonal ?? []) if (x === id && s === season) seasonal = p;
+  const list = seasonalOf(def, id);
+  for (let k = 0; k < list.length; k++) if (list[k]![0] === season) seasonal = list[k]![1];
   const drift = n.drift[good] ?? 1000;
   const impact = n.impact[good] ?? 1000;
   // Integer math (exact below 2^53), so the sim can use it too: base x factor% x season% x drift‰ x impact‰.

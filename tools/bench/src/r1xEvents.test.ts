@@ -1,25 +1,32 @@
 // R1X E11: the carrier's day and the growth night put the same events on the wire, in the same
 // order, whatever is cached inside. The expectations were written before the speed-up.
-import { createHash } from 'node:crypto';
 import { content } from '@qoti/content';
 import { describe, expect, it } from 'vitest';
-import { flatTown } from '../../../../tools/bench/src/residents';
-import { marketVillage } from '../../../../tools/bench/src/market';
-import { MAP_SIZE, TICKS_PER_DAY, TICKS_PER_HOUR } from '../../src/constants';
+import { flatTown } from './residents';
+import { marketVillage } from './market';
+import { MAP_SIZE, TICKS_PER_DAY, TICKS_PER_HOUR } from '../../../packages/sim/src/constants';
 import { Road } from '@qoti/sim';
-import { insertBuilding } from '../../src/state/place';
-import { createTickCtx } from '../../src/turn';
-import { pipeline } from '../../src/systems';
-import { carrierDay } from '../../src/systems/carrier';
-import { dayIndex } from '../../src/systems/economy/time';
-import { BOAT_DAYS } from '../../src/systems/carrier/terms';
-import { withTradingPost } from '../market/helpers';
-import type { TickCtx, WorldState } from '../../src/contracts';
+import { insertBuilding } from '../../../packages/sim/src/state/place';
+import { createTickCtx } from '../../../packages/sim/src/turn';
+import { pipeline } from '../../../packages/sim/src/systems';
+import { carrierDay } from '../../../packages/sim/src/systems/carrier';
+import { dayIndex } from '../../../packages/sim/src/systems/economy/time';
+import { BOAT_DAYS } from '../../../packages/sim/src/systems/carrier/terms';
+import { withTradingPost } from '../../../packages/sim/test/market/helpers';
 
 const S = MAP_SIZE;
 type Ev = { e: string };
-const sha = (events: unknown[]): string =>
-  createHash('sha256').update(JSON.stringify(events)).digest('hex').slice(0, 16);
+/** Two FNV-1a passes (different bases) over the JSON, as 16 hex digits: a fingerprint of the events, content and order. */
+const sha = (events: unknown[]): string => {
+  const text = JSON.stringify(events);
+  let a = 0x811c9dc5;
+  let b = 0x01000193;
+  for (let i = 0; i < text.length; i++) {
+    a = Math.imul(a ^ text.charCodeAt(i), 0x01000193) >>> 0;
+    b = Math.imul(b ^ text.charCodeAt(i), 0x85ebca6b) >>> 0;
+  }
+  return a.toString(16).padStart(8, '0') + b.toString(16).padStart(8, '0');
+};
 const kinds = (events: Ev[]): string => {
   const m: Record<string, number> = {};
   for (const e of events) {
@@ -52,7 +59,7 @@ function carrierEvents(): Ev[] {
   return out;
 }
 
-function growthTown(): { world: WorldState; ctx: TickCtx } {
+function growthTown(): ReturnType<typeof flatTown> {
   const town = flatTown('r1x-events', 8, 120, 200, 4);
   const { world, ctx } = town;
   world.charter.rank = 'city';
@@ -110,13 +117,13 @@ const EXPECT = {
     n: 20,
     kinds:
       '[["balances.updated",4],["budget.updated",4],["notify",4],["town.updated",4],["trade.updated",4]]',
-    sha: 'bab304e250d6a232',
+    sha: '084126526773b5a0',
   },
   growth: {
     n: 44,
     kinds:
       '[["building.added",3],["business.updated",2],["demand.updated",3],["lot.updated",33],["tiles.changed",3]]',
-    sha: '6886a6b62cfa69e5',
+    sha: '4634846256528138',
   },
 };
 

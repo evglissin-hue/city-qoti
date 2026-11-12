@@ -3,7 +3,7 @@
 import { isFood, jobsOf, methodOf } from '../state/zones';
 import { seasonAt } from '../state/seasons';
 import { guideView } from './seasons';
-import { type Condition, content } from '@qoti/content';
+import { type BuildingDef, type Condition, content } from '@qoti/content';
 import { LEDGER_CATEGORIES, MAP_SIZE, MOOD_BAND_MIN, TIERS } from '../constants';
 import type {
   AchievementView,
@@ -32,6 +32,7 @@ import type {
 import { footprintSize } from '../rules/footprint';
 import { findById } from '../state/entities';
 import { cycleWork } from '../systems/production/cycle';
+import { type Defs, usable } from '../systems/growth/defs';
 
 export function moodBand(mood: number): MoodBand {
   let band = 0;
@@ -160,15 +161,24 @@ export function runtimeView(
   return view;
 }
 
+/** True for a def whose buildings never hold goods in `store` or `output`: a home with no storage and no method. */
+export function keepsNoGoods(def: BuildingDef | undefined): boolean {
+  return !!def?.housing && !def.storage && !def.methods;
+}
+
 /** Town stock per good: storehouses, stalls and output buffers. */
-export function townStock(state: WorldState): number[] {
+export function townStock(state: WorldState, known?: Defs): number[] {
   const n = content.goods.length;
   const out = new Array<number>(n).fill(0);
   const buildings = state.buildings;
+  const defs = usable(state, known);
   for (let k = 0; k < buildings.length; k++) {
     const b = buildings[k]!;
     const rt = b.rt;
     if (!rt || b.stage !== 'built') continue;
+    // A home keeps its goods in the pantries, never in `store` or `output` (proved by r1x/home-stock.test.ts).
+    const def = defs ? defs[k] : content.buildingById.get(b.def);
+    if (keepsNoGoods(def)) continue;
     const store = rt.store;
     const output = rt.output;
     // Full-length arrays (the usual) take the plain loop; a short one falls back to the guarded sum.
@@ -358,6 +368,23 @@ export function achievementView(state: WorldState, id: string): AchievementView 
   return a ? { id, unlocked: true, tick: a.tick, seats: [...a.seats] } : { id, unlocked: false };
 }
 
+function coldHouseholds(state: WorldState): number {
+  let n = 0;
+  const hs = state.households;
+  for (let i = 0; i < hs.length; i++) {
+    const w = hs[i]!.warmth;
+    if (w && w.coldHours > 0) n++;
+  }
+  return n;
+}
+
+function festivalsHeld(state: WorldState): number {
+  let n = 0;
+  const c = state.chronicle;
+  for (let i = 0; i < c.length; i++) if (c[i]!.kind === 'festival') n++;
+  return n;
+}
+
 export function townView(state: WorldState): TownView {
   return {
     population: state.residents.length,
@@ -375,13 +402,13 @@ export function townView(state: WorldState): TownView {
     season: seasonAt(state.tick),
     weather: state.weather.today,
     renownLevel: state.renown.level,
-    coldHouseholds: state.households.filter((h) => h.warmth && h.warmth.coldHours > 0).length,
+    coldHouseholds: coldHouseholds(state),
     threatBand:
       state.threats.scheduled && state.tick >= state.threats.scheduled.telegraphTick
         ? state.threats.scheduled.band
         : null,
     festivals: {
-      held: state.chronicle.filter((c) => c.kind === 'festival').length,
+      held: festivalsHeld(state),
       bestStars: state.seasons.bestStars,
     },
     ...(!state.guide.over && { guide: guideView(state) }),
@@ -391,8 +418,15 @@ export function townView(state: WorldState): TownView {
 /** Residents per tier, in TIERS order. */
 export function tierCounts(state: WorldState): number[] {
   const out = TIERS.map(() => 0);
-  for (const r of state.residents) {
-    const i = TIERS.indexOf(r.tier);
+  const first = TIERS[0];
+  const rs = state.residents;
+  for (let k = 0; k < rs.length; k++) {
+    const tier = rs[k]!.tier;
+    if (tier === first) {
+      out[0]! += 1;
+      continue;
+    }
+    const i = TIERS.indexOf(tier);
     if (i >= 0) out[i]! += 1;
   }
   return out;

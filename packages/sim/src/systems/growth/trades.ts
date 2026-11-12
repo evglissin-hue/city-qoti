@@ -19,7 +19,7 @@
 import { content, type TradeDef } from '@qoti/content';
 import { GOOD_FAMILIES, TARGET_COVER } from '../../constants';
 import type { EntityId, Lot, Resident, WorldState } from '../../contracts';
-import { familyIndex, GOODS_BY_FAMILY, methodOf } from '../../state/zones';
+import { familyIndex, GOODS_BY_FAMILY } from '../../state/zones';
 import { rankAtLeast } from '../../state/village';
 import { townStock } from '../../view/hamlet';
 import { carrierBrought } from '../carrier/api';
@@ -28,6 +28,7 @@ import { isWorkingAge } from '../residents/places';
 import { dayIndex } from '../residents/time';
 import { shopNeed } from './outlets';
 import { shortages, wants } from './recipes';
+import { type Defs, usable } from './defs';
 import { SiteCache, siteMeets } from './site';
 
 /** Full need, in permille. */
@@ -236,13 +237,20 @@ export function countMakers(
     memo?: Map<string, unknown>;
     supplyMemo?: Map<string, unknown>;
   },
+  known?: Defs,
 ): void {
   n.memo?.clear();
   n.supplyMemo?.clear();
   n.makers.fill(0);
   n.madeHere.fill(false);
-  for (const b of state.buildings) {
-    const m = methodOf(b);
+  const bs = state.buildings;
+  const defs = usable(state, known);
+  for (let i = 0; i < bs.length; i++) {
+    const b = bs[i]!;
+    // methodOf, with the def already in hand when the night has it.
+    const m = b.trade
+      ? (content.tradeById.get(b.trade)?.method ?? null)
+      : ((defs ? defs[i] : content.buildingById.get(b.def))?.methods?.[0] ?? null);
     if (!m) continue;
     for (const [id] of m.outputs) {
       const g = content.goodIndex.get(id);
@@ -254,14 +262,14 @@ export function countMakers(
 }
 
 /** Tonight's needs. `shopNeed` comes from the growth pass (outlets and households). */
-export function townNeeds(state: WorldState, shopNeed = 0): TownNeeds {
+export function townNeeds(state: WorldState, shopNeed = 0, defs?: Defs): TownNeeds {
   const n = content.goods.length;
-  const stock = townStock(state);
+  const stock = townStock(state, defs);
   const wanted = wants(state);
   const want = wanted.map((w) => Math.ceil(w));
   const makers = new Array<number>(n).fill(0);
   const madeHere = new Array<boolean>(n).fill(false);
-  countMakers(state, { makers, madeHere });
+  countMakers(state, { makers, madeHere }, defs);
   const made = state.economy.yesterday.produced.slice();
   // Homes and folk of each tier, counted once for every family's use.
   const tiers = unlockedTiers(state);

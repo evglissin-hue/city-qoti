@@ -34,6 +34,7 @@ import { fieldCap, fieldsOf, fieldTileProblem, isFarm, paintFields } from '../pr
 import { porterIndex, porterServed, type Reach } from '../logistics/range';
 import { isResting } from '../levels/resting';
 import { openJobs } from '../residents/jobs';
+import { defsOf, syncDefs, usable, type Defs } from './defs';
 import { attractiveness } from '../residents/lifecycle';
 import { foodIndexes, pantryFood } from '../residents/needs';
 import { announceServers } from '../specialized/announce';
@@ -185,17 +186,33 @@ interface Census {
 }
 
 /** One walk over the buildings for what the night reads of them, each as its own function has it. */
-function census(state: WorldState): Census {
-  const living = new Map<number, number>();
-  for (const h of state.households) if (h.homeId) living.set(h.homeId, (living.get(h.homeId) ?? 0) + 1);
+function census(state: WorldState, known?: Defs): Census {
+  // Households living in each home, by the home's id (buildings are kept in id order, so the last holds the largest id).
+  const buildings = state.buildings;
+  const households = state.households;
+  const defs = usable(state, known);
+  const top = buildings.length > 0 ? buildings[buildings.length - 1]!.id : 0;
+  let living: Uint16Array | Map<number, number>;
+  if (top < 1 << 17) {
+    const counts = new Uint16Array(top + 1);
+    for (let i = 0; i < households.length; i++) {
+      const home = households[i]!.homeId;
+      if (home > 0 && home <= top) counts[home]!++;
+    }
+    living = counts;
+  } else {
+    living = new Map<number, number>();
+    for (const h of households) if (h.homeId) living.set(h.homeId, (living.get(h.homeId) ?? 0) + 1);
+  }
+  const livingIn = (id: number): number =>
+    living instanceof Map ? (living.get(id) ?? 0) : (living[id] ?? 0);
   let open = 0;
   let handsWaiting = 0;
   let outlets = 0;
   let homesWaiting = 0;
-  const buildings = state.buildings;
   for (let i = 0; i < buildings.length; i++) {
     const b = buildings[i]!;
-    const def = content.buildingById.get(b.def);
+    const def = defs ? defs[i] : content.buildingById.get(b.def);
     const rt = b.rt;
     // openJobs, with the def already in hand: built, not paused, not resting, hands wanted less hands.
     if (b.stage === 'built' && rt && !rt.paused && !isResting(b)) {
@@ -208,7 +225,7 @@ function census(state: WorldState): Census {
     const housing = def.housing;
     if (!housing) continue;
     if (b.stage === 'built') {
-      if ((living.get(b.id) ?? 0) < housing.households) homesWaiting++;
+      if (livingIn(b.id) < housing.households) homesWaiting++;
     } else if (b.stage === 'construction') homesWaiting++;
   }
   return { open, handsWaiting, outlets, homesWaiting };
@@ -228,6 +245,8 @@ function homesWanted(state: WorldState, stock: readonly number[] | undefined, se
  * up to date as businesses retool and grow (see `settle`), so the pass walks the town once.
  */
 interface Night {
+  /** The buildings' defs in building order, looked up once (defs.ts); `settle` adds the grown. */
+  defs: (BuildingDef | undefined)[];
   services: Services;
   doors: [number, number][];
   needs: TownNeeds;
@@ -294,19 +313,21 @@ export function businessesWaitingHands(state: WorldState): number {
 }
 
 function readNight(state: WorldState): Night {
-  const services = servicesOf(state);
+  const defs = defsOf(state);
+  const services = servicesOf(state, defs);
   const village = rankAtLeast(state, 'village');
   const homes = homeDoorTiles(state);
   const doors = unservedDoors(state, services, homes);
-  const seen = census(state);
+  const seen = census(state, defs);
   const outlets = seen.outlets;
   const crowded = outletsCrowded(state, outlets);
   const zoned = tradesOfBusinessZones(state);
   const night: Night = {
+    defs,
     services,
     doors,
-    needs: townNeeds(state, village && (doors.length >= SHOP_HOUSEHOLDS || crowded) ? NEED_FULL : 0),
-    cache: new SiteCache(state, homes),
+    needs: townNeeds(state, village && (doors.length >= SHOP_HOUSEHOLDS || crowded) ? NEED_FULL : 0, defs),
+    cache: new SiteCache(state, homes, defs),
     crafts: zoned.crafts,
     farms: zoned.farms,
     shops: zoned.shops,
@@ -334,14 +355,16 @@ function readNight(state: WorldState): Night {
  */
 function settle(state: WorldState, night: Night, grown?: Building): void {
   // Who each specialized building serves is kept up to date in place (addBusiness, retooled).
+  // A grown building went on the end of the buildings: its def joins the night's list (the cache holds the same list).
+  syncDefs(state, night.defs);
   if (grown) night.cache.addBusiness(grown);
-  countMakers(state, night.needs);
+  countMakers(state, night.needs, night.defs);
   countTrades(state, night);
   if (grown?.keeperId) {
     night.needs.keen.forget(grown.keeperId);
   }
   if (grown && content.buildingById.get(grown.def)?.coverage?.some((c) => c.kind === 'food')) {
-    night.services = servicesOf(state);
+    night.services = servicesOf(state, night.defs);
     night.doors = unservedDoors(state, night.services);
     night.outlets = outletCount(state);
     night.crowded = outletsCrowded(state, night.outlets);
@@ -544,6 +567,8 @@ export function growthPass(state: WorldState, ctx: TickCtx): number {
   const night = readNight(state);
   const started = growSites(state, ctx, night);
   writeDemand(state, ctx, night);
+  // Homes grown tonight went on the end of the buildings too: the cache signs the town as it now stands.
+  syncDefs(state, night.defs);
   night.cache.persist();
   return started;
 }
