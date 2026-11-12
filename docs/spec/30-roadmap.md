@@ -210,6 +210,8 @@ Every wave runs the build and review loop (`31-parallel-development.md`), and ea
 - On Kat's laptop on Medium a night moving frame costs no more GPU time than before V2, and every budget in `22-quality.md` holds, moving and idle; both laptops' tables are in `22-quality.md`.
 - Nothing in the sim changes and hashes match.
 
+**As built (V2X, 2026-11-12)**: V2A, V2C and V2B merged in that order on `cycle/v2x-integration` with no sim change; the readers joined on V2A's curve, the carpet shadowless, carts' patterns laid from their own position, decor with a far level kept in view far off, orchard thinning built and left off (a thinned crown read worse than a full one). The before and after shots are `docs/build/screenshots/v2-before-*` and `v2-after-*`; the software numbers are in `22-quality.md`. Still open when the draft PR went up: both laptops' before and after tables (Measure this laptop), the 32-light loop's retirement once they show the map is no dearer at night, any cut a failing Medium row on Kat's laptop needs, and the playtest evening (`docs/playtests/V2.md`).
+
 ### R2 The evening round
 
 **Goal**: the Hearth becomes the town's second flow. Residents spend their evenings at the places the Hearth composes, buy their treats there, and the Ledger's shops follow them; each lane can see what the other did for it.
