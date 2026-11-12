@@ -96,6 +96,23 @@ export function shortages(state: WorldState): Shortages {
   if (fuel !== null && woodpile(state) < fuel * state.households.length * WARMTH_PER_HOUSEHOLD) {
     goods.add('firewood');
   }
+  // R1X: a site waiting on materials the stores already hold waits for porters, not goods (willow's
+  // cottages waited days for stone with forty in store while each storehouse kept two of its four).
+  let stockedWait = false;
+  for (const b of state.buildings) {
+    const c = b.rt?.construction;
+    if (stockedWait || b.stage !== 'construction' || !c) continue;
+    if (!(b.rt!.status & BuildingStatus.waitingMaterials)) continue;
+    let any = false;
+    let all = true;
+    for (let g = 0; g < c.needs.length; g++) {
+      const n = c.needs[g] ?? 0;
+      if (n <= 0) continue;
+      any = true;
+      if (stock[g]! < n) all = false;
+    }
+    stockedWait = any && all;
+  }
   let producing = 0;
   let full = 0;
   for (const b of state.buildings) {
@@ -110,7 +127,7 @@ export function shortages(state: WorldState): Shortages {
     winter: seasonNow(state).season === 2 && !larderWelcomes(state, WAITING_FAMILY),
     goods,
     plenty: food > PLENTY_DAYS * state.residents.length,
-    haul: producing > 0 && full >= producing * HAUL_SHORT_SHARE,
+    haul: stockedWait || (producing > 0 && full >= producing * HAUL_SHORT_SHARE),
     stoneRush,
   };
 }

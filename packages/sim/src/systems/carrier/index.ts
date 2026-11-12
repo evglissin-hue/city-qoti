@@ -9,7 +9,7 @@
 //    does not come (the boat, held by the ice in winter, keeps its own rule).
 // 2. Essentials, in the fixed order, for every family whose rule is not Never: Food the town would
 //    go without today (under a day's eating, counting pantries), Fuel likewise on a winter day,
-//    Materials an open site waits for beyond stock, and raw goods a maker is resting for (a baker
+//    Materials an open site (or a home upgrade) waits for beyond stock, and raw goods a maker is resting for (a baker
 //    with no grain), under the rule for the family of what it makes. Essentials are always carried:
 //    the day's budget does not cap them. The treasury pays while it can (within the County Bank's
 //    credit line); past that, Food and Fuel for households and a maker's raw good still come on the
@@ -576,6 +576,11 @@ function scan(state: WorldState): Scan {
     if (!rt) continue;
     const c = rt.construction;
     if (c) for (let g = 0; g < n; g++) out.needs[g]! += c.needs[g] ?? 0;
+    // R1X: a home upgrading for its household's next tier waits on its materials as a site does
+    // (a Craftsfolk home's brick before any Brickworks): the carrier brings them too, or the
+    // porters hand the next site's brick to the upgrades and both wait.
+    const u = rt.upgrade;
+    if (u) for (let g = 0; g < n; g++) out.needs[g]! += u[g] ?? 0;
     if (b.stage !== 'built') continue;
     const info = DEF_INFO.get(b.def);
     // Goods lie in a store's shelves, or in a maker's output buffer (only ever what it makes); a

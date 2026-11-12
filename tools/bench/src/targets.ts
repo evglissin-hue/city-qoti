@@ -23,6 +23,8 @@ export interface TargetRow {
   foodHandsMean: number;
   decisions: number;
   verdict: string[];
+  /** The Ledger's accepted commands by kind, most first. */
+  kinds: string;
   firstCraftsfolk: number;
   craftsfolkShare70: number;
   stalls: string[];
@@ -88,6 +90,11 @@ export function targetRow(seed: string, days = DECISIONS_DAYS): { row: TargetRow
       foodHandsMean: hands.length ? Math.round(hands.reduce((a, b) => a + b, 0) / hands.length) : 0,
       decisions: tally.ledger,
       verdict: decisionVerdict(run.decisions),
+      kinds: tally.kinds
+        .filter((k) => k.ledger > 0)
+        .slice(0, 8)
+        .map((k) => `${k.kind} ${k.ledger}`)
+        .join(', '),
       firstCraftsfolk,
       craftsfolkShare70: Math.round(share70 * 100),
       stalls: run.health.filter((i) => i.kind === 'business-short').map((i) => i.text),
@@ -148,6 +155,7 @@ if (isMain) {
   for (const r of rows) console.log(formatTarget(r));
   for (const r of rows) {
     for (const v of r.verdict) console.log(`${r.seed}: ${v}`);
+    console.log(`${r.seed} Ledger kinds: ${r.kinds}`);
     for (const s of r.stalls.slice(0, 5)) console.log(`${r.seed} stall: ${s}`);
   }
 }
