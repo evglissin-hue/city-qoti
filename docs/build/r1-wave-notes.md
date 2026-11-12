@@ -214,6 +214,14 @@ Observations from building the stand-ins and fixing the tests; each names the cy
 - **Inspector wording** (R1C): a baker's workshop reads "At work at the workshop"; trade names do not fit "at the ...".
 - **Fixed in R1.0**: the Village charter listed the Sawmill and the Brickworks among its unlocks, which let both skip their innovations; an apprentice recorded the workshop def instead of the trade; A Garden Plot named a building tag nothing carries; the Corner Cafe could no longer find bakers (a baker's business now counts as a cafe); the dressing pass and the carrier shared a tick (dressing runs at 10:30).
 
+## Found in R1D, for the wave
+
+- **The garden bed's flavor** (R1A): `gardenFlavors(state, household)` (`systems/hearth/garden.ts`, exported) gives a household vegetables as a flavor in spring, summer and autumn when a garden bed stands within 3 tiles of its home. Breakfast's variety bonus reads it now; R1A's household variety should count it as a flavor in reach, never as food. `porridgeNoMore` (`conditions/r1.ts`) reads recent meals plus the garden until R1A's variety replaces that reading (its `R1 stand-in (R1A)` comment).
+- **The first days guide headless** (R1A, R1B, R1F): on willow and hazel the autoplayer reaches the food letter (step 6 of 10) by day 2 and stops there: Food cover falls to one or two days as the town grows (the letter asks three), and no workshop grows by day 6 (the autoplayer puts up a windmill only after a grain farm). `tools/bench/src/advisors/guide.test.ts` stays skipped until the carrier's Food reserve, the start's labor and the advisors land; the letters and goals are R1D's and are checked statically at the Hamlet.
+- **Twists offered** (R1F): `twistOffered(state, id)` is exported; the festivals advisor now plans only those (a small edit in `advisors/festivals.ts`).
+- **The Market Hall** (R1E): Odette's finale unlocks `market-hall` into `hearth.unlocked`; no def carries it. The roof over the square is art's to draw from that unlock (or a later def).
+- **Move** (R1C, R1E): a moved building goes back to a construction site for a third of its work with no materials; households and workers keep their places while it is raised. `readerWithout` (`rules/without.ts`) is the shared check for any ghost that must leave a piece out.
+
 ## Calls that proved wrong in the code, and what R1.0 did
 
 - **Rule 2 and services.** The tavern pours cider and the Bath House burns firewood: a service uses a good up and makes nothing. The rule-2 content test checks every trade and every method that makes something; services that only use a good up are outside it. Accepted by the master: `13-ledger.md`, rule 2, now reads "A made good is never an input to making something" and says a service may use a made good up.
