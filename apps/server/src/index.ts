@@ -3,8 +3,10 @@
 import {
   createValley,
   handleImage,
+  handleOldFile,
   IMAGE_ROUTE,
   MAX_IMPORT_CHARS,
+  OLD_FILE_ROUTE,
   randomId,
   RoomCore,
   TURN_MS,
@@ -68,6 +70,13 @@ export default {
         request,
         image[2] === undefined ? null : Number(image[2]),
       );
+    }
+
+    // R1X: an old valley's stored snapshot, for Save its file (seat token required).
+    const oldFile = OLD_FILE_ROUTE.exec(url.pathname);
+    if (oldFile) {
+      if (!sameOrigin(request, url)) return json({ error: 'Forbidden' }, 403);
+      return env.VALLEY.get(env.VALLEY.idFromName(oldFile[1]!)).oldFile(request);
     }
 
     if (url.pathname.startsWith('/api/')) return json({ error: 'Not found' }, 404);
@@ -147,6 +156,23 @@ export class ValleyRoom extends DurableObject<Env> {
           'content-type': out.type ?? 'application/octet-stream',
           'cache-control': 'private, max-age=31536000, immutable',
         },
+      });
+    }
+    return json(out.json ?? {}, out.status);
+  }
+
+  /** R1X: the old-valley file route (protocol handleOldFile) over this valley's SQLite. */
+  async oldFile(request: Request): Promise<Response> {
+    const out = await handleOldFile(
+      request.method,
+      request.headers.get('authorization'),
+      this.storage,
+      await this.storage.getMeta(),
+    );
+    if (out.bytes) {
+      return new Response(out.bytes, {
+        status: 200,
+        headers: { 'content-type': 'application/octet-stream', 'cache-control': 'no-store' },
       });
     }
     return json(out.json ?? {}, out.status);

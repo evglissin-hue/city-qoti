@@ -61,11 +61,19 @@ test('an online valley saved before version 6 is refused and listed grayed', asy
   await expect(row).toBeVisible();
   await expect(row).toContainText('Founded under the old rules. It cannot be opened in this version.');
   await expect(page.getByTestId(`continue-${VALLEY_ID}`)).toHaveCount(0);
-  await expect(page.getByTestId(`old-save-${VALLEY_ID}`)).toHaveCount(0);
 
   // It stays grayed after a reload, from the recent list alone.
   await page.reload();
   await expect(page.getByTestId(`old-${VALLEY_ID}`)).toBeVisible();
+
+  // Save its file fetches the stored snapshot from the room and downloads it untouched.
+  const [download] = await Promise.all([
+    page.waitForEvent('download'),
+    page.getByTestId(`old-save-${VALLEY_ID}`).click(),
+  ]);
+  expect(download.suggestedFilename()).toBe('fernhollow.qoti');
+  const path = await download.path();
+  expect(readFileSync(path).equals(Buffer.from(data, 'base64'))).toBe(true);
 
   // Remove only forgets it on this device; the relay still has every byte.
   await page.getByTestId(`old-remove-${VALLEY_ID}`).click();

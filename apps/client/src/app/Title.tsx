@@ -10,7 +10,7 @@ import { RANK_WORD } from '../ui/village';
 import { loadProfile, saveProfile, SWATCHES, type PlayerProfile } from './profile';
 import { forgetValley, listRecent, rememberValley, type RecentValley } from './recent';
 import { valleyDbName } from '../net/idb';
-import { findOldSolo, saveOldSoloFile } from './oldValley';
+import { findOldSolo, saveOldFile } from './oldValley';
 import { readValleyFile, type ValleyFile } from './valleyFile';
 import type { SessionTarget } from './session';
 
@@ -420,15 +420,17 @@ export function Title({
                     <strong>{v.name}</strong>
                     <span class="muted">{copy.title.oldValley}</span>
                     <div class="forget-actions">
-                      {v.mode === 'solo' && (
-                        <button
-                          type="button"
-                          data-testid={`old-save-${v.valleyId}`}
-                          onClick={() => void saveOldSoloFile(v).catch(() => setError(copy.title.oldValley))}
-                        >
-                          {copy.title.saveItsFile}
-                        </button>
-                      )}
+                      <button
+                        type="button"
+                        data-testid={`old-save-${v.valleyId}`}
+                        onClick={() =>
+                          void saveOldFile(v)
+                            .then((saved) => saved || setError(copy.title.oldValley))
+                            .catch(() => setError(copy.title.oldValley))
+                        }
+                      >
+                        {copy.title.saveItsFile}
+                      </button>
                       <button
                         type="button"
                         data-testid={`old-remove-${v.valleyId}`}

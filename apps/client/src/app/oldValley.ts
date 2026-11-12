@@ -38,9 +38,21 @@ export async function findOldSolo(list: RecentValley[]): Promise<string[]> {
   return old;
 }
 
-/** Downloads a solo old valley's stored snapshot, untouched. False when there is nothing stored. */
-export async function saveOldSoloFile(v: RecentValley): Promise<boolean> {
-  const bytes = await storedBytes(v.valleyId);
+/** An online old valley's stored snapshot, fetched from its room with the seat token. */
+async function onlineBytes(v: RecentValley): Promise<Uint8Array | null> {
+  const res = await fetch(`/api/valleys/${v.valleyId}/old-file`, {
+    headers: { authorization: `Bearer ${v.token}` },
+  });
+  if (!res.ok) return null;
+  return new Uint8Array(await res.arrayBuffer());
+}
+
+/**
+ * Downloads an old valley's stored snapshot, untouched (solo: from this device; online: from its
+ * room). False when there is nothing to save.
+ */
+export async function saveOldFile(v: RecentValley): Promise<boolean> {
+  const bytes = v.mode === 'solo' ? await storedBytes(v.valleyId) : await onlineBytes(v);
   if (!bytes) return false;
   downloadBytes(bytes, oldValleyFileName(v.name));
   return true;

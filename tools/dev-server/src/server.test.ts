@@ -1,7 +1,9 @@
 import type { CreateValleyResponse, S2C } from '@qoti/protocol';
-import { mkdtempSync, readdirSync, rmSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import { mkdtempSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { gzipSync } from 'node:zlib';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { WebSocket } from 'ws';
 import { startDevServer, type DevServer } from './server';
@@ -127,5 +129,38 @@ describe('dev server', () => {
     expect(new Uint8Array(await res.arrayBuffer())[99]).toBe(1);
     const list = await fetch(url(again.port), { headers: { authorization: `Bearer ${valley.tokens[0]!}` } });
     expect(await list.json()).toEqual({ entries: [12] });
+  });
+
+  it('serves an old valley its stored snapshot bytes to a seat token only', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'qoti-dev-'));
+    dirs.push(dir);
+    const id = 'c'.repeat(32);
+    const bytes = gzipSync(Buffer.from(JSON.stringify({ saveVersion: 5, seed: 'old' })));
+    const dump = {
+      meta: {
+        valley: { id, seed: 'old', settings: {}, createdAt: 1 },
+        tokenHashes: [createHash('sha256').update('tok').digest('hex'), ''],
+        nextTurn: 11,
+        simVersion: 'old',
+      },
+      turns: [],
+      snapshots: [{ t: 10, simVersion: 'old', label: null, created: 1, data: bytes.toString('base64') }],
+    };
+    writeFileSync(join(dir, `${id}.json`), JSON.stringify(dump));
+    const { server } = await start(dir);
+    const url = `http://localhost:${server.port}/api/valleys/${id}/old-file`;
+    const ok = await fetch(url, { headers: { authorization: 'Bearer tok' } });
+    expect(ok.status).toBe(200);
+    expect(Buffer.from(await ok.arrayBuffer()).equals(bytes)).toBe(true);
+    expect((await fetch(url)).status).toBe(401);
+    expect((await fetch(url, { headers: { authorization: 'Bearer wrong' } })).status).toBe(401);
+    const missing = `http://localhost:${server.port}/api/valleys/${'d'.repeat(32)}/old-file`;
+    expect((await fetch(missing, { headers: { authorization: 'Bearer tok' } })).status).toBe(404);
+    // A current valley is refused: its bytes travel through the session.
+    const valley = await createValley(server.port);
+    const cur = await fetch(`http://localhost:${server.port}/api/valleys/${valley.valleyId}/old-file`, {
+      headers: { authorization: `Bearer ${valley.tokens[0]!}` },
+    });
+    expect([404, 409]).toContain(cur.status);
   });
 });
