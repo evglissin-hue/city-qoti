@@ -207,30 +207,58 @@ export const reeds: Kit = {
   build: (opts) => {
     const rnd = seeded(opts?.seed ?? 4);
     const s = new ShapeBuilder();
+    const thin = thinOf(opts);
+    // V2B: a soft upright tussock of dab strokes (tips up, long and narrow) with a few taller
+    // blades standing out of it and two cattails. It dies back with the season (`params.thin`):
+    // in winter only the straw blades and the cattails stand.
     s.surface(SURFACE.grass);
-    for (let i = 0; i < 7; i++) {
+    for (let i = 0; i < 4; i++) {
       const a = rnd() * Math.PI * 2;
-      const r = rnd() * 0.07;
+      const r = 0.02 + rnd() * 0.05;
       const c = vary(REED, rnd, 1.5);
-      const h = 0.16 + rnd() * 0.12;
+      const h = 0.24 + rnd() * 0.12;
       s.grassBlade(
         Math.cos(a) * r,
         Math.sin(a) * r,
         h,
-        0.024,
-        0.02 + rnd() * 0.05,
+        0.026,
+        0.03 + rnd() * 0.05,
         a,
         mixHex(c, GRASS_FOOT, 0.3),
         c,
-        1,
+        2,
       );
     }
+    const body = vary(mixHex(REED, GRASS_BLADE, 0.3), rnd, 1.2);
+    brushDabs(
+      s,
+      [
+        { center: [0, 0.15, 0], radii: [0.08, 0.11, 0.075], normalFrom: [0, -0.06, 0], color: body },
+        {
+          center: [0.06, 0.12, 0.04],
+          radii: [0.055, 0.07, 0.055],
+          normalFrom: [0, -0.06, 0],
+          color: vary(body, rnd),
+        },
+      ],
+      {
+        count: 46,
+        size: 0.042,
+        tintSpread: 0.6,
+        skyLighten: 0.45,
+        gaps: 0,
+        thin,
+        seed: (opts?.seed ?? 4) * 3 + 8,
+        lift: 1,
+        stretch: 2.6,
+      },
+    );
     s.surface(SURFACE.plain);
     // Two cattails standing above the blades.
     for (let i = 0; i < 2; i++) {
       const x = (rnd() - 0.5) * 0.08;
       const z = (rnd() - 0.5) * 0.08;
-      const h = 0.25 + rnd() * 0.08;
+      const h = 0.27 + rnd() * 0.08;
       s.cylinder(x, z, 0.004, 0.004, 0, h, REED, 3);
       s.cylinder(x, z, 0.014, 0.012, h, h + 0.06, CATTAIL, 4);
     }

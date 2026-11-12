@@ -56,7 +56,7 @@ const TUFT_TRIES = 6;
 const PROP_BY_KIT = new Map(PROPS.map((p) => [p.kit, p]));
 
 /** V2B: the deciduous props, whose near geometry thins with the season (their kits read `params.thin`). */
-const DECIDUOUS_PROPS = new Set(['bush', 'hedgerow']);
+const DECIDUOUS_PROPS = new Set(['bush', 'hedgerow', 'reeds']);
 
 /** V2B: a dev or ?debug session logs each thinning swap. */
 const logSwaps =
