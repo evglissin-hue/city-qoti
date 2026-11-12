@@ -24,7 +24,7 @@ describe('site rules in words', () => {
         const words = siteRuleWords(rule);
         expect(words, `${d.id} ${rule.kind}`).toMatch(/\S/);
         expect(words).not.toContain('undefined');
-        expect(words).not.toContain('—');
+        expect(words).not.toContain('\u2014');
       }
       expect(siteRuleLine(d), d.id).toMatch(/\S/);
     }
