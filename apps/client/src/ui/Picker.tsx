@@ -113,8 +113,8 @@ export function LedgerPicker({ session, tool }: { session: Session; tool: Tool }
           <div class="picker-cards">{onShelf('specialized').map((d) => card(d, true))}</div>
           {selected?.reach && ledgerShelf(selected) === 'specialized' && (
             <p class="picker-purpose" data-testid="reach-note">
-              <strong>{selected.name}:</strong> serves up to {selected.reach} tiles along the roads. The ring
-              on the ground shows it.
+              <strong>{selected.name}:</strong> serves up to {selected.reach} tiles along the roads. The
+              shaded roads on the ground show it.
             </p>
           )}
         </>

@@ -7,7 +7,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { mockVillageSession } from '../mocks/session';
 import { mount, settle, type Mounted } from '../test/dom';
 import { BuildingInspector } from './BuildingInspector';
-import { BusinessesPanel, pinTitle } from './Businesses';
+import { BusinessesPanel, pinTitle, profitLine } from './Businesses';
 import { panels } from './index';
 
 let view: Mounted | null = null;
@@ -130,9 +130,36 @@ describe('the building inspector, for a business', () => {
     const lines = view.get('business-lines');
     expect(lines.textContent).toContain('Baker');
     expect(lines.textContent).toContain('1 of 2 hands');
-    expect(lines.textContent).toContain('Baking');
+    expect(view.get('building-status').textContent).toBe('Baking');
     expect(view.find('pin-none')).toBeNull();
     await view.click(`pin-${baker.id}`);
     expect(last(submitted, 'build.pinRecipe')!.trade).toBe('baker');
+  });
+});
+
+describe('one status for a business (R1X)', () => {
+  it('a resting business reads the same words in its inspector and its Businesses row', async () => {
+    const { session, baker } = withBusinesses();
+    const words = 'Resting: no wool; the carrier brings some at ten';
+    session.mirror.businesses.set(baker.id, { ...baker, status: words });
+    session.mirror.villageRevision.value++;
+    view = await mount(h(BuildingInspector, { session, id: baker.id }));
+    expect(view.get('building-status').textContent).toBe(words);
+    view.unmount();
+    view = await mount(h(BusinessesPanel, { session }));
+    expect(view.get(`business-${baker.id}`).querySelector('.business-status')!.textContent).toBe(words);
+  });
+});
+
+describe('the profit line (R1X)', () => {
+  it('says what a business takes and pays a work day, and stays quiet without figures', async () => {
+    const { session, baker, farm } = withBusinesses();
+    expect(profitLine({ profit: { takes: 1240, pays: 710 } })).toBe('Takes 12.4, pays 7.1 a work day');
+    expect(profitLine({})).toBeNull();
+    session.mirror.businesses.set(baker.id, { ...baker, profit: { takes: 1240, pays: 710 } });
+    session.mirror.villageRevision.value++;
+    view = await mount(h(BusinessesPanel, { session }));
+    expect(view.get(`business-profit-${baker.id}`).textContent).toBe('Takes 12.4, pays 7.1 a work day');
+    expect(view.find(`business-profit-${farm.id}`)).toBeNull();
   });
 });

@@ -260,4 +260,10 @@ export interface BusinessView {
   levelDays: number;
   /** Specialized buildings with a capacity: businesses (or homes) served in reach, and how many it may serve. */
   served?: { count: number; capacity: number };
+  /**
+   * What the business takes and pays on a work day with the full crew, in pennies (goods made at
+   * market price; goods used, wages and upkeep): the profit line of the book. Built businesses only;
+   * computed where the view is built, never stored.
+   */
+  profit?: { takes: number; pays: number };
 }

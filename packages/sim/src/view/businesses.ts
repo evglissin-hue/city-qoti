@@ -7,6 +7,7 @@ import { seasonAt } from '../state/seasons';
 import { familyIndex, familyOf, jobsOf, levelOf, methodOf } from '../state/zones';
 import { outOfSeason } from '../systems/levels/season';
 import { goodOutOfSeason } from '../systems/seasons/growing';
+import { buildingProfit } from '../systems/market/profit';
 import { capacityOf, served } from '../systems/specialized/api';
 
 /** True for a business or a specialized building: what the Businesses book lists. */
@@ -112,6 +113,11 @@ export function businessView(state: WorldState, b: Building): BusinessView {
   };
   if (def?.capacity && def.enables?.length) {
     view.served = { count: served(state, b), capacity: capacityOf(state, b) };
+  }
+  const profit = b.trade && b.stage === 'built' && def ? buildingProfit(state, b, def) : null;
+  if (profit) {
+    const takes = profit.lines.filter((l) => l.pennies > 0).reduce((n, l) => n + l.pennies, 0);
+    view.profit = { takes, pays: takes - profit.perDay };
   }
   return view;
 }

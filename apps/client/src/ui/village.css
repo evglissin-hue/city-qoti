@@ -1677,6 +1677,10 @@ li.plan.settled p {
   stroke: none;
 }
 
+.bp.zone-wash.faint {
+  fill: color-mix(in srgb, var(--ink) 24%, transparent);
+}
+
 .bp.lot-door {
   stroke: var(--ink);
   stroke-width: 4;

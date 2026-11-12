@@ -205,6 +205,7 @@ export {
   capacityOf,
   hasRoomFor,
   reachDistances,
+  reachRoadTiles,
   served,
   servedIds,
   withinReach,

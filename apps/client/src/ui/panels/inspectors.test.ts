@@ -142,7 +142,8 @@ describe('building inspector', () => {
     });
     session.mirror.villageRevision.value++;
     await settle();
-    expect(view.get('business-lines').textContent).toContain('Baking');
+    expect(view.get('business-lines').textContent).toContain('Baker');
+    expect(view.get('building-status').textContent).toBe('Baking');
     await view.click('pin-6');
     expect(submitted).toEqual([{ t: 'build.pinRecipe', id: 6, trade: 'baker' }]);
   });
