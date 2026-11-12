@@ -28,6 +28,7 @@ import { advanceTo, createTickCtx } from '../src/turn';
 import { buildView } from '../src/view';
 import { agentFrame } from '../src/view/agents';
 import { inspect } from '../src/view/inspect';
+import { offerGoods } from './market/helpers';
 import { hamletFixture } from './fixtures/hamlet';
 import { villageFixture } from './fixtures/village';
 import { flatWorld, rejection, run, S } from './helpers';
@@ -255,6 +256,7 @@ describe('I2 commands', () => {
       s.hearth.discovered.push({ pattern: `p${i}`, tick: 0, seat: 0, together: false, anchor: i });
     while (s.residents.length < 30) s.residents.push({ ...s.residents[0]!, id: s.nextId++ });
     findById(s.buildings, f.b.storehouse)!.rt!.store[good('bread')] = 200;
+    offerGoods(s, ['bread', 'fish', 'vegetables']);
     const ctx = createTickCtx(s);
     advanceTo(s, TICKS_PER_HOUR + 200, ctx);
     expect(s.charter.ready).toBe(true);

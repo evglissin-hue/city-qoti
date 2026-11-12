@@ -16,6 +16,7 @@ import {
   WAGES,
 } from '../constants';
 import type {
+  Building,
   CharterView,
   EntityId,
   InnovationView,
@@ -41,7 +42,7 @@ import { findById } from '../state/entities';
 import { calendar } from '../systems/clock/calendar';
 import { dayIndex } from '../systems/economy/time';
 import { marketOpen } from '../systems/market/api';
-import { carrierBuyPrice, carrierSellPrice, carrierTerms, tradingPost } from '../systems/carrier/terms';
+import { carrierBuyPrice, carrierSellPrice, termsFor, tradingPost } from '../systems/carrier/terms';
 import { basketGroups } from '../systems/market/baskets';
 import { targetPrice } from '../systems/market/prices';
 import { profitReport } from '../systems/market/profit';
@@ -228,11 +229,12 @@ export function regionalPrice(state: WorldState, neighbor: string, good: number)
   return Math.max(1, Math.round((g.basePrice * factor * seasonal * drift * impact) / 1e10));
 }
 
-export function tradeView(state: WorldState): TradeView {
-  // Only a built post counts: a construction site is not yet a Trading Post.
-  const post = tradingPost(state);
+export function tradeView(state: WorldState, known?: { post: Building | null }): TradeView {
+  // Only a built post counts: a construction site is not yet a Trading Post. The carrier passes the
+  // one it found on its own pass over the buildings.
+  const post = known ? known.post : tradingPost(state);
   // The carrier's terms today (the peddler's, or the post's), with renown's (systems/carrier/terms.ts).
-  const terms = carrierTerms(state);
+  const terms = termsFor(state, !!post);
   return {
     neighbors: content.neighbors
       .filter((n) => !n.rank || RANKS.indexOf(state.charter.rank) >= RANKS.indexOf(n.rank))

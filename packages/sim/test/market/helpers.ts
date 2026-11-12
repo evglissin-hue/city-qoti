@@ -45,3 +45,12 @@ export function runDays(state: WorldState, days: number, ctx?: TickCtx): TickCtx
 }
 
 export const good = (id: string): number => content.goodIndex.get(id)!;
+
+/** Has every household seen each named good today (R1A variety: flavors on offer for the Charter). */
+export function offerGoods(state: WorldState, ids: string[]): void {
+  const today = Math.floor(state.tick / TICKS_PER_DAY);
+  for (const h of state.households) {
+    h.seen ??= new Array<number>(content.goods.length).fill(-1);
+    for (const id of ids) h.seen[good(id)] = today;
+  }
+}

@@ -155,7 +155,7 @@ function dayLine(w: WorldState, day: number): DayLine {
     // R1: the carrier books its sales and purchases as exports and imports (the peddler line is gone).
     trade: coinsOf(y[cat('exports')]! - y[cat('imports')]!),
     owed: coinsOf(loansOwed(w)),
-    basket: Math.round(w.households.reduce((n, h) => n + basketScore(h), 0) / hh),
+    basket: Math.round(w.households.reduce((n, h) => n + basketScore(w, h), 0) / hh),
     wageLevel: w.levers.wageLevel,
     taxRate: w.levers.taxRate,
     couples: w.village.couples,

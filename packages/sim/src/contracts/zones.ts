@@ -61,6 +61,14 @@ export interface CarrierState {
   sold: number[][];
   /** This season's deal offers, in neighbor order (R1A). */
   offers: DealOffer[];
+  // R1A additions, absent until used.
+  /**
+   * Days of cover per family in hundredths (GOOD_FAMILIES order) at each day's end, oldest first,
+   * a year's worth: the Balances book's history.
+   */
+  history?: number[][];
+  /** Day index of the boat's last call at the River Dock; absent before its first. */
+  boatDay?: number;
 }
 
 // --- The season plan ---------------------------------------------------------------------------

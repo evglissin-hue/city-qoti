@@ -6,14 +6,17 @@
 //   walk's steps come from a hash of the valley seed, the day, the neighbor and the good rather
 //   than an RNG stream, so trade never shifts the dice other systems roll.
 // - 10:00 (`carrier`, systems/carrier): the carrier buys and sells at these prices (R1).
+// - On a season's first day, after the walk, each neighbor offers its deal for the season (R1A).
 // Regional price = base x the neighbor's factor x season x drift x impact (regionalPrice); the
 // carrier pays and takes a percent of it by its terms (systems/carrier/terms.ts).
 import { content } from '@qoti/content';
-import { DRIFT_RANGE, DRIFT_STEP, IMPACT_RECOVERY, TICKS_PER_DAY } from '../../constants';
-import type { NeighborState, System, WorldState } from '../../contracts';
+import { DAYS_PER_SEASON, DRIFT_RANGE, DRIFT_STEP, IMPACT_RECOVERY, TICKS_PER_DAY } from '../../constants';
+import type { DealOffer, NeighborState, System, WorldState } from '../../contracts';
 import { cyrb128 } from '../../rng/cyrb128';
 import { isStandard } from '../../state/hamlet';
+import { balancesView } from '../../view/balances';
 import { tradeView } from '../../view/village';
+import { neighborTrades } from '../carrier/terms';
 import { dailyOffset, dayIndex } from '../economy/time';
 
 /** Each day drift moves this share (per mille) of the way back toward 1000. */
@@ -54,6 +57,22 @@ export function stepNeighbor(state: WorldState, n: NeighborState, seedWord: numb
   }
 }
 
+/**
+ * This season's deals (R1A; docs/spec/13-ledger.md, Deals): each neighbor trading with the valley
+ * offers one of its `deals`, in turn by the season's count, so the offers repeat in a known order.
+ */
+export function seasonOffers(state: WorldState): DealOffer[] {
+  const turn = Math.floor(dayIndex(state.tick) / DAYS_PER_SEASON);
+  const out: DealOffer[] = [];
+  for (const def of content.neighbors) {
+    const deals = def.deals ?? [];
+    if (deals.length === 0 || !neighborTrades(state, def.id)) continue;
+    const [family, side, percent] = deals[turn % deals.length]!;
+    out.push({ id: `${def.id}:${family}:${side}`, neighbor: def.id, family, side, percent });
+  }
+  return out;
+}
+
 export const trade: System = {
   id: 'trade',
   order: 64,
@@ -65,5 +84,14 @@ export const trade: System = {
     for (const n of state.trade.neighbors) stepNeighbor(state, n, seedWord);
     // Below Village too: the Trade book's prices are live from the first day.
     ctx.events.push({ e: 'trade.updated', t: tradeView(state) });
+    // R1A: a new season brings new offers (and a valley's first day its first).
+    const c = state.carrier;
+    if (dayIndex(state.tick) % DAYS_PER_SEASON === 0 || c.offers.length === 0) {
+      const offers = seasonOffers(state);
+      if (offers.length > 0 || c.offers.length > 0) {
+        c.offers = offers;
+        ctx.events.push({ e: 'balances.updated', b: balancesView(state) });
+      }
+    }
   },
 };

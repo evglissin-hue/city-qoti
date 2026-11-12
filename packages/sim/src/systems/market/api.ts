@@ -84,6 +84,9 @@ export function purchase(
     want -= n;
   }
   if (got <= 0) return 0;
+  const m = state.market;
+  m.boughtToday ??= new Array<number>(content.goods.length).fill(0);
+  m.boughtToday[good] = (m.boughtToday[good] ?? 0) + got;
   pay(state, { household: h.id }, 'treasury', price * got, 'sales');
   const full = priceOf(state, good) * got;
   if (full > price * got) {

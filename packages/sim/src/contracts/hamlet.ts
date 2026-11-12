@@ -166,6 +166,12 @@ export interface Household {
   owed?: number[];
   /** I3 (C5.0, C5A): this winter's warmth; absent outside winter. */
   warmth?: HouseholdWarmth;
+  /**
+   * R1 (R1A): variety. By good index, the last day index the good was on a shelf in reach of the
+   * home or in the pantry, -1 never; a family's flavors on offer are those seen in the last three
+   * days. Absent until the first household pass.
+   */
+  seen?: number[];
 }
 
 /** Construction progress of a site (standard valleys). */

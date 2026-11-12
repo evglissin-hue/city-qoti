@@ -1,8 +1,8 @@
-// The River Dock (C5B; docs/spec/13-ledger.md, The carrier and trade). R1: the dock's own standing
-// orders are gone; from R1A the carrier sails the boat (more carried, better terms, Millhaven only,
-// not while the river is frozen). Until then the dock keeps its boats array and sails none; a boat
-// already away still comes home at 08:00 and unloads into the dock's store or the nearest store.
-// The price helpers (dockSellPrice, dockBuyPrice) stay for the carrier and the views.
+// The River Dock (C5B; docs/spec/13-ledger.md, The carrier and trade). From R1A the carrier sails
+// the boat: every three days while the river runs, the boat from Millhaven calls with the cart at
+// 10:00, carrying 120 units at 110% and 92% of the regional price (systems/carrier). It ties up for
+// a few hours as a Boat in `dock.boats` for the dock view, and this 08:02 pass clears the boats
+// that have sailed. The price helpers (dockSellPrice, dockBuyPrice) stay for the views.
 import { content } from '@qoti/content';
 import { TICKS_PER_DAY } from '../../constants';
 import type { Building, System, TickCtx, WorldState } from '../../contracts';
@@ -10,16 +10,13 @@ import { isStandard } from '../../state/hamlet';
 import { dockView } from '../../view/seasons';
 import { regionalPrice } from '../../view/village';
 import { dailyOffset } from '../economy/time';
-import { defOf, stowNearest } from '../logistics/stores';
-import { doorTile } from '../movement/api';
 import { renownEffect } from '../renown/api';
-import { isFrozen } from '../seasons/api';
 
 /** The neighbor downstream, the only one boats reach. */
 export const DOCK_NEIGHBOR = 'millhaven';
 /** Units a boat carries, out and back together (the carrier's cart carries 20, or 40 with a post). */
 export const BOAT_UNITS = 120;
-/** Days a boat takes there and back. */
+/** Days between the boat's calls. */
 export const BOAT_DAYS = 3;
 /** Percent of the regional price the dock gets selling and pays buying. */
 export const DOCK_SELL_PERCENT = 92;
@@ -54,21 +51,11 @@ export function dockBuyPrice(state: WorldState, good: number): number | null {
     : Math.round((p * DOCK_BUY_PERCENT * (100 - renownEffect(state, 'trade'))) / 10000);
 }
 
-/** The 08:00 pass. R1 stand-in (R1A): the carrier sails the boat; until then no boat sets off. */
+/** The 08:02 pass: boats that have sailed leave the dock's list. */
 export function dockDay(state: WorldState, ctx: TickCtx): void {
-  if (isFrozen(state)) return;
-  const due = state.dock.boats.filter((b) => b.arriveTick <= state.tick);
-  if (due.length === 0) return;
-  const dock = riverDock(state);
-  for (const boat of due) {
-    if (!dock) continue;
-    for (const [g, q] of boat.buying) {
-      const left = q - stowNearest(state, doorTile(dock, defOf(dock)), g, q, dock.id);
-      if (left > 0) dock.rt!.store[g]! += left;
-    }
-  }
-  state.dock.boats = state.dock.boats.filter((b) => b.arriveTick > state.tick);
-  ctx.events.push({ e: 'dock.updated', d: dockView(state) });
+  const before = state.dock.boats.length;
+  state.dock.boats = state.dock.boats.filter((b) => b.departTick > state.tick);
+  if (state.dock.boats.length !== before) ctx.events.push({ e: 'dock.updated', d: dockView(state) });
 }
 
 export const dock: System = {

@@ -8,6 +8,7 @@ import { BuildingStatus, TIER_DOWN_DAYS, TIER_UP_DAYS, TICKS_PER_HOUR } from '..
 import type { Building, Household, WorldState } from '../../src/contracts';
 import { findById } from '../../src/state/entities';
 import { assignJobs } from '../../src/systems/residents/jobs';
+import { markSeen } from '../../src/systems/market/balances';
 import { basketGroups } from '../../src/systems/market/baskets';
 import { deliverUpgrade, tierProgress } from '../../src/systems/tiers/api';
 import { updateTiers } from '../../src/systems/tiers';
@@ -40,6 +41,8 @@ function aspiringTown(): Town {
   state.map.charm.fill(40);
   // Cider for the treats on a shelf.
   stocked(findById(state.buildings, f.b.storehouses[1])!, 'store', [['cider', 10]]);
+  // R1A: the household has seen the flavors on the shelves.
+  markSeen(state);
   return { state, h, cottage };
 }
 
@@ -124,6 +127,8 @@ describe('moving up', () => {
     for (const b of state.buildings) if (b.def === 'tavern') b.rt!.workers.length = 0;
     for (const b of state.buildings)
       if (b.rt) for (const id of ['cloth', 'furniture', 'candles']) b.rt.store[good(id)] = 0;
+    // R1A: nor seen in the last three days (a want of under a unit a day is met by a recent sighting).
+    for (const id of ['cloth', 'furniture', 'candles']) h.seen![good(id)] = -1;
     const missing = tierProgress(state, h)!.missing;
     expect(missing).toContain(villagePhrases.missing.social);
     expect(missing).toContain('wares');

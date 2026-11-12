@@ -26,7 +26,7 @@ class Money implements Advisor {
     if (!rankAtLeast(w, 'village')) return;
     const l = w.levers;
     const hh = Math.max(1, w.households.length);
-    const basket = w.households.reduce((n, h) => n + basketScore(h), 0) / hh;
+    const basket = w.households.reduce((n, h) => n + basketScore(w, h), 0) / hh;
     const coins = p.coins();
     const y = w.economy.yesterday;
     const net = income(y) - expenses(y);

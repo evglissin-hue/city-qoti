@@ -1,4 +1,4 @@
-import type { NeedsBasket } from './types';
+import type { FlavorLike, NeedsBasket } from './types';
 
 // What each tier wants, by family (docs/spec/13-ledger.md, Households: amount and variety, and
 // Population tiers), written in R1.0. Amounts are a resident's a day unless `perHousehold`; Fuel is
@@ -32,3 +32,20 @@ export const settler: NeedsBasket = {
   charm: 0,
   savings: 0,
 };
+
+/**
+ * Favorite flavors (R1A): a household with a member of the species or trait likes the good twice as
+ * much as a plain flavor, so it pays a little more for it and buys it first at an even price. Sorted
+ * by `who`, then `good`. Every number tunes in R1X.
+ */
+export const flavorLikes: readonly FlavorLike[] = [
+  { who: 'badger', good: 'bread', weight: 2 },
+  { who: 'fox', good: 'cheese', weight: 2 },
+  { who: 'hedgehog', good: 'fruit', weight: 2 },
+  { who: 'mouse', good: 'cheese', weight: 2 },
+  { who: 'otter', good: 'fish', weight: 2 },
+  { who: 'rabbit', good: 'vegetables', weight: 2 },
+  { who: 'squirrel', good: 'fruit', weight: 2 },
+  { who: 'sweet-tooth', good: 'cider', weight: 2 },
+  { who: 'sweet-tooth', good: 'honey', weight: 2 },
+];

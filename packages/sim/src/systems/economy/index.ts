@@ -4,15 +4,16 @@
 // is below zero the valley is in lean times: no new construction, unpaid upkeep wears buildings
 // down, residents feel it. Never a game over: taxes keep coming, and the next day in the black
 // ends it.
-import { DAYS_PER_SEASON, LEDGER_CATEGORIES, TICKS_PER_HOUR } from '../../constants';
+import { DAYS_PER_SEASON, GOOD_FAMILIES, LEDGER_CATEGORIES, TICKS_PER_HOUR } from '../../constants';
 import type { LedgerPeriod, System, TickCtx, WorldState } from '../../contracts';
 import { emptyPeriod, isStandard } from '../../state/hamlet';
 import { townStock } from '../../view/hamlet';
-import { balancesView } from '../../view/zones';
+import { balancesView } from '../../view/balances';
 import { defOf } from '../logistics/stores';
 import { addMoodModifier, moodTaxPercent, removeMoodModifier } from '../residents/api';
 import { overdraftLimit, isLean } from '../loans/credit';
 import { marketOpen } from '../market/api';
+import { balanceStock, familyCover, familyUses } from '../market/balances';
 import { book } from './api';
 import { pay } from './money';
 import { economyDial, upkeepPennies } from './dial';
@@ -23,6 +24,8 @@ export const LEAN_MOOD = -5;
 export const LEAN_MODIFIER = 'lean-times';
 /** Days of stock history kept for the sparklines. */
 export const STOCK_HISTORY_DAYS = 14;
+/** Days of balance history kept for the Balances book: a year. */
+export const BALANCE_HISTORY_DAYS = 4 * DAYS_PER_SEASON;
 
 const BUILDINGS_OFFSET = 40;
 const LEAN_OFFSET = 60;
@@ -79,6 +82,7 @@ function midnight(state: WorldState, ctx: TickCtx): void {
   payUpkeep(state, upkeep);
   if (e.leanTimes !== isLean(state)) setLean(state, ctx);
   emitReports(state, ctx, true);
+  pushBalanceHistory(state);
   ctx.events.push({ e: 'balances.updated', b: balancesView(state) });
 }
 
@@ -170,4 +174,14 @@ export function coinsText(pennies: number): string {
   const rest = pennies % 100;
   const n = rest === 0 ? `${whole}` : `${whole}.${rest < 10 ? '0' : ''}${rest}`;
   return `${n} ${n === '1' ? 'coin' : 'coins'}`;
+}
+
+/** One row a day on the carrier's history: each family's days of cover, in hundredths. */
+function pushBalanceHistory(state: WorldState): void {
+  const stock = balanceStock(state);
+  const uses = familyUses(state);
+  const row = GOOD_FAMILIES.map((_, f) => familyCover(state, f, stock, uses[f]));
+  const history = (state.carrier.history ??= []);
+  history.push(row);
+  while (history.length > BALANCE_HISTORY_DAYS) history.shift();
 }

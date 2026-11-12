@@ -476,6 +476,7 @@ export const events: readonly EventDef[] = [
   Se.drought,
   Se.earlyFrost,
   Se.flood,
+  Se.passClosed,
 ];
 
 // prettier-ignore
@@ -628,6 +629,7 @@ export const content: Content = {
   zoneByValue: new Map(zones.map((z) => [z.layerValue, z])),
   baskets,
   basketByTier: new Map(baskets.map((b) => [b.tier, b])),
+  flavorLikes: Ba.flavorLikes,
   neighbors,
   neighborById: byId(neighbors),
   innovations,

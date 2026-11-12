@@ -23,6 +23,7 @@ import { hearthBench } from './hearth';
 import { benchEconomy } from './economy';
 import { growthBench } from './growth';
 import { benchMarket } from './market';
+import { carrierBench } from './carrier.bench';
 import { syntheticValley } from './synthetic';
 import { festivalsBench } from './festivals.bench';
 import { natureBench } from './nature.bench';
@@ -156,6 +157,10 @@ const growth = growthBench(lines, failures);
 const market = benchMarket();
 lines.push(...market.lines);
 failures.push(...market.failures);
+// 8b. The carrier at City scale (R1A): the heaviest visit, under 0.5 ms a day.
+const carrierResult = carrierBench();
+lines.push(...carrierResult.lines);
+failures.push(...carrierResult.failures);
 // 9. Village chains (C4C): the village fixture with every chain, services, tiers and a cart.
 const village = villageBench();
 lines.push(...village.lines);
@@ -203,6 +208,7 @@ const report = {
   economy: economy.report,
   growth,
   market: market.report,
+  carrier: carrierResult.report,
   village: village.report,
   seasons: seasons.report,
   festivals: festivals.report,

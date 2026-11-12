@@ -1,4 +1,5 @@
-// Population tiers (docs/spec/13-ledger.md, Population tiers; C4C). What a household needs to move
+// Population tiers (docs/spec/13-ledger.md, Population tiers; C4C). Tiers read amount and variety
+// (R1A); no tier names a single good. What a household needs to move
 // up (the next tier's basket within reach, its services, charm and savings, and a home that can
 // grow), what keeps it there, and the home upgrade itself: materials by porter into rt.upgrade, then
 // the def swaps in place. Shared by the tiers system, logistics (deliveries) and the inspector.
@@ -7,7 +8,9 @@ import { content, villagePhrases } from '@qoti/content';
 import { BuildingStatus, MAP_SIZE, PENNIES_PER_COIN, TIER_UP_DAYS, TIERS } from '../../constants';
 import type { Building, EntityId, Household, TickCtx, TierId, WorldState } from '../../contracts';
 import { findById } from '../../state/entities';
+import { familyIndex } from '../../state/zones';
 import { calendar } from '../clock/calendar';
+import { householdVariety, SHELF_GOODS } from '../market/balances';
 import { basketGroups } from '../market/baskets';
 import { goodsArray, isStandard } from '../../state/hamlet';
 import { householdView } from '../../view/hamlet';
@@ -97,6 +100,19 @@ function groupNeed(h: Household, perDay: number, perHousehold: boolean | undefin
 }
 
 /**
+ * True when the household already buys this family in its own basket and gets what it wants (its
+ * satisfaction at BASKET_MET or more). Moving up then needs no shelf count, nor, for a want of under
+ * a unit a day, when it could buy the family in the last three days: the 05:00 check comes after the
+ * 18:00 pass emptied a one-day reserve of Wares or Treats, so the shelf alone reads short at the
+ * trough of every day.
+ */
+function gettingBy(h: Household, family: string): boolean {
+  const wants = content.basketByTier.get(h.tier)?.wants;
+  const gi = wants?.findIndex((w) => w.family === family && w.amount > 0) ?? -1;
+  return gi >= 0 && !!h.basket && (h.basket[gi] ?? 0) >= BASKET_MET;
+}
+
+/**
  * Checks a household against a tier's basket. `aspiring` is the move up: every group must be on
  * the shelves (or in the pantry), with savings and a home that can grow. Otherwise it is the check
  * to stay: C4A's basket satisfaction when the household buys this basket, else the shelves again,
@@ -115,23 +131,34 @@ export function checkTier(
   const def = home ? content.buildingById.get(home.def) : undefined;
   if (aspiring && !homeRoute(def, basket.tier)) missing.push(M.home ?? 'home');
   const own = !aspiring && h.basket && h.tier === basket.tier;
-  // R1 stand-in (R1A): tiers read amount only; variety from R1A. Every want with an amount (in its
-  // season) must have some good of its family on a shelf or in the pantry; no single good is named.
+  // Tiers read amount and variety; no tier names a single good. Moving up: the household gets the
+  // family in its own basket, or (for a want of under a unit a day, which one unit meets for days)
+  // saw some of it in the last three days, or the family's shelf goods
+  // together (outlet shelves plus the pantry) cover a day's need; and it must have seen the flavors
+  // wanted. Staying: the basket's satisfaction, and the same variety.
   const season = calendar(state.tick).season;
-  basketGroups(basket).forEach((group, gi) => {
-    if (own) {
-      if ((h.basket![gi] ?? 100) < BASKET_MET) missing.push(group.name.toLowerCase());
-      return;
+  const groups = basketGroups(basket);
+  basket.wants.forEach((want, gi) => {
+    const group = groups[gi]!;
+    const inSeason = group.season === undefined || group.season === season;
+    if (want.amount > 0 && inSeason) {
+      if (own) {
+        if ((h.basket![gi] ?? 100) < BASKET_MET) missing.push(group.name.toLowerCase());
+      } else if (
+        !gettingBy(h, want.family) &&
+        !(want.amount < 1 && householdVariety(state, h, familyIndex(want.family)) > 0)
+      ) {
+        const need = groupNeed(h, group.perDay, group.perHousehold);
+        let have = 0;
+        for (const g of SHELF_GOODS[familyIndex(want.family)] ?? [])
+          have += (h.pantry[g] ?? 0) + (tc.stock[g] ?? 0);
+        if (have < need) missing.push(group.name.toLowerCase());
+      }
     }
-    if (group.perDay <= 0 || (group.season !== undefined && group.season !== season)) return;
-    const need = groupNeed(h, group.perDay, group.perHousehold);
-    let ok = false;
-    for (const [id] of group.goods) {
-      const g = content.goodIndex.get(id);
-      if (g === undefined) continue;
-      if ((h.pantry[g] ?? 0) + (tc.stock[g] ?? 0) >= need) ok = true;
+    if (want.variety > 0) {
+      const have = householdVariety(state, h, familyIndex(want.family));
+      if (have < want.variety) missing.push(`${group.name.toLowerCase()} (${have} of ${want.variety} kinds)`);
     }
-    if (!ok) missing.push(group.name.toLowerCase());
   });
   for (const service of basket.services) {
     const map = tc.covered.get(service as ServiceKind);
