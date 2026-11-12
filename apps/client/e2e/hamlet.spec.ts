@@ -14,7 +14,9 @@ test('New valley makes a standard valley; the books, reports and inspectors open
   await waitLive(page);
   expect(await page.evaluate(() => window.__qoti.mode())).toBe('standard');
   await expect(page.getByTestId('treasury')).toContainText('500');
+  await page.getByTestId('menu-open').click();
   await expect(page.getByTestId('population')).toBeVisible();
+  await page.getByTestId('menu-open').click();
 
   // Hearth books.
   for (const [book, panel] of [
@@ -78,6 +80,7 @@ test('the hamlet fixture: residents and buildings inspected live from the sim wo
   await page.goto(`/${HAMLET_QUERY}&fixture=hamlet`);
   await waitLive(page);
   await expect.poll(() => page.evaluate(() => window.__qoti.residentIds().length)).toBe(9);
+  await page.getByTestId('menu-open').click();
   await expect(page.getByTestId('population')).toContainText('9');
 
   await page.evaluate(() => window.__qoti.select({ kind: 'resident', id: 12 }));

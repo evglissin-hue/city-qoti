@@ -77,6 +77,8 @@ export function createUiState() {
     /** The open book panel (wishes, patterns, chronicle, achievements, reports); one at a time. */
     panel: signal<string | null>(null),
     reportTab: signal<ReportTab>('stocks'),
+    /** R1C: the family the Balances book has open (a GoodFamily id), or null. */
+    balancesFamily: signal<string | null>(null),
     /** The Pattern Book page on display (a pattern id), or null for the contents. */
     bookPage: signal<string | null>(null),
     /** Building being customized. */

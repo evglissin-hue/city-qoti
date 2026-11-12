@@ -66,10 +66,13 @@ describe('top bar', () => {
     view = await mount(h(TopBar, { session, onLeave: () => {} }));
     expect(view.get('treasury').textContent).toContain('412');
     expect(view.get('treasury').className).not.toContain('lean');
+    // The townsfolk count lives behind the menu button.
+    expect(view.find('population')).toBeNull();
+    await view.click('menu-open');
     expect(view.get('population').textContent).toContain('9');
+    await view.click('menu-open');
     await view.click('treasury');
-    expect(session.ui.panel.value).toBe('reports');
-    expect(session.ui.reportTab.value).toBe('budget');
+    expect(session.ui.panel.value).toBe('purse');
   });
 
   it('shows lean times gently, and nothing of the sort in a creative valley', async () => {

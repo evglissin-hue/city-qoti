@@ -104,6 +104,7 @@ test('the first letter, its arrow, the next step on both screens, and hiding per
   await a.screenshot({ path: `${shots()}/c5h-second-step.png` });
 
   // Seat 1 hides the guide in Settings: gone for seat 1, still there for seat 0, progress shared.
+  await b.getByTestId('menu-open').click();
   await b.getByTestId('settings-open').click();
   await b.getByTestId('guide-setting').uncheck();
   await expect.poll(async () => (await guide(b))?.hidden[1]).toBe(true);

@@ -94,6 +94,7 @@ async function raidForTwo(browser: Browser) {
   // C5X: paused, so C5D's raid (which now ends at dawn) is still on when the partner arrives; under
   // software rendering moving online and joining took longer than the night.
   await a.getByTestId('speed-0').click();
+  await a.getByTestId('menu-open').click();
   await a.getByTestId('settings-open').click();
   await a.getByTestId('move-online').click();
   await a.getByTestId('move-online-yes').click();
@@ -157,6 +158,7 @@ test('festival, posture, captives and the threat dial round trip between two sea
 
   // Seat 0 turns the threat dial in Settings; seat 1's valley follows.
   await a.keyboard.press('Escape');
+  await a.getByTestId('menu-open').click();
   await a.getByTestId('settings-open').click();
   await a.getByTestId('settings-threat-fierce').click();
   await expect.poll(async () => (await seasons(b)).settings.threat).toBe('fierce');

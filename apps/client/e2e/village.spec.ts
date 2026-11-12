@@ -77,6 +77,7 @@ test('every village panel opens and works against a live village', async ({ page
 
   // The townsfolk open from the population chip, and a row finds its resident.
   await page.keyboard.press('Escape');
+  await page.getByTestId('menu-open').click();
   await page.getByTestId('population').click();
   await expect(page.getByTestId('people')).toContainText('residents');
   await page.locator('[data-testid^="person-"]').first().click();

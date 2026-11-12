@@ -31,7 +31,6 @@ import { RaidPanel } from './Raid';
 import { RankUpPanel } from './RankUp';
 import { ReportsPanel } from './Reports';
 import { SeasonCardPanel } from './SeasonCard';
-import { StoresPanel } from './Stores';
 import { StoryLetterPanel } from './StoryLetter';
 import { TrialPanel } from './Trial';
 import { WatchPanel } from './Watch';
@@ -89,7 +88,6 @@ export const panels: readonly PanelDef[] = [
   { id: 'rankup', side: 'overlay', component: RankUpPanel },
   { id: 'reports', side: 'book', component: ReportsPanel, lens: 'ledger', label: 'Reports', icon: 'reports', key: 'l', modes: STANDARD, order: 50 },
   { id: 'season-card', side: 'overlay', component: SeasonCardPanel },
-  { id: 'stores', side: 'left', component: StoresPanel },
   { id: 'story-letter', side: 'overlay', component: StoryLetterPanel },
   { id: 'together', side: 'overlay', component: TogetherNote },
   { id: 'trial', side: 'book', component: TrialPanel, lens: 'shared', label: 'Trial', icon: 'trial', modes: STANDARD, hidden: true },
