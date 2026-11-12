@@ -6,7 +6,10 @@ import { describe, expect, it } from 'vitest';
 import { Mirror } from '../../state/mirror';
 import { TILE_FP } from '@qoti/sim';
 import { createWorldEnv } from '../env';
-import { decorLayer, FRUIT_MIN_THIN, fruitStep } from './decor';
+import { content } from '@qoti/content';
+import { decorGeometry } from '../kitGeometry';
+import { SMALL_RADIUS } from '../lod';
+import { decorLayer, FRUIT_MIN_THIN, fruitStep, hasFarLevel } from './decor';
 import type { LayerContext } from './types';
 
 const piece = (id: number, def: string, fx: number, fz: number): DecorView => ({
@@ -104,5 +107,40 @@ describe('orchard thinning in the decor layer', () => {
     expect(layer.frame?.(0.016)).toBe(true);
     expect(geo('cherry-tree:high')).toBe(winter);
     expect(geo('hedge:high')).toBe(hedge);
+  });
+});
+
+describe('far off, decor with a far level stays (V2X)', () => {
+  it('orchards, planters, benches and the rest of the commonest pieces keep their far level in view', () => {
+    for (const def of [
+      'apple-tree',
+      'cherry-tree',
+      'pear-tree',
+      'planter',
+      'flower-bed',
+      'bench',
+      'herb-planter',
+    ]) {
+      expect(hasFarLevel(decorGeometry(def, 'high'), decorGeometry(def, 'low')), def).toBe(true);
+    }
+  });
+
+  it('every small decor piece either has a far level, glows, or is listed as left to shrink', () => {
+    // Pieces that still shrink away beyond the decor distance (no far level yet). A new small
+    // piece lands here only on purpose: give it a far level instead where it is common.
+    const shrinking: string[] = [];
+    for (const d of content.decor) {
+      const high = decorGeometry(d.id, 'high');
+      if (!high.boundingSphere) high.computeBoundingSphere();
+      if ((high.boundingSphere?.radius ?? 1) >= SMALL_RADIUS) continue;
+      if (hasFarLevel(high, decorGeometry(d.id, 'low'))) continue;
+      const glow = high.getAttribute('glow');
+      let lit = false;
+      for (let i = 0; glow && i < glow.count; i++) if (glow.getX(i) > 0) lit = true;
+      if (!lit) shrinking.push(d.id);
+    }
+    expect(shrinking.length).toBeLessThan(content.decor.length);
+    for (const id of ['apple-tree', 'cherry-tree', 'planter', 'flower-bed', 'bench'])
+      expect(shrinking).not.toContain(id);
   });
 });

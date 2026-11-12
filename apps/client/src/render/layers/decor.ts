@@ -32,6 +32,21 @@ export interface DecorLayerOptions {
   fruitFloor?: number;
 }
 
+/** Triangles in a geometry (indexed or not). */
+function triangles(g: BufferGeometry): number {
+  return (g.index ? g.index.count : g.getAttribute('position').count) / 3;
+}
+
+/**
+ * V2X: whether a def has a far level of its own (V1B's fruit trees, V2C's dozen commonest pieces):
+ * a far build lighter than the near one. Those stay in view at their far level beyond the decor
+ * distance, so a town seen from afar keeps its orchards, planters and benches (a few dozen
+ * triangles each); small props without one still shrink away there.
+ */
+export function hasFarLevel(high: BufferGeometry, low: BufferGeometry): boolean {
+  return low !== high && triangles(low) < triangles(high);
+}
+
 /** A decor def's two levels, and whether it is a small prop that may shrink away far off. */
 function decorKind(def: string, thin = 1, cache?: StepCache<BufferGeometry>): FieldKind {
   const high = cache ? cache.get(thin) : decorGeometry(def, 'high');
@@ -40,13 +55,15 @@ function decorKind(def: string, thin = 1, cache?: StepCache<BufferGeometry>): Fi
   if (!high.boundingBox) high.computeBoundingBox();
   const radius = high.boundingSphere?.radius ?? 1;
   const top = high.boundingBox?.max.y ?? 1;
-  return { high, low, small: radius < SMALL_RADIUS && !glows(high), height: Math.max(0.5, top) };
+  const small = radius < SMALL_RADIUS && !glows(high) && !hasFarLevel(decorGeometry(def, 'high'), low);
+  return { high, low, small, height: Math.max(0.5, top) };
 }
 
 /**
  * Decor: one instanced mesh per def and level, filled from the chunks in view (V1D, lod.ts). Within
- * the preset's decor distance a piece draws at full detail, beyond it at its far level, and small
- * props (benches, planters, crates) shrink away there; lanterns and other lit pieces stay.
+ * the preset's decor distance a piece draws at full detail, beyond it at its far level. Small props
+ * shrink away there unless they have a far level of their own (V2X: orchards, planters, benches and
+ * the rest of V2C's dozen) or glow (lanterns).
  */
 export function decorLayer(opts: DecorLayerOptions = {}): RenderLayer {
   const floor = opts.fruitFloor ?? FRUIT_MIN_THIN;
