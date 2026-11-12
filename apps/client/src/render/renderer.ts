@@ -24,6 +24,7 @@ import {
 import { CameraController, FOV, setFreeCamera } from '../input/camera';
 import type { Mirror } from '../state/mirror';
 import type { EntityPick, Ghost, RenderApi, TilePick } from './api';
+import { bubblesFor, overlayKindFor } from './bubbles';
 import { fpToWorld, levelY } from './coords';
 import { applySeasonBlend, createWorldEnv, SEASONS, setPatternAnisotropy, type WorldEnv } from './env';
 import { disposeLightMap, drawLightMap, lampQuality, resizeLightMap } from './lightMap';
@@ -750,7 +751,8 @@ export class Renderer implements RenderApi {
   }
 
   setOverlay(kind: string | null): void {
-    this.layer<OverlaysLayer>('overlays').set(kind);
+    this.layer<OverlaysLayer>('overlays').set(overlayKindFor(kind));
+    this.layer<AgentsLayer>('agents').setBubbles(bubblesFor(kind));
   }
 
   setPresence(seat: SeatId, p: { x: number; z: number; tool?: string } | null): void {

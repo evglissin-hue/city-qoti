@@ -2,7 +2,7 @@
 // (a wall for facade surfaces, a gable for roofs, a slab for the ground), each drawn at three sizes
 // in its cell, so one view shows the pattern close, at the default camera and far off, where it
 // must melt into its color without shimmer. ?season=winter shows the snow, ?night=1 the night.
-import { NOISE_LAYER, palette2, ShapeBuilder, SURFACE, SURFACES, type SurfaceName } from '@qoti/art';
+import { palette2, ShapeBuilder, SURFACE, SURFACES, type SurfaceName } from '@qoti/art';
 import { Group, Mesh, type Material } from 'three';
 
 /** The color each surface's sample is painted, from palette 2.0. */
@@ -26,7 +26,7 @@ const COLOR: Record<SurfaceName, number> = {
   field: palette2.fields[2]!,
   flags: palette2.flags,
   flowers: palette2.grass,
-  // V2.0: the V2 surfaces (left out of the grid until V2C gives them patterns, SURFACE_ORDER).
+  // V2C: the V2 surfaces, in the colors props, carts and residents wear them.
   woodGrain: palette2.wood,
   paintedWood: palette2.shutters[0]!,
   wroughtIron: palette2.metal,
@@ -69,7 +69,7 @@ export function buildSurfaces(material: Material): { group: Group; width: number
     const col = i % cols;
     const row = Math.floor(i / cols);
     const x0 = (col - (cols - 1) / 2) * cell;
-    const z0 = (row - 1) * cell;
+    const z0 = (row - (Math.ceil(names.length / cols) - 1) / 2) * cell;
     let dx = -0.75;
     for (const k of SIZES) {
       const g = sample(name).build();
@@ -84,9 +84,7 @@ export function buildSurfaces(material: Material): { group: Group; width: number
 }
 
 /**
- * The surface names in grid order, for the grid and the info line. V2.0: the V2 surfaces (after the
- * noise layer's slot) stay out until V2C gives them patterns, so the gallery's screenshots hold.
+ * The surface names in grid order, for the grid and the info line. V2C: the V2 surfaces (after the
+ * noise layer's slot) close the grid, a fourth row.
  */
-export const SURFACE_ORDER = (Object.keys(SURFACE) as SurfaceName[]).filter(
-  (n) => n !== 'plain' && SURFACE[n] < NOISE_LAYER,
-);
+export const SURFACE_ORDER = (Object.keys(SURFACE) as SurfaceName[]).filter((n) => n !== 'plain');

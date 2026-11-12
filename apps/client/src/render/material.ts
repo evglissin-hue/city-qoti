@@ -17,6 +17,7 @@ import type { WorldEnv } from './env';
 import type { Era } from '@qoti/content';
 import { kitLamp, lampQuality } from './lightMap';
 import { lampEra, WINDOW_HASH_GLSL } from './lighting';
+import { patchWallAo } from './wallAo';
 
 /**
  * Sky fresnel and sun glint as GLSL (`qFresnel`, `qSkyFresnel`, `qSunGlint`; see packages/art
@@ -161,6 +162,7 @@ export function createWorldMaterial(env: WorldEnv): MeshLambertMaterial {
     // V2A: walls, decor, carts and animals take the light map's lamplight (lightMap.ts).
     patchKitShader(shader, u, kitLamp(env), lampQuality(env).uRooms);
     patchNightGlow(shader, env.night, env.windowShare, true, { flame, time: env.staticTime });
+    patchWallAo(shader, env);
   };
   material.customProgramCacheKey = () => 'qoti-lean-kit-world';
   material.userData.kitHooks = { season: 'spring', snow: 0, sway: 1 } satisfies KitMaterialHooks;

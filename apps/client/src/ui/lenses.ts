@@ -33,6 +33,7 @@ export interface OverlayDef {
 
 // prettier-ignore
 export const overlays: readonly OverlayDef[] = [
+  { id: 'bubbles', lens: 'hearth', label: 'Moods', icon: 'charm', hint: 'What everyone is thinking, give or take' },
   { id: 'charm', lens: 'hearth', label: 'Charm', icon: 'charm', hint: 'Where the valley feels lovely, and where it could' },
   { id: 'coverage', lens: 'ledger', label: 'Wells', icon: 'coverage', hint: 'Which homes a well reaches' },
   { id: 'floodplain', lens: 'ledger', label: 'Floodplain', icon: 'floodplain', hint: 'Low ground the river claims in a flood' },
