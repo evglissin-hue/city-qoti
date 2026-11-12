@@ -572,8 +572,9 @@ vec3 qGlow() {
   if (uNight < 0.01) return sum;
 #ifdef Q_LIGHT_MAP
   // V2A: every lantern, lit window, oven, fire, festival light and shop front in one read.
-  // (The caller's 1.3 times this; the map's pools are broader than the loop's, so a little less.)
-  return qLamp(vQWorld.xz, 0.0) * (uNight * uNight * 0.65);
+  // (The caller's 1.3 times this. V2X: 0.8, was 0.65, with V2X's tighter pools: brighter under the
+  // lamp, darker between.)
+  return qLamp(vQWorld.xz, 0.0) * (uNight * uNight * 0.8);
 #else
   // Before V2A (and with ?debug&lights=loop): the 32 pools nearest the view.
   for (int i = 0; i < ${MAX_GROUND_LIGHTS}; i++) {
@@ -677,9 +678,9 @@ export function createGroundMaterial(tex: GroundTextures, env: WorldEnv): MeshSt
       .replace(
         '#include <emissivemap_fragment>',
         map
-          ? // V2A: on the albedo half greyed (a painter's warm pool on green grass, not an olive
-            // one), and a breath of warm air over the pool.
-            '#include <emissivemap_fragment>\n{ vec3 qG = qGlow(); vec3 qA = mix(diffuseColor.rgb, vec3(dot(diffuseColor.rgb, vec3(0.3, 0.55, 0.15))), 0.45); totalEmissiveRadiance += qA * qG * 1.3 + qG * 0.035; }'
+          ? // V2A, V2X: on a warm grey albedo (qLampAlbedo: a painter's amber pool on green grass,
+            // not an olive one), and a breath of warm air over the pool.
+            '#include <emissivemap_fragment>\n{ vec3 qG = qGlow(); totalEmissiveRadiance += qLampAlbedo(diffuseColor.rgb) * qG * 1.3 + qG * 0.035; }'
           : '#include <emissivemap_fragment>\ntotalEmissiveRadiance += diffuseColor.rgb * qGlow() * 1.3;',
       )
       .replace(

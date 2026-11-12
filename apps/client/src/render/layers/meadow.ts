@@ -16,7 +16,7 @@ import { createWorldEnv, MAX_GROUND_LIGHTS, NOISE_GLSL, type WorldEnv } from '..
 import { GroundTextures } from '../ground';
 import { GROUND_AO_GLSL, groundAoFor } from '../groundAo';
 import { groundTexturesFor } from '../groundRead';
-import { LIGHT_LOOP, LIGHT_MAP_GLSL, lightMapUniforms } from '../lightMap';
+import { LAMP_ALBEDO_GLSL, LIGHT_LOOP, LIGHT_MAP_GLSL, lightMapUniforms } from '../lightMap';
 import { SurfaceTiles, tileSurfaceY, WATER_Y } from '../surface';
 import type { LayerContext, RenderLayer } from './types';
 
@@ -439,7 +439,7 @@ void qBlade(out vec3 pos, out vec3 nrm, out vec3 col, out vec3 glow, out vec2 xz
   // the shared curve, qLamp, as ground.ts's qGlow; the 32-light loop only with ?debug&lights=loop).
   if (uNight > 0.01) {
 #ifdef Q_LIGHT_MAP
-    glow = qLamp(root, 0.0) * (uNight * uNight * 0.65);
+    glow = qLamp(root, 0.0) * (uNight * uNight * 0.8);
 #else
     float sum = qGlowSum(pos);
     glow = qSrgb(vec3(1.0, 0.7, 0.4)) * min(sum, 1.2) * uNight * uNight;
@@ -449,6 +449,7 @@ void qBlade(out vec3 pos, out vec3 nrm, out vec3 col, out vec3 glow, out vec2 xz
 `;
 
 const FRAGMENT_PARS = /* glsl */ `
+${LAMP_ALBEDO_GLSL}
 uniform float uTime;
 uniform float uClouds;
 varying vec3 vQColor;
@@ -517,8 +518,8 @@ export function createMeadowMaterial(
       )
       .replace(
         '#include <emissivemap_fragment>',
-        // As the ground: lamplight on a half greyed albedo plus a breath of warm air over a pool.
-        '#include <emissivemap_fragment>\n{ vec3 qA = mix(diffuseColor.rgb, vec3(dot(diffuseColor.rgb, vec3(0.3, 0.55, 0.15))), 0.45); totalEmissiveRadiance += qA * vQGlow * 1.3 + vQGlow * 0.035; }',
+        // As the ground: lamplight on the warm grey albedo (qLampAlbedo) plus a breath of warm air.
+        '#include <emissivemap_fragment>\n{ totalEmissiveRadiance += qLampAlbedo(diffuseColor.rgb) * vQGlow * 1.3 + vQGlow * 0.035; }',
       );
   };
   m.customProgramCacheKey = () => 'qoti-meadow';

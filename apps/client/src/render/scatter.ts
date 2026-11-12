@@ -559,12 +559,11 @@ export function createFoliageMaterial(env: WorldEnv): MeshStandardMaterial {
           // V2B: lit from below. Lamplight from the light map warms the crown's underside, most low
           // on the crown and on faces turned down. V2X: through the shared curve (qLamp, its
           // ceiling where pools crowd; the crown's own height fade is qK's), by night squared and
-          // on a half greyed albedo as the ground and walls take it, so lamplit leaves turn warm
+          // on the warm grey albedo the ground takes it on (qLampAlbedo), so lamplit leaves turn warm
           // rather than neon green; a little stronger than the ground, since leaves face the pool.
           '{',
           '  float qK = (1.0 - smoothstep(0.1, 1.7, vQWorld.y - vQBaseY)) * (0.55 + 0.45 * max(0.0, -vQUp.y));',
-          '  vec3 qA = mix(diffuseColor.rgb, vec3(dot(diffuseColor.rgb, vec3(0.3, 0.55, 0.15))), 0.45);',
-          '  totalEmissiveRadiance += qA * qLamp(vQWorld.xz, 0.0) * (uNight * uNight) * qK;',
+          '  totalEmissiveRadiance += qLampAlbedo(diffuseColor.rgb) * qLamp(vQWorld.xz, 0.0) * (uNight * uNight) * qK;',
           '}',
         ].join('\n'),
       );

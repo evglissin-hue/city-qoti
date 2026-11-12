@@ -105,7 +105,7 @@ describe('the lights layer sources', () => {
     const lanterns = sources.get('lanterns') ?? [];
     const fires = sources.get('fires') ?? [];
     expect(lanterns.length).toBeGreaterThan(0);
-    expect(lanterns[0]).toMatchObject({ radius: 2.8, intensity: 1, color: LAMP_COLORS.old });
+    expect(lanterns[0]).toMatchObject({ radius: 2.8, intensity: 1.25, color: LAMP_COLORS.old });
     expect(lanterns.some((d) => d.radius === 3.0)).toBe(false);
     expect(fires.length).toBeGreaterThan(0);
     expect(fires[0]).toMatchObject({ radius: 3.0, intensity: 1.3, color: 0xff9548 });
@@ -121,7 +121,7 @@ describe('the lights layer sources', () => {
   it('spills light under lit windows, thinner above the ground floor', () => {
     const lit = run(m, 21, 1).sources.get('windows') ?? [];
     expect(lit.length).toBeGreaterThan(0);
-    expect(lit.every((d) => d.radius === 1.15 && (d.intensity === 0.22 || d.intensity === 0.14))).toBe(true);
+    expect(lit.every((d) => d.radius === 0.95 && (d.intensity === 0.16 || d.intensity === 0.1))).toBe(true);
     expect(run(m, 21, 0).sources.get('windows') ?? []).toHaveLength(0);
   });
 

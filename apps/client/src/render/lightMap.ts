@@ -206,15 +206,17 @@ export function lightMapStats(env: LightMapEnv): LightMapStats {
 }
 
 /**
- * The pool's shape across a disc, t the distance from its middle over its radius: a broad soft
- * pool, (1 - t^2)^2, with a brighter core under the lamp, so light pools and fades and never ends
- * in a ring. 1 in the middle, 0 at the edge.
+ * The pool's shape across a disc, t the distance from its middle over its radius: a soft pool,
+ * (1 - t^2)^2, with a bright core under the lamp and a faint skirt, so light pools and fades and
+ * never ends in a ring. V2X: most of the light within half the radius (the skirt 0.06, was 0.22),
+ * so neighboring lamps make pools with darker ground between, not one even wash. 1 in the middle,
+ * 0 at the edge.
  */
 export function discFalloff(t: number): number {
   const t2 = t * t;
   if (t2 >= 1) return 0;
   const w = (1 - t2) * (1 - t2);
-  return w * (0.22 + 0.78 / (1 + 12 * t2));
+  return w * (0.06 + 0.94 / (1 + 18 * t2));
 }
 
 const DISC_VERTEX = /* glsl */ `
@@ -239,7 +241,7 @@ void main() {
   float t2 = dot(vLocal, vLocal);
   if (t2 >= 1.0) discard;
   float w = (1.0 - t2) * (1.0 - t2);
-  gl_FragColor = vec4(vColor * (w * (0.22 + 0.78 / (1.0 + 12.0 * t2))), 1.0);
+  gl_FragColor = vec4(vColor * (w * (0.06 + 0.94 / (1.0 + 18.0 * t2))), 1.0);
 }
 `;
 
@@ -487,6 +489,19 @@ export function lightMapUniforms(env: LightMapEnv): LightMapUniforms {
 }
 
 /**
+ * V2X: `qLampAlbedo(albedo)`, the albedo lamplight lands on: pulled toward a warm grey of the same
+ * brightness, so amber light on green grass, leaves and paths reads amber rather than olive or
+ * yellow-green. Part of `LIGHT_MAP_GLSL`; on its own for a fragment shader that reads the map in
+ * its vertex shader (the meadow carpet).
+ */
+export const LAMP_ALBEDO_GLSL = /* glsl */ `
+vec3 qLampAlbedo(vec3 albedo) {
+  float lum = dot(albedo, vec3(0.3, 0.55, 0.15));
+  return mix(albedo, lum * vec3(1.15, 0.9, 0.7), 0.8);
+}
+`;
+
+/**
  * GLSL for readers: the uniforms and `qLightMap(xz)`, the lamplight (linear RGB) at a world point.
  * Readers scale it by the night themselves (the map holds light whether or not it is dark).
  */
@@ -507,4 +522,4 @@ vec3 qLamp(vec2 xz, float up) {
   l *= inversesqrt(1.0 + 2.5 * y * y);
   return l * (1.0 - smoothstep(1.5, 4.0, up));
 }
-`;
+${LAMP_ALBEDO_GLSL}`;

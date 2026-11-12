@@ -139,8 +139,12 @@ describe('the light map (V2.0)', () => {
       expect(v).toBeLessThan(last);
       last = v;
     }
-    expect(discFalloff(0.5)).toBeGreaterThan(0.2);
-    expect(discFalloff(0.9)).toBeLessThan(0.05);
+    // V2X: a pool, not a wash: bright under the lamp, most of the light within half the radius.
+    expect(discFalloff(0.25)).toBeGreaterThan(0.4);
+    expect(discFalloff(0.5)).toBeGreaterThan(0.1);
+    expect(discFalloff(0.5)).toBeLessThan(0.16);
+    expect(discFalloff(0.7)).toBeLessThan(0.05);
+    expect(discFalloff(0.9)).toBeLessThan(0.01);
   });
 
   it('gives readers one GLSL function over two uniforms', () => {

@@ -128,7 +128,7 @@ void main() {
   vec3 tangent = normalize(c2 - c + vec3(0.0, 1e-4, 0.0));
   vec3 view = normalize(cameraPosition - c);
   vec3 side = normalize(cross(tangent, view) + vec3(1e-5, 0.0, 0.0));
-  float width = (0.09 + t * 0.46) * (1.0 + uCold * 0.45);
+  float width = (0.09 + t * 0.4) * (1.0 + uCold * 0.45);
   vec3 p = c + side * position.x * width;
   vFade = smoothstep(0.0, 0.07, t) * (1.0 - smoothstep(0.35, 1.0, t));
   // V2X: the shared curve's ceiling (qLamp), not its height fade: smoke over a lamplit street
@@ -155,10 +155,11 @@ void main() {
   // Soft across the ribbon, thinning in slow wisps that travel up it.
   float across = 1.0 - pow(abs(vUv.x * 2.0 - 1.0), 1.6);
   float wisp = 0.72 + 0.28 * sin(vUv.y * 9.0 - uTime * 1.1 + vUv.x * 2.0);
-  float a = across * wisp * vFade * (0.5 + uCold * 0.18);
+  // V2X: softer by day (a fifth less opaque), as V2C left it by night.
+  float a = across * wisp * vFade * (0.5 + uCold * 0.18) * mix(0.78, 1.0, uNight);
   if (a < 0.01) discard;
   // Lit by the sky and the sun by day, a dim blue-gray by night, warm where it passes a lamp.
-  vec3 light = uSky * 0.5 + uSunColor * 0.62 * (1.0 - uNight);
+  vec3 light = uSky * 0.5 + uSunColor * 0.52 * (1.0 - uNight);
   vec3 col = uSmoke * light * mix(1.0, 0.45, uNight) + uSmoke * vGlow * 1.4;
   gl_FragColor = vec4(col, a);
   #include <colorspace_fragment>

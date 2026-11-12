@@ -23,13 +23,15 @@ import type { LayerContext, RenderLayer } from './types';
  */
 
 /** How far and how bright each decor kit's lamp throws (kit id from `artKitId`). */
+// V2X: a quarter brighter than V2A's, with the tighter pool shape (`discFalloff`): bright under the
+// lamp, dark between lamps.
 const LAMP_SHAPE: Readonly<Record<string, readonly [radius: number, intensity: number]>> = {
-  bunting: [1.4, 0.3],
-  'hanging-lantern': [2.1, 0.75],
-  'lamp-post': [2.8, 1.0],
-  lantern: [2.0, 0.8],
+  bunting: [1.4, 0.35],
+  'hanging-lantern': [2.1, 0.95],
+  'lamp-post': [2.8, 1.25],
+  lantern: [2.0, 1.0],
 };
-const LAMP_DEFAULT: readonly [number, number] = [2.2, 0.8];
+const LAMP_DEFAULT: readonly [number, number] = [2.2, 1.0];
 
 /** Buildings with a fire at the door, sorted. */
 export const OVEN_KITS: readonly string[] = ['bakery', 'brick-kiln', 'pie-shop', 'smithy'];
@@ -201,7 +203,7 @@ export function lightsLayer(): RenderLayer {
         const gx = p.x + ox * 0.3;
         const gz = p.z + oz * 0.3;
         // Upper floors spill less than the ground floor.
-        const disc: LightDisc = { x: gx, z: gz, radius: 1.15, color, intensity: l[1] < 0.9 ? 0.22 : 0.14 };
+        const disc: LightDisc = { x: gx, z: gz, radius: 0.95, color, intensity: l[1] < 0.9 ? 0.16 : 0.1 };
         windows.push({ pane, disc });
         if (LIGHT_LOOP) all.push({ x: gx, y: groundY(mirror, gx, gz) + 0.05, z: gz, strength: 0.2, pane });
       }
