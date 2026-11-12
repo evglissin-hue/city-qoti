@@ -16,6 +16,7 @@ export {
 export * from './limits';
 export type * from './messages';
 export { SerialQueue } from './queue';
+export { peekSnapshotVersion } from './saveVersion';
 export { RoomCore, type Conn, type RoomOptions } from './room';
 export {
   MemoryStorage,

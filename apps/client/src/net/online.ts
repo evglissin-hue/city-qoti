@@ -16,6 +16,7 @@ const FINAL_CLOSES = new Set<number>([
   CloseCode.badToken,
   CloseCode.notFound,
   CloseCode.versionMismatch,
+  CloseCode.oldValley,
 ]);
 
 /** The room sends a turn every 100 ms; this long without a frame means the socket is gone (sleep, lost wifi). */
