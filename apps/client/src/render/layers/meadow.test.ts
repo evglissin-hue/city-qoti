@@ -6,6 +6,8 @@ import { PerspectiveCamera, Scene } from 'three';
 import { describe, expect, it } from 'vitest';
 import { Mirror } from '../../state/mirror';
 import { createWorldEnv } from '../env';
+import { GroundTextures } from '../ground';
+import { groundTexturesFor } from '../groundRead';
 import { SurfaceTiles } from '../surface';
 import {
   BLADES_PER_TILE,
@@ -218,6 +220,13 @@ describe('the blade patch', () => {
   });
 });
 
+describe('the blade patch shading', () => {
+  it('carries a normal attribute, so three does not compile the carpet flat shaded', () => {
+    // Without one, three lights each blade by its own facet (dark stipple on short grass).
+    expect(bladePatchGeometry().getAttribute('normal')).toBeDefined();
+  });
+});
+
 describe('the layer', () => {
   it('draws nothing at reach 0 and adds one mesh otherwise', () => {
     const m = mixed();
@@ -229,6 +238,25 @@ describe('the layer', () => {
     layer.init({ scene, mirror: m, material: undefined as never, invalidate: () => {}, camera, env });
     expect(layer.frame?.(0.016)).toBe(false);
     expect(scene.children.length).toBe(0);
+    layer.dispose();
+  });
+
+  it('builds a mesh that casts nothing and opts out of the renderer casting it', () => {
+    const m = mixed();
+    const scene = new Scene();
+    const camera = new PerspectiveCamera();
+    const env = createWorldEnv(camera);
+    env.meadowCarpet = 30;
+    env.focus.set(24, 0, 24);
+    camera.position.set(24, 40, 64);
+    groundTexturesFor(env).value = new GroundTextures(m);
+    const layer = meadowLayer();
+    layer.init({ scene, mirror: m, material: undefined as never, invalidate: () => {}, camera, env });
+    for (let f = 0; f < 40; f++) layer.frame?.(0.016);
+    const mesh = scene.children.find((o) => o.name === 'meadow')!;
+    expect(mesh).toBeDefined();
+    expect(mesh.castShadow).toBe(false);
+    expect(mesh.userData.qotiShadows).toBe(false);
     layer.dispose();
   });
 });
