@@ -19,11 +19,15 @@ export const START_GOODS: readonly [string, number][] = [
   ['stone', 30],
 ];
 
-/** Granary stock at founding (R1: Food keeps in the Granary): [good id, units]. */
+/**
+ * Granary stock at founding (R1: Food keeps in the Granary): [good id, units]. R1X: 56 (was 44), so
+ * the founders and the first newcomers eat until the first farm and fishery are at work (hazel's
+ * stores stood empty on day 4 with thirteen mouths and nothing made yet).
+ */
 export const START_FOOD: readonly [string, number][] = [
-  ['grain', 20],
-  ['vegetables', 16],
-  ['fish', 8],
+  ['grain', 24],
+  ['vegetables', 20],
+  ['fish', 12],
 ];
 
 /** Starting buildings in placement order; homes and the well cluster around the town hall. */

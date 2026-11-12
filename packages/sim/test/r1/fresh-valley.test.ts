@@ -101,9 +101,9 @@ describe('R1 fresh standard valley', () => {
         expect(qty(store, 'timber')).toBe(60);
         expect(qty(store, 'stone')).toBe(30);
         const granary = storeOf(state, 'granary');
-        expect(qty(granary, 'grain')).toBe(20);
-        expect(qty(granary, 'vegetables')).toBe(16);
-        expect(qty(granary, 'fish')).toBe(8);
+        expect(qty(granary, 'grain')).toBe(24);
+        expect(qty(granary, 'vegetables')).toBe(20);
+        expect(qty(granary, 'fish')).toBe(12);
         expect(pathTiles(state).length).toBeGreaterThan(0);
       });
 
