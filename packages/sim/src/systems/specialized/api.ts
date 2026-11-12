@@ -70,7 +70,14 @@ function sameRoads(state: WorldState, g: ReachGrid): boolean {
 const epochs = new WeakMap<WorldState, Map<string, { version: number; epoch: number; copy: Uint8Array }>>();
 
 /** The network version at which a layer (as `read` sees it) last changed, as roadEpoch says. */
-function layerEpoch(state: WorldState, name: string, n: number, read: (i: number) => number): number {
+function layerEpoch(
+  state: WorldState,
+  name: string,
+  n: number,
+  read: (i: number) => number,
+  layer: Uint8Array,
+  flag: boolean,
+): number {
   const v = state.networkVersion;
   let perState = epochs.get(state);
   if (!perState) {
@@ -80,11 +87,22 @@ function layerEpoch(state: WorldState, name: string, n: number, read: (i: number
   const hit = perState.get(name);
   if (hit && hit.version === v) return hit.epoch;
   if (hit) {
+    // The same comparison as `read(i) !== copy[i]`, without the call per tile (the layer is read as it is, or as 0/1).
     let same = true;
-    for (let i = 0; i < n; i++) {
-      if (read(i) !== hit.copy[i]) {
-        same = false;
-        break;
+    const copy = hit.copy;
+    if (flag) {
+      for (let i = 0; i < n; i++) {
+        if ((layer[i]! > 0 ? 1 : 0) !== copy[i]) {
+          same = false;
+          break;
+        }
+      }
+    } else {
+      for (let i = 0; i < n; i++) {
+        if (layer[i] !== copy[i]) {
+          same = false;
+          break;
+        }
       }
     }
     hit.version = v;
@@ -102,12 +120,12 @@ function layerEpoch(state: WorldState, name: string, n: number, read: (i: number
 
 function roadEpoch(state: WorldState): number {
   const road = state.map.road;
-  return layerEpoch(state, 'road', road.length, (i) => (road[i]! > 0 ? 1 : 0));
+  return layerEpoch(state, 'road', road.length, (i) => (road[i]! > 0 ? 1 : 0), road, true);
 }
 
 function heightEpoch(state: WorldState): number {
   const height = state.map.height;
-  return layerEpoch(state, 'height', height.length, (i) => height[i]!);
+  return layerEpoch(state, 'height', height.length, (i) => height[i]!, height, false);
 }
 
 /** The building's reach grid, walked again only when it moved or the roads in its box changed. */

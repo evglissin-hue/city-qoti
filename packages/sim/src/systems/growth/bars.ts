@@ -52,6 +52,8 @@ export interface BarInputs {
   porters: (lot: Lot) => boolean;
   /** R1X: businesses stand with nobody at work, so new ones wait for hands (see handsShort). */
   handsShort?: boolean;
+  /** Outlets in town (outletCount), when the caller has counted them tonight. */
+  outlets?: number;
 }
 
 /** True when the lot is still free, of one of the zones, and porters reach it. */
@@ -111,7 +113,7 @@ function homesBar(_state: WorldState, x: BarInputs): Bar {
 function shopsBar(state: WorldState, x: BarInputs): Bar {
   const households = state.households.length;
   const unserved = x.doors.length;
-  const outlets = outletCount(state);
+  const outlets = x.outlets ?? outletCount(state);
   const over = households - HOUSEHOLDS_PER_SHOP * outlets;
   const crowded = Math.floor(households / HOUSEHOLDS_PER_SHOP) > outlets;
   const reasons: DemandReason[] = [];

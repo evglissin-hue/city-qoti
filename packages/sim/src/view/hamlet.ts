@@ -162,11 +162,19 @@ export function runtimeView(
 
 /** Town stock per good: storehouses, stalls and output buffers. */
 export function townStock(state: WorldState): number[] {
-  const out = new Array<number>(content.goods.length).fill(0);
-  for (const b of state.buildings) {
+  const n = content.goods.length;
+  const out = new Array<number>(n).fill(0);
+  const buildings = state.buildings;
+  for (let k = 0; k < buildings.length; k++) {
+    const b = buildings[k]!;
     const rt = b.rt;
     if (!rt || b.stage !== 'built') continue;
-    for (let i = 0; i < out.length; i++) out[i]! += (rt.store[i] ?? 0) + (rt.output[i] ?? 0);
+    const store = rt.store;
+    const output = rt.output;
+    // Full-length arrays (the usual) take the plain loop; a short one falls back to the guarded sum.
+    const m = Math.min(n, store.length, output.length);
+    for (let i = 0; i < m; i++) out[i]! += store[i]! + output[i]!;
+    for (let i = m; i < n; i++) out[i]! += (store[i] ?? 0) + (output[i] ?? 0);
   }
   return out;
 }

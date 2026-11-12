@@ -43,6 +43,7 @@ import { mix, servicesOf } from './desirability';
 import {
   homeDoorTiles,
   HOUSEHOLDS_PER_SHOP,
+  outletCount,
   outletsCrowded,
   SHOP_HOUSEHOLDS,
   shopReach,
@@ -139,7 +140,7 @@ export function foodDaysInHand(state: WorldState, stock: readonly number[] = tow
 /** Homes wanted beyond those waiting: newcomers would come, and there is work for them. */
 function homesWanted(state: WorldState, stock?: readonly number[]): number {
   const open = openJobCount(state);
-  if (open <= 0 || attractiveness(state, [], stock) < HOMES_PULL) return 0;
+  if (open <= 0 || attractiveness(state, [], stock, open) < HOMES_PULL) return 0;
   let waiting = vacantHomes(state).length;
   for (const b of state.buildings) {
     if (b.stage === 'construction' && content.buildingById.get(b.def)?.housing) waiting++;
@@ -167,6 +168,8 @@ interface Night {
   /** Trades with a business going up, and businesses of each trade in town. */
   goingUp: Set<string>;
   counts: Map<string, number>;
+  /** Outlets in town, built or going up. */
+  outlets: number;
   /** More households than the outlets in town can serve. */
   crowded: boolean;
   /** Empty lots with a road at the frontage, best first (desirability, then id). */
@@ -215,7 +218,8 @@ function readNight(state: WorldState): Night {
   const village = rankAtLeast(state, 'village');
   const homes = homeDoorTiles(state);
   const doors = unservedDoors(state, services, homes);
-  const crowded = outletsCrowded(state);
+  const outlets = outletCount(state);
+  const crowded = outletsCrowded(state, outlets);
   const night: Night = {
     services,
     doors,
@@ -228,6 +232,7 @@ function readNight(state: WorldState): Night {
     handsShort: businessesWaitingHands(state) >= HANDS_WAITING,
     goingUp: new Set(),
     counts: new Map(),
+    outlets,
     crowded,
     empty: state.lots
       .filter((l) => !l.buildingId && state.map.road[l.frontage])
@@ -256,7 +261,8 @@ function settle(state: WorldState, night: Night, grown?: Building): void {
   if (grown && content.buildingById.get(grown.def)?.coverage?.some((c) => c.kind === 'food')) {
     night.services = servicesOf(state);
     night.doors = unservedDoors(state, night.services);
-    night.crowded = outletsCrowded(state);
+    night.outlets = outletCount(state);
+    night.crowded = outletsCrowded(state, night.outlets);
   }
 }
 
@@ -554,6 +560,7 @@ export function writeDemand(state: WorldState, ctx: TickCtx | null, night: Night
     empty: night.empty,
     porters: memoByLot((l) => night.porters(l.frontage)),
     handsShort: night.handsShort,
+    outlets: night.outlets,
   };
   writeBars(state, ctx, computeBars(state, inputs));
 }

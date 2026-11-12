@@ -12,9 +12,12 @@ import { townStock } from '../../view/hamlet';
  * want spread over the cover, so a town with sites waiting on planks reads as short of planks even
  * before anyone has used one.
  */
-export function shortages(state: WorldState, stock: readonly number[] = townStock(state)): number[] {
+export function shortages(
+  state: WorldState,
+  stock: readonly number[] = townStock(state),
+  want: readonly number[] = wants(state),
+): number[] {
   const out = new Array<number>(content.goods.length).fill(0);
-  const want = wants(state);
   for (let g = 0; g < out.length; g++) {
     const w = want[g]!;
     if (w <= 0) continue;

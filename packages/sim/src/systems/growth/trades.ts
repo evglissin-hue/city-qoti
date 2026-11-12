@@ -101,6 +101,8 @@ export interface TownNeeds {
   shopNeed: number;
   /** needOf by trade id, tonight (cleared when the makers change). */
   memo: Map<string, { need: number; code: NeedCode | null }>;
+  /** supplyOf by trade id, tonight (cleared with `memo`). */
+  supplyMemo?: Map<string, number>;
 }
 
 /** True for a good households buy (not Materials, not wool, which is only an input). */
@@ -230,9 +232,10 @@ function lazyOnOffer(state: WorldState): (family: number) => number {
 /** Makers per good (built or going up) and whether a built one makes it, written into `n`. */
 export function countMakers(
   state: WorldState,
-  n: Pick<TownNeeds, 'makers' | 'madeHere'> & { memo?: Map<string, unknown> },
+  n: Pick<TownNeeds, 'makers' | 'madeHere'> & { memo?: Map<string, unknown>; supplyMemo?: Map<string, unknown> },
 ): void {
   n.memo?.clear();
+  n.supplyMemo?.clear();
   n.makers.fill(0);
   n.madeHere.fill(false);
   for (const b of state.buildings) {
@@ -251,7 +254,8 @@ export function countMakers(
 export function townNeeds(state: WorldState, shopNeed = 0): TownNeeds {
   const n = content.goods.length;
   const stock = townStock(state);
-  const want = wants(state).map((w) => Math.ceil(w));
+  const wanted = wants(state);
+  const want = wanted.map((w) => Math.ceil(w));
   const makers = new Array<number>(n).fill(0);
   const madeHere = new Array<boolean>(n).fill(false);
   countMakers(state, { makers, madeHere });
@@ -272,7 +276,7 @@ export function townNeeds(state: WorldState, shopNeed = 0): TownNeeds {
   return {
     stock,
     want,
-    short: shortages(state, stock),
+    short: shortages(state, stock, wanted),
     made,
     makers,
     madeHere,
@@ -285,6 +289,7 @@ export function townNeeds(state: WorldState, shopNeed = 0): TownNeeds {
     keen: new KeenResidents(state),
     shopNeed,
     memo: new Map(),
+    supplyMemo: new Map(),
   };
 }
 
@@ -294,6 +299,16 @@ export function needOf(
   t: TradeDef,
   n: TownNeeds,
 ): { need: number; code: NeedCode | null } {
+  // Tonight's reading does not change until the makers do (countMakers clears the memo).
+  let r = n.memo.get(t.id);
+  if (!r) {
+    r = needTerm(state, t, n);
+    n.memo.set(t.id, r);
+  }
+  return r;
+}
+
+function needTerm(state: WorldState, t: TradeDef, n: TownNeeds): { need: number; code: NeedCode | null } {
   if (!t.makes) return { need: n.shopNeed, code: n.shopNeed > 0 ? 'custom' : null };
   const g = content.goodIndex.get(t.makes);
   if (g === undefined) return { need: 0, code: null };
@@ -350,6 +365,15 @@ function dayOf(t: TradeDef, id: string): number {
 
 /** The supply term, in permille. */
 export function supplyOf(state: WorldState, t: TradeDef, n: TownNeeds): number {
+  let v = n.supplyMemo?.get(t.id);
+  if (v === undefined) {
+    v = supplyTerm(state, t, n);
+    n.supplyMemo?.set(t.id, v);
+  }
+  return v;
+}
+
+function supplyTerm(state: WorldState, t: TradeDef, n: TownNeeds): number {
   let supply = SUPPLY_HERE;
   for (const id of t.from) {
     const g = content.goodIndex.get(id);

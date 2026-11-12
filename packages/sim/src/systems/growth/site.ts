@@ -67,6 +67,8 @@ export class SiteCache {
 
   /** Who is served changed in place tonight (a business grew or retooled). */
   private changed = false;
+  /** anyRoom by def, tonight (cleared whenever who is served changes). */
+  private readonly room = new Map<string, boolean>();
 
   constructor(
     readonly state: WorldState,
@@ -80,6 +82,7 @@ export class SiteCache {
   /** Who is served may have changed (a business grew or retooled): forget it. */
   reset(): void {
     this.changed = true;
+    this.room.clear();
     this.near.clear();
     this.served.clear();
     this.households.clear();
@@ -97,6 +100,7 @@ export class SiteCache {
   /** A business turned to another trade: it leaves the lists it was on and joins those it now fits. */
   retooled(b: Building): void {
     this.beforeChange();
+    this.room.clear();
     for (const ids of this.served.values()) {
       const k = ids.indexOf(b.id);
       if (k >= 0) ids.splice(k, 1);
@@ -117,6 +121,7 @@ export class SiteCache {
   addBusiness(b: Building): void {
     if (!b.trade) return;
     this.beforeChange();
+    this.room.clear();
     // The index is rebuilt when next asked; the lists already made are brought up to date here.
     this.byTrade = null;
     const door = this.door(b);
@@ -324,6 +329,22 @@ export class SiteCache {
     return idx.buckets[Math.floor(z / NEAR_BUCKET) * idx.n + Math.floor(x / NEAR_BUCKET)]!;
   }
 
+  /** True when some built building of the def serves fewer than its capacity (once until who is served changes). */
+  anyRoom(defId: string): boolean {
+    let v = this.room.get(defId);
+    if (v === undefined) {
+      v = false;
+      for (const sb of this.built(defId)) {
+        if (this.servedBy(sb).length < this.capacityOf(sb)) {
+          v = true;
+          break;
+        }
+      }
+      this.room.set(defId, v);
+    }
+    return v;
+  }
+
   /** Household doors (tile indexes), once a pass. */
   homeDoors(): readonly number[] {
     if (!this.doors) {
@@ -466,6 +487,5 @@ export function siteFits(state: WorldState, lot: Lot, t: TradeDef, self: EntityI
 
 /** True when some built specialized building of `defId` has room for one more business anywhere. */
 export function anyRoom(cache: SiteCache, defId: string): boolean {
-  for (const sb of cache.built(defId)) if (cache.servedBy(sb).length < cache.capacityOf(sb)) return true;
-  return false;
+  return cache.anyRoom(defId);
 }

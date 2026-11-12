@@ -88,8 +88,8 @@ export function outletCount(state: WorldState): number {
 }
 
 /** True when there are more households than the outlets in town can serve. */
-export function outletsCrowded(state: WorldState): boolean {
-  return Math.floor(state.households.length / HOUSEHOLDS_PER_SHOP) > outletCount(state);
+export function outletsCrowded(state: WorldState, outlets: number = outletCount(state)): boolean {
+  return Math.floor(state.households.length / HOUSEHOLDS_PER_SHOP) > outlets;
 }
 
 /** The shop trade's need in permille: full while households lack an outlet or outlets are crowded. */
