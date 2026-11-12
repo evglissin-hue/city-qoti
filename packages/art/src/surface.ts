@@ -126,7 +126,7 @@ export const SURFACES: readonly (SurfaceDef | undefined)[] = [
   row('woodGrain', 'facade', 0.6, 0.6),
   row('paintedWood', 'facade', 0.8, 0.5, { token: 'wood', mix: 0.75 }),
   row('wroughtIron', 'facade', 0.5, 0.5),
-  row('terracotta', 'facade', 0.6, 0.55, { token: 'stripe', mix: 0.35 }),
+  row('terracotta', 'facade', 0.6, 0.55, { token: 'stripe', mix: 0.22 }),
   row('cloth', 'facade', 0.5, 0.5),
 ];
 

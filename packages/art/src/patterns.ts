@@ -461,14 +461,14 @@ export function generatePatterns(data: Uint8Array, size: number): void {
   }
 
   // Painted wood: the paint is mostly even, with faint brush strokes along u, and worn through to
-  // bare wood (G, the accent: palette 2.0 wood) where a fine mottle peaks, about one texel in twelve.
+  // bare wood (G, the accent: palette 2.0 wood) in short scuffs along the boards, a few in a hundred.
   {
     const strokes = fbm(size, 2, 24, 2, 211);
     const tone = fbm(size, 5, 5, 2, 212);
-    const wear = fbm(size, 10, 12, 2, 213);
+    const wear = fbm(size, 8, 40, 2, 213);
     put(SURFACE.paintedWood, (_x, _y, i) => {
       out.r = 1 + (strokes[i]! - 0.5) * 0.14 + (tone[i]! - 0.5) * 0.12;
-      out.g = smooth(0.68, 0.76, wear[i]!);
+      out.g = smooth(0.68, 0.73, wear[i]!);
     });
   }
 
@@ -488,13 +488,13 @@ export function generatePatterns(data: Uint8Array, size: number): void {
     const firing = fbm(size, 6, 6, 2, 231);
     const ringTone = noise(size, 1, 20, 232);
     const grit = cells(128, 128, 233);
-    const bloom = fbm(size, 4, 4, 3, 234);
+    const bloom = fbm(size, 6, 6, 3, 235);
     put(SURFACE.terracotta, (x, y, i) => {
       const fy = y * 20 - Math.floor(y * 20);
       const ring = 0.97 + 0.06 * bump(fy) + (ringTone[i]! - 0.5) * 0.08;
       const g = grit[Math.floor(y * 128) * 128 + Math.floor(x * 128)]!;
       out.r = ring * (1 + (firing[i]! - 0.5) * 0.34) * (g > 0.96 ? 0.92 : g < 0.03 ? 1.06 : 1);
-      out.g = smooth(0.58, 0.76, bloom[i]!) * 0.8;
+      out.g = smooth(0.6, 0.78, bloom[i]!) * 0.8;
     });
   }
 
