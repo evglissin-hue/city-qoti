@@ -13,12 +13,15 @@
 // same scene.
 // Env: QOTI_QUALITY (medium), QOTI_OUT (the screenshots folder), QOTI_WAIT (least ms per shot,
 // 8000), QOTI_SETTLE_MAX (most ms to wait for a scene to settle, 240000), QOTI_SIZE (1440x900),
+// QOTI_SHOTS (V2X: only these shot names, comma separated),
 // QOTI_HUD=1 keeps the interface, QOTI_LAYERS=1 also prints triangles per render layer (slow).
 import { chromium } from '@playwright/test';
 
 const clientPort = Number(process.env.QOTI_CLIENT_PORT ?? 5173);
 const base = `http://localhost:${clientPort}`;
 const [stage = 'before', ...only] = process.argv.slice(2);
+// V2X: QOTI_SHOTS=night,nightstreet takes only those shots of each scene (for quick A/B looks).
+const onlyShots = process.env.QOTI_SHOTS ? process.env.QOTI_SHOTS.split(',') : null;
 const out = process.env.QOTI_OUT ?? 'docs/build/screenshots';
 const quality = process.env.QOTI_QUALITY ?? 'medium';
 const [vw, vh] = (process.env.QOTI_SIZE ?? '1440x900').split('x').map(Number);
@@ -186,6 +189,7 @@ for (const [scene, def] of Object.entries(SCENES)) {
     center = [(x0 + x1 + 1) / 2, (z0 + z1 + 1) / 2];
   }
   for (const shot of def.shots) {
+    if (onlyShots && !onlyShots.includes(shot.name)) continue;
     const at =
       shot.street && street
         ? street
