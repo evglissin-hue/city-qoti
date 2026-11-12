@@ -40,7 +40,7 @@ About a dozen hand-placed buildings, each one decision about the valley's ground
 
 | Building | Rank | Site rule | What it does | Crew |
 |---|---|---|---|---|
-| Forester's Lodge | Hamlet | 12+ mature trees within 8 tiles | fells and replants its wood; makes timber, and firewood toward the season plan's Fuel reserve | 3 |
+| Forester's Lodge | Hamlet | 12+ mature trees within 8 tiles | fells and replants its wood, and while the wood holds fewer trees of any age than its rule (the town grew into it) plants rather than fells (R1X); makes timber, and firewood toward the season plan's Fuel reserve | 3 |
 | Quarry | Hamlet | 4+ stone deposit tiles in the footprint | stone | 3 |
 | Fishery | Hamlet | door on the water's edge | fish; rests while the river is frozen | 3 |
 | Windmill | Hamlet | open ground, no building within 2 tiles | lets bakers set up in its reach: 2 bakers, or 4 when it stands 4+ levels above the ground around it | 1 |
