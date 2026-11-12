@@ -34,7 +34,9 @@ import { chronicleView, fillText, goodPairs, nameOf, townStock } from './hamlet'
 import { residentDetail } from './residentDetail';
 import { lotView } from './village';
 import { buildingProfit } from '../systems/market/profit';
+import { siteFits, tradesOf } from '../systems/growth';
 import { servedBy } from '../systems/services/coverage';
+import { capacityOf, served } from '../systems/specialized/api';
 import type { ServiceKind } from '../systems/services/weights';
 
 export { residentDetail };
@@ -341,19 +343,26 @@ export function buildingDetail(state: WorldState, id: EntityId): BuildingDetail 
 }
 
 /**
- * I2 (C4.0): the trades to pin (R1: a business's zone's trades), the lot, the tier and an upgrade, and profit per work day: output
+ * I2 (C4.0): the trades to pin (R1B: its zone's trades its site allows), the reach of a specialized
+ * building, the lot, the tier and an upgrade, and profit per work day: output
  * at market price minus wages, upkeep and inputs at market price (C4A, systems/market/profit.ts).
  */
 function addVillageDetail(state: WorldState, b: Building, def: BuildingDef, detail: BuildingDetail): void {
   const rt = b.rt!;
   const trade = b.trade ? content.tradeById.get(b.trade) : undefined;
+  const lot = b.lot ? findById(state.lots, b.lot) : undefined;
   if (trade) {
-    detail.trades = content.trades
-      .filter((t) => t.zone === trade.zone && t.building === trade.building)
+    // R1B: its zone's trades the valley allows whose site wants its lot meets (its own always).
+    detail.trades = tradesOf(state, trade.zone)
+      .filter((t) => t.building === trade.building)
+      .filter((t) => t.id === trade.id || !lot || siteFits(state, lot, t, b.id))
       .map((t) => ({ id: t.id, name: t.name }));
     if (b.pinned) detail.pinned = true;
   }
-  const lot = b.lot ? findById(state.lots, b.lot) : undefined;
+  // R1B: a specialized building's reach, who it serves and how many it may.
+  if (def.specialized && def.reach) {
+    detail.reach = { tiles: def.reach, served: served(state, b), capacity: capacityOf(state, b) };
+  }
   if (lot) detail.lot = lotView(lot);
   if (rt.tier) detail.tier = rt.tier;
   if (rt.upgrade && def.upgradesTo)

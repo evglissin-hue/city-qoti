@@ -30,6 +30,7 @@ import { Road, treeValue, TREE_SPECIES } from '../../src/map/layers';
 import { findById } from '../../src/state/entities';
 import { goodsArray } from '../../src/state/hamlet';
 import { insertBuilding } from '../../src/state/place';
+import { emptyCounters } from '../../src/state/zones';
 import { worldIndex } from '../../src/state/worldIndex';
 import { doorTile } from '../../src/systems/movement/api';
 import { flatWorld, S } from '../helpers';
@@ -224,6 +225,10 @@ export function hamletFixture(): HamletFixture {
     ['vegetables', 16],
     ['fish', 8],
   ]);
+
+  // R1B: the bakery's first hand keeps it (the family name on its sign); its counters start clean.
+  bakery.keeperId = bakery.rt!.workers[0] ?? 0;
+  bakery.counters = emptyCounters();
 
   state.networkVersion = 1;
   state.hearth.hints = content.patterns.slice(0, 3).map((p) => p.id);

@@ -37,7 +37,9 @@ describe('R1 saves', () => {
     const bakery = back.buildings.find((x) => x.id === b.bakery)!;
     expect(bakery.trade).toBe('baker');
     expect(bakery.level).toBe(2);
-    expect(bakery.keeperId).toBe(0);
+    // R1B: the fixture's bakery is kept by its first hand.
+    expect(bakery.keeperId).toBeGreaterThan(0);
+    expect(bakery.keeperId).toBe(state.buildings.find((x) => x.id === b.bakery)!.keeperId);
     expect(bakery.counters).toBeDefined();
   });
 
