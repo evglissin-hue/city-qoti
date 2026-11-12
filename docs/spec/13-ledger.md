@@ -276,7 +276,7 @@ Drawn by the Ledger and styled by the Hearth (P22), with policies in place of ne
 - **Balances** (one book, replacing Market, the stocks report, the Stores panel's lists and the Trade book's orders): one row for each family with its amount, variety (flavor icons, grayed when missing), price, what the carrier brought and took, and a year's history; a click opens the family's flavors and who makes them.
 - **Purse**: budget by category, taxes and wages, loans.
 - **Businesses**: every business and specialized building by trade, level and status in words.
-- Overlays as built (flows, coverage, status, soil and stone, floodplain, traffic, zones), plus reach rings for specialized buildings and, from R2, the two inks (`17-presentation.md`).
+- Overlays as built (flows, coverage, status, soil and stone, floodplain, traffic, zones), plus the reach of specialized buildings (washed along the roads they serve, R1X) and, from R2, the two inks (`17-presentation.md`).
 - Deep for whoever wants it, invisible for whoever does not (P32).
 
 ## What R1 removes
