@@ -47,6 +47,7 @@ test('two browsers play a full year online', async ({ browser }) => {
   await a.goto('/?debug&quality=low&fixture=village');
   await waitLive(a);
   await a.getByTestId('speed-0').click();
+  await a.getByTestId('menu-open').click();
   await a.getByTestId('settings-open').click();
   await a.getByTestId('move-online').click();
   await a.getByTestId('move-online-yes').click();
@@ -54,6 +55,7 @@ test('two browsers play a full year online', async ({ browser }) => {
   await waitLive(a);
   const link = await a.getByTestId('invite-link').inputValue();
   await a.getByRole('button', { name: 'Done' }).click();
+  await a.getByTestId('menu-open').click();
   await a.getByTestId('settings-open').click();
   await a.getByTestId('settings-threat-standard').click();
   await a.keyboard.press('Escape');

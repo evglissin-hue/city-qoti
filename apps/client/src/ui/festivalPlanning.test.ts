@@ -124,7 +124,7 @@ describe('the estimate', () => {
       pieces: festivalTuning.varietyFull,
       menu: [
         ['bread', 100],
-        ['pies', 100],
+        ['honey', 100],
         ['cider', 100],
       ],
       attendees: 10,
@@ -155,9 +155,9 @@ describe('the estimate', () => {
 
 describe('twists the town cannot meet', () => {
   it('names what a twist needs from the stores', () => {
-    expect(twistNeeds('pie-contest', () => 0)).toBe('10 pies');
-    expect(twistNeeds('pie-contest', (g) => (g === 'pies' ? 10 : 0))).toBeNull();
-    expect(twistNeeds('costume-parade', () => 0)).toBe('8 cloth or 2 coats');
-    expect(twistNeeds('costume-parade', (g) => (g === 'coats' ? 2 : 0))).toBeNull();
+    expect(twistNeeds('harvest-display', () => 0)).toBe('12 vegetables');
+    expect(twistNeeds('harvest-display', (g) => (g === 'vegetables' ? 12 : 0))).toBeNull();
+    expect(twistNeeds('costume-parade', () => 0)).toBe('8 cloth');
+    expect(twistNeeds('costume-parade', (g) => (g === 'cloth' ? 8 : 0))).toBeNull();
   });
 });

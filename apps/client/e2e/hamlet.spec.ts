@@ -14,7 +14,9 @@ test('New valley makes a standard valley; the books, reports and inspectors open
   await waitLive(page);
   expect(await page.evaluate(() => window.__qoti.mode())).toBe('standard');
   await expect(page.getByTestId('treasury')).toContainText('500');
+  await page.getByTestId('menu-open').click();
   await expect(page.getByTestId('population')).toBeVisible();
+  await page.getByTestId('menu-open').click();
 
   // Hearth books.
   for (const [book, panel] of [
@@ -33,15 +35,14 @@ test('New valley makes a standard valley; the books, reports and inspectors open
   await expect(page.getByTestId('patterns')).toContainText('Pattern Book');
   await page.getByTestId('patterns-close').click();
 
-  // Ledger reports.
+  // Ledger: the Purse (R1C replaced Reports and Policies).
   await page.getByTestId('lens-ledger').click();
-  await page.getByTestId('book-reports').click();
-  for (const tab of ['stocks', 'workforce', 'budget', 'buildings']) {
-    await page.getByTestId(`report-${tab}`).click();
-    await expect(page.getByTestId(`report-${tab}`)).toHaveAttribute('aria-selected', 'true');
+  await page.getByTestId('book-purse').click();
+  for (const tab of ['budget', 'taxes', 'loans']) {
+    await page.getByTestId(`purse-${tab}`).click();
+    await expect(page.getByTestId(`purse-${tab}`)).toHaveAttribute('aria-selected', 'true');
   }
-  await expect(page.getByTestId('budget')).toHaveCount(0);
-  await page.getByTestId('report-budget').click();
+  await page.getByTestId('purse-budget').click();
   await expect(page.getByTestId('budget')).toContainText('500 coins');
   await page.keyboard.press('Escape');
 
@@ -78,6 +79,7 @@ test('the hamlet fixture: residents and buildings inspected live from the sim wo
   await page.goto(`/${HAMLET_QUERY}&fixture=hamlet`);
   await waitLive(page);
   await expect.poll(() => page.evaluate(() => window.__qoti.residentIds().length)).toBe(9);
+  await page.getByTestId('menu-open').click();
   await expect(page.getByTestId('population')).toContainText('9');
 
   await page.evaluate(() => window.__qoti.select({ kind: 'resident', id: 12 }));
@@ -90,10 +92,11 @@ test('the hamlet fixture: residents and buildings inspected live from the sim wo
   await expect(resident).toContainText('Hazel Thistledown');
 
   await page.evaluate(() => window.__qoti.select({ kind: 'building', id: 6 }));
-  const bakery = page.getByTestId('building-inspector');
-  await expect(bakery).toContainText('Bakery');
-  await expect(bakery).toContainText('Hazel Thistledown');
-  await expect(bakery).toContainText('4 flour');
+  // R1: the fixture's bakery is a workshop business keeping the baker's trade, baking from grain.
+  const baker = page.getByTestId('building-inspector');
+  await expect(baker).toContainText('Baker');
+  await expect(baker).toContainText('Hazel Thistledown');
+  await expect(baker).toContainText('4 grain');
 
   await page.getByTestId('book-patterns').click();
   await expect(page.getByTestId('patterns')).toContainText('Hints in the margin');

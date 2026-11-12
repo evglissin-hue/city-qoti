@@ -62,6 +62,7 @@ export {
   fillText,
   goodPairs,
   householdView,
+  keepsNoGoods,
   moodBand,
   nameOf,
   noteView,
@@ -87,6 +88,7 @@ export {
 } from './view/inspect';
 export { evaluate, type Binding } from './conditions';
 export { achievable, placeableNow } from './systems/hearth/wishes/achievable';
+export { gardenFlavors } from './systems/hearth/garden';
 export { HealthWatch, type HealthIssue, type HealthKind } from './view/health';
 
 export { base64ToBytes, bytesToBase64 } from './state/base64';
@@ -132,8 +134,6 @@ export {
 export { foodDays, goodsAtMarket } from './conditions';
 export { findRoute } from './conditions/route';
 export { emptyVillageSlices, hasInnovation, rankAtLeast } from './state/village';
-export { chosenCalling, ensureOffer, offerOpen } from './systems/callings/api';
-export { scoreCallings } from './systems/callings/score';
 export { moneyBalance, moneyInside, pay, type Purse } from './systems/economy/money';
 export { buy, marketOpen, outletsWith, priceOf, sell, tillPrice } from './systems/market/api';
 // I2 (C4A)
@@ -141,13 +141,21 @@ export { basketScore, likeHalves } from './systems/market/baskets';
 export { coverOf, multiplierFor, stepPrice, targetPrice } from './systems/market/prices';
 export { incomeTax, wageBill } from './systems/market/wages';
 export { expenses, income } from './systems/economy';
-export { caravanCapacity, postBuyPrice, postSellPrice } from './systems/trade/caravans';
-export { tradingPost } from './systems/trade/post';
+// R1 (R1.0): the carrier's prices and terms, in place of the caravans' (postBuyPrice, postSellPrice).
+export {
+  carrierBuyPrice,
+  carrierSellPrice,
+  carrierTerms,
+  tradingPost,
+  type CarrierTerms,
+} from './systems/carrier/terms';
+export { carrierDay } from './systems/carrier';
+export { basketGroups, type NeedGroup } from './systems/market/baskets';
 export { isLean, overdraftLimit } from './systems/loans/credit';
 export { growLot, lotPlacement } from './systems/growth/api';
 export { cartAt, cartRoute, cartTile, requestCartMove } from './systems/traffic/api';
 // I2 (C4B): growth, traffic, desire paths and stairs for the client (overlays, tools, previews).
-export { growthDemand, type GrowthDemand } from './systems/growth';
+export { growthDemand, growthPass, type GrowthDemand } from './systems/growth';
 export { roadCapacity, roadNoise, slowdownPercent, trafficFlow } from './systems/traffic/api';
 export { roadKindLocked, wantsStairs } from './systems/traffic/streets';
 export { DESIRE_PATH_WEAR, desirePathTiles, WEAR_VISIBLE } from './systems/traffic/wear';
@@ -160,8 +168,50 @@ export { CART_MIN_LOAD, CART_MIN_TRIP } from './systems/logistics/carts';
 export { terraformCost } from './commands/terrain';
 export { findById, findIndexById, removeById } from './state/entities';
 export { fnv64Hex, hashState } from './state/hash';
-export { deserialize, serialize } from './state/serialize';
-export { migrateSave, migrations, SAVE_VERSION, type Migration, type SaveObject } from './state/version';
+export { deserialize, peekSaveVersion, serialize } from './state/serialize';
+export {
+  checkSaveVersion,
+  isOldValley,
+  migrateSave,
+  migrations,
+  OLDEST_SAVE_VERSION,
+  OldValleyError,
+  SAVE_VERSION,
+  type Migration,
+  type SaveObject,
+} from './state/version';
+// R1 (R1.0): the zones-first Ledger's shared helpers and views.
+export {
+  applyRankDefaults,
+  defaultSeasonPlan,
+  emptyCarrier,
+  emptyZonesSlices,
+  familyIndex,
+  familyOf,
+  FOOD_GOODS,
+  GOODS_BY_FAMILY,
+  hasTag,
+  isFood,
+  jobsOf,
+  levelOf,
+  methodOf,
+} from './state/zones';
+export { balancesView } from './view/zones';
+export { businessesView, businessView, isBusinessLike } from './view/businesses';
+export { demandView, demandWhy } from './view/demand';
+// R1 (R1.0): the cross-track APIs of docs/build/r1-wave-notes.md (stubs; their owners fill them).
+export { carrierBrought, winterMark } from './systems/carrier/api';
+export { familyCover, familyUse, flavorsOnOffer } from './systems/market/balances';
+export {
+  capacityOf,
+  hasRoomFor,
+  reachDistances,
+  reachRoadTiles,
+  served,
+  servedIds,
+  withinReach,
+} from './systems/specialized/api';
+export { tradeScore } from './systems/growth/trades';
 export { worldIndex, type WorldIndex } from './state/worldIndex';
 export { SIM_VERSION } from './version.generated';
 // I3 (C5.0): the season views, hooks and cross-track APIs for the client and the bench.
@@ -200,6 +250,8 @@ export {
   reserveMenu,
 } from './systems/festivals/api';
 export { FESTIVAL_SITE_MARGIN, openGround, patternRect, siteRect } from './systems/festivals/site';
+// R1 (R1D): the twists a festival may be planned with now.
+export { twistOffered, twistsOffered } from './systems/festivals/twists';
 export { canMeet, progressOf } from './systems/commissions';
 export { BOAT_UNITS, dockSellPrice, riverDock } from './systems/dock';
 export {

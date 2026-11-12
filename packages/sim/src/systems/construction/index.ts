@@ -2,7 +2,7 @@
 // (logistics); builders from the town hall and builder's yards walk to the site and add work,
 // which keeps pace with the materials delivered so far, so a site rises through its stages
 // (staked plot, foundation, frame, roof) in order. Sites are served in placement order, raised
-// sites first. Builders with no site to work on repair worn buildings when the town can afford it.
+// sites first, then the lots of the season plan's "build first" zone. Builders with no site to work on repair worn buildings when the town can afford it.
 import type { BuildingDef } from '@qoti/content';
 import { MAP_SIZE, TICKS_PER_HOUR } from '../../constants';
 import type { Building, Resident, System, TickCtx, WorldState } from '../../contracts';
@@ -18,6 +18,7 @@ import { doorTile } from '../movement/api';
 import { defOf } from '../logistics/stores';
 import { available, finishTask, productivity, startTask, walkTo } from '../logistics/tasks';
 import { storehouseReach } from '../logistics/range';
+import { buildsFirst } from './first';
 import { allowedWork, computeStatus, materialsDue } from '../production/status';
 
 export const MAX_BUILDERS_PER_SITE = 3;
@@ -116,20 +117,16 @@ export function finish(state: WorldState, ctx: TickCtx, b: Building): void {
 }
 
 const FINISHED: readonly [id: string, text: string][] = [
-  ['bakery', 'The bakery is finished. Expect visitors who were just passing, every morning.'],
   ['builders-yard', "The builder's yard is open. Everyone suddenly has opinions about fences."],
   ['cottage', 'A new cottage is finished. The paint is dry, mostly.'],
-  ['farmhouse', 'The farmhouse is finished. The fields are waiting to be told where they are.'],
-  ['fishers-hut', "The fisher's hut is finished. The river has been warned."],
-  ['foresters-lodge', "The forester's lodge is finished. Somebody has to put the trees back."],
+  ['fishery', 'The fishery is finished. The river has been warned.'],
+  ['foresters-lodge', "The forester's lodge is finished. The nearest trees look nervous."],
+  ['granary', 'The granary is finished. It smells of sacks and good intentions.'],
   ['market-stall', 'A market stall is up. The awning is already doing its best.'],
   ['quarry', 'The quarry is open. It will be loud, and it will be worth it.'],
-  ['sawpit', 'The sawpit is finished. Logs go in, planks come out, sawdust goes everywhere.'],
   ['storehouse', 'The new storehouse is finished. It echoes, for now.'],
-  ['vegetable-plot', 'The vegetable plot is dug. The cabbages have a lot to live up to.'],
   ['well', 'The well is finished. The water tastes faintly of achievement.'],
   ['windmill', 'The windmill is finished and turning, slowly, like it means it.'],
-  ['woodcutter', "The woodcutter's hut is finished. The nearest trees look nervous."],
 ];
 
 function finishedLine(def: BuildingDef | undefined): string {
@@ -159,7 +156,10 @@ function matchBuilders(state: WorldState): void {
   const sites = state.buildings
     .filter((b) => b.stage === 'construction' && workAt(state, b) === 'build')
     .sort(
-      (a, b) => Number(b.rt!.construction!.priority) - Number(a.rt!.construction!.priority) || a.id - b.id,
+      (a, b) =>
+        Number(b.rt!.construction!.priority) - Number(a.rt!.construction!.priority) ||
+        Number(buildsFirst(state, b)) - Number(buildsFirst(state, a)) ||
+        a.id - b.id,
     );
   const worn = state.economy.leanTimes
     ? []

@@ -1,9 +1,9 @@
 // Shared bits for the Village pattern detectors (C4C): road shapes, open ground and the strip
 // test for "buildings on a side". Scratch-free; the detectors are hourly and small.
-import { content } from '@qoti/content';
 import { MAP_SIZE } from '../../../../constants';
 import type { Building, EntityId, Rect, WorldState } from '../../../../contracts';
 import { Road } from '../../../../map/layers';
+import { hasTag } from '../../../../state/zones';
 
 const S = MAP_SIZE;
 
@@ -66,8 +66,9 @@ export function overlaps(a: Rect, b: Rect): boolean {
   return a[0] <= b[2] && a[2] >= b[0] && a[1] <= b[3] && a[3] >= b[1];
 }
 
+/** R1: a def id, a def tag, or a business's trade id (state/zones hasTag). */
 export function hasBuildingTag(b: Building, tag: string): boolean {
-  return content.buildingById.get(b.def)?.tags?.includes(tag) ?? false;
+  return hasTag(b, tag);
 }
 
 export function rectTiles(r: Rect): number[] {

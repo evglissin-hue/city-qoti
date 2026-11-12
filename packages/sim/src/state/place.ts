@@ -1,5 +1,6 @@
 // Puts a building into state: footprint occupancy, trees cleared, runtime in standard valleys.
 // Shared by build.place, the standard starting town and test fixtures.
+import { emptyCounters } from './zones';
 import type { BuildingDef } from '@qoti/content';
 import { MAP_SIZE } from '../constants';
 import type { Building, Rot4, SeatId, TickCtx, WorldState } from '../contracts';
@@ -17,6 +18,8 @@ export interface InsertOptions {
   /** I2 (C4.0): grown on this lot, in this district style (growLot). */
   lot?: number;
   style?: string;
+  /** R1 (R1.0): a business of this trade (content trade id), at level 1 with no keeper yet. */
+  trade?: string;
 }
 
 export function insertBuilding(
@@ -43,6 +46,11 @@ export function insertBuilding(
   };
   if (opts.lot) b.lot = opts.lot;
   if (opts.style) b.style = opts.style;
+  if (opts.trade) {
+    b.trade = opts.trade;
+    b.keeperId = 0;
+    b.counters = emptyCounters();
+  }
   if (isStandard(state)) b.rt = createRuntime(def, site);
   const tiles = footprintTiles(def, x, z, rot);
   for (const [tx, tz] of tiles) {

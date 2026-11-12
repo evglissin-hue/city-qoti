@@ -114,7 +114,7 @@ describe('the zone tool', () => {
     expect(clear.tiles).toHaveLength(6);
   });
 
-  it('stays shut before the Village rank, and says why', () => {
+  it('paints Homes, Workshops and Farmland from founding; Shops wait for the Village rank, and say why', () => {
     const { session } = mockVillageSession();
     session.mirror.town.value = { ...session.mirror.town.value!, rank: 'hamlet' };
     const toasts: string[] = [];
@@ -122,7 +122,12 @@ describe('the zone tool', () => {
     const tool = zoneTool(toolCtx(session, toasts, submitted).ctx);
     tool.pointerDown!(at(42, 51));
     tool.pointerUp!(at(47, 52));
-    expect(submitted).toHaveLength(0);
+    expect(submitted.map((c) => c.t)).toEqual(['zone.paint']);
+    expect(toasts).toEqual([]);
+    tool.variant!.value = 'shops';
+    tool.pointerDown!(at(42, 51));
+    tool.pointerUp!(at(47, 52));
+    expect(submitted).toHaveLength(1);
     expect(toasts).toEqual([INPUT_COPY.zoneLocked]);
   });
 });

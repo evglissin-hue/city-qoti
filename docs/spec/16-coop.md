@@ -2,6 +2,8 @@
 
 One shared town, co-owned, two laptops (P7 to P14). Everything here is designed for exactly two seats; the protocol allows up to four so nothing breaks if a guest ever joins.
 
+**The redesign (owner, 2026-11-10)**: the two players play on their own laptops, online, in a browser; that is the only setup the game is designed for. The co-op now runs through the town itself: goods and folk are two flows the lanes own, and the game says in words what each did for the other (`19-evenings.md`). Notes tagged [R1] to [R3] below.
+
 ## Seats
 
 - A valley has seats 0 and 1. Each seat has a display name, a color (one of 6 palettes), a preferred lens and `lastSeenTick`.
@@ -41,6 +43,8 @@ Ephemeral, never part of sim state (`21-networking-and-saves.md`).
 
 - Structured requests between seats: goods (good, quantity, by when, where), charm (an area and a target charm), or free text.
 - Tracked in a Requests panel; goods and charm requests complete automatically when met. Fulfilled requests count toward Together achievements.
+- *As built since 2026-10-28*: the Requests panel, the ask form and the ping tool left the interface after a playtest; the sim kept the commands.
+- **Gaps** [R2, R3]: requests return without a form. The town itself posts a gap when one lane's work is waiting on the other's (a place with nothing to sell, a shop nobody passes, households with nowhere to go, a place short of supplies), shows it to both lenses, says what would close it, closes it by itself and credits the seat who closed it (`19-evenings.md`, Gaps). `request.*` stays for free-text asks, which show as notes do.
 
 **As built in I2 (C4D)**:
 
@@ -52,7 +56,7 @@ Ephemeral, never part of sim state (`21-networking-and-saves.md`).
 
 - Every entity records `builtBy` (seat) and whether it is handmade (decor, customization, landmarks).
 - **Removing the partner's handmade work** [I0] asks for confirmation and an optional reason, then leaves the partner a note: "<name> removed your bench by the mill: making room for the bakery."
-- **Undo** [I1]: each client keeps a stack of its own last 30 accepted commands with their inverses (place, remove, paint roads and fields, plant and fell, notes, customize, priority, pause, goods for sale). Ctrl+Z (Cmd+Z) or the toolbar's undo button submits the inverse as a new command. The client first checks that the target still looks the way the command left it and refuses gently (`CHANGED`) if not; the sim rejects the inverse if anything else moved on. Undoing a removal rebuilds the piece fresh (a felled tree comes back as a sapling).
+- **Undo** [I1]: each client keeps a stack of its own last 30 accepted commands with their inverses (place, remove, paint roads and fields, plant and fell, notes, customize, priority, pause, goods for sale; from R1 zones, the carrier's rules and the season plan in place of goods for sale, and move). Ctrl+Z (Cmd+Z) or the toolbar's undo button submits the inverse as a new command. The client first checks that the target still looks the way the command left it and refuses gently (`CHANGED`) if not; the sim rejects the inverse if anything else moved on. Undoing a removal rebuilds the piece fresh (a felled tree comes back as a sapling).
 - **Customized buildings are handmade** [I1]: removing one the partner customized asks first and leaves them a note, like decor.
 - **Who built this**: shown in every inspector.
 
@@ -73,12 +77,14 @@ Local UI state per laptop; Tab toggles (P8). The default comes from the seat pro
 
 | Lens | Toolbar (grows by iteration) | Overlays | Alerts |
 |---|---|---|---|
-| Hearth | decor, trees and gardens, customize [I1], Pattern Book [I1], wishes [I1], plaques [I1], festivals [I3], Field Guide [I3], Chronicle [I1] | charm [I1], wishes [I1], habitats [I3] | wishes, pattern hints, thank-you letters, festival prep |
-| Ledger | roads, buildings, fields [I1], storehouses [I1], budget and reports [I1], zoning [I2], trade [I2], policies [I2], Watch [I3] | flows [I1], coverage [I1], status [I1], land value [I2], traffic [I2] | shortages, idle buildings, lean times |
+| Hearth | decor, trees and gardens, customize [I1], Pattern Book [I1], wishes [I1], plaques [I1], festivals [I3], Field Guide [I3], Chronicle [I1]. [R1] move and the composing helpers; [R2] places and their names; [R3] which places to keep supplied, and the Town Book | charm [I1], wishes [I1], habitats [I3]; [R2] Town (the two inks) | wishes, pattern hints, thank-you letters, festival prep; [R2] gaps, the evening's book |
+| Ledger | roads, buildings, fields [I1], storehouses [I1], budget and reports [I1], zoning [I2], trade [I2], policies [I2], Watch [I3]. [R1] zones, specialized buildings and streets; the Balances, Purse and Businesses books; the season plan | flows [I1], coverage [I1], status [I1], land value [I2], traffic [I2]; [R1] reach; [R2] Town (the two inks) | shortages, idle buildings, lean times; [R1] a demand bar that needs zoned land, the winter reserve; [R2] gaps |
 | Shared (both) | inspect, erase, notes, plans [I2], requests [I2], Charter board [I2], time | none | threats, Charter progress, partner pings |
 
 ## Together moments [I3]
 
 Some cozy moments happen only when both seats are connected: the festival's closing dance, fireworks at a rank-up, an evening stroll event. They never gate progress (P5).
+
+[R2] **The evening edition** is the daily together moment for a pair who are not in the same room: at 21:00 both seats get the same short page about the day across both lanes, with each seat credited by name for what its work did for the other's (`17-presentation.md`, The redesign's interface). The stroll of day 3 becomes a walk along the evening round's busiest route.
 
 *As built (C5B)*: the sim emits `together.moment { kind }` only while `time.connected` holds both seats, and counts each kind in `seasons.together`; nothing waits on one and nothing else changes (a one-seat valley runs to the same state but for the counter and the seats named on that evening's Chronicle line). The rules: **dance** at 21:00 on the festival evening, while the festival is live (the guests on the site dance in the agent frame for the last hour); **fireworks** at 21:00 on the evening after a rank-up or a sealed Charter (a `rank-up` or `trial-passed` Chronicle entry in the day before); **stroll** at 20:00 on day 3 of each season when the weather is clear or cloudy (a fair evening midway between two festivals, for the pair to walk the town together). C5E draws them.

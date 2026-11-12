@@ -45,6 +45,8 @@ const TREE_STAGE: ReadonlyMap<string, number> = new Map([
 /** Points per piece by decor def, building def, module id; per tile by terrain, water, tree stage. */
 const decorPts = new Map<string, Pts>();
 const buildingPts = new Map<string, Pts>();
+/** R1: points by trade id, for a business whose trade is a 'building' source's ref (hasTag). */
+const tradePts = new Map<string, Pts>();
 const modulePts = new Map<string, Pts>();
 const sitePts = new Map<string, Pts>();
 const customPts = new Map<string, Pts>();
@@ -66,7 +68,9 @@ for (const src of content.habitatSources) {
       for (const d of content.decor) if (d.tags.includes(src.ref)) add(decorPts, d.id, h, src.points);
       break;
     case 'building':
-      for (const b of content.buildings) if (b.tags?.includes(src.ref)) add(buildingPts, b.id, h, src.points);
+      for (const b of content.buildings)
+        if (b.id === src.ref || b.tags?.includes(src.ref)) add(buildingPts, b.id, h, src.points);
+      for (const t of content.trades) if (t.id === src.ref) add(tradePts, t.id, h, src.points);
       break;
     case 'module':
       add(modulePts, src.ref, h, src.points);
@@ -99,8 +103,10 @@ for (const src of content.habitatSources) {
 export function decorHabitats(def: string): Pts | undefined {
   return decorPts.get(def);
 }
-export function buildingHabitats(def: string): Pts | undefined {
-  return buildingPts.get(def);
+export function buildingHabitats(b: { def: string; trade?: string }): Pts | undefined {
+  const own = buildingPts.get(b.def);
+  const trade = b.trade ? tradePts.get(b.trade) : undefined;
+  return own && trade ? [...own, ...trade] : (own ?? trade);
 }
 
 export function chunkOfTile(x: number, z: number): number {
@@ -188,6 +194,7 @@ export function scoreChunks(state: WorldState, chunks: readonly number[]): numbe
     const c = buildingChunk(b);
     if (!want[c]) continue;
     addPts(c, buildingPts.get(b.def));
+    if (b.trade) addPts(c, tradePts.get(b.trade));
     if (windowBoxesOn(b, content.buildingById.get(b.def))) addPts(c, customPts.get('windowBoxes'));
     for (const [, mod] of b.rt?.modules ?? []) addPts(c, modulePts.get(mod));
   }

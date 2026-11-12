@@ -6,13 +6,16 @@ import { signal } from '@preact/signals';
 import { content } from '@qoti/content';
 import {
   MAP_SIZE,
+  PENNIES_PER_COIN,
   treeSpecies,
   UNDO_DEPTH,
   type BuildingCustom,
   type BuildingView,
+  type CarrierRule,
   type Command,
   type RejectReason,
   type RoadKind,
+  type SeasonPlanInput,
   type SeatId,
   type Turn,
 } from '@qoti/sim';
@@ -36,7 +39,10 @@ type Before =
   | { t: 'tiles'; values: number[] }
   | { t: 'note'; text: string; x: number; z: number }
   | { t: 'custom'; values: BuildingCustom }
-  | { t: 'flag'; value: boolean };
+  | { t: 'flag'; value: boolean }
+  /** R1C: the carrier's terms for the family, and its purse, as they stood. */
+  | { t: 'carrier'; rule: CarrierRule; sell: boolean; reserve: number; budget: number }
+  | { t: 'plan'; plan: SeasonPlanInput };
 
 interface Pending {
   seq: number;
@@ -90,6 +96,14 @@ function capture(cmd: Command, m: Mirror): Before | null {
         .map((d) => ({ def: d.def, fx: d.fx, fz: d.fz, rot: d.rot }));
       return views.length ? { t: 'decor', views } : null;
     }
+    case 'decor.move': {
+      const d = m.decor.get(cmd.id);
+      return d ? { t: 'decor', views: [{ def: d.def, fx: d.fx, fz: d.fz, rot: d.rot }] } : null;
+    }
+    case 'build.move': {
+      const b = m.buildings.get(cmd.id);
+      return b ? { t: 'buildings', views: [b] } : null;
+    }
     case 'road.paint':
     case 'road.remove':
       return { t: 'tiles', values: cmd.tiles.map(([x, z]) => m.road(x, z)) };
@@ -117,14 +131,30 @@ function capture(cmd: Command, m: Mirror): Before | null {
       const b = m.buildings.get(cmd.id);
       return b ? { t: 'flag', value: b.rt?.paused ?? false } : null;
     }
-    case 'ledger.setForSale': {
-      const line = m.stocks.value?.lines.find((l) => l.good === cmd.good);
-      return { t: 'flag', value: line?.forSale ?? false };
+    case 'carrier.setRule':
+    case 'carrier.setReserve':
+    case 'carrier.setBudget': {
+      const b = m.balances.value;
+      if (!b) return null;
+      const line = 'family' in cmd ? b.lines.find((l) => l.family === cmd.family) : b.lines[0];
+      if (!line) return null;
+      return { t: 'carrier', rule: line.rule, sell: line.sell, reserve: line.reserve, budget: b.budget };
+    }
+    case 'season.setPlan': {
+      // Only the answers this command changes are put back.
+      const plan = m.balances.value?.plan;
+      if (!plan) return null;
+      const old: Record<string, unknown> = {};
+      for (const key of PLAN_KEYS) if (key in cmd.plan) old[key] = plan[key];
+      return { t: 'plan', plan: old as SeasonPlanInput };
     }
     default:
       return null;
   }
 }
+
+/** The season plan's answers, each undone on its own. */
+const PLAN_KEYS = ['reserve', 'food', 'fuel', 'deal', 'buildFirst'] as const;
 
 function fieldOwner(m: Mirror, x: number, z: number): number {
   const layer = m.layers.fieldOwner;
@@ -179,7 +209,9 @@ function inverseOf(p: Pending, m: Mirror, change: MirrorChange, seat: SeatId): U
         .filter(
           (d) =>
             change.added.includes(`decor:${d.id}`) &&
-            d.def === cmd.def &&
+            (cmd.t === 'decor.placeRun' && cmd.pieces
+              ? cmd.pieces.some((p) => p.def === d.def && p.fx === d.fx && p.fz === d.fz)
+              : d.def === cmd.def) &&
             d.builtBy === seat &&
             (cmd.t === 'decor.placeRun' || (d.fx === cmd.fx && d.fz === cmd.fz)),
         )
@@ -198,6 +230,30 @@ function inverseOf(p: Pending, m: Mirror, change: MirrorChange, seat: SeatId): U
         label: `removing the ${decorName(views[0]!.def)}`,
         inverse: views.map((v) => ({ t: 'decor.place', def: v.def, fx: v.fx, fz: v.fz, rot: v.rot })),
         intact: () => true,
+      };
+    }
+    case 'decor.move': {
+      if (before.t !== 'decor') return null;
+      const old = before.views[0]!;
+      return {
+        label: `moving the ${decorName(old.def)}`,
+        inverse: [{ t: 'decor.move', id: cmd.id, fx: old.fx, fz: old.fz, rot: old.rot }],
+        intact: (mm) => {
+          const d = mm.decor.get(cmd.id);
+          return !!d && d.fx === cmd.fx && d.fz === cmd.fz && d.rot === cmd.rot;
+        },
+      };
+    }
+    case 'build.move': {
+      if (before.t !== 'buildings') return null;
+      const old = before.views[0]!;
+      return {
+        label: `moving the ${buildingName(old.def)}`,
+        inverse: [{ t: 'build.move', id: cmd.id, x: old.x, z: old.z, rot: old.rot }],
+        intact: (mm) => {
+          const b = mm.buildings.get(cmd.id);
+          return !!b && b.x === cmd.x && b.z === cmd.z && b.rot === cmd.rot;
+        },
       };
     }
     case 'road.paint': {
@@ -347,13 +403,41 @@ function inverseOf(p: Pending, m: Mirror, change: MirrorChange, seat: SeatId): U
         intact: (mm) => (mm.buildings.get(cmd.id)?.rt?.paused ?? false) === cmd.paused,
       };
     }
-    case 'ledger.setForSale': {
-      if (before.t !== 'flag') return null;
+    case 'carrier.setRule': {
+      if (before.t !== 'carrier') return null;
+      const line = (mm: Mirror) => mm.balances.value?.lines.find((l) => l.family === cmd.family);
       return {
-        label: cmd.forSale ? 'putting it up for sale' : 'taking it off sale',
-        inverse: [{ t: 'ledger.setForSale', good: cmd.good, forSale: before.value }],
+        label: `the ${cmd.family} rule`,
+        inverse: [{ t: 'carrier.setRule', family: cmd.family, rule: before.rule, sell: before.sell }],
+        intact: (mm) => line(mm)?.rule === cmd.rule && line(mm)?.sell === cmd.sell,
+      };
+    }
+    case 'carrier.setReserve': {
+      if (before.t !== 'carrier') return null;
+      return {
+        label: `the ${cmd.family} reserve`,
+        inverse: [{ t: 'carrier.setReserve', family: cmd.family, reserve: before.reserve }],
         intact: (mm) =>
-          (mm.stocks.value?.lines.find((l) => l.good === cmd.good)?.forSale ?? cmd.forSale) === cmd.forSale,
+          mm.balances.value?.lines.find((l) => l.family === cmd.family)?.reserve === cmd.reserve,
+      };
+    }
+    case 'carrier.setBudget': {
+      if (before.t !== 'carrier') return null;
+      return {
+        label: "the carrier's purse",
+        inverse: [{ t: 'carrier.setBudget', coins: Math.round(before.budget / PENNIES_PER_COIN) }],
+        intact: (mm) => mm.balances.value?.budget === cmd.coins * PENNIES_PER_COIN,
+      };
+    }
+    case 'season.setPlan': {
+      if (before.t !== 'plan') return null;
+      return {
+        label: 'the season plan',
+        inverse: [{ t: 'season.setPlan', plan: before.plan }],
+        intact: (mm) => {
+          const now = mm.balances.value?.plan;
+          return !!now && PLAN_KEYS.every((k) => !(k in cmd.plan) || now[k] === cmd.plan[k]);
+        },
       };
     }
     default:

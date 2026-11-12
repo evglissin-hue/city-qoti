@@ -13,6 +13,7 @@ import { createTickCtx } from '../../src/turn';
 import { requestView } from '../../src/view/village';
 import { villageFixture } from '../fixtures/village';
 import { expectMoneyInvariant, moneySnapshot } from '../money';
+import { offerGoods } from '../market/helpers';
 import { eventsOf, exec, skip } from './helpers';
 
 const bench = (x: number, z: number): PlanItem => ({
@@ -155,6 +156,7 @@ describe('the Charter', () => {
     s.stats.wishesGranted = 5;
     s.economy.seasonsInSurplus = 1;
     findById(s.buildings, f.b.storehouses[0])!.rt!.store[content.goodIndex.get('bread')!] = 400;
+    offerGoods(s, ['bread', 'fish', 'vegetables']);
     return { f, s };
   }
 

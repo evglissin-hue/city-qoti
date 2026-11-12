@@ -31,6 +31,7 @@ export {
   type GardenEdge,
 } from './kits/district';
 export { orchardTree, seasonOf } from './kits/village';
+export { businessParams, type BusinessLevel } from './kits/business';
 export {
   CLOTH_COLORS,
   EXTRA_KINDS,

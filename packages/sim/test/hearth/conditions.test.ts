@@ -27,7 +27,9 @@ describe('near', () => {
     expect(evaluate(s, { near: { tree: 'mature', of: 'home', within: 5 } }, home)).toBe(true);
     expect(evaluate(s, { near: { tag: 'flower', of: 'home', within: 4, atLeast: 2 } }, home)).toBe(true);
     expect(evaluate(s, { near: { tag: 'flower', of: 'home', within: 4, atLeast: 3 } }, home)).toBe(false);
-    expect(evaluate(s, { near: { buildingTag: 'bakery', of: 'home', within: 12 } }, home)).toBe(true);
+    // R1: a business answers to its trade, so the fixture's baker's workshop is a 'baker'.
+    expect(evaluate(s, { near: { buildingTag: 'baker', of: 'home', within: 12 } }, home)).toBe(true);
+    expect(evaluate(s, { near: { buildingTag: 'baker', of: 'home', within: 7 } }, home)).toBe(false);
     expect(evaluate(s, { near: { buildingCategory: 'civic', of: 'home', within: 9 } }, home)).toBe(true);
     expect(evaluate(s, { near: { buildingCategory: 'civic', of: 'home', within: 8 } }, home)).toBe(false);
     expect(evaluate(s, { near: { road: 'lane', of: 'home', within: 1 } }, home)).toBe(true);
@@ -150,11 +152,12 @@ describe('route predicates', () => {
   it('pathRoute wants a road from door to door', () => {
     const { s, bind } = clover();
     expect(evaluate(s, { code: 'pathRoute' }, bind)).toBe(true);
-    // A workshop whose door opens onto grass, three tiles off the lane.
-    const shed = build(s, 'bakery', 80, 53);
+    // A workshop (3x3) whose door opens onto grass at (81, 56), six tiles off the lane.
+    const shed = build(s, 'workshop', 80, 53, 0, 0, 'weaver');
     const away = { ...bind, work: shed.id };
     expect(evaluate(s, { code: 'pathRoute' }, away)).toBe(false);
-    road(s, 'path', 81, 51, 81, 55);
+    road(s, 'path', 79, 51, 79, 56);
+    road(s, 'path', 80, 56, 81, 56);
     expect(evaluate(s, { code: 'pathRoute' }, away)).toBe(true);
   });
 

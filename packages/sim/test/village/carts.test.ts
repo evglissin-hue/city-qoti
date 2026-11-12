@@ -6,6 +6,7 @@ import { describe, expect, it } from 'vitest';
 import { BuildingStatus, CART_CAPACITY, MAP_SIZE, TICKS_PER_HOUR } from '../../src/constants';
 import type { Building, WorldState } from '../../src/contracts';
 import { findById } from '../../src/state/entities';
+import { isFood } from '../../src/state/zones';
 import { refreshStatus } from '../../src/systems/production/status';
 import { CART_MIN_LOAD } from '../../src/systems/logistics/carts';
 import { createTickCtx } from '../../src/turn';
@@ -21,10 +22,13 @@ function cartTown(): { state: WorldState; shed: Building; stall: Building; store
   const state = f.state;
   // Keep the porters out of it: this is about the cart.
   for (const id of f.b.storehouses) findById(state.buildings, id)!.rt!.paused = true;
+  // And the carrier (R1), whose 10:00 Food would land in the granary the cart loads from.
+  for (const fam of state.carrier.families) fam.rule = 'never';
   const shed = place(state, 'cart-shed', 88, 47); // door at (89, 50), on lane A
   toWork(state, staff(state, shed, 1));
   const stall = findById(state.buildings, f.b.stalls[1])!;
-  const store = findById(state.buildings, f.b.storehouses[0])!;
+  // R1: the Food keeps in the granary on street B, far from the stalls on lane A.
+  const store = findById(state.buildings, f.b.granary)!;
   store.rt!.paused = false;
   store.rt!.workers.length = 0;
   state.tick = 2 * H; // 08:00
@@ -45,17 +49,17 @@ describe('carts', { timeout: 60_000 }, () => {
     expect(state.carts.length).toBe(1);
   });
 
-  it('hauls a cartload of food from the far storehouse to the stall and comes home', () => {
+  it('hauls a cartload of food from the far granary to the stall and comes home', () => {
     const { state, stall, store } = cartTown();
     const before = moneySnapshot(state);
     const stalls = state.buildings.filter((b) => b.def === 'market-stall');
     const stallFood = () =>
       stalls.reduce(
-        (m, b) => m + content.goods.reduce((n, g, i) => n + (g.food ? b.rt!.store[i]! : 0), 0),
+        (m, b) => m + content.goods.reduce((n, _g, i) => n + (isFood(i) ? b.rt!.store[i]! : 0), 0),
         0,
       );
     const food0 = stallFood();
-    const storeFood = () => content.goods.reduce((n, g, i) => n + (g.food ? store.rt!.store[i]! : 0), 0);
+    const storeFood = () => content.goods.reduce((n, _g, i) => n + (isFood(i) ? store.rt!.store[i]! : 0), 0);
     const storeFood0 = storeFood();
     let rolled = false;
     ticksUntil(
@@ -110,12 +114,14 @@ describe('carts', { timeout: 60_000 }, () => {
     expect(cart.move).toBeNull();
   });
 
-  it('a removed shed takes its cart, and the load goes to a storehouse', () => {
+  it('a removed shed takes its cart, and the load goes to a store', () => {
     const { state, shed, store } = cartTown();
     ticksUntil(state, (s) => (s.carts[0]?.load.length ?? 0) > 0, 4 * H);
     const load = state.carts[0]!.load[0]!;
     const stored = () =>
-      state.buildings.filter((b) => b.def === 'storehouse').reduce((n, b) => n + b.rt!.store[load[0]]!, 0);
+      state.buildings
+        .filter((b) => b.def === 'storehouse' || b.def === 'granary')
+        .reduce((n, b) => n + b.rt!.store[load[0]]!, 0);
     const before = stored();
     expect(store.id).toBeGreaterThan(0);
     run(state, { t: 'build.remove', ids: [shed.id] });

@@ -1,6 +1,6 @@
 // The nature advisor (C5C): the Hearth hand inviting wildlife, from Village rank. It proposes; the
 // planner's money and build queue decide. One afternoon job a day at most, in this order:
-// - an apiary once the town has an orchard or a herb garden (a want, so it waits its turn);
+// - an apiary once the town has an orchard or a market garden (a want, so it waits its turn);
 // - flowers by each orchard and apiary (three within three tiles), for the pollinators;
 // - hedges along a lane near homes (a run of four, up to HEDGES), for the hedgerow birds;
 // - a pond near homes once affordable (a 2 x 3 dig of fertile low ground), then planting, a bench
@@ -11,7 +11,9 @@
 import { content } from '@qoti/content';
 import {
   canPaintRoad,
+  canPlaceDecor,
   doorTile,
+  hasTag,
   pondBlocked,
   pondCost,
   rankAtLeast,
@@ -21,7 +23,7 @@ import {
   type WorldState,
 } from '@qoti/sim';
 import { costOf, MONEY_RESERVE, type Planner } from '../planner';
-import { count, S } from '../town';
+import { count, countTrade, S } from '../town';
 import type { Advisor, AdvisorDef, Visit } from './types';
 
 /** Coins the advisor keeps in hand above the planner's reserve before spending on nature. */
@@ -74,7 +76,7 @@ class Nature implements Advisor {
 
   private flowersBy(def: string): boolean {
     for (const b of this.w.buildings) {
-      if (b.def !== def || b.stage !== 'built') continue;
+      if (!hasTag(b, def) || b.stage !== 'built') continue;
       const door = doorTile(b);
       const x = door % S;
       const z = Math.floor(door / S);
@@ -181,11 +183,36 @@ class Nature implements Advisor {
     ]);
   }
 
+  /**
+   * R1F (the village advisor's in R1.0, a Hearth job): flowers and a tree by the homes with the
+   * plainest streets, so they reach the Craftsfolk's charm.
+   */
+  private dress(): void {
+    const w = this.w;
+    const homes = w.buildings
+      .filter((b) => b.stage === 'built' && content.buildingById.get(b.def)?.housing)
+      .map((b) => ({ b, charm: charmAt(w, b) }))
+      .filter((x) => x.charm < 32)
+      .sort((a, b) => a.charm - b.charm || a.b.id - b.b.id)
+      .slice(0, 10);
+    for (const { b } of homes) {
+      const door = doorTile(b);
+      const x = door % S;
+      const z = Math.floor(door / S);
+      for (const def of ['flower-bed', 'planter', 'cherry-tree']) {
+        const spot = streetDecorSpot(w, def, x, z);
+        if (spot)
+          this.p.do(`${def} for the street`, [{ t: 'decor.place', def, fx: spot[0], fz: spot[1], rot: 0 }]);
+      }
+    }
+  }
+
   visit(v: Visit): void {
     const w = this.w;
     if (!v.afternoon || !rankAtLeast(w, 'village')) return;
+    this.dress();
     this.day++;
-    if (count(w, 'apiary') === 0 && (count(w, 'orchard') > 0 || count(w, 'herb-garden') > 0)) {
+    if (count(w, 'apiary') === 0 && (countTrade(w, 'orchard') > 0 || countTrade(w, 'market-garden') > 0)) {
       this.p.propose({
         def: 'apiary',
         priority: 2,
@@ -201,8 +228,43 @@ class Nature implements Advisor {
   }
 }
 
+function charmAt(w: WorldState, b: Building): number {
+  const door = doorTile(b);
+  const x = door % S;
+  const z = Math.floor(door / S);
+  let sum = 0;
+  let n = 0;
+  for (let dz = -3; dz <= 3; dz++)
+    for (let dx = -3; dx <= 3; dx++) {
+      const i = (z + dz) * S + x + dx;
+      if (i >= 0 && i < w.map.charm.length) {
+        sum += w.map.charm[i]!;
+        n++;
+      }
+    }
+  return n ? sum / n : 0;
+}
+
+/** A free spot for decor within three tiles of a door, or null. */
+function streetDecorSpot(w: WorldState, def: string, x: number, z: number): [number, number] | null {
+  const d = content.decorById.get(def)!;
+  const reader = worldIndex(w).reader;
+  for (let r = 1; r <= 3; r++) {
+    for (let dz = -r; dz <= r; dz++) {
+      for (let dx = -r; dx <= r; dx++) {
+        if (Math.max(Math.abs(dx), Math.abs(dz)) !== r) continue;
+        const fx = (x + dx) * TILE_FP + TILE_FP / 2;
+        const fz = (z + dz) * TILE_FP + TILE_FP / 2;
+        if (canPlaceDecor(reader, d, fx, fz, 0).ok) return [fx, fz];
+      }
+    }
+  }
+  return null;
+}
+
 export const nature: AdvisorDef = {
   id: 'nature',
+  lane: 'hearth',
   // After the Hearth's wishes and decor (60).
   slot: 65,
   plays: (opts, w) => w.settings.mode === 'standard' && opts.hearth !== false && content.wildlife.length > 0,

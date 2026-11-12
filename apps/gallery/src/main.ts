@@ -41,6 +41,7 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { makeFigure, type Figure } from './figures';
 import { buildSeasons, SEASON_NAMES } from './seasons';
 import { buildSurfaces, SURFACE_ORDER } from './surfaces';
+import { buildTrades } from './trades';
 
 const q = new URLSearchParams(location.search);
 const renderer = new WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
@@ -687,6 +688,18 @@ if (sceneName === 'lineup') {
   ground.scale.setScalar(2);
   state.spin = false;
   info.textContent = `seasons, left to right: ${SEASON_NAMES.join(', ')} (oak, birch, pine, apple, cherry, pear)`;
+} else if (sceneName === 'trades') {
+  // R1E: every trade at levels 1 to 3 (and level 3 far), and the specialized buildings.
+  const { group, size, counts } = buildTrades(q, material, state.seed);
+  holder.add(group);
+  const dist = Number(q.get('dist') ?? Math.max(size[0] * 1.1, size[1] * 1.1) + 2);
+  const yaw = Number(q.get('yaw') ?? 0.3);
+  camera.position.set(Math.sin(yaw) * dist, dist * Number(q.get('pitch') ?? 0.85), Math.cos(yaw) * dist);
+  // The grid sits a little low, clear of the panel (?tz moves it).
+  controls.target.set(0, 0.3, Number(q.get('tz') ?? -size[1] * 0.18));
+  ground.scale.setScalar(3);
+  state.spin = false;
+  info.textContent = `trades, levels 1 to 3 and far (triangles): ${counts.join(', ')}`;
 } else if (sceneName === 'residents') {
   buildResidents();
   camera.position.set(0.1, 1.1, 3.6);

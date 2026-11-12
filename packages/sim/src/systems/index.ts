@@ -3,12 +3,14 @@
 // 40 logistics, 50 residents, 52 movement, 60 economy, 70 charm, 72 patterns, 74 wishes,
 // 90 achievements, 100 chronicle. I2 slots (C4.0): 24 zoning, 26 growth, 54 traffic, 56 services,
 // 58 tiers, 62 market, 64 trade, 66 loans, 92 innovations, 94 charter, 96 stories, 97 plans,
-// 98 requests. C4A adds 63 wages (17:00), 65 caravans (08:00) and 67 baskets (18:00). I3 slots
+// 98 requests. C4A adds 63 wages (17:00) and 67 baskets (18:00). I3 slots
 // (C5.0): 12 seasons, 14 weather, 59 warmth, 68 dock, 75 festivals, 76 habitats, 78 wildlife,
 // 71 dressing (10:00), 80 threats, 82 watch, 84 raids, 86 defenses, 91 renown, 93 commissions, 95 trials, 99 guide. C5B adds 77 festivalEvening (hourly).
+// R1 slots (R1.0): 65 carrier (10:00, in the caravans' old slot; the peddler and P1's callings left the
+// pipeline) and 69 levels (23:30).
 import type { System } from '../contracts';
 import { achievements } from './achievements';
-import { callings } from './callings';
+import { carrier } from './carrier';
 import { charter } from './charter';
 import { chronicle } from './chronicle';
 import { clock } from './clock';
@@ -26,6 +28,7 @@ import { charm } from './hearth/charm';
 import { patterns } from './hearth/patterns';
 import { wishes } from './hearth/wishes';
 import { innovations } from './innovations';
+import { levels } from './levels';
 import { loans } from './loans';
 import { logistics } from './logistics';
 import { market } from './market';
@@ -44,7 +47,6 @@ import { stories } from './stories';
 import { threats } from './threats';
 import { tiers } from './tiers';
 import { trade } from './trade';
-import { caravans } from './trade/caravans';
 import { traffic } from './traffic';
 import { trees } from './trees';
 import { trials } from './trials';
@@ -58,8 +60,7 @@ import { zoning } from './zoning';
 export const systems: readonly System[] = [
   achievements,
   baskets,
-  callings,
-  caravans,
+  carrier,
   charm,
   charter,
   chronicle,
@@ -76,6 +77,7 @@ export const systems: readonly System[] = [
   guide,
   habitats,
   innovations,
+  levels,
   loans,
   logistics,
   market,

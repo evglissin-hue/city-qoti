@@ -12,6 +12,10 @@
 import { content } from '@qoti/content';
 import {
   cartTile,
+  createTickCtx,
+  growLot,
+  growthPass,
+  insertBuilding,
   MAP_SIZE,
   pipeline,
   Road,
@@ -24,6 +28,8 @@ import {
 import { flatTown, RESIDENT_BUDGET, type Town } from './residents';
 
 export const GROWTH_BUDGET = { msPerHour: 2 };
+/** R1: trade choice and growth, under 2 ms a night at City scale (docs/spec/22-quality.md). */
+export const GROWTH_NIGHT_BUDGET = { msPerNight: 2 };
 
 const S = MAP_SIZE;
 const MINE = new Set(['growth', 'traffic', 'zoning']);
@@ -69,7 +75,7 @@ function paint(world: WorldState, stroke: readonly [number, number][]): void {
 function stockUp(world: WorldState): void {
   for (const b of world.buildings) {
     if (b.def !== 'storehouse' || !b.rt) continue;
-    for (const g of ['planks', 'stone', 'logs']) b.rt.store[content.goodIndex.get(g)!] = 200;
+    for (const g of ['timber', 'stone', 'brick']) b.rt.store[content.goodIndex.get(g)!] = 200;
   }
 }
 
@@ -85,7 +91,7 @@ function addCarts(world: WorldState, n: number): Cart[] {
       home: 0,
       tile: lanes[(k * 7919) % lanes.length]!,
       move: null,
-      load: [[content.goodIndex.get('planks')!, 16]],
+      load: [[content.goodIndex.get('timber')!, 16]],
       job: 0,
       dir: 0,
       parked: false,
@@ -211,6 +217,174 @@ function mineOnly(town: Town, carts: readonly Cart[], ticks: number): number {
 export interface GrowthReport {
   village: { residents: number; carts: number; cpuMsPerHour: number } & Measure;
   town: { residents: number; carts: number; baselineAvgMs: number; cpuMsPerHour: number } & Measure;
+}
+
+const NIGHTS = 15;
+/**
+ * Nights played first and not measured: the pass runs every in-game day, so it is timed warm. In the
+ * full bench its cost falls from about 3.5 ms to about 1.7 ms over the first dozen nights as the JIT
+ * warms, then holds.
+ */
+const WARMUP_NIGHTS = 15;
+
+/** The numbers of `growthNightBench`. */
+export interface GrowthNightReport {
+  residents: number;
+  lots: number;
+  businesses: number;
+  medianMs: number;
+  worstMs: number;
+  nights: number[];
+}
+
+/**
+ * Keep one in `n` of each kind of specialized building flatTown placed: it hands out workplaces in
+ * turn, so its 2,000-resident town stands 100 windmills, 100 storehouses and 100 market stalls, ten
+ * times a City's (stores run about one to every 150 residents, docs/spec/13-ledger.md). The growth
+ * night's cost grows with them (served lists, porter reach), so the enforced line measures a City.
+ */
+const CITY_KEEP: ReadonlyMap<string, number> = new Map([
+  ['windmill', 10],
+  ['storehouse', 7],
+  ['market-stall', 5],
+  ['quarry', 10],
+  ['foresters-lodge', 10],
+]);
+
+function thinToCity(world: WorldState): void {
+  const seen = new Map<string, number>();
+  const gone = new Set<number>();
+  for (const b of world.buildings) {
+    const k = CITY_KEEP.get(b.def);
+    if (!k) continue;
+    const n = seen.get(b.def) ?? 0;
+    seen.set(b.def, n + 1);
+    if (n % k !== 0) gone.add(b.id);
+  }
+  for (let i = world.buildings.length - 1; i >= 0; i--)
+    if (gone.has(world.buildings[i]!.id)) world.buildings.splice(i, 1);
+  const occ = world.map.occupant;
+  for (let i = 0; i < occ.length; i++) if (gone.has(occ[i]!)) occ[i] = 0;
+  for (const r of world.residents) {
+    if (gone.has(r.jobId)) r.jobId = 0;
+    if (gone.has(r.inside)) r.inside = 0;
+  }
+  world.networkVersion += 1;
+}
+
+/**
+ * R1: the nightly growth pass (retooling, trade choice, starting sites, the demand bars) on the
+ * 2,000-resident town at Village rank with every zone painted along new lanes, about 60 businesses
+ * standing, two windmills and a sawmill, and market demand so trades score. Seven nights, each
+ * with the finished sites put back to built so the pass has real work every night. Enforced on a
+ * City's mix of specialized buildings (thinToCity); flatTown's own mix, ten times as many, is
+ * reported beside it as a stress line.
+ */
+export function growthNightBench(lines: string[], failures: string[]): GrowthNightReport {
+  const city = nightBench(lines, failures, false);
+  nightBench(lines, [], true);
+  return city;
+}
+
+function nightBench(lines: string[], failures: string[], stress: boolean): GrowthNightReport {
+  const town = flatTown('bench-growth-night', 24, 400, 700, 5);
+  const { world } = town;
+  if (!stress) thinToCity(world);
+  stockUp(world);
+  const lanes = [8 + 7 * 24 + 1, 8 + 7 * 24 + 8, 8 + 7 * 24 + 15];
+  for (const z of lanes) for (const stroke of newLane(world, z)) paint(world, stroke);
+  // Zoning cuts lots over a few in-game hours; desirability is scored through the day.
+  const ctx = createTickCtx(world);
+  const systems = pipeline.filter((s) => s.id === 'clock' || s.id === 'zoning');
+  for (let i = 0; i < TICKS_PER_DAY; i++) {
+    const t = world.tick;
+    for (const s of systems) if (t % (s.every ?? 1) === (s.offset ?? 0)) s.tick(world, ctx);
+    ctx.events.length = 0;
+    ctx.dirty.clear();
+  }
+  stockUp(world);
+
+  // About 60 businesses on lots: trades spread over Workshops, Farmland and Shops.
+  const byZone = new Map<number, number[]>();
+  for (const l of world.lots) {
+    if (l.buildingId) continue;
+    const zl = byZone.get(l.zone) ?? [];
+    zl.push(l.id);
+    byZone.set(l.zone, zl);
+  }
+  const crafts = content.trades.filter((t) => t.zone === 'crafts');
+  const farms = content.trades.filter((t) => t.zone === 'farms');
+  const shops = content.trades.filter((t) => t.zone === 'shops');
+  let businesses = 0;
+  const grow = (zone: string, trades: typeof crafts, n: number) => {
+    const ids = byZone.get(content.zoneById.get(zone)!.layerValue) ?? [];
+    for (let k = 0; k < ids.length && n > 0; k++) {
+      const t = trades[(businesses + k) % trades.length]!;
+      const b = growLot(world, null, ids[k]!, t.building, undefined, t.id);
+      if (!b) continue;
+      b.stage = 'built';
+      if (b.rt) b.rt.construction = null;
+      n--;
+      businesses++;
+    }
+  };
+  grow('crafts', crafts, 25);
+  grow('farms', farms, 20);
+  grow('shops', shops, 15);
+  // Two windmills and a sawmill beside the lanes (their reach and capacity enter the score).
+  for (const [def, x, z] of [
+    ['windmill', 40, lanes[0]! - 6],
+    ['windmill', 120, lanes[1]! + 5],
+    ['sawmill', 80, lanes[2]! + 5],
+  ] as const) {
+    const d = content.buildingById.get(def);
+    if (d) insertBuilding(world, null, d, x, z, 0, 0, { site: false });
+  }
+  world.networkVersion += 1;
+  // Market demand, so trades have somewhere to sell.
+  for (const g of ['bread', 'cloth', 'cider', 'candles', 'cheese']) {
+    const i = content.goodIndex.get(g);
+    if (i !== undefined) world.market.demand[i] = 60;
+  }
+
+  const emptyLots = world.lots.filter((l) => !l.buildingId).length;
+  const times: number[] = [];
+  for (let n = 0; n < WARMUP_NIGHTS + NIGHTS; n++) {
+    // The night's pass starts from a standing town: finished sites back to built.
+    for (const b of world.buildings) {
+      if (b.stage === 'construction' && b.lot) {
+        b.stage = 'built';
+        if (b.rt) b.rt.construction = null;
+      }
+    }
+    world.tick += TICKS_PER_DAY;
+    const c = createTickCtx(world);
+    const t0 = performance.now();
+    growthPass(world, c);
+    if (n >= WARMUP_NIGHTS) times.push(performance.now() - t0);
+  }
+  const sorted = [...times].sort((a, b) => a - b);
+  const medianMs = sorted[Math.floor(sorted.length / 2)]!;
+  const worstMs = sorted[sorted.length - 1]!;
+  const lotsNow = world.lots.length;
+  const bizNow = world.buildings.filter((b) => b.trade).length;
+  const pass = medianMs <= GROWTH_NIGHT_BUDGET.msPerNight;
+  const kinds = world.buildings.filter((b) => content.buildingById.get(b.def)?.specialized).length;
+  if (stress) {
+    lines.push(
+      `growth night R1B stress: ${medianMs.toFixed(2)} ms median, ${worstMs.toFixed(2)} ms worst with flatTown's ` +
+        `${kinds} specialized buildings (reported, not enforced)`,
+    );
+    return { residents: town.residents, lots: lotsNow, businesses: bizNow, medianMs, worstMs, nights: times };
+  }
+  if (!pass) failures.push(`growth night ${medianMs.toFixed(2)} ms median, ${worstMs.toFixed(2)} ms worst`);
+  lines.push(
+    `growth night R1B ${medianMs.toFixed(2)} ms median, ${worstMs.toFixed(2)} ms worst over ${NIGHTS} nights (after ` +
+      `${WARMUP_NIGHTS} warm) at City scale (${town.residents} residents, ${world.buildings.length} buildings, ` +
+      `${kinds} specialized, ${lotsNow} lots (${emptyLots} empty), ${bizNow} businesses) ` +
+      `(budget ${GROWTH_NIGHT_BUDGET.msPerNight} ms)  ${pass ? 'OK' : 'OVER'}`,
+  );
+  return { residents: town.residents, lots: lotsNow, businesses: bizNow, medianMs, worstMs, nights: times };
 }
 
 /** Both growth benches; appends report lines and budget failures. */

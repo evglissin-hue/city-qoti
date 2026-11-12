@@ -1,64 +1,53 @@
-import type { NeedsBasket } from './types';
+import type { FlavorLike, NeedsBasket } from './types';
 
-// Needs baskets per tier (docs/spec/13-ledger.md, Market and prices, Population tiers). Seeded in
-// C4.0 for Settlers and Craftsfolk; C4A buys from them, C4C's tiers read them, both tune the numbers.
+// What each tier wants, by family (docs/spec/13-ledger.md, Households: amount and variety, and
+// Population tiers), written in R1.0. Amounts are a resident's a day unless `perHousehold`; Fuel is
+// a household's on a winter day (the warmth pass at 07:30 buys it). Variety is the number of a
+// family's flavors a household wants on offer over the last three days. No tier names a single good,
+// so a town with no windmill reaches Craftsfolk on porridge, fish and cheese. Every number tunes in
+// R1X. Merchants and Patrons arrive with I4 and I5.
 
 export const craftsfolk: NeedsBasket = {
   tier: 'craftsfolk',
-  groups: [
-    {
-      id: 'food',
-      name: 'Food',
-      perDay: 1,
-      goods: [
-        ['bread', 3],
-        ['cheese', 3],
-        ['fish', 2],
-        ['vegetables', 2],
-        ['apples', 2],
-        ['milk', 1],
-      ],
-    },
-    { id: 'bread', name: 'Bread', perDay: 0.3, goods: [['bread', 1]] },
-    { id: 'firewood', name: 'Firewood', perDay: 1, perHousehold: true, goods: [['firewood', 1]] },
-    { id: 'cloth', name: 'Cloth', perDay: 0.1, goods: [['cloth', 1]] },
-    {
-      id: 'treats',
-      name: 'Treats',
-      perDay: 0.2,
-      goods: [
-        ['cider', 2],
-        ['cheese', 1],
-        // I3 (C5B): pies and candles, the festival goods, are treats the rest of the season.
-        ['pies', 2],
-        ['candles', 1],
-      ],
-    },
+  wants: [
+    { family: 'food', amount: 1, variety: 3 },
+    { family: 'fuel', amount: 1, perHousehold: true, season: 3, variety: 0 },
+    { family: 'wares', amount: 0.2, perHousehold: true, variety: 1 },
+    { family: 'treats', amount: 0.2, variety: 1 },
   ],
   services: ['health', 'social'],
   charm: 25,
-  // C4X: 20 coins put by (30 kept half the households from ever moving up on a Settler's wage).
-  savings: 20,
+  // R1X: 12 (was 20): households spend most of what they earn on their baskets, and twenty coins
+  // put by kept nearly every household from moving up at day 70 on every seed.
+  savings: 12,
 };
 
 export const settler: NeedsBasket = {
   tier: 'settler',
-  groups: [
-    {
-      id: 'food',
-      name: 'Food',
-      perDay: 1,
-      goods: [
-        ['bread', 2],
-        ['fish', 2],
-        ['vegetables', 1],
-        ['apples', 1],
-        ['milk', 1],
-        ['cheese', 2],
-      ],
-    },
+  wants: [
+    { family: 'food', amount: 1, variety: 1 },
+    { family: 'fuel', amount: 1, perHousehold: true, season: 3, variety: 0 },
+    { family: 'wares', amount: 0, perHousehold: true, variety: 0 },
+    { family: 'treats', amount: 0.1, variety: 0 },
   ],
   services: [],
   charm: 0,
   savings: 0,
 };
+
+/**
+ * Favorite flavors (R1A): a household with a member of the species or trait likes the good twice as
+ * much as a plain flavor, so it pays a little more for it and buys it first at an even price. Sorted
+ * by `who`, then `good`. Every number tunes in R1X.
+ */
+export const flavorLikes: readonly FlavorLike[] = [
+  { who: 'badger', good: 'bread', weight: 2 },
+  { who: 'fox', good: 'cheese', weight: 2 },
+  { who: 'hedgehog', good: 'fruit', weight: 2 },
+  { who: 'mouse', good: 'cheese', weight: 2 },
+  { who: 'otter', good: 'fish', weight: 2 },
+  { who: 'rabbit', good: 'vegetables', weight: 2 },
+  { who: 'squirrel', good: 'fruit', weight: 2 },
+  { who: 'sweet-tooth', good: 'cider', weight: 2 },
+  { who: 'sweet-tooth', good: 'honey', weight: 2 },
+];

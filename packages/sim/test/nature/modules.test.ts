@@ -8,6 +8,7 @@ import type { Building, WorldState } from '../../src/contracts';
 import { recomputeDirty } from '../../src/systems/hearth/charm';
 import { moduleGoods } from '../../src/systems/modules';
 import { buildingDetail } from '../../src/view/inspect';
+import { applyTurn, createTickCtx } from '../../src/turn';
 import { rejection, run } from '../helpers';
 import { ticksUntil, toWork } from '../ledger/helpers';
 import { expectMoneyInvariant, moneySnapshot } from '../money';
@@ -17,6 +18,9 @@ import { natureFixture } from '../fixtures/nature';
 function townhouse(): { s: WorldState; b: Building } {
   const s = natureFixture().state;
   const b = placeFree(s, 'townhouse', 86, 52, 2);
+  // R1: the fixture stands at 10:00, when the carrier calls; let its visit pass first, so the
+  // treasury below moves only for the module.
+  applyTurn(s, { t: s.lastTurn + 1, cmds: [] }, createTickCtx(s));
   return { s, b };
 }
 
@@ -82,14 +86,14 @@ describe('modules', () => {
     const before = moneySnapshot(s);
     const treasury = s.economy.treasury;
     expect(setModule(s, b, 'top', 'tower')).toBeUndefined();
-    const planks = content.goodIndex.get('planks')!;
-    const stored = () => s.buildings.reduce((n, x) => n + (x.rt?.store[planks] ?? 0), 0);
-    // Pretend the planks came in already.
+    const timber = content.goodIndex.get('timber')!;
+    const stored = () => s.buildings.reduce((n, x) => n + (x.rt?.store[timber] ?? 0), 0);
+    // Pretend the timber came in already.
     const all = stored();
-    b.rt!.moduleWork![planks] = 0;
+    b.rt!.moduleWork![timber] = 0;
     expect(setModule(s, b, 'top', null)).toBeUndefined();
     expect(s.economy.treasury).toBe(treasury);
-    expect(stored()).toBe(all + moduleGoods(content.moduleById.get('tower')!)[planks]!);
+    expect(stored()).toBe(all + moduleGoods(content.moduleById.get('tower')!)[timber]!);
     expect(b.rt!.moduleWork).toBeNull();
     expectMoneyInvariant(before, s);
   });

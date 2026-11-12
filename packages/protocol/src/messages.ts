@@ -50,7 +50,18 @@ export type S2C =
   | { k: 'reloadRequired'; simVersion: string }
   | {
       k: 'error';
-      code: 'BAD_TOKEN' | 'SEAT_TAKEN' | 'VERSION_MISMATCH' | 'TOO_LARGE' | 'RATE_LIMIT' | 'NOT_FOUND';
+      /**
+       * R1 (R1.0, additive): OLD_VALLEY answers a hello for a valley founded under the old rules
+       * (a save under version 6; docs/spec/21-networking-and-saves.md, The fresh start).
+       */
+      code:
+        | 'BAD_TOKEN'
+        | 'SEAT_TAKEN'
+        | 'VERSION_MISMATCH'
+        | 'TOO_LARGE'
+        | 'RATE_LIMIT'
+        | 'NOT_FOUND'
+        | 'OLD_VALLEY';
       message: string;
     };
 

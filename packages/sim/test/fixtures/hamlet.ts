@@ -2,10 +2,16 @@
 // world (grass at height 2, river at x 100 and 101), in standard mode, so every track can test
 // against the same town before the others land:
 //
-//   z=46..49  north of the lane: town hall, storehouse, three cottages, bakery, windmill, sawpit,
-//             market stall, all facing the lane
+//   z=46..49  north of the lane: town hall, storehouse, three cottages, a granary, a baker's
+//             workshop (a business, trade 'baker') in the windmill's reach, a Forester's Lodge and
+//             a market stall, all facing the lane; the windmill stands on open ground at (62, 42)
+//             by the path (R1B: it keeps its clearance)
 //   z=50      the lane from x 40 to 90; a path crosses it at x 61 from z 40 to 60
 //   z=52      the well, benches, lanterns and flowers south of the lane
+//
+// R1 (R1.0): the bakery is a workshop business with trade 'baker' (key `bakery`), the sawpit's
+// place holds a Forester's Lodge (key `sawpit`), and Food keeps in a granary (placed last, so the
+// other ids are as before): grain, bread, vegetables and fish; timber and stone in the storehouse.
 //
 // Three households (9 residents): the Thistledowns (rabbits), the Underbanks (otters) and the
 // Quills (mice). Jobs: two town hall builders, two storehouse porters, a baker, a vendor.
@@ -25,6 +31,7 @@ import { Road, treeValue, TREE_SPECIES } from '../../src/map/layers';
 import { findById } from '../../src/state/entities';
 import { goodsArray } from '../../src/state/hamlet';
 import { insertBuilding } from '../../src/state/place';
+import { emptyCounters } from '../../src/state/zones';
 import { worldIndex } from '../../src/state/worldIndex';
 import { doorTile } from '../../src/systems/movement/api';
 import { flatWorld, S } from '../helpers';
@@ -36,9 +43,13 @@ export interface HamletFixture {
     townHall: EntityId;
     storehouse: EntityId;
     cottages: [EntityId, EntityId, EntityId];
+    /** A workshop business with trade 'baker', in the windmill's reach. */
     bakery: EntityId;
     windmill: EntityId;
+    /** A Forester's Lodge (R1: where the sawpit stood). */
     sawpit: EntityId;
+    /** The granary, where the Food keeps (R1). */
+    granary: EntityId;
     stall: EntityId;
     well: EntityId;
   };
@@ -55,8 +66,12 @@ function place(
   z: number,
   rot: Rot4 = 0,
   seat: 0 | 1 = 0,
+  trade?: string,
 ): Building {
-  return insertBuilding(state, null, content.buildingById.get(def)!, x, z, rot, seat, { site: false });
+  return insertBuilding(state, null, content.buildingById.get(def)!, x, z, rot, seat, {
+    site: false,
+    ...(trade !== undefined && { trade }),
+  });
 }
 
 function stock(b: Building, pairs: [string, number][], where: 'store' | 'input' | 'output' = 'store'): void {
@@ -153,27 +168,22 @@ export function hamletFixture(): HamletFixture {
   const c1 = place(state, 'cottage', 53, 48);
   const c2 = place(state, 'cottage', 56, 48);
   const c3 = place(state, 'cottage', 62, 48, 0, 1);
-  const bakery = place(state, 'bakery', 65, 48);
-  const windmill = place(state, 'windmill', 68, 48);
-  const sawpit = place(state, 'sawpit', 71, 47);
+  const bakery = place(state, 'workshop', 65, 47, 0, 0, 'baker');
+  // R1B: on open ground north of the lane by the path, its clearance kept, the bakery in its reach.
+  const windmill = place(state, 'windmill', 62, 42);
+  const sawpit = place(state, 'foresters-lodge', 71, 48);
   const stall = place(state, 'market-stall', 74, 48, 0, 1);
   const well = place(state, 'well', 57, 52);
 
   stock(storehouse, [
-    ['logs', 40],
-    ['planks', 30],
+    ['timber', 70],
     ['stone', 20],
-    ['wheat', 12],
-    ['bread', 16],
-    ['vegetables', 16],
-    ['fish', 8],
   ]);
   stock(stall, [
     ['bread', 10],
     ['vegetables', 8],
   ]);
-  stock(bakery, [['flour', 4]], 'input');
-  stock(sawpit, [['logs', 4]], 'input');
+  stock(bakery, [['grain', 4]], 'input');
 
   const thistledown = addHousehold(state, 'Thistledown', c1, [
     {
@@ -209,6 +219,19 @@ export function hamletFixture(): HamletFixture {
   state.map.tree[54 * S + 57] = treeValue(TREE_SPECIES.oak, 3);
   state.map.tree[55 * S + 52] = treeValue(TREE_SPECIES.birch, 3);
 
+  // R1: the Food keeps in the granary, placed last so every id above is as it was.
+  const granary = place(state, 'granary', 58, 47);
+  stock(granary, [
+    ['grain', 12],
+    ['bread', 16],
+    ['vegetables', 16],
+    ['fish', 8],
+  ]);
+
+  // R1B: the bakery's first hand keeps it (the family name on its sign); its counters start clean.
+  bakery.keeperId = bakery.rt!.workers[0] ?? 0;
+  bakery.counters = emptyCounters();
+
   state.networkVersion = 1;
   state.hearth.hints = content.patterns.slice(0, 3).map((p) => p.id);
   // Everything starts dirty, so the first charm pass covers the whole map.
@@ -223,6 +246,7 @@ export function hamletFixture(): HamletFixture {
       bakery: bakery.id,
       windmill: windmill.id,
       sawpit: sawpit.id,
+      granary: granary.id,
       stall: stall.id,
       well: well.id,
     },

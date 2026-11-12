@@ -1,13 +1,12 @@
-// Helpers for the C4A market and money tests. The Trading Post building is C4C's: with C4C's def in
-// content `withTradingPost` builds one on the village fixture's lane A; until then it lends the
-// 'trading-post' tag to the storehouse def for the length of the test, so the fixture's first
-// storehouse doubles as the post and caravans have somewhere to work.
+// Helpers for the C4A market and money tests. `withTradingPost` builds a Trading Post on the village
+// fixture's lane A (R1: the carrier trades on the post's terms once one stands); without the def in
+// content it lends the 'trading-post' tag to the storehouse def for the length of the test.
 import { content, type BuildingDef } from '@qoti/content';
 import { TICKS_PER_DAY } from '../../src/constants';
 import type { Building, TickCtx, WorldState } from '../../src/contracts';
 import { insertBuilding } from '../../src/state/place';
 import { dailyOffset } from '../../src/systems/economy/time';
-import { tradingPost } from '../../src/systems/trade/post';
+import { tradingPost } from '../../src/systems/carrier/terms';
 import { applyTurn, createTickCtx } from '../../src/turn';
 
 /** Runs `fn` with a Trading Post in the valley; returns what `fn` returns. */
@@ -46,3 +45,12 @@ export function runDays(state: WorldState, days: number, ctx?: TickCtx): TickCtx
 }
 
 export const good = (id: string): number => content.goodIndex.get(id)!;
+
+/** Has every household seen each named good today (R1A variety: flavors on offer for the Charter). */
+export function offerGoods(state: WorldState, ids: string[]): void {
+  const today = Math.floor(state.tick / TICKS_PER_DAY);
+  for (const h of state.households) {
+    h.seen ??= new Array<number>(content.goods.length).fill(-1);
+    for (const id of ids) h.seen[good(id)] = today;
+  }
+}

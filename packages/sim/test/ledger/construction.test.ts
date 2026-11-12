@@ -1,8 +1,15 @@
 import { describe, expect, it } from 'vitest';
-import { BUILD_EFFORT, BuildingStatus, PENNIES_PER_COIN, TICKS_PER_HOUR } from '../../src/constants';
+import {
+  BUILD_EFFORT,
+  BuildingStatus,
+  LEDGER_CATEGORIES,
+  PENNIES_PER_COIN,
+  TICKS_PER_HOUR,
+} from '../../src/constants';
 import type { BuildingView } from '../../src/contracts';
 import { TREE_SPECIES, treeValue } from '../../src/map/layers';
 import { findById } from '../../src/state/entities';
+import { familyIndex } from '../../src/state/zones';
 import { hamletFixture } from '../fixtures/hamlet';
 import { rejection, run, S } from '../helpers';
 import {
@@ -38,7 +45,8 @@ describe('placing a site', () => {
     const site = f.state.buildings[f.state.buildings.length - 1]!;
     expect(before - f.state.economy.treasury).toBe(20 * PENNIES_PER_COIN);
     expect(site.rt!.construction!.paid).toBe(20 * PENNIES_PER_COIN);
-    expect(f.state.economy.today.money[4]).toBe(20 * PENNIES_PER_COIN);
+    const construction = LEDGER_CATEGORIES.findIndex((c) => c.id === 'construction');
+    expect(f.state.economy.today.money[construction]).toBe(20 * PENNIES_PER_COIN);
     expect(ctx.events.some((e) => e.e === 'budget.updated')).toBe(true);
   });
 
@@ -57,12 +65,12 @@ describe('placing a site', () => {
     expect(rejection(run(f.state, { t: 'road.paint', kind: 'path', tiles: [[82, 53]] }))).toBe('LEAN_TIMES');
   });
 
-  it('turns trees cleared off a site into logs, for the site first', () => {
+  it('turns trees cleared off a site into timber, for the site first', () => {
     const f = hamletFixture();
     const store = building(f.state, f.b.storehouse);
     const oak = treeValue(TREE_SPECIES.oak, 3);
-    // Three mature trees and a sapling under a sawpit that needs 16 logs, on the town's side of the
-    // river (across it, with no bridge, the site would be cut off).
+    // Three mature trees and a sapling under a Forester's Lodge that needs 12 timber, on the town's
+    // side of the river (across it, with no bridge, the site would be cut off).
     for (const [x, z] of [
       [70, 55],
       [71, 55],
@@ -71,17 +79,20 @@ describe('placing a site', () => {
       f.state.map.tree[z! * S + x!] = oak;
     }
     f.state.map.tree[56 * S + 71] = treeValue(TREE_SPECIES.oak, 1);
-    run(f.state, { t: 'build.place', def: 'sawpit', x: 70, z: 55, rot: 0 });
+    // The lodge wants twelve mature trees within eight tiles: a stand of them just south of the site.
+    for (let x = 66; x < 78; x++) f.state.map.tree[61 * S + x] = oak;
+    expect(rejection(run(f.state, { t: 'build.place', def: 'foresters-lodge', x: 70, z: 55, rot: 0 }))).toBe(
+      undefined,
+    );
     const hut = f.state.buildings[f.state.buildings.length - 1]!;
-    expect(hut.def).toBe('sawpit');
-    expect(hut.rt!.construction!.delivered[good('logs')]).toBe(6);
-    expect(hut.rt!.construction!.needs[good('logs')]).toBe(10);
-    // A cottage needs no logs: its two trees go to the storehouse.
+    expect(hut.def).toBe('foresters-lodge');
+    expect(hut.rt!.construction!.delivered[good('timber')]).toBe(6);
+    expect(hut.rt!.construction!.needs[good('timber')]).toBe(6);
+    // A well needs no timber: its tree goes to the storehouse.
     f.state.map.tree[60 * S + 52] = oak;
-    f.state.map.tree[61 * S + 53] = oak;
-    run(f.state, { t: 'build.place', def: 'cottage', x: 52, z: 60, rot: 2 });
-    expect(stockOf(store, 'store', 'logs')).toBe(44);
-    expect(f.state.economy.today.produced[good('logs')]).toBe(10);
+    run(f.state, { t: 'build.place', def: 'well', x: 52, z: 60, rot: 0 });
+    expect(stockOf(store, 'store', 'timber')).toBe(72);
+    expect(f.state.economy.today.produced[good('timber')]).toBe(8);
   });
 
   it('charges roads per new tile in standard valleys', () => {
@@ -112,32 +123,34 @@ describe('building a site', () => {
     const events = ticks(f.state, 6 * H);
     expect(site.stage).toBe('built');
     expect(site.rt!.construction).toBeNull();
-    expect(stockOf(store, 'store', 'planks')).toBe(30 - 16);
+    expect(stockOf(store, 'store', 'timber')).toBe(70 - 16);
     expect(stockOf(store, 'store', 'stone')).toBe(20 - 6);
     // Stages only ever move forward, and every visible one shows (stage 0 may pass before the
     // first update when porters are quick).
     const stages = siteStages(events, site.id);
     expect(stages.filter((x) => x !== 0)).toEqual([1, 2, 3, 'built']);
     expect(events.some((e) => e.e === 'notify' && e.kind === 'built')).toBe(true);
-    expect(f.state.economy.today.consumed[good('planks')]).toBe(16);
+    expect(f.state.economy.today.consumed[good('timber')]).toBe(16);
     // Builders go back to the town hall when the work is done.
     for (const id of building(f.state, f.b.townHall).rt!.workers) {
       expect(findById(f.state.residents, id)!.activity.kind).toBe('work');
     }
   });
 
-  it('keeps work in step with deliveries: no frame without the planks', () => {
+  it('keeps work in step with deliveries: no frame without the timber', () => {
     const f = withoutStall();
     const store = building(f.state, f.b.storehouse);
-    store.rt!.store[good('planks')] = 4;
+    store.rt!.store[good('timber')] = 4;
+    // R1: the carrier buys Materials a site waits for; here it stays home, so the timber runs short.
+    f.state.carrier.families[familyIndex('materials')]!.rule = 'never';
     run(f.state, { t: 'build.place', def: 'cottage', x: 52, z: 51, rot: 2 });
     const site = f.state.buildings[f.state.buildings.length - 1]!;
     untilHour(f.state, 8);
     everyoneToWork(f.state);
     ticks(f.state, 4 * H);
     const c = site.rt!.construction!;
-    // 4 planks and 6 stone of 22 units: work stops at 10/22 of the cottage's builder-hours.
-    expect(c.delivered[good('planks')]).toBe(4);
+    // 4 timber and 6 stone of 22 units: work stops at 10/22 of the cottage's builder-hours.
+    expect(c.delivered[good('timber')]).toBe(4);
     expect(c.workDone).toBe(Math.floor((c.work * 10) / 22));
     expect(c.work).toBe(Math.round(8 * H * BUILD_EFFORT));
     expect(site.rt!.status & BuildingStatus.waitingMaterials).toBeTruthy();
@@ -171,25 +184,24 @@ describe('building a site', () => {
     const site = f.state.buildings[f.state.buildings.length - 1]!;
     untilHour(f.state, 8);
     everyoneToWork(f.state);
-    ticksUntil(f.state, () => site.rt!.construction!.delivered[good('planks')]! > 0);
-    const delivered = site.rt!.construction!.delivered[good('planks')]!;
+    ticksUntil(f.state, () => site.rt!.construction!.delivered[good('timber')]! > 0);
+    const delivered = site.rt!.construction!.delivered[good('timber')]!;
     expect(delivered).toBeGreaterThan(0);
     const treasury = f.state.economy.treasury;
     run(f.state, { t: 'build.remove', ids: [site.id] });
     expect(f.state.economy.treasury - treasury).toBe(20 * PENNIES_PER_COIN);
     ticksUntil(f.state, (st) => st.logistics.jobs.length === 0);
     expect(f.state.logistics.jobs).toHaveLength(0);
-    const planks = stockOf(store, 'store', 'planks');
-    expect(planks).toBe(30);
+    expect(stockOf(store, 'store', 'timber')).toBe(70);
     expect(store.rt!.reservedOut.every((n) => n === 0)).toBe(true);
   });
 
-  it('returns a removed building’s stock to the storehouse', () => {
+  it('returns a removed building’s stock to the nearest store (here the granary)', () => {
     const f = hamletFixture();
-    const store = building(f.state, f.b.storehouse);
+    const store = building(f.state, f.b.granary);
     run(f.state, { t: 'build.remove', ids: [f.b.stall] });
-    expect(stockOf(store, 'store', 'bread')).toBe(26);
-    expect(stockOf(store, 'store', 'vegetables')).toBe(24);
+    expect(stockOf(store, 'store', 'bread')).toBe(16 + 10);
+    expect(stockOf(store, 'store', 'vegetables')).toBe(16 + 8);
   });
 
   it('repairs worn buildings when there is nothing to build', () => {

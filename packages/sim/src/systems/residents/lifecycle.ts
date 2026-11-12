@@ -40,10 +40,18 @@ export function gateTile(state: WorldState): number {
   return z * MAP_SIZE + x;
 }
 
-/** Town attractiveness 0 to 100: vacant homes 30, food cover 20, open jobs 20, charm 15, mood 15. */
-export function attractiveness(state: WorldState, vac: readonly Vacancy[] = vacantHomes(state)): number {
+/**
+ * Town attractiveness 0 to 100: vacant homes 30, food cover 20, open jobs 20, charm 15, mood 15.
+ * R1B: `stock` (townStock) and `open` (openJobCount) may be passed by a caller that already has them
+ * (the growth pass).
+ */
+export function attractiveness(
+  state: WorldState,
+  vac: readonly Vacancy[] = vacantHomes(state),
+  stock: readonly number[] = townStock(state),
+  open: number = openJobCount(state),
+): number {
   const pop = state.residents.length;
-  const stock = townStock(state);
   let food = 0;
   for (const g of foodIndexes()) food += stock[g] ?? 0;
   for (const h of state.households) food += pantryFood(h);
@@ -63,7 +71,7 @@ export function attractiveness(state: WorldState, vac: readonly Vacancy[] = vaca
   const a =
     30 * Math.min(1, vac.length / 2) +
     20 * Math.min(1, days / 5) +
-    20 * Math.min(1, openJobCount(state) / 4) +
+    20 * Math.min(1, open / 4) +
     15 * Math.min(1, charm / 30) +
     (15 * mood) / 100;
   // I3 (C5B): renown pulls a little harder (the level's `arrivals` effect, permille).

@@ -2,7 +2,7 @@
 import type { Command, CommandType } from '../contracts';
 import * as bandit from './bandit';
 import * as build from './build';
-import * as calling from './calling';
+import * as carrier from './carrier';
 import * as charter from './charter';
 import * as commission from './commission';
 import * as customize from './customize';
@@ -10,11 +10,11 @@ import * as decor from './decor';
 import * as festival from './festival';
 import * as field from './field';
 import * as guide from './guide';
-import * as ledger from './ledger';
 import * as levers from './levers';
 import * as loan from './loan';
 import * as marketDays from './marketDays';
 import * as module from './module';
+import * as move from './move';
 import * as note from './note';
 import * as plan from './plan';
 import * as pond from './pond';
@@ -22,11 +22,11 @@ import * as recipe from './recipe';
 import * as request from './request';
 import * as road from './road';
 import * as runtime from './runtime';
+import * as season from './season';
 import * as seat from './seat';
 import * as sys from './sys';
 import * as terrain from './terrain';
 import * as time from './time';
-import * as trade from './trade';
 import * as tree from './tree';
 import type { AnyHandler } from './util';
 import * as valley from './valley';
@@ -38,16 +38,20 @@ import * as zone from './zone';
 export const commandHandlers: readonly AnyHandler[] = [
   bandit.decide,
   customize.customize,
+  move.moveBuilding,
   recipe.pinRecipe,
   build.place,
   build.remove,
   module.setModule,
   runtime.setPaused,
   runtime.setPriority,
-  calling.choose,
+  carrier.setBudget,
+  carrier.setReserve,
+  carrier.setRule,
   charter.claim,
   commission.accept,
   commission.decline,
+  move.moveDecor,
   decor.place,
   decor.placeRun,
   decor.remove,
@@ -57,7 +61,6 @@ export const commandHandlers: readonly AnyHandler[] = [
   field.remove,
   wall.setGate,
   guide.setHidden,
-  ledger.setForSale,
   marketDays.setMarketDay,
   levers.setPriceCap,
   marketDays.setQuietHours,
@@ -77,6 +80,7 @@ export const commandHandlers: readonly AnyHandler[] = [
   request.resolve,
   road.paint,
   road.remove,
+  season.setPlan,
   seat.setProfile,
   sys.seatJoined,
   sys.seatLeft,
@@ -84,7 +88,6 @@ export const commandHandlers: readonly AnyHandler[] = [
   pond.pond,
   terrain.raise,
   time.setSpeed,
-  trade.setStandingOrder,
   tree.plant,
   tree.remove,
   valley.setSettings,

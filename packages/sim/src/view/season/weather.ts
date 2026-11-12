@@ -85,12 +85,12 @@ export function weatherLines(state: WorldState): { hearth: SeasonReportLine[]; l
         value: state.economy.season.consumed[fw] ?? 0,
       });
   }
-  const wheat = good('wheat');
-  if (wheat >= 0 && (season === 2 || season === 3)) {
+  const grain = good('grain');
+  if (grain >= 0 && (season === 2 || season === 3)) {
     ledger.push({
       track: 'weather',
-      text: 'Wheat brought in.',
-      value: state.economy.season.produced[wheat] ?? 0,
+      text: 'Grain brought in.',
+      value: state.economy.season.produced[grain] ?? 0,
     });
   }
   if (season >= 2)

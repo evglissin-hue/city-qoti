@@ -1,18 +1,16 @@
-// I3 contracts (C5.0): the winter and threat fixtures, save version 4, the three shared hooks, the
-// cross-track APIs and the command baselines every I3 track builds on.
+// I3 contracts (C5.0): the winter and threat fixtures, the three shared hooks, the cross-track APIs
+// and the command baselines every I3 track builds on. R1.0 dropped the save version 4 migration:
+// version 6 refuses older valleys.
 import { content } from '@qoti/content';
-import { gunzipSync, gzipSync, strFromU8, strToU8 } from 'fflate';
 import { describe, expect, it } from 'vitest';
-import { LEDGER_CATEGORIES, MAP_SIZE, RIVER_FREEZE_DAY, TICKS_PER_HOUR } from '../src/constants';
+import { MAP_SIZE, TICKS_PER_HOUR } from '../src/constants';
 import type { WorldState } from '../src/contracts';
 import { Flags, Road, Water } from '../src/map/layers';
 import { RNG_STREAMS } from '../src/rng/streams';
-import { base64ToBytes, bytesToBase64 } from '../src/state/base64';
 import { createValley, defaultSettings } from '../src/state/create';
 import { findById } from '../src/state/entities';
-import { deserialize, serialize } from '../src/state/serialize';
 import { markFloodplain, seasonAt } from '../src/state/seasons';
-import { MIGRATION_FIREWOOD, SAVE_VERSION } from '../src/state/version';
+import { methodOf } from '../src/state/zones';
 import { festivalMorale } from '../src/systems/festivals/api';
 import { hasSpecies, habitatAt } from '../src/systems/habitats/api';
 import { walkPermille, withWalkFactors } from '../src/systems/movement/factors';
@@ -66,7 +64,7 @@ describe('I3 fixtures', () => {
       expect(warmthReport(s)).toEqual({ cold: 2, householdDays: 2 });
       for (const h of f.cold) expect(isCold(s, h)).toBe(true);
       expect(festivalView(s).plan?.menu).toEqual([
-        ['pies', 20, 10],
+        ['bread', 20, 10],
         ['cider', 16, 8],
       ]);
       expect(trialView(s)).toMatchObject({ kind: 'winter', status: 'running', name: 'The First Winter' });
@@ -143,7 +141,8 @@ describe('the three hooks', () => {
     const s = f.state;
     const bakery = findById(s.buildings, f.b.bakery)!;
     const def = content.buildingById.get(bakery.def)!;
-    const method = def.methods![0]!;
+    // R1: a business runs its trade's method (the baker's), not its def's.
+    const method = methodOf(bakery)!;
     expect(yieldPermille(s, bakery, def, method)).toBe(1000);
     const plain = dailyRates(s, bakery, def)!.outputs[0]![1];
     withYieldModifiers([['half', () => 500]], () => {
@@ -239,14 +238,14 @@ describe('command baselines', () => {
       t: 'festival.plan',
       site: { rect: [40, 55, 46, 61] },
       menu: [['bread', 10]],
-      twist: 'pie-contest',
+      twist: 'lanterns-on-the-water',
       music: 'none',
     });
     expect(rejection(ok)).toBeUndefined();
     expect(s.festival.plan).toMatchObject({
       festival: 'blossom-fair',
       season: 0,
-      twist: 'pie-contest',
+      twist: 'lanterns-on-the-water',
       by: 0,
     });
     expect(ok.events.some((e) => e.e === 'festival.updated')).toBe(true);
@@ -342,96 +341,4 @@ describe('command baselines', () => {
     expect(ctx.events).toContainEqual(expect.objectContaining({ e: 'notify', seat: 1 }));
     expect(s.chronicle.at(-1)?.kind).toBe('threat-dial');
   });
-});
-
-describe('save version 4', () => {
-  /** An I2 (v3) save from a current one: drop the I3 slices, trim the I3 goods and categories. */
-  function shrinkToV3(state: WorldState): Record<string, unknown> {
-    const raw = JSON.parse(strFromU8(gunzipSync(serialize(state)))) as Record<string, unknown>;
-    const goods = 20;
-    const cats = 17;
-    const trim = (v: unknown, n: number) => (Array.isArray(v) ? v.slice(0, n) : v);
-    for (const k of ['weather', 'warmth', 'festival', 'renown', 'commissions', 'dock', 'nature'])
-      delete raw[k];
-    for (const k of ['threats', 'watch', 'raid', 'trial', 'guide', 'seasons']) delete raw[k];
-    raw.rng = bytesToBase64(base64ToBytes(raw.rng as string).subarray(0, 6 * 16));
-    const e = raw.economy as Record<string, unknown>;
-    e.forSale = trim(e.forSale, goods);
-    e.everProduced = trim(e.everProduced, goods);
-    for (const k of ['today', 'yesterday', 'season', 'lastSeason']) {
-      const p = e[k] as Record<string, unknown> | null;
-      if (!p) continue;
-      p.money = trim(p.money, cats);
-      p.produced = trim(p.produced, goods);
-      p.consumed = trim(p.consumed, goods);
-    }
-    e.stockHistory = (e.stockHistory as unknown[]).map((d) => trim(d, goods));
-    for (const b of raw.buildings as Record<string, Record<string, unknown> | undefined>[]) {
-      const rt = b.rt;
-      if (!rt) continue;
-      for (const k of ['input', 'output', 'store', 'reservedIn', 'reservedOut', 'producedToday'])
-        rt[k] = trim(rt[k], goods);
-    }
-    for (const h of raw.households as Record<string, unknown>[]) h.pantry = trim(h.pantry, goods);
-    const m = raw.market as Record<string, unknown>;
-    for (const k of ['prices', 'demand', 'demandToday', 'cover']) m[k] = trim(m[k], goods);
-    m.history = (m.history as unknown[]).map((d) => trim(d, goods));
-    const l = raw.levers as Record<string, unknown>;
-    for (const k of ['priceCaps', 'subsidies', 'exportBans']) l[k] = trim(l[k], goods);
-    raw.stories = (raw.stories as { arc: string }[]).filter(
-      (x) => x.arc !== 'herbalist' && x.arc !== 'stonemason',
-    );
-    raw.innovations = (raw.innovations as { id: string }[]).filter(
-      (x) => x.id !== 'barometer' && x.id !== 'seed-drill',
-    );
-    // An I2 valley never had the floodplain flag.
-    const map = raw.map as Record<string, string>;
-    const flags = base64ToBytes(map.flags!);
-    for (let i = 0; i < flags.length; i++) flags[i]! &= ~Flags.floodplain;
-    map.flags = bytesToBase64(flags);
-    raw.saveVersion = 3;
-    return raw;
-  }
-
-  for (const [season, name] of [
-    [0, 'spring'],
-    [1, 'summer'],
-    [2, 'autumn'],
-    [3, 'winter'],
-  ] as const) {
-    it(`migrates an I2 village in ${name}: neutral slices, grown arrays, a gentle winter, the trial next winter`, () => {
-      const f = villageFixture();
-      f.state.tick = (season * 6 + RIVER_FREEZE_DAY - 1) * 24 * TICKS_PER_HOUR + 4 * TICKS_PER_HOUR;
-      // Low ground by the river, so the migration has a floodplain to find.
-      for (let z = 0; z < S; z++) for (let x = 97; x <= 99; x++) f.state.map.height[z * S + x] = 1;
-      const firewood = content.goodIndex.get('firewood')!;
-      const before = f.state.households.map((h) => h.pantry[firewood] ?? 0);
-      const s = deserialize(gzipSync(strToU8(JSON.stringify(shrinkToV3(f.state)))));
-      expect(s.saveVersion).toBe(SAVE_VERSION);
-      expect(SAVE_VERSION).toBe(5);
-      expect(s.rng.length).toBe(RNG_STREAMS.length * 4);
-      expect(s.economy.forSale).toHaveLength(content.goods.length);
-      expect(s.economy.today.money).toHaveLength(LEDGER_CATEGORIES.length);
-      expect(s.market.prices).toHaveLength(content.goods.length);
-      expect(s.market.prices.at(-1)).toBe(content.goods.at(-1)!.basePrice);
-      expect(s.levers.exportBans).toHaveLength(content.goods.length);
-      expect(s.weather.today).toBe('clear');
-      expect(s.weather.river.frozen).toBe(season === 3);
-      expect(s.guide.over).toBe(true);
-      expect(s.stories.map((x) => x.arc)).toContain('herbalist');
-      expect(s.innovations.map((x) => x.id)).toContain('seed-drill');
-      expect(s.trial).toMatchObject({
-        kind: 'winter',
-        charter: 'village',
-        season: 3,
-        year: season === 3 ? 1 : 0,
-      });
-      const gift = season >= 2 ? MIGRATION_FIREWOOD : 0;
-      s.households.forEach((h, i) => expect(h.pantry[firewood]).toBe(before[i]! + gift));
-      expect(s.map.flags[10 * S + 98]! & Flags.floodplain).toBe(Flags.floodplain);
-      expect(s.map.flags[10 * S + 90]! & Flags.floodplain).toBe(0);
-      // It keeps playing.
-      runTicks(s, 2 * TICKS_PER_HOUR);
-    });
-  }
 });

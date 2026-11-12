@@ -51,33 +51,33 @@ export const minstrelCandles: CommissionDef = {
   renown: 2,
 };
 
-export const stonecrossCoats: CommissionDef = {
-  id: 'stonecross-coats',
-  name: 'Coats for the Stonecross quarrymen',
+export const stonecrossCloth: CommissionDef = {
+  id: 'stonecross-cloth',
+  name: 'Cloth for the Stonecross quarrymen',
   from: 'stonecross',
-  blurb: 'The wind up here has opinions. Our quarrymen would like coats to argue back.',
-  ask: { goods: [['coats', 6]] },
+  blurb: 'The wind up here has opinions. Our quarrymen would like warm cloth to argue back.',
+  ask: { goods: [['cloth', 12]] },
   deadlineDays: 6,
   reward: { coins: 100, renown: 3 },
 };
 
-export const stonecrossPlanks: CommissionDef = {
-  id: 'stonecross-planks',
-  name: 'Planks for the Stonecross scaffolds',
+export const stonecrossTimber: CommissionDef = {
+  id: 'stonecross-timber',
+  name: 'Timber for the Stonecross scaffolds',
   from: 'stonecross',
   blurb: 'We have plenty of stone and nothing to stand on while we stack it.',
-  ask: { goods: [['planks', 30]] },
+  ask: { goods: [['timber', 30]] },
   deadlineDays: 5,
   reward: { coins: 90, renown: 2 },
 };
 
 export const theDowager: CommissionDef = {
   id: 'the-dowager',
-  name: 'Pies for the Dowager of Amberly',
+  name: 'Cider for the Dowager of Amberly',
   from: 'visitor',
   visitor: 'the Dowager of Amberly',
-  blurb: 'One has heard about the pies. One would like to stop hearing and start eating.',
-  ask: { goods: [['pies', 30]] },
+  blurb: 'One has heard about the cider. One would like to stop hearing and start sipping.',
+  ask: { goods: [['cider', 30]] },
   deadlineDays: 6,
   reward: { coins: 90, renown: 5, unlock: ['flower-arch'] },
   renown: 3,

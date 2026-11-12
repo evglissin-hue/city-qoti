@@ -26,7 +26,16 @@ import {
 export const RESIDENT_BUDGET = { hamletTickMs: 0.5, townTickMs: 4, townWorstMs: 12 };
 
 const SPECIES = ['rabbit', 'badger', 'otter', 'fox', 'mouse', 'hedgehog', 'squirrel'];
-const WORKPLACES = ['bakery', 'sawpit', 'storehouse', 'windmill', 'market-stall', 'quarry', 'woodcutter'];
+/** R1: specialized buildings, and businesses as [def, trade] (a workshop baking, another weaving). */
+export const WORKPLACES: readonly (readonly [def: string, trade?: string])[] = [
+  ['workshop', 'baker'],
+  ['workshop', 'weaver'],
+  ['storehouse'],
+  ['windmill'],
+  ['market-stall'],
+  ['quarry'],
+  ['foresters-lodge'],
+];
 
 export interface Town {
   world: WorldState;
@@ -73,8 +82,11 @@ export function flatTown(
   let lot = 0;
   let placed = 0;
   const done = () => homes.length >= homesWanted && works >= worksWanted;
-  const place = (def: string, x: number, z: number, rot: Rot4) => {
-    const b = insertBuilding(world, null, content.buildingById.get(def)!, x, z, rot, 0, { site: false });
+  const place = (def: string, x: number, z: number, rot: Rot4, trade?: string) => {
+    const b = insertBuilding(world, null, content.buildingById.get(def)!, x, z, rot, 0, {
+      site: false,
+      trade,
+    });
     placed++;
     return b;
   };
@@ -89,14 +101,15 @@ export function flatTown(
         const home =
           homes.length < homesWanted &&
           (works >= worksWanted || homes.length * worksWanted <= works * homesWanted);
-        const def = next % 9 === 0 ? 'well' : home ? 'house' : WORKPLACES[works % WORKPLACES.length]!;
+        const [def, trade]: readonly [string, string?] =
+          next % 9 === 0 ? ['well'] : home ? ['house'] : WORKPLACES[works % WORKPLACES.length]!;
         const [w, depth] = content.buildingById.get(def)!.size;
         // Keep a verge of one tile either side of the paths for benches and flowers.
         let clear = true;
         for (let c = x - 1; c <= x + w; c++) if ((c - 4) % 18 === 0) clear = false;
         if (!clear) continue;
         lot = next;
-        const b = place(def, x, side === 0 ? lane - depth : lane + 1, rot);
+        const b = place(def, x, side === 0 ? lane - depth : lane + 1, rot, trade);
         if (def === 'house') homes.push(b.id);
         else if (def !== 'well') works++;
       }

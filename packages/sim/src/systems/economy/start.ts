@@ -1,5 +1,6 @@
-// The standard valley's starting town (docs/spec/02-game-overview.md, New valley). C3.0 baseline;
-// C3C owns and tunes it. Runs once inside createWorld, before any seat joins, so it writes state
+// The standard valley's starting town (docs/spec/02-game-overview.md, Standard valley from R1):
+// Town Hall, a Storehouse (timber 60, stone 30), a Granary (grain 20, vegetables 16, fish 8), two
+// Cottages, a Well and the path, treasury 500 coins. Runs once inside createWorld, before any seat joins, so it writes state
 // directly instead of through commands.
 import type { BuildingDef } from '@qoti/content';
 import { content } from '@qoti/content';
@@ -14,16 +15,30 @@ import { worldIndex } from '../../state/worldIndex';
 
 /** Storehouse stock at founding: [good id, units]. */
 export const START_GOODS: readonly [string, number][] = [
-  ['logs', 40],
-  ['planks', 50],
+  ['timber', 60],
   ['stone', 30],
-  ['bread', 16],
-  ['vegetables', 16],
-  ['fish', 8],
+];
+
+/**
+ * Granary stock at founding (R1: Food keeps in the Granary): [good id, units]. R1X: 56 (was 44), so
+ * the founders and the first newcomers eat until the first farm and fishery are at work (hazel's
+ * stores stood empty on day 4 with thirteen mouths and nothing made yet).
+ */
+export const START_FOOD: readonly [string, number][] = [
+  ['grain', 24],
+  ['vegetables', 20],
+  ['fish', 12],
 ];
 
 /** Starting buildings in placement order; homes and the well cluster around the town hall. */
-const START_BUILDINGS: readonly string[] = ['town-hall', 'storehouse', 'cottage', 'cottage', 'well'];
+const START_BUILDINGS: readonly string[] = [
+  'town-hall',
+  'storehouse',
+  'granary',
+  'cottage',
+  'cottage',
+  'well',
+];
 
 export function setupStandardStart(state: WorldState): void {
   const S = MAP_SIZE;
@@ -56,8 +71,9 @@ export function setupStandardStart(state: WorldState): void {
       site: false,
       foundation: placement.foundation,
     });
-    if (id === 'storehouse' && b.rt) {
-      for (const [good, qty] of START_GOODS) {
+    const stock = id === 'storehouse' ? START_GOODS : id === 'granary' ? START_FOOD : [];
+    if (b.rt) {
+      for (const [good, qty] of stock) {
         const i = content.goodIndex.get(good);
         if (i !== undefined) b.rt.store[i] = qty;
       }

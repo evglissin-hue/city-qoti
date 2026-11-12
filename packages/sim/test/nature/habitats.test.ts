@@ -54,7 +54,8 @@ const BUILD: Record<string, (s: WorldState) => void> = {
   },
   garden: (s) => {
     for (let k = 0; k < 4; k++) addDecorAt(s, 'low-wall', EX + 2.5 + k, EZ + 12.5);
-    placeFree(s, 'herb-garden', EX + 8, EZ + 10);
+    // R1: the herb garden is gone; the herbalist keeps hers out the back (tag 'garden').
+    placeFree(s, 'herbalist', EX + 8, EZ + 10);
   },
 };
 

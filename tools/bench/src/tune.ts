@@ -5,15 +5,17 @@
 // TUNE_SAVE=<file.qoti> writes the valley out, to open in the game (title screen, More, Open a valley
 // file) or shoot with the e2e scripts. TUNE_ACTIONS=1 lists everything the player tried.
 //
-// C5.0: one run plays every advisor whose system it finds (the Village chains, services and
-// Craftsfolk included), so the old `TUNE_VILLAGE=1` is the default and `TUNE_POST` is gone (it lent
+// C5.0: one run plays every advisor whose system it finds (the Village's services and Craftsfolk
+// included; R1.0: the chains are gone, businesses grow on the zoned streets), so the old `TUNE_VILLAGE=1` is the default and `TUNE_POST` is gone (it lent
 // the storehouses the Trading Post's tag until C4C's post landed, and did nothing since). Last comes
 // the year view: a line per day with the season, weather, cold households, festival stars, threat
 // band and raid results ('-' until the I3 systems fill them).
 import { serialize, type WorldState, type ValleySettings } from '@qoti/sim';
 import { writeFileSync } from 'node:fs';
 import { autoplay, formatDays } from './autoplay';
+import { DECISIONS_DAYS, formatDecisions } from './decisions';
 import { frontageAscii, grownSummary, streetRect } from './village';
+import { businessesSummary, formatLedger, nextTierSummary } from './ledgerRow';
 import { YEAR_HEAD, yearRow } from './yearRow';
 
 const days = Number(process.argv[2] ?? 12);
@@ -29,6 +31,7 @@ const threat = (process.argv[7] ?? 'standard') as 'peaceful' | 'standard' | 'fie
 const run = autoplay(seed, days, { economy, villageDay, handsOff, village: true, threat, onDay });
 console.log(`Autoplay ${seed}, ${economy}, ${days} days (${((performance.now() - t0) / 1000).toFixed(1)} s)`);
 console.log(formatDays(run.days));
+console.log(`\nLedger view\n${formatLedger(run.days)}`);
 if (run.street) {
   const rect = streetRect(run.street);
   console.log(`\n${grownSummary(run.hamlet.world)}`);
@@ -42,4 +45,7 @@ if (process.env.TUNE_SAVE) {
   console.log(`saved ${process.env.TUNE_SAVE}`);
 }
 if (process.env.TUNE_ACTIONS) console.log(run.actions.join('\n'));
+console.log(`\nDecisions\n${formatDecisions(run.decisions, Math.min(days, DECISIONS_DAYS))}`);
+console.log(`\nBusinesses: ${businessesSummary(run.hamlet.world)}`);
+console.log(`Next tier: ${nextTierSummary(run.hamlet.world)}`);
 console.log(`\nYear view\n${YEAR_HEAD}\n${year.join('\n')}`);

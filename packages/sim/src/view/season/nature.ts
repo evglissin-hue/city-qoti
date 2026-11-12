@@ -66,10 +66,9 @@ export function natureLines(state: WorldState): { hearth: SeasonReportLine[]; le
   let growers = 0;
   let lift = 0;
   for (const b of state.buildings) {
-    const def = content.buildingById.get(b.def);
-    if (b.stage !== 'built' || !b.rt || !isCropGrower(def)) continue;
+    if (b.stage !== 'built' || !b.rt || !isCropGrower(b)) continue;
     growers++;
-    lift += pollinatorPermille(state, b, def) - 1000;
+    lift += pollinatorPermille(state, b) - 1000;
   }
   if (growers > 0) {
     const pct = Math.round(lift / growers / 10);

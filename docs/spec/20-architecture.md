@@ -463,6 +463,81 @@ Defined in cycle V1.0, then changed only additively during the V1 wave (V1A to V
 - **V1D additions** (additive): `RenderStats.shadowRenders`, `stillRenders` and `engine` (`Engine`: `lean`; the `classic` chain behind `?engine=classic` was retired by V1X), shown in the `?debug` overlay; `Renderer.invalidateStatic()` is public (a change to the static picture from outside a layer); `QualityPreset.stillScale` (the pixel ratio cap at rest), `pixelRatios(preset, dpr, cap?)` and `BUILDING_DETAIL_FLOOR`; `decorGeometry(def, lod)` takes a level; `render/{cache,shadows,lod}.ts`; the classic chain moved to `render/postClassic.ts` (V1X deletes it).
 - **Scenes and scripts**: `window.__qoti.townShowcase()` (about 1,000 of today's buildings in streets, 4,000 decor, 2,000 garden trees and 2,000 synthetic residents in this client's Mirror, never the sim) `window.__qoti.perf()` and `window.__qoti.layerTriangles()` (triangles per render layer from the current camera; `app/perf.ts`); `apps/client/e2e/v1-shots.mjs <stage>` (fixed cameras at 1440 x 900 on the hamlet, the village of 130, the town and the winter fixture) and `v1-perf.mjs` (per preset and scene, a scripted camera path and a rest, with average and 95th percentile frame and GPU ms).
 
+## R1 contracts
+
+Defined in cycle R1.0 (2026-11-10), the one contracts cycle allowed to remove: it cut the chain economy's contracts and wrote the zones-first Ledger's (`13-ledger.md`). From R1.0 the policy is additive again. Runtime handshakes, file ownership for R1A to R1F, the removal map and the stand-ins each cycle replaces are in `docs/build/r1-wave-notes.md`.
+
+**Content** (`packages/content/src/types.ts`):
+
+- `GoodFamily = 'food' | 'fuel' | 'materials' | 'wares' | 'treats'`; `GoodDef.family` and `GoodDef.raw` replace `category` and `food` (Food is `family === 'food'`). The sixteen goods in this fixed order, append-only from here: grain, vegetables, fruit, fish, cheese, bread, firewood, timber, stone, brick, wool, cloth, furniture, candles, honey, cider.
+- `TradeDef` (`content.trades`, `tradeById`; twelve trades): `zone`, the business `building` it grows as (`workshop`, `farmstead`, `corner-shop`), `makes`, `from` (raw goods only), `method` (a `ProductionMethod` at level 1, null for the shop), `sells` by level (shops), `wants` (`TradeWants`: `fertility`, `pollinators`, `reach` naming a specialized building, `households`), `crew` by level, `look` (an `ArtRef`), `requires`, `keepers` (traits).
+- `BuildingDef` gains `specialized` (the thirteen: Forester's Lodge, Quarry, Fishery, Windmill, Granary, Storehouse, Market Stall, Sawmill, Brickworks, Market Square, Trading Post, River Dock, Cart Shed), `reach`, `capacity`, `raisedCapacity`, `enables` (trade ids) and `stores` (families). A building has at most one method; businesses run their trade's. `PlacementRule` gains `woods`, `river`, `openGround`, `road` and `valleyRoad`.
+- `NeedsBasket.wants: FamilyWant[]` (family, `amount` a resident or household a day, `season`, `variety`) replaces `groups`/`NeedGroup`. `ZoneDef.requires.rank` (Shops and Townhouses from Village; Homes, Workshops and Farmland at founding). Removed: `GoodCategory`, `NeedGroup`, `CallingDef`, `CallingTuning`, `Content.callings`, `DecorDef.boost`, the `standingOrders` CountWhat, `dealUse`.
+
+**State** (`contracts/zones.ts`, `contracts/state.ts`; `SAVE_VERSION = 6`, the fresh start: `deserialize` throws `OldValleyError` with code `OLD_VALLEY` for a save under 6, and migrations begin again from 6):
+
+- `WorldState.carrier` (`CarrierState`: `families` by `GOOD_FAMILIES`, each a `CarrierRule` (`always`, `essentials`, `never`), a reserve, a sell switch and whether the Ledger set it; the daily `budget` and `spentToday`; the County `tab`; units `bought` and `sold` by good for `CARRIER_DAYS`; this season's `offers` (`DealOffer`)), `WorldState.seasonPlan` (`SeasonPlan`: the winter `reserve`, `food` and `fuel` apart, the `deal`, `buildFirst`) and `WorldState.demand` (`DemandState`: four `bars` by `DEMAND_KINDS`, `lit`, and up to three `DemandReason`s each).
+- `Building.trade`, `keeperId`, `level` (absent is 1), `pinned`, `counters` (`BusinessCounters`: level days, made and sold today, customers, short today, surplus days, site days, keeper days).
+- Removed: `WorldState.calling`, `EconomyState.forSale`, `LeversState.exportBans`, `TradeState.orders` and `caravans` (`StandingOrder`, `Caravan`), `DockState.orders`, `BuildingRuntime.pinned`; the `peddler` ledger category. `rt.method` stays, always 0.
+- Constants: `GOOD_FAMILIES`, `DEMAND_KINDS`, `CARRIER_DEFAULTS` (Food and Fuel Always, Materials Essentials, Wares and Treats Never in a Hamlet and Always from Village; reserves 3, 3, 20 units, 1, 1; selling off for Fuel and Materials), `CARRIER_RESERVE_MAX`, `CARRIER_BUDGET` (40 coins), `CARRIER_BUDGET_MAX`, `CARRIER_HOUR` (10), `CARRIER_DAYS` (4), `PEDDLER_TERMS`, `TAB_PER_RESIDENT`, `WINTER_RESERVE_DAYS` (8), `WINTER_RESERVE_MAX`, `BUSINESS_LEVEL_MAX`, `WHEELBARROW_CARRY` (8).
+
+**Commands**: `carrier.setRule { family, rule, sell }`, `carrier.setReserve { family, reserve }`, `carrier.setBudget { coins }`, `season.setPlan { plan: Partial<SeasonPlan> }`, `decor.move { id, fx, fz, rot }`, `build.move { id, x, z, rot }` (both refuse until R1D builds them); `build.pinRecipe { id, trade }` pins a trade. Removed: `trade.setStandingOrder`, `ledger.setForSale`, `calling.choose`. New reject reasons `NEEDS_WOODS`, `NEEDS_RIVER`, `NEEDS_OPEN_GROUND`, `NEEDS_ROAD`, `NEEDS_VALLEY_ROAD`. The protocol's error codes gain `OLD_VALLEY`.
+
+**Events and views**: `demand.updated` (`DemandView`: bars with their reasons and hover words), `balances.updated` (`BalancesView`: a `BalanceLine` per family with stock, use, cover, flavors, price, carried in and out, the rule, reserve, sell and winter mark, and a history; the budget, the tab and its cap, the pass, the plan and the offers), `business.updated` (`BusinessView`: trade, level, keeper, pinned, hands and crew, status in words, level days, served for specialized buildings). `ViewSnapshot` carries `demand`, `balances` and `businesses`; `BuildingView` gains `trade`, `level` and `keeperId`; `BuildingDetail.methods` becomes `trades` with a boolean `pinned`. Removed: `CallingView`, `CharterView.calling`, `TradeView.orders` and `caravans`, `DockView.orders`, `StockLine.forSale`, `LeversView.exportBans`, `BuildingDetail.decorBoost`.
+
+**System slots**: 65 carrier (10:00, the caravans' old slot) and 69 levels (23:30); `callings` (88) and `caravans` left the pipeline, and the peddler left the economy. Shared helpers in `state/zones.ts`: `methodOf`, `jobsOf`, `levelOf`, `hasTag` (a business answers to its trade id, so detectors, wishes and conditions read "a baker" as they read "a bakery"), `isFood`, `FOOD_GOODS`, `GOODS_BY_FAMILY`, `familyIndex`, `applyRankDefaults`; view builders in `view/zones.ts` (split between R1A and R1B on the wave's first day).
+
+## Redesign outline [R1 to R3, V2 to V4]
+
+Written 2026-11-10 with the redesign's spec (`13-ledger.md`, `19-evenings.md`, `17-presentation.md`, `30-roadmap.md`). It names where the work lands so the contracts cycles (R1.0, R2.0, R3.0, V2.0, V3.0, V4.0) can write the exact types here, as C4.0, C5.0 and V1.0 did. Paths are as they stand on `main` today.
+
+**R1 is a rebuild, so its contracts cycle may rename and remove.** The contracts policy (`31-parallel-development.md`) is additive-only during parallel waves; R1.0 alone is allowed to delete the chain economy's contracts, and from R1.0's merge the policy is additive again. Fresh valleys only (`21-networking-and-saves.md`, The fresh start), so nothing needs converting.
+
+**R1, the zones-first Ledger** (`packages/sim`, `packages/content`, `tools/bench`, `apps/client/src/ui`)
+
+- Content: `GoodDef.family` and `GoodDef.raw`; the 16 goods; `TradeDef` (zone, makes, from, wants, needs reach, crew by level, look) in a trades registry; `BuildingDef.reach`, `capacity`, `enables` and the site rules for specialized buildings; baskets by family with variety wants. The hand-placed production defs go; their art kit ids stay as trade looks.
+- State: `Building.trade`, `keeperId`, `level` and custom counters for a business; `carrier` (a rule, a reserve and what it carried, by family; a budget); `seasonPlan`; `demand` (the four bars with their reasons, a view). Gone: standing orders, goods for sale, the calling.
+- Systems: `growth` chooses trades (`chooseMethod` becomes the trade score); `production` runs trades and asks the carrier before a business rests; `market/baskets` buys by family and tracks variety; `trade`, `caravans` and the peddler in `economy` fold into a `carrier` system; `tiers` reads amount and variety; a `levels` system moves businesses up and down; `callings` leaves the pipeline until R3.
+- Commands: `carrier.setRule`, `carrier.setReserve`, `carrier.setBudget`, `season.setPlan`, `decor.move`, `build.move`; `build.pinRecipe` pins a trade. Removed: `trade.setStandingOrder`, `ledger.setForSale` and `calling.choose` (callings come back earned in R3, with no command). Every command keeps a sender in the client (`test/every-command-has-a-sender.test.ts`).
+- Views: `demand.updated`, `balances.updated` (five families: amount, variety, price, carried in and out), `business.updated`.
+- Bench: new advisors (one that zones and sites, one that tends the season plan), the lanes test and the decisions count (`22-quality.md`).
+
+**R2, the evening round** (`packages/sim/src/systems/residents`, `movement`, `market`, `growth`, `zoning`; new `systems/places`, `systems/gaps`)
+
+- State: `map.footfallDay` and `map.footfallEve` (Uint16 layers), the `evening` road flag, street names, the `evenings` need (in place of `beauty` and `social`), each resident's last evening, open gaps, and for each place by its stable id a name and the counts rules read over time (`19-evenings.md`, Data and budgets). A place's seats, kinds, draw and what it serves are derived and rebuilt on load, like the decor index.
+- Systems: `places` (hourly with patterns: sites, sitting spots and hosts into `Place` rows with seats, kinds, draw, serves); `residents/outings.ts` grows into the round's planner; `movement` gains the evening cost; `market/baskets` moves Treats to the stops; `growth/desirability.ts` reads footfall for Shops; `gaps` opens and closes gaps; `sim/turn.ts` runs dusk at half speed.
+- A new RNG stream, `round`, so an evening's whims never move another system's dice.
+- Lots (the old V2's sim half, for V3): `Lot.row`, a `garden` lot kind, `Lot.corner` with a second frontage, `params.storeys` chosen by the sim.
+- Commands: `road.setEvening`, `road.rename`, `place.rename`. Views: `places.updated`, `evening.closed` (the edition's lines), `gaps.updated`.
+
+**R3, masters and the Town Book** (new `systems/supplies`, `systems/masters`, `systems/townbook`)
+
+- State: lantern lit bits, place priorities (`place.setPriority`), `Resident.craft` and the master flag, Town Book pages, the door-pair counts behind Follow the thread (maker to store, store to outlet, outlet to home or place; decaying, like the flows overlay's).
+- Content: `DecorDef.supply`, master's goods, the pairs of pattern and good, each page's leaning.
+- Systems: `supplies` (the lamplighter's round as a schedule override, resting pieces, household candles), `masters`, `townbook` (detectors like the patterns'), and `callings` again, reading the pages.
+
+**V2, light and green** (`apps/client/src/render`, `packages/art`; no sim change)
+
+- `env.lightMap`: a render target the lights layer redraws on a static-layer event; read by `material.ts` (walls, the glass rooms), `ground.ts` (in place of the `MAX_GROUND_LIGHTS` loop), `scatter.ts`, the agents' material, `layers/effects.ts` and `layers/water.ts`.
+- `patterns.ts`: eight room layers appended to the pattern array; `surface.ts`: ids appended for wood grain, painted wood, wrought iron, terracotta and cloth, and the props, vehicles and residents kits write them.
+- `kits/trees.ts` and `kits/nature.ts`: brush-dab crowns and the meadow carpet; `groundAo.ts`'s uniform bound in the kit material; ribbon smoke; `setBubbles` on the View list.
+- `app/perf.ts` and Settings: Measure this laptop, with `/api/valleys/:id/perf` in the server and the dev relay.
+
+**V3, yards, streets and the long view**
+
+- `layers/dressing.ts`: a static, instanced layer driven by rules in `packages/art/src/dressing.ts` (data: who gets what, at which anchor); `KitAnchors` gains door, yard, wall, eaves and garden anchors.
+- Rows, garden lots, corners and storeys in `kits/rows.ts` and the buildings layer, on R2.0's lot fields.
+- `layers/horizon.ts`; a height term in the shared fog chunk; flow in `layers/water.ts`.
+- `render/endpaper.ts`: the map drawn on an OffscreenCanvas in a worker, shown on one full-screen quad, with the scene pass skipped while it covers the view.
+
+**V4, the developing picture**
+
+- `cache.ts`: an accumulation target beside the still frame; jitter sequences for the pixel, the sun's disc (with a shadow re-render a sample) and the lens; sky samples; a governor on the measured GPU time.
+- `post.ts`: lens blur for moving layers from the cached depth, in the existing final pass.
+- `renderer.capture({ style: 'ink' })`; the tea-break camera in `input/camera.ts`.
+
+Determinism holds as ever: everything under R1 to R3 is integer sim code on seeded streams, and nothing under V2 to V4 touches sim state or the hash.
+
 ## Client
 
 - **Boot**: title screen → create or join → `RoomConnection` → `SimHost.init` (new from seed, or snapshot) → `ready` → Mirror built from the view → Renderer and UI mount → live turns flow to the worker.

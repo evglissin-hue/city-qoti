@@ -95,6 +95,47 @@ Camera pass triangles per layer (`QOTI_LAYERS=1`), against V1.0's before table: 
 
 **As built (C5E part 2, 2026-11-04)**: the I3 pieces drawn (defenses, festival art and fireworks, the new buildings and modules, flood water, telegraph signs), same container and method (`QOTI_HOLD=1 QOTI_FIXEDRES=1 QOTI_PRESETS=medium v1-perf.mjs village i3-pieces raid`): the village of 130 draws 129 calls and 0.20 M triangles, the raid fixture with its defenses 50 and 0.08 M, and the `i3-pieces` scene (every new piece, a festival, the circus, fireworks, a flood and omens) 67 and 0.14 M, all far within Medium's budgets. A resting valley with all of it on show reaches idle frames (`c5e-seasons.spec.ts`); the laptop timings are still to take (`cycle-05e-seasons-art.md`, As built part 2).
 
+## The redesign: measuring first, then budgets [V2 to V4, R1 to R3]
+
+Added 2026-11-10 with the redesign (`30-roadmap.md`).
+
+**Measuring the laptops** [V2, first]. Every render number above was taken in a software renderer, good for ratios only; the one real number is the owner's laptop on the concept viewer (about 100 fps on Ultra, `v1-wave-notes.md`). Kat's laptop, the one Medium is promised on, has never been measured. So before any V2 art lands:
+
+- Settings gains **Measure this laptop**: it runs the perf script (`__qoti.perf()`: pan, orbit and zoom for 10 s, rest for 10 s, on each preset) in the valley on screen and in the village and town showcases, shows the table, and offers Copy.
+- The table is saved with the valley for that seat (`/api/valleys/:id/perf`, outside sim state, last three runs a seat), with the browser, the screen and the build, so either player can export it and a build session can be handed it. `docs/playtests/V1.md` takes the first two runs.
+- V2X, V3X and V4X each record both laptops' tables here, before and after. A row that fails on Kat's laptop on Medium is cut back before the wave ships: the frame budget is the floor (P50).
+
+**Budgets** for what the redesign adds, on the weaker laptop on Medium unless a preset is named, all *(tune against the measured tables)*:
+
+| Metric | Budget |
+|---|---|
+| Moving frames [V2 to V4] | no new full-screen pass; the 12 ms GPU and 300 draw budgets above stand |
+| Night with the light map [V2] | a night moving frame costs no more GPU time than the 32-light loop it replaces, on the same scene; redrawing the map under 2 ms, one instanced draw, only when a light changes |
+| Painted green [V2] | trees and meadows within 0.5 M triangles in the village scene; opaque geometry only |
+| Dressing [V3] | 0.3 M triangles and 12 draws, inside the decor detail distance |
+| Endpaper map [V3] | redrawn in a worker in under 150 ms, never on the main thread; no scene draw while it shows in full |
+| Rest-frame refinement [V4] | each sample frame within 12 ms; idle back within 4 ms once settled; settled inside 0.6 s on High at 60 fps |
+| Trade choice and growth [R1] | under 2 ms a night at City scale (R1B's `growth night` bench line: 2,000 residents, a City's mix of specialized buildings, after 15 warm nights; flatTown's own mix, ten times as many specialized buildings, is reported beside it. Measured 2026-11-12: 1.3 to 1.6 ms, and 1.6 to 2.1 ms for the stress mix. R1X, after its two speed rounds, in this container with nothing else running: 1.39 and 2.22 ms in two runs of the same build, 1.34 and 1.35 for the stress mix; R1F's stricter `r1 growth night` (a town short of every good, so every bar scores every trade) 2.56 and 2.45 ms, still over) |
+| The carrier [R1] | under 0.5 ms a day (R1A's `carrier R1A` line, the heaviest visit at City scale. R1X, same two runs: 0.34 and 0.58 ms; R1F's `r1 carrier day` 0.52 and 0.85. The container's timings swing by half from run to run of the same build, so read the laptop's: `npm run bench` on a reference machine decides) |
+| The place pass [R2] | 1 ms an hour at Village scale, 3 ms at City scale |
+| Planning the round [R2] | under 0.4 ms a tick for 2,000 residents between 17:00 and 17:30 |
+| Gaps, supplies, masters, the Town Book [R2, R3] | under 1 ms an hour together |
+
+**The lanes test** [R1 records it, R2 enforces it]. P2 becomes a bench assertion. `npm run lanes -w @qoti/bench` plays each bench seed for 70 days three ways: both lanes, the Hearth's advisors off, and the Ledger's off after founding (no new zones, specialized buildings or streets; the carrier on its defaults). From R2 it fails unless each one-lane town ends with at most three quarters of the residents of the town played by both, and no more than half its Craftsfolk households. The Ledger's advisor places no decor and the Hearth's zones nothing, so neither can stand in for the other. On 2026-11-10, before the redesign, the Hearth-off town ended with 106% (willow) and 84% (hazel) of the residents (`19-evenings.md`).
+
+*R1X's run (2026-11-12, recorded, not enforced)*: residents and Craftsfolk households at day 70, and the percent of the town played by both:
+
+| Seed | Both | Hearth off | Ledger off after founding |
+|---|---|---|---|
+| willow | 177, 1 | 183 (103%), 0 | 29 (16%), 0 |
+| hazel | 114, 2 | 198 (174%), 0 | 25 (22%), 0 |
+| oak | 156, 0 | 159 (102%), 0 | 29 (19%), 0 |
+| birch | 103, 0 | 108 (105%), 0 | 22 (21%), 0 |
+
+The Ledger-off towns would pass R2's rule on every seed; the Hearth-off towns would fail it on every seed (102 to 174%): without the Hearth's decor and plans a town spends its timber and builders on homes and grows faster, though it reaches no Craftsfolk (charm 25 is the Hearth's). R2's evening round is where the Hearth must start to matter for growth. (The lanes runs use the lanes script's own options, so their both-lanes towns differ from `npm run targets`. The both-lanes runs took 87 to 149 Ledger decisions in 70 days.)
+
+**Decisions, not chores** [R1]. The bench counts the autoplayer's commands by kind and fails if the Ledger needed more than 150 in 70 days or used a pause to balance labor (`13-ledger.md`, Tuning targets). The count before the redesign was about 700, 261 of them pauses and 321 order changes.
+
 ## Tests
 
 | Layer | What | Where |
@@ -107,6 +148,8 @@ Camera pass triangles per layer (`QOTI_LAYERS=1`), against V1.0's before table: 
 | End to end | two browser contexts on the dev server: create, invite, join, both build, both see the same thing, hashes match, reload and catch up, pause from one pauses both | `apps/client/e2e/` |
 | Visual review | gallery screenshots at fixed seeds, uploaded as CI artifacts (no pixel assertions) | `apps/gallery/e2e/` |
 | Playability (P1) | the dead-end hunt: `npm run audit -w @qoti/bench` plays several seeds through a year and one through the Village chapter, watching for no builders, a building idle for want of an input a whole season, a wish nobody could grant, a festival that never started, a standing order never filled (`HealthWatch`, read-only), and reports wishes offered and never granted; the repo tests check statically that every player command has a sender in the client, every removable building can be placed again, and every wish, goal, guide step and plaque can be met by content | `tools/bench/src/audit.ts`, `test/every-command-has-a-sender.test.ts`, `packages/sim/test/p1/` |
+| Playability, from the redesign | the audit's health kinds follow the new rules: a business without its raw good for a whole day while its family's rule lets the carrier buy [R1]; a demand bar lit for a season while suitable land is zoned and free [R1]; a gap that no command could close, a place nobody can reach [R2]; a supplied piece that can never be supplied, a master's good with no shelf to sell from, a Town Book page content cannot produce [R3]. The static achievable check covers every wish, twist, guide step, gap and page | `tools/bench/src/audit.ts`, `packages/sim/test/` |
+| The lanes test, decisions not chores | see the redesign section above | `tools/bench/src/lanes.ts` |
 
 ## CI
 

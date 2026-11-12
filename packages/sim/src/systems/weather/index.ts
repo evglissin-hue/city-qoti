@@ -133,8 +133,13 @@ function lastOf(state: WorldState, id: string): WeatherEvent | undefined {
 export function eventBlocked(state: WorldState, def: EventDef): string | null {
   if (def.rank && !rankAtLeast(state, def.rank)) return 'rank';
   const last = lastOf(state, def.id);
-  // Never twice in a row: not if it came the last time its season came round.
-  if (last && dayIndex(state.tick) - dayIndex(last.start) < 4 * DAYS_PER_SEASON + DAYS_PER_SEASON)
+  // Never twice in a row: not if it came the last time its season came round (R1: the closed pass
+  // may come every winter).
+  if (
+    !def.yearly &&
+    last &&
+    dayIndex(state.tick) - dayIndex(last.start) < 4 * DAYS_PER_SEASON + DAYS_PER_SEASON
+  )
     return 'again';
   if (def.id === 'circus' && !state.hearth.sites.some((s) => s.pattern === 'village-green'))
     return 'no-green';
@@ -144,6 +149,17 @@ export function eventBlocked(state: WorldState, def: EventDef): string | null {
 /** The dial's chance of an event this season, permille. */
 export function eventChance(state: WorldState, def: EventDef): number {
   return Math.min(1000, Math.round((def.odds * (EVENT_DIAL[state.settings.economy] ?? 1000)) / 1000));
+}
+
+/**
+ * Days an event lasts. R1 (R1A): the closed pass lasts a day on Gentle and a day more on Thoughtful,
+ * up to 4 (docs/spec/14-challenge.md); everything else as rolled.
+ */
+export function eventLength(state: WorldState, def: EventDef, rolled: number): number {
+  if (def.id !== 'pass-closed') return rolled;
+  if (state.settings.economy === 'gentle') return 1;
+  if (state.settings.economy === 'thoughtful') return Math.min(4, rolled + 1);
+  return rolled;
 }
 
 function scheduleEvents(state: WorldState, rng: Rng): void {
@@ -156,7 +172,7 @@ function scheduleEvents(state: WorldState, rng: Rng): void {
     // Always roll, so one event's luck never shifts another's.
     const roll = rng.int(1000);
     const lead = rng.range(def.forecastDays[0], def.forecastDays[1]);
-    const length = rng.range(def.durationDays[0], def.durationDays[1]);
+    const length = eventLength(state, def, rng.range(def.durationDays[0], def.durationDays[1]));
     if (eventBlocked(state, def) || roll >= eventChance(state, def)) continue;
     // Early frost comes on Autumn days 1 to 3 (before the harvest is in); others mid-season.
     const first = id === 'early-frost' ? 1 : 2;

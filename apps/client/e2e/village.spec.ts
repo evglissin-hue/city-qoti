@@ -26,22 +26,21 @@ test('every village panel opens and works against a live village', async ({ page
 
   // Ledger books.
   await page.getByTestId('lens-ledger').click();
-  await page.getByTestId('book-market').click();
-  await page.getByTestId('price-bread').click();
+  // R1C: the Balances book replaced Market and Trade. The fixture's bakery is a workshop business
+  // keeping the baker's trade, so the Food row says who makes bread.
+  await page.getByTestId('book-balances').click();
+  await page.getByTestId('balance-row-food').getByRole('button').first().click();
+  await expect(page.getByTestId('makers-food')).toContainText('baker');
+  await page.getByTestId('flavor-bread').click();
   await expect(page.getByTestId('good-card')).toContainText('Households wanted');
-  await page.getByTestId('market-profit').click();
-  await expect(page.getByTestId('profit')).toContainText('Bakery');
-  await page.getByTestId('book-trade').click();
-  await expect(page.getByTestId('deals-millhaven')).toContainText('Millhaven');
-  await page.getByTestId('trade-neighbors').click();
+  await page.getByTestId('balances-neighbors').click();
   await expect(page.getByTestId('neighbor-millhaven')).toContainText('Millhaven');
-  await page.getByTestId('trade-orders').click();
-  await expect(page.getByTestId('order-planks')).toBeVisible();
-  await page.getByTestId('trade-caravans').click();
-  await expect(page.getByTestId('caravans')).toBeVisible();
-  await page.getByTestId('book-policies').click();
+  await expect(page.getByTestId('trade-ledger')).toBeVisible();
+  await page.getByTestId('book-purse').click();
+  await page.getByTestId('purse-taxes').click();
   await page.getByTestId('wage-110').click();
   await expect(page.getByTestId('wage-110')).toHaveAttribute('aria-checked', 'true');
+  await page.getByTestId('purse-loans').click();
   await expect(page.getByTestId('credit')).toBeVisible();
   await page.getByTestId('book-notebook').click();
   await expect(page.getByTestId('idea-cobbles')).toHaveClass(/unlocked/);
@@ -49,7 +48,7 @@ test('every village panel opens and works against a live village', async ({ page
 
   // Zoning along lane A paints the zone layer and sketches lots while dragging.
   await page.evaluate(() => (window.__qoti as unknown as VillageHook).look(46, 53, 22));
-  await page.getByTestId('tool-zone').click();
+  await page.getByTestId('tool-building').click();
   await page.getByTestId('variant-homes-medium').click();
   await dragTiles(page, [42, 51], [47, 53]);
   await expect
@@ -80,6 +79,7 @@ test('every village panel opens and works against a live village', async ({ page
 
   // The townsfolk open from the population chip, and a row finds its resident.
   await page.keyboard.press('Escape');
+  await page.getByTestId('menu-open').click();
   await page.getByTestId('population').click();
   await expect(page.getByTestId('people')).toContainText('residents');
   await page.locator('[data-testid^="person-"]').first().click();

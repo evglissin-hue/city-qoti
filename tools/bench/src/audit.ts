@@ -1,9 +1,14 @@
 // The playability audit (the dead-end hunt, docs/spec/31-parallel-development.md): the autoplayer
 // plays several seeds through a full year (24 days) and one seed on through the Village chapter,
-// and everything that would stop a player is collected: the health watch's issues (stuck sites,
-// idle builders, a valley with no builders, a building idle for want of an input, a wish nobody can
-// grant, a festival that never started, an order never filled) and, per wish template, how many
-// were offered, granted and let go (and how many let go while impossible).
+// and everything that would stop a player is collected: the health watch's issues (site-stalled,
+// site-cut-off, builders-idle, resident-stuck, no-builders, festival-no-show and, for the zones-first
+// Ledger: business-short, a business or specialized building a whole day short of an input the
+// carrier may buy; site-unsupplied, a construction site waiting on a good no maker and no carrier
+// will bring; demand-unanswered, a demand bar lit three days with no empty lot of its zone;
+// site-rule-broken, a specialized building whose woods, open ground or road went; wish-dead-end,
+// guide-dead-end and story-dead-end, a goal nothing can meet) and, per wish template, how many were
+// offered, granted and let go (and how many let go while impossible). R1.0: standing orders are
+// gone, so no order is ever left unfilled (`packages/sim/src/view/health.ts`).
 //
 // `npm run audit -w @qoti/bench [seed ...]` (default willow hazel oak birch); AUDIT_JSON=<file>
 // writes the results; AUDIT_DAYS and AUDIT_VILLAGE_DAYS override the lengths (the unit test uses
@@ -20,6 +25,18 @@ export const VILLAGE_DAYS = 44;
 export const VILLAGE_SEED = 'hazel';
 /** A template offered this many times and never granted is flagged. */
 export const NEVER_GRANTED_AFTER = 3;
+
+/**
+ * Flags a known stand-in still raises, each with the cycle whose system removes it, so the audit
+ * prints them as explained instead of failing the run. R1X emptied it as the wave landed: a flag
+ * that outlives its stand-in is a dead end again.
+ */
+export const EXPLAINED: readonly { kind: HealthIssue['kind']; match: RegExp; why: string }[] = [];
+
+/** Why a flag is a known stand-in's, or null when it is a dead end. */
+export function explained(i: Pick<HealthIssue, 'kind' | 'text'>): string | null {
+  return EXPLAINED.find((e) => e.kind === i.kind && e.match.test(i.text))?.why ?? null;
+}
 
 export interface WishStat {
   template: string;
@@ -51,8 +68,10 @@ export interface AuditResult {
   /** Per template, summed over every run. */
   wishes: WishStat[];
   warnings: AuditWarning[];
-  /** Dead-end flags: every health issue of every run. */
+  /** Dead-end flags: every health issue of every run, but the explained ones. */
   flags: (HealthIssue & { run: string })[];
+  /** Health issues a stand-in still raises (`EXPLAINED`), with why. */
+  explained: (HealthIssue & { run: string; why: string })[];
 }
 
 /** Watches wishes at each hourly look: new ones are offered; ones that vanish were granted or let go. */
@@ -162,8 +181,13 @@ export function audit(
       template: s.template,
       text: `wish ${s.template} was offered ${s.offered} times and never granted (${s.expired} let go, ${s.expiredUnachievable} while impossible)`,
     }));
-  const flags = runs.flatMap((r) => r.issues.map((i) => ({ ...i, run: `${r.seed}/${r.label}` })));
-  return { runs, wishes, warnings, flags };
+  const all = runs.flatMap((r) => r.issues.map((i) => ({ ...i, run: `${r.seed}/${r.label}` })));
+  const flags = all.filter((i) => !explained(i));
+  const known = all.flatMap((i) => {
+    const why = explained(i);
+    return why ? [{ ...i, why }] : [];
+  });
+  return { runs, wishes, warnings, flags, explained: known };
 }
 
 export function formatSummary(r: AuditResult): string {
@@ -182,6 +206,7 @@ export function formatSummary(r: AuditResult): string {
       `${`${run.seed}/${run.label}`.padEnd(16)} ${String(run.days).padStart(4)} ${String(run.residents).padStart(9)} ${run.rank.padEnd(8)} ${run.issues.length}`,
     );
   for (const w of r.warnings) lines.push(`warning  ${w.kind}: ${w.text}`);
+  for (const e of r.explained) lines.push(`explained  ${e.run} ${e.kind}: ${e.text} (${e.why})`);
   lines.push(
     r.flags.length
       ? `FAIL: ${r.flags.length} dead-end flag${r.flags.length === 1 ? '' : 's'}`

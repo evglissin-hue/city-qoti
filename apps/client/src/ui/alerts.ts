@@ -2,14 +2,22 @@
 // shortages, idle buildings and lean times; the Hearth about new wishes, pattern hints and letters.
 // Derived from the Mirror each time, so they clear themselves when the trouble does.
 import { content } from '@qoti/content';
-import { BuildingStatus, calendar, TICKS_PER_DAY, TIERS, type Lens, type LetterView } from '@qoti/sim';
+import {
+  BuildingStatus,
+  calendar,
+  methodOf,
+  TICKS_PER_DAY,
+  TIERS,
+  type Lens,
+  type LetterView,
+} from '@qoti/sim';
 import type { Mirror } from '../state/mirror';
-import { buildingName, goodName, seatLabel } from './format';
+import { goodName, placeName, seatLabel } from './format';
 import { IDLE_BITS, statusWords, TIER_WORD } from './hamlet';
 import { letterKey } from './letters';
 import { askText } from './panels/Requests';
 import type { Letter } from './state';
-import { inPlay, LIFE_ICON, priceText } from './village';
+import { FAMILY_WORD, inPlay, LIFE_ICON, priceText } from './village';
 import { seasonAlerts } from './seasonAlerts';
 
 export type AlertAction =
@@ -63,14 +71,14 @@ export function computeAlerts(
       tone: 'warn',
       icon: 'coin',
       text: 'Lean times. New building waits until the treasury is back above zero.',
-      action: { kind: 'panel', panel: 'reports', page: 'budget' },
+      action: { kind: 'panel', panel: 'purse' },
     });
   }
   const stocks = m.stocks.value?.lines ?? [];
   const population = town?.population ?? m.residents.size;
   if (population > 0 && stocks.length) {
     let food = 0;
-    for (const l of stocks) if (content.goodById.get(l.good)?.food) food += l.stock;
+    for (const l of stocks) if (content.goodById.get(l.good)?.family === 'food') food += l.stock;
     const days = food / population;
     if (days < FOOD_DAYS_WARN) {
       out.push({
@@ -82,7 +90,7 @@ export function computeAlerts(
           food === 0
             ? 'The larders are empty. Bread, vegetables or fish, quickly please.'
             : `Food for about ${days < 2 ? 'a day' : `${Math.floor(days)} days`} in store.`,
-        action: { kind: 'panel', panel: 'reports', page: 'stocks' },
+        action: { kind: 'panel', panel: 'balances', page: 'families' },
       });
     }
   }
@@ -92,12 +100,14 @@ export function computeAlerts(
   for (const b of m.buildings.values()) {
     const bits = b.rt?.status ?? 0;
     if (b.stage !== 'built' || !(bits & IDLE_BITS)) continue;
-    const def = content.buildingById.get(b.def);
+    // R1X: a business resting (out of season, or nothing to do) is not standing about: a winter
+    // Village's cider makers, hives and orchards all called for fruit and hands till spring.
+    if (bits & BuildingStatus.resting) continue;
     if (bits & BuildingStatus.missingInput) {
-      for (const [good] of def?.methods?.[0]?.inputs ?? []) {
+      for (const [good] of methodOf(b)?.inputs ?? []) {
         if ((stockOf.get(good) ?? 0) > 0) continue;
         const list = short.get(good) ?? [];
-        list.push(buildingName(b.def).toLowerCase());
+        list.push(placeName(b).toLowerCase());
         short.set(good, list);
       }
     }
@@ -106,21 +116,22 @@ export function computeAlerts(
       lens: 'ledger',
       tone: 'quiet',
       icon: 'status',
-      text: `${buildingName(b.def)}: ${statusWords(bits & IDLE_BITS)
+      text: `${placeName(b)}: ${statusWords(bits & IDLE_BITS)
         .join(', ')
         .toLowerCase()}.`,
       action: { kind: 'building', id: b.id },
     });
   }
   for (const [good, who] of short) {
-    const names = [...new Set(who)];
+    // R1X: "the cider makers", not "the cider maker are", when several of a kind wait.
+    const names = [...new Set(who)].map((n) => (who.filter((x) => x === n).length > 1 ? `${n}s` : n));
     out.push({
       key: `short-${good}`,
       lens: 'ledger',
       tone: 'warn',
       icon: `good:${good}`,
-      text: `No ${goodName(good).toLowerCase()} in store. The ${names.join(' and the ')} ${names.length === 1 && who.length === 1 ? 'is' : 'are'} waiting.`,
-      action: { kind: 'panel', panel: 'reports', page: 'stocks' },
+      text: `No ${goodName(good).toLowerCase()} in store. The ${names.join(' and the ')} ${who.length === 1 ? 'is' : 'are'} waiting.`,
+      action: { kind: 'panel', panel: 'balances', page: 'families' },
     });
   }
   // Playtest round six: a site waiting on stone, with the stone nearly gone, wants a quarry.
@@ -134,7 +145,7 @@ export function computeAlerts(
         tone: 'warn',
         icon: 'reports',
         text: 'Stone is running low. A quarry on a grey outcrop keeps it coming.',
-        action: { kind: 'panel', panel: 'reports', page: 'stocks' },
+        action: { kind: 'panel', panel: 'balances', page: 'families' },
       });
       break;
     }
@@ -147,7 +158,7 @@ export function computeAlerts(
       tone: 'quiet',
       icon: 'status',
       text: `And ${idle.length - MAX_IDLE} more buildings standing about.`,
-      action: { kind: 'panel', panel: 'reports', page: 'buildings' },
+      action: { kind: 'panel', panel: 'businesses' },
     });
   }
 
@@ -247,26 +258,31 @@ function villageAlerts(m: Mirror, who: AlertContext): Alert[] {
     });
   }
 
-  // Goods a tier wants that nobody has, group by group (Settler food has its own alert).
-  const tiers = m.town.value?.tiers ?? [];
+  // Families a tier wants that nobody has any of (Settler food has its own alert). R1X: only once
+  // households have purses (from the Village charter: a Hamlet's baskets are free, as in I1), and
+  // only for wants of some amount (Settlers want no Wares), or day one in a new valley said Settler
+  // households could not find wares.
+  const rank = m.charter.value?.rank ?? m.town.value?.rank;
+  const tiers = rank === 'hamlet' ? [] : (m.town.value?.tiers ?? []);
   const stock = new Map((m.stocks.value?.lines ?? []).map((l) => [l.good, l.stock]));
   const season = calendar(now).season;
   for (let t = 0; t < TIERS.length; t++) {
     if (!(tiers[t] ?? 0)) continue;
     const tier = TIERS[t]!;
     const basket = content.basketByTier.get(tier);
-    for (const g of basket?.groups ?? []) {
-      if (g.season !== undefined && g.season !== season) continue;
-      if (tier === 'settler' && g.id === 'food') continue;
-      if (g.goods.some(([good]) => (stock.get(good) ?? 0) > 0)) continue;
-      const first = g.goods[0]?.[0] ?? g.id;
+    for (const w of basket?.wants ?? []) {
+      if (w.season !== undefined && w.season !== season) continue;
+      if (w.amount <= 0) continue;
+      if (tier === 'settler' && w.family === 'food') continue;
+      const goods = content.goods.filter((g) => g.family === w.family);
+      if (goods.some((g) => (stock.get(g.id) ?? 0) > 0)) continue;
       out.push({
-        key: `tier-short-${tier}-${g.id}`,
+        key: `tier-short-${tier}-${w.family}`,
         lens: 'ledger',
         tone: 'warn',
         icon: 'people',
-        text: `${TIER_WORD[tier] ?? tier} households can't find ${g.name.toLowerCase()} anywhere. Their baskets come home light.`,
-        action: { kind: 'market', good: first },
+        text: `${TIER_WORD[tier] ?? tier} households can't find ${FAMILY_WORD[w.family].toLowerCase()} anywhere. Their baskets come home light.`,
+        action: { kind: 'market', good: goods[0]?.id ?? w.family },
       });
     }
   }

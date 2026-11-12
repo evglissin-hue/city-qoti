@@ -1,13 +1,13 @@
 // Content registry. Add one line per entry, kept in alphabetical order, so parallel
 // branches adding different entries merge cleanly. The one exception is `goods`: its order is
-// append-only, because a good's position is its index in every per-good array in saved state.
+// append-only, because a good's position is its index in every per-good array in saved state
+// (R1.0 started it afresh with the sixteen goods of docs/spec/13-ledger.md).
 import * as A from './achievements';
 import * as Ba from './baskets';
 import * as B from './buildings';
 import * as Ca from './carts';
 import * as Ch from './charters';
 import * as C from './chronicle';
-import * as Cl from './callings';
 import * as D from './decor';
 import * as Dr from './dressing';
 import * as Co from './commissions';
@@ -28,27 +28,26 @@ import * as R from './roads';
 import * as SA from './seasonsAchievements';
 import * as SB from './seasonsBuildings';
 import * as SC from './seasonsChronicle';
-import * as SG from './seasonsGoods';
 import * as SP from './seasonsPatterns';
 import * as Se from './seasons';
 import * as Sr from './stories';
 import * as Sp from './species';
 import * as St from './styles';
 import * as Sm from './stonemason';
+import * as Si from './signatureDecor';
 import * as Sw from './swatches';
 import * as T from './trees';
 import * as Th from './threats';
 import * as Tr from './traits';
+import * as Td from './trades';
 import * as VB from './villageBuildings';
 import * as VD from './villageDecor';
-import * as VG from './villageGoods';
 import * as VP from './villagePatterns';
 import * as W from './wishes';
 import * as Z from './zones';
 import type {
   AchievementDef,
   BuildingDef,
-  CallingDef,
   CartDef,
   CharterDef,
   CommissionDef,
@@ -72,6 +71,7 @@ import type {
   StoryArc,
   SwatchDef,
   ThreatDef,
+  TradeDef,
   TraitDef,
   TreeDef,
   WeatherDef,
@@ -81,8 +81,6 @@ import type {
 } from './types';
 
 export { chroniclePhrases } from './chronicle';
-export { callingPhrases, callingTuning } from './callings';
-export { dealUse, dealUseDefault } from './dealUse';
 export { festivalTuning } from './festivals';
 export { lifePhrases } from './lives';
 export { familyNames, valleyNamePrefixes, valleyNameSuffixes } from './names';
@@ -92,60 +90,43 @@ export * from './types';
 // prettier-ignore
 export const buildings: readonly BuildingDef[] = [
   SB.apiary,
-  B.bakery,
   SB.bathHouse,
   SB.bellTower,
-  VB.brickKiln,
+  VB.brickworks,
   B.buildersYard,
-  SB.carpenter,
   VB.cartShed,
-  SB.chandler,
-  VB.cheesemaker,
-  VB.choppingShed,
-  VB.ciderPress,
-  VB.clayPit,
   VB.cornerShop,
   B.cottage,
-  VB.dairy,
-  B.farmhouse,
   VB.farmstead,
-  B.fishersHut,
+  B.fishery,
   B.forestersLodge,
+  B.gardenBed,
   SB.gate,
-  VB.herbGarden,
+  B.granary,
   VB.herbalist,
   He.herbalistsCottage,
   B.house,
+  VB.marketSquare,
   B.marketStall,
   SB.netTrap,
-  VB.orchard,
   SB.palisade,
-  SB.pieShop,
   SB.pitTrap,
   B.quarry,
   SB.riverDock,
   VB.sawmill,
-  B.sawpit,
   VB.school,
   B.shed,
-  VB.sheepPasture,
-  VB.smithy,
-  VB.spinner,
   Th.stoneBridge,
   SB.stoneWall,
   B.storehouse,
-  SB.tailor,
   VB.tavern,
   B.townHall,
   VB.townhouse,
   VB.tradingPost,
-  B.vegetablePlot,
   SB.watchHouse,
   SB.watchtower,
-  VB.weaver,
   B.well,
   B.windmill,
-  B.woodcutter,
   VB.workshop,
 ];
 
@@ -180,7 +161,7 @@ export const decor: readonly DecorDef[] = [
   Th.lookoutBench,
   D.lowWall,
   VD.maypole,
-  Cl.millstoneBench,
+  Si.millstoneBench,
   D.mooringPost,
   VD.noticeBoard,
   FD.paintedShopSign,
@@ -190,12 +171,12 @@ export const decor: readonly DecorDef[] = [
   FD.rainBarrel,
   ND.reedBed,
   D.ringBench,
-  Cl.roseArch,
+  Si.roseArch,
   ND.seeSaw,
   D.signpost,
   ND.swing,
   FD.toolRack,
-  Cl.waysideShrine,
+  Si.waysideShrine,
   FD.weathervane,
   D.wildflowerVerge,
 ];
@@ -214,36 +195,28 @@ export const trees: readonly TreeDef[] = [
   T.pine,
 ];
 
-/** APPEND-ONLY. Never reorder or remove: saves store per-good arrays by these indexes. */
+/**
+ * APPEND-ONLY from R1.0. Never reorder or remove: saves store per-good arrays by these indexes. The
+ * order is docs/spec/13-ledger.md's list of the sixteen goods.
+ */
 // prettier-ignore
 export const goods: readonly GoodDef[] = [
-  G.logs,
-  G.planks,
-  G.stone,
-  G.wheat,
-  G.flour,
-  G.bread,
+  G.grain,
   G.vegetables,
+  G.fruit,
   G.fish,
-  // I2 (C4.0)
-  VG.clay,
-  VG.bricks,
-  VG.wool,
-  VG.yarn,
-  VG.cloth,
-  VG.milk,
-  VG.cheese,
-  VG.apples,
-  VG.cider,
-  VG.firewood,
-  VG.herbs,
-  VG.tools,
-  // I3 (C5.0)
-  SG.coats,
-  SG.furniture,
-  SG.pies,
-  SG.honey,
-  SG.candles,
+  G.cheese,
+  G.bread,
+  G.firewood,
+  G.timber,
+  G.stone,
+  G.brick,
+  G.wool,
+  G.cloth,
+  G.furniture,
+  G.candles,
+  G.honey,
+  G.cider,
 ];
 
 // prettier-ignore
@@ -321,6 +294,8 @@ export const patterns: readonly PatternDef[] = [
 
 // prettier-ignore
 export const achievements: readonly AchievementDef[] = [
+  A.aTownThatBuildsItself,
+  SA.aWinterWithoutImports,
   A.balancedBooks,
   A.breadOnTheTable,
   A.builtTogether,
@@ -329,7 +304,9 @@ export const achievements: readonly AchievementDef[] = [
   A.firstFootsteps,
   SA.fiveStars,
   A.hearthAndHome,
+  A.marketDay,
   A.plankByPlank,
+  A.porridgeNoMore,
   SA.theFirstWinter,
   SA.theGateHeld,
   A.theLongWalkHome,
@@ -345,7 +322,6 @@ export const chronicle: readonly ChronicleTemplate[] = [
   Th.banditHome,
   Th.banditSent,
   L.birth,
-  Cl.calling,
   SC.circus,
   SC.coldSnap,
   FC.commissionDone,
@@ -505,6 +481,7 @@ export const events: readonly EventDef[] = [
   Se.drought,
   Se.earlyFrost,
   Se.flood,
+  Se.passClosed,
 ];
 
 // prettier-ignore
@@ -588,8 +565,8 @@ export const commissions: readonly CommissionDef[] = [
   Co.millhavenBread,
   Co.millhavenFurniture,
   Co.minstrelCandles,
-  Co.stonecrossCoats,
-  Co.stonecrossPlanks,
+  Co.stonecrossCloth,
+  Co.stonecrossTimber,
   Co.theDowager,
 ];
 
@@ -604,11 +581,22 @@ export const renown: readonly RenownDef[] = [
   Se.renown5,
 ];
 
+// --- R1 (R1.0) ---------------------------------------------------------------------------------
+
 // prettier-ignore
-export const callings: readonly CallingDef[] = [
-  Cl.gardenVillage,
-  Cl.millTown,
-  Cl.pilgrimsRest,
+export const trades: readonly TradeDef[] = [
+  Td.baker,
+  Td.carpenter,
+  Td.chandler,
+  Td.ciderMaker,
+  Td.dairy,
+  Td.grainFarm,
+  Td.hives,
+  Td.marketGarden,
+  Td.orchard,
+  Td.sheepRun,
+  Td.shop,
+  Td.weaver,
 ];
 
 function byId<T extends { id: string }>(list: readonly T[]): ReadonlyMap<string, T> {
@@ -620,8 +608,6 @@ export const content: Content = {
   decor,
   roads,
   trees,
-  callings,
-  callingById: byId(callings),
   buildingById: byId(buildings),
   decorById: byId(decor),
   roadById: byId(roads),
@@ -648,6 +634,7 @@ export const content: Content = {
   zoneByValue: new Map(zones.map((z) => [z.layerValue, z])),
   baskets,
   basketByTier: new Map(baskets.map((b) => [b.tier, b])),
+  flavorLikes: Ba.flavorLikes,
   neighbors,
   neighborById: byId(neighbors),
   innovations,
@@ -682,4 +669,6 @@ export const content: Content = {
   renown,
   guide: Gu.firstDays,
   dressing: Dr.dressingSteps,
+  trades,
+  tradeById: byId(trades),
 };

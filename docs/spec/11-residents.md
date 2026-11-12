@@ -2,6 +2,8 @@
 
 Residents are individuals (P15), drawn as woodland folk (P16), written with warmth and wit (P4). All resident logic is deterministic sim code; visuals are in `17-presentation.md`.
 
+**The redesign (owner, 2026-11-10)**: residents become the link between the lanes. Their evenings are the Hearth's economy [R2] and their bonds grow masters, who are where the town's variety comes from [R3] (`19-evenings.md`). Every business has a keeper [R1] (`13-ledger.md`). The notes tagged [R1] to [R3] below say what changes; the rest stands as built.
+
 ## Data model [I1]
 
 ```ts
@@ -23,7 +25,9 @@ interface Resident {
   move: MoveState | null;                  // path progress when walking
   wishId: EntityId | 0;
   history: { day: number; kind: string; ref?: EntityId }[]; // last 20
-  flags: number;                           // reformed, story character, watch member...
+  flags: number;                           // reformed, story character, watch member, master [R3]...
+  craft?: [trade: string, days: number][]; // working days by trade, kept across winters [R3]
+  evening?: { score: number };             // last evening's score [R2]; the need is needs.evenings
 }
 
 interface Household {
@@ -66,11 +70,11 @@ Two per resident, compatible pairs only (no Cheerful + Grumpy).
 | Thrifty | buys cheapest substitutes [I2]; saves more |
 | Generous | gifts to friends; donates to festivals [I3] (C5B: buys a unit of the menu at noon on the festival day when the household can pay) |
 | Artistic | loves variety (charm variety weight x2); paints signs |
-| Practical | productivity +5%; dislikes clutter |
+| Practical | productivity +5%; dislikes clutter (as built the +5% never reached production, which read a mood-only productivity; R1 wires it: a trait is a person, not an unlock, so P6 has no quarrel with it) |
 | Night Owl | schedule +2 h |
 | Early Bird | schedule -2 h |
-| Green-Fingered | garden plots +20% yield; garden wishes |
-| Sweet Tooth | wants bakery and treats |
+| Green-Fingered | garden plots +20% yield; garden wishes [R1: market gardens and garden beds in their hands, and a keeper bonus for the gardener's trade] |
+| Sweet Tooth | wants bakery and treats; likes to bake [R1: a keeper bonus for the baker's trade]; buys a treat first on the round [R2] |
 | Homebody | short leisure trips; loves Kitchen Gardens |
 
 ## Names [I1]
@@ -99,7 +103,9 @@ Years are 24 days. Stages *(tune)*: child 0 to 3 years, young 3 to 5, adult 5 to
 | Couples | I2 | two adult or young friends at level 4+, compatible, one Romantic or both level 5 → couple; they merge households when a home fits |
 | Weddings | I2 | a couple marries at the next festival or on a chosen day; mini event, Chronicle entry |
 | Births | I2 | a couple with a spare bed and mood 60+ may have a child (chance per season) |
-| Apprenticeships | I2 | young residents learn a trade at a workshop for 1 season, then take skilled jobs |
+| Apprenticeships | I2 | young residents learn a trade at a workshop for 1 season, then take skilled jobs. [R3] An apprentice under a master becomes a master sooner (`19-evenings.md`, Masters) |
+| Keeping a business | R1 | every grown business has a keeper (the first hand hired, or the resident whose trait or apprenticeship tipped the trade, `13-ledger.md`), with the family name on the sign, as C5B's named shops had; the seasonal shop-opening above folds into this, so a family may keep more than one kind of business over the years. A keeper who leaves is replaced by the longest-serving hand |
+| Mastery | R3 | four hearts and twenty working days in one trade make a master, who brings the business a level and a good of their own (`19-evenings.md`, Masters) |
 | Opening a shop | I3 | an adult with savings, a fitting trait and a vacant shop lot opens a named shop. As built (C5B): once a season, on day 2 at 10:00 from Village rank, the first grown-up whose household has 40 coins put by and who is Artistic, Cheerful, Generous, Practical, Sweet-toothed or Thrifty grows the shop zone's shop on a free shop lot (`growLot`) with a sign of their family name and their kind of shop ("Thistledown Sweets"), a Chronicle line and a letter; the town's builders put it up, so no money moves; one shop a family |
 | Retiring | I2 | elders stop working |
 | Moving to the seaside | I2 | elders past 20 years may leave to "live by the sea with family" (warm Chronicle entry). Nobody dies in City Qoti. |
@@ -117,7 +123,10 @@ Default day, shifted by Night Owl (+2 h) and Early Bird (-2 h):
 | 17:00 to 21:00 | shopping if pantry low, leisure, visiting friends (builders and porters work until 19:00) | play | leisure |
 | 21:00 to 22:00 | walk home | home | home |
 
+[R2] From 17:00 to 21:00 grown-ups make their round (`19-evenings.md`): one whose pantry is low shops first and that shop is the round's first stop; the walk home at 21:00 stands.
+
 - **Leisure spot**: the highest-charm reachable tile within 15 walking minutes, weighted by species tastes and traits; friends often choose the same spot.
+- **The round** [R2]: the evening's outings become a planned round of one to three places, with seats, routes that prefer the pleasant way, and treats bought where folk stop (`19-evenings.md`). The scoring below (appeal, charm, species, traits, friends, distance, whim) carries over as a place's draw and a resident's taste for it.
 - **Shopping**: when the pantry holds less than 2 days of food for the household, one adult walks to the nearest market stall with stock (or storehouse if no stall within 20 tiles) and carries back up to 4 units per trip, repeating until the pantry (8 units) is full or the outlet is empty.
 - **Night**: residents outdoors after 21:00 are rare; Night Owls and Hedgehogs are the exception.
 
@@ -141,9 +150,10 @@ Satisfaction 0 to 100, updated daily at 06:00 (food) or hourly (others).
 | Water | I1 | home within the coverage radius of a well with capacity left |
 | Shelter | I1 | has a home |
 | Belonging | I1 | at least one friend at level 2+ |
-| Beauty | I1 | average charm around home (radius 3) at or above the tier threshold |
+| Beauty | I1 | average charm around home (radius 3) at or above the tier threshold. [R2] Replaced by Evenings |
+| Evenings | R2 | how good their evenings are: each night the need moves a third of the way to the evening's score (`19-evenings.md`, Good evenings). Takes Beauty's weight, and the tavern's `social` need for Craftsfolk |
 | Warmth | I3 | winter: 1 firewood per household per day (2 in cold snaps) |
-| Tier needs | I2 to I4 | goods, services and access per `13-ledger.md` |
+| Tier needs | I2 to I4 | goods, services and access per `13-ledger.md`. [R1] The `goods` need is the basket's amount and variety by family |
 
 ## Mood [I1]
 
@@ -151,6 +161,7 @@ Satisfaction 0 to 100, updated daily at 06:00 (food) or hourly (others).
 - Modifiers decay linearly over their duration *(tune)*: wish granted +15 for 3 days, new friend +5 for 2 days, festival +5 to +15 for 2 days [I3], raid fright -10 for 2 days [I3], lean times -5 while active, cold -15 while cold [I3].
 - Bands: Glowing 80+, Content 60 to 79, Meh 40 to 59, Unhappy 20 to 39, Miserable under 20.
 - Effects: productivity (110%, 100%, 90%, 75%, 50%), tax factor (`13-ledger.md`), departure risk, Watch morale [I3].
+- [R2] Beauty's 15 becomes Evenings' 15.
 
 ## Friendships [I1]
 
@@ -164,6 +175,8 @@ Satisfaction 0 to 100, updated daily at 06:00 (food) or hourly (others).
 0 to 5 hearts. Gained from granted wishes (+1 each up to 3 hearts; above 3 only from festivals [I3], story steps and long residence of 2+ years). Lost slowly (1 heart per season) only while Miserable.
 
 Effects: 3+ hearts sends letters (tips, gossip, pattern hints); 4+ occasionally gifts a rare decor piece; 2+ can volunteer for the Watch [I3]; bonded households tolerate lean times (departure threshold -10).
+
+[R2] A season of good evenings gives a heart: four of its six evenings at 60 or more *(tune)*, once a season, up to 5 hearts. [R3] Four hearts and twenty working days in a trade make a master. Until then hearts did almost nothing for the Ledger; from R3 they are how its businesses reach their top level and how new flavors arrive, so each lane has a reason to know residents by name.
 
 ## Story characters [I2]
 
@@ -190,6 +203,10 @@ Initial cast:
 | Juniper Reed | rabbit | a musician; a bandstand, festivals, a choir | Bandstand Green and festival music upgrade |
 
 Story residents never leave and are marked in the UI. Their letters are the main way new systems are introduced (P6: teach through residents).
+
+[R1] The arcs are rewritten for the zones-first Ledger, keeping their people and finales: Pippa Quill's steps ask for a baker in a windmill's reach, a forester's lodge by the river (her letter brings the Water Wheel and the Sawmill at once; without her, three working days of that lodge do, so no arc gates a building) and three kinds of workshop; Odette Fenwick's for three flavors on a stall, the Market Square, a Trading Post and a season's deal, and her finale roofs the square into the Market Hall; Juniper Reed's are as built, with "charm 25 around her home" becoming a place with seats near it in R2. Story characters are masters of their trades from R3.
+
+*As built (R1D)*: Pippa: a baker's business (in a windmill's reach by its trade), a lantern by her door, a Forester's Lodge by the river (the Water Wheel, which opens the Sawmill), workshops of three different trades (`businessTrades`), three innovations. Odette, six steps: three kinds of Food on her nearest stall (`stallFlavors`), a pattern site by both seats, a seat and flowers by the stall, the Village claimed and a Market Square built (one letter), a Trading Post, a neighbor's deal on the season plan (`seasonDeal`); her finale unlocks `market-hall` (the roof over the square is art's to draw from that unlock). Mother Thornbury's herbs are a garden bed by her door. Barnaby's steps needed no change.
 
 ## Client needs
 
@@ -245,9 +262,13 @@ Residents take the open job that matters most, nearest first among equals:
 
 Each hour one worker may move from a job two levels less important (or any job, when the open one makes something short) to the most important open job; workers on a Ledger task finish it first. Pausing a building lets its workers go, which is the Ledger's lever on labor.
 
+[R1] Labor needs no lever. The table stands with the new names (food when under three days are in town; timber, stone or brick when stock is under what open sites need plus 20; firewood toward the season plan's reserve from summer). A business with nothing to do rests by itself and frees its hands; a farmstead's go to the forester and the builders in winter. Pausing stays for emergencies. On willow the autoplayer paused or reopened a workplace 261 times in 70 days to do what this rule now does. *As built (R1B)*: a business rests (`BuildingStatus.resting`) when it is out of season, a farm has no fields or nothing standing, its shelf is full, or its raw good is nowhere in town and the carrier may not bring it; while it rests it hires nobody and its hands, unless mid-task or carrying, take the next most important open job. The first hand hired keeps a business (its family name on the sign), unless growth named a keen resident, who is seated when it opens; a keeper who leaves is replaced by the longest-serving hand. A Granary's porters rank behind a Storehouse's (1 and 4), so a fresh town's first hands are not all porters. Measured on the bench seeds at day 40 (`npm run hands -w @qoti/bench 40`): willow 33%, hazel 38%, oak 25%, birch 47% of working residents in food, 36% on average; winter days read near 0% as farmsteads rest and their hands go to other work.
+
 *As built (C4X tuning)*: the jobs rules did not change. Measured with the autoplayer over five seeds and 90 days:
 
 - About 65% of residents can work (the rest are children, elders and the retired).
 - Workers are at their workplace for about 95% of the working day, but a plot or hut makes only 2.5 to 3 food a worker a day against 6 to 9 on paper. The rest is lost to full output buffers waiting for porters, so storehouses (porters at priority 0 and 1) matter as much as farms.
 - A Village of 150 to 220 has 40 to 55% of its hands in food. Porters, builders, services and timber take most of the rest, which leaves few hands for the Craftsfolk chains (bread, cider, cloth, firewood).
 - Households save toward the next tier and treat themselves only from what is left over (see 13-ledger.md, Market and prices, C4X).
+
+[R1] Tuning target for the zones-first Ledger (`13-ledger.md`, Tuning targets): about a third of working residents in food instead of 40 to 55%, by farmsteads that hold their harvest (an output buffer of 30, a granary in reach) and one field hand feeding about eight through the growing seasons. The hands that frees are what the workshops and shops need, which is why no household reached Craftsfolk in the runs of 2026-11-10.

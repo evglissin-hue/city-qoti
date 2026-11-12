@@ -16,7 +16,7 @@ These are created in cycle C1; keep this list accurate.
 - `npm run dev`: client and local relay (client on http://localhost:5173, relay on :8787)
 - `npm test`: unit tests (Vitest); `npm run e2e`: Playwright (starts its own servers; first run needs `npx playwright install chromium`)
 - `npm run typecheck`, `npm run lint` (ESLint and Prettier check), `npm run format`, `npm run build`
-- `npm run bench`: headless simulation benchmarks with budget checks
+- `npm run bench`: headless simulation benchmarks with budget checks; `npm run tune`, `npm run audit` and `npm run lanes` (`-w @qoti/bench`): the autoplayer's day table, the dead-end hunt, and the lanes test with the decisions count
 - `npm run deploy`: Cloudflare deploy (needs credentials)
 - `npm run golden -w @qoti/sim`: regenerate `packages/sim/test/golden/i0-basic.json` (only when the script format changes)
 
@@ -39,9 +39,9 @@ Your brief says which paths you own. Outside them, make only small, necessary ed
 ## Hard rules
 
 - **Determinism** in `packages/sim`: no `Math.random`, `Date`, `performance`, timers, `async`, `Intl`, or `Math.sin|cos|tan|atan2|exp|log|pow|hypot|cbrt` (and no `**`). Use the seeded RNG streams. Iterate arrays or Maps, never object keys. Per-good quantities are arrays indexed by good index. Every state change goes through a command. Lint enforces most of this.
-- **Contracts** (`packages/sim/src/contracts/`, `packages/protocol/src/messages.ts`, `packages/content/src/types.ts`, and the client interfaces listed in `docs/spec/31-parallel-development.md`): additive changes only during parallel cycles. Never rename or remove; if you must, stop and propose it in your PR.
+- **Contracts** (`packages/sim/src/contracts/`, `packages/protocol/src/messages.ts`, `packages/content/src/types.ts`, and the client interfaces listed in `docs/spec/31-parallel-development.md`): additive changes only during parallel cycles. Never rename or remove; if you must, stop and propose it in your PR. R1.0, the zones-first contracts cycle, is the one cycle allowed to remove the chain economy's contracts (`docs/spec/20-architecture.md`, Redesign outline).
 - **Registries**: add commands, systems, content, render layers, tools, lens entries, panels and art kits through their registries, one alphabetically sorted line each.
-- **Saves**: any change to the shape of saved state bumps `SAVE_VERSION` and adds a migration with a test.
+- **Saves**: any change to the shape of saved state bumps `SAVE_VERSION` and adds a migration with a test. The one exception is R1's fresh start (`docs/spec/21-networking-and-saves.md`): version 6 refuses older valleys instead of converting them.
 - **Budgets** in `docs/spec/22-quality.md` are acceptance criteria.
 - **Writing**: never use em dashes anywhere (docs, UI text, content, comments, commit messages). In-game text is warm, dry and witty, never babyish. US spelling.
 

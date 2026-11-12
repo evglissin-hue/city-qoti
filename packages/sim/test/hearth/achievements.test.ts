@@ -4,6 +4,7 @@ import { content } from '@qoti/content';
 import { describe, expect, it } from 'vitest';
 import type { SeatId, WorldState } from '../../src/contracts';
 import { checkAchievements } from '../../src/systems/achievements';
+import { dayIndex } from '../../src/systems/economy/time';
 import { runPatterns } from '../../src/systems/hearth/patterns/engine';
 import { createTickCtx } from '../../src/turn';
 import { hamletFixture } from '../fixtures/hamlet';
@@ -35,7 +36,7 @@ const SETUPS = new Map<string, (s: WorldState) => void>([
   [
     'plank-by-plank',
     (s) => {
-      s.economy.everProduced[content.goodIndex.get('planks')!] = 4;
+      s.economy.everProduced[content.goodIndex.get('timber')!] = 4;
     },
   ],
   [
@@ -90,6 +91,39 @@ const SETUPS = new Map<string, (s: WorldState) => void>([
       s.seasons.warmWinters = 1;
     },
   ],
+  // R1 (R1D): the zones-first feats.
+  [
+    'a-town-that-builds-itself',
+    (s) => {
+      for (let i = 0; i < 10; i++)
+        build(s, 'workshop', 120 + (i % 5) * 4, 120 + Math.floor(i / 5) * 4, 0, 0, 'baker').lot = i + 1;
+    },
+  ],
+  [
+    'a-winter-without-imports',
+    (s) => {
+      s.seasons.importFreeWinters = 1;
+    },
+  ],
+  [
+    'market-day',
+    (s) => {
+      const stall = s.buildings.find((b) => b.def === 'market-stall')!;
+      for (const g of content.goods)
+        if (g.family === 'food' && g.raw) stall.rt!.store[content.goodIndex.get(g.id)!] = 2;
+    },
+  ],
+  [
+    'porridge-no-more',
+    (s) => {
+      // Three Food flavors each household saw today (R1A's sightings).
+      const foods = ['grain', 'fish', 'vegetables'].map((g) => content.goodIndex.get(g)!);
+      for (const h of s.households) {
+        h.seen = new Array<number>(content.goods.length).fill(-1);
+        for (const g of foods) h.seen[g] = dayIndex(s.tick);
+      }
+    },
+  ],
 ]);
 
 describe('every achievement', () => {
@@ -104,7 +138,7 @@ describe('every achievement', () => {
       // Without its households, nothing in the fixture has earned a plaque yet.
       const households = s.households.splice(0);
       expect(checkAchievements(s, createTickCtx(s))).toEqual([]);
-      if (a.id === 'first-footsteps') s.households.push(...households);
+      if (a.id === 'first-footsteps' || a.id === 'porridge-no-more') s.households.push(...households);
       SETUPS.get(a.id)!(s);
       const ctx = createTickCtx(s);
       expect(checkAchievements(s, ctx)).toContain(a.id);

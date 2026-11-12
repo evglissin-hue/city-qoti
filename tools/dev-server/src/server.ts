@@ -1,9 +1,11 @@
 import {
   createValley,
   handleImage,
+  handleOldFile,
   IMAGE_ROUTE,
   MAX_IMPORT_CHARS,
   MAX_SNAPSHOT_BYTES,
+  OLD_FILE_ROUTE,
   MemoryStorage,
   randomId,
   type Conn,
@@ -100,6 +102,23 @@ export function startDevServer(opts: DevServerOptions): Promise<DevServer> {
             'content-type': out.type ?? 'application/octet-stream',
             'cache-control': 'private, max-age=31536000, immutable',
           });
+          res.end(Buffer.from(out.bytes));
+        } else json(res, out.status, out.json ?? {});
+        return;
+      }
+      const oldFile = OLD_FILE_ROUTE.exec(url.pathname);
+      if (oldFile) {
+        const room = rooms.get(oldFile[1]!);
+        if (!room) return json(res, 404, { error: 'No such valley' });
+        await room.core.ready();
+        const out = await handleOldFile(
+          req.method ?? 'GET',
+          req.headers.authorization ?? null,
+          room.storage,
+          await room.storage.getMeta(),
+        );
+        if (out.bytes) {
+          res.writeHead(200, { 'content-type': 'application/octet-stream', 'cache-control': 'no-store' });
           res.end(Buffer.from(out.bytes));
         } else json(res, out.status, out.json ?? {});
         return;

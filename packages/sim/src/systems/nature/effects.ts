@@ -9,6 +9,7 @@ import type { Building, EntityId, WorldState } from '../../contracts';
 import { findById } from '../../state/entities';
 import { seasonAt } from '../../state/seasons';
 import { rankAtLeast } from '../../state/village';
+import { hasTag, methodOf } from '../../state/zones';
 import { buildingChunk, scoreAt } from './habitats';
 
 /** Pollinator score at which the bonus is full. */
@@ -21,21 +22,23 @@ export const HIVE_FLOOR = 250;
 export const PEST_MAX = 150;
 export const SUMMER = 1;
 
-const CROP_GOODS: ReadonlySet<string> = new Set(['apples', 'herbs', 'vegetables', 'wheat']);
+const CROP_GOODS: ReadonlySet<string> = new Set(['fruit', 'grain', 'honey', 'vegetables']);
 
-/** Farms, orchards, plots and herb gardens: anything whose yield bees and pests care about. */
+/** Grain farms, orchards, market gardens and hives: anything whose yield bees and pests care about. */
 export function isCropMethod(method: ProductionMethod | undefined): boolean {
   if (!method) return false;
   if (method.kind === 'farm') return true;
   return method.kind === 'gather' && method.outputs.some(([g]) => CROP_GOODS.has(g));
 }
 
-export function isCropGrower(def: BuildingDef | undefined): boolean {
-  return !!def?.methods?.some(isCropMethod);
+/** R1: by the building's own method (its trade's, for a business). */
+export function isCropGrower(b: Pick<Building, 'def' | 'trade'>): boolean {
+  return isCropMethod(methodOf(b) ?? undefined);
 }
 
-export function isHive(def: BuildingDef | undefined): boolean {
-  return !!def?.tags?.includes('hive');
+/** The Hearth's Apiary (tag 'hive') or a farmstead keeping hives (trade 'hives'). */
+export function isHive(b: Pick<Building, 'def' | 'trade'>): boolean {
+  return hasTag(b, 'hive') || hasTag(b, 'hives');
 }
 
 const POLLINATOR = (HABITAT_IDS as readonly string[]).indexOf('pollinator');
@@ -50,11 +53,11 @@ function pollinatorScore(state: WorldState, b: Building): number {
  * Hamlet's pace stays as tuned; with bees from the first day the autoplayer reached Village a season
  * later on five seeds of eight).
  */
-export function pollinatorPermille(state: WorldState, b: Building, def: BuildingDef | undefined): number {
+export function pollinatorPermille(state: WorldState, b: Building): number {
   if (!rankAtLeast(state, 'village')) return 1000;
-  if (isHive(def))
+  if (isHive(b))
     return HIVE_FLOOR + Math.floor(((1000 - HIVE_FLOOR) * pollinatorScore(state, b)) / POLLINATOR_FULL);
-  if (!isCropGrower(def)) return 1000;
+  if (!isCropGrower(b)) return 1000;
   return 1000 + Math.floor((POLLINATOR_BONUS * pollinatorScore(state, b)) / POLLINATOR_FULL);
 }
 
@@ -62,11 +65,11 @@ export function pollinatorPermille(state: WorldState, b: Building, def: Building
 export function pollinators(
   state: WorldState,
   b: Building,
-  def: BuildingDef,
+  _def: BuildingDef,
   method: ProductionMethod,
 ): number {
-  if (isHive(def)) return pollinatorPermille(state, b, def);
-  return isCropMethod(method) ? pollinatorPermille(state, b, def) : 1000;
+  if (isHive(b)) return pollinatorPermille(state, b);
+  return isCropMethod(method) ? pollinatorPermille(state, b) : 1000;
 }
 
 /** Yield hook: summer pests (computed each morning into nature.pests). */
@@ -113,7 +116,7 @@ export function updatePests(state: WorldState): void {
   const out: [EntityId, number][] = [];
   for (const b of state.buildings) {
     if (b.stage !== 'built' || !b.rt) continue;
-    if (!isCropGrower(content.buildingById.get(b.def))) continue;
+    if (!isCropGrower(b)) continue;
     out.push([b.id, pestLossFor(state, b)]);
   }
   out.sort((a, b) => a[0] - b[0]);
@@ -123,5 +126,5 @@ export function updatePests(state: WorldState): void {
 /** API: permille factor from pollinators on a building (1000 = none). */
 export function pollinatorFactorOf(state: WorldState, buildingId: number): number {
   const b = findById(state.buildings, buildingId);
-  return b ? pollinatorPermille(state, b, content.buildingById.get(b.def)) : 1000;
+  return b ? pollinatorPermille(state, b) : 1000;
 }

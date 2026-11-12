@@ -13,7 +13,7 @@ import { checkWishes, generateWishes, makeWish, wishBinding, wishCap } from '../
 import { wishProgress } from '../../src/systems/hearth/wishes/progress';
 import { createTickCtx, type SimCtx } from '../../src/turn';
 import { type HamletFixture, hamletFixture } from '../fixtures/hamlet';
-import { build, decor, events, road, runHours, S, settle, tree } from './helpers';
+import { bakerCouldOpen, build, decor, events, plot, road, runHours, S, settle, tree } from './helpers';
 
 function homeOf(s: WorldState, w: Wish): Building {
   return findById(s.buildings, w.home)!;
@@ -40,15 +40,19 @@ interface Case {
 
 const CASES: Record<string, Case> = {
   'a-garden-plot': {
-    grant: (f, w) => build(f.state, 'vegetable-plot', homeOf(f.state, w).x, homeOf(f.state, w).z - 2),
+    // A garden bed beside the home.
+    grant: (f, w) => plot(f.state, homeOf(f.state, w).x, homeOf(f.state, w).z - 4),
   },
   'a-proper-path': {
     setup: (f) => {
-      // Hazel's bakery moves out to a spot whose door opens onto grass.
-      const shop = build(f.state, 'bakery', 80, 53);
+      // Hazel's baker's workshop moves out to a spot whose door (81, 56) opens onto grass.
+      const shop = build(f.state, 'workshop', 80, 53, 0, 0, 'baker');
       findById(f.state.residents, f.residents[0]![1]!)!.jobId = shop.id;
     },
-    grant: (f) => road(f.state, 'path', 81, 51, 81, 55),
+    grant: (f) => {
+      road(f.state, 'path', 79, 51, 79, 56);
+      road(f.state, 'path', 80, 56, 81, 56);
+    },
   },
   // P1 (playtest): offered only where no well's radius reaches home, granted once a well serves it.
   'a-well-closer': {
@@ -77,8 +81,10 @@ const CASES: Record<string, Case> = {
   'bakery-nearby': {
     setup: (f) => {
       rehouse(f, f.households[2], 140, 140);
+      // R1 (R1D): voiced only where a baker could open: Workshops land in a windmill's reach.
+      bakerCouldOpen(f.state, 143, 140);
     },
-    grant: (f) => build(f.state, 'bakery', 143, 140),
+    grant: (f) => build(f.state, 'workshop', 143, 140, 0, 0, 'baker'),
   },
   'flowers-on-the-lane': {
     grant: (f, w) => {
@@ -87,8 +93,11 @@ const CASES: Record<string, Case> = {
     },
   },
   'fresh-fish': {
-    grant: (f) => {
-      findById(f.state.buildings, f.b.stall)!.rt!.store[content.goodIndex.get('fish')!] = 3;
+    // R1 (R1D): fish on a shelf in reach of home: a stall beside it, stocked.
+    grant: (f, w) => {
+      const h = homeOf(f.state, w);
+      const stall = build(f.state, 'market-stall', h.x, h.z + 3);
+      stall.rt!.store[content.goodIndex.get('fish')!] = 3;
     },
   },
   'lantern-on-my-way-home': {

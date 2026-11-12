@@ -1,5 +1,6 @@
 import {
   artKitId,
+  businessParams,
   constructionGeometry,
   isRowKit,
   kitById,
@@ -172,6 +173,9 @@ export function buildingParams(b: BuildingView): Record<string, number | string 
   // C4E: grown buildings take their district's look; seasonal kits the season.
   if (b.style) p.style = b.style;
   if (def && SEASONAL_KITS.has(artKitId(def.art))) p.season = drawSeason;
+  // R1E: a business draws its trade's look at its level (packages/art kits/business.ts).
+  const trade = b.trade ? content.tradeById.get(b.trade) : undefined;
+  if (trade) Object.assign(p, businessParams(artKitId(trade.look), trade.makes, b.level, trade.look.params));
   if (def?.tags?.includes('plot')) p.soil = plotSoil(b);
   if (rowAt && def && isRowKit(artKitId(def.art))) Object.assign(p, rowAt(b));
   if (wallAt && def && WALL_KITS.has(artKitId(def.art))) Object.assign(p, wallAt(b));

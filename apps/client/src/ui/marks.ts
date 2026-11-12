@@ -15,6 +15,16 @@ export interface GroundMark {
   dashed?: boolean;
   /** A wash with no outline (zoned ground). */
   fill?: boolean;
+  /**
+   * R1C: a reach ring instead of a lot: a circle of this many tiles around the footprint's center
+   * (the Specialized shelf's "how far does it serve", drawn as a pencil sketch of the road reach).
+   */
+  ring?: number;
+  /**
+   * R1X: with `fill`, a road tile in a specialized building's reach: a stronger wash than zoned
+   * ground, so the ochre still reads on a brown road by lamplight.
+   */
+  reach?: boolean;
 }
 
 export const groundMarks = signal<GroundMark[]>([]);

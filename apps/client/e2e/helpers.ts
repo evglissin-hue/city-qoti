@@ -28,6 +28,10 @@ export interface QotiHook {
   undoSize(): number;
   // I2 (C4D)
   valleyId(): string | null;
+  // R1 (R1C)
+  setHour(hour: number | null): void;
+  ui(): Record<string, { value: unknown }> | null;
+  showSeasonCard(): boolean;
   // I3 (C5G)
   audio: {
     state(): string;

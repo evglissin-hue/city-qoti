@@ -1,8 +1,10 @@
 import type { BuildingDef } from '@qoti/content';
 import { DECOR_BUILDING_MARGIN, TILE_FP } from '../constants';
 import type { BuildingPlacement, MapReader, RejectReason, Rot4 } from '../contracts';
-import { Deposit } from '../map/layers';
+import { Deposit, Road, treeStage, Water } from '../map/layers';
+import { inClearance } from './clearance';
 import { entranceTiles, footprintSize, footprintTiles } from './footprint';
+import { valleyRoadTiles } from './valleyRoad';
 import { decorRadius, distSqToRect, isInt, MAX_DECOR_RADIUS } from './geometry';
 
 const DEPOSIT_VALUES = {
@@ -36,7 +38,7 @@ export function canPlaceBuilding(
   if (x < 0 || z < 0 || x + w > reader.size || z + d > reader.size) return fail('OUT_OF_BOUNDS', tiles);
 
   const rules = def.placement ?? [];
-  const waterEdge = rules.some((r) => r.kind === 'waterEdge');
+  const waterEdge = rules.some((r) => r.kind === 'waterEdge' || r.kind === 'river');
   let hMin = Infinity;
   let hMax = -Infinity;
   for (const [tx, tz] of tiles) {
@@ -68,6 +70,7 @@ export function canPlaceBuilding(
   }
   if (hMax - hMin > 1) return fail('TOO_STEEP', tiles);
 
+  const { front } = entranceTiles(def, x, z, rot);
   for (const rule of rules) {
     switch (rule.kind) {
       case 'deposit': {
@@ -99,11 +102,85 @@ export function canPlaceBuilding(
         if (!touches) return fail('NEEDS_WATER_EDGE', tiles);
         break;
       }
+      case 'river': {
+        const isRiver = (tx: number, tz: number) => {
+          const w = reader.water(tx, tz);
+          return w === Water.river || w === Water.riverDeep;
+        };
+        const touches = tiles.some(
+          ([tx, tz]) =>
+            isRiver(tx, tz) ||
+            isRiver(tx + 1, tz) ||
+            isRiver(tx - 1, tz) ||
+            isRiver(tx, tz + 1) ||
+            isRiver(tx, tz - 1),
+        );
+        if (!touches) return fail('NEEDS_RIVER', tiles);
+        break;
+      }
+      case 'woods': {
+        const within = rule.within;
+        let count = 0;
+        for (let tz = z - within; tz < z + d + within && count < rule.trees; tz++) {
+          for (let tx = x - within; tx < x + w + within; tx++) {
+            if (tx < 0 || tz < 0 || tx >= reader.size || tz >= reader.size) continue;
+            if (treeStage(reader.tree(tx, tz)) !== 3) continue;
+            const dx = tx < x ? x - tx : tx >= x + w ? tx - (x + w - 1) : 0;
+            const dz = tz < z ? z - tz : tz >= z + d ? tz - (z + d - 1) : 0;
+            if (dx * dx + dz * dz <= within * within) count++;
+          }
+        }
+        if (count < rule.trees) return fail('NEEDS_WOODS', tiles);
+        break;
+      }
+      case 'openGround': {
+        for (let tz = z - rule.clear; tz < z + d + rule.clear; tz++) {
+          for (let tx = x - rule.clear; tx < x + w + rule.clear; tx++) {
+            if (tx < 0 || tz < 0 || tx >= reader.size || tz >= reader.size) continue;
+            if (reader.occupant(tx, tz) !== 0) return fail('NEEDS_OPEN_GROUND', tiles);
+          }
+        }
+        break;
+      }
+      case 'road': {
+        const have = reader.road(front[0], front[1]);
+        const ok =
+          have > 0 &&
+          (!rule.roads ||
+            rule.roads.some((k) =>
+              k === 'path' ? have === Road.path : k === 'lane' ? have === Road.lane : have >= Road.street,
+            ));
+        if (!ok) return fail('NEEDS_ROAD', tiles);
+        break;
+      }
+      case 'valleyRoad': {
+        const valley = valleyRoadTiles(reader);
+        const S = reader.size;
+        let near = false;
+        for (
+          let tz = Math.max(0, z - rule.within);
+          tz <= Math.min(S - 1, z + d - 1 + rule.within) && !near;
+          tz++
+        ) {
+          for (let tx = Math.max(0, x - rule.within); tx <= Math.min(S - 1, x + w - 1 + rule.within); tx++) {
+            if (valley[tz * S + tx]) {
+              near = true;
+              break;
+            }
+          }
+        }
+        if (!near) return fail('NEEDS_VALLEY_ROAD', tiles);
+        break;
+      }
     }
   }
 
+  // A windmill keeps its open ground: nothing else stands inside its clearance (rules/clearance.ts).
+  if (!rules.some((r) => r.kind === 'openGround') && inClearance(reader, x, z, w, d)) {
+    return fail('NEEDS_OPEN_GROUND', tiles);
+  }
+
   const warnings: string[] = [];
-  const { front } = entranceTiles(def, x, z, rot);
-  if (!reader.road(front[0], front[1])) warnings.push('NO_ROAD');
+  if (!reader.road(front[0], front[1]) && !rules.some((r) => r.kind === 'road')) warnings.push('NO_ROAD');
   return { ok: true, tiles, foundation: hMax - hMin === 1, warnings };
 }

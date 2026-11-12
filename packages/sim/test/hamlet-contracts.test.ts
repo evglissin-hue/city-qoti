@@ -1,12 +1,11 @@
 import { content } from '@qoti/content';
-import { gunzipSync, gzipSync, strFromU8, strToU8 } from 'fflate';
 import { describe, expect, it } from 'vitest';
 import { AGENT_STRIDE, CHUNKS_PER_SIDE, MAP_SIZE, START_TREASURY } from '../src/constants';
+import { commandHandlers } from '../src/commands';
 import { defaultSettings, createValley } from '../src/state/create';
 import { findById } from '../src/state/entities';
 import { hashState } from '../src/state/hash';
 import { deserialize, serialize } from '../src/state/serialize';
-import { SAVE_VERSION } from '../src/state/version';
 import { markCharmDirty } from '../src/systems/hearth/charm/dirty';
 import { addBond, addMoodModifier, modifierValue } from '../src/systems/residents/api';
 import { doorTile, isAt, requestMove } from '../src/systems/movement/api';
@@ -56,10 +55,13 @@ describe('standard valley', () => {
     const b = createValley('meadow', standard());
     expect(hashState(a)).toBe(hashState(b));
     const defs = a.buildings.map((x) => x.def).sort();
-    expect(defs).toEqual(['cottage', 'cottage', 'storehouse', 'town-hall', 'well']);
+    expect(defs).toEqual(['cottage', 'cottage', 'granary', 'storehouse', 'town-hall', 'well']);
     expect(a.economy.treasury).toBe(START_TREASURY);
     const store = a.buildings.find((x) => x.def === 'storehouse')!.rt!.store;
-    expect(store[content.goodIndex.get('planks')!]).toBe(50);
+    expect(store[content.goodIndex.get('timber')!]).toBe(60);
+    const granary = a.buildings.find((x) => x.def === 'granary')!.rt!.store;
+    // R1X: the founders' larder (grain 24, vegetables 20, fish 12).
+    expect(granary[content.goodIndex.get('grain')!]).toBe(24);
     expect(a.buildings.every((x) => x.stage === 'built')).toBe(true);
   });
 
@@ -76,7 +78,7 @@ describe('standard valley', () => {
     run(w, { t: 'build.place', def: 'cottage', x: 60, z: 60, rot: 0 });
     const b = w.buildings[0]!;
     expect(b.stage).toBe('construction');
-    expect(b.rt!.construction!.needs[content.goodIndex.get('planks')!]).toBe(16);
+    expect(b.rt!.construction!.needs[content.goodIndex.get('timber')!]).toBe(16);
   });
 
   it('refuses to switch a valley between sandbox and standard', () => {
@@ -98,64 +100,70 @@ describe('standard valley', () => {
   });
 });
 
-describe('save version 2', () => {
-  it('migrates an I0 save into an empty sandbox hamlet', () => {
-    const w = flatWorld();
-    run(w, { t: 'build.place', def: 'cottage', x: 60, z: 60, rot: 0 });
-    const v2 = JSON.parse(strFromU8(gunzipSync(serialize(w)))) as Record<string, unknown>;
-    // Rebuild what an I0 client saved: no I1 slices or layers, version 1.
-    const map = { ...(v2.map as Record<string, string>) };
-    for (const name of [
-      'charm',
-      'charmNature',
-      'charmComfort',
-      'charmLight',
-      'charmView',
-      'charmNoise',
-      'fieldOwner',
-      'crop',
-    ]) {
-      delete map[name];
+describe('R1 shapes', () => {
+  it('has the sixteen goods in their fixed order', () => {
+    expect(content.goods.map((g) => g.id)).toEqual([
+      'grain',
+      'vegetables',
+      'fruit',
+      'fish',
+      'cheese',
+      'bread',
+      'firewood',
+      'timber',
+      'stone',
+      'brick',
+      'wool',
+      'cloth',
+      'furniture',
+      'candles',
+      'honey',
+      'cider',
+    ]);
+  });
+
+  it('keeps the carrier, the season plan and demand in state, and hashes each', () => {
+    const f = hamletFixture();
+    const h = hashState(f.state);
+    const changes: ((s: typeof f.state) => void)[] = [
+      (s) => (s.carrier.families[0]!.reserve += 1),
+      (s) => (s.seasonPlan.reserve += 1),
+      (s) => (s.demand.bars[0]! += 1),
+    ];
+    for (const change of changes) {
+      const g = hamletFixture();
+      change(g.state);
+      expect(hashState(g.state)).not.toBe(h);
     }
-    const v1: Record<string, unknown> = { ...v2, map, saveVersion: 1 };
-    for (const key of [
-      'residents',
-      'households',
-      'economy',
-      'logistics',
-      'hearth',
-      'wishes',
-      'chronicle',
-      'achievements',
-      'stats',
-      'networkVersion',
+  });
+
+  it('registers the R1 commands and none of the removed ones', () => {
+    const types = commandHandlers.map((c) => c.type as string);
+    for (const t of [
+      'build.move',
+      'build.pinRecipe',
+      'carrier.setBudget',
+      'carrier.setReserve',
+      'carrier.setRule',
+      'decor.move',
+      'season.setPlan',
     ]) {
-      delete v1[key];
+      expect(types).toContain(t);
     }
-    const migrated = deserialize(gzipSync(strToU8(JSON.stringify(v1))));
-    expect(migrated.saveVersion).toBe(SAVE_VERSION);
-    expect(migrated.settings.mode).toBe('sandbox');
-    expect(migrated.residents).toEqual([]);
-    expect(migrated.buildings[0]!.rt).toBeUndefined();
-    expect(migrated.map.fieldOwner).toBeInstanceOf(Int32Array);
-    w.saveVersion = SAVE_VERSION;
-    expect(hashState(migrated)).toBe(
-      hashState({ ...w, networkVersion: 0, hearth: { ...w.hearth, dirtyChunks: [] } }),
-    );
+    for (const t of ['calling.choose', 'ledger.setForSale', 'trade.setStandingOrder']) {
+      expect(types).not.toContain(t);
+    }
   });
 });
 
 describe('ledger levers', () => {
-  it('pauses buildings, raises sites and marks goods for sale', () => {
+  it('pauses buildings and raises only sites', () => {
     const f = hamletFixture();
     run(f.state, { t: 'build.setPaused', id: f.b.bakery, paused: true });
     expect(findById(f.state.buildings, f.b.bakery)!.rt!.paused).toBe(true);
     expect(rejection(run(f.state, { t: 'build.setPriority', id: f.b.bakery, priority: true }))).toBe(
       'NOT_ALLOWED',
     );
-    run(f.state, { t: 'ledger.setForSale', good: 'planks', forSale: true });
-    expect(f.state.economy.forSale[content.goodIndex.get('planks')!]).toBe(true);
-    expect(rejection(run(f.state, { t: 'ledger.setForSale', good: 'gold', forSale: true }))).toBe('INVALID');
   });
 });
 
@@ -224,9 +232,9 @@ describe('views, frames and inspect', () => {
     const view = buildView(state);
     expect(view.residents).toHaveLength(9);
     expect(view.patterns).toHaveLength(content.patterns.length);
-    expect(view.achievements).toHaveLength(16);
+    expect(view.achievements).toHaveLength(20);
     expect(view.stocks!.lines.find((l) => l.good === 'bread')!.stock).toBe(26);
-    expect(view.buildings.find((b) => b.def === 'bakery')!.rt!.input).toEqual([['flour', 4]]);
+    expect(view.buildings.find((b) => b.trade === 'baker')!.rt!.input).toEqual([['grain', 4]]);
   });
 
   it('writes stride-8 rows for residents outdoors only', () => {

@@ -12,6 +12,7 @@ import type { WorldState } from '../contracts';
 import { worldIndex } from '../state/worldIndex';
 import { chargePlacement, matureTreesUnder, placementBlocked, refundRemoval } from '../systems/economy/api';
 import { meetsRequires } from '../systems/innovations/api';
+import { announceServers } from '../systems/specialized/announce';
 import { checkIds, type HandlerFor, tilesChangedFor, worldChanged } from './util';
 
 export const place: HandlerFor<'build.place'> = {
@@ -98,6 +99,8 @@ export const remove: HandlerFor<'build.remove'> = {
         if (state.map.occupant[z * MAP_SIZE + x] === id) state.map.occupant[z * MAP_SIZE + x] = 0;
       }
       ctx.events.push({ e: 'building.removed', id });
+      // The windmills and the like that served it now serve one fewer.
+      announceServers(state, ctx, b, [b.trade]);
       tilesChangedFor(ctx, tiles, ['occupant']);
       const rect = tilesRect(tiles);
       worldChanged(state, rect && [rect[0] - 1, rect[1] - 1, rect[2] + 1, rect[3] + 1]);

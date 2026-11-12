@@ -8,7 +8,32 @@ import { describe, expect, it } from 'vitest';
 import { autoplay } from '../autoplay';
 
 describe('the festivals advisor', { timeout: 300_000 }, () => {
+  // R1.0: the menu, twists and plans hold on the zones-first Ledger; the stars and the larder are
+  // R1F's targets (below).
+  it('plans a festival every season of a year on hazel, each a different twist from the last', () => {
+    const missed: number[] = [];
+    const unknown: number[] = [];
+    const run = autoplay('hazel', 4 * DAYS_PER_SEASON, {
+      onDay: (w: WorldState, line) => {
+        // Every menu good is a good content has.
+        for (const [g] of w.festival.plan?.menu ?? []) if (!content.goods[g]) unknown.push(g);
+        if (line.day % DAYS_PER_SEASON !== 0) return;
+        const last = w.festival.history[w.festival.history.length - 1];
+        if (!last || last.year * 4 + last.season !== line.day / DAYS_PER_SEASON - 1) missed.push(line.day);
+      },
+    });
+    const w = run.hamlet.world;
+    expect(missed).toEqual([]);
+    expect(unknown).toEqual([]);
+    for (let i = 1; i < w.festival.history.length; i++) {
+      const a = w.festival.history[i - 1]!;
+      const b = w.festival.history[i]!;
+      expect(b.twist === '' || b.twist !== a.twist).toBe(true);
+    }
+  });
+
   for (const seed of ['hazel', 'willow']) {
+    // R1F: back on with the land and plan advisors.
     it(`holds a festival every season on ${seed}, three stars in the first Village year, and keeps the larder`, () => {
       const short: string[] = [];
       const missed: number[] = [];

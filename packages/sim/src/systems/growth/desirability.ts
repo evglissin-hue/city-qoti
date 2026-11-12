@@ -10,8 +10,8 @@ import { MAP_SIZE, Zone } from '../../constants';
 import type { Lot, TickCtx, WorldState } from '../../contracts';
 import { Road } from '../../map/layers';
 import { lotView } from '../../view/village';
-import { chosenCalling } from '../callings/chosen';
 import { storehouseReach, within } from '../logistics/range';
+import { type Defs, usable } from './defs';
 import { doorTile } from '../movement/api';
 import { averageAround, homeCount, tasteScore, treeCount, waterWithin } from '../residents/desirability';
 
@@ -50,11 +50,14 @@ interface Services {
 }
 
 /** Wells and food outlets (built or going up) by door, and storehouse reach; once per pass. */
-export function servicesOf(state: WorldState): Services {
+export function servicesOf(state: WorldState, known?: Defs): Services {
   const wells: Services['wells'] = [];
   const outlets: Services['outlets'] = [];
-  for (const b of state.buildings) {
-    const def = content.buildingById.get(b.def);
+  const bs = state.buildings;
+  const defs = usable(state, known);
+  for (let i = 0; i < bs.length; i++) {
+    const b = bs[i]!;
+    const def = defs ? defs[i] : content.buildingById.get(b.def);
     if (!def?.coverage) continue;
     const door = doorTile(b, def);
     for (const c of def.coverage) {
@@ -62,7 +65,7 @@ export function servicesOf(state: WorldState): Services {
       if (c.kind === 'food') outlets.push([door % S, Math.floor(door / S), c.radius]);
     }
   }
-  return { wells, outlets, reach: storehouseReach(state) };
+  return { wells, outlets, reach: storehouseReach(state, defs ?? undefined) };
 }
 
 function covered(list: Services['wells'], x: number, z: number): boolean {
@@ -195,7 +198,6 @@ export function pickStyle(state: WorldState, lot: Lot): string {
   const high = isHigh(state, x, z);
   const street = state.map.road[lot.frontage] === Road.street;
   const nature = treeCount(state, x, z, 3) >= 3 || averageAround(state.map.charmNature, x, z, 3) >= 10;
-  const lean = chosenCalling(state)?.styleWeights ?? [];
   let best = 0;
   let bestScore = -1;
   for (let j = 0; j < styles.length; j++) {
@@ -208,8 +210,6 @@ export function pickStyle(state: WorldState, lot: Lot): string {
     if (s.street && street) v += 2;
     if (s.nature && nature) v += 2;
     if (s.zones?.includes(zoneId)) v += 3;
-    // P1: the village's calling leans every district its way.
-    for (const [id, w] of lean) if (id === styles[k]!.id) v += w;
     if (v > bestScore) {
       bestScore = v;
       best = k;

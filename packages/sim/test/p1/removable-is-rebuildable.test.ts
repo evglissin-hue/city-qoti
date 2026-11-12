@@ -50,7 +50,12 @@ describe('whatever can be removed can be rebuilt', () => {
       expect(spot, `no room to try ${def.id}`).not.toBeNull();
       const [x, z, rot] = spot!;
       const wasPlaceable = placeableNow(s, def);
-      let b: Building | undefined = s.buildings.find((o) => o.def === def.id && o.stage === 'built');
+      // A fixture's own copy may stand where its site rule (open ground) no longer allows it: take
+      // the legal spot found above instead.
+      const ownSiteRules = !def.placement?.some((r) => r.kind === 'openGround');
+      let b: Building | undefined = ownSiteRules
+        ? s.buildings.find((o) => o.def === def.id && o.stage === 'built')
+        : undefined;
       if (!b) b = insertBuilding(s, null, def, x, z, rot, 0, { site: false });
       const ctx = run(s, { t: 'build.remove', ids: [b.id] });
       if (rejection(ctx)) return;

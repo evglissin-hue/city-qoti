@@ -1,29 +1,38 @@
 // The money advisor (I2, C4A, ported in C5.0): the Ledger's money levers once the market is open
 // at Village rank. Wages and tax steer where the coins pile up (it trims wages or firms up the
 // income tax when purses fill while the treasury slides, and the other way round when households
-// go short); the Trading Post sells what the town has plenty of and buys food when it runs short,
-// through a standing order book; the County Bank tides a short treasury over and is paid back
-// once flush.
-import { content } from '@qoti/content';
+// go short); the County Bank tides a short treasury over and is paid back once flush.
+// R1.0: the standing order book is gone with standing orders: the carrier imports what is short and
+// sells what is over by its own rules. The Trading Post is the village advisor's to place.
 import {
   basketScore,
-  BuildingStatus,
-  calendar,
   creditLimit,
   expenses,
   income,
   loansOwed,
   PENNIES_PER_COIN,
   rankAtLeast,
-  tradingPost,
   TAX_RATE_RANGE,
-  type WorldState,
 } from '@qoti/sim';
 import type { Planner } from '../planner';
-import { count, G } from '../town';
 import type { Advisor, AdvisorDef } from './types';
 
+/** R1F: what one visit to the County Bank borrows (it was 300, and a Village borrowed ten times in seventy days; R1X: 1000). */
+const LOAN_COINS = 1000;
+/**
+ * R1X: the highest income tax the Ledger sets. Taxes and wages only move coins between the
+ * treasury and the purses, so past this the tax takes back the savings households put by for
+ * Craftsfolk (the advisor pushed it to 30% in debt and no household could move up) and the
+ * shops sell less; the County Bank tides a Village over until its exports catch up.
+ */
+const TAX_CEILING = 16;
+/** R1F: days between two turns of the wage or tax lever (the levers moved most days, a chore). */
+const LEVER_DAYS = 3;
+
 class Money implements Advisor {
+  /** The day a wage or tax lever last moved. */
+  private moved = -LEVER_DAYS;
+
   constructor(readonly p: Planner) {}
 
   visit(): void {
@@ -32,14 +41,21 @@ class Money implements Advisor {
     if (!rankAtLeast(w, 'village')) return;
     const l = w.levers;
     const hh = Math.max(1, w.households.length);
-    const basket = w.households.reduce((n, h) => n + basketScore(h), 0) / hh;
+    const basket = w.households.reduce((n, h) => n + basketScore(w, h), 0) / hh;
     const coins = p.coins();
     const y = w.economy.yesterday;
     const net = income(y) - expenses(y);
+    const rested = p.runDay - this.moved >= LEVER_DAYS;
     const setWage = (percent: number, why: string) =>
-      percent !== l.wageLevel && p.do(why, [{ t: 'ledger.setWageLevel', percent }]);
+      rested &&
+      percent !== l.wageLevel &&
+      p.do(why, [{ t: 'ledger.setWageLevel', percent }]) &&
+      (this.moved = p.runDay);
     const setTax = (percent: number, why: string) =>
-      percent !== l.taxRate && p.do(why, [{ t: 'ledger.setTaxRate', percent }]);
+      rested &&
+      percent !== l.taxRate &&
+      p.do(why, [{ t: 'ledger.setTaxRate', percent }]) &&
+      (this.moved = p.runDay);
     // C4X: or whenever the treasury is nearly empty while households get by (purses held four
     // thousand coins while the town could not afford a cider press).
     // C5X part 2: or while the town owes more than half its credit line and households get by (the
@@ -48,7 +64,8 @@ class Money implements Advisor {
     if ((net < 0 && coins < 300 && basket >= 65) || (coins < 100 && basket >= 75) || (deep && basket >= 60)) {
       // The treasury slides while households get by: trim wages a little, then firm up the tax.
       if (l.wageLevel > 85) setWage(l.wageLevel - 5, 'trim wages');
-      else if (l.taxRate < TAX_RATE_RANGE[1]) setTax(l.taxRate + 2, 'raise the income tax');
+      else if (l.taxRate < Math.min(TAX_CEILING, TAX_RATE_RANGE[1]))
+        setTax(Math.min(TAX_CEILING, TAX_RATE_RANGE[1], l.taxRate + 3), 'raise the income tax');
     } else if (basket < 65 && coins > 150) {
       // Households going short while the treasury can spare it: ease off.
       if (l.taxRate > 6) setTax(l.taxRate - 2, 'ease the income tax');
@@ -67,90 +84,21 @@ class Money implements Advisor {
     // sinks (the peddler's imports, priced decor), and a player who borrows at the last coin
     // stalls the build queue for days (six seeds at day 70 with P1's first economy: 135 residents
     // on average with the old cushion, 142 with this one; main 138 either way).
+    // R1X tried a 300 floor here and oak sat lean for weeks with 100 to 299 of credit unused.
     if (coins < 120 && room >= 100) {
-      p.do('take a loan', [{ t: 'loan.take', coins: Math.min(room, 300) }]);
+      p.do('take a loan', [{ t: 'loan.take', coins: Math.min(room, LOAN_COINS) }]);
     } else if (owed > 0 && coins > 500) {
       const loan = w.loans.loans[0]!;
       const pay = Math.min(Math.ceil(loan.balance / PENNIES_PER_COIN), Math.floor(coins - 350));
       if (pay > 0) p.do('repay a loan', [{ t: 'loan.repay', id: loan.id, coins: pay }]);
-    }
-    // The Trading Post, when the content has one: build it, then keep a standing order book.
-    if (content.buildingById.has('trading-post') && count(w, 'trading-post') === 0 && coins > 150) {
-      p.build('trading-post');
-    }
-    if (!tradingPost(w)) return;
-    const pop = w.residents.length;
-    // C5A: from late spring to the thaw the seasons advisor raises the food reserve; the book keeps
-    // a winter's food and buys a little in when the larder runs low in winter.
-    const winter = p.foodReserveDays >= 8;
-    // C5X part 2: and out of winter about nine days a head across the three foods, not three: the
-    // festival menu spends only food above six days a head, so selling down to three left every
-    // spring and summer festival with an empty table (willow's first Village year never passed two
-    // stars).
-    const keep = winter ? pop * 6 + 10 : pop * 3 + 10;
-    const low = winter && calendar(w.tick).season === 3 ? pop : 0;
-    // Sell what the town has plenty of; buy food only when the larder runs low.
-    const book: [good: string, min: number, max: number, ceiling?: number][] = [
-      // C4X: 60 planks in hand, not 30, so a tavern (24) or a townhouse can still be started.
-      ['planks', 0, 60],
-      // C5X: with no woodcutter at work (the patch felled), buy in a woodcutter's logs: a town with
-      // none could never build the next one (hazel sat at 45 residents with no logs or planks).
-      ['logs', woodcutting(w) ? 0 : 16, 40],
-      ['bread', low, keep],
-      ['fish', 0, keep],
-      ['vegetables', low, keep],
-      ['apples', Math.ceil(pop / 4), 1000],
-      // C4X: what the Village makes past its own needs pays for its upkeep, sites and loans:
-      // cloth and cider beyond a few days' shelves, bricks beyond the next few buildings.
-      ['bricks', 0, 60],
-      ['cider', 0, Math.max(20, Math.ceil(pop / 4))],
-      ['cloth', 0, Math.max(20, Math.ceil(pop / 5))],
-      // C5X part 2: the farmsteads' grain and the quarries' stone past what the mills, bakeries and
-      // sites can use (hazel held 1,517 wheat, 360 flour and 212 stone by day 72 and never sold a
-      // sack, while its loans sat at their peak).
-      // P1: the wheat comes in from summer now, so from then to the thaw the grain a winter needs
-      // is kept, not sold (a day's bread a head from each 3 wheat: 6 days of winter, 2 a head).
-      ['wheat', 0, winter ? Math.max(60, pop * 12) : Math.max(60, pop)],
-      ['flour', 0, winter ? Math.max(60, pop * 8) : Math.max(60, pop)],
-      ['stone', 0, 100],
-      ['wool', 0, 40],
-      // C5X part 2: in autumn and winter a woodpile under three days of burning is topped up from
-      // Stonecross (hazel's felled patch left its sheds idle and 38 homes cold at the year's end).
-      // Stonecross asks 130% in winter, and the post adds its share: up to 2.5 times base.
-      ['firewood', calendar(w.tick).season >= 2 ? w.households.length * 3 : 0, 1000, 2.5],
-    ];
-    for (const [good, min, max, ceil = 1.6] of book) {
-      const g = G(good);
-      const o = w.trade.orders.find((x) => x.good === g);
-      if (o && o.min === min && o.max === max) continue;
-      if (o && Math.abs(o.min - min) + Math.abs(o.max - max) < 6) continue;
-      p.do(`order ${good}`, [
-        {
-          t: 'trade.setStandingOrder',
-          good,
-          order: {
-            min,
-            max,
-            floor: 0,
-            ceiling: Math.round(content.goods[g]!.basePrice * ceil),
-            neighbor: '',
-          },
-        },
-      ]);
     }
   }
 }
 
 export const money: AdvisorDef = {
   id: 'money',
+  lane: 'ledger',
   slot: 40,
   plays: () => true,
   create: (p) => new Money(p),
 };
-
-/** C5X: a woodcutter stands with trees to fell. */
-function woodcutting(w: WorldState): boolean {
-  return w.buildings.some(
-    (b) => b.def === 'woodcutter' && b.stage === 'built' && (b.rt!.status & BuildingStatus.noTrees) === 0,
-  );
-}

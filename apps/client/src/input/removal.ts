@@ -71,3 +71,38 @@ export async function removeWithCare(
   env.submit({ t: 'note.pin', x, z, text });
   return true;
 }
+
+/**
+ * Moves a piece, asking first when it is the partner's handmade work and leaving them a note at the
+ * spot it came from, with the optional reason. Resolves false when the player decides to leave it.
+ * `piece.x` and `piece.z` are the OLD spot, where the note goes.
+ */
+export async function moveWithCare(
+  env: RemovalEnv,
+  piece: { builtBy: SeatId; handmade: boolean; thing: string; x: number; z: number; building?: boolean },
+  cmd: Command,
+): Promise<boolean> {
+  if (!piece.handmade || piece.builtBy === env.seat) {
+    env.submit(cmd);
+    return true;
+  }
+  const seats = env.mirror.seats.value;
+  const owner = seats.find((s) => s.seat === piece.builtBy)?.name || INPUT_COPY.partner;
+  const me = seats.find((s) => s.seat === env.seat)?.name || INPUT_COPY.someone;
+  const reason = await askRemoval({
+    title: piece.building
+      ? INPUT_COPY.moveBuildingTitle(owner, piece.thing)
+      : INPUT_COPY.moveTitle(owner, piece.thing),
+    body: INPUT_COPY.moveBody,
+    placeholder: INPUT_COPY.removeReason,
+    ok: INPUT_COPY.moveOk,
+    cancel: INPUT_COPY.moveCancel,
+  });
+  if (reason === null) return false;
+  env.submit(cmd);
+  const x = Math.max(0, Math.min(MAP_SIZE - 1, piece.x));
+  const z = Math.max(0, Math.min(MAP_SIZE - 1, piece.z));
+  const text = INPUT_COPY.moveNote(me, piece.thing, reason).slice(0, MAX_NOTE_CHARS);
+  env.submit({ t: 'note.pin', x, z, text });
+  return true;
+}

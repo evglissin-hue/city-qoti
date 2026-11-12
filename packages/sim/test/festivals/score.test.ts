@@ -88,10 +88,11 @@ describe('festival stars', () => {
 
   it('twist: its goal held earns the content bonus', () => {
     const { state, plan } = setup();
-    plan.twist = 'pie-contest';
-    plan.reserved = [[good('pies'), 4]];
+    // The Harvest Display wants 12 vegetables on the table.
+    plan.twist = 'harvest-display';
+    plan.reserved = [[good('vegetables'), 4]];
     expect(twistPart(state, plan)).toBe(0);
-    plan.reserved = [[good('pies'), 10]];
+    plan.reserved = [[good('vegetables'), 12]];
     expect(twistPart(state, plan)).toBe(T.twist);
     plan.twist = '';
     expect(twistPart(state, plan)).toBe(0);

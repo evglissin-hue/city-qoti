@@ -39,12 +39,18 @@ function collect(session: Session): {
   const seats = m.seats.value;
   const plans: { id: number; label: string; items: PlanItem[]; sketch: boolean }[] = [];
   const sketch = ui.sketch.value;
+  const editing = sketch?.basedOn ?? null;
   if (sketch && sketch.items.length)
-    plans.push({ id: -1, label: 'Your sketch', items: sketch.items, sketch: true });
+    plans.push({
+      id: -1,
+      label: editing !== null ? `Editing: ${m.plans.get(editing)?.name ?? 'a plan'}` : 'Your sketch',
+      items: sketch.items,
+      sketch: true,
+    });
   const active = session.tools?.active.value;
   const focus = ui.planFocus.value;
   for (const p of m.plans.values()) {
-    if (p.status !== 'open') continue;
+    if (p.status !== 'open' || p.id === editing) continue;
     if (p.id !== focus && active !== 'plan') continue;
     const who = p.by === session.seat ? 'Your plan' : `${seatLabel(seats, p.by, session.seat)}'s plan`;
     plans.push({ id: p.id, label: `${who}: ${p.name}`, items: p.items, sketch: false });
@@ -201,9 +207,22 @@ function draw(
     }
   }
   for (const mk of marks) {
+    if (mk.ring) {
+      const cx = mk.x + mk.w / 2;
+      const cz = mk.z + mk.d / 2;
+      const pts: [number, number][] = [];
+      for (let i = 0; i < 48; i++) {
+        const a = (i / 48) * Math.PI * 2;
+        pts.push([cx + Math.cos(a) * mk.ring, cz + Math.sin(a) * mk.ring]);
+      }
+      const d = poly(pts, true);
+      if (d) paths.push({ d, cls: `bp reach ${mk.dashed ? 'faint' : ''}`, ink: mk.ink });
+      continue;
+    }
     if (mk.fill) {
       const d = poly(rectPoints(mk.x, mk.z, mk.w, mk.d), true);
-      if (d) paths.push({ d, cls: 'bp zone-wash', ink: mk.ink });
+      const wash = mk.reach ? 'reach-wash' : 'zone-wash';
+      if (d) paths.push({ d, cls: `bp ${wash} ${mk.dashed ? 'faint' : ''}`, ink: mk.ink });
       continue;
     }
     const d = poly(rectPoints(mk.x + 0.06, mk.z + 0.06, mk.w - 0.12, mk.d - 0.12), true);

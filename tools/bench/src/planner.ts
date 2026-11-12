@@ -17,8 +17,11 @@
 //   Village player kept 30 back).
 // - Materials: a want needs its goods free of what sites have been promised. An advisor that tallies
 //   its own turn passes the tally and the planner takes each start out of it; otherwise free stock
-//   is read fresh (upgrades count as promised), and the timber kept for rebuilding woodcutters and
-//   sawpits (`TIMBER_RESERVE`) is off limits unless the want is essential.
+//   is read fresh (upgrades count as promised), and the timber kept for rebuilding a Forester's
+//   Lodge (`TIMBER_RESERVE`) is off limits unless the want is essential.
+// R1.0: the hand-placed chains are gone. Food comes from fisheries and from Farmland businesses,
+// materials from Forester's Lodges and quarries; Homes, Workshops and Farmland are zoned from the
+// first day (the street advisor) and grow by themselves.
 // - Credit: past half the County Bank's line only pressing or essential wants are started.
 import { content } from '@qoti/content';
 import {
@@ -28,8 +31,10 @@ import {
   canPlaceDecor,
   creditLimit,
   doorTile,
+  familyIndex,
   expenses,
   income,
+  isFrozen,
   loansOwed,
   onFloodplain,
   PENNIES_PER_COIN,
@@ -42,19 +47,18 @@ import {
   type WorldState,
 } from '@qoti/sim';
 import { command, findSpot, type Hamlet } from './hamlet';
+import type { Lane, PlayLane } from './advisors/types';
+import type { DecisionRecord } from './decisions';
 import { canStaff } from './labor';
-import { count, G, idx, S, sites } from './town';
+import { G, idx, S, sites } from './town';
 import type { HighStreet } from './village';
 
 /** Coins kept in the treasury after a want's cost. */
 export const MONEY_RESERVE = 20;
 /** What the Village advisor adds to its costs (I2's Village player kept 30 coins back, not 20). */
 export const VILLAGE_MARGIN = 10;
-/** Logs and planks kept so the woodcutters and sawpits can always be rebuilt. */
-export const TIMBER_RESERVE: ReadonlyMap<string, number> = new Map([
-  ['logs', 16],
-  ['planks', 24],
-]);
+/** Timber kept so a Forester's Lodge can always be rebuilt (R1: timber is what logs and planks were). */
+export const TIMBER_RESERVE: ReadonlyMap<string, number> = new Map([['timber', 16]]);
 /** C5X part 2: coins a want that can wait leaves in the treasury while the town owes the bank (the money advisor repays above it). */
 export const REPAY_RESERVE = 350;
 /** A want with this priority joins any build queue. */
@@ -85,6 +89,10 @@ export interface Want {
   tally?: number[];
   /** The allowance it counts against, if any. */
   budget?: Budget;
+  /** R1F: only spots this accepts (footprint min corner and turned size), as `build` takes. */
+  only?: (x: number, z: number, w: number, d: number) => boolean;
+  /** R1F: how far from the town center to look (40 tiles unless given; 60 with `only`). */
+  radius?: number;
 }
 
 /** A def's own price, plus `margin` coins. */
@@ -94,7 +102,7 @@ export function costOf(def: string, margin = 0): Cost {
 }
 
 /** A short path from a building's door to the nearest road (breadth-first, at most 30 tiles). */
-function pathToRoad(w: WorldState, from: number): [number, number][] | null {
+export function pathToRoad(w: WorldState, from: number): [number, number][] | null {
   const reader = worldIndex(w).reader;
   if (w.map.road[from]) return [];
   const prev = new Map<number, number>([[from, -1]]);
@@ -128,28 +136,48 @@ function pathToRoad(w: WorldState, from: number): [number, number][] | null {
   return null;
 }
 
+/** Whether the carrier may bring a good: its family's rule is not Never and a neighbor sells it. */
+export function carrierBrings(w: WorldState, g: number): boolean {
+  const good = content.goods[g]!;
+  const rule = w.carrier.families[familyIndex(good.family)]?.rule ?? 'never';
+  return rule !== 'never' && content.neighbors.some((n) => n.sells.some(([x]) => x === good.id));
+}
+
+/** Coins a unit costs by carrier, at the peddler's 140% of today's price (R1F: a planning estimate). */
+export function importPrice(w: WorldState, g: number): number {
+  return ((w.market.prices[g] ?? content.goods[g]!.basePrice ?? 100) * 1.4) / PENNIES_PER_COIN;
+}
+
 export class Planner {
   /** Everything the player tried and whether the sim took it, for reading a run. */
   readonly actions: string[] = [];
-  /** The high street laid and zoned at the Village rank (C4B), once there is one. */
+  /** The high street, laid and zoned on the first visit (R1: from the first day; C4B laid it at Village rank). */
   street: HighStreet | null = null;
-  /** Days of food kept back from the peddler (C4C: a Village run keeps six, for the Charter). */
+  /**
+   * Days of food a resident the festival menu and commissions leave in store (C4C: a Village run
+   * keeps six, for the Charter; the seasons advisor raises it before winter). R1: the carrier buys
+   * and sells by its own reserves, so this no longer steers what leaves the valley.
+   */
   foodReserveDays = 2;
   /** C5A: set by the seasons advisor while a flood is forecast or running: new buildings keep off the floodplain. */
   keepOffFloodplain = false;
-  /** C5A: set by the seasons advisor while the woodpile is short of the winter ahead (sawpits leave logs for the sheds). */
-  woodShort = false;
-  /** C5A: set by the seasons advisor in summer and autumn while the larder is short of a winter (hands go to the plots). */
+  /** C5A: set by the seasons advisor in summer and autumn while the larder is short of a winter. */
   larderShort = false;
-  /** C5A: set by the hamlet advisor while the last woodcutter's patch thins and logs are few (the sheds leave them be). */
-  logsForWoodcutter = false;
   /** C5A: set by the charter advisor late in a season while the Charter waits on one ended in surplus. */
   keepSurplus = false;
   /**
    * C4X: defs that found no spot, and the day they last failed. A valley with no free river edge
-   * left kept asking for a fishers' hut (154 times in a willow run) and never built the vegetable
-   * plot it could have; for the rest of that day the other food building is chosen instead.
+   * left kept asking for a fishers' hut (154 times in a willow run); for the rest of that day it is
+   * not asked for again.
    */
+  /** R1F: the advisor visiting now (set by autoplay around its `visit` and `rankUp`); null for the harness and the planner's own calls. */
+  advisor: { id: string; lane: Lane } | null = null;
+  /** R1F: the run's absolute day (1 on the first day), set by autoplay each morning; what `DecisionRecord.day` holds. */
+  runDay = 1;
+  /** R1F lanes test: lanes that send nothing (autoplay updates it each day). */
+  offLanes = new Set<PlayLane>();
+  /** R1F: every command the players sent, by lane and kind (the decisions count). */
+  readonly decisions: DecisionRecord[] = [];
   private readonly noSpot = new Map<string, number>();
 
   constructor(readonly h: Hamlet) {}
@@ -178,9 +206,21 @@ export class Planner {
     return (income(s) - expenses(s)) / PENNIES_PER_COIN;
   }
 
-  /** Runs commands as a seat and logs them. */
+  /** Runs commands as a seat and logs them (R1F: and counts them by lane; a lane that is off sends nothing). */
   do(label: string, cmds: Command[], seat: 0 | 1 = 0): boolean {
-    const ok = command(this.h, cmds, seat).every(Boolean);
+    const day = this.runDay;
+    const advisor = this.advisor?.id ?? 'planner';
+    const adv = this.advisor?.lane ?? 'ledger';
+    const lane: PlayLane = adv === 'both' ? (seat === 0 ? 'ledger' : 'hearth') : adv;
+    if (this.offLanes.has(lane)) {
+      this.actions.push(`${calendar(this.w.tick).day}:${label} (lane off)`);
+      return false;
+    }
+    const oks = command(this.h, cmds, seat);
+    const ok = oks.every(Boolean);
+    cmds.forEach((cmd, i) =>
+      this.decisions.push({ day, advisor, lane, kind: cmd.t, ok: oks[i]!, label, cmd }),
+    );
     this.actions.push(`${calendar(this.w.tick).day}:${label}${ok ? '' : ' (refused)'}`);
     return ok;
   }
@@ -190,11 +230,13 @@ export class Planner {
     return this.noSpot.get(def) === calendar(this.w.tick).day;
   }
 
-  /** The next food building: a fishers' hut for every two plots, while the river has room. */
-  foodBuilding(): string {
-    const w = this.w;
-    const fish = count(w, 'fishers-hut') <= count(w, 'vegetable-plot') / 2 && !this.blocked('fishers-hut');
-    return fish || this.blocked('vegetable-plot') ? 'fishers-hut' : 'vegetable-plot';
+  /**
+   * The next hand-placed food building, or null: R1 leaves one, the fishery, while the river has
+   * room and is not frozen. The rest of the town's food grows on Farmland by itself.
+   */
+  foodBuilding(): string | null {
+    if (this.blocked('fishery') || isFrozen(this.w)) return null;
+    return 'fishery';
   }
 
   /** The labor budget: whether a new `def` can be staffed (pressing wants may use the reserve). */
@@ -242,17 +284,25 @@ export class Planner {
     )
       return false;
     const free = want.tally ?? this.freeStock();
+    let imports = 0;
     for (const [g, q] of want.cost.goods) {
       const keep = want.essential ? 0 : (TIMBER_RESERVE.get(g) ?? 0);
-      if (free[G(g)]! < q + keep) return false;
+      const short = q + keep - free[G(g)]!;
+      if (short <= 0) continue;
+      // R1F: nothing stalls (13-ledger.md, rule 3). The carrier brings what an open site waits for,
+      // so a want that keeps the town going is placed short of its goods when the carrier may bring
+      // them and the treasury can pay its markup: a Hamlet whose lodge had felled its wood had no
+      // timber for the next lodge and waited forever.
+      if (!want.essential || !carrierBrings(w, G(g))) return false;
+      imports += Math.min(short, q) * importPrice(w, G(g));
     }
-    return true;
+    return imports === 0 || this.coins() >= want.cost.coins + imports + MONEY_RESERVE;
   }
 
   /** An advisor proposes a want; the planner starts it when the budgets allow. */
   propose(want: Want): Building | null {
     if (!this.allows(want)) return null;
-    const b = this.build(want.def);
+    const b = this.build(want.def, want.only, want.radius);
     if (!b) return null;
     if (want.budget) want.budget.left--;
     if (want.tally) for (const [g, q] of want.cost.goods) want.tally[G(g)]! -= q;
@@ -260,12 +310,16 @@ export class Planner {
   }
 
   /** The build queue: `def` at the first spot that fits (within `only`), with a path to the road. */
-  build(def: string, only?: (x: number, z: number, w: number, d: number) => boolean): Building | null {
+  build(
+    def: string,
+    only?: (x: number, z: number, w: number, d: number) => boolean,
+    radius = only ? 60 : 40,
+  ): Building | null {
     const ok = this.keepOffFloodplain
       ? (x: number, z: number, w: number, d: number) =>
           !onFloodplain(this.w, x, z, w, d) && (!only || only(x, z, w, d))
       : only;
-    const spot = findSpot(this.w, def, only ? 60 : 40, ok);
+    const spot = findSpot(this.w, def, radius, ok);
     if (!spot) {
       this.actions.push(`no spot for ${def}`);
       if (!only) this.noSpot.set(def, calendar(this.w.tick).day);
@@ -285,7 +339,10 @@ export class Planner {
   /** Paints a path from the door to the road network (the Ledger likes tidy frontage). */
   connect(b: Building): void {
     const path = pathToRoad(this.w, doorTile(b));
-    if (path && path.length > 0)
+    // R1F: a door a step or two from the road needs no path of its own (a chore the Ledger counted),
+    // unless its site rule wants a road at the door (a storehouse, a granary, a stall).
+    const roadRule = content.buildingById.get(b.def)?.placement?.some((r) => r.kind === 'road') ?? false;
+    if (path && path.length > (roadRule ? 0 : 2))
       this.do(`path for ${b.def}`, [{ t: 'road.paint', kind: 'path', tiles: path }]);
   }
 

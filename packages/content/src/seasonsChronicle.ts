@@ -33,7 +33,7 @@ export const firstFrost: ChronicleTemplate = {
   kind: 'first-frost',
   text: [
     'An early frost silvered the fields before the harvest was in. What was still standing took the worst of it.',
-    'Frost came early to {town} this year, and it did not knock. The wheat still in the fields is the poorer for it.',
+    'Frost came early to {town} this year, and it did not knock. The grain still in the fields is the poorer for it.',
     'White fields at dawn, weeks too soon. The farmers said a few words about it that the Chronicle will not print.',
   ],
   notable: true,

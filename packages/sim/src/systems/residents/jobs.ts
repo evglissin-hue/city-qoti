@@ -3,28 +3,31 @@
 // released when the building goes or is paused, and `present` always equals the workers inside
 // their workplace. Each hour one worker may move from a less important job to a more important
 // open one, so a new farm or fishery gets hands even when everyone is already employed.
-import { content, type BuildingDef } from '@qoti/content';
-import { BuildingStatus } from '../../constants';
+import { content, type BuildingDef, type ProductionMethod } from '@qoti/content';
+import { BuildingStatus, WARMTH_PER_HOUSEHOLD } from '../../constants';
 import type { Building, Resident, TickCtx, WorldState } from '../../contracts';
 import { findById } from '../../state/entities';
+import { isFood, jobsOf, methodOf } from '../../state/zones';
+import { businessView } from '../../view/businesses';
 import { townStock } from '../../view/hamlet';
 import { setInside } from '../movement/api';
 import { doorOf, householdOf, isWorkingAge, manhattan } from './places';
+import { winterMark } from '../carrier/api';
+import { isResting } from '../levels/resting';
 import { larderWelcomes, seasonNow, woodpileShort } from '../seasons/api';
+import { woodpile } from '../seasons/stores';
 import { jobFits, tierShortages } from '../tiers/api';
 import { pushHistory } from './records';
 import { dayIndex } from './time';
 
-/** Open job slots at a built building, or 0 (paused buildings hire nobody). */
+/** Open job slots at a built building, or 0 (paused and resting buildings hire nobody). */
 export function openJobs(b: Building): number {
-  if (b.stage !== 'built' || !b.rt || b.rt.paused) return 0;
-  const count = content.buildingById.get(b.def)?.jobs?.count ?? 0;
-  return Math.max(0, count - b.rt.workers.length);
+  if (b.stage !== 'built' || !b.rt || b.rt.paused || isResting(b)) return 0;
+  return Math.max(0, jobsOf(b) - b.rt.workers.length);
 }
 
-const FOOD = new Set(content.goods.filter((g) => g.food).map((g) => g.id));
-/** Grain on its way to bread counts with food. */
-const FOOD_CHAIN = new Set([...FOOD, 'wheat', 'flour']);
+/** Food goods by id: what a food job makes (grain is eaten as porridge, so it counts too). */
+const FOOD = new Set(content.goods.filter((g) => g.family === 'food').map((g) => g.id));
 
 /**
  * What the town is short of right now, recomputed each hour before hiring: food under three days
@@ -68,7 +71,7 @@ export function shortages(state: WorldState): Shortages {
   // stuck in buffers, and the first porter of each storehouse is never poached (slotPriority).
   let food = 0;
   for (let g = 0; g < content.goods.length; g++) {
-    if (!content.goods[g]!.food) continue;
+    if (!isFood(g)) continue;
     food += stock[g]!;
     for (const h of state.households) food += h.pantry[g] ?? 0;
   }
@@ -80,7 +83,7 @@ export function shortages(state: WorldState): Shortages {
   }
   const stoneGood = content.goodIndex.get('stone')!;
   const stoneRush = stock[stoneGood]! < STONE_RUSH && needs[stoneGood]! > 0;
-  for (const id of ['logs', 'planks', 'stone']) {
+  for (const id of ['timber', 'stone', 'brick']) {
     const g = content.goodIndex.get(id)!;
     if (stock[g]! < needs[g]! + 20) goods.add(id);
   }
@@ -88,35 +91,60 @@ export function shortages(state: WorldState): Shortages {
   for (const id of tierShortages(state, stock)) goods.add(id);
   // C5A: from autumn to the thaw, firewood while the woodpile could not see the winter through.
   if (woodpileShort(state)) goods.add('firewood');
+  // R1 (R1B): from Summer day 4, firewood toward the season plan's Fuel mark (days times households).
+  const fuel = winterMark(state, 1);
+  if (fuel !== null && woodpile(state) < fuel * state.households.length * WARMTH_PER_HOUSEHOLD) {
+    goods.add('firewood');
+  }
+  // R1X: a site waiting on materials the stores already hold waits for porters, not goods (willow's
+  // cottages waited days for stone with forty in store while each storehouse kept two of its four).
+  let stockedWait = false;
+  for (const b of state.buildings) {
+    const c = b.rt?.construction;
+    if (stockedWait || b.stage !== 'construction' || !c) continue;
+    if (!(b.rt!.status & BuildingStatus.waitingMaterials)) continue;
+    let any = false;
+    let all = true;
+    for (let g = 0; g < c.needs.length; g++) {
+      const n = c.needs[g] ?? 0;
+      if (n <= 0) continue;
+      any = true;
+      if (stock[g]! < n) all = false;
+    }
+    stockedWait = any && all;
+  }
   let producing = 0;
   let full = 0;
   for (const b of state.buildings) {
     if (b.stage !== 'built' || !b.rt || b.rt.paused) continue;
     const def = content.buildingById.get(b.def);
-    if (!def?.methods?.length || def.category === 'service') continue;
+    if (!methodOf(b) || def?.category === 'service') continue;
     producing++;
     if (b.rt.status & BuildingStatus.outputFull) full++;
+    // R1X: a maker at work missing an input the stores hold waits for porters too (oak's weavers
+    // stood a day with no wool while twelve sat in store in winter).
+    if (!stockedWait && b.rt.workers.length > 0 && b.rt.status & BuildingStatus.missingInput) {
+      const m = methodOf(b);
+      if (m?.inputs.some(([id]) => (stock[content.goodIndex.get(id) ?? -1] ?? 0) > 0)) stockedWait = true;
+    }
   }
   return {
     food: food < 3 * state.residents.length,
     winter: seasonNow(state).season === 2 && !larderWelcomes(state, WAITING_FAMILY),
     goods,
     plenty: food > PLENTY_DAYS * state.residents.length,
-    haul: producing > 0 && full >= producing * HAUL_SHORT_SHARE,
+    haul: stockedWait || (producing > 0 && full >= producing * HAUL_SHORT_SHARE),
     stoneRush,
   };
 }
 
-function makes(def: BuildingDef, short: Shortages): 'short' | 'food' | 'other' {
-  for (const m of def.methods ?? []) {
-    for (const [g] of m.outputs) {
-      if (short.goods.has(g) || (short.food && FOOD_CHAIN.has(g))) return 'short';
-    }
-    if (m.kind === 'farm' && short.food) return 'short';
+function makes(m: ProductionMethod | null, short: Shortages): 'short' | 'food' | 'other' {
+  if (!m) return 'other';
+  for (const [g] of m.outputs) {
+    if (short.goods.has(g) || (short.food && FOOD.has(g))) return 'short';
   }
-  return (def.methods ?? []).some((m) => m.kind === 'farm' || m.outputs.some(([g]) => FOOD_CHAIN.has(g)))
-    ? 'food'
-    : 'other';
+  if (m.kind === 'farm' && short.food) return 'short';
+  return m.kind === 'farm' || m.outputs.some(([g]) => FOOD.has(g)) ? 'food' : 'other';
 }
 
 /**
@@ -128,13 +156,21 @@ function makes(def: BuildingDef, short: Shortages): 'short' | 'food' | 'other' {
  * Without a porter nothing moves and without a builder nothing gets built, so those two are never
  * poached; past them a hamlet of eight keeps fed and keeps building before it hauls.
  */
-export function slotPriority(def: BuildingDef, k: number, short: Shortages = NO_SHORTAGES): number {
+export function slotPriority(
+  def: BuildingDef,
+  k: number,
+  short: Shortages = NO_SHORTAGES,
+  method: ProductionMethod | null = def.methods?.[0] ?? null,
+): number {
   const role = def.jobs?.role ?? 'worker';
   if (role === 'builder') return k === 0 ? 0 : k === 1 ? 1 : 4;
   // C5A: with the larder short of the winter in autumn and goods piling up for want of porters, a
   // storehouse's first two porters come first and the rest rank with food work (a harvest waiting
   // in full baskets fills no larder).
   if (role === 'porter' && short.haul && short.winter) return k <= 1 ? 0 : 1;
+  // R1 (R1B): the granary's porters rank behind the storehouse's, so a fresh town's few hands also
+  // reach its workplaces (the first rank 1, the second 4; a storehouse's first porter stays 0).
+  if (role === 'porter' && (def.id === 'granary' || isFoodStore(def))) return k === 0 ? 1 : 4;
   if (role === 'porter') return k === 0 ? 0 : k === 1 ? 1 : short.haul ? 3 : 4;
   if (role === 'vendor') return 1;
   // I2 (C4C): a tavern, herbalist or school open matters like a stall's vendor; and a town sitting on
@@ -142,9 +178,8 @@ export function slotPriority(def: BuildingDef, k: number, short: Shortages = NO_
   if (def.category === 'service') return k === 0 ? 0 : 1;
   // Playtest round six: a site waiting on the last of the stone puts the quarry's first hand ahead
   // of everything (never poached from, see rebalanceJobs: only a first-hand hire goes this high).
-  if (short.stoneRush && k === 0 && (def.methods ?? []).some((m) => m.outputs.some(([g]) => g === 'stone')))
-    return -1;
-  const kind = makes(def, short);
+  if (short.stoneRush && k === 0 && !!method?.outputs.some(([g]) => g === 'stone')) return -1;
+  const kind = makes(method, short);
   if (kind === 'short') return 0;
   // C5A: food work, with the larder short of the winter in autumn: ahead of other workplaces, never
   // ahead of the first two builders and porters (or nothing reaches the shelves).
@@ -153,8 +188,12 @@ export function slotPriority(def: BuildingDef, k: number, short: Shortages = NO_
   // places always starts (a clay pit that never digs never invents the kiln).
   if (k === 0) return 2;
   // The mill and the bakery keep their hands: bread is its own need for Craftsfolk.
-  const grows = (def.methods ?? []).every((m) => m.kind !== 'craft');
+  const grows = method?.kind !== 'craft';
   return kind === 'food' ? (short.plenty && grows ? 5 : 2) : 3;
+}
+
+function isFoodStore(def: BuildingDef): boolean {
+  return def.stores?.length === 1 && def.stores[0] === 'food';
 }
 
 const NO_SHORTAGES: Shortages = { food: false, goods: new Set() };
@@ -172,8 +211,41 @@ function insertSorted(list: number[], id: number): void {
   if (list[i - 1] !== id) list.splice(i, 0, id);
 }
 
-/** Gives the resident a job at the building (moving the present count if they are inside). */
-export function hire(state: WorldState, r: Resident, b: Building): void {
+/** Sets a business's keeper and tells the Businesses book (when a tick context is at hand). */
+function setKeeper(state: WorldState, ctx: TickCtx | undefined, b: Building, id: number): void {
+  if ((b.keeperId ?? 0) === id) return;
+  b.keeperId = id;
+  ctx?.events.push({ e: 'business.updated', b: businessView(state, b) });
+}
+
+/** The hand who has served the business longest: the oldest latest 'job' line for it, ties by id. */
+function longestServing(state: WorldState, b: Building): number {
+  let best = 0;
+  let bestDay = Infinity;
+  for (const id of b.rt?.workers ?? []) {
+    const r = findById(state.residents, id);
+    if (!r) continue;
+    let day = -Infinity;
+    for (let i = r.history.length - 1; i >= 0; i--) {
+      const h = r.history[i]!;
+      if (h.kind === 'job' && h.ref === b.id) {
+        day = h.day;
+        break;
+      }
+    }
+    if (day < bestDay || (day === bestDay && id < best)) {
+      best = id;
+      bestDay = day;
+    }
+  }
+  return best;
+}
+
+/**
+ * Gives the resident a job at the building (moving the present count if they are inside). The first
+ * hand of a business with no keeper becomes its keeper (docs/spec/13-ledger.md, A business).
+ */
+export function hire(state: WorldState, r: Resident, b: Building, ctx?: TickCtx): void {
   if (!b.rt) return;
   const inside = r.inside;
   if (inside) setInside(state, r, 0);
@@ -181,10 +253,16 @@ export function hire(state: WorldState, r: Resident, b: Building): void {
   insertSorted(b.rt.workers, r.id);
   if (inside) setInside(state, r, inside);
   pushHistory(state, r, 'job', b.id);
+  if (b.trade && (!b.keeperId || !findById(state.residents, b.keeperId))) setKeeper(state, ctx, b, r.id);
+  // A keeper who took work elsewhere no longer keeps an empty business.
+  for (const o of state.buildings) {
+    if (o.keeperId === r.id && o.id !== b.id && o.rt && o.rt.workers.length === 0)
+      setKeeper(state, ctx, o, 0);
+  }
 }
 
 /** Ends the resident's job. `lost` logs it (the workplace went away). */
-export function release(state: WorldState, r: Resident, lost = false): void {
+export function release(state: WorldState, r: Resident, lost = false, ctx?: TickCtx): void {
   if (!r.jobId) return;
   const b = findById(state.buildings, r.jobId);
   const inside = r.inside;
@@ -199,6 +277,38 @@ export function release(state: WorldState, r: Resident, lost = false): void {
   if (r.activity.kind === 'work' || r.activity.kind === 'commute' || r.activity.kind === 'task') {
     r.activity = { kind: 'home' };
   }
+  // The keeper goes: the longest-serving hand left takes the keys; with none left, the business
+  // keeps its keeper while they live (a hire elsewhere clears it, see `hire`).
+  if (b?.trade && b.keeperId === r.id) {
+    const next = longestServing(state, b);
+    if (next) setKeeper(state, ctx, b, next);
+    else if (!findById(state.residents, r.id)) setKeeper(state, ctx, b, 0);
+  }
+}
+
+/**
+ * A business whose growth named a keeper (a keen resident) hires them first once it is built and
+ * has a job open (they leave their current work), at most once: a keeper who has worked there
+ * already is left to the normal priorities. An apprentice still serving, or one mid-task, waits for
+ * a later hour; a keeper who is gone is struck off so the first hand takes the keys.
+ */
+export function seatKeeper(state: WorldState, ctx: TickCtx, b: Building): boolean {
+  if (!b.trade || !b.keeperId || !b.rt || openJobs(b) <= 0) return false;
+  if (b.rt.workers.includes(b.keeperId)) return false;
+  const r = findById(state.residents, b.keeperId);
+  if (!r) {
+    setKeeper(state, ctx, b, 0);
+    return false;
+  }
+  if (r.history.some((h) => h.kind === 'job' && h.ref === b.id)) return false;
+  if (!isWorkingAge(r) || r.activity.kind === 'task' || r.carry) return false;
+  const k = r.activity.kind;
+  if (k === 'arrive' || k === 'leave' || !householdOf(state, r)?.homeId) return false;
+  if (r.apprentice && r.apprentice.untilDay > dayIndex(state.tick)) return false;
+  if (!jobFits(r.tier, content.buildingById.get(b.def))) return false;
+  if (r.jobId) release(state, r, false, ctx);
+  hire(state, r, b, ctx);
+  return true;
 }
 
 /** Can this resident take a job? Working age, housed, settled in and not on their way out. */
@@ -216,7 +326,7 @@ const STUCK = BuildingStatus.noTrees | BuildingStatus.noFields | BuildingStatus.
 function jobPriority(b: Building, def: BuildingDef, k: number, short: Shortages): number {
   // C4C: a tavern out of cider or a herbalist out of herbs still serves; it is never stuck.
   const stuck = def.category !== 'service' && !!b.rt && (b.rt.status & STUCK) !== 0;
-  return stuck ? 5 : slotPriority(def, k, short);
+  return stuck ? 5 : slotPriority(def, k, short, methodOf(b));
 }
 
 /** Priority of a building's next open slot (Infinity when it has none). */
@@ -231,7 +341,8 @@ function openPriority(b: Building, short: Shortages): number {
  * nearest by walking distance from home among equals (Manhattan between doors; ties by building
  * id). Returns the number hired.
  */
-export function assignJobs(state: WorldState, _ctx: TickCtx, only?: Resident): number {
+export function assignJobs(state: WorldState, ctx: TickCtx, only?: Resident): number {
+  if (!only) for (const b of state.buildings) if (b.keeperId) seatKeeper(state, ctx, b);
   const open: Building[] = [];
   for (const b of state.buildings) if (openJobs(b) > 0) open.push(b);
   if (open.length === 0) return 0;
@@ -257,7 +368,7 @@ export function assignJobs(state: WorldState, _ctx: TickCtx, only?: Resident): n
       }
     }
     if (!best) continue;
-    hire(state, r, best);
+    hire(state, r, best, ctx);
     hired++;
   }
   return hired;
@@ -267,7 +378,7 @@ export function assignJobs(state: WorldState, _ctx: TickCtx, only?: Resident): n
  * Moves at most one worker an hour from the least important filled job to the most important
  * open one, when the open one matters more. Workers out on a Ledger task finish it first.
  */
-export function rebalanceJobs(state: WorldState): boolean {
+export function rebalanceJobs(state: WorldState, ctx?: TickCtx): boolean {
   const short = shortages(state);
   let target: Building | null = null;
   let targetP = Infinity;
@@ -301,8 +412,8 @@ export function rebalanceJobs(state: WorldState): boolean {
     }
   }
   if (!from) return false;
-  release(state, from);
-  hire(state, from, target);
+  release(state, from, false, ctx);
+  hire(state, from, target, ctx);
   return true;
 }
 
@@ -310,16 +421,18 @@ export function rebalanceJobs(state: WorldState): boolean {
  * Releases jobs at buildings that are gone and recounts `present`, so it holds even if another
  * system moved a worker without telling anyone.
  */
-export function auditJobs(state: WorldState): void {
+export function auditJobs(state: WorldState, ctx?: TickCtx): void {
   for (const r of state.residents) {
     if (!r.jobId) continue;
     const b = findById(state.buildings, r.jobId);
-    if (!b) release(state, r, true);
+    if (!b) release(state, r, true, ctx);
     // Pausing a building lets its workers go (a Ledger lever for labor), once their task is done.
-    else if (b.rt?.paused && r.activity.kind !== 'task' && !r.carry) release(state, r);
+    else if (b.rt?.paused && r.activity.kind !== 'task' && !r.carry) release(state, r, false, ctx);
+    // R1 (B): a business with nothing to do rests, and its hands go where work is.
+    else if (isResting(b) && r.activity.kind !== 'task' && !r.carry) release(state, r, false, ctx);
     // C4C: a worker who has grown old hands the job on (the schedule no longer sends elders to
     // work, so the job sat empty; a Village autoplay lost its only miller that way).
-    else if (!isWorkingAge(r) && r.activity.kind !== 'task' && !r.carry) release(state, r);
+    else if (!isWorkingAge(r) && r.activity.kind !== 'task' && !r.carry) release(state, r, false, ctx);
   }
   for (const b of state.buildings) {
     const rt = b.rt;

@@ -6,23 +6,21 @@ import type { ZoneDef } from './types';
 
 export const crafts: ZoneDef = {
   id: 'crafts',
-  name: 'Crafts',
+  name: 'Workshops',
   layerValue: 4,
   density: 'low',
-  blurb: 'Small workshops that pick up whatever the market is short of.',
-  lots: [
-    { size: [3, 3], weight: 2 },
-    { size: [2, 3], weight: 1 },
-  ],
+  blurb: 'Small workshops that take up whatever trade the town is short of.',
+  // R1: every trade grows on the 3x3 workshop, so Workshops land is cut only into lots it fits.
+  lots: [{ size: [3, 3], weight: 1 }],
   token: 'ochre',
 };
 
 export const farms: ZoneDef = {
   id: 'farms',
-  name: 'Farms',
+  name: 'Farmland',
   layerValue: 5,
   density: 'low',
-  blurb: 'Farmsteads with fields, pastures or orchards, wherever the soil is kind.',
+  blurb: 'Farmsteads with fields, pastures, orchards or hives, wherever the soil is kind.',
   lots: [{ size: [3, 3], weight: 1 }],
   token: 'moss',
 };
@@ -54,6 +52,7 @@ export const homesMedium: ZoneDef = {
     { size: [2, 2], weight: 1 },
   ],
   token: 'plum',
+  requires: { rank: 'village' },
 };
 
 export const shops: ZoneDef = {
@@ -67,4 +66,5 @@ export const shops: ZoneDef = {
     { size: [3, 3], weight: 1 },
   ],
   token: 'teal',
+  requires: { rank: 'village' },
 };

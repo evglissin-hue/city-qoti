@@ -20,7 +20,7 @@ export function noteTool(ctx: ToolContext): Tool {
       if (!p.tile || busy) return;
       const { x, z } = p.tile;
       busy = true;
-      void ctx.ui.prompt('Pin a note', 'Bakery here? Keep the meadow?', MAX_NOTE_CHARS).then((text) => {
+      void ctx.ui.prompt('Pin a note', 'Windmill here? Keep the meadow?', MAX_NOTE_CHARS).then((text) => {
         busy = false;
         if (text && text.trim()) ctx.submit({ t: 'note.pin', x, z, text: text.trim() });
       });

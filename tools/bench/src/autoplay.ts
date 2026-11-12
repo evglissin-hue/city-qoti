@@ -21,6 +21,13 @@
 // side is the street, charter, money and hamlet advisors, the Hearth's the hearth advisor, the C4D
 // loop the together advisor and the C4C Village half the village advisor. They play as the two
 // players did, to the coin (TUNE-RESTRUCTURE.md).
+//
+// R1.0: the zones-first Ledger. The street advisor zones Homes, Workshops and Farmland on the first
+// morning and the businesses grow by themselves; the advisors place only specialized buildings and
+// services, and send no standing order, sale, calling or labor pause (the carrier imports what is
+// short by itself). The night's growth pass is watched from the second day, and every day line
+// carries the growth numbers. R1F: the land advisor zones and sites, the plan advisor answers the
+// season card, and the decisions count keeps the Ledger's commands under R1's limit.
 import { content } from '@qoti/content';
 import {
   basketScore,
@@ -38,8 +45,11 @@ import {
   type HealthIssue,
   type WorldState,
 } from '@qoti/sim';
-import { advisors, type AutoplayOptions } from './advisors';
+import { advisors, type Advisor, type AutoplayOptions } from './advisors';
+import type { Lane } from './advisors/types';
 import { command, runTicks, startingTown, type Hamlet } from './hamlet';
+import type { DecisionRecord } from './decisions';
+import { ledgerLine, type LedgerLine } from './ledgerRow';
 import { Planner } from './planner';
 import { charterLine, craftsfolk, FOODS, G, sites, storyLetters, vacantHomes } from './town';
 import { grownSince, growthLine, type GrowthLine, type GrowthNight, type HighStreet } from './village';
@@ -58,7 +68,7 @@ export interface DayLine {
   food: number;
   foodMade: number;
   foodEaten: number;
-  planks: number;
+  timber: number;
   stone: number;
   avgMood: number;
   miserable: number;
@@ -70,7 +80,7 @@ export interface DayLine {
   leanTimes: boolean;
   built: number;
   sites: number;
-  /** Village runs (C4B): lots, grown buildings by zone kind and demand. */
+  /** Lots, grown buildings by zone kind and demand (C4B; R1: every run, from the first day). */
   growth?: GrowthLine;
   // I2 (C4A)
   rank: string;
@@ -101,6 +111,8 @@ export interface DayLine {
   // I2 (C4C)
   craftsfolk: number;
   innovations: number;
+  /** R1F: the zones-first ledger numbers (balances, bars, businesses, hands, carrier). */
+  ledger?: LedgerLine;
 }
 
 export interface AutoplayResult {
@@ -112,6 +124,8 @@ export interface AutoplayResult {
   street?: HighStreet | null;
   /** Playtest round three: every health issue seen, checked each game hour (first sighting kept). */
   health: HealthIssue[];
+  /** R1F: every command the players sent, by lane and kind (the decisions count). */
+  decisions: DecisionRecord[];
 }
 
 function dayLine(w: WorldState, day: number): DayLine {
@@ -128,7 +142,7 @@ function dayLine(w: WorldState, day: number): DayLine {
     food: FOODS.reduce((n, g) => n + stock[g]!, 0),
     foodMade: FOODS.reduce((n, g) => n + (w.economy.yesterday.produced[g] ?? 0), 0),
     foodEaten: FOODS.reduce((n, g) => n + (w.economy.yesterday.consumed[g] ?? 0), 0),
-    planks: stock[G('planks')]!,
+    timber: stock[G('timber')]!,
     stone: stock[G('stone')]!,
     avgMood: moods.length ? Math.round(moods.reduce((a, b) => a + b, 0) / moods.length) : 0,
     miserable: w.residents.filter((r) => moodBand(r.mood) <= 1).length,
@@ -146,9 +160,10 @@ function dayLine(w: WorldState, day: number): DayLine {
     wages: coinsOf(y[cat('wages')]!),
     sales: coinsOf(y[cat('sales')]!),
     taxes: coinsOf(y[cat('taxes')]!),
-    trade: coinsOf(y[cat('exports')]! - y[cat('imports')]! + y[cat('peddler')]!),
+    // R1: the carrier books its sales and purchases as exports and imports (the peddler line is gone).
+    trade: coinsOf(y[cat('exports')]! - y[cat('imports')]!),
     owed: coinsOf(loansOwed(w)),
-    basket: Math.round(w.households.reduce((n, h) => n + basketScore(h), 0) / hh),
+    basket: Math.round(w.households.reduce((n, h) => n + basketScore(w, h), 0) / hh),
     wageLevel: w.levers.wageLevel,
     taxRate: w.levers.taxRate,
     couples: w.village.couples,
@@ -160,6 +175,7 @@ function dayLine(w: WorldState, day: number): DayLine {
     plans: w.village.plansApproved,
     craftsfolk: craftsfolk(w),
     innovations: w.innovations.filter((i) => i.unlockedTick >= 0).length,
+    ledger: ledgerLine(w),
   };
 }
 
@@ -191,9 +207,13 @@ function untilHour(h: Hamlet, hour: number, hourly?: () => void): void {
  * players leave the valley alone, so what happens next is the village's own doing.
  */
 export function autoplay(seed: string, days: number, opts: AutoplayOptions = {}): AutoplayResult {
-  const h = startingTown(seed, { economy: opts.economy ?? 'standard' });
-  // C5D: the threat dial (valleys start Peaceful).
-  if (opts.threat) h.world.settings.threat = opts.threat;
+  const h = startingTown(seed, {
+    economy: opts.economy ?? 'standard',
+    record: opts.record,
+    threat: opts.threat,
+  });
+  // C5D: the threat dial (valleys start Peaceful). A recorded run has it in its settings already.
+  if (opts.threat && !opts.record) h.world.settings.threat = opts.threat;
   const planner = new Planner(h);
   // Every advisor that plays this run, in visit order.
   // C5X: TUNE_SKIP=nature,festivals leaves advisors out, to see what each one costs (tuning only).
@@ -201,7 +221,16 @@ export function autoplay(seed: string, days: number, opts: AutoplayOptions = {})
   const team = advisors
     .filter((a) => a.plays(opts, h.world) && !skip.includes(a.id))
     .sort((a, b) => a.slot - b.slot)
-    .map((a) => a.create(planner, opts));
+    .map((a) => ({ def: a, advisor: a.create(planner, opts) }));
+  /** R1F: runs an advisor's visit (or rank-up) with the planner told whose it is. */
+  const as = (t: { def: { id: string; lane: Lane }; advisor: Advisor }, f: (a: Advisor) => void) => {
+    planner.advisor = { id: t.def.id, lane: t.def.lane };
+    try {
+      f(t.advisor);
+    } finally {
+      planner.advisor = null;
+    }
+  };
   const out: DayLine[] = [];
   const store = content.buildingById.get('storehouse') as { tags: string[] };
   const tags = store.tags;
@@ -217,9 +246,16 @@ export function autoplay(seed: string, days: number, opts: AutoplayOptions = {})
   try {
     for (let d = 1; d <= days; d++) {
       const playing = opts.handsOff === undefined || d < opts.handsOff;
-      // Village runs watch the night's growth pass (01:00): what it wanted, and what it started.
+      // R1F lanes test: a lane that is off sends nothing from its day on, and its own advisors stay home.
+      planner.runDay = d;
+      planner.offLanes.clear();
+      if (opts.hearthOffFrom !== undefined && d >= opts.hearthOffFrom) planner.offLanes.add('hearth');
+      if (opts.ledgerOffFrom !== undefined && d >= opts.ledgerOffFrom) planner.offLanes.add('ledger');
+      const visits = team.filter((t) => t.def.lane === 'both' || !planner.offLanes.has(t.def.lane));
+      // The night's growth pass (01:00): what it wanted, and what it started. R1: from the second
+      // day (the first starts after 01:00), not from the Village claim: the zones are open from founding.
       let night: GrowthNight | undefined;
-      if (villageFrom > 0 && d > villageFrom) {
+      if (d > 1) {
         untilHour(h, 1, look);
         const before = growthLine(h.world);
         runTicks(h, 1);
@@ -235,16 +271,16 @@ export function autoplay(seed: string, days: number, opts: AutoplayOptions = {})
       // The first morning at Village rank, however it came, the Ledger lays and zones a high street.
       if (villageFrom === 0 && rankAtLeast(h.world, 'village')) {
         villageFrom = d;
-        if (playing) for (const a of team) a.rankUp?.();
+        if (playing) for (const t of visits) as(t, (a) => a.rankUp?.());
       }
       if (lend && rankAtLeast(h.world, 'village') && store.tags === tags)
         store.tags = [...tags, 'trading-post'];
-      if (playing) for (const a of team) a.visit({ afternoon: false });
+      if (playing) for (const t of visits) as(t, (a) => a.visit({ afternoon: false }));
       untilHour(h, 15, look);
-      if (playing) for (const a of team) a.visit({ afternoon: true });
+      if (playing) for (const t of visits) as(t, (a) => a.visit({ afternoon: true }));
       untilHour(h, 23, look);
       const line = dayLine(h.world, d);
-      if (villageFrom > 0) line.growth = { ...growthLine(h.world), night };
+      line.growth = { ...growthLine(h.world), night };
       out.push(line);
       opts.onDay?.(h.world, line);
     }
@@ -257,6 +293,7 @@ export function autoplay(seed: string, days: number, opts: AutoplayOptions = {})
     actions: planner.actions,
     street: planner.street,
     health: [...health.values()],
+    decisions: planner.decisions,
   };
 }
 
@@ -265,10 +302,10 @@ function kinds(k: GrowthDemand | undefined): string {
   return k ? `${k.homes}${k.shops}${k.crafts}${k.farms}` : '-';
 }
 
-/** The table `npm run tune` prints (Village runs add the night's growth: wanted and started). */
+/** The table `npm run tune` prints (with the night's growth: wanted and started). */
 export function formatDays(days: readonly DayLine[]): string {
   const head =
-    'day  pop hh vac coins food made eaten plank stone mood mis wish grant pat ach left lean built sites' +
+    'day  pop hh vac coins food made eaten timbr stone mood mis wish grant pat ach left lean built sites' +
     '  cpl wed born sea story req plan | rank    charter        sav wage sale  tax trade owed bask wl tx crafts inv' +
     (days.some((d) => d.growth) ? ' lots hom sh cr fa grw want+ grew+' : '');
   const rows = days.map((d) =>
@@ -281,7 +318,7 @@ export function formatDays(days: readonly DayLine[]): string {
       String(d.food).padStart(4),
       String(d.foodMade).padStart(4),
       String(d.foodEaten).padStart(5),
-      String(d.planks).padStart(5),
+      String(d.timber).padStart(5),
       String(d.stone).padStart(5),
       String(d.avgMood).padStart(4),
       String(d.miserable).padStart(3),

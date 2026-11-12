@@ -13,11 +13,10 @@ import {
   START_HOUR,
   TICKS_PER_DAY,
   TICKS_PER_HOUR,
-  TRADE_BUY_PERCENT,
-  TRADE_SELL_PERCENT,
   WAGES,
 } from '../constants';
 import type {
+  Building,
   CharterView,
   EntityId,
   InnovationView,
@@ -43,7 +42,9 @@ import { findById } from '../state/entities';
 import { calendar } from '../systems/clock/calendar';
 import { dayIndex } from '../systems/economy/time';
 import { marketOpen } from '../systems/market/api';
+import { termsFor, tradingPost } from '../systems/carrier/terms';
 import { renownEffect } from '../systems/renown/api';
+import { basketGroups } from '../systems/market/baskets';
 import { targetPrice } from '../systems/market/prices';
 import { profitReport } from '../systems/market/profit';
 import { charmAt } from '../conditions';
@@ -145,9 +146,9 @@ export function tierBaskets(state: WorldState): TierBasketView[] {
       tier,
       households: hs.length,
       savings: Math.round(savings / hs.length),
-      groups: (basket?.groups ?? []).map((g, i) => {
+      groups: (basket ? basketGroups(basket) : []).map((g, i, all) => {
         let sum = 0;
-        for (const h of hs) sum += h.basket?.length === basket!.groups.length ? (h.basket[i] ?? 100) : 100;
+        for (const h of hs) sum += h.basket && h.basket.length === all.length ? (h.basket[i] ?? 100) : 100;
         return { id: g.id, name: g.name, satisfaction: Math.round(sum / hs.length) };
       }),
     });
@@ -162,15 +163,10 @@ export function wagesAt(level: number): number[] {
 
 export function leversView(state: WorldState): LeversView {
   const l = state.levers;
-  const bans: string[] = [];
-  l.exportBans.forEach((b, i) => {
-    if (b) bans.push(goodId(i));
-  });
   return {
     wageLevel: l.wageLevel,
     taxRate: l.taxRate,
     wages: wagesAt(l.wageLevel),
-    exportBans: bans,
     ...(l.marketDay !== undefined && { marketDay: l.marketDay }),
     ...(l.quietHours !== undefined && { quietHours: l.quietHours }),
   };
@@ -225,60 +221,106 @@ export function regionalPrice(state: WorldState, neighbor: string, good: number)
   const id = g.id;
   const factor = def.sells.find(([x]) => x === id)?.[1] ?? def.buys.find(([x]) => x === id)?.[1] ?? null;
   if (factor === null) return null;
-  const season = calendar(state.tick).season;
+  return priceWith(def, n, g.basePrice, id, factor, good, calendar(state.tick).season);
+}
+
+/** A neighbor's seasonal swings of one good as [season, percent], in content order (content is fixed, so listed once). */
+const SEASONAL = new WeakMap<object, Map<string, [number, number][]>>();
+const NO_SWINGS: [number, number][] = [];
+
+function seasonalOf(
+  def: { seasonal?: readonly (readonly [string, number, number])[] },
+  id: string,
+): [number, number][] {
+  let byGood = SEASONAL.get(def);
+  if (!byGood) {
+    byGood = new Map();
+    for (const [x, s, p] of def.seasonal ?? []) {
+      const list = byGood.get(x);
+      if (list) list.push([s, p]);
+      else byGood.set(x, [[s, p]]);
+    }
+    SEASONAL.set(def, byGood);
+  }
+  return byGood.get(id) ?? NO_SWINGS;
+}
+
+/** The regional price for a good the neighbor trades, in a given season (regionalPrice's formula). */
+function priceWith(
+  def: { seasonal?: readonly (readonly [string, number, number])[] },
+  n: { drift: readonly number[]; impact: readonly number[] },
+  basePrice: number,
+  id: string,
+  factor: number,
+  good: number,
+  season: number,
+): number {
   let seasonal = 100;
-  for (const [x, s, p] of def.seasonal ?? []) if (x === id && s === season) seasonal = p;
+  const list = seasonalOf(def, id);
+  for (let k = 0; k < list.length; k++) if (list[k]![0] === season) seasonal = list[k]![1];
   const drift = n.drift[good] ?? 1000;
   const impact = n.impact[good] ?? 1000;
   // Integer math (exact below 2^53), so the sim can use it too: base x factor% x season% x drift‰ x impact‰.
-  return Math.max(1, Math.round((g.basePrice * factor * seasonal * drift * impact) / 1e10));
+  return Math.max(1, Math.round((basePrice * factor * seasonal * drift * impact) / 1e10));
 }
 
-export function tradeView(state: WorldState): TradeView {
-  // Only a built post counts: a construction site is not yet a Trading Post.
-  const post = state.buildings.find(
-    (b) => b.stage === 'built' && content.buildingById.get(b.def)?.tags?.includes('trading-post'),
-  );
-  // Renown earns better terms, the same percent the post itself applies (trade/caravans.ts).
-  const terms = renownEffect(state, 'trade');
+/** Each neighbor's traded goods by id (sorted), with their index: content is fixed, so worked out once. */
+const NEIGHBOR_GOODS = new Map<
+  string,
+  { good: string; i: number; sells: number | undefined; buys: number | undefined }[]
+>();
+
+function neighborGoods(n: (typeof content.neighbors)[number]) {
+  let list = NEIGHBOR_GOODS.get(n.id);
+  if (!list) {
+    const goods = new Set([...n.sells.map(([g]) => g), ...n.buys.map(([g]) => g)]);
+    list = [...goods].sort().map((good) => ({
+      good,
+      i: content.goodIndex.get(good)!,
+      sells: n.sells.find(([g]) => g === good)?.[1],
+      buys: n.buys.find(([g]) => g === good)?.[1],
+    }));
+    NEIGHBOR_GOODS.set(n.id, list);
+  }
+  return list;
+}
+
+export function tradeView(state: WorldState, known?: { post: Building | null }): TradeView {
+  // Only a built post counts: a construction site is not yet a Trading Post. The carrier passes the
+  // one it found on its own pass over the buildings.
+  const post = known ? known.post : tradingPost(state);
+  // The carrier's terms today (the peddler's, or the post's), with renown's (systems/carrier/terms.ts).
+  const terms = termsFor(state, !!post);
+  const season = calendar(state.tick).season;
+  const renown = renownEffect(state, 'trade');
   return {
     neighbors: content.neighbors
       .filter((n) => !n.rank || RANKS.indexOf(state.charter.rank) >= RANKS.indexOf(n.rank))
       .map((n) => {
-        const goods = new Set([...n.sells.map(([g]) => g), ...n.buys.map(([g]) => g)]);
+        // The neighbor's standing in the valley: no standing, no price (as regionalPrice has it).
+        const ns = state.trade.neighbors.find((x) => x.id === n.id);
         return {
           id: n.id,
           name: n.name,
           blurb: n.blurb,
-          prices: [...goods].sort().map((good) => {
-            const i = content.goodIndex.get(good)!;
-            const p = regionalPrice(state, n.id, i);
-            const sells = n.sells.some(([x]) => x === good);
-            const buys = n.buys.some(([x]) => x === good);
+          prices: neighborGoods(n).map(({ good, i, sells, buys }) => {
+            const g = content.goods[i]!;
+            // carrierBuyPrice (what the carrier pays, where the neighbor sells) and carrierSellPrice, with one season and one renown read.
+            const p = ns ? priceWith(n, ns, g.basePrice, good, (sells ?? buys)!, i, season) : null;
             return {
               good,
-              buy: p !== null && sells ? Math.round((p * TRADE_BUY_PERCENT * (100 - terms)) / 10000) : null,
-              sell: p !== null && buys ? Math.round((p * TRADE_SELL_PERCENT * (100 + terms)) / 10000) : null,
+              buy:
+                sells === undefined || p === null
+                  ? null
+                  : Math.max(1, Math.round((p * terms.buy * (100 - renown)) / 10000)),
+              sell:
+                buys === undefined || p === null
+                  ? null
+                  : Math.round((p * terms.sell * (100 + renown)) / 10000),
             };
           }),
         };
       }),
-    orders: state.trade.orders.map((o) => ({
-      good: goodId(o.good),
-      min: o.min,
-      max: o.max,
-      floor: o.floor,
-      ceiling: o.ceiling,
-      neighbor: o.neighbor,
-    })),
-    caravans: state.trade.caravans.map((c) => ({
-      id: c.id,
-      neighbor: c.neighbor,
-      selling: c.selling.map(([g, q]) => [goodId(g), q]),
-      buying: c.buying.map(([g, q]) => [goodId(g), q]),
-      departTick: c.departTick,
-      returnTick: c.returnTick,
-    })),
     log: state.trade.log.map((e) => ({ ...e, good: goodId(e.good) })),
     postId: post?.id ?? 0,
   };
@@ -302,13 +344,6 @@ export function charterView(state: WorldState): CharterView {
     }),
     ready: c.ready,
     history: c.history.map((h) => ({ ...h, seats: [...h.seats] })),
-    ...(state.calling && {
-      calling: {
-        offered: state.calling.offered.map((id, i) => ({ id, reason: state.calling!.reasons[i] ?? '' })),
-        chosen: state.calling.chosen,
-        together: state.seats.length >= 2,
-      },
-    }),
   };
 }
 

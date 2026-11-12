@@ -16,17 +16,23 @@ export const NO_CLIENT_SENDER: Record<string, string> = {
   'sys.seatLeft': 'system command, sent only by RoomCore when a seat disconnects',
   // Honest gaps: the sim takes them, but no tool or button sends them yet. Each is a feature to
   // build, not a reason to keep the entry; the test says so when a sender appears.
-  'plan.edit': 'NO UI YET: the sim can edit an open plan, the plans panel only adds, comments and resolves',
   // Covered another way.
   'wall.remove': 'walls are buildings: the demolish tool takes them down with build.remove',
 };
+
+/**
+ * R1.0: commands that land before their buttons. Each names the cycle that owes the sender and why;
+ * the entry comes off when that cycle ships it (the test says so), so this list only shrinks.
+ */
+export const OWED_SENDERS: Record<string, { cycle: 'R1C' | 'R1D'; why: string }> = {};
 
 function commandTypes(): string[] {
   const src = readFileSync(join(root, 'packages/sim/src/contracts/commands.ts'), 'utf8');
   const start = src.indexOf('export type Command =');
   const end = src.indexOf('\nexport ', start + 1);
   const block = src.slice(start, end < 0 ? undefined : end);
-  return [...block.matchAll(/^ {2}\| \{ t: '([^']+)'/gm)].map((m) => m[1]!);
+  // A member is `| { t: '...'; ... }` on one line, or `| {` with `t: '...'` on the next (festival.plan).
+  return [...block.matchAll(/^ {2}\| \{\s*t: '([^']+)'/gm)].map((m) => m[1]!);
 }
 
 function clientSource(dir: string): string {
@@ -44,14 +50,34 @@ describe('every command has a sender', () => {
   const client = clientSource(join(root, 'apps/client/src'));
   const sent = (t: string) => new RegExp(`\\bt: [^,}\\n]*'${t.replace('.', '\\.')}'`).test(client);
 
-  it('reads the command union', () => {
+  it('reads the command union, members written over several lines too', () => {
     expect(types.length).toBeGreaterThan(40);
     expect(new Set(types).size).toBe(types.length);
+    expect(types).toContain('festival.plan');
+    expect(types).toContain('build.move');
+    // Every `t: '...'` in the union's block is a member the reader found (none hides on a new line).
+    const src = readFileSync(join(root, 'packages/sim/src/contracts/commands.ts'), 'utf8');
+    const block = src.slice(
+      src.indexOf('export type Command ='),
+      src.indexOf('\nexport ', src.indexOf('export type Command =') + 1),
+    );
+    const all = [...block.matchAll(/\bt: '([^']+)'/g)].map((m) => m[1]!);
+    expect(types).toEqual(all);
   });
 
-  it('is sent by the client or allowlisted with a reason', () => {
-    const missing = types.filter((t) => !sent(t) && !(t in NO_CLIENT_SENDER));
+  it('is sent by the client, allowlisted with a reason, or owed by a named cycle', () => {
+    const missing = types.filter((t) => !sent(t) && !(t in NO_CLIENT_SENDER) && !(t in OWED_SENDERS));
     expect(missing, 'commands no client code sends (add a sender or allowlist with a reason)').toEqual([]);
+  });
+
+  it('keeps the owed list honest: real commands, not sent yet, owed by R1C or R1D', () => {
+    for (const [t, owed] of Object.entries(OWED_SENDERS)) {
+      expect(types, `${t} is not a command`).toContain(t);
+      expect(sent(t), `${t} is sent now: take it off OWED_SENDERS`).toBe(false);
+      expect(['R1C', 'R1D'], `${t} must name the cycle that owes its sender`).toContain(owed.cycle);
+      expect(owed.why.length, `${t} needs a reason`).toBeGreaterThan(10);
+      expect(t in NO_CLIENT_SENDER, `${t} is both owed and allowlisted`).toBe(false);
+    }
   });
 
   it('keeps the allowlist honest', () => {

@@ -1,5 +1,7 @@
 // Content contract (docs/spec/31-parallel-development.md): additive changes only during parallel waves.
-// Ids are kebab-case and stable forever, because saves reference them.
+// Ids are kebab-case and stable forever, because saves reference them. R1.0 (the zones-first
+// contracts, the one cycle allowed to remove) cut the chain economy's goods, methods and callings
+// and added families, trades and specialized buildings: docs/spec/20-architecture.md, R1 contracts.
 
 /** Which lens a piece belongs to. Shared pieces show in both lens toolbars. */
 export type ContentLane = 'hearth' | 'ledger' | 'shared';
@@ -34,7 +36,19 @@ export type PlacementRule =
   /** Average fertility over the footprint is at least `min` (0 to 100). NEEDS_FERTILITY. */
   | { kind: 'fertility'; min: number }
   /** Every footprint tile height lies within the range (0 to 15). TOO_STEEP. */
-  | { kind: 'height'; min?: number; max?: number };
+  | { kind: 'height'; min?: number; max?: number }
+  // R1 (R1.0): the site rules of specialized buildings (docs/spec/10-world-and-building.md, From the
+  // redesign; 13-ledger.md, Land and specialized buildings). R1B checks them in canPlaceBuilding.
+  /** At least `trees` mature trees within `within` tiles of the footprint (Forester's Lodge). NEEDS_WOODS. */
+  | { kind: 'woods'; trees: number; within: number }
+  /** The door on the river's edge, not a pond's (Sawmill, River Dock). NEEDS_RIVER. */
+  | { kind: 'river' }
+  /** No other building within `clear` tiles of the footprint (Windmill). NEEDS_OPEN_GROUND. */
+  | { kind: 'openGround'; clear: number }
+  /** A road at the door, of one of these kinds (any road when absent). NEEDS_ROAD. */
+  | { kind: 'road'; roads?: ('path' | 'lane' | 'street')[] }
+  /** Within `within` tiles of the valley road, the road that runs to the valley gate (Trading Post). NEEDS_VALLEY_ROAD. */
+  | { kind: 'valleyRoad'; within: number };
 
 export interface BuildingDef {
   id: string;
@@ -55,11 +69,15 @@ export interface BuildingDef {
   jobs?: { count: number; role: JobRole; tier?: TierName };
   /** Homes: households and residents it holds. */
   housing?: { households: number; residents: number };
-  /** Storage capacity in units, all goods together (storehouse 400, market stall 40). */
+  /** Storage capacity in units, all goods together (storehouse 800, granary 1,200, market stall 40). */
   storage?: number;
   /** Area services: water (well), food outlet (market stall), logistics (storehouse range). */
   coverage?: Coverage[];
-  /** Production methods; the first is the default. */
+  /**
+   * Production methods. R1: a specialized building has at most one (the quarry cuts stone, the
+   * Brickworks fires brick); a business runs its trade's method instead (TradeDef.method), so
+   * nothing switches methods any more.
+   */
   methods?: ProductionMethod[];
   /** Builder-hours of work to finish construction (standard valleys). */
   work?: number;
@@ -67,7 +85,7 @@ export interface BuildingDef {
   outputBuffer?: number;
   /** Charm sources at the building (well comfort, workshop noise). */
   charm?: CharmSource[];
-  /** Behavior tags: 'bakery', 'workshop', 'smelly', 'outlet', 'storehouse', 'farm', 'builders'. */
+  /** Behavior tags: 'workshop', 'smelly', 'outlet', 'storehouse', 'farm', 'builders'. A business also answers to its trade id (R1). */
   tags?: string[];
   /** Which valley modes offer it in the toolbar (default both). */
   modes?: ValleyMode[];
@@ -80,8 +98,8 @@ export interface BuildingDef {
   upgradesTo?: { def: string; goods: [good: string, qty: number][] };
   /**
    * Rank or innovation needed before it can be placed or grown. Playtest round six addition:
-   * `built`, buildings the town must have standing first ([def, how many]), so a hamlet opens up
-   * one chain at a time instead of offering everything on day one.
+   * `built`, buildings the town must have standing first ([def, how many]); since R1 only the
+   * Builder's Yard uses it (after four cottages).
    */
   requires?: {
     rank?: RankName;
@@ -105,6 +123,23 @@ export interface BuildingDef {
   // V1 additions (V1.0).
   /** Eras this building belongs to (18-eras.md); absent means every era. Reserved, filled in I4. */
   eras?: Era[];
+  // R1 additions (R1.0). docs/spec/13-ledger.md, Land and specialized buildings.
+  /**
+   * A specialized building: hand-placed, tied to the ground by its site rule (`placement`), and
+   * shelved apart in the Build picker. The thirteen of 13-ledger.md; content tests check each has a
+   * site rule.
+   */
+  specialized?: true;
+  /** Walking distance along roads, in tiles, that it serves (24 unless noted). */
+  reach?: number;
+  /** How many businesses (or homes) it serves in its reach: the Windmill's 2 bakers. */
+  capacity?: number;
+  /** The capacity when it stands this many levels above the ground around it (the Windmill: 4 at 4). */
+  raisedCapacity?: [levels: number, capacity: number];
+  /** Trade ids that may set up only in its reach (the Windmill enables 'baker'). */
+  enables?: string[];
+  /** The families its storage takes (the Granary Food; the Storehouse the other four); all when absent. */
+  stores?: GoodFamily[];
 }
 
 export interface DecorDef {
@@ -138,12 +173,6 @@ export interface DecorDef {
   // V1 additions (V1.0).
   /** Eras this piece belongs to (18-eras.md); absent means every era. Reserved, filled in I4. */
   eras?: Era[];
-  // Playtest round seven additions.
-  /**
-   * Production buildings within `radius` tiles whose def id or tag is in `tags` work faster by
-   * `permille` (1000 = double). Boosts from nearby pieces add up to a cap (systems/production/decorBoost).
-   */
-  boost?: { radius: number; permille: number; tags: string[] };
 }
 
 export interface RoadDef {
@@ -188,7 +217,10 @@ export interface Content {
   roadById: ReadonlyMap<string, RoadDef>;
   treeById: ReadonlyMap<string, TreeDef>;
   // I1 additions (C3.0).
-  /** Append-only order: a good's index in this list is its index in every per-good array. */
+  /**
+   * A good's index in this list is its index in every per-good array. R1 fixed the sixteen goods in
+   * the order of docs/spec/13-ledger.md (Goods: families and flavors); append-only from here.
+   */
   goods: readonly GoodDef[];
   goodById: ReadonlyMap<string, GoodDef>;
   /** Good id to its index in `goods`. */
@@ -217,6 +249,8 @@ export interface Content {
   zoneByValue: ReadonlyMap<number, ZoneDef>;
   baskets: readonly NeedsBasket[];
   basketByTier: ReadonlyMap<string, NeedsBasket>;
+  /** R1 (R1A): favorite flavors by species and trait, sorted by `who` then `good`. */
+  flavorLikes: readonly FlavorLike[];
   neighbors: readonly NeighborDef[];
   neighborById: ReadonlyMap<string, NeighborDef>;
   /** Innovation state in saves is keyed by id, so this list is alphabetical like the rest. */
@@ -260,9 +294,10 @@ export interface Content {
   guide: GuideDef;
   /** P1: the ladder homes climb on their own, in order (systems/dressing). */
   dressing: readonly DressingStep[];
-  /** P1 (additive): what the village can be known for, alphabetical by id. */
-  callings: readonly CallingDef[];
-  callingById: ReadonlyMap<string, CallingDef>;
+  // R1 additions (R1.0).
+  /** What a business on a zoned lot can do, alphabetical by id (docs/spec/13-ledger.md, Trades). */
+  trades: readonly TradeDef[];
+  tradeById: ReadonlyMap<string, TradeDef>;
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -273,20 +308,28 @@ export type ValleyMode = 'sandbox' | 'standard';
 /** Who fills a building's jobs. Porters work at storehouses, builders at the town hall and yard. */
 export type JobRole = 'worker' | 'builder' | 'porter' | 'vendor';
 
-export type GoodCategory = 'material' | 'rawFood' | 'processed' | 'food' | 'fuel' | 'crafted' | 'treat';
+/**
+ * R1: the five families every good belongs to (docs/spec/13-ledger.md, The five rules, rule 4). The
+ * order is GOOD_FAMILIES in the sim: per-family arrays are indexed by it.
+ */
+export type GoodFamily = 'food' | 'fuel' | 'materials' | 'wares' | 'treats';
 
 export interface GoodDef {
   id: string;
   name: string;
-  /** Short plural label for tight UI ("logs"). */
+  /** Short plural label for tight UI ("veg"). */
   label: string;
-  category: GoodCategory;
+  /** R1: its family. A Food good is eaten (it fills the pantry); a good is a flavor of its family. */
+  family: GoodFamily;
+  /**
+   * R1: from land (true), or made by a workshop from raw goods only (false). A made good is never
+   * an input (rule 2; a content test checks every trade and method).
+   */
+  raw: boolean;
   /** Base price in pennies (100 pennies = 1 coin). */
   basePrice: number;
   /** Units a porter carries in one trip. */
   carry: number;
-  /** Residents eat it (fills the pantry). */
-  food?: boolean;
   /** Spoils after this many days [I3]. */
   spoilsDays?: number;
   /**
@@ -300,9 +343,10 @@ export interface GoodDef {
 
 /**
  * How a building turns inputs into outputs. `kind` picks the production logic:
- * craft (inputs to outputs per cycle), gather (outputs from nothing, for example a quarry or fisher),
- * fell (woodcutter: fells a mature tree in range), plant (forester: plants a sapling in range),
- * farm (farmhouse: tends painted field tiles).
+ * craft (inputs to outputs per cycle), gather (outputs from nothing, for example a quarry or fishery),
+ * fell (the Forester's Lodge: fells a mature tree in range), plant (plants a sapling in range),
+ * farm (a grain farm: tends field tiles). R1: specialized buildings carry one in `methods`, trades
+ * one in `TradeDef.method`.
  */
 export interface ProductionMethod {
   id: string;
@@ -314,12 +358,60 @@ export interface ProductionMethod {
   hours: number;
   /** Workers the method uses (the building's jobs.count unless smaller). */
   workers: number;
-  /** Output is per worker present rather than per building (quarry, fisher, woodcutter). */
+  /** Output is per worker present rather than per building (quarry, fishery, Forester's Lodge). */
   perWorker?: boolean;
-  /** Tiles: woodcutter and forester range, farm field reach. */
+  /** Tiles: the Forester's Lodge's range, a grain farm's field reach. */
   range?: number;
-  /** Bonus in percent at height level `heightMin` or more (windmill +25 at 4). */
+  /** Bonus in percent at height level `heightMin` or more. */
   heightBonus?: { heightMin: number; percent: number };
+}
+
+// --- Trades (R1.0) ----------------------------------------------------------------------------
+// docs/spec/13-ledger.md, Zoning and growth (Trades, Choosing a trade, Levels).
+
+/**
+ * A trade: what a business on a Farmland, Workshops or Shops lot does. The growth pass picks one
+ * for a lot (R1B's trade score); the Ledger may pin one (build.pinRecipe).
+ */
+export interface TradeDef {
+  id: string;
+  name: string;
+  /** One line for the Businesses book and the picker ("Bread from grain, in a windmill's reach"). */
+  blurb: string;
+  /** The zone it grows on: a content zone id ('farms', 'crafts' or 'shops'). */
+  zone: string;
+  /** The building def a business of this trade is ('farmstead', 'workshop', 'corner-shop'). */
+  building: string;
+  /** The good it makes, or null for a shop. */
+  makes: string | null;
+  /** The raw goods it takes, none for a land trade or a shop (rule 2: never a made good). */
+  from: string[];
+  /** How it works at level 1 with its full crew (`workers` is crew[0]); null for a shop. */
+  method: ProductionMethod | null;
+  /** Shops: the families on its shelf at levels 1, 2 and 3. */
+  sells?: [GoodFamily[], GoodFamily[], GoodFamily[]];
+  /** What its lot must offer (the site term of the trade score). */
+  wants: TradeWants;
+  /** Hands at levels 1, 2 and 3 (workshops 1, 2, 4; farmsteads 2, 3, 4; shops 1, 2, 3). */
+  crew: [number, number, number];
+  /** Its look: an existing building kit and params (R1E draws trades and levels from the kits). */
+  look: ArtRef;
+  /** Rank or innovation needed before it may grow. */
+  requires?: { rank?: RankName; innovation?: string };
+  /** Trait ids that make a resident keen to keep it (the keeper term: Sweet Tooth bakes). */
+  keepers?: string[];
+}
+
+/** What a trade wants of its lot. Every field is a condition; absent means none. */
+export interface TradeWants {
+  /** Average fertility over the lot, 0 to 100 (a grain farm 15, an orchard 40). */
+  fertility?: number;
+  /** The pollinator habitat score in the lot's chunk, 0 to 255 (hives 100). */
+  pollinators?: number;
+  /** A specialized building (def id) whose reach holds the lot, with room under its capacity. */
+  reach?: string;
+  /** Shops: households in reach (footfall too from R2). */
+  households?: number;
 }
 
 export interface Coverage {
@@ -484,8 +576,6 @@ export type CountWhat =
   | 'plansApproved'
   /** Weddings held. */
   | 'weddings'
-  /** Standing orders at the Trading Post. */
-  | 'standingOrders'
   // I3 (C5.0)
   /** Renown level, 0 to 5. */
   | 'renown'
@@ -498,7 +588,16 @@ export type CountWhat =
   /** Raids repelled with nothing stolen. */
   | 'raidsHeld'
   /** Winters where nobody was cold. */
-  | 'warmWinters';
+  | 'warmWinters'
+  // R1 (R1D)
+  /** Businesses standing that grew on a lot (nobody placed them by hand); `ref` a trade id, def id or tag keeps those that answer to it. */
+  | 'businesses'
+  /** Distinct trades among those businesses; `ref` (a def id or tag, such as 'workshop') keeps only those. */
+  | 'businessTrades'
+  /** Flavors of Food on offer in town (R1A's flavorsOnOffer); `ref` a family id counts that family instead. */
+  | 'foodFlavors'
+  /** Winters with no Food or Fuel imported and nobody hungry or cold. */
+  | 'importFreeWinters';
 
 // --- Hearth content ---------------------------------------------------------------------------
 
@@ -540,7 +639,23 @@ export interface PatternDef {
   unlocks: string[];
   /** Order in which hints are revealed, lowest first (C3B). Content order when absent. */
   hintOrder?: number;
+  /**
+   * R1 (R1D): the pieces its page's "Lay it out" ghost places as a plan once it is discovered, in
+   * tiles from the anchor (x east, z south) before the ghost is turned. Absent: no layout.
+   */
+  layout?: PatternPiece[];
 }
+
+/**
+ * R1 (R1D): one piece of a pattern's layout. Decor and trees stand at tile centers; a building's
+ * dx, dz are its footprint's corner; a run (linear decor) or a road goes from (dx, dz) to (tx, tz).
+ */
+export type PatternPiece =
+  | { decor: string; dx: number; dz: number; rot?: number }
+  | { tree: 'oak' | 'birch' | 'pine'; dx: number; dz: number }
+  | { building: string; dx: number; dz: number; rot?: 0 | 1 | 2 | 3 }
+  | { run: string; dx: number; dz: number; tx: number; tz: number }
+  | { road: 'path' | 'lane'; dx: number; dz: number; tx: number; tz: number };
 
 export interface AchievementDef {
   id: string;
@@ -587,29 +702,38 @@ export type TierName = 'settler' | 'craftsfolk' | 'merchant' | 'patron';
 export type RankName = 'hamlet' | 'village' | 'town' | 'marketTown' | 'city';
 
 /**
- * One line of a tier's needs basket: a need group (food, bread, firewood, cloth...) with the
- * quantity a household member uses per day and the goods that can satisfy it, with preference
- * weights (higher is preferred). Households buy the good with the best price / weight they can
- * afford; Thrifty households weigh price more.
+ * R1: what a tier wants of one family (docs/spec/13-ledger.md, Households: amount and variety).
+ * Any flavor of the family counts; households choose among them by price and liking.
  */
-export interface NeedGroup {
-  id: string;
-  name: string;
-  /** Units per resident per day; may be fractional (cloth 0.1). The sim accrues hundredths. */
-  perDay: number;
-  /** Per household rather than per resident (firewood). */
+export interface FamilyWant {
+  family: GoodFamily;
+  /** Units a day: a resident's, or a household's with `perHousehold`. May be fractional (0.1). */
+  amount: number;
+  /** Per household rather than per resident (Fuel, Wares). */
   perHousehold?: boolean;
-  /** Only in this season (0 spring to 3 winter) [I3: winter warmth]; every season when absent. */
+  /** Only in this season index (Fuel: 3, winter); every day when absent. */
   season?: number;
-  /** Substitutable goods and their preference weights (1 = plain, 2 = twice as wanted). */
-  goods: [good: string, weight: number][];
+  /** Flavors of the family the household wants on offer in the last three days (0: none asked). */
+  variety: number;
+}
+
+/**
+ * R1 (R1A): a favorite flavor (docs/spec/13-ledger.md, Households: within a family households choose
+ * by price and liking). A household with a member of the species or the trait `who` likes `good`
+ * `weight` times as much as a plain flavor (which weighs 1).
+ */
+export interface FlavorLike {
+  /** A species id or a trait id. */
+  who: string;
+  good: string;
+  weight: number;
 }
 
 /** What a tier needs beyond shelter, water and belonging (docs/spec/13-ledger.md, Population tiers). */
 export interface NeedsBasket {
   tier: TierName;
-  /** Need groups bought at the market (food is a group too). */
-  groups: NeedGroup[];
+  /** One want per family it buys, in GOOD_FAMILIES order (Materials never). */
+  wants: FamilyWant[];
   /** Service coverage this tier needs: 'social' (tavern), 'health' (herbalist), 'education' (school). */
   services: string[];
   /** Average charm around home this tier needs (0 to 100). */
@@ -631,6 +755,8 @@ export interface ZoneDef {
   lots: LotDef[];
   /** Overlay tint: a packages/art palette token name. */
   token: string;
+  /** R1: the rank before it may be painted (Shops and Townhouses: Village); open at founding when absent. */
+  requires?: { rank?: RankName };
 }
 
 /** A lot shape for a zone: a footprint facing the road. */
@@ -658,6 +784,12 @@ export interface NeighborDef {
   days: number;
   /** Rank needed before it trades (Port Amberly waits for Town). */
   rank?: RankName;
+  /**
+   * R1 (R1A): the deals it offers, one a season in turn (docs/spec/13-ledger.md, The carrier and
+   * trade): the carrier buys a family from it (`buy`) or sells a family to it (`sell`) at `percent`
+   * of its regional price for the season, when the season plan takes the deal.
+   */
+  deals?: [family: GoodFamily, side: 'buy' | 'sell', percent: number][];
 }
 
 /** Technology that arrives through conditions in the town (docs/spec/15-progression.md). */
@@ -682,7 +814,12 @@ export interface CharterGoal {
   text: string;
   lane: 'hearth' | 'ledger' | 'shared';
   /** What is counted and the target (progress shows count / target). */
-  measure: { what: CountWhat; ref?: string };
+  measure: {
+    what: CountWhat;
+    ref?: string;
+    /** R1A: counts nothing until this many Food flavors are on offer (the Village's food goal). */
+    flavors?: number;
+  };
   target: number;
 }
 
@@ -785,7 +922,7 @@ export interface SeasonDef {
   id: string;
   name: string;
   index: number;
-  /** Days of the season wheat is sown and harvested (1 to 6), when it is. */
+  /** Days of the season grain is sown and harvested (1 to 6), when it is. */
   sow?: [from: number, to: number];
   harvest?: [from: number, to: number];
   river: 'high' | 'best' | 'normal' | 'freezes';
@@ -823,6 +960,8 @@ export interface EventDef {
   effects: [name: string, factor: Permille][];
   /** One line for the season card and the barometer. */
   blurb: string;
+  /** R1 (R1A): may come every year (the closed pass); others never come two of their seasons running. */
+  yearly?: true;
 }
 
 /** A seasonal festival (C5B). */
@@ -1052,41 +1191,4 @@ export interface GuideDef {
   farewell?: string;
   /** C5H: the last letter when Pippa Quill already lives in the valley. */
   farewellAfterPippa?: string;
-}
-
-// --- Callings (P1, playtest item 19; docs/spec/15-progression.md, Callings) -------------------
-
-/** What a calling does, as data. Every number lives here; the sim only reads them. */
-export interface CallingDef {
-  id: string;
-  name: string;
-  blurb: string;
-  /** Glyph id for the card (apps/client/src/ui/icons). */
-  icon: string;
-  /** Plain words, one line per effect, for the card. */
-  effectLines: string[];
-  /** Production buildings (def ids or tags) that work faster, permille added (100 = 10%). */
-  yieldBoost?: { ids: string[]; tags: string[]; permille: number };
-  /** Day visitors spend in the town each afternoon (CallingTuning.visitors). */
-  visitors?: boolean;
-  /** Festivals draw more guests (permille added to each resident's chance) and give extra renown. */
-  festival?: { guestsPermille: number; renown: number; minStars: number };
-  /** Added to the night value of every lantern's light charm. */
-  lanternCharm?: number;
-  /** Added to a style's score when the land picks a district style: [style id, weight]. */
-  styleWeights: [style: string, weight: number][];
-  /** The decor piece the calling unlocks (a locked decor id). */
-  signature: string;
-  /**
-   * One lowercase clause per map factor the offer scores, in the sim's factor order, ready to follow
-   * "Your" ("hills are full of stone"). The County's letter joins the two strongest.
-   */
-  reasons: string[];
-}
-
-export interface CallingTuning {
-  /** How many callings the valley offers. */
-  offered: number;
-  /** Garden Village visitors: the hour they spend, pennies per average door charm point and per renown level, and the daily cap. */
-  visitors: { hour: number; perCharm: number; perRenown: number; cap: number; noticeEveryDays: number };
 }

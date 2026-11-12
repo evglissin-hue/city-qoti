@@ -15,6 +15,7 @@ import {
 } from '../../src/constants';
 import type { Resident, SimEvent, WorldState } from '../../src/contracts';
 import { Flags } from '../../src/map/layers';
+import { emptyCounters, methodOf } from '../../src/state/zones';
 import { createTickCtx } from '../../src/turn';
 import { walkPermille } from '../../src/systems/movement/factors';
 import { yieldPermille } from '../../src/systems/production/modifiers';
@@ -22,7 +23,6 @@ import { scheduleOverride } from '../../src/systems/residents/overrides';
 import { isFlooded, isFrozen } from '../../src/systems/seasons/api';
 import { seasons, turnDay } from '../../src/systems/seasons';
 import { trees } from '../../src/systems/trees';
-import { handSawPermille } from '../../src/systems/seasons/river';
 import { skatingSpots } from '../../src/systems/seasons/place';
 import { recomputeDirty } from '../../src/systems/hearth/charm';
 import { wellPermille } from '../../src/systems/weather/effects';
@@ -49,8 +49,13 @@ function method(def: string) {
   return content.buildingById.get(def)!.methods![0]!;
 }
 
+/** R1: a grain farm, a farmstead business with trade 'grain-farm'. */
 function farmAt(state: WorldState, x: number, z: number) {
-  return placeFree(state, 'farmhouse', x, z);
+  const b = placeFree(state, 'farmstead', x, z);
+  b.trade = 'grain-farm';
+  b.keeperId = 0;
+  b.counters = emptyCounters();
+  return b;
 }
 
 function resident(state: WorldState): Resident {
@@ -115,26 +120,16 @@ describe('the season turns', () => {
     expect(state.warmth.winter).toBe(0);
   });
 
-  it('stops fishing and turns the water sawmill to hand sawing while the river is frozen', () => {
+  // R1: the Sawmill makes nothing of its own (it lets carpenters set up in its reach), so its hand
+  // sawing while frozen is gone until R1B's frozen-river rule; the fishing still stops.
+  it('stops fishing while the river is frozen', () => {
     const { state } = villageFixture();
-    const hut = placeFree(state, 'fishers-hut', 97, 80);
-    const mill = placeFree(state, 'sawmill', 97, 90);
-    const hutDef = content.buildingById.get('fishers-hut')!;
-    const millDef = content.buildingById.get('sawmill')!;
+    const hut = placeFree(state, 'fishery', 97, 80);
+    const hutDef = content.buildingById.get('fishery')!;
     state.tick = tickAt(0, 1, 2, 10);
-    expect(yieldPermille(state, hut, hutDef, method('fishers-hut'))).toBe(1000);
+    expect(yieldPermille(state, hut, hutDef, method('fishery'))).toBe(1000);
     state.weather.river = { frozen: true, frozenTick: state.tick };
-    expect(yieldPermille(state, hut, hutDef, method('fishers-hut'))).toBe(0);
-    const hand = handSawPermille(method('sawmill'));
-    expect(hand).toBeGreaterThan(0);
-    expect(hand).toBeLessThan(1000);
-    expect(yieldPermille(state, mill, millDef, method('sawmill'))).toBe(hand);
-    // Hand sawing at sawpit rate: planks an hour match the sawpit's.
-    const pit = method('sawpit');
-    const water = method('sawmill');
-    const pitRate = pit.outputs[0]![1] / pit.hours;
-    const waterRate = ((water.outputs[0]![1] / water.hours) * hand) / 1000;
-    expect(Math.abs(waterRate - pitRate)).toBeLessThan(0.05);
+    expect(yieldPermille(state, hut, hutDef, method('fishery'))).toBe(0);
   });
 
   it('sends some folk skating by the bank on a frozen evening', () => {
@@ -206,8 +201,8 @@ describe('daily weather', () => {
   it('applies each kind through the hooks: rain, snow, heat, storm', () => {
     const { state } = villageFixture();
     const farm = farmAt(state, 60, 90);
-    const def = content.buildingById.get('farmhouse')!;
-    const m = method('farmhouse');
+    const def = content.buildingById.get('farmstead')!;
+    const m = methodOf(farm)!;
     state.weather.today = 'rain';
     expect(yieldPermille(state, farm, def, m)).toBe(
       content.weatherById.get('rain')!.effects.find(([n]) => n === 'farm')![1],
@@ -237,9 +232,9 @@ describe('daily weather', () => {
   it('a drought slows the fields far from a well, not those beside one', () => {
     const f = villageFixture();
     const state = f.state;
-    const def = content.buildingById.get('farmhouse')!;
-    const m = method('farmhouse');
+    const def = content.buildingById.get('farmstead')!;
     const near = farmAt(state, 150, 150);
+    const m = methodOf(near)!;
     const far = farmAt(state, 150, 160);
     far.x = 170;
     far.z = 170;
@@ -330,9 +325,9 @@ describe('events', () => {
     store.z = 130;
     for (let z = 130; z < 134; z++)
       for (let x = 94; x < 100; x++) state.map.flags[z * MAP_SIZE + x]! |= Flags.floodplain;
-    const wheat = content.goodIndex.get('wheat')!;
+    const grain = content.goodIndex.get('grain')!;
     const fish = content.goodIndex.get('fish')!;
-    store.rt!.store[wheat] = 300;
+    store.rt!.store[grain] = 300;
     store.rt!.store[fish] = 10;
     store.rt!.condition = 100;
     const v = {
@@ -346,7 +341,7 @@ describe('events', () => {
     const ctx = createTickCtx(state);
     flood(state, ctx, v);
     expect(store.rt!.condition).toBe(80);
-    expect(store.rt!.store[wheat]).toBe(300 - FLOOD_GOODS_CAP);
+    expect(store.rt!.store[grain]).toBe(300 - FLOOD_GOODS_CAP);
     expect(store.rt!.store[fish]).toBe(8);
     expect(isFlooded(state, store.id)).toBe(true);
     state.tick += TICKS_PER_DAY;
@@ -434,7 +429,7 @@ describe('events', () => {
     expect(state.residents.every((r) => r.id < VISITOR_ID_BASE)).toBe(true);
   });
 
-  it('an early frost halves the standing wheat when it starts', () => {
+  it('an early frost halves the standing grain when it starts', () => {
     const { state } = villageFixture();
     const farm = farmAt(state, 60, 90);
     const i = 92 * MAP_SIZE + 64;

@@ -83,8 +83,17 @@ export function build(
   z: number,
   rot: Rot4 = 0,
   seat: SeatId = 0,
+  trade?: string,
 ): Building {
-  return insertBuilding(state, null, content.buildingById.get(def)!, x, z, rot, seat, { site: false });
+  return insertBuilding(state, null, content.buildingById.get(def)!, x, z, rot, seat, {
+    site: false,
+    ...(trade !== undefined && { trade }),
+  });
+}
+
+/** R1 (R1D): a garden bed (2x2), what the Kitchen Garden and A Garden Plot count as a plot. */
+export function plot(state: WorldState, x: number, z: number, seat: SeatId = 0): Building {
+  return build(state, 'garden-bed', x, z, 0, seat);
 }
 
 export function road(
@@ -125,4 +134,17 @@ export function events<E extends SimCtx['events'][number]['e']>(
   e: E,
 ): Extract<SimCtx['events'][number], { e: E }>[] {
   return ctx.events.filter((x) => x.e === e) as Extract<SimCtx['events'][number], { e: E }>[];
+}
+
+/** R1 (R1D): Workshops land at (x, z) and a windmill whose reach holds it. */
+export function bakerCouldOpen(s: WorldState, x: number, z: number): void {
+  const crafts = content.zoneById.get('crafts')!.layerValue;
+  for (let dz = 0; dz < 3; dz++)
+    for (let dx = 0; dx < 3; dx++) s.map.zone[(z + dz) * MAP_SIZE + x + dx] = crafts;
+  // R1B: a windmill's reach walks the roads, so a lane joins its door to the land.
+  road(s, 'lane', x, z + 3, x + 10, z + 3);
+  road(s, 'lane', x + 10, z + 3, x + 10, z + 11);
+  road(s, 'lane', x + 4, z + 3, x + 4, z + 11);
+  s.networkVersion += 1;
+  build(s, 'windmill', x + 6, z + 6);
 }

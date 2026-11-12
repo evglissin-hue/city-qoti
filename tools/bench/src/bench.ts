@@ -21,11 +21,13 @@ import { fileURLToPath } from 'node:url';
 import { residentsBench } from './residents';
 import { hearthBench } from './hearth';
 import { benchEconomy } from './economy';
-import { growthBench } from './growth';
+import { growthBench, growthNightBench } from './growth';
 import { benchMarket } from './market';
+import { carrierBench } from './carrier.bench';
 import { syntheticValley } from './synthetic';
 import { festivalsBench } from './festivals.bench';
 import { natureBench } from './nature.bench';
+import { r1Bench } from './r1.bench';
 import { raidsBench } from './raids.bench';
 import { seasonsBench } from './seasons.bench';
 import { villageBench } from './village.bench';
@@ -152,10 +154,16 @@ lines.push(...economy.lines);
 failures.push(...economy.failures);
 // 7. Growth and traffic (C4B): zoning, the nightly growth pass and carts, at 150 and 2,000 residents.
 const growth = growthBench(lines, failures);
+// R1: the 01:00 growth pass at City scale, under 2 ms a night.
+growthNightBench(lines, failures);
 // 8. Market and money (C4A): the daily passes of a 150-resident village.
 const market = benchMarket();
 lines.push(...market.lines);
 failures.push(...market.failures);
+// 8b. The carrier at City scale (R1A): the heaviest visit, under 0.5 ms a day.
+const carrierResult = carrierBench();
+lines.push(...carrierResult.lines);
+failures.push(...carrierResult.failures);
 // 9. Village chains (C4C): the village fixture with every chain, services, tiers and a cart.
 const village = villageBench();
 lines.push(...village.lines);
@@ -176,6 +184,10 @@ failures.push(...nature.failures);
 const raidsResult = raidsBench();
 lines.push(...raidsResult.lines);
 failures.push(...raidsResult.failures);
+// 14. R1: the night's trade choice and growth, and the carrier's day, at City scale (2,000 residents).
+const r1 = r1Bench();
+lines.push(...r1.lines);
+failures.push(...r1.failures);
 
 const heapMb = process.memoryUsage().heapUsed / 1024 / 1024;
 lines.push(`memory          ${heapMb.toFixed(0)} MB heap in use`);
@@ -203,11 +215,13 @@ const report = {
   economy: economy.report,
   growth,
   market: market.report,
+  carrier: carrierResult.report,
   village: village.report,
   seasons: seasons.report,
   festivals: festivals.report,
   nature: nature.report,
   raids: raidsResult.report,
+  r1: r1.report,
   heapMb,
   failures,
 };

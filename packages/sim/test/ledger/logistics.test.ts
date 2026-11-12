@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { BuildingStatus, MAP_SIZE, STALL_RESTOCK_TARGET, TICKS_PER_HOUR } from '../../src/constants';
 import type { Building, WorldState } from '../../src/contracts';
 import { findById } from '../../src/state/entities';
+import { isFood } from '../../src/state/zones';
 import { insertBuilding } from '../../src/state/place';
 import { JobClass } from '../../src/systems/logistics';
 import {
@@ -28,8 +29,18 @@ import {
 
 const H = TICKS_PER_HOUR;
 
-function place(state: WorldState, def: string, x: number, z: number, rot: 0 | 1 | 2 | 3 = 0): Building {
-  return insertBuilding(state, null, content.buildingById.get(def)!, x, z, rot, 0, { site: false });
+function place(
+  state: WorldState,
+  def: string,
+  x: number,
+  z: number,
+  rot: 0 | 1 | 2 | 3 = 0,
+  trade?: string,
+): Building {
+  return insertBuilding(state, null, content.buildingById.get(def)!, x, z, rot, 0, {
+    site: false,
+    ...(trade !== undefined && { trade }),
+  });
 }
 
 /**
@@ -46,21 +57,24 @@ function morning() {
 
 describe('porter matching', () => {
   it('never books the same units twice', () => {
-    const f = morning();
+    const f = withoutStall();
+    // R1: a carpenter's workshop by the storehouse is the input to feed (the windmill takes none now).
+    const mill = place(f.state, 'workshop', 40, 47, 0, 'carpenter');
+    untilHour(f.state, 8);
+    everyoneToWork(f.state);
     ticks(f.state, 5);
-    const mill = building(f.state, f.b.windmill);
     const store = building(f.state, f.b.storehouse);
     const jobs = f.state.logistics.jobs.filter((j) => j.to === mill.id);
-    // The windmill wants two cycles of wheat (6); two porters share it, 4 and 2.
+    // The carpenter wants two cycles of timber (6); two porters share it, 4 and 2.
     expect(jobs.map((j) => j.qty)).toEqual([4, 2]);
-    expect(mill.rt!.reservedIn[good('wheat')]).toBe(6);
-    expect(store.rt!.reservedOut[good('wheat')]).toBe(6);
+    expect(mill.rt!.reservedIn[good('timber')]).toBe(6);
+    expect(store.rt!.reservedOut[good('timber')]).toBe(6);
     // Porters walk now (C3A): wait for both trips to land.
     ticksUntil(f.state, (s) => !s.logistics.jobs.some((j) => j.to === mill.id));
-    expect(stockOf(mill, 'input', 'wheat')).toBe(6);
-    expect(mill.rt!.reservedIn[good('wheat')]).toBe(0);
-    expect(store.rt!.reservedOut[good('wheat')]).toBe(0);
-    expect(stockOf(store, 'store', 'wheat')).toBe(6);
+    expect(stockOf(mill, 'input', 'timber')).toBe(6);
+    expect(mill.rt!.reservedIn[good('timber')]).toBe(0);
+    expect(store.rt!.reservedOut[good('timber')]).toBe(0);
+    expect(stockOf(store, 'store', 'timber')).toBe(70 - 6);
   });
 
   it('feeds market stalls before production inputs, varying the food', () => {
@@ -72,9 +86,10 @@ describe('porter matching', () => {
     const jobs = f.state.logistics.jobs;
     expect(jobs.every((j) => j.to === stall.id && j.priority === JobClass.stallFood)).toBe(true);
     expect(new Set(jobs.map((j) => j.good)).size).toBe(2);
-    ticks(f.state, 2 * H);
+    // R1: the food comes from the granary, a few doors further than the storehouse was.
+    ticksUntil(f.state, (s) => outletFood(s, stall.id) >= STALL_RESTOCK_TARGET, 3 * H);
     let food = 0;
-    for (let g = 0; g < content.goods.length; g++) if (content.goods[g]!.food) food += stall.rt!.store[g]!;
+    for (let g = 0; g < content.goods.length; g++) if (isFood(g)) food += stall.rt!.store[g]!;
     expect(food).toBe(STALL_RESTOCK_TARGET);
     expect(outletFood(f.state, stall.id)).toBe(STALL_RESTOCK_TARGET);
   });
@@ -93,10 +108,9 @@ describe('porter matching', () => {
     ]);
   });
 
-  it('clears full output buffers into the storehouse', () => {
+  it('clears full output buffers into the store (bread to the granary)', () => {
     const f = withoutStall();
-    const store = building(f.state, f.b.storehouse);
-    store.rt!.store[good('wheat')] = 0;
+    const store = building(f.state, f.b.granary);
     const bakery = building(f.state, f.b.bakery);
     bakery.rt!.output[good('bread')] = 8;
     untilHour(f.state, 8);
@@ -168,13 +182,13 @@ describe('porter matching', () => {
 });
 
 describe('outlets', () => {
-  it('sends shoppers to a stall in reach, else to the nearest storehouse', () => {
+  it('sends shoppers to a stall in reach, else to the nearest store with food (the granary)', () => {
     const f = hamletFixture();
     expect(nearestOutletWithFood(f.state, 50 * MAP_SIZE + 72)).toBe(f.b.stall);
-    expect(nearestOutletWithFood(f.state, 50 * MAP_SIZE + 52)).toBe(f.b.storehouse);
+    expect(nearestOutletWithFood(f.state, 50 * MAP_SIZE + 52)).toBe(f.b.granary);
     const stall = building(f.state, f.b.stall);
     stall.rt!.store.fill(0);
-    expect(nearestOutletWithFood(f.state, 50 * MAP_SIZE + 72)).toBe(f.b.storehouse);
+    expect(nearestOutletWithFood(f.state, 50 * MAP_SIZE + 72)).toBe(f.b.granary);
   });
 
   it('never hands out goods a porter has been promised', () => {
