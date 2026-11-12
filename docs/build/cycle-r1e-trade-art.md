@@ -49,3 +49,53 @@ Materials, surfaces, lights, nature and the renderer (V2); what trades a lot tak
 
 - `render/kitGeometry.ts` (V2's) reads `BuildingRuntimeView.method` for a building's goods pile today; from R1 a business's look comes from `BuildingView.trade`. Decided: you draw the trade looks in your own buildings layer; if `kitGeometry.ts` needs to read `BuildingView.trade`, add that one additive line in the shared file and list it in your PR.
 - R1.0 kept every old kit id so trades can borrow them; retire a kit only once no trade or def names it, and say so in your PR.
+
+## Look calls (R1E's lead, 2026-11-11)
+
+How each trade and level reads from the Ledger's height. A 3x3 lot is 60 to 100 pixels across at 1440 x 900 from there, so every trade has one **signature mass** (big, colored, outside `s.detail`, so the far level keeps it) and its small things (tools, sills, crates) are near-only detail.
+
+**Plumbing** (`kits/business.ts`): `businessParams(look, makes, level, lookParams)` gives a business's params (`look`: the kit id its `TradeDef.look` names; `level` 1 to 3; `make`: its good); `render/kitGeometry.ts` adds them for a building with a trade. The `workshop`, `farmstead` and `shop` kits draw `WORKSHOP_LOOKS[look]` (`kits/workshops.ts`) or `FARM_LOOKS[look]` (`kits/farms.ts`), else the C4E building as before. Each draw takes the district look (`homeLook(opts, salt)` from `grown.ts`), so a baker on a brick street is brick. Without a `level` param (the C4E showcase, an old gallery cell) a kit draws as it did.
+
+**Levels** (every business, never a different footprint):
+
+- **1**: a modest building (one storey, about 1.5 x 1.3 tiles for a workshop) and a small packed-earth yard; the signature mass already there; a small output pile.
+- **2**: the building grows (wider, a lean-to or a side extension); a **painted sign** by the door (`paintedSign`: a board in the business's paint with a cream panel; `anchors.sign` is where the buildings layer letters the keeper's family name); **goods out front** (`goodsOutFront`, a trestle with the good, crates at its feet, near the lot's front edge).
+- **3**: a loft or upper storey (dormer or jetty), an **awning** over the front, a **bigger yard** fenced in the district's edge, more stock (a second pile, barrels, a handcart's worth).
+- Farms read their level in land: the produce area grows (more trees, rows, hives, animals) and level 3 adds an outbuilding; the sign stands on two posts by the gate facing the road.
+
+**Workshops** (3x3):
+
+- **Baker** (`bakery`): a domed brick bread oven bulging from the side wall, its own fat chimney smoking, a stack of oven wood beside it; loaves on the sill, flour sacks by the door, the bread emblem. Signature: the dome and the smoke.
+- **Weaver** (`weaver`): the long band of weavers' windows under the eaves, and the tenter frame in the yard with dyed cloth in madder red, woad blue and weld yellow, dye tubs. Signature: the colored strips. Level 3 a second frame.
+- **Carpenter** (`carpenter`): an open-fronted bay on posts beside the shop, stacked pale planks, a sawhorse with a plank across it, a half-made chair; chairs and a table out front. Signature: the open bay and the pale stacks.
+- **Chandler** (`chandler`): a dipping rack hung with rows of cream candles, a wax pot over a little fire (smoke), honey pots; a candle emblem and a warm window. Signature: the cream rack.
+- **Cider maker** (`cider-press`): the apple mill and screw press under an open press shed, a pyramid of barrels, red apple crates. Signature: the barrels.
+- **Shop** (`shop`, 2x3): level 1 a plain painted fascia and a small hanging sign; level 2 the fascia carries the keeper's name (`anchors.sign`), a wares bench and a table with two chairs out front (treats from level 2); level 3 the striped awning, a second bench and tubs of flowers.
+
+**Farms** (3x3; the fields themselves are the fields layer's):
+
+- **Grain farm** (`farmhouse`): the big barn (barn red, or the district's stone) is the mass, with a golden round hayrick under a thatched cap and stooks; a patch of standing grain by season (green, gold, stubble, bare). Level 3 a second rick and a granary on staddle stones.
+- **Market garden** (`vegetable-plot`): most of the lot in neat rows of greens with colored crops (cabbage, carrot, beet), by season (seedlings, full, half lifted with pumpkins, bare earth and straw); cold frames, a potting shed, a scarecrow; level 3 a little glasshouse.
+- **Orchard** (`orchard`): a grid of fruit trees by season (blossom, green, fruit, bare): 4 at level 1, 6 at 2, 8 or 9 at 3; a packing shed, ladders and red crates.
+- **Dairy** (`dairy`): a long low byre, cows in a paddock (2, 3, 4), a churn stand by the gate, cheese wheels on the trestle.
+- **Sheep run** (`sheep-pasture`): the lot mostly a fold (post and rail, dry stone in Hill Stone), sheep (3, 5, 7), the shepherd's hut on wheels, fleeces and bales; level 3 a shearing shed.
+- **Hives** (`apiary`): a flowery meadow with rows of white hive boxes and golden straw skeps (3, 5, 8), a honey house; honey jars out front.
+
+**The four new kits**:
+
+- **Brickworks** (`brickworks`, 3x3): a bottle kiln (the tallest mass, smoking), a clay pit dug into a back corner (ochre banks, a puddle), drying hacks (low racks of grey-green unfired bricks under narrow roofs), stacks of fired red bricks at the front by its output, a pug mill and kiln wood.
+- **Granary** (`granary`, 3x3): a tall weatherboarded granary on staddle stones with a steep roof and a hoist loft (lucam) over the door, steps up, sacks, baskets and barrels on a loading platform by its stock. Never mistaken for the long low Storehouse.
+- **Market Square** (`market-square`, 3x3): a paved square, six stalls (two rows of three, open toward the entrance) under canopies in six warm colors, each with a family's goods on its counter (bread, vegetables, cheese, cloth, candles, cider and honey), a market cross in the middle. Odette's finale roofs it into the Market Hall later.
+- **Forester's Lodge** (`foresters-lodge`, 2x2, the kit rewritten in place): a log lodge, an open chopping shed against it with a block and split firewood in a round stack, felled logs by its output, and a nursery bed of saplings for replanting.
+
+**Budgets per kit**: near at most 4,000 triangles at level 3 (3,000 at level 1), far at most 250.
+
+## As built (2026-11-12)
+
+- **Looks by trade and level** as the look calls above: `kits/business.ts` (the plumbing, the painted sign, goods out front, the three business kits), `kits/workshops.ts` (baker, weaver, carpenter, chandler, cider maker), `kits/farms.ts` (grain farm, market garden, orchard, dairy, sheep run, hives), `shopOf` in `kits/grown.ts` (the shop by level when `params.level` is set; the C4E look without it). Pieces drawn once and shared with the old kits: `bakeOven` (workplaces.ts), `dippingRack` and `chairOf` (trades.ts); `tenterFrame`, `appleMill`, `screwPress`, `paddock`, `shepherdsHut`, `skep`, `pugMill`, `bottleKiln`, `roundStack` and the rest exported from village.ts. New goods draw with the shapes of the goods they replaced (`GOOD_SHAPES` in goods.ts); furniture, candles and honey have shapes of their own.
+- **The four new kits**: `kits/specialized.ts` (brickworks, granary, market-square) and the `foresters-lodge` kit rewritten in place in workplaces.ts. Content did not change: the defs' `art.params.kit` names took effect when the kits registered.
+- **Signs**: the buildings layer letters "Family's Trade" (Bakery, Looms, Joinery, Candles, Cider, Farm, Gardens, Orchard, Dairy, Fold, Honey, Stores) on every level 2 and 3 business's board in one canvas atlas on one mesh (one draw for the town); a player's own sign words win.
+- **Shared files touched** (additive): `render/kitGeometry.ts` (three lines: a business's `businessParams`), `packages/art/src/index.ts` (one export), `kits/index.ts` (four registry lines and the business kits' import), `apps/gallery/src/main.ts` (the `trades` scene's branch and import; the new `apps/gallery/src/trades.ts`).
+- **Budgets** (the village of 130 dressed as an R1 town by `apps/client/e2e/r1e-shots.mjs`, Medium, 1440 x 900, software renderer): moving frames 197 draws and 0.78 M triangles before, 174 and 0.52 M after; the buildings layer 182 k triangles before, 140 k after (the trade looks are lighter than the chain kits they replace). Per kit: near at most 4,000 triangles at level 3, far at most 250, checked by `workshopTrades`, `farmTrades` and `specialized` tests over styles, seasons and seeds.
+- **The Market Hall** (follow-up for R1D): Odette's finale puts `market-hall` into `hearth.unlocked` (R1D, PR #31); the buildings layer reads it from the Mirror's town view and draws every Market Square with `hall` in its params (`drawnView`): a timber hall on oak posts over the six stalls, a hipped tile roof, a clock turret and her balcony over the entrance, on the same footprint (3,072 triangles near; far, the roof hides the stalls). No sim or content change. The Granary's loading platform became a plank deck on posts.
+- **Not done**: no reach ring (R1C has not asked; it is an overlay, V2's path). No kit retired: every old kit id is still named by a trade look or kept for the showcase.

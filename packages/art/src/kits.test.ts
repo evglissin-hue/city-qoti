@@ -6,6 +6,10 @@ import { artKitId, kitById, kits } from './kits';
 const BUILDING_BUDGETS: Record<string, number> = {
   'bath-house': 3400,
   'brick-kiln': 4000,
+  'foresters-lodge': 3000,
+  brickworks: 4000,
+  granary: 4000,
+  'market-square': 4000,
   'chopping-shed': 2800,
   herbalist: 3000,
   'herb-garden': 2800,
