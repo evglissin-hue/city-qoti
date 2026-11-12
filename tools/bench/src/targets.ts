@@ -27,6 +27,8 @@ export interface TargetRow {
   kinds: string;
   firstCraftsfolk: number;
   craftsfolkShare70: number;
+  /** The best share of Craftsfolk households on any day up to the end (winter slides it back). */
+  craftsfolkBest: number;
   stalls: string[];
   lowestCoins: number;
   owed70: number;
@@ -55,6 +57,7 @@ export function targetRow(seed: string, days = DECISIONS_DAYS): { row: TargetRow
   let made = 0;
   let bought = 0;
   let share70 = 0;
+  let best = 0;
   const lines: string[] = [];
   const hands: number[] = [];
   const onDay = (w: WorldState, line: DayLine) => {
@@ -62,6 +65,7 @@ export function targetRow(seed: string, days = DECISIONS_DAYS): { row: TargetRow
     const [crafts, all] = craftsHouseholds(w);
     if (!firstCraftsfolk && crafts > 0) firstCraftsfolk = line.day;
     share70 = all ? crafts / all : 0;
+    best = Math.max(best, share70);
     lowest = Math.min(lowest, w.economy.treasury / PENNIES_PER_COIN);
     made += w.economy.yesterday.produced[firewood] ?? 0;
     bought += w.carrier.bought[w.carrier.bought.length - 1]?.[firewood] ?? 0;
@@ -97,6 +101,7 @@ export function targetRow(seed: string, days = DECISIONS_DAYS): { row: TargetRow
         .join(', '),
       firstCraftsfolk,
       craftsfolkShare70: Math.round(share70 * 100),
+      craftsfolkBest: Math.round(best * 100),
       stalls: run.health.filter((i) => i.kind === 'business-short').map((i) => i.text),
       lowestCoins: Math.round(lowest),
       owed70: Math.round(loansOwed(w) / PENNIES_PER_COIN),
@@ -112,7 +117,7 @@ export function targetRow(seed: string, days = DECISIONS_DAYS): { row: TargetRow
 }
 
 export const TARGET_HEAD =
-  'seed     village  pop40 pop70 hh70  food%40 food%70 food%mean  decisions  1st crafts  crafts%70  stalls  low coins  coins70 owed70 tab70  firewood made/bought  lean  left';
+  'seed     village  pop40 pop70 hh70  food%40 food%70 food%mean  decisions  1st crafts  crafts%70 best  stalls  low coins  coins70 owed70 tab70  firewood made/bought  lean  left';
 
 export function formatTarget(r: TargetRow): string {
   const pad = (v: string | number, n: number) => String(v).padStart(n);
@@ -128,6 +133,7 @@ export function formatTarget(r: TargetRow): string {
     pad(r.decisions, 10),
     pad(r.firstCraftsfolk || '-', 11),
     pad(r.craftsfolkShare70, 10),
+    pad(r.craftsfolkBest, 4),
     pad(r.stalls.length, 7),
     pad(r.lowestCoins, 10),
     pad(r.coins70, 8),

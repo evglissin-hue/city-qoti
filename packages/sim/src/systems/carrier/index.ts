@@ -841,32 +841,34 @@ export function carrierDay(state: WorldState, ctx: TickCtx): void {
 function sellOne(day: Day, good: number): boolean {
   const o = sellOffer(day, good);
   if (!o) return false;
-  let from: Store | null = null;
+  // R1X: first from a maker's output buffer, collected at its door before porters take it to a
+  // shelf, then from the storehouses, so what the town keeps stays where households see it (a
+  // village's candles were sold off the storehouse shelf while the two kept sat at the chandler's,
+  // seen by nobody, and its Craftsfolk slid back for want of Wares).
+  let maker: Building | null = null;
   let most = 0;
-  for (const s of day.stores) {
-    const free = s.b.rt!.store[good]! - s.b.rt!.reservedOut[good]!;
+  for (const b of day.makers) {
+    const rt = b.rt!;
+    const free = rt.output[good]! - rt.reservedOut[good]!;
     if (free > most) {
       most = free;
-      from = s;
+      maker = b;
     }
   }
-  if (from) {
-    from.b.rt!.store[good]! -= 1;
-    from.space++;
+  if (maker) {
+    maker.rt!.output[good]! -= 1;
   } else {
-    // R1X: a maker's output buffer, before porters take it to a shelf (a village's cider sat at the
-    // presses and on the stalls, and the carrier, reading the storehouses only, never sold it).
-    let maker: Building | null = null;
-    for (const b of day.makers) {
-      const rt = b.rt!;
-      const free = rt.output[good]! - rt.reservedOut[good]!;
+    let from: Store | null = null;
+    for (const s of day.stores) {
+      const free = s.b.rt!.store[good]! - s.b.rt!.reservedOut[good]!;
       if (free > most) {
         most = free;
-        maker = b;
+        from = s;
       }
     }
-    if (!maker) return false;
-    maker.rt!.output[good]! -= 1;
+    if (!from) return false;
+    from.b.rt!.store[good]! -= 1;
+    from.space++;
   }
   day.town[good]! -= 1;
   day.earned += o.price;
