@@ -52,7 +52,7 @@ One row per cycle. A cycle is one agent session working from one brief on one br
 | R1C The interface | R1 | parallel | `cycle-r1c-interface.md` | R1.0 | waiting; branches from `cycle/r1x-integration`, PR into it |
 | R1D The Hearth's tools and the first days | R1 | parallel | `cycle-r1d-hearth-first-days.md` | R1.0 | waiting; branches from `cycle/r1x-integration`, PR into it |
 | R1E Art for trades | R1 | parallel | `cycle-r1e-trade-art.md` | R1.0, V2.0 | waiting; branches from `cycle/r1x-integration`, PR into it |
-| R1F The bench | R1 | parallel | `cycle-r1f-bench.md` | R1.0 | waiting; branches from `cycle/r1x-integration`, PR into it |
+| R1F The bench | R1 | parallel | `cycle-r1f-bench.md` | R1.0 | done on `cycle/r1f-bench`, PR into `cycle/r1x-integration` (see As built in the brief) |
 | R1X R1 integration and tuning | R1 | integration | `cycle-r1x-integration.md` | R1A to R1F | waiting; merges the wave on `cycle/r1x-integration`, tags `chains-final`, one PR into `main` |
 
 Status values: waiting (dependencies not merged), ready, in progress (add the session link), PR open (add the PR link), merged.

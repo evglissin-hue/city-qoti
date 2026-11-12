@@ -49,3 +49,30 @@ The systems themselves (R1A, R1B), the interface (R1C), tuning numbers to target
 - The I3 lesson stands: one planner, one labor budget, one money reserve; an advisor proposes, it never builds by itself.
 - Keep the bench headless and deterministic: the same seed hashes the same twice.
 - R1.0's findings: on kat-1 and willow every fishery spot lies beyond the porters' 22 tiles from the starting storehouse, so the stand-in advisor never places one there (a storehouse out by the river, as the village advisor does for far quarries, is yours); birch's quarry spot runs out early ("no spot for quarry"); the spot finder already checks the woods, open ground, river and road rules the sim does not check until R1B, and `village.bench.ts` places a Sawmill off the river through `insertBuilding`, which checks no site rule.
+
+## As built (R1F)
+
+On the stand-ins R1.0 left (R1A and R1B had not landed when this was measured); every number below moves when they do.
+
+**Advisors.** `advisors/land.ts` (slot 20, the Ledger) replaces the street advisor and every specialized want the hamlet and village advisors made: the first street on founding day, the zone of each lit demand bar painted along open frontage by any road within the porters' reach (several runs, about 40 tiles a stroke), a new street, as long as the treasury allows (8 to 22 tiles), when frontage runs thin, and the specialized buildings on their ground (lodge, quarry, fishery with a storehouse out toward it, a windmill on high ground, granary, storehouses, Trading Post, Market Square, Sawmill, Brickworks, Cart Shed). It sets Materials to Always when the valley cannot site a quarry or a lodge. `advisors/plan.ts` (slot 55) replaces the seasons advisor and answers the season card once a season in one `season.setPlan`. The Hearth now dresses the plain streets and, until R1B's lodge replants, plants saplings by thinning lodges (nature advisor); the village advisor keeps services. The planner places an essential site short of its goods when the carrier may bring them (rule 3). Trimmed chores: the Hearth asks and sketches from its own seat (seat 1), commissions not taken are left to lapse, the money levers rest three days, loans come in 600s, the watch budget and posture have slack.
+
+**Decisions count** (`npm run lanes`, both lanes, 70 days, limit 150, no pause, no Ledger decor, no Hearth zoning): willow 97, hazel 116, oak 80, birch 20, all PASS. About 20 of willow's are the stand-in lodge (build, retire, raise) and go with R1B's replanting.
+
+**Lanes test** (residents at day 70 and percent of the both-lanes town; Craftsfolk households are 0 in every run):
+
+| seed | both | Hearth off | Ledger off after founding |
+|---|---|---|---|
+| willow | 70 | 112 (160%) | 23 (33%) |
+| hazel | 99 | 102 (103%) | 21 (21%) |
+| oak | 63 | 110 (175%) | 27 (43%) |
+| birch | 13 | 14 (108%) | 14 (108%) |
+
+The Ledger lane is needed (Ledger off ends at a fifth to two fifths); the Hearth lane is not yet (R2's evenings are what make it so). Run-to-run spread is wide: the stand-in Village economy runs into debt from about day 40 (wages outrun sales while no Wares or Treats are sold, Fuel is imported all year), and a town in debt lays no lane.
+
+**Health kinds** (`view/health.ts`): `business-short`, `site-unsupplied`, `demand-unanswered`, `site-rule-broken` (woods, open ground, road), `guide-dead-end`, `story-dead-end`; `idle-for-input` and `material-deadlock` are gone. `npm run audit` passes; what it still sees is printed as explained (`EXPLAINED` in `audit.ts`, marked `R1 stand-in (R1X)`): lodges outgrowing their woods (R1B) and a bar unanswered while the treasury is in debt (R1X). Two flags it found were fixed: an outpost storehouse with no road at its door, and short paths skipped for buildings whose site rule wants a road.
+
+**Bench.** `r1 growth` (City rank, 2,000 residents) measures 10 ms a night against 2 ms and `r1 carrier` 7 to 11 ms a day against 0.5 ms, both on the stand-ins (the carrier's `tradingPost` and `carrierTerms` scan the buildings once per unit). They print as recorded and fail only with `BENCH_R1_STRICT=1` until R1X.
+
+**Outcome tests.** Back on: growth without dead ends (willow, hazel, 18 days), the Village by day 37 (both reach it by day 19), lives and stories (hazel, 40 days), festivals every season, the high street's homes. Skipped with their owner: the Village's books with no lean times and oak's 70-day Village (R1X), the guide's eight steps by day 6 (R1D's letters, R1B's first workshop), the Hamlet's food and treasury band (R1X). Not met on the stand-ins, for R1X: the first Craftsfolk by day 40 and a third by day 70 (no Wares or Treats on any shelf: no workshop trade grows, and the stand-in carrier's reserve for a tier not yet in town is zero; also savings, a tavern in reach), and a third of hands in food (16% to 36%).
+
+**For R1X.** The tune now prints a Ledger view (cover and flavors by family, the four bars, businesses by level, hands in food and hauling, the carrier, the tab), a Businesses line and a Next tier tally; read the Next tier line first. The Hearth's refused commands are high (hundreds of saplings refused on hazel), which goes with the sapling stand-in. Birch grows to about 15 residents: no quarry spot within reach of its deposits, and the Materials rule on Always buys no stone while timber covers the family reserve, so growth never gets a site started (R1A's carrier by flavor, R1B's starting sites).
