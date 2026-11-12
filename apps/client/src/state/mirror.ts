@@ -3,9 +3,8 @@ import { content } from '@qoti/content';
 import {
   DecorGrid,
   defaultSettings,
-  doorFront,
+  doorReached,
   inBounds,
-  reachesTile,
   townReach,
   townSources,
   type Rot4,
@@ -751,7 +750,7 @@ export class Mirror implements MapReader {
     }
     const reach = this.reachCache.reach;
     if (!reach.some((v) => v === 1)) return true;
-    return reachesTile(reach, this, doorFront(b));
+    return doorReached(reach, this, b);
   }
 
   /**

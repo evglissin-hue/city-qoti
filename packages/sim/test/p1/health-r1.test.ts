@@ -4,8 +4,9 @@ import { content } from '@qoti/content';
 import { describe, expect, it } from 'vitest';
 import { DAYS_PER_SEASON, MAP_SIZE, TICKS_PER_DAY } from '../../src/constants';
 import type { WorldState } from '../../src/contracts';
-import { Road, TREE_SPECIES, treeValue } from '../../src/map/layers';
+import { Road, Terrain, TREE_SPECIES, treeValue } from '../../src/map/layers';
 import { insertBuilding } from '../../src/state/place';
+import { PASS_EVENT } from '../../src/systems/carrier/api';
 import { HealthWatch } from '../../src/view/health';
 import { hamletFixture } from '../fixtures/hamlet';
 
@@ -84,6 +85,33 @@ describe('the zones-first health kinds', () => {
       expect(kinds(w, s)).toContain('site-unsupplied');
       s.carrier.bought[s.carrier.bought.length - 1]![TIMBER] = 6;
       expect(kinds(w, s)).not.toContain('site-unsupplied');
+    });
+
+    it('counts the wait from the thaw while the pass is closed (R1X)', () => {
+      const { s, lodge } = lodgeSite();
+      s.buildings.splice(s.buildings.indexOf(lodge), 1);
+      s.carrier.families[MATERIALS]!.rule = 'always';
+      // Snow shuts the pass for two days: the carrier cannot come at all.
+      s.weather.events.push({
+        id: s.nextId++,
+        event: PASS_EVENT,
+        start: 0,
+        end: 2 * DAY,
+        forecastTick: 0,
+      });
+      const w = new HealthWatch();
+      s.tick = 0;
+      w.check(s);
+      s.tick = DAY + 1;
+      expect(kinds(w, s)).not.toContain('site-unsupplied');
+      // The watch looks every hour; its last look before the thaw.
+      s.tick = 2 * DAY - 1;
+      w.check(s);
+      // The pass opens; a whole open day with nothing brought is a dead end again.
+      s.tick = 2 * DAY + 1;
+      expect(kinds(w, s)).not.toContain('site-unsupplied');
+      s.tick = 3 * DAY + 2;
+      expect(kinds(w, s)).toContain('site-unsupplied');
     });
   });
 
@@ -200,7 +228,7 @@ describe('the zones-first health kinds', () => {
   });
 
   describe('site-rule-broken', () => {
-    it('fires when the lodge loses its woods for a day, and clears when they return', () => {
+    it('fires when the lodge loses its woods for a day with no room to plant them back, and clears when they return', () => {
       const f = hamletFixture();
       const s = f.state;
       const lodge = s.buildings.find((b) => b.id === f.b.sawpit)!;
@@ -212,6 +240,13 @@ describe('the zones-first health kinds', () => {
       s.tick = 1;
       w.check(s);
       s.tick = DAY + 2;
+      // R1X: open ground round it is a wood its Lodge plants back (woodsThin), not a dead end.
+      expect(w.check(s).filter((i) => i.kind === 'site-rule-broken' && i.id === lodge.id)).toEqual([]);
+      // Sand all round: nothing will grow there again.
+      s.map.terrain.fill(Terrain.sand);
+      s.tick = DAY + 3;
+      w.check(s);
+      s.tick = 2 * DAY + 4;
       const hit = w.check(s).filter((i) => i.kind === 'site-rule-broken' && i.id === lodge.id);
       expect(hit[0]?.text).toContain('foresters-lodge');
       plant(s, lodge.x, lodge.z, 14);

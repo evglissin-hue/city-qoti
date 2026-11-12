@@ -18,6 +18,25 @@ import { townStock } from '../../view/hamlet';
 import { content } from '@qoti/content';
 
 export const FORESTRY_RANGE = 8;
+/**
+ * R1X: true while a Lodge's woods hold fewer trees of any age than its site rule asks (the town grew
+ * into them: lots, fields, sites). Its crew then plants rather than fells, so the woods come back
+ * instead of holding at what the town left (hazel's Village Lodge stood at 7 young trees of 12).
+ * The same window the audit's site-rule check reads.
+ */
+export function woodsThin(state: WorldState, b: Building, def: BuildingDef): boolean {
+  const rule = def.placement?.find((r) => r.kind === 'woods');
+  if (!rule || rule.kind !== 'woods') return false;
+  const [w, d] = footprintSize(def, b.rot);
+  let n = 0;
+  for (let z = b.z - rule.within; z < b.z + d + rule.within; z++)
+    for (let x = b.x - rule.within; x < b.x + w + rule.within; x++) {
+      if (x < 0 || z < 0 || x >= MAP_SIZE || z >= MAP_SIZE) continue;
+      if (state.map.tree[z * MAP_SIZE + x] && ++n >= rule.trees) return false;
+    }
+  return true;
+}
+
 /** Candidate tiles a forester considers per sapling. */
 const PLANT_TRIES = 24;
 

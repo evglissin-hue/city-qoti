@@ -7,6 +7,7 @@ import { MAP_SIZE } from '../../constants';
 import type { Building, EntityId, Lot, TickCtx, WorldState } from '../../contracts';
 import { canPlaceBuilding } from '../../rules/building';
 import { entranceTiles, footprintSize } from '../../rules/footprint';
+import { doorFront } from '../../rules/reach';
 import { findById } from '../../state/entities';
 import { insertBuilding } from '../../state/place';
 import { worldIndex } from '../../state/worldIndex';
@@ -34,9 +35,39 @@ export function lotPlacement(state: WorldState, lot: Lot, def: BuildingDef): [x:
     const z = alongX ? fixed : lot.z + off;
     const { front } = entranceTiles(def, x, z, lot.rot);
     if (!state.map.road[front[1] * MAP_SIZE + front[0]]) continue;
-    if (canPlaceBuilding(reader, def, x, z, lot.rot).ok) return [x, z];
+    if (!canPlaceBuilding(reader, def, x, z, lot.rot).ok) continue;
+    if (coversDoor(state, x, z, fw, fd)) continue;
+    return [x, z];
   }
   return null;
+}
+
+/**
+ * R1X: true when a footprint at x, z (fw by fd tiles) would stand on the step in front of a
+ * neighbor's door. A garden bed whose door faced the lots behind it was walled in by the farmstead
+ * that grew there, and its site waited forever (the audit's site-cut-off on birch). Only the
+ * buildings touching the footprint's edge can have their step inside it.
+ */
+function coversDoor(state: WorldState, x: number, z: number, fw: number, fd: number): boolean {
+  const reader = worldIndex(state).reader;
+  const S = MAP_SIZE;
+  const seen: number[] = [];
+  const near = (nx: number, nz: number): boolean => {
+    if (nx < 0 || nz < 0 || nx >= S || nz >= S) return false;
+    const id = reader.occupant(nx, nz);
+    if (!id || seen.includes(id)) return false;
+    seen.push(id);
+    const b = findById(state.buildings, id);
+    // Walls, fences and gates have no step of their own to keep clear.
+    if (!b || content.buildingById.get(b.def)?.defense) return false;
+    const step = doorFront(b);
+    const sx = step % S;
+    const sz = (step - sx) / S;
+    return sx >= x && sx < x + fw && sz >= z && sz < z + fd;
+  };
+  for (let k = 0; k < fw; k++) if (near(x + k, z - 1) || near(x + k, z + fd)) return true;
+  for (let k = 0; k < fd; k++) if (near(x - 1, z + k) || near(x + fw, z + k)) return true;
+  return false;
 }
 
 /**

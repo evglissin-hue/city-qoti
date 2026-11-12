@@ -7,7 +7,7 @@
 import { content } from '@qoti/content';
 import { MAP_SIZE } from '../constants';
 import type { MapReader, Rot4 } from '../contracts';
-import { entranceTiles } from './footprint';
+import { entranceTiles, footprintSize } from './footprint';
 
 /** A building as far as reach cares (BuildingView and Building both fit). */
 export interface ReachBuilding {
@@ -81,7 +81,13 @@ export function townReach(
  * True when a walker can stand at `tile` (a door's front): it is reached, or it is a tile walkers
  * may step onto as a destination from a reached neighbor no more than a level away.
  */
-export function reachesTile(reach: Uint8Array, reader: MapReader, tile: number): boolean {
+export function reachesTile(
+  reach: Uint8Array,
+  reader: MapReader,
+  tile: number,
+  /** R1X: the building's own footprint (x, z, w, d), whose tiles are no way in once it stands. */
+  own?: readonly [number, number, number, number],
+): boolean {
   const S = MAP_SIZE;
   if (tile < 0 || tile >= S * S) return false;
   if (reach[tile]) return true;
@@ -92,9 +98,24 @@ export function reachesTile(reach: Uint8Array, reader: MapReader, tile: number):
     const nx = k === 0 ? x + 1 : k === 1 ? x - 1 : x;
     const nz = k === 2 ? z + 1 : k === 3 ? z - 1 : z;
     if (nx < 0 || nz < 0 || nx >= S || nz >= S) continue;
+    if (own && nx >= own[0] && nx < own[0] + own[2] && nz >= own[1] && nz < own[1] + own[3]) continue;
     if (!reach[nz * S + nx]) continue;
     const dh = reader.height(nx, nz) - h;
     if (dh < 2 && dh > -2) return true;
   }
   return false;
+}
+
+/**
+ * True when the town can walk to the building's door: its step is reached, or a reached neighbor
+ * leads onto it. R1X: a neighbor inside the building's own footprint does not count. A garden bed was
+ * placed with its step inside the storehouse beside it, "reached" only across the tile the bed then
+ * stood on, and its site waited forever (the audit's site-cut-off on birch).
+ */
+export function doorReached(reach: Uint8Array, reader: MapReader, b: Omit<ReachBuilding, 'stage'>): boolean {
+  const def = content.buildingById.get(b.def);
+  const own: [number, number, number, number] | undefined = def
+    ? [b.x, b.z, ...footprintSize(def, b.rot)]
+    : undefined;
+  return reachesTile(reach, reader, doorFront(b), own);
 }

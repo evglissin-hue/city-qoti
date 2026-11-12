@@ -3,7 +3,7 @@
 // says what the sim will say.
 import type { BuildingDef } from '@qoti/content';
 import type { EntityId, MapReader, Rot4 } from '../contracts';
-import { doorFront, reachesTile, townReach, townSources, type ReachBuilding } from './reach';
+import { doorReached, townReach, townSources, type ReachBuilding } from './reach';
 import { gateTiles, isWallDef } from './wall';
 
 export interface Leave {
@@ -68,5 +68,5 @@ export function movedReaches(
   const open = readerWithout(reader, { building: moving.id });
   const reach = townReach(open, townSources(others), gateTiles(others));
   if (!reach.some((v) => v === 1)) return true;
-  return reachesTile(reach, open, doorFront({ def: moving.def, x, z, rot }));
+  return doorReached(reach, open, { def: moving.def, x, z, rot });
 }

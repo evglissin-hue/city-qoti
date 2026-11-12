@@ -1,7 +1,7 @@
 // The town's reach for a state (playtest round three), cached until the walkable network or the
 // buildings change: a derived index, never saved or hashed (see rules/reach.ts).
 import type { Building, WorldState } from '../contracts';
-import { doorFront, reachesTile, townReach, townSources } from '../rules/reach';
+import { doorReached, townReach, townSources } from '../rules/reach';
 import { gateTiles } from '../rules/wall';
 import { worldIndex } from './worldIndex';
 
@@ -29,5 +29,5 @@ export function townReachesDoor(state: WorldState, b: Pick<Building, 'def' | 'x'
   if (!state.buildings.some((x) => x.stage === 'built')) return true;
   const reach = reachOf(state);
   if (!reach.some((v) => v === 1)) return true;
-  return reachesTile(reach, worldIndex(state).reader, doorFront(b));
+  return doorReached(reach, worldIndex(state).reader, b);
 }

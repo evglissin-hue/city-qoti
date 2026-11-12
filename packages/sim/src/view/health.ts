@@ -15,6 +15,8 @@ import {
 import type { Building, WorldState } from '../contracts';
 import { Road, TREE_MATURE, treeStage } from '../map/layers';
 import { entranceTiles, footprintSize } from '../rules/footprint';
+import { canPlantTree } from '../rules/tree';
+import { worldIndex } from '../state/worldIndex';
 import { townReachesDoor } from '../state/reach';
 import { rankAtLeast } from '../state/village';
 import { familyIndex, methodOf } from '../state/zones';
@@ -240,6 +242,7 @@ export class HealthWatch {
   private checkSupply(state: WorldState, sites: Building[], out: HealthIssue[]): void {
     const now = state.tick;
     const stock = townStock(state);
+    const closed = passClosed(state);
     const live = new Set<string>();
     for (const site of sites) {
       const c = site.rt!.construction!;
@@ -247,6 +250,12 @@ export class HealthWatch {
         if (need <= 0 || (stock[g] ?? 0) > 0) return;
         const key = `${site.id}:${g}`;
         live.add(key);
+        // R1X: while the pass is closed the carrier cannot come at all; the wait counts from the thaw
+        // (birch's grown farmstead asked for stone on the last day before the pass closed).
+        if (closed) {
+          this.siteWaitSince.set(key, now);
+          return;
+        }
         const since = this.siteWaitSince.get(key) ?? now;
         this.siteWaitSince.set(key, since);
         if (now - since < DAY_TICKS) return;
@@ -495,18 +504,25 @@ function ruleBroken(state: WorldState, b: Building, def: BuildingDef, rule: Plac
   if (rule.kind === 'woods') {
     // R1X: a wood the Lodge has felled and replanted is regrowing, not gone (R1B's foresters plant
     // saplings in its range): only a wood with too few trees of any age is broken.
+    // R1X: and a wood the town has grown into is planted back by its Lodge (production/forestry,
+    // woodsThin): it is broken only when too few trees could ever stand there again.
+    const reader = worldIndex(state).reader;
     let n = 0;
     let mature = 0;
+    let room = 0;
     for (let z = b.z - rule.within; z < b.z + d + rule.within; z++)
       for (let x = b.x - rule.within; x < b.x + w + rule.within; x++) {
         if (x < 0 || z < 0 || x >= MAP_SIZE || z >= MAP_SIZE) continue;
         const v = state.map.tree[z * MAP_SIZE + x]!;
-        if (!v) continue;
+        if (!v) {
+          if (n + room < rule.trees && canPlantTree(reader, x, z).ok) room++;
+          continue;
+        }
         n++;
         if (treeStage(v) >= TREE_MATURE) mature++;
       }
-    return n < rule.trees
-      ? `${rule.trees} trees within ${rule.within} tiles, young or grown (${n} left, ${mature} grown)`
+    return n + room < rule.trees
+      ? `${rule.trees} trees within ${rule.within} tiles, young or grown, and no room to plant them (${n} left, ${mature} grown)`
       : null;
   }
   if (rule.kind === 'openGround') {

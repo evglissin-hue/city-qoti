@@ -17,7 +17,7 @@ import { isWorkTime, tickOfDay } from '../economy/time';
 import { countShort } from '../levels/counters';
 import { defOf, outputCap } from '../logistics/stores';
 import { CROP_STEP_TICKS, tendFields } from './fields';
-import { FORESTRY_RANGE, fellTree, lodgeYield, plantSapling, treeToFell } from './forestry';
+import { FORESTRY_RANGE, fellTree, lodgeYield, plantSapling, treeToFell, woodsThin } from './forestry';
 import { yieldPermille } from './modifiers';
 import { conditionPercent, consume, crewPower, cycleWork, heightPercent, produce } from './produce';
 import { inputsShort, outputBlocked, refreshAllStatus } from './status';
@@ -112,6 +112,11 @@ function finishCycle(
   method: ProductionMethod,
 ): boolean {
   if (method.kind === 'fell') {
+    // R1X: woods the town has grown into are planted back before any more is felled.
+    if (woodsThin(state, b, def)) {
+      plantSapling(state, ctx, b, def, method.range ?? FORESTRY_RANGE, ctx.rng('misc'));
+      return true;
+    }
     const tile = treeToFell(state, b, def, method.range ?? FORESTRY_RANGE);
     if (tile < 0) {
       rt.status |= BuildingStatus.noTrees;

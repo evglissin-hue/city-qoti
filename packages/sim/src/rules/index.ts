@@ -13,7 +13,7 @@ export { entranceTiles, facing, footprintSize, footprintTiles, rotateLocal } fro
 export { circleHitsTile, decorRadius, decorTooClose, isInt, isTile, MAX_DECOR_RADIUS } from './geometry';
 export { canPaintRoad } from './road';
 export { canPlantTree } from './tree';
-export { doorFront, reachesTile, townReach, townSources, type ReachBuilding } from './reach';
+export { doorFront, doorReached, reachesTile, townReach, townSources, type ReachBuilding } from './reach';
 export {
   canPaintWall,
   gateTiles,
