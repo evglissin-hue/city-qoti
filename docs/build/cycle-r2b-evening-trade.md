@@ -52,3 +52,4 @@ Places, the planner and footfall (R2A); gaps (R2C); the cafe's drawing and every
 - The score needs R2A's `Resident.round` facts: write the 21:00 pass against the stub and a fixture, and merge `cycle/r2x-integration` often.
 - A shop that stops selling after 17:00 because its road is closed must say so in its view; R2D shows it.
 - Treats accrue as built (in hundredths); do not change the basket's numbers beyond content.
+- From R1X: the carrier collects surplus Treats at the makers' doors before the storehouse shelves, and a Hamlet's Wares and Treats are on Essentials with selling on. Treats sold on the round come out of the same output buffers, so decide in the wave notes which one takes first.
