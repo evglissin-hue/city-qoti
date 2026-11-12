@@ -497,12 +497,14 @@ vec3 qLightMap(vec2 xz) {
   return texture(uLightMap, xz * uLightMapXf.xy + uLightMapXf.zw).rgb;
 }
 // V2A: the shared strength curve. The lamplight a surface \`up\` tiles above the ground takes at a
-// world point: a soft shoulder where pools crowd (a busy street glows rather than burns), fading out
-// between 1.5 and 4 tiles up. Readers still scale it by their own night (walls and the ground by
-// night squared, so at dusk the pools are a hint).
+// world point, with a smooth ceiling where pools crowd (l / sqrt(1 + 2.5 y^2), y its brightness:
+// nearly linear for one lamp's pool, never brighter than about 0.63 however many overlap), so a
+// dense street glows rather than floods; fading out between 1.5 and 4 tiles up. Readers still scale
+// it by their own night (walls and the ground by night squared, so at dusk the pools are a hint).
 vec3 qLamp(vec2 xz, float up) {
   vec3 l = qLightMap(xz);
-  l *= 1.0 / (1.0 + dot(l, vec3(0.3, 0.55, 0.15)) * 0.45);
+  float y = dot(l, vec3(0.3, 0.55, 0.15));
+  l *= inversesqrt(1.0 + 2.5 * y * y);
   return l * (1.0 - smoothstep(1.5, 4.0, up));
 }
 `;

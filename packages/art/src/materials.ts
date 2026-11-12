@@ -583,7 +583,7 @@ vec3 qKitLamp(vec3 albedo) {
   vec3 n = normalize(vQWNor);
   vec2 xz = vQWPos.xz + n.xz * 0.45;
   float k = 1.0 - 0.45 * smoothstep(0.3, 1.4, vQUp);
-  k *= 1.0 - 0.85 * smoothstep(0.3, 0.7, n.y) * smoothstep(0.6, 1.1, vQUp);
+  k *= 1.0 - 0.95 * smoothstep(0.3, 0.7, n.y) * smoothstep(0.6, 1.1, vQUp);
   return albedo * qLamp(xz, vQUp) * (k * uLampNight * uLampNight * ${KIT_LAMP_GAIN});
 }
 `;
@@ -591,7 +591,7 @@ vec3 qKitLamp(vec3 albedo) {
 /**
  * V2A: the room a lit pane looks into (rooms.ts), by parallax. The facade is cut into room cells,
  * a tile wide and a storey tall (0.72 tiles from 0.14 up, which keeps the kits' window rows inside
- * one storey), measured from the building's origin, and each cell is a box half a tile deep. The
+ * one storey), measured from the building's origin, and each cell is a box 0.42 tiles deep. The
  * view ray through the pane meets the box's back wall, a side wall, the floor or the ceiling, and
  * that face is read from the room's layer with one fetch (the layer holds all five; rooms.ts). The
  * room and whether someone is home come from the building's origin and the cell (`qRoomPick`, the
@@ -613,7 +613,7 @@ vec3 qKitRoom(vec3 n, vec3 dx, vec3 dy) {
   if (uRooms < 0.5 || hl < 0.7) return vec3(1.0);
   vec2 t = vec2(-n.z, n.x) / hl;
   vec3 v = normalize(cameraPosition - vQWPos);
-  const vec3 CELL = vec3(1.0, 0.72, 0.5);
+  const vec3 CELL = vec3(1.0, 0.72, 0.42);
   float u = dot(vQWPos.xz - vQOrigin.xz, t) / CELL.x;
   float w = (vQUp - 0.14) / CELL.y;
   vec2 cell = floor(vec2(u, w));

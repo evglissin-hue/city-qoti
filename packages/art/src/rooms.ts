@@ -138,13 +138,13 @@ function shelf(
   tall = 0.07,
 ): void {
   r.box(x0, y - 0.018, x1, y, 0x6b4a30);
-  const n = Math.max(2, Math.floor((x1 - x0) / 0.055));
+  const n = Math.max(2, Math.floor((x1 - x0) / 0.075));
   for (let i = 0; i < n; i++) {
     const cx = x0 + ((i + 0.5) * (x1 - x0)) / n;
     const c = things[i % things.length]!;
     const h = tall * (0.65 + 0.35 * frac(i * 0.618 + x0 * 3.1));
-    if (i % 3 === 1) r.oval(cx, y + h * 0.5, 0.017, h * 0.5, c);
-    else r.box(cx - 0.014, y, cx + 0.014, y + h, c);
+    if (i % 3 === 1) r.oval(cx, y + h * 0.5, 0.025, h * 0.5, c);
+    else r.box(cx - 0.022, y, cx + 0.022, y + h, c);
   }
 }
 
@@ -229,9 +229,7 @@ const ROOMS: readonly RoomLook[] = [
       r.box(0.3, 0, 0.34, 0.5, 0x7a5638);
       r.box(0.3, 0.38, 0.92, 0.5, 0x7a5638);
       r.each(0.34, 0.12, 0.92, 0.36, (x, y) => {
-        const c = [0xd9a0a0, 0x9fb7d0, 0xefe3cc, 0xd1a24a][
-          (Math.floor(x * 18) + Math.floor(y * 18) * 3) % 4
-        ]!;
+        const c = [0xd9a0a0, 0x9fb7d0, 0xefe3cc, 0xd1a24a][(Math.floor(x * 9) + Math.floor(y * 9) * 3) % 4]!;
         return rgb(c);
       });
       r.box(0.36, 0.3, 0.52, 0.4, 0xf4ecdd);

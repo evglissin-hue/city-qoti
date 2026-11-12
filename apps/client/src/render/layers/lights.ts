@@ -55,7 +55,7 @@ export function shopLit(kit: string, hour: number): boolean {
   return hour >= 17 && hour < (kit === 'tavern' ? 24 : 22.5);
 }
 
-const FIRE_COLOR = 0xff7a3a;
+const FIRE_COLOR = 0xff9548;
 const OVEN_COLOR = 0xff8f45;
 
 interface GroundLight {
@@ -150,7 +150,7 @@ export function lightsLayer(): RenderLayer {
       decorMatrix(mirror, d.fx, d.fz, d.rot, m);
       for (const l of lights) {
         p.set(l[0], l[1], l[2]).applyMatrix4(m);
-        if (fire) fires.push({ x: p.x, z: p.z, radius: 3.6, color: FIRE_COLOR, intensity: 1.7 });
+        if (fire) fires.push({ x: p.x, z: p.z, radius: 3.0, color: FIRE_COLOR, intensity: 1.3 });
         else lanterns.push({ x: p.x, z: p.z, radius, color, intensity });
         if (LIGHT_LOOP)
           all.push({ x: p.x, y: groundY(mirror, p.x, p.z) + 0.05, z: p.z, strength: 0.8, pane: null });
@@ -201,7 +201,7 @@ export function lightsLayer(): RenderLayer {
         const gx = p.x + ox * 0.3;
         const gz = p.z + oz * 0.3;
         // Upper floors spill less than the ground floor.
-        const disc: LightDisc = { x: gx, z: gz, radius: 1.15, color, intensity: l[1] < 0.9 ? 0.3 : 0.2 };
+        const disc: LightDisc = { x: gx, z: gz, radius: 1.15, color, intensity: l[1] < 0.9 ? 0.22 : 0.14 };
         windows.push({ pane, disc });
         if (LIGHT_LOOP) all.push({ x: gx, y: groundY(mirror, gx, gz) + 0.05, z: gz, strength: 0.2, pane });
       }

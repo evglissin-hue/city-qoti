@@ -676,9 +676,9 @@ export function createGroundMaterial(tex: GroundTextures, env: WorldEnv): MeshSt
       .replace(
         '#include <emissivemap_fragment>',
         map
-          ? // V2A: on the albedo, and a breath of warm air over the pool, so lamplight on grass reads
-            // warm rather than olive.
-            '#include <emissivemap_fragment>\n{ vec3 qG = qGlow(); totalEmissiveRadiance += diffuseColor.rgb * qG * 1.3 + qG * 0.035; }'
+          ? // V2A: on the albedo half greyed (a painter's warm pool on green grass, not an olive
+            // one), and a breath of warm air over the pool.
+            '#include <emissivemap_fragment>\n{ vec3 qG = qGlow(); vec3 qA = mix(diffuseColor.rgb, vec3(dot(diffuseColor.rgb, vec3(0.3, 0.55, 0.15))), 0.45); totalEmissiveRadiance += qA * qG * 1.3 + qG * 0.035; }'
           : '#include <emissivemap_fragment>\ntotalEmissiveRadiance += diffuseColor.rgb * qGlow() * 1.3;',
       )
       .replace(
