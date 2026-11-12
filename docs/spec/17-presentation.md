@@ -44,6 +44,7 @@ Accepted by the owner on 2026-11-10 ("how pretty it is, how cozy it is, and how 
 - **By era** (`18-eras.md`): candlelight is the lantern token (the Old Age's lanterns burn the chandler's candles; older notes call them oil lanterns), gas a greener gold, electric a paler warm white. A district's lamps set its night color.
 - **Rooms behind the windows**: in the kit material's glass, each pane shows a little room by parallax (walls, a shelf, a table, a figure when someone is home), chosen by the building's seed from eight room layers generated into the pattern array. It costs a handful of shader operations on window pixels only. From the default camera it reads as livelier, more varied windows; at street zoom and in photos every lit pane is a tiny diorama. From R3 a home with a candle lights all its windows until bedtime, so a well supplied street is visibly brighter; no home ever goes dark (`19-evenings.md`, Supplies).
 - **As built (V2A)**: one map carries lanterns, lit windows' spill, oven doors, the bonfire, festival lights and shop fronts; the ground, every kit piece, folk (a warm rim) and the river read it, and a grown village glows from the valley's edge. Walls take a breath of it low down and roofs little, so pools stay pools. Each room cell (a tile wide, a storey tall) of a facade picks one of the eight rooms by the building's seed and the cell, so neighboring windows of one house can look into different rooms; the figure shows by seed (two cells in five) until homes report who is in (a later wave). Far off a lit pane keeps the full glow with a hint of its room's color. Lamp flames flicker gently while the camera moves and hold still at rest; the pools never flicker (`20-architecture.md`, V2 contracts, As built).
+- **Done (V2X)**: every reader goes through the same curve; the 32-light loop stays behind `?debug&lights=loop` only until both laptops' night rows are in.
 
 ### 2. A painted green world [V2]
 
@@ -54,6 +55,7 @@ Accepted by the owner on 2026-11-10 ("how pretty it is, how cozy it is, and how 
 - **Flowers** grow in drifts a few tiles across (one low-frequency mask shared by the instanced flowers and the ground shader's painted dots, so near and far agree) instead of an even scatter.
 - All of it is opaque geometry: no alpha test, no transparency.
 - As built (V2B): `20-architecture.md`, V2 contracts, As built (V2B, green).
+- **Done (V2X)**, with what remains: trees, hedges and the carpet read the light map through the shared curve. Orchard trees (decor) keep their full crowns all year: thinned, their faceted core shows (V2X tried it; `FRUIT_MIN_THIN`); they thin once they have a bare look.
 
 ### 3. What V1 left half-wired [V2]
 
@@ -62,6 +64,7 @@ Accepted by the owner on 2026-11-10 ("how pretty it is, how cozy it is, and how 
 - Chimney smoke is stacked balls: draw it as soft ribbons that lean with the wind and take the light map's glow at night.
 - Resident bubbles (wish, happy, unhappy, sleepy, cold) are built and never switched on: add them to the View list.
 - Only fruit trees have a far level among decor: give one to the dozen commonest pieces.
+- **Done (V2C, V2X)**: all five, as `20-architecture.md`, V2 contracts, As built (V2C) says; carts lay their patterns from their own position so the grain rides along, and decor with a far level stays at it beyond the decor distance, so a town seen from afar keeps its orchards, planters and benches.
 
 ### 4. Yards, doorsteps and goods you can see [V3]
 
@@ -212,7 +215,7 @@ From V1 (the lean renderer, `20-architecture.md`):
 | Endpaper map [V3] | 1024 x 1024 | 2048 | 2048 | 2048 |
 | Rest-frame samples [V4] | 0 | 8 | 16 | 32 |
 
-All V2 to V4 values are *(tune)* against the laptop numbers.
+All V2 to V4 values are *(tune)* against the laptop numbers. V2X (2026-11-12) keeps V2's rows as built (light map 2, 4, 6 and 8 texels a tile; rooms off on Low; meadow carpet none, 30, 45, 60) until the owner's and Kat's after tables are in; a row that fails on Kat's laptop on Medium is cut back there.
 
 Ultra is for the stronger laptop or a desktop; it is never auto-detected. Budgets per preset: `22-quality.md`. The settings menu offers Ultra ("Spare no candles") and `?quality=ultra` picks it. From V1D every preset runs the lean renderer (`20-architecture.md`, Lean renderer): Low too gets the one final pass (tilt-shift, grade, tone mapping, no bloom) and cached 1024 shadows, every preset reads its own building distance (with a floor of 75 tiles until V1B's far levels carry lit windows: today's far level has none, and at 60 tiles much of a town went dark at night), and decor reads the decor distance (small props shrink away beyond it; lit pieces like lanterns and larger ones switch to their far level). `?engine=classic` keeps the chain from before V1D on the same build until V1X, for comparing the two.
 
