@@ -5,7 +5,7 @@
 //
 // Speed: every layer is built from a handful of noise fields, each one value noise on an integer
 // lattice whose corner values come from a precomputed table, interpolated with weights that are
-// precomputed per row and per column. No texel hashes anything, so the twenty layers take a few
+// precomputed per row and per column. No texel hashes anything, so the twenty-five generated layers take a few
 // tens of milliseconds. Only +, -, *, / and floor are used (no Math.sin or Math.pow), so the
 // result is the same on every machine to the bit.
 import {
@@ -16,6 +16,7 @@ import {
   RGBAFormat,
   UnsignedByteType,
 } from 'three';
+import { fillRooms } from './rooms';
 import { NOISE_LAYER, PATTERN_LAYERS, SURFACE } from './surface';
 
 /**
@@ -43,10 +44,11 @@ export function lastPatternMs(): number {
 }
 
 /**
- * The pattern array: `size` x `size` texels per layer, one layer per surface id and the noise layer
- * last (`PATTERN_LAYERS`), RGBA8, mipmapped, repeating. `fill` 'patterns' (the default) runs the
+ * The pattern array: `size` x `size` texels per layer, one layer per surface id with the noise layer
+ * at 19 (`NOISE_LAYER`), then the room layers (V2.0, `ROOM_LAYER`), `PATTERN_LAYERS` in all, RGBA8,
+ * mipmapped, repeating. `fill` 'patterns' (the default) runs the
  * generators; 'flat' leaves every layer flat (R 128, G B A 0). Create it once and share it: about
- * 5 MB, plus a third again for the mipmaps. Anisotropy is the renderer's (see `setPatternAnisotropy`
+ * 8.7 MB, plus a third again for the mipmaps. Anisotropy is the renderer's (see `setPatternAnisotropy`
  * in the client's env.ts).
  */
 export function createPatternArray(size = PATTERN_SIZE, fill: PatternFill = 'patterns'): DataArrayTexture {
@@ -430,4 +432,94 @@ export function generatePatterns(data: Uint8Array, size: number): void {
       out.a = 1;
     });
   }
+
+  // V2C: the five surfaces of props, carts and residents. They sit on small things (a barrel is a
+  // fifth of a tile), so each is a few soft strokes that read at street zoom and mip away to the
+  // piece's own color from the default camera.
+
+  // Wood grain: streaks along u (planks, seats and cart beds run level), finer lines between them,
+  // and a knot in about one cell in seven of a 3 by 6 grid, drawn long along the grain.
+  {
+    const streaks = fbm(size, 2, 14, 2, 201);
+    const lines = noise(size, 3, 56, 202);
+    const knotAt = cells(3, 6, 203);
+    const knotX = cells(3, 6, 204);
+    const knotY = cells(3, 6, 205);
+    put(SURFACE.woodGrain, (x, y, i) => {
+      let r = 1 + (streaks[i]! - 0.5) * 0.42 + (lines[i]! - 0.5) * 0.16;
+      const cx = Math.floor(x * 3);
+      const cy = Math.floor(y * 6);
+      const c = cy * 3 + cx;
+      if (knotAt[c]! > 0.86) {
+        const dx = (x * 3 - cx - 0.25 - knotX[c]! * 0.5) * 2.2;
+        const dy = (y * 6 - cy - 0.3 - knotY[c]! * 0.4) * 5;
+        const d = dx * dx + dy * dy;
+        // A dark heart and a lighter ring of grain bending round it.
+        r *= d < 0.05 ? 0.66 : d < 0.22 ? 1.08 - 0.22 * smooth(0.22, 0.05, d) : 1;
+      }
+      out.r = r;
+    });
+  }
+
+  // Painted wood: the paint is mostly even, with faint brush strokes along u, and worn through to
+  // bare wood (G, the accent: palette 2.0 wood) in short scuffs along the boards, a few in a hundred.
+  {
+    const strokes = fbm(size, 2, 24, 2, 211);
+    const tone = fbm(size, 5, 5, 2, 212);
+    const wear = fbm(size, 8, 40, 2, 213);
+    put(SURFACE.paintedWood, (_x, _y, i) => {
+      out.r = 1 + (strokes[i]! - 0.5) * 0.14 + (tone[i]! - 0.5) * 0.12;
+      out.g = smooth(0.68, 0.73, wear[i]!);
+    });
+  }
+
+  // Wrought iron: a hammered mottle, darker hollows and bright worn high spots.
+  {
+    const mottle = fbm(size, 12, 12, 2, 221);
+    const spots = cells(64, 64, 222);
+    put(SURFACE.wroughtIron, (x, y, i) => {
+      const p = spots[Math.floor(y * 64) * 64 + Math.floor(x * 64)]!;
+      out.r = (1 + (mottle[i]! - 0.5) * 0.46) * (p > 0.94 ? 1.22 : 1);
+    });
+  }
+
+  // Terracotta: the potter's wheel's rings (level bands), mottled firing, a little grit, and pale
+  // bloom where the clay has weathered (G, the accent: palette 2.0 stripe, a lime-washed cream).
+  {
+    const firing = fbm(size, 6, 6, 2, 231);
+    const ringTone = noise(size, 1, 20, 232);
+    const grit = cells(128, 128, 233);
+    const bloom = fbm(size, 6, 6, 3, 235);
+    put(SURFACE.terracotta, (x, y, i) => {
+      const fy = y * 20 - Math.floor(y * 20);
+      const ring = 0.97 + 0.06 * bump(fy) + (ringTone[i]! - 0.5) * 0.08;
+      const g = grit[Math.floor(y * 128) * 128 + Math.floor(x * 128)]!;
+      out.r = ring * (1 + (firing[i]! - 0.5) * 0.34) * (g > 0.96 ? 0.92 : g < 0.03 ? 1.06 : 1);
+      out.g = smooth(0.6, 0.78, bloom[i]!) * 0.8;
+    });
+  }
+
+  // Cloth: a plain weave of 32 threads each way (8 texels a thread), each thread a little lighter
+  // or darker than its neighbors (homespun), over the soft unevenness of a hand dye.
+  {
+    const warp = cells(32, 1, 241);
+    const weft = cells(1, 32, 242);
+    const dye = fbm(size, 4, 4, 2, 243);
+    put(SURFACE.cloth, (x, y, i) => {
+      const tx = x * 32;
+      const ty = y * 32;
+      const ix = Math.floor(tx);
+      const iy = Math.floor(ty);
+      const fx = tx - ix;
+      const fy = ty - iy;
+      // Where the warp lies on top it is lit across its width; where the weft does, across its own.
+      const over = (ix + iy) % 2 === 0;
+      const lit = 0.8 + 0.3 * bump(over ? fx : fy);
+      const slub = over ? warp[ix]! : weft[iy]!;
+      out.r = lit * (1 + (slub - 0.5) * 0.14) * (1 + (dye[i]! - 0.5) * 0.2);
+    });
+  }
+
+  // V2A: the little rooms behind lit windows (rooms.ts).
+  fillRooms(c8, size);
 }

@@ -9,6 +9,7 @@ import {
 } from '@qoti/art';
 import { MAP_SIZE, START_HOUR, TICKS_PER_DAY, TICKS_PER_HOUR } from '@qoti/sim';
 import { Mesh, type BufferGeometry } from 'three';
+import type { LightDisc } from '../lightMap';
 import { decorMatrix } from '../kitGeometry';
 import { groundY } from '../surface';
 import type { LayerContext, RenderLayer } from './types';
@@ -20,6 +21,9 @@ import type { LayerContext, RenderLayer } from './types';
  * the circus tent with its wagons on the Village Green while the circus is in town. Static: it
  * rebuilds, and drops the still frame, only when one of those changes.
  */
+/** The festoon lanterns' paper colors, as the kit paints them. */
+const FESTOON_COLORS = [0xffc977, 0xf2b8c6, 0xffd58a, 0xbfe0a0];
+
 export function festivalLayer(): RenderLayer {
   let ctx: LayerContext | null = null;
   let mesh: Mesh | null = null;
@@ -85,6 +89,7 @@ export function festivalLayer(): RenderLayer {
     const m = ctx.mirror;
     const parts: BufferGeometry[] = [];
     const rnd = seeded(7);
+    const discs: LightDisc[] = [];
     const rect = siteRect();
     if (rect) {
       // Posts at the corners and every few tiles along each edge, a string of lanterns between.
@@ -106,7 +111,16 @@ export function festivalLayer(): RenderLayer {
         const q = pts[(i + 1) % pts.length]!;
         const s = new ShapeBuilder();
         // Kit space is local to the first post; lift it onto the ground there.
-        festoonPosts(s, [0, 0], [q[0] - p[0], q[1] - p[1]], rnd);
+        const lights = festoonPosts(s, [0, 0], [q[0] - p[0], q[1] - p[1]], rnd);
+        for (const l of lights) {
+          discs.push({
+            x: p[0] + l[0],
+            z: p[1] + l[2],
+            radius: 1.6,
+            color: FESTOON_COLORS[discs.length % FESTOON_COLORS.length]!,
+            intensity: 0.45,
+          });
+        }
         s.translate(p[0], groundY(m, p[0], p[1]), p[1]);
         parts.push(s.build());
       }
@@ -143,6 +157,7 @@ export function festivalLayer(): RenderLayer {
       mesh.receiveShadow = true;
       ctx.scene.add(mesh);
     }
+    ctx.env?.lightWriter.set('festival', discs);
     ctx.invalidate();
   }
 
@@ -166,6 +181,7 @@ export function festivalLayer(): RenderLayer {
       return false;
     },
     dispose() {
+      ctx?.env?.lightWriter.clear('festival');
       if (mesh) {
         ctx?.scene.remove(mesh);
         mesh.geometry.dispose();

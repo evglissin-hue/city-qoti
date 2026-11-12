@@ -2,7 +2,8 @@
 // against a side wall, garden edges (picket, wattle, dry stone, hedge, iron railings), bay windows,
 // shopfronts with display panes, washing lines, vegetable rows, flower borders, hens, a pump, a
 // water trough and post-and-rail fencing. Kit-local coordinates, like the rest of the part library.
-import { vary, type ShapeBuilder, type V3 } from '../geometry';
+import { brushDabs, type DabBlob } from '../dabs';
+import { mixHex, vary, type ShapeBuilder, type V3 } from '../geometry';
 import { palette } from '../palette';
 import { beam, cylX, cylZ, panel } from '../shapes';
 import type { GardenEdge } from './district';
@@ -28,19 +29,42 @@ export function ivyPart(
 }
 
 function ivyNear(s: ShapeBuilder, f: Face, u0: number, u1: number, top: number, rnd: () => number): void {
-  s.surface(SURFACE.leaf);
   const n = Math.max(4, Math.round((u1 - u0) * 9 + top * 7));
+  // V2B: each leaf blob is a small flattened ellipsoid against the wall, its dabs shaded from a
+  // point behind the wall so the patch reads as one mass facing out. Same draws per leaf as ever:
+  // t, the u jitter, r, the color pick and `vary`'s two.
+  const out = outwardOf(f);
+  const blobs: DabBlob[] = [];
+  let seed = 0;
   for (let i = 0; i < n; i++) {
     const t = rnd();
+    if (i === 0) seed = Math.floor(t * 1e6);
     // Thicker near the ground, thinning toward the top, leaning to one side as it climbs.
     const y = 0.04 + Math.sqrt(t) * top;
     const spread = (1 - (y / top) * 0.6) * (u1 - u0);
     const u = u0 + (u1 - u0) * 0.5 + (rnd() - 0.5) * spread;
     const p = facePoint(f, u, y, 0.03);
     const r = 0.045 + rnd() * 0.04;
-    s.blob(p[0], p[1], p[2], r, r * 0.9, r, vary(rnd() < 0.5 ? IVY : IVY_LIGHT, rnd, 0.8), 0);
+    const color = vary(rnd() < 0.5 ? IVY : IVY_LIGHT, rnd, 0.8);
+    const flat = 1.5 * r;
+    const deep = 0.7 * r;
+    blobs.push({
+      center: p,
+      radii: [out[0] !== 0 ? deep : flat, flat, out[2] !== 0 ? deep : flat],
+      normalFrom: facePoint(f, u, y, -0.3),
+      color,
+    });
   }
-  s.surface(SURFACE.plain);
+  brushDabs(s, blobs, {
+    count: Math.round(n * 4.8),
+    size: 0.068,
+    tintSpread: 0.3,
+    skyLighten: 0.4,
+    gaps: 0,
+    thin: 1,
+    seed,
+    lift: -1,
+  });
 }
 
 /** A lean-to shed against a wall face: posts or boards, a sloping roof, logs or tools inside. */
@@ -235,15 +259,52 @@ export function hedgeRun(s: ShapeBuilder, a: [number, number], b: [number, numbe
   const x1 = Math.max(a[0], b[0]) + (a[0] === b[0] ? w : 0);
   const z0 = Math.min(a[1], b[1]) - (a[1] === b[1] ? w : 0);
   const z1 = Math.max(a[1], b[1]) + (a[1] === b[1] ? w : 0);
-  s.rbox(x0, 0, z0, x1, 0.17, z1, vary(0x4f7d3a, rnd, 0.5), 0.04);
   const len = Math.max(x1 - x0, z1 - z0);
   const n = Math.max(1, Math.round(len / 0.14));
+  if (s.low) {
+    // The far level: today's look exactly.
+    s.rbox(x0, 0, z0, x1, 0.17, z1, vary(0x4f7d3a, rnd, 0.5), 0.04);
+    for (let i = 0; i < n; i++) {
+      const t = (i + 0.5) / n;
+      const x = a[0] + (b[0] - a[0]) * t;
+      const z = a[1] + (b[1] - a[1]) * t;
+      s.blob(x, 0.17, z, 0.07, 0.035, 0.07, vary(0x5f8c45, rnd, 0.7), 0, rnd, 0.2);
+    }
+    return;
+  }
+  // V2B near: a deep core box under a shell of dabs over a chain of flattened ellipsoids. The draws
+  // are today's (the box color's two, then per lump the color's two and the blob's six wobble draws).
+  const inset = 0.03;
+  const core = mixHex(vary(0x4f7d3a, rnd, 0.5), 0x22361f, 0.25);
+  s.rbox(x0 + inset, 0, z0 + inset, x1 - inset, 0.14, z1 - inset, core, 0.04);
+  const blobs: DabBlob[] = [];
+  let seed = 0;
   for (let i = 0; i < n; i++) {
     const t = (i + 0.5) / n;
     const x = a[0] + (b[0] - a[0]) * t;
     const z = a[1] + (b[1] - a[1]) * t;
-    s.blob(x, 0.17, z, 0.07, 0.035, 0.07, vary(0x5f8c45, rnd, 0.7), 0, rnd, 0.2);
+    const color = vary(0x5f8c45, rnd, 0.7);
+    const wobble: number[] = [];
+    for (let k = 0; k < 6; k++) wobble.push(rnd());
+    if (i === 0) seed = Math.floor(wobble[0]! * 1e6);
+    const grow = 1 + (wobble[1]! - 0.5) * 0.2;
+    blobs.push({
+      center: [x, 0.1, z],
+      radii: [0.09, 0.11 * grow, 0.09],
+      normalFrom: [x, 0.1 - 0.25, z],
+      color,
+    });
   }
+  brushDabs(s, blobs, {
+    count: Math.max(6, Math.round(42 * len)),
+    size: 0.09,
+    tintSpread: 0.25,
+    skyLighten: 0.6,
+    gaps: 0,
+    thin: 1,
+    seed,
+    lift: -1,
+  });
 }
 
 /** Iron railings on a low plinth, for town fronts. */

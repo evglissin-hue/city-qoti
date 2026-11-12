@@ -14,13 +14,24 @@ import {
   PONY_OFFSET,
   WHEEL_RADIUS,
   WHEEL_X,
+  usePatternLocal,
   type AnimalArt,
 } from '@qoti/art';
 import { content } from '@qoti/content';
 import { AGENT_STRIDE, AgentAnim } from '@qoti/sim';
-import { Euler, Matrix4, Quaternion, Vector3, type BufferGeometry } from 'three';
+import {
+  Euler,
+  Matrix4,
+  PerspectiveCamera,
+  Quaternion,
+  Vector3,
+  type BufferGeometry,
+  type MeshLambertMaterial,
+} from 'three';
 import { AgentPlayback } from '../agentPlayback';
 import { hash2 } from '../coords';
+import { createWorldEnv } from '../env';
+import { createWorldMaterial } from '../material';
 import { FramePool } from '../pool';
 import { groundY } from '../surface';
 import { blobChannel, type BlobChannel } from './blobs';
@@ -57,10 +68,13 @@ export interface CartsLayer extends RenderLayer {
   readonly tracks: ReadonlyMap<number, Readonly<CartTrack>>;
   /** The frame count that `seen` is measured against: a cart with `seen >= serial - 1` is current. */
   readonly serial: number;
+  /** The carts-only kit material (patterns laid from local position), or null before init. */
+  readonly material: MeshLambertMaterial | null;
 }
 
 export function cartsLayer(): CartsLayer {
   let ctx: LayerContext | null = null;
+  let material: MeshLambertMaterial | null = null;
   let blobs: BlobChannel | null = null;
   const playback = new AgentPlayback();
   let lastLatest: Float32Array | null = null;
@@ -87,7 +101,7 @@ export function cartsLayer(): CartsLayer {
     let pl = loads.get(good);
     if (!pl) {
       const id = content.goods[good]?.id ?? '';
-      pl = new FramePool(ctx.scene, cartLoadGeometry(id), ctx.material);
+      pl = new FramePool(ctx.scene, cartLoadGeometry(id), material ?? ctx.material);
       loads.set(good, pl);
     }
     return pl;
@@ -251,27 +265,37 @@ export function cartsLayer(): CartsLayer {
       return drawn;
     },
     tracks,
+    get material() {
+      return material;
+    },
     get serial() {
       return serial;
     },
     init(c) {
       ctx = c;
+      // V2X: a carts-only twin of the shared kit material, its patterns laid from local position so
+      // wood grain, paint, iron and cloth ride along instead of sliding. It reads the same env
+      // uniforms (season, snow, sway, night, lamp light, wall AO, patterns), which is how the
+      // shared one follows the look; the renderer never pushes hooks to a single material.
+      const mat = createWorldMaterial(c.env ?? createWorldEnv(new PerspectiveCamera()));
+      usePatternLocal(mat);
+      material = mat;
       blobs = blobChannel(c, 'carts');
       for (let v = 0; v < VARIANTS; v++) {
-        bodies.push(new FramePool(c.scene, cartBodyGeometry(v), c.material));
+        bodies.push(new FramePool(c.scene, cartBodyGeometry(v), mat));
         const art = animalArt('pony', v);
         ponyParts.push({
           art,
-          body: new FramePool(c.scene, art.body.clone(), c.material),
-          head: new FramePool(c.scene, art.head.clone(), c.material),
-          leg: new FramePool(c.scene, art.leg.clone(), c.material),
+          body: new FramePool(c.scene, art.body.clone(), mat),
+          head: new FramePool(c.scene, art.head.clone(), mat),
+          leg: new FramePool(c.scene, art.leg.clone(), mat),
         });
       }
-      wheels = new FramePool(c.scene, cartWheelGeometry(), c.material);
+      wheels = new FramePool(c.scene, cartWheelGeometry(), mat);
       const resident = kitById.get('resident');
       CARTERS.forEach((species, i) => {
         const g: BufferGeometry | undefined = resident?.build({ params: { species, look: 41 + i * 13 } });
-        if (g) carters.push(new FramePool(c.scene, g.scale(1.3, 1.3, 1.3), c.material));
+        if (g) carters.push(new FramePool(c.scene, g.scale(1.3, 1.3, 1.3), mat));
       });
     },
     update() {},
@@ -288,6 +312,8 @@ export function cartsLayer(): CartsLayer {
       for (const c of carters) c.dispose();
       for (const pl of loads.values()) pl.dispose();
       wheels?.dispose();
+      material?.dispose();
+      material = null;
     },
   };
 }

@@ -84,6 +84,11 @@ export function installDebugHook(getSession: () => Session | null): void {
       };
     },
     lastTurn: () => s()?.mirror.lastTurn.value ?? 0,
+    /** V2X: [x, z] in tiles of every decor piece of a def (for framing a look at the orchard trees). */
+    decorOf: (def: string) =>
+      [...(s()?.mirror.decor.values() ?? [])]
+        .filter((d) => d.def === def)
+        .map((d) => [d.fx / TILE_FP, d.fz / TILE_FP] as [number, number]),
     /** C5E: [id, x, z] of the agents in the latest frame carrying an AgentFlags bit (raiders 256). */
     agentsWith: (flag: number) => {
       const L = s()?.mirror.agents.latest;
@@ -381,6 +386,47 @@ export function installDebugHook(getSession: () => Session | null): void {
         });
       }
       return r;
+    },
+    /**
+     * V2.0: what the valley on screen holds, for the grown village scene (?debug&fixture=grown) and
+     * its cameras: counts, rank, the high street's center (the middle of its shop lots, else of all
+     * lots, else the start area) and the box around every building, in tiles.
+     */
+    grownInfo: () => {
+      const m = s()?.mirror;
+      if (!m) return null;
+      const lots = [...m.lots.values()];
+      const shops = lots.filter((l) => l.zone === 'shops');
+      const mid = (ls: typeof lots): [number, number] => {
+        let x = 0;
+        let z = 0;
+        for (const l of ls) {
+          x += l.x + l.w / 2;
+          z += l.z + l.d / 2;
+        }
+        return [x / ls.length, z / ls.length];
+      };
+      const [sx0, sz0, sx1, sz1] = m.meta.startArea;
+      const street = shops.length
+        ? mid(shops)
+        : lots.length
+          ? mid(lots)
+          : ([(sx0 + sx1 + 1) / 2, (sz0 + sz1 + 1) / 2] as [number, number]);
+      let box: [number, number, number, number] = [sx0, sz0, sx1 + 1, sz1 + 1];
+      for (const b of m.buildings.values())
+        box = [Math.min(box[0], b.x), Math.min(box[1], b.z), Math.max(box[2], b.x), Math.max(box[3], b.z)];
+      return {
+        residents: m.residents.size,
+        buildings: m.buildings.size,
+        decor: m.decor.size,
+        trees: m.treeCount(),
+        lots: lots.length,
+        shopLots: shops.length,
+        rank: m.charter.value?.rank ?? null,
+        street,
+        box,
+        center: [(box[0] + box[2]) / 2, (box[1] + box[3]) / 2] as [number, number],
+      };
     },
     /**
      * V1.0: the perf run (see app/perf.ts): each preset in turn, a scripted camera path then a rest,

@@ -7,6 +7,7 @@ import type { BufferGeometry } from 'three';
 import { seeded, type V3 } from '../geometry';
 import { palette } from '../palette';
 import { PAINT, RIG, RigBuilder, type Channel, type Rig } from '../rig';
+import { SURFACE } from '../surface';
 import type { Kit } from './types';
 
 export type SpeciesId = 'badger' | 'fox' | 'hedgehog' | 'mouse' | 'otter' | 'rabbit' | 'squirrel';
@@ -188,7 +189,8 @@ export function isSpecies(id: string): id is SpeciesId {
 
 const fur: Channel = { hex: 0xffffff, paint: PAINT.fur };
 const furLight: Channel = { hex: 0xffffff, paint: PAINT.furLight };
-const cloth: Channel = { hex: 0xffffff, paint: PAINT.cloth };
+// V2C: clothes carry the cloth surface id (the resident material reads it later).
+const cloth: Channel = { hex: 0xffffff, paint: PAINT.cloth, surface: SURFACE.cloth };
 const fixed = (hex: number, rig: Rig = RIG.none): Channel => ({ hex, rig });
 const onRig = (ch: Channel, rig: Rig): Channel => ({ ...ch, rig });
 
@@ -550,7 +552,7 @@ function hood(b: RigBuilder): void {
 
 /** C5E: a lumpy burlap sack of loot over the shoulder, tied at the neck. */
 function sack(b: RigBuilder): void {
-  const burlap = fixed(0xb89c6c);
+  const burlap: Channel = { ...fixed(0xb89c6c), surface: SURFACE.cloth };
   b.ellipsoid([0.03, 0.17, -0.085], [0.055, 0.065, 0.048], 8, 3, () => burlap);
   b.ellipsoid([0.05, 0.14, -0.09], [0.035, 0.035, 0.035], 6, 2, () => burlap);
   b.nub([0.02, 0.235, -0.07], [0.016, 0.012, 0.012], fixed(0x8a7048));
@@ -568,7 +570,7 @@ function sack(b: RigBuilder): void {
 
 /** C5E: the Watch's lantern, held out at the side on a short hook, its glass warm. */
 function lantern(b: RigBuilder): void {
-  const iron = fixed(0x3b3229);
+  const iron: Channel = { ...fixed(0x3b3229), surface: SURFACE.wroughtIron };
   b.tube(
     [
       [-0.075, 0.12, 0.03],
@@ -593,7 +595,7 @@ function staff(b: RigBuilder): void {
     ],
     [0.007, 0.007, 0.009],
     4,
-    fixed(0x8a5a3a),
+    { ...fixed(0x8a5a3a), surface: SURFACE.woodGrain },
   );
 }
 
@@ -847,7 +849,10 @@ function goggles(b: RigBuilder): void {
 
 /** A lute slung on the back, neck up over the shoulder. */
 function lute(b: RigBuilder): void {
-  b.ellipsoid([0.01, 0.1, -0.085], [0.045, 0.06, 0.022], 8, 3, () => fixed(0xb98a5a));
+  b.ellipsoid([0.01, 0.1, -0.085], [0.045, 0.06, 0.022], 8, 3, () => ({
+    ...fixed(0xb98a5a),
+    surface: SURFACE.woodGrain,
+  }));
   b.ellipsoid([0.01, 0.1, -0.063], [0.012, 0.012, 0.002], 6, 1, () => fixed(INK));
   b.tube(
     [
@@ -857,7 +862,7 @@ function lute(b: RigBuilder): void {
     ],
     [0.008, 0.007, 0.01],
     4,
-    fixed(0x8a5a3a),
+    { ...fixed(0x8a5a3a), surface: SURFACE.woodGrain },
   );
   b.tube(
     [

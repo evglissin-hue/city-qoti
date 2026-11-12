@@ -13,7 +13,9 @@ import {
 import type { Mirror } from '../state/mirror';
 import { fpToWorld, hash2 } from './coords';
 import { MAX_GROUND_LIGHTS, NOISE_GLSL, type WorldEnv } from './env';
+import { LIGHT_LOOP, LIGHT_MAP_GLSL, lightMapUniforms } from './lightMap';
 import { drawDef } from './defs';
+import { flowerDrift } from './drifts';
 import { GROUND_AO_GLSL, groundAoFor } from './groundAo';
 import { DOOR_KIND, ROAD_GLSL } from './layers/roads';
 import { WATER_Y } from './surface';
@@ -292,7 +294,7 @@ export class GroundTextures {
     this.colorBytes[o] = Math.min(255, c[0] * k);
     this.colorBytes[o + 1] = Math.min(255, c[1] * k);
     this.colorBytes[o + 2] = Math.min(255, c[2] * k);
-    this.colorBytes[o + 3] = Math.round(Math.min(1, flowers) * 255);
+    this.colorBytes[o + 3] = Math.round(Math.min(1, flowers * flowerDrift(x, z)) * 255);
     const built = L.occupant[i] !== 0;
     let worn = water || built ? 0 : (this.seats.get(i) ?? 0);
     if (!water && !built && !road) worn = Math.max(worn, this.doorFront(x, z));
@@ -568,6 +570,13 @@ vec3 qGroundSeason(vec3 col, vec2 wp, float road, float above, float ao, float g
 vec3 qGlow() {
   vec3 sum = vec3(0.0);
   if (uNight < 0.01) return sum;
+#ifdef Q_LIGHT_MAP
+  // V2A: every lantern, lit window, oven, fire, festival light and shop front in one read.
+  // (The caller's 1.3 times this. V2X: 0.8, was 0.65, with V2X's tighter pools: brighter under the
+  // lamp, darker between.)
+  return qLamp(vQWorld.xz, 0.0) * (uNight * uNight * 0.8);
+#else
+  // Before V2A (and with ?debug&lights=loop): the 32 pools nearest the view.
   for (int i = 0; i < ${MAX_GROUND_LIGHTS}; i++) {
     if (i >= uLightCount) break;
     vec4 l = uLights[i];
@@ -576,6 +585,7 @@ vec3 qGlow() {
     sum += l.w * max(1.0 / (1.0 + r2 * 5.0) - 0.1, 0.0);
   }
   return qSrgb(vec3(1.0, 0.7, 0.4)) * min(sum, vec3(1.2)) * uNight * uNight;
+#endif
 }
 
 float qCloudShade(vec2 wp) {
@@ -600,7 +610,11 @@ export function createGroundMaterial(tex: GroundTextures, env: WorldEnv): MeshSt
   // and the ground settle and melt together.
   const snow = env.snow;
   m.userData.snow = snow;
+  // V2A: the light map in place of the 32-light loop, unless ?debug&lights=loop keeps the loop.
+  const map = !LIGHT_LOOP;
+  if (map) m.defines = { ...m.defines, Q_LIGHT_MAP: '' };
   m.onBeforeCompile = (shader) => {
+    if (map) Object.assign(shader.uniforms, lightMapUniforms(env));
     Object.assign(shader.uniforms, {
       uGroundColor: { value: tex.color },
       uGroundData: { value: tex.data },
@@ -649,6 +663,7 @@ export function createGroundMaterial(tex: GroundTextures, env: WorldEnv): MeshSt
           'uniform int uLightCount;',
           'varying float vQSurf;',
           'varying vec3 vQWorld;',
+          map ? LIGHT_MAP_GLSL : '',
           NOISE_GLSL,
           GROUND_HELPERS,
           GROUND_AO_GLSL,
@@ -662,13 +677,17 @@ export function createGroundMaterial(tex: GroundTextures, env: WorldEnv): MeshSt
       )
       .replace(
         '#include <emissivemap_fragment>',
-        '#include <emissivemap_fragment>\ntotalEmissiveRadiance += diffuseColor.rgb * qGlow() * 1.3;',
+        map
+          ? // V2A, V2X: on a warm grey albedo (qLampAlbedo: a painter's amber pool on green grass,
+            // not an olive one), and a breath of warm air over the pool.
+            '#include <emissivemap_fragment>\n{ vec3 qG = qGlow(); totalEmissiveRadiance += qLampAlbedo(diffuseColor.rgb) * qG * 1.3 + qG * 0.035; }'
+          : '#include <emissivemap_fragment>\ntotalEmissiveRadiance += diffuseColor.rgb * qGlow() * 1.3;',
       )
       .replace(
         '#include <fog_fragment>',
         '#include <fog_fragment>\n#ifdef USE_FOG\ngl_FragColor.rgb = mix(gl_FragColor.rgb, fogColor, qRimMist(vQWorld.xz) * 0.55);\n#endif',
       );
   };
-  m.customProgramCacheKey = () => 'qoti-ground';
+  m.customProgramCacheKey = () => (map ? 'qoti-ground-lightmap' : 'qoti-ground');
   return m;
 }

@@ -7,6 +7,7 @@
 // sit on benches near where they stand, turn to a neighbor for a chat, and wave to the ones they
 // know as they pass; all of it derived here from the frames, so the sim never hears of it.
 import {
+  bindResidentMaterial,
   bundleGeometry,
   createResidentMaterial,
   EXTRA_KINDS,
@@ -51,6 +52,8 @@ import {
   type Scene,
 } from 'three';
 import { fpToWorld, hash2, levelY } from '../coords';
+import { kitLamp } from '../lightMap';
+import { kitUniforms } from '../material';
 import { groundY } from '../surface';
 import { BUBBLE_ICONS, iconAtlas, IconSprites } from '../icons';
 import { AgentPlayback } from '../agentPlayback';
@@ -1093,6 +1096,7 @@ export function agentsLayer(): AgentsLayer {
     drawn,
     init(c) {
       ctx = c;
+      if (c.env) bindResidentMaterial(material, kitUniforms(c.env), kitLamp(c.env));
       // Canvas textures need the DOM, so they are made here rather than in the factory.
       shadowTex = shadowTexture();
       shadowMaterial.alphaMap = shadowTex;

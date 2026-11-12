@@ -1,4 +1,5 @@
 export { mixHex, seeded, ShapeBuilder, vary, type V3 } from './geometry';
+export { brushDabs, type DabBlob, type DabOptions } from './dabs';
 export {
   artKitId,
   kitById,
@@ -57,24 +58,29 @@ export { BUNDLE_GOODS, bundleGeometry, crateOf, GOOD_COLORS, pileLevel, pileOf }
 export { PAINT, RIG, RIG_PIVOTS, RigBuilder, type Channel } from './rig';
 export { beam, cylX, cylZ, panel } from './shapes';
 export {
+  bindResidentMaterial,
   createEmissiveKitMaterial,
   createGhostMaterial,
   createKitMaterial,
   createLeanKitMaterial,
   createResidentMaterial,
   KIT_FRESNEL_GLSL,
+  KIT_PATTERN_LOCAL,
   kitSurfaceUniforms,
   MOTION,
   patchKitShader,
   SEASON_LOOK,
   setKitMaterialHooks,
   surfaceTable,
+  usePatternLocal,
+  type KitLampOptions,
   type KitMaterialHooks,
   type KitSurfaceUniforms,
   type Season,
 } from './materials';
 export {
   ACCENTS,
+  LAMP_COLORS,
   palette,
   palette2,
   PLASTERS,
@@ -96,7 +102,10 @@ export {
   NOISE_LAYER,
   NOISE_SCALE,
   PATTERN_LAYERS,
+  ROOM_LAYER,
+  ROOM_LAYERS,
   SURFACE,
+  SURFACE_LAYERS,
   surfaceDef,
   SURFACES,
   type SurfaceDef,

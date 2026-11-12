@@ -14,6 +14,7 @@ import {
   type Scene,
 } from 'three';
 import { NOISE_GLSL, type WorldEnv } from './env';
+import { LIGHT_MAP_GLSL, lightMapUniforms } from './lightMap';
 
 /**
  * C3D-1: instanced scatter with per-chunk culling and level of detail, for trees and small nature
@@ -173,7 +174,10 @@ export class ScatterField {
   setChunk(index: number, chunk: ScatterChunk | null): void {
     const old = this.chunks[index];
     this.chunks[index] = chunk;
-    if (this.shown.has(index) || this.shown.size === 0 || (!old && chunk && this.nearView(index)))
+    // V2B: a chunk built empty before (no instances, so never `shown`) counts as new: trees planted
+    // into it (a showcase, a grove) refill at once instead of waiting for the camera to move.
+    const wasEmpty = !old || old.maxY < old.minY;
+    if (this.shown.has(index) || this.shown.size === 0 || (wasEmpty && chunk && this.nearView(index)))
       this.dirty = true;
   }
 
@@ -188,6 +192,23 @@ export class ScatterField {
     );
     this.sphere.radius = Math.hypot(CHUNK_SIZE * 0.71, (c.maxY - c.minY) / 2) + 4;
     return this.frustum.intersectsSphere(this.sphere);
+  }
+
+  /**
+   * V2B: swaps a kind's geometry in place (a season's thinning step), the `ScatterKind` and any
+   * existing mesh of that level, with no instance rebuild. The caller owns both the old and the new
+   * geometry (the old one is usually cached) and reports the static change.
+   */
+  setGeometry(kind: number, high: BufferGeometry, low?: BufferGeometry): void {
+    const k = this.kinds[kind];
+    const lv = this.levels[kind];
+    if (!k || !lv) return;
+    k.high = high;
+    if (lv.high.mesh) lv.high.mesh.geometry = high;
+    if (low) {
+      k.low = low;
+      if (lv.low.mesh) lv.low.mesh.geometry = low;
+    }
   }
 
   /** Forces a refill on the next update (quality changed, say). */
@@ -373,6 +394,8 @@ export function createFoliageMaterial(env: WorldEnv): MeshStandardMaterial {
       uBare: env.bare,
       uBlossom: env.blossom,
       uStorm: env.storm,
+      uNight: env.night,
+      ...lightMapUniforms(env),
     });
     shader.vertexShader = shader.vertexShader
       .replace(
@@ -384,6 +407,9 @@ export function createFoliageMaterial(env: WorldEnv): MeshStandardMaterial {
           'uniform float uStorm;',
           'attribute float surface;',
           'attribute float tkind;',
+          'attribute float dab;',
+          'varying float vQDab;',
+          'varying float vQBaseY;',
           'varying float vQLeaf;',
           'varying float vQPine;',
           'varying vec3 vQWorld;',
@@ -411,6 +437,8 @@ export function createFoliageMaterial(env: WorldEnv): MeshStandardMaterial {
           'vQGrass = qGrass;',
           'vQBlade = qBlade * qGrass;',
           'vQPine = tkind;',
+          'vQDab = dab;',
+          'vQBaseY = qBase.y;',
           'vQSeed = fract(sin(dot(qBase.xz, vec2(12.9898, 78.233))) * 43758.5453);',
           // Bare branches: a deciduous crown draws in toward its trunk.
           'float qThin = vQLeaf * (1.0 - tkind) * uBare;',
@@ -445,6 +473,9 @@ export function createFoliageMaterial(env: WorldEnv): MeshStandardMaterial {
           'uniform float uAutumn;',
           'uniform float uBare;',
           'uniform float uBlossom;',
+          'uniform float uNight;',
+          'varying float vQDab;',
+          'varying float vQBaseY;',
           'varying float vQLeaf;',
           'varying float vQPine;',
           'varying vec3 vQWorld;',
@@ -453,6 +484,7 @@ export function createFoliageMaterial(env: WorldEnv): MeshStandardMaterial {
           'varying float vQGrass;',
           'varying float vQBlade;',
           NOISE_GLSL,
+          LIGHT_MAP_GLSL,
         ].join('\n'),
       )
       .replace(
@@ -490,9 +522,9 @@ export function createFoliageMaterial(env: WorldEnv): MeshStandardMaterial {
           // Bare: warm grey-brown twigs, mottled, with holes through to the boughs.
           '      float tw = qNoise(vQWorld.xz * 6.0 + vQWorld.y * 4.0);',
           '      vec3 twig = mix(vec3(0.13, 0.08, 0.05), vec3(0.3, 0.2, 0.13), tw);',
-          '      c = mix(c, twig, uBare);',
+          '      c = mix(c, twig, uBare * (1.0 - 0.7 * vQDab));',
           '      float hole = qNoise(vQWorld.xz * 3.6 + vQWorld.y * 5.0 + vQSeed * 7.0);',
-          '      if (hole < (uBare - 0.3) * 0.85 * (1.0 - far)) discard;',
+          '      if (vQDab < 0.5 && hole < (uBare - 0.3) * 0.85 * (1.0 - far)) discard;',
           '    }',
           '  }',
           // P1: grass takes the season's tint, goes to straw and gold in autumn (the tips first) and
@@ -519,8 +551,23 @@ export function createFoliageMaterial(env: WorldEnv): MeshStandardMaterial {
           '  diffuseColor.rgb = c;',
           '}',
         ].join('\n'),
+      )
+      .replace(
+        '#include <emissivemap_fragment>',
+        [
+          '#include <emissivemap_fragment>',
+          // V2B: lit from below. Lamplight from the light map warms the crown's underside, most low
+          // on the crown and on faces turned down. V2X: through the shared curve (qLamp, its
+          // ceiling where pools crowd; the crown's own height fade is qK's), by night squared and
+          // on the warm grey albedo the ground takes it on (qLampAlbedo), so lamplit leaves turn warm
+          // rather than neon green; a little stronger than the ground, since leaves face the pool.
+          '{',
+          '  float qK = (1.0 - smoothstep(0.1, 1.7, vQWorld.y - vQBaseY)) * (0.55 + 0.45 * max(0.0, -vQUp.y));',
+          '  totalEmissiveRadiance += qLampAlbedo(diffuseColor.rgb) * qLamp(vQWorld.xz, 0.0) * (uNight * uNight) * qK;',
+          '}',
+        ].join('\n'),
       );
   };
-  m.customProgramCacheKey = () => 'qoti-foliage-p1';
+  m.customProgramCacheKey = () => 'qoti-foliage-v2b';
   return m;
 }

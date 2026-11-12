@@ -181,6 +181,21 @@ export class InstanceField {
     this.dirty = true;
   }
 
+  /**
+   * V2X: swaps a kind's near geometry (and the far one when given), keeping its instances. Meshes
+   * already built switch at once; kinds not yet built are left to `kindFor`.
+   */
+  setGeometry(key: string, high: BufferGeometry, low?: BufferGeometry): void {
+    const k = this.kinds.get(key);
+    if (!k) return;
+    k.high = high;
+    if (low) k.low = low;
+    const slot = this.meshes.get(key);
+    if (slot?.high) slot.high.geometry = high;
+    if (low && slot?.low) slot.low.geometry = low;
+    this.dirty = true;
+  }
+
   /** The detail distance in tiles (the preset's decor distance). */
   setDetail(distance: number): void {
     if (distance === this.detail) return;

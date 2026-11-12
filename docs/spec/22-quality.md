@@ -95,6 +95,74 @@ Camera pass triangles per layer (`QOTI_LAYERS=1`), against V1.0's before table: 
 
 **As built (C5E part 2, 2026-11-04)**: the I3 pieces drawn (defenses, festival art and fireworks, the new buildings and modules, flood water, telegraph signs), same container and method (`QOTI_HOLD=1 QOTI_FIXEDRES=1 QOTI_PRESETS=medium v1-perf.mjs village i3-pieces raid`): the village of 130 draws 129 calls and 0.20 M triangles, the raid fixture with its defenses 50 and 0.08 M, and the `i3-pieces` scene (every new piece, a festival, the circus, fireworks, a flood and omens) 67 and 0.14 M, all far within Medium's budgets. A resting valley with all of it on show reaches idle frames (`c5e-seasons.spec.ts`); the laptop timings are still to take (`cycle-05e-seasons-art.md`, As built part 2).
 
+## The redesign: measuring first, then budgets [V2 to V4, R1 to R3]
+
+Added 2026-11-10 with the redesign (`30-roadmap.md`).
+
+**Measuring the laptops** [V2, first]. Every render number above was taken in a software renderer, good for ratios only; the one real number is the owner's laptop on the concept viewer (about 100 fps on Ultra, `v1-wave-notes.md`). Kat's laptop, the one Medium is promised on, has never been measured. So before any V2 art lands:
+
+- Settings gains **Measure this laptop**: it runs the perf script (`__qoti.perf()`: pan, orbit and zoom for 10 s, rest for 10 s, on each preset with the light at 11:00, and on Medium and High again at 22:00, since V2's acceptance is a night one) in the valley on screen and in the village and town showcases, shows the table with each row's hour, and offers Copy.
+- The table is saved with the valley for that seat (`/api/valleys/:id/perf`, outside sim state, last three runs a seat), with the browser, the screen and the build, so either player can export it and a build session can be handed it. `docs/playtests/V1.md` takes the first two runs.
+- V2X, V3X and V4X each record both laptops' tables here, before and after. A row that fails on Kat's laptop on Medium is cut back before the wave ships: the frame budget is the floor (P50).
+
+**As built (V2A, 2026-11-12), night with the light map**: the map and the 32-light loop it replaces on the same build (`?debug&lights=loop`), at 22:00 with the sim held, in the build container's software renderer (SwiftShader: ratios only, a handful of frames a phase): `QOTI_CHROMIUM=/opt/pw-browsers/chromium QOTI_FIXEDRES=1 QOTI_HOLD=1 QOTI_HOUR=22 QOTI_PRESETS=medium,high node apps/client/e2e/v2-perf.mjs grown village town`, and again with `QOTI_QUERY=lights=loop`. Moving GPU ms (avg / p95), map against loop: Medium, the village 846 / 1531 against 973 / 1587, the town 1151 / 2168 against 1145 / 2143, the grown village 1057 / 2035 against 1061 / 1978; High, the village 2683 against 2909, the town 3301 against 3312, the grown village 2824 against 2832. So a moving night frame costs no more with the map than with the loop, within the software renderer's noise, and less in the village of 130. Moving frames add no pass (the map is drawn only on a frame a light changed, outside the scene pass); draws stay at 131 to 141 on Medium and 170 to 192 on High (budgets 300 and 450). A redraw of 470 to 570 discs (the grown village and the village of 130) is two draws and took 0.4 to 2.4 ms in software as a rule and up to 9 ms while the shared container was busy, with the GPU's time included (`?debug` waits for it), the first one with its programs' compile 18 to 41 ms; at rest with the sim held, neither night drops the still frame or renders the shadow map. The laptops' 22:00 rows (Measure this laptop, Medium and High) against `docs/playtests/V1.md`'s before tables are V2X's to take.
+
+**As built (V2X, 2026-11-12), the merged wave in software**: V2A, V2C and V2B merged, the readers on one curve, decor with a far level kept in view far off, then the master's round (pools, amber lamplight, calmer crowns, softer smoke), measured from a production build of `a6ee677` (`vite preview`) in the build container's SwiftShader, so every millisecond is the CPU doing the GPU's work (ratios at best, the container shared); draws and triangles are real. Before is V2.0's table above (the wave notes, Before numbers).
+
+Medium, sim held, on the first after build (`1f7d728`, before the master's round; `QOTI_FIXEDRES=1 QOTI_HOLD=1 QOTI_PRESETS=medium node apps/client/e2e/v2-perf.mjs`), after against before:
+
+| Scene | Moving GPU ms avg (after / before) | Draws (after / before) | Triangles (after / before) | Rest: moving / still / idle, shadow renders (after) |
+|---|---|---|---|---|
+| hamlet | 963 / 1277 | 66 / 71 | 0.19 M / 0.27 M | 0 / 1 / 16, 1 |
+| village | 938 / 1591 | 135 / 141 | 0.27 M / 0.28 M | 0 / 6 / 0, 6 |
+| town | 909 / 407 (V2.0's distrusted number) | 102 / 97 | 0.35 M / 0.31 M | 0 / 1 / 7, 1 |
+| grown | 1307 / 1455 | 132 / 128 | 0.45 M / 0.40 M | 0 / 3 / 0, 3 |
+
+Every preset, sim running, on the final build (`QOTI_FIXEDRES=1 node apps/client/e2e/v2-perf.mjs`): moving GPU ms avg, draws and moving triangles after (before):
+
+| Scene | Low | Medium | High | Ultra |
+|---|---|---|---|---|
+| hamlet | 727, 58, 0.05 M (877, 72, 0.05 M) | 2025, 84, 0.29 M (1952, 75, 0.21 M) | 2230, 79, 0.58 M (3306, 91, 0.78 M) | 2297, 110, 1.26 M (no frame) |
+| village | 1007, 133, 0.24 M (1139, 119, 0.22 M) | 2346, 188, 0.41 M (3093, 190, 0.34 M) | 4375, 225, 2.50 M (4549, 224, 1.99 M) | 3818, 358, 4.54 M (no frame) |
+| town | 1218, 109, 0.34 M (1388, 83, 0.31 M) | 3224, 169, 0.71 M (no frame) | n/a, 181, 4.03 M (n/a, 88, 0.68 M) | 5520, 292, 4.33 M (no frame) |
+| grown | 1164, 123, 0.36 M (1384, 112, 0.26 M) | 2774, 214, 0.80 M (n/a, 183, 0.56 M) | 4015, 201, 1.78 M (5796, 213, 2.05 M) | n/a, 374, 5.41 M (a partial frame) |
+
+Every row is inside its draw and triangle budget (Medium 300 and 3 M, High 450 and 6 M, Ultra 450 and 12 M); the most is the grown village on Medium (214 draws, 0.80 M) and on Ultra (374 draws, 5.41 M). What V2 adds on Medium is the meadow carpet (60 to 100 k triangles at the default camera), the dabbed crowns and, from V2X, far decor (the grown village's wide shot: 0.51 M against 0.45 M, 182 draws against 166); the master's round took dabs out again (the village of 130 on Medium, 0.55 M on the first after build, 0.41 M on the final).
+
+Night, Medium, 22:00, sim held, the light map against the 32-light loop on the same build (`QOTI_HOUR=22 QOTI_HOLD=1 QOTI_PRESETS=medium ... grown village town`, again with `QOTI_QUERY=lights=loop`), moving GPU ms avg / p95:
+
+| Scene | Light map, final build | 32-light loop, final build | Earlier pairs (map / loop, avg) |
+|---|---|---|---|
+| grown | 1205 / 3086 | 1549 / 2876 | 1486 / 1287 |
+| village | 987 / 2386 | 1123 / 2795 | 1304 / 1126, and a loop run of 986 |
+| town | 1024 / 2980 | 349 / 422 | 709 / 371, and a loop run of 1247 |
+
+In software the two nights cannot be told apart: the map was cheaper on the final build in the grown village and the village of 130 and dearer in the first pair, and the town's loop rows swing from 349 to 1247 ms between runs of the same build (the cheap frames V2.0 distrusted). V2A's own two pairs found them level. So the laptops' 22:00 rows decide the night acceptance and the loop's retirement.
+
+**The rest check** (`apps/client/e2e/v2-rest.mjs`, new): a static layer that changes every frame at rest would keep the still frame redrawing with nothing on screen to say so. With the sim held, the grown village on Medium at 22:00 changed nothing in 40 s after a four-minute settle; with the sim running, the town on Low changed three times in 40 s (two buildings the sim was building, one lamp). The rests in the tables above end in still frames because one software frame spans most of the 10 s rest, which on a laptop is a fraction of a second of settling.
+
+**Still to come**: both laptops' before and after tables (Measure this laptop, `docs/playtests/V1.md` and `V2.md`), which decide the night acceptance, the idle budget, the carpet's reach per preset and the 32-light loop's retirement (the V2X PR says what the owner and Kat run).
+
+**Budgets** for what the redesign adds, on the weaker laptop on Medium unless a preset is named, all *(tune against the measured tables)*:
+
+| Metric | Budget |
+|---|---|
+| Moving frames [V2 to V4] | no new full-screen pass; the 12 ms GPU and 300 draw budgets above stand |
+| Night with the light map [V2] | a night moving frame costs no more GPU time than the 32-light loop it replaces, on the same scene; redrawing the map under 2 ms, one instanced draw, only when a light changes |
+| Painted green [V2] | trees and meadows within 0.5 M triangles in the village scene; opaque geometry only |
+| Dressing [V3] | 0.3 M triangles and 12 draws, inside the decor detail distance |
+| Endpaper map [V3] | redrawn in a worker in under 150 ms, never on the main thread; no scene draw while it shows in full |
+| Rest-frame refinement [V4] | each sample frame within 12 ms; idle back within 4 ms once settled; settled inside 0.6 s on High at 60 fps |
+| Trade choice and growth [R1] | under 2 ms a night at City scale |
+| The carrier [R1] | under 0.5 ms a day |
+| The place pass [R2] | 1 ms an hour at Village scale, 3 ms at City scale |
+| Planning the round [R2] | under 0.4 ms a tick for 2,000 residents between 17:00 and 17:30 |
+| Gaps, supplies, masters, the Town Book [R2, R3] | under 1 ms an hour together |
+
+**The lanes test** [R1 records it, R2 enforces it]. P2 becomes a bench assertion. `npm run lanes -w @qoti/bench` plays each bench seed for 70 days three ways: both lanes, the Hearth's advisors off, and the Ledger's off after founding (no new zones, specialized buildings or streets; the carrier on its defaults). From R2 it fails unless each one-lane town ends with at most three quarters of the residents of the town played by both, and no more than half its Craftsfolk households. The Ledger's advisor places no decor and the Hearth's zones nothing, so neither can stand in for the other. On 2026-11-10, before the redesign, the Hearth-off town ended with 106% (willow) and 84% (hazel) of the residents (`19-evenings.md`).
+
+**Decisions, not chores** [R1]. The bench counts the autoplayer's commands by kind and fails if the Ledger needed more than 150 in 70 days or used a pause to balance labor (`13-ledger.md`, Tuning targets). The count before the redesign was about 700, 261 of them pauses and 321 order changes.
+
 ## Tests
 
 | Layer | What | Where |
@@ -107,6 +175,8 @@ Camera pass triangles per layer (`QOTI_LAYERS=1`), against V1.0's before table: 
 | End to end | two browser contexts on the dev server: create, invite, join, both build, both see the same thing, hashes match, reload and catch up, pause from one pauses both | `apps/client/e2e/` |
 | Visual review | gallery screenshots at fixed seeds, uploaded as CI artifacts (no pixel assertions) | `apps/gallery/e2e/` |
 | Playability (P1) | the dead-end hunt: `npm run audit -w @qoti/bench` plays several seeds through a year and one through the Village chapter, watching for no builders, a building idle for want of an input a whole season, a wish nobody could grant, a festival that never started, a standing order never filled (`HealthWatch`, read-only), and reports wishes offered and never granted; the repo tests check statically that every player command has a sender in the client, every removable building can be placed again, and every wish, goal, guide step and plaque can be met by content | `tools/bench/src/audit.ts`, `test/every-command-has-a-sender.test.ts`, `packages/sim/test/p1/` |
+| Playability, from the redesign | the audit's health kinds follow the new rules: a business without its raw good for a whole day while its family's rule lets the carrier buy [R1]; a demand bar lit for a season while suitable land is zoned and free [R1]; a gap that no command could close, a place nobody can reach [R2]; a supplied piece that can never be supplied, a master's good with no shelf to sell from, a Town Book page content cannot produce [R3]. The static achievable check covers every wish, twist, guide step, gap and page | `tools/bench/src/audit.ts`, `packages/sim/test/` |
+| The lanes test, decisions not chores | see the redesign section above | `tools/bench/src/lanes.ts` |
 
 ## CI
 

@@ -33,6 +33,8 @@ export interface Channel {
   rig?: Rig;
   /** C4P: darkens a tinted face (a hem, a cuff) by this factor; fixed faces ignore it. */
   shade?: number;
+  /** V2C: the surface id (surface.ts) written for the face; 0 (plain) when absent. */
+  surface?: number;
 }
 
 const ta = new Vector3();
@@ -46,9 +48,17 @@ export class RigBuilder {
   private readonly col: number[] = [];
   private readonly paint: number[] = [];
   private readonly rig: number[] = [];
+  private readonly surfaces: number[] = [];
+  private surfaceValue = 0;
 
   /** While set, vertex normals come from this function (smooth shading) instead of the face. */
   private normalAt: ((p: V3) => V3 | null) | null = null;
+
+  /** V2A: the surface id (surface.ts) written for vertices added after this call; 0 is plain. */
+  surface(id: number): this {
+    this.surfaceValue = id;
+    return this;
+  }
 
   get triangles(): number {
     return this.pos.length / 9;
@@ -75,6 +85,7 @@ export class RigBuilder {
       this.col.push(tmp.r, tmp.g, tmp.b);
       this.paint.push(paint);
       this.rig.push(ch.rig ?? RIG.none);
+      this.surfaces.push(ch.surface ?? this.surfaceValue);
     }
     return this;
   }
@@ -263,8 +274,9 @@ export class RigBuilder {
     g.setAttribute('paint', new Float32BufferAttribute(paint, 1));
     g.setAttribute('rig', new Float32BufferAttribute(this.rig, 1));
     g.setAttribute('glow', new Float32BufferAttribute(new Float32Array(this.paint.length), 1));
-    // V1.0: plain surfaces, so rigged pieces merge and batch with kit geometry (geometry.ts).
-    g.setAttribute('surface', new Uint8BufferAttribute(new Uint8Array(this.paint.length), 1));
+    // V1.0: the surface attribute, so rigged pieces merge and batch with kit geometry (geometry.ts).
+    // V2C: each channel's id (0, plain, unless set); V2A: `surface(id)` sets the default for later parts.
+    g.setAttribute('surface', new Uint8BufferAttribute(Uint8Array.from(this.surfaces), 1));
     g.computeBoundingBox();
     g.computeBoundingSphere();
     return g;
