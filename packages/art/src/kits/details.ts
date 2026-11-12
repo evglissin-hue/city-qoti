@@ -56,7 +56,7 @@ function ivyNear(s: ShapeBuilder, f: Face, u0: number, u1: number, top: number, 
     });
   }
   brushDabs(s, blobs, {
-    count: n * 5,
+    count: n * 8,
     size: 0.045,
     tintSpread: 0.6,
     skyLighten: 0.4,
@@ -274,9 +274,9 @@ export function hedgeRun(s: ShapeBuilder, a: [number, number], b: [number, numbe
   }
   // V2B near: a deep core box under a shell of dabs over a chain of flattened ellipsoids. The draws
   // are today's (the box color's two, then per lump the color's two and the blob's six wobble draws).
-  const inset = 0.015;
+  const inset = 0.03;
   const core = mixHex(vary(0x4f7d3a, rnd, 0.5), 0x22361f, 0.25);
-  s.rbox(x0 + inset, 0, z0 + inset, x1 - inset, 0.16, z1 - inset, core, 0.04);
+  s.rbox(x0 + inset, 0, z0 + inset, x1 - inset, 0.14, z1 - inset, core, 0.04);
   const blobs: DabBlob[] = [];
   let seed = 0;
   for (let i = 0; i < n; i++) {
@@ -296,7 +296,7 @@ export function hedgeRun(s: ShapeBuilder, a: [number, number], b: [number, numbe
     });
   }
   brushDabs(s, blobs, {
-    count: Math.max(6, Math.round(26 * len)),
+    count: Math.max(6, Math.round(70 * len)),
     size: 0.06,
     tintSpread: 0.5,
     skyLighten: 0.6,
