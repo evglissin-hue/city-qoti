@@ -34,7 +34,9 @@ export function GameUI({ session, onLeave }: { session: Session; onLeave: () => 
   const queue = cardQueue(session);
   const front = queue[0];
   /** A waiting card stays mounted but hidden; the guide waits behind any card. */
-  const waits = (id: string) => (CARD_PANELS.has(id) && id !== front) || (id === 'guide' && !!front);
+  // The raid panel also holds the live raid bar, so it handles its own card's turn.
+  const waits = (id: string) =>
+    (CARD_PANELS.has(id) && id !== front && id !== 'raid') || (id === 'guide' && !!front);
   return (
     <div
       class={`game-ui season-${season} ${lamplit(tick) ? 'lamplight' : ''} ${minimapShown(session) ? 'with-minimap' : ''}`}

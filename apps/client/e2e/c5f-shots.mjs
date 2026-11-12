@@ -88,13 +88,12 @@ for (const scale of scales) {
       await snap('overview-winter-ledger');
       await panel('watch');
       await snap('watch-winter');
-      await ui('tradeTab', 'dock');
-      await panel('trade');
-      await snap('trade-dock');
-      await ui('tradeTab', 'commissions');
+      await ui('balancesTab', 'families');
+      await panel('balances');
+      await snap('balances-families');
+      await ui('balancesTab', 'neighbors');
       await page.waitForTimeout(300);
-      await snap('trade-commissions');
-      await ui('tradeTab', 'neighbors');
+      await snap('balances-neighbors');
       await panel('policies');
       await snap('policies');
       await reset(page);

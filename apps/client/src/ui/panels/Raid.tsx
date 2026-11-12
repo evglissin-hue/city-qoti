@@ -7,6 +7,7 @@ import type { EntityId, RaidResultView } from '@qoti/sim';
 import type { Session } from '../../app/session';
 import { CompassArrow } from '../art';
 import { goodName } from '../format';
+import { cardQueue } from '../cards';
 import { BAND_WORD, SIDE_WORD } from '../seasons';
 
 /** Captured raiders waiting for a decision: the live raid's, then the ones kept after dawn. */
@@ -22,11 +23,14 @@ export function RaidPanel({ session }: { session: Session }) {
   const raid = m.raid.value;
   const captives = captivesOf(session);
   const card = session.ui.raidCard.value;
+  // R1C: the live bar is the town's state, not a card, so it never waits. The result card takes its
+  // turn in the card queue; the captive choice still waits behind that card only.
+  const front = cardQueue(session)[0];
   return (
     <>
       {raid && <RaidBar session={session} />}
       {captives.length > 0 && !card && <CaptiveChoice session={session} ids={captives} />}
-      {card && (
+      {card && front === 'raid' && (
         <div
           class="modal-backdrop letter-backdrop"
           onClick={(e) => e.target === e.currentTarget && (session.ui.raidCard.value = null)}
