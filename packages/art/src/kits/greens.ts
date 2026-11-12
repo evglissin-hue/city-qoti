@@ -92,8 +92,8 @@ export const reedBed: Kit = {
           const cx = Math.cos(a) * r;
           const cz = Math.sin(a) * r * 0.8;
           blobs.push({
-            center: [cx, 0.13, cz],
-            radii: [0.08, 0.14, 0.08],
+            center: [cx, 0.19, cz],
+            radii: [0.08, 0.12, 0.08],
             normalFrom: [cx, 0.02, cz],
             color: vary(0x7f9a52, rnd, 1.2),
           });
