@@ -126,6 +126,8 @@ export function createResidentMaterial(
   const time = { value: 0 };
   m.userData.time = time;
   m.userData.residentBinding = { surface, lamp } satisfies ResidentBinding;
+  // V2A: folk move, so their surfaces are laid from the figure's own position.
+  if (surface) usePatternLocal(m);
   m.onBeforeCompile = (shader) => {
     const { surface: sf, lamp: lp } = m.userData.residentBinding as ResidentBinding;
     shader.uniforms.uTime = time;
@@ -151,6 +153,21 @@ export function createResidentMaterial(
   return m;
 }
 
+/** V2A: the define that lays a kit material's patterns from local position (`usePatternLocal`). */
+export const KIT_PATTERN_LOCAL = 'Q_PATTERN_LOCAL';
+
+/**
+ * V2A: lays a kit material's patterns from each vertex's position before the instance (or batch)
+ * matrix instead of from world position, for moving pieces (carts, folk), so wood grain and cloth
+ * travel with them instead of sliding across them. Lighting, snow and the light map read stay in
+ * world space. Set it on a material of moving pieces only: static pieces keep world-laid patterns,
+ * which line up across neighbors. A define, so it compiles its own program.
+ */
+export function usePatternLocal(m: Material): void {
+  m.defines = { ...m.defines, [KIT_PATTERN_LOCAL]: '' };
+  m.needsUpdate = true;
+}
+
 /**
  * V2A: gives a resident material its surface table and lamp after creation (the env only exists
  * once the layer is initialised). Call before the first render.
@@ -161,7 +178,7 @@ export function bindResidentMaterial(
   lamp?: KitLampOptions,
 ): void {
   m.userData.residentBinding = { surface, lamp } satisfies ResidentBinding;
-  m.needsUpdate = true;
+  usePatternLocal(m);
 }
 
 const RESIDENT_VERTEX_HEAD = /* glsl */ `
@@ -381,6 +398,10 @@ varying vec3 vQWNor;
 varying float vQSurf;
 uniform float uSway;
 uniform float uSwayTime;
+#ifdef Q_PATTERN_LOCAL
+varying vec3 vQPPos;
+varying vec3 vQPNor;
+#endif
 `;
 
 /** Sway: leaf and flower faces (hedges, planters, window boxes) breathe a little with height. */
@@ -406,6 +427,10 @@ const KIT_WORLD_VERTEX = /* glsl */ `
 #endif
   vQWPos = (modelMatrix * qW).xyz;
   vQWNor = inverseTransformDirection(transformedNormal, viewMatrix);
+#ifdef Q_PATTERN_LOCAL
+  vQPPos = transformed;
+  vQPNor = objectNormal;
+#endif
 }
 `;
 
@@ -428,6 +453,17 @@ uniform vec3 uSeasonTint;
 varying vec3 vQWPos;
 varying vec3 vQWNor;
 varying float vQSurf;
+// V2A: where the pattern is laid from: world position, or (Q_PATTERN_LOCAL, moving pieces such as
+// carts and folk) the vertex's own position before the instance matrix, so wood grain and cloth
+// travel with the piece instead of sliding across it. Lighting, snow and the light map stay in
+// world space.
+#ifdef Q_PATTERN_LOCAL
+varying vec3 vQPPos;
+varying vec3 vQPNor;
+#define Q_PPOS vQPPos
+#else
+#define Q_PPOS vQWPos
+#endif
 ${KIT_FRESNEL_GLSL}
 // Set by qKitSurface for the emissive glint: 1 on glass, 2 on water, else 0.
 float qShiny = 0.0;
@@ -448,29 +484,34 @@ vec3 qKitSurface(vec3 c) {
   // of a face, so this branch never splits a 2 x 2 pixel quad and the derivatives below stay valid.
   if (plain && uSnow <= 0.0) return c;
   vec3 n = normalize(vQWNor);
+#ifdef Q_PATTERN_LOCAL
+  vec3 pn = normalize(vQPNor);
+#else
+  vec3 pn = n;
+#endif
   // Gradients before the branches that follow: textureGrad keeps mipmaps right across face edges.
-  vec3 dx = dFdx(vQWPos);
-  vec3 dy = dFdy(vQWPos);
+  vec3 dx = dFdx(Q_PPOS);
+  vec3 dy = dFdy(Q_PPOS);
   const float nk = 1.0 / ${NOISE_SCALE}.0;
-  vec2 nuv = vQWPos.xz * nk + vec2(vQWPos.y * 0.02);
+  vec2 nuv = Q_PPOS.xz * nk + vec2(Q_PPOS.y * 0.02);
   float up = smoothstep(0.3, 0.75, n.y);
   float big = textureGrad(uPat, vec3(nuv, ${NOISE_LAYER}.0), dx.xz * nk, dy.xz * nk).r;
   float cover = up * clamp(uSnow * 1.3 - (1.0 - big) * 0.3, 0.0, 1.0);
   if (plain) return mix(c, uSnowColor, cover);
   vec4 sp = uSurf[si];
   vec4 sx = uSurfExtra[si];
-  bool top = sp.y > 1.5 || abs(n.y) > (sp.y > 0.5 ? 0.97 : 0.9);
+  bool top = sp.y > 1.5 || abs(pn.y) > (sp.y > 0.5 ? 0.97 : 0.9);
   vec2 uv;
   vec2 gx;
   vec2 gy;
   if (top) {
-    uv = vQWPos.xz; gx = dx.xz; gy = dy.xz;
+    uv = Q_PPOS.xz; gx = dx.xz; gy = dy.xz;
   } else {
-    float hl = length(n.xz);
-    vec2 t = hl > 1e-3 ? vec2(-n.z, n.x) / hl : vec2(1.0, 0.0);
+    float hl = length(pn.xz);
+    vec2 t = hl > 1e-3 ? vec2(-pn.z, pn.x) / hl : vec2(1.0, 0.0);
     // Roof courses: v runs along the slope, so a steep and a shallow roof get the same courses.
     float vk = sp.y > 0.5 ? 1.0 / max(hl, 0.35) : 1.0;
-    uv = vec2(dot(vQWPos.xz, t), vQWPos.y * vk);
+    uv = vec2(dot(Q_PPOS.xz, t), Q_PPOS.y * vk);
     gx = vec2(dot(dx.xz, t), dx.y * vk);
     gy = vec2(dot(dy.xz, t), dy.y * vk);
   }

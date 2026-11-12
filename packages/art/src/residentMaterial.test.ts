@@ -2,8 +2,11 @@ import { DataArrayTexture, ShaderLib, type Uint8BufferAttribute } from 'three';
 import { describe, expect, it } from 'vitest';
 import {
   bindResidentMaterial,
+  createLeanKitMaterial,
   createResidentMaterial,
+  KIT_PATTERN_LOCAL,
   kitSurfaceUniforms,
+  usePatternLocal,
   type KitLampOptions,
 } from './materials';
 import { PAINT, RigBuilder } from './rig';
@@ -73,5 +76,33 @@ describe('createResidentMaterial', () => {
     m.onBeforeCompile(s, null as never);
     expect(s.fragmentShader).toContain('qRim');
     expect(m.customProgramCacheKey()).toBe('qoti-resident-surface-lamp');
+  });
+});
+
+describe('patterns laid from local position (V2A)', () => {
+  it('folk lay their surfaces from their own position; a kit material keeps world position', () => {
+    expect(createResidentMaterial().defines?.[KIT_PATTERN_LOCAL]).toBeUndefined();
+    const tex = new DataArrayTexture(new Uint8Array(4), 1, 1, 1);
+    expect(createResidentMaterial(kitSurfaceUniforms(tex), lamp).defines?.[KIT_PATTERN_LOCAL]).toBe('');
+    const late = createResidentMaterial();
+    bindResidentMaterial(late, kitSurfaceUniforms(tex), lamp);
+    expect(late.defines?.[KIT_PATTERN_LOCAL]).toBe('');
+    const kit = createLeanKitMaterial(kitSurfaceUniforms(tex));
+    expect(kit.defines?.[KIT_PATTERN_LOCAL]).toBeUndefined();
+    usePatternLocal(kit);
+    expect(kit.defines?.[KIT_PATTERN_LOCAL]).toBe('');
+  });
+
+  it('switches only the pattern lookup: lighting, snow and the light map stay in world space', () => {
+    const s = fake();
+    const m = createResidentMaterial(
+      kitSurfaceUniforms(new DataArrayTexture(new Uint8Array(4), 1, 1, 1)),
+      lamp,
+    );
+    m.onBeforeCompile(s, undefined as never);
+    expect(s.vertexShader).toContain('vQPPos = transformed;');
+    expect(s.fragmentShader).toContain('#define Q_PPOS vQPPos');
+    expect(s.fragmentShader).toContain('dFdx(Q_PPOS)');
+    expect(s.fragmentShader).toContain('qLamp(vQWPos.xz');
   });
 });
