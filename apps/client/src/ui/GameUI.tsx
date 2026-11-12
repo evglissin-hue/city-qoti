@@ -1,6 +1,6 @@
 import { DEBUG } from '../app/debug';
 import type { Session } from '../app/session';
-import { CARD_PANELS, cardQueue, lamplit, waitingWords } from './cards';
+import { cardQueue, lamplit, waitingWords, waitsBehind } from './cards';
 import { DebugOverlay, Dialogs, InviteDialog, Toasts } from './Overlays';
 import { EmoteBubbles, EmoteWheel } from './Emotes';
 import { minimapShown } from './Minimap';
@@ -33,10 +33,7 @@ export function GameUI({ session, onLeave }: { session: Session; onLeave: () => 
   // R1 (R1C): cards wait their turn; the first to arrive is the one on show.
   const queue = cardQueue(session);
   const front = queue[0];
-  /** A waiting card stays mounted but hidden; the guide waits behind any card. */
-  // The raid panel also holds the live raid bar, so it handles its own card's turn.
-  const waits = (id: string) =>
-    (CARD_PANELS.has(id) && id !== front && id !== 'raid') || (id === 'guide' && !!front);
+  const waits = (id: string) => waitsBehind(id, front);
   return (
     <div
       class={`game-ui season-${season} ${lamplit(tick) ? 'lamplight' : ''} ${minimapShown(session) ? 'with-minimap' : ''}`}

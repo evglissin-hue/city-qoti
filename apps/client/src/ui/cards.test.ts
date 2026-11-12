@@ -3,7 +3,7 @@ import { signal } from '@preact/signals';
 import { TICKS_PER_DAY, TICKS_PER_HOUR } from '@qoti/sim';
 import { describe, expect, it } from 'vitest';
 import type { Session } from '../app/session';
-import { CARDS, cardQueue, lamplit, waitingWords } from './cards';
+import { CARDS, cardQueue, lamplit, waitingWords, waitsBehind } from './cards';
 
 function fakeSession() {
   const ui = {
@@ -41,6 +41,16 @@ describe('cards wait their turn', () => {
     ui.almanac.value = { kind: 'report' };
     expect(cardQueue(session)).toEqual(['rankup', 'away', 'season-card']);
     expect(waitingWords(2)).toBe('2 more waiting');
+  });
+
+  it("hides only whole cards: a panel that draws the town's state keeps it in sight", () => {
+    expect(waitsBehind('rankup', 'season-card')).toBe(true);
+    expect(waitsBehind('season-card', 'season-card')).toBe(false);
+    // The raid panel's live bar never waits; its result card takes its own turn.
+    expect(waitsBehind('raid', 'season-card')).toBe(false);
+    expect(waitsBehind('guide', 'away')).toBe(true);
+    expect(waitsBehind('guide', undefined)).toBe(false);
+    expect(waitsBehind('minimap', 'away')).toBe(false);
   });
 
   it('lights the lamps from half past seven until six', () => {

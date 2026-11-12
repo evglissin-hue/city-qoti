@@ -94,8 +94,9 @@ for (const scale of scales) {
       await ui('balancesTab', 'neighbors');
       await page.waitForTimeout(300);
       await snap('balances-neighbors');
-      await panel('policies');
-      await snap('policies');
+      await ui('purseTab', 'taxes');
+      await panel('purse');
+      await snap('purse-taxes');
       await reset(page);
       await ui('together', 'You are both here: stay for the closing dance.');
       await snap('together');

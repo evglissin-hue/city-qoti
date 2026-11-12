@@ -11,6 +11,11 @@ export interface CardKind {
   panel: string;
   /** True while this card wants to be read. */
   pending: (session: Session) => boolean;
+  /**
+   * The panel draws more than its card (the raid's live bar), so it is never hidden as a whole: it
+   * asks `cardQueue` itself and shows its card only on its turn.
+   */
+  ownsTurn?: true;
 }
 
 // One line per card, in alphabetical order by panel id.
@@ -19,13 +24,23 @@ export const CARDS: readonly CardKind[] = [
   { panel: 'away', pending: (s) => !!s.ui.letter.value },
   { panel: 'chapter', pending: (s) => !!s.ui.chapter.value },
   { panel: 'festival-result', pending: (s) => !!s.ui.festivalCard.value },
-  { panel: 'raid', pending: (s) => !!s.ui.raidCard.value },
+  { panel: 'raid', pending: (s) => !!s.ui.raidCard.value, ownsTurn: true },
   { panel: 'rankup', pending: (s) => !!s.ui.rankUp.value },
   { panel: 'season-card', pending: (s) => !!s.ui.almanac.value },
   { panel: 'story-letter', pending: (s) => !!s.ui.storyLetter.value },
 ];
 
 export const CARD_PANELS: ReadonlySet<string> = new Set(CARDS.map((c) => c.panel));
+const OWN_TURN: ReadonlySet<string> = new Set(CARDS.filter((c) => c.ownsTurn).map((c) => c.panel));
+
+/**
+ * Whether GameUI keeps an overlay panel mounted but hidden: a card that is not at the front (unless
+ * it handles its own turn), and the guide while any card is up.
+ */
+export function waitsBehind(id: string, front: string | undefined): boolean {
+  if (id === 'guide') return !!front;
+  return CARD_PANELS.has(id) && !OWN_TURN.has(id) && id !== front;
+}
 
 /**
  * When each pending card first showed up, so the queue keeps arrival order. Kept per session (a
