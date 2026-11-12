@@ -248,6 +248,14 @@ export function installDebugHook(getSession: () => Session | null): void {
     },
     /** R1C: the session's UI signals (cards, panels), for e2e. */
     ui: () => s()?.ui ?? null,
+    /** R1C: opens this season's almanac card, as a new season would; false when there is none yet. */
+    showSeasonCard: () => {
+      const session = s();
+      const view = session?.mirror.seasonCard.value;
+      if (!session || !view) return false;
+      session.ui.almanac.value = { kind: 'card', view };
+      return true;
+    },
     // I1 (C3E): hamlet UI helpers for tests and screenshots.
     mode: () => s()?.mirror.settings.value.mode ?? null,
     town: () => s()?.mirror.town.value ?? null,
