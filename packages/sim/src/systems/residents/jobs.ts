@@ -121,6 +121,12 @@ export function shortages(state: WorldState): Shortages {
     if (!methodOf(b) || def?.category === 'service') continue;
     producing++;
     if (b.rt.status & BuildingStatus.outputFull) full++;
+    // R1X: a maker at work missing an input the stores hold waits for porters too (oak's weavers
+    // stood a day with no wool while twelve sat in store in winter).
+    if (!stockedWait && b.rt.workers.length > 0 && b.rt.status & BuildingStatus.missingInput) {
+      const m = methodOf(b);
+      if (m?.inputs.some(([id]) => (stock[content.goodIndex.get(id) ?? -1] ?? 0) > 0)) stockedWait = true;
+    }
   }
   return {
     food: food < 3 * state.residents.length,
