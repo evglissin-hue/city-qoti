@@ -1,3 +1,5 @@
+import { LAMP_COLORS } from '@qoti/art';
+import type { Era } from '@qoti/content';
 import { Color } from 'three';
 
 export interface Lighting {
@@ -254,4 +256,26 @@ export function lightingAt(hour: number): Lighting {
  */
 export function hazeFor(distance: number): { near: number; far: number } {
   return { near: distance * 0.93, far: distance * 4.2 + 20 };
+}
+
+/**
+ * V2A: the era a lamp burns in. `?debug&era=old|steam|bright` pins it for review; otherwise a def
+ * that lists exactly one era keeps it, and every valley is in the Old Age until I4 (a building
+ * keeps the era it was built in, which no state records yet).
+ */
+export const LAMP_ERA_PIN: Era | null = ((): Era | null => {
+  if (typeof location === 'undefined') return null;
+  const q = new URLSearchParams(location.search);
+  const e = q.get('era');
+  return q.has('debug') && (e === 'old' || e === 'steam' || e === 'bright') ? e : null;
+})();
+
+export function lampEra(eras?: readonly Era[]): Era {
+  if (LAMP_ERA_PIN) return LAMP_ERA_PIN;
+  return eras?.length === 1 ? eras[0]! : 'old';
+}
+
+/** The lamp color (sRGB hex) for a def's eras. */
+export function lampColor(eras?: readonly Era[]): number {
+  return LAMP_COLORS[lampEra(eras)];
 }

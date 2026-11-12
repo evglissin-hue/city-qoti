@@ -138,19 +138,19 @@ What drops the still-frame cache in V2, beyond V1's list:
 
 | What | Stand-in until the owner lands | Owner |
 |---|---|---|
-| The light map | `env.lightMap` (preset-sized `HalfFloat` target), cleared to black by `drawLightMap` on each redraw (no discs drawn), which bumps `env.lightMapRevision`; the ground's 32-light loop (`MAX_GROUND_LIGHTS`) is in charge; `layers/lights.ts` feeds `lanterns` and `windows` | V2A |
-| Light map readers | none; `lightMapUniforms(env)` and `LIGHT_MAP_GLSL` exist, so a reader bound now reads black | V2A (ground, walls, folk, water), V2B (trees), V2C (smoke) |
-| A static change without a shadow render | none: every static change re-renders the shadow map at rest | V2A |
-| Rooms behind windows | eight flat layers at `ROOM_LAYER` (25 to 32); glass draws as today; Low keeps the flat glow for good (`17-presentation.md`, Quality presets) | V2A |
-| Era lamp colors | every disc and flame `0xffb366` and the material's `GLOW` | V2A |
-| V2 surfaces | ids 20 to 24 in `SURFACE` and `SURFACES` (strength 0, flat layers), drawn flat; `SURFACES[19]` is `undefined` (the noise layer's slot); the gallery leaves them out (`SURFACE_ORDER` stops below `NOISE_LAYER`) | V2C (ids, rows, generators, gallery), V2A (residents' material) |
+| The light map | **V2A built**: `drawLightMap` draws every disc of every source in one instanced draw of soft additive discs into a scratch target, then one blur pass into `env.lightMap`, only on a frame a writer changed something (two draws; a clear with no disc; `lightMapStats(env)`, and `?debug` logs each redraw's time). Sources: `lanterns`, `windows`, `fires`, `ovens`, `shops` (`layers/lights.ts`, shadowless) and `festival` (`layers/festival.ts`). The 32-light loop stays behind `?debug&lights=loop` (`LIGHT_LOOP`), where no shader reads the map, for V2X to measure both and retire it | V2A |
+| Light map readers | **V2A built** the ground (in place of the loop), walls and every kit piece (`patchKitShader`'s `lamp`, `KitLampOptions`), folk (a warm rim, `createResidentMaterial`) and the river (through its ripples, none on Low). `qLamp(xz, up)`, the shared strength curve (a smooth ceiling where pools crowd, fading out between 1.5 and 4 tiles up), is appended to `LIGHT_MAP_GLSL`: V2B's trees and V2C's smoke can switch to it in V2X | V2A (ground, walls, folk, water), V2B (trees), V2C (smoke) |
+| A static change without a shadow render | **V2A built**: `RenderLayer.shadowless?: true` (the lights layer has it); the renderer counts caster changes apart (`render/statics.ts`), and `env.lightMapRevision` is in the still frame's key | V2A |
+| Rooms behind windows | **V2A built**: eight rooms painted in code (`packages/art/src/rooms.ts`, one call from `generatePatterns`); the kit shader's glass shows one by parallax (`qKitRoom`, `patchKitShader`'s `rooms`), picked by the building's origin and the room cell (`roomFor`); `QualityPreset.rooms`, off on Low (the flat glow). A figure shows by seed; one only when someone is home waits for a per-building value from the buildings layer (R1E's) | V2A |
+| Era lamp colors | **V2A built**: `palette.lampCandle`, `lampGas`, `lampElectric` and `LAMP_COLORS`; a disc takes `lampColor(def.eras)` and flames `flameColor(era)` (the Old Age keeps the glow's candle); `?debug&era=steam` or `bright` shows the other two. Every valley is in the Old Age until I4 | V2A |
+| V2 surfaces | ids 20 to 24 in `SURFACE` and `SURFACES` (strength 0, flat layers), drawn flat; `SURFACES[19]` is `undefined` (the noise layer's slot); the gallery leaves them out (`SURFACE_ORDER` stops below `NOISE_LAYER`). **V2A built** the residents' side: `createResidentMaterial(surface?, lamp?)` (or `bindResidentMaterial`) draws surface ids through the kit's table, and `RigBuilder.surface(id)` writes them | V2C (ids, rows, generators, gallery), V2A (residents' material) |
 | The dab kit | `brushDabs` writes nothing and returns 0; no kit calls it | V2B |
 | Meadow carpet and drifts | none: the tufts (`meadowTuft`) and the ground's painted flowers as today | V2B |
 | Wall occlusion | `groundAoFor(env)` offered, not bound in the kit material | V2C |
 | Ribbon smoke | the puffs (`layers/effects.ts`) | V2C |
 | Bubbles | built (`setBubbles` on `RenderApi`), nothing calls it | V2C |
 | Decor far levels | the fruit trees only; small props shrink away at the decor distance | V2C |
-| Preset rows (`17-presentation.md`) | light map texels in `LIGHT_MAP_TEXELS` (2, 4, 6, 8); no rooms or meadow field in `QualityPreset` yet | V2A (rooms, water reflection off on Low), V2B (meadow carpet within: none, 30, 45, 60) |
+| Preset rows (`17-presentation.md`) | light map texels in `LIGHT_MAP_TEXELS` (2, 4, 6, 8); **V2A built** `QualityPreset.rooms` and `QualityPreset.lampWater` (both off on Low); no meadow field yet | V2A (rooms, water reflection off on Low), V2B (meadow carpet within: none, 30, 45, 60) |
 | The grown village | `?debug&fixture=grown`, the V2.0 snapshot (version 5) | V2.0 (done); R1X regrows it |
 | Both laptops' before tables | `docs/playtests/V1.md`, Measuring the laptops (V2.0) | the owner and Kat |
 

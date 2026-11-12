@@ -26,7 +26,7 @@ import type { Mirror } from '../state/mirror';
 import type { EntityPick, Ghost, RenderApi, TilePick } from './api';
 import { fpToWorld, levelY } from './coords';
 import { applySeasonBlend, createWorldEnv, SEASONS, setPatternAnisotropy, type WorldEnv } from './env';
-import { drawLightMap, resizeLightMap } from './lightMap';
+import { disposeLightMap, drawLightMap, lampQuality, resizeLightMap } from './lightMap';
 import { CLEAR_WEATHER, easeWeather, seasonBlendAt, weatherLookFor, type WeatherLook } from './seasons';
 import {
   layerFactories,
@@ -50,6 +50,7 @@ import { LeanFrame } from './post';
 import { buildingDetailNow, pixelRatios, QUALITY_PRESETS, type Quality } from './quality';
 import { DynamicResolution } from './resolution';
 import { ShadowCache, type ShadowView } from './shadows';
+import { shadowContentDue, StaticRevisions } from './statics';
 
 export type { Quality } from './quality';
 
@@ -82,13 +83,6 @@ export interface RenderStats {
 
 /** V1D: the engine drawing. V1X retired the classic chain (`?engine=classic`), so only the lean one. */
 export type Engine = 'lean';
-
-/**
- * During camera moves, a static layer's content change (its `ctx.invalidate()`) re-renders the
- * shadow map once it has settled for this long (ms), so chunk rebuilds a frame or two later are in
- * it. At rest, any static change re-renders it on the frame it happens.
- */
-const CONTENT_SETTLE_MS = 300;
 
 /** `?debug&dpr=2`: overrides the preset's cap on moving frames (to compare caps on one screen). */
 function dprCapFromUrl(): number | undefined {
@@ -158,10 +152,11 @@ export class Renderer implements RenderApi {
   private readonly dprCap = dprCapFromUrl();
   /** Bumped whenever the light changes (the still picture depends on it). */
   private lightRevision = 0;
-  /** When a static layer last reported a content change, and when shadows last rendered (ms). */
-  private contentAt = -Infinity;
+  /** V2A: the static-change counters (statics.ts): the still frame's and the shadow map's. */
+  private readonly statics = new StaticRevisions();
+  /** When shadows last rendered (ms). */
   private shadowAt = -Infinity;
-  /** `staticRevision` when the shadow map last rendered. */
+  /** `statics.casters` when the shadow map last rendered. */
   private shadowStatic = -1;
   private viewDistance = 60;
   private readonly target = new Vector3();
@@ -254,7 +249,8 @@ export class Renderer implements RenderApi {
         scene: root,
         mirror,
         material: this.material,
-        invalidate: () => (moving ? this.invalidate() : this.invalidateStatic(layer.id)),
+        invalidate: () =>
+          moving ? this.invalidate() : this.invalidateStatic(layer.id, layer.shadowless === true),
         camera: this.camera,
         env: this.env,
       });
@@ -287,26 +283,31 @@ export class Renderer implements RenderApi {
   /**
    * V1.0: bumped whenever a static layer changes (it called its context's `invalidate`, or its
    * `frame` reported a change). V1D: the still-frame cache keeps the revision it drew at and draws
-   * again when it differs; at rest a change also re-renders the sun's shadows.
+   * again when it differs; at rest a change also re-renders the sun's shadows, unless (V2A) it
+   * came from a `shadowless` layer.
    */
-  staticRevision = 0;
+  get staticRevision(): number {
+    return this.statics.revision;
+  }
 
   /**
    * V1X: what bumped `staticRevision`, per static layer id (its `invalidate` or a `frame()` that
    * returned true) and `renderer` for changes from outside a layer, so a resting view that keeps
    * drawing still frames can be traced (`__qoti.staticChanges()` in a `?debug` valley).
    */
-  readonly staticChanges = new Map<string, number>();
+  get staticChanges(): ReadonlyMap<string, number> {
+    return this.statics.bySource;
+  }
 
   /**
    * V1D: a change to the static picture (a static layer's `ctx.invalidate()`, or, from outside a
    * layer, a texture or material uniform that changes what static layers look like, such as a
    * ground AO swap): drops the still-frame cache, re-renders shadows at rest, and draws again.
+   * V2A: a `shadowless` change (light only, nothing that casts moved) drops the still frame and
+   * leaves the shadow map alone.
    */
-  invalidateStatic(source = 'renderer'): void {
-    this.staticRevision++;
-    this.staticChanges.set(source, (this.staticChanges.get(source) ?? 0) + 1);
-    this.contentAt = performance.now();
+  invalidateStatic(source = 'renderer', shadowless = false): void {
+    this.statics.note(source, shadowless, performance.now());
     this.needsRender = true;
   }
 
@@ -559,10 +560,7 @@ export class Renderer implements RenderApi {
     for (const layer of this.layers) {
       if (!layer.frame?.(dt)) continue;
       dirty = true;
-      if (layer.motion !== 'moving') {
-        this.staticRevision++;
-        this.staticChanges.set(layer.id, (this.staticChanges.get(layer.id) ?? 0) + 1);
-      }
+      if (layer.motion !== 'moving') this.statics.note(layer.id, layer.shadowless === true);
     }
     // V2.0: the light map redraws only when a writer changed it (a static-layer event already).
     if (drawLightMap(this.three, this.env)) dirty = true;
@@ -592,16 +590,17 @@ export class Renderer implements RenderApi {
 
   /**
    * What the still-frame cache was drawn for: the targets, the preset, the view, every static
-   * layer, the light and the shadow map. Any change means drawing it again.
+   * layer, the light, the shadow map and (V2A) the light map. Any change means drawing it again.
    */
   private stillKey(): string {
     return [
       this.lean?.revision ?? 0,
       this.quality,
       this.env.viewRevision,
-      this.staticRevision,
+      this.statics.revision,
       this.lightRevision,
       this.shadowCache.renders,
+      this.env.lightMapRevision,
     ].join('|');
   }
 
@@ -614,7 +613,7 @@ export class Renderer implements RenderApi {
     // With the camera at rest, shadows catch up with static changes made while it moved (on Low,
     // with no still frame to draw, this is the only frame that would).
     const shadowsDue =
-      this.three.shadowMap.enabled && this.still.rested(now) && this.staticRevision !== this.shadowStatic;
+      this.three.shadowMap.enabled && this.still.rested(now) && this.statics.casters !== this.shadowStatic;
     if (!dirty && !this.needsRender && !stillDue && !shadowsDue) {
       this.gpuTimer.poll();
       this.resolution.frame(now, false, this.basePixelRatio);
@@ -674,15 +673,13 @@ export class Renderer implements RenderApi {
       sunDir: this.sunDir,
       size: QUALITY_PRESETS[this.quality].shadowMap,
     };
-    const content = resting
-      ? this.staticRevision !== this.shadowStatic
-      : this.contentAt > this.shadowAt && now - this.contentAt > CONTENT_SETTLE_MS;
+    const content = shadowContentDue(this.statics, this.shadowStatic, this.shadowAt, now, resting);
     const reason = this.shadowCache.due(view, content);
     if (!reason) return;
     this.updateShadowFlags();
     this.shadowCache.apply(this.sun, view, reason);
     this.three.shadowMap.needsUpdate = true;
-    this.shadowStatic = this.staticRevision;
+    this.shadowStatic = this.statics.casters;
     this.shadowAt = now;
   }
 
@@ -788,6 +785,10 @@ export class Renderer implements RenderApi {
     if (setPatternAnisotropy(this.env, q, this.three.capabilities.getMaxAnisotropy()))
       this.invalidateStatic();
     resizeLightMap(this.env, q);
+    // V2A: the preset's night switches (lamplight on the river, rooms behind lit windows).
+    const lamps = lampQuality(this.env);
+    lamps.uLampWater.value = preset.lampWater ? 1 : 0;
+    lamps.uRooms.value = preset.rooms ? 1 : 0;
     this.env.motion = preset.ambientMotion;
     this.env.detailDistance = preset.decorDistance;
     this.env.critters = preset.critters;
@@ -1038,7 +1039,7 @@ export class Renderer implements RenderApi {
     this.rig.dispose();
     for (const layer of this.layers) layer.dispose();
     this.material.dispose();
-    this.env.lightMap.dispose();
+    disposeLightMap(this.env);
     this.gpuTimer.dispose();
     this.lean.dispose();
     this.still.dispose();

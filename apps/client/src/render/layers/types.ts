@@ -26,6 +26,12 @@ export interface RenderLayer {
    * `ctx.invalidate()`, which drops the cache.
    */
   motion?: 'static' | 'moving';
+  /**
+   * V2A: a static layer whose changes move no sun shadow caster (light only: the lights layer,
+   * V2B's meadow carpet). Its `invalidate` and `frame()` returning true drop the still frame but
+   * leave the cached shadow map alone (render/statics.ts).
+   */
+  shadowless?: true;
   init(ctx: LayerContext): void;
   update(change: MirrorChange): void;
   /** Per-frame work; returns true when the frame needs to be drawn. */
