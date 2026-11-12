@@ -9,7 +9,15 @@ import { rejectText } from '../messages';
 import { CATEGORY_WORD, CONSTRUCTION_STAGES, statusWords, TIER_WORD } from '../hamlet';
 import { zoneInk } from '../village';
 import { Price } from './villageParts';
-import { handsText, keeperFamily, keeperLine, LevelPips, PinButton, businessName } from './Businesses';
+import {
+  handsText,
+  keeperFamily,
+  keeperLine,
+  LevelPips,
+  PinButton,
+  businessName,
+  statusIsTrouble,
+} from './Businesses';
 import { Glyph } from '../icons';
 import { Empty, Frame, GoodChip, GoodList, Heading, Meter, Toggle, useInspect } from './parts';
 
@@ -21,6 +29,7 @@ export function BuildingInspector({ session, id }: { session: Session; id: numbe
   const m = session.mirror;
   void m.revision.value;
   void m.hamletRevision.value;
+  void m.villageRevision.value;
   const b = m.buildings.get(id);
   const detail = useInspect<BuildingDetail>((k, i) => session.inspect(k, i), 'building', id, b);
   if (!b) return null;
@@ -31,7 +40,16 @@ export function BuildingInspector({ session, id }: { session: Session; id: numbe
   const close = () => (session.ui.selection.value = null);
   const site = b.stage === 'construction' && rt?.construction;
   // The worker's words when it has any; the status bits the Mirror holds otherwise.
-  const status = detail?.status.length ? detail.status : statusWords(rt?.status ?? 0);
+  // R1X: a business or specialized building says what the Businesses book says, word for word.
+  const biz = m.businesses.get(id);
+  const status =
+    biz && !site
+      ? statusIsTrouble(biz.status)
+        ? [biz.status]
+        : []
+      : detail?.status.length
+        ? detail.status
+        : statusWords(rt?.status ?? 0);
   const household = detail?.household ?? findHousehold(session, b);
   // R1: a business (a farmstead, workshop or shop with a trade) says so, whatever its building.
   const kicker = site
@@ -54,7 +72,13 @@ export function BuildingInspector({ session, id }: { session: Session; id: numbe
       {rt && (
         <p class={`status-line ${status.length ? 'warn' : 'ok'}`} data-testid="building-status">
           <i class="status-dot" />
-          {status.length ? status.join('. ') + '.' : site ? 'Coming along nicely.' : quietLine(b)}
+          {biz && !site
+            ? biz.status
+            : status.length
+              ? status.join('. ') + '.'
+              : site
+                ? 'Coming along nicely.'
+                : quietLine(b)}
         </p>
       )}
       {detail && <BuildingSeasonLines session={session} detail={detail} />}
@@ -278,7 +302,6 @@ function BusinessLines({ session, id }: { session: Session; id: number }) {
       <p class="small muted">
         {keeperLine(family)}. {handsText(biz)}.
       </p>
-      <p class="small">{biz.status}</p>
       {biz.pinned && <p class="small muted">Pinned: it keeps its trade.</p>}
     </div>
   );

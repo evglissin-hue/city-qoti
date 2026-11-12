@@ -6,6 +6,8 @@ import {
   FIELD_GOOD_FERTILITY,
   FIELD_MIN_FERTILITY,
   footprintSize,
+  MAP_SIZE,
+  reachRoadTiles,
   TERRAFORM_COST,
   soilPermille,
   TREE_MATURE,
@@ -135,23 +137,59 @@ export function buildingTool(ctx: ToolContext): Tool {
     buildingChoices(ctx.mirror.settings.value.mode, ctx.ui.lens(), lostTownHall(ctx.mirror));
 
   /**
-   * R1C: the reach of a specialized building on the ground. A ring around every standing one of
-   * the chosen kind, and around the ghost; drawn through the ground marks, so putting the tool
-   * away (exit) clears them.
+   * R1X: the reach of a specialized building on the ground, along the roads as the sim walks it: a
+   * wash on every road tile within reach, for each standing one of the chosen kind (faint) and for
+   * the ghost. Walked once per spot and per change of the map or the buildings, not per frame. Where
+   * no road is in reach (a ghost in an empty field) the straight-line ring stays as the fallback.
    */
+  let reachKey = '';
+  let reachMarks: GroundMark[] = [];
+  function reachWash(
+    def: BuildingDef,
+    at: { x: number; z: number; rot: number },
+    faint: boolean,
+  ): GroundMark[] {
+    const tiles = reachRoadTiles((x, z) => ctx.mirror.road(x, z) > 0, { def: def.id, ...at });
+    const out: GroundMark[] = [];
+    for (const i of tiles.keys()) {
+      out.push({
+        x: i % MAP_SIZE,
+        z: Math.floor(i / MAP_SIZE),
+        w: 1,
+        d: 1,
+        ink: RING_INK,
+        fill: true,
+        dashed: faint,
+      });
+    }
+    return out;
+  }
   function rings(def: BuildingDef | undefined, ghost?: { x: number; z: number; w: number; d: number }) {
     if (!def?.reach) {
+      reachKey = '';
       setGroundMarks([]);
       return;
     }
-    const marks: GroundMark[] = [];
-    for (const b of ctx.mirror.buildings.values()) {
-      if (b.def !== def.id) continue;
-      const [bw, bd] = footprintSize(def, b.rot);
-      marks.push({ x: b.x, z: b.z, w: bw, d: bd, ink: RING_INK, ring: def.reach, dashed: true });
+    const key = `${def.id}:${rot}:${ghost ? `${ghost.x},${ghost.z}` : '-'}:${ctx.mirror.layerRevision}:${ctx.mirror.buildings.size}`;
+    if (key !== reachKey) {
+      reachKey = key;
+      const marks: GroundMark[] = [];
+      for (const b of ctx.mirror.buildings.values()) {
+        if (b.def !== def.id) continue;
+        const wash = reachWash(def, b, true);
+        if (wash.length) marks.push(...wash);
+        else {
+          const [bw, bd] = footprintSize(def, b.rot);
+          marks.push({ x: b.x, z: b.z, w: bw, d: bd, ink: RING_INK, ring: def.reach, dashed: true });
+        }
+      }
+      if (ghost) {
+        const wash = reachWash(def, { x: ghost.x, z: ghost.z, rot }, false);
+        marks.push(...(wash.length ? wash : [{ ...ghost, ink: RING_INK, ring: def.reach }]));
+      }
+      reachMarks = marks;
     }
-    if (ghost) marks.push({ ...ghost, ink: RING_INK, ring: def.reach });
-    setGroundMarks(marks);
+    setGroundMarks(reachMarks);
   }
 
   function preview() {

@@ -226,11 +226,12 @@ export function reachRoadTiles(
 ): Map<number, number> {
   const out = new Map<number, number>();
   const def = content.buildingById.get(at.def);
-  const reach = def ? (def.reach ?? (def.specialized && (def.enables?.length || def.stores?.length) ? DEFAULT_REACH : 0)) : 0;
+  const reach = def
+    ? (def.reach ?? (def.specialized && (def.enables?.length || def.stores?.length) ? DEFAULT_REACH : 0))
+    : 0;
   if (!def || reach <= 0) return out;
   const { front } = entranceTiles(def, at.x, at.z, at.rot as 0 | 1 | 2 | 3);
   const [fx, fz] = front;
-  let frontier: number[] = [];
   for (let dz = -HOP; dz <= HOP; dz++) {
     for (let dx = -HOP + Math.abs(dz); dx <= HOP - Math.abs(dz); dx++) {
       const x = fx + dx;
@@ -245,12 +246,17 @@ export function reachRoadTiles(
   }
   // Breadth-first by steps, so the first time a tile is reached is its shortest.
   for (let d = 0; d <= reach; d++) {
-    frontier = [...out].filter(([, v]) => v === d).map(([k]) => k);
+    const frontier = [...out].filter(([, v]) => v === d).map(([k]) => k);
     if (d === reach) break;
     for (const i of frontier) {
       const x = i % S;
       const z = (i - x) / S;
-      for (const [nx, nz] of [[x + 1, z], [x - 1, z], [x, z + 1], [x, z - 1]] as const) {
+      for (const [nx, nz] of [
+        [x + 1, z],
+        [x - 1, z],
+        [x, z + 1],
+        [x, z - 1],
+      ] as const) {
         if (nx < 0 || nz < 0 || nx >= S || nz >= S || !road(nx, nz)) continue;
         const j = nz * S + nx;
         if (!out.has(j)) out.set(j, d + 1);

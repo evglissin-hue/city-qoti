@@ -221,7 +221,7 @@ function draw(
     }
     if (mk.fill) {
       const d = poly(rectPoints(mk.x, mk.z, mk.w, mk.d), true);
-      if (d) paths.push({ d, cls: 'bp zone-wash', ink: mk.ink });
+      if (d) paths.push({ d, cls: `bp zone-wash ${mk.dashed ? 'faint' : ''}`, ink: mk.ink });
       continue;
     }
     const d = poly(rectPoints(mk.x + 0.06, mk.z + 0.06, mk.w - 0.12, mk.d - 0.12), true);

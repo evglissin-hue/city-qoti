@@ -5,6 +5,7 @@ import { content } from '@qoti/content';
 import type { BusinessView } from '@qoti/sim';
 import type { Session } from '../../app/session';
 import { buildingName } from '../format';
+import { priceText } from '../village';
 import { Glyph } from '../icons';
 import './businesses.css';
 import { Empty, Frame } from './parts';
@@ -53,6 +54,17 @@ export function LevelPips({ level }: { level: number }) {
 
 export function handsText(b: Pick<BusinessView, 'hands' | 'crew'>): string {
   return `${b.hands} of ${b.crew} ${b.crew === 1 ? 'hand' : 'hands'}`;
+}
+
+/** "Takes 12.4, pays 7.1 a work day": a business's takings and outgoings, or null while it has none. */
+export function profitLine(b: Pick<BusinessView, 'profit'>): string | null {
+  if (!b.profit || (b.profit.takes === 0 && b.profit.pays === 0)) return null;
+  return `Takes ${priceText(b.profit.takes)}, pays ${priceText(b.profit.pays)} a work day`;
+}
+
+/** Statuses that are not good news, for the inspector's warning ink. */
+export function statusIsTrouble(status: string): boolean {
+  return /^(Resting|Waiting|Paused)/.test(status);
 }
 
 /** The pin's words, as a tooltip. */
@@ -106,6 +118,11 @@ function Row({ session, b }: { session: Session; b: BusinessView }) {
           {b.crew > 0 ? `${handsText(b)}.` : ''}
         </span>
         <span class="business-status small">{b.status}</span>
+        {profitLine(b) && (
+          <span class="business-profit muted small" data-testid={`business-profit-${b.id}`}>
+            {profitLine(b)}
+          </span>
+        )}
       </button>
       <PinButton session={session} b={b} />
     </li>
