@@ -33,7 +33,6 @@ import { FestivalPanel, FestivalResultPanel } from './Festival';
 import { FieldGuidePanel } from './FieldGuide';
 import { InspectorPanel } from './Inspector';
 import { PhotoStrip, TogetherNote } from './Photo';
-import { PoliciesPanel } from './Policies';
 import { RaidPanel } from './Raid';
 import { SeasonCardPanel } from './SeasonCard';
 import { TrialPanel } from './Trial';
@@ -183,15 +182,6 @@ describe('the Ledger books', () => {
     expect(last(submitted, 'commission.accept')!.id).toBe(c.id);
     await view.click(`commission-decline-${c.id}`);
     expect(last(submitted, 'commission.decline')!.id).toBe(c.id);
-  });
-
-  it('policies: market day and quiet hours at Village rank', async () => {
-    const { session, submitted } = await mockSeasonsSession('winter');
-    view = await mount(h(PoliciesPanel, { session }));
-    expect(view.find('town-rhythm')).not.toBeNull();
-    (view.get('quiet-hours') as HTMLInputElement).click();
-    await settle();
-    expect(last(submitted, 'ledger.setQuietHours')!.on).toBe(true);
   });
 });
 

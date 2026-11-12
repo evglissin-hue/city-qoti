@@ -1,0 +1,82 @@
+/* R1C: the Businesses book and the inspector's business lines. Paper and ink, the Ledger's ochre for the pips. */
+
+.business-list {
+  list-style: none;
+  margin: 0 0 8px;
+  padding: 0;
+  display: grid;
+  gap: 5px;
+}
+
+.business-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 4px;
+  border: 1.2px solid var(--line);
+  border-radius: 10px;
+  background: var(--paper-light);
+}
+
+.business-main {
+  display: grid;
+  gap: 1px;
+  padding: 5px 8px;
+  border: none;
+  border-radius: 10px;
+  background: transparent;
+  box-shadow: none;
+  text-align: left;
+}
+
+.business-main:hover:not(:disabled) {
+  transform: none;
+  box-shadow: none;
+  background: rgba(196, 138, 63, 0.09);
+}
+
+.business-name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.level-pips {
+  display: inline-flex;
+  gap: 3px;
+}
+
+.level-pips i {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  border: 1.2px solid var(--ink-line);
+}
+
+.level-pips i.on {
+  background: var(--ochre);
+}
+
+button.pin {
+  margin-right: 6px;
+  padding: 3px 5px;
+  border-radius: 8px;
+  background: transparent;
+  box-shadow: none;
+  opacity: 0.5;
+}
+
+button.pin.on {
+  opacity: 1;
+  background: rgba(196, 138, 63, 0.22);
+}
+
+.business-inspect {
+  display: grid;
+  gap: 4px;
+  margin: 6px 0;
+}
+
+.business-inspect .business-name {
+  justify-content: space-between;
+}

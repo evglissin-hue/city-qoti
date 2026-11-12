@@ -13,7 +13,6 @@ import { ChroniclePanel, chronicleDays } from './Chronicle';
 import { CustomizePanel } from './Customize';
 import { PatternBookPanel } from './PatternBook';
 import { PeoplePanel } from './People';
-import { ReportsPanel } from './Reports';
 import { WishesPanel } from './Wishes';
 
 let view: Mounted | null = null;
@@ -134,75 +133,6 @@ describe('plaques', () => {
     expect(view.get('plaque-balanced-books').textContent).toContain(
       content.achievementById.get('balanced-books')!.description,
     );
-  });
-});
-
-describe('reports', () => {
-  it('stocks: stock, today and a sparkline, in goods order, with no Sell column (R1: the carrier sells)', async () => {
-    const { session } = mockSession();
-    view = await mount(h(ReportsPanel, { session }));
-    const rows = [...view.root.querySelectorAll('table.stocks tbody tr')];
-    expect(rows).toHaveLength(8);
-    expect(rows[0]!.textContent).toContain('Grain');
-    const timber = rows.find((r) => r.textContent?.includes('Timber'))!;
-    expect(timber.textContent).toContain('40');
-    expect(timber.textContent).toContain('+8');
-    expect(timber.querySelector('svg.sparkline.down')).not.toBeNull();
-    expect(view.find('sell-bread')).toBeNull();
-    expect(view.text()).not.toContain('Sell');
-  });
-
-  it('workforce: jobs filled and open per workplace', async () => {
-    const { session } = mockSession();
-    view = await mount(h(ReportsPanel, { session }));
-    await view.click('report-workforce');
-    expect(view.get('workforce-summary').textContent).toContain('5 of 8 jobs filled, 3 open');
-    expect(view.text()).toContain('Storehouse');
-  });
-
-  it('budget: treasury, income and expenses, today and the season', async () => {
-    const { session } = mockSession();
-    view = await mount(h(ReportsPanel, { session }));
-    await view.click('report-budget');
-    const text = view.text();
-    expect(text).toContain('412 coins');
-    expect(text).toContain('Exports');
-    expect(view.get('budget-net').textContent).toBe('16 coins');
-    expect(text).toContain('Behind by');
-    await view.click('budget-season');
-    expect(view.get('budget-net').textContent).toBe('64 coins');
-    expect((view.get('budget-lastSeason') as HTMLButtonElement).disabled).toBe(true);
-  });
-
-  it('budget: lean times read as a gentle note', async () => {
-    const { session } = mockSession(
-      mockView({
-        budget: {
-          treasury: -1200,
-          leanTimes: true,
-          today: [],
-          yesterday: [],
-          season: [],
-          lastSeason: null,
-        },
-      }),
-    );
-    session.ui.reportTab.value = 'budget';
-    view = await mount(h(ReportsPanel, { session }));
-    expect(view.text()).toContain('-12 coins');
-    expect(view.text()).toContain('Lean times');
-  });
-
-  it('buildings: what wants attention, and a click selects it', async () => {
-    const { session } = mockSession();
-    session.ui.reportTab.value = 'buildings';
-    view = await mount(h(ReportsPanel, { session }));
-    const list = view.get('building-statuses');
-    expect(list.textContent).toContain('Baker');
-    expect(list.textContent).toContain('Waiting for inputs');
-    expect(list.textContent).toContain(content.buildingById.get('foresters-lodge')!.name);
-    await view.click(button(list, 'Baker'));
-    expect(session.ui.selection.value).toEqual({ kind: 'building', id: 6 });
   });
 });
 

@@ -35,6 +35,9 @@ export interface Letter {
 
 export type ReportTab = 'stocks' | 'workforce' | 'budget' | 'buildings';
 
+/** R1C: the Purse book's three tabs. */
+export type PurseTab = 'budget' | 'taxes' | 'loans';
+
 // I2 (C4F)
 /** R1C: the Balances book's two tabs. */
 export type BalancesTab = 'families' | 'neighbors';
@@ -101,6 +104,7 @@ export function createUiState() {
     marketGood: signal<string | null>(null),
     // R1C
     balancesTab: signal<BalancesTab>('families'),
+    purseTab: signal<PurseTab>('budget'),
     /** The family whose row the Balances book holds open (the top bar's chips set it). */
     balancesFamily: signal<GoodFamily | null>(null),
     /** The story letter on the desk, while it is open. */

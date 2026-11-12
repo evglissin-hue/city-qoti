@@ -141,9 +141,9 @@ describe('lens toolbars', () => {
     expect(ids(view.root, 'book-')).toEqual([
       'balances',
       'patterns',
-      'policies',
+      'purse',
+      'businesses',
       'watch',
-      'reports',
       'notebook',
     ]);
     await view.click('overlays');

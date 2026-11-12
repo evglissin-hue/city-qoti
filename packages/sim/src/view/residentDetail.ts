@@ -22,6 +22,13 @@ function buildingName(b: Building | undefined): string {
   return (b && content.buildingById.get(b.def)?.name.toLowerCase()) ?? 'somewhere';
 }
 
+/** A workplace for the "at work" lines: a business goes by its trade, which never fits "at the ...". */
+function workWords(state: WorldState, id: EntityId): { at: string; trade: string | null } {
+  const b = findById(state.buildings, id);
+  const t = b?.trade ? content.tradeById.get(b.trade) : undefined;
+  return { at: buildingName(b), trade: t ? t.name.toLowerCase() : null };
+}
+
 function placeName(state: WorldState, id: EntityId): string {
   return buildingName(findById(state.buildings, id));
 }
@@ -69,12 +76,15 @@ function doingText(state: WorldState, r: Resident): string {
       return 'At home';
     case 'sleep':
       return 'Asleep';
-    case 'commute':
-      return `On the way to work at the ${placeName(state, a.to)}`;
-    case 'work':
-      return r.inside === a.at
-        ? `At work at the ${placeName(state, a.at)}`
-        : `Heading back to the ${placeName(state, a.at)}`;
+    case 'commute': {
+      const w = workWords(state, a.to);
+      return w.trade ? `On the way to work: ${w.trade}` : `On the way to work at the ${w.at}`;
+    }
+    case 'work': {
+      const w = workWords(state, a.at);
+      if (r.inside === a.at) return w.trade ? `At work: ${w.trade}` : `At work at the ${w.at}`;
+      return w.trade ? `Heading back to work: ${w.trade}` : `Heading back to the ${w.at}`;
+    }
     case 'shop': {
       if (a.carrying > 0 && r.carry) {
         const g = content.goods[r.carry[0]];

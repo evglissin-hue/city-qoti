@@ -1,13 +1,109 @@
+// R1C: the Purse book. The treasury and the budget, wages and taxes (and the town's rhythm), and
+// the County Bank's loans with the carrier's County tab. It replaces the Reports budget tab and the
+// Policies book. The price cap and subsidy on Food and Fuel live in the good card (GoodCard.tsx).
 import { content } from '@qoti/content';
-import { LOAN_RATE, PENNIES_PER_COIN, TIERS, WAGE_LEVEL_RANGE, wagesAt, type LoansView } from '@qoti/sim';
+import {
+  LOAN_RATE,
+  PENNIES_PER_COIN,
+  TIERS,
+  WAGE_LEVEL_RANGE,
+  wagesAt,
+  type BudgetLine,
+  type LoansView,
+} from '@qoti/sim';
 import { useState } from 'preact/hooks';
 import type { Session } from '../../app/session';
-import { coins, shortDate, thousands } from '../format';
+import { coinCount, coins, shortDate, thousands } from '../format';
 import { TIER_WORD } from '../hamlet';
 import { Glyph } from '../icons';
+import type { PurseTab } from '../state';
 import { RANK_WORD, rankAtLeast } from '../village';
 import { Empty, Frame, Heading, Meter } from './parts';
 import { Dial, Locked, Stepper } from './villageParts';
+
+const TABS: [PurseTab, string][] = [
+  ['budget', 'Budget'],
+  ['taxes', 'Taxes and wages'],
+  ['loans', 'Loans'],
+];
+
+const CATEGORY_LABEL: Record<string, string> = {
+  taxes: 'Resident taxes',
+  refunds: 'Refunds',
+  upkeep: 'Upkeep',
+  construction: 'Construction',
+  roads: 'Roads',
+  fields: 'Fields',
+  wages: 'Wages',
+  sales: 'Market sales',
+  exports: 'Exports',
+  imports: 'Imports',
+  loans: 'Loans taken',
+  interest: 'Interest',
+  repayments: 'Loan repayments',
+  subsidies: 'Subsidies',
+  terraforming: 'Terraforming',
+  grants: 'County grants',
+  festival: 'Festivals',
+  dock: 'River Dock',
+  commissions: 'Commissions',
+  watch: 'The Watch',
+  visitors: 'Visitors',
+  fees: 'Fees',
+};
+
+/** The Ledger's money book: budget, taxes and wages, loans. */
+export function PursePanel({ session }: { session: Session }) {
+  const tab = session.ui.purseTab.value;
+  const close = () => (session.ui.panel.value = null);
+  return (
+    <Frame id="purse" class="book-panel purse" icon="coin" kicker="The Ledger" title="Purse" onClose={close}>
+      <div class="tabs" role="tablist">
+        {TABS.map(([id, label]) => (
+          <button
+            key={id}
+            type="button"
+            role="tab"
+            aria-selected={tab === id}
+            class={tab === id ? 'active' : ''}
+            data-testid={`purse-${id}`}
+            onClick={() => (session.ui.purseTab.value = id)}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+      <div class="tab-body">
+        {tab === 'budget' && <Budget session={session} />}
+        {tab === 'taxes' && (
+          <>
+            <WagesAndTaxes session={session} />
+            <TownRhythm session={session} />
+          </>
+        )}
+        {tab === 'loans' && (
+          <>
+            <CountyTab session={session} />
+            <Loans session={session} />
+          </>
+        )}
+      </div>
+    </Frame>
+  );
+}
+
+/** The carrier's County tab, which is paid back like a loan (the Balances book sets the purse). */
+function CountyTab({ session }: { session: Session }) {
+  const b = session.mirror.balances.value;
+  if (!b) return null;
+  return (
+    <p class="small tab-line" data-testid="purse-county">
+      {b.tab > 0
+        ? `${coins(b.tab)} owed on the County tab, of ${coins(b.tabCap)} it allows. It is paid back like a loan.`
+        : "Nothing on the carrier's County tab."}
+    </p>
+  );
+}
 
 const WAGE_STEPS = [80, 90, 100, 110, 120] as const;
 const TAX_STEPS = [0, 5, 10, 15, 20, 25, 30] as const;
@@ -33,22 +129,80 @@ export function wageBill(session: Session, level: number): number {
   return bill;
 }
 
-/** The Ledger's levers: wage level, income tax, and the County Bank. */
-export function PoliciesPanel({ session }: { session: Session }) {
-  const close = () => (session.ui.panel.value = null);
+type Period = 'today' | 'yesterday' | 'season' | 'lastSeason';
+
+export function Budget({ session }: { session: Session }) {
+  const [period, setPeriod] = useState<Period>('today');
+  const b = session.mirror.budget.value;
+  if (!b) return <Empty>No books kept in a creative valley.</Empty>;
+  const lines: BudgetLine[] = (period === 'lastSeason' ? b.lastSeason : b[period]) ?? [];
+  const income = lines.filter((l) => l.kind === 'income');
+  const expense = lines.filter((l) => l.kind === 'expense');
+  const sum = (ls: BudgetLine[]) => ls.reduce((n, l) => n + l.pennies, 0);
+  const net = sum(income) - sum(expense);
+  const periods: [Period, string][] = [
+    ['today', 'Today'],
+    ['yesterday', 'Yesterday'],
+    ['season', 'This season'],
+    ['lastSeason', 'Last season'],
+  ];
   return (
-    <Frame
-      id="policies"
-      class="book-panel policies"
-      icon="policies"
-      kicker="The Ledger"
-      title="Policies"
-      onClose={close}
-    >
-      <WagesAndTaxes session={session} />
-      <TownRhythm session={session} />
-      <Loans session={session} />
-    </Frame>
+    <div class="budget" data-testid="budget">
+      <div class={`treasury-card ${b.leanTimes ? 'lean' : ''}`}>
+        <span class="muted">Treasury</span>
+        <strong>{coins(b.treasury)}</strong>
+        {b.leanTimes && (
+          <p class="lean-note">
+            Lean times. New building waits until the books are back above zero, and upkeep that goes unpaid
+            wears buildings down. Nobody is going anywhere; it just gets a little drafty.
+          </p>
+        )}
+      </div>
+      <div class="dial small" role="radiogroup">
+        {periods.map(([id, label]) => (
+          <button
+            key={id}
+            type="button"
+            role="radio"
+            aria-checked={period === id}
+            class={period === id ? 'active' : ''}
+            disabled={id === 'lastSeason' && !b.lastSeason}
+            data-testid={`budget-${id}`}
+            onClick={() => setPeriod(id)}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+      <table class="ledger-table money">
+        <tbody>
+          <tr class="group">
+            <th colSpan={2}>Coming in</th>
+          </tr>
+          {income.map((l) => (
+            <tr key={l.category}>
+              <th scope="row">{CATEGORY_LABEL[l.category] ?? l.category}</th>
+              <td class="num plus">{l.pennies ? `+${coinCount(l.pennies)}` : '·'}</td>
+            </tr>
+          ))}
+          <tr class="group">
+            <th colSpan={2}>Going out</th>
+          </tr>
+          {expense.map((l) => (
+            <tr key={l.category}>
+              <th scope="row">{CATEGORY_LABEL[l.category] ?? l.category}</th>
+              <td class="num minus">{l.pennies ? `-${coinCount(l.pennies)}` : '·'}</td>
+            </tr>
+          ))}
+          <tr class="total">
+            <th scope="row">{net >= 0 ? 'Ahead by' : 'Behind by'}</th>
+            <td class={`num ${net >= 0 ? 'plus' : 'minus'}`} data-testid="budget-net">
+              {coins(Math.abs(net))}
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
   );
 }
 

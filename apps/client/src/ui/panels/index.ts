@@ -11,6 +11,7 @@ import { AchievementsPanel } from './Achievements';
 import { AlertsPanel } from './Alerts';
 import { AwayLetterPanel } from './AwayLetter';
 import { BalancesPanel } from './Balances';
+import { BusinessesPanel } from './Businesses';
 import { ChapterPanel } from './Chapter';
 import { CharterPanel } from './Charter';
 import { ChroniclePanel } from './Chronicle';
@@ -26,10 +27,9 @@ import { PatternBookPanel } from './PatternBook';
 import { PeoplePanel } from './People';
 import { PhotoStrip, TogetherNote } from './Photo';
 import { PlansPanel } from './Plans';
-import { PoliciesPanel } from './Policies';
+import { PursePanel } from './Purse';
 import { RaidPanel } from './Raid';
 import { RankUpPanel } from './RankUp';
-import { ReportsPanel } from './Reports';
 import { SeasonCardPanel } from './SeasonCard';
 import { StoresPanel } from './Stores';
 import { StoryLetterPanel } from './StoryLetter';
@@ -67,6 +67,7 @@ export const panels: readonly PanelDef[] = [
   { id: 'away', side: 'overlay', component: AwayLetterPanel },
   { id: 'balances', side: 'book', component: BalancesPanel, lens: 'ledger', label: 'Balances', icon: 'chart', key: 'm', modes: STANDARD, order: 10 },
   { id: 'blueprints', side: 'world', component: Blueprints },
+  { id: 'businesses', side: 'book', component: BusinessesPanel, lens: 'ledger', label: 'Businesses', icon: 'building', key: 'l', modes: STANDARD, order: 30 },
   { id: 'chapter', side: 'overlay', component: ChapterPanel, modes: STANDARD },
   { id: 'charter', side: 'book', component: CharterPanel, lens: 'shared', label: 'Charter', icon: 'charter', key: 'h', modes: STANDARD, hidden: true },
   { id: 'chronicle', side: 'book', component: ChroniclePanel, lens: 'hearth', label: 'Chronicle', icon: 'chronicle', key: 'c', modes: STANDARD, order: 30 },
@@ -84,10 +85,9 @@ export const panels: readonly PanelDef[] = [
   { id: 'people', side: 'book', component: PeoplePanel, lens: 'shared', label: 'Townsfolk', icon: 'people', key: 'k', modes: STANDARD, hidden: true },
   { id: 'photo', side: 'overlay', component: PhotoStrip },
   { id: 'plans', side: 'book', component: PlansPanel, lens: 'shared', label: 'Plans', icon: 'plan', hidden: true },
-  { id: 'policies', side: 'book', component: PoliciesPanel, lens: 'ledger', label: 'Policies', icon: 'policies', key: 'p', modes: STANDARD, order: 30 },
+  { id: 'purse', side: 'book', component: PursePanel, lens: 'ledger', label: 'Purse', icon: 'coin', key: 'p', modes: STANDARD, order: 20 },
   { id: 'raid', side: 'overlay', component: RaidPanel },
   { id: 'rankup', side: 'overlay', component: RankUpPanel },
-  { id: 'reports', side: 'book', component: ReportsPanel, lens: 'ledger', label: 'Reports', icon: 'reports', key: 'l', modes: STANDARD, order: 50 },
   { id: 'season-card', side: 'overlay', component: SeasonCardPanel },
   { id: 'stores', side: 'left', component: StoresPanel },
   { id: 'story-letter', side: 'overlay', component: StoryLetterPanel },

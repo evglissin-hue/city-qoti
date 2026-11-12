@@ -89,8 +89,8 @@ export function StoresPanel({ session }: { session: Session }) {
   for (const l of lines) if (groupOf(l.good) === 'food') food += l.stock;
   const cover = coverWords(foodCover(food, m.town.value?.population ?? m.residents.size));
   const open = () => {
-    session.ui.reportTab.value = 'stocks';
-    session.ui.panel.value = 'reports';
+    session.ui.balancesTab.value = 'families';
+    session.ui.panel.value = 'balances';
   };
   return (
     <section class="panel stores" data-testid="stores">
