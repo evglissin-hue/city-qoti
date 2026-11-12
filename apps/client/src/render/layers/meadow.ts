@@ -13,7 +13,7 @@ import type { Mirror } from '../../state/mirror';
 import { ChunkDirt } from '../chunkDirt';
 import { hash2 } from '../coords';
 import { createWorldEnv, MAX_GROUND_LIGHTS, NOISE_GLSL, type WorldEnv } from '../env';
-import type { GroundTextures } from '../ground';
+import { GroundTextures } from '../ground';
 import { GROUND_AO_GLSL, groundAoFor } from '../groundAo';
 import { groundTexturesFor } from '../groundRead';
 import { LIGHT_MAP_GLSL, lightMapUniforms } from '../lightMap';
@@ -423,7 +423,7 @@ float qCloudShade(vec2 wp) {
 `;
 
 /** The carpet's material: standard and matte like the ground, the blade built in the vertex shader. */
-function createMeadowMaterial(
+export function createMeadowMaterial(
   env: WorldEnv,
   tex: GroundTextures,
   reach: { value: number },
@@ -480,6 +480,73 @@ function createMeadowMaterial(
   };
   m.customProgramCacheKey = () => 'qoti-meadow';
   return m;
+}
+
+/**
+ * A standalone patch of carpet over the flat tiles [x0, x0 + w) x [z0, z0 + d), its blades fading
+ * toward the patch's edge, centered in the reach (`env.focus` is set to its middle). For the gallery's
+ * seasons view, which has no valley: `tex` comes from a stub map there.
+ */
+export function meadowPatchMesh(
+  env: WorldEnv,
+  tex: GroundTextures,
+  x0: number,
+  z0: number,
+  w: number,
+  d: number,
+): Mesh {
+  const g = bladePatchGeometry();
+  const data = new Float32Array(w * d * FLOATS_PER_TILE);
+  let n = 0;
+  for (let z = z0; z < z0 + d; z++)
+    for (let x = x0; x < x0 + w; x++) {
+      const o = n++ * FLOATS_PER_TILE;
+      data[o] = x;
+      data[o + 1] = z;
+      data[o + 3] =
+        (x === x0 ? 1 : 0) | (x === x0 + w - 1 ? 2 : 0) | (z === z0 ? 4 : 0) | (z === z0 + d - 1 ? 8 : 0);
+    }
+  const buffer = new InstancedInterleavedBuffer(data, FLOATS_PER_TILE, 1);
+  g.setAttribute('aTile', new InterleavedBufferAttribute(buffer, 4, 0));
+  g.setAttribute('aHeights', new InterleavedBufferAttribute(buffer, 4, 4));
+  g.instanceCount = n;
+  env.focus.set(x0 + w / 2, 0, z0 + d / 2);
+  const mesh = new Mesh(g, createMeadowMaterial(env, tex, { value: Math.max(w, d) * 4 }));
+  mesh.frustumCulled = false;
+  return mesh;
+}
+
+let stub: GroundTextures | null = null;
+/**
+ * The painted ground's textures for a stub valley with meadow round [x0, x0 + w) x [z0, z0 + d)
+ * (six tiles out), plain grass elsewhere and nothing built, so a patch takes the colors and flower
+ * drifts a real meadow would. For the gallery; built once.
+ */
+export function stubMeadowGround(x0: number, z0: number, w: number, d: number): GroundTextures {
+  if (stub) return stub;
+  const n = MAP_SIZE * MAP_SIZE;
+  const terrain = new Uint8Array(n).fill(Terrain.grass);
+  for (let z = Math.max(0, z0 - 6); z < Math.min(MAP_SIZE, z0 + d + 6); z++)
+    for (let x = Math.max(0, x0 - 6); x < Math.min(MAP_SIZE, x0 + w + 6); x++)
+      terrain[z * MAP_SIZE + x] = Terrain.meadow;
+  const zeros = (): Uint8Array => new Uint8Array(n);
+  const mirror = {
+    layers: {
+      terrain,
+      water: zeros(),
+      road: zeros(),
+      tree: zeros(),
+      height: zeros(),
+      occupant: new Int32Array(n),
+      fertility: new Uint8Array(n).fill(55),
+      crop: zeros(),
+      wear: zeros(),
+    },
+    decor: new Map(),
+    buildings: new Map(),
+  } as unknown as Mirror;
+  stub = new GroundTextures(mirror);
+  return stub;
 }
 
 // ---------------------------------------------------------------------------------------------
