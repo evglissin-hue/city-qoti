@@ -150,6 +150,8 @@ interface Day {
   cart: Vehicle;
   boat: Vehicle | null;
   stores: Store[];
+  /** R1X: makers with an output buffer (the carrier collects surplus at the door, never a shelf). */
+  makers: Building[];
   deal: DealOffer | null;
   /** Pennies paid from the treasury today (imports), booked to the tab, and paid off the tab. */
   spent: number;
@@ -553,6 +555,8 @@ interface Scan {
   siteTotal: number;
   stores: Store[];
   makers: number[];
+  /** R1X: built makers (not stores, stalls or shops), whose output buffers the carrier may sell from. */
+  outputs: Building[];
   /** By good index: some built building makes it (the Balances view's `made`). */
   made: boolean[];
   /** The Trading Post (the first by id), and the River Dock. */
@@ -568,6 +572,7 @@ function scan(state: WorldState): Scan {
     siteTotal: 0,
     stores: [],
     makers: new Array<number>(n).fill(0),
+    outputs: [],
     made: new Array<boolean>(n).fill(false),
     post: null,
     dock: null,
@@ -601,6 +606,7 @@ function scan(state: WorldState): Scan {
         out.made[g] = true;
         if (!info?.storage) out.town[g]! += rt.output[g] ?? 0;
       }
+      if (!info?.storage) out.outputs.push(b);
     }
     if (info?.storehouse) {
       const def = info.def;
@@ -659,6 +665,7 @@ export function carrierDay(state: WorldState, ctx: TickCtx): void {
         }
       : null,
     stores,
+    makers: seen.outputs,
     deal,
     spent: 0,
     onTab: 0,
@@ -767,6 +774,7 @@ export function carrierDay(state: WorldState, ctx: TickCtx): void {
       for (const g of SHELF_GOODS[f]!) {
         let free = 0;
         for (const s of day.stores) free += Math.max(0, s.b.rt!.store[g]! - s.b.rt!.reservedOut[g]!);
+        for (const b of day.makers) free += Math.max(0, b.rt!.output[g]! - b.rt!.reservedOut[g]!);
         if (free > most && sellOffer(day, g)) {
           most = free;
           good = g;
@@ -836,9 +844,24 @@ function sellOne(day: Day, good: number): boolean {
       from = s;
     }
   }
-  if (!from) return false;
-  from.b.rt!.store[good]! -= 1;
-  from.space++;
+  if (from) {
+    from.b.rt!.store[good]! -= 1;
+    from.space++;
+  } else {
+    // R1X: a maker's output buffer, before porters take it to a shelf (a village's cider sat at the
+    // presses and on the stalls, and the carrier, reading the storehouses only, never sold it).
+    let maker: Building | null = null;
+    for (const b of day.makers) {
+      const rt = b.rt!;
+      const free = rt.output[good]! - rt.reservedOut[good]!;
+      if (free > most) {
+        most = free;
+        maker = b;
+      }
+    }
+    if (!maker) return false;
+    maker.rt!.output[good]! -= 1;
+  }
   day.town[good]! -= 1;
   day.earned += o.price;
   o.v.room--;
