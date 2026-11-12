@@ -42,6 +42,7 @@ import {
   TAB_PER_RESIDENT,
   TICKS_PER_DAY,
   TICKS_PER_HOUR,
+  TIERS,
   WARMTH_PER_HOUSEHOLD,
 } from '../../constants';
 import type { Building, DealOffer, NeighborState, System, TickCtx, WorldState } from '../../contracts';
@@ -57,14 +58,7 @@ import { emitMoney } from '../economy/emit';
 import { dailyOffset, dayIndex } from '../economy/time';
 import { overdraftLimit } from '../loans/credit';
 import { isStorehouse, storageSpace, takes, tileDistance } from '../logistics/stores';
-import {
-  familyUses,
-  flavorsOnOffer,
-  onOfferGoods,
-  SHELF_GOODS,
-  tierCounts,
-  wantedVariety,
-} from '../market/balances';
+import { familyUses, flavorsOnOffer, onOfferGoods, SHELF_GOODS, wantedVariety } from '../market/balances';
 import { doorTile } from '../movement/api';
 import { renownEffect } from '../renown/api';
 import { calendar } from '../clock/calendar';
@@ -694,7 +688,8 @@ export function carrierDay(state: WorldState, ctx: TickCtx): void {
   const dock = boatDue(state, seen.dock);
   // Food and Fuel in the pantries, counted on familyUses' pass over the households.
   const pantry = new Array<number>(n).fill(0);
-  const uses = familyUses(state, seen.siteTotal, pantry);
+  const counts = TIERS.map(() => 0);
+  const uses = familyUses(state, seen.siteTotal, pantry, counts);
   const deal = activeDeal(state);
   const [sellers, buyers] = quotes(state, terms, deal);
   const cartVehicle: Vehicle = {
@@ -786,7 +781,6 @@ export function carrierDay(state: WorldState, ctx: TickCtx): void {
   // so variety never waits behind another family's bulk; then the reserve, the cheapest unit by unit.
   const toward = buyingTowardMarks(state);
   const offered = onOfferGoods(state);
-  const counts = tierCounts(state);
   for (const f of ORDER) {
     if (families[f]!.rule !== 'always') continue;
     const wanted = wantedVariety(state, f, counts);

@@ -111,10 +111,16 @@ const WANTS: readonly (readonly [number, number, boolean][])[] = TIERS.map((tier
 /**
  * Every family's use a day in hundredths, in GOOD_FAMILIES order, in one pass over the households.
  * With `larder`, it also adds each pantry's Food and Fuel into it, by good (the carrier's count).
+ * With `tiers` (zeroed, one per tier), it also counts households by tier, as tierCounts does.
  */
-export function familyUses(state: WorldState, siteTotal?: number, larder?: number[]): number[] {
+export function familyUses(
+  state: WorldState,
+  siteTotal?: number,
+  larder?: number[],
+  tiers?: number[],
+): number[] {
   const out = GOOD_FAMILIES.map(() => 0);
-  const counts = TIERS.map(() => 0);
+  const counts = tiers ?? TIERS.map(() => 0);
   const residents = state.residents.length;
   const households = state.households.length;
   // Indexed loops: this runs once a day per caller and seldom gets past the interpreter.

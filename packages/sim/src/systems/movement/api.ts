@@ -7,7 +7,7 @@
 import type { BuildingDef } from '@qoti/content';
 import { content } from '@qoti/content';
 import { MAP_SIZE, ResidentFlags } from '../../constants';
-import type { Building, EntityId, MoveReason, Resident, WorldState } from '../../contracts';
+import type { Building, EntityId, MoveReason, Resident, Rot4, WorldState } from '../../contracts';
 import { entranceTiles } from '../../rules/footprint';
 import { findById } from '../../state/entities';
 import { pathBetween } from './paths';
@@ -78,14 +78,27 @@ export function stopMove(state: WorldState, residentId: EntityId): void {
   if (r) r.move = null;
 }
 
+/**
+ * A def's door offset in tile-index units, by rotation: the entrance is a fixed offset from the
+ * building's corner, so the door of any building is its corner index plus this (computed once).
+ */
+const DOOR_DELTA = new WeakMap<BuildingDef, number[]>();
+
 /** The tile in front of a building's entrance: where walkers arrive and leave. */
 export function doorTile(
   b: Building,
   def: BuildingDef | undefined = content.buildingById.get(b.def),
 ): number {
   if (!def) return b.z * MAP_SIZE + b.x;
-  const { front } = entranceTiles(def, b.x, b.z, b.rot);
-  return front[1] * MAP_SIZE + front[0];
+  let deltas = DOOR_DELTA.get(def);
+  if (!deltas) {
+    deltas = [0, 1, 2, 3].map((rot) => {
+      const { front } = entranceTiles(def, 0, 0, rot as Rot4);
+      return front[1] * MAP_SIZE + front[0];
+    });
+    DOOR_DELTA.set(def, deltas);
+  }
+  return b.z * MAP_SIZE + b.x + deltas[b.rot]!;
 }
 
 /** doorTile by id, or -1 when the building is gone. */

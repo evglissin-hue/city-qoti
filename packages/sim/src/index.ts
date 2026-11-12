@@ -62,6 +62,7 @@ export {
   fillText,
   goodPairs,
   householdView,
+  keepsNoGoods,
   moodBand,
   nameOf,
   noteView,

@@ -6,6 +6,7 @@
 import { MAP_SIZE } from '../../constants';
 import type { Building, WorldState } from '../../contracts';
 import { doorTile } from '../movement/api';
+import { type Defs, usable } from '../growth/defs';
 import { defOf, isStorehouse } from './stores';
 
 export const LOGISTICS_RANGE = 24;
@@ -20,11 +21,16 @@ export interface Reach {
 }
 
 /** Built storehouses with their door, range and assigned porters, in id order. */
-export function storehouseReach(state: WorldState): Reach[] {
+export function storehouseReach(state: WorldState, known?: Defs): Reach[] {
   const out: Reach[] = [];
-  for (const b of state.buildings) {
-    const def = defOf(b);
-    if (b.stage !== 'built' || !b.rt || !isStorehouse(def)) continue;
+  const bs = state.buildings;
+  const defs = usable(state, known);
+  for (let i = 0; i < bs.length; i++) {
+    const b = bs[i]!;
+    // The cheap tests first: a def is only looked up for a built building with a runtime.
+    if (b.stage !== 'built' || !b.rt) continue;
+    const def = defs ? defs[i] : defOf(b);
+    if (!isStorehouse(def)) continue;
     const radius = def?.coverage?.find((c) => c.kind === 'logistics')?.radius ?? LOGISTICS_RANGE;
     out.push({ b, door: doorTile(b, def), radius, porters: b.rt.workers.length });
   }
