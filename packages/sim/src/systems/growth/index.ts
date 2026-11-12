@@ -36,7 +36,7 @@ import { openJobCount } from '../residents/jobs';
 import { attractiveness } from '../residents/lifecycle';
 import { foodIndexes, pantryFood } from '../residents/needs';
 import { vacantHomes } from '../residents/places';
-import { withinReach } from '../specialized/api';
+import { announceServers } from '../specialized/announce';
 import { growLot, lotPlacement } from './api';
 import { computeBars, craftPull, HOME_ZONES, writeBars, type BarInputs } from './bars';
 import { mix, servicesOf } from './desirability';
@@ -423,14 +423,7 @@ function growFields(state: WorldState, ctx: TickCtx): void {
 /** business.updated for a new business and for the specialized buildings whose reach now serves it. */
 function announceBusiness(state: WorldState, ctx: TickCtx, b: Building): void {
   ctx.events.push({ e: 'business.updated', b: businessView(state, b) });
-  if (!b.trade) return;
-  const door = doorTile(b);
-  for (const sb of state.buildings) {
-    if (sb.stage !== 'built') continue;
-    const def = content.buildingById.get(sb.def);
-    if (!def?.enables?.includes(b.trade)) continue;
-    if (withinReach(state, sb, door)) ctx.events.push({ e: 'business.updated', b: businessView(state, sb) });
-  }
+  announceServers(state, ctx, b, [b.trade]);
 }
 
 /** One night's growth. Returns the sites started. */

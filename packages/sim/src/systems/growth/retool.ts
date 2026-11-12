@@ -12,6 +12,7 @@ import { businessView } from '../../view/businesses';
 import { emitBuilding } from '../economy/emit';
 import { clearFields, fieldsOf } from '../production/fields';
 import { isFrozen } from '../seasons/api';
+import { announceServers } from '../specialized/announce';
 import type { SiteCache } from './site';
 import { siteMeets } from './site';
 import { needOf, tradeTerms, type TownNeeds } from './trades';
@@ -71,6 +72,8 @@ export function retool(state: WorldState, ctx: TickCtx, b: Building, t: TradeDef
   c.siteDays = 0;
   emitBuilding(state, ctx, b);
   ctx.events.push({ e: 'business.updated', b: businessView(state, b) });
+  // A specialized building that enabled the old trade, or enables the new one, now serves a different count.
+  announceServers(state, ctx, b, [was?.id, t.id], true);
 }
 
 /**
