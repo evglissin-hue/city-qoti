@@ -33,7 +33,6 @@ export interface Letter {
   tick: number;
 }
 
-
 /** R1C: the Purse book's three tabs. */
 export type PurseTab = 'budget' | 'taxes' | 'loans';
 
