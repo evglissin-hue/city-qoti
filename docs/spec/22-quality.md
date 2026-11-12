@@ -107,6 +107,42 @@ Added 2026-11-10 with the redesign (`30-roadmap.md`).
 
 **As built (V2A, 2026-11-12), night with the light map**: the map and the 32-light loop it replaces on the same build (`?debug&lights=loop`), at 22:00 with the sim held, in the build container's software renderer (SwiftShader: ratios only, a handful of frames a phase): `QOTI_CHROMIUM=/opt/pw-browsers/chromium QOTI_FIXEDRES=1 QOTI_HOLD=1 QOTI_HOUR=22 QOTI_PRESETS=medium,high node apps/client/e2e/v2-perf.mjs grown village town`, and again with `QOTI_QUERY=lights=loop`. Moving GPU ms (avg / p95), map against loop: Medium, the village 846 / 1531 against 973 / 1587, the town 1151 / 2168 against 1145 / 2143, the grown village 1057 / 2035 against 1061 / 1978; High, the village 2683 against 2909, the town 3301 against 3312, the grown village 2824 against 2832. So a moving night frame costs no more with the map than with the loop, within the software renderer's noise, and less in the village of 130. Moving frames add no pass (the map is drawn only on a frame a light changed, outside the scene pass); draws stay at 131 to 141 on Medium and 170 to 192 on High (budgets 300 and 450). A redraw of 470 to 570 discs (the grown village and the village of 130) is two draws and took 0.4 to 2.4 ms in software as a rule and up to 9 ms while the shared container was busy, with the GPU's time included (`?debug` waits for it), the first one with its programs' compile 18 to 41 ms; at rest with the sim held, neither night drops the still frame or renders the shadow map. The laptops' 22:00 rows (Measure this laptop, Medium and High) against `docs/playtests/V1.md`'s before tables are V2X's to take.
 
+**As built (V2X, 2026-11-12), the merged wave in software**: V2A, V2C and V2B merged, the readers on one curve, decor with a far level kept in view far off, then the master's round (pools, amber lamplight, calmer crowns, softer smoke), measured from a production build of `a6ee677` (`vite preview`) in the build container's SwiftShader, so every millisecond is the CPU doing the GPU's work (ratios at best, the container shared); draws and triangles are real. Before is V2.0's table above (the wave notes, Before numbers).
+
+Medium, sim held, on the first after build (`1f7d728`, before the master's round; `QOTI_FIXEDRES=1 QOTI_HOLD=1 QOTI_PRESETS=medium node apps/client/e2e/v2-perf.mjs`), after against before:
+
+| Scene | Moving GPU ms avg (after / before) | Draws (after / before) | Triangles (after / before) | Rest: moving / still / idle, shadow renders (after) |
+|---|---|---|---|---|
+| hamlet | 963 / 1277 | 66 / 71 | 0.19 M / 0.27 M | 0 / 1 / 16, 1 |
+| village | 938 / 1591 | 135 / 141 | 0.27 M / 0.28 M | 0 / 6 / 0, 6 |
+| town | 909 / 407 (V2.0's distrusted number) | 102 / 97 | 0.35 M / 0.31 M | 0 / 1 / 7, 1 |
+| grown | 1307 / 1455 | 132 / 128 | 0.45 M / 0.40 M | 0 / 3 / 0, 3 |
+
+Every preset, sim running, on the final build (`QOTI_FIXEDRES=1 node apps/client/e2e/v2-perf.mjs`): moving GPU ms avg, draws and moving triangles after (before):
+
+| Scene | Low | Medium | High | Ultra |
+|---|---|---|---|---|
+| hamlet | 727, 58, 0.05 M (877, 72, 0.05 M) | 2025, 84, 0.29 M (1952, 75, 0.21 M) | 2230, 79, 0.58 M (3306, 91, 0.78 M) | 2297, 110, 1.26 M (no frame) |
+| village | 1007, 133, 0.24 M (1139, 119, 0.22 M) | 2346, 188, 0.41 M (3093, 190, 0.34 M) | 4375, 225, 2.50 M (4549, 224, 1.99 M) | 3818, 358, 4.54 M (no frame) |
+| town | 1218, 109, 0.34 M (1388, 83, 0.31 M) | 3224, 169, 0.71 M (no frame) | n/a, 181, 4.03 M (n/a, 88, 0.68 M) | 5520, 292, 4.33 M (no frame) |
+| grown | 1164, 123, 0.36 M (1384, 112, 0.26 M) | 2774, 214, 0.80 M (n/a, 183, 0.56 M) | 4015, 201, 1.78 M (5796, 213, 2.05 M) | n/a, 374, 5.41 M (a partial frame) |
+
+Every row is inside its draw and triangle budget (Medium 300 and 3 M, High 450 and 6 M, Ultra 450 and 12 M); the most is the grown village on Medium (214 draws, 0.80 M) and on Ultra (374 draws, 5.41 M). What V2 adds on Medium is the meadow carpet (60 to 100 k triangles at the default camera), the dabbed crowns and, from V2X, far decor (the grown village's wide shot: 0.51 M against 0.45 M, 182 draws against 166); the master's round took dabs out again (the village of 130 on Medium, 0.55 M on the first after build, 0.41 M on the final).
+
+Night, Medium, 22:00, sim held, the light map against the 32-light loop on the same build (`QOTI_HOUR=22 QOTI_HOLD=1 QOTI_PRESETS=medium ... grown village town`, again with `QOTI_QUERY=lights=loop`), moving GPU ms avg / p95:
+
+| Scene | Light map, final build | 32-light loop, final build | Earlier pairs (map / loop, avg) |
+|---|---|---|---|
+| grown | 1205 / 3086 | 1549 / 2876 | 1486 / 1287 |
+| village | 987 / 2386 | 1123 / 2795 | 1304 / 1126, and a loop run of 986 |
+| town | 1024 / 2980 | 349 / 422 | 709 / 371, and a loop run of 1247 |
+
+In software the two nights cannot be told apart: the map was cheaper on the final build in the grown village and the village of 130 and dearer in the first pair, and the town's loop rows swing from 349 to 1247 ms between runs of the same build (the cheap frames V2.0 distrusted). V2A's own two pairs found them level. So the laptops' 22:00 rows decide the night acceptance and the loop's retirement.
+
+**The rest check** (`apps/client/e2e/v2-rest.mjs`, new): a static layer that changes every frame at rest would keep the still frame redrawing with nothing on screen to say so. With the sim held, the grown village on Medium at 22:00 changed nothing in 40 s after a four-minute settle; with the sim running, the town on Low changed three times in 40 s (two buildings the sim was building, one lamp). The rests in the tables above end in still frames because one software frame spans most of the 10 s rest, which on a laptop is a fraction of a second of settling.
+
+**Still to come**: both laptops' before and after tables (Measure this laptop, `docs/playtests/V1.md` and `V2.md`), which decide the night acceptance, the idle budget, the carpet's reach per preset and the 32-light loop's retirement (the V2X PR says what the owner and Kat run).
+
 **Budgets** for what the redesign adds, on the weaker laptop on Medium unless a preset is named, all *(tune against the measured tables)*:
 
 | Metric | Budget |
