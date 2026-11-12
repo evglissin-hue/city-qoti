@@ -425,11 +425,14 @@ function FieldHint({ session }: { session: Session }) {
 function SketchBar({ session }: { session: Session }) {
   const sketch = session.ui.sketch.value!;
   const n = sketch.items.length;
+  // R1C: editing a plan in place says so, and its button goes to the card's Save changes.
+  const editing = sketch.basedOn !== null;
   return (
     <div class="variants panel sketch-bar" data-testid="sketch-bar">
       <Glyph id="plan" />
       <span>
-        <b>Sketching.</b> {n ? planSummary(sketch.items) : 'Whatever you place now is ink, not timber.'}
+        <b>{editing ? 'Redrawing the plan.' : 'Sketching.'}</b>{' '}
+        {n ? planSummary(sketch.items) : 'Whatever you place now is ink, not timber.'}
       </span>
       <button
         type="button"
@@ -437,7 +440,7 @@ function SketchBar({ session }: { session: Session }) {
         data-testid="sketch-review"
         onClick={() => (session.ui.panel.value = 'plans')}
       >
-        {n ? 'Name it and propose' : 'Plans'}
+        {editing ? 'Review the changes' : n ? 'Name it and propose' : 'Plans'}
       </button>
       <button
         type="button"
