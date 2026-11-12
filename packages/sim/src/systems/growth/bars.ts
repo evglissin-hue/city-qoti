@@ -208,7 +208,7 @@ export function computeBars(state: WorldState, x: BarInputs): Bar[] {
       if (bar.value <= 0 || !bar.zoned) continue;
       bar.waiting = true;
       bar.hands = true;
-      bar.reasons = [...bar.reasons.slice(0, 2), { code: 'hands' }];
+      bar.reasons = [...bar.reasons.slice(0, 1), { code: 'hands' }];
     }
   }
   return bars;
