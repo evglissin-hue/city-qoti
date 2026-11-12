@@ -2,6 +2,7 @@ import type { BuildingDef } from '@qoti/content';
 import { DECOR_BUILDING_MARGIN, TILE_FP } from '../constants';
 import type { BuildingPlacement, MapReader, RejectReason, Rot4 } from '../contracts';
 import { Deposit, Road, treeStage, Water } from '../map/layers';
+import { inClearance } from './clearance';
 import { entranceTiles, footprintSize, footprintTiles } from './footprint';
 import { valleyRoadTiles } from './valleyRoad';
 import { decorRadius, distSqToRect, isInt, MAX_DECOR_RADIUS } from './geometry';
@@ -172,6 +173,11 @@ export function canPlaceBuilding(
         break;
       }
     }
+  }
+
+  // A windmill keeps its open ground: nothing else stands inside its clearance (rules/clearance.ts).
+  if (!rules.some((r) => r.kind === 'openGround') && inClearance(reader, x, z, w, d)) {
+    return fail('NEEDS_OPEN_GROUND', tiles);
   }
 
   const warnings: string[] = [];

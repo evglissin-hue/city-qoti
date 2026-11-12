@@ -222,7 +222,8 @@ export function villageFixture(): VillageFixture {
   for (let i = 0; i < 7; i++) cottages.push(place(state, 'cottage', 43 + i * 3, 48, 0, (i % 2) as 0 | 1));
   const bakery = place(state, 'workshop', 66, 47, 0, 0, 'baker');
   bakery.level = 2;
-  const windmill = place(state, 'windmill', 69, 48);
+  // R1B: on open ground north of lane A by the path, its clearance kept, the bakery in its reach.
+  const windmill = place(state, 'windmill', 65, 42);
   const sawpit = place(state, 'foresters-lodge', 72, 48);
   const stallA = place(state, 'market-stall', 76, 48, 0, 1);
   const stallB = place(state, 'market-stall', 79, 48, 0, 1);

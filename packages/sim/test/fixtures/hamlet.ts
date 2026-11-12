@@ -3,8 +3,9 @@
 // against the same town before the others land:
 //
 //   z=46..49  north of the lane: town hall, storehouse, three cottages, a granary, a baker's
-//             workshop (a business, trade 'baker') in the windmill's reach, the windmill, a
-//             Forester's Lodge and a market stall, all facing the lane
+//             workshop (a business, trade 'baker') in the windmill's reach, a Forester's Lodge and
+//             a market stall, all facing the lane; the windmill stands on open ground at (62, 42)
+//             by the path (R1B: it keeps its clearance)
 //   z=50      the lane from x 40 to 90; a path crosses it at x 61 from z 40 to 60
 //   z=52      the well, benches, lanterns and flowers south of the lane
 //
@@ -168,7 +169,8 @@ export function hamletFixture(): HamletFixture {
   const c2 = place(state, 'cottage', 56, 48);
   const c3 = place(state, 'cottage', 62, 48, 0, 1);
   const bakery = place(state, 'workshop', 65, 47, 0, 0, 'baker');
-  const windmill = place(state, 'windmill', 68, 48);
+  // R1B: on open ground north of the lane by the path, its clearance kept, the bakery in its reach.
+  const windmill = place(state, 'windmill', 62, 42);
   const sawpit = place(state, 'foresters-lodge', 71, 48);
   const stall = place(state, 'market-stall', 74, 48, 0, 1);
   const well = place(state, 'well', 57, 52);

@@ -798,6 +798,12 @@ export class Mirror implements MapReader {
   get roadVersion(): number {
     return this.layerRevision;
   }
+
+  /** MapReader (R1B): the def of the building on the tile, for a windmill's clearance. */
+  occupantDef(x: number, z: number): string | undefined {
+    const id = this.occupant(x, z);
+    return id ? this.buildings.get(id)?.def : undefined;
+  }
 }
 
 /** Two festival plans that say the same thing (what is put by does not count). */

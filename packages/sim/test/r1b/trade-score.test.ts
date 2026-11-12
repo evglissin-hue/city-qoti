@@ -143,16 +143,22 @@ describe('site', () => {
     const lots = craftLots(s);
     expect(lots.length).toBeGreaterThan(1);
     const near = lots[0]!;
-    // The fixture's windmill serves one baker of two.
+    // The fixture's windmill stands by the path, beyond these lots' reach: no room here.
+    expect(siteMeets(new SiteCache(s), near, trade('baker'))).toBe(false);
+    // A windmill across lane A, its door on the lane, outside the lots' clearance; it reaches the
+    // fixture's bakery too, so it serves one baker of two.
+    const mill = insertBuilding(s, null, content.buildingById.get('windmill')!, 86, 52, 2, 0, {
+      site: false,
+    });
     expect(siteMeets(new SiteCache(s), near, trade('baker'))).toBe(true);
-    // A second baker beside the first fills it: no room for a third.
-    insertBuilding(s, null, content.buildingById.get('workshop')!, 62, 47, 0, 0, { trade: 'baker' });
+    // A second baker in its reach fills it: no room for a third.
+    insertBuilding(s, null, content.buildingById.get('workshop')!, 92, 52, 2, 0, { trade: 'baker' });
     expect(siteMeets(new SiteCache(s), near, trade('baker'))).toBe(false);
     // The first two still have their room (they count themselves among the served).
     const bakery = findById(s.buildings, f.b.bakery)!;
     expect(siteMeets(new SiteCache(s), near, trade('baker'), bakery.id)).toBe(true);
-    // No windmill at all.
-    removeById(s.buildings, f.b.windmill);
+    // No windmill in reach at all.
+    removeById(s.buildings, mill.id);
     expect(siteMeets(new SiteCache(s), near, trade('baker'))).toBe(false);
     // A weaver wants nothing of its lot.
     expect(siteMeets(new SiteCache(s), near, trade('weaver'))).toBe(true);
