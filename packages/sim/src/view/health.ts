@@ -258,6 +258,10 @@ export class HealthWatch {
         });
         if (made) return;
         if (carrierMayBuy(state, g)) {
+          // R1X: a site's Materials are bought with coins in hand only, so a site waiting while the
+          // treasury cannot pay for them waits on coins (taxes and exports refill it), not a dead end.
+          const price = state.market.prices[g] ?? content.goods[g]!.basePrice;
+          if (state.economy.treasury < need * price * 2) return;
           // The carrier may buy it, but did it? Look back over the days the site has waited.
           const days = Math.min(
             state.carrier.bought.length,

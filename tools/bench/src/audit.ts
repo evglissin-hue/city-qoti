@@ -27,23 +27,11 @@ export const VILLAGE_SEED = 'hazel';
 export const NEVER_GRANTED_AFTER = 3;
 
 /**
- * Flags today's stand-ins still raise, each with the cycle whose system removes it, so the audit
- * prints them as explained instead of failing the run. R1 stand-in (R1X): empty this list as the
- * wave lands; a flag that outlives its stand-in is a dead end again.
+ * Flags a known stand-in still raises, each with the cycle whose system removes it, so the audit
+ * prints them as explained instead of failing the run. R1X emptied it as the wave landed: a flag
+ * that outlives its stand-in is a dead end again.
  */
-export const EXPLAINED: readonly { kind: HealthIssue['kind']; match: RegExp; why: string }[] = [
-  {
-    kind: 'site-rule-broken',
-    match: /^foresters-lodge /,
-    why: "R1B: the Forester's Lodge fells its wood and does not replant it yet",
-  },
-  {
-    // Only while the town is in debt: a bar unanswered with coins in hand is the land advisor's.
-    kind: 'demand-unanswered',
-    match: /\(treasury -\d+ coins\)$/,
-    why: 'R1X: the stand-in Village economy runs the treasury into debt (wages outrun sales while no Wares or Treats are sold), and a town in debt lays no lane',
-  },
-];
+export const EXPLAINED: readonly { kind: HealthIssue['kind']; match: RegExp; why: string }[] = [];
 
 /** Why a flag is a known stand-in's, or null when it is a dead end. */
 export function explained(i: Pick<HealthIssue, 'kind' | 'text'>): string | null {

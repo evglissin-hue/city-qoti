@@ -19,6 +19,8 @@ import {
   hasInnovation,
   isFrozen,
   meetsRequires,
+  overdraftLimit,
+  PENNIES_PER_COIN,
   rankAtLeast,
   TICKS_PER_DAY,
   townStock,
@@ -123,7 +125,10 @@ class Land implements Advisor {
     const village = rankAtLeast(p.w, 'village');
     // R1F: as long as the treasury allows, keeping the planner's reserve (a Hamlet down to fifty
     // coins still lays a short lane for the homes its bar asks for).
-    const length = Math.min(STREET_TILES, Math.floor((p.coins() - MONEY_RESERVE) / LANE_COINS));
+    // R1X: a Village may lay its lanes on the County Bank's credit, as its services go up: growth
+    // waited for coins while the Homes bar asked for land for days.
+    const credit = overdraftLimit(p.w) / PENNIES_PER_COIN;
+    const length = Math.min(STREET_TILES, Math.floor((p.coins() + credit - MONEY_RESERVE) / LANE_COINS));
     if (length < SHORT_STREET) return false;
     const street = planHighStreet(p.w, length);
     if (!street) {
