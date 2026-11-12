@@ -5,7 +5,7 @@
 // without their raw good while the carrier may buy, and the money (lowest treasury, owed, the tab).
 // TARGETS_DAYS=1 adds a line per day with the numbers behind it.
 import { content } from '@qoti/content';
-import { loansOwed, PENNIES_PER_COIN, rankAtLeast, type WorldState } from '@qoti/sim';
+import { calendar, loansOwed, PENNIES_PER_COIN, rankAtLeast, type WorldState } from '@qoti/sim';
 import { autoplay, type DayLine } from './autoplay';
 import { DEFAULT_SEEDS } from './audit';
 import { DECISIONS_DAYS, decisionVerdict, tallyDecisions } from './decisions';
@@ -18,7 +18,7 @@ export interface TargetRow {
   households70: number;
   foodHands40: number;
   foodHands70: number;
-  /** Mean percent of hands in food over days 20 to the end. */
+  /** Mean percent of hands in food over the growing days from day 20 (winter's resting farms left out). */
   foodHandsMean: number;
   decisions: number;
   verdict: string[];
@@ -62,7 +62,7 @@ export function targetRow(seed: string, days = DECISIONS_DAYS): { row: TargetRow
     lowest = Math.min(lowest, w.economy.treasury / PENNIES_PER_COIN);
     made += w.economy.yesterday.produced[firewood] ?? 0;
     bought += w.carrier.bought[w.carrier.bought.length - 1]?.[firewood] ?? 0;
-    if (line.day >= 20 && line.ledger) hands.push(line.ledger.handsFood);
+    if (line.day >= 20 && line.ledger && calendar(w.tick).season !== 3) hands.push(line.ledger.handsFood);
     if (process.env.TARGETS_DAYS) {
       const l = line.ledger;
       lines.push(
