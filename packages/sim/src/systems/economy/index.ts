@@ -13,7 +13,7 @@ import { defOf } from '../logistics/stores';
 import { addMoodModifier, moodTaxPercent, removeMoodModifier } from '../residents/api';
 import { overdraftLimit, isLean } from '../loans/credit';
 import { marketOpen } from '../market/api';
-import { balanceStock, familyCover } from '../market/balances';
+import { balanceStock, familyCover, familyUses } from '../market/balances';
 import { book } from './api';
 import { pay } from './money';
 import { economyDial, upkeepPennies } from './dial';
@@ -179,7 +179,8 @@ export function coinsText(pennies: number): string {
 /** One row a day on the carrier's history: each family's days of cover, in hundredths. */
 function pushBalanceHistory(state: WorldState): void {
   const stock = balanceStock(state);
-  const row = GOOD_FAMILIES.map((_, f) => familyCover(state, f, stock));
+  const uses = familyUses(state);
+  const row = GOOD_FAMILIES.map((_, f) => familyCover(state, f, stock, uses[f]));
   const history = (state.carrier.history ??= []);
   history.push(row);
   while (history.length > BALANCE_HISTORY_DAYS) history.shift();

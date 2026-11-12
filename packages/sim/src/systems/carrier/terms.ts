@@ -56,8 +56,12 @@ export interface CarrierTerms {
 
 /** Today's cart terms: the peddler's, or the Trading Post's by rank and carts once one stands. */
 export function carrierTerms(state: WorldState): CarrierTerms {
-  if (!tradingPost(state))
-    return { units: PEDDLER_TERMS.units, buy: PEDDLER_TERMS.buy, sell: PEDDLER_TERMS.sell };
+  return termsFor(state, !!tradingPost(state));
+}
+
+/** The cart's terms with or without a Trading Post standing (the visit finds the post itself). */
+export function termsFor(state: WorldState, post: boolean): CarrierTerms {
+  if (!post) return { units: PEDDLER_TERMS.units, buy: PEDDLER_TERMS.buy, sell: PEDDLER_TERMS.sell };
   const rank = Math.max(0, RANKS.indexOf(state.charter.rank));
   const units = POST_UNITS_BY_RANK[rank]! + POST_CART_UNITS * Math.min(POST_CARTS_MAX, state.carts.length);
   return { units, buy: TRADE_BUY_PERCENT, sell: TRADE_SELL_PERCENT };

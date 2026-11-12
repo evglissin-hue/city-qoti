@@ -43,7 +43,7 @@ export const SHELF_GOODS: readonly (readonly number[])[] = GOOD_FAMILIES.map((_,
 );
 
 /** The tiers whose baskets the town buys: those its households hold, then the unlocked ones none has. */
-function tierCounts(state: WorldState): number[] {
+export function tierCounts(state: WorldState): number[] {
   const n = TIERS.map(() => 0);
   for (const h of state.households) n[Math.max(0, TIERS.indexOf(h.tier))]! += 1;
   return n;
@@ -54,44 +54,76 @@ export function tierOpen(state: WorldState, tier: TierId): boolean {
   return tier === 'settler' || (content.basketByTier.has(tier) && state.hearth.unlocked.includes(tier));
 }
 
-/**
- * Units a day the town uses of a family (GOOD_FAMILIES index), in hundredths. See the header.
- */
+/** Units a day the town uses of a family (GOOD_FAMILIES index), in hundredths. See the header. */
 export function familyUseHundredths(state: WorldState, family: number): number {
-  if (family === MATERIALS) {
-    let sites = 0;
-    for (const b of state.buildings) for (const x of b.rt?.construction?.needs ?? []) sites += x;
-    let used = 0;
-    for (const g of GOODS_BY_FAMILY[MATERIALS]!) used += state.economy.yesterday.consumed[g] ?? 0;
-    return Math.max(sites, used) * 100;
-  }
-  const id = GOOD_FAMILIES[family]!;
-  const counts = tierCounts(state);
+  return familyUses(state)[family]!;
+}
+
+/** The goods a pantry keeps that count toward the balances: Food and Fuel. */
+export const LARDER_GOODS: readonly number[] = [...GOODS_BY_FAMILY[FOOD]!, ...GOODS_BY_FAMILY[FUEL]!];
+
+/** A tier's index in TIERS. */
+const TIER_INDEX: ReadonlyMap<string, number> = new Map(TIERS.map((t, i) => [t, i]));
+
+/** Each tier's wants as [family index, hundredths a day, per household], in TIERS order. */
+const WANTS: readonly (readonly [number, number, boolean][])[] = TIERS.map((tier) =>
+  (content.basketByTier.get(tier)?.wants ?? []).map((w): [number, number, boolean] => [
+    GOOD_FAMILIES.indexOf(w.family),
+    Math.round(w.amount * 100),
+    !!w.perHousehold,
+  ]),
+);
+
+/**
+ * Every family's use a day in hundredths, in GOOD_FAMILIES order, in one pass over the households.
+ * With `larder`, it also adds each pantry's Food and Fuel into it, by good (the carrier's count).
+ */
+export function familyUses(state: WorldState, siteTotal?: number, larder?: number[]): number[] {
+  const out = GOOD_FAMILIES.map(() => 0);
+  const counts = TIERS.map(() => 0);
   const residents = state.residents.length;
   const households = state.households.length;
-  let want = 0;
-  for (const h of state.households) {
-    const w = content.basketByTier.get(h.tier)?.wants.find((x) => x.family === id);
-    if (!w) continue;
-    want += Math.round(w.amount * 100) * (w.perHousehold ? 1 : Math.max(1, h.members.length));
+  // Indexed loops: this runs once a day per caller and seldom gets past the interpreter.
+  const hs = state.households;
+  for (let i = 0; i < hs.length; i++) {
+    const h = hs[i]!;
+    const t = TIER_INDEX.get(h.tier) ?? 0;
+    counts[t]! += 1;
+    // The carrier's pantry count rides the same pass (Food and Fuel in every pantry, by good).
+    if (larder) {
+      const p = h.pantry;
+      for (let k = 0; k < LARDER_GOODS.length; k++) larder[LARDER_GOODS[k]!]! += p[LARDER_GOODS[k]!] ?? 0;
+    }
+    const members = Math.max(1, h.members.length);
+    const wants = WANTS[t]!;
+    for (let k = 0; k < wants.length; k++) {
+      const w = wants[k]!;
+      out[w[0]]! += w[1] * (w[2] ? 1 : members);
+    }
   }
-  // A newly opened tier: one household in ten (rounded up) as if it had arrived.
+  // A newly opened tier: one household in ten (rounded up) as if it had arrived. Fuel's want is a
+  // winter one and the balance reads a firewood a household all year, so it is set below instead.
   for (let t = 1; t < TIERS.length; t++) {
     const tier = TIERS[t]!;
     if (counts[t]! > 0 || !tierOpen(state, tier) || households === 0) continue;
-    const w = content.basketByTier.get(tier)?.wants.find((x) => x.family === id);
-    if (!w) continue;
-    const share = w.perHousehold
-      ? Math.ceil(households / NEW_TIER_SHARE)
-      : Math.ceil(residents / NEW_TIER_SHARE);
-    // Fuel's want is a winter one; the balance reads it all year, so it is never added twice.
-    if (family !== FUEL) want += Math.round(w.amount * 100) * share;
+    for (const w of content.basketByTier.get(tier)?.wants ?? []) {
+      const share = w.perHousehold
+        ? Math.ceil(households / NEW_TIER_SHARE)
+        : Math.ceil(residents / NEW_TIER_SHARE);
+      out[GOOD_FAMILIES.indexOf(w.family)]! += Math.round(w.amount * 100) * share;
+    }
   }
-  if (family === FUEL) {
-    const burned = (state.economy.yesterday.consumed[GOODS_BY_FAMILY[FUEL]![0]!] ?? 0) * 100;
-    return Math.max(households * 100, burned);
+  const y = state.economy.yesterday.consumed;
+  out[FUEL] = Math.max(households * 100, (y[GOODS_BY_FAMILY[FUEL]![0]!] ?? 0) * 100);
+  // Materials: what open sites still need (the carrier passes it from its own pass).
+  let sites = siteTotal ?? 0;
+  if (siteTotal === undefined) {
+    for (const b of state.buildings) for (const x of b.rt?.construction?.needs ?? []) sites += x;
   }
-  return want;
+  let used = 0;
+  for (const g of GOODS_BY_FAMILY[MATERIALS]!) used += y[g] ?? 0;
+  out[MATERIALS] = Math.max(sites, used) * 100;
+  return out;
 }
 
 /** Units a day the town uses of a family, rounded up. */
@@ -115,8 +147,13 @@ export function familyStock(stock: readonly number[], family: number): number {
 }
 
 /** Days of cover of a family, in hundredths (0 when the town uses none). */
-export function familyCover(state: WorldState, family: number, stock?: readonly number[]): number {
-  const use = familyUseHundredths(state, family);
+export function familyCover(
+  state: WorldState,
+  family: number,
+  stock?: readonly number[],
+  useHundredths?: number,
+): number {
+  const use = useHundredths ?? familyUseHundredths(state, family);
   if (use <= 0) return 0;
   const have = familyStock(stock ?? balanceStock(state), family);
   return Math.floor((have * 10000) / use);
@@ -218,9 +255,12 @@ export function flavorsOnOffer(state: WorldState, family: number, offered?: read
  * tier the valley has opened (a newly opened tier is wanted before anyone qualifies for it); for
  * Food, also what the Charter being worked toward asks.
  */
-export function wantedVariety(state: WorldState, family: number): number {
+export function wantedVariety(
+  state: WorldState,
+  family: number,
+  counts: readonly number[] = tierCounts(state),
+): number {
   const id = GOOD_FAMILIES[family]!;
-  const counts = tierCounts(state);
   let most = 0;
   // The Charter being worked toward may ask for Food flavors (the Village's "5 days of Food with 3
   // flavors"): a Hamlet wants them before any tier does, so the carrier can help it get there.

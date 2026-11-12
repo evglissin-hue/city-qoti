@@ -21,24 +21,25 @@ import {
   balanceStock,
   familyCover,
   familyStock,
-  familyUse,
+  familyUses,
   onOfferGoods,
   SHELF_GOODS,
 } from '../systems/market/balances';
 
 /** `balances.updated`: the five families and the carrier's purse. */
-export function balancesView(state: WorldState): BalancesView {
-  const stock = balanceStock(state);
+export function balancesView(
+  state: WorldState,
+  pre?: { stock?: readonly number[]; uses?: readonly number[]; made?: readonly string[] },
+): BalancesView {
+  // The carrier passes what it already worked out on its visit (its running stock and the uses).
+  const stock = pre?.stock ?? balanceStock(state);
   const offered = onOfferGoods(state);
+  const uses = pre?.uses ?? familyUses(state);
   const c = state.carrier;
   const today = c.bought.length - 1;
   const sum = (row: readonly number[] | undefined, goods: readonly number[]): number =>
     goods.reduce((t, g) => t + (row?.[g] ?? 0), 0);
-  const made = new Set<string>();
-  for (const b of state.buildings) {
-    if (b.stage !== 'built') continue;
-    for (const [good] of methodOf(b)?.outputs ?? []) made.add(good);
-  }
+  const made = new Set<string>(pre?.made ?? madeGoods(state));
   const bought = state.market.bought;
   const lines: BalanceLine[] = GOOD_FAMILIES.map((family, f) => {
     const goods = SHELF_GOODS[f]!;
@@ -58,8 +59,8 @@ export function balancesView(state: WorldState): BalancesView {
     return {
       family,
       stock: familyStock(stock, f),
-      use: familyUse(state, f),
-      cover: familyCover(state, f, stock),
+      use: Math.ceil(uses[f]! / 100),
+      cover: familyCover(state, f, stock, uses[f]),
       flavors: goods.map((g) => ({
         good: content.goods[g]!.id,
         onOffer: offered[g] === true,
@@ -88,4 +89,14 @@ export function balancesView(state: WorldState): BalancesView {
     plan: { ...state.seasonPlan },
     offers: c.offers.map((o) => ({ ...o })),
   };
+}
+
+/** Goods some built building makes (a business's trade or a specialized building's method), by id. */
+export function madeGoods(state: WorldState): string[] {
+  const made = new Set<string>();
+  for (const b of state.buildings) {
+    if (b.stage !== 'built' || !(b.trade || content.buildingById.get(b.def)?.methods)) continue;
+    for (const [good] of methodOf(b)?.outputs ?? []) made.add(good);
+  }
+  return [...made];
 }

@@ -45,38 +45,38 @@ import {
 import type { Building, DealOffer, NeighborState, System, TickCtx, WorldState } from '../../contracts';
 import { isStandard } from '../../state/hamlet';
 import { seasonAt } from '../../state/seasons';
-import { GOODS_BY_FAMILY, methodOf } from '../../state/zones';
+import { familyIndex, GOODS_BY_FAMILY, methodOf } from '../../state/zones';
 import { balancesView } from '../../view/balances';
-import { townStock } from '../../view/hamlet';
 import { dockView } from '../../view/seasons';
 import { tradeView } from '../../view/village';
 import { book } from '../economy/api';
 import { coinsText, listText } from '../economy';
-import { emitMoney, emitReports } from '../economy/emit';
+import { emitMoney } from '../economy/emit';
 import { dailyOffset, dayIndex } from '../economy/time';
 import { overdraftLimit } from '../loans/credit';
-import { defOf, isStorehouse, storageSpace, takes, tileDistance } from '../logistics/stores';
+import { isStorehouse, storageSpace, takes, tileDistance } from '../logistics/stores';
 import {
-  familyUseHundredths,
+  familyUses,
   flavorsOnOffer,
   onOfferGoods,
   SHELF_GOODS,
+  tierCounts,
   wantedVariety,
 } from '../market/balances';
 import { doorTile } from '../movement/api';
+import { renownEffect } from '../renown/api';
+import { calendar } from '../clock/calendar';
 import { isFrozen } from '../seasons/api';
-import { riverDock } from '../dock';
 import { buyingTowardMarks, makerFamily, marksStand, PASS_EVENT, passClosed, winterMark } from './api';
 import {
   activeDeal,
+  type CarrierTerms,
   BOAT_BUY_PERCENT,
   BOAT_DAYS,
   BOAT_NEIGHBOR,
   BOAT_SELL_PERCENT,
   BOAT_UNITS,
-  carrierBuyPrice,
-  carrierSellPrice,
-  carrierTerms,
+  termsFor,
   cartPercent,
   logTrade,
   neighborTrades,
@@ -107,6 +107,20 @@ interface Store {
   b: Building;
   def: BuildingDef;
   space: number;
+  /** Families it takes, by family index. */
+  takes: boolean[];
+}
+
+/**
+ * A neighbor's standing for a good today, worked out once a visit: the regional price before drift
+ * and impact (base x factor x season, exact integers as regionalPrice has them) and the percents the
+ * cart and the boat trade at (0 when the boat does not reach it).
+ */
+interface Quote {
+  n: NeighborState;
+  k: number;
+  cart: number;
+  boat: number;
 }
 
 interface Vehicle {
@@ -117,9 +131,19 @@ interface Vehicle {
   /** What to stow at the end: [index into `stores`, good, units]. */
   stow: [store: number, good: number, qty: number][];
   traded: boolean;
+  /** By family: the store roomFor last found (still checked for room), -1 when none or not yet. */
+  room4: number[];
 }
 
 interface Day {
+  /** Today's cart terms and each family's use a day in hundredths, worked out once a visit. */
+  terms: CarrierTerms;
+  use: number[];
+  /** By good: the neighbors that sell it to the carrier, and those that buy it from it. */
+  sellers: Quote[][];
+  buyers: Quote[][];
+  /** Renown's `trade` effect, percent. */
+  renown: number;
   cart: Vehicle;
   boat: Vehicle | null;
   stores: Store[];
@@ -142,21 +166,21 @@ interface Day {
   deals: [string, number, number, number][];
   /** Essentials it could not bring for want of money or tab. */
   shortOfCredit: boolean;
+  /** Bumped when a store fills or a vehicle runs out of room. */
+  changes: number;
+  /** The scratch offers buyOffer and sellOffer fill. */
+  buyScratch: Offer;
+  sellScratch: Offer;
+  /** The price of the next unit of the good `buy` last bought, or Infinity. */
+  next: number;
+  /** The County Bank's credit line and the tab's cap today, pennies. */
+  overdraft: number;
+  tabCap: number;
 }
 
 /** The County tab's cap, pennies: TAB_PER_RESIDENT coins a resident. */
 export function tabCap(state: WorldState): number {
   return TAB_PER_RESIDENT * PENNIES_PER_COIN * state.residents.length;
-}
-
-/** Units of each good open construction sites still wait for. */
-function siteNeeds(state: WorldState): number[] {
-  const out = new Array<number>(content.goods.length).fill(0);
-  for (const b of state.buildings) {
-    const c = b.rt?.construction;
-    if (c) for (let g = 0; g < out.length; g++) out[g]! += c.needs[g] ?? 0;
-  }
-  return out;
 }
 
 /** A family's units in the day's running stock (shelf goods only, pantries for Food and Fuel). */
@@ -167,20 +191,79 @@ function have(day: Day, family: number): number {
 }
 
 function addDeal(day: Day, neighbor: string, good: number, qty: number, pennies: number): void {
-  const d = day.deals.find(([n, g]) => n === neighbor && g === good);
+  // Runs of the same deal are the rule (unit by unit from one neighbor), so the last comes first.
+  const tail = day.deals[day.deals.length - 1];
+  const d =
+    tail && tail[0] === neighbor && tail[1] === good
+      ? tail
+      : day.deals.find(([n, g]) => n === neighbor && g === good);
   if (d) {
     d[2] += qty;
     d[3] += pennies;
   } else day.deals.push([neighbor, good, qty, pennies]);
 }
 
-/** The nearest store in a vehicle's list with room for a good's family, or -1. */
+/** The nearest store in a vehicle's list with room for a good's family, or -1 (cached by family). */
 function roomFor(v: Vehicle, good: number): number {
+  const f = GOOD_FAMILY[good]!;
+  const cached = v.room4[f]!;
+  if (cached >= 0 && v.stores[cached]!.space > 0) return cached;
   for (let i = 0; i < v.stores.length; i++) {
     const s = v.stores[i]!;
-    if (s.space > 0 && takes(s.def, good)) return i;
+    if (s.space > 0 && s.takes[f]) return (v.room4[f] = i);
   }
-  return -1;
+  return (v.room4[f] = -1);
+}
+
+/** Family index by good index, and a good of each family (for `takes`). */
+const GOOD_FAMILY: readonly number[] = content.goods.map((g) => familyIndex(g.family));
+
+/** The regional price of a quote now (regionalPrice's formula, with today's drift and impact). */
+function regional(q: Quote, good: number): number {
+  return Math.max(1, Math.round((q.k * (q.n.drift[good] ?? 1000) * (q.n.impact[good] ?? 1000)) / 1e10));
+}
+
+/** What the carrier pays at a percent (carrierBuyPrice's formula). */
+function paid(day: Day, q: Quote, good: number, pct: number): number {
+  return Math.max(1, Math.round((regional(q, good) * pct * (100 - day.renown)) / 10000));
+}
+
+/** What the carrier is paid at a percent (carrierSellPrice's formula). */
+function taken(day: Day, q: Quote, good: number, pct: number): number {
+  return Math.round((regional(q, good) * pct * (100 + day.renown)) / 10000);
+}
+
+/** Every neighbor's quotes for every good today, sellers and buyers, in neighbor order. */
+function quotes(state: WorldState, terms: CarrierTerms, deal: DealOffer | null): [Quote[][], Quote[][]] {
+  const n = content.goods.length;
+  const sellers: Quote[][] = Array.from({ length: n }, () => []);
+  const buyers: Quote[][] = Array.from({ length: n }, () => []);
+  const season = calendar(state.tick).season;
+  for (const ns of state.trade.neighbors) {
+    if (!neighborTrades(state, ns.id)) continue;
+    const def = content.neighborById.get(ns.id);
+    if (!def) continue;
+    for (let g = 0; g < n; g++) {
+      const id = content.goods[g]!.id;
+      const sells = def.sells.find(([x]) => x === id)?.[1];
+      const buys = def.buys.find(([x]) => x === id)?.[1];
+      const factor = sells ?? buys;
+      if (factor === undefined) continue;
+      let seasonal = 100;
+      for (const [x, s, pct] of def.seasonal ?? []) if (x === id && s === season) seasonal = pct;
+      const k = content.goods[g]!.basePrice * factor * seasonal;
+      const boat = ns.id === BOAT_NEIGHBOR;
+      if (sells !== undefined) {
+        const cart = cartPercent(state, ns.id, g, false, terms, deal);
+        sellers[g]!.push({ n: ns, k, cart, boat: boat ? Math.min(BOAT_BUY_PERCENT, cart) : 0 });
+      }
+      if (buys !== undefined) {
+        const cart = cartPercent(state, ns.id, g, true, terms, deal);
+        buyers[g]!.push({ n: ns, k, cart, boat: boat ? Math.max(BOAT_SELL_PERCENT, cart) : 0 });
+      }
+    }
+  }
+  return [sellers, buyers];
 }
 
 interface Offer {
@@ -190,49 +273,50 @@ interface Offer {
 }
 
 /** The cheapest way to bring a unit of a good today: a vehicle with room, and a store with room. */
-function buyOffer(state: WorldState, day: Day, good: number): Offer | null {
-  let best: Offer | null = null;
-  const terms = carrierTerms(state);
-  if (day.cart.room > 0 && roomFor(day.cart, good) >= 0) {
-    for (const n of state.trade.neighbors) {
-      if (!neighborTrades(state, n.id)) continue;
-      const p = carrierBuyPrice(state, n.id, good, cartPercent(state, n.id, good, false, terms, day.deal));
-      if (p !== null && (!best || p < best.price)) best = { v: day.cart, n, price: p };
+function buyOffer(day: Day, good: number): Offer | null {
+  // One scratch offer a visit (callers read it before asking again), so a busy cart allocates nothing.
+  const best = day.buyScratch;
+  best.price = Infinity;
+  const cart = day.cart.room > 0 && roomFor(day.cart, good) >= 0;
+  const boat = day.boat && day.boat.room > 0 && roomFor(day.boat, good) >= 0 ? day.boat : null;
+  if (!cart && !boat) return null;
+  for (const q of day.sellers[good]!) {
+    if (cart) {
+      const p = paid(day, q, good, q.cart);
+      if (p < best.price) set(best, day.cart, q.n, p);
+    }
+    if (boat && q.boat > 0) {
+      const p = paid(day, q, good, q.boat);
+      if (p <= best.price) set(best, boat, q.n, p);
     }
   }
-  const boat = day.boat;
-  if (boat && boat.room > 0 && roomFor(boat, good) >= 0) {
-    const n = state.trade.neighbors.find((x) => x.id === BOAT_NEIGHBOR);
-    if (n && neighborTrades(state, n.id)) {
-      const pct = Math.min(BOAT_BUY_PERCENT, cartPercent(state, n.id, good, false, terms, day.deal));
-      const p = carrierBuyPrice(state, n.id, good, pct);
-      if (p !== null && (!best || p <= best.price)) best = { v: boat, n, price: p };
-    }
-  }
-  return best;
+  return best.price === Infinity ? null : best;
+}
+
+function set(o: Offer, v: Vehicle, n: NeighborState, price: number): void {
+  o.v = v;
+  o.n = n;
+  o.price = price;
 }
 
 /** The best paying way to take a unit of a good away today, or null. */
-function sellOffer(state: WorldState, day: Day, good: number): Offer | null {
-  let best: Offer | null = null;
-  const terms = carrierTerms(state);
-  if (day.cart.room > 0) {
-    for (const n of state.trade.neighbors) {
-      if (!neighborTrades(state, n.id)) continue;
-      const p = carrierSellPrice(state, n.id, good, cartPercent(state, n.id, good, true, terms, day.deal));
-      if (p !== null && (!best || p > best.price)) best = { v: day.cart, n, price: p };
+function sellOffer(day: Day, good: number): Offer | null {
+  const best = day.sellScratch;
+  best.price = -1;
+  const cart = day.cart.room > 0;
+  const boat = day.boat && day.boat.room > 0 ? day.boat : null;
+  if (!cart && !boat) return null;
+  for (const q of day.buyers[good]!) {
+    if (cart) {
+      const p = taken(day, q, good, q.cart);
+      if (p > best.price) set(best, day.cart, q.n, p);
+    }
+    if (boat && q.boat > 0) {
+      const p = taken(day, q, good, q.boat);
+      if (p >= best.price) set(best, boat, q.n, p);
     }
   }
-  const boat = day.boat;
-  if (boat && boat.room > 0) {
-    const n = state.trade.neighbors.find((x) => x.id === BOAT_NEIGHBOR);
-    if (n && neighborTrades(state, n.id)) {
-      const pct = Math.max(BOAT_SELL_PERCENT, cartPercent(state, n.id, good, true, terms, day.deal));
-      const p = carrierSellPrice(state, n.id, good, pct);
-      if (p !== null && (!best || p >= best.price)) best = { v: boat, n, price: p };
-    }
-  }
-  return best;
+  return best.price < 0 ? null : best;
 }
 
 /**
@@ -243,12 +327,12 @@ function sellOffer(state: WorldState, day: Day, good: number): Offer | null {
 function settle(state: WorldState, day: Day, price: number, pay: Pay): boolean {
   const c = state.carrier;
   if (pay === 'budget' && c.spentToday + day.spent + day.repaid + price > c.budget) return false;
-  if (state.economy.treasury - day.spent - day.repaid - price >= -overdraftLimit(state)) {
+  if (state.economy.treasury - day.spent - day.repaid - price >= -day.overdraft) {
     day.spent += price;
     return true;
   }
   if (pay !== 'tab') return false;
-  if (c.tab + day.onTab + price > tabCap(state)) {
+  if (c.tab + day.onTab + price > day.tabCap) {
     day.shortOfCredit = true;
     return false;
   }
@@ -259,15 +343,16 @@ function settle(state: WorldState, day: Day, price: number, pay: Pay): boolean {
 /** Buys up to `n` units of a good. Returns the units bought. */
 function buy(state: WorldState, day: Day, good: number, n: number, pay: Pay): number {
   let got = 0;
+  let o = buyOffer(day, good);
   while (got < n) {
-    const o = buyOffer(state, day, good);
     if (!o || !settle(state, day, o.price, pay)) break;
     const si = roomFor(o.v, good);
-    o.v.stores[si]!.space--;
+    // A store or a vehicle running out changes what every other good can come by.
+    if (--o.v.stores[si]!.space === 0) day.changes++;
     const last = o.v.stow[o.v.stow.length - 1];
     if (last && last[0] === si && last[1] === good) last[2]++;
     else o.v.stow.push([si, good, 1]);
-    o.v.room--;
+    if (--o.v.room === 0) day.changes++;
     o.v.traded = true;
     day.bought[good]! += 1;
     day.town[good]! += 1;
@@ -275,16 +360,19 @@ function buy(state: WorldState, day: Day, good: number, n: number, pay: Pay): nu
     addDeal(day, o.n.id, good, 1, -o.price);
     nudge(o.n, good, IMPACT_PER_UNIT);
     got++;
+    // The next unit's offer, which buyCheapest reads too (`day.next`).
+    o = buyOffer(day, good);
   }
+  day.next = o ? o.price : Infinity;
   return got;
 }
 
 /** The cheapest good of a list it can bring today, or -1. */
-function cheapest(state: WorldState, day: Day, goods: readonly number[]): number {
+function cheapest(day: Day, goods: readonly number[]): number {
   let best = -1;
   let bestPrice = Infinity;
   for (const g of goods) {
-    const p = buyOffer(state, day, g)?.price;
+    const p = buyOffer(day, g)?.price;
     if (p !== undefined && p < bestPrice) {
       bestPrice = p;
       best = g;
@@ -293,30 +381,47 @@ function cheapest(state: WorldState, day: Day, goods: readonly number[]): number
   return best;
 }
 
-/** Buys `want` units of a family's goods, the cheapest unit by unit. Returns the units bought. */
+/**
+ * Buys `want` units of a family's goods, the cheapest unit by unit. Returns the units bought. Each
+ * unit moves only its own good's price, so only that offer is worked out again, unless a store or a
+ * vehicle ran out (`day.changes`).
+ */
 function buyCheapest(state: WorldState, day: Day, goods: readonly number[], want: number, pay: Pay): number {
   let got = 0;
+  let seen = day.changes;
+  const prices = goods.map((g) => buyOffer(day, g)?.price ?? Infinity);
   while (got < want) {
-    const g = cheapest(state, day, goods);
-    if (g < 0 || buy(state, day, g, 1, pay) === 0) break;
+    let i = -1;
+    for (let k = 0; k < goods.length; k++) if (prices[k]! < (i < 0 ? Infinity : prices[i]!)) i = k;
+    if (i < 0 || buy(state, day, goods[i]!, 1, pay) === 0) break;
     got++;
+    if (day.changes !== seen) {
+      seen = day.changes;
+      for (let k = 0; k < goods.length; k++) prices[k] = buyOffer(day, goods[k]!)?.price ?? Infinity;
+    } else prices[i] = day.next;
   }
   return got;
 }
 
 /** Units a day the town uses of a family, rounded up. */
-function dayUse(state: WorldState, family: number): number {
-  return Math.ceil(familyUseHundredths(state, family) / 100);
+function dayUse(day: Day, family: number): number {
+  return Math.ceil(day.use[family]! / 100);
 }
 
 /** The family's reserve in units: days of use (or the winter mark, with `toward`), or Materials' units. */
-function reserveUnits(state: WorldState, family: number, siteTotal: number, toward: boolean): number {
+function reserveUnits(
+  state: WorldState,
+  day: Day,
+  family: number,
+  siteTotal: number,
+  toward: boolean,
+): number {
   const terms = state.carrier.families[family]!;
   if (family === MATERIALS) return siteTotal + terms.reserve;
   let days = terms.reserve;
   const mark = toward ? winterMark(state, family) : null;
   if (mark !== null && mark > days) days = mark;
-  return Math.ceil((days * familyUseHundredths(state, family)) / 100);
+  return Math.ceil((days * day.use[family]!) / 100);
 }
 
 /** Stores by distance from a tile, nearest first (ties in buildings order, as stowNearest has them). */
@@ -347,8 +452,7 @@ function goodsText(units: readonly number[]): string {
 }
 
 /** The dock, when the boat calls today: a River Dock stands, the river runs, three days since its last call. */
-function boatDue(state: WorldState): Building | null {
-  const dock = riverDock(state);
+function boatDue(state: WorldState, dock: Building | null): Building | null {
   if (!dock || isFrozen(state)) return null;
   const last = state.carrier.boatDay;
   if (last !== undefined && dayIndex(state.tick) - last < BOAT_DAYS) return null;
@@ -356,28 +460,100 @@ function boatDue(state: WorldState): Building | null {
 }
 
 /**
- * Units of each raw good makers are resting for want of (a maker with hands whose input buffer,
- * with what porters are bringing, cannot run a cycle), MAKER_CYCLES cycles' worth each, under the
+ * Adds a maker's want to `want` when it is resting for its raw good (a maker with hands whose input
+ * buffer, with what porters are bringing, cannot run a cycle): MAKER_CYCLES cycles' worth, under the
  * rule for the family of what it makes.
  */
+function makerWant(state: WorldState, b: Building, want: number[]): void {
+  const rt = b.rt;
+  if (b.stage !== 'built' || !rt || rt.paused || rt.workers.length === 0) return;
+  const method = methodOf(b);
+  if (!method || method.kind !== 'craft' || method.inputs.length === 0) return;
+  const f = makerFamily(b);
+  if (f === null || state.carrier.families[f]!.rule === 'never') return;
+  for (const [id, qty] of method.inputs) {
+    const g = content.goodIndex.get(id);
+    if (g === undefined) continue;
+    const held = (rt.input[g] ?? 0) + (rt.reservedIn[g] ?? 0);
+    if (held < qty) want[g]! += MAKER_CYCLES * qty - held;
+  }
+}
+
+/** Units of each raw good makers are resting for want of (makerWant), by good. */
 export function makersShort(state: WorldState): number[] {
   const want = new Array<number>(content.goods.length).fill(0);
-  const families = state.carrier.families;
-  for (const b of state.buildings) {
-    const rt = b.rt;
-    if (b.stage !== 'built' || !rt || rt.paused || rt.workers.length === 0) continue;
-    const method = methodOf(b);
-    if (!method || method.kind !== 'craft' || method.inputs.length === 0) continue;
-    const f = makerFamily(b);
-    if (f === null || families[f]!.rule === 'never') continue;
-    for (const [id, qty] of method.inputs) {
-      const g = content.goodIndex.get(id);
-      if (g === undefined) continue;
-      const held = (rt.input[g] ?? 0) + (rt.reservedIn[g] ?? 0);
-      if (held < qty) want[g]! += MAKER_CYCLES * qty - held;
-    }
-  }
+  for (const b of state.buildings) makerWant(state, b, want);
   return want;
+}
+
+/** What the scan needs of each def, worked out once: holds goods, a store, the families it takes. */
+const DEF_INFO: ReadonlyMap<
+  string,
+  { def: BuildingDef; holds: boolean; storehouse: boolean; takes: boolean[] }
+> = new Map(
+  content.buildings.map((def) => [
+    def.id,
+    {
+      def,
+      holds: !!def.storage || !!def.methods,
+      storehouse: isStorehouse(def),
+      takes: GOODS_BY_FAMILY.map((goods) => takes(def, goods[0]!)),
+    },
+  ]),
+);
+
+/** What the visit reads off the buildings, in one pass (a City has a thousand of them). */
+interface Scan {
+  /** Stock by good in stores, shelves and output buffers (townStock). */
+  town: number[];
+  /** Units open sites still need, by good, and of Materials in all. */
+  needs: number[];
+  siteTotal: number;
+  stores: Store[];
+  makers: number[];
+  /** Goods some built building makes, by id (the Balances view's `made`). */
+  made: Set<string>;
+  /** The Trading Post (the first by id), and the River Dock. */
+  post: Building | null;
+  dock: Building | null;
+}
+
+function scan(state: WorldState): Scan {
+  const n = content.goods.length;
+  const out: Scan = {
+    town: new Array<number>(n).fill(0),
+    needs: new Array<number>(n).fill(0),
+    siteTotal: 0,
+    stores: [],
+    makers: new Array<number>(n).fill(0),
+    made: new Set<string>(),
+    post: null,
+    dock: null,
+  };
+  const bs = state.buildings;
+  for (let i = 0; i < bs.length; i++) {
+    const b = bs[i]!;
+    const rt = b.rt;
+    if (!rt) continue;
+    const c = rt.construction;
+    if (c) for (let g = 0; g < n; g++) out.needs[g]! += c.needs[g] ?? 0;
+    if (b.stage !== 'built') continue;
+    const info = DEF_INFO.get(b.def);
+    // Only a building with a store or a method holds goods (a cottage's arrays stay empty).
+    if (info?.holds || b.trade) {
+      for (let g = 0; g < n; g++) out.town[g]! += (rt.store[g] ?? 0) + (rt.output[g] ?? 0);
+      for (const [good] of methodOf(b)?.outputs ?? []) out.made.add(good);
+    }
+    if (info?.storehouse) {
+      const def = info.def;
+      out.stores.push({ b, def, space: storageSpace(def, rt), takes: info.takes });
+      if (!out.post && def.tags?.includes('trading-post')) out.post = b;
+    }
+    if (!out.dock && b.def === 'river-dock') out.dock = b;
+    if (rt.workers.length > 0) makerWant(state, b, out.makers);
+  }
+  for (const g of GOODS_BY_FAMILY[MATERIALS]!) out.siteTotal += out.needs[g] ?? 0;
+  return out;
 }
 
 /** The 10:00 visit. */
@@ -387,34 +563,45 @@ export function carrierDay(state: WorldState, ctx: TickCtx): void {
   const n = content.goods.length;
   const today = dayIndex(state.tick);
   const closed = passClosed(state);
-  const terms = carrierTerms(state);
+  const seen = scan(state);
+  const terms = termsFor(state, !!seen.post);
   const [gx, gz] = state.meta.valleyGate;
   const gate = Math.min(MAP_SIZE - 1, gz) * MAP_SIZE + Math.min(MAP_SIZE - 1, gx);
 
-  const stores: Store[] = [];
-  for (const b of state.buildings) {
-    if (b.stage !== 'built' || !b.rt) continue;
-    const def = defOf(b);
-    if (!def || !isStorehouse(def)) continue;
-    stores.push({ b, def, space: storageSpace(def, b.rt) });
-  }
-  const dock = boatDue(state);
+  const stores = seen.stores;
+  const dock = boatDue(state, seen.dock);
+  // Food and Fuel in the pantries, counted on familyUses' pass over the households.
   const pantry = new Array<number>(n).fill(0);
-  const larder = [...GOODS_BY_FAMILY[FOOD]!, ...GOODS_BY_FAMILY[FUEL]!];
-  for (const h of state.households) for (const g of larder) pantry[g]! += h.pantry[g] ?? 0;
+  const uses = familyUses(state, seen.siteTotal, pantry);
+  const deal = activeDeal(state);
+  const [sellers, buyers] = quotes(state, terms, deal);
+  const cartVehicle: Vehicle = {
+    boat: false,
+    room: closed ? 0 : terms.units,
+    stores: storesFrom(stores, gate),
+    stow: [],
+    traded: false,
+    room4: [-1, -1, -1, -1, -1],
+  };
   const day: Day = {
-    cart: {
-      boat: false,
-      room: closed ? 0 : terms.units,
-      stores: storesFrom(stores, gate),
-      stow: [],
-      traded: false,
-    },
+    terms,
+    use: uses,
+    sellers,
+    buyers,
+    renown: renownEffect(state, 'trade'),
+    cart: cartVehicle,
     boat: dock
-      ? { boat: true, room: BOAT_UNITS, stores: storesFrom(stores, doorTile(dock)), stow: [], traded: false }
+      ? {
+          boat: true,
+          room: BOAT_UNITS,
+          stores: storesFrom(stores, doorTile(dock)),
+          stow: [],
+          traded: false,
+          room4: [-1, -1, -1, -1, -1],
+        }
       : null,
     stores,
-    deal: activeDeal(state),
+    deal,
     spent: 0,
     onTab: 0,
     repaid: 0,
@@ -423,20 +610,25 @@ export function carrierDay(state: WorldState, ctx: TickCtx): void {
     sold: new Array<number>(n).fill(0),
     boatBought: new Array<number>(n).fill(0),
     boatSold: new Array<number>(n).fill(0),
-    town: townStock(state),
+    town: seen.town,
     pantry,
     deals: [],
     shortOfCredit: false,
+    changes: 0,
+    buyScratch: { v: cartVehicle, n: state.trade.neighbors[0]!, price: 0 },
+    sellScratch: { v: cartVehicle, n: state.trade.neighbors[0]!, price: 0 },
+    next: Infinity,
+    overdraft: overdraftLimit(state),
+    tabCap: tabCap(state),
   };
   if (dock) c.boatDay = today;
   const families = c.families;
-  const needs = siteNeeds(state);
-  let siteTotal = 0;
-  for (const g of GOODS_BY_FAMILY[MATERIALS]!) siteTotal += needs[g] ?? 0;
+  const needs = seen.needs;
+  const siteTotal = seen.siteTotal;
 
   // 2. Essentials, in the fixed order: Food, Fuel, Materials a site waits for, raw goods for makers.
   if (families[FOOD]!.rule !== 'never') {
-    const want = dayUse(state, FOOD) - have(day, FOOD);
+    const want = dayUse(day, FOOD) - have(day, FOOD);
     if (want > 0) buyCheapest(state, day, SHELF_GOODS[FOOD]!, want, 'tab');
   }
   if (families[FUEL]!.rule !== 'never' && seasonAt(state.tick).season === 3) {
@@ -450,7 +642,7 @@ export function carrierDay(state: WorldState, ctx: TickCtx): void {
     }
   }
   // A maker's raw good comes on the tab too when the treasury cannot pay: nothing stalls (rule 3).
-  const makers = makersShort(state);
+  const makers = seen.makers;
   for (let g = 0; g < n; g++) {
     const want = makers[g]! - (day.town[g] ?? 0);
     if (want > 0) buy(state, day, g, want, 'tab');
@@ -468,21 +660,22 @@ export function carrierDay(state: WorldState, ctx: TickCtx): void {
   // so variety never waits behind another family's bulk; then the reserve, the cheapest unit by unit.
   const toward = buyingTowardMarks(state);
   const offered = onOfferGoods(state);
+  const counts = tierCounts(state);
   for (const f of ORDER) {
     if (families[f]!.rule !== 'always') continue;
-    const wanted = wantedVariety(state, f);
+    const wanted = wantedVariety(state, f, counts);
     let lacking = wanted - flavorsOnOffer(state, f, offered);
     if (lacking <= 0) continue;
     const share = Math.max(
       LACKING_MIN,
-      Math.min(Math.ceil(dayUse(state, f) / Math.max(1, wanted)), Math.ceil(terms.units / LACKING_LOAD)),
+      Math.min(Math.ceil(dayUse(day, f) / Math.max(1, wanted)), Math.ceil(terms.units / LACKING_LOAD)),
     );
     const tried: number[] = [];
     while (lacking > 0) {
       const fresh = SHELF_GOODS[f]!.filter(
         (g) => !offered[g] && !tried.includes(g) && (day.town[g] ?? 0) === 0,
       );
-      const g = cheapest(state, day, fresh);
+      const g = cheapest(day, fresh);
       if (g < 0) break;
       tried.push(g);
       if (buy(state, day, g, share, 'budget') > 0) lacking--;
@@ -490,7 +683,7 @@ export function carrierDay(state: WorldState, ctx: TickCtx): void {
   }
   for (const f of ORDER) {
     if (families[f]!.rule !== 'always') continue;
-    const want = reserveUnits(state, f, siteTotal, toward) - have(day, f);
+    const want = reserveUnits(state, day, f, siteTotal, toward) - have(day, f);
     if (want > 0) buyCheapest(state, day, SHELF_GOODS[f]!, want, 'budget');
   }
 
@@ -499,8 +692,8 @@ export function carrierDay(state: WorldState, ctx: TickCtx): void {
   for (let f = 0; f < families.length; f++) {
     const t = families[f]!;
     if (!t.sell || t.rule === 'never') continue;
-    let keep = 2 * reserveUnits(state, f, siteTotal, false);
-    if (stands) keep = Math.max(keep, reserveUnits(state, f, siteTotal, true));
+    let keep = 2 * reserveUnits(state, day, f, siteTotal, false);
+    if (stands) keep = Math.max(keep, reserveUnits(state, day, f, siteTotal, true));
     let over = have(day, f) - keep;
     while (over > 0 && (day.cart.room > 0 || (day.boat?.room ?? 0) > 0)) {
       // The flavor the stores hold most of that someone takes (ties to the first in goods order).
@@ -509,12 +702,12 @@ export function carrierDay(state: WorldState, ctx: TickCtx): void {
       for (const g of SHELF_GOODS[f]!) {
         let free = 0;
         for (const s of day.stores) free += Math.max(0, s.b.rt!.store[g]! - s.b.rt!.reservedOut[g]!);
-        if (free > most && sellOffer(state, day, g)) {
+        if (free > most && sellOffer(day, g)) {
           most = free;
           good = g;
         }
       }
-      if (good < 0 || !sellOne(state, day, good)) break;
+      if (good < 0 || !sellOne(day, good)) break;
       over--;
     }
   }
@@ -544,16 +737,20 @@ export function carrierDay(state: WorldState, ctx: TickCtx): void {
   const at: [number, number] = [Math.min(MAP_SIZE - 1, gx), Math.min(MAP_SIZE - 1, gz)];
   if (lines.length > 0) ctx.events.push({ e: 'notify', kind: 'carrier', text: lines.join(' '), at });
   if (day.spent + day.repaid + day.earned + day.onTab > 0) {
+    // The budget and the treasury now; the stocks report follows within the hour (economy).
     emitMoney(state, ctx);
-    emitReports(state, ctx, false);
-    ctx.events.push({ e: 'trade.updated', t: tradeView(state) });
+    ctx.events.push({ e: 'trade.updated', t: tradeView(state, { post: seen.post }) });
   }
-  ctx.events.push({ e: 'balances.updated', b: balancesView(state) });
+  const stock = day.town.map((n, g) => n + (day.pantry[g] ?? 0));
+  ctx.events.push({
+    e: 'balances.updated',
+    b: balancesView(state, { stock, uses: day.use, made: [...seen.made] }),
+  });
 }
 
 /** Sells a unit of a good from the store holding most of it. False when it cannot. */
-function sellOne(state: WorldState, day: Day, good: number): boolean {
-  const o = sellOffer(state, day, good);
+function sellOne(day: Day, good: number): boolean {
+  const o = sellOffer(day, good);
   if (!o) return false;
   let from: Store | null = null;
   let most = 0;
