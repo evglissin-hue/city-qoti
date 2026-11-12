@@ -85,14 +85,19 @@ export function familyUses(state: WorldState, siteTotal?: number, larder?: numbe
   const households = state.households.length;
   // Indexed loops: this runs once a day per caller and seldom gets past the interpreter.
   const hs = state.households;
+  const lg = LARDER_GOODS;
+  const nl = lg.length;
   for (let i = 0; i < hs.length; i++) {
     const h = hs[i]!;
-    const t = TIER_INDEX.get(h.tier) ?? 0;
+    const t = h.tier === 'settler' ? 0 : (TIER_INDEX.get(h.tier) ?? 0);
     counts[t]! += 1;
     // The carrier's pantry count rides the same pass (Food and Fuel in every pantry, by good).
     if (larder) {
       const p = h.pantry;
-      for (let k = 0; k < LARDER_GOODS.length; k++) larder[LARDER_GOODS[k]!]! += p[LARDER_GOODS[k]!] ?? 0;
+      for (let k = 0; k < nl; k++) {
+        const g = lg[k]!;
+        larder[g]! += p[g] ?? 0;
+      }
     }
     const members = Math.max(1, h.members.length);
     const wants = WANTS[t]!;

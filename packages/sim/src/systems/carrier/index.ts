@@ -30,7 +30,7 @@
 // Every unit goes by the cheaper of the cart and the boat that day (the boat only to Millhaven),
 // nudging that neighbor's price, and lands in the store nearest the gate (the dock for the boat)
 // with room for its family. Goods are stowed once per good at the end of the visit.
-import { content, type BuildingDef } from '@qoti/content';
+import { content, type BuildingDef, type ProductionMethod } from '@qoti/content';
 import {
   CARRIER_DAYS,
   CARRIER_HOUR,
@@ -45,7 +45,7 @@ import {
 import type { Building, DealOffer, NeighborState, System, TickCtx, WorldState } from '../../contracts';
 import { isStandard } from '../../state/hamlet';
 import { seasonAt } from '../../state/seasons';
-import { familyIndex, GOODS_BY_FAMILY, methodOf } from '../../state/zones';
+import { familyIndex, GOODS_BY_FAMILY } from '../../state/zones';
 import { balancesView } from '../../view/balances';
 import { dockView } from '../../view/seasons';
 import { tradeView } from '../../view/village';
@@ -67,7 +67,7 @@ import { doorTile } from '../movement/api';
 import { renownEffect } from '../renown/api';
 import { calendar } from '../clock/calendar';
 import { isFrozen } from '../seasons/api';
-import { buyingTowardMarks, makerFamily, marksStand, PASS_EVENT, passClosed, winterMark } from './api';
+import { buyingTowardMarks, marksStand, PASS_EVENT, passClosed, winterMark } from './api';
 import {
   activeDeal,
   type CarrierTerms,
@@ -109,6 +109,8 @@ interface Store {
   space: number;
   /** Families it takes, by family index. */
   takes: boolean[];
+  /** Its door tile. */
+  door: number;
 }
 
 /**
@@ -424,7 +426,7 @@ function reserveUnits(
 
 /** Stores by distance from a tile, nearest first (ties in buildings order, as stowNearest has them). */
 function storesFrom(stores: readonly Store[], tile: number): Store[] {
-  const keyed = stores.map((s, i) => ({ s, i, d: tileDistance(tile, doorTile(s.b, s.def)) }));
+  const keyed = stores.map((s, i) => ({ s, i, d: tileDistance(tile, s.door) }));
   keyed.sort((a, b) => a.d - b.d || a.i - b.i);
   return keyed.map((k) => k.s);
 }
@@ -465,16 +467,53 @@ function boatDue(state: WorldState, dock: Building | null): Building | null {
 function makerWant(state: WorldState, b: Building, want: number[]): void {
   const rt = b.rt;
   if (b.stage !== 'built' || !rt || rt.paused || rt.workers.length === 0) return;
-  const method = methodOf(b);
-  if (!method || method.kind !== 'craft' || method.inputs.length === 0) return;
-  const f = makerFamily(b);
-  if (f === null || state.carrier.families[f]!.rule === 'never') return;
-  for (const [id, qty] of method.inputs) {
-    const g = content.goodIndex.get(id);
-    if (g === undefined) continue;
+  const info = methodInfo(b);
+  if (!info || info.inputs.length === 0 || info.family < 0) return;
+  if (state.carrier.families[info.family]!.rule === 'never') return;
+  for (const [g, qty] of info.inputs) {
     const held = (rt.input[g] ?? 0) + (rt.reservedIn[g] ?? 0);
     if (held < qty) want[g]! += MAKER_CYCLES * qty - held;
   }
+}
+
+/**
+ * What the visit needs of a method, worked out once per trade or def: its outputs by good index
+ * (and id), and, for a craft, its raw inputs and the family of what it makes (whose rule counts).
+ */
+interface MethodInfo {
+  outputs: number[];
+  ids: string[];
+  inputs: [good: number, qty: number][];
+  family: number;
+}
+
+function infoOf(m: ProductionMethod | null | undefined): MethodInfo | null {
+  if (!m) return null;
+  const outputs = m.outputs.flatMap(([id]) => content.goodIndex.get(id) ?? []);
+  const craft = m.kind === 'craft';
+  return {
+    outputs,
+    ids: m.outputs.map(([id]) => id),
+    inputs: craft
+      ? m.inputs.flatMap(([id, q]): [number, number][] => {
+          const g = content.goodIndex.get(id);
+          return g === undefined ? [] : [[g, q]];
+        })
+      : [],
+    family: outputs.length > 0 ? GOOD_FAMILY[outputs[0]!]! : -1,
+  };
+}
+
+const TRADE_METHODS: ReadonlyMap<string, MethodInfo | null> = new Map(
+  content.trades.map((t) => [t.id, infoOf(t.method)]),
+);
+const DEF_METHODS: ReadonlyMap<string, MethodInfo | null> = new Map(
+  content.buildings.map((d) => [d.id, infoOf(d.methods?.[0])]),
+);
+
+/** A building's method info: its trade's for a business, else its def's (as methodOf has it). */
+function methodInfo(b: Pick<Building, 'def' | 'trade'>): MethodInfo | null {
+  return (b.trade ? TRADE_METHODS.get(b.trade) : DEF_METHODS.get(b.def)) ?? null;
 }
 
 /** Units of each raw good makers are resting for want of (makerWant), by good. */
@@ -487,13 +526,14 @@ export function makersShort(state: WorldState): number[] {
 /** What the scan needs of each def, worked out once: holds goods, a store, the families it takes. */
 const DEF_INFO: ReadonlyMap<
   string,
-  { def: BuildingDef; holds: boolean; storehouse: boolean; takes: boolean[] }
+  { def: BuildingDef; storage: boolean; methods: boolean; storehouse: boolean; takes: boolean[] }
 > = new Map(
   content.buildings.map((def) => [
     def.id,
     {
       def,
-      holds: !!def.storage || !!def.methods,
+      storage: !!def.storage,
+      methods: !!def.methods?.length,
       storehouse: isStorehouse(def),
       takes: GOODS_BY_FAMILY.map((goods) => takes(def, goods[0]!)),
     },
@@ -509,8 +549,8 @@ interface Scan {
   siteTotal: number;
   stores: Store[];
   makers: number[];
-  /** Goods some built building makes, by id (the Balances view's `made`). */
-  made: Set<string>;
+  /** By good index: some built building makes it (the Balances view's `made`). */
+  made: boolean[];
   /** The Trading Post (the first by id), and the River Dock. */
   post: Building | null;
   dock: Building | null;
@@ -524,7 +564,7 @@ function scan(state: WorldState): Scan {
     siteTotal: 0,
     stores: [],
     makers: new Array<number>(n).fill(0),
-    made: new Set<string>(),
+    made: new Array<boolean>(n).fill(false),
     post: null,
     dock: null,
   };
@@ -537,18 +577,29 @@ function scan(state: WorldState): Scan {
     if (c) for (let g = 0; g < n; g++) out.needs[g]! += c.needs[g] ?? 0;
     if (b.stage !== 'built') continue;
     const info = DEF_INFO.get(b.def);
-    // Only a building with a store or a method holds goods (a cottage's arrays stay empty).
-    if (info?.holds || b.trade) {
-      for (let g = 0; g < n; g++) out.town[g]! += (rt.store[g] ?? 0) + (rt.output[g] ?? 0);
-      for (const [good] of methodOf(b)?.outputs ?? []) out.made.add(good);
+    // Goods lie in a store's shelves, or in a maker's output buffer (only ever what it makes); a
+    // cottage's arrays stay empty. The visit runs once a day, so this loop stays cheap by reading
+    // only what can hold something.
+    if (info?.storage) {
+      const st = rt.store;
+      const op = rt.output;
+      for (let g = 0; g < n; g++) out.town[g]! += (st[g] ?? 0) + (op[g] ?? 0);
+    }
+    const mi = methodInfo(b);
+    if (mi) {
+      for (let k = 0; k < mi.outputs.length; k++) {
+        const g = mi.outputs[k]!;
+        out.made[g] = true;
+        if (!info?.storage) out.town[g]! += rt.output[g] ?? 0;
+      }
     }
     if (info?.storehouse) {
       const def = info.def;
-      out.stores.push({ b, def, space: storageSpace(def, rt), takes: info.takes });
+      out.stores.push({ b, def, space: storageSpace(def, rt), takes: info.takes, door: doorTile(b, def) });
       if (!out.post && def.tags?.includes('trading-post')) out.post = b;
     }
     if (!out.dock && b.def === 'river-dock') out.dock = b;
-    if (rt.workers.length > 0) makerWant(state, b, out.makers);
+    if (rt.workers.length > 0 && mi && mi.inputs.length > 0) makerWant(state, b, out.makers);
   }
   for (const g of GOODS_BY_FAMILY[MATERIALS]!) out.siteTotal += out.needs[g] ?? 0;
   return out;
@@ -751,7 +802,11 @@ export function carrierDay(state: WorldState, ctx: TickCtx): void {
   const stock = day.town.map((n, g) => n + (day.pantry[g] ?? 0));
   ctx.events.push({
     e: 'balances.updated',
-    b: balancesView(state, { stock, uses: day.use, made: [...seen.made] }),
+    b: balancesView(state, {
+      stock,
+      uses: day.use,
+      made: content.goods.flatMap((g, i) => (seen.made[i] ? [g.id] : [])),
+    }),
   });
 }
 
