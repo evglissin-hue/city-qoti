@@ -728,7 +728,8 @@ export function meadowLayer(): RenderLayer {
         pending = false;
         refill = true;
       }
-      if (rule.due(f.x, f.z, reach)) refill = true;
+      // At rest a trim waits for the streaming to finish, so a rest costs the carpet one refill.
+      if (rule.due(f.x, f.z, reach) && !(pending && rule.resting)) refill = true;
       if (refill) {
         doFill(f.x, f.z, reach);
         reachU.value = reach;
