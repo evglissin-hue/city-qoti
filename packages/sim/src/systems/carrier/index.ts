@@ -9,8 +9,9 @@
 //    does not come (the boat, held by the ice in winter, keeps its own rule).
 // 2. Essentials, in the fixed order, for every family whose rule is not Never: Food the town would
 //    go without today (under a day's eating, counting pantries), Fuel likewise on a winter day,
-//    Materials an open site (or a home upgrade) waits for beyond stock, and raw goods a maker is resting for (a baker
-//    with no grain), under the rule for the family of what it makes. Essentials are always carried:
+//    Materials an open site (or a home upgrade) waits for beyond stock (from coins in hand only),
+//    and raw goods a maker is resting for (a baker with no grain), under the rule for the family of
+//    what it makes. Essentials are always carried:
 //    the day's budget does not cap them. The treasury pays while it can (within the County Bank's
 //    credit line); past that, Food and Fuel for households and a maker's raw good still come on the
 //    County tab, up to TAB_PER_RESIDENT coins a resident, and past the cap nothing comes and the
@@ -101,7 +102,11 @@ export const BOAT_MOORED_HOURS = 4;
 export const LACKING_MIN = 2;
 export const LACKING_LOAD = 4;
 
-/** How a purchase is paid: within the budget; an essential outside it; or outside it and on the tab if need be. */
+/**
+ * How a purchase is paid: within the budget; an essential outside it; or outside it and on the tab if
+ * need be. R1X: 'budget' and 'essential' (a site's Materials) are paid from coins in hand only; the
+ * County Bank's credit and the tab are kept for households' Food and Fuel and a maker's raw good.
+ */
 type Pay = 'budget' | 'essential' | 'tab';
 
 interface Store {
@@ -330,9 +335,10 @@ function sellOffer(day: Day, good: number): Offer | null {
 function settle(state: WorldState, day: Day, price: number, pay: Pay): boolean {
   const c = state.carrier;
   if (pay === 'budget' && c.spentToday + day.spent + day.repaid + price > c.budget) return false;
-  // R1X: the budget buys only with coins in hand; the County Bank's credit is kept for essentials (a
-  // young Village borrowed forty coins a day for Treats while its whole tax take was fifteen).
-  const floor = pay === 'budget' ? 0 : -day.overdraft;
+  // R1X: the budget and a site's Materials are bought with coins in hand only; the County Bank's
+  // credit is kept for households and makers (a young Village borrowed forty coins a day for Treats
+  // and ninety for its grown sites' timber while its whole tax take was fifteen).
+  const floor = pay === 'tab' ? -day.overdraft : 0;
   if (state.economy.treasury - day.spent - day.repaid - price >= floor) {
     day.spent += price;
     return true;
