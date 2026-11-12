@@ -17,8 +17,15 @@ import {
 import type { Planner } from '../planner';
 import type { Advisor, AdvisorDef } from './types';
 
-/** R1F: what one visit to the County Bank borrows (it was 300, and a Village borrowed ten times in seventy days). */
-const LOAN_COINS = 600;
+/** R1F: what one visit to the County Bank borrows (it was 300, and a Village borrowed ten times in seventy days; R1X: 1000). */
+const LOAN_COINS = 1000;
+/**
+ * R1X: the highest income tax the Ledger sets. Taxes and wages only move coins between the
+ * treasury and the purses, so past this the tax takes back the savings households put by for
+ * Craftsfolk (the advisor pushed it to 30% in debt and no household could move up) and the
+ * shops sell less; the County Bank tides a Village over until its exports catch up.
+ */
+const TAX_CEILING = 16;
 /** R1F: days between two turns of the wage or tax lever (the levers moved most days, a chore). */
 const LEVER_DAYS = 3;
 
@@ -57,8 +64,8 @@ class Money implements Advisor {
     if ((net < 0 && coins < 300 && basket >= 65) || (coins < 100 && basket >= 75) || (deep && basket >= 60)) {
       // The treasury slides while households get by: trim wages a little, then firm up the tax.
       if (l.wageLevel > 85) setWage(l.wageLevel - 5, 'trim wages');
-      else if (l.taxRate < TAX_RATE_RANGE[1])
-        setTax(Math.min(TAX_RATE_RANGE[1], l.taxRate + 4), 'raise the income tax');
+      else if (l.taxRate < Math.min(TAX_CEILING, TAX_RATE_RANGE[1]))
+        setTax(Math.min(TAX_CEILING, TAX_RATE_RANGE[1], l.taxRate + 3), 'raise the income tax');
     } else if (basket < 65 && coins > 150) {
       // Households going short while the treasury can spare it: ease off.
       if (l.taxRate > 6) setTax(l.taxRate - 2, 'ease the income tax');

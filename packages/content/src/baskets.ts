@@ -17,7 +17,9 @@ export const craftsfolk: NeedsBasket = {
   ],
   services: ['health', 'social'],
   charm: 25,
-  savings: 20,
+  // R1X: 12 (was 20): households spend most of what they earn on their baskets, and twenty coins
+  // put by kept nearly every household from moving up at day 70 on every seed.
+  savings: 12,
 };
 
 export const settler: NeedsBasket = {

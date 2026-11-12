@@ -6,7 +6,7 @@ const days = Number(process.argv[3] ?? 50);
 autoplay(seed, days, {
   village: true,
   onDay: (w, line) => {
-    if (!rankAtLeast(w, 'village') || line.day % 4 !== 0) return;
+    if (!rankAtLeast(w, 'village') || line.day % 4 !== 0 || line.day < Number(process.env.FROM ?? 0)) return;
     console.log(`d${line.day} ${nextTierSummary(w)}`);
     console.log(`   biz: ${businessesSummary(w)}`);
     const svc = w.buildings.filter((b) => ['tavern', 'herbalist', 'trading-post', 'school', 'bath-house', 'chapel'].includes(b.def)).map((b) => b.def);

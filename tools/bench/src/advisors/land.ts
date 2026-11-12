@@ -58,7 +58,7 @@ const ENOUGH_FRONTAGE = 24;
 /** Coins a tile of lane costs. */
 const LANE_COINS = content.roadById.get('lane')?.cost?.coins ?? 2;
 /** A street's length in tiles: 22 when the treasury allows, never under 8 (a short lane still answers a bar). */
-const STREET_TILES = 22;
+const STREET_TILES = 30;
 const SHORT_STREET = 8;
 /** The Hamlet's build queue for specialized buildings (I1's three). */
 const QUEUE = 3;
@@ -184,8 +184,8 @@ class Land implements Advisor {
     const stock = townStock(w);
     for (const [g, q] of def.cost?.goods ?? []) if (stock[G(g)]! < q) return;
     const at = storehouseSpot(w, p.street);
-    const site = at && p.buildAt('storehouse for the far lots', 'storehouse', at[0], at[1], at[2]);
-    if (site) p.do('raise the storehouse', [{ t: 'build.setPriority', id: site.id, priority: true }]);
+    // R1X: no priority bump (a chore the decisions count paid for); porters reach it in turn.
+    if (at) p.buildAt('storehouse for the far lots', 'storehouse', at[0], at[1], at[2]);
   }
 
   // --- Specialized buildings --------------------------------------------------------------------
@@ -306,8 +306,8 @@ class Land implements Advisor {
 
   /**
    * Forester's Lodges: the first at once, a new one when the last working lodge's wood thins, and
-   * more while timber runs short as the town grows (R1 stand-in (R1B): the lodge does not replant
-   * its own wood yet, so a felled one is retired once another works).
+   * more while timber runs short as the town grows. R1X: a felled lodge is kept, since it replants
+   * its own wood (R1B); retiring it was a chore of the stand-in lodge.
    */
   private lodges(pop: number, turn: { budget: Budget; tally: number[] }): void {
     const w = this.w;
@@ -330,9 +330,6 @@ class Land implements Advisor {
       lodges.length < 1 + Math.floor(pop / 30)
     )
       this.withOutpost('foresters-lodge', turn);
-    if (lodges.some((b) => b.stage === 'built' && !felled(b)))
-      for (const b of lodges.filter(felled))
-        this.p.do('retire a felled lodge', [{ t: 'build.remove', ids: [b.id] }]);
     // The next lodge's site is raised, so the porters bring it its timber first.
     for (const b of lodges)
       if (b.stage === 'construction' && !timberIn(b) && !b.rt?.construction?.priority)
@@ -385,8 +382,7 @@ class Land implements Advisor {
     const rising = w.buildings.some((b) => b.def === 'storehouse' && b.stage === 'construction');
     const few = pop >= 20 && count(w, 'storehouse') < Math.max(2, 1 + Math.floor(pop / 20));
     if (!few && !(backed >= 3 && !rising)) return;
-    const site = this.want('storehouse', { urgent: !rankAtLeast(w, 'village'), pressing: backed >= 3 });
-    if (site) this.p.do('raise the storehouse', [{ t: 'build.setPriority', id: site.id, priority: true }]);
+    this.want('storehouse', { urgent: !rankAtLeast(w, 'village'), pressing: backed >= 3 });
   }
 
   /**
