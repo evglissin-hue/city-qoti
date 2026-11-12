@@ -78,8 +78,12 @@ class Village implements Advisor {
       const done = c.workDone + c.delivered.reduce((a, n) => a + n, 0);
       const seen = this.progress.get(b.id);
       if (!seen || seen[0] !== done) this.progress.set(b.id, [done, day]);
-      // A site only waiting its turn for a builder is not stuck (C4X).
-      else if (day - seen[1] >= 3 && !((b.rt?.status ?? 0) & BuildingStatus.waitingBuilders))
+      // A site only waiting its turn for a builder is not stuck (C4X), nor one waiting on materials
+      // the carrier brings once the treasury can pay (R1X: oak canceled and re-placed 26 such sites).
+      else if (
+        day - seen[1] >= 3 &&
+        !((b.rt?.status ?? 0) & (BuildingStatus.waitingBuilders | BuildingStatus.waitingMaterials))
+      )
         this.p.do(`cancel a stuck ${b.def}`, [{ t: 'build.remove', ids: [b.id] }]);
     }
   }
