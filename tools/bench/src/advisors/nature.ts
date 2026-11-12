@@ -207,35 +207,10 @@ class Nature implements Advisor {
     }
   }
 
-  /**
-   * R1 stand-in (R1B): the Forester's Lodge does not replant its own wood yet, so the Hearth plants
-   * saplings round a lodge running short of grown trees (the village advisor did, in R1.0). Delete
-   * once the lodge replants.
-   */
-  private saplings(): void {
-    const w = this.w;
-    for (const b of w.buildings) {
-      if (b.def !== 'foresters-lodge' || b.stage !== 'built' || treesNear(w, b.x, b.z, 8) >= 16) continue;
-      let planted = 0;
-      for (let k = 0; k < 120 && planted < 6; k++) {
-        const x = b.x - 8 + ((k * 7 + b.id) % 18);
-        const z = b.z - 8 + ((k * 11 + b.id * 3) % 18);
-        if (x < 1 || z < 1 || x > S - 2 || z > S - 2) continue;
-        const i = z * S + x;
-        if (w.map.tree[i] || w.map.road[i] || w.map.occupant[i] || w.map.water[i] || w.map.fieldOwner[i])
-          continue;
-        if (w.map.zone[i]) continue;
-        if (this.p.do('plant a sapling for the lodge', [{ t: 'tree.plant', species: 'oak', x, z }], 1))
-          planted++;
-      }
-    }
-  }
-
   visit(v: Visit): void {
     const w = this.w;
     if (!v.afternoon || !rankAtLeast(w, 'village')) return;
     this.dress();
-    this.saplings();
     this.day++;
     if (count(w, 'apiary') === 0 && (countTrade(w, 'orchard') > 0 || countTrade(w, 'market-garden') > 0)) {
       this.p.propose({
@@ -251,17 +226,6 @@ class Nature implements Advisor {
     if (this.dig() || this.pondGarden()) return;
     this.nooks();
   }
-}
-
-function treesNear(w: WorldState, x: number, z: number, r: number): number {
-  let n = 0;
-  for (let tz = z - r; tz <= z + r; tz++)
-    for (let tx = x - r; tx <= x + r; tx++) {
-      if (tx < 0 || tz < 0 || tx >= S || tz >= S) continue;
-      const v = w.map.tree[tz * S + tx]!;
-      if (v && (v & 7) >= 3) n++;
-    }
-  return n;
 }
 
 function charmAt(w: WorldState, b: Building): number {

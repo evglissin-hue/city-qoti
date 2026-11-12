@@ -10,10 +10,8 @@ export const crafts: ZoneDef = {
   layerValue: 4,
   density: 'low',
   blurb: 'Small workshops that take up whatever trade the town is short of.',
-  lots: [
-    { size: [3, 3], weight: 2 },
-    { size: [2, 3], weight: 1 },
-  ],
+  // R1: every trade grows on the 3x3 workshop, so Workshops land is cut only into lots it fits.
+  lots: [{ size: [3, 3], weight: 1 }],
   token: 'ochre',
 };
 

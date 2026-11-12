@@ -562,6 +562,23 @@ describe('R1 content', () => {
     for (const z of content.zones.filter((x) => x.requires?.rank)) expect(z.requires!.rank).toBe('village');
   });
 
+  // R1X's dead-end hunt: hazel's Workshops land was cut into 2x3 lots and the 3x3 workshop never
+  // fit one, so no trade grew there for 45 days. A lot that nothing can grow on is a dead end.
+  it('cuts every zone only into lots that some building of that zone fits', () => {
+    for (const z of content.zones) {
+      const defs = content.buildings.filter((d) => d.grows?.zone === z.id);
+      expect(defs.length, `${z.id} grows something`).toBeGreaterThan(0);
+      for (const lot of z.lots) {
+        const [w, d] = lot.size;
+        const fits = defs.filter((def) => def.size[0] <= w && def.size[1] <= d);
+        expect(
+          fits.map((f) => f.id),
+          `${z.id} ${w}x${d} lot`,
+        ).not.toEqual([]);
+      }
+    }
+  });
+
   it('lets the neighbors sell something of every family, in real goods', () => {
     const sold = new Set(
       content.neighbors.flatMap((n) => n.sells.map(([g]) => content.goodById.get(g)!.family)),
