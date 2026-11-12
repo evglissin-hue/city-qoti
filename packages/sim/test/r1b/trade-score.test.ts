@@ -7,6 +7,7 @@ import type { Lot, WorldState } from '../../src/contracts';
 import { findById, removeById } from '../../src/state/entities';
 import { insertBuilding } from '../../src/state/place';
 import { SiteCache, siteMeets } from '../../src/systems/growth/site';
+import { markSeen } from '../../src/systems/market/balances';
 import {
   FIRST_MAKER_NEED,
   KEEPER_KEEN,
@@ -49,6 +50,9 @@ describe('need', () => {
   it('reads a good the market is short of', () => {
     const s = wellFed(villageFixture());
     for (const b of s.buildings) if (b.rt) b.rt.store[g('cloth')] = 0;
+    // Households have seen the candles on the shelves (R1A's sightings): Wares' one wanted flavor is
+    // on offer, so the bare cloth shelf asks nothing until the market wants cloth.
+    markSeen(s);
     expect(needOf(s, trade('weaver'), townNeeds(s)).need).toBe(0);
     s.market.demand[g('cloth')] = 40;
     expect(needOf(s, trade('weaver'), townNeeds(s))).toEqual({ need: 1000, code: 'short' });
