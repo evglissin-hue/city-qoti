@@ -289,7 +289,7 @@ Drawn by the Ledger and styled by the Hearth (P22), with policies in place of ne
 
 ## Tuning targets and acceptance [R1]
 
-Starting values for R1X's tuning; record what holds here.
+Starting values for R1X's tuning; R1X recorded what holds below.
 
 - **Hands**: about a third of working residents in food (it was 40 to 55%), a sixth hauling and building, the rest in materials, workshops, shops and services. One field hand feeds about eight through the growing seasons, which is what a third of the hands needs to carry the town through a winter in which almost nothing grows *(tune)*. The carrier's load is small beside a big town's appetite (a City eats 2,000 Food a day and the road carries about 450), so a Town or City lives on what it makes and imports only fill gaps.
 - **Decisions, not chores**: over 70 autoplayed days the Ledger takes under 150 actions, none of them a pause or an order.
@@ -297,3 +297,22 @@ Starting values for R1X's tuning; record what holds here.
 - **Nothing stalls**: the playability audit finds no business without its raw good for a whole day while its family's rule lets the carrier buy.
 - **Winter has teeth**: a town with reserves under half the plan and the pass closed for two days has hungry or cold households and loses none of its buildings.
 - **The lanes need each other** (`22-quality.md`, The lanes test).
+
+### What holds (R1X, 2026-11-12)
+
+Seventy autoplayed days on each bench seed with every system on (`npm run targets -w @qoti/bench`; the hands are the mean over the growing days from day 20, since farms rest in winter; Craftsfolk are the share of households at day 70 and on the best day before it, as a winter slides them back):
+
+| Seed | Village charter | Residents at 40 and 70 | Hands in food | Ledger decisions | First Craftsfolk | Craftsfolk at 70 (best) | Stalls | Lowest treasury, owed at 70 | Firewood made, bought | Lean days |
+|---|---|---|---|---|---|---|---|---|---|---|
+| willow | day 19 | 57, 125 | 30% | 87 | day 35 | 15% (22%) | 0 | -169, 2,478 | 714, 27 | 0 |
+| hazel | day 15 | 60, 68 | 34% | 88 | day 44 | 26% (32%) | 0 | -141, 1,197 | 756, 40 | 0 |
+| oak | day 16 | 56, 89 | 31% | 73 | day 59 | 14% (14%) | 0 | -261, 1,716 | 732, 20 | 14 |
+| birch | day 40 | 30, 61 | 36% | 64 | none | 0% | 0 | 0, 414 | 546, 23 | 2 |
+
+- **Hands**: about a third in food on every seed (30 to 36%). Holds.
+- **Decisions, not chores**: 64 to 88 accepted Ledger commands in 70 days, no pause and no order (the decisions count's verdict passes). Holds.
+- **Tiers move**: the first Craftsfolk by day 40 on willow only (35; hazel 44, oak 59, birch none), and a third of households by day 70 on none (the best day reaches 32% on hazel). Does not hold yet: what holds households back is listed in `docs/build/r1-wave-notes.md` (Found in R1X): charm 25 at the door, a tavern and herbalist in reach, savings and one Wares flavor, with winter sliding them back. R2's evenings replace the tavern and charm gates; tune again there.
+- **Nothing stalls**: no business without its raw good for a whole day while the carrier may buy, on any seed (and none in the audit). Holds.
+- **Winter has teeth**: `packages/sim/test/r1a/winter.test.ts` (under half the marks with the pass closed two days: households cold or hungry, no building lost, no money leaks). Holds.
+- **The lanes need each other**: recorded in `22-quality.md` (The lanes test, R1X's run). Enforced from R2.
+- **The town makes its own firewood**: the Lodges cut 546 to 756 firewood over the 70 days against 20 to 40 bought.

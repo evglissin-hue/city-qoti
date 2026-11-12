@@ -123,6 +123,17 @@ Added 2026-11-10 with the redesign (`30-roadmap.md`).
 
 **The lanes test** [R1 records it, R2 enforces it]. P2 becomes a bench assertion. `npm run lanes -w @qoti/bench` plays each bench seed for 70 days three ways: both lanes, the Hearth's advisors off, and the Ledger's off after founding (no new zones, specialized buildings or streets; the carrier on its defaults). From R2 it fails unless each one-lane town ends with at most three quarters of the residents of the town played by both, and no more than half its Craftsfolk households. The Ledger's advisor places no decor and the Hearth's zones nothing, so neither can stand in for the other. On 2026-11-10, before the redesign, the Hearth-off town ended with 106% (willow) and 84% (hazel) of the residents (`19-evenings.md`).
 
+*R1X's run (2026-11-12, recorded, not enforced)*: residents and Craftsfolk households at day 70, and the percent of the town played by both:
+
+| Seed | Both | Hearth off | Ledger off after founding |
+|---|---|---|---|
+| willow | 174, 12 | 107 (61%), 0 | 33 (19%), 0 |
+| hazel | 85, 3 | 201 (236%), 0 | 21 (25%), 0 |
+| oak | 81, 7 | 161 (199%), 0 | 28 (35%), 0 |
+| birch | 58, 0 | 143 (247%), 0 | 17 (29%), 0 |
+
+The Ledger-off towns would pass R2's rule on every seed; the Hearth-off towns would fail it on hazel, oak and birch: without the Hearth's decor and plans a town spends its timber and builders on homes and grows faster, though it reaches no Craftsfolk (charm 25 is the Hearth's). R2's evening round is where the Hearth must start to matter for growth. (The lanes runs use the lanes script's own options, so their both-lanes towns differ from `npm run targets`.)
+
 **Decisions, not chores** [R1]. The bench counts the autoplayer's commands by kind and fails if the Ledger needed more than 150 in 70 days or used a pause to balance labor (`13-ledger.md`, Tuning targets). The count before the redesign was about 700, 261 of them pauses and 321 order changes.
 
 ## Tests
