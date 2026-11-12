@@ -5,7 +5,7 @@
 //
 // Speed: every layer is built from a handful of noise fields, each one value noise on an integer
 // lattice whose corner values come from a precomputed table, interpolated with weights that are
-// precomputed per row and per column. No texel hashes anything, so the twenty layers take a few
+// precomputed per row and per column. No texel hashes anything, so the twenty generated layers take a few
 // tens of milliseconds. Only +, -, *, / and floor are used (no Math.sin or Math.pow), so the
 // result is the same on every machine to the bit.
 import {
@@ -16,6 +16,7 @@ import {
   RGBAFormat,
   UnsignedByteType,
 } from 'three';
+import { fillRooms } from './rooms';
 import { NOISE_LAYER, PATTERN_LAYERS, SURFACE } from './surface';
 
 /**
@@ -43,10 +44,11 @@ export function lastPatternMs(): number {
 }
 
 /**
- * The pattern array: `size` x `size` texels per layer, one layer per surface id and the noise layer
- * last (`PATTERN_LAYERS`), RGBA8, mipmapped, repeating. `fill` 'patterns' (the default) runs the
+ * The pattern array: `size` x `size` texels per layer, one layer per surface id with the noise layer
+ * at 19 (`NOISE_LAYER`), then the room layers (V2.0, `ROOM_LAYER`), `PATTERN_LAYERS` in all, RGBA8,
+ * mipmapped, repeating. `fill` 'patterns' (the default) runs the
  * generators; 'flat' leaves every layer flat (R 128, G B A 0). Create it once and share it: about
- * 5 MB, plus a third again for the mipmaps. Anisotropy is the renderer's (see `setPatternAnisotropy`
+ * 8.7 MB, plus a third again for the mipmaps. Anisotropy is the renderer's (see `setPatternAnisotropy`
  * in the client's env.ts).
  */
 export function createPatternArray(size = PATTERN_SIZE, fill: PatternFill = 'patterns'): DataArrayTexture {
@@ -430,4 +432,14 @@ export function generatePatterns(data: Uint8Array, size: number): void {
       out.a = 1;
     });
   }
+
+  // V2.0: the V2 surfaces (V2C writes them on props, carts and residents) and the eight room
+  // layers behind lit windows (V2A) are flat until their generators land.
+  put(SURFACE.woodGrain, null);
+  put(SURFACE.paintedWood, null);
+  put(SURFACE.wroughtIron, null);
+  put(SURFACE.terracotta, null);
+  put(SURFACE.cloth, null);
+  // V2A: the little rooms behind lit windows (rooms.ts).
+  fillRooms(c8, size);
 }

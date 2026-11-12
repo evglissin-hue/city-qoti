@@ -1,5 +1,7 @@
 # I4 planning notes: V2 and V3 on the V1 look
 
+**Read this first (2026-11-10)**: the redesign renumbered the visual iterations and moved this work (`docs/spec/30-roadmap.md`, The redesign). What these notes call **V2** (streets that fill their frontage) is now cycle V3B of **V3 Yards, streets and the long view**, and its sim half (the lot fields in items 1 to 4 below) goes through **R2.0**, not I4's contracts cycle. What they call **V3** (the Age of Steam kit) is now **V5**, still with I4. Two things below changed with the zones-first Ledger (`docs/spec/13-ledger.md`): zones are open from the first street, and steam arrives as specialized buildings, so "steam as a production method" reads as a works with a reach. The rest stands.
+
 Written by V1X (2026-11-03) for I4's planning and contracts cycle. V2 (streets that feel like a town) and V3 (the Age of Steam) run with the I4 wave (`30-roadmap.md`, Visual overhaul); both have a sim half that goes through I4's contracts and an art half that builds on V1. These notes say what V1 already gives them, what the sim has to add, and what to decide before the briefs are written. They are notes, not a spec: I4 planning turns them into spec sections and briefs.
 
 ## What V1 leaves in place

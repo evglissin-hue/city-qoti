@@ -1,5 +1,13 @@
 import { createPatternArray, lastPatternMs, SEASON_LOOK, type Season } from '@qoti/art';
-import { Color, Vector3, Vector4, type DataArrayTexture, type PerspectiveCamera } from 'three';
+import {
+  Color,
+  Vector3,
+  Vector4,
+  type DataArrayTexture,
+  type PerspectiveCamera,
+  type WebGLRenderTarget,
+} from 'three';
+import { createLightMapTarget, LightMapWriter } from './lightMap';
 import type { Quality } from './quality';
 import type { SeasonBlend } from './seasons';
 
@@ -84,6 +92,16 @@ export interface WorldEnv {
   critters: 'none' | 'some' | 'all';
   /** C5E: the river is frozen (0 or 1, eased over a few seconds in the water shader). */
   frozen: { value: number };
+  /**
+   * V2.0: the valley's lamplight as one top-down render target, sized by preset (2, 4, 6 and 8
+   * texels a tile; render/lightMap.ts). Black and never drawn until V2A; readers bind
+   * `lightMapUniforms(env)`.
+   */
+  lightMap: WebGLRenderTarget;
+  /** V2.0: bumped each time the light map is redrawn (`drawLightMap`). */
+  lightMapRevision: number;
+  /** V2.0: where layers feed the light map's discs, by source (`LightMapWriter`). */
+  lightWriter: LightMapWriter;
 }
 
 /** The renderer's season names, in the sim calendar's order (0 spring to 3 winter). */
@@ -185,6 +203,9 @@ export function createWorldEnv(camera: PerspectiveCamera): WorldEnv {
     frozen: { value: 0 },
     critters: 'some',
     shown: { season: 0, day: 1, hour: 12 },
+    lightMap: createLightMapTarget(),
+    lightMapRevision: 0,
+    lightWriter: new LightMapWriter(),
   };
 }
 

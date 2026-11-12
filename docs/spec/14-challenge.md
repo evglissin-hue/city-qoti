@@ -2,6 +2,8 @@
 
 Real stakes, never a game over (P3). Light defense, not tower defense (P35). Threats are fair (P36), touch both lanes (P37), and sit beside seasons and weather (P38) under two difficulty dials (P39).
 
+**The redesign (owner, 2026-11-10)** changes little here and leans on it more. With a carrier that fills any shortfall (`13-ledger.md`), winter and the closed pass are what make the town's own stores matter, so the gentle exam keeps its teeth. Notes tagged [R1] and [R3] below; goods are named as in `13-ledger.md` (grain for wheat, timber for logs and planks, the granary beside the storehouse as a store raiders want), and the sowing window is P1's (Spring day 1 to Summer day 3), where the Seasons table still says days 1 to 3.
+
 ## Threat pressure [I3]
 
 - **Wealth** `W = treasury + sum(stored goods x base price) + 0.1 x sum(building value)`.
@@ -40,7 +42,7 @@ Bandits are a gang, not a species: captured bandits can become residents of any 
 | Gate | shared | passable for residents and carts; closes when the bell rings | |
 | Watchtower | Ledger | 1 or 2 Watch members lower raider morale within 6 tiles; +1 day warning | |
 | Watch House | Ledger | Watch roster, training and posture | |
-| Lantern line | Hearth | night threats avoid lit tiles; raiders lose morale in light; a Lantern Walk doubles it | |
+| Lantern line | Hearth | night threats avoid lit tiles; raiders lose morale in light; a Lantern Walk doubles it | [R3] only lanterns the lamplighter has lit count, so candles are part of the town's defense |
 | Bell tower | shared | residents hurry home, gates close | |
 | Pit trap, net trap | Ledger | one-shot slow or capture | |
 | Ditch, moat | Ledger [I4] | slows; blocks wolves | |
@@ -96,6 +98,8 @@ Deterministic sim, played out in full view; no unit control (P35).
 
 Winter is the gentle exam: prepared, it is the coziest season; unprepared, residents are cold, unhappy, and some move away.
 
+[R1] **Prepared has a number.** The Ledger's season plan sets the winter reserve, days of Food and Fuel to hold by Winter day 1 (8 and 8 by default), and a reserve bar shows from Summer day 4 (`13-ledger.md`, The season plan). [R2] Winter evenings want warm places: an open-air place with no fire and no ice draws 20 less, so the tavern, the Bath House and a lit bonfire are what keep winter cozy (`19-evenings.md`, Places).
+
 From I3, farming becomes seasonal: wheat sown in spring, harvested in autumn; fields lie fallow in winter.
 
 ## Weather and events [I3]
@@ -107,6 +111,7 @@ From I3, farming becomes seasonal: wheat sown in spring, harvested in autumn; fi
   - **Drought** (summer): farm yields -40% unless irrigated (ditches [I4]) or near wells.
   - **Early frost** (autumn days 1 to 3): unharvested wheat -50%.
   - **Cold snap** (winter): warmth needs x2 for 2 days.
+  - **The pass is closed** (winter) [R1]: heavy snow shuts the valley road for 1 to 3 days of the season *(tune; at most 1 on Gentle, up to 4 on Thoughtful)*, forecast like any event. The carrier does not come, and the boat is already held by the ice, so for those days the town lives on what it has put by and what it makes. This is the price of living on imports.
   - **Travelling circus** (summer, Village+): needs a green; brings visitors, coins and mood.
   - **Royal visit** (Town+): an inspector judges charm, order and stock; renown up or a gentle embarrassment.
 

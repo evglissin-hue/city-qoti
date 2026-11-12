@@ -12,7 +12,7 @@ The game should stay cozy and get much more detailed (owner, 2026-11-01). The V0
 | **B. Painted Miniature (picked)** | A softened, harmonious palette; surface detail drawn in the shader (brick courses, roof tile rows, thatch, plaster grain, timber); ambient occlusion, warm haze, tilt-shift; a model village under a warm lamp | moderate: one material system, then detail everywhere for free |
 | C. Grand Diorama | Closest to Anno: taller three to four storey buildings, mansards, cornices and more ornament, a natural palette, stronger haze and little tilt-shift | most geometry and the least cozy |
 
-**Status**: B picked by the owner and Kat (2026-11-01); A and C stay recorded as the alternatives. The V1 briefs (`docs/build/cycle-v1-*.md`) built B into the game, merged by V1X (2026-11-03). From the default camera and close up, by day, golden hour and night, the game now reads as the B concept for the Old Age (`docs/build/screenshots/v1-after-*.png` beside `v0-lean-b-*.jpg`): the palette, the pattern detail on every building, the lit far windows, the warm haze and the shadows match. What still differs: the concept's stills are Age of Steam towns of joined terraces (V2 and V3, `docs/build/i4-visual-planning-notes.md`), its night lamp pools are larger and warmer, and its trees are rounder at a distance. The concept viewer stays the reference.
+**Status**: B picked by the owner and Kat (2026-11-01); A and C stay recorded as the alternatives. The V1 briefs (`docs/build/cycle-v1-*.md`) built B into the game, merged by V1X (2026-11-03). From the default camera and close up, by day, golden hour and night, the game now reads as the B concept for the Old Age (`docs/build/screenshots/v1-after-*.png` beside `v0-lean-b-*.jpg`): the palette, the pattern detail on every building, the lit far windows, the warm haze and the shadows match. What still differs: the concept's stills are Age of Steam towns of joined terraces (V3 and V5; the visual iterations were renumbered on 2026-11-10, `30-roadmap.md`), its night lamp pools are larger and warmer (V2's light map), and its trees are rounder at a distance (V2's painted green). The concept viewer stays the reference.
 
 **Performance**: on High the first concept ran at about 20 to 25 fps on the owner's laptop. The concept now runs on the lean renderer (`20-architecture.md`, Lean renderer), the same look drawn far more cheaply; the first engine stays in `docs/concepts/v0-look/v1-engine.html` for comparison. V1 builds the lean renderer into the game.
 
@@ -28,6 +28,78 @@ The first engine drew 4.9 M triangles a frame (shadows, the scene and the AO nor
 Concept numbers (Age of Steam, 249 buildings, about 3,000 trees and the valley around them, every post pass on): A 0.49 M triangles, B 1.24 M, C 1.28 M, under 100 draw calls. The concept merges each look into a few meshes, so the game will draw more calls than this; the triangles are a fair guide to what each look costs.
 
 Whatever the pick, the gap to close is the same: buildings standing alone on lawns instead of joining into streets, flat roof planes with no courses or thickness, one saturated grass, and little ambient occlusion where things meet.
+
+## Visual direction, second pass [V2 to V4]
+
+Accepted by the owner on 2026-11-10 ("how pretty it is, how cozy it is, and how detailed it is. Detailed is very important"), after a look at an autoplayed Village of 177 by day, at golden hour and at night. The Painted Miniature stays the direction. A grown town at mid zoom already reads well; these six items are where it does not yet. Everything is still made in code (P46): no image textures, no art assets.
+
+**The rule that makes detail cheap.** On integrated graphics pixels cost and triangles do not (`22-quality.md`): a town on Medium draws 0.58 M of its 3 M triangles and 122 of its 300 calls, and static layers cost nothing while the camera rests (the still-frame cache). So V2 to V4 add detail three ways only: more small static geometry in instanced draws, shader inputs read from small map-sized textures, and work done once at rest. They add no full-screen pass to a moving frame. No GPU time had been measured in the game on either laptop when this was written, so V2 starts by measuring both (`22-quality.md`, Measuring the laptops) and every budget below is checked there.
+
+### 1. Night as the signature [V2]
+
+*Found*: only the 32 lights nearest the camera reach the ground (`MAX_GROUND_LIGHTS`) and none reaches a wall, so in a real town most lanterns light nothing (the I3 playtest sheet's "half-lit lanterns").
+
+- **The light map**: one top-down texture of the valley's lamplight, 4 texels a tile on Medium (768 x 768). Every lit lantern and lamp, each lit window's spill outside its wall, oven doors, bonfires, festival lights and shop fronts are drawn into it as soft additive discs, in one instanced draw, then blurred once. It is redrawn only when a light changes (the lamplighter's round, a window's hour step, a festival), which makes it a static-layer event.
+- **Who reads it**: the ground (in place of the 32-light loop), walls (sampled a little in front of the wall along its normal, fading out between 1.5 and 4 tiles up), trees and hedges (lit from below), folk and carts (a warm rim), smoke, and water (the same texture read through the ripples, so lamplight trembles on the river). Unlimited lights for one texture read a pixel.
+- **By era** (`18-eras.md`): candlelight is the lantern token (the Old Age's lanterns burn the chandler's candles; older notes call them oil lanterns), gas a greener gold, electric a paler warm white. A district's lamps set its night color.
+- **Rooms behind the windows**: in the kit material's glass, each pane shows a little room by parallax (walls, a shelf, a table, a figure when someone is home), chosen by the building's seed from eight room layers generated into the pattern array. It costs a handful of shader operations on window pixels only. From the default camera it reads as livelier, more varied windows; at street zoom and in photos every lit pane is a tiny diorama. From R3 a home with a candle lights all its windows until bedtime, so a well supplied street is visibly brighter; no home ever goes dark (`19-evenings.md`, Supplies).
+- **As built (V2A)**: one map carries lanterns, lit windows' spill, oven doors, the bonfire, festival lights and shop fronts; the ground, every kit piece, folk (a warm rim) and the river read it, and a grown village glows from the valley's edge. Walls take a breath of it low down and roofs little, so pools stay pools. Each room cell (a tile wide, a storey tall) of a facade picks one of the eight rooms by the building's seed and the cell, so neighboring windows of one house can look into different rooms; the figure shows by seed (two cells in five) until homes report who is in (a later wave). Far off a lit pane keeps the full glow with a hint of its room's color. Lamp flames flicker gently while the camera moves and hold still at rest; the pools never flicker (`20-architecture.md`, V2 contracts, As built).
+
+### 2. A painted green world [V2]
+
+*Found*: buildings are painted and nature is still low-poly (faceted crowns, a flat lawn, tufts that read spiky; the owner's note twice, P1 and after).
+
+- **Trees**: near crowns are built from brush-dab leaves, 180 to 320 small triangles laid on the crown's blobs, each dab tinted a little apart and shaded by the blob's soft normal, lighter toward the sky, with a few gaps to the boughs. Far crowns keep today's shape with the dab tints in their vertex colors. Dabs thin from Autumn day 4 and are gone in winter. Hedges, reeds and ivy use the same dabs.
+- **Meadows**: a carpet near the camera (within 30 tiles on Medium): 40 to 60 soft blades a meadow tile, each taking its color from the ground texture at its root and shading with the ground's normal, so the meadow reads as one soft mass and fades into the painted ground with distance. Lawns by houses stay short.
+- **Flowers** grow in drifts a few tiles across (one low-frequency mask shared by the instanced flowers and the ground shader's painted dots, so near and far agree) instead of an even scatter.
+- All of it is opaque geometry: no alpha test, no transparency.
+
+### 3. What V1 left half-wired [V2]
+
+- Everyday props, carts and residents write surface id 0 and so have flat color beside painted walls: give them surfaces (wood grain, painted wood, wrought iron, terracotta, cloth).
+- The ground's ambient occlusion texture is offered to the kit material and never bound: bind it, so walls darken toward the ground.
+- Chimney smoke is stacked balls: draw it as soft ribbons that lean with the wind and take the light map's glow at night.
+- Resident bubbles (wish, happy, unhappy, sleepy, cold) are built and never switched on: add them to the View list.
+- Only fruit trees have a far level among decor: give one to the dozen commonest pieces.
+
+### 4. Yards, doorsteps and goods you can see [V3]
+
+*Found*: between buildings the ground is flat green and brown, and an automated player fills a town with rows of lanterns and pots because nothing else makes it look full.
+
+- **The dressing layer**: every home, business and specialized building dresses its own plot from what the sim already knows about it, as tiny instanced props at the kit's anchors (door, yard, wall, eaves, garden). It is client-side and derived only from shared state, so both players see the same.
+  - By trade: nets on poles at the fishery, loaves cooling on the baker's sill, dyed cloth on the weaver's frame, a half-made chair at the carpenter's, skeps by the hives.
+  - By household: a woodpile under the eaves that is as big as the firewood in the pantry, washing on a line once the household owns cloth, a pram after a birth, boots by the door, now and then a cat.
+  - By level: a level 2 business hangs a painted sign and sets goods out front; level 3 adds an awning and a bigger yard.
+  - By stock: sacks and barrels piled at granaries and storehouses as they fill.
+- **Streets that feel like a town** (the old V2): frontage without gaps on streets, rows that join, back gardens and courtyards, corner buildings, floors by tier, street furniture by district. Its sim half (`Lot.row`, garden lots, corner lots, `params.storeys`) is specified by R2.0 and built by R2F; the notes are `docs/build/i4-visual-planning-notes.md`.
+- **The ground between**: a worn path from each door to its road, cobble aprons at shop doors, puddles in the hollows for a day after rain, and autumn leaves and spring petals gathering where snow drifts already do (the ground AO's enclosure term).
+- Budget on Medium: 0.3 M triangles and 12 draws for dressing, drawn within the decor detail distance.
+
+### 5. The long view [V3]
+
+*Found*: zoomed out, the valley is a green slab in a gray box, and the far view draws more calls than any other (208 on High in the valley looked at).
+
+- **A horizon**: three bands of painted silhouette round the valley (near hills with woods, far hills, sky haze), built once from the valley's seed, under 2,000 triangles, in place of the rim's box of mist.
+- **Haze with height**: the fog the shaders already compute thins with height above the valley floor and thickens along the river at dawn and over a town of many chimneys on winter evenings.
+- **The river**: color by depth, flow along its course, foam at bridges and weirs, and the light map's reflections.
+- **The endpaper map**: from a camera distance of 200 tiles the valley cross-fades into its own inked map, complete at 240: parchment, the river lettered with the valley's name, woods as little trees, fields hatched, roads by class, roofs in rows, the names of places and streets, plans in blueprint ink and the two inks (see UI). It is drawn to one 2048 x 2048 texture on a canvas in a worker when the town changes, never per frame, and while it shows in full the 3D scene is not drawn at all.
+
+### 6. The picture develops when you stop [V4]
+
+The still-frame cache already draws the static world once when the camera rests. For the next half second it keeps adding samples to that picture, one a frame:
+
+- each sample jitters the pixel (so brick courses and roof tiles stay crisp), the sun inside a small disc (soft shadows whose edges widen with distance) and the lens (true depth of field for the tilt-shift, with round highlights on lanterns);
+- one sample in four lights the scene from a random part of the sky instead of the sun, which adds the soft shadow of alleys, eaves and courtyards;
+- Medium takes 8 samples, High 16, Ultra 32 *(tune)*; Low takes none;
+- moving layers are drawn over the result as today and take the lens blur from the cached depth in the final pass;
+- a step of the light or a small change to the town folds in a few fresh samples and never restarts; moving the camera drops back to the plain moving frame at once;
+- it costs nothing while moving and nothing once settled, and a governor skips it when moving frames are already slow.
+
+Photo mode saves at 64 samples. The riskiest item of the six, and the last built.
+
+**Storybook pictures** [V4]: `capture()` gains an ink style (the developed still, ink lines where depth and facing break, paper grain, a limited wash). The Chronicle, the Pattern Book, the Town Book and the season cards use it, so the books are illustrated by the valley itself (`12-hearth.md`, The Chronicle).
+
+**Tea-break mode** [V4]: after 90 seconds without input (a setting, on by default; never while a tool is in hand or a card is open) the camera follows a resident on their evening round or circles the day's busiest place. Any input puts the view back where it was.
 
 ## Palette
 
@@ -73,7 +145,7 @@ Pure functions from parameters (and a seed) to `BufferGeometry` with vertex colo
 - **Raid and the Watch** [I3]: As built (C5E): raiders of any species wear storybook cloaks and hoods (muted plum, moss, slate or russet, which their far figures and dots take too) and carry a lumpy loot sack; the Watch carries a lantern and a staff; wolves are a soft grey storybook wolf with a blob shadow, never a resident species; running is a quicker, leaning walk.
 - **Village** [I2, C4E]: district styles (`kits/district.ts`: Riverside Timber `timber`, Hill Stone `stone`, Market Brick `brick`, Garden Plaster `plaster`) set wall and upper-floor materials, plaster, roof shape, material and tint, accents and detail odds (window boxes, shutters, ivy, porches, lean-tos, dormers, benches, garden edges: picket, wattle, dry stone, hedge, railings). Grown generators fit any 2x2 to 3x3 lot: the district cottage (side gardens: vegetables, washing, a fruit tree or hens), the Craftsfolk townhouse (jettied upper floor, bay window, fanlight, two stacks), the shop with a flat above (shopfront, gilt fascia lettering, awning, a trade sign), the workshop with its yard and what it makes, and the farmstead (house, barn, yard and a produce corner: pen, fruit trees, wheat or rows). A home's look comes from its seed and district alone, so a cottage that upgrades in place becomes a townhouse in the same walls and paint, with scaffolding while the upgrade is under way. Each I2 building has its own silhouette (clay pit banks and pug mill, bottle kiln, shepherd's hut, spinning wheel porch and dye pots, weavers' windows and tenter frame, byre and churn stand, cheese room, orchard rows by season, apple mill and screw press, round woodstack, skeps and herb beds, open forge, bell cote and playground, inn sign on a post and beer garden, herbalist's bottles and bunches, Trading Post veranda and pennants, cart shed bay and pony stall). Sheep, cows and ponies are animated parts; the cart has a body, wheels and a load per good.
 - *As built (P1, the owner's playtest: "meadow grass should look more alive and fluffy; trees need work")*: meadows grow tufts of 10 to 14 curved blades up to 0.32 tall with a base-to-tip gradient and the odd seed head, about five a meadow tile (lawns by houses stay short), that sway by their own height in gusts that travel across the field, take the season's tint (straw and gold in autumn, dull with snow on top in winter) and stay within every preset's budget (Medium about 0.12 M triangles in the hamlet scene against 3 M). Trees have three mature shapes a species: oaks with more clumps tinted apart, airier birches, jittered pine tiers. The meadow ground warms to gold in autumn. Window boxes take a flower color, and the six Village pieces and the five that help the work have kits of their own.
-- **Eras** (`18-eras.md`): kits take `era` beside `style`, and an era is a parameter set, not a fork. Old Age [today]: thatch, timber frame, plaster, wattle, dry stone, steep gables, oil lanterns. Age of Steam [I4, V3]: brick and stucco, slate and mansards, sash windows, cast iron railings and lamp posts, gas lamps, chimney stacks, canal locks and barges, terraces of two to four storeys. Bright Age [I5, V4]: stucco in soft pastels, art deco details (stepped parapets, round windows, fluted pilasters), striped awnings, electric globe lamps, tram wires, station canopies; pitched roofs stay the rule.
+- **Eras** (`18-eras.md`): kits take `era` beside `style`, and an era is a parameter set, not a fork. Old Age [today]: thatch, timber frame, plaster, wattle, dry stone, steep gables, oil lanterns. Age of Steam [I4, V5]: brick and stucco, slate and mansards, sash windows, cast iron railings and lamp posts, gas lamps, chimney stacks, canal locks and barges, terraces of two to four storeys. Bright Age [I5, V6]: stucco in soft pastels, art deco details (stepped parapets, round windows, fluted pilasters), striped awnings, electric globe lamps, tram wires, station canopies; pitched roofs stay the rule.
 - **Gallery** (`apps/gallery`): every generator with parameter sliders, all seasons, day and night. Used for art review.
 
 ## Lighting and time of day
@@ -89,7 +161,7 @@ Pure functions from parameters (and a seed) to `BufferGeometry` with vertex colo
 V1A retuned the table for the Lambert kit material and Khronos Neutral tone mapping, with the concept's day, golden hour and night as the target (`render/lighting.ts`). The warm haze is fog that follows the view: near at 0.93 and far at 4.2 times the camera's distance to what it looks at (`hazeFor`), in the hour's horizon color.
 
 - One directional light with shadows (Medium 2048, High 4096, Low off), hemisphere ambient, fog by weather.
-- Night: a share of windows in occupied homes glow (seeded per building, varying by hour); lanterns are emissive with bloom and a soft ground glow decal (no real point lights beyond 8 nearest the camera).
+- Night: a share of windows in occupied homes glow (seeded per building, varying by hour); lanterns are emissive with bloom and a soft ground glow. As built there are no real point lights at all: the ground shader draws pools from the 32 lights nearest the view and nothing lights walls (this line promised eight point lights until 2026-11-10). [V2] The light map replaces the pools and lights everything (Visual direction, second pass, item 1).
 - C3D-1: the table gains a golden hour (18:00) and a violet twilight (20:30) between its keys; a dusk split tone in the post grade keeps evening greens from turning to mud. Ground glow pools are drawn by the ground shader from the 32 lights nearest the view (lanterns, and spill under lit windows, chosen by the same integer hash as the panes). The sky is a dome with drifting clouds and stars; clouds also drift their shade over the ground by day.
 - Sun direction from the in-game hour on the client (any math is fine outside the sim).
 
@@ -108,7 +180,8 @@ V1A retuned the table for the Lambert kit material and Khronos Neutral tone mapp
 - Mouse: left click acts, right-drag rotates, middle-drag (or left-drag on empty ground with the inspect tool) pans, wheel zooms. Trackpad: two-finger pan, pinch zoom, Shift+two-finger rotate. Keyboard: WASD or arrows pan, Q and E rotate, T and G tilt, + and - zoom. Space is reserved for pause (`16-coop.md`) and R for rotating the piece being placed.
 - Focus animation for "go to" actions; follow mode for residents [I1].
 - Photo mode [I3]: hides UI, free camera, depth of field and time-of-day sliders, saves a PNG. As built (C5F): F2 or the camera button at the toolbar's end; a slim strip keeps the sliders, Save PNG and Back (Esc). The time of day changes the picture's light only. As built (C5E): the renderer's `photo` (`setPhoto` lifts the play clamp to pitch 8 to 85 degrees, distance 3 to 420 tiles and 48 tiles past the valley's edge; `setDepthOfField` raises the tilt-shift; `setTimeOfDay` pins the light's hour; `savePng` draws a still frame at one and a half times its resolution) and `capture({ focus, radius, size })` (one offscreen scene pass at twice the size into a float target, tone mapped and halved on the CPU into a PNG, from the player's bearing at 50 degrees).
-- Stroll mode [I5]: walk the streets at resident eye level.
+- Stroll mode [I5]: walk the streets at resident eye level. From R2 the natural stroll is the evening round (`19-evenings.md`): the together moment of day 3 walks it.
+- [V4] Photo mode saves the developed picture (64 samples, the depth of field slider is the lens), and tea-break mode drifts the camera when nobody touches it (Visual direction, second pass, item 6).
 
 ## Post-processing
 
@@ -131,6 +204,14 @@ From V1 (the lean renderer, `20-architecture.md`):
 | Resident detail distance | 30 tiles | 60 | 100 | 140 |
 | Decor detail distance | 40 | 80 | 140 | 200 |
 | Ambient critters | none | some | all | all |
+| Light map [V2] | 2 texels a tile, no water reflection | 4 | 6 | 8 |
+| Rooms behind windows [V2] | off (flat glow) | on | on | on |
+| Meadow carpet within [V2] | none (tufts as today) | 30 tiles | 45 | 60 |
+| Dressing [V3] | signs and stock piles only | all, within the decor distance | all | all |
+| Endpaper map [V3] | 1024 x 1024 | 2048 | 2048 | 2048 |
+| Rest-frame samples [V4] | 0 | 8 | 16 | 32 |
+
+All V2 to V4 values are *(tune)* against the laptop numbers.
 
 Ultra is for the stronger laptop or a desktop; it is never auto-detected. Budgets per preset: `22-quality.md`. The settings menu offers Ultra ("Spare no candles") and `?quality=ultra` picks it. From V1D every preset runs the lean renderer (`20-architecture.md`, Lean renderer): Low too gets the one final pass (tilt-shift, grade, tone mapping, no bloom) and cached 1024 shadows, every preset reads its own building distance (with a floor of 75 tiles until V1B's far levels carry lit windows: today's far level has none, and at 60 tiles much of a town went dark at night), and decor reads the decor distance (small props shrink away beyond it; lit pieces like lanterns and larger ones switch to their far level). `?engine=classic` keeps the chain from before V1D on the same build until V1X, for comparing the two.
 
@@ -153,11 +234,32 @@ Auto-detect picks a preset (Low on phones and two-core machines, otherwise Mediu
 - **Writing**: warm, dry, witty; short sentences; never babyish; no em dashes anywhere.
 - *As built (P1, the owner's playtest: "the goal should be clearer; more icons, less clutter; bigger resource counts")*: a goal pill beside the rank pennant says the next step in words with a slim bar (the Charter's nearest goal, then the trial, the calling to choose, then "Village chapter complete"); hover lists every goal and a click opens the board. The top bar is calmer: speed, invite, settings and leave are icons with tooltips, the season sits in the date, the speed note moved into a tooltip. Every good has a line icon (coats, furniture, pies, honey and candles were grey dots), so does the cart lane, and paired overlays and alerts have icons of their own. The Ledger's Stores panel tops the left column with every good in larger type, grouped (Food, Grain and flour, Building, Hearth and home, Crafts), food with its days of cover, and the strip under the top bar steps aside while it shows. A festival chip counts down to the evening. The Village chapter card and the Calling card are overlays in the rank-up style.
 
+### The redesign's interface [R1 to R3]
+
+Accepted by the owner on 2026-11-10. Both players play on their own laptop, online, in a browser (the owner, the same day), so the interface is designed for a mouse or trackpad and a keyboard at laptop sizes and tested from 1280 x 800 up. Gamepads and a one-screen couch mode are no longer planned (`30-roadmap.md`, I5). Where the bullets above this heading differ from what follows (the top bar's contents, the Stores panel, the list of books, the two-page season report), what follows replaces them when its iteration lands.
+
+*Found*: each lane's numbers stay in that lane (the profit card shows only in the Ledger, the season report is a page a lane); no screen shows charm becoming arrivals or coins; the registry holds 17 books and 13 overlays, and the top bar about 16 controls at 1280 px; opening a valley can stack three cards on top of each other.
+
+- **A calmer top bar** [R1]: town and valley, coins, the rank pennant with the goal pill, the lens's own strip, the date with the clock and the weather, and the speed. Everything else sits behind one menu button. The Ledger's strip is the four demand bars and the five balances (each a chip: an icon, days of cover as a short bar, and small pips for the flavors on offer); the winter reserve bar joins it from Summer day 4. The Hearth's strip is how folk are doing: mood, wishes waiting and, from R2, the evening (how many went out and how good it was).
+- **Books** [R1]: fewer, each with one job. Ledger: Balances (families, flavors, prices, the carrier and deals; it replaces Market, Trade, the Stores panel and the stocks report), Purse (budget, taxes, wages, loans), Businesses, the Watch, the Notebook. Hearth: Wishes, Festival, Field Guide, Chronicle, Letters, Plaques. Shared: the Pattern Book, the Town Book [R3], the Charter, Townsfolk, Plans.
+- **The Build picker** [R1]: the Ledger's has three shelves: Zones (the Homes, Shops, Workshops and Farmland brushes, each beside its demand bar; from Village rank the Homes brush has a second density, Townhouses), Specialized (each card says its site rule, and choosing one shows its reach on the ground) and Services. The chain rows of playtest round six go with the chains.
+- **Cards wait their turn** [R1]: letters, result cards and season pages show one at a time, with a small stack at the corner saying how many wait. Nothing ever covers another card.
+- **One map, two inks** [R2]: one overlay, Town, in both lenses' View lists and on the endpaper map: goods routes in ochre (the flows overlay as built), evening footfall in sage, and a small glint where an outlet sells to the round. The lens only decides which ink is stronger. Evening streets, gaps and the reach of specialized buildings draw on it.
+- **Places and the round** [R2]: clicking a place opens its card (name, seats, tonight's visitors, what it serves and took, its draw in parts, what it still wants). A resident's inspector shows today's day and evening as a short line of stops and draws it on the ground.
+- **The evening edition** [R2]: at 21:00 a slim card of three to five lines about the day across both lanes, crediting each seat by name where one lane's work fed the other ("Kat's lantern walk brought 34 folk past the pie stall: 21 coins"). A setting turns it into a line in the feed. The season report becomes one spread with the cross-lane lines first.
+- **Gaps** [R2]: in the left feed of both lenses and as paper tags on the ground (`19-evenings.md`).
+- **Follow the thread** [R3]: every inspector gains a Thread: one sentence of where the thing came from and where it goes, across both lanes, with the route drawn on the ground while it is open ("This cider: fruit from the Hollins orchard, pressed on Mill Lane, drunk by 14 folk at the Promenade"). It reads decaying counts the sim keeps for each pair of doors (maker to store, store to outlet, outlet to home or place).
+- **The world carries what it can** [V3, R3]: stock is piled where it is stored, a home short of candles has dark windows, a business shows its level, a resting piece looks at rest. No panel repeats this unasked.
+- **Paper by lamplight** [R1]: from dusk to dawn panel paper takes a warmer, dimmer tint, as it already takes the season's.
+- **Illustrated books** [V4]: pages carry ink-and-wash pictures of the players' own valley (Visual direction, second pass).
+- **The help card** is corrected in R1: with a mouse the view turns on a right-drag, and on a trackpad with Shift and two fingers. It said Shift and drag.
+
 ## Residents on screen [I1]
 
 - Walk bob and squash in the vertex shader (no skeletons); carried bundles; little hops for joy; slower walk when unhappy.
 - [I2 polish, C4P] Round eyes with a catchlight, blush on most species, rounder heads. Everyday outfits over the vest from the look seed: skirts, overalls (mostly field and yard hands, never under an apron), neckerchiefs and hair bows. Between walks, motions the client derives from the frames (the sim never hears of them, `MOTION` in `@qoti/art`): an idle resident by a bench sits on it, idle neighbors within 0.75 tiles turn to each other and take turns talking with a hand while the other nods, and folk who know each other (family, partners and a stable third of the neighbors) wave once in a while as they pass.
-- Bubbles (toggleable): wish, happy, unhappy, sleepy, cold [I3].
+- Bubbles (toggleable): wish, happy, unhappy, sleepy, cold [I3]. As built they were never switched on (nothing in the interface called `setBubbles`); V2 puts them on the View list.
+- [R2] The round is something to watch: folk sit at the places they chose, stand at the stalls, and carry what they bought (a mug, a slice). [R3] The lamplighter walks his round with a pole and a light.
 - [I2, C4E] Story characters wear a signature outfit by species (Pippa Quill: goggles, cap and satchel; Odette Fenwick: wide hat, long scarf and ledger bag; Juniper Reed: beret, long scarf and lute). Partners near each other walk side by side, hand in hand. Babies (under a year) ride in a parent's sling. Carts glide on a damped follow, turn at a pony's pace and tilt with the slope; the pony's legs and the wheels move with the ground covered; a carter stands at the front board. Animals graze, wander a few steps, look up and lie down at night in the pens their buildings declare (`KitAnchors.animals`).
 - Far away, residents become simple instanced shapes (beyond the resident detail distance), then dots (beyond 2.5 times it). Figures are drawn at 1.15 times the kit's 0.3 tiles so they read from the default camera; clothes follow the job (bakers in toques, farmers in straw hats, fishers in sou'westers) and tier (bowler, top hat).
 

@@ -10,6 +10,7 @@ import {
 } from 'three';
 import { ChunkedMeshes } from '../chunks';
 import { createWorldEnv, FIRST_FRAME_RADIUS, nearOf, NOISE_GLSL, type WorldEnv } from '../env';
+import { LIGHT_LOOP, LIGHT_MAP_GLSL, lampQuality, lightMapUniforms } from '../lightMap';
 import { surfaceY, SurfaceTiles, WATER_Y } from '../surface';
 import type { LayerContext, RenderLayer } from './types';
 
@@ -130,6 +131,21 @@ vec3 qWaterNormal(vec2 p) {
 }
 `;
 
+/**
+ * V2A: lamplight trembling on the river. Light reflected toward the viewer comes from lamps beyond
+ * the point, so the map is read a little farther from the camera, shaken by the ripples' normal
+ * (it moves with them), stronger at grazing angles, by night squared; less on ice. One fetch, none
+ * by day or on Low (`uLampWater`).
+ */
+const WATER_LAMP_GLSL = /* glsl */ `
+if (uLampWater > 0.5 && uNight > 0.01) {
+  vec2 qAway = vQWorld.xz - cameraPosition.xz;
+  qAway *= inversesqrt(max(dot(qAway, qAway), 1e-4));
+  vec3 qLampL = qLightMap(wp + qAway * 1.1 + wn.xz * 6.0);
+  totalEmissiveRadiance += qLampL * (0.35 + 0.9 * fres) * (uNight * uNight) * (1.0 - uFrozen * 0.7) * 1.5;
+}
+`;
+
 function createWaterMaterial(env: WorldEnv, flow: Vector2): MeshStandardMaterial {
   const m = new MeshStandardMaterial({
     color: 0xffffff,
@@ -141,7 +157,10 @@ function createWaterMaterial(env: WorldEnv, flow: Vector2): MeshStandardMaterial
   const shallow = new Color(palette.waterShallow);
   const deep = new Color(palette.waterDeep);
   const foam = new Color(palette.foam);
+  // V2A: lamplight on the river from the light map (not with ?debug&lights=loop; off on Low).
+  const map = !LIGHT_LOOP;
   m.onBeforeCompile = (shader) => {
+    if (map) Object.assign(shader.uniforms, lightMapUniforms(env), lampQuality(env));
     Object.assign(shader.uniforms, {
       uTime: env.time,
       uNight: env.night,
@@ -182,6 +201,7 @@ function createWaterMaterial(env: WorldEnv, flow: Vector2): MeshStandardMaterial
           'uniform vec3 uFoam;',
           'varying float vDepth;',
           'varying vec3 vQWorld;',
+          map ? `${LIGHT_MAP_GLSL}\nuniform float uLampWater;` : '',
           NOISE_GLSL,
           WATER_GLSL,
         ].join('\n'),
@@ -232,10 +252,11 @@ function createWaterMaterial(env: WorldEnv, flow: Vector2): MeshStandardMaterial
           // Far away the glints are smaller than a pixel: let them go rather than shimmer.
           'glint *= clamp(1.0 - length(fwidth(wp)) * 16.0, 0.0, 1.0);',
           'totalEmissiveRadiance += uSun * glint * (0.25 + 1.1 * twinkle) * (1.0 - uNight) * (1.0 - uFrozen * 0.8);',
+          map ? WATER_LAMP_GLSL : '',
         ].join('\n'),
       );
   };
-  m.customProgramCacheKey = () => 'qoti-water';
+  m.customProgramCacheKey = () => (map ? 'qoti-water-lightmap' : 'qoti-water');
   return m;
 }
 

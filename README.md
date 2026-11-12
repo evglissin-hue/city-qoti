@@ -2,7 +2,7 @@
 
 A cozy two-player town builder for the browser. Two players on two laptops grow a hamlet in a storybook river valley into a lively little city: one lane for the heart of the town (residents, decorating, festivals, nature), one for its ledger (zoning, logistics, markets, budget), and a light defense layer for real stakes.
 
-Status: cycle C1 (foundation) done. Two tabs share one generated valley through a local relay; paths, lanes, cottages, decor and trees stay identical on both sides. Visuals are placeholders until C2B.
+Status: I0 to I3, the V1 look and the P1 polish pass are built and live. Next is the redesign of 2026-11-10: V2 Light and green beside R1 Zones first (see the [roadmap](docs/spec/30-roadmap.md)).
 
 - Spec: [docs/spec/README.md](docs/spec/README.md) (start with the [principles](docs/spec/01-principles.md))
 - Build board and cycle briefs: [docs/build/README.md](docs/build/README.md)
