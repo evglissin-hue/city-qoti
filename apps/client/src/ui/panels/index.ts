@@ -10,6 +10,7 @@ import { Minimap } from '../Minimap';
 import { AchievementsPanel } from './Achievements';
 import { AlertsPanel } from './Alerts';
 import { AwayLetterPanel } from './AwayLetter';
+import { BalancesPanel } from './Balances';
 import { ChapterPanel } from './Chapter';
 import { CharterPanel } from './Charter';
 import { ChroniclePanel } from './Chronicle';
@@ -19,7 +20,6 @@ import { FieldGuidePanel } from './FieldGuide';
 import { GuidePanel } from './Guide';
 import { InspectorPanel } from './Inspector';
 import { LettersPanel } from './Letters';
-import { MarketPanel } from './Market';
 import { NotebookPanel } from './Notebook';
 import { NotesPanel } from './Notes';
 import { PatternBookPanel } from './PatternBook';
@@ -33,7 +33,6 @@ import { ReportsPanel } from './Reports';
 import { SeasonCardPanel } from './SeasonCard';
 import { StoresPanel } from './Stores';
 import { StoryLetterPanel } from './StoryLetter';
-import { TradePanel } from './Trade';
 import { TrialPanel } from './Trial';
 import { WatchPanel } from './Watch';
 import { WishesPanel } from './Wishes';
@@ -66,6 +65,7 @@ export const panels: readonly PanelDef[] = [
   { id: 'achievements', side: 'book', component: AchievementsPanel, lens: 'hearth', label: 'Plaques', icon: 'achievements', modes: STANDARD, order: 40 },
   { id: 'alerts', side: 'left', component: AlertsPanel },
   { id: 'away', side: 'overlay', component: AwayLetterPanel },
+  { id: 'balances', side: 'book', component: BalancesPanel, lens: 'ledger', label: 'Balances', icon: 'chart', key: 'm', modes: STANDARD, order: 10 },
   { id: 'blueprints', side: 'world', component: Blueprints },
   { id: 'chapter', side: 'overlay', component: ChapterPanel, modes: STANDARD },
   { id: 'charter', side: 'book', component: CharterPanel, lens: 'shared', label: 'Charter', icon: 'charter', key: 'h', modes: STANDARD, hidden: true },
@@ -77,7 +77,6 @@ export const panels: readonly PanelDef[] = [
   { id: 'guide', side: 'overlay', component: GuidePanel, modes: STANDARD },
   { id: 'inspector', side: 'right', component: InspectorPanel },
   { id: 'letters', side: 'book', component: LettersPanel, lens: 'hearth', label: 'Letters', icon: 'letter', key: 'o', modes: STANDARD, order: 35 },
-  { id: 'market', side: 'book', component: MarketPanel, lens: 'ledger', label: 'Market', icon: 'market', key: 'm', modes: STANDARD, order: 10 },
   { id: 'minimap', side: 'overlay', component: Minimap },
   { id: 'notebook', side: 'book', component: NotebookPanel, lens: 'ledger', label: 'Notebook', icon: 'notebook', key: 'n', modes: STANDARD, order: 60 },
   { id: 'notes', side: 'left', component: NotesPanel },
@@ -93,7 +92,6 @@ export const panels: readonly PanelDef[] = [
   { id: 'stores', side: 'left', component: StoresPanel },
   { id: 'story-letter', side: 'overlay', component: StoryLetterPanel },
   { id: 'together', side: 'overlay', component: TogetherNote },
-  { id: 'trade', side: 'book', component: TradePanel, lens: 'ledger', label: 'Trade', icon: 'trade', modes: STANDARD, order: 20 },
   { id: 'trial', side: 'book', component: TrialPanel, lens: 'shared', label: 'Trial', icon: 'trial', modes: STANDARD, hidden: true },
   { id: 'watch', side: 'book', component: WatchPanel, lens: 'ledger', label: 'Watch', icon: 'watch', modes: STANDARD, order: 40 },
   { id: 'wishes', side: 'book', component: WishesPanel, lens: 'hearth', label: 'Wishes', icon: 'wishes', key: 'j', modes: STANDARD, order: 10 },

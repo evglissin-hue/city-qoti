@@ -26,17 +26,15 @@ test('every village panel opens and works against a live village', async ({ page
 
   // Ledger books.
   await page.getByTestId('lens-ledger').click();
-  await page.getByTestId('book-market').click();
-  await page.getByTestId('price-bread').click();
+  // R1C: the Balances book replaced Market and Trade. The fixture's bakery is a workshop business
+  // keeping the baker's trade, so the Food row says who makes bread.
+  await page.getByTestId('book-balances').click();
+  await page.getByTestId('balance-row-food').getByRole('button').first().click();
+  await expect(page.getByTestId('makers-food')).toContainText('baker');
+  await page.getByTestId('flavor-bread').click();
   await expect(page.getByTestId('good-card')).toContainText('Households wanted');
-  await page.getByTestId('market-profit').click();
-  // R1: the fixture's bakery is a workshop business keeping the baker's trade.
-  await expect(page.getByTestId('profit')).toContainText('Baker');
-  // R1.0: the Deals, Orders and Caravans tabs are gone (the carrier trades); R1C rewrites this book.
-  await page.getByTestId('book-trade').click();
-  await page.getByTestId('trade-neighbors').click();
+  await page.getByTestId('balances-neighbors').click();
   await expect(page.getByTestId('neighbor-millhaven')).toContainText('Millhaven');
-  await page.getByTestId('trade-log').click();
   await expect(page.getByTestId('trade-ledger')).toBeVisible();
   await page.getByTestId('book-policies').click();
   await page.getByTestId('wage-110').click();

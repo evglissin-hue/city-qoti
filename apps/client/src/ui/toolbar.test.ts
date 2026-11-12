@@ -139,9 +139,8 @@ describe('lens toolbars', () => {
     ]);
     // Playtest round five: the Pattern Book is on both lenses' shelves.
     expect(ids(view.root, 'book-')).toEqual([
-      'market',
+      'balances',
       'patterns',
-      'trade',
       'policies',
       'watch',
       'reports',

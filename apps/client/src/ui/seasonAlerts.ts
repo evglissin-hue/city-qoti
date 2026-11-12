@@ -146,7 +146,7 @@ export function seasonAlerts(m: Mirror): Alert[] {
         tone: 'news',
         icon: 'trade',
         text: `A commission: ${c.ask}. Take it on, or decline with thanks.`,
-        action: { kind: 'panel', panel: 'trade', page: 'commissions' },
+        action: { kind: 'panel', panel: 'balances' },
       });
     } else if (
       c.status === 'accepted' &&
@@ -159,7 +159,7 @@ export function seasonAlerts(m: Mirror): Alert[] {
         tone: 'warn',
         icon: 'trade',
         text: `${c.name} is due ${whenWord(today(c.deadlineTick) - day)}, ${c.progress}% done.`,
-        action: { kind: 'panel', panel: 'trade', page: 'commissions' },
+        action: { kind: 'panel', panel: 'balances' },
       });
     }
   }
