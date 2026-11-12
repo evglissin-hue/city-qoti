@@ -50,9 +50,10 @@ Accepted by the owner on 2026-11-10 ("how pretty it is, how cozy it is, and how 
 *Found*: buildings are painted and nature is still low-poly (faceted crowns, a flat lawn, tufts that read spiky; the owner's note twice, P1 and after).
 
 - **Trees**: near crowns are built from brush-dab leaves, 180 to 320 small triangles laid on the crown's blobs, each dab tinted a little apart and shaded by the blob's soft normal, lighter toward the sky, with a few gaps to the boughs. Far crowns keep today's shape with the dab tints in their vertex colors. Dabs thin from Autumn day 4 and are gone in winter. Hedges, reeds and ivy use the same dabs.
-- **Meadows**: a carpet near the camera (within 30 tiles on Medium): 40 to 60 soft blades a meadow tile, each taking its color from the ground texture at its root and shading with the ground's normal, so the meadow reads as one soft mass and fades into the painted ground with distance. Lawns by houses stay short.
+- **Meadows**: a carpet near the camera (within 30 tiles on Medium): 40 to 60 soft blades a meadow tile, each taking its color from the ground texture at its root and shading with the ground's normal, so the meadow reads as one soft mass and fades into the painted ground with distance. Lawns by houses stay short. As built (V2B): the carpet lies round the view's focus (30 tiles on Medium), so it shows from the default camera as well as at street zoom, fading out as the camera pulls back past about 110 tiles; 50 blades a tile, one triangle each.
 - **Flowers** grow in drifts a few tiles across (one low-frequency mask shared by the instanced flowers and the ground shader's painted dots, so near and far agree) instead of an even scatter.
 - All of it is opaque geometry: no alpha test, no transparency.
+- As built (V2B): `20-architecture.md`, V2 contracts, As built (V2B, green).
 
 ### 3. What V1 left half-wired [V2]
 
