@@ -74,6 +74,11 @@ export function bladePatchGeometry(): InstancedBufferGeometry {
     }
   }
   g.setAttribute('position', new BufferAttribute(position, 3));
+  // A normal attribute, though the vertex shader sets the ground's: without one three compiles the
+  // material flat shaded and lights each blade by its own facet, which read as dark stipple.
+  const normal = new Float32Array(n * 3);
+  for (let i = 0; i < n; i++) normal[i * 3 + 1] = 1;
+  g.setAttribute('normal', new BufferAttribute(normal, 3));
   g.setAttribute('aBlade', new BufferAttribute(blade, 4));
   g.setAttribute('aCorner', new BufferAttribute(corner, 1));
   return g;
@@ -323,6 +328,9 @@ void qBlade(out vec3 pos, out vec3 nrm, out vec3 col, out vec3 glow, out vec2 xz
   float r1 = fract(aBlade.z + qHash(aTile.xy * 2.3 + aBlade.xy * 5.0));
   float r2 = fract(aBlade.w + qHash(aTile.yx * 1.9 + 7.3));
   float h = mix(mix(0.13, 0.30, meadowK), 0.055, mown) * (0.7 + 0.6 * r1);
+  // How long the blade grows (before any fade): long grass keeps a deep pile, short grass and
+  // lawns a gentle texture with little contrast, so they never read as dark stipple.
+  float longK = smoothstep(0.12, 0.26, h);
   // Soft edges toward tiles without carpet (aTile.w: 1 left, 2 right, 4 down, 8 up).
   float e = 1.0;
   float bits = aTile.w;
@@ -354,7 +362,8 @@ void qBlade(out vec3 pos, out vec3 nrm, out vec3 col, out vec3 glow, out vec2 xz
   vec2 dir = vec2(cos(ang), sin(ang));
   vec2 perp = vec2(-dir.y, dir.x);
   float lean = mix(0.35, 0.65, qHash(root * 17.3)) * h;
-  float width = mix(0.05, 0.075, qHash(root * 9.1 + 2.0)) * (1.0 - 0.25 * mown);
+  float width = mix(mix(0.065, 0.09, qHash(root * 9.1 + 2.0)), mix(0.05, 0.075, qHash(root * 9.1 + 2.0)), longK);
+  width *= 1.0 - 0.2 * mown;
 
   // Sway on the clock that stops at rest: gusts travel across the meadow (as the foliage's grass).
   float wind = 1.0 + uStorm * 1.6;
@@ -388,6 +397,14 @@ void qBlade(out vec3 pos, out vec3 nrm, out vec3 col, out vec3 glow, out vec2 xz
   c = mix(c, c * vec3(1.04, 1.0, 1.08), meadowK * grow * smoothstep(0.7, 0.9, v2) * 0.25);
   vec3 gold = mix(vec3(1.22, 0.96, 0.54), vec3(1.06, 0.78, 0.48), v2);
   c = mix(c, c * gold, uAutumn * (0.22 + 0.45 * meadowK) * (0.7 + 0.3 * v1));
+  // The soil showing through (ground.ts qGround): thin ground goes straw-pale in patches, rich
+  // ground a touch deeper with its clover.
+  float soil = gd.b * 2.0 - 1.0;
+  float thinSoil = clamp(-soil * 1.6 - 0.35, 0.0, 1.0);
+  float richSoil = clamp(soil * 1.6 - 0.35, 0.0, 1.0);
+  float soilPatch = smoothstep(0.55, 0.85, qNoise(root * 1.9 + 21.0));
+  c = mix(c, c * vec3(1.12, 0.98, 0.78), thinSoil * soilPatch * 0.3);
+  c = mix(c, c * vec3(0.8, 0.93, 0.76), richSoil * 0.04);
   if (uDry > 0.001) {
     float dryPatch = 0.6 + 0.4 * qNoise(root * 0.6 + 4.0);
     c = mix(c, c * vec3(1.12, 1.0, 0.68), uDry * 0.55 * dryPatch);
@@ -395,9 +412,10 @@ void qBlade(out vec3 pos, out vec3 nrm, out vec3 col, out vec3 glow, out vec2 xz
   c *= ao * mix(1.0, 0.97, 1.0 - ao) + (1.0 - ao) * vec3(0.0, 0.004, 0.012);
 
   // The blade's own gradient: feet deep in the pile, the tip lighter and a touch warmer.
-  // Long grass keeps a deep pile; a mown lawn evens out to the painted ground's own value.
-  vec3 foot = c * mix(0.74, 0.9, mown);
-  vec3 top = c * mix(1.08 + 0.1 * r2, 1.03 + 0.05 * r2, mown) * vec3(1.03, 1.01, 0.95);
+  // Long grass keeps a deep pile; short grass and a mown lawn even out to the painted ground's
+  // own value (a blade's area leans to its foot, so foot and tip average a touch under 1).
+  vec3 foot = c * mix(0.92, 0.76, longK);
+  vec3 top = c * mix(1.07 + 0.04 * r2, 1.1 + 0.1 * r2, longK) * vec3(1.03, 1.01, 0.95);
   // Wildflowers: a share of tips take the ground's flower colors where it has them.
   float bloom = gc.a;
   // A flowering tip colors its whole blade down to the foot, a spike of color above the pile.
@@ -482,7 +500,7 @@ export function createMeadowMaterial(
       .replace(
         '#include <normal_fragment_begin>',
         // Both faces shade with the ground's normal: undo the double-sided flip.
-        '#include <normal_fragment_begin>\n#ifdef DOUBLE_SIDED\nnormal *= faceDirection;\n#endif',
+        '#include <normal_fragment_begin>\nnormal = normalize(vNormal);',
       )
       .replace(
         '#include <color_fragment>',
@@ -595,6 +613,10 @@ export function meadowLayer(): RenderLayer {
     mesh.frustumCulled = false;
     // V2A: set `shadowless: true` on this layer once `RenderLayer.shadowless` lands.
     mesh.castShadow = false;
+    // The renderer sets every solid static mesh casting when the shadow map renders
+    // (`updateShadowFlags`) unless it opts out: blades shadowing the ground under them read as
+    // dark stipple, and would put the whole carpet into every shadow pass.
+    mesh.userData.qotiShadows = false;
     mesh.receiveShadow = true;
     mesh.name = 'meadow';
     ctx.scene.add(mesh);
