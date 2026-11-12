@@ -44,7 +44,7 @@ Accepted by the owner on 2026-11-10 ("how pretty it is, how cozy it is, and how 
 - **By era** (`18-eras.md`): candlelight is the lantern token (the Old Age's lanterns burn the chandler's candles; older notes call them oil lanterns), gas a greener gold, electric a paler warm white. A district's lamps set its night color.
 - **Rooms behind the windows**: in the kit material's glass, each pane shows a little room by parallax (walls, a shelf, a table, a figure when someone is home), chosen by the building's seed from eight room layers generated into the pattern array. It costs a handful of shader operations on window pixels only. From the default camera it reads as livelier, more varied windows; at street zoom and in photos every lit pane is a tiny diorama. From R3 a home with a candle lights all its windows until bedtime, so a well supplied street is visibly brighter; no home ever goes dark (`19-evenings.md`, Supplies).
 - **As built (V2A)**: one map carries lanterns, lit windows' spill, oven doors, the bonfire, festival lights and shop fronts; the ground, every kit piece, folk (a warm rim) and the river read it, and a grown village glows from the valley's edge. Walls take a breath of it low down and roofs little, so pools stay pools. Each room cell (a tile wide, a storey tall) of a facade picks one of the eight rooms by the building's seed and the cell, so neighboring windows of one house can look into different rooms; the figure shows by seed (two cells in five) until homes report who is in (a later wave). Far off a lit pane keeps the full glow with a hint of its room's color. Lamp flames flicker gently while the camera moves and hold still at rest; the pools never flicker (`20-architecture.md`, V2 contracts, As built).
-- **Done (V2X)**: every reader goes through the same curve; the 32-light loop stays behind `?debug&lights=loop` only until both laptops' night rows are in.
+- **Done (V2X)**: every reader goes through the same curve; pools are bright under the lamp and dark between (a grown village's lanterns stand a tile and a half apart, so small lamps throw tighter pools), and lamplight lands amber on grass, leaves and paths rather than olive; the 32-light loop stays behind `?debug&lights=loop` only until both laptops' night rows are in.
 
 ### 2. A painted green world [V2]
 
@@ -55,7 +55,7 @@ Accepted by the owner on 2026-11-10 ("how pretty it is, how cozy it is, and how 
 - **Flowers** grow in drifts a few tiles across (one low-frequency mask shared by the instanced flowers and the ground shader's painted dots, so near and far agree) instead of an even scatter.
 - All of it is opaque geometry: no alpha test, no transparency.
 - As built (V2B): `20-architecture.md`, V2 contracts, As built (V2B, green).
-- **Done (V2X)**, with what remains: trees, hedges and the carpet read the light map through the shared curve. Orchard trees (decor) keep their full crowns all year: thinned, their faceted core shows (V2X tried it; `FRUIT_MIN_THIN`); they thin once they have a bare look.
+- **Done (V2X)**, with what remains: trees, hedges and the carpet read the light map through the shared curve. The dabs were tuned calmer from the player's chair (fewer, larger, softer, a tight tint spread, no lightening past the swatch's light tone), so a crown reads as one soft mass with a few lighter strokes toward the sky. Orchard trees (decor) keep their full crowns all year: thinned, their faceted core shows (V2X tried it; `FRUIT_MIN_THIN`); they thin once they have a bare look.
 
 ### 3. What V1 left half-wired [V2]
 
