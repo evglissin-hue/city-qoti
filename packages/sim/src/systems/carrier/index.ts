@@ -17,7 +17,7 @@
 //    town goes short (a site's Materials never go on the tab: lean times stop building anyway).
 // 3. The tab is paid down from what is left of the day's budget.
 // 4. For families on Always, in the order Food, Fuel, Materials, Wares, Treats, within the day's
-//    budget: first a share of each flavor some tier in town still lacks (the cheapest not on offer),
+//    budget and the coins in hand (never the bank's credit): first a share of each flavor some tier in town still lacks (the cheapest not on offer),
 //    in every family before any bulk, so variety never waits behind another family's reserve; then
 //    each reserve, the cheapest unit by unit, up to days of the family's use (Materials: what open
 //    sites need plus the reserve in units). From Autumn day 4 to the thaw it buys toward the season
@@ -328,7 +328,10 @@ function sellOffer(day: Day, good: number): Offer | null {
 function settle(state: WorldState, day: Day, price: number, pay: Pay): boolean {
   const c = state.carrier;
   if (pay === 'budget' && c.spentToday + day.spent + day.repaid + price > c.budget) return false;
-  if (state.economy.treasury - day.spent - day.repaid - price >= -day.overdraft) {
+  // R1X: the budget buys only with coins in hand; the County Bank's credit is kept for essentials (a
+  // young Village borrowed forty coins a day for Treats while its whole tax take was fifteen).
+  const floor = pay === 'budget' ? 0 : -day.overdraft;
+  if (state.economy.treasury - day.spent - day.repaid - price >= floor) {
     day.spent += price;
     return true;
   }
