@@ -7,6 +7,7 @@ import { Water } from '../map/layers';
 import { findById, removeById } from '../state/entities';
 import { isStandard } from '../state/hamlet';
 import { rankAtLeast } from '../state/village';
+import { refreshDemand } from '../systems/growth';
 import { zonesChanged } from '../systems/zoning';
 import { checkTiles, type HandlerFor, tilesChangedFor } from './util';
 
@@ -72,5 +73,7 @@ export const clear: HandlerFor<'zone.clear'> = {
     tilesChangedFor(ctx, changed, ['zone']);
     zonesChanged(state);
     tilesChangedFor(ctx, gone, ['lot']);
+    // R1B: free lots went, so a quiet bar may need land again.
+    if (gone.length > 0) refreshDemand(state, ctx);
   },
 };

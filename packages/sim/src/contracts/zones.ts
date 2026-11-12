@@ -113,7 +113,12 @@ export type DemandReasonCode =
   /** Any bar: the town needs more zoned land for it (the bar is lit). */
   | 'needsLand'
   /** Any bar: a free, suitable lot exists, so growth is on its way (the bar is quiet). */
-  | 'lotWaiting';
+  | 'lotWaiting'
+  /**
+   * R1B: Shops before Village rank, when the Shops zone is closed: a Market Stall placed by hand is
+   * how to answer the bar (docs/build/cycle-r1b-land-businesses.md, design note b).
+   */
+  | 'marketStall';
 
 export interface DemandReason {
   code: DemandReasonCode;

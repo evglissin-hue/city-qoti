@@ -79,6 +79,8 @@ describe('placing a site', () => {
       f.state.map.tree[z! * S + x!] = oak;
     }
     f.state.map.tree[56 * S + 71] = treeValue(TREE_SPECIES.oak, 1);
+    // The lodge wants twelve mature trees within eight tiles: a stand of them just south of the site.
+    for (let x = 66; x < 78; x++) f.state.map.tree[61 * S + x] = oak;
     expect(rejection(run(f.state, { t: 'build.place', def: 'foresters-lodge', x: 70, z: 55, rot: 0 }))).toBe(
       undefined,
     );

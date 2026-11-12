@@ -153,7 +153,7 @@ export { isLean, overdraftLimit } from './systems/loans/credit';
 export { growLot, lotPlacement } from './systems/growth/api';
 export { cartAt, cartRoute, cartTile, requestCartMove } from './systems/traffic/api';
 // I2 (C4B): growth, traffic, desire paths and stairs for the client (overlays, tools, previews).
-export { growthDemand, type GrowthDemand } from './systems/growth';
+export { growthDemand, growthPass, type GrowthDemand } from './systems/growth';
 export { roadCapacity, roadNoise, slowdownPercent, trafficFlow } from './systems/traffic/api';
 export { roadKindLocked, wantsStairs } from './systems/traffic/streets';
 export { DESIRE_PATH_WEAR, desirePathTiles, WEAR_VISIBLE } from './systems/traffic/wear';
@@ -194,18 +194,20 @@ export {
   levelOf,
   methodOf,
 } from './state/zones';
-export {
-  balancesView,
-  businessesView,
-  businessView,
-  demandView,
-  demandWhy,
-  isBusinessLike,
-} from './view/zones';
+export { balancesView } from './view/zones';
+export { businessesView, businessView, isBusinessLike } from './view/businesses';
+export { demandView, demandWhy } from './view/demand';
 // R1 (R1.0): the cross-track APIs of docs/build/r1-wave-notes.md (stubs; their owners fill them).
 export { carrierBrought, winterMark } from './systems/carrier/api';
 export { familyCover, familyUse, flavorsOnOffer } from './systems/market/balances';
-export { capacityOf, served, withinReach } from './systems/specialized/api';
+export {
+  capacityOf,
+  hasRoomFor,
+  reachDistances,
+  served,
+  servedIds,
+  withinReach,
+} from './systems/specialized/api';
 export { tradeScore } from './systems/growth/trades';
 export { worldIndex, type WorldIndex } from './state/worldIndex';
 export { SIM_VERSION } from './version.generated';

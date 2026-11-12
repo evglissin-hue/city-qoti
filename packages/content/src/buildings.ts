@@ -112,15 +112,18 @@ export const forestersLodge: BuildingDef = {
   },
   upkeep: 1,
   jobs: { count: 3, role: 'worker' },
-  // R1 stand-in (R1B): the lodge fells as the woodcutter did; replanting its own wood and cutting
-  // firewood toward the season plan's Fuel mark are R1B's.
+  // Each felled tree gives timber, or firewood while the town is under its Fuel target; the lodge
+  // plants a sapling in its range for every tree it takes. A cycle makes one of the two outputs.
   methods: [
     {
       id: 'fell-trees',
       name: 'Fell trees',
       kind: 'fell',
       inputs: [],
-      outputs: [['timber', 4]],
+      outputs: [
+        ['timber', 4],
+        ['firewood', 6],
+      ],
       hours: 3,
       workers: 3,
       perWorker: true,

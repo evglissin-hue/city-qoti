@@ -11,7 +11,8 @@ import { nearestSpot } from './place';
 
 /**
  * R1: the Sawmill no longer saws for the town (it lets carpenters set up in its reach), so the
- * frozen wheel costs nothing here. R1 stand-in (R1B): a frozen Sawmill serves one carpenter fewer.
+ * frozen wheel costs nothing here; a frozen Sawmill serves one carpenter fewer (see capacityOf in
+ * systems/specialized/api.ts).
  * Kept for callers: a method sawing timber by water saws at the full rate.
  */
 export function handSawPermille(_method: ProductionMethod): number {

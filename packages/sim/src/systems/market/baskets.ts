@@ -24,6 +24,7 @@ import { calendar } from '../clock/calendar';
 import { dailyOffset, dayIndex } from '../economy/time';
 import { foodIndexes, pantryFood } from '../residents/needs';
 import { announceHousehold } from '../residents/records';
+import { countCustomer, countSold } from '../levels/counters';
 import { householdVariety, markSeen, SHELF_GOODS } from './balances';
 import { inStock, marketOpen, outletFree, purchase, tillPrice } from './api';
 
@@ -243,6 +244,11 @@ export function shopFood(
   const rt = findById(state.buildings, outlet)?.rt;
   if (!rt || n <= 0) return null;
   rt.store[cheapest]! -= n;
+  const shop = findById(state.buildings, outlet);
+  if (shop) {
+    countSold(shop, n);
+    countCustomer(shop);
+  }
   // Elders and children are the town's to look after; grown-ups without work feel it.
   if (gi >= 0 && canWork(state, h)) satisfy(h, gi, 0);
   return [cheapest, n];

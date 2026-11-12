@@ -114,21 +114,28 @@ describe('the nightly growth pass', () => {
     for (const id of f.lots.shops) expect(findById(s.lots, id)!.buildingId).toBe(0);
   });
 
-  // R1.0 stand-in: R1A/R1B rewrites this. A Workshops lot takes the trade with the best shortage
-  // score among those it can feed.
-  it('grows a workshop for what the market is short of, and none when nothing is', () => {
+  // R1B: a Workshops lot grows the trade with the best positive score (need x supply x site x
+  // keeper); with every family well covered and nothing new to make, nothing scores.
+  it('grows a workshop for a trade the town needs, and none when no trade scores', () => {
     const f = villageFixture();
     const s = f.state;
     paintZone(s, 'crafts', [83, 44, 95, 49]);
     zoneNow(s);
     expect(lotsIn(s, [83, 44, 95, 49]).length).toBeGreaterThan(0);
-    // Nothing short yet: no workshop.
+    // Every family well covered, nothing asked of the market: no workshop.
     s.market.demand.fill(0);
     s.economy.yesterday.consumed.fill(0);
+    const store = findById(s.buildings, f.b.storehouses[0])!.rt!.store;
+    for (const id of ['bread', 'vegetables', 'fish', 'cheese', 'cider', 'honey', 'candles', 'cloth']) {
+      store[good(id)] = 400;
+    }
     expect(growthDemand(s).crafts).toBe(0);
     night(s);
     expect(grown(s).some((b) => findById(s.lots, b.lot!)!.zone === Zone.crafts)).toBe(false);
-    // Cloth runs short: a workshop (which the wool in stock can feed) grows as a weaver's.
+    // Cloth runs short: the wool in stock is under two days, so the carrier would bring the rest
+    // (supply 0.5), and the workshop grows as a weaver's.
+    store[good('cloth')] = 0;
+    for (const b of s.buildings) if (b.rt) b.rt.store[good('cloth')] = 0;
     s.market.demand[good('cloth')] = 40;
     expect(growthDemand(s).crafts).toBe(1);
     night(s);
@@ -139,9 +146,9 @@ describe('the nightly growth pass', () => {
     expect(methodOf(shop!)?.outputs[0]?.[0]).toBe('cloth');
   });
 
-  // R1.0 stand-in: R1A/R1B rewrites this. Farmland takes the trade whose good is shortest (here
-  // grain, the only Food the market asks for), on soil it suits.
-  it('grows a farm when food runs low, and gives a grain farm the farm land behind', () => {
+  // R1B: Food under four days of cover pulls every Food trade of Farmland alike; a good the carrier
+  // keeps bringing pulls its own trade, so imported grain grows a grain farm.
+  it('grows a farm when food runs low, and a grain farm for imported grain, with the land behind', () => {
     const f = villageFixture();
     const s = f.state;
     // Fertile farm land north of lane A, east of the stalls; empty the larders.
@@ -159,12 +166,19 @@ describe('the nightly growth pass', () => {
     for (const h of s.households) h.pantry.fill(0);
     s.market.demand.fill(0);
     s.economy.yesterday.consumed.fill(0);
-    s.market.demand[good('grain')] = 40;
     expect(growthDemand(s).farms).toBe(1);
     night(s);
+    const first = grown(s).find((b) => findById(s.lots, b.lot!)!.zone === Zone.farms)!;
+    expect(first).toBeDefined();
+    expect(first.def).toBe('farmstead');
+    expect(isFood(content.goodIndex.get(content.tradeById.get(first.trade!)!.makes!)!)).toBe(true);
+    // Larders full again, but the carrier brought a day's eating of grain over the last days.
+    s.buildings.splice(s.buildings.indexOf(first), 1);
+    findById(s.lots, first.lot!)!.buildingId = 0;
+    findById(s.buildings, f.b.storehouses[0])!.rt!.store[good('vegetables')] = 600;
+    s.carrier.bought[s.carrier.bought.length - 1]![good('grain')] = s.residents.length;
+    night(s);
     const farm = grown(s).find((b) => findById(s.lots, b.lot!)!.zone === Zone.farms)!;
-    expect(farm).toBeDefined();
-    expect(farm.def).toBe('farmstead');
     expect(farm.trade).toBe('grain-farm');
     // Finished, it takes fields on the zoned land behind the lots, nearest first.
     farm.stage = 'built';
@@ -180,9 +194,12 @@ describe('the nightly growth pass', () => {
     }
   });
 
+  // R1B: with the carrier allowed to bring Materials (Essentials, the default), one site of each
+  // kind may start on bought timber while no other of its kind waits; on Never, growth waits.
   it('waits when the storehouses cannot spare the materials, and keeps a few sites at a time', () => {
     const f = villageFixture();
     const s = f.state;
+    s.carrier.families[2]!.rule = 'never';
     openWork(s);
     openWork(s, 91, 46);
     const planks = good('timber');
@@ -194,6 +211,14 @@ describe('the nightly growth pass', () => {
     findById(s.buildings, f.b.storehouses[0])!.rt!.store[planks] = share;
     expect(growthDemand(s).homes).toBeGreaterThan(0);
     expect(night(s)).toBe(0);
+    // The carrier may bring timber: one home goes up on it, and no second while the first waits.
+    s.carrier.families[2]!.rule = 'essentials';
+    expect(night(s)).toBe(1);
+    const waiting = grown(s).filter((b) => b.rt?.construction?.needs.some((n) => n > 0));
+    expect(waiting.length).toBe(1);
+    expect(night(s)).toBe(0);
+    s.buildings.splice(s.buildings.indexOf(waiting[0]!), 1);
+    findById(s.lots, waiting[0]!.lot!)!.buildingId = 0;
     // A home waiting on timber would make timber short.
     growLot(s, createTickCtx(s), f.lots.homes[2]!, 'cottage');
     expect(shortages(s)[planks]).toBeGreaterThan(0);
@@ -242,9 +267,9 @@ describe('the nightly growth pass', () => {
 });
 
 describe('grown workshops choose what to make', () => {
-  // R1.0 stand-in: R1A/R1B rewrites this. Method choosing and switching are gone: a business takes
-  // one trade when it grows (chooseTrade's shortage score) and keeps it.
-  it('takes the trade for the shortest good it can feed, and never one it cannot', () => {
+  // R1B: a trade the town cannot feed scores half (the carrier would bring its raw good) against a
+  // fed one's full supply; and a business keeps its trade while it is not in surplus.
+  it('takes the trade it can feed before one the carrier would have to feed', () => {
     const f = villageFixture();
     const s = f.state;
     paintZone(s, 'crafts', [83, 44, 95, 49]);

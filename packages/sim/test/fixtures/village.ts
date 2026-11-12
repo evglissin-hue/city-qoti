@@ -20,7 +20,8 @@
 // R1 (R1.0): the bakery is a workshop business with trade 'baker' at level 2 (two hands; key
 // `bakery`), the sawpit's place holds a Forester's Lodge (key `sawpit`), the Food keeps in a granary
 // (placed last, so the other ids are as before), clay became brick, and the standing order is gone.
-// The carrier follows the Village's default rules (applyRankDefaults).
+// The carrier follows the Village's default rules (applyRankDefaults). R1B: the bakery's first hand
+// is its keeper, its counters start clean, and its windmill's reach (along lane A) holds it.
 import { content } from '@qoti/content';
 import { MAP_SIZE, NEED_IDS, PENNIES_PER_COIN, START_TREASURY, Zone } from '../../src/constants';
 import type {
@@ -39,7 +40,7 @@ import { goodsArray } from '../../src/state/hamlet';
 import { insertBuilding } from '../../src/state/place';
 import { doorTile } from '../../src/systems/movement/api';
 import { charterFrom } from '../../src/state/village';
-import { applyRankDefaults } from '../../src/state/zones';
+import { applyRankDefaults, emptyCounters } from '../../src/state/zones';
 import { flatWorld, S } from '../helpers';
 
 export interface VillageFixture {
@@ -221,7 +222,8 @@ export function villageFixture(): VillageFixture {
   for (let i = 0; i < 7; i++) cottages.push(place(state, 'cottage', 43 + i * 3, 48, 0, (i % 2) as 0 | 1));
   const bakery = place(state, 'workshop', 66, 47, 0, 0, 'baker');
   bakery.level = 2;
-  const windmill = place(state, 'windmill', 69, 48);
+  // R1B: on open ground north of lane A by the path, its clearance kept, the bakery in its reach.
+  const windmill = place(state, 'windmill', 65, 42);
   const sawpit = place(state, 'foresters-lodge', 72, 48);
   const stallA = place(state, 'market-stall', 76, 48, 0, 1);
   const stallB = place(state, 'market-stall', 79, 48, 0, 1);
@@ -362,6 +364,10 @@ export function villageFixture(): VillageFixture {
   state.networkVersion = 1;
   state.hearth.hints = content.patterns.slice(0, 3).map((p) => p.id);
   for (let c = 0; c < (MAP_SIZE / 16) * (MAP_SIZE / 16); c++) state.hearth.dirtyChunks.push(c);
+
+  // R1B: the bakery's first hand keeps it (the family name on its sign); its counters start clean.
+  bakery.keeperId = bakery.rt!.workers[0] ?? 0;
+  bakery.counters = emptyCounters();
 
   // R1: the Food keeps in the granary on street B, placed last so every id above is as it was.
   const granary = place(state, 'granary', 66, 67);

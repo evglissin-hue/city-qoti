@@ -42,13 +42,18 @@ import {
   stowNearest,
   tileDistance,
 } from './stores';
+import { buildsFirst } from '../construction/first';
 import { deliverUpgrade } from '../tiers/api';
 import { deliverModule } from '../modules';
 import { isCartJob, keepCarts, matchCarts, stepCartJob, tickIdleCarts, type CartHooks } from './carts';
 import { available, finishTask, startTask, tickReturning, walkTo } from './tasks';
+import { countSold } from '../levels/counters';
 
 /** Job classes in matching order: lower is more urgent (PorterJob.priority). */
 export const JobClass = { prioritySite: 0, stallFood: 1, input: 2, site: 3, clearing: 4 } as const;
+
+/** Units of each Wares or Treats good a market keeps on its shelf (R1B). */
+export const MARKET_GOODS_TARGET = 8;
 
 /** Production inputs are topped up to this many cycles' worth. */
 export const INPUT_TARGET_CYCLES = 2;
@@ -158,6 +163,17 @@ function needsOf(spots: readonly Spot[]): Need[] {
     if (isMarket(def)) {
       const want = Math.min(STALL_RESTOCK_TARGET - foodIncoming(rt), storageSpace(def, rt));
       if (want > 0) out.push({ dest: s, good: -1, want, cls: JobClass.stallFood });
+      // R1B: an outlet that takes Wares or Treats (the Market Square takes every family, a stall
+      // Food and Treats) is kept stocked with them too, a few of each.
+      for (let g = 0; g < content.goods.length; g++) {
+        const family = content.goods[g]!.family;
+        if ((family !== 'wares' && family !== 'treats') || !takes(def, g)) continue;
+        const room = Math.min(
+          MARKET_GOODS_TARGET - (rt.store[g] ?? 0) - (rt.reservedIn[g] ?? 0),
+          storageSpace(def, rt),
+        );
+        if (room > 0) out.push({ dest: s, good: g, want: room, cls: JobClass.stallFood });
+      }
       continue;
     }
     const method = methodOf(s.b);
@@ -220,6 +236,7 @@ function assign(
   let bestSrc: Spot | null = null;
   let bestDest: Spot | null = null;
   let bestGood = -1;
+  let bestFirst = false;
 
   // C4X: from Village rank, sites and workshop inputs share a class (the nearer source wins; among
   // sites the oldest, so they finish one at a time). With inputs strictly first, a busy Village
@@ -231,13 +248,16 @@ function assign(
     const cls = fair && need.cls === JobClass.site ? JobClass.input : need.cls;
     if (need.want <= 0 || cls > bestCls || !within(reach, need.dest.door)) continue;
     const goods = need.good >= 0 ? [need.good] : stallOrder(need.dest.rt);
+    // R1B: among equal classes, a site on the season plan's "build first" zone is served first.
+    const first = buildsFirst(state, need.dest.b);
     for (const g of goods) {
       let found = false;
       for (const s of spots) {
         if (s === need.dest || sourceAvail(s.b, s.def, g) <= 0 || !within(reach, s.door)) continue;
         found = true;
         const d = tileDistance(from, s.door);
-        if (cls < bestCls || d < bestD) {
+        if (cls < bestCls || (first === bestFirst ? d < bestD : first)) {
+          bestFirst = first;
           bestCls = cls;
           bestD = d;
           bestNeed = need;
@@ -415,6 +435,7 @@ function stepJob(state: WorldState, ctx: TickCtx, job: PorterJob, workTime: bool
     const pile = isStorage(defOf(src)) ? src.rt.store : src.rt.output;
     const got = Math.max(0, Math.min(job.qty, pile[g]!));
     pile[g]! -= got;
+    if (pile === src.rt.output) countSold(src, got);
     src.rt.reservedOut[g] = Math.max(0, src.rt.reservedOut[g]! - job.qty);
     if (got < job.qty) dst.rt.reservedIn[g] = Math.max(0, dst.rt.reservedIn[g]! - (job.qty - got));
     job.qty = got;

@@ -4,21 +4,25 @@
 // their workplace. Each hour one worker may move from a less important job to a more important
 // open one, so a new farm or fishery gets hands even when everyone is already employed.
 import { content, type BuildingDef, type ProductionMethod } from '@qoti/content';
-import { BuildingStatus } from '../../constants';
+import { BuildingStatus, WARMTH_PER_HOUSEHOLD } from '../../constants';
 import type { Building, Resident, TickCtx, WorldState } from '../../contracts';
 import { findById } from '../../state/entities';
 import { isFood, jobsOf, methodOf } from '../../state/zones';
+import { businessView } from '../../view/businesses';
 import { townStock } from '../../view/hamlet';
 import { setInside } from '../movement/api';
 import { doorOf, householdOf, isWorkingAge, manhattan } from './places';
+import { winterMark } from '../carrier/api';
+import { isResting } from '../levels/resting';
 import { larderWelcomes, seasonNow, woodpileShort } from '../seasons/api';
+import { woodpile } from '../seasons/stores';
 import { jobFits, tierShortages } from '../tiers/api';
 import { pushHistory } from './records';
 import { dayIndex } from './time';
 
-/** Open job slots at a built building, or 0 (paused buildings hire nobody). */
+/** Open job slots at a built building, or 0 (paused and resting buildings hire nobody). */
 export function openJobs(b: Building): number {
-  if (b.stage !== 'built' || !b.rt || b.rt.paused) return 0;
+  if (b.stage !== 'built' || !b.rt || b.rt.paused || isResting(b)) return 0;
   return Math.max(0, jobsOf(b) - b.rt.workers.length);
 }
 
@@ -87,6 +91,11 @@ export function shortages(state: WorldState): Shortages {
   for (const id of tierShortages(state, stock)) goods.add(id);
   // C5A: from autumn to the thaw, firewood while the woodpile could not see the winter through.
   if (woodpileShort(state)) goods.add('firewood');
+  // R1 (R1B): from Summer day 4, firewood toward the season plan's Fuel mark (days times households).
+  const fuel = winterMark(state, 1);
+  if (fuel !== null && woodpile(state) < fuel * state.households.length * WARMTH_PER_HOUSEHOLD) {
+    goods.add('firewood');
+  }
   let producing = 0;
   let full = 0;
   for (const b of state.buildings) {
@@ -136,6 +145,9 @@ export function slotPriority(
   // storehouse's first two porters come first and the rest rank with food work (a harvest waiting
   // in full baskets fills no larder).
   if (role === 'porter' && short.haul && short.winter) return k <= 1 ? 0 : 1;
+  // R1 (R1B): the granary's porters rank behind the storehouse's, so a fresh town's few hands also
+  // reach its workplaces (the first rank 1, the second 4; a storehouse's first porter stays 0).
+  if (role === 'porter' && (def.id === 'granary' || isFoodStore(def))) return k === 0 ? 1 : 4;
   if (role === 'porter') return k === 0 ? 0 : k === 1 ? 1 : short.haul ? 3 : 4;
   if (role === 'vendor') return 1;
   // I2 (C4C): a tavern, herbalist or school open matters like a stall's vendor; and a town sitting on
@@ -157,6 +169,10 @@ export function slotPriority(
   return kind === 'food' ? (short.plenty && grows ? 5 : 2) : 3;
 }
 
+function isFoodStore(def: BuildingDef): boolean {
+  return def.stores?.length === 1 && def.stores[0] === 'food';
+}
+
 const NO_SHORTAGES: Shortages = { food: false, goods: new Set() };
 
 /** Total open job slots in town. */
@@ -172,8 +188,41 @@ function insertSorted(list: number[], id: number): void {
   if (list[i - 1] !== id) list.splice(i, 0, id);
 }
 
-/** Gives the resident a job at the building (moving the present count if they are inside). */
-export function hire(state: WorldState, r: Resident, b: Building): void {
+/** Sets a business's keeper and tells the Businesses book (when a tick context is at hand). */
+function setKeeper(state: WorldState, ctx: TickCtx | undefined, b: Building, id: number): void {
+  if ((b.keeperId ?? 0) === id) return;
+  b.keeperId = id;
+  ctx?.events.push({ e: 'business.updated', b: businessView(state, b) });
+}
+
+/** The hand who has served the business longest: the oldest latest 'job' line for it, ties by id. */
+function longestServing(state: WorldState, b: Building): number {
+  let best = 0;
+  let bestDay = Infinity;
+  for (const id of b.rt?.workers ?? []) {
+    const r = findById(state.residents, id);
+    if (!r) continue;
+    let day = -Infinity;
+    for (let i = r.history.length - 1; i >= 0; i--) {
+      const h = r.history[i]!;
+      if (h.kind === 'job' && h.ref === b.id) {
+        day = h.day;
+        break;
+      }
+    }
+    if (day < bestDay || (day === bestDay && id < best)) {
+      best = id;
+      bestDay = day;
+    }
+  }
+  return best;
+}
+
+/**
+ * Gives the resident a job at the building (moving the present count if they are inside). The first
+ * hand of a business with no keeper becomes its keeper (docs/spec/13-ledger.md, A business).
+ */
+export function hire(state: WorldState, r: Resident, b: Building, ctx?: TickCtx): void {
   if (!b.rt) return;
   const inside = r.inside;
   if (inside) setInside(state, r, 0);
@@ -181,10 +230,16 @@ export function hire(state: WorldState, r: Resident, b: Building): void {
   insertSorted(b.rt.workers, r.id);
   if (inside) setInside(state, r, inside);
   pushHistory(state, r, 'job', b.id);
+  if (b.trade && (!b.keeperId || !findById(state.residents, b.keeperId))) setKeeper(state, ctx, b, r.id);
+  // A keeper who took work elsewhere no longer keeps an empty business.
+  for (const o of state.buildings) {
+    if (o.keeperId === r.id && o.id !== b.id && o.rt && o.rt.workers.length === 0)
+      setKeeper(state, ctx, o, 0);
+  }
 }
 
 /** Ends the resident's job. `lost` logs it (the workplace went away). */
-export function release(state: WorldState, r: Resident, lost = false): void {
+export function release(state: WorldState, r: Resident, lost = false, ctx?: TickCtx): void {
   if (!r.jobId) return;
   const b = findById(state.buildings, r.jobId);
   const inside = r.inside;
@@ -199,6 +254,38 @@ export function release(state: WorldState, r: Resident, lost = false): void {
   if (r.activity.kind === 'work' || r.activity.kind === 'commute' || r.activity.kind === 'task') {
     r.activity = { kind: 'home' };
   }
+  // The keeper goes: the longest-serving hand left takes the keys; with none left, the business
+  // keeps its keeper while they live (a hire elsewhere clears it, see `hire`).
+  if (b?.trade && b.keeperId === r.id) {
+    const next = longestServing(state, b);
+    if (next) setKeeper(state, ctx, b, next);
+    else if (!findById(state.residents, r.id)) setKeeper(state, ctx, b, 0);
+  }
+}
+
+/**
+ * A business whose growth named a keeper (a keen resident) hires them first once it is built and
+ * has a job open (they leave their current work), at most once: a keeper who has worked there
+ * already is left to the normal priorities. An apprentice still serving, or one mid-task, waits for
+ * a later hour; a keeper who is gone is struck off so the first hand takes the keys.
+ */
+export function seatKeeper(state: WorldState, ctx: TickCtx, b: Building): boolean {
+  if (!b.trade || !b.keeperId || !b.rt || openJobs(b) <= 0) return false;
+  if (b.rt.workers.includes(b.keeperId)) return false;
+  const r = findById(state.residents, b.keeperId);
+  if (!r) {
+    setKeeper(state, ctx, b, 0);
+    return false;
+  }
+  if (r.history.some((h) => h.kind === 'job' && h.ref === b.id)) return false;
+  if (!isWorkingAge(r) || r.activity.kind === 'task' || r.carry) return false;
+  const k = r.activity.kind;
+  if (k === 'arrive' || k === 'leave' || !householdOf(state, r)?.homeId) return false;
+  if (r.apprentice && r.apprentice.untilDay > dayIndex(state.tick)) return false;
+  if (!jobFits(r.tier, content.buildingById.get(b.def))) return false;
+  if (r.jobId) release(state, r, false, ctx);
+  hire(state, r, b, ctx);
+  return true;
 }
 
 /** Can this resident take a job? Working age, housed, settled in and not on their way out. */
@@ -231,7 +318,8 @@ function openPriority(b: Building, short: Shortages): number {
  * nearest by walking distance from home among equals (Manhattan between doors; ties by building
  * id). Returns the number hired.
  */
-export function assignJobs(state: WorldState, _ctx: TickCtx, only?: Resident): number {
+export function assignJobs(state: WorldState, ctx: TickCtx, only?: Resident): number {
+  if (!only) for (const b of state.buildings) if (b.keeperId) seatKeeper(state, ctx, b);
   const open: Building[] = [];
   for (const b of state.buildings) if (openJobs(b) > 0) open.push(b);
   if (open.length === 0) return 0;
@@ -257,7 +345,7 @@ export function assignJobs(state: WorldState, _ctx: TickCtx, only?: Resident): n
       }
     }
     if (!best) continue;
-    hire(state, r, best);
+    hire(state, r, best, ctx);
     hired++;
   }
   return hired;
@@ -267,7 +355,7 @@ export function assignJobs(state: WorldState, _ctx: TickCtx, only?: Resident): n
  * Moves at most one worker an hour from the least important filled job to the most important
  * open one, when the open one matters more. Workers out on a Ledger task finish it first.
  */
-export function rebalanceJobs(state: WorldState): boolean {
+export function rebalanceJobs(state: WorldState, ctx?: TickCtx): boolean {
   const short = shortages(state);
   let target: Building | null = null;
   let targetP = Infinity;
@@ -301,8 +389,8 @@ export function rebalanceJobs(state: WorldState): boolean {
     }
   }
   if (!from) return false;
-  release(state, from);
-  hire(state, from, target);
+  release(state, from, false, ctx);
+  hire(state, from, target, ctx);
   return true;
 }
 
@@ -310,16 +398,18 @@ export function rebalanceJobs(state: WorldState): boolean {
  * Releases jobs at buildings that are gone and recounts `present`, so it holds even if another
  * system moved a worker without telling anyone.
  */
-export function auditJobs(state: WorldState): void {
+export function auditJobs(state: WorldState, ctx?: TickCtx): void {
   for (const r of state.residents) {
     if (!r.jobId) continue;
     const b = findById(state.buildings, r.jobId);
-    if (!b) release(state, r, true);
+    if (!b) release(state, r, true, ctx);
     // Pausing a building lets its workers go (a Ledger lever for labor), once their task is done.
-    else if (b.rt?.paused && r.activity.kind !== 'task' && !r.carry) release(state, r);
+    else if (b.rt?.paused && r.activity.kind !== 'task' && !r.carry) release(state, r, false, ctx);
+    // R1 (B): a business with nothing to do rests, and its hands go where work is.
+    else if (isResting(b) && r.activity.kind !== 'task' && !r.carry) release(state, r, false, ctx);
     // C4C: a worker who has grown old hands the job on (the schedule no longer sends elders to
     // work, so the job sat empty; a Village autoplay lost its only miller that way).
-    else if (!isWorkingAge(r) && r.activity.kind !== 'task' && !r.carry) release(state, r);
+    else if (!isWorkingAge(r) && r.activity.kind !== 'task' && !r.carry) release(state, r, false, ctx);
   }
   for (const b of state.buildings) {
     const rt = b.rt;

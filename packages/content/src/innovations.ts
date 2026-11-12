@@ -80,8 +80,8 @@ export const wheelbarrows: InnovationDef = {
   rank: 'village',
 };
 
-// --- I3 (C5.0). Stubs: conditions stay unreachable (rank 99) and `rank: 'town'` keeps them out of
-// the Village notebook until their owners write them (Barometer C5A, Seed Drill C5A).
+// --- I3 (C5.0). The Barometer and the Seed Drill have real conditions (C5A, R1B); both are in the
+// Village notebook.
 
 // C5A: a Watch House and a bell tower (the spec's "Town Hall upgrade", as the wave notes read it).
 export const barometer: InnovationDef = {

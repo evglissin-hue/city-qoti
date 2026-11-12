@@ -1,6 +1,7 @@
 import { MAP_SIZE } from '../constants';
 import type { DecorView, MapReader, WorldState } from '../contracts';
 import type { DecorGrid } from './decorGrid';
+import { findById } from '../state/entities';
 import { inBounds } from './layers';
 
 /** MapReader over the sim's own state. Out-of-bounds reads return 0. */
@@ -22,5 +23,15 @@ export function createStateReader(state: WorldState, grid: DecorGrid): MapReader
     // Parcels unlock with progression [I4]; every parcel is open until then.
     parcelUnlocked: (x, z) => inBounds(x, z, S),
     decorNear: (fx, fz, radius): DecorView[] => grid.near(fx, fz, radius),
+    occupantDef: (x, z) => {
+      const id = read(m.occupant, x, z);
+      return id ? findById(state.buildings, id)?.def : undefined;
+    },
+    get valleyGate() {
+      return state.meta.valleyGate;
+    },
+    get roadVersion() {
+      return state.networkVersion;
+    },
   };
 }

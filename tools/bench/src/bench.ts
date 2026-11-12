@@ -21,7 +21,7 @@ import { fileURLToPath } from 'node:url';
 import { residentsBench } from './residents';
 import { hearthBench } from './hearth';
 import { benchEconomy } from './economy';
-import { growthBench } from './growth';
+import { growthBench, growthNightBench } from './growth';
 import { benchMarket } from './market';
 import { carrierBench } from './carrier.bench';
 import { syntheticValley } from './synthetic';
@@ -153,6 +153,8 @@ lines.push(...economy.lines);
 failures.push(...economy.failures);
 // 7. Growth and traffic (C4B): zoning, the nightly growth pass and carts, at 150 and 2,000 residents.
 const growth = growthBench(lines, failures);
+// R1: the 01:00 growth pass at City scale, under 2 ms a night.
+growthNightBench(lines, failures);
 // 8. Market and money (C4A): the daily passes of a 150-resident village.
 const market = benchMarket();
 lines.push(...market.lines);

@@ -7,7 +7,7 @@ import { findById } from '../state/entities';
 import { isStandard } from '../state/hamlet';
 import { hasInnovation, rankAtLeast } from '../state/village';
 import { emitBuilding } from '../systems/economy/emit';
-import { businessView } from '../view/zones';
+import { businessView } from '../view/businesses';
 import type { HandlerFor } from './util';
 
 export const pinRecipe: HandlerFor<'build.pinRecipe'> = {

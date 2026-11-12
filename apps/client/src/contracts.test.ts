@@ -348,6 +348,10 @@ describe('I0 contracts', () => {
       | 'fertility'
       | 'parcelUnlocked'
       | 'decorNear'
+      // R1B: the valley road's gate and the roads' version (optional; caches key on it)
+      | 'valleyGate'
+      | 'roadVersion'
+      | 'occupantDef'
     >();
     expectTypeOf<keyof CommandHandler>().toEqualTypeOf<'type' | 'validate' | 'apply'>();
     expectTypeOf<keyof System>().toEqualTypeOf<'id' | 'order' | 'every' | 'offset' | 'tick'>();

@@ -1,7 +1,5 @@
-// What the town is short of, and how much it wants a method run (docs/spec/13-ledger.md, Zoning and
-// growth). The growth pass scores a lot's trades with methodScore (R1 stand-in (R1B): the trade score
-// replaces it); a craft whose inputs the valley has never seen waits, and farms weigh the soil too.
-import type { ProductionMethod } from '@qoti/content';
+// What the town is short of (docs/spec/13-ledger.md, Zoning and growth): per good, against three
+// days of what the town wants. The trade score's need term (./trades) reads it.
 import { content } from '@qoti/content';
 import { TARGET_COVER } from '../../constants';
 import type { WorldState } from '../../contracts';
@@ -39,45 +37,4 @@ export function wants(state: WorldState): number[] {
   const out = new Array<number>(n);
   for (let g = 0; g < n; g++) out[g] = Math.max(demand[g] ?? 0, used[g] ?? 0) + waiting[g]! / TARGET_COVER;
   return out;
-}
-
-/**
- * Shortages a new workshop should answer: only goods the town also makes less of in a day than it
- * wants, so one shortage does not grow a workshop every night while the last one finds its feet.
- */
-export function unmetShortages(state: WorldState, short: readonly number[]): number[] {
-  const want = wants(state);
-  const made = state.economy.yesterday.produced;
-  return short.map((s, g) => (s > 0 && (made[g] ?? 0) < want[g]! ? s : 0));
-}
-
-/** True when the town has the method's inputs, or at least makes them. */
-function canFeed(state: WorldState, method: ProductionMethod, stock: readonly number[]): boolean {
-  for (const [id] of method.inputs) {
-    const g = content.goodIndex.get(id);
-    if (g === undefined) return false;
-    if ((stock[g] ?? 0) <= 0 && (state.economy.everProduced[g] ?? 0) <= 0) return false;
-  }
-  return true;
-}
-
-/**
- * How much the town wants a method run now: the shortage of its outputs, 0 when it cannot be fed.
- * Farm methods are scaled by the soil (fertility 0 to 100 gives half to full weight).
- */
-export function methodScore(
-  state: WorldState,
-  method: ProductionMethod,
-  short: readonly number[],
-  stock: readonly number[],
-  fertility = 100,
-): number {
-  if (!canFeed(state, method, stock)) return 0;
-  let s = 0;
-  for (const [id] of method.outputs) {
-    const g = content.goodIndex.get(id);
-    if (g !== undefined) s += short[g] ?? 0;
-  }
-  if (method.kind === 'farm' || method.kind === 'plant') s = Math.floor((s * (50 + fertility / 2)) / 100);
-  return s;
 }

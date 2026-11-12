@@ -3,8 +3,9 @@
 // against the same town before the others land:
 //
 //   z=46..49  north of the lane: town hall, storehouse, three cottages, a granary, a baker's
-//             workshop (a business, trade 'baker') in the windmill's reach, the windmill, a
-//             Forester's Lodge and a market stall, all facing the lane
+//             workshop (a business, trade 'baker') in the windmill's reach, a Forester's Lodge and
+//             a market stall, all facing the lane; the windmill stands on open ground at (62, 42)
+//             by the path (R1B: it keeps its clearance)
 //   z=50      the lane from x 40 to 90; a path crosses it at x 61 from z 40 to 60
 //   z=52      the well, benches, lanterns and flowers south of the lane
 //
@@ -30,6 +31,7 @@ import { Road, treeValue, TREE_SPECIES } from '../../src/map/layers';
 import { findById } from '../../src/state/entities';
 import { goodsArray } from '../../src/state/hamlet';
 import { insertBuilding } from '../../src/state/place';
+import { emptyCounters } from '../../src/state/zones';
 import { worldIndex } from '../../src/state/worldIndex';
 import { doorTile } from '../../src/systems/movement/api';
 import { flatWorld, S } from '../helpers';
@@ -167,7 +169,8 @@ export function hamletFixture(): HamletFixture {
   const c2 = place(state, 'cottage', 56, 48);
   const c3 = place(state, 'cottage', 62, 48, 0, 1);
   const bakery = place(state, 'workshop', 65, 47, 0, 0, 'baker');
-  const windmill = place(state, 'windmill', 68, 48);
+  // R1B: on open ground north of the lane by the path, its clearance kept, the bakery in its reach.
+  const windmill = place(state, 'windmill', 62, 42);
   const sawpit = place(state, 'foresters-lodge', 71, 48);
   const stall = place(state, 'market-stall', 74, 48, 0, 1);
   const well = place(state, 'well', 57, 52);
@@ -224,6 +227,10 @@ export function hamletFixture(): HamletFixture {
     ['vegetables', 16],
     ['fish', 8],
   ]);
+
+  // R1B: the bakery's first hand keeps it (the family name on its sign); its counters start clean.
+  bakery.keeperId = bakery.rt!.workers[0] ?? 0;
+  bakery.counters = emptyCounters();
 
   state.networkVersion = 1;
   state.hearth.hints = content.patterns.slice(0, 3).map((p) => p.id);
