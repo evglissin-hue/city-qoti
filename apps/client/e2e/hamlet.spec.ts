@@ -16,6 +16,7 @@ test('New valley makes a standard valley; the books, reports and inspectors open
   await expect(page.getByTestId('treasury')).toContainText('500');
   await page.getByTestId('menu-open').click();
   await expect(page.getByTestId('population')).toBeVisible();
+  await page.getByTestId('menu-open').click();
 
   // Hearth books.
   for (const [book, panel] of [
