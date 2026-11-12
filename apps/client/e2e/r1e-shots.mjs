@@ -5,7 +5,7 @@
 // server (QOTI_CLIENT_PORT, default 5225):
 //   node apps/client/e2e/r1e-shots.mjs [outDir] [prefix]
 // Env: QOTI_CHROMIUM (default /opt/pw-browsers/chromium), QOTI_PLAIN=1 (the showcase as it was,
-// for a before count), QOTI_SHOTS=0 (counts only). Ends with the village view's perf table on Medium.
+// for a before count), QOTI_QUERY (more URL params; default season=summer&day=3), QOTI_SHOTS=0 (counts only). Ends with the village view's perf table on Medium.
 import { chromium } from '@playwright/test';
 
 const port = Number(process.env.QOTI_CLIENT_PORT ?? 5225);
@@ -19,7 +19,9 @@ const browser = await chromium.launch({
 const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
 page.on('pageerror', (e) => console.log('pageerror:', e.message));
 await page.route('**/api/**', (r) => r.abort());
-await page.goto(`http://localhost:${port}/?debug&fixture=village&clean&quality=medium&fixedres`);
+await page.goto(
+  `http://localhost:${port}/?debug&fixture=village&clean&quality=medium&fixedres&${process.env.QOTI_QUERY ?? 'season=summer&day=3'}`,
+);
 await page.waitForFunction(() => window.__qoti?.status() === 'live', null, { timeout: 240000 });
 for (const name of ['Done', 'Close', 'Later']) {
   const b = page.getByRole('button', { name, exact: true });
