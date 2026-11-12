@@ -21,8 +21,17 @@
   align-items: flex-start;
 }
 
-.ledger-picker .card.zone-card.stand-in {
-  width: 268px;
+.ledger-picker .card.zone-card.brush.stand-in {
+  display: flex;
+  gap: 7px;
+}
+
+/* The Market Stall stands in for the Shops brush at the same size as the other brushes. */
+.ledger-picker .card.zone-card.brush.stand-in .thumb,
+.ledger-picker .card.zone-card.brush.stand-in .thumb img {
+  flex: none;
+  width: 34px;
+  height: 34px;
 }
 
 .ledger-picker .card.zone-card.brush {

@@ -28,6 +28,9 @@ import { RANK_WORD, UNZONE, zoneInk, zoneOpen } from './village';
 import './picker.css';
 
 /** Words for the Shops card while the Shops zone is closed. */
+/** The card's own short line; the full words are its tooltip and the line under the picker. */
+export const SHOPS_CLOSED_SHORT = 'A Market Stall by hand until Village rank.';
+
 export const SHOPS_CLOSED_WORDS =
   'Shops zone open at Village rank. Until then a Market Stall, set by hand, sells Food and Treats.';
 
@@ -244,7 +247,7 @@ function BrushCard({
         <span class="card-text">
           <strong>{zone.name}</strong>
           <span class="brush-line" data-testid="shops-closed">
-            {SHOPS_CLOSED_WORDS}
+            {SHOPS_CLOSED_SHORT}
           </span>
           <CostLine
             coins={stall.cost?.coins}

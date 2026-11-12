@@ -281,7 +281,7 @@ describe('lens toolbars', () => {
     view = await mount(h(Toolbar, { session }));
     await view.click('tool-building');
     expect(view.find('variant-homes-medium')).toBeNull();
-    expect(view.get('shops-closed').textContent).toContain('Shops zone open at Village rank');
+    expect(view.get('shops-closed').textContent).toContain('Market Stall by hand until Village rank');
     expect(view.get('brush-shops').textContent).toContain('Market Stall');
     await view.click('brush-shops');
     expect(session.tools!.active.value).toBe('building');

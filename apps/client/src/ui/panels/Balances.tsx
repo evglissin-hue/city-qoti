@@ -245,7 +245,7 @@ function FamilyDetail({ session, line }: { session: Session; line: BalanceLine }
                   {fl.onOffer ? 'on offer' : 'not on offer'}
                 </span>
                 <span class="flavor-made small muted">
-                  {fl.made || by ? 'made here' : 'comes by carrier'}
+                  {fl.made || by ? 'made here' : 'not made here'}
                 </span>
               </button>
             </li>
