@@ -139,18 +139,18 @@ What drops the still-frame cache in V2, beyond V1's list:
 | What | Stand-in until the owner lands | Owner |
 |---|---|---|
 | The light map | `env.lightMap` (preset-sized `HalfFloat` target), cleared to black by `drawLightMap` on each redraw (no discs drawn), which bumps `env.lightMapRevision`; the ground's 32-light loop (`MAX_GROUND_LIGHTS`) is in charge; `layers/lights.ts` feeds `lanterns` and `windows` | V2A |
-| Light map readers | none; `lightMapUniforms(env)` and `LIGHT_MAP_GLSL` exist, so a reader bound now reads black | V2A (ground, walls, folk, water), V2B (trees), V2C (smoke) |
+| Light map readers | none; `lightMapUniforms(env)` and `LIGHT_MAP_GLSL` exist, so a reader bound now reads black. V2B's are bound (landed): the foliage material (`createFoliageMaterial` in `scatter.ts`: trees, bushes, hedgerows, ferns, reeds, lit from below, most low on the crown and on faces turned down, times `env.night`) and the meadow carpet (`layers/meadow.ts`, as the ground), both reading black until V2A draws the map | V2A (ground, walls, folk, water), V2B (trees, carpet), V2C (smoke) |
 | A static change without a shadow render | none: every static change re-renders the shadow map at rest | V2A |
 | Rooms behind windows | eight flat layers at `ROOM_LAYER` (25 to 32); glass draws as today; Low keeps the flat glow for good (`17-presentation.md`, Quality presets) | V2A |
 | Era lamp colors | every disc and flame `0xffb366` and the material's `GLOW` | V2A |
 | V2 surfaces | ids 20 to 24 in `SURFACE` and `SURFACES` (strength 0, flat layers), drawn flat; `SURFACES[19]` is `undefined` (the noise layer's slot); the gallery leaves them out (`SURFACE_ORDER` stops below `NOISE_LAYER`) | V2C (ids, rows, generators, gallery), V2A (residents' material) |
-| The dab kit | `brushDabs` writes nothing and returns 0; no kit calls it | V2B |
-| Meadow carpet and drifts | none: the tufts (`meadowTuft`) and the ground's painted flowers as today | V2B |
+| The dab kit | landed (V2B): `brushDabs` lays the dabs (options `lift` and `stretch` appended, `dabTint` exported); near oak, birch, pine, hedgerow, bush, reeds, the fruit trees, the hedge decor, `ivyPart`, `hedgeRun` and `reedBed` call it | V2B |
+| Meadow carpet and drifts | landed (V2B): the carpet (`layers/meadow.ts`, Medium and up; Low keeps the tufts, which Medium and up no longer place on grass and meadow) and the drift mask (`drifts.ts`), shared by the instanced wildflowers and the ground's painted dots | V2B |
 | Wall occlusion | `groundAoFor(env)` offered, not bound in the kit material | V2C |
 | Ribbon smoke | the puffs (`layers/effects.ts`) | V2C |
 | Bubbles | built (`setBubbles` on `RenderApi`), nothing calls it | V2C |
 | Decor far levels | the fruit trees only; small props shrink away at the decor distance | V2C |
-| Preset rows (`17-presentation.md`) | light map texels in `LIGHT_MAP_TEXELS` (2, 4, 6, 8); no rooms or meadow field in `QualityPreset` yet | V2A (rooms, water reflection off on Low), V2B (meadow carpet within: none, 30, 45, 60) |
+| Preset rows (`17-presentation.md`) | light map texels in `LIGHT_MAP_TEXELS` (2, 4, 6, 8); no rooms field in `QualityPreset` yet. V2B's landed: `QualityPreset.meadowCarpet` (0, 30, 45, 60) and `WorldEnv.meadowCarpet` | V2A (rooms, water reflection off on Low), V2B (meadow carpet within: none, 30, 45, 60) |
 | The grown village | `?debug&fixture=grown`, the V2.0 snapshot (version 5) | V2.0 (done); R1X regrows it |
 | Both laptops' before tables | `docs/playtests/V1.md`, Measuring the laptops (V2.0) | the owner and Kat |
 
