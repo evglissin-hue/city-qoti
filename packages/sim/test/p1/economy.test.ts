@@ -160,11 +160,10 @@ describe('the carrier as an importer', () => {
     insertBuilding(f.state, null, d, 90, 90, 0, 0, { site: true });
     return f;
   }
-  const carried = (s: WorldState) => {
+  const carried = (s: WorldState, side: 'bought' | 'sold' = 'bought') => {
     const last = s.carrier.bought.length - 1;
     let n = 0;
-    for (let g = 0; g < content.goods.length; g++)
-      n += s.carrier.bought[last]![g]! + s.carrier.sold[last]![g]!;
+    for (let g = 0; g < content.goods.length; g++) n += s.carrier[side][last]![g]!;
     return n;
   };
 
@@ -182,13 +181,15 @@ describe('the carrier as an importer', () => {
     expectMoneyInvariant(before, f.state);
   });
 
-  it('carries at most 20 units a day, in and out together', () => {
+  // R1X: the cart carries its load each way, so a day's buying never leaves nothing to sell.
+  it('carries at most 20 units in a day, and at most 20 out', () => {
     const f = stoneShort();
     run(f.state, { t: 'carrier.setBudget', coins: 1000 });
     run(f.state, { t: 'carrier.setRule', family: 'materials', rule: 'always', sell: false });
     run(f.state, { t: 'carrier.setReserve', family: 'materials', reserve: 200 });
     untilHour(f.state, 11);
     expect(carried(f.state)).toBe(PEDDLER_TERMS.units);
+    expect(carried(f.state, 'sold')).toBeLessThanOrEqual(PEDDLER_TERMS.units);
   });
 
   it('buys nothing a neighbor does not sell', () => {

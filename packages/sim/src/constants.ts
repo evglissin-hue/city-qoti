@@ -349,8 +349,10 @@ export const CARRIER_DEFAULTS: readonly {
   { hamlet: 'always', village: 'always', reserve: 3, sell: true },
   { hamlet: 'always', village: 'always', reserve: 3, sell: false },
   { hamlet: 'essentials', village: 'essentials', reserve: 20, sell: false },
-  { hamlet: 'never', village: 'always', reserve: 1, sell: true },
-  { hamlet: 'never', village: 'always', reserve: 1, sell: true },
+  // R1X: Essentials in a Hamlet (never Wares or Treats themselves, only a maker's raw good), so the
+  // first workshop's surplus sells: on Never a hamlet's cider piled up unsold while it went broke.
+  { hamlet: 'essentials', village: 'always', reserve: 1, sell: true },
+  { hamlet: 'essentials', village: 'always', reserve: 1, sell: true },
 ];
 /** The most a family's reserve may be set to, in GOOD_FAMILIES order (days; Materials: units). */
 export const CARRIER_RESERVE_MAX = [30, 30, 500, 10, 10] as const;
