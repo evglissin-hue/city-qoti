@@ -189,6 +189,14 @@ export class FillRule {
   private lastZ = NaN;
   private idle = 0;
 
+  /** Whether the last fill was a moving one, with the margin round the reach. */
+  wide = false;
+
+  /** True once the focus has held still for REST_FRAMES frames. */
+  get resting(): boolean {
+    return this.idle >= REST_FRAMES;
+  }
+
   /** Call once a frame with the focus; true when a refill is due. */
   due(fx: number, fz: number, reach: number): boolean {
     if (Math.abs(fx - this.lastX) > 0.01 || Math.abs(fz - this.lastZ) > 0.01 || Number.isNaN(this.lastX)) {
@@ -199,13 +207,20 @@ export class FillRule {
     if (reach <= 0) return false;
     if (reach !== this.reach || Number.isNaN(this.centerX)) return true;
     const d = Math.hypot(fx - this.centerX, fz - this.centerZ);
-    return this.idle < REST_FRAMES ? d > reach / 4 : d > 1;
+    // At rest the fill trims to the reach itself (the margin's ring is all faded blades).
+    return this.idle < REST_FRAMES ? d > reach / 4 : d > 1 || this.wide;
   }
 
   filled(fx: number, fz: number, reach: number): void {
     this.centerX = fx;
     this.centerZ = fz;
     this.reach = reach;
+    this.wide = !this.resting;
+  }
+
+  /** The radius a fill now takes: the reach at rest, with the moving margin otherwise. */
+  radius(reach: number): number {
+    return this.resting ? reach : reach * FILL_MARGIN;
   }
 
   /** Forgets the fill (the carpet was hidden): the next visible frame refills. */
@@ -601,7 +616,7 @@ export function meadowLayer(): RenderLayer {
 
   function doFill(fx: number, fz: number, reach: number): void {
     if (!geometry) return;
-    const F = reach * FILL_MARGIN;
+    const F = rule.radius(reach);
     let n = buffer ? selectFill(chunks, fx, fz, F, buffer.array as Float32Array) : -1;
     if (n < 0) {
       // Count first, then grow to the next power of two.

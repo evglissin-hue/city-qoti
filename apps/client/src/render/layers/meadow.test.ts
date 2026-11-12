@@ -170,6 +170,22 @@ describe('when the carpet refills', () => {
     for (let f = 0; f < 30; f++) expect(r.due(55.6, 50, 40)).toBe(false);
   });
 
+  it('trims a moving fill to the reach once the view rests, then stays quiet', () => {
+    const r = new FillRule();
+    r.due(50, 50, 40);
+    expect(r.radius(40)).toBe(40 * FILL_MARGIN);
+    r.filled(50, 50, 40);
+    expect(r.wide).toBe(true);
+    let due = false;
+    for (let f = 0; f < REST_FRAMES - 1; f++) due = r.due(50, 50, 40) || due;
+    expect(due).toBe(false);
+    expect(r.due(50, 50, 40)).toBe(true);
+    expect(r.radius(40)).toBe(40);
+    r.filled(50, 50, 40);
+    expect(r.wide).toBe(false);
+    for (let f = 0; f < 30; f++) expect(r.due(50, 50, 40)).toBe(false);
+  });
+
   it('keeps the focus inside the filled margin between refills', () => {
     // A moving view refills at reach / 4 drift, and the fill reaches FILL_MARGIN times the reach.
     expect((FILL_MARGIN - 1) * 40).toBeGreaterThanOrEqual(40 / 4);
