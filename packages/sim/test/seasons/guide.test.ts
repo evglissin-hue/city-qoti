@@ -65,7 +65,8 @@ function stockFood(s: WorldState): void {
   const store = s.buildings.find(
     (b) => b.rt && content.buildingById.get(b.def)?.tags?.includes('storehouse'),
   )!;
-  store.rt!.store[content.goodIndex.get('fish')!] += 10 * s.residents.length;
+  const fish = content.goodIndex.get('fish')!;
+  store.rt!.store[fish] = (store.rt!.store[fish] ?? 0) + 10 * s.residents.length;
 }
 
 /** The hamlet fixture with the guide open (two seats, standard, at 06:00 on day 1). */
