@@ -7,7 +7,7 @@
 import { content } from '@qoti/content';
 import { MAP_SIZE } from '../../constants';
 import type { Building, EntityId, WorldState } from '../../contracts';
-import { footprintTiles } from '../../rules/footprint';
+import { entranceTiles, footprintTiles } from '../../rules/footprint';
 import { findById } from '../../state/entities';
 import { hasTag } from '../../state/zones';
 import { doorTile } from '../movement/api';
@@ -212,6 +212,52 @@ export function reachDistances(state: WorldState, b: Building): ReadonlyMap<numb
     }
   }
   return g.map;
+}
+
+/**
+ * The road tiles (tile index to steps along roads) a specialized building of this kind would reach
+ * standing at x, z: the same walk the sim does (from the door front, with the short hop to the first
+ * road), for any road reader, so the client can draw the ghost's reach before anything is built.
+ * Empty for a def with no reach. Not cached: call it when the building or the roads change.
+ */
+export function reachRoadTiles(
+  road: (x: number, z: number) => boolean,
+  at: { def: string; x: number; z: number; rot: number },
+): Map<number, number> {
+  const out = new Map<number, number>();
+  const def = content.buildingById.get(at.def);
+  const reach = def ? (def.reach ?? (def.specialized && (def.enables?.length || def.stores?.length) ? DEFAULT_REACH : 0)) : 0;
+  if (!def || reach <= 0) return out;
+  const { front } = entranceTiles(def, at.x, at.z, at.rot as 0 | 1 | 2 | 3);
+  const [fx, fz] = front;
+  let frontier: number[] = [];
+  for (let dz = -HOP; dz <= HOP; dz++) {
+    for (let dx = -HOP + Math.abs(dz); dx <= HOP - Math.abs(dz); dx++) {
+      const x = fx + dx;
+      const z = fz + dz;
+      if (x < 0 || z < 0 || x >= S || z >= S || !road(x, z)) continue;
+      const gap = Math.abs(dx) + Math.abs(dz);
+      if (gap > reach) continue;
+      const i = z * S + x;
+      const old = out.get(i);
+      if (old === undefined || gap < old) out.set(i, gap);
+    }
+  }
+  // Breadth-first by steps, so the first time a tile is reached is its shortest.
+  for (let d = 0; d <= reach; d++) {
+    frontier = [...out].filter(([, v]) => v === d).map(([k]) => k);
+    if (d === reach) break;
+    for (const i of frontier) {
+      const x = i % S;
+      const z = (i - x) / S;
+      for (const [nx, nz] of [[x + 1, z], [x - 1, z], [x, z + 1], [x, z - 1]] as const) {
+        if (nx < 0 || nz < 0 || nx >= S || nz >= S || !road(nx, nz)) continue;
+        const j = nz * S + nx;
+        if (!out.has(j)) out.set(j, d + 1);
+      }
+    }
+  }
+  return out;
 }
 
 /**
