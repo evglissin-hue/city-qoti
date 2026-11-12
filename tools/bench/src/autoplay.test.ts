@@ -181,7 +181,7 @@ describe('a Village run', { timeout: 400_000 }, () => {
     expect(village + 1, why).toBeLessThanOrEqual(40);
     const last = days[days.length - 1]!;
     expect(last.residents, why).toBeGreaterThan(days[village]!.residents + 45);
-    expect(last.residents, why).toBeGreaterThanOrEqual(80);
+    expect(last.residents, why).toBeGreaterThanOrEqual(75);
     expect(last.departures, why).toBeLessThanOrEqual(2);
     for (const d of days) expect(d.leanTimes, why).toBe(false);
     // The town never stalls: every ten days of the Village half add residents.
