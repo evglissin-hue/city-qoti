@@ -32,6 +32,8 @@ export function demandWhy(r: DemandReason): string {
       return 'A lot is free and waiting: growth is on its way.';
     case 'marketStall':
       return 'Shops open with the Village charter. Until then, a Market Stall does the job.';
+    case 'hands':
+      return 'Businesses already stand empty for want of hands. Newcomers first, then more of them.';
   }
 }
 

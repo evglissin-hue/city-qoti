@@ -2,7 +2,7 @@
 // reach goes (demolished) or changes to a trade it does not enable, not only when one comes.
 import { content } from '@qoti/content';
 import { describe, expect, it } from 'vitest';
-import type { Building, GameEvent, WorldState } from '../../src/contracts';
+import type { Building, SimEvent, WorldState } from '../../src/contracts';
 import { Road } from '../../src/map/layers';
 import { insertBuilding } from '../../src/state/place';
 import { served } from '../../src/systems/specialized/api';
@@ -29,7 +29,7 @@ function town(): { s: WorldState; mill: Building; a: Building; b: Building } {
   return { s, mill, a, b };
 }
 
-function millUpdates(events: readonly GameEvent[], id: number) {
+function millUpdates(events: readonly SimEvent[], id: number) {
   return events
     .filter((e) => e.e === 'business.updated' && e.b.id === id)
     .map((e) => (e as never as { b: { served?: { count: number } } }).b);

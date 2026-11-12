@@ -50,6 +50,8 @@ export interface BarInputs {
   empty: readonly Lot[];
   /** True when porters reach the lot's frontage (asked lazily, so a bar stops at the first). */
   porters: (lot: Lot) => boolean;
+  /** R1X: businesses stand with nobody at work, so new ones wait for hands (see handsShort). */
+  handsShort?: boolean;
 }
 
 /** True when the lot is still free, of one of the zones, and porters reach it. */
@@ -96,6 +98,8 @@ interface Bar {
   waiting: boolean;
   /** The bar can be answered with zoned land at all (Shops before Village: a stall instead). */
   zoned: boolean;
+  /** R1X: quiet because businesses wait for hands (its last reason says so). */
+  hands?: boolean;
 }
 
 function homesBar(_state: WorldState, x: BarInputs): Bar {
@@ -196,7 +200,18 @@ function farmlandBar(_state: WorldState, x: BarInputs): Bar {
 
 /** The bars in DEMAND_KINDS order. */
 export function computeBars(state: WorldState, x: BarInputs): Bar[] {
-  return [homesBar(state, x), shopsBar(state, x), workshopsBar(state, x), farmlandBar(state, x)];
+  const bars = [homesBar(state, x), shopsBar(state, x), workshopsBar(state, x), farmlandBar(state, x)];
+  // R1X: while businesses stand empty for want of hands, the business bars stay quiet and say so;
+  // land would not help, newcomers would (the Homes bar asks for them).
+  if (x.handsShort) {
+    for (const bar of bars.slice(1)) {
+      if (bar.value <= 0 || !bar.zoned) continue;
+      bar.waiting = true;
+      bar.hands = true;
+      bar.reasons = [...bar.reasons.slice(0, 2), { code: 'hands' }];
+    }
+  }
+  return bars;
 }
 
 /** Writes the bars to state.demand and sends demand.updated (when there is a ctx). */
@@ -207,7 +222,7 @@ export function writeBars(state: WorldState, ctx: TickCtx | null, bars: readonly
     const wanted = bar.value > 0;
     const lit = wanted && !bar.waiting;
     const reasons = bar.reasons.slice(0, bar.zoned ? 2 : 3);
-    if (wanted && bar.zoned) reasons.push({ code: lit ? 'needsLand' : 'lotWaiting' });
+    if (wanted && bar.zoned && !bar.hands) reasons.push({ code: lit ? 'needsLand' : 'lotWaiting' });
     d.bars[i] = bar.value;
     d.lit[i] = lit;
     d.reasons[i] = reasons.slice(0, 3);

@@ -118,7 +118,12 @@ export type DemandReasonCode =
    * R1B: Shops before Village rank, when the Shops zone is closed: a Market Stall placed by hand is
    * how to answer the bar (docs/build/cycle-r1b-land-businesses.md, design note b).
    */
-  | 'marketStall';
+  | 'marketStall'
+  /**
+   * R1X: Workshops, Farmland or Shops: businesses already stand built with nobody at work, so new
+   * ones wait for newcomers to fill them (the bar is quiet; Homes come first).
+   */
+  | 'hands';
 
 export interface DemandReason {
   code: DemandReasonCode;

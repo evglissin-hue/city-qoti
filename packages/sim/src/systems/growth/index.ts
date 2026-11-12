@@ -32,7 +32,7 @@ import { dailyOffset } from '../economy/time';
 import { doorTile } from '../movement/api';
 import { fieldCap, fieldsOf, fieldTileProblem, isFarm, paintFields } from '../production/fields';
 import { porterIndex, porterServed, type Reach } from '../logistics/range';
-import { openJobCount } from '../residents/jobs';
+import { openJobCount, openJobs } from '../residents/jobs';
 import { attractiveness } from '../residents/lifecycle';
 import { foodIndexes, pantryFood } from '../residents/needs';
 import { vacantHomes } from '../residents/places';
@@ -60,6 +60,12 @@ const S = MAP_SIZE;
 
 /** Grown sites going up at once, and new ones a day. */
 export const GROWTH_MAX_SITES = 3;
+/**
+ * R1X: businesses standing built with nobody at work (not resting) at which no new business is
+ * started. On oak a hamlet of 19 grew 22 businesses, most of them empty, each a coin a day of upkeep,
+ * while the homes that would bring hands waited; now growth asks for newcomers first.
+ */
+export const HANDS_WAITING = 2;
 export const GROWTH_PER_DAY = 2;
 /**
  * Percent of a grown site's materials that must lie free in the storehouses (beyond what other
@@ -156,6 +162,8 @@ interface Night {
   shops: TradeDef[];
   /** Homes wanted beyond those waiting. */
   homes: number;
+  /** R1X: HANDS_WAITING or more businesses stand with nobody at work: no new business tonight. */
+  handsShort: boolean;
   /** Trades with a business going up, and businesses of each trade in town. */
   goingUp: Set<string>;
   counts: Map<string, number>;
@@ -192,6 +200,16 @@ function countTrades(state: WorldState, night: Pick<Night, 'goingUp' | 'counts'>
   }
 }
 
+/** Built businesses with nobody at work that are not resting (waiting for their first hands). */
+export function businessesWaitingHands(state: WorldState): number {
+  let n = 0;
+  for (const b of state.buildings) {
+    if (!b.trade || b.stage !== 'built' || !b.rt || b.rt.paused) continue;
+    if (b.rt.workers.length === 0 && openJobs(b) > 0) n++;
+  }
+  return n;
+}
+
 function readNight(state: WorldState): Night {
   const services = servicesOf(state);
   const village = rankAtLeast(state, 'village');
@@ -207,6 +225,7 @@ function readNight(state: WorldState): Night {
     farms: tradesOf(state, 'farms'),
     shops: tradesOf(state, 'shops'),
     homes: 0,
+    handsShort: businessesWaitingHands(state) >= HANDS_WAITING,
     goingUp: new Set(),
     counts: new Map(),
     crowded,
@@ -263,8 +282,10 @@ function demandOf(state: WorldState, night: Night): GrowthDemand {
     }
     if (night.crowded) shops = 1;
   }
-  const crafts = pulls(state, night.crafts, night) ? 1 : 0;
-  const farms = pulls(state, night.farms, night) ? 1 : 0;
+  // R1X: while businesses wait for hands, no new one starts (homes bring the hands first).
+  if (night.handsShort) shops = 0;
+  const crafts = !night.handsShort && pulls(state, night.crafts, night) ? 1 : 0;
+  const farms = !night.handsShort && pulls(state, night.farms, night) ? 1 : 0;
   return {
     homes: night.homes,
     shops: Math.max(0, shops - grownSites(state, [Zone.shops])),
@@ -532,6 +553,7 @@ export function writeDemand(state: WorldState, ctx: TickCtx | null, night: Night
     goingUp: night.goingUp,
     empty: night.empty,
     porters: memoByLot((l) => night.porters(l.frontage)),
+    handsShort: night.handsShort,
   };
   writeBars(state, ctx, computeBars(state, inputs));
 }
