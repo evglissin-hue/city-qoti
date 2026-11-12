@@ -424,9 +424,7 @@ export function Title({
                         <button
                           type="button"
                           data-testid={`old-save-${v.valleyId}`}
-                          onClick={() =>
-                            void saveOldSoloFile(v).catch(() => setError(copy.title.oldValley))
-                          }
+                          onClick={() => void saveOldSoloFile(v).catch(() => setError(copy.title.oldValley))}
                         >
                           {copy.title.saveItsFile}
                         </button>

@@ -5,6 +5,7 @@ import { content } from '@qoti/content';
 import { TICKS_PER_DAY, type Command } from '@qoti/sim';
 import { h } from 'preact';
 import { afterEach, describe, expect, it } from 'vitest';
+import { sketchWith } from '../plans';
 import { mockCharter, mockLetters, mockLoans, villageIds } from '../mocks/village';
 import { mockVillageSession } from '../mocks/session';
 import { mount, settle, typeInto, type Mounted } from '../test/dom';
@@ -253,6 +254,41 @@ describe('plans', () => {
       items: [{ cmd: { t: 'build.place', def: 'windmill', x: 50, z: 52, rot: 0 } }],
     });
     expect(session.ui.sketch.value).toBeNull();
+  });
+});
+
+describe('editing a plan in place', () => {
+  it('brings the items back as ghosts, takes one out, adds one, and saves with plan.edit', async () => {
+    const { session, submitted } = mockVillageSession();
+    view = await mount(h(PlansPanel, { session }));
+    const plan = session.mirror.plans.get(villageIds.plan)!;
+    const first = plan.items.length;
+    expect(first).toBeGreaterThan(0);
+    await view.click(`plan-edit-${villageIds.plan}`);
+    expect(session.ui.sketch.value?.basedOn).toBe(villageIds.plan);
+    expect(session.ui.sketch.value?.items).toEqual(plan.items.map((i) => ({ cmd: i.cmd })));
+    await view.click('edit-remove-0');
+    expect(session.ui.sketch.value?.items).toHaveLength(first - 1);
+    const added: Command = { t: 'decor.place', def: 'bench', fx: 3000, fz: 3000, rot: 0 };
+    session.ui.sketch.value = sketchWith(session.ui.sketch.value, added);
+    await settle();
+    expect(session.ui.sketch.value?.items.at(-1)).toEqual({ cmd: added });
+    await view.click('edit-save');
+    const sent = last(submitted, 'plan.edit')!;
+    expect(sent.id).toBe(villageIds.plan);
+    expect(sent.items).toHaveLength(first);
+    expect(sent.items.at(-1)).toEqual({ cmd: added });
+    expect(session.ui.sketch.value).toBeNull();
+  });
+
+  it('Cancel leaves the plan as it was and sends nothing', async () => {
+    const { session, submitted } = mockVillageSession();
+    view = await mount(h(PlansPanel, { session }));
+    await view.click(`plan-edit-${villageIds.plan}`);
+    await view.click('edit-remove-0');
+    await view.click('edit-cancel');
+    expect(session.ui.sketch.value).toBeNull();
+    expect(last(submitted, 'plan.edit')).toBeUndefined();
   });
 });
 

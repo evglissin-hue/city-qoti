@@ -4,7 +4,14 @@
 // of its own simVersion, with nobody connected yet.
 import type { ImportedSnapshot } from '@qoti/protocol';
 import { copy } from '../ui/copy';
-import { bytesToBase64, deserialize, isOldValley, serialize, SIM_VERSION, type ValleySettings } from '@qoti/sim';
+import {
+  bytesToBase64,
+  deserialize,
+  isOldValley,
+  serialize,
+  SIM_VERSION,
+  type ValleySettings,
+} from '@qoti/sim';
 
 export const VALLEY_FILE_EXT = '.qoti';
 
