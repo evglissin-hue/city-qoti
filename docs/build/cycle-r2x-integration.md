@@ -46,5 +46,5 @@ New design (R3 and later); V3's look work beyond merging it and wiring the two i
 - `SAVE_VERSION` is 7 on this branch (R2.0); if a wave cycle bumped it, keep one version for the merge and say so.
 - Keep a list of what each cycle's PR left for you, and close it before the merge.
 - If R1's tuning moved a number this wave reads (the tiers, the baskets), say so in the PR (check against R1X's As built).
-- R1X left open, for this cycle's tuning: Villages still owe 414 to 2,478 coins at day 70 (lean days 0 to 14 by seed); the first Craftsfolk by day 40 on willow only, and a third of households by day 70 on no seed (best 32%, hazel); the lanes test above. R1X's table, with every seed, is in `13-ledger.md` (What holds) and the R1X PR.
+- R1X left open, for this cycle's tuning: Villages still owe 1,200 to 2,694 coins at day 70 (with no lean days); the first Craftsfolk by day 40 on hazel only, and a third of households by day 70 on no seed (best 14%, willow: towns grow fast and fill with Settlers); the lanes test above. R1X's table, with every seed, is in `13-ledger.md` (What holds) and the R1X PR.
 - The growth pass waits for hands (demand reason `hands`: no new business while two stand empty); shops opened by footfall go through the same gate.
