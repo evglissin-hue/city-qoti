@@ -230,6 +230,18 @@ Observations from building the stand-ins and fixing the tests; each names the cy
 - **The Market Hall** (R1E): Odette's finale unlocks `market-hall` into `hearth.unlocked`; no def carries it. The roof over the square is art's to draw from that unlock (or a later def).
 - **Move** (R1C, R1E): a moved building goes back to a construction site for a third of its work with no materials; households and workers keep their places while it is raised. `readerWithout` (`rules/without.ts`) is the shared check for any ghost that must leave a piece out.
 
+## Found in R1X, for R2 and after
+
+What merging and tuning the wave taught (the rules as built are in `13-ledger.md`, the As built (R1X) notes):
+
+- **The household loop nets the treasury nothing.** Wages, taxes, upkeep in a Village and sales all move coins between the treasury and the purses, so a Village grows only on what crosses the valley's edge: exports, grants, commissions, visitors, the dock. R1X gave the cart a load each way and let it collect surplus at makers' doors; a Village still runs on the County Bank for its first seasons (1,400 to 2,900 owed at day 70 on the seeds). R2's evening trade (Treats on the round, visitors) is where a Village's own surplus should grow.
+- **The tax lever only takes savings back.** In a closed loop, raising the income tax moves coins from purses to the treasury and costs the shops what households no longer buy; the autoplayer had pushed it to 30% in debt and no household could save for Craftsfolk. The autoplayer now stops at 16%.
+- **Growth must wait for hands.** Businesses grew faster than residents came (22 for 19 residents on oak); `HANDS_WAITING` holds new businesses while two stand empty, and the Homes bar asks for the newcomers. The demand reason `hands` is new (additive).
+- **Craftsfolk at day 70 fall short of a third** on every seed (the best day reaches 10 to 19%); the first comes by day 33 on most seeds. What holds them back in the last weeks: charm 25 at the door (the Hearth's lane, by design until R2's evenings replace it), a tavern and herbalist in reach (the advisor builds them on credit now, one site of each at a time), 12 coins put by, and one Wares flavor (no weaver without a sheep run, no carpenter before the Water Wheel, so the chandler's candles carry Wares). Winter slides them back when Treats run out (cider makers rest). R2 replaces the tavern and charm gates with evenings of 50; tune the share again then.
+- **Variance between runs is large.** A small change early (a lane laid a day later) moves the Village charter by ten or twenty days on the same seed; read the targets over several seeds and runs, never one.
+- **The lanes test** (recorded, R2 enforces): with the Hearth's advisors off, three of four seeds grow to 199 to 247% of the residents of the town played by both, with no Craftsfolk; with the Ledger's off, 19 to 35%. The Hearth makes Craftsfolk, not residents: R2's evening round is where it must start to matter for growth.
+- **The grown village fixture** (V2.0's `?debug&fixture=grown`) waits for V2's wave to reach `main`; regrow it with V2.0's script once both are merged.
+
 ## Calls that proved wrong in the code, and what R1.0 did
 
 - **Rule 2 and services.** The tavern pours cider and the Bath House burns firewood: a service uses a good up and makes nothing. The rule-2 content test checks every trade and every method that makes something; services that only use a good up are outside it. Accepted by the master: `13-ledger.md`, rule 2, now reads "A made good is never an input to making something" and says a service may use a made good up.
