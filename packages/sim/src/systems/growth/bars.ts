@@ -52,6 +52,8 @@ export interface BarInputs {
   porters: (lot: Lot) => boolean;
   /** R1X: businesses stand with nobody at work, so new ones wait for hands (see handsShort). */
   handsShort?: boolean;
+  /** Outlets in town (outletCount), when the caller has counted them tonight. */
+  outlets?: number;
 }
 
 /** True when the lot is still free, of one of the zones, and porters reach it. */
@@ -63,8 +65,11 @@ function freeFor(x: BarInputs, l: Lot, zones: readonly number[]): boolean {
 export function craftPull(state: WorldState, t: TradeDef, n: TownNeeds, cache: SiteCache): number {
   if (t.wants.reach !== undefined && !anyRoom(cache, t.wants.reach)) return 0;
   const { need } = needOf(state, t, n);
+  const base = Math.floor((need * supplyOf(state, t, n)) / NEED_FULL);
+  // No pull whatever the keeper: nobody is asked who is keen (a walk of the residents).
+  if (base <= 0) return 0;
   const keeper = n.keen.has(t.id) ? KEEPER_KEEN : KEEPER_PLAIN;
-  return Math.floor((Math.floor((need * supplyOf(state, t, n)) / NEED_FULL) * keeper) / 100);
+  return Math.floor((base * keeper) / 100);
 }
 
 /** True when a business of `trade` is going up already (one answer to a need at a time). */
@@ -111,7 +116,7 @@ function homesBar(_state: WorldState, x: BarInputs): Bar {
 function shopsBar(state: WorldState, x: BarInputs): Bar {
   const households = state.households.length;
   const unserved = x.doors.length;
-  const outlets = outletCount(state);
+  const outlets = x.outlets ?? outletCount(state);
   const over = households - HOUSEHOLDS_PER_SHOP * outlets;
   const crowded = Math.floor(households / HOUSEHOLDS_PER_SHOP) > outlets;
   const reasons: DemandReason[] = [];

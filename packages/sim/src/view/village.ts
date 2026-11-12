@@ -42,7 +42,8 @@ import { findById } from '../state/entities';
 import { calendar } from '../systems/clock/calendar';
 import { dayIndex } from '../systems/economy/time';
 import { marketOpen } from '../systems/market/api';
-import { carrierBuyPrice, carrierSellPrice, termsFor, tradingPost } from '../systems/carrier/terms';
+import { termsFor, tradingPost } from '../systems/carrier/terms';
+import { renownEffect } from '../systems/renown/api';
 import { basketGroups } from '../systems/market/baskets';
 import { targetPrice } from '../systems/market/prices';
 import { profitReport } from '../systems/market/profit';
@@ -220,13 +221,46 @@ export function regionalPrice(state: WorldState, neighbor: string, good: number)
   const id = g.id;
   const factor = def.sells.find(([x]) => x === id)?.[1] ?? def.buys.find(([x]) => x === id)?.[1] ?? null;
   if (factor === null) return null;
-  const season = calendar(state.tick).season;
+  return priceWith(def, n, g.basePrice, id, factor, good, calendar(state.tick).season);
+}
+
+/** The regional price for a good the neighbor trades, in a given season (regionalPrice's formula). */
+function priceWith(
+  def: { seasonal?: readonly (readonly [string, number, number])[] },
+  n: { drift: readonly number[]; impact: readonly number[] },
+  basePrice: number,
+  id: string,
+  factor: number,
+  good: number,
+  season: number,
+): number {
   let seasonal = 100;
   for (const [x, s, p] of def.seasonal ?? []) if (x === id && s === season) seasonal = p;
   const drift = n.drift[good] ?? 1000;
   const impact = n.impact[good] ?? 1000;
   // Integer math (exact below 2^53), so the sim can use it too: base x factor% x season% x drift‰ x impact‰.
-  return Math.max(1, Math.round((g.basePrice * factor * seasonal * drift * impact) / 1e10));
+  return Math.max(1, Math.round((basePrice * factor * seasonal * drift * impact) / 1e10));
+}
+
+/** Each neighbor's traded goods by id (sorted), with their index: content is fixed, so worked out once. */
+const NEIGHBOR_GOODS = new Map<
+  string,
+  { good: string; i: number; sells: number | undefined; buys: number | undefined }[]
+>();
+
+function neighborGoods(n: (typeof content.neighbors)[number]) {
+  let list = NEIGHBOR_GOODS.get(n.id);
+  if (!list) {
+    const goods = new Set([...n.sells.map(([g]) => g), ...n.buys.map(([g]) => g)]);
+    list = [...goods].sort().map((good) => ({
+      good,
+      i: content.goodIndex.get(good)!,
+      sells: n.sells.find(([g]) => g === good)?.[1],
+      buys: n.buys.find(([g]) => g === good)?.[1],
+    }));
+    NEIGHBOR_GOODS.set(n.id, list);
+  }
+  return list;
 }
 
 export function tradeView(state: WorldState, known?: { post: Building | null }): TradeView {
@@ -235,21 +269,32 @@ export function tradeView(state: WorldState, known?: { post: Building | null }):
   const post = known ? known.post : tradingPost(state);
   // The carrier's terms today (the peddler's, or the post's), with renown's (systems/carrier/terms.ts).
   const terms = termsFor(state, !!post);
+  const season = calendar(state.tick).season;
+  const renown = renownEffect(state, 'trade');
   return {
     neighbors: content.neighbors
       .filter((n) => !n.rank || RANKS.indexOf(state.charter.rank) >= RANKS.indexOf(n.rank))
       .map((n) => {
-        const goods = new Set([...n.sells.map(([g]) => g), ...n.buys.map(([g]) => g)]);
+        // The neighbor's standing in the valley: no standing, no price (as regionalPrice has it).
+        const ns = state.trade.neighbors.find((x) => x.id === n.id);
         return {
           id: n.id,
           name: n.name,
           blurb: n.blurb,
-          prices: [...goods].sort().map((good) => {
-            const i = content.goodIndex.get(good)!;
+          prices: neighborGoods(n).map(({ good, i, sells, buys }) => {
+            const g = content.goods[i]!;
+            // carrierBuyPrice (what the carrier pays, where the neighbor sells) and carrierSellPrice, with one season and one renown read.
+            const p = ns ? priceWith(n, ns, g.basePrice, good, (sells ?? buys)!, i, season) : null;
             return {
               good,
-              buy: carrierBuyPrice(state, n.id, i, terms.buy),
-              sell: carrierSellPrice(state, n.id, i, terms.sell),
+              buy:
+                sells === undefined || p === null
+                  ? null
+                  : Math.max(1, Math.round((p * terms.buy * (100 - renown)) / 10000)),
+              sell:
+                buys === undefined || p === null
+                  ? null
+                  : Math.round((p * terms.sell * (100 + renown)) / 10000),
             };
           }),
         };

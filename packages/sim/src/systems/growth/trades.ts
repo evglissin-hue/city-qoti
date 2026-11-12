@@ -101,6 +101,8 @@ export interface TownNeeds {
   shopNeed: number;
   /** needOf by trade id, tonight (cleared when the makers change). */
   memo: Map<string, { need: number; code: NeedCode | null }>;
+  /** supplyOf by trade id, tonight (cleared with `memo`). */
+  supplyMemo?: Map<string, number>;
 }
 
 /** True for a good households buy (not Materials, not wool, which is only an input). */
@@ -121,20 +123,20 @@ function unlockedTiers(state: WorldState): string[] {
  * household in ten while it has none yet (docs/spec/13-ledger.md, Choosing a trade). The larger of
  * this and the balances' own reading (R1A's familyUse).
  */
-function tierUse(state: WorldState, family: number): number {
+function tierUse(
+  state: WorldState,
+  family: number,
+  tiers: readonly string[],
+  stats: ReadonlyMap<string, { homes: number; folk: number }>,
+): number {
   const fam = GOOD_FAMILIES[family]!;
   let use = 0;
   const households = state.households.length;
-  for (const tier of unlockedTiers(state)) {
+  for (const tier of tiers) {
     const want = content.basketByTier.get(tier as never)?.wants.find((w) => w.family === fam);
     if (!want || want.amount <= 0 || want.season !== undefined) continue;
-    let homes = 0;
-    let folk = 0;
-    for (const h of state.households) {
-      if (h.tier !== tier) continue;
-      homes++;
-      folk += h.members.length;
-    }
+    let homes = stats.get(tier)?.homes ?? 0;
+    let folk = stats.get(tier)?.folk ?? 0;
     if (homes === 0) {
       if (tier === 'settler') continue;
       homes = Math.ceil(households / NEW_TIER_SHARE);
@@ -230,9 +232,13 @@ function lazyOnOffer(state: WorldState): (family: number) => number {
 /** Makers per good (built or going up) and whether a built one makes it, written into `n`. */
 export function countMakers(
   state: WorldState,
-  n: Pick<TownNeeds, 'makers' | 'madeHere'> & { memo?: Map<string, unknown> },
+  n: Pick<TownNeeds, 'makers' | 'madeHere'> & {
+    memo?: Map<string, unknown>;
+    supplyMemo?: Map<string, unknown>;
+  },
 ): void {
   n.memo?.clear();
+  n.supplyMemo?.clear();
   n.makers.fill(0);
   n.madeHere.fill(false);
   for (const b of state.buildings) {
@@ -251,12 +257,23 @@ export function countMakers(
 export function townNeeds(state: WorldState, shopNeed = 0): TownNeeds {
   const n = content.goods.length;
   const stock = townStock(state);
-  const want = wants(state).map((w) => Math.ceil(w));
+  const wanted = wants(state);
+  const want = wanted.map((w) => Math.ceil(w));
   const makers = new Array<number>(n).fill(0);
   const madeHere = new Array<boolean>(n).fill(false);
   countMakers(state, { makers, madeHere });
   const made = state.economy.yesterday.produced.slice();
-  const famUse = GOOD_FAMILIES.map((_, f) => tierUse(state, f));
+  // Homes and folk of each tier, counted once for every family's use.
+  const tiers = unlockedTiers(state);
+  const stats = new Map<string, { homes: number; folk: number }>();
+  for (const h of state.households) {
+    const t = stats.get(h.tier);
+    if (t) {
+      t.homes++;
+      t.folk += h.members.length;
+    } else stats.set(h.tier, { homes: 1, folk: h.members.length });
+  }
+  const famUse = GOOD_FAMILIES.map((_, f) => tierUse(state, f, tiers, stats));
   const famStock = GOOD_FAMILIES.map((_, f) => {
     let s = 0;
     for (const g of GOODS_BY_FAMILY[f]!) if (isFlavor(g)) s += stock[g] ?? 0;
@@ -272,7 +289,7 @@ export function townNeeds(state: WorldState, shopNeed = 0): TownNeeds {
   return {
     stock,
     want,
-    short: shortages(state, stock),
+    short: shortages(state, stock, wanted),
     made,
     makers,
     madeHere,
@@ -285,6 +302,7 @@ export function townNeeds(state: WorldState, shopNeed = 0): TownNeeds {
     keen: new KeenResidents(state),
     shopNeed,
     memo: new Map(),
+    supplyMemo: new Map(),
   };
 }
 
@@ -294,6 +312,16 @@ export function needOf(
   t: TradeDef,
   n: TownNeeds,
 ): { need: number; code: NeedCode | null } {
+  // Tonight's reading does not change until the makers do (countMakers clears the memo).
+  let r = n.memo.get(t.id);
+  if (!r) {
+    r = needTerm(state, t, n);
+    n.memo.set(t.id, r);
+  }
+  return r;
+}
+
+function needTerm(state: WorldState, t: TradeDef, n: TownNeeds): { need: number; code: NeedCode | null } {
   if (!t.makes) return { need: n.shopNeed, code: n.shopNeed > 0 ? 'custom' : null };
   const g = content.goodIndex.get(t.makes);
   if (g === undefined) return { need: 0, code: null };
@@ -350,6 +378,15 @@ function dayOf(t: TradeDef, id: string): number {
 
 /** The supply term, in permille. */
 export function supplyOf(state: WorldState, t: TradeDef, n: TownNeeds): number {
+  let v = n.supplyMemo?.get(t.id);
+  if (v === undefined) {
+    v = supplyTerm(state, t, n);
+    n.supplyMemo?.set(t.id, v);
+  }
+  return v;
+}
+
+function supplyTerm(state: WorldState, t: TradeDef, n: TownNeeds): number {
   let supply = SUPPLY_HERE;
   for (const id of t.from) {
     const g = content.goodIndex.get(id);
