@@ -349,6 +349,8 @@ export function installDebugHook(getSession: () => Session | null): void {
     zoneAt: (x: number, z: number) => s()?.mirror.layers.zone[z * MAP_SIZE + x] ?? 0,
     /** R1D: open water on a tile (the seat-facing and brush playtests look for a bank). */
     waterAt: (x: number, z: number) => s()?.mirror.water(x, z) ?? 0,
+    /** R1D: the road value on a tile (1 path, 2 lane, 3 street). */
+    roadAt: (x: number, z: number) => s()?.mirror.road(x, z) ?? 0,
     /** Interface size, 0.8 to 1.4, as the settings slider sets it. */
     setUiScale: (scale: number) => applySettings({ ...loadSettings(), uiScale: scale }),
     awayLetter: async () => (await s()?.inspect('away', s()!.seat)) ?? null,
