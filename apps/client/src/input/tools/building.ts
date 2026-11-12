@@ -13,12 +13,16 @@ import {
 } from '@qoti/sim';
 import type { TilePick } from '../../render/api';
 import type { Mirror } from '../../state/mirror';
+import { setGroundMarks, type GroundMark } from '../../ui/marks';
 import { rejectText } from '../../ui/messages';
 import { buildingChoices, costBlock, lostTownHall } from '../catalog';
 import type { ToolContext } from '../context';
 import { INPUT_COPY } from '../copy';
 import { cursorHint } from '../hint';
 import type { Tool } from '../tool';
+
+/** The Ledger's ochre, for the reach rings. */
+const RING_INK = '#c48a3f';
 
 /** The deposit a building must sit on, if any (the quarry's stone, the Brickworks' clay). */
 export function depositOf(def: string): string | null {
@@ -130,16 +134,38 @@ export function buildingTool(ctx: ToolContext): Tool {
   const choices = () =>
     buildingChoices(ctx.mirror.settings.value.mode, ctx.ui.lens(), lostTownHall(ctx.mirror));
 
+  /**
+   * R1C: the reach of a specialized building on the ground. A ring around every standing one of
+   * the chosen kind, and around the ghost; drawn through the ground marks, so putting the tool
+   * away (exit) clears them.
+   */
+  function rings(def: BuildingDef | undefined, ghost?: { x: number; z: number; w: number; d: number }) {
+    if (!def?.reach) {
+      setGroundMarks([]);
+      return;
+    }
+    const marks: GroundMark[] = [];
+    for (const b of ctx.mirror.buildings.values()) {
+      if (b.def !== def.id) continue;
+      const [bw, bd] = footprintSize(def, b.rot);
+      marks.push({ x: b.x, z: b.z, w: bw, d: bd, ink: RING_INK, ring: def.reach, dashed: true });
+    }
+    if (ghost) marks.push({ ...ghost, ink: RING_INK, ring: def.reach });
+    setGroundMarks(marks);
+  }
+
   function preview() {
     const def = content.buildingById.get(variant.value);
     if (!tile || !def) {
       ctx.render.setGhost(null);
       cursorHint(null);
+      rings(def);
       return null;
     }
     const [w, d] = footprintSize(def, rot);
     const x = tile.x - Math.floor((w - 1) / 2);
     const z = tile.z - Math.floor((d - 1) / 2);
+    rings(def, { x, z, w, d });
     const place = canPlaceBuilding(ctx.mirror, def, x, z, rot);
     // Playtest round three: a door nobody can walk to would never be built (the sim says CUT_OFF).
     const cutOff =
@@ -222,6 +248,7 @@ export function buildingTool(ctx: ToolContext): Tool {
       tile = null;
       ctx.render.setGhost(null);
       cursorHint(null);
+      setGroundMarks([]);
     },
   };
 }

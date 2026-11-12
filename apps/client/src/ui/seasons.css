@@ -24,6 +24,58 @@
   --paper-deep: #e4e2d8;
 }
 
+/* R1 (R1C): paper by lamplight. From dusk to dawn the season's paper takes a warmer, dimmer tint,
+   eased over two seconds (the custom properties are registered so they can ease). */
+@property --paper {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: #f8f0de;
+}
+@property --paper-light {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: #fdf8ec;
+}
+@property --paper-deep {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: #efe2c4;
+}
+.game-ui {
+  transition:
+    --paper 2s ease,
+    --paper-light 2s ease,
+    --paper-deep 2s ease;
+}
+:root.reduced-motion .game-ui {
+  transition: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .game-ui {
+    transition: none;
+  }
+}
+.game-ui.season-spring.lamplight {
+  --paper: #ecdbbd;
+  --paper-light: #f3e5c9;
+  --paper-deep: #e0cba6;
+}
+.game-ui.season-summer.lamplight {
+  --paper: #ecd9b6;
+  --paper-light: #f4e3c3;
+  --paper-deep: #e1c79a;
+}
+.game-ui.season-autumn.lamplight {
+  --paper: #ead6b2;
+  --paper-light: #f2e0bd;
+  --paper-deep: #dec394;
+}
+.game-ui.season-winter.lamplight {
+  --paper: #e8dcc5;
+  --paper-light: #f0e6d2;
+  --paper-deep: #dccdb0;
+}
+
 .paper-spring {
   --season-ink: #8aa877;
   --season-wash: rgba(214, 160, 170, 0.18);
@@ -1088,4 +1140,41 @@
 }
 .morale-parts {
   font-size: 0.9rem;
+}
+
+/* R1 (R1C): cards wait their turn. A small stack at the corner says how many wait behind the one
+   on show; it sits above the card's backdrop and never over the card itself. */
+.card-waiting[hidden] {
+  display: none;
+}
+.card-stack {
+  position: fixed;
+  left: 18px;
+  bottom: 96px;
+  z-index: 60;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px 6px 8px;
+  border: 1.5px solid var(--line);
+  border-radius: 10px;
+  background: var(--paper);
+  box-shadow: 0 2px 8px rgba(60, 40, 20, 0.18);
+  font-size: 0.9rem;
+  pointer-events: auto;
+}
+.card-stack-sheets {
+  position: relative;
+  width: 18px;
+  height: 20px;
+}
+.card-stack-sheets i {
+  position: absolute;
+  inset: 0;
+  border: 1.2px solid var(--ink-line);
+  border-radius: 2px;
+  background: var(--paper-light);
+}
+.card-stack-sheets i:first-child {
+  transform: rotate(-8deg) translate(-2px, 1px);
 }

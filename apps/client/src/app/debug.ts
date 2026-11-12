@@ -33,6 +33,7 @@ import { overlayMocks, overlayVillageMocks } from './fixture';
 import type { GroundAo } from '../render/groundAo';
 import { layerTriangles, runPerf, type PerfOptions } from './perf';
 import type { Session } from './session';
+import { lamplitHour, lampOverride } from '../ui/cards';
 
 export interface GoldenScript {
   seed: string;
@@ -252,7 +253,21 @@ export function installDebugHook(getSession: () => Session | null): void {
       session?.renderer?.rig.snap();
     },
     /** Pins the lighting to an hour of the day (null follows the clock again). */
-    setHour: (hour: number | null) => s()?.renderer?.setDebugHour(hour),
+    setHour: (hour: number | null) => {
+      s()?.renderer?.setDebugHour(hour);
+      // R1C: the paper follows the debug hour too, so shots by lamplight match the light.
+      lampOverride.value = hour === null ? null : lamplitHour(hour);
+    },
+    /** R1C: the session's UI signals (cards, panels), for e2e. */
+    ui: () => s()?.ui ?? null,
+    /** R1C: opens this season's almanac card, as a new season would; false when there is none yet. */
+    showSeasonCard: () => {
+      const session = s();
+      const view = session?.mirror.seasonCard.value;
+      if (!session || !view) return false;
+      session.ui.almanac.value = { kind: 'card', view };
+      return true;
+    },
     // I1 (C3E): hamlet UI helpers for tests and screenshots.
     mode: () => s()?.mirror.settings.value.mode ?? null,
     town: () => s()?.mirror.town.value ?? null,

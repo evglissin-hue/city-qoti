@@ -16,7 +16,6 @@ export const NO_CLIENT_SENDER: Record<string, string> = {
   'sys.seatLeft': 'system command, sent only by RoomCore when a seat disconnects',
   // Honest gaps: the sim takes them, but no tool or button sends them yet. Each is a feature to
   // build, not a reason to keep the entry; the test says so when a sender appears.
-  'plan.edit': 'NO UI YET: the sim can edit an open plan, the plans panel only adds, comments and resolves',
   // Covered another way.
   'wall.remove': 'walls are buildings: the demolish tool takes them down with build.remove',
 };
@@ -25,12 +24,7 @@ export const NO_CLIENT_SENDER: Record<string, string> = {
  * R1.0: commands that land before their buttons. Each names the cycle that owes the sender and why;
  * the entry comes off when that cycle ships it (the test says so), so this list only shrinks.
  */
-export const OWED_SENDERS: Record<string, { cycle: 'R1C' | 'R1D'; why: string }> = {
-  'carrier.setBudget': { cycle: 'R1C', why: "the Balances book sets the carrier's daily purse" },
-  'carrier.setReserve': { cycle: 'R1C', why: "the Balances book sets each family's reserve" },
-  'carrier.setRule': { cycle: 'R1C', why: "the Balances book sets each family's carrier rule and selling" },
-  'season.setPlan': { cycle: 'R1C', why: 'the season card asks the Ledger its questions' },
-};
+export const OWED_SENDERS: Record<string, { cycle: 'R1C' | 'R1D'; why: string }> = {};
 
 function commandTypes(): string[] {
   const src = readFileSync(join(root, 'packages/sim/src/contracts/commands.ts'), 'utf8');

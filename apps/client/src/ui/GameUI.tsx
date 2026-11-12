@@ -1,15 +1,15 @@
 import { DEBUG } from '../app/debug';
 import type { Session } from '../app/session';
+import { cardQueue, lamplit, waitingWords, waitsBehind } from './cards';
 import { DebugOverlay, Dialogs, InviteDialog, Toasts } from './Overlays';
 import { EmoteBubbles, EmoteWheel } from './Emotes';
 import { minimapShown } from './Minimap';
 import { panels } from './panels';
-import { storesShowing } from './panels/Stores';
 import { PresenceLabels } from './Presence';
 import { RemovalConfirm } from './RemovalConfirm';
 import { HelpOverlay, SettingsPanel } from './SettingsPanel';
 import { Toolbar } from './Toolbar';
-import { StockStrip, TopBar } from './TopBar';
+import { TopBar } from './TopBar';
 import './hamlet.css';
 import './village.css';
 import './seasons.css';
@@ -28,9 +28,16 @@ export function GameUI({ session, onLeave }: { session: Session; onLeave: () => 
     return <div class="game-ui photo-mode">{strip && <strip.component session={session} />}</div>;
   }
   // I3 (C5F): the paper takes a faint tint of the season.
-  const season = seasonKey(session.mirror.tick.value);
+  const tick = session.mirror.tick.value;
+  const season = seasonKey(tick);
+  // R1 (R1C): cards wait their turn; the first to arrive is the one on show.
+  const queue = cardQueue(session);
+  const front = queue[0];
+  const waits = (id: string) => waitsBehind(id, front);
   return (
-    <div class={`game-ui season-${season} ${minimapShown(session) ? 'with-minimap' : ''}`}>
+    <div
+      class={`game-ui season-${season} ${lamplit(tick) ? 'lamplight' : ''} ${minimapShown(session) ? 'with-minimap' : ''}`}
+    >
       {panels
         .filter((p) => p.side === 'world')
         .map((p) => (
@@ -38,20 +45,11 @@ export function GameUI({ session, onLeave }: { session: Session; onLeave: () => 
         ))}
       <PresenceLabels session={session} />
       <TopBar session={session} onLeave={onLeave} />
-      {/* The lane is the gap between whatever is open on either side; the strip keeps to it. P1:
-          the Ledger's strip steps aside while the Stores panel says the same, larger. */}
-      {!storesShowing(session, !!book) && (
-        <div class="strip-lane">
-          <StockStrip session={session} />
-        </div>
-      )}
       {/* The left feed steps aside while a book is open, so only one thing talks at a time. */}
       {!book && (
         <aside class="side left">
           {panels
             .filter((p) => p.side === 'left')
-            // The stores sit at the top of the column, above the alerts and notes.
-            .sort((a, b) => Number(b.id === 'stores') - Number(a.id === 'stores'))
             .map((p) => (
               <p.component key={p.id} session={session} />
             ))}
@@ -80,9 +78,24 @@ export function GameUI({ session, onLeave }: { session: Session; onLeave: () => 
       <HelpOverlay session={session} />
       {panels
         .filter((p) => p.side === 'overlay')
-        .map((p) => (
-          <p.component key={p.id} session={session} />
-        ))}
+        .map((p) =>
+          waits(p.id) ? (
+            <div key={p.id} class="card-waiting" hidden>
+              <p.component session={session} />
+            </div>
+          ) : (
+            <p.component key={p.id} session={session} />
+          ),
+        )}
+      {queue.length > 1 && (
+        <div class="card-stack" data-testid="card-stack" title="Each opens when you close the one before it.">
+          <span class="card-stack-sheets" aria-hidden="true">
+            <i />
+            <i />
+          </span>
+          <span>{waitingWords(queue.length - 1)}</span>
+        </div>
+      )}
       {DEBUG && !CLEAN && <DebugOverlay session={session} />}
     </div>
   );

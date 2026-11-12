@@ -253,3 +253,78 @@ describe('UndoStack, moves (R1D)', () => {
     expect(r.undo.undo(r.mirror, r.raw)).toEqual({ ok: false, reason: 'CHANGED' });
   });
 });
+
+describe('UndoStack, the carrier (R1C)', () => {
+  const standard = { mode: 'standard', economy: 'standard' } as const;
+  const food = (r: ReturnType<typeof rig>) =>
+    r.mirror.balances.value!.lines.find((l) => l.family === 'food')!;
+
+  it('undoes a rule and the selling switch together, back to the old terms', () => {
+    const r = rig('undo-carrier-rule', standard);
+    const before = { rule: food(r).rule, sell: food(r).sell };
+    r.submit({ t: 'carrier.setRule', family: 'food', rule: 'never', sell: !before.sell });
+    r.turn();
+    expect(food(r)).toMatchObject({ rule: 'never', sell: !before.sell });
+    expect(r.undo.undo(r.mirror, r.raw)).toMatchObject({ ok: true });
+    r.turn();
+    expect(food(r)).toMatchObject(before);
+  });
+
+  it('undoes a reserve, and a budget, one family or purse at a time', () => {
+    const r = rig('undo-carrier-reserve', standard);
+    const reserve = food(r).reserve;
+    const budget = r.mirror.balances.value!.budget;
+    r.submit({ t: 'carrier.setReserve', family: 'food', reserve: reserve + 2 });
+    r.turn();
+    r.submit({ t: 'carrier.setBudget', coins: 77 });
+    r.turn();
+    expect(food(r).reserve).toBe(reserve + 2);
+    expect(r.mirror.balances.value!.budget).toBe(7700);
+    r.undo.undo(r.mirror, r.raw);
+    r.turn();
+    expect(r.mirror.balances.value!.budget).toBe(budget);
+    expect(food(r).reserve).toBe(reserve + 2);
+    r.undo.undo(r.mirror, r.raw);
+    r.turn();
+    expect(food(r).reserve).toBe(reserve);
+  });
+
+  it('says CHANGED when the partner set the family since', () => {
+    const r = rig('undo-carrier-changed', standard);
+    r.submit({ t: 'carrier.setReserve', family: 'fuel', reserve: 9 });
+    r.turn();
+    r.raw({ t: 'carrier.setReserve', family: 'fuel', reserve: 4 });
+    r.turn();
+    expect(r.undo.undo(r.mirror, r.raw)).toEqual({ ok: false, reason: 'CHANGED' });
+  });
+});
+
+describe('UndoStack, the season plan (R1C)', () => {
+  const standard = { mode: 'standard', economy: 'standard' } as const;
+  const plan = (r: ReturnType<typeof rig>) => r.mirror.balances.value!.plan;
+
+  it('puts back only the answer it changed', () => {
+    const r = rig('undo-plan', standard);
+    const before = { ...plan(r) };
+    r.submit({ t: 'season.setPlan', plan: { food: 12, fuel: 10 } });
+    r.turn();
+    r.submit({ t: 'season.setPlan', plan: { buildFirst: 'farms' } });
+    r.turn();
+    expect(plan(r)).toMatchObject({ food: 12, fuel: 10, buildFirst: 'farms' });
+    expect(r.undo.undo(r.mirror, r.raw)).toMatchObject({ ok: true });
+    r.turn();
+    expect(plan(r)).toMatchObject({ food: 12, fuel: 10, buildFirst: before.buildFirst });
+    r.undo.undo(r.mirror, r.raw);
+    r.turn();
+    expect(plan(r)).toEqual(before);
+  });
+
+  it('says CHANGED when the partner answered the same question since', () => {
+    const r = rig('undo-plan-changed', standard);
+    r.submit({ t: 'season.setPlan', plan: { reserve: 10 } });
+    r.turn();
+    r.raw({ t: 'season.setPlan', plan: { reserve: 6 } });
+    r.turn();
+    expect(r.undo.undo(r.mirror, r.raw)).toEqual({ ok: false, reason: 'CHANGED' });
+  });
+});

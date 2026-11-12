@@ -50,7 +50,7 @@ export function seasonAlerts(m: Mirror): Alert[] {
           tone: 'warn',
           icon: 'home',
           text: `${cold} ${cold === 1 ? 'home is' : 'homes are'} cold tonight. Firewood, from a chopping shed or the market.`,
-          action: { kind: 'panel', panel: 'reports', page: 'stocks' },
+          action: { kind: 'panel', panel: 'balances', page: 'families' },
         },
         {
           text: `${cold} ${cold === 1 ? 'home is' : 'homes are'} cold tonight. A warm word and a lit lantern help, firewood more.`,
@@ -70,7 +70,7 @@ export function seasonAlerts(m: Mirror): Alert[] {
         tone: season === 3 ? 'warn' : 'quiet',
         icon: 'good:firewood',
         text: `Firewood for the winter: ${have} in store, ${need} wanted for ${households} ${households === 1 ? 'home' : 'homes'}.`,
-        action: { kind: 'panel', panel: 'reports', page: 'stocks' },
+        action: { kind: 'panel', panel: 'balances', page: 'families' },
       });
     }
   }
@@ -87,7 +87,7 @@ export function seasonAlerts(m: Mirror): Alert[] {
         days >= DAYS_PER_SEASON
           ? `Winter is here and the larders hold ${days} days of food. Nothing grows till spring; that will do.`
           : `Winter is here with ${days} ${days === 1 ? 'day' : 'days'} of food in store, and nothing grows till spring.`,
-      action: { kind: 'panel', panel: 'reports', page: 'stocks' },
+      action: { kind: 'panel', panel: 'balances', page: 'families' },
     });
   }
 
@@ -146,7 +146,7 @@ export function seasonAlerts(m: Mirror): Alert[] {
         tone: 'news',
         icon: 'trade',
         text: `A commission: ${c.ask}. Take it on, or decline with thanks.`,
-        action: { kind: 'panel', panel: 'trade', page: 'commissions' },
+        action: { kind: 'panel', panel: 'balances' },
       });
     } else if (
       c.status === 'accepted' &&
@@ -159,7 +159,7 @@ export function seasonAlerts(m: Mirror): Alert[] {
         tone: 'warn',
         icon: 'trade',
         text: `${c.name} is due ${whenWord(today(c.deadlineTick) - day)}, ${c.progress}% done.`,
-        action: { kind: 'panel', panel: 'trade', page: 'commissions' },
+        action: { kind: 'panel', panel: 'balances' },
       });
     }
   }

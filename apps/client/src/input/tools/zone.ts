@@ -96,9 +96,10 @@ export function previewLots(
 }
 
 /**
- * Zoning (Ledger): pick a zone, drag a box to paint it; Shift+drag or the Unzone card clears. While
- * dragging, the lots the box would make are sketched along the road. R1: Homes, Workshops and
- * Farmland are open from founding; Shops and Townhouses wait for their rank (`ZoneDef.requires`).
+ * Zoning (Ledger): pick a brush on the Build picker's Zones shelf, drag a box to paint it; Shift+drag
+ * or the Clear zoning card clears. While dragging, the lots the box would make are sketched along
+ * the road. R1: Homes, Workshops and Farmland are open from founding; Shops and Townhouses wait
+ * for their rank (`ZoneDef.requires`).
  */
 export function zoneTool(ctx: ToolContext): Tool {
   const variant = signal('homes-low');
@@ -188,6 +189,8 @@ export function zoneTool(ctx: ToolContext): Tool {
     hint: INPUT_COPY.zoneHint,
     order: 35,
     modes: ['standard'],
+    // R1C: the brushes live on the Build picker's Zones shelf, so the tool has no button of its own.
+    hidden: () => true,
     get variants() {
       return [...content.zones.map((z) => ({ id: z.id, label: z.name })), { id: UNZONE, label: 'Unzone' }];
     },

@@ -9,6 +9,7 @@ import { rejectText } from '../messages';
 import { CATEGORY_WORD, CONSTRUCTION_STAGES, statusWords, TIER_WORD } from '../hamlet';
 import { zoneInk } from '../village';
 import { Price } from './villageParts';
+import { handsText, keeperFamily, keeperLine, LevelPips, PinButton, businessName } from './Businesses';
 import { Glyph } from '../icons';
 import { Empty, Frame, GoodChip, GoodList, Heading, Meter, Toggle, useInspect } from './parts';
 
@@ -57,6 +58,7 @@ export function BuildingInspector({ session, id }: { session: Session; id: numbe
         </p>
       )}
       {detail && <BuildingSeasonLines session={session} detail={detail} />}
+      <BusinessLines session={session} id={b.id} />
 
       {site && rt?.construction && (
         <div class="site">
@@ -260,6 +262,28 @@ export function BuildingInspector({ session, id }: { session: Session; id: numbe
   );
 }
 
+/** R1C: a business's trade, level, keeper, hands, how it is doing in words, and the pin. */
+function BusinessLines({ session, id }: { session: Session; id: number }) {
+  void session.mirror.villageRevision.value;
+  const biz = session.mirror.businesses.get(id);
+  if (!biz?.trade) return null;
+  const family = keeperFamily(session, biz);
+  return (
+    <div class="business-inspect" data-testid="business-lines">
+      <p class="business-name">
+        <strong>{businessName(biz)}</strong>
+        <LevelPips level={biz.level} />
+        <PinButton session={session} b={biz} />
+      </p>
+      <p class="small muted">
+        {keeperLine(family)}. {handsText(biz)}.
+      </p>
+      <p class="small">{biz.status}</p>
+      {biz.pinned && <p class="small muted">Pinned: it keeps its trade.</p>}
+    </div>
+  );
+}
+
 function sum(pairs: [string, number][]): number {
   return pairs.reduce((n, [, q]) => n + q, 0);
 }
@@ -356,41 +380,6 @@ function VillageDetail({ session, detail }: { session: Session; detail: Building
         <div class="upgrade" data-testid="building-upgrade">
           <Heading>Becoming a {buildingName(detail.upgrade.to).toLowerCase()}</Heading>
           <GoodList items={detail.upgrade.waiting} empty="Everything has arrived; the builders are on it." />
-        </div>
-      )}
-      {detail.trades && detail.trades.length > 0 && (
-        // R1.0 stand-in: R1C's Businesses book designs the real one.
-        <div class="pin-recipe" data-testid="pin-trade">
-          <Heading>Trade</Heading>
-          <div class="dial small village-dial" role="radiogroup" aria-label="Trade">
-            <button
-              type="button"
-              role="radio"
-              aria-checked={!detail.pinned}
-              class={!detail.pinned ? 'active' : ''}
-              title="It picks whatever the town is short of"
-              data-testid="pin-none"
-              onClick={() => session.submit({ t: 'build.pinRecipe', id: b.id, trade: null })}
-            >
-              Its own choice
-            </button>
-            {detail.trades.map((tr) => {
-              const on = !!detail.pinned && b.trade === tr.id;
-              return (
-                <button
-                  key={tr.id}
-                  type="button"
-                  role="radio"
-                  aria-checked={on}
-                  class={on ? 'active' : ''}
-                  data-testid={`pin-${tr.id}`}
-                  onClick={() => session.submit({ t: 'build.pinRecipe', id: b.id, trade: tr.id })}
-                >
-                  {tr.name}
-                </button>
-              );
-            })}
-          </div>
         </div>
       )}
       {ledger && detail.profit && (

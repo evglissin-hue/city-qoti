@@ -9,7 +9,7 @@ import { computeAlerts, alertsForLens } from './alerts';
 import { paintMinimap } from './Minimap';
 import { mockVillageSession } from './mocks/session';
 import { mockCharter, villageIds } from './mocks/village';
-import { planCovers, planSummary, shapesOf, sketchWith } from './plans';
+import { editCommand, editSketch, planCovers, planSummary, shapesOf, sketchWith, withoutItem } from './plans';
 import { mount, type Mounted } from './test/dom';
 import { goalLine, nextGoal } from './GoalPill';
 import { TopBar } from './TopBar';
@@ -174,6 +174,17 @@ describe('plans', () => {
     const sketch = sketchWith({ items: [], basedOn: null }, place);
     expect(sketch?.items).toEqual([{ cmd: place }]);
     expect(sketchWith(sketch, speed)).toBeNull();
+  });
+
+  it('edits a plan: items back as a sketch, one taken out, the command sent', () => {
+    const a: Command = { t: 'build.place', def: 'cottage', x: 50, z: 52, rot: 0 };
+    const b: Command = { t: 'tree.plant', species: 'oak', x: 4, z: 5 };
+    const s = editSketch({ id: 9, items: [{ cmd: a }, { cmd: b }] });
+    expect(s).toEqual({ basedOn: 9, items: [{ cmd: a }, { cmd: b }] });
+    expect(withoutItem(s, 0).items).toEqual([{ cmd: b }]);
+    expect(withoutItem(s, 5)).toBe(s);
+    expect(editCommand(withoutItem(s, 0))).toEqual({ t: 'plan.edit', id: 9, items: [{ cmd: b }] });
+    expect(editCommand({ items: [], basedOn: null })).toBeNull();
   });
 });
 

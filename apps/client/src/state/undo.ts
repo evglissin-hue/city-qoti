@@ -6,13 +6,16 @@ import { signal } from '@preact/signals';
 import { content } from '@qoti/content';
 import {
   MAP_SIZE,
+  PENNIES_PER_COIN,
   treeSpecies,
   UNDO_DEPTH,
   type BuildingCustom,
   type BuildingView,
+  type CarrierRule,
   type Command,
   type RejectReason,
   type RoadKind,
+  type SeasonPlanInput,
   type SeatId,
   type Turn,
 } from '@qoti/sim';
@@ -36,7 +39,10 @@ type Before =
   | { t: 'tiles'; values: number[] }
   | { t: 'note'; text: string; x: number; z: number }
   | { t: 'custom'; values: BuildingCustom }
-  | { t: 'flag'; value: boolean };
+  | { t: 'flag'; value: boolean }
+  /** R1C: the carrier's terms for the family, and its purse, as they stood. */
+  | { t: 'carrier'; rule: CarrierRule; sell: boolean; reserve: number; budget: number }
+  | { t: 'plan'; plan: SeasonPlanInput };
 
 interface Pending {
   seq: number;
@@ -125,10 +131,30 @@ function capture(cmd: Command, m: Mirror): Before | null {
       const b = m.buildings.get(cmd.id);
       return b ? { t: 'flag', value: b.rt?.paused ?? false } : null;
     }
+    case 'carrier.setRule':
+    case 'carrier.setReserve':
+    case 'carrier.setBudget': {
+      const b = m.balances.value;
+      if (!b) return null;
+      const line = 'family' in cmd ? b.lines.find((l) => l.family === cmd.family) : b.lines[0];
+      if (!line) return null;
+      return { t: 'carrier', rule: line.rule, sell: line.sell, reserve: line.reserve, budget: b.budget };
+    }
+    case 'season.setPlan': {
+      // Only the answers this command changes are put back.
+      const plan = m.balances.value?.plan;
+      if (!plan) return null;
+      const old: Record<string, unknown> = {};
+      for (const key of PLAN_KEYS) if (key in cmd.plan) old[key] = plan[key];
+      return { t: 'plan', plan: old as SeasonPlanInput };
+    }
     default:
       return null;
   }
 }
+
+/** The season plan's answers, each undone on its own. */
+const PLAN_KEYS = ['reserve', 'food', 'fuel', 'deal', 'buildFirst'] as const;
 
 function fieldOwner(m: Mirror, x: number, z: number): number {
   const layer = m.layers.fieldOwner;
@@ -375,6 +401,43 @@ function inverseOf(p: Pending, m: Mirror, change: MirrorChange, seat: SeatId): U
         label: cmd.paused ? 'the pause' : 'the restart',
         inverse: [{ t: 'build.setPaused', id: cmd.id, paused: before.value }],
         intact: (mm) => (mm.buildings.get(cmd.id)?.rt?.paused ?? false) === cmd.paused,
+      };
+    }
+    case 'carrier.setRule': {
+      if (before.t !== 'carrier') return null;
+      const line = (mm: Mirror) => mm.balances.value?.lines.find((l) => l.family === cmd.family);
+      return {
+        label: `the ${cmd.family} rule`,
+        inverse: [{ t: 'carrier.setRule', family: cmd.family, rule: before.rule, sell: before.sell }],
+        intact: (mm) => line(mm)?.rule === cmd.rule && line(mm)?.sell === cmd.sell,
+      };
+    }
+    case 'carrier.setReserve': {
+      if (before.t !== 'carrier') return null;
+      return {
+        label: `the ${cmd.family} reserve`,
+        inverse: [{ t: 'carrier.setReserve', family: cmd.family, reserve: before.reserve }],
+        intact: (mm) =>
+          mm.balances.value?.lines.find((l) => l.family === cmd.family)?.reserve === cmd.reserve,
+      };
+    }
+    case 'carrier.setBudget': {
+      if (before.t !== 'carrier') return null;
+      return {
+        label: "the carrier's purse",
+        inverse: [{ t: 'carrier.setBudget', coins: Math.round(before.budget / PENNIES_PER_COIN) }],
+        intact: (mm) => mm.balances.value?.budget === cmd.coins * PENNIES_PER_COIN,
+      };
+    }
+    case 'season.setPlan': {
+      if (before.t !== 'plan') return null;
+      return {
+        label: 'the season plan',
+        inverse: [{ t: 'season.setPlan', plan: before.plan }],
+        intact: (mm) => {
+          const now = mm.balances.value?.plan;
+          return !!now && PLAN_KEYS.every((k) => !(k in cmd.plan) || now[k] === cmd.plan[k]);
+        },
       };
     }
     default:

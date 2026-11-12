@@ -135,8 +135,8 @@ export const firstDays: GuideDef = {
         'Tobias Merriweather',
       ].join('\n'),
       goal: { code: 'guideInBlack' },
-      hint: "Yesterday's takings above its running costs (upkeep, wages and the like), on the budget page of the reports.",
-      point: { panel: 'reports' },
+      hint: "Yesterday's takings above its running costs (upkeep, wages and the like), on the Budget tab of the Purse.",
+      point: { panel: 'purse' },
     },
     {
       id: 'together',

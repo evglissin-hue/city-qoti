@@ -5,7 +5,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { removalRequest } from '../../input/removal';
 import { mockBuildings } from '../mocks/hamlet';
 import { mockSession, mockView } from '../mocks/session';
-import { button, mount, type Mounted } from '../test/dom';
+import { button, mount, settle, type Mounted } from '../test/dom';
 import { InspectorPanel } from './Inspector';
 
 let view: Mounted | null = null;
@@ -126,15 +126,25 @@ describe('building inspector', () => {
     expect(view.text()).toContain('Baker');
     expect(view.text()).toContain('Business');
     expect(view.text()).not.toContain('Workshop');
-    const dial = view.get('pin-trade');
-    expect(view.get('pin-none').getAttribute('aria-checked')).toBe('true');
-    await view.click('pin-carpenter');
-    await view.click('pin-none');
-    expect(dial.textContent).toContain('Chandler');
-    expect(submitted).toEqual([
-      { t: 'build.pinRecipe', id: 6, trade: 'carpenter' },
-      { t: 'build.pinRecipe', id: 6, trade: null },
-    ]);
+    // R1C: no trade list any more; the business lines carry the pin.
+    expect(view.find('pin-trade')).toBeNull();
+    session.mirror.businesses.set(6, {
+      id: 6,
+      def: 'workshop',
+      trade: 'baker',
+      level: 2,
+      keeperId: 0,
+      pinned: false,
+      hands: 1,
+      crew: 2,
+      status: 'Baking',
+      levelDays: 0,
+    });
+    session.mirror.villageRevision.value++;
+    await settle();
+    expect(view.get('business-lines').textContent).toContain('Baking');
+    await view.click('pin-6');
+    expect(submitted).toEqual([{ t: 'build.pinRecipe', id: 6, trade: 'baker' }]);
   });
 
   it('removes through a command', async () => {

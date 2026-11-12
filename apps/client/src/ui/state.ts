@@ -2,6 +2,7 @@ import { signal } from '@preact/signals';
 import type {
   AwayLetter,
   FestivalResultView,
+  GoodFamily,
   LetterView,
   Lens,
   PlanItem,
@@ -32,11 +33,12 @@ export interface Letter {
   tick: number;
 }
 
-export type ReportTab = 'stocks' | 'workforce' | 'budget' | 'buildings';
+/** R1C: the Purse book's three tabs. */
+export type PurseTab = 'budget' | 'taxes' | 'loans';
 
 // I2 (C4F)
-export type MarketTab = 'prices' | 'profit';
-export type TradeTab = 'neighbors' | 'log' | 'dock' | 'commissions';
+/** R1C: the Balances book's two tabs. */
+export type BalancesTab = 'families' | 'neighbors';
 
 /** A plan being sketched: commands the tools would have sent, kept here until proposed. */
 export interface Sketch {
@@ -75,7 +77,6 @@ export function createUiState() {
     // I1 (C3E)
     /** The open book panel (wishes, patterns, chronicle, achievements, reports); one at a time. */
     panel: signal<string | null>(null),
-    reportTab: signal<ReportTab>('stocks'),
     /** The Pattern Book page on display (a pattern id), or null for the contents. */
     bookPage: signal<string | null>(null),
     /** Building being customized. */
@@ -96,10 +97,13 @@ export function createUiState() {
     dismissed: signal<ReadonlySet<string>>(new Set()),
     alertsOpen: signal(true),
     // I2 (C4F)
-    marketTab: signal<MarketTab>('prices'),
-    /** The good whose price history the market page draws large. */
+    /** The good whose price history the Balances book draws large. */
     marketGood: signal<string | null>(null),
-    tradeTab: signal<TradeTab>('neighbors'),
+    // R1C
+    balancesTab: signal<BalancesTab>('families'),
+    purseTab: signal<PurseTab>('budget'),
+    /** The family whose row the Balances book holds open (the top bar's chips set it). */
+    balancesFamily: signal<GoodFamily | null>(null),
     /** The story letter on the desk, while it is open. */
     storyLetter: signal<LetterView | null>(null),
     /** Story letters already opened this visit (arc and step), so the feed stops waving them. */

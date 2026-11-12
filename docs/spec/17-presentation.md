@@ -252,6 +252,7 @@ Accepted by the owner on 2026-11-10. Both players play on their own laptop, onli
 - **Paper by lamplight** [R1]: from dusk to dawn panel paper takes a warmer, dimmer tint, as it already takes the season's.
 - **Illustrated books** [V4]: pages carry ink-and-wash pictures of the players' own valley (Visual direction, second pass).
 - **The help card** is corrected in R1: with a mouse the view turns on a right-drag, and on a trackpad with Shift and two fingers. It said Shift and drag.
+- *As built (R1C)*: the top bar's menu holds the seats, Go to partner, the connection, Invite, Townsfolk, Settings, Help and Leave; demand bars open their zone's brush, and flavor pips sit under each balance chip's cover bar. Book keys: Balances M, Purse P, Businesses L, the Notebook N. Before Village the Shops brush is the Market Stall. Cards keep arrival order, and the guide waits behind any card. Lamplight runs from 19:30 to 06:00. The per-good price cap and subsidy stay on the good's card, one click from its flavor in Balances.
 
 ## Residents on screen [I1]
 

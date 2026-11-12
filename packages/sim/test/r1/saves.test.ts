@@ -4,7 +4,7 @@ import { gunzipSync, gzipSync, strFromU8, strToU8 } from 'fflate';
 import { describe, expect, it } from 'vitest';
 import { createWorld, defaultSettings } from '../../src/state/create';
 import { hashState } from '../../src/state/hash';
-import { deserialize, serialize } from '../../src/state/serialize';
+import { deserialize, peekSaveVersion, serialize } from '../../src/state/serialize';
 import { OldValleyError, SAVE_VERSION } from '../../src/state/version';
 import { villageFixture } from '../fixtures/village';
 
@@ -16,6 +16,13 @@ function withVersion(bytes: Uint8Array, version: number): Uint8Array {
 }
 
 describe('R1 saves', () => {
+  it('peeks a save version from the header without building a world', () => {
+    const bytes = serialize(createWorld('willow', { ...defaultSettings(), mode: 'standard' }));
+    expect(peekSaveVersion(bytes)).toBe(6);
+    expect(peekSaveVersion(withVersion(bytes, 5))).toBe(5);
+    expect(peekSaveVersion(new Uint8Array([1, 2, 3]))).toBeNull();
+  });
+
   it('is version 6', () => {
     expect(SAVE_VERSION).toBe(6);
   });

@@ -5,6 +5,7 @@ import type { Session } from '../app/session';
 import type { ToolContext } from '../input/context';
 import { ToolManager } from '../input/manager';
 import type { RenderApi } from '../render/api';
+import { mockTown } from './mocks/hamlet';
 import { mockSession, mockView } from './mocks/session';
 import { mount, type Mounted } from './test/dom';
 import { Toolbar } from './Toolbar';
@@ -65,10 +66,13 @@ describe('top bar', () => {
     view = await mount(h(TopBar, { session, onLeave: () => {} }));
     expect(view.get('treasury').textContent).toContain('412');
     expect(view.get('treasury').className).not.toContain('lean');
+    // The townsfolk count lives behind the menu button.
+    expect(view.find('population')).toBeNull();
+    await view.click('menu-open');
     expect(view.get('population').textContent).toContain('9');
+    await view.click('menu-open');
     await view.click('treasury');
-    expect(session.ui.panel.value).toBe('reports');
-    expect(session.ui.reportTab.value).toBe('budget');
+    expect(session.ui.panel.value).toBe('purse');
   });
 
   it('shows lean times gently, and nothing of the sort in a creative valley', async () => {
@@ -134,7 +138,6 @@ describe('lens toolbars', () => {
       'building',
       'wall',
       'terrain',
-      'zone',
       'move',
       'note',
       'plan',
@@ -142,12 +145,11 @@ describe('lens toolbars', () => {
     ]);
     // Playtest round five: the Pattern Book is on both lenses' shelves.
     expect(ids(view.root, 'book-')).toEqual([
-      'market',
+      'balances',
       'patterns',
-      'trade',
-      'policies',
+      'purse',
+      'businesses',
       'watch',
-      'reports',
       'notebook',
     ]);
     await view.click('overlays');
@@ -170,9 +172,9 @@ describe('lens toolbars', () => {
     await view.click('overlay-clear');
     // Cleared on purpose: 'off', so the Ledger's own view does not come straight back.
     expect(session.ui.overlay.value).toBe('off');
-    // Clicking the chosen tool again puts it away: back to inspecting.
+    // R1C: in a standard Ledger the Build button opens the picker with the Homes brush ready.
     await view.click('tool-building');
-    expect(session.tools!.active.value).toBe('building');
+    expect(session.tools!.active.value).toBe('zone');
     await view.click('tool-building');
     expect(session.tools!.active.value).toBe('inspect');
     expect((view.get('undo') as HTMLButtonElement).disabled).toBe(true);
@@ -191,26 +193,116 @@ describe('lens toolbars', () => {
   it('the build picker shows costs and hides what the valley mode does not offer', async () => {
     const session = withTools(mockSession().session);
     session.ui.lens.value = 'ledger';
-    session.tools!.select('building');
+    session.tools!.select('building', 'cottage');
     view = await mount(h(Toolbar, { session }));
-    expect(ids(view.root, 'group-')).toEqual(['homes', 'specialized', 'services']);
+    // R1C: three shelves. A hand-placed cottage is on Services, under "Homes by hand".
+    expect(ids(view.root, 'group-')).toEqual(['zones', 'specialized', 'services']);
     const cottage = view.get('variant-cottage');
     expect(cottage.textContent).toContain('20');
     expect(cottage.textContent).toContain('16 timber');
     // Homes have no upkeep (C3X tuning), so the card shows none.
     expect(cottage.textContent).not.toContain('a day to keep');
+    expect(view.get('homes-by-hand').textContent).toContain('Homes by hand');
     await view.click('group-specialized');
-    // R1.0: the specialized buildings as plain cards until R1C's shelves; the chain rows are gone.
     expect(ids(view.root, 'variant-')).toEqual(
       expect.arrayContaining(['foresters-lodge', 'quarry', 'fishery', 'windmill', 'granary', 'storehouse']),
     );
     expect(view.find('building-chains')).toBeNull();
     expect(ids(view.root, 'variant-')).not.toContain('workshop');
+    expect(ids(view.root, 'variant-')).not.toContain('well');
     await view.click('variant-storehouse');
     expect(session.tools!.tool('building')!.variant!.value).toBe('storehouse');
     await view.click('group-services');
     expect(ids(view.root, 'variant-')).toContain('well');
     expect(ids(view.root, 'variant-')).not.toContain('town-hall');
+    expect(ids(view.root, 'variant-')).not.toContain('windmill');
+  });
+
+  it('each specialized card says its site rule and what it is for', async () => {
+    const session = withTools(mockSession().session);
+    session.ui.lens.value = 'ledger';
+    session.tools!.select('building', 'windmill');
+    view = await mount(h(Toolbar, { session }));
+    await view.click('group-specialized');
+    expect(view.get('site-windmill').textContent).toBe('On open ground');
+    expect(view.get('site-foresters-lodge').textContent).toBe('Beside woods (12 grown trees)');
+    expect(view.get('site-quarry').textContent).toBe('On a stone deposit');
+    expect(view.get('variant-windmill').textContent).toContain('baker');
+    // A building with a reach says so under the shelf while it is chosen.
+    expect(view.get('reach-note').textContent).toContain('24 tiles');
+  });
+
+  it('the Zones shelf: four brushes in demand order, each beside its demand bar', async () => {
+    const mock = mockSession(mockView({ town: { ...mockTown, rank: 'village' } })).session;
+    mock.mirror.demand.value = {
+      bars: [
+        {
+          kind: 'homes',
+          value: 62,
+          lit: true,
+          reasons: [],
+          why: ['Households would come, and jobs are open.'],
+        },
+        { kind: 'shops', value: 10, lit: false, reasons: [], why: [] },
+        { kind: 'workshops', value: 0, lit: false, reasons: [], why: [] },
+        { kind: 'farmland', value: 0, lit: false, reasons: [], why: [] },
+      ],
+    };
+    const session = withTools(mock);
+    session.ui.lens.value = 'ledger';
+    view = await mount(h(Toolbar, { session }));
+    // The Build button opens the picker on the Zones shelf, with Homes ready; Zone has no button.
+    expect(view.find('tool-zone')).toBeNull();
+    await view.click('tool-building');
+    expect(session.tools!.active.value).toBe('zone');
+    expect(ids(view.root, 'brush-').filter((id) => !id.startsWith('why-') && id !== 'demand')).toEqual([
+      'homes-low',
+      'shops',
+      'crafts',
+      'farms',
+      'clear',
+    ]);
+    expect(view.get('brush-why-homes').textContent).toBe('Households would come, and jobs are open.');
+    expect(view.get('brush-why-shops').textContent).toBe('Quiet for now.');
+    expect(view.get('brush-homes-low').getAttribute('title')).toContain('The town needs more Homes zoned.');
+    // R1B: a grain farm wants room behind its lot, so the Farmland brush says to zone it deep.
+    expect(view.get('brush-farms').getAttribute('title')).toContain('Zone it deep');
+    // From Village rank the Homes card has its second density.
+    expect(view.get('variant-homes-medium').textContent).toBe('Townhouses');
+    await view.click('variant-homes-medium');
+    expect(session.tools!.tool('zone')!.variant!.value).toBe('homes-medium');
+    await view.click('brush-crafts');
+    expect(session.tools!.tool('zone')!.variant!.value).toBe('crafts');
+    await view.click('brush-clear');
+    expect(session.tools!.tool('zone')!.variant!.value).toBe('clear');
+    // Clicking Build again puts the brush away.
+    await view.click('tool-building');
+    expect(session.tools!.active.value).toBe('inspect');
+  });
+
+  it('before Village the Shops card is the Market Stall and Townhouses are not offered', async () => {
+    const session = withTools(mockSession(mockView({ town: { ...mockTown, rank: 'hamlet' } })).session);
+    session.ui.lens.value = 'ledger';
+    view = await mount(h(Toolbar, { session }));
+    await view.click('tool-building');
+    expect(view.find('variant-homes-medium')).toBeNull();
+    expect(view.get('shops-closed').textContent).toContain('Market Stall by hand until Village rank');
+    expect(view.get('brush-shops').textContent).toContain('Market Stall');
+    await view.click('brush-shops');
+    expect(session.tools!.active.value).toBe('building');
+    expect(session.tools!.tool('building')!.variant!.value).toBe('market-stall');
+    // Still on the Zones shelf, with the Shops card chosen.
+    expect(view.get('brush-shops').closest('.card')!.className).toContain('active');
+  });
+
+  it('a creative valley has no Zones shelf', async () => {
+    const session = withTools(
+      mockSession(mockView({ settings: { ...mockView().settings, mode: 'sandbox' } })).session,
+    );
+    session.ui.lens.value = 'ledger';
+    session.tools!.select('building', 'house');
+    view = await mount(h(Toolbar, { session }));
+    expect(ids(view.root, 'group-')).toEqual(['specialized', 'services']);
   });
 
   it('in a creative valley the picker says building is free and offers the sandbox pieces', async () => {

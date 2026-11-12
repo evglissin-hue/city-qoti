@@ -31,6 +31,7 @@ import { rejectText, undoText } from '../ui/messages';
 import { panels, toggleBook } from '../ui/panels';
 import { sketchWith } from '../ui/plans';
 import { posterUpText } from '../ui/seasons';
+import { copy } from '../ui/copy';
 import { INPUT_COPY } from '../input/copy';
 import { buildingChoices, buildingLock } from '../input/catalog';
 import { createUiState } from '../ui/state';
@@ -64,6 +65,7 @@ const SEASON_NAMES = ['Spring', 'Summer', 'Fall', 'Winter'] as const;
 const ROOM_ERRORS: Partial<Record<ErrorCode, string>> = {
   BAD_TOKEN: 'That invite does not open this valley.',
   NOT_FOUND: 'That valley is not on this relay.',
+  OLD_VALLEY: copy.title.oldValley,
   VERSION_MISMATCH: 'You and your partner are on different versions. Reload both tabs.',
   SEAT_TAKEN: 'Someone is already sitting in that seat.',
 };
@@ -79,6 +81,8 @@ export class Session {
   readonly ui = createUiState();
   readonly phase = signal<'connecting' | 'loading' | 'ready' | 'failed'>('connecting');
   readonly error = signal<string | null>(null);
+  /** R1C: the room answered OLD_VALLEY; the view returns to the title screen, where it is grayed. */
+  oldValley = false;
   readonly valley = signal<ValleyMeta | null>(null);
   readonly roster = signal<RosterEntry[]>([]);
   connection: RoomConnection | null = null;
@@ -164,6 +168,10 @@ export class Session {
       this.toast('The valley has a newer version. Reload the page to keep building.');
     });
     c.onError((code, message) => {
+      if (code === 'OLD_VALLEY') {
+        updateRecent(this.target.valleyId, { old: true });
+        this.oldValley = true;
+      }
       const text = ROOM_ERRORS[code] ?? message;
       if (this.phase.value === 'ready') this.toast(text);
       else this.fail(text);
