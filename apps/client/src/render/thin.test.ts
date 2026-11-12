@@ -89,3 +89,32 @@ describe('ScatterField.setGeometry (V2B)', () => {
     expect(scene.children.length).toBe(1);
   });
 });
+
+describe('ScatterField.setChunk (V2B)', () => {
+  it('refills at once when trees are planted into a chunk in view that was built empty', () => {
+    const scene = new Scene();
+    const env = createWorldEnv(new PerspectiveCamera());
+    const field = new ScatterField(
+      scene,
+      new MeshBasicMaterial(),
+      [{ id: 'k', high: new BoxGeometry(1, 1, 1), shadows: false }],
+      env,
+    );
+    const camera = new PerspectiveCamera(60, 1, 0.1, 500);
+    camera.position.set(8, 6, 16);
+    camera.lookAt(8, 0, 8);
+    // A neighbor with trees, so the field has drawn something; chunk 0 starts empty.
+    const other = emptyScatterChunk(1);
+    addInstance(other, 0, 24, 0, 8, 0, 1, 0, 0, 1, 1, 1, 1);
+    field.setChunk(1, other);
+    field.setChunk(0, emptyScatterChunk(1));
+    expect(field.update(camera)).toBe(true);
+    expect(field.update(camera)).toBe(false);
+    const planted = emptyScatterChunk(1);
+    addInstance(planted, 0, 8, 0, 8, 0, 1, 0, 0, 1, 1, 1, 1);
+    field.setChunk(0, planted);
+    // The camera has not moved: the new trees still show on the next update.
+    expect(field.update(camera)).toBe(true);
+    expect(field.drawn.get('k')!.high).toBe(2);
+  });
+});

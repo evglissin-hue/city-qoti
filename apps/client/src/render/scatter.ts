@@ -174,7 +174,10 @@ export class ScatterField {
   setChunk(index: number, chunk: ScatterChunk | null): void {
     const old = this.chunks[index];
     this.chunks[index] = chunk;
-    if (this.shown.has(index) || this.shown.size === 0 || (!old && chunk && this.nearView(index)))
+    // V2B: a chunk built empty before (no instances, so never `shown`) counts as new: trees planted
+    // into it (a showcase, a grove) refill at once instead of waiting for the camera to move.
+    const wasEmpty = !old || old.maxY < old.minY;
+    if (this.shown.has(index) || this.shown.size === 0 || (wasEmpty && chunk && this.nearView(index)))
       this.dirty = true;
   }
 
