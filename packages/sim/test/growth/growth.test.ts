@@ -194,9 +194,12 @@ describe('the nightly growth pass', () => {
     }
   });
 
+  // R1B: with the carrier allowed to bring Materials (Essentials, the default), one site of each
+  // kind may start on bought timber while no other of its kind waits; on Never, growth waits.
   it('waits when the storehouses cannot spare the materials, and keeps a few sites at a time', () => {
     const f = villageFixture();
     const s = f.state;
+    s.carrier.families[2]!.rule = 'never';
     openWork(s);
     openWork(s, 91, 46);
     const planks = good('timber');
@@ -208,6 +211,14 @@ describe('the nightly growth pass', () => {
     findById(s.buildings, f.b.storehouses[0])!.rt!.store[planks] = share;
     expect(growthDemand(s).homes).toBeGreaterThan(0);
     expect(night(s)).toBe(0);
+    // The carrier may bring timber: one home goes up on it, and no second while the first waits.
+    s.carrier.families[2]!.rule = 'essentials';
+    expect(night(s)).toBe(1);
+    const waiting = grown(s).filter((b) => b.rt?.construction?.needs.some((n) => n > 0));
+    expect(waiting.length).toBe(1);
+    expect(night(s)).toBe(0);
+    s.buildings.splice(s.buildings.indexOf(waiting[0]!), 1);
+    findById(s.lots, waiting[0]!.lot!)!.buildingId = 0;
     // A home waiting on timber would make timber short.
     growLot(s, createTickCtx(s), f.lots.homes[2]!, 'cottage');
     expect(shortages(s)[planks]).toBeGreaterThan(0);
