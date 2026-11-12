@@ -97,7 +97,8 @@ function Row({ session, b }: { session: Session; b: BusinessView }) {
       <button type="button" class="business-main" onClick={() => select(session, b.id)}>
         <span class="business-name">
           <strong>{businessName(b)}</strong>
-          <LevelPips level={b.level} />
+          {/* Specialized buildings never level up, so only businesses show the pips. */}
+          {b.trade && <LevelPips level={b.level} />}
         </span>
         <span class="muted small">
           {b.trade ? `${keeperLine(family)}. ` : ''}
