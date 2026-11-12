@@ -113,12 +113,19 @@ async function shot(name, hour, x, z, dist, turn = 0, tilt = 0) {
 }
 
 // The Ledger's height over the town (the perf script's village view), then the street and the farms.
-await shot('town-day', 11, 64, 60, 70);
-await shot('town-dusk', 19.5, 64, 60, 70);
-await shot('street-day', 11, 66, 56, 26, 0.2);
-await shot('street-dusk', 19.5, 66, 56, 26, 0.2);
-await shot('farms-day', 11, 62, 40, 30, -0.3);
-await shot('farms-dusk', 19.5, 62, 40, 30, -0.3);
+await shot('town-day', 11, 64, 62, 70);
+await shot('town-dusk', 19.5, 64, 62, 70);
+// Close up: the farms on the farm lane (west and east), the crafts on the lower lane, and the
+// Granary and Brickworks on the street.
+for (const [name, x, z, d, turn] of [
+  ['farms-west', 42, 40, 22, 0],
+  ['farms-east', 77, 40, 22, 0],
+  ['crafts', 80, 86, 20, 0],
+  ['specialized', 86, 63, 16, 0.3],
+]) {
+  await shot(`${name}-day`, 11, x, z, d, turn);
+  await shot(`${name}-dusk`, 19.5, x, z, d, turn);
+}
 // The village view's moving frames on Medium (the perf script's table), for the budget check.
 await page.evaluate(([x, z]) => window.__qoti.look(x, z, 70), [64, 60]);
 await page.evaluate(() => window.__qoti.setHour(11));
