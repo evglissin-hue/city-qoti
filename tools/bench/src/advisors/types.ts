@@ -2,7 +2,7 @@
 // Village chains, wishes and decor, a season's needs) and proposes wants to the planner; it never
 // keeps its own build queue, labor count or money reserve. The planner visits the advisors in play
 // at 09:00 and 15:00 in `slot` order, like one person dropping in twice a day.
-import type { ValleySettings, WorldState } from '@qoti/sim';
+import type { Turn, ValleySettings, WorldState } from '@qoti/sim';
 import type { DayLine } from '../autoplay';
 import type { Planner } from '../planner';
 
@@ -32,6 +32,8 @@ export interface AutoplayOptions {
   together?: boolean;
   /** C5D: the threat dial for the run (default Peaceful, as a new valley's): raids and the Watch play when on. */
   threat?: ValleySettings['threat'];
+  /** R1X: record every turn the players send, and start from createValley plus a seat join alone (golden year). */
+  record?: Turn[];
   /** C4C: play the Village chains, services and tiers (and claim the Charter when ready). */
   village?: boolean;
   /** Called after each day's line is recorded (tuning scripts read the books here). */

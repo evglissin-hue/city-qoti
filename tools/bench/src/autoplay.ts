@@ -206,9 +206,13 @@ function untilHour(h: Hamlet, hour: number, hourly?: () => void): void {
  * players leave the valley alone, so what happens next is the village's own doing.
  */
 export function autoplay(seed: string, days: number, opts: AutoplayOptions = {}): AutoplayResult {
-  const h = startingTown(seed, { economy: opts.economy ?? 'standard' });
-  // C5D: the threat dial (valleys start Peaceful).
-  if (opts.threat) h.world.settings.threat = opts.threat;
+  const h = startingTown(seed, {
+    economy: opts.economy ?? 'standard',
+    record: opts.record,
+    threat: opts.threat,
+  });
+  // C5D: the threat dial (valleys start Peaceful). A recorded run has it in its settings already.
+  if (opts.threat && !opts.record) h.world.settings.threat = opts.threat;
   const planner = new Planner(h);
   // Every advisor that plays this run, in visit order.
   // C5X: TUNE_SKIP=nature,festivals leaves advisors out, to see what each one costs (tuning only).
