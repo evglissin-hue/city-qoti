@@ -179,14 +179,20 @@ export function townStock(state: WorldState, known?: Defs): number[] {
     // A home keeps its goods in the pantries, never in `store` or `output` (proved by r1x/home-stock.test.ts).
     const def = defs ? defs[k] : content.buildingById.get(b.def);
     if (keepsNoGoods(def)) continue;
-    const store = rt.store;
-    const output = rt.output;
-    // Full-length arrays (the usual) take the plain loop; a short one falls back to the guarded sum.
-    const m = Math.min(n, store.length, output.length);
-    for (let i = 0; i < m; i++) out[i]! += store[i]! + output[i]!;
-    for (let i = m; i < n; i++) out[i]! += (store[i] ?? 0) + (output[i] ?? 0);
+    addStock(out, rt);
   }
   return out;
+}
+
+/** Adds a runtime's store and output into a stock array (one entry a good): townStock's sum for one building. */
+export function addStock(out: number[], rt: BuildingRuntime): void {
+  const n = out.length;
+  const store = rt.store;
+  const output = rt.output;
+  // Full-length arrays (the usual) take the plain loop; a short one falls back to the guarded sum.
+  const m = Math.min(n, store.length, output.length);
+  for (let i = 0; i < m; i++) out[i]! += store[i]! + output[i]!;
+  for (let i = m; i < n; i++) out[i]! += (store[i] ?? 0) + (output[i] ?? 0);
 }
 
 export function stocksView(state: WorldState): StocksView {

@@ -262,9 +262,10 @@ export function countMakers(
 }
 
 /** Tonight's needs. `shopNeed` comes from the growth pass (outlets and households). */
-export function townNeeds(state: WorldState, shopNeed = 0, defs?: Defs): TownNeeds {
+export function townNeeds(state: WorldState, shopNeed = 0, defs?: Defs, known?: number[]): TownNeeds {
   const n = content.goods.length;
-  const stock = townStock(state, defs);
+  // `known`: the stock the caller summed on a walk of its own (townStock's result, for this tick).
+  const stock = known ?? townStock(state, defs);
   const wanted = wants(state);
   const want = wanted.map((w) => Math.ceil(w));
   const makers = new Array<number>(n).fill(0);

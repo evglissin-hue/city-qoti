@@ -24,7 +24,7 @@ import { findById } from '../../state/entities';
 import { familyIndex, jobsOf } from '../../state/zones';
 import { isStandard } from '../../state/hamlet';
 import { hasInnovation, rankAtLeast } from '../../state/village';
-import { townStock } from '../../view/hamlet';
+import { addStock, keepsNoGoods, townStock } from '../../view/hamlet';
 import { businessView } from '../../view/businesses';
 import { entranceTiles } from '../../rules/footprint';
 import { hasBuilt } from '../innovations/api';
@@ -185,8 +185,11 @@ interface Census {
   homesWaiting: number;
 }
 
-/** One walk over the buildings for what the night reads of them, each as its own function has it. */
-function census(state: WorldState, known?: Defs): Census {
+/**
+ * One walk over the buildings for what the night reads of them, each as its own function has it, and
+ * (with `stock`) the town's stock as townStock sums it: the walk meets each building's runtime once.
+ */
+function census(state: WorldState, known?: Defs, stock?: number[]): Census {
   // Households living in each home, by the home's id (buildings are kept in id order, so the last holds the largest id).
   const buildings = state.buildings;
   const households = state.households;
@@ -214,6 +217,7 @@ function census(state: WorldState, known?: Defs): Census {
     const b = buildings[i]!;
     const def = defs ? defs[i] : content.buildingById.get(b.def);
     const rt = b.rt;
+    if (stock && rt && b.stage === 'built' && !keepsNoGoods(def)) addStock(stock, rt);
     // openJobs, with the def already in hand: built, not paused, not resting, hands wanted less hands.
     if (b.stage === 'built' && rt && !rt.paused && !isResting(b)) {
       const o = Math.max(0, (b.trade ? jobsOf(b) : (def?.jobs?.count ?? 0)) - rt.workers.length);
@@ -318,7 +322,8 @@ function readNight(state: WorldState): Night {
   const village = rankAtLeast(state, 'village');
   const homes = homeDoorTiles(state);
   const doors = unservedDoors(state, services, homes);
-  const seen = census(state, defs);
+  const stock = new Array<number>(content.goods.length).fill(0);
+  const seen = census(state, defs, stock);
   const outlets = seen.outlets;
   const crowded = outletsCrowded(state, outlets);
   const zoned = tradesOfBusinessZones(state);
@@ -326,7 +331,12 @@ function readNight(state: WorldState): Night {
     defs,
     services,
     doors,
-    needs: townNeeds(state, village && (doors.length >= SHOP_HOUSEHOLDS || crowded) ? NEED_FULL : 0, defs),
+    needs: townNeeds(
+      state,
+      village && (doors.length >= SHOP_HOUSEHOLDS || crowded) ? NEED_FULL : 0,
+      defs,
+      stock,
+    ),
     cache: new SiteCache(state, homes, defs),
     crafts: zoned.crafts,
     farms: zoned.farms,
