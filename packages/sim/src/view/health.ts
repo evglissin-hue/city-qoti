@@ -489,14 +489,21 @@ function carrierMayBuy(state: WorldState, good: number): boolean {
 function ruleBroken(state: WorldState, b: Building, def: BuildingDef, rule: PlacementRule): string | null {
   const [w, d] = footprintSize(def, b.rot);
   if (rule.kind === 'woods') {
+    // R1X: a wood the Lodge has felled and replanted is regrowing, not gone (R1B's foresters plant
+    // saplings in its range): only a wood with too few trees of any age is broken.
     let n = 0;
+    let mature = 0;
     for (let z = b.z - rule.within; z < b.z + d + rule.within; z++)
       for (let x = b.x - rule.within; x < b.x + w + rule.within; x++) {
         if (x < 0 || z < 0 || x >= MAP_SIZE || z >= MAP_SIZE) continue;
         const v = state.map.tree[z * MAP_SIZE + x]!;
-        if (v && treeStage(v) >= TREE_MATURE) n++;
+        if (!v) continue;
+        n++;
+        if (treeStage(v) >= TREE_MATURE) mature++;
       }
-    return n < rule.trees ? `${rule.trees} mature trees within ${rule.within} tiles (${n} left)` : null;
+    return n < rule.trees
+      ? `${rule.trees} trees within ${rule.within} tiles, young or grown (${n} left, ${mature} grown)`
+      : null;
   }
   if (rule.kind === 'openGround') {
     for (let z = b.z - rule.clear; z < b.z + d + rule.clear; z++)
