@@ -127,12 +127,12 @@ Added 2026-11-10 with the redesign (`30-roadmap.md`).
 
 | Seed | Both | Hearth off | Ledger off after founding |
 |---|---|---|---|
-| willow | 163, 4 | 178 (109%), 0 | 29 (18%), 0 |
-| hazel | 106, 0 | 198 (187%), 0 | 25 (24%), 0 |
-| oak | 164, 0 | 159 (97%), 0 | 29 (18%), 0 |
-| birch | 58, 0 | 108 (186%), 0 | 22 (38%), 0 |
+| willow | 177, 1 | 183 (103%), 0 | 29 (16%), 0 |
+| hazel | 114, 2 | 198 (174%), 0 | 25 (22%), 0 |
+| oak | 156, 0 | 159 (102%), 0 | 29 (19%), 0 |
+| birch | 103, 0 | 108 (105%), 0 | 22 (21%), 0 |
 
-The Ledger-off towns would pass R2's rule on every seed; the Hearth-off towns would fail it on every seed (97 to 187%): without the Hearth's decor and plans a town spends its timber and builders on homes and grows faster, though it reaches no Craftsfolk (charm 25 is the Hearth's). R2's evening round is where the Hearth must start to matter for growth. (The lanes runs use the lanes script's own options, so their both-lanes towns differ from `npm run targets`. The both-lanes runs took 80 to 130 Ledger decisions in 70 days.)
+The Ledger-off towns would pass R2's rule on every seed; the Hearth-off towns would fail it on every seed (102 to 174%): without the Hearth's decor and plans a town spends its timber and builders on homes and grows faster, though it reaches no Craftsfolk (charm 25 is the Hearth's). R2's evening round is where the Hearth must start to matter for growth. (The lanes runs use the lanes script's own options, so their both-lanes towns differ from `npm run targets`. The both-lanes runs took 87 to 149 Ledger decisions in 70 days.)
 
 **Decisions, not chores** [R1]. The bench counts the autoplayer's commands by kind and fails if the Ledger needed more than 150 in 70 days or used a pause to balance labor (`13-ledger.md`, Tuning targets). The count before the redesign was about 700, 261 of them pauses and 321 order changes.
 

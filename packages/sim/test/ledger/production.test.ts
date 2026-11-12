@@ -185,10 +185,26 @@ function fullWoodpile(f: ReturnType<typeof hamletFixture>): void {
 }
 
 describe('forestry', () => {
+  /**
+   * R1X: a Lodge plants rather than fells while its wood holds fewer trees than its rule (12 within
+   * 8 tiles): saplings along the far edge of its reach make it a wood, away from the trees a test fells.
+   */
+  function youngWood(f: ReturnType<typeof hamletFixture>): void {
+    let n = 0;
+    for (const z of [72, 73])
+      for (let x = 112; x <= 130 && n < 12; x++) {
+        const i = z * S + x;
+        if (f.state.map.occupant[i] || f.state.map.road[i] || f.state.map.tree[i]) continue;
+        f.state.map.tree[i] = treeValue(TREE_SPECIES.oak, 0);
+        n++;
+      }
+  }
+
   it("fells one mature tree per worker every 3 hours for 4 timber at a Forester's Lodge, thickest stand first", () => {
     const f = hamletFixture();
     fullWoodpile(f);
     const hut = place(f.state, 'foresters-lodge', 120, 80);
+    youngWood(f);
     const grove = [
       [124, 84],
       [125, 84],
@@ -209,6 +225,7 @@ describe('forestry', () => {
     const f = hamletFixture();
     fullWoodpile(f);
     const hut = place(f.state, 'foresters-lodge', 120, 80);
+    youngWood(f);
     f.state.map.tree[84 * S + 124] = treeValue(TREE_SPECIES.pine, 3);
     f.state.map.tree[84 * S + 127] = treeValue(TREE_SPECIES.pine, 1);
     toWork(f.state, hire(f.state, hut.id, 2));
@@ -216,6 +233,25 @@ describe('forestry', () => {
     expect(stockOf(hut, 'output', 'timber')).toBe(4);
     expect(hut.rt!.status & BuildingStatus.noTrees).toBeTruthy();
     expect(f.state.map.tree[84 * S + 127]).not.toBe(0);
+  });
+
+  it('plants rather than fells while its wood is thinner than its rule (R1X)', () => {
+    const f = hamletFixture();
+    fullWoodpile(f);
+    const hut = place(f.state, 'foresters-lodge', 120, 80);
+    // Three grown trees left of a wood the town built into.
+    for (const [x, z] of [
+      [124, 84],
+      [125, 84],
+      [124, 85],
+    ])
+      f.state.map.tree[z! * S + x!] = treeValue(TREE_SPECIES.oak, 3);
+    const trees = () => f.state.map.tree.reduce((n, v) => n + (v ? 1 : 0), 0);
+    const before = trees();
+    toWork(f.state, hire(f.state, hut.id, 1));
+    ticks(f.state, 3 * H);
+    expect(stockOf(hut, 'output', 'timber')).toBe(0);
+    expect(trees()).toBeGreaterThan(before);
   });
 });
 
