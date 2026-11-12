@@ -421,6 +421,12 @@ export interface BuildingDetail {
   /** R1: businesses, the trades the Ledger may pin here (its zone's, its site allowing), and whether it is pinned. */
   trades?: { id: string; name: string }[];
   pinned?: boolean;
+  /**
+   * R1B: a specialized building's reach (walking tiles along roads), the businesses of the trades it
+   * enables standing in it, and how many it may serve (the Windmill's raised capacity, the frozen
+   * Sawmill's one fewer). Absent for buildings with no reach.
+   */
+  reach?: { tiles: number; served: number; capacity: number };
   /** Grown buildings: their lot. */
   lot?: LotView;
   /** Homes: the tier housed and an upgrade under way. */
