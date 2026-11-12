@@ -77,6 +77,10 @@ button.pin.on {
   margin: 6px 0;
 }
 
+.business-inspect p {
+  margin: 0;
+}
+
 .business-inspect .business-name {
   justify-content: space-between;
 }

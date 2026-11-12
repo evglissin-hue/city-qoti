@@ -33,15 +33,14 @@ test('New valley makes a standard valley; the books, reports and inspectors open
   await expect(page.getByTestId('patterns')).toContainText('Pattern Book');
   await page.getByTestId('patterns-close').click();
 
-  // Ledger reports.
+  // Ledger: the Purse (R1C replaced Reports and Policies).
   await page.getByTestId('lens-ledger').click();
-  await page.getByTestId('book-reports').click();
-  for (const tab of ['stocks', 'workforce', 'budget', 'buildings']) {
-    await page.getByTestId(`report-${tab}`).click();
-    await expect(page.getByTestId(`report-${tab}`)).toHaveAttribute('aria-selected', 'true');
+  await page.getByTestId('book-purse').click();
+  for (const tab of ['budget', 'taxes', 'loans']) {
+    await page.getByTestId(`purse-${tab}`).click();
+    await expect(page.getByTestId(`purse-${tab}`)).toHaveAttribute('aria-selected', 'true');
   }
-  await expect(page.getByTestId('budget')).toHaveCount(0);
-  await page.getByTestId('report-budget').click();
+  await page.getByTestId('purse-budget').click();
   await expect(page.getByTestId('budget')).toContainText('500 coins');
   await page.keyboard.press('Escape');
 

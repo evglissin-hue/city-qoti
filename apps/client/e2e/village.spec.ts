@@ -36,9 +36,11 @@ test('every village panel opens and works against a live village', async ({ page
   await page.getByTestId('balances-neighbors').click();
   await expect(page.getByTestId('neighbor-millhaven')).toContainText('Millhaven');
   await expect(page.getByTestId('trade-ledger')).toBeVisible();
-  await page.getByTestId('book-policies').click();
+  await page.getByTestId('book-purse').click();
+  await page.getByTestId('purse-taxes').click();
   await page.getByTestId('wage-110').click();
   await expect(page.getByTestId('wage-110')).toHaveAttribute('aria-checked', 'true');
+  await page.getByTestId('purse-loans').click();
   await expect(page.getByTestId('credit')).toBeVisible();
   await page.getByTestId('book-notebook').click();
   await expect(page.getByTestId('idea-cobbles')).toHaveClass(/unlocked/);
