@@ -6,7 +6,7 @@ import { describe, expect, it } from 'vitest';
 import type { Lot, WorldState } from '../../src/contracts';
 import { findById, removeById } from '../../src/state/entities';
 import { insertBuilding } from '../../src/state/place';
-import { SiteCache, siteMeets } from '../../src/systems/growth/site';
+import { anyRoom, SiteCache, siteMeets } from '../../src/systems/growth/site';
 import { markSeen } from '../../src/systems/market/balances';
 import {
   FIRST_MAKER_NEED,
@@ -166,6 +166,22 @@ describe('site', () => {
     expect(siteMeets(new SiteCache(s), near, trade('baker'))).toBe(false);
     // A weaver wants nothing of its lot.
     expect(siteMeets(new SiteCache(s), near, trade('weaver'))).toBe(true);
+  });
+
+  it("forgets whether a windmill has room once a baker takes the last place (R1X's night cache)", () => {
+    const f = villageFixture();
+    const s = f.state;
+    for (const b of s.buildings.filter((x) => x.def === 'windmill')) removeById(s.buildings, b.id);
+    insertBuilding(s, null, content.buildingById.get('windmill')!, 86, 52, 2, 0, { site: false });
+    const cache = new SiteCache(s);
+    // The mill serves the fixture's bakery, one of two.
+    expect(anyRoom(cache, 'windmill')).toBe(true);
+    const second = insertBuilding(s, null, content.buildingById.get('workshop')!, 92, 52, 2, 0, {
+      trade: 'baker',
+    });
+    cache.addBusiness(second);
+    expect(anyRoom(cache, 'windmill')).toBe(false);
+    expect(anyRoom(new SiteCache(s), 'windmill')).toBe(false);
   });
 });
 
