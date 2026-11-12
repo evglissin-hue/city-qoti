@@ -557,10 +557,11 @@ export function createFoliageMaterial(env: WorldEnv): MeshStandardMaterial {
         [
           '#include <emissivemap_fragment>',
           // V2B: lit from below. Lamplight from the light map warms the crown's underside, most low
-          // on the crown and on faces turned down; the map is black until V2A draws it.
+          // on the crown and on faces turned down. V2X: through the shared curve (qLamp, its
+          // ceiling where pools crowd; the crown's own height fade is qK's).
           '{',
           '  float qK = 1.3 * (1.0 - smoothstep(0.1, 1.7, vQWorld.y - vQBaseY)) * (0.55 + 0.45 * max(0.0, -vQUp.y));',
-          '  totalEmissiveRadiance += diffuseColor.rgb * qLightMap(vQWorld.xz) * uNight * qK;',
+          '  totalEmissiveRadiance += diffuseColor.rgb * qLamp(vQWorld.xz, 0.0) * uNight * qK;',
           '}',
         ].join('\n'),
       );

@@ -16,7 +16,7 @@ import { createWorldEnv, MAX_GROUND_LIGHTS, NOISE_GLSL, type WorldEnv } from '..
 import { GroundTextures } from '../ground';
 import { GROUND_AO_GLSL, groundAoFor } from '../groundAo';
 import { groundTexturesFor } from '../groundRead';
-import { LIGHT_MAP_GLSL, lightMapUniforms } from '../lightMap';
+import { LIGHT_LOOP, LIGHT_MAP_GLSL, lightMapUniforms } from '../lightMap';
 import { SurfaceTiles, tileSurfaceY, WATER_Y } from '../surface';
 import type { LayerContext, RenderLayer } from './types';
 
@@ -435,11 +435,15 @@ void qBlade(out vec3 pos, out vec3 nrm, out vec3 col, out vec3 glow, out vec2 xz
   }
   col = aCorner > 1.5 ? top : foot;
 
-  // Night: the ground's lantern pools at the root (V2X drops this loop once V2A moves the ground
-  // to the light map) and the light map's lamplight.
+  // Night: the ground's own lamplight at the root, so blade and ground read as one lit mass (V2X:
+  // the shared curve, qLamp, as ground.ts's qGlow; the 32-light loop only with ?debug&lights=loop).
   if (uNight > 0.01) {
+#ifdef Q_LIGHT_MAP
+    glow = qLamp(root, 0.0) * (uNight * uNight * 0.65);
+#else
     float sum = qGlowSum(pos);
-    glow = qSrgb(vec3(1.0, 0.7, 0.4)) * min(sum, 1.2) * uNight * uNight + qLightMap(root) * uNight;
+    glow = qSrgb(vec3(1.0, 0.7, 0.4)) * min(sum, 1.2) * uNight * uNight;
+#endif
   }
 }
 `;
@@ -465,6 +469,8 @@ export function createMeadowMaterial(
   reach: { value: number },
 ): MeshStandardMaterial {
   const m = new MeshStandardMaterial({ roughness: 0.95, metalness: 0, side: DoubleSide });
+  // V2X: the light map, as the ground reads it, unless ?debug&lights=loop keeps the loop.
+  if (!LIGHT_LOOP) m.defines = { ...m.defines, Q_LIGHT_MAP: '' };
   m.onBeforeCompile = (shader) => {
     Object.assign(shader.uniforms, {
       uGroundColor: { value: tex.color },
@@ -511,7 +517,8 @@ export function createMeadowMaterial(
       )
       .replace(
         '#include <emissivemap_fragment>',
-        '#include <emissivemap_fragment>\ntotalEmissiveRadiance += diffuseColor.rgb * vQGlow * 1.3;',
+        // As the ground: lamplight on a half greyed albedo plus a breath of warm air over a pool.
+        '#include <emissivemap_fragment>\n{ vec3 qA = mix(diffuseColor.rgb, vec3(dot(diffuseColor.rgb, vec3(0.3, 0.55, 0.15))), 0.45); totalEmissiveRadiance += qA * vQGlow * 1.3 + vQGlow * 0.035; }',
       );
   };
   m.customProgramCacheKey = () => 'qoti-meadow';
@@ -616,7 +623,7 @@ export function meadowLayer(): RenderLayer {
     material = createMeadowMaterial(env, tex, reachU);
     mesh = new Mesh(geometry, material);
     mesh.frustumCulled = false;
-    // V2A: set `shadowless: true` on this layer once `RenderLayer.shadowless` lands.
+    // The layer is shadowless (V2A's change): its refills never re-render the shadow map.
     mesh.castShadow = false;
     // The renderer sets every solid static mesh casting when the shadow map renders
     // (`updateShadowFlags`) unless it opts out: blades shadowing the ground under them read as
@@ -675,6 +682,8 @@ export function meadowLayer(): RenderLayer {
   return {
     id: 'meadow',
     motion: 'static',
+    // V2X: it casts nothing, so its refills drop the still frame without a shadow render.
+    shadowless: true,
     init(c) {
       ctx = c;
       env = c.env ?? createWorldEnv(new PerspectiveCamera());
@@ -723,7 +732,7 @@ export function meadowLayer(): RenderLayer {
         if (chunkNear(i, rule.centerX, rule.centerZ, F) || Number.isNaN(rule.centerX)) pending = true;
       }
       // Refill once the chunks round the focus are all built, not after each one: every refill is a
-      // static change (a new still frame and, until V2A's shadowless change, a shadow render).
+      // static change (a new still frame; the layer is shadowless, so no shadow render).
       if (pending && taken.length < CHUNKS_PER_FRAME) {
         pending = false;
         refill = true;

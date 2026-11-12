@@ -87,7 +87,7 @@ export const RIBBON_SEGMENTS = 12;
  * vertex shader from the chimney (an instance attribute), its seed and the clock: it rises about a
  * tile and a half, widens, leans downwind (more in a storm), wavers in waves that travel up it and
  * fades out at the top. The strip turns to face the camera about its own line. At night it takes
- * the light map's glow (`qLightMap`, scaled by the night) where it passes lamps and lit windows.
+ * the light map's glow (`qLamp`, scaled by the night) where it passes lamps and lit windows.
  * The CPU writes nothing per frame but the clock, so an idle frame costs one small draw.
  */
 const SMOKE_VERT = /* glsl */ `
@@ -131,7 +131,9 @@ void main() {
   float width = (0.09 + t * 0.46) * (1.0 + uCold * 0.45);
   vec3 p = c + side * position.x * width;
   vFade = smoothstep(0.0, 0.07, t) * (1.0 - smoothstep(0.35, 1.0, t));
-  vGlow = qLightMap(c.xz) * uNight;
+  // V2X: the shared curve's ceiling (qLamp), not its height fade: smoke over a lamplit street
+  // takes the glow from below however high it climbs.
+  vGlow = qLamp(c.xz, 0.0) * uNight;
   vec4 mvPosition = viewMatrix * vec4(p, 1.0);
   gl_Position = projectionMatrix * mvPosition;
   #include <fog_vertex>

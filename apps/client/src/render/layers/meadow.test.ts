@@ -2,7 +2,7 @@
 // V2B: the meadow carpet's CPU side: which tiles a chunk keeps, the fill by radius, when it refills,
 // the blade patch and the chunk build time. (The blades themselves are built in the vertex shader.)
 import { CHUNK_SIZE, MAP_SIZE, Terrain, Water } from '@qoti/sim';
-import { PerspectiveCamera, Scene } from 'three';
+import { type Mesh, type MeshStandardMaterial, PerspectiveCamera, Scene, ShaderLib } from 'three';
 import { describe, expect, it } from 'vitest';
 import { Mirror } from '../../state/mirror';
 import { createWorldEnv } from '../env';
@@ -257,6 +257,33 @@ describe('the layer', () => {
     expect(mesh).toBeDefined();
     expect(mesh.castShadow).toBe(false);
     expect(mesh.userData.qotiShadows).toBe(false);
+    layer.dispose();
+  });
+
+  it('V2X: is shadowless and reads the light map as the ground does (the shared curve)', () => {
+    expect(meadowLayer().shadowless).toBe(true);
+    const m = mixed();
+    const scene = new Scene();
+    const camera = new PerspectiveCamera();
+    const env = createWorldEnv(camera);
+    env.meadowCarpet = 30;
+    env.focus.set(24, 0, 24);
+    camera.position.set(24, 40, 64);
+    groundTexturesFor(env).value = new GroundTextures(m);
+    const layer = meadowLayer();
+    layer.init({ scene, mirror: m, material: undefined as never, invalidate: () => {}, camera, env });
+    for (let f = 0; f < 40; f++) layer.frame?.(0.016);
+    const mesh = scene.children.find((o) => o.name === 'meadow') as Mesh;
+    const material = mesh.material as MeshStandardMaterial;
+    expect(material.defines?.Q_LIGHT_MAP).toBe('');
+    const shader = {
+      uniforms: {} as Record<string, { value: unknown }>,
+      vertexShader: ShaderLib.standard.vertexShader,
+      fragmentShader: ShaderLib.standard.fragmentShader,
+    };
+    material.onBeforeCompile(shader as never, null as never);
+    expect(shader.vertexShader).toContain('qLamp(root, 0.0)');
+    expect(shader.uniforms.uLightMap).toBeDefined();
     layer.dispose();
   });
 });
