@@ -68,17 +68,20 @@ function BalanceChips({ session }: { session: Session }) {
             onClick={() => open(line.family)}
           >
             <GoodIcon good={FAMILY_ICON[line.family]} />
-            <span class="cover-bar" aria-hidden="true">
-              <i style={{ width: `${Math.round(r.fill * 100)}%` }} />
-              {r.reserveAt !== null && <u class="tick reserve" style={{ left: `${r.reserveAt * 100}%` }} />}
-              {r.markAt !== null && <u class="tick mark" style={{ left: `${r.markAt * 100}%` }} />}
+            {/* The bar of cover, with the flavors on offer as pips under it. */}
+            <span class="chip-stack">
+              <span class="cover-bar" aria-hidden="true">
+                <i style={{ width: `${Math.round(r.fill * 100)}%` }} />
+                {r.reserveAt !== null && <u class="tick reserve" style={{ left: `${r.reserveAt * 100}%` }} />}
+                {r.markAt !== null && <u class="tick mark" style={{ left: `${r.markAt * 100}%` }} />}
+              </span>
+              <span class="flavor-pips" aria-hidden="true">
+                {r.pips.map((on, i) => (
+                  <i key={i} class={on ? 'on' : ''} />
+                ))}
+              </span>
             </span>
             <span class="cover-days">{r.days}</span>
-            <span class="flavor-pips" aria-hidden="true">
-              {r.pips.map((on, i) => (
-                <i key={i} class={on ? 'on' : ''} />
-              ))}
-            </span>
           </button>
         );
       })}

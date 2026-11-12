@@ -216,14 +216,21 @@ button.winter-reserve:hover {
   color: #a8542e;
 }
 
-.flavor-pips {
+.chip-stack {
   display: inline-flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.flavor-pips {
+  display: flex;
   gap: 2px;
+  height: 4px;
 }
 
 .flavor-pips i {
-  width: 5px;
-  height: 5px;
+  width: 4px;
+  height: 4px;
   border-radius: 50%;
   border: 1px solid var(--ink-soft);
   box-sizing: border-box;
@@ -375,8 +382,13 @@ button.menu-item:hover {
 
 /* --- Tight screens ------------------------------------------------------------------------ */
 
+@media (max-width: 1360px) {
+  header.topbar .date-season {
+    display: none;
+  }
+}
+
 @media (max-width: 1500px) {
-  header.topbar .date-season,
   header.topbar .weather-chip .weather-word,
   header.topbar .weather-chip .next,
   header.topbar .rank-word {
@@ -385,22 +397,12 @@ button.menu-item:hover {
 }
 
 @media (max-width: 1400px) {
-  header.topbar .topbar-town .muted {
-    display: none;
-  }
-
   header.topbar .topbar-town-stats > .goal-pill {
     max-width: 8rem;
   }
 }
 
-/* The strip gives up its flavor pips, then shortens its bars, as its room runs out. */
-@container (max-width: 700px) {
-  .flavor-pips {
-    display: none;
-  }
-}
-
+/* The strip shortens its bars as its room runs out; the pips sit under the bars and cost no width. */
 @container (max-width: 620px) {
   .cover-bar {
     width: 20px;

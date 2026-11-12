@@ -29,6 +29,7 @@ import { Empty, Frame, Heading, Sparkline, Toggle } from './parts';
 import { Dial, Price, Stepper } from './villageParts';
 
 import { FAMILY_ICON } from '../topbar/families';
+import { coverDays, coverNumber } from '../topbar/strip';
 export { FAMILY_ICON };
 
 export const RULE_WORD: Record<CarrierRule, string> = {
@@ -43,9 +44,7 @@ const FULL_DAYS = 10;
 
 /** Cover as the small number: "4", "99+". */
 export function daysText(line: Pick<BalanceLine, 'cover' | 'use' | 'stock'>): string {
-  if (line.use <= 0) return line.stock > 0 ? '99+' : '0';
-  const d = Math.floor(line.cover / 100);
-  return d > 99 ? '99+' : String(d);
+  return coverNumber(line);
 }
 
 /** True while the family sits under its reserve (Materials hold units, not days). */
@@ -166,7 +165,7 @@ function CoverBar({ line }: { line: BalanceLine }) {
   const showReserve = line.family !== 'materials' && line.reserve > 0;
   return (
     <span class={`cover-bar ${underReserve(line) ? 'low' : ''}`} aria-hidden="true">
-      <i class="fill" style={{ width: pct(line.cover / 100) }} />
+      <i class="fill" style={{ width: pct(coverDays(line)) }} />
       {showReserve && <i class="tick reserve" style={{ left: pct(line.reserve) }} />}
       {line.mark !== null && <i class="tick mark" style={{ left: pct(line.mark) }} />}
     </span>

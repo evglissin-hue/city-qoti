@@ -30,10 +30,19 @@ export function dayWord(n: number): string {
   return `${n} ${n === 1 ? 'day' : 'days'}`;
 }
 
+/**
+ * Days of cover, as the top bar and the Balances book both read it: a family the town holds but
+ * does not use (no use yet) has plenty, so it reads as a full bar and "99+", never as none.
+ */
+export function coverDays(line: Pick<BalanceLine, 'cover' | 'use' | 'stock'>): number {
+  if (line.use <= 0) return line.stock > 0 ? Infinity : 0;
+  return Math.max(0, line.cover / 100);
+}
+
 /** Whole days of cover for the chip's number: "4", or "99+". */
-export function coverNumber(cover: number): string {
-  const days = Math.floor(cover / 100);
-  return days >= 99 ? '99+' : String(Math.max(0, days));
+export function coverNumber(line: Pick<BalanceLine, 'cover' | 'use' | 'stock'>): string {
+  const days = Math.floor(coverDays(line));
+  return days >= 99 ? '99+' : String(days);
 }
 
 export interface ChipReading {
@@ -55,7 +64,7 @@ const clamp01 = (n: number) => Math.min(1, Math.max(0, n));
 
 /** What one family's chip draws and says. Materials hold units beyond site needs, not days. */
 export function chipReading(line: BalanceLine): ChipReading {
-  const days = line.cover / 100;
+  const days = coverDays(line);
   const isMaterials = line.family === 'materials';
   const onOffer = line.flavors.filter((f) => f.onOffer);
   const name = FAMILY_LABEL[line.family];
@@ -63,7 +72,9 @@ export function chipReading(line: BalanceLine): ChipReading {
     ? `holding ${line.reserve} beyond what sites need`
     : `holding ${dayWord(line.reserve)}`;
   const title = [
-    `${name}: ${dayWord(Math.floor(days))} of cover.`,
+    days === Infinity
+      ? `${name}: plenty, since nothing uses it yet.`
+      : `${name}: ${dayWord(Math.floor(days))} of cover.`,
     `${line.stock} in store, ${line.use} used a day.`,
     `${onOffer.length} of ${line.flavors.length} ${line.flavors.length === 1 ? 'flavor' : 'flavors'} on offer${
       onOffer.length
@@ -73,7 +84,7 @@ export function chipReading(line: BalanceLine): ChipReading {
     `The carrier: ${RULE_LABEL[line.rule]}${line.rule === 'never' ? '' : `, ${hold}`}.`,
   ].join(' ');
   return {
-    days: coverNumber(line.cover),
+    days: coverNumber(line),
     fill: clamp01(days / COVER_FULL_DAYS),
     reserveAt: isMaterials ? null : clamp01(line.reserve / COVER_FULL_DAYS),
     markAt: line.mark === null ? null : clamp01(line.mark / COVER_FULL_DAYS),

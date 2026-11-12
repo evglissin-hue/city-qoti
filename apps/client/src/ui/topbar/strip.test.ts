@@ -75,11 +75,14 @@ describe('demand title', () => {
 
 describe('balance chip', () => {
   it('reads whole days, capped at 99+', () => {
-    expect(coverNumber(400)).toBe('4');
-    expect(coverNumber(449)).toBe('4');
-    expect(coverNumber(0)).toBe('0');
-    expect(coverNumber(9900)).toBe('99+');
-    expect(coverNumber(50000)).toBe('99+');
+    expect(coverNumber({ cover: 400, use: 5, stock: 20 })).toBe('4');
+    expect(coverNumber({ cover: 449, use: 5, stock: 22 })).toBe('4');
+    expect(coverNumber({ cover: 0, use: 5, stock: 0 })).toBe('0');
+    expect(coverNumber({ cover: 9900, use: 1, stock: 99 })).toBe('99+');
+    expect(coverNumber({ cover: 50000, use: 1, stock: 500 })).toBe('99+');
+    // Held but not used yet: plenty, never none (the book and the strip agree).
+    expect(coverNumber({ cover: 0, use: 0, stock: 120 })).toBe('99+');
+    expect(coverNumber({ cover: 0, use: 0, stock: 0 })).toBe('0');
   });
   it('fills to ten days, ticks the reserve and warms under it', () => {
     const r = chipReading(line());
