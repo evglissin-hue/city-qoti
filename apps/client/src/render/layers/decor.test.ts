@@ -6,7 +6,7 @@ import { describe, expect, it } from 'vitest';
 import { Mirror } from '../../state/mirror';
 import { TILE_FP } from '@qoti/sim';
 import { createWorldEnv } from '../env';
-import { decorLayer, fruitStep } from './decor';
+import { decorLayer, FRUIT_MIN_THIN, fruitStep } from './decor';
 import type { LayerContext } from './types';
 
 const piece = (id: number, def: string, fx: number, fz: number): DecorView => ({
@@ -18,7 +18,7 @@ const piece = (id: number, def: string, fx: number, fz: number): DecorView => ({
   builtBy: 0,
 });
 
-function setup() {
+function setup(fruitFloor = 0.25) {
   const mirror = new Mirror();
   mirror.decor.set(1, piece(1, 'cherry-tree', 96.5 * TILE_FP, 96.5 * TILE_FP));
   mirror.decor.set(2, piece(2, 'hedge', 98.5 * TILE_FP, 96.5 * TILE_FP));
@@ -38,7 +38,7 @@ function setup() {
     camera: env.camera,
     env,
   };
-  const layer = decorLayer();
+  const layer = decorLayer({ fruitFloor });
   layer.init(ctx);
   const geo = (name: string): BufferGeometry => {
     let g: BufferGeometry | undefined;
@@ -52,10 +52,23 @@ function setup() {
 }
 
 describe('orchard thinning in the decor layer', () => {
-  it('holds a quarter at least, and is full in summer', () => {
-    expect(fruitStep(1, 5)).toBe(1);
-    expect(fruitStep(3, 3)).toBe(0.25);
-    expect(fruitStep(2, 7)).toBe(0.25);
+  it('keeps orchards full all year by default, and with a floor holds it, full in summer', () => {
+    expect(FRUIT_MIN_THIN).toBe(1);
+    expect(fruitStep(2, 7)).toBe(1);
+    expect(fruitStep(3, 3)).toBe(1);
+    expect(fruitStep(1, 5, 0.25)).toBe(1);
+    expect(fruitStep(3, 3, 0.25)).toBe(0.25);
+    expect(fruitStep(2, 7, 0.25)).toBe(0.25);
+  });
+
+  it('never swaps orchard geometry with the default floor', () => {
+    const { layer, env, geo } = setup(1);
+    layer.frame?.(0.016);
+    const full = geo('cherry-tree:high');
+    env.shown.season = 3;
+    env.shown.day = 2;
+    expect(layer.frame?.(0.016)).toBe(false);
+    expect(geo('cherry-tree:high')).toBe(full);
   });
 
   it('swaps fruit geometry only when the step changes, and never a hedge', () => {

@@ -13,12 +13,23 @@ function glows(g: BufferGeometry): boolean {
   return false;
 }
 
-/** V2X: orchard trees keep a quarter of their dabs through winter (the kit has no bare twigs). */
-export const FRUIT_MIN_THIN = 0.25;
+/**
+ * V2X: the least dab share orchard trees thin to with the season. 1 keeps them full all year: the
+ * kit has no bare boughs, so a thinned crown uncovers its faceted core, a different pink, and read
+ * patchy at 0.75 and as a solid faceted crown at 0.25 (and a snowy lump in winter). Lower it to
+ * thin them once fruit trees have a bare look (`v2x-fruit-*` shots in docs/build/screenshots).
+ */
+export const FRUIT_MIN_THIN = 1;
 
-/** The thinning step the orchard trees show on a season and day. */
-export function fruitStep(season: number, day: number): number {
-  return Math.max(FRUIT_MIN_THIN, thinStep(season, day));
+/** The thinning step the orchard trees show on a season and day, never below `floor`. */
+export function fruitStep(season: number, day: number, floor = FRUIT_MIN_THIN): number {
+  return Math.max(floor, thinStep(season, day));
+}
+
+/** Options for the decor layer (the registry makes it with none). */
+export interface DecorLayerOptions {
+  /** The orchard's least dab share (`FRUIT_MIN_THIN` unless given; tests thin with 0.25). */
+  fruitFloor?: number;
 }
 
 /** A decor def's two levels, and whether it is a small prop that may shrink away far off. */
@@ -37,7 +48,8 @@ function decorKind(def: string, thin = 1, cache?: StepCache<BufferGeometry>): Fi
  * the preset's decor distance a piece draws at full detail, beyond it at its far level, and small
  * props (benches, planters, crates) shrink away there; lanterns and other lit pieces stay.
  */
-export function decorLayer(): RenderLayer {
+export function decorLayer(opts: DecorLayerOptions = {}): RenderLayer {
+  const floor = opts.fruitFloor ?? FRUIT_MIN_THIN;
   let field: InstanceField | null = null;
   let ctx: LayerContext | null = null;
   /** V2X: each orchard def's near geometry by thinning step, and the step on screen. */
@@ -63,7 +75,7 @@ export function decorLayer(): RenderLayer {
     init(c) {
       ctx = c;
       const cal = calendar(c.mirror.tick.value);
-      onScreen = fruitStep(cal.season, cal.day);
+      onScreen = fruitStep(cal.season, cal.day, floor);
       field = new InstanceField(c.scene, c.material, kindFor);
       rebuild();
     },
@@ -75,7 +87,7 @@ export function decorLayer(): RenderLayer {
       if (!field || !ctx?.env) return false;
       field.setDetail(ctx.env.detailDistance);
       // V2X: the orchard's thinning, a static-layer event that happens when the step changes.
-      const step = fruitStep(ctx.env.shown.season, ctx.env.shown.day);
+      const step = fruitStep(ctx.env.shown.season, ctx.env.shown.day, floor);
       let swapped = false;
       if (step !== onScreen) {
         onScreen = step;
