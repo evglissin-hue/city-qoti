@@ -27,8 +27,9 @@ describe('I2 content', () => {
 
   it('charters, innovations and carts are well formed', () => {
     const village = charters.find((c) => c.id === 'village')!;
-    // R1 (R1D): 5 days of Food with 3 flavors (the flavors goal after the food goal).
-    expect(village.goals.map((g) => g.target)).toEqual([30, 3, 5, 5, 3, 1]);
+    // R1: 5 days of Food with 3 flavors, one goal (R1A's measure.flavors).
+    expect(village.goals.map((g) => g.target)).toEqual([30, 3, 5, 5, 1]);
+    expect(village.goals.find((g) => g.id === 'food')!.measure.flavors).toBe(3);
     expect(new Set(village.goals.map((g) => g.id)).size).toBe(village.goals.length);
     expect(innovations.map((i) => i.id)).toEqual([...innovations.map((i) => i.id)].sort());
     for (const i of innovations) expect(i.unlocks.length, i.id).toBeGreaterThan(0);

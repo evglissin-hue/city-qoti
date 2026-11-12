@@ -10,7 +10,7 @@ import { shelfInReach, tradeCouldOpen } from '../../src/systems/hearth/wishes/pr
 import { seasonDeal, stallFlavors } from '../../src/systems/stories/predicates';
 import { goodMakeable, twistOffered } from '../../src/systems/festivals/twists';
 import { hamletFixture } from '../fixtures/hamlet';
-import { build, standardWorld } from '../hearth/helpers';
+import { build, road, standardWorld } from '../hearth/helpers';
 
 const S = MAP_SIZE;
 const layer = (id: string) => content.zoneById.get(id)!.layerValue;
@@ -65,6 +65,12 @@ describe('Bakery Nearby is voiced only where a baker could open', () => {
     zone(s, 'crafts', 146, 140, 148, 142);
     expect(tradeCouldOpen(s, bind, [['within', 12]], 'baker')).toBe(false);
     build(s, 'windmill', 150, 146);
+    // R1B: its reach walks the roads; none yet.
+    expect(tradeCouldOpen(s, bind, [['within', 12]], 'baker')).toBe(false);
+    road(s, 'lane', 146, 143, 156, 143);
+    road(s, 'lane', 156, 143, 156, 151);
+    road(s, 'lane', 148, 143, 148, 151);
+    s.networkVersion += 1;
     expect(tradeCouldOpen(s, bind, [['within', 12]], 'baker')).toBe(true);
     // Too far from home.
     expect(tradeCouldOpen(s, bind, [['within', 3]], 'baker')).toBe(false);

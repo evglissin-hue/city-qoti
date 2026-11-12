@@ -4,6 +4,7 @@ import { content } from '@qoti/content';
 import { describe, expect, it } from 'vitest';
 import type { SeatId, WorldState } from '../../src/contracts';
 import { checkAchievements } from '../../src/systems/achievements';
+import { dayIndex } from '../../src/systems/economy/time';
 import { runPatterns } from '../../src/systems/hearth/patterns/engine';
 import { createTickCtx } from '../../src/turn';
 import { hamletFixture } from '../fixtures/hamlet';
@@ -115,8 +116,12 @@ const SETUPS = new Map<string, (s: WorldState) => void>([
   [
     'porridge-no-more',
     (s) => {
+      // Three Food flavors each household saw today (R1A's sightings).
       const foods = ['grain', 'fish', 'vegetables'].map((g) => content.goodIndex.get(g)!);
-      for (const h of s.households) h.recentFoods = [...foods];
+      for (const h of s.households) {
+        h.seen = new Array<number>(content.goods.length).fill(-1);
+        for (const g of foods) h.seen[g] = dayIndex(s.tick);
+      }
     },
   ],
 ]);

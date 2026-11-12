@@ -4,8 +4,10 @@ import { content } from '@qoti/content';
 import { describe, expect, it } from 'vitest';
 import { countOf, evaluate } from '../../src/conditions';
 import { codePredicates } from '../../src/conditions/code';
-import { DAYS_PER_SEASON } from '../../src/constants';
+import { DAYS_PER_SEASON, TICKS_PER_DAY } from '../../src/constants';
 import type { WorldState } from '../../src/contracts';
+import { dayIndex } from '../../src/systems/economy/time';
+import { markSeen } from '../../src/systems/market/balances';
 import { turnDay } from '../../src/systems/seasons';
 import { Need } from '../../src/systems/residents/needs';
 import { createTickCtx } from '../../src/turn';
@@ -53,11 +55,14 @@ describe('foodFlavors', () => {
       b.rt.store.fill(0);
       b.rt.output.fill(0);
     }
+    for (const h of s.households) h.pantry.fill(0);
     expect(countOf(s, 'foodFlavors')).toBe(0);
     const granary = s.buildings.find((b) => b.def === 'granary')!;
     granary.rt!.store[G('grain')] = 5;
     granary.rt!.store[G('bread')] = 2;
     granary.rt!.store[G('honey')] = 1;
+    // On offer is what households saw on the shelves (R1A's sightings, the 18:00 pass).
+    markSeen(s);
     expect(countOf(s, 'foodFlavors')).toBe(2);
     expect(countOf(s, 'foodFlavors', 'food')).toBe(2);
     expect(countOf(s, 'foodFlavors', 'treats')).toBe(1);
@@ -72,16 +77,26 @@ describe('porridgeNoMore', () => {
   it('needs a household, and three Food flavors in every household with a home', () => {
     const { state: s } = hamletFixture();
     s.tick = tickAt(0, 3, 2, 8); // winter: no garden flavors
+    // What a household saw on the shelves in reach (R1A's sightings), as of today.
+    const saw = (h: WorldState['households'][number], ids: string[]): void => {
+      h.seen = new Array<number>(content.goods.length).fill(-1);
+      for (const id of ids) h.seen[G(id)] = dayIndex(s.tick);
+    };
+    for (const h of s.households) saw(h, []);
     expect(porridge(s, {}, [])).toBe(false);
-    const veg = G('vegetables');
-    const fish = G('fish');
-    for (const h of s.households) h.recentFoods = [G('bread'), veg, fish];
+    for (const h of s.households) saw(h, ['bread', 'vegetables', 'fish']);
     expect(porridge(s, {}, [])).toBe(true);
-    s.households[0]!.recentFoods = [G('bread'), veg, veg];
+    saw(s.households[0]!, ['bread', 'vegetables']);
     expect(porridge(s, {}, [])).toBe(false);
-    // A garden bed beside that home brings vegetables, but they were already counted: still two.
-    s.households[0]!.recentFoods = [G('bread'), G('fish'), G('fish')];
+    // Sightings fade after three days.
+    for (const h of s.households) saw(h, ['bread', 'vegetables', 'fish']);
+    s.tick += 3 * TICKS_PER_DAY;
+    expect(porridge(s, {}, [])).toBe(false);
+    // A garden bed beside that home brings vegetables as a third flavor in season.
     s.tick = tickAt(0, 0, 2, 8);
+    for (const h of s.households) saw(h, ['bread', 'vegetables', 'fish']);
+    saw(s.households[0]!, ['bread', 'fish']);
+    expect(porridge(s, {}, [])).toBe(false);
     build(s, 'garden-bed', s.buildings.find((b) => b.id === s.households[0]!.homeId)!.x, 44);
     expect(porridge(s, {}, [])).toBe(true);
     const empty = hamletFixture().state;

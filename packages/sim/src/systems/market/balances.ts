@@ -250,6 +250,9 @@ export function markSeen(state: WorldState): void {
       for (let g = 0; g < n; g++) if (s.goods[g]) seen[g] = today;
     }
   }
+  // What is on offer reads the sightings just written: never this tick's earlier answer.
+  const memo = memos.get(state);
+  if (memo) memo.offered = undefined;
 }
 
 /** True when the household saw the good (by index) in the last VARIETY_DAYS days. */

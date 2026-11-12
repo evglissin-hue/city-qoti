@@ -202,6 +202,9 @@ describe('together moments', () => {
     const { state: two } = feastFixture(6, 11);
     stock(two, 'bread', 30);
     two.time.connected = [0, 1];
+    // R1A's sightings at 18:00 would unlock Porridge No More this evening, crediting whoever is
+    // here: that feat is settled beforehand so only the dance can differ.
+    two.achievements.push({ id: 'porridge-no-more', tick: two.tick, seats: [0, 1] });
     // The day so far with both seats (achievements and their credits settle), then the evening
     // twice: once with both seats, once with one.
     runUntil(two, todayAt(two, 17));

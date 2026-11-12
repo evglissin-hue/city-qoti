@@ -141,5 +141,10 @@ export function bakerCouldOpen(s: WorldState, x: number, z: number): void {
   const crafts = content.zoneById.get('crafts')!.layerValue;
   for (let dz = 0; dz < 3; dz++)
     for (let dx = 0; dx < 3; dx++) s.map.zone[(z + dz) * MAP_SIZE + x + dx] = crafts;
+  // R1B: a windmill's reach walks the roads, so a lane joins its door to the land.
+  road(s, 'lane', x, z + 3, x + 10, z + 3);
+  road(s, 'lane', x + 10, z + 3, x + 10, z + 11);
+  road(s, 'lane', x + 4, z + 3, x + 4, z + 11);
+  s.networkVersion += 1;
   build(s, 'windmill', x + 6, z + 6);
 }

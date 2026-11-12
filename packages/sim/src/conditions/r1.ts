@@ -5,7 +5,7 @@ import { content } from '@qoti/content';
 import type { WorldState } from '../contracts';
 import { familyIndex, hasTag, isFood } from '../state/zones';
 import { gardenFlavors } from '../systems/hearth/garden';
-import { flavorsOnOffer } from '../systems/market/balances';
+import { flavorsOnOffer, seenLately, SHELF_GOODS } from '../systems/market/balances';
 import type { Binding } from './index';
 import { GOOD_FAMILIES } from '../constants';
 
@@ -36,15 +36,17 @@ export function foodFlavorCount(state: WorldState, ref?: string): number {
 
 /**
  * Porridge No More: there is a household, and every household with a home has three or more
- * flavors of Food in reach. R1 stand-in (R1A): the distinct goods it has eaten lately plus its
- * garden's flavors; R1A's household variety replaces this reading.
+ * flavors of Food in reach: what it could buy over the last three days (R1A's sightings) plus its
+ * garden's flavors.
  */
 export function porridgeNoMore(state: WorldState): boolean {
+  const food = familyIndex('food');
   let homes = 0;
   for (const h of state.households) {
     if (!h.homeId) continue;
     homes++;
-    const flavors = new Set<number>(h.recentFoods.filter((g) => isFood(g)));
+    const flavors = new Set<number>();
+    for (const g of SHELF_GOODS[food]!) if (seenLately(state, h, g)) flavors.add(g);
     for (const g of gardenFlavors(state, h)) flavors.add(g);
     if (flavors.size < 3) return false;
   }
