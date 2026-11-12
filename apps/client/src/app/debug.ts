@@ -84,6 +84,11 @@ export function installDebugHook(getSession: () => Session | null): void {
       };
     },
     lastTurn: () => s()?.mirror.lastTurn.value ?? 0,
+    /** V2X: [x, z] in tiles of every decor piece of a def (for framing a look at the orchard trees). */
+    decorOf: (def: string) =>
+      [...(s()?.mirror.decor.values() ?? [])]
+        .filter((d) => d.def === def)
+        .map((d) => [d.fx / TILE_FP, d.fz / TILE_FP] as [number, number]),
     /** C5E: [id, x, z] of the agents in the latest frame carrying an AgentFlags bit (raiders 256). */
     agentsWith: (flag: number) => {
       const L = s()?.mirror.agents.latest;

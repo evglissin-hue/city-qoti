@@ -282,17 +282,29 @@ export function buildingVariantGeometry(b: BuildingView, lod: 'high' | 'low' = '
 }
 
 /** A decor kit's geometry; V1D: `lod` picks the kit's far level (lod.ts chooses which shows). */
-export function decorGeometry(defId: string, lod: 'high' | 'low' = 'high'): BufferGeometry {
-  const key = lod === 'high' ? `decor:${defId}` : `decor:${defId}:${lod}`;
+export function decorGeometry(defId: string, lod: 'high' | 'low' = 'high', thin?: number): BufferGeometry {
+  // V2X: `thin` (the orchard trees' dab thinning) is part of the key; 1 or none is the plain build.
+  const t = thin !== undefined && thin !== 1 ? `:t${thin}` : '';
+  const key = (lod === 'high' ? `decor:${defId}` : `decor:${defId}:${lod}`) + t;
   let g = cache.get(key);
   if (!g) {
     const def = content.decorById.get(defId);
     const kit = def ? kitById.get(artKitId(def.art)) : undefined;
-    const params = def?.art.params ? { params: def.art.params } : {};
+    const base = def?.art.params ? { params: def.art.params } : {};
+    const params = t ? { params: { ...base.params, thin: thin! } } : base;
     g = kit ? kit.build(lod === 'high' ? params : { ...params, lod }) : missing();
     cache.set(key, g);
   }
   return g;
+}
+
+/** V2X: the art kits built by `fruitTree`, whose crowns thin through autumn. */
+const FRUIT_KITS: ReadonlySet<string> = new Set(['apple-tree', 'cherry-tree']);
+
+/** Whether a decor def is an orchard tree (apple, pear or cherry) that thins with the season. */
+export function isFruitDecor(defId: string): boolean {
+  const def = content.decorById.get(defId);
+  return !!def && FRUIT_KITS.has(artKitId(def.art));
 }
 
 const SPECIES_KIT = ['', 'oak', 'birch', 'pine'];

@@ -48,7 +48,8 @@ export function fruitTree(
         tintSpread: petals ? 0.45 : 0.55,
         skyLighten: 0.5,
         gaps: 0.06,
-        thin: 1,
+        // V2X: orchard trees thin through autumn like the forest (`params.thin`, default 1).
+        thin: typeof opts?.params?.thin === 'number' ? opts.params.thin : 1,
         seed: seed * 3 + 6,
       });
     },
