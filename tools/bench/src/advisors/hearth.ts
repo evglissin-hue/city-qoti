@@ -65,7 +65,7 @@ class Hearth implements Advisor {
           const x = home.x + dx;
           const z = home.z + dz;
           if (!canPlaceBuilding(reader, def, x, z, 0).ok) continue;
-          return !!this.p.buildAt('a garden bed for a wish', 'garden-bed', x, z, 0);
+          return !!this.p.buildAt('a garden bed for a wish', 'garden-bed', x, z, 0, true);
         }
     return false;
   }
