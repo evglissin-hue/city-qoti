@@ -25,6 +25,8 @@ const DEFAULT_REACH = 24;
  */
 interface ReachGrid {
   version: number;
+  /** The door front tile the walk starts from. */
+  door: number;
   def: string;
   x: number;
   z: number;
@@ -58,6 +60,56 @@ function sameRoads(state: WorldState, g: ReachGrid): boolean {
   return true;
 }
 
+/**
+ * The network version at which the road layer last changed, worked out once per network version
+ * (a new building bumps the version but leaves the roads alone): the version itself when the roads
+ * differ from the last look, else the earlier one. Every grid looks when it is walked, so a grid
+ * walked at the epoch or later saw the roads as they are now and still holds; the result is always
+ * what walking again would give.
+ */
+const epochs = new WeakMap<WorldState, Map<string, { version: number; epoch: number; copy: Uint8Array }>>();
+
+/** The network version at which a layer (as `read` sees it) last changed, as roadEpoch says. */
+function layerEpoch(state: WorldState, name: string, n: number, read: (i: number) => number): number {
+  const v = state.networkVersion;
+  let perState = epochs.get(state);
+  if (!perState) {
+    perState = new Map();
+    epochs.set(state, perState);
+  }
+  const hit = perState.get(name);
+  if (hit && hit.version === v) return hit.epoch;
+  if (hit) {
+    let same = true;
+    for (let i = 0; i < n; i++) {
+      if (read(i) !== hit.copy[i]) {
+        same = false;
+        break;
+      }
+    }
+    hit.version = v;
+    if (!same) {
+      hit.epoch = v;
+      for (let i = 0; i < n; i++) hit.copy[i] = read(i);
+    }
+    return hit.epoch;
+  }
+  const copy = new Uint8Array(n);
+  for (let i = 0; i < n; i++) copy[i] = read(i);
+  perState.set(name, { version: v, epoch: v, copy });
+  return v;
+}
+
+function roadEpoch(state: WorldState): number {
+  const road = state.map.road;
+  return layerEpoch(state, 'road', road.length, (i) => (road[i]! > 0 ? 1 : 0));
+}
+
+function heightEpoch(state: WorldState): number {
+  const height = state.map.height;
+  return layerEpoch(state, 'height', height.length, (i) => height[i]!);
+}
+
 /** The building's reach grid, walked again only when it moved or the roads in its box changed. */
 function reachGrid(state: WorldState, b: Building): ReachGrid {
   let perState = cache.get(state);
@@ -68,11 +120,14 @@ function reachGrid(state: WorldState, b: Building): ReachGrid {
   const hit = perState.get(b.id);
   if (hit && hit.def === b.def && hit.x === b.x && hit.z === b.z && hit.rot === b.rot) {
     if (hit.version === state.networkVersion) return hit;
-    if (sameRoads(state, hit)) {
+    // No road anywhere changed since it was walked, or none in its own box did.
+    if (roadEpoch(state) <= hit.version || sameRoads(state, hit)) {
       hit.version = state.networkVersion;
       return hit;
     }
   }
+  // Look at the roads now, so the epoch check above can trust this grid later (see roadEpoch).
+  roadEpoch(state);
   const reach = reachOf(b);
   const door = doorTile(b);
   const dx0 = door % S;
@@ -125,6 +180,7 @@ function reachGrid(state: WorldState, b: Building): ReachGrid {
   }
   const g: ReachGrid = {
     version: state.networkVersion,
+    door,
     def: b.def,
     x: b.x,
     z: b.z,
@@ -158,16 +214,43 @@ export function reachDistances(state: WorldState, b: Building): ReadonlyMap<numb
   return g.map;
 }
 
+/**
+ * withinReach for many tiles against one building: its reach grid found once (the growth pass asks a
+ * windmill about every baker near it).
+ */
+export function reachTest(state: WorldState, specialized: Building): (tile: number) => boolean {
+  const reach = reachOf(specialized);
+  if (reach <= 0) return () => false;
+  const g = reachGrid(state, specialized);
+  const gx = g.door % S;
+  const gz = Math.floor(g.door / S);
+  return (tile) => {
+    if (tile < 0 || tile >= S * S) return false;
+    const tx = tile % S;
+    const tz = Math.floor(tile / S);
+    if (Math.abs(gx - tx) + Math.abs(gz - tz) > reach + 2 * HOP) return false;
+    for (let dz = -HOP; dz <= HOP; dz++) {
+      for (let dx = -HOP + Math.abs(dz); dx <= HOP - Math.abs(dz); dx++) {
+        const x = tx + dx - g.x0;
+        const z = tz + dz - g.z0;
+        if (x < 0 || z < 0 || x >= g.w || z >= g.h) continue;
+        const d = g.dist[z * g.w + x]!;
+        if (d >= 0 && d + Math.abs(dx) + Math.abs(dz) <= reach) return true;
+      }
+    }
+    return false;
+  };
+}
+
 /** True when a tile (index) lies within the specialized building's walking reach of its door. */
 export function withinReach(state: WorldState, specialized: Building, tile: number): boolean {
   const reach = reachOf(specialized);
   if (reach <= 0 || tile < 0 || tile >= S * S) return false;
+  const g = reachGrid(state, specialized);
   // Walking along roads is never shorter than the Manhattan gap from the door, give or take a hop.
-  const door = doorTile(specialized);
   const tx = tile % S;
   const tz = Math.floor(tile / S);
-  if (Math.abs((door % S) - tx) + Math.abs(Math.floor(door / S) - tz) > reach + 2 * HOP) return false;
-  const g = reachGrid(state, specialized);
+  if (Math.abs((g.door % S) - tx) + Math.abs(Math.floor(g.door / S) - tz) > reach + 2 * HOP) return false;
   for (let dz = -HOP; dz <= HOP; dz++) {
     for (let dx = -HOP + Math.abs(dz); dx <= HOP - Math.abs(dz); dx++) {
       const x = tx + dx - g.x0;
@@ -213,6 +296,27 @@ export function hasRoomFor(state: WorldState, specialized: Building, businessId:
 const GROUND_NEAR = 2;
 const GROUND_FAR = 6;
 
+const raised = new WeakMap<WorldState, Map<EntityId, { key: string; version: number; levels: number }>>();
+
+/** levelsAbove, kept until the building moves or the ground changes (heightEpoch). */
+function levelsAboveCached(state: WorldState, b: Building): number {
+  let perState = raised.get(state);
+  if (!perState) {
+    perState = new Map();
+    raised.set(state, perState);
+  }
+  const key = `${b.def}:${b.x}:${b.z}:${b.rot}`;
+  const hit = perState.get(b.id);
+  if (hit && hit.key === key && (hit.version === state.networkVersion || heightEpoch(state) <= hit.version)) {
+    hit.version = state.networkVersion;
+    return hit.levels;
+  }
+  heightEpoch(state);
+  const levels = levelsAbove(state, b);
+  perState.set(b.id, { key, version: state.networkVersion, levels });
+  return levels;
+}
+
 /** Levels the footprint's lowest tile stands above the floor of the average ground 2 to 6 tiles around it. */
 function levelsAbove(state: WorldState, b: Building): number {
   const def = content.buildingById.get(b.def);
@@ -253,7 +357,7 @@ export function capacityOf(state: WorldState, specialized: Building): number {
   const def = content.buildingById.get(specialized.def);
   if (!def) return 0;
   let cap = def.capacity ?? 0;
-  if (def.raisedCapacity && levelsAbove(state, specialized) >= def.raisedCapacity[0]) {
+  if (def.raisedCapacity && levelsAboveCached(state, specialized) >= def.raisedCapacity[0]) {
     cap = Math.max(cap, def.raisedCapacity[1]);
   }
   if (def.id === 'sawmill' && state.weather.river.frozen) cap -= 1;

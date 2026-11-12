@@ -10,7 +10,7 @@ import { findById } from '../../state/entities';
 import { doorTile } from '../movement/api';
 import { FIELD_TILES_PER_WORKER } from '../production/fields';
 import { chunkOfTile, scoreAt } from '../nature/habitats';
-import { capacityOf, withinReach } from '../specialized/api';
+import { capacityOf, reachTest, withinReach } from '../specialized/api';
 import { lotMiddle } from './desirability';
 
 const S = MAP_SIZE;
@@ -18,8 +18,34 @@ const POLLINATOR = (HABITAT_IDS as readonly string[]).indexOf('pollinator');
 /** Tiles around a lot a grain farm's fields may lie in (as the growth pass gives them). */
 export const FIELD_WINDOW = 8;
 
+/** Map tiles a side of the buckets specialized buildings are sorted into, and reach's hop (specialized/api). */
+const NEAR_BUCKET = 16;
+const REACH_HOP = 3;
+
 /** Households whose door lies within this many tiles (straight line) of a shop lot's middle. */
 export const SHOP_REACH = 14;
+
+/** A trade's index in content order, and the specialized defs, for signatures. */
+const TRADE_INDEX: ReadonlyMap<string, number> = new Map(content.trades.map((t, i) => [t.id, i]));
+const SPECIALIZED: ReadonlySet<string> = new Set(
+  content.buildings.filter((d) => d.specialized).map((d) => d.id),
+);
+
+/**
+ * Served lists by def kept from one pass to the next with the signature of the town they were made
+ * for (derived, never saved): a night in which nothing was built, moved or retooled reuses them, and
+ * a reused list is always what walking the reaches again would give.
+ */
+const remembered = new WeakMap<
+  WorldState,
+  Map<string, { sig: Int32Array; lists: Map<EntityId, EntityId[]> }>
+>();
+
+function sameInts(a: Int32Array, b: Int32Array): boolean {
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return false;
+  return true;
+}
 
 /**
  * Per-pass memory: each specialized building by def, its capacity and who it serves (ids in reach,
@@ -34,17 +60,34 @@ export class SiteCache {
   private readonly byDef = new Map<string, Building[]>();
   private byTrade: Map<string, Building[]> | null = null;
   private doors: number[] | null = null;
+  private homeBuckets: number[][] | null = null;
+  private sig: Int32Array | null = null;
   private readonly doorOf = new Map<EntityId, number>();
+  private readonly near = new Map<string, { n: number; buckets: Building[][] }>();
 
-  constructor(readonly state: WorldState) {}
+  /** Who is served changed in place tonight (a business grew or retooled). */
+  private changed = false;
+
+  constructor(
+    readonly state: WorldState,
+    homeDoors?: number[],
+  ) {
+    if (homeDoors) this.doors = homeDoors;
+    // The town as it stands as the pass begins: what remembered lists must match (see recall).
+    this.signature();
+  }
 
   /** Who is served may have changed (a business grew or retooled): forget it. */
   reset(): void {
+    this.changed = true;
+    this.near.clear();
     this.served.clear();
     this.households.clear();
     this.byDef.clear();
     this.byTrade = null;
     this.doors = null;
+    this.homeBuckets = null;
+    this.sig = null;
   }
 
   /**
@@ -53,6 +96,7 @@ export class SiteCache {
    */
   /** A business turned to another trade: it leaves the lists it was on and joins those it now fits. */
   retooled(b: Building): void {
+    this.beforeChange();
     for (const ids of this.served.values()) {
       const k = ids.indexOf(b.id);
       if (k >= 0) ids.splice(k, 1);
@@ -72,6 +116,7 @@ export class SiteCache {
 
   addBusiness(b: Building): void {
     if (!b.trade) return;
+    this.beforeChange();
     // The index is rebuilt when next asked; the lists already made are brought up to date here.
     this.byTrade = null;
     const door = this.door(b);
@@ -130,22 +175,153 @@ export class SiteCache {
   servedBy(sb: Building): EntityId[] {
     let ids = this.served.get(sb.id);
     if (!ids) {
-      // As servedIds (specialized/api), from the index rather than every building.
-      const enables = content.buildingById.get(sb.def)?.enables ?? [];
-      const seen = new Set<EntityId>();
-      ids = [];
-      const index = this.tradeIndex();
-      for (const t of enables) {
-        for (const o of index.get(t) ?? []) {
-          if (o.id === sb.id || seen.has(o.id)) continue;
-          seen.add(o.id);
-          if (withinReach(this.state, sb, this.door(o))) ids.push(o.id);
-        }
+      if (!this.recall(sb.def)) {
+        this.serveAll(sb.def);
+        this.keep(sb.def);
       }
-      ids.sort((a, b) => a - b);
-      this.served.set(sb.id, ids);
+      ids = this.served.get(sb.id) ?? [];
     }
     return ids;
+  }
+
+  /** The town's buildings as served lists depend on them: id, trade and stage of each. */
+  private signature(): Int32Array {
+    if (!this.sig) {
+      const list = this.state.buildings;
+      const sig = new Int32Array(list.length * 3 + 1);
+      sig[0] = this.state.networkVersion;
+      for (let i = 0; i < list.length; i++) {
+        const b = list[i]!;
+        sig[1 + i * 3] = b.id;
+        sig[2 + i * 3] = b.trade ? (TRADE_INDEX.get(b.trade) ?? -2) : -1;
+        // A business counts going up or built alike; only a specialized building's stage matters.
+        sig[3 + i * 3] = b.stage === 'built' && SPECIALIZED.has(b.def) ? 1 : 0;
+      }
+      this.sig = sig;
+    }
+    return this.sig;
+  }
+
+  /**
+   * Last pass's served lists for the def, when nothing they depend on has changed since. Only before
+   * tonight changes anything in place: after that, lists not yet loaded are made afresh.
+   */
+  private recall(defId: string): boolean {
+    if (this.changed) return false;
+    const kept = remembered.get(this.state)?.get(defId);
+    if (!kept || !sameInts(kept.sig, this.signature())) return false;
+    for (const [id, ids] of kept.lists) this.served.set(id, ids.slice());
+    return true;
+  }
+
+  /** Before the first change in place: load every list last pass kept that still holds. */
+  private beforeChange(): void {
+    if (this.changed) return;
+    for (const defId of remembered.get(this.state)?.keys() ?? []) {
+      const sb = this.built(defId)[0];
+      if (sb && !this.served.has(sb.id)) this.recall(defId);
+    }
+    this.changed = true;
+  }
+
+  /**
+   * The pass is over: keep every served list made tonight, as brought up to date in place, against
+   * the town as it now stands, for the next pass to reuse.
+   */
+  persist(): void {
+    this.sig = null;
+    this.changed = false;
+    const defs = new Set<string>();
+    for (const id of this.served.keys()) {
+      const sb = findById(this.state.buildings, id);
+      if (sb) defs.add(sb.def);
+    }
+    for (const def of [...defs].sort()) this.keep(def);
+  }
+
+  /** Keeps tonight's served lists for the def (copies: the night's may change in place). */
+  private keep(defId: string): void {
+    let perState = remembered.get(this.state);
+    if (!perState) {
+      perState = new Map();
+      remembered.set(this.state, perState);
+    }
+    const lists = new Map<EntityId, EntityId[]>();
+    for (const sb of this.built(defId)) lists.set(sb.id, (this.served.get(sb.id) ?? []).slice());
+    perState.set(defId, { sig: this.signature(), lists });
+  }
+
+  /**
+   * As servedIds (specialized/api), for every built building of the def in one sweep: each business
+   * of an enabled trade asks only the buildings of the def standing near its door.
+   */
+  private serveAll(defId: string): void {
+    const enables = content.buildingById.get(defId)?.enables ?? [];
+    // The businesses of its enabled trades, sorted into buckets of the map by door.
+    const n = Math.ceil(S / NEAR_BUCKET);
+    const buckets: [Building, number][][] = Array.from({ length: n * n }, () => []);
+    const index = this.tradeIndex();
+    const seen = new Set<EntityId>();
+    for (const t of enables) {
+      for (const o of index.get(t) ?? []) {
+        if (seen.has(o.id)) continue;
+        seen.add(o.id);
+        const door = this.door(o);
+        buckets[
+          Math.floor(Math.floor(door / S) / NEAR_BUCKET) * n + Math.floor((door % S) / NEAR_BUCKET)
+        ]!.push([o, door]);
+      }
+    }
+    const span = (content.buildingById.get(defId)?.reach ?? 24) + 2 * REACH_HOP;
+    for (const sb of this.built(defId)) {
+      const ids: EntityId[] = [];
+      if (seen.size > 0) {
+        const test = reachTest(this.state, sb);
+        const d = this.door(sb);
+        const x = d % S;
+        const z = Math.floor(d / S);
+        const bx0 = Math.max(0, Math.floor((x - span) / NEAR_BUCKET));
+        const bx1 = Math.min(n - 1, Math.floor((x + span) / NEAR_BUCKET));
+        const bz0 = Math.max(0, Math.floor((z - span) / NEAR_BUCKET));
+        const bz1 = Math.min(n - 1, Math.floor((z + span) / NEAR_BUCKET));
+        for (let bz = bz0; bz <= bz1; bz++)
+          for (let bx = bx0; bx <= bx1; bx++)
+            for (const [o, door] of buckets[bz * n + bx]!) if (o.id !== sb.id && test(door)) ids.push(o.id);
+      }
+      this.served.set(
+        sb.id,
+        ids.sort((a, b) => a - b),
+      );
+    }
+  }
+
+  /**
+   * Built buildings of a def whose reach could hold the tile (their door within reach and two hops,
+   * Manhattan), from buckets of the map built once a pass.
+   */
+  nearby(defId: string, tile: number): readonly Building[] {
+    let idx = this.near.get(defId);
+    if (!idx) {
+      const n = Math.ceil(S / NEAR_BUCKET);
+      const buckets: Building[][] = Array.from({ length: n * n }, () => []);
+      const span = (content.buildingById.get(defId)?.reach ?? 24) + 2 * REACH_HOP;
+      for (const sb of this.built(defId)) {
+        const d = this.door(sb);
+        const x = d % S;
+        const z = Math.floor(d / S);
+        const bx0 = Math.max(0, Math.floor((x - span) / NEAR_BUCKET));
+        const bx1 = Math.min(n - 1, Math.floor((x + span) / NEAR_BUCKET));
+        const bz0 = Math.max(0, Math.floor((z - span) / NEAR_BUCKET));
+        const bz1 = Math.min(n - 1, Math.floor((z + span) / NEAR_BUCKET));
+        for (let bz = bz0; bz <= bz1; bz++)
+          for (let bx = bx0; bx <= bx1; bx++) buckets[bz * n + bx]!.push(sb);
+      }
+      idx = { n, buckets };
+      this.near.set(defId, idx);
+    }
+    const x = tile % S;
+    const z = Math.floor(tile / S);
+    return idx.buckets[Math.floor(z / NEAR_BUCKET) * idx.n + Math.floor(x / NEAR_BUCKET)]!;
   }
 
   /** Household doors (tile indexes), once a pass. */
@@ -158,6 +334,46 @@ export class SiteCache {
       }
     }
     return this.doors;
+  }
+
+  /** True when at least `k` household doors lie within SHOP_REACH of the lot's middle (stops at k). */
+  householdsAtLeast(lot: Lot, k: number): boolean {
+    const known = this.households.get(lot.id);
+    if (known !== undefined) return known >= k;
+    const [x, z] = lotMiddle(lot);
+    const buckets = this.doorBuckets();
+    const n = Math.ceil(S / NEAR_BUCKET);
+    const bx0 = Math.max(0, Math.floor((x - SHOP_REACH) / NEAR_BUCKET));
+    const bx1 = Math.min(n - 1, Math.floor((x + SHOP_REACH) / NEAR_BUCKET));
+    const bz0 = Math.max(0, Math.floor((z - SHOP_REACH) / NEAR_BUCKET));
+    const bz1 = Math.min(n - 1, Math.floor((z + SHOP_REACH) / NEAR_BUCKET));
+    let count = 0;
+    for (let bz = bz0; bz <= bz1; bz++) {
+      for (let bx = bx0; bx <= bx1; bx++) {
+        for (const door of buckets[bz * n + bx]!) {
+          const dx = (door % S) - x;
+          const dz = Math.floor(door / S) - z;
+          if (dx * dx + dz * dz <= SHOP_REACH * SHOP_REACH && ++count >= k) return true;
+        }
+      }
+    }
+    this.households.set(lot.id, count);
+    return false;
+  }
+
+  /** Household doors sorted into buckets of the map, once a pass. */
+  private doorBuckets(): number[][] {
+    if (!this.homeBuckets) {
+      const n = Math.ceil(S / NEAR_BUCKET);
+      const buckets: number[][] = Array.from({ length: n * n }, () => []);
+      for (const door of this.homeDoors()) {
+        buckets[
+          Math.floor(Math.floor(door / S) / NEAR_BUCKET) * n + Math.floor((door % S) / NEAR_BUCKET)
+        ]!.push(door);
+      }
+      this.homeBuckets = buckets;
+    }
+    return this.homeBuckets;
   }
 
   /** Household doors within SHOP_REACH of the lot's middle (the shop's custom; footfall from R2). */
@@ -185,7 +401,7 @@ export class SiteCache {
  */
 export function reachWithRoom(cache: SiteCache, defId: string, tile: number, self: EntityId = 0): boolean {
   const state = cache.state;
-  for (const sb of cache.built(defId)) {
+  for (const sb of cache.nearby(defId, tile)) {
     if (!withinReach(state, sb, tile)) continue;
     const cap = cache.capacityOf(sb);
     const ids = cache.servedBy(sb);
@@ -236,7 +452,7 @@ export function siteMeets(cache: SiteCache, lot: Lot, t: TradeDef, self: EntityI
     if (scoreAt(state, POLLINATOR, chunkOfTile(x, z)) < w.pollinators) return false;
   }
   if (w.reach !== undefined && !reachWithRoom(cache, w.reach, lot.frontage, self)) return false;
-  if (w.households !== undefined && cache.householdsNear(lot) < w.households) return false;
+  if (w.households !== undefined && !cache.householdsAtLeast(lot, w.households)) return false;
   // A grain farm wants Farmland left over behind its lot for a first hand's fields (12 tiles), so
   // a farm never grows where every zoned tile was cut into lots and it could only rest.
   if (t.method?.kind === 'farm' && fieldGround(state, lot, self) < FIELD_TILES_PER_WORKER) return false;

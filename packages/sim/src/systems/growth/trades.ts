@@ -18,7 +18,7 @@
 //   trait, or a finished apprenticeship in it); that resident is named the keeper.
 import { content, type TradeDef } from '@qoti/content';
 import { GOOD_FAMILIES, TARGET_COVER } from '../../constants';
-import type { EntityId, Lot, WorldState } from '../../contracts';
+import type { EntityId, Lot, Resident, WorldState } from '../../contracts';
 import { familyIndex, GOODS_BY_FAMILY, methodOf } from '../../state/zones';
 import { rankAtLeast } from '../../state/village';
 import { townStock } from '../../view/hamlet';
@@ -95,10 +95,12 @@ export interface TownNeeds {
   onOffer: (family: number) => number;
   /** Units the carrier brought of each good over CARRIER_NEED_DAYS days. */
   brought: number[];
-  /** Trade id to the resident keen to keep it (lowest id), for trades someone wants. */
-  keen: Map<string, EntityId>;
+  /** The resident keen to keep each trade (lowest id), found when asked. */
+  keen: KeenResidents;
   /** Shops: full need while households lack an outlet or outlets are crowded. */
   shopNeed: number;
+  /** needOf by trade id, tonight (cleared when the makers change). */
+  memo: Map<string, { need: number; code: NeedCode | null }>;
 }
 
 /** True for a good households buy (not Materials, not wool, which is only an input). */
@@ -154,29 +156,62 @@ function varietyWanted(state: WorldState, family: number): number {
   return v;
 }
 
-/** Trade id to the keen resident who keeps nothing yet: a fitting trait or a finished apprentice. */
-/** Trait id to the trades it makes a resident keen on, in content order. */
-const TRADES_BY_TRAIT: ReadonlyMap<string, readonly string[]> = (() => {
-  const out = new Map<string, string[]>();
-  for (const t of content.trades) for (const k of t.keepers ?? []) out.set(k, [...(out.get(k) ?? []), t.id]);
-  return out;
-})();
+/**
+ * The keen residents, found when asked (a keen resident is usually among the first few dozen, so a
+ * night that scores a few trades walks a few dozen residents, not the town): for each trade, the
+ * lowest-id resident of working age who keeps no business yet and has a fitting trait (Sweet Tooth
+ * bakes) or a finished apprenticeship in it.
+ */
+export class KeenResidents {
+  private readonly found = new Map<string, EntityId>();
+  private taken: Set<EntityId> | null = null;
+  private learned: Resident[] | null = null;
 
-function keenResidents(state: WorldState, taken: ReadonlySet<EntityId>): Map<string, EntityId> {
-  const out = new Map<string, EntityId>();
-  const today = dayIndex(state.tick);
-  const all = content.trades.length;
-  for (const r of state.residents) {
-    if (out.size === all) break;
-    if (!isWorkingAge(r) || taken.has(r.id)) continue;
-    // Residents are in id order, so the first keen one for each trade is the lowest id.
-    for (const k of r.traits)
-      for (const id of TRADES_BY_TRAIT.get(k) ?? []) if (!out.has(id)) out.set(id, r.id);
-    const a = r.apprentice;
-    if (a && a.untilDay <= today && content.tradeById.has(a.trade) && !out.has(a.trade))
-      out.set(a.trade, r.id);
+  constructor(private readonly state: WorldState) {}
+
+  /** The keen resident for the trade, if any. */
+  get(trade: string): EntityId | undefined {
+    let id = this.found.get(trade);
+    if (id === undefined) {
+      id = this.find(trade);
+      this.found.set(trade, id);
+    }
+    return id || undefined;
   }
-  return out;
+
+  has(trade: string): boolean {
+    return this.get(trade) !== undefined;
+  }
+
+  /** The resident now keeps a business (named keeper of a new one): keen for nothing more tonight. */
+  forget(resident: EntityId): void {
+    this.taken ??= keepersTaken(this.state);
+    this.taken.add(resident);
+    for (const [trade, id] of [...this.found]) if (id === resident) this.found.delete(trade);
+  }
+
+  private find(trade: string): EntityId {
+    const state = this.state;
+    this.taken ??= keepersTaken(state);
+    const traits = content.tradeById.get(trade)?.keepers ?? [];
+    const today = dayIndex(state.tick);
+    // Finished apprentices, once a night (few), in id order.
+    this.learned ??= state.residents.filter((r) => !!r.apprentice && r.apprentice.untilDay <= today);
+    let best = 0;
+    for (const r of this.learned) {
+      if (r.apprentice!.trade !== trade || !isWorkingAge(r) || this.taken.has(r.id)) continue;
+      best = r.id;
+      break;
+    }
+    if (traits.length === 0) return best;
+    // Residents are in id order: the first keen one by trait, unless an apprentice came first.
+    for (const r of state.residents) {
+      if (best && r.id >= best) break;
+      if (!isWorkingAge(r) || this.taken.has(r.id)) continue;
+      if (traits.some((k) => r.traits.includes(k))) return r.id;
+    }
+    return best;
+  }
 }
 
 /** Residents who already keep a business (or are named to keep one going up). */
@@ -193,7 +228,11 @@ function lazyOnOffer(state: WorldState): (family: number) => number {
 }
 
 /** Makers per good (built or going up) and whether a built one makes it, written into `n`. */
-export function countMakers(state: WorldState, n: Pick<TownNeeds, 'makers' | 'madeHere'>): void {
+export function countMakers(
+  state: WorldState,
+  n: Pick<TownNeeds, 'makers' | 'madeHere'> & { memo?: Map<string, unknown> },
+): void {
+  n.memo?.clear();
   n.makers.fill(0);
   n.madeHere.fill(false);
   for (const b of state.buildings) {
@@ -243,8 +282,9 @@ export function townNeeds(state: WorldState, shopNeed = 0): TownNeeds {
     variety: GOOD_FAMILIES.map((_, f) => varietyWanted(state, f)),
     onOffer: lazyOnOffer(state),
     brought,
-    keen: keenResidents(state, keepersTaken(state)),
+    keen: new KeenResidents(state),
     shopNeed,
+    memo: new Map(),
   };
 }
 
@@ -282,8 +322,10 @@ export function needOf(
       if (cover < reserve * 100)
         raise(Math.floor(((reserve * 100 - cover) * NEED_FULL) / (reserve * 100)), 'cover');
     }
-    // A flavor an unlocked tier still lacks.
-    if (n.stock[g] === 0 && n.variety[f]! > 0 && n.onOffer(f) < n.variety[f]!) raise(VARIETY_NEED, 'variety');
+    // A flavor an unlocked tier still lacks (read only when it could raise the need).
+    if (need < VARIETY_NEED && n.stock[g] === 0 && n.variety[f]! > 0 && n.onOffer(f) < n.variety[f]!) {
+      raise(VARIETY_NEED, 'variety');
+    }
   }
   // What the carrier had to bring: a third of the use a day is full need.
   if (n.brought[g]! > 0) {

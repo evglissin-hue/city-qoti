@@ -99,3 +99,39 @@ export function porterReachable(reaches: readonly Reach[], _tile: number): boole
   for (const r of reaches) if (staffed(r)) return true;
   return false;
 }
+
+/** Map tiles a side of the buckets a reach index sorts storehouses into. */
+const BUCKET = 16;
+
+/**
+ * porterServed (and, with `slack`, the growth pass's looser "about in reach") for many tiles at once:
+ * the storehouses with porters are sorted into buckets of the map by the box their range covers,
+ * so each tile asks only the few whose range could hold it. Build one a pass.
+ */
+export function porterIndex(reaches: readonly Reach[], slack = 0): (tile: number) => boolean {
+  const n = Math.ceil(MAP_SIZE / BUCKET);
+  const buckets: Reach[][] = Array.from({ length: n * n }, () => []);
+  const adopted = new Set<number>();
+  for (const r of reaches) {
+    if (r.porters <= 0) continue;
+    for (const t of r.adopted ?? []) adopted.add(t);
+    const x = r.door % MAP_SIZE;
+    const z = (r.door - x) / MAP_SIZE;
+    const span = r.radius + slack;
+    const bx0 = Math.max(0, Math.floor((x - span) / BUCKET));
+    const bx1 = Math.min(n - 1, Math.floor((x + span) / BUCKET));
+    const bz0 = Math.max(0, Math.floor((z - span) / BUCKET));
+    const bz1 = Math.min(n - 1, Math.floor((z + span) / BUCKET));
+    for (let bz = bz0; bz <= bz1; bz++) for (let bx = bx0; bx <= bx1; bx++) buckets[bz * n + bx]!.push(r);
+  }
+  return (tile) => {
+    if (adopted.has(tile)) return true;
+    const x = tile % MAP_SIZE;
+    const z = (tile - x) / MAP_SIZE;
+    for (const r of buckets[Math.floor(z / BUCKET) * n + Math.floor(x / BUCKET)]!) {
+      const rx = r.door % MAP_SIZE;
+      if (Math.abs(rx - x) + Math.abs((r.door - rx) / MAP_SIZE - z) <= r.radius + slack) return true;
+    }
+    return false;
+  };
+}

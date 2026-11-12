@@ -112,8 +112,10 @@ describe('capacity', () => {
     const mill = put(s, 'windmill', 60, 60);
     expect(capacityOf(s, mill)).toBe(2);
     const [w, d] = def('windmill').size;
+    // As the terrain command does, a change of ground bumps the network version.
     const setFootprint = (h: number) => {
       for (let z = 60; z < 60 + d; z++) for (let x = 60; x < 60 + w; x++) s.map.height[z * S + x] = h;
+      s.networkVersion += 1;
     };
     setFootprint(5);
     expect(capacityOf(s, mill)).toBe(2);

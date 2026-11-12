@@ -31,7 +31,7 @@ import { hasBuilt } from '../innovations/api';
 import { dailyOffset } from '../economy/time';
 import { doorTile } from '../movement/api';
 import { fieldCap, fieldsOf, fieldTileProblem, isFarm, paintFields } from '../production/fields';
-import { porterServed, type Reach } from '../logistics/range';
+import { porterIndex, porterServed, type Reach } from '../logistics/range';
 import { openJobCount } from '../residents/jobs';
 import { attractiveness } from '../residents/lifecycle';
 import { foodIndexes, pantryFood } from '../residents/needs';
@@ -41,6 +41,7 @@ import { growLot, lotPlacement } from './api';
 import { computeBars, craftPull, HOME_ZONES, writeBars, type BarInputs } from './bars';
 import { mix, servicesOf } from './desirability';
 import {
+  homeDoorTiles,
   HOUSEHOLDS_PER_SHOP,
   outletsCrowded,
   SHOP_HOUSEHOLDS,
@@ -130,9 +131,9 @@ export function foodDaysInHand(state: WorldState, stock: readonly number[] = tow
 }
 
 /** Homes wanted beyond those waiting: newcomers would come, and there is work for them. */
-function homesWanted(state: WorldState): number {
+function homesWanted(state: WorldState, stock?: readonly number[]): number {
   const open = openJobCount(state);
-  if (attractiveness(state, []) < HOMES_PULL || open <= 0) return 0;
+  if (open <= 0 || attractiveness(state, [], stock) < HOMES_PULL) return 0;
   let waiting = vacantHomes(state).length;
   for (const b of state.buildings) {
     if (b.stage === 'construction' && content.buildingById.get(b.def)?.housing) waiting++;
@@ -162,6 +163,22 @@ interface Night {
   crowded: boolean;
   /** Empty lots with a road at the frontage, best first (desirability, then id). */
   empty: Lot[];
+  /** porterServed, and the looser "about in reach" (nearAStore), for many tiles. */
+  porters: (tile: number) => boolean;
+  nearStore: (tile: number) => boolean;
+}
+
+/** A per-lot question asked once a pass, however many bars ask it. */
+function memoByLot(ask: (l: Lot) => boolean): (l: Lot) => boolean {
+  const seen = new Map<number, boolean>();
+  return (l) => {
+    let v = seen.get(l.id);
+    if (v === undefined) {
+      v = ask(l);
+      seen.set(l.id, v);
+    }
+    return v;
+  };
 }
 
 /** Trades going up and businesses by trade, written into the night. */
@@ -178,24 +195,28 @@ function countTrades(state: WorldState, night: Pick<Night, 'goingUp' | 'counts'>
 function readNight(state: WorldState): Night {
   const services = servicesOf(state);
   const village = rankAtLeast(state, 'village');
-  const doors = unservedDoors(state, services);
+  const homes = homeDoorTiles(state);
+  const doors = unservedDoors(state, services, homes);
   const crowded = outletsCrowded(state);
   const night: Night = {
     services,
     doors,
     needs: townNeeds(state, village && (doors.length >= SHOP_HOUSEHOLDS || crowded) ? NEED_FULL : 0),
-    cache: new SiteCache(state),
+    cache: new SiteCache(state, homes),
     crafts: tradesOf(state, 'crafts'),
     farms: tradesOf(state, 'farms'),
     shops: tradesOf(state, 'shops'),
-    homes: homesWanted(state),
+    homes: 0,
     goingUp: new Set(),
     counts: new Map(),
     crowded,
     empty: state.lots
       .filter((l) => !l.buildingId && state.map.road[l.frontage])
       .sort((p, q) => q.desirability - p.desirability || p.id - q.id),
+    porters: porterIndex(services.reach),
+    nearStore: porterIndex(services.reach, NEAR_STORE_SLACK),
   };
+  night.homes = homesWanted(state, night.needs.stock);
   countTrades(state, night);
   return night;
 }
@@ -211,8 +232,7 @@ function settle(state: WorldState, night: Night, grown?: Building): void {
   countMakers(state, night.needs);
   countTrades(state, night);
   if (grown?.keeperId) {
-    for (const [trade, id] of [...night.needs.keen])
-      if (id === grown.keeperId) night.needs.keen.delete(trade);
+    night.needs.keen.forget(grown.keeperId);
   }
   if (grown && content.buildingById.get(grown.def)?.coverage?.some((c) => c.kind === 'food')) {
     night.services = servicesOf(state);
@@ -231,7 +251,11 @@ function demandOf(state: WorldState, night: Night): GrowthDemand {
   if (night.shops.length > 0) {
     if (night.doors.length >= SHOP_HOUSEHOLDS) {
       for (const l of state.lots) {
-        if (!l.buildingId && l.zone === Zone.shops && shopReach(l, night.doors) >= SHOP_HOUSEHOLDS) {
+        if (
+          !l.buildingId &&
+          l.zone === Zone.shops &&
+          shopReach(l, night.doors, SHOP_HOUSEHOLDS) >= SHOP_HOUSEHOLDS
+        ) {
           shops = 1;
           break;
         }
@@ -291,16 +315,8 @@ function affordable(state: WorldState, def: BuildingDef, free: number[], zones: 
   return !siteWaiting(state, zones);
 }
 
-/** True when a storehouse with porters lies within its range of the tile, give or take a lot's width. */
-function nearAStore(reach: readonly Reach[], tile: number): boolean {
-  const x = tile % S;
-  const z = Math.floor(tile / S);
-  for (const r of reach) {
-    const d = Math.abs((r.door % S) - x) + Math.abs(Math.floor(r.door / S) - z);
-    if (r.porters > 0 && d <= r.radius + 2) return true;
-  }
-  return false;
-}
+/** Tiles past a storehouse's range a lot may lie and still be tried ("about in reach", a lot's width). */
+const NEAR_STORE_SLACK = 2;
 
 /** True when the def can go up on the lot now: materials to spare, it fits, porters reach its door. */
 function canGrow(
@@ -423,20 +439,27 @@ export function growthPass(state: WorldState, ctx: TickCtx): number {
   const night = readNight(state);
   const started = growSites(state, ctx, night);
   writeDemand(state, ctx, night);
+  night.cache.persist();
   return started;
 }
 
 /** Retools, then starts the night's grown sites. Returns how many sites started. */
 function growSites(state: WorldState, ctx: TickCtx, night: Night): number {
-  if (retoolPass(state, ctx, night.needs, night.cache, (zoneId) => tradesOf(state, zoneId)) > 0) {
+  const tradesFor = (zoneId: string): TradeDef[] =>
+    zoneId === 'crafts'
+      ? night.crafts
+      : zoneId === 'farms'
+        ? night.farms
+        : zoneId === 'shops'
+          ? night.shops
+          : [];
+  if (retoolPass(state, ctx, night.needs, night.cache, tradesFor) > 0) {
     settle(state, night);
   }
   growFields(state, ctx);
 
   // Lots are scored through the day, a slice an hour (refreshDesirability, from the zoning pass).
-  // Lots porters can about reach (canGrow checks the very door), best first.
-  const empty = night.empty.filter((l) => nearAStore(night.services.reach, l.frontage));
-  if (empty.length === 0) return 0;
+  if (night.empty.length === 0) return 0;
   const demand = demandOf(state, night);
   const free = freeMaterials(state, night.needs.stock);
   let started = 0;
@@ -450,15 +473,21 @@ function growSites(state: WorldState, ctx: TickCtx, night: Night): number {
   const reachOnly = night.crowded ? 0 : SHOP_HOUSEHOLDS;
   const reachOf = new Map<number, number>();
   if (demand.shops > 0)
-    for (const l of empty) if (l.zone === Zone.shops) reachOf.set(l.id, shopReach(l, night.doors));
+    for (const l of night.empty) if (l.zone === Zone.shops) reachOf.set(l.id, shopReach(l, night.doors));
   for (const [zones, n] of wants) {
     for (let k = 0; k < n; k++) {
       if (started >= GROWTH_PER_DAY || grownSites(state) >= GROWTH_MAX_SITES) return started;
       const shop = zones[0] === Zone.shops;
-      // Shops go where they reach the most households without one, then by desirability.
-      const lots = empty.filter(
-        (l) => !l.buildingId && zones.includes(l.zone) && (!shop || (reachOf.get(l.id) ?? 0) >= reachOnly),
-      );
+      // Shops go where they reach the most households without one, then by desirability; only lots
+      // porters can about reach (canGrow checks the very door), the best few.
+      const lots: Lot[] = [];
+      for (const l of night.empty) {
+        if (l.buildingId || !zones.includes(l.zone)) continue;
+        if (shop && (reachOf.get(l.id) ?? 0) < reachOnly) continue;
+        if (!night.nearStore(l.frontage)) continue;
+        lots.push(l);
+        if (!shop && lots.length >= LOTS_TRIED) break;
+      }
       if (shop) lots.sort((p, q) => (reachOf.get(q.id) ?? 0) - (reachOf.get(p.id) ?? 0)); // stable
       let grew = false;
       for (const lot of lots.slice(0, LOTS_TRIED)) {
@@ -508,7 +537,8 @@ export function writeDemand(state: WorldState, ctx: TickCtx | null, night: Night
     crafts: night.crafts,
     farms: night.farms,
     goingUp: night.goingUp,
-    free: night.empty.filter((l) => porterServed(night.services.reach, l.frontage)),
+    empty: night.empty,
+    porters: memoByLot((l) => night.porters(l.frontage)),
   };
   writeBars(state, ctx, computeBars(state, inputs));
 }

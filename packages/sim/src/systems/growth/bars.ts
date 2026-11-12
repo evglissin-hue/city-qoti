@@ -46,8 +46,15 @@ export interface BarInputs {
   farms: readonly TradeDef[];
   /** Trades with a business going up (one answer to a need at a time). */
   goingUp: ReadonlySet<string>;
-  /** Free lots with a road at the frontage that porters reach (freeLots, read once a night). */
-  free: readonly Lot[];
+  /** Empty lots with a road at the frontage, best first. */
+  empty: readonly Lot[];
+  /** True when porters reach the lot's frontage (asked lazily, so a bar stops at the first). */
+  porters: (lot: Lot) => boolean;
+}
+
+/** True when the lot is still free, of one of the zones, and porters reach it. */
+function freeFor(x: BarInputs, l: Lot, zones: readonly number[]): boolean {
+  return !l.buildingId && zones.includes(l.zone) && x.porters(l);
 }
 
 /** A Workshops trade's pull on the bar, permille: need x supply x keeper where some site could take it. */
@@ -93,7 +100,7 @@ interface Bar {
 
 function homesBar(_state: WorldState, x: BarInputs): Bar {
   const value = Math.min(100, x.homes * BAR_A_HOME);
-  const waiting = value > 0 && x.free.some((l) => !l.buildingId && HOME_ZONES.includes(l.zone));
+  const waiting = value > 0 && x.empty.some((l) => freeFor(x, l, HOME_ZONES));
   return { value, reasons: value > 0 ? [{ code: 'newcomers', value: x.homes }] : [], waiting, zoned: true };
 }
 
@@ -117,7 +124,7 @@ function shopsBar(state: WorldState, x: BarInputs): Bar {
   if (value > 0 && !zoned) reasons.push({ code: 'marketStall' });
   let waiting = false;
   if (value > 0 && zoned) {
-    const free = x.free.filter((l) => !l.buildingId && l.zone === Zone.shops);
+    const free = x.empty.filter((l) => freeFor(x, l, [Zone.shops]));
     waiting = crowded ? free.length > 0 : free.some((l) => shopReach(l, x.doors) >= SHOP_HOUSEHOLDS);
   }
   return { value, reasons, waiting, zoned };
@@ -147,8 +154,8 @@ function workshopsBar(state: WorldState, x: BarInputs): Bar {
     const want = new Set(pulls.map(([t]) => t.id));
     // A wanted trade already pulls (need x supply x keeper above 0): its site decides.
     const wanted = x.crafts.filter((t) => want.has(t.id));
-    waiting = x.free.some(
-      (lot) => !lot.buildingId && lot.zone === Zone.crafts && wanted.some((t) => siteMeets(x.cache, lot, t)),
+    waiting = x.empty.some(
+      (lot) => freeFor(x, lot, [Zone.crafts]) && wanted.some((t) => siteMeets(x.cache, lot, t)),
     );
   }
   return { value, reasons, waiting, zoned: true };
@@ -178,9 +185,7 @@ function farmlandBar(_state: WorldState, x: BarInputs): Bar {
   // A free farm lot where some farm trade's site wants are met.
   const waiting =
     value > 0 &&
-    x.free.some(
-      (l) => !l.buildingId && l.zone === Zone.farms && x.farms.some((t) => siteMeets(x.cache, l, t)),
-    );
+    x.empty.some((l) => freeFor(x, l, [Zone.farms]) && x.farms.some((t) => siteMeets(x.cache, l, t)));
   return {
     value: Math.max(value, reasons.length > 0 ? 1 : 0),
     reasons: reasons.slice(0, 2).map(([r]) => r),

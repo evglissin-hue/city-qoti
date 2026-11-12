@@ -18,25 +18,65 @@ export const SHOP_HOUSEHOLDS = 2;
 
 export type Services = ReturnType<typeof servicesOf>;
 
-/** Home doors no food outlet reaches (outlets going up count already), as [x, z]. */
-export function unservedDoors(state: WorldState, services: Services): [number, number][] {
-  const out: [number, number][] = [];
+/** Map tiles a side of the buckets outlets are sorted into. */
+const BUCKET = 16;
+
+/** outletCovers for many tiles at once: outlets sorted into buckets of the map by their reach. */
+function outletIndex(services: Services): (x: number, z: number) => boolean {
+  const n = Math.ceil(S / BUCKET);
+  const buckets: [number, number, number][][] = Array.from({ length: n * n }, () => []);
+  for (const o of services.outlets) {
+    const [x, z, r] = o;
+    const bx0 = Math.max(0, Math.floor((x - r) / BUCKET));
+    const bx1 = Math.min(n - 1, Math.floor((x + r) / BUCKET));
+    const bz0 = Math.max(0, Math.floor((z - r) / BUCKET));
+    const bz1 = Math.min(n - 1, Math.floor((z + r) / BUCKET));
+    for (let bz = bz0; bz <= bz1; bz++) for (let bx = bx0; bx <= bx1; bx++) buckets[bz * n + bx]!.push(o);
+  }
+  return (x, z) => {
+    for (const [cx, cz, r] of buckets[Math.floor(z / BUCKET) * n + Math.floor(x / BUCKET)]!) {
+      if ((cx - x) * (cx - x) + (cz - z) * (cz - z) <= r * r) return true;
+    }
+    return false;
+  };
+}
+
+/** Each household's home door (tile index), in household order. */
+export function homeDoorTiles(state: WorldState): number[] {
+  const out: number[] = [];
   for (const h of state.households) {
     const home = findById(state.buildings, h.homeId);
-    if (!home) continue;
-    const door = doorTile(home);
-    const x = door % S;
-    const z = Math.floor(door / S);
-    if (!outletCovers(services, x, z)) out.push([x, z]);
+    if (home) out.push(doorTile(home));
   }
   return out;
 }
 
-/** Unserved doors a shop on this lot would reach (the stall's food radius). */
-export function shopReach(lot: Lot, doors: readonly [number, number][]): number {
+/** Home doors no food outlet reaches (outlets going up count already), as [x, z]. */
+export function unservedDoors(
+  state: WorldState,
+  services: Services,
+  doors: readonly number[] = homeDoorTiles(state),
+): [number, number][] {
+  const out: [number, number][] = [];
+  const covers =
+    services.outlets.length > 8
+      ? outletIndex(services)
+      : (x: number, z: number) => outletCovers(services, x, z);
+  for (const door of doors) {
+    const x = door % S;
+    const z = Math.floor(door / S);
+    if (!covers(x, z)) out.push([x, z]);
+  }
+  return out;
+}
+
+/** Unserved doors a shop on this lot would reach (the stall's food radius), stopping at `atMost`. */
+export function shopReach(lot: Lot, doors: readonly [number, number][], atMost = Infinity): number {
   const [x, z] = [lot.x + (lot.w >> 1), lot.z + (lot.d >> 1)];
   let n = 0;
-  for (const [dx, dz] of doors) if ((dx - x) * (dx - x) + (dz - z) * (dz - z) <= SHOP_REACH * SHOP_REACH) n++;
+  for (const [dx, dz] of doors) {
+    if ((dx - x) * (dx - x) + (dz - z) * (dz - z) <= SHOP_REACH * SHOP_REACH && ++n >= atMost) return n;
+  }
   return n;
 }
 
