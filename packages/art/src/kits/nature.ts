@@ -3,9 +3,11 @@
 // renderer picks spots from the map with a seeded hash. Centered on the origin, base at y = 0,
 // about the size they would be next to a 0.3 tile resident. `opts.seed` picks a variant;
 // `opts.lod` 'low' is a cheaper version where one makes sense.
+import { brushDabs, type DabBlob } from '../dabs';
 import { mixHex, seeded, ShapeBuilder, vary, type V3 } from '../geometry';
 import { palette } from '../palette';
 import { SURFACE } from '../surface';
+import { thinOf } from './trees';
 import type { Kit } from './types';
 
 const LEAF_DARK = 0x4f7a34;
@@ -36,17 +38,60 @@ export const bush: Kit = {
       s.blob(0, 0.18, 0, 0.24, 0.16, 0.22, leaf, 0, rnd, 0.1, top);
       return s.build();
     }
-    s.blob(0, 0.18, 0, 0.2, 0.15, 0.19, leaf, 1, rnd, 0.14, top);
-    s.blob(0.13, 0.13, 0.06, 0.13, 0.11, 0.13, vary(leaf, rnd), 1, rnd, 0.14, top);
-    if (rnd() < 0.6) {
-      // Some bushes flower: a few berries or blossoms dotted on the outside.
-      const dot = rnd() < 0.5 ? 0xf1e6f0 : 0xd8556b;
-      for (let i = 0; i < 4; i++) {
-        const a = rnd() * Math.PI * 2;
-        s.blob(Math.cos(a) * 0.19, 0.15 + rnd() * 0.1, Math.sin(a) * 0.17, 0.025, 0.025, 0.025, dot, 0);
+    // V2B: a small crown of dabs over a darker core, its lumps shading as one mass from below its
+    // middle; thins with the season (`params.thin`) like the trees.
+    const blobs: DabBlob[] = [
+      { center: [0, 0.2, 0], radii: [0.2, 0.14, 0.19], color: leaf },
+      { center: [0.13, 0.15, 0.06], radii: [0.13, 0.1, 0.13], color: vary(leaf, rnd) },
+    ];
+    const flowering = rnd() < 0.6;
+    const dot = rnd() < 0.5 ? 0xf1e6f0 : 0xd8556b;
+    if (!flowering)
+      blobs.push({ center: [-0.12, 0.14, -0.05], radii: [0.12, 0.09, 0.12], color: vary(leaf, rnd) });
+    const thin = thinOf(opts);
+    const crnd = seeded((opts?.seed ?? 3) * 7 + 1);
+    if (thin <= 0) {
+      // Bare (winter): today's round bush, which the foliage shader turns to twigs.
+      for (const bl of blobs) {
+        const [rx, ry, rz] = bl.radii;
+        s.blob(bl.center[0], bl.center[1], bl.center[2], rx, ry, rz, bl.color, 1, crnd, 0.14, top);
       }
     } else {
-      s.blob(-0.12, 0.12, -0.05, 0.12, 0.1, 0.12, vary(leaf, rnd), 1, rnd, 0.14, top);
+      for (const bl of blobs) {
+        const [rx, ry, rz] = bl.radii;
+        s.blob(
+          bl.center[0],
+          bl.center[1],
+          bl.center[2],
+          rx * 0.82,
+          ry * 0.82,
+          rz * 0.82,
+          mixHex(bl.color, 0x22361f, 0.45),
+          0,
+          crnd,
+          0.08,
+        );
+      }
+      brushDabs(
+        s,
+        blobs.map((bl) => ({ ...bl, normalFrom: [bl.center[0] * 0.5, 0.02, bl.center[2] * 0.5] })),
+        {
+          count: 64,
+          size: 0.075,
+          tintSpread: 0.55,
+          skyLighten: 0.55,
+          gaps: 0.04,
+          thin,
+          seed: (opts?.seed ?? 3) * 3 + 5,
+        },
+      );
+    }
+    if (flowering && thin > 0.6) {
+      // Some bushes flower: a few berries or blossoms dotted on the outside.
+      for (let i = 0; i < 5; i++) {
+        const a = rnd() * Math.PI * 2;
+        s.blob(Math.cos(a) * 0.21, 0.15 + rnd() * 0.12, Math.sin(a) * 0.19, 0.025, 0.025, 0.025, dot, 0);
+      }
     }
     return s.build();
   },
@@ -135,7 +180,10 @@ export const wildflowers: Kit = {
     const rnd = seeded(opts?.seed ?? 9);
     const s = new ShapeBuilder();
     const colors = [0xf2a1b4, 0xf3d35b, 0xa996e6, 0xf7f4ec, 0xe9707a];
-    const head = colors[Math.floor(rnd() * colors.length)]!;
+    // V2B: `params.hue` (0 to 4) fixes the head color (the draw is made either way, so the rest holds).
+    const picked = colors[Math.floor(rnd() * colors.length)]!;
+    const hue = opts?.params?.hue;
+    const head = typeof hue === 'number' ? colors[Math.min(4, Math.max(0, Math.floor(hue)))]! : picked;
     for (let i = 0; i < 4; i++) {
       const a = rnd() * Math.PI * 2;
       const r = 0.02 + rnd() * 0.05;
@@ -159,30 +207,58 @@ export const reeds: Kit = {
   build: (opts) => {
     const rnd = seeded(opts?.seed ?? 4);
     const s = new ShapeBuilder();
+    const thin = thinOf(opts);
+    // V2B: a soft upright tussock of dab strokes (tips up, long and narrow) with a few taller
+    // blades standing out of it and two cattails. It dies back with the season (`params.thin`):
+    // in winter only the straw blades and the cattails stand.
     s.surface(SURFACE.grass);
-    for (let i = 0; i < 7; i++) {
+    for (let i = 0; i < 4; i++) {
       const a = rnd() * Math.PI * 2;
-      const r = rnd() * 0.07;
+      const r = 0.02 + rnd() * 0.05;
       const c = vary(REED, rnd, 1.5);
-      const h = 0.16 + rnd() * 0.12;
+      const h = 0.24 + rnd() * 0.12;
       s.grassBlade(
         Math.cos(a) * r,
         Math.sin(a) * r,
         h,
-        0.024,
-        0.02 + rnd() * 0.05,
+        0.026,
+        0.03 + rnd() * 0.05,
         a,
         mixHex(c, GRASS_FOOT, 0.3),
         c,
-        1,
+        2,
       );
     }
+    const body = vary(mixHex(REED, GRASS_BLADE, 0.3), rnd, 1.2);
+    brushDabs(
+      s,
+      [
+        { center: [0, 0.15, 0], radii: [0.08, 0.11, 0.075], normalFrom: [0, -0.06, 0], color: body },
+        {
+          center: [0.06, 0.12, 0.04],
+          radii: [0.055, 0.07, 0.055],
+          normalFrom: [0, -0.06, 0],
+          color: vary(body, rnd),
+        },
+      ],
+      {
+        count: 46,
+        size: 0.042,
+        tintSpread: 0.6,
+        skyLighten: 0.45,
+        gaps: 0,
+        thin,
+        seed: (opts?.seed ?? 4) * 3 + 8,
+        lift: 1,
+        stretch: 2.6,
+      },
+    );
     s.surface(SURFACE.plain);
     // Two cattails standing above the blades.
     for (let i = 0; i < 2; i++) {
       const x = (rnd() - 0.5) * 0.08;
       const z = (rnd() - 0.5) * 0.08;
-      const h = 0.25 + rnd() * 0.08;
+      const h = 0.27 + rnd() * 0.08;
       s.cylinder(x, z, 0.004, 0.004, 0, h, REED, 3);
       s.cylinder(x, z, 0.014, 0.012, h, h + 0.06, CATTAIL, 4);
     }

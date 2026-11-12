@@ -1,6 +1,7 @@
 // C5E: the decor the I3 nature patterns unlock (content/natureDecor.ts): an arbor seat under
 // climbing roses, a pear tree, a reed bed for a pond's edge, a see-saw and a rope swing on a frame.
 // Centered on the origin, surface ids on every face.
+import { brushDabs, type DabBlob } from '../dabs';
 import { mixHex, seeded, ShapeBuilder, vary } from '../geometry';
 import { palette } from '../palette';
 import { beam } from '../shapes';
@@ -82,21 +83,32 @@ export const reedBed: Kit = {
     s.surface(SURFACE.leaf);
     s.levels(
       () => {
-        for (let i = 0; i < 16; i++) {
-          const a = rnd() * Math.PI * 2;
-          const r = rnd() * 0.2;
-          const c = vary(0x7f9a52, rnd, 1.2);
-          s.blade(
-            Math.cos(a) * r,
-            Math.sin(a) * r * 0.8,
-            0.2 + rnd() * 0.16,
-            0.024,
-            0.03 + rnd() * 0.05,
-            a,
-            c,
-            c,
-          );
+        // V2B: two or three upright tussocks of dabs, their strokes standing up.
+        const clumps = 2 + Math.floor(rnd() * 2.999);
+        const blobs: DabBlob[] = [];
+        for (let i = 0; i < clumps; i++) {
+          const a = ((i + rnd() * 0.6) / clumps) * Math.PI * 2;
+          const r = 0.05 + rnd() * 0.12;
+          const cx = Math.cos(a) * r;
+          const cz = Math.sin(a) * r * 0.8;
+          blobs.push({
+            center: [cx, 0.19, cz],
+            radii: [0.08, 0.12, 0.08],
+            normalFrom: [cx, 0.02, cz],
+            color: vary(0x7f9a52, rnd, 1.2),
+          });
         }
+        brushDabs(s, blobs, {
+          count: 70,
+          size: 0.05,
+          tintSpread: 0.5,
+          skyLighten: 0.5,
+          gaps: 0,
+          thin: 1,
+          seed: Math.floor((opts?.seed ?? 163) * 31 + 7),
+          lift: 1,
+          stretch: 2.4,
+        });
         for (let i = 0; i < 4; i++) {
           const x = (rnd() - 0.5) * 0.3;
           const z = (rnd() - 0.5) * 0.24;

@@ -7,6 +7,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "fixture:grown": "node scripts/grow-fixture.mjs",
     "preview": "vite preview",
     "typecheck": "tsc -p . --noEmit && tsc -p e2e --noEmit"
   },

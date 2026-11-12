@@ -11,6 +11,7 @@ import { ChunkedMeshes } from '../chunks';
 import { hash2 } from '../coords';
 import { createWorldEnv, FIRST_FRAME_RADIUS, nearOf, type WorldEnv } from '../env';
 import { createGroundMaterial, GroundTextures, MOWN } from '../ground';
+import { groundTexturesFor } from '../groundRead';
 import { GroundAo, groundAoFor } from '../groundAo';
 import { SURFACE_GRID, SurfaceTiles, tileSurfaceY } from '../surface';
 import type { LayerContext, RenderLayer } from './types';
@@ -415,6 +416,7 @@ export function terrainLayer(): TerrainLayer {
       const worldEnv = ctx.env ?? createWorldEnv(new PerspectiveCamera());
       ao = new GroundAo(ctx.mirror);
       groundAoFor(worldEnv).value = ao.texture;
+      groundTexturesFor(worldEnv).value = ground;
       material = createGroundMaterial(ground, worldEnv);
       const t = tiles;
       // The ground receives shadows but casts none: rolling hills would only shadow themselves,

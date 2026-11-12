@@ -330,9 +330,66 @@ export class ShapeBuilder {
     return this;
   }
 
+  /** V2B: the surface id the following faces are written with (see `surface`). */
+  get surfaceId(): number {
+    return this.surfaceValue;
+  }
+
   /** Triangle count so far. */
   get triangles(): number {
     return this.n / 3;
+  }
+
+  /**
+   * V2B: a triangle with a given shading normal on all three corners (so it shades as part of a soft
+   * mass, not by its facet) and a color at each corner. The winding turns to face `face` (the
+   * normal when omitted). For brush dabs (`dabs.ts`). Jitter does not apply.
+   */
+  triN(a: V3, b: V3, c: V3, n: V3, ha: number, hb = ha, hc = ha, face: V3 = n): this {
+    if (this.silent) return this;
+    const ux = b[0] - a[0];
+    const uy = b[1] - a[1];
+    const uz = b[2] - a[2];
+    const vx = c[0] - a[0];
+    const vy = c[1] - a[1];
+    const vz = c[2] - a[2];
+    const fx = uy * vz - uz * vy;
+    const fy = uz * vx - ux * vz;
+    const fz = ux * vy - uy * vx;
+    if (fx * fx + fy * fy + fz * fz === 0) return this;
+    let cb = hb;
+    let cc = hc;
+    if (fx * face[0] + fy * face[1] + fz * face[2] < 0) {
+      [b, c] = [c, b];
+      [cb, cc] = [cc, cb];
+    }
+    const l = Math.sqrt(n[0] * n[0] + n[1] * n[1] + n[2] * n[2]) || 1;
+    this.reserve(3);
+    const v = this.n;
+    for (let i = 0; i < 3; i++) {
+      const p = i === 0 ? a : i === 1 ? b : c;
+      const hex = i === 0 ? ha : i === 1 ? cb : cc;
+      let rgb = linearCache.get(hex);
+      if (!rgb) {
+        tmpColor.setHex(hex);
+        rgb = [tmpColor.r, tmpColor.g, tmpColor.b];
+        linearCache.set(hex, rgb);
+      }
+      const o = (v + i) * 3;
+      this.positions[o] = p[0];
+      this.positions[o + 1] = p[1];
+      this.positions[o + 2] = p[2];
+      this.normals[o] = n[0] / l;
+      this.normals[o + 1] = n[1] / l;
+      this.normals[o + 2] = n[2] / l;
+      this.colors[o] = rgb[0];
+      this.colors[o + 1] = rgb[1];
+      this.colors[o + 2] = rgb[2];
+      this.glows[v + i] = this.glowValue;
+      this.surfaces[v + i] = this.surfaceValue;
+    }
+    this.n = v + 3;
+    return this;
   }
 
   tri(a: V3, b: V3, c: V3, hex: number, outward?: V3): this {

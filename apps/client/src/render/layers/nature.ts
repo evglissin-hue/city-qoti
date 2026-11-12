@@ -1,9 +1,10 @@
 import { kitById } from '@qoti/art';
-import { CHUNK_SIZE, CHUNKS_PER_SIDE, MAP_SIZE, Terrain, TILE_FP, Water } from '@qoti/sim';
-import { PerspectiveCamera, type MeshStandardMaterial } from 'three';
+import { calendar, CHUNK_SIZE, CHUNKS_PER_SIDE, MAP_SIZE, Terrain, TILE_FP, Water } from '@qoti/sim';
+import { PerspectiveCamera, type BufferGeometry, type MeshStandardMaterial } from 'three';
 import type { Mirror } from '../../state/mirror';
 import { ChunkDirt } from '../chunkDirt';
 import { hash2 } from '../coords';
+import { driftHue, flowerDrift } from '../drifts';
 import { createWorldEnv, nearOf, type WorldEnv } from '../env';
 import { homeDistance, meadowAmount, mownAmount, MOWN, patch } from '../ground';
 import {
@@ -15,6 +16,7 @@ import {
   type ScatterKind,
 } from '../scatter';
 import { SurfaceTiles, surfaceY, WATER_Y } from '../surface';
+import { StepCache, thinStep } from '../thin';
 import type { LayerContext, RenderLayer } from './types';
 
 /**
@@ -45,7 +47,7 @@ const PROPS: readonly PropSpec[] = [
   { kit: 'mushrooms', variants: 2, max: 40, shadows: false },
   { kit: 'reeds', variants: 2, max: 80, shadows: false },
   { kit: 'rock', variants: 2, max: 140, lod: 60, shadows: true },
-  { kit: 'wildflowers', variants: 3, max: 76, shadows: false },
+  { kit: 'wildflowers', variants: 5, max: 76, shadows: false },
 ];
 
 /** P1: spots tried on an open tile (the tuft count wanted is spread over them). */
@@ -53,22 +55,45 @@ const TUFT_TRIES = 6;
 
 const PROP_BY_KIT = new Map(PROPS.map((p) => [p.kit, p]));
 
-function propKinds(): ScatterKind[] {
+/** V2B: the deciduous props, whose near geometry thins with the season (their kits read `params.thin`). */
+const DECIDUOUS_PROPS = new Set(['bush', 'hedgerow', 'reeds']);
+
+/** V2B: a dev or ?debug session logs each thinning swap. */
+const logSwaps =
+  typeof location !== 'undefined' && (import.meta.env?.DEV === true || location.search.includes('debug'));
+
+function propKinds(thin: number): {
+  kinds: ScatterKind[];
+  caches: (StepCache<BufferGeometry> | null)[];
+  owned: BufferGeometry[];
+} {
   const kinds: ScatterKind[] = [];
+  const caches: (StepCache<BufferGeometry> | null)[] = [];
+  const owned: BufferGeometry[] = [];
   for (const p of PROPS) {
     const kit = kitById.get(p.kit)!;
     for (let v = 0; v < p.variants; v++) {
       const seed = 101 + v * 13;
+      const cache = DECIDUOUS_PROPS.has(p.kit)
+        ? new StepCache<BufferGeometry>((t) => kit.build({ seed, params: { thin: t } }))
+        : null;
+      // V2B: each wildflower variant is one drift color (`driftHue`).
+      const hue = p.kit === 'wildflowers' ? { params: { hue: v } } : {};
+      const high = cache ? cache.get(thin) : kit.build({ seed, ...hue });
+      if (!cache) owned.push(high);
+      const low = p.lod !== undefined ? kit.build({ seed, lod: 'low' }) : undefined;
+      if (low) owned.push(low);
+      caches.push(cache);
       kinds.push({
         id: `${p.kit}:${v}`,
-        high: kit.build({ seed }),
-        ...(p.lod !== undefined ? { low: kit.build({ seed, lod: 'low' }), lodDistance: p.lod } : {}),
+        high,
+        ...(low ? { low, lodDistance: p.lod } : {}),
         maxDistance: p.max,
         shadows: p.shadows,
       });
     }
   }
-  return kinds;
+  return { kinds, caches, owned };
 }
 
 class Placer {
@@ -87,9 +112,10 @@ class Placer {
     sink = 0,
     tint: [number, number, number] = [1, 1, 1],
     at?: { y?: number; yaw?: number },
+    variant?: number,
   ): void {
     const spec = PROP_BY_KIT.get(kit)!;
-    const v = Math.floor(hash2(Math.floor(x * 7), Math.floor(z * 7), salt) * spec.variants);
+    const v = variant ?? Math.floor(hash2(Math.floor(x * 7), Math.floor(z * 7), salt) * spec.variants);
     const kind = this.field.kindIndex(`${kit}:${v}`);
     const y = at?.y ?? surfaceY(this.tiles, x, z) - sink * scale;
     const yaw = at?.yaw ?? hash2(Math.floor(x * 11), Math.floor(z * 11), salt + 1) * Math.PI * 2;
@@ -105,6 +131,8 @@ export function buildNatureChunk(
   cz: number,
   /** Tiles with decor on or next to them (nothing grows there). */
   decorTiles: ReadonlySet<number>,
+  /** V2B: tiles of the meadow carpet's reach (`env.meadowCarpet`); above 0 it replaces the grass tufts. */
+  carpet = 0,
 ): ScatterChunk {
   const chunk = emptyScatterChunk(field.kinds.length);
   const L = mirror.layers;
@@ -237,7 +265,7 @@ export function buildNatureChunk(
           const long = meadowAmount(terrain, x, z, mown);
           const tall = long + (1 - mown) * (1 - long) * 0.5;
           const want = (2.5 + long * 2.5) * (0.75 + clump * 0.5) * (1 - mown * 0.2) + (roadSide ? 0.6 : 0);
-          for (let k = 0; k < TUFT_TRIES; k++) {
+          for (let k = 0; k < (carpet > 0 ? 0 : TUFT_TRIES); k++) {
             if (h(200 + k * 6) >= want / TUFT_TRIES) continue;
             const [px, pz] = spot(201 + k * 6);
             if (h(203 + k * 6) < tall)
@@ -245,10 +273,32 @@ export function buildNatureChunk(
             else place.put('grass-tuft', px, pz, 204 + k * 6, 0.8 + h(205 + k * 6) * 0.6, 0, grassTint);
           }
           const bloom = patch(x, z, 7, 9);
-          const flowers = meadow ? 0.25 + bloom * 0.4 : Math.max(0, bloom - 0.6) * 0.8;
-          if (h(131) < flowers) place.put('wildflowers', ...spot(132), 133, 0.9 + h(134) * 0.4);
+          // V2B: flowers grow in drifts (the ground's painted dots take the same mask), a drift all
+          // one color with the odd stray.
+          const flowers = (meadow ? 0.25 + bloom * 0.4 : Math.max(0, bloom - 0.6) * 0.8) * flowerDrift(x, z);
+          const bloomHue = (salt: number) => (h(salt) < 0.85 ? driftHue(x, z) : Math.floor(h(salt + 1) * 5));
+          if (h(131) < flowers)
+            place.put(
+              'wildflowers',
+              ...spot(132),
+              133,
+              0.9 + h(134) * 0.4,
+              0,
+              [1, 1, 1],
+              undefined,
+              bloomHue(147),
+            );
           if (meadow && h(135) < flowers * 0.6)
-            place.put('wildflowers', ...spot(136), 137, 0.8 + h(138) * 0.4);
+            place.put(
+              'wildflowers',
+              ...spot(136),
+              137,
+              0.8 + h(138) * 0.4,
+              0,
+              [1, 1, 1],
+              undefined,
+              bloomHue(149),
+            );
           if (h(139) < 0.015) place.put('bush', ...spot(140), 141, 0.6 + h(142) * 0.4);
           if (h(143) < 0.01) place.put('rock', ...spot(144), 145, 0.5 + h(146) * 0.5, 0.25);
         }
@@ -269,6 +319,10 @@ export function natureLayer(): RenderLayer {
   /** Decor positions by chunk, to rebuild only the chunks whose decor changed. */
   let decorKeys = new Map<number, string>();
   let decorTiles = new Set<number>();
+  let caches: (StepCache<BufferGeometry> | null)[] = [];
+  let owned: BufferGeometry[] = [];
+  let onScreen = 1;
+  let carpet = 0;
 
   /** Decor fingerprints by chunk, and the tiles decor keeps clear (on it and around it). */
   function decorByChunk(): Map<number, string> {
@@ -304,6 +358,7 @@ export function natureLayer(): RenderLayer {
         i % CHUNKS_PER_SIDE,
         Math.floor(i / CHUNKS_PER_SIDE),
         decorTiles,
+        carpet,
       ),
     );
   }
@@ -314,7 +369,15 @@ export function natureLayer(): RenderLayer {
       ctx = c;
       env = c.env ?? createWorldEnv(new PerspectiveCamera());
       material = createFoliageMaterial(env);
-      field = new ScatterField(c.scene, material, propKinds(), env);
+      // The renderer sets `env.shown` on its first frame; until then the Mirror's calendar is the
+      // best guess (a debug season pin swaps once on that frame).
+      const cal = calendar(c.mirror.tick.value);
+      onScreen = thinStep(cal.season, cal.day);
+      const made = propKinds(onScreen);
+      caches = made.caches;
+      owned = made.owned;
+      carpet = env.meadowCarpet;
+      field = new ScatterField(c.scene, material, made.kinds, env);
       tiles = new SurfaceTiles(c.mirror);
       decorKeys = decorByChunk();
       dirt.markAll();
@@ -341,11 +404,37 @@ export function natureLayer(): RenderLayer {
     },
     frame() {
       if (!field || !env) return false;
+      // V2B: a quality change moves the carpet's reach, and with it where the tufts stand.
+      if (env.meadowCarpet !== carpet) {
+        carpet = env.meadowCarpet;
+        dirt.markAll();
+      }
       if (ctx) for (const i of dirt.take(3, nearOf(env, ctx.mirror.meta.startArea))) rebuildChunk(i);
       field.lodScale = env.detailDistance / 80;
-      return field.update(env.camera);
+      // V2B: the season's thinning of hedgerows and bushes, a static-layer event once a day at most.
+      const step = thinStep(env.shown.season, env.shown.day);
+      let swapped = false;
+      if (step !== onScreen) {
+        let built = 0;
+        let reused = 0;
+        caches.forEach((cache, i) => {
+          if (!cache) return;
+          const before = cache.builds;
+          const g = cache.get(step);
+          if (cache.builds > before) built++;
+          else reused++;
+          field!.setGeometry(i, g);
+        });
+        onScreen = step;
+        swapped = true;
+        if (logSwaps) console.info(`[v2b] nature thinning ${step}: ${built} built, ${reused} reused`);
+      }
+      const redrew = field.update(env.camera);
+      return swapped || redrew;
     },
     dispose() {
+      for (const cache of caches) if (cache) for (const g of cache.values()) g.dispose();
+      for (const g of owned) g.dispose();
       field?.dispose();
       material?.dispose();
     },

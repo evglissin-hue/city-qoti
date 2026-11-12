@@ -13,6 +13,23 @@ export {
   type ImageType,
   type StoredImage,
 } from './images';
+export {
+  handlePerf,
+  isPerfRunInput,
+  MAX_PERF_CHARS,
+  MemoryPerf,
+  PERF_ROUTE,
+  PERF_RUNS_PER_SEAT,
+  trimPerfRuns,
+  type PerfMachine,
+  type PerfRequest,
+  type PerfResponse,
+  type PerfRun,
+  type PerfRunInput,
+  type PerfRunPart,
+  type PerfRunRow,
+  type PerfStorage,
+} from './perf';
 export * from './limits';
 export type * from './messages';
 export { SerialQueue } from './queue';

@@ -46,6 +46,13 @@ export interface QualityPreset {
    * so a rest can afford a sharper picture than a pan (17-presentation.md, Quality presets).
    */
   stillScale: number;
+  // V2 additions.
+  /**
+   * V2B: the meadow carpet's reach in tiles around the view's focus (`layers/meadow.ts`): soft
+   * blades over grass and meadow within it, melting into the painted ground toward its edge. 0 is
+   * none (Low keeps the tufts).
+   */
+  meadowCarpet: number;
 }
 
 export const QUALITY_PRESETS: Record<Quality, QualityPreset> = {
@@ -63,6 +70,7 @@ export const QUALITY_PRESETS: Record<Quality, QualityPreset> = {
     bloom: true,
     critters: 'all',
     stillScale: 2,
+    meadowCarpet: 45,
   },
   low: {
     maxDpr: 1,
@@ -78,6 +86,7 @@ export const QUALITY_PRESETS: Record<Quality, QualityPreset> = {
     bloom: false,
     critters: 'none',
     stillScale: 0.75,
+    meadowCarpet: 0,
   },
   medium: {
     // Playtest round three: 1.5 on a Retina screen looked soft. V1D: moving frames draw at 1 (with
@@ -95,6 +104,7 @@ export const QUALITY_PRESETS: Record<Quality, QualityPreset> = {
     bloom: true,
     critters: 'some',
     stillScale: 2,
+    meadowCarpet: 30,
   },
   // V1.0: for the stronger laptop or a desktop; never auto-detected.
   ultra: {
@@ -111,6 +121,7 @@ export const QUALITY_PRESETS: Record<Quality, QualityPreset> = {
     bloom: true,
     critters: 'all',
     stillScale: 3,
+    meadowCarpet: 60,
   },
 };
 

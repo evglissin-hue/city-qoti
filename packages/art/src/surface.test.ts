@@ -5,7 +5,16 @@ import { cartBodyGeometry, cartWheelGeometry, mergeFlat } from './kits/vehicles'
 import { standingAnimal } from './kits/animals';
 import { palette2 } from './palette';
 import { createPatternArray, PATTERN_ONE } from './patterns';
-import { NOISE_LAYER, PATTERN_LAYERS, SURFACE, surfaceDef, SURFACES } from './surface';
+import {
+  NOISE_LAYER,
+  PATTERN_LAYERS,
+  ROOM_LAYER,
+  ROOM_LAYERS,
+  SURFACE,
+  SURFACE_LAYERS,
+  surfaceDef,
+  SURFACES,
+} from './surface';
 
 const OPTS = { size: [2, 2] as [number, number], entrance: [1, 1] as [number, number] };
 
@@ -32,14 +41,32 @@ describe('surface ids (V1.0)', () => {
       ['field', 16],
       ['flags', 17],
       ['flowers', 18],
+      ['woodGrain', 20],
+      ['paintedWood', 21],
+      ['wroughtIron', 22],
+      ['terracotta', 23],
+      ['cloth', 24],
     ]);
     expect(NOISE_LAYER).toBe(19);
-    expect(PATTERN_LAYERS).toBe(20);
+  });
+
+  it('V2.0: appends layers after the noise layer, which keeps its index', () => {
+    // Shaders read the noise layer by number (19); no surface may take its slot.
+    expect(Object.values(SURFACE)).not.toContain(NOISE_LAYER);
+    expect(SURFACE_LAYERS).toBe(25);
+    expect(Math.max(...Object.values(SURFACE))).toBe(SURFACE_LAYERS - 1);
+    expect(ROOM_LAYER).toBe(25);
+    expect(ROOM_LAYERS).toBe(8);
+    expect(PATTERN_LAYERS).toBe(33);
   });
 
   it('have one table row each, indexed by id, with sane values', () => {
-    expect(SURFACES.length).toBe(Object.keys(SURFACE).length);
+    // V2.0: one row per id, and none in the noise layer's slot.
+    expect(SURFACES.length).toBe(SURFACE_LAYERS);
+    expect(SURFACES[NOISE_LAYER]).toBeUndefined();
+    expect(SURFACES.filter(Boolean).length).toBe(Object.keys(SURFACE).length);
     SURFACES.forEach((s, i) => {
+      if (!s) return;
       expect(s.id, s.name).toBe(i);
       expect(SURFACE[s.name]).toBe(i);
       expect(s.scale, s.name).toBeGreaterThan(0);
@@ -51,6 +78,14 @@ describe('surface ids (V1.0)', () => {
     expect(surfaceDef(SURFACE.brick).accent?.token).toBe('mortar');
     expect(surfaceDef(SURFACE.awning).accent?.token).toBe('stripe');
     expect(surfaceDef(250).name).toBe('plain');
+    expect(surfaceDef(NOISE_LAYER).name).toBe('plain');
+  });
+
+  it('V2.0: the V2 surfaces are flat until V2C gives them patterns', () => {
+    for (const name of ['woodGrain', 'paintedWood', 'wroughtIron', 'terracotta', 'cloth'] as const) {
+      expect(surfaceDef(SURFACE[name]).name).toBe(name);
+      expect(surfaceDef(SURFACE[name]).strength, name).toBe(0);
+    }
   });
 });
 
@@ -138,14 +173,14 @@ describe('ShapeBuilder surfaces (V1.0)', () => {
 });
 
 describe('pattern array (V1.0)', () => {
-  it('has a layer per surface plus the noise layer, and fills flat on request', () => {
+  it('has a layer per surface, the noise layer and (V2.0) the room layers, and fills flat on request', () => {
     const tex = createPatternArray(256, 'flat');
     expect(tex.image.width).toBe(256);
     expect(tex.image.height).toBe(256);
-    expect(tex.image.depth).toBe(20);
+    expect(tex.image.depth).toBe(PATTERN_LAYERS);
     expect(tex.generateMipmaps).toBe(true);
     const data = tex.image.data as Uint8Array;
-    expect(data.length).toBe(256 * 256 * 20 * 4);
+    expect(data.length).toBe(256 * 256 * PATTERN_LAYERS * 4);
     for (let i = 0; i < data.length; i += 4) {
       if (data[i] !== PATTERN_ONE || data[i + 1] !== 0 || data[i + 2] !== 0 || data[i + 3] !== 0) {
         throw new Error(`texel ${i / 4} is not flat`);
