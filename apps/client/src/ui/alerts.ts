@@ -100,6 +100,9 @@ export function computeAlerts(
   for (const b of m.buildings.values()) {
     const bits = b.rt?.status ?? 0;
     if (b.stage !== 'built' || !(bits & IDLE_BITS)) continue;
+    // R1X: a business resting (out of season, or nothing to do) is not standing about: a winter
+    // Village's cider makers, hives and orchards all called for fruit and hands till spring.
+    if (bits & BuildingStatus.resting) continue;
     if (bits & BuildingStatus.missingInput) {
       for (const [good] of methodOf(b)?.inputs ?? []) {
         if ((stockOf.get(good) ?? 0) > 0) continue;
@@ -120,13 +123,14 @@ export function computeAlerts(
     });
   }
   for (const [good, who] of short) {
-    const names = [...new Set(who)];
+    // R1X: "the cider makers", not "the cider maker are", when several of a kind wait.
+    const names = [...new Set(who)].map((n) => (who.filter((x) => x === n).length > 1 ? `${n}s` : n));
     out.push({
       key: `short-${good}`,
       lens: 'ledger',
       tone: 'warn',
       icon: `good:${good}`,
-      text: `No ${goodName(good).toLowerCase()} in store. The ${names.join(' and the ')} ${names.length === 1 && who.length === 1 ? 'is' : 'are'} waiting.`,
+      text: `No ${goodName(good).toLowerCase()} in store. The ${names.join(' and the ')} ${who.length === 1 ? 'is' : 'are'} waiting.`,
       action: { kind: 'panel', panel: 'balances', page: 'families' },
     });
   }

@@ -2,7 +2,7 @@
 // I2 (C4F): village alerts, the rank pennant, plan words and shapes, and the minimap's paint,
 // against the village mocks.
 import { content } from '@qoti/content';
-import { MAP_SIZE, type Command, type TrialView } from '@qoti/sim';
+import { BuildingStatus, MAP_SIZE, type Command, type TrialView } from '@qoti/sim';
 import { h } from 'preact';
 import { afterEach, describe, expect, it } from 'vitest';
 import { computeAlerts, alertsForLens } from './alerts';
@@ -44,9 +44,42 @@ describe('village alerts', () => {
     const hearth = alertsForLens(computeAlerts(m, [], { seat: 0 }), 'hearth', new Set());
     expect(hearth.some((a) => a.key.startsWith('price-') || a.key.startsWith('tier-short'))).toBe(false);
     // Settlers want no Wares, so a town of Settlers hears nothing about them (R1X: day one said so).
-    m.town.value = { ...m.town.value!, tiers: m.town.value!.tiers.map((n, i) => (i === 0 ? n : 0)) };
+    const town = m.town.value!;
+    m.town.value = { ...town, tiers: (town.tiers ?? []).map((n, i) => (i === 0 ? n : 0)) };
     const settlers = alertsForLens(computeAlerts(m, [], { seat: 0 }), 'ledger', new Set());
     expect(settlers.some((a) => a.key === 'tier-short-settler-wares')).toBe(false);
+  });
+
+  // R1X, from the player's chair: three cider makers waiting read "the cider makers are waiting",
+  // and a business resting till spring raises no alert at all.
+  it('names makers waiting on a raw good in the plural, and lets resting businesses be', () => {
+    const { session } = mockVillageSession();
+    const m = session.mirror;
+    m.stocks.value = {
+      lines: m.stocks.value!.lines.map((l) => (l.good === 'fruit' ? { ...l, stock: 0 } : l)),
+    };
+    const makers = [...m.buildings.values()].filter((b) => b.stage === 'built').slice(0, 3);
+    for (const b of makers) {
+      m.buildings.set(b.id, {
+        ...b,
+        def: 'workshop',
+        trade: 'cider-maker',
+        rt: { ...(b.rt ?? {}), status: BuildingStatus.missingInput } as typeof b.rt,
+      });
+    }
+    const waiting = () =>
+      alertsForLens(computeAlerts(m, [], { seat: 0 }), 'ledger', new Set()).find(
+        (a) => a.key === 'short-fruit',
+      );
+    expect(waiting()?.text).toMatch(/The [a-z' ]+s are waiting\./);
+    for (const b of makers) {
+      const now = m.buildings.get(b.id)!;
+      m.buildings.set(b.id, {
+        ...now,
+        rt: { ...now.rt!, status: BuildingStatus.missingInput | BuildingStatus.resting },
+      });
+    }
+    expect(waiting()).toBeUndefined();
   });
 
   it('brings story letters, requests and plans from the partner, and an open Charter to both lanes', () => {
