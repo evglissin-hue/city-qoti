@@ -9,8 +9,10 @@
 //    - a shop, for households no outlet reaches, or one per eight households (Village rank);
 //    - a workshop or a farm, while some trade of its zone scores above 0 (./trades: need x supply
 //      x site x keeper) and no business of that trade is going up already.
-// 4. Starts grown sites on the best lots, a couple a night and a few at a time, only while the
-//    storehouses can spare half their materials beyond what other sites still wait for. A business
+// 4. Starts grown sites on the best lots, a couple a night and a few at a time, while the storehouses
+//    can spare half their materials beyond what other sites still wait for, or the carrier may bring
+//    Materials and no other site of the same kind still waits for its own (one a kind on bought
+//    timber). A business
 //    lot grows the trade with the best positive score (ties: the trade the town has fewest of, then
 //    content order); a keen resident named by the keeper term keeps it.
 // 5. Writes the four demand bars (./bars) and sends demand.updated; the zoning pass and the zone
@@ -19,6 +21,7 @@ import { content, type BuildingDef, type TradeDef } from '@qoti/content';
 import { FIELD_GOOD_FERTILITY, MAP_SIZE, TICKS_PER_DAY, Zone } from '../../constants';
 import type { Building, Lot, System, TickCtx, WorldState } from '../../contracts';
 import { findById } from '../../state/entities';
+import { familyIndex } from '../../state/zones';
 import { isStandard } from '../../state/hamlet';
 import { hasInnovation, rankAtLeast } from '../../state/village';
 import { townStock } from '../../view/hamlet';
@@ -207,12 +210,31 @@ function freeMaterials(state: WorldState, stock: readonly number[]): number[] {
   return free;
 }
 
-function affordable(def: BuildingDef, free: number[]): boolean {
+/** True when a grown site on a lot of these zones is still waiting for materials. */
+function siteWaiting(state: WorldState, zones: readonly number[]): boolean {
+  for (const b of state.buildings) {
+    if (!b.lot || b.stage !== 'construction' || !b.rt?.construction?.needs.some((n) => n > 0)) continue;
+    const lot = findById(state.lots, b.lot);
+    if (lot && zones.includes(lot.zone)) return true;
+  }
+  return false;
+}
+
+/**
+ * True when the site may start: half its materials lie free in the storehouses, or the carrier may
+ * bring Materials (its rule is not Never) and no other site of its kind is still waiting for its
+ * own, so each kind of land has one site at a time going up on bought timber (docs/spec/13-ledger.md,
+ * Construction: building is dearer on bought timber and never stuck for want of it).
+ */
+function affordable(state: WorldState, def: BuildingDef, free: number[], zones: readonly number[]): boolean {
+  let short = false;
   for (const [id, qty] of def.cost?.goods ?? []) {
     const g = content.goodIndex.get(id);
-    if (g !== undefined && (free[g] ?? 0) * 100 < qty * GROWTH_SHARE) return false;
+    if (g !== undefined && (free[g] ?? 0) * 100 < qty * GROWTH_SHARE) short = true;
   }
-  return true;
+  if (!short) return true;
+  if (state.carrier.families[familyIndex('materials')]?.rule === 'never') return false;
+  return !siteWaiting(state, zones);
 }
 
 /** True when a storehouse with porters lies within its range of the tile, give or take a lot's width. */
@@ -234,7 +256,8 @@ function canGrow(
   free: number[],
   reach: readonly Reach[],
 ): boolean {
-  if (!affordable(def, free)) return false;
+  const kind = lot.zone === Zone.homesLow || lot.zone === Zone.homesMedium ? HOME_ZONES : [lot.zone];
+  if (!affordable(state, def, free, kind)) return false;
   const at = lotPlacement(state, lot, def);
   if (!at) return false;
   // Porters must reach the door itself, or the site would wait for its timber forever.
