@@ -50,6 +50,7 @@ One row per cycle. A cycle is one agent session working from one brief on one br
 | V2B Green | V2 | parallel | `cycle-v2b-green.md` | V2.0 | done on `cycle/v2b-green` ([evglissin-hue/city-qoti#37](https://github.com/evglissin-hue/city-qoti/pull/37)): the dab kit and dabbed crowns, hedges, reeds, ivy and fruit trees, thinning by season, the meadow carpet, flower drifts, foliage lit from below; shots `v2-v2b-*` |
 | V2C What V1 left half-wired | V2 | parallel | `cycle-v2c-half-wired.md` | V2.0 | PR open ([evglissin-hue/city-qoti#35](https://github.com/evglissin-hue/city-qoti/pull/35)); screenshots `v2-v2c-*` |
 | V2X V2 integration | V2 | integration | `cycle-v2x-integration.md` | V2A, V2B, V2C | brief written |
+| V3.0 Yards and long view contracts | V3 | serial | `cycle-v3-0-contracts.md` | V2X, R1X, R2.0 | brief written |
 | R1.0 Zones contracts | R1 | serial | `cycle-r1-0-zones-contracts.md` | P1 | in progress on `cycle/r1-0-zones-contracts`; ends by creating `cycle/r1x-integration` and writes the R1A to R1X briefs |
 
 Status values: waiting (dependencies not merged), ready, in progress (add the session link), PR open (add the PR link), merged.
