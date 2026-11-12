@@ -33,7 +33,9 @@ export interface Letter {
   tick: number;
 }
 
-export type ReportTab = 'stocks' | 'workforce' | 'budget' | 'buildings';
+
+/** R1C: the Purse book's three tabs. */
+export type PurseTab = 'budget' | 'taxes' | 'loans';
 
 // I2 (C4F)
 /** R1C: the Balances book's two tabs. */
@@ -76,7 +78,6 @@ export function createUiState() {
     // I1 (C3E)
     /** The open book panel (wishes, patterns, chronicle, achievements, reports); one at a time. */
     panel: signal<string | null>(null),
-    reportTab: signal<ReportTab>('stocks'),
     /** The Pattern Book page on display (a pattern id), or null for the contents. */
     bookPage: signal<string | null>(null),
     /** Building being customized. */
@@ -101,6 +102,7 @@ export function createUiState() {
     marketGood: signal<string | null>(null),
     // R1C
     balancesTab: signal<BalancesTab>('families'),
+    purseTab: signal<PurseTab>('budget'),
     /** The family whose row the Balances book holds open (the top bar's chips set it). */
     balancesFamily: signal<GoodFamily | null>(null),
     /** The story letter on the desk, while it is open. */

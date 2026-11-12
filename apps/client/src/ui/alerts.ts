@@ -71,7 +71,7 @@ export function computeAlerts(
       tone: 'warn',
       icon: 'coin',
       text: 'Lean times. New building waits until the treasury is back above zero.',
-      action: { kind: 'panel', panel: 'reports', page: 'budget' },
+      action: { kind: 'panel', panel: 'purse' },
     });
   }
   const stocks = m.stocks.value?.lines ?? [];
@@ -90,7 +90,7 @@ export function computeAlerts(
           food === 0
             ? 'The larders are empty. Bread, vegetables or fish, quickly please.'
             : `Food for about ${days < 2 ? 'a day' : `${Math.floor(days)} days`} in store.`,
-        action: { kind: 'panel', panel: 'reports', page: 'stocks' },
+        action: { kind: 'panel', panel: 'balances', page: 'families' },
       });
     }
   }
@@ -127,7 +127,7 @@ export function computeAlerts(
       tone: 'warn',
       icon: `good:${good}`,
       text: `No ${goodName(good).toLowerCase()} in store. The ${names.join(' and the ')} ${names.length === 1 && who.length === 1 ? 'is' : 'are'} waiting.`,
-      action: { kind: 'panel', panel: 'reports', page: 'stocks' },
+      action: { kind: 'panel', panel: 'balances', page: 'families' },
     });
   }
   // Playtest round six: a site waiting on stone, with the stone nearly gone, wants a quarry.
@@ -141,7 +141,7 @@ export function computeAlerts(
         tone: 'warn',
         icon: 'reports',
         text: 'Stone is running low. A quarry on a grey outcrop keeps it coming.',
-        action: { kind: 'panel', panel: 'reports', page: 'stocks' },
+        action: { kind: 'panel', panel: 'balances', page: 'families' },
       });
       break;
     }
@@ -154,7 +154,7 @@ export function computeAlerts(
       tone: 'quiet',
       icon: 'status',
       text: `And ${idle.length - MAX_IDLE} more buildings standing about.`,
-      action: { kind: 'panel', panel: 'reports', page: 'buildings' },
+      action: { kind: 'panel', panel: 'businesses' },
     });
   }
 

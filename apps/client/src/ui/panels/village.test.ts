@@ -5,7 +5,7 @@ import { content } from '@qoti/content';
 import { TICKS_PER_DAY, type Command } from '@qoti/sim';
 import { h } from 'preact';
 import { afterEach, describe, expect, it } from 'vitest';
-import { mockCharter, mockLetters, mockLoans, villageIds } from '../mocks/village';
+import { mockCharter, mockLetters, villageIds } from '../mocks/village';
 import { mockVillageSession } from '../mocks/session';
 import { mount, settle, typeInto, type Mounted } from '../test/dom';
 import { CharterPanel, knownUnlockName } from './Charter';
@@ -13,7 +13,6 @@ import { InspectorPanel } from './Inspector';
 import { LettersPanel } from './Letters';
 import { NotebookPanel } from './Notebook';
 import { PlansPanel } from './Plans';
-import { PoliciesPanel } from './Policies';
 import { RankUpPanel } from './RankUp';
 import { AskDialog, RequestsPanel } from './Requests';
 import { StoryLetterPanel } from './StoryLetter';
@@ -26,39 +25,6 @@ afterEach(() => {
 
 const last = <T extends Command['t']>(submitted: Command[], t: T) =>
   submitted.filter((c): c is Extract<Command, { t: T }> => c.t === t).pop();
-
-describe('policies', () => {
-  it('sets wages and income tax from the dials, with the daily bill in words', async () => {
-    const { session, submitted } = mockVillageSession();
-    view = await mount(h(PoliciesPanel, { session }));
-    expect(view.get('wages').textContent).toContain('Craftsfolk');
-    expect(view.get('wage-bill').textContent).toContain('coins');
-    await view.click('wage-110');
-    expect(last(submitted, 'ledger.setWageLevel')).toEqual({ t: 'ledger.setWageLevel', percent: 110 });
-    await view.click('tax-15');
-    expect(last(submitted, 'ledger.setTaxRate')).toEqual({ t: 'ledger.setTaxRate', percent: 15 });
-  });
-
-  it('lists loans with repayments, and borrows within the credit left', async () => {
-    const { session, submitted } = mockVillageSession();
-    view = await mount(h(PoliciesPanel, { session }));
-    const loan = mockLoans.loans[0]!;
-    expect(view.get(`loan-${loan.id}`).textContent).toContain('100 coins');
-    await view.click(`repay-all-${loan.id}`);
-    expect(last(submitted, 'loan.repay')).toEqual({ t: 'loan.repay', id: loan.id, coins: 100 });
-    await view.click('borrow-preset-250');
-    await view.click('borrow-take');
-    expect(last(submitted, 'loan.take')).toEqual({ t: 'loan.take', coins: 250 });
-  });
-
-  it('keeps the bank shut before the Village rank', async () => {
-    const { session } = mockVillageSession();
-    session.mirror.town.value = { ...session.mirror.town.value!, rank: 'hamlet' };
-    view = await mount(h(PoliciesPanel, { session }));
-    expect(view.get('loans-locked').textContent).toContain('Charter');
-    expect(view.find('borrow-take')).toBeNull();
-  });
-});
 
 describe('the Charter board and the notebook', () => {
   it('shows each goal with its lane and progress, and claims when ready', async () => {

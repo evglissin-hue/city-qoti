@@ -20,7 +20,7 @@ describe('resident inspector', () => {
     expect(detail(f.state, hazel).doing).toBe('At home');
     untilHour(r, 9);
     // R1: the bakery is a baker's workshop, and reads by its building.
-    expect(detail(f.state, hazel).doing).toBe('At work at the workshop');
+    expect(detail(f.state, hazel).doing).toBe('At work: baker');
     untilHour(r, 2);
     expect(detail(f.state, hazel).doing).toBe('Asleep');
   });

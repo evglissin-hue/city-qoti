@@ -2,7 +2,6 @@ import { content, type GoodFamily } from '@qoti/content';
 import type { Session } from '../../app/session';
 import { alertsForLens, computeAlerts, type Alert } from '../alerts';
 import { Glyph } from '../icons';
-import type { ReportTab } from '../state';
 import { showPlan } from './Plans';
 import { openLetter } from './StoryLetter';
 
@@ -89,12 +88,12 @@ export function act(session: Session, a: Alert): void {
     }
     case 'panel':
       session.ui.panel.value = action.panel;
-      if (action.panel === 'reports' && action.page) session.ui.reportTab.value = action.page as ReportTab;
       if (action.panel === 'patterns') session.ui.bookPage.value = action.page ?? null;
       // I3 (C5F)
       if (action.panel === 'field-guide') session.ui.guidePage.value = action.page ?? null;
       // R1C: the Trade book became the Balances book's Neighbors tab.
-      if (action.panel === 'balances') session.ui.balancesTab.value = 'neighbors';
+      if (action.panel === 'balances')
+        session.ui.balancesTab.value = action.page === 'families' ? 'families' : 'neighbors';
       break;
     case 'place':
       session.render?.focus(action.x, action.z);
