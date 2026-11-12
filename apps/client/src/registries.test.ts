@@ -51,6 +51,7 @@ describe('registries', () => {
       'guard',
       'inspect',
       'lane',
+      'layout',
       'note',
       'path',
       'plan',
