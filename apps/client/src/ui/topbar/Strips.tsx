@@ -1,3 +1,4 @@
+import type { GoodFamily } from '@qoti/content';
 // The top bar's lens strips. The Ledger's reads the town's demand and balances; the Hearth's reads
 // how folk are doing. Each reads only its own signals and draws what topbar/strip.ts works out.
 import { DEMAND_KINDS, type MoodBand } from '@qoti/sim';
@@ -48,7 +49,7 @@ function DemandBars({ session }: { session: Session }) {
 function BalanceChips({ session }: { session: Session }) {
   const b = session.mirror.balances.value;
   if (!b) return null;
-  const open = (family: string) => {
+  const open = (family: GoodFamily) => {
     session.ui.balancesFamily.value = family;
     session.ui.panel.value = 'balances';
   };

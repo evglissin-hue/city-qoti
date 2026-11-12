@@ -1,7 +1,7 @@
 // R1C: the Balances book. Where the five families stand (days of cover, what is on offer, what it
 // costs, what the carrier moved), the carrier's terms for each, its purse and this season's deals,
 // and, on the second tab, the neighbors it trades with. It replaces the Market, Trade and Dock books.
-import { content, type GoodFamily } from '@qoti/content';
+import { content } from '@qoti/content';
 import {
   CARRIER_BUDGET_MAX,
   CARRIER_RESERVE_MAX,
@@ -28,14 +28,8 @@ import { GoodCard } from './GoodCard';
 import { Empty, Frame, Heading, Sparkline, Toggle } from './parts';
 import { Dial, Price, Stepper } from './villageParts';
 
-/** The good that stands for each family in a row's icon. */
-export const FAMILY_ICON: Record<GoodFamily, string> = {
-  food: 'bread',
-  fuel: 'firewood',
-  materials: 'timber',
-  wares: 'cloth',
-  treats: 'honey',
-};
+import { FAMILY_ICON } from '../topbar/families';
+export { FAMILY_ICON };
 
 export const RULE_WORD: Record<CarrierRule, string> = {
   always: 'Always',
