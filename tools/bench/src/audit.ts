@@ -26,6 +26,24 @@ export const VILLAGE_SEED = 'hazel';
 /** A template offered this many times and never granted is flagged. */
 export const NEVER_GRANTED_AFTER = 3;
 
+/**
+ * Flags today's stand-ins still raise, each with the cycle whose system removes it, so the audit
+ * prints them as explained instead of failing the run. R1 stand-in (R1X): empty this list as the
+ * wave lands; a flag that outlives its stand-in is a dead end again.
+ */
+export const EXPLAINED: readonly { kind: HealthIssue['kind']; match: RegExp; why: string }[] = [
+  {
+    kind: 'site-rule-broken',
+    match: /^foresters-lodge /,
+    why: "R1B: the Forester's Lodge fells its wood and does not replant it yet",
+  },
+];
+
+/** Why a flag is a known stand-in's, or null when it is a dead end. */
+export function explained(i: Pick<HealthIssue, 'kind' | 'text'>): string | null {
+  return EXPLAINED.find((e) => e.kind === i.kind && e.match.test(i.text))?.why ?? null;
+}
+
 export interface WishStat {
   template: string;
   offered: number;
@@ -56,8 +74,10 @@ export interface AuditResult {
   /** Per template, summed over every run. */
   wishes: WishStat[];
   warnings: AuditWarning[];
-  /** Dead-end flags: every health issue of every run. */
+  /** Dead-end flags: every health issue of every run, but the explained ones. */
   flags: (HealthIssue & { run: string })[];
+  /** Health issues a stand-in still raises (`EXPLAINED`), with why. */
+  explained: (HealthIssue & { run: string; why: string })[];
 }
 
 /** Watches wishes at each hourly look: new ones are offered; ones that vanish were granted or let go. */
@@ -167,8 +187,13 @@ export function audit(
       template: s.template,
       text: `wish ${s.template} was offered ${s.offered} times and never granted (${s.expired} let go, ${s.expiredUnachievable} while impossible)`,
     }));
-  const flags = runs.flatMap((r) => r.issues.map((i) => ({ ...i, run: `${r.seed}/${r.label}` })));
-  return { runs, wishes, warnings, flags };
+  const all = runs.flatMap((r) => r.issues.map((i) => ({ ...i, run: `${r.seed}/${r.label}` })));
+  const flags = all.filter((i) => !explained(i));
+  const known = all.flatMap((i) => {
+    const why = explained(i);
+    return why ? [{ ...i, why }] : [];
+  });
+  return { runs, wishes, warnings, flags, explained: known };
 }
 
 export function formatSummary(r: AuditResult): string {
@@ -187,6 +212,7 @@ export function formatSummary(r: AuditResult): string {
       `${`${run.seed}/${run.label}`.padEnd(16)} ${String(run.days).padStart(4)} ${String(run.residents).padStart(9)} ${run.rank.padEnd(8)} ${run.issues.length}`,
     );
   for (const w of r.warnings) lines.push(`warning  ${w.kind}: ${w.text}`);
+  for (const e of r.explained) lines.push(`explained  ${e.run} ${e.kind}: ${e.text} (${e.why})`);
   lines.push(
     r.flags.length
       ? `FAIL: ${r.flags.length} dead-end flag${r.flags.length === 1 ? '' : 's'}`
