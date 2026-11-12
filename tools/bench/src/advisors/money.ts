@@ -84,8 +84,8 @@ class Money implements Advisor {
     // sinks (the peddler's imports, priced decor), and a player who borrows at the last coin
     // stalls the build queue for days (six seeds at day 70 with P1's first economy: 135 residents
     // on average with the old cushion, 142 with this one; main 138 either way).
-    // R1X: no loan for less than 300 (a Village near its line borrowed a few coins every other day).
-    if (coins < 120 && room >= 300) {
+    // R1X tried a 300 floor here and oak sat lean for weeks with 100 to 299 of credit unused.
+    if (coins < 120 && room >= 100) {
       p.do('take a loan', [{ t: 'loan.take', coins: Math.min(room, LOAN_COINS) }]);
     } else if (owed > 0 && coins > 500) {
       const loan = w.loans.loans[0]!;

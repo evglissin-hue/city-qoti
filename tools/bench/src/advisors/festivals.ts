@@ -51,7 +51,9 @@ export const MENU_RESERVE_DAYS = 6;
 export const MENU_SPRING_DAYS = 3;
 /** Pieces the Hearth puts up for a festival. */
 export const PIECES = 3;
-const TREATS = ['cider', 'cheese', 'candles', 'honey'];
+// R1X: only Food and Treats go on a menu (the sim refuses anything else); candles are Wares, and
+// every plan that offered them was refused from willow's day 31 on.
+const TREATS = ['cider', 'cheese', 'honey'];
 
 /** Units of a good free in town now. */
 function free(w: WorldState, id: string): number {
