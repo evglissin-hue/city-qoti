@@ -47,3 +47,20 @@ describe('R1E specialized kits', () => {
     expect(tris(id)).toBeGreaterThan(0);
   });
 });
+
+describe('the Market Hall', () => {
+  it('roofs the Market Square on the same footprint, within budget near and far', () => {
+    const kit = kitById.get('market-square')!;
+    const opts = { seed: 3, size: [3, 3] as [number, number], entrance: [1, 2] as [number, number] };
+    const tris = (params: Record<string, boolean>, lod?: 'low'): number =>
+      kit.build({ ...opts, params, ...(lod ? { lod } : {}) }).getAttribute('position').count / 3;
+    expect(tris({ hall: true })).toBeGreaterThan(tris({}));
+    expect(tris({ hall: true })).toBeLessThanOrEqual(4000);
+    expect(tris({ hall: true }, 'low')).toBeLessThanOrEqual(250);
+    const g = kit.build({ ...opts, params: { hall: true } });
+    g.computeBoundingBox();
+    expect(g.boundingBox!.min.x).toBeGreaterThan(-0.1);
+    expect(g.boundingBox!.max.x).toBeLessThan(3.1);
+    expect(g.boundingBox!.max.y).toBeGreaterThan(2);
+  });
+});

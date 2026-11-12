@@ -10,7 +10,7 @@ import { describe, expect, it } from 'vitest';
 import { Mirror } from '../state/mirror';
 import { drawDef } from './defs';
 import { buildingKey, buildingParams, buildingVariantGeometry, setDrawSeason } from './kitGeometry';
-import { buildingsLayer, businessSignText } from './layers/buildings';
+import { buildingsLayer, businessSignText, drawnView } from './layers/buildings';
 import { animalsLayer } from './layers/animals';
 import { cartsLayer } from './layers/carts';
 import { overlaysLayer } from './layers/overlays';
@@ -132,6 +132,22 @@ describe('grown building params', () => {
     expect(businessSignText(view({ def: 'farmstead', trade: 'sheep-run', level: 3 }), 'Ashdown')).toBe(
       "Ashdown's Fold",
     );
+  });
+
+  it("roof every Market Square into the Market Hall once Odette's finale unlocks it", () => {
+    const square = view({ def: 'market-square' });
+    expect(drawnView(square, false)).toBe(square);
+    expect(drawnView(view({ def: 'granary' }), true).custom).toBeUndefined();
+    const hall = drawnView(square, true);
+    expect(buildingParams(hall).hall).toBe(true);
+    expect(buildingKey(hall)).not.toBe(buildingKey(square));
+    const tris = (b: BuildingView): number => {
+      const g = buildingVariantGeometry(b);
+      const n = g.getAttribute('position').count;
+      g.dispose();
+      return n;
+    };
+    expect(tris(hall)).toBeGreaterThan(tris(square));
   });
 
   it('draw every business name in one mesh, and drop a name when the level falls', () => {

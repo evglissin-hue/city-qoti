@@ -14,7 +14,7 @@ import { doorPart, faceBox, facePoint, kitBuilder, type Face } from './parts';
 import { barrel, groundPatch } from './props';
 import { roofPart } from './roofs';
 import { customOf, level, roofColor, streams } from './style';
-import type { KitBuildOptions } from './types';
+import type { KitAnchors, KitBuildOptions } from './types';
 import { postAndRail } from './details';
 import { bottleKiln, pugMill, spade, villageKit, wheelbarrow } from './village';
 
@@ -262,7 +262,18 @@ function granary(opts: KitBuildOptions | undefined): Built {
   ] as const)
     windowRow(s, f, u0, u1, 0.8, style, rnd, anchors.lights!, [], 0.9, [0.14, 0.18], 0.02);
   // The loading platform, its steps and a hand rail, all above ground level once lifted.
-  s.rbox(x0 + 0.05, -LIFT, z1, x1 + 0.1, 0.04, z1 + 0.56, vary(palette.wood, rnd, 0.5), 0.01);
+  // A plank deck on posts, with its boards' edge in shadow, so it reads light from above.
+  const deck = vary(palette.wood, rnd, 0.5);
+  s.rbox(x0 + 0.05, -0.005, z1, x1 + 0.1, 0.04, z1 + 0.56, deck, 0.01);
+  s.box(x0 + 0.05, -0.05, z1 + 0.54, x1 + 0.1, -0.005, z1 + 0.56, palette.darkWood);
+  for (const x of [x0 + 0.09, (x0 + x1) / 2, x1 + 0.06])
+    s.box(x - 0.025, -LIFT, z1 + 0.5, x + 0.025, -0.005, z1 + 0.55, palette.timber);
+  s.detail(() => {
+    for (let k = 1; k < 7; k++) {
+      const x = x0 + 0.05 + ((x1 + 0.05 - x0) * k) / 7;
+      s.box(x - 0.003, 0.04, z1 + 0.01, x + 0.003, 0.042, z1 + 0.55, palette.darkWood);
+    }
+  });
   for (const [i, h] of [
     [0, -0.21],
     [1, -0.08],
@@ -424,18 +435,22 @@ function marketSquare(opts: KitBuildOptions | undefined): Built {
   });
   const cx = w / 2;
   const cz = 1.12;
+  // Far off, the Market Hall's roof hides the cross and the stalls under it.
+  const hidden = opts?.params?.hall === true && s.low;
   // The market cross: three steps, a tall shaft and a cross-piece.
-  s.cylinder(cx, cz, 0.27, 0.25, 0.03, 0.1, 0xcfc6b2, 8);
-  s.cylinder(cx, cz, 0.2, 0.18, 0.1, 0.17, 0xbdb4a0, 8);
-  s.cylinder(cx, cz, 0.13, 0.12, 0.17, 0.24, 0xcfc6b2, 8);
-  s.box(cx - 0.045, 0.24, cz - 0.045, cx + 0.045, 0.78, cz + 0.045, 0xd6cdb8);
-  s.box(cx - 0.13, 0.62, cz - 0.03, cx + 0.13, 0.68, cz + 0.03, 0xd6cdb8);
-  s.box(cx - 0.06, 0.78, cz - 0.06, cx + 0.06, 0.84, cz + 0.06, 0xbdb4a0);
+  if (!hidden) {
+    s.cylinder(cx, cz, 0.27, 0.25, 0.03, 0.1, 0xcfc6b2, 8);
+    s.cylinder(cx, cz, 0.2, 0.18, 0.1, 0.17, 0xbdb4a0, 8);
+    s.cylinder(cx, cz, 0.13, 0.12, 0.17, 0.24, 0xcfc6b2, 8);
+    s.box(cx - 0.045, 0.24, cz - 0.045, cx + 0.045, 0.78, cz + 0.045, 0xd6cdb8);
+    s.box(cx - 0.13, 0.62, cz - 0.03, cx + 0.13, 0.68, cz + 0.03, 0xd6cdb8);
+    s.box(cx - 0.06, 0.78, cz - 0.06, cx + 0.06, 0.84, cz + 0.06, 0xbdb4a0);
+  }
   // Six stalls in two rows of three, all open toward the entrance.
   const cols = [0.58, 1.5, 2.42];
   const rows = [0.15, 1.6];
   let i = 0;
-  for (const sz of rows) {
+  for (const sz of hidden ? [] : rows) {
     for (const sx of cols) {
       const colorHex = CANOPY[i]!;
       const kind = STALL_STOCK[i]!;
@@ -490,6 +505,10 @@ function marketSquare(opts: KitBuildOptions | undefined): Built {
       i++;
     }
   }
+  // R1E: Odette Fenwick's finale (R1D's `market-hall` unlock) roofs the square into the Market Hall:
+  // a timber hall on posts over the six stalls, a clock turret everybody argues about and her
+  // balcony over the entrance. Same footprint; the buildings layer passes `hall`.
+  if (opts?.params?.hall === true) marketHall(s, w, d, rnd, anchors);
   s.detail(() => {
     // Crates and barrels at the edges, and two lamp posts at the front corners.
     crateOf(s, 'vegetables', 0.35, 0.03, 2.55, rnd);
@@ -501,6 +520,91 @@ function marketSquare(opts: KitBuildOptions | undefined): Built {
     }
   });
   return { s, anchors };
+}
+
+/** The Market Hall over the square: posts and tie beams, a hipped roof, a clock turret, a balcony. */
+function marketHall(s: ShapeBuilder, w: number, d: number, rnd: () => number, anchors: KitAnchors): void {
+  const eave = 1.36;
+  const oak = vary(0x6b4a30, rnd, 0.3);
+  const xs = [0.12, w / 2, w - 0.12];
+  const zs = [0.12, d / 2, d - 0.12];
+  // Oak posts on stone pads round the edge, open between so the stalls show beneath.
+  for (const x of xs)
+    for (const z of zs) {
+      if (x === w / 2 && z === d / 2) continue;
+      if (x === w / 2 && z === d - 0.12) continue;
+      s.box(x - 0.05, 0.03, z - 0.05, x + 0.05, eave, z + 0.05, oak);
+      s.detail(() => s.box(x - 0.08, 0.03, z - 0.08, x + 0.08, 0.1, z + 0.08, 0xbdb4a0));
+    }
+  // Tie beams along each side, a little below the eave.
+  for (const z of [0.12, d - 0.12]) s.box(0.07, eave - 0.12, z - 0.04, w - 0.07, eave, z + 0.04, oak);
+  for (const x of [0.12, w - 0.12]) s.box(x - 0.04, eave - 0.12, 0.07, x + 0.04, eave, d - 0.07, oak);
+  s.detail(() => {
+    // Braces at the corners and a curved arch over the entrance.
+    for (const x of [0.12, w - 0.12])
+      for (const z of [0.12, d - 0.12]) {
+        const ix = x < w / 2 ? 0.35 : -0.35;
+        const iz = z < d / 2 ? 0.35 : -0.35;
+        beam(s, [x, eave - 0.45, z], [x + ix, eave - 0.1, z], 0.02, oak);
+        beam(s, [x, eave - 0.45, z], [x, eave - 0.1, z + iz], 0.02, oak);
+      }
+  });
+  roofPart(s, {
+    shape: 'hip',
+    material: 'tile',
+    x0: -0.04,
+    z0: -0.04,
+    x1: w + 0.04,
+    z1: d + 0.04,
+    y0: eave,
+    y1: eave + 0.95,
+    color: vary(0xa4552f, rnd, 0.3),
+    trim: oak,
+    ridgeAlongX: true,
+    rnd,
+  });
+  // The clock turret on the ridge: a white box with a face on each side, a lead cap and a vane.
+  const cx = w / 2;
+  const cz = d / 2;
+  const ty = eave + 0.8;
+  s.box(cx - 0.2, ty, cz - 0.2, cx + 0.2, ty + 0.42, cz + 0.2, 0xf1e8d4);
+  s.cylinder(cx, cz, 0.3, 0, ty + 0.42, ty + 0.72, 0x5d6b6e, 8);
+  for (const [nx, nz] of [
+    [0, 1],
+    [0, -1],
+    [1, 0],
+    [-1, 0],
+  ] as const) {
+    const fx = cx + nx * 0.205;
+    const fz = cz + nz * 0.205;
+    const r = 0.13;
+    const y = ty + 0.22;
+    if (nx === 0) s.box(fx - r, y - r, fz - 0.005, fx + r, y + r, fz + 0.005, palette.white);
+    else s.box(fx - 0.005, y - r, fz - r, fx + 0.005, y + r, fz + r, palette.white);
+    s.detail(() => {
+      const ink = palette.ink;
+      if (nx === 0) {
+        s.box(fx - 0.008, y, fz - 0.012 * -nz, fx + 0.008, y + 0.09, fz + 0.012 * nz, ink);
+        s.box(fx, y - 0.008, fz - 0.012 * -nz, fx + 0.07, y + 0.008, fz + 0.012 * nz, ink);
+      } else {
+        s.box(fx - 0.012 * -nx, y, fz - 0.008, fx + 0.012 * nx, y + 0.09, fz + 0.008, ink);
+        s.box(fx - 0.012 * -nx, y - 0.008, fz, fx + 0.012 * nx, y + 0.008, fz + 0.07, ink);
+      }
+    });
+  }
+  s.detail(() => beam(s, [cx, ty + 0.72, cz], [cx, ty + 0.92, cz], 0.012, palette.metal));
+  // Odette's balcony over the entrance, for announcements, with a rail and a little lantern.
+  const by = 0.95;
+  s.box(cx - 0.42, by - 0.04, d - 0.32, cx + 0.42, by, d + 0.06, oak);
+  s.detail(() => {
+    for (let k = 0; k <= 8; k++) {
+      const x = cx - 0.4 + k * 0.1;
+      s.box(x - 0.008, by, d + 0.03, x + 0.008, by + 0.2, d + 0.05, oak);
+    }
+    s.box(cx - 0.42, by + 0.2, d + 0.025, cx + 0.42, by + 0.23, d + 0.06, oak);
+    for (const x of [cx - 0.4, cx + 0.4]) beam(s, [x, 0.03, d - 0.06], [x, by - 0.04, d - 0.06], 0.025, oak);
+  });
+  anchors.lights!.push(lamp(s, cx, eave - 0.2, d - 0.04));
 }
 
 export const brickworksKit = villageKit('brickworks', [3, 3], [1, 2], brickworks);

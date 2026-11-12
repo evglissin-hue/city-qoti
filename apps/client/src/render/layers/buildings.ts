@@ -368,6 +368,19 @@ function boardCorners(
   ];
 }
 
+/** R1D's unlock from Odette Fenwick's finale: every Market Square stands roofed as the Market Hall. */
+export const MARKET_HALL_UNLOCK = 'market-hall';
+
+/**
+ * R1E: the view a building is drawn from. Once the Market Hall is unlocked a Market Square carries
+ * `hall` among its params (through `custom`, which `buildingParams` copies in), so its key and its
+ * geometry change with the unlock and nothing else needs to know.
+ */
+export function drawnView(b: BuildingView, hall: boolean): BuildingView {
+  if (!hall || b.def !== 'market-square') return b;
+  return { ...b, custom: { ...b.custom, hall: true } };
+}
+
 /**
  * Buildings (C3D): every building as it stands (its seeded variant, the player's customization,
  * stock piles and crops from its runtime, or its construction stage) in one BatchedMesh, so the
@@ -422,8 +435,13 @@ export function buildingsLayer(): RenderLayer {
     return signs.flush();
   }
 
-  function place(b: BuildingView): boolean {
+  // R1E: whether Odette's finale has roofed the square (the Mirror's town view, R1D's unlock).
+  let hall = false;
+  const hallNow = (): boolean => !!ctx?.mirror.town.value?.unlocked?.includes(MARKET_HALL_UNLOCK);
+
+  function place(b0: BuildingView): boolean {
     if (!ctx || !batch) return false;
+    const b = drawnView(b0, hall);
     buildingMatrix(b.def, b.x, b.z, b.rot, standLevel(ctx.mirror, b.def, b.x, b.z, b.rot), m);
     let lod = lods.get(b.id);
     if (!lod) {
@@ -518,9 +536,16 @@ export function buildingsLayer(): RenderLayer {
       setWaterReader((x, z) => !!c.mirror.water(x, z));
       batch = new KeyedBatch(c.scene, c.material);
       c.scene.add(signs.mesh);
+      hall = hallNow();
       rebuild();
     },
     update(change) {
+      const roofed = hallNow();
+      if (roofed !== hall) {
+        hall = roofed;
+        rebuild();
+        return;
+      }
       if (change.full || change.buildings || change.rects.has('height') || change.rects.has('occupant'))
         rebuild();
       // A keeper's family can change without a building changing (a newcomer takes over).

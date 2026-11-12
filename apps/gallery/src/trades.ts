@@ -1,7 +1,7 @@
 // R1E: every trade at every level, and the specialized buildings (?scene=trades). Rows are the
 // trades (a workshop, farmstead or shop drawn with its trade's look, as the game's buildings layer
 // does), columns are levels 1, 2 and 3, then level 3's far level; the last row is the four
-// specialized buildings R1E drew. Params: `trades` (ids, comma separated; default all), `style`
+// specialized buildings R1E drew, then the Market Hall. Params: `trades` (ids, comma separated; default all), `style`
 // (a district style, default brick), `season` (spring, summer, autumn or winter, default summer), `special=0` to
 // leave the specialized row out, `far=0` to leave the far column out.
 import { artKitId, businessParams, kitById, type KitBuildOptions } from '@qoti/art';
@@ -51,8 +51,20 @@ export function buildTrades(q: URLSearchParams, material: Material, seed: number
       .filter((d) => d !== undefined)
       .map((def) => ({
         kit: artKitId(def.art),
-        opts: { seed, size: def.size, entrance: def.entrance, params: { style, season } },
+        opts: {
+          seed,
+          size: def.size,
+          entrance: def.entrance,
+          params: { style, season } as Record<string, string | number | boolean>,
+        },
       }));
+    // R1E: the Market Square once Odette's finale roofs it into the Market Hall.
+    const square = content.buildingById.get('market-square');
+    if (square)
+      cells.push({
+        kit: artKitId(square.art),
+        opts: { seed, size: square.size, entrance: square.entrance, params: { style, season, hall: true } },
+      });
     rows.push({ label: 'specialized', cells });
   }
   rows.forEach((row, r) => {
