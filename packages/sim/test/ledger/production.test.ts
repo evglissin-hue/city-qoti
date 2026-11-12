@@ -69,6 +69,8 @@ describe('crafting', () => {
 
   it("bakes 3 bread from 2 grain every 2 hours at a baker's, and waits when the grain runs out", () => {
     const f = hamletFixture();
+    // R1X: the carrier collects surplus at a maker's door; this test counts the oven, not trade.
+    f.state.carrier.families[0]!.sell = false;
     const bakery = building(f.state, f.b.bakery);
     toWork(f.state, bakery.rt!.workers);
     ticks(f.state, 4 * H);
