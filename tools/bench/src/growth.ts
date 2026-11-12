@@ -372,14 +372,14 @@ function nightBench(lines: string[], failures: string[], stress: boolean): Growt
   const kinds = world.buildings.filter((b) => content.buildingById.get(b.def)?.specialized).length;
   if (stress) {
     lines.push(
-      `growth night     stress: ${medianMs.toFixed(2)} ms median, ${worstMs.toFixed(2)} ms worst with flatTown's ` +
+      `growth night R1B stress: ${medianMs.toFixed(2)} ms median, ${worstMs.toFixed(2)} ms worst with flatTown's ` +
         `${kinds} specialized buildings (reported, not enforced)`,
     );
     return { residents: town.residents, lots: lotsNow, businesses: bizNow, medianMs, worstMs, nights: times };
   }
   if (!pass) failures.push(`growth night ${medianMs.toFixed(2)} ms median, ${worstMs.toFixed(2)} ms worst`);
   lines.push(
-    `growth night     ${medianMs.toFixed(2)} ms median, ${worstMs.toFixed(2)} ms worst over ${NIGHTS} nights (after ` +
+    `growth night R1B ${medianMs.toFixed(2)} ms median, ${worstMs.toFixed(2)} ms worst over ${NIGHTS} nights (after ` +
       `${WARMUP_NIGHTS} warm) at City scale (${town.residents} residents, ${world.buildings.length} buildings, ` +
       `${kinds} specialized, ${lotsNow} lots (${emptyLots} empty), ${bizNow} businesses) ` +
       `(budget ${GROWTH_NIGHT_BUDGET.msPerNight} ms)  ${pass ? 'OK' : 'OVER'}`,

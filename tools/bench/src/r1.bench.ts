@@ -1,10 +1,11 @@
 // R1 benches (docs/spec/22-quality.md, redesign budgets): the night's growth pass, which chooses a
-// trade for every lot it grows (budget 2 ms a night), and the carrier's 10:00 pass (budget 0.5 ms a
+// trade for every lot it grows (budget 2 ms a night, the growth pass alone; the hourly zoning passes
+// of the night are timed and reported beside it), and the carrier's 10:00 pass (budget 0.5 ms a
 // day), both at City scale: the 2,000-resident flat town at rank City with two new lanes zoned
 // every kind, fertile ground, a sawmill and windmills standing. Both are run by system id through
 // the pipeline, as the sim runs them, so they keep measuring the real passes after their internals
-// change. Each timed run is on a fresh copy of the town (deserialized from one snapshot), so the
-// lots are empty and the stores are as set every time.
+// change. Timing is wall time after warm-up, median and worst over many samples, as R1A's and R1B's
+// benches do; a night is timed on a fresh copy of the town that has lived through warm nights.
 import { content } from '@qoti/content';
 import {
   createTickCtx,
@@ -24,18 +25,24 @@ export const R1_BUDGET = { growthMsPerNight: 2, carrierMsPerDay: 0.5 };
 
 const S = MAP_SIZE;
 const ZONES = ['homes-low', 'homes-medium', 'shops', 'crafts', 'farms'];
-const NIGHTS = 9;
-const WARMUP = 2;
+// Warm-up days run untimed so V8 has optimized the once-a-day passes, as a running town has; the
+// R1A and R1B benches warm up about 40 days the same way.
+const NIGHTS = 20;
+const WARMUP = 40;
+const WARM_NIGHTS = 15;
 
 function median(values: number[]): number {
   const s = [...values].sort((a, b) => a - b);
   return s[Math.floor(s.length / 2)]!;
 }
 
-/** CPU time of this process in ms, so a busy machine does not inflate the timing. */
-function cpuMs(): number {
-  const c = process.cpuUsage();
-  return (c.user + c.system) / 1000;
+function worst(values: number[]): number {
+  return Math.max(...values);
+}
+
+/** Wall time in ms: process.cpuUsage counts V8's background compile and GC threads, which a once-a-day pass does not pay for. */
+function nowMs(): number {
+  return performance.now();
 }
 
 /** Two new lanes at the bottom of the map, zoned 3 deep both sides, every zone by its x. */
@@ -110,7 +117,7 @@ function fresh(bytes: Uint8Array) {
   return { world, ctx: createTickCtx(world) };
 }
 
-/** Runs the named systems over `ticks` ticks as the sim does; returns CPU ms spent in each, by id. */
+/** Runs the named systems over `ticks` ticks as the sim does; returns wall ms spent in each, by id. */
 function runSystems(world: WorldState, ctx: ReturnType<typeof createTickCtx>, ids: string[], ticks: number) {
   const systems = pipeline.filter((s) => ids.includes(s.id));
   const ms: Record<string, number> = {};
@@ -118,9 +125,9 @@ function runSystems(world: WorldState, ctx: ReturnType<typeof createTickCtx>, id
     const t = world.tick;
     for (const s of systems) {
       if (t % (s.every ?? 1) !== (s.offset ?? 0)) continue;
-      const t0 = cpuMs();
+      const t0 = nowMs();
       s.tick(world, ctx);
-      ms[s.id] = (ms[s.id] ?? 0) + cpuMs() - t0;
+      ms[s.id] = (ms[s.id] ?? 0) + nowMs() - t0;
     }
     ctx.events.length = 0;
     ctx.dirty.clear();
@@ -132,12 +139,8 @@ function runSystems(world: WorldState, ctx: ReturnType<typeof createTickCtx>, id
 export function r1Bench(): { lines: string[]; failures: string[]; report: object } {
   const failures: string[] = [];
   const lines: string[] = [];
-  // R1 stand-in (R1X): the R1 lines time today's stand-in growth and carrier, which R1A and R1B are
-  // replacing, so over budget they are recorded, not failed; R1X makes them fail (or BENCH_R1_STRICT=1).
-  const strict = process.env.BENCH_R1_STRICT === '1';
-  const ok = (pass: boolean) =>
-    pass ? 'ok' : strict ? 'OVER BUDGET' : 'OVER BUDGET (recorded, R1X enforces)';
-  const over = (line: string) => (strict ? failures.push(line) : undefined);
+  const ok = (pass: boolean) => (pass ? 'ok' : 'OVER BUDGET');
+  const over = (line: string) => failures.push(line);
   const town = cityTown();
   const bytes = serialize(town.world);
   const residents = town.residents;
@@ -147,19 +150,31 @@ export function r1Bench(): { lines: string[]; failures: string[]; report: object
   const zoningMs: number[] = [];
   let lots = 0;
   let grew = 0;
-  for (let n = 0; n < WARMUP + NIGHTS; n++) {
-    const { world, ctx } = fresh(bytes);
+  const night = (world: WorldState, ctx: ReturnType<typeof createTickCtx>) => {
     // The night starts at midnight, an hour before the growth pass.
+    world.tick = Math.ceil(world.tick / TICKS_PER_DAY) * TICKS_PER_DAY;
     world.tick += pipeline.find((s) => s.id === 'growth')!.offset! - TICKS_PER_HOUR;
-    // A running town has its caches warm; one untimed zoning pass warms this copy's.
-    pipeline.find((s) => s.id === 'zoning')!.tick(world, ctx);
-    ctx.events.length = 0;
-    const before = world.lots.filter((l) => l.buildingId).length;
-    const ms = runSystems(world, ctx, ['zoning', 'growth'], 3 * TICKS_PER_HOUR);
-    if (n >= WARMUP) {
-      nightMs.push((ms.zoning ?? 0) + (ms.growth ?? 0));
-      zoningMs.push(ms.zoning ?? 0);
+    return runSystems(world, ctx, ['zoning', 'growth'], 3 * TICKS_PER_HOUR);
+  };
+  for (let n = 0; n < NIGHTS; n++) {
+    const { world, ctx } = fresh(bytes);
+    // A running town has its caches (reach grids, desirability) warm: this copy lives through
+    // WARM_NIGHTS untimed nights first, then one timed night. Few lots are filled a night, so the
+    // town stays at City scale with its lots mostly empty.
+    for (let w = 0; w < WARM_NIGHTS; w++) {
+      night(world, ctx);
+      // The night's pass starts from a standing town: finished sites back to built (as R1B's bench does).
+      for (const b of world.buildings) {
+        if (b.stage === 'construction' && b.lot) {
+          b.stage = 'built';
+          if (b.rt) b.rt.construction = null;
+        }
+      }
     }
+    const before = world.lots.filter((l) => l.buildingId).length;
+    const ms = night(world, ctx);
+    nightMs.push(ms.growth ?? 0);
+    zoningMs.push(ms.zoning ?? 0);
     lots = world.lots.length;
     grew = world.lots.filter((l) => l.buildingId).length - before;
   }
@@ -167,8 +182,8 @@ export function r1Bench(): { lines: string[]; failures: string[]; report: object
   if (grew === 0) failures.push('r1 growth grew nothing (measures nothing)');
   if (growthMs > R1_BUDGET.growthMsPerNight) over(`r1 growth ${growthMs.toFixed(3)} ms a night`);
   lines.push(
-    `r1 growth       ${residents} residents, rank city, ${lots} lots, ${grew} grew: ` +
-      `${growthMs.toFixed(2)} ms a night, ${median(zoningMs).toFixed(2)} of it zoning (budget ${R1_BUDGET.growthMsPerNight} ms)  ` +
+    `r1 growth night ${residents} residents, rank city, ${lots} lots, ${grew} grew: ` +
+      `${growthMs.toFixed(2)} ms median, ${worst(nightMs).toFixed(2)} worst over ${NIGHTS} nights after ${WARM_NIGHTS} warm, growth pass only, zoning ${median(zoningMs).toFixed(2)} beside it (budget ${R1_BUDGET.growthMsPerNight} ms)  ` +
       ok(grew > 0 && growthMs <= R1_BUDGET.growthMsPerNight),
   );
 
@@ -202,8 +217,8 @@ export function r1Bench(): { lines: string[]; failures: string[]; report: object
   if (bought === 0) failures.push('r1 carrier bought nothing (measures nothing)');
   if (carrierMs > R1_BUDGET.carrierMsPerDay) over(`r1 carrier ${carrierMs.toFixed(3)} ms a day`);
   lines.push(
-    `r1 carrier      ${residents} residents, ${families} families short, ${bought} units carried: ` +
-      `${carrierMs.toFixed(2)} ms a day (budget ${R1_BUDGET.carrierMsPerDay} ms)  ` +
+    `r1 carrier day  ${residents} residents, ${families} families short, ${bought} units carried: ` +
+      `${carrierMs.toFixed(2)} ms median, ${worst(dayMs).toFixed(2)} worst over ${NIGHTS} days after ${WARMUP} warm-up (budget ${R1_BUDGET.carrierMsPerDay} ms)  ` +
       ok(bought > 0 && carrierMs <= R1_BUDGET.carrierMsPerDay),
   );
 
@@ -216,8 +231,10 @@ export function r1Bench(): { lines: string[]; failures: string[]; report: object
       grew,
       zoningMsPerNight: median(zoningMs),
       growthMsPerNight: growthMs,
+      growthWorstMsPerNight: worst(nightMs),
       carrierUnits: bought,
       carrierMsPerDay: carrierMs,
+      carrierWorstMsPerDay: worst(dayMs),
     },
   };
 }

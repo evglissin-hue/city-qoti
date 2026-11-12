@@ -85,7 +85,7 @@ export function carrierBench(): CarrierBench {
   const worst = Math.max(...times);
   if (ms > CARRIER_BUDGET_MS) failures.push(`carrier ${ms.toFixed(3)} ms per day`);
   lines.push(
-    `carrier         ${state.residents.length} residents and ${state.buildings.length} buildings at City rank, ${units} units a visit: ` +
+    `carrier R1A     ${state.residents.length} residents and ${state.buildings.length} buildings at City rank, ${units} units a visit: ` +
       `${ms.toFixed(3)} ms per day median, ${worst.toFixed(3)} ms worst (budget ${CARRIER_BUDGET_MS} ms)  ` +
       `${ms <= CARRIER_BUDGET_MS ? 'ok' : 'OVER BUDGET'}`,
   );
