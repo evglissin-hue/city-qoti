@@ -115,8 +115,8 @@ Added 2026-11-10 with the redesign (`30-roadmap.md`).
 | Dressing [V3] | 0.3 M triangles and 12 draws, inside the decor detail distance |
 | Endpaper map [V3] | redrawn in a worker in under 150 ms, never on the main thread; no scene draw while it shows in full |
 | Rest-frame refinement [V4] | each sample frame within 12 ms; idle back within 4 ms once settled; settled inside 0.6 s on High at 60 fps |
-| Trade choice and growth [R1] | under 2 ms a night at City scale (R1B's `growth night` bench line: 2,000 residents, a City's mix of specialized buildings, after 15 warm nights; flatTown's own mix, ten times as many specialized buildings, is reported beside it. Measured 2026-11-12: 1.3 to 1.6 ms, and 1.6 to 2.1 ms for the stress mix) |
-| The carrier [R1] | under 0.5 ms a day |
+| Trade choice and growth [R1] | under 2 ms a night at City scale (R1B's `growth night` bench line: 2,000 residents, a City's mix of specialized buildings, after 15 warm nights; flatTown's own mix, ten times as many specialized buildings, is reported beside it. Measured 2026-11-12: 1.3 to 1.6 ms, and 1.6 to 2.1 ms for the stress mix. R1X, after its two speed rounds, in this container with nothing else running: 1.39 and 2.22 ms in two runs of the same build, 1.34 and 1.35 for the stress mix; R1F's stricter `r1 growth night` (a town short of every good, so every bar scores every trade) 2.56 and 2.45 ms, still over) |
+| The carrier [R1] | under 0.5 ms a day (R1A's `carrier R1A` line, the heaviest visit at City scale. R1X, same two runs: 0.34 and 0.58 ms; R1F's `r1 carrier day` 0.52 and 0.85. The container's timings swing by half from run to run of the same build, so read the laptop's: `npm run bench` on a reference machine decides) |
 | The place pass [R2] | 1 ms an hour at Village scale, 3 ms at City scale |
 | Planning the round [R2] | under 0.4 ms a tick for 2,000 residents between 17:00 and 17:30 |
 | Gaps, supplies, masters, the Town Book [R2, R3] | under 1 ms an hour together |
@@ -127,12 +127,12 @@ Added 2026-11-10 with the redesign (`30-roadmap.md`).
 
 | Seed | Both | Hearth off | Ledger off after founding |
 |---|---|---|---|
-| willow | 174, 12 | 107 (61%), 0 | 33 (19%), 0 |
-| hazel | 85, 3 | 201 (236%), 0 | 21 (25%), 0 |
-| oak | 81, 7 | 161 (199%), 0 | 28 (35%), 0 |
-| birch | 58, 0 | 143 (247%), 0 | 17 (29%), 0 |
+| willow | 163, 4 | 178 (109%), 0 | 29 (18%), 0 |
+| hazel | 106, 0 | 198 (187%), 0 | 25 (24%), 0 |
+| oak | 164, 0 | 159 (97%), 0 | 29 (18%), 0 |
+| birch | 58, 0 | 108 (186%), 0 | 22 (38%), 0 |
 
-The Ledger-off towns would pass R2's rule on every seed; the Hearth-off towns would fail it on hazel, oak and birch: without the Hearth's decor and plans a town spends its timber and builders on homes and grows faster, though it reaches no Craftsfolk (charm 25 is the Hearth's). R2's evening round is where the Hearth must start to matter for growth. (The lanes runs use the lanes script's own options, so their both-lanes towns differ from `npm run targets`.)
+The Ledger-off towns would pass R2's rule on every seed; the Hearth-off towns would fail it on every seed (97 to 187%): without the Hearth's decor and plans a town spends its timber and builders on homes and grows faster, though it reaches no Craftsfolk (charm 25 is the Hearth's). R2's evening round is where the Hearth must start to matter for growth. (The lanes runs use the lanes script's own options, so their both-lanes towns differ from `npm run targets`. The both-lanes runs took 80 to 130 Ledger decisions in 70 days.)
 
 **Decisions, not chores** [R1]. The bench counts the autoplayer's commands by kind and fails if the Ledger needed more than 150 in 70 days or used a pause to balance labor (`13-ledger.md`, Tuning targets). The count before the redesign was about 700, 261 of them pauses and 321 order changes.
 
