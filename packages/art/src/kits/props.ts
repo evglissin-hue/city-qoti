@@ -10,8 +10,10 @@ function barrelNear(s: ShapeBuilder, x: number, y: number, z: number, rnd: () =>
   const r = 0.07 * k;
   const h = 0.18 * k;
   const wood = vary(palette.wood, rnd);
+  s.surface(SURFACE.woodGrain);
   s.cylinder(x, z, r * 0.88, r, y, y + h / 2, wood, 8);
   s.cylinder(x, z, r, r * 0.88, y + h / 2, y + h, wood, 8);
+  s.surface(SURFACE.wroughtIron);
   s.cylinder(x, z, r * 0.93, r * 0.95, y + h * 0.18, y + h * 0.24, palette.metal, 8);
   s.cylinder(x, z, r * 0.95, r * 0.93, y + h * 0.76, y + h * 0.82, palette.metal, 8);
 }
@@ -22,7 +24,7 @@ function benchNear(
   z: number,
   alongX: boolean,
   rnd: () => number,
-  hex = palette.wood,
+  hex: number = palette.wood,
 ): void {
   const wood = vary(hex, rnd, 0.6);
   const L = 0.2;
@@ -30,8 +32,11 @@ function benchNear(
     if (alongX) s.box(x + a0, y0, z + c0, x + a1, y1, z + c1, c);
     else s.box(x + c0, y0, z + a0, x + c1, y1, z + a1, c);
   };
+  // V2C: unpainted slats are grain, a colored bench is painted wood; the legs are dark timber.
+  s.surface(hex === palette.wood ? SURFACE.woodGrain : SURFACE.paintedWood);
   box(-L, 0.1, -0.05, L, 0.125, 0.05, wood);
   box(-L, 0.15, 0.04, L, 0.23, 0.06, wood);
+  s.surface(SURFACE.woodGrain);
   for (const a of [-L + 0.03, L - 0.05]) {
     box(a, 0, -0.045, a + 0.025, 0.1, 0.045, palette.timber);
     box(a, 0.1, 0.035, a + 0.025, 0.23, 0.06, palette.timber);
@@ -46,7 +51,9 @@ function flowerPotNear(
   rnd: () => number,
   bloom?: number,
 ): void {
+  s.surface(SURFACE.terracotta);
   s.cylinder(x, z, 0.04, 0.055, y, y + 0.07, vary(palette.roofTerracotta, rnd, 0.6), 6);
+  s.surface(SURFACE.plain);
   s.blob(x, y + 0.095, z, 0.055, 0.045, 0.055, vary(palette.leaf, rnd), 0);
   const blooms = [palette.flowerA, palette.flowerB, palette.flowerC, palette.blossom];
   s.blob(x + 0.01, y + 0.125, z, 0.03, 0.022, 0.03, bloom ?? blooms[Math.floor(rnd() * blooms.length)]!, 0);
@@ -63,6 +70,7 @@ function hayBaleNear(
 ): void {
   const hx = alongX ? 0.17 : 0.11;
   const hz = alongX ? 0.11 : 0.17;
+  s.surface(SURFACE.plain);
   const c = vary(0xdcbc6a, rnd, 0.8);
   s.rbox(x - hx, y, z - hz, x + hx, y + 0.14, z + hz, c, 0.025);
   for (const t of [-0.07, 0.07]) {
@@ -76,6 +84,7 @@ function sawhorseNear(s: ShapeBuilder, x: number, z: number, alongX: boolean, rn
   const wood = vary(palette.wood, rnd, 0.6);
   const L = 0.16;
   const P = (a: number, y: number, c: number): V3 => (alongX ? [x + a, y, z + c] : [x + c, y, z + a]);
+  s.surface(SURFACE.woodGrain);
   beam(s, P(-L, 0.2, 0), P(L, 0.2, 0), 0.02, wood);
   for (const a of [-L + 0.03, L - 0.03]) {
     beam(s, P(a, 0.19, 0), P(a, 0, -0.07), 0.012, palette.timber);
@@ -91,6 +100,7 @@ function ladderNear(s: ShapeBuilder, a: V3, b: V3, side: V3): void {
   ];
   const [l0, l1] = rail(-w);
   const [r0, r1] = rail(w);
+  s.surface(SURFACE.woodGrain);
   beam(s, l0, l1, 0.012, palette.wood);
   beam(s, r0, r1, 0.012, palette.wood);
   const n = 5;
@@ -107,11 +117,14 @@ function ladderNear(s: ShapeBuilder, a: V3, b: V3, side: V3): void {
 
 /** A stump with an axe bitten into it and a few split logs around. */
 function choppingBlockNear(s: ShapeBuilder, x: number, z: number, rnd: () => number): void {
+  s.surface(SURFACE.woodGrain);
   s.cylinder(x, z, 0.1, 0.09, 0, 0.16, vary(palette.bark, rnd, 0.5), 8);
   s.cylinder(x, z, 0.088, 0.088, 0.16, 0.165, 0xd9b98a, 8);
   // Axe: handle leaning, head buried in the top.
   beam(s, [x + 0.01, 0.17, z], [x + 0.17, 0.33, z + 0.04], 0.011, palette.wood);
+  s.surface(SURFACE.wroughtIron);
   s.box(x - 0.03, 0.15, z - 0.012, x + 0.04, 0.2, z + 0.012, palette.metal);
+  s.surface(SURFACE.woodGrain);
   for (let i = 0; i < 3; i++) {
     const a = rnd() * Math.PI * 2;
     const px = x + Math.cos(a) * 0.2;
@@ -122,14 +135,18 @@ function choppingBlockNear(s: ShapeBuilder, x: number, z: number, rnd: () => num
 
 /** A scarecrow: a post and crossbar in an old coat with a straw hat. */
 function scarecrowNear(s: ShapeBuilder, x: number, z: number, coat: number): void {
+  s.surface(SURFACE.woodGrain);
   beam(s, [x, 0, z], [x, 0.62, z], 0.018, palette.timber);
   beam(s, [x - 0.2, 0.44, z], [x + 0.2, 0.44, z], 0.015, palette.timber);
+  s.surface(SURFACE.cloth);
   s.rbox(x - 0.09, 0.26, z - 0.05, x + 0.09, 0.47, z + 0.05, coat, 0.02);
   s.box(x - 0.2, 0.42, z - 0.035, x - 0.09, 0.47, z + 0.035, coat);
   s.box(x + 0.09, 0.42, z - 0.035, x + 0.2, 0.47, z + 0.035, coat);
+  s.surface(SURFACE.plain);
   s.blob(x - 0.21, 0.44, z, 0.03, 0.025, 0.02, 0xdcbc6a, 0);
   s.blob(x + 0.21, 0.44, z, 0.03, 0.025, 0.02, 0xdcbc6a, 0);
   s.blob(x, 0.54, z, 0.07, 0.07, 0.065, 0xe8d6a8, 1);
+  s.surface(SURFACE.cloth);
   s.cylinder(x, z, 0.13, 0.13, 0.585, 0.6, 0xd9b96a, 10);
   s.cylinder(x, z, 0.065, 0.05, 0.6, 0.66, 0xd9b96a, 8);
   s.cylinder(x, z, 0.066, 0.066, 0.6, 0.62, palette.accentRed, 8);
@@ -153,12 +170,14 @@ function rowboatNear(
   const widths = [0.6, 0.95, 1, 0.85, 0];
   const depth = 0.09;
   const inner = vary(palette.wood, rnd, 0.5);
+  // V2C: the outside hull is painted, the inside, thwart and oars are bare wood.
   for (let i = 0; i < stations.length - 1; i++) {
     const a0 = stations[i]!;
     const a1 = stations[i + 1]!;
     const w0 = W * widths[i]!;
     const w1 = W * widths[i + 1]!;
     for (const side of [-1, 1]) {
+      s.surface(SURFACE.paintedWood);
       // Hull side from the gunwale down to the keel line.
       s.quad(
         P(a0, depth, side * w0),
@@ -168,6 +187,7 @@ function rowboatNear(
         hull,
         alongX ? [0, -0.2, side] : [side, -0.2, 0],
       );
+      s.surface(SURFACE.woodGrain);
       s.quad(
         P(a0, depth, side * w0),
         P(a1, depth, side * w1),
@@ -176,10 +196,12 @@ function rowboatNear(
         inner,
         alongX ? [0, 1, -side] : [-side, 1, 0],
       );
+      s.surface(SURFACE.paintedWood);
       beam(s, P(a0, depth, side * w0), P(a1, depth, side * w1), 0.008, palette.white);
     }
   }
   // Transom and a thwart.
+  s.surface(SURFACE.paintedWood);
   s.quad(
     P(-L, depth, -W * 0.6),
     P(-L, depth, W * 0.6),
@@ -188,6 +210,7 @@ function rowboatNear(
     hull,
     alongX ? [-1, 0, 0] : [0, 0, -1],
   );
+  s.surface(SURFACE.woodGrain);
   beam(s, P(0, depth * 0.8, -W * 0.95), P(0, depth * 0.8, W * 0.95), 0.012, inner);
   // Oars resting inside.
   beam(s, P(-L * 0.6, depth * 0.9, -W * 0.3), P(L * 0.5, depth * 0.9, -W * 0.5), 0.008, palette.wood);
@@ -204,6 +227,7 @@ function dryingRackNear(
 ): void {
   const L = 0.32;
   const P = (a: number, y: number, c: number): V3 => (alongX ? [x + a, y, z + c] : [x + c, y, z + a]);
+  s.surface(SURFACE.woodGrain);
   for (const a of [-L, L]) {
     beam(s, P(a, 0, -0.06), P(a, 0.42, 0), 0.014, palette.timber);
     beam(s, P(a, 0, 0.06), P(a, 0.42, 0), 0.014, palette.timber);
@@ -212,6 +236,7 @@ function dryingRackNear(
   for (let i = 0; i < fish; i++) {
     const a = -L + 0.07 + ((2 * L - 0.14) * i) / Math.max(1, fish - 1);
     const c = P(a, 0.3, 0);
+    s.surface(SURFACE.plain);
     s.blob(c[0], c[1], c[2], 0.022, 0.07, 0.014, vary(0x9fb4bd, rnd, 0.8), 0);
     beam(s, P(a, 0.37, 0), P(a, 0.4, 0), 0.003, 0xbfa27a);
   }
@@ -221,9 +246,11 @@ function dryingRackNear(
 function netFrameNear(s: ShapeBuilder, x: number, z: number, alongX: boolean): void {
   const L = 0.24;
   const P = (a: number, y: number, c: number): V3 => (alongX ? [x + a, y, z + c] : [x + c, y, z + a]);
+  s.surface(SURFACE.woodGrain);
   for (const a of [-L, L]) beam(s, P(a, 0, 0), P(a, 0.46, 0), 0.014, palette.timber);
   beam(s, P(-L, 0.44, 0), P(L, 0.44, 0), 0.01, palette.timber);
   const net = 0x6f7f74;
+  s.surface(SURFACE.plain);
   panel(
     s,
     P(-L + 0.02, 0.43, 0.004),
@@ -241,18 +268,24 @@ function netFrameNear(s: ShapeBuilder, x: number, z: number, alongX: boolean): v
 
 /** A wicker fish trap. */
 function trapNear(s: ShapeBuilder, x: number, z: number, alongX: boolean): void {
+  s.surface(SURFACE.woodGrain);
   if (alongX) cylX(s, x - 0.1, x + 0.1, 0.06, z, 0.06, 0xa8794a, 6, 0x6b4a30);
   else cylZ(s, z - 0.1, z + 0.1, x, 0.06, 0.06, 0xa8794a, 6, 0x6b4a30);
 }
 
 function birdBoxNear(s: ShapeBuilder, x: number, z: number, hex: number): void {
+  s.surface(SURFACE.woodGrain);
   beam(s, [x, 0, z], [x, 0.55, z], 0.014, palette.timber);
+  s.surface(SURFACE.paintedWood);
   s.box(x - 0.05, 0.52, z - 0.045, x + 0.05, 0.64, z + 0.045, hex);
+  s.surface(SURFACE.terracotta);
   s.gable(x - 0.065, z - 0.06, x + 0.065, z + 0.06, 0.64, 0.7, palette.roofTerracotta, false);
+  s.surface(SURFACE.plain);
   s.box(x - 0.015, 0.575, z + 0.045, x + 0.015, 0.605, z + 0.05, palette.ink);
 }
 
 function wateringCanNear(s: ShapeBuilder, x: number, y: number, z: number): void {
+  s.surface(SURFACE.wroughtIron);
   s.cylinder(x, z, 0.035, 0.035, y, y + 0.06, palette.teal, 8);
   beam(s, [x + 0.03, y + 0.02, z], [x + 0.08, y + 0.07, z], 0.006, palette.teal);
   beam(s, [x - 0.02, y + 0.07, z], [x + 0.02, y + 0.07, z], 0.005, palette.teal);
@@ -293,6 +326,7 @@ function wattleNear(s: ShapeBuilder, a: [number, number], b: [number, number], r
   const len = Math.sqrt(dx * dx + dz * dz);
   const n = Math.max(2, Math.round(len / 0.25));
   const hex = vary(0x9a7a52, rnd, 0.5);
+  s.surface(SURFACE.woodGrain);
   for (let i = 0; i <= n; i++) {
     const t = i / n;
     const x = a[0] + dx * t;
@@ -308,6 +342,7 @@ function picketNear(s: ShapeBuilder, a: [number, number], b: [number, number], h
   const dz = b[1] - a[1];
   const len = Math.sqrt(dx * dx + dz * dz);
   const n = Math.max(2, Math.round(len / 0.1));
+  s.surface(SURFACE.paintedWood);
   for (let i = 0; i <= n; i++) {
     const t = i / n;
     beam(s, [a[0] + dx * t, 0, a[1] + dz * t], [a[0] + dx * t, 0.2, a[1] + dz * t], 0.012, hex);
@@ -324,6 +359,7 @@ function saplingNear(
   rnd: () => number,
   pine: boolean,
 ): void {
+  s.surface(SURFACE.plain);
   beam(s, [x, 0.04, z], [x, 0.04 + h * 0.5, z], 0.006, palette.bark);
   if (pine) s.cylinder(x, z, h * 0.32, 0, 0.04 + h * 0.25, 0.04 + h, vary(palette.pine, rnd, 0.8), 5);
   else s.blob(x, 0.04 + h * 0.7, z, h * 0.3, h * 0.32, h * 0.3, vary(palette.birchLeaf, rnd, 0.8), 0);
@@ -331,6 +367,7 @@ function saplingNear(
 
 /** A rooster weathervane on a short spike. */
 function weathervaneNear(s: ShapeBuilder, x: number, y: number, z: number): void {
+  s.surface(SURFACE.wroughtIron);
   beam(s, [x, y, z], [x, y + 0.26, z], 0.008, palette.metal);
   beam(s, [x - 0.07, y + 0.16, z], [x + 0.07, y + 0.16, z], 0.004, palette.metal);
   beam(s, [x, y + 0.16, z - 0.07], [x, y + 0.16, z + 0.07], 0.004, palette.metal);
@@ -364,11 +401,14 @@ function weathervaneNear(s: ShapeBuilder, x: number, y: number, z: number): void
 /** A lantern on a wall bracket; returns the flame position for night lights. */
 function wallLanternNear(s: ShapeBuilder, p: V3, out: V3): V3 {
   const q: V3 = [p[0] + out[0] * 0.1, p[1], p[2] + out[2] * 0.1];
+  s.surface(SURFACE.wroughtIron);
   beam(s, p, q, 0.008, palette.metal);
   s.box(q[0] - 0.035, q[1] - 0.12, q[2] - 0.035, q[0] + 0.035, q[1] - 0.105, q[2] + 0.035, palette.metal);
+  s.surface(SURFACE.plain);
   s.glow(2);
   s.box(q[0] - 0.028, q[1] - 0.105, q[2] - 0.028, q[0] + 0.028, q[1] - 0.03, q[2] + 0.028, palette.lantern);
   s.glow(0);
+  s.surface(SURFACE.wroughtIron);
   s.cylinder(q[0], q[2], 0.05, 0, q[1] - 0.03, q[1] + 0.01, palette.metal, 4, Math.PI / 4);
   return [q[0], q[1] - 0.07, q[2]];
 }
@@ -383,6 +423,7 @@ function firewoodNear(
   rnd: () => number,
 ): void {
   const r = 0.035;
+  s.surface(SURFACE.woodGrain);
   for (let row = 0; row < rows; row++) {
     for (let i = 0; i < 6; i++) {
       const a = -0.2 + i * 0.075 + (row % 2) * 0.035;
@@ -396,6 +437,7 @@ function firewoodNear(
 }
 
 function milkChurnNear(s: ShapeBuilder, x: number, z: number): void {
+  s.surface(SURFACE.wroughtIron);
   s.cylinder(x, z, 0.045, 0.045, 0, 0.12, 0xb9bdc0, 8);
   s.cylinder(x, z, 0.045, 0.025, 0.12, 0.15, 0xb9bdc0, 8);
   s.cylinder(x, z, 0.03, 0.03, 0.15, 0.17, 0x8d9296, 8);
@@ -408,9 +450,12 @@ function milkChurnNear(s: ShapeBuilder, x: number, z: number): void {
 function quiet<A extends unknown[], R>(fn: (s: ShapeBuilder, ...a: A) => R): (s: ShapeBuilder, ...a: A) => R {
   return (s, ...a) => {
     let r!: R;
+    // V2C: a prop sets its own surface ids and leaves the caller's as it found it.
+    const was = s.currentSurface;
     s.nearOnly(() => {
       r = fn(s, ...a);
     });
+    s.surface(was);
     return r;
   };
 }
@@ -439,11 +484,12 @@ export function groundPatch(
   hex: number,
   rnd: () => number,
 ): void {
+  const was = s.currentSurface;
   s.essential(() => {
     s.surface(SURFACE.dirt);
     groundPatchNear(s, x0, z0, x1, z1, hex, rnd);
-    s.surface(SURFACE.plain);
   });
+  s.surface(was);
 }
 export const wattle = quiet(wattleNear);
 export const picket = quiet(picketNear);

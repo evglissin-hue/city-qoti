@@ -155,7 +155,8 @@ export class Session {
     c.onWelcome((w) => void this.welcome(w));
     c.onTurn((turn: Turn) => {
       this.undo.sawTurn(turn);
-      this.host.turns([turn]);
+      if (this.heldTurns) this.heldTurns.push(turn);
+      else this.host.turns([turn]);
     });
     c.onPresence((p) => this.onPresence(p));
     c.onNeedSnapshot(() => void this.uploadSnapshot());
@@ -189,10 +190,11 @@ export class Session {
     const covered = turns[turns.length - 1]?.t ?? r.snapshot.t;
     if (r.nextTurn - 1 > covered) turns.push({ t: r.nextTurn - 1, cmds: [] });
     this.undo.clear();
+    this.simEpoch++;
     try {
-      this.mirror.load(
-        await this.host.init({ kind: 'snapshot', data: base64ToBytes(r.snapshot.data) }, turns),
-      );
+      const view = await this.host.init({ kind: 'snapshot', data: base64ToBytes(r.snapshot.data) }, turns);
+      // V2.0: while a showcase holds the Mirror, reloadMirror loads the mended valley when it ends.
+      if (!this.heldTurns) this.mirror.load(view);
     } catch (err) {
       this.fail(`Could not mend the valley: ${err instanceof Error ? err.message : String(err)}`);
       return;
@@ -212,6 +214,7 @@ export class Session {
     const turns = [...w.log];
     const covered = turns[turns.length - 1]?.t ?? w.snapshot?.t ?? 0;
     if (w.nextTurn - 1 > covered) turns.push({ t: w.nextTurn - 1, cmds: [] });
+    this.simEpoch++;
     let view;
     try {
       view = await this.host.init(source, turns);
@@ -219,14 +222,19 @@ export class Session {
       this.fail(`Could not load the valley: ${err instanceof Error ? err.message : String(err)}`);
       return;
     }
-    this.mirror.load(view);
+    // V2.0: a reconnect while a showcase holds the Mirror (Measure this laptop) leaves it be; the
+    // worker has the valley, and reloadMirror loads it when the run ends.
+    const held = this.heldTurns !== null;
+    if (!held) this.mirror.load(view);
     if (!this.renderer) this.mount();
     if (this.connection) this.connection.status.value = 'live';
     // Start in the lens this seat prefers; Tab still swaps freely afterwards.
-    const mine = this.mirror.seats.value.find((v) => v.seat === this.seat);
+    const mine = view.seats.find((v) => v.seat === this.seat);
     if (mine) this.ui.lens.value = mine.lens;
-    this.profileSynced = false;
-    this.syncProfile();
+    if (!held) {
+      this.profileSynced = false;
+      this.syncProfile();
+    }
     const firstVisit = this.phase.value !== 'ready';
     this.phase.value = 'ready';
     if (firstVisit) void this.checkAway();
@@ -237,7 +245,7 @@ export class Session {
       pending: false,
       // P1 (playtest item 13): the title list shows the valley's seed and rank.
       seed: w.valley.seed,
-      ...(this.mirror.town.value?.rank && { rank: this.mirror.town.value.rank }),
+      ...(view.town?.rank && { rank: view.town.rank }),
     });
   }
 
@@ -303,7 +311,8 @@ export class Session {
       if (sketched.items.length === 1) this.toast(INPUT_COPY.sketched(1));
       return -1;
     }
-    if (!this.connection) return -1;
+    // V2.0: while the Mirror holds a showcase (Measure this laptop), nothing it shows may reach the sim.
+    if (!this.connection || this.heldTurns) return -1;
     this.debug.lastSubmitAt = Date.now();
     const before = record ? this.undo.prepare(cmd, this.mirror) : null;
     const seq = this.connection.submit(cmd);
@@ -624,6 +633,52 @@ export class Session {
     const snap = await this.host.snapshot();
     const target = await moveValleyOnline(snap.data, this.target);
     this.onMove?.(target);
+  }
+
+  /**
+   * V2.0 (Measure this laptop): live turns wait here instead of reaching the sim, while the Mirror
+   * holds a showcase that the sim never sees. `reloadMirror` lets them through. A welcome or a
+   * resync meanwhile is harmless: the worker skips turns it already has.
+   */
+  private heldTurns: Turn[] | null = null;
+  /** Bumped whenever the worker starts over (a welcome or a resync), for `reloadMirror`. */
+  private simEpoch = 0;
+
+  holdTurns(): void {
+    this.heldTurns ??= [];
+  }
+
+  /**
+   * V2.0: puts the Mirror back exactly as the sim has it, as a resync does (a snapshot from the
+   * worker, loaded fresh), then lets any held turns through to play out as usual. Turns wait while
+   * the snapshot is taken, so none is lost between the snapshot and the reload.
+   */
+  async reloadMirror(): Promise<void> {
+    this.holdTurns();
+    let snap: { t: number; data: Uint8Array };
+    for (;;) {
+      const epoch = this.simEpoch;
+      try {
+        snap = await this.host.snapshot();
+      } catch (err) {
+        this.releaseTurns();
+        throw err;
+      }
+      // A welcome or resync started the worker over meanwhile: snapshot again, after it.
+      if (epoch === this.simEpoch) break;
+    }
+    const held = this.heldTurns ?? [];
+    this.heldTurns = null;
+    // Posted in order: the worker starts over from the snapshot, then plays the held turns live.
+    const ready = this.host.init({ kind: 'snapshot', data: snap.data });
+    if (held.length) this.host.turns(held);
+    this.mirror.load(await ready);
+  }
+
+  private releaseTurns(): void {
+    const held = this.heldTurns ?? [];
+    this.heldTurns = null;
+    if (held.length) this.host.turns(held);
   }
 
   /** Debug only (?debug): makes this seat's sim drift from the room's, for resync tests. */

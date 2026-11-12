@@ -128,4 +128,84 @@ describe('dev server', () => {
     const list = await fetch(url(again.port), { headers: { authorization: `Bearer ${valley.tokens[0]!}` } });
     expect(await list.json()).toEqual({ entries: [12] });
   });
+
+  it('keeps three perf runs a seat, across restarts, and refuses tokens from another valley', async () => {
+    const { server, dataDir } = await start();
+    const valley = await createValley(server.port);
+    const other = await createValley(server.port);
+    const url = (port: number) => `http://localhost:${port}/api/valleys/${valley.valleyId}/perf`;
+    const part = {
+      frames: 60,
+      frameAvg: 9,
+      frameP95: 12,
+      gpuAvg: null,
+      gpuP95: null,
+      draws: 90,
+      triangles: 4e5,
+    };
+    const body = (table: string) =>
+      JSON.stringify({
+        machine: { browser: 'Test/1', screen: [1280, 800], pixelRatio: 1, gpu: null, build: 'dev' },
+        rows: [{ scene: 'village', quality: 'medium', moving: part, idle: part }],
+        table,
+        seat: 1,
+      });
+    const put = (port: number, token: string, table: string) =>
+      fetch(url(port), {
+        method: 'PUT',
+        headers: { 'content-type': 'application/json', authorization: `Bearer ${token}` },
+        body: body(table),
+      });
+    const get = (port: number, token: string) =>
+      fetch(url(port), { headers: { authorization: `Bearer ${token}` } });
+    type Runs = { runs: { seat: number; table: string; created: number }[] };
+
+    for (let i = 1; i <= 4; i++) {
+      const res = await put(server.port, valley.tokens[0]!, `a${i}`);
+      expect(res.status).toBe(201);
+      expect(await res.json()).toEqual({ stored: true, runs: Math.min(i, 3) });
+    }
+    expect((await put(server.port, valley.tokens[1]!, 'b1')).status).toBe(201);
+    expect((await put(server.port, other.tokens[0]!, 'stranger')).status).toBe(401);
+    expect((await get(server.port, other.tokens[0]!)).status).toBe(401);
+    expect(
+      (
+        await fetch(url(server.port), {
+          method: 'PUT',
+          headers: { authorization: `Bearer ${valley.tokens[0]!}` },
+          body: '{"not":"a run"}',
+        })
+      ).status,
+    ).toBe(400);
+    expect(
+      (
+        await fetch(url(server.port), {
+          method: 'PUT',
+          headers: { authorization: `Bearer ${valley.tokens[0]!}` },
+          body: 'x'.repeat(70 * 1024),
+        })
+      ).status,
+    ).toBe(413);
+    expect((await fetch(`http://localhost:${server.port}/api/valleys/${'f'.repeat(32)}/perf`)).status).toBe(
+      404,
+    );
+
+    const before = (await (await get(server.port, valley.tokens[1]!)).json()) as Runs;
+    expect(before.runs.map((r) => [r.seat, r.table])).toEqual([
+      [0, 'a2'],
+      [0, 'a3'],
+      [0, 'a4'],
+      [1, 'b1'],
+    ]);
+    expect(before.runs.every((r) => r.created > 0)).toBe(true);
+    await server.close();
+    servers.splice(servers.indexOf(server), 1);
+    expect(readdirSync(dataDir)).toContain(`${valley.valleyId}.perf.json`);
+
+    const again = await startDevServer({ port: 0, dataDir, log: () => {} });
+    servers.push(again);
+    dirs.push(dataDir);
+    const after = (await (await get(again.port, valley.tokens[0]!)).json()) as Runs;
+    expect(after).toEqual(before);
+  });
 });

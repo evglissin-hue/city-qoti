@@ -330,6 +330,11 @@ export class ShapeBuilder {
     return this;
   }
 
+  /** V2C: the surface id the following faces get, so a helper can restore it when done. */
+  get currentSurface(): number {
+    return this.surfaceValue;
+  }
+
   /** Triangle count so far. */
   get triangles(): number {
     return this.n / 3;

@@ -24,8 +24,10 @@ import {
 import { CameraController, FOV, setFreeCamera } from '../input/camera';
 import type { Mirror } from '../state/mirror';
 import type { EntityPick, Ghost, RenderApi, TilePick } from './api';
+import { bubblesFor, overlayKindFor } from './bubbles';
 import { fpToWorld, levelY } from './coords';
 import { applySeasonBlend, createWorldEnv, SEASONS, setPatternAnisotropy, type WorldEnv } from './env';
+import { drawLightMap, resizeLightMap } from './lightMap';
 import { CLEAR_WEATHER, easeWeather, seasonBlendAt, weatherLookFor, type WeatherLook } from './seasons';
 import {
   layerFactories,
@@ -563,6 +565,8 @@ export class Renderer implements RenderApi {
         this.staticChanges.set(layer.id, (this.staticChanges.get(layer.id) ?? 0) + 1);
       }
     }
+    // V2.0: the light map redraws only when a writer changed it (a static-layer event already).
+    if (drawLightMap(this.three, this.env)) dirty = true;
     this.updateLighting();
     if (this.updateWeather()) dirty = true;
     // C5E: the storm's glow behind the clouds: a slow swell every eleven seconds or so, a few
@@ -750,7 +754,8 @@ export class Renderer implements RenderApi {
   }
 
   setOverlay(kind: string | null): void {
-    this.layer<OverlaysLayer>('overlays').set(kind);
+    this.layer<OverlaysLayer>('overlays').set(overlayKindFor(kind));
+    this.layer<AgentsLayer>('agents').setBubbles(bubblesFor(kind));
   }
 
   setPresence(seat: SeatId, p: { x: number; z: number; tool?: string } | null): void {
@@ -784,6 +789,7 @@ export class Renderer implements RenderApi {
     this.sun.castShadow = shadows;
     if (setPatternAnisotropy(this.env, q, this.three.capabilities.getMaxAnisotropy()))
       this.invalidateStatic();
+    resizeLightMap(this.env, q);
     this.env.motion = preset.ambientMotion;
     this.env.detailDistance = preset.decorDistance;
     this.env.critters = preset.critters;
@@ -1034,6 +1040,7 @@ export class Renderer implements RenderApi {
     this.rig.dispose();
     for (const layer of this.layers) layer.dispose();
     this.material.dispose();
+    this.env.lightMap.dispose();
     this.gpuTimer.dispose();
     this.lean.dispose();
     this.still.dispose();

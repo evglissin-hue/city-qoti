@@ -14,6 +14,7 @@ import {
 import { Color, MeshLambertMaterial, type Material, type WebGLProgramParametersWithUniforms } from 'three';
 import type { WorldEnv } from './env';
 import { WINDOW_HASH_GLSL } from './lighting';
+import { patchWallAo } from './wallAo';
 
 /**
  * Sky fresnel and sun glint as GLSL (`qFresnel`, `qSkyFresnel`, `qSunGlint`; see packages/art
@@ -109,6 +110,7 @@ export function createWorldMaterial(env: WorldEnv): MeshLambertMaterial {
   material.onBeforeCompile = (shader) => {
     patchKitShader(shader, u);
     patchNightGlow(shader, env.night, env.windowShare, true);
+    patchWallAo(shader, env);
   };
   material.customProgramCacheKey = () => 'qoti-lean-kit-world';
   material.userData.kitHooks = { season: 'spring', snow: 0, sway: 1 } satisfies KitMaterialHooks;

@@ -1,4 +1,5 @@
 export { mixHex, seeded, ShapeBuilder, vary, type V3 } from './geometry';
+export { brushDabs, type DabBlob, type DabOptions } from './dabs';
 export {
   artKitId,
   kitById,
@@ -96,7 +97,10 @@ export {
   NOISE_LAYER,
   NOISE_SCALE,
   PATTERN_LAYERS,
+  ROOM_LAYER,
+  ROOM_LAYERS,
   SURFACE,
+  SURFACE_LAYERS,
   surfaceDef,
   SURFACES,
   type SurfaceDef,

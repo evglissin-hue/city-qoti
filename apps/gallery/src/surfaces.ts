@@ -26,6 +26,12 @@ const COLOR: Record<SurfaceName, number> = {
   field: palette2.fields[2]!,
   flags: palette2.flags,
   flowers: palette2.grass,
+  // V2C: the V2 surfaces, in the colors props, carts and residents wear them.
+  woodGrain: palette2.wood,
+  paintedWood: palette2.shutters[0]!,
+  wroughtIron: palette2.metal,
+  terracotta: palette2.chimney,
+  cloth: palette2.awnings[0]!,
 };
 
 /** One sample, about 1.6 tiles across, standing on y = 0. */
@@ -56,14 +62,14 @@ const SIZES = [1, 0.4, 0.16];
 /** The grid of samples: six to a row, each cell the sample at three sizes. */
 export function buildSurfaces(material: Material): { group: Group; width: number; depth: number } {
   const group = new Group();
-  const names = (Object.keys(SURFACE) as SurfaceName[]).filter((n) => n !== 'plain');
+  const names = SURFACE_ORDER;
   const cols = 6;
   const cell = 3.2;
   names.forEach((name, i) => {
     const col = i % cols;
     const row = Math.floor(i / cols);
     const x0 = (col - (cols - 1) / 2) * cell;
-    const z0 = (row - 1) * cell;
+    const z0 = (row - (Math.ceil(names.length / cols) - 1) / 2) * cell;
     let dx = -0.75;
     for (const k of SIZES) {
       const g = sample(name).build();
@@ -77,5 +83,8 @@ export function buildSurfaces(material: Material): { group: Group; width: number
   return { group, width: cols * cell, depth: 3 * cell };
 }
 
-/** The surface names in grid order, for the info line. */
+/**
+ * The surface names in grid order, for the grid and the info line. V2C: the V2 surfaces (after the
+ * noise layer's slot) close the grid, a fourth row.
+ */
 export const SURFACE_ORDER = (Object.keys(SURFACE) as SurfaceName[]).filter((n) => n !== 'plain');

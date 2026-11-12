@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { createPatternArray, lastPatternMs, PATTERN_ONE } from './patterns';
-import { NOISE_LAYER, PATTERN_LAYERS, SURFACE } from './surface';
+import { NOISE_LAYER, PATTERN_LAYERS, ROOM_LAYER, ROOM_LAYERS, SURFACE } from './surface';
 
 const SIZE = 256;
 const layerOf = (data: Uint8Array, layer: number): Uint8Array =>
@@ -28,8 +28,15 @@ describe('pattern generators (V1A)', () => {
     expect(checksum(again)).toBe(checksum(data));
   });
 
-  it('leaves plain, glass and water flat', () => {
-    for (const id of [SURFACE.plain, SURFACE.glass, SURFACE.water]) {
+  it('V2.0: holds every layer, the room layers last', () => {
+    expect(tex.image.depth).toBe(PATTERN_LAYERS);
+    expect(data.length).toBe(SIZE * SIZE * 4 * PATTERN_LAYERS);
+    expect(ROOM_LAYER + ROOM_LAYERS).toBe(PATTERN_LAYERS);
+  });
+
+  it('leaves plain, glass and water flat, and (V2.0) the room layers until V2A', () => {
+    const rooms = Array.from({ length: ROOM_LAYERS }, (_, r) => ROOM_LAYER + r);
+    for (const id of [SURFACE.plain, SURFACE.glass, SURFACE.water, ...rooms]) {
       const l = layerOf(data, id);
       for (let i = 0; i < l.length; i += 4) {
         if (l[i] !== PATTERN_ONE || l[i + 1] !== 0 || l[i + 3] !== 0)
@@ -41,6 +48,7 @@ describe('pattern generators (V1A)', () => {
   it('averages close to neutral, so a pattern never darkens or lightens a surface overall', () => {
     for (let id = 1; id < PATTERN_LAYERS; id++) {
       if (id === SURFACE.flowers || id === NOISE_LAYER) continue;
+      if (id >= ROOM_LAYER) continue; // V2.0: V2A's rooms are pictures, not neutral grain
       const l = layerOf(data, id);
       let sum = 0;
       for (let i = 0; i < l.length; i += 4) sum += l[i]!;
@@ -48,6 +56,42 @@ describe('pattern generators (V1A)', () => {
       expect(mean, `layer ${id}`).toBeGreaterThan(0.8);
       expect(mean, `layer ${id}`).toBeLessThan(1.12);
     }
+  });
+
+  it('V2C: gives the five V2 surfaces patterns, wear on painted wood and bloom on terracotta', () => {
+    const v2 = [
+      SURFACE.woodGrain,
+      SURFACE.paintedWood,
+      SURFACE.wroughtIron,
+      SURFACE.terracotta,
+      SURFACE.cloth,
+    ];
+    for (const id of v2) {
+      const l = layerOf(data, id);
+      let lo = 255;
+      let hi = 0;
+      for (let i = 0; i < l.length; i += 4) {
+        lo = Math.min(lo, l[i]!);
+        hi = Math.max(hi, l[i]!);
+        expect(l[i + 3], `layer ${id} keeps A empty`).toBe(0);
+      }
+      // A visible pattern, never a texture pack: some spread, nothing near black or white.
+      expect(hi - lo, `layer ${id}`).toBeGreaterThan(15);
+      expect(lo, `layer ${id}`).toBeGreaterThan(50);
+      expect(hi, `layer ${id}`).toBeLessThan(220);
+    }
+    const share = (id: number): number => {
+      const l = layerOf(data, id);
+      let on = 0;
+      for (let i = 0; i < l.length; i += 4) if (l[i + 1]! > 127) on++;
+      return on / (l.length / 4);
+    };
+    expect(share(SURFACE.paintedWood)).toBeGreaterThan(0.03);
+    expect(share(SURFACE.paintedWood)).toBeLessThan(0.15);
+    expect(share(SURFACE.terracotta)).toBeGreaterThan(0.02);
+    expect(share(SURFACE.terracotta)).toBeLessThan(0.2);
+    for (const id of [SURFACE.woodGrain, SURFACE.wroughtIron, SURFACE.cloth])
+      expect(share(id), `${id}`).toBe(0);
   });
 
   it('marks mortar on brick, stripes on awnings and flowers on grass in G', () => {
@@ -65,7 +109,17 @@ describe('pattern generators (V1A)', () => {
   });
 
   it('tiles: the step across the wrap is no bigger than steps inside a layer', () => {
-    for (const id of [SURFACE.plaster, SURFACE.timber, SURFACE.thatch, SURFACE.leaf, NOISE_LAYER]) {
+    for (const id of [
+      SURFACE.plaster,
+      SURFACE.timber,
+      SURFACE.thatch,
+      SURFACE.leaf,
+      NOISE_LAYER,
+      // V2C: the two built from noise alone (iron's spots, terracotta's grit and cloth's threads
+      // are cells, which step anywhere, like brick and dirt).
+      SURFACE.woodGrain,
+      SURFACE.paintedWood,
+    ]) {
       const l = layerOf(data, id);
       const at = (x: number, y: number): number => l[(y * SIZE + x) * 4]!;
       let wrap = 0;
