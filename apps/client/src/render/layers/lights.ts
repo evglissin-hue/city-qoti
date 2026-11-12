@@ -23,15 +23,16 @@ import type { LayerContext, RenderLayer } from './types';
  */
 
 /** How far and how bright each decor kit's lamp throws (kit id from `artKitId`). */
-// V2X: a quarter brighter than V2A's, with the tighter pool shape (`discFalloff`): bright under the
-// lamp, dark between lamps.
+// V2X: a quarter brighter than V2A's, with the tighter pool shape (`discFalloff`), and small lamps
+// throw less far (a grown village stands its lanterns a tile and a half apart along every street,
+// so V2A's 2-tile pools met in one wash): bright under the lamp, dark between lamps.
 const LAMP_SHAPE: Readonly<Record<string, readonly [radius: number, intensity: number]>> = {
-  bunting: [1.4, 0.35],
-  'hanging-lantern': [2.1, 0.95],
-  'lamp-post': [2.8, 1.25],
-  lantern: [2.0, 1.0],
+  bunting: [1.0, 0.35],
+  'hanging-lantern': [1.6, 0.95],
+  'lamp-post': [2.4, 1.25],
+  lantern: [1.4, 1.0],
 };
-const LAMP_DEFAULT: readonly [number, number] = [2.2, 1.0];
+const LAMP_DEFAULT: readonly [number, number] = [1.6, 1.0];
 
 /** Buildings with a fire at the door, sorted. */
 export const OVEN_KITS: readonly string[] = ['bakery', 'brick-kiln', 'pie-shop', 'smithy'];

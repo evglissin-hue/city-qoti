@@ -105,7 +105,7 @@ describe('the lights layer sources', () => {
     const lanterns = sources.get('lanterns') ?? [];
     const fires = sources.get('fires') ?? [];
     expect(lanterns.length).toBeGreaterThan(0);
-    expect(lanterns[0]).toMatchObject({ radius: 2.8, intensity: 1.25, color: LAMP_COLORS.old });
+    expect(lanterns[0]).toMatchObject({ radius: 2.4, intensity: 1.25, color: LAMP_COLORS.old });
     expect(lanterns.some((d) => d.radius === 3.0)).toBe(false);
     expect(fires.length).toBeGreaterThan(0);
     expect(fires[0]).toMatchObject({ radius: 3.0, intensity: 1.3, color: 0xff9548 });
