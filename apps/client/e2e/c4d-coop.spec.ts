@@ -142,7 +142,7 @@ test('a solo valley moves online and a partner joins it', async ({ browser }) =>
   await expect.poll(async () => (await counts(a)).notes).toBe(1);
   const before = await counts(a);
 
-  await a.getByTestId('menu-open').click();
+  // The menu is still open from the connection check above.
   await a.getByTestId('settings-open').click();
   await a.getByTestId('move-online-card').screenshot({ path: `${shots()}/c4d-move-online.png` });
   await a.getByTestId('move-online').click();
