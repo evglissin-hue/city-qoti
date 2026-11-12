@@ -56,3 +56,31 @@ The carrier, baskets, tiers and prices (R1A); the Build picker, demand bar chips
 - `hasTag(b, tag)` makes a business answer to its trade id; detectors, wishes and conditions already read it.
 - The shop's wants say "households or footfall in reach"; footfall arrives in R2. Leave a seam.
 - Keep everything integer and on seeded streams; the trade score's floats are intermediate, rounded before they are stored.
+
+## As built (2026-11-12)
+
+Built as the loop in `31-parallel-development.md`: the lead kept the trade score, the bars, retooling and the growth pass, and four executors built the site rules and reach (T1), levels, keepers and labor (T2), the specialized buildings, construction and innovations (T4), and the bench line and hands script (T5a). Design calls and numbers are in `13-ledger.md` (the As built note under Labor, and Construction) and `11-residents.md` (the jobs note).
+
+**Calls made here**
+
+- **The Apiary** stays the Hearth's hand-placed hives with its own method and no trade; it answers to the `hives` tag. A hand-placed building has no farm zone for a farmstead's levels, and retooling must never touch a Hearth piece.
+- **Site rules**: `woods` counts mature trees by squared distance to the footprint; `river` lets the footprint stand on river water like `waterEdge` (ponds and canals do not count); `openGround` checks occupants in a ring of `clear` tiles; `road` checks the door's tile and kind (an avenue counts as a street) and drops the NO_ROAD warning; `valleyRoad` floods road tiles from those within two of `meta.valleyGate`. `MapReader` gained optional `valleyGate` and `roadVersion` (the client Mirror implements both).
+- **Reach** is walking distance along roads from the door, with a hop of three tiles from a road to a door or lot that does not stand on one. The Windmill's raised capacity reads the footprint's lowest tile against the average ground 2 to 6 tiles around it; a frozen river takes one carpenter from the Sawmill, and that carpenter waits for the thaw (out of season) instead of failing its site.
+- **A grain farm's site** also wants a first hand's twelve tiles of free farm-zoned soil behind its lot.
+- **Starting sites on bought timber**: found by the first days test. With Materials on Essentials, the carrier buys only for open sites, and grown sites waited for half their materials in store, so a timber-poor town never grew. One site of each kind of land may now go up on bought timber while no other of its kind waits.
+- **Demand**: the new reason code `marketStall` (additive, its own commit) and `BuildingDetail.reach` (additive, its own commit).
+- **The bench line** measures a City's mix of specialized buildings (flatTown hands out workplaces in turn, so its town stands 100 windmills, 100 storehouses and 100 stalls) after 15 warm nights, and reports flatTown's own mix beside it.
+
+**Measured**
+
+- Growth night (`npm run bench`): 1.27 to 1.55 ms median at City scale (budget 2 ms); stress mix 1.64 to 2.14 ms, reported. It was 44 ms before the night was read once and its derived memory kept between passes (exactly checked, never saved; a valley reloaded every evening hashes the same, `test/r1b/caches.test.ts`).
+- Hands in food at day 40 (`npm run hands -w @qoti/bench 40`): willow 33%, hazel 38%, oak 25%, birch 47%, mean 36%.
+- The first days (`test/r1b/first-days.test.ts`): on willow and hazel, zoning Farmland, Homes and Workshops and siting a windmill grows a farm, homes and a baker in the windmill's reach within 12 days, with no production building placed by hand.
+
+**Edits outside R1B's paths** (each small): `apps/client/src/state/mirror.ts` (two getters for `MapReader`), `apps/client/src/contracts.test.ts` (the two optional keys), `systems/economy/outlets.ts` and `systems/market/baskets.ts` (counting a shop's customers and sales), `systems/residents/index.ts` (passing `ctx` to the job audit), `systems/residents/lifecycle.ts` (`attractiveness` takes an optional stock), `constants.ts` (`BuildingStatus.resting`), `contracts/map.ts`, `contracts/zones.ts`, `contracts/views.ts` (additive members), `tools/bench/src/{growth,bench,hands}.ts` and `package.json` (the bench line and the hands script), `packages/sim/src/index.ts` (export lines), and test expectations in `test/r1/saves.test.ts`, `test/ledger/{production,views,construction}.test.ts`, `test/village/innovations.test.ts`, `test/p1/removable-is-rebuildable.test.ts` where a rule changed on purpose.
+
+**Left for R1X**
+
+- The bench's autoplayer advisors are still R1.0's stand-ins (R1F); the hands numbers come from them.
+- `business.updated` for a specialized building whose served count changes is sent when a business grows in its reach, not when one is removed (the client can refresh from `building.removed`).
+- R1A's `flavorsOnOffer` stub walks the whole town; the trade score reads it only when the variety term could raise a need.

@@ -115,7 +115,7 @@ Added 2026-11-10 with the redesign (`30-roadmap.md`).
 | Dressing [V3] | 0.3 M triangles and 12 draws, inside the decor detail distance |
 | Endpaper map [V3] | redrawn in a worker in under 150 ms, never on the main thread; no scene draw while it shows in full |
 | Rest-frame refinement [V4] | each sample frame within 12 ms; idle back within 4 ms once settled; settled inside 0.6 s on High at 60 fps |
-| Trade choice and growth [R1] | under 2 ms a night at City scale |
+| Trade choice and growth [R1] | under 2 ms a night at City scale (R1B's `growth night` bench line: 2,000 residents, a City's mix of specialized buildings, after 15 warm nights; flatTown's own mix, ten times as many specialized buildings, is reported beside it. Measured 2026-11-12: 1.3 to 1.6 ms, and 1.6 to 2.1 ms for the stress mix) |
 | The carrier [R1] | under 0.5 ms a day |
 | The place pass [R2] | 1 ms an hour at Village scale, 3 ms at City scale |
 | Planning the round [R2] | under 0.4 ms a tick for 2,000 residents between 17:00 and 17:30 |
