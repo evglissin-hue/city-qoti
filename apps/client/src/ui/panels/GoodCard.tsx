@@ -1,6 +1,6 @@
 // A good drawn large: its price chart, how much is in store, and, for food, the price cap and the
-// subsidy. These levers belong to the Purse book (R1C, later); until it lands they live here, one
-// click from a flavor in the Balances book.
+// subsidy. R1C: a cap is a lever on one good, so it stays with the good, one click from its flavor
+// in the Balances book; the Purse keeps the town-wide levers (taxes, wages, market day, loans).
 import { content } from '@qoti/content';
 import { MAX_SUBSIDY, type MarketLine } from '@qoti/sim';
 import type { Session } from '../../app/session';
