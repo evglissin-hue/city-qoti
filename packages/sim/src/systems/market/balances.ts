@@ -56,7 +56,41 @@ export function tierOpen(state: WorldState, tier: TierId): boolean {
 
 /** Units a day the town uses of a family (GOOD_FAMILIES index), in hundredths. See the header. */
 export function familyUseHundredths(state: WorldState, family: number): number {
-  return familyUses(state)[family]!;
+  const m = memoOf(state);
+  return (m.uses ??= familyUses(state))[family]!;
+}
+
+/**
+ * What the cross-track readers ask many times a pass (R1B's trade score asks for every lot it
+ * scores): the uses, the stock and the flavors on offer, worked out on the first ask in a tick and
+ * kept for the rest of it. Never saved: a fresh state (a loaded valley) works them out again, and
+ * both players ask in the same order, so they agree. A key of the tick and the counts of buildings
+ * and households; a caller that changes stock and needs the new cover within the same tick passes
+ * its own stock (familyCover's `stock`).
+ */
+interface Memo {
+  tick: number;
+  buildings: number;
+  households: number;
+  uses?: number[];
+  stock?: number[];
+  offered?: boolean[];
+  counts?: number[];
+}
+const memos = new WeakMap<WorldState, Memo>();
+
+function memoOf(state: WorldState): Memo {
+  let m = memos.get(state);
+  if (
+    !m ||
+    m.tick !== state.tick ||
+    m.buildings !== state.buildings.length ||
+    m.households !== state.households.length
+  ) {
+    m = { tick: state.tick, buildings: state.buildings.length, households: state.households.length };
+    memos.set(state, m);
+  }
+  return m;
 }
 
 /** The goods a pantry keeps that count toward the balances: Food and Fuel. */
@@ -160,7 +194,7 @@ export function familyCover(
 ): number {
   const use = useHundredths ?? familyUseHundredths(state, family);
   if (use <= 0) return 0;
-  const have = familyStock(stock ?? balanceStock(state), family);
+  const have = familyStock(stock ?? (memoOf(state).stock ??= balanceStock(state)), family);
   return Math.floor((have * 10000) / use);
 }
 
@@ -249,7 +283,7 @@ export function onOfferGoods(state: WorldState): boolean[] {
  * last three days (wool, only an input, never counts).
  */
 export function flavorsOnOffer(state: WorldState, family: number, offered?: readonly boolean[]): number {
-  const on = offered ?? onOfferGoods(state);
+  const on = offered ?? (memoOf(state).offered ??= onOfferGoods(state));
   let n = 0;
   for (const g of SHELF_GOODS[family]!) if (on[g]) n++;
   return n;
@@ -263,7 +297,7 @@ export function flavorsOnOffer(state: WorldState, family: number, offered?: read
 export function wantedVariety(
   state: WorldState,
   family: number,
-  counts: readonly number[] = tierCounts(state),
+  counts: readonly number[] = (memoOf(state).counts ??= tierCounts(state)),
 ): number {
   const id = GOOD_FAMILIES[family]!;
   let most = 0;
