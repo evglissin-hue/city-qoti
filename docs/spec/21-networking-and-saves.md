@@ -127,6 +127,7 @@ One Cloudflare Worker named `city-qoti` serving the client build as static asset
 | `POST /api/valleys` | create: returns `valleyId` and two seat tokens with invite links |
 | `GET /api/valleys/:id/ws` | WebSocket upgrade, handled by the valley's Durable Object |
 | `GET /api/valleys/:id/export` | download `.qoti` (seat token in an `Authorization` header; C2C, answers 501 until then) |
+| `GET /api/valleys/:id/old-file` | [R1X] the newest stored snapshot's bytes of a valley saved before version 6, untouched (any seat token in an `Authorization` header; 409 for a current valley), so the title screen can offer Save its file |
 | `POST /api/valleys/import` | create a valley from a `.qoti` file (C2C, answers 501 until then) |
 | `GET /version.json` | `{ simVersion, build }` for update checks (a static file emitted by the client build) |
 | `PUT /api/valleys/:id/images/:entry` | [I3] store a Chronicle snapshot for an entry (seat token in an `Authorization` header) |
