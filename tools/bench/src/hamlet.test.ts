@@ -1,7 +1,8 @@
 // C3C acceptance: a headless three-day run from the standard starting state keeps food flowing
 // and the treasury in a sensible band (with the C3A stand-in residents from ./hamlet).
-// R1.0: the player's first day is a fishery, a stall and a Forester's Lodge; the food and treasury
-// numbers wait for R1X's tuning, the structure (placing, three days, a deterministic hamlet) holds.
+// R1.0: the player's first day is a fishery, a stall and a Forester's Lodge. R1X: the fishery's two
+// hands feed the eight founders (one food hand feeds about four, so a third of the hands in food),
+// the carrier's Food reserve keeps three days in store, and the treasury stays in band.
 import { content } from '@qoti/content';
 import { hashState, PENNIES_PER_COIN, TICKS_PER_DAY, TICKS_PER_HOUR, townStock } from '@qoti/sim';
 import { describe, expect, it } from 'vitest';
@@ -33,8 +34,7 @@ describe('the standard start, three days on', { timeout: 30_000 }, () => {
     expect(kinds.filter((k) => k === 'household-arrived')).toHaveLength(2);
   });
 
-  // R1.0: stand-ins; R1X tunes the first days (food made, the stall's shelf, the treasury band).
-  it.skip('keeps food flowing and the treasury in band', () => {
+  it('keeps food flowing and the treasury in band', () => {
     const h = startingTown('hazel');
     const w = h.world;
     runTicks(h, 2 * TICKS_PER_HOUR + 10);
@@ -61,19 +61,21 @@ describe('the standard start, three days on', { timeout: 30_000 }, () => {
     }
     // The new buildings are built, staffed and feeding the town.
     expect(w.buildings.every((b) => b.stage === 'built')).toBe(true);
-    // Well ahead of eating (16 over days 2 and 3).
-    expect(made).toBeGreaterThanOrEqual(24);
+    // R1X: the fishery keeps up with the founders' eating (8 a day from day 2).
+    expect(made).toBeGreaterThanOrEqual(eaten);
     const stall = w.buildings.find((b) => b.def === 'market-stall')!;
     expect(FOODS.reduce((n, g) => n + stall.rt!.store[g]!, 0)).toBeGreaterThan(10);
     const stock = townStock(w);
-    expect(FOODS.reduce((n, g) => n + stock[g]!, 0)).toBeGreaterThan(30);
+    // Three days of Food for eight: the carrier's reserve.
+    expect(FOODS.reduce((n, g) => n + stock[g]!, 0)).toBeGreaterThanOrEqual(24);
     // 500 coins, less the first sites, plus a few coins a day of taxes over upkeep.
     for (const t of treasury) {
       expect(t).toBeGreaterThan(400);
       expect(t).toBeLessThan(520);
     }
     const kinds = w.chronicle.map((c) => c.kind);
-    expect(kinds.filter((k) => k === 'first-of').length).toBeGreaterThanOrEqual(2);
+    // The first catch is news (R1: one food maker on the first day).
+    expect(kinds.filter((k) => k === 'first-of').length).toBeGreaterThanOrEqual(1);
   });
 
   it('builds every workplace of the 40-resident hamlet from content', () => {
