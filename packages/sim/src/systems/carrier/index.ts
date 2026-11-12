@@ -22,7 +22,8 @@
 //    each reserve, the cheapest unit by unit, up to days of the family's use (Materials: what open
 //    sites need plus the reserve in units). From Autumn day 4 to the thaw it buys toward the season
 //    plan's winter mark when that is more.
-// 5. Selling, with the load that is left, for families with `sell` on and a rule other than Never:
+// 5. Selling, with a load of its own (the cart goes out as full as it came in), for families with
+//    `sell` on and a rule other than Never:
 //    what is over twice the reserve (from Summer day 4 to the thaw, never under the winter mark),
 //    the flavor the stores hold most of first. A festival's put-by goods are out of the stores, so
 //    they are never sold.
@@ -739,7 +740,11 @@ export function carrierDay(state: WorldState, ctx: TickCtx): void {
     if (want > 0) buyCheapest(state, day, SHELF_GOODS[f]!, want, 'budget');
   }
 
-  // 5. Selling, with the load that is left: what is over twice the reserve, never under a mark.
+  // 5. Selling: what is over twice the reserve, never under a mark. R1X: the cart (and the boat)
+  // carries its load each way, coming in full and going out full, so a day's buying never leaves the
+  // town nothing to sell (a Village that bought its load every morning sold nothing for weeks).
+  day.cart.room = closed ? 0 : terms.units;
+  if (day.boat) day.boat.room = BOAT_UNITS;
   const stands = marksStand(state);
   for (let f = 0; f < families.length; f++) {
     const t = families[f]!;
