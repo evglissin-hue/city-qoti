@@ -144,7 +144,7 @@ export function carrierBrings(w: WorldState, g: number): boolean {
 }
 
 /** Coins a unit costs by carrier, at the peddler's 140% of today's price (R1F: a planning estimate). */
-function importPrice(w: WorldState, g: number): number {
+export function importPrice(w: WorldState, g: number): number {
   return ((w.market.prices[g] ?? content.goods[g]!.basePrice ?? 100) * 1.4) / PENNIES_PER_COIN;
 }
 

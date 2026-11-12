@@ -34,7 +34,15 @@ import {
   type Rot4,
   type WorldState,
 } from '@qoti/sim';
-import { costOf, MONEY_RESERVE, VILLAGE_MARGIN, type Budget, type Planner } from '../planner';
+import {
+  carrierBrings,
+  costOf,
+  importPrice,
+  MONEY_RESERVE,
+  VILLAGE_MARGIN,
+  type Budget,
+  type Planner,
+} from '../planner';
 import { count, craftsfolk, G } from '../town';
 import type { Advisor, AdvisorDef, Visit } from './types';
 
@@ -165,9 +173,17 @@ class Village implements Advisor {
     // credit when the treasury is short (taxes on Craftsfolk wages pay it back); in a broke town
     // they waited for coins that never came while every household lacked a tavern.
     const credit = overdraftLimit(w) / PENNIES_PER_COIN;
-    if (this.coins() + credit < costOf(def, VILLAGE_MARGIN).coins + MONEY_RESERVE) return false;
+    // What the store lacks the carrier brings to the open site (a tavern's brick before any
+    // Brickworks), at its markup.
     const stock = townStock(w);
-    for (const [g, q] of d.cost?.goods ?? []) if (stock[G(g)]! < q) return false;
+    let imports = 0;
+    for (const [g, q] of d.cost?.goods ?? []) {
+      const short = q - stock[G(g)]!;
+      if (short <= 0) continue;
+      if (!carrierBrings(w, G(g))) return false;
+      imports += short * importPrice(w, G(g));
+    }
+    if (this.coins() + credit < costOf(def, VILLAGE_MARGIN).coins + imports + MONEY_RESERVE) return false;
     const reader = worldIndex(w).reader;
     let tried = 0;
     for (const h of w.households) {

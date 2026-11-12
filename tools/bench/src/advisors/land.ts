@@ -52,7 +52,7 @@ import {
 import type { Advisor, AdvisorDef, Visit } from './types';
 
 /** Streets the Ledger lays at most, the high street included. */
-const MAX_STREETS = 6;
+const MAX_STREETS = 16;
 /** Tiles of frontage that answer a bar for a while (a few lots); less, and a street is laid too. */
 const ENOUGH_FRONTAGE = 24;
 /** Coins a tile of lane costs. */
