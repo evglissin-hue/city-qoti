@@ -90,6 +90,14 @@ function capture(cmd: Command, m: Mirror): Before | null {
         .map((d) => ({ def: d.def, fx: d.fx, fz: d.fz, rot: d.rot }));
       return views.length ? { t: 'decor', views } : null;
     }
+    case 'decor.move': {
+      const d = m.decor.get(cmd.id);
+      return d ? { t: 'decor', views: [{ def: d.def, fx: d.fx, fz: d.fz, rot: d.rot }] } : null;
+    }
+    case 'build.move': {
+      const b = m.buildings.get(cmd.id);
+      return b ? { t: 'buildings', views: [b] } : null;
+    }
     case 'road.paint':
     case 'road.remove':
       return { t: 'tiles', values: cmd.tiles.map(([x, z]) => m.road(x, z)) };
@@ -175,7 +183,9 @@ function inverseOf(p: Pending, m: Mirror, change: MirrorChange, seat: SeatId): U
         .filter(
           (d) =>
             change.added.includes(`decor:${d.id}`) &&
-            d.def === cmd.def &&
+            (cmd.t === 'decor.placeRun' && cmd.pieces
+              ? cmd.pieces.some((p) => p.def === d.def && p.fx === d.fx && p.fz === d.fz)
+              : d.def === cmd.def) &&
             d.builtBy === seat &&
             (cmd.t === 'decor.placeRun' || (d.fx === cmd.fx && d.fz === cmd.fz)),
         )
@@ -194,6 +204,30 @@ function inverseOf(p: Pending, m: Mirror, change: MirrorChange, seat: SeatId): U
         label: `removing the ${decorName(views[0]!.def)}`,
         inverse: views.map((v) => ({ t: 'decor.place', def: v.def, fx: v.fx, fz: v.fz, rot: v.rot })),
         intact: () => true,
+      };
+    }
+    case 'decor.move': {
+      if (before.t !== 'decor') return null;
+      const old = before.views[0]!;
+      return {
+        label: `moving the ${decorName(old.def)}`,
+        inverse: [{ t: 'decor.move', id: cmd.id, fx: old.fx, fz: old.fz, rot: old.rot }],
+        intact: (mm) => {
+          const d = mm.decor.get(cmd.id);
+          return !!d && d.fx === cmd.fx && d.fz === cmd.fz && d.rot === cmd.rot;
+        },
+      };
+    }
+    case 'build.move': {
+      if (before.t !== 'buildings') return null;
+      const old = before.views[0]!;
+      return {
+        label: `moving the ${buildingName(old.def)}`,
+        inverse: [{ t: 'build.move', id: cmd.id, x: old.x, z: old.z, rot: old.rot }],
+        intact: (mm) => {
+          const b = mm.buildings.get(cmd.id);
+          return !!b && b.x === cmd.x && b.z === cmd.z && b.rot === cmd.rot;
+        },
       };
     }
     case 'road.paint': {

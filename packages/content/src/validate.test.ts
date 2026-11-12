@@ -88,6 +88,7 @@ describe('content', () => {
         'cart-shed',
         'fishery',
         'foresters-lodge',
+        'garden-bed',
         'granary',
         'market-square',
         'market-stall',
@@ -349,11 +350,12 @@ describe('I1 content', () => {
     }
   });
 
-  it('has the thirteen wishes, twenty patterns (eight I1, six I2, six I3) and sixteen achievements, with valid references', () => {
+  it('has the thirteen wishes, twenty patterns (eight I1, six I2, six I3) and twenty achievements, with valid references', () => {
     // P1 (playtest): A Second Well joined the twelve I1 wishes.
     expect(wishes).toHaveLength(13);
     expect(patterns).toHaveLength(20);
-    expect(achievements).toHaveLength(16);
+    // R1 (R1D): Market Day, A Winter Without Imports, A Town That Builds Itself, Porridge No More.
+    expect(achievements).toHaveLength(20);
     for (const w of wishes) {
       for (const ref of [...conditionRefs(w.when), ...conditionRefs(w.target)]) {
         expect(known(ref), `${w.id} ${ref}`).toBe(true);
@@ -568,5 +570,27 @@ describe('R1 content', () => {
     for (const n of content.neighbors)
       for (const [g] of [...n.sells, ...n.buys, ...(n.seasonal ?? [])])
         expect(goodIds.has(g), `${n.id} ${g}`).toBe(true);
+  });
+
+  // R1 (R1D): a pattern's Lay it out ghost names real pieces: decor, linear decor for runs, a
+  // building the Hearth can place, and every layout fits within a small ground.
+  it('lays out patterns with real pieces, linear runs and a handful of tiles', () => {
+    let laid = 0;
+    for (const p of patterns) {
+      if (!p.layout) continue;
+      laid++;
+      expect(p.layout.length, p.id).toBeGreaterThan(0);
+      for (const piece of p.layout) {
+        if ('decor' in piece)
+          expect(content.decorById.get(piece.decor)?.linear, `${p.id} ${piece.decor}`).toBeFalsy();
+        if ('run' in piece)
+          expect(content.decorById.get(piece.run)?.linear, `${p.id} ${piece.run}`).toBe(true);
+        if ('building' in piece)
+          expect(content.buildingById.has(piece.building), `${p.id} ${piece.building}`).toBe(true);
+        for (const v of Object.values(piece))
+          if (typeof v === 'number') expect(Math.abs(v), p.id).toBeLessThanOrEqual(10);
+      }
+    }
+    expect(laid).toBeGreaterThanOrEqual(12);
   });
 });

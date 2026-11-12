@@ -206,6 +206,8 @@ Story residents never leave and are marked in the UI. Their letters are the main
 
 [R1] The arcs are rewritten for the zones-first Ledger, keeping their people and finales: Pippa Quill's steps ask for a baker in a windmill's reach, a forester's lodge by the river (her letter brings the Water Wheel and the Sawmill at once; without her, three working days of that lodge do, so no arc gates a building) and three kinds of workshop; Odette Fenwick's for three flavors on a stall, the Market Square, a Trading Post and a season's deal, and her finale roofs the square into the Market Hall; Juniper Reed's are as built, with "charm 25 around her home" becoming a place with seats near it in R2. Story characters are masters of their trades from R3.
 
+*As built (R1D)*: Pippa: a baker's business (in a windmill's reach by its trade), a lantern by her door, a Forester's Lodge by the river (the Water Wheel, which opens the Sawmill), workshops of three different trades (`businessTrades`), three innovations. Odette, six steps: three kinds of Food on her nearest stall (`stallFlavors`), a pattern site by both seats, a seat and flowers by the stall, the Village claimed and a Market Square built (one letter), a Trading Post, a neighbor's deal on the season plan (`seasonDeal`); her finale unlocks `market-hall` (the roof over the square is art's to draw from that unlock). Mother Thornbury's herbs are a garden bed by her door. Barnaby's steps needed no change.
+
 ## Client needs
 
 - Resident inspector: portrait, name, species, traits, household, home, job, mood with breakdown, needs, friends, wish, short bio and history.

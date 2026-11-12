@@ -16,8 +16,18 @@ export type Command =
   | { t: 'build.remove'; ids: EntityId[] }
   /** Fixed point position (1 tile = 256), rotation 0 to 63. */
   | { t: 'decor.place'; def: string; fx: number; fz: number; rot: number }
-  /** Linear decor, fixed point. */
-  | { t: 'decor.placeRun'; def: string; from: [number, number]; to: [number, number] }
+  /**
+   * Linear decor, fixed point. R1D: with `pieces` the run is exactly those pieces (point or linear
+   * decor, mixed defs), placed all or nothing as one command; `def` is the first piece's def and
+   * `from`/`to` describe the gesture.
+   */
+  | {
+      t: 'decor.placeRun';
+      def: string;
+      from: [number, number];
+      to: [number, number];
+      pieces?: { def: string; fx: number; fz: number; rot: number }[];
+    }
   | { t: 'decor.remove'; ids: EntityId[] }
   | { t: 'tree.plant'; species: TreeSpecies; x: number; z: number }
   | { t: 'tree.remove'; tiles: [number, number][] }

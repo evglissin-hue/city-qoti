@@ -100,6 +100,7 @@ export const buildings: readonly BuildingDef[] = [
   VB.farmstead,
   B.fishery,
   B.forestersLodge,
+  B.gardenBed,
   SB.gate,
   B.granary,
   VB.herbalist,
@@ -293,6 +294,8 @@ export const patterns: readonly PatternDef[] = [
 
 // prettier-ignore
 export const achievements: readonly AchievementDef[] = [
+  A.aTownThatBuildsItself,
+  SA.aWinterWithoutImports,
   A.balancedBooks,
   A.breadOnTheTable,
   A.builtTogether,
@@ -301,7 +304,9 @@ export const achievements: readonly AchievementDef[] = [
   A.firstFootsteps,
   SA.fiveStars,
   A.hearthAndHome,
+  A.marketDay,
   A.plankByPlank,
+  A.porridgeNoMore,
   SA.theFirstWinter,
   SA.theGateHeld,
   A.theLongWalkHome,

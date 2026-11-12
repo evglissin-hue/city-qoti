@@ -30,6 +30,7 @@ import type {
 } from '../contracts';
 import { seasonAt } from '../state/seasons';
 import { dayIndex } from '../systems/economy/time';
+import { twistsOffered } from '../systems/festivals/twists';
 import { weatherCardLines } from './season/weather';
 
 const goodId = (i: number): string => content.goods[i]?.id ?? '';
@@ -144,6 +145,7 @@ export function festivalView(state: WorldState): FestivalView {
       : null,
     pieces: [...state.festival.pieces],
     live: state.festival.live,
+    offered: twistsOffered(state),
   };
 }
 

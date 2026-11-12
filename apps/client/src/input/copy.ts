@@ -9,6 +9,15 @@ export const INPUT_COPY = {
   removeCancel: 'Keep it',
   removeNote: (me: string, thing: string, reason: string) =>
     reason ? `${me} removed your ${thing}: ${reason}` : `${me} removed your ${thing}. Nothing personal.`,
+  // R1D (T1): moving the partner's handmade work asks first, as removing it does.
+  moveTitle: (owner: string, thing: string) => `Move ${owner}'s ${thing}?`,
+  moveBuildingTitle: (owner: string, thing: string) => `Move the ${thing} ${owner} built?`,
+  moveBody: 'They placed it by hand. Say why, if you like, and a note will be left where it stood.',
+  moveOk: 'Move it',
+  moveCancel: 'Leave it',
+  moveNote: (me: string, thing: string, reason: string) =>
+    `${me} moved your ${thing}${reason ? `: ${reason}` : '.'}`,
+  moveHint: 'Click a piece, then where it goes. R turns, Esc puts it back',
   partner: 'Your partner',
   someone: 'Someone',
   piece: 'piece',

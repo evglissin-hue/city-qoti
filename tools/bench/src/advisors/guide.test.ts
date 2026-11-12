@@ -35,8 +35,8 @@ describe('the first days guide, played without reading it', { timeout: 120_000 }
     ['hazel', false],
     ['hazel', true],
   ] as const) {
-    // R1 stand-in (R1D): six of the eight steps are done by day 6 with R1F's advisors; the rest wait
-    // on R1D's new letters and R1B's first workshop (no workshop trade grows on the stand-in).
+    // R1.0: stand-ins; R1F rewrites the advisors and their targets. R1D's letters are in: the run
+    // stops at the food letter until R1A's reserve, R1B's start labor and R1F's advisors land.
     it.skip(`finishes every step by day 6 in ${seed}${seated ? ', two seats' : ''}`, () => {
       const run = play(seed, seated);
       const w = run.hamlet.world;

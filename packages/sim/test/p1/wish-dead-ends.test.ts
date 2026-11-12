@@ -15,7 +15,7 @@ import { wishProgress } from '../../src/systems/hearth/wishes/progress';
 import { doorTileOf } from '../../src/systems/movement/api';
 import { createTickCtx } from '../../src/turn';
 import { hamletFixture } from '../fixtures/hamlet';
-import { build, decor, plot, road, settle, standardWorld } from '../hearth/helpers';
+import { bakerCouldOpen, build, decor, plot, road, settle, standardWorld } from '../hearth/helpers';
 
 const S = MAP_SIZE;
 const wish = (id: string) => content.wishById.get(id)!;
@@ -82,6 +82,9 @@ describe('the achievability walk', () => {
     const s = f.state;
     // The fixture has a baker and a windmill, so the wish is on offer far from them.
     findById(s.households, f.households[2])!.homeId = build(s, 'cottage', 140, 140).id;
+    // R1 (R1D): and only where a baker could open: Workshops land in a windmill's reach.
+    expect(generateWishes(s, createTickCtx(s), [wish('bakery-nearby')])).toBe(0);
+    bakerCouldOpen(s, 143, 140);
     expect(generateWishes(s, createTickCtx(s), [wish('bakery-nearby')])).toBeGreaterThanOrEqual(1);
     // R1: a baker is always within reach (a windmill needs nothing), so the same wish asking for a
     // carpenter stands in: no sawmill and no water wheel, no wish, until a sawmill stands.
@@ -92,6 +95,7 @@ describe('the achievability walk', () => {
     const g = hamletFixture();
     const t = g.state;
     findById(t.households, g.households[2])!.homeId = build(t, 'cottage', 140, 140).id;
+    bakerCouldOpen(t, 143, 140);
     expect(generateWishes(t, createTickCtx(t), [carpentry])).toBe(0);
     build(t, 'sawmill', 120, 120);
     expect(generateWishes(t, createTickCtx(t), [carpentry])).toBeGreaterThanOrEqual(1);
@@ -246,9 +250,8 @@ describe('what the garden and quiet wishes say they still want', () => {
     const w = makeWish(s, ctx, r, wish('a-garden-plot'));
     const home = findById(s.buildings, w.home)!;
     let wants = wishProgress(s).find((p) => p.id === w.id)!.wants;
-    // R1 stand-in (R1D): a market garden beside the home; the herb garden is gone.
-    expect(wants).toContain('market garden');
-    expect(wants).not.toContain('market-garden');
+    expect(wants).toContain('garden bed');
+    expect(wants).not.toContain('garden-bed');
     expect(wants).not.toContain('herb planter');
     expect(wants).not.toContain('herb garden');
     s.hearth.unlocked.push('herb-planter');

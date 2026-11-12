@@ -12,6 +12,7 @@ import { treeStage } from '../map/layers';
 import { findById } from '../state/entities';
 import { townStock } from '../view/hamlet';
 import { codePredicates } from './code';
+import { businessCount, businessTradeCount, foodFlavorCount } from './r1';
 import {
   buildingRect,
   decorInRect,
@@ -262,6 +263,15 @@ export function countOf(state: WorldState, what: string, ref?: string): number {
       return state.seasons.raidsHeld;
     case 'warmWinters':
       return state.seasons.warmWinters;
+    // R1 (R1D)
+    case 'businesses':
+      return businessCount(state, ref);
+    case 'businessTrades':
+      return businessTradeCount(state, ref);
+    case 'foodFlavors':
+      return foodFlavorCount(state, ref);
+    case 'importFreeWinters':
+      return state.seasons.importFreeWinters ?? 0;
     default:
       return 0;
   }

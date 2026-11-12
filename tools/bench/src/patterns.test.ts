@@ -8,13 +8,11 @@ import { describe, expect, it } from 'vitest';
 import { worldIndex } from '../../../packages/sim/src/state/worldIndex';
 import { command, runTicks, startingTown } from './hamlet';
 
-// R1.0: the vegetable plot is gone; R1D's garden bed brings back the Kitchen Garden a player builds
-// by hand (its def is R1D's to name). Until then this waits, skipped.
+// R1 (R1D): the garden bed is the plot a player places by hand.
 const PLOT = 'garden-bed';
 
 describe('a Kitchen Garden as a player builds it', { timeout: 60_000 }, () => {
-  // R1.0: stand-ins; R1D's garden bed brings the hand-built Kitchen Garden back.
-  it.skip('two plots off to one side of a cottage, a fence drawn along them', () => {
+  it('two plots off to one side of a cottage, a fence drawn along them', () => {
     const h = startingTown('kat-1', { standIn: false });
     const w = h.world;
     w.time.connected = [0, 1];
@@ -40,15 +38,14 @@ describe('a Kitchen Garden as a player builds it', { timeout: 60_000 }, () => {
     expect(status()).toContain('a bit of fence or hedge along them would make a Kitchen Garden');
     const zs = spots.map(([, z]) => z);
     const xs = spots.map(([x]) => x);
-    const row = Math.max(...zs) + 2;
     const c = (t: number) => t * TILE_FP + TILE_FP / 2;
-    const run = {
-      t: 'decor.placeRun' as const,
-      def: 'fence',
-      from: [c(Math.min(...xs) - 1), c(row)] as [number, number],
-      to: [c(Math.max(...xs) + 2), c(row)] as [number, number],
-    };
-    expect(command(h, [run])).toEqual([true]);
+    // A fence along a side of the beds (the Fence tool's tile-center run): the east side, then the west.
+    const z0 = Math.min(...zs) * TILE_FP;
+    const z1 = (Math.max(...zs) + 2) * TILE_FP;
+    const placed = [Math.max(...xs) + 2, Math.min(...xs) - 1].some(
+      (x) => command(h, [{ t: 'decor.placeRun', def: 'fence', from: [c(x), z0], to: [c(x), z1] }])[0],
+    );
+    expect(placed).toBe(true);
     runTicks(h, 2 * TICKS_PER_HOUR);
     expect(w.hearth.discovered.map((d) => d.pattern)).toContain('kitchen-garden');
   });

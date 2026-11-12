@@ -231,7 +231,7 @@ describe('views, frames and inspect', () => {
     const view = buildView(state);
     expect(view.residents).toHaveLength(9);
     expect(view.patterns).toHaveLength(content.patterns.length);
-    expect(view.achievements).toHaveLength(16);
+    expect(view.achievements).toHaveLength(20);
     expect(view.stocks!.lines.find((l) => l.good === 'bread')!.stock).toBe(26);
     expect(view.buildings.find((b) => b.trade === 'baker')!.rt!.input).toEqual([['grain', 4]]);
   });

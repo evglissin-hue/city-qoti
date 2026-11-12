@@ -350,6 +350,13 @@ export interface SeasonsStats {
   raidsHeld: number;
   /** Winters where nobody was cold (Warm Hearths). */
   warmWinters: number;
+  /**
+   * R1 (R1D), optional so saves stay at version 6: winters where the carrier brought no Food or Fuel
+   * and nobody went hungry or cold (A Winter Without Imports). Absent until the first one closes.
+   */
+  importFreeWinters?: number;
+  /** R1 (R1D): this winter's tally, written each morning of winter: true once anything was imported or anyone was hungry. Absent outside winter. */
+  winterImported?: boolean;
   /** Best festival stars so far (Five Stars). */
   bestStars: number;
   /** Together moments that happened, by kind: [kind, count], sorted by kind. */

@@ -1,6 +1,7 @@
 import { content, type PatternDef } from '@qoti/content';
 import type { PatternProgressView, PatternView, ProgressList } from '@qoti/sim';
 import type { Session } from '../../app/session';
+import { layOut } from '../../input/layoutPick';
 import { seatLabel, seatList, shortDate } from '../format';
 import { useInspect } from './parts';
 
@@ -275,6 +276,17 @@ function Page({
           </div>
         )}
       </dl>
+      {def.layout && def.layout.length > 0 && (
+        <button
+          type="button"
+          class="small-button"
+          data-testid="pattern-lay-out"
+          title="Sketch this pattern as a plan you can approve"
+          onClick={() => layItOut(def, session)}
+        >
+          Lay it out
+        </button>
+      )}
       {site && (
         <button
           type="button"
@@ -295,6 +307,16 @@ function Page({
       <span class="folio-mark">{folio}</span>
     </article>
   );
+}
+
+/** Closes the book and picks the layout tool; putting it away returns to the tool in hand. */
+function layItOut(def: PatternDef, session: Session) {
+  const tools = session.tools;
+  const previous = tools?.active.value ?? 'inspect';
+  layOut(def.id, () => tools?.select(previous === 'layout' ? 'inspect' : previous));
+  session.ui.panel.value = null;
+  session.render?.highlight?.(null);
+  tools?.select('layout');
 }
 
 /** A small inked flourish for the cover page. */

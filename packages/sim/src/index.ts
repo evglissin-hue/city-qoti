@@ -87,6 +87,7 @@ export {
 } from './view/inspect';
 export { evaluate, type Binding } from './conditions';
 export { achievable, placeableNow } from './systems/hearth/wishes/achievable';
+export { gardenFlavors } from './systems/hearth/garden';
 export { HealthWatch, type HealthIssue, type HealthKind } from './view/health';
 
 export { base64ToBytes, bytesToBase64 } from './state/base64';
@@ -247,6 +248,8 @@ export {
   reserveMenu,
 } from './systems/festivals/api';
 export { FESTIVAL_SITE_MARGIN, openGround, patternRect, siteRect } from './systems/festivals/site';
+// R1 (R1D): the twists a festival may be planned with now.
+export { twistOffered, twistsOffered } from './systems/festivals/twists';
 export { canMeet, progressOf } from './systems/commissions';
 export { BOAT_UNITS, dockSellPrice, riverDock } from './systems/dock';
 export {

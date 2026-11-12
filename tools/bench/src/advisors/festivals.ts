@@ -34,6 +34,7 @@ import {
   rankAtLeast,
   siteRect,
   TILE_FP,
+  twistOffered,
   winterDaysAhead,
   type Command,
   type FestivalSite,
@@ -152,9 +153,9 @@ class Festivals implements Advisor {
 
   private twist(menu: readonly [string, number][]): string {
     const w = this.w;
-    const { season } = calendar(w.tick);
     const last = w.festival.history[w.festival.history.length - 1]?.twist ?? '';
-    const ok = content.twists.filter((t) => t.id !== last && (!t.seasons || t.seasons.includes(season)));
+    // R1 (R1D): only a twist the sim offers now (in season, its goods to be had).
+    const ok = content.twists.filter((t) => t.id !== last && twistOffered(w, t.id));
     // R1: no Pie Contest (pies wait for a master baker, R3; the twist is offered in no season).
     const veg = menu.find(([g]) => g === 'vegetables')?.[1] ?? 0;
     const pick =

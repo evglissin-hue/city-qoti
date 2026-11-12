@@ -298,6 +298,27 @@ export const townHall: BuildingDef = {
   art: { kit: 'town-hall' },
 };
 
+/**
+ * R1 (R1D): the vegetable plot and the herb garden back as one Hearth piece (docs/spec/12-hearth.md,
+ * The Pattern Book). Placed by hand beside a home; it makes nothing, it gives that home vegetables as
+ * a flavor in the growing seasons (variety, not volume). A Build picker line: "A raised bed by a
+ * door. Supper gets more interesting; it does not get bigger."
+ */
+export const gardenBed: BuildingDef = {
+  id: 'garden-bed',
+  name: 'Garden bed',
+  lane: 'hearth',
+  category: 'service',
+  size: [2, 2],
+  entrance: [1, 1],
+  cost: { goods: [['timber', 4]] },
+  upkeep: 0,
+  work: 4,
+  charm: [{ category: 'nature', value: 3, radius: 2 }],
+  tags: ['plot', 'garden', 'soil', 'herb', 'garden-bed'],
+  art: { kit: 'vegetable-plot' },
+};
+
 export const well: BuildingDef = {
   id: 'well',
   name: 'Well',

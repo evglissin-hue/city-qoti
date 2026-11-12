@@ -33,6 +33,42 @@ function marketGarden(s: WorldState, x: number, z: number): Building {
   return b;
 }
 
+/** R1D: a home grown on a lot (lot ids are only read as truthy by the guide). */
+function homeOnLot(s: WorldState, x: number, z: number): Building {
+  const b = placeFree(s, 'cottage', x, z);
+  b.lot = 900 + x;
+  return b;
+}
+
+/** R1D: Farmland zoned on rich soil, a 3x3 patch at (x, z). */
+function richFarmland(s: WorldState, x: number, z: number): void {
+  const farms = content.zoneById.get('farms')!.layerValue;
+  for (let dz = 0; dz < 3; dz++)
+    for (let dx = 0; dx < 3; dx++) {
+      s.map.zone[(z + dz) * S + x + dx] = farms;
+      s.map.fertility[(z + dz) * S + x + dx] = 80;
+    }
+}
+
+/** R1D: the town opened a workshop by itself: a baker's business on a lot. */
+function grownWorkshop(s: WorldState, x: number, z: number): Building {
+  const b = placeFree(s, 'workshop', x, z);
+  b.trade = 'baker';
+  b.keeperId = 0;
+  b.counters = emptyCounters();
+  b.lot = 950;
+  return b;
+}
+
+/** Plenty of Food in the first store: three days and more for everyone. */
+function stockFood(s: WorldState): void {
+  const store = s.buildings.find(
+    (b) => b.rt && content.buildingById.get(b.def)?.tags?.includes('storehouse'),
+  )!;
+  const fish = content.goodIndex.get('fish')!;
+  store.rt!.store[fish] = (store.rt!.store[fish] ?? 0) + 10 * s.residents.length;
+}
+
 /** The hamlet fixture with the guide open (two seats, standard, at 06:00 on day 1). */
 function town() {
   const f = hamletFixture();
@@ -40,14 +76,20 @@ function town() {
   return f;
 }
 
-/** Every goal met: the lane reaches the gate, four homes, a wish, food, timber, a page, a good day, a plan. */
+/**
+ * Every goal met: the lane reaches the gate, two homes on lots, rich Farmland, a lodge, a wish,
+ * food, a grown workshop, a page, a good day, a plan.
+ */
 function everythingDone(s: WorldState): void {
   for (let x = 0; x < 40; x++) s.map.road[50 * S + x] = Road.lane;
-  placeFree(s, 'cottage', 78, 47);
+  homeOnLot(s, 78, 47);
+  homeOnLot(s, 78, 40);
+  richFarmland(s, 100, 70);
   s.stats.wishesGranted = 1;
   marketGarden(s, 80, 52).rt!.workers.push(s.residents[0]!.id);
+  stockFood(s);
+  grownWorkshop(s, 86, 40);
   // The fixture's Forester's Lodge stands already.
-  s.economy.everProduced[content.goodIndex.get('timber')!] = 10;
   s.hearth.discovered.push({
     pattern: content.patterns[0]!.id,
     tick: 0,
@@ -60,13 +102,16 @@ function everythingDone(s: WorldState): void {
 }
 
 describe('the first days guide: each goal', () => {
-  it('has eight steps in the brief order, a letter, a hint and lanes for both players', () => {
+  it('has ten steps in the brief order, a letter, a hint and lanes for both players', () => {
+    // R1D: the letters for the zones-first first days (02-game-overview.md, From R1).
     expect(steps.map((s) => s.id)).toEqual([
       'lane-to-gate',
       'first-homes',
+      'farmland',
+      'timber',
       'first-wish',
       'food-in-store',
-      'timber',
+      'first-workshop',
       'first-pattern',
       'in-the-black',
       'together',
@@ -97,14 +142,37 @@ describe('the first days guide: each goal', () => {
     expect(stepDone(solo, at('lane-to-gate'))).toBe(false);
   });
 
-  it('first-homes: four homes built', () => {
+  it('first-homes: two homes built on zoned lots; a cottage by hand does not count', () => {
     const { state } = town();
     expect(stepDone(state, at('first-homes'))).toBe(false);
-    const site = placeFree(state, 'cottage', 78, 47);
+    placeFree(state, 'cottage', 78, 40);
+    homeOnLot(state, 78, 47);
+    expect(stepDone(state, at('first-homes'))).toBe(false);
+    const site = homeOnLot(state, 82, 40);
     site.stage = 'construction';
     expect(stepDone(state, at('first-homes'))).toBe(false);
     site.stage = 'built';
     expect(stepDone(state, at('first-homes'))).toBe(true);
+  });
+
+  it('farmland: nine tiles of Farmland on rich soil', () => {
+    const { state } = town();
+    expect(stepDone(state, at('farmland'))).toBe(false);
+    richFarmland(state, 100, 70);
+    expect(stepDone(state, at('farmland'))).toBe(true);
+    for (let z = 70; z < 73; z++) state.map.fertility[z * S + 100] = 5;
+    expect(stepDone(state, at('farmland'))).toBe(false);
+  });
+
+  it('first-workshop: a workshop the town opened by itself', () => {
+    const { state } = town();
+    state.buildings = state.buildings.filter((b) => !(b.def === 'workshop' && b.lot));
+    expect(stepDone(state, at('first-workshop'))).toBe(false);
+    const w = grownWorkshop(state, 86, 40);
+    w.lot = undefined;
+    expect(stepDone(state, at('first-workshop'))).toBe(false);
+    w.lot = 950;
+    expect(stepDone(state, at('first-workshop'))).toBe(true);
   });
 
   it('first-wish: a wish granted', () => {
@@ -114,8 +182,9 @@ describe('the first days guide: each goal', () => {
     expect(stepDone(state, at('first-wish'))).toBe(true);
   });
 
-  it('food-in-store: a farm or a fishery worked and two days of food in store', () => {
+  it('food-in-store: a farm or a fishery worked and three days of Food in store', () => {
     const { state } = town();
+    stockFood(state);
     expect(stepDone(state, at('food-in-store'))).toBe(false);
     const plot = marketGarden(state, 80, 52);
     expect(stepDone(state, at('food-in-store'))).toBe(false);
@@ -134,18 +203,17 @@ describe('the first days guide: each goal', () => {
     expect(stepDone(state, at('food-in-store'))).toBe(false);
   });
 
-  it("timber: a Forester's Lodge and the first timber", () => {
+  it("timber: a Forester's Lodge built", () => {
     const f = town();
     const state = f.state;
     // Without the fixture's lodge.
     state.buildings = state.buildings.filter((b) => b.id !== f.b.sawpit);
     expect(stepDone(state, at('timber'))).toBe(false);
-    state.economy.everProduced[content.goodIndex.get('timber')!] = 4;
+    const lodge = placeFree(state, 'foresters-lodge', 85, 52);
+    lodge.stage = 'construction';
     expect(stepDone(state, at('timber'))).toBe(false);
-    placeFree(state, 'foresters-lodge', 85, 52);
+    lodge.stage = 'built';
     expect(stepDone(state, at('timber'))).toBe(true);
-    state.economy.everProduced[content.goodIndex.get('timber')!] = 3;
-    expect(stepDone(state, at('timber'))).toBe(false);
   });
 
   it('first-pattern: a Pattern Book page', () => {
@@ -202,7 +270,7 @@ describe('the first days guide: the system', () => {
       for (const e of ctx.events) if (e.e === 'guide.step') seen.push(e.g.step);
       state.tick += TICKS_PER_HOUR;
     }
-    expect(seen).toEqual([1, 2, 3, 4, 5, 6, 7, 8]);
+    expect(seen).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
     expect(state.guide.over).toBe(true);
     expect(state.guide.doneTicks).toHaveLength(steps.length);
     // Nothing paid, nothing given, no id taken.
@@ -220,16 +288,18 @@ describe('the first days guide: the system', () => {
 
   it('a later step met early ticks when its turn comes; an unmet step waits', () => {
     const { state } = town();
-    state.stats.wishesGranted = 1; // step 3, early
+    state.stats.wishesGranted = 1; // the wish step, early
     const ctx = createTickCtx(state);
     expect(advanceGuide(state, ctx)).toBe(false);
     expect(ctx.events).toHaveLength(0);
     for (let x = 0; x < 40; x++) state.map.road[50 * S + x] = Road.lane;
     expect(advanceGuide(state, ctx)).toBe(true);
-    placeFree(state, 'cottage', 78, 47);
+    homeOnLot(state, 78, 47);
+    homeOnLot(state, 78, 40);
     expect(advanceGuide(state, ctx)).toBe(true);
-    expect(advanceGuide(state, ctx)).toBe(true);
-    expect(state.guide.step).toBe(at('food-in-store'));
+    // Farmland is not zoned yet: the guide waits there although the wish was granted long ago.
+    expect(advanceGuide(state, ctx)).toBe(false);
+    expect(state.guide.step).toBe(at('farmland'));
   });
 
   it('the farewell says so when Pippa Quill is already in the valley', () => {

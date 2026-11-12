@@ -91,6 +91,8 @@ export interface FestivalView {
   plan: FestivalPlanView | null;
   pieces: EntityId[];
   live: boolean;
+  /** R1 (R1D): twist ids that may be planned now (in season, every good they name to be had). */
+  offered?: string[];
 }
 
 export interface FestivalResultView {

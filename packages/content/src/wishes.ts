@@ -23,8 +23,7 @@ export const aGardenPlot: WishTemplate = {
   when: HAS_HOME,
   target: {
     any: [
-      // R1 stand-in (R1D): a market garden beside the home, until the Hearth's garden bed arrives.
-      { near: { buildingTag: 'market-garden', of: 'home', within: 3 } },
+      { near: { building: 'garden-bed', of: 'home', within: 3 } },
       { near: { tag: 'herb', of: 'home', within: 3 } },
     ],
   },
@@ -125,6 +124,9 @@ export const bakeryNearby: WishTemplate = {
           { resident: { species: ['mouse', 'badger'] } },
         ],
       },
+      // R1 (R1D): voiced only where a baker could open: Workshops land within 12 tiles of home,
+      // inside a standing windmill's reach (the achievable check).
+      { code: 'tradeCouldOpen', ref: 'baker', params: [['within', 12]] },
     ],
   },
   // R1: a baker's business counts by its trade (docs/spec/12-hearth.md, Wishes, the R1 note).
@@ -166,7 +168,7 @@ export const freshFish: WishTemplate = {
   lane: 'ledger',
   text: [
     '{name} would love fresh fish at the market. Not soon. Now, ideally.',
-    '{name} has been eyeing the river wistfully. Fish at the nearest stall would settle it.',
+    '{name} has been eyeing the river wistfully. Fish on a stall within reach would settle it.',
     '{name} has eaten so many vegetables they are beginning to look leafy. Fish at the market, please.',
   ],
   when: {
@@ -178,7 +180,8 @@ export const freshFish: WishTemplate = {
       { not: { code: 'riverFrozen' } },
     ],
   },
-  target: { stock: { good: 'fish', at: 'nearestMarket', atLeast: 1 } },
+  // R1 (R1D): fish on a shelf in reach of home (a stall or the square whose reach covers the door).
+  target: { code: 'shelfInReach', ref: 'fish' },
   reward: { mood: 15, bond: 1 },
   thanks: [
     'Fish for supper, and nobody had to swim for it. Thank you.',
