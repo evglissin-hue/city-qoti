@@ -34,6 +34,7 @@ import {
   type Resident,
   type Rot4,
   type SimCtx,
+  type Turn,
   type ValleySettings,
   type WorldState,
   worldIndex,
@@ -57,6 +58,8 @@ export interface Hamlet {
   ctx: SimCtx;
   stats: StandInStats;
   standIn: boolean;
+  /** R1X: when set, every non-empty turn `command` sends is appended (a golden script's turns). */
+  record?: Turn[];
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -401,11 +404,9 @@ function nearStorehouse(world: WorldState, def: BuildingDef, x: number, z: numbe
 /** Applies commands as one turn (seat 0) and returns whether each was accepted. */
 export function command(h: Hamlet, cmds: Command[], seat: 0 | 1 = 0): boolean[] {
   const before = h.ctx.events.length;
-  applyTurn(
-    h.world,
-    { t: h.world.lastTurn + 1, cmds: cmds.map((cmd, i) => ({ seat, seq: i + 1, cmd })) },
-    h.ctx,
-  );
+  const turn: Turn = { t: h.world.lastTurn + 1, cmds: cmds.map((cmd, i) => ({ seat, seq: i + 1, cmd })) };
+  if (cmds.length > 0) h.record?.push(turn);
+  applyTurn(h.world, turn, h.ctx);
   const rejected = new Set<number>();
   for (const e of h.ctx.events.slice(before)) if (e.e === 'command.rejected') rejected.add(e.seq);
   h.ctx.events.length = 0;
@@ -430,8 +431,32 @@ function newHamlet(seed: string, economy: ValleySettings['economy'], standIn: bo
 /** The standard starting town with its two households (8 residents) at home. */
 export function startingTown(
   seed: string,
-  opts: { standIn?: boolean; economy?: ValleySettings['economy'] } = {},
+  opts: {
+    standIn?: boolean;
+    economy?: ValleySettings['economy'];
+    /** R1X: record every turn, and build the world only from `createValley` plus recorded turns. */
+    record?: Turn[];
+    threat?: ValleySettings['threat'];
+  } = {},
 ) {
+  if (opts.record) {
+    const settings: ValleySettings = {
+      ...defaultSettings(),
+      mode: 'standard',
+      economy: opts.economy ?? 'standard',
+      threat: opts.threat ?? 'peaceful',
+    };
+    const world = createValley(seed, settings);
+    const h: Hamlet = {
+      world,
+      ctx: createTickCtx(world),
+      stats: { meals: 0, hungry: 0, shopped: 0 },
+      standIn: false,
+      record: opts.record,
+    };
+    command(h, [{ t: 'sys.seatJoined', seat: 0 }]);
+    return h;
+  }
   const h = newHamlet(seed, opts.economy ?? 'standard', opts.standIn ?? STAND_IN);
   if (h.standIn) {
     const cottages = h.world.buildings.filter((b) => b.def === 'cottage');
