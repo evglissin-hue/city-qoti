@@ -254,8 +254,12 @@ function villageAlerts(m: Mirror, who: AlertContext): Alert[] {
     });
   }
 
-  // Families a tier wants that nobody has any of (Settler food has its own alert).
-  const tiers = m.town.value?.tiers ?? [];
+  // Families a tier wants that nobody has any of (Settler food has its own alert). R1X: only once
+  // households have purses (from the Village charter: a Hamlet's baskets are free, as in I1), and
+  // only for wants of some amount (Settlers want no Wares), or day one in a new valley said Settler
+  // households could not find wares.
+  const rank = m.charter.value?.rank ?? m.town.value?.rank;
+  const tiers = rank === 'hamlet' ? [] : (m.town.value?.tiers ?? []);
   const stock = new Map((m.stocks.value?.lines ?? []).map((l) => [l.good, l.stock]));
   const season = calendar(now).season;
   for (let t = 0; t < TIERS.length; t++) {
@@ -264,6 +268,7 @@ function villageAlerts(m: Mirror, who: AlertContext): Alert[] {
     const basket = content.basketByTier.get(tier);
     for (const w of basket?.wants ?? []) {
       if (w.season !== undefined && w.season !== season) continue;
+      if (w.amount <= 0) continue;
       if (tier === 'settler' && w.family === 'food') continue;
       const goods = content.goods.filter((g) => g.family === w.family);
       if (goods.some((g) => (stock.get(g.id) ?? 0) > 0)) continue;

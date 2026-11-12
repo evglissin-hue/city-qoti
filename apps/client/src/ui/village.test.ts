@@ -43,6 +43,10 @@ describe('village alerts', () => {
     // The Hearth hears none of it.
     const hearth = alertsForLens(computeAlerts(m, [], { seat: 0 }), 'hearth', new Set());
     expect(hearth.some((a) => a.key.startsWith('price-') || a.key.startsWith('tier-short'))).toBe(false);
+    // Settlers want no Wares, so a town of Settlers hears nothing about them (R1X: day one said so).
+    m.town.value = { ...m.town.value!, tiers: m.town.value!.tiers.map((n, i) => (i === 0 ? n : 0)) };
+    const settlers = alertsForLens(computeAlerts(m, [], { seat: 0 }), 'ledger', new Set());
+    expect(settlers.some((a) => a.key === 'tier-short-settler-wares')).toBe(false);
   });
 
   it('brings story letters, requests and plans from the partner, and an open Charter to both lanes', () => {
