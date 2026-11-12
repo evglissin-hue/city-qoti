@@ -1,6 +1,6 @@
 import type { WebGLProgramParametersWithUniforms } from 'three';
 import type { WorldEnv } from './env';
-import { AO_FLOOR, GROUND_AO_GLSL, groundAoFor } from './groundAo';
+import { GROUND_AO_GLSL, groundAoFor } from './groundAo';
 
 /**
  * V2C: wall occlusion. Binds V1C's ground AO texture (`groundAoFor(env)`, shared, so the terrain
@@ -21,11 +21,16 @@ import { AO_FLOOR, GROUND_AO_GLSL, groundAoFor } from './groundAo';
  */
 
 /** The most a wall darkens at the darkest AO texel, in the indirect light. *(tune)* */
-export const WALL_AO_STRENGTH = 0.35;
+export const WALL_AO_STRENGTH = 0.4;
 /** The sun's share of that darkening: walls read darker in the sun too, but gentler. */
 export const WALL_AO_DIRECT = 0.5;
-/** Tiles above a piece's foot where the darkening has faded out. *(tune)* */
-export const WALL_AO_FADE = 1.8;
+/**
+ * How hard the AO's depth drives the darkening: the ground AO beside a wall is mostly 0.7 to 0.95
+ * (blurred, lifted inside lots), so its shortfall from 1 is scaled up. *(tune)*
+ */
+export const WALL_AO_GAIN = 1.6;
+/** Tiles above a piece's foot where the darkening has faded out (on a squared curve). *(tune)* */
+export const WALL_AO_FADE = 1.2;
 
 const ANCHOR = '#include <aomap_fragment>';
 /** The vertex anchor: after the position is final and before fog, a chunk no other patch replaces. */
@@ -50,9 +55,10 @@ const BLOCK = /* glsl */ `
   vec3 qWn = normalize(vQWNor);
   float qSide = 1.0 - smoothstep(0.35, 0.6, abs(qWn.y));
   float qAo = qGroundAo(vQWPos.xz + qWn.xz * 0.33);
-  float qDark = clamp((1.0 - qAo) / ${(1 - AO_FLOOR).toFixed(2)}, 0.0, 1.0);
+  float qDark = clamp((1.0 - qAo) * ${WALL_AO_GAIN.toFixed(2)}, 0.0, 1.0);
   float qUp = max(vQWPos.y - vQFootY, 0.0) / ${WALL_AO_FADE.toFixed(2)};
-  float qLow = 1.0 - smoothstep(0.0, 1.0, qUp);
+  float qLow = 1.0 - min(qUp, 1.0);
+  qLow *= qLow;
   float qWall = 1.0 - ${WALL_AO_STRENGTH.toFixed(2)} * qDark * qSide * qLow;
   reflectedLight.indirectDiffuse *= qWall;
   reflectedLight.directDiffuse *= mix(1.0, qWall, ${WALL_AO_DIRECT.toFixed(2)});
