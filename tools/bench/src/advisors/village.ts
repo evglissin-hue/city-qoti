@@ -21,6 +21,8 @@ import { content } from '@qoti/content';
 import {
   creditLimit,
   loansOwed,
+  overdraftLimit,
+  PENNIES_PER_COIN,
   BuildingStatus,
   canPlaceBuilding,
   doorTile,
@@ -159,7 +161,11 @@ class Village implements Advisor {
     if (!this.p.staffs(def, true)) return false;
     const covered = serviceCoverage(w, kind).quality;
     const d = content.buildingById.get(def)!;
-    if (this.coins() < costOf(def, VILLAGE_MARGIN).coins + MONEY_RESERVE) return false;
+    // R1X: the services are what Craftsfolk wait on, so a Village builds them on the County Bank's
+    // credit when the treasury is short (taxes on Craftsfolk wages pay it back); in a broke town
+    // they waited for coins that never came while every household lacked a tavern.
+    const credit = overdraftLimit(w) / PENNIES_PER_COIN;
+    if (this.coins() + credit < costOf(def, VILLAGE_MARGIN).coins + MONEY_RESERVE) return false;
     const stock = townStock(w);
     for (const [g, q] of d.cost?.goods ?? []) if (stock[G(g)]! < q) return false;
     const reader = worldIndex(w).reader;

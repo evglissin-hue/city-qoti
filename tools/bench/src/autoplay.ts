@@ -26,7 +26,8 @@
 // morning and the businesses grow by themselves; the advisors place only specialized buildings and
 // services, and send no standing order, sale, calling or labor pause (the carrier imports what is
 // short by itself). The night's growth pass is watched from the second day, and every day line
-// carries the growth numbers. R1 stand-in (R1F): R1F rewrites the advisors and their targets.
+// carries the growth numbers. R1F: the land advisor zones and sites, the plan advisor answers the
+// season card, and the decisions count keeps the Ledger's commands under R1's limit.
 import { content } from '@qoti/content';
 import {
   basketScore,

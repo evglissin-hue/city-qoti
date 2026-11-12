@@ -9,6 +9,7 @@ import { calendar, loansOwed, PENNIES_PER_COIN, rankAtLeast, type WorldState } f
 import { autoplay, type DayLine } from './autoplay';
 import { DEFAULT_SEEDS } from './audit';
 import { DECISIONS_DAYS, decisionVerdict, tallyDecisions } from './decisions';
+import { charterOpen } from './town';
 
 export interface TargetRow {
   seed: string;
@@ -66,7 +67,7 @@ export function targetRow(seed: string, days = DECISIONS_DAYS): { row: TargetRow
     if (process.env.TARGETS_DAYS) {
       const l = line.ledger;
       lines.push(
-        `${seed} d${line.day} pop ${line.residents} hh ${line.households} crafts ${crafts} coins ${line.coins} owed ${line.owed} wages ${line.wages} sales ${line.sales} tax ${line.taxes} trade ${line.trade} food% ${l?.handsFood ?? '-'} haul% ${l?.handsHaul ?? '-'} biz ${l?.businesses ?? '-'} in ${l?.carrierIn ?? '-'} out ${l?.carrierOut ?? '-'} tab ${l?.tab ?? '-'} cover ${l?.balances.map((b) => `${b.cover}/${b.flavors}`).join(' ') ?? '-'}`,
+        `${seed} d${line.day} ${line.rank} ${line.charter} open ${charterOpen(w).join(',')} pop ${line.residents} hh ${line.households} crafts ${crafts} coins ${line.coins} owed ${line.owed} wages ${line.wages} sales ${line.sales} tax ${line.taxes} trade ${line.trade} food% ${l?.handsFood ?? '-'} haul% ${l?.handsHaul ?? '-'} biz ${l?.businesses ?? '-'} in ${l?.carrierIn ?? '-'} out ${l?.carrierOut ?? '-'} tab ${l?.tab ?? '-'} cover ${l?.balances.map((b) => `${b.cover}/${b.flavors}`).join(' ') ?? '-'}`,
       );
     }
   };
