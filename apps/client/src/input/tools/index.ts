@@ -10,6 +10,7 @@ import { fenceTool } from './fence';
 import { fieldTool } from './field';
 import { flowersTool } from './flowers';
 import { inspectTool } from './inspect';
+import { layoutTool } from './layout';
 import { moveTool } from './move';
 import { noteTool } from './note';
 import { planTool } from './plan';
@@ -34,6 +35,7 @@ export const toolFactories: readonly ToolFactory[] = [
   guardTool,
   inspectTool,
   roadTool('lane'),
+  layoutTool,
   moveTool,
   noteTool,
   roadTool('path'),

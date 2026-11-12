@@ -61,6 +61,7 @@ const ICONS: Record<string, () => JSX.Element> = {
   inspect: () => svg([<circle key="c" cx="10.5" cy="10.5" r="5.5" />, <path key="h" d="m15 15 4.5 4.5" />]),
   land: () => svg([<path key="p" d="M4 17.5 9 14l6 2.5 5-3.5" />, <path key="f" d="M8.5 13V6.5l4 1.5-4 1.5" />, <circle key="c" cx="16.5" cy="9" r="2.3" />]),
   lantern: () => svg([<path key="h" d="M12 3.5v2M9.5 5.5h5" />, <path key="g" d="M8.5 7.5h7l-.8 9.5H9.3z" />, <path key="f" d="M12 10.5c-1 1.2-1 2.6 0 3.5 1-.9 1-2.3 0-3.5z" />, <path key="b" d="M9 19.5h6" />]),
+  layout: () => svg([<rect key="a" x="4" y="4" width="16" height="16" rx="1.5" stroke-dasharray="2.5 2" />, <path key="b" d="M8 12h8M12 8v8" />]),
   invite: () => svg([<circle key="a" cx="10" cy="8.5" r="3" />, <path key="b" d="M4.5 19.5c.4-3.6 2.6-5.7 5.5-5.7s5.1 2.1 5.5 5.7" />, <path key="c" d="M18.5 8v5M16 10.5h5" />]),
   letter: () => svg([<rect key="r" x="4" y="6.5" width="16" height="11" rx="1.5" />, <path key="f" d="m4.5 7.5 7.5 6 7.5-6" />]),
   loan: () => svg([<path key="r" d="M4 9.5 12 5l8 4.5" />, <path key="b" d="M5 9.5h14" />, <path key="p" d="M6.5 11v6M10 11v6M14 11v6M17.5 11v6" />, <path key="f" d="M4 19h16" />]),
