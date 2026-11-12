@@ -28,6 +28,11 @@ import { RANK_WORD, UNZONE, zoneInk, zoneOpen } from './village';
 import './picker.css';
 
 /** Words for the Shops card while the Shops zone is closed. */
+/** A line of advice a brush carries (R1B's grain farms want room for fields behind their lot). */
+export const BRUSH_TIP: Readonly<Record<string, string>> = {
+  farms: 'Zone it deep: a grain farm wants room behind its lot for its fields.',
+};
+
 /** The card's own short line; the full words are its tooltip and the line under the picker. */
 export const SHOPS_CLOSED_SHORT = 'A Market Stall by hand until Village rank.';
 
@@ -197,7 +202,7 @@ function ZonesShelf({ session, tool, stay }: { session: Session; tool: Tool; sta
         <p class="zone-line">
           {chosen ? (
             <>
-              <b>{chosen.name}.</b> {chosen.blurb}{' '}
+              <b>{chosen.name}.</b> {chosen.blurb} {BRUSH_TIP[chosen.id] ?? ''}{' '}
             </>
           ) : on === UNZONE ? (
             'Grown buildings stay put; empty lots fold away. '
@@ -269,7 +274,7 @@ function BrushCard({
         type="button"
         class="brush-main"
         data-testid={`brush-${brush.zone}`}
-        title={demandTitle(bar, zone.name)}
+        title={[demandTitle(bar, zone.name), BRUSH_TIP[brush.zone]].filter(Boolean).join('\n')}
         aria-disabled={locked}
         onClick={() => (locked ? undefined : tools?.select('zone', paints))}
       >

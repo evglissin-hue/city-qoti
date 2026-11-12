@@ -262,6 +262,8 @@ describe('lens toolbars', () => {
     expect(view.get('brush-why-homes').textContent).toBe('Households would come, and jobs are open.');
     expect(view.get('brush-why-shops').textContent).toBe('Quiet for now.');
     expect(view.get('brush-homes-low').getAttribute('title')).toContain('The town needs more Homes zoned.');
+    // R1B: a grain farm wants room behind its lot, so the Farmland brush says to zone it deep.
+    expect(view.get('brush-farms').getAttribute('title')).toContain('Zone it deep');
     // From Village rank the Homes card has its second density.
     expect(view.get('variant-homes-medium').textContent).toBe('Townhouses');
     await view.click('variant-homes-medium');
