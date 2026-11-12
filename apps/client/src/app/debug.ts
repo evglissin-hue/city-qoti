@@ -239,6 +239,12 @@ export function installDebugHook(getSession: () => Session | null): void {
       // C3D-1: snap skips the glide, which crawls at SwiftShader frame rates.
       if (snap) session.renderer?.rig.snap();
     },
+    /** R1D: points the camera at a tile (snapped: SwiftShader glides slowly). */
+    focusTile: (x: number, z: number, distance = 14) => {
+      const session = s();
+      session?.renderer?.focus(x + 0.5, z + 0.5, distance);
+      session?.renderer?.rig.snap();
+    },
     /** Pins the lighting to an hour of the day (null follows the clock again). */
     setHour: (hour: number | null) => s()?.renderer?.setDebugHour(hour),
     // I1 (C3E): hamlet UI helpers for tests and screenshots.
@@ -335,6 +341,8 @@ export function installDebugHook(getSession: () => Session | null): void {
     },
     lots: () => [...(s()?.mirror.lots.values() ?? [])],
     zoneAt: (x: number, z: number) => s()?.mirror.layers.zone[z * MAP_SIZE + x] ?? 0,
+    /** R1D: open water on a tile (the seat-facing and brush playtests look for a bank). */
+    waterAt: (x: number, z: number) => s()?.mirror.water(x, z) ?? 0,
     /** Interface size, 0.8 to 1.4, as the settings slider sets it. */
     setUiScale: (scale: number) => applySettings({ ...loadSettings(), uiScale: scale }),
     awayLetter: async () => (await s()?.inspect('away', s()!.seat)) ?? null,
