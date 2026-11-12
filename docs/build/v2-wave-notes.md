@@ -143,13 +143,13 @@ What drops the still-frame cache in V2, beyond V1's list:
 | A static change without a shadow render | none: every static change re-renders the shadow map at rest | V2A |
 | Rooms behind windows | eight flat layers at `ROOM_LAYER` (25 to 32); glass draws as today; Low keeps the flat glow for good (`17-presentation.md`, Quality presets) | V2A |
 | Era lamp colors | every disc and flame `0xffb366` and the material's `GLOW` | V2A |
-| V2 surfaces | ids 20 to 24 in `SURFACE` and `SURFACES` (strength 0, flat layers), drawn flat; `SURFACES[19]` is `undefined` (the noise layer's slot); the gallery leaves them out (`SURFACE_ORDER` stops below `NOISE_LAYER`) | V2C (ids, rows, generators, gallery), V2A (residents' material) |
+| V2 surfaces | ids 20 to 24 in `SURFACE` and `SURFACES` (strength 0, flat layers), drawn flat; `SURFACES[19]` is `undefined` (the noise layer's slot); the gallery leaves them out (`SURFACE_ORDER` stops below `NOISE_LAYER`). **V2C: done** (rows, generators, the gallery's fourth row; props, decor, carts and residents write them; residents draw flat until V2A's material reads them) | V2C (ids, rows, generators, gallery), V2A (residents' material) |
 | The dab kit | `brushDabs` writes nothing and returns 0; no kit calls it | V2B |
 | Meadow carpet and drifts | none: the tufts (`meadowTuft`) and the ground's painted flowers as today | V2B |
-| Wall occlusion | `groundAoFor(env)` offered, not bound in the kit material | V2C |
-| Ribbon smoke | the puffs (`layers/effects.ts`) | V2C |
-| Bubbles | built (`setBubbles` on `RenderApi`), nothing calls it | V2C |
-| Decor far levels | the fruit trees only; small props shrink away at the decor distance | V2C |
+| Wall occlusion | `groundAoFor(env)` offered, not bound in the kit material. **V2C: done** (`wallAo.ts`; anchors `#include <aomap_fragment>` and, in the vertex shader, `#include <fog_vertex>`: V2A keeps both) | V2C |
+| Ribbon smoke | the puffs (`layers/effects.ts`). **V2C: done** (one instanced draw of ribbons; reads `qLightMap` per vertex, black until V2A draws the map) | V2C |
+| Bubbles | built (`setBubbles` on `RenderApi`), nothing calls it. **V2C: done** (Moods on the Hearth View list) | V2C |
+| Decor far levels | the fruit trees only; small props shrink away at the decor distance. **V2C: done** for the dozen commonest; small props still shrink away beyond the decor distance (letting the ones with a far level stay is a one-line choice in `layers/decor.ts`'s `decorKind`, left to V2X) | V2C |
 | Preset rows (`17-presentation.md`) | light map texels in `LIGHT_MAP_TEXELS` (2, 4, 6, 8); no rooms or meadow field in `QualityPreset` yet | V2A (rooms, water reflection off on Low), V2B (meadow carpet within: none, 30, 45, 60) |
 | The grown village | `?debug&fixture=grown`, the V2.0 snapshot (version 5) | V2.0 (done); R1X regrows it |
 | Both laptops' before tables | `docs/playtests/V1.md`, Measuring the laptops (V2.0) | the owner and Kat |

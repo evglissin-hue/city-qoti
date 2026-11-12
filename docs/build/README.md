@@ -48,7 +48,7 @@ One row per cycle. A cycle is one agent session working from one brief on one br
 | V2.0 Look contracts and measuring | V2 | serial | `cycle-v2-0-look-contracts.md` | P1 | done on `cycle/v2-0-look-contracts` ([evglissin-hue/city-qoti#29](https://github.com/evglissin-hue/city-qoti/pull/29)): Measure this laptop in Settings (every preset at 11:00, Medium and High at 22:00) with `/api/valleys/:id/perf` (last three runs a seat), the light map's interface (black, the 32-light loop in charge), V2 surfaces 20 to 24 and room layers 25 to 32 (flat), the dab kit's stub, the grown village (`?debug&fixture=grown`, `npm run fixture:grown -w @qoti/client`), `v2-shots.mjs` and `v2-perf.mjs` with the `v2-before-*` set; wave notes `v2-wave-notes.md`; the owner's and Kat's before tables still to take |
 | V2A Night | V2 | parallel | `cycle-v2a-night.md` | V2.0 | brief written |
 | V2B Green | V2 | parallel | `cycle-v2b-green.md` | V2.0 | brief written |
-| V2C What V1 left half-wired | V2 | parallel | `cycle-v2c-half-wired.md` | V2.0 | brief written |
+| V2C What V1 left half-wired | V2 | parallel | `cycle-v2c-half-wired.md` | V2.0 | built on `cycle/v2c-half-wired`, PR open; screenshots `v2-v2c-*` |
 | V2X V2 integration | V2 | integration | `cycle-v2x-integration.md` | V2A, V2B, V2C | brief written |
 | R1.0 Zones contracts | R1 | serial | `cycle-r1-0-zones-contracts.md` | P1 | in progress on `cycle/r1-0-zones-contracts`; ends by creating `cycle/r1x-integration` and writes the R1A to R1X briefs |
 
