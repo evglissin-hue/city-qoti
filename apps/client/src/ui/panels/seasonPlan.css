@@ -1,0 +1,49 @@
+/* R1 (R1C): the Ledger's questions on the season card. */
+.almanac-plan {
+  margin-top: 10px;
+  padding: 8px 10px;
+  border: 1.2px dashed var(--line);
+  border-radius: 10px;
+}
+
+.almanac-plan h4 {
+  margin: 0 0 4px;
+}
+
+.plan-q {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+  margin: 6px 0;
+}
+
+.plan-q > p {
+  margin: 0;
+}
+
+.plan-apart {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+  font-size: 0.9em;
+}
+
+.plan-choices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.plan-choice {
+  padding: 2px 10px;
+  border-radius: 999px;
+  font-size: 0.9em;
+}
+
+.plan-choice.active {
+  border-color: var(--ledger, #c48a3f);
+  background: rgba(196, 138, 63, 0.18);
+  font-weight: 700;
+}
