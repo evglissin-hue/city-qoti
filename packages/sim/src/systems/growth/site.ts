@@ -3,14 +3,14 @@
 // building's reach with room under its capacity, households in reach for a shop. A business already
 // standing asks the same of its own lot, counting itself among the served, so a third baker in a
 // windmill's reach of two finds no room while the first two do (`siteDays`, retooling).
-import type { TradeDef } from '@qoti/content';
+import { content, type TradeDef } from '@qoti/content';
 import { FIELD_GOOD_FERTILITY, HABITAT_IDS, MAP_SIZE, Zone } from '../../constants';
 import type { Building, EntityId, Lot, WorldState } from '../../contracts';
 import { findById } from '../../state/entities';
 import { doorTile } from '../movement/api';
 import { FIELD_TILES_PER_WORKER } from '../production/fields';
 import { chunkOfTile, scoreAt } from '../nature/habitats';
-import { capacityOf, servedIds, withinReach } from '../specialized/api';
+import { capacityOf, withinReach } from '../specialized/api';
 import { lotMiddle } from './desirability';
 
 const S = MAP_SIZE;
@@ -22,23 +22,142 @@ export const FIELD_WINDOW = 8;
 export const SHOP_REACH = 14;
 
 /**
- * Per-pass memory of who each specialized building serves (ids in reach, by id), so a night that
- * checks many lots walks each reach once. Derived, never saved; build one per pass.
+ * Per-pass memory: each specialized building by def, its capacity and who it serves (ids in reach,
+ * by id), the household doors and each lot's household count, so a night that checks many lots walks
+ * each reach once. Derived, never saved; build one per pass and `reset()` it when a business grows
+ * or retools (who is served changes).
  */
 export class SiteCache {
   private readonly served = new Map<EntityId, EntityId[]>();
+  private readonly capacity = new Map<EntityId, number>();
   private readonly households = new Map<EntityId, number>();
+  private readonly byDef = new Map<string, Building[]>();
+  private byTrade: Map<string, Building[]> | null = null;
+  private doors: number[] | null = null;
+  private readonly doorOf = new Map<EntityId, number>();
 
   constructor(readonly state: WorldState) {}
+
+  /** Who is served may have changed (a business grew or retooled): forget it. */
+  reset(): void {
+    this.served.clear();
+    this.households.clear();
+    this.byDef.clear();
+    this.byTrade = null;
+    this.doors = null;
+  }
+
+  /**
+   * A business just grew: it joins the served lists of the specialized buildings whose reach holds
+   * its door (cheaper than a reset, which walks every reach again).
+   */
+  /** A business turned to another trade: it leaves the lists it was on and joins those it now fits. */
+  retooled(b: Building): void {
+    for (const ids of this.served.values()) {
+      const k = ids.indexOf(b.id);
+      if (k >= 0) ids.splice(k, 1);
+    }
+    this.addBusiness(b);
+  }
+
+  /** A building's door tile, once a pass. */
+  door(b: Building): number {
+    let d = this.doorOf.get(b.id);
+    if (d === undefined) {
+      d = doorTile(b);
+      this.doorOf.set(b.id, d);
+    }
+    return d;
+  }
+
+  addBusiness(b: Building): void {
+    if (!b.trade) return;
+    // The index is rebuilt when next asked; the lists already made are brought up to date here.
+    this.byTrade = null;
+    const door = this.door(b);
+    for (const [id, ids] of this.served) {
+      const sb = findById(this.state.buildings, id);
+      const enables = sb ? content.buildingById.get(sb.def)?.enables : undefined;
+      if (!sb || !enables?.includes(b.trade) || !withinReach(this.state, sb, door)) continue;
+      let k = ids.length;
+      while (k > 0 && ids[k - 1]! > b.id) k--;
+      ids.splice(k, 0, b.id);
+    }
+  }
+
+  /** Businesses by trade (and buildings by their def's tags, for a reach that names a tag). */
+  private tradeIndex(): Map<string, Building[]> {
+    if (!this.byTrade) {
+      this.byTrade = new Map();
+      for (const b of this.state.buildings) {
+        const keys = b.trade ? [b.trade, b.def] : [b.def];
+        for (const k of keys) {
+          const list = this.byTrade.get(k);
+          if (list) list.push(b);
+          else this.byTrade.set(k, [b]);
+        }
+        for (const tag of content.buildingById.get(b.def)?.tags ?? []) {
+          const list = this.byTrade.get(tag);
+          if (list) list.push(b);
+          else this.byTrade.set(tag, [b]);
+        }
+      }
+    }
+    return this.byTrade;
+  }
+
+  /** Built buildings of a def (the specialized buildings a trade's reach names). */
+  built(defId: string): readonly Building[] {
+    let list = this.byDef.get(defId);
+    if (!list) {
+      list = this.state.buildings.filter((b) => b.def === defId && b.stage === 'built');
+      this.byDef.set(defId, list);
+    }
+    return list;
+  }
+
+  /** How many `sb` may serve tonight. */
+  capacityOf(sb: Building): number {
+    let n = this.capacity.get(sb.id);
+    if (n === undefined) {
+      n = capacityOf(this.state, sb);
+      this.capacity.set(sb.id, n);
+    }
+    return n;
+  }
 
   /** Businesses of the trades `sb` enables whose door lies in its reach, sorted by id. */
   servedBy(sb: Building): EntityId[] {
     let ids = this.served.get(sb.id);
     if (!ids) {
-      ids = servedIds(this.state, sb);
+      // As servedIds (specialized/api), from the index rather than every building.
+      const enables = content.buildingById.get(sb.def)?.enables ?? [];
+      const seen = new Set<EntityId>();
+      ids = [];
+      const index = this.tradeIndex();
+      for (const t of enables) {
+        for (const o of index.get(t) ?? []) {
+          if (o.id === sb.id || seen.has(o.id)) continue;
+          seen.add(o.id);
+          if (withinReach(this.state, sb, this.door(o))) ids.push(o.id);
+        }
+      }
+      ids.sort((a, b) => a - b);
       this.served.set(sb.id, ids);
     }
     return ids;
+  }
+
+  /** Household doors (tile indexes), once a pass. */
+  homeDoors(): readonly number[] {
+    if (!this.doors) {
+      this.doors = [];
+      for (const h of this.state.households) {
+        const home = findById(this.state.buildings, h.homeId);
+        if (home) this.doors.push(doorTile(home));
+      }
+    }
+    return this.doors;
   }
 
   /** Household doors within SHOP_REACH of the lot's middle (the shop's custom; footfall from R2). */
@@ -47,10 +166,7 @@ export class SiteCache {
     if (n === undefined) {
       const [x, z] = lotMiddle(lot);
       n = 0;
-      for (const h of this.state.households) {
-        const home = findById(this.state.buildings, h.homeId);
-        if (!home) continue;
-        const door = doorTile(home);
+      for (const door of this.homeDoors()) {
         const dx = (door % S) - x;
         const dz = Math.floor(door / S) - z;
         if (dx * dx + dz * dz <= SHOP_REACH * SHOP_REACH) n++;
@@ -69,10 +185,9 @@ export class SiteCache {
  */
 export function reachWithRoom(cache: SiteCache, defId: string, tile: number, self: EntityId = 0): boolean {
   const state = cache.state;
-  for (const sb of state.buildings) {
-    if (sb.def !== defId || sb.stage !== 'built') continue;
+  for (const sb of cache.built(defId)) {
     if (!withinReach(state, sb, tile)) continue;
-    const cap = capacityOf(state, sb);
+    const cap = cache.capacityOf(sb);
     const ids = cache.servedBy(sb);
     if (self) {
       const k = ids.indexOf(self);
@@ -135,9 +250,6 @@ export function siteFits(state: WorldState, lot: Lot, t: TradeDef, self: EntityI
 
 /** True when some built specialized building of `defId` has room for one more business anywhere. */
 export function anyRoom(cache: SiteCache, defId: string): boolean {
-  for (const sb of cache.state.buildings) {
-    if (sb.def !== defId || sb.stage !== 'built') continue;
-    if (cache.servedBy(sb).length < capacityOf(cache.state, sb)) return true;
-  }
+  for (const sb of cache.built(defId)) if (cache.servedBy(sb).length < cache.capacityOf(sb)) return true;
   return false;
 }

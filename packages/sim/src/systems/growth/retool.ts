@@ -110,6 +110,7 @@ export function retoolPass(
     const next = alternatives(state, b, lot, tradesFor(zoneId), n, cache).find((a) => a.site);
     if (!next) continue;
     retool(state, ctx, b, next.t);
+    cache.retooled(b);
     n0++;
   }
   if (surplus) {
@@ -120,6 +121,7 @@ export function retoolPass(
     );
     if (next) {
       retool(state, ctx, b, next.t);
+      cache.retooled(b);
       n0++;
     }
   }

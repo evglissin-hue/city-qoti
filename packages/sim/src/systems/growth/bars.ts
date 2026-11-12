@@ -20,7 +20,6 @@ import {
   NEED_FULL,
   needOf,
   supplyOf,
-  tradeTerms,
   type TownNeeds,
 } from './trades';
 
@@ -45,6 +44,10 @@ export interface BarInputs {
   /** Trades of the Workshops zone the valley allows, and of Farmland. */
   crafts: readonly TradeDef[];
   farms: readonly TradeDef[];
+  /** Trades with a business going up (one answer to a need at a time). */
+  goingUp: ReadonlySet<string>;
+  /** Free lots with a road at the frontage that porters reach (freeLots, read once a night). */
+  free: readonly Lot[];
 }
 
 /** A Workshops trade's pull on the bar, permille: need x supply x keeper where some site could take it. */
@@ -88,9 +91,9 @@ interface Bar {
   zoned: boolean;
 }
 
-function homesBar(state: WorldState, x: BarInputs): Bar {
+function homesBar(_state: WorldState, x: BarInputs): Bar {
   const value = Math.min(100, x.homes * BAR_A_HOME);
-  const waiting = value > 0 && freeLots(state, HOME_ZONES, x.services).length > 0;
+  const waiting = value > 0 && x.free.some((l) => !l.buildingId && HOME_ZONES.includes(l.zone));
   return { value, reasons: value > 0 ? [{ code: 'newcomers', value: x.homes }] : [], waiting, zoned: true };
 }
 
@@ -114,7 +117,7 @@ function shopsBar(state: WorldState, x: BarInputs): Bar {
   if (value > 0 && !zoned) reasons.push({ code: 'marketStall' });
   let waiting = false;
   if (value > 0 && zoned) {
-    const free = freeLots(state, [Zone.shops], x.services);
+    const free = x.free.filter((l) => !l.buildingId && l.zone === Zone.shops);
     waiting = crowded ? free.length > 0 : free.some((l) => shopReach(l, x.doors) >= SHOP_HOUSEHOLDS);
   }
   return { value, reasons, waiting, zoned };
@@ -124,7 +127,7 @@ function workshopsBar(state: WorldState, x: BarInputs): Bar {
   const pulls: [TradeDef, number][] = [];
   let sum = 0;
   for (const t of x.crafts) {
-    if (siteGoingUp(state, t.id)) continue;
+    if (x.goingUp.has(t.id)) continue;
     const p = craftPull(state, t, x.needs, x.cache);
     if (p <= 0) continue;
     pulls.push([t, p]);
@@ -142,14 +145,16 @@ function workshopsBar(state: WorldState, x: BarInputs): Bar {
   let waiting = false;
   if (value > 0) {
     const want = new Set(pulls.map(([t]) => t.id));
-    waiting = freeLots(state, [Zone.crafts], x.services).some((lot) =>
-      x.crafts.some((t) => want.has(t.id) && tradeTerms(state, lot, t, x.needs, x.cache).score > 0),
+    // A wanted trade already pulls (need x supply x keeper above 0): its site decides.
+    const wanted = x.crafts.filter((t) => want.has(t.id));
+    waiting = x.free.some(
+      (lot) => !lot.buildingId && lot.zone === Zone.crafts && wanted.some((t) => siteMeets(x.cache, lot, t)),
     );
   }
   return { value, reasons, waiting, zoned: true };
 }
 
-function farmlandBar(state: WorldState, x: BarInputs): Bar {
+function farmlandBar(_state: WorldState, x: BarInputs): Bar {
   const n = x.needs;
   const reasons: [DemandReason, number][] = [];
   const cover = foodCover(n);
@@ -173,7 +178,9 @@ function farmlandBar(state: WorldState, x: BarInputs): Bar {
   // A free farm lot where some farm trade's site wants are met.
   const waiting =
     value > 0 &&
-    freeLots(state, [Zone.farms], x.services).some((lot) => x.farms.some((t) => siteMeets(x.cache, lot, t)));
+    x.free.some(
+      (l) => !l.buildingId && l.zone === Zone.farms && x.farms.some((t) => siteMeets(x.cache, l, t)),
+    );
   return {
     value: Math.max(value, reasons.length > 0 ? 1 : 0),
     reasons: reasons.slice(0, 2).map(([r]) => r),

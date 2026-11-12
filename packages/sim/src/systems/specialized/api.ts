@@ -18,16 +18,27 @@ const HOP = 3;
 /** Reach when a specialized building's def names none but it enables a trade or stores goods. */
 const DEFAULT_REACH = 24;
 
-interface DistEntry {
+/**
+ * A building's reach, walked once: steps along roads (-1 where none) over the box of tiles it could
+ * reach, and the road tiles of that box as they were, so a new building elsewhere (which bumps the
+ * network version) does not make it walk again unless the roads in its box changed.
+ */
+interface ReachGrid {
   version: number;
   def: string;
   x: number;
   z: number;
   rot: number;
-  dist: Map<number, number>;
+  x0: number;
+  z0: number;
+  w: number;
+  h: number;
+  dist: Int16Array;
+  roads: Uint8Array;
+  map: Map<number, number> | null;
 }
 
-const cache = new WeakMap<WorldState, Map<EntityId, DistEntry>>();
+const cache = new WeakMap<WorldState, Map<EntityId, ReachGrid>>();
 
 function reachOf(b: Building): number {
   const def = content.buildingById.get(b.def);
@@ -36,91 +47,134 @@ function reachOf(b: Building): number {
   return def.specialized && (def.enables?.length || def.stores?.length) ? DEFAULT_REACH : 0;
 }
 
-/**
- * Walking distance along road tiles (tile index to steps) from a specialized building's door, for
- * every road tile within its reach. Cached per building on the network version.
- */
-export function reachDistances(state: WorldState, b: Building): ReadonlyMap<number, number> {
+/** True when the box's road tiles are as the grid saw them. */
+function sameRoads(state: WorldState, g: ReachGrid): boolean {
+  const road = state.map.road;
+  for (let z = 0; z < g.h; z++) {
+    const row = (g.z0 + z) * S + g.x0;
+    const at = z * g.w;
+    for (let x = 0; x < g.w; x++) if ((road[row + x]! > 0 ? 1 : 0) !== g.roads[at + x]) return false;
+  }
+  return true;
+}
+
+/** The building's reach grid, walked again only when it moved or the roads in its box changed. */
+function reachGrid(state: WorldState, b: Building): ReachGrid {
   let perState = cache.get(state);
   if (!perState) {
     perState = new Map();
     cache.set(state, perState);
   }
   const hit = perState.get(b.id);
-  if (
-    hit &&
-    hit.version === state.networkVersion &&
-    hit.def === b.def &&
-    hit.x === b.x &&
-    hit.z === b.z &&
-    hit.rot === b.rot
-  ) {
-    return hit.dist;
+  if (hit && hit.def === b.def && hit.x === b.x && hit.z === b.z && hit.rot === b.rot) {
+    if (hit.version === state.networkVersion) return hit;
+    if (sameRoads(state, hit)) {
+      hit.version = state.networkVersion;
+      return hit;
+    }
   }
-  const dist = new Map<number, number>();
   const reach = reachOf(b);
+  const door = doorTile(b);
+  const dx0 = door % S;
+  const dz0 = Math.floor(door / S);
+  const span = reach + HOP;
+  const x0 = Math.max(0, dx0 - span);
+  const z0 = Math.max(0, dz0 - span);
+  const w = Math.min(S, dx0 + span + 1) - x0;
+  const h = Math.min(S, dz0 + span + 1) - z0;
+  const dist = new Int16Array(w * h).fill(-1);
+  const roads = new Uint8Array(w * h);
+  const road = state.map.road;
+  for (let z = 0; z < h; z++)
+    for (let x = 0; x < w; x++) roads[z * w + x] = road[(z0 + z) * S + x0 + x]! > 0 ? 1 : 0;
   if (reach > 0) {
-    const door = doorTile(b);
-    const dx0 = door % S;
-    const dz0 = Math.floor(door / S);
     const buckets: number[][] = [];
     for (let k = 0; k <= reach; k++) buckets.push([]);
     for (let dz = -HOP; dz <= HOP; dz++) {
       for (let dx = -HOP + Math.abs(dz); dx <= HOP - Math.abs(dz); dx++) {
-        const x = dx0 + dx;
-        const z = dz0 + dz;
-        if (x < 0 || z < 0 || x >= S || z >= S) continue;
-        const i = z * S + x;
+        const x = dx0 + dx - x0;
+        const z = dz0 + dz - z0;
+        if (x < 0 || z < 0 || x >= w || z >= h) continue;
+        const i = z * w + x;
         const gap = Math.abs(dx) + Math.abs(dz);
-        if (!state.map.road[i] || gap > reach) continue;
-        const old = dist.get(i);
-        if (old === undefined || gap < old) {
-          dist.set(i, gap);
+        if (!roads[i] || gap > reach) continue;
+        if (dist[i]! < 0 || gap < dist[i]!) {
+          dist[i] = gap;
           buckets[gap]!.push(i);
         }
       }
     }
-    for (let d = 0; d <= reach; d++) {
+    for (let d = 0; d < reach; d++) {
       const bucket = buckets[d]!;
-      for (let h = 0; h < bucket.length; h++) {
-        const i = bucket[h]!;
-        if (dist.get(i) !== d || d >= reach) continue;
-        const x = i % S;
-        const z = (i - x) / S;
-        for (let k = 0; k < 4; k++) {
-          const nx = x + (k === 0 ? 1 : k === 1 ? -1 : 0);
-          const nz = z + (k === 2 ? 1 : k === 3 ? -1 : 0);
-          if (nx < 0 || nz < 0 || nx >= S || nz >= S) continue;
-          const n = nz * S + nx;
-          if (!state.map.road[n]) continue;
-          const old = dist.get(n);
-          if (old !== undefined && old <= d + 1) continue;
-          dist.set(n, d + 1);
-          buckets[d + 1]!.push(n);
+      for (let k = 0; k < bucket.length; k++) {
+        const i = bucket[k]!;
+        if (dist[i] !== d) continue;
+        const x = i % w;
+        const z = (i - x) / w;
+        for (let n = 0; n < 4; n++) {
+          const nx = x + (n === 0 ? 1 : n === 1 ? -1 : 0);
+          const nz = z + (n === 2 ? 1 : n === 3 ? -1 : 0);
+          if (nx < 0 || nz < 0 || nx >= w || nz >= h) continue;
+          const j = nz * w + nx;
+          if (!roads[j] || (dist[j]! >= 0 && dist[j]! <= d + 1)) continue;
+          dist[j] = d + 1;
+          buckets[d + 1]!.push(j);
         }
       }
     }
   }
-  perState.set(b.id, { version: state.networkVersion, def: b.def, x: b.x, z: b.z, rot: b.rot, dist });
-  return dist;
+  const g: ReachGrid = {
+    version: state.networkVersion,
+    def: b.def,
+    x: b.x,
+    z: b.z,
+    rot: b.rot,
+    x0,
+    z0,
+    w,
+    h,
+    dist,
+    roads,
+    map: null,
+  };
+  perState.set(b.id, g);
+  return g;
+}
+
+/**
+ * Walking distance along road tiles (tile index to steps) from a specialized building's door, for
+ * every road tile within its reach (R1C's ring draws these).
+ */
+export function reachDistances(state: WorldState, b: Building): ReadonlyMap<number, number> {
+  const g = reachGrid(state, b);
+  if (!g.map) {
+    g.map = new Map();
+    for (let i = 0; i < g.dist.length; i++) {
+      if (g.dist[i]! < 0) continue;
+      const x = i % g.w;
+      g.map.set((g.z0 + (i - x) / g.w) * S + g.x0 + x, g.dist[i]!);
+    }
+  }
+  return g.map;
 }
 
 /** True when a tile (index) lies within the specialized building's walking reach of its door. */
 export function withinReach(state: WorldState, specialized: Building, tile: number): boolean {
   const reach = reachOf(specialized);
   if (reach <= 0 || tile < 0 || tile >= S * S) return false;
-  const dist = reachDistances(state, specialized);
-  const direct = dist.get(tile);
-  if (direct !== undefined) return true;
+  // Walking along roads is never shorter than the Manhattan gap from the door, give or take a hop.
+  const door = doorTile(specialized);
   const tx = tile % S;
   const tz = Math.floor(tile / S);
+  if (Math.abs((door % S) - tx) + Math.abs(Math.floor(door / S) - tz) > reach + 2 * HOP) return false;
+  const g = reachGrid(state, specialized);
   for (let dz = -HOP; dz <= HOP; dz++) {
     for (let dx = -HOP + Math.abs(dz); dx <= HOP - Math.abs(dz); dx++) {
-      const x = tx + dx;
-      const z = tz + dz;
-      if (x < 0 || z < 0 || x >= S || z >= S) continue;
-      const d = dist.get(z * S + x);
-      if (d !== undefined && d + Math.abs(dx) + Math.abs(dz) <= reach) return true;
+      const x = tx + dx - g.x0;
+      const z = tz + dz - g.z0;
+      if (x < 0 || z < 0 || x >= g.w || z >= g.h) continue;
+      const d = g.dist[z * g.w + x]!;
+      if (d >= 0 && d + Math.abs(dx) + Math.abs(dz) <= reach) return true;
     }
   }
   return false;

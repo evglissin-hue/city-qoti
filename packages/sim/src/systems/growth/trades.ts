@@ -90,9 +90,9 @@ export interface TownNeeds {
   famUse: number[];
   famStock: number[];
   famMade: number[];
-  /** Per family: flavors the valley's unlocked tiers want on offer, and how many are. */
+  /** Per family: flavors the valley's unlocked tiers want on offer, and how many are (read when asked). */
   variety: number[];
-  onOffer: number[];
+  onOffer: (family: number) => number;
   /** Units the carrier brought of each good over CARRIER_NEED_DAYS days. */
   brought: number[];
   /** Trade id to the resident keen to keep it (lowest id), for trades someone wants. */
@@ -155,17 +155,26 @@ function varietyWanted(state: WorldState, family: number): number {
 }
 
 /** Trade id to the keen resident who keeps nothing yet: a fitting trait or a finished apprentice. */
+/** Trait id to the trades it makes a resident keen on, in content order. */
+const TRADES_BY_TRAIT: ReadonlyMap<string, readonly string[]> = (() => {
+  const out = new Map<string, string[]>();
+  for (const t of content.trades) for (const k of t.keepers ?? []) out.set(k, [...(out.get(k) ?? []), t.id]);
+  return out;
+})();
+
 function keenResidents(state: WorldState, taken: ReadonlySet<EntityId>): Map<string, EntityId> {
   const out = new Map<string, EntityId>();
   const today = dayIndex(state.tick);
+  const all = content.trades.length;
   for (const r of state.residents) {
+    if (out.size === all) break;
     if (!isWorkingAge(r) || taken.has(r.id)) continue;
-    for (const t of content.trades) {
-      if (out.has(t.id)) continue;
-      const trait = t.keepers?.some((k) => r.traits.includes(k)) ?? false;
-      const learned = r.apprentice?.trade === t.id && r.apprentice.untilDay <= today;
-      if (trait || learned) out.set(t.id, r.id);
-    }
+    // Residents are in id order, so the first keen one for each trade is the lowest id.
+    for (const k of r.traits)
+      for (const id of TRADES_BY_TRAIT.get(k) ?? []) if (!out.has(id)) out.set(id, r.id);
+    const a = r.apprentice;
+    if (a && a.untilDay <= today && content.tradeById.has(a.trade) && !out.has(a.trade))
+      out.set(a.trade, r.id);
   }
   return out;
 }
@@ -177,6 +186,28 @@ export function keepersTaken(state: WorldState): Set<EntityId> {
   return out;
 }
 
+/** Flavors on offer by family, read from the balances (R1A's flavorsOnOffer) once each, when asked. */
+function lazyOnOffer(state: WorldState): (family: number) => number {
+  const seen: (number | undefined)[] = [];
+  return (f) => (seen[f] ??= flavorsOnOffer(state, f));
+}
+
+/** Makers per good (built or going up) and whether a built one makes it, written into `n`. */
+export function countMakers(state: WorldState, n: Pick<TownNeeds, 'makers' | 'madeHere'>): void {
+  n.makers.fill(0);
+  n.madeHere.fill(false);
+  for (const b of state.buildings) {
+    const m = methodOf(b);
+    if (!m) continue;
+    for (const [id] of m.outputs) {
+      const g = content.goodIndex.get(id);
+      if (g === undefined) continue;
+      n.makers[g]!++;
+      if (b.stage === 'built') n.madeHere[g] = true;
+    }
+  }
+}
+
 /** Tonight's needs. `shopNeed` comes from the growth pass (outlets and households). */
 export function townNeeds(state: WorldState, shopNeed = 0): TownNeeds {
   const n = content.goods.length;
@@ -184,16 +215,7 @@ export function townNeeds(state: WorldState, shopNeed = 0): TownNeeds {
   const want = wants(state).map((w) => Math.ceil(w));
   const makers = new Array<number>(n).fill(0);
   const madeHere = new Array<boolean>(n).fill(false);
-  for (const b of state.buildings) {
-    const m = methodOf(b);
-    if (!m) continue;
-    for (const [id] of m.outputs) {
-      const g = content.goodIndex.get(id);
-      if (g === undefined) continue;
-      makers[g]!++;
-      if (b.stage === 'built') madeHere[g] = true;
-    }
-  }
+  countMakers(state, { makers, madeHere });
   const made = state.economy.yesterday.produced.slice();
   const famUse = GOOD_FAMILIES.map((_, f) => tierUse(state, f));
   const famStock = GOOD_FAMILIES.map((_, f) => {
@@ -219,7 +241,7 @@ export function townNeeds(state: WorldState, shopNeed = 0): TownNeeds {
     famStock,
     famMade,
     variety: GOOD_FAMILIES.map((_, f) => varietyWanted(state, f)),
-    onOffer: GOOD_FAMILIES.map((_, f) => flavorsOnOffer(state, f)),
+    onOffer: lazyOnOffer(state),
     brought,
     keen: keenResidents(state, keepersTaken(state)),
     shopNeed,
@@ -261,7 +283,7 @@ export function needOf(
         raise(Math.floor(((reserve * 100 - cover) * NEED_FULL) / (reserve * 100)), 'cover');
     }
     // A flavor an unlocked tier still lacks.
-    if (n.onOffer[f]! < n.variety[f]! && n.stock[g] === 0) raise(VARIETY_NEED, 'variety');
+    if (n.stock[g] === 0 && n.variety[f]! > 0 && n.onOffer(f) < n.variety[f]!) raise(VARIETY_NEED, 'variety');
   }
   // What the carrier had to bring: a third of the use a day is full need.
   if (n.brought[g]! > 0) {
