@@ -54,6 +54,14 @@ One row per cycle. A cycle is one agent session working from one brief on one br
 | R1E Art for trades | R1 | parallel | `cycle-r1e-trade-art.md` | R1.0, V2.0 | PR into `cycle/r1x-integration`; screenshots `r1e-*` |
 | R1F The bench | R1 | parallel | `cycle-r1f-bench.md` | R1.0 | done on `cycle/r1f-bench`, PR into `cycle/r1x-integration` (see As built in the brief) |
 | R1X R1 integration and tuning | R1 | integration | `cycle-r1x-integration.md` | R1A to R1F | waiting; merges the wave on `cycle/r1x-integration`, tags `chains-final`, one PR into `main` |
+| R2.0 Evenings contracts | R2 | serial | `cycle-r2-0-evenings-contracts.md` | R1X | waiting on R1X; creates `cycle/r2x-integration`, writes the final R2 briefs and wave notes |
+| R2A Places and the round | R2 | parallel | `cycle-r2a-places-round.md` | R2.0 | waiting |
+| R2B Evening trade | R2 | parallel | `cycle-r2b-evening-trade.md` | R2.0 | waiting |
+| R2C Gaps and the evening's book | R2 | parallel | `cycle-r2c-gaps-book.md` | R2.0 | waiting |
+| R2D The interface | R2 | parallel | `cycle-r2d-interface.md` | R2.0 | waiting |
+| R2E The bench | R2 | parallel | `cycle-r2e-bench.md` | R2.0 | waiting |
+| R2F Lots for streets | R2 | parallel | `cycle-r2f-street-lots.md` | R2.0 | waiting |
+| R2X R2 integration and tuning | R2 | integration | `cycle-r2x-integration.md` | R2A to R2F | waiting; merges the wave on `cycle/r2x-integration`, one PR into `main` |
 
 Status values: waiting (dependencies not merged), ready, in progress (add the session link), PR open (add the PR link), merged.
 
