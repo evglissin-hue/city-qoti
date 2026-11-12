@@ -40,10 +40,12 @@ Outside these paths: only small, necessary edits (registry lines, exports), list
 
 | Preset | Draws (moving, worst scene) | Triangles (moving, worst scene) | Night GPU ms, Kat's laptop |
 |---|---|---|---|
-| Low | TBD (V2X fills from the laptops' after tables) | TBD | TBD |
-| Medium | TBD | TBD | TBD |
-| High | TBD | TBD | TBD |
-| Ultra | TBD | TBD | TBD |
+| Low | 133 of 300 (the village of 130) | 0.36 M of 1.5 M (the grown village) | TBD (the laptops' after tables) |
+| Medium | 214 of 300 (the grown village) | 0.80 M of 3 M (the grown village) | TBD |
+| High | 225 of 450 (the village of 130) | 4.03 M of 6 M (the town) | TBD |
+| Ultra | 374 of 450 (the grown village) | 5.41 M of 12 M (the grown village) | TBD |
+
+Draws and triangles are V2X's final software run (`v2-perf.mjs`, sim running, `docs/spec/22-quality.md`, As built V2X): real counts, so they hold on the laptops. The GPU column waits on Measure this laptop.
 
 ## Tasks
 
