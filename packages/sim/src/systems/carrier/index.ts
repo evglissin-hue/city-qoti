@@ -818,8 +818,11 @@ function visitLines(state: WorldState, day: Day, closed: boolean): string[] {
     const where = boat ? 'at the dock' : 'at the gate';
     lines.push(`${who} left ${goodsText(day.bought)} ${where} and took ${coinsText(paid)} for it${tab}.`);
   }
-  if (day.earned > 0)
-    lines.push(`It went off with ${goodsText(day.sold)}, leaving ${coinsText(day.earned)} behind.`);
+  if (day.earned > 0) {
+    const who =
+      paid > 0 ? 'It' : day.boat?.traded && !day.cart.traded ? 'The boat from Millhaven' : 'The carrier';
+    lines.push(`${who} went off with ${goodsText(day.sold)}, leaving ${coinsText(day.earned)} behind.`);
+  }
   if (day.repaid > 0) lines.push(`${coinsText(day.repaid)} went toward the County tab.`);
   if (day.shortOfCredit)
     lines.push(
