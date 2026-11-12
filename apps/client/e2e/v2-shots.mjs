@@ -4,7 +4,8 @@
 // (`npm run dev`; QOTI_CLIENT_PORT for another port):
 //   QOTI_CHROMIUM=/opt/pw-browsers/chromium node apps/client/e2e/v2-shots.mjs before [scene ...]
 // The stage is `before` (V2.0), `after` (V2X) or a track's name; scenes are hamlet, village, town,
-// winter and grown (the village the bench's autoplayer grew, ?debug&fixture=grown; all by default).
+// winter and grown (the village the bench's autoplayer grew, ?debug&fixture=grown), and (V2X)
+// grownautumn and grownwinter, the grown village on autumn's fifth day and in winter (all by default).
 // Saves docs/build/screenshots/v2-<stage>-<scene>-<shot>.png and prints draw calls, triangles,
 // frame ms and GPU ms for each shot, then the lot as a Markdown table.
 // Each shot waits until the scene has finished streaming in (the triangle count holds within 2%
@@ -84,6 +85,29 @@ const SCENES = {
     shots: [
       { name: 'wide', hour: 11, dist: 110 },
       { name: 'golden', hour: 18, dist: 50 },
+      { name: 'night', hour: 22.3, dist: 50 },
+      { name: 'street', hour: 15, dist: 22, street: true, tilt: -0.22 },
+      // V2X: night at street zoom, where the light map, the rooms and the folk's rim show most.
+      { name: 'nightstreet', hour: 22.3, dist: 22, street: true, tilt: -0.22 },
+    ],
+  },
+  // V2X: the grown village in autumn (dabs thinning from day 4) and in winter (bare woods, snow).
+  grownautumn: {
+    fixture: 'grown',
+    look: 'season=autumn&day=5&weather=clear',
+    setup: 'grown',
+    shots: [
+      { name: 'wide', hour: 11, dist: 110 },
+      { name: 'golden', hour: 18, dist: 50 },
+      { name: 'street', hour: 15, dist: 22, street: true, tilt: -0.22 },
+    ],
+  },
+  grownwinter: {
+    fixture: 'grown',
+    look: 'season=winter&day=3&weather=clear',
+    setup: 'grown',
+    shots: [
+      { name: 'wide', hour: 11, dist: 110 },
       { name: 'night', hour: 22.3, dist: 50 },
       { name: 'street', hour: 15, dist: 22, street: true, tilt: -0.22 },
     ],

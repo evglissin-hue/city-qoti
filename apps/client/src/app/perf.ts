@@ -8,6 +8,7 @@
 // V2.0: Settings, Measure this laptop (`measureLaptop` below, `ui/panels/Measure.tsx`) runs it on
 // every preset in the valley on screen, then in the village and town showcases, and puts the valley
 // back as it was.
+import { lastPatternMs } from '@qoti/art';
 import type { PerfMachine } from '@qoti/protocol';
 import { serialize, SIM_VERSION } from '@qoti/sim';
 import { WebGLRenderTarget } from 'three';
@@ -421,11 +422,20 @@ export function perfMachine(renderer: Renderer | null): PerfMachine {
   };
 }
 
+/**
+ * V2X: the pattern array's time at load on this laptop (`lastPatternMs`, budget 150 ms with V2's
+ * surfaces and rooms), so the copied table carries it; nothing when this page made none.
+ */
+function patternLine(): string {
+  const ms = lastPatternMs();
+  return ms > 0 ? `, pattern array ${ms.toFixed(0)} ms at load` : '';
+}
+
 /** The table as the panel copies it: a line on the machine, the browser, then the Markdown table. */
 export function measureMarkdown(table: string, machine: PerfMachine): string {
   const [w, h] = machine.screen;
   return [
-    `Measure this laptop: ${machine.gpu ?? 'GPU not named by the browser'}, screen ${w} x ${h} at ${machine.pixelRatio}x, build ${machine.build}, light at ${hourText(MEASURE_HOUR)} (day rows) and ${hourText(MEASURE_NIGHT_HOUR)} (night rows, the Hour column).`,
+    `Measure this laptop: ${machine.gpu ?? 'GPU not named by the browser'}, screen ${w} x ${h} at ${machine.pixelRatio}x, build ${machine.build}, light at ${hourText(MEASURE_HOUR)} (day rows) and ${hourText(MEASURE_NIGHT_HOUR)} (night rows, the Hour column)${patternLine()}.`,
     `Browser: ${machine.browser}`,
     '',
     table,

@@ -2,6 +2,7 @@
 import { signal } from '@preact/signals';
 import { h } from 'preact';
 import { act } from 'preact/test-utils';
+import { createPatternArray } from '@qoti/art';
 import { afterEach, describe, expect, it } from 'vitest';
 import {
   MEASURE_HOUR,
@@ -89,6 +90,11 @@ describe('Measure this laptop', () => {
     expect(lines[0]).toContain('1440 x 900 at 2x');
     expect(lines[0]).toContain('build abc-dev');
     expect(lines[0]).toContain('11:00 (day rows) and 22:00 (night rows');
+    // V2X: the pattern array's load time rides along once this page has made one.
+    createPatternArray();
+    expect(measureMarkdown(perfTable(rows), machine).split('\n')[0]).toMatch(
+      /pattern array \d+ ms at load\.$/,
+    );
     expect(text).toContain('| Scene | Preset | Hour | Moving frame ms (avg / p95) |');
     expect(lines.filter((l) => l.startsWith('| village |'))).toHaveLength(6);
     expect(lines.filter((l) => l.startsWith('| village | medium | 22:00 |'))).toHaveLength(1);
