@@ -19,6 +19,7 @@ import { townReachesDoor } from '../state/reach';
 import { rankAtLeast } from '../state/village';
 import { familyIndex, methodOf } from '../state/zones';
 import { isStandard } from '../state/hamlet';
+import { carrierCovers, passClosed } from '../systems/carrier/api';
 import { hourOf, isBuildTime } from '../systems/economy/time';
 import { currentPlan, isFestivalDay } from '../systems/festivals/api';
 import { achievable } from '../systems/hearth/wishes/achievable';
@@ -278,6 +279,7 @@ export class HealthWatch {
   private checkBusinesses(state: WorldState, out: HealthIssue[]): void {
     const now = state.tick;
     const season = seasonNow(state).season;
+    const closed = passClosed(state);
     const live = new Set<number>();
     for (const b of state.buildings) {
       const rt = b.rt;
@@ -285,13 +287,14 @@ export class HealthWatch {
       const method = methodOf(b);
       if (!method || method.inputs.length === 0) continue;
       const short = method.inputs.filter(([g, q]) => (rt.input[content.goodIndex.get(g) ?? -1] ?? 0) < q);
-      // Out of season for every maker is the year's shape, not a dead end.
-      // R1 stand-in (R1A): nothing exposes the closed pass yet (`BalancesView.passClosed` is a flat
-      // false); when R1A lands one, skip the check while the road is closed.
-      const gap = short.find(([g]) => {
-        const gi = content.goodIndex.get(g);
-        return gi !== undefined && !quietSeasons(g).has(season) && carrierMayBuy(state, gi);
-      });
+      // Out of season for every maker is the year's shape, not a dead end; so is a closed pass
+      // (nothing comes over it, by design). The rule that counts is the family of what it makes.
+      const gap = closed
+        ? undefined
+        : short.find(([g]) => {
+            const gi = content.goodIndex.get(g);
+            return gi !== undefined && !quietSeasons(g).has(season) && carrierCovers(state, b, gi);
+          });
       if (!gap) continue;
       live.add(b.id);
       const since = this.shortSince.get(b.id) ?? now;
