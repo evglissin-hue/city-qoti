@@ -60,7 +60,8 @@ describe('standard valley', () => {
     const store = a.buildings.find((x) => x.def === 'storehouse')!.rt!.store;
     expect(store[content.goodIndex.get('timber')!]).toBe(60);
     const granary = a.buildings.find((x) => x.def === 'granary')!.rt!.store;
-    expect(granary[content.goodIndex.get('grain')!]).toBe(20);
+    // R1X: the founders' larder (grain 24, vegetables 20, fish 12).
+    expect(granary[content.goodIndex.get('grain')!]).toBe(24);
     expect(a.buildings.every((x) => x.stage === 'built')).toBe(true);
   });
 

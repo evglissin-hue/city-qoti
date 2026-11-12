@@ -154,12 +154,13 @@ describe('one status for a business (R1X)', () => {
 describe('the profit line (R1X)', () => {
   it('says what a business takes and pays a work day, and stays quiet without figures', async () => {
     const { session, baker, farm } = withBusinesses();
-    expect(profitLine({ profit: { takes: 1240, pays: 710 } })).toBe('Takes 12.4, pays 7.1 a work day');
+    expect(profitLine({ profit: { takes: 1240, pays: 710 } })).toBe('Takes 12, pays 7 a work day');
+    expect(profitLine({ profit: { takes: 11034, pays: 2000 } })).toBe('Takes 110, pays 20 a work day');
     expect(profitLine({})).toBeNull();
     session.mirror.businesses.set(baker.id, { ...baker, profit: { takes: 1240, pays: 710 } });
     session.mirror.villageRevision.value++;
     view = await mount(h(BusinessesPanel, { session }));
-    expect(view.get(`business-profit-${baker.id}`).textContent).toBe('Takes 12.4, pays 7.1 a work day');
+    expect(view.get(`business-profit-${baker.id}`).textContent).toBe('Takes 12, pays 7 a work day');
     expect(view.find(`business-profit-${farm.id}`)).toBeNull();
   });
 });

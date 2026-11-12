@@ -4,8 +4,7 @@
 import { content } from '@qoti/content';
 import type { BusinessView } from '@qoti/sim';
 import type { Session } from '../../app/session';
-import { buildingName } from '../format';
-import { priceText } from '../village';
+import { buildingName, coinCount } from '../format';
 import { Glyph } from '../icons';
 import './businesses.css';
 import { Empty, Frame } from './parts';
@@ -56,10 +55,14 @@ export function handsText(b: Pick<BusinessView, 'hands' | 'crew'>): string {
   return `${b.hands} of ${b.crew} ${b.crew === 1 ? 'hand' : 'hands'}`;
 }
 
-/** "Takes 12.4, pays 7.1 a work day": a business's takings and outgoings, or null while it has none. */
+/**
+ * "Takes 12, pays 7 a work day": a business's takings and outgoings in whole coins (the inspector
+ * has the exact keep), or null while it has none. R1X: whole coins, so a row never reads "110.34"
+ * beside "20".
+ */
 export function profitLine(b: Pick<BusinessView, 'profit'>): string | null {
   if (!b.profit || (b.profit.takes === 0 && b.profit.pays === 0)) return null;
-  return `Takes ${priceText(b.profit.takes)}, pays ${priceText(b.profit.pays)} a work day`;
+  return `Takes ${coinCount(b.profit.takes)}, pays ${coinCount(b.profit.pays)} a work day`;
 }
 
 /** Statuses that are not good news, for the inspector's warning ink. */
