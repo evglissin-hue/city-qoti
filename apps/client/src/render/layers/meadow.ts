@@ -308,7 +308,9 @@ void qBlade(out vec3 pos, out vec3 nrm, out vec3 col, out vec3 glow, out vec2 xz
   xz = root;
   vec2 grad;
   float gy = qTileHeight(uv, grad);
-  pos = vec3(root.x, gy - 0.03, root.y);
+  // The foot sinks just enough to hide the four-triangle height's error on a slope (a short lawn
+  // blade buried 0.03 deep lost half of itself).
+  pos = vec3(root.x, gy - 0.008 - 0.05 * min(1.0, length(grad)), root.y);
   nrm = normalize(vec3(-grad.x, 1.0, -grad.y));
   col = vec3(0.0);
   glow = vec3(0.0);
@@ -327,7 +329,7 @@ void qBlade(out vec3 pos, out vec3 nrm, out vec3 col, out vec3 glow, out vec2 xz
   float meadowK = gd.a;
   float r1 = fract(aBlade.z + qHash(aTile.xy * 2.3 + aBlade.xy * 5.0));
   float r2 = fract(aBlade.w + qHash(aTile.yx * 1.9 + 7.3));
-  float h = mix(mix(0.13, 0.30, meadowK), 0.055, mown) * (0.7 + 0.6 * r1);
+  float h = mix(mix(0.13, 0.30, meadowK), 0.07, mown) * (0.7 + 0.6 * r1);
   // How long the blade grows (before any fade): long grass keeps a deep pile, short grass and
   // lawns a gentle texture with little contrast, so they never read as dark stipple.
   float longK = smoothstep(0.12, 0.26, h);
@@ -414,8 +416,9 @@ void qBlade(out vec3 pos, out vec3 nrm, out vec3 col, out vec3 glow, out vec2 xz
   // The blade's own gradient: feet deep in the pile, the tip lighter and a touch warmer.
   // Long grass keeps a deep pile; short grass and a mown lawn even out to the painted ground's
   // own value (a blade's area leans to its foot, so foot and tip average a touch under 1).
-  vec3 foot = c * mix(0.92, 0.76, longK);
-  vec3 top = c * mix(1.07 + 0.04 * r2, 1.1 + 0.1 * r2, longK) * vec3(1.03, 1.01, 0.95);
+  float lawn = max(mown, 0.0);
+  vec3 foot = c * mix(mix(0.82, 0.74, longK), 0.8, lawn);
+  vec3 top = c * mix(mix(1.15 + 0.06 * r2, 1.2 + 0.1 * r2, longK), 1.12 + 0.06 * r2, lawn) * vec3(1.03, 1.01, 0.95);
   // Wildflowers: a share of tips take the ground's flower colors where it has them.
   float bloom = gc.a;
   // A flowering tip colors its whole blade down to the foot, a spike of color above the pile.
