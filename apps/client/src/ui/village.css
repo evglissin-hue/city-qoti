@@ -1678,7 +1678,7 @@ li.plan.settled p {
 }
 
 .bp.zone-wash.faint {
-  fill: color-mix(in srgb, var(--ink) 12%, transparent);
+  fill: color-mix(in srgb, var(--ink) 24%, transparent);
 }
 
 .bp.lot-door {
