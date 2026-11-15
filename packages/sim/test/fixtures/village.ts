@@ -193,6 +193,8 @@ function cutLot(
     style,
     buildingId: 0,
     tick: 0,
+    row: 0,
+    kind: 'plot',
   };
   state.lots.push(lot);
   for (let tz = z; tz < z + d; tz++) {

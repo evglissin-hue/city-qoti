@@ -197,8 +197,13 @@ export function loansView(state: WorldState): LoansView {
   };
 }
 
-export function lotView(lot: Lot): LotView {
-  return {
+/**
+ * A lot for the client. R2 (R2.0): the lot fields V3B draws ride along (`frontage`, `row`, `kind`,
+ * `corner`, `frontage2`), and with `state` the storeys of the building grown on it, so the Mirror's
+ * lot view carries everything `lotsFor(mirror)` reads.
+ */
+export function lotView(lot: Lot, state?: WorldState): LotView {
+  const view: LotView = {
     id: lot.id,
     zone: content.zoneByValue.get(lot.zone)?.id ?? '',
     x: lot.x,
@@ -209,7 +214,17 @@ export function lotView(lot: Lot): LotView {
     desirability: lot.desirability,
     style: lot.style,
     buildingId: lot.buildingId,
+    frontage: lot.frontage,
+    row: lot.row,
+    kind: lot.kind,
   };
+  if (lot.corner) view.corner = true;
+  if (lot.frontage2 !== undefined) view.frontage2 = lot.frontage2;
+  if (state && lot.buildingId) {
+    const storeys = findById(state.buildings, lot.buildingId)?.storeys;
+    if (storeys !== undefined) view.storeys = storeys;
+  }
+  return view;
 }
 
 /** The neighbor's regional price for a good in pennies, before the post's 1.2x and 0.85x. */

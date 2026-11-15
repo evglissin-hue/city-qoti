@@ -1,11 +1,13 @@
 // Save versions (docs/spec/21-networking-and-saves.md, Version changes and The fresh start).
+import { migrate6to7 } from './migrate7';
 
 /**
  * Bump whenever the shape of saved state changes, and add a migration with a test. Version 6 is R1's
  * fresh start: the zones-first Ledger changed what a town is made of, so a valley saved before it is
- * refused (OLD_VALLEY), not converted, and migrations begin again from 6.
+ * refused (OLD_VALLEY), not converted, and migrations begin again from 6. Version 7 is R2.0's: the
+ * evening round (footfall, places, gaps, street names, the evenings need, the lot fields and storeys).
  */
-export const SAVE_VERSION = 6;
+export const SAVE_VERSION = 7;
 
 /** The oldest save this game opens: R1's fresh start. */
 export const OLDEST_SAVE_VERSION = 6;
@@ -15,10 +17,11 @@ export type Migration = (save: SaveObject) => SaveObject;
 
 /**
  * Migration registry: migrations.get(n) upgrades a save from version n to n + 1, for n >= 6.
- * One line per migration, in version order. Empty until R2.0 adds the first.
+ * One line per migration, in version order.
  */
 // prettier-ignore
 export const migrations: ReadonlyMap<number, Migration> = new Map<number, Migration>([
+  [6, migrate6to7],
 ]);
 
 /**

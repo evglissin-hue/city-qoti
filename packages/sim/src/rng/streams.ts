@@ -13,6 +13,8 @@ export const RNG_STREAMS: readonly RngStream[] = [
   // I3 (C5.0)
   'nature',
   'festival',
+  // R2 (R2.0): the evening round's whims, so an evening never moves another system's dice.
+  'round',
 ];
 
 const WARMUP_STEPS = 12;

@@ -363,7 +363,7 @@ function addVillageDetail(state: WorldState, b: Building, def: BuildingDef, deta
   if (def.specialized && def.reach) {
     detail.reach = { tiles: def.reach, served: served(state, b), capacity: capacityOf(state, b) };
   }
-  if (lot) detail.lot = lotView(lot);
+  if (lot) detail.lot = lotView(lot, state);
   if (rt.tier) detail.tier = rt.tier;
   if (rt.upgrade && def.upgradesTo)
     detail.upgrade = { to: def.upgradesTo.def, waiting: goodPairs(rt.upgrade) };

@@ -89,6 +89,7 @@ export function buildingView(b: Building): BuildingView {
   if (b.trade) view.trade = b.trade;
   if (b.level && b.level > 1) view.level = b.level;
   if (b.keeperId) view.keeperId = b.keeperId;
+  if (b.storeys !== undefined) view.storeys = b.storeys;
   return view;
 }
 
@@ -146,7 +147,7 @@ export function buildView(state: WorldState): ViewSnapshot {
     market: marketView(state),
     levers: leversView(state),
     loans: loansView(state),
-    lots: state.lots.map(lotView),
+    lots: state.lots.map((l) => lotView(l, state)),
     trade: tradeView(state),
     charter: charterView(state),
     innovations: state.innovations.map((i) => innovationView(state, i.id)),

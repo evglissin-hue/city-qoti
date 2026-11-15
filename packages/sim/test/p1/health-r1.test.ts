@@ -203,6 +203,8 @@ describe('the zones-first health kinds', () => {
           style: '',
           buildingId: 0,
           tick: 0,
+          row: 0,
+          kind: 'plot',
         },
       ];
       const w = new HealthWatch();

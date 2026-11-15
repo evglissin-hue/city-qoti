@@ -1,4 +1,5 @@
 export type * from './commands';
+export type * from './evenings';
 export type * from './events';
 export type * from './hamlet';
 export type * from './ids';

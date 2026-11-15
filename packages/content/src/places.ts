@@ -1,0 +1,88 @@
+import type { PlacesTuning } from './types';
+
+// The evening round's numbers (docs/spec/19-evenings.md, The day in two acts to Gaps), written in
+// R2.0 from the spec's starting values. Every number tunes in R2X, here and nowhere else: systems read
+// `content.places`, never a literal.
+
+export const PLACES: PlacesTuning = {
+  // The day in two acts
+  eveningHour: 17,
+  homeHour: 21,
+  festivalHomeHour: 22,
+  planMinutes: 30,
+  latePlanHour: 19,
+  lingerPercent: 50,
+  // Where places come from
+  spotRadius: 3,
+  spotMaxPieces: 4,
+  porchSeats: 2,
+  iceStanding: 12,
+  walkTilesPerStroller: 2,
+  standingShare: 50,
+  standingMin: 2,
+  serveRadius: 3,
+  waterRadius: 3,
+  // Draw
+  charmCap: 70,
+  siteBonus: 8,
+  pieceKindBonus: 2,
+  pieceKindMax: 8,
+  waterBonus: 5,
+  litBonus: 5,
+  litHour: 18,
+  treatsBonus: 4,
+  winterPenalty: 20,
+  // The round
+  radius: 12,
+  curiousRadius: 18,
+  homebodyRadius: 6,
+  tasteMin: -10,
+  tasteMax: 15,
+  friendBonus: 8,
+  distanceHundredths: 35,
+  crowdPenalty: 20,
+  whim: 4,
+  minScore: 20,
+  secondBestPercent: 50,
+  nextStopRadius: 8,
+  maxStops: 3,
+  stopMinutes: 60,
+  visitDraw: 30,
+  rainSkipPercent: 50,
+  // Routes
+  pleasantCharm: 40,
+  plainCostPercent: 125,
+  noisyCostPercent: 150,
+  noisyNoise: 3,
+  // Evening trade
+  passingRadius: 1,
+  passingOneIn: 5,
+  doorstepHour: 21,
+  doorstepMinute: 30,
+  doorstepPercent: 33,
+  // Shops follow the walkers
+  footfallDesirability: 30,
+  footfallFullPercent: 10,
+  placeNearShop: 10,
+  placeNearShopRadius: 3,
+  unservedVisitors: 8,
+  cafeLevel: 2,
+  cafeRadius: 2,
+  cafeSeats: 2,
+  stepsPerCustomer: 10,
+  // Good evenings
+  stayInScore: 20,
+  friendScore: 8,
+  treatScore: 8,
+  secondKindScore: 4,
+  standingPenalty: 10,
+  needStart: 50,
+  needStepOneIn: 3,
+  needWeight: 15,
+  goodEvening: 60,
+  goodForHeart: 4,
+  heartsMax: 5,
+  tierDays: 3,
+  // Places remembered
+  forgetDays: 6,
+};
