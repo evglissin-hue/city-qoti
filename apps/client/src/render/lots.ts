@@ -44,7 +44,7 @@ export interface ScreenLots {
    * Rows of one lot are left out.
    */
   rows: Map<number, ScreenLot[]>;
-  /** True when the Mirror carries R2's lot fields (any lot has a numeric `row`). */
+  /** True when the Mirror carries R2's lot fields (some lot has a positive `row`). */
   fromSim: boolean;
 }
 
@@ -57,7 +57,7 @@ type LotFields = LotView & {
 };
 type BuildingFields = BuildingView & { storeys?: number; params?: Record<string, unknown> };
 
-/** World direction of a kit's local +x (its right, seen from the road) for each rotation, as (dx, dz). */
+/** World direction of a kit's local +x (`joinR`'s side) for each rotation, as (dx, dz). */
 const RIGHT: readonly (readonly [number, number])[] = [
   [1, 0],
   [0, 1],
