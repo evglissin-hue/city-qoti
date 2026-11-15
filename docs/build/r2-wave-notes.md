@@ -92,6 +92,7 @@ R2A and R2B share `systems/residents` and `systems/market`; this split is by fil
 | The gaps pass | `systems/gaps/index.ts` (`gaps`) | opens and closes none; no `evening.closed` | R2C |
 | Gap bookkeeping | `systems/gaps/api.ts` (`openGap`, `closeGap`) | dedupes, numbers, credits once a season; no `gaps.updated` | R2C |
 | The edition | `view/evening.ts` (`eveningView`) | the tally with no lines and no places list | R2C |
+| The evening feats' setups | `packages/sim/test/hearth/achievements.test.ts` (`PENDING`) | Out of an Evening, A Seat for Everyone and Mind the Gap are left out of "every achievement has a setup and unlocks once" until their counts exist | R2C |
 | The lot cutter's fields | `systems/zoning/lots.ts` | every lot `row: 0`, `kind: 'plot'`, no corner | R2F |
 | Storeys | `systems/zoning/storeys.ts` (`storeysFor`) | by tier (cottage 1.5, townhouse 2, merchant 3) or business level (1, 1.5, 2) alone, set at growth only | R2F |
 | Tier gates | `content/baskets.ts`, `systems/tiers/**` | Craftsfolk still need charm 25 and a tavern; `evenings: 50` is in the data and unread | R2B |
@@ -194,8 +195,8 @@ The carrier collects surplus Treats at makers' doors before the shelves (R1X), a
 
 ## Skipped and changed tests
 
-- No test was skipped by R2.0.
-- Changed: `packages/sim/test/r1/saves.test.ts` (version 7), `packages/sim/test/turn.test.ts` (the R2 slots), `apps/client/src/contracts.test.ts` (the pinned unions gain R2's members), `tools/bench/src/r1xEvents.test.ts` (the growth nights' fingerprint drops the R2 lot fields and storeys before hashing, so R1X's pre-speed-up oracle still holds), the lot literals in three sim tests and the village fixture (`row: 0`, `kind: 'plot'`).
+- No test was skipped by R2.0. One exclusion: the three evening feats are kept out of `hearth/achievements.test.ts`'s every-achievement loops (`PENDING`, an R2C stand-in) until R2C counts them.
+- Changed: `packages/sim/test/r1/saves.test.ts` (version 7), `packages/sim/test/turn.test.ts` (the R2 slots), `apps/client/src/contracts.test.ts` (the pinned unions gain R2's members), `tools/bench/src/r1xEvents.test.ts` (the growth nights' fingerprint drops the R2 lot fields and storeys before hashing, so R1X's pre-speed-up oracle still holds), the lot literals in three sim tests and the village fixture (`row: 0`, `kind: 'plot'`), the content counts (`validate.test.ts`: 23 achievements, the brazier among festival-era decor, charter unlocks count as unlocks; `hamlet-contracts.test.ts`; the client's `books.test.ts`, "of 23 earned").
 - Golden files regenerated (the hash covers the new state and the `round` stream).
 
 ## Found in R2.0, for the wave

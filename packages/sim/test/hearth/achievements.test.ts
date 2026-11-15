@@ -126,8 +126,9 @@ const SETUPS = new Map<string, (s: WorldState) => void>([
   ],
 ]);
 
-// R2.0 wrote the evening feats as data; their counts (gapsClosed, eveningsAllOut, seatedSeasons) are
-// read by the evening systems in R2A to R2C, which add their setups and take these out of the list.
+// R2 stand-in (R2C): R2.0 wrote the evening feats as data; their counts (gapsClosed,
+// gapsClosedEachSeat, eveningsAllOut, seatedSeasons) are R2C's, which adds their setups here and
+// deletes this list.
 const PENDING = new Set(['a-seat-for-everyone', 'mind-the-gap', 'out-of-an-evening']);
 
 describe('every achievement', () => {
