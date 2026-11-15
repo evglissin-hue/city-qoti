@@ -265,6 +265,7 @@ function grownCottage(opts: KitBuildOptions | undefined, L: DistrictLook): Built
   );
   const bw = x1 - x0;
   const sh = shell(s, {
+    lot: [w, d],
     x0,
     z0,
     x1,
@@ -424,6 +425,7 @@ function townhouseOf(opts: KitBuildOptions | undefined): Built {
   const gableFront = gableRoll && !row.joined;
   const timberUpper = L.upper === 'timber';
   const sh = shell(s, {
+    lot: [w, d],
     x0,
     z0,
     x1,
@@ -742,6 +744,7 @@ export function shopOf(opts: KitBuildOptions | undefined): Built {
   );
   const wide = w >= 3;
   const sh = shell(s, {
+    lot: [w, d],
     x0,
     z0,
     x1,
@@ -1026,6 +1029,7 @@ export function workshopOf(opts: KitBuildOptions | undefined): Built {
   const wall: WallMaterial = L.wall === 'plaster' && look() < 0.5 ? 'weatherboard' : L.wall;
   const wallColor = wall === L.wall ? L.wallColor : vary(0x8a6f58, rnd, 0.5);
   const sh = shell(s, {
+    lot: [w, d],
     x0,
     z0,
     x1,
@@ -1196,6 +1200,7 @@ export function farmsteadOf(opts: KitBuildOptions | undefined): Built {
   const hz1 = d - 0.4;
   const hz0 = hz1 - 1.0;
   const house = shell(s, {
+    lot: [w, d],
     x0: hx0,
     z0: hz0,
     x1: hx1,
@@ -1237,6 +1242,7 @@ export function farmsteadOf(opts: KitBuildOptions | undefined): Built {
   const bz1 = Math.max(0.9, Math.min(d - 1.3, 1.45));
   const stoneBarn = L.wall === 'stone' || L.wall === 'brick';
   const barn = shell(s, {
+    lot: [w, d],
     x0: bx0,
     z0: bz0,
     x1: bx1,
