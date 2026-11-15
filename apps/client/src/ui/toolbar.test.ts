@@ -116,7 +116,12 @@ describe('lens toolbars', () => {
     // Overlays wait behind one View button.
     expect(ids(view.root, 'overlay-')).toEqual([]);
     await view.click('overlays');
-    expect(ids(view.root, 'overlay-').filter((id) => id !== 'list')).toEqual(['charm', 'habitats', 'warmth']);
+    expect(ids(view.root, 'overlay-').filter((id) => id !== 'list')).toEqual([
+      'bubbles',
+      'charm',
+      'habitats',
+      'warmth',
+    ]);
     await view.click('overlays');
     await view.click('book-patterns');
     expect(session.ui.panel.value).toBe('patterns');

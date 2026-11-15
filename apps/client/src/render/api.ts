@@ -27,6 +27,7 @@ export interface EntityPick {
  * that deposit lies, while placing a building that needs it.
  */
 export type OverlayKind =
+  | 'bubbles'
   | 'charm'
   | `charm:${string}`
   | 'coverage'

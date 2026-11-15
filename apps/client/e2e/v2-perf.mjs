@@ -11,7 +11,8 @@
 // for timings. Env: QOTI_PRESETS (low,medium,high,ultra), QOTI_MOVE and QOTI_REST (seconds, 10),
 // QOTI_SIZE (1440x900), QOTI_SETTLE (ms after a scene loads, 12000; V1D: then until no static
 // layer changes, at most QOTI_SETTLE_MAX, 300000), QOTI_FIXEDRES=1
-// (dynamic resolution off) and QOTI_HOLD=1 (the sim paused and the hour pinned; see below).
+// (dynamic resolution off), QOTI_HOLD=1 (the sim paused and the hour pinned; see below), QOTI_HOUR
+// (V2A: the hour to pin, 11 with QOTI_HOLD) and QOTI_QUERY (more URL parameters, e.g. lights=loop).
 import { chromium } from '@playwright/test';
 
 const clientPort = Number(process.env.QOTI_CLIENT_PORT ?? 5173);
@@ -21,6 +22,9 @@ const [vw, vh] = (process.env.QOTI_SIZE ?? '1440x900').split('x').map(Number);
 const move = Number(process.env.QOTI_MOVE ?? 10);
 const rest = Number(process.env.QOTI_REST ?? 10);
 const headed = process.env.QOTI_HEADED === '1';
+// V2A: QOTI_HOUR=22 measures at night (the light pinned to that hour, the Hour column filled);
+// QOTI_QUERY=lights=loop measures the 32-light loop on the same build.
+const hour = process.env.QOTI_HOUR ? Number(process.env.QOTI_HOUR) : undefined;
 // V1D: QOTI_FIXEDRES=1 turns dynamic resolution off, so runs draw the same pixels (in a
 // software renderer every frame is slow, so it would otherwise step moving frames down).
 const fixedres = process.env.QOTI_FIXEDRES === '1' ? '&fixedres' : '';
@@ -111,10 +115,12 @@ for (const [scene, def] of Object.entries(SCENES)) {
   // in every frame and the still-frame cache is drawn again each time; holding still measures what
   // an idle frame costs (water and smoke still move, so idle frames keep drawing).
   if (process.env.QOTI_HOLD === '1')
-    await page.evaluate(() => {
+    await page.evaluate((h) => {
       window.__qoti.submit({ t: 'time.setSpeed', speed: 0 });
-      window.__qoti.setHour(11);
-    });
+      window.__qoti.setHour(h);
+    }, hour ?? 11);
+  // V2A: QOTI_HOUR pins the light without holding the sim (with QOTI_HOLD it replaces 11:00).
+  else if (hour !== undefined) await page.evaluate((h) => window.__qoti.setHour(h), hour);
   await page.evaluate(([x, z, d]) => window.__qoti.look(x, z, d), [center[0], center[1], def.dist ?? 45]);
   await page.waitForTimeout(Number(process.env.QOTI_SETTLE ?? 12000));
   // V1D: then until the valley has streamed in (no static layer changed over three looks, three
@@ -142,6 +148,7 @@ for (const [scene, def] of Object.entries(SCENES)) {
     move,
     rest,
     ...(presets ? { presets } : {}),
+    ...(hour !== undefined ? { hour } : {}),
   });
   console.log(`\n${scene}:\n${r.table}`);
   tables.push(r.table);

@@ -14,6 +14,7 @@ import { fieldsLayer } from './fields';
 import { floodLayer } from './flood';
 import { ghostsLayer } from './ghosts';
 import { lightsLayer } from './lights';
+import { meadowLayer } from './meadow';
 import { natureLayer } from './nature';
 import { notesLayer } from './notes';
 import { overlaysLayer } from './overlays';
@@ -44,6 +45,7 @@ export const layerFactories: readonly LayerFactory[] = [
   floodLayer,
   ghostsLayer,
   lightsLayer,
+  meadowLayer,
   natureLayer,
   notesLayer,
   overlaysLayer,

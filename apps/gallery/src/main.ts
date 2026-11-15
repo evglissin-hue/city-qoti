@@ -678,12 +678,16 @@ if (sceneName === 'lineup') {
   };
 } else if (sceneName === 'seasons') {
   // C5E part 2: the trees in each season, with the game's foliage material.
-  const { group, size } = buildSeasons(state.seed);
+  const { group, size } = buildSeasons(
+    state.seed,
+    q.get('rows')?.split(',') ?? undefined,
+    Number(q.get('day') ?? 3),
+  );
   holder.add(group);
   const dist = Number(q.get('dist') ?? Math.max(size[0], size[1]) * 1.7 + 2);
   const yaw = Number(q.get('yaw') ?? 0.15);
   camera.position.set(Math.sin(yaw) * dist, dist * Number(q.get('pitch') ?? 0.7), Math.cos(yaw) * dist);
-  controls.target.set(0.6, 0.4, -1.2);
+  controls.target.set(Number(q.get('tx') ?? 0), Number(q.get('ty') ?? 0.7), Number(q.get('tz') ?? 0));
   ground.scale.setScalar(2);
   state.spin = false;
   info.textContent = `seasons, left to right: ${SEASON_NAMES.join(', ')} (oak, birch, pine, apple, cherry, pear)`;
