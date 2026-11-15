@@ -56,3 +56,17 @@ The light map itself and every other reader (V2A), the ground shader (V2A; you r
 - The owner's note, twice: nature is still low-poly beside painted buildings (faceted crowns, a flat lawn, tufts that read spiky). Soft masses are the aim, not more spikes: a meadow is one mass with a combed surface, a crown a cloud of strokes.
 - Triangles are cheap and pixels dear on integrated graphics, but 0.5 M is the line: spend near the camera, keep the far level as it is.
 - Open the PR into `main` when ready (V2 touches no sim state and merges as it goes); V2X merges whatever is still open, yours last.
+
+## As built
+
+What landed is in `docs/spec/20-architecture.md` (V2 contracts, As built (V2B, green)). Run as the build and review loop: the master built the dab kit, the crowns, the hedges, bushes, reeds and fruit trees and tuned every look; Sonnet executors built the thinning plumbing and the foliage shader's dab and light map reads (A), the flower drifts (B), the meadow carpet's layer (C, tuned by the master) and the ivy, garden hedge and reed bed bodies with draw-for-draw tests (D).
+
+Edits outside V2B's files (all additive or one line): `geometry.ts` (`ShapeBuilder.triN`, `surfaceId`), `quality.ts` (`meadowCarpet`), `env.ts` (`meadowCarpet`), `renderer.ts` (one line in `setQuality`), `layers/terrain.ts` (one line setting `groundTexturesFor(env)`), `ground.ts` (the drift mask's one line and its import), `layers/index.ts` (the meadow layer's registry line), `apps/gallery/src/main.ts` (the seasons view's `rows`, `day` and target).
+
+Notes for V2A and V2X:
+
+- **The carpet's night light** loops over the ground's 32 lights (`env.lights`) per vertex as well as reading the light map, so lantern pools still glow where it covers the ground. When V2A moves the ground to the light map, drop the loop in `layers/meadow.ts` (`qGlowSum`).
+- **`shadowless`**: the meadow layer never casts; set `shadowless: true` on it when V2A's `RenderLayer.shadowless` lands, so its refills stop re-rendering the shadow map.
+- **The fill rule**: the carpet's fade follows the focus every frame, so it refills when the focus drifts a quarter of its reach (or a tile at rest) rather than at "the inner half of the filled area"; the buffer holds 1.25 of the reach.
+- **Fruit trees in the decor layer** draw through the kit material and are not thinned (the decor layer is V2C's); passing `params: { thin: thinStep(...) }` to their builds would thin them with the trees.
+- **Carpet triangles** count every blade of every instanced tile (collapsed blades too), so `layerTriangles` reports the carpet's whole instance buffer.

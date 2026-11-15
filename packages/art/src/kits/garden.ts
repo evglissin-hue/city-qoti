@@ -4,6 +4,8 @@
 import { seeded, ShapeBuilder, vary } from '../geometry';
 import { palette } from '../palette';
 import { beam } from '../shapes';
+import { SURFACE } from '../surface';
+import { farBox, farCylinder } from './decorFar';
 import type { Kit } from './types';
 
 const BLOOMS = [palette.flowerA, palette.flowerB, palette.flowerC, palette.flowerD, palette.blossom];
@@ -14,17 +16,53 @@ export const birdbath: Kit = {
   build: (opts) => {
     const rnd = seeded(opts?.seed ?? 31);
     const stone = vary(palette.stone, rnd, 0.6);
-    const s = new ShapeBuilder();
-    s.cylinder(0, 0, 0.09, 0.08, 0, 0.04, vary(stone, rnd, 1.2), 8);
-    s.cylinder(0, 0, 0.045, 0.035, 0.04, 0.24, stone, 8);
-    s.cylinder(0, 0, 0.06, 0.15, 0.24, 0.29, vary(stone, rnd, 0.8), 10);
-    s.cylinder(0, 0, 0.15, 0.15, 0.29, 0.31, stone, 10);
-    s.cylinder(0, 0, 0.12, 0.12, 0.3, 0.305, palette.waterShallow, 10);
+    const s = new ShapeBuilder(opts?.lod ?? 'high');
+    // V2C: stone throughout (the far level is a pedestal, a bowl, the water and the robin).
+    const foot = vary(stone, rnd, 1.2);
+    const bowl = vary(stone, rnd, 0.8);
+    const shrub = vary(palette.leaf, rnd);
+    s.surface(SURFACE.stone);
+    s.levels(
+      () => {
+        s.cylinder(0, 0, 0.09, 0.08, 0, 0.04, foot, 8);
+        s.cylinder(0, 0, 0.045, 0.035, 0.04, 0.24, stone, 8);
+        s.cylinder(0, 0, 0.06, 0.15, 0.24, 0.29, bowl, 10);
+        s.cylinder(0, 0, 0.15, 0.15, 0.29, 0.31, stone, 10);
+      },
+      () => {
+        farCylinder(s, 0, 0, 0.05, 0.04, 0, 0.24, stone, 6, 0, false);
+        farCylinder(s, 0, 0, 0.06, 0.15, 0.24, 0.31, bowl, 8, 0, false);
+      },
+    );
+    s.surface(SURFACE.plain);
+    s.levels(
+      () => s.cylinder(0, 0, 0.12, 0.12, 0.3, 0.305, palette.waterShallow, 10),
+      () => {
+        for (let i = 0; i < 8; i++) {
+          const a0 = (i / 8) * Math.PI * 2;
+          const a1 = ((i + 1) / 8) * Math.PI * 2;
+          s.tri(
+            [0, 0.31, 0],
+            [Math.cos(a0) * 0.14, 0.31, Math.sin(a0) * 0.14],
+            [Math.cos(a1) * 0.14, 0.31, Math.sin(a1) * 0.14],
+            palette.waterShallow,
+            [0, 1, 0],
+          );
+        }
+      },
+    );
     // A robin on the rim.
-    s.blob(0.12, 0.34, 0.02, 0.025, 0.022, 0.03, 0x7a5a43, 0);
-    s.blob(0.13, 0.335, 0.04, 0.016, 0.014, 0.012, palette.accentRed, 0);
-    s.blob(0.12, 0.365, 0.045, 0.014, 0.014, 0.014, 0x6b4a33, 0);
-    s.blob(-0.03, 0.03, 0.1, 0.05, 0.03, 0.04, vary(palette.leaf, rnd), 0);
+    s.levels(
+      () => {
+        s.blob(0.12, 0.34, 0.02, 0.025, 0.022, 0.03, 0x7a5a43, 0);
+        s.blob(0.13, 0.335, 0.04, 0.016, 0.014, 0.012, palette.accentRed, 0);
+        s.blob(0.12, 0.365, 0.045, 0.014, 0.014, 0.014, 0x6b4a33, 0);
+      },
+      () => farBox(s, 0.1, 0.31, 0.0, 0.14, 0.375, 0.06, 0x7a5a43),
+    );
+    s.surface(SURFACE.leaf);
+    s.blob(-0.03, 0.03, 0.1, 0.05, 0.03, 0.04, shrub, 0);
+    s.surface(SURFACE.plain);
     return s.build();
   },
 };
@@ -145,13 +183,35 @@ export const herbPlanter: Kit = {
   kind: 'decor',
   build: (opts) => {
     const rnd = seeded(opts?.seed ?? 34);
-    const s = new ShapeBuilder();
-    s.rbox(-0.17, 0, -0.1, 0.17, 0.12, 0.1, vary(palette.wood, rnd, 0.6), 0.012);
-    s.box(-0.15, 0.1, -0.08, 0.15, 0.125, 0.08, palette.soil);
-    for (const x of [-0.17, 0.17]) s.box(x - 0.012, 0, -0.105, x + 0.012, 0.13, 0.105, palette.timber);
+    const s = new ShapeBuilder(opts?.lod ?? 'high');
+    // V2C: a wooden box (wood grain), dirt, leafy herbs and a lavender spike (flowers). The far level
+    // is the box, two lumps of herbs and the spike.
+    const wood = vary(palette.wood, rnd, 0.6);
+    const rosemary = vary(0x6f8f5a, rnd, 0.6);
+    const sage = vary(0x9cae8a, rnd, 0.6);
+    s.surface(SURFACE.woodGrain);
+    s.levels(
+      () => {
+        s.rbox(-0.17, 0, -0.1, 0.17, 0.12, 0.1, wood, 0.012);
+        s.surface(SURFACE.dirt);
+        s.box(-0.15, 0.1, -0.08, 0.15, 0.125, 0.08, palette.soil);
+        s.surface(SURFACE.woodGrain);
+        for (const x of [-0.17, 0.17]) s.box(x - 0.012, 0, -0.105, x + 0.012, 0.13, 0.105, palette.timber);
+      },
+      () => farBox(s, -0.17, 0, -0.105, 0.17, 0.125, 0.105, wood),
+    );
     // Rosemary, sage, chives and a spike of lavender.
-    s.blob(-0.1, 0.16, 0, 0.05, 0.05, 0.05, vary(0x6f8f5a, rnd, 0.6), 1);
-    s.blob(0.0, 0.15, 0.02, 0.05, 0.035, 0.05, vary(0x9cae8a, rnd, 0.6), 0);
+    s.surface(SURFACE.leaf);
+    s.levels(
+      () => {
+        s.blob(-0.1, 0.16, 0, 0.05, 0.05, 0.05, rosemary, 1);
+        s.blob(0.0, 0.15, 0.02, 0.05, 0.035, 0.05, sage, 0);
+      },
+      () => {
+        s.blob(-0.07, 0.125, 0, 0.1, 0.075, 0.07, rosemary, 0);
+        s.blob(0.05, 0.125, 0.02, 0.08, 0.06, 0.07, sage, 0);
+      },
+    );
     for (let i = 0; i < 4; i++)
       beam(
         s,
@@ -163,8 +223,18 @@ export const herbPlanter: Kit = {
     for (let i = 0; i < 3; i++) {
       const x = -0.03 + i * 0.05;
       beam(s, [x, 0.12, -0.05], [x, 0.22, -0.06], 0.005, 0x7d9a64);
+      s.surface(SURFACE.flowers);
       s.cylinder(x, -0.06, 0.012, 0.004, 0.2, 0.25, 0x9a82c8, 4);
+      s.surface(SURFACE.leaf);
     }
+    s.levels(
+      () => {},
+      () => {
+        s.surface(SURFACE.flowers);
+        farCylinder(s, 0.02, -0.06, 0.03, 0.01, 0.15, 0.25, 0x9a82c8, 4);
+      },
+    );
+    s.surface(SURFACE.plain);
     return s.build();
   },
 };
@@ -225,21 +295,40 @@ export const wildflowerVerge: Kit = {
   kind: 'decor',
   build: (opts) => {
     const rnd = seeded(opts?.seed ?? 37);
-    const s = new ShapeBuilder();
+    const s = new ShapeBuilder(opts?.lod ?? 'high');
     // Long grass in tufts with poppies, cornflowers, daisies and buttercups.
+    // V2C: leafy tufts and stems, flowers on the blooms. The far level is ten cones and five dots.
+    const tufts: { x: number; z: number; h: number; hex: number }[] = [];
+    s.surface(SURFACE.leaf);
     for (let i = 0; i < 10; i++) {
       const x = -0.45 + i * 0.1 + (rnd() - 0.5) * 0.05;
       const z = (rnd() - 0.5) * 0.18;
-      s.cylinder(x, z, 0.04, 0, 0, 0.1 + rnd() * 0.07, vary(palette.meadow, rnd, 1.2), 4, rnd());
+      const h = 0.1 + rnd() * 0.07;
+      const hex = vary(palette.meadow, rnd, 1.2);
+      const phase = rnd();
+      tufts.push({ x, z, h, hex });
+      s.levels(
+        () => s.cylinder(x, z, 0.04, 0, 0, h, hex, 4, phase),
+        () => farCylinder(s, x, z, 0.05, 0, 0, h, hex, 4, phase),
+      );
     }
     const wild = [0xd9473b, 0x5f86d0, palette.white, 0xf0c93a, palette.flowerC];
     for (let i = 0; i < 14; i++) {
       const x = -0.46 + rnd() * 0.92;
       const z = (rnd() - 0.5) * 0.22;
       const h = 0.07 + rnd() * 0.09;
+      const hex = wild[Math.floor(rnd() * wild.length)]!;
+      s.surface(SURFACE.leaf);
       beam(s, [x, 0, z], [x, h, z], 0.004, 0x6a9a48);
-      s.blob(x, h, z, 0.022, 0.012, 0.022, wild[Math.floor(rnd() * wild.length)]!, 0);
+      s.surface(SURFACE.flowers);
+      s.levels(
+        () => s.blob(x, h, z, 0.022, 0.012, 0.022, hex, 0),
+        () => {
+          if (i % 3 === 0) farBox(s, x - 0.02, h - 0.02, z - 0.02, x + 0.02, h + 0.02, z + 0.02, hex);
+        },
+      );
     }
+    s.surface(SURFACE.plain);
     return s.build();
   },
 };

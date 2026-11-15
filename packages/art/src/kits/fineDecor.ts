@@ -6,6 +6,7 @@ import { seeded, ShapeBuilder, vary, type V3 } from '../geometry';
 import { palette } from '../palette';
 import { beam } from '../shapes';
 import { SURFACE } from '../surface';
+import { farBox, farCylinder } from './decorFar';
 import type { Kit } from './types';
 
 const BLOOMS = [palette.flowerA, palette.flowerB, palette.flowerC, palette.flowerD, palette.blossom];
@@ -140,24 +141,53 @@ export const fountain: Kit = {
 export const lampPost: Kit = {
   id: 'lamp-post',
   kind: 'decor',
-  build: () => {
-    const s = new ShapeBuilder();
+  build: (opts) => {
+    const s = new ShapeBuilder(opts?.lod ?? 'high');
     // A cast-iron street lamp: base, tall pole, two scrolled arms each with a lit lantern.
-    s.cylinder(0, 0, 0.07, 0.05, 0, 0.12, palette.metal, 8);
-    s.cylinder(0, 0, 0.032, 0.02, 0.12, 0.8, palette.metal, 6);
-    s.cylinder(0, 0, 0.04, 0.04, 0.5, 0.53, palette.metal, 6);
-    s.cylinder(0, 0, 0.03, 0.03, 0.78, 0.82, palette.metal, 6);
+    // V2C: wrought iron throughout (the flames stay plain and lit). The far level is the pole, one
+    // crossbar, the two flames with roofs, and the finial.
+    s.surface(SURFACE.wroughtIron);
+    s.levels(
+      () => {
+        s.cylinder(0, 0, 0.07, 0.05, 0, 0.12, palette.metal, 8);
+        s.cylinder(0, 0, 0.032, 0.02, 0.12, 0.8, palette.metal, 6);
+        s.cylinder(0, 0, 0.04, 0.04, 0.5, 0.53, palette.metal, 6);
+        s.cylinder(0, 0, 0.03, 0.03, 0.78, 0.82, palette.metal, 6);
+      },
+      () => {
+        farCylinder(s, 0, 0, 0.045, 0.025, 0, 0.82, palette.metal, 4, Math.PI / 4, false);
+        farBox(s, -0.18, 0.78, -0.012, 0.18, 0.82, 0.012, palette.metal, 'bk');
+      },
+    );
     for (const dir of [-1, 1]) {
-      beam(s, [0, 0.76, 0], [dir * 0.14, 0.82, 0], 0.012, palette.metal);
-      beam(s, [dir * 0.14, 0.82, 0], [dir * 0.18, 0.78, 0], 0.01, palette.metal);
       const x = dir * 0.18;
-      s.box(x - 0.04, 0.6, -0.04, x + 0.04, 0.62, 0.04, palette.metal);
+      s.surface(SURFACE.wroughtIron);
+      s.levels(
+        () => {
+          beam(s, [0, 0.76, 0], [dir * 0.14, 0.82, 0], 0.012, palette.metal);
+          beam(s, [dir * 0.14, 0.82, 0], [dir * 0.18, 0.78, 0], 0.01, palette.metal);
+          s.box(x - 0.04, 0.6, -0.04, x + 0.04, 0.62, 0.04, palette.metal);
+        },
+        () => {},
+      );
+      s.surface(SURFACE.plain);
       s.glow(2);
-      s.box(x - 0.032, 0.62, -0.032, x + 0.032, 0.72, 0.032, palette.lantern);
+      s.levels(
+        () => s.box(x - 0.032, 0.62, -0.032, x + 0.032, 0.72, 0.032, palette.lantern),
+        () => farBox(s, x - 0.032, 0.62, -0.032, x + 0.032, 0.72, 0.032, palette.lantern, 'bt'),
+      );
       s.glow(0);
-      s.cylinder(x, 0, 0.06, 0, 0.72, 0.8, palette.metal, 4, Math.PI / 4);
+      s.surface(SURFACE.wroughtIron);
+      s.levels(
+        () => s.cylinder(x, 0, 0.06, 0, 0.72, 0.8, palette.metal, 4, Math.PI / 4),
+        () => farCylinder(s, x, 0, 0.06, 0, 0.72, 0.8, palette.metal, 4, Math.PI / 4),
+      );
     }
-    s.blob(0, 0.86, 0, 0.02, 0.02, 0.02, palette.mustard, 0);
+    s.surface(SURFACE.plain);
+    s.levels(
+      () => s.blob(0, 0.86, 0, 0.02, 0.02, 0.02, palette.mustard, 0),
+      () => farBox(s, -0.02, 0.82, -0.02, 0.02, 0.88, 0.02, palette.mustard),
+    );
     return s.build();
   },
   anchors: () => ({

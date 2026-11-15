@@ -1,5 +1,5 @@
 import { kitById } from '@qoti/art';
-import { CHUNK_SIZE, CHUNKS_PER_SIDE, MAP_SIZE, treeSpecies, treeStage } from '@qoti/sim';
+import { calendar, CHUNK_SIZE, CHUNKS_PER_SIDE, MAP_SIZE, treeSpecies, treeStage } from '@qoti/sim';
 import {
   Float32BufferAttribute,
   PerspectiveCamera,
@@ -18,6 +18,7 @@ import {
   type ScatterKind,
 } from '../scatter';
 import { SurfaceTiles, surfaceY } from '../surface';
+import { StepCache, thinStep } from '../thin';
 import type { LayerContext, RenderLayer } from './types';
 
 /**
@@ -41,18 +42,44 @@ function kindId(species: number, stage: number, variant: number): string {
   return `${species}:${stage}:${variant}`;
 }
 
-function treeKinds(): ScatterKind[] {
+/** V2B: a dev or ?debug session logs each thinning swap. */
+const logSwaps =
+  typeof location !== 'undefined' && (import.meta.env?.DEV === true || location.search.includes('debug'));
+
+/** V2B: the deciduous kinds' near geometry by thinning step, per kind index (`null` for pines). */
+export type TreeStepCaches = (StepCache<BufferGeometry> | null)[];
+
+function treeKinds(thin: number): { kinds: ScatterKind[]; caches: TreeStepCaches; owned: BufferGeometry[] } {
   const kinds: ScatterKind[] = [];
+  const caches: TreeStepCaches = [];
+  const owned: BufferGeometry[] = [];
   for (let species = 1; species <= 3; species++) {
     const kit = kitById.get(SPECIES_KIT[species]!)!;
+    const pine = species === 3;
     for (let stage = 0; stage <= 3; stage++) {
       const variants = stage === 3 ? VARIANTS : 1;
       for (let v = 0; v < variants; v++) {
         const seed = 17 + v * 31 + species * 7;
-        const high: BufferGeometry = kit.build({ stage, seed });
+        // Pines are evergreen: one geometry. Oak and birch thin; each step is built once.
+        const cache = pine
+          ? null
+          : new StepCache<BufferGeometry>((t) => {
+              const g = kit.build({ stage, seed, params: { thin: t } });
+              markPine(g, false);
+              return g;
+            });
+        let high: BufferGeometry;
+        if (cache) high = cache.get(thin);
+        else {
+          high = kit.build({ stage, seed });
+          markPine(high, true);
+          owned.push(high);
+        }
         const low: BufferGeometry = kit.build({ stage, seed, lod: 'low' });
         // C5E: pines keep their needles (and their snow) in winter; the foliage shader reads it.
-        for (const g of [high, low]) markPine(g, species === 3);
+        markPine(low, pine);
+        owned.push(low);
+        caches.push(cache);
         kinds.push({
           id: kindId(species, stage, v),
           high,
@@ -63,7 +90,7 @@ function treeKinds(): ScatterKind[] {
       }
     }
   }
-  return kinds;
+  return { kinds, caches, owned };
 }
 
 /** C5E: the foliage shader's `tkind` attribute (1 for an evergreen, 0 for a deciduous tree). */
@@ -183,6 +210,9 @@ export function treesLayer(): RenderLayer {
   let env: WorldEnv | null = null;
   let tiles: SurfaceTiles | null = null;
   const dirt = new ChunkDirt();
+  let caches: TreeStepCaches = [];
+  let owned: BufferGeometry[] = [];
+  let onScreen = 1;
 
   function rebuildChunk(i: number): void {
     if (!ctx || !field || !tiles) return;
@@ -208,7 +238,14 @@ export function treesLayer(): RenderLayer {
       ctx = c;
       env = c.env ?? createWorldEnv(new PerspectiveCamera());
       material = createFoliageMaterial(env);
-      field = new ScatterField(c.scene, material, treeKinds(), env);
+      // The renderer sets `env.shown` on its first frame; until then the Mirror's calendar is the
+      // best guess (a debug season pin swaps once on that frame).
+      const cal = calendar(c.mirror.tick.value);
+      onScreen = thinStep(cal.season, cal.day);
+      const made = treeKinds(onScreen);
+      caches = made.caches;
+      owned = made.owned;
+      field = new ScatterField(c.scene, material, made.kinds, env);
       tiles = new SurfaceTiles(c.mirror);
       dirt.markAll();
       // Trees near the start are there for the first frame; the rest stream in nearest first.
@@ -228,9 +265,30 @@ export function treesLayer(): RenderLayer {
       if (ctx) for (const i of dirt.take(4, nearOf(env, ctx.mirror.meta.startArea))) rebuildChunk(i);
       field.lodScale = env.detailDistance / 80;
       field.forestLow = env.detailDistance < FOREST_LOW_BELOW;
-      return field.update(env.camera);
+      // V2B: the season's thinning, a static-layer event that can only happen when the day changes.
+      const step = thinStep(env.shown.season, env.shown.day);
+      let swapped = false;
+      if (step !== onScreen) {
+        let built = 0;
+        let reused = 0;
+        caches.forEach((cache, i) => {
+          if (!cache) return;
+          const before = cache.builds;
+          const g = cache.get(step);
+          if (cache.builds > before) built++;
+          else reused++;
+          field!.setGeometry(i, g);
+        });
+        onScreen = step;
+        swapped = true;
+        if (logSwaps) console.info(`[v2b] trees thinning ${step}: ${built} built, ${reused} reused`);
+      }
+      const redrew = field.update(env.camera);
+      return swapped || redrew;
     },
     dispose() {
+      for (const cache of caches) if (cache) for (const g of cache.values()) g.dispose();
+      for (const g of owned) g.dispose();
       field?.dispose();
       material?.dispose();
     },

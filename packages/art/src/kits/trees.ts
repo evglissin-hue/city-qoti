@@ -8,7 +8,15 @@
 // V1C (trees v2): fuller crowns of a few soft blobs (smooth normals, so they shade round rather
 // than faceted), a root flare at the foot of the trunk, leaf surface ids, and a far level a tenth
 // of the near one's cost. Hedgerows along fields come from the same kit.
-import type { BufferGeometry } from 'three';
+//
+// V2B (painted green): near oak, birch and fruit crowns are brush dabs (`dabs.ts`) laid over the
+// crown's blobs, around a smaller, darker core that shows through the gaps as depth; the far dome
+// keeps today's shape with the dabs' tints in its vertex colors. The season's thinning
+// (`params.thin`, 1 full to 0 bare) drops dabs in a fixed order and leaves the core, which the
+// foliage shader turns to bare twigs in winter. Dab vertices carry a `dab` attribute (1), so the
+// shader can keep their autumn color while the core goes to twigs.
+import { Float32BufferAttribute, type BufferGeometry } from 'three';
+import { brushDabs, dabTint, type DabBlob, type DabOptions } from '../dabs';
 import { mixHex, seeded, ShapeBuilder, vary, type V3 } from '../geometry';
 import { palette } from '../palette';
 import { SURFACE } from '../surface';
@@ -19,6 +27,39 @@ const STAGE_SCALE = [0.32, 0.52, 0.76, 1];
 function stageOf(opts: KitBuildOptions | undefined): number {
   const st = opts?.stage ?? 3;
   return Math.min(3, Math.max(0, Math.round(st)));
+}
+
+/** V2B: the season's thinning a build asks for (`params.thin`, 1 full to 0 bare). */
+export function thinOf(opts: KitBuildOptions | undefined): number {
+  const t = opts?.params?.['thin'];
+  return typeof t === 'number' ? Math.min(1, Math.max(0, t)) : 1;
+}
+
+/** V2B: the deep shade of a crown's core, seen through the gaps between the dabs. */
+export const CORE_SHADE = 0x22361f;
+
+/** V2B: the area-weighted mean color of a set of blobs (what a far crown stands in for). */
+export function meanBlobColor(blobs: readonly DabBlob[]): number {
+  let w = 0;
+  let mean = blobs[0]?.color ?? 0x6a8f3a;
+  for (const bl of blobs) {
+    const a = bl.radii[0] * bl.radii[1] + bl.radii[1] * bl.radii[2] + bl.radii[0] * bl.radii[2];
+    w += a;
+    mean = mixHex(mean, bl.color, a / w);
+  }
+  return mean;
+}
+
+/** V2B: blobs whose soft normals point from part way between the crown's heart and their own middle. */
+export function toward(blobs: readonly DabBlob[], heart: V3, k: number): DabBlob[] {
+  return blobs.map((bl) => ({
+    ...bl,
+    normalFrom: [
+      heart[0] + (bl.center[0] - heart[0]) * k,
+      heart[1] + (bl.center[1] - heart[1]) * k,
+      heart[2] + (bl.center[2] - heart[2]) * k,
+    ] as V3,
+  }));
 }
 
 /** Sunlit top color for a leaf color. */
@@ -41,6 +82,65 @@ interface Soft {
 class TreeBuilder {
   readonly s = new ShapeBuilder();
   private readonly soft: Soft[] = [];
+  /** V2B: vertex ranges written as dabs (the `dab` attribute). */
+  private readonly dabbed: [number, number][] = [];
+
+  /** V2B: brush dabs over `blobs` (see dabs.ts), marked as dabs for the foliage shader. */
+  dabs(blobs: readonly DabBlob[], opts: DabOptions): this {
+    const from = this.s.triangles * 3;
+    brushDabs(this.s, blobs, opts);
+    this.dabbed.push([from, this.s.triangles * 3]);
+    return this;
+  }
+
+  /**
+   * V2B: the core under a crown's dabs: each blob shrunk to `k` of its size, in its color deep in
+   * shade, round (soft normals), showing through the gaps as depth. Bare (`thin` 0, no dabs left)
+   * it is today's whole crown with its sunlit top, which the foliage shader turns to winter twigs.
+   */
+  core(blobs: readonly DabBlob[], k: number, seed: number, shade: number, thin: number, detail = 1): this {
+    const rnd = seeded(seed);
+    for (const bl of blobs) {
+      if (thin <= 0) {
+        this.crown(bl.center, bl.radii, bl.color, 1, rnd, 0.1, sunlit(bl.color));
+        continue;
+      }
+      const r: V3 = [bl.radii[0] * k, bl.radii[1] * k, bl.radii[2] * k];
+      this.crown(bl.center, r, mixHex(bl.color, CORE_SHADE, shade), detail, rnd, 0.06);
+    }
+    return this;
+  }
+
+  /**
+   * V2B: the far dome painted with the near dabs' tints: lighter and warmer on top, the mean color
+   * round the middle, deeper underneath (`dabTint`), as vertex colors.
+   */
+  paintedDome(c: V3, r: V3, mean: number, skyLighten: number, phase: number, rnd: () => number): this {
+    // Seen from afar the dabs' sunlit tops and the shade between them average out: the mean
+    // color a touch deeper (the gaps and the dabs' darker roots), lit a little toward the top.
+    const body = mixHex(mean, CORE_SHADE, 0.24);
+    const top = dabTint(body, 0.5, skyLighten * 0.5);
+    const mid = body;
+    const low = mixHex(body, CORE_SHADE, 0.35);
+    const from = this.s.triangles * 3;
+    const ring: V3[] = [];
+    for (let i = 0; i < 5; i++) {
+      const a = phase + (i / 5) * Math.PI * 2;
+      const k = 1 + (rnd() - 0.5) * 0.12;
+      ring.push([c[0] + Math.cos(a) * r[0] * k, c[1] - r[1] * 0.1, c[2] + Math.sin(a) * r[2] * k]);
+    }
+    const apex: V3 = [c[0], c[1] + r[1], c[2]];
+    const bottom: V3 = [c[0], c[1] - r[1] * 0.75, c[2]];
+    for (let i = 0; i < 5; i++) {
+      const a = ring[i]!;
+      const b = ring[(i + 1) % 5]!;
+      const out: V3 = [a[0] + b[0] - 2 * c[0], 0, a[2] + b[2] - 2 * c[2]];
+      this.s.triN(a, b, apex, [out[0], 1, out[2]], mid, mid, top);
+      this.s.triN(a, b, bottom, [out[0], -1, out[2]], mid, mid, low);
+    }
+    this.soft.push({ from, to: this.s.triangles * 3, c, r });
+    return this;
+  }
 
   /** A canopy blob with smooth normals. */
   crown(c: V3, r: V3, hex: number, detail: number, rnd: () => number, wobble: number, topHex?: number): this {
@@ -147,6 +247,10 @@ class TreeBuilder {
       }
     }
     nor.needsUpdate = true;
+    // V2B: dab vertices, for the foliage shader (both levels carry the attribute).
+    const dab = new Float32Array(pos.count);
+    for (const [a, b] of this.dabbed) dab.fill(1, a, b);
+    g.setAttribute('dab', new Float32BufferAttribute(dab, 1));
     return g;
   }
 }
@@ -241,54 +345,61 @@ export const oak: Kit = {
     const lz = Math.sin(la) * 0.05;
     const phase = rnd() * Math.PI * 2;
     const shape = shapeOf(opts?.seed, stage);
+    const O = OAK_SHAPES[shape]!;
+    // V2B: the crown's blobs are rolled before the level, so both levels see the same clumps and
+    // tints (the far dome is painted with their mean).
+    const blobs: DabBlob[] = [];
+    if (stage === 0) blobs.push({ center: [0, 0.85, 0], radii: [0.26, 0.24, 0.26], color: leaf });
+    else {
+      blobs.push({ center: [lx, O.y, lz], radii: O.main, color: leaf });
+      if (stage >= 2) {
+        // Fuller: clumps around the main crown, each with its own tint, and one high on top, all
+        // overlapping. The mature oaks come in three shapes (round, broad and tall).
+        const ring = stage === 3 ? O.ring : 4;
+        for (let i = 0; i < ring; i++) {
+          const a = phase + (i / ring) * Math.PI * 2 + (rnd() - 0.5) * 0.6;
+          const r = O.reach + rnd() * 0.08;
+          const c = clumpColor(leaf, rnd);
+          const y = O.low + rnd() * O.spread;
+          const k = 0.9 + rnd() * 0.2;
+          blobs.push({
+            center: [lx + Math.cos(a) * r, y, lz + Math.sin(a) * r],
+            radii: [O.clump[0] * k, O.clump[1] * k, O.clump[2] * k],
+            color: c,
+          });
+        }
+        const top = vary(mixHex(leaf, palette.birchLeaf, 0.3), rnd);
+        blobs.push({ center: [lx * 2, O.topY, lz * 2], radii: O.top, color: top });
+      } else blobs.push({ center: [lx + 0.18, 0.9, lz], radii: [0.22, 0.2, 0.22], color: vary(leaf, rnd) });
+    }
+    const sky = 0.6;
     if (opts?.lod === 'low') {
       t.s.surface(SURFACE.timber);
       t.stick(0.1, 0.07, 0.66, palette.bark);
       t.s.surface(SURFACE.leaf);
       // The near crown's whole outline: its clumps reach about 0.6 out and 1.4 up.
-      const D = OAK_SHAPES[shape]!;
-      t.dome([lx, D.domeY, lz], D.dome, leaf, sunlit(leaf, 0.2), phase, rnd);
-      return t.build(STAGE_SCALE[stage]!);
-    }
-    if (stage === 0) {
-      t.s.surface(SURFACE.timber);
-      t.s.cylinder(0, 0, 0.05, 0.03, 0, 0.7, palette.bark, 4);
-      t.s.surface(SURFACE.leaf);
-      t.crown([0, 0.85, 0], [0.26, 0.24, 0.26], leaf, 0, rnd, 0.1, sunlit(leaf));
+      t.paintedDome([lx, O.domeY, lz], O.dome, meanBlobColor(blobs), sky, phase, rnd);
       return t.build(STAGE_SCALE[stage]!);
     }
     t.s.surface(SURFACE.timber);
-    t.trunk(0.12, 0.66, palette.bark, 6);
-    // A low bough reaching out under the crown.
-    t.s.cylinder(0.05, 0, 0.035, 0.025, 0.42, 0.52, palette.bark, 3);
-    t.s.surface(SURFACE.leaf);
-    const O = OAK_SHAPES[shape]!;
-    t.crown([lx, O.y, lz], O.main, leaf, 1, rnd, 0.08, sunlit(leaf));
-    if (stage >= 2) {
-      // Fuller: clumps around the main crown, each with its own tint, and one high on top, all
-      // overlapping. The mature oaks come in three shapes (round, broad and tall).
-      const ring = stage === 3 ? O.ring : 4;
-      for (let i = 0; i < ring; i++) {
-        const a = phase + (i / ring) * Math.PI * 2 + (rnd() - 0.5) * 0.6;
-        const r = O.reach + rnd() * 0.08;
-        const c = clumpColor(leaf, rnd);
-        const y = O.low + rnd() * O.spread;
-        const k = 0.9 + rnd() * 0.2;
-        t.crown(
-          [lx + Math.cos(a) * r, y, lz + Math.sin(a) * r],
-          [O.clump[0] * k, O.clump[1] * k, O.clump[2] * k],
-          c,
-          1,
-          rnd,
-          0.1,
-          sunlit(c),
-        );
-      }
-      const top = vary(mixHex(leaf, palette.birchLeaf, 0.3), rnd);
-      t.crown([lx * 2, O.topY, lz * 2], O.top, top, 1, rnd, 0.08, sunlit(top, 0.2));
-    } else {
-      t.crown([lx + 0.18, 0.9, lz], [0.22, 0.2, 0.22], vary(leaf, rnd), 1, rnd, 0.1, sunlit(leaf));
+    if (stage === 0) t.s.cylinder(0, 0, 0.05, 0.03, 0, 0.7, palette.bark, 4);
+    else {
+      t.trunk(0.12, 0.66, palette.bark, 6);
+      // A low bough reaching out under the crown.
+      t.s.cylinder(0.05, 0, 0.035, 0.025, 0.42, 0.52, palette.bark, 3);
     }
+    t.s.surface(SURFACE.leaf);
+    const heart: V3 = [lx, stage === 0 ? 0.85 : O.y, lz];
+    t.core(blobs, 0.82, (opts?.seed ?? 7) + 1, 0.55, thinOf(opts));
+    t.dabs(toward(blobs, heart, 0.45), {
+      count: [42, 84, 132, 180][stage]!,
+      size: 0.255 / Math.sqrt(STAGE_SCALE[stage]!),
+      tintSpread: 0.22,
+      skyLighten: sky,
+      gaps: 0.12,
+      thin: thinOf(opts),
+      seed: (opts?.seed ?? 7) * 3 + 1,
+    });
     return t.build(STAGE_SCALE[stage]!);
   },
 };
@@ -358,12 +469,57 @@ export const birch: Kit = {
     const phase = rnd() * Math.PI * 2;
     const shape = shapeOf(opts?.seed, stage);
     const B = BIRCH_SHAPES[shape]!;
+    // V2B: the crown's blobs, rolled before the level (see the oak).
+    const blobs: DabBlob[] = [];
+    if (stage === 3) {
+      // P1: airier and lighter: a smaller main crown with five small, pale clumps hanging round
+      // it at different heights, each a shade of its own, and gaps between them.
+      const light = mixHex(leaf, 0xd9e27a, 0.14);
+      blobs.push({ center: [lx, B.y, lz], radii: B.main, color: light });
+      for (let i = 0; i < B.ring; i++) {
+        const a = phase + (i / B.ring) * Math.PI * 2 + (rnd() - 0.5) * 0.7;
+        const r = B.reach * (0.8 + rnd() * 0.4);
+        const y = B.low + rnd() * B.spread;
+        const c = vary(mixHex(light, rnd() < 0.5 ? 0xe3e88a : 0x8fb04a, 0.15 + rnd() * 0.2), rnd, 1.8);
+        const k = 0.88 + rnd() * 0.24;
+        blobs.push({
+          center: [lx + Math.cos(a) * r, y, lz + Math.sin(a) * r],
+          radii: [B.clump[0] * k, B.clump[1] * k, B.clump[2] * k],
+          color: c,
+        });
+      }
+    } else {
+      blobs.push({ center: [lx, 1.12, lz], radii: [0.27, 0.42, 0.27], color: leaf });
+      if (stage >= 1) {
+        const a = phase;
+        blobs.push({
+          center: [lx + Math.cos(a) * 0.16, 0.92, lz + Math.sin(a) * 0.16],
+          radii: [0.18, 0.24, 0.18],
+          color: vary(leaf, rnd, 1.6),
+        });
+      }
+      if (stage >= 2) {
+        const a = phase + 2.4;
+        blobs.push({
+          center: [lx * 2 + Math.cos(a) * 0.1, 1.4, lz * 2 + Math.sin(a) * 0.1],
+          radii: [0.17, 0.21, 0.17],
+          color: vary(mixHex(leaf, 0xd9e27a, 0.25), rnd, 1.4),
+        });
+        const a2 = phase + 4.1;
+        blobs.push({
+          center: [lx + Math.cos(a2) * 0.15, 1.02, lz + Math.sin(a2) * 0.15],
+          radii: [0.17, 0.22, 0.17],
+          color: vary(leaf, rnd, 1.2),
+        });
+      }
+    }
+    const sky = 0.55;
     if (opts?.lod === 'low') {
       t.s.surface(SURFACE.timber);
       t.stick(0.05, 0.035, 1.0, palette.birchBark);
       t.s.surface(SURFACE.leaf);
       const d = stage === 3 ? B.dome : ([0.38, 0.5, 0.38] as V3);
-      t.dome([lx, stage === 3 ? B.domeY : 1.15, lz], d, leaf, sunlit(leaf, 0.2), phase, rnd);
+      t.paintedDome([lx, stage === 3 ? B.domeY : 1.15, lz], d, meanBlobColor(blobs), sky, phase, rnd);
       return t.build(STAGE_SCALE[stage]!);
     }
     t.s.surface(SURFACE.timber);
@@ -371,67 +527,16 @@ export const birch: Kit = {
     // Dark bark marks.
     for (const y of [0.2, 0.47]) t.s.box(-0.058, y, -0.022, 0.058, y + 0.035, 0.022, palette.birchMark);
     t.s.surface(SURFACE.leaf);
-    if (stage === 3) {
-      // P1: airier and lighter: a smaller main crown with five small, pale clumps hanging round
-      // it at different heights, each a shade of its own, and gaps between them.
-      const light = mixHex(leaf, 0xd9e27a, 0.14);
-      t.crown([lx, B.y, lz], B.main, light, 1, rnd, 0.12, sunlit(light, 0.18));
-      for (let i = 0; i < B.ring; i++) {
-        const a = phase + (i / B.ring) * Math.PI * 2 + (rnd() - 0.5) * 0.7;
-        const r = B.reach * (0.8 + rnd() * 0.4);
-        const y = B.low + rnd() * B.spread;
-        const c = vary(mixHex(light, rnd() < 0.5 ? 0xe3e88a : 0x8fb04a, 0.15 + rnd() * 0.2), rnd, 1.8);
-        const k = 0.88 + rnd() * 0.24;
-        t.crown(
-          [lx + Math.cos(a) * r, y, lz + Math.sin(a) * r],
-          [B.clump[0] * k, B.clump[1] * k, B.clump[2] * k],
-          c,
-          1,
-          rnd,
-          0.12,
-          sunlit(c, 0.2),
-        );
-      }
-      return t.build(STAGE_SCALE[stage]!);
-    }
-    t.crown([lx, 1.12, lz], [0.27, 0.42, 0.27], leaf, 1, rnd, 0.12, sunlit(leaf));
-    if (stage >= 1) {
-      const a = phase;
-      const c = vary(leaf, rnd, 1.6);
-      t.crown(
-        [lx + Math.cos(a) * 0.16, 0.92, lz + Math.sin(a) * 0.16],
-        [0.18, 0.24, 0.18],
-        c,
-        1,
-        rnd,
-        0.12,
-        sunlit(c),
-      );
-    }
-    if (stage >= 2) {
-      const a = phase + 2.4;
-      const c = vary(mixHex(leaf, 0xd9e27a, 0.25), rnd, 1.4);
-      t.crown(
-        [lx * 2 + Math.cos(a) * 0.1, 1.4, lz * 2 + Math.sin(a) * 0.1],
-        [0.17, 0.21, 0.17],
-        c,
-        1,
-        rnd,
-        0.1,
-        sunlit(c, 0.18),
-      );
-      const b = vary(leaf, rnd, 1.2);
-      const a2 = phase + 4.1;
-      t.crown(
-        [lx + Math.cos(a2) * 0.15, 1.02, lz + Math.sin(a2) * 0.15],
-        [0.17, 0.22, 0.17],
-        b,
-        1,
-        rnd,
-        0.12,
-        sunlit(b),
-      );
-    }
+    t.core(blobs, 0.8, (opts?.seed ?? 11) + 1, 0.42, thinOf(opts));
+    t.dabs(toward(blobs, [lx, stage === 3 ? B.y : 1.1, lz], 0.55), {
+      count: [36, 66, 102, 138][stage]!,
+      size: 0.21 / Math.sqrt(STAGE_SCALE[stage]!),
+      tintSpread: 0.35,
+      skyLighten: sky,
+      gaps: 0.2,
+      thin: thinOf(opts),
+      seed: (opts?.seed ?? 11) * 3 + 2,
+    });
     return t.build(STAGE_SCALE[stage]!);
   },
 };
@@ -471,6 +576,11 @@ export const pine: Kit = {
     const tiers = stage === 3 ? P.tiers : stage >= 2 ? 4 : stage === 1 ? 3 : 2;
     // Mature tiers are jittered: off the axis, a little wider or narrower, higher or lower.
     const jit = stage === 3 ? 1 : 0;
+    // V2B: each tier's cone is the core, a shade deeper, and clumps of needle dabs hang round its
+    // rim and up its slope (from a stream of their own, so the tiers keep today's draws), so the
+    // outline reads as drooping skirts of needles rather than clean cones. Pines never thin.
+    const clumps: DabBlob[] = [];
+    const crnd = seeded((opts?.seed ?? 13) * 5 + 3);
     for (let k = 0; k < tiers; k++) {
       const f = k / Math.max(1, tiers - 1);
       const r = (0.52 - f * 0.27) * P.width * (1 + jit * (rnd() - 0.5) * 0.24);
@@ -479,8 +589,42 @@ export const pine: Kit = {
       const col = vary(mixHex(green, mixHex(green, palette.birchLeaf, 0.3), f), rnd, 1.2 + jit * 0.8);
       const ox = (rnd() - 0.5) * (0.04 + jit * 0.06);
       const oz = (rnd() - 0.5) * (0.04 + jit * 0.06);
-      t.s.cylinder(ox, oz, r, 0, y0, y0 + h, col, 8, phase + rnd() * Math.PI);
+      const turn = phase + rnd() * Math.PI;
+      t.s.cylinder(ox, oz, r * 0.92, 0, y0 + 0.02, y0 + h, mixHex(col, CORE_SHADE, 0.4), 8, turn);
+      // Normals from below the tier, as a cone's face turns out and up.
+      const axis: V3 = [ox, y0 - h * 0.3, oz];
+      // Round the rim, then smaller rings up the slope.
+      for (const [ring, at, size] of [
+        [8, 0.06, 0.28],
+        [6, 0.34, 0.25],
+        [4, 0.62, 0.22],
+      ] as const) {
+        const n = Math.max(3, ring - (stage < 2 ? 2 : 0));
+        for (let i = 0; i < n; i++) {
+          const a = turn + (i / n) * Math.PI * 2 + (crnd() - 0.5) * 0.5;
+          const rr = r * (1 - at) * (0.86 + crnd() * 0.12);
+          const cr = r * size * (0.85 + crnd() * 0.3);
+          clumps.push({
+            center: [ox + Math.cos(a) * rr, y0 + h * at, oz + Math.sin(a) * rr],
+            radii: [cr, cr * 0.7, cr],
+            normalFrom: axis,
+            color: vary(mixHex(col, palette.birchLeaf, 0.12), crnd, 1.2),
+          });
+        }
+      }
+      if (k === tiers - 1)
+        clumps.push({ center: [ox, y0 + h * 0.72, oz], radii: [r * 0.3, h * 0.28, r * 0.3], color: col });
     }
+    t.dabs(clumps, {
+      count: [36, 66, 102, 132][stage]!,
+      size: 0.14 / Math.sqrt(STAGE_SCALE[stage]!),
+      tintSpread: 0.28,
+      skyLighten: 0.75,
+      gaps: 0,
+      thin: 1,
+      seed: (opts?.seed ?? 13) * 3 + 3,
+      stretch: 1.5,
+    });
     return t.build(STAGE_SCALE[stage]!);
   },
 };
@@ -506,10 +650,32 @@ export const hedgerow: Kit = {
       c: vary(leaf, rnd, 1.2),
       phase: rnd() * Math.PI,
     }));
-    for (const { x, h, c, phase } of parts) {
-      if (low) t.dome([x, h * 0.7, 0], [0.24, h * 0.6, 0.17], c, sunlit(c, 0.18), phase, rnd);
-      else t.crown([x, h * 0.7, 0], [0.24, h * 0.6, 0.17], c, 1, rnd, 0.12, sunlit(c, 0.18));
+    // V2B: near, a darker core under dabs, each lump shading from below its own middle (so the
+    // run's top catches the sky and joined segments shade alike); far, the domes painted with the
+    // dabs' mean tint. Thins with the season like the trees (`params.thin`).
+    const blobs: DabBlob[] = parts.map(({ x, h, c }) => ({
+      center: [x, h * 0.7, 0],
+      radii: [0.24, h * 0.6, 0.17],
+      normalFrom: [x, h * 0.7 - 0.22, 0],
+      color: c,
+    }));
+    if (low) {
+      for (const [i, { phase }] of parts.entries()) {
+        const bl = blobs[i]!;
+        t.paintedDome(bl.center, bl.radii, bl.color, 0.5, phase, rnd);
+      }
+      return t.build(1);
     }
+    t.core(blobs, 0.8, (opts?.seed ?? 19) + 1, 0.45, thinOf(opts), 0);
+    t.dabs(blobs, {
+      count: 66,
+      size: 0.15,
+      tintSpread: 0.28,
+      skyLighten: 0.5,
+      gaps: 0.05,
+      thin: thinOf(opts),
+      seed: (opts?.seed ?? 19) * 3 + 4,
+    });
     return t.build(1);
   },
 };

@@ -4,7 +4,8 @@
 // (`npm run dev`; QOTI_CLIENT_PORT for another port):
 //   QOTI_CHROMIUM=/opt/pw-browsers/chromium node apps/client/e2e/v2-shots.mjs before [scene ...]
 // The stage is `before` (V2.0), `after` (V2X) or a track's name; scenes are hamlet, village, town,
-// winter and grown (the village the bench's autoplayer grew, ?debug&fixture=grown; all by default).
+// winter and grown (the village the bench's autoplayer grew, ?debug&fixture=grown), and (V2X)
+// grownautumn and grownwinter, the grown village on autumn's fifth day and in winter (all by default).
 // Saves docs/build/screenshots/v2-<stage>-<scene>-<shot>.png and prints draw calls, triangles,
 // frame ms and GPU ms for each shot, then the lot as a Markdown table.
 // Each shot waits until the scene has finished streaming in (the triangle count holds within 2%
@@ -12,12 +13,15 @@
 // same scene.
 // Env: QOTI_QUALITY (medium), QOTI_OUT (the screenshots folder), QOTI_WAIT (least ms per shot,
 // 8000), QOTI_SETTLE_MAX (most ms to wait for a scene to settle, 240000), QOTI_SIZE (1440x900),
+// QOTI_SHOTS (V2X: only these shot names, comma separated),
 // QOTI_HUD=1 keeps the interface, QOTI_LAYERS=1 also prints triangles per render layer (slow).
 import { chromium } from '@playwright/test';
 
 const clientPort = Number(process.env.QOTI_CLIENT_PORT ?? 5173);
 const base = `http://localhost:${clientPort}`;
 const [stage = 'before', ...only] = process.argv.slice(2);
+// V2X: QOTI_SHOTS=night,nightstreet takes only those shots of each scene (for quick A/B looks).
+const onlyShots = process.env.QOTI_SHOTS ? process.env.QOTI_SHOTS.split(',') : null;
 const out = process.env.QOTI_OUT ?? 'docs/build/screenshots';
 const quality = process.env.QOTI_QUALITY ?? 'medium';
 const [vw, vh] = (process.env.QOTI_SIZE ?? '1440x900').split('x').map(Number);
@@ -84,6 +88,29 @@ const SCENES = {
     shots: [
       { name: 'wide', hour: 11, dist: 110 },
       { name: 'golden', hour: 18, dist: 50 },
+      { name: 'night', hour: 22.3, dist: 50 },
+      { name: 'street', hour: 15, dist: 22, street: true, tilt: -0.22 },
+      // V2X: night at street zoom, where the light map, the rooms and the folk's rim show most.
+      { name: 'nightstreet', hour: 22.3, dist: 22, street: true, tilt: -0.22 },
+    ],
+  },
+  // V2X: the grown village in autumn (dabs thinning from day 4) and in winter (bare woods, snow).
+  grownautumn: {
+    fixture: 'grown',
+    look: 'season=autumn&day=5&weather=clear',
+    setup: 'grown',
+    shots: [
+      { name: 'wide', hour: 11, dist: 110 },
+      { name: 'golden', hour: 18, dist: 50 },
+      { name: 'street', hour: 15, dist: 22, street: true, tilt: -0.22 },
+    ],
+  },
+  grownwinter: {
+    fixture: 'grown',
+    look: 'season=winter&day=3&weather=clear',
+    setup: 'grown',
+    shots: [
+      { name: 'wide', hour: 11, dist: 110 },
       { name: 'night', hour: 22.3, dist: 50 },
       { name: 'street', hour: 15, dist: 22, street: true, tilt: -0.22 },
     ],
@@ -162,6 +189,7 @@ for (const [scene, def] of Object.entries(SCENES)) {
     center = [(x0 + x1 + 1) / 2, (z0 + z1 + 1) / 2];
   }
   for (const shot of def.shots) {
+    if (onlyShots && !onlyShots.includes(shot.name)) continue;
     const at =
       shot.street && street
         ? street

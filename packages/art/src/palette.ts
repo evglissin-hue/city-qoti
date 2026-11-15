@@ -1,6 +1,7 @@
 // Palette tokens for the style kit, from docs/spec/17-presentation.md. Older C1 token names are
 // kept (some now share a value with a spec token) so existing callers keep working; V1X retired
 // the ones nothing read any more (palette 2.0 below is where new kits read from).
+import type { Era } from '@qoti/content';
 
 export const palette = {
   // Ground.
@@ -81,6 +82,9 @@ export const palette = {
   lantern: 0xffc977,
   window: 0xffd58a,
   windowDay: 0x7d95a6,
+  lampCandle: 0xffc977,
+  lampGas: 0xe8de80,
+  lampElectric: 0xffecce,
 
   // UI.
   paper: 0xf7f0e1,
@@ -96,6 +100,13 @@ export const palette = {
   ghostInvalid: 0xe0605a,
   noteRed: 0xd9534f,
 } as const;
+
+/** V2A: a lamp's light by era: candle gold, greener gas, paler electric white. */
+export const LAMP_COLORS: Readonly<Record<Era, number>> = {
+  old: palette.lampCandle,
+  steam: palette.lampGas,
+  bright: palette.lampElectric,
+};
 
 /**
  * Palette 2.0 (V1.0): the Painted Miniature look (B) from the V0 concept viewer (`PALHEX.b`, docs/
