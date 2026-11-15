@@ -111,3 +111,34 @@ export const porridgeNoMore: AchievementDef = {
   lane: 'shared',
   condition: { code: 'porridgeNoMore' },
 };
+
+// R2.0: the evening feats (docs/spec/15-progression.md).
+
+export const outOfAnEvening: AchievementDef = {
+  id: 'out-of-an-evening',
+  name: 'Out of an Evening',
+  description: 'Every grown-up in town went out on one fair evening. The lamps were left on for them.',
+  lane: 'hearth',
+  condition: { count: { what: 'eveningsAllOut', atLeast: 1 } },
+};
+
+export const aSeatForEveryone: AchievementDef = {
+  id: 'a-seat-for-everyone',
+  name: 'A Seat for Everyone',
+  description: 'A whole season went by and nobody stood for want of a seat.',
+  lane: 'hearth',
+  condition: { count: { what: 'seatedSeasons', atLeast: 1 } },
+};
+
+export const mindTheGap: AchievementDef = {
+  id: 'mind-the-gap',
+  name: 'Mind the Gap',
+  description: 'Ten gaps closed, and no single seat did all the mending.',
+  lane: 'shared',
+  condition: {
+    all: [
+      { count: { what: 'gapsClosed', atLeast: 10 } },
+      { count: { what: 'gapsClosedEachSeat', atLeast: 3 } },
+    ],
+  },
+};

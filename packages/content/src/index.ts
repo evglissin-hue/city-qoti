@@ -142,6 +142,7 @@ export const decor: readonly DecorDef[] = [
   D.bench,
   D.birdbath,
   Fe.bonfire,
+  VD.brazier,
   Fe.bunting,
   VD.cafeTable,
   D.cherryTree,
@@ -298,6 +299,7 @@ export const patterns: readonly PatternDef[] = [
 
 // prettier-ignore
 export const achievements: readonly AchievementDef[] = [
+  A.aSeatForEveryone,
   A.aTownThatBuildsItself,
   SA.aWinterWithoutImports,
   A.balancedBooks,
@@ -309,6 +311,8 @@ export const achievements: readonly AchievementDef[] = [
   SA.fiveStars,
   A.hearthAndHome,
   A.marketDay,
+  A.mindTheGap,
+  A.outOfAnEvening,
   A.plankByPlank,
   A.porridgeNoMore,
   SA.theFirstWinter,

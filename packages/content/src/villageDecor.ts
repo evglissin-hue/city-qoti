@@ -3,8 +3,23 @@ import type { DecorDef } from './types';
 // I2 decor (C4C): the pieces the six Village patterns unlock. Each names an existing decor kit as a
 // stand-in and the kit C4E should draw in `params.kit`.
 
+export const brazier: DecorDef = {
+  id: 'brazier',
+  name: 'Brazier',
+  lane: 'hearth',
+  radius: 64,
+  blocksWalking: true,
+  tags: ['fire', 'brazier', 'light'],
+  art: { kit: 'lantern', params: { kit: 'brazier' } },
+  charm: [{ category: 'light', value: 2, radius: 2, nightValue: 6 }],
+  standing: 8,
+  warm: true,
+  locked: true,
+};
+
 export const cafeTable: DecorDef = {
   id: 'cafe-table',
+  seats: 4,
   name: 'Cafe table',
   lane: 'hearth',
   radius: 56,
