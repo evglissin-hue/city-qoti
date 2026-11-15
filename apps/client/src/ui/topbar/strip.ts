@@ -1,7 +1,10 @@
 // Pure readings for the Ledger's top bar strip: what each bar, chip and pip says. The components
 // only draw these, so the words and numbers are tested here.
 import { content } from '@qoti/content';
-import type { BalanceLine, BalancesView, DemandBarView, DemandKind } from '@qoti/sim';
+import type { BalanceLine, BalancesView, DemandBarView, DemandKind, RankId } from '@qoti/sim';
+import type { HandsReading } from '../hands';
+import type { SitesReading } from '../sites';
+import { rankAtLeast } from '../village';
 import { FAMILY_LABEL, RULE_LABEL } from './families';
 
 /** Days of cover at which a chip's bar is full. */
@@ -46,8 +49,16 @@ export function coverNumber(line: Pick<BalanceLine, 'cover' | 'use' | 'stock'>):
 }
 
 export interface ChipReading {
-  /** The number beside the bar. */
-  days: string;
+  /** The family's name, shown on the chip. */
+  label: string;
+  /** The main figure: units in store, compact ("212", "1.2k"). */
+  amount: string;
+  /** Nothing in store: the figure is a plain warm "0". */
+  empty: boolean;
+  /** Days of cover as a small second figure ("3 days"); null for an empty store. */
+  cover: string | null;
+  /** The cover figure turns warm: under two days. */
+  coverWarm: boolean;
   /** 0 to 1, how far the bar is filled (full at ten days). */
   fill: number;
   /** 0 to 1 tick positions; null when there is none to draw. */
@@ -62,15 +73,31 @@ export interface ChipReading {
 
 const clamp01 = (n: number) => Math.min(1, Math.max(0, n));
 
-/** What one family's chip draws and says. Materials hold units beyond site needs, not days. */
+/** Units, compactly: "950", "1.2k", "12k", "1.1m". */
+export function compact(n: number): string {
+  const v = Math.max(0, Math.floor(n));
+  if (v < 1000) return String(v);
+  const trim = (x: number) => (x >= 10 ? String(Math.floor(x)) : String(Math.floor(x * 10) / 10));
+  if (v < 1_000_000) return `${trim(v / 1000)}k`;
+  return `${trim(v / 1_000_000)}m`;
+}
+
+function carrierSentence(line: BalanceLine): string {
+  const hold =
+    line.family === 'materials'
+      ? `holding ${line.reserve} beyond what sites need`
+      : `holding ${dayWord(line.reserve)}`;
+  return `The carrier: ${RULE_LABEL[line.rule]}${line.rule === 'never' ? '' : `, ${hold}`}.`;
+}
+
+/**
+ * What one family's chip draws and says: units in store first, then days of cover as the small
+ * second figure. Materials have their own chips (materialReadings).
+ */
 export function chipReading(line: BalanceLine): ChipReading {
   const days = coverDays(line);
-  const isMaterials = line.family === 'materials';
   const onOffer = line.flavors.filter((f) => f.onOffer);
   const name = FAMILY_LABEL[line.family];
-  const hold = isMaterials
-    ? `holding ${line.reserve} beyond what sites need`
-    : `holding ${dayWord(line.reserve)}`;
   const title = [
     days === Infinity
       ? `${name}: plenty, since nothing uses it yet.`
@@ -81,17 +108,117 @@ export function chipReading(line: BalanceLine): ChipReading {
         ? `: ${onOffer.map((f) => content.goodById.get(f.good)?.label ?? f.good).join(', ')}`
         : ''
     }.`,
-    `The carrier: ${RULE_LABEL[line.rule]}${line.rule === 'never' ? '' : `, ${hold}`}.`,
+    carrierSentence(line),
   ].join(' ');
+  const empty = line.stock <= 0;
+  const number = coverNumber(line);
   return {
-    days: coverNumber(line),
-    fill: clamp01(days / COVER_FULL_DAYS),
-    reserveAt: isMaterials ? null : clamp01(line.reserve / COVER_FULL_DAYS),
-    markAt: line.mark === null ? null : clamp01(line.mark / COVER_FULL_DAYS),
-    low: isMaterials ? days < 1 : days < line.reserve,
+    label: name,
+    amount: compact(line.stock),
+    empty,
+    cover: empty ? null : `${number} ${number === '1' ? 'day' : 'days'}`,
+    coverWarm: !empty && days < 2,
     pips: line.flavors.map((f) => f.onOffer),
+    markAt: line.mark === null ? null : clamp01(line.mark / COVER_FULL_DAYS),
+    fill: clamp01(days / COVER_FULL_DAYS),
+    reserveAt: clamp01(line.reserve / COVER_FULL_DAYS),
+    low: days < line.reserve,
     title,
   };
+}
+
+/** Building materials cannot stand in for each other: one chip each, in this order. */
+export const MATERIAL_GOODS = ['timber', 'stone', 'brick'] as const;
+
+const MATERIAL_LABEL: Record<(typeof MATERIAL_GOODS)[number], string> = {
+  timber: 'Timber',
+  stone: 'Stone',
+  brick: 'Brick',
+};
+
+export interface MaterialReading {
+  good: string;
+  label: string;
+  /** Units in store, compact: the main figure. */
+  amount: string;
+  /** Short of what open sites still need: "6 of 42" (in store, still to deliver); otherwise null. */
+  of: string | null;
+  /** Nothing in store, or short of what sites need: drawn in the warm style. */
+  warm: boolean;
+  /** 0 to 1: the share of the need the store covers; a calm full bar when nothing is short. */
+  fill: number;
+  title: string;
+}
+
+export interface MaterialInputs {
+  /** The Materials balance line (for the carrier sentence and as a stock fallback). */
+  line: BalanceLine;
+  sites?: Pick<SitesReading, 'goods'>;
+  /** Units in store per good, from the stocks view. */
+  stockOf?: (good: string) => number | undefined;
+  /** The town's rank, for Brick's appearance rule. */
+  rank?: RankId;
+}
+
+/** The materials in play: Timber and Stone always; Brick once held, needed by a site, or at Village. */
+export function materialReadings(inp: MaterialInputs): MaterialReading[] {
+  const out: MaterialReading[] = [];
+  for (const good of MATERIAL_GOODS) {
+    const need = inp.sites?.goods.find((g) => g.good === good)?.need ?? 0;
+    const stock = inp.stockOf?.(good) ?? inp.line.flavors.find((f) => f.good === good)?.stock ?? 0;
+    if (good === 'brick' && stock <= 0 && need <= 0 && !rankAtLeast(inp.rank, 'village')) continue;
+    const label = MATERIAL_LABEL[good];
+    const short = need > stock;
+    const sites = need > 0 ? `Open sites still need ${need}.` : 'No open site waits on it.';
+    out.push({
+      good,
+      label,
+      amount: compact(stock),
+      of: short ? `${compact(stock)} of ${compact(need)}` : null,
+      warm: short || stock <= 0,
+      fill: short ? clamp01(stock / need) : 1,
+      title: `${label}: ${stock} in store. ${sites} ${carrierSentence(inp.line)}`,
+    });
+  }
+  return out;
+}
+
+export interface FolkReading {
+  /** Residents in town, compact: the main figure. */
+  amount: string;
+  /** "5 jobs open", or null when no job stands open. */
+  jobs: string | null;
+  /** Workplaces stand with nobody at all: the jobs figure is warm. */
+  warm: boolean;
+  title: string;
+}
+
+const count = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
+
+/** The Folk chip: residents as the figure, open jobs beside it, and the hover in words. */
+export function folkReading(
+  hands: Pick<HandsReading, 'folk' | 'working' | 'openJobs'> & { empty: readonly unknown[] },
+  households: number,
+): FolkReading {
+  const { folk, working, openJobs } = hands;
+  const nobody = hands.empty.length;
+  const jobs = openJobs > 0 ? `${openJobs} ${openJobs === 1 ? 'job' : 'jobs'} open` : null;
+  let title: string;
+  if (folk === 0) {
+    title = 'Nobody has moved in yet: families walk in from the valley gate once there are Homes.';
+  } else {
+    const parts = [`${folk} folk in ${count(households, 'household', 'households')}, ${working} at work.`];
+    parts.push(
+      openJobs > 0
+        ? `${count(openJobs, 'job stands', 'jobs stand')} open${
+            nobody > 0 ? `, ${count(nobody, 'workplace', 'workplaces')} with nobody yet` : ''
+          }.`
+        : 'No job stands open.',
+    );
+    if (openJobs > 0) parts.push('More Homes bring more folk.');
+    title = parts.join(' ');
+  }
+  return { amount: compact(folk), jobs, warm: nobody > 0, title };
 }
 
 export interface WinterReading {

@@ -1803,6 +1803,8 @@ li.alert.tone-news {
 }
 
 .alert-body > span:last-child {
+  /* P2-D: no single word alone on a last line, where the browser can help. */
+  text-wrap: pretty;
   display: -webkit-box;
   -webkit-line-clamp: 3;
   -webkit-box-orient: vertical;

@@ -5,6 +5,8 @@ import { content } from '@qoti/content';
 import {
   BuildingStatus,
   calendar,
+  type DemandBarView,
+  type DemandKind,
   methodOf,
   TICKS_PER_DAY,
   TIERS,
@@ -13,6 +15,9 @@ import {
 } from '@qoti/sim';
 import type { Mirror } from '../state/mirror';
 import { goodName, placeName, seatLabel } from './format';
+import { readHands } from './hands';
+import { readSites } from './sites';
+import { coverDays, DEMAND_BAR } from './topbar/strip';
 import { IDLE_BITS, statusWords, TIER_WORD } from './hamlet';
 import { letterKey } from './letters';
 import { askText } from './panels/Requests';
@@ -29,7 +34,9 @@ export type AlertAction =
   | { kind: 'letter'; arc: string; step: number }
   | { kind: 'plan'; id: number }
   | { kind: 'request'; id: number }
-  | { kind: 'market'; good: string };
+  | { kind: 'market'; good: string }
+  // P2-D: a zone brush or another tool, as the top bar's demand bars open them.
+  | { kind: 'tool'; tool: string; variant?: string };
 
 /** I2 (C4F): who is reading, for requests and plans addressed to them and letters already read. */
 export interface AlertContext {
@@ -44,6 +51,8 @@ export interface Alert {
   tone: 'warn' | 'news' | 'quiet';
   icon: string;
   text: string;
+  /** The full words for the hover, when the line says it in fewer. */
+  title?: string;
   action?: AlertAction;
 }
 
@@ -79,7 +88,11 @@ export function computeAlerts(
   if (population > 0 && stocks.length) {
     let food = 0;
     for (const l of stocks) if (content.goodById.get(l.good)?.family === 'food') food += l.stock;
-    const days = food / population;
+    // P2: the top bar's Food chip reads the Balances line (its stock and its days of cover). Read
+    // the same line here, so the feed never says "about a day" beside a chip that says three.
+    const line = m.balances.value?.lines.find((l) => l.family === 'food');
+    if (line) food = line.stock;
+    const days = line ? coverDays(line) : food / population;
     if (days < FOOD_DAYS_WARN) {
       out.push({
         key: 'food-low',
@@ -96,6 +109,8 @@ export function computeAlerts(
   }
   const stockOf = new Map(stocks.map((l) => [l.good, l.stock]));
   const short = new Map<string, string[]>();
+  const hands = readHands(m);
+  const handsEmpty = new Set(hands.empty);
   const idle: Alert[] = [];
   for (const b of m.buildings.values()) {
     const bits = b.rt?.status ?? 0;
@@ -111,17 +126,28 @@ export function computeAlerts(
         short.set(good, list);
       }
     }
+    // P2-D: "nobody works here yet" is one line for the town (below), not one per building.
+    const own = bits & IDLE_BITS & ~(handsEmpty.has(b.id) ? BuildingStatus.noWorkers : 0);
+    if (!own) continue;
     idle.push({
-      key: `idle-${b.id}-${bits & IDLE_BITS}`,
+      key: `idle-${b.id}-${own}`,
       lens: 'ledger',
       tone: 'quiet',
       icon: 'status',
-      text: `${placeName(b)}: ${statusWords(bits & IDLE_BITS)
-        .join(', ')
-        .toLowerCase()}.`,
+      text: `${placeName(b)}: ${statusWords(own).join(', ').toLowerCase()}.`,
       action: { kind: 'building', id: b.id },
     });
   }
+
+  const sites = readSites(m);
+  const materials = sitesMaterialsAlert(m, sites);
+  if (materials) out.push(materials);
+  out.push(...zoneAlerts(m, 'wanted'));
+  const builders = sitesBuildersAlert(m, sites);
+  if (builders) out.push(builders);
+  const handsAlert = handsLine(m, hands);
+  if (handsAlert) out.push(handsAlert);
+
   for (const [good, who] of short) {
     // R1X: "the cider makers", not "the cider maker are", when several of a kind wait.
     const names = [...new Set(who)].map((n) => (who.filter((x) => x === n).length > 1 ? `${n}s` : n));
@@ -134,8 +160,9 @@ export function computeAlerts(
       action: { kind: 'panel', panel: 'balances', page: 'families' },
     });
   }
-  // Playtest round six: a site waiting on stone, with the stone nearly gone, wants a quarry.
-  if (stocks.length && (stockOf.get('stone') ?? 0) < STONE_LOW) {
+  // Playtest round six: a site waiting on stone, with the stone nearly gone, wants a quarry. P2-D:
+  // the sites line says so itself when it names stone.
+  if (stocks.length && (stockOf.get('stone') ?? 0) < STONE_LOW && !materials?.key.includes('stone')) {
     for (const b of m.buildings.values()) {
       if (b.stage !== 'construction') continue;
       if (!content.buildingById.get(b.def)?.cost?.goods?.some(([g]) => g === 'stone')) continue;
@@ -161,6 +188,7 @@ export function computeAlerts(
       action: { kind: 'panel', panel: 'businesses' },
     });
   }
+  out.push(...zoneAlerts(m, 'growth'));
 
   out.push(...villageAlerts(m, who));
   out.push(...seasonAlerts(m));
@@ -350,6 +378,227 @@ function villageAlerts(m: Mirror, who: AlertContext): Alert[] {
         action: { kind: 'panel', panel: 'charter' },
       }),
     );
+  }
+  return out;
+}
+
+// --- P2-D: what the town is waiting for ---------------------------------------------------------
+
+const lower = (t: string): string => t.charAt(0).toLowerCase() + t.slice(1);
+const aOrAn = (word: string): string => (/^[aeiou]/i.test(word) ? `An ${word}` : `A ${word}`);
+
+/** "timber", "timber and stone", "timber, stone and clay". */
+function list(words: readonly string[]): string {
+  return words.length < 2
+    ? (words[0] ?? '')
+    : `${words.slice(0, -1).join(', ')} and ${words[words.length - 1]}`;
+}
+
+/** What a maker's verb is for a good ("cuts timber"), else "makes". */
+const MAKER_VERB: Record<string, string> = { stone: 'digs', timber: 'cuts' };
+
+/** The plainest building that makes a good here, as the inspector names it, or null. */
+function makerOf(m: Mirror, good: string): string | null {
+  const mode = m.settings.value.mode;
+  const cost = (d: { cost?: { goods?: readonly (readonly [string, number])[] } }) =>
+    (d.cost?.goods ?? []).reduce((n, [, q]) => n + q, 0);
+  const maker = content.buildings
+    .filter(
+      (d) =>
+        d.methods?.some((x) => x.outputs.some(([o]) => o === good)) &&
+        (!d.modes || d.modes.includes(mode)) &&
+        (!d.grows || d.grows.handPlaced),
+    )
+    .sort((a, b) => Number(!!a.requires) - Number(!!b.requires) || cost(a) - cost(b))[0];
+  return maker?.name ?? null;
+}
+
+/**
+ * The feed's text clamps at three lines of a 270px panel, about this many characters. A line is
+ * told in its richest wording that fits, and falls back to a shorter one (the full text is also the
+ * tooltip), so nothing is ever cut mid-sentence.
+ */
+export const FEED_FIT = 88;
+const fits = (...options: string[]): string =>
+  options.find((t) => t.length <= FEED_FIT) ?? options[options.length - 1]!;
+
+/** Ledger: open sites that wait on goods the stores cannot cover, and what to do about it. */
+function sitesMaterialsAlert(m: Mirror, sites: ReturnType<typeof readSites>): Alert | null {
+  const first = sites.waitingMaterials[0];
+  const short = sites.goods.filter((g) => g.need > g.stock);
+  if (first === undefined || !short.length) return null;
+  const n = sites.waitingMaterials.length;
+  const names = short.map((g) => goodName(g.good).toLowerCase());
+  const hold = list(short.map((g) => String(g.stock)));
+  const worst = short[0]!.good;
+  const one = short.length === 1;
+  const needs = one ? `${short[0]!.need} more` : `${list(short.map((g, i) => `${g.need} ${names[i]}`))} more`;
+  const sites1 = n === 1;
+  const heads = one
+    ? [
+        `${sites1 ? 'A site is' : `${n} sites are`} waiting for ${names[0]}: ${sites1 ? 'it needs' : 'they need'} ${needs} and the stores hold ${hold}.`,
+        `${sites1 ? 'A site needs' : `${n} sites need`} ${short[0]!.need} more ${names[0]}; the stores hold ${hold}.`,
+        `${sites1 ? 'A site needs' : `${n} sites need`} ${short[0]!.need} more ${names[0]}; ${hold} in store.`,
+      ]
+    : [
+        `${sites1 ? 'A site is' : `${n} sites are`} waiting for ${list(names)}: ${sites1 ? 'it needs' : 'they need'} ${needs}, and the stores hold ${hold}.`,
+        `${sites1 ? 'A site needs' : `${n} sites need`} ${list(short.map((g, i) => `${g.need} ${names[i]}`))}; the stores hold ${hold}.`,
+        `${sites1 ? 'A site needs' : `${n} sites need`} ${short.map((g, i) => `${g.need} ${names[i]}`).join(', ')}; ${hold} in store.`,
+      ];
+  const treasury = m.town.value?.treasury ?? 1;
+  const rule = m.balances.value?.lines.find((l) => l.family === 'materials')?.rule;
+  const maker = makerOf(m, worst);
+  const makes = maker ? `${aOrAn(maker)} ${MAKER_VERB[worst] ?? 'makes'} ${names[0]}` : '';
+  // What can be done about it, richest first: a blocked carrier is the news; else who makes it.
+  const remedies: string[] =
+    treasury <= 0
+      ? [
+          'The carrier buys none while the treasury is empty.',
+          'The carrier buys none: the purse is empty.',
+          'The carrier has no coin to buy.',
+        ]
+      : rule === 'never'
+        ? ['The carrier is told never to buy materials.', 'The carrier is told to buy none.']
+        : maker
+          ? [`${makes} here; the carrier brings some at ten.`, `${makes}.`, 'The carrier brings some at ten.']
+          : ['The carrier brings some at ten.'];
+  let text = '';
+  for (const r of remedies) {
+    text = heads.map((h) => `${h} ${r}`).find((t) => t.length <= FEED_FIT) ?? '';
+    if (text) break;
+  }
+  if (!text) text = fits(...heads);
+  return {
+    key: `sites-materials-${short
+      .map((g) => g.good)
+      .sort()
+      .join('+')}`,
+    lens: 'ledger',
+    tone: 'warn',
+    icon: `good:${worst}`,
+    text,
+    action: { kind: 'building', id: first },
+  };
+}
+
+/** Ledger, by day: sites with their materials but no builder at work. */
+function sitesBuildersAlert(m: Mirror, sites: ReturnType<typeof readSites>): Alert | null {
+  const first = sites.waitingBuilders[0];
+  const hour = m.clock.value.hour;
+  if (first === undefined || hour < 8 || hour >= 19) return null;
+  const n = sites.waitingBuilders.length;
+  return {
+    key: 'sites-builders',
+    lens: 'ledger',
+    tone: 'quiet',
+    icon: 'apprentice',
+    text: `${n === 1 ? 'A site is' : `${n} sites are`} waiting for a builder. A Builder's Yard adds more of them.`,
+    action: { kind: 'building', id: first },
+  };
+}
+
+/** Ledger: built workplaces with nobody at all, as one line. */
+function handsLine(m: Mirror, hands: ReturnType<typeof readHands>): Alert | null {
+  const first = hands.empty[0];
+  if (first === undefined) return null;
+  const names = hands.empty.map((id) => {
+    const b = m.buildings.get(id);
+    return b ? placeName(b) : 'workplace';
+  });
+  const jobs = `${hands.openJobs === 1 ? '1 job is' : `${hands.openJobs} jobs are`} open; more Homes bring more folk.`;
+  const text =
+    names.length === 1
+      ? `${names[0]}: nobody works here yet. ${jobs}`
+      : `${names.length} workplaces have nobody yet. ${jobs}`;
+  const shown = names.slice(0, 3).map((n) => `the ${n}`);
+  const rest = names.length - shown.length;
+  const title =
+    names.length === 1
+      ? undefined
+      : `Nobody works at ${list(rest > 0 ? [...shown, `${rest} more`] : shown)} yet. ${hands.openJobs === 1 ? '1 job is' : `${hands.openJobs} jobs are`} open in town; more Homes bring more folk.`;
+  return {
+    key: 'hands-empty',
+    lens: 'ledger',
+    tone: 'quiet',
+    icon: 'people',
+    text,
+    ...(title ? { title } : {}),
+    action: { kind: 'building', id: first },
+  };
+}
+
+/** The icon of each demand bar's zone. */
+const ZONE_ICON: Record<DemandKind, string> = {
+  farmland: 'field',
+  homes: 'home',
+  shops: 'market',
+  workshops: 'building',
+};
+
+/** Shorter wordings for the sim's longest reasons, when one will not fit the feed. */
+const SHORT_WHY: Record<string, (zone: string) => string[]> = {
+  noRoad: (z) => [`${z}: zoned, but no street runs along it. Lots are cut along streets.`],
+  outOfReach: (z) => [
+    `${z}: free lots lie beyond the porters' reach. Zone nearer, or add a storehouse.`,
+    `${z}: free lots lie beyond the porters' reach. Zone nearer.`,
+  ],
+  materials: (z) => [`${z}: a lot waits, but the stores are too short to start on it.`],
+};
+
+const WANTED_CODES = new Set(['needsLand', 'noRoad', 'outOfReach', 'unsuitable', 'marketStall']);
+const GROWTH_CODES = new Set(['lotWaiting', 'materials', 'sitesBusy']);
+
+/** The reason that says where a bar stands: the last one, when it is one of the standing codes. */
+function standing(bar: DemandBarView, codes: Set<string>): { code: string; why: string } | null {
+  const i = bar.reasons.length - 1;
+  const r = bar.reasons[i];
+  if (!r || !codes.has(r.code)) return null;
+  if (r.code === 'lotWaiting' && r.value === undefined) return null;
+  return { code: r.code, why: bar.why[i] ?? '' };
+}
+
+/**
+ * Ledger: one line per lit bar ('wanted': zone more land, a street, a storehouse), or per quiet bar
+ * with growth on its way or held ('growth'). The words are the sim's own, led by the zone's name.
+ */
+function zoneAlerts(m: Mirror, which: 'wanted' | 'growth'): Alert[] {
+  const out: Alert[] = [];
+  for (const bar of m.demand.value?.bars ?? []) {
+    const info = DEMAND_BAR[bar.kind];
+    const zone = info.label;
+    const icon = ZONE_ICON[bar.kind];
+    if (which === 'wanted') {
+      if (!bar.lit) continue;
+      const s = standing(bar, WANTED_CODES) ?? { code: 'needsLand', why: '' };
+      let text: string;
+      let action: AlertAction = { kind: 'tool', tool: 'zone', variant: info.zone };
+      if (s.code === 'needsLand') {
+        text = fits(
+          `The town wants more ${zone} zoned. ${bar.why[0] ?? ''}`.trim(),
+          `Zone more ${zone}. ${bar.why[0] ?? ''}`.trim(),
+        );
+      } else if (s.code === 'marketStall') {
+        // The sim's sentence opens with the zone's own name, so it needs no second one.
+        text = `Shops wait for the Village charter. Until then, a Market Stall does the job.`;
+        action = { kind: 'tool', tool: 'zone' };
+      } else {
+        text = fits(`${zone}: ${lower(s.why)}`, ...(SHORT_WHY[s.code]?.(zone) ?? []));
+        if (s.code === 'noRoad') action = { kind: 'tool', tool: 'street' };
+      }
+      out.push({ key: `zone-${bar.kind}-${s.code}`, lens: 'ledger', tone: 'warn', icon, text, action });
+    } else {
+      if (bar.lit || !(bar.value > 0)) continue;
+      const s = standing(bar, GROWTH_CODES);
+      if (!s) continue;
+      out.push({
+        key: `growth-${bar.kind}-${s.code}`,
+        lens: 'ledger',
+        tone: s.code === 'materials' ? 'warn' : 'quiet',
+        icon,
+        text: fits(`${zone}: ${lower(s.why)}`, ...(SHORT_WHY[s.code]?.(zone) ?? [])),
+        action: { kind: 'tool', tool: 'zone', variant: info.zone },
+      });
+    }
   }
   return out;
 }

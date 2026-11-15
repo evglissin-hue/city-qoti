@@ -36,6 +36,23 @@ export const WORK_HOURS = [8, 17] as const;
  */
 export const BUILD_HOURS = [8, 19] as const;
 /**
+ * P2 (the R1 playtest): hours at which the growth pass runs. The night's pass does everything; the
+ * midday one only starts sites, on what the day's allowance has left, so land zoned in the morning
+ * need not wait for the night. Twelve hours apart (the growth system's `every`).
+ */
+export const GROWTH_HOURS = [1, 13] as const;
+/**
+ * P2: whether the 13:00 pass runs at all. Off. Measured on the six bench seeds over 70 days, a
+ * midday start in each form tried (every day; only in a town with nothing under construction; that
+ * and homes only) moved R1X's tuned years past their targets: the Village charter a season late on
+ * willow, birch and oak, lean days on oak, hazel stalled at 52 folk with homes only. Sites started
+ * half a day sooner put a season's books in the red and the Charter's season in surplus slips one.
+ * The pass is built and tested (growthPass's `midday`) for a tuning round to switch on and tune
+ * with (`docs/build/cycle-p2-playtest.md`, As built). While off, growth runs at 01:00 only, on the
+ * same schedule and with the same outcomes as before P2.
+ */
+export const GROWTH_MIDDAY: boolean = false;
+/**
  * Playtest round five: from 22:00 to 06:00, while the town sleeps, each turn runs this many times
  * the ticks, so the night passes quickly at any speed.
  */

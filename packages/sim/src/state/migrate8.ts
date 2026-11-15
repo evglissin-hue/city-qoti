@@ -1,5 +1,6 @@
-// Save version 6 to 7 (R2.0, the evening round; docs/spec/21-networking-and-saves.md, Version
-// changes). Frozen: it must turn a version 6 save into exactly what R2.0's version 7 holds, whatever
+// Save version 7 to 8 (R2.0, the evening round; docs/spec/21-networking-and-saves.md, Version
+// changes). P2 took version 7 (the day's growth starts), so R2 is 8, on P2's shape. Frozen: it must
+// turn a version 7 save into exactly what R2.0's version 8 holds, whatever
 // later cycles change in the systems, so it reads no system code and keeps its own small tables.
 import { MAP_SIZE } from '../constants';
 import { seedStream } from '../rng/streams';
@@ -8,17 +9,17 @@ import type { SaveObject } from './version';
 
 /** The evenings need a resident from before R2 starts with (19-evenings.md: 50 for a newcomer). */
 const EVENINGS_START = 50;
-/** Version 6's need count (NEED_IDS before `evenings`). */
-const V6_NEEDS = 9;
-/** Version 6's RNG streams (before `round`). */
-const V6_STREAMS = 8;
+/** Version 7's need count (NEED_IDS before `evenings`). */
+const V7_NEEDS = 9;
+/** Version 7's RNG streams (before `round`). */
+const V7_STREAMS = 8;
 /** R2.0's stand-in storeys: a home by the tier it houses, a business by its level. */
 const HOME_STOREYS: Record<string, number> = { cottage: 1.5, townhouse: 2 };
 const BUSINESS_STOREYS = [1, 1.5, 2];
 /** Ranks at or above the Village (whose Charter unlocks the brazier from R2.0). */
 const VILLAGE_OR_MORE = ['village', 'town', 'marketTown', 'city'];
 
-interface V6Building {
+interface V7Building {
   def: string;
   lot?: number;
   trade?: string;
@@ -26,7 +27,7 @@ interface V6Building {
   storeys?: number;
 }
 
-export function migrate6to7(save: SaveObject): SaveObject {
+export function migrate7to8(save: SaveObject): SaveObject {
   const n = MAP_SIZE * MAP_SIZE;
   const map = { ...(save.map as Record<string, string>) };
   // The footfall layers, zeroed (16 bits a tile).
@@ -41,7 +42,7 @@ export function migrate6to7(save: SaveObject): SaveObject {
   seedStream(words, 0, save.seed as string, 'round');
   for (let w = 0; w < 4; w++) {
     const v = words[w]!;
-    const o = V6_STREAMS * 16 + w * 4;
+    const o = V7_STREAMS * 16 + w * 4;
     rng[o] = v & 0xff;
     rng[o + 1] = (v >>> 8) & 0xff;
     rng[o + 2] = (v >>> 16) & 0xff;
@@ -49,11 +50,11 @@ export function migrate6to7(save: SaveObject): SaveObject {
   }
   // Every resident gains the evenings need at the start value.
   const residents = (save.residents as { needs: number[] }[]).map((r) =>
-    r.needs.length === V6_NEEDS ? { ...r, needs: [...r.needs, EVENINGS_START] } : r,
+    r.needs.length === V7_NEEDS ? { ...r, needs: [...r.needs, EVENINGS_START] } : r,
   );
   // Every lot is a plot in no row; grown buildings take their stand-in storeys.
   const lots = (save.lots as object[]).map((l) => ({ ...l, row: 0, kind: 'plot' }));
-  const buildings = (save.buildings as V6Building[]).map((b) => {
+  const buildings = (save.buildings as V7Building[]).map((b) => {
     if (!b.lot || b.storeys !== undefined) return b;
     const storeys = b.trade
       ? BUSINESS_STOREYS[Math.max(0, Math.min(2, (b.level ?? 1) - 1))]!
@@ -70,7 +71,7 @@ export function migrate6to7(save: SaveObject): SaveObject {
       : hearth.unlocked;
   return {
     ...save,
-    saveVersion: 7,
+    saveVersion: 8,
     hearth: { ...hearth, unlocked },
     map,
     rng: bytesToBase64(rng),

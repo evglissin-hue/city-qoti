@@ -26,7 +26,7 @@ function v6At(rank: string): Uint8Array {
   return gzipSync(strToU8(JSON.stringify(save)), { level: 6, mtime: 0 });
 }
 
-describe('migration 6 to 7 and the Charter unlocks', () => {
+describe('migration to 8 and the Charter unlocks', () => {
   it('unlocks the brazier for a Village, once', () => {
     const state = deserialize(v6At('village'));
     expect(state.hearth.unlocked.filter((u) => u === 'brazier')).toHaveLength(1);

@@ -103,8 +103,8 @@ test('a year of the R1 game hashes the same in a browser worker and in Node', as
 });
 
 // R2.0: ten in-game days on the evening round's stand-ins, from a real version 6 valley (migrated to
-// version 7 as the worker loads it) and from a fresh standard valley, hash the same in a browser
-// worker as in Node.
+// the current version as the worker loads it, through P2's step and R2.0's) and from a fresh
+// standard valley, hash the same in a browser worker as in Node.
 for (const which of ['v6', 'fresh'] as const) {
   test(`ten days from a ${which === 'v6' ? 'migrated version 6' : 'fresh'} valley hash the same in a browser worker and in Node`, async ({
     page,

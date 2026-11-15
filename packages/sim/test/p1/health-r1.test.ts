@@ -172,6 +172,62 @@ describe('the zones-first health kinds', () => {
     });
   });
 
+  // P2: the bar promises a start ("a lot is free and waiting") and the pass never makes it.
+  describe('growth-wait-broken', () => {
+    const waiting = () => {
+      const s = hamletFixture().state;
+      s.demand.bars = [34, 0, 0, 0];
+      s.demand.lit = [false, false, false, false];
+      s.demand.reasons = [
+        [
+          { code: 'newcomers', value: 1 },
+          { code: 'lotWaiting', value: 13 },
+        ],
+        [],
+        [],
+        [],
+      ];
+      return s;
+    };
+
+    it('fires when Homes has promised a start for three days and no home site went up', () => {
+      const s = waiting();
+      const w = new HealthWatch();
+      s.tick = 0;
+      expect(kinds(w, s)).not.toContain('growth-wait-broken');
+      s.tick = 3 * DAY - 1;
+      expect(kinds(w, s)).not.toContain('growth-wait-broken');
+      s.tick = 3 * DAY + 1;
+      expect(find(w, s, 'growth-wait-broken')?.text).toContain('homes');
+    });
+
+    it('stays quiet when the bar gives a reason, asks for land, or wants nothing', () => {
+      for (const last of [
+        { code: 'materials', good: 'timber' },
+        { code: 'sitesBusy', value: 3 },
+      ] as const) {
+        const s = waiting();
+        s.demand.reasons[0] = [{ code: 'newcomers', value: 1 }, last];
+        const w = new HealthWatch();
+        s.tick = 0;
+        w.check(s);
+        s.tick = 4 * DAY;
+        expect(kinds(w, s)).not.toContain('growth-wait-broken');
+      }
+      const lit = waiting();
+      lit.demand.lit[0] = true;
+      const quiet = waiting();
+      quiet.demand.bars[0] = 0;
+      for (const s of [lit, quiet]) {
+        const w = new HealthWatch();
+        s.tick = 0;
+        w.check(s);
+        s.tick = 4 * DAY;
+        expect(kinds(w, s)).not.toContain('growth-wait-broken');
+      }
+    });
+  });
+
   describe('demand-unanswered', () => {
     it('fires when Homes is lit three days with no empty home lot', () => {
       const s = hamletFixture().state;

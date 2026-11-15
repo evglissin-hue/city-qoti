@@ -54,13 +54,14 @@ describe('the version 6 fixture', () => {
   });
 });
 
-describe('migration 6 to 7', () => {
+describe('migrations 6 to 7 (P2) and 7 to 8 (R2.0)', () => {
   const raw = parseV6();
   const state = deserialize(loadV6());
 
-  it('lands on version 7', () => {
-    expect(SAVE_VERSION).toBe(7);
-    expect(state.saveVersion).toBe(7);
+  it("lands on version 8, with P2's growth starts on the way", () => {
+    expect(SAVE_VERSION).toBe(8);
+    expect(state.saveVersion).toBe(8);
+    expect(state.demand.starts).toEqual({ day: -1, n: 0 });
   });
 
   it('gives every resident the evenings need at 50, last', () => {
@@ -136,7 +137,7 @@ describe('migration 6 to 7', () => {
 
   it('re-serializes and deserializes to an equal hash', () => {
     const again = deserialize(serialize(state));
-    expect(again.saveVersion).toBe(7);
+    expect(again.saveVersion).toBe(SAVE_VERSION);
     expect(hashState(again)).toBe(hashState(state));
   });
 
@@ -205,14 +206,14 @@ describe('footfall layers', () => {
 });
 
 describe('save versions', () => {
-  it('leaves a version 7 save as it is and refuses version 8 as newer', () => {
+  it('leaves a current save as it is and refuses a newer one', () => {
     const save = parseV6();
-    const seven = migrateSave(save);
-    expect(seven.saveVersion).toBe(7);
-    expect(migrateSave(seven)).toBe(seven);
+    const current = migrateSave(save);
+    expect(current.saveVersion).toBe(SAVE_VERSION);
+    expect(migrateSave(current)).toBe(current);
     const bytes = serialize(deserialize(loadV6()));
     const parsed = JSON.parse(strFromU8(gunzipSync(bytes))) as { saveVersion: number };
-    parsed.saveVersion = 8;
+    parsed.saveVersion = SAVE_VERSION + 1;
     const eight = gzipSync(strToU8(JSON.stringify(parsed)), { level: 6, mtime: 0 });
     expect(() => deserialize(eight)).toThrow(/newer than this game/);
   });

@@ -46,6 +46,10 @@ export function Toolbar({ session }: { session: Session }) {
   useEffect(() => {
     session.render?.setOverlay(own ?? shown);
   }, [shown, own]);
+  // P2-D: the Ledger marks sites waiting for materials or builders without the Status overlay.
+  useEffect(() => {
+    session.render?.setSiteMarkers?.(lens === 'ledger');
+  }, [lens]);
   if (!manager) return null;
   void m.hamletRevision.value;
   void m.budget.value;

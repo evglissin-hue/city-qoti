@@ -388,6 +388,8 @@ describe('I0 contracts', () => {
       | 'pickEntity'
       | 'setGhost'
       | 'setOverlay'
+      // P2-D (additive): the waiting markers over sites, on in the Ledger
+      | 'setSiteMarkers'
       | 'setPresence'
       | 'ping'
       | 'focus'

@@ -15,7 +15,9 @@ import { lotsIn, paintZone, zoneNow } from '../growth/helpers';
 
 const g = (id: string) => content.goodIndex.get(id)!;
 
+/** A night's pass on a new day (P2: the day's starts are counted in state.demand.starts). */
 function night(s: WorldState): void {
+  s.demand.starts = { day: -1, n: 0 };
   growthPass(s, createTickCtx(s));
 }
 

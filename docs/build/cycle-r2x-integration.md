@@ -46,7 +46,7 @@ New design (R3 and later); V3's look work beyond merging it and wiring the two i
 
 ## Notes
 
-- `SAVE_VERSION` is 7 on this branch (R2.0); if a wave cycle bumped it, keep one version for the merge and say so.
+- `SAVE_VERSION` is 8 on this branch (P2 took 7; R2.0's migration is 7 to 8); if a wave cycle bumped it, keep one version for the merge and say so.
 - Keep a list of what each cycle's PR left for you, and close it before the merge.
 - If R1's tuning moved a number this wave reads (tiers, baskets), say so in the PR (`13-ledger.md`, As built (R1X)).
 - R2.0 left the Village Charter without its evening goal (R2C adds it with its counter) and Craftsfolk's charm and tavern gates in the data until R2B's tiers read evenings: check both landed together with their readers.

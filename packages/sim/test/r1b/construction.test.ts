@@ -4,6 +4,7 @@ import { content } from '@qoti/content';
 import { describe, expect, it } from 'vitest';
 import { BuildingStatus, TICKS_PER_HOUR } from '../../src/constants';
 import type { Lot } from '../../src/contracts';
+import { PASS_EVENT } from '../../src/systems/carrier/api';
 import { buildsFirst } from '../../src/systems/construction/first';
 import { inspect } from '../../src/view/inspect';
 import { hamletFixture } from '../fixtures/hamlet';
@@ -119,6 +120,31 @@ describe('a site short of a material', () => {
     const { f, site } = waiting();
     f.state.carrier.families[2]!.rule = 'essentials';
     expect(lines(f, site.id)).toContain('Waiting for 16 timber and 6 stone; the carrier brings some at ten');
+  });
+
+  // P2: the carrier buys a site's materials with coins in hand only, and not through a closed pass.
+  it('says the carrier buys none while the treasury is empty', () => {
+    const { f, site } = waiting();
+    f.state.carrier.families[2]!.rule = 'essentials';
+    f.state.economy.treasury = 0;
+    expect(lines(f, site.id)).toContain(
+      'Waiting for 16 timber and 6 stone; the carrier buys none while the treasury is empty',
+    );
+  });
+
+  it('says the carrier cannot come while snow closes the pass', () => {
+    const { f, site } = waiting();
+    f.state.carrier.families[2]!.rule = 'essentials';
+    f.state.weather.events.push({
+      id: 9001,
+      event: PASS_EVENT,
+      start: 0,
+      end: f.state.tick + 10_000,
+      forecastTick: 0,
+    });
+    expect(lines(f, site.id)).toContain(
+      'Waiting for 16 timber and 6 stone; the carrier cannot come while snow closes the pass',
+    );
   });
 
   it('leaves the carrier out when the Materials rule is never', () => {

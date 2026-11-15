@@ -8,9 +8,13 @@ import { Glyph } from './icons';
 import { RANK_WORD } from './village';
 
 export interface GoalLine {
-  /** Words for the pill: "Village Charter: 22 of 30 residents". */
+  /** The whole sentence, for the hover: "Village Charter: 22 of 30 residents". */
   text: string;
-  /** Short count for the second line: "3 of 5 goals". */
+  /** Line one, small and muted: the Charter's name ("Village Charter"). It is what ellipsizes. */
+  name: string;
+  /** Line two, never cut short for a Charter goal: "22 of 30 residents". */
+  words: string;
+  /** Compact count at the right of line one: "3/5". Empty when there is none. */
   count: string;
   /** 0 to 1. */
   progress: number;
@@ -59,10 +63,12 @@ export function goalLine(c: CharterView | null, trial: TrialView | null, tick: n
         `${g.done ? '✓' : '○'} ${g.text}${g.done ? '' : ` (${Math.min(g.value, g.target)} of ${g.target})`}`,
     );
     const name = `${RANK_WORD[c.next]} Charter`;
-    const count = `${done} of ${c.goals.length} goals`;
+    const count = `${done}/${c.goals.length}`;
     if (c.ready) {
       return {
         text: 'The Charter is ready to sign',
+        name,
+        words: 'Ready to sign',
         count,
         progress: 1,
         detail,
@@ -74,6 +80,8 @@ export function goalLine(c: CharterView | null, trial: TrialView | null, tick: n
     const g = nextGoal(c);
     return {
       text: g ? `${name}: ${goalWords(g)}` : name,
+      name,
+      words: g ? goalWords(g) : 'Every goal met',
       count,
       progress: g ? g.value / Math.max(1, g.target) : 1,
       detail,
@@ -86,7 +94,9 @@ export function goalLine(c: CharterView | null, trial: TrialView | null, tick: n
   if (trial && trial.status === 'passed') {
     return {
       text: 'Village chapter complete',
-      count: 'Read it again',
+      name: 'Read it again',
+      words: 'Village chapter complete',
+      count: '',
       progress: 1,
       detail: [`${trial.name} is weathered and the Charter is sealed.`],
       ready: false,
@@ -98,12 +108,14 @@ export function goalLine(c: CharterView | null, trial: TrialView | null, tick: n
     const cal = calendar(tick);
     const running = trial.status === 'running';
     const day = running && cal.season === trial.season ? Math.min(DAYS_PER_SEASON, cal.day) : 0;
-    const text = running
-      ? `${trial.name}: day ${Math.max(1, day)} of ${DAYS_PER_SEASON}, ${TRIAL_KEEP[trial.kind]}`
-      : `${trial.name}: comes with the snow`;
+    const words = running
+      ? `day ${Math.max(1, day)} of ${DAYS_PER_SEASON}, ${TRIAL_KEEP[trial.kind]}`
+      : 'comes with the snow';
     return {
-      text,
-      count: 'The trial',
+      text: `${trial.name}: ${words}`,
+      name: trial.name,
+      words,
+      count: '',
       progress: running ? day / DAYS_PER_SEASON : 0,
       detail: [trial.blurb],
       ready: false,
@@ -114,7 +126,9 @@ export function goalLine(c: CharterView | null, trial: TrialView | null, tick: n
   if (trial && trial.status === 'failed') {
     return {
       text: `${trial.name}: not this time, it comes round again`,
-      count: 'The trial',
+      name: trial.name,
+      words: 'not this time, it comes round again',
+      count: '',
       progress: 0,
       detail: [trial.blurb],
       ready: false,
@@ -124,6 +138,8 @@ export function goalLine(c: CharterView | null, trial: TrialView | null, tick: n
   }
   return {
     text: 'The County has nothing more to ask, for now',
+    name: 'The County',
+    words: 'Nothing more to ask, for now',
     count: '',
     progress: 1,
     detail: [],
@@ -138,7 +154,10 @@ export function GoalPill({ session }: { session: Session }) {
   const line = goalLine(m.charter.value, m.trial.value, m.tick.value);
   if (!line) return null;
   const open = line.opens === 'chapter' ? session.ui.chapter.value : session.ui.panel.value === line.opens;
-  const title = [line.text + (line.count ? ` (${line.count})` : ''), ...line.detail].join('\n');
+  const title = [
+    line.text + (line.count ? ` (${line.count.replace('/', ' of ')} goals)` : ''),
+    ...line.detail,
+  ].join('\n');
   return (
     <button
       type="button"
@@ -152,12 +171,13 @@ export function GoalPill({ session }: { session: Session }) {
     >
       <Glyph id={line.tone === 'trial' ? 'trial' : 'charter'} />
       <span class="goal-body">
-        <span class="goal-text">{line.text}</span>
-        <span class="goal-meter">
-          <span class="goal-bar" aria-hidden="true">
-            <i style={{ width: `${Math.round(Math.min(1, Math.max(0, line.progress)) * 100)}%` }} />
-          </span>
+        <span class="goal-head">
+          <span class="goal-name">{line.name}</span>
           {line.count && <span class="goal-count">{line.count}</span>}
+        </span>
+        <span class="goal-words">{line.words}</span>
+        <span class="goal-bar" aria-hidden="true">
+          <i style={{ width: `${Math.round(Math.min(1, Math.max(0, line.progress)) * 100)}%` }} />
         </span>
       </span>
     </button>
