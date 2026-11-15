@@ -46,7 +46,7 @@ From the recording and five screenshots (a MacBook window about 1250 px wide, Sp
 | P2-A | Roofs keep to their own lot; no fascia above the eave line | executor |
 | P2-B | Top bar at laptop width: the Charter pill in two lines, words on bars and chips, a fit check end to end | executor |
 | P2-B2 | The Ledger's strip leads with amounts: Folk and open jobs, Food, Fuel, Timber and Stone against what sites need, on its own row at laptop widths | executor |
-| P2-C | Growth at 01:00 and 13:00 on one day's allowance (save version 7); the bars say where a wanted zone truly stands; the site inspector's honest carrier line; a health kind for a promise never kept | master |
+| P2-C | A second growth pass at 13:00 on one day's allowance (save version 7), measured against R1X's targets; the bars say where a wanted zone truly stands; the site inspector's honest carrier line; a health kind for a promise never kept | master |
 | P2-D | The feed says what the town waits for: sites and their materials, zones wanted, growth on its way or held, hands in one line; waiting markers in the Ledger lens | executor |
 | P2-E1 | A gable overhang reads as solid roof: thickness, a dark soffit, a modest verge | executor |
 | P2-E2 | The orchard belongs to the valley: no lot rectangle, painted crowns, a shed with surfaces, a window in the gable | executor |
