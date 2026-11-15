@@ -309,3 +309,22 @@ describe('the zones-first health kinds', () => {
     });
   });
 });
+
+describe('service-clustered (R1X)', () => {
+  it('flags a hand-placed well within half its reach of another, and not one across the village', () => {
+    const f = hamletFixture();
+    const s = f.state;
+    const well = s.buildings.find((b) => b.id === f.b.well)!;
+    const def = content.buildingById.get('well')!;
+    const w = new HealthWatch();
+    expect(kinds(w, s)).not.toContain('service-clustered');
+    // A second well three tiles along: the seven wells of the grown village's green, in small.
+    const near = insertBuilding(s, null, def, well.x + 3, well.z, 0, 0, { site: false });
+    const hit = w.check(s).filter((i) => i.kind === 'service-clustered');
+    expect(hit.map((i) => i.id)).toEqual([near.id]);
+    s.buildings.splice(s.buildings.indexOf(near), 1);
+    // One a full reach away serves other doors: no flag.
+    insertBuilding(s, null, def, well.x + 9, well.z + 3, 0, 0, { site: false });
+    expect(kinds(w, s)).not.toContain('service-clustered');
+  });
+});

@@ -54,6 +54,11 @@ export type HealthKind =
   | 'wish-dead-end'
   /** The open guide step's goal cannot be met by anything the town can do, for a whole day. */
   | 'guide-dead-end'
+  /**
+   * R1X: a hand-placed service (a well, a stall, a school) within half its reach of another of its
+   * kind: a cluster no player builds, where one answer was given to the same need again and again.
+   */
+  | 'service-clustered'
   /** A waiting story step's goal cannot be met by anything the town can do, for a whole day. */
   | 'story-dead-end'
   /** A festival plan that was current on the festival day and never started. */
@@ -156,6 +161,7 @@ export class HealthWatch {
   check(state: WorldState): HealthIssue[] {
     if (!isStandard(state)) return [];
     const out: HealthIssue[] = [];
+    checkClusters(state, out);
     const now = state.tick;
     const sites = state.buildings.filter((b) => b.stage === 'construction' && b.rt?.construction);
     const seen = new Set<number>();
@@ -541,4 +547,49 @@ function ruleBroken(state: WorldState, b: Building, def: BuildingDef, rule: Plac
     return r && (!kinds || kinds.includes(r)) ? null : 'a road at its door';
   }
   return null;
+}
+
+/**
+ * service-clustered (R1X): a service placed by hand (not grown on a lot) within half its reach of an
+ * older one of its kind. A second service of a kind belongs where the first does not reach, or (for
+ * a full well) beside it, never on top of it: the grown village's autoplayer stood seven wells on one
+ * green, answering every far household's wish with a well at the town's middle. Storage reach
+ * (porters) is left out: storehouses stand together for room.
+ */
+function checkClusters(state: WorldState, out: HealthIssue[]): void {
+  const byDef = new Map<string, Building[]>();
+  for (const b of state.buildings) {
+    if (b.lot) continue;
+    const reach = serviceReach(b.def);
+    if (reach <= 0) continue;
+    const list = byDef.get(b.def);
+    if (list) list.push(b);
+    else byDef.set(b.def, [b]);
+  }
+  for (const [def, list] of byDef) {
+    const half = serviceReach(def) / 2;
+    for (let i = 1; i < list.length; i++) {
+      const b = list[i]!;
+      for (let j = 0; j < i; j++) {
+        const o = list[j]!;
+        const dx = b.x - o.x;
+        const dz = b.z - o.z;
+        if (dx * dx + dz * dz >= half * half) continue;
+        out.push({
+          kind: 'service-clustered',
+          id: b.id,
+          text: `${def} #${b.id} stands within ${Math.ceil(half)} tiles of ${def} #${o.id}, half its reach`,
+        });
+        break;
+      }
+    }
+  }
+}
+
+/** The widest household service a def gives (water, food, health, school, social), or 0. */
+function serviceReach(defId: string): number {
+  let r = 0;
+  for (const c of content.buildingById.get(defId)?.coverage ?? [])
+    if (c.kind !== 'logistics' && c.radius > r) r = c.radius;
+  return r;
 }

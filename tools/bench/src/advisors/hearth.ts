@@ -70,6 +70,23 @@ class Hearth implements Advisor {
     return false;
   }
 
+  /**
+   * R1X: a well within reach of the door that asked, and half a reach clear of every other well (the
+   * sim's service-clustered check). It used to go wherever a well first fit from the town's middle,
+   * so the far household's wish stayed open and the next one stood beside it: seven on one green.
+   */
+  private wellFor(hx: number, hz: number): Building | null {
+    const r = content.buildingById.get('well')?.coverage?.find((c) => c.kind === 'water')?.radius ?? 8;
+    const wells = this.w.buildings.filter((b) => b.def === 'well');
+    const only = (x: number, z: number): boolean => {
+      // The sim measures a well's reach from its corner tile to the door (residents/needs).
+      if ((x - hx) * (x - hx) + (z - hz) * (z - hz) > (r - 1) * (r - 1)) return false;
+      for (const o of wells) if ((o.x - x) * (o.x - x) + (o.z - z) * (o.z - z) < (r * r) / 4) return false;
+      return true;
+    };
+    return this.p.build('well', only);
+  }
+
   private commutePath(home: number, work: number): boolean {
     const route = this.commute(home, work);
     if (!route) return false;
@@ -162,7 +179,7 @@ class Hearth implements Advisor {
             sites(w) < 3 &&
             count(w, 'well') <= w.residents.length / 10
           )
-            ok = !!p.build('well');
+            ok = !!this.wellFor(hx, hz);
           break;
         default:
           break;

@@ -161,7 +161,10 @@ export function lightsLayer(): RenderLayer {
     }
     for (const b of mirror.buildings.values()) {
       const def = drawDef(b.def);
-      const kit = def ? artKitId(def.art) : '';
+      // R1X: a business is drawn as its trade (a baker's workshop is a bakery, R1E's looks), so its
+      // oven or shop lamp is the trade's: by the def alone no R1 bakery ever glowed.
+      const trade = b.trade ? content.tradeById.get(b.trade) : undefined;
+      const kit = trade ? artKitId(trade.look) : def ? artKitId(def.art) : '';
       const color = lampColor(def?.eras);
       const oven = OVEN_KITS.includes(kit);
       const shop = SHOP_KITS.includes(kit);
