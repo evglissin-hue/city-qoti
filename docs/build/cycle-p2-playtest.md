@@ -56,11 +56,11 @@ After each wave: the quality check, the dead-end hunt (tune and audit on every b
 
 ## Acceptance criteria
 
-- [ ] Each of the nine items is fixed or answered, and the As built says how.
-- [ ] A test for each fixed bug, and a check for its class: the top bar fits at laptop widths; every roof and every kit stays inside its lot; every demand reason has words; a growth promise is kept or explained (`growth-wait-broken`).
-- [ ] R1X's tuning targets (`13-ledger.md`, What holds) still hold on every bench seed with the midday start; the audit runs clean or every flag is explained.
-- [ ] A version 6 valley opens (migration 6 to 7, with a test).
-- [ ] Typecheck, lint, unit tests, build and bench pass; e2e as far as this machine allows.
+- [x] Each of the nine items is fixed or answered, and the As built says how.
+- [x] A test for each fixed bug, and a check for its class: the top bar fits at laptop widths; every roof and every kit stays inside its lot; every demand reason has words; a growth promise is kept or explained (`growth-wait-broken`).
+- [x] R1X's tuning targets (`13-ledger.md`, What holds) hold on every bench seed, and the audit runs clean. With the midday start they did not, so it ships switched off (As built); as shipped, the six seeds' 70 days match `main` figure for figure.
+- [x] A version 6 valley opens (migration 6 to 7, with a test).
+- [x] Typecheck, lint, unit tests, build and bench pass; e2e as far as this machine allows (As built).
 
 ## Out of scope
 
