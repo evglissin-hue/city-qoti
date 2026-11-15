@@ -1,8 +1,8 @@
-// P2 (the R1 playtest): the growth pass runs at 01:00 and again at 13:00 on one day's allowance of
-// starts, and a kind the town wants that does not start says why (docs/spec/13-ledger.md, Zoning
+// P2 (the R1 playtest): the growth pass can run at 01:00 and again at 13:00 on one day's allowance
+// of starts, and a kind the town wants that does not start says why (docs/spec/13-ledger.md, Zoning
 // and growth). The owner zoned, saw nothing build and could not tell why.
 import { content } from '@qoti/content';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { DEMAND_KINDS, GROWTH_HOURS, TICKS_PER_DAY, Zone } from '../../src/constants';
 import type { Building, DemandKind, DemandReason, DemandReasonCode, WorldState } from '../../src/contracts';
 import { findById } from '../../src/state/entities';
@@ -24,6 +24,12 @@ import { demandView, demandWhy } from '../../src/view/demand';
 import { villageFixture } from '../fixtures/village';
 import { lotsIn, paintZone, zoneNow } from '../growth/helpers';
 import { S } from '../helpers';
+
+// The midday pass ships switched off (GROWTH_MIDDAY in constants.ts says why). These tests run it
+// switched on, as a tuning round would; growth-nightly.test.ts covers the game as it ships.
+vi.mock('../../src/constants', (original) =>
+  original<Record<string, unknown>>().then((actual) => ({ ...actual, GROWTH_MIDDAY: true })),
+);
 
 const good = (id: string) => content.goodIndex.get(id)!;
 

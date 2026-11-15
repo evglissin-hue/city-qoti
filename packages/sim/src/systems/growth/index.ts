@@ -1,5 +1,7 @@
 // Daily growth on lots (docs/spec/13-ledger.md, Zoning and growth). P2 (the R1 playtest): the pass
-// runs at 01:00 and again at 13:00 (GROWTH_HOURS). The midday run only starts sites (step 4) on what
+// can run at 01:00 and again at 13:00 (GROWTH_HOURS); the midday run is built and switched off
+// (GROWTH_MIDDAY in constants.ts says why), so growth runs at 01:00 only until a tuning round turns
+// it on. When on: The midday run only starts sites (step 4) on what
 // the day's allowance has left (state.demand.starts), and only while nothing at all is under
 // construction, so a town with idle builders takes up land zoned in the morning the same day
 // without taking timber or builders from sites in hand; retooling and fields stay the night's. When a wanted kind does
@@ -27,6 +29,7 @@ import {
   DEMAND_KINDS,
   FIELD_GOOD_FERTILITY,
   GROWTH_HOURS,
+  GROWTH_MIDDAY,
   MAP_SIZE,
   TICKS_PER_DAY,
   Zone,
@@ -656,7 +659,7 @@ function noSites(state: WorldState): boolean {
  * beside the players' first essentials (the lodge, the quarry), and the town ate and grew less.
  */
 function middayMayStart(state: WorldState): boolean {
-  return startedToday(state) < GROWTH_PER_DAY && noSites(state);
+  return GROWTH_MIDDAY && startedToday(state) < GROWTH_PER_DAY && noSites(state);
 }
 
 /**
@@ -869,14 +872,17 @@ export function refreshDemand(state: WorldState, ctx: TickCtx | null): void {
   writeDemand(state, ctx);
 }
 
-/** The two passes are half a day apart, so one system with half a day's `every` runs both. */
+/**
+ * The two passes are half a day apart, so with the midday pass on (GROWTH_MIDDAY) one system with
+ * half a day's `every` runs both; with it off the system runs at 01:00 only, as before P2.
+ */
 const HALF_DAY = TICKS_PER_DAY / 2;
 
 export const growth: System = {
   id: 'growth',
   order: 26,
-  every: HALF_DAY,
-  offset: dailyOffset(GROWTH_HOURS[0]) % HALF_DAY,
+  every: GROWTH_MIDDAY ? HALF_DAY : TICKS_PER_DAY,
+  offset: GROWTH_MIDDAY ? dailyOffset(GROWTH_HOURS[0]) % HALF_DAY : dailyOffset(GROWTH_HOURS[0]),
   tick(state, ctx) {
     growthPass(state, ctx, hourOf(state.tick) === GROWTH_HOURS[1]);
   },
