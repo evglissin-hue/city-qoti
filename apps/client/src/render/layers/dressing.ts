@@ -17,8 +17,10 @@ import {
   type DressingTier,
 } from '@qoti/content';
 import { START_HOUR, TICKS_PER_DAY, TICKS_PER_HOUR, type BuildingView, type LotView } from '@qoti/sim';
+import { Matrix4, Vector3 } from 'three';
 import type { Mirror } from '../../state/mirror';
 import { drawDef } from '../defs';
+import { buildingMatrix } from '../kitGeometry';
 import type { LayerContext, RenderLayer } from './types';
 
 /**
@@ -122,23 +124,34 @@ export function dressingSubject(mirror: Mirror, b: BuildingView): DressingSubjec
 }
 
 /** The lot as a box in the building's kit-local space (the inverse of `buildingMatrix`). */
-function lotBox(b: BuildingView, lot: LotView, size: readonly [number, number]): GroundBox {
-  const [w, d] = size;
-  const rot = b.rot;
-  const swap = rot % 2 === 1;
-  const cx = b.x + (swap ? d : w) / 2;
-  const cz = b.z + (swap ? w : d) / 2;
-  // buildingMatrix turns by -rot quarter turns about y; undo it with +rot.
-  const c = rot === 0 ? 1 : rot === 2 ? -1 : 0;
-  const s = rot === 1 ? 1 : rot === 3 ? -1 : 0;
-  const toLocal = (x: number, z: number): [number, number] => {
-    const dx = x - cx;
-    const dz = z - cz;
-    return [dx * c - dz * s + w / 2, dx * s + dz * c + d / 2];
-  };
-  const a = toLocal(lot.x, lot.z);
-  const e = toLocal(lot.x + lot.w, lot.z + lot.d);
-  return [Math.min(a[0], e[0]), Math.min(a[1], e[1]), Math.max(a[0], e[0]), Math.max(a[1], e[1])];
+const toLocal = new Matrix4();
+const corner = new Vector3();
+
+/**
+ * The building's lot as a box in its kit-local space (the space `anchorsFor` takes `lot` in): the
+ * lot's world corners through the inverse of the building's own matrix, so side and back gardens
+ * land where the kit sees them. Exported for its test.
+ */
+export function lotBox(b: BuildingView, lot: LotView): GroundBox {
+  buildingMatrix(b.def, b.x, b.z, b.rot, 0, toLocal).invert();
+  let x0 = Infinity;
+  let z0 = Infinity;
+  let x1 = -Infinity;
+  let z1 = -Infinity;
+  for (const [x, z] of [
+    [lot.x, lot.z],
+    [lot.x + lot.w, lot.z + lot.d],
+  ] as const) {
+    corner.set(x, 0, z).applyMatrix4(toLocal);
+    // Snap away float noise from the quarter turn, so equal lots give equal cache keys.
+    const lx = Math.round(corner.x * 1e4) / 1e4 + 0;
+    const lz = Math.round(corner.z * 1e4) / 1e4 + 0;
+    x0 = Math.min(x0, lx);
+    z0 = Math.min(z0, lz);
+    x1 = Math.max(x1, lx);
+    z1 = Math.max(z1, lz);
+  }
+  return [x0, z0, x1, z1];
 }
 
 export interface DressingLayer extends RenderLayer {
@@ -177,7 +190,7 @@ export function dressingLayer(rules: readonly DressingRule[] = content.dressingR
       const subject = dressingSubject(mirror, b);
       const def = drawDef(b.def);
       const lot = b.lot !== undefined ? mirror.lots.get(b.lot) : undefined;
-      const box = def && lot ? lotBox(b, lot, def.size) : undefined;
+      const box = def && lot ? lotBox(b, lot) : undefined;
       const key = `${subjectKey(subject)}|${box ? box.join(',') : ''}`;
       const hit = cache.get(b.id);
       if (hit && hit.key === key) continue;

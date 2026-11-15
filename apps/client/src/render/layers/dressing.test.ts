@@ -3,7 +3,7 @@ import { content, type DressingRule } from '@qoti/content';
 import { START_HOUR, TICKS_PER_DAY, TICKS_PER_HOUR } from '@qoti/sim';
 import type { BuildingView, HouseholdView, LotView, ResidentView } from '@qoti/sim';
 import type { Mirror, MirrorChange } from '../../state/mirror';
-import { DRESSING_BUDGET, DRESSING_SEED, dressingLayer, dressingSubject } from './dressing';
+import { DRESSING_BUDGET, DRESSING_SEED, dressingLayer, dressingSubject, lotBox } from './dressing';
 import type { LayerContext } from './types';
 
 interface World {
@@ -219,5 +219,38 @@ describe('dressingLayer (V3.0)', () => {
     );
     expect(low.layer.frame?.(0.016)).toBe(true);
     expect(low.layer.placementCount()).toBe(2);
+  });
+});
+
+describe('lotBox (V3.0)', () => {
+  // A cottage is 2 x 2; give it a 3 x 4 lot: a tile of side ground and two of back garden.
+  const size = content.buildingById.get('cottage')!.size;
+  it.each([0, 1, 2, 3] as const)('maps the lot into kit-local space at rot %i', (rot) => {
+    const [w, d] = size;
+    const b = { id: 1, def: 'cottage', x: 10, z: 10, rot, stage: 'built' } as unknown as BuildingView;
+    const [rw, rd] = rot % 2 === 0 ? [w, d] : [d, w];
+    // The footprint itself is [0, 0, w, d].
+    expect(lotBox(b, { x: 10, z: 10, w: rw, d: rd } as LotView)).toEqual([0, 0, w, d]);
+    // Two more tiles behind the house (the back is kit-local -z), one beside it (kit-local +x).
+    // buildingMatrix turns local (x, z) by -rot quarter turns about +y: at rot 1 local -z is world +x.
+    const back: [number, number][] = [
+      [0, -1],
+      [1, 0],
+      [0, 1],
+      [-1, 0],
+    ];
+    const right: [number, number][] = [
+      [1, 0],
+      [0, 1],
+      [-1, 0],
+      [0, -1],
+    ];
+    const [bx, bz] = back[rot]!;
+    const [sx, sz] = right[rot]!;
+    const x0 = Math.min(10, 10 + bx * 2, 10 + sx);
+    const z0 = Math.min(10, 10 + bz * 2, 10 + sz);
+    const x1 = Math.max(10 + rw, 10 + rw + bx * 2, 10 + rw + sx);
+    const z1 = Math.max(10 + rd, 10 + rd + bz * 2, 10 + rd + sz);
+    expect(lotBox(b, { x: x0, z: z0, w: x1 - x0, d: z1 - z0 } as LotView)).toEqual([0, -2, w + 1, d]);
   });
 });

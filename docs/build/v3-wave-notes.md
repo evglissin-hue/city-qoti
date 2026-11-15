@@ -80,7 +80,7 @@ The dressing reads these through `dressingSubject` (`layers/dressing.ts`), each 
 | A birth | read | children of the home's household with `ResidentView.bornDay` in the last 28 days |
 | A household's size and tier | read | `HouseholdView.members`, `HouseholdView.tier` (the household whose `homeId` is the building) |
 | A business's trade and level | read | `BuildingView.trade`, `BuildingView.level` (R1) |
-| A store's fill | read | `rt.store` over `BuildingDef.capacity`, as a percent |
+| A store's fill | read | `rt.store` over `BuildingDef.storage`, as a percent |
 | A business's goods waiting | read | `rt.output` |
 | Hands at work | read | `rt.workers` |
 | A place's kind | gap | R2's places are not on `main`: `DressingSubject.place` is unset and a rule with `who.place` matches nothing until R2X |

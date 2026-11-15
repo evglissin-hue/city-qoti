@@ -60,7 +60,7 @@ export const DRESSING_STATS: readonly DressingStatDef[] = [
     id: 'fill',
     status: 'read',
     scope: 'shared',
-    from: "a store's units held as a percent of its capacity, 0 to 100 (rt.store over BuildingDef.capacity)",
+    from: "a store's units held as a percent of its capacity, 0 to 100 (rt.store over BuildingDef.storage)",
   },
   {
     id: 'firewood',
