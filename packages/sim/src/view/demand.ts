@@ -72,7 +72,7 @@ export function demandWhy(r: DemandReason): string {
     case 'sitesBusy':
       return (r.value ?? 0) === 1
         ? 'One is going up already. The next starts when it is done.'
-        : `${r.value ?? 'Several'} sites are going up already, the most at once. The next lot starts when one is done.`;
+        : `${r.value ?? 'Several'} sites are going up already. The next lot starts when one is done.`;
   }
 }
 

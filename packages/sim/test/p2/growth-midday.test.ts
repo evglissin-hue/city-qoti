@@ -83,10 +83,12 @@ describe('the growth pass, twice a day', () => {
     s.tick = at(1, 1);
     expect(growthPass(s, createTickCtx(s))).toBe(GROWTH_PER_DAY);
     expect(s.demand.starts).toEqual({ day: 1, n: 2 });
-    // More homes are wanted and lots wait, but the day's starts are used: tonight, says the bar.
+    // More homes are wanted and lots wait, but the day's starts are used: the bar says it waits its
+    // turn behind the sites in hand.
     expect(growthDemand(s).homes).toBeGreaterThan(0);
     expect(bar(s, 'homes').lit).toBe(false);
-    expect(last(s, 'homes')).toEqual({ code: 'lotWaiting', value: 1 });
+    expect(last(s, 'homes')).toEqual({ code: 'sitesBusy', value: 2 });
+    expect(nextGrowthHour(s)).toBe(1);
     s.tick = at(1, 13);
     expect(growthPass(s, createTickCtx(s), true)).toBe(0);
     expect(s.demand.starts).toEqual({ day: 1, n: 2 });
@@ -106,6 +108,15 @@ describe('the growth pass, twice a day', () => {
     s.tick = at(1, 1);
     const night = growthPass(s, createTickCtx(s));
     expect(night).toBeLessThan(GROWTH_PER_DAY);
+    // By morning the builders have nothing in hand.
+    const finish = () => {
+      for (const b of s.buildings) {
+        if (b.stage !== 'construction') continue;
+        b.stage = 'built';
+        b.rt!.construction = null;
+      }
+    };
+    finish();
     // The morning's zoning: homes in reach, and work for the folk who would come.
     s.tick = at(1, 9);
     homesInReach(s);
@@ -119,6 +130,25 @@ describe('the growth pass, twice a day', () => {
     expect(started).toBe(GROWTH_PER_DAY - night);
     expect(grown(s).length).toBe(before + started);
     expect(nextGrowthHour(s)).toBe(1);
+  });
+
+  it('leaves a town with a site in hand alone at midday: its builders are busy', () => {
+    const { state: s } = villageFixture();
+    homesInReach(s);
+    openWork(s, 88, 46);
+    // One site started by hand, still going up at one in the afternoon.
+    const site = insertBuilding(s, null, content.buildingById.get('cottage')!, 90, 51, 0, 0, { site: true });
+    expect(site.stage).toBe('construction');
+    s.tick = at(1, 9);
+    refreshDemand(s, null);
+    expect(nextGrowthHour(s)).toBe(1);
+    expect(last(s, 'homes')).toEqual({ code: 'lotWaiting', value: 1 });
+    s.tick = at(1, 13);
+    expect(growthPass(s, createTickCtx(s), true)).toBe(0);
+    expect(grown(s)).toHaveLength(0);
+    // The night starts them as before.
+    s.tick = at(2, 1);
+    expect(growthPass(s, createTickCtx(s))).toBe(GROWTH_PER_DAY);
   });
 
   it('leaves retooling to the night: a business counts its days once', () => {

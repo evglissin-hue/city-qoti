@@ -1,7 +1,8 @@
 // Daily growth on lots (docs/spec/13-ledger.md, Zoning and growth). P2 (the R1 playtest): the pass
 // runs at 01:00 and again at 13:00 (GROWTH_HOURS). The midday run only starts sites (step 4) on what
-// the day's allowance has left (state.demand.starts) and writes the bars, so land zoned in the
-// morning is taken up the same day; retooling and fields stay the night's. When a wanted kind does
+// the day's allowance has left (state.demand.starts), and only while nothing at all is under
+// construction, so a town with idle builders takes up land zoned in the morning the same day
+// without taking timber or builders from sites in hand; retooling and fields stay the night's. When a wanted kind does
 // not start, the pass says why (Held) and the bars carry it. At 01:00 the growth pass:
 //
 // 1. Keeps each business's site and surplus days and retools (./retool): a failed site after three
@@ -641,25 +642,50 @@ function startedToday(state: WorldState): number {
   return s.day === dayIndex(state.tick) ? s.n : 0;
 }
 
+/** True when nothing in town is under construction, grown or placed by hand. */
+function noSites(state: WorldState): boolean {
+  for (const b of state.buildings) if (b.stage === 'construction') return false;
+  return true;
+}
+
 /**
- * P2: the hour of the next growth pass that may start a waiting lot: 13:00 while the morning's
- * allowance is not used up, else the night's 01:00.
+ * P2: the midday pass starts sites only while nothing at all is being built. It is there so a town
+ * with idle builders answers the morning's zoning the same day, not to take timber and builders
+ * from sites in hand. Run every day, it left hazel's one builder with seven sites, five of them
+ * waiting two days; run whenever no grown site was going up, it started lots on the first afternoon
+ * beside the players' first essentials (the lodge, the quarry), and the town ate and grew less.
+ */
+function middayMayStart(state: WorldState): boolean {
+  return startedToday(state) < GROWTH_PER_DAY && noSites(state);
+}
+
+/**
+ * P2: the hour of the next growth pass that may start a waiting lot: 13:00 in the morning while the
+ * midday pass may start one (middayMayStart), else the night's 01:00.
  */
 export function nextGrowthHour(state: WorldState): number {
   const h = hourOf(state.tick);
   const before = h >= GROWTH_HOURS[0] && h < GROWTH_HOURS[1];
-  return before && startedToday(state) < GROWTH_PER_DAY ? GROWTH_HOURS[1] : GROWTH_HOURS[0];
+  return before && middayMayStart(state) ? GROWTH_HOURS[1] : GROWTH_HOURS[0];
 }
 
 /**
  * One growth pass. Returns the sites started. The night's pass (01:00) retools, grows fields and
- * starts sites; `midday` (13:00, P2) only starts sites, on what the day's allowance has left.
+ * starts sites; `midday` (13:00, P2) only starts sites, on what the day's allowance has left and
+ * only while nothing is under construction (middayMayStart). A midday pass that may not start leaves
+ * the night's findings standing and says the lots wait for the night.
  */
 export function growthPass(state: WorldState, ctx: TickCtx, midday = false): number {
   if (!isStandard(state)) return 0;
   const night = readNight(state);
-  const held: Held = DEMAND_KINDS.map(() => undefined);
   const already = startedToday(state);
+  if (midday && !middayMayStart(state)) {
+    state.demand.starts = { day: dayIndex(state.tick), n: already };
+    writeDemand(state, ctx, night);
+    night.cache.persist();
+    return 0;
+  }
+  const held: Held = DEMAND_KINDS.map(() => undefined);
   const started = growSites(state, ctx, night, midday, already, held);
   state.demand.starts = { day: dayIndex(state.tick), n: already + started };
   writeDemand(state, ctx, night, held);
@@ -734,13 +760,13 @@ function startSites(
   for (let w = 0; w < wants.length; w++) {
     const [zones, n] = wants[w]!;
     for (let k = 0; k < n; k++) {
-      // The day's starts are used up: the bars say when the next pass comes (nextGrowthHour).
-      if (already + started >= GROWTH_PER_DAY) return started;
+      // The day's starts are used up, or the most sites at once are going up: every kind still
+      // wanted waits its turn behind the sites in hand (crafts come last and can wait some nights).
       const up = grownSites(state);
-      if (up >= GROWTH_MAX_SITES) {
-        // The most sites at once: every kind still wanted waits for one to finish.
+      if (already + started >= GROWTH_PER_DAY || up >= GROWTH_MAX_SITES) {
         for (let v = w; v < wants.length; v++) {
-          if (wants[v]![1] > 0) held[barOf(wants[v]![0])] = { code: 'sitesBusy', value: up };
+          const bar = barOf(wants[v]![0]);
+          if (wants[v]![1] > 0 && !held[bar] && up > 0) held[bar] = { code: 'sitesBusy', value: up };
         }
         return started;
       }

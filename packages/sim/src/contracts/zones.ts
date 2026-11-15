@@ -141,7 +141,10 @@ export type DemandReasonCode =
   | 'unsuitable'
   /** P2: any bar: a lot waits, but the stores are short of `good` to start on it (the bar is quiet). */
   | 'materials'
-  /** P2: any bar: a lot waits, but `value` grown sites are going up already, the most at once (quiet). */
+  /**
+   * P2: any bar: a lot waits its turn behind `value` grown sites going up already: the most at once,
+   * the day's starts used on other land, or one business of its kind at a time (quiet).
+   */
   | 'sitesBusy';
 
 export interface DemandReason {
