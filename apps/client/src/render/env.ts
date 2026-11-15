@@ -7,6 +7,7 @@ import {
   type PerspectiveCamera,
   type WebGLRenderTarget,
 } from 'three';
+import { createEndpaperMap, type EndpaperMap } from './endpaper';
 import { createLightMapTarget, LightMapWriter } from './lightMap';
 import type { Quality } from './quality';
 import type { SeasonBlend } from './seasons';
@@ -107,6 +108,20 @@ export interface WorldEnv {
    * (`QualityPreset.meadowCarpet`; 0 none, and the nature layer keeps its tufts).
    */
   meadowCarpet: number;
+  // V3 additions (V3.0).
+  /** V3: which dressing rules draw for the active preset (`QualityPreset.dressing`). */
+  dressing: 'some' | 'all';
+  /**
+   * V3: the endpaper map (`render/endpaper.ts`): its texture, written only by its writer from the
+   * worker's drawing, its revision, size and how much it covers the view (0 to 1, from the camera's
+   * distance; 0 until V3D turns it on).
+   */
+  endpaper: EndpaperMap;
+  /**
+   * V3: the endpaper map covers the whole view, so the scene pass may be skipped. Set by the endpaper
+   * layer (never true in V3.0); the renderer's one-line check is V3D's.
+   */
+  skipScene: boolean;
 }
 
 /** The renderer's season names, in the sim calendar's order (0 spring to 3 winter). */
@@ -212,6 +227,9 @@ export function createWorldEnv(camera: PerspectiveCamera): WorldEnv {
     lightMapRevision: 0,
     lightWriter: new LightMapWriter(),
     meadowCarpet: 30,
+    dressing: 'all',
+    endpaper: createEndpaperMap(),
+    skipScene: false,
   };
 }
 

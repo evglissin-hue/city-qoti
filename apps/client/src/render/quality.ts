@@ -57,6 +57,14 @@ export interface QualityPreset {
    * none (Low keeps the tufts).
    */
   meadowCarpet: number;
+  // V3 additions (V3.0).
+  /**
+   * V3: the dressing layer's pieces (`layers/dressing.ts`): 'some' draws only signs and stock
+   * piles (rules marked `low`), 'all' every rule, within the decor distance.
+   */
+  dressing: 'some' | 'all';
+  /** V3: the endpaper map's texture, square, in texels (`render/endpaper.ts`). */
+  endpaperSize: 1024 | 2048;
 }
 
 export const QUALITY_PRESETS: Record<Quality, QualityPreset> = {
@@ -77,6 +85,8 @@ export const QUALITY_PRESETS: Record<Quality, QualityPreset> = {
     rooms: true,
     lampWater: true,
     meadowCarpet: 45,
+    dressing: 'all',
+    endpaperSize: 2048,
   },
   low: {
     maxDpr: 1,
@@ -95,6 +105,8 @@ export const QUALITY_PRESETS: Record<Quality, QualityPreset> = {
     rooms: false,
     lampWater: false,
     meadowCarpet: 0,
+    dressing: 'some',
+    endpaperSize: 1024,
   },
   medium: {
     // Playtest round three: 1.5 on a Retina screen looked soft. V1D: moving frames draw at 1 (with
@@ -115,6 +127,8 @@ export const QUALITY_PRESETS: Record<Quality, QualityPreset> = {
     rooms: true,
     lampWater: true,
     meadowCarpet: 30,
+    dressing: 'all',
+    endpaperSize: 2048,
   },
   // V1.0: for the stronger laptop or a desktop; never auto-detected.
   ultra: {
@@ -134,6 +148,8 @@ export const QUALITY_PRESETS: Record<Quality, QualityPreset> = {
     rooms: true,
     lampWater: true,
     meadowCarpet: 60,
+    dressing: 'all',
+    endpaperSize: 2048,
   },
 };
 

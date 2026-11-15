@@ -8,6 +8,7 @@ import { cartsLayer } from './carts';
 import { crittersLayer } from './critters';
 import { decorLayer } from './decor';
 import { effectsLayer } from './effects';
+import { endpaperLayer } from './endpaper';
 import { festivalLayer } from './festival';
 import { festivalFxLayer } from './festivalFx';
 import { fieldsLayer } from './fields';
@@ -39,6 +40,7 @@ export const layerFactories: readonly LayerFactory[] = [
   crittersLayer,
   decorLayer,
   effectsLayer,
+  endpaperLayer,
   festivalLayer,
   festivalFxLayer,
   fieldsLayer,

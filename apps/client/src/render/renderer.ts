@@ -799,6 +799,7 @@ export class Renderer implements RenderApi {
     this.env.detailDistance = preset.decorDistance;
     this.env.critters = preset.critters;
     this.env.meadowCarpet = preset.meadowCarpet;
+    this.env.dressing = preset.dressing;
     this.env.buildingDetail = buildingDetailNow(q);
     this.env.viewRevision++;
     if (shadows && this.sun.shadow.mapSize.x !== preset.shadowMap) {
