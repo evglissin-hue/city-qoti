@@ -1,7 +1,7 @@
 # P2: The R1 playtest (what the town is waiting for)
 
 **Iteration**: R1 to R2. **Wave**: serial, one master session running the build and review loop (`docs/spec/31-parallel-development.md`) with executor waves. **Branch**: `claude/great-maxwell-rlok0k`.
-**Depends on**: R1X merged (#40), V2X (#41). **Runs alongside**: nothing; R2.0 starts from this branch when P2 is done.
+**Depends on**: R1X merged (#40), V2X (#41). **Runs alongside**: R2.0 and V3.0, in another session (`cycle/r2-0-evenings-contracts`, `cycle/v3-0-contracts`); R2.0 runs in parallel in another session and merges P2 when it lands. Save version 7 is P2's (the 6 to 7 migration with the day's growth starts); R2 takes version 8 on top of it.
 
 ## Goal
 
@@ -26,7 +26,7 @@ From the recording and five screenshots (a MacBook window about 1250 px wide, Sp
 - Speed stays as it is (shared, the last click decides). Fix the waiting instead.
 - Fix all four groups of screenshot defects.
 - Growth: show the rhythm, and add a midday start on the same two a day; re-run the tuning.
-- After P2: R2.0, each with its own PR.
+- After P2: nothing more in this session. R2.0 and V3.0 run in another session (the owner's note, the same evening); P2 ends with one PR into `main`, reviewed and merged by that session's master.
 
 ## What the trace found
 
