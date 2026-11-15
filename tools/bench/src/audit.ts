@@ -5,6 +5,8 @@
 // Ledger: business-short, a business or specialized building a whole day short of an input the
 // carrier may buy; site-unsupplied, a construction site waiting on a good no maker and no carrier
 // will bring; demand-unanswered, a demand bar lit three days with no empty lot of its zone;
+// growth-wait-broken (P2), a bar that says a lot waits and building starts at the next pass, three
+// days running, with nothing started;
 // site-rule-broken, a specialized building whose woods, open ground or road went; wish-dead-end,
 // guide-dead-end and story-dead-end, a goal nothing can meet) and, per wish template, how many were
 // offered, granted and let go (and how many let go while impossible). R1.0: standing orders are
