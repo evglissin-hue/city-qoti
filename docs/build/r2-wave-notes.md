@@ -20,7 +20,7 @@ P2 (the R1 playtest, PR #43, `docs/build/cycle-p2-playtest.md`, As built) is mer
 - **The top bar**: in the Ledger the strip is its own row at laptop widths (`ui/topbar/strip.ts`, `Strips.tsx`, `GoalPill.tsx`, new `ui/hands.ts` and `ui/sites.ts`), and cards and side panels sit under it. R2D's Hearth strip sits beside it in the Hearth lens and follows its layout.
 - **The feed**: the Ledger's feed lines for waiting sites, wanted zones and waiting lots (`ui/sites.ts`). R2D's gap rows join the same feed and follow its line style.
 - **Render**: `render/layers/overlays.ts` draws P2's waiting-site markers in the Ledger lens (`RenderApi.setSiteMarkers`); R2D's Town overlay goes beside them in that file. Roofs keep to their own lot (`ShellSpec.lot` in `packages/art/src/kits/buildings.ts`, with `grown.ts`, `farms.ts`, `workshops.ts` and `lotBounds.test.ts`): R2F's lots and V3B's rows must respect that clamp (rows that join are unchanged).
-- **Tuning**: P2 left R1X's tuned numbers as they were (the midday pass is off; `r1-year.json` replays command for command), so R2E's and R2X's tuning starts from R1X's tables in `13-ledger.md` plus P2's measured table for the midday pass.
+- **Tuning**: P2 shipped the midday growth pass switched off behind `GROWTH_MIDDAY` (it broke R1X's tuning on three seeds), so growth still runs once, at 01:00, and P2's tune numbers equal `main`'s (`r1-year.json` replays command for command); so R2E's and R2X's tuning starts from R1X's tables in `13-ledger.md` plus P2's measured table for the midday pass.
 
 ## Lessons carried over (read first)
 
