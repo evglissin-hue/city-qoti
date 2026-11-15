@@ -70,6 +70,8 @@ export interface RenderApi {
   pickEntity(clientX: number, clientY: number): EntityPick | null;
   setGhost(g: Ghost | null): void;
   setOverlay(kind: string | null): void;
+  /** P2-D (additive): the waiting markers over construction sites, on in the Ledger lens. */
+  setSiteMarkers?(on: boolean): void;
   /** A partner's cursor: the world point under it (tiles, fractional), or null when it is away. */
   setPresence(seat: SeatId, p: { x: number; z: number; tool?: string } | null): void;
   ping(seat: SeatId, x: number, z: number, kind: 'look' | 'help' | 'build'): void;

@@ -15,6 +15,7 @@ export function AlertsPanel({ session }: { session: Session }) {
   void m.stocks.value;
   void m.budget.value;
   void m.clock.value;
+  void m.demand.value;
   void m.villageRevision.value;
   void m.market.value;
   void m.charter.value;
@@ -48,7 +49,12 @@ export function AlertsPanel({ session }: { session: Session }) {
         <ul>
           {all.slice(0, SHOWN).map((a) => (
             <li key={a.key} class={`alert tone-${a.tone}`} data-testid={`alert-${a.key}`}>
-              <button type="button" class="alert-body" onClick={() => act(session, a)}>
+              <button
+                type="button"
+                class="alert-body"
+                title={a.title ?? a.text}
+                onClick={() => act(session, a)}
+              >
                 <Glyph id={a.icon} />
                 <span>{a.text}</span>
               </button>
@@ -121,6 +127,9 @@ export function act(session: Session, a: Alert): void {
       }
       break;
     }
+    case 'tool':
+      session.tools?.select(action.tool, action.variant);
+      break;
     case 'market':
       session.ui.lens.value = 'ledger';
       session.ui.balancesTab.value = 'families';
