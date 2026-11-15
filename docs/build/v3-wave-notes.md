@@ -154,7 +154,7 @@ Medium at 22:00: street 106 and 0.43 M, village 129 and 0.38 M, far120 156 and 0
 
 What they say for the wave:
 
-- **The far view is the dearest view in draws on every preset but High and Ultra's far120**, and it grows with distance on Low and Medium (219 to 231 on Medium at 200 to 240 against 186 at the Ledger's height). V3C's target, and V3D's skip at 240 takes it to a handful.
+- **A far view is the dearest view in draws on every preset** (far240 on Low and Medium, far120 on High and Ultra), and on Low and Medium it grows with distance (219 to 231 on Medium at 200 to 240 against 186 at the Ledger's height). V3C's target, and V3D's skip at 240 takes it to a handful.
 - **Ultra's far120 is over its budget already on `main`** (479 of 450 draws; 6.79 M triangles): the stand-out row for V3C and V3X to bring down; nothing in V3.0 caused it (V3.0 adds no draw).
 - **Medium's worst moving scene is far240 at 231 draws** (V2X measured 214 on the grown village's default camera): 69 draws of headroom on Medium, less than V2X's table implied; V3A's 12 dressing draws fit, but V3B's and V3C's additions must be paid for by V3C's far cuts.
 - In the shots script some golden and night rows read 0.01 to 0.03 M triangles (street golden and night, far120 night): those count the still-frame cache's last draw, not the scene; use the perf table's numbers.
