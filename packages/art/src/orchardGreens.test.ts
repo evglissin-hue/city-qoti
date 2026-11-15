@@ -270,3 +270,20 @@ describe('P2-E2: the farmhouse has a window on its free gable', () => {
     }
   });
 });
+
+describe('P2-E2: budgets', () => {
+  it('every farm look stays inside the kit budgets in every style, seed and season', () => {
+    const tris = (o: ReturnType<typeof opts>): number =>
+      farmstead.build(o).getAttribute('position').count / 3;
+    for (const [look, make] of LOOKS)
+      for (const level of [1, 2, 3])
+        for (const style of ['brick', 'stone', 'timber', 'plaster'])
+          for (const seed of [1, 2, 3])
+            for (const season of [0, 1, 2, 3]) {
+              const tag = `${look} L${level} ${style} seed ${seed} season ${season}`;
+              const o = opts(look, make, level, { style, seed, season });
+              expect(tris(o), tag).toBeLessThanOrEqual(level === 1 ? 3000 : 4000);
+              expect(tris({ ...o, lod: 'low' }), tag).toBeLessThanOrEqual(250);
+            }
+  });
+});

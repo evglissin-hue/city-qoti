@@ -161,15 +161,16 @@ export function orchardTree(
         ];
         s.nearOnly(() => beam(s, t, tw, 0.009 * k, trunk));
         const b = a + (rnd() - 0.5) * 1.6;
-        s.nearOnly(() =>
-          beam(
-            s,
-            tw,
-            [tw[0] + Math.cos(b) * 0.07 * k, tw[1] + 0.07 * k, tw[2] + Math.sin(b) * 0.07 * k],
-            0.005 * k,
-            trunk,
-          ),
-        );
+        if (!light)
+          s.nearOnly(() =>
+            beam(
+              s,
+              tw,
+              [tw[0] + Math.cos(b) * 0.07 * k, tw[1] + 0.07 * k, tw[2] + Math.sin(b) * 0.07 * k],
+              0.005 * k,
+              trunk,
+            ),
+          );
       }
     }
     return;

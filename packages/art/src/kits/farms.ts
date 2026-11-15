@@ -559,7 +559,7 @@ function marketGarden(opts: KitBuildOptions | undefined): Built {
  */
 function fruitTree(lot: Lot, x: number, z: number, k: number, light: boolean, dabs?: number): void {
   const { s, rnd, season } = lot;
-  earthPatch(lot, x, z, 0.2 * k, 0.2 * k, mixHex(palette.soil, 0x8a7a50, 0.3), {
+  earthPatch(lot, x, z, 0.17 * k, 0.17 * k, mixHex(palette.soil, 0x8a7a50, 0.5), {
     y: 0.005,
     nearOnly: true,
     points: 7,
