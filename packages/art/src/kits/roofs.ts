@@ -172,15 +172,15 @@ function slopeNear(
     spec.soffit ?? lighten(spec.trim, 1.6),
     down,
   );
-  const eaveOut: V3 = [bl[0] - tl[0], 0, bl[2] - tl[2]];
-  s.quad(
-    add(bl, n, -t),
-    add(br, n, -t),
-    add(br, n, lip),
-    add(bl, n, lip),
-    m === 'thatch' ? vary(color, rnd, 1.2) : spec.trim,
-    eaveOut,
-  );
+  // The eave fascia only belongs to a slope that starts at the eaves. A half-hip's upper slopes and
+  // end triangles and a gambrel's upper slopes start at a break; a fascia there is a loose slab
+  // hanging below the roof (the far level skips it for the same reason). The random draw stays so
+  // the stream matches either way.
+  const fasciaHex = m === 'thatch' ? vary(color, rnd, 1.2) : spec.trim;
+  if (Math.abs(bl[1] - spec.y0) <= 1e-3) {
+    const eaveOut: V3 = [bl[0] - tl[0], 0, bl[2] - tl[2]];
+    s.quad(add(bl, n, -t), add(br, n, -t), add(br, n, lip), add(bl, n, lip), fasciaHex, eaveOut);
+  }
   s.surface(SURFACE.plain);
 }
 
