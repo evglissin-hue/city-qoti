@@ -32,6 +32,13 @@ export interface RenderLayer {
    * leave the cached shadow map alone (render/statics.ts).
    */
   shadowless?: true;
+  /**
+   * V2X: a moving layer showing something that passes the night bloom's threshold right now
+   * (fireflies out, fireworks up, the festival fire). At rest the bloom is built once from the still
+   * frame and reused; while any moving layer glows, every frame builds it again so the glow keeps
+   * its halo (post.ts, `LeanFrame.finish`).
+   */
+  glowing?(): boolean;
   init(ctx: LayerContext): void;
   update(change: MirrorChange): void;
   /** Per-frame work; returns true when the frame needs to be drawn. */
