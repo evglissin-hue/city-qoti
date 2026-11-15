@@ -19,13 +19,16 @@ test('the Ledger reads its town from the top bar, the picker and the books', asy
   await waitLive(page);
   await page.getByTestId('lens-ledger').click();
 
-  // The top bar: four demand bars and five balance chips, everything else behind one menu.
+  // The top bar: four demand bars, Folk, four family chips and a chip each for timber and stone,
+  // everything else behind one menu.
   const strip = page.getByTestId('ledger-strip');
   await expect(strip).toBeVisible();
   for (const kind of ['homes', 'shops', 'workshops', 'farmland'])
     await expect(page.getByTestId(`demand-${kind}`)).toBeVisible();
-  for (const family of ['food', 'fuel', 'materials', 'wares', 'treats'])
+  for (const family of ['food', 'fuel', 'wares', 'treats'])
     await expect(page.getByTestId(`balance-${family}`)).toBeVisible();
+  for (const good of ['timber', 'stone']) await expect(page.getByTestId(`material-${good}`)).toBeVisible();
+  await expect(page.getByTestId('folk-chip')).toBeVisible();
   await expect(page.getByTestId('settings-open')).toBeHidden();
 
   for (const [light, hour] of [
