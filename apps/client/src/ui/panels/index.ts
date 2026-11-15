@@ -21,6 +21,7 @@ import { FieldGuidePanel } from './FieldGuide';
 import { GuidePanel } from './Guide';
 import { InspectorPanel } from './Inspector';
 import { LettersPanel } from './Letters';
+import { MeasurePanel } from './Measure';
 import { NotebookPanel } from './Notebook';
 import { NotesPanel } from './Notes';
 import { PatternBookPanel } from './PatternBook';
@@ -77,6 +78,7 @@ export const panels: readonly PanelDef[] = [
   { id: 'guide', side: 'overlay', component: GuidePanel, modes: STANDARD },
   { id: 'inspector', side: 'right', component: InspectorPanel },
   { id: 'letters', side: 'book', component: LettersPanel, lens: 'hearth', label: 'Letters', icon: 'letter', key: 'o', modes: STANDARD, order: 35 },
+  { id: 'measure', side: 'overlay', component: MeasurePanel },
   { id: 'minimap', side: 'overlay', component: Minimap },
   { id: 'notebook', side: 'book', component: NotebookPanel, lens: 'ledger', label: 'Notebook', icon: 'notebook', key: 'n', modes: STANDARD, order: 60 },
   { id: 'notes', side: 'left', component: NotesPanel },

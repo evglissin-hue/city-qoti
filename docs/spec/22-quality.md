@@ -101,7 +101,7 @@ Added 2026-11-10 with the redesign (`30-roadmap.md`).
 
 **Measuring the laptops** [V2, first]. Every render number above was taken in a software renderer, good for ratios only; the one real number is the owner's laptop on the concept viewer (about 100 fps on Ultra, `v1-wave-notes.md`). Kat's laptop, the one Medium is promised on, has never been measured. So before any V2 art lands:
 
-- Settings gains **Measure this laptop**: it runs the perf script (`__qoti.perf()`: pan, orbit and zoom for 10 s, rest for 10 s, on each preset) in the valley on screen and in the village and town showcases, shows the table, and offers Copy.
+- Settings gains **Measure this laptop**: it runs the perf script (`__qoti.perf()`: pan, orbit and zoom for 10 s, rest for 10 s, on each preset with the light at 11:00, and on Medium and High again at 22:00, since V2's acceptance is a night one) in the valley on screen and in the village and town showcases, shows the table with each row's hour, and offers Copy.
 - The table is saved with the valley for that seat (`/api/valleys/:id/perf`, outside sim state, last three runs a seat), with the browser, the screen and the build, so either player can export it and a build session can be handed it. `docs/playtests/V1.md` takes the first two runs.
 - V2X, V3X and V4X each record both laptops' tables here, before and after. A row that fails on Kat's laptop on Medium is cut back before the wave ships: the frame budget is the floor (P50).
 
