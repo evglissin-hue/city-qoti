@@ -16,6 +16,7 @@ import * as marketDays from './marketDays';
 import * as module from './module';
 import * as move from './move';
 import * as note from './note';
+import * as place from './place';
 import * as plan from './plan';
 import * as pond from './pond';
 import * as recipe from './recipe';
@@ -70,6 +71,7 @@ export const commandHandlers: readonly AnyHandler[] = [
   loan.take,
   note.pin,
   note.remove,
+  place.rename,
   plan.add,
   plan.approve,
   plan.comment,
@@ -80,6 +82,8 @@ export const commandHandlers: readonly AnyHandler[] = [
   request.resolve,
   road.paint,
   road.remove,
+  road.rename,
+  road.setEvening,
   season.setPlan,
   seat.setProfile,
   sys.seatJoined,
