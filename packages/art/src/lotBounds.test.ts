@@ -27,38 +27,42 @@ function optsOf(id: string, style: string, level: number, seed: number): KitBuil
 }
 
 describe('lot bounds (P2-A)', () => {
-  it('keep every grown and business kit inside its lot on the sides that are not party walls', {
-    timeout: 120000,
-  }, () => {
-    const worst = new Map<string, number>();
-    for (const id of KITS)
-      for (const style of STYLES)
-        for (const level of LEVELS)
-          for (let seed = 1; seed <= 24; seed++) {
-            const o = optsOf(id, style, level, seed);
-            const [w, d] = o.size!;
-            const pos = kitById.get(id)!.build(o).getAttribute('position');
-            const bb = { min: { x: Infinity, z: Infinity }, max: { x: -Infinity, z: -Infinity } };
-            for (let i = 0; i < pos.count; i++) {
-              if (pos.getY(i) < GROUND) continue;
-              bb.min.x = Math.min(bb.min.x, pos.getX(i));
-              bb.max.x = Math.max(bb.max.x, pos.getX(i));
-              bb.min.z = Math.min(bb.min.z, pos.getZ(i));
-              bb.max.z = Math.max(bb.max.z, pos.getZ(i));
+  it(
+    'keep every grown and business kit inside its lot on the sides that are not party walls',
+    {
+      timeout: 120000,
+    },
+    () => {
+      const worst = new Map<string, number>();
+      for (const id of KITS)
+        for (const style of STYLES)
+          for (const level of LEVELS)
+            for (let seed = 1; seed <= 24; seed++) {
+              const o = optsOf(id, style, level, seed);
+              const [w, d] = o.size!;
+              const pos = kitById.get(id)!.build(o).getAttribute('position');
+              const bb = { min: { x: Infinity, z: Infinity }, max: { x: -Infinity, z: -Infinity } };
+              for (let i = 0; i < pos.count; i++) {
+                if (pos.getY(i) < GROUND) continue;
+                bb.min.x = Math.min(bb.min.x, pos.getX(i));
+                bb.max.x = Math.max(bb.max.x, pos.getX(i));
+                bb.min.z = Math.min(bb.min.z, pos.getZ(i));
+                bb.max.z = Math.max(bb.max.z, pos.getZ(i));
+              }
+              const label = `${id} style=${style || '-'} level=${level}`;
+              const over = {
+                left: -bb.min.x,
+                right: bb.max.x - w,
+                back: -bb.min.z,
+                front: bb.max.z - d - FRONT,
+              };
+              for (const [side, v] of Object.entries(over)) {
+                const k = `${label} ${side}`;
+                worst.set(k, Math.max(worst.get(k) ?? -Infinity, v));
+              }
             }
-            const label = `${id} style=${style || '-'} level=${level}`;
-            const over = {
-              left: -bb.min.x,
-              right: bb.max.x - w,
-              back: -bb.min.z,
-              front: bb.max.z - d - FRONT,
-            };
-            for (const [side, v] of Object.entries(over)) {
-              const k = `${label} ${side}`;
-              worst.set(k, Math.max(worst.get(k) ?? -Infinity, v));
-            }
-          }
-    const bad = [...worst].filter(([, v]) => v > EPS).map(([k, v]) => `${k} by ${v.toFixed(3)}`);
-    expect(bad).toEqual([]);
-  });
+      const bad = [...worst].filter(([, v]) => v > EPS).map(([k, v]) => `${k} by ${v.toFixed(3)}`);
+      expect(bad).toEqual([]);
+    },
+  );
 });
