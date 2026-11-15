@@ -64,6 +64,7 @@ import {
 export * from './hamlet';
 export * from './village';
 import { balancesView, businessesView, demandView } from './zones';
+import { eveningView, footfallView, gapsView, placesView, streetViews } from './evenings';
 
 export function clockView(state: WorldState): ClockView {
   return { tick: state.tick, speed: effectiveSpeed(state), ...calendar(state.tick) };
@@ -174,5 +175,11 @@ export function buildView(state: WorldState): ViewSnapshot {
     demand: demandView(state),
     balances: balancesView(state),
     businesses: businessesView(state),
+    // R2 (R2.0)
+    places: placesView(state),
+    gaps: gapsView(state),
+    evening: eveningView(state),
+    streets: streetViews(state),
+    footfall: footfallView(state),
   };
 }

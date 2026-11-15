@@ -5,7 +5,7 @@
 // C3A: walks are smoothed (diagonals and rounded corners), walkers keep left, residents sharing a
 // tile spread round it, and idle residents face what they came to see.
 import { AGENT_STRIDE, AgentAnim, AgentFlags, MAP_SIZE, ResidentFlags, TICKS_PER_HOUR } from '../constants';
-import type { Cart, Resident, WorldState } from '../contracts';
+import type { AgentPose, AgentView, Cart, Resident, WorldState } from '../contracts';
 import { tickOfDay } from '../systems/residents/time';
 import { isSkating } from '../systems/seasons/river';
 import { moodBand } from './hamlet';
@@ -277,4 +277,32 @@ function writeRow(
   out[o + 5] = anim;
   out[o + 6] = r.carry ? r.carry[0] + 1 : 0;
   out[o + 7] = flags;
+}
+
+/**
+ * R2 (R2.0): how a resident on the round is posed (AgentPose), from an agent row's anim and carry
+ * fields: seated (AgentAnim.sit), carrying what they bought (a good in the carry field), else standing.
+ * V3 draws it; R2A sets the seat's anim and R2B the carried treat.
+ */
+export function agentPose(anim: number, carryField: number): AgentPose {
+  if (anim === AgentAnim.sit) return 'sit';
+  if (carryField > 0) return 'carry';
+  return 'stand';
+}
+
+/** R2 (R2.0): one agent row decoded (AgentView), `offset` its start in the frame. */
+export function readAgentRow(frame: Float32Array, offset: number): AgentView {
+  const anim = frame[offset + 5]!;
+  const carryField = frame[offset + 6]!;
+  return {
+    id: frame[offset]!,
+    x: frame[offset + 1]!,
+    z: frame[offset + 2]!,
+    y: frame[offset + 3]!,
+    heading: frame[offset + 4]!,
+    anim,
+    carry: carryField - 1,
+    flags: frame[offset + 7]!,
+    pose: agentPose(anim, carryField),
+  };
 }

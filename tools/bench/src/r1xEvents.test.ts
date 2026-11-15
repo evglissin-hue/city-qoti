@@ -112,6 +112,28 @@ function growthEvents(): Ev[] {
   return out;
 }
 
+/**
+ * R2.0: lot views carry the lot fields (frontage, row, kind, corner, frontage2, storeys) and grown
+ * buildings their storeys. They are dropped here so the fingerprint stays the one written before the
+ * speed-up, which is what this test compares against.
+ */
+function withoutR2Fields(events: Ev[]): Ev[] {
+  return events.map((ev) => {
+    const e = ev as Ev & { l?: Record<string, unknown>; b?: Record<string, unknown> };
+    if ((e.e === 'lot.updated' || e.e === 'lot.added') && e.l) {
+      const { frontage, row, kind, corner, frontage2, storeys, ...l } = e.l;
+      void [frontage, row, kind, corner, frontage2, storeys];
+      return { ...e, l };
+    }
+    if ((e.e === 'building.added' || e.e === 'building.updated') && e.b && 'storeys' in e.b) {
+      const { storeys, ...b } = e.b;
+      void storeys;
+      return { ...e, b };
+    }
+    return ev;
+  });
+}
+
 const EXPECT = {
   carrier: {
     n: 20,
@@ -134,7 +156,7 @@ describe('R1X events are unchanged by the speed-up', () => {
     expect({ n: ev.length, kinds: kinds(ev), sha: sha(ev) }).toEqual(EXPECT.carrier);
   });
   it('the growth nights', () => {
-    const ev = growthEvents();
+    const ev = withoutR2Fields(growthEvents());
     expect(ev.length).toBeGreaterThan(0);
     expect({ n: ev.length, kinds: kinds(ev), sha: sha(ev) }).toEqual(EXPECT.growth);
   });
