@@ -31,7 +31,7 @@ The R2D paths in `r2-wave-notes.md`: `apps/client/src/ui/panels/{PlaceCard,Day,E
 3. **The place card**: name (rename), seats and standing, tonight's visitors and who is there, what it serves and took, its draw in parts (`parts`), what it still wants (`wants`). A click on a place's tiles or pieces opens it.
 4. **A resident's day**: today's round as a short line of stops, drawn on the ground through the highlight API; the evenings need and last score in words.
 5. **The evening edition**: at 21:00 a slim card of `EveningView.lines`, crediting each seat by name; one at a time like every card (`ui/cards.ts`); a setting turns it into a feed line.
-6. **Gaps**: rows in the left feed of both lenses and paper tags on the ground (through the notes layer's API); each says what would close it; a click centers the camera.
+6. **Gaps**: rows in the left feed of both lenses and paper tags on the ground (through the notes layer's API); each says what would close it; a click centers the camera. While in the feed, fold identical alerts into one counted line: P2's feed lists "Forester's lodge: no mature trees in reach." once per lodge, which reads as a duplicate (`docs/build/screenshots/p2-feed-markers.png`); it should read "2 Forester's lodges: no mature trees in reach.", with a test that no two feed lines read the same.
 7. **The season spread**: one report with the cross-lane lines first, then the Hearth page and the Ledger page.
 8. **The Hearth's strip**: mood, wishes waiting, how evenings are going (`TownView.evenings`: the share out, the average), gaps open; the Ledger's strip unchanged.
 9. **Controls and senders**: the evening street brush on the Ledger's road tool (marked stretches shown; a shed that waits says so), street and place rename in the inspectors, the lingering evening in Settings; send `road.setEvening`, `road.rename`, `place.rename` and take them off `OWED_SENDERS`; undo for each.
@@ -42,7 +42,7 @@ The R2D paths in `r2-wave-notes.md`: `apps/client/src/ui/panels/{PlaceCard,Day,E
 - [ ] From the screen alone a player can name what the other's work did for theirs today: the edition, the two inks and a closed gap (a screenshot set and an e2e step).
 - [ ] The Town overlay is in both lenses' View lists; a place card opens from a click and shows the draw in parts; a resident's day draws on the ground.
 - [ ] `OWED_SENDERS` has no R2D entries; each command has undo.
-- [ ] Cards never cover one another; the edition and a season page queue; words are warm, dry, US spelling, no em dashes.
+- [ ] Cards never cover one another; the edition and a season page queue; no two feed lines read the same (identical alerts fold into one counted line); words are warm, dry, US spelling, no em dashes.
 - [ ] e2e, typecheck, lint, unit tests and build pass; the interface holds at 1x with the evening lingering.
 
 ## Out of scope
