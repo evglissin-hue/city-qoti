@@ -759,6 +759,10 @@ export class Renderer implements RenderApi {
     this.layer<AgentsLayer>('agents').setBubbles(bubblesFor(kind));
   }
 
+  setSiteMarkers(on: boolean): void {
+    this.layer<OverlaysLayer>('overlays').setSiteMarkers(on);
+  }
+
   setPresence(seat: SeatId, p: { x: number; z: number; tool?: string } | null): void {
     this.layer<PresenceLayer>('presence').setPresence(seat, p);
   }
