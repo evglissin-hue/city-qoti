@@ -86,7 +86,9 @@ function groundPatches(g: BufferGeometry): { area: number; dx: number; dz: numbe
         z0 = Math.min(z0, c[2]);
         z1 = Math.max(z1, c[2]);
       }
-      const [a, b, c] = t.v;
+      const a = t.v[0]!;
+      const b = t.v[1]!;
+      const c = t.v[2]!;
       area += Math.abs((b[0] - a[0]) * (c[2] - a[2]) - (c[0] - a[0]) * (b[2] - a[2])) / 2;
     }
     return { area, dx: x1 - x0, dz: z1 - z0 };
