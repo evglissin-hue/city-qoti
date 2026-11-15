@@ -1,7 +1,7 @@
 # V3X: V3 integration
 
 **Iteration**: V3 Yards, streets and the long view. **Wave**: integration. **Branch**: `cycle/v3x-integration`, made from `main` after V3.0 merges; one PR into `main`.
-**Depends on**: V3A to V3D open or merged. **Runs alongside**: R2's wave and R2X. **Ports**: client 5235, relay 8845.
+**Depends on**: V3A to V3D open or merged. **Runs alongside**: R2's wave and R2X. **Recommended effort**: xhigh. **Ports**: client 5235, relay 8845.
 
 ## Goal
 
@@ -16,7 +16,7 @@ V3 is merged, tuned and measured on both laptops. In a grown street you can tell
 
 ## You own
 
-Everything, but only to merge, fix and tune; and the V3X row of the wave notes: `render/{renderer,cache,post,statics,lightMap,material,ground,scatter}.ts` (but V3D's one line), the showcases, every layer no track owns, `packages/art/src/{materials,patterns,surface,dabs,rooms}.ts` and `kits/{trees,nature,animals,vehicles,residents}.ts`, `apps/client/src/app/{perf,debug}.ts`, `apps/client/e2e/{v3-shots,v3-perf}.mjs`.
+Everything, but only to merge, fix and tune; and the V3X row of the wave notes: `render/{renderer,cache,post,statics,lightMap,material,scatter}.ts` (but V3D's one line), `layers/lights.ts`, the showcases, every layer no track owns, `packages/art/src/{materials,patterns,surface,dabs,rooms}.ts` and `kits/{trees,nature,animals,vehicles,residents}.ts`, `apps/client/src/app/{perf,debug}.ts`, `apps/client/e2e/{v3-shots,v3-perf}.mjs`.
 
 ## You can rely on
 
@@ -25,7 +25,7 @@ The four track PRs, the wave notes' stand-ins and carve-out tables as each track
 ## Tasks
 
 1. **Merge in this order**, running typecheck, lint, unit, e2e, build and bench after each: V3C first (the horizon and the fog's height term touch shared shaders and the far draws, so the rest are measured on the final far view), then V3B (rows, building kits and its `yardOf`), then V3A (dressing wants V3B's free yard and its street furniture rows), and V3D last (it reads V3B's rows and V3C's river through `EndpaperInput`, and its scene skip is the last word on what draws). Resolve appended `EndpaperInput` fields, palette tokens and registry lines by keeping every name and order (append only).
-2. **Join the handshakes**: the dressing layer passes `yardOf(lot)` to `anchorsFor` instead of the whole lot (the stand-in retired); the carve-out table's anchor overrides are landed or taken; V3B's street furniture rules are in `dressingRules.ts`, one row each; `endpaperInput` calls V3B's row function and V3C's river function; the horizon yields to `env.skipScene`.
+2. **Join the handshakes**: the dressing layer passes V3B's `yardOf(mirror, buildingId)`, through `lotBox`, to `anchorsFor` instead of the whole lot (the stand-in retired); the carve-out table's anchor overrides are landed or taken; V3B's street furniture rules are in `dressingRules.ts`, one row each; `endpaperInput` calls V3B's row function and V3C's river function; the horizon yields to `env.skipScene`.
 3. **Wire the inks** if R2X has landed on `main` by now: `EndpaperInks.goods` from the flows overlay's routes (ochre) and `footfall` from `map.footfallEve` (sage), as `InkLayer`s, with R2's street names from `state.streets` in `endpaperInput`'s labels. If R2X has not landed, leave them unset and say so in As built: R2X wires them (`30-roadmap.md`, The redesign, Order of work).
 4. **Which R2 fields show**: R2's lot fields reach `main` only with R2X. Say in As built which of gardens, corners and storeys show on `main` at this merge (R2's fields through `lotsFor`, or its fallback) and take the after set on that `main`; if R2X has regrown the village, say the after scene is not the before's.
 5. **Tune** against the before shots and the owner's taste: dressing counts and distance per preset, rows and gardens, the horizon's tints and haze with height, the river's colors and flow, the map's ink and labels. Retire any stand-in the wave notes mark for V3X. Every Medium row stays inside its budget on Kat's laptop; a piece that fails there is cut back (P50), and As built says what.
@@ -52,4 +52,4 @@ New features. A track's unfinished work goes to a follow-up brief, not into this
 
 - Run the build and review loop (`31-parallel-development.md`): the master plays it from the player's chair, one or two rounds before the PR. The dead-end hunt here is visual: a woodpile with no home, a garden on a road, a lamp that lights nothing, a horizon band that pokes through the map, a map that shows before it has ever drawn, a label that overlaps another.
 - Visual quality is the owner's top priority: when a number and the look disagree, show both to the owner before trading one away.
-- The laptops' numbers are the owner's and Kat's part; the wave may be built without them, but V3X cannot ship without both after tables.
+- The laptops' numbers are the owner's and Kat's part; the wave may be built without them. V3X ships with both after tables, or with the owner's word deferring one (as V2X did for Kat's laptop), written in As built.

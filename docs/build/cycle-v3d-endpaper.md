@@ -1,7 +1,7 @@
 # V3D: The endpaper map
 
 **Iteration**: V3 Yards, streets and the long view. **Wave**: parallel. **Branch**: `cycle/v3d-endpaper`, from `main` after V3.0 merges; PR into `cycle/v3x-integration`.
-**Depends on**: V3.0. **Runs alongside**: V3A, V3B, V3C and the R2 wave. **Ports**: client 5234, relay 8844.
+**Depends on**: V3.0. **Runs alongside**: V3A, V3B, V3C and the R2 wave. **Recommended effort**: high. **Ports**: client 5234, relay 8844.
 
 ## Goal
 
@@ -29,7 +29,7 @@ V3.0: `EndpaperMap` (`texture`, `revision`, `size`, `cover`), `endpaperCover(dis
 2. **Show it** (`layers/endpaper.ts`): one full-screen quad sampling `env.endpaper.texture` with opacity `cover`, so the valley cross-fades from 200 to 240 tiles. Decide where it draws (a mesh in the scene's last layer, or the final pass's overlay if that is cheaper) and say which in the PR. Turn `ENDPAPER_ON` on. Below `cover` 0 nothing is added to any frame.
 3. **Skip the scene** at `cover` 1: the renderer's one line (`if (env.skipScene)` before the lean frame's scene pass, with the shadow pass and the still-frame work). At `cover` 1 the frame is the quad alone: assert the draw count.
 4. **Redraw only on the event**: the writer's flow as built (town changed, 2 s quiet, only while `cover` is above 0, one in flight, the first show draws at once). Add to `townChanged` anything the map draws that it misses (plans, lots, names). A drawing takes under `ENDPAPER_DRAW_BUDGET_MS` in the worker on the grown village and the town at 2048; measure with `writer.lastMs` and show it in the `?debug` overlay. If a drawing runs over, cut detail (labels, grain), not the budget.
-5. **Safari and no OffscreenCanvas**: decide and write it in the PR: stay parchment (V3.0's default), or a main-thread canvas on Low only (a drawing still blocks a frame, so it would draw once, with the camera resting). Either way the skip must not blank the view when no map was ever drawn: skip the scene only once `env.endpaper.revision` is above 0.
+5. **Safari and no OffscreenCanvas**: decide and write it in the PR: stay parchment (V3.0's default), or a main-thread canvas on Low only (a drawing still blocks a frame, so it would draw once, with the camera resting). Either way the skip must not blank the view when no map was ever drawn: V3.0's layer already sets `env.skipScene` only once `env.endpaper.revision` is above 0; keep it so, and test the no-bitmap case.
 6. **The inks stay unwired.** Draw `inks.goods` (ochre) and `inks.footfall` (sage) when present, so the day they are wired they show; test with synthetic `InkLayer`s. Do not read the flows overlay or R2's `map.footfallEve`: whichever of V3X and R2X lands second wires them (`30-roadmap.md`, The redesign, Order of work).
 7. **Take V3B's rows and V3C's river**: when their functions exist (they land in this wave), call them from `endpaperInput` through fields appended to `EndpaperInput`; until then roofs are plain footprints and water comes from `water`. Test with fake inputs for both.
 8. **Shots**: `node apps/client/e2e/v3-shots.mjs v3d far120 far200 far240` (the map is the same at every hour by design; say so), plus a winter valley's map. Fill your stand-ins rows and add As built lines to `20-architecture.md` (V3 contracts).
@@ -48,6 +48,6 @@ The horizon, haze and river (V3C); wiring the two inks (V3X or R2X, whichever la
 
 ## Notes
 
-- It should feel like a keepsake: ink a little uneven, trees tiny and kind, labels in the title font. Cozy before clever.
+- It should feel like a keepsake: ink a little uneven, trees tiny and kind, labels in the title font (a worker has no page fonts: load Alegreya into it with `FontFace` and `self.fonts`, from the same self-hosted file). Cozy before clever.
 - `EndpaperInput` stays additive: V3B and V3C append to it, so rebase on them before the PR and never reorder.
-- Open the PR into `cycle/v3x-integration`; if that branch does not exist yet, into `main` as V3.0 left it, and say so.
+- Open the PR into `cycle/v3x-integration` (made from `main` once V3.0 merges).
