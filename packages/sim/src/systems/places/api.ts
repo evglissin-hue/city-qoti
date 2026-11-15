@@ -3,7 +3,9 @@
 import { content } from '@qoti/content';
 import { MAP_SIZE } from '../../constants';
 import type { EntityId, Place, PlaceId, Resident, WorldState } from '../../contracts';
+import { findById } from '../../state/entities';
 import { placeState } from '../../state/evenings';
+import { treatsOnShelf } from '../market/round';
 import { placeIndex } from './index';
 
 const S = MAP_SIZE;
@@ -28,12 +30,15 @@ export function placeById(state: WorldState, id: PlaceId): Place | undefined {
 
 /**
  * The outlets serving a place right now: its `outlets` with Treats on the shelf (read live, never
- * cached in the index).
- *
- * R2 stand-in (R2A): serves nothing.
+ * cached in the index; R2B's treatsOnShelf decides what is on a shelf).
  */
-export function placeServes(_state: WorldState, _place: Place): EntityId[] {
-  return [];
+export function placeServes(state: WorldState, place: Place): EntityId[] {
+  const out: EntityId[] = [];
+  for (const id of place.outlets) {
+    const b = findById(state.buildings, id);
+    if (b && treatsOnShelf(state, b)) out.push(id);
+  }
+  return out;
 }
 
 /** A place's draw now, 0 to 100: its cached draw plus the live Treats part (`PLACES.treatsBonus`). */
