@@ -249,7 +249,19 @@ export interface RestBloomSource {
   picture: WebGLRenderTarget | null;
   /** The still frame's key: a new key is a new picture. */
   key: string;
+  /**
+   * A moving layer glows (`RenderLayer.glowing`: fireflies, the festival fire, fireworks): the
+   * bloom is built from the whole frame, moving layers and all, every `LIVE_BLOOM_EVERY` idle
+   * frames and reused between, so the glow keeps its halo at a third of the cost.
+   */
+  glowing?: boolean;
 }
+
+/**
+ * V2X: while something moving glows at rest, the bloom is built every this many idle frames. Two
+ * frames late at 60 fps is under a pixel for a drifting firefly and nothing for its slow pulse.
+ */
+export const LIVE_BLOOM_EVERY = 3;
 
 /** What a rest bloom was built from. */
 export interface RestBloomStamp {
@@ -311,6 +323,8 @@ export class LeanFrame {
   private restBloom: RestBloomStamp | null = null;
   /** V2X: how many times the bloom chain has run (tests and the debug overlay). */
   bloomBuilds = 0;
+  /** V2X: idle frames since the bloom was last built from a whole frame while something glowed. */
+  private liveAge = Infinity;
 
   constructor(
     private readonly renderer: WebGLRenderer,
@@ -504,7 +518,8 @@ export class LeanFrame {
    * the still frame's picture (`picture`, the static layers) once for its `key` and reused by every
    * idle frame after, instead of running the bright pass and its blur rounds (seven passes at a
    * pixel ratio of 2) each frame. Nearly everything that blooms at night is static (windows,
-   * flames, lamplit walls); the moving layers that glow (`RenderLayer.glowing`) keep it live.
+   * flames, lamplit walls); while a moving layer glows (`RenderLayer.glowing`) it is built from
+   * the whole frame every `LIVE_BLOOM_EVERY` idle frames instead.
    */
   finish(src: WebGLRenderTarget, rest?: RestBloomSource): void {
     const f = this.final.uniforms;
@@ -518,10 +533,15 @@ export class LeanFrame {
     }
     if (blooms) {
       const threshold = this.look.uLookBloomThreshold.value;
-      const stamp: RestBloomStamp | null = rest?.picture
-        ? { key: rest.key, threshold, revision: this.revision }
-        : null;
-      if (!stamp || !restBloomFresh(this.restBloom, stamp)) {
+      const glowing = rest?.glowing === true;
+      const stamp: RestBloomStamp | null =
+        rest?.picture && !glowing ? { key: rest.key, threshold, revision: this.revision } : null;
+      // A moving frame builds from the whole frame; an idle frame while something glows, every
+      // LIVE_BLOOM_EVERY frames; any other idle frame, from the still picture once per still.
+      const build = stamp
+        ? !restBloomFresh(this.restBloom, stamp)
+        : !glowing || this.restBloom !== null || ++this.liveAge >= LIVE_BLOOM_EVERY;
+      if (build) {
         const from = stamp ? rest!.picture! : src;
         this.brightPass.uniforms.tSrc!.value = from.texture;
         this.brightPass.uniforms.uSrcSize!.value.set(from.width, from.height);
@@ -530,6 +550,7 @@ export class LeanFrame {
         // A halo wider than the tilt-shift's blur: always at least two rounds.
         this.blurInPlace(this.qc!, this.qd!, this.blurPasses + 1);
         this.restBloom = stamp;
+        this.liveAge = 0;
         this.bloomBuilds++;
       }
       f.tBloom!.value = this.qc!.texture;

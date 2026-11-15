@@ -1,7 +1,7 @@
 // V2X: the bloom at rest is built once from the still frame and reused by idle frames.
 import { WebGLRenderTarget, type WebGLRenderer } from 'three';
 import { describe, expect, it } from 'vitest';
-import { LeanFrame, restBloomFresh } from './post';
+import { LeanFrame, LIVE_BLOOM_EVERY, restBloomFresh } from './post';
 
 /** Enough of a WebGLRenderer for LeanFrame's passes; counts the full-screen draws. */
 function fakeRenderer(): { renderer: WebGLRenderer; draws: () => number } {
@@ -70,6 +70,22 @@ describe('the bloom at rest (V2X)', () => {
     expect(lean.bloomBuilds).toBe(4);
     lean.finish(target, { picture, key: 'a' });
     expect(lean.bloomBuilds).toBe(4);
+  });
+
+  it('while something moving glows, is built from the whole frame every third idle frame', () => {
+    const { lean, picture } = nightFrame();
+    const target = lean.target('still');
+    lean.finish(target, { picture, key: 'a' });
+    expect(lean.bloomBuilds).toBe(1);
+    // Fireflies come out: the static bloom gives way to the whole frame's at once.
+    lean.finish(target, { picture, key: 'a', glowing: true });
+    expect(lean.bloomBuilds).toBe(2);
+    for (let i = 0; i < 9; i++) lean.finish(target, { picture, key: 'a', glowing: true });
+    expect(lean.bloomBuilds).toBe(2 + 9 / LIVE_BLOOM_EVERY);
+    // They go: the still picture's bloom is built again, then reused.
+    lean.finish(target, { picture, key: 'a' });
+    lean.finish(target, { picture, key: 'a' });
+    expect(lean.bloomBuilds).toBe(6);
   });
 
   it('builds nothing by day, when the bloom is off', () => {

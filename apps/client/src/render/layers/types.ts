@@ -35,8 +35,8 @@ export interface RenderLayer {
   /**
    * V2X: a moving layer showing something that passes the night bloom's threshold right now
    * (fireflies out, fireworks up, the festival fire). At rest the bloom is built once from the still
-   * frame and reused; while any moving layer glows, every frame builds it again so the glow keeps
-   * its halo (post.ts, `LeanFrame.finish`).
+   * frame and reused; while any moving layer glows, it is built from the whole frame every
+   * `LIVE_BLOOM_EVERY` idle frames instead, so the glow keeps its halo (post.ts, `LeanFrame.finish`).
    */
   glowing?(): boolean;
   init(ctx: LayerContext): void;

@@ -645,10 +645,10 @@ export class Renderer implements RenderApi {
         mode = 'still';
       }
       this.scenePass(target, 'idle');
-      // V2X: at rest the night's bloom comes from the still frame, built once and reused, unless a
-      // moving layer glows (fireflies, fireworks) and needs its halo every frame.
-      const glows = this.layers.some((l) => l.glowing?.() === true);
-      lean.finish(target, glows ? undefined : { picture: this.still.picture, key });
+      // V2X: at rest the night's bloom comes from the still frame, built once and reused; while a
+      // moving layer glows (fireflies, fireworks) it is built from the whole frame every few frames.
+      const glowing = this.layers.some((l) => l.glowing?.() === true);
+      lean.finish(target, { picture: this.still.picture, key, glowing });
     }
     this.gpuTimer.end();
     this.needsRender = false;
