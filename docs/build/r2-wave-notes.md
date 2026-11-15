@@ -197,7 +197,7 @@ The carrier collects surplus Treats at makers' doors before the shelves (R1X), a
 
 - No test was skipped by R2.0. One exclusion: the three evening feats are kept out of `hearth/achievements.test.ts`'s every-achievement loops (`PENDING`, an R2C stand-in) until R2C counts them.
 - Changed: `packages/sim/test/r1/saves.test.ts` (version 7), `packages/sim/test/turn.test.ts` (the R2 slots), `apps/client/src/contracts.test.ts` (the pinned unions gain R2's members), `tools/bench/src/r1xEvents.test.ts` (the growth nights' fingerprint drops the R2 lot fields and storeys before hashing, so R1X's pre-speed-up oracle still holds), the lot literals in three sim tests and the village fixture (`row: 0`, `kind: 'plot'`), the content counts (`validate.test.ts`: 23 achievements, the brazier among festival-era decor, charter unlocks count as unlocks; `hamlet-contracts.test.ts`; the client's `books.test.ts`, "of 23 earned").
-- Golden files regenerated (the hash covers the new state and the `round` stream).
+- Golden files: `i0-basic.json`, `i1-hamlet.json` and `r1-year.json` are command scripts with no stored hash, so the new state and the `round` stream change what they hash to in Node and in a browser worker alike and nothing needs regenerating; `npm run golden` would rewrite `i0-basic.json` only because the decor list grew (the brazier shifts the generator's picks), not because the format changed, so the scripts stay as they were. R2.0 added `v6-hazel-day3.save`, a real version 6 valley, for the migration test.
 
 ## Found in R2.0, for the wave
 
