@@ -355,20 +355,46 @@ export function zoneStreetFor(w: WorldState, street: HighStreet, zones: readonly
 
 /** Empty lots of the high street porters cannot reach yet. */
 export function unreachedLots(w: WorldState): number {
+  return farFrontages(w).length;
+}
+
+/** The frontage tiles of empty lots no storehouse's porters reach (22 tiles from any storehouse door). */
+export function farFrontages(w: WorldState): number[] {
   const stores = w.buildings
     .filter((b) => b.def === 'storehouse')
     .map((b) => {
       const d = doorTile(b);
       return [d % S, Math.floor(d / S)] as const;
     });
-  let n = 0;
+  const far: number[] = [];
   for (const l of w.lots) {
     if (l.buildingId) continue;
     const fx = l.frontage % S;
     const fz = Math.floor(l.frontage / S);
-    if (!stores.some(([x, z]) => Math.abs(x - fx) + Math.abs(z - fz) <= 22)) n++;
+    if (!stores.some(([x, z]) => Math.abs(x - fx) + Math.abs(z - fz) <= 22)) far.push(l.frontage);
   }
-  return n;
+  return far;
+}
+
+/**
+ * R1X: where a storehouse the town wants anyway should go while lots lie beyond every porter: spots
+ * whose middle is within reach of two or more of those lots (an `only` for the build queue), or null
+ * with fewer than two. Willow's second storehouse went wherever it first fit from the town's middle,
+ * north of town, and its far home lots stood empty for a week with timber in store.
+ */
+export function towardFarLots(
+  w: WorldState,
+): ((x: number, z: number, wd: number, dp: number) => boolean) | null {
+  const far = farFrontages(w);
+  if (far.length < 2) return null;
+  return (x, z, wd, dp) => {
+    const cx = x + (wd >> 1);
+    const cz = z + (dp >> 1);
+    let n = 0;
+    for (const f of far)
+      if (Math.abs((f % S) - cx) + Math.abs(Math.floor(f / S) - cz) <= 20 && ++n >= 2) return true;
+    return false;
+  };
 }
 
 /** The rect around a high street and its zones, for maps. */

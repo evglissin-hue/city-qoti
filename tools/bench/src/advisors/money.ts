@@ -77,7 +77,10 @@ class Money implements Advisor {
     }
     // The County Bank: borrow when the treasury runs thin, repay when flush.
     const owed = loansOwed(w);
-    const room = Math.floor((creditLimit(w) - owed) / PENNIES_PER_COIN);
+    // R1X: a tenth of the line is left unborrowed. The line is 20 coins a resident, so a town that
+    // borrows to its end and then loses a few households owes past it (oak borrowed at 161 and
+    // stood at 145 owing 318 coins over).
+    const room = Math.floor((creditLimit(w) * 0.9 - owed) / PENNIES_PER_COIN);
     // C4X: near the end of the credit line, wages go to the floor (lean times are a step away).
     if (room < 400 && coins < 200 && l.wageLevel > 80) setWage(80, 'trim wages to the floor');
     // P1: a cushion of 120 coins, not 60, and repay only above 500, down to 350. P1 added coin

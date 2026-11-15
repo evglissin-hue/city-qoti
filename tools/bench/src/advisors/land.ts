@@ -15,6 +15,7 @@ import {
   calendar,
   canPlaceBuilding,
   doorTile,
+  entranceTiles,
   familyIndex,
   hasInnovation,
   isFrozen,
@@ -26,6 +27,7 @@ import {
   townStock,
   worldIndex,
   type Building,
+  type Rot4,
   type WorldState,
   Zone,
 } from '@qoti/sim';
@@ -39,6 +41,7 @@ import {
   VILLAGE_MARGIN,
   type Budget,
   type Planner,
+  type Want,
 } from '../planner';
 import { count, countTrade, FOODS, G, S } from '../town';
 import {
@@ -46,7 +49,9 @@ import {
   frontageFor,
   planHighStreet,
   promoteToVillage,
+  farFrontages,
   storehouseSpot,
+  towardFarLots,
   unreachedLots,
   zoneHighStreet,
   zoneStreetFor,
@@ -211,9 +216,15 @@ class Land implements Advisor {
       only?: (x: number, z: number, wd: number, dp: number) => boolean;
     } = {},
   ): Building | null {
+    const want = this.wantOf(def, o);
+    return want ? this.p.propose(want) : null;
+  }
+
+  /** The want `want` proposes (null when the def is not open to the valley). */
+  private wantOf(def: string, o: Parameters<Land['want']>[1] = {}): Want | null {
     if (!open(this.w, def)) return null;
     const village = rankAtLeast(this.w, 'village');
-    return this.p.propose({
+    return {
       def,
       priority: o.urgent ? URGENT : (o.priority ?? (village ? 5 : QUEUE)),
       cost: costOf(def, village ? VILLAGE_MARGIN : 0),
@@ -224,7 +235,7 @@ class Land implements Advisor {
       only: o.only,
       // Ground buildings go where their ground is: a valley's stone or river may lie far out.
       radius: GROUND.has(def) ? 60 : undefined,
-    });
+    };
   }
 
   private sites(): void {
@@ -387,7 +398,70 @@ class Land implements Advisor {
     const rising = w.buildings.some((b) => b.def === 'storehouse' && b.stage === 'construction');
     const few = pop >= 20 && count(w, 'storehouse') < Math.max(2, 1 + Math.floor(pop / 20));
     if (!few && !(backed >= 3 && !rising)) return;
-    this.want('storehouse', { urgent: !rankAtLeast(w, 'village'), pressing: backed >= 3 });
+    const o = { urgent: !rankAtLeast(w, 'village'), pressing: backed >= 3 };
+    // R1X: toward the lots no porter reaches, when there are some: at a spot there that fits, else
+    // one a short path would give a road at its door.
+    const far = towardFarLots(w);
+    if (far && (this.want('storehouse', { ...o, only: far }) || this.pathedStore(o))) return;
+    this.want('storehouse', o);
+  }
+
+  /**
+   * R1X: a storehouse toward the far lots whose door needs a path first, as a player paints one and
+   * then sets the storehouse down. Every spot by willow's far home lots was zoned or had no road at
+   * its door, so its second storehouse went up north of town and those lots stood empty for a week
+   * with timber in store. The spot keeps off zoned land, and so does the path (at most 12 tiles);
+   * its door is in reach of a standing storehouse (whose porters bring the planks) and of two far lots.
+   */
+  private pathedStore(o: { urgent: boolean; pressing: boolean }): boolean {
+    const p = this.p;
+    const w = this.w;
+    const far = farFrontages(w);
+    const def = content.buildingById.get('storehouse')!;
+    const want = this.wantOf('storehouse', o);
+    if (far.length < 2 || !want || !p.allows(want)) return false;
+    const reader = worldIndex(w).reader;
+    const man = (a: number, x: number, z: number) => Math.abs((a % S) - x) + Math.abs(Math.floor(a / S) - z);
+    const stores = w.buildings
+      .filter((b) => b.def === 'storehouse' && b.stage === 'built')
+      .map((b) => doorTile(b));
+    const zoned = (x: number, z: number) => w.map.zone[z * S + x] !== 0 || w.map.lot[z * S + x] !== 0;
+    const ex = Math.round(far.reduce((n, f) => n + (f % S), 0) / far.length);
+    const ez = Math.round(far.reduce((n, f) => n + Math.floor(f / S), 0) / far.length);
+    // Every spot within 20 tiles of the far lots' middle, the most far lots reached first (then the
+    // nearest); paths are only sought for the best few.
+    const spots: [x: number, z: number, rot: Rot4, reached: number, r: number, ok: boolean][] = [];
+    for (let r = 1; r <= 20; r++) {
+      for (let dz = -r; dz <= r; dz++) {
+        for (let dx = -r; dx <= r; dx++) {
+          if (Math.max(Math.abs(dx), Math.abs(dz)) !== r) continue;
+          for (let rot = 0 as Rot4; rot < 4; rot = (rot + 1) as Rot4) {
+            const x = ex + dx;
+            const z = ez + dz;
+            const at = canPlaceBuilding(reader, def, x, z, rot);
+            if (!at.ok && at.reason !== 'NEEDS_ROAD') continue;
+            if (at.tiles.some(([tx, tz]) => zoned(tx, tz))) continue;
+            const door = doorTile({ def: 'storehouse', x, z, rot } as Building, def);
+            const fx = door % S;
+            const fz = Math.floor(door / S);
+            if (!stores.some((d) => man(d, fx, fz) <= 22)) continue;
+            const reached = far.filter((f) => man(f, fx, fz) <= 22).length;
+            if (reached >= 2) spots.push([x, z, rot, reached, r, at.ok]);
+          }
+        }
+      }
+    }
+    spots.sort((a, b) => b[3] - a[3] || a[4] - b[4]);
+    for (const [x, z, rot, , , ok] of spots.slice(0, 24)) {
+      if (ok) return !!p.buildAt('storehouse for the far lots', 'storehouse', x, z, rot);
+      const { front } = entranceTiles(def, x, z, rot);
+      const path = pathToRoad(w, front[1] * S + front[0]);
+      if (!path || path.length === 0 || path.length > 12 || path.some(([tx, tz]) => zoned(tx, tz))) continue;
+      if (!p.do('path for the far storehouse', [{ t: 'road.paint', kind: 'path', tiles: path }]))
+        return false;
+      return !!p.buildAt('storehouse for the far lots', 'storehouse', x, z, rot);
+    }
+    return false;
   }
 
   /**
