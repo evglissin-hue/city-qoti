@@ -1,10 +1,12 @@
 import {
   createValley,
   handleImage,
+  handlePerf,
   IMAGE_ROUTE,
   MAX_IMPORT_CHARS,
   MAX_SNAPSHOT_BYTES,
   MemoryStorage,
+  PERF_ROUTE,
   randomId,
   type Conn,
   type CreateValleyRequest,
@@ -103,6 +105,32 @@ export function startDevServer(opts: DevServerOptions): Promise<DevServer> {
           res.end(Buffer.from(out.bytes));
         } else json(res, out.status, out.json ?? {});
         return;
+      }
+      // V2.0: the seats' perf runs (Settings, Measure this laptop).
+      const perf = PERF_ROUTE.exec(url.pathname);
+      if (perf) {
+        const room = rooms.get(perf[1]!);
+        if (!room) return json(res, 404, { error: 'No such valley' });
+        const length = req.headers['content-length'];
+        const out = await handlePerf(
+          {
+            method: req.method ?? 'GET',
+            authorization: req.headers.authorization ?? null,
+            contentLength: length === undefined ? null : Number(length),
+            body: async (limit) => {
+              try {
+                // Capped in bytes, which is never fewer than the characters they decode to.
+                return await readBody(req, limit);
+              } catch {
+                return null;
+              }
+            },
+          },
+          room.perf,
+          await room.storage.getMeta(),
+          Date.now(),
+        );
+        return json(res, out.status, out.json);
       }
       json(res, 404, { error: 'Not found' });
     })();

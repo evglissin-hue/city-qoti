@@ -99,6 +99,15 @@ interface RoomStorage {
 - If no one is connected, the new client loads the latest snapshot (migrating by `saveVersion`) and becomes the active version. Turns after that snapshot from an older `simVersion` cannot be replayed and are dropped (at most about 30 s of play, rarer thanks to snapshots on pause and leave). The client shows a short notice.
 - *Save versions*: 1 (I0), 2 (I1), 3 (I2), 4 (I3) and 5 (P1: a town's optional `calling`, and a building's optional `custom.windowFlowers`; the v4 to v5 migration rewrites nothing, and a Village from before P1 is offered its calling when it loads, in `deserialize`).
 
+## The fresh start [R1]
+
+The zones-first rebuild changes what a town is made of (goods, buildings, households' baskets, trade), and the owner chose to start fresh rather than convert (2026-11-10; P53's one exception).
+
+- `SAVE_VERSION` becomes 6 when R1X merges. `deserialize` refuses a save under 6 with `OLD_VALLEY` instead of migrating it. Migrations 1 to 5 and their tests are removed in the same merge, and the rule that every change to saved state bumps the version and adds a migration with a test holds again from 6 on (R2 and R3 each do).
+- The title screen keeps listing older valleys, grayed out: "Founded under the old rules. It cannot be opened in this version." Each offers Save its file (the stored snapshot's bytes, untouched) and Remove. Opening an old `.qoti` file says the same. Nothing is deleted on the device or the server by the update; an online room answers a hello for an old valley with `OLD_VALLEY`.
+- The last commit of the old rules is tagged `chains-final`, so an old valley file can still be opened from a checkout of that tag.
+- The R1 wave is built on its integration branch and reaches `main` in one merge, so the live link is never half rebuilt. V2 merges to `main` as it goes: it touches no sim state.
+
 ## Presence
 
 - Never part of sim state. A cursor is the world point under the pointer, to a 32nd of a tile, sent up to 10 times a second while it moves (the room allows 12 per second per seat) and an empty presence once the pointer has been off the valley for a moment. The receiving client plays the points back a gap or so behind, at the pace they came, and smooths the corners, so a partner's cursor glides instead of hopping between tiles. Pings and emotes are rate-limited to 2 per second. The roster counts a seat as connected from its hello until it leaves.

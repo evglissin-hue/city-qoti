@@ -1,4 +1,12 @@
-import { MemoryImages, MemoryStorage, RoomCore, TURN_MS, type MemoryDump } from '@qoti/protocol';
+import {
+  MemoryImages,
+  MemoryPerf,
+  MemoryStorage,
+  RoomCore,
+  TURN_MS,
+  type MemoryDump,
+  type PerfRun,
+} from '@qoti/protocol';
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
@@ -10,6 +18,8 @@ interface Room {
   storage: MemoryStorage;
   /** C5F: Chronicle snapshots, saved beside the valley as <id>.images.json. */
   images: MemoryImages;
+  /** V2.0: the seats' perf runs (Measure this laptop), saved beside the valley as <id>.perf.json. */
+  perf: MemoryPerf;
   sockets: number;
   timer: ReturnType<typeof setInterval> | null;
   saveTimer: ReturnType<typeof setTimeout> | null;
@@ -32,6 +42,10 @@ export class Rooms {
 
   private imagesFile(id: string): string {
     return join(this.dataDir, `${id}.images.json`);
+  }
+
+  private perfFile(id: string): string {
+    return join(this.dataDir, `${id}.perf.json`);
   }
 
   exists(id: string): boolean {
@@ -64,7 +78,11 @@ export class Rooms {
           JSON.parse(readFileSync(imagesFile, 'utf8')) as Parameters<typeof MemoryImages.restore>[0],
         )
       : new MemoryImages();
-    const room: Room = { core, storage, images, sockets: 0, timer: null, saveTimer: null };
+    const perfFile = this.perfFile(id);
+    const perf = existsSync(perfFile)
+      ? MemoryPerf.restore(JSON.parse(readFileSync(perfFile, 'utf8')) as PerfRun[])
+      : new MemoryPerf();
+    const room: Room = { core, storage, images, perf, sockets: 0, timer: null, saveTimer: null };
     storage.onChange = () => {
       room.saveTimer ??= setTimeout(() => {
         room.saveTimer = null;
@@ -73,6 +91,7 @@ export class Rooms {
     };
     // Pictures are written at once: they are few, and a reload right after an upload should see it.
     images.onChange = () => this.saveImages(id, room);
+    perf.onChange = () => this.savePerf(id, room);
     this.rooms.set(id, room);
     return room;
   }
@@ -88,6 +107,12 @@ export class Rooms {
     const tmp = `${this.imagesFile(id)}.tmp`;
     writeFileSync(tmp, JSON.stringify(room.images.dump()));
     renameSync(tmp, this.imagesFile(id));
+  }
+
+  private savePerf(id: string, room: Room): void {
+    const tmp = `${this.perfFile(id)}.tmp`;
+    writeFileSync(tmp, JSON.stringify(room.perf.dump()));
+    renameSync(tmp, this.perfFile(id));
   }
 
   /** The room steps every TURN_MS while a socket is open, and once more after the last one closes. */

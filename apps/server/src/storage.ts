@@ -2,6 +2,8 @@ import {
   SNAPSHOTS_KEPT,
   type ImageStorage,
   type ImageType,
+  type PerfRun,
+  type PerfStorage,
   type RoomStorage,
   type StoredImage,
   type StoredMeta,
@@ -35,8 +37,10 @@ function fromBase64(text: string): Uint8Array {
 /**
  * RoomStorage on a Durable Object's SQLite database. Snapshots are stored as raw gzip bytes. C5F:
  * also the valley's Chronicle pictures (ImageStorage), capped and pruned by the protocol's storeImage.
+ * V2.0: also the seats' perf runs (PerfStorage), one JSON row in `meta` under the key `perf`; the
+ * protocol's handlePerf keeps them trimmed to a few per seat, so no table of their own is needed.
  */
-export class SqliteStorage implements RoomStorage, ImageStorage {
+export class SqliteStorage implements RoomStorage, ImageStorage, PerfStorage {
   constructor(private readonly sql: SqlStorage) {
     sql.exec(SCHEMA);
   }
@@ -136,5 +140,14 @@ export class SqliteStorage implements RoomStorage, ImageStorage {
 
   async deleteImages(entries: number[]): Promise<void> {
     for (const e of entries) this.sql.exec('DELETE FROM images WHERE entry = ?', e);
+  }
+
+  async getPerfRuns(): Promise<PerfRun[]> {
+    const row = this.sql.exec<{ v: string }>('SELECT v FROM meta WHERE k = ?', 'perf').toArray()[0];
+    return row ? (JSON.parse(row.v) as PerfRun[]) : [];
+  }
+
+  async setPerfRuns(runs: PerfRun[]): Promise<void> {
+    this.sql.exec('INSERT OR REPLACE INTO meta (k, v) VALUES (?, ?)', 'perf', JSON.stringify(runs));
   }
 }

@@ -1,19 +1,30 @@
 // Debug only (?debug&fixture=hamlet, =village [I2], =winter or =raid [I3]): a solo valley that starts as the sim's
-// hamlet or village fixture, so panels can be tried and tested live before the tracks land. With
+// hamlet or village fixture, so panels can be tried and tested live before the tracks land.
+// V2.0: =grown opens a real town the bench's autoplayer grew (about 150 residents at Village rank),
+// a snapshot in fixtures/grown.qoti that `npm run fixture:grown -w @qoti/client` regrows. With
 // &mock, the fixture's missing history (wishes, pages, Chronicle, stocks, budget) is laid over the
 // Mirror from the UI mocks, whose ids match the fixture.
 import { randomId } from '@qoti/protocol';
-import { bytesToBase64, ensureOffer, serialize, SIM_VERSION, type WorldState } from '@qoti/sim';
+import {
+  base64ToBytes,
+  bytesToBase64,
+  deserialize,
+  ensureOffer,
+  serialize,
+  SIM_VERSION,
+  type WorldState,
+} from '@qoti/sim';
 import { LocalRoom } from '../net/local';
 import { IdbStorage } from '../net/idb';
 import type { Session } from './session';
 import { rememberValley, type RecentValley } from './recent';
+import { readValleyFile } from './valleyFile';
 
 export const FIXTURE = new URLSearchParams(location.search).get('fixture');
 export const MOCK_OVERLAY = new URLSearchParams(location.search).has('mock');
 
-export type FixtureKind = 'hamlet' | 'village' | 'winter' | 'raid';
-export const FIXTURE_KINDS: readonly FixtureKind[] = ['hamlet', 'village', 'winter', 'raid'];
+export type FixtureKind = 'grown' | 'hamlet' | 'village' | 'winter' | 'raid';
+export const FIXTURE_KINDS: readonly FixtureKind[] = ['grown', 'hamlet', 'village', 'winter', 'raid'];
 
 /** Writes a new solo valley whose first snapshot is one of the sim's fixtures, and remembers it. */
 export async function createFixtureValley(
@@ -21,13 +32,15 @@ export async function createFixtureValley(
   kind: FixtureKind = 'hamlet',
 ): Promise<RecentValley> {
   const state =
-    kind === 'winter'
-      ? (await import('../../../../packages/sim/test/fixtures/winter')).winterFixture().state
-      : kind === 'raid'
-        ? raidWithCaptive((await import('../../../../packages/sim/test/fixtures/threat')).raidAtDusk())
-        : kind === 'village'
-          ? (await import('../../../../packages/sim/test/fixtures/village')).villageFixture().state
-          : (await import('../../../../packages/sim/test/fixtures/hamlet')).hamletFixture().state;
+    kind === 'grown'
+      ? await grownState()
+      : kind === 'winter'
+        ? (await import('../../../../packages/sim/test/fixtures/winter')).winterFixture().state
+        : kind === 'raid'
+          ? raidWithCaptive((await import('../../../../packages/sim/test/fixtures/threat')).raidAtDusk())
+          : kind === 'village'
+            ? (await import('../../../../packages/sim/test/fixtures/village')).villageFixture().state
+            : (await import('../../../../packages/sim/test/fixtures/hamlet')).hamletFixture().state;
   // P1 (playtest item 13): ?trial=passed starts at the end of the Village chapter, for screenshots.
   if (new URLSearchParams(location.search).get('trial') === 'passed') {
     state.charter.rank = 'village';
@@ -57,6 +70,18 @@ export async function createFixtureValley(
   const v: RecentValley = { valleyId, seat: 0, token, mode: 'solo', name: townName, lastPlayed: Date.now() };
   rememberValley(v);
   return v;
+}
+
+/**
+ * V2.0: the grown village, fetched only when asked for (the file is a Vite asset behind a dynamic
+ * import, so it never enters the initial JS) and read like a valley file opened from the title.
+ */
+async function grownState(): Promise<WorldState> {
+  const url = (await import('./fixtures/grown.qoti?url')).default;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`The grown village did not load (${res.status}).`);
+  const file = readValleyFile(new Uint8Array(await res.arrayBuffer()));
+  return deserialize(base64ToBytes(file.snapshot.data));
 }
 
 /**

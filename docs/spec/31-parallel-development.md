@@ -12,7 +12,10 @@ A **cycle** is one agent session working from one brief on one branch, ending in
 | I1 | C3.0 hamlet contracts | C3A residents, C3B Hearth v1, C3C Ledger v1, C3D hamlet art and rendering, C3E hamlet UI | C3X (also writes the I2 briefs) |
 | I2 to I5 | written by the previous integration cycle | | |
 | V1 | V1.0 look contracts (surface ids, palette 2.0, the pattern array interface, reserved `Era`, static and moving layers, presets with Ultra, GPU timer, the file split, scenes and perf scripts) | V1A materials and light, V1B buildings detail, V1C ground, water and nature, V1D lean renderer | V1X |
-| V2 to V4 | inside I4 and I5's contracts cycles | with the I4 and I5 waves | with I4X and I5X |
+| R1 Zones first | R1.0 zones contracts (it alone may remove the chain economy's contracts) | R1A the economy core, R1B land and businesses, R1C the Ledger's interface, R1D the Hearth's tools and the first days, R1E art for trades, R1F the bench | R1X, on one branch, into `main` in one merge |
+| V2 Light and green | V2.0 look contracts and measuring | V2A night, V2B green, V2C what V1 left half-wired | V2X |
+| R2 and V3, R3 and V4 | written by the previous integration cycle (`30-roadmap.md`, The redesign) | | |
+| V5 and V6 (the old V3 and V4) | inside I4 and I5's contracts cycles | with the I4 and I5 waves | with I4X and I5X |
 
 V1 splits the render and art track by subpath so its four cycles can run at once on V1.0's shared contract:
 
@@ -27,6 +30,8 @@ V1 splits the render and art track by subpath so its four cycles can run at once
 Two files would otherwise be shared, so V1.0 splits them: the kit material moves from `renderer.ts` to `material.ts` (V1A), and the final pass's color code moves from `post.ts` to `look.ts` (V1A), leaving the frame graph in `post.ts` and the frame loop in `renderer.ts` to V1D.
 
 A V1 wave runs beside gameplay cycles that own sim and UI paths (I3's C5B, C5C, C5D, C5F, C5H); a gameplay cycle that owns render or art paths (C5E) waits for V1X.
+
+The redesign's pairs split the same way (2026-11-10). In the first pair, V2 owns `packages/art/src/{materials,patterns,surface,palette}.ts`, the nature, trees, props, decor, vehicles and residents kits, and `apps/client/src/render` but the buildings layer; R1E owns the building, workplace and service kits and `render/layers/buildings.ts`; the other R1 cycles own `packages/sim`, `packages/content`, `tools/bench`, `apps/client/src/{ui,input,state}`. The contracts cycles write the exact lists in their briefs. A few look items sit outside render and art paths and are named in `30-roadmap.md` (The redesign, Order of work): V2.0 builds Measure this laptop before either wave starts, R1C takes paper by lamplight, V4C takes the tea-break camera's one file under `input/`.
 
 Briefs live in `docs/build/`. The board in `docs/build/README.md` tracks status.
 

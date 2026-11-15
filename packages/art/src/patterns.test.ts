@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { createPatternArray, lastPatternMs, PATTERN_ONE } from './patterns';
-import { NOISE_LAYER, PATTERN_LAYERS, SURFACE } from './surface';
+import { NOISE_LAYER, PATTERN_LAYERS, ROOM_LAYER, ROOM_LAYERS, SURFACE } from './surface';
 
 const SIZE = 256;
 const layerOf = (data: Uint8Array, layer: number): Uint8Array =>
@@ -28,8 +28,22 @@ describe('pattern generators (V1A)', () => {
     expect(checksum(again)).toBe(checksum(data));
   });
 
-  it('leaves plain, glass and water flat', () => {
-    for (const id of [SURFACE.plain, SURFACE.glass, SURFACE.water]) {
+  it('V2.0: holds every layer, the room layers last', () => {
+    expect(tex.image.depth).toBe(PATTERN_LAYERS);
+    expect(data.length).toBe(SIZE * SIZE * 4 * PATTERN_LAYERS);
+    expect(ROOM_LAYER + ROOM_LAYERS).toBe(PATTERN_LAYERS);
+  });
+
+  it('leaves plain, glass and water flat, and (V2.0) the V2 surfaces and room layers until V2A and V2C', () => {
+    const rooms = Array.from({ length: ROOM_LAYERS }, (_, r) => ROOM_LAYER + r);
+    const v2 = [
+      SURFACE.woodGrain,
+      SURFACE.paintedWood,
+      SURFACE.wroughtIron,
+      SURFACE.terracotta,
+      SURFACE.cloth,
+    ];
+    for (const id of [SURFACE.plain, SURFACE.glass, SURFACE.water, ...v2, ...rooms]) {
       const l = layerOf(data, id);
       for (let i = 0; i < l.length; i += 4) {
         if (l[i] !== PATTERN_ONE || l[i + 1] !== 0 || l[i + 3] !== 0)
@@ -41,6 +55,7 @@ describe('pattern generators (V1A)', () => {
   it('averages close to neutral, so a pattern never darkens or lightens a surface overall', () => {
     for (let id = 1; id < PATTERN_LAYERS; id++) {
       if (id === SURFACE.flowers || id === NOISE_LAYER) continue;
+      if (id >= ROOM_LAYER) continue; // V2.0: V2A's rooms are pictures, not neutral grain
       const l = layerOf(data, id);
       let sum = 0;
       for (let i = 0; i < l.length; i += 4) sum += l[i]!;

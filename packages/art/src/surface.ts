@@ -26,6 +26,13 @@ export const SURFACE = {
   field: 16,
   flags: 17,
   flowers: 18,
+  // V2.0: appended for V2C (props, carts and residents). 19 is the noise layer's index in the
+  // pattern array (a layer, not a surface), so these start at 20: a surface id is its layer.
+  woodGrain: 20,
+  paintedWood: 21,
+  wroughtIron: 22,
+  terracotta: 23,
+  cloth: 24,
 } as const;
 
 export type SurfaceName = keyof typeof SURFACE;
@@ -35,8 +42,23 @@ export type SurfaceId = (typeof SURFACE)[SurfaceName];
 export const NOISE_LAYER = 19;
 /** World size of one tile of the noise layer. */
 export const NOISE_SCALE = 64;
-/** Layers in the pattern array: one per surface id, then the noise layer. */
-export const PATTERN_LAYERS = NOISE_LAYER + 1;
+/**
+ * V2.0: the layers a surface id indexes, the noise layer's slot included (ids 0 to 18, the noise
+ * layer 19, ids 20 to 24). The surface table's uniforms in the kit material have this many rows.
+ */
+export const SURFACE_LAYERS = 25;
+/**
+ * V2.0: the first of the room layers behind lit windows (V2A, `17-presentation.md`, Rooms behind
+ * the windows): eight little rooms a pane shows by parallax, picked by the building's seed. They
+ * follow the surface layers, so no shader index that reads a layer by number moves.
+ */
+export const ROOM_LAYER = SURFACE_LAYERS;
+export const ROOM_LAYERS = 8;
+/**
+ * Layers in the pattern array: one per surface id, the noise layer at 19, then the room layers.
+ * Append-only, like the ids: a new layer goes after the last one.
+ */
+export const PATTERN_LAYERS = ROOM_LAYER + ROOM_LAYERS;
 
 /**
  * How a surface's pattern is laid on a face:
@@ -75,9 +97,10 @@ const row = (
 /**
  * The surface table, indexed by id. Values from the concept viewer (`MATP`); glass and water carry
  * no pattern (the material gives them a sky fresnel and a sun glint), and flowers take their color
- * from the layer itself (its alpha is the mask).
+ * from the layer itself (its alpha is the mask). V2.0: index 19 is the noise layer's slot and holds
+ * no row (`undefined`); the V2 surfaces after it are flat (strength 0) until V2C gives them patterns.
  */
-export const SURFACES: readonly SurfaceDef[] = [
+export const SURFACES: readonly (SurfaceDef | undefined)[] = [
   row('plain', 'facade', 1, 0),
   row('plaster', 'facade', 2, 1),
   row('brick', 'facade', 1.2, 1, { token: 'mortar', mix: 0.75 }),
@@ -97,6 +120,12 @@ export const SURFACES: readonly SurfaceDef[] = [
   row('field', 'top', 1.6, 1),
   row('flags', 'top', 1.68, 1),
   row('flowers', 'top', 0.5, 0),
+  undefined,
+  row('woodGrain', 'facade', 1, 0),
+  row('paintedWood', 'facade', 1, 0),
+  row('wroughtIron', 'facade', 1, 0),
+  row('terracotta', 'facade', 1, 0),
+  row('cloth', 'facade', 1, 0),
 ];
 
 /** The table row for an id; unknown ids read as plain, like a missing attribute. */

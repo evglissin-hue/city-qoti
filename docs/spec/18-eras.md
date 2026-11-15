@@ -4,6 +4,8 @@ As the town climbs the ranks it moves through three eras (P44): the Old Age, the
 
 Agreed by the owner (2026-11-01) and Kat (2026-11-02), with P44, P45 and P50 amended to match (`01-principles.md`). Each era's look follows the visual direction in `17-presentation.md`. Era state and the Age of Steam land with I4 Town, the Bright Age with I5; V1 only reserves the data.
 
+**The redesign (owner, 2026-11-10)**: an era brings decisions, never chains (`13-ledger.md`, The five rules). Where this doc says a production method, read a specialized building with a reach. The visual iterations were renumbered the same day: the Age of Steam kit is V5 (was V3) and the Bright Age kit V6 (was V4) (`30-roadmap.md`).
+
 ## The three eras
 
 | Era | Ranks | Lands | Feels like | Look |
@@ -17,12 +19,14 @@ Agreed by the owner (2026-11-01) and Kat (2026-11-02), with P44, P45 and P50 ame
 **Age of Steam** [I4]:
 
 - Ledger: steam as a production method beside hand and water (more output, needs coal, makes smoke); coal from a pit or by barge; canals, barges and the River Dock as the freight network; the horse tram; the Printing Press and Glassworks; factory rows with shifts. **Smoke** is a Charm cost that drifts downwind, so where industry goes is a real argument between the lanes (P2).
+  - *From the redesign*: steam arrives as specialized buildings. A steam mill lets more workshops of one kind set up in its reach and works through a frozen winter; it burns coal, which joins Fuel as the one new raw good, from a pit on a deposit or by barge; and it makes smoke. Factory rows are a district policy (a mill quarter may work late). Smoke lowers charm downwind and with it the draw of every place there, so from R2 it costs evenings, which is a sharper argument than before.
 - Hearth: patterns of the era, such as a Victorian Park with a bandstand, a Shopping Arcade, a Glasshouse, a Canal Promenade; brass band Sundays; a new festival theme per season *(tune)*; waistcoats, bonnets and boaters.
 - Challenge: smugglers on the canal, river raiders, a factory fire (a mill catches; pumps and a fire crew from the Watch House).
 
 **Bright Age** [I5]:
 
 - Ledger: electric as a production method (clean, needs a power station and wires along streets); the electric tram replaces the horse tram on the same lines; the railway and its station; a department store; a few delivery vans as ambient life only.
+  - *From the redesign*: the power station is a specialized building whose reach runs along wired streets; inside it steam works may go electric and lose their smoke.
 - Hearth: patterns such as a Tram Stop Cafe, a Picture House, a Lido, a Rooftop Garden; radio evenings; jazz on the bandstand; cardigans, cloche hats and bicycles.
 - Challenge: gentle, written in I5 planning. Candidates: storms, floods, a runaway tram; the Watch becomes a constabulary on bicycles, and bandits retire into legend (and the Chronicle).
 
@@ -45,6 +49,7 @@ When the Town Charter is sealed by its weathered trial, the valley enters the Ag
 - The music changes its band: acoustic for the Old Age, a brass band joining in the Age of Steam, jazz and a radio crackle in the Bright Age (`17-presentation.md`, Audio).
 - Clothing follows over the next season, a few households a day, so the change ripples through the streets instead of snapping.
 - The Charter board lists what the new era opens in both lanes.
+- The town's light changes color: lamps of the new era burn gas, then electric, through V2's light map (`17-presentation.md`), district by district as they are restyled.
 
 ## Old Town [I4]
 
@@ -61,12 +66,12 @@ This is the P2 tension of the eras. The Ledger wants denser, newer rows (more ho
 | `StyleDef.era` | content styles | I4 |
 | Valley `era`, set by the system that seals a Charter, with an `era.changed` event | sim state | I4 |
 | `Building.era`, set when built from the valley's era, changed only by restyling | sim state | I4 |
-| Art kits take `era` beside `style` | `packages/art` | V3 (Steam), V4 (Bright) |
+| Art kits take `era` beside `style` | `packages/art` | V5 (Steam), V6 (Bright) |
 
 The sim state lands with a `SAVE_VERSION` bump and a migration that sets every existing valley and building to `'old'`, with a test (`21-networking-and-saves.md`). The sim never reads an era for anything but rules; looks are the renderer's business.
 
 ## Iterations
 
 - **V1**: reserves `Era` and `eras` in content types; the art kit's materials are built so an era is a new parameter set, not a rewrite.
-- **I4 and V3**: era state, the Age of Steam kit and systems, the era moment, restyling across eras, Old Town, the Steam threats.
-- **I5 and V4**: the Bright Age kit and systems, grand landmarks, the Bright threats.
+- **I4 and V5**: era state, the Age of Steam kit and systems, the era moment, restyling across eras, Old Town, the Steam threats.
+- **I5 and V6**: the Bright Age kit and systems, grand landmarks, the Bright threats.

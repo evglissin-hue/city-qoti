@@ -80,7 +80,8 @@ export interface ImageResponse {
   type?: string;
 }
 
-async function seatOf(meta: StoredMeta | null, authorization: string | null): Promise<number | null> {
+/** The seat a bearer token belongs to, or null (also used by the perf route, perf.ts). */
+export async function seatOf(meta: StoredMeta | null, authorization: string | null): Promise<number | null> {
   if (!meta || !authorization?.startsWith('Bearer ')) return null;
   const token = authorization.slice(7).trim();
   if (!token || token.length > 128) return null;
