@@ -520,6 +520,17 @@ button.menu-item:hover {
   top: calc(16px + 58px * var(--ui-scale) + var(--strip-row));
 }
 
+/* Cards (letters, the almanac, results) sit under the taller bar, so the strip stays readable while
+   a card asks its questions (the season card asks how much to hold for winter). */
+.game-ui:has(> .topbar.strip-row) .letter-backdrop {
+  padding-top: calc(14px + 58px * var(--ui-scale) + var(--strip-row));
+  padding-bottom: 10px;
+}
+
+.game-ui:has(> .topbar.strip-row) .letter-backdrop > * {
+  max-height: calc(100vh - 44px - 58px * var(--ui-scale) - var(--strip-row));
+}
+
 @media (max-width: 1400px) {
   header.topbar {
     gap: 8px;
