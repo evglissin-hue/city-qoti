@@ -17,7 +17,7 @@ import type { Mirror } from '../state/mirror';
 import { goodName, placeName, seatLabel } from './format';
 import { readHands } from './hands';
 import { readSites } from './sites';
-import { DEMAND_BAR } from './topbar/strip';
+import { coverDays, DEMAND_BAR } from './topbar/strip';
 import { IDLE_BITS, statusWords, TIER_WORD } from './hamlet';
 import { letterKey } from './letters';
 import { askText } from './panels/Requests';
@@ -88,7 +88,11 @@ export function computeAlerts(
   if (population > 0 && stocks.length) {
     let food = 0;
     for (const l of stocks) if (content.goodById.get(l.good)?.family === 'food') food += l.stock;
-    const days = food / population;
+    // P2: the top bar's Food chip reads the Balances line (its stock and its days of cover). Read
+    // the same line here, so the feed never says "about a day" beside a chip that says three.
+    const line = m.balances.value?.lines.find((l) => l.family === 'food');
+    if (line) food = line.stock;
+    const days = line ? coverDays(line) : food / population;
     if (days < FOOD_DAYS_WARN) {
       out.push({
         key: 'food-low',
