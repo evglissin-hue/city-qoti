@@ -32,6 +32,14 @@ describe('rng', () => {
     expect(misc.next()).not.toBe(worldgen.next());
   });
 
+  it('appends streams: round is last and the earlier indexes did not move', () => {
+    const earlier = ['worldgen', 'residents', 'wishes', 'weather', 'threats', 'misc', 'nature', 'festival'];
+    earlier.forEach((name, i) => expect(streamIndex(name as never)).toBe(i));
+    expect(RNG_STREAMS.slice(0, earlier.length)).toEqual(earlier);
+    expect(RNG_STREAMS[RNG_STREAMS.length - 1]).toBe('round');
+    expect(streamIndex('round')).toBe(earlier.length);
+  });
+
   it('stays inside the requested ranges', () => {
     const rng = rngFromSeed('ranges');
     for (let i = 0; i < 2000; i++) {

@@ -121,13 +121,14 @@ export interface NewHousehold {
   activity: Resident['activity'];
 }
 
-/** Starting needs of a newcomer, NEED_IDS order: fed, watered, housed, a stranger, curious. */
+/** Starting needs of a newcomer, NEED_IDS order: fed, watered, housed, a stranger, curious, an evening out. */
 const NEWCOMER_NEEDS: Record<string, number> = {
   food: 75,
   water: 70,
   shelter: 100,
   belonging: 40,
   beauty: 50,
+  evenings: content.places.needStart,
 };
 
 /** Builds a household and its residents into state (sorted by id) and returns them. */
