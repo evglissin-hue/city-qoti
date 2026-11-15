@@ -15,7 +15,7 @@ import { fileURLToPath } from 'node:url';
 import { gunzipSync } from 'node:zlib';
 
 // R1X: regrown under R1's rules. Rowan's 60 days grew a Village of 84; oak's 62 land at about 150
-// (146 residents in 60 households, three corner shops, eight festivals).
+// (152 residents in 60 households, nine wells, two corner shops, eight festivals).
 const SEED = 'oak';
 const DAYS = 62;
 
