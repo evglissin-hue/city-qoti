@@ -22,7 +22,7 @@ Outside these paths: only small, necessary edits (registry lines, exports, addit
 
 ## You can rely on
 
-V3.0: `lotsFor(mirror)` returning `ScreenLots { lots, rows, fromSim }` of `ScreenLot` (`row`, `rowSource`, `kind`, `corner`, `frontage2`, `storeys`; `LotFields`, `BuildingFields` and `storeysOf` are the accessors), its `rowNeighbors` fallback (no gardens, no corners, storeys 1) and the synthetic lots in `render/lots.test.ts`; `anchorsFor` and `BODY_INSET`; V1B's `kits/rows.ts` (`isRowKit`, `rowOf`, `fitRow`, `ROW_SETBACK`, `ROW_DEPTH`, `ROW_EAVES`) and the `joinL` and `joinR` params. R2.0's exact field shapes arrive from the master; when they do, match the accessors in `lots.ts` and nothing else.
+V3.0: `lotsFor(mirror)` returning `ScreenLots { lots, rows, fromSim }` of `ScreenLot` (`row`, `rowSource`, `kind`, `corner`, `frontage2`, `storeys`; `LotFields`, `BuildingFields` and `storeysOf` are the accessors), its `rowNeighbors` fallback (no gardens, no corners, storeys 1) and the synthetic lots in `render/lots.test.ts`; `anchorsFor` and `BODY_INSET`; V1B's `kits/rows.ts` (`isRowKit`, `rowOf`, `fitRow`, `ROW_SETBACK`, `ROW_DEPTH`, `ROW_EAVES`) and the `joinL` and `joinR` params. R2.0's final field shapes are already matched there; if R2 changes them, only the accessors change.
 
 ## Tasks
 
@@ -53,6 +53,6 @@ The cutter that makes rows, garden lots, corners and storeys (R2.0 and R2F, sim)
 
 - **P2 landed first on some of your kits** (wave notes, P2 runs beside V3): start rows and roofs from P2-A's lot clamp (a kit's geometry, overhang included, stays inside its own lot; `lotBounds.test.ts`) and keep P2-E1's verge and soffit (`roofVerge.test.ts`). Do not merge P2; whichever of your PR and P2 reaches `main` second resolves the conflicts in `kits/{buildings,farms,grown,roofs,village,workshops}.ts`.
 - The picture is the B concept's town stills: streets edge to edge, rooflines stepping, back gardens, buildings turning the corner. Cozy, never a wall of identical boxes: vary by lot seed.
-- If R2.0's names differ from `row`, `kind`, `corner`, `frontage2` or `storeys`, only the accessors in `lots.ts` change.
+- R2.0's final names are matched in `lots.ts` (wave notes): `LotView.row`, `kind`, `corner?: true`, `frontage2`, `storeys` (and `BuildingView.storeys`). The sim's storeys field is `Building.storeys`; `params.storeys` is your kit param, filled from `ScreenLot.storeys`.
 - Run the build and review loop (`31-parallel-development.md`) with Sonnet executors; the lead tunes the look and checks Medium.
 - Compare with `node apps/client/e2e/v3-shots.mjs v3b`, every scene and hour, and report `v3-perf.mjs` numbers per preset.
