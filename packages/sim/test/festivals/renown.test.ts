@@ -1,11 +1,11 @@
 // C5B: renown (docs/spec/15-progression.md, Renown): levels by the content thresholds, every source
 // (festivals, patterns, story finales, commissions, the sealed Charter's trial, raids through C5D's
-// call), and its effects (trade terms at the post and the dock, a little more pull for arrivals,
+// call), and its effects (trade terms for the carrier and the dock, a little more pull for arrivals,
 // the River Dock unlocking at renown 1). Numbers are read from content.
 import { content } from '@qoti/content';
 import { describe, expect, it } from 'vitest';
 import { renownView } from '../../src/view/seasons';
-import { postBuyPrice, postSellPrice } from '../../src/systems/trade/caravans';
+import { carrierBuyPrice, carrierSellPrice } from '../../src/systems/carrier/terms';
 import { dockBuyPrice, dockSellPrice } from '../../src/systems/dock';
 import { addRenown, levelFor, renownEffect } from '../../src/systems/renown/api';
 import { grantReward } from '../../src/systems/stories/api';
@@ -52,22 +52,22 @@ describe('renown', () => {
     });
   });
 
-  it('gives better terms at the post and the dock, a level at a time', () => {
+  it('gives better terms to the carrier and the dock, a level at a time', () => {
     const { state } = villageFixture();
-    const planks = good('planks');
-    const wheat = good('wheat');
-    const sell0 = postSellPrice(state, 'millhaven', planks)!;
-    const buy0 = postBuyPrice(state, 'millhaven', wheat)!;
-    const dock0 = dockSellPrice(state, planks)!;
-    const dockBuy0 = dockBuyPrice(state, wheat)!;
+    const timber = good('timber');
+    const grain = good('grain');
+    const sell0 = carrierSellPrice(state, 'millhaven', timber)!;
+    const buy0 = carrierBuyPrice(state, 'millhaven', grain)!;
+    const dock0 = dockSellPrice(state, timber)!;
+    const dockBuy0 = dockBuyPrice(state, grain)!;
     state.renown.points = content.renown[3]!.points;
     state.renown.level = 3;
     const t = renownEffect(state, 'trade');
     expect(t).toBeGreaterThan(0);
-    expect(postSellPrice(state, 'millhaven', planks)).toBe(Math.round((sell0 * (100 + t)) / 100));
-    expect(postBuyPrice(state, 'millhaven', wheat)!).toBeLessThan(buy0);
-    expect(dockSellPrice(state, planks)!).toBeGreaterThan(dock0);
-    expect(dockBuyPrice(state, wheat)!).toBeLessThan(dockBuy0);
+    expect(carrierSellPrice(state, 'millhaven', timber)).toBe(Math.round((sell0 * (100 + t)) / 100));
+    expect(carrierBuyPrice(state, 'millhaven', grain)!).toBeLessThan(buy0);
+    expect(dockSellPrice(state, timber)!).toBeGreaterThan(dock0);
+    expect(dockBuyPrice(state, grain)!).toBeLessThan(dockBuy0);
   });
 
   it('pulls a little harder for arrivals, and opens the River Dock at renown 1', () => {

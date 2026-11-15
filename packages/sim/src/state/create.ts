@@ -6,6 +6,7 @@ import { setupStandardStart } from '../systems/economy/start';
 import { emptyHamletSlices } from './hamlet';
 import { emptySeasonsSlices, markFloodplain, startGuide } from './seasons';
 import { emptyVillageSlices } from './village';
+import { emptyZonesSlices } from './zones';
 import { SAVE_VERSION } from './version';
 
 export function defaultSettings(): ValleySettings {
@@ -47,6 +48,7 @@ export function createWorld(seed: string, settings: ValleySettings): WorldState 
     ...emptyHamletSlices(),
     ...emptyVillageSlices(),
     ...emptySeasonsSlices(),
+    ...emptyZonesSlices(),
   };
   // I3 (C5.0): every valley knows its floodplain; new standard valleys open the first days guide.
   markFloodplain(state.map);

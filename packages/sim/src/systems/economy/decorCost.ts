@@ -39,6 +39,30 @@ export function decorBlocked(state: WorldState, def: DecorDef, n = 1): RejectRea
   return null;
 }
 
+/**
+ * R1 (R1D): CANNOT_AFFORD or LEAN_TIMES for a mixed set of pieces (a brush stroke), counted together
+ * so several defs cannot each pass on the same coins or goods. Pure.
+ */
+export function decorSetBlocked(
+  state: WorldState,
+  counts: Iterable<[DecorDef, number]>,
+): RejectReason | null {
+  let coins = 0;
+  const goods = new Map<number, number>();
+  for (const [def, n] of counts) {
+    if (n <= 0 || !priced(state, def)) continue;
+    coins += (def.cost!.coins ?? 0) * PENNIES_PER_COIN * n;
+    for (const [good, per] of def.cost!.goods ?? []) {
+      const g = content.goodIndex.get(good);
+      if (g !== undefined) goods.set(g, (goods.get(g) ?? 0) + per * n);
+    }
+  }
+  const blocked = coins > 0 ? spendBlocked(state, coins) : null;
+  if (blocked) return blocked;
+  for (const [g, want] of goods) if (storehouseStock(state, g) < want) return 'CANNOT_AFFORD';
+  return null;
+}
+
 /** Charges `n` pieces of a def: coins to the books, goods out of the storehouses. */
 export function chargeDecor(state: WorldState, ctx: TickCtx, def: DecorDef, n = 1): void {
   if (!priced(state, def)) return;

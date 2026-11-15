@@ -65,7 +65,8 @@ describe('wages', () => {
 
   it('pays a skilled job the skilled wage', () => {
     const { state, b } = villageFixture();
-    const jobs = content.buildingById.get('bakery')!.jobs as { tier?: string };
+    // R1: the bakery is a workshop business; a job's tier is its building def's.
+    const jobs = content.buildingById.get('workshop')!.jobs as { tier?: string };
     const was = jobs.tier;
     jobs.tier = 'craftsfolk';
     try {

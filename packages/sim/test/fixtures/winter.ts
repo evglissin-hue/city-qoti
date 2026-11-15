@@ -1,8 +1,8 @@
 // The I3 winter fixture (C5.0): the village fixture on Winter day 2 of year 2, 10:00. The river froze
 // this morning and it is snowing; there is firewood in store, but two households ran short and are
 // cold; a Bath House stands on lane A; the Winter Hearth Feast is planned at the well gathering place
-// with pies and cider on the menu; the Village's first winter trial is running; a Watch House has
-// four members; the Field Guide has two pages.
+// with bread and cider on the menu (R1: bread where the pies were); the Village's first winter
+// trial is running; a Watch House has four members; the Field Guide has two pages.
 import { content } from '@qoti/content';
 import { MAP_SIZE } from '../../src/constants';
 import type { EntityId, WorldState } from '../../src/contracts';
@@ -45,8 +45,8 @@ export function winterFixture(): WinterFixture {
   }
   state.warmth = { winter: 1, coldHouseholdDays: 2, coldHouseholds: [...cold].sort((a, b) => a - b) };
 
-  // The Winter Hearth Feast at the well gathering place, pies and cider on the menu, half put by.
-  const pies = content.goodIndex.get('pies')!;
+  // The Winter Hearth Feast at the well gathering place, bread and cider on the menu, half put by.
+  const bread = content.goodIndex.get('bread')!;
   const cider = content.goodIndex.get('cider')!;
   state.festival.plan = {
     festival: 'hearth-feast',
@@ -54,11 +54,11 @@ export function winterFixture(): WinterFixture {
     year: 1,
     site: { pattern: 'well-gathering-place', anchor: 52 * MAP_SIZE + 60 },
     menu: [
-      [pies, 20],
+      [bread, 20],
       [cider, 16],
     ],
     reserved: [
-      [pies, 10],
+      [bread, 10],
       [cider, 8],
     ],
     twist: 'snow-sculptures',

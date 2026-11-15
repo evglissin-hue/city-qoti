@@ -1,11 +1,10 @@
-import { gunzipSync, gzipSync, strFromU8, strToU8 } from 'fflate';
+import { Gunzip, gunzipSync, gzipSync, strFromU8, strToU8 } from 'fflate';
 import { MAP_SIZE } from '../constants';
 import type { LayerName, MapLayers, WorldState } from '../contracts';
 import { createLayers, INT32_LAYERS, LAYER_NAMES } from '../map/layers';
 import { RNG_STREAMS } from '../rng/streams';
 import { base64ToBytes, bytesToBase64, bytesToWords, wordsToBytes } from './base64';
-import { ensureOffer } from '../systems/callings/api';
-import { migrateSave, type SaveObject } from './version';
+import { checkSaveVersion, type SaveObject } from './version';
 
 // Save format: JSON where typed arrays are base64 (little-endian), then gzip. fflate keeps
 // this synchronous, so the sim stays free of async (CompressionStream is async-only).
@@ -62,8 +61,10 @@ interface SaveFile {
   trial: WorldState['trial'];
   guide: WorldState['guide'];
   seasons: WorldState['seasons'];
-  /** P1 (callings): absent until the Village claim. */
-  calling?: WorldState['calling'];
+  // R1 (R1.0)
+  carrier: WorldState['carrier'];
+  seasonPlan: WorldState['seasonPlan'];
+  demand: WorldState['demand'];
 }
 
 export function serialize(state: WorldState): Uint8Array {
@@ -122,20 +123,40 @@ export function serialize(state: WorldState): Uint8Array {
     trial: state.trial,
     guide: state.guide,
     seasons: state.seasons,
-    ...(state.calling && { calling: state.calling }),
+    carrier: state.carrier,
+    seasonPlan: state.seasonPlan,
+    demand: state.demand,
   };
   // mtime 0 keeps the bytes a pure function of the state.
   return gzipSync(strToU8(JSON.stringify(save)), { level: 6, mtime: 0 });
 }
 
+/**
+ * Reads a save. R1's fresh start (docs/spec/21-networking-and-saves.md): a valley saved before
+ * version 6 was founded under the old rules and is refused with an OldValleyError (code OLD_VALLEY)
+ * rather than converted; one from a newer game is refused too.
+ */
 export function deserialize(data: Uint8Array): WorldState {
   const parsed = JSON.parse(strFromU8(gunzipSync(data))) as SaveObject;
-  const from = parsed.saveVersion;
-  const state = build(migrateSave(parsed) as unknown as SaveFile);
-  // P1: a town that was already a Village before callings existed is asked now, from its own map,
-  // as it would have been at the claim (deterministic, so both seats and the room agree).
-  if (typeof from === 'number' && from < 5) ensureOffer(state, null);
-  return state;
+  return build(checkSaveVersion(parsed) as unknown as SaveFile);
+}
+
+/**
+ * Reads a save's version from its first bytes, without inflating the rest or building a world
+ * (the title screen uses it to tell an old valley). Null when the bytes are not a save.
+ */
+export function peekSaveVersion(data: Uint8Array): number | null {
+  let head = '';
+  try {
+    const gz = new Gunzip((chunk) => {
+      if (head.length < 4096) head += strFromU8(chunk);
+    });
+    gz.push(data.subarray(0, Math.min(data.length, 4096)), false);
+  } catch {
+    // A truncated stream still yields what it inflated; anything else is not a save.
+  }
+  const m = /"saveVersion":\s*(\d+)/.exec(head);
+  return m ? Number(m[1]) : null;
 }
 
 function build(save: SaveFile): WorldState {
@@ -206,6 +227,8 @@ function build(save: SaveFile): WorldState {
     trial: save.trial,
     guide: save.guide,
     seasons: save.seasons,
-    ...(save.calling && { calling: save.calling }),
+    carrier: save.carrier,
+    seasonPlan: save.seasonPlan,
+    demand: save.demand,
   };
 }

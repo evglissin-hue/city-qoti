@@ -3,22 +3,27 @@
 // inventor's notebook. Counters live in InnovationState.counter so they save and load with the
 // valley:
 //
-//   clayPitDays      days a clay pit dug clay (counted at the first pass after midnight)
+//   quarryDays       days a quarry with hands at work cut stone (counted at the last pass of the day,
+//                    23:00, while the day's output is still on the books)
 //   portersBusyDays  streak * 1000 + today's sum of hourly samples (0 to 100 each) of the busiest
 //                    storehouse's share of porters out on a trip, nine samples a work day
-//   plankRate, stoneRate  read yesterday's books; no counter
-//   waterWheel       half for a sawpit by the river, half for the story step
+//   timberRate, stoneRate  read yesterday's books; no counter
+//   waterWheel       days a Forester's Lodge by the river felled a tree (timber or firewood),
+//                    counted at 23:00; the story step fills the bar outright
 import { content, type Condition, type InnovationDef } from '@qoti/content';
 import { MAP_SIZE, RANKS, WORK_HOURS } from '../../constants';
-import type { InnovationState, WorldState } from '../../contracts';
+import type { Building, InnovationState, WorldState } from '../../contracts';
 import { footprintSize } from '../../rules/footprint';
 import { hourOf } from '../economy/time';
 import { defOf, isStorehouse } from '../logistics/stores';
 import { findById } from '../../state/entities';
+import { Water } from '../../map/layers';
 
 const S = MAP_SIZE;
 const WORK_SAMPLES = WORK_HOURS[1] - WORK_HOURS[0];
 const STREAK = 1000;
+/** The hour of the last pass of a day: producedToday is cleared at midnight, just after it. */
+const LAST_HOUR = 23;
 
 type Params = readonly [string, number][];
 
@@ -69,12 +74,14 @@ function yesterday(state: WorldState, good: string): number {
 
 // --- Predicates (registered in conditions/code.ts) --------------------------------------------
 
-export function clayPitWorked(state: WorldState, _bind: unknown, params: Params): boolean {
-  return counterOf(state, 'clayPitDays') >= param(params, 'days', 2);
+/** A quarry has cut stone on `days` days (the Brick Kiln). */
+export function quarryWorked(state: WorldState, _bind: unknown, params: Params): boolean {
+  return counterOf(state, 'quarryDays') >= param(params, 'days', 2);
 }
 
-export function plankRate(state: WorldState, _bind: unknown, params: Params): boolean {
-  return yesterday(state, 'planks') >= param(params, 'perDay', 20);
+/** Timber made yesterday (Carts). */
+export function timberRate(state: WorldState, _bind: unknown, params: Params): boolean {
+  return yesterday(state, 'timber') >= param(params, 'perDay', 20);
 }
 
 export function stoneRate(state: WorldState, _bind: unknown, params: Params): boolean {
@@ -90,20 +97,62 @@ export function portersBusy(state: WorldState, _bind: unknown, params: Params): 
   return Math.floor(counterOf(state, 'portersBusyDays') / STREAK) >= param(params, 'days', 3);
 }
 
-/** A built sawpit with water within `within` tiles of its footprint. */
-export function sawpitByRiver(state: WorldState, _bind: unknown, params: Params): boolean {
-  const within = param(params, 'within', 3);
-  for (const b of state.buildings) {
-    if (b.def !== 'sawpit' || b.stage !== 'built') continue;
-    const def = defOf(b)!;
-    const [w, d] = footprintSize(def, b.rot);
-    for (let z = Math.max(0, b.z - within); z <= Math.min(S - 1, b.z + d - 1 + within); z++) {
-      for (let x = Math.max(0, b.x - within); x <= Math.min(S - 1, b.x + w - 1 + within); x++) {
-        if (state.map.water[z * S + x]) return true;
-      }
+/** River water within `within` tiles of a building's footprint. */
+function riverWithin(state: WorldState, b: Building, within: number): boolean {
+  const def = defOf(b)!;
+  const [w, d] = footprintSize(def, b.rot);
+  for (let z = Math.max(0, b.z - within); z <= Math.min(S - 1, b.z + d - 1 + within); z++) {
+    for (let x = Math.max(0, b.x - within); x <= Math.min(S - 1, b.x + w - 1 + within); x++) {
+      const water = state.map.water[z * S + x];
+      if (water === Water.river || water === Water.riverDeep) return true;
     }
   }
   return false;
+}
+
+/** A built Forester's Lodge with river water within `within` tiles of its footprint. */
+export function lodgeNearRiver(state: WorldState, within: number): boolean {
+  for (const b of state.buildings) {
+    if (b.def === 'foresters-lodge' && b.stage === 'built' && riverWithin(state, b, within)) return true;
+  }
+  return false;
+}
+
+/** Units of a good a building made today (its runtime is cleared at midnight). */
+function madeToday(b: Building, good: string): number {
+  const g = content.goodIndex.get(good);
+  return g === undefined ? 0 : (b.rt?.producedToday[g] ?? 0);
+}
+
+/** A built quarry with hands at work that cut stone today. */
+export function quarryWorkedToday(state: WorldState): boolean {
+  return state.buildings.some(
+    (b) =>
+      b.def === 'quarry' &&
+      b.stage === 'built' &&
+      !!b.rt &&
+      b.rt.workers.length > 0 &&
+      madeToday(b, 'stone') > 0,
+  );
+}
+
+/** A lodge by the river (within `within` tiles) felled at least once today (timber or firewood). */
+export function riverLodgeWorkedToday(state: WorldState, within: number): boolean {
+  return state.buildings.some(
+    (b) =>
+      b.def === 'foresters-lodge' &&
+      b.stage === 'built' &&
+      madeToday(b, 'timber') + madeToday(b, 'firewood') > 0 &&
+      riverWithin(state, b, within),
+  );
+}
+
+/** A Forester's Lodge by the river (within `within` tiles) that has worked `days` days (the Water Wheel). */
+export function lodgeByRiver(state: WorldState, _bind: unknown, params: Params): boolean {
+  return (
+    counterOf(state, 'waterWheel') >= param(params, 'days', 3) &&
+    lodgeNearRiver(state, param(params, 'within', 12))
+  );
 }
 
 /**
@@ -137,9 +186,15 @@ export function porterBusyPercent(state: WorldState): number {
 export function tickMeasure(state: WorldState, def: InnovationDef, s: InnovationState): void {
   const hour = hourOf(state.tick);
   switch (def.measure) {
-    case 'clayPitDays':
-      if (hour === 0 && yesterday(state, 'clay') > 0) s.counter++;
+    case 'quarryDays':
+      if (hour === LAST_HOUR && quarryWorkedToday(state)) s.counter++;
       return;
+    case 'waterWheel': {
+      // A simple counter: days a lodge by the river felled a tree.
+      const within = param(predicateParams(def.condition, 'lodgeByRiver') ?? [], 'within', 12);
+      if (hour === LAST_HOUR && riverLodgeWorkedToday(state, within)) s.counter++;
+      return;
+    }
     case 'portersBusyDays': {
       const streak = Math.floor(s.counter / STREAK);
       const sum = s.counter % STREAK;
@@ -167,11 +222,11 @@ export function measureProgress(state: WorldState, def: InnovationDef, s: Innova
     param(predicateParams(def.condition, code) ?? [], name, fallback);
   let v: number;
   switch (def.measure) {
-    case 'clayPitDays':
-      v = share(s.counter, p('clayPitWorked', 'days', 2));
+    case 'quarryDays':
+      v = share(s.counter, p('quarryWorked', 'days', 2));
       break;
-    case 'plankRate':
-      v = share(yesterday(state, 'planks'), p('plankRate', 'perDay', 20));
+    case 'timberRate':
+      v = share(yesterday(state, 'timber'), p('timberRate', 'perDay', 20));
       break;
     case 'stoneRate':
       v = share(yesterday(state, 'stone'), p('stoneRate', 'perDay', 20));
@@ -183,10 +238,10 @@ export function measureProgress(state: WorldState, def: InnovationDef, s: Innova
       break;
     }
     case 'waterWheel': {
-      const by = predicateParams(def.condition, 'sawpitByRiver') ?? [];
       const story = predicateParams(def.condition, 'storyStep') ?? [];
       const arc = predicateRef(def.condition, 'storyStep');
-      v = (sawpitByRiver(state, null, by) ? 50 : 0) + (storyStep(state, null, story, arc) ? 50 : 0);
+      const days = share(s.counter, p('lodgeByRiver', 'days', 3));
+      v = storyStep(state, null, story, arc) ? 100 : days;
       break;
     }
     default:

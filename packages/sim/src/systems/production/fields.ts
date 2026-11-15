@@ -1,6 +1,7 @@
-// Wheat fields (docs/spec/13-ledger.md, Farmhouse and Wheat Field). Field tiles are painted
-// within 6 tiles of a farmhouse on open ground (fertility 15+). The farmhouse's workers tend up to
-// 12 tiles each, during the work day, in the `crop` layer (0 bare to 255 ripe).
+// Grain fields (docs/spec/13-ledger.md, Farmland). Field tiles are painted within 6 tiles of a
+// grain farm (R1: a farmstead business whose trade's method is a `farm`, methodOf) on open ground
+// (fertility 15+). Its hands tend up to 12 tiles each, during the work day, in the `crop` layer
+// (0 bare to 255 ripe). The rest of this header still says wheat for grain.
 //
 // I3 (C5A): wheat follows the year (docs/spec/14-challenge.md, Seasons). Bare tiles are sown from
 // Spring day 1 to Summer day 3 (content SeasonDef.sow), grow through spring, summer and autumn (one tended
@@ -10,9 +11,10 @@
 // the farm has room and lowers the tile by HARVEST_STEP, so a tile gives about 26 wheat whenever it
 // is cut, about what a year of I2's tending gave. Sheaves left standing keep through winter (nothing
 // grows, but the harvest goes on as room allows) until the first PLOUGH_DAYS of spring plough
-// them in. An early frost halves what is still standing (frostFields); the Seed Drill takes
-// smaller bites (DRILL_STEP), a fifth more per tile. A farm with nothing sown outside the sowing
-// window lies fallow until spring, and says so (BuildingStatus.fallow).
+// them in. An early frost halves what is still standing (frostFields). With the Seed Drill
+// ('resow-same-day' unlocked) a tile cut bare inside the sowing window is sown again the same step
+// (an unlock is never a percentage, so it takes no smaller bites). A farm with nothing sown
+// outside the sowing window lies fallow until spring, and says so (BuildingStatus.fallow).
 import { content, type BuildingDef } from '@qoti/content';
 import { FIELD_GOOD_FERTILITY, FIELD_MIN_FERTILITY, MAP_SIZE, TILE_FP } from '../../constants';
 import type { Building, Rect, RejectReason, TickCtx, WorldState } from '../../contracts';
@@ -20,7 +22,7 @@ import { inBounds, Terrain } from '../../map/layers';
 import { MAX_DECOR_RADIUS } from '../../rules/geometry';
 import { footprintSize } from '../../rules/footprint';
 import { seasonAt } from '../../state/seasons';
-import { hasInnovation } from '../../state/village';
+import { jobsOf, methodOf } from '../../state/zones';
 import { worldIndex } from '../../state/worldIndex';
 import { markCharmDirty } from '../hearth/charm/dirty';
 import { outputCap } from '../logistics/stores';
@@ -41,13 +43,14 @@ export const PLOUGH_DAYS = 3;
 export const HARVEST_MIN = 192;
 /** Crop taken off a standing tile per harvest step, and with the Seed Drill. */
 export const HARVEST_STEP = 5;
-export const DRILL_STEP = 4;
+/** The capability the Seed Drill unlocks: a cut field is sown again the same day, inside the window. */
+export const RESOW_SAME_DAY = 'resow-same-day';
 /**
  * A bare tile outside the sowing window grows vegetables in the growing seasons: one on a tended
  * step in this many (staggered by tile), so twelve tiles give what a vegetable plot's gardener does.
  */
 export const VEG_EVERY = 64;
-/** Wheat a fully ripe tile gives over its harvest, without and with the Seed Drill. */
+/** Wheat a fully ripe tile gives over its harvest, a tended step (`step` crop) at a time. */
 export function tileHarvest(step: number): number {
   return (Math.floor((CROP_RIPE - HARVEST_MIN) / step) + 1) * CROP_YIELD;
 }
@@ -66,23 +69,27 @@ const FIELD_TERRAIN: ReadonlySet<number> = new Set<number>([
   Terrain.field,
 ]);
 
-export function isFarm(def: BuildingDef | undefined): boolean {
-  return !!def?.methods?.some((m) => m.kind === 'farm');
+type FarmRef = Pick<Building, 'def' | 'trade' | 'level'>;
+
+/** R1: a grain farm is a building whose method (its trade's, for a business) tends fields. */
+export function isFarm(b: FarmRef | undefined): boolean {
+  return !!b && methodOf(b)?.kind === 'farm';
 }
 
-export function fieldRange(def: BuildingDef | undefined): number {
-  return def?.methods?.find((m) => m.kind === 'farm')?.range ?? FIELD_RANGE;
+export function fieldRange(b: FarmRef): number {
+  const m = methodOf(b);
+  return (m?.kind === 'farm' ? m.range : undefined) ?? FIELD_RANGE;
 }
 
-/** Field tiles one farmhouse may own: 12 per job. */
-export function fieldCap(def: BuildingDef | undefined): number {
-  return FIELD_TILES_PER_WORKER * Math.max(1, def?.jobs?.count ?? 1);
+/** Field tiles one grain farm may own: 12 per hand its level wants. */
+export function fieldCap(b: FarmRef): number {
+  return FIELD_TILES_PER_WORKER * Math.max(1, jobsOf(b));
 }
 
 /** The footprint rect grown by the field range, clamped to the map. */
 export function fieldArea(b: Building, def: BuildingDef): Rect {
   const [w, d] = footprintSize(def, b.rot);
-  const r = fieldRange(def);
+  const r = fieldRange(b);
   return [
     Math.max(0, b.x - r),
     Math.max(0, b.z - r),
@@ -148,7 +155,7 @@ export function planFields(
 ): FieldPlan {
   const seen = new Set<number>();
   const out: number[] = [];
-  let room = fieldCap(def) - ownedFields(state, farm, def);
+  let room = fieldCap(farm) - ownedFields(state, farm, def);
   let reason: RejectReason | null = null;
   for (const [x, z] of tiles) {
     const problem = fieldTileProblem(state, farm, def, x, z);
@@ -291,6 +298,7 @@ function tendTile(
   bite: number,
   room: boolean,
   vegNow: boolean,
+  resow: boolean,
 ): { next: number; wheat: number; veg: number; waiting: boolean } {
   if (phase.sow && (c === 0 || (c >= HARVEST_MIN && phase.plough))) {
     // Bare ground is sown; early in spring, last year's standing sheaves are ploughed in too.
@@ -299,7 +307,13 @@ function tendTile(
   if (phase.harvest && c >= HARVEST_MIN) {
     if (!room) return { next: c, wheat: 0, veg: 0, waiting: true };
     const left = c - bite;
-    return { next: left < HARVEST_MIN ? 0 : left, wheat: CROP_YIELD, veg: 0, waiting: false };
+    // The Seed Drill sows a tile cut bare again at once while the sowing window is open.
+    return {
+      next: left < HARVEST_MIN ? (resow && phase.sow ? 1 : 0) : left,
+      wheat: CROP_YIELD,
+      veg: 0,
+      waiting: false,
+    };
   }
   if (phase.grow && c > 0 && c < CROP_RIPE && growsNow) {
     // P1 fix: golden is ripe. With the harvest open from summer, a tile cut the hour it turned golden
@@ -329,7 +343,7 @@ export function tendFields(
   b: Building,
   def: BuildingDef,
   power: number,
-  wheat: number,
+  grain: number,
 ): boolean {
   const rt = b.rt!;
   const m = state.map;
@@ -337,7 +351,8 @@ export function tendFields(
   const [x0, z0, x1, z1] = fieldArea(b, def);
   const room = outputCap(def);
   const phase = fieldPhase(state);
-  const bite = hasInnovation(state, 'seed-drill') ? DRILL_STEP : HARVEST_STEP;
+  const bite = HARVEST_STEP;
+  const resow = state.hearth.unlocked.includes(RESOW_SAME_DAY);
   const step = Math.floor(state.tick / CROP_STEP_TICKS);
   const vegetables = content.goodIndex.get('vegetables') ?? -1;
   let tended = 0;
@@ -365,11 +380,12 @@ export function tendFields(
         cropGrowth(m.fertility[i]!),
         (step + i) % GROW_EVERY === 0,
         bite,
-        rt.output[wheat]! + CROP_YIELD <= room,
+        rt.output[grain]! + CROP_YIELD <= room,
         (step + i) % VEG_EVERY === 0,
+        resow,
       );
       const next = t.next;
-      if (t.wheat > 0) produce(state, ctx, b, wheat, t.wheat);
+      if (t.wheat > 0) produce(state, ctx, b, grain, t.wheat);
       if (t.veg > 0 && vegetables >= 0 && rt.output[vegetables]! < room)
         produce(state, ctx, b, vegetables, t.veg);
       if (t.waiting) full = true;

@@ -166,6 +166,12 @@ export interface Household {
   owed?: number[];
   /** I3 (C5.0, C5A): this winter's warmth; absent outside winter. */
   warmth?: HouseholdWarmth;
+  /**
+   * R1 (R1A): variety. By good index, the last day index the good was on a shelf in reach of the
+   * home or in the pantry, -1 never; a family's flavors on offer are those seen in the last three
+   * days. Absent until the first household pass.
+   */
+  seen?: number[];
 }
 
 /** Construction progress of a site (standard valleys). */
@@ -198,7 +204,7 @@ export interface BuildingRuntime {
   /** Units reserved by porters: incoming (space) and outgoing (goods), by good index. */
   reservedIn: number[];
   reservedOut: number[];
-  /** Index into def.methods. */
+  /** Index into def.methods; always 0 since R1 (a business runs its trade's method instead). */
   method: number;
   /** Work toward the current cycle, in worker-ticks. */
   progress: number;
@@ -214,8 +220,6 @@ export interface BuildingRuntime {
   // I2 (C4.0), absent until used.
   /** Homes: the tier it houses now (upgrades in place). */
   tier?: TierId;
-  /** Method id the Ledger pinned (build.pinRecipe); grown crafts and farms keep it. */
-  pinned?: string;
   /** Materials still to deliver for a home upgrade, by good index (null when none is under way). */
   upgrade?: number[] | null;
   // I3 (C5.0), absent until used.
@@ -267,8 +271,6 @@ export interface LedgerPeriod {
 export interface EconomyState {
   /** Pennies. Negative means lean times. */
   treasury: number;
-  /** Goods the peddler may buy, by good index. */
-  forSale: boolean[];
   today: LedgerPeriod;
   yesterday: LedgerPeriod;
   season: LedgerPeriod;
@@ -283,7 +285,7 @@ export interface EconomyState {
   /**
    * I2 (C4.0): net pennies that ever crossed the valley's edge, in positive. Everything `book()`
    * moves between the treasury and the outside world counts (taxes in I1, upkeep, construction,
-   * trade, loans, the peddler); `pay()` between the treasury and households does not. So
+   * trade, loans, the carrier); `pay()` between the treasury and households does not. So
    * `treasury + sum(savings) - external` never changes: the money invariant.
    */
   external: number;

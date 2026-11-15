@@ -41,7 +41,7 @@ export const setPriceCap: HandlerFor<'ledger.setPriceCap'> = {
   validate(state, _seat, cmd) {
     if (!isStandard(state)) return 'NOT_ALLOWED';
     const g = typeof cmd.good === 'string' ? content.goodById.get(cmd.good) : undefined;
-    if (!g?.food) return 'INVALID';
+    if (g?.family !== 'food') return 'INVALID';
     if (!isInt(cmd.cap) || cmd.cap < 0) return 'INVALID';
     return inRange(cmd.subsidy, [0, MAX_SUBSIDY]) ? null : 'INVALID';
   },

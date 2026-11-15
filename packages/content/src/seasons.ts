@@ -43,7 +43,7 @@ export const winter: SeasonDef = {
   index: 3,
   river: 'freezes',
   warmth: 1,
-  events: ['cold-snap'],
+  events: ['cold-snap', 'pass-closed'],
   festival: 'hearth-feast',
 };
 
@@ -165,8 +165,8 @@ export const earlyFrost: EventDef = {
   odds: 350,
   forecastDays: [1, 2],
   durationDays: [1, 1],
-  effects: [['wheat', 500]],
-  blurb: 'Frost is early this year. Wheat still in the field will suffer.',
+  effects: [['grain', 500]],
+  blurb: 'Frost is early this year. Grain still in the field will suffer.',
 };
 
 export const flood: EventDef = {
@@ -178,6 +178,23 @@ export const flood: EventDef = {
   durationDays: [1, 2],
   effects: [['condition', 800]],
   blurb: 'The river is rising. The low ground by the water may flood.',
+};
+
+/**
+ * R1 (R1A): heavy snow shuts the valley road (docs/spec/14-challenge.md, The pass is closed): the
+ * carrier does not come. Every winter at the dial's odds, 1 to 3 days (1 on Gentle, a day more on
+ * Thoughtful, up to 4).
+ */
+export const passClosed: EventDef = {
+  id: 'pass-closed',
+  name: 'The Pass Is Closed',
+  season: 3,
+  odds: 1000,
+  forecastDays: [1, 2],
+  durationDays: [1, 3],
+  effects: [],
+  blurb: 'Snow is piling up on the valley road. The carrier will not get through for a day or so.',
+  yearly: true,
 };
 
 // --- Renown (in level order; C5B's curve) ------------------------------------------------------

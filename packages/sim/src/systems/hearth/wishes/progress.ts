@@ -18,6 +18,7 @@ import { findRoute } from '../../../conditions/route';
 import { doorTileOf } from '../../movement/api';
 import { achievable } from './achievable';
 import { liveBinding } from './index';
+import { shelfInReach } from './predicates';
 import { waterServedCode, wellInReach } from '../../residents/needs';
 
 const S = MAP_SIZE;
@@ -32,7 +33,10 @@ function word(t: Target, n: number): string {
     );
   if ('decor' in t) return (content.decorById.get(t.decor)?.name ?? t.decor).toLowerCase();
   if ('building' in t) return (content.buildingById.get(t.building)?.name ?? t.building).toLowerCase();
-  if ('buildingTag' in t) return t.buildingTag === 'herb' ? 'herb garden' : t.buildingTag;
+  if ('buildingTag' in t) {
+    // R1: a trade by its name ("a market garden", not "a market-garden").
+    return content.tradeById.get(t.buildingTag)?.name.toLowerCase() ?? t.buildingTag;
+  }
   if ('buildingCategory' in t) return t.buildingCategory;
   if ('tree' in t) return plural ? 'trees' : 'tree';
   if ('water' in t) return 'water';
@@ -165,6 +169,12 @@ function explain(state: WorldState, cond: Condition, bind: Binding): string | nu
   if ('code' in cond && (cond.code === 'pathRoute' || cond.code === 'lanternRoute'))
     return routeText(state, cond.code, bind, cond.params ?? []);
   if ('code' in cond && cond.code === 'waterServed') return waterText(state, bind);
+  // R1 (R1D): Fresh Fish wants it on a shelf in reach.
+  if ('code' in cond && cond.code === 'shelfInReach' && cond.ref) {
+    if (shelfInReach(state, bind, cond.params ?? [], cond.ref)) return null;
+    const good = (content.goodById.get(cond.ref)?.name ?? cond.ref).toLowerCase();
+    return `${good} in stock at a market stall whose reach covers the home`;
+  }
   if ('charm' in cond && cond.charm.atMost !== undefined) {
     const place = placeRect(state, cond.charm.of, bind);
     if (!place) return null;

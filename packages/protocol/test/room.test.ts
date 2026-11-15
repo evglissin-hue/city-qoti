@@ -372,3 +372,51 @@ describe('presence, hashes and limits', () => {
     expect(a.of('roster').at(-1)!.roster[1]).toEqual({ seat: 1, connected: false });
   });
 });
+
+describe('old valleys (R1X)', () => {
+  async function oldSnapshot(version: number): Promise<StoredSnapshot> {
+    const json = JSON.stringify({ saveVersion: version, seed: 'old' });
+    const stream = new Blob([json]).stream().pipeThrough(new CompressionStream('gzip'));
+    const data = btoa(String.fromCharCode(...new Uint8Array(await new Response(stream).arrayBuffer())));
+    return { t: 10, simVersion: 'v-old', label: null, created: 1, data };
+  }
+
+  async function oldRoom(version: number): Promise<RoomCore> {
+    storage = new MemoryStorage();
+    valley = await initValley(storage, { valleyId: 'valley-old', seed: 'old', settings: SETTINGS, now: 0 });
+    await storage.putSnapshot(await oldSnapshot(version));
+    return makeRoom();
+  }
+
+  it('answers a hello for a version 5 valley with OLD_VALLEY and leaves storage untouched', async () => {
+    const r = await oldRoom(5);
+    const before = JSON.stringify(storage.dump());
+    const a = await join(0, r);
+    expect(a.of('error')[0]).toMatchObject({ k: 'error', code: 'OLD_VALLEY' });
+    expect(a.of('welcome')).toHaveLength(0);
+    expect(a.closed?.code).toBe(CloseCode.oldValley);
+    // No seat is taken, so no commands are accepted and no turn is ever emitted.
+    expect(r.connectedSeats).toEqual([]);
+    a.sent.length = 0;
+    r.message(a, { k: 'cmd', seq: 1, cmd: { t: 'time.setSpeed', speed: 1 } as never });
+    steps(3, r);
+    await r.flush();
+    expect(a.sent).toEqual([]);
+    expect(JSON.stringify(storage.dump())).toBe(before);
+  });
+
+  it('still welcomes a version 6 valley', async () => {
+    const r = await oldRoom(6);
+    const a = await join(0, r);
+    expect(a.of('welcome')).toHaveLength(1);
+    expect(a.of('error')).toHaveLength(0);
+  });
+
+  it('still says BAD_TOKEN, not OLD_VALLEY, to someone without the invite', async () => {
+    const r = await oldRoom(5);
+    const bad = new FakeConn();
+    r.open(bad);
+    r.message(bad, { k: 'hello', valleyId: valley.valleyId, seat: 0, token: 'nope', simVersion: 'v' });
+    await vi.waitFor(() => expect(bad.of('error')[0]?.code).toBe('BAD_TOKEN'));
+  });
+});

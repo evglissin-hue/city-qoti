@@ -8,7 +8,7 @@
 // - Posture: the most valuable store's door (two members to a point, so they can hold it and
 //   catch a raider), the next store's too with four members.
 // - When a raid is telegraphed: a bell tower (it rings itself at dusk, so everyone goes indoors and
-//   the gates shut), and a palisade ring with gates round the richest store, if the logs and coins
+//   the gates shut), and a palisade ring with gates round the richest store, if the timber and coins
 //   are there. During a raid (if a visit ever falls in one) it rings the bell and lights the lanterns.
 // - Captured bandits are offered a home while one stands empty, else sent off.
 import { content } from '@qoti/content';
@@ -37,8 +37,8 @@ export const WATCH_TARGET = 4;
 export const WATCH_MIN = 2;
 /** Coins a day for the stipend (half a coin each for four: a point of training a day). */
 export const WATCH_BUDGET = 2;
-/** Logs kept back when building a palisade ring (woodcutters must be rebuildable). */
-const LOGS_KEPT = 16;
+/** Timber kept back when building a palisade ring (a Forester's Lodge must be rebuildable). */
+const TIMBER_KEPT = 16;
 
 function richest(w: WorldState): Building[] {
   return valuables(w)
@@ -111,7 +111,12 @@ class Watch implements Advisor {
     const allowed = Math.max(0, spareHands(w) - 1) * DUTY_EVERY;
     const want = Math.min(WATCH_TARGET, Math.max(allowed, this.threatened() ? WATCH_MIN : 0));
     if (want !== w.watch.target) this.p.do(`watch target ${want}`, [{ t: 'watch.setTarget', size: want }]);
-    const coins = this.p.seasonBalance() > 0 && this.p.coins() > 100 ? WATCH_BUDGET : 0;
+    // R1F: with some slack either way, so the budget is not switched with every day's balance (a
+    // lever turned thirteen times in seventy days is a chore).
+    const on = w.watch.budget > 0;
+    const coins = (on ? this.p.coins() > 50 : this.p.seasonBalance() > 0 && this.p.coins() > 150)
+      ? WATCH_BUDGET
+      : 0;
     if (coins * 100 !== w.watch.budget) this.p.do(`watch budget ${coins}`, [{ t: 'watch.setBudget', coins }]);
   }
 
@@ -124,11 +129,10 @@ class Watch implements Advisor {
       return [t % S, Math.floor(t / S)] as [number, number];
     });
     const now = w.watch.posture;
-    if (
-      guards.length === 0 ||
-      (now.length === guards.length && guards.every(([x, z], i) => now[i] === z * S + x))
-    )
-      return;
+    // R1F: a posture stands until the guard count changes or a guard point no longer fronts a
+    // store (it followed the richest store before, and moved with every day's stock).
+    const fronts = new Set(richest(w).map((b) => frontOf(b)));
+    if (guards.length === 0 || (now.length === guards.length && now.every((t) => fronts.has(t)))) return;
     this.p.do('watch posture', [{ t: 'watch.setPosture', guards }]);
   }
 
@@ -159,14 +163,14 @@ class Watch implements Advisor {
       const plan = canPaintWall(reader, 'palisade', tiles, w.buildings, gate);
       if (!plan.ok) continue;
       let coins = 0;
-      let logs = 0;
+      let timber = 0;
       for (const [, , d] of plan.pieces) {
         const c = costOf(d);
         coins += c.coins;
-        for (const [g, q] of c.goods) if (g === 'logs') logs += q;
+        for (const [g, q] of c.goods) if (g === 'timber') timber += q;
       }
-      const stockLogs = w.buildings.reduce((n, b) => n + (b.rt?.store[G('logs')] ?? 0), 0);
-      if (this.p.coins() < coins + 40 || stockLogs < logs + LOGS_KEPT || sites(w) > 6) return;
+      const stockTimber = w.buildings.reduce((n, b) => n + (b.rt?.store[G('timber')] ?? 0), 0);
+      if (this.p.coins() < coins + 40 || stockTimber < timber + TIMBER_KEPT || sites(w) > 6) return;
       if (this.p.do(`palisade round ${store.def}`, [{ t: 'wall.paint', def: 'palisade', tiles }]))
         this.walledFor = start;
       return;
@@ -192,6 +196,7 @@ class Watch implements Advisor {
 
 export const watch: AdvisorDef = {
   id: 'watch',
+  lane: 'ledger',
   slot: 45,
   // Threats and the Watch, once the content has a Watch House and the run turns the threat dial on.
   plays: (opts) =>

@@ -53,6 +53,12 @@ export const GOOD_COLORS = {
   chamomile: 0xf3ecc8,
   iron: 0x5c6168,
   handle: 0x9a6b43,
+  // R1E goods.
+  candle: 0xf3ecdc,
+  candleWick: 0x4a3a2c,
+  honey: 0xe0a02c,
+  honeyDark: 0xc07f1e,
+  chair: 0xa67445,
 } as const;
 
 const C = GOOD_COLORS;
@@ -384,12 +390,27 @@ function toolsBundle(b: RigBuilder): void {
 }
 
 /**
+ * R1E: the zones-first goods (docs/spec/13-ledger.md, Goods) drawn with the shape of the good they
+ * replaced: grain as sheaves of wheat, fruit as apples, timber as sawn planks, brick as bricks.
+ */
+export const GOOD_SHAPES: Readonly<Record<string, string>> = {
+  brick: 'bricks',
+  fruit: 'apples',
+  grain: 'wheat',
+  timber: 'planks',
+};
+
+function shapeOf(good: string): string {
+  return GOOD_SHAPES[good] ?? good;
+}
+
+/**
  * A carried bundle for a good id, in figure space with its base at y 0, about 0.15 wide along x,
  * for the resident material. Unknown goods travel as a little crate.
  */
 export function bundleGeometry(good: string): BufferGeometry {
   const b = new RigBuilder();
-  switch (good) {
+  switch (shapeOf(good)) {
     case 'logs':
       logBundle(b);
       break;
@@ -486,7 +507,7 @@ function pileNear(
   rnd: () => number,
 ): void {
   const lv = Math.min(4, Math.round(level));
-  switch (good) {
+  switch (shapeOf(good)) {
     case 'logs': {
       // A log stack between two posts, rows shrinking toward the top.
       const rows = lv === 1 ? 1 : lv === 2 ? 2 : 3;
@@ -652,7 +673,7 @@ function villagePile(
   rnd: () => number,
 ): boolean {
   const count = [0, 2, 4, 6, 8][lv]!;
-  switch (good) {
+  switch (shapeOf(good)) {
     case 'clay': {
       // A heap of dug clay with a few cut blocks drying beside it.
       s.blob(
@@ -794,6 +815,69 @@ function villagePile(
       }
       return true;
     }
+    case 'furniture': {
+      // A small table with chairs pulled up to it, more chairs as the pile grows.
+      const wood = vary(0xb98a5a, rnd, 0.4);
+      s.box(x + 0.02, 0.2 + y, z - 0.09, x + 0.26, 0.225 + y, z + 0.09, wood);
+      for (const [dx, dz] of [
+        [0.04, -0.07],
+        [0.24, -0.07],
+        [0.04, 0.07],
+        [0.24, 0.07],
+      ] as const)
+        s.box(x + dx - 0.012, y, z + dz - 0.012, x + dx + 0.012, y + 0.2, z + dz + 0.012, wood);
+      const spots: [number, number][] = [
+        [-0.12, 0.0],
+        [-0.04, 0.17],
+        [0.15, 0.2],
+        [-0.04, -0.17],
+      ];
+      for (let i = 0; i < Math.min(4, lv + 1); i++) {
+        const [cx, cz] = spots[i]!;
+        const w = vary(C.chair, rnd, 0.5);
+        const bx = x + cx;
+        const bz = z + cz;
+        s.box(bx - 0.06, y + 0.1, bz - 0.06, bx + 0.06, y + 0.115, bz + 0.06, w);
+        for (const [dx, dz] of [
+          [-0.05, -0.05],
+          [0.04, -0.05],
+          [-0.05, 0.04],
+          [0.04, 0.04],
+        ] as const)
+          s.box(bx + dx, y, bz + dz, bx + dx + 0.012, y + 0.1, bz + dz + 0.012, w);
+        s.box(bx - 0.06, y + 0.115, bz - 0.06, bx + 0.06, y + 0.24, bz - 0.048, w);
+      }
+      return true;
+    }
+    case 'candles': {
+      // Bundles of cream candles standing in a board rack, tied with string.
+      s.box(x - 0.27, y, z - 0.12, x + 0.27, y + 0.025, z + 0.12, vary(palette.wood, rnd, 0.5));
+      for (let i = 0; i < Math.min(6, count); i++) {
+        const [bx, , bz] = SPOTS[i]!;
+        const bb = i < 3 ? bz * 0.6 : 0.05;
+        const cx = x + bx * 1.2;
+        for (const [dx, dz] of [
+          [-0.018, -0.012],
+          [0.018, -0.012],
+          [0, 0.02],
+        ] as const)
+          s.cylinder(cx + dx, z + bb + dz, 0.014, 0.012, y + 0.025, y + 0.17, vary(C.candle, rnd, 0.3), 5);
+        s.cylinder(cx, z + bb, 0.036, 0.036, y + 0.07, y + 0.085, C.sackTie, 5);
+      }
+      return true;
+    }
+    case 'honey': {
+      // Honey pots with cloth lids, golden and a shade darker.
+      for (let i = 0; i < Math.min(8, count); i++) {
+        const [px, py, pz] = SPOTS[i]!;
+        const yy = y + py * 0.09;
+        const col = vary(i % 2 ? C.honey : C.honeyDark, rnd, 0.5);
+        s.cylinder(x + px, z + pz, 0.05, 0.055, yy, yy + 0.06, col, 7);
+        s.cylinder(x + px, z + pz, 0.04, 0.05, yy + 0.06, yy + 0.085, col, 7);
+        s.cylinder(x + px, z + pz, 0.038, 0.038, yy + 0.085, yy + 0.1, vary(C.candle, rnd, 0.3), 7);
+      }
+      return true;
+    }
     case 'firewood': {
       // A neat woodstack between end posts, rising with the pile.
       const rows = lv + 1;
@@ -859,7 +943,7 @@ export function crateOf(
   s.rbox(x - w, y, z - 0.08, x + w, y + h, z + 0.08, vary(C.crate, rnd, 0.8), 0.01);
   s.box(x - w - 0.004, y + h * 0.45, z - 0.084, x + w + 0.004, y + h * 0.55, z + 0.084, palette.darkWood);
   const top = y + h;
-  switch (good) {
+  switch (shapeOf(good)) {
     case 'bread':
       for (const dx of [-0.05, 0.05])
         s.blob(x + dx, top + 0.01, z, 0.05, 0.03, 0.035, vary(C.bread, rnd, 0.6), 1);
@@ -897,6 +981,26 @@ export function crateOf(
     case 'yarn':
       skein(s, x - 0.05, top + 0.01, z, C.yarnA, rnd);
       skein(s, x + 0.05, top + 0.01, z, C.yarnB, rnd);
+      break;
+    case 'candles':
+      for (const dx of [-0.06, -0.02, 0.02, 0.06])
+        s.cylinder(x + dx, z, 0.012, 0.011, top, top + 0.09 + (dx > 0 ? 0.02 : 0), C.candle, 5);
+      break;
+    case 'honey':
+      for (const dx of [-0.05, 0.05]) {
+        s.cylinder(x + dx, z, 0.04, 0.045, top, top + 0.06, vary(C.honey, rnd, 0.4), 6);
+        s.cylinder(x + dx, z, 0.033, 0.033, top + 0.06, top + 0.075, C.candle, 6);
+      }
+      break;
+    case 'furniture':
+      s.box(x - 0.05, top + 0.08, z - 0.04, x + 0.05, top + 0.094, z + 0.04, C.chair);
+      for (const [dx, dz] of [
+        [-0.045, -0.035],
+        [0.035, -0.035],
+        [-0.045, 0.025],
+        [0.035, 0.025],
+      ] as const)
+        s.box(x + dx, top, z + dz, x + dx + 0.01, top + 0.08, z + dz + 0.01, C.chair);
       break;
     case 'tools':
       beam(s, [x - 0.08, top + 0.01, z - 0.03], [x + 0.08, top + 0.02, z - 0.03], 0.008, C.handle);

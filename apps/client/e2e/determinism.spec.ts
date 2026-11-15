@@ -82,3 +82,22 @@ test('a year of the threat fixture hashes the same in a browser worker and in No
   console.log(`threat fixture year: node ${node.hash}, browser ${browserHash}`);
   expect(browserHash).toBe(node.hash);
 });
+
+// R1X: a year of the autoplayer's R1 game (seed hazel, standard, threat standard, every system on,
+// its commands recorded by `npm run golden:year -w @qoti/bench`) hashes the same in a browser worker
+// as in Node.
+test('a year of the R1 game hashes the same in a browser worker and in Node', async ({ page }) => {
+  test.setTimeout(900_000);
+  const year = JSON.parse(readFileSync(`${root}/packages/sim/test/golden/r1-year.json`, 'utf8')) as unknown;
+  const nodeHash = execFileSync('npx', ['tsx', 'packages/sim/scripts/golden-hash.ts', 'r1-year'], {
+    cwd: root,
+    encoding: 'utf8',
+  }).trim();
+  expect(nodeHash).toMatch(/^[0-9a-f]{16}$/);
+
+  await page.goto(`/${DEBUG_QUERY}`);
+  await page.waitForFunction(() => typeof window.__qoti?.runGolden === 'function');
+  const browserHash = await page.evaluate((script) => window.__qoti.runGolden(script), year);
+  console.log(`golden r1-year: node ${nodeHash}, browser ${browserHash}`);
+  expect(browserHash).toBe(nodeHash);
+});

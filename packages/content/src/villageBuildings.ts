@@ -1,459 +1,80 @@
 import type { BuildingDef } from './types';
 
-// I2 buildings (docs/spec/13-ledger.md, Goods, Services, Population tiers; C4C). The Village chains
-// with their numbers, the services, the Trading Post, the cart shed, the Craftsfolk townhouse and
-// the grown defs that C4B plants on zoned lots.
-//
-// Numbers per work day (the nine hours from 08:00, full crew, Content workers) at base prices:
-//
-//   clay pit        18 clay                          (2 diggers)
-//   brick kiln      18 clay + 4.5 firewood -> 13.5 bricks  (one pit feeds one kiln)
-//   sheep pasture   6 wool                           (1 shepherd)
-//   spinner         6 wool -> 6 yarn                 (one pasture feeds one spinner)
-//   weaver          6 yarn -> 6 cloth                (one spinner feeds one weaver)
-//   dairy farm      18 milk                          (2 hands)
-//   cheesemaker     13.5 milk -> 9 cheese            (skilled)
-//   orchard         18 apples                        (2 pickers)
-//   cider press     18 apples -> 9 cider
-//   chopping shed   9 logs -> 18 firewood
-//   herb garden     9 herbs
-//   smithy          9 firewood + 4.5 stone -> 4.5 tools (skilled)
-//   tavern          2 cider poured                   (social cover, 10 tiles, 60 residents)
-//   herbalist       6 herbs brewed                   (health cover, 12 tiles, 60 residents)
-//
-// Forty Craftsfolk (ten households) use about 10 firewood, 4 cloth, 12 bread and 8 treats a day;
-// ten townhouse upgrades take 100 bricks and 60 planks. Each chain turns its inputs into more
-// value than it takes in wages (basic 6 coins, skilled 10) and upkeep, so the profit line in the
-// inspector reads positive at base prices; C4A's market moves the prices from there.
-//
-// Art: C4E's kits of the same names draw these (C4X); the water sawmill borrows the sawpit's kit
-// until it has its own.
+// Village buildings. R1.0 (docs/spec/13-ledger.md, Land and specialized buildings): the chains of
+// C4C are gone; what stays is the Village's specialized buildings (the Brickworks, the Sawmill, the
+// Trading Post, the Market Square, the Cart Shed), the services (school, tavern, herbalist), the
+// Craftsfolk townhouse and the three business defs a trade grows as (workshop, farmstead, shop).
+// Costs convert planks to timber and bricks to brick one for one; R1X tunes them.
 
-/** Clay dug from the riverbank deposits. A pit worked for two days brings the Brick Kiln. */
-export const clayPit: BuildingDef = {
-  id: 'clay-pit',
-  name: 'Clay pit',
+/**
+ * R1: the clay pit and kiln in one, on its own clay. Fires brick, burning a firewood for six
+ * (the Brick Kiln innovation opens it).
+ */
+export const brickworks: BuildingDef = {
+  id: 'brickworks',
+  name: 'Brickworks',
   lane: 'ledger',
   category: 'production',
-  size: [2, 2],
-  entrance: [1, 1],
+  size: [3, 3],
+  entrance: [1, 2],
   placement: [{ kind: 'deposit', deposit: 'clay', minTiles: 2 }],
-  cost: { coins: 20, goods: [['planks', 10]] },
-  upkeep: 1,
-  jobs: { count: 2, role: 'worker' },
-  methods: [
-    {
-      id: 'dig-clay',
-      name: 'Dig clay',
-      kind: 'gather',
-      inputs: [],
-      outputs: [['clay', 2]],
-      hours: 2,
-      workers: 2,
-      perWorker: true,
-    },
-  ],
-  work: 8,
-  charm: [{ category: 'noise', value: -4, radius: 2 }],
-  tags: ['workshop', 'clay'],
-  requires: { built: [['quarry', 1]] },
-  art: { kit: 'clay-pit' },
-};
-
-export const brickKiln: BuildingDef = {
-  id: 'brick-kiln',
-  name: 'Brick kiln',
-  lane: 'ledger',
-  category: 'production',
-  size: [2, 2],
-  entrance: [1, 1],
   cost: {
     coins: 40,
     goods: [
-      ['planks', 12],
+      ['timber', 12],
       ['stone', 16],
     ],
   },
   upkeep: 2,
-  jobs: { count: 2, role: 'worker' },
+  jobs: { count: 3, role: 'worker' },
   methods: [
     {
-      id: 'fire-bricks',
-      name: 'Fire bricks',
+      id: 'fire-brick',
+      name: 'Fire brick',
       kind: 'craft',
-      inputs: [
-        ['clay', 4],
-        ['firewood', 1],
-      ],
-      outputs: [['bricks', 3]],
-      hours: 2,
-      workers: 2,
+      inputs: [['firewood', 1]],
+      outputs: [['brick', 6]],
+      hours: 4,
+      workers: 3,
     },
   ],
-  work: 12,
+  work: 14,
   charm: [{ category: 'noise', value: -6, radius: 3 }],
   tags: ['workshop', 'kiln'],
   requires: { innovation: 'brick-kiln' },
-  art: { kit: 'brick-kiln' },
+  specialized: true,
+  art: { kit: 'brick-kiln', params: { kit: 'brickworks' } },
 };
 
-export const sheepPasture: BuildingDef = {
-  id: 'sheep-pasture',
-  name: 'Sheep pasture',
-  lane: 'ledger',
-  category: 'production',
-  size: [3, 3],
-  entrance: [1, 2],
-  cost: { coins: 20, goods: [['planks', 12]] },
-  upkeep: 1,
-  jobs: { count: 1, role: 'worker' },
-  methods: [
-    {
-      id: 'shear-sheep',
-      name: 'Shear the sheep',
-      kind: 'gather',
-      inputs: [],
-      outputs: [['wool', 2]],
-      hours: 3,
-      workers: 1,
-    },
-  ],
-  work: 8,
-  charm: [{ category: 'nature', value: 3, radius: 2 }],
-  tags: ['farm', 'pasture', 'animals', 'soil'],
-  requires: { rank: 'village' },
-  art: { kit: 'sheep-pasture' },
-};
-
-export const spinner: BuildingDef = {
-  id: 'spinner',
-  name: "Spinner's cottage",
-  lane: 'ledger',
-  category: 'production',
-  size: [2, 2],
-  entrance: [1, 1],
-  cost: {
-    coins: 25,
-    goods: [
-      ['planks', 14],
-      ['stone', 6],
-    ],
-  },
-  upkeep: 1,
-  jobs: { count: 1, role: 'worker' },
-  methods: [
-    {
-      id: 'spin-yarn',
-      name: 'Spin yarn',
-      kind: 'craft',
-      inputs: [['wool', 2]],
-      outputs: [['yarn', 2]],
-      hours: 3,
-      workers: 1,
-    },
-  ],
-  work: 10,
-  tags: ['workshop', 'textile'],
-  requires: { rank: 'village' },
-  art: { kit: 'spinner' },
-};
-
-export const weaver: BuildingDef = {
-  id: 'weaver',
-  name: "Weaver's shop",
-  lane: 'ledger',
-  category: 'production',
-  size: [2, 2],
-  entrance: [1, 1],
-  cost: {
-    coins: 30,
-    goods: [
-      ['planks', 16],
-      ['stone', 8],
-    ],
-  },
-  upkeep: 1,
-  jobs: { count: 1, role: 'worker' },
-  methods: [
-    {
-      id: 'weave-cloth',
-      name: 'Weave cloth',
-      kind: 'craft',
-      inputs: [['yarn', 2]],
-      outputs: [['cloth', 2]],
-      hours: 3,
-      workers: 1,
-    },
-  ],
-  work: 12,
-  charm: [{ category: 'noise', value: -3, radius: 2 }],
-  tags: ['workshop', 'textile'],
-  requires: { rank: 'village' },
-  art: { kit: 'weaver' },
-};
-
-export const dairy: BuildingDef = {
-  id: 'dairy',
-  name: 'Dairy farm',
-  lane: 'ledger',
-  category: 'production',
-  size: [3, 3],
-  entrance: [1, 2],
-  cost: {
-    coins: 30,
-    goods: [
-      ['planks', 16],
-      ['stone', 6],
-    ],
-  },
-  upkeep: 1,
-  jobs: { count: 2, role: 'worker' },
-  methods: [
-    {
-      id: 'milk-cows',
-      name: 'Milk the cows',
-      kind: 'gather',
-      inputs: [],
-      outputs: [['milk', 2]],
-      hours: 2,
-      workers: 2,
-      perWorker: true,
-    },
-  ],
-  work: 12,
-  charm: [{ category: 'noise', value: -4, radius: 2 }],
-  tags: ['farm', 'animals', 'smelly', 'soil'],
-  requires: { rank: 'village' },
-  art: { kit: 'dairy' },
-};
-
-export const cheesemaker: BuildingDef = {
-  id: 'cheesemaker',
-  name: 'Cheesemaker',
-  lane: 'ledger',
-  category: 'production',
-  size: [2, 2],
-  entrance: [1, 1],
-  cost: {
-    coins: 40,
-    goods: [
-      ['planks', 14],
-      ['stone', 12],
-    ],
-  },
-  upkeep: 2,
-  jobs: { count: 2, role: 'worker', tier: 'craftsfolk' },
-  methods: [
-    {
-      id: 'make-cheese',
-      name: 'Make cheese',
-      kind: 'craft',
-      inputs: [['milk', 3]],
-      outputs: [['cheese', 2]],
-      hours: 2,
-      workers: 2,
-    },
-  ],
-  work: 12,
-  charm: [{ category: 'noise', value: -2, radius: 2 }],
-  tags: ['workshop', 'cheese'],
-  requires: { rank: 'village' },
-  art: { kit: 'cheesemaker' },
-};
-
-export const orchard: BuildingDef = {
-  id: 'orchard',
-  name: 'Orchard',
-  lane: 'shared',
-  category: 'production',
-  size: [3, 3],
-  entrance: [1, 2],
-  cost: { coins: 25, goods: [['planks', 8]] },
-  upkeep: 1,
-  jobs: { count: 2, role: 'worker' },
-  methods: [
-    {
-      id: 'pick-apples',
-      name: 'Pick apples',
-      kind: 'gather',
-      inputs: [],
-      outputs: [['apples', 2]],
-      hours: 2,
-      workers: 2,
-      perWorker: true,
-    },
-  ],
-  work: 8,
-  charm: [{ category: 'nature', value: 5, radius: 2 }],
-  tags: ['farm', 'orchard', 'garden', 'soil'],
-  requires: { rank: 'village' },
-  art: { kit: 'orchard' },
-};
-
-export const ciderPress: BuildingDef = {
-  id: 'cider-press',
-  name: 'Cider press',
-  lane: 'ledger',
-  category: 'production',
-  size: [2, 2],
-  entrance: [1, 1],
-  cost: {
-    coins: 40,
-    goods: [
-      ['planks', 16],
-      ['stone', 8],
-    ],
-  },
-  upkeep: 2,
-  jobs: { count: 1, role: 'worker' },
-  methods: [
-    {
-      id: 'press-cider',
-      name: 'Press cider',
-      kind: 'craft',
-      inputs: [['apples', 4]],
-      outputs: [['cider', 2]],
-      hours: 2,
-      workers: 1,
-    },
-  ],
-  work: 12,
-  charm: [{ category: 'comfort', value: 2, radius: 2 }],
-  tags: ['workshop', 'cider'],
-  requires: { rank: 'village' },
-  art: { kit: 'cider-press' },
-};
-
-/** Firewood for the townhouses now and every hearth in winter [I3]. */
-export const choppingShed: BuildingDef = {
-  id: 'chopping-shed',
-  name: 'Chopping shed',
-  lane: 'ledger',
-  category: 'production',
-  size: [2, 2],
-  entrance: [1, 1],
-  cost: { coins: 15, goods: [['logs', 12]] },
-  upkeep: 1,
-  jobs: { count: 1, role: 'worker' },
-  methods: [
-    {
-      id: 'chop-firewood',
-      name: 'Chop firewood',
-      kind: 'craft',
-      inputs: [['logs', 1]],
-      outputs: [['firewood', 2]],
-      hours: 1,
-      workers: 1,
-    },
-  ],
-  work: 6,
-  charm: [{ category: 'noise', value: -4, radius: 2 }],
-  tags: ['workshop', 'forestry'],
-  requires: { built: [['sawpit', 1]] },
-  art: { kit: 'chopping-shed' },
-};
-
-export const herbGarden: BuildingDef = {
-  id: 'herb-garden',
-  name: 'Herb garden',
-  lane: 'shared',
-  category: 'production',
-  size: [2, 2],
-  entrance: [1, 1],
-  cost: { coins: 8, goods: [['planks', 4]] },
-  upkeep: 0,
-  jobs: { count: 1, role: 'worker' },
-  methods: [
-    {
-      id: 'grow-herbs',
-      name: 'Grow herbs',
-      kind: 'gather',
-      inputs: [],
-      outputs: [['herbs', 2]],
-      hours: 2,
-      workers: 1,
-    },
-  ],
-  work: 4,
-  charm: [{ category: 'nature', value: 3, radius: 2 }],
-  tags: ['plot', 'garden', 'herb', 'soil'],
-  requires: { rank: 'village' },
-  art: { kit: 'herb-garden' },
-};
-
-/** Tools until iron comes over the hill [I4]: hard stone, hot fires and a patient smith. */
-export const smithy: BuildingDef = {
-  id: 'smithy',
-  name: 'Smithy',
-  lane: 'ledger',
-  category: 'production',
-  size: [2, 2],
-  entrance: [1, 1],
-  cost: {
-    coins: 45,
-    goods: [
-      ['planks', 12],
-      ['stone', 16],
-    ],
-  },
-  upkeep: 2,
-  jobs: { count: 1, role: 'worker', tier: 'craftsfolk' },
-  methods: [
-    {
-      id: 'forge-tools',
-      name: 'Forge tools',
-      kind: 'craft',
-      inputs: [
-        ['firewood', 2],
-        ['stone', 1],
-      ],
-      outputs: [['tools', 1]],
-      hours: 2,
-      workers: 1,
-    },
-  ],
-  work: 12,
-  charm: [{ category: 'noise', value: -8, radius: 3 }],
-  tags: ['workshop', 'smithy'],
-  requires: { rank: 'village' },
-  art: { kit: 'smithy' },
-};
-
-/** Planks by the river (the Water Wheel innovation): 80% more than a sawpit's crew, and louder. */
+/**
+ * R1: the water sawmill lets carpenters set up in its reach (three of them); it no longer saws for
+ * the town. While the river is frozen it saws by hand, for one carpenter fewer (R1B).
+ */
 export const sawmill: BuildingDef = {
   id: 'sawmill',
-  name: 'Water sawmill',
+  name: 'Sawmill',
   lane: 'ledger',
   category: 'production',
   size: [2, 3],
   entrance: [1, 2],
-  placement: [{ kind: 'waterEdge' }],
+  placement: [{ kind: 'river' }],
   cost: {
     coins: 60,
     goods: [
-      ['planks', 20],
+      ['timber', 20],
       ['stone', 12],
-      ['tools', 4],
     ],
   },
   upkeep: 2,
   jobs: { count: 2, role: 'worker' },
-  methods: [
-    {
-      id: 'saw-planks-water',
-      name: 'Saw planks by water',
-      kind: 'craft',
-      inputs: [['logs', 9]],
-      outputs: [['planks', 18]],
-      hours: 5,
-      workers: 2,
-    },
-  ],
-  outputBuffer: 30,
   work: 16,
   charm: [{ category: 'noise', value: -10, radius: 4 }],
   tags: ['workshop', 'mill'],
   requires: { innovation: 'water-wheel' },
+  specialized: true,
+  reach: 24,
+  capacity: 3,
+  enables: ['carpenter'],
   art: { kit: 'sawpit', params: { kit: 'sawmill', wheel: 'water', pile: 'planks' } },
 };
 
@@ -470,9 +91,9 @@ export const school: BuildingDef = {
   cost: {
     coins: 60,
     goods: [
-      ['planks', 24],
+      ['timber', 24],
       ['stone', 12],
-      ['bricks', 12],
+      ['brick', 12],
     ],
   },
   upkeep: 3,
@@ -496,9 +117,9 @@ export const tavern: BuildingDef = {
   cost: {
     coins: 50,
     goods: [
-      ['planks', 24],
+      ['timber', 24],
       ['stone', 12],
-      ['bricks', 6],
+      ['brick', 6],
     ],
   },
   upkeep: 2,
@@ -533,7 +154,7 @@ export const tavern: BuildingDef = {
   art: { kit: 'tavern' },
 };
 
-/** Health cover for 60 residents within 12 tiles; brews remedies from herbs. */
+/** Health cover for 60 residents within 12 tiles; brews from her own garden, so it needs no supply (R1). */
 export const herbalist: BuildingDef = {
   id: 'herbalist',
   name: 'Herbalist',
@@ -544,7 +165,7 @@ export const herbalist: BuildingDef = {
   cost: {
     coins: 35,
     goods: [
-      ['planks', 14],
+      ['timber', 14],
       ['stone', 8],
     ],
   },
@@ -552,17 +173,6 @@ export const herbalist: BuildingDef = {
   jobs: { count: 1, role: 'worker' },
   // C4X: like the tavern, a herbalist serves a quarter (14 tiles, 100 residents).
   coverage: [{ kind: 'health', radius: 14, capacity: 100 }],
-  methods: [
-    {
-      id: 'brew-remedies',
-      name: 'Brew remedies',
-      kind: 'craft',
-      inputs: [['herbs', 2]],
-      outputs: [],
-      hours: 3,
-      workers: 1,
-    },
-  ],
   work: 10,
   charm: [{ category: 'nature', value: 2, radius: 2 }],
   tags: ['herbalist', 'garden'],
@@ -576,6 +186,10 @@ export const herbalist: BuildingDef = {
  * Where caravans load and unload (C4A runs the trade; `tradeView` finds it by its tag). It is a
  * small storehouse too, with porters of its own, so imports reach the town.
  */
+/**
+ * R1: the carrier's depot by the valley road: more carried each day and better terms (R1A). A small
+ * store too, with porters of its own, so what the carrier brings reaches the town.
+ */
 export const tradingPost: BuildingDef = {
   id: 'trading-post',
   name: 'Trading post',
@@ -583,12 +197,11 @@ export const tradingPost: BuildingDef = {
   category: 'storage',
   size: [4, 3],
   entrance: [1, 2],
+  placement: [{ kind: 'valleyRoad', within: 6 }],
   cost: {
     coins: 60,
-    // C4X: no bricks, so a new Village can trade before its kiln is invented (the post is how a
-    // Village pays its way once the Hamlet's flat tax gives way to income tax).
     goods: [
-      ['planks', 30],
+      ['timber', 30],
       ['stone', 20],
     ],
   },
@@ -600,7 +213,41 @@ export const tradingPost: BuildingDef = {
   charm: [{ category: 'noise', value: -4, radius: 3 }],
   tags: ['trading-post', 'storehouse', 'outlet'],
   requires: { rank: 'village' },
+  specialized: true,
   art: { kit: 'trading-post' },
+};
+
+/**
+ * R1: the town's main outlet, six stalls in one place selling every family, where the carrier sets
+ * out what it brought and market day is held. Odette Fenwick's finale roofs it into the Market Hall.
+ */
+export const marketSquare: BuildingDef = {
+  id: 'market-square',
+  name: 'Market square',
+  lane: 'shared',
+  category: 'service',
+  size: [3, 3],
+  entrance: [1, 2],
+  placement: [{ kind: 'road', roads: ['lane', 'street'] }],
+  cost: {
+    coins: 50,
+    goods: [
+      ['timber', 20],
+      ['stone', 20],
+    ],
+  },
+  upkeep: 2,
+  jobs: { count: 3, role: 'vendor' },
+  // Six stalls of 40, one for each family: no `stores`, so it takes every good.
+  storage: 240,
+  coverage: [{ kind: 'food', radius: 20 }],
+  work: 16,
+  charm: [{ category: 'comfort', value: 5, radius: 4 }],
+  tags: ['outlet', 'market', 'square'],
+  requires: { rank: 'village' },
+  specialized: true,
+  reach: 20,
+  art: { kit: 'market-stall', params: { kit: 'market-square' } },
 };
 
 /** One cart and its pony: 16 units a trip on lanes and streets (the Carts innovation). */
@@ -614,9 +261,8 @@ export const cartShed: BuildingDef = {
   cost: {
     coins: 40,
     goods: [
-      ['planks', 16],
+      ['timber', 16],
       ['stone', 6],
-      ['tools', 2],
     ],
   },
   upkeep: 2,
@@ -625,13 +271,15 @@ export const cartShed: BuildingDef = {
   charm: [{ category: 'noise', value: -3, radius: 2 }],
   tags: ['cart-shed'],
   requires: { innovation: 'carts' },
+  placement: [{ kind: 'road', roads: ['lane', 'street'] }],
+  specialized: true,
   art: { kit: 'cart-shed' },
 };
 
 // --- Homes and grown buildings -----------------------------------------------------------------
 
 /**
- * A Craftsfolk home: a cottage upgrades into one in place (10 bricks and 6 planks by porter), and
+ * A Craftsfolk home: a cottage upgrades into one in place (10 brick and 6 timber by porter), and
  * townhouse lots grow them outright. A household that slides back keeps the house.
  */
 export const townhouse: BuildingDef = {
@@ -644,9 +292,9 @@ export const townhouse: BuildingDef = {
   cost: {
     coins: 30,
     goods: [
-      ['planks', 16],
+      ['timber', 16],
       ['stone', 6],
-      ['bricks', 10],
+      ['brick', 10],
     ],
   },
   upkeep: 0,
@@ -670,7 +318,7 @@ export const townhouse: BuildingDef = {
 /** A shop with a flat above: a food outlet on the ground floor and a household upstairs. */
 export const cornerShop: BuildingDef = {
   id: 'corner-shop',
-  name: 'Corner shop',
+  name: 'Shop',
   lane: 'ledger',
   category: 'service',
   size: [2, 3],
@@ -678,7 +326,7 @@ export const cornerShop: BuildingDef = {
   cost: {
     coins: 30,
     goods: [
-      ['planks', 18],
+      ['timber', 18],
       ['stone', 8],
     ],
   },
@@ -696,6 +344,11 @@ export const cornerShop: BuildingDef = {
 };
 
 /** A small workshop on a crafts lot that takes up whatever the market is short of. */
+/**
+ * R1: a workshop business, grown on a Workshops lot; its trade (content trades: baker, weaver,
+ * carpenter, chandler, cider maker) says what it makes. Hands come from the trade's crew by level
+ * (level 1: one, the def's jobs). Open from founding.
+ */
 export const workshop: BuildingDef = {
   id: 'workshop',
   name: 'Workshop',
@@ -706,68 +359,24 @@ export const workshop: BuildingDef = {
   cost: {
     coins: 30,
     goods: [
-      ['planks', 16],
+      ['timber', 16],
       ['stone', 8],
     ],
   },
   upkeep: 1,
-  jobs: { count: 2, role: 'worker' },
-  methods: [
-    {
-      id: 'chop-firewood',
-      name: 'Chop firewood',
-      kind: 'craft',
-      inputs: [['logs', 1]],
-      outputs: [['firewood', 2]],
-      hours: 1,
-      workers: 1,
-    },
-    {
-      id: 'spin-yarn',
-      name: 'Spin yarn',
-      kind: 'craft',
-      inputs: [['wool', 2]],
-      outputs: [['yarn', 2]],
-      hours: 3,
-      workers: 1,
-    },
-    {
-      id: 'weave-cloth',
-      name: 'Weave cloth',
-      kind: 'craft',
-      inputs: [['yarn', 2]],
-      outputs: [['cloth', 2]],
-      hours: 3,
-      workers: 1,
-    },
-    {
-      id: 'press-cider',
-      name: 'Press cider',
-      kind: 'craft',
-      inputs: [['apples', 4]],
-      outputs: [['cider', 2]],
-      hours: 2,
-      workers: 1,
-    },
-    {
-      id: 'make-cheese',
-      name: 'Make cheese',
-      kind: 'craft',
-      inputs: [['milk', 3]],
-      outputs: [['cheese', 2]],
-      hours: 2,
-      workers: 2,
-    },
-  ],
+  jobs: { count: 1, role: 'worker' },
   work: 12,
   charm: [{ category: 'noise', value: -4, radius: 3 }],
   tags: ['workshop', 'grown'],
   grows: { zone: 'crafts' },
-  requires: { rank: 'village' },
   art: { kit: 'workshop' },
 };
 
 /** A farmstead on a farms lot: pasture, cows, apples, herbs or vegetables, by what is short. */
+/**
+ * R1: a farmstead business, grown on a Farmland lot; its trade (grain farm, market garden, orchard,
+ * dairy, sheep run, hives) says what it grows. Level 1 has two hands (the def's jobs). Open from founding.
+ */
 export const farmstead: BuildingDef = {
   id: 'farmstead',
   name: 'Farmstead',
@@ -778,68 +387,15 @@ export const farmstead: BuildingDef = {
   cost: {
     coins: 25,
     goods: [
-      ['planks', 14],
+      ['timber', 14],
       ['stone', 4],
     ],
   },
   upkeep: 1,
   jobs: { count: 2, role: 'worker' },
-  methods: [
-    {
-      id: 'grow-vegetables',
-      name: 'Grow vegetables',
-      kind: 'gather',
-      inputs: [],
-      outputs: [['vegetables', 3]],
-      hours: 4,
-      workers: 2,
-      perWorker: true,
-    },
-    {
-      id: 'pick-apples',
-      name: 'Pick apples',
-      kind: 'gather',
-      inputs: [],
-      outputs: [['apples', 2]],
-      hours: 2,
-      workers: 2,
-      perWorker: true,
-    },
-    {
-      id: 'shear-sheep',
-      name: 'Shear the sheep',
-      kind: 'gather',
-      inputs: [],
-      outputs: [['wool', 2]],
-      hours: 3,
-      workers: 2,
-      perWorker: true,
-    },
-    {
-      id: 'milk-cows',
-      name: 'Milk the cows',
-      kind: 'gather',
-      inputs: [],
-      outputs: [['milk', 2]],
-      hours: 2,
-      workers: 2,
-      perWorker: true,
-    },
-    {
-      id: 'grow-herbs',
-      name: 'Grow herbs',
-      kind: 'gather',
-      inputs: [],
-      outputs: [['herbs', 2]],
-      hours: 3,
-      workers: 2,
-      perWorker: true,
-    },
-  ],
   work: 10,
   charm: [{ category: 'nature', value: 2, radius: 2 }],
   tags: ['farm', 'grown', 'soil'],
   grows: { zone: 'farms' },
-  requires: { rank: 'village' },
   art: { kit: 'farmstead' },
 };

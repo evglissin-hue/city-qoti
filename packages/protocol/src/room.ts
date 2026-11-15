@@ -8,6 +8,7 @@ import {
   MAX_OTHER_BYTES,
   MAX_PRESENCE_BYTES,
   MAX_SNAPSHOT_BYTES,
+  OLDEST_SAVE_VERSION,
   META_SAVE_EVERY_TURNS,
   PINGS_PER_SECOND,
   PRESENCE_PER_SECOND,
@@ -15,6 +16,7 @@ import {
 } from './limits';
 import type { C2S, ErrorCode, RosterEntry, S2C } from './messages';
 import { SerialQueue } from './queue';
+import { peekSnapshotVersion } from './saveVersion';
 import type { RoomStorage, StoredMeta, StoredSnapshot } from './storage';
 import { sameHash, sha256Hex } from './tokens';
 
@@ -256,6 +258,17 @@ export class RoomCore {
     if (!expected || !sameHash(got, expected)) {
       return this.reject(c, 'BAD_TOKEN', 'That invite does not open this valley', CloseCode.badToken);
     }
+    // R1X: a valley saved before version 6 is refused, not converted. Only the header is read, and
+    // nothing is written: the stored bytes stay as they were.
+    if (await this.isOldValley()) {
+      return this.reject(
+        c,
+        'OLD_VALLEY',
+        'Founded under the old rules. It cannot be opened in this version.',
+        CloseCode.oldValley,
+      );
+    }
+    if (c.phase !== 'hello') return;
     if (meta.simVersion !== msg.simVersion) {
       const others = [...this.seats.values()].some((o) => o.seat !== msg.seat);
       if (meta.simVersion && others) {
@@ -309,6 +322,18 @@ export class RoomCore {
     c.buffer = [];
     c.phase = 'live';
     this.broadcastRoster();
+  }
+
+  /** True when the newest stored snapshot is a save from before OLDEST_SAVE_VERSION. */
+  private async isOldValley(): Promise<boolean> {
+    try {
+      const snap = await this.queue.run(() => this.storage.latestSnapshot());
+      if (!snap) return false;
+      const version = await peekSnapshotVersion(snap.data);
+      return version !== null && version < OLDEST_SAVE_VERSION;
+    } catch {
+      return false;
+    }
   }
 
   private reject(c: Client, code: ErrorCode, message: string, closeCode: number): void {

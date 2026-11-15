@@ -32,7 +32,6 @@ export function defaultLevers(): LeversState {
     taxRate: DEFAULT_TAX_RATE,
     priceCaps: goodsArray(),
     subsidies: goodsArray(),
-    exportBans: new Array<boolean>(content.goods.length).fill(false),
   };
 }
 
@@ -43,8 +42,6 @@ export function emptyTrade(): TradeState {
       drift: new Array<number>(content.goods.length).fill(1000),
       impact: new Array<number>(content.goods.length).fill(1000),
     })),
-    orders: [],
-    caravans: [],
     log: [],
   };
 }

@@ -19,6 +19,7 @@ import {
 import type { Mirror } from '../state/mirror';
 import { hash2 } from './coords';
 import { drawDef } from './defs';
+import { businessHands } from './showcaseBusiness';
 
 const N = MAP_SIZE;
 const FIRST_BUILDING = 760000;
@@ -30,22 +31,22 @@ const CROSS_EVERY = 24;
 const MARGIN = 6;
 
 /** Grown kits take a district style; the others ignore it. */
-const STYLED = new Set(['cottage', 'shop', 'townhouse', 'workshop']);
+const STYLED = new Set(['cottage', 'corner-shop', 'townhouse', 'workshop']);
 const STYLES = ['brick', 'plaster', 'stone', 'timber'];
 const STREET_ROW = [
   'townhouse',
-  'shop',
+  'corner-shop',
   'townhouse',
   'corner-shop',
   'townhouse',
-  'bakery',
-  'shop',
+  'workshop',
+  'corner-shop',
   'townhouse',
-  'tailor',
+  'corner-shop',
   'townhouse',
-  'chandler',
-  'shop',
-  'pie-shop',
+  'workshop',
+  'corner-shop',
+  'corner-shop',
   'townhouse',
   'tavern',
 ];
@@ -57,13 +58,13 @@ const LANE_ROW = [
   'cottage',
   'workshop',
   'cottage',
-  'carpenter',
+  'workshop',
   'house',
   'cottage',
-  'smithy',
+  'sawmill',
   'herbalist',
   'cottage',
-  'weaver',
+  'workshop',
   'school',
 ];
 const GARDEN = [
@@ -154,6 +155,7 @@ export function townShowcase(mirror: Mirror, opts: TownShowcaseOptions = {}): To
   };
 
   const events: SimEvent[] = [];
+  const hands = businessHands();
   let bid = FIRST_BUILDING;
   let placed = 0;
   const place = (def: string, x: number, z: number, rot: Rot4, style: string): void => {
@@ -175,6 +177,7 @@ export function townShowcase(mirror: Mirror, opts: TownShowcaseOptions = {}): To
       stage: 'built',
       foundation: false,
       ...(STYLED.has(def) ? { style } : {}),
+      ...hands.next(def),
       rt: runtime(def, x, z),
     };
     events.push({ e: 'building.added', b });
@@ -280,6 +283,7 @@ export function townShowcase(mirror: Mirror, opts: TownShowcaseOptions = {}): To
 
   const all: Rect = [0, 0, N - 1, N - 1];
   const patch = (layer: LayerName, data: Uint8Array | Int32Array) => ({ layer, rect: all, data });
+  for (const k of hands.keepers) mirror.residents.set(k.id, k);
   mirror.apply({
     t: mirror.lastTurn.value,
     events,

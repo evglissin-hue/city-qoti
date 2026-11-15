@@ -2,7 +2,7 @@ import { signal } from '@preact/signals';
 import { content, type ZoneDef } from '@qoti/content';
 import { MAP_SIZE, MAX_ZONE_TILES, Road, Water } from '@qoti/sim';
 import { setGroundMarks, type GroundMark } from '../../ui/marks';
-import { rankAtLeast, UNZONE, zoneInk } from '../../ui/village';
+import { UNZONE, zoneInk, zoneOpen } from '../../ui/village';
 import type { ToolContext } from '../context';
 import { INPUT_COPY } from '../copy';
 import { cursorHint } from '../hint';
@@ -96,8 +96,10 @@ export function previewLots(
 }
 
 /**
- * Zoning (Ledger, Village rank): pick a zone, drag a box to paint it; Shift+drag or the Unzone card
- * clears. While dragging, the lots the box would make are sketched along the road.
+ * Zoning (Ledger): pick a brush on the Build picker's Zones shelf, drag a box to paint it; Shift+drag
+ * or the Clear zoning card clears. While dragging, the lots the box would make are sketched along
+ * the road. R1: Homes, Workshops and Farmland are open from founding; Shops and Townhouses wait
+ * for their rank (`ZoneDef.requires`).
  */
 export function zoneTool(ctx: ToolContext): Tool {
   const variant = signal('homes-low');
@@ -107,8 +109,8 @@ export function zoneTool(ctx: ToolContext): Tool {
   let cx = 0;
   let cy = 0;
 
-  const locked = () => !rankAtLeast(ctx.mirror.town.value?.rank, 'village');
   const clearing = () => erase || variant.value === UNZONE;
+  const locked = () => !clearing() && !zoneOpen(ctx.mirror.town.value?.rank, variant.value);
 
   function box(): Tile[] {
     if (!start || !end) return [];
@@ -187,6 +189,8 @@ export function zoneTool(ctx: ToolContext): Tool {
     hint: INPUT_COPY.zoneHint,
     order: 35,
     modes: ['standard'],
+    // R1C: the brushes live on the Build picker's Zones shelf, so the tool has no button of its own.
+    hidden: () => true,
     get variants() {
       return [...content.zones.map((z) => ({ id: z.id, label: z.name })), { id: UNZONE, label: 'Unzone' }];
     },

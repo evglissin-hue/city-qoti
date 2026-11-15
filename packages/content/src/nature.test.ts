@@ -44,9 +44,10 @@ describe('nature content (C5C)', () => {
           content.decor.some((d) => d.tags.includes(s.ref)),
           s.ref,
         ).toBe(true);
+      // R1: a business answers to its trade id as a tag (an orchard, hives).
       if (s.from === 'building')
         expect(
-          content.buildings.some((b) => b.tags?.includes(s.ref)),
+          content.buildings.some((b) => b.tags?.includes(s.ref)) || content.tradeById.has(s.ref),
           s.ref,
         ).toBe(true);
       if (s.from === 'module') expect(content.moduleById.has(s.ref), s.ref).toBe(true);

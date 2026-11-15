@@ -12,7 +12,15 @@ import { villageFixture, type VillageFixture } from '../fixtures/village';
 
 export { good } from '../ledger/helpers';
 
-export function place(state: WorldState, def: string, x: number, z: number, rot: Rot4 = 0): Building {
+/** Places a built building; `trade` makes it a business (R1: a workshop, farmstead or shop). */
+export function place(
+  state: WorldState,
+  def: string,
+  x: number,
+  z: number,
+  rot: Rot4 = 0,
+  trade?: string,
+): Building {
   const d = content.buildingById.get(def)!;
   // Gardens yield by their soil (production/soil.ts): these tests count a full crop, on rich loam.
   if (d.tags?.includes('soil')) {
@@ -20,7 +28,7 @@ export function place(state: WorldState, def: string, x: number, z: number, rot:
     for (let tz = z; tz < z + h; tz++)
       for (let tx = x; tx < x + w; tx++) state.map.fertility[tz * MAP_SIZE + tx] = 100;
   }
-  return insertBuilding(state, null, d, x, z, rot, 0, { site: false });
+  return insertBuilding(state, null, d, x, z, rot, 0, { site: false, ...(trade !== undefined && { trade }) });
 }
 
 /** A fresh adult (or child) in a household, tier as the household's, unemployed and at home. */

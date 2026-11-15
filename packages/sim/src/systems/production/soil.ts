@@ -10,8 +10,9 @@ export function soilPermille(fertility: number): number {
   return Math.min(1000, 600 + 5 * Math.max(0, fertility));
 }
 
-export const soilYield: YieldModifier = (state, b, def) => {
-  if (!def.tags?.includes('soil')) return 1000;
+export const soilYield: YieldModifier = (state, b, def, method) => {
+  // R1: a grain farm's fields carry their own soil (cropGrowth); only the farmstead's yard counts here.
+  if (!def.tags?.includes('soil') || method.kind === 'farm') return 1000;
   const [w, d] = footprintSize(def, b.rot);
   let sum = 0;
   for (let z = b.z; z < b.z + d; z++)

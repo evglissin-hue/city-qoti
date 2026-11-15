@@ -9,7 +9,6 @@ import {
   base64ToBytes,
   bytesToBase64,
   deserialize,
-  ensureOffer,
   serialize,
   SIM_VERSION,
   type WorldState,
@@ -45,15 +44,6 @@ export async function createFixtureValley(
   if (new URLSearchParams(location.search).get('trial') === 'passed') {
     state.charter.rank = 'village';
     state.trial = { kind: 'winter', charter: 'village', season: 3, year: 0, status: 'passed', measured: [] };
-  }
-  // P1 (callings): ?calling=offer (a solo valley), =together (two seats, the partner away) or =chosen
-  // puts the County's question, or its answer, on the fixture's Charter board, for screenshots.
-  const callingMode = new URLSearchParams(location.search).get('calling');
-  if (callingMode) {
-    state.charter = { ...state.charter, rank: 'village' };
-    if (callingMode !== 'together') state.seats = state.seats.slice(0, 1);
-    ensureOffer(state, null);
-    if (callingMode === 'chosen' && state.calling) state.calling.chosen = state.calling.offered[0]!;
   }
   state.settings.townName = townName;
   state.settings.valleyName = 'Fixture Vale';
@@ -129,7 +119,7 @@ export async function overlayMocks(session: Session): Promise<void> {
 
 /**
  * I2 (C4F): the village mocks over the live village fixture: a story under way with its letters,
- * the couple, a caravan and the trade log, an innovation halfway. With `charter`, an in-progress
+ * the couple, the trade log, an innovation halfway. With `charter`, an in-progress
  * Charter board (the fixture is already a Village, and no Town Charter exists in I2).
  */
 export async function overlayVillageMocks(session: Session, opts: { charter?: boolean } = {}): Promise<void> {

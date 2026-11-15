@@ -1,7 +1,8 @@
 // Bench scenario for festivals, renown, commissions and the River Dock (C5B): the winter fixture
-// grown to 150 residents with its feast's well gathering place made real, a River Dock with orders
-// and commissions open. Budgets (C5B brief): a festival's outcome (who comes, the joy parts, the
+// grown to 150 residents with its feast's well gathering place made real, a River Dock and
+// commissions open. Budgets (C5B brief): a festival's outcome (who comes, the joy parts, the
 // stars and the rewards) under 3 ms; a day of the renown, commissions and dock passes under 1 ms.
+// R1.0: the dock has no orders (the carrier sails the boat; R1A); its daily pass is still timed.
 import { createTickCtx, type Household, type Resident, type WorldState } from '@qoti/sim';
 import { addDecorAt, placeFree } from '../../../packages/sim/test/fixtures/seasonsPlace';
 import { winterFixture } from '../../../packages/sim/test/fixtures/winter';
@@ -60,7 +61,6 @@ export function festivalsBench(): { lines: string[]; failures: string[]; report:
   state.renown.level = 3;
   state.renown.points = 60;
   placeFree(state, 'river-dock', 98, 60);
-  state.dock.orders = [{ good: 1, min: 10, max: 30, floor: 0, ceiling: 0, neighbor: '' }];
   for (let g = 0; g < state.economy.everProduced.length; g++) state.economy.everProduced[g] = 10;
   for (let i = 0; i < 2; i++) offerNeighbor(state, ctx);
   for (const c of state.commissions.list) {

@@ -8,23 +8,28 @@ import { doorTileOf } from '../systems/movement/api';
 import { pavedDesireTiles } from '../systems/traffic/wear';
 import { decorInRect, decorTileX, decorTileZ, expandRect } from './geo';
 import type { Binding } from './index';
+import { marketDay, porridgeNoMore } from './r1';
 import { findRoute } from './route';
 // I2 (C4C): the innovations' predicates live with their measures.
 import {
-  clayPitWorked,
-  plankRate,
+  lodgeByRiver,
   portersBusy,
+  quarryWorked,
   rankAtLeastCode,
-  sawpitByRiver,
   stoneRate,
   storyStep,
+  timberRate,
 } from '../systems/innovations/measures';
 // I3 (C5B): the festival twists' goals.
 import { festivalByWater, festivalMenu, festivalPieces, riverFrozen } from '../systems/festivals/predicates';
 // I3 (C5D): Barnaby Ashcombe's arc.
 import { bridgeBuilt, dressedWall, raidSeen, watchPosted } from '../systems/threats/conditions';
 // I3 (C5H): the first days guide's goals.
-import { guideFoodWorked, guideInBlack, guideLane } from '../systems/guide/goals';
+import { guideFarmland, guideFoodWorked, guideHomes, guideInBlack, guideLane } from '../systems/guide/goals';
+// R1 (R1D): the story arcs' goals.
+import { seasonDeal, stallFlavors } from '../systems/stories/predicates';
+// R1 (R1D): wishes that name a trade or a good on a shelf.
+import { shelfInReach, tradeCouldOpen } from '../systems/hearth/wishes/predicates';
 // P1 (playtest): water wishes ask what the water need itself measures.
 import { waterServedCode, wellInReach } from '../systems/residents/needs';
 
@@ -110,26 +115,34 @@ export function trialPassed(
 // prettier-ignore
 export const codePredicates: ReadonlyMap<string, CodePredicate> = new Map<string, CodePredicate>([
   ['bridgeBuilt', bridgeBuilt],
-  ['clayPitWorked', clayPitWorked],
   ['desireLines', desireLines],
   ['dressedWall', dressedWall],
   ['festivalByWater', festivalByWater],
   ['festivalMenu', festivalMenu],
   ['festivalPieces', festivalPieces],
+  ['guideFarmland', guideFarmland],
   ['guideFoodWorked', guideFoodWorked],
+  ['guideHomes', guideHomes],
   ['guideInBlack', guideInBlack],
   ['guideLane', guideLane],
   ['lanternRoute', lanternRoute],
+  ['lodgeByRiver', lodgeByRiver],
+  ['marketDay', marketDay],
   ['pathRoute', pathRoute],
-  ['plankRate', plankRate],
+  ['porridgeNoMore', porridgeNoMore],
   ['portersBusy', portersBusy],
+  ['quarryWorked', quarryWorked],
   ['raidSeen', raidSeen],
   ['rankAtLeast', rankAtLeastCode],
   ['riverFrozen', riverFrozen],
-  ['sawpitByRiver', sawpitByRiver],
+  ['seasonDeal', seasonDeal],
   ['seasonIs', seasonIs],
+  ['shelfInReach', shelfInReach],
+  ['stallFlavors', stallFlavors],
   ['stoneRate', stoneRate],
   ['storyStep', storyStep],
+  ['timberRate', timberRate],
+  ['tradeCouldOpen', tradeCouldOpen],
   ['trialPassed', trialPassed],
   ['watchPosted', watchPosted],
   ['waterServed', waterServedCode],

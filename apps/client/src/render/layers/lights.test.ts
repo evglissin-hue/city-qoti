@@ -97,7 +97,8 @@ describe('the lights layer sources', () => {
   const m = new Mirror();
   m.decor.set(1, decor(1, 'lamp-post', 5, 5));
   m.decor.set(2, decor(2, 'bonfire', 20, 20));
-  m.buildings.set(10, building(10, 'bakery', 30, 30));
+  // R1: a bakery is a workshop keeping the baker's trade; its oven is the trade's (R1X).
+  m.buildings.set(10, { ...building(10, 'workshop', 30, 30), trade: 'baker' });
   m.buildings.set(11, building(11, 'cottage', 40, 40));
 
   it('puts the lamp post in lanterns and the bonfire in fires, not both', () => {

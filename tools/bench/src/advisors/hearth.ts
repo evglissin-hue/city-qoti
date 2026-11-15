@@ -6,6 +6,7 @@ import { content } from '@qoti/content';
 import {
   calendar,
   canPaintRoad,
+  canPlaceBuilding,
   canPlaceDecor,
   doorTile,
   findById,
@@ -53,6 +54,39 @@ class Hearth implements Advisor {
   }
 
   /** C4X: "a proper path" wishes: path on every grass tile of the walk to work. */
+  /** A garden bed (2x2) within two tiles of the home, as the wish asks; true when placed. */
+  private gardenBed(home: Building): boolean {
+    const def = content.buildingById.get('garden-bed');
+    if (!def) return false;
+    const reader = worldIndex(this.w).reader;
+    for (let r = 1; r <= 2; r++)
+      for (let dz = -r - 1; dz <= r + 1; dz++)
+        for (let dx = -r - 1; dx <= r + 1; dx++) {
+          const x = home.x + dx;
+          const z = home.z + dz;
+          if (!canPlaceBuilding(reader, def, x, z, 0).ok) continue;
+          return !!this.p.buildAt('a garden bed for a wish', 'garden-bed', x, z, 0, true);
+        }
+    return false;
+  }
+
+  /**
+   * R1X: a well within reach of the door that asked, and half a reach clear of every other well (the
+   * sim's service-clustered check). It used to go wherever a well first fit from the town's middle,
+   * so the far household's wish stayed open and the next one stood beside it: seven on one green.
+   */
+  private wellFor(hx: number, hz: number): Building | null {
+    const r = content.buildingById.get('well')?.coverage?.find((c) => c.kind === 'water')?.radius ?? 8;
+    const wells = this.w.buildings.filter((b) => b.def === 'well');
+    const only = (x: number, z: number): boolean => {
+      // The sim measures a well's reach from its corner tile to the door (residents/needs).
+      if ((x - hx) * (x - hx) + (z - hz) * (z - hz) > (r - 1) * (r - 1)) return false;
+      for (const o of wells) if ((o.x - x) * (o.x - x) + (o.z - z) * (o.z - z) < (r * r) / 4) return false;
+      return true;
+    };
+    return this.p.build('well', only);
+  }
+
   private commutePath(home: number, work: number): boolean {
     const route = this.commute(home, work);
     if (!route) return false;
@@ -123,9 +157,11 @@ class Hearth implements Advisor {
           ok = this.place('bench', p.decorSpot('bench', hx, hz, 8, nearWater), 'by the river');
           break;
         case 'a-garden-plot':
+          // R1X: a garden bed by the door (R1D's answer to the plot), or a herb planter once open;
+          // the run offered this wish 42 times in a year and granted none.
           ok = w.hearth.unlocked.includes('herb-planter')
             ? this.place('herb-planter', p.decorSpot('herb-planter', hx, hz, 2), 'for a wish')
-            : false;
+            : this.gardenBed(home);
           break;
         case 'a-proper-path':
           ok = this.commutePath(wish.home, wish.work);
@@ -143,7 +179,7 @@ class Hearth implements Advisor {
             sites(w) < 3 &&
             count(w, 'well') <= w.residents.length / 10
           )
-            ok = !!p.build('well');
+            ok = !!this.wellFor(hx, hz);
           break;
         default:
           break;
@@ -282,6 +318,7 @@ class Hearth implements Advisor {
 
 export const hearth: AdvisorDef = {
   id: 'hearth',
+  lane: 'hearth',
   slot: 60,
   plays: (opts) => opts.hearth !== false,
   create: (p) => new Hearth(p),

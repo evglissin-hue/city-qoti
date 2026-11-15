@@ -1,7 +1,8 @@
 // C4A acceptance: the money invariant across a 10-day headless run of the village with every flow
 // at work: wages and income tax, purchases at the till (outings and the household pass), price
-// caps and subsidies, the Trading Post's caravans both ways, a fresh loan, a repayment and a
-// season's interest. Nothing isolated: every system runs, as in the game.
+// caps and subsidies, the carrier on the Trading Post's terms both ways (R1: in place of the
+// caravans' standing orders), a fresh loan, a repayment and a season's interest. Nothing isolated:
+// every system runs, as in the game.
 import { content } from '@qoti/content';
 import { describe, expect, it } from 'vitest';
 import { LEDGER_CATEGORIES, PRICE_CLAMP, TICKS_PER_DAY } from '../../src/constants';
@@ -20,21 +21,9 @@ function tenDays() {
   const totals = new Array<number>(LEDGER_CATEGORIES.length).fill(0);
   withTradingPost(s, () => {
     const start = moneySnapshot(s);
-    run(s, {
-      t: 'trade.setStandingOrder',
-      good: 'planks',
-      order: { min: 0, max: 40, floor: 0, ceiling: 0, neighbor: '' },
-    });
-    run(s, {
-      t: 'trade.setStandingOrder',
-      good: 'wheat',
-      order: { min: 40, max: 999, floor: 0, ceiling: 0, neighbor: '' },
-    });
-    run(s, {
-      t: 'trade.setStandingOrder',
-      good: 'apples',
-      order: { min: 20, max: 999, floor: 0, ceiling: 0, neighbor: '' },
-    });
+    // Materials always, selling what is over twice the reserve (the timber); Food and Fuel buy to
+    // their reserves by the Village's defaults.
+    run(s, { t: 'carrier.setRule', family: 'materials', rule: 'always', sell: true });
     run(s, { t: 'ledger.setPriceCap', good: 'bread', cap: 250, subsidy: 10 });
     run(s, { t: 'ledger.setTaxRate', percent: 14 });
     run(s, { t: 'loan.take', coins: 200 });

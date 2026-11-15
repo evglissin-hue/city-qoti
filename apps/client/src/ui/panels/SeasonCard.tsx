@@ -17,6 +17,7 @@ import {
   whenWord,
 } from '../seasons';
 import { toggleBook } from '.';
+import { SeasonPlanQuestions } from './SeasonPlan';
 
 const TRACK_MARK: Record<SeasonReportLine['track'], string> = {
   weather: 'Weather',
@@ -127,6 +128,7 @@ export function SeasonCard({
           </div>
         </section>
       )}
+      <SeasonPlanQuestions session={session} winter={view.season === 3} />
       <div class="actions">
         <button type="button" class="primary" data-testid="season-card-close" onClick={onClose}>
           Begin the season

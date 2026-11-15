@@ -28,4 +28,9 @@ export const CloseCode = {
   notFound: 4004,
   versionMismatch: 4009,
   helloTimeout: 4008,
+  /** R1X: a valley saved before version 6; the room refuses it and keeps its bytes. */
+  oldValley: 4010,
 } as const;
+
+/** Mirrors OLDEST_SAVE_VERSION in @qoti/sim (R1's fresh start); a test keeps the two in step. */
+export const OLDEST_SAVE_VERSION = 6;

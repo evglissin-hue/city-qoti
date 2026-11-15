@@ -1,6 +1,6 @@
 import { randomId } from '@qoti/protocol';
 import type { ValleySettings } from '@qoti/sim';
-import { useMemo, useState } from 'preact/hooks';
+import { useEffect, useMemo, useState } from 'preact/hooks';
 import { createOnlineValley } from '../net/api';
 import { LocalRoom } from '../net/local';
 import { copy, welcomeLine } from '../ui/copy';
@@ -10,6 +10,7 @@ import { RANK_WORD } from '../ui/village';
 import { loadProfile, saveProfile, SWATCHES, type PlayerProfile } from './profile';
 import { forgetValley, listRecent, rememberValley, type RecentValley } from './recent';
 import { valleyDbName } from '../net/idb';
+import { findOldSolo, saveOldFile } from './oldValley';
 import { readValleyFile, type ValleyFile } from './valleyFile';
 import type { SessionTarget } from './session';
 
@@ -65,7 +66,17 @@ export function Title({
     setProfileState(p);
     saveProfile(p);
   };
+  // R1C: solo valleys whose stored snapshot is from the old rules, found by peeking at headers.
+  const [oldSolo, setOldSolo] = useState<string[]>([]);
+  useEffect(() => {
+    let live = true;
+    void findOldSolo(listRecent()).then((ids) => live && setOldSolo(ids));
+    return () => {
+      live = false;
+    };
+  }, []);
   const recent = listRecent();
+  const isOld = (v: RecentValley) => v.old === true || oldSolo.includes(v.valleyId);
   const invited = recent.find((v) => v.pending);
   const others = recent.filter((v) => !v.pending);
   // Standard valleys are the game; a creative valley is the quiet sandbox with no residents or costs.
@@ -401,6 +412,31 @@ export function Title({
                       </button>
                       <button type="button" onClick={() => setForgetting(null)}>
                         {copy.title.forgetNo}
+                      </button>
+                    </div>
+                  </li>
+                ) : isOld(v) ? (
+                  <li key={v.valleyId} class="continue-old" data-testid={`old-${v.valleyId}`}>
+                    <strong>{v.name}</strong>
+                    <span class="muted">{copy.title.oldValley}</span>
+                    <div class="forget-actions">
+                      <button
+                        type="button"
+                        data-testid={`old-save-${v.valleyId}`}
+                        onClick={() =>
+                          void saveOldFile(v)
+                            .then((saved) => saved || setError(copy.title.oldValley))
+                            .catch(() => setError(copy.title.oldValley))
+                        }
+                      >
+                        {copy.title.saveItsFile}
+                      </button>
+                      <button
+                        type="button"
+                        data-testid={`old-remove-${v.valleyId}`}
+                        onClick={() => setForgetting(v.valleyId)}
+                      >
+                        {copy.title.forget}
                       </button>
                     </div>
                   </li>

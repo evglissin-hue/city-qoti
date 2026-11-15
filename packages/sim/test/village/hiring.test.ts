@@ -28,9 +28,11 @@ describe('hiring in a Village', () => {
 
   it('an open tavern hires before a workshop, even out of cider', () => {
     const tavern = content.buildingById.get('tavern')!;
-    const sawpit = content.buildingById.get('sawpit')!;
-    expect(slotPriority(tavern, 0)).toBeLessThan(slotPriority(sawpit, 0));
-    const { state } = villageWith();
+    const lodge = content.buildingById.get('foresters-lodge')!;
+    expect(slotPriority(tavern, 0)).toBeLessThan(slotPriority(lodge, 0));
+    const { state, b } = villageWith();
+    // R1: the granary's first porter ranks with an open service, and it was here first.
+    findById(state.buildings, b.granary)!.rt!.paused = true;
     const t = place(state, 'tavern', 40, 58);
     t.rt!.status = 2; // missing input: still worth staffing
     const seeker = state.residents.find((r) => r.stage === 'adult' && r.jobId === 0 && r.tier === 'settler')!;
@@ -38,12 +40,16 @@ describe('hiring in a Village', () => {
     expect(seeker.jobId).toBe(t.id);
   });
 
+  // R1.0 stand-in: R1A/R1B rewrites this. The Craftsfolk basket wants families (Fuel, Wares and
+  // Treats past Food), so every flavor of a short family is short, and the raw goods their trades
+  // take with them.
   it('names what the Craftsfolk basket is short of, with what its workshops need, only in a Village', () => {
     const { state } = villageWith();
     for (const b of state.buildings) if (b.rt) b.rt.store.fill(0);
     const short = tierShortages(state, townStock(state));
-    for (const g of ['firewood', 'cloth', 'yarn', 'wool', 'logs', 'bread', 'flour', 'cider', 'apples'])
-      expect(short, g).toContain(g);
+    expect(short).toEqual(
+      ['firewood', 'cloth', 'furniture', 'candles', 'honey', 'cider', 'wool', 'timber', 'fruit'].sort(),
+    );
     expect(shortages(state).goods.has('cloth')).toBe(true);
     const hamlet = hamletFixture().state;
     expect(tierShortages(hamlet, townStock(hamlet))).toEqual([]);
@@ -59,8 +65,9 @@ describe('hauling in a Village', () => {
     const store = findById(state.buildings, b.storehouses[1])!;
     toWork(state, store.rt!.workers);
     state.tick = 2 * TICKS_PER_HOUR;
-    ticks(state, 2 * TICKS_PER_HOUR);
-    const planks = content.goodIndex.get('planks')!;
+    // R1: the porters first restock the stalls from the granary nearby, then turn to the site.
+    ticks(state, 4 * TICKS_PER_HOUR);
+    const planks = content.goodIndex.get('timber')!;
     expect(near.rt!.construction!.delivered[planks]).toBeGreaterThan(0);
     expect(far.rt!.construction!.delivered[planks]).toBe(0);
     expect(state.logistics.jobs.every((j) => j.to !== far.id)).toBe(true);
@@ -69,7 +76,7 @@ describe('hauling in a Village', () => {
 
 describe('relays between storehouses', () => {
   it(
-    "carries planks to the storehouse that reaches a site beyond this one's range",
+    "carries timber to the storehouse that reaches a site beyond this one's range",
     { timeout: 60_000 },
     () => {
       const { state, b } = villageWith();
@@ -91,9 +98,9 @@ describe('relays between storehouses', () => {
       state.tick = 2 * TICKS_PER_HOUR;
       // The new storehouse's two porters restock the market stalls with food first (one stall
       // lies beyond every working storehouse's range: the paused one used to adopt it and leave it
-      // bare), then the windmill's wheat, then the site's planks.
+      // bare), then the baker's grain, then the site's timber.
       ticks(state, 12 * TICKS_PER_HOUR);
-      const planks = content.goodIndex.get('planks')!;
+      const planks = content.goodIndex.get('timber')!;
       expect(state.logistics.flows.some(([f, t]) => f === a.id && t === c.id)).toBe(true);
       expect(site.rt!.construction!.delivered[planks]).toBeGreaterThan(0);
     },
@@ -109,6 +116,9 @@ describe('placing Village buildings', () => {
     expect(rejection(run(state, { t: 'build.place', def: 'workshop', x: 50, z: 36, rot: 0 }))).toBe(
       'NOT_ALLOWED',
     );
-    expect(rejection(run(state, { t: 'build.place', def: 'sawmill', x: 96, z: 36, rot: 1 }))).toBe('LOCKED');
+    // R1: the Village opens the Sawmill; the Cart Shed still waits for the Carts innovation.
+    expect(rejection(run(state, { t: 'build.place', def: 'cart-shed', x: 96, z: 36, rot: 0 }))).toBe(
+      'LOCKED',
+    );
   });
 });

@@ -1,4 +1,4 @@
-// Plans (I2, C4F): which commands a sketch may hold, plans in words ("a bakery, a bench and 12
+// Plans (I2, C4F): which commands a sketch may hold, plans in words ("a windmill, a bench and 12
 // tiles of lane"), and their blueprint shapes on the ground. docs/spec/16-coop.md, Plans layer.
 import { content } from '@qoti/content';
 import { footprintSize, TILE_FP, type Command, type CommandType, type PlanItem } from '@qoti/sim';
@@ -34,6 +34,26 @@ export function sketchWith(sketch: Sketch | null, cmd: Command): Sketch | null {
   return { ...sketch, items: [...sketch.items, { cmd }] };
 }
 
+/** Editing an open plan in place: its items come back as the sketch, tied to the plan's id. */
+export function editSketch(plan: { id: number; items: readonly PlanItem[] }): Sketch {
+  return { items: plan.items.map((i) => ({ cmd: i.cmd })), basedOn: plan.id };
+}
+
+/** The sketch without its item at `index` (out of range leaves it as it was). */
+export function withoutItem(sketch: Sketch, index: number): Sketch {
+  if (index < 0 || index >= sketch.items.length) return sketch;
+  return { ...sketch, items: sketch.items.filter((_, i) => i !== index) };
+}
+
+/** "Save changes": the plan.edit that replaces the plan's items, or null when not editing a plan. */
+export function editCommand(sketch: Sketch): Extract<Command, { t: 'plan.edit' }> | null {
+  if (sketch.basedOn === null) return null;
+  return { t: 'plan.edit', id: sketch.basedOn, items: sketch.items };
+}
+
+/** "bench" to "benches", "cottage" to "cottages". */
+const plural = (name: string) => (/(s|x|ch|sh)$/.test(name) ? `${name}es` : `${name}s`);
+
 const a = (name: string) => (/^[aeiou]/i.test(name) ? `an ${name}` : `a ${name}`);
 
 function counted(n: number, one: string, many: string): string {
@@ -45,7 +65,7 @@ function list(parts: string[]): string {
   return `${parts.slice(0, -1).join(', ')} and ${parts[parts.length - 1]}`;
 }
 
-/** A plan's contents in a line: "a bakery, two benches and 12 tiles of lane". */
+/** A plan's contents in a line: "a windmill, two benches and 12 tiles of lane". */
 export function planSummary(items: readonly PlanItem[]): string {
   const builds = new Map<string, number>();
   const decor = new Map<string, number>();
@@ -93,11 +113,11 @@ export function planSummary(items: readonly PlanItem[]): string {
   const parts: string[] = [];
   for (const [def, n] of builds) {
     const name = (content.buildingById.get(def)?.name ?? def).toLowerCase();
-    parts.push(n === 1 ? a(name) : `${n} ${name}s`);
+    parts.push(n === 1 ? a(name) : `${n} ${plural(name)}`);
   }
   for (const [def, n] of decor) {
     const name = (content.decorById.get(def)?.name ?? def).toLowerCase();
-    parts.push(n === 1 ? a(name) : `${n} ${name}s`);
+    parts.push(n === 1 ? a(name) : `${n} ${plural(name)}`);
   }
   if (roadTiles) parts.push(`${roadTiles} ${roadTiles === 1 ? 'tile' : 'tiles'} of ${roadKind}`);
   if (zoneTiles) parts.push(`${zoneTiles} zoned ${zoneTiles === 1 ? 'tile' : 'tiles'}`);

@@ -1,6 +1,8 @@
 // V2.0: the grown village scene (?debug&fixture=grown) is a snapshot of a run of the bench's
 // autoplayer. When the sim stops reading it (R1's fresh start refuses older valleys), regrow it
 // with `npm run fixture:grown -w @qoti/client` rather than loosening this test.
+// R1X regrew it under R1's rules (oak, 62 days: a Village of 152 in 60 households, two corner
+// shops, 742 decor), and it passes as V2.0 wrote it.
 import { readFileSync } from 'node:fs';
 import { base64ToBytes, deserialize } from '@qoti/sim';
 import { describe, expect, it } from 'vitest';

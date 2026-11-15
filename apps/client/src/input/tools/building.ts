@@ -6,6 +6,8 @@ import {
   FIELD_GOOD_FERTILITY,
   FIELD_MIN_FERTILITY,
   footprintSize,
+  MAP_SIZE,
+  reachRoadTiles,
   TERRAFORM_COST,
   soilPermille,
   TREE_MATURE,
@@ -13,6 +15,7 @@ import {
 } from '@qoti/sim';
 import type { TilePick } from '../../render/api';
 import type { Mirror } from '../../state/mirror';
+import { setGroundMarks, type GroundMark } from '../../ui/marks';
 import { rejectText } from '../../ui/messages';
 import { buildingChoices, costBlock, lostTownHall } from '../catalog';
 import type { ToolContext } from '../context';
@@ -20,7 +23,10 @@ import { INPUT_COPY } from '../copy';
 import { cursorHint } from '../hint';
 import type { Tool } from '../tool';
 
-/** The deposit a building must sit on, if any (clay pits, quarries). */
+/** The Ledger's ochre, for the reach rings. */
+const RING_INK = '#c48a3f';
+
+/** The deposit a building must sit on, if any (the quarry's stone, the Brickworks' clay). */
 export function depositOf(def: string): string | null {
   const rule = content.buildingById.get(def)?.placement?.find((r) => r.kind === 'deposit');
   return rule && rule.kind === 'deposit' ? rule.deposit : null;
@@ -66,22 +72,28 @@ export function soilWord(f: number): string {
   return f >= 70 ? 'rich' : f >= FIELD_GOOD_FERTILITY ? 'good' : f >= FIELD_MIN_FERTILITY ? 'thin' : 'poor';
 }
 
+/** The woods a building's site rule asks for (the Forester's Lodge), or null. */
+function woodsRule(def: BuildingDef): { trees: number; within: number } | null {
+  const rule = def.placement?.find((r) => r.kind === 'woods');
+  return rule && rule.kind === 'woods' ? rule : null;
+}
+
 /**
- * Playtest round five ("we couldn't have logs"): a woodcutter's grown trees in reach at a spot,
- * counted like the sim does (the footprint plus `range` tiles around it).
+ * Playtest round five ("we couldn't have logs"), R1: a Forester's Lodge needs grown trees around
+ * it. Counted like its site rule: the footprint plus `within` tiles around it.
  */
-function treesHint(m: Mirror, def: BuildingDef, x: number, z: number, rot: Rot4): string | null {
-  const range = def.methods?.find((x) => x.kind === 'fell')?.range;
-  if (!range) return null;
+function woodsHint(m: Mirror, def: BuildingDef, x: number, z: number, rot: Rot4): string | null {
+  const rule = woodsRule(def);
+  if (!rule) return null;
+  const { trees, within } = rule;
   const [w, d] = footprintSize(def, rot);
   let n = 0;
-  for (let tz = z - range; tz < z + d + range; tz++)
-    for (let tx = x - range; tx < x + w + range; tx++)
+  for (let tz = z - within; tz < z + d + within; tz++)
+    for (let tx = x - within; tx < x + w + within; tx++)
       if (m.tree(tx, tz) && m.treeStage(tx, tz) >= TREE_MATURE) n++;
-  if (n === 0) return `No grown trees within ${range} tiles: a woodcutter here would stand idle.`;
-  return n < 6
-    ? `Only ${n} grown ${n === 1 ? 'tree' : 'trees'} within ${range} tiles. Nearer the woods is better.`
-    : `${n} grown trees within ${range} tiles.`;
+  if (n < trees)
+    return `A ${def.name} needs ${trees} grown trees within ${within} tiles; ${n === 0 ? 'none' : `only ${n}`} here. Nearer the woods.`;
+  return `${n} grown trees within ${within} tiles. The woods will do.`;
 }
 
 /** Buildings that idle without a road at the door (the sim's noRoad status). */
@@ -92,34 +104,6 @@ function needsRoadAtDoor(def: BuildingDef): boolean {
     !!def.tags?.includes('market') ||
     !!def.tags?.includes('builders')
   );
-}
-
-/** Fewer open, fertile tiles than this within a farmhouse's reach, and the cursor says so. */
-const FEW_FIELDS = 16;
-
-/**
- * A farmhouse's room for fields at a spot, for the cursor: its fields go on open soil within its
- * reach, so a farmhouse wedged among houses and trees has little to tend.
- */
-function fieldRoomHint(m: Mirror, def: BuildingDef, x: number, z: number, rot: Rot4): string | null {
-  const range = def.methods?.find((x) => x.kind === 'farm')?.range;
-  if (!range) return null;
-  const [w, d] = footprintSize(def, rot);
-  let n = 0;
-  let good = 0;
-  for (let tz = z - range; tz < z + d + range; tz++) {
-    for (let tx = x - range; tx < x + w + range; tx++) {
-      if (tx >= x && tx < x + w && tz >= z && tz < z + d) continue;
-      if (m.water(tx, tz) || m.road(tx, tz) || m.occupant(tx, tz) || m.tree(tx, tz)) continue;
-      const f = m.fertility(tx, tz);
-      if (f < FIELD_MIN_FERTILITY) continue;
-      n++;
-      if (f >= FIELD_GOOD_FERTILITY) good++;
-    }
-  }
-  if (n < FEW_FIELDS)
-    return `Little room for fields here: ${n} tiles of open soil within ${range}. Farms like space around them.`;
-  return `Room for ${n} field tiles within ${range}${good < n / 2 ? ', mostly thin soil (slower wheat)' : ''}.`;
 }
 
 /**
@@ -152,16 +136,75 @@ export function buildingTool(ctx: ToolContext): Tool {
   const choices = () =>
     buildingChoices(ctx.mirror.settings.value.mode, ctx.ui.lens(), lostTownHall(ctx.mirror));
 
+  /**
+   * R1X: the reach of a specialized building on the ground, along the roads as the sim walks it: a
+   * wash on every road tile within reach, for each standing one of the chosen kind (faint) and for
+   * the ghost. Walked once per spot and per change of the map or the buildings, not per frame. Where
+   * no road is in reach (a ghost in an empty field) the straight-line ring stays as the fallback.
+   */
+  let reachKey = '';
+  let reachMarks: GroundMark[] = [];
+  function reachWash(
+    def: BuildingDef,
+    at: { x: number; z: number; rot: number },
+    faint: boolean,
+  ): GroundMark[] {
+    const tiles = reachRoadTiles((x, z) => ctx.mirror.road(x, z) > 0, { def: def.id, ...at });
+    const out: GroundMark[] = [];
+    for (const i of tiles.keys()) {
+      out.push({
+        x: i % MAP_SIZE,
+        z: Math.floor(i / MAP_SIZE),
+        w: 1,
+        d: 1,
+        ink: RING_INK,
+        fill: true,
+        reach: true,
+        dashed: faint,
+      });
+    }
+    return out;
+  }
+  function rings(def: BuildingDef | undefined, ghost?: { x: number; z: number; w: number; d: number }) {
+    if (!def?.reach) {
+      reachKey = '';
+      setGroundMarks([]);
+      return;
+    }
+    const key = `${def.id}:${rot}:${ghost ? `${ghost.x},${ghost.z}` : '-'}:${ctx.mirror.layerRevision}:${ctx.mirror.buildings.size}`;
+    if (key !== reachKey) {
+      reachKey = key;
+      const marks: GroundMark[] = [];
+      for (const b of ctx.mirror.buildings.values()) {
+        if (b.def !== def.id) continue;
+        const wash = reachWash(def, b, true);
+        if (wash.length) marks.push(...wash);
+        else {
+          const [bw, bd] = footprintSize(def, b.rot);
+          marks.push({ x: b.x, z: b.z, w: bw, d: bd, ink: RING_INK, ring: def.reach, dashed: true });
+        }
+      }
+      if (ghost) {
+        const wash = reachWash(def, { x: ghost.x, z: ghost.z, rot }, false);
+        marks.push(...(wash.length ? wash : [{ ...ghost, ink: RING_INK, ring: def.reach }]));
+      }
+      reachMarks = marks;
+    }
+    setGroundMarks(reachMarks);
+  }
+
   function preview() {
     const def = content.buildingById.get(variant.value);
     if (!tile || !def) {
       ctx.render.setGhost(null);
       cursorHint(null);
+      rings(def);
       return null;
     }
     const [w, d] = footprintSize(def, rot);
     const x = tile.x - Math.floor((w - 1) / 2);
     const z = tile.z - Math.floor((d - 1) / 2);
+    rings(def, { x, z, w, d });
     const place = canPlaceBuilding(ctx.mirror, def, x, z, rot);
     // Playtest round three: a door nobody can walk to would never be built (the sim says CUT_OFF).
     const cutOff =
@@ -173,19 +216,20 @@ export function buildingTool(ctx: ToolContext): Tool {
     ctx.render.setGhost({ kind: 'building', def: def.id, x, z, rot, valid: check.ok });
     const where = depositOf(def.id);
     const soil = soilHint(ctx.mirror, def, x, z, rot);
-    const room = check.ok ? fieldRoomHint(ctx.mirror, def, x, z, rot) : null;
     // Playtest round five: say so before a home or store goes up with no road at its door.
     const { front } = entranceTiles(def, x, z, rot);
     const road =
       check.ok && needsRoadAtDoor(def) && !ctx.mirror.road(front[0], front[1]) ? INPUT_COPY.noRoadYet : null;
-    const trees = check.ok ? treesHint(ctx.mirror, def, x, z, rot) : null;
+    const trees = check.ok || check.reason === 'NEEDS_WOODS' ? woodsHint(ctx.mirror, def, x, z, rot) : null;
     const why = check.ok
-      ? [road, trees, soil, room].filter(Boolean).join(' ') || null
-      : check.reason === 'NEEDS_DEPOSIT' && where
-        ? (DEPOSIT_HINT[where] ?? rejectText(check.reason))
-        : check.reason === 'TOO_STEEP'
-          ? `${rejectText(check.reason)} ${INPUT_COPY.earthSteep(levelingCoins(ctx.mirror, def, x, z, rot))}`
-          : rejectText(check.reason);
+      ? [road, trees, soil].filter(Boolean).join(' ') || null
+      : check.reason === 'NEEDS_WOODS' && trees
+        ? trees
+        : check.reason === 'NEEDS_DEPOSIT' && where
+          ? (DEPOSIT_HINT[where] ?? rejectText(check.reason))
+          : check.reason === 'TOO_STEEP'
+            ? `${rejectText(check.reason)} ${INPUT_COPY.earthSteep(levelingCoins(ctx.mirror, def, x, z, rot))}`
+            : rejectText(check.reason);
     // Playtest round five: nobody found R, so the cursor always says how to turn the building.
     cursorHint(why ? `${why} ${INPUT_COPY.turnHint}` : INPUT_COPY.turnHint, cx, cy);
     return { def, x, z, check };
@@ -243,6 +287,7 @@ export function buildingTool(ctx: ToolContext): Tool {
       tile = null;
       ctx.render.setGhost(null);
       cursorHint(null);
+      setGroundMarks([]);
     },
   };
 }

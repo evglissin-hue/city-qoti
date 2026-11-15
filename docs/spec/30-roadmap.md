@@ -181,6 +181,8 @@ Every wave runs the build and review loop (`31-parallel-development.md`), and ea
 
 ### R1 Zones first
 
+*Status (R1X, 2026-11-15)*: integrated and tuned on `cycle/r1x-integration`, one PR into `main` (#40), on top of the V2 wave. Holds: the guide's letters and the Charter in the new terms (Village charter on day 17 to 34 on the bench seeds, one lean day on hazel), the winter test, a third of hands in food, decisions under 150 with no pause or order, no stall, every command with a sender, the audit's dead-end hunt, the old valley refused kindly, a year's golden hash alike in Node and a browser worker, the lanes test recorded. Moved to R2 by the owner's ruling (2026-11-15): the Craftsfolk targets, the first household by day 40 and a third of households by day 70 (at R1's end the first comes by day 40 on willow only, and a third holds on willow's best day, 36%, but at day 70 on no seed; `13-ledger.md`, What holds), which R2's evenings unblock; and R1F's stricter growth bench scene (2.45 to 2.56 ms in the build container against 2 ms, 1.67 and 1.82 ms on the final build; the spec's own growth and carrier lines straddle their budgets there from run to run; `22-quality.md`), read on a reference laptop and taken up in R2's bench work. Details in `docs/build/cycle-r1x-integration.md`, As built.
+
 **Goal**: a fresh valley grows from a hamlet to a Village and through its first winter on the zones-first Ledger: the players zone, site a dozen specialized buildings and read five balances, and the town builds, staffs and supplies itself.
 
 **Cycles**: R1.0 zones contracts (serial; it may remove the chain economy's contracts, `20-architecture.md`, Redesign outline) → R1A the economy core (goods and families, baskets, prices, tiers by amount and variety, the carrier), R1B land and businesses (trades and how they are chosen, levels, the farmland kinds, specialized buildings with reach, the season plan), R1C the interface (the calmer top bar with demand bars and balances, the Build picker's shelves, the Balances, Purse and Businesses books, cards that wait their turn, paper by lamplight, editing a plan in place, the help card), R1D the Hearth's tools and the first days (the composing helpers and move, the guide's letters, story arcs, wishes and festival menus in the new goods), R1E art for trades (looks by trade and level from the kits that exist, the Brickworks, Granary, Market Square and Forester's Lodge), R1F the bench (new advisors, the audit's health kinds, the lanes test, the decisions count) (parallel) → R1X integration and tuning.
@@ -224,6 +226,7 @@ Every wave runs the build and review loop (`31-parallel-development.md`), and ea
 
 - Each player can say, from the screen alone, what the other's work did for theirs today (the evening edition, the two inks, a gap closed).
 - The lanes test passes on every bench seed.
+- R1's two lines, moved here by the owner (2026-11-15): on every bench seed the first Craftsfolk household by day 40 and a third of households by day 70; R1F's `r1 growth night` under 2 ms on a reference laptop.
 - A full evening with 2,000 residents stays inside the sim budgets; a year hashes the same in Node and a browser worker.
 
 ### V3 Yards, streets and the long view

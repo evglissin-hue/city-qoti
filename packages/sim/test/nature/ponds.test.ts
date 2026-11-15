@@ -9,6 +9,7 @@ import { isFrozen } from '../../src/systems/seasons/api';
 import { walkable } from '../../src/systems/movement/grid';
 import { recomputeDirty } from '../../src/systems/hearth/charm';
 import { scoreChunks } from '../../src/systems/nature/habitats';
+import { applyTurn, createTickCtx } from '../../src/turn';
 import { rejection, run } from '../helpers';
 import { expectMoneyInvariant, moneySnapshot } from '../money';
 import { addDecorAt } from '../fixtures/seasonsPlace';
@@ -25,6 +26,9 @@ function lowland(): WorldState {
       s.map.fertility[z * S + x] = 60;
     }
   }
+  // R1: the fixture stands at 10:00, when the carrier calls; let its visit pass first, so the
+  // treasury below moves only for the pond.
+  applyTurn(s, { t: s.lastTurn + 1, cmds: [] }, createTickCtx(s));
   return s;
 }
 

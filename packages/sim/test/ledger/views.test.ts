@@ -5,7 +5,7 @@ import { buildingView, runtimeView, stocksView, workforceView } from '../../src/
 import { inspect } from '../../src/view/inspect';
 import { hamletFixture } from '../fixtures/hamlet';
 import { run } from '../helpers';
-import { building, everyoneToWork, good, hire, ticks, toWork, untilHour } from './helpers';
+import { building, everyoneToWork, good, ticks, toWork, untilHour } from './helpers';
 
 const detail = (f: ReturnType<typeof hamletFixture>, id: number) =>
   inspect(f.state, 'building', id) as BuildingDetail;
@@ -13,21 +13,26 @@ const detail = (f: ReturnType<typeof hamletFixture>, id: number) =>
 describe('building views', () => {
   it('shows how far through its cycle a producer is', () => {
     const f = hamletFixture();
-    const sawpit = building(f.state, f.b.sawpit);
-    toWork(f.state, hire(f.state, sawpit.id, 2));
+    // R1: the baker's workshop, one hand on a 2-hour cycle, is halfway after an hour.
+    const bakery = building(f.state, f.b.bakery);
+    toWork(f.state, bakery.rt!.workers);
     ticks(f.state, TICKS_PER_HOUR);
-    expect(runtimeView(sawpit.def, sawpit.rt!).progress).toBeCloseTo(0.5, 2);
+    expect(runtimeView(bakery.def, bakery.rt!, bakery).progress).toBeCloseTo(0.5, 2);
   });
 
   it('tells the inspector what a building makes and what it waits for', () => {
     const f = hamletFixture();
     const bakery = building(f.state, f.b.bakery);
-    bakery.rt!.input[good('flour')] = 0;
+    bakery.rt!.input[good('grain')] = 0;
     ticks(f.state, TICKS_PER_HOUR);
     const d = detail(f, bakery.id);
     expect(d.method).toEqual({ name: 'Bake bread', hours: 2 });
-    expect(d.rates).toEqual({ inputs: [['flour', 9]], outputs: [['bread', 22.5]] });
-    expect(d.status).toContain('Waiting for flour');
+    // A 9-hour work day is 4.5 cycles of 2 grain into 3 bread.
+    expect(d.rates).toEqual({ inputs: [['grain', 9]], outputs: [['bread', 13.5]] });
+    // In spring, before any field turns golden, the baker says when the grain comes in.
+    expect(d.status).toContain(
+      'Waiting for grain: the first of it ripens in summer, so the ovens rest until then',
+    );
     expect(d.producedToday).toEqual([]);
   });
 
@@ -38,7 +43,7 @@ describe('building views', () => {
     ticks(f.state, TICKS_PER_HOUR);
     const d = detail(f, site.id);
     expect(site.rt!.status & BuildingStatus.noPorters).toBeFalsy();
-    expect(d.status).toContain('Waiting for 16 planks and 6 stone');
+    expect(d.status).toContain('Waiting for 16 timber and 6 stone; the carrier brings some at ten');
     expect(d.status).toContain(
       'Far from every storehouse: porters make the long walk, so deliveries come slowly',
     );
@@ -68,18 +73,19 @@ describe('reports', () => {
     expect(th).toMatchObject({ role: 'builder', jobs: 4, workers: 2 });
     expect(w.employed).toBe(6);
     expect(w.unemployed).toBe(1);
-    expect(w.jobs).toBe(4 + 4 + 2 + 1 + 2 + 1);
+    // Town hall 4, storehouse 4, granary 2, the baker 1, windmill 1, Forester's Lodge 3, stall 1.
+    expect(w.jobs).toBe(4 + 4 + 2 + 1 + 1 + 3 + 1);
     expect(w.vacancies).toBe(w.jobs - 6);
   });
 
   it('keeps produced and consumed per day in the stocks view', () => {
     const f = hamletFixture();
     const bakery = building(f.state, f.b.bakery);
-    toWork(f.state, [...bakery.rt!.workers, ...hire(f.state, bakery.id, 1)]);
+    toWork(f.state, bakery.rt!.workers);
     ticks(f.state, 2 * TICKS_PER_HOUR);
     const bread = stocksView(f.state).lines.find((l) => l.good === 'bread')!;
-    expect(bread.producedToday).toBe(5);
-    const flour = stocksView(f.state).lines.find((l) => l.good === 'flour')!;
-    expect(flour.consumedToday).toBe(2);
+    expect(bread.producedToday).toBe(3);
+    const grain = stocksView(f.state).lines.find((l) => l.good === 'grain')!;
+    expect(grain.consumedToday).toBe(2);
   });
 });

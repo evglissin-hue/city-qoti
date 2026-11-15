@@ -33,10 +33,11 @@ describe('food', () => {
     expect(pantryFood(h)).toBe(6);
     eatBreakfast(f.state, ctx);
     expect(pantryFood(h)).toBe(3);
-    // Three meals: bread, then vegetables (eaten less), then bread again.
-    expect(h.recentFoods).toEqual([bread, veg, bread]);
-    expect(f.state.economy.today.consumed[bread]).toBe(2 + 2 + 2);
-    expect(f.state.economy.today.consumed[veg]).toBe(3);
+    // Three meals: vegetables (first in the goods order since R1), then bread (eaten less), then
+    // vegetables again.
+    expect(h.recentFoods).toEqual([veg, bread, veg]);
+    expect(f.state.economy.today.consumed[veg]).toBe(2 + 2 + 2);
+    expect(f.state.economy.today.consumed[bread]).toBe(3);
     for (const id of h.members) expect(resident(f.state, id).needs[Need.food]).toBe(90);
     expect(ctx.events.some((e) => e.e === 'household.updated')).toBe(true);
   });

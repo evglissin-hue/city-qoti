@@ -1,5 +1,4 @@
 import { content, type BuildingDef } from '@qoti/content';
-import { Fragment } from 'preact';
 import { useEffect, useState } from 'preact/hooks';
 import type { Session } from '../app/session';
 import {
@@ -7,9 +6,7 @@ import {
   buildingGroup,
   buildingLock,
   teasableLater,
-  chainsOf,
   choiceGroup,
-  costBlock,
   DECOR_GROUP_LABEL,
   decorChoices,
   decorGroupsOf,
@@ -17,24 +14,16 @@ import {
   groupsOf,
   lostTownHall,
   type BuildingGroup,
-  type BuildingLock,
-  type Chain,
   type DecorGroup,
 } from '../input/catalog';
 import type { Tool } from '../input/tool';
-import { boostText } from './decorText';
-import { goodName, thousands } from './format';
-import { thumbnail, type ThumbnailKind } from '../render/thumbnails';
 import { Glyph, ToolIcon } from './icons';
+import { LedgerPicker } from './Picker';
+import { BuildCard, CostLine, Thumb } from './pickerCards';
 import { lenses, overlays, toolsForLens, type OverlayDef } from './lenses';
-import { rejectText } from './messages';
 import { booksFor, toggleBook } from './panels';
 import { planSummary } from './plans';
-import { INPUT_COPY } from '../input/copy';
-import { UNZONE } from './village';
-import { rankAtLeast, zoneInk } from './village';
-import { GoodIcon } from './goodIcons';
-import { buildingPurpose, goodPurpose } from './purpose';
+import { buildingPurpose } from './purpose';
 
 export function Toolbar({ session }: { session: Session }) {
   const manager = session.tools;
@@ -73,11 +62,14 @@ export function Toolbar({ session }: { session: Session }) {
 
   return (
     <footer class="toolbar" style={{ '--accent': accent }}>
-      {current?.id === 'building' && <BuildingPicker session={session} tool={current} />}
+      {current?.id === 'building' && lens === 'hearth' && <BuildingPicker session={session} tool={current} />}
+      {/* R1C: the Ledger's picker has three shelves, and the zone brushes live on the first. */}
+      {(current?.id === 'building' || current?.id === 'zone') && lens === 'ledger' && (
+        <LedgerPicker session={session} tool={current} />
+      )}
       {(current?.id === 'decor' || current?.id === 'fence') && (
         <DecorPicker session={session} tool={current} linear={current.id === 'fence'} />
       )}
-      {current?.id === 'zone' && <ZonePicker session={session} tool={current} />}
       {session.ui.sketch.value && <SketchBar session={session} />}
       {current?.variants &&
         current.variant &&
@@ -116,21 +108,29 @@ export function Toolbar({ session }: { session: Session }) {
           ))}
         </div>
         <div class="tools">
-          {tools.map((t, i) => (
-            <button
-              key={t.id}
-              type="button"
-              class={`tool ${active === t.id ? 'active' : ''} ${i > 0 && toolBand(t) !== toolBand(tools[i - 1]!) ? 'band' : ''}`}
-              data-testid={`tool-${t.id}`}
-              title={`${t.hint ? `${t.label}: ${t.hint}` : t.label}. Esc or a right-click puts it away.`}
-              onClick={() => (active === t.id ? manager.putAway() : manager.select(t.id))}
-            >
-              <span class="icon">
-                <ToolIcon id={t.id} fallback={t.icon} />
-              </span>
-              <span class="label">{t.label}</span>
-            </button>
-          ))}
+          {tools.map((t, i) => {
+            // R1C: in a standard Ledger the Build button opens the picker on the Zones shelf (the
+            // zone tool has no button of its own), so it reads as chosen while a brush is out.
+            const zoning = t.id === 'building' && lens === 'ledger' && mode === 'standard';
+            const on = active === t.id || (zoning && active === 'zone');
+            return (
+              <button
+                key={t.id}
+                type="button"
+                class={`tool ${on ? 'active' : ''} ${i > 0 && toolBand(t) !== toolBand(tools[i - 1]!) ? 'band' : ''}`}
+                data-testid={`tool-${t.id}`}
+                title={`${t.hint ? `${t.label}: ${t.hint}` : t.label}. Esc or a right-click puts it away.`}
+                onClick={() =>
+                  on ? manager.putAway() : zoning ? manager.select('zone') : manager.select(t.id)
+                }
+              >
+                <span class="icon">
+                  <ToolIcon id={t.id} fallback={t.icon} />
+                </span>
+                <span class="label">{t.label}</span>
+              </button>
+            );
+          })}
         </div>
         {books.length > 0 && (
           <div class="books" role="group" aria-label="Books">
@@ -267,37 +267,10 @@ function OverlayMenu({
   );
 }
 
-function CostLine({ coins, goods, free }: { coins?: number; goods?: [string, number][]; free: boolean }) {
-  if (free) return <span class="cost muted">Free in a creative valley</span>;
-  if (!coins && !goods?.length) return <span class="cost muted">No cost</span>;
-  return (
-    <span class="cost">
-      {coins ? (
-        <span class="coins">
-          <Glyph id="coin" />
-          {thousands(coins)}
-        </span>
-      ) : null}
-      {goods?.map(([g, q]) => (
-        <span key={g} class="mat">
-          {q} {goodName(g).toLowerCase()}
-        </span>
-      ))}
-    </span>
-  );
-}
-
-/** A card's little portrait of the piece, drawn from its art kit (blank until it is ready). */
-function Thumb({ kind, id }: { kind: ThumbnailKind; id: string }) {
-  const url = thumbnail(kind, id).value;
-  return <span class="thumb">{url && <img src={url} alt="" draggable={false} />}</span>;
-}
-
 /**
- * The Build picker: the valley's buildings by group. Playtest round six: Food and Materials show
- * their production chains, a row each, from the buildings that start from nothing to the ones that
- * finish the goods, with the goods that pass between them; buildings the town has not opened yet
- * stay in their chain, greyed, saying what opens them; those for a later rank wait off the page.
+ * The Hearth's Build picker: homes, specialized pieces and services as groups (the Ledger has its
+ * three shelves in Picker.tsx). Buildings the town has not opened yet show greyed, saying what
+ * opens them; those for a later rank wait off the page.
  */
 function BuildingPicker({ session, tool }: { session: Session; tool: Tool }) {
   const m = session.mirror;
@@ -314,7 +287,6 @@ function BuildingPicker({ session, tool }: { session: Session; tool: Tool }) {
   const showing = group && groups.includes(group) ? group : selected ? buildingGroup(selected) : groups[0];
   const cards = defs.filter((d) => buildingGroup(d) === showing);
   const free = mode !== 'standard';
-  const chained = showing === 'food' || showing === 'materials';
   const card = (d: BuildingDef) => (
     <BuildCard
       key={d.id}
@@ -323,7 +295,6 @@ function BuildingPicker({ session, tool }: { session: Session; tool: Tool }) {
       lock={locks.get(d.id) ?? null}
       on={tool.variant?.value === d.id}
       free={free}
-      compact={chained}
     />
   );
   const laterHere = later.filter((d) => buildingGroup(d) === showing);
@@ -347,34 +318,7 @@ function BuildingPicker({ session, tool }: { session: Session; tool: Tool }) {
           <span class="muted hint">{tool.hint}</span>
         </div>
       )}
-      {chained ? (
-        <div class="picker-chains" data-testid="building-chains">
-          {chainsOf(cards).map((c) => (
-            <div class="chain-row" key={c.columns[0]![0]!.id}>
-              <span class="chain-label" title={c.makes.map(goodPurpose).join(' ')}>
-                {chainLabel(c)}
-              </span>
-              {c.columns.map((col, i) => (
-                <Fragment key={i}>
-                  {i > 0 && (
-                    <span class="chain-flow" title={c.flows[i - 1]!.map(goodPurpose).join(' ')}>
-                      {c.flows[i - 1]!.map((g) => (
-                        <GoodIcon key={g} good={g} />
-                      ))}
-                      <span class="arrow" aria-hidden="true">
-                        →
-                      </span>
-                    </span>
-                  )}
-                  <span class="chain-col">{col.map(card)}</span>
-                </Fragment>
-              ))}
-            </div>
-          ))}
-        </div>
-      ) : (
-        <div class="picker-cards">{cards.map(card)}</div>
-      )}
+      <div class="picker-cards">{cards.map(card)}</div>
       {laterHere.length > 0 && (
         <p class="picker-later muted" data-testid="building-later">
           {buildingLock(m, laterHere[0]!)?.text}: {laterHere.map((d) => d.name).join(', ')}.
@@ -388,73 +332,6 @@ function BuildingPicker({ session, tool }: { session: Session; tool: Tool }) {
         </p>
       )}
     </div>
-  );
-}
-
-/** "Bread, from wheat": what a chain ends in, and what it starts from when that is different. */
-function chainLabel(c: Chain): string {
-  const end = c.makes.map((g) => goodName(g)).join(', ');
-  if (c.columns.length < 2) return end || 'Upkeep';
-  const raw = [
-    ...new Set(c.columns[0]!.flatMap((d) => (d.methods ?? []).flatMap((m) => m.outputs.map(([g]) => g)))),
-  ];
-  const from = raw.filter((g) => !c.makes.includes(g)).map((g) => goodName(g).toLowerCase());
-  if (!from.length) return end;
-  return `${end}, from ${from.length > 1 ? `${from.slice(0, -1).join(', ')} and ${from[from.length - 1]}` : from[0]}`;
-}
-
-/** One building in the picker: portrait, name, cost; greyed with its reason while locked. */
-function BuildCard({
-  session,
-  def: d,
-  lock,
-  on,
-  free,
-  compact,
-}: {
-  session: Session;
-  def: BuildingDef;
-  lock: BuildingLock | null;
-  on: boolean;
-  free: boolean;
-  compact: boolean;
-}) {
-  const m = session.mirror;
-  const blocked = free || lock ? null : costBlock(m, d.cost);
-  const title = [lock?.text ? `${lock.text}.` : '', blocked ? rejectText(blocked) : '', buildingPurpose(d)]
-    .filter(Boolean)
-    .join(' ');
-  return (
-    <button
-      type="button"
-      class={`card ${compact ? 'compact' : ''} ${on ? 'active' : ''} ${blocked ? 'short' : ''} ${lock ? 'locked' : ''}`}
-      data-testid={`variant-${d.id}`}
-      title={title}
-      disabled={!!lock}
-      onClick={() => session.tools?.select('building', d.id)}
-    >
-      <Thumb kind="building" id={d.id} />
-      <span class="card-text">
-        <strong>{d.name}</strong>
-        {lock ? (
-          <span class="lock-why muted">{lock.text}</span>
-        ) : (
-          <>
-            {!compact && (
-              <span class="size">
-                {d.size[0]} × {d.size[1]}
-                {!free && d.jobs ? `, ${d.jobs.count} ${d.jobs.count === 1 ? 'job' : 'jobs'}` : ''}
-                {!free && d.housing ? `, homes ${d.housing.residents}` : ''}
-              </span>
-            )}
-            <CostLine coins={d.cost?.coins} goods={d.cost?.goods} free={free} />
-            {!compact && !free && d.upkeep ? (
-              <span class="upkeep muted">{d.upkeep} a day to keep</span>
-            ) : null}
-          </>
-        )}
-      </span>
-    </button>
   );
 }
 
@@ -494,11 +371,6 @@ function DecorPicker({ session, tool, linear }: { session: Session; tool: Tool; 
           Set these out on the festival site. They come down the morning after, unless you keep one.
         </p>
       )}
-      {showing === 'work' && (
-        <p class="muted hint picker-hint" data-testid="work-pieces-hint">
-          Pricier pieces that make the work beside them go faster. Each card says which.
-        </p>
-      )}
       <div class="picker-cards">
         {choices.map(({ def, locked, hint }) => {
           const on = tool.variant?.value === def.id;
@@ -523,7 +395,6 @@ function DecorPicker({ session, tool, linear }: { session: Session; tool: Tool; 
                 ) : (
                   !free && def.cost && <CostLine coins={def.cost.coins} goods={def.cost.goods} free={false} />
                 )}
-                {!locked && boostText(def) && <span class="decor-effect muted">{boostText(def)}</span>}
               </span>
             </button>
           );
@@ -534,7 +405,7 @@ function DecorPicker({ session, tool, linear }: { session: Session; tool: Tool; 
   );
 }
 
-/** Which farmhouse the field tool is sowing for. */
+/** Which grain farm the field tool is sowing for. */
 function FieldHint({ session }: { session: Session }) {
   const id = session.ui.farm.value;
   const b = id !== null ? session.mirror.buildings.get(id) : undefined;
@@ -543,90 +414,10 @@ function FieldHint({ session }: { session: Session }) {
       <Glyph id="field" />
       <span>
         {b
-          ? 'Sowing for the farmhouse. Drag a box within reach; the tint shows the soil, and Shift+drag clears. A coin a tile.'
-          : 'Click a farmhouse first. Fields have to be within reach of someone with a hoe.'}
+          ? 'Sowing for the grain farm. Drag a box within reach; the tint shows the soil, and Shift+drag clears. A coin a tile.'
+          : 'Click a grain farm first. Fields have to be within reach of someone with a hoe.'}
       </span>
     </div>
-  );
-}
-
-/** I2 (C4F): the zone picker: each zone with its color and lot shapes, the chosen one's line below. */
-function ZonePicker({ session, tool }: { session: Session; tool: Tool }) {
-  const m = session.mirror;
-  const open = rankAtLeast(m.town.value?.rank, 'village');
-  const on = tool.variant?.value;
-  const zones = [...content.zones].sort((a, b) => a.layerValue - b.layerValue);
-  const chosen = zones.find((z) => z.id === on);
-  return (
-    <div class="picker panel zone-picker" data-testid="zone-picker">
-      <div class="picker-cards zone-cards">
-        {zones.map((z) => (
-          <button
-            key={z.id}
-            type="button"
-            class={`card zone-card ${on === z.id ? 'active' : ''} ${open ? '' : 'locked'}`}
-            aria-disabled={!open}
-            data-testid={`variant-${z.id}`}
-            title={z.blurb}
-            onClick={() => session.tools?.select('zone', z.id)}
-          >
-            <span class="zone-swatch" style={{ '--zone': zoneInk(z.id) }}>
-              <LotShapes sizes={z.lots.map((l) => l.size)} />
-            </span>
-            <span class="card-text">
-              <strong>{z.name}</strong>
-              <span class="size">{z.density === 'medium' ? 'Snug' : 'Roomy'}</span>
-            </span>
-          </button>
-        ))}
-        <button
-          type="button"
-          class={`card zone-card unzone ${on === UNZONE ? 'active' : ''}`}
-          data-testid={`variant-${UNZONE}`}
-          title="Grown buildings stay put; empty lots fold away."
-          onClick={() => session.tools?.select('zone', UNZONE)}
-        >
-          <span class="zone-swatch unzone">
-            <Glyph id="erase" />
-          </span>
-          <span class="card-text">
-            <strong>Unzone</strong>
-            <span class="size">Clear it</span>
-          </span>
-        </button>
-      </div>
-      {open ? (
-        <p class="zone-line">
-          {chosen ? (
-            <>
-              <b>{chosen.name}.</b> {chosen.blurb}{' '}
-            </>
-          ) : (
-            'Grown buildings stay put; empty lots fold away. '
-          )}
-          <span class="muted">{tool.hint}</span>
-        </p>
-      ) : (
-        <p class="zone-locked" data-testid="zone-locked">
-          <Glyph id="lock" /> {INPUT_COPY.zoneLocked}
-        </p>
-      )}
-    </div>
-  );
-}
-
-/** Tiny lot diagrams: the shapes a zone cuts, facing a road along the bottom. */
-function LotShapes({ sizes }: { sizes: [number, number][] }) {
-  let x = 2;
-  return (
-    <svg viewBox="0 0 30 24" aria-hidden="true">
-      <path d="M0 21.5h30" class="lot-road" />
-      {sizes.slice(0, 2).map(([w, d], i) => {
-        const rect = <rect key={i} x={x} y={20 - d * 4.5} width={w * 4.5} height={d * 4.5} rx="0.8" />;
-        x += w * 4.5 + 2;
-        return rect;
-      })}
-    </svg>
   );
 }
 
@@ -634,11 +425,14 @@ function LotShapes({ sizes }: { sizes: [number, number][] }) {
 function SketchBar({ session }: { session: Session }) {
   const sketch = session.ui.sketch.value!;
   const n = sketch.items.length;
+  // R1C: editing a plan in place says so, and its button goes to the card's Save changes.
+  const editing = sketch.basedOn !== null;
   return (
     <div class="variants panel sketch-bar" data-testid="sketch-bar">
       <Glyph id="plan" />
       <span>
-        <b>Sketching.</b> {n ? planSummary(sketch.items) : 'Whatever you place now is ink, not timber.'}
+        <b>{editing ? 'Redrawing the plan.' : 'Sketching.'}</b>{' '}
+        {n ? planSummary(sketch.items) : 'Whatever you place now is ink, not timber.'}
       </span>
       <button
         type="button"
@@ -646,7 +440,7 @@ function SketchBar({ session }: { session: Session }) {
         data-testid="sketch-review"
         onClick={() => (session.ui.panel.value = 'plans')}
       >
-        {n ? 'Name it and propose' : 'Plans'}
+        {editing ? 'Review the changes' : n ? 'Name it and propose' : 'Plans'}
       </button>
       <button
         type="button"

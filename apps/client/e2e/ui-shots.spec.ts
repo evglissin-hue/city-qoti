@@ -24,6 +24,7 @@ test('title, create, invite, lenses and settings look right', async ({ page }) =
   await expect(page.getByTestId('lens-ledger')).toHaveClass(/active/);
   await page.screenshot({ path: `${SHOTS}/c2d-lens-ledger.png`, animations: 'disabled' });
 
+  await page.getByTestId('menu-open').click();
   await page.getByTestId('settings-open').click();
   await expect(page.getByTestId('settings')).toBeVisible();
   await page.screenshot({ path: `${SHOTS}/c2d-settings.png`, animations: 'disabled' });

@@ -1,14 +1,17 @@
 // Story arcs (C4D): each arc can be completed in the village fixture, from arrival to finale, with
 // every letter rendered from content (deterministic text, {town} filled in), rewards paid and the
-// money invariant kept. Goals are met by changing the fixture directly (a sawpit by the river, a
-// request resolved, lanterns by the door), then advanceStories runs as the hourly pass would. The
+// money invariant kept. Goals are met by changing the fixture directly (a Forester's Lodge by the
+// river, a request resolved, lanterns by the door), then advanceStories runs as the hourly pass would. The
 // school and the Trading Post are stand-in defs until C4C's buildings land.
 import { content, type StoryArc } from '@qoti/content';
 import { describe, expect, it } from 'vitest';
 import { ResidentFlags, TICKS_PER_DAY } from '../../src/constants';
 import type { WorldState } from '../../src/contracts';
 import { findById } from '../../src/state/entities';
+import { canPlaceBuilding } from '../../src/rules/building';
+import { createStateReader } from '../../src/map/reader';
 import { insertBuilding } from '../../src/state/place';
+import { worldIndex } from '../../src/state/worldIndex';
 import { unlockInnovation } from '../../src/systems/innovations/api';
 import { morningPass } from '../../src/systems/residents/lifecycle';
 import { advanceStories, SETTLE_TICKS, STEP_GAP, stories } from '../../src/systems/stories';
@@ -42,17 +45,25 @@ const fill = (s: WorldState, text: string) => text.split('{town}').join(s.settin
 const SATISFY: Record<string, ((t: Scene) => void)[]> = {
   inventor: [
     ({ s }) => {
-      s.economy.everProduced[content.goodIndex.get('bread')!] = 40;
+      // R1D: a baker's business grown on a lot (in a windmill's reach by its trade).
+      insertBuilding(s, null, content.buildingById.get('workshop')!, 106, 64, 0, 0, {
+        site: false,
+        trade: 'baker',
+        lot: 801,
+      });
     },
     ({ s, home }) => {
       expect(placeDecorNear(s, 'lantern', home().x, home().z, 2)).toBe(true);
     },
     ({ s }) => {
-      insertBuilding(s, null, content.buildingById.get('sawpit')!, 97, 60, 0, 0, { site: false });
+      // A Forester's Lodge within three tiles of the river (x 100).
+      insertBuilding(s, null, content.buildingById.get('foresters-lodge')!, 97, 60, 0, 0, { site: false });
     },
     ({ s }) => {
-      insertBuilding(s, null, content.buildingById.get('woodcutter')!, 110, 60, 0, 0, { site: false });
-      insertBuilding(s, null, content.buildingById.get('windmill')!, 110, 64, 0, 0, { site: false });
+      // R1D: three trades among the workshops the town grew: the baker, a weaver and a chandler.
+      const workshop = content.buildingById.get('workshop')!;
+      insertBuilding(s, null, workshop, 110, 64, 0, 0, { site: false, trade: 'weaver', lot: 802 });
+      insertBuilding(s, null, workshop, 114, 64, 0, 0, { site: false, trade: 'chandler', lot: 803 });
     },
     ({ s, ctx }) => {
       unlockInnovation(s, ctx, 'wheelbarrows');
@@ -60,8 +71,9 @@ const SATISFY: Record<string, ((t: Scene) => void)[]> = {
   ],
   // C5A: Mother Thornbury's winter lessons.
   herbalist: [
-    ({ s }) => {
-      insertBuilding(s, null, content.buildingById.get('herb-garden')!, 116, 60, 0, 0, { site: false });
+    ({ s, home }) => {
+      // R1D: a garden bed by her door.
+      expect(placeBuildingNear(s, 'garden-bed', home().x, home().z, 3)).toBe(true);
     },
     ({ s, f }) => {
       findById(s.buildings, f.b.storehouses[0])!.rt!.store[content.goodIndex.get('firewood')!] = 60;
@@ -70,8 +82,8 @@ const SATISFY: Record<string, ((t: Scene) => void)[]> = {
       insertBuilding(s, null, content.buildingById.get('bath-house')!, 116, 66, 0, 0, { site: false });
     },
     ({ s, f }) => {
-      insertBuilding(s, null, content.buildingById.get('chopping-shed')!, 122, 60, 0, 0, { site: false });
-      insertBuilding(s, null, content.buildingById.get('chopping-shed')!, 122, 66, 0, 0, { site: false });
+      insertBuilding(s, null, content.buildingById.get('foresters-lodge')!, 122, 60, 0, 0, { site: false });
+      insertBuilding(s, null, content.buildingById.get('foresters-lodge')!, 122, 66, 0, 0, { site: false });
       findById(s.buildings, f.b.storehouses[0])!.rt!.store[content.goodIndex.get('firewood')!] = 100;
     },
     ({ s }) => {
@@ -102,8 +114,11 @@ const SATISFY: Record<string, ((t: Scene) => void)[]> = {
     },
   ],
   merchant: [
-    () => {
-      // The fixture's stalls already hold bread, vegetables, fish, cheese and firewood.
+    ({ s }) => {
+      // R1D: three kinds of Food on every stall, so the one nearest her has them.
+      for (const b of s.buildings)
+        if (content.buildingById.get(b.def)?.tags?.includes('market'))
+          for (const g of ['bread', 'vegetables', 'fish']) b.rt!.store[content.goodIndex.get(g)!] = 5;
     },
     ({ s }) => {
       // A pattern site both seats had a hand in.
@@ -121,14 +136,16 @@ const SATISFY: Record<string, ((t: Scene) => void)[]> = {
       expect(placeDecorNear(s, 'flower-bed', 77, 52, 1)).toBe(true);
       expect(placeDecorNear(s, 'flower-bed', 77, 52, 1)).toBe(true);
     },
-    () => {
-      // The fixture is a village already.
+    ({ s }) => {
+      // The fixture is a village already; R1D: the square comes in the same letter.
+      insertBuilding(s, null, content.buildingById.get('market-square')!, 110, 74, 0, 0, { site: false });
     },
     ({ s }) => {
       placeTest(s, content.buildingById.get('test-post')!, 110, 70);
     },
-    () => {
-      // The fixture has a standing order for planks.
+    ({ s }) => {
+      // R1D: a neighbor's deal on the season plan.
+      s.seasonPlan.deal = 'millhaven:materials:buy';
     },
   ],
   musician: [
@@ -151,6 +168,22 @@ const SATISFY: Record<string, ((t: Scene) => void)[]> = {
     },
   ],
 };
+
+/** R1D: puts a building on the first free spot within `r` tiles of (x, z). */
+function placeBuildingNear(s: WorldState, def: string, x: number, z: number, r: number): boolean {
+  const d = content.buildingById.get(def)!;
+  const reader = createStateReader(s, worldIndex(s).decorGrid);
+  const spots: [number, number][] = [];
+  for (let dz = -r - 1; dz <= r; dz++) for (let dx = -r - 1; dx <= r; dx++) spots.push([dx, dz]);
+  // Nearest first: a corner spot is further than it looks (distances are a rounded disk).
+  spots.sort((a, b) => a[0] * a[0] + a[1] * a[1] - (b[0] * b[0] + b[1] * b[1]));
+  for (const [dx, dz] of spots) {
+    if (!canPlaceBuilding(reader, d, x + dx, z + dz, 0).ok) continue;
+    insertBuilding(s, null, d, x + dx, z + dz, 0, 0, { site: false });
+    return true;
+  }
+  return false;
+}
 
 /** A second vacant home (the fixture has one, the grown cottage), east of the river. */
 function spareHome(s: WorldState): void {

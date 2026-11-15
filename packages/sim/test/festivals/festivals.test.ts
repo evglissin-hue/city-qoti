@@ -10,6 +10,7 @@ import { hashState } from '../../src/state/hash';
 import { deserialize, serialize } from '../../src/state/serialize';
 import { festivalMorale, reserveMenu } from '../../src/systems/festivals/api';
 import { siteRect } from '../../src/systems/festivals/site';
+import { isFood } from '../../src/state/zones';
 import { createTickCtx } from '../../src/turn';
 import { tickAt } from '../fixtures/seasonsPlace';
 import { rejection, run } from '../helpers';
@@ -54,7 +55,7 @@ describe('planning', () => {
 
   it('keeps menus to four goods, rotates the twist and checks the music', () => {
     const { state } = feastFixture(2, 10);
-    const five: [string, number][] = ['bread', 'fish', 'vegetables', 'cider', 'pies'].map((g) => [g, 5]);
+    const five: [string, number][] = ['bread', 'fish', 'vegetables', 'cider', 'cheese'].map((g) => [g, 5]);
     expect(rejection(run(state, plan({ menu: five })))).toBe('TOO_MANY');
     // The last festival's twist cannot come round again straight away.
     state.festival.history.push({
@@ -62,9 +63,9 @@ describe('planning', () => {
       year: 1,
       festival: 'harvest-supper',
       stars: 3,
-      twist: 'pie-contest',
+      twist: 'costume-parade',
     });
-    expect(rejection(run(state, plan({ twist: 'pie-contest' })))).toBe('NOT_ALLOWED');
+    expect(rejection(run(state, plan({ twist: 'costume-parade' })))).toBe('NOT_ALLOWED');
     expect(rejection(run(state, plan({ twist: 'snow-sculptures' })))).toBeUndefined();
     // Out of season.
     expect(rejection(run(state, plan({ twist: 'harvest-display' })))).toBe('NOT_ALLOWED');
@@ -113,38 +114,39 @@ describe('pieces', () => {
 describe('the menu', () => {
   it('is put by at noon on day 6 from town stock, never below a day of food', () => {
     const { state } = feastFixture(6, 11);
-    stock(state, 'pies', 30);
-    const pies = inTown(state, 'pies');
+    stock(state, 'cider', 30);
+    const cider = inTown(state, 'cider');
     const ctx = createTickCtx(state);
     reserveMenu(state, ctx);
     const reserved = (id: string) => state.festival.plan!.reserved.find(([g]) => g === good(id))?.[1] ?? 0;
-    expect(reserved('pies')).toBe(20);
-    expect(inTown(state, 'pies')).toBe(pies - 10);
+    // The fixture's menu wants 16 cider and has 8 put by.
+    expect(reserved('cider')).toBe(16);
+    expect(inTown(state, 'cider')).toBe(cider - 8);
     // Food never goes below a unit a resident.
     for (const b of state.buildings)
       if (b.rt)
         for (const g of content.goods.keys())
-          if (content.goods[g]!.food) {
+          if (isFood(g)) {
             b.rt.store[g] = 0;
             b.rt.output[g] = 0;
           }
-    stock(state, 'bread', state.residents.length + 5);
-    state.festival.plan!.menu.push([good('bread'), 40]);
+    stock(state, 'fish', state.residents.length + 5);
+    state.festival.plan!.menu.push([good('fish'), 40]);
     reserveMenu(state, ctx);
-    expect(reserved('bread')).toBe(5);
+    expect(reserved('fish')).toBe(5);
   });
 });
 
 describe('the evening', () => {
   it('runs from 18:00 to 22:00: guests go to the site, are scored and rewarded, then go home', () => {
     const { state } = feastFixture(6, 11);
-    stock(state, 'pies', 30);
+    stock(state, 'bread', 30);
     stock(state, 'cider', 20);
     const before = moneySnapshot(state);
     const site = siteRect(state, state.festival.plan!.site)!;
     const renown = state.renown.points;
     runUntil(state, todayAt(state, 13));
-    expect(state.festival.plan!.reserved.find(([g]) => g === good('pies'))?.[1]).toBe(20);
+    expect(state.festival.plan!.reserved.find(([g]) => g === good('bread'))?.[1]).toBe(20);
     let events = runUntil(state, todayAt(state, FESTIVAL.from) + 1);
     expect(events.some((e) => e.e === 'festival.started')).toBe(true);
     expect(state.festival.live).toBe(true);
@@ -198,8 +200,11 @@ describe('the evening', () => {
 describe('together moments', () => {
   it('closes the festival with a dance only when both seats are here, and changes nothing else', () => {
     const { state: two } = feastFixture(6, 11);
-    stock(two, 'pies', 30);
+    stock(two, 'bread', 30);
     two.time.connected = [0, 1];
+    // R1A's sightings at 18:00 would unlock Porridge No More this evening, crediting whoever is
+    // here: that feat is settled beforehand so only the dance can differ.
+    two.achievements.push({ id: 'porridge-no-more', tick: two.tick, seats: [0, 1] });
     // The day so far with both seats (achievements and their credits settle), then the evening
     // twice: once with both seats, once with one.
     runUntil(two, todayAt(two, 17));

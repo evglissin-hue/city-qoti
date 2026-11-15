@@ -1,8 +1,9 @@
 // Mock I2 views for UI work (C4.0), built from the sim's village fixture
 // (packages/sim/test/fixtures/village.ts) with the sim's own view builders, so ids, names and
 // numbers match the live fixture exactly. On top: a little history the fixture does not have yet
-// (a trade log and a caravan, an innovation halfway, a story under way with its letters, a couple
+// (a trade log, an innovation halfway, a story under way with its letters, a couple
 // and a profit line). Panels build against these first, then wire to the live Mirror.
+import { content } from '@qoti/content';
 import {
   buildingDetail,
   buildView,
@@ -41,17 +42,11 @@ s.residents.find((r) => r.id === b)!.marriedDay = 2;
 const wheel = s.innovations.find((i) => i.id === 'wheelbarrows')!;
 wheel.progress = 66;
 wheel.counter = 2;
-s.trade.caravans.push({
-  id: 9001,
-  neighbor: 'stonecross',
-  selling: [[5, 20]],
-  buying: [[9, 12]],
-  departTick: 2 * DAY + 400,
-  returnTick: 5 * DAY + 400,
-});
+// Goods by id, never by index: the goods list moved in R1 and may grow again.
+const good = (id: string): number => content.goodIndex.get(id)!;
 s.trade.log.push(
-  { tick: DAY + 400, neighbor: 'millhaven', good: 1, qty: -20, pennies: 5100 },
-  { tick: DAY + 400, neighbor: 'millhaven', good: 10, qty: 8, pennies: -2160 },
+  { tick: DAY + 400, neighbor: 'millhaven', good: good('vegetables'), qty: -20, pennies: 5100 },
+  { tick: DAY + 400, neighbor: 'millhaven', good: good('wool'), qty: 8, pennies: -2160 },
 );
 
 const view: ViewSnapshot = buildView(s);
@@ -102,7 +97,7 @@ export const mockStories: StoryView[] = [
     residentId: a!,
     step: 1,
     steps: 5,
-    hint: 'A sawpit within three tiles of the river.',
+    hint: "A Forester's Lodge within three tiles of the river.",
   },
 ];
 
@@ -119,7 +114,7 @@ export const mockLetters: LetterView[] = [
     arc: 'pippa-quill',
     from: 'Pippa Quill',
     residentId: a!,
-    text: 'Dear neighbors,\nThe river could be doing so much more than looking pretty.\nPut a sawpit near it and I will show you.',
+    text: "Dear neighbors,\nThe river could be doing so much more than looking pretty.\nPut a Forester's Lodge near it and I will show you.",
     tick: 2 * DAY + 800,
     step: 1,
   },

@@ -51,9 +51,10 @@ describe('charm sources', () => {
   it('noise from workshops adds up and is stored as a magnitude', () => {
     const one = standardWorld();
     const two = standardWorld();
-    build(one, 'sawpit', 130, 40);
-    build(two, 'sawpit', 130, 40);
-    build(two, 'sawpit', 130, 45);
+    // R1: weavers' workshops (3x3, noisy), where the sawpits stood.
+    build(one, 'workshop', 130, 40, 0, 0, 'weaver');
+    build(two, 'workshop', 130, 40, 0, 0, 'weaver');
+    build(two, 'workshop', 130, 45, 0, 0, 'weaver');
     settle(one);
     settle(two);
     const a = charm(one, 'charmNoise', 131, 43);

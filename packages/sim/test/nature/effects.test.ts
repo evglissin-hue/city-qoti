@@ -3,7 +3,7 @@
 // songbirds and frogs found and at home near the farm. Numbers come from the module's constants.
 import { content } from '@qoti/content';
 import { describe, expect, it } from 'vitest';
-import { TICKS_PER_HOUR } from '../../src/constants';
+import { MAP_SIZE, TICKS_PER_HOUR } from '../../src/constants';
 import type { Building, WorldState } from '../../src/contracts';
 import { pollinatorFactor } from '../../src/systems/habitats/api';
 import {
@@ -14,6 +14,8 @@ import {
   updatePests,
 } from '../../src/systems/nature/effects';
 import { yieldPermille } from '../../src/systems/production/modifiers';
+import { insertBuilding } from '../../src/state/place';
+import { methodOf } from '../../src/state/zones';
 import { ticks, toWork } from '../ledger/helpers';
 import { expectMoneyInvariant, moneySnapshot } from '../money';
 import { tickAt } from '../fixtures/seasonsPlace';
@@ -22,14 +24,23 @@ import { place, staff } from '../village/helpers';
 
 function yieldOf(s: WorldState, b: Building): number {
   const def = content.buildingById.get(b.def)!;
-  return yieldPermille(s, b, def, def.methods![b.rt!.method]!);
+  return yieldPermille(s, b, def, methodOf(b)!);
+}
+
+/** R1: a business of `trade` on its farmstead or workshop, on rich loam as `place` does. */
+function business(s: WorldState, trade: string, x: number, z: number): Building {
+  const t = content.tradeById.get(trade)!;
+  const d = content.buildingById.get(t.building)!;
+  for (let tz = z; tz < z + d.size[1]; tz++)
+    for (let tx = x; tx < x + d.size[0]; tx++) s.map.fertility[tz * MAP_SIZE + tx] = 100;
+  return insertBuilding(s, null, d, x, z, 0, 0, { site: false, trade });
 }
 
 describe('pollinators', () => {
   it('lift a farm by up to the bonus, alongside the weather', () => {
     const s = natureFixture().state;
     s.weather.today = 'rain';
-    const farm = place(s, 'farmhouse', EX + 4, EZ + 4);
+    const farm = business(s, 'grain-farm', EX + 4, EZ + 4);
     const plain = yieldOf(s, farm);
     expect(plain).toBeGreaterThan(1000); // C5A: rain on the fields
     setHabitats(s, EMPTY_CHUNK, { pollinator: POLLINATOR_FULL / 2 });
@@ -42,7 +53,7 @@ describe('pollinators', () => {
   it('and the pests leave a Hamlet alone', () => {
     const s = natureFixture().state;
     s.charter.rank = 'hamlet';
-    const farm = place(s, 'farmhouse', EX + 4, EZ + 4);
+    const farm = business(s, 'grain-farm', EX + 4, EZ + 4);
     setHabitats(s, EMPTY_CHUNK, { pollinator: 255 });
     expect(pollinatorFactor(s, farm.id)).toBe(1000);
     updatePests(s);
@@ -51,9 +62,9 @@ describe('pollinators', () => {
 
   it('leave workshops alone', () => {
     const s = natureFixture().state;
-    const smithy = place(s, 'smithy', EX + 4, EZ + 4);
+    const shop = business(s, 'carpenter', EX + 4, EZ + 4);
     setHabitats(s, EMPTY_CHUNK, { pollinator: 255 });
-    expect(pollinatorFactor(s, smithy.id)).toBe(1000);
+    expect(pollinatorFactor(s, shop.id)).toBe(1000);
   });
 
   it("set the apiary's honey: a quarter with no flowers, all of it with plenty", () => {
@@ -84,8 +95,8 @@ describe('pollinators', () => {
 describe('pests', () => {
   it('take up to PEST_MAX of crops in summer, cut by songbirds and frogs found nearby', () => {
     const s = natureFixture().state;
-    const farm = place(s, 'farmhouse', EX + 4, EZ + 4);
-    const orchard = place(s, 'orchard', EX + 9, EZ + 4);
+    const farm = business(s, 'grain-farm', EX + 4, EZ + 4);
+    const orchard = business(s, 'orchard', EX + 9, EZ + 4);
     updatePests(s);
     expect(s.nature.pests.find(([id]) => id === farm.id)?.[1]).toBe(PEST_MAX);
     expect(s.nature.pests.find(([id]) => id === orchard.id)?.[1]).toBe(PEST_MAX);
@@ -105,7 +116,7 @@ describe('pests', () => {
 
   it('are gone outside summer', () => {
     const s = natureFixture().state;
-    place(s, 'farmhouse', EX + 4, EZ + 4);
+    business(s, 'grain-farm', EX + 4, EZ + 4);
     s.tick = tickAt(0, 2, 1, 10);
     updatePests(s);
     expect(s.nature.pests).toEqual([]);
@@ -113,7 +124,7 @@ describe('pests', () => {
 
   it('pass by animals and workshops', () => {
     const s = natureFixture().state;
-    const dairy = place(s, 'dairy', EX + 4, EZ + 4);
+    const dairy = business(s, 'dairy', EX + 4, EZ + 4);
     updatePests(s);
     expect(s.nature.pests.some(([id]) => id === dairy.id)).toBe(false);
   });

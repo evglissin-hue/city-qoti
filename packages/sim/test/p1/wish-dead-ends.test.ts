@@ -15,7 +15,7 @@ import { wishProgress } from '../../src/systems/hearth/wishes/progress';
 import { doorTileOf } from '../../src/systems/movement/api';
 import { createTickCtx } from '../../src/turn';
 import { hamletFixture } from '../fixtures/hamlet';
-import { build, decor, road, settle, standardWorld } from '../hearth/helpers';
+import { bakerCouldOpen, build, decor, plot, road, settle, standardWorld } from '../hearth/helpers';
 
 const S = MAP_SIZE;
 const wish = (id: string) => content.wishById.get(id)!;
@@ -28,14 +28,21 @@ function removeBuilding(s: WorldState, id: number): void {
 describe('the achievability walk', () => {
   it('needs a building the town has or can place now', () => {
     const s = standardWorld();
-    const bakery: Condition = { near: { buildingTag: 'bakery', of: 'home', within: 12 } };
-    // The bakery waits for a windmill, which waits for a farmhouse.
-    expect(achievable(s, bakery)).toBe(false);
-    build(s, 'windmill', 60, 60);
-    expect(achievable(s, bakery)).toBe(true);
+    // R1: a carpenter grows in a sawmill's reach, and the sawmill waits for Pippa's water wheel.
+    const carpenter: Condition = { near: { buildingTag: 'carpenter', of: 'home', within: 12 } };
+    expect(achievable(s, carpenter)).toBe(false);
+    s.innovations.find((i) => i.id === 'water-wheel')!.unlockedTick = 1;
+    expect(achievable(s, carpenter)).toBe(true);
+    const s1 = standardWorld();
+    build(s1, 'sawmill', 60, 60);
+    expect(achievable(s1, carpenter)).toBe(true);
     const s2 = standardWorld();
-    build(s2, 'bakery', 60, 60);
-    expect(achievable(s2, bakery)).toBe(true);
+    build(s2, 'workshop', 60, 60, 0, 0, 'carpenter');
+    expect(achievable(s2, carpenter)).toBe(true);
+    // A baker wants a windmill's reach, and a windmill needs nothing.
+    expect(achievable(standardWorld(), { near: { buildingTag: 'baker', of: 'home', within: 12 } })).toBe(
+      true,
+    );
     // A well has no requirements.
     expect(achievable(standardWorld(), { near: { building: 'well', of: 'home', within: 4 } })).toBe(true);
   });
@@ -58,7 +65,7 @@ describe('the achievability walk', () => {
 
   it('reads all, any and not, and counts everything else as achievable', () => {
     const s = standardWorld();
-    const no: Condition = { near: { buildingTag: 'bakery', of: 'home', within: 12 } };
+    const no: Condition = { near: { buildingTag: 'carpenter', of: 'home', within: 12 } };
     const yes: Condition = { near: { building: 'well', of: 'home', within: 4 } };
     expect(achievable(s, { all: [yes, no] })).toBe(false);
     expect(achievable(s, { any: [yes, no] })).toBe(true);
@@ -73,15 +80,25 @@ describe('the achievability walk', () => {
   it('does not offer a wish whose target is out of reach', () => {
     const f = hamletFixture();
     const s = f.state;
-    // The fixture has a bakery and a windmill, so the wish is on offer far from them.
+    // The fixture has a baker and a windmill, so the wish is on offer far from them.
     findById(s.households, f.households[2])!.homeId = build(s, 'cottage', 140, 140).id;
+    // R1 (R1D): and only where a baker could open: Workshops land in a windmill's reach.
+    expect(generateWishes(s, createTickCtx(s), [wish('bakery-nearby')])).toBe(0);
+    bakerCouldOpen(s, 143, 140);
     expect(generateWishes(s, createTickCtx(s), [wish('bakery-nearby')])).toBeGreaterThanOrEqual(1);
+    // R1: a baker is always within reach (a windmill needs nothing), so the same wish asking for a
+    // carpenter stands in: no sawmill and no water wheel, no wish, until a sawmill stands.
+    const carpentry = {
+      ...wish('bakery-nearby'),
+      target: { near: { buildingTag: 'carpenter', of: 'home', within: 12 } },
+    } as const;
     const g = hamletFixture();
     const t = g.state;
     findById(t.households, g.households[2])!.homeId = build(t, 'cottage', 140, 140).id;
-    removeBuilding(t, g.b.bakery);
-    removeBuilding(t, g.b.windmill);
-    expect(generateWishes(t, createTickCtx(t), [wish('bakery-nearby')])).toBe(0);
+    bakerCouldOpen(t, 143, 140);
+    expect(generateWishes(t, createTickCtx(t), [carpentry])).toBe(0);
+    build(t, 'sawmill', 120, 120);
+    expect(generateWishes(t, createTickCtx(t), [carpentry])).toBeGreaterThanOrEqual(1);
   });
 });
 
@@ -225,7 +242,7 @@ describe('rebinding places that are gone', () => {
 });
 
 describe('what the garden and quiet wishes say they still want', () => {
-  it('a garden plot counts a herb garden and suggests only what the town can do now', () => {
+  it('a garden plot counts a market garden and suggests only what the town can do now', () => {
     const f = hamletFixture();
     const s = f.state;
     const r = findById(s.residents, f.residents[0]![0]!)!;
@@ -233,14 +250,15 @@ describe('what the garden and quiet wishes say they still want', () => {
     const w = makeWish(s, ctx, r, wish('a-garden-plot'));
     const home = findById(s.buildings, w.home)!;
     let wants = wishProgress(s).find((p) => p.id === w.id)!.wants;
-    expect(wants).toContain('vegetable plot');
+    expect(wants).toContain('garden bed');
+    expect(wants).not.toContain('garden-bed');
     expect(wants).not.toContain('herb planter');
     expect(wants).not.toContain('herb garden');
     s.hearth.unlocked.push('herb-planter');
     wants = wishProgress(s).find((p) => p.id === w.id)!.wants;
     expect(wants).toContain('herb planter');
     expect(evaluate(s, wish('a-garden-plot').target, wishBinding(w))).toBe(false);
-    build(s, 'herb-garden', home.x, home.z - 3);
+    plot(s, home.x, home.z - 4);
     expect(evaluate(s, wish('a-garden-plot').target, wishBinding(w))).toBe(true);
   });
 

@@ -3,7 +3,7 @@ import { MAP_SIZE, MAX_NOTE_CHARS, TICKS_PER_DAY, type RequestAsk, type RequestV
 import { useState } from 'preact/hooks';
 import type { Session } from '../../app/session';
 import type { Mirror } from '../../state/mirror';
-import { buildingName, dayDate, goodName, seatLabel } from '../format';
+import { dayDate, goodName, placeName, seatLabel } from '../format';
 import { GoodIcon } from '../goodIcons';
 import { Glyph } from '../icons';
 import { dayOf, goodOrder, partnerName } from '../village';
@@ -12,12 +12,12 @@ import { Stepper } from './villageParts';
 
 /** The building nearest a tile, for "around the well". */
 function nearestBuilding(m: Mirror, x: number, z: number): string | null {
-  let best: { d: number; def: string } | null = null;
+  let best: { d: number; name: string } | null = null;
   for (const b of m.buildings.values()) {
     const d = Math.abs(b.x - x) + Math.abs(b.z - z);
-    if (d <= 10 && (!best || d < best.d)) best = { d, def: b.def };
+    if (d <= 10 && (!best || d < best.d)) best = { d, name: placeName(b) };
   }
-  return best ? buildingName(best.def).toLowerCase() : null;
+  return best ? best.name.toLowerCase() : null;
 }
 
 /** A request in the valley's words ("12 cheese at the market stall by Spring 4"). */
@@ -28,7 +28,7 @@ export function askText(m: Mirror, ask: RequestAsk): string {
     return `Make it lovelier ${near ? `around the ${near}` : 'over there'} (charm ${ask.target})`;
   }
   const at = ask.at ? m.buildings.get(ask.at) : undefined;
-  const where = at ? ` at the ${buildingName(at.def).toLowerCase()}` : ' in store';
+  const where = at ? ` at the ${placeName(at).toLowerCase()}` : ' in store';
   const label = content.goodById.get(ask.good)?.label ?? goodName(ask.good).toLowerCase();
   return `${ask.qty} ${label}${where} by ${dayDate(ask.byDay)}`;
 }
@@ -312,7 +312,7 @@ export function AskForm({ session }: { session: Session }) {
               <option value={0}>anywhere in store</option>
               {outlets.map((b) => (
                 <option key={b.id} value={b.id}>
-                  {buildingName(b.def).toLowerCase()} ({b.x}, {b.z})
+                  {placeName(b).toLowerCase()} ({b.x}, {b.z})
                 </option>
               ))}
             </select>

@@ -102,6 +102,8 @@ Target: about 60 achievements by I5.
 
 [R1] Reworded with the goods: Plank by Plank is the first timber cut; Market Day is every base flavor of Food on the stalls at once. A Winter Without Imports moves to R1, when the carrier arrives (a winter in which it brought no Food or Fuel and nobody went short). New feats *(content)*:
 
+*As built (R1D)*: new counts `businesses` (grown on a lot, by trade or building with `ref`), `businessTrades`, `foodFlavors` (`flavorsOnOffer`) and `importFreeWinters` (a winter in which the carrier's newest day never held Food or Fuel, nobody's food need fell under 35 and nobody was cold), and the predicates `marketDay` (every raw Food good on a market's shelf at once) and `porridgeNoMore` (every household with three Food flavors among its recent meals and its garden; R1A's household variety replaces the reading). The Village Charter adds "3 flavors of Food on offer" beside its five days of Food.
+
 | Achievement | From | Condition |
 |---|---|---|
 | A Town That Builds Itself | R1 | ten businesses standing that nobody placed by hand |

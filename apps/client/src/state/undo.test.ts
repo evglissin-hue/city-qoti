@@ -187,10 +187,6 @@ describe('UndoStack', () => {
       t: 'tiles',
       values: [0],
     });
-    expect(r.undo.prepare({ t: 'ledger.setForSale', good: 'logs', forSale: true }, r.mirror)).toEqual({
-      t: 'flag',
-      value: false,
-    });
     // Speed and profile changes are not undoable.
     expect(r.undo.prepare({ t: 'time.setSpeed', speed: 2 }, r.mirror)).toBeNull();
   });
@@ -207,5 +203,128 @@ describe('UndoStack', () => {
       r.turn();
     }
     expect(r.undo.size.value).toBe(UNDO_DEPTH);
+  });
+});
+
+describe('UndoStack, moves (R1D)', () => {
+  it('undoes a building move and a decor move by moving back', () => {
+    const r = rig('undo-move', { mode: 'sandbox' });
+    const [x, z] = buildingSpot(r, 'house');
+    r.submit({ t: 'build.place', def: 'house', x, z, rot: 0 });
+    r.turn();
+    const id = [...r.mirror.buildings.keys()][0]!;
+    r.submit({ t: 'build.move', id, x: x + 5, z, rot: 1 });
+    r.turn();
+    expect(r.mirror.buildings.get(id)).toMatchObject({ x: x + 5, z, rot: 1 });
+    expect(r.undo.labels().at(-1)).toBe('moving the house');
+    expect(r.undo.undo(r.mirror, r.raw)).toMatchObject({ ok: true });
+    r.turn();
+    expect(r.mirror.buildings.get(id)).toMatchObject({ x, z, rot: 0 });
+
+    const def = content.decorById.get('bench')!;
+    const reader = worldIndex(r.world).reader;
+    let spot: [number, number] | null = null;
+    for (let i = 0; i < 400 && !spot; i++) {
+      const fx = (r.center[0] + (i % 20) - 10) * 256 + 128;
+      const fz = (r.center[1] + Math.floor(i / 20) - 10) * 256 + 128;
+      if (canPlaceDecor(reader, def, fx, fz, 0).ok) spot = [fx, fz];
+    }
+    r.submit({ t: 'decor.place', def: 'bench', fx: spot![0], fz: spot![1], rot: 0 });
+    r.turn();
+    const did = [...r.mirror.decor.keys()][0]!;
+    r.submit({ t: 'decor.move', id: did, fx: spot![0] + 512, fz: spot![1], rot: 8 });
+    r.turn();
+    expect(r.mirror.decor.get(did)).toMatchObject({ fx: spot![0] + 512, rot: 8 });
+    r.undo.undo(r.mirror, r.raw);
+    r.turn();
+    expect(r.mirror.decor.get(did)).toMatchObject({ fx: spot![0], fz: spot![1], rot: 0 });
+  });
+
+  it('refuses to undo a move when the piece has moved on', () => {
+    const r = rig('undo-move-changed', { mode: 'sandbox' });
+    const [x, z] = buildingSpot(r, 'house');
+    r.submit({ t: 'build.place', def: 'house', x, z, rot: 0 });
+    r.turn();
+    const id = [...r.mirror.buildings.keys()][0]!;
+    r.submit({ t: 'build.move', id, x: x + 5, z, rot: 0 });
+    r.turn();
+    r.raw({ t: 'build.move', id, x: x + 9, z, rot: 0 });
+    r.turn();
+    expect(r.undo.undo(r.mirror, r.raw)).toEqual({ ok: false, reason: 'CHANGED' });
+  });
+});
+
+describe('UndoStack, the carrier (R1C)', () => {
+  const standard = { mode: 'standard', economy: 'standard' } as const;
+  const food = (r: ReturnType<typeof rig>) =>
+    r.mirror.balances.value!.lines.find((l) => l.family === 'food')!;
+
+  it('undoes a rule and the selling switch together, back to the old terms', () => {
+    const r = rig('undo-carrier-rule', standard);
+    const before = { rule: food(r).rule, sell: food(r).sell };
+    r.submit({ t: 'carrier.setRule', family: 'food', rule: 'never', sell: !before.sell });
+    r.turn();
+    expect(food(r)).toMatchObject({ rule: 'never', sell: !before.sell });
+    expect(r.undo.undo(r.mirror, r.raw)).toMatchObject({ ok: true });
+    r.turn();
+    expect(food(r)).toMatchObject(before);
+  });
+
+  it('undoes a reserve, and a budget, one family or purse at a time', () => {
+    const r = rig('undo-carrier-reserve', standard);
+    const reserve = food(r).reserve;
+    const budget = r.mirror.balances.value!.budget;
+    r.submit({ t: 'carrier.setReserve', family: 'food', reserve: reserve + 2 });
+    r.turn();
+    r.submit({ t: 'carrier.setBudget', coins: 77 });
+    r.turn();
+    expect(food(r).reserve).toBe(reserve + 2);
+    expect(r.mirror.balances.value!.budget).toBe(7700);
+    r.undo.undo(r.mirror, r.raw);
+    r.turn();
+    expect(r.mirror.balances.value!.budget).toBe(budget);
+    expect(food(r).reserve).toBe(reserve + 2);
+    r.undo.undo(r.mirror, r.raw);
+    r.turn();
+    expect(food(r).reserve).toBe(reserve);
+  });
+
+  it('says CHANGED when the partner set the family since', () => {
+    const r = rig('undo-carrier-changed', standard);
+    r.submit({ t: 'carrier.setReserve', family: 'fuel', reserve: 9 });
+    r.turn();
+    r.raw({ t: 'carrier.setReserve', family: 'fuel', reserve: 4 });
+    r.turn();
+    expect(r.undo.undo(r.mirror, r.raw)).toEqual({ ok: false, reason: 'CHANGED' });
+  });
+});
+
+describe('UndoStack, the season plan (R1C)', () => {
+  const standard = { mode: 'standard', economy: 'standard' } as const;
+  const plan = (r: ReturnType<typeof rig>) => r.mirror.balances.value!.plan;
+
+  it('puts back only the answer it changed', () => {
+    const r = rig('undo-plan', standard);
+    const before = { ...plan(r) };
+    r.submit({ t: 'season.setPlan', plan: { food: 12, fuel: 10 } });
+    r.turn();
+    r.submit({ t: 'season.setPlan', plan: { buildFirst: 'farms' } });
+    r.turn();
+    expect(plan(r)).toMatchObject({ food: 12, fuel: 10, buildFirst: 'farms' });
+    expect(r.undo.undo(r.mirror, r.raw)).toMatchObject({ ok: true });
+    r.turn();
+    expect(plan(r)).toMatchObject({ food: 12, fuel: 10, buildFirst: before.buildFirst });
+    r.undo.undo(r.mirror, r.raw);
+    r.turn();
+    expect(plan(r)).toEqual(before);
+  });
+
+  it('says CHANGED when the partner answered the same question since', () => {
+    const r = rig('undo-plan-changed', standard);
+    r.submit({ t: 'season.setPlan', plan: { reserve: 10 } });
+    r.turn();
+    r.raw({ t: 'season.setPlan', plan: { reserve: 6 } });
+    r.turn();
+    expect(r.undo.undo(r.mirror, r.raw)).toEqual({ ok: false, reason: 'CHANGED' });
   });
 });

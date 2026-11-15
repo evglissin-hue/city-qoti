@@ -10,7 +10,7 @@ import type { HabitatDef, HabitatSource, ModuleDef, WildlifeDef } from './types'
 
 // prettier-ignore
 export const habitats: readonly HabitatDef[] = [
-  { id: 'pollinator', name: 'Pollinator', blurb: 'Flowers, orchards, herb gardens and verges: anything worth a bee visiting.' },
+  { id: 'pollinator', name: 'Pollinator', blurb: 'Flowers, orchards, hives and verges: anything worth a bee visiting.' },
   { id: 'wetland', name: 'Wetland', blurb: 'Ponds, reeds and the quiet shallows of the river.' },
   { id: 'hedgerow', name: 'Hedgerow', blurb: 'Hedges and the lanes they line, the motorways of small birds.' },
   { id: 'woodland', name: 'Woodland', blurb: 'Grown and old trees, the older the better.' },
@@ -34,7 +34,7 @@ export const habitatSources: readonly HabitatSource[] = [
   { habitat: 'hedgerow', from: 'site', ref: 'hedgerow-lane', points: 80 },
   { habitat: 'meadow', from: 'decor', ref: 'verge', points: 12 },
   { habitat: 'meadow', from: 'terrain', ref: 'meadow', points: 1 },
-  { habitat: 'pollinator', from: 'building', ref: 'herb', points: 40 },
+  { habitat: 'pollinator', from: 'building', ref: 'hives', points: 40 },
   { habitat: 'pollinator', from: 'building', ref: 'orchard', points: 60 },
   { habitat: 'pollinator', from: 'custom', ref: 'windowBoxes', points: 6 },
   { habitat: 'pollinator', from: 'decor', ref: 'blossom', points: 8 },
@@ -126,21 +126,21 @@ export const wren: WildlifeDef = { id: 'wren', name: 'Wren', kind: 'bird', habit
 // module with no goods goes on at once. Stand-in art until C5E draws them (`params.module`).
 
 // prettier-ignore
-export const arcade: ModuleDef = { id: 'arcade', name: 'Arcade', slot: 'front', cost: { coins: 20, goods: [['stone', 12], ['planks', 4]] }, charm: [{ category: 'comfort', value: 4, radius: 2 }], art: { kit: 'module', params: { module: 'arcade' } } };
+export const arcade: ModuleDef = { id: 'arcade', name: 'Arcade', slot: 'front', cost: { coins: 20, goods: [['stone', 12], ['timber', 4]] }, charm: [{ category: 'comfort', value: 4, radius: 2 }], art: { kit: 'module', params: { module: 'arcade' } } };
 // prettier-ignore
-export const balcony: ModuleDef = { id: 'balcony', name: 'Balcony', slot: 'side', cost: { coins: 10, goods: [['planks', 6]] }, charm: [{ category: 'view', value: 2, radius: 1 }], art: { kit: 'module', params: { module: 'balcony' } } };
+export const balcony: ModuleDef = { id: 'balcony', name: 'Balcony', slot: 'side', cost: { coins: 10, goods: [['timber', 6]] }, charm: [{ category: 'view', value: 2, radius: 1 }], art: { kit: 'module', params: { module: 'balcony' } } };
 // prettier-ignore
-export const bayWindow: ModuleDef = { id: 'bay-window', name: 'Bay window', slot: 'side', cost: { coins: 10, goods: [['planks', 4], ['stone', 4]] }, charm: [{ category: 'comfort', value: 2, radius: 1 }], art: { kit: 'module', params: { module: 'bay-window' } } };
+export const bayWindow: ModuleDef = { id: 'bay-window', name: 'Bay window', slot: 'side', cost: { coins: 10, goods: [['timber', 4], ['stone', 4]] }, charm: [{ category: 'comfort', value: 2, radius: 1 }], art: { kit: 'module', params: { module: 'bay-window' } } };
 // prettier-ignore
-export const dormer: ModuleDef = { id: 'dormer', name: 'Dormer', slot: 'roof', cost: { coins: 8, goods: [['planks', 6]] }, charm: [{ category: 'comfort', value: 1, radius: 1 }], art: { kit: 'module', params: { module: 'dormer' } } };
+export const dormer: ModuleDef = { id: 'dormer', name: 'Dormer', slot: 'roof', cost: { coins: 8, goods: [['timber', 6]] }, charm: [{ category: 'comfort', value: 1, radius: 1 }], art: { kit: 'module', params: { module: 'dormer' } } };
 /** Cosmetic in I3: it houses nobody extra (docs/spec/10-world-and-building.md). */
 // prettier-ignore
-export const extraFloor: ModuleDef = { id: 'extra-floor', name: 'Extra floor', slot: 'top', cost: { coins: 25, goods: [['planks', 12], ['bricks', 8]] }, art: { kit: 'module', params: { module: 'extra-floor' } } };
+export const extraFloor: ModuleDef = { id: 'extra-floor', name: 'Extra floor', slot: 'top', cost: { coins: 25, goods: [['timber', 12], ['brick', 8]] }, art: { kit: 'module', params: { module: 'extra-floor' } } };
 // prettier-ignore
-export const flowerBoxes: ModuleDef = { id: 'flower-boxes', name: 'Flower boxes', slot: 'wall', cost: { coins: 4, goods: [['planks', 2]] }, charm: [{ category: 'nature', value: 3, radius: 1 }], art: { kit: 'module', params: { module: 'flower-boxes' } } };
+export const flowerBoxes: ModuleDef = { id: 'flower-boxes', name: 'Flower boxes', slot: 'wall', cost: { coins: 4, goods: [['timber', 2]] }, charm: [{ category: 'nature', value: 3, radius: 1 }], art: { kit: 'module', params: { module: 'flower-boxes' } } };
 // prettier-ignore
 export const ivy: ModuleDef = { id: 'ivy', name: 'Ivy', slot: 'wall', cost: { coins: 2 }, charm: [{ category: 'nature', value: 3, radius: 1 }], art: { kit: 'module', params: { module: 'ivy' } } };
 // prettier-ignore
-export const porch: ModuleDef = { id: 'porch', name: 'Porch', slot: 'front', cost: { coins: 8, goods: [['planks', 6]] }, charm: [{ category: 'comfort', value: 3, radius: 2 }], art: { kit: 'module', params: { module: 'porch' } } };
+export const porch: ModuleDef = { id: 'porch', name: 'Porch', slot: 'front', cost: { coins: 8, goods: [['timber', 6]] }, charm: [{ category: 'comfort', value: 3, radius: 2 }], art: { kit: 'module', params: { module: 'porch' } } };
 // prettier-ignore
-export const tower: ModuleDef = { id: 'tower', name: 'Tower', slot: 'top', cost: { coins: 30, goods: [['stone', 16], ['planks', 6]] }, charm: [{ category: 'view', value: 4, radius: 3 }], art: { kit: 'module', params: { module: 'tower' } } };
+export const tower: ModuleDef = { id: 'tower', name: 'Tower', slot: 'top', cost: { coins: 30, goods: [['stone', 16], ['timber', 6]] }, charm: [{ category: 'view', value: 4, radius: 3 }], art: { kit: 'module', params: { module: 'tower' } } };

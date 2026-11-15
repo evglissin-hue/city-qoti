@@ -1,6 +1,7 @@
 // P1 (the dead-end hunt): the audit found Quiet, Please offered eleven times and never granted, since
 // nothing but moving the noise helped. Hedges, walls and mature trees right beside a tile now muffle
-// its noise, up to nearly half, so a household troubled by a workshop has a gentler remedy.
+// its noise, up to nearly half, so a household troubled by a workshop has a gentler remedy. R1: a
+// Forester's Lodge makes the noise the sawpit made.
 import { describe, expect, it } from 'vitest';
 import { charm, decor, settle, standardWorld, build, tree } from '../hearth/helpers';
 
@@ -8,7 +9,7 @@ describe('noise is muffled by what stands beside it', () => {
   it('hedges beside a tile take some of the workshop noise off it', () => {
     const open = standardWorld();
     const hedged = standardWorld();
-    for (const w of [open, hedged]) build(w, 'sawpit', 130, 40);
+    for (const w of [open, hedged]) build(w, 'foresters-lodge', 130, 40);
     for (const [x, z] of [
       [130, 44],
       [131, 44],
@@ -29,7 +30,7 @@ describe('noise is muffled by what stands beside it', () => {
     const open = standardWorld();
     const trees = standardWorld();
     const saplings = standardWorld();
-    for (const w of [open, trees, saplings]) build(w, 'sawpit', 130, 40);
+    for (const w of [open, trees, saplings]) build(w, 'foresters-lodge', 130, 40);
     for (const [x, z] of [
       [130, 44],
       [132, 44],

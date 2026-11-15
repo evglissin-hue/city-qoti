@@ -7,10 +7,12 @@
 // The pass is idempotent, so it is skipped while nothing it reads has changed since it last ran on
 // this state: the network version (roads, buildings, fields, terrain), decor, lots and a zone epoch
 // the zone commands bump. That memory is a derived index, never saved: a client that just loaded
-// runs the pass once and finds nothing to do, exactly as one that skipped it.
+// runs the pass once and finds nothing to do, exactly as one that skipped it. When the pass cuts or
+// drops lots, the demand bars are written again (lit or quiet: docs/spec/13-ledger.md, Demand).
 import { TICKS_PER_HOUR } from '../../constants';
 import type { System, WorldState } from '../../contracts';
 import { isStandard } from '../../state/hamlet';
+import { refreshDemand } from '../growth';
 import { DESIRABILITY_SLICES, refreshDesirability } from '../growth/desirability';
 import { zoningPass } from './lots';
 
@@ -58,7 +60,9 @@ export const zoning: System = {
     if (lastKeys.get(state) === key) return;
     // Lots last checked against this same decor need not be checked again.
     const decor = decorKey(state);
-    zoningPass(state, ctx, lastDecor.get(state) !== decor);
+    const cut = zoningPass(state, ctx, lastDecor.get(state) !== decor);
+    // R1B: the free lots changed, so the demand bars read again whether land waits for them.
+    if (cut.added + cut.removed > 0) refreshDemand(state, ctx);
     lastDecor.set(state, decor);
     lastKeys.set(state, inputsKey(state));
   },
