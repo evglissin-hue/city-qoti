@@ -140,7 +140,24 @@ Each track runs its dev server and relay on its own ports, so two tracks in one 
 
 Taken on V3.0's branch before any V3 look change (the branch is a no-op on screen, so its tip shows the same). The shots are `docs/build/screenshots/v3-before-*.png`; the perf tables are in `docs/build/screenshots/v3-before-perf.md`, in the build container's software renderer (draws and triangles are real; milliseconds are ratios at best).
 
-(Filled in by V3.0 below once the runs finish.)
+Draws and triangles at 11:00, moving (`v3-perf.mjs`, the sim running, 1440 x 900; budgets: Low and Medium 300 draws, High and Ultra 450; triangles Low 1.5 M, Medium 3 M, High 6 M, Ultra 12 M):
+
+| Scene | Low | Medium | High | Ultra |
+|---|---|---|---|---|
+| street (12 tiles, the doorstep) | 125, 0.45 M | 117, 0.51 M | 146, 1.33 M | 180, 2.23 M |
+| village (70 tiles, the Ledger's height) | 137, 0.33 M | 186, 0.59 M | 191, 1.71 M | 364, 4.24 M |
+| far120 | 137, 0.34 M | 186, 0.51 M | 266, 2.23 M | **479**, 6.79 M |
+| far200 | 171, 0.41 M | 219, 0.61 M | 234, 0.60 M | 364, 1.89 M |
+| far240 | 179, 0.41 M | 231, 0.63 M | 239, 0.57 M | 379, 0.89 M |
+
+Medium at 22:00: street 106 and 0.43 M, village 129 and 0.38 M, far120 156 and 0.38 M, far200 170 and 0.37 M, far240 176 and 0.36 M.
+
+What they say for the wave:
+
+- **The far view is the dearest view in draws on every preset but High and Ultra's far120**, and it grows with distance on Low and Medium (219 to 231 on Medium at 200 to 240 against 186 at the Ledger's height). V3C's target, and V3D's skip at 240 takes it to a handful.
+- **Ultra's far120 is over its budget already on `main`** (479 of 450 draws; 6.79 M triangles): the stand-out row for V3C and V3X to bring down; nothing in V3.0 caused it (V3.0 adds no draw).
+- **Medium's worst moving scene is far240 at 231 draws** (V2X measured 214 on the grown village's default camera): 69 draws of headroom on Medium, less than V2X's table implied; V3A's 12 dressing draws fit, but V3B's and V3C's additions must be paid for by V3C's far cuts.
+- In the shots script some golden and night rows read 0.01 to 0.03 M triangles (street golden and night, far120 night): those count the still-frame cache's last draw, not the scene; use the perf table's numbers.
 
 ## Decisions V3.0 made
 
