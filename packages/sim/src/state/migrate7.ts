@@ -15,6 +15,8 @@ const V6_STREAMS = 8;
 /** R2.0's stand-in storeys: a home by the tier it houses, a business by its level. */
 const HOME_STOREYS: Record<string, number> = { cottage: 1.5, townhouse: 2 };
 const BUSINESS_STOREYS = [1, 1.5, 2];
+/** Ranks at or above the Village (whose Charter unlocks the brazier from R2.0). */
+const VILLAGE_OR_MORE = ['village', 'town', 'marketTown', 'city'];
 
 interface V6Building {
   def: string;
@@ -58,9 +60,18 @@ export function migrate6to7(save: SaveObject): SaveObject {
       : (HOME_STOREYS[b.def] ?? 1);
     return { ...b, storeys };
   });
+  // A town past its Village Charter claimed it before the brazier existed: unlock it as the claim
+  // would have (the Charter's unlocks go into hearth.unlocked).
+  const hearth = save.hearth as { unlocked: string[] };
+  const rank = (save.charter as { rank: string }).rank;
+  const unlocked =
+    VILLAGE_OR_MORE.includes(rank) && !hearth.unlocked.includes('brazier')
+      ? [...hearth.unlocked, 'brazier']
+      : hearth.unlocked;
   return {
     ...save,
     saveVersion: 7,
+    hearth: { ...hearth, unlocked },
     map,
     rng: bytesToBase64(rng),
     residents,
