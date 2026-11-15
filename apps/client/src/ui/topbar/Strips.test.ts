@@ -39,7 +39,7 @@ function line(family: (typeof FAMILIES)[number], over: Partial<BalanceLine> = {}
   };
 }
 
-function fakeSession(marks: boolean) {
+function fakeSession(marks: boolean, sites = false) {
   const demand: DemandView = {
     bars: [
       { kind: 'homes', value: 80, lit: true, reasons: [], why: ['Newcomers would come.'] },
@@ -60,7 +60,26 @@ function fakeSession(marks: boolean) {
   };
   const select = vi.fn();
   const session = {
-    mirror: { demand: signal(demand), balances: signal(balances) },
+    mirror: {
+      demand: signal(demand),
+      balances: signal(balances),
+      revision: signal(0),
+      stocks: signal({ lines: [{ good: 'timber', stock: 6 }] }),
+      buildings: new Map(
+        sites
+          ? [
+              [
+                1,
+                {
+                  id: 1,
+                  stage: 'construction',
+                  rt: { status: 0, construction: { needs: new Map([['timber', 42]]) } },
+                },
+              ],
+            ]
+          : [],
+      ),
+    },
     ui: { panel: signal<string | null>(null), balancesFamily: signal<string | null>(null) },
     tools: { select },
   } as unknown as Session;
@@ -77,6 +96,30 @@ describe('Ledger strip', () => {
     for (const f of FAMILIES) expect(view.get(`balance-${f}`)).toBeTruthy();
     expect(view.get('balance-food').querySelectorAll('.flavor-pips i')).toHaveLength(2);
     expect(view.get('balance-food').querySelectorAll('.flavor-pips i.on')).toHaveLength(1);
+  });
+
+  it('says each chip and bar in words, and the days as days', async () => {
+    const { session } = fakeSession(false);
+    view = await mount(h(LedgerStrip, { session }));
+    const labels = FAMILIES.map((f) => view?.get(`balance-${f}`).querySelector('.chip-label')?.textContent);
+    expect(labels).toEqual(['Food', 'Fuel', 'Materials', 'Wares', 'Treats']);
+    expect(view.get('balance-food').querySelector('.cover-days')?.textContent).toBe('4d');
+    expect(view.get('demand-workshops').querySelector('.demand-word')?.textContent).toBe('Workshops');
+    expect(view.get('demand-homes').querySelector('.demand-word')?.textContent).toBe('Homes');
+  });
+
+  it('the Materials chip reads covered over needed while a site waits, and warms', async () => {
+    const quiet = fakeSession(false);
+    view = await mount(h(LedgerStrip, { session: quiet.session }));
+    expect(view.get('balance-materials').querySelector('.cover-days')?.textContent).toBe('10');
+    expect(view.get('balance-materials').className).not.toContain('low');
+    view.unmount();
+    const { session } = fakeSession(false, true);
+    view = await mount(h(LedgerStrip, { session }));
+    const chip = view.get('balance-materials');
+    expect(chip.querySelector('.cover-days')?.textContent).toBe('6/42');
+    expect(chip.className).toContain('low');
+    expect(chip.title).toContain('open sites still need 42 timber. The stores hold 6 timber.');
   });
 
   it('shows the winter bar only while a mark is set', async () => {

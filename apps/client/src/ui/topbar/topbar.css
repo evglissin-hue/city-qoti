@@ -37,9 +37,11 @@ header.topbar .topbar-town-stats > * {
 }
 
 header.topbar .topbar-town-stats > .goal-pill {
-  flex: 0 1 auto;
-  max-width: 14rem;
-  min-width: 4rem;
+  /* The goal's words are never cut: the pill is at least as wide as they are, and the Charter's
+     name on line one is what gives way. */
+  flex: 0 0 auto;
+  min-width: min-content;
+  max-width: 17rem;
 }
 
 /* The strip takes whatever room is left and keeps itself centered in it. */
@@ -54,7 +56,7 @@ header.topbar .topbar-middle {
 .lens-strip {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   min-width: 0;
 }
 
@@ -62,15 +64,15 @@ header.topbar .topbar-middle {
 
 .demand-bars {
   display: flex;
-  gap: 3px;
+  gap: 2px;
   align-items: flex-end;
 }
 
 button.demand-bar {
-  display: grid;
-  justify-items: center;
-  gap: 1px;
-  padding: 1px 3px;
+  display: inline-flex;
+  align-items: flex-end;
+  gap: 3px;
+  padding: 1px 2px;
   border: 0;
   border-radius: 8px;
   background: transparent;
@@ -87,8 +89,8 @@ button.demand-bar:hover {
   position: relative;
   display: flex;
   align-items: flex-end;
-  width: 11px;
-  height: 22px;
+  width: 8px;
+  height: 20px;
   border-radius: 4px;
   background: rgba(90, 66, 49, 0.1);
   border: 1px solid rgba(90, 66, 49, 0.22);
@@ -127,12 +129,23 @@ button.demand-bar:hover {
   border: 1px solid var(--paper-light);
 }
 
-.demand-letter {
-  font-size: 0.66rem;
-  font-weight: 700;
+/* The word (Homes, Shops, ...) sits beside its well; the letter stands in only when room runs out. */
+.demand-word,
+.demand-letter,
+.chip-label {
+  font-size: 0.64rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
   line-height: 1;
+  color: var(--ink-soft);
 }
 
+.demand-letter {
+  display: none;
+  font-weight: 700;
+}
+
+.demand-bar.lit .demand-word,
 .demand-bar.lit .demand-letter {
   color: var(--ink);
 }
@@ -150,7 +163,7 @@ button.winter-reserve {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  padding: 2px 5px;
+  padding: 2px 3px;
   border: 0;
   border-radius: 999px;
   background: transparent;
@@ -205,11 +218,19 @@ button.winter-reserve:hover {
   opacity: 1;
 }
 
+.chip-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 5px;
+}
+
 .cover-days {
-  min-width: 1.4em;
-  font-size: 0.92rem;
+  font-size: 0.8rem;
+  font-weight: 700;
+  line-height: 1;
   font-variant-numeric: tabular-nums;
-  text-align: right;
+  white-space: nowrap;
 }
 
 .balance-chip.low .cover-days {
@@ -220,6 +241,15 @@ button.winter-reserve:hover {
   display: inline-flex;
   flex-direction: column;
   gap: 3px;
+}
+
+.chip-label {
+  white-space: nowrap;
+}
+
+.balance-chip .cover-bar {
+  width: auto;
+  min-width: 26px;
 }
 
 .flavor-pips {
@@ -396,28 +426,21 @@ button.menu-item:hover {
   }
 }
 
-@media (max-width: 1400px) {
-  header.topbar .topbar-town-stats > .goal-pill {
-    max-width: 8rem;
-  }
-}
-
 /* The strip shortens its bars as its room runs out; the pips sit under the bars and cost no width. */
-@container (max-width: 620px) {
-  .cover-bar {
-    width: 20px;
-  }
-
-  button.balance-chip,
-  button.winter-reserve {
-    padding: 2px 3px;
-    gap: 3px;
+/* The strip gives up pictures before words, and words before letters, as its room runs out. */
+@container (max-width: 660px) {
+  .balance-chip .good-icon {
+    display: none;
   }
 }
 
-@container (max-width: 500px) {
-  .demand-letter {
+@container (max-width: 440px) {
+  .demand-word {
     display: none;
+  }
+
+  .demand-letter {
+    display: inline;
   }
 }
 

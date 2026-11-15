@@ -2,6 +2,7 @@
 // only draw these, so the words and numbers are tested here.
 import { content } from '@qoti/content';
 import type { BalanceLine, BalancesView, DemandBarView, DemandKind } from '@qoti/sim';
+import type { SitesReading } from '../sites';
 import { FAMILY_LABEL, RULE_LABEL } from './families';
 
 /** Days of cover at which a chip's bar is full. */
@@ -46,8 +47,12 @@ export function coverNumber(line: Pick<BalanceLine, 'cover' | 'use' | 'stock'>):
 }
 
 export interface ChipReading {
-  /** The number beside the bar. */
+  /** The family's name, shown small on the chip. */
+  label: string;
+  /** The number beside the bar, bare: "3", "99+", or for Materials "16/52". */
   days: string;
+  /** What the chip shows: "3d"; for Materials "16/52" (covered over needed) or the units in store. */
+  shown: string;
   /** 0 to 1, how far the bar is filled (full at ten days). */
   fill: number;
   /** 0 to 1 tick positions; null when there is none to draw. */
@@ -62,8 +67,29 @@ export interface ChipReading {
 
 const clamp01 = (n: number) => Math.min(1, Math.max(0, n));
 
-/** What one family's chip draws and says. Materials hold units beyond site needs, not days. */
-export function chipReading(line: BalanceLine): ChipReading {
+/** "a", "a and b", "a, b and c". */
+function andList(parts: string[]): string {
+  if (parts.length < 2) return parts[0] ?? '';
+  return `${parts.slice(0, -1).join(', ')} and ${parts[parts.length - 1]}`;
+}
+
+/** The Materials sentence while open sites wait for goods, worst shortfall first (readSites orders it). */
+function sitesSentence(sites: Pick<SitesReading, 'goods'>): string {
+  const label = (good: string) => (content.goodById.get(good)?.label ?? good).toLowerCase();
+  const need = andList(sites.goods.map((g) => `${g.need} ${label(g.good)}`));
+  const held = andList(sites.goods.map((g) => `${g.stock} ${label(g.good)}`));
+  return `Materials: open sites still need ${need}. The stores hold ${held}.`;
+}
+
+/**
+ * What one family's chip draws and says. Materials are units, not days: while open sites still wait
+ * for goods the chip reads covered over needed and warms until the stores cover it (P2); otherwise
+ * it shows the units in store with a full, calm bar.
+ */
+export function chipReading(
+  line: BalanceLine,
+  sites?: Pick<SitesReading, 'goods' | 'need' | 'covered'>,
+): ChipReading {
   const days = coverDays(line);
   const isMaterials = line.family === 'materials';
   const onOffer = line.flavors.filter((f) => f.onOffer);
@@ -71,6 +97,7 @@ export function chipReading(line: BalanceLine): ChipReading {
   const hold = isMaterials
     ? `holding ${line.reserve} beyond what sites need`
     : `holding ${dayWord(line.reserve)}`;
+  const carrier = `The carrier: ${RULE_LABEL[line.rule]}${line.rule === 'never' ? '' : `, ${hold}`}.`;
   const title = [
     days === Infinity
       ? `${name}: plenty, since nothing uses it yet.`
@@ -81,15 +108,37 @@ export function chipReading(line: BalanceLine): ChipReading {
         ? `: ${onOffer.map((f) => content.goodById.get(f.good)?.label ?? f.good).join(', ')}`
         : ''
     }.`,
-    `The carrier: ${RULE_LABEL[line.rule]}${line.rule === 'never' ? '' : `, ${hold}`}.`,
+    carrier,
   ].join(' ');
-  return {
-    days: coverNumber(line),
-    fill: clamp01(days / COVER_FULL_DAYS),
-    reserveAt: isMaterials ? null : clamp01(line.reserve / COVER_FULL_DAYS),
-    markAt: line.mark === null ? null : clamp01(line.mark / COVER_FULL_DAYS),
-    low: isMaterials ? days < 1 : days < line.reserve,
+  const base = {
+    label: name,
     pips: line.flavors.map((f) => f.onOffer),
+    markAt: line.mark === null ? null : clamp01(line.mark / COVER_FULL_DAYS),
+  };
+  if (isMaterials && sites && sites.need > 0) {
+    const ratio = `${sites.covered}/${sites.need}`;
+    return {
+      ...base,
+      days: ratio,
+      shown: ratio,
+      fill: clamp01(sites.covered / sites.need),
+      reserveAt: null,
+      low: sites.covered < sites.need,
+      title: `${sitesSentence(sites)} ${carrier}`,
+    };
+  }
+  if (isMaterials) {
+    const units = line.stock >= 999 ? '999+' : String(line.stock);
+    return { ...base, days: units, shown: units, fill: 1, reserveAt: null, low: false, title };
+  }
+  const number = coverNumber(line);
+  return {
+    ...base,
+    days: number,
+    shown: `${number}d`,
+    fill: clamp01(days / COVER_FULL_DAYS),
+    reserveAt: clamp01(line.reserve / COVER_FULL_DAYS),
+    low: days < line.reserve,
     title,
   };
 }
