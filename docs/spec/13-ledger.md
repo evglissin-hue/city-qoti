@@ -293,28 +293,29 @@ Starting values for R1X's tuning; R1X recorded what holds below.
 
 - **Hands**: about a third of working residents in food (it was 40 to 55%), a sixth hauling and building, the rest in materials, workshops, shops and services. One field hand feeds about eight through the growing seasons, which is what a third of the hands needs to carry the town through a winter in which almost nothing grows *(tune)*. The carrier's load is small beside a big town's appetite (a City eats 2,000 Food a day and the road carries about 450), so a Town or City lives on what it makes and imports only fill gaps.
 - **Decisions, not chores**: over 70 autoplayed days the Ledger takes under 150 actions, none of them a pause or an order.
-- **Tiers move**: on every bench seed the first Craftsfolk household by day 40 and a third of households by day 70. *Moved to R2 by the owner's ruling (2026-11-15)*: at R1's end the first comes by day 40 on hazel only and the best day reaches 6% (What holds, below); R2's evenings replace the tavern and charm gates that hold households back.
+- **Tiers move**: on every bench seed the first Craftsfolk household by day 40 and a third of households by day 70. *Moved to R2 by the owner's ruling (2026-11-15)*: at R1's end the first comes by day 40 on willow only, and a third holds on willow's best day (36%) but at day 70 on no seed (What holds, below); R2's evenings replace the tavern and charm gates that hold households back.
 - **Nothing stalls**: the playability audit finds no business without its raw good for a whole day while its family's rule lets the carrier buy.
 - **Winter has teeth**: a town with reserves under half the plan and the pass closed for two days has hungry or cold households and loses none of its buildings.
 - **The lanes need each other** (`22-quality.md`, The lanes test).
 
-### What holds (R1X, 2026-11-12)
+### What holds (R1X, 2026-11-15)
 
 Seventy autoplayed days on each bench seed with every system on (`npm run targets -w @qoti/bench`; the hands are the mean over the growing days from day 20, since farms rest in winter; Craftsfolk are the share of households at day 70 and on the best day before it, as a winter slides them back):
 
 | Seed | Village charter | Residents at 40 and 70 | Hands in food | Ledger decisions | First Craftsfolk | Craftsfolk at 70 (best) | Stalls | Lowest treasury, owed at 70 | Firewood made, bought | Lean days |
 |---|---|---|---|---|---|---|---|---|---|---|
-| willow | day 37 | 77, 192 | 38% | 140 | day 43 | 0% (3%) | 0 | 0, 2,555 | 1,320, 12 | 0 |
-| hazel | day 17 | 83, 139 | 25% | 128 | day 38 | 6% (6%) | 0 | -46, 2,720 | 1,134, 28 | 0 |
-| oak | day 34 | 94, 163 | 35% | 138 | none | 0% | 0 | 0, 2,939 | 1,062, 15 | 0 |
-| birch | day 31 | 53, 90 | 37% | 80 | none | 0% | 0 | 0, 354 | 720, 69 | 0 |
+| willow | day 29 | 79, 115 | 34% | 97 | day 33 | 21% (36%) | 0 | 0, 1,577 | 1,026, 134 | 0 |
+| hazel | day 17 | 80, 132 | 30% | 131 | day 42 | 9% (9%) | 0 | -222, 2,286 | 1,092, 23 | 1 |
+| oak | day 34 | 84, 171 | 36% | 128 | none | 0% | 0 | -117, 3,080 | 1,278, 16 | 0 |
+| birch | day 31 | 53, 87 | 37% | 77 | none | 0% | 0 | 0, 616 | 732, 66 | 0 |
 
 With the founders' larder at 44 Food (R1X's earlier runs, before the dead-end fixes that followed) the same seeds ended smaller and leaner: 61 to 125 residents at day 70, Craftsfolk up to 26% (32% on hazel's best day), the first by day 35 on willow, but 14 lean days on oak and 2 on birch and the treasury down to -261. 56 Food buys a hungry-free start and bigger towns; the Craftsfolk share is what it costs, and R2's tuning takes it up.
 
-- **Hands**: about a third in food on three seeds (35 to 38%), a quarter on hazel (25%). Holds, loosely.
-- **Decisions, not chores**: 80 to 140 accepted Ledger commands in 70 days, no pause and no order (the decisions count's verdict passes). Holds.
-- **Tiers move**: the first Craftsfolk by day 40 on hazel only (38; willow 43, oak and birch none), and a third of households by day 70 on none (the best day reaches 6% on hazel). Does not hold yet: a town that grows fast fills with Settlers; what holds households back is listed in `docs/build/r1-wave-notes.md` (Found in R1X): charm 25 at the door, a tavern and herbalist in reach, savings and one Wares flavor, with winter sliding them back. R2's evenings replace the tavern and charm gates; tune again there. The owner moved this line to R2 (2026-11-15).
+- **Hands**: about a third in food on every seed (30 to 37%). Holds.
+- **Decisions, not chores**: 77 to 131 accepted Ledger commands in 70 days, no pause and no order (the decisions count's verdict passes). Holds.
+- **Tiers move**: the first Craftsfolk by day 40 on willow only (day 33; hazel 42, oak and birch none), and a third of households on willow's best day (36%) but at day 70 on no seed (willow 21%, hazel 9%). Does not hold yet: a town that grows fast fills with Settlers; what holds households back is listed in `docs/build/r1-wave-notes.md` (Found in R1X): charm 25 at the door, a tavern and herbalist in reach, savings and one Wares flavor, with winter sliding them back. R2's evenings replace the tavern and charm gates; tune again there. The owner moved this line to R2 (2026-11-15).
 - **Nothing stalls**: no business without its raw good for a whole day while the carrier may buy, on any seed (and none in the audit). Holds.
 - **Winter has teeth**: `packages/sim/test/r1a/winter.test.ts` (under half the marks with the pass closed two days: households cold or hungry, no building lost, no money leaks). Holds.
 - **The lanes need each other**: recorded in `22-quality.md` (The lanes test, R1X's run). Enforced from R2.
-- **The town makes its own firewood**: the Lodges cut 720 to 1,320 firewood over the 70 days against 12 to 69 bought.
+- **The town makes its own firewood**: the Lodges cut 732 to 1,278 firewood over the 70 days against 16 to 134 bought.
+- **Lean days**: none on three seeds; one on hazel (day 50, the treasury at -222). The autoplayer keeps a tenth of its credit line back since R1X's last round (a town that borrowed to the end of its line and then shrank owed past it), so on that day it could borrow 116 coins where it used to take 298. R2's Village debt work takes it up.
