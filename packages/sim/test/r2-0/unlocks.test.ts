@@ -2,18 +2,16 @@
 // its unlocks, so the piece stayed locked forever in a migrated valley. The migration now unlocks it
 // for a town at Village rank or above. The class check: a migrated valley holds every unlock of every
 // Charter it has claimed.
-// eslint-disable-next-line @typescript-eslint/no-restricted-imports
-import { readFileSync } from 'node:fs';
 import { content } from '@qoti/content';
 import { gunzipSync, gzipSync, strFromU8, strToU8 } from 'fflate';
 import { describe, expect, it } from 'vitest';
+import { base64ToBytes } from '../../src/state/base64';
+import v6 from '../golden/v6-hazel-day3.json';
 import { deserialize } from '../../src/state/serialize';
-
-const FIXTURE = new URL('../golden/v6-hazel-day3.save', import.meta.url);
 
 /** The version 6 fixture with its rank (and claim history) rewritten, as bytes. */
 function v6At(rank: string): Uint8Array {
-  const save = JSON.parse(strFromU8(gunzipSync(new Uint8Array(readFileSync(FIXTURE))))) as {
+  const save = JSON.parse(strFromU8(gunzipSync(base64ToBytes(v6.save)))) as {
     charter: { rank: string; history: { rank: string; tick: number; seats: number[] }[] };
     hearth: { unlocked: string[] };
   };

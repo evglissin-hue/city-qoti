@@ -7,6 +7,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import {
   advanceTo,
+  base64ToBytes,
   bytesToBase64,
   createTickCtx,
   createWorld,
@@ -22,9 +23,10 @@ const which = process.argv[2] ?? 'v6';
 
 let data: Uint8Array;
 if (which === 'v6') {
-  data = new Uint8Array(
-    readFileSync(fileURLToPath(new URL('../test/golden/v6-hazel-day3.save', import.meta.url))),
-  );
+  const v6 = JSON.parse(
+    readFileSync(fileURLToPath(new URL('../test/golden/v6-hazel-day3.json', import.meta.url)), 'utf8'),
+  ) as { save: string };
+  data = base64ToBytes(v6.save);
 } else {
   const fresh = createWorld('willow', { ...defaultSettings(), mode: 'standard' });
   fresh.time.connected = [0, 1];

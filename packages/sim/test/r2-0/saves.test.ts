@@ -1,7 +1,7 @@
 // R2.0 saves (docs/spec/21-networking-and-saves.md, Version changes): the 6-to-7 migration run on a
 // real version 6 save, and the evening round's new state surviving a round trip.
 //
-// The fixture packages/sim/test/golden/v6-hazel-day3.save was written by the last commit before R2.0
+// The fixture packages/sim/test/golden/v6-hazel-day3.json (the save's bytes in base64) was written by the last commit before R2.0
 // (ad9ca6f, "Merge pull request #42"), in a scratch worktree of it, with a tsx script:
 //   const s = createWorld('hazel', { ...defaultSettings(), mode: 'standard' });
 //   s.time.connected = [0, 1];
@@ -10,11 +10,10 @@
 //   then advanceTo(s, s.lastTurn + 1) one empty turn at a time until s.tick >= 3 * TICKS_PER_DAY;
 //   writeFileSync(path, serialize(s));
 // which gives 14 residents, 9 buildings (3 grown on lots) and 4 lots, at saveVersion 6.
-// The fixture is binary, so this test reads it from disk (a test, not sim code).
-// eslint-disable-next-line @typescript-eslint/no-restricted-imports
-import { readFileSync } from 'node:fs';
 import { gunzipSync, gzipSync, strFromU8, strToU8 } from 'fflate';
 import { describe, expect, it } from 'vitest';
+import { base64ToBytes } from '../../src/state/base64';
+import v6 from '../golden/v6-hazel-day3.json';
 import { MAP_SIZE, NEED_IDS, TICKS_PER_DAY } from '../../src/constants';
 import type { WorldState } from '../../src/contracts';
 import { RNG_STREAMS, seedStreams, streamIndex } from '../../src/rng/streams';
@@ -25,10 +24,8 @@ import { migrateSave, SAVE_VERSION, type SaveObject } from '../../src/state/vers
 import { advanceTo, createTickCtx } from '../../src/turn';
 import { expectMoneyInvariant, moneySnapshot } from '../money';
 
-const FIXTURE = new URL('../golden/v6-hazel-day3.save', import.meta.url);
-
 function loadV6(): Uint8Array {
-  return new Uint8Array(readFileSync(FIXTURE));
+  return base64ToBytes(v6.save);
 }
 
 function parseV6(): SaveObject {
@@ -117,7 +114,7 @@ describe('migration 6 to 7', () => {
       Array.from(seedStreams(state.seed).slice(round, round + 4)),
     );
     // The older streams' words match the version 6 save's bytes.
-    const old = new Uint32Array(new Uint8Array(Buffer.from(raw.rng as string, 'base64')).buffer);
+    const old = new Uint32Array(new Uint8Array(base64ToBytes(raw.rng as string)).buffer);
     expect(old.length).toBe(round);
     expect(Array.from(state.rng.slice(0, round))).toEqual(Array.from(old));
   });

@@ -16,7 +16,7 @@ describe('a generated newcomer', () => {
       homeId: 0,
       tile: 50 * 256 + 50,
       inside: 0,
-      activity: 'idle',
+      activity: { kind: 'home' },
     });
     expect(members.length).toBe(3);
     for (const r of members) {
