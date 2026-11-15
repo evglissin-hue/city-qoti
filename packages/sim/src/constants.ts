@@ -36,6 +36,12 @@ export const WORK_HOURS = [8, 17] as const;
  */
 export const BUILD_HOURS = [8, 19] as const;
 /**
+ * P2 (the R1 playtest): hours at which the growth pass runs. The night's pass does everything; the
+ * midday one only starts sites, on what the day's allowance has left, so land zoned in the morning
+ * need not wait for the night. Twelve hours apart (the growth system's `every`).
+ */
+export const GROWTH_HOURS = [1, 13] as const;
+/**
  * Playtest round five: from 22:00 to 06:00, while the town sleeps, each turn runs this many times
  * the ticks, so the night passes quickly at any speed.
  */

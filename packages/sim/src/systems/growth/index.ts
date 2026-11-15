@@ -1,4 +1,8 @@
-// Daily growth on lots (docs/spec/13-ledger.md, Zoning and growth). At 01:00 the growth pass:
+// Daily growth on lots (docs/spec/13-ledger.md, Zoning and growth). P2 (the R1 playtest): the pass
+// runs at 01:00 and again at 13:00 (GROWTH_HOURS). The midday run only starts sites (step 4) on what
+// the day's allowance has left (state.demand.starts) and writes the bars, so land zoned in the
+// morning is taken up the same day; retooling and fields stay the night's. When a wanted kind does
+// not start, the pass says why (Held) and the bars carry it. At 01:00 the growth pass:
 //
 // 1. Keeps each business's site and surplus days and retools (./retool): a failed site after three
 //    days, pinned or not; one business in surplus for six days a night, to a trade that is short.
@@ -18,8 +22,15 @@
 // 5. Writes the four demand bars (./bars) and sends demand.updated; the zoning pass and the zone
 //    commands write them again when the free lots change (refreshDemand).
 import { content, type BuildingDef, type TradeDef } from '@qoti/content';
-import { FIELD_GOOD_FERTILITY, MAP_SIZE, TICKS_PER_DAY, Zone } from '../../constants';
-import type { Building, Lot, System, TickCtx, WorldState } from '../../contracts';
+import {
+  DEMAND_KINDS,
+  FIELD_GOOD_FERTILITY,
+  GROWTH_HOURS,
+  MAP_SIZE,
+  TICKS_PER_DAY,
+  Zone,
+} from '../../constants';
+import type { Building, DemandReason, Lot, System, TickCtx, WorldState } from '../../contracts';
 import { findById } from '../../state/entities';
 import { familyIndex, jobsOf } from '../../state/zones';
 import { isStandard } from '../../state/hamlet';
@@ -28,7 +39,7 @@ import { addStock, keepsNoGoods, townStock } from '../../view/hamlet';
 import { businessView } from '../../view/businesses';
 import { entranceTiles } from '../../rules/footprint';
 import { hasBuilt } from '../innovations/api';
-import { dailyOffset } from '../economy/time';
+import { dailyOffset, dayIndex, hourOf } from '../economy/time';
 import { doorTile } from '../movement/api';
 import { fieldCap, fieldsOf, fieldTileProblem, isFarm, paintFields } from '../production/fields';
 import { porterIndex, porterServed, type Reach } from '../logistics/range';
@@ -39,7 +50,7 @@ import { attractiveness } from '../residents/lifecycle';
 import { foodIndexes, pantryFood } from '../residents/needs';
 import { announceServers } from '../specialized/announce';
 import { growLot, lotPlacement } from './api';
-import { computeBars, craftPull, HOME_ZONES, writeBars, type BarInputs } from './bars';
+import { BAR_ZONES, computeBars, craftPull, HOME_ZONES, writeBars, type BarInputs } from './bars';
 import { mix, servicesOf } from './desirability';
 import {
   homeDoorTiles,
@@ -52,7 +63,7 @@ import {
   type Services,
 } from './outlets';
 import { retoolPass } from './retool';
-import { SiteCache } from './site';
+import { SiteCache, unmetWant } from './site';
 import {
   countMakers,
   FARM_FOOD_DAYS,
@@ -446,15 +457,35 @@ function siteWaiting(state: WorldState, zones: readonly number[]): boolean {
  * own, so each kind of land has one site at a time going up on bought timber (docs/spec/13-ledger.md,
  * Construction: building is dearer on bought timber and never stuck for want of it).
  */
-function affordable(state: WorldState, def: BuildingDef, free: number[], zones: readonly number[]): boolean {
-  let short = false;
+function affordable(
+  state: WorldState,
+  def: BuildingDef,
+  free: number[],
+  zones: readonly number[],
+  why?: Why,
+): boolean {
+  let short = -1;
   for (const [id, qty] of def.cost?.goods ?? []) {
     const g = content.goodIndex.get(id);
-    if (g !== undefined && (free[g] ?? 0) * 100 < qty * GROWTH_SHARE) short = true;
+    if (g !== undefined && short < 0 && (free[g] ?? 0) * 100 < qty * GROWTH_SHARE) short = g;
   }
-  if (!short) return true;
-  if (state.carrier.families[familyIndex('materials')]?.rule === 'never') return false;
-  return !siteWaiting(state, zones);
+  if (short < 0) return true;
+  if (state.carrier.families[familyIndex('materials')]?.rule !== 'never' && !siteWaiting(state, zones)) {
+    return true;
+  }
+  if (why && why.short < 0) why.short = short;
+  return false;
+}
+
+/**
+ * P2: why the lots tried for a kind could not take a site, noted as canGrow turns them down: the
+ * first material the stores were short of (a good index, or -1), a door porters do not reach, a
+ * building that does not fit the lot.
+ */
+interface Why {
+  short: number;
+  reach: boolean;
+  fit: boolean;
 }
 
 /** Tiles past a storehouse's range a lot may lie and still be tried ("about in reach", a lot's width). */
@@ -467,14 +498,20 @@ function canGrow(
   def: BuildingDef,
   free: number[],
   reach: readonly Reach[],
+  why?: Why,
 ): boolean {
   const kind = lot.zone === Zone.homesLow || lot.zone === Zone.homesMedium ? HOME_ZONES : [lot.zone];
-  if (!affordable(state, def, free, kind)) return false;
+  if (!affordable(state, def, free, kind, why)) return false;
   const at = lotPlacement(state, lot, def);
-  if (!at) return false;
+  if (!at) {
+    if (why) why.fit = true;
+    return false;
+  }
   // Porters must reach the door itself, or the site would wait for its timber forever.
   const { front } = entranceTiles(def, at[0], at[1], lot.rot);
-  return porterServed(reach, front[1] * S + front[0]);
+  if (porterServed(reach, front[1] * S + front[0])) return true;
+  if (why) why.reach = true;
+  return false;
 }
 
 /**
@@ -488,6 +525,7 @@ function chooseTrade(
   trades: readonly TradeDef[],
   night: Night,
   free: number[],
+  why?: Why,
 ): { trade: TradeDef; keeperId: number } | null {
   const counts = night.counts;
   let best: { trade: TradeDef; keeperId: number } | null = null;
@@ -503,7 +541,7 @@ function chooseTrade(
     const count = counts.get(t.id) ?? 0;
     if (best && (terms.score < bestScore || (terms.score === bestScore && count >= bestCount))) continue;
     const def = content.buildingById.get(t.building);
-    if (!def || !canGrow(state, lot, def, free, night.services.reach)) continue;
+    if (!def || !canGrow(state, lot, def, free, night.services.reach, why)) continue;
     best = { trade: t, keeperId: terms.keeperId };
     bestScore = terms.score;
     bestCount = count;
@@ -518,8 +556,9 @@ function chooseHome(
   defs: readonly BuildingDef[],
   free: number[],
   reach: readonly Reach[],
+  why?: Why,
 ): BuildingDef | null {
-  const fits = defs.filter((d) => canGrow(state, lot, d, free, reach));
+  const fits = defs.filter((d) => canGrow(state, lot, d, free, reach, why));
   if (fits.length === 0) return null;
   let total = 0;
   for (const d of fits) total += d.grows?.weight ?? 1;
@@ -571,20 +610,77 @@ function announceBusiness(state: WorldState, ctx: TickCtx, b: Building): void {
   announceServers(state, ctx, b, [b.trade]);
 }
 
-/** One night's growth. Returns the sites started. */
-export function growthPass(state: WorldState, ctx: TickCtx): number {
+/** The trade of the list the town most needs (need x supply) that has no site going up, or null. */
+function mostNeeded(state: WorldState, trades: readonly TradeDef[], night: Night): TradeDef | null {
+  let best: TradeDef | null = null;
+  let bestPull = 0;
+  for (const t of trades) {
+    if (night.goingUp.has(t.id)) continue;
+    const pull = Math.floor(
+      (needOf(state, t, night.needs).need * supplyOf(state, t, night.needs)) / NEED_FULL,
+    );
+    if (pull > bestPull) {
+      best = t;
+      bestPull = pull;
+    }
+  }
+  return best;
+}
+
+/** What a pass found when a wanted kind did not start, per bar in DEMAND_KINDS order (P2). */
+type Held = (DemandReason | undefined)[];
+
+/** The bar a zone kind answers to: its index in DEMAND_KINDS. */
+function barOf(zones: readonly number[]): number {
+  return BAR_ZONES.findIndex((z) => z[0] === zones[0]);
+}
+
+/** Grown sites started so far on the tick's day (the allowance the day's two passes share). */
+function startedToday(state: WorldState): number {
+  const s = state.demand.starts;
+  return s.day === dayIndex(state.tick) ? s.n : 0;
+}
+
+/**
+ * P2: the hour of the next growth pass that may start a waiting lot: 13:00 while the morning's
+ * allowance is not used up, else the night's 01:00.
+ */
+export function nextGrowthHour(state: WorldState): number {
+  const h = hourOf(state.tick);
+  const before = h >= GROWTH_HOURS[0] && h < GROWTH_HOURS[1];
+  return before && startedToday(state) < GROWTH_PER_DAY ? GROWTH_HOURS[1] : GROWTH_HOURS[0];
+}
+
+/**
+ * One growth pass. Returns the sites started. The night's pass (01:00) retools, grows fields and
+ * starts sites; `midday` (13:00, P2) only starts sites, on what the day's allowance has left.
+ */
+export function growthPass(state: WorldState, ctx: TickCtx, midday = false): number {
   if (!isStandard(state)) return 0;
   const night = readNight(state);
-  const started = growSites(state, ctx, night);
-  writeDemand(state, ctx, night);
+  const held: Held = DEMAND_KINDS.map(() => undefined);
+  const already = startedToday(state);
+  const started = growSites(state, ctx, night, midday, already, held);
+  state.demand.starts = { day: dayIndex(state.tick), n: already + started };
+  writeDemand(state, ctx, night, held);
   // Homes grown tonight went on the end of the buildings too: the cache signs the town as it now stands.
   syncDefs(state, night.defs);
   night.cache.persist();
   return started;
 }
 
-/** Retools, then starts the night's grown sites. Returns how many sites started. */
-function growSites(state: WorldState, ctx: TickCtx, night: Night): number {
+/**
+ * Retools and grows fields (the night's pass only), then starts grown sites. Returns how many sites
+ * started; `held` takes the reason for each wanted kind that did not start.
+ */
+function growSites(
+  state: WorldState,
+  ctx: TickCtx,
+  night: Night,
+  midday: boolean,
+  already: number,
+  held: Held,
+): number {
   const tradesFor = (zoneId: string): TradeDef[] =>
     zoneId === 'crafts'
       ? night.crafts
@@ -593,11 +689,32 @@ function growSites(state: WorldState, ctx: TickCtx, night: Night): number {
         : zoneId === 'shops'
           ? night.shops
           : [];
-  if (retoolPass(state, ctx, night.needs, night.cache, tradesFor) > 0) {
-    settle(state, night);
+  if (!midday) {
+    if (retoolPass(state, ctx, night.needs, night.cache, tradesFor) > 0) {
+      settle(state, night);
+    }
+    growFields(state, ctx);
   }
-  growFields(state, ctx);
+  const started = startSites(state, ctx, night, already, held, tradesFor);
+  // One business of a kind goes up at a time: a kind with its site going up waits on that one.
+  for (const zones of BAR_ZONES) {
+    if (zones === HOME_ZONES) continue;
+    const bar = barOf(zones);
+    const up = grownSites(state, zones);
+    if (up > 0 && !held[bar]) held[bar] = { code: 'sitesBusy', value: up };
+  }
+  return started;
+}
 
+/** Starts grown sites on the best lots, within the day's and the at-once limits. */
+function startSites(
+  state: WorldState,
+  ctx: TickCtx,
+  night: Night,
+  already: number,
+  held: Held,
+  tradesFor: (zoneId: string) => TradeDef[],
+): number {
   // Lots are scored through the day, a slice an hour (refreshDesirability, from the zoning pass).
   if (night.empty.length === 0) return 0;
   const demand = demandOf(state, night);
@@ -614,9 +731,20 @@ function growSites(state: WorldState, ctx: TickCtx, night: Night): number {
   const reachOf = new Map<number, number>();
   if (demand.shops > 0)
     for (const l of night.empty) if (l.zone === Zone.shops) reachOf.set(l.id, shopReach(l, night.doors));
-  for (const [zones, n] of wants) {
+  for (let w = 0; w < wants.length; w++) {
+    const [zones, n] = wants[w]!;
     for (let k = 0; k < n; k++) {
-      if (started >= GROWTH_PER_DAY || grownSites(state) >= GROWTH_MAX_SITES) return started;
+      // The day's starts are used up: the bars say when the next pass comes (nextGrowthHour).
+      if (already + started >= GROWTH_PER_DAY) return started;
+      const up = grownSites(state);
+      if (up >= GROWTH_MAX_SITES) {
+        // The most sites at once: every kind still wanted waits for one to finish.
+        for (let v = w; v < wants.length; v++) {
+          if (wants[v]![1] > 0) held[barOf(wants[v]![0])] = { code: 'sitesBusy', value: up };
+        }
+        return started;
+      }
+      const why: Why = { short: -1, reach: false, fit: false };
       const shop = zones[0] === Zone.shops;
       // Shops go where they reach the most households without one, then by desirability; only lots
       // porters can about reach (canGrow checks the very door), the best few.
@@ -636,11 +764,11 @@ function growSites(state: WorldState, ctx: TickCtx, night: Night): number {
         if (lot.zone === Zone.crafts || lot.zone === Zone.farms || lot.zone === Zone.shops) {
           const trades =
             lot.zone === Zone.crafts ? night.crafts : lot.zone === Zone.farms ? night.farms : night.shops;
-          pick = chooseTrade(state, lot, trades, night, free);
+          pick = chooseTrade(state, lot, trades, night, free, why);
           def = pick ? (content.buildingById.get(pick.trade.building) ?? null) : null;
         } else {
           const zoneId = content.zoneByValue.get(lot.zone)?.id ?? '';
-          def = chooseHome(state, lot, growable(state, zoneId), free, night.services.reach);
+          def = chooseHome(state, lot, growable(state, zoneId), free, night.services.reach, why);
         }
         if (!def) continue;
         const b = growLot(state, ctx, lot.id, def.id, undefined, pick?.trade.id);
@@ -660,15 +788,36 @@ function growSites(state: WorldState, ctx: TickCtx, night: Night): number {
         grew = true;
         break;
       }
-      if (!grew) break;
+      if (!grew) {
+        // Why the lots tried took nothing: materials first (it passes), then the land.
+        const bar = barOf(zones);
+        if (why.short >= 0) held[bar] = { code: 'materials', good: content.goods[why.short]!.id };
+        else if (lots.length === 0 || why.reach) held[bar] = { code: 'outOfReach' };
+        else if (why.fit) held[bar] = { code: 'unsuitable' };
+        else if (zones !== HOME_ZONES) {
+          // No trade scored on any lot: say what the trade the town most needs misses on the best one.
+          const zoneId = content.zoneByValue.get(zones[0]!)?.id ?? '';
+          const t = mostNeeded(state, tradesFor(zoneId), night);
+          const want = t ? unmetWant(night.cache, lots[0]!, t) : null;
+          if (t && want) held[bar] = { code: 'unsuitable', ...(t.makes && { good: t.makes }), want };
+        }
+        break;
+      }
     }
   }
   return started;
 }
 
 /** The four demand bars, written to state.demand, with demand.updated when there is a ctx. */
-export function writeDemand(state: WorldState, ctx: TickCtx | null, night: Night = readNight(state)): void {
+export function writeDemand(
+  state: WorldState,
+  ctx: TickCtx | null,
+  night: Night = readNight(state),
+  held?: Held,
+): void {
   const inputs: BarInputs = {
+    ...(held && { held }),
+    nextHour: nextGrowthHour(state),
     needs: night.needs,
     cache: night.cache,
     services: night.services,
@@ -694,12 +843,15 @@ export function refreshDemand(state: WorldState, ctx: TickCtx | null): void {
   writeDemand(state, ctx);
 }
 
+/** The two passes are half a day apart, so one system with half a day's `every` runs both. */
+const HALF_DAY = TICKS_PER_DAY / 2;
+
 export const growth: System = {
   id: 'growth',
   order: 26,
-  every: TICKS_PER_DAY,
-  offset: dailyOffset(1),
+  every: HALF_DAY,
+  offset: dailyOffset(GROWTH_HOURS[0]) % HALF_DAY,
   tick(state, ctx) {
-    growthPass(state, ctx);
+    growthPass(state, ctx, hourOf(state.tick) === GROWTH_HOURS[1]);
   },
 };
