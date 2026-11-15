@@ -95,8 +95,8 @@ describe('roof verges and soffits (P2-E1)', () => {
             const cm = ridgeAlongX ? (wz0 + wz1) / 2 : (wx0 + wx1) / 2;
             const r = new ShapeBuilder(lod);
             roofPart(r, sh.roof);
-            let past0 = [0, 0];
-            let past1 = [0, 0];
+            const past0 = [0, 0];
+            const past1 = [0, 0];
             const worst = { all: 0 };
             for (const t of trisOf(r.build(false))) {
               const a = t.p.map((v) => (ridgeAlongX ? v[0] : v[2]));
@@ -112,7 +112,6 @@ describe('roof verges and soffits (P2-E1)', () => {
             expect(worst.all, label).toBeLessThanOrEqual(MAX_VERGE + 1e-6);
             expect(past0[0]!, label).toBeCloseTo(past0[1]!, 6);
             expect(past1[0]!, label).toBeCloseTo(past1[1]!, 6);
-            past0 = past1 = [];
           }
   });
 
