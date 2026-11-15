@@ -487,6 +487,30 @@ Defined in cycle R1.0 (2026-11-10), the one contracts cycle allowed to remove: i
 
 **System slots**: 65 carrier (10:00, the caravans' old slot) and 69 levels (23:30); `callings` (88) and `caravans` left the pipeline, and the peddler left the economy. Shared helpers in `state/zones.ts`: `methodOf`, `jobsOf`, `levelOf`, `hasTag` (a business answers to its trade id, so detectors, wishes and conditions read "a baker" as they read "a bakery"), `isFood`, `FOOD_GOODS`, `GOODS_BY_FAMILY`, `familyIndex`, `applyRankDefaults`; view builders in `view/zones.ts` (split between R1A and R1B on the wave's first day).
 
+## R2 contracts
+
+Defined in cycle R2.0 (2026-11-15), additive throughout (R2 removes nothing; `beauty` and `social` stay in the need union, unread by tiers once R2B lands). The types are in `packages/sim/src/contracts/evenings.ts` and the additions to the other contract files. Runtime handshakes, file ownership for R2A to R2F, the stand-ins each cycle replaces and the order of an evening are in `docs/build/r2-wave-notes.md`.
+
+**Content** (`packages/content/src/types.ts`):
+
+- `PlaceKind` (`sit`, `eat`, `view`, `play`, `meet`, `walk`; the sim's `PLACE_KINDS` order). `DecorDef.seats`, `childSeats`, `standing`, `warm`; every seat piece carries seats (bench 2, curved bench 3, ring bench 4, low wall 1, cafe table 4, arbor seat 2, lookout bench 2, swing and see-saw 2 children each, festival table 6), the bonfire stands 8 and warms; the brazier is a new Village decor piece (8 standing, warm, unlocked with the Village Charter). `BuildingDef.host` (`HostDef`: seats, standing, kinds, sheltered, warm) on the tavern (12 seats), Bath House (8), Market Square, stall and well.
+- `PlacesTuning` as one table, `content.places` (`content/places.ts`, `PLACES`): every number of `19-evenings.md` from The day in two acts to Gaps. `GapKind` (`nothingToSell`, `nobodyPasses`, `nowhereToGo`, R3's `shortOfSupplies`; `GAP_KINDS`) and `GapDef` (`content.gaps`, `gapByKind`: rule numbers and words). `NeedsBasket.evenings` (Craftsfolk 50). New `CountWhat`s `gapsClosed`, `gapsClosedEachSeat`, `eveningsOut`, `eveningsAllOut`, `seatedSeasons`; the feats Out of an Evening, A Seat for Everyone and Mind the Gap.
+
+**State** (`SAVE_VERSION = 7`; `state/migrate7.ts`, frozen: the footfall layers zeroed, the `round` stream seeded, the evenings need at 50 for every resident, every lot a plot in no row, grown buildings' storeys by tier, no places, gaps or streets):
+
+- `MapLayers.footfallDay` and `footfallEve` (Uint16, saturating at `FOOTFALL_MAX`, halved at 04:00): `Uint16LayerName`s, hashed and saved after the others (`UINT16_LAYERS`) but outside `LayerName`, so they never travel as layer patches; clients get a `FootfallView`. `Flags.evening` (16) in the `flags` layer marks an evening street (not the road layer, whose value is a road kind everywhere).
+- `WorldState.places` (`PlaceState` by stable string id, sorted: generated name, a seat's `custom` name, R3's `priority`, and per evening for the last `PLACE_EVENINGS` (6) `visitors`, `takings`, `sold`, `served`, with `firstDay` and `seenDay`), `WorldState.gaps` (`GapsState`: open and lately closed `Gap`s, streaks, closed counts by seat, credits this season), `WorldState.streets` (`Street`: id, an anchor tile on its run, a generated name and a seat's), `WorldState.evenings` (`EveningsState`: tonight's `EveningTally` and the last six, and the runs the Charter and feats read).
+- `Resident.evening` (`ResidentEvening`: last score and day, good evenings this season, the season's heart) and `Resident.round` (`RoundStop[]`: place, kind, tile, the draw as found, `RoundFlags`, arrival). The `evenings` need (appended to `NEED_IDS`, weight 0 until R2B). `ValleySettings.eveningLingers` (absent means on).
+- The lot fields V3 draws: `Lot.row`, `Lot.kind` (`LotKind`: `'plot' | 'garden'`), `Lot.corner`, `Lot.frontage2`; `Building.storeys` (half-storey steps, grown buildings only; V3B's `params.storeys`). R2.0's answers to the planning questions are in the wave notes.
+- **Derived, never saved**: `Place` (seats, child seats, standing, kinds, shelter, warmth, outlets, draw and `DrawParts`), a pure function of saved state when read; stock is read live (`placeServes`, `placeDraw`).
+- A new RNG stream, `round`, appended.
+
+**Commands**: `road.setEvening { tiles, on }` (the flags bit; `road.remove` clears it), `road.rename { id, name }`, `place.rename { id, name }` (an empty name restores the generated one; at most `MAX_PLACE_NAME_CHARS`, 40). Each validates and stores; R2D owes their senders.
+
+**Events and views**: `places.updated` (`PlacesView`: `PlaceView`s with names, room, kinds, live serves and draw, parts, the six evenings' counts, who is there, what it still wants), `evening.closed` (`EveningView`: the tally, three to five `EditionLine`s each crediting seats, tonight's places), `gaps.updated` (`GapsView`, `GapView` in words with what would close it), `streets.updated` (`StreetView[]`), `footfall.updated` (`FootfallView`). `ViewSnapshot` gains `places`, `gaps`, `evening`, `streets`, `footfall`; `TownView.evenings`; `ResidentDetail.round` (`RoundStopView`) and `.evening`; `LotView` gains `frontage`, `row`, `kind`, `corner`, `frontage2`, `storeys`; `BuildingView.storeys`. `AgentAnim.sit`, `AgentPose` (`stand | sit | carry`) and `AgentView` (`agentPose`, `readAgentRow` in `view/agents.ts`).
+
+**System slots and hooks**: 73 places (hourly after patterns, same offset) and 79 gaps (21:00 and 10 ticks); the residents system calls `startEvening` (R2A, `residents/round.ts`) at 17:00 and `closeEvening` (R2B, `residents/evening.ts`) at 21:00. Cross-track API with stubs: `placeIndex`, `invalidatePlaces`, `placesNear`, `placeById`, `placeDraw`, `placeServes`, `recordVisit`, `recordSale` (`systems/places`), `streetTiles`, `pathFor` (`PathMode` `walk | round | barrow`, `movement/paths.ts`), `eveningScore` and `closeEvening`, `sellsTreats` and `treatsOnShelf` (`market/round.ts`), `cafeTables` (`growth/cafes.ts`), `findGap`, `openGap`, `closeGap` (`systems/gaps/api.ts`), `storeysFor` (`zoning/storeys.ts`); place ids and shared helpers in `state/evenings.ts`.
+
 ## Redesign outline [R1 to R3, V2 to V4]
 
 Written 2026-11-10 with the redesign's spec (`13-ledger.md`, `19-evenings.md`, `17-presentation.md`, `30-roadmap.md`). It names where the work lands so the contracts cycles (R1.0, R2.0, R3.0, V2.0, V3.0, V4.0) can write the exact types here, as C4.0, C5.0 and V1.0 did. Paths are as they stand on `main` today.
@@ -508,7 +532,7 @@ Written 2026-11-10 with the redesign's spec (`13-ledger.md`, `19-evenings.md`, `
 - Systems: `places` (hourly with patterns: sites, sitting spots and hosts into `Place` rows with seats, kinds, draw, serves); `residents/outings.ts` grows into the round's planner; `movement` gains the evening cost; `market/baskets` moves Treats to the stops; `growth/desirability.ts` reads footfall for Shops; `gaps` opens and closes gaps; `sim/turn.ts` runs dusk at half speed.
 - A new RNG stream, `round`, so an evening's whims never move another system's dice.
 - Lots (the old V2's sim half, for V3): `Lot.row`, a `garden` lot kind, `Lot.corner` with a second frontage, `params.storeys` chosen by the sim.
-- Commands: `road.setEvening`, `road.rename`, `place.rename`. Views: `places.updated`, `evening.closed` (the edition's lines), `gaps.updated`.
+- Commands: `road.setEvening`, `road.rename`, `place.rename`. Views: `places.updated`, `evening.closed` (the edition's lines), `gaps.updated`. As built in R2.0: the "R2 contracts" section above (the evening flag lives in the `flags` layer; `streets.updated` and `footfall.updated` join the views).
 
 **R3, masters and the Town Book** (new `systems/supplies`, `systems/masters`, `systems/townbook`)
 
