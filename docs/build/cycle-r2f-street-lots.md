@@ -36,7 +36,7 @@ Not yours: `systems/growth/{desirability,bars,outlets,cafes}.ts` (R2B), anything
 
 ## Acceptance criteria
 
-- [ ] `grep -rn "R2 stand-in (R2F)" packages apps tools` is empty.
+- [ ] `grep -rn "R2 stand-in (R2F)" packages apps tools --exclude-dir=dist` is empty.
 - [ ] In a grown Village street, every lot on a street frontage touches its neighbors (no one-tile gap) and a closed block has a garden lot; nothing stands alone on a lawn where a street has grown (a test over a grown fixture).
 - [ ] A corner lot has two valid frontages; `storeys` obeys its rules over 100 seeds; occupied lots are never disturbed.
 - [ ] A year hashes the same in Node and a browser worker; typecheck, lint, unit tests and build pass.

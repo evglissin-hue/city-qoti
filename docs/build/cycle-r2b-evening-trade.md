@@ -36,7 +36,7 @@ The R2B paths in `r2-wave-notes.md`: `systems/market/{baskets,round,api}.ts`, `s
 
 ## Acceptance criteria
 
-- [ ] `grep -rn "R2 stand-in (R2B)" packages apps tools` is empty.
+- [ ] `grep -rn "R2 stand-in (R2B)" packages apps tools --exclude-dir=dist` is empty.
 - [ ] Once three places stand, four fifths of Treats are sold on the round (headless, two bench seeds); a household in a town with no places is still sold a third by the doorstep errand.
 - [ ] The first Craftsfolk household by day 40 holds on evenings of 50 in place of charm 25 (R2E's runs are the evidence). R1's Craftsfolk targets moved here by the owner (2026-11-15): R1 ended with the first by day 40 on willow only and a third of households at day 70 on no seed.
 - [ ] Carts route round an evening street and arrive within twice free-flow; none deadlocks.

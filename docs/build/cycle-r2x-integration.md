@@ -21,7 +21,7 @@ Everything, but only to merge, fix and tune; plus the endpaper wiring if you lan
 ## Tasks
 
 1. **Merge the wave** into `cycle/r2x-integration` in a sensible order (R2A and R2B first, then R2F, R2C, R2E, R2D), resolving conflicts; merge `main` (V3's wave so far) too. Run everything after each.
-2. **Stand-ins**: `grep -rn "R2 stand-in" packages apps tools` must come back empty; finish or cut what a cycle left, and say which. `OWED_SENDERS` must hold no R2 entry.
+2. **Stand-ins**: `grep -rn "R2 stand-in" packages apps tools --exclude-dir=dist --exclude-dir=node_modules` must come back empty; finish or cut what a cycle left, and say which. `OWED_SENDERS` must hold no R2 entry.
 3. **The two inks on the endpaper map**: if V3X has landed, wire the Town overlay's data (the flows ink and `FootfallView.eve`) into V3D's `EndpaperInks`; if not, leave the data ready and a note for V3X.
 4. **Tune** against the R2 acceptance on every bench seed with R2E's tables: every grown-up with a place in reach goes out; four fifths of Treats on the round once three places stand; the first Craftsfolk household by day 40 on evenings of 50, and a third of households by day 70 (R1's lines, moved here by the owner on 2026-11-15); evening streets and carts; the evening of 2,000 residents inside budget. Every number is in `content.places`, `content.gaps` and the baskets; record what holds in `19-evenings.md` and the roadmap.
 5. **Village debt** (from R1X: 616 to 3,080 coins owed at day 70, one lean day on hazel): the household loop nets the treasury nothing, so see what evening trade and visitors change and tune what crosses the valley's edge; record it.

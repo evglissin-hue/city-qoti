@@ -38,7 +38,7 @@ The R2A paths in `r2-wave-notes.md`: `packages/sim/src/systems/places/**`, `syst
 
 ## Acceptance criteria
 
-- [ ] `grep -rn "R2 stand-in (R2A)" packages apps tools` is empty.
+- [ ] `grep -rn "R2 stand-in (R2A)" packages apps tools --exclude-dir=dist` is empty.
 - [ ] On a fair evening in an autoplayed Village every grown-up with a place in reach goes out; places fill to their room and no further; a town with no places stays in (headless tests).
 - [ ] Footfall counts only steps on the way to or between stops for the evening layer; the walk home does not.
 - [ ] A seat joining from a snapshot mid-evening sees the same places and plans (a test).
