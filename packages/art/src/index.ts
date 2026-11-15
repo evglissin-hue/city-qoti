@@ -1,6 +1,18 @@
 export { mixHex, seeded, ShapeBuilder, vary, type V3 } from './geometry';
 export { brushDabs, type DabBlob, type DabOptions } from './dabs';
 export {
+  ANCHOR_NAMES,
+  anchorsFor,
+  BODY_INSET,
+  clearAnchorCache,
+  deriveAnchors,
+  plotBody,
+  type AnchorName,
+  type AnchorOptions,
+  type DerivedAnchors,
+  type GroundBox,
+} from './anchors';
+export {
   artKitId,
   kitById,
   kits,
@@ -10,6 +22,7 @@ export {
   type KitBuildOptions,
   type KitPart,
 } from './kits';
+export type { AnchorPoint, AnchorRect, AnchorRun } from './kits/types';
 export type { AnimalKind } from './kits/types';
 export { animalArt, standingAnimal, wolfGeometry, type AnimalArt } from './kits/animals';
 export {
