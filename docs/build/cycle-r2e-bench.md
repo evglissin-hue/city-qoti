@@ -39,6 +39,8 @@ The autoplayer plays the evening round the way a sensible pair would (the Hearth
 - [ ] The outcome tests of task 4 pass or each miss is explained with its measured number for R2X.
 - [ ] The new health kinds flag their cases in unit tests and stay quiet on a sensible run.
 - [ ] A 2,000-resident evening and the place pass hold their budgets; a year hashes the same in Node and a browser worker.
+- [ ] R1F's `r1 growth night` (`tools/bench/src/r1.bench.ts`), moved to R2's bench work by the owner (2026-11-15), under 2 ms on a reference laptop. At R1's end it read 2.45 to 2.56 ms in the build container; the hot spots left are `townStock` and the night's census (memory-bound walks of every building), `craftPull` recalling the served lists twice a night, and the `persist` signature rebuild.
+- [ ] The targets script reports the Craftsfolk lines moved from R1 (first by day 40, a third by day 70) on every seed, for R2X.
 - [ ] Typecheck, lint, unit tests, build and bench pass.
 
 ## Out of scope

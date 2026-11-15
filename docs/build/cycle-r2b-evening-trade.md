@@ -39,7 +39,7 @@ The R2B paths in `r2-wave-notes.md`: `systems/market/{baskets,shopping}.ts` and 
 
 - [ ] Every R2B stand-in is gone (`grep -rn "R2 stand-in (R2B)"` is empty).
 - [ ] Once three places stand, four fifths of Treats are sold on the round (headless, on two bench seeds); a household in a town with no places is still sold a third by the doorstep errand.
-- [ ] The first Craftsfolk household by day 40 holds on evenings of 50 in place of charm 25 (R2E's bench run is the evidence).
+- [ ] The first Craftsfolk household by day 40 holds on evenings of 50 in place of charm 25 (R2E's bench run is the evidence). The owner moved R1's Craftsfolk targets here (2026-11-15): R1 ended with the first by day 40 on hazel only and 6% on the best day.
 - [ ] Carts route round an evening street and arrive within twice free-flow; none deadlocks.
 - [ ] The money invariant holds in every test that moves money; a year hashes the same in Node and a browser worker; typecheck, lint, unit tests and build pass.
 

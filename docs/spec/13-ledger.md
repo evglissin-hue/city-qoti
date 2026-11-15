@@ -293,7 +293,7 @@ Starting values for R1X's tuning; R1X recorded what holds below.
 
 - **Hands**: about a third of working residents in food (it was 40 to 55%), a sixth hauling and building, the rest in materials, workshops, shops and services. One field hand feeds about eight through the growing seasons, which is what a third of the hands needs to carry the town through a winter in which almost nothing grows *(tune)*. The carrier's load is small beside a big town's appetite (a City eats 2,000 Food a day and the road carries about 450), so a Town or City lives on what it makes and imports only fill gaps.
 - **Decisions, not chores**: over 70 autoplayed days the Ledger takes under 150 actions, none of them a pause or an order.
-- **Tiers move**: on every bench seed the first Craftsfolk household by day 40 and a third of households by day 70.
+- **Tiers move**: on every bench seed the first Craftsfolk household by day 40 and a third of households by day 70. *Moved to R2 by the owner's ruling (2026-11-15)*: at R1's end the first comes by day 40 on hazel only and the best day reaches 6% (What holds, below); R2's evenings replace the tavern and charm gates that hold households back.
 - **Nothing stalls**: the playability audit finds no business without its raw good for a whole day while its family's rule lets the carrier buy.
 - **Winter has teeth**: a town with reserves under half the plan and the pass closed for two days has hungry or cold households and loses none of its buildings.
 - **The lanes need each other** (`22-quality.md`, The lanes test).
@@ -313,7 +313,7 @@ With the founders' larder at 44 Food (R1X's earlier runs, before the dead-end fi
 
 - **Hands**: about a third in food on three seeds (35 to 38%), a quarter on hazel (25%). Holds, loosely.
 - **Decisions, not chores**: 80 to 140 accepted Ledger commands in 70 days, no pause and no order (the decisions count's verdict passes). Holds.
-- **Tiers move**: the first Craftsfolk by day 40 on hazel only (38; willow 43, oak and birch none), and a third of households by day 70 on none (the best day reaches 6% on hazel). Does not hold yet: a town that grows fast fills with Settlers; what holds households back is listed in `docs/build/r1-wave-notes.md` (Found in R1X): charm 25 at the door, a tavern and herbalist in reach, savings and one Wares flavor, with winter sliding them back. R2's evenings replace the tavern and charm gates; tune again there.
+- **Tiers move**: the first Craftsfolk by day 40 on hazel only (38; willow 43, oak and birch none), and a third of households by day 70 on none (the best day reaches 6% on hazel). Does not hold yet: a town that grows fast fills with Settlers; what holds households back is listed in `docs/build/r1-wave-notes.md` (Found in R1X): charm 25 at the door, a tavern and herbalist in reach, savings and one Wares flavor, with winter sliding them back. R2's evenings replace the tavern and charm gates; tune again there. The owner moved this line to R2 (2026-11-15).
 - **Nothing stalls**: no business without its raw good for a whole day while the carrier may buy, on any seed (and none in the audit). Holds.
 - **Winter has teeth**: `packages/sim/test/r1a/winter.test.ts` (under half the marks with the pass closed two days: households cold or hungry, no building lost, no money leaks). Holds.
 - **The lanes need each other**: recorded in `22-quality.md` (The lanes test, R1X's run). Enforced from R2.

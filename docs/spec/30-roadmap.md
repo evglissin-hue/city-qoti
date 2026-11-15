@@ -181,7 +181,7 @@ Every wave runs the build and review loop (`31-parallel-development.md`), and ea
 
 ### R1 Zones first
 
-*Status (R1X, 2026-11-12)*: integrated and tuned on `cycle/r1x-integration`, one PR into `main`. Holds: the guide's letters and the Charter in the new terms (Village charter on day 17 to 37 on the bench seeds, with no lean days), the winter test, a third of hands in food, decisions under 150 with no pause or order, no stall, every command with a sender, the audit's dead-end hunt, the old valley refused kindly, a year's golden hash alike in Node and a browser worker, the lanes test recorded. Not yet: a third of households Craftsfolk by day 70 on any seed and the first by day 40 on three of four (`13-ledger.md`, What holds); the R1 bench lines steadily under budget in the build container (they straddle it from run to run, and R1F's stricter growth scene stays near 2.5 ms; `22-quality.md`). Details in `docs/build/cycle-r1x-integration.md`, As built.
+*Status (R1X, 2026-11-15)*: integrated and tuned on `cycle/r1x-integration`, one PR into `main` (#40), on top of V2.0. Holds: the guide's letters and the Charter in the new terms (Village charter on day 17 to 37 on the bench seeds, with no lean days), the winter test, a third of hands in food, decisions under 150 with no pause or order, no stall, every command with a sender, the audit's dead-end hunt, the old valley refused kindly, a year's golden hash alike in Node and a browser worker, the lanes test recorded. Moved to R2 by the owner's ruling (2026-11-15): the Craftsfolk targets, the first household by day 40 and a third of households by day 70 (at R1's end the first comes by day 40 on hazel only, and the best day reaches 6%; `13-ledger.md`, What holds), which R2's evenings unblock; and R1F's stricter growth bench scene (2.45 to 2.56 ms in the build container against 2 ms; the spec's own growth and carrier lines straddle their budgets there from run to run; `22-quality.md`), read on a reference laptop and taken up in R2's bench work. Details in `docs/build/cycle-r1x-integration.md`, As built.
 
 **Goal**: a fresh valley grows from a hamlet to a Village and through its first winter on the zones-first Ledger: the players zone, site a dozen specialized buildings and read five balances, and the town builds, staffs and supplies itself.
 
@@ -224,6 +224,7 @@ Every wave runs the build and review loop (`31-parallel-development.md`), and ea
 
 - Each player can say, from the screen alone, what the other's work did for theirs today (the evening edition, the two inks, a gap closed).
 - The lanes test passes on every bench seed.
+- R1's two lines, moved here by the owner (2026-11-15): on every bench seed the first Craftsfolk household by day 40 and a third of households by day 70; R1F's `r1 growth night` under 2 ms on a reference laptop.
 - A full evening with 2,000 residents stays inside the sim budgets; a year hashes the same in Node and a browser worker.
 
 ### V3 Yards, streets and the long view

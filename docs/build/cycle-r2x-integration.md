@@ -33,6 +33,7 @@ Everything, but only to merge, fix and tune; plus the endpaper wiring if you lan
 
 - [ ] `30-roadmap.md`, R2, Acceptance, and the R2 list in `19-evenings.md`: every line with its evidence in the PR (test, bench table or screenshot).
 - [ ] The lanes test passes on every bench seed; each player can say from the screen what the other's work did for theirs today (screenshots, an e2e step).
+- [ ] R1's two lines, moved here by the owner (2026-11-15): on every bench seed the first Craftsfolk household by day 40 and a third of households by day 70 (R1 ended at hazel only and 6% at best), and R1F's `r1 growth night` under 2 ms on a reference laptop (2.45 to 2.56 ms in the build container at R1's end).
 - [ ] No `R2 stand-in` left; the skips in the wave notes are back on or rewritten.
 - [ ] Typecheck, lint, unit tests, build, e2e (two browsers) and bench pass; budgets hold, including the R2 lines.
 - [ ] The wave reaches `main` in one merge.
