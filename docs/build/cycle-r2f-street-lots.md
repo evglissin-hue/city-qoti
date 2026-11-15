@@ -49,4 +49,5 @@ Drawing any of it (V3B); street furniture (client-side, V3B); shop desirability 
 ## Notes
 
 - The growth budget (trade choice and growth under 2 ms a night at City scale) holds; rows are cut hourly, not nightly.
+- From P2 (wave notes, Starting after P2): growth's `index.ts` and `site.ts` carry P2's waiting reasons and its switched-off midday pass; garden lots are never free lots in any of those reasons. Roofs keep to their own lot (`ShellSpec.lot`), so a row's lots must be the lots its buildings stand in.
 - V3B will ask whether a row restyles as one (no: house by house, R2.0's answer) and how a corner def is picked (by the busier road): answer in the PR with what you built.

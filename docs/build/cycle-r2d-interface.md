@@ -53,4 +53,5 @@ The sim behind any of this (R2A to R2C); drawing seats, mugs, lamplit rows and s
 
 - Panels read views through the Mirror, never the sim (as R1C).
 - `render/` is V3's but for the two files above; if V3's wave notes claim `overlays.ts`, draw through `setOverlay` and `highlight` and ask in the PR.
+- From P2 (wave notes, Starting after P2): the Ledger's strip is its own row at laptop widths and cards sit under the bar; the Hearth's strip sits beside it and follows its layout; P2's feed lines (waiting sites, wanted zones, waiting lots) set the style gap rows follow; `overlays.ts` already draws P2's waiting-site markers in the Ledger lens.
 - A place id is a string (`seats:12`, `host:40`); keep it a string in the client.

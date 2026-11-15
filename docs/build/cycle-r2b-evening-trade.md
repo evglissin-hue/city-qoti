@@ -52,3 +52,4 @@ Places, the planner, routes and footfall (R2A); gaps and the edition (R2C); the 
 - Treats accrue as built (in hundredths); change the basket's numbers only in content.
 - From R1X: the household loop nets the treasury nothing; evening trade moves coins inside the valley. Village debt is R2X's tuning, not this cycle's.
 - Growth waits for hands (`HANDS_WAITING`, the `hands` reason); shops opened by footfall go through the same gate.
+- From P2: the zone bars' reasons are P2's (`noRoad`, `outOfReach`, `unsuitable`, `materials`, `sitesBusy`, `lotWaiting` with its hour); the Shops bar's evening reasons are new codes beside them, never in their place.

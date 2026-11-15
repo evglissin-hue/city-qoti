@@ -11,6 +11,17 @@ Read this with your brief. R2.0 fixed the types and shapes (`docs/spec/20-archit
 - **Numbers live in content.** Every number in `19-evenings.md` is in `content.places` (`packages/content/src/places.ts`, the `PLACES` table), the gap table (`content/gaps.ts`) or `NeedsBasket.evenings`, never a literal in a system. A cycle that needs a new number adds a field to `PlacesTuning` (additive) and its value in its own section of `places.ts`.
 - **Ports** (dev server and relay, so cycles can run their e2e side by side): R2A 5231 and 8841, R2B 5232 and 8842, R2C 5233 and 8843, R2D 5234 and 8844, R2E 5235 and 8845, R2F 5236 and 8846, R2X 5237 and 8847 (R2.0 had 5230 and 8840). V3.0's brief gives V3A to V3X the same numbers 5231 to 5235; the waves run in separate containers, so this only matters on one machine: there, V3 moves.
 
+## Starting after P2
+
+P2 (the R1 playtest, PR #43, `docs/build/cycle-p2-playtest.md`, As built) is merged into `cycle/r2x-integration` by R2.0, so the wave starts on it. What it changed that the wave builds on, never against:
+
+- **Save version 7** is P2's (`demand.starts`); R2 is 8 (above).
+- **Growth**: `systems/growth/{bars,index,site}.ts` reworked: the zone bars give the true reason nothing starts (`DemandReasonCode` gains `noRoad`, `outOfReach`, `unsuitable` with `DemandReason.want`, `materials`, `sitesBusy`; `lotWaiting` carries the next pass's hour), and a midday growth pass is built and switched off (`GROWTH_MIDDAY` false, `GROWTH_HOURS`, the shared day's allowance `demand.starts`). Do not redo or fight either: R2B's Shops reasons (footfall, places with nothing to sell) are new codes beside P2's, and R2F's garden lots are never free lots in any of P2's reasons (`lotWaiting`, `outOfReach`, `unsuitable`, `materials`, `sitesBusy`).
+- **The top bar**: in the Ledger the strip is its own row at laptop widths (`ui/topbar/strip.ts`, `Strips.tsx`, `GoalPill.tsx`, new `ui/hands.ts` and `ui/sites.ts`), and cards and side panels sit under it. R2D's Hearth strip sits beside it in the Hearth lens and follows its layout.
+- **The feed**: the Ledger's feed lines for waiting sites, wanted zones and waiting lots (`ui/sites.ts`). R2D's gap rows join the same feed and follow its line style.
+- **Render**: `render/layers/overlays.ts` draws P2's waiting-site markers in the Ledger lens (`RenderApi.setSiteMarkers`); R2D's Town overlay goes beside them in that file. Roofs keep to their own lot (`ShellSpec.lot` in `packages/art/src/kits/buildings.ts`, with `grown.ts`, `farms.ts`, `workshops.ts` and `lotBounds.test.ts`): R2F's lots and V3B's rows must respect that clamp (rows that join are unchanged).
+- **Tuning**: P2 left R1X's tuned numbers as they were (the midday pass is off; `r1-year.json` replays command for command), so R2E's and R2X's tuning starts from R1X's tables in `13-ledger.md` plus P2's measured table for the midday pass.
+
 ## Lessons carried over (read first)
 
 - I3's lesson stands: write tests that hold when every system runs beside yours; isolate with `withoutSystems([...])` but never assume another system is absent.

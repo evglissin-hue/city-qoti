@@ -50,3 +50,4 @@ Changing a system to make a number pass (report it to R2X); the interface (R2D);
 
 - R1X's lanes record: the Hearth-off towns ended with 93 to 187% of the residents (no Craftsfolk), the Ledger-off ones 18 to 26%; the both-lanes Ledger took up to 142 decisions in 70 days. The enforced test fails until the evening round gives places their pull: report each seed's figure, never loosen the bar.
 - Variance between runs is large (R1X): read every target over several seeds and runs.
+- From P2: tuning starts from R1X's numbers (P2 left them as they were); P2's table for the switched-off midday growth pass (`docs/build/cycle-p2-playtest.md`, As built) is there if a tuning round wants to try it (`GROWTH_MIDDAY`).
