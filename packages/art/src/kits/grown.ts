@@ -5,7 +5,7 @@
 // walls, roof and paint, just taller and finer. Runtime detail arrives in params like the I1 kits
 // ('make' names the good a grown craft or farm is making, 'out:<good>' its output pile).
 import type { ShapeBuilder } from '../geometry';
-import { mixHex, seeded, vary, type V3 } from '../geometry';
+import { seeded, vary, type V3 } from '../geometry';
 import { palette } from '../palette';
 import { beam, cylX } from '../shapes';
 import { cottageChoices, cottageOf, houseKit, shell, signBoard, windowRow, type Built } from './buildings';
@@ -200,6 +200,7 @@ function sideGarden(
   z1: number,
   pick: number,
   rnd: () => number,
+  season = 1,
 ): void {
   if (x1 - x0 < 0.4 || z1 - z0 < 0.4) return;
   const cx = (x0 + x1) / 2;
@@ -209,23 +210,8 @@ function sideGarden(
     washingLine(s, [x0 + 0.1, cz], [x1 - 0.1, cz + 0.05], rnd);
     flowerBorder(s, [x0 + 0.08, z1 - 0.1], [x1 - 0.08, z1 - 0.1], rnd);
   } else if (pick < 0.8) {
-    // A little apple tree with a bench in its shade.
-    s.cylinder(cx, cz, 0.05, 0.035, 0, 0.4, palette.bark, 5);
-    const leaf = vary(palette.leaf, rnd, 0.8);
-    s.blob(cx, 0.55, cz, 0.3, 0.24, 0.3, leaf, 1, rnd, 0.1, mixHex(leaf, 0xc8e070, 0.15));
-    for (let i = 0; i < 6; i++) {
-      const a = rnd() * Math.PI * 2;
-      s.blob(
-        cx + Math.cos(a) * 0.24,
-        0.48 + rnd() * 0.15,
-        cz + Math.sin(a) * 0.24,
-        0.025,
-        0.025,
-        0.025,
-        palette.apple,
-        0,
-      );
-    }
+    // A little apple tree (the valley's painted orchard tree) with a bench in its shade.
+    orchardTree(s, cx, cz, 0.85, season, rnd);
     if (z1 - z0 > 0.6) bench(s, cx, z1 - 0.12, true, rnd);
   } else {
     // A hen coop and hens pecking about.
@@ -371,8 +357,8 @@ function grownCottage(opts: KitBuildOptions | undefined, L: DistrictLook): Built
     else barrel(s, x1 + 0.08 < w - 0.05 ? x1 + 0.08 : x1 - 0.12, 0, z1 + 0.12, rnd, 0.9);
     steppingStones(s, doorU, z1 + 0.16, d - 0.1, rnd);
     frontGarden(s, L, w, d, z1, doorU, x0, x1, rnd);
-    if (w - x1 > 0.6) sideGarden(s, x1 + 0.08, z0, w - 0.08, d - 0.25, look(), rnd);
-    else if (x0 > 0.6) sideGarden(s, 0.08, z0, x0 - 0.08, d - 0.25, look(), rnd);
+    if (w - x1 > 0.6) sideGarden(s, x1 + 0.08, z0, w - 0.08, d - 0.25, look(), rnd, seasonOf(opts));
+    else if (x0 > 0.6) sideGarden(s, 0.08, z0, x0 - 0.08, d - 0.25, look(), rnd, seasonOf(opts));
     if (look() < 0.25)
       anchors.lights!.push(wallLantern(s, facePoint(front, doorU - 0.24, 0.62, clad), [0, 0, 1]));
   });

@@ -10,17 +10,18 @@
 // the byre and its paddock, the fold, the hive rows) draw at both levels of detail; tools, crates,
 // hens and ladders are near-only.
 import type { ShapeBuilder } from '../geometry';
-import { mixHex, vary } from '../geometry';
+import { mixHex, vary, type V3 } from '../geometry';
 import { palette } from '../palette';
+import { SURFACE } from '../surface';
 import { beam } from '../shapes';
 import { shell, windowRow, type Built } from './buildings';
 import { type BusinessDraw, goodsOutFront, levelOf, paintedSign, type BusinessLevel } from './business';
 import { gardenEdge, hen, postAndRail, trough } from './details';
 import { clamp, homeLook, makingOf, start, steppingStones, windowsOf } from './grown';
 import { cheeseWheel, crateOf, GOOD_COLORS, pileOf } from './goods';
-import { chimneyPart, claddingDepth, doorPart, faceBox, type Face } from './parts';
+import { chimneyPart, claddingDepth, doorPart, faceBox, windowPart, type Face } from './parts';
 import { hayBale, ladder, scarecrow, wateringCan } from './props';
-import { roofPart } from './roofs';
+import { roofPart, type RoofMaterial } from './roofs';
 import type { DistrictLook } from './district';
 import { orchardTree, paddock, seasonOf, shepherdsHut, skep } from './village';
 import type { KitAnchors, KitBuildOptions } from './types';
@@ -50,7 +51,11 @@ interface Lot {
   xr: (x0: number, x1: number) => [number, number];
 }
 
-/** A plain outbuilding: board walls under a small gable roof, ridge along x or z (about 60 triangles). */
+/**
+ * A humble outbuilding: weatherboard walls under a small gable roof of shingle (or what the look
+ * names) with a little overhang, a plank door and a window on the end. The ridge runs along x or z.
+ * P2-E2: it is built with the same shell, surfaces and roof builder as the farm's other buildings.
+ */
 function shed(
   lot: Lot,
   x0: number,
@@ -63,27 +68,81 @@ function shed(
     roof?: number;
     rise?: number;
     ridgeAlongX?: boolean;
+    material?: RoofMaterial;
   } = {},
 ): void {
-  const { s, rnd } = lot;
+  const { s, rnd, L, anchors } = lot;
   const [a, b] = lot.xr(x0, x1);
-  const wallH = opts.wallH ?? 0.42;
-  s.box(a, 0, z0, b, wallH, z1, vary(opts.wall ?? 0x9a7a58, rnd, 0.4));
-  s.gable(
-    a - 0.06,
-    z0 - 0.06,
-    b + 0.06,
-    z1 + 0.06,
-    wallH,
-    wallH + (opts.rise ?? 0.32),
-    vary(opts.roof ?? 0x6b625c, rnd, 0.5),
-    opts.ridgeAlongX ?? true,
+  const base = 0.04;
+  const top = base + (opts.wallH ?? 0.42);
+  const wallH = top - base;
+  const alongX = opts.ridgeAlongX ?? true;
+  const material = opts.material ?? 'shingle';
+  const rise = opts.rise ?? 0.32;
+  const wall = vary(opts.wall ?? 0x9a7a58, rnd, 0.4);
+  // A low stone footing, then weatherboard walls (the timber surface lays the boards) and gable ends.
+  s.surface(SURFACE.stone);
+  s.box(a - 0.02, 0, z0 - 0.02, b + 0.02, base, z1 + 0.02, palette.foundation, 'b' + (s.low ? 't' : ''));
+  s.surface(SURFACE.timber);
+  s.box(a, base, z0, b, top, z1, wall, 'b' + (s.low ? 't' : ''));
+  const ridge = top + rise;
+  const zm = (z0 + z1) / 2;
+  const xm = (a + b) / 2;
+  if (alongX) {
+    s.tri([a, top, z0], [a, top, z1], [a, ridge, zm], wall, [-1, 0, 0]);
+    s.tri([b, top, z0], [b, top, z1], [b, ridge, zm], wall, [1, 0, 0]);
+  } else {
+    s.tri([a, top, z0], [b, top, z0], [xm, ridge, z0], wall, [0, 0, -1]);
+    s.tri([a, top, z1], [b, top, z1], [xm, ridge, z1], wall, [0, 0, 1]);
+  }
+  s.surface(SURFACE.plain);
+  // The roof: courses of shingle with a small overhang (a hair of verge), kept inside the lot.
+  const ov = 0.09;
+  const verge = 0.05;
+  const ox = alongX ? verge : ov;
+  const oz = alongX ? ov : verge;
+  roofPart(s, {
+    shape: 'gable',
+    material,
+    x0: Math.max(0.04, a - ox),
+    z0: Math.max(0.04, z0 - oz),
+    x1: Math.min(lot.w - 0.04, b + ox),
+    z1: Math.min(lot.d - 0.04, z1 + oz),
+    y0: top - 0.04,
+    y1: ridge,
+    color: vary(opts.roof ?? 0x6b625c, rnd, 0.5),
+    trim: palette.timber,
+    ridgeAlongX: alongX,
+    rnd,
+  });
+  const clad = claddingDepth('weatherboard');
+  const cx = (a + b) / 2;
+  doorPart(
+    s,
+    { dir: 'z+', plane: z1 },
+    cx,
+    0.2,
+    Math.min(0.34, wallH * 0.8),
+    0x6a4a34,
+    palette.timber,
+    'plank',
+    clad,
   );
-  // A plank door on the road side and a dark window slit on the end.
-  s.nearOnly(() => {
-    const cx = (a + b) / 2;
-    s.box(cx - 0.09, 0, z1, cx + 0.09, wallH * 0.75, z1 + 0.012, 0x5a4636);
-    s.box(a + 0.04, wallH * 0.5, z1, a + 0.12, wallH * 0.8, z1 + 0.012, 0x3b3229);
+  s.detail(() => {
+    const style = { ...windowsOf(L), box: false, shutter: null };
+    // The window sits on the end wall that faces the yard, small and square.
+    windowPart(
+      s,
+      { dir: 'x+', plane: b },
+      (z0 + z1) / 2,
+      wallH * 0.6,
+      0.1,
+      0.11,
+      style,
+      rnd,
+      anchors.lights,
+      clad,
+    );
   });
 }
 
@@ -159,7 +218,18 @@ function lotOf(opts: KitBuildOptions | undefined, salt: number, paint: number): 
     );
   // The yard: packed earth along the front, bigger at level 3.
   const [yx0, yx1] = xr(0.1 + hw + 0.1, w - 0.1);
-  s.rbox(Math.min(yx0, yx1), 0, lot.yardZ, Math.max(yx0, yx1), 0.007, d - 0.1, vary(YARD, rnd, 0.4), 0.05);
+  // P2-E2: worn earth, not a rectangle: a soft, uneven patch by the door and a little more at the gate.
+  const yl = Math.min(yx0, yx1);
+  const yr = Math.max(yx0, yx1);
+  earthPatch(
+    lot,
+    (yl + yr) / 2,
+    (lot.yardZ + d - 0.1) / 2 + 0.02,
+    (yr - yl) / 2,
+    (d - 0.1 - lot.yardZ) / 2 + 0.04,
+    YARD,
+  );
+  earthPatch(lot, doorU, d - 0.17, 0.22, 0.11, YARD, { nearOnly: true });
   s.detail(() => {
     windowRow(
       s,
@@ -177,6 +247,21 @@ function lotOf(opts: KitBuildOptions | undefined, salt: number, paint: number): 
     );
     for (let i = 0; i < 2; i++) hen(s, m(1.5 + rnd() * 1.3), d - 0.35 - rnd() * 0.15, rnd() * 6.28, rnd);
     steppingStones(s, hdoor, hz1 + 0.1, d - 0.08, rnd);
+    // P2-E2: a small window on the gable end that is free (the other stands near the lot's edge,
+    // where a neighbor's wall hides it), as the grown cottage does.
+    const gable: Face = left ? { dir: 'x+', plane: hx1 } : { dir: 'x-', plane: hx0 };
+    windowPart(
+      s,
+      gable,
+      (hz0 + hz1) / 2,
+      0.46,
+      0.18,
+      0.2,
+      { ...windowsOf(L), box: false },
+      rnd,
+      anchors.lights,
+      clad,
+    );
   });
   // The front fence along the lot, a gate at the yard and another at the house door; level 3 fences
   // in the district's own edge and runs it up the free side.
@@ -204,21 +289,44 @@ function lotOf(opts: KitBuildOptions | undefined, salt: number, paint: number): 
   return lot;
 }
 
-/** A thin pasture or field floor over the lot, so the far level reads as green (or frosted) land. */
-function groundOf(
+/**
+ * P2-E2: a patch of bare ground in the game's earth colors and dirt surface: a ring of nine to
+ * eleven points round (`cx`, `cz`) with radii of a little under to a little over `rx` and `rz`, so
+ * it is soft and a little irregular, never a rectangle. A farm lot has no floor of its own: its
+ * grass is the valley's meadow, and only worked ground (a yard, a trodden spot, a ring of mulch,
+ * the beds) is drawn. Kept inside the lot. Far off it stays (it colors the ground) unless `near`.
+ */
+function earthPatch(
   lot: Lot,
-  x0: number,
-  z0: number,
-  x1: number,
-  z1: number,
-  spring: number,
-  summer: number,
-  autumn: number,
-  winter: number,
+  cx: number,
+  cz: number,
+  rx: number,
+  rz: number,
+  hex: number,
+  opts: { surface?: number; y?: number; nearOnly?: boolean; points?: number } = {},
 ): void {
-  const c = [spring, summer, autumn, winter][lot.season]!;
-  const [a, b] = lot.xr(x0, x1);
-  lot.s.rbox(a, 0, z0, b, 0.008, z1, vary(c, lot.rnd, 0.3), 0.05);
+  const { s, rnd } = lot;
+  const y = opts.y ?? 0.006;
+  const n = opts.points ?? 9 + Math.floor(rnd() * 3);
+  const phase = rnd() * 6.28;
+  const pts: V3[] = [];
+  for (let i = 0; i < n; i++) {
+    const a = phase + (i / n) * Math.PI * 2;
+    const j = 0.82 + rnd() * 0.3;
+    const x = clamp(cx + Math.sin(a) * rx * j, 0.06, lot.w - 0.06);
+    const z = clamp(cz - Math.cos(a) * rz * j, 0.06, lot.d - 0.06);
+    pts.push([x, y, z]);
+  }
+  const colors = pts.map(() => vary(hex, rnd, 0.4));
+  const was = s.currentSurface;
+  const draw = (): void => {
+    s.surface(opts.surface ?? SURFACE.dirt);
+    const c: V3 = [cx, y, cz];
+    for (let i = 0; i < n; i++) s.tri(c, pts[i]!, pts[(i + 1) % n]!, colors[i]!, [0, 1, 0]);
+  };
+  if (opts.nearOnly) s.nearOnly(draw);
+  else s.essential(draw);
+  s.surface(was);
 }
 
 // --- Grain farm ----------------------------------------------------------------------------------
@@ -239,7 +347,6 @@ function hayrick(s: ShapeBuilder, x: number, z: number, k: number, rnd: () => nu
 function grainFarm(opts: KitBuildOptions | undefined): Built {
   const lot = lotOf(opts, 61, 0x8f3a30);
   const { s, anchors, L, rnd, look, lvl, season, m } = lot;
-  s.nearOnly(() => groundOf(lot, 0.1, 0.1, 2.9, lot.yardZ - 0.05, 0x9cc06a, 0x9cb85c, 0xa89a5a, 0xc9cfc0));
   // The barn: weatherboard in barn red (or the district's stone), a gambrel roof; it widens by level.
   const stoneBarn = L.wall === 'stone' || L.wall === 'brick';
   const bw = lvl === 1 ? 1.1 : lvl === 2 ? 1.28 : 1.42;
@@ -286,7 +393,12 @@ function grainFarm(opts: KitBuildOptions | undefined): Built {
   const x1 = Math.max(gx0, gx1);
   const gz1 = lot.yardZ - 0.1;
   const soilHex = vary(season === 3 ? 0x8a7a66 : 0x6e5036, rnd, 0.4);
-  s.nearOnly(() => s.rbox(x0, 0, gz0, x1, 0.012, gz1, soilHex, 0.03));
+  // The field's soil: an uneven patch of tilled earth, the crop rows on it (no floor under the lot).
+  earthPatch(lot, (x0 + x1) / 2, (gz0 + gz1) / 2, ((x1 - x0) / 2) * 1.25, ((gz1 - gz0) / 2) * 1.25, soilHex, {
+    surface: SURFACE.field,
+    y: 0.01,
+    nearOnly: true,
+  });
   const rows = Math.max(3, Math.round((gz1 - gz0) / 0.13));
   const hts = [0.07, 0.22, 0.035, 0.015];
   const cols = [0x8bbf4e, GOOD_COLORS.wheat, 0xc9ad62, 0xd8d2c0];
@@ -342,7 +454,6 @@ function grainFarm(opts: KitBuildOptions | undefined): Built {
 function marketGarden(opts: KitBuildOptions | undefined): Built {
   const lot = lotOf(opts, 62, 0x5f9a3e);
   const { s, anchors, rnd, lvl, season, m } = lot;
-  groundOf(lot, 0.1, 0.1, 2.9, lot.yardZ - 0.05, 0xa89a6a, 0xa89a6a, 0xa89268, 0xc0bcae);
   const nRows = lvl === 1 ? 3 : lvl === 2 ? 5 : 7;
   const zs =
     lvl === 1
@@ -361,7 +472,9 @@ function marketGarden(opts: KitBuildOptions | undefined): Built {
       const [a, b] = lot.xr(rowStart, 2.38);
       const x0 = Math.min(a, b);
       const x1 = Math.max(a, b);
-      s.rbox(x0, 0, z - 0.12, x1, 0.05, z + 0.12, vary(soil, rnd, 0.4), 0.04);
+      s.surface(SURFACE.field);
+      s.rbox(x0, 0, z - 0.12, x1, 0.05, z + 0.12, vary(soil, rnd, 0.4), 0.05);
+      s.surface(SURFACE.plain);
       const half = season === 2 ? (r % 2 === 0 ? 0.5 : 1) : 1;
       const xe = x0 + (x1 - x0) * half;
       if (season === 0) {
@@ -394,7 +507,9 @@ function marketGarden(opts: KitBuildOptions | undefined): Built {
       return [Math.min(a, b), Math.max(a, b)];
     };
     const [sx0, sx1] = lot.xr(0.16, 2.38);
-    s.box(Math.min(sx0, sx1), 0, zs[0]! - 0.12, Math.max(sx0, sx1), 0.05, zs[nRows - 1]! + 0.12, soil);
+    s.surface(SURFACE.field);
+    s.rbox(Math.min(sx0, sx1), 0, zs[0]! - 0.12, Math.max(sx0, sx1), 0.05, zs[nRows - 1]! + 0.12, soil, 0.08);
+    s.surface(SURFACE.plain);
     for (let r = 0; r < nRows; r += 2) {
       const [x0, x1] = rowX(zs[r]!);
       const c = season === 3 ? 0xd9c27a : season === 0 ? 0xb4d46a : crop[r % 4]!;
@@ -438,68 +553,23 @@ function marketGarden(opts: KitBuildOptions | undefined): Built {
 // --- Orchard -------------------------------------------------------------------------------------
 
 /**
- * One orchard tree for the lot. The full tree (`orchardTree`) is the near look; level 3 packs nine
- * trees in, so its back rows use a lighter crown. Far off every tree is one octahedron crown.
+ * One orchard tree for the lot: the valley's painted orchard tree (`orchardTree`), with a small ring
+ * of bare mulch round its trunk, the only ground the orchard draws. Level 3 packs nine trees in, so
+ * its back rows use a lighter crown (`light`).
  */
-function fruitTree(
-  s: ShapeBuilder,
-  x: number,
-  z: number,
-  k: number,
-  season: number,
-  rnd: () => number,
-  light: boolean,
-): void {
-  const near = (): void => {
-    if (!light) return orchardTree(s, x, z, k, season, rnd);
-    const trunk = vary(palette.bark, rnd, 0.6);
-    s.cylinder(x, z, 0.05 * k, 0.035 * k, 0, 0.34 * k, trunk, 5);
-    if (season === 3) {
-      for (let i = 0; i < 3; i++) {
-        const a = rnd() * 6.28;
-        beam(
-          s,
-          [x, 0.3 * k, z],
-          [x + Math.cos(a) * 0.16 * k, 0.55 * k, z + Math.sin(a) * 0.16 * k],
-          0.015 * k,
-          trunk,
-        );
-      }
-      return;
-    }
-    const leaf =
-      season === 0
-        ? vary(0x9cc06a, rnd, 0.6)
-        : season === 2
-          ? vary(mixHex(palette.leaf, palette.autumnGold, 0.35), rnd, 0.8)
-          : vary(palette.leaf, rnd, 0.7);
-    s.blob(x, 0.58 * k, z, 0.3 * k, 0.22 * k, 0.3 * k, leaf, 1, rnd, 0.1, mixHex(leaf, 0xc8e070, 0.15));
-    const dot = season === 0 ? palette.blossom : season === 1 ? 0xd9453a : 0xc8352e;
-    for (let i = 0; i < 4; i++) {
-      const a = rnd() * 6.28;
-      s.blob(
-        x + Math.cos(a) * 0.24 * k,
-        (0.5 + rnd() * 0.2) * k,
-        z + Math.sin(a) * 0.24 * k,
-        0.04 * k,
-        0.04 * k,
-        0.04 * k,
-        dot,
-        0,
-      );
-    }
-  };
-  const far = (): void => {
-    const c = season === 3 ? 0x7a6a58 : season === 0 ? 0xa8c878 : season === 2 ? 0xb8a050 : 0x6fa04a;
-    s.blob(x, 0.55 * k, z, 0.3 * k, 0.26 * k, 0.3 * k, c, 0);
-  };
-  s.levels(near, far);
+function fruitTree(lot: Lot, x: number, z: number, k: number, light: boolean, dabs?: number): void {
+  const { s, rnd, season } = lot;
+  earthPatch(lot, x, z, 0.17 * k, 0.17 * k, mixHex(palette.soil, 0x8a7a50, 0.5), {
+    y: 0.005,
+    nearOnly: true,
+    points: 7,
+  });
+  orchardTree(s, x, z, k, season, rnd, light, dabs);
 }
 
 function orchard(opts: KitBuildOptions | undefined): Built {
   const lot = lotOf(opts, 63, 0xa8473b);
-  const { s, anchors, rnd, lvl, season, m } = lot;
-  groundOf(lot, 0.1, 0.1, 2.9, lot.yardZ - 0.05, 0x9dc470, 0x86b45a, 0xa3a860, 0xc6cdbb);
+  const { s, anchors, rnd, lvl, m } = lot;
   const trees: [number, number][] =
     lvl === 1
       ? [
@@ -529,7 +599,9 @@ function orchard(opts: KitBuildOptions | undefined): Built {
             [1.3, 0.55],
           ];
   const k = lvl === 3 ? 0.8 : 0.9;
-  trees.forEach(([x, z], i) => fruitTree(s, m(x), z, k, season, rnd, lvl === 3 && i >= 2));
+  trees.forEach(([x, z], i) =>
+    fruitTree(lot, m(x), z, k, lvl === 3 && i >= 2, lvl === 1 ? 110 : lvl === 2 ? 88 : undefined),
+  );
   // The packing shed at the back left, the crates of the harvest, ladders in the trees.
   const sx1 = lvl === 3 ? 0.88 : lvl === 2 ? 1.05 : 1.0;
   shed(lot, 0.16, 0.14, sx1, lvl === 1 ? 0.7 : 0.78, { wallH: 0.45, wall: 0xa8473b, rise: 0.3 });
@@ -547,7 +619,6 @@ function orchard(opts: KitBuildOptions | undefined): Built {
 function dairy(opts: KitBuildOptions | undefined): Built {
   const lot = lotOf(opts, 64, 0x2f4a6a);
   const { s, anchors, L, rnd, lvl, m, d } = lot;
-  groundOf(lot, 0.1, 1.05, 2.9, lot.yardZ - 0.05, 0x9cc06a, 0x8fb45a, 0xa3a860, 0xc6cdbb);
   // The long low byre along the back, longer by level.
   const stone = L.wall === 'stone' || L.wall === 'brick';
   const bx0w = lvl === 1 ? 1.1 : lvl === 2 ? 0.6 : 0.2;
@@ -598,7 +669,11 @@ function dairy(opts: KitBuildOptions | undefined): Built {
   const p0 = lvl === 1 ? 1.95 : lvl === 2 ? 1.6 : 1.38;
   const [pa, pb] = lot.xr(p0, 2.86);
   const pz1 = lot.yardZ - 0.08;
-  paddock(s, Math.min(pa, pb), 1.18, Math.max(pa, pb), pz1, m(p0 + (2.86 - p0) * 0.6), rnd);
+  const gateU = m(p0 + (2.86 - p0) * 0.6);
+  paddock(s, Math.min(pa, pb), 1.18, Math.max(pa, pb), pz1, gateU, rnd);
+  // Trodden earth where the cows crowd: at the trough and inside the gate.
+  earthPatch(lot, m(2.5), 1.5, 0.36, 0.22, 0x8a6e4a, { nearOnly: true });
+  earthPatch(lot, gateU, pz1 - 0.1, 0.3, 0.14, 0x8a6e4a, { nearOnly: true });
   const [aa, ab] = lot.xr(p0 + 0.16, 2.7);
   anchors.animals = [
     { kind: 'cow', pen: [Math.min(aa, ab), 1.35, Math.max(aa, ab), pz1 - 0.25], count: lvl + 1 },
@@ -633,7 +708,6 @@ function sheepRun(opts: KitBuildOptions | undefined): Built {
   const { s, anchors, L, rnd, lvl, m } = lot;
   const f0 = lvl === 1 ? 1.9 : lvl === 2 ? 1.65 : 1.4;
   const pz1 = lot.yardZ - 0.08;
-  groundOf(lot, f0, 0.12, 2.88, pz1, 0xa3cc78, 0x9cb86a, 0xa8aa66, 0xd4d9cc);
   // The fold: dry stone in Hill Stone, post and rail elsewhere; a gate gap in the front.
   const [fa, fb] = lot.xr(f0, 2.88);
   const x0 = Math.min(fa, fb);
@@ -658,6 +732,9 @@ function sheepRun(opts: KitBuildOptions | undefined): Built {
     });
   };
   const gx = (x0 + x1) / 2;
+  // Trodden earth in the fold: at the trough and inside the gate gap.
+  earthPatch(lot, gx, 1.02, 0.36, 0.2, 0x8a6e4a, { nearOnly: true });
+  earthPatch(lot, gx, pz1 - 0.1, 0.3, 0.14, 0x8a6e4a, { nearOnly: true });
   s.levels(
     () => {
       wall([x0, 0.12], [x1, 0.12]);
@@ -733,7 +810,6 @@ function hiveBox(s: ShapeBuilder, x: number, z: number, hex: number, rnd: () => 
 function hives(opts: KitBuildOptions | undefined): Built {
   const lot = lotOf(opts, 66, 0xf3d35b);
   const { s, anchors, rnd, lvl, season, m } = lot;
-  groundOf(lot, 0.1, 0.1, 2.9, lot.yardZ - 0.05, 0xa9c874, 0x9fb36a, 0xa8a460, 0xcdd2c4);
   // Flower strips between the rows: blossom, lavender, asters, bare straw.
   const flower = [0xf4d4e2, 0x9a82c4, 0xe0a83a, 0xc9b88a][season]!;
   const strips: [number, number, number][] = [
@@ -783,6 +859,7 @@ function hives(opts: KitBuildOptions | undefined): Built {
     wallH: 0.42,
     wall: 0xb08a5e,
     roof: 0xb8862e,
+    material: 'thatch',
     rise: 0.3,
   });
   s.detail(() => {
