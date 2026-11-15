@@ -57,7 +57,9 @@ export function endpaperLayer(opts: EndpaperLayerOptions = {}): RenderLayer {
       if (!ctx || !env || !writer) return false;
       const cover = on ? endpaperCover(cameraDistance(env)) : 0;
       env.endpaper.cover = cover;
-      env.skipScene = cover >= 1;
+      // Skip the scene only once a map has been drawn, so a browser without a canvas in its
+      // workers (or a drawing still on its way) never shows an empty view.
+      env.skipScene = cover >= 1 && env.endpaper.revision > 0;
       const mirror = ctx.mirror;
       return writer.tick(now(), cover, () => endpaperInput(mirror));
     },

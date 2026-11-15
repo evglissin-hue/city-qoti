@@ -5,7 +5,9 @@
 // plain parchment and keeps `cover` at 0, so nothing on screen changes; V3D draws the map and turns
 // it on (`ENDPAPER_ON`), and adds the renderer's one-line skip of the scene pass on `env.skipScene`.
 import { DataTexture, RGBAFormat, SRGBColorSpace, type Texture } from 'three';
+import { footprintSize } from '@qoti/sim';
 import type { Mirror } from '../state/mirror';
+import { drawDef } from './defs';
 
 /** Camera distance in tiles where the map starts to show, and where it covers the view. */
 export const ENDPAPER_NEAR = 200;
@@ -48,7 +50,7 @@ export interface EndpaperInks {
   footfall?: InkLayer;
 }
 
-/** A building's footprint on the map (a roofline), or a plan's in blueprint ink. Tiles, world axes. */
+/** A building's footprint on the map (a roofline), or a plan's in blueprint ink: world tiles, already turned by `rot`. */
 export interface EndpaperRoof {
   x: number;
   z: number;
@@ -134,7 +136,9 @@ export function endpaperInput(mirror: Mirror, inks: EndpaperInks = {}): Endpaper
   const roofs: EndpaperRoof[] = [];
   const plans: EndpaperRoof[] = [];
   for (const b of mirror.buildings.values()) {
-    const r: EndpaperRoof = { x: b.x, z: b.z, w: 1, d: 1, rot: b.rot };
+    const def = drawDef(b.def);
+    const [w, d] = def ? footprintSize(def, b.rot) : [1, 1];
+    const r: EndpaperRoof = { x: b.x, z: b.z, w, d, rot: b.rot };
     (b.stage === 'built' ? roofs : plans).push(r);
   }
   const labels: EndpaperLabel[] = [];

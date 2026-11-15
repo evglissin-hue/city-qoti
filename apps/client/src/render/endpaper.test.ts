@@ -1,6 +1,7 @@
 // V3.0: the endpaper map's interface (render/endpaper.ts) and its stub layer.
 import { describe, expect, it } from 'vitest';
 import { PerspectiveCamera, Vector3 } from 'three';
+import { content } from '@qoti/content';
 import type { Mirror, MirrorChange } from '../state/mirror';
 import {
   createEndpaperMap,
@@ -164,6 +165,10 @@ describe('the endpaper input (V3.0)', () => {
     expect(inp.heights).toHaveLength(N * N);
     expect(inp.heights[0]).toBe(2);
     expect(inp.roofs).toHaveLength(1);
+    // Roofs carry the def's footprint, turned by rot (the plan stands at rot 1).
+    const [w, d] = content.buildingById.get('cottage')!.size;
+    expect(inp.roofs[0]).toMatchObject({ x: 2, z: 3, w, d });
+    expect(inp.plans[0]).toMatchObject({ w: d, d: w });
     expect(inp.plans).toHaveLength(1);
     expect(inp.labels[0]).toMatchObject({ text: 'Hollowmere', kind: 'valley' });
     expect(inp.inks).toEqual({});
@@ -213,10 +218,12 @@ describe('the endpaper layer stub (V3.0)', () => {
     layer.init({ env, mirror: fakeMirror() } as unknown as LayerContext);
     expect(layer.frame!(0.016)).toBe(false);
     expect(env.endpaper.cover).toBe(1);
-    expect(env.skipScene).toBe(true);
+    // No map drawn yet: the scene is still drawn.
+    expect(env.skipScene).toBe(false);
     expect(worker.requests).toHaveLength(1);
     worker.finish();
     expect(layer.frame!(0.016)).toBe(true);
+    expect(env.skipScene).toBe(true);
     // A town change waits out the debounce.
     t = 1000;
     layer.update(change({ buildings: true }));
