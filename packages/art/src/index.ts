@@ -13,6 +13,17 @@ export {
   type GroundBox,
 } from './anchors';
 export {
+  dressingCount,
+  matches,
+  mix32,
+  resolveDressing,
+  rulesFor,
+  subjectKey,
+  validateDressingRules,
+  type DressingSubject,
+  type Placement,
+} from './dressing';
+export {
   artKitId,
   kitById,
   kits,

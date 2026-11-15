@@ -38,7 +38,11 @@ export interface ScreenLot {
 export interface ScreenLots {
   /** Every lot, sorted by id. */
   lots: ScreenLot[];
-  /** Each row's lots in order along the frontage (left to right seen from the road), keyed by row id; rows of one lot are left out. */
+  /**
+   * Each row's lots in order along the frontage, keyed by row id: in kit-local +x order, the way
+   * `rowNeighbors` names its sides (`joinL` first, `joinR` last; for rot 0, increasing world x).
+   * Rows of one lot are left out.
+   */
   rows: Map<number, ScreenLot[]>;
   /** True when the Mirror carries R2's lot fields (any lot has a numeric `row`). */
   fromSim: boolean;
