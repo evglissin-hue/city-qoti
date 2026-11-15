@@ -5,6 +5,8 @@ import {
   canPlaceBuilding,
   canPlaceDecor,
   AGENT_STRIDE,
+  entranceTiles,
+  facing,
   footprintSize,
   MAP_SIZE,
   TILE_FP,
@@ -446,7 +448,27 @@ export function installDebugHook(getSession: () => Session | null): void {
       let box: [number, number, number, number] = [sx0, sz0, sx1 + 1, sz1 + 1];
       for (const b of m.buildings.values())
         box = [Math.min(box[0], b.x), Math.min(box[1], b.z), Math.max(box[2], b.x), Math.max(box[3], b.z)];
+      // V3.0: the door of the built business nearest the high street (else any grown building):
+      // the point on its facade at the entrance, in the tile units `look` takes (it adds the half
+      // tile), and the absolute yaw that puts the camera on the road side, facing the door.
+      let door: { x: number; z: number; yaw: number } | null = null;
+      for (const pickTrade of [true, false]) {
+        let best = Infinity;
+        for (const b of m.buildings.values()) {
+          if (b.lot === undefined || (pickTrade && !b.trade)) continue;
+          const def = content.buildingById.get(b.def);
+          if (!def) continue;
+          const [ex, ez] = entranceTiles(def, b.x, b.z, b.rot as Rot4).entrance;
+          const [fx, fz] = facing(b.rot as Rot4);
+          const d = (ex - street[0]) ** 2 + (ez - street[1]) ** 2;
+          if (d >= best) continue;
+          best = d;
+          door = { x: ex + fx * 0.5, z: ez + fz * 0.5, yaw: Math.atan2(fx, fz) };
+        }
+        if (door) break;
+      }
       return {
+        door,
         residents: m.residents.size,
         buildings: m.buildings.size,
         decor: m.decor.size,
