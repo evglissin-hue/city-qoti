@@ -1,0 +1,64 @@
+// P2-A: a grown or business kit keeps its geometry (roof overhang included) inside its own lot, so
+// two unjoined neighbors never cut into each other.
+import { describe, expect, it } from 'vitest';
+import { content } from '@qoti/content';
+import { artKitId, kitById } from './kits';
+import type { KitBuildOptions } from './kits/types';
+
+const KITS = ['cottage', 'farmstead', 'house', 'shop', 'townhouse', 'workshop'];
+const STYLES = ['', 'timber', 'stone', 'brick', 'plaster'];
+const LEVELS = [0, 1, 2, 3];
+/** Sides next to a neighbor (x-, x+) and the back (z-): nothing may pass the lot edge. */
+const EPS = 0.005;
+/** The front (z+) faces the street, not a lot: steps, a porch, an awning or a yard may reach past it. */
+const FRONT = 0.25;
+/** Ground dressing (garden edging, flower beds, stepping stones) lies below this height and may spill a little. */
+const GROUND = 0.2;
+
+function optsOf(id: string, style: string, level: number, seed: number): KitBuildOptions {
+  const kit = kitById.get(id)!;
+  const def = content.buildings.find((b) => artKitId(b.art) === id);
+  return {
+    size: def?.size ?? kit.footprint?.size ?? [2, 2],
+    entrance: def?.entrance ?? kit.footprint?.entrance ?? [1, 1],
+    seed,
+    params: { ...(def?.art.params ?? {}), ...(style ? { style } : {}), ...(level ? { level } : {}) },
+  };
+}
+
+describe('lot bounds (P2-A)', () => {
+  it('keep every grown and business kit inside its lot on the sides that are not party walls', {
+    timeout: 120000,
+  }, () => {
+    const worst = new Map<string, number>();
+    for (const id of KITS)
+      for (const style of STYLES)
+        for (const level of LEVELS)
+          for (let seed = 1; seed <= 24; seed++) {
+            const o = optsOf(id, style, level, seed);
+            const [w, d] = o.size!;
+            const pos = kitById.get(id)!.build(o).getAttribute('position');
+            const bb = { min: { x: Infinity, z: Infinity }, max: { x: -Infinity, z: -Infinity } };
+            for (let i = 0; i < pos.count; i++) {
+              if (pos.getY(i) < GROUND) continue;
+              bb.min.x = Math.min(bb.min.x, pos.getX(i));
+              bb.max.x = Math.max(bb.max.x, pos.getX(i));
+              bb.min.z = Math.min(bb.min.z, pos.getZ(i));
+              bb.max.z = Math.max(bb.max.z, pos.getZ(i));
+            }
+            const label = `${id} style=${style || '-'} level=${level}`;
+            const over = {
+              left: -bb.min.x,
+              right: bb.max.x - w,
+              back: -bb.min.z,
+              front: bb.max.z - d - FRONT,
+            };
+            for (const [side, v] of Object.entries(over)) {
+              const k = `${label} ${side}`;
+              worst.set(k, Math.max(worst.get(k) ?? -Infinity, v));
+            }
+          }
+    const bad = [...worst].filter(([, v]) => v > EPS).map(([k, v]) => `${k} by ${v.toFixed(3)}`);
+    expect(bad).toEqual([]);
+  });
+});

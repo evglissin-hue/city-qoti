@@ -122,6 +122,7 @@ function lotOf(opts: KitBuildOptions | undefined, salt: number, paint: number): 
   const hz1 = d - 0.42;
   const hz0 = hz1 - 0.85;
   const house = shell(s, {
+    lot: [w, d],
     x0: hx0,
     z0: hz0,
     x1: hx1,
@@ -244,6 +245,7 @@ function grainFarm(opts: KitBuildOptions | undefined): Built {
   const bw = lvl === 1 ? 1.1 : lvl === 2 ? 1.28 : 1.42;
   const [bx0, bx1] = lot.xr(2.88 - bw, 2.88);
   const barn = shell(s, {
+    lot: [lot.w, lot.d],
     x0: bx0,
     z0: 0.14,
     x1: bx1,
@@ -552,6 +554,7 @@ function dairy(opts: KitBuildOptions | undefined): Built {
   const [bx0, bx1] = lot.xr(bx0w, 2.84);
   const z1 = 1.0;
   const byre = shell(s, {
+    lot: [lot.w, lot.d],
     x0: bx0,
     z0: 0.14,
     x1: bx1,
