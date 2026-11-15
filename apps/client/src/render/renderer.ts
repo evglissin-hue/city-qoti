@@ -632,6 +632,7 @@ export class Renderer implements RenderApi {
       target = lean.target('moving');
       this.scenePass(target, 'all');
       mode = 'moving';
+      lean.finish(target);
     } else {
       target = lean.target('still');
       const key = this.stillKey();
@@ -644,8 +645,11 @@ export class Renderer implements RenderApi {
         mode = 'still';
       }
       this.scenePass(target, 'idle');
+      // V2X: at rest the night's bloom comes from the still frame, built once and reused; while a
+      // moving layer glows (fireflies, fireworks) it is built from the whole frame every few frames.
+      const glowing = this.layers.some((l) => l.glowing?.() === true);
+      lean.finish(target, { picture: this.still.picture, key, glowing });
     }
-    lean.finish(target);
     this.gpuTimer.end();
     this.needsRender = false;
     this.stats.frameMs = performance.now() - start;

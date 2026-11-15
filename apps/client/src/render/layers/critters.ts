@@ -440,6 +440,12 @@ export function crittersLayer(): RenderLayer {
   return {
     id: 'critters',
     motion: 'moving',
+    // V2X: fireflies glow past the night bloom's threshold (post.ts keeps the bloom live for them).
+    glowing() {
+      if (!env || !flyers?.mesh.visible) return false;
+      const { hour, season } = env.shown;
+      return crittersAbout(season, hour, env.wet.value, env.frozen.value > 0.5).has('firefly');
+    },
     init(c: LayerContext) {
       ctx = c;
       env = c.env;
