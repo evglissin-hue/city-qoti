@@ -101,3 +101,30 @@ test('a year of the R1 game hashes the same in a browser worker and in Node', as
   console.log(`golden r1-year: node ${nodeHash}, browser ${browserHash}`);
   expect(browserHash).toBe(nodeHash);
 });
+
+// R2.0: ten in-game days on the evening round's stand-ins, from a real version 6 valley (migrated to
+// version 7 as the worker loads it) and from a fresh standard valley, hash the same in a browser
+// worker as in Node.
+for (const which of ['v6', 'fresh'] as const) {
+  test(`ten days from a ${which === 'v6' ? 'migrated version 6' : 'fresh'} valley hash the same in a browser worker and in Node`, async ({
+    page,
+  }) => {
+    test.setTimeout(300_000);
+    const out = execFileSync('npx', ['tsx', 'packages/sim/scripts/r2-0-hash.ts', which], {
+      cwd: root,
+      encoding: 'utf8',
+      maxBuffer: 64 * 1024 * 1024,
+    }).trim();
+    const node = JSON.parse(out) as { data: string; to: number; hash: string };
+    expect(node.hash).toMatch(/^[0-9a-f]{16}$/);
+
+    await page.goto(`/${DEBUG_QUERY}`);
+    await page.waitForFunction(() => typeof window.__qoti?.runSnapshot === 'function');
+    const browserHash = await page.evaluate(([data, to]) => window.__qoti.runSnapshot(data, to), [
+      node.data,
+      node.to,
+    ] as const);
+    console.log(`r2-0 ${which}: node ${node.hash}, browser ${browserHash}`);
+    expect(browserHash).toBe(node.hash);
+  });
+}
