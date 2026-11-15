@@ -29,11 +29,23 @@ export function demandWhy(r: DemandReason): string {
     case 'needsLand':
       return 'The town needs more zoned land for it.';
     case 'lotWaiting':
-      return 'A lot is free and waiting: growth is on its way.';
+      return r.value !== undefined
+        ? `A lot is free and waiting. Building starts at ${r.value}:00.`
+        : 'A lot is free and waiting: growth is on its way.';
     case 'marketStall':
       return 'Shops open with the Village charter. Until then, a Market Stall does the job.';
     case 'hands':
       return 'Businesses already stand empty for want of hands. Newcomers first, then more of them.';
+    case 'noRoad':
+      return 'Land is zoned for it, but no street runs along it. Lots are cut along streets.';
+    case 'outOfReach':
+      return 'Lots are free, but too far from any storehouse for the porters. Zone nearer, or build a storehouse by them.';
+    case 'unsuitable':
+      return `Lots are free, but none suits a maker of ${lower(goodName(r.good))}.`;
+    case 'materials':
+      return `A lot is free, but the stores are too short of ${lower(goodName(r.good))} to start on it.`;
+    case 'sitesBusy':
+      return `${r.value ?? 3} sites are going up already. The next lot starts when one is done.`;
   }
 }
 

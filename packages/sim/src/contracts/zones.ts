@@ -112,7 +112,10 @@ export type DemandReasonCode =
   | 'imported'
   /** Any bar: the town needs more zoned land for it (the bar is lit). */
   | 'needsLand'
-  /** Any bar: a free, suitable lot exists, so growth is on its way (the bar is quiet). */
+  /**
+   * Any bar: a free, suitable lot exists, so growth is on its way (the bar is quiet). P2: `value`
+   * is the hour of the next growth pass that may start on it (1 or 13).
+   */
   | 'lotWaiting'
   /**
    * R1B: Shops before Village rank, when the Shops zone is closed: a Market Stall placed by hand is
@@ -123,7 +126,23 @@ export type DemandReasonCode =
    * R1X: Workshops, Farmland or Shops: businesses already stand built with nobody at work, so new
    * ones wait for newcomers to fill them (the bar is quiet; Homes come first).
    */
-  | 'hands';
+  | 'hands'
+  /**
+   * P2 (the R1 playtest): any bar: land of the kind is zoned, but no lot of it fronts a road (lots
+   * are cut along roads), so nothing can start there (the bar is lit).
+   */
+  | 'noRoad'
+  /** P2: any bar: free lots exist, but beyond every storehouse's porters (the bar is lit). */
+  | 'outOfReach'
+  /**
+   * P2: Workshops, Farmland: free lots exist, but none suits the trade the town wants (`good` is
+   * what it makes, `want` the site want no lot meets; the bar is lit).
+   */
+  | 'unsuitable'
+  /** P2: any bar: a lot waits, but the stores are short of `good` to start on it (the bar is quiet). */
+  | 'materials'
+  /** P2: any bar: a lot waits, but `value` grown sites are going up already, the most at once (quiet). */
+  | 'sitesBusy';
 
 export interface DemandReason {
   code: DemandReasonCode;
@@ -131,11 +150,13 @@ export interface DemandReason {
   good?: string;
   /** The raw good behind a 'short' made good, by id. */
   from?: string;
-  /** A count or amount the words use (households, days of cover in hundredths). */
+  /** A count or amount the words use (households, days of cover in hundredths, an hour, sites). */
   value?: number;
+  /** P2: the site want behind an 'unsuitable' lot, as content names it (a trade's `wants` key). */
+  want?: string;
 }
 
-/** What the town wants grown, from the 01:00 growth pass (R1B). */
+/** What the town wants grown, from the growth passes (R1B at 01:00; P2 adds 13:00). */
 export interface DemandState {
   /** 0 to 100 per bar, in DEMAND_KINDS order. */
   bars: number[];
@@ -143,6 +164,11 @@ export interface DemandState {
   lit: boolean[];
   /** Per bar, up to three reasons, strongest first. */
   reasons: DemandReason[][];
+  /**
+   * P2 (save version 7): grown sites started on day `day` (the tick's day index), so the day's two
+   * growth passes share one allowance (GROWTH_PER_DAY). A stale day reads as none started.
+   */
+  starts: { day: number; n: number };
 }
 
 // --- Businesses --------------------------------------------------------------------------------
