@@ -115,6 +115,11 @@ export class StillCache {
   }
 
   /** Whether the kept picture is still true for `key` (see the renderer's `stillKey`). */
+  /** V2X: the cached picture (the static layers only, with any ambient occlusion), or null. */
+  get picture(): WebGLRenderTarget | null {
+    return this.target;
+  }
+
   valid(key: string): boolean {
     return this.target !== null && key === this.key;
   }

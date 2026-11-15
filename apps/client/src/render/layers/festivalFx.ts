@@ -237,6 +237,10 @@ export function festivalFxLayer(): FestivalFxLayer {
   return {
     id: 'festival-fx',
     motion: 'moving',
+    // V2X: the festival fire and fireworks glow past the night bloom's threshold.
+    glowing() {
+      return flames !== null || sparks !== null;
+    },
     init(c) {
       ctx = c;
       rebuild();

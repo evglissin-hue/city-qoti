@@ -565,8 +565,11 @@ export interface KitLampOptions {
   night: { value: number };
 }
 
-/** How strongly kit faces take the lamplight (an emissive on the face's own color). */
-const KIT_LAMP_GAIN = '0.8';
+/**
+ * How strongly kit faces take the lamplight (an emissive on the face's own color). V2X: 0.65, was
+ * 0.8, after the owner's first night on the laptop found buildings a little bright.
+ */
+const KIT_LAMP_GAIN = '0.65';
 
 /**
  * V2A: walls, decor, carts and animals read the light map a little in front of the face along its
