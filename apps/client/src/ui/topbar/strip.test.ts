@@ -110,13 +110,57 @@ describe('balance chip', () => {
     const r = chipReading(line({ family: 'materials', reserve: 20, rule: 'essentials', cover: 30 }));
     expect(r.reserveAt).toBeNull();
     expect(r.title).toContain('The carrier: Essentials only, holding 20 beyond what sites need.');
-    expect(r.low).toBe(true);
+    expect(r.low).toBe(false);
   });
   it('says flavor in the singular for a one-flavor family', () => {
     const r = chipReading(
       line({ family: 'fuel', flavors: [{ good: 'firewood', onOffer: true, made: true, stock: 5 }] }),
     );
     expect(r.title).toContain('1 of 1 flavor on offer: firewood.');
+  });
+  it('labels each chip with its family and gives the number a unit', () => {
+    const r = chipReading(line());
+    expect(r.label).toBe('Food');
+    expect(r.shown).toBe('4d');
+    expect(chipReading(line({ family: 'fuel', cover: 9900 })).shown).toBe('99+d');
+    expect(chipReading(line({ family: 'treats' })).label).toBe('Treats');
+  });
+  it('reads Materials as covered over needed while open sites wait', () => {
+    const materials = line({ family: 'materials', reserve: 20, rule: 'essentials', cover: 5000, stock: 46 });
+    const sites = {
+      need: 52,
+      covered: 16,
+      goods: [
+        { good: 'timber', need: 42, stock: 6 },
+        { good: 'stone', need: 10, stock: 40 },
+      ],
+    };
+    const r = chipReading(materials, sites);
+    expect(r.shown).toBe('16/52');
+    expect(r.fill).toBeCloseTo(16 / 52);
+    expect(r.low).toBe(true);
+    expect(r.title).toBe(
+      'Materials: open sites still need 42 timber and 10 stone. The stores hold 6 timber and 40 stone. The carrier: Essentials only, holding 20 beyond what sites need.',
+    );
+    // Stores that cover every need are calm, and the bar is full.
+    const covered = chipReading(materials, {
+      need: 10,
+      covered: 10,
+      goods: [{ good: 'stone', need: 10, stock: 40 }],
+    });
+    expect(covered.shown).toBe('10/10');
+    expect(covered.fill).toBe(1);
+    expect(covered.low).toBe(false);
+  });
+  it('shows Materials as units in store, full and calm, when no site needs anything', () => {
+    const materials = line({ family: 'materials', stock: 120, cover: 0, use: 0 });
+    for (const sites of [undefined, { need: 0, covered: 0, goods: [] }]) {
+      const r = chipReading(materials, sites);
+      expect(r.shown).toBe('120');
+      expect(r.fill).toBe(1);
+      expect(r.low).toBe(false);
+      expect(r.title).toContain('Materials: plenty, since nothing uses it yet.');
+    }
   });
   it('says Never plainly', () => {
     expect(chipReading(line({ rule: 'never' })).title.endsWith('The carrier: Never.')).toBe(true);

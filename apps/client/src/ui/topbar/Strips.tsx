@@ -10,6 +10,7 @@ import { toggleBook } from '../panels';
 import { FestivalChip, RenownChip } from '../SeasonChips';
 import { zoneInk } from '../village';
 import { FAMILY_ICON } from './families';
+import { readSites } from '../sites';
 import { chipReading, DEMAND_BAR, demandTitle, winterReading } from './strip';
 
 function DemandBars({ session }: { session: Session }) {
@@ -36,6 +37,9 @@ function DemandBars({ session }: { session: Session }) {
               <i style={{ height: `${Math.max(6, Math.min(100, bar.value))}%` }} />
               {bar.lit && <b class="demand-dot" aria-hidden="true" />}
             </span>
+            <span class="demand-word" aria-hidden="true">
+              {info.label}
+            </span>
             <span class="demand-letter" aria-hidden="true">
               {info.letter}
             </span>
@@ -54,10 +58,12 @@ function BalanceChips({ session }: { session: Session }) {
     session.ui.panel.value = 'balances';
   };
   const winter = winterReading(b);
+  void session.mirror.revision.value; // open sites come and go with the buildings
+  const sites = readSites(session.mirror);
   return (
     <div class="balance-chips" role="group" aria-label="Days of cover by family">
       {b.lines.map((line) => {
-        const r = chipReading(line);
+        const r = chipReading(line, sites);
         return (
           <button
             key={line.family}
@@ -68,8 +74,12 @@ function BalanceChips({ session }: { session: Session }) {
             onClick={() => open(line.family)}
           >
             <GoodIcon good={FAMILY_ICON[line.family]} />
-            {/* The bar of cover, with the flavors on offer as pips under it. */}
+            {/* The family's word and number, the bar of cover, and the flavors on offer as pips under it. */}
             <span class="chip-stack">
+              <span class="chip-head">
+                <span class="chip-label">{r.label}</span>
+                <span class="cover-days">{r.shown}</span>
+              </span>
               <span class="cover-bar" aria-hidden="true">
                 <i style={{ width: `${Math.round(r.fill * 100)}%` }} />
                 {r.reserveAt !== null && <u class="tick reserve" style={{ left: `${r.reserveAt * 100}%` }} />}
@@ -81,7 +91,6 @@ function BalanceChips({ session }: { session: Session }) {
                 ))}
               </span>
             </span>
-            <span class="cover-days">{r.days}</span>
           </button>
         );
       })}
