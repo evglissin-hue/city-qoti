@@ -60,6 +60,39 @@ header.topbar .topbar-middle {
   min-width: 0;
 }
 
+/* The Ledger's strip has a slim row of its own under the bar's main row, full width: Folk, then
+   what is in store, then the four demand bars with their words at the right. */
+header.topbar.strip-row {
+  flex-wrap: wrap;
+  row-gap: 3px;
+}
+
+header.topbar.strip-row .topbar-clock {
+  margin-left: auto;
+}
+
+header.topbar > .topbar-middle.strip-row-slot {
+  flex: 1 0 100%;
+  order: 9;
+  justify-content: stretch;
+  padding-top: 4px;
+  border-top: 1.5px dashed var(--line);
+}
+
+.ledger-strip {
+  flex: 1 1 auto;
+  gap: 4px;
+}
+
+.ledger-strip .balance-chips {
+  flex: 0 1 auto;
+}
+
+.ledger-strip .demand-bars {
+  margin-left: auto;
+  padding-left: 10px;
+}
+
 /* --- Demand bars --------------------------------------------------------------------------- */
 
 .demand-bars {
@@ -71,8 +104,8 @@ header.topbar .topbar-middle {
 button.demand-bar {
   display: inline-flex;
   align-items: flex-end;
-  gap: 3px;
-  padding: 1px 2px;
+  gap: 4px;
+  padding: 1px 4px;
   border: 0;
   border-radius: 8px;
   background: transparent;
@@ -89,8 +122,8 @@ button.demand-bar:hover {
   position: relative;
   display: flex;
   align-items: flex-end;
-  width: 8px;
-  height: 20px;
+  width: 9px;
+  height: 24px;
   border-radius: 4px;
   background: rgba(90, 66, 49, 0.1);
   border: 1px solid rgba(90, 66, 49, 0.22);
@@ -133,7 +166,7 @@ button.demand-bar:hover {
 .demand-word,
 .demand-letter,
 .chip-label {
-  font-size: 0.64rem;
+  font-size: 0.72rem;
   font-weight: 600;
   letter-spacing: 0.02em;
   line-height: 1;
@@ -154,18 +187,19 @@ button.demand-bar:hover {
 
 .balance-chips {
   display: flex;
-  gap: 2px;
+  gap: 6px;
   align-items: center;
 }
 
 button.balance-chip,
+button.folk-chip,
 button.winter-reserve {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  padding: 2px 3px;
+  gap: 5px;
+  padding: 2px 6px;
   border: 0;
-  border-radius: 999px;
+  border-radius: 10px;
   background: transparent;
   box-shadow: none;
   cursor: pointer;
@@ -173,13 +207,27 @@ button.winter-reserve {
 }
 
 button.balance-chip:hover,
+button.folk-chip:hover,
 button.winter-reserve:hover {
   background: var(--paper-light);
 }
 
-.balance-chip .good-icon {
-  width: 1.25em;
-  height: 1.25em;
+.balance-chip .good-icon,
+.folk-chip .glyph {
+  width: 1.45em;
+  height: 1.45em;
+  flex: none;
+}
+
+.folk-chip .glyph {
+  color: var(--ink-soft);
+}
+
+.folk-chip {
+  margin-right: 6px;
+  padding-right: 10px;
+  border-right: 1.5px dashed var(--line);
+  border-radius: 10px 0 0 10px;
 }
 
 .cover-bar {
@@ -218,49 +266,67 @@ button.winter-reserve:hover {
   opacity: 1;
 }
 
-.chip-head {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 5px;
-}
-
-.cover-days {
-  font-size: 0.8rem;
-  font-weight: 700;
-  line-height: 1;
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-}
-
-.balance-chip.low .cover-days {
-  color: #a8542e;
-}
-
 .chip-stack {
   display: inline-flex;
   flex-direction: column;
-  gap: 3px;
+  gap: 2px;
+  min-width: 0;
+}
+
+.chip-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
 }
 
 .chip-label {
   white-space: nowrap;
 }
 
+/* Units in store lead; days of cover (or open jobs) follow, small and muted. */
+.chip-figures {
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+  white-space: nowrap;
+}
+
+.chip-amount {
+  font-size: 0.95rem;
+  font-weight: 700;
+  line-height: 1.05;
+  font-variant-numeric: tabular-nums;
+}
+
+.chip-second {
+  font-size: 0.72rem;
+  font-weight: 600;
+  line-height: 1;
+  color: var(--ink-soft);
+  font-variant-numeric: tabular-nums;
+}
+
+.chip-amount.warm,
+.chip-second.warm {
+  color: #a8542e;
+}
+
 .balance-chip .cover-bar {
   width: auto;
   min-width: 26px;
+  height: 5px;
 }
 
 .flavor-pips {
   display: flex;
   gap: 2px;
-  height: 4px;
+  height: 5px;
 }
 
 .flavor-pips i {
-  width: 4px;
-  height: 4px;
+  width: 5px;
+  height: 5px;
   border-radius: 50%;
   border: 1px solid var(--ink-soft);
   box-sizing: border-box;
@@ -426,24 +492,6 @@ button.menu-item:hover {
   }
 }
 
-/* The strip shortens its bars as its room runs out; the pips sit under the bars and cost no width. */
-/* The strip gives up pictures before words, and words before letters, as its room runs out. */
-@container (max-width: 660px) {
-  .balance-chip .good-icon {
-    display: none;
-  }
-}
-
-@container (max-width: 440px) {
-  .demand-word {
-    display: none;
-  }
-
-  .demand-letter {
-    display: inline;
-  }
-}
-
 @media (max-width: 1100px) {
   header.topbar .goal-pill {
     display: none;
@@ -452,6 +500,24 @@ button.menu-item:hover {
 
 :root.reduced-motion .demand-well i {
   transition: none;
+}
+
+/* The Ledger's second row makes the bar taller; whatever hangs under it moves down by the row. */
+.game-ui:has(> .topbar.strip-row) {
+  --strip-row: calc(54px * var(--ui-scale));
+}
+
+.game-ui:has(> .topbar.strip-row) .side {
+  top: calc(35px + 35px * var(--ui-scale) + var(--strip-row));
+}
+
+.game-ui:has(> .topbar.strip-row) .book-slot {
+  top: calc(10px + 58px * var(--ui-scale) + var(--strip-row));
+  max-height: calc(100% - 92px - 96px * var(--ui-scale) - var(--strip-row));
+}
+
+.game-ui:has(> .topbar.strip-row) .ground-note {
+  top: calc(16px + 58px * var(--ui-scale) + var(--strip-row));
 }
 
 @media (max-width: 1400px) {

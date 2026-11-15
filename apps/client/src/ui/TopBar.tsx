@@ -30,15 +30,17 @@ export function TopBar({ session, onLeave }: { session: Session; onLeave: () => 
   const note = speedNote(seats, speed, session.seat, settings.togetherOnly);
   const standard = settings.mode === 'standard';
   const lens = session.ui.lens.value;
+  // The Ledger's strip (folk, stores, demand) has its own slim row under the rest of the bar.
+  const ledgerRow = standard && lens !== 'hearth';
 
   return (
-    <header class="topbar panel">
+    <header class={`topbar panel ${ledgerRow ? 'strip-row' : ''}`}>
       <div class="topbar-town">
         <strong>{settings.townName}</strong>
         <span class="muted">{settings.valleyName}</span>
       </div>
       {standard && <TownStats session={session} />}
-      <div class="topbar-middle">
+      <div class={`topbar-middle ${ledgerRow ? 'strip-row-slot' : ''}`}>
         {standard &&
           (lens === 'hearth' ? <HearthStrip session={session} /> : <LedgerStrip session={session} />)}
       </div>

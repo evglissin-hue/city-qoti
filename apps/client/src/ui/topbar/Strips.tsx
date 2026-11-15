@@ -10,8 +10,17 @@ import { toggleBook } from '../panels';
 import { FestivalChip, RenownChip } from '../SeasonChips';
 import { zoneInk } from '../village';
 import { FAMILY_ICON } from './families';
+import { readHands } from '../hands';
 import { readSites } from '../sites';
-import { chipReading, DEMAND_BAR, demandTitle, winterReading } from './strip';
+import {
+  chipReading,
+  DEMAND_BAR,
+  demandTitle,
+  folkReading,
+  materialReadings,
+  winterReading,
+  type ChipReading,
+} from './strip';
 
 function DemandBars({ session }: { session: Session }) {
   const demand = session.mirror.demand.value;
@@ -50,49 +59,124 @@ function DemandBars({ session }: { session: Session }) {
   );
 }
 
+/** Residents in town and the jobs standing open; opens the Townsfolk panel. */
+function FolkChip({ session }: { session: Session }) {
+  const m = session.mirror;
+  void m.revision.value; // workplaces fill and empty as buildings change
+  const hands = readHands(m);
+  const households = m.town.value?.households ?? m.households.size;
+  const r = folkReading(hands, households);
+  return (
+    <button
+      type="button"
+      class={`folk-chip ${hands.folk === 0 ? 'empty' : ''}`}
+      data-testid="folk-chip"
+      title={r.title}
+      onClick={() => toggleBook(session, 'people')}
+    >
+      <Glyph id="people" />
+      <span class="chip-stack">
+        <span class="chip-top">
+          <span class="chip-label">Folk</span>
+        </span>
+        <span class="chip-figures">
+          <span class={`chip-amount ${hands.folk === 0 ? 'warm' : ''}`} data-testid="folk-amount">
+            {r.amount}
+          </span>
+          {r.jobs && (
+            <span class={`chip-second ${r.warm ? 'warm' : ''}`} data-testid="folk-jobs">
+              {r.jobs}
+            </span>
+          )}
+        </span>
+      </span>
+    </button>
+  );
+}
+
+function CoverBar({ r }: { r: Pick<ChipReading, 'fill' | 'reserveAt' | 'markAt'> }) {
+  return (
+    <span class="cover-bar" aria-hidden="true">
+      <i style={{ width: `${Math.round(r.fill * 100)}%` }} />
+      {r.reserveAt !== null && <u class="tick reserve" style={{ left: `${r.reserveAt * 100}%` }} />}
+      {r.markAt !== null && <u class="tick mark" style={{ left: `${r.markAt * 100}%` }} />}
+    </span>
+  );
+}
+
 function BalanceChips({ session }: { session: Session }) {
-  const b = session.mirror.balances.value;
+  const m = session.mirror;
+  const b = m.balances.value;
   if (!b) return null;
   const open = (family: GoodFamily) => {
     session.ui.balancesFamily.value = family;
     session.ui.panel.value = 'balances';
   };
   const winter = winterReading(b);
-  void session.mirror.revision.value; // open sites come and go with the buildings
-  const sites = readSites(session.mirror);
+  void m.revision.value; // open sites come and go with the buildings
+  const sites = readSites(m);
+  const stocks = new Map((m.stocks.value?.lines ?? []).map((l) => [l.good, l.stock]));
+  const chip = (line: (typeof b.lines)[number]) => {
+    const r = chipReading(line);
+    return (
+      <button
+        key={line.family}
+        type="button"
+        class={`balance-chip ${r.low ? 'low' : ''}`}
+        data-testid={`balance-${line.family}`}
+        title={r.title}
+        onClick={() => open(line.family)}
+      >
+        <GoodIcon good={FAMILY_ICON[line.family]} />
+        {/* Name and flavor pips, then the amount in store with the days it covers, then the bar. */}
+        <span class="chip-stack">
+          <span class="chip-top">
+            <span class="chip-label">{r.label}</span>
+            <span class="flavor-pips" aria-hidden="true">
+              {r.pips.map((on, i) => (
+                <i key={i} class={on ? 'on' : ''} />
+              ))}
+            </span>
+          </span>
+          <span class="chip-figures">
+            <span class={`chip-amount ${r.empty ? 'warm' : ''}`}>{r.amount}</span>
+            {r.cover && <span class={`chip-second cover-days ${r.coverWarm ? 'warm' : ''}`}>{r.cover}</span>}
+          </span>
+          <CoverBar r={r} />
+        </span>
+      </button>
+    );
+  };
   return (
-    <div class="balance-chips" role="group" aria-label="Days of cover by family">
-      {b.lines.map((line) => {
-        const r = chipReading(line, sites);
-        return (
+    <div class="balance-chips" role="group" aria-label="What is in store">
+      {b.lines.flatMap((line) => {
+        if (line.family !== 'materials') return [chip(line)];
+        return materialReadings({
+          line,
+          sites,
+          stockOf: (good) => stocks.get(good),
+          rank: m.town.value?.rank,
+        }).map((r) => (
           <button
-            key={line.family}
+            key={r.good}
             type="button"
-            class={`balance-chip ${r.low ? 'low' : ''}`}
-            data-testid={`balance-${line.family}`}
+            class={`balance-chip material ${r.warm ? 'low' : ''}`}
+            data-testid={`material-${r.good}`}
             title={r.title}
-            onClick={() => open(line.family)}
+            onClick={() => open('materials')}
           >
-            <GoodIcon good={FAMILY_ICON[line.family]} />
-            {/* The family's word and number, the bar of cover, and the flavors on offer as pips under it. */}
+            <GoodIcon good={r.good} />
             <span class="chip-stack">
-              <span class="chip-head">
+              <span class="chip-top">
                 <span class="chip-label">{r.label}</span>
-                <span class="cover-days">{r.shown}</span>
               </span>
-              <span class="cover-bar" aria-hidden="true">
-                <i style={{ width: `${Math.round(r.fill * 100)}%` }} />
-                {r.reserveAt !== null && <u class="tick reserve" style={{ left: `${r.reserveAt * 100}%` }} />}
-                {r.markAt !== null && <u class="tick mark" style={{ left: `${r.markAt * 100}%` }} />}
+              <span class="chip-figures">
+                <span class={`chip-amount ${r.warm ? 'warm' : ''}`}>{r.of ?? r.amount}</span>
               </span>
-              <span class="flavor-pips" aria-hidden="true">
-                {r.pips.map((on, i) => (
-                  <i key={i} class={on ? 'on' : ''} />
-                ))}
-              </span>
+              <CoverBar r={{ fill: r.fill, reserveAt: null, markAt: null }} />
             </span>
           </button>
-        );
+        ));
       })}
       {winter && (
         <button
@@ -112,12 +196,13 @@ function BalanceChips({ session }: { session: Session }) {
   );
 }
 
-/** The Ledger's strip: what the town wants grown, and how each family of goods stands. */
+/** The Ledger's strip: folk, what is in store, and what the town wants grown. */
 export function LedgerStrip({ session }: { session: Session }) {
   return (
     <div class="lens-strip ledger-strip" data-testid="ledger-strip">
-      <DemandBars session={session} />
+      <FolkChip session={session} />
       <BalanceChips session={session} />
+      <DemandBars session={session} />
     </div>
   );
 }
