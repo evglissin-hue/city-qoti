@@ -28,7 +28,14 @@ import {
 import { SURFACE } from '../surface';
 import { fitRow, rowOf } from './rows';
 import { barrel, bench, flowerPot, wallLantern, weathervane } from './props';
-import { gableEnds, roofPart, type RoofMaterial, type RoofShape, type RoofSpec } from './roofs';
+import {
+  gableEnds,
+  roofPart,
+  VERGE_OVERHANG,
+  type RoofMaterial,
+  type RoofShape,
+  type RoofSpec,
+} from './roofs';
 import { customOf, FLOWERS, pickWeighted, roofColor, streams, type Custom } from './style';
 import type { Kit, KitAnchors, KitBuildOptions, KitPart } from './types';
 
@@ -168,7 +175,7 @@ export function shell(s: ShapeBuilder, sp: ShellSpec): Shell {
   const shape: RoofShape = endJoined && (r.shape === 'hip' || r.shape === 'halfHip') ? 'gable' : r.shape;
   const ov = r.overhang + (r.material === 'thatch' ? 0.06 : 0);
   // Gable ends overhang only a little (verges); eaves get the full overhang.
-  const verge = shape === 'hip' ? ov : Math.min(ov, 0.09);
+  const verge = shape === 'hip' ? ov : Math.min(ov, VERGE_OVERHANG);
   const ox = r.ridgeAlongX ? verge : ov;
   const oz = r.ridgeAlongX ? ov : verge;
   const ridge = top + r.rise + (r.material === 'thatch' ? 0.08 : 0);
