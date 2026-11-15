@@ -36,6 +36,7 @@ Each path has one owner in the wave. Outside your paths: small, necessary edits 
 R2A and R2B share `systems/residents` and `systems/market`; this split is by file.
 
 - `systems/market/{baskets,round,api}.ts` (Treats leave the 18:00 pass and are bought on the round; passing trade; the 21:30 doorstep errand; `sellsTreats` and `treatsOnShelf`), `systems/residents/{evening,needs,shopping,shops,life}.ts` (the 21:00 score and `closeEvening`, the evenings need and its weight in mood, shopping first on the round, the bond heart), `systems/services/**` (the tavern's `social` need folds into evenings; `weightsOf` reads `content.places.needWeight` in beauty's place; never edit `NEED_WEIGHTS` in `constants.ts`), `systems/tiers/**` (tiers read `NeedsBasket.evenings` over `PLACES.tierDays`, not charm or the tavern).
+- Porters' barrows walk the residents' grid, which is R2A's: R2B asks `pathFor(state, from, to, 'barrow')` and handles a null (wait at the edge, the store says so); R2A makes the mode keep off evening streets from 17:00 to 21:00. Carts route in `traffic` (R2B's own).
 - `systems/growth/{desirability,bars,outlets,cafes}.ts` (Shops desirability by evening footfall and places; the Shops bar counts places with nothing to sell; cafes), `systems/levels/**` (every ten evening steps past a door count as a customer; the cafe check runs from the levels pass), `systems/logistics/**` and `systems/traffic/**` (evening streets: carts and barrows go round from 17:00 to 21:00, no cart noise there, carters keep the porters' hours, a stretch's stall or workshop gets no delivery after 17:00).
 - `commands/road.ts`: the `road.setEvening` handler only (R2.0 wrote validate and store).
 - `packages/sim/src/turn.ts` and `speed.ts` (dusk at half speed when `settings.eveningLingers !== false`).
@@ -83,6 +84,7 @@ R2A and R2B share `systems/residents` and `systems/market`; this split is by fil
 | Who is at a place and what it wants | `view/places.ts` (`present`, `wants`) | 0 and none | R2A |
 | Starting the evening | `systems/residents/round.ts` (`startEvening`) | nothing: the tally keeps day -1, no place evening is pushed, nobody plans | R2A |
 | Street runs | `systems/places/streets.ts` (`streetTiles`) | a street is its anchor tile; `state.streets` stays empty (nothing names runs) | R2A |
+| Path modes | `systems/movement/paths.ts` (`pathFor`) | every mode walks the ordinary grid (no evening cost, barrows not kept off evening streets) | R2A (round and barrow); R2B calls barrow |
 | The evening's score | `systems/residents/evening.ts` (`eveningScore`) | every evening scores the floor, `PLACES.stayInScore` (20) | R2B |
 | Closing the evening | `systems/residents/evening.ts` (`closeEvening`) | nothing: the evenings need stays at 50 | R2B |
 | Which outlets sell Treats | `systems/market/round.ts` (`sellsTreats`) | any built outlet or tavern | R2B |
@@ -138,6 +140,7 @@ The planning questions in `i4-visual-planning-notes.md`, decided:
 | `recordVisit(state, place, resident, flags)` | `systems/places/api.ts` | R2A (its arrivals call it once a stop) |
 | `recordSale(state, place \| null, outlet, good, qty, pennies)` | `systems/places/api.ts` | R2A's body; R2B calls it for every Treat sold on the round (null for passing trade) |
 | `streetTiles(state, street)` | `systems/places/streets.ts` | R2A |
+| `pathFor(state, from, to, mode)` with `PathMode` `'walk' \| 'round' \| 'barrow'` | `systems/movement/paths.ts` | R2A (the round's evening cost); R2B's porters ask for `'barrow'`, for whom evening streets are closed from 17:00 to 21:00 |
 | `startEvening(state, ctx)` | `systems/residents/round.ts` | R2A (17:00) |
 | `eveningScore(state, r)`, `closeEvening(state, ctx)` | `systems/residents/evening.ts` | R2B (21:00) |
 | `sellsTreats(state, b)`, `treatsOnShelf(state, b)` | `systems/market/round.ts` | R2B (R2A's pass and `placeServes` read them) |
