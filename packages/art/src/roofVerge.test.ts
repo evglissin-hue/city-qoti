@@ -137,7 +137,9 @@ describe('roof verges and soffits (P2-E1)', () => {
     for (const shape of SHAPES)
       for (const material of MATERIALS)
         for (const ridgeAlongX of [true, false])
-          for (const lod of LODS) {
+          // The near level only: the far one draws no verge (under a pixel from there, and its
+          // triangles took three kits past their far budgets).
+          for (const lod of ['high'] as Lod[]) {
             const spec = roofSpec(shape, material, ridgeAlongX);
             const label = `${shape} ${material} ${ridgeAlongX ? 'x' : 'z'} ${lod}`;
             const tris = trisOf(build(spec, lod));

@@ -310,13 +310,16 @@ function roofBody(s: ShapeBuilder, spec: RoofSpec): void {
 /**
  * P2-E1: the verge along a slope's gable edge a to b (eave end to top end), facing `out`: the slab's
  * own thick edge for thatch, a barge board for tile, slate and shingle. It is cut square to the
- * slope (not vertical), so it reads as the roof's edge, and the far level draws it too, so both
- * slopes of a gable are edged alike from any side.
+ * slope (not vertical), so it reads as the roof's edge, on both slopes of a gable alike. Near level
+ * only.
  */
 function board(s: ShapeBuilder, spec: RoofSpec, a: V3, b: V3, out: V3): void {
   const thatch = spec.material === 'thatch';
-  // The draw comes before any level check, so the far level keeps the same random stream.
+  // The draw comes before the level check, so the far level keeps the same random stream.
   const hex = thatch ? vary(spec.color, spec.rnd, 1.4) : spec.trim;
+  // The far level draws no verge: an edge a tenth of a tile deep is under a pixel from there, and
+  // its eight triangles a gable took three kits past their far budgets.
+  if (s.low) return;
   const e: V3 = [b[0] - a[0], b[1] - a[1], b[2] - a[2]];
   const u: V3 = [out[0], 0, out[2]];
   let n: V3 = [e[1] * u[2] - e[2] * u[1], e[2] * u[0] - e[0] * u[2], e[0] * u[1] - e[1] * u[0]];
