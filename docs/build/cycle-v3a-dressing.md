@@ -50,6 +50,7 @@ Rows, gardens, corners, storeys and street furniture (V3B), the horizon and haze
 ## Notes
 
 - Cozy first: a yard is a few well chosen things, not clutter; warm, a little dry. The owner's complaint is that nothing but lanterns and pots makes a town look full, so vary by trade and level before adding more of the same.
+- **The orchard has a new look** from P2-E2 (wave notes, P2 runs beside V3): no lot rectangle, dabbed crowns, a boarded shed. Dress around it, never on a lot rectangle it no longer draws.
 - Keep every name append-only: rule ids, seeds, anchor names, the `yards` source.
 - Run the build and review loop (`31-parallel-development.md`) with Sonnet executors; the lead tunes the look and checks the budget on Medium, not only High.
 - Compare with `node apps/client/e2e/v3-shots.mjs v3a`, every scene and hour, and report `v3-perf.mjs` numbers per preset.

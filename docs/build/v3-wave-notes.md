@@ -21,6 +21,17 @@ The whole R2 wave reaches `main` only through R2X; V3 merges into `main` as it g
 - R2.0 sends the master the fields' exact shapes; the master forwards them, and whoever holds `lots.ts` then (V3.0, or V3B once the wave runs) matches the accessors (the `LotFields` and `BuildingFields` types and `storeysOf` in `lots.ts`). If R2's names differ from V3.0's guesses (`row`, `kind`, `corner`, `frontage2`, `storeys` or `params.storeys`), only those accessors change.
 - The regrown village (`?debug&fixture=grown`) is R1X's, grown before R2's lots exist: V3's before. R2X regrows it on its lots; V3X takes its after set on whatever `main` then holds and says which.
 
+## P2 runs beside V3 on some of the same files
+
+P2, a playtest pass on the R1 build (branch `claude/great-maxwell-rlok0k`, brief `docs/build/cycle-p2-playtest.md` there; another of the owner's accounts), touches V3's render and art files. **Do not merge P2 into a V3 branch**: whichever of a V3 PR and P2 reaches `main` second resolves the conflicts. Build on what P2 landed rather than redo it:
+
+- **P2-A** (landed): grown and business kits keep their geometry, roof overhang included, inside their own lot (the kit's footprint: `lot: [w, d]` passed to the shell, eaves and verges clamped; `packages/art/src/lotBounds.test.ts`). V3B's rows and roofs start from this clamp. V3.0's derived anchors assume the same plot (`BODY_INSET` inside the footprint) and are unaffected.
+- **P2-E1** (landed): the gable verge and soffit rebuilt (`kits/roofs.ts`, `roofVerge.test.ts`; the far level draws no verge). V3B's storeys and corner roofs keep it.
+- **P2-E2** (landed): the orchard belongs to the valley: no lot rectangle, dabbed crowns, a boarded shed with surfaces, a window in the gable (`kits/farms.ts`, `kits/village.ts`, `orchardGreens.test.ts`). V3A's dressing knows this look: no yard or garden pieces that assume an orchard's lot rectangle.
+- **P2-F** (to come): chimney smoke as soft wisps, and close-ups and followed residents drawn sharper under the resolution governor (`layers/effects.ts`, `render/resolution.ts`, likely `renderer.ts`). No V3 cycle reworks smoke or the governor; if one must touch either (V3C's chimney haze reads the smoke's count; V3D's scene skip sits in `renderer.ts`), its PR says how it relates to P2-F.
+
+Expected overlap files (P2 against V3): `packages/art/src/kits/{buildings,farms,grown,roofs,village,workshops}.ts` (V3B's), `apps/client/src/render/renderer.ts` (V3D's line, V3X), `render/layers/overlays.ts` and `render/api.ts` (V3X and shared), and from P2-F `render/layers/effects.ts`, `render/resolution.ts`. P2 also bumps `SAVE_VERSION` to 7 in `packages/sim` (as R2.0 does); that is R2's and P2's to settle, not V3's.
+
 ## Ownership by file
 
 V3 owns `apps/client/src/render` (but what R2 needs for its overlay, which is R2D's in `ui/`), `packages/art` and the one content file `packages/content/src/dressingRules.ts` (a content file owned by a look track for the wave, agreed with R2's master, who does not edit it; not `dressing.ts` beside it, the P1 ladder the sim climbs). Split file by file (a file's test goes with it; a new file belongs to the track that makes it):

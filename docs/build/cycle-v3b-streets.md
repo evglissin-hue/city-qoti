@@ -51,6 +51,7 @@ The cutter that makes rows, garden lots, corners and storeys (R2.0 and R2F, sim)
 
 ## Notes
 
+- **P2 landed first on some of your kits** (wave notes, P2 runs beside V3): start rows and roofs from P2-A's lot clamp (a kit's geometry, overhang included, stays inside its own lot; `lotBounds.test.ts`) and keep P2-E1's verge and soffit (`roofVerge.test.ts`). Do not merge P2; whichever of your PR and P2 reaches `main` second resolves the conflicts in `kits/{buildings,farms,grown,roofs,village,workshops}.ts`.
 - The picture is the B concept's town stills: streets edge to edge, rooflines stepping, back gardens, buildings turning the corner. Cozy, never a wall of identical boxes: vary by lot seed.
 - If R2.0's names differ from `row`, `kind`, `corner`, `frontage2` or `storeys`, only the accessors in `lots.ts` change.
 - Run the build and review loop (`31-parallel-development.md`) with Sonnet executors; the lead tunes the look and checks Medium.

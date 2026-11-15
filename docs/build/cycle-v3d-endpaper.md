@@ -49,5 +49,6 @@ The horizon, haze and river (V3C); wiring the two inks (V3X or R2X, whichever la
 ## Notes
 
 - It should feel like a keepsake: ink a little uneven, trees tiny and kind, labels in the title font (a worker has no page fonts: load Alegreya into it with `FontFace` and `self.fonts`, from the same self-hosted file). Cozy before clever.
+- Your one line in `renderer.ts` may meet P2-F's (the resolution governor; wave notes, P2 runs beside V3): keep it one line, and whichever lands second resolves.
 - `EndpaperInput` stays additive: V3B and V3C append to it, so rebase on them before the PR and never reorder.
 - Open the PR into `cycle/v3x-integration` (made from `main` once V3.0 merges).

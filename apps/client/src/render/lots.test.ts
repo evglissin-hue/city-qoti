@@ -108,6 +108,12 @@ describe('lotsFor, sim path', () => {
     );
     expect(r.lots.map((l) => l.storeys)).toEqual([2, 1.5, 4, 1, 2.5, 1, 1]);
   });
+
+  it("prefers the lot's own storeys (R2.0's LotView.storeys) over its building's", () => {
+    const b = home(1, 'cottage', 10, 10, 0, { storeys: 2 });
+    const r = lotsFor(mirrorOf([b], [lot(1, b, { row: 1, storeys: 3 })]));
+    expect(r.lots[0]!.storeys).toBe(3);
+  });
 });
 
 describe('lotsFor, fallback', () => {

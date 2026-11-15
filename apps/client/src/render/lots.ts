@@ -48,13 +48,19 @@ export interface ScreenLots {
   fromSim: boolean;
 }
 
-/** The lot fields R2 adds to the sim; read through optional accessors until R2X lands on main. */
+/**
+ * The lot fields R2 adds to `LotView` (R2.0, `cycle/r2-0-evenings-contracts` at 9847e74), read through
+ * this optional view until R2X lands them on `main`: `row` (0 for none), `kind` (absent reads 'plot'),
+ * `corner?: true`, `frontage2` (road tile index), `storeys` (the grown building's, absent while empty).
+ */
 type LotFields = LotView & {
   row?: number;
   kind?: 'plot' | 'garden';
-  corner?: boolean;
+  corner?: true;
   frontage2?: number;
+  storeys?: number;
 };
+/** R2.0's `BuildingView.storeys` (the sim's `Building.storeys`); `params.storeys` is V3B's kit param. */
 type BuildingFields = BuildingView & { storeys?: number; params?: Record<string, unknown> };
 
 /** World direction of a kit's local +x (`joinR`'s side) for each rotation, as (dx, dz). */
@@ -101,10 +107,15 @@ function joinedIds(mirror: Mirror, b: BuildingView): [left: EntityId, right: Ent
   return out;
 }
 
-function storeysOf(b: BuildingView | undefined): number {
-  if (!b) return 1;
-  const v = b as BuildingFields;
-  const raw = typeof v.storeys === 'number' ? v.storeys : v.params?.storeys;
+/** Storeys from the lot's `storeys` (R2.0), else its building's, else 1; clamped to 1 to 4 in halves. */
+function storeysOf(lot: LotFields, b: BuildingView | undefined): number {
+  const v = b as BuildingFields | undefined;
+  const raw =
+    typeof lot.storeys === 'number'
+      ? lot.storeys
+      : typeof v?.storeys === 'number'
+        ? v.storeys
+        : v?.params?.storeys;
   if (typeof raw !== 'number' || !Number.isFinite(raw)) return 1;
   return Math.round(Math.min(4, Math.max(1, raw)) * 2) / 2;
 }
@@ -133,7 +144,7 @@ export function lotsFor(mirror: Mirror): ScreenLots {
       rowSource: row > 0 ? 'sim' : 'joined',
       kind: l.kind === 'garden' ? 'garden' : 'plot',
       corner: l.corner === true,
-      storeys: storeysOf(l.buildingId ? mirror.buildings.get(l.buildingId) : undefined),
+      storeys: storeysOf(l, l.buildingId ? mirror.buildings.get(l.buildingId) : undefined),
     };
     if (typeof l.frontage2 === 'number') lot.frontage2 = l.frontage2;
     return lot;

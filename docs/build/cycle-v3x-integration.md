@@ -51,5 +51,6 @@ New features. A track's unfinished work goes to a follow-up brief, not into this
 ## Notes
 
 - Run the build and review loop (`31-parallel-development.md`): the master plays it from the player's chair, one or two rounds before the PR. The dead-end hunt here is visual: a woodpile with no home, a garden on a road, a lamp that lights nothing, a horizon band that pokes through the map, a map that shows before it has ever drawn, a label that overlaps another.
+- P2 (branch `claude/great-maxwell-rlok0k`) touches V3B's kits, `renderer.ts`, smoke and the governor: if it reaches `main` before you, merge `main` and resolve against it (wave notes, P2 runs beside V3); if after, list the overlap files for P2.
 - Visual quality is the owner's top priority: when a number and the look disagree, show both to the owner before trading one away.
 - The laptops' numbers are the owner's and Kat's part; the wave may be built without them. V3X ships with both after tables, or with the owner's word deferring one (as V2X did for Kat's laptop), written in As built.

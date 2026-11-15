@@ -52,4 +52,5 @@ The endpaper map, its worker, quad and inks (V3D); dressing, rows and gardens (V
 - Cozy first: a horizon is a painting, not a skybox. Soft shapes, two or three tints a band, haze so thin at noon that it only softens the far hills.
 - The frame budget is the floor: a band or a haze term that fails on Kat's laptop on Medium is cut back, not the budget.
 - Do not edit `renderer.ts` or the endpaper layer; the skip line is V3D's.
+- Smoke and the resolution governor are P2-F's (wave notes, P2 runs beside V3): the chimney haze reads the smoke's count and changes nothing in `layers/effects.ts` or `resolution.ts`; if it must, the PR says how it relates to P2-F.
 - Open the PR into `cycle/v3x-integration` (made from `main` once V3.0 merges).
