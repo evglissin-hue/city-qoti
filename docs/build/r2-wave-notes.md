@@ -201,6 +201,7 @@ The carrier collects surplus Treats at makers' doors before the shelves (R1X), a
 
 ## Found in R2.0, for the wave
 
+- **From the player's chair: content a Charter unlocks needs a migration.** The regrown village (`?debug&fixture=grown`, a version 6 save past its Village Charter) loaded and ran fine on version 7, but its brazier stayed locked forever: a Charter's unlocks go into `hearth.unlocked` at the claim, and that claim came before the brazier existed. The migration now unlocks it for a town at Village rank or above, and `test/r2-0/unlocks.test.ts` checks the class: a migrated valley holds every unlock of every Charter it has claimed. Any cycle that adds a piece to a Charter's or innovation's unlock list must do the same for valleys already past it.
 - **The evening bit is in the flags layer** (`Flags.evening`, 16), not the road layer's spare bits as `10-world-and-building.md` said: the road layer's value is compared and indexed as a road kind in over a hundred places. `road.remove` clears it. The spec now says so.
 - **Footfall never travels as layer patches** (every step would dirty a chunk): the two layers are `Uint16LayerName`s, saved and hashed after the others but outside `LayerName`, and reach the client only as `FootfallView` (the snapshot and `footfall.updated`).
 - **The Village's evening goal waits for R2C's counter.** On stand-ins nobody goes out, so R2.0 left the Charter as R1X shipped it.
