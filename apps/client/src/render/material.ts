@@ -97,7 +97,9 @@ function patchNightGlow(
         lamp
           ? // A flame burns its era's color at its flicker; a pane keeps the candle glow, lighting
             // the little room behind it (qRoomTint, packages/art materials.ts; 1 with rooms off).
-            `totalEmissiveRadiance += (vFlame > 0.0 ? uFlame * vFlame : vec3(1.0, 0.7, 0.36) * qRoomTint) * 2.4 * vGlow * uNight;`
+            // V2X, the owner's first night on the laptop: panes a third softer than flames (1.7, was
+            // 2.4 like them), so lit windows glow rather than flare under the night's bloom.
+            `totalEmissiveRadiance += (vFlame > 0.0 ? uFlame * vFlame * 2.4 : vec3(1.0, 0.7, 0.36) * qRoomTint * 1.7) * vGlow * uNight;`
           : `totalEmissiveRadiance += ${GLOW} * vGlow * uNight;`,
         glint ? 'totalEmissiveRadiance += qKitGlint(min(vGlow * uNight * 2.0, 1.0));' : '',
       ].join('\n'),
