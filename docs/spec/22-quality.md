@@ -145,7 +145,7 @@ In software the two nights cannot be told apart: the map was cheaper on the fina
 
 **The owner's laptop, after #41** (2026-11-15, the same M4, `docs/playtests/V2.md`): Medium's idle frame at night now takes what it takes by day (5.0 to 5.8 ms GPU, against 9.6 to 10.1 before #41 and 4.9 to 6.0 by day); moving, 5.4 to 6.1 ms by day and 8.1 to 8.5 at night. Against the 32-light loop on the same build (`?debug&lights=loop`) at 22:00 the light map is cheaper moving (Medium 8.1 to 8.5 ms against 8.6 to 9.3; High 19.1 to 20.1 against 20.7 to 24.9) and no dearer at rest, so on this laptop the night acceptance holds. The loop's retirement waits on Kat's laptop's pair of runs.
 
-**Still to come**: both laptops' before and after tables (Measure this laptop, `docs/playtests/V1.md` and `V2.md`), which decide the night acceptance, the idle budget, the carpet's reach per preset and the 32-light loop's retirement (the V2X PR says what the owner and Kat run).
+**Still to come**: Kat's laptop, deferred by the owner on 2026-11-15 (Measure this laptop on the live link, and again with `?debug&lights=loop`), which decides the night acceptance on the weaker laptop, the idle budget there, the carpet's reach per preset and the 32-light loop's retirement; until then the loop stays behind its debug switch, which costs nothing unless asked for. No before table was ever taken on either laptop: V2 shipped first, and the loop stands in for the night before it.
 
 **Budgets** for what the redesign adds, on the weaker laptop on Medium unless a preset is named, all *(tune against the measured tables)*:
 
