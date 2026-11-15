@@ -113,7 +113,7 @@ export const mouse: SpeciesDef = {
   name: 'Mouse',
   plural: 'mice',
   likes: [
-    { kind: 'tag', what: 'bakery', within: 10, weight: 8 },
+    { kind: 'tag', what: 'baker', within: 10, weight: 8 },
     { kind: 'crowd', within: 4, weight: 6 },
   ],
   dislikes: [{ kind: 'crowd', within: 3, weight: -6, absent: true }],
@@ -128,7 +128,7 @@ export const mouse: SpeciesDef = {
     'Toffee', 'Trinket', 'Truffle', 'Wisp',
   ],
   bios: [
-    '{name} can tell what the bakery is making from three streets away.',
+    '{name} can tell what the baker is making from three streets away.',
     '{name} likes neighbors close enough to borrow sugar from without a coat.',
     '{name} finds open fields frankly too much sky.',
     '{name} keeps a pocketful of crumbs for emergencies. Every day is an emergency.',
@@ -196,7 +196,7 @@ export const rabbit: SpeciesDef = {
   bios: [
     '{name} has named every flower in the front garden, some twice.',
     '{name} likes a quiet lane and a loud vegetable patch.',
-    '{name} can hear a sawpit from a mile off and would rather not.',
+    '{name} can hear a sawmill from a mile off and would rather not.',
     '{name} keeps a bunch of something fresh on the windowsill, always.',
     '{name} rises early, worries mildly and gardens heroically.',
     '{name} prefers a quiet cup of tea to a loud anything.',

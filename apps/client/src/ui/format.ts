@@ -107,6 +107,11 @@ export function buildingName(def: string): string {
   return content.buildingById.get(def)?.name ?? def;
 }
 
+/** R1: a business goes by its trade ("Baker"), anything else by its def's name ("Workshop" never shows). */
+export function placeName(b: { def: string; trade?: string }): string {
+  return (b.trade && content.tradeById.get(b.trade)?.name) || buildingName(b.def);
+}
+
 export function personName(r: { given: string; family: string }): string {
   return `${r.given} ${r.family}`;
 }

@@ -11,7 +11,17 @@ import type { Building, Cart, PorterJob, TickCtx, WorldState } from '../../contr
 import { findById } from '../../state/entities';
 import { doorTile } from '../movement/api';
 import { cartAt, cartTile, requestCartMove } from '../traffic/api';
-import { defOf, isStorage, isStorehouse, outputCap, storageSpace, stowNearest, tileDistance } from './stores';
+import {
+  defOf,
+  isStorage,
+  isStorehouse,
+  outputCap,
+  storageSpace,
+  stowNearest,
+  takes,
+  tileDistance,
+} from './stores';
+import { countSold } from '../levels/counters';
 
 /** A cart does not roll for less than this. */
 export const CART_MIN_LOAD = 8;
@@ -148,7 +158,8 @@ export function matchCarts(
         for (let g = 0; g < s.rt.output.length; g++) {
           if (hooks.sourceAvail(s.b, s.def, g) < Math.min(CART_MIN_LOAD, outputCap(s.def))) continue;
           for (const t of spots) {
-            if (t === s || t.b.stage !== 'built' || !isStorehouse(t.def) || !road(t)) continue;
+            if (t === s || t.b.stage !== 'built' || !isStorehouse(t.def) || !takes(t.def, g) || !road(t))
+              continue;
             if (storageSpace(t.def, t.rt) < CART_MIN_LOAD || tileDistance(s.door, t.door) < CART_MIN_TRIP)
               continue;
             const d = tileDistance(c.tile, s.door);
@@ -256,6 +267,7 @@ export function stepCartJob(state: WorldState, ctx: TickCtx, job: PorterJob, hoo
     const pile = isStorage(defOf(src)) ? src.rt.store : src.rt.output;
     const got = Math.max(0, Math.min(job.qty, pile[g]!));
     pile[g]! -= got;
+    if (pile === src.rt.output) countSold(src, got);
     src.rt.reservedOut[g] = Math.max(0, src.rt.reservedOut[g]! - job.qty);
     if (got < job.qty) dst.rt.reservedIn[g] = Math.max(0, dst.rt.reservedIn[g]! - (job.qty - got));
     job.qty = got;

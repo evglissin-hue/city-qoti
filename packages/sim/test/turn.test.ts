@@ -113,13 +113,12 @@ describe('applyTurn', () => {
 });
 
 describe('systems and views', () => {
-  it('registers the I0 systems and the I1, I2 and I3 slots at their orders', () => {
+  it('registers the I0 systems and the I1, I2, I3 and R1 slots at their orders', () => {
     const orders = new Map(systems.map((s) => [s.id, s.order]));
     expect([...orders]).toEqual([
       ['achievements', 90],
       ['baskets', 67],
-      ['callings', 88],
-      ['caravans', 65],
+      ['carrier', 65],
       ['charm', 70],
       ['charter', 94],
       ['chronicle', 100],
@@ -136,6 +135,7 @@ describe('systems and views', () => {
       ['guide', 99],
       ['habitats', 76],
       ['innovations', 92],
+      ['levels', 69],
       ['loans', 66],
       ['logistics', 40],
       ['market', 62],

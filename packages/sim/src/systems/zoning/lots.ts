@@ -17,6 +17,7 @@
 import { content, type LotDef, type ZoneDef } from '@qoti/content';
 import { DECOR_BUILDING_MARGIN, MAP_SIZE, TILE_FP } from '../../constants';
 import type { Lot, Rot4, TickCtx, WorldState } from '../../contracts';
+import { inClearance } from '../../rules/clearance';
 import { decorRadius, distSqToRect, MAX_DECOR_RADIUS } from '../../rules/geometry';
 import { removeById } from '../../state/entities';
 import { worldIndex } from '../../state/worldIndex';
@@ -220,6 +221,8 @@ function fits(state: WorldState, zone: number, x0: number, z0: number, w: number
     }
   }
   if (hi - lo > 1) return false;
+  // A windmill keeps its open ground: no lot inside its clearance.
+  if (inClearance(reader, x0, z0, w, d)) return false;
   return !swallowsDecor(state, x0, z0, w, d);
 }
 
@@ -358,7 +361,8 @@ function stillValid(state: WorldState, lot: Lot, decorMoved: boolean): boolean {
       if (h > hi) hi = h;
     }
   }
-  return hi - lo <= 1 && (!decorMoved || !swallowsDecor(state, lot.x, lot.z, lot.w, lot.d));
+  if (hi - lo > 1 || inClearance(worldIndex(state).reader, lot.x, lot.z, lot.w, lot.d)) return false;
+  return !decorMoved || !swallowsDecor(state, lot.x, lot.z, lot.w, lot.d);
 }
 
 /** Removes a lot and its tiles from the lot layer. */

@@ -13,7 +13,6 @@ import { ChroniclePanel, chronicleDays } from './Chronicle';
 import { CustomizePanel } from './Customize';
 import { PatternBookPanel } from './PatternBook';
 import { PeoplePanel } from './People';
-import { ReportsPanel } from './Reports';
 import { WishesPanel } from './Wishes';
 
 let view: Mounted | null = null;
@@ -109,6 +108,29 @@ describe('the Pattern Book', () => {
   });
 });
 
+describe('Lay it out', () => {
+  it('shows on discovered pages with a layout and picks the layout tool', async () => {
+    const { session } = mockSession();
+    const picked: string[] = [];
+    (session as { tools: unknown }).tools = {
+      active: { value: 'decor' },
+      select: (id: string) => picked.push(id),
+    };
+    session.ui.panel.value = 'patterns';
+    view = await mount(h(PatternBookPanel, { session }));
+    expect(view.find('pattern-lay-out')).toBeNull();
+    await view.click('page-lantern-walk');
+    expect(view.find('pattern-lay-out')).toBeNull();
+    await view.click('page-well-gathering-place');
+    const lay = view.get('pattern-lay-out');
+    expect(lay.getAttribute('title')).toBe('Sketch this pattern as a plan you can approve');
+    expect(lay.textContent).toBe('Lay it out');
+    await view.click('pattern-lay-out');
+    expect(picked).toEqual(['layout']);
+    expect(session.ui.panel.value).toBeNull();
+  });
+});
+
 describe('the Chronicle', () => {
   it('groups entries by day, newest first, as a gazette', async () => {
     const { session } = mockSession();
@@ -127,82 +149,13 @@ describe('plaques', () => {
   it('shows earned plaques first, with dates and who, and the rest as outlines', async () => {
     const { session } = mockSession();
     view = await mount(h(AchievementsPanel, { session }));
-    expect(view.text()).toContain('5 of 16 earned');
+    expect(view.text()).toContain('5 of 20 earned');
     expect(view.get('plaque-well-met').className).toContain('earned');
     expect(view.get('plaque-well-met').textContent).toContain('you and Bo');
     expect(view.get('plaque-balanced-books').className).toContain('waiting');
     expect(view.get('plaque-balanced-books').textContent).toContain(
       content.achievementById.get('balanced-books')!.description,
     );
-  });
-});
-
-describe('reports', () => {
-  it('stocks: stock, today, a sparkline and sale toggles that send ledger.setForSale', async () => {
-    const { session, submitted } = mockSession();
-    view = await mount(h(ReportsPanel, { session }));
-    const rows = view.root.querySelectorAll('table.stocks tbody tr');
-    expect(rows).toHaveLength(8);
-    expect(rows[0]!.textContent).toContain('Logs');
-    expect(rows[0]!.textContent).toContain('40');
-    expect(rows[0]!.textContent).toContain('+8');
-    expect(rows[0]!.querySelector('svg.sparkline.down')).not.toBeNull();
-    expect(view.get('sell-planks').getAttribute('aria-checked')).toBe('true');
-    await view.click('sell-bread');
-    expect(submitted).toEqual([{ t: 'ledger.setForSale', good: 'bread', forSale: true }]);
-  });
-
-  it('workforce: jobs filled and open per workplace', async () => {
-    const { session } = mockSession();
-    view = await mount(h(ReportsPanel, { session }));
-    await view.click('report-workforce');
-    expect(view.get('workforce-summary').textContent).toContain('5 of 8 jobs filled, 3 open');
-    expect(view.text()).toContain('Storehouse');
-  });
-
-  it('budget: treasury, income and expenses, today and the season', async () => {
-    const { session } = mockSession();
-    view = await mount(h(ReportsPanel, { session }));
-    await view.click('report-budget');
-    const text = view.text();
-    expect(text).toContain('412 coins');
-    expect(text).toContain('Peddler sales');
-    expect(view.get('budget-net').textContent).toBe('16 coins');
-    expect(text).toContain('Behind by');
-    await view.click('budget-season');
-    expect(view.get('budget-net').textContent).toBe('64 coins');
-    expect((view.get('budget-lastSeason') as HTMLButtonElement).disabled).toBe(true);
-  });
-
-  it('budget: lean times read as a gentle note', async () => {
-    const { session } = mockSession(
-      mockView({
-        budget: {
-          treasury: -1200,
-          leanTimes: true,
-          today: [],
-          yesterday: [],
-          season: [],
-          lastSeason: null,
-        },
-      }),
-    );
-    session.ui.reportTab.value = 'budget';
-    view = await mount(h(ReportsPanel, { session }));
-    expect(view.text()).toContain('-12 coins');
-    expect(view.text()).toContain('Lean times');
-  });
-
-  it('buildings: what wants attention, and a click selects it', async () => {
-    const { session } = mockSession();
-    session.ui.reportTab.value = 'buildings';
-    view = await mount(h(ReportsPanel, { session }));
-    const list = view.get('building-statuses');
-    expect(list.textContent).toContain('Bakery');
-    expect(list.textContent).toContain('Waiting for inputs');
-    expect(list.textContent).toContain('Sawpit');
-    await view.click(button(list, 'Bakery'));
-    expect(session.ui.selection.value).toEqual({ kind: 'building', id: 6 });
   });
 });
 
@@ -236,7 +189,7 @@ describe('customization', () => {
     const { session, submitted } = mockSession();
     session.ui.customize.value = 6;
     view = await mount(h(CustomizePanel, { session }));
-    // The mock bakery has window boxes on, so the flower row shows with Mixed as the default.
+    // The mock baker's workshop has window boxes on, so the flower row shows with Mixed as the default.
     expect(view.get('swatch-flowers-mixed').getAttribute('aria-checked')).toBe('true');
     await view.click('swatch-flowers-cornflower');
     expect(submitted).toEqual([{ t: 'build.customize', id: 6, custom: { windowFlowers: 'cornflower' } }]);
@@ -281,7 +234,7 @@ describe('while you were away', () => {
     expect(text).toContain('380');
     expect(text).toContain('412');
     expect(text).toContain('The first bread in Qoti');
-    expect(text).toContain('Smells better than the sawpit');
+    expect(text).toContain('Smells better than the brickworks');
     expect(text).toContain('Bo and the valley');
     await view.click('letter-close');
     expect(session.ui.letter.value).toBeNull();
@@ -297,16 +250,16 @@ describe('alerts', () => {
     expect(text).toContain('News from the lanes');
     expect(text).toContain('fresh fish');
     expect(text).toContain('3 hints in the margins of the Pattern Book');
-    expect(text).not.toContain('Bakery');
+    expect(text).not.toContain('Baker:');
     view.unmount();
 
     session.ui.lens.value = 'ledger';
     view = await mount(h(AlertsPanel, { session }));
     text = view.text();
     expect(text).toContain('For the books');
-    expect(text).toContain('Bakery: waiting for inputs.');
+    expect(text).toContain('Baker: waiting for inputs.');
     expect(text).not.toContain('fresh fish');
-    await view.click(button(view.root, 'Bakery'));
+    await view.click(button(view.root, 'Baker'));
     expect(session.ui.selection.value).toEqual({ kind: 'building', id: 6 });
   });
 

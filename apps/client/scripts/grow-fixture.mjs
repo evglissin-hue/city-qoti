@@ -14,8 +14,10 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { gunzipSync } from 'node:zlib';
 
-const SEED = 'rowan';
-const DAYS = 60;
+// R1X: regrown under R1's rules. Rowan's 60 days grew a Village of 84; oak's 62 land at about 150
+// (152 residents in 60 households, nine wells, two corner shops, eight festivals).
+const SEED = 'oak';
+const DAYS = 62;
 
 const root = fileURLToPath(new URL('../../../', import.meta.url));
 const file = fileURLToPath(new URL('../src/app/fixtures/grown.qoti', import.meta.url));

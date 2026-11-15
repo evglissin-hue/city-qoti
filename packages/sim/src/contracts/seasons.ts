@@ -7,7 +7,7 @@
 // and morale, all recoverable.
 import type { MoveState } from './hamlet';
 import type { EntityId, Rect, SeatId } from './ids';
-import type { StandingOrder, TradeLogEntry } from './village';
+import type { TradeLogEntry } from './village';
 
 /** Season index: 0 spring, 1 summer, 2 autumn, 3 winter (SEASON_IDS in constants). */
 export type SeasonIndex = 0 | 1 | 2 | 3;
@@ -167,7 +167,7 @@ export interface CommissionsState {
   list: Commission[];
 }
 
-/** A boat at or bound for the River Dock (an entity from nextId, like caravans). */
+/** A boat at or bound for the River Dock (an entity from nextId). R1: the carrier sails it (R1A). */
 export interface Boat {
   id: EntityId;
   /** Neighbor id it trades for. */
@@ -183,8 +183,6 @@ export interface Boat {
 export interface DockState {
   /** Sorted by id. */
   boats: Boat[];
-  /** C5B: the dock's own standing orders (sorted by good), absent until one is set. */
-  orders?: StandingOrder[];
   /** Last TRADE_LOG_MAX entries, oldest first. */
   log: TradeLogEntry[];
 }
@@ -352,6 +350,13 @@ export interface SeasonsStats {
   raidsHeld: number;
   /** Winters where nobody was cold (Warm Hearths). */
   warmWinters: number;
+  /**
+   * R1 (R1D), optional so saves stay at version 6: winters where the carrier brought no Food or Fuel
+   * and nobody went hungry or cold (A Winter Without Imports). Absent until the first one closes.
+   */
+  importFreeWinters?: number;
+  /** R1 (R1D): this winter's tally, written each morning of winter: true once anything was imported or anyone was hungry. Absent outside winter. */
+  winterImported?: boolean;
   /** Best festival stars so far (Five Stars). */
   bestStars: number;
   /** Together moments that happened, by kind: [kind, count], sorted by kind. */

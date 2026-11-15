@@ -2,7 +2,7 @@
 // 0.5 ms budget (docs/build/cycle-03c-ledger-v1.md), and the standard start's first three days.
 import { content } from '@qoti/content';
 import { TICKS_PER_DAY, TICKS_PER_HOUR, townStock, type WorldState } from '@qoti/sim';
-import { build, fortyResidentHamlet, runTicks, startingTown } from './hamlet';
+import { build, FIRST_DAY_BUILDS, fortyResidentHamlet, runTicks, startingTown } from './hamlet';
 
 export const HAMLET_TICK_BUDGET_MS = 0.5;
 
@@ -16,7 +16,7 @@ function foodIn(world: WorldState): number {
   const stock = townStock(world);
   let n = 0;
   for (let g = 0; g < content.goods.length; g++) {
-    if (!content.goods[g]!.food) continue;
+    if (content.goods[g]!.family !== 'food') continue;
     n += stock[g]!;
     for (const h of world.households) n += h.pantry[g]!;
   }
@@ -38,10 +38,11 @@ export function benchEconomy(): EconomyBench {
       `${perTick.toFixed(4)} ms/tick (budget ${HAMLET_TICK_BUDGET_MS} ms)  ${perTick <= HAMLET_TICK_BUDGET_MS ? 'ok' : 'OVER BUDGET'}`,
   );
 
-  // The standard start: the player adds food and timber on day 1; three days of books.
+  // The standard start: the player adds food, timber and a stall on day 1 (R1: a fishery and a
+  // Forester's Lodge); three days of books.
   const start = startingTown('hazel');
   runTicks(start, 2 * TICKS_PER_HOUR);
-  for (const id of ['vegetable-plot', 'fishers-hut', 'market-stall', 'woodcutter']) build(start, id);
+  for (const id of FIRST_DAY_BUILDS) build(start, id);
   const days: { treasury: number; food: number; produced: number; eaten: number }[] = [];
   for (let d = 0; d < 3; d++) {
     runTicks(start, TICKS_PER_DAY);
@@ -49,7 +50,7 @@ export function benchEconomy(): EconomyBench {
     let produced = 0;
     let eaten = 0;
     for (let g = 0; g < content.goods.length; g++) {
-      if (!content.goods[g]!.food) continue;
+      if (content.goods[g]!.family !== 'food') continue;
       produced += e.yesterday.produced[g]!;
       eaten += e.yesterday.consumed[g]!;
     }

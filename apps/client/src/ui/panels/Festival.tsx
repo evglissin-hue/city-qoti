@@ -151,6 +151,8 @@ export function FestivalPanel({ session }: { session: Session }) {
   const lastTwist = m.festivalResult.value?.twist ?? '';
   const twists = content.twists
     .filter((t) => !t.seasons || t.seasons.includes(season))
+    // R1: a twist naming a good the town cannot make yet is not offered (the sim's list).
+    .filter((t) => !f.offered || f.offered.includes(t.id) || t.id === draft.twist)
     .map((t) => ({
       def: t,
       why: t.id === lastTwist ? 'used last time' : twistNeeds(t.id, stockOf),
@@ -174,9 +176,11 @@ export function FestivalPanel({ session }: { session: Session }) {
       : id === 'bandstand' && !bandstand
         ? 'The bandstand is not found yet'
         : null;
-  const foods = stocks.filter(
-    (l) => content.goodById.get(l.good)?.food || ['cider', 'pies', 'honey'].includes(l.good),
-  );
+  // R1: the menu is the Food and Treats families.
+  const foods = stocks.filter((l) => {
+    const family = content.goodById.get(l.good)?.family;
+    return family === 'food' || family === 'treats';
+  });
   const onMenu = new Set(draft.menu.map(([g]) => g));
   const phase = festivalPhase(f, tick).phase;
   const tooLate = festivalTooLate(f, tick);

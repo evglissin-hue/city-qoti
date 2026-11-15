@@ -4,7 +4,7 @@
 // music (a musician in town, or the bandstand once Juniper Reed has given the town one). Goods
 // already put by that leave the menu go back to the storehouses. C5B's systems put the menu by at
 // noon on day 6, run the evening and tidy the pieces.
-import { content } from '@qoti/content';
+import { content, type GoodFamily } from '@qoti/content';
 import { FESTIVAL, FESTIVAL_MENU_MAX, MAP_SIZE } from '../constants';
 import type { FestivalSite, RejectReason, SeasonIndex, WorldState } from '../contracts';
 import { inBounds } from '../map/layers';
@@ -13,6 +13,7 @@ import { findById } from '../state/entities';
 import { isStandard } from '../state/hamlet';
 import { seasonAt } from '../state/seasons';
 import { hourOf } from '../systems/economy/time';
+import { twistOffered } from '../systems/festivals/twists';
 import {
   hasBandstand,
   isFestivalDay,
@@ -59,6 +60,8 @@ function checkSite(state: WorldState, site: unknown): RejectReason | null {
   return 'INVALID';
 }
 
+const MENU_FAMILIES: readonly GoodFamily[] = ['food', 'treats'];
+
 function checkMenu(menu: unknown): RejectReason | null {
   if (!Array.isArray(menu)) return 'INVALID';
   if (menu.length > FESTIVAL_MENU_MAX) return 'TOO_MANY';
@@ -67,6 +70,8 @@ function checkMenu(menu: unknown): RejectReason | null {
     if (!Array.isArray(line) || line.length !== 2) return 'INVALID';
     const [good, qty] = line as [unknown, unknown];
     if (typeof good !== 'string' || !content.goodById.has(good) || seen.has(good)) return 'INVALID';
+    // R1 (R1D): the menu is up to four flavors of Food and Treats.
+    if (!MENU_FAMILIES.includes(content.goodById.get(good)!.family)) return 'NOT_ALLOWED';
     if (!isInt(qty) || qty < 1 || qty > MAX_MENU_QTY) return 'INVALID';
     seen.add(good);
   }
@@ -90,6 +95,8 @@ export const plan: HandlerFor<'festival.plan'> = {
       const t = typeof cmd.twist === 'string' ? content.twistById.get(cmd.twist) : undefined;
       if (!t) return 'INVALID';
       if (t.seasons && !t.seasons.includes(seasonNow(state).season)) return 'NOT_ALLOWED';
+      // R1 (R1D): a twist naming a good the town cannot make yet is not offered.
+      if (!twistOffered(state, t.id)) return 'LOCKED';
       // The twist rotates: never the same as the last festival's.
       const last = state.festival.history[state.festival.history.length - 1];
       if (last && last.twist === cmd.twist) return 'NOT_ALLOWED';

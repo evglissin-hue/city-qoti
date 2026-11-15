@@ -28,6 +28,7 @@ import {
 import type { Mirror } from '../state/mirror';
 import { hash2 } from './coords';
 import { drawDef } from './defs';
+import { businessHands, r1Goods } from './showcaseBusiness';
 
 const N = MAP_SIZE;
 const FIRST_ID = 700000;
@@ -109,20 +110,20 @@ function rt(p: Plan): BuildingRuntimeView {
     condition: 100,
     paused: false,
     progress: 0.4,
-    input: p.input ?? [],
-    output: p.out ?? [],
-    store: p.store ?? [],
+    input: r1Goods(p.input ?? []),
+    output: r1Goods(p.out ?? []),
+    store: r1Goods(p.store ?? []),
     ...(p.upgrading ? { upgrading: true } : {}),
     ...(p.site !== undefined
       ? {
           construction: {
             stage: p.site,
             progress: p.site / 4,
-            needs: [['planks', 4]] as [string, number][],
+            needs: [['timber', 4]] as [string, number][],
             delivered: [
-              ['planks', 8],
+              ['timber', 8],
               ['stone', 6],
-              ['bricks', 4],
+              ['brick', 4],
             ] as [string, number][],
             priority: false,
           },
@@ -180,7 +181,7 @@ export function villageShowcase(mirror: Mirror, opts: { dense?: boolean } = {}):
   // Shops on the shop lots along lane A.
   [66, 70, 74, 78].forEach((x, i) =>
     plans.push({
-      def: 'shop',
+      def: 'corner-shop',
       x,
       z: 51,
       rot: 2,
@@ -192,19 +193,28 @@ export function villageShowcase(mirror: Mirror, opts: { dense?: boolean } = {}):
   const north: Plan[] = [
     { def: 'school', x: 34, z: 57, rot: 0 },
     { def: 'herbalist', x: 38, z: 58, rot: 0, input: [['herbs', 4]] },
-    { def: 'smithy', x: 41, z: 57, rot: 0, out: [['tools', 6]] },
-    { def: 'cheesemaker', x: 44, z: 58, rot: 0, out: [['cheese', 8]] },
-    { def: 'weaver', x: 47, z: 57, rot: 0, out: [['cloth', 6]], input: [['yarn', 4]] },
-    { def: 'spinner', x: 50, z: 58, rot: 0, out: [['yarn', 6]] },
+    { def: 'workshop', x: 41, z: 57, rot: 0, style: 'timber', zone: 'crafts', out: [['tools', 6]] },
+    { def: 'foresters-lodge', x: 44, z: 58, rot: 0, out: [['firewood', 8]] },
+    {
+      def: 'workshop',
+      x: 47,
+      z: 57,
+      rot: 0,
+      style: 'plaster',
+      zone: 'crafts',
+      out: [['cloth', 6]],
+      input: [['yarn', 4]],
+    },
+    { def: 'windmill', x: 50, z: 58, rot: 0, out: [['grain', 6]] },
     { def: 'workshop', x: 53, z: 57, rot: 0, style: 'stone', zone: 'crafts', out: [['tools', 4]] },
     { def: 'townhouse', x: 57, z: 58, rot: 0, style: 'brick', zone: 'homes-medium' },
     { def: 'tavern', x: 65, z: 57, rot: 0, input: [['cider', 6]] },
     { def: 'cart-shed', x: 69, z: 57, rot: 0 },
     { def: 'workshop', x: 72, z: 57, rot: 0, style: 'brick', zone: 'crafts', out: [['bricks', 6]] },
-    { def: 'shop', x: 76, z: 57, rot: 0, style: 'brick', zone: 'shops', out: [['bread', 4]] },
+    { def: 'corner-shop', x: 76, z: 57, rot: 0, style: 'brick', zone: 'shops', out: [['bread', 4]] },
     { def: 'townhouse', x: 79, z: 58, rot: 0, style: 'brick', zone: 'homes-medium' },
     { def: 'townhouse', x: 82, z: 58, rot: 0, style: 'plaster', zone: 'homes-medium', site: 2 },
-    { def: 'chopping-shed', x: 86, z: 58, rot: 0, out: [['firewood', 8]], input: [['logs', 4]] },
+    { def: 'fishery', x: 86, z: 58, rot: 0, out: [['fish', 8]] },
     {
       def: 'trading-post',
       x: 91,
@@ -218,8 +228,8 @@ export function villageShowcase(mirror: Mirror, opts: { dense?: boolean } = {}):
     },
   ];
   const south: Plan[] = [
-    { def: 'orchard', x: 34, z: 62, rot: 2, out: [['apples', 6]] },
-    { def: 'herb-garden', x: 41, z: 62, rot: 2, out: [['herbs', 5]] },
+    { def: 'farmstead', x: 34, z: 62, rot: 2, style: 'stone', zone: 'farms', out: [['apples', 6]] },
+    { def: 'farmstead', x: 41, z: 62, rot: 2, style: 'timber', zone: 'farms', out: [['herbs', 5]] },
     { def: 'cottage', x: 46, z: 61, rot: 2, style: 'plaster', zone: 'homes-low' },
     { def: 'cottage', x: 49, z: 61, rot: 2, style: 'plaster', zone: 'homes-low' },
     { def: 'townhouse', x: 52, z: 61, rot: 2, style: 'plaster', zone: 'homes-medium' },
@@ -227,26 +237,35 @@ export function villageShowcase(mirror: Mirror, opts: { dense?: boolean } = {}):
     { def: 'cottage', x: 66, z: 61, rot: 2, style: 'stone', zone: 'homes-low' },
     { def: 'cottage', x: 69, z: 61, rot: 2, style: 'stone', zone: 'homes-low' },
     { def: 'townhouse', x: 72, z: 61, rot: 2, style: 'stone', zone: 'homes-medium' },
-    { def: 'shop', x: 75, z: 61, rot: 2, style: 'stone', zone: 'shops', out: [['apples', 4]] },
-    { def: 'clay-pit', x: 84, z: 61, rot: 2, out: [['clay', 8]] },
-    { def: 'brick-kiln', x: 88, z: 61, rot: 2, out: [['bricks', 10]], input: [['firewood', 6]] },
+    { def: 'corner-shop', x: 75, z: 61, rot: 2, style: 'stone', zone: 'shops', out: [['apples', 4]] },
+    { def: 'granary', x: 84, z: 61, rot: 2, out: [['grain', 8]] },
+    { def: 'brickworks', x: 88, z: 61, rot: 2, out: [['bricks', 10]], input: [['firewood', 6]] },
   ];
   // The farm lane: pastures, the dairy, orchards and farmsteads.
   const farms: Plan[] = [
-    { def: 'sheep-pasture', x: 33, z: 36, rot: 0, out: [['wool', 6]] },
-    { def: 'dairy', x: 38, z: 37, rot: 0, out: [['milk', 6]] },
-    { def: 'orchard', x: 42, z: 37, rot: 0, out: [['apples', 4]] },
+    { def: 'farmstead', x: 33, z: 36, rot: 0, style: 'stone', zone: 'farms', out: [['wool', 6]] },
+    { def: 'farmstead', x: 38, z: 37, rot: 0, style: 'plaster', zone: 'farms', out: [['milk', 6]] },
+    { def: 'farmstead', x: 42, z: 37, rot: 0, style: 'timber', zone: 'farms', out: [['apples', 4]] },
     { def: 'farmstead', x: 46, z: 37, rot: 0, style: 'stone', zone: 'farms' },
     { def: 'farmstead', x: 50, z: 37, rot: 0, style: 'timber', zone: 'farms' },
-    { def: 'cider-press', x: 54, z: 37, rot: 0, out: [['cider', 6]], input: [['apples', 6]] },
+    {
+      def: 'workshop',
+      x: 54,
+      z: 37,
+      rot: 0,
+      style: 'brick',
+      zone: 'crafts',
+      out: [['cider', 6]],
+      input: [['apples', 6]],
+    },
     { def: 'farmstead', x: 66, z: 37, rot: 0, style: 'timber', zone: 'farms' },
-    { def: 'sheep-pasture', x: 70, z: 36, rot: 0, out: [['wool', 4]] },
-    { def: 'orchard', x: 75, z: 37, rot: 0 },
+    { def: 'farmstead', x: 70, z: 36, rot: 0, style: 'stone', zone: 'farms', out: [['wool', 4]] },
+    { def: 'farmstead', x: 75, z: 37, rot: 0, style: 'timber', zone: 'farms' },
     { def: 'farmstead', x: 79, z: 37, rot: 0, style: 'plaster', zone: 'farms' },
-    { def: 'dairy', x: 83, z: 37, rot: 0 },
+    { def: 'farmstead', x: 83, z: 37, rot: 0, style: 'stone', zone: 'farms' },
     { def: 'farmstead', x: 37, z: 41, rot: 2, style: 'stone', zone: 'farms' },
     { def: 'farmstead', x: 41, z: 41, rot: 2, style: 'timber', zone: 'farms' },
-    { def: 'orchard', x: 76, z: 41, rot: 2 },
+    { def: 'farmstead', x: 76, z: 41, rot: 2, style: 'plaster', zone: 'farms' },
     { def: 'farmstead', x: 80, z: 41, rot: 2, style: 'plaster', zone: 'farms' },
     { def: 'farmstead', x: 84, z: 41, rot: 2, style: 'timber', zone: 'farms' },
   ];
@@ -254,7 +273,7 @@ export function villageShowcase(mirror: Mirror, opts: { dense?: boolean } = {}):
   // Homes grown along the south side of lane A, behind the street's workshops.
   row(plans, ['cottage', 'cottage', 'townhouse', 'cottage'], 34, 58, 50, 2, 'timber', 'homes-low');
   if (opts.dense) {
-    const mix = ['cottage', 'cottage', 'townhouse', 'cottage', 'shop', 'townhouse'];
+    const mix = ['cottage', 'cottage', 'townhouse', 'cottage', 'corner-shop', 'townhouse'];
     row(plans, mix, 34, 62, 82, 0, 'timber', 'homes-low');
     row(plans, mix, 66, 95, 82, 0, 'brick', 'homes-medium');
     row(plans, ['cottage', 'townhouse', 'cottage'], 34, 62, 82, 2, 'plaster', 'homes-low');
@@ -266,6 +285,7 @@ export function villageShowcase(mirror: Mirror, opts: { dense?: boolean } = {}):
   // Place them: occupancy, lots and zones for the Ledger overlays, then the building views.
   const zoneValue = new Map(content.zones.map((zd) => [zd.id, zd.layerValue]));
   const events: SimEvent[] = [];
+  const hands = businessHands();
   let id = FIRST_ID;
   let placed = 0;
   for (const p of plans) {
@@ -313,11 +333,13 @@ export function villageShowcase(mirror: Mirror, opts: { dense?: boolean } = {}):
       foundation: false,
       ...(p.style ? { style: p.style } : {}),
       ...(lot ? { lot } : {}),
+      ...hands.next(p.def),
       rt: rt(p),
     };
     events.push({ e: 'building.added', b });
     placed++;
   }
+  for (const k of hands.keepers) mirror.residents.set(k.id, k);
   // A couple of empty zoned lots, waiting.
   for (const [x, z] of [
     [58, 61],
@@ -526,7 +548,7 @@ export function villageShowcase(mirror: Mirror, opts: { dense?: boolean } = {}):
   const gi = (g: string): number => content.goodIndex.get(g) ?? 0;
   const movers: Mover[] = [];
   const route = (pts: number[][]): [number, number][] => pts.map((p) => [p[0]! + 0.5, p[1]! + 0.5]);
-  const cartGoods = ['logs', 'bricks', 'wool', 'cheese', 'apples', 'firewood', 'planks', 'cloth'];
+  const cartGoods = ['timber', 'brick', 'wool', 'cheese', 'fruit', 'firewood', 'furniture', 'cloth'];
   const cartRoutes: { pts: number[][]; speed: number }[] = [
     {
       pts: [
@@ -710,7 +732,7 @@ export function villageShowcase(mirror: Mirror, opts: { dense?: boolean } = {}):
     1,
   );
   // Porters with the village's new goods, children playing by the school.
-  const porterGoods = ['wool', 'cheese', 'cider', 'yarn', 'cloth', 'firewood', 'apples', 'bricks'];
+  const porterGoods = ['wool', 'cheese', 'cider', 'honey', 'cloth', 'firewood', 'fruit', 'brick'];
   porterGoods.forEach((g, i) => {
     const r = person(species[i % species.length]!, 'adult', { tier: 'settler' });
     const x = 36 + i * 7;

@@ -8,6 +8,7 @@ import type { Household, WorldState } from '../../src/contracts';
 import { findById } from '../../src/state/entities';
 import { withoutSystems } from '../../src/systems';
 import {
+  basketGroups,
   basketScore,
   ensureBasket,
   GOODS_NEED,
@@ -17,6 +18,7 @@ import {
 } from '../../src/systems/market/baskets';
 import { tillPrice } from '../../src/systems/market/api';
 import { createTickCtx } from '../../src/turn';
+import { tickAt } from '../fixtures/seasonsPlace';
 import { villageFixture } from '../fixtures/village';
 import { run } from '../helpers';
 import { expectMoneyInvariant, moneySnapshot } from '../money';
@@ -51,6 +53,8 @@ describe('preference', () => {
 });
 
 describe('a food outing at the till', () => {
+  // R1.0 stand-in: R1A/R1B rewrites this. Every flavor of a family weighs 1, so value for money is
+  // price alone.
   it('buys the best value for the household, pays the treasury and keeps the invariant', () => {
     const f = villageFixture();
     const s = f.state;
@@ -63,18 +67,19 @@ describe('a food outing at the till', () => {
       ['bread', 10],
       ['vegetables', 10],
     ]);
-    // Settlers like bread twice as much as vegetables; at base prices (2 and 1 coins) it is a tie
-    // on value, so make bread a bargain.
+    // Bread and vegetables are liked alike, so the cheaper wins: make vegetables the bargain.
     s.market.prices[good('bread')] = 150;
     s.market.prices[good('vegetables')] = 100;
     const got = shopFood(s, h, f.b.stalls[0], 2)!;
-    expect(got).toEqual([good('bread'), 2]);
-    expect(h.savings).toBe(5 * PENNIES_PER_COIN - 2 * tillPrice(s, good('bread')));
-    expect(s.economy.today.money[cat('sales')]).toBe(2 * tillPrice(s, good('bread')));
+    expect(got).toEqual([good('vegetables'), 2]);
+    expect(h.savings).toBe(5 * PENNIES_PER_COIN - 2 * tillPrice(s, good('vegetables')));
+    expect(s.economy.today.money[cat('sales')]).toBe(2 * tillPrice(s, good('vegetables')));
     expectMoneyInvariant(before, s);
   });
 
-  it('lets a Thrifty household take the cheaper loaf', () => {
+  // R1.0 stand-in: R1A/R1B rewrites this. With every flavor weighing 1, Thrifty or not, a household
+  // takes the cheaper food (likeHalves above still checks how Thrifty weighs a liking).
+  it('takes the cheaper food, Thrifty or not', () => {
     const f = villageFixture();
     const s = f.state;
     const h = household(s, f.households[0]!);
@@ -87,7 +92,7 @@ describe('a food outing at the till', () => {
     s.market.prices[good('vegetables')] = 100;
     h.savings = 5 * PENNIES_PER_COIN;
     makeThrifty(s, h, false);
-    expect(shopFood(s, h, f.b.stalls[0], 1)![0]).toBe(good('bread'));
+    expect(shopFood(s, h, f.b.stalls[0], 1)![0]).toBe(good('vegetables'));
     h.pantry.fill(0);
     makeThrifty(s, h, true);
     expect(shopFood(s, h, f.b.stalls[0], 1)![0]).toBe(good('vegetables'));
@@ -130,7 +135,7 @@ describe('a food outing at the till', () => {
     stall(s, f.b.stalls[0], [['bread', 10]]);
     const got = shopFood(s, h, f.b.stalls[0], 4)!;
     expect(got[1]).toBe(Math.min(4, h.members.length));
-    expect(basketScore(h)).toBeLessThan(100);
+    expect(basketScore(s, h)).toBeLessThan(100);
     expect(h.savings).toBe(0);
     expectMoneyInvariant(before, s);
     // A full pantry and no coin: no slate.
@@ -140,45 +145,48 @@ describe('a food outing at the till', () => {
 });
 
 describe('the household pass at 18:00', () => {
+  // R1.0 stand-in: R1A/R1B rewrites this. Baskets want families: Fuel a household a day in winter.
   it('buys the Craftsfolk basket, uses it up and records what everyone wanted', () => {
     const f = villageFixture();
     const s = f.state;
+    s.tick = tickAt(0, 3, 2, 18);
     const before = moneySnapshot(s);
     const h = household(s, f.craftsfolk[0]!);
     const basket = content.basketByTier.get('craftsfolk')!;
-    const fw = basket.groups.findIndex((g) => g.id === 'firewood');
+    const fw = basketGroups(basket).findIndex((g) => g.id === 'fuel');
     const savings = h.savings;
     shopBaskets(s, createTickCtx(s));
-    // Firewood: one a day per household, and the fixture has plenty.
+    // Fuel: one firewood a day per household in winter, and the fixture has plenty.
     expect(h.basket![fw]).toBe(100);
     expect(s.economy.today.consumed[good('firewood')]).toBeGreaterThan(0);
     expect(h.savings).toBeLessThan(savings);
-    // Demand: what households want, even for goods nobody stocks (cider).
+    // Demand: what households want, even for goods nobody stocks (cider, a Treat).
     expect(s.market.demandToday[good('cider')]).toBeGreaterThan(0);
     expect(s.market.demandToday[good('bread')]).toBeGreaterThan(0);
     expectMoneyInvariant(before, s);
   });
 
+  // R1.0 stand-in: R1A/R1B rewrites this. Wares are a family: any of cloth, furniture or candles.
   it('carries fractions over and lowers satisfaction for what it could not get', () => {
     const f = villageFixture();
     const s = f.state;
     const h = household(s, f.craftsfolk[0]!);
     const basket = content.basketByTier.get('craftsfolk')!;
-    const cloth = basket.groups.findIndex((g) => g.id === 'cloth');
-    // No cloth anywhere: a household of four owes 0.4 a day, so a unit falls due every third day.
-    for (const b of s.buildings) if (b.rt) b.rt.store[good('cloth')] = 0;
+    const wares = basketGroups(basket).findIndex((g) => g.id === 'wares');
+    // No Wares anywhere: a household owes 0.2 a day, so a unit falls due every fifth day.
+    for (const b of s.buildings)
+      if (b.rt) for (const id of ['cloth', 'furniture', 'candles']) b.rt.store[good(id)] = 0;
     const ctx = createTickCtx(s);
     shopBaskets(s, ctx);
-    expect(h.owed![cloth]).toBe(40);
-    expect(h.basket![cloth]).toBe(100);
-    shopBaskets(s, ctx);
-    shopBaskets(s, ctx);
-    expect(h.owed![cloth]).toBe(20);
-    expect(h.basket![cloth]).toBe(50);
+    expect(h.owed![wares]).toBe(20);
+    expect(h.basket![wares]).toBe(100);
+    for (let day = 2; day <= 5; day++) shopBaskets(s, ctx);
+    expect(h.owed![wares]).toBe(0);
+    expect(h.basket![wares]).toBe(50);
     // And the goods need follows the basket.
     const r = findById(s.residents, h.members[0]!)!;
-    expect(r.needs[GOODS_NEED]).toBe(basketScore(h));
-    expect(basketScore(h)).toBeLessThan(100);
+    expect(r.needs[GOODS_NEED]).toBe(basketScore(s, h));
+    expect(basketScore(s, h)).toBeLessThan(100);
   });
 
   it('keeps everyone content with the goods need before the market opens', () => {

@@ -100,6 +100,9 @@ describe('the day table', () => {
     const f = hamletFixture();
     const r = runner(f.state);
     const { crumb } = people(f);
+    // R1: the granary's open porter jobs would come first, and porters keep long hours; Crumb
+    // takes a workshop job instead.
+    findById(f.state.buildings, f.b.granary)!.rt!.paused = true;
     untilHour(r, 1);
     expect(crumb.jobId).not.toBe(0);
     untilHour(r, 6.6);
@@ -176,12 +179,14 @@ describe('shopping', () => {
     const f = hamletFixture();
     const r = runner(f.state);
     const h = findById(f.state.households, f.households[0])!;
-    const store = findById(f.state.buildings, f.b.storehouse)!;
+    // R1: the Food keeps in the granary.
+    const store = findById(f.state.buildings, f.b.granary)!;
     const bread = content.goodIndex.get('bread')!;
     const veg = content.goodIndex.get('vegetables')!;
+    untilHour(r, 16.9);
+    // Counted after the carrier's 10:00 visit, which sells Food from the stores too.
     const before =
       store.rt!.store[bread]! + store.rt!.store[veg]! + store.rt!.store[content.goodIndex.get('fish')!]!;
-    untilHour(r, 16.9);
     h.pantry.fill(0);
     let shoppers = 0;
     let carried = false;

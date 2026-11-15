@@ -1,4 +1,5 @@
-// Corner Cafe: a building tagged 'cafe' (tavern, bakery, corner shop) whose door lies within
+// Corner Cafe: a building tagged 'cafe' (tavern, corner shop) or a baker's business (R1: the bakery
+// and its 'cafe' tag became the workshop trade 'baker') whose door lies within
 // `cornerReach` tiles of a corner, a road tile where roads leave in two directions at right angles,
 // with `seats` (2) seats and `flowers` (1) flower pieces within `seatReach` tiles of it. Anchored on
 // the building's north-west tile.
@@ -17,7 +18,7 @@ export const cornerCafe: Detector = (state, def) => {
   const needFlowers = param(def, 'flowers', 1);
   const out: SiteCandidate[] = [];
   for (const b of state.buildings) {
-    if (b.stage !== 'built' || !hasBuildingTag(b, 'cafe')) continue;
+    if (b.stage !== 'built' || !(hasBuildingTag(b, 'cafe') || hasBuildingTag(b, 'baker'))) continue;
     const door = doorTile(b);
     const dx = door % S;
     const dz = (door - dx) / S;

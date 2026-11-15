@@ -9,7 +9,7 @@ The Ledger lane is a complete game (P1): land, streets, trade and budgets, with 
 ## The five rules [R1]
 
 1. **Zones are the economy.** The Ledger zones land and the town builds, staffs and runs the businesses on it. Hand placement is for specialized buildings, services and special homes.
-2. **Two steps at most.** Land gives raw goods; a workshop turns raw goods into a made good. A made good is never an input, so no workshop ever waits on another workshop.
+2. **Two steps at most.** Land gives raw goods; a workshop turns raw goods into a made good. A made good is never an input to making something, so no workshop ever waits on another workshop. A service may use a made good up (the tavern pours cider): it makes nothing, so nothing waits on it (R1.0's content test checks every trade and every method that makes something).
 3. **Nothing stalls.** The carrier imports any shortfall and sells any surplus by itself, within rules and a budget the Ledger sets and within what it can carry. Making things in the valley is cheaper, gives work and keeps the town safe when the pass is closed, but it is never a precondition.
 4. **Five balances.** The Ledger reads Food, Fuel, Materials, Wares and Treats, each as an amount (days of cover) and a variety (flavors on offer), never a list of every good.
 5. **Ranks add decisions, never chains.** A new rank or era may add a district policy, a kind of street, a trade route or a specialized building. It never adds a link the Ledger must place for something else to work. The raw goods below are the whole list for the life of the game, but for coal in the Age of Steam.
@@ -40,7 +40,7 @@ About a dozen hand-placed buildings, each one decision about the valley's ground
 
 | Building | Rank | Site rule | What it does | Crew |
 |---|---|---|---|---|
-| Forester's Lodge | Hamlet | 12+ mature trees within 8 tiles | fells and replants its wood; makes timber, and firewood toward the season plan's Fuel reserve | 3 |
+| Forester's Lodge | Hamlet | 12+ mature trees within 8 tiles | fells and replants its wood, and while the wood holds fewer trees of any age than its rule (the town grew into it) plants rather than fells (R1X); makes timber, and firewood toward the season plan's Fuel reserve | 3 |
 | Quarry | Hamlet | 4+ stone deposit tiles in the footprint | stone | 3 |
 | Fishery | Hamlet | door on the water's edge | fish; rests while the river is frozen | 3 |
 | Windmill | Hamlet | open ground, no building within 2 tiles | lets bakers set up in its reach: 2 bakers, or 4 when it stands 4+ levels above the ground around it | 1 |
@@ -117,6 +117,24 @@ It slides back one level after four failing days, keeping its walls, as homes do
 
 **Labor** needs no lever: residents take the job that matters most (`11-residents.md`, Jobs, kept). A business with nothing to do rests by itself and its hands go where work is (a farmstead's to the forester and the builders in winter). Pausing a building stays as a command for emergencies and is never needed to balance labor.
 
+*As built (R1B, 2026-11-12)*, where the rules above needed a number or a call. Every number is *(tune)*.
+
+- **The trade score** is whole numbers: need and supply in permille, site 0 or 1, keeper 100 or 125 percent, so a score runs 0 to 1,250 (`systems/growth/trades.ts`). Need is the strongest of: the good's own shortage against three days of what the town wants (while its makers made less than that yesterday); for a flavor households buy, the family's days of cover under the carrier's reserve (Food reads at least the Farmland bar's four days, so the bar never asks for land nothing would take), while the family's makers fall behind its use; 0.5 for a flavor an unlocked tier still lacks; and what the carrier brought over three days, where a third of the use a day is full need. Supply's "two days in store" is two days of the town's want of the raw good, or of a level 1 workshop's use over an 8-hour day if that is more. A keen resident is one of working age who keeps no business yet; growth names them keeper and the jobs pass seats them when the business opens.
+- **Ties** go to the trade the town has fewest of, then content order, so a tie between Food trades spreads the flavors. One business of a trade goes up at a time.
+- **A grain farm's site** also wants twelve tiles (a first hand's fields) of free farm-zoned good soil within eight tiles of its lot, so a grain farm never grows where every zoned tile was cut into lots and it could only rest. Zone Farmland deeper than a lot to leave room for fields.
+- **Retooling** keeps the business's level and keeper and resets its level days; surplus means nobody needs the good and its output is full or more than six days of the town's want lies in store; "another is short" is a trade of its zone needing at least 0.5 on its lot. A grain farm that retools lets its fields go. While the river is frozen, a carpenter the Sawmill cannot saw for waits for the thaw (out of season), and its site days hold.
+- **Starting sites on bought timber**: a grown site still starts when half its materials lie free in store, and also, while the Materials rule lets the carrier bring them, when no other site of its kind (homes, shops, workshops, farmland) is still waiting for its own. Without this a timber-poor town on Essentials never grew, since the carrier buys only for open sites.
+- **Demand bars**: Homes is 34 a home wanted; Shops is the share of households no outlet reaches plus 20, or the households past eight an outlet; Workshops is the sum of the craft trades' need x supply x keeper (where some specialized building has room for those that want a reach), over ten; Farmland is the stronger of how far Food falls under four days and, for a farm good the carrier brought more of over three days than a day's use, half its share. Before Village rank the Shops bar's reason is `marketStall` (a Market Stall answers it). Bars are written after the 01:00 pass and again whenever the zoning pass cuts or drops lots, or `zone.clear` drops them.
+- **Levels**: a day neither good nor failing resets the run; failing days count at level 2 and up; a business resting for the season (its own good not growing, or its raw good out of season with none left in town) neither fails nor counts, and its keeper's days wait too. Room to grow for a farmstead is free farm-zoned ground within eight tiles: twelve tiles a new hand for a grain farm, six for the other farms.
+- **A windmill keeps its open ground** (the master's decision, 2026-11-12): nothing is placed by hand, grown or cut as a lot within two tiles of a windmill's footprint, the distance its own site rule checks; whatever tries is refused with `NEEDS_OPEN_GROUND` (`rules/clearance.ts`, on the sim and the ghost alike), and empty lots inside a new windmill's clearance go at the next zoning pass. Bakers still set up anywhere in its reach, just not on its doorstep.
+- **The Apiary** stays the Hearth's hand-placed hives with its own method and no trade: a hand-placed building has no farm zone for a farmstead's levels, and retooling must never touch a Hearth piece. It answers to the `hives` tag, so detectors, wishes and the trade score's "made in the valley" find it.
+
+*As built (R1X, 2026-11-12)*, from the 70-day runs on every bench seed:
+
+- **Workshops land is cut only into 3x3 lots**, the workshop's footprint. It was cut into 2x3 lots too, which no workshop ever fit: on hazel no trade grew on Workshops land for 45 days. A content check now asks that every zone's lot shapes fit some building that grows there.
+- **Hands before businesses**: no new business starts while two (`HANDS_WAITING`) stand built with nobody at work (not resting), and the Workshops, Farmland and Shops bars go quiet with the reason `hands` ("Businesses already stand empty for want of hands. Newcomers first, then more of them."). On oak a hamlet of 19 had grown 22 businesses, most of them empty, each a coin a day of upkeep, while the homes that would bring hands waited. The Homes bar asks for the newcomers instead.
+- **Porters before goods**: the extra porters of each storehouse are hired (the haul shortage) while a site waits on materials the stores already hold, or a maker at work waits on an input they hold. Willow's cottages waited days for stone with forty in store while each storehouse kept two of its four porters.
+
 ## Production *kept*
 
 Work is counted per tick as built (archive, How production runs): each worker inside adds their mood productivity, scaled by condition; a cycle needs its hours of the full crew, its raw good in the buffer and room for the output. Grain fields, sowing windows and harvests are as built in C5A and P1. What changes: methods are trades, and a business short of its raw good asks the carrier before it rests.
@@ -126,7 +144,7 @@ Work is counted per tick as built (archive, How production runs): each worker in
 As built (archive, Construction): a placed or grown building is a site; coins are paid at placement (grown sites are free), porters bring timber, stone and brick, builders add the work, sites explain what they wait for. Two changes:
 
 - Townhouses and everything of the Age of Steam need brick as well as timber and stone.
-- A site short of a material asks the carrier when the Materials rule allows, so building is dearer on bought timber and never stuck for want of it.
+- A site short of a material asks the carrier when the Materials rule allows, so building is dearer on bought timber and never stuck for want of it. *As built (R1B)*: its waiting line ends "; the carrier brings some at ten" while the rule allows; builders and porters take the season plan's `buildFirst` zone's sites first, after the Ledger's own priority.
 
 ## Logistics *kept*
 
@@ -149,6 +167,7 @@ Every number in this table is *(tune)*. A day of Fuel is one firewood a househol
 - **Variety**: the number of a family's flavors the household could buy in the last three days (on a shelf in reach, or in its pantry); from R3 a named specialty on its evening round counts as one more.
 - Within a family households choose by price and liking as built (Thrifty households weigh price more; species and traits have favorites), so substitution is the rule: dear bread means more porridge.
 - The `goods` need is the basket's average of amount and variety against the tier's wants below, and weighs 10 in mood.
+- *As built (R1A)*: a household sees a flavor on a day (`Household.seen`, the 18:00 pass) when it is in its pantry, on any store's shelf (stores are open to all), or on a stall, square or shop whose food coverage reaches the door; its variety is what it saw in the last three days. Favorites are content (`flavorLikes`: an otter likes fish, a Sweet Tooth honey and cider, weight 2). Wares are bought at the 18:00 pass after the day's outings, so nobody walks for them.
 
 ## Market and prices *kept*
 
@@ -158,10 +177,10 @@ Per good, daily, from cover against a three-day target, as built (archive, Marke
 
 The carrier is the peddler grown up: a cart at the valley gate at 10:00 every day the pass is open, and the boat once there is a dock.
 
-- **What it does without being asked**: for each family, buys what is short of the **reserve** (days of cover). It buys in a fixed order while the day's budget and its load last: Food, Fuel, Materials a site waits for, raw goods a business is resting for, Wares, Treats.
+- **What it does without being asked**: for each family, buys what is short of the **reserve** (days of cover), while the day's budget and its load last, in two passes. First the essentials, in the family order: Food and Fuel a household would otherwise go without today, Materials an open site waits for, raw goods a business is resting for. Then the reserves, in the same family order: Food, Fuel, Materials, Wares, Treats. (The master's call from R1.0: with the peddler's 20 units a single fixed order let the Food reserve take the whole load, and a lodge site never got its timber.) Within the reserves, a share of each flavor some tier still lacks comes first in every family, then the bulk (As built, below).
 - **Selling** is a switch per family (`carrier.setRule`), off for Materials and Fuel by default, so the carrier never sells the town's timber, stone or woodpile unasked. Where it is on, it sells what is over twice the reserve, never what a festival has put by, and nothing under a winter mark from Summer day 4 to the thaw.
 - **Which goods**: raw and made alike, from what the neighbors sell (their lists, archive, Trade). Within a family it buys first a flavor some tier in town still lacks, then whatever is cheapest; it sells the flavor the town holds most of. What no neighbor sells it cannot bring, which is why no tier names a single good.
-- **Rules** per family (`carrier.setRule`): Always (it buys up to the reserve), Essentials only (Food and Fuel a household would otherwise go without today, Materials an open site is waiting for, raw goods a business is resting for want of; never Wares or Treats themselves) or Never. Defaults: Food and Fuel Always; Materials Essentials only; Wares and Treats Never in a Hamlet and Always from Village rank.
+- **Rules** per family (`carrier.setRule`): Always (it buys up to the reserve), Essentials only (Food and Fuel a household would otherwise go without today, Materials an open site is waiting for, raw goods a business is resting for want of; never Wares or Treats themselves) or Never. Defaults: Food and Fuel Always; Materials Essentials only; Wares and Treats Essentials in a Hamlet (R1X: so its first workshop's surplus sells) and Always from Village rank.
 - **Reserves** per family (`carrier.setReserve`): Food 3 days, Fuel 3 days, Wares and Treats 1 day, Materials what open sites need plus 20 *(tune)*. From Summer day 4 to the thaw the season plan's winter marks stand in for the Food and Fuel reserves.
 - **Budget** (`carrier.setBudget`): most coins a day on imports, 40 by default *(tune)*. **Essentials are always carried**: when the treasury cannot pay, Food and Fuel for households that would otherwise go without still come, booked to a County tab that works as the bank's loans do (5% a season) and is capped at 20 coins a resident *(tune)*. Past the cap nothing comes and the town goes short, so a town in debt eats plainly, never for nothing and never forever.
 - **Terms** by what stands in the valley, on the neighbor's regional price (archive, Trade: seasons, drift and impact as built):
@@ -178,6 +197,24 @@ The carrier is the peddler grown up: a cart at the valley gate at 10:00 every da
 - **Commissions** *kept* (archive): asks name goods from the list above.
 - **Contracts** [I4] and **Port Amberly** [I4] as planned.
 - Gone: standing orders with their floors and ceilings (the carrier's reserves replace them), goods marked for sale, export bans per good (now a family's rule).
+
+### As built (R1A)
+
+- **The visit** (10:00, `systems/carrier`): essentials first in the fixed order, for every family not on Never: Food the town would go without today (under a day's eating, pantries counted), Fuel likewise on a winter day, Materials an open site waits for beyond stock, and the raw good a maker with hands is resting for (four cycles' worth, under the rule for the family of what it makes: a baker's grain is Food's, a weaver's wool Wares', the Brickworks' firewood Materials'). **Essentials are outside the day's budget.** Then the tab is paid down from what is left of the budget. Then, for families on Always and within the budget, a share of each flavor some tier in town lacks (the cheapest not on offer, a day of the family's use split among the flavors wanted, 2 units at least and a quarter of the day's load at most) in every family before any bulk, and only then each reserve in the fixed order, the cheapest unit by unit. The 70-day runs showed why: with the peddler's 20 units, refilling the Fuel reserve after winter took every load for days and no Treats or Wares reached a shelf, so Craftsfolk slid back. Selling comes last, with the load that is left.
+- **The County tab**: when the treasury cannot pay (past the County Bank's credit line, or below zero in a Hamlet), a household's Food and Fuel **and a maker's raw good** come on the tab, up to `TAB_PER_RESIDENT` coins a resident; a site's Materials never do (lean times stop building anyway). Nothing moves money when goods come on the tab; it is paid down from the day's spare budget (booked as `repayments`) and charged 5% at each season's turn like a loan (`interest` while the treasury can, else added to the tab).
+- **Variety and the Charter**: a tier's wanted flavors count while it is open, even before a household reaches it, and the Charter being worked toward counts too (the Village's "5 days of Food with 3 flavors"), so a Hamlet's carrier brings a second and third Food flavor when the valley makes only one.
+- **Terms**: the boat calls with the cart every third day while the river runs (`carrier.boatDay`), Millhaven only, each unit going by whichever is cheaper; it shows at the dock for four hours. A deal the plan took sets the cart's percent for its neighbor, family and side; each neighbor offers one of its `deals` a season, in turn. The price cap reads the cheapest cart price today, and lifts while the pass is closed.
+- **Use** (`market/balances.ts`): Food, Wares and Treats are what every household's basket wants (a newly opened tier counted at one household in ten); Fuel is a firewood a household or yesterday's burn if more; Materials what open sites need or yesterday's use if more. Wool is no flavor and no Wares in hand. Winter marks stand for Food, Fuel, Wares and Treats, not Materials (counted in units).
+
+### As built (R1X)
+
+The carrier as tuned on every bench seed (a Village's household loop of wages, taxes and sales nets the treasury nothing, so what pays for growth comes over the valley's edge):
+
+- **A load each way.** The cart (and the boat) comes in full and goes out full: selling no longer waits for what buying left. A Village that bought its twenty units every morning had sold nothing for weeks while its workshops' Wares piled up.
+- **Selling at the door first.** Surplus is collected from makers' output buffers first, then from the storehouses, never from a stall's or shop's shelf, so what the town keeps stays where households see it (candles sold off the storehouse shelf while the two kept sat at the chandler's left the Craftsfolk without Wares).
+- **Coins in hand.** The day's budget and a site's Materials are paid from coins in hand only; the County Bank's credit and the tab are kept for households' Food and Fuel and a maker's raw good. A young Village had borrowed forty coins a day for Treats and ninety for its grown sites' timber while its tax take was fifteen. A broke town's sites wait for its own Lodge and Quarry.
+- **Home upgrades are sites.** A home upgrading for its household's next tier (10 brick and 6 timber) waits on its materials as a site does, and the carrier brings them: the first Craftsfolk homes had waited on brick before any Brickworks, and the porters handed the tavern's brick to the upgrades.
+- **A Hamlet's Wares and Treats are on Essentials** with selling on (they were on Never): no Wares or Treats are bought for households, only a maker's raw good, and the first workshop's surplus sells. Oak's hamlet had piled up 63 days of cider while it went broke.
 
 ## Budget *kept*
 
@@ -198,7 +235,7 @@ Homes upgrade in place when a household meets the next tier's wants for three da
 | Tier | From | Amount | Variety (flavors) | Also |
 |---|---|---|---|---|
 | Settlers | I1 | Food | Food 1 | water, a home, warmth in winter |
-| Craftsfolk | I2 | Food, Wares, Treats | Food 3, Wares 1, Treats 1 | the herbalist in reach and 20 coins put by; until R2 also a tavern in reach and charm 25 at the door, from R2 evenings of 50 in their place |
+| Craftsfolk | I2 | Food, Wares, Treats | Food 3, Wares 1, Treats 1 | the herbalist in reach and 12 coins put by (R1X: 20 kept nearly every household back at day 70); until R2 also a tavern in reach and charm 25 at the door, from R2 evenings of 50 in their place |
 | Merchants | I4 | as above | Food 5, Wares 3, Treats 3 | school and clinic, Watch cover, evenings of 65 |
 | Patrons | I5 | as above | Food 7, Wares 5, Treats 5 | library or theater, a festival attended this season, evenings of 80 |
 
@@ -239,7 +276,7 @@ Drawn by the Ledger and styled by the Hearth (P22), with policies in place of ne
 - **Balances** (one book, replacing Market, the stocks report, the Stores panel's lists and the Trade book's orders): one row for each family with its amount, variety (flavor icons, grayed when missing), price, what the carrier brought and took, and a year's history; a click opens the family's flavors and who makes them.
 - **Purse**: budget by category, taxes and wages, loans.
 - **Businesses**: every business and specialized building by trade, level and status in words.
-- Overlays as built (flows, coverage, status, soil and stone, floodplain, traffic, zones), plus reach rings for specialized buildings and, from R2, the two inks (`17-presentation.md`).
+- Overlays as built (flows, coverage, status, soil and stone, floodplain, traffic, zones), plus the reach of specialized buildings (washed along the roads they serve, R1X) and, from R2, the two inks (`17-presentation.md`).
 - Deep for whoever wants it, invisible for whoever does not (P32).
 
 ## What R1 removes
@@ -252,11 +289,33 @@ Drawn by the Ledger and styled by the Hearth (P22), with policies in place of ne
 
 ## Tuning targets and acceptance [R1]
 
-Starting values for R1X's tuning; record what holds here.
+Starting values for R1X's tuning; R1X recorded what holds below.
 
 - **Hands**: about a third of working residents in food (it was 40 to 55%), a sixth hauling and building, the rest in materials, workshops, shops and services. One field hand feeds about eight through the growing seasons, which is what a third of the hands needs to carry the town through a winter in which almost nothing grows *(tune)*. The carrier's load is small beside a big town's appetite (a City eats 2,000 Food a day and the road carries about 450), so a Town or City lives on what it makes and imports only fill gaps.
 - **Decisions, not chores**: over 70 autoplayed days the Ledger takes under 150 actions, none of them a pause or an order.
-- **Tiers move**: on every bench seed the first Craftsfolk household by day 40 and a third of households by day 70.
+- **Tiers move**: on every bench seed the first Craftsfolk household by day 40 and a third of households by day 70. *Moved to R2 by the owner's ruling (2026-11-15)*: at R1's end the first comes by day 40 on willow only, and a third holds on willow's best day (36%) but at day 70 on no seed (What holds, below); R2's evenings replace the tavern and charm gates that hold households back.
 - **Nothing stalls**: the playability audit finds no business without its raw good for a whole day while its family's rule lets the carrier buy.
 - **Winter has teeth**: a town with reserves under half the plan and the pass closed for two days has hungry or cold households and loses none of its buildings.
 - **The lanes need each other** (`22-quality.md`, The lanes test).
+
+### What holds (R1X, 2026-11-15)
+
+Seventy autoplayed days on each bench seed with every system on (`npm run targets -w @qoti/bench`; the hands are the mean over the growing days from day 20, since farms rest in winter; Craftsfolk are the share of households at day 70 and on the best day before it, as a winter slides them back):
+
+| Seed | Village charter | Residents at 40 and 70 | Hands in food | Ledger decisions | First Craftsfolk | Craftsfolk at 70 (best) | Stalls | Lowest treasury, owed at 70 | Firewood made, bought | Lean days |
+|---|---|---|---|---|---|---|---|---|---|---|
+| willow | day 29 | 79, 115 | 34% | 97 | day 33 | 21% (36%) | 0 | 0, 1,577 | 1,026, 134 | 0 |
+| hazel | day 17 | 80, 132 | 30% | 131 | day 42 | 9% (9%) | 0 | -222, 2,286 | 1,092, 23 | 1 |
+| oak | day 34 | 84, 171 | 36% | 128 | none | 0% | 0 | -117, 3,080 | 1,278, 16 | 0 |
+| birch | day 31 | 53, 87 | 37% | 77 | none | 0% | 0 | 0, 616 | 732, 66 | 0 |
+
+With the founders' larder at 44 Food (R1X's earlier runs, before the dead-end fixes that followed) the same seeds ended smaller and leaner: 61 to 125 residents at day 70, Craftsfolk up to 26% (32% on hazel's best day), the first by day 35 on willow, but 14 lean days on oak and 2 on birch and the treasury down to -261. 56 Food buys a hungry-free start and bigger towns; the Craftsfolk share is what it costs, and R2's tuning takes it up.
+
+- **Hands**: about a third in food on every seed (30 to 37%). Holds.
+- **Decisions, not chores**: 77 to 131 accepted Ledger commands in 70 days, no pause and no order (the decisions count's verdict passes). Holds.
+- **Tiers move**: the first Craftsfolk by day 40 on willow only (day 33; hazel 42, oak and birch none), and a third of households on willow's best day (36%) but at day 70 on no seed (willow 21%, hazel 9%). Does not hold yet: a town that grows fast fills with Settlers; what holds households back is listed in `docs/build/r1-wave-notes.md` (Found in R1X): charm 25 at the door, a tavern and herbalist in reach, savings and one Wares flavor, with winter sliding them back. R2's evenings replace the tavern and charm gates; tune again there. The owner moved this line to R2 (2026-11-15).
+- **Nothing stalls**: no business without its raw good for a whole day while the carrier may buy, on any seed (and none in the audit). Holds.
+- **Winter has teeth**: `packages/sim/test/r1a/winter.test.ts` (under half the marks with the pass closed two days: households cold or hungry, no building lost, no money leaks). Holds.
+- **The lanes need each other**: recorded in `22-quality.md` (The lanes test, R1X's run). Enforced from R2.
+- **The town makes its own firewood**: the Lodges cut 732 to 1,278 firewood over the 70 days against 16 to 134 bought.
+- **Lean days**: none on three seeds; one on hazel (day 50, the treasury at -222). The autoplayer keeps a tenth of its credit line back since R1X's last round (a town that borrowed to the end of its line and then shrank owed past it), so on that day it could borrow 116 coins where it used to take 298. R2's Village debt work takes it up.

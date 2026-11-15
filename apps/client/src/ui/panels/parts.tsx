@@ -90,7 +90,7 @@ export function Meter({
   );
 }
 
-/** "12 planks" as a little paper chip. */
+/** "12 timber" as a little paper chip. */
 export function GoodChip({ good, qty, of }: { good: string; qty: number; of?: number }) {
   return (
     <span class={`good-chip good-${good}`}>

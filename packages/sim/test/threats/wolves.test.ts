@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest';
 import { MAP_SIZE, TICKS_PER_HOUR } from '../../src/constants';
 import type { WorldState } from '../../src/contracts';
 import { vacantHomes } from '../../src/systems/residents/places';
+import { emptyCounters, methodOf } from '../../src/state/zones';
 import { dayIndex } from '../../src/systems/economy/time';
 import { isFarm } from '../../src/systems/production/fields';
 import { yieldModifiers } from '../../src/systems/production/modifiers';
@@ -19,12 +20,16 @@ import { villageFixture } from '../fixtures/village';
 
 const S = MAP_SIZE;
 
-/** A farmhouse out on its own, far from the Town Hall. */
+/** A grain farm (R1: a farmstead business) out on its own, far from the Town Hall. */
 function outlyingFarm(s: WorldState): number {
   for (let z = 150; z > 20; z -= 3)
     for (let x = 170; x > 20; x -= 3) {
       try {
-        return placeFree(s, 'farmhouse', x, z).id;
+        const b = placeFree(s, 'farmstead', x, z);
+        b.trade = 'grain-farm';
+        b.keeperId = 0;
+        b.counters = emptyCounters();
+        return b.id;
       } catch {
         // taken
       }
@@ -56,7 +61,7 @@ describe('wolves', () => {
     winterNight(s, 1);
     const p = packFor(s);
     expect(p.farm).not.toBeNull();
-    expect(isFarm(content.buildingById.get(p.farm!.def))).toBe(true);
+    expect(isFarm(p.farm!)).toBe(true);
     expect(farm).toBeGreaterThan(0);
     // At 01:00 the pack is at the farm's door.
     expect(packTile(s)).toBe(frontOf(p.farm!));
@@ -97,9 +102,9 @@ describe('wolves', () => {
     s.tick = tickAt(0, 3, 3, 10);
     const def = content.buildingById.get(farm.def)!;
     const wolves = yieldModifiers.find(([id]) => id === 'wolves')![1];
-    expect(wolves(s, farm, def, def.methods![0]!)).toBe(SCARED_YIELD);
+    expect(wolves(s, farm, def, methodOf(farm)!)).toBe(SCARED_YIELD);
     s.tick = tickAt(0, 3, 4, 10);
-    expect(wolves(s, farm, def, def.methods![0]!)).toBe(1000);
+    expect(wolves(s, farm, def, methodOf(farm)!)).toBe(1000);
   });
 
   it('only howl at the forest edge in the first Hamlet winter, and on Peaceful', () => {

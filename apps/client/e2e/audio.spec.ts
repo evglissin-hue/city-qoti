@@ -54,6 +54,7 @@ test('sound starts on the first gesture and follows the sliders', async ({ page 
 
   const before = await page.evaluate(() => window.__qoti.audio.gains());
   expect(before!.music).toBeGreaterThan(0);
+  await page.getByTestId('menu-open').click();
   await page.getByTestId('settings-open').click();
   await page.getByTestId('volume-music').fill('20');
   await expect

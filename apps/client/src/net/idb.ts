@@ -58,6 +58,13 @@ export class IdbStorage implements RoomStorage, ImageStorage {
     return (await this.open()).transaction(stores, mode);
   }
 
+  /** Lets go of the connection, so the valley's database can be deleted. */
+  async close(): Promise<void> {
+    const db = await this.db;
+    db?.close();
+    this.db = null;
+  }
+
   async getMeta(): Promise<StoredMeta | null> {
     const tx = await this.tx(['meta'], 'readonly');
     return ((await promisify(tx.objectStore('meta').get('meta'))) as StoredMeta | undefined) ?? null;

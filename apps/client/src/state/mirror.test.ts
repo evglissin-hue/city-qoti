@@ -11,7 +11,9 @@ import {
   defaultSettings,
   LAYER_NAMES,
   rngFromSeed,
+  type BusinessView,
   type Command,
+  type DemandView,
   type Rot4,
   type Turn,
   type WorldState,
@@ -147,5 +149,51 @@ describe('ghost validity', () => {
       }
     }
     expect(valid).toBeGreaterThan(20);
+  });
+});
+
+describe('Mirror: R1 views', () => {
+  const business = (id: number, level = 1): BusinessView => ({
+    id,
+    def: 'workshop',
+    trade: 'baker',
+    level,
+    keeperId: 0,
+    pinned: false,
+    hands: 1,
+    crew: 1,
+    status: 'Baking',
+    levelDays: 0,
+  });
+
+  it('keeps demand, balances and businesses from the snapshot and their events', () => {
+    const { world, mirror } = pair('r1-views');
+    const view = buildView(world);
+    const demand: DemandView = { bars: [] };
+    mirror.load({ ...view, demand, businesses: [business(901)] });
+    expect(mirror.demand.value).toBe(demand);
+    expect(mirror.businesses.get(901)?.trade).toBe('baker');
+
+    const revision = mirror.villageRevision.value;
+    const t = world.lastTurn + 1;
+    const next: DemandView = { bars: [] };
+    mirror.apply({
+      t,
+      tick: world.tick,
+      events: [
+        { e: 'demand.updated', d: next },
+        { e: 'business.updated', b: business(901, 2) },
+        { e: 'business.updated', b: business(902) },
+      ],
+      patches: [],
+    });
+    expect(mirror.demand.value).toBe(next);
+    expect(mirror.businesses.get(901)?.level).toBe(2);
+    expect(mirror.businesses.size).toBe(2);
+    expect(mirror.villageRevision.value).toBeGreaterThan(revision);
+
+    // A business whose building comes down leaves the map too.
+    mirror.apply({ t: t + 1, tick: world.tick, events: [{ e: 'building.removed', id: 902 }], patches: [] });
+    expect([...mirror.businesses.keys()]).toEqual([901]);
   });
 });

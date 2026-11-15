@@ -1,14 +1,15 @@
 // @vitest-environment happy-dom
 // I2 (C4F): village alerts, the rank pennant, plan words and shapes, and the minimap's paint,
 // against the village mocks.
-import { MAP_SIZE, type Command, type TrialView } from '@qoti/sim';
+import { content } from '@qoti/content';
+import { BuildingStatus, MAP_SIZE, type Command, type TrialView } from '@qoti/sim';
 import { h } from 'preact';
 import { afterEach, describe, expect, it } from 'vitest';
 import { computeAlerts, alertsForLens } from './alerts';
 import { paintMinimap } from './Minimap';
 import { mockVillageSession } from './mocks/session';
 import { mockCharter, villageIds } from './mocks/village';
-import { planCovers, planSummary, shapesOf, sketchWith } from './plans';
+import { editCommand, editSketch, planCovers, planSummary, shapesOf, sketchWith, withoutItem } from './plans';
 import { mount, type Mounted } from './test/dom';
 import { goalLine, nextGoal } from './GoalPill';
 import { TopBar } from './TopBar';
@@ -28,16 +29,57 @@ describe('village alerts', () => {
       lines: m.market.value!.lines.map((l) => (l.good === 'bread' ? { ...l, price: l.base * 2 } : l)),
     };
     m.stocks.value = {
-      lines: m.stocks.value!.lines.map((l) => (l.good === 'cloth' ? { ...l, stock: 0 } : l)),
+      // R1: wants are by family, so the town is out of every flavor of Wares.
+      lines: m.stocks.value!.lines.map((l) =>
+        content.goodById.get(l.good)?.family === 'wares' ? { ...l, stock: 0 } : l,
+      ),
     };
     const ledger = alertsForLens(computeAlerts(m, [], { seat: 0 }), 'ledger', new Set());
     const price = ledger.find((a) => a.key === 'price-bread-dear');
     expect(price?.text).toContain('Bread is dear');
     expect(price?.action).toEqual({ kind: 'market', good: 'bread' });
-    expect(ledger.find((a) => a.key === 'tier-short-craftsfolk-cloth')?.text).toContain('Craftsfolk');
+    const wares = ledger.find((a) => a.key === 'tier-short-craftsfolk-wares');
+    expect(wares?.text).toContain("Craftsfolk households can't find wares anywhere");
     // The Hearth hears none of it.
     const hearth = alertsForLens(computeAlerts(m, [], { seat: 0 }), 'hearth', new Set());
     expect(hearth.some((a) => a.key.startsWith('price-') || a.key.startsWith('tier-short'))).toBe(false);
+    // Settlers want no Wares, so a town of Settlers hears nothing about them (R1X: day one said so).
+    const town = m.town.value!;
+    m.town.value = { ...town, tiers: (town.tiers ?? []).map((n, i) => (i === 0 ? n : 0)) };
+    const settlers = alertsForLens(computeAlerts(m, [], { seat: 0 }), 'ledger', new Set());
+    expect(settlers.some((a) => a.key === 'tier-short-settler-wares')).toBe(false);
+  });
+
+  // R1X, from the player's chair: three cider makers waiting read "the cider makers are waiting",
+  // and a business resting till spring raises no alert at all.
+  it('names makers waiting on a raw good in the plural, and lets resting businesses be', () => {
+    const { session } = mockVillageSession();
+    const m = session.mirror;
+    m.stocks.value = {
+      lines: m.stocks.value!.lines.map((l) => (l.good === 'fruit' ? { ...l, stock: 0 } : l)),
+    };
+    const makers = [...m.buildings.values()].filter((b) => b.stage === 'built').slice(0, 3);
+    for (const b of makers) {
+      m.buildings.set(b.id, {
+        ...b,
+        def: 'workshop',
+        trade: 'cider-maker',
+        rt: { ...(b.rt ?? {}), status: BuildingStatus.missingInput } as typeof b.rt,
+      });
+    }
+    const waiting = () =>
+      alertsForLens(computeAlerts(m, [], { seat: 0 }), 'ledger', new Set()).find(
+        (a) => a.key === 'short-fruit',
+      );
+    expect(waiting()?.text).toMatch(/The [a-z' ]+s are waiting\./);
+    for (const b of makers) {
+      const now = m.buildings.get(b.id)!;
+      m.buildings.set(b.id, {
+        ...now,
+        rt: { ...now.rt!, status: BuildingStatus.missingInput | BuildingStatus.resting },
+      });
+    }
+    expect(waiting()).toBeUndefined();
   });
 
   it('brings story letters, requests and plans from the partner, and an open Charter to both lanes', () => {
@@ -169,6 +211,17 @@ describe('plans', () => {
     const sketch = sketchWith({ items: [], basedOn: null }, place);
     expect(sketch?.items).toEqual([{ cmd: place }]);
     expect(sketchWith(sketch, speed)).toBeNull();
+  });
+
+  it('edits a plan: items back as a sketch, one taken out, the command sent', () => {
+    const a: Command = { t: 'build.place', def: 'cottage', x: 50, z: 52, rot: 0 };
+    const b: Command = { t: 'tree.plant', species: 'oak', x: 4, z: 5 };
+    const s = editSketch({ id: 9, items: [{ cmd: a }, { cmd: b }] });
+    expect(s).toEqual({ basedOn: 9, items: [{ cmd: a }, { cmd: b }] });
+    expect(withoutItem(s, 0).items).toEqual([{ cmd: b }]);
+    expect(withoutItem(s, 5)).toBe(s);
+    expect(editCommand(withoutItem(s, 0))).toEqual({ t: 'plan.edit', id: 9, items: [{ cmd: b }] });
+    expect(editCommand({ items: [], basedOn: null })).toBeNull();
   });
 });
 

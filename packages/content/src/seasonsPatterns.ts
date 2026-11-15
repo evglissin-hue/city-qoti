@@ -20,6 +20,11 @@ export const childrensCorner: PatternDef = {
   siteBonus: { charm: 6, radius: 3, category: 'comfort' },
   unlocks: ['see-saw'],
   hintOrder: 16,
+  // R1 (R1D): Lay it out.
+  layout: [
+    { decor: 'swing', dx: 0, dz: 0 },
+    { decor: 'bench', dx: 1, dz: 2 },
+  ],
 };
 
 export const orchardPath: PatternDef = {
@@ -36,6 +41,11 @@ export const orchardPath: PatternDef = {
   siteBonus: { charm: 6, radius: 2, category: 'nature' },
   unlocks: ['pear-tree'],
   hintOrder: 15,
+  // R1 (R1D): Lay it out.
+  layout: [
+    { road: 'path', dx: 0, dz: 0, tx: 3, tz: 0 },
+    { decor: 'bench', dx: 1, dz: 1 },
+  ],
 };
 
 export const pondGarden: PatternDef = {
@@ -70,6 +80,14 @@ export const readingNook: PatternDef = {
   siteBonus: { charm: 5, radius: 2, category: 'comfort' },
   unlocks: ['arbor-seat'],
   hintOrder: 18,
+  // R1 (R1D): Lay it out.
+  layout: [
+    { run: 'hedge', dx: 0, dz: 0, tx: 2, tz: 0 },
+    { run: 'hedge', dx: 0, dz: 1, tx: 0, tz: 2 },
+    { decor: 'bench', dx: 1, dz: 1 },
+    { decor: 'flower-bed', dx: 2, dz: 1 },
+    { decor: 'lantern', dx: 1, dz: 2 },
+  ],
 };
 
 export const townGate: PatternDef = {

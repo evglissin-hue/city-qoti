@@ -223,8 +223,8 @@ describe('work: apprentices and retiring', () => {
       lifeMorning(s, ctx);
       expect(s.residents.some((r) => r.apprentice)).toBe(false);
       placeTest(s, school, 88, 60);
-      // A woodcutter with two open jobs, so a young porter can move to a workshop.
-      placeTest(s, content.buildingById.get('woodcutter')!, 88, 64);
+      // A Forester's Lodge with three open jobs, so a young porter can move to a workshop.
+      placeTest(s, content.buildingById.get('foresters-lodge')!, 88, 64);
       skip(s, TICKS_PER_DAY);
       lifeMorning(s, ctx);
       const learners = s.residents.filter((r) => r.apprentice);

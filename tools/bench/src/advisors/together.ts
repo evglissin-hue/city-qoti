@@ -2,7 +2,7 @@
 // (seat 1) claims the Charter once it is ready, asks the Ledger for food at the stall with a request
 // (it closes itself when the porters deliver), sketches lanterns and flowers as a plan that the
 // Ledger approves on its next visit, and both keep an eye on the story characters' hints (a lantern
-// by their door, a seat and flowers by the market, Pippa's sawpit by the river).
+// by their door, a seat and flowers by the market, Pippa's lodge by the river; R1: her sawpit was).
 import { content } from '@qoti/content';
 import {
   findById,
@@ -19,7 +19,13 @@ import type { Planner } from '../planner';
 import { FOODS, idx } from '../town';
 import type { Advisor, AdvisorDef, Visit } from './types';
 
+/** R1F: days between two plans the Hearth sketches. */
+const SKETCH_DAYS = 4;
+
 class Together implements Advisor {
+  /** The day the Hearth last sketched a plan. */
+  private sketched = -SKETCH_DAYS;
+
   constructor(readonly p: Planner) {}
 
   private get w(): WorldState {
@@ -61,12 +67,15 @@ class Together implements Advisor {
     }
   }
 
-  /** Pippa's river letter: a sawpit within three tiles of the water. */
+  /** Pippa's river letter: the building it names (R1: a Forester's Lodge) within three tiles of the water. */
   private inventor(): void {
     const w = this.w;
     const s = w.stories.find((x) => x.arc === 'inventor');
     const step = s && s.step >= 0 ? content.storyById.get('inventor')?.steps[s.step] : undefined;
     if (!step || !('count' in step.goal) || step.goal.count.what !== 'byWater') return;
+    const ref = step.goal.count.ref;
+    const def = ref ? content.buildingById.get(ref) : undefined;
+    if (!def) return;
     // Within three steps of the footprint, corners rounded, as the goal counts it.
     const wet = (x: number, z: number, wd: number, d: number) => {
       for (let tz = z - 3; tz < z + d + 3; tz++) {
@@ -78,10 +87,11 @@ class Together implements Advisor {
       }
       return false;
     };
-    const turned = (b: Building) => (b.rot % 2 === 0 ? [2, 3] : [3, 2]) as [number, number];
-    if (w.buildings.some((b) => b.def === 'sawpit' && wet(b.x, b.z, ...turned(b)))) return;
+    const [sw, sd] = def.size;
+    const turned = (b: Building) => (b.rot % 2 === 0 ? [sw, sd] : [sd, sw]) as [number, number];
+    if (w.buildings.some((b) => b.def === def.id && wet(b.x, b.z, ...turned(b)))) return;
     if (this.p.coins() < 60) return;
-    this.p.build('sawpit', wet);
+    this.p.build(def.id, wet);
   }
 
   /** The Hearth asks for food at the first stall; withdraws a request nobody could meet in a week. */
@@ -90,7 +100,7 @@ class Together implements Advisor {
     const today = Math.floor((w.tick + START_HOUR * TICKS_PER_HOUR) / TICKS_PER_DAY);
     for (const r of w.requests) {
       if (r.status === 'open' && w.tick - r.tick > 7 * TICKS_PER_DAY) {
-        this.p.do('withdraw a request', [{ t: 'request.resolve', id: r.id, status: 'withdrawn' }]);
+        this.p.do('withdraw a request', [{ t: 'request.resolve', id: r.id, status: 'withdrawn' }], 1);
       }
     }
     if (w.requests.some((r) => r.status === 'open')) return;
@@ -107,7 +117,7 @@ class Together implements Advisor {
       byDay: today + 3,
       at: stall.id,
     };
-    this.p.do(`ask for ${qty} ${ask.good}`, [{ t: 'request.add', ask }]);
+    this.p.do(`ask for ${qty} ${ask.good}`, [{ t: 'request.add', ask }], 1);
   }
 
   /**
@@ -118,8 +128,10 @@ class Together implements Advisor {
   private plans(): void {
     const w = this.w;
     for (const p of w.plans) {
-      if (p.status === 'open' && p.by === 0)
-        this.p.do(`approve ${p.name}`, [{ t: 'plan.approve', id: p.id }], 1);
+      // R1F: the Hearth (seat 1) sketches and the Ledger (seat 0) approves, as the header says (the
+      // seats were the other way round, which counted the Hearth's sketches as Ledger decisions).
+      if (p.status === 'open' && p.by === 1)
+        this.p.do(`approve ${p.name}`, [{ t: 'plan.approve', id: p.id }]);
     }
     const items: Command[] = [];
     const add = (def: string, at: [number, number] | null) => {
@@ -145,16 +157,21 @@ class Together implements Advisor {
         add('flower-bed', this.p.decorSpot('flower-bed', stall.x, stall.z, 2));
       }
     }
-    if (items.length > 0) {
-      this.p.do('sketch a plan', [
-        { t: 'plan.add', name: 'For our story folk', items: items.map((cmd) => ({ cmd })) },
-      ]);
+    // R1F: a sketch every few days at most (one every afternoon made the Ledger approve 25 plans).
+    if (items.length > 0 && this.p.runDay - this.sketched >= SKETCH_DAYS) {
+      this.sketched = this.p.runDay;
+      this.p.do(
+        'sketch a plan',
+        [{ t: 'plan.add', name: 'For our story folk', items: items.map((cmd) => ({ cmd })) }],
+        1,
+      );
     }
   }
 }
 
 export const together: AdvisorDef = {
   id: 'together',
+  lane: 'both',
   slot: 70,
   plays: (opts) => opts.together !== false,
   create: (p) => new Together(p),

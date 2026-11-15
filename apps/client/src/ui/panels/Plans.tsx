@@ -3,7 +3,7 @@ import { useEffect, useState } from 'preact/hooks';
 import type { Session } from '../../app/session';
 import { seatLabel, shortDate } from '../format';
 import { Glyph } from '../icons';
-import { planCenter, planSummary } from '../plans';
+import { editCommand, editSketch, planCenter, planSummary, withoutItem } from '../plans';
 import { partnerName } from '../village';
 import { Empty, Frame } from './parts';
 
@@ -89,6 +89,7 @@ export function PlansPanel({ session }: { session: Session }) {
 function SketchCard({ session }: { session: Session }) {
   const sketch = session.ui.sketch.value!;
   const [name, setName] = useState('');
+  if (sketch.basedOn !== null) return <EditCard session={session} />;
   const n = sketch.items.length;
   const propose = (e: Event) => {
     e.preventDefault();
@@ -137,6 +138,66 @@ function SketchCard({ session }: { session: Session }) {
         </button>
       </div>
     </form>
+  );
+}
+
+/** Editing an open plan: its items are ghosts; add more with the usual tools, take any one out. */
+function EditCard({ session }: { session: Session }) {
+  const sketch = session.ui.sketch.value!;
+  const plan = session.mirror.plans.get(sketch.basedOn!);
+  const live = plan?.status === 'open';
+  const save = () => {
+    const cmd = editCommand(sketch);
+    if (!cmd || !sketch.items.length) return;
+    session.submit(cmd);
+    session.ui.sketch.value = null;
+  };
+  return (
+    <div class="sketch-card" data-testid="edit-card">
+      <p class="sketch-title">
+        <Glyph id="plan" /> <b>Editing {plan ? plan.name : 'a plan'}</b>
+        <span class="muted small">
+          {live
+            ? 'Place more with the usual tools, or take a piece out.'
+            : 'That plan has been settled while you were at it.'}
+        </span>
+      </p>
+      <ul class="comments edit-items">
+        {sketch.items.map((item, i) => (
+          <li key={i}>
+            {planSummary([item])}{' '}
+            <button
+              type="button"
+              class="small-button"
+              data-testid={`edit-remove-${i}`}
+              onClick={() => (session.ui.sketch.value = withoutItem(sketch, i))}
+            >
+              Take it out
+            </button>
+          </li>
+        ))}
+      </ul>
+      <div class="row-actions">
+        <span class="spacer" />
+        <button
+          type="button"
+          class="small-button"
+          data-testid="edit-cancel"
+          onClick={() => (session.ui.sketch.value = null)}
+        >
+          Cancel
+        </button>
+        <button
+          type="button"
+          class="primary small-button"
+          data-testid="edit-save"
+          disabled={!live || !sketch.items.length}
+          onClick={save}
+        >
+          Save changes
+        </button>
+      </div>
+    </div>
   );
 }
 
@@ -216,6 +277,20 @@ function PlanCard({ session, p }: { session: Session; p: PlanView }) {
         >
           <Glyph id="eye" /> {focused ? 'Showing' : 'Show me'}
         </button>
+        {!session.ui.sketch.value && (
+          <button
+            type="button"
+            class="small-button"
+            data-testid={`plan-edit-${p.id}`}
+            onClick={() => {
+              session.ui.sketch.value = editSketch(p);
+              showPlan(session, p);
+              session.ui.planFocus.value = null;
+            }}
+          >
+            Edit
+          </button>
+        )}
         <span class="spacer" />
         <button
           type="button"

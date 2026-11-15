@@ -74,6 +74,8 @@ interface PatternDef {
 
 *[R1]*: detectors that name buildings read the new ones by tag: a bakery is a baker's business, a corner shop a shop, market buildings are stalls, shops and the Market Square, an orchard is an orchard farmstead. The vegetable plot and the herb garden return as one Hearth piece, the garden bed: placed by hand beside a home for 4 timber, it gives that home vegetables as a flavor through the growing seasons (variety, not volume: the Kitchen Garden page no longer adds food, so no town is fed by beds alone) and counts for charm, wishes and habitats as the plots did. No pattern is lost with the chains. *[R2]*: every standing pattern site is a place on the evening round, with seats from its pieces and a draw of its own, and its page shows who came last night. *[R3]*: a pattern pairs with a good in the Town Book (`19-evenings.md`).
 
+*As built (R1D)*: the garden bed (`garden-bed`, a 2x2 Hearth building, 4 timber, 4 builder-hours, no jobs) counts as a plot for the Kitchen Garden, A Garden Plot and the habitats. A household whose home has a built bed within 3 tiles has vegetables as a flavor for its variety in spring, summer and autumn (`gardenFlavors`, read by breakfast's variety bonus and, from R1A, the household's variety); the Kitchen Garden's harvest is gone. A bed is not tied to a home by a placement rule: one far from any home simply gives nothing.
+
 **Engine:**
 
 - Each in-game hour, run every pattern's detector over dirty chunks. A detector returns site instances `{ anchorTile, members: EntityId[] }`. *As built (C3B):* the pass runs at offset 100 over the whole map (0.5 ms on the hamlet, 2.7 ms with a dense block added), which keeps re-validation exact for long walks whose anchor sits outside the changed chunk; scoping to dirty chunks is a later optimization. Detectors are modules registered by id in `systems/hearth/patterns/detectors`. Credit ties go to the seat that placed the newest member.
@@ -180,6 +182,8 @@ interface WishTemplate {
 
 *[R1]*: a wish that names a workplace names its trade instead (Bakery Nearby wants a baker within 12 tiles), and is voiced only where a Workshops lot inside a windmill's reach could put one there, or one already can (the achievable check). Fresh Fish wants fish on a shelf in reach. *[R3]*: a granted wish still gives a heart up to three; hearts now matter to the Ledger too, because four make a master (`19-evenings.md`, Masters).
 
+*As built (R1D)*: Bakery Nearby is offered only when Workshops land lies within 12 tiles of the home inside a standing windmill's reach (`tradeCouldOpen`). Fresh Fish is granted by fish in stock at a market stall or square whose food reach covers the home's door (`shelfInReach`), and is let go when no market stands. A Garden Plot wants a garden bed within 3 tiles.
+
 ## Festivals [I3]
 
 One per season, day 6 from 18:00 to 22:00 (P23).
@@ -199,6 +203,8 @@ One per season, day 6 from 18:00 to 22:00 (P23).
 **Seasonal festivals**: Spring Blossom Fair, Midsummer Lantern Night, Harvest Supper, Winter Hearth Feast.
 
 *[R1]*: a menu is up to four flavors of Food and Treats (`13-ledger.md`, Goods), put by from the granaries and storehouses as built; the carrier never sells what a festival has put by. A twist that names a good the town cannot yet make is not offered: the pie contest waits for a master baker [R3], and the costume parade asks for cloth. *[R3]*: a specialty can go on the menu as a dish of its own and a custom can be the twist (`19-evenings.md`, The Town Book).
+
+*As built (R1D)*: `festival.plan` refuses a menu good outside Food and Treats (NOT_ALLOWED), and a twist whose goal names a good the town neither has in stock nor makes at a standing building or business (LOCKED); `FestivalView.offered` lists the twists that may be planned now, and the poster offers only those. The pie contest stays in no season.
 
 *As built (C5B)*:
 
@@ -262,6 +268,7 @@ The Hearth's tools do more of the arranging, so a place takes a few gestures and
 - **A flower brush**: dragging paints a drift of mixed flower pieces, chosen by a seed from the pieces unlocked, as one undo step (`decor.placeRun`).
 - **Move**: pick up a decor piece, or a building placed by hand, and set it down elsewhere (`decor.move`, `build.move`). A piece keeps its identity, its builder and its customizing; a building is taken down and raised again by the builders for a third of its work and no materials. Moving the partner's handmade work asks first, as removing it does.
 - A pattern's page offers "Lay it out": a ghost of the pattern's pieces to place as a plan, once that pattern has been discovered.
+- *As built (R1D)*: a seat (bench, curved bench, arbor seat; not the ring bench) set down unturned faces open water within 4 tiles, else the side with the most open ground within 3 tiles when one side is clearly more open, else the nearest path within 5; the first R starts from that facing. Dragging a lantern or a flower piece two tiles or more is a run: lanterns every third tile on alternating sides, flowers a tile apart, skipping spots that cannot take one. Hedge, fence and wall runs leave the road tiles open (the arch or gate is the gap). The Flowers brush is a tool of its own beside Decor: a seeded drift of the coin-priced flower pieces unlocked, up to 24 a stroke. All of these go out as one `decor.placeRun` with `pieces` (an additive field: exactly those pieces, all or nothing, their costs counted together). Move: `decor.move` and `build.move` (below, in 10-world-and-building.md's Moving). Lay it out: thirteen patterns carry a `layout` (content `PatternPiece`s); the button on a discovered page puts the layout on the cursor, R turns it, and a click sketches it in as one plan named after the pattern, to approve in the Plans book.
 
 ## District styles [I4]
 

@@ -46,7 +46,7 @@ describe('undo for hamlet commands', () => {
       { e: 'building.updated', b: { ...b, custom: { ...b.custom, wall: 'rose', shutters: true } } },
     ]);
     expect(r.undo.size.value).toBe(1);
-    expect(r.undo.undo(r.mirror, r.raw)).toMatchObject({ ok: true, label: 'the new look for the bakery' });
+    expect(r.undo.undo(r.mirror, r.raw)).toMatchObject({ ok: true, label: 'the new look for the workshop' });
     expect(r.sent.pop()).toEqual({ t: 'build.customize', id: 6, custom: { wall: 'butter', shutters: null } });
 
     r.play({ t: 'build.customize', id: 6, custom: { roof: 'slate' } }, [
@@ -104,16 +104,6 @@ describe('undo for hamlet commands', () => {
     ]);
     r.undo.undo(r.mirror, r.raw);
     expect(r.sent.pop()).toEqual({ t: 'build.setPriority', id: 8, priority: true });
-
-    const stocks = mockView().stocks!;
-    r.play({ t: 'ledger.setForSale', good: 'bread', forSale: true }, [
-      {
-        e: 'stocks.updated',
-        s: { lines: stocks.lines.map((l) => (l.good === 'bread' ? { ...l, forSale: true } : l)) },
-      },
-    ]);
-    r.undo.undo(r.mirror, r.raw);
-    expect(r.sent.pop()).toEqual({ t: 'ledger.setForSale', good: 'bread', forSale: false });
   });
 
   it('a rejected inverse is remembered as an undo, so its toast can say so', () => {

@@ -7,6 +7,10 @@
   "scripts": {
     "bench": "tsx src/bench.ts",
     "audit": "tsx src/audit.ts",
+    "golden:year": "tsx src/goldenYear.ts",
+    "hands": "tsx src/hands.ts",
+    "lanes": "tsx src/lanes.ts",
+    "targets": "tsx src/targets.ts",
     "tune": "tsx src/tune.ts",
     "tune:summary": "tsx src/tuneSummary.ts",
     "typecheck": "tsc -p . --noEmit"

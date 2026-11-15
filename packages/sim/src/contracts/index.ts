@@ -10,3 +10,4 @@ export type * from './sim';
 export type * from './state';
 export type * from './views';
 export type * from './village';
+export type * from './zones';

@@ -18,7 +18,13 @@ export const villageCharter: CharterDef = {
       target: 3,
     },
     { id: 'wishes', text: '5 wishes granted', lane: 'hearth', measure: { what: 'wishesGranted' }, target: 5 },
-    { id: 'food', text: '5 days of food in stock', lane: 'ledger', measure: { what: 'foodDays' }, target: 5 },
+    {
+      id: 'food',
+      text: '5 days of Food with 3 flavors',
+      lane: 'ledger',
+      measure: { what: 'foodDays', flavors: 3 },
+      target: 5,
+    },
     {
       id: 'surplus',
       text: 'A season ended in surplus',
@@ -27,16 +33,24 @@ export const villageCharter: CharterDef = {
       target: 1,
     },
   ],
+  // R1: Homes, Workshops and Farmland are zoned from founding, so the Village opens the Shops and
+  // Townhouses zones (ZoneDef.requires), and the carrier's default rule for Wares and Treats turns
+  // to Always (docs/spec/15-progression.md, From the redesign). The Sawmill and the Brickworks are
+  // Village buildings too, but their innovations open them (Water Wheel, Brick Kiln): an id listed
+  // here goes into hearth.unlocked, which would let them skip it.
   unlocks: [
-    'zoning',
+    'shops-zone',
+    'townhouses-zone',
     'market-prices',
     'craftsfolk',
+    'market-square',
+    'trading-post',
+    'carrier-wares-treats',
     'school',
     'tavern',
     'herbalist',
     'carts',
     'street',
-    'trading-post',
     'loans',
   ],
   proclamation: 'By order of the County, {town} is a village. Somebody fetch the bunting.',

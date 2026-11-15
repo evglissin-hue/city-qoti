@@ -1,14 +1,13 @@
-// I2 contracts (C4.0): the village fixture, save version 3, the money invariant, the cross-track
-// APIs and the command baselines every I2 track builds on.
+// I2 contracts (C4.0): the village fixture, the money invariant, the cross-track APIs and the
+// command baselines every I2 track builds on. R1.0 dropped the save version 3 migration (version 6
+// refuses older valleys), standing orders and method pinning (a business pins its trade).
 import { content, type StoryArc } from '@qoti/content';
-import { gunzipSync, gzipSync, strFromU8, strToU8 } from 'fflate';
 import { describe, expect, it } from 'vitest';
 import {
   AGENT_STRIDE,
   AgentAnim,
   LEDGER_CATEGORIES,
   MAP_SIZE,
-  NEED_IDS,
   PENNIES_PER_COIN,
   TICKS_PER_DAY,
   TICKS_PER_HOUR,
@@ -19,7 +18,6 @@ import { createValley, defaultSettings } from '../src/state/create';
 import { findById } from '../src/state/entities';
 import { hashState } from '../src/state/hash';
 import { deserialize, serialize } from '../src/state/serialize';
-import { SAVE_VERSION } from '../src/state/version';
 import { pay } from '../src/systems/economy/money';
 import { growLot } from '../src/systems/growth/api';
 import { unlockInnovation } from '../src/systems/innovations/api';
@@ -30,6 +28,7 @@ import { advanceTo, createTickCtx } from '../src/turn';
 import { buildView } from '../src/view';
 import { agentFrame } from '../src/view/agents';
 import { inspect } from '../src/view/inspect';
+import { offerGoods } from './market/helpers';
 import { hamletFixture } from './fixtures/hamlet';
 import { villageFixture } from './fixtures/village';
 import { flatWorld, rejection, run, S } from './helpers';
@@ -83,7 +82,6 @@ describe('village fixture', () => {
     expect(view.lots).toHaveLength(11);
     expect(view.lots![0]!.zone).toBe('shops');
     expect(view.trade!.neighbors.map((n) => n.id)).toEqual(['millhaven', 'stonecross']);
-    expect(view.trade!.orders[0]!.good).toBe('planks');
     expect(view.loans!.owed).toBe(100 * PENNIES_PER_COIN);
     expect(view.charter!.rank).toBe('village');
     expect(view.innovations!.find((i) => i.id === 'cobbles')!.unlocked).toBe(true);
@@ -93,84 +91,6 @@ describe('village fixture', () => {
     expect(view.town!.tiers).toEqual([44, 16, 0, 0]);
   });
 });
-
-describe('save version 3', () => {
-  it('migrates an I1 save: Settlers, no zones, prices at base, arrays grown to the I2 goods', () => {
-    const f = hamletFixture();
-    const raw = JSON.parse(strFromU8(gunzipSync(serialize(f.state)))) as Record<string, unknown>;
-    // Rebuild what an I1 client saved: 8 goods, 7 ledger categories, 5 needs, no I2 slices.
-    const v2 = shrinkToV2(raw);
-    const migrated = deserialize(gzipSync(strToU8(JSON.stringify(v2))));
-    expect(migrated.saveVersion).toBe(SAVE_VERSION);
-    expect(SAVE_VERSION).toBeGreaterThanOrEqual(3);
-    expect(migrated.economy.forSale).toHaveLength(content.goods.length);
-    expect(migrated.economy.today.money).toHaveLength(LEDGER_CATEGORIES.length);
-    expect(migrated.economy.external).toBe(0);
-    expect(migrated.residents[0]!.needs).toHaveLength(NEED_IDS.length);
-    expect(migrated.residents[0]!.needs.slice(5)).toEqual([100, 100, 100, 100]);
-    for (const b of migrated.buildings) expect(b.rt!.store).toHaveLength(content.goods.length);
-    expect(migrated.households[0]!.pantry).toHaveLength(content.goods.length);
-    expect(migrated.market.prices).toEqual(content.goods.map((g) => g.basePrice));
-    expect(migrated.charter.rank).toBe('hamlet');
-    expect(migrated.charter.charter).toBe('village');
-    expect(migrated.lots).toEqual([]);
-    expect(migrated.map.zone.every((v) => v === 0)).toBe(true);
-    expect(migrated.map.lot).toBeInstanceOf(Int32Array);
-    // It is the same town (the fixture's tier needs start at 70, a migrated Settler's at 100), and
-    // it keeps playing.
-    for (const r of f.state.residents) r.needs.fill(100, 5);
-    // C5C: chunks waiting for the habitats pass are not saved by older versions; a migrated valley
-    // scores every chunk on its first pass anyway (its habitats start at zero).
-    delete f.state.nature.dirty;
-    expect(hashState(migrated)).toBe(hashState(f.state));
-    const ctx = createTickCtx(migrated);
-    advanceTo(migrated, 2 * TICKS_PER_HOUR, ctx);
-    expect(migrated.residents).toHaveLength(9);
-  });
-});
-
-/** An I1 (v2) save from a current one: drop the I2 slices and layers, trim the grown arrays. */
-function shrinkToV2(raw: Record<string, unknown>): Record<string, unknown> {
-  const goods = 8;
-  const trim = (v: unknown, n: number) => (Array.isArray(v) ? v.slice(0, n) : v);
-  const v2: Record<string, unknown> = { ...raw, saveVersion: 2 };
-  for (const k of ['market', 'levers', 'loans', 'lots', 'trade', 'carts', 'charter', 'innovations'])
-    delete v2[k];
-  for (const k of ['plans', 'requests', 'stories', 'village']) delete v2[k];
-  const map = { ...(raw.map as Record<string, string>) };
-  delete map.lot;
-  delete map.traffic;
-  delete map.wear;
-  v2.map = map;
-  const e = JSON.parse(JSON.stringify(raw.economy)) as Record<string, unknown>;
-  delete e.external;
-  e.forSale = trim(e.forSale, goods);
-  e.everProduced = trim(e.everProduced, goods);
-  for (const k of ['today', 'yesterday', 'season', 'lastSeason']) {
-    const p = e[k] as Record<string, unknown> | null;
-    if (!p) continue;
-    p.money = trim(p.money, 7);
-    p.produced = trim(p.produced, goods);
-    p.consumed = trim(p.consumed, goods);
-  }
-  e.stockHistory = (e.stockHistory as unknown[]).map((d) => trim(d, goods));
-  v2.economy = e;
-  v2.buildings = (raw.buildings as Record<string, unknown>[]).map((b) => {
-    const rt = b.rt ? (JSON.parse(JSON.stringify(b.rt)) as Record<string, unknown>) : undefined;
-    if (rt) {
-      for (const k of ['input', 'output', 'store', 'reservedIn', 'reservedOut', 'producedToday']) {
-        rt[k] = trim(rt[k], goods);
-      }
-    }
-    return { ...b, ...(rt ? { rt } : {}) };
-  });
-  v2.households = (raw.households as Record<string, unknown>[]).map((h) => ({
-    ...h,
-    pantry: trim(h.pantry, goods),
-  }));
-  v2.residents = (raw.residents as Record<string, unknown>[]).map((r) => ({ ...r, needs: trim(r.needs, 5) }));
-  return v2;
-}
 
 describe('money', () => {
   it('pay moves money between purses and keeps the invariant; book counts the outside', () => {
@@ -255,28 +175,18 @@ describe('I2 commands', () => {
     expect(rejection(run(w, { t: 'zone.paint', zone: 'shops', tiles: [[70, 60]] }))).toBe('NOT_ALLOWED');
   });
 
-  it('sets wage level, tax, price caps and standing orders within their ranges', () => {
+  it('sets wage level, tax and price caps within their ranges', () => {
     const { state } = villageFixture();
     expect(rejection(run(state, { t: 'ledger.setWageLevel', percent: 130 }))).toBe('INVALID');
     run(state, { t: 'ledger.setWageLevel', percent: 110 });
     run(state, { t: 'ledger.setTaxRate', percent: 15 });
     expect(state.levers.wageLevel).toBe(110);
     expect(state.levers.taxRate).toBe(15);
-    expect(rejection(run(state, { t: 'ledger.setPriceCap', good: 'planks', cap: 100, subsidy: 0 }))).toBe(
+    expect(rejection(run(state, { t: 'ledger.setPriceCap', good: 'timber', cap: 100, subsidy: 0 }))).toBe(
       'INVALID',
     );
     run(state, { t: 'ledger.setPriceCap', good: 'bread', cap: 250, subsidy: 10 });
     expect(state.levers.priceCaps[good('bread')]).toBe(250);
-    run(state, {
-      t: 'trade.setStandingOrder',
-      good: 'wool',
-      order: { min: 10, max: 40, floor: 0, ceiling: 260, neighbor: 'millhaven' },
-    });
-    expect(state.trade.orders.map((o) => o.good)).toEqual(
-      [good('planks'), good('wool')].sort((a, b) => a - b),
-    );
-    run(state, { t: 'trade.setStandingOrder', good: 'planks', order: null });
-    expect(state.trade.orders.map((o) => o.good)).toEqual([good('wool')]);
   });
 
   it('takes and repays loans through the County Bank, money crossing the edge', () => {
@@ -346,12 +256,13 @@ describe('I2 commands', () => {
       s.hearth.discovered.push({ pattern: `p${i}`, tick: 0, seat: 0, together: false, anchor: i });
     while (s.residents.length < 30) s.residents.push({ ...s.residents[0]!, id: s.nextId++ });
     findById(s.buildings, f.b.storehouse)!.rt!.store[good('bread')] = 200;
+    offerGoods(s, ['bread', 'fish', 'vegetables']);
     const ctx = createTickCtx(s);
     advanceTo(s, TICKS_PER_HOUR + 200, ctx);
     expect(s.charter.ready).toBe(true);
     const claimed = run(s, { t: 'charter.claim' });
     expect(s.charter.rank).toBe('village');
-    expect(s.hearth.unlocked).toContain('zoning');
+    expect(s.hearth.unlocked).toContain('shops-zone');
     expect(claimed.events.some((e) => e.e === 'rank.up' && e.text.includes(s.settings.townName))).toBe(true);
   });
 
@@ -374,16 +285,18 @@ describe('I2 commands', () => {
     expectMoneyInvariant(before, s);
   });
 
-  it('pins a production method and lets go of it', () => {
+  it("pins a business's trade and lets go of it", () => {
     const f = villageFixture();
     const s = f.state;
     const bakery = findById(s.buildings, f.b.bakery)!;
-    const method = content.buildingById.get('bakery')!.methods![0]!.id;
-    run(s, { t: 'build.pinRecipe', id: bakery.id, method });
-    expect(bakery.rt!.pinned).toBe(method);
-    expect(rejection(run(s, { t: 'build.pinRecipe', id: bakery.id, method: 'nonsense' }))).toBe('INVALID');
-    run(s, { t: 'build.pinRecipe', id: bakery.id, method: null });
-    expect(bakery.rt!.pinned).toBeUndefined();
+    run(s, { t: 'build.pinRecipe', id: bakery.id, trade: 'baker' });
+    expect(bakery.pinned).toBe(true);
+    expect(bakery.trade).toBe('baker');
+    expect(rejection(run(s, { t: 'build.pinRecipe', id: bakery.id, trade: 'nonsense' }))).toBe('INVALID');
+    // A farm's trade does not fit a workshop.
+    expect(rejection(run(s, { t: 'build.pinRecipe', id: bakery.id, trade: 'grain-farm' }))).toBe('INVALID');
+    run(s, { t: 'build.pinRecipe', id: bakery.id, trade: null });
+    expect(bakery.pinned).toBeUndefined();
   });
 });
 
@@ -420,7 +333,7 @@ describe('I2 APIs', () => {
       home: f.b.storehouses[0],
       tile: from,
       move: null,
-      load: [[good('planks'), 16]],
+      load: [[good('timber'), 16]],
       job: 0,
       dir: 1,
       parked: false,
@@ -435,7 +348,7 @@ describe('I2 APIs', () => {
     const rows = frame.length / AGENT_STRIDE;
     const row = [...Array(rows).keys()].find((i) => frame[i * AGENT_STRIDE] === cart.id)!;
     expect(frame[row * AGENT_STRIDE + 5]).toBe(AgentAnim.cart);
-    expect(frame[row * AGENT_STRIDE + 6]).toBe(good('planks') + 1);
+    expect(frame[row * AGENT_STRIDE + 6]).toBe(good('timber') + 1);
   });
 
   it('unlocks innovations into the unlocked list, once', () => {
@@ -443,7 +356,7 @@ describe('I2 APIs', () => {
     const ctx = createTickCtx(state);
     expect(unlockInnovation(state, ctx, 'wheelbarrows')).toBe(true);
     expect(unlockInnovation(state, ctx, 'wheelbarrows')).toBe(false);
-    expect(state.hearth.unlocked).toContain('porter-carry-6');
+    expect(state.hearth.unlocked).toContain('porter-carry-8');
     expect(ctx.events.some((e) => e.e === 'innovation.unlocked')).toBe(true);
   });
 

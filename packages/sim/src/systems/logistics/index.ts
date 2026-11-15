@@ -7,9 +7,10 @@
 // with ties going to the nearest source. A job reserves goods at the source (reservedOut) and
 // room at the destination (reservedIn), so nothing is promised twice. Trips walk through the
 // movement API and never assume arrival in the same tick.
+import { FOOD_GOODS, methodOf } from '../../state/zones';
 import type { BuildingDef } from '@qoti/content';
 import { content } from '@qoti/content';
-import { PORTER_CARRY, PORTER_MATCH_EVERY, STALL_RESTOCK_TARGET } from '../../constants';
+import { PORTER_CARRY, PORTER_MATCH_EVERY, STALL_RESTOCK_TARGET, WHEELBARROW_CARRY } from '../../constants';
 import type {
   Building,
   BuildingRuntime,
@@ -37,24 +38,28 @@ import {
   isStorehouse,
   outputCap,
   storageSpace,
+  takes,
   stowNearest,
   tileDistance,
 } from './stores';
+import { buildsFirst } from '../construction/first';
 import { deliverUpgrade } from '../tiers/api';
 import { deliverModule } from '../modules';
 import { isCartJob, keepCarts, matchCarts, stepCartJob, tickIdleCarts, type CartHooks } from './carts';
 import { available, finishTask, startTask, tickReturning, walkTo } from './tasks';
+import { countSold } from '../levels/counters';
 
 /** Job classes in matching order: lower is more urgent (PorterJob.priority). */
 export const JobClass = { prioritySite: 0, stallFood: 1, input: 2, site: 3, clearing: 4 } as const;
+
+/** Units of each Wares or Treats good a market keeps on its shelf (R1B). */
+export const MARKET_GOODS_TARGET = 8;
 
 /** Production inputs are topped up to this many cycles' worth. */
 export const INPUT_TARGET_CYCLES = 2;
 
 const MATCH_OFFSET = 5;
 const NO_CLASS = 99;
-
-const FOOD_GOODS: readonly number[] = content.goods.flatMap((g, i) => (g.food ? [i] : []));
 
 interface Spot {
   b: Building;
@@ -89,11 +94,11 @@ export const logistics: System = {
 };
 
 /**
- * Capability id the Wheelbarrows innovation unlocks. C4X: a wheelbarrow doubles a porter's load to 8
- * (the id keeps its I2 contract name): a Village's porters were a third of its workforce at 6.
+ * Capability id the Wheelbarrows innovation unlocks: a wheelbarrow doubles a porter's load to
+ * WHEELBARROW_CARRY (R1 renamed it from 'porter-carry-6', which it had kept since I2).
  */
-export const WHEELBARROW = 'porter-carry-6';
-export const WHEELBARROW_CARRY = 8;
+export const WHEELBARROW = 'porter-carry-8';
+export { WHEELBARROW_CARRY };
 
 /** Units a porter carries of a good: its `carry`, or 8 once the town has wheelbarrows. */
 export function carryOf(state: WorldState, good: number): number {
@@ -158,9 +163,20 @@ function needsOf(spots: readonly Spot[]): Need[] {
     if (isMarket(def)) {
       const want = Math.min(STALL_RESTOCK_TARGET - foodIncoming(rt), storageSpace(def, rt));
       if (want > 0) out.push({ dest: s, good: -1, want, cls: JobClass.stallFood });
+      // R1B: an outlet that takes Wares or Treats (the Market Square takes every family, a stall
+      // Food and Treats) is kept stocked with them too, a few of each.
+      for (let g = 0; g < content.goods.length; g++) {
+        const family = content.goods[g]!.family;
+        if ((family !== 'wares' && family !== 'treats') || !takes(def, g)) continue;
+        const room = Math.min(
+          MARKET_GOODS_TARGET - (rt.store[g] ?? 0) - (rt.reservedIn[g] ?? 0),
+          storageSpace(def, rt),
+        );
+        if (room > 0) out.push({ dest: s, good: g, want: room, cls: JobClass.stallFood });
+      }
       continue;
     }
-    const method = def.methods?.[rt.method];
+    const method = methodOf(s.b);
     if (rt.paused || !method || method.kind !== 'craft') continue;
     for (const [id, qty] of method.inputs) {
       const g = content.goodIndex.get(id);
@@ -220,6 +236,7 @@ function assign(
   let bestSrc: Spot | null = null;
   let bestDest: Spot | null = null;
   let bestGood = -1;
+  let bestFirst = false;
 
   // C4X: from Village rank, sites and workshop inputs share a class (the nearer source wins; among
   // sites the oldest, so they finish one at a time). With inputs strictly first, a busy Village
@@ -231,13 +248,16 @@ function assign(
     const cls = fair && need.cls === JobClass.site ? JobClass.input : need.cls;
     if (need.want <= 0 || cls > bestCls || !within(reach, need.dest.door)) continue;
     const goods = need.good >= 0 ? [need.good] : stallOrder(need.dest.rt);
+    // R1B: among equal classes, a site on the season plan's "build first" zone is served first.
+    const first = buildsFirst(state, need.dest.b);
     for (const g of goods) {
       let found = false;
       for (const s of spots) {
         if (s === need.dest || sourceAvail(s.b, s.def, g) <= 0 || !within(reach, s.door)) continue;
         found = true;
         const d = tileDistance(from, s.door);
-        if (cls < bestCls || d < bestD) {
+        if (cls < bestCls || (first === bestFirst ? d < bestD : first)) {
+          bestFirst = first;
           bestCls = cls;
           bestD = d;
           bestNeed = need;
@@ -275,7 +295,7 @@ function assign(
         if (sourceAvail(s.b, s.def, g) < min) continue;
         const d = tileDistance(from, s.door);
         if (d >= bestD) continue;
-        const dest = nearestStorehouse(spots, reach, s);
+        const dest = nearestStorehouse(spots, reach, s, g);
         if (!dest) continue;
         bestCls = JobClass.clearing;
         bestD = d;
@@ -342,7 +362,7 @@ function findRelay(
       if (other.b === reach.b || !staffed(other) || !within(reach, other.door)) continue;
       if (!within(other, need.dest.door)) continue;
       const dest = spots.find((s) => s.b === other.b);
-      if (!dest || storageSpace(dest.def, dest.rt) <= 0) continue;
+      if (!dest || !takes(dest.def, g) || storageSpace(dest.def, dest.rt) <= 0) continue;
       if (dest.rt.store[g]! + dest.rt.reservedIn[g]! - dest.rt.reservedOut[g]! >= need.want) continue;
       let src: Spot | null = null;
       let bestD = Infinity;
@@ -361,11 +381,11 @@ function findRelay(
   return null;
 }
 
-function nearestStorehouse(spots: readonly Spot[], reach: Reach, src: Spot): Spot | null {
+function nearestStorehouse(spots: readonly Spot[], reach: Reach, src: Spot, good: number): Spot | null {
   let best: Spot | null = null;
   let bestD = Infinity;
   for (const s of spots) {
-    if (s === src || s.b.stage !== 'built' || !isStorehouse(s.def)) continue;
+    if (s === src || s.b.stage !== 'built' || !isStorehouse(s.def) || !takes(s.def, good)) continue;
     if (storageSpace(s.def, s.rt) <= 0 || !within(reach, s.door)) continue;
     const d = tileDistance(src.door, s.door);
     if (d < bestD) {
@@ -415,6 +435,7 @@ function stepJob(state: WorldState, ctx: TickCtx, job: PorterJob, workTime: bool
     const pile = isStorage(defOf(src)) ? src.rt.store : src.rt.output;
     const got = Math.max(0, Math.min(job.qty, pile[g]!));
     pile[g]! -= got;
+    if (pile === src.rt.output) countSold(src, got);
     src.rt.reservedOut[g] = Math.max(0, src.rt.reservedOut[g]! - job.qty);
     if (got < job.qty) dst.rt.reservedIn[g] = Math.max(0, dst.rt.reservedIn[g]! - (job.qty - got));
     job.qty = got;
@@ -520,7 +541,7 @@ export function cancelJobsFor(state: WorldState, id: EntityId, workTime: boolean
     const dst = findById(state.buildings, job.to);
     const r = findById(state.residents, job.porter);
     if (job.stage === 1 && job.to === id && r) {
-      const next = rerouteTarget(state, r.tile, job.qty, id);
+      const next = rerouteTarget(state, r.tile, job.good, job.qty, id);
       if (next) {
         job.to = next.id;
         next.rt!.reservedIn[job.good]! += job.qty;
@@ -535,13 +556,19 @@ export function cancelJobsFor(state: WorldState, id: EntityId, workTime: boolean
   jobs.length = kept;
 }
 
-function rerouteTarget(state: WorldState, tile: number, qty: number, exclude: EntityId): Building | null {
+function rerouteTarget(
+  state: WorldState,
+  tile: number,
+  good: number,
+  qty: number,
+  exclude: EntityId,
+): Building | null {
   let best: Building | null = null;
   let bestD = Infinity;
   for (const b of state.buildings) {
     if (b.id === exclude || b.stage !== 'built' || !b.rt) continue;
     const def = defOf(b);
-    if (!isStorehouse(def) || storageSpace(def, b.rt) < qty) continue;
+    if (!isStorehouse(def) || !takes(def, good) || storageSpace(def, b.rt) < qty) continue;
     const d = tileDistance(tile, doorTile(b, def));
     if (d < bestD) {
       bestD = d;

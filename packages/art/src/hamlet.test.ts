@@ -123,7 +123,8 @@ describe('construction and runtime detail', () => {
     expect(kit.anchors!({ ...base, params: { chimney: false } }).smoke).toHaveLength(0);
     expect(kit.anchors!({ ...base, params: { chimney: true } }).smoke!.length).toBeGreaterThan(0);
     expect(kit.anchors!({ ...base, params: { sign: 'Rose Cottage' } }).sign).toBeDefined();
-    for (const id of ['bakery', 'market-stall', 'storehouse', 'town-hall']) {
+    // R1.0: the bakery def left content (its kit stays as the baker's look), so it is not looped here.
+    for (const id of ['market-stall', 'storehouse', 'town-hall']) {
       const d = content.buildingById.get(id)!;
       const a = kitById.get(id)!.anchors!({ size: d.size, entrance: d.entrance, params: { sign: 'Hello' } });
       expect(a.sign, id).toBeDefined();

@@ -1,12 +1,14 @@
 // Building status bits (docs/spec/13-ledger.md, Reports: no workers, missing input, output full,
 // no road, no porters, plus paused, disrepair and the construction waits). Refreshed hourly for
 // every building and right away after construction milestones; a change sends building.updated.
+import { jobsOf, methodOf } from '../../state/zones';
 import type { BuildingDef, ProductionMethod } from '@qoti/content';
 import { content } from '@qoti/content';
 import { BuildingStatus, MAP_SIZE } from '../../constants';
 import type { Building, BuildingRuntime, TickCtx, WorldState } from '../../contracts';
 import { entranceTiles } from '../../rules/footprint';
 import { emitBuilding } from '../economy/emit';
+import { restsFor } from '../levels/resting';
 import { doorTile } from '../movement/api';
 import { porterReachable, storehouseReach, type Reach } from '../logistics/range';
 import { defOf, isMarket, outputCap } from '../logistics/stores';
@@ -56,11 +58,12 @@ export function outputBlocked(def: BuildingDef, rt: BuildingRuntime, method: Pro
     const g = content.goodIndex.get(method.outputs[0]?.[0] ?? '') ?? -1;
     return g >= 0 && rt.output[g]! + CROP_YIELD > cap;
   }
-  for (const [id, qty] of method.outputs) {
+  // A lodge makes one of its goods a cycle (timber or firewood): full only when neither fits.
+  const full = ([id, qty]: [string, number]): boolean => {
     const g = content.goodIndex.get(id);
-    if (g !== undefined && rt.output[g]! + qty > cap) return true;
-  }
-  return false;
+    return g !== undefined && rt.output[g]! + qty > cap;
+  };
+  return method.kind === 'fell' ? method.outputs.every(full) : method.outputs.some(full);
 }
 
 export function inputsShort(rt: BuildingRuntime, method: ProductionMethod): boolean {
@@ -102,13 +105,13 @@ export function computeStatus(
       s |= BuildingStatus.waitingBuilders;
     return s;
   }
-  if ((def.jobs?.count ?? 0) > 0 && rt.workers.length === 0) s |= BuildingStatus.noWorkers;
+  if (jobsOf(b) > 0 && rt.workers.length === 0) s |= BuildingStatus.noWorkers;
   if (wantsRoad(def) && !roadAtDoor) s |= BuildingStatus.noRoad;
   if (rt.condition < DISREPAIR_CONDITION) s |= BuildingStatus.disrepair;
   // I2 (C4C): a home waiting for upgrade materials, a cart shed with no cart road out.
   if (rt.upgrade) s |= BuildingStatus.upgrading;
   s |= cartShedStatus(state, b);
-  const method = def.methods?.[rt.method];
+  const method = methodOf(b) ?? undefined;
   if (wantsPorters(def, method) && !porterReachable(reaches, doorTile(b, def))) s |= BuildingStatus.noPorters;
   if (!method) return s;
   if (method.kind === 'craft' && inputsShort(rt, method)) s |= BuildingStatus.missingInput;
@@ -119,6 +122,8 @@ export function computeStatus(
   if (method.kind === 'farm' && ownedFields(state, b, def) === 0) s |= BuildingStatus.noFields;
   // I3 (C5A): sown only in spring; until then the fields lie ready.
   if (method.kind === 'farm' && isFallow(state, b, def)) s |= BuildingStatus.fallow;
+  // R1 (R1B): a business with nothing to do rests and frees its hands (levels/resting.ts).
+  if (restsFor(state, b, s)) s |= BuildingStatus.resting;
   return s;
 }
 

@@ -25,6 +25,7 @@ class Charter implements Advisor {
 
 export const charter: AdvisorDef = {
   id: 'charter',
+  lane: 'ledger',
   slot: 30,
   plays: () => true,
   create: (p) => new Charter(p),

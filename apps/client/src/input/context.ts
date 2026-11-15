@@ -19,10 +19,10 @@ export interface UiApi {
   // I1 (C3E)
   /** Opens the customization panel for a building. */
   customize?(id: number): void;
-  /** The farmhouse the field tool paints for, if one is picked. */
+  /** The grain farm the field tool paints for, if one is picked. */
   farm?(): number | null;
   setFarm?(id: number | null): void;
-  /** Current selection, so tools can start from it (the field tool from a selected farmhouse). */
+  /** Current selection, so tools can start from it (the field tool from a selected grain farm). */
   selection?(): Selection | null;
   // I2 (C4F)
   /** Opens a book panel (the plan tool opens the plans book). */

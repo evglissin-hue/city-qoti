@@ -6,7 +6,7 @@ import { yearRow } from './yearRow';
 describe('the year view', () => {
   it('prints clear weather and a dash for every I3 column a new valley has nothing in', () => {
     const w = startingTown('willow').world;
-    expect(yearRow(w, 1)).toBe('  1   1 Spring 1  clear       -     - -          -');
+    expect(yearRow(w, 1)).toBe('  1   1 Spring 1  clear       -     - -          -          -      -');
   });
 
   it('reads the weather, warmth, festival, threat and raid once the tracks fill them', () => {
@@ -43,6 +43,6 @@ describe('the year view', () => {
       signs: [],
     };
     w.threats.history.push({ tick: 0, band: 'small', side: 'e', stolen: 0, captured: 1, repelled: true });
-    expect(yearRow(w, 9)).toBe('  9   1 Spring 1  snow*       1     4 medium     held');
+    expect(yearRow(w, 9)).toBe('  9   1 Spring 1  snow*       1     4 medium     held       -      -');
   });
 });

@@ -1,5 +1,5 @@
 // Homes dress themselves (P1, docs/spec/13-ledger.md, Zoning and growth: Homes improve on their own).
-// Daily at 10:00, each built home with a household, in buildings order, may take the next rung of the
+// Daily at 10:30 (R1: the carrier has 10:00), each built home with a household, in buildings order, may take the next rung of the
 // ladder in content (`dressing`: window boxes, a porch, ivy) when the charm around its door and its
 // household's mood allow, one rung per home every three days (a phase from a hash of the home's id,
 // so no cooldown is stored). A home a seat ever customized or fitted a module on (`handmade`) is never
@@ -111,7 +111,7 @@ export const dressing: System = {
   id: 'dressing',
   order: 71,
   every: TICKS_PER_DAY,
-  offset: dailyOffset(10),
+  offset: dailyOffset(10, 100),
   tick(state, ctx) {
     if (!isStandard(state)) return;
     dressHomes(state, ctx);

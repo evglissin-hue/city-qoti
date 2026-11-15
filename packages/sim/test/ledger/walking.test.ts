@@ -7,10 +7,11 @@ import { MAP_SIZE, ResidentFlags, TICKS_PER_HOUR } from '../../src/constants';
 import type { EntityId, WorldState } from '../../src/contracts';
 import type * as MovementApi from '../../src/systems/movement/api';
 import { findById } from '../../src/state/entities';
-import { hamletFixture } from '../fixtures/hamlet';
+import { content } from '@qoti/content';
+import { insertBuilding } from '../../src/state/place';
 import { run } from '../helpers';
 import { withoutSystems } from '../../src/systems';
-import { building, everyoneToWork, good, ticks as realTicks, untilHour } from './helpers';
+import { building, everyoneToWork, good, ticks as realTicks, untilHour, withoutStall } from './helpers';
 
 /** The real movement system is off here: the fake walker below stands in for it. */
 const ticks: typeof realTicks = (state, n, each) =>
@@ -74,8 +75,10 @@ function walk(state: WorldState): void {
 describe('with walking', () => {
   it('runs porter trips over many ticks and still builds the site', () => {
     left.clear();
-    const f = hamletFixture();
-    run(f.state, { t: 'build.place', def: 'cottage', x: 52, z: 51, rot: 2 });
+    // R1: without the stall, whose restocking from the granary would come first; the site sits a
+    // dozen tiles down the lane, so a trip takes a while.
+    const f = withoutStall();
+    run(f.state, { t: 'build.place', def: 'cottage', x: 62, z: 51, rot: 2 });
     const site = f.state.buildings[f.state.buildings.length - 1]!;
     untilHour(f.state, 8);
     everyoneToWork(f.state);
@@ -103,9 +106,14 @@ describe('with walking', () => {
   it('gives a trip up when the walk ends stuck, and puts the goods back', () => {
     left.clear();
     giveUp.clear();
-    const f = hamletFixture();
+    // R1: a carpenter by the storehouse waits for timber (the windmill takes no wheat now).
+    const f = withoutStall();
+    const mill = insertBuilding(f.state, null, content.buildingById.get('workshop')!, 40, 47, 0, 0, {
+      site: false,
+      trade: 'carpenter',
+    });
     const store = building(f.state, f.b.storehouse);
-    const wheat = store.rt!.store[good('wheat')]!;
+    const wheat = store.rt!.store[good('timber')]!;
     untilHour(f.state, 8);
     everyoneToWork(f.state);
     ticks(f.state, 6, walk);
@@ -117,12 +125,11 @@ describe('with walking', () => {
     expect(porter.flags & ResidentFlags.stuck).toBeTruthy();
     expect(f.state.logistics.jobs.some((j) => j.id === job.id)).toBe(false);
     expect(porter.carry).toBeNull();
-    const mill = building(f.state, f.b.windmill);
     expect(
       mill.rt!.reservedIn.every((n) => n === 0) || f.state.logistics.jobs.some((j) => j.to === mill.id),
     ).toBe(true);
-    // The wheat went back into a storehouse rather than vanishing.
-    const inJobs = f.state.logistics.jobs.reduce((n, j) => n + (j.good === good('wheat') ? j.qty : 0), 0);
-    expect(store.rt!.store[good('wheat')]! + mill.rt!.input[good('wheat')]! + inJobs).toBe(wheat);
+    // The timber went back into a storehouse rather than vanishing.
+    const inJobs = f.state.logistics.jobs.reduce((n, j) => n + (j.good === good('timber') ? j.qty : 0), 0);
+    expect(store.rt!.store[good('timber')]! + mill.rt!.input[good('timber')]! + inJobs).toBe(wheat);
   });
 });

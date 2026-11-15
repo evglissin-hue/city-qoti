@@ -12,6 +12,7 @@ import {
   quietYield,
 } from '../../src/systems/festivals/levers';
 import { yieldPermille } from '../../src/systems/production/modifiers';
+import { methodOf } from '../../src/state/zones';
 import { openShop, SHOP_SAVINGS, shopkeeper } from '../../src/systems/residents/shops';
 import { villageFixture } from '../fixtures/village';
 import { tickAt } from '../fixtures/seasonsPlace';
@@ -41,14 +42,16 @@ describe('market day', () => {
 describe('quiet hours', () => {
   it('cost workshops a little output, and nothing else', () => {
     const { state } = villageFixture();
-    const bakery = state.buildings.find((b) => b.def === 'bakery')!;
-    const def = content.buildingById.get('bakery')!;
-    const m = def.methods![0]!;
+    const bakery = state.buildings.find((b) => b.trade === 'baker')!;
+    const def = content.buildingById.get(bakery.def)!;
+    const m = methodOf(bakery)!;
     const plain = yieldPermille(state, bakery, def, m);
     run(state, { t: 'ledger.setQuietHours', on: true });
-    expect(quietYield(state, bakery, def, m)).toBe(def.tags?.includes('workshop') ? QUIET_YIELD : 1000);
-    const farm = content.buildingById.get('vegetable-plot')!;
-    expect(quietYield(state, bakery, farm, farm.methods![0]!)).toBe(1000);
+    expect(def.tags).toContain('workshop');
+    expect(quietYield(state, bakery, def, m)).toBe(QUIET_YIELD);
+    const farm = content.buildingById.get('farmstead')!;
+    const garden = content.tradeById.get('market-garden')!.method!;
+    expect(quietYield(state, bakery, farm, garden)).toBe(1000);
     expect(yieldPermille(state, bakery, def, m)).toBeLessThanOrEqual(plain);
   });
 });

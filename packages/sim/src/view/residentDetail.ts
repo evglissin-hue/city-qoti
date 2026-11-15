@@ -1,5 +1,6 @@
 // Resident inspector detail (C3A): what they are doing and where, a mood breakdown in plain words,
 // needs, friends, family, a short bio and their history. View code: nothing here feeds back.
+import { hasTag } from '../state/zones';
 import { content } from '@qoti/content';
 import { DAYS_PER_YEAR, MAP_SIZE, NEED_IDS, TILE_FP } from '../constants';
 import type { Building, EntityId, HistoryItem, Resident, ResidentDetail, WorldState } from '../contracts';
@@ -19,6 +20,13 @@ import { storyView } from './village';
 
 function buildingName(b: Building | undefined): string {
   return (b && content.buildingById.get(b.def)?.name.toLowerCase()) ?? 'somewhere';
+}
+
+/** A workplace for the "at work" lines: a business goes by its trade, which never fits "at the ...". */
+function workWords(state: WorldState, id: EntityId): { at: string; trade: string | null } {
+  const b = findById(state.buildings, id);
+  const t = b?.trade ? content.tradeById.get(b.trade) : undefined;
+  return { at: buildingName(b), trade: t ? t.name.toLowerCase() : null };
 }
 
 function placeName(state: WorldState, id: EntityId): string {
@@ -50,7 +58,7 @@ function spotText(state: WorldState, feature: number, here: boolean): string {
     const tags = content.buildingById.get(occupant.def)?.tags ?? [];
     if (tags.includes('well')) return here ? 'Chatting by the well' : 'Off to the well';
     if (tags.includes('market')) return here ? 'Browsing the market' : 'Off to the market';
-    if (tags.includes('bakery'))
+    if (hasTag(occupant, 'baker'))
       return here ? 'Breathing in the bakery' : 'Following their nose to the bakery';
   }
   const tv = state.map.tree[feature] ?? 0;
@@ -68,12 +76,15 @@ function doingText(state: WorldState, r: Resident): string {
       return 'At home';
     case 'sleep':
       return 'Asleep';
-    case 'commute':
-      return `On the way to work at the ${placeName(state, a.to)}`;
-    case 'work':
-      return r.inside === a.at
-        ? `At work at the ${placeName(state, a.at)}`
-        : `Heading back to the ${placeName(state, a.at)}`;
+    case 'commute': {
+      const w = workWords(state, a.to);
+      return w.trade ? `On the way to work: ${w.trade}` : `On the way to work at the ${w.at}`;
+    }
+    case 'work': {
+      const w = workWords(state, a.at);
+      if (r.inside === a.at) return w.trade ? `At work: ${w.trade}` : `At work at the ${w.at}`;
+      return w.trade ? `Heading back to work: ${w.trade}` : `Heading back to the ${w.at}`;
+    }
     case 'shop': {
       if (a.carrying > 0 && r.carry) {
         const g = content.goods[r.carry[0]];

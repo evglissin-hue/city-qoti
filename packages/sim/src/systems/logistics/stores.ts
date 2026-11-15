@@ -2,6 +2,7 @@
 // keeps goods in one of three places: `store` (storehouses and market stalls, all goods sharing
 // `def.storage`), `output` (what a producer made, `def.outputBuffer` per good) or `input` (what a
 // producer is waiting to use). Construction sites keep theirs in `construction`.
+import { isFood } from '../../state/zones';
 import type { BuildingDef } from '@qoti/content';
 import { content } from '@qoti/content';
 import { MAP_SIZE } from '../../constants';
@@ -22,6 +23,17 @@ export function isStorage(def: BuildingDef | undefined): boolean {
 
 export function isStorehouse(def: BuildingDef | undefined): boolean {
   return !!def?.tags?.includes('storehouse');
+}
+
+/**
+ * R1: the families a store takes (BuildingDef.stores: the Granary Food, the Storehouse the other
+ * four); every good when it names none. Porters and stowing pick only a store that takes the good.
+ */
+export function takes(def: BuildingDef | undefined, good: number): boolean {
+  const families = def?.stores;
+  if (!families) return true;
+  const g = content.goods[good];
+  return !!g && families.includes(g.family);
 }
 
 export function isMarket(def: BuildingDef | undefined): boolean {
@@ -47,7 +59,7 @@ export function storageSpace(def: BuildingDef | undefined, rt: BuildingRuntime):
 export function foodIncoming(rt: BuildingRuntime): number {
   let n = 0;
   for (let i = 0; i < content.goods.length; i++) {
-    if (content.goods[i]!.food) n += (rt.store[i] ?? 0) + (rt.reservedIn[i] ?? 0);
+    if (isFood(i)) n += (rt.store[i] ?? 0) + (rt.reservedIn[i] ?? 0);
   }
   return n;
 }
@@ -77,7 +89,7 @@ export function stowNearest(
     for (const b of state.buildings) {
       if (b.id === exclude || b.stage !== 'built' || !b.rt) continue;
       const def = defOf(b);
-      if (!isStorehouse(def) || storageSpace(def, b.rt) <= 0) continue;
+      if (!isStorehouse(def) || !takes(def, good) || storageSpace(def, b.rt) <= 0) continue;
       const d = tileDistance(tile, doorTile(b, def));
       if (d < bestD) {
         bestD = d;

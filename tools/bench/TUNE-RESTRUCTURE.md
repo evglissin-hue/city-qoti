@@ -52,3 +52,7 @@ day  yr season    weather  cold stars threat     raid
 ## Tests
 
 `npx vitest run tools/bench`: before 3 files, 12 tests passed; after 5 files, 16 tests passed (the 12 unchanged, plus the advisor registry and the year view).
+
+## R1.0: the zones-first Ledger
+
+The byte-for-byte comparisons above are history: R1.0 removed the chain economy the advisors played. The planner and the advisor registry stay; the advisors became stand-ins that zone Homes, Workshops and Farmland from the first day, site the specialized buildings (fisheries, Forester's Lodges, quarries, the windmill, granaries, and the Village's Trading Post, Market Square, Sawmill and Brickworks) and send no standing order, sale, calling or labor pause. The tune output changed with them; R1F rewrites the advisors and R1X retunes their targets. The outcome tests the stand-ins cannot meet are skipped with a note saying which cycle brings them back.

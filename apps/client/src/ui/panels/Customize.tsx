@@ -2,6 +2,7 @@ import { content } from '@qoti/content';
 import { MAX_SIGN_CHARS, type BuildingCustom, type BuildingDetail } from '@qoti/sim';
 import { useEffect, useState } from 'preact/hooks';
 import type { Session } from '../../app/session';
+import { placeName } from '../format';
 import { swatchGroups, swatchHex, type Swatch } from '../swatches';
 import { Frame, Heading, Toggle, useInspect } from './parts';
 
@@ -49,7 +50,7 @@ export function CustomizePanel({ session }: { session: Session }) {
       class="inspector-panel customize"
       icon="customize"
       kicker="A personal touch"
-      title={def?.name ?? b.def}
+      title={placeName(b)}
       onClose={close}
     >
       <HouseSketch
@@ -134,7 +135,7 @@ export function CustomizePanel({ session }: { session: Session }) {
           <input
             value={sign}
             maxLength={MAX_SIGN_CHARS}
-            placeholder={signPlaceholder(b.def)}
+            placeholder={signPlaceholder(b.def, b.trade)}
             data-testid="sign-input"
             onInput={(e) => setSign((e.target as HTMLInputElement).value)}
             onBlur={commitSign}
@@ -171,8 +172,8 @@ export function CustomizePanel({ session }: { session: Session }) {
   );
 }
 
-function signPlaceholder(def: string): string {
-  if (def === 'bakery') return 'The Warm Loaf';
+function signPlaceholder(def: string, trade?: string): string {
+  if (trade === 'baker') return 'The Warm Loaf';
   if (def === 'market-stall') return 'Fresh Today';
   return 'Something with character';
 }

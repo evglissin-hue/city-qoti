@@ -21,6 +21,7 @@ test('Ultra from ?quality and the settings menu, and GPU ms in the debug overlay
   await expect(overlay).toContainText(/(still|idle)\s+ultra\s+lean/, { timeout: 60_000 });
   await expect(overlay).toContainText(/shadows [1-9]\d*\s+stills [1-9]\d*/);
 
+  await page.getByTestId('menu-open').click();
   await page.getByTestId('settings-open').click();
   await expect(page.getByTestId('quality-ultra')).toHaveClass(/active/);
   await page.getByTestId('quality-low').click();

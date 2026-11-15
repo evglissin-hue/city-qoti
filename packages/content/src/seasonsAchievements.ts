@@ -14,7 +14,7 @@ export const fieldNotes: AchievementDef = {
 export const fiveStars: AchievementDef = {
   id: 'five-stars',
   name: 'Five Stars',
-  description: 'A festival so good the town still talks about the pies.',
+  description: 'A festival so good the town still talks about the cheese.',
   lane: 'shared',
   condition: { count: { what: 'festivalStars', atLeast: 5 } },
 };
@@ -50,4 +50,13 @@ export const warmHearths: AchievementDef = {
   description: 'A whole winter and not one cold household.',
   lane: 'ledger',
   condition: { count: { what: 'warmWinters', atLeast: 1 } },
+};
+
+// R1 (R1D): the carrier's winter (docs/spec/15-progression.md, Achievements, the [R1] note).
+export const aWinterWithoutImports: AchievementDef = {
+  id: 'a-winter-without-imports',
+  name: 'A Winter Without Imports',
+  description: "A whole winter on the valley's own food and firewood, and nobody went short.",
+  lane: 'ledger',
+  condition: { count: { what: 'importFreeWinters', atLeast: 1 } },
 };

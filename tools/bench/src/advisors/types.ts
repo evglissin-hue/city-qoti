@@ -2,9 +2,14 @@
 // Village chains, wishes and decor, a season's needs) and proposes wants to the planner; it never
 // keeps its own build queue, labor count or money reserve. The planner visits the advisors in play
 // at 09:00 and 15:00 in `slot` order, like one person dropping in twice a day.
-import type { ValleySettings, WorldState } from '@qoti/sim';
+import type { Turn, ValleySettings, WorldState } from '@qoti/sim';
 import type { DayLine } from '../autoplay';
 import type { Planner } from '../planner';
+
+/** The two seats' lanes: the Ledger's (seat 0) and the Hearth's (seat 1). */
+export type PlayLane = 'ledger' | 'hearth';
+/** An advisor's lane; a `both` advisor's commands count by the seat that sends them. */
+export type Lane = PlayLane | 'both';
 
 /** The `autoplay` options an advisor may read to decide whether it plays. */
 export interface AutoplayOptions {
@@ -12,6 +17,10 @@ export interface AutoplayOptions {
   hearth?: boolean;
   /** Tuning: on this morning the County grants Village rank whether or not the Charter is done. */
   villageDay?: number;
+  /** R1F lanes test: from this day on the Hearth lane sends nothing. */
+  hearthOffFrom?: number;
+  /** R1F lanes test: from this day on the Ledger lane sends nothing. */
+  ledgerOffFrom?: number;
   /** From this day on the players only watch (C4B: does growth stop when demand does?). */
   handsOff?: number;
   /**
@@ -23,6 +32,8 @@ export interface AutoplayOptions {
   together?: boolean;
   /** C5D: the threat dial for the run (default Peaceful, as a new valley's): raids and the Watch play when on. */
   threat?: ValleySettings['threat'];
+  /** R1X: record every turn the players send, and start from createValley plus a seat join alone (golden year). */
+  record?: Turn[];
   /** C4C: play the Village chains, services and tiers (and claim the Charter when ready). */
   village?: boolean;
   /** Called after each day's line is recorded (tuning scripts read the books here). */
@@ -45,6 +56,8 @@ export interface Advisor {
 
 export interface AdvisorDef {
   id: string;
+  /** R1F: whose work it is, for the lanes test (a `both` advisor's commands count by the seat that sends them). */
+  lane: Lane;
   /** Visit order (lower first). The I2 order: village 10, then the Ledger (street, charter, money, hamlet), the Hearth, together. */
   slot: number;
   /** Whether it plays this run: the system it minds exists (in content or state) and the options allow it. */

@@ -18,6 +18,8 @@ export interface RecentValley {
   /** P1 (playtest item 13): the valley's seed, so it can be shared, and its rank, for the list. */
   seed?: string;
   rank?: RankId;
+  /** R1C: founded under the old rules (save version under 6): listed grayed, never opened. */
+  old?: true;
 }
 
 const KEY = 'qoti.recent';

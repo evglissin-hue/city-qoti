@@ -27,7 +27,7 @@ export const hearthFeast: FestivalDef = {
   id: 'hearth-feast',
   name: 'Winter Hearth Feast',
   season: 3,
-  blurb: 'A bonfire, hot pies and everyone who can still feel their toes.',
+  blurb: 'A bonfire, hot bread and everyone who can still feel their toes.',
   pieces: ['bonfire', 'festival-table', 'bunting'],
 };
 
@@ -45,8 +45,8 @@ export const costumeParade: FestivalTwistDef = {
   id: 'costume-parade',
   name: 'Costume Parade',
   blurb: 'Everyone dresses up as something they are not, mostly vegetables.',
-  // Costumes take cloth (or coats, cut down by somebody brave).
-  goal: { any: [{ stock: { good: 'cloth', atLeast: 8 } }, { stock: { good: 'coats', atLeast: 2 } }] },
+  // Costumes take cloth.
+  goal: { stock: { good: 'cloth', atLeast: 8 } },
 };
 
 export const harvestDisplay: FestivalTwistDef = {
@@ -74,7 +74,10 @@ export const pieContest: FestivalTwistDef = {
   id: 'pie-contest',
   name: 'Pie Contest',
   blurb: 'Judged on crust, filling and how long the judges stay quiet afterward.',
-  goal: { code: 'festivalMenu', ref: 'pies', params: [['atLeast', 10]] },
+  // R1: pies are gone until a master baker makes them (R3), and a twist that names a good the town
+  // cannot make is not offered (docs/spec/12-hearth.md, Festivals), so no season offers it yet.
+  seasons: [],
+  goal: { code: 'festivalMenu', ref: 'bread', params: [['atLeast', 10]] },
 };
 
 export const snowSculptures: FestivalTwistDef = {

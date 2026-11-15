@@ -1,15 +1,20 @@
 import { signal } from '@preact/signals';
 import { content } from '@qoti/content';
-import { canPlaceDecorRun, TILE_FP } from '@qoti/sim';
+import { MAX_RUN_SEGMENTS, TILE_FP } from '@qoti/sim';
 import { rejectText } from '../../ui/messages';
 import { costBlock, decorChoices } from '../catalog';
+import { runWithGaps } from '../compose/runs';
 import type { ToolContext } from '../context';
 import { cursorHint } from '../hint';
 import type { Tool } from '../tool';
 
 const center = (t: number) => t * TILE_FP + TILE_FP / 2;
 
-/** Linear decor: drag a line and it becomes a run of 1-tile segments. */
+/**
+ * Linear decor: drag a line and it becomes a run of 1-tile segments. A run that crosses a path or
+ * road leaves an opening there (an arch in a hedge, a gate in a fence or wall) and goes out as
+ * pieces; a run that crosses none goes out as the plain run.
+ */
 export function fenceTool(ctx: ToolContext): Tool {
   const variant = signal('fence');
   let start: [number, number] | null = null;
@@ -20,13 +25,13 @@ export function fenceTool(ctx: ToolContext): Tool {
   function preview() {
     const def = content.decorById.get(variant.value);
     if (!def || !start || !end) return null;
-    const run = canPlaceDecorRun(ctx.mirror, def, start, end);
+    const run = runWithGaps(ctx.mirror, def, start, end);
     const locked = decorChoices(ctx.mirror, 'hearth', true).find((c) => c.def.id === def.id)?.locked;
     const blocked = locked ? 'LOCKED' : costBlock(ctx.mirror, def.cost);
-    const check = blocked ? { ...run, ok: false, reason: blocked } : run;
-    ctx.render.setGhost({ kind: 'decorRun', def: def.id, segments: check.segments, valid: check.ok });
+    const check = blocked ? { ok: false, reason: blocked } : run.check;
+    ctx.render.setGhost({ kind: 'decorRun', def: def.id, segments: run.segments, valid: check.ok });
     cursorHint(check.ok ? null : rejectText(check.reason), cx, cy);
-    return { def, check };
+    return { def, run, check };
   }
 
   return {
@@ -63,8 +68,21 @@ export function fenceTool(ctx: ToolContext): Tool {
       start = null;
       cursorHint(null);
       if (!result || !from || !to) return;
-      if (result.check.ok) ctx.submit({ t: 'decor.placeRun', def: result.def.id, from, to });
-      else ctx.ui.toast(rejectText(result.check.reason));
+      if (!result.check.ok) {
+        ctx.ui.toast(rejectText(result.check.reason));
+        return;
+      }
+      if (result.run.dropped === 0) {
+        ctx.submit({ t: 'decor.placeRun', def: result.def.id, from, to });
+        return;
+      }
+      ctx.submit({
+        t: 'decor.placeRun',
+        def: result.def.id,
+        from,
+        to,
+        pieces: result.run.segments.slice(0, MAX_RUN_SEGMENTS),
+      });
     },
     exit() {
       start = null;

@@ -31,23 +31,23 @@ export const herbalist: StoryArc = {
       letter: [
         'My dears,',
         'First things first: a garden of herbs. Feverfew, thyme, a little sage and a great deal of mint, because mint will not take no for an answer. Dried in autumn they see a town through the coughs of January.',
-        'Put an herb garden somewhere with a bit of sun. I will bring the cuttings and the opinions.',
+        'A garden bed by my door will do: four timber, a sunny step and someone to water it while I am lecturing. I will bring the cuttings and the opinions.',
         'Mother T.',
       ].join('\n'),
-      goal: { count: { what: 'buildings', ref: 'herb-garden', atLeast: 1 } },
+      goal: { near: { building: 'garden-bed', of: 'home', within: 3 } },
       reward: { mood: 10, bond: 1 },
-      hint: 'Build an herb garden.',
+      hint: "A garden bed within three tiles of Mother Thornbury's home.",
     },
     {
       letter: [
         'My dears,',
         'Now the woodpile. In winter every hearth in the valley burns a log of firewood a day, and nothing grows to replace it until spring. A family without it sits in its coat at supper, and nobody is cheerful in a coat at supper.',
-        'A chopping shed turns logs into firewood. Get sixty in store before the first frost and I will stop mentioning it. Possibly.',
+        "The Forester's Lodge cuts it, and the carrier will bring more if you let it. Get sixty in store before the first frost and I will stop mentioning it. Possibly.",
         'Mother T.',
       ].join('\n'),
       goal: { stock: { good: 'firewood', atLeast: 60 } },
       reward: { coins: 30, mood: 5 },
-      hint: 'Sixty firewood in store: chopping sheds turn logs into firewood.',
+      hint: "Sixty firewood in store, from a Forester's Lodge or the carrier.",
     },
     {
       letter: [
@@ -64,23 +64,23 @@ export const herbalist: StoryArc = {
       letter: [
         'My dears,',
         'A word about cold snaps. Now and then the hills breathe out and for two days every hearth wants twice the wood. The almanac gives a day or two of warning, and the sensible town has a second woodpile behind the first.',
-        'Two chopping sheds and a hundred firewood, and I will sleep easy. I sleep a great deal, so this is important.',
+        "Two Forester's Lodges and a hundred firewood, and I will sleep easy. I sleep a great deal, so this is important.",
         'Mother T.',
       ].join('\n'),
       goal: {
         all: [
-          { count: { what: 'buildings', ref: 'chopping-shed', atLeast: 2 } },
+          { count: { what: 'buildings', ref: 'foresters-lodge', atLeast: 2 } },
           { stock: { good: 'firewood', atLeast: 100 } },
         ],
       },
       reward: { coins: 40, mood: 5 },
-      hint: 'Two chopping sheds and a hundred firewood in store, for the cold snaps.',
+      hint: "Two Forester's Lodges and a hundred firewood in store, for the cold snaps.",
     },
     {
       letter: [
         'My dears,',
         'Last lesson, and it is the one I like best. A herbalist in the middle of town: someone to brew the remedies, mind the coughs and tell people to wear a hat. The homes near one stay well, and in winter they feel the cold a little less, mostly because I told them to wear a hat.',
-        'Mind the herb garden keeps it supplied. A herbalist without herbs is just a person with strong opinions, and the town already has me.',
+        'She will grow her own herbs out the back, so you need not keep her supplied. A herbalist is mostly a person with strong opinions, and the town already has me.',
         'Mother T.',
       ].join('\n'),
       goal: { count: { what: 'buildings', ref: 'herbalist', atLeast: 1 } },
@@ -114,7 +114,7 @@ export const herbalistsCottage: BuildingDef = {
   cost: {
     coins: 30,
     goods: [
-      ['planks', 18],
+      ['timber', 18],
       ['stone', 8],
     ],
   },

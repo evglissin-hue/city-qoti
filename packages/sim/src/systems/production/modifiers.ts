@@ -2,16 +2,15 @@
 // and craft work, so no I3 track edits production itself. Each source returns permille (1000 = no
 // change); they multiply. C5A registers weather, drought, early frost, the frozen river and the
 // Seed Drill; C5C pollinators and pests (systems/nature/effects). Playtest round six: the soil under 'soil' buildings.
-// Felling and planting are never modified.
+// Felling and planting are never modified. R1 took out P1's `calling` and playtest round seven's
+// `decor` lines: an unlock is never "+5%" (P6).
 import type { BuildingDef, ProductionMethod } from '@qoti/content';
 import type { Building, WorldState } from '../../contracts';
-import { callingYield } from '../callings/yield';
 import { quietYield } from '../festivals/levers';
 import { pests, pollinators } from '../nature/effects';
 import { seasonalGrowth } from '../seasons/growing';
 import { frozenRiver } from '../seasons/river';
 import { farmWeather } from '../weather/effects';
-import { decorYield } from './decorBoost';
 import { soilYield } from './soil';
 import { scaredAnimals } from '../raids/wolves';
 
@@ -25,8 +24,6 @@ export type YieldModifier = (
 // Registry: one line per source, alphabetical by id.
 // prettier-ignore
 export const yieldModifiers: readonly [id: string, modifier: YieldModifier][] = [
-  ['calling', callingYield],
-  ['decor', decorYield],
   ['frozen-river', frozenRiver],
   ['pests', pests],
   ['pollinators', pollinators],

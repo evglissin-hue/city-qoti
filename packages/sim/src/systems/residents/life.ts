@@ -516,7 +516,8 @@ function apprentices(state: WorldState, ctx: TickCtx, today: number): void {
       if (r.jobId) release(state, r);
       hire(state, r, at);
     }
-    r.apprentice = { at: at.id, trade: at.def, untilDay: today + APPRENTICE_DAYS };
+    // R1: a business's trade id (Apprenticeship.trade), else the workplace's def id.
+    r.apprentice = { at: at.id, trade: at.trade ?? at.def, untilDay: today + APPRENTICE_DAYS };
     pushHistory(state, r, 'apprentice', at.id);
     const text = line(state, lifePhrases.apprentice, r.id + today, [
       ['name', residentName(r)],
@@ -558,7 +559,11 @@ function graduate(state: WorldState, ctx: TickCtx, today: number): void {
       ['name', residentName(r)],
       [
         'place',
-        at ? placeName(at) : (content.buildingById.get(r.apprentice.trade)?.name.toLowerCase() ?? 'workshop'),
+        at
+          ? placeName(at)
+          : ((
+              content.tradeById.get(r.apprentice.trade) ?? content.buildingById.get(r.apprentice.trade)
+            )?.name.toLowerCase() ?? 'workshop'),
       ],
     ]);
     emit(ctx, 'apprentice', [r.id], text);

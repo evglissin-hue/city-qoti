@@ -1,6 +1,7 @@
 import { content } from '@qoti/content';
 import { MAP_SIZE } from '@qoti/sim';
 import { STATUS_WORDS } from '../../ui/hamlet';
+import { placeName } from '../../ui/format';
 import { purposeOf } from '../../ui/purpose';
 import type { ToolContext } from '../context';
 import { cursorHint } from '../hint';
@@ -26,7 +27,9 @@ export function hoverText(ctx: ToolContext, p: PointerInfo): string | null {
     const b = m.buildings.get(hit.id);
     const def = b && content.buildingById.get(b.def);
     if (!b || !def) return null;
-    const parts = [`${def.name}${b.stage === 'construction' ? ' (being built)' : ''}: ${purposeOf(def.id)}`];
+    const parts = [
+      `${placeName(b)}${b.stage === 'construction' ? ' (being built)' : ''}: ${purposeOf(def.id, b.trade)}`,
+    ];
     const status = b.rt?.status ?? 0;
     const trouble = STATUS_WORDS.find(([bit]) => (status & bit) !== 0);
     if (trouble) parts.push(`${trouble[1]}.`);

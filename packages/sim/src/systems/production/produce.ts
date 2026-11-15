@@ -10,6 +10,7 @@ import type { Building, BuildingRuntime, TickCtx, WorldState } from '../../contr
 import { footprintSize } from '../../rules/footprint';
 import { findById } from '../../state/entities';
 import { chronicle } from '../chronicle/api';
+import { countMade } from '../levels/counters';
 import { productivity } from '../logistics/tasks';
 
 /** Condition below which output drops 10%, and below which it drops 30% (disrepair). */
@@ -66,6 +67,7 @@ export function produce(state: WorldState, ctx: TickCtx, b: Building, good: numb
   const rt = b.rt!;
   rt.output[good]! += qty;
   rt.producedToday[good]! += qty;
+  countMade(b, qty);
   bookProduced(state, ctx, b, good, qty);
 }
 

@@ -8,6 +8,8 @@ import { BuildingStatus, TIER_DOWN_DAYS, TIER_UP_DAYS, TICKS_PER_HOUR } from '..
 import type { Building, Household, WorldState } from '../../src/contracts';
 import { findById } from '../../src/state/entities';
 import { assignJobs } from '../../src/systems/residents/jobs';
+import { markSeen } from '../../src/systems/market/balances';
+import { basketGroups } from '../../src/systems/market/baskets';
 import { deliverUpgrade, tierProgress } from '../../src/systems/tiers/api';
 import { updateTiers } from '../../src/systems/tiers';
 import { createTickCtx } from '../../src/turn';
@@ -39,6 +41,8 @@ function aspiringTown(): Town {
   state.map.charm.fill(40);
   // Cider for the treats on a shelf.
   stocked(findById(state.buildings, f.b.storehouses[1])!, 'store', [['cider', 10]]);
+  // R1A: the household has seen the flavors on the shelves.
+  markSeen(state);
   return { state, h, cottage };
 }
 
@@ -78,13 +82,16 @@ describe('moving up', () => {
     expect(ctx.events.some((e) => e.e === 'building.updated' && e.b.def === 'townhouse')).toBe(true);
   });
 
-  it('porters bring the bricks and planks from the storehouse', { timeout: 60_000 }, () => {
+  it('porters bring the brick and timber from the storehouse', { timeout: 60_000 }, () => {
     const { state, h, cottage } = aspiringTown();
     const store = findById(state.buildings, state.buildings.find((b) => b.def === 'storehouse')!.id)!;
     stocked(store, 'store', [
-      ['bricks', 20],
-      ['planks', 60],
+      ['brick', 20],
+      ['timber', 60],
     ]);
+    // R1: Craftsfolk want 20 coins put by, which every fixture Settler has; only this household
+    // aspires here, so the brick is all for its cottage.
+    for (const x of state.households) if (x !== h) x.savings = 0;
     const before = moneySnapshot(state);
     days(state, TIER_UP_DAYS);
     toWork(state, store.rt!.workers);
@@ -113,13 +120,19 @@ describe('moving up', () => {
     });
   });
 
-  it('wants the tavern and the herbalist in reach, and firewood and cloth on the shelves', () => {
+  // R1.0 stand-in: R1A/R1B rewrites this. The basket wants families by amount (Fuel only in
+  // winter), and names the family that is missing, not a good.
+  it('wants the tavern and the herbalist in reach, and Wares on the shelves', () => {
     const { state, h } = aspiringTown();
     for (const b of state.buildings) if (b.def === 'tavern') b.rt!.workers.length = 0;
-    for (const b of state.buildings) if (b.rt) b.rt.store[good('firewood')] = 0;
+    for (const b of state.buildings)
+      if (b.rt) for (const id of ['cloth', 'furniture', 'candles']) b.rt.store[good(id)] = 0;
+    // R1A: nor seen in the last three days (a want of under a unit a day is met by a recent sighting).
+    for (const id of ['cloth', 'furniture', 'candles']) h.seen![good(id)] = -1;
     const missing = tierProgress(state, h)!.missing;
     expect(missing).toContain(villagePhrases.missing.social);
-    expect(missing).toContain('firewood');
+    expect(missing).toContain('wares');
+    expect(missing).not.toContain('treats');
     expect(missing).not.toContain(villagePhrases.missing.health);
   });
 
@@ -165,36 +178,39 @@ describe('sliding back', () => {
     const ctx = createTickCtx(state);
     for (const [g, q] of content.buildingById.get('cottage')!.upgradesTo!.goods)
       deliverUpgrade(state, ctx, cottage, good(g), q);
-    const basket = content.basketByTier.get('craftsfolk')!;
-    h.basket = basket.groups.map(() => 100);
+    const groups = basketGroups(content.basketByTier.get('craftsfolk')!);
+    h.basket = groups.map(() => 100);
     days(state, 1);
     expect(h.tierDays).toBe(0);
-    h.basket = basket.groups.map((g) => (g.id === 'cloth' ? 10 : 100));
+    h.basket = groups.map((g) => (g.id === 'wares' ? 10 : 100));
     days(state, 1);
     expect(h.tierDays).toBe(-1);
   });
 });
 
 describe('skilled jobs', () => {
+  // R1: the school is the skilled workplace now (its teachers are Craftsfolk); a quarry is basic.
   it('Settlers cannot take a skilled job; Craftsfolk can, and take basic ones too', () => {
     const { state } = villageFixture();
-    const smithy = place(state, 'smithy', 46, 40);
-    const kiln = place(state, 'chopping-shed', 50, 40);
+    const school = place(state, 'school', 46, 40);
+    const quarry = place(state, 'quarry', 50, 40);
     for (const r of state.residents) {
       if (r.stage === 'child' || r.jobId) continue;
       if (r.tier === 'settler') r.jobId = -1; // keep the settlers busy elsewhere for this test
     }
     assignJobs(state, createTickCtx(state));
-    for (const id of smithy.rt!.workers) expect(findById(state.residents, id)!.tier).toBe('craftsfolk');
-    expect(smithy.rt!.workers.length).toBe(1);
-    expect(kiln.rt!.workers.length).toBe(1);
+    for (const id of school.rt!.workers) expect(findById(state.residents, id)!.tier).toBe('craftsfolk');
+    // Both fill, the school's two places and the quarry's three, all with Craftsfolk.
+    expect(school.rt!.workers.length).toBe(2);
+    expect(quarry.rt!.workers.length).toBe(3);
+    for (const id of quarry.rt!.workers) expect(findById(state.residents, id)!.tier).toBe('craftsfolk');
   });
 
   it('leaves a skilled job open while only Settlers are looking', () => {
     const { state } = villageFixture();
     for (const r of state.residents) if (r.tier === 'craftsfolk') r.jobId = -1;
-    const smithy = place(state, 'smithy', 46, 40);
+    const school = place(state, 'school', 46, 40);
     assignJobs(state, createTickCtx(state));
-    expect(smithy.rt!.workers).toEqual([]);
+    expect(school.rt!.workers).toEqual([]);
   });
 });

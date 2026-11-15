@@ -66,7 +66,8 @@ test('Measure this laptop: the table, Copy, kept per seat, the valley put back; 
   await expect.poll(() => page.evaluate(() => window.__qoti.clock()?.speed)).toBe(0);
   const before = await snapshot(page);
 
-  // Settings offers it; it asks first, with an honest estimate.
+  // Settings offers it (behind the top bar's menu since R1C); it asks first, with an honest estimate.
+  await page.getByTestId('menu-open').click();
   await page.getByTestId('settings-open').click();
   await page.getByTestId('measure-open').click();
   await expect(page.getByTestId('settings')).toHaveCount(0);
@@ -102,6 +103,7 @@ test('Measure this laptop: the table, Copy, kept per seat, the valley put back; 
   await expect(page.getByTestId('measure')).toHaveCount(0);
 
   // A second run, stopped with Escape inside the village showcase: the valley comes straight back.
+  await page.getByTestId('menu-open').click();
   await page.getByTestId('settings-open').click();
   await page.getByTestId('measure-open').click();
   await expect(page.getByTestId('measure-kept-run')).toHaveCount(1);

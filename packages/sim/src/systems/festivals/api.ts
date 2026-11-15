@@ -10,7 +10,6 @@ import { FESTIVAL, MAP_SIZE } from '../../constants';
 import type { EntityId, Rect, Resident, TickCtx, WorldState } from '../../contracts';
 import { findById } from '../../state/entities';
 import { festivalView } from '../../view/seasons';
-import { chosenCalling } from '../callings/chosen';
 import { dayIndex, hourOf } from '../economy/time';
 import { pay } from '../economy/money';
 import { stowNearest } from '../logistics/stores';
@@ -83,7 +82,7 @@ export function currentSite(state: WorldState): Rect | null {
 }
 
 function isFood(good: number): boolean {
-  return !!content.goods[good]?.food;
+  return content.goods[good]?.family === 'food';
 }
 
 /** Units a building can give up of a good now (store and output, less porters' promises). */
@@ -255,9 +254,7 @@ export function weatherPermille(state: WorldState): number {
 export function attendChance(state: WorldState, r: Resident): number {
   const mood = Math.max(0, Math.min(100, r.mood));
   const m = tuning.moodFloor + Math.trunc(((1000 - tuning.moodFloor) * mood) / 100);
-  const base = Math.trunc((m * weatherPermille(state)) / 1000);
-  // P1: Pilgrims' Rest draws a fifth more guests (a chance over 1000 is simply certain).
-  return Math.trunc((base * (1000 + (chosenCalling(state)?.festival?.guestsPermille ?? 0))) / 1000);
+  return Math.trunc((m * weatherPermille(state)) / 1000);
 }
 
 /** A resident's draw for the day, 0 to 999 (a hash of id and day, no RNG stream). */

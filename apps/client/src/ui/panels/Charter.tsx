@@ -4,29 +4,37 @@ import type { Session } from '../../app/session';
 import { seatList, shortDate } from '../format';
 import { Glyph } from '../icons';
 import { RANK_WORD } from '../village';
-import { CallingNote } from './Calling';
 import { Empty, Frame, Meter } from './parts';
 import { LaneTag } from './villageParts';
 
 /** Readable names for what a Charter unlocks: content names, or a word for capabilities. */
 const UNLOCK_WORD: Record<string, string> = {
-  zoning: 'Zoning',
   'market-prices': 'Market prices',
   craftsfolk: 'Craftsfolk',
   loans: 'The County Bank',
   carts: 'Carts',
-  'porter-carry-6': 'Porters carry six',
+  // R1 (R1.0)
+  'shops-zone': 'The Shops zone',
+  'townhouses-zone': 'Townhouses',
+  'carrier-wares-treats': 'The carrier brings Wares and Treats',
+  'porter-carry-8': 'Porters carry eight',
+  'forecast-days-2': 'A forecast two days out',
+  'resow-same-day': 'Fields sown again the day they are cut',
 };
 
-export function unlockName(id: string): string {
+/** An unlock's real name (content's, or a word for a capability), or undefined. */
+export function knownUnlockName(id: string): string | undefined {
   return (
     UNLOCK_WORD[id] ??
     content.buildingById.get(id)?.name ??
     content.roads.find((r) => r.id === id)?.name ??
     content.decorById.get(id)?.name ??
-    content.innovationById.get(id)?.name ??
-    id.replace(/-/g, ' ').replace(/^./, (c) => c.toUpperCase())
+    content.innovationById.get(id)?.name
   );
+}
+
+export function unlockName(id: string): string {
+  return knownUnlockName(id) ?? id.replace(/-/g, ' ').replace(/^./, (c) => c.toUpperCase());
 }
 
 /**
@@ -105,7 +113,6 @@ function Board({ session, c }: { session: Session; c: CharterView }) {
         ) : (
           <p class="proclamation">The County has nothing more to ask of {town} for now. Enjoy it.</p>
         )}
-        <CallingNote session={session} calling={c.calling} />
         <History session={session} c={c} />
       </div>
     );

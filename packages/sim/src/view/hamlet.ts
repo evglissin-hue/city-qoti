@@ -1,8 +1,9 @@
 // I1 view builders (C3.0). Their output never feeds back into state, so floats are fine here.
 // Tracks may enrich these (C3A residents, C3B Hearth, C3C Ledger) without changing their shapes.
+import { isFood, jobsOf, methodOf } from '../state/zones';
 import { seasonAt } from '../state/seasons';
 import { guideView } from './seasons';
-import { type Condition, content } from '@qoti/content';
+import { type BuildingDef, type Condition, content } from '@qoti/content';
 import { LEDGER_CATEGORIES, MAP_SIZE, MOOD_BAND_MIN, TIERS } from '../constants';
 import type {
   AchievementView,
@@ -31,6 +32,7 @@ import type {
 import { footprintSize } from '../rules/footprint';
 import { findById } from '../state/entities';
 import { cycleWork } from '../systems/production/cycle';
+import { type Defs, usable } from '../systems/growth/defs';
 
 export function moodBand(mood: number): MoodBand {
   let band = 0;
@@ -68,7 +70,7 @@ export function residentView(state: WorldState, r: Resident): ResidentView {
 
 export function householdView(h: Household): HouseholdView {
   let food = 0;
-  for (let i = 0; i < content.goods.length; i++) if (content.goods[i]!.food) food += h.pantry[i] ?? 0;
+  for (let i = 0; i < content.goods.length; i++) if (isFood(i)) food += h.pantry[i] ?? 0;
   return {
     id: h.id,
     family: h.family,
@@ -113,13 +115,18 @@ export function constructionProgress(rt: BuildingRuntime): number {
   return Math.min(1, 0.5 * mats + 0.5 * work);
 }
 
-export function runtimeView(defId: string, rt: BuildingRuntime): BuildingRuntimeView {
+export function runtimeView(
+  defId: string,
+  rt: BuildingRuntime,
+  owner: Pick<Building, 'trade' | 'level'> = {},
+): BuildingRuntimeView {
   const def = content.buildingById.get(defId);
-  const method = def?.methods?.[rt.method];
+  const b = { def: defId, ...owner };
+  const method = methodOf(b);
   // Farms keep the average ripeness of their tended fields (0 to 255) as progress.
   const cycle = !method ? 0 : method.kind === 'farm' ? 255 : cycleWork(method);
   const view: BuildingRuntimeView = {
-    jobs: def?.jobs?.count ?? 0,
+    jobs: jobsOf(b),
     workers: rt.workers.length,
     present: rt.present,
     status: rt.status,
@@ -130,8 +137,8 @@ export function runtimeView(defId: string, rt: BuildingRuntime): BuildingRuntime
     output: goodPairs(rt.output),
     store: goodPairs(rt.store),
   };
-  // C4E: what a grown craft is making, and a home upgrade under way, for the art.
-  if (method && (def?.methods?.length ?? 0) > 1) view.method = method.id;
+  // C4E: what a grown craft is making (R1: a business's trade method), and a home upgrade under way.
+  if (method && owner.trade) view.method = method.id;
   if (rt.upgrade && rt.upgrade.some((q) => q > 0)) view.upgrading = true;
   // C5E: damage, a shut gate and flood water, for the art.
   if (rt.hp !== undefined) {
@@ -154,15 +161,38 @@ export function runtimeView(defId: string, rt: BuildingRuntime): BuildingRuntime
   return view;
 }
 
+/** True for a def whose buildings never hold goods in `store` or `output`: a home with no storage and no method. */
+export function keepsNoGoods(def: BuildingDef | undefined): boolean {
+  return !!def?.housing && !def.storage && !def.methods;
+}
+
 /** Town stock per good: storehouses, stalls and output buffers. */
-export function townStock(state: WorldState): number[] {
-  const out = new Array<number>(content.goods.length).fill(0);
-  for (const b of state.buildings) {
+export function townStock(state: WorldState, known?: Defs): number[] {
+  const n = content.goods.length;
+  const out = new Array<number>(n).fill(0);
+  const buildings = state.buildings;
+  const defs = usable(state, known);
+  for (let k = 0; k < buildings.length; k++) {
+    const b = buildings[k]!;
     const rt = b.rt;
     if (!rt || b.stage !== 'built') continue;
-    for (let i = 0; i < out.length; i++) out[i]! += (rt.store[i] ?? 0) + (rt.output[i] ?? 0);
+    // A home keeps its goods in the pantries, never in `store` or `output` (proved by r1x/home-stock.test.ts).
+    const def = defs ? defs[k] : content.buildingById.get(b.def);
+    if (keepsNoGoods(def)) continue;
+    addStock(out, rt);
   }
   return out;
+}
+
+/** Adds a runtime's store and output into a stock array (one entry a good): townStock's sum for one building. */
+export function addStock(out: number[], rt: BuildingRuntime): void {
+  const n = out.length;
+  const store = rt.store;
+  const output = rt.output;
+  // Full-length arrays (the usual) take the plain loop; a short one falls back to the guarded sum.
+  const m = Math.min(n, store.length, output.length);
+  for (let i = 0; i < m; i++) out[i]! += store[i]! + output[i]!;
+  for (let i = m; i < n; i++) out[i]! += (store[i] ?? 0) + (output[i] ?? 0);
 }
 
 export function stocksView(state: WorldState): StocksView {
@@ -177,7 +207,6 @@ export function stocksView(state: WorldState): StocksView {
       producedYesterday: e.yesterday.produced[i] ?? 0,
       consumedYesterday: e.yesterday.consumed[i] ?? 0,
       history: e.stockHistory.map((day) => day[i] ?? 0),
-      forSale: e.forSale[i] ?? false,
     })),
   };
 }
@@ -189,12 +218,12 @@ export function workforceView(state: WorldState): WorkforceView {
   let employed = 0;
   for (const b of state.buildings) {
     const def = content.buildingById.get(b.def);
-    const count = def?.jobs?.count ?? 0;
+    const count = jobsOf(b);
     if (!b.rt || count === 0) continue;
     lines.push({
       id: b.id,
       def: b.def,
-      role: def!.jobs!.role,
+      role: def?.jobs?.role ?? 'worker',
       jobs: count,
       workers: b.rt.workers.length,
       present: b.rt.present,
@@ -345,6 +374,23 @@ export function achievementView(state: WorldState, id: string): AchievementView 
   return a ? { id, unlocked: true, tick: a.tick, seats: [...a.seats] } : { id, unlocked: false };
 }
 
+function coldHouseholds(state: WorldState): number {
+  let n = 0;
+  const hs = state.households;
+  for (let i = 0; i < hs.length; i++) {
+    const w = hs[i]!.warmth;
+    if (w && w.coldHours > 0) n++;
+  }
+  return n;
+}
+
+function festivalsHeld(state: WorldState): number {
+  let n = 0;
+  const c = state.chronicle;
+  for (let i = 0; i < c.length; i++) if (c[i]!.kind === 'festival') n++;
+  return n;
+}
+
 export function townView(state: WorldState): TownView {
   return {
     population: state.residents.length,
@@ -362,13 +408,13 @@ export function townView(state: WorldState): TownView {
     season: seasonAt(state.tick),
     weather: state.weather.today,
     renownLevel: state.renown.level,
-    coldHouseholds: state.households.filter((h) => h.warmth && h.warmth.coldHours > 0).length,
+    coldHouseholds: coldHouseholds(state),
     threatBand:
       state.threats.scheduled && state.tick >= state.threats.scheduled.telegraphTick
         ? state.threats.scheduled.band
         : null,
     festivals: {
-      held: state.chronicle.filter((c) => c.kind === 'festival').length,
+      held: festivalsHeld(state),
       bestStars: state.seasons.bestStars,
     },
     ...(!state.guide.over && { guide: guideView(state) }),
@@ -378,8 +424,15 @@ export function townView(state: WorldState): TownView {
 /** Residents per tier, in TIERS order. */
 export function tierCounts(state: WorldState): number[] {
   const out = TIERS.map(() => 0);
-  for (const r of state.residents) {
-    const i = TIERS.indexOf(r.tier);
+  const first = TIERS[0];
+  const rs = state.residents;
+  for (let k = 0; k < rs.length; k++) {
+    const tier = rs[k]!.tier;
+    if (tier === first) {
+      out[0]! += 1;
+      continue;
+    }
+    const i = TIERS.indexOf(tier);
     if (i >= 0) out[i]! += 1;
   }
   return out;
