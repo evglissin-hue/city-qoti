@@ -85,8 +85,8 @@ export const RIBBON_SEGMENTS = 12;
 /**
  * V2C ribbon smoke. Every ribbon is a strip from its chimney's anchor, placed and animated in the
  * vertex shader from the chimney (an instance attribute), its seed and the clock: it rises about a
- * tile and a half, widens, leans downwind (more in a storm), wavers in waves that travel up it and
- * fades out at the top. The strip turns to face the camera about its own line. At night it takes
+ * tile and a half, widens then thins to wisps, leans downwind (more in a storm), wavers in waves that travel up it and
+ * fades out at the top. The strip turns about the vertical to face the camera. At night it takes
  * the light map's glow (`qLamp`, scaled by the night) where it passes lamps and lit windows.
  * The CPU writes nothing per frame but the clock, so an idle frame costs one small draw.
  */
@@ -99,6 +99,7 @@ uniform float uNight;
 ${LIGHT_MAP_GLSL}
 varying vec2 vUv;
 varying float vFade;
+varying float vSeed;
 varying vec3 vGlow;
 #include <fog_pars_vertex>
 
@@ -109,7 +110,7 @@ vec3 qSmokeAt(float t, vec3 base, float seed, float climb, float lean, vec2 wind
   float w1 = sin(t * 7.0 - uTime * 1.6 + seed * 6.28);
   float w2 = sin(t * 13.0 - uTime * 2.3 + seed * 17.0);
   vec2 across = vec2(-wind.y, wind.x);
-  vec2 drift = wind * (t * t * 0.7 + t * 0.3) * lean + across * (w1 * 0.06 + w2 * 0.025) * t;
+  vec2 drift = wind * (t * t * 0.7 + t * 0.3) * lean + across * (w1 * 0.13 + w2 * 0.05) * t;
   return base + vec3(drift.x, rise, drift.y);
 }
 
@@ -121,16 +122,23 @@ void main() {
   // Winter: every hearth is lit, so smoke is fuller, slower and climbs less before it spreads.
   float climb = (1.45 - uCold * 0.3) * (0.85 + 0.3 * fract(seed * 7.13));
   float gust = 0.8 + 0.2 * sin(uTime * 0.27 + seed * 9.0);
-  float lean = (0.75 + uStorm * 1.6) * gust;
+  float lean = (1.0 + uStorm * 1.6) * gust;
   vec2 wind = normalize(vec2(0.92, 0.39));
   vec3 c = qSmokeAt(t, base, seed, climb, lean, wind);
-  vec3 c2 = qSmokeAt(min(t + 0.05, 1.0), base, seed, climb, lean, wind);
-  vec3 tangent = normalize(c2 - c + vec3(0.0, 1e-4, 0.0));
-  vec3 view = normalize(cameraPosition - c);
-  vec3 side = normalize(cross(tangent, view) + vec3(1e-5, 0.0, 0.0));
-  float width = (0.09 + t * 0.4) * (1.0 + uCold * 0.45);
+  vec3 view = cameraPosition - c;
+  // P2-F: the strip turns about the vertical to face the camera, so it never twists however the
+  // column leans (the old turn about its own tangent made bow ties where the lean lined up with the
+  // view). Its width is always across the screen; only a camera straight overhead sees it edge on.
+  vec3 side = vec3(-view.z, 0.0, view.x) / max(length(view.xz), 1e-4);
+  // P2-F: the column widens through its first two thirds, then thins back out so the top
+  // breaks up into wisps instead of ending as a wide flat band.
+  float width = (0.08 + t * 0.34) * (1.0 - 0.62 * smoothstep(0.62, 1.0, t)) * (1.0 + uCold * 0.45);
   vec3 p = c + side * position.x * width;
-  vFade = smoothstep(0.0, 0.07, t) * (1.0 - smoothstep(0.35, 1.0, t));
+  // Seen from nearly overhead the strip is edge on and would read as a thin bright line: it
+  // fades out as the camera climbs past about 70 degrees.
+  float facing = length(view.xz) / max(length(view), 1e-4);
+  vFade = smoothstep(0.0, 0.07, t) * (1.0 - smoothstep(0.35, 1.0, t)) * smoothstep(0.1, 0.38, facing);
+  vSeed = seed;
   // V2X: the shared curve's ceiling (qLamp), not its height fade: smoke over a lamplit street
   // takes the glow from below however high it climbs.
   vGlow = qLamp(c.xz, 0.0) * uNight;
@@ -149,18 +157,27 @@ uniform vec3 uSunColor;
 uniform vec3 uSmoke;
 varying vec2 vUv;
 varying float vFade;
+varying float vSeed;
 varying vec3 vGlow;
 #include <fog_pars_fragment>
 void main() {
-  // Soft across the ribbon, thinning in slow wisps that travel up it.
-  float across = 1.0 - pow(abs(vUv.x * 2.0 - 1.0), 1.6);
-  float wisp = 0.72 + 0.28 * sin(vUv.y * 9.0 - uTime * 1.1 + vUv.x * 2.0);
-  // V2X: softer by day (a fifth less opaque), as V2C left it by night.
-  float a = across * wisp * vFade * (0.5 + uCold * 0.18) * mix(0.78, 1.0, uNight);
+  // P2-F: soft across the ribbon with no straight side (the edge eases to zero), and breaking into
+  // puffs toward the top: two slow noises travel up it and carve gaps that grow with height.
+  float s = 1.0 - abs(vUv.x * 2.0 - 1.0);
+  float across = s * s * (3.0 - 2.0 * s);
+  float n1 = 0.5 + 0.5 * sin(vUv.y * 10.0 - uTime * 1.3 + vSeed * 6.0 + vUv.x * 2.0);
+  float n2 = 0.5 + 0.5 * sin(vUv.y * 17.0 - uTime * 2.1 + vSeed * 11.0 - vUv.x * 3.0);
+  float broken = smoothstep(0.12, 0.72, n1 * 0.6 + n2 * 0.5);
+  float wisp = mix(0.85, broken, smoothstep(0.1, 0.7, vUv.y));
+  // By day about a quarter opaque at its strongest, a little fuller in the cold.
+  float a = across * wisp * vFade * (0.25 + uCold * 0.08) * mix(1.0, 1.15, uNight);
   if (a < 0.01) discard;
-  // Lit by the sky and the sun by day, a dim blue-gray by night, warm where it passes a lamp.
+  // Lit by the sky and the sun by day, a dim blue-gray by night, tinted toward the sky so dusk
+  // smoke takes the dusk's color; lamp glow warms it a little but never blows it out.
   vec3 light = uSky * 0.5 + uSunColor * 0.52 * (1.0 - uNight);
-  vec3 col = uSmoke * light * mix(1.0, 0.45, uNight) + uSmoke * vGlow * 1.4;
+  vec3 tint = mix(uSmoke, uSky * 1.1, 0.3);
+  vec3 col = tint * light * mix(1.0, 0.45, uNight) + uSmoke * min(vGlow, vec3(0.3)) * 0.8;
+  col = min(col, vec3(0.8));
   gl_FragColor = vec4(col, a);
   #include <colorspace_fragment>
   #include <fog_fragment>

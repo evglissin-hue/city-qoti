@@ -48,7 +48,7 @@ import { LOOK_TONE_MAPPING } from './look';
 import { createWorldMaterial } from './material';
 import { pickTileFromRay } from './picking';
 import { LeanFrame } from './post';
-import { buildingDetailNow, pixelRatios, QUALITY_PRESETS, type Quality } from './quality';
+import { buildingDetailNow, closeUpNow, pixelRatios, QUALITY_PRESETS, type Quality } from './quality';
 import { DynamicResolution } from './resolution';
 import { ShadowCache, type ShadowView } from './shadows';
 import { shadowContentDue, StaticRevisions } from './statics';
@@ -138,6 +138,8 @@ export class Renderer implements RenderApi {
   private quality: Quality = 'medium';
   /** The preset's pixel ratio for this screen; dynamic resolution scales it down when frames lag. */
   private basePixelRatio = 1;
+  /** P2-F: moving frames aim at the close-up ratio (camera near the ground, or following). */
+  private closeUp = false;
   private readonly resolution = ((): DynamicResolution => {
     const r = new DynamicResolution();
     const q = new URLSearchParams(location.search);
@@ -330,7 +332,7 @@ export class Renderer implements RenderApi {
     const preset = QUALITY_PRESETS[this.quality];
     const w = this.container.clientWidth || 1;
     const h = this.container.clientHeight || 1;
-    const r = pixelRatios(preset, window.devicePixelRatio || 1, this.dprCap);
+    const r = pixelRatios(preset, window.devicePixelRatio || 1, this.dprCap, this.closeUp);
     r.still *= this.photoBoost;
     this.basePixelRatio = r.moving;
     const moving = r.moving * this.resolution.scale;
@@ -488,6 +490,13 @@ export class Renderer implements RenderApi {
     const target = this.viewTarget();
     const dist = this.camera.position.distanceTo(target);
     this.viewDistance = dist;
+    // P2-F: the close-up ratio follows the camera's distance (with hysteresis) and following;
+    // targets are resized only when it flips. Dynamic resolution off (fixedres) keeps the preset's.
+    const close = this.resolution.enabled && closeUpNow(this.closeUp, dist, this.followId !== null);
+    if (close !== this.closeUp) {
+      this.closeUp = close;
+      this.applyLayout();
+    }
     const fog = this.scene.fog as Fog;
     this.env.focus.copy(target);
     this.lean.setViewDistance(dist);

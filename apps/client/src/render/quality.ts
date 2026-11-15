@@ -149,19 +149,37 @@ export function buildingDetailNow(q: Quality): number {
   return Math.max(QUALITY_PRESETS[q].buildingDetail, BUILDING_DETAIL_FLOOR);
 }
 
+/** P2-F: the camera counts as close to the ground under this many tiles (going in). */
+export const CLOSE_UP_ON = 20;
+/** P2-F: and stops counting as close past this many (going out), so the target never flaps. */
+export const CLOSE_UP_OFF = 24;
+
+/**
+ * P2-F: whether moving frames aim at the close-up pixel ratio. Following a resident always does;
+ * otherwise it switches on under CLOSE_UP_ON tiles and off again only past CLOSE_UP_OFF.
+ */
+export function closeUpNow(was: boolean, distance: number, following: boolean): boolean {
+  if (following) return true;
+  return was ? distance <= CLOSE_UP_OFF : distance < CLOSE_UP_ON;
+}
+
 /**
  * The pixel ratios a preset draws at on a device: `moving` for frames while the camera moves
  * (before dynamic resolution) and `still` for frames while it rests. `cap` overrides the moving cap
- * (`?debug&dpr=2`, to compare caps on one screen).
+ * (`?debug&dpr=2`, to compare caps on one screen). P2-F: with `closeUp` (the camera near the ground
+ * or following a resident) moving frames aim halfway between the two, so a close look stays sharp
+ * in motion; presets without a still cache (Low) are unchanged, and the device ratio still caps it.
  */
 export function pixelRatios(
   preset: QualityPreset,
   devicePixelRatio: number,
   cap?: number,
+  closeUp = false,
 ): { moving: number; still: number } {
   const dpr = devicePixelRatio > 0 ? devicePixelRatio : 1;
-  const moving = Math.min(dpr, cap ?? preset.renderScale);
-  const still = preset.stillCache ? Math.max(moving, Math.min(dpr, preset.stillScale)) : moving;
+  const base = Math.min(dpr, cap ?? preset.renderScale);
+  const still = preset.stillCache ? Math.max(base, Math.min(dpr, preset.stillScale)) : base;
+  const moving = closeUp ? (base + still) / 2 : base;
   return { moving, still };
 }
 
