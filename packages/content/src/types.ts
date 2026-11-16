@@ -595,7 +595,7 @@ export type CountWhat =
   | 'foodDays'
   /** Residents of the tier named in `ref`. */
   | 'tierResidents'
-  /** Requests between seats fulfilled. */
+  /** Requests between seats fulfilled (R2: and gaps closed, which count where requests did). */
   | 'requestsFulfilled'
   /** Distinct goods in stock at market outlets. */
   | 'goodsAtMarket'
@@ -636,7 +636,7 @@ export type CountWhat =
   | 'foodFlavors'
   /** Winters with no Food or Fuel imported and nobody hungry or cold. */
   | 'importFreeWinters'
-  // R2 (R2.0); R2C counts them (state.gaps, state.evenings). Until then they count 0.
+  // R2 (R2.0); R2C counts them (state.gaps, state.evenings).
   /** Gaps closed. */
   | 'gapsClosed'
   /** Gaps closed by the seat that has closed fewest (Mind the Gap: three by each). */
