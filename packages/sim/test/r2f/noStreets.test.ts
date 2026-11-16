@@ -1,19 +1,39 @@
-// R2F: a town with no streets hashes as it did before the street cutter (acceptance: "a town with no
-// new streets hashes as before"). The expected hash was captured on the wave's base commit 99eed98.
+// R2F: a town with no streets is cut as it was before the street cutter (acceptance: "a town with no
+// new streets hashes as before"). R2F checked the whole state's hash against the wave's base commit
+// 99eed98 (bdff8d54ee68d69d, storeys left out). With the whole wave merged (R2X) evenings move the
+// rest of the state on purpose, so the test keeps what R2F guards: the lots' geometry, which the
+// round cannot touch, fingerprinted here, and no rows, gardens or corners.
 import { describe, expect, it } from 'vitest';
 import { TICKS_PER_DAY } from '../../src/constants';
 import { Road } from '../../src/map/layers';
-import { hashState } from '../../src/state/hash';
 import { advanceTo, createTickCtx } from '../../src/turn';
 import { villageFixture } from '../fixtures/village';
 import { paintZone } from '../growth/helpers';
 import { S } from '../helpers';
 
-/** Hash captured on 99eed98 (the base of the R2 wave) with this very scenario. */
-const BASE_HASH = 'bdff8d54ee68d69d';
+/** The lots' geometry after this scenario: the same on the wave's base (99eed98) and on the merged wave. */
+const LOTS_PRINT = '54:4b04a968';
+
+/** A 32-bit FNV hash of every lot's rectangle, turn, frontage and zone, in lot order. */
+function lotsPrint(
+  lots: readonly {
+    x: number;
+    z: number;
+    w: number;
+    d: number;
+    rot: number;
+    frontage: number;
+    zone: number;
+  }[],
+): string {
+  let h = 0x811c9dc5;
+  for (const l of lots)
+    for (const v of [l.x, l.z, l.w, l.d, l.rot, l.frontage, l.zone]) h = Math.imul(h ^ v, 0x01000193);
+  return `${lots.length}:${(h >>> 0).toString(16)}`;
+}
 
 describe('a town with no streets', () => {
-  it('hashes the same as on the wave base after two days of the full sim', { timeout: 120_000 }, () => {
+  it('cuts its lots as before the street cutter after two days of the full sim', { timeout: 120_000 }, () => {
     const { state: s } = villageFixture();
     // No streets: the fixture's street B is a lane here.
     for (let x = 32; x <= 96; x++) s.map.road[70 * S + x] = Road.lane;
@@ -28,13 +48,7 @@ describe('a town with no streets', () => {
     const ctx = createTickCtx(s);
     const target = 2 * TICKS_PER_DAY;
     while (s.tick < target) advanceTo(s, s.lastTurn + 1, ctx);
-    // Storeys differ for one grown building (base hash with them: 158a1d4747bfca52; the branch gives it 1.5, the
-    // base's stand-in left it unset). With every storeys field left out the state is the base's, byte for byte.
-    const storeys = s.buildings.filter((b) => b.storeys !== undefined);
-    expect(storeys.length).toBeGreaterThan(0);
-    for (const b of storeys) delete b.storeys;
-    const hash = hashState(s);
-    expect(hash).toBe(BASE_HASH);
+    expect(lotsPrint(s.lots)).toBe(LOTS_PRINT);
     expect(s.lots.every((l) => l.row === 0 && l.kind === 'plot')).toBe(true);
   });
 });
