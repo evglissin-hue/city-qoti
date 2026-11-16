@@ -20,6 +20,7 @@ import { mix } from '../growth/desirability';
 import { doorTile } from '../movement/api';
 import { placeById, placeServes, recordSale } from '../places/api';
 import { announceHousehold } from '../residents/records';
+import { tonightStops } from '../residents/round';
 import { marketOpen, outletFree, purchase, tillPrice } from './api';
 import {
   basketGroups,
@@ -60,22 +61,16 @@ export function accrueTreats(state: WorldState): void {
   }
 }
 
-/**
- * True when a stop of tonight carries the treat flag (bought there, or passing on the way to it).
- * R2X: tonight's plan is the one made today (`Resident.roundDay`, R2A's), so a plan left over from an
- * evening skipped never counts; within it, a stop arrived on another day is not tonight's either.
- */
-function boughtTonight(r: Resident, today: number): boolean {
-  if (r.roundDay !== today || !r.round) return false;
-  for (const stop of r.round) {
-    if (stop.arrived >= 0 && dayIndex(stop.arrived) !== today) continue;
-    if ((stop.flags & RoundFlags.treat) !== 0) return true;
-  }
+/** True when a stop of tonight's round (R2A's `tonightStops`) carries the treat flag (bought there, or passing on the way to it). */
+function boughtTonight(state: WorldState, r: Resident): boolean {
+  for (const stop of tonightStops(state, r)) if ((stop.flags & RoundFlags.treat) !== 0) return true;
   return false;
 }
 
-/** The stop a resident is at: the last arrived, if today and not turned away. */
-function currentStop(round: readonly RoundStop[], today: number): RoundStop | undefined {
+/** The stop of tonight's round a resident is at: the last arrived, if today and not turned away. */
+function currentStop(state: WorldState, r: Resident): RoundStop | undefined {
+  const round = tonightStops(state, r);
+  const today = dayIndex(state.tick);
   for (let i = round.length - 1; i >= 0; i--) {
     const stop = round[i]!;
     if ((stop.flags & RoundFlags.arrived) === 0 || stop.arrived < 0) continue;
@@ -196,9 +191,9 @@ export function tradePass(state: WorldState, ctx: TickCtx): void {
     const h = findById(state.households, r.householdId);
     const group = h ? treatsIndex(h) : -1;
     if (!h || group < 0 || h.owed![group]! < 100) continue;
-    if (boughtTonight(r, today)) continue;
+    if (boughtTonight(state, r)) continue;
     if (!r.move) {
-      const stop = currentStop(round, today);
+      const stop = currentStop(state, r);
       if (!stop) continue;
       const pick = bestTreat(state, h, stopOutlets(state, stop));
       if (!pick) continue;
@@ -261,7 +256,6 @@ function outletsInReach(state: WorldState, home: Building): EntityId[] {
  * share that was bought. Every Treat in hand is eaten.
  */
 export function doorstepErrand(state: WorldState, ctx: TickCtx): void {
-  const today = dayIndex(state.tick);
   const P = content.places;
   for (const r of state.residents) if (r.carry && isTreat(r.carry[0])) r.carry = null;
   for (const h of state.households) {
@@ -271,7 +265,7 @@ export function doorstepErrand(state: WorldState, ctx: TickCtx): void {
     let roundUnits = 0;
     for (const id of h.members) {
       const m = findById(state.residents, id);
-      if (m && boughtTonight(m, today)) roundUnits++;
+      if (m && boughtTonight(state, m)) roundUnits++;
     }
     const due = Math.floor(h.owed![group]! / 100);
     const before = h.savings;

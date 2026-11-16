@@ -147,6 +147,21 @@ describe('at a stop', () => {
     expect(s.evenings.tonight.treatsAtStops).toBe(0);
   });
 
+  it("sells only at a stop of tonight's round, never at an afternoon one (R2X: tonightStops)", () => {
+    const { f, s, door, ctx } = setup();
+    const h = findById(s.households, f.households[0]!)!;
+    const r = resident(s, h.members[0]!);
+    owe(h, 1);
+    // The stop is the afternoon round's (before roundEvening); tonight's round has no stop yet.
+    standAt(r, door, [stop('seats:1', door, s.tick - 8)], s);
+    r.roundEvening = 1;
+    tradePass(s, ctx);
+    expect(s.evenings.tonight.treatsAtStops).toBe(0);
+    r.roundEvening = 0;
+    tradePass(s, ctx);
+    expect(s.evenings.tonight.treatsAtStops).toBe(1);
+  });
+
   it('uses the shop of a shop stop, and eats the carry when the resident walks on', () => {
     const { f, s, ctx } = setup();
     const shop = insertBuilding(s, null, content.buildingById.get('corner-shop')!, 70, 56, 0, 0, {
@@ -197,6 +212,27 @@ describe('at a stop', () => {
 });
 
 describe("tonight's plan (R2X)", () => {
+  it('never counts a treat on an afternoon stop as bought tonight (tonightStops)', () => {
+    const f = hamletFixture();
+    const s = f.state;
+    const stall = findById(s.buildings, f.b.stall)!;
+    stockTreats(stall, 30);
+    const door = doorOf(stall);
+    setStubPlaces([place({ id: 'seats:1', tile: door, outlets: [stall.id] })]);
+    const ctx = createTickCtx(s);
+    const h = findById(s.households, f.households[2]!)!;
+    for (const id of h.members) resident(s, id).round = undefined;
+    const r = resident(s, h.members[0]!);
+    owe(h, 6);
+    s.tick = tickAt(2, 21, 100);
+    const afternoon = stop('seats:1', door, s.tick - 6 * TICKS_PER_HOUR);
+    afternoon.flags |= RoundFlags.treat;
+    standAt(r, doorOf(findById(s.buildings, h.homeId)!), [afternoon], s);
+    r.roundEvening = 1;
+    doorstepErrand(s, ctx);
+    expect(s.evenings.tonight.treatsDoorstep).toBeGreaterThan(0);
+  });
+
   it("never reads a plan left from another day as tonight's", () => {
     const f = hamletFixture();
     const s = f.state;

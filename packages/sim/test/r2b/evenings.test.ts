@@ -30,6 +30,7 @@ function grownup(s: WorldState, round: RoundStop[], stage: LifeStage = 'adult', 
     needs: NEED_IDS.map(() => 100),
     round,
     roundDay: dayIndex(s.tick),
+    roundEvening: 0,
   } as unknown as Resident;
   r.needs[EVENINGS_NEED] = need;
   s.residents.push(r);
@@ -82,6 +83,16 @@ describe('the evening score', () => {
     expect(score([stop('eat', 50, F.standing), stop('sit', 45)])).toBe(45 + P.secondKindScore);
     expect(score([stop('eat', 22, F.standing)])).toBe(P.stayInScore);
     expect(score([stop('eat', 98, F.friend | F.treat)])).toBe(100);
+  });
+
+  it("scores a working-age resident's evening on tonight's round only, an elder's on the afternoon's (R2X)", () => {
+    const s = at21();
+    const adult = grownup(s, [stop('eat', 80)]);
+    adult.roundEvening = 1;
+    expect(eveningScore(s, adult)).toBe(P.stayInScore);
+    const elder = grownup(s, [stop('eat', 80)], 'elder');
+    delete elder.roundEvening;
+    expect(eveningScore(s, elder)).toBe(80);
   });
 
   it("ignores yesterday's stops", () => {
@@ -149,6 +160,7 @@ describe('closing the evening', () => {
     for (let d = 0; d < 6; d++) {
       s.tick = NINE + d * TICKS_PER_DAY;
       r.round = [stop('eat', 60, 0, SEVEN + d * TICKS_PER_DAY)];
+      r.roundDay = dayIndex(s.tick);
       closeEvening(s, createTickCtx(s));
       expect(r.bond).toBe(d >= P.goodForHeart - 1 ? 3 : 2);
     }
@@ -157,6 +169,7 @@ describe('closing the evening', () => {
     const next = 28 * TICKS_PER_DAY;
     s.tick = NINE + next;
     r.round = [stop('eat', 60, 0, SEVEN + next)];
+    r.roundDay = dayIndex(s.tick);
     closeEvening(s, createTickCtx(s));
     expect(r.evening).toMatchObject({ good: 1 });
     expect(r.evening!.heart).toBeUndefined();

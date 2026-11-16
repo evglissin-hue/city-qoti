@@ -56,6 +56,7 @@ export function standAt(r: Resident, tile: number, round: RoundStop[], state: Wo
   r.carry = null;
   r.round = round;
   r.roundDay = dayIndex(state.tick);
+  r.roundEvening = 0;
 }
 
 /** Puts a resident on the move (any non-null path). */

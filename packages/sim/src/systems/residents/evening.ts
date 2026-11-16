@@ -6,13 +6,25 @@ import type { EveningWeather, Resident, RoundStop, TickCtx, WorldState } from '.
 import { eveningsNeed, EVENINGS_NEED } from '../../state/evenings';
 import { calendar } from '../clock/calendar';
 import { addBond } from './api';
+import { isWorkingAge } from './places';
+import { tonightStops } from './round';
 import { dayIndex } from './time';
 
-/** The stops a resident got to today (arrived today, not turned away). */
-function arrivedToday(state: WorldState, r: Resident): RoundStop[] {
+/**
+ * The stops of tonight's round (R2A's `tonightStops`: the evening round planned today), or for an
+ * elder, who has no evening window, today's afternoon round (R2X: their outing is the afternoon, and
+ * scoring them the floor every evening would hold back every household with an elder in it).
+ */
+export function tonightOrAfternoon(state: WorldState, r: Resident): readonly RoundStop[] {
+  if (isWorkingAge(r)) return tonightStops(state, r);
+  return r.roundDay === dayIndex(state.tick) && r.round ? r.round : [];
+}
+
+/** The stops of tonight's round a resident got to today (arrived today, not turned away). */
+function arrivedTonight(state: WorldState, r: Resident): RoundStop[] {
   const today = dayIndex(state.tick);
   const out: RoundStop[] = [];
-  for (const s of r.round ?? []) {
+  for (const s of tonightOrAfternoon(state, r)) {
     if (!(s.flags & RoundFlags.arrived) || s.flags & RoundFlags.turnedAway) continue;
     if (s.arrived < 0 || dayIndex(s.arrived) !== today) continue;
     out.push(s);
@@ -27,8 +39,7 @@ function arrivedToday(state: WorldState, r: Resident): RoundStop[] {
  */
 export function eveningScore(state: WorldState, r: Resident): number {
   const P = content.places;
-  const today = dayIndex(state.tick);
-  const stops = arrivedToday(state, r);
+  const stops = arrivedTonight(state, r);
   let score = P.stayInScore;
   if (stops.length > 0) {
     let best = -Infinity;
@@ -42,11 +53,11 @@ export function eveningScore(state: WorldState, r: Resident): number {
     score = best;
   }
   // A treat bought passing sits on a stop they have not reached yet: it counts when they got
-  // somewhere tonight on tonight's plan (R2X: `roundDay`, so a plan left over from an evening they
-  // skipped never scores a treat).
-  for (const s of r.roundDay === today ? (r.round ?? []) : []) {
+  // somewhere tonight (tonight's stops only, so a plan left from an evening they skipped never
+  // scores a treat).
+  for (const s of tonightOrAfternoon(state, r)) {
     if (!(s.flags & RoundFlags.treat)) continue;
-    if (s.arrived >= 0 ? dayIndex(s.arrived) !== today : stops.length === 0) continue;
+    if (s.arrived >= 0 ? dayIndex(s.arrived) !== dayIndex(state.tick) : stops.length === 0) continue;
     score += P.treatScore;
     break;
   }
