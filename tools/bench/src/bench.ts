@@ -26,6 +26,7 @@ import { benchMarket } from './market';
 import { carrierBench } from './carrier.bench';
 import { syntheticValley } from './synthetic';
 import { festivalsBench } from './festivals.bench';
+import { lotsBench } from './lots.bench';
 import { natureBench } from './nature.bench';
 import { r1Bench } from './r1.bench';
 import { raidsBench } from './raids.bench';
@@ -185,6 +186,9 @@ const raidsResult = raidsBench();
 lines.push(...raidsResult.lines);
 failures.push(...raidsResult.failures);
 // 14. R1: the night's trade choice and growth, and the carrier's day, at City scale (2,000 residents).
+const lots = lotsBench();
+lines.push(...lots.lines);
+failures.push(...lots.failures);
 const r1 = r1Bench();
 lines.push(...r1.lines);
 failures.push(...r1.failures);
@@ -221,6 +225,7 @@ const report = {
   festivals: festivals.report,
   nature: nature.report,
   raids: raidsResult.report,
+  lots: lots.report,
   r1: r1.report,
   heapMb,
   failures,

@@ -18,7 +18,12 @@ describe('zone road shapes', () => {
   });
 
   for (const zone of withRoads) {
-    for (const [cls, spec] of Object.entries(zone.roads!)) {
+    for (const [cls, spec] of [
+      ['street', zone.roads!.street],
+      ['lane', zone.roads!.lane],
+      ['path', zone.roads!.path],
+    ] as const) {
+      if (!spec) continue;
       it(`${zone.id} on a ${cls}: widths 1 to 3, depths 2 to 4, each fits a building that grows there`, () => {
         expect(spec.lots.length).toBeGreaterThan(0);
         const defs = growsOn(zone.id);

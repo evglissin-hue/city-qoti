@@ -10,7 +10,7 @@ import { paintZone } from '../growth/helpers';
 import { S } from '../helpers';
 
 /** Hash captured on 99eed98 (the base of the R2 wave) with this very scenario. */
-const BASE_HASH = process.env.R2F_PRINT ? '' : 'bdff8d54ee68d69d';
+const BASE_HASH = 'bdff8d54ee68d69d';
 
 describe('a town with no streets', () => {
   it('hashes the same as on the wave base after two days of the full sim', { timeout: 120_000 }, () => {
@@ -34,9 +34,7 @@ describe('a town with no streets', () => {
     expect(storeys.length).toBeGreaterThan(0);
     for (const b of storeys) delete b.storeys;
     const hash = hashState(s);
-    if (process.env.R2F_PRINT)
-      console.log(`R2F_HASH ${hash} lots=${s.lots.length} buildings=${s.buildings.length}`);
-    else expect(hash).toBe(BASE_HASH);
+    expect(hash).toBe(BASE_HASH);
     expect(s.lots.every((l) => l.row === 0 && l.kind === 'plot')).toBe(true);
   });
 });

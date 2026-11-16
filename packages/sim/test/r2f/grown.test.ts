@@ -25,16 +25,13 @@ describe('a grown street', () => {
     { timeout: 90_000 },
     () => {
       const f = streetsFixture();
-      const t0 = performance.now();
       growStreetsFilled(f, 3, 14, 3);
-      const ms = performance.now() - t0;
       state = f.state;
       const plots = state.lots.filter((l) => l.kind === 'plot' && l.row !== 0);
       const built = plots.filter((l) => l.buildingId);
       expect(plots.length).toBeGreaterThan(20);
       // Most lots are full.
       expect(built.length / plots.length, view(state)).toBeGreaterThanOrEqual(0.8);
-      expect(ms).toBeLessThan(60_000);
     },
   );
 
