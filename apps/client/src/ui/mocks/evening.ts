@@ -8,6 +8,7 @@ import {
   footprintSize,
   MAP_SIZE,
   RoundFlags,
+  START_HOUR,
   TICKS_PER_DAY,
   TICKS_PER_HOUR,
   type DrawParts,
@@ -438,8 +439,9 @@ export function eveningMocks(m: Mirror): Mocks {
 export function mockRound(m: Mirror, residentId: EntityId): RoundStopView[] {
   const list = [...m.places.values()].filter((p) => p.source !== 'porch');
   if (!list.length) return [];
-  const dayStart = Math.floor(m.tick.value / TICKS_PER_DAY) * TICKS_PER_DAY;
-  const at = (h: number) => dayStart + Math.round(h * TICKS_PER_HOUR);
+  // The calendar's day starts at START_HOUR, so clock hour h is (h - START_HOUR) hours into the tick day.
+  const dayStart = Math.floor((m.tick.value + START_HOUR * TICKS_PER_HOUR) / TICKS_PER_DAY) * TICKS_PER_DAY;
+  const at = (h: number) => dayStart + Math.round((h - START_HOUR) * TICKS_PER_HOUR);
   const a = list[residentId % list.length]!;
   const b = list[(residentId + 1) % list.length]!;
   const stops: RoundStopView[] = [

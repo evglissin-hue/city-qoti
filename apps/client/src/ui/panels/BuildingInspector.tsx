@@ -30,6 +30,7 @@ export function BuildingInspector({ session, id }: { session: Session; id: numbe
   void m.revision.value;
   void m.hamletRevision.value;
   void m.villageRevision.value;
+  void m.placesRevision.value;
   const b = m.buildings.get(id);
   const detail = useInspect<BuildingDetail>((k, i) => session.inspect(k, i), 'building', id, b);
   if (!b) return null;
@@ -58,6 +59,7 @@ export function BuildingInspector({ session, id }: { session: Session; id: numbe
       ? 'Business'
       : (CATEGORY_WORD[def?.category ?? ''] ?? 'Building');
   // P1 (playtest): a standard valley keeps its town hall, so it offers no Remove.
+  const hostedPlace = m.placeOf(id);
   const keepsHall = b.def === 'town-hall' && m.settings.value.mode === 'standard';
 
   return (
@@ -79,6 +81,17 @@ export function BuildingInspector({ session, id }: { session: Session; id: numbe
               : site
                 ? 'Coming along nicely.'
                 : quietLine(b)}
+        </p>
+      )}
+      {hostedPlace && (
+        <p class="place-link" data-testid="building-place">
+          <button
+            type="button"
+            class="link"
+            onClick={() => (session.ui.selection.value = { kind: 'place', id: hostedPlace.id })}
+          >
+            Of an evening: {hostedPlace.name}
+          </button>
         </p>
       )}
       {detail && <BuildingSeasonLines session={session} detail={detail} />}
