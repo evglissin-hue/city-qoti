@@ -91,12 +91,14 @@ describe('staying Craftsfolk', () => {
     expect(findById(state.buildings, h.homeId)!.rt!.upgrade).toBeFalsy();
   });
 
-  it('holds at 42 (slack), slides after TIER_DOWN_DAYS at 38', () => {
+  it('holds just above the ask less the slack, slides after TIER_DOWN_DAYS just below it', () => {
     const { state, h } = craftsfolk();
-    setEvenings(state, h, 42);
+    // R2X tunes the slack (content.places.eveningsSlack); the ask is the basket's evenings.
+    const floor = content.basketByTier.get('craftsfolk')!.evenings! - content.places.eveningsSlack;
+    setEvenings(state, h, floor + 2);
     days(state, TIER_DOWN_DAYS + 1);
     expect(h.tier).toBe('craftsfolk');
-    setEvenings(state, h, 38);
+    setEvenings(state, h, floor - 2);
     days(state, TIER_DOWN_DAYS - 1);
     expect(h.tier).toBe('craftsfolk');
     days(state, 1);
