@@ -18,19 +18,8 @@
 // school, a Bath House, market stalls and builders for a bigger town. It pauses nothing: labor
 // needs no lever.
 import { content } from '@qoti/content';
-import {
-  creditLimit,
-  loansOwed,
-  BuildingStatus,
-  rankAtLeast,
-  type WorldState,
-} from '@qoti/sim';
-import {
-  costOf,
-  VILLAGE_MARGIN,
-  type Budget,
-  type Planner,
-} from '../planner';
+import { creditLimit, loansOwed, BuildingStatus, rankAtLeast, type WorldState } from '@qoti/sim';
+import { costOf, VILLAGE_MARGIN, type Budget, type Planner } from '../planner';
 import { count, craftsfolk } from '../town';
 import { serveService } from './siting';
 import type { Advisor, AdvisorDef, Visit } from './types';

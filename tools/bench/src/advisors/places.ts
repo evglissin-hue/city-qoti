@@ -13,6 +13,7 @@ import {
   calendar,
   canPlaceDecor,
   doorTile,
+  loansOwed,
   placesView,
   rankAtLeast,
   TILE_FP,
@@ -21,7 +22,7 @@ import {
   type Building,
   type WorldState,
 } from '@qoti/sim';
-import type { Planner } from '../planner';
+import { REPAY_RESERVE, type Planner } from '../planner';
 import { count, G, idx, S, sites } from '../town';
 import { serveService, wellFor } from './siting';
 import type { Advisor, AdvisorDef } from './types';
@@ -105,6 +106,8 @@ class Places implements Advisor {
     const p = this.p;
     const w = this.w;
     if (p.coins() < MIN_COINS) return;
+    // Decor can wait while the town owes the bank (the planner's rule for what can wait).
+    const spare = loansOwed(w) === 0 || p.coins() >= REPAY_RESERVE;
     const start = p.decisions.length;
     const spent = (): void => {
       this.used = p.decisions.length - start;
@@ -114,11 +117,12 @@ class Places implements Advisor {
     if (village) {
       this.tavern();
       spent();
-      if (this.left() > 0) this.well();
+      if (spare && this.left() > 0) this.well();
       spent();
-      if (this.left() >= 3) this.patternSite();
+      if (spare && this.left() >= 3) this.patternSite();
       spent();
     }
+    if (!spare) return;
     if (this.left() > 0) this.benchRow();
     spent();
     if (this.left() > 0) this.crowded();
