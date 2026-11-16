@@ -130,7 +130,7 @@ export function orchardTree(
   season: number,
   rnd: () => number,
   light = false,
-  dabs = light ? 30 : 60,
+  dabs = light ? 46 : 92,
 ): void {
   const trunk = vary(palette.bark, rnd, 0.6);
   // The far level is the crown alone, as a squat six-sided puff (orchards hold a dozen trees).
@@ -180,30 +180,32 @@ export function orchardTree(
   const leaf = season === 2 ? mixHex(base, palette.autumnGold, 0.45) : base;
   const heart: V3 = [x, 0.6 * k, z];
   const blobs: DabBlob[] = [
-    { center: heart, radii: [0.3 * k, 0.22 * k, 0.3 * k], color: vary(leaf, rnd, 0.4) },
-    // V3B: the bough blobs sit in close to the heart, so the crown is one soft lump, not four.
+    { center: heart, radii: [0.31 * k, 0.24 * k, 0.31 * k], color: vary(leaf, rnd, 0.4) },
+    // V3B: the bough blobs sit well inside the heart's outline, bulging it a little, so the crown
+    // is one soft rounded lump rather than four.
     ...tips.map((t) => ({
-      center: [x + (t[0] - x) * 0.55, t[1] + 0.06 * k, z + (t[2] - z) * 0.55] as V3,
-      radii: [0.17 * k, 0.14 * k, 0.17 * k] as V3,
-      color: vary(leaf, rnd, 0.9),
+      center: [x + (t[0] - x) * 0.6, t[1] + 0.08 * k, z + (t[2] - z) * 0.6] as V3,
+      radii: [0.2 * k, 0.16 * k, 0.2 * k] as V3,
+      color: vary(leaf, rnd, 0.5),
     })),
   ];
   const crown = (): void => {
     const was = s.currentSurface;
     s.surface(SURFACE.leaf);
-    // The core under the dabs: small, deep green, round and dark so no facet shows through.
+    // The core under the dabs: deep green, round and dark so no facet shows through. V3B: the
+    // heart's core only (the bough blobs are inside it), a little fuller so the dabs cover it.
     blobs.forEach((bl, i) => {
-      if (light && i > 0) return;
+      if (i > 0) return;
       const [rx, ry, rz] = bl.radii;
       const [cx, cy, cz] = bl.center;
       s.blob(
         cx,
         cy,
         cz,
-        rx * 0.8,
-        ry * 0.8,
-        rz * 0.8,
-        mixHex(bl.color, CORE_SHADE, 0.3),
+        rx * 0.88,
+        ry * 0.88,
+        rz * 0.88,
+        mixHex(bl.color, CORE_SHADE, 0.38),
         0,
         rnd,
         i === 0 ? 0.04 : 0,
@@ -213,7 +215,7 @@ export function orchardTree(
     const seed = Math.floor(rnd() * 1e6);
     brushDabs(s, painted, {
       count: dabs,
-      size: (light ? 0.15 : 0.13) * k,
+      size: (light ? 0.12 : 0.095) * k,
       tintSpread: 0.14,
       skyLighten: 0.5,
       gaps: 0,
