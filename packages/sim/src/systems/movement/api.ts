@@ -10,7 +10,7 @@ import { MAP_SIZE, ResidentFlags } from '../../constants';
 import type { Building, EntityId, MoveReason, Resident, Rot4, WorldState } from '../../contracts';
 import { entranceTiles } from '../../rules/footprint';
 import { findById } from '../../state/entities';
-import { pathBetween } from './paths';
+import { pathFor, type PathMode } from './paths';
 
 /** 'walking' (a path was found), 'arrived' (already there), 'unreachable' (no path; resident is stuck). */
 export type MoveResult = 'walking' | 'arrived' | 'unreachable';
@@ -30,6 +30,7 @@ export function requestMove(
 /** requestMove for a resident already in hand (the residents system's hot path). */
 export function moveResident(state: WorldState, r: Resident, target: number, reason: MoveReason): MoveResult {
   setInside(state, r, 0);
+  const mode: PathMode = reason === 'round' ? 'round' : 'walk';
   const m = r.move;
   if (m && m.target === target) {
     m.reason = reason;
@@ -38,7 +39,7 @@ export function moveResident(state: WorldState, r: Resident, target: number, rea
   // Mid-step: keep going to the next tile and plan onward from there, so nobody snaps back.
   if (m && m.progress > 0 && m.step < m.path.length) {
     const next = m.path[m.step]!;
-    const onward = next === target ? [] : pathBetween(state, next, target);
+    const onward = next === target ? [] : pathFor(state, next, target, mode);
     if (onward) {
       r.move = {
         path: [next, ...onward],
@@ -54,7 +55,7 @@ export function moveResident(state: WorldState, r: Resident, target: number, rea
   }
   r.move = null;
   if (r.tile === target) return 'arrived';
-  const path = pathBetween(state, r.tile, target);
+  const path = pathFor(state, r.tile, target, mode);
   if (!path) return 'unreachable';
   r.move = { path, step: 0, progress: 0, target, reason, version: state.networkVersion };
   r.flags &= ~ResidentFlags.stuck;
