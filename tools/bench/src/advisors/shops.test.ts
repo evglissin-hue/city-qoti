@@ -1,7 +1,17 @@
 // R2E: the shops advisor's readings (walk frontage, the evening-street rule) and the bench's care
 // for R2F's garden lots (never offered, zoned, grown or counted).
 import { content } from '@qoti/content';
-import { doorTile, Flags, MAP_SIZE, Road, Zone, type Building, type Lot, type WorldState } from '@qoti/sim';
+import {
+  doorTile,
+  Flags,
+  MAP_SIZE,
+  placesView,
+  Road,
+  Zone,
+  type Building,
+  type Lot,
+  type WorldState,
+} from '@qoti/sim';
 import { describe, expect, it } from 'vitest';
 import { autoplay } from '../autoplay';
 import { startingTown } from '../hamlet';
@@ -12,6 +22,9 @@ import { land } from './land';
 import { eveningStretch, shopsNear, walkFrontage } from './shops';
 
 const S = MAP_SIZE;
+const PLACES = content.places;
+const cheb = (a: number, b: number) =>
+  Math.max(Math.abs((a % S) - (b % S)), Math.abs(Math.floor(a / S) - Math.floor(b / S)));
 const at = (x: number, z: number) => z * S + x;
 
 /** A fresh town with a clear patch of ground (x 50 to 110, z 50 to 110) to draw roads on by hand. */
@@ -47,13 +60,19 @@ function footfall(w: WorldState, tiles: [number, number][], n = 200): void {
 const TOP: [number, number][] = [61, 62, 63, 64, 65].map((x) => [x, 60]);
 
 describe('walkFrontage', () => {
-  it('is null on a fresh town: no footfall, no place', () => {
+  it('follows the live places before anyone walks: on a fresh town, frontage by its well', () => {
     const w = startingTown('willow').world;
-    expect(walkFrontage(w)).toBeNull();
+    // R2X: the starting well is a place (R2A's hosts), so the walks start there, not at null.
+    const wells = placesView(w).places;
+    expect(wells.map((p) => p.kinds)).toEqual([['meet']]);
+    const walk = walkFrontage(w);
+    expect(walk).not.toBeNull();
+    expect(walk!.some(([x, z]) => cheb(z * S + x, wells[0]!.tile) <= PLACES.placeNearShopRadius)).toBe(true);
   });
 
   it('picks the frontage the walkers pass once there is footfall', () => {
     const w = startingTown('willow').world;
+    const before = walkFrontage(w);
     const all = frontageFor(w, 'shops', { tiles: 200 }) ?? [];
     expect(all.length).toBeGreaterThan(8);
     // The least preferred open frontage: write the walk beside it by hand.
@@ -66,7 +85,7 @@ describe('walkFrontage', () => {
     expect(Math.max(Math.abs(wx - lx), Math.abs(wz - lz))).toBeLessThanOrEqual(8);
     // The same ground as before when the walk is gone again.
     w.map.footfallEve.fill(0);
-    expect(walkFrontage(w)).toBeNull();
+    expect(walkFrontage(w)).toEqual(before);
   });
 });
 
