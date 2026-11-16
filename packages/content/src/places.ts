@@ -95,10 +95,11 @@ export const PLACES: PlacesTuning = {
   festivalStanding: 40,
   waitPerHour: 2,
   // R2X: newcomers follow good evenings (the lanes test). Past its first twenty households a town
-  // with nowhere to go still fills its open jobs, one home at a time; the homes a growing town keeps
-  // waiting beyond that come as fast as its fair evenings send folk out. growthFullOutPercent 0
-  // switches the term off.
+  // builds homes for newcomers as fast as its fair evenings send folk out. growthBareHomes would keep
+  // that many waiting for open jobs whatever the evenings: at 1 the Hearth-off hazel Hamlet still grew
+  // to 146 (new jobs open as fast as homes fill them), so it is 0. growthFullOutPercent 0 switches
+  // the term off.
   growthFreeHouseholds: 20,
   growthFullOutPercent: 40,
-  growthBareHomes: 1,
+  growthBareHomes: 0,
 };
