@@ -46,7 +46,12 @@ export type Activity =
   /** A logistics or construction task (C3C): porter trips and builder work. */
   | { kind: 'task'; taskId: number };
 
-export type MoveReason = 'schedule' | 'task' | 'arrive' | 'leave' | 'shop' | 'leisure';
+/**
+ * Why a resident walks. R2 (R2A, additive): 'round' is a walk to or between the stops of an evening
+ * round: it takes the evening route grid (pathFor's 'round' mode) and its steps count for the
+ * evening footfall layer instead of the day's.
+ */
+export type MoveReason = 'schedule' | 'task' | 'arrive' | 'leave' | 'shop' | 'leisure' | 'round';
 
 /** Path progress when walking. Tiles are indexes z * size + x. */
 export interface MoveState {
@@ -148,6 +153,18 @@ export interface Resident {
   evening?: ResidentEvening;
   /** Today's round: the plan and what happened at each stop, kept until the next evening's plan. */
   round?: RoundStop[];
+  /**
+   * R2 (R2A, additive): the day index `round` was planned on, absent before their first plan. Elders
+   * and residents without work plan an afternoon round and the unemployed add an evening one to it,
+   * so the day's stops are one list and their best outing of the day counts.
+   */
+  roundDay?: number;
+  /**
+   * R2 (R2A, additive): where tonight's evening stops begin in `round` (the afternoon's stops come
+   * first), set when the evening is planned on `roundDay` and absent until then; equal to the length
+   * when they stayed in.
+   */
+  roundEvening?: number;
 }
 
 export interface Household {

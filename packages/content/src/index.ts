@@ -86,6 +86,8 @@ import type {
 export { chroniclePhrases } from './chronicle';
 export { festivalTuning } from './festivals';
 export { PLACES } from './places';
+export { placeWords } from './placeWords';
+export { STREET_NAMES } from './streetNames';
 export { lifePhrases } from './lives';
 export { familyNames, valleyNamePrefixes, valleyNameSuffixes } from './names';
 export { villagePhrases } from './villageText';

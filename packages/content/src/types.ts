@@ -1400,6 +1400,21 @@ export interface PlacesTuning {
   // Places remembered
   /** A place the pass no longer finds keeps its row this many days (6). */
   forgetDays: number;
+  // R2A additions (additive): what the place pass and the planner read beyond the spec's table.
+  /** Elders and residents without work make a round in the afternoon, planned from this hour (14) to `eveningHour`. */
+  afternoonHour: number;
+  /** Pattern ids that are linear walks (kind `walk`, strollers by length). */
+  walkPatterns: string[];
+  /** Pattern ids where folk gather (kind `meet`: a green, a square, a well). */
+  meetPatterns: string[];
+  /** Decor ids that make a place a `view` wherever they stand (a lookout). */
+  viewPieces: string[];
+  /** What the skating ice offers. */
+  iceKinds: PlaceKind[];
+  /** The festival site's standing room on its night, beside the seats of the pieces on it (40). */
+  festivalStanding: number;
+  /** A place with room only later in the evening scores this much less for every hour they would wait at home first (2). */
+  waitPerHour: number;
 }
 
 /** R2 (R2.0): the gaps (docs/spec/19-evenings.md, Gaps). Index order is the sim's GAP_KINDS; append-only. */
@@ -1421,4 +1436,79 @@ export interface GapDef {
   text: string[];
   /** What would close it, in words. */
   closes: string;
+}
+
+/**
+ * R2 (R2A): the words and numbers behind generated street names (`packages/sim/src/systems/places/streets.ts`).
+ * A name is a word and a suffix ("Mill Lane"); the sim holds no words.
+ */
+export interface StreetNamesTuning {
+  /** A run of road is a street from this many tiles. */
+  minTiles: number;
+  /** How far from the run, in tiles, a thing counts as standing along it. */
+  reach: number;
+  /** A family names a street when this many of its homes stand along it. */
+  homeMin: number;
+  /** "Row" instead of the road kind's suffix when homes of that family line this share (percent) of the run. */
+  rowShare: number;
+  /** Trees along a run (tiles) before they name it. */
+  treeMin: number;
+  /** Fruit trees along a run before they name it. */
+  orchardMin: number;
+  /** The longest generated name. */
+  maxLength: number;
+  /** Building def ids that are homes (a family can name a street by them). */
+  homeDefs: readonly string[];
+  /** Notable buildings, in priority order: [building def id, first word]. */
+  buildingWords: readonly (readonly [def: string, word: string])[];
+  /** Notable trades (a business answers to its trade), after the building words: [trade id, first word]. */
+  tradeWords: readonly (readonly [trade: string, word: string])[];
+  /** Water beside a run: [water layer value, words]; one is picked by the run's anchor. */
+  waterWords: readonly (readonly [water: number, words: readonly string[]])[];
+  /** Fruit tree decor def ids and the word they give. */
+  orchardDecor: readonly string[];
+  orchardWord: string;
+  /** Forest trees beside a run: [tree species (1 oak, 2 birch, 3 pine), word]. */
+  treeWords: readonly (readonly [species: number, word: string])[];
+  /** Plain first words when nothing notable stands along a run. */
+  fallbackWords: readonly string[];
+  /** Tried before any other fallback when a name is taken. */
+  prefixes: readonly string[];
+  /** Suffixes by road layer value (1 path, 2 lane, 3 street, 4 avenue); one is picked by the run's anchor. */
+  suffixes: readonly (readonly [road: number, words: readonly string[]])[];
+  /** The suffix when a family names the street and homes line it. */
+  rowSuffix: string;
+}
+
+/** R2A: the phrase templates for place names and what a place still wants (content/placeWords.ts). */
+export interface PlaceWords {
+  /** "by the Underbank cottage" ({family} {home}). */
+  byFamily: string;
+  /** No family near, water within reach. */
+  byWater: string;
+  /** No family near, no water. */
+  atEdge: string;
+  /** {pattern} {piece} {building} {festival} {family} are filled by the sim. */
+  site: string;
+  seats: string;
+  host: string;
+  fire: string;
+  ice: string;
+  festival: string;
+  porch: string;
+  /** Prefixes when a name is taken ({stem}): "the other bench", "the third bench". */
+  other: string;
+  third: string;
+  /** "on Mill Lane" when a street can be read ({street}). */
+  onStreet: string;
+  /** Appended to a taken name, in order: " (the second)". */
+  ordinals: string[];
+  /** Appended past the ordinals, once per repeat. */
+  again: string;
+  /** What a place still wants; {n} is filled by the sim. */
+  wantStall: string;
+  wantBench: string;
+  wantSeats: string;
+  wantLantern: string;
+  wantBrazier: string;
 }

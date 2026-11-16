@@ -5,12 +5,15 @@
 import { hasTag } from '../../state/zones';
 import { content } from '@qoti/content';
 import { MAP_SIZE, TILE_FP } from '../../constants';
-import type { Resident, Rng, WorldState } from '../../contracts';
+import type { Place, Resident, Rng, WorldState } from '../../contracts';
 import { Terrain, treeStage, TREE_MATURE } from '../../map/layers';
 import { findById } from '../../state/entities';
 import { worldIndex } from '../../state/worldIndex';
 import { walkGrid } from '../movement/grid';
-import { doorOf, eachBuildingNear, householdOf, tileX, tileZ } from './places';
+import { placeFeatures } from '../places';
+import { placesNear } from '../places/api';
+import { PlaceFeature } from '../places/build';
+import { doorOf, eachBuildingNear, householdOf, manhattan, tileX, tileZ } from './places';
 import { hasTrait, traitFactor, traitPercent } from './traits';
 
 const S = MAP_SIZE;
@@ -245,4 +248,62 @@ export function chooseVisit(state: WorldState, r: Resident): [friend: number, do
     }
   }
   return [best, bestDoor];
+}
+
+/**
+ * R2 (R2A): a resident's taste for a place on the round (19-evenings.md, The round: Choosing), from
+ * what stands there, as chooseLeisure weighs species and traits: a rabbit's flowers, a squirrel's
+ * trees, a hedgehog's hedges and herbs, an otter's water, a fox's market, a mouse's bakery, a badger's
+ * tavern; Green Fingers and nature, Romantics and lanterns or water, the quiet-minded and a quiet
+ * corner, a Sweet Tooth and something to eat. The planner keeps it within tasteMin to tasteMax.
+ */
+export function tasteFor(state: WorldState, r: Resident, place: Place): number {
+  const f = placeFeatures(state, place);
+  const sp = r.species;
+  let taste = 0;
+  if (sp === 'rabbit' && f & PlaceFeature.flower) taste += 5;
+  if (sp === 'squirrel' && f & PlaceFeature.tree) taste += 8;
+  if (sp === 'hedgehog' && f & (PlaceFeature.hedge | PlaceFeature.herb)) taste += 7;
+  if (sp === 'otter' && f & (PlaceFeature.water | PlaceFeature.mooring)) taste += 7;
+  if (sp === 'fox' && f & PlaceFeature.market) taste += 8;
+  if (sp === 'mouse' && f & PlaceFeature.baker) taste += 6;
+  if (sp === 'badger' && f & PlaceFeature.tavern) taste += 6;
+  const nature = traitFactor(r, 'natureWeight');
+  if (nature !== 1 && f & (PlaceFeature.flower | PlaceFeature.tree)) taste += Math.round((nature - 1) * 4);
+  const light = traitFactor(r, 'lightWeight');
+  if (light !== 1 && f & PlaceFeature.light) taste += Math.round((light - 1) * 3);
+  if (hasTrait(r, 'romantic') && f & PlaceFeature.water) taste += 3;
+  const quiet = traitFactor(r, 'quietWeight');
+  if (quiet !== 1)
+    taste += f & PlaceFeature.quiet ? Math.round((quiet - 1) * 4) : -Math.round((quiet - 1) * 3);
+  const bakery = traitFactor(r, 'bakeryWeight');
+  if (bakery !== 1 && (f & PlaceFeature.baker || place.kinds.includes('eat')))
+    taste += Math.round((bakery - 1) * 3);
+  return taste;
+}
+
+/**
+ * R2 (R2A): a play place near home for a child (a swing or see-saw within `PLACES.homebodyRadius` of
+ * the door, docs/spec/19-evenings.md, The round: children play at play places and near home): the
+ * tile to make for, or -1 when there is none.
+ */
+export function playPlaceNear(state: WorldState, home: number): number {
+  const cost = walkGrid(state).cost;
+  let best = -1;
+  let bestDist = Infinity;
+  for (const p of placesNear(state, home, content.places.homebodyRadius)) {
+    if (p.childSeats <= 0) continue;
+    // A swing blocks the walk: they play on the ground beside it.
+    let tile = -1;
+    for (const t of p.tiles) {
+      if (cost[t]! > 0 && (tile < 0 || manhattan(t, p.tile) < manhattan(tile, p.tile))) tile = t;
+    }
+    if (tile < 0) continue;
+    const d = manhattan(p.tile, home);
+    if (d < bestDist) {
+      bestDist = d;
+      best = tile;
+    }
+  }
+  return best;
 }

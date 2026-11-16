@@ -38,11 +38,11 @@ The R2A paths in `r2-wave-notes.md`: `packages/sim/src/systems/places/**`, `syst
 
 ## Acceptance criteria
 
-- [ ] `grep -rn "R2 stand-in (R2A)" packages apps tools --exclude-dir=dist` is empty.
-- [ ] On a fair evening in an autoplayed Village every grown-up with a place in reach goes out; places fill to their room and no further; a town with no places stays in (headless tests).
-- [ ] Footfall counts only steps on the way to or between stops for the evening layer; the walk home does not.
-- [ ] A seat joining from a snapshot mid-evening sees the same places and plans (a test).
-- [ ] Budgets above hold; a year hashes the same in Node and a browser worker; typecheck, lint, unit tests and build pass.
+- [x] `grep -rn "R2 stand-in (R2A)" packages apps tools --exclude-dir=dist` is empty.
+- [x] On a fair evening in an autoplayed Village every grown-up with a place in reach goes out; places fill to their room and no further; a town with no places stays in (headless tests).
+- [x] Footfall counts only steps on the way to or between stops for the evening layer; the walk home does not.
+- [x] A seat joining from a snapshot mid-evening sees the same places and plans (a test).
+- [ ] Budgets above hold; a year hashes the same in Node and a browser worker; typecheck, lint, unit tests and build pass. (Not all: the Village place pass holds; the City place pass, 5.8 ms after a change against 3, and planning, 0.71 ms a tick against 0.4, do not, measured and left for R2X in the PR. A year hashes the same in Node and a browser worker; typecheck, lint and build pass; unit tests pass but for seven seed-specific `tools/bench` tests the round's stream change moves, listed in the PR.)
 
 ## Out of scope
 
@@ -54,3 +54,17 @@ Buying Treats, the clock, the score, the evenings need and tiers (R2B); gaps and
 - Never cache stock in the index; `placeServes` and `placeDraw` read shelves live.
 - Do not edit `systems/market/**`, `systems/growth/**` or `residents/{evening,needs}.ts`; ask R2B in your PR.
 - Steps on a round are many: keep the footfall add a typed-array increment with a cap, nothing more, in the movement step.
+
+## As built
+
+Built in one session as the build and review loop: the master wrote the contracts, the place index and its determinism rule, the planner and arrivals; four Sonnet executors built the movement (route grid, barrows, footfall), street names, the rows, names, views and seated pose, and the bench lines.
+
+- **Places** (`systems/places/{build,signature,draw,index,occupancy}.ts`): every source in the spec, with stable ids. The index is a pure function of saved state: a structural signature of its inputs is checked at most once a tick and turn and the places rebuilt when it changes; the draw's moving parts are recomputed each tick; stock is read live. Occupancy (who sits, who stands) is derived from residents' rounds the same way. A fire near a sitting spot warms it; a site absorbs its member hosts; the festival site is a place on its night; the ice is a place at each skating spot.
+- **The round** (`residents/{round,schedule,outings,friends}.ts`): grown-ups plan at their own minute in the half hour from 17:00 (builders and porters from 19:00), even when a storm or the bell keeps them in, so the tally counts everyone. Each stop gets the hour it is set off for (`RoundStop.at`): a full place may have room later, so a seat serves several residents an evening. Seats, then standing room, then turned away; `recordVisit`, the tally's `out`, `nowhere`, `stood` and `friendships`. Shopping first, a friend's home at a draw of 30, rain sends the rain-shy to shelter, a storm keeps everyone in, elders and those without work make an afternoon round, children play at a swing near home, sheltered hosts are spent inside, festival guests have the festival on their round.
+- **Routes and footfall** (`systems/movement/**`): the evening grid's classes are fixed at 17:00 and saved (`EveningsState.routes`) so a joining seat routes alike; A* at four times the cost scale for the round; barrows keep off live evening streets from 17:00 to 21:00; footfall is a capped increment per step, halved at 04:00.
+- **Streets** (`systems/places/streets.ts`, `content/streetNames.ts`): straight runs of road of 4 tiles or more, named once from what stands along them ("Mill Lane", "Underbank Row"), kept in step as roads change.
+- **Rows, names, views** (`systems/places/{rows,names}.ts`, `view/places.ts`, `view/agents.ts`, `content/placeWords.ts`): rows named on first sight, seen daily, forgotten after 6 days; `present` and `wants`; the seated pose.
+- **Contract additions** (additive, own commits): `MoveReason` `'round'`, `Resident.roundDay` and `roundEvening`, `RoundStop.at`, `EveningsState.routes`, seven `PlacesTuning` fields, `PlaceWords` and `StreetNamesTuning`.
+- **For R2B**: `sellsTreats` and `cafeTables` are read by the place index's signature every tick it is read; they must stay cheap and must never read the place index. `pathFor(state, from, to, 'barrow')` reads the live evening flag. Evening stops start at `Resident.roundEvening` (an afternoon round comes first for elders and the unemployed).
+- **Determinism checks**: a seat joining mid-evening hashes alike hour by hour to 22:00; after every kind of input change (a tree maturing, a level, a porch, a family moving, a piece moved, the river freezing, charm, winter) the live index equals a fresh rebuild from a save. The second test caught the tree and quiet taste bits read only at rebuild (trees grow without touching the signature); they are read each tick now. Every draw the evening makes comes from the `round` stream.
+- **Found for R2X**: the round reshuffles the shared `residents` stream (arrivals draw from it), so R1X's seed-specific bench assertions move (the PR lists them with measurements); C5A's `skatingSpots` caches by `frozenTick` and reads buildings and trees when first asked, so a seat joining mid-freeze can see other spots than its partner (the skating override and R2A's ice places both read it).

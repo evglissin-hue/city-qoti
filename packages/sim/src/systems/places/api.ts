@@ -6,21 +6,51 @@ import type { EntityId, Place, PlaceId, Resident, WorldState } from '../../contr
 import { findById } from '../../state/entities';
 import { placeState } from '../../state/evenings';
 import { treatsOnShelf } from '../market/round';
-import { placeIndex } from './index';
+import { placeIndex, type PlaceIndex } from './index';
 
 const S = MAP_SIZE;
+
+/** Side of a cell of the places' anchor grid, in tiles. */
+const CELL = 16;
+const CELLS = Math.ceil(S / CELL);
+
+/** Places by the cell of their anchor tile, in id order within a cell; built once per index. */
+const grids = new WeakMap<PlaceIndex, Place[][]>();
+
+function gridOf(index: PlaceIndex): Place[][] {
+  let grid = grids.get(index);
+  if (!grid) {
+    grid = Array.from({ length: CELLS * CELLS }, () => []);
+    for (const p of index.places) {
+      const x = p.tile % S;
+      const z = (p.tile - x) / S;
+      grid[Math.floor(z / CELL) * CELLS + Math.floor(x / CELL)]!.push(p);
+    }
+    grids.set(index, grid);
+  }
+  return grid;
+}
 
 /** Places whose anchor tile lies within `radius` tiles of `tile` (Manhattan, as chooseLeisure measures), sorted by id. */
 export function placesNear(state: WorldState, tile: number, radius: number): Place[] {
   const x = tile % S;
   const z = (tile - x) / S;
+  const grid = gridOf(placeIndex(state));
   const out: Place[] = [];
-  for (const p of placeIndex(state).places) {
-    const px = p.tile % S;
-    const pz = (p.tile - px) / S;
-    if (Math.abs(px - x) + Math.abs(pz - z) <= radius) out.push(p);
+  const cz0 = Math.max(0, Math.floor((z - radius) / CELL));
+  const cz1 = Math.min(CELLS - 1, Math.floor((z + radius) / CELL));
+  const cx0 = Math.max(0, Math.floor((x - radius) / CELL));
+  const cx1 = Math.min(CELLS - 1, Math.floor((x + radius) / CELL));
+  for (let cz = cz0; cz <= cz1; cz++) {
+    for (let cx = cx0; cx <= cx1; cx++) {
+      for (const p of grid[cz * CELLS + cx]!) {
+        const px = p.tile % S;
+        const pz = (p.tile - px) / S;
+        if (Math.abs(px - x) + Math.abs(pz - z) <= radius) out.push(p);
+      }
+    }
   }
-  return out;
+  return out.sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
 }
 
 /** A place by its stable id, or undefined when the pass does not find it now. */

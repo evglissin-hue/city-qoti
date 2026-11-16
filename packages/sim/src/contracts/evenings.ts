@@ -137,6 +137,12 @@ export interface RoundStop {
   flags: number;
   /** Tick they arrived, or -1 while it is still ahead of them. */
   arrived: number;
+  /**
+   * R2 (R2A, additive): the tick of day they set off for it, not before (the planner spreads a
+   * town's evening over the hours, so a seat serves three or four residents). Absent: as soon as the
+   * stop before it is done.
+   */
+  at?: number;
 }
 
 /** A resident's last evening (19-evenings.md, Good evenings); the need itself is needs[evenings]. */
@@ -200,6 +206,16 @@ export interface EveningsState {
   /** Evenings this season with someone standing for want of a seat, and whole seasons without one (A Seat for Everyone; R2C). */
   stoodThisSeason: number;
   seatedSeasons: number;
+  /**
+   * R2 (R2A, additive): the evening route grid, fixed at `PLACES.eveningHour` so lanterns lighting,
+   * carts passing and charm recomputed mid-evening never change a round's routes, and saved so a seat
+   * joining mid-evening routes exactly as its partner does. Each tile's class in 2 bits, four tiles a
+   * byte (tile i in byte i >> 2, bits (i & 3) * 2), base64: 0 pleasant (charm `PLACES.pleasantCharm`
+   * or more), 1 plain, 2 noisy (noise `PLACES.noisyNoise` or more), 3 an evening street (pleasant).
+   * Written at 17:00, dropped at the 04:00 halving; absent means every round walks the ordinary grid.
+   * (Barrows read the live evening flag, not this.)
+   */
+  routes?: string;
 }
 
 // --- Gaps ----------------------------------------------------------------------------------------
