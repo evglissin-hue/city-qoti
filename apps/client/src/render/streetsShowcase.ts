@@ -15,6 +15,7 @@ import {
   MAP_SIZE,
   Road,
   Terrain,
+  TILE_FP,
   type BuildingView,
   type LayerName,
   type LotView,
@@ -77,6 +78,13 @@ export function streetsShowcase(mirror: Mirror, cx = 96, cz = 90): StreetsShowca
   for (const l of mirror.lots.values())
     if (l.x >= rect[0] && l.x <= rect[2] && l.z >= rect[1] && l.z <= rect[3])
       events.push({ e: 'lot.removed', id: l.id });
+  // The grown village's decor too (its lanterns, pots and cherry trees stood in the gardens).
+  for (const d of mirror.decor.values()) {
+    const x = Math.floor(d.fx / TILE_FP);
+    const z = Math.floor(d.fz / TILE_FP);
+    if (x >= rect[0] && x <= rect[2] && z >= rect[1] && z <= rect[3])
+      events.push({ e: 'decor.removed', id: d.id });
+  }
   for (let z = rect[1]; z <= rect[3]; z++) {
     for (let x = rect[0]; x <= rect[2]; x++) {
       const i = z * N + x;

@@ -133,6 +133,17 @@ describe('streetFurniture', () => {
     expect(ps.map((p) => p.kit)).toEqual(['bollard', 'bollard']);
     expect(ps.map((p) => p.x).sort()).toEqual([30.2, 30.8]);
     expect(new Set(ps.map((p) => p.x)).size).toBe(2);
+    // A pair or none: with decor beside one of the pair's spots, neither stands.
+    const pot = {
+      id: 3,
+      def: 'flower-pot',
+      fx: Math.round(30.2 * TILE_FP),
+      fz: Math.round(40.12 * TILE_FP),
+      rot: 0,
+      builtBy: 0,
+    } as DecorView;
+    const blockedPair = streetFurniture(mirrorOf({ ...w, decor: [pot] })).filter((p) => p.kit === 'bollard');
+    expect(blockedPair).toEqual([]);
     // A home's door gets nothing at all, in any style.
     const h = street(40, 20, 60, 'plaster');
     h.lots = [];

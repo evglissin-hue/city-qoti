@@ -370,26 +370,27 @@ function shed(plan: Plan, cx: number, cz: number, f: P2): Rect {
     box(0.212, 0.172, D + 0.01, 0.222, 0.268, D + 0.018, palette.white);
   });
   // The roof, riding the top: a pent sloping to the door, or a gable with its end to the door.
-  const lean = rnd() < 0.6;
-  const color = vary(lean ? 0x7a6a5a : rnd() < 0.5 ? palette.roofTerracotta : palette.roofSlate, rnd, 0.4);
+  // V3B review: always a pent roof, sloping to the door (at a shed's size a gable's verge board
+  // stood out like a flag). The draw the gable's choice used is kept, so the stream is unchanged.
+  rnd();
+  const color = vary(0x7a6a5a, rnd, 0.4);
   const p = at(-W - 0.05, -D - 0.03);
   const q = at(W + 0.05, D + 0.06);
-  const alongZ = f[0] === 0;
   roofPart(s, {
-    shape: lean ? 'lean' : 'gable',
-    material: lean ? 'shingle' : color === palette.roofSlate ? 'slate' : 'tile',
+    shape: 'lean',
+    material: 'shingle',
     x0: Math.min(p[0], q[0]),
     z0: Math.min(p[1], q[1]),
     x1: Math.max(p[0], q[0]),
     z1: Math.max(p[1], q[1]),
     y0: H - 0.02,
-    y1: lean ? H + 0.14 : H + 0.17,
+    y1: H + 0.14,
     color,
     trim: palette.timber,
-    // A pent rises away from the door; a gable's ridge runs door to back.
-    ridgeAlongX: lean ? alongZ : !alongZ,
+    // A pent rises away from the door.
+    ridgeAlongX: f[0] === 0,
     rnd,
-    ...(lean && f[0] + f[1] < 0 ? { highAtC1: true } : {}),
+    ...(f[0] + f[1] < 0 ? { highAtC1: true } : {}),
   });
   s.surface(SURFACE.plain);
   const r = at(-W - 0.06, -D - 0.04);
@@ -561,7 +562,9 @@ function furnish(plan: Plan, want: number): void {
   const area = w * d;
   // The shed goes first, in the corner farthest from the houses.
   let shedAt: Rect | null = null;
-  if (rnd() < (area >= 2 ? 0.85 : 0.4)) {
+  // V3B review: a shed in about half the gardens (a block of eight gardens with eight sheds read as
+  // a row of huts), more often in the big ones.
+  if (rnd() < (area >= 9 ? 0.7 : area >= 4 ? 0.45 : 0.25)) {
     const corners = [
       { x: g.x0, z: g.z0, sx: 1, sz: 1, adj: [sides[0], sides[3]] },
       { x: g.x1, z: g.z0, sx: -1, sz: 1, adj: [sides[0], sides[1]] },

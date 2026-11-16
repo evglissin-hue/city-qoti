@@ -32,7 +32,7 @@ const HOURS = [
 const VIEWS = {
   block: { dist: 70, at: () => [0, 0], pitch: 50 },
   stepped: { dist: 16, at: () => [0, 14], pitch: 30, yaw: 0 },
-  corner: { dist: 12, at: () => [-7, -5], pitch: 33, yaw: 0.8 },
+  corner: { dist: 9, at: () => [-6, -4], pitch: 30, yaw: Number(process.env.QOTI_CORNER_YAW ?? 3.9) },
   gardens: { dist: 16, at: () => [0, 0], pitch: 60 },
 };
 

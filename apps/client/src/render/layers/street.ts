@@ -297,8 +297,12 @@ export function streetFurniture(mirror: Mirror): StreetPiece[] {
       const cx = tx + 0.5 + DIRS[s]![0] * (0.5 - CURB);
       const cz = tz + 0.5 + DIRS[s]![1] * (0.5 - CURB);
       if (f.door) {
-        if (f.shop && st.doorBollards)
-          for (const e of [-0.3, 0.3]) put('bollard', cx + e * ax, cz + e * az, s, 0);
+        // A pair or none: a lone bollard by a door (its twin blocked by decor) reads as a mistake.
+        if (f.shop && st.doorBollards) {
+          const pair = [-0.3, 0.3].map((e) => [cx + e * ax, cz + e * az] as const);
+          if (pair.every(([px, pz]) => !blocked(px, pz)))
+            for (const [px, pz] of pair) put('bollard', px, pz, s, 0);
+        }
         continue;
       }
       if (placed.has(key) || lampSide === s) continue;
