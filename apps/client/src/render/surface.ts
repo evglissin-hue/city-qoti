@@ -25,7 +25,7 @@ const PIN_APRON = 0.2;
 /** Beyond the apron, how far the ground takes to ease back to the hillside, in tiles. */
 const PIN_REACH = 0.6;
 /** Shoreline shaping: half-width of the band around the mask's middle line, and its slope. */
-const SHORE_BAND = 0.14;
+const SHORE_BAND = 0.3;
 const SHORE_SLOPE = 1.6;
 /**
  * Grid cells per tile side where the ground is not flat. The grid's vertices are the tile centers,
@@ -41,6 +41,9 @@ export interface SurfaceReader {
   /** The level a built-on tile's ground is drawn at (its building's pad); the tile's level if absent. */
   padLevel?(x: number, z: number): number;
 }
+
+/** V3X: the shoreline mask's weights, one axis (their product sums to 256). */
+const WET_W = [1, 4, 6, 4, 1] as const;
 
 function clampTile(v: number): number {
   return v < 0 ? 0 : v >= MAP_SIZE ? MAP_SIZE - 1 : v;
@@ -112,7 +115,7 @@ export class SurfaceTiles {
   private pins = new Uint8Array(0);
   /** 1 when a pinned tile lies in the 3 x 3 block around the tile (cached regions only). */
   private nearPins = new Uint8Array(0);
-  /** Share of water tiles in the 3 x 3 block around each tile (the shoreline's smooth mask). */
+  /** Share of water round each tile (5 x 5, binomial weights: the shoreline's smooth mask). */
   private wets = new Float32Array(0);
 
   constructor(readonly reader: SurfaceReader) {}
@@ -179,13 +182,16 @@ export class SurfaceTiles {
   }
 
   private readWet(x: number, z: number): number {
+    // V3X: a 5 x 5 binomial weighting (1 4 6 4 1 each way) rather than a 3 x 3 box, so a river that
+    // steps across the tile grid has a mask that runs smoothly along it, not one that jogs per tile.
     let n = 0;
-    for (let dz = -1; dz <= 1; dz++)
-      for (let dx = -1; dx <= 1; dx++) if (this.reader.water(clampTile(x + dx), clampTile(z + dz))) n++;
-    return n / 9;
+    for (let dz = -2; dz <= 2; dz++)
+      for (let dx = -2; dx <= 2; dx++)
+        if (this.reader.water(clampTile(x + dx), clampTile(z + dz))) n += WET_W[dx + 2]! * WET_W[dz + 2]!;
+    return n / 256;
   }
 
-  /** Share of water in the 3 x 3 block around a tile. */
+  /** Share of water around a tile (the 5 x 5 binomial weighting of `readWet`). */
   wet(x: number, z: number): number {
     const i = this.slot(x, z);
     return i >= 0 ? this.wets[i]! : this.readWet(x, z);
@@ -298,8 +304,10 @@ export function tileSurfaceY(t: SurfaceTiles, tx: number, tz: number, px: number
   let wetCell = false;
   for (let k = 0; k < 4; k++) if (IN[k] && Y[k]! < 0) wetCell = true;
   if (wetCell) {
-    const eu = ease(u);
-    const ev = ease(v);
+    // V3X: plain bilinear between the tile centers. The eased weights it had held the mask flat at
+    // each tile center, so the shoreline bulged once a tile wherever the river crossed the grid.
+    const eu = u;
+    const ev = v;
     const w0 = t.wet(i0, j0);
     const w1 = t.wet(i0 + 1, j0);
     const w2 = t.wet(i0, j0 + 1);

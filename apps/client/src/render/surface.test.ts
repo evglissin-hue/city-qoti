@@ -1,8 +1,23 @@
-import { CHUNKS_PER_SIDE, createValley, defaultSettings, MAP_SIZE, type WorldState } from '@qoti/sim';
+import {
+  CHUNKS_PER_SIDE,
+  createValley,
+  defaultSettings,
+  MAP_SIZE,
+  Terrain,
+  type WorldState,
+} from '@qoti/sim';
 import { describe, expect, it } from 'vitest';
 import { levelY } from './coords';
 import { buildTerrainChunk } from './layers/terrain';
-import { surfaceY, SurfaceTiles, tileSurfaceY, type SurfaceReader } from './surface';
+import {
+  RIM_TILES,
+  rimLevel,
+  surfaceY,
+  SurfaceTiles,
+  tileSurfaceY,
+  WATER_Y,
+  type SurfaceReader,
+} from './surface';
 
 function grid(levels: number[][], water: number[][] = [], pins: number[][] = []): SurfaceReader {
   const at = (rows: number[][], x: number, z: number) => rows[z]?.[x] ?? 0;
@@ -164,5 +179,71 @@ describe('ground surface', () => {
     // 22-quality.md: chunk rebuild 4 ms each. The median keeps a busy test machine's hiccups out.
     expect(median).toBeLessThan(4);
     expect(tris).toBeLessThan(300_000);
+  });
+});
+
+describe('the river and the rim (V3X)', () => {
+  // A 3-wide river stepping one tile across every 3 rows (as the grown valley's does), banks at 1.
+  const water = (x: number, z: number) => {
+    const c = 40 + Math.floor(z / 3);
+    return x >= c && x < c + 3 ? (x === c + 1 ? 2 : 1) : 0;
+  };
+  const river: SurfaceReader = { height: (x, z) => (water(x, z) ? 0 : 1), water, occupant: () => 0 };
+
+  it("keeps a stepping river's shoreline smooth: no jump of more than a quarter tile a quarter-tile row", () => {
+    const t = new SurfaceTiles(river);
+    let last: [number, number] | null = null;
+    for (let z = 60; z < 80; z += 0.25) {
+      let left = -1;
+      let right = -1;
+      for (let x = 50; x < 72; x += 0.25) {
+        if (surfaceY(t, x, z) >= WATER_Y) continue;
+        if (left < 0) left = x;
+        right = x;
+      }
+      expect(left).toBeGreaterThan(0);
+      if (last) {
+        expect(Math.abs(left - last[0]), `left bank at z ${z}`).toBeLessThanOrEqual(0.25);
+        expect(Math.abs(right - last[1]), `right bank at z ${z}`).toBeLessThanOrEqual(0.25);
+      }
+      last = [left, right];
+    }
+  });
+
+  it('draws the rim rising a level a tile from the valley, never above the sim, and a gorge at the river', () => {
+    const flat: SurfaceReader = {
+      height: (x, z) => (Math.min(x, z, MAP_SIZE - 1 - x, MAP_SIZE - 1 - z) < RIM_TILES ? 14 : 4),
+      water: (x) => (x === 96 ? 1 : 0),
+      occupant: () => 0,
+    };
+    // Straight inward from the edge: 5, 6, ... from the valley's 4, capped by the sim's 14.
+    for (let e = 0; e < RIM_TILES; e++) expect(rimLevel(flat, 50, e)).toBe(Math.min(14, 4 + RIM_TILES - e));
+    // Beside the river where it crosses the rim, a level a tile up from the water.
+    expect(rimLevel(flat, 97, 0)).toBe(1);
+    expect(rimLevel(flat, 99, 0)).toBe(3);
+    // Inside the valley, untouched.
+    expect(rimLevel(flat, 50, RIM_TILES)).toBe(4);
+  });
+
+  it("matches the sim's rim: the outer RIM_TILES tiles of a generated valley are mountain, the next are not", () => {
+    const world = createValley('storybook-1', { ...defaultSettings(), mode: 'standard' });
+    const m = world.map;
+    let rim = 0;
+    let inner = 0;
+    for (let i = 0; i < MAP_SIZE; i++) {
+      for (const [x, z] of [
+        [i, RIM_TILES - 1],
+        [RIM_TILES - 1, i],
+      ] as const) {
+        if (m.water[z * MAP_SIZE + x]) continue;
+        if (Math.min(x, z, MAP_SIZE - 1 - x, MAP_SIZE - 1 - z) !== RIM_TILES - 1) continue;
+        if (m.terrain[z * MAP_SIZE + x] === Terrain.mountain) rim++;
+      }
+      const x = Math.max(RIM_TILES, Math.min(MAP_SIZE - 1 - RIM_TILES, i));
+      if (!m.water[RIM_TILES * MAP_SIZE + x] && m.terrain[RIM_TILES * MAP_SIZE + x] === Terrain.mountain)
+        inner++;
+    }
+    expect(rim).toBeGreaterThan(MAP_SIZE);
+    expect(inner).toBe(0);
   });
 });
