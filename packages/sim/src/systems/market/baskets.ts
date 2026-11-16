@@ -28,7 +28,8 @@ import { announceHousehold } from '../residents/records';
 import { countCustomer, countSold } from '../levels/counters';
 import { householdVariety, markSeen, SHELF_GOODS } from './balances';
 import { inStock, marketOpen, outletFree, purchase, tillPrice } from './api';
-import { accrueTreats, doorstepErrand, ROUND_EVERY, tradePass, TREATS_GROUP } from './round';
+import { ROUND_EVERY, TREATS_GROUP } from './round';
+import { accrueTreats, doorstepErrand, tradePass } from './trade';
 
 /** NEED_IDS index of the `goods` need. */
 export const GOODS_NEED = 5;
@@ -462,7 +463,8 @@ export const baskets: System = {
   offset: 0,
   tick(state, ctx) {
     if (state.settings.mode !== 'standard') return;
-    const tod = tickOfDay(state.tick);
+    // The clock (order 10) has already moved state.tick on; the schedule matched the tick before it.
+    const tod = tickOfDay(state.tick - 1);
     if (tod === TICK_ACCRUE) accrueTreats(state);
     if (tod >= TICK_ACCRUE && tod < TICK_HOME) tradePass(state, ctx);
     if (tod === BASKETS_OFFSET_TOD) householdPass(state, ctx);
