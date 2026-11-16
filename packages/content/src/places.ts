@@ -92,4 +92,5 @@ export const PLACES: PlacesTuning = {
   viewPieces: ['lookout-bench'],
   iceKinds: ['play', 'view'],
   festivalStanding: 40,
+  waitPerHour: 2,
 };

@@ -1397,6 +1397,8 @@ export interface PlacesTuning {
   iceKinds: PlaceKind[];
   /** The festival site's standing room on its night, beside the seats of the pieces on it (40). */
   festivalStanding: number;
+  /** A place with room only later in the evening scores this much less for every hour they would wait at home first (2). */
+  waitPerHour: number;
 }
 
 /** R2 (R2.0): the gaps (docs/spec/19-evenings.md, Gaps). Index order is the sim's GAP_KINDS; append-only. */
