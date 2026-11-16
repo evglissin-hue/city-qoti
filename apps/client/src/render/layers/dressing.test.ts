@@ -11,7 +11,7 @@ import {
   placementFree,
 } from '@qoti/art';
 import { content, type DressingRule } from '@qoti/content';
-import { START_HOUR, TICKS_PER_DAY, TICKS_PER_HOUR } from '@qoti/sim';
+import { MAP_SIZE, START_HOUR, TICKS_PER_DAY, TICKS_PER_HOUR } from '@qoti/sim';
 import type { BuildingView, HouseholdView, LotView, ResidentView } from '@qoti/sim';
 import { MeshBasicMaterial, Matrix4, PerspectiveCamera, Scene, type BatchedMesh } from 'three';
 import type { Mirror, MirrorChange } from '../../state/mirror';
@@ -528,5 +528,27 @@ describe('dressingLayer ground, distance and light (V3A)', () => {
     );
     layer.frame?.(0.016);
     expect(layer.placementsOf(1).every((p) => p.rule === 'v3a-eaves')).toBe(true);
+  });
+});
+
+describe('roomyLot (V3A)', () => {
+  const lot = { id: 1, x: 10, z: 10, w: 2, d: 2 } as LotView;
+  const world = (busy: (x: number, z: number) => boolean) =>
+    ({
+      occupant: (x: number, z: number) => (busy(x, z) ? 1 : 0),
+      road: () => 0,
+      water: () => 0,
+      tree: () => 0,
+    }) as unknown as Mirror;
+
+  it('reaches half a tile onto every side whose neighbouring strip is free', () => {
+    const r = roomyLot(world(() => false), new Set(), lot);
+    expect([r.x, r.z, r.w, r.d]).toEqual([9.5, 9.5, 3, 3]);
+  });
+
+  it('keeps to the lot on a side where a building, road or decor stands', () => {
+    // A neighbour along the west side, decor on one tile of the south strip.
+    const r = roomyLot(world((x) => x === 9), new Set([12 * MAP_SIZE + 11]), lot);
+    expect([r.x, r.z, r.w, r.d]).toEqual([10, 9.5, 2.5, 2.5]);
   });
 });
