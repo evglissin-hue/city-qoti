@@ -94,8 +94,11 @@ export const PLACES: PlacesTuning = {
   iceKinds: ['play', 'view'],
   festivalStanding: 40,
   waitPerHour: 2,
-  // R2X: newcomers follow good evenings (the lanes test: a town with nowhere to go stops growing
-  // past its first twenty households, however many jobs it opens).
+  // R2X: newcomers follow good evenings (the lanes test). Past its first twenty households a town
+  // with nowhere to go still fills its open jobs, one home at a time; the homes a growing town keeps
+  // waiting beyond that come as fast as its fair evenings send folk out. growthFullOutPercent 0
+  // switches the term off.
   growthFreeHouseholds: 20,
   growthFullOutPercent: 40,
+  growthBareHomes: 1,
 };

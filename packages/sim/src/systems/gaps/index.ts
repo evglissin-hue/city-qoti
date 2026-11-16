@@ -12,7 +12,8 @@ import { eveningView } from '../../view/evening';
 import { gapsView } from '../../view/gaps';
 import { dailyOffset, dayIndex } from '../economy/time';
 import { gapAchievable } from './achievable';
-import { keepGaps } from './rules';
+import { growthWaitsOnEvenings } from '../growth/evenings';
+import { keepGaps, keepQuietStreets } from './rules';
 import { keepRuns } from './runs';
 
 /** 21:00 and a little: after the residents' 21:00 score (order 50) and the places' evening close (73). */
@@ -34,9 +35,12 @@ export const gaps: System = {
     keepRuns(state);
 
     // Gaps open and close on fair evenings from Village rank; rain and storm hold them as they are.
-    if (tally.weather === 'fair' && rankAtLeast(state, 'village')) {
+    // R2X: a Hamlet whose growth waits on its evenings reads the nowhere-to-go rule too.
+    const village = rankAtLeast(state, 'village');
+    if (tally.weather === 'fair' && (village || growthWaitsOnEvenings(state))) {
       const pass = { state, ctx, changed: false };
-      keepGaps(pass, (kind) => gapAchievable(state, kind));
+      if (village) keepGaps(pass, (kind) => gapAchievable(state, kind));
+      else keepQuietStreets(pass, (kind) => gapAchievable(state, kind));
       if (pass.changed) ctx.events.push({ e: 'gaps.updated', g: gapsView(state) });
     }
 

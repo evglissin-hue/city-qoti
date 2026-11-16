@@ -288,6 +288,15 @@ describe('growth on its way or held', () => {
   const quiet = (kind: DemandKind, value: number, code: DemandReason, why: string) =>
     QUIET_BARS().map((b) => (b.kind === kind ? bar(kind, value, false, [code], [why]) : b));
 
+  it('tells the Ledger when homes wait on good evenings (R2X), even with the bar at nothing', () => {
+    const why =
+      'Newcomers ask what there is to do of an evening, and nobody has an answer. Places to go would bring them.';
+    const m = world({ bars: quiet('homes', 0, { code: 'quietEvenings', value: 0 }, why) });
+    const a = ledger(m).find((x) => x.key === 'growth-homes-quietEvenings')!;
+    expect(a.text.startsWith('Homes: newcomers')).toBe(true);
+    expect(a.tone).toBe('quiet');
+  });
+
   it('says when a free lot will start, and what holds one back', () => {
     const waiting = world({
       bars: quiet(

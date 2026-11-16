@@ -333,6 +333,16 @@ function nowhereToGo(pass: GapPass): void {
   sweep(state, d.kind, held);
 }
 
+/**
+ * R2X: a Hamlet whose growth waits on its evenings reads the nowhere-to-go rule alone, so the town is
+ * told in the feed what would bring newcomers (the caller has checked the evening and the weather).
+ */
+export function keepQuietStreets(pass: GapPass, achievable: (kind: GapKind) => boolean): void {
+  pass.canOpen = achievable('nowhereToGo');
+  nowhereToGo(pass);
+  pass.canOpen = true;
+}
+
 /** Reads the three R2 rules once. The caller has checked rank, the evening and the weather. */
 export function keepGaps(pass: GapPass, achievable: (kind: GapKind) => boolean): void {
   pass.canOpen = achievable('nothingToSell');

@@ -670,6 +670,20 @@ function zoneAlerts(m: Mirror, which: 'wanted' | 'growth'): Alert[] {
       }
       out.push({ key: `zone-${bar.kind}-${s.code}`, lens: 'ledger', tone: 'warn', icon, text, action });
     } else {
+      // R2X: newcomers follow good evenings: the Ledger hears when the Hearth's places hold homes back.
+      const quiet = bar.reasons.findIndex((r) => r.code === 'quietEvenings');
+      if (quiet >= 0) {
+        out.push({
+          key: `growth-${bar.kind}-quietEvenings`,
+          lens: 'ledger',
+          tone: 'quiet',
+          icon: 'people',
+          text: fits(
+            `${zone}: ${lower(bar.why[quiet] ?? '')}`,
+            `${zone}: newcomers wait for somewhere to go of an evening.`,
+          ),
+        });
+      }
       if (bar.lit || !(bar.value > 0)) continue;
       const s = standing(bar, GROWTH_CODES);
       if (!s) continue;

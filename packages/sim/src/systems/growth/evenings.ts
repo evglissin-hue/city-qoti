@@ -39,3 +39,8 @@ export function homesPace(state: WorldState): number {
   if (share === null) return 100;
   return Math.min(100, Math.floor((share * 100) / full));
 }
+
+/** R2X: true when the town's growth waits on its evenings (past the free households, under full pace). */
+export function growthWaitsOnEvenings(state: WorldState): boolean {
+  return homesPace(state) < 100;
+}

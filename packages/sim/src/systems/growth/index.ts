@@ -252,6 +252,16 @@ function census(state: WorldState, known?: Defs, stock?: number[]): Census {
 }
 
 /**
+ * R2X: the homes the jobs would ask for tonight that quiet evenings hold back (0 when none), for the
+ * audit's check that a town whose growth waits on evenings is told so.
+ */
+export function homesHeldNow(state: WorldState): number {
+  if (homesPace(state) >= 100) return 0;
+  const stock = townStock(state);
+  return homesWanted(state, stock, census(state, undefined, stock)).held;
+}
+
+/**
  * Homes wanted beyond those waiting: newcomers would come, and there is work for them. R2X: past the
  * free households, only as fast as recent fair evenings send folk out (./evenings); `held` is how many
  * the jobs alone would have asked for that the evenings hold back.
@@ -265,8 +275,11 @@ function homesWanted(
   if (open <= 0 || attractiveness(state, [], stock, open) < HOMES_PULL) return { homes: 0, held: 0 };
   const waiting = seen.homesWaiting;
   const target = Math.min(HOMES_WAITING + Math.floor(state.residents.length / 30), Math.ceil(open / 2));
+  // R2X: the jobs always get their bare homes (growthBareHomes waiting at once); past that, homes
+  // come as fast as the evenings send folk out.
   const pace = homesPace(state);
-  const paced = pace >= 100 ? target : Math.floor((target * pace) / 100);
+  const bare = Math.min(target, content.places.growthBareHomes ?? target);
+  const paced = pace >= 100 ? target : bare + Math.floor(((target - bare) * pace) / 100);
   const homes = Math.max(0, paced - waiting);
   return { homes, held: Math.max(0, target - waiting) - homes };
 }

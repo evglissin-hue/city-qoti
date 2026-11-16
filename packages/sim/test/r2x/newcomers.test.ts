@@ -2,9 +2,10 @@
 // only as fast as recent fair evenings send folk out, and the Homes bar says so (quietEvenings).
 import { content } from '@qoti/content';
 import { describe, expect, it } from 'vitest';
-import { TICKS_PER_HOUR } from '../../src/constants';
+import { TICKS_PER_DAY, TICKS_PER_HOUR } from '../../src/constants';
 import type { EveningTally, WorldState } from '../../src/contracts';
-import { growthDemand, refreshDemand } from '../../src/systems/growth';
+import { growthDemand, homesHeldNow, refreshDemand } from '../../src/systems/growth';
+import { HealthWatch } from '../../src/view/health';
 import { homesPace, recentOutShare } from '../../src/systems/growth/evenings';
 import { tickOfDay } from '../../src/systems/economy/time';
 import { demandView } from '../../src/view/demand';
@@ -86,5 +87,39 @@ describe('homes come as fast as the evenings send folk out', () => {
     const homes = demandView(s).bars[0]!;
     expect(homes.reasons.map((r) => r.code)).toContain('quietEvenings');
     expect(homes.why.join(' ')).toContain('to do of an evening');
+  });
+});
+
+describe('a town whose growth waits on its evenings is told so', () => {
+  it('flags growth-waits-unseen only when neither the Homes reason nor a gap says so', () => {
+    const s = villageFixture().state;
+    s.evenings.tonight = tally(-1, 0, 0);
+    s.evenings.history = [tally(1, 0, 40)];
+    households(s, P.growthFreeHouseholds!);
+    expect(homesHeldNow(s)).toBeGreaterThan(0);
+    const watch = new HealthWatch();
+    const look = () => watch.check(s).filter((i) => i.kind === 'growth-waits-unseen');
+    // The bars say so: quiet.
+    refreshDemand(s, null);
+    expect(look()).toEqual([]);
+    s.tick += TICKS_PER_DAY;
+    expect(look()).toEqual([]);
+    // Nothing says so for a day: flagged.
+    s.demand.reasons[0] = [];
+    s.tick += TICKS_PER_HOUR;
+    expect(look()).toEqual([]);
+    s.tick += TICKS_PER_DAY;
+    expect(look().map((i) => i.kind)).toEqual(['growth-waits-unseen']);
+    // A nowhere-to-go gap says so: quiet again.
+    s.gaps.open.push({
+      id: s.nextId++,
+      kind: 'nowhereToGo',
+      subject: 'street:1',
+      tile: 0,
+      openedDay: 0,
+      n: 6,
+    });
+    s.tick += TICKS_PER_HOUR;
+    expect(look()).toEqual([]);
   });
 });

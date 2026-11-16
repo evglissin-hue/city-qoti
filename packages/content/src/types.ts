@@ -1427,8 +1427,13 @@ export interface PlacesTuning {
    * at the jobs' pace).
    */
   growthFreeHouseholds?: number;
-  /** R2X: the share of grown-ups out on recent fair evenings, percent, at which homes come at the jobs' full pace. */
+  /**
+   * R2X: the share of grown-ups out on recent fair evenings, percent, at which homes come at the jobs'
+   * full pace. 0 switches the evenings term off.
+   */
   growthFullOutPercent?: number;
+  /** R2X: homes the open jobs always get waiting at once, however quiet the evenings (the jobs keep filling). */
+  growthBareHomes?: number;
 }
 
 /** R2 (R2.0): the gaps (docs/spec/19-evenings.md, Gaps). Index order is the sim's GAP_KINDS; append-only. */

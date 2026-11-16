@@ -38,6 +38,7 @@ import { carrierCovers, passClosed } from '../systems/carrier/api';
 import { dayIndex, hourOf, isBuildTime } from '../systems/economy/time';
 import { currentPlan, isFestivalDay } from '../systems/festivals/api';
 import { gapAchievable } from '../systems/gaps/achievable';
+import { homesHeldNow } from '../systems/growth';
 import { achievable, placeableNow } from '../systems/hearth/wishes/achievable';
 import { sellsTreats, treatsOnShelf } from '../systems/market/round';
 import { placeIndex } from '../systems/places/index';
@@ -58,6 +59,11 @@ export type HealthKind =
    * the site is finished.
    */
   | 'building-cut-off'
+  /**
+   * R2X: a town whose growth waits on its evenings (homes held back past the free households) a whole
+   * day with neither the Homes bar's reason (quietEvenings) nor a nowhere-to-go gap to say so.
+   */
+  | 'growth-waits-unseen'
   /** A site waits on a good with none free in stock and nothing to bring it (no maker, no carrier). */
   | 'site-unsupplied'
   /** Builders idle at their workplace in work hours while a site has work they could do. */
@@ -198,6 +204,9 @@ export class HealthWatch {
   /** R2X: building id → tick it was first seen built with no walk to its door; and the hour of the last look. */
   private readonly cutOffSince = new Map<number, number>();
   private cutOffHour = -1;
+  /** R2X: the tick growth was first seen waiting on evenings with nothing saying so, or -1. */
+  private unseenSince = -1;
+  private unseenHour = -1;
   /** Site id → [workDone, tick it was first seen workable with builders free]. */
   private readonly waiting = new Map<number, [number, number]>();
   private readonly stuckSince = new Map<number, number>();
@@ -262,6 +271,7 @@ export class HealthWatch {
     }
     for (const id of [...this.progress.keys()]) if (!seen.has(id)) this.progress.delete(id);
     this.checkCutOff(state, out);
+    this.checkGrowthWaits(state, out);
 
     // Builders idle beside work they could do: a reachable site with work allowed and room in its
     // crew that has not moved for a while, though builders stood free at every look.
@@ -486,6 +496,28 @@ export class HealthWatch {
       });
     }
     for (const k of [...this.ruleSince.keys()]) if (!live.has(k)) this.ruleSince.delete(k);
+  }
+
+  /** growth-waits-unseen: homes held back by quiet evenings a whole day, with no reason shown and no gap open (looked at hourly). */
+  private checkGrowthWaits(state: WorldState, out: HealthIssue[]): void {
+    const now = state.tick;
+    const hour = Math.floor(now / TICKS_PER_HOUR);
+    if (hour === this.unseenHour) return;
+    this.unseenHour = hour;
+    const held = homesHeldNow(state) > 0;
+    const shown = (state.demand.reasons[0] ?? []).some((r) => r.code === 'quietEvenings');
+    const gap = state.gaps.open.some((g) => g.kind === 'nowhereToGo');
+    if (!held || shown || gap) {
+      this.unseenSince = -1;
+      return;
+    }
+    if (this.unseenSince < 0) this.unseenSince = now;
+    if (now - this.unseenSince >= DAY_TICKS)
+      out.push({
+        kind: 'growth-waits-unseen',
+        id: 0,
+        text: 'homes wait on good evenings, and neither the Homes bar nor a gap says so',
+      });
   }
 
   /** building-cut-off: a built building whose door the town cannot walk to for a whole day (looked at hourly). */
