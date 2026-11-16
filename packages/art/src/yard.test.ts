@@ -123,6 +123,16 @@ describe('yard and goods pieces (V3A)', () => {
       }
   });
 
+  it('keeps a goods table a trestle: under half a tile wide and 0.14 deep, to fit a shop front', () => {
+    for (const good of DISPLAY_GOODS)
+      for (let seed = 0; seed < 4; seed++)
+        for (const lod of ['high', 'low'] as const) {
+          const b = bounds(kitById.get('goods-display')!.build({ seed, params: { good }, lod }));
+          expect(b[3]! - b[0]!, `${good} w`).toBeLessThanOrEqual(0.5);
+          expect(b[5]! - b[2]!, `${good} d`).toBeLessThanOrEqual(0.14);
+        }
+  });
+
   it('lights the lamps: a flame anchor inside the bounding box', () => {
     for (const id of ['yard-lamp', 'yard-sill-lamp']) {
       const kit = kitById.get(id)!;
