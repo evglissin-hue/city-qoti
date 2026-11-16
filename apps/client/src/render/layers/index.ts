@@ -24,6 +24,7 @@ import { presenceLayer } from './presence';
 import { roadsLayer } from './roads';
 import { signsLayer } from './signs';
 import { skyLayer } from './sky';
+import { streetLayer } from './street';
 import { telegraphLayer } from './telegraph';
 import { terrainLayer } from './terrain';
 import { treesLayer } from './trees';
@@ -57,6 +58,7 @@ export const layerFactories: readonly LayerFactory[] = [
   roadsLayer,
   signsLayer,
   skyLayer,
+  streetLayer,
   telegraphLayer,
   terrainLayer,
   treesLayer,
