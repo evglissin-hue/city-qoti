@@ -29,6 +29,8 @@ import { emitBuilding } from '../economy/emit';
 import { isBuildTime, tickOfDay } from '../economy/time';
 import { doorTile } from '../movement/api';
 import { pathBetween } from '../movement/paths';
+import { eveningClosed, eveningTile } from '../traffic/evening';
+import { syncEveningStatus } from './evening';
 import { adoptStrays, staffed, storehouseReach, within, type Reach } from './range';
 import {
   defOf,
@@ -89,6 +91,8 @@ export const logistics: System = {
     if (state.tick % PORTER_MATCH_EVERY === MATCH_OFFSET) keepCarts(state);
     if (state.carts.length > 0) tickIdleCarts(state);
     if (workTime && state.tick % PORTER_MATCH_EVERY === MATCH_OFFSET) matchPorters(state);
+    // R2 (R2B): the evening bits follow the street's hours and the carts' waits within a match period.
+    if (state.tick % PORTER_MATCH_EVERY === MATCH_OFFSET) syncEveningStatus(state, ctx);
     if (tickOfDay(state.tick) === 0) decayFlows(state);
   },
 };
@@ -108,6 +112,7 @@ export function carryOf(state: WorldState, good: number): number {
 
 function spotsOf(state: WorldState): Spot[] {
   const out: Spot[] = [];
+  const closed = eveningClosed(state);
   for (const b of state.buildings) {
     const def = defOf(b);
     if (!b.rt || !def) continue;
@@ -116,6 +121,9 @@ function spotsOf(state: WorldState): Spot[] {
     // walked to; matching it would send porters on the same failed trip every round while other
     // sites wait (a Village autoplay stalled on two such huts).
     if (state.map.water[door]) continue;
+    // R2 (R2B): from 17:00 to 21:00 no job runs to or from a door on an evening street (a barrow
+    // cannot reach it, and carts keep off it).
+    if (closed && eveningTile(state, door)) continue;
     out.push({ b, def, rt: b.rt, door });
   }
   return out;
