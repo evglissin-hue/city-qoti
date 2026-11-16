@@ -28,7 +28,14 @@ import {
 import { SURFACE } from '../surface';
 import { fitRow, rowOf } from './rows';
 import { barrel, bench, flowerPot, wallLantern, weathervane } from './props';
-import { gableEnds, roofPart, type RoofMaterial, type RoofShape, type RoofSpec } from './roofs';
+import {
+  gableEnds,
+  roofPart,
+  VERGE_OVERHANG,
+  type RoofMaterial,
+  type RoofShape,
+  type RoofSpec,
+} from './roofs';
 import { customOf, FLOWERS, pickWeighted, roofColor, streams, type Custom } from './style';
 import type { Kit, KitAnchors, KitBuildOptions, KitPart } from './types';
 
@@ -64,6 +71,11 @@ export interface ShellSpec {
    * taller house steps up), the plinth runs through, and the roof stops flush with no verge.
    */
   party?: PartySides;
+  /**
+   * P2-A: the lot this house stands on, [width, depth] in tiles (kit-local, from 0, 0). The roof's
+   * overhang and verges are clamped to it, so an unjoined house never roofs over its neighbor.
+   */
+  lot?: [number, number];
 }
 
 /** V1B: a house's party walls: the neighbor's eave height on each joined side. */
@@ -163,17 +175,21 @@ export function shell(s: ShapeBuilder, sp: ShellSpec): Shell {
   const shape: RoofShape = endJoined && (r.shape === 'hip' || r.shape === 'halfHip') ? 'gable' : r.shape;
   const ov = r.overhang + (r.material === 'thatch' ? 0.06 : 0);
   // Gable ends overhang only a little (verges); eaves get the full overhang.
-  const verge = shape === 'hip' ? ov : Math.min(ov, 0.09);
+  const verge = shape === 'hip' ? ov : Math.min(ov, VERGE_OVERHANG);
   const ox = r.ridgeAlongX ? verge : ov;
   const oz = r.ridgeAlongX ? ov : verge;
   const ridge = top + r.rise + (r.material === 'thatch' ? 0.08 : 0);
+  // P2-A: the eaves and verges stop at the lot's edge (never past it, on any side).
+  // The ridge cap and verge boards reach a hair past the outline, so the clamp keeps them off the edge.
+  const PAD = 0.04;
+  const [lotW, lotD] = sp.lot ? [sp.lot[0] - PAD, sp.lot[1] - PAD] : [Infinity, Infinity];
   const roof: RoofSpec = {
     shape,
     material: r.material,
-    x0: pl ? outer[0] : outer[0] - ox,
-    z0: outer[1] - oz,
-    x1: pr ? outer[2] : outer[2] + ox,
-    z1: outer[3] + oz,
+    x0: pl ? outer[0] : Math.max(sp.lot ? PAD : -Infinity, outer[0] - ox),
+    z0: Math.max(sp.lot ? PAD : -Infinity, outer[1] - oz),
+    x1: pr ? outer[2] : Math.min(lotW, outer[2] + ox),
+    z1: Math.min(lotD, outer[3] + oz),
     y0: top - 0.05 - (r.material === 'thatch' ? 0.04 : 0),
     y1: ridge,
     color: r.color,
@@ -393,6 +409,7 @@ export function cottageOf(opts: KitBuildOptions | undefined): Built {
   const row = rowOf(opts);
   const [x0, z0, x1, z1] = fitRow(row, w, d, 0.22, w - 0.22, 0.3, d - 0.26);
   const sh = shell(s, {
+    lot: [w, d],
     x0,
     z0,
     x1,
@@ -528,6 +545,7 @@ function houseOf(opts: KitBuildOptions | undefined): Built {
   const [x0, z0, x1, z1] = fitRow(row, w, d, 0.2, w - 0.2, 0.25, d - 0.3);
   const jetty = 0.08;
   const sh = shell(s, {
+    lot: [w, d],
     x0,
     z0,
     x1,

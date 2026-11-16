@@ -58,7 +58,8 @@ describe('the Workshops bar', () => {
     zoning.tick(s, zctx);
     expect(s.lots.some((l) => l.zone === content.zoneById.get('crafts')!.layerValue)).toBe(true);
     expect(bar(s, 'workshops').lit).toBe(false);
-    expect(bar(s, 'workshops').reasons.at(-1)).toEqual({ code: 'lotWaiting' });
+    // P2: and it says when: at the night's pass (the midday one is switched off, GROWTH_MIDDAY).
+    expect(bar(s, 'workshops').reasons.at(-1)).toEqual({ code: 'lotWaiting', value: 1 });
     expect(zctx.events.some((x) => x.e === 'demand.updated')).toBe(true);
   });
 

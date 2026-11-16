@@ -62,7 +62,13 @@ export type HealthKind =
   /** A waiting story step's goal cannot be met by anything the town can do, for a whole day. */
   | 'story-dead-end'
   /** A festival plan that was current on the festival day and never started. */
-  | 'festival-no-show';
+  | 'festival-no-show'
+  /**
+   * P2 (the R1 playtest): a bar said "a lot is free and waiting" three days running and no site of
+   * its kind started: the pass keeps promising a start it cannot make, and gives no reason a player
+   * could act on (the class behind "nothing was building and I could not see why").
+   */
+  | 'growth-wait-broken';
 
 export interface HealthIssue {
   kind: HealthKind;
@@ -146,6 +152,8 @@ export class HealthWatch {
   private readonly siteWaitSince = new Map<string, number>();
   /** Demand bar → tick it was first seen lit with no empty lot offered. */
   private readonly demandSince = new Map<number, number>();
+  /** Demand bar → tick it was first seen promising a start (lotWaiting) with no site of its kind going up. */
+  private readonly waitSince = new Map<number, number>();
   /** `building:rule` → tick a specialized building's site rule was first seen broken. */
   private readonly ruleSince = new Map<string, number>();
   /** Guide step → tick first seen with an unachievable goal; likewise `arc:step` for stories. */
@@ -352,6 +360,37 @@ export class HealthWatch {
     for (const k of [...this.demandSince.keys()]) if (!live.has(k)) this.demandSince.delete(k);
   }
 
+  /**
+   * growth-wait-broken: a wanted bar whose last reason is lotWaiting (a start at the next pass) for
+   * three days running, with no grown site of its kind going up in that time.
+   */
+  private checkGrowthWait(state: WorldState, out: HealthIssue[]): void {
+    const now = state.tick;
+    const live = new Set<number>();
+    DEMAND_KINDS.forEach((kind, k) => {
+      const reasons = state.demand.reasons[k] ?? [];
+      const last = reasons[reasons.length - 1];
+      if ((state.demand.bars[k] ?? 0) <= 0 || state.demand.lit[k] || last?.code !== 'lotWaiting') return;
+      const values = content.zones.filter((z) => ZONES_OF_BAR[kind].includes(z.id)).map((z) => z.layerValue);
+      // A site of the kind going up is the promise kept.
+      for (const b of state.buildings) {
+        if (!b.lot || b.stage !== 'construction') continue;
+        const lot = state.lots.find((l) => l.id === b.lot);
+        if (lot && values.includes(lot.zone)) return;
+      }
+      live.add(k);
+      const since = this.waitSince.get(k) ?? now;
+      this.waitSince.set(k, since);
+      if (now - since >= DEMAND_TICKS)
+        out.push({
+          kind: 'growth-wait-broken',
+          id: k,
+          text: `the ${kind} bar has said a lot is free and waiting for three days and nothing has started on one`,
+        });
+    });
+    for (const k of [...this.waitSince.keys()]) if (!live.has(k)) this.waitSince.delete(k);
+  }
+
   /** site-rule-broken: a built specialized building whose site no longer meets a rule that can change. */
   private checkSiteRules(state: WorldState, out: HealthIssue[]): void {
     const now = state.tick;
@@ -400,6 +439,7 @@ export class HealthWatch {
 
     this.checkBusinesses(state, out);
     this.checkDemand(state, out);
+    this.checkGrowthWait(state, out);
     this.checkSiteRules(state, out);
 
     // Voiced wishes the town could not meet by building anything.

@@ -37,9 +37,11 @@ header.topbar .topbar-town-stats > * {
 }
 
 header.topbar .topbar-town-stats > .goal-pill {
-  flex: 0 1 auto;
-  max-width: 14rem;
-  min-width: 4rem;
+  /* The goal's words are never cut: the pill is at least as wide as they are, and the Charter's
+     name on line one is what gives way. */
+  flex: 0 0 auto;
+  min-width: min-content;
+  max-width: 17rem;
 }
 
 /* The strip takes whatever room is left and keeps itself centered in it. */
@@ -54,23 +56,56 @@ header.topbar .topbar-middle {
 .lens-strip {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   min-width: 0;
+}
+
+/* The Ledger's strip has a slim row of its own under the bar's main row, full width: Folk, then
+   what is in store, then the four demand bars with their words at the right. */
+header.topbar.strip-row {
+  flex-wrap: wrap;
+  row-gap: 3px;
+}
+
+header.topbar.strip-row .topbar-clock {
+  margin-left: auto;
+}
+
+header.topbar > .topbar-middle.strip-row-slot {
+  flex: 1 0 100%;
+  order: 9;
+  justify-content: stretch;
+  padding-top: 4px;
+  border-top: 1.5px dashed var(--line);
+}
+
+.ledger-strip {
+  flex: 1 1 auto;
+  gap: 4px;
+}
+
+.ledger-strip .balance-chips {
+  flex: 0 1 auto;
+}
+
+.ledger-strip .demand-bars {
+  margin-left: auto;
+  padding-left: 10px;
 }
 
 /* --- Demand bars --------------------------------------------------------------------------- */
 
 .demand-bars {
   display: flex;
-  gap: 3px;
+  gap: 2px;
   align-items: flex-end;
 }
 
 button.demand-bar {
-  display: grid;
-  justify-items: center;
-  gap: 1px;
-  padding: 1px 3px;
+  display: inline-flex;
+  align-items: flex-end;
+  gap: 4px;
+  padding: 1px 4px;
   border: 0;
   border-radius: 8px;
   background: transparent;
@@ -87,8 +122,8 @@ button.demand-bar:hover {
   position: relative;
   display: flex;
   align-items: flex-end;
-  width: 11px;
-  height: 22px;
+  width: 9px;
+  height: 24px;
   border-radius: 4px;
   background: rgba(90, 66, 49, 0.1);
   border: 1px solid rgba(90, 66, 49, 0.22);
@@ -127,12 +162,23 @@ button.demand-bar:hover {
   border: 1px solid var(--paper-light);
 }
 
-.demand-letter {
-  font-size: 0.66rem;
-  font-weight: 700;
+/* The word (Homes, Shops, ...) sits beside its well; the letter stands in only when room runs out. */
+.demand-word,
+.demand-letter,
+.chip-label {
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
   line-height: 1;
+  color: var(--ink-soft);
 }
 
+.demand-letter {
+  display: none;
+  font-weight: 700;
+}
+
+.demand-bar.lit .demand-word,
 .demand-bar.lit .demand-letter {
   color: var(--ink);
 }
@@ -141,18 +187,19 @@ button.demand-bar:hover {
 
 .balance-chips {
   display: flex;
-  gap: 2px;
+  gap: 6px;
   align-items: center;
 }
 
 button.balance-chip,
+button.folk-chip,
 button.winter-reserve {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  padding: 2px 5px;
+  gap: 5px;
+  padding: 2px 6px;
   border: 0;
-  border-radius: 999px;
+  border-radius: 10px;
   background: transparent;
   box-shadow: none;
   cursor: pointer;
@@ -160,13 +207,27 @@ button.winter-reserve {
 }
 
 button.balance-chip:hover,
+button.folk-chip:hover,
 button.winter-reserve:hover {
   background: var(--paper-light);
 }
 
-.balance-chip .good-icon {
-  width: 1.25em;
-  height: 1.25em;
+.balance-chip .good-icon,
+.folk-chip .glyph {
+  width: 1.45em;
+  height: 1.45em;
+  flex: none;
+}
+
+.folk-chip .glyph {
+  color: var(--ink-soft);
+}
+
+.folk-chip {
+  margin-right: 6px;
+  padding-right: 10px;
+  border-right: 1.5px dashed var(--line);
+  border-radius: 10px 0 0 10px;
 }
 
 .cover-bar {
@@ -205,32 +266,67 @@ button.winter-reserve:hover {
   opacity: 1;
 }
 
-.cover-days {
-  min-width: 1.4em;
-  font-size: 0.92rem;
-  font-variant-numeric: tabular-nums;
-  text-align: right;
-}
-
-.balance-chip.low .cover-days {
-  color: #a8542e;
-}
-
 .chip-stack {
   display: inline-flex;
   flex-direction: column;
-  gap: 3px;
+  gap: 2px;
+  min-width: 0;
+}
+
+.chip-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.chip-label {
+  white-space: nowrap;
+}
+
+/* Units in store lead; days of cover (or open jobs) follow, small and muted. */
+.chip-figures {
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+  white-space: nowrap;
+}
+
+.chip-amount {
+  font-size: 0.95rem;
+  font-weight: 700;
+  line-height: 1.05;
+  font-variant-numeric: tabular-nums;
+}
+
+.chip-second {
+  font-size: 0.72rem;
+  font-weight: 600;
+  line-height: 1;
+  color: var(--ink-soft);
+  font-variant-numeric: tabular-nums;
+}
+
+.chip-amount.warm,
+.chip-second.warm {
+  color: #a8542e;
+}
+
+.balance-chip .cover-bar {
+  width: auto;
+  min-width: 26px;
+  height: 5px;
 }
 
 .flavor-pips {
   display: flex;
   gap: 2px;
-  height: 4px;
+  height: 5px;
 }
 
 .flavor-pips i {
-  width: 4px;
-  height: 4px;
+  width: 5px;
+  height: 5px;
   border-radius: 50%;
   border: 1px solid var(--ink-soft);
   box-sizing: border-box;
@@ -396,31 +492,6 @@ button.menu-item:hover {
   }
 }
 
-@media (max-width: 1400px) {
-  header.topbar .topbar-town-stats > .goal-pill {
-    max-width: 8rem;
-  }
-}
-
-/* The strip shortens its bars as its room runs out; the pips sit under the bars and cost no width. */
-@container (max-width: 620px) {
-  .cover-bar {
-    width: 20px;
-  }
-
-  button.balance-chip,
-  button.winter-reserve {
-    padding: 2px 3px;
-    gap: 3px;
-  }
-}
-
-@container (max-width: 500px) {
-  .demand-letter {
-    display: none;
-  }
-}
-
 @media (max-width: 1100px) {
   header.topbar .goal-pill {
     display: none;
@@ -429,6 +500,35 @@ button.menu-item:hover {
 
 :root.reduced-motion .demand-well i {
   transition: none;
+}
+
+/* The Ledger's second row makes the bar taller; whatever hangs under it moves down by the row. */
+.game-ui:has(> .topbar.strip-row) {
+  --strip-row: calc(54px * var(--ui-scale));
+}
+
+.game-ui:has(> .topbar.strip-row) .side {
+  top: calc(35px + 35px * var(--ui-scale) + var(--strip-row));
+}
+
+.game-ui:has(> .topbar.strip-row) .book-slot {
+  top: calc(10px + 58px * var(--ui-scale) + var(--strip-row));
+  max-height: calc(100% - 92px - 96px * var(--ui-scale) - var(--strip-row));
+}
+
+.game-ui:has(> .topbar.strip-row) .ground-note {
+  top: calc(16px + 58px * var(--ui-scale) + var(--strip-row));
+}
+
+/* Cards (letters, the almanac, results) sit under the taller bar, so the strip stays readable while
+   a card asks its questions (the season card asks how much to hold for winter). */
+.game-ui:has(> .topbar.strip-row) .letter-backdrop {
+  padding-top: calc(14px + 58px * var(--ui-scale) + var(--strip-row));
+  padding-bottom: 10px;
+}
+
+.game-ui:has(> .topbar.strip-row) .letter-backdrop > * {
+  max-height: calc(100vh - 44px - 58px * var(--ui-scale) - var(--strip-row));
 }
 
 @media (max-width: 1400px) {

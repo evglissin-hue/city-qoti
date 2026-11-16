@@ -16,6 +16,7 @@ import { findById } from '../state/entities';
 import { methodOf } from '../state/zones';
 import { seasonAt } from '../state/seasons';
 import { townReachesDoor } from '../state/reach';
+import { passClosed } from '../systems/carrier/api';
 import { isBuildTime } from '../systems/economy/time';
 import { ARRIVAL_THRESHOLD } from '../systems/residents/lifecycle';
 import { larderWelcomes } from '../systems/seasons/api';
@@ -91,12 +92,18 @@ function statusLines(state: WorldState, b: Building, def: BuildingDef | undefine
       );
     }
     if (has(BuildingStatus.waitingMaterials)) {
-      // R1B: the carrier buys Materials an open site waits for, unless its rule says never.
-      const carrier =
+      // R1B: the carrier buys Materials an open site waits for, unless its rule says never. P2: and
+      // only with coins in hand and an open pass (carrier/index.ts, settle), so the line says which.
+      const buys =
         state.carrier.families[2]?.rule !== 'never' &&
-        rt.construction.needs.some((n, g) => n > 0 && content.goods[g]?.family === 'materials')
-          ? '; the carrier brings some at ten'
-          : '';
+        rt.construction.needs.some((n, g) => n > 0 && content.goods[g]?.family === 'materials');
+      const carrier = !buys
+        ? ''
+        : passClosed(state)
+          ? '; the carrier cannot come while snow closes the pass'
+          : state.economy.treasury <= 0
+            ? '; the carrier buys none while the treasury is empty'
+            : '; the carrier brings some at ten';
       out.push(due ? `Waiting for ${due}${carrier}` : 'Waiting for materials');
       out.push(...materialAdvice(state, b));
     } else if (due) out.push(`Still to come: ${due}`);

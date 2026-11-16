@@ -512,6 +512,25 @@ export function siteMeets(cache: SiteCache, lot: Lot, t: TradeDef, self: EntityI
   return true;
 }
 
+/**
+ * P2: the first of a trade's site wants the lot does not meet, in siteMeets' order, or null when it
+ * meets them all: 'fertility', 'pollinators', 'reach:<def id>', 'households', or 'fields' (a farm's
+ * open Farmland behind its lot). For the demand bars' words when free lots suit no wanted trade.
+ */
+export function unmetWant(cache: SiteCache, lot: Lot, t: TradeDef, self: EntityId = 0): string | null {
+  const state = cache.state;
+  const w = t.wants;
+  if (w.fertility !== undefined && !fertileEnough(state, lot, w.fertility)) return 'fertility';
+  if (w.pollinators !== undefined) {
+    const [x, z] = lotMiddle(lot);
+    if (scoreAt(state, POLLINATOR, chunkOfTile(x, z)) < w.pollinators) return 'pollinators';
+  }
+  if (w.reach !== undefined && !reachWithRoom(cache, w.reach, lot.frontage, self)) return `reach:${w.reach}`;
+  if (w.households !== undefined && !cache.householdsAtLeast(lot, w.households)) return 'households';
+  if (t.method?.kind === 'farm' && fieldGround(state, lot, self) < FIELD_TILES_PER_WORKER) return 'fields';
+  return null;
+}
+
 /** siteMeets with a cache of its own (one lot, one trade). */
 export function siteFits(state: WorldState, lot: Lot, t: TradeDef, self: EntityId = 0): boolean {
   return siteMeets(new SiteCache(state), lot, t, self);

@@ -7,8 +7,10 @@
 // 'out:<good>' and 'in:<good>' levels like the I1 kits; 'season' (0 spring to 3 winter, or a name)
 // dresses the fruit trees.
 import type { ShapeBuilder } from '../geometry';
+import { brushDabs, dabTint, type DabBlob } from '../dabs';
 import { mixHex, vary, type V3 } from '../geometry';
 import { palette } from '../palette';
+import { SURFACE } from '../surface';
 import { beam, cylX, cylZ, panel } from '../shapes';
 import { shell, signBoard, windowRow, windowStyle, type Built } from './buildings';
 import { postAndRail, trough } from './details';
@@ -36,6 +38,7 @@ import {
   weathervane,
 } from './props';
 import { roofPart, type RoofMaterial } from './roofs';
+import { CORE_SHADE, toward } from './trees';
 import { customOf, level, roofColor, streams } from './style';
 import type { Kit, KitAnchors, KitBuildOptions } from './types';
 
@@ -112,6 +115,12 @@ export function seasonOf(opts: KitBuildOptions | undefined): number {
 /**
  * An orchard apple tree for a season: blossom in spring, green with small fruit in summer, red
  * apples among warming leaves in autumn, bare branches in winter. About 0.75 tall at k 1.
+ *
+ * P2-E2: the crown is painted like the valley's fruit trees (decor.ts, trees.ts): brush dabs over a
+ * deep core, in the same greens by season (the oak and birch swatches), with blossom as small soft
+ * dabs and fruit as dots. `light` (a packed orchard's back rows) spends fewer dabs (`dabs` sets the
+ * count outright). Far off the
+ * crown is one painted puff in the dabs' mean tint.
  */
 export function orchardTree(
   s: ShapeBuilder,
@@ -120,13 +129,16 @@ export function orchardTree(
   k: number,
   season: number,
   rnd: () => number,
+  light = false,
+  dabs = light ? 34 : 68,
 ): void {
-  // V1B: one path for both levels (the far one drops the boughs, fruit and side crowns by itself).
   const trunk = vary(palette.bark, rnd, 0.6);
   // The far level is the crown alone, as a squat six-sided puff (orchards hold a dozen trees).
   // (bare winter trees keep their trunk).
   const drawTrunk = (): void => void s.cylinder(x, z, 0.05 * k, 0.035 * k, 0, 0.32 * k, trunk, 5);
-  if (season === 3) drawTrunk();
+  // Bare in winter, the far tree is its trunk run up a little (the boughs and twigs are near only).
+  if (season === 3)
+    s.levels(drawTrunk, () => void s.cylinder(x, z, 0.05 * k, 0.02 * k, 0, 0.52 * k, trunk, 3));
   else s.nearOnly(drawTrunk);
   // Three short boughs splaying out to hold the crown.
   const a0 = rnd() * Math.PI * 2;
@@ -135,74 +147,128 @@ export function orchardTree(
     const a = a0 + (i / 3) * Math.PI * 2;
     const tip: V3 = [x + Math.cos(a) * 0.17 * k, 0.5 * k, z + Math.sin(a) * 0.17 * k];
     tips.push(tip);
-    beam(s, [x, 0.28 * k, z], tip, 0.02 * k, trunk);
+    if (season === 3 || !light) s.nearOnly(() => beam(s, [x, 0.28 * k, z], tip, 0.02 * k, trunk));
   }
   if (season === 3) {
-    // Winter: twigs and a last few stubborn apples.
+    // Winter: a bare tree. Each bough forks into twigs, and each twig into a finer one.
     for (const t of tips) {
-      for (let j = 0; j < 2; j++) {
+      for (let j = 0; j < (light ? 1 : 2); j++) {
         const a = rnd() * Math.PI * 2;
-        beam(
-          s,
-          t,
-          [t[0] + Math.cos(a) * 0.1 * k, t[1] + 0.1 * k, t[2] + Math.sin(a) * 0.1 * k],
-          0.008 * k,
-          trunk,
-        );
+        const tw: V3 = [
+          t[0] + Math.cos(a) * 0.11 * k,
+          t[1] + (0.09 + rnd() * 0.05) * k,
+          t[2] + Math.sin(a) * 0.11 * k,
+        ];
+        s.nearOnly(() => beam(s, t, tw, 0.009 * k, trunk));
+        const b = a + (rnd() - 0.5) * 1.6;
+        if (!light)
+          s.nearOnly(() =>
+            beam(
+              s,
+              tw,
+              [tw[0] + Math.cos(b) * 0.07 * k, tw[1] + 0.07 * k, tw[2] + Math.sin(b) * 0.07 * k],
+              0.005 * k,
+              trunk,
+            ),
+          );
       }
     }
     return;
   }
-  const leaf =
-    season === 0
-      ? vary(0x9cc06a, rnd, 0.6)
-      : season === 2
-        ? vary(mixHex(palette.leaf, palette.autumnGold, 0.35), rnd, 0.8)
-        : vary(palette.leaf, rnd, 0.7);
-  const top = mixHex(leaf, season === 0 ? 0xf7e8ee : 0xc8e070, season === 0 ? 0.25 : 0.15);
-  s.levels(
-    () => {
-      s.blob(x, 0.6 * k, z, 0.3 * k, 0.22 * k, 0.3 * k, leaf, 1, rnd, 0.1, top);
-      for (const t of tips)
-        s.blob(
-          t[0],
-          t[1] + 0.06 * k,
-          t[2],
-          0.17 * k,
-          0.14 * k,
-          0.17 * k,
-          vary(leaf, rnd, 1),
-          1,
-          rnd,
-          0.12,
-          top,
-        );
-    },
-    () => void s.cylinder(x, z, 0.32 * k, 0.22 * k, 0.42 * k, 0.8 * k, mixHex(leaf, top, 0.5), 6),
-  );
-  for (let i = 0; i < 9; i++) {
-    const a = rnd() * Math.PI * 2;
-    const r = (0.22 + rnd() * 0.12) * k;
-    const y = (0.48 + rnd() * 0.24) * k;
-    const px = x + Math.cos(a) * r;
-    const pz = z + Math.sin(a) * r;
-    if (season === 0) {
+  // The valley's apple greens: the oak and birch swatches, fresher in spring, warmed in autumn.
+  const base = mixHex(palette.oakLeaf, palette.birchLeaf, season === 0 ? 0.6 : 0.4);
+  const leaf = season === 2 ? mixHex(base, palette.autumnGold, 0.45) : base;
+  const heart: V3 = [x, 0.6 * k, z];
+  const blobs: DabBlob[] = [
+    { center: heart, radii: [0.3 * k, 0.22 * k, 0.3 * k], color: vary(leaf, rnd, 0.4) },
+    ...tips.map((t) => ({
+      center: [t[0], t[1] + 0.06 * k, t[2]] as V3,
+      radii: [0.17 * k, 0.14 * k, 0.17 * k] as V3,
+      color: vary(leaf, rnd, 0.9),
+    })),
+  ];
+  const crown = (): void => {
+    const was = s.currentSurface;
+    s.surface(SURFACE.leaf);
+    // The core under the dabs: small, deep green, round and dark so no facet shows through.
+    blobs.forEach((bl, i) => {
+      if (light && i > 0) return;
+      const [rx, ry, rz] = bl.radii;
+      const [cx, cy, cz] = bl.center;
       s.blob(
-        px,
-        y + 0.03 * k,
-        pz,
-        0.05 * k,
-        0.035 * k,
-        0.05 * k,
-        vary(i % 3 ? palette.blossom : palette.white, rnd, 0.4),
+        cx,
+        cy,
+        cz,
+        rx * 0.8,
+        ry * 0.8,
+        rz * 0.8,
+        mixHex(bl.color, CORE_SHADE, 0.55),
         0,
+        rnd,
+        i === 0 ? 0.04 : 0,
       );
-    } else {
-      const fruit = season === 2 ? (i % 4 ? palette.apple : 0xd9a03a) : vary(0xa8c45a, rnd, 0.5);
-      const r2 = (season === 2 ? 0.032 : 0.022) * k;
-      s.blob(px, y, pz, r2, r2, r2, fruit, 0);
+    });
+    const painted = toward(blobs, heart, 0.45);
+    const seed = Math.floor(rnd() * 1e6);
+    brushDabs(s, painted, {
+      count: dabs,
+      size: (light ? 0.14 : 0.112) * k,
+      tintSpread: 0.28,
+      skyLighten: 0.5,
+      gaps: 0,
+      thin: 1,
+      seed,
+    });
+    if (season === 0) {
+      // Blossom: small soft dabs, pink and white, over a part of the crown only, so green shows.
+      const blossom = painted.map((bl) => ({
+        ...bl,
+        radii: [bl.radii[0] * 1.04, bl.radii[1] * 1.04, bl.radii[2] * 1.04] as V3,
+        color: palette.blossom,
+      }));
+      brushDabs(s, blossom, {
+        count: light ? 20 : 40,
+        size: 0.062 * k,
+        tintSpread: 0.35,
+        skyLighten: 0.6,
+        gaps: 0.35,
+        thin: 0.8,
+        seed: seed + 11,
+      });
+      const white = blossom.map((bl) => ({ ...bl, color: palette.white }));
+      brushDabs(s, white, {
+        count: light ? 6 : 12,
+        size: 0.055 * k,
+        tintSpread: 0.2,
+        skyLighten: 0.3,
+        gaps: 0.5,
+        thin: 0.7,
+        seed: seed + 23,
+      });
     }
-  }
+    s.surface(was);
+    // Fruit: a few dots on the crown, small and green in summer, red and gold in autumn.
+    if (season === 1 || season === 2)
+      for (let i = 0; i < (light ? 3 : 6); i++) {
+        const a = rnd() * Math.PI * 2;
+        const r = (0.22 + rnd() * 0.1) * k;
+        const y = (0.46 + rnd() * 0.2) * k;
+        const fruit = season === 2 ? (i % 4 ? palette.apple : 0xd9a03a) : vary(0xa8c45a, rnd, 0.5);
+        const r2 = (season === 2 ? 0.032 : 0.024) * k;
+        s.blob(x + Math.cos(a) * r, y, z + Math.sin(a) * r, r2, r2, r2, fruit, 0);
+      }
+  };
+  const puff = (): void => {
+    const mean = season === 0 ? mixHex(leaf, palette.blossom, 0.22) : leaf;
+    const tint = mixHex(mean, CORE_SHADE, 0.2);
+    const was = s.currentSurface;
+    s.surface(SURFACE.leaf);
+    const top = dabTint(tint, 0.6, 0.35);
+    // Far off a crown is one squat lump (8 triangles: a dozen trees stand in a lot).
+    s.blob(x, 0.6 * k, z, 0.32 * k, 0.22 * k, 0.32 * k, tint, 0, undefined, 0, top);
+    s.surface(was);
+  };
+  s.levels(crown, puff);
 }
 
 // --- Clay pit -----------------------------------------------------------------------------------

@@ -56,6 +56,8 @@ export type HighlightArea =
 
 export interface OverlaysLayer extends RenderLayer {
   set(kind: string | null): void;
+  /** P2-D: show the waiting-for-materials and waiting-for-builders icons over sites (the Ledger). */
+  setSiteMarkers(on: boolean): void;
   highlight(area: HighlightArea): void;
   /** The overlay showing now. */
   readonly kind: string | null;
@@ -106,6 +108,19 @@ const STATUS_ORDER = [
  * never fix themselves (a home with no road at its door).
  */
 const ALWAYS_SHOWN = BuildingStatus.noRoad;
+/** P2-D: in the Ledger the sites' waiting markers show without the Status overlay. */
+const SITE_MARKERS = BuildingStatus.waitingMaterials | BuildingStatus.waitingBuilders;
+
+/** Which status bits get an icon over a building: all with the Status overlay, else the standing few. */
+export function shownStatusBits(
+  kind: string | null,
+  siteMarkers: boolean,
+  stage: string,
+  bits: number,
+): number {
+  if (kind === 'status') return bits;
+  return bits & (ALWAYS_SHOWN | (siteMarkers && stage === 'construction' ? SITE_MARKERS : 0));
+}
 /** Which statuses to show first when a building has several (blockers before warnings). */
 const STATUS_PRIORITY = [3, 6, 0, 1, 8, 7, 4, 2, 9, 10, 5];
 
@@ -246,6 +261,7 @@ export function overlaysLayer(): OverlaysLayer {
   let highlightArea: HighlightArea = null;
   let time = 0;
   let statusRebuild = false;
+  let siteMarkers = false;
 
   function add(geometry: BufferGeometry, material: Material = sheet, parent: Group = group): Mesh {
     const mesh = new Mesh(geometry, material);
@@ -534,9 +550,8 @@ export function overlaysLayer(): OverlaysLayer {
     if (!ctx || !status) return;
     status.begin(time);
     {
-      const all = kind === 'status';
       for (const b of ctx.mirror.buildings.values()) {
-        const bits = (b.rt?.status ?? 0) & (all ? ~0 : ALWAYS_SHOWN);
+        const bits = shownStatusBits(kind, siteMarkers, b.stage, b.rt?.status ?? 0);
         if (!bits) continue;
         const shown = STATUS_PRIORITY.filter((i) => bits & STATUS_ORDER[i]!).slice(0, 2);
         const c = centerOf(b.id);
@@ -1168,6 +1183,12 @@ export function overlaysLayer(): OverlaysLayer {
       if (k === kind) return;
       kind = k;
       rebuild();
+    },
+    setSiteMarkers(on) {
+      if (on === siteMarkers) return;
+      siteMarkers = on;
+      statusRebuild = true;
+      ctx?.invalidate();
     },
     highlight(area) {
       highlightArea = area;
