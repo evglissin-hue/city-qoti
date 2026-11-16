@@ -1048,8 +1048,7 @@ function cutAll(
       lot.desirability = lotDesirability(state, lot, k < FULL_SCORES ? species : [], services);
     });
   }
-  if (added.length + gardens.length + removed + changed.size > 0)
-    lotEpochs.set(state, lotEpoch(state) + 1);
+  if (added.length + gardens.length + removed + changed.size > 0) lotEpochs.set(state, lotEpoch(state) + 1);
   if (ctx) {
     const fresh = new Set<Lot>([...added, ...gardens]);
     for (const lot of state.lots) {
