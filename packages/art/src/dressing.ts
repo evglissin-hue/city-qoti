@@ -263,8 +263,8 @@ export const CLEAR_CELLS = 8;
 /** Height of one band, in tiles; 16 bands cover 0 to 1.6. */
 export const CLEAR_BAND = 0.1;
 const BANDS = 16;
-/** Triangles wholly below this are ground patches, not obstacles. */
-const GROUND_PATCH = 0.03;
+/** Triangles wholly below this are ground patches, doorsteps and flagstones, not obstacles (V3A: a piece may stand on a path). */
+const GROUND_PATCH = 0.07;
 
 /** Which 0.1 tile height bands the kit's own triangles occupy, per cell of a plot's ground. */
 export interface Clearance {
@@ -416,7 +416,7 @@ export function markPlacement(c: Clearance, p: Placement, b: PieceBounds): void 
 
 /** Half the door corridor's width, tiles. */
 export const DOOR_HALF = 0.25;
-/** How far a front piece may overhang the lot's front edge. */
+/** How far a front or doorstep piece may overhang the lot's front edge (onto the verge). */
 export const FRONT_OVERHANG = 0.15;
 const SNAP_STEP = 1 / 16;
 const SNAP_REACH = 1;
@@ -442,6 +442,9 @@ function overlaps(a: GroundBox, b: GroundBox): boolean {
 
 /** True for a piece that stands against a wall, and so snaps to it. */
 function snaps(p: Placement): boolean {
+  // V3A: doorstep pieces (boots, churns) stand against the front wall beside the door; a sign stays
+  // out by the path, where it can be read.
+  if (p.anchor === 'door') return p.kit !== 'yard-sign';
   return p.anchor === 'eaves' || p.anchor === 'sills' || p.anchor === 'front' || p.kit === 'yard-awning';
 }
 
@@ -457,7 +460,8 @@ export function placementFree(
   lane: GroundBox | null,
   mask: number = spanMask(q, bounds),
 ): boolean {
-  const room: GroundBox = [lot[0], lot[1], lot[2], q.anchor === 'front' ? lot[3] + FRONT_OVERHANG : lot[3]];
+  const over = q.anchor === 'front' || q.anchor === 'door';
+  const room: GroundBox = [lot[0], lot[1], lot[2], over ? lot[3] + FRONT_OVERHANG : lot[3]];
   const b = footprintOf(q, bounds);
   const inside =
     b[0] >= room[0] - 1e-6 && b[1] >= room[1] - 1e-6 && b[2] <= room[2] + 1e-6 && b[3] <= room[3] + 1e-6;

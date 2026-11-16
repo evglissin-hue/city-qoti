@@ -18,7 +18,15 @@ import type { Mirror, MirrorChange } from '../../state/mirror';
 import { createWorldEnv } from '../env';
 import { buildingVariantGeometry } from '../kitGeometry';
 import { groundY } from '../surface';
-import { DRESSING_BUDGET, DRESSING_SEED, dressingLayer, dressingSubject, lotBox } from './dressing';
+import {
+  decorTilesOf,
+  DRESSING_BUDGET,
+  DRESSING_SEED,
+  dressingLayer,
+  dressingSubject,
+  lotBox,
+  roomyLot,
+} from './dressing';
 import type { LayerContext } from './types';
 
 interface World {
@@ -55,6 +63,8 @@ function mirrorOf(w: World): Mirror {
     height: w.height ?? (() => 0),
     water: () => 0,
     occupant: () => 0,
+    road: () => 0,
+    tree: () => 0,
   } as unknown as Mirror;
 }
 
@@ -200,8 +210,8 @@ describe('dressingLayer (V3.0)', () => {
     expect(typeof DRESSING_SEED).toBe('number');
   });
 
-  it('with the shipped empty table costs nothing and never drops the still frame', () => {
-    const { layer, mirror } = setup({ buildings: [building(1, 'cottage')] });
+  it('with an empty table costs nothing and never drops the still frame', () => {
+    const { layer, mirror } = setup({ buildings: [building(1, 'cottage')] }, []);
     expect(layer.frame?.(0.016)).toBe(false);
     layer.update(change({ buildings: true }));
     mirror.buildings.set(2, building(2, 'cottage', { x: 20 }));
@@ -395,7 +405,8 @@ describe('dressingLayer clearance, every home and anchor (V3A)', () => {
       const placed = layer.placementsOf(1);
       const g = buildingVariantGeometry(b, 'high');
       const [w, d] = def.size;
-      const lot = lotBox(b, mirror.lots.get(b.lot!)!);
+      // The yard reaches onto free ground beside the lot (here all of it is free).
+      const lot = lotBox(b, roomyLot(mirror, decorTilesOf(mirror), mirror.lots.get(b.lot!)!));
       const base = clearanceOf(
         g,
         [w, d],

@@ -7,10 +7,13 @@ import {
   fitPlacement,
   kitById,
   markPlacement,
+  doorCorridor,
+  placementFree,
   resolveDressing,
   rulesFor,
   subjectKey,
   type AnchorPoint,
+  type AnchorRun,
   type Clearance,
   type DressingSubject,
   type GroundBox,
@@ -24,9 +27,17 @@ import {
   type DressingStat,
   type DressingTier,
 } from '@qoti/content';
-import { START_HOUR, TICKS_PER_DAY, TICKS_PER_HOUR, type BuildingView, type LotView } from '@qoti/sim';
+import {
+  MAP_SIZE,
+  START_HOUR,
+  TICKS_PER_DAY,
+  TICKS_PER_HOUR,
+  type BuildingView,
+  type LotView,
+} from '@qoti/sim';
 import { Matrix4, Quaternion, Vector3, type BufferGeometry } from 'three';
 import type { Mirror } from '../../state/mirror';
+import { fpToWorld } from '../coords';
 import { drawDef } from '../defs';
 import { DressingBatch } from '../dressingBatch';
 import { buildingKey, buildingMatrix, buildingVariantGeometry, standLevel } from '../kitGeometry';
@@ -167,6 +178,52 @@ export function lotBox(b: BuildingView, lot: LotView): GroundBox {
   return [x0, z0, x1, z1];
 }
 
+/**
+ * V3A: how far a yard may reach past its lot onto free ground beside it (tiles). Half a tile, so two
+ * neighbours across a one-tile gap share it. A stand-in until V3B's `yardOf` (wave notes, Stand-ins):
+ * grown kits fill their plots almost to the edge, so on a lot the size of its house the dressing would
+ * otherwise have nowhere to stand.
+ */
+export const YARD_REACH = 0.5;
+
+/** Tiles the dressing may spill onto: no building, road, water, tree, lot, field or decor. */
+export function freeTile(mirror: Mirror, decorTiles: ReadonlySet<number>, x: number, z: number): boolean {
+  if (x < 0 || z < 0 || x >= MAP_SIZE || z >= MAP_SIZE) return false;
+  const i = z * MAP_SIZE + x;
+  if (decorTiles.has(i)) return false;
+  if (mirror.occupant(x, z) || mirror.road(x, z) || mirror.water(x, z) || mirror.tree(x, z)) return false;
+  const layers = (mirror as { layers?: Partial<Record<string, ArrayLike<number>>> }).layers;
+  return !layers?.lot?.[i] && !layers?.fieldOwner?.[i];
+}
+
+/** The tiles decor stands on (world tile index), for `freeTile`. */
+export function decorTilesOf(mirror: Mirror): Set<number> {
+  const out = new Set<number>();
+  for (const d of mirror.decor?.values() ?? [])
+    out.add(Math.floor(fpToWorld(d.fz)) * MAP_SIZE + Math.floor(fpToWorld(d.fx)));
+  return out;
+}
+
+/**
+ * The lot grown by `YARD_REACH` on each side whose whole strip of neighbouring tiles is free (world
+ * space, as `LotView`): the yard a building's dressing may use. The road side is never free.
+ */
+export function roomyLot(mirror: Mirror, decorTiles: ReadonlySet<number>, lot: LotView): LotView {
+  const { x, z, w, d } = lot;
+  const strip = (tiles: [number, number][]): boolean =>
+    tiles.every(([tx, tz]) => freeTile(mirror, decorTiles, tx, tz));
+  const run = (n: number, f: (i: number) => [number, number]): [number, number][] =>
+    Array.from({ length: n }, (_, i) => f(i));
+  const west = strip(run(d, (i) => [x - 1, z + i]));
+  const east = strip(run(d, (i) => [x + w, z + i]));
+  const north = strip(run(w, (i) => [x + i, z - 1]));
+  const south = strip(run(w, (i) => [x + i, z + d]));
+  const r = YARD_REACH;
+  const x0 = x - (west ? r : 0);
+  const z0 = z - (north ? r : 0);
+  return { ...lot, x: x0, z: z0, w: x + w + (east ? r : 0) - x0, d: z + d + (south ? r : 0) - z0 };
+}
+
 export interface DressingLayer extends RenderLayer {
   /** The placements on one building's plot (kit-local, after fitting), empty when none. */
   placementsOf(id: number): readonly Placement[];
@@ -252,6 +309,38 @@ function geoKey(p: Placement): string {
   return `${p.kit}|${JSON.stringify(p.params ?? null)}|${variantOf(p)}`;
 }
 
+/** How far out past the plot's front edge a doorstep sign stands (within `FRONT_OVERHANG`). */
+const SIGN_OUT = 0.08;
+/** How far from its anchor a piece may move to find room (tiles). */
+const NEAREST_REACH = 1.1;
+
+/**
+ * The nearest spot within `NEAREST_REACH` of where the anchor put a piece (1/8 tile steps, keeping
+ * its turn) that is clear, inside the lot and off the door's path, or null. Deterministic.
+ */
+export function nearestFree(
+  p: Placement,
+  bounds: PieceBounds,
+  clear: Clearance,
+  lot: GroundBox,
+  door: AnchorPoint | undefined,
+): Placement | null {
+  const lane = door ? doorCorridor(door, lot) : null;
+  const steps = Math.round(NEAREST_REACH * 8);
+  const spots: [number, number, number][] = [];
+  for (let i = -steps; i <= steps; i++)
+    for (let k = -steps; k <= steps; k++) {
+      const d2 = i * i + k * k;
+      if (d2 > 0 && d2 <= steps * steps) spots.push([d2, i, k]);
+    }
+  spots.sort((a, b) => a[0] - b[0] || a[1] - b[1] || a[2] - b[2]);
+  for (const [, i, k] of spots) {
+    const q: Placement = { ...p, at: [p.at[0] + i / 8, p.at[1], p.at[2] + k / 8] };
+    if (placementFree(q, bounds, clear, lot, lane)) return q;
+  }
+  return null;
+}
+
 export function dressingLayer(rules: readonly DressingRule[] = content.dressingRules): DressingLayer {
   let ctx: LayerContext | null = null;
   let dirty = true;
@@ -331,6 +420,7 @@ export function dressingLayer(rules: readonly DressingRule[] = content.dressingR
     raw: readonly Placement[],
     lot: GroundBox,
     door: AnchorPoint | undefined,
+    back?: AnchorRun,
   ): Placement[] {
     if (raw.length === 0) return [];
     const extent: GroundBox = [
@@ -341,10 +431,31 @@ export function dressingLayer(rules: readonly DressingRule[] = content.dressingR
     ];
     const mask = cloneClearance(clearanceFor(b, size, extent));
     const out: Placement[] = [];
-    for (const p of raw) {
+    for (const r of raw) {
+      // A sign stands out on the verge by the path, where it is read from the street.
+      const p: Placement =
+        r.kit === 'yard-sign' && r.anchor === 'door'
+          ? { ...r, at: [r.at[0], r.at[1], r.at[2] + SIGN_OUT] }
+          : r;
       const info = pieceInfo(p);
       if (!info) continue;
-      const q = fitPlacement(p, info.bounds, mask, lot, door);
+      let q = fitPlacement(p, info.bounds, mask, lot, door);
+      // V3A: no room under the side eaves (a cottage in a row): against the back wall instead.
+      if (!q && p.anchor === 'eaves' && back) {
+        const depth = (info.bounds.z1 - info.bounds.z0) * p.scale;
+        const [sx, , sz] = back.start;
+        const [ex, , ez] = back.end;
+        const [fx, fz] = back.facing;
+        const t = 0.3 + 0.4 * ((p.seed % 1000) / 1000);
+        const at: [number, number, number] = [
+          sx + (ex - sx) * t - fx * (depth / 2 + 0.02),
+          0,
+          sz + (ez - sz) * t - fz * (depth / 2 + 0.02),
+        ];
+        q = fitPlacement({ ...p, at, yaw: Math.atan2(fx, fz) }, info.bounds, mask, lot, door);
+      }
+      // V3A: still no room where the anchor put it: the nearest free spot within a tile of it.
+      if (!q && p.anchor !== 'sills') q = nearestFree(p, info.bounds, mask, lot, door);
       if (!q) continue;
       markPlacement(mask, q, info.bounds);
       out.push(q);
@@ -444,12 +555,13 @@ export function dressingLayer(rules: readonly DressingRule[] = content.dressingR
     const mirror = ctx.mirror;
     let changed = false;
     const seen = new Set<number>();
+    const decorTiles = decorTilesOf(mirror);
     for (const b of mirror.buildings.values()) {
       seen.add(b.id);
       const subject = dressingSubject(mirror, b);
       const def = drawDef(b.def);
       const lot = b.lot !== undefined ? mirror.lots.get(b.lot) : undefined;
-      const box = def && lot ? lotBox(b, lot) : undefined;
+      const box = def && lot ? lotBox(b, roomyLot(mirror, decorTiles, lot)) : undefined;
       const dressed = subject.kind !== null && !!def;
       const level = dressed ? standLevel(mirror, b.def, b.x, b.z, b.rot) : 0;
       const key = `${subjectKey(subject)}|${box ? box.join(',') : ''}|${dressed ? buildingKey(b, 'high') : ''}`;
@@ -471,7 +583,14 @@ export function dressingLayer(rules: readonly DressingRule[] = content.dressingR
               ...(box ? { lot: box } : {}),
             });
             const raw = resolveDressing(subject, active, anchors, DRESSING_SEED);
-            placements = fitAll(b, def.size, raw, box ?? [0, 0, def.size[0], def.size[1]], anchors.door);
+            placements = fitAll(
+              b,
+              def.size,
+              raw,
+              box ?? [0, 0, def.size[0], def.size[1]],
+              anchors.door,
+              anchors.walls?.[1],
+            );
           }
         }
       }
@@ -578,7 +697,17 @@ export function dressingLayer(rules: readonly DressingRule[] = content.dressingR
       dirty = true;
     },
     update(change) {
-      if (change.full || change.buildings || change.households || change.residents || change.village)
+      // V3A: decor, roads and the occupant layer move the free ground a yard may spill onto.
+      if (
+        change.full ||
+        change.buildings ||
+        change.households ||
+        change.residents ||
+        change.village ||
+        change.decor ||
+        change.rects.has('occupant') ||
+        change.rects.has('road')
+      )
         dirty = true;
       if (change.full || change.rects.has('height')) {
         dirty = true;
