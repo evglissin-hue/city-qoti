@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 import { TILE_FP } from '../../src/constants';
 import { insertBuilding } from '../../src/state/place';
 import { deserialize, serialize } from '../../src/state/serialize';
-import { invalidatePlaces, placeIndex } from '../../src/systems/places';
+import { invalidatePlaces, placeFeatures, placeIndex } from '../../src/systems/places';
 import { placeById } from '../../src/systems/places/api';
 import { DAYS_PER_SEASON, TICKS_PER_DAY } from '../../src/constants';
 import { findById } from '../../src/state/entities';
@@ -215,5 +215,47 @@ describe('the place index', () => {
       const scan = all.filter((p) => Math.abs((p.tile % S) - x) + Math.abs(Math.floor(p.tile / S) - z) <= r);
       expect(placesNear(w, z * S + x, r).map((p) => p.id)).toEqual(scan.map((p) => p.id));
     }
+  });
+
+  it('after every kind of input change the live index equals a fresh rebuild from a save', () => {
+    const { state: w } = villageFixture();
+    for (const [x, z] of [
+      [44, 58],
+      [50, 58],
+      [56, 58],
+      [62, 56],
+    ] as const) {
+      run(w, { t: 'decor.place', def: 'bench', fx: fp(x), fz: fp(z), rot: 0 });
+      run(w, { t: 'decor.place', def: 'lantern', fx: fp(x + 1), fz: fp(z), rot: 0 });
+    }
+    const snapshot = (s: typeof w) =>
+      JSON.stringify(placeIndex(s).places.map((p) => [p, placeFeatures(s, p)]));
+    const same = (why: string) => {
+      w.tick += 1;
+      const live = snapshot(w);
+      const fresh = deserialize(serialize(w));
+      expect(snapshot(fresh), why).toBe(live);
+    };
+    same('as placed');
+    const bench = placeIndex(w).places.find((p) => p.source === 'seats')!;
+    w.map.tree[bench.tiles[0]!] = 0xff;
+    same('a tree matured on a place');
+    w.map.charm[bench.tile] = 77;
+    same('charm moved');
+    const stall = w.buildings.find((b) => b.def === 'market-stall')!;
+    stall.level = 2;
+    same('a level changed');
+    const home = w.buildings.find((b) => b.def === 'cottage')!;
+    home.rt!.modules = [['front', 'porch']];
+    same('a porch went up');
+    w.households[0]!.homeId = w.households[1]!.homeId;
+    same('a family moved');
+    run(w, { t: 'decor.move', id: w.decor[0]!.id, fx: fp(70), fz: fp(60), rot: 0 });
+    same('a piece moved');
+    w.weather.river.frozen = true;
+    w.weather.river.frozenTick = w.tick;
+    same('the river froze');
+    w.tick = 3 * DAYS_PER_SEASON * TICKS_PER_DAY + 13 * 200;
+    same('winter, lanterns lit');
   });
 });
