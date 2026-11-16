@@ -27,7 +27,6 @@ export const NO_CLIENT_SENDER: Record<string, string> = {
 export const OWED_SENDERS: Record<string, { cycle: 'R1C' | 'R1D' | 'R2D'; why: string }> = {
   'place.rename': { cycle: 'R2D', why: 'the place inspector owes a rename field; R2D adds the button' },
   'road.rename': { cycle: 'R2D', why: 'the street inspector owes a rename field; R2D adds the button' },
-  'road.setEvening': { cycle: 'R2D', why: 'the evening street brush on the Ledger road tool; R2D adds it' },
 };
 
 function commandTypes(): string[] {

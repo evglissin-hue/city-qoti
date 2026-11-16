@@ -44,6 +44,7 @@ describe('registries', () => {
       'customize',
       'decor',
       'erase',
+      'evening',
       'fence',
       'festival-site',
       'field',

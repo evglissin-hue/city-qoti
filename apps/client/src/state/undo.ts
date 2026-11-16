@@ -40,6 +40,8 @@ type Before =
   | { t: 'note'; text: string; x: number; z: number }
   | { t: 'custom'; values: BuildingCustom }
   | { t: 'flag'; value: boolean }
+  /** R2D: a street's or place's own name as it stood ('' when it wore the generated one). */
+  | { t: 'name'; value: string }
   /** R1C: the carrier's terms for the family, and its purse, as they stood. */
   | { t: 'carrier'; rule: CarrierRule; sell: boolean; reserve: number; budget: number }
   | { t: 'plan'; plan: SeasonPlanInput };
@@ -109,6 +111,20 @@ function capture(cmd: Command, m: Mirror): Before | null {
       return { t: 'tiles', values: cmd.tiles.map(([x, z]) => m.road(x, z)) };
     case 'tree.remove':
       return { t: 'tiles', values: cmd.tiles.map(([x, z]) => m.tree(x, z)) };
+    case 'road.setEvening':
+      // 1 where the tile was kept for strolling, 0 where it was not or is no road (skipped by the sim).
+      return {
+        t: 'tiles',
+        values: cmd.tiles.map(([x, z]) => (m.road(x, z) === 0 ? -1 : m.eveningStreet(x, z) ? 1 : 0)),
+      };
+    case 'road.rename': {
+      const st = m.streets.get(cmd.id);
+      return st ? { t: 'name', value: st.renamedBy === undefined ? '' : st.name } : null;
+    }
+    case 'place.rename': {
+      const pl = m.places.get(cmd.id);
+      return pl ? { t: 'name', value: pl.renamedBy === undefined ? '' : pl.name } : null;
+    }
     case 'field.paint':
     case 'field.remove':
       return { t: 'tiles', values: cmd.tiles.map(([x, z]) => fieldOwner(m, x, z)) };
@@ -151,6 +167,17 @@ function capture(cmd: Command, m: Mirror): Before | null {
     default:
       return null;
   }
+}
+
+/** True while a street or place still wears the name the command gave it ('' means the generated one). */
+function nameIs(
+  v: { name: string; generated: string; renamedBy?: SeatId } | undefined,
+  asked: string,
+): boolean {
+  if (!v) return false;
+  const want = asked.trim().replace(/\s+/g, ' ');
+  if (want === '' || want === v.generated) return v.renamedBy === undefined;
+  return v.renamedBy !== undefined && v.name === want;
 }
 
 /** The season plan's answers, each undone on its own. */
@@ -289,6 +316,36 @@ function inverseOf(p: Pending, m: Mirror, change: MirrorChange, seat: SeatId): U
         label: 'clearing the road',
         inverse,
         intact: (mm) => removed.every(([x, z]) => mm.road(x, z) === 0),
+      };
+    }
+    case 'road.setEvening': {
+      if (before.t !== 'tiles') return null;
+      // Only road tiles whose mark really flipped go back; they all share one old state.
+      const flipped = cmd.tiles.filter((_, i) => before.values[i] === (cmd.on ? 0 : 1));
+      if (!flipped.length) return null;
+      return {
+        label: 'the evening street',
+        inverse: [{ t: 'road.setEvening', tiles: flipped, on: !cmd.on }],
+        intact: (mm) => flipped.every(([x, z]) => mm.eveningStreet(x, z) === cmd.on),
+      };
+    }
+    case 'road.rename': {
+      if (before.t !== 'name') return null;
+      const was = before.value;
+      return {
+        label: 'the rename',
+        // cmd.t, not a literal: the real senders are the inspectors, and this one is not.
+        inverse: [{ t: cmd.t, id: cmd.id, name: was }],
+        intact: (mm) => nameIs(mm.streets.get(cmd.id), cmd.name),
+      };
+    }
+    case 'place.rename': {
+      if (before.t !== 'name') return null;
+      const was = before.value;
+      return {
+        label: 'the rename',
+        inverse: [{ t: cmd.t, id: cmd.id, name: was }],
+        intact: (mm) => nameIs(mm.places.get(cmd.id), cmd.name),
       };
     }
     case 'terrain.lower':
