@@ -389,9 +389,10 @@ function chooseOuting(
   }
   if (r.stage === 'child') {
     if (rng.chance(block === Block.evening ? 0.55 : 0.7)) {
-      // R2 (R2A): a swing or see-saw near home, one time in two.
+      // R2 (R2A): a swing or see-saw near home, one time in two (drawn from the round's stream, so
+      // the evening never reshuffles the `residents` stream that arrivals draw from).
       const swing = playPlaceNear(state, homeDoor);
-      const tile = swing >= 0 && rng.chance(0.5) ? swing : choosePlay(state, rng, r);
+      const tile = swing >= 0 && ctx.rng('round').chance(0.5) ? swing : choosePlay(state, rng, r);
       setOff(state, ctx, r, h, homeDoor, tile, { kind: 'play', tile });
     } else {
       stayHome(state, ctx, r, h, homeDoor, 'home');
