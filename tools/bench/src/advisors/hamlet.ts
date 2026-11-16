@@ -7,7 +7,8 @@
 // keeps the Hamlet's services and homes: cottages by hand only until the street is zoned, a market
 // stall, a builder's yard and wells. It sends no sale and pauses nothing: the carrier sells and
 // imports by its own rules, and labor needs no lever.
-import { creditLimit, larderWelcomes, loansOwed, rankAtLeast, townStock } from '@qoti/sim';
+import { content } from '@qoti/content';
+import { creditLimit, larderWelcomes, loansOwed, rankAtLeast, townStock, type WorldState } from '@qoti/sim';
 import { costOf, URGENT, type Planner } from '../planner';
 import { charterOpen, count, FOODS, storyWaiting, vacantHomes } from '../town';
 import type { Advisor, AdvisorDef } from './types';
@@ -32,7 +33,12 @@ class Hamlet implements Advisor {
       if (c) for (let g = 0; g < free.length; g++) free[g]! -= c.needs[g] ?? 0;
     }
     const larderLow = !rankAtLeast(w, 'village') && pop >= 25 && stored < pop * 5;
-    const want = (cond: boolean, def: string, urgent = false) => {
+    const want = (
+      cond: boolean,
+      def: string,
+      urgent = false,
+      only?: (x: number, z: number, w: number, d: number) => boolean,
+    ) => {
       if (!cond) return;
       p.propose({
         def,
@@ -42,6 +48,7 @@ class Hamlet implements Advisor {
         essential: true,
         tally: free,
         budget,
+        ...(only && { only }),
       });
     };
     // A Village deep in the County Bank's books pays down before it builds more homes.
@@ -65,7 +72,9 @@ class Hamlet implements Advisor {
     want(pop >= 10 && count(w, 'market-stall') === 0, 'market-stall');
     want(pop >= 14 && count(w, 'builders-yard') === 0, 'builders-yard');
     // P1: a growing hamlet puts up a second well on its own, for its comfort and its gathering place.
-    want(pop >= 12 && count(w, 'well') < 2, 'well');
+    // R2A: half a reach clear of the first, as the sim's service-clustered check asks (the audit
+    // caught the second going up beside the first once the round moved the town's growth).
+    want(pop >= 12 && count(w, 'well') < 2, 'well', false, (x, z) => clearOfWells(w, x, z));
   }
 }
 
@@ -76,3 +85,13 @@ export const hamlet: AdvisorDef = {
   plays: () => true,
   create: (p) => new Hamlet(p),
 };
+
+/** A spot half a well's reach (or more) from every other well, measured corner to corner. */
+function clearOfWells(w: WorldState, x: number, z: number): boolean {
+  const r = content.buildingById.get('well')?.coverage?.find((c) => c.kind === 'water')?.radius ?? 8;
+  for (const o of w.buildings) {
+    if (o.def !== 'well') continue;
+    if ((o.x - x) * (o.x - x) + (o.z - z) * (o.z - z) < (r * r) / 4) return false;
+  }
+  return true;
+}

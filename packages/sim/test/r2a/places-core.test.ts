@@ -8,7 +8,7 @@ import { invalidatePlaces, placeIndex } from '../../src/systems/places';
 import { placeById } from '../../src/systems/places/api';
 import { DAYS_PER_SEASON, TICKS_PER_DAY } from '../../src/constants';
 import { findById } from '../../src/state/entities';
-import { placeDraw, placeServes } from '../../src/systems/places/api';
+import { placeDraw, placesNear, placeServes } from '../../src/systems/places/api';
 import { villageFixture } from '../fixtures/village';
 import { flatWorld, run, S } from '../helpers';
 
@@ -199,5 +199,21 @@ describe('the place index', () => {
     expect(ps[0]!.id).toBe(`festival:${48 * S + 48}`);
     expect(ps[0]!.seats).toBe(6);
     expect(ps[0]!.standing).toBe(content.places.festivalStanding + 3);
+  });
+
+  it('placesNear finds exactly the places a full scan finds, in id order', () => {
+    const w = flatWorld();
+    for (let i = 0; i < 40; i++) place('bench', 10 + ((i * 37) % 80), 10 + ((i * 53) % 80), w);
+    const all = placeIndex(w).places;
+    for (const [x, z, r] of [
+      [40, 40, 12],
+      [5, 5, 6],
+      [90, 20, 18],
+      [60, 85, 3],
+      [0, 0, 200],
+    ] as const) {
+      const scan = all.filter((p) => Math.abs((p.tile % S) - x) + Math.abs(Math.floor(p.tile / S) - z) <= r);
+      expect(placesNear(w, z * S + x, r).map((p) => p.id)).toEqual(scan.map((p) => p.id));
+    }
   });
 });
