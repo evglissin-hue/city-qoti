@@ -6,7 +6,7 @@ import {
   type SeasonCardView,
   type SeasonReportLine,
   type SeasonReportView,
-  type SeatId,
+  type EditionLine,
 } from '@qoti/sim';
 import type { ComponentChildren } from 'preact';
 import type { Session } from '../../app/session';
@@ -177,18 +177,14 @@ export function Forecast({ session, weather }: { session: Session; weather: Seas
 
 /**
  * R2D: a line of the joint report that belongs to neither lane alone ("the lantern walk fed the pie
- * stall"). R2C's `view/season/index.ts` fills `cross` on the report; until then it is absent and the
- * spread simply has no such block.
+ * stall"): `SeasonReportView.cross`, which R2C's `view/season/index.ts` fills. Until then it is absent
+ * and the spread simply has no such block.
  */
-export interface CrossLine {
-  text: string;
-  seats?: SeatId[];
-}
+export type CrossLine = EditionLine;
 
 /** The report's cross-lane lines, or none (never an empty heading). */
 export function crossLines(view: SeasonReportView): CrossLine[] {
-  const c = (view as SeasonReportView & { cross?: CrossLine[] }).cross;
-  return Array.isArray(c) ? c.filter((l) => !!l && typeof l.text === 'string' && l.text.length > 0) : [];
+  return (view.cross ?? []).filter((l) => l.text.length > 0);
 }
 
 export function SeasonReport({

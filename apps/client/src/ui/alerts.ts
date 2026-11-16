@@ -15,7 +15,9 @@ import {
 } from '@qoti/sim';
 import type { Mirror } from '../state/mirror';
 import { goodName, placeName, pluralName, seatLabel } from './format';
+import { editionFeedAlerts } from './eveningFeed';
 import { gapAlerts } from './gaps';
+import { loadSettings } from './settings';
 import { readHands } from './hands';
 import { readSites } from './sites';
 import { coverDays, DEMAND_BAR } from './topbar/strip';
@@ -191,6 +193,9 @@ export function computeAlerts(
   }
   // Gaps first (the town's own asks), the ledger's copies here and the hearth's with its news.
   const gaps = gapAlerts(m, who);
+  // R2D: the evening edition as a feed line, for a player who chose it over the card.
+  const edition = editionFeedAlerts(m, loadSettings().editionInFeed);
+  out.push(...edition.filter((a) => a.lens === 'ledger'));
   out.push(...gaps.filter((a) => a.lens === 'ledger'));
   out.push(...idleAlerts.slice(0, MAX_IDLE));
   const hidden = idle.slice(MAX_IDLE).reduce((n, g) => n + g.count, 0);
@@ -223,6 +228,7 @@ export function computeAlerts(
       action: { kind: 'wish', id: w.id },
     });
   }
+  out.push(...edition.filter((a) => a.lens === 'hearth'));
   out.push(...gaps.filter((a) => a.lens === 'hearth'));
   const hints = [...m.patterns.values()].filter((p) => p.hinted && !p.discovered).map((p) => p.id);
   if (hints.length === 1) {
