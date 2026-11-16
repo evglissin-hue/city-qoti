@@ -90,6 +90,7 @@ export {
 } from './view/inspect';
 export { evaluate, type Binding } from './conditions';
 export { achievable, placeableNow } from './systems/hearth/wishes/achievable';
+export { gapAchievable } from './systems/gaps/achievable';
 export { gardenFlavors } from './systems/hearth/garden';
 export { HealthWatch, type HealthIssue, type HealthKind } from './view/health';
 

@@ -122,6 +122,8 @@ P13's requests return without a form. A gap opens by rule, shows in both lenses 
 
 The `request.*` commands stay for free-text asks, without the ask form. Closed gaps count where fulfilled requests did (Together goals, Odette's arc).
 
+*As built (R2C)*: the pass runs at 21:10, on fair evenings only (rain and storm hold every streak), and reads each rule over the evening just closed. "Customers" for a shop nobody passes are the visitors at the places within 3 tiles (per-outlet evening sales are not saved), and "draws 8+" is 8 visitors. Credit goes to the seat whose command built the piece; a business grown on a lot goes to the seats in the Ledger lens. A kind the town cannot meet opens nothing (its open gaps still close), a gap whose subject is gone is dropped without credit, and the audit flags an open gap nobody can close (`gap-dead-end`). The Village's evening goal counts fair evenings running: a fair evening below half breaks it, rain holds it. Details in `docs/build/cycle-r2c-gaps-book.md`, As built.
+
 ## Supplies: places come alive [R3]
 
 Some pieces draw on the town's goods to be at their best, from Village rank on (a Hamlet's lanterns light for nothing). Homes are served first, then businesses, then places: a place draws only on what the town holds above its reserves and winter marks, and the carrier never buys for places unless the Ledger turns that on for the family (`carrier.setRule`). So a fire never takes a home's firewood, and the Balances book shows what places draw each night. A piece without its supply **rests**: it stays where it is, costs nothing and loses only what the table says. Nothing breaks and nothing is taken away (P5).

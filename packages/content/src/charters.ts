@@ -25,6 +25,14 @@ export const villageCharter: CharterDef = {
       measure: { what: 'foodDays', flavors: 3 },
       target: 5,
     },
+    // R2 (R2C): the evenings, counted by the gaps pass's run (state.evenings.outRun).
+    {
+      id: 'evenings',
+      text: 'Half the grown-ups out, 3 fair evenings running',
+      lane: 'hearth',
+      measure: { what: 'eveningsOut' },
+      target: 3,
+    },
     {
       id: 'surplus',
       text: 'A season ended in surplus',

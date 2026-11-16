@@ -11,9 +11,8 @@ export function findGap(state: WorldState, kind: GapKind, subject: string): Gap 
 
 /**
  * Opens a gap, or refreshes the number of the one already open about the same subject (gaps are
- * deduped by kind and subject). Returns the open gap.
- *
- * R2 stand-in (R2C): no gaps.updated yet; R2C emits it (and checks rank, the rules and the words).
+ * deduped by kind and subject). Returns the open gap. It pushes no event and checks no rank: the gaps
+ * pass (index.ts) decides both and emits gaps.updated once for the whole pass.
  */
 export function openGap(
   state: WorldState,
@@ -37,8 +36,7 @@ export function openGap(
  * Closes an open gap, crediting `closers` (the seat whose piece closed it; both when both laid it).
  * A subject already credited this season (`gaps.credited`) closes with no credit, so nothing is
  * gained by pulling a stall down and putting it back. Closed gaps stay listed PLACE_EVENINGS days.
- *
- * R2 stand-in (R2C): no gaps.updated yet; R2C decides who the closers are and emits it.
+ * It pushes no event; the gaps pass emits gaps.updated.
  */
 export function closeGap(state: WorldState, _ctx: TickCtx | null, gap: Gap, closers: SeatId[]): void {
   const at = state.gaps.open.indexOf(gap);
@@ -61,4 +59,15 @@ export function closeGap(state: WorldState, _ctx: TickCtx | null, gap: Gap, clos
   while (state.gaps.closed.length > 0 && state.gaps.closed[0]!.closedDay! < day - PLACE_EVENINGS) {
     state.gaps.closed.shift();
   }
+}
+
+/**
+ * Drops an open gap whose subject is gone (the place, the shop or the street): no credit, not counted
+ * in `closedCount`, not listed in `closed`. Returns whether it was open. It pushes no event.
+ */
+export function dropGap(state: WorldState, _ctx: TickCtx | null, gap: Gap): boolean {
+  const at = state.gaps.open.indexOf(gap);
+  if (at < 0) return false;
+  state.gaps.open.splice(at, 1);
+  return true;
 }

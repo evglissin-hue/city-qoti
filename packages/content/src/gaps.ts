@@ -12,8 +12,13 @@ export const nothingToSell: GapDef = {
   threshold: 8,
   openAfter: 2,
   closeAfter: 2,
-  text: ['{place} drew {n} folk and had nothing to sell them.'],
-  closes: 'A shop or stall with treats within three tiles.',
+  text: [
+    '{place} drew {n} folk and had nothing to sell them.',
+    '{n} folk spent the evening at {place} and went home with every coin they brought.',
+  ],
+  closes: 'A shop or stall with treats on the shelf within three tiles, two evenings running.',
+  closed: '{place} has something to sell at last: {closers} saw to the treats.',
+  closedQuiet: '{place} has treats in reach again.',
 };
 
 export const nobodyPasses: GapDef = {
@@ -23,8 +28,14 @@ export const nobodyPasses: GapDef = {
   threshold: 4,
   openAfter: 3,
   closeAfter: 1,
-  text: ['{shop} sold {n} treats in three evenings: nobody walks this way.'],
-  closes: 'A place within three tiles that draws eight or more of an evening.',
+  text: [
+    '{shop} had treats out three evenings running and {folk} came by. The evening walks elsewhere.',
+    '{shop} has a full shelf and an empty doorstep: {folk} in three evenings. Nobody walks this way.',
+  ],
+  closes:
+    'A place within three tiles that draws eight or more of an evening: seats, some charm, somewhere to be.',
+  closed: 'Folk walk past {shop} now: {closers} gave them somewhere to be.',
+  closedQuiet: 'Folk walk past {shop} again.',
 };
 
 export const nowhereToGo: GapDef = {
@@ -34,8 +45,14 @@ export const nowhereToGo: GapDef = {
   threshold: 6,
   openAfter: 3,
   closeAfter: 1,
-  text: ['{street} stays in of an evening.'],
+  text: [
+    '{street} stays in of an evening.',
+    '{n} households on {street} stayed in three evenings running, for want of anywhere to go.',
+    '{street} has {n} households and nowhere for them to go of an evening.',
+  ],
   closes: 'Somewhere worth the walk, with a seat or two, near enough that half of them go out.',
+  closed: '{street} goes out of an evening now, thanks to {closers}.',
+  closedQuiet: '{street} goes out of an evening again.',
 };
 
 export const shortOfSupplies: GapDef = {

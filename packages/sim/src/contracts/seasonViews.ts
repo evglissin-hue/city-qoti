@@ -57,10 +57,13 @@ export interface SeasonCardView {
 
 /** One line of the season report, from one track's builder in view/season/. */
 export interface SeasonReportLine {
-  track: 'weather' | 'festival' | 'nature' | 'threat';
+  /** R2 (R2C, additive): 'evening', the evenings and gaps, on the cross-lane page. */
+  track: 'weather' | 'festival' | 'nature' | 'threat' | 'evening';
   text: string;
   /** A number worth showing beside the line (stars, species, units lost). */
   value?: number;
+  /** R2 (R2C, additive): seats a cross-lane line credits by name. */
+  seats?: SeatId[];
 }
 
 /** The two-page season report that closes a season. */
@@ -69,6 +72,12 @@ export interface SeasonReportView {
   year: number;
   hearth: SeasonReportLine[];
   ledger: SeasonReportLine[];
+  /**
+   * R2 (R2C, additive): the cross-lane lines, first on the joint spread (17-presentation.md, the
+   * season report as one spread): where one lane's work fed the other's, the gaps closed and the
+   * season's evenings. The same data in both lenses; absent before R2C and in a season with none.
+   */
+  together?: SeasonReportLine[];
 }
 
 export interface FestivalPlanView {

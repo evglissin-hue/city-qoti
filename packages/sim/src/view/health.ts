@@ -24,6 +24,7 @@ import { isStandard } from '../state/hamlet';
 import { carrierCovers, passClosed } from '../systems/carrier/api';
 import { hourOf, isBuildTime } from '../systems/economy/time';
 import { currentPlan, isFestivalDay } from '../systems/festivals/api';
+import { gapAchievable } from '../systems/gaps/achievable';
 import { achievable } from '../systems/hearth/wishes/achievable';
 import { seasonNow } from '../systems/seasons/api';
 import { MAX_BUILDERS_PER_SITE } from '../systems/construction';
@@ -68,7 +69,9 @@ export type HealthKind =
    * its kind started: the pass keeps promising a start it cannot make, and gives no reason a player
    * could act on (the class behind "nothing was building and I could not see why").
    */
-  | 'growth-wait-broken';
+  | 'growth-wait-broken'
+  /** R2 (R2C): an open gap whose closing piece nothing the town can build would bring, for a whole day. */
+  | 'gap-dead-end';
 
 export interface HealthIssue {
   kind: HealthKind;
@@ -159,6 +162,8 @@ export class HealthWatch {
   /** Guide step → tick first seen with an unachievable goal; likewise `arc:step` for stories. */
   private guideSince = new Map<number, number>();
   private readonly storySince = new Map<string, number>();
+  /** Gap id → tick it was first seen open with nothing the town could build to close it (R2C). */
+  private readonly gapSince = new Map<number, number>();
   /** Wish id → tick it was first seen with an unachievable target. */
   private readonly deadSince = new Map<number, number>();
   /** Day index of a festival day on which a current plan was seen, and whether it was reported. */
@@ -487,6 +492,22 @@ export class HealthWatch {
         });
     }
     for (const k of [...this.storySince.keys()]) if (!stories.has(k)) this.storySince.delete(k);
+
+    // R2 (R2C): an open gap the town cannot close by building anything (gaps/achievable.ts).
+    const gaps = new Set<number>();
+    for (const g of state.gaps.open) {
+      if (gapAchievable(state, g.kind)) continue;
+      gaps.add(g.id);
+      const since = this.gapSince.get(g.id) ?? now;
+      this.gapSince.set(g.id, since);
+      if (now - since >= DAY_TICKS)
+        out.push({
+          kind: 'gap-dead-end',
+          id: g.id,
+          text: `gap ${g.kind} (${g.subject}) asks for something no one can do`,
+        });
+    }
+    for (const id of [...this.gapSince.keys()]) if (!gaps.has(id)) this.gapSince.delete(id);
 
     // A festival plan that was current on the day but had not started by 19:00.
     if (isFestivalDay(state)) {

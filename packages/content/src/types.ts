@@ -595,7 +595,7 @@ export type CountWhat =
   | 'foodDays'
   /** Residents of the tier named in `ref`. */
   | 'tierResidents'
-  /** Requests between seats fulfilled. */
+  /** Requests between seats fulfilled (R2: and gaps closed, which count where requests did). */
   | 'requestsFulfilled'
   /** Distinct goods in stock at market outlets. */
   | 'goodsAtMarket'
@@ -636,7 +636,7 @@ export type CountWhat =
   | 'foodFlavors'
   /** Winters with no Food or Fuel imported and nobody hungry or cold. */
   | 'importFreeWinters'
-  // R2 (R2.0); R2C counts them (state.gaps, state.evenings). Until then they count 0.
+  // R2 (R2.0); R2C counts them (state.gaps, state.evenings).
   /** Gaps closed. */
   | 'gapsClosed'
   /** Gaps closed by the seat that has closed fewest (Mind the Gap: three by each). */
@@ -1434,10 +1434,17 @@ export interface GapDef {
   /** Evenings running the rule must hold before it opens (2, 3, 3), and the closing rule before it closes. */
   openAfter: number;
   closeAfter: number;
-  /** What it reads like, variants picked deterministically; placeholders {place}, {shop}, {street}, {n}. */
+  /** What it reads like, variants picked deterministically; placeholders {place}, {shop}, {street}, {n}; R2C adds {folk} ("nobody", "one soul", "3 folk"). */
   text: string[];
   /** What would close it, in words. */
   closes: string;
+  /**
+   * R2 (R2C, additive): the evening edition's line when it closes, crediting the seats who closed
+   * it ({closers}, "Kat" or "Kat and Sam"); placeholders as `text`. Absent: the edition says it plainly.
+   */
+  closed?: string;
+  /** R2 (R2C, additive): the closing line when nobody is credited (the place was credited this season). */
+  closedQuiet?: string;
 }
 
 /**
