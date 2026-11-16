@@ -85,4 +85,11 @@ export const PLACES: PlacesTuning = {
   tierDays: 3,
   // Places remembered
   forgetDays: 6,
+  // R2A: places and the round (beyond the spec's table)
+  afternoonHour: 14,
+  walkPatterns: ['hedgerow-lane', 'lantern-walk', 'promenade-by-the-water'],
+  meetPatterns: ['pocket-park', 'well-gathering-place'],
+  viewPieces: ['lookout-bench'],
+  iceKinds: ['play', 'view'],
+  festivalStanding: 40,
 };

@@ -1384,6 +1384,19 @@ export interface PlacesTuning {
   // Places remembered
   /** A place the pass no longer finds keeps its row this many days (6). */
   forgetDays: number;
+  // R2A additions (additive): what the place pass and the planner read beyond the spec's table.
+  /** Elders and residents without work make a round in the afternoon, planned from this hour (14) to `eveningHour`. */
+  afternoonHour: number;
+  /** Pattern ids that are linear walks (kind `walk`, strollers by length). */
+  walkPatterns: string[];
+  /** Pattern ids where folk gather (kind `meet`: a green, a square, a well). */
+  meetPatterns: string[];
+  /** Decor ids that make a place a `view` wherever they stand (a lookout). */
+  viewPieces: string[];
+  /** What the skating ice offers. */
+  iceKinds: PlaceKind[];
+  /** The festival site's standing room on its night, beside the seats of the pieces on it (40). */
+  festivalStanding: number;
 }
 
 /** R2 (R2.0): the gaps (docs/spec/19-evenings.md, Gaps). Index order is the sim's GAP_KINDS; append-only. */
