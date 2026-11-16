@@ -15,6 +15,7 @@ import { isStandard } from '../../state/hamlet';
 import { refreshDemand } from '../growth';
 import { DESIRABILITY_SLICES, refreshDesirability } from '../growth/desirability';
 import { zoningPass } from './lots';
+import { refitStoreys } from './storeys';
 
 const zoneEpochs = new WeakMap<WorldState, number>();
 const lastKeys = new WeakMap<WorldState, string>();
@@ -56,6 +57,8 @@ export const zoning: System = {
       const hour = Math.floor(state.tick / TICKS_PER_HOUR) % DESIRABILITY_SLICES;
       refreshDesirability(state, ctx, hour);
     }
+    // R2F: homes move up a tier and businesses a level without changing the key below.
+    refitStoreys(state, ctx);
     const key = inputsKey(state);
     if (lastKeys.get(state) === key) return;
     // Lots last checked against this same decor need not be checked again.

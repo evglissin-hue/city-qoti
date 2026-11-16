@@ -363,7 +363,7 @@ function readNight(state: WorldState): Night {
     outlets,
     crowded,
     empty: state.lots
-      .filter((l) => !l.buildingId && state.map.road[l.frontage])
+      .filter((l) => l.kind !== 'garden' && !l.buildingId && state.map.road[l.frontage])
       .sort((p, q) => q.desirability - p.desirability || p.id - q.id),
     porters: lazily(() => porterIndex(services.reach)),
     nearStore: lazily(() => porterIndex(services.reach, NEAR_STORE_SLACK)),
@@ -407,6 +407,7 @@ function demandOf(state: WorldState, night: Night): GrowthDemand {
     if (night.doors.length >= SHOP_HOUSEHOLDS) {
       for (const l of state.lots) {
         if (
+          l.kind !== 'garden' &&
           !l.buildingId &&
           l.zone === Zone.shops &&
           shopReach(l, night.doors, SHOP_HOUSEHOLDS) >= SHOP_HOUSEHOLDS
@@ -779,7 +780,7 @@ function startSites(
       // porters can about reach (canGrow checks the very door), the best few.
       const lots: Lot[] = [];
       for (const l of night.empty) {
-        if (l.buildingId || !zones.includes(l.zone)) continue;
+        if (l.kind === 'garden' || l.buildingId || !zones.includes(l.zone)) continue;
         if (shop && (reachOf.get(l.id) ?? 0) < reachOnly) continue;
         if (!night.nearStore(l.frontage)) continue;
         lots.push(l);
