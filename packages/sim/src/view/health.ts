@@ -86,13 +86,17 @@ export type HealthKind =
    */
   | 'growth-wait-broken'
   /**
-   * R2: an open gap (a place with nothing to sell, a shop nobody passes, nowhere to go) that nothing
-   * could close, for a whole day. Two rules share the kind: R2C's (the closing piece is not open to
-   * the town at all, `gapAchievable`) and R2E's (no outlet could stand within reach of the place, no
-   * seat piece could go near the shop's door or the street). A kind neither rule covers is never
+   * R2E: an open gap (a place with nothing to sell, a shop nobody passes, nowhere to go) that no
+   * command could close, for a whole day: no outlet could stand within reach of the place, no seat
+   * piece could go near the shop's door or the street. A kind this check has no rule for is never
    * flagged.
    */
   | 'gap-dead-end'
+  /**
+   * R2C: an open gap of a kind whose closing piece the town cannot build at all (gaps/achievable.ts:
+   * no outlet, or no seat piece, open to it), for a whole day. R2X split it from R2E's placement rule.
+   */
+  | 'gap-unmeetable'
   /** R2E: a place no home's door can walk to (or to a tile beside it), for a whole day. */
   | 'place-unreachable'
   /**
@@ -207,8 +211,10 @@ export class HealthWatch {
   /** Day index of a festival day on which a current plan was seen, and whether it was reported. */
   private festivalDay = -1;
   private festivalReported = false;
-  /** R2C and R2E: gap id → tick it was first seen with nothing that could close it; and the hour of the last look. */
+  /** R2E: gap id → tick it was first seen with nothing that could close it; and the hour of the last look. */
   private readonly gapSince = new Map<number, number>();
+  /** R2C: gap id → tick it was first seen of a kind the town cannot meet at all. */
+  private readonly unmeetableSince = new Map<number, number>();
   private gapHour = -1;
   /** R2E: place id → tick it was first seen out of every home's reach; and the hour of the last look. */
   private readonly placeSince = new Map<string, number>();
@@ -481,18 +487,31 @@ export class HealthWatch {
     this.checkGardens(state, out);
   }
 
-  /** gap-dead-end: an open gap with nothing that could close it for a whole day (read once an hour). */
+  /** gap-dead-end and gap-unmeetable: an open gap with nothing that could close it for a whole day (read once an hour). */
   private checkGaps(state: WorldState, out: HealthIssue[]): void {
     const now = state.tick;
     const hour = Math.floor(now / TICKS_PER_HOUR);
     if (hour === this.gapHour) return;
     this.gapHour = hour;
     const live = new Set<number>();
+    const unmeetable = new Set<number>();
     for (const gap of state.gaps.open) {
-      // closable is true when something could close it, and also when the kind is one this check has
-      // no rule for (R3's shortOfSupplies, or any later kind): never flag what is not understood.
-      // R2C's rule first: a kind whose closing piece the town cannot build at all (gaps/achievable.ts).
-      if (gapAchievable(state, gap.kind) && gapClosable(state, gap)) continue;
+      // R2C's rule: a kind whose closing piece the town cannot build at all (gaps/achievable.ts).
+      if (!gapAchievable(state, gap.kind)) {
+        unmeetable.add(gap.id);
+        const since = this.unmeetableSince.get(gap.id) ?? now;
+        this.unmeetableSince.set(gap.id, since);
+        if (now - since >= DAY_TICKS)
+          out.push({
+            kind: 'gap-unmeetable',
+            id: gap.id,
+            text: `gap ${gap.kind} (${gap.subject}) asks for something no one can do`,
+          });
+        continue;
+      }
+      // R2E's: closable is true when something could close it, and also when the kind is one this
+      // check has no rule for (R3's shortOfSupplies, or any later kind): never flag what is not understood.
+      if (gapClosable(state, gap)) continue;
       live.add(gap.id);
       const since = this.gapSince.get(gap.id) ?? now;
       this.gapSince.set(gap.id, since);
@@ -504,6 +523,8 @@ export class HealthWatch {
         });
     }
     for (const id of [...this.gapSince.keys()]) if (!live.has(id)) this.gapSince.delete(id);
+    for (const id of [...this.unmeetableSince.keys()])
+      if (!unmeetable.has(id)) this.unmeetableSince.delete(id);
   }
 
   /** place-unreachable: a place no home's door can walk to, for a whole day (looked at once an hour). */

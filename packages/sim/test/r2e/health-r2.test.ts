@@ -139,6 +139,8 @@ describe('gap-dead-end', () => {
     const w = new HealthWatch();
     expect(lookdays(w, s, 'gap-dead-end', 0, 2 * DAY)).toHaveLength(0);
     fake.denyDecor = true;
+    // R2X: the stall hosts a place of its own now (R2A's pass), so no place stands near it either.
+    fake.places = [];
     const w2 = new HealthWatch();
     expect(lookdays(w2, s, 'gap-dead-end', 0, DAY - HOUR)).toHaveLength(0);
     expect(lookdays(w2, s, 'gap-dead-end', DAY, DAY)).toHaveLength(1);

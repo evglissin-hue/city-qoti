@@ -1,5 +1,5 @@
 // R2C's class for the dead-end hunt: an open gap that nothing the town can build would close is
-// flagged after a day (view/health.ts, 'gap-dead-end'), and a gap the town can meet never is.
+// flagged after a day (view/health.ts, 'gap-unmeetable'), and a gap the town can meet never is.
 import { describe, expect, it } from 'vitest';
 import { TICKS_PER_DAY } from '../../src/constants';
 import { openGap } from '../../src/systems/gaps/api';
@@ -15,9 +15,9 @@ describe('the gap dead-end hunt', () => {
     openGap(s, null, 'nothingToSell', 'seats:2', 101, 9);
     openGap(s, null, 'nowhereToGo', 'street:3', 102, 6);
     const watch = new HealthWatch();
-    expect(watch.check(s).filter((i) => i.kind === 'gap-dead-end')).toEqual([]);
+    expect(watch.check(s).filter((i) => i.kind === 'gap-unmeetable')).toEqual([]);
     s.tick += TICKS_PER_DAY;
-    const flags = watch.check(s).filter((i) => i.kind === 'gap-dead-end');
+    const flags = watch.check(s).filter((i) => i.kind === 'gap-unmeetable');
     expect(flags.map((f) => f.text)).toEqual([
       'gap shortOfSupplies (seats:1) asks for something no one can do',
     ]);
