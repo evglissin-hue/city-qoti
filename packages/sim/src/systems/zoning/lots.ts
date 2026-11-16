@@ -537,6 +537,29 @@ function addLot(
 }
 
 /** True when an empty lot still stands where it was cut, on ground it may use. */
+/**
+ * R2X: the door tiles of every building (off the road), marked once a pass: an empty lot that covers
+ * one goes, as the cutter never cuts one there (markReserved). A building set down by hand after the
+ * lot was cut (a garden bed facing a lot) would otherwise be walled in when the lot grows.
+ */
+const doorMask = new Uint8Array(N);
+const doorList: number[] = [];
+
+function markDoors(state: WorldState): void {
+  const road = state.map.road;
+  for (const b of state.buildings) {
+    const door = doorTile(b);
+    if (door < 0 || door >= N || road[door] || doorMask[door]) continue;
+    doorMask[door] = 1;
+    doorList.push(door);
+  }
+}
+
+function clearDoors(): void {
+  for (const i of doorList) doorMask[i] = 0;
+  doorList.length = 0;
+}
+
 function stillValid(state: WorldState, lot: Lot, decorMoved: boolean): boolean {
   const m = state.map;
   if (!m.road[lot.frontage] || !content.zoneByValue.has(lot.zone)) return false;
@@ -546,7 +569,7 @@ function stillValid(state: WorldState, lot: Lot, decorMoved: boolean): boolean {
     for (let x = lot.x; x < lot.x + lot.w; x++) {
       const i = z * S + x;
       if (m.lot[i] !== lot.id || m.zone[i] !== lot.zone) return false;
-      if (m.road[i] || m.occupant[i] || m.water[i] || m.fieldOwner[i]) return false;
+      if (m.road[i] || m.occupant[i] || m.water[i] || m.fieldOwner[i] || doorMask[i]) return false;
       const h = m.height[i]!;
       if (h < lo) lo = h;
       if (h > hi) hi = h;
@@ -996,11 +1019,16 @@ function cutAll(
   const up: Lot[] = [];
   if (!streetsSettled) for (const lot of state.lots) if (managed(state, lot)) up.push(lot);
   const lifting = new Set(up);
-  for (const lot of [...state.lots]) {
-    if (lot.buildingId || lot.kind === 'garden' || lifting.has(lot)) continue;
-    if (stillValid(state, lot, decorMoved)) continue;
-    dropLot(state, ctx, lot);
-    removed++;
+  markDoors(state);
+  try {
+    for (const lot of [...state.lots]) {
+      if (lot.buildingId || lot.kind === 'garden' || lifting.has(lot)) continue;
+      if (stillValid(state, lot, decorMoved)) continue;
+      dropLot(state, ctx, lot);
+      removed++;
+    }
+  } finally {
+    clearDoors();
   }
   // R2F: when only buildings grown on lots came since the last pass (the caller knows), the street
   // lots stand as they would be cut again, so they stay down unless this pass dropped one.

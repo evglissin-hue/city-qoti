@@ -7,7 +7,8 @@
 // will bring; demand-unanswered, a demand bar lit three days with no empty lot of its zone;
 // growth-wait-broken (P2), a bar that says a lot waits and building starts at the next pass, three
 // days running, with nothing started; R2C, gap-unmeetable (a gap of a kind the town cannot meet at
-// all, a day); R2E, for the evening round: gap-dead-end (an open gap no command
+// all, a day); R2X, building-cut-off (a built building nobody can walk to, a day: the class behind
+// site-cut-off once the site is done); R2E, for the evening round: gap-dead-end (an open gap no command
 // could close, a day), place-unreachable (a place no home door can walk to, a day), treats-unsold (an
 // outlet with Treats on its shelf and a place in reach whose visitors bought none for a season of
 // evenings), tier-unreachable (an evenings gate no town can build) and garden-grown (a garden lot

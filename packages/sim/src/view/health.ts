@@ -52,6 +52,12 @@ export type HealthKind =
   | 'site-stalled'
   /** Nobody from the town can walk to the site's door. */
   | 'site-cut-off'
+  /**
+   * R2X: a built building nobody from the town can walk to, for a whole day (a garden bed walled in
+   * by a lot that grew across its door, on R2E's trial merge): the class behind site-cut-off, once
+   * the site is finished.
+   */
+  | 'building-cut-off'
   /** A site waits on a good with none free in stock and nothing to bring it (no maker, no carrier). */
   | 'site-unsupplied'
   /** Builders idle at their workplace in work hours while a site has work they could do. */
@@ -189,6 +195,9 @@ export function quietSeasons(good: string, seen: ReadonlySet<string> = new Set()
 export class HealthWatch {
   /** Site id → [workDone seen, tick it was first seen at that value]. */
   private readonly progress = new Map<number, [number, number]>();
+  /** R2X: building id → tick it was first seen built with no walk to its door; and the hour of the last look. */
+  private readonly cutOffSince = new Map<number, number>();
+  private cutOffHour = -1;
   /** Site id → [workDone, tick it was first seen workable with builders free]. */
   private readonly waiting = new Map<number, [number, number]>();
   private readonly stuckSince = new Map<number, number>();
@@ -252,6 +261,7 @@ export class HealthWatch {
       }
     }
     for (const id of [...this.progress.keys()]) if (!seen.has(id)) this.progress.delete(id);
+    this.checkCutOff(state, out);
 
     // Builders idle beside work they could do: a reachable site with work allowed and room in its
     // crew that has not moved for a while, though builders stood free at every look.
@@ -476,6 +486,28 @@ export class HealthWatch {
       });
     }
     for (const k of [...this.ruleSince.keys()]) if (!live.has(k)) this.ruleSince.delete(k);
+  }
+
+  /** building-cut-off: a built building whose door the town cannot walk to for a whole day (looked at hourly). */
+  private checkCutOff(state: WorldState, out: HealthIssue[]): void {
+    const now = state.tick;
+    const hour = Math.floor(now / TICKS_PER_HOUR);
+    if (hour === this.cutOffHour) return;
+    this.cutOffHour = hour;
+    const live = new Set<number>();
+    for (const b of state.buildings) {
+      if (b.stage !== 'built' || townReachesDoor(state, b)) continue;
+      live.add(b.id);
+      const since = this.cutOffSince.get(b.id) ?? now;
+      this.cutOffSince.set(b.id, since);
+      if (now - since >= DAY_TICKS)
+        out.push({
+          kind: 'building-cut-off',
+          id: b.id,
+          text: `${b.def} #${b.id}: nobody can walk to its door`,
+        });
+    }
+    for (const id of [...this.cutOffSince.keys()]) if (!live.has(id)) this.cutOffSince.delete(id);
   }
 
   /** R2E: the evening round's checks. Each reads live state through the sim's own APIs and is quiet on stand-ins. */
