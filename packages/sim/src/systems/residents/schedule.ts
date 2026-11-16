@@ -484,7 +484,10 @@ function followRound(
     return again ? followRound(state, ctx, r, h, homeDoor, window, false) : true;
   }
   if (r.move && r.move.target === s.tile) return true;
-  const res = r.tile === s.tile && !r.move ? 'arrived' : moveResident(state, r, s.tile, 'round');
+  const res =
+    r.tile === s.tile && !r.move
+      ? 'arrived'
+      : moveResident(state, r, s.tile, window === 'evening' ? 'round' : 'leisure');
   if (res === 'walking') {
     r.activity = visitActivity(state, r, s) ?? { kind: 'leisure', tile: s.tile };
     r.flags &= ~ResidentFlags.stuck;

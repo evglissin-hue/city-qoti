@@ -165,7 +165,8 @@ export const places: System = {
     if (!isStandard(state)) return;
     // The patterns pass ran a moment ago in this tick: read the sites it found.
     invalidatePlaces(state);
-    refreshRows(state, ctx);
+    // Streets first, so a place first found today can be named for the street beside it.
     refreshStreets(state, ctx);
+    refreshRows(state, ctx);
   },
 };

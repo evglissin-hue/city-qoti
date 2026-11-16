@@ -6,6 +6,8 @@ import { content, placeWords as W } from '@qoti/content';
 import { MAP_SIZE } from '../../constants';
 import type { Place, WorldState } from '../../contracts';
 import { householdIn, isHomeDef } from '../../conditions/geo';
+import { shownName } from '../../state/evenings';
+import { streetTiles } from './streets';
 
 const S = MAP_SIZE;
 /** How far (Manhattan tiles) a home counts as the nearest family. */
@@ -56,10 +58,33 @@ function nearestStreet(state: WorldState, tile: number): string | null {
   return best;
 }
 
-/** "by the Underbank cottage", else "by the water", else "at the edge of town". */
+/** How far (Manhattan tiles) a street's run counts as beside a place. */
+const STREET_RANGE = 3;
+
+/** The name of a street whose run passes within STREET_RANGE tiles of the place, if any. */
+function streetBeside(state: WorldState, tile: number): string | null {
+  const x = tile % S;
+  const z = Math.floor(tile / S);
+  let best: string | null = null;
+  let bestDist = STREET_RANGE + 1;
+  for (const st of state.streets) {
+    for (const t of streetTiles(state, st)) {
+      const d = Math.abs((t % S) - x) + Math.abs(Math.floor(t / S) - z);
+      if (d < bestDist) {
+        bestDist = d;
+        best = shownName(st);
+      }
+    }
+  }
+  return best;
+}
+
+/** "by the Underbank cottage", else "on Mill Lane", else "by the water", else "at the edge of town". */
 function where(state: WorldState, place: Place): string {
   const near = nearestFamily(state, place.tile);
   if (near) return fill(W.byFamily, near);
+  const street = streetBeside(state, place.tile);
+  if (street) return fill(W.onStreet, { street });
   return place.parts.water > 0 ? W.byWater : W.atEdge;
 }
 
