@@ -363,6 +363,19 @@ describe('garden-grown', () => {
     expect(first.map((i) => i.id).sort()).toEqual([byId.id, byTile.id, byLot.id].sort());
     expect(ofKind(w, s, 'garden-grown')).toHaveLength(0);
   });
+
+  it('a garden lot never counts as an offered lot for a lit bar, whatever zone it carries', () => {
+    const { state: s } = villageFixture();
+    s.lots = [];
+    // R2F cuts gardens in zone 0; this one carries Homes to show the watcher skips it by kind.
+    garden(s, 20, 20).zone = content.zoneById.get('homes-low')!.layerValue;
+    s.demand.lit = [true, false, false, false];
+    const w = new HealthWatch();
+    s.tick = 0;
+    ofKind(w, s, 'demand-unanswered');
+    s.tick = 3 * TICKS_PER_DAY + 1;
+    expect(ofKind(w, s, 'demand-unanswered')).toHaveLength(1);
+  });
 });
 
 describe('the stand-ins raise none of them', () => {

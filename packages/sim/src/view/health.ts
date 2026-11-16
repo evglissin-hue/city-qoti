@@ -398,7 +398,8 @@ export class HealthWatch {
       const paintable = zones.filter((z) => !z.requires?.rank || rankAtLeast(state, z.requires.rank));
       if (paintable.length === 0) return;
       const values = paintable.map((z) => z.layerValue);
-      if (state.lots.some((l) => !l.buildingId && values.includes(l.zone))) return;
+      // R2F: a garden lot (zone 0) is never offered; skipped by name, not only by its zone.
+      if (state.lots.some((l) => l.kind !== 'garden' && !l.buildingId && values.includes(l.zone))) return;
       live.add(k);
       const since = this.demandSince.get(k) ?? now;
       this.demandSince.set(k, since);
