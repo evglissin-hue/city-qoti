@@ -139,7 +139,7 @@ describe('yard and goods pieces (V3A)', () => {
       const kit = kitById.get(id)!;
       for (const lod of ['high', 'low'] as const)
         for (let seed = 0; seed < 4; seed++) {
-          const params =
+          const params: Record<string, string> =
             id === 'goods-display'
               ? { good: DISPLAY_GOODS[seed % DISPLAY_GOODS.length]! }
               : id === 'yard-sign'
@@ -152,7 +152,7 @@ describe('yard and goods pieces (V3A)', () => {
           for (let t = 0; t < pos.count; t += 3) {
             const [a, b, c] = [t, t + 1, t + 2].map(
               (i) => [pos.getX(i), pos.getY(i), pos.getZ(i)] as [number, number, number],
-            ) as [number[], number[], number[]];
+            ) as unknown as [number[], number[], number[]];
             const u = [b[0]! - a[0]!, b[1]! - a[1]!, b[2]! - a[2]!];
             const v = [c[0]! - a[0]!, c[1]! - a[1]!, c[2]! - a[2]!];
             const n = [
