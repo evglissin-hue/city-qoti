@@ -81,6 +81,26 @@ describe('streetFurniture', () => {
     for (const p of lamps(ps)) expect(p.z).toBeCloseTo(40 + 0.5 - 0.38, 5);
   });
 
+  it('keeps a row of homes lit when every other tile is a doorstep (lamps step off doors)', () => {
+    for (const style of ['brick', 'plaster', 'stone', 'timber']) {
+      const w = street(40, 20, 60, style);
+      w.lots = [];
+      // Two-wide cottages shoulder to shoulder, each door fronting one tile of the street.
+      w.buildings = [];
+      for (let x = 20, id = 100; x + 1 <= 60; x += 2, id++)
+        w.buildings.push({ id, def: 'cottage', x, z: 38, style });
+      const ls = lamps(streetFurniture(mirrorOf(w)));
+      const every = STYLES[style]!.every;
+      expect(ls.length, style).toBeGreaterThanOrEqual(Math.floor(40 / every) - 2);
+    }
+  });
+
+  it('treats a street two tiles wide as straight, not as a junction', () => {
+    const w = street(40, 20, 60, 'brick');
+    for (let x = 20; x <= 60; x++) w.roads!.push([x, 41, 3]);
+    expect(lamps(streetFurniture(mirrorOf(w))).length).toBeGreaterThanOrEqual(8);
+  });
+
   it('spaces by style and takes lanes at half the density', () => {
     const gap = (style: string, cls: number): number => {
       const xs = lamps(streetFurniture(mirrorOf(street(40, 20, 80, style, cls)))).map((p) => Math.floor(p.x));

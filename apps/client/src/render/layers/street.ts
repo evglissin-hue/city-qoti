@@ -203,8 +203,16 @@ export function streetFurniture(mirror: Mirror): StreetPiece[] {
   const straight = (x: number, z: number): 0 | 1 | 2 => {
     // 1: runs along x; 2: runs along z; 0: a junction, a corner, a lone tile or no road.
     if (road(x, z) < Road.path) return 0;
-    const h = road(x - 1, z) > 0 || road(x + 1, z) > 0;
-    const v = road(x, z - 1) > 0 || road(x, z + 1) > 0;
+    const l = road(x - 1, z) > 0;
+    const r = road(x + 1, z) > 0;
+    const u = road(x, z - 1) > 0;
+    const d = road(x, z + 1) > 0;
+    // Through on one axis and not the other: a straight tile, on a road one or more tiles wide.
+    if (l && r && !(u && d)) return 1;
+    if (u && d && !(l && r)) return 2;
+    if (l && r) return 0;
+    const h = l || r;
+    const v = u || d;
     return h === v ? 0 : h ? 1 : 2;
   };
   const dist = (mx: number, mz: number, x: number, z: number): number => Math.hypot(mx - x, mz - z);
@@ -252,6 +260,8 @@ export function streetFurniture(mirror: Mirror): StreetPiece[] {
     return true;
   };
 
+  /** Lamps that fell on a doorstep or a blocked spot, by line and side: the run position they wanted. */
+  const owing = new Map<number, number>();
   for (const idx of order) {
     const tx = idx % S;
     const tz = (idx - tx) / S;
@@ -269,22 +279,34 @@ export function streetFurniture(mirror: Mirror): StreetPiece[] {
     if (!fronted.length) continue;
     const laneScale = cls === Road.lane ? 2 : 1;
 
-    // Lamps: a stable count along the run, alternating sides.
+    // Lamps: a stable count along the run, alternating sides. A lamp whose tile is a door's front
+    // (every other tile of a row of two-wide homes) or is blocked moves on to the run's next free
+    // tile on that side, so a row's lamps never all fall on doorsteps.
     let lampSide = -1;
+    const line = axis === 1 ? tz * 2 : tx * 2 + 1;
     for (const s of fronted) {
       const f = faces.get(idx * 4 + s)!;
       const st = STYLES[f.style] ?? STYLES.village!;
-      if (f.door || (st.streetsOnly && cls < Road.street)) continue;
-      const every = st.every * laneScale;
-      const off = every >> 1;
-      if (k < off || (k - off) % every !== 0) continue;
-      const j = (k - off) / every;
-      const want = sides[j % 2]!;
-      if (s !== want && fronted.includes(want)) continue;
-      lampSide = s;
+      if (st.streetsOnly && cls < Road.street) continue;
+      const owedKey = line * 4 + s;
+      const owed = owing.get(owedKey);
+      if (owed === undefined || k - owed > 2) {
+        owing.delete(owedKey);
+        const every = st.every * laneScale;
+        const off = every >> 1;
+        if (k < off || (k - off) % every !== 0) continue;
+        const j = (k - off) / every;
+        const want = sides[j % 2]!;
+        if (s !== want && fronted.includes(want)) continue;
+      }
       const x = tx + 0.5 + DIRS[s]![0] * (0.5 - CURB);
       const z = tz + 0.5 + DIRS[s]![1] * (0.5 - CURB);
-      put(st.lamp, x, z, s, Math.floor(hash01(tx, tz, s) * 65535));
+      if (f.door || !put(st.lamp, x, z, s, Math.floor(hash01(tx, tz, s) * 65535))) {
+        if (owed === undefined) owing.set(owedKey, k);
+        continue;
+      }
+      owing.delete(owedKey);
+      lampSide = s;
       placed.add(idx * 4 + s);
       break;
     }
