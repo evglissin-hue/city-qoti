@@ -35,7 +35,7 @@ import { rankAtLeast } from '../state/village';
 import { familyIndex, methodOf } from '../state/zones';
 import { isStandard } from '../state/hamlet';
 import { carrierCovers, passClosed } from '../systems/carrier/api';
-import { hourOf, isBuildTime } from '../systems/economy/time';
+import { dayIndex, hourOf, isBuildTime } from '../systems/economy/time';
 import { currentPlan, isFestivalDay } from '../systems/festivals/api';
 import { achievable, placeableNow } from '../systems/hearth/wishes/achievable';
 import { sellsTreats, treatsOnShelf } from '../systems/market/round';
@@ -545,7 +545,7 @@ export class HealthWatch {
    */
   private checkTreatsUnsold(state: WorldState, out: HealthIssue[]): void {
     const now = state.tick;
-    const day = Math.floor(now / TICKS_PER_DAY);
+    const day = dayIndex(now);
     if (hourOf(now) < content.places.homeHour || day === this.unsoldDay) return;
     this.unsoldDay = day;
     const byOutlet = new Map<number, Place[]>();
