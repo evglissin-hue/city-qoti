@@ -1,13 +1,7 @@
 // I3 (C5F): the almanac. A card opens each season (the Charter or trial steps that matter now, the
 // festival's date, the forecast, a telegraphed threat), and a two-page report closes it: the
 // Hearth's page and the Ledger's page, from SeasonReportView. Paper tinted by the season.
-import {
-  TICKS_PER_DAY,
-  type SeasonCardView,
-  type SeasonReportLine,
-  type SeasonReportView,
-  type EditionLine,
-} from '@qoti/sim';
+import { TICKS_PER_DAY, type SeasonCardView, type SeasonReportLine, type SeasonReportView } from '@qoti/sim';
 import type { ComponentChildren } from 'preact';
 import type { Session } from '../../app/session';
 import { closeAlmanac } from '../../app/seasonsHook';
@@ -177,15 +171,12 @@ export function Forecast({ session, weather }: { session: Session; weather: Seas
 }
 
 /**
- * R2D: a line of the joint report that belongs to neither lane alone ("the lantern walk fed the pie
- * stall"): `SeasonReportView.cross`, which R2C's `view/season/index.ts` fills. Until then it is absent
- * and the spread simply has no such block.
+ * R2D: the joint report's cross-lane lines ("the lantern walk fed the pie stall"):
+ * `SeasonReportView.together`, which R2C's `view/season/index.ts` fills, first on the spread. Absent
+ * before R2C and in a season with none, and then the spread simply has no such block.
  */
-export type CrossLine = EditionLine;
-
-/** The report's cross-lane lines, or none (never an empty heading). */
-export function crossLines(view: SeasonReportView): CrossLine[] {
-  return (view.cross ?? []).filter((l) => l.text.length > 0);
+export function togetherLines(view: SeasonReportView): SeasonReportLine[] {
+  return (view.together ?? []).filter((l) => l.text.length > 0);
 }
 
 export function SeasonReport({
@@ -205,7 +196,7 @@ export function SeasonReport({
     if (a?.kind === 'report') session.ui.almanac.value = { ...a, page: p };
   };
   const stars = view.hearth.find((l) => l.track === 'festival')?.value;
-  const cross = crossLines(view);
+  const together = togetherLines(view);
   const seats = session.mirror.seats.value;
   return (
     <div
@@ -221,11 +212,11 @@ export function SeasonReport({
           {names[view.season]}, year {view.year + 1}
         </h2>
       </header>
-      {cross.length > 0 && (
+      {together.length > 0 && (
         <section class="report-cross" data-testid="report-cross">
           <h3>Between the two of you</h3>
           <ul>
-            {cross.map((l, i) => (
+            {together.map((l, i) => (
               <li key={i} class="report-line">
                 <span>{creditedText(l.text, { text: l.text, seats: l.seats ?? [], refs: [] }, seats)}</span>
               </li>

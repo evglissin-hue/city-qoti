@@ -15,7 +15,7 @@ import { loadSettings } from '../settings';
 import { SettingsPanel } from '../SettingsPanel';
 import { mount, type Mounted } from '../test/dom';
 import { EditionPanel } from './Edition';
-import { crossLines, SeasonCardPanel } from './SeasonCard';
+import { SeasonCardPanel, togetherLines } from './SeasonCard';
 
 let view: Mounted | null = null;
 beforeEach(() => localStorage.clear());
@@ -223,7 +223,7 @@ describe('the season spread', () => {
 
   it('shows no empty heading when there are no cross-lane lines', async () => {
     const { session } = mockSession();
-    expect(crossLines(mockSeasonReport)).toEqual([]);
+    expect(togetherLines(mockSeasonReport)).toEqual([]);
     session.ui.almanac.value = { kind: 'report', view: mockSeasonReport, page: 0 };
     view = await mount(h(SeasonCardPanel, { session }));
     expect(view.find('report-cross')).toBeNull();
