@@ -411,7 +411,7 @@ function grownCottage(opts: KitBuildOptions | undefined, L: DistrictLook): Built
     // and doorstep draw as they do at any storeys.
     const urnd = seeded((opts?.seed ?? 1) * 211 + 17);
     for (let i = 1; i < F.whole; i++) {
-      const y = 0.52 + i * STOREY_H;
+      const y = 0.48 + i * STOREY_H;
       const st = floorStyle(style, i);
       windowRow(s, front, x0, x1, y, st, urnd, anchors.lights!, [], 0.6, [0.2, 0.22], clad);
       s.nearOnly(() => {

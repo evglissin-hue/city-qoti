@@ -593,7 +593,7 @@ export function cottageOf(opts: KitBuildOptions | undefined): Built {
     // does at any storeys; a room in the roof (a half storey off the native) shows a dormer.
     const urnd = seeded((opts?.seed ?? 1) * 211 + 17);
     for (let i = 1; i < F.whole; i++) {
-      const y = 0.52 + i * STOREY_H;
+      const y = 0.48 + i * STOREY_H;
       const st = floorStyle(style, i);
       windowRow(s, front, x0, x1, y, st, urnd, anchors.lights!, [], 0.6, [0.2, 0.22], clad);
       s.nearOnly(() => {

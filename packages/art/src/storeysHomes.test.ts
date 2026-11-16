@@ -151,7 +151,7 @@ describe('storeys of the cottage and the house (V3B)', () => {
             : 0.52
           : id === 'house'
             ? 1.12 + (i - 1) * STOREY_H
-            : 0.52 + i * STOREY_H,
+            : 0.48 + i * STOREY_H,
       );
     for (const id of KITS)
       for (const look of LOOKS)
