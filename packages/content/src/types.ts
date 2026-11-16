@@ -812,6 +812,22 @@ export interface ZoneDef {
   token: string;
   /** R1: the rank before it may be painted (Shops and Townhouses: Village); open at founding when absent. */
   requires?: { rank?: RankName };
+  /**
+   * R2 (R2F): how frontage on each class of road is cut (13-ledger.md, Lots). A class left out cuts
+   * `lots` as C4B did, gaps and all; `street` covers avenues too.
+   */
+  roads?: { street?: RoadLotsDef; lane?: RoadLotsDef; path?: RoadLotsDef };
+}
+
+/** R2 (R2F): how a zone's frontage along one class of road is cut into lots. */
+export interface RoadLotsDef {
+  /** Lot shapes along this class of road: widths 1 to 3 along it, depths 2 to 4 back from it. */
+  lots: LotDef[];
+  /**
+   * True: each frontage run is cut into lots that touch, one row with no gaps, with garden lots in
+   * the block behind and a corner lot where two roads meet (V3B joins and draws them).
+   */
+  row?: boolean;
 }
 
 /** A lot shape for a zone: a footprint facing the road. */
