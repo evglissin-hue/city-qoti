@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { runCartScene } from './cartScene';
+import { runCartScene, type CartRun } from './cartScene';
 import {
   formatRows,
   measureFirstCraftsfolk,
@@ -16,7 +16,6 @@ import {
   rowsCartLoop,
   rowsGaps,
   rowTreats,
-  type CartRun,
   type DaySample,
   type EveningSample,
   type SeenGap,
