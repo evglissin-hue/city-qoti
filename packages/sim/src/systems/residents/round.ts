@@ -127,8 +127,9 @@ export function windowStart(r: Resident, window: RoundWindow): number {
 interface PlannedCounts {
   tick: number;
   turn: number;
+  day: number;
   /** Residents planning each place, by the hour of day they set off for it (24 slots). */
-  byPlace: Map<PlaceId, number[]>;
+  byPlace: Map<PlaceId, Int32Array>;
 }
 
 const plannedMemo = new WeakMap<WorldState, PlannedCounts>();
@@ -139,26 +140,32 @@ function stopHour(s: RoundStop): number {
 }
 
 /** Planned visits per place and hour, from every resident's saved round today (counted once a tick). */
-function plannedCounts(state: WorldState): Map<PlaceId, number[]> {
+function plannedCounts(state: WorldState): Map<PlaceId, Int32Array> {
   let m = plannedMemo.get(state);
   if (!m || m.tick !== state.tick || m.turn !== state.lastTurn) {
     const day = dayIndex(state.tick);
-    const byPlace = new Map<PlaceId, number[]>();
-    for (const r of state.residents) {
-      if (r.roundDay !== day || !r.round) continue;
-      for (const s of r.round) countPlan(byPlace, s);
+    // Earlier today's arrays, zeroed (an all-zero row reads as no row): counted afresh, allocated once a day.
+    const byPlace = m && m.day === day ? m.byPlace : new Map<PlaceId, Int32Array>();
+    for (const a of byPlace.values()) a.fill(0);
+    const residents = state.residents;
+    for (let i = 0; i < residents.length; i++) {
+      const r = residents[i]!;
+      if (r.roundDay !== day) continue;
+      const round = r.round;
+      if (!round) continue;
+      for (let k = 0; k < round.length; k++) countPlan(byPlace, round[k]!);
     }
-    m = { tick: state.tick, turn: state.lastTurn, byPlace };
+    m = { tick: state.tick, turn: state.lastTurn, day, byPlace };
     plannedMemo.set(state, m);
   }
   return m.byPlace;
 }
 
-function countPlan(map: Map<PlaceId, number[]>, s: RoundStop): void {
+function countPlan(map: Map<PlaceId, Int32Array>, s: RoundStop): void {
   if (s.kind === 'shop' || s.kind === 'visit') return;
   let a = map.get(s.place);
   if (!a) {
-    a = new Array<number>(24).fill(0);
+    a = new Int32Array(24);
     map.set(s.place, a);
   }
   a[stopHour(s)]! += 1;
@@ -244,15 +251,25 @@ interface Candidate {
   hour: number;
   /** Score in hundredths. */
   score: number;
+  /** Its features (placeFeatures) and planned counts by hour, read once. */
+  features: number;
+  byHour: Int32Array | undefined;
 }
 
 /**
  * A resident's liking for a place, in hundredths, before crowding: its draw, their taste for it, a
  * friend going, distance from `from`, and the whim (one draw from the stream).
  */
-function liking(state: WorldState, rng: Rng, who: Planner, place: Place, from: number): number {
+function liking(
+  state: WorldState,
+  rng: Rng,
+  who: Planner,
+  place: Place,
+  features: number,
+  from: number,
+): number {
   let score = placeDraw(state, place) * 100;
-  const taste = tasteWith(who.taste, placeFeatures(state, place), place);
+  const taste = tasteWith(who.taste, features, place);
   score += Math.max(P.tasteMin, Math.min(P.tasteMax, taste)) * 100;
   if (who.friends.has(place.id)) score += P.friendBonus * 100;
   score -= manhattan(from, place.tile) * P.distanceHundredths;
@@ -260,13 +277,8 @@ function liking(state: WorldState, rng: Rng, who: Planner, place: Place, from: n
   return score;
 }
 
-/** Off the score for the crowd beyond a place's room at an hour (planned visitors and this one). */
-function crowding(place: Place, counts: Map<PlaceId, number[]>, hour: number): number {
-  return crowdAt(place, counts.get(place.id), hour);
-}
-
-/** crowding, with the place's planned counts by hour already looked up. */
-function crowdAt(place: Place, byHour: readonly number[] | undefined, hour: number): number {
+/** Off the score for the crowd beyond a place's room at an hour (planned visitors and this one), from its planned counts by hour. */
+function crowdAt(place: Place, byHour: Int32Array | undefined, hour: number): number {
   const planned = byHour?.[hour] ?? 0;
   const beyond = planned + 1 - grownUpRoom(place);
   return beyond > 0 ? beyond * P.crowdPenalty * 100 : 0;
@@ -276,16 +288,19 @@ function crowdAt(place: Place, byHour: readonly number[] | undefined, hour: numb
  * The lanterns a place will have lit by the hour they set off, in hundredths (they plan at 17:00,
  * before the lights go on at 18:00, and judge a place as it will be when they get there).
  */
-function lightsAhead(state: WorldState, place: Place, hour: number): number {
-  if (place.parts.lit > 0 || hour < P.litHour) return 0;
-  return placeFeatures(state, place) & PlaceFeature.light ? P.litBonus * 100 : 0;
+function lightsAhead(place: Place, features: number, hour: number): number {
+  if (hour < P.litHour) return 0;
+  return lightsLater(place, features);
 }
 
 /** The lit part lightsAhead adds from `litHour` on (0 when it adds nothing at any hour). */
-function lightsLater(state: WorldState, place: Place): number {
+function lightsLater(place: Place, features: number): number {
   if (place.parts.lit > 0) return 0;
-  return placeFeatures(state, place) & PlaceFeature.light ? P.litBonus * 100 : 0;
+  return features & PlaceFeature.light ? P.litBonus * 100 : 0;
 }
+
+/** bestHour's score (it returns the hour). */
+let bestScoreOut = 0;
 
 /**
  * The hour to set off for a first stop: of the hours from `from` to `last` with room, the best (its
@@ -293,15 +308,14 @@ function lightsLater(state: WorldState, place: Place): number {
  * in any hour, now, less the crowd.
  */
 function bestHour(
-  state: WorldState,
   place: Place,
-  counts: Map<PlaceId, number[]>,
+  features: number,
+  byHour: Int32Array | undefined,
   base: number,
   from: number,
   last: number,
-): [hour: number, score: number] {
-  const byHour = counts.get(place.id);
-  const lit = lightsLater(state, place);
+): number {
+  const lit = lightsLater(place, features);
   let bestHourAt = -1;
   let bestScore = 0;
   for (let hour = from; hour <= last; hour++) {
@@ -312,8 +326,12 @@ function bestHour(
       bestScore = score;
     }
   }
-  if (bestHourAt >= 0) return [bestHourAt, bestScore];
-  return [from, base + (from < P.litHour ? 0 : lit) - crowdAt(place, byHour, from)];
+  if (bestHourAt >= 0) {
+    bestScoreOut = bestScore;
+    return bestHourAt;
+  }
+  bestScoreOut = base + (from < P.litHour ? 0 : lit) - crowdAt(place, byHour, from);
+  return from;
 }
 
 /** One in n residents (by id and day) are the rain-shy and skip open-air places, as rain keeps them in. */
@@ -410,15 +428,12 @@ export function planRound(
       if (!eligible(r, place, rainy)) continue;
       const tile = approachTile(state, place, cost);
       if (tile < 0) continue;
-      const [hour, score] = bestHour(
-        state,
-        place,
-        counts,
-        liking(state, rng, who, place, homeDoor),
-        fromHour,
-        lastHour,
-      );
-      if (score >= P.minScore * 100) candidates.push({ place, tile, hour, score });
+      const features = placeFeatures(state, place);
+      const byHour = counts.get(place.id);
+      const base = liking(state, rng, who, place, features, homeDoor);
+      const hour = bestHour(place, features, byHour, base, fromHour, lastHour);
+      const score = bestScoreOut;
+      if (score >= P.minScore * 100) candidates.push({ place, tile, hour, score, features, byHour });
     }
   }
   candidates.sort(byScore);
@@ -458,11 +473,11 @@ export function planRound(
       if (manhattan(last, c.place.tile) > P.nextStopRadius) continue;
       if (!hasNewKind(c.place, kinds)) continue;
       const score =
-        liking(state, rng, who, c.place, last) +
-        lightsAhead(state, c.place, hour) -
-        crowding(c.place, counts, hour);
+        liking(state, rng, who, c.place, c.features, last) +
+        lightsAhead(c.place, c.features, hour) -
+        crowdAt(c.place, c.byHour, hour);
       if (score < P.minScore * 100) continue;
-      if (!best || score > best.score) best = { place: c.place, tile: c.tile, hour, score };
+      if (!best || score > best.score) best = { ...c, hour, score };
     }
     if (!best) break;
     chosen.push(best.place);

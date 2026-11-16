@@ -84,9 +84,18 @@ export function placeServes(state: WorldState, place: Place): EntityId[] {
   return out;
 }
 
+/** True when some outlet of the place has Treats on the shelf now (placeServes, without the list). */
+function servesAny(state: WorldState, place: Place): boolean {
+  for (const id of place.outlets) {
+    const b = findById(state.buildings, id);
+    if (b && treatsOnShelf(state, b)) return true;
+  }
+  return false;
+}
+
 /** A place's draw now, 0 to 100: its cached draw plus the live Treats part (`PLACES.treatsBonus`). */
 export function placeDraw(state: WorldState, place: Place): number {
-  const treats = placeServes(state, place).length > 0 ? content.places.treatsBonus : 0;
+  const treats = servesAny(state, place) ? content.places.treatsBonus : 0;
   return Math.max(0, Math.min(100, place.draw + treats));
 }
 

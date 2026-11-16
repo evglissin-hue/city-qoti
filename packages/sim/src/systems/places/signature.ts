@@ -46,29 +46,26 @@ export function placeSignature(state: WorldState): number[] {
   for (const d of state.decor) {
     mix(d.id);
     mix(DECOR_INDEX.get(d.def) ?? -1);
-    mix(d.fx);
-    mix(d.fz);
+    // Fixed-point positions on the map fit in 16 bits each.
+    mix((d.fx & 0xffff) | (d.fz << 16));
   }
   end(out, SIG.decor);
   start();
   mix(state.buildings.length);
   for (const bl of state.buildings) {
     mix(bl.id);
-    mix(BUILDING_INDEX.get(bl.def) ?? -1);
-    mix(bl.x);
-    mix(bl.z);
-    mix(bl.rot);
-    // Its trade: a place's taste bits read it (hasTag), and a business can retool.
-    mix(bl.trade === undefined ? -1 : (TRADE_INDEX.get(bl.trade) ?? -2));
+    // Its def, turn and trade (a place's taste bits read the trade, and a business can retool).
+    const trade = bl.trade === undefined ? 0 : (TRADE_INDEX.get(bl.trade) ?? -1) + 2;
+    mix(((BUILDING_INDEX.get(bl.def) ?? 0xfff) & 0xfff) | ((bl.rot & 3) << 12) | (trade << 14));
+    mix((bl.x & 0xffff) | (bl.z << 16));
     if (bl.stage !== 'built') {
       mix(-1);
       continue;
     }
-    mix(bl.level ?? 0);
     let porch = 0;
     const modules = bl.rt?.modules;
     if (modules) for (const [, m] of modules) if (m === 'porch') porch = 1;
-    mix(porch | (sellsTreats(state, bl) ? 2 : 0));
+    mix(((bl.level ?? 0) & 0xff) | (porch << 8) | ((sellsTreats(state, bl) ? 1 : 0) << 9));
     mix(cafeTables(state, bl));
   }
   end(out, SIG.buildings);

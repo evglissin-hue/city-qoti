@@ -8,8 +8,8 @@
 // How the index stays a pure function of saved state (R2A): a read compares a cheap key (the tick,
 // the turn, and the counts that change when something is placed or pulled down) with the last read's.
 // When it differs, the structural signature (signature.ts: every input of buildPlaces) is hashed again
-// and the places rebuilt only if it changed; the draw's moving parts (charm, lanterns, winter) are
-// recomputed for the new tick either way. A read in the same tick and turn returns what the first read
+// and the places rebuilt only if it changed; the draw's moving parts (charm, lanterns, winter, and the
+// tree and quiet taste bits) are recomputed for the new tick either way. A read in the same tick and turn returns what the first read
 // of that tick found, and the first read of a tick is at the same point of the same system on every
 // client (a snapshot is taken between turns, and reads between turns key on the turn before), so every
 // client sees the same places at every point of the sim. Stock is never cached: placeServes and
