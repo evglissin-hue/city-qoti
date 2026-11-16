@@ -159,6 +159,12 @@ export interface Resident {
    * so the day's stops are one list and their best outing of the day counts.
    */
   roundDay?: number;
+  /**
+   * R2 (R2A, additive): where tonight's evening stops begin in `round` (the afternoon's stops come
+   * first), set when the evening is planned on `roundDay` and absent until then; equal to the length
+   * when they stayed in.
+   */
+  roundEvening?: number;
 }
 
 export interface Household {
