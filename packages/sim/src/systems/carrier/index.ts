@@ -38,6 +38,7 @@ import {
   CARRIER_HOUR,
   IMPACT_PER_UNIT,
   MAP_SIZE,
+  CARRIER_MATERIALS_RESERVE,
   PENNIES_PER_COIN,
   TAB_PER_RESIDENT,
   TICKS_PER_DAY,
@@ -52,6 +53,7 @@ import { familyIndex, GOODS_BY_FAMILY } from '../../state/zones';
 import { balancesView } from '../../view/balances';
 import { dockView } from '../../view/seasons';
 import { tradeView } from '../../view/village';
+import { rankAtLeast } from '../../state/village';
 import { book } from '../economy/api';
 import { coinsText, listText } from '../economy';
 import { emitMoney } from '../economy/emit';
@@ -363,7 +365,14 @@ function settle(state: WorldState, day: Day, price: number, pay: Pay): boolean {
   // R1X: the budget and a site's Materials are bought with coins in hand only; the County Bank's
   // credit is kept for households and makers (a young Village borrowed forty coins a day for Treats
   // and ninety for its grown sites' timber while its whole tax take was fifteen).
-  const floor = pay === 'tab' ? -day.overdraft : 0;
+  // R2X: from Village rank a site's Materials wait for a reserve in hand (CARRIER_MATERIALS_RESERVE),
+  // so the County's upkeep is not paid with the bank's money while timber comes in.
+  const floor =
+    pay === 'tab'
+      ? -day.overdraft
+      : pay === 'essential' && rankAtLeast(state, 'village')
+        ? CARRIER_MATERIALS_RESERVE * PENNIES_PER_COIN
+        : 0;
   if (state.economy.treasury - day.spent - day.repaid - price >= floor) {
     day.spent += price;
     return true;
