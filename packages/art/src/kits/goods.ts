@@ -1075,7 +1075,7 @@ function sackBlob(
   y: number,
   z: number,
   k: number,
-  hex = C.sack,
+  hex: number = C.sack,
 ): void {
   s.surface(SURFACE.cloth);
   s.blob(x, y + 0.067 * k, z, 0.065 * k, 0.062 * k, 0.052 * k, vary(hex, rnd, 0.6), 1, rnd, 0.01, C.sack);
