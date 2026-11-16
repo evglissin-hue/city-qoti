@@ -284,11 +284,64 @@ interface Night {
   outlets: number;
   /** More households than the outlets in town can serve. */
   crowded: boolean;
-  /** Empty lots with a road at the frontage, best first (desirability, then id). */
+  /**
+   * Empty lots with a road at the frontage, best first (desirability, then id). R2F: a row lot that
+   * does not carry its row on (see rowWaits) comes after all the rest.
+   */
   empty: Lot[];
   /** porterServed, and the looser "about in reach" (nearAStore), for many tiles. */
   porters: (tile: number) => boolean;
   nearStore: (tile: number) => boolean;
+}
+
+/**
+ * R2F: the row lots that wait their turn, so a street fills from one end and nothing stands alone on
+ * a lawn: in a row with no building yet, every lot but its corner lot (else its first along the
+ * road); in a row going up, every lot that touches no built one. They are still offered, after every
+ * other lot, so a row whose next lot cannot take a site never stops the street. None in a town with
+ * no streets.
+ */
+function rowWaits(state: WorldState): Set<number> {
+  const waits = new Set<number>();
+  const rows = new Map<number, Lot[]>();
+  for (const l of state.lots) {
+    if (l.kind !== 'plot' || !l.row) continue;
+    let list = rows.get(l.row);
+    if (!list) rows.set(l.row, (list = []));
+    list.push(l);
+  }
+  const at = (l: Lot): number => (l.rot % 2 === 0 ? l.x : l.z);
+  const len = (l: Lot): number => (l.rot % 2 === 0 ? l.w : l.d);
+  for (const list of rows.values()) {
+    list.sort((p, q) => at(p) - at(q) || p.id - q.id);
+    const built = list.some((l) => l.buildingId);
+    const start = list.find((l) => l.corner) ?? list[0]!;
+    list.forEach((l, k) => {
+      if (l.buildingId) return;
+      if (!built) {
+        if (l !== start) waits.add(l.id);
+        return;
+      }
+      const prev = list[k - 1];
+      const next = list[k + 1];
+      const joins =
+        (prev?.buildingId && at(prev) + len(prev) === at(l)) ||
+        (next?.buildingId && at(l) + len(l) === at(next));
+      if (!joins) waits.add(l.id);
+    });
+  }
+  return waits;
+}
+
+/** Empty lots with a road at the frontage, best first (Night.empty); never a garden. */
+function emptyLots(state: WorldState): Lot[] {
+  const waits = rowWaits(state);
+  return state.lots
+    .filter((l) => l.kind !== 'garden' && !l.buildingId && state.map.road[l.frontage])
+    .sort(
+      (p, q) =>
+        Number(waits.has(p.id)) - Number(waits.has(q.id)) || q.desirability - p.desirability || p.id - q.id,
+    );
 }
 
 /** A tile question whose index is built when it is first asked (a night that asks nothing builds nothing). */
@@ -362,9 +415,7 @@ function readNight(state: WorldState): Night {
     counts: new Map(),
     outlets,
     crowded,
-    empty: state.lots
-      .filter((l) => !l.buildingId && state.map.road[l.frontage])
-      .sort((p, q) => q.desirability - p.desirability || p.id - q.id),
+    empty: emptyLots(state),
     porters: lazily(() => porterIndex(services.reach)),
     nearStore: lazily(() => porterIndex(services.reach, NEAR_STORE_SLACK)),
   };
@@ -407,6 +458,7 @@ function demandOf(state: WorldState, night: Night): GrowthDemand {
     if (night.doors.length >= SHOP_HOUSEHOLDS) {
       for (const l of state.lots) {
         if (
+          l.kind !== 'garden' &&
           !l.buildingId &&
           l.zone === Zone.shops &&
           shopReach(l, night.doors, SHOP_HOUSEHOLDS) >= SHOP_HOUSEHOLDS
@@ -779,7 +831,7 @@ function startSites(
       // porters can about reach (canGrow checks the very door), the best few.
       const lots: Lot[] = [];
       for (const l of night.empty) {
-        if (l.buildingId || !zones.includes(l.zone)) continue;
+        if (l.kind === 'garden' || l.buildingId || !zones.includes(l.zone)) continue;
         if (shop && (reachOf.get(l.id) ?? 0) < reachOnly) continue;
         if (!night.nearStore(l.frontage)) continue;
         lots.push(l);

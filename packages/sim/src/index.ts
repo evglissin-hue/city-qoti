@@ -154,6 +154,9 @@ export { carrierDay } from './systems/carrier';
 export { basketGroups, type NeedGroup } from './systems/market/baskets';
 export { isLean, overdraftLimit } from './systems/loans/credit';
 export { growLot, lotPlacement } from './systems/growth/api';
+// R2F: the lot pass and the hourly storeys refit, for the bench.
+export { zoningPass } from './systems/zoning/lots';
+export { refitStoreys } from './systems/zoning/storeys';
 export { cartAt, cartRoute, cartTile, requestCartMove } from './systems/traffic/api';
 // I2 (C4B): growth, traffic, desire paths and stairs for the client (overlays, tools, previews).
 export { growthDemand, growthPass, type GrowthDemand } from './systems/growth';

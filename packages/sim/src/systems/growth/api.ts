@@ -13,7 +13,7 @@ import { insertBuilding } from '../../state/place';
 import { worldIndex } from '../../state/worldIndex';
 import { lotView } from '../../view/village';
 import { mix } from './desirability';
-import { storeysFor } from '../zoning/storeys';
+import { refitRow, storeysFor } from '../zoning/storeys';
 
 /**
  * Where `def` stands on the lot: flush with the road side, its door onto road, and when it is
@@ -28,10 +28,11 @@ export function lotPlacement(state: WorldState, lot: Lot, def: BuildingDef): [x:
   const fixed =
     lot.rot === 2 ? lot.z : lot.rot === 0 ? lot.z + lot.d - fd : lot.rot === 1 ? lot.x : lot.x + lot.w - fw;
   const slack = alongX ? lot.w - fw : lot.d - fd;
+  const hug = slack > 0 && lot.row !== 0 ? hugSide(state, lot) : null;
   const start = slack > 0 ? mix(lot.id, 11) % (slack + 1) : 0;
   const reader = worldIndex(state).reader;
   for (let k = 0; k <= slack; k++) {
-    const off = (start + k) % (slack + 1);
+    const off = hug === 'high' ? slack - k : hug === 'low' ? k : (start + k) % (slack + 1);
     const x = alongX ? lot.x + off : fixed;
     const z = alongX ? fixed : lot.z + off;
     const { front } = entranceTiles(def, x, z, lot.rot);
@@ -39,6 +40,40 @@ export function lotPlacement(state: WorldState, lot: Lot, def: BuildingDef): [x:
     if (!canPlaceBuilding(reader, def, x, z, lot.rot).ok) continue;
     if (coversDoor(state, x, z, fw, fd)) continue;
     return [x, z];
+  }
+  return null;
+}
+
+/**
+ * R2F: which end of the frontage a building on a row lot stands at, so a street fills side by side
+ * instead of by the hash: the side touching a built lot of the row, else any lot of it, so the terrace
+ * stays unbroken and a wider lot's spare tile is a side garden at the row's end (on a corner, a garden
+ * on the corner: the player's chair found a corner house hugging its corner stood a tile off its row).
+ * A corner lot alone in its row hugs its corner. Null leaves the hash order.
+ */
+function hugSide(state: WorldState, lot: Lot): 'low' | 'high' | null {
+  const alongX = lot.rot % 2 === 0;
+  const pos = alongX ? lot.x : lot.z;
+  const len = alongX ? lot.w : lot.d;
+  let builtSide: 'low' | 'high' | null = null;
+  let anySide: 'low' | 'high' | null = null;
+  for (const o of state.lots) {
+    if (o.id === lot.id || o.row !== lot.row || o.kind === 'garden') continue;
+    const opos = alongX ? o.x : o.z;
+    const olen = alongX ? o.w : o.d;
+    const side = opos + olen === pos ? 'low' : pos + len === opos ? 'high' : null;
+    if (!side) continue;
+    anySide ??= side;
+    if (o.buildingId) {
+      builtSide ??= side;
+      if (builtSide === 'low') break;
+    }
+  }
+  if (builtSide ?? anySide) return builtSide ?? anySide;
+  // A corner lot alone in its row stands on its corner.
+  if (lot.corner && lot.frontage2 !== undefined) {
+    const t = alongX ? lot.frontage2 % MAP_SIZE : Math.floor(lot.frontage2 / MAP_SIZE);
+    return t * 2 < pos * 2 + len ? 'low' : 'high';
   }
   return null;
 }
@@ -85,7 +120,7 @@ export function growLot(
 ): Building | null {
   const lot = findById(state.lots, lotId);
   const def = content.buildingById.get(defId);
-  if (!lot || !def || lot.buildingId) return null;
+  if (!lot || !def || lot.buildingId || lot.kind === 'garden') return null;
   const at = lotPlacement(state, lot, def);
   if (!at) return null;
   const b = insertBuilding(state, ctx, def, at[0], at[1], lot.rot, 0, {
@@ -97,5 +132,7 @@ export function growLot(
   lot.buildingId = b.id;
   if (style) lot.style = style;
   ctx?.events.push({ e: 'lot.updated', l: lotView(lot, state) });
+  // R2F: the row rule holds at once, neighbors lifted to within a storey of the new building.
+  refitRow(state, ctx, lot.row);
   return b;
 }
