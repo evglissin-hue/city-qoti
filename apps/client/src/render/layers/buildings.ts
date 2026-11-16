@@ -25,8 +25,10 @@ import {
   setSoilReader,
   standLevel,
 } from '../kitGeometry';
-import { artKitId, isRowKit, kitById, palette, WALL_KITS } from '@qoti/art';
+import { artKitId, kitById, palette, WALL_KITS } from '@qoti/art';
 import { levelFor, SwapQueue, type Level } from '../lod';
+import { gardenParams, lotsFor, lotSignature, rowParams, type GardenSides, type ScreenLot } from '../lots';
+import { levelY } from '../coords';
 import type { KitAnchors } from '@qoti/art';
 import type { LayerContext, RenderLayer } from './types';
 
@@ -59,48 +61,20 @@ function timedBuild(key: string, make: () => BufferGeometry): BufferGeometry {
   return g;
 }
 
+/** V3B: E4's back garden kit (`packages/art/src/kits/gardens.ts`), drawn on every garden lot. */
+const GARDEN_KIT = 'back-garden';
+
+/** A garden's build key: its size, variant and level of detail, and every param. */
+function gardenKey(g: ScreenLot, params: Record<string, string | number | boolean>, lod: Level): string {
+  const keys = Object.keys(params).sort();
+  return `g:${GARDEN_KIT}:${g.w}x${g.d}:${(g.id % 8) + 1}:${lod}:${keys.map((k) => `${k}=${String(params[k])}`).join(';')}`;
+}
+
 const probe = new Vector3();
-const toLocal = new Matrix4();
 const local = new Matrix4();
 
-/**
- * V1B: a home's place in a row, for joined facades: on each side (the kit's x- and x+, at its
- * front row) the neighbor it joins (a built row kit with the same facing, its front on the same
- * line, standing at the same level) as `joinL` or `joinR` with the neighbor's kit, or `streetL` /
- * `streetR` where a road runs past that side instead (a corner house dresses it).
- */
-export function rowNeighbors(mirror: Mirror, b: BuildingView): Record<string, string | boolean> {
-  const out: Record<string, string | boolean> = {};
-  const def = drawDef(b.def);
-  if (!def || b.stage !== 'built' || !isRowKit(artKitId(def.art))) return out;
-  const [w, d] = def.size;
-  const level = standLevel(mirror, b.def, b.x, b.z, b.rot);
-  buildingMatrix(b.def, b.x, b.z, b.rot, 0, local);
-  for (const [side, u] of [
-    ['L', -0.5],
-    ['R', w + 0.5],
-  ] as const) {
-    probe.set(u, 0, d - 0.5).applyMatrix4(local);
-    const tx = Math.floor(probe.x);
-    const tz = Math.floor(probe.z);
-    const id = mirror.occupant(tx, tz);
-    const nb = id && id !== b.id ? mirror.buildings.get(id) : undefined;
-    const ndef = nb ? drawDef(nb.def) : undefined;
-    if (nb && ndef && nb.stage === 'built' && nb.rot === b.rot && isRowKit(artKitId(ndef.art))) {
-      // The probe must fall in the neighbor's front row, on its facing edge.
-      toLocal.copy(buildingMatrix(nb.def, nb.x, nb.z, nb.rot, 0, toLocal)).invert();
-      probe.set(tx + 0.5, 0, tz + 0.5).applyMatrix4(toLocal);
-      const [nw, nd] = ndef.size;
-      const edge = side === 'L' ? probe.x > nw - 1 : probe.x < 1;
-      if (edge && probe.z > nd - 1 && standLevel(mirror, nb.def, nb.x, nb.z, nb.rot) === level) {
-        out[`join${side}`] = artKitId(ndef.art);
-        continue;
-      }
-    }
-    if (mirror.road(tx, tz) > 0) out[`street${side}`] = true;
-  }
-  return out;
-}
+// V3B: `rowNeighbors` (the V1B probe, the V3.0 fallback) lives in lots.ts with `rowParams`; kept exported here.
+export { rowNeighbors } from '../lots';
 
 /**
  * C5E: the kit-local sides of a wall piece (palisade, stone wall, gate) that a built wall piece
@@ -435,6 +409,40 @@ export function buildingsLayer(): RenderLayer {
     return signs.flush();
   }
 
+  // V3B: the lots, once per rebuild: each building's row params, and the garden lots drawn in the same
+  // batch under negative ids (lot ids and building ids share the sim's counter, so they never meet, and
+  // the negative id keeps even a synthetic lot out of a building's way).
+  let rows = new Map<number, Record<string, string | number | boolean>>();
+  let gardenSides = new Map<number, GardenSides>();
+  const gardens = new Map<number, ScreenLot>();
+  let lotSig = '';
+
+  /** Draws one garden lot (`back-garden`, E4's kit; nothing while it is missing). */
+  function placeGarden(g: ScreenLot): boolean {
+    const kit = kitById.get(GARDEN_KIT);
+    const sides = gardenSides.get(g.id);
+    if (!ctx || !batch || !kit || !sides) return false;
+    const id = -g.id;
+    const level = ctx.mirror.padLevel(Math.floor(g.x + g.w / 2), Math.floor(g.z + g.d / 2));
+    m.makeTranslation(g.x, levelY(level), g.z);
+    let lod = lods.get(id);
+    if (!lod) {
+      const c = centers.get(id);
+      camPos.setFromMatrixPosition(ctx.camera.matrixWorld);
+      lod = c ? levelFor(undefined, c.distanceTo(camPos), ctx.env?.buildingDetail ?? LOD_DISTANCE) : 'high';
+      lods.set(id, lod);
+    }
+    const params = { ...sides, season: ctx.mirror.clock.value.season };
+    const key = gardenKey(g, params, lod);
+    const seed = (g.id % 8) + 1;
+    return batch.set(
+      id,
+      key,
+      () => timedBuild(key, () => kit.build({ size: [g.w, g.d], seed, lod, params })),
+      m,
+    );
+  }
+
   // R1E: whether Odette's finale has roofed the square (the Mirror's town view, R1D's unlock).
   let hall = false;
   const hallNow = (): boolean => !!ctx?.mirror.town.value?.unlocked?.includes(MARKET_HALL_UNLOCK);
@@ -461,6 +469,11 @@ export function buildingsLayer(): RenderLayer {
     runKeys = 0;
     runMs = 0;
     const seen = new Set<number>();
+    // V3B: every row param and garden comes from lotsFor, once per rebuild.
+    const screen = lotsFor(ctx.mirror);
+    rows = rowParams(ctx.mirror, screen);
+    gardenSides = gardenParams(ctx.mirror, screen);
+    lotSig = lotSignature(ctx.mirror);
     // V1X: the sim reports building changes that leave the picture as it was (a resident moving
     // in, a counter ticking over); only a real change drops the still-frame cache.
     let changed = false;
@@ -470,6 +483,14 @@ export function buildingsLayer(): RenderLayer {
       const [w, d] = def ? footprintSize(def, b.rot) : [1, 1];
       centers.set(b.id, new Vector3(b.x + w / 2, 0, b.z + d / 2));
       if (place(b)) changed = true;
+    }
+    gardens.clear();
+    for (const g of screen.gardens) {
+      const id = -g.id;
+      seen.add(id);
+      gardens.set(id, g);
+      centers.set(id, new Vector3(g.x + g.w / 2, 0, g.z + g.d / 2));
+      if (placeGarden(g)) changed = true;
     }
     for (const id of batch.ids()) {
       if (seen.has(id)) continue;
@@ -504,19 +525,28 @@ export function buildingsLayer(): RenderLayer {
       lodTimer = 0.4;
       lastCam.copy(camPos);
       const detail = ctx.env?.buildingDetail ?? LOD_DISTANCE;
-      for (const b of ctx.mirror.buildings.values()) {
-        const c = centers.get(b.id);
-        if (!c) continue;
+      const judge = (id: number): void => {
+        const c = centers.get(id);
+        if (!c) return;
         const d = c.distanceTo(camPos);
-        const now = lods.get(b.id) ?? 'high';
+        const now = lods.get(id) ?? 'high';
         const want = levelFor(now, d, detail);
-        if (want === now) swaps.delete(b.id);
-        else swaps.set(b.id, want, d);
-      }
+        if (want === now) swaps.delete(id);
+        else swaps.set(id, want, d);
+      };
+      for (const b of ctx.mirror.buildings.values()) judge(b.id);
+      for (const id of gardens.keys()) judge(id);
     }
     const buildings = ctx.mirror.buildings;
     return (
       swaps.drain((id, level) => {
+        if (id < 0) {
+          const g = gardens.get(id);
+          if (!g) return;
+          lods.set(id, level);
+          placeGarden(g);
+          return;
+        }
         const b = buildings.get(id);
         if (!b) return;
         lods.set(id, level);
@@ -531,7 +561,7 @@ export function buildingsLayer(): RenderLayer {
       ctx = c;
       setDrawSeason(c.mirror.clock.value.season);
       setSoilReader((x, z) => c.mirror.fertility(x, z));
-      setRowReader((b) => rowNeighbors(c.mirror, b));
+      setRowReader((b) => rows.get(b.id) ?? {});
       setWallReader((b) => wallNeighbors(c.mirror, b));
       setWaterReader((x, z) => !!c.mirror.water(x, z));
       batch = new KeyedBatch(c.scene, c.material);
@@ -546,7 +576,17 @@ export function buildingsLayer(): RenderLayer {
         rebuild();
         return;
       }
-      if (change.full || change.buildings || change.rects.has('height') || change.rects.has('occupant'))
+      // V3B: lots change with `village` (with plans and requests); only a real change in the lots'
+      // fields rebuilds. A road beside a row or a garden changes its streets and walls.
+      const lotsChanged = (change.village || change.full) && ctx && lotSignature(ctx.mirror) !== lotSig;
+      if (
+        change.full ||
+        change.buildings ||
+        lotsChanged ||
+        change.rects.has('height') ||
+        change.rects.has('occupant') ||
+        change.rects.has('road')
+      )
         rebuild();
       // A keeper's family can change without a building changing (a newcomer takes over).
       else if (change.residents && updateSigns()) ctx?.invalidate();
@@ -556,6 +596,7 @@ export function buildingsLayer(): RenderLayer {
       let seasonal = false;
       if (ctx && setDrawSeason(ctx.mirror.clock.value.season)) {
         for (const b of ctx.mirror.buildings.values()) if (isSeasonal(b.def)) place(b);
+        for (const g of gardens.values()) placeGarden(g);
         seasonal = true;
       }
       return updateLods(dt) || seasonal;
