@@ -34,7 +34,7 @@ Expected overlap files (P2 against V3): `packages/art/src/kits/{buildings,farms,
 
 ## Ownership by file
 
-V3 owns `apps/client/src/render` (but what R2 needs for its overlay, which is R2D's in `ui/`), `packages/art` and the one content file `packages/content/src/dressingRules.ts` (a content file owned by a look track for the wave, agreed with R2's master, who does not edit it; not `dressing.ts` beside it, the P1 ladder the sim climbs). Split file by file (a file's test goes with it; a new file belongs to the track that makes it):
+V3 owns `apps/client/src/render` (but R2D's two render files: the new `render/overlayTown.ts` and the Town overlay's additive entry in `render/layers/overlays.ts`; the carve-outs below), `packages/art` and the one content file `packages/content/src/dressingRules.ts` (a content file owned by a look track for the wave, agreed with R2's master, who does not edit it; not `dressing.ts` beside it, the P1 ladder the sim climbs). Split file by file (a file's test goes with it; a new file belongs to the track that makes it):
 
 | Owner | `apps/client/src/render` | `packages/art/src` | Elsewhere |
 |---|---|---|---|
@@ -48,6 +48,7 @@ V3 owns `apps/client/src/render` (but what R2 needs for its overlay, which is R2
 
 Carve-outs inside another track's file (each one function body, no signature change, named here and listed in the PR):
 
+- **R2D (not V3)**: new `render/overlayTown.ts`; the Town overlay's additive entry in `render/layers/overlays.ts` (the 'town' case beside P2's site markers); gap tags through the notes layer's API, no change to it. No V3 cycle edits `overlayTown.ts`; whichever of V3X and R2X lands second merges `overlays.ts`.
 - **Anchor overrides in building kits** are V3B's (V3B owns the kits). V3A writes each override it needs into the table below (kit, anchor, why the derived one is wrong, the place it wants); V3B lands it in the kit's `anchors()` return, or V3A takes that kit's `anchors()` body as a carve-out, with V3B's yes in its PR. A PR note alone is not enough: the row goes here.
 - **Street furniture rules** (V3B) go into V3A's `dressingRules.ts`, one row each, named in V3B's PR; V3A keeps them. If street furniture is placed from roads rather than plots, it is V3B's own layer code and no rule.
 
