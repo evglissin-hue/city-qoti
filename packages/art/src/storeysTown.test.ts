@@ -185,10 +185,21 @@ describe('row kit storeys (V3B)', () => {
 describe('corner shops and townhouses (V3B)', () => {
   const canted = (g: BufferGeometry, sx: number): number => {
     const n = g.getAttribute('normal').array;
+    const p = g.getAttribute('position');
     let k = 0;
-    for (let i = 0; i < n.length / 3; i++)
-      if (Math.abs(n[i * 3]! - sx * 0.7071) < 0.01 && Math.abs(n[i * 3 + 2]! - 0.7071) < 0.01) k++;
-    return k / 3;
+    for (let i = 0; i < n.length / 3; i += 3) {
+      if (Math.abs(n[i * 3]! - sx * 0.7071) >= 0.01 || Math.abs(n[i * 3 + 2]! - 0.7071) >= 0.01) continue;
+      // V3X: only the cut itself counts, not the door's hood brackets and returns (a few pixels wide).
+      const ax = p.getX(i + 1) - p.getX(i);
+      const ay = p.getY(i + 1) - p.getY(i);
+      const az = p.getZ(i + 1) - p.getZ(i);
+      const bx = p.getX(i + 2) - p.getX(i);
+      const by = p.getY(i + 2) - p.getY(i);
+      const bz = p.getZ(i + 2) - p.getZ(i);
+      const area = Math.hypot(ay * bz - az * by, az * bx - ax * bz, ax * by - ay * bx) / 2;
+      if (area > 0.04) k++;
+    }
+    return k;
   };
 
   it('cut the ground floor corner at 45 degrees on the corner side only', () => {

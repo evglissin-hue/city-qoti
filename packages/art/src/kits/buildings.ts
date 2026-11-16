@@ -14,8 +14,10 @@ import {
   faceBox,
   facePoint,
   foundationPart,
+  holdFrames,
   outwardOf,
   porchPart,
+  releaseFrames,
   wallsOf,
   windowPart,
   type Face,
@@ -373,9 +375,9 @@ export function floorsOf(kit: 'cottage' | 'house', opts: KitBuildOptions | undef
   };
 }
 
-/** V3B: a window style for floor `i` (0 is the ground floor): flower boxes only on the lower two. */
+/** V3B: a window style for floor `i` (0 is the ground floor): flower boxes only on the lower two, and from the third floor up (V3X) a lean far level: the glass alone. */
 export function floorStyle(style: WindowStyle, i: number): WindowStyle {
-  return i >= 2 && style.box ? { ...style, box: false } : style;
+  return i >= 2 ? { ...style, box: false, lean: true } : style;
 }
 
 /**
@@ -518,6 +520,7 @@ export function cottageOf(opts: KitBuildOptions | undefined): Built {
   const [ex] = opts?.entrance ?? [Math.floor(w / 2), d - 1];
   const { shape, material, wallMat, wallColor, accent, porch, rnd, look, c } = cottageChoices(opts);
   const s = kitBuilder(opts);
+  holdFrames(s);
   const anchors: KitAnchors = { smoke: [], lights: [] };
   const row = rowOf(opts);
   const F = floorsOf('cottage', opts);
@@ -658,6 +661,7 @@ export function cottageOf(opts: KitBuildOptions | undefined): Built {
     );
   }
   if (c.sign) signBoard(s, front, doorU, 0.86, 0.46, clad, anchors);
+  releaseFrames(s);
   return { s, anchors };
 }
 
@@ -689,6 +693,7 @@ function houseOf(opts: KitBuildOptions | undefined): Built {
   const accent = c.accent ?? [palette.accentRed, palette.navy, palette.teal][Math.floor(look() * 3)]!;
   const gableFront = look() < 0.6 && !rowOf(opts).joined;
   const s = kitBuilder(opts);
+  holdFrames(s);
   const anchors: KitAnchors = { smoke: [], lights: [] };
   const row = rowOf(opts);
   const F = floorsOf('house', opts);
@@ -739,6 +744,11 @@ function houseOf(opts: KitBuildOptions | undefined): Built {
     // The floors above the ground floor: floor i's windows at 1.12 for the first, a storey higher each.
     const ups = Array.from({ length: hasUpper ? F.whole - 1 : 0 }, (_, k) => k + 1);
     const upY = (i: number): number => 1.12 + (i - 1) * STOREY_H;
+    // V3X: from the third floor up the side windows are near only (far off they are a taller wall).
+    const sideFloor = (i: number, draw: () => void): void => {
+      if (i >= 2) s.nearOnly(draw);
+      else draw();
+    };
     for (const i of ups)
       windowRow(
         s,
@@ -765,12 +775,40 @@ function houseOf(opts: KitBuildOptions | undefined): Built {
       // V3B: a corner lot's second face is a second front: the front's windows on every floor.
       if (row.corner === (right ? 'R' : 'L')) {
         for (const i of ups)
-          cornerWindows(s, f, oz0, oz1, upY(i), floorStyle(style, i), rnd, anchors.lights!, 0.012, 0.62);
+          sideFloor(i, () =>
+            cornerWindows(
+              s,
+              f,
+              oz0,
+              oz1,
+              upY(i),
+              { ...floorStyle(style, i), lean: true },
+              rnd,
+              anchors.lights!,
+              0.012,
+              0.62,
+            ),
+          );
         cornerWindows(s, gf, z0, z1, 0.45, style, rnd, anchors.lights!, clad, 0.62);
         continue;
       }
       for (const i of ups)
-        windowRow(s, f, oz0, oz1, upY(i), side, rnd, anchors.lights!, [], 0.9, [0.18, 0.2], 0.012);
+        sideFloor(i, () =>
+          windowRow(
+            s,
+            f,
+            oz0,
+            oz1,
+            upY(i),
+            floorStyle(side, i),
+            rnd,
+            anchors.lights!,
+            [],
+            0.9,
+            [0.18, 0.2],
+            0.012,
+          ),
+        );
       windowRow(s, gf, z0, z1, 0.45, side, rnd, anchors.lights!, [], 1.1, [0.18, 0.2], clad);
     }
     if (!F.native) {
@@ -874,6 +912,7 @@ function houseOf(opts: KitBuildOptions | undefined): Built {
     anchors.smoke!.push(chimneyPart(s, cx, cz, sh.top - 0.1, sh.ridge + 0.1, palette.brick, row.r));
   }
   if (c.sign) signBoard(s, front, doorU, 0.78, 0.44, clad, anchors);
+  releaseFrames(s);
   return { s, anchors };
 }
 
