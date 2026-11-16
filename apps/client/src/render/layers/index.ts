@@ -15,6 +15,7 @@ import { festivalFxLayer } from './festivalFx';
 import { fieldsLayer } from './fields';
 import { floodLayer } from './flood';
 import { ghostsLayer } from './ghosts';
+import { horizonLayer } from './horizon';
 import { lightsLayer } from './lights';
 import { meadowLayer } from './meadow';
 import { natureLayer } from './nature';
@@ -48,6 +49,7 @@ export const layerFactories: readonly LayerFactory[] = [
   fieldsLayer,
   floodLayer,
   ghostsLayer,
+  horizonLayer,
   lightsLayer,
   meadowLayer,
   natureLayer,

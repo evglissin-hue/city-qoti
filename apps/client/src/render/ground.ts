@@ -593,11 +593,6 @@ float qCloudShade(vec2 wp) {
   float c = smoothstep(0.5, 0.72, qFbm(p));
   return 1.0 - c * 0.2 * uClouds;
 }
-
-float qRimMist(vec2 wp) {
-  float e = min(min(wp.x, wp.y), min(${N.toFixed(1)} - wp.x, ${N.toFixed(1)} - wp.y));
-  return 1.0 - smoothstep(0.0, 16.0, e);
-}
 `;
 
 /**
@@ -682,10 +677,6 @@ export function createGroundMaterial(tex: GroundTextures, env: WorldEnv): MeshSt
             // not an olive one), and a breath of warm air over the pool.
             '#include <emissivemap_fragment>\n{ vec3 qG = qGlow(); totalEmissiveRadiance += qLampAlbedo(diffuseColor.rgb) * qG * 1.3 + qG * 0.035; }'
           : '#include <emissivemap_fragment>\ntotalEmissiveRadiance += diffuseColor.rgb * qGlow() * 1.3;',
-      )
-      .replace(
-        '#include <fog_fragment>',
-        '#include <fog_fragment>\n#ifdef USE_FOG\ngl_FragColor.rgb = mix(gl_FragColor.rgb, fogColor, qRimMist(vQWorld.xz) * 0.55);\n#endif',
       );
   };
   m.customProgramCacheKey = () => (map ? 'qoti-ground-lightmap' : 'qoti-ground');
