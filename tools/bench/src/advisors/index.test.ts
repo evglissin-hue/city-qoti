@@ -24,6 +24,8 @@ describe('the advisors', () => {
       'plan',
       'festivals',
       'hearth',
+      // R2E: the Hearth's places, after the wishes
+      'places',
       // I3 (C5C)
       'nature',
       'together',

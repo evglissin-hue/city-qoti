@@ -10,6 +10,7 @@ import { hearth } from './hearth';
 import { land } from './land';
 import { money } from './money';
 import { nature } from './nature';
+import { places } from './places';
 import { plan } from './plan';
 import { shops } from './shops';
 import { together } from './together';
@@ -29,6 +30,7 @@ export const advisors: readonly AdvisorDef[] = [
   land,
   money,
   nature,
+  places,
   plan,
   shops,
   together,
