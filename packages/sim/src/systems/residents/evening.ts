@@ -41,10 +41,11 @@ export function eveningScore(state: WorldState, r: Resident): number {
     }
     score = best;
   }
-  // A treat bought passing sits on a stop they have not reached yet: today's stops count it too.
+  // A treat bought passing sits on a stop they have not reached yet: it counts when they got
+  // somewhere tonight (so a plan left over from an evening they skipped never scores a treat).
   for (const s of r.round ?? []) {
     if (!(s.flags & RoundFlags.treat)) continue;
-    if (s.arrived >= 0 && dayIndex(s.arrived) !== today) continue;
+    if (s.arrived >= 0 ? dayIndex(s.arrived) !== today : stops.length === 0) continue;
     score += P.treatScore;
     break;
   }

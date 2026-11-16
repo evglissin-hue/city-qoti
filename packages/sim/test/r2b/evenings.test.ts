@@ -51,51 +51,56 @@ describe('the evening score', () => {
     expect(score([])).toBe(P.stayInScore);
     const s = at21();
     expect(eveningScore(s, {} as Resident)).toBe(P.stayInScore);
-    expect(score([{ ...stop('tavern', 90), flags: F.turnedAway }])).toBe(P.stayInScore);
-    expect(score([{ ...stop('tavern', 90), arrived: -1 }])).toBe(P.stayInScore);
+    expect(score([{ ...stop('eat', 90), flags: F.turnedAway }])).toBe(P.stayInScore);
+    expect(score([{ ...stop('eat', 90), arrived: -1 }])).toBe(P.stayInScore);
   });
 
   it('takes the best draw', () => {
-    expect(score([stop('tavern', 40), stop('shop', 55)])).toBe(55);
+    expect(score([stop('eat', 40), stop('shop', 55)])).toBe(55);
   });
 
   it("adds a friend met, but not at a friend's home", () => {
-    expect(score([stop('tavern', 50, F.friend)])).toBe(50 + P.friendScore);
+    expect(score([stop('eat', 50, F.friend)])).toBe(50 + P.friendScore);
     expect(score([stop('visit', 30, F.friend)])).toBe(30);
   });
 
   it('adds a treat, including one bought passing on a stop not yet reached', () => {
-    expect(score([stop('tavern', 50, F.treat)])).toBe(50 + P.treatScore);
-    const ahead: RoundStop = { place: 'x', kind: 'tavern', tile: 0, draw: 0, flags: F.treat, arrived: -1 };
-    expect(score([stop('tavern', 50), ahead])).toBe(50 + P.treatScore);
+    expect(score([stop('eat', 50, F.treat)])).toBe(50 + P.treatScore);
+    const ahead: RoundStop = { place: 'x', kind: 'eat', tile: 0, draw: 0, flags: F.treat, arrived: -1 };
+    expect(score([stop('eat', 50), ahead])).toBe(50 + P.treatScore);
   });
 
   it('adds a second kind of stop, but a shop is no kind', () => {
-    expect(score([stop('tavern', 50), stop('bench', 30)])).toBe(50 + P.secondKindScore);
-    expect(score([stop('tavern', 50), stop('shop', 30)])).toBe(50);
-    expect(score([stop('tavern', 50), stop('tavern', 30)])).toBe(50);
+    expect(score([stop('eat', 50), stop('sit', 30)])).toBe(50 + P.secondKindScore);
+    expect(score([stop('eat', 50), stop('shop', 30)])).toBe(50);
+    expect(score([stop('eat', 50), stop('eat', 30)])).toBe(50);
   });
 
   it('takes standing off the stop, floors at stayInScore and caps at 100', () => {
-    expect(score([stop('tavern', 50, F.standing)])).toBe(50 - P.standingPenalty);
-    expect(score([stop('tavern', 50, F.standing), stop('bench', 45)])).toBe(45 + P.secondKindScore);
-    expect(score([stop('tavern', 22, F.standing)])).toBe(P.stayInScore);
-    expect(score([stop('tavern', 98, F.friend | F.treat)])).toBe(100);
+    expect(score([stop('eat', 50, F.standing)])).toBe(50 - P.standingPenalty);
+    expect(score([stop('eat', 50, F.standing), stop('sit', 45)])).toBe(45 + P.secondKindScore);
+    expect(score([stop('eat', 22, F.standing)])).toBe(P.stayInScore);
+    expect(score([stop('eat', 98, F.friend | F.treat)])).toBe(100);
   });
 
   it("ignores yesterday's stops", () => {
     const s = at21();
     s.tick = NINE + TICKS_PER_DAY;
-    const r = grownup(s, [stop('tavern', 80, F.treat | F.friend)]);
+    const r = grownup(s, [stop('eat', 80, F.treat | F.friend)]);
     expect(dayIndex(r.round![0]!.arrived)).not.toBe(dayIndex(s.tick));
     expect(eveningScore(s, r)).toBe(P.stayInScore);
+  });
+
+  it('counts a treat on a stop not yet reached only when they got somewhere tonight', () => {
+    const ahead: RoundStop = { place: 'x', kind: 'sit', tile: 0, draw: 0, flags: F.treat, arrived: -1 };
+    expect(score([ahead])).toBe(P.stayInScore);
   });
 });
 
 describe('closing the evening', () => {
   it('moves the need a third of the way: 50 toward 80 gives 60', () => {
     const s = at21();
-    const r = grownup(s, [stop('tavern', 80)]);
+    const r = grownup(s, [stop('eat', 80)]);
     closeEvening(s, createTickCtx(s));
     expect(r.needs[EVENINGS_NEED]).toBe(60);
     expect(r.evening).toMatchObject({ score: 80, day: 0, good: 1 });
@@ -104,7 +109,7 @@ describe('closing the evening', () => {
   it('leaves everything on a stormy evening', () => {
     const s = at21();
     s.weather.today = 'storm';
-    const r = grownup(s, [stop('tavern', 80)]);
+    const r = grownup(s, [stop('eat', 80)]);
     closeEvening(s, createTickCtx(s));
     expect(r.needs[EVENINGS_NEED]).toBe(50);
     expect(r.evening).toBeUndefined();
@@ -112,7 +117,7 @@ describe('closing the evening', () => {
 
   it('adds scoreSum only when tonight is today, and notes the weather then', () => {
     const s = at21();
-    grownup(s, [stop('tavern', 80)]);
+    grownup(s, [stop('eat', 80)]);
     grownup(s, []);
     closeEvening(s, createTickCtx(s));
     expect(s.evenings.tonight.scoreSum).toBe(0);
@@ -125,9 +130,9 @@ describe('closing the evening', () => {
 
   it('does not score children, nor elders who stayed in', () => {
     const s = at21();
-    const kid = grownup(s, [stop('tavern', 90)], 'child');
+    const kid = grownup(s, [stop('eat', 90)], 'child');
     const homebody = grownup(s, [], 'elder');
-    const out = grownup(s, [stop('bench', 80)], 'elder');
+    const out = grownup(s, [stop('sit', 80)], 'elder');
     closeEvening(s, createTickCtx(s));
     expect(kid.needs[EVENINGS_NEED]).toBe(50);
     expect(kid.evening).toBeUndefined();
@@ -137,11 +142,11 @@ describe('closing the evening', () => {
 
   it('gives one bond heart per season for four good evenings, up to five, and starts again', () => {
     const s = at21();
-    const r = grownup(s, [stop('tavern', 60)]);
+    const r = grownup(s, [stop('eat', 60)]);
     r.bond = 2;
     for (let d = 0; d < 6; d++) {
       s.tick = NINE + d * TICKS_PER_DAY;
-      r.round = [stop('tavern', 60, 0, SEVEN + d * TICKS_PER_DAY)];
+      r.round = [stop('eat', 60, 0, SEVEN + d * TICKS_PER_DAY)];
       closeEvening(s, createTickCtx(s));
       expect(r.bond).toBe(d >= P.goodForHeart - 1 ? 3 : 2);
     }
@@ -149,7 +154,7 @@ describe('closing the evening', () => {
     // A new season counts from nothing.
     const next = 28 * TICKS_PER_DAY;
     s.tick = NINE + next;
-    r.round = [stop('tavern', 60, 0, SEVEN + next)];
+    r.round = [stop('eat', 60, 0, SEVEN + next)];
     closeEvening(s, createTickCtx(s));
     expect(r.evening).toMatchObject({ good: 1 });
     expect(r.evening!.heart).toBeUndefined();
@@ -158,7 +163,7 @@ describe('closing the evening', () => {
 
   it('gives no heart past the hearts maximum', () => {
     const s = at21();
-    const r = grownup(s, [stop('tavern', 60)]);
+    const r = grownup(s, [stop('eat', 60)]);
     r.bond = P.heartsMax;
     r.evening = { score: 60, day: -1, good: P.goodForHeart - 1, season: 4 };
     closeEvening(s, createTickCtx(s));
