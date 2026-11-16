@@ -330,6 +330,12 @@ export class Planner {
 
   /** The build queue at a chosen spot; `connect` paints a path from the door to the road. */
   buildAt(label: string, def: string, x: number, z: number, rot: Rot4, connect = false): Building | null {
+    // R2E: build.place refuses every site in lean times (LEAN_TIMES); ash's Hearth sent a garden bed
+    // twice a day into one for five days. No advisor sends one then.
+    if (this.w.economy.leanTimes) {
+      this.actions.push(`${calendar(this.w.tick).day}:${label} (lean times, waits)`);
+      return null;
+    }
     if (!this.do(label, [{ t: 'build.place', def, x, z, rot }])) return null;
     const b = this.w.buildings[this.w.buildings.length - 1]!;
     if (connect) this.connect(b);

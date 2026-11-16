@@ -2,30 +2,45 @@
 // town that quietly stops working is noticed by a test, the autoplayer or a developer, not by two
 // players wondering why nothing gets built. Read-only and outside the simulation: the watcher keeps
 // what it has seen in its own memory, never in state, so it changes nothing and hashes nothing.
-import { type BuildingDef, content, type PlacementRule, type ProductionMethod } from '@qoti/content';
+import {
+  type BuildingDef,
+  content,
+  type DecorDef,
+  type PlacementRule,
+  type ProductionMethod,
+} from '@qoti/content';
 import {
   DAYS_PER_SEASON,
   DEMAND_KINDS,
   FESTIVAL,
   MAP_SIZE,
+  RANKS,
   ResidentFlags,
   TICKS_PER_DAY,
   TICKS_PER_HOUR,
+  TILE_FP,
 } from '../constants';
-import type { Building, WorldState } from '../contracts';
+import type { Building, Gap, Place, WorldState } from '../contracts';
 import { Road, TREE_MATURE, treeStage } from '../map/layers';
+import { canPlaceBuilding } from '../rules/building';
+import { canPlaceDecor } from '../rules/decor';
 import { entranceTiles, footprintSize } from '../rules/footprint';
+import { doorFront, reachesTile, townReach } from '../rules/reach';
+import { gateTiles } from '../rules/wall';
 import { canPlantTree } from '../rules/tree';
 import { worldIndex } from '../state/worldIndex';
 import { townReachesDoor } from '../state/reach';
+import { placeState } from '../state/evenings';
 import { rankAtLeast } from '../state/village';
 import { familyIndex, methodOf } from '../state/zones';
 import { isStandard } from '../state/hamlet';
 import { carrierCovers, passClosed } from '../systems/carrier/api';
-import { hourOf, isBuildTime } from '../systems/economy/time';
+import { dayIndex, hourOf, isBuildTime } from '../systems/economy/time';
 import { currentPlan, isFestivalDay } from '../systems/festivals/api';
 import { gapAchievable } from '../systems/gaps/achievable';
-import { achievable } from '../systems/hearth/wishes/achievable';
+import { achievable, placeableNow } from '../systems/hearth/wishes/achievable';
+import { sellsTreats, treatsOnShelf } from '../systems/market/round';
+import { placeIndex } from '../systems/places/index';
 import { seasonNow } from '../systems/seasons/api';
 import { MAX_BUILDERS_PER_SITE } from '../systems/construction';
 import { available } from '../systems/logistics/tasks';
@@ -70,8 +85,33 @@ export type HealthKind =
    * could act on (the class behind "nothing was building and I could not see why").
    */
   | 'growth-wait-broken'
-  /** R2 (R2C): an open gap whose closing piece nothing the town can build would bring, for a whole day. */
-  | 'gap-dead-end';
+  /**
+   * R2: an open gap (a place with nothing to sell, a shop nobody passes, nowhere to go) that nothing
+   * could close, for a whole day. Two rules share the kind: R2C's (the closing piece is not open to
+   * the town at all, `gapAchievable`) and R2E's (no outlet could stand within reach of the place, no
+   * seat piece could go near the shop's door or the street). A kind neither rule covers is never
+   * flagged.
+   */
+  | 'gap-dead-end'
+  /** R2E: a place no home's door can walk to (or to a tile beside it), for a whole day. */
+  | 'place-unreachable'
+  /**
+   * R2E: an outlet with Treats on its shelf and a place in reach whose visitors came on every evening
+   * of a whole season (a place with no visitors that evening neither counts nor resets) and bought
+   * none of them there.
+   */
+  | 'treats-unsold'
+  /**
+   * R2E: a tier gated by an evenings score (`NeedsBasket.evenings`) that no town can build: the gate
+   * is past the best evening content allows, or no seat piece or host is open to the town at the
+   * tier's rank. Reported once per watcher, at the first look at or past that rank.
+   */
+  | 'tier-unreachable'
+  /**
+   * R2E: a garden lot (`Lot.kind` 'garden') that something grew on or tried to: a building id on it,
+   * a building or site on its tiles, or a building whose `lot` is it. Flagged at once, once per lot.
+   */
+  | 'garden-grown';
 
 export interface HealthIssue {
   kind: HealthKind;
@@ -162,14 +202,22 @@ export class HealthWatch {
   /** Guide step → tick first seen with an unachievable goal; likewise `arc:step` for stories. */
   private guideSince = new Map<number, number>();
   private readonly storySince = new Map<string, number>();
-  /** Gap id → tick it was first seen open with nothing the town could build to close it (R2C). */
-  private readonly gapSince = new Map<number, number>();
   /** Wish id → tick it was first seen with an unachievable target. */
   private readonly deadSince = new Map<number, number>();
   /** Day index of a festival day on which a current plan was seen, and whether it was reported. */
   private festivalDay = -1;
   private festivalReported = false;
-  /** Good index → tick a standing order was first seen below its min. */
+  /** R2C and R2E: gap id → tick it was first seen with nothing that could close it; and the hour of the last look. */
+  private readonly gapSince = new Map<number, number>();
+  private gapHour = -1;
+  /** R2E: place id → tick it was first seen out of every home's reach; and the hour of the last look. */
+  private readonly placeSince = new Map<string, number>();
+  private placeHour = -1;
+  /** R2E: outlet id → evenings in a row its places had visitors and sold nothing; and the day last read. */
+  private readonly unsoldRun = new Map<number, number>();
+  private unsoldDay = -1;
+  /** R2E: tiers (and `lot:<id>` rows) already reported, so each is said once. */
+  private readonly reported = new Set<string>();
 
   check(state: WorldState): HealthIssue[] {
     if (!isStandard(state)) return [];
@@ -249,6 +297,7 @@ export class HealthWatch {
     }
     this.checkSupply(state, sites, out);
     this.checkPlayability(state, out);
+    this.checkEvenings(state, out);
     return out;
   }
 
@@ -351,7 +400,8 @@ export class HealthWatch {
       const paintable = zones.filter((z) => !z.requires?.rank || rankAtLeast(state, z.requires.rank));
       if (paintable.length === 0) return;
       const values = paintable.map((z) => z.layerValue);
-      if (state.lots.some((l) => !l.buildingId && values.includes(l.zone))) return;
+      // R2F: a garden lot (zone 0) is never offered; skipped by name, not only by its zone.
+      if (state.lots.some((l) => l.kind !== 'garden' && !l.buildingId && values.includes(l.zone))) return;
       live.add(k);
       const since = this.demandSince.get(k) ?? now;
       this.demandSince.set(k, since);
@@ -420,6 +470,166 @@ export class HealthWatch {
       });
     }
     for (const k of [...this.ruleSince.keys()]) if (!live.has(k)) this.ruleSince.delete(k);
+  }
+
+  /** R2E: the evening round's checks. Each reads live state through the sim's own APIs and is quiet on stand-ins. */
+  private checkEvenings(state: WorldState, out: HealthIssue[]): void {
+    this.checkGaps(state, out);
+    this.checkPlaces(state, out);
+    this.checkTreatsUnsold(state, out);
+    this.checkTiers(state, out);
+    this.checkGardens(state, out);
+  }
+
+  /** gap-dead-end: an open gap with nothing that could close it for a whole day (read once an hour). */
+  private checkGaps(state: WorldState, out: HealthIssue[]): void {
+    const now = state.tick;
+    const hour = Math.floor(now / TICKS_PER_HOUR);
+    if (hour === this.gapHour) return;
+    this.gapHour = hour;
+    const live = new Set<number>();
+    for (const gap of state.gaps.open) {
+      // closable is true when something could close it, and also when the kind is one this check has
+      // no rule for (R3's shortOfSupplies, or any later kind): never flag what is not understood.
+      // R2C's rule first: a kind whose closing piece the town cannot build at all (gaps/achievable.ts).
+      if (gapAchievable(state, gap.kind) && gapClosable(state, gap)) continue;
+      live.add(gap.id);
+      const since = this.gapSince.get(gap.id) ?? now;
+      this.gapSince.set(gap.id, since);
+      if (now - since >= DAY_TICKS)
+        out.push({
+          kind: 'gap-dead-end',
+          id: gap.id,
+          text: `the ${gap.kind} gap about ${gap.subject} has been open a day and no command could close it`,
+        });
+    }
+    for (const id of [...this.gapSince.keys()]) if (!live.has(id)) this.gapSince.delete(id);
+  }
+
+  /** place-unreachable: a place no home's door can walk to, for a whole day (looked at once an hour). */
+  private checkPlaces(state: WorldState, out: HealthIssue[]): void {
+    const now = state.tick;
+    const hour = Math.floor(now / TICKS_PER_HOUR);
+    if (hour === this.placeHour) return;
+    this.placeHour = hour;
+    const places = placeIndex(state).places;
+    const live = new Set<string>();
+    if (places.length > 0) {
+      const sources: number[] = [];
+      for (const b of state.buildings) {
+        if (b.stage === 'built' && content.buildingById.get(b.def)?.tags?.includes('home'))
+          sources.push(doorFront(b));
+      }
+      // No homes, or none that can stand anywhere: nobody walks, so nothing is cut off from them.
+      const reader = worldIndex(state).reader;
+      const reach = sources.length > 0 ? townReach(reader, sources, gateTiles(state.buildings)) : null;
+      if (reach && reach.some((v) => v === 1)) {
+        for (const p of places) {
+          // Only places made of pieces someone built: the skating ice is found at bank tiles all along
+          // the river (R2A, seasons' skatingSpots), many on a far bank no home reaches, and nobody built
+          // it there or can move it (R2A's branch flagged it on four seeds).
+          if (p.members.length === 0) continue;
+          if (p.tiles.some((t) => reachesTile(reach, reader, t))) continue;
+          live.add(p.id);
+          const since = this.placeSince.get(p.id) ?? now;
+          this.placeSince.set(p.id, since);
+          if (now - since >= DAY_TICKS)
+            out.push({
+              kind: 'place-unreachable',
+              id: 0,
+              text: `the place ${p.id} cannot be walked to from any home's door`,
+            });
+        }
+      }
+    }
+    for (const id of [...this.placeSince.keys()]) if (!live.has(id)) this.placeSince.delete(id);
+  }
+
+  /**
+   * treats-unsold: read once a day after the evening closes. An outlet that sells Treats, has them
+   * on the shelf and is listed by a place; the evening counts when those places had visitors, and
+   * counts against it when they sold none. No visitors: neither counts nor resets, so a town where
+   * nobody goes out stays quiet. A season of such evenings in a row flags it.
+   */
+  private checkTreatsUnsold(state: WorldState, out: HealthIssue[]): void {
+    const now = state.tick;
+    const day = dayIndex(now);
+    if (hourOf(now) < content.places.homeHour || day === this.unsoldDay) return;
+    this.unsoldDay = day;
+    const byOutlet = new Map<number, Place[]>();
+    for (const p of placeIndex(state).places)
+      for (const id of p.outlets) {
+        const list = byOutlet.get(id);
+        if (list) list.push(p);
+        else byOutlet.set(id, [p]);
+      }
+    const live = new Set<number>();
+    for (const b of state.buildings) {
+      const mine = byOutlet.get(b.id);
+      if (!mine || !sellsTreats(state, b) || !treatsOnShelf(state, b)) continue;
+      live.add(b.id);
+      let visitors = 0;
+      let sold = 0;
+      for (const p of mine) {
+        const row = placeState(state, p.id);
+        if (!row) continue;
+        visitors += row.visitors[row.visitors.length - 1] ?? 0;
+        sold += row.sold[row.sold.length - 1] ?? 0;
+      }
+      if (visitors <= 0) continue;
+      const run = sold > 0 ? 0 : (this.unsoldRun.get(b.id) ?? 0) + 1;
+      this.unsoldRun.set(b.id, run);
+      if (run >= DAYS_PER_SEASON)
+        out.push({
+          kind: 'treats-unsold',
+          id: b.id,
+          text: `${b.trade ?? b.def} #${b.id} has had Treats on the shelf and visitors at ${mine.length} place${mine.length === 1 ? '' : 's'} in reach for ${run} evenings and sold none`,
+        });
+    }
+    // An outlet that lost its Treats or its places starts again.
+    for (const id of [...this.unsoldRun.keys()]) if (!live.has(id)) this.unsoldRun.delete(id);
+  }
+
+  /** tier-unreachable: see the kind; checked once, at the first look at or past each gated tier's rank. */
+  private checkTiers(state: WorldState, out: HealthIssue[]): void {
+    for (const basket of content.baskets) {
+      const gate = basket.evenings;
+      const rank = TIER_RANK[basket.tier];
+      if (gate === undefined || !rank || !rankAtLeast(state, rank)) continue;
+      const key = `tier:${basket.tier}`;
+      if (this.reported.has(key)) continue;
+      const why = tierUnreachable(state, gate, rank);
+      if (!why) continue;
+      this.reported.add(key);
+      out.push({
+        kind: 'tier-unreachable',
+        id: 0,
+        text: `${basket.tier} wants evenings of ${gate} and ${why}`,
+      });
+    }
+  }
+
+  /** garden-grown: a garden lot with a building id, a building or site on its tiles, or a building grown on it. */
+  private checkGardens(state: WorldState, out: HealthIssue[]): void {
+    for (const lot of state.lots) {
+      if (lot.kind !== 'garden') continue;
+      const key = `lot:${lot.id}`;
+      if (this.reported.has(key)) continue;
+      let grown = lot.buildingId !== 0 || state.buildings.some((b) => b.lot === lot.id);
+      for (let z = lot.z; !grown && z < lot.z + lot.d; z++)
+        for (let x = lot.x; x < lot.x + lot.w; x++)
+          if (state.map.occupant[z * MAP_SIZE + x]) {
+            grown = true;
+            break;
+          }
+      if (!grown) continue;
+      this.reported.add(key);
+      out.push({
+        kind: 'garden-grown',
+        id: lot.id,
+        text: `garden lot #${lot.id} has a building or a site on it: gardens are never built on`,
+      });
+    }
   }
 
   /** The playability audit's checks: soft locks and dead ends that wait on time, not on one look. */
@@ -492,22 +702,6 @@ export class HealthWatch {
         });
     }
     for (const k of [...this.storySince.keys()]) if (!stories.has(k)) this.storySince.delete(k);
-
-    // R2 (R2C): an open gap the town cannot close by building anything (gaps/achievable.ts).
-    const gaps = new Set<number>();
-    for (const g of state.gaps.open) {
-      if (gapAchievable(state, g.kind)) continue;
-      gaps.add(g.id);
-      const since = this.gapSince.get(g.id) ?? now;
-      this.gapSince.set(g.id, since);
-      if (now - since >= DAY_TICKS)
-        out.push({
-          kind: 'gap-dead-end',
-          id: g.id,
-          text: `gap ${g.kind} (${g.subject}) asks for something no one can do`,
-        });
-    }
-    for (const id of [...this.gapSince.keys()]) if (!gaps.has(id)) this.gapSince.delete(id);
 
     // A festival plan that was current on the day but had not started by 19:00.
     if (isFestivalDay(state)) {
@@ -653,4 +847,155 @@ function serviceReach(defId: string): number {
   for (const c of content.buildingById.get(defId)?.coverage ?? [])
     if (c.kind !== 'logistics' && c.radius > r) r = c.radius;
   return r;
+}
+
+// --- R2E: the evening round's reads ----------------------------------------------------------------
+
+type RankName = (typeof RANKS)[number];
+
+/** The rank at which each gated tier can first be reached (the Charter that unlocks it). */
+const TIER_RANK: Partial<Record<string, RankName>> = {
+  craftsfolk: 'village',
+  merchant: 'town',
+  patron: 'marketTown',
+};
+
+/** The best evening content allows: the best stop's draw at its cap, plus a friend, a treat and a second kind. */
+function bestEvening(): number {
+  const p = content.places;
+  const draw = Math.min(
+    100,
+    p.charmCap + p.siteBonus + p.pieceKindMax + p.waterBonus + p.litBonus + p.treatsBonus,
+  );
+  return Math.min(100, draw + p.friendScore + p.treatScore + p.secondKindScore);
+}
+
+/**
+ * Why no town can build a tier's evenings gate, or null. Two reasons: the gate is above the best
+ * evening content allows, or no seat is open to a town of that rank: a seat piece that is not
+ * locked (or that a Charter or pattern of that rank or lower unlocks, or the town has unlocked), or
+ * a host with seats whose own rank is not above it. Kept simple on purpose.
+ */
+function tierUnreachable(state: WorldState, gate: number, rank: RankName): string | null {
+  if (gate > bestEvening()) return `no evening can score that high (the best is ${bestEvening()})`;
+  const at = RANKS.indexOf(rank);
+  const unlockable = new Set<string>(state.hearth.unlocked);
+  for (const c of content.charters)
+    if (RANKS.indexOf(c.rank) <= at) for (const u of c.unlocks) unlockable.add(u);
+  for (const pat of content.patterns)
+    if (RANKS.indexOf(pat.rank) <= at) for (const u of pat.unlocks) unlockable.add(u);
+  if (content.decor.some((d) => isSeatPiece(d) && (!d.locked || unlockable.has(d.id)))) return null;
+  const host = content.buildings.some(
+    (b) => (b.host?.seats ?? 0) > 0 && (!b.requires?.rank || RANKS.indexOf(b.requires.rank) <= at),
+  );
+  return host ? null : `no seat piece or host is open to a ${rank} town`;
+}
+
+/** A piece grown-ups can sit on and that is not a festival's temporary. */
+function isSeatPiece(d: DecorDef): boolean {
+  return (d.seats ?? 0) > 0 && !d.childSeats && !d.festival;
+}
+
+/** Seat pieces this town may place now. */
+function seatPieces(state: WorldState): DecorDef[] {
+  return content.decor.filter(
+    (d) => isSeatPiece(d) && (!d.locked || !isStandard(state) || state.hearth.unlocked.includes(d.id)),
+  );
+}
+
+const manhattan = (a: number, b: number): number =>
+  Math.abs((a % MAP_SIZE) - (b % MAP_SIZE)) + Math.abs(Math.floor(a / MAP_SIZE) - Math.floor(b / MAP_SIZE));
+
+/** Tiles within `radius` (Manhattan, as places measure) of `tile`. */
+function tilesWithin(tile: number, radius: number): number[] {
+  const cx = tile % MAP_SIZE;
+  const cz = Math.floor(tile / MAP_SIZE);
+  const out: number[] = [];
+  for (let z = Math.max(0, cz - radius); z <= Math.min(MAP_SIZE - 1, cz + radius); z++)
+    for (let x = Math.max(0, cx - radius); x <= Math.min(MAP_SIZE - 1, cx + radius); x++)
+      if (Math.abs(x - cx) + Math.abs(z - cz) <= radius) out.push(z * MAP_SIZE + x);
+  return out;
+}
+
+/** True when some seat piece the town has could be placed on a tile within `radius` of `tile`. */
+function seatFitsNear(state: WorldState, tile: number, radius: number): boolean {
+  const reader = worldIndex(state).reader;
+  const tiles = tilesWithin(tile, radius);
+  for (const def of seatPieces(state))
+    for (const t of tiles) {
+      const x = t % MAP_SIZE;
+      const z = (t - x) / MAP_SIZE;
+      if (canPlaceDecor(reader, def, x * TILE_FP + TILE_FP / 2, z * TILE_FP + TILE_FP / 2, 0).ok) return true;
+    }
+  return false;
+}
+
+/** True when a Treats outlet could come to stand within `radius` of the tile (see gapClosable). */
+function outletCouldStandNear(state: WorldState, tile: number, radius: number): boolean {
+  const reader = worldIndex(state).reader;
+  const tiles = tilesWithin(tile, radius);
+  const shops = content.zoneById.get('shops');
+  const shopsOpen = !!shops && (!shops.requires?.rank || rankAtLeast(state, shops.requires.rank));
+  // A shops lot already cut and still empty near the place.
+  if (shops && shopsOpen) {
+    for (const l of state.lots) {
+      if (l.kind === 'garden' || l.buildingId || l.zone !== shops.layerValue) continue;
+      if (manhattan(l.z * MAP_SIZE + l.x, tile) <= radius) return true;
+    }
+  }
+  // A stall (any hand-placed outlet host) that could stand within reach.
+  for (const def of content.buildings) {
+    if (!def.tags?.includes('outlet') || !def.host || !placeableNow(state, def)) continue;
+    for (const t of tiles)
+      for (const rot of [0, 1, 2, 3] as const)
+        if (canPlaceBuilding(reader, def, t % MAP_SIZE, Math.floor(t / MAP_SIZE), rot).ok) return true;
+  }
+  // A tile where the shops zone could be painted: free ground beside a road, with the zone open.
+  if (shopsOpen) {
+    for (const t of tiles) {
+      const x = t % MAP_SIZE;
+      const z = (t - x) / MAP_SIZE;
+      if (state.map.road[t] || state.map.occupant[t] || reader.water(x, z) || !reader.parcelUnlocked(x, z))
+        continue;
+      const beside = [t - 1, t + 1, t - MAP_SIZE, t + MAP_SIZE];
+      if (beside.some((n) => n >= 0 && n < MAP_SIZE * MAP_SIZE && state.map.road[n])) return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * Whether some command could close an open gap. Per kind (the R2 table in 19-evenings.md, Gaps):
+ * - nothingToSell (subject a PlaceId): an outlet already within reach of the place (its shelf can be
+ *   stocked), or one that could stand within `serveRadius`: an empty shops lot, a stall that fits, a
+ *   free tile by a road where the zone could be painted. A place that is gone is no dead end.
+ * - nobodyPasses (subject `building:<id>`): a place already within `placeNearShopRadius` of the door
+ *   (it can be improved), or an unlocked seat piece that fits within that radius of the door.
+ * - nowhereToGo (subject `street:<id>`): a place already within `PLACES.radius` of the street, or a
+ *   seat piece that fits within that radius of its anchor.
+ * Any other kind (R3's shortOfSupplies, anything later) is never flagged: true.
+ */
+function gapClosable(state: WorldState, gap: Gap): boolean {
+  const p = content.places;
+  if (gap.kind === 'nothingToSell') {
+    const place = placeIndex(state).byId.get(gap.subject);
+    if (!place) return true;
+    return place.outlets.length > 0 || outletCouldStandNear(state, place.tile, p.serveRadius);
+  }
+  if (gap.kind === 'nobodyPasses') {
+    const id = Number(gap.subject.replace(/^building:/, ''));
+    const shop = state.buildings.find((b) => b.id === id);
+    if (!shop) return true;
+    const door = doorFront(shop);
+    if (placeIndex(state).places.some((pl) => manhattan(pl.tile, door) <= p.placeNearShopRadius)) return true;
+    return seatFitsNear(state, door, p.placeNearShopRadius);
+  }
+  if (gap.kind === 'nowhereToGo') {
+    const id = Number(gap.subject.replace(/^street:/, ''));
+    const street = state.streets.find((s) => s.id === id);
+    if (!street) return true;
+    if (placeIndex(state).places.some((pl) => manhattan(pl.tile, street.anchor) <= p.radius)) return true;
+    return seatFitsNear(state, street.anchor, p.radius);
+  }
+  return true;
 }

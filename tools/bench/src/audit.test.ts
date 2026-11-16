@@ -8,6 +8,8 @@ describe('the playability audit', { timeout: 90_000 }, () => {
     const r = audit(['willow', 'hazel'], 12, 0);
     const why = `\n${formatSummary(r)}\n${r.flags.map((f) => `${f.run} ${f.kind}: ${f.text}`).join('\n')}`;
     expect(r.flags, why).toEqual([]);
+    expect(r.stuck, why).toEqual([]);
+    expect(r.hearthStalled, why).toEqual([]);
     expect(r.runs).toHaveLength(2);
     const offered = r.wishes.reduce((n, s) => n + s.offered, 0);
     expect(offered, why).toBeGreaterThan(0);

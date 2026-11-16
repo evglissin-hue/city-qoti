@@ -4,6 +4,7 @@ import {
   DECISIONS_LIMIT,
   decisionVerdict,
   formatDecisions,
+  stuckCommands,
   tallyDecisions,
   type DecisionRecord,
 } from './decisions';
@@ -93,5 +94,27 @@ describe('formatDecisions', () => {
     expect(text).toContain('FAIL: ');
     expect(text).not.toContain('—');
     expect(formatDecisions([rec(zone)], 70)).toMatch(/PASS$/);
+  });
+});
+
+describe('stuck commands (R2E)', () => {
+  const rec = (day: number, ok: boolean, x = 106): DecisionRecord => ({
+    day,
+    advisor: 'places',
+    lane: 'hearth',
+    kind: 'build.place',
+    ok,
+    label: 'build tavern',
+    cmd: { t: 'build.place', def: 'tavern', x, z: 76, rot: 0 },
+  });
+
+  it('flags one command refused on five separate days, not four, and not a moving one', () => {
+    const five = [1, 2, 3, 3, 4, 5].map((d) => rec(d, false));
+    expect(stuckCommands(five)).toEqual([
+      { advisor: 'places', label: 'build tavern', days: 5, first: 1, last: 5 },
+    ]);
+    expect(stuckCommands(five.slice(0, 5))).toEqual([]);
+    expect(stuckCommands([1, 2, 3, 4, 5].map((d) => rec(d, false, 100 + d)))).toEqual([]);
+    expect(stuckCommands([1, 2, 3, 4, 5].map((d) => rec(d, true)))).toEqual([]);
   });
 });

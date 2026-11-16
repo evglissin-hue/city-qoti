@@ -8,10 +8,13 @@ import {
   canPaintRoad,
   canPlaceBuilding,
   canPlaceDecor,
+  rankAtLeast,
   doorTile,
   findById,
   findRoute,
+  TICKS_PER_HOUR,
   TILE_FP,
+  townReachesDoor,
   townStock,
   treeStage,
   worldIndex,
@@ -19,7 +22,9 @@ import {
   type WorldState,
 } from '@qoti/sim';
 import type { Planner } from '../planner';
+import { walledIn } from '../rows';
 import { count, G, idx, S, sites } from '../town';
+import { wellFor } from './siting';
 import type { Advisor, AdvisorDef } from './types';
 
 /** A tree on the map, grown to at least `stage`, within `r` tiles of a building. */
@@ -58,6 +63,10 @@ class Hearth implements Advisor {
   private gardenBed(home: Building): boolean {
     const def = content.buildingById.get('garden-bed');
     if (!def) return false;
+    // R2E: at most two beds going up at once, and only where folk can walk to the door. Hazel queued
+    // four at once and one stood 48 hours with its timber in; yew's was cut off (build.place does not
+    // check reach for a 'connect' path that may not come). One at a time granted fewer A Garden Plot
+    // wishes and left oak's Charter 18 days later; beds that wait behind the homes are nudged.
     const reader = worldIndex(this.w).reader;
     for (let r = 1; r <= 2; r++)
       for (let dz = -r - 1; dz <= r + 1; dz++)
@@ -65,26 +74,12 @@ class Hearth implements Advisor {
           const x = home.x + dx;
           const z = home.z + dz;
           if (!canPlaceBuilding(reader, def, x, z, 0).ok) continue;
+          // R2E: not in a closed block's hollow (its gardens), and no path laid into it.
+          if (walledIn(this.w, x, z)) continue;
+          if (!townReachesDoor(this.w, { def: def.id, x, z, rot: 0 })) continue;
           return !!this.p.buildAt('a garden bed for a wish', 'garden-bed', x, z, 0, true);
         }
     return false;
-  }
-
-  /**
-   * R1X: a well within reach of the door that asked, and half a reach clear of every other well (the
-   * sim's service-clustered check). It used to go wherever a well first fit from the town's middle,
-   * so the far household's wish stayed open and the next one stood beside it: seven on one green.
-   */
-  private wellFor(hx: number, hz: number): Building | null {
-    const r = content.buildingById.get('well')?.coverage?.find((c) => c.kind === 'water')?.radius ?? 8;
-    const wells = this.w.buildings.filter((b) => b.def === 'well');
-    const only = (x: number, z: number): boolean => {
-      // The sim measures a well's reach from its corner tile to the door (residents/needs).
-      if ((x - hx) * (x - hx) + (z - hz) * (z - hz) > (r - 1) * (r - 1)) return false;
-      for (const o of wells) if ((o.x - x) * (o.x - x) + (o.z - z) * (o.z - z) < (r * r) / 4) return false;
-      return true;
-    };
-    return this.p.build('well', only);
   }
 
   private commutePath(home: number, work: number): boolean {
@@ -122,10 +117,41 @@ class Hearth implements Advisor {
     ]);
   }
 
+  /** Hearth sites by id: the work done when last seen, and the tick it last moved (or waited on materials). */
+  private readonly siteSeen = new Map<number, [work: number, since: number]>();
+
+  /**
+   * R2E: a site of the Hearth's own (a garden bed, a well, the tavern) with every material in and no
+   * work for half a day goes to the front of the builders' queue, once. Hazel's bed waited 48 hours behind
+   * the homes; a player who asked for it would nudge it.
+   */
+  private nudgeSites(): void {
+    const w = this.w;
+    const live = new Set<number>();
+    for (const b of w.buildings) {
+      const c = b.rt?.construction;
+      const def = content.buildingById.get(b.def);
+      // Homes are the Ledger's to place, whatever their def's lane.
+      if (b.stage !== 'construction' || !c || def?.lane !== 'hearth' || def.housing) continue;
+      live.add(b.id);
+      const allIn = c.needs.every((n) => n <= 0);
+      const last = this.siteSeen.get(b.id);
+      if (!last || last[0] !== c.workDone || !allIn) {
+        this.siteSeen.set(b.id, [c.workDone, w.tick]);
+        continue;
+      }
+      if (!c.priority && w.tick - last[1] >= 12 * TICKS_PER_HOUR)
+        this.p.do(`raise the ${b.def}`, [{ t: 'build.setPriority', id: b.id, priority: true }]);
+    }
+    for (const id of [...this.siteSeen.keys()]) if (!live.has(id)) this.siteSeen.delete(id);
+  }
+
   /** Answer up to three wishes, then dress one lane. */
   visit(): void {
     const p = this.p;
     const w = this.w;
+    // From Village rank: in a Hamlet the first homes go first (nudging beds there cost hazel a lean day).
+    if (rankAtLeast(w, 'village')) this.nudgeSites();
     let answered = 0;
     for (const wish of [...w.wishes]) {
       if (answered >= 3) break;
@@ -179,7 +205,7 @@ class Hearth implements Advisor {
             sites(w) < 3 &&
             count(w, 'well') <= w.residents.length / 10
           )
-            ok = !!this.wellFor(hx, hz);
+            ok = !!wellFor(p, hx, hz);
           break;
         default:
           break;
