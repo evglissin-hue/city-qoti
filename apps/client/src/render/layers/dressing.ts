@@ -455,7 +455,9 @@ export function dressingLayer(rules: readonly DressingRule[] = content.dressingR
         q = fitPlacement({ ...p, at, yaw: Math.atan2(fx, fz) }, info.bounds, mask, lot, door);
       }
       // V3A: still no room where the anchor put it: the nearest free spot within a tile of it.
-      if (!q && p.anchor !== 'sills') q = nearestFree(p, info.bounds, mask, lot, door);
+      // Wall pieces (sills, eaves) never wander into the open: a lone water butt in a field looks lost.
+      if (!q && p.anchor !== 'sills' && p.anchor !== 'eaves')
+        q = nearestFree(p, info.bounds, mask, lot, door);
       if (!q) continue;
       markPlacement(mask, q, info.bounds);
       out.push(q);
