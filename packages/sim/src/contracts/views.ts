@@ -91,6 +91,11 @@ export interface ClockView {
   day: number;
   hour: number;
   minute: number;
+  /**
+   * R2 (R2B): dusk lingers now: from 17:00 to 21:00 each turn runs `PLACES.lingerPercent` of the
+   * effective speed's ticks (19-evenings.md, The evening lingers). Absent otherwise.
+   */
+  lingering?: true;
 }
 
 export interface ViewSnapshot {
