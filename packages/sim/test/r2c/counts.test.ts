@@ -9,7 +9,14 @@ import { villageFixture } from '../fixtures/village';
 describe('the R2 counts', () => {
   it('read the gaps and the evenings runs', () => {
     const s = villageFixture().state;
-    for (const what of ['gapsClosed', 'gapsClosedEachSeat', 'eveningsOut', 'eveningsAllOut', 'seatedSeasons'])
+    for (const what of [
+      'gapsClosed',
+      'gapsClosedEachSeat',
+      'eveningsOut',
+      'eveningsHalfOut',
+      'eveningsAllOut',
+      'seatedSeasons',
+    ])
       expect(countOf(s, what)).toBe(0);
     s.gaps.closedCount = 5;
     s.gaps.closedBySeat = [1, 4, 0, 0];

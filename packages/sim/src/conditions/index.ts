@@ -282,6 +282,8 @@ export function countOf(state: WorldState, what: string, ref?: string): number {
       return Math.min(state.gaps.closedBySeat[0] ?? 0, state.gaps.closedBySeat[1] ?? 0);
     case 'eveningsOut':
       return state.evenings.outRun;
+    case 'eveningsHalfOut':
+      return state.evenings.outFair ?? 0;
     case 'eveningsAllOut':
       return state.evenings.allOut;
     case 'seatedSeasons':

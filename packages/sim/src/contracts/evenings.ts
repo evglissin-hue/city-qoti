@@ -199,8 +199,13 @@ export interface EveningsState {
   tonight: EveningTally;
   /** The last PLACE_EVENINGS evenings before `tonight`, oldest first. */
   history: EveningTally[];
-  /** Fair evenings running with at least half the grown-ups out (the Village's evening goal; R2C). */
+  /** Fair evenings running with at least half the grown-ups out (R2C). */
   outRun: number;
+  /**
+   * R2X (additive): fair evenings with at least half the grown-ups out, counted whole (the Village's
+   * evening goal). Absent until the first one.
+   */
+  outFair?: number;
   /** Fair evenings on which every grown-up went out (Out of an Evening; R2C). */
   allOut: number;
   /** Evenings this season with someone standing for want of a seat, and whole seasons without one (A Seat for Everyone; R2C). */

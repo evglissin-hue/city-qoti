@@ -32,6 +32,7 @@ export function keepRuns(state: WorldState): void {
   const today = dayIndex(state.tick);
   if (t.weather === 'fair' && t.grownups > 0) {
     ev.outRun = t.out * 2 >= t.grownups ? ev.outRun + 1 : 0;
+    if (t.out * 2 >= t.grownups) ev.outFair = (ev.outFair ?? 0) + 1;
     if (t.out === t.grownups) ev.allOut += 1;
   }
   if (t.weather !== 'storm' && t.stood > 0) ev.stoodThisSeason += 1;

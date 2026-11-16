@@ -645,8 +645,13 @@ export type CountWhat =
   | 'gapsClosed'
   /** Gaps closed by the seat that has closed fewest (Mind the Gap: three by each). */
   | 'gapsClosedEachSeat'
-  /** Fair evenings running with at least half the grown-ups out (the Village's evening goal). */
+  /** Fair evenings running with at least half the grown-ups out (R2C's run). */
   | 'eveningsOut'
+  /**
+   * R2X: fair evenings with at least half the grown-ups out, counted whole (the Village's evening goal;
+   * a thin evening no longer starts it again, as 15-progression.md asks for three, not three running).
+   */
+  | 'eveningsHalfOut'
   /** Fair evenings on which every grown-up went out (Out of an Evening). */
   | 'eveningsAllOut'
   /** Whole seasons in which nobody stood for want of a seat (A Seat for Everyone). */
