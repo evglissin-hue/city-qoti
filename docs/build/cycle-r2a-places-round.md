@@ -42,7 +42,7 @@ The R2A paths in `r2-wave-notes.md`: `packages/sim/src/systems/places/**`, `syst
 - [x] On a fair evening in an autoplayed Village every grown-up with a place in reach goes out; places fill to their room and no further; a town with no places stays in (headless tests).
 - [x] Footfall counts only steps on the way to or between stops for the evening layer; the walk home does not.
 - [x] A seat joining from a snapshot mid-evening sees the same places and plans (a test).
-- [ ] Budgets above hold; a year hashes the same in Node and a browser worker; typecheck, lint, unit tests and build pass. (Not all: the Village place pass holds; the City place pass, 5.8 ms after a change against 3, and planning, 0.71 ms a tick against 0.4, do not, measured and left for R2X in the PR. A year hashes the same in Node and a browser worker; typecheck, lint and build pass; unit tests pass but for seven seed-specific `tools/bench` tests the round's stream change moves, listed in the PR.)
+- [ ] Budgets above hold; a year hashes the same in Node and a browser worker; typecheck, lint, unit tests and build pass. (Not all: both place passes hold, the City's at about 2.1 ms after a change against 3; planning, about 0.57 ms a tick against 0.4 (0.78 at first), does not, measured with what is left of it in the PR. A year hashes the same in Node and a browser worker; typecheck, lint and build pass; unit tests pass but for seven seed-specific `tools/bench` tests the round's stream change moves, listed in the PR.)
 
 ## Out of scope
 
