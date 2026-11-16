@@ -136,3 +136,45 @@ export function formatDecisions(records: readonly DecisionRecord[], days: number
   );
   return lines.join('\n');
 }
+
+/** A command refused at the same spot on this many separate days is a stuck autoplayer (R2E). */
+export const STUCK_DAYS = 5;
+
+export interface StuckCommand {
+  advisor: string;
+  label: string;
+  /** Separate days it was refused. */
+  days: number;
+  first: number;
+  last: number;
+}
+
+/**
+ * R2E's class check (the dead-end hunt, for the autoplayer itself): the same command, word for word,
+ * refused on `STUCK_DAYS` or more separate days. Willow's tavern was sent to one spot nobody could
+ * walk to twice a day from day 30 on, so the town never had one and no Craftsfolk came; nothing
+ * flagged it because the refusals were counted, not read. An advisor must move on from a refusal.
+ */
+export function stuckCommands(records: readonly DecisionRecord[], minDays = STUCK_DAYS): StuckCommand[] {
+  const byKey = new Map<string, { advisor: string; label: string; days: Set<number> }>();
+  for (const r of records) {
+    if (r.ok) continue;
+    const key = `${r.advisor}|${JSON.stringify(r.cmd)}`;
+    const e = byKey.get(key) ?? { advisor: r.advisor, label: r.label, days: new Set<number>() };
+    e.days.add(r.day);
+    byKey.set(key, e);
+  }
+  const out: StuckCommand[] = [];
+  for (const e of byKey.values()) {
+    if (e.days.size < minDays) continue;
+    const days = [...e.days].sort((a, b) => a - b);
+    out.push({
+      advisor: e.advisor,
+      label: e.label,
+      days: days.length,
+      first: days[0]!,
+      last: days[days.length - 1]!,
+    });
+  }
+  return out.sort((a, b) => b.days - a.days || a.first - b.first);
+}

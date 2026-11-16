@@ -16,6 +16,7 @@ import {
   doorTile,
   findById,
   insertBuilding,
+  isStandard,
   jobsOf,
   MAP_SIZE,
   NEED_IDS,
@@ -26,6 +27,7 @@ import {
   TICKS_PER_DAY,
   TICKS_PER_HOUR,
   TREE_MATURE,
+  townReachesDoor,
   treeStage,
   type Building,
   type Command,
@@ -372,6 +374,9 @@ export function findSpot(
           // C4C: never a door that opens onto the water (porters cannot walk into the river).
           const door = doorTile({ def: defId, x, z, rot } as Building, def);
           if (world.map.water[door]) continue;
+          // R2E: build.place refuses a site nobody can walk to (CUT_OFF), so never offer one: hazel's
+          // well went to one such spot on six days running.
+          if (isStandard(world) && !townReachesDoor(world, { def: defId, x, z, rot })) continue;
           let score = p.warnings.includes('NO_ROAD') ? 0 : 1;
           if (!r1Site(world, def, p.tiles, x, z, w, d, p.warnings.includes('NO_ROAD'))) score = -1;
           if (score > bestScore) {

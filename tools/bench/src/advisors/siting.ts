@@ -7,6 +7,7 @@ import {
   overdraftLimit,
   PENNIES_PER_COIN,
   serviceCoverage,
+  townReachesDoor,
   townStock,
   worldIndex,
   type Building,
@@ -73,6 +74,10 @@ export function serveService(p: Planner, def: string, kind: 'social' | 'health')
             const z = home.z + dz;
             if (!canPlaceBuilding(reader, d, x, z, rot).ok) continue;
             if (w.map.water[doorTile({ def, x, z, rot } as Building, d)]) continue;
+            // R2E: build.place refuses a site nobody can walk to (CUT_OFF); trying the first spot
+            // that fits and stopping there left willow's tavern refused at one spot every visit
+            // from day 30, so no Craftsfolk came.
+            if (!townReachesDoor(w, { def, x, z, rot })) continue;
             return !!p.buildAt(`build ${def} by the ${h.family}s`, def, x, z, rot, true);
           }
         }

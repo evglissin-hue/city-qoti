@@ -24,6 +24,7 @@ import { content } from '@qoti/content';
 import { achievable, type HealthIssue, type WorldState } from '@qoti/sim';
 import { writeFileSync } from 'node:fs';
 import { autoplay, type AutoplayOptions } from './autoplay';
+import { stuckCommands, STUCK_DAYS, type StuckCommand } from './decisions';
 
 export const DEFAULT_SEEDS = ['willow', 'hazel', 'oak', 'birch'];
 export const YEAR_DAYS = 24;
@@ -61,6 +62,8 @@ export interface AuditRun {
   rank: string;
   wishes: WishStat[];
   issues: HealthIssue[];
+  /** R2E: commands the autoplayer kept sending and the sim kept refusing (a stuck player, not a dead end in the game). */
+  stuck: StuckCommand[];
 }
 
 export interface AuditWarning {
@@ -78,6 +81,8 @@ export interface AuditResult {
   flags: (HealthIssue & { run: string })[];
   /** Health issues a stand-in still raises (`EXPLAINED`), with why. */
   explained: (HealthIssue & { run: string; why: string })[];
+  /** R2E: the autoplayer stuck on one refused command, by run; fails the audit like a flag. */
+  stuck: (StuckCommand & { run: string })[];
 }
 
 /** Watches wishes at each hourly look: new ones are offered; ones that vanish were granted or let go. */
@@ -140,6 +145,7 @@ function playOne(seed: string, days: number, label: string, opts: AutoplayOption
     rank: last.rank,
     wishes: ledger.result(),
     issues: run.health,
+    stuck: stuckCommands(run.decisions),
   };
 }
 
@@ -162,6 +168,8 @@ export function audit(
         `${r.issues.length} issue${r.issues.length === 1 ? '' : 's'}  (${((performance.now() - t0) / 1000).toFixed(0)} s)`,
     );
     for (const i of r.issues) log(`    ${i.kind}: ${i.text}`);
+    for (const s of r.stuck)
+      log(`    stuck: ${s.advisor} "${s.label}" refused on ${s.days} days (${s.first} to ${s.last})`);
   }
   const sums = new Map<string, WishStat>();
   for (const r of runs)
@@ -193,7 +201,8 @@ export function audit(
     const why = explained(i);
     return why ? [{ ...i, why }] : [];
   });
-  return { runs, wishes, warnings, flags, explained: known };
+  const stuck = runs.flatMap((r) => r.stuck.map((s) => ({ ...s, run: `${r.seed}/${r.label}` })));
+  return { runs, wishes, warnings, flags, explained: known, stuck };
 }
 
 export function formatSummary(r: AuditResult): string {
@@ -213,10 +222,14 @@ export function formatSummary(r: AuditResult): string {
     );
   for (const w of r.warnings) lines.push(`warning  ${w.kind}: ${w.text}`);
   for (const e of r.explained) lines.push(`explained  ${e.run} ${e.kind}: ${e.text} (${e.why})`);
+  for (const s of r.stuck)
+    lines.push(
+      `stuck  ${s.run} ${s.advisor}: "${s.label}" refused on ${s.days} days (${s.first} to ${s.last}; ${STUCK_DAYS}+ fails)`,
+    );
   lines.push(
-    r.flags.length
-      ? `FAIL: ${r.flags.length} dead-end flag${r.flags.length === 1 ? '' : 's'}`
-      : 'PASS: no dead-end flags',
+    r.flags.length || r.stuck.length
+      ? `FAIL: ${r.flags.length} dead-end flag${r.flags.length === 1 ? '' : 's'}, ${r.stuck.length} stuck command${r.stuck.length === 1 ? '' : 's'}`
+      : 'PASS: no dead-end flags, no stuck commands',
   );
   return lines.join('\n');
 }
@@ -228,5 +241,5 @@ if (process.argv[1]?.endsWith('audit.ts')) {
   const result = audit(seeds, days, villageDays, VILLAGE_SEED, console.log);
   console.log(formatSummary(result));
   if (process.env.AUDIT_JSON) writeFileSync(process.env.AUDIT_JSON, `${JSON.stringify(result, null, 2)}\n`);
-  process.exit(result.flags.length ? 1 : 0);
+  process.exit(result.flags.length || result.stuck.length ? 1 : 0);
 }
