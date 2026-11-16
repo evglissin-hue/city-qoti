@@ -99,7 +99,7 @@ const state = {
   kit: q.get('kit') ?? 'cottage',
   seed: Number(q.get('seed') ?? 1),
   stage: 3,
-  lod: 'high' as 'high' | 'low',
+  lod: (q.get('lod') === 'low' ? 'low' : 'high') as 'high' | 'low',
   wall: -1,
   roof: -1,
   night: Number(q.get('night') ?? 0),
