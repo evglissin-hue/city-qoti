@@ -11,7 +11,7 @@ import {
 } from 'three';
 import type { Mirror } from '../../state/mirror';
 import { hash2 } from '../coords';
-import { createWorldEnv, type WorldEnv } from '../env';
+import { createWorldEnv, NOISE_GLSL, type WorldEnv } from '../env';
 import { SurfaceTiles, surfaceY, WATER_Y } from '../surface';
 import type { LayerContext, RenderLayer } from './types';
 
@@ -45,7 +45,11 @@ const CORNER_STEPS = 5;
 const CHANNEL_LENGTH = 46;
 const CHANNEL_Y = WATER_Y - 0.02;
 const TROUGH_Y = WATER_Y - 0.3;
-const MAX_TREES = 360;
+/**
+ * V3X: no cone trees. Seen from the far views the near hills are past the tilt-shift's sharp band
+ * and a dark cone reads as a mark floating in the haze; the woods are painted instead.
+ */
+const MAX_TREES = 0;
 /** How far the inner edge sits under the terrain. */
 const SINK = 0.03;
 
@@ -298,11 +302,11 @@ export function buildHorizon(input: HorizonInput): HorizonBuild {
       const z = o.bz + o.nz * d;
       const y = heightAt(i, d, x, z);
       const wn = vnoise(x, z, 24, seed + 29);
+      // Woods by patch. V3X: within about 30 tiles of the rim the shader paints the woods from the
+      // same world-space field as the rim's own paint (ground.ts qRim), so patches run on across the
+      // seam; these vertex woods take over beyond.
       const woods =
-        smooth((wn - 0.44) / 0.12) *
-        smooth((d - 5) / 10) *
-        (1 - smooth((d - 62) / 28)) *
-        (1 - troughAt(x, z));
+        smooth((wn - 0.44) / 0.12) * smooth((d - 5) / 10) * (1 - smooth((d - 62) / 28)) * (1 - troughAt(x, z));
       const far = smooth((d - 55) / 75);
       const c = COL_NEAR.clone().lerp(COL_FAR, far);
       // A little tonal drift so the bands are painted, not flat.
@@ -310,7 +314,7 @@ export function buildHorizon(input: HorizonInput): HorizonBuild {
       c.lerp(COL_WOODS, woods);
       // V3X: the haze grows from nothing at the rim (where the valley's own fog is light), so the
       // seam never shows as a line, and is nearly the sky's color by a hundred tiles out.
-      const haze = 0.95 * (1 - Math.exp(-d / 42));
+      const haze = 0.97 * (1 - Math.exp(-Math.max(0, d - 4) / 26));
       row.push(soup.vertex(x, y, z, c, haze, woods, mix(0.7, 0.2, far)));
       wrow.push(woods);
       yrow.push(y);
@@ -466,17 +470,22 @@ varying vec3 vColor;
 varying vec3 vNormal;
 varying vec3 vMeta;
 varying float vDist;
+varying vec3 vWorld;
+varying float vDepth;
 void main() {
   vColor = color;
   vNormal = normal;
   vMeta = aMeta;
   vec4 wp = modelMatrix * vec4(position, 1.0);
   vDist = distance(wp.xyz, cameraPosition);
+  vWorld = wp.xyz;
+  vDepth = -(viewMatrix * wp).z;
   gl_Position = projectionMatrix * viewMatrix * wp;
 }
 `;
 
 const FRAG = /* glsl */ `
+${NOISE_GLSL}
 uniform vec3 uSky;
 uniform vec3 uSkyTop;
 uniform vec3 uSun;
@@ -487,6 +496,11 @@ uniform float uSnow;
 uniform float uAutumn;
 uniform vec3 uFocus;
 uniform float uFogThick;
+uniform vec3 uNearC;
+uniform vec3 uWoodsC;
+uniform vec4 uHazeTerms;
+varying vec3 vWorld;
+varying float vDepth;
 varying vec3 vColor;
 varying vec3 vNormal;
 varying vec3 vMeta;
@@ -497,6 +511,18 @@ void main() {
   float woods = vMeta.y;
   float tint = vMeta.z;
   vec3 col = vColor;
+  // V3X: near the rim, the rim's own paint (ground.ts qRim: the same woods field in world space, the
+  // same tones), so the valley's edge runs on into the hills with no seam; the vertex colors beyond.
+  float dOut = max(max(-vWorld.x, vWorld.x - ${MAP_SIZE.toFixed(1)}), max(-vWorld.z, vWorld.z - ${MAP_SIZE.toFixed(1)}));
+  float nearRim = (1.0 - smoothstep(12.0, 36.0, dOut)) * step(woods, 0.999);
+  if (nearRim > 0.0) {
+    vec2 wp = vWorld.xz;
+    float wds = smoothstep(0.38, 0.55, qFbm(wp * 0.09 + 3.7));
+    vec3 hill = mix(uNearC, uWoodsC, wds);
+    hill *= 0.86 + 0.24 * qNoise(wp * 0.7) + 0.1 * qNoise(wp * 3.1);
+    col = mix(col, hill, nearRim);
+    woods = mix(woods, wds, nearRim);
+  }
   // The season: foliage takes the tint, woods warm in autumn, snow whitens upward faces.
   col *= mix(vec3(1.0), uSeasonTint, tint);
   // Autumn: the woods turn russet and gold (a warm color, not a tint: a tinted dark green stays green).
@@ -506,21 +532,22 @@ void main() {
   // Simple light: the sky's fill from above and the sun on the faces that look at it.
   float ndl = max(dot(n, normalize(uSunDir)), 0.0);
   vec3 fill = (vec3(0.55) + 0.2 * uSkyTop + 0.1 * n.y) * mix(vec3(1.0), uSky * 1.3, 0.4);
-  vec3 lit = col * (fill + uSun * ndl * 0.6 * (1.0 - uNight));
+  // V3X: a shade under the old light, so the hills meet the rim's ground (lit by the scene's own
+  // lights) at the same brightness.
+  vec3 lit = col * (fill + uSun * ndl * 0.6 * (1.0 - uNight)) * 0.84;
   // Night: moonlit blue-gray, never black (the haze takes the rest toward the night sky).
   lit = mix(lit, col * vec3(0.2, 0.26, 0.42) + uSky * 0.12, uNight);
   // Aerial perspective (V3X): the band's haze, which grows outward from the rim, over the scene's
-  // own linear fog (hazeFor's distances from the camera's distance to the focus, and a fog day's
-  // thickening), so the land past the rim fades toward the sky's color from any height and meets
-  // the valley's ground at the rim with the same haze.
+  // own fog as the valley's ground takes it (lighting.ts FOG_FRAGMENT: hazeFor's distances from the
+  // camera's distance to the focus, a fog day's thickening, V3C's thinning with height), so the
+  // hills meet the rim with the same haze and fade toward the sky's color beyond, from any height.
   float camDist = distance(cameraPosition, uFocus);
   float fogNear = camDist * 0.93 * (1.0 - 0.6 * uFogThick);
   float fogFar = (camDist * 4.2 + 20.0) * (1.0 - 0.45 * uFogThick);
-  float fogLin = clamp((vDist - fogNear) / max(fogFar - fogNear, 1.0), 0.0, 1.0);
-  float far = 1.0 - (1.0 - haze) * (1.0 - fogLin);
-  // The haze takes the color out first: a hazy hill is a paler, grayer hill before it is sky.
-  float grey = dot(lit, vec3(0.299, 0.587, 0.114));
-  lit = mix(lit, vec3(grey) * 0.6 + uSky * 0.4, 0.5 * clamp(far * 1.6, 0.0, 1.0));
+  float fogScene = smoothstep(fogNear, fogFar, vDepth);
+  float hzUp = clamp((vWorld.y - uHazeTerms.y) / max(uHazeTerms.z, 0.001), 0.0, 1.0);
+  fogScene *= 1.0 - uHazeTerms.x * smoothstep(50.0, 110.0, fogNear) * hzUp * (2.0 - hzUp);
+  float far = 1.0 - (1.0 - haze) * (1.0 - fogScene);
   vec3 outc = mix(lit, uSky, clamp(far, 0.0, 1.0));
   gl_FragColor = vec4(outc, 1.0);
   #include <tonemapping_fragment>
@@ -563,7 +590,10 @@ export function horizonLayer(): RenderLayer {
           uSnow: env.snow,
           uAutumn: env.autumn,
           uFocus: { value: env.focus },
+          uHazeTerms: env.haze.terms,
           uFogThick: env.fog,
+          uNearC: { value: new Color().setHex(palette.horizonNear) },
+          uWoodsC: { value: new Color().setHex(palette.horizonWoods) },
         },
         vertexShader: VERT,
         fragmentShader: FRAG,

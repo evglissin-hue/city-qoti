@@ -794,6 +794,7 @@ vec3 qRim(vec3 col) {
   float k = (1.0 - smoothstep(4.2, 6.8, e + fray)) * smoothstep(0.7, 1.4, vQWorld.y);
   if (k < 0.001) return col;
   float wn = qFbm(wp * 0.09 + 3.7);
+  // V3X: the horizon's first rows paint the same field (layers/horizon.ts), so it runs on past the rim.
   float woods = smoothstep(0.38, 0.55, wn);
   vec3 hill = mix(qSrgb(${glslColor(palette.horizonNear)}), qSrgb(${glslColor(palette.horizonWoods)}), woods);
   hill *= 0.86 + 0.24 * qNoise(wp * 0.7) + 0.1 * qNoise(wp * 3.1);
