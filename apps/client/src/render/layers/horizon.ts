@@ -28,9 +28,9 @@ const ROWS = [0, 14, 32, 54, 80, 150, 230];
 /** Hill amplitude (world units above the base) at the control distances. */
 const AMP_AT = [
   [0, 0],
-  [30, 12],
-  [80, 14],
-  [150, 34],
+  [30, 15],
+  [80, 18],
+  [150, 36],
   [230, 6],
 ] as const;
 /** The haze curtain's height above the outer far row. */
@@ -42,7 +42,7 @@ const CORNER_STEPS = 3;
 const CHANNEL_LENGTH = 46;
 const CHANNEL_Y = WATER_Y - 0.02;
 const TROUGH_Y = WATER_Y - 0.3;
-const MAX_TREES = 90;
+const MAX_TREES = 150;
 /** How far the inner edge sits under the terrain. */
 const SINK = 0.03;
 
@@ -77,6 +77,8 @@ interface OutlinePoint {
   bz: number;
   nx: number;
   nz: number;
+  /** An exit's edge or middle: sampled exactly (the edge ones a little onto the rim), not by window. */
+  exact?: number;
 }
 
 /** Each side: its start corner (as a share of the size), direction along it, outward normal. */
@@ -88,13 +90,33 @@ const SIDES = [
 ] as const;
 
 /** The valley's outline: points along each side, and arcs round each corner (a rounded square). */
-export function outlineOf(size: number): OutlinePoint[] {
+export function outlineOf(size: number, exits: readonly RiverExit[] = []): OutlinePoint[] {
   const out: OutlinePoint[] = [];
   for (let s = 0; s < 4; s++) {
     const a = SIDES[s]!;
+    // Points along the side: regular ones, but where the river leaves there are points on the
+    // notch's two edges and its middle instead, so the hills' inner edge follows the notch.
+    const along: { u: number; exact?: number }[] = [];
+    const notches = exits
+      .filter((e) => e.nx === a.nx && e.nz === a.nz)
+      .map((e) => ({ c: (e.x - a.x * size) * a.tx + (e.z - a.z * size) * a.tz, w: e.width }));
     for (let j = 0; j <= SIDE_SEGS; j++) {
       const u = (j / SIDE_SEGS) * size;
-      out.push({ bx: a.x * size + a.tx * u, bz: a.z * size + a.tz * u, nx: a.nx, nz: a.nz });
+      if (notches.some((q) => Math.abs(u - q.c) < q.w / 2 + 5)) continue;
+      along.push({ u });
+    }
+    for (const q of notches) {
+      // The notch's two walls, nearly upright like the terrain's, and its floor between them.
+      along.push(
+        { u: q.c - q.w / 2, exact: -0.6 },
+        { u: q.c - q.w / 2 + 0.3, exact: 0.6 },
+        { u: q.c + q.w / 2 - 0.3, exact: -0.6 },
+        { u: q.c + q.w / 2, exact: 0.6 },
+      );
+    }
+    along.sort((p, q) => p.u - q.u);
+    for (const { u, exact } of along) {
+      out.push({ bx: a.x * size + a.tx * u, bz: a.z * size + a.tz * u, nx: a.nx, nz: a.nz, exact });
     }
     // The corner at this side's end: its normal turns from this side's to the next one's.
     const endX = (a.x + a.tx) * size;
@@ -213,7 +235,7 @@ class Soup {
 /** Builds the horizon: pure and deterministic from its input. */
 export function buildHorizon(input: HorizonInput): HorizonBuild {
   const { size, seed } = input;
-  const outline = outlineOf(size);
+  const outline = outlineOf(size, input.exits);
   const n = outline.length;
   const soup = new Soup();
 
@@ -228,7 +250,7 @@ export function buildHorizon(input: HorizonInput): HorizonBuild {
     const tz = o.nx;
     const clamp = (v: number) => Math.min(size - 1e-3, Math.max(1e-3, v));
     let y = Infinity;
-    for (const k of [-4, 0, 4]) {
+    for (const k of o.exact === undefined ? [-4, 0, 4] : [o.exact]) {
       y = Math.min(y, input.edgeY(clamp(o.bx + tx * k - o.nx * 0.002), clamp(o.bz + tz * k - o.nz * 0.002)));
     }
     rim.push(y - SINK);
@@ -274,13 +296,16 @@ export function buildHorizon(input: HorizonInput): HorizonBuild {
       const y = heightAt(i, d, x, z);
       const wn = vnoise(x, z, 24, seed + 29);
       const woods =
-        smooth((wn - 0.5) / 0.14) * smooth((d - 5) / 10) * (1 - smooth((d - 62) / 28)) * (1 - troughAt(x, z));
+        smooth((wn - 0.44) / 0.12) *
+        smooth((d - 5) / 10) *
+        (1 - smooth((d - 62) / 28)) *
+        (1 - troughAt(x, z));
       const far = smooth((d - 55) / 75);
       const c = COL_NEAR.clone().lerp(COL_FAR, far);
       // A little tonal drift so the bands are painted, not flat.
-      c.multiplyScalar(0.94 + 0.12 * vnoise(x, z, 14, seed + 3));
+      c.multiplyScalar(0.8 + 0.4 * vnoise(x, z, 26, seed + 3) + (0.06 * (y - base)) / 10);
       c.lerp(COL_WOODS, woods);
-      const haze = mix(0.08, 0.8, smooth((d - 8) / 222));
+      const haze = mix(0.0, 0.8, smooth((d - 30) / 200));
       row.push(soup.vertex(x, y, z, c, haze, woods, mix(0.7, 0.2, far)));
       wrow.push(woods);
       yrow.push(y);
@@ -357,7 +382,7 @@ export function buildHorizon(input: HorizonInput): HorizonBuild {
   for (let r = 1; r <= 4; r++) {
     for (let i = 0; i < n; i++) {
       const w = woodsAt[r]![i]!;
-      if (w < 0.55) continue;
+      if (w < 0.5) continue;
       const bi = ring[r]![i]!;
       cands.push({ x: soup.pos[bi * 3]!, y: soup.pos[bi * 3 + 1]!, z: soup.pos[bi * 3 + 2]!, w, i, r });
     }
@@ -376,8 +401,8 @@ export function buildHorizon(input: HorizonInput): HorizonBuild {
       const hs = hash2(c.i * 7 + k, c.r, seed + 47);
       const x = c.x + (hx - 0.5) * 7;
       const z = c.z + (hz - 0.5) * 7;
-      const radius = 1.3 + hs * 1.0;
-      const height = 3.2 + hs * 2.8;
+      const radius = 2 + hs * 1.5;
+      const height = 5 + hs * 5;
       const haze = soup.meta[ring[c.r]![c.i]! * 3]!;
       const rot = hx * 6.28;
       const dark = COL_WOODS.clone().multiplyScalar(0.8 + 0.2 * hs);
@@ -469,11 +494,12 @@ void main() {
   col = mix(col, vec3(0.9, 0.93, 0.98), uSnow * smoothstep(0.55, 0.9, n.y) * 0.85 * (1.0 - haze * 0.4));
   // Simple light: the sky's fill from above and the sun on the faces that look at it.
   float ndl = max(dot(n, normalize(uSunDir)), 0.0);
-  vec3 fill = 0.52 + 0.22 * uSkyTop + 0.12 * n.y;
-  vec3 lit = col * (fill + uSun * ndl * 0.55 * (1.0 - uNight));
-  lit *= mix(1.0, 0.5, uNight);
+  vec3 fill = (vec3(0.55) + 0.2 * uSkyTop + 0.1 * n.y) * mix(vec3(1.0), uSky * 1.3, 0.4);
+  vec3 lit = col * (fill + uSun * ndl * 0.6 * (1.0 - uNight));
+  // Night: moonlit blue-gray, never black (the haze takes the rest toward the night sky).
+  lit = mix(lit, col * vec3(0.2, 0.26, 0.42) + uSky * 0.12, uNight);
   // Aerial perspective: by band, and more with distance from the camera.
-  float far = haze + (1.0 - haze) * 0.5 * smoothstep(80.0, 520.0, vDist);
+  float far = haze + (1.0 - haze) * 0.4 * smoothstep(120.0, 520.0, vDist);
   vec3 outc = mix(lit, uSky, clamp(far, 0.0, 1.0));
   gl_FragColor = vec4(outc, 1.0);
   #include <tonemapping_fragment>

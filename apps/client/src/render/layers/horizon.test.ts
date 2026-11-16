@@ -44,7 +44,7 @@ describe('the horizon build (V3C)', () => {
     const inp = input();
     const b = buildHorizon(inp);
     const pos = b.geometry.getAttribute('position');
-    const outline = outlineOf(N);
+    const outline = outlineOf(N, inp.exits);
     expect(b.outlineCount).toBe(outline.length);
     for (let i = 0; i < outline.length; i++) {
       const o = outline[i]!;
@@ -52,8 +52,8 @@ describe('the horizon build (V3C)', () => {
       expect(pos.getZ(i)).toBeCloseTo(o.bz, 3);
       const onBoundary = pos.getX(i) === 0 || pos.getX(i) === N || pos.getZ(i) === 0 || pos.getZ(i) === N;
       expect(onBoundary).toBe(true);
-      // Never above the terrain at the vertex's own spot.
-      expect(pos.getY(i)).toBeLessThanOrEqual(inp.edgeY(o.bx, o.bz) - 0.03 + 1e-3);
+      // Never above the terrain at the vertex's own spot (an exit's edges sample the rim beside them).
+      if (o.exact === undefined) expect(pos.getY(i)).toBeLessThanOrEqual(inp.edgeY(o.bx, o.bz) - 0.03 + 1e-3);
     }
   });
 
