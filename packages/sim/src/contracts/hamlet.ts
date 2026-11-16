@@ -3,6 +3,7 @@
 // Additive changes only during the I1 wave. Per-good quantities are arrays indexed by good index
 // (content.goods order, append-only); per-need values are arrays indexed by NEED_IDS order.
 import type { EntityId, SeatId } from './ids';
+import type { ResidentEvening, RoundStop } from './evenings';
 import type { HouseholdWarmth } from './seasons';
 import type { Apprenticeship } from './village';
 
@@ -20,7 +21,10 @@ export type NeedId =
   | 'goods'
   | 'social'
   | 'health'
-  | 'education';
+  | 'education'
+  // R2 (R2.0): how good their evenings are; takes beauty's weight in mood and the tavern's social need
+  // for Craftsfolk (19-evenings.md, Good evenings). Beauty and social stay in the union, unused by tiers.
+  | 'evenings';
 /** 0 Miserable, 1 Unhappy, 2 Meh, 3 Content, 4 Glowing. */
 export type MoodBand = 0 | 1 | 2 | 3 | 4;
 
@@ -139,6 +143,11 @@ export interface Resident {
   reformed?: true;
   /** Watch members: the absolute day of their next duty, and the tick they are shaken until. */
   watch?: { dutyDay: number; shakenUntil: number };
+  // R2 (R2.0), absent until their first evening (19-evenings.md, The round and Good evenings).
+  /** Their last evening: its score and this season's good evenings (the need is needs[evenings]). */
+  evening?: ResidentEvening;
+  /** Today's round: the plan and what happened at each stop, kept until the next evening's plan. */
+  round?: RoundStop[];
 }
 
 export interface Household {

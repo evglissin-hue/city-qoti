@@ -7,7 +7,9 @@
 // (C5.0): 12 seasons, 14 weather, 59 warmth, 68 dock, 75 festivals, 76 habitats, 78 wildlife,
 // 71 dressing (10:00), 80 threats, 82 watch, 84 raids, 86 defenses, 91 renown, 93 commissions, 95 trials, 99 guide. C5B adds 77 festivalEvening (hourly).
 // R1 slots (R1.0): 65 carrier (10:00, in the caravans' old slot; the peddler and P1's callings left the
-// pipeline) and 69 levels (23:30).
+// pipeline) and 69 levels (23:30). R2 slots (R2.0): 73 places (hourly, after the patterns pass at the
+// same offset) and 79 gaps (21:00, after the evening is scored); docs/build/r2-wave-notes.md has where
+// each R2 system runs in the day.
 import type { System } from '../contracts';
 import { achievements } from './achievements';
 import { carrier } from './carrier';
@@ -21,11 +23,13 @@ import { dock } from './dock';
 import { dressing } from './dressing';
 import { economy } from './economy';
 import { festivalEvening, festivals } from './festivals';
+import { gaps } from './gaps';
 import { growth } from './growth';
 import { guide } from './guide';
 import { habitats } from './habitats';
 import { charm } from './hearth/charm';
 import { patterns } from './hearth/patterns';
+import { places } from './places';
 import { wishes } from './hearth/wishes';
 import { innovations } from './innovations';
 import { levels } from './levels';
@@ -73,6 +77,7 @@ export const systems: readonly System[] = [
   economy,
   festivalEvening,
   festivals,
+  gaps,
   growth,
   guide,
   habitats,
@@ -83,6 +88,7 @@ export const systems: readonly System[] = [
   market,
   movement,
   patterns,
+  places,
   plans,
   production,
   raids,

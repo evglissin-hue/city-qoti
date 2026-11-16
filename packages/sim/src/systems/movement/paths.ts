@@ -56,3 +56,22 @@ export function pathCacheStats(state: WorldState): { size: number; hits: number;
   const c = caches.get(state);
   return { size: c?.paths.size ?? 0, hits: c?.hits ?? 0, misses: c?.misses ?? 0 };
 }
+
+/**
+ * R2 (R2.0): how a walker weighs the grid (docs/spec/19-evenings.md, Routes and Evening streets).
+ * 'walk' is the ordinary grid; 'round' adds the evening cost (pleasant tiles and evening streets as
+ * they are, plain tiles and noisy ones dearer), fixed at 17:00 so lanterns and carts never throw the
+ * evening's cached routes away; 'barrow' is a porter with a barrow, for whom evening streets are
+ * closed from 17:00 to 21:00 (one with no other way waits at the edge).
+ */
+export type PathMode = 'walk' | 'round' | 'barrow';
+
+/**
+ * The path for a walker of this mode (tiles after `from`, ending at `to`), or null when unreachable.
+ * R2A owns the evening cost ('round'); R2B asks for 'barrow' and decides what a porter does with null.
+ *
+ * R2 stand-in (R2A): every mode walks the ordinary grid.
+ */
+export function pathFor(state: WorldState, from: number, to: number, _mode: PathMode): number[] | null {
+  return pathBetween(state, from, to);
+}

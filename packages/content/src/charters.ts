@@ -49,6 +49,7 @@ export const villageCharter: CharterDef = {
     'school',
     'tavern',
     'herbalist',
+    'brazier',
     'carts',
     'street',
     'loans',

@@ -113,6 +113,33 @@ function growthEvents(): Ev[] {
   return out;
 }
 
+/**
+ * R2.0: lot views carry the lot fields (frontage, row, kind, corner, frontage2, storeys), grown
+ * buildings their storeys, and the town's unlocked ids the brazier. They are dropped here so the fingerprint stays the one written before the
+ * speed-up, which is what this test compares against.
+ */
+function withoutR2Fields(events: Ev[]): Ev[] {
+  return events.map((ev) => {
+    const e = ev as Ev & { l?: Record<string, unknown>; b?: Record<string, unknown> };
+    if ((e.e === 'lot.updated' || e.e === 'lot.added') && e.l) {
+      const { frontage, row, kind, corner, frontage2, storeys, ...l } = e.l;
+      void [frontage, row, kind, corner, frontage2, storeys];
+      return { ...e, l };
+    }
+    // The Village Charter unlocks the brazier from R2.0, and town.updated carries the unlocked ids.
+    const t = (e as Ev & { t?: { unlocked?: string[] } }).t;
+    if (e.e === 'town.updated' && t?.unlocked?.includes('brazier')) {
+      return { ...e, t: { ...t, unlocked: t.unlocked.filter((u) => u !== 'brazier') } };
+    }
+    if ((e.e === 'building.added' || e.e === 'building.updated') && e.b && 'storeys' in e.b) {
+      const { storeys, ...b } = e.b;
+      void storeys;
+      return { ...e, b };
+    }
+    return ev;
+  });
+}
+
 const EXPECT = {
   carrier: {
     n: 20,
@@ -132,12 +159,12 @@ const EXPECT = {
 
 describe('R1X events are unchanged by the speed-up', () => {
   it('the carrier days', () => {
-    const ev = carrierEvents();
+    const ev = withoutR2Fields(carrierEvents());
     expect(ev.length).toBeGreaterThan(0);
     expect({ n: ev.length, kinds: kinds(ev), sha: sha(ev) }).toEqual(EXPECT.carrier);
   });
   it('the growth nights', () => {
-    const ev = growthEvents();
+    const ev = withoutR2Fields(growthEvents());
     expect(ev.length).toBeGreaterThan(0);
     expect({ n: ev.length, kinds: kinds(ev), sha: sha(ev) }).toEqual(EXPECT.growth);
   });

@@ -92,7 +92,20 @@ export interface Lot {
   buildingId: EntityId;
   /** Tick it was cut. */
   tick: number;
+  // R2 (R2.0): streets that fill their frontage (13-ledger.md, Lots; i4-visual-planning-notes.md, V2;
+  // R2F cuts them, V3B draws them).
+  /** An id shared by the lots cut from one frontage run, so a row joins and fills from one end; 0 for none. */
+  row: EntityId;
+  /** 'plot' grows a building; 'garden' is tiles inside a block behind a row, never built on (LotKind). */
+  kind: LotKind;
+  /** A corner lot: it fronts two roads, `frontage` (the entrance, the busier road) and `frontage2`. */
+  corner?: true;
+  /** The road tile on its second frontage (tile index); corner lots only. */
+  frontage2?: number;
 }
+
+/** R2 (R2.0): what a lot is for. A garden lot is never built on, never painted by hand, no pattern site. */
+export type LotKind = 'plot' | 'garden';
 
 // --- Trade -------------------------------------------------------------------------------------
 

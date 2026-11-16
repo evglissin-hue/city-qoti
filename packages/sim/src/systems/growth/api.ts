@@ -13,6 +13,7 @@ import { insertBuilding } from '../../state/place';
 import { worldIndex } from '../../state/worldIndex';
 import { lotView } from '../../view/village';
 import { mix } from './desirability';
+import { storeysFor } from '../zoning/storeys';
 
 /**
  * Where `def` stands on the lot: flush with the road side, its door onto road, and when it is
@@ -91,9 +92,10 @@ export function growLot(
     lot: lot.id,
     style: style ?? lot.style,
     ...(trade !== undefined && { trade }),
+    storeys: storeysFor(state, lot, def),
   });
   lot.buildingId = b.id;
   if (style) lot.style = style;
-  ctx?.events.push({ e: 'lot.updated', l: lotView(lot) });
+  ctx?.events.push({ e: 'lot.updated', l: lotView(lot, state) });
   return b;
 }

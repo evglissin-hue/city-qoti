@@ -36,3 +36,9 @@ export type LayerName =
   | 'lot'
   | 'traffic'
   | 'wear';
+/**
+ * R2 (R2.0): the footfall layers (19-evenings.md, Footfall), 16 bits a tile. Saved and hashed with the
+ * map but kept out of LayerName: they never travel as layer patches or in ViewSnapshot.layers (every
+ * step would dirty a chunk); the client reads them through FootfallView.
+ */
+export type Uint16LayerName = 'footfallDay' | 'footfallEve';

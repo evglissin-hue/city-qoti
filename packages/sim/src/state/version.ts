@@ -1,12 +1,15 @@
 // Save versions (docs/spec/21-networking-and-saves.md, Version changes and The fresh start).
+import { migrate7to8 } from './migrate8';
 
 /**
  * Bump whenever the shape of saved state changes, and add a migration with a test. Version 6 is R1's
  * fresh start: the zones-first Ledger changed what a town is made of, so a valley saved before it is
  * refused (OLD_VALLEY), not converted, and migrations begin again from 6. Version 7 (P2, the R1
  * playtest) adds the day's count of grown sites started, for the growth pass's second run at 13:00.
+ * Version 8 is R2.0's: the evening round (footfall, places, gaps, street names, the evening's tally,
+ * the evenings need, the lot fields and storeys, the `round` RNG stream).
  */
-export const SAVE_VERSION = 7;
+export const SAVE_VERSION = 8;
 
 /** The oldest save this game opens: R1's fresh start. */
 export const OLDEST_SAVE_VERSION = 6;
@@ -27,6 +30,7 @@ function addGrowthStarts(save: SaveObject): SaveObject {
 // prettier-ignore
 export const migrations: ReadonlyMap<number, Migration> = new Map<number, Migration>([
   [6, addGrowthStarts],
+  [7, migrate7to8],
 ]);
 
 /**

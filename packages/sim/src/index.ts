@@ -18,6 +18,7 @@ export {
   inBounds,
   INT32_LAYERS,
   LAYER_NAMES,
+  UINT16_LAYERS,
   pasteRect,
   Road,
   Terrain,
@@ -77,7 +78,7 @@ export {
   wishView,
   workforceView,
 } from './view';
-export { agentFrame } from './view/agents';
+export { agentFrame, agentPose, readAgentRow } from './view/agents';
 export {
   awayLetter,
   buildingDetail,
@@ -293,3 +294,21 @@ export { pressureBand } from './view/season/threat';
 export { vacantHomes } from './systems/residents/places';
 // I3 (C5A): the winter stores, for the autoplayer and the tuner.
 export { larder, woodpile } from './systems/seasons/stores';
+// R2 (R2.0): the evening round's shared helpers and views.
+export {
+  byPlaceId,
+  cleanName,
+  emptyEveningsSlices,
+  EVENINGS_NEED,
+  eveningsNeed,
+  shownName,
+} from './state/evenings';
+export {
+  eveningView,
+  footfallView,
+  gapsView,
+  gapView,
+  placesView,
+  placeView,
+  streetViews,
+} from './view/evenings';

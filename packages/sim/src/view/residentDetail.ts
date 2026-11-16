@@ -17,6 +17,7 @@ import { dayIndex } from '../systems/residents/time';
 import { doorOf } from '../systems/residents/places';
 import { nameOf, residentView, wishView } from './hamlet';
 import { storyView } from './village';
+import { residentEvening, roundStopViews } from './evenings';
 
 function buildingName(b: Building | undefined): string {
   return (b && content.buildingById.get(b.def)?.name.toLowerCase()) ?? 'somewhere';
@@ -329,6 +330,10 @@ export function residentDetail(state: WorldState, id: EntityId): ResidentDetail 
   };
   if (wish) detail.wish = wishView(state, wish);
   addLives(state, r, detail);
+  // R2 (R2.0): today's round and the evenings need, once they have had an evening.
+  if (r.round?.length) detail.round = roundStopViews(state, r);
+  const evening = residentEvening(r);
+  if (evening) detail.evening = evening;
   return detail;
 }
 
