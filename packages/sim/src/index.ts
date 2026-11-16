@@ -312,3 +312,10 @@ export {
   placeView,
   streetViews,
 } from './view/evenings';
+// R2 (R2E): the cross-track APIs, read-only, for the autoplayer's advisors, the bench and the audit.
+export { findGap } from './systems/gaps/api';
+export { sellsTreats, treatsOnShelf } from './systems/market/round';
+export { pathFor, type PathMode } from './systems/movement/paths';
+export { placeById, placeDraw, placesNear, placeServes } from './systems/places/api';
+export { invalidatePlaces, placeIndex } from './systems/places/index';
+export { streetTiles } from './systems/places/streets';
