@@ -3,7 +3,15 @@
 // so that round.ts stays a leaf and the places' cross-track API is never part of an import cycle.
 import { content } from '@qoti/content';
 import { MAP_SIZE, RoundFlags, TICKS_PER_HOUR } from '../../constants';
-import type { Building, EntityId, Household, Resident, RoundStop, TickCtx, WorldState } from '../../contracts';
+import type {
+  Building,
+  EntityId,
+  Household,
+  Resident,
+  RoundStop,
+  TickCtx,
+  WorldState,
+} from '../../contracts';
 import { findById } from '../../state/entities';
 import { calendar } from '../clock/calendar';
 import { dayIndex, tickOfDay } from '../economy/time';
