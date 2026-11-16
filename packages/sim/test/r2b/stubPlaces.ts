@@ -3,9 +3,12 @@
 // cross-track API (`systems/places/api.ts`), so a test mocks that module and nothing of R2A's
 // internals, and keeps working once R2A's real index replaces the stand-in:
 //
-//   vi.mock('../../src/systems/places/api', async (orig) =>
-//     stubPlacesApi(await orig<typeof import('../../src/systems/places/api')>()),
-//   );
+//   /* eslint-disable no-restricted-syntax, @typescript-eslint/consistent-type-imports -- a mock factory */
+//   vi.mock('../../src/systems/places/api', async (orig) => {
+//     const { stubPlacesApi } = await import('./stubPlaces'); // vi.mock is hoisted: import inside
+//     return stubPlacesApi(await orig<typeof import('../../src/systems/places/api')>());
+//   });
+//   /* eslint-enable no-restricted-syntax, @typescript-eslint/consistent-type-imports */
 //   ...
 //   setStubPlaces([place({ id: 'seats:5', tile: 30 * S + 40, outlets: [stall.id] })]);
 //
