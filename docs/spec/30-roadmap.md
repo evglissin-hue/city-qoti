@@ -242,6 +242,8 @@ Every wave runs the build and review loop (`31-parallel-development.md`), and ea
 - The far view has a horizon and no box; from 240 tiles out the valley is its own map and the scene is not drawn.
 - Budgets hold on both laptops, with tables in `22-quality.md`; nothing in the sim changes beyond R2.0's lot fields.
 
+**As built (V3X, 2026-11-16)**: V3A to V3D merged and joined (`20-architecture.md`, V3 contracts, As built). A grown street reads its trades, levels and woodpiles (58 dressing rules, one draw); rows join from the occupant layer on `main`, and gardens, corners and storeys show once R2X brings R2's lot fields (the streets showcase shows them now); the far view runs up a wooded slope into hazed hills with no wall or box, the river leaves through a gorge, and from 240 tiles only the map draws (1 draw). The inks and street names on the map, and the regrown village, are R2X's. Software numbers are in `22-quality.md`; the laptops' GPU columns wait on Measure this laptop (`docs/playtests/V3.md`).
+
 ### R3 Masters and the Town Book
 
 **Goal**: good evenings turn into something lasting. Places come alive when supplied, residents grow into masters who bring the town new flavors, and what the town is known for is discovered where a place and a trade keep meeting.
