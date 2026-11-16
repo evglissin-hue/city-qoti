@@ -352,6 +352,9 @@ const pos = new Vector3();
 const scl = new Vector3(1, 1, 1);
 
 /** Street furniture: one batched draw for every piece, near or far level by distance, lamps lit. */
+/** How often, at most, placements are recomputed after the town changed (seconds). */
+const RECHECK = 0.5;
+
 export function streetLayer(): RenderLayer {
   let ctx: LayerContext | null = null;
   let batch: KeyedBatch | null = null;
@@ -363,6 +366,10 @@ export function streetLayer(): RenderLayer {
   let wrote = false;
   let lastDetail = -1;
   const lastCam = new Vector3(Infinity, 0, 0);
+  // Buildings change many times a second in a growing town (a resident moves in, a counter ticks):
+  // placements are recomputed at most every `RECHECK` seconds, in frame(), when something changed.
+  let pending = false;
+  let since = RECHECK;
 
   const geometry = (key: string, level: Level): BufferGeometry => {
     const def = STREET_KITS[key]!;
@@ -436,17 +443,30 @@ export function streetLayer(): RenderLayer {
     },
     update(change) {
       if (!ctx) return;
-      if (change.full || change.village || change.buildings || change.decor || change.rects.has('road')) {
-        if (change.full) dirty = true;
+      if (change.full) {
+        dirty = true;
+        pending = false;
         if (rebuild()) {
           place();
           ctx.invalidate();
         }
-      }
+      } else if (change.village || change.buildings || change.decor || change.rects.has('road'))
+        pending = true;
     },
-    frame() {
-      if (!ctx?.env || !batch) return false;
-      let drew = wrote;
+    frame(dt) {
+      if (!ctx || !batch) return false;
+      since += dt;
+      let drew = false;
+      if (pending && since >= RECHECK) {
+        pending = false;
+        since = 0;
+        if (rebuild()) {
+          levelsDirty = true;
+          drew = true;
+        }
+      }
+      if (!ctx.env) return drew;
+      drew = drew || wrote;
       wrote = false;
       const env = ctx.env;
       const moved = env.camera.position.distanceTo(lastCam) > 1.5;
