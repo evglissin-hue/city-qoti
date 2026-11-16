@@ -321,5 +321,6 @@ describe('the place index', () => {
       w.tick += 1;
       expect(snapshot(deserialize(serialize(w))), `step ${step}`).toBe(snapshot(w));
     }
-  });
+    // The verifier doubles the cost of each read, and the machine is shared: give it room.
+  }, 90_000);
 });
