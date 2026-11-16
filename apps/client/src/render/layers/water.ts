@@ -36,7 +36,7 @@ export interface BridgeReader {
 }
 
 /** How far (tiles) the flow direction looks around a point to find the river's course. */
-const FLOW_REACH = 5;
+const FLOW_REACH = 9;
 /** Foam trails this far (tiles) downstream of a bridge tile, and this far around it. */
 const FOAM_TRAIL = 1.8;
 const FOAM_AROUND = 0.5;
@@ -498,7 +498,7 @@ function createWaterMaterial(env: WorldEnv, flow: Vector2): MeshStandardMaterial
           'wn = normalize(mix(wn, vec3(0.0, 1.0, 0.0), clamp(length(fwidth(wp)) * 6.0 - 0.2, 0.0, 0.85)));',
           'float depthK = smoothstep(0.03, 0.42, vDepth);',
           // Sand-gold shallows, green-blue middle, deep pools.
-          'vec3 waterCol = mix(mix(uShallow, uMid, smoothstep(0.03, 0.24, vDepth)), uDeep * 0.92, smoothstep(0.24, 0.55, vDepth));',
+          'vec3 waterCol = mix(mix(uShallow, uMid, smoothstep(0.02, 0.36, vDepth)), uDeep * 0.92, smoothstep(0.3, 0.7, vDepth));',
           'waterCol *= 0.94 + 0.1 * qNoise(wp * 0.8 - vFlow * uTime * 0.05);',
           // Foam: a soft band at the bank with a slow, broken pulse.
           'float pulse = 0.5 + 0.5 * sin(uTime * 0.9 + qNoise(wp * 2.0) * 6.2831);',
