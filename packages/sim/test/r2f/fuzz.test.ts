@@ -119,6 +119,12 @@ export function verify(s: WorldState, label: string): void {
   }
 }
 
+/** The lots streets manage (rows and gardens), by where they stand. */
+function streetLots(s: WorldState): string[] {
+  const keep = { ...s, lots: s.lots.filter((l) => l.row !== 0 || l.kind === 'garden') };
+  return signature(keep).lots;
+}
+
 describe('random street grids', () => {
   for (let seed = 1; seed <= 40; seed++) {
     it(`seed ${seed}: valid, idempotent and the same whatever the order of painting`, () => {
@@ -153,6 +159,25 @@ describe('random street grids', () => {
       zoneNow(c);
       expect(signature(c).lots, `seed ${seed} reversed`).toEqual(expected.lots);
       expect(signature(c).rows).toEqual(expected.rows);
+
+      // A pass after every stroke, roads and zones interleaved in reverse: the lots streets manage
+      // (rows and gardens) come out the same. Lanes keep C4B's cut, which depends on what stood
+      // first, so only the streets' lots are compared.
+      const d = villageFixture().state;
+      const sd = scene(seed, d);
+      const strokes = [...sd.zones, ...sd.roads].reverse();
+      strokes.forEach((f, k) => {
+        f();
+        zoneNow(d);
+        if (k % 2 === 1) verify(d, `seed ${seed} stroke ${k}`);
+      });
+      zoneNow(d);
+      verify(d, `seed ${seed} a pass a stroke`);
+      expect(
+        streetLots(d),
+        `seed ${seed} a pass a stroke\n${frontageMap(a, VIEW)}\n\n${frontageMap(d, VIEW)}`,
+      ).toEqual(streetLots(a));
+      expect(signature(d).rows).toEqual(expected.rows);
     });
   }
 });

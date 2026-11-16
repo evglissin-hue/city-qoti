@@ -8,6 +8,8 @@ import { Road } from '../../src/map/layers';
 import { findById } from '../../src/state/entities';
 import { growLot } from '../../src/systems/growth/api';
 import { growthPass } from '../../src/systems/growth';
+import { zoning as zoningSystem } from '../../src/systems/zoning';
+import { zoningPass } from '../../src/systems/zoning/lots';
 import { createTickCtx } from '../../src/turn';
 import { villageFixture } from '../fixtures/village';
 import { frontageMap, lotsIn, paintZone, zoneNow } from '../growth/helpers';
@@ -597,5 +599,36 @@ describe('occupied lots are never disturbed', () => {
       for (let i = 1; i < list.length; i++)
         expect(along(list[i - 1]!) + span(list[i - 1]!)).toBeLessThanOrEqual(along(list[i]!));
     }
+  });
+});
+
+describe('the pass after buildings grew on lots', () => {
+  it('leaves the street lots standing, and the whole plan finds the same', () => {
+    const s = villageFixture().state;
+    closedBlockRoads(s);
+    paintBlockZones(s);
+    zoneNow(s);
+    const before = signature(s);
+    growSome(s, 4);
+    const ctx = createTickCtx(s);
+    const quick = zoningPass(s, ctx, false, true);
+    expect(quick.added + quick.removed).toBe(0);
+    expect(ctx.events.filter((e) => e.e.startsWith('lot.'))).toEqual([]);
+    const whole = zoningPass(s, createTickCtx(s), false, false);
+    expect(whole.added + whole.removed).toBe(0);
+    expect(signature(s).lots).toEqual(before.lots);
+  });
+
+  it('runs the whole plan through the zoning system when a road came too', () => {
+    const s = villageFixture().state;
+    closedBlockRoads(s);
+    paintBlockZones(s);
+    zoningSystem.tick(s, createTickCtx(s));
+    growSome(s, 2);
+    // A road stroke beside the grown lots: the system must not take the quick path.
+    for (let x = 66; x <= 84; x++) s.map.road[80 * S + x] = 0;
+    s.networkVersion++;
+    zoningSystem.tick(s, createTickCtx(s));
+    expect(s.lots.some((l) => l.kind === 'garden')).toBe(false);
   });
 });

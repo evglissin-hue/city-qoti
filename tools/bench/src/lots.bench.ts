@@ -21,8 +21,13 @@ import {
   type WorldState,
 } from '@qoti/sim';
 
-/** Under the hour's 2 ms shared with growth and traffic: the refit (hourly) and the pass after a building each get a share; the full cut is a one-off. */
-export const LOTS_BUDGET = { refitMs: 0.5, afterBuildingMs: 1, fullCutMs: 150 };
+/**
+ * The refit runs every hour, so it takes a share of the hour's 2 ms shared with growth and traffic,
+ * as does the pass after a grown building (growth's night). The whole plan runs only after a road,
+ * zone or decor stroke (or on a client that just loaded), so it is a single tick's cost, held to half
+ * the 12 ms worst-tick budget (growth.ts). The full cut is a one-off (a valley zoned in one go).
+ */
+export const LOTS_BUDGET = { refitMs: 0.5, afterBuildingMs: 1, strokeMs: 6, fullCutMs: 150 };
 
 const S = MAP_SIZE;
 const BLOCK_X = 16;
@@ -36,7 +41,7 @@ function median(values: number[]): number {
 }
 
 /** A flat standard world with a street grid and its blocks zoned (Townhouses and Shops in a checker). */
-function streetGrid(): WorldState {
+function streetGrid(kind: number = Road.street): WorldState {
   const world = createWorld('bench-r2f', { ...defaultSettings(), mode: 'standard' });
   const m = world.map;
   m.height.fill(2);
@@ -52,10 +57,8 @@ function streetGrid(): WorldState {
   const z0 = 20;
   const xs = x0 + ACROSS * BLOCK_X;
   const zs = z0 + DOWN * BLOCK_Z;
-  for (let k = 0; k <= DOWN; k++)
-    for (let x = x0; x <= xs; x++) m.road[(z0 + k * BLOCK_Z) * S + x] = Road.street;
-  for (let k = 0; k <= ACROSS; k++)
-    for (let z = z0; z <= zs; z++) m.road[z * S + x0 + k * BLOCK_X] = Road.street;
+  for (let k = 0; k <= DOWN; k++) for (let x = x0; x <= xs; x++) m.road[(z0 + k * BLOCK_Z) * S + x] = kind;
+  for (let k = 0; k <= ACROSS; k++) for (let z = z0; z <= zs; z++) m.road[z * S + x0 + k * BLOCK_X] = kind;
   const homes = content.zoneById.get('homes-medium')!.layerValue;
   const shops = content.zoneById.get('shops')!.layerValue;
   for (let bz = 0; bz < DOWN; bz++) {
@@ -91,17 +94,41 @@ export function lotsBench(): { lines: string[]; failures: string[]; report: obje
   const lot = world.lots.filter((l) => l.kind === 'plot' && l.row !== 0 && !l.buildingId);
   const def = content.buildingById.get('townhouse')!;
   const after: number[] = [];
+  const stroke: number[] = [];
   for (let n = 0; n < 15; n++) {
     const l = lot[n * 3]!;
     const b = insertBuilding(world, null, def, l.x, l.z, l.rot, 0, { lot: l.id, site: false, storeys: 2 });
     l.buildingId = b.id;
+    // The zoning system knows only a grown building came since its last pass.
     const t0 = performance.now();
-    const r = zoningPass(world, null, false);
+    const r = zoningPass(world, null, false, true);
     after.push(performance.now() - t0);
-    if (r.added + r.removed !== 0)
-      failures.push(`lots: a pass after a building changed ${r.added + r.removed} lots`);
+    // The whole plan, as after a road or zone stroke (or on a client that just loaded): the same lots.
+    const t1 = performance.now();
+    const full = zoningPass(world, null, false);
+    stroke.push(performance.now() - t1);
+    if (r.added + r.removed + full.added + full.removed !== 0)
+      failures.push(
+        `lots: a pass after a building changed ${r.added + r.removed + full.added + full.removed} lots`,
+      );
   }
   const afterMs = median(after);
+  const strokeMs = median(stroke);
+
+  // The same pass on the same grid laid as lanes (C4B's cut, no rows or gardens), for comparison.
+  const lanes = streetGrid(Road.lane);
+  zoningPass(lanes, null);
+  const laneLots = lanes.lots.filter((l) => !l.buildingId);
+  const laneAfter: number[] = [];
+  for (let n = 0; n < 15; n++) {
+    const l = laneLots[n * 3]!;
+    const b = insertBuilding(lanes, null, def, l.x, l.z, l.rot, 0, { lot: l.id, site: false, storeys: 2 });
+    l.buildingId = b.id;
+    const t0 = performance.now();
+    zoningPass(lanes, null, false);
+    laneAfter.push(performance.now() - t0);
+  }
+  const laneMs = median(laneAfter);
 
   // The hourly refit over a street grid built up (every row lot a building), then the idle refit.
   for (const l of world.lots) {
@@ -120,14 +147,21 @@ export function lotsBench(): { lines: string[]; failures: string[]; report: obje
 
   lines.push(
     `lots street grid  ${plots} row lots, ${gardens} gardens: full cut ${fullMs.toFixed(1)} ms (cap ${LOTS_BUDGET.fullCutMs}) ${ok(fullMs <= LOTS_BUDGET.fullCutMs)}`,
-    `lots after a building  pass ${afterMs.toFixed(3)} ms (budget ${LOTS_BUDGET.afterBuildingMs}) ${ok(afterMs <= LOTS_BUDGET.afterBuildingMs)}`,
+    `lots after a building  pass ${afterMs.toFixed(3)} ms (budget ${LOTS_BUDGET.afterBuildingMs}) ${ok(afterMs <= LOTS_BUDGET.afterBuildingMs)}; the same grid of lanes ${laneMs.toFixed(3)} ms (${lanes.lots.length} lots)`,
+    `lots after a stroke  whole plan ${strokeMs.toFixed(3)} ms (budget ${LOTS_BUDGET.strokeMs}, worst tick) ${ok(strokeMs <= LOTS_BUDGET.strokeMs)}`,
     `lots hourly refit  ${refitMs.toFixed(3)} ms over ${plots} built row lots (budget ${LOTS_BUDGET.refitMs}) ${ok(refitMs <= LOTS_BUDGET.refitMs)}`,
   );
   if (fullMs > LOTS_BUDGET.fullCutMs)
     failures.push(`lots full cut ${fullMs.toFixed(1)} ms over ${LOTS_BUDGET.fullCutMs}`);
   if (afterMs > LOTS_BUDGET.afterBuildingMs)
     failures.push(`lots pass after a building ${afterMs.toFixed(3)} ms over ${LOTS_BUDGET.afterBuildingMs}`);
+  if (strokeMs > LOTS_BUDGET.strokeMs)
+    failures.push(`lots whole plan ${strokeMs.toFixed(3)} ms over ${LOTS_BUDGET.strokeMs}`);
   if (refitMs > LOTS_BUDGET.refitMs)
     failures.push(`lots hourly refit ${refitMs.toFixed(3)} ms over ${LOTS_BUDGET.refitMs}`);
-  return { lines, failures, report: { plots, gardens, fullMs, afterMs, refitMs, budget: LOTS_BUDGET } };
+  return {
+    lines,
+    failures,
+    report: { plots, gardens, fullMs, afterMs, strokeMs, laneMs, refitMs, budget: LOTS_BUDGET },
+  };
 }
