@@ -146,9 +146,10 @@ describe('gap rows', () => {
     expect(gapAlerts(mock.session.mirror, { seat: 0 })).toEqual([]);
   });
 
-  it('shortens a tag label at a word', () => {
-    expect(gapLabel({ text: 'Mill Lane stays in of an evening.' })).toBe('Mill Lane stays in of an…');
-    expect(gapLabel({ text: 'Short one.' })).toBe('Short one');
+  it('labels a tag by what the gap is, short and whole', () => {
+    expect(gapLabel({ kind: 'nowhereToGo' })).toBe('Nowhere to go of an evening');
+    for (const kind of ['nothingToSell', 'nobodyPasses', 'nowhereToGo', 'shortOfSupplies'] as const)
+      expect(gapLabel({ kind }).length).toBeLessThanOrEqual(28);
   });
 });
 

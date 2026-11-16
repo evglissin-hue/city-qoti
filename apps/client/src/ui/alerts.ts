@@ -545,7 +545,9 @@ function handsLine(m: Mirror, hands: ReturnType<typeof readHands>): Alert | null
     const b = m.buildings.get(id);
     return b ? placeName(b) : 'workplace';
   });
-  const jobs = `${hands.openJobs === 1 ? '1 job is' : `${hands.openJobs} jobs are`} open; more Homes bring more folk.`;
+  // R2D (the player's chair): "nobody works here yet. 0 jobs are open" read as a contradiction.
+  const open = hands.openJobs === 1 ? '1 job is open' : `${hands.openJobs} jobs are open`;
+  const jobs = hands.openJobs > 0 ? `${open}; more Homes bring more folk.` : 'More Homes bring more folk.';
   const text =
     names.length === 1
       ? `${names[0]}: nobody works here yet. ${jobs}`
@@ -555,7 +557,7 @@ function handsLine(m: Mirror, hands: ReturnType<typeof readHands>): Alert | null
   const title =
     names.length === 1
       ? undefined
-      : `Nobody works at ${list(rest > 0 ? [...shown, `${rest} more`] : shown)} yet. ${hands.openJobs === 1 ? '1 job is' : `${hands.openJobs} jobs are`} open in town; more Homes bring more folk.`;
+      : `Nobody works at ${list(rest > 0 ? [...shown, `${rest} more`] : shown)} yet. ${hands.openJobs > 0 ? `${open} in town; more Homes bring more folk.` : 'More Homes bring more folk.'}`;
   return {
     key: 'hands-empty',
     lens: 'ledger',

@@ -7,6 +7,7 @@ import { content } from '@qoti/content';
 import {
   footprintSize,
   MAP_SIZE,
+  PENNIES_PER_COIN,
   RoundFlags,
   START_HOUR,
   TICKS_PER_DAY,
@@ -246,7 +247,7 @@ export function eveningMocks(m: Mirror): Mocks {
         serves,
         parts,
         visitors,
-        takings: serves.length ? visitors.map((v) => v * 12) : [0, 0, 0],
+        takings: serves.length ? visitors.map((v) => v * 60) : [0, 0, 0],
         sold: serves.length ? visitors.map((v) => Math.floor(v / 2)) : [0, 0, 0],
         present: k % 3 === 0 ? 3 : 0,
         wants: serves.length
@@ -382,23 +383,26 @@ export function eveningMocks(m: Mirror): Mocks {
       ]
     : [];
   const tally = mockTally({ day: today });
-  const top = places.filter((p) => p.source !== 'porch').slice(0, 3);
+  const seller = [...places]
+    .filter((p) => p.serves.length > 0)
+    .sort((a, b) => (b.visitors.at(-1) ?? 0) - (a.visitors.at(-1) ?? 0))[0];
+  const top = places.filter((p) => p.source !== 'porch' && p.id !== seller?.id).slice(0, 3);
   const lines: EditionLine[] = [
-    ...(busiest
+    ...(seller
       ? [
           {
-            text: `${nameOf(1)}'s stall by ${busiest.name} sold to the ${busiest.visitors.at(-1)} who came: ${Math.round((busiest.takings.at(-1) ?? 0) / 100)} coins.`,
+            text: `${seller.visitors.at(-1)} folk came to ${seller.name}, and ${nameOf(1)}'s stall sold them ${seller.sold.at(-1)} treats: ${Math.round((seller.takings.at(-1) ?? 0) / PENNIES_PER_COIN)} coins.`,
             seats: [1 as SeatId],
-            refs: [busiest.id],
+            refs: [seller.id],
           },
         ]
       : []),
-    ...(top[1]
+    ...(top[0]
       ? [
           {
-            text: `${nameOf(0)}'s benches brought ${top[1].visitors.at(-1)} folk to ${top[1].name}, and 4 of them bought a treat.`,
+            text: `${nameOf(0)}'s lanterns brought ${top[0].visitors.at(-1)} folk to ${top[0].name}, and 4 of them stopped for a treat on the way.`,
             seats: [0 as SeatId],
-            refs: [top[1].id],
+            refs: [top[0].id],
           },
         ]
       : []),
@@ -478,11 +482,17 @@ export function overlayEveningMocks(session: Session): Mocks {
   m.evening.value = mocks.evening;
   m.footfall.value = mocks.footfall;
   const t = mocks.evening.tally;
-  if (m.town.value)
-    m.town.value = {
-      ...m.town.value,
-      evenings: { out: t.out, grownups: t.grownups, average: Math.round(t.scoreSum / t.grownups) },
-    };
+  const evenings = { out: t.out, grownups: t.grownups, average: Math.round(t.scoreSum / t.grownups) };
+  // The sim's town.updated carries no evenings until R2B and R2C; keep the mock's on the view.
+  const keep = () => {
+    const town = m.town.peek();
+    if (town && !town.evenings) m.town.value = { ...town, evenings };
+  };
+  keep();
+  m.onChange(keep);
+  // Goods routes for the Town overlay's ochre ink: the fixture's porters have not carried anything
+  // yet, so lay the store-to-door flows the overlay reads (`flowsOf` takes a live `flows` view).
+  (m as unknown as { flows: { value: [number, number, number][] } }).flows = { value: mockFlows(m) };
   const live = session.inspect.bind(session);
   session.inspect = async (kind, id) => {
     const real = await live(kind, id);
@@ -493,6 +503,25 @@ export function overlayEveningMocks(session: Session): Mocks {
     return real;
   };
   return mocks;
+}
+
+/** Each store sends to the town's workplaces and outlets, and the makers send back to it. */
+function mockFlows(m: Mirror): [number, number, number][] {
+  const all = [...m.buildings.values()].filter((b) => b.stage === 'built').sort((a, b) => a.id - b.id);
+  const stores = all.filter((b) => b.def === 'storehouse' || b.def === 'granary');
+  const out: [number, number, number][] = [];
+  for (const b of all) {
+    if (stores.includes(b) || m.households.size === 0) continue;
+    const def = content.buildingById.get(b.def);
+    if (!def || def.tags?.includes('home')) continue;
+    const store = [...stores].sort(
+      (a, c) => dist(a.z * N + a.x, b.z * N + b.x) - dist(c.z * N + c.x, b.z * N + b.x),
+    )[0];
+    if (!store) continue;
+    const makes = (def.methods?.length ?? 0) > 0;
+    out.push(makes ? [b.id, store.id, 6 + (b.id % 4) * 3] : [store.id, b.id, 4 + (b.id % 3) * 2]);
+  }
+  return out;
 }
 
 function dist(a: number, b: number): number {

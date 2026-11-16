@@ -111,9 +111,18 @@ test('the evening street brush marks a stretch, and undo clears it', async ({ pa
   test.setTimeout(180_000);
   await open(page);
   await page.getByTestId('lens-ledger').click();
-  const run = await page.evaluate(() => window.__qoti.findRoadRun(5));
+  // A straight stretch of five road tiles the town already has, near the start.
+  const run = await page.evaluate((n) => {
+    for (let z = 40; z < n - 40; z++)
+      for (let x = 30; x < n - 40; x++) {
+        let k = 0;
+        while (k < 5 && window.__qoti.roadAt(x + k, z) > 0) k++;
+        if (k === 5) return { from: [x, z] as [number, number], to: [x + 4, z] as [number, number] };
+      }
+    return null;
+  }, N);
   expect(run).not.toBeNull();
-  const [from, to] = [run![0]!, run![run!.length - 1]!];
+  const { from, to } = run!;
   await page.evaluate(([x, z]) => window.__qoti.focusTile(x, z, 14), from);
   await page.waitForTimeout(800);
   await page.getByTestId('tool-evening').click();

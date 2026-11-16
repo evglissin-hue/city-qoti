@@ -16,13 +16,20 @@ export function gapTone(g: Pick<GapView, 'lane'>): Alert['tone'] {
   return g.lane === 'ledger' ? 'warn' : 'news';
 }
 
-/** The words on a gap's tag: its text, kept short at a word. */
-export function gapLabel(g: Pick<GapView, 'text'>, max = 30): string {
-  const text = g.text.replace(/\.$/, '');
-  if (text.length <= max) return text;
-  const cut = text.slice(0, max - 1);
-  const space = cut.lastIndexOf(' ');
-  return `${(space > 12 ? cut.slice(0, space) : cut).replace(/[ ,;:]+$/, '')}…`;
+/**
+ * The words on a gap's paper tag: what the gap is, in a few words (the place or street it is about is
+ * right there on the ground; the full sentence and what would close it are in the hover and the feed).
+ * The player's chair: a tag cut from the feed's sentence read "The well by the Featherston...".
+ */
+const TAG_WORDS: Record<GapView['kind'], string> = {
+  nothingToSell: 'Nothing to sell here',
+  nobodyPasses: 'Nobody walks this way',
+  nowhereToGo: 'Nowhere to go of an evening',
+  shortOfSupplies: 'Running short',
+};
+
+export function gapLabel(g: Pick<GapView, 'kind'>): string {
+  return TAG_WORDS[g.kind];
 }
 
 /** Both lenses' rows for the open gaps and the ones closed today. */
