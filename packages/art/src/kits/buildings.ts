@@ -61,6 +61,8 @@ export interface ShellSpec {
    * would have had. Absent: `wallsOf`.
    */
   lowerWalls?: (s: ShapeBuilder, w: WallSpec) => void;
+  /** V3B: leave the downpipe out (a canted corner has a door where it would stand). */
+  noDownpipe?: boolean;
   roof: {
     shape: RoofShape;
     material: RoofMaterial;
@@ -270,7 +272,7 @@ function dressings(
     for (const x of [roof.x0 + 0.03, roof.x1 - 0.03])
       s.box(x - 0.025, gy - 0.04, roof.z0, x + 0.025, gy, roof.z1, metal, 'b');
   }
-  if (skip.includes('l') && skip.includes('r')) return;
+  if ((skip.includes('l') && skip.includes('r')) || sp.noDownpipe) return;
   const right = !skip.includes('r');
   const px = right ? ox1 - 0.03 : ox0 + 0.03;
   const pz = roof.ridgeAlongX ? oz1 + 0.035 : oz1 - 0.03;

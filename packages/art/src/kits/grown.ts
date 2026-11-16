@@ -552,7 +552,6 @@ function cantEntrance(
     },
   );
   lights.push(at(0.5, h * 0.5, 0.08));
-  lights.push(wallLantern(s, at(0.5, h + 0.05, 0.06), [nx, 0, nz]));
 }
 
 // --- Townhouse (Craftsfolk) ---------------------------------------------------------------------
@@ -938,6 +937,7 @@ export function shopOf(opts: KitBuildOptions | undefined): Built {
       : {}),
     ...(corner
       ? {
+          noDownpipe: true,
           lowerWalls: (sb: ShapeBuilder, ws: WallSpec): void => cuttingWalls(sb, ws, corner, CANT, L.wall),
         }
       : {}),
@@ -1123,7 +1123,8 @@ export function shopOf(opts: KitBuildOptions | undefined): Built {
           { dir: right ? 'x+' : 'x-', plane: right ? ox1 : ox0 },
           oz0,
           oz1,
-          street ? style : side,
+          // A corner's second face keeps its windows inside the lot, so no boxes hang over the street.
+          street && corner !== (right ? 'R' : 'L') ? style : side,
           street ? 0.5 : 0.9,
           [0.18, 0.24],
         );

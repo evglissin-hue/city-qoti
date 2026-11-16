@@ -221,6 +221,9 @@ function buildLineup(): Group {
     if (i <= 0) continue;
     params[k] = v === 'true' ? true : v === 'false' ? false : Number.isFinite(Number(v)) ? Number(v) : v;
   }
+  // V3B: per-cell params, comma lists like seeds: &storeys=1.5,2,3,2 and &corners=-,-,-,R (L, R or -).
+  const storeysList = (q.get('storeys') ?? '').split(',').map(Number);
+  const cornersList = (q.get('corners') ?? '').split(',');
   const row = new Group();
   let x = 0;
   // V1B: &join=1 stands the buildings side by side on one frontage and joins row kits into a row.
@@ -252,7 +255,12 @@ function buildLineup(): Group {
     const opts: KitBuildOptions = {
       seed: Number.isFinite(seeds[i]) && seeds[i]! > 0 ? seeds[i]! : state.seed + i,
       ...(fp ?? {}),
-      params: { ...params, ...joins },
+      params: {
+        ...params,
+        ...joins,
+        ...(Number.isFinite(storeysList[i]) && storeysList[i]! > 0 ? { storeys: storeysList[i]! } : {}),
+        ...(cornersList[i] === 'L' || cornersList[i] === 'R' ? { corner: cornersList[i]! } : {}),
+      },
       ...(state.lod === 'low' ? { lod: 'low' as const } : {}),
     };
     const w = fp ? fp.size[0] : 0.7;
