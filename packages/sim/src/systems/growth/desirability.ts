@@ -13,6 +13,8 @@ import { lotView } from '../../view/village';
 import { storehouseReach, within } from '../logistics/range';
 import { type Defs, usable } from './defs';
 import { doorTile } from '../movement/api';
+import { placesNear } from '../places/api';
+import { eveningPassers } from './outlets';
 import { averageAround, homeCount, tasteScore, treeCount, waterWithin } from '../residents/desirability';
 
 const S = MAP_SIZE;
@@ -99,7 +101,7 @@ export function refreshDesirability(state: WorldState, ctx: TickCtx | null, slic
   let services: Services | null = null;
   let n = 0;
   for (const lot of state.lots) {
-    if (lot.buildingId || lot.id % DESIRABILITY_SLICES !== slice) continue;
+    if (lot.buildingId || lot.kind === 'garden' || lot.id % DESIRABILITY_SLICES !== slice) continue;
     species ??= townSpecies(state);
     services ??= servicesOf(state);
     const d = lotDesirability(state, lot, species, services);
@@ -138,6 +140,7 @@ export function lotDesirability(
       break;
     case Zone.shops:
       score += Math.min(15, homeCount(state, x, z, 8) * 2) - Math.min(10, noise / 2);
+      score += shopsFollowWalkers(state, lot);
       break;
     case Zone.crafts:
       if (services.reach.some((r) => within(r, lot.frontage))) score += 10;
@@ -147,6 +150,26 @@ export function lotDesirability(
       break;
   }
   return Math.max(0, Math.min(100, Math.round(score)));
+}
+
+/**
+ * R2B: a Shops lot is worth more where evening walkers pass (in full at `footfallFullPercent` of the
+ * grown-ups) and by a place that is not somebody's porch (docs/spec/19-evenings.md).
+ */
+function shopsFollowWalkers(state: WorldState, lot: Lot): number {
+  const P = content.places;
+  let score = 0;
+  let passers = eveningPassers(state, lot.frontage);
+  if (lot.frontage2 !== undefined) passers = Math.max(passers, eveningPassers(state, lot.frontage2));
+  if (passers > 0) {
+    let grownups = 0;
+    for (const r of state.residents) if (r.stage === 'young' || r.stage === 'adult') grownups++;
+    const full = Math.max(1, Math.ceil((grownups * P.footfallFullPercent) / 100));
+    score += Math.min(P.footfallDesirability, Math.floor((P.footfallDesirability * passers) / full));
+  }
+  if (placesNear(state, lot.frontage, P.placeNearShopRadius).some((p) => p.source !== 'porch'))
+    score += P.placeNearShop;
+  return score;
 }
 
 /** The row or column of road a lot fronts. */
@@ -179,7 +202,14 @@ export function pickStyle(state: WorldState, lot: Lot): string {
   const near = styles.map(() => 0);
   const kind = zoneKind(lot.zone);
   for (const other of state.lots) {
-    if (other.id === lot.id || !other.style || other.rot !== lot.rot || zoneKind(other.zone) !== kind)
+    // R2B: a garden lot is never built on, so it sets no street's style.
+    if (
+      other.id === lot.id ||
+      other.kind === 'garden' ||
+      !other.style ||
+      other.rot !== lot.rot ||
+      zoneKind(other.zone) !== kind
+    )
       continue;
     if (frontLine(other) !== frontLine(lot)) continue;
     const [ox, oz] = lotMiddle(other);

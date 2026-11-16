@@ -73,6 +73,10 @@ export function demandWhy(r: DemandReason): string {
       return (r.value ?? 0) === 1
         ? 'One is going up already. The next starts when it is done.'
         : `${r.value ?? 'Several'} sites are going up already. The next lot starts when one is done.`;
+    case 'unservedPlaces':
+      return (r.value ?? 0) === 1
+        ? 'One place fills of an evening with nothing to sell. A shop by it would do a fine trade.'
+        : `${r.value ?? 'Some'} places fill of an evening with nothing to sell. Shops by them would do a fine trade.`;
   }
 }
 

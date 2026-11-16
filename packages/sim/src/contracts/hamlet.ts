@@ -198,6 +198,12 @@ export interface Household {
    * days. Absent until the first household pass.
    */
   seen?: number[];
+  /**
+   * R2 (R2B): hundredths of a Treat the doorstep errand has put toward a unit (19-evenings.md,
+   * Evening trade: a household that bought nothing on the round sends at 21:30 for a third of what
+   * it is owed, in hundredths, as the basket accrues). Absent until its first errand.
+   */
+  doorstep?: number;
 }
 
 /** Construction progress of a site (standard valleys). */

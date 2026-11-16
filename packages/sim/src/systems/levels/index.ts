@@ -11,8 +11,12 @@ import { findById } from '../../state/entities';
 import { isStandard } from '../../state/hamlet';
 import { emptyCounters, levelOf } from '../../state/zones';
 import { businessView } from '../../view/businesses';
+import { buildingView } from '../../view';
 import { dailyOffset } from '../economy/time';
 import { release } from '../residents/jobs';
+import { wantsTables } from '../growth/cafes';
+import { eveningPassers } from '../growth/outlets';
+import { invalidatePlaces } from '../places';
 import { outOfSeason } from './season';
 
 /** Good days in a row that move a business up a level. */
@@ -93,6 +97,17 @@ function levelCrew(b: Building): number {
   return crew ? crew[levelOf(b) - 1]! : 0;
 }
 
+/** R2B: the shop's tables, set or cleared after the level decision; the places and the art hear of a change. */
+function settleCafe(state: WorldState, ctx: TickCtx, b: Building, levelBefore: number): void {
+  const now = wantsTables(state, b, levelOf(b));
+  const changed = now !== !!b.cafe;
+  if (now) b.cafe = true;
+  else delete b.cafe;
+  if (!changed && levelOf(b) === levelBefore) return;
+  invalidatePlaces(state);
+  ctx.events.push({ e: 'building.updated', b: buildingView(b) });
+}
+
 /** One business's day end. */
 function dayEnd(state: WorldState, ctx: TickCtx, b: Building): void {
   const trade = content.tradeById.get(b.trade ?? '');
@@ -102,6 +117,16 @@ function dayEnd(state: WorldState, ctx: TickCtx, b: Building): void {
   // Out of season: neither fails nor counts; its level and its keeper's days wait.
   if (!outOfSeason(state, b)) {
     const level = levelOf(b);
+    // R2B: evening steps past a shop's door are customers for its level (stepsPerCustomer to one).
+    if (trade.id === 'shop') {
+      const def = content.buildingById.get(b.def);
+      if (def) {
+        const { front } = entranceTiles(def, b.x, b.z, b.rot);
+        c.customersToday += Math.floor(
+          eveningPassers(state, front[1] * MAP_SIZE + front[0]) / content.places.stepsPerCustomer,
+        );
+      }
+    }
     const active = c.madeToday > 0 || c.customersToday > 0;
     if (b.keeperId && active && b.rt.workers.includes(b.keeperId)) c.keeperDays += 1;
     const up =
@@ -125,6 +150,7 @@ function dayEnd(state: WorldState, ctx: TickCtx, b: Building): void {
     } else {
       c.levelDays = 0;
     }
+    if (trade.id === 'shop') settleCafe(state, ctx, b, level);
   }
   c.madeToday = 0;
   c.soldToday = 0;

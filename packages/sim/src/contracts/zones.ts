@@ -145,7 +145,12 @@ export type DemandReasonCode =
    * P2: any bar: a lot waits its turn behind `value` grown sites going up already: the most at once,
    * the day's starts used on other land, or one business of its kind at a time (quiet).
    */
-  | 'sitesBusy';
+  | 'sitesBusy'
+  /**
+   * R2 (R2B): Shops: `value` places drew `PLACES.unservedVisitors` or more of an evening with
+   * nothing to sell them and no outlet at their door (19-evenings.md, Shops follow the walkers).
+   */
+  | 'unservedPlaces';
 
 export interface DemandReason {
   code: DemandReasonCode;

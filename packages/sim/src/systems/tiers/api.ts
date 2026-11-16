@@ -8,6 +8,7 @@ import { content, villagePhrases } from '@qoti/content';
 import { BuildingStatus, MAP_SIZE, PENNIES_PER_COIN, TIER_UP_DAYS, TIERS } from '../../constants';
 import type { Building, EntityId, Household, TickCtx, TierId, WorldState } from '../../contracts';
 import { findById } from '../../state/entities';
+import { eveningsNeed } from '../../state/evenings';
 import { familyIndex } from '../../state/zones';
 import { calendar } from '../clock/calendar';
 import { householdVariety, SHELF_GOODS } from '../market/balances';
@@ -168,8 +169,34 @@ export function checkTier(
     const charm = homeCharm(state, home);
     if (charm < basket.charm - (aspiring ? 0 : CHARM_SLACK)) missing.push(M.charm ?? 'charm');
   }
+  if (basket.evenings !== undefined && basket.evenings > 0) {
+    const avg = grownupsEvenings(state, h);
+    if (avg !== null && avg < basket.evenings - (aspiring ? 0 : content.places.eveningsSlack))
+      missing.push(M.evenings ?? 'evenings');
+  }
   if (aspiring && h.savings < basket.savings * PENNIES_PER_COIN) missing.push(M.savings ?? 'savings');
   return { tier: basket.tier, missing };
+}
+
+/**
+ * The average evenings need of a household's grown-ups (every member who is not a child, elders
+ * included: a lone elder household otherwise skipped the gate), or null with none.
+ */
+function grownupsEvenings(state: WorldState, h: Household): number | null {
+  let sum = 0;
+  let n = 0;
+  for (const id of h.members) {
+    const r = findById(state.residents, id);
+    if (!r || r.stage === 'child') continue;
+    sum += eveningsNeed(r);
+    n++;
+  }
+  return n > 0 ? sum / n : null;
+}
+
+/** Days running the move up to this tier's basket needs (evenings asks for the places' tierDays). */
+export function tierUpDays(basket: NeedsBasket): number {
+  return basket.evenings !== undefined && basket.evenings > 0 ? content.places.tierDays : TIER_UP_DAYS;
 }
 
 function phrase(list: readonly string[], key: number): string {
@@ -321,7 +348,7 @@ export function tierProgress(
   const basket = next ? content.basketByTier.get(next) : undefined;
   if (!next || !basket) return null;
   const check = checkTier(state, tierContext(state), h, basket, true);
-  return { next, days: Math.max(0, h.tierDays ?? 0), needed: TIER_UP_DAYS, missing: check.missing };
+  return { next, days: Math.max(0, h.tierDays ?? 0), needed: tierUpDays(basket), missing: check.missing };
 }
 
 /**

@@ -50,6 +50,8 @@ export interface BuildingView {
   keeperId?: EntityId;
   /** R2 (R2.0): a grown building's storeys, in half-storey steps (Building.storeys; V3B's params.storeys). */
   storeys?: number;
+  /** R2 (R2B): the shop has put tables out (Building.cafe), for the art and the inspector. */
+  cafe?: true;
 }
 
 export interface DecorView {
@@ -89,6 +91,11 @@ export interface ClockView {
   day: number;
   hour: number;
   minute: number;
+  /**
+   * R2 (R2B): dusk lingers now: from 17:00 to 21:00 each turn runs `PLACES.lingerPercent` of the
+   * effective speed's ticks (19-evenings.md, The evening lingers). Absent otherwise.
+   */
+  lingering?: true;
 }
 
 export interface ViewSnapshot {

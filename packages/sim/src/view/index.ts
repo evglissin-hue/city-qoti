@@ -31,7 +31,7 @@ import type {
   WorldState,
 } from '../contracts';
 import { LAYER_NAMES } from '../map/layers';
-import { effectiveSpeed } from '../speed';
+import { effectiveSpeed, isLingeringDusk } from '../speed';
 import { calendar } from '../systems/clock/calendar';
 import { SIM_VERSION } from '../version.generated';
 import { content } from '@qoti/content';
@@ -67,7 +67,10 @@ import { balancesView, businessesView, demandView } from './zones';
 import { eveningView, footfallView, gapsView, placesView, streetViews } from './evenings';
 
 export function clockView(state: WorldState): ClockView {
-  return { tick: state.tick, speed: effectiveSpeed(state), ...calendar(state.tick) };
+  const view: ClockView = { tick: state.tick, speed: effectiveSpeed(state), ...calendar(state.tick) };
+  // R2 (R2B): dusk at half speed, for the top bar.
+  if (isLingeringDusk(state)) view.lingering = true;
+  return view;
 }
 
 export function buildingView(b: Building): BuildingView {
@@ -87,6 +90,7 @@ export function buildingView(b: Building): BuildingView {
   if (b.style) view.style = b.style;
   if (b.rt?.modules?.length) view.modules = b.rt.modules.map(([s, m]) => [s, m]);
   if (b.rt) view.rt = runtimeView(b.def, b.rt, b);
+  if (b.cafe) view.cafe = true;
   if (b.trade) view.trade = b.trade;
   if (b.level && b.level > 1) view.level = b.level;
   if (b.keeperId) view.keeperId = b.keeperId;

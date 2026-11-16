@@ -76,7 +76,12 @@ const LONG_DAY_END = at(BUILD_HOURS[1]);
 function keepsLongHours(state: WorldState, r: Resident): boolean {
   const job = findById(state.buildings, r.jobId);
   const role = job ? content.buildingById.get(job.def)?.jobs?.role : undefined;
-  return role === 'builder' || role === 'porter';
+  // R2 (R2B): a cart shed's carter keeps the porters' hours, to BUILD_HOURS[1].
+  return (
+    role === 'builder' ||
+    role === 'porter' ||
+    (!!job && !!content.buildingById.get(job.def)?.tags?.includes('cart-shed'))
+  );
 }
 
 /** What the resident wants in this block of their day. */

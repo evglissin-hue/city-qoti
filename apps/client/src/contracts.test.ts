@@ -261,7 +261,7 @@ describe('I0 contracts', () => {
     >();
     expectTypeOf<ViewSnapshot['meta']>().toEqualTypeOf<WorldState['meta']>();
     expectTypeOf<keyof ClockView>().toEqualTypeOf<
-      'tick' | 'speed' | 'year' | 'season' | 'day' | 'hour' | 'minute'
+      'tick' | 'speed' | 'year' | 'season' | 'day' | 'hour' | 'minute' | 'lingering'
     >();
     expectTypeOf<keyof SeatView>().toEqualTypeOf<
       'seat' | 'name' | 'color' | 'lens' | 'connected' | 'desiredSpeed' | 'lastSeenTick'

@@ -178,6 +178,7 @@ Every number in this table is *(tune)*. A day of Fuel is one firewood a househol
 - Within a family households choose by price and liking as built (Thrifty households weigh price more; species and traits have favorites), so substitution is the rule: dear bread means more porridge.
 - The `goods` need is the basket's average of amount and variety against the tier's wants below, and weighs 10 in mood.
 - *As built (R1A)*: a household sees a flavor on a day (`Household.seen`, the 18:00 pass) when it is in its pantry, on any store's shelf (stores are open to all), or on a stall, square or shop whose food coverage reaches the door; its variety is what it saw in the last three days. Favorites are content (`flavorLikes`: an otter likes fish, a Sweet Tooth honey and cider, weight 2). Wares are bought at the 18:00 pass after the day's outings, so nobody walks for them.
+- *As built (R2B)*: Treats left the 18:00 pass for the evening round (`19-evenings.md`, Evening trade, As built): they accrue at 17:00, sell at stops, to passing trade and by the 21:30 doorstep errand, and settle at 21:30; the 18:00 pass still records their demand for prices. Craftsfolk ask for evenings of 50 in place of the tavern and charm 25.
 
 ## Market and prices *kept*
 

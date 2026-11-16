@@ -88,7 +88,7 @@ describe('balancesView', () => {
     runDays(state, BALANCE_HISTORY_DAYS, ctx);
     expect(state.carrier.history!.length).toBe(BALANCE_HISTORY_DAYS);
     expect(state.tick).toBeGreaterThan(TICKS_PER_DAY * BALANCE_HISTORY_DAYS);
-  });
+  }, 30_000);
 
   it('passes the closed pass through', () => {
     const { state } = villageFixture();

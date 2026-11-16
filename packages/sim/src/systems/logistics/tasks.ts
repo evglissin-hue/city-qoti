@@ -11,7 +11,17 @@ import { MOOD_PRODUCTIVITY, ResidentFlags } from '../../constants';
 import type { Building, Resident, WorldState } from '../../contracts';
 import { findById } from '../../state/entities';
 import { moodBand } from '../../view/hamlet';
-import { doorTile, enterBuilding, isAt, isWalking, requestMove, type MoveResult } from '../movement/api';
+import {
+  doorTile,
+  enterBuilding,
+  isAt,
+  isWalking,
+  requestMove,
+  setInside,
+  type MoveResult,
+} from '../movement/api';
+import { pathBetween, pathFor } from '../movement/paths';
+import { crossesClosed, eveningClosed } from '../traffic/evening';
 
 export const TASK_RETURNING = 0;
 
@@ -39,22 +49,79 @@ export function available(r: Resident, workplace: Building): boolean {
   return r.inside === workplace.id || (r.inside === 0 && r.tile === doorTile(workplace));
 }
 
+/** A walk result with R2B's fourth answer: 'waiting' (no barrow way while evening streets are closed). */
+export type TaskMove = MoveResult | 'waiting';
+
+/**
+ * A task walk. Outside 17:00 to 21:00 this is requestMove. While evening streets are closed the
+ * barrow plans with `pathFor(..., 'barrow')`, mirroring moveResident (leave the building, keep the
+ * mid-step continuation). With no barrow path but an ordinary one, the porter waits where they are,
+ * task kept, and the next think tries again; the storehouse says so (logistics/evening.ts).
+ */
+function taskMove(state: WorldState, r: Resident, tile: number): TaskMove {
+  if (!eveningClosed(state)) return requestMove(state, r.id, tile, 'task');
+  const m = r.move;
+  if (m && m.target === tile && !crossesClosed(state, m.path, m.step)) {
+    m.reason = 'task';
+    setInside(state, r, 0);
+    return 'walking';
+  }
+  // Mid-step: finish the step under way and plan onward from the next tile.
+  const midStep = !!m && m.progress > 0 && m.step < m.path.length;
+  const from = midStep ? m.path[m.step]! : r.tile;
+  const onward = from === tile ? [] : pathFor(state, from, tile, 'barrow');
+  if (!onward) {
+    if (!pathBetween(state, r.tile, tile)) {
+      setInside(state, r, 0);
+      r.move = null;
+      return 'unreachable';
+    }
+    // No way for a barrow now: wait where they stand (a step in progress is finished first).
+    r.move = midStep ? { ...m, path: [from], step: 0, target: from, reason: 'task' } : null;
+    return 'waiting';
+  }
+  setInside(state, r, 0);
+  if (!midStep && r.tile === tile) {
+    r.move = null;
+    return 'arrived';
+  }
+  r.move = {
+    path: midStep ? [from, ...onward] : onward,
+    step: 0,
+    progress: midStep ? m.progress : 0,
+    target: tile,
+    reason: 'task',
+    version: state.networkVersion,
+  };
+  r.flags &= ~ResidentFlags.stuck;
+  return 'walking';
+}
+
 /** Starts a task and the walk to `tile`. */
-export function startTask(state: WorldState, r: Resident, taskId: number, tile: number): MoveResult {
+export function startTask(state: WorldState, r: Resident, taskId: number, tile: number): TaskMove {
   r.activity = { kind: 'task', taskId };
-  return requestMove(state, r.id, tile, 'task');
+  return taskMove(state, r, tile);
 }
 
 /**
  * Keeps a tasked resident heading for `tile`: true once they stand there. Retries the walk when
  * they stopped elsewhere; returns null when the tile cannot be reached, including a walk that
- * ended early with the resident flagged stuck (the movement system's way of giving up).
+ * ended early with the resident flagged stuck (the movement system's way of giving up). While an
+ * evening street is closed (R2B) a walk that would cross it is planned again for the barrow, and a
+ * porter with no barrow way stands and waits (false) until the street opens.
  */
 export function walkTo(state: WorldState, r: Resident, tile: number): boolean | null {
   if (isAt(state, r.id, tile)) return true;
-  if (isWalking(state, r.id)) return false;
+  if (isWalking(state, r.id)) {
+    const m = r.move!;
+    if (m.progress === 0 && crossesClosed(state, m.path, m.step)) {
+      const res = taskMove(state, r, tile);
+      return res === 'unreachable' ? null : res === 'arrived';
+    }
+    return false;
+  }
   if (r.flags & ResidentFlags.stuck) return null;
-  const res = requestMove(state, r.id, tile, 'task');
+  const res = taskMove(state, r, tile);
   return res === 'unreachable' ? null : res === 'arrived';
 }
 
@@ -82,7 +149,7 @@ export function finishTask(state: WorldState, r: Resident, workTime: boolean): v
     return;
   }
   const res = startTask(state, r, TASK_RETURNING, doorTile(work));
-  if (res !== 'walking') release(state, r);
+  if (res !== 'walking' && res !== 'waiting') release(state, r);
 }
 
 /** Moves residents walking back from a task along; releases them at the door. */

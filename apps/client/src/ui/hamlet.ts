@@ -12,6 +12,8 @@ export const NEED_LABEL: Record<string, string> = {
   social: 'Company',
   health: 'Health',
   education: 'Schooling',
+  // R2 (R2B): the evenings need, in beauty's place in mood.
+  evenings: 'Evenings out',
 };
 
 export const MOOD_WORD = MOOD_BAND_NAMES;
