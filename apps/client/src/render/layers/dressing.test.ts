@@ -542,13 +542,21 @@ describe('roomyLot (V3A)', () => {
     }) as unknown as Mirror;
 
   it('reaches half a tile onto every side whose neighbouring strip is free', () => {
-    const r = roomyLot(world(() => false), new Set(), lot);
+    const r = roomyLot(
+      world(() => false),
+      new Set(),
+      lot,
+    );
     expect([r.x, r.z, r.w, r.d]).toEqual([9.5, 9.5, 3, 3]);
   });
 
   it('keeps to the lot on a side where a building, road or decor stands', () => {
     // A neighbour along the west side, decor on one tile of the south strip.
-    const r = roomyLot(world((x) => x === 9), new Set([12 * MAP_SIZE + 11]), lot);
+    const r = roomyLot(
+      world((x) => x === 9),
+      new Set([12 * MAP_SIZE + 11]),
+      lot,
+    );
     expect([r.x, r.z, r.w, r.d]).toEqual([10, 9.5, 2.5, 2.5]);
   });
 });
