@@ -1401,8 +1401,15 @@ export interface GapDef {
   /** Evenings running the rule must hold before it opens (2, 3, 3), and the closing rule before it closes. */
   openAfter: number;
   closeAfter: number;
-  /** What it reads like, variants picked deterministically; placeholders {place}, {shop}, {street}, {n}. */
+  /** What it reads like, variants picked deterministically; placeholders {place}, {shop}, {street}, {n}; R2C adds {folk} ("nobody", "one soul", "3 folk"). */
   text: string[];
   /** What would close it, in words. */
   closes: string;
+  /**
+   * R2 (R2C, additive): the evening edition's line when it closes, crediting the seats who closed
+   * it ({closers}, "Kat" or "Kat and Sam"); placeholders as `text`. Absent: the edition says it plainly.
+   */
+  closed?: string;
+  /** R2 (R2C, additive): the closing line when nobody is credited (the place was credited this season). */
+  closedQuiet?: string;
 }
