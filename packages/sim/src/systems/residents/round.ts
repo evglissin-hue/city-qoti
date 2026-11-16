@@ -22,7 +22,6 @@ import type {
 } from '../../contracts';
 import { findById } from '../../state/entities';
 import { emptyTally, startPlaceEvening } from '../../state/evenings';
-import { nearestOutletWithFood } from '../economy/outlets';
 import { walkGrid } from '../movement/grid';
 import { fixRouteGrid } from '../movement/routes';
 import { placeFeatures, placeIndex } from '../places';
@@ -345,14 +344,12 @@ export function planRound(
   const endHour = Math.floor(endTick / HOUR);
   let fromHour = Math.floor(fromTick / HOUR);
 
-  // Shopping first, by one member of the household; places wait the hour after.
+  // Shopping first, by one member of the household; places wait the hour after. Which outlet is
+  // settled when they set off (startShopping picks the nearest with food then), so planning never
+  // scans the town's buildings: until then the stop is `shop:0` at their own door.
   if (needsShopping(h) && !someoneShopping(state, h) && !householdShops(state, h, r)) {
-    const outlet = nearestOutletWithFood(state, homeDoor);
-    const door = outlet ? doorOf(state, outlet) : -1;
-    if (door >= 0) {
-      stops.push(stop(`shop:${outlet}`, 'shop', door, now));
-      fromHour += 1;
-    }
+    stops.push(stop('shop:0', 'shop', homeDoor, now));
+    fromHour += 1;
   }
   const lastHour = endHour - 1;
   const at = (hour: number) => Math.max(fromTick, hour * HOUR);

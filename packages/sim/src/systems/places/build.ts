@@ -71,6 +71,23 @@ const DECOR_FEATURES: readonly [tag: string, bit: number][] = [
   ['lantern', PlaceFeature.light],
   ['herb', PlaceFeature.herb],
 ];
+/** What a decor def brings to a place, worked out once from content. */
+const DECOR_INFO = new Map(
+  content.decor.map((def) => {
+    let features = 0;
+    for (const [tag, bit] of DECOR_FEATURES) if (def.tags.includes(tag)) features |= bit;
+    return [
+      def.id,
+      {
+        features,
+        light: def.tags.includes('light') || def.tags.includes('lantern'),
+        play: def.tags.includes('play'),
+        view: VIEW_PIECES.has(def.id),
+      },
+    ] as const;
+  }),
+);
+
 const BUILDING_FEATURES: readonly [tag: string, bit: number][] = [
   ['market', PlaceFeature.market],
   ['baker', PlaceFeature.baker],
@@ -368,20 +385,16 @@ export function buildPlaces(state: WorldState): BuiltPlaces {
   }
 
   // Outlets by a coarse cell of their door, so each place checks only those near it.
-  const outletCells = new Map<number, [id: EntityId, door: number][]>();
-  for (const o of outlets) {
-    const key = cellOf(o[1]);
-    const list = outletCells.get(key);
-    if (list) list.push(o);
-    else outletCells.set(key, [o]);
-  }
+  const outletCells: ([id: EntityId, door: number][] | undefined)[] = new Array(CELLS * CELLS);
+  for (const o of outlets) (outletCells[cellOf(o[1])] ??= []).push(o);
   const grid = worldIndex(state).decorGrid;
   const { road, tree } = state.map;
+  const wet = waterReach(state, P.waterRadius);
 
   const places: Place[] = [];
   const extras: PlaceExtra[] = [];
   for (const d of drafts) {
-    const tiles = [...d.tiles].sort((a, b) => a - b);
+    const tiles = Array.from(Int32Array.from(d.tiles).sort());
     let x0 = S;
     let z0 = S;
     let x1 = -1;
@@ -398,9 +411,8 @@ export function buildPlaces(state: WorldState): BuiltPlaces {
     const r = P.serveRadius;
     for (let cz = cellCoord(z0 - r); cz <= cellCoord(z1 + r); cz++) {
       for (let cx = cellCoord(x0 - r); cx <= cellCoord(x1 + r); cx++) {
-        for (const [id, door] of outletCells.get(cz * CELLS + cx) ?? []) {
-          if (nearAny(tiles, door, r)) near.push(id);
-        }
+        const list = outletCells[cz * CELLS + cx];
+        if (list) for (const [id, door] of list) if (nearAny(tiles, door, r)) near.push(id);
       }
     }
     near.sort((a, b) => a - b);
@@ -419,21 +431,27 @@ export function buildPlaces(state: WorldState): BuiltPlaces {
     const reach = ((x1 - x0 + 1 + (z1 - z0 + 1)) * TILE_FP) / 2 + TILE_FP;
     for (const piece of grid.near(((x0 + x1 + 1) * TILE_FP) / 2, ((z0 + z1 + 1) * TILE_FP) / 2, reach)) {
       if (!d.tiles.has(tileOfDecor(piece))) continue;
-      const def = content.decorById.get(piece.def);
-      if (!def) continue;
-      if (!seen.has(def.id)) {
-        seen.add(def.id);
+      const info = DECOR_INFO.get(piece.def);
+      if (!info) continue;
+      if (!seen.has(piece.def)) {
+        seen.add(piece.def);
         pieceKinds += 1;
       }
-      if (def.tags.includes('light') || def.tags.includes('lantern')) lights = true;
-      for (const [tag, bit] of DECOR_FEATURES) if (def.tags.includes(tag)) features |= bit;
-      if (def.tags.includes('play')) d.kinds.add('play');
-      if (VIEW_PIECES.has(def.id)) d.kinds.add('view');
+      if (info.light) lights = true;
+      features |= info.features;
+      if (info.play) d.kinds.add('play');
+      if (info.view) d.kinds.add('view');
     }
     if (d.seats - d.childSeats > 0) d.kinds.add('sit');
     if (d.childSeats > 0) d.kinds.add('play');
     if (near.length > 0) d.kinds.add('eat');
-    const water = waterNear(state, tiles, [x0, z0, x1, z1], P.waterRadius);
+    let water = false;
+    for (const t of tiles) {
+      if (wet[t]) {
+        water = true;
+        break;
+      }
+    }
     if (water) d.kinds.add('view');
     for (const id of d.members) features |= buildingFeatures(buildingById.get(id));
     for (const id of near) features |= buildingFeatures(buildingById.get(id));
@@ -495,29 +513,49 @@ function nearAny(tiles: Iterable<number>, tile: number, radius: number): boolean
   return false;
 }
 
-/**
- * Water (not under a road) within `radius` tiles (Chebyshev) of any of the tiles: the water in the
- * place's box grown by `radius`, each checked against the tiles.
- */
-function waterNear(
-  state: WorldState,
-  tiles: readonly number[],
-  box: readonly [number, number, number, number],
-  radius: number,
-): boolean {
-  const water = state.map.water;
-  const road = state.map.road;
-  const [x0, z0, x1, z1] = box;
-  for (let z = Math.max(0, z0 - radius); z <= Math.min(S - 1, z1 + radius); z++) {
-    for (let x = Math.max(0, x0 - radius); x <= Math.min(S - 1, x1 + radius); x++) {
+/** Tiles with water (not under a road) within `radius` (Chebyshev), by state; rebuilt when the water or roads change. */
+const wetMasks = new WeakMap<WorldState, { key: number; radius: number; mask: Uint8Array }>();
+
+function waterReach(state: WorldState, radius: number): Uint8Array {
+  const { water, road } = state.map;
+  // A hash of the water and road layers keys the mask, so it is always the state's own.
+  let h = 0x811c9dc5;
+  const w32 = new Uint32Array(water.buffer, water.byteOffset, water.byteLength >>> 2);
+  const r32 = new Uint32Array(road.buffer, road.byteOffset, road.byteLength >>> 2);
+  for (let i = 0; i < w32.length; i++) h = Math.imul(h ^ w32[i]!, 0x01000193);
+  for (let i = 0; i < r32.length; i++) h = Math.imul(h ^ r32[i]!, 0x01000193);
+  const key = h >>> 0;
+  const cached = wetMasks.get(state);
+  if (cached && cached.key === key && cached.radius === radius) return cached.mask;
+  // Rows then columns: a running window of `radius` either way (Chebyshev distance).
+  const rows = new Uint8Array(S * S);
+  for (let z = 0; z < S; z++) {
+    let last = -S;
+    for (let x = 0; x < S; x++) {
       const i = z * S + x;
-      if (!water[i] || road[i]) continue;
-      for (const t of tiles) {
-        const tx = t % S;
-        const tz = (t - tx) / S;
-        if (Math.abs(tx - x) <= radius && Math.abs(tz - z) <= radius) return true;
-      }
+      if (water[i] && !road[i]) last = x;
+      if (x - last <= radius) rows[i] = 1;
+    }
+    last = 2 * S;
+    for (let x = S - 1; x >= 0; x--) {
+      const i = z * S + x;
+      if (water[i] && !road[i]) last = x;
+      if (last - x <= radius) rows[i] = 1;
     }
   }
-  return false;
+  const mask = new Uint8Array(S * S);
+  for (let x = 0; x < S; x++) {
+    let last = -S;
+    for (let z = 0; z < S; z++) {
+      if (rows[z * S + x]) last = z;
+      if (z - last <= radius) mask[z * S + x] = 1;
+    }
+    last = 2 * S;
+    for (let z = S - 1; z >= 0; z--) {
+      if (rows[z * S + x]) last = z;
+      if (last - z <= radius) mask[z * S + x] = 1;
+    }
+  }
+  wetMasks.set(state, { key, radius, mask });
+  return mask;
 }
