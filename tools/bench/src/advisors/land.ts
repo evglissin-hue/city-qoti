@@ -46,13 +46,17 @@ import {
 import { count, countTrade, FOODS, G, growableLots, S } from '../town';
 import {
   BAR_ZONES,
+  BLOCK_SIDES,
   frontageFor,
+  nearestSide,
+  planBlock,
   planHighStreet,
   promoteToVillage,
   farFrontages,
   storehouseSpot,
   towardFarLots,
   unreachedLots,
+  zoneBlock,
   zoneHighStreet,
   zoneStreetFor,
 } from '../village';
@@ -120,6 +124,11 @@ class Land implements Advisor {
   private villageStreet = false;
   /** R2E: lane tiles of a village or shop street laid before Cobbles opened, to be cobbled when it does. */
   private lanes: [number, number][] = [];
+  /** R2E: the village street's tiles, where a closed block is sought near. */
+  private core: [number, number][] = [];
+  /** R2E: closed blocks (a ring of street with lots inside it) laid, and the day one was last sought in vain. */
+  private blocks = 0;
+  private blockTried = 0;
   /** Day each zone was last painted for its bar. */
   private readonly painted = new Map<string, number>();
 
@@ -168,7 +177,10 @@ class Land implements Advisor {
     if (core && kind === 'lane') this.lanes.push(...street.tiles);
     p.street ??= street;
     this.streets++;
-    if (village && !zones) this.villageStreet = true;
+    if (village && !zones) {
+      this.villageStreet = true;
+      this.core = street.tiles;
+    }
     p.do(`zone ${label}`, zones ? zoneStreetFor(p.w, street, zones) : zoneHighStreet(p.w, street, village));
     for (const z of zones ?? []) this.painted.set(z, day(p.w));
     return true;
@@ -190,6 +202,40 @@ class Land implements Advisor {
     const tiles = this.lanes.slice(0, n);
     if (p.do('cobble the village street', [{ t: 'road.paint', kind: 'street', tiles }]))
       this.lanes = this.lanes.slice(n);
+  }
+
+  /**
+   * R2E: one closed block at the village core, as a sensible pair lays one: a ring of street near the
+   * village street, the inside zoned homes-medium (shops on the side nearest the street when shops
+   * are open), so the lots cut inside close a hollow (gardens) and the ring's corners are corner lots.
+   * Cobbles, coins in hand and stone allow it, as for the village street; a second only once the
+   * first is grown and the Homes bar is lit.
+   */
+  private block(): void {
+    const p = this.p;
+    const w = this.w;
+    if (this.core.length === 0 || this.blocks >= 2 || !hasInnovation(w, 'cobbles')) return;
+    if (this.lanes.length > 0 || day(w) < this.blockTried + 3) return;
+    if (this.blocks === 1 && (!w.demand.lit[0] || growableLots(w).some((l) => !l.buildingId))) return;
+    const tiles = 4 * (Math.max(...BLOCK_SIDES) - 1);
+    if (
+      p.coins() - MONEY_RESERVE < tiles * STREET_COINS ||
+      townStock(w)[G('stone')]! - STONE_KEEP < tiles + 2
+    )
+      return;
+    const block = planBlock(w, this.core);
+    if (!block) {
+      this.blockTried = day(w);
+      p.actions.push('no room for a block');
+      return;
+    }
+    if (!p.do('lay a block of streets', [{ t: 'road.paint', kind: 'street', tiles: block.ring }])) {
+      this.blockTried = day(w);
+      return;
+    }
+    this.blocks++;
+    const shops = !!w.demand.lit[1] || count(w, 'market-square') > 0;
+    p.do('zone the block', zoneBlock(block, shops, nearestSide(block, this.core)));
   }
 
   /** The Village chapter: another street, with shops and townhouses now they are open. */
@@ -586,6 +632,7 @@ class Land implements Advisor {
       if (rankAtLeast(w, 'village') && !this.villageStreet && this.streets < MAX_STREETS)
         this.lay('the village street');
       this.cobble();
+      this.block();
       this.answerBars();
     }
     this.reachLots();

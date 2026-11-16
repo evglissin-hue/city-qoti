@@ -542,3 +542,151 @@ export function growthLine(w: WorldState): GrowthLine {
 
 /** R2E: whether a tile is open ground for zoning (no road, building, water, field, zone; inside the map's margin). */
 export const openGround = open;
+
+// --- R2E: a closed block of streets (gardens and corners) ------------------------------------------
+
+/** A ring of street with lots cut inside it on all four sides, leaving a hollow behind their backs. */
+export interface Block {
+  /** The ring's road tiles in walking order. */
+  ring: [number, number][];
+  /** Min corner and side length of the ring's square. */
+  x0: number;
+  z0: number;
+  n: number;
+  /** The inner frontage by side: north, south, west, east (3 tiles deep, corners shared). */
+  sides: [number, number][][];
+}
+
+/** Ring side lengths tried, in tiles: inner width 9 less two lots of depth 3 leaves a hollow of 3. */
+export const BLOCK_SIDES: readonly number[] = [11, 10, 12];
+/** How far from the anchor (a tile of the village street) a block's middle may lie. */
+const BLOCK_REACH = 26;
+const NEIGHBORS = [
+  [1, 0],
+  [-1, 0],
+  [0, 1],
+  [0, -1],
+] as const;
+
+/**
+ * R2E: the nearest flat open square, joined to a road (a ring tile touches one, from outside),
+ * where a ring of street fits with its whole inside free, so the lots cut inside it on four sides
+ * close a hollow. Within porters' reach of a storehouse when it can be; null when nothing fits.
+ */
+export function planBlock(w: WorldState, anchor: readonly [number, number][]): Block | null {
+  if (anchor.length === 0) return null;
+  const reader = worldIndex(w).reader;
+  const doors = w.buildings
+    .filter((b) => b.def === 'storehouse' && b.stage === 'built')
+    .map((b) => doorTile(b));
+  const reached = (x: number, z: number) =>
+    doors.some((d) => Math.abs((d % S) - x) + Math.abs(Math.floor(d / S) - z) <= 22);
+  const [ax, az] = anchor[anchor.length >> 1]!;
+  let best: Block | null = null;
+  let bestScore = -Infinity;
+  for (const n of BLOCK_SIDES) {
+    for (let z0 = az - BLOCK_REACH; z0 <= az + BLOCK_REACH; z0++) {
+      for (let x0 = ax - BLOCK_REACH; x0 <= ax + BLOCK_REACH; x0++) {
+        if (x0 < 3 || z0 < 3 || x0 + n >= S - 3 || z0 + n >= S - 3) continue;
+        const cx = x0 + (n >> 1);
+        const cz = z0 + (n >> 1);
+        let near = Infinity;
+        for (const [sx, sz] of anchor) near = Math.min(near, Math.abs(sx - cx) + Math.abs(sz - cz));
+        let score = -near - (n === 11 ? 0 : 3);
+        if (score <= bestScore) continue;
+        // The ring and its inside are open ground, flat enough to cut lots on.
+        let ok = true;
+        let lo = Infinity;
+        let hi = -Infinity;
+        for (let z = z0; z < z0 + n && ok; z++) {
+          for (let x = x0; x < x0 + n; x++) {
+            if (!open(w, x, z)) {
+              ok = false;
+              break;
+            }
+            const h = w.map.height[z * S + x]!;
+            lo = Math.min(lo, h);
+            hi = Math.max(hi, h);
+          }
+        }
+        if (!ok || hi - lo > 2) continue;
+        const ring: [number, number][] = [];
+        for (let x = x0; x < x0 + n; x++) ring.push([x, z0]);
+        for (let z = z0 + 1; z < z0 + n; z++) ring.push([x0 + n - 1, z]);
+        for (let x = x0 + n - 2; x >= x0; x--) ring.push([x, z0 + n - 1]);
+        for (let z = z0 + n - 2; z > z0; z--) ring.push([x0, z]);
+        const inSquare = (x: number, z: number) => x >= x0 && x < x0 + n && z >= z0 && z < z0 + n;
+        const joined = ring.some(([x, z]) =>
+          NEIGHBORS.some(([dx, dz]) => {
+            const tx = x + dx;
+            const tz = z + dz;
+            return (
+              tx >= 0 && tz >= 0 && tx < S && tz < S && !inSquare(tx, tz) && w.map.road[tz * S + tx]! > 0
+            );
+          }),
+        );
+        if (!joined || !canPaintRoad(reader, 'street', ring).ok) continue;
+        if (!reached(cx, cz)) score -= 30;
+        if (score <= bestScore) continue;
+        const inner = n - 2;
+        const band = (fn: (k: number, d: number) => [number, number]): [number, number][] => {
+          const out: [number, number][] = [];
+          for (let d = 1; d <= 3; d++) for (let k = 0; k < inner; k++) out.push(fn(k, d));
+          return out;
+        };
+        const sides: [number, number][][] = [
+          band((k, d) => [x0 + 1 + k, z0 + d]),
+          band((k, d) => [x0 + 1 + k, z0 + n - 1 - d]),
+          band((k, d) => [x0 + d, z0 + 1 + k]),
+          band((k, d) => [x0 + n - 1 - d, z0 + 1 + k]),
+        ];
+        bestScore = score;
+        best = { ring, x0, z0, n, sides };
+      }
+    }
+  }
+  return best;
+}
+
+/** The side of a block (0 north, 1 south, 2 west, 3 east) whose middle lies nearest the anchor. */
+export function nearestSide(b: Block, anchor: readonly [number, number][]): number {
+  const mid = b.n >> 1;
+  const middles: [number, number][] = [
+    [b.x0 + mid, b.z0],
+    [b.x0 + mid, b.z0 + b.n - 1],
+    [b.x0, b.z0 + mid],
+    [b.x0 + b.n - 1, b.z0 + mid],
+  ];
+  let best = 0;
+  let bestD = Infinity;
+  middles.forEach(([x, z], i) => {
+    for (const [sx, sz] of anchor) {
+      const d = Math.abs(sx - x) + Math.abs(sz - z);
+      if (d < bestD) {
+        bestD = d;
+        best = i;
+      }
+    }
+  });
+  return best;
+}
+
+/** The commands that zone a block's inside: homes-medium all round, shops on `shopSide` when `shops`. */
+export function zoneBlock(b: Block, shops: boolean, shopSide: number): Command[] {
+  const seen = new Set<number>();
+  const byZone = new Map<string, [number, number][]>();
+  b.sides.forEach((tiles, side) => {
+    const zone = shops && side === shopSide ? 'shops' : 'homes-medium';
+    for (const [x, z] of tiles) {
+      const i = z * S + x;
+      if (seen.has(i)) continue;
+      seen.add(i);
+      const list = byZone.get(zone) ?? [];
+      list.push([x, z]);
+      byZone.set(zone, list);
+    }
+  });
+  const cmds: Command[] = [];
+  for (const [zone, tiles] of byZone) cmds.push({ t: 'zone.paint', zone, tiles });
+  return cmds;
+}
