@@ -175,7 +175,8 @@ export function pathFor(state: WorldState, from: number, to: number, mode: PathM
   if (mode === 'barrow') {
     const t = tickOfDay(state.tick);
     const { eveningHour, homeHour } = content.places;
-    if (t < eveningHour * TICKS_PER_HOUR || t >= homeHour * TICKS_PER_HOUR) return pathBetween(state, from, to);
+    if (t < eveningHour * TICKS_PER_HOUR || t >= homeHour * TICKS_PER_HOUR)
+      return pathBetween(state, from, to);
     return barrowPath(state, from, to);
   }
   return pathBetween(state, from, to);
