@@ -1,11 +1,19 @@
-// Gaps: requests the town writes itself (docs/spec/19-evenings.md, Gaps). At 21:00, once the evening
-// is scored, each R2 rule is read over the evenings running: a gap opens from Village rank, deduped by
-// its subject, says what would close it, and closes by itself, crediting the seat that built the piece
-// that closed it (once a place a season). R2C writes the rules; the bookkeeping is in api.ts.
+// Gaps: requests the town writes itself (docs/spec/19-evenings.md, Gaps). At 21:10, once the evening is
+// scored, the pass keeps the evenings' runs (every rank), then reads each R2 rule from Village rank on
+// a fair evening: a gap opens by rule, deduped by its subject, says what would close it, and closes by
+// itself, crediting the seat that built the piece that closed it (once a place a season). The rules
+// are in rules.ts, the runs in runs.ts, the bookkeeping in api.ts, who is credited in credit.ts.
 import { TICKS_PER_DAY } from '../../constants';
 import type { System } from '../../contracts';
 import { isStandard } from '../../state/hamlet';
-import { dailyOffset } from '../economy/time';
+import { seasonAt } from '../../state/seasons';
+import { rankAtLeast } from '../../state/village';
+import { eveningView } from '../../view/evening';
+import { gapsView } from '../../view/gaps';
+import { dailyOffset, dayIndex } from '../economy/time';
+import { gapAchievable } from './achievable';
+import { keepGaps } from './rules';
+import { keepRuns } from './runs';
 
 /** 21:00 and a little: after the residents' 21:00 score (order 50) and the places' evening close (73). */
 export const GAPS_OFFSET = dailyOffset(21, 10);
@@ -15,10 +23,24 @@ export const gaps: System = {
   order: 79,
   every: TICKS_PER_DAY,
   offset: GAPS_OFFSET,
-  tick(state) {
+  tick(state, ctx) {
     if (!isStandard(state)) return;
-    // R2 stand-in (R2C): opens no gaps and closes none; no evening.closed yet. R2C reads the rules
-    // (content.gaps) from Village rank, opens and closes through openGap and closeGap, keeps the
-    // runs in state.evenings, and emits gaps.updated and evening.closed.
+    // A season's first day clears the credits: once a place a season, whatever tonight says.
+    if (seasonAt(state.tick).day === 1) state.gaps.credited = [];
+    // No evening happened today (no places yet, or a missed roll): nothing to count or to say.
+    const tally = state.evenings.tonight;
+    if (tally.day !== dayIndex(state.tick)) return;
+
+    keepRuns(state);
+
+    // Gaps open and close on fair evenings from Village rank; rain and storm hold them as they are.
+    if (tally.weather === 'fair' && rankAtLeast(state, 'village')) {
+      const pass = { state, ctx, changed: false };
+      keepGaps(pass, (kind) => gapAchievable(state, kind));
+      if (pass.changed) ctx.events.push({ e: 'gaps.updated', g: gapsView(state) });
+    }
+
+    const v = eveningView(state);
+    if (v) ctx.events.push({ e: 'evening.closed', v });
   },
 };
