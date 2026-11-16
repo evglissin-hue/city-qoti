@@ -6,6 +6,8 @@ import { seeded, ShapeBuilder, vary } from '../geometry';
 import { palette } from '../palette';
 import { RigBuilder, type Channel } from '../rig';
 import { beam, cylX, cylZ } from '../shapes';
+import { SURFACE } from '../surface';
+import { farBox, farCylinder } from './decorFar';
 import type { Kit } from './types';
 
 export const GOOD_COLORS = {
@@ -1041,3 +1043,464 @@ export const handcart: Kit = {
     return s.build();
   },
 };
+
+// --- V3A: goods you can see (instanced yard pieces) -----------------------------------------------
+// Small decor kits for a plot: centered on the origin, base at y 0, facing +z, each with a near and
+// a far level through `ShapeBuilder.levels`. Colors come from GOOD_COLORS, varied by seed.
+
+/** A goods piece as a decor kit: `draw` gets the builder, the seeded stream and the params. */
+function goodsPiece(
+  id: string,
+  defSeed: number,
+  draw: (s: ShapeBuilder, rnd: () => number, params: Record<string, number | string | boolean>) => void,
+): Kit {
+  return {
+    id,
+    kind: 'decor',
+    build: (opts) => {
+      const s = new ShapeBuilder(opts?.lod ?? 'high');
+      draw(s, seeded(opts?.seed ?? defSeed), opts?.params ?? {});
+      s.glow(0);
+      s.surface(SURFACE.plain);
+      return s.build();
+    },
+  };
+}
+
+/** A soft sack for the yard kits: a slumped blob with a tied neck. */
+function sackBlob(
+  s: ShapeBuilder,
+  rnd: () => number,
+  x: number,
+  y: number,
+  z: number,
+  k: number,
+  hex = C.sack,
+): void {
+  s.surface(SURFACE.cloth);
+  s.blob(x, y + 0.05 * k, z, 0.07 * k, 0.052 * k, 0.055 * k, vary(hex, rnd, 0.6), 1, rnd, 0.01, C.sack);
+  s.blob(x + 0.006 * k, y + 0.098 * k, z, 0.02 * k, 0.014 * k, 0.02 * k, C.sackTie, 0);
+}
+
+export const goodsSacks: Kit = goodsPiece('goods-sacks', 31, (s, rnd) => {
+  const a = vary(C.sack, rnd, 0.5);
+  const b = vary(C.sack, rnd, 0.5);
+  const c = vary(C.sack, rnd, 0.5);
+  s.levels(
+    () => {
+      sackBlob(s, rnd, -0.08, 0, 0.0, 1, a);
+      sackBlob(s, rnd, 0.075, 0, 0.012, 0.95, b);
+      sackBlob(s, rnd, -0.005, 0.07, -0.015, 0.9, c);
+    },
+    () => {
+      s.surface(SURFACE.cloth);
+      farBox(s, -0.15, 0, -0.055, 0.14, 0.1, 0.065, a);
+      farBox(s, -0.065, 0.1, -0.06, 0.06, 0.16, 0.04, c);
+    },
+  );
+});
+
+type DisplayDraw = (s: ShapeBuilder, rnd: () => number, y: number) => void;
+
+const basketNear = (s: ShapeBuilder, x: number, y: number, z: number, r: number): void => {
+  s.surface(SURFACE.woodGrain);
+  farCylinder(s, x, z, r, r * 1.15, y, y + 0.05, C.wicker, 7);
+};
+
+/** What sits on a trestle table, by good id (top of the board at `y`, spread about x -0.25 to 0.25). */
+const DISPLAYS: Readonly<Record<string, { color: number; draw: DisplayDraw }>> = {
+  apples: {
+    color: C.apple,
+    draw: (s, rnd, y) => {
+      for (const x of [-0.14, 0.14]) {
+        basketNear(s, x, y, 0, 0.06);
+        s.surface(SURFACE.plain);
+        for (let i = 0; i < 6; i++) {
+          const a = i * 1.047 + rnd();
+          const r = i < 4 ? 0.035 : 0;
+          s.blob(
+            x + Math.cos(a) * r,
+            y + 0.055 + (i > 3 ? 0.02 : 0),
+            Math.sin(a) * r,
+            0.028,
+            0.026,
+            0.028,
+            vary(i % 3 === 2 ? C.appleGreen : C.apple, rnd, 0.5),
+            0,
+          );
+        }
+      }
+      s.blob(0.03, y + 0.025, 0.06, 0.026, 0.024, 0.026, C.apple, 0);
+    },
+  },
+  bread: {
+    color: C.bread,
+    draw: (s, rnd, y) => {
+      s.surface(SURFACE.plain);
+      for (const [x, z] of [
+        [-0.15, 0.03],
+        [-0.05, -0.03],
+        [0.06, 0.03],
+        [0.16, -0.02],
+      ] as const)
+        s.blob(x, y + 0.026, z, 0.05, 0.028, 0.032, vary(C.bread, rnd, 0.7), 1, rnd, 0.004, C.breadTop);
+    },
+  },
+  candles: {
+    color: C.candle,
+    draw: (s, rnd, y) => {
+      s.surface(SURFACE.plain);
+      s.box(-0.2, y, -0.06, 0.2, y + 0.012, 0.06, palette.darkWood, 'b');
+      for (const [x, z, h] of [
+        [-0.15, -0.02, 0.1],
+        [-0.1, 0.02, 0.13],
+        [-0.05, -0.03, 0.09],
+        [0.05, 0.02, 0.12],
+        [0.1, -0.02, 0.09],
+        [0.15, 0.03, 0.11],
+      ] as const)
+        farCylinder(s, x, z, 0.017, 0.015, y + 0.012, y + 0.012 + h, vary(C.candle, rnd, 0.5), 4, Math.PI / 4);
+    },
+  },
+  chair: {
+    color: C.chair,
+    draw: (s, rnd, y) => {
+      const wood = vary(C.chair, rnd, 0.5);
+      s.surface(SURFACE.woodGrain);
+      s.box(-0.07, y + 0.07, -0.06, 0.07, y + 0.083, 0.06, wood);
+      for (const x of [-0.065, 0.055]) s.box(x, y, 0.048, x + 0.012, y + 0.07, 0.06, wood, 'b');
+      for (const x of [-0.065, 0.055]) s.box(x, y, -0.06, x + 0.012, y + 0.17, -0.048, wood, 'b');
+      for (const sy of [0.1, 0.13, 0.16]) s.box(-0.055, y + sy, -0.056, 0.055, y + sy + 0.016, -0.05, wood);
+    },
+  },
+  cheese: {
+    color: C.cheese,
+    draw: (s, rnd, y) => {
+      s.surface(SURFACE.plain);
+      for (const [x, z, r, up] of [
+        [-0.15, 0.0, 0.065, 0],
+        [-0.02, 0.02, 0.06, 0],
+        [0.14, -0.01, 0.065, 0],
+        [-0.15, 0.0, 0.05, 0.045],
+      ] as const) {
+        const base = y + up;
+        farCylinder(s, x, z, r, r, base, base + 0.04, vary(C.cheeseRind, rnd, 0.6), 7);
+        farCylinder(s, x, z, r * 0.94, r * 0.94, base + 0.04, base + 0.043, vary(C.cheese, rnd, 0.4), 7);
+      }
+    },
+  },
+  cider: {
+    color: C.jug,
+    draw: (s, rnd, y) => {
+      s.surface(SURFACE.terracotta);
+      for (const [x, z] of [
+        [-0.15, 0.0],
+        [-0.04, 0.03],
+        [0.07, -0.01],
+      ] as const) {
+        const c = vary(C.jug, rnd, 0.7);
+        farCylinder(s, x, z, 0.04, 0.045, y, y + 0.07, c, 7);
+        farCylinder(s, x, z, 0.04, 0.02, y + 0.07, y + 0.095, c, 7);
+        farCylinder(s, x, z, 0.02, 0.02, y + 0.095, y + 0.12, c, 5);
+        farCylinder(s, x, z, 0.022, 0.022, y + 0.12, y + 0.13, palette.darkWood, 5);
+      }
+      s.surface(SURFACE.woodGrain);
+      farCylinder(s, 0.19, 0, 0.05, 0.06, y, y + 0.1, vary(palette.wood, rnd), 8);
+    },
+  },
+  fish: {
+    color: C.fish,
+    draw: (s, rnd, y) => {
+      s.surface(SURFACE.woodGrain);
+      s.box(-0.2, y, -0.065, 0.2, y + 0.012, 0.065, C.crate, 'b');
+      s.surface(SURFACE.plain);
+      for (const [x, z, k] of [
+        [-0.1, -0.03, 1],
+        [0.1, -0.025, 0.95],
+        [-0.09, 0.03, 0.9],
+        [0.08, 0.035, 1],
+      ] as const)
+        s.blob(x, y + 0.026, z, 0.065 * k, 0.016, 0.02, vary(C.fish, rnd, 0.6), 1, rnd, 0.002);
+    },
+  },
+  grain: {
+    color: C.sack,
+    draw: (s, rnd, y) => {
+      sackBlob(s, rnd, -0.16, y, 0.0, 0.85);
+      sackBlob(s, rnd, -0.03, y, 0.015, 0.8);
+      sackBlob(s, rnd, 0.11, y, -0.005, 0.85);
+      s.surface(SURFACE.plain);
+      s.blob(0.19, y + 0.02, 0.03, 0.04, 0.022, 0.03, C.wheat, 1, rnd, 0.004);
+    },
+  },
+  honey: {
+    color: C.honey,
+    draw: (s, rnd, y) => {
+      s.surface(SURFACE.terracotta);
+      for (const [x, z] of [
+        [-0.15, 0.01],
+        [-0.05, -0.02],
+        [0.05, 0.02],
+        [0.15, -0.01],
+      ] as const) {
+        farCylinder(s, x, z, 0.04, 0.046, y, y + 0.07, vary(C.honey, rnd, 0.5), 6);
+        farCylinder(s, x, z, 0.04, 0.04, y + 0.07, y + 0.085, C.candle, 6);
+      }
+    },
+  },
+  sundries: {
+    color: C.wicker,
+    draw: (s, rnd, y) => {
+      s.surface(SURFACE.terracotta);
+      farCylinder(s, -0.17, 0, 0.04, 0.045, y, y + 0.07, vary(C.jug, rnd, 0.6), 7);
+      farCylinder(s, -0.17, 0, 0.04, 0.02, y + 0.07, y + 0.1, C.jug, 7);
+      basketNear(s, 0.0, y, 0.0, 0.06);
+      s.surface(SURFACE.plain);
+      s.blob(0.0, y + 0.06, 0, 0.045, 0.025, 0.035, C.bread, 1);
+      for (const [x, h] of [
+        [0.12, 0.1],
+        [0.16, 0.08],
+        [0.2, 0.11],
+      ] as const)
+        farCylinder(s, x, 0.01, 0.015, 0.014, y, y + h, C.candle, 4, Math.PI / 4);
+      skein(s, 0.16, y + 0.02, 0.06, C.yarnA, rnd);
+    },
+  },
+  veg: {
+    color: C.cabbage,
+    draw: (s, rnd, y) => {
+      basketNear(s, -0.1, y, 0, 0.075);
+      s.surface(SURFACE.plain);
+      s.blob(-0.13, y + 0.06, 0.0, 0.05, 0.045, 0.05, vary(C.cabbage, rnd, 0.6), 1);
+      s.blob(-0.06, y + 0.055, 0.015, 0.04, 0.038, 0.04, vary(C.cabbage, rnd, 0.6), 0);
+      for (const [x, hex] of [
+        [0.06, C.carrot],
+        [0.1, C.carrot],
+        [0.14, C.beet],
+      ] as const)
+        s.cylinder(x, 0.01, 0.018, 0.0, y, y + 0.09, hex, 4);
+      s.blob(0.2, y + 0.03, 0.02, 0.03, 0.028, 0.03, C.beet, 0);
+    },
+  },
+  wool: {
+    color: C.wool,
+    draw: (s, rnd, y) => {
+      s.surface(SURFACE.cloth);
+      for (const [x, z, k] of [
+        [-0.14, 0.0, 1],
+        [0.0, 0.015, 1.1],
+        [0.14, -0.005, 1],
+        [-0.04, -0.015, 0.8],
+      ] as const)
+        s.blob(
+          x,
+          y + 0.04 * k + (k < 0.9 ? 0.05 : 0),
+          z,
+          0.075 * k,
+          0.04 * k,
+          0.055 * k,
+          vary(rnd() < 0.5 ? C.wool : C.woolShade, rnd, 0.4),
+          1,
+          rnd,
+          0.01,
+        );
+    },
+  },
+  cloth: {
+    color: C.cloth,
+    draw: (s, rnd, y) => {
+      s.surface(SURFACE.cloth);
+      const cols = [C.cloth, C.clothB, 0x8fa37a, 0xd6c49a];
+      for (const [i, x0, x1] of [
+        [0, -0.22, -0.02],
+        [1, -0.2, 0.0],
+        [2, -0.21, -0.03],
+      ] as const)
+        s.rbox(x0, y + i * 0.036, -0.07, x1, y + i * 0.036 + 0.034, 0.07, vary(cols[i]!, rnd, 0.6), 0.008);
+      for (const [x, hex] of [
+        [0.1, cols[3]!],
+        [0.19, C.yarnA],
+      ] as const)
+        farCylinder(s, x, 0, 0.04, 0.04, y, y + 0.13, vary(hex, rnd, 0.6), 8);
+    },
+  },
+};
+
+/** The good ids a display (and a sign emblem) knows; anything else reads as sundries. */
+export const DISPLAY_GOODS: readonly string[] = Object.keys(DISPLAYS);
+
+export const goodsDisplay: Kit = goodsPiece('goods-display', 33, (s, rnd, params) => {
+  const good = typeof params.good === 'string' && DISPLAYS[params.good] ? params.good : 'sundries';
+  const d = DISPLAYS[good]!;
+  const wood = vary(palette.wood, rnd, 0.6);
+  const top = 0.14;
+  s.levels(
+    () => {
+      s.surface(SURFACE.woodGrain);
+      s.rbox(-0.27, top, -0.1, 0.27, top + 0.015, 0.1, wood, 0.006);
+      for (const x of [-0.2, 0.2]) {
+        beam(s, [x, top, 0], [x, 0, -0.085], 0.011, palette.timber);
+        beam(s, [x, top, 0], [x, 0, 0.085], 0.011, palette.timber);
+      }
+      beam(s, [-0.2, 0.06, 0], [0.2, 0.06, 0], 0.008, palette.timber);
+      d.draw(s, rnd, top + 0.015);
+    },
+    () => {
+      s.surface(SURFACE.woodGrain);
+      farBox(s, -0.27, top, -0.1, 0.27, top + 0.015, 0.1, wood);
+      for (const x of [-0.2, 0.2]) farBox(s, x - 0.012, 0, -0.085, x + 0.012, top, 0.085, palette.timber, 'btfk');
+      s.surface(SURFACE.plain);
+      farBox(s, -0.22, top + 0.015, -0.06, 0.22, top + 0.085, 0.06, d.color);
+    },
+  );
+});
+
+export const goodsChurns: Kit = goodsPiece('goods-churns', 35, (s, rnd) => {
+  const n = 2 + Math.floor(rnd() * 2);
+  const spots: [number, number][] =
+    n === 2
+      ? [
+          [-0.075, 0],
+          [0.07, 0.01],
+        ]
+      : [
+          [-0.09, -0.01],
+          [0.0, 0.025],
+          [0.09, -0.01],
+        ];
+  const tint = spots.map(() => vary(0xb9bdc0, rnd, 0.5));
+  s.levels(
+    () => {
+      s.surface(SURFACE.wroughtIron);
+      spots.forEach(([x, z], i) => {
+        const hex = tint[i]!;
+        farCylinder(s, x, z, 0.043, 0.048, 0, 0.1, hex, 6);
+        farCylinder(s, x, z, 0.048, 0.027, 0.1, 0.135, hex, 6);
+        farCylinder(s, x, z, 0.03, 0.03, 0.135, 0.155, 0x8d9296, 4, Math.PI / 4);
+      });
+    },
+    () => {
+      s.surface(SURFACE.wroughtIron);
+      spots.forEach(([x, z], i) =>
+        farCylinder(s, x, z, 0.044, 0.035, 0, 0.15, tint[i]!, n === 2 ? 5 : 4, Math.PI / 4),
+      );
+    },
+  );
+});
+
+export const goodsAppleCrate: Kit = goodsPiece('goods-apple-crate', 37, (s, rnd) => {
+  const wood = vary(C.crate, rnd, 0.8);
+  const apples: [number, number, number, number][] = [
+    [-0.06, -0.03, 0.12, 0],
+    [0.0, -0.035, 0.125, 1],
+    [0.06, -0.03, 0.12, 0],
+    [-0.04, 0.025, 0.125, 0],
+    [0.04, 0.03, 0.12, 1],
+    [0.0, 0.0, 0.15, 0],
+    [-0.085, 0.02, 0.115, 0],
+    [0.09, 0.0, 0.115, 0],
+  ];
+  const cols = apples.map(([, , , g]) => vary(g ? C.appleGreen : C.apple, rnd, 0.6));
+  s.levels(
+    () => {
+      s.surface(SURFACE.woodGrain);
+      s.rbox(-0.11, 0, -0.08, 0.11, 0.1, 0.08, wood, 0.008);
+      s.box(-0.114, 0.04, -0.084, 0.114, 0.056, 0.084, palette.darkWood);
+      s.surface(SURFACE.plain);
+      apples.forEach(([x, z, y], i) => s.blob(x, y, z, 0.03, 0.028, 0.03, cols[i]!, 0));
+    },
+    () => {
+      s.surface(SURFACE.woodGrain);
+      farBox(s, -0.11, 0, -0.08, 0.11, 0.1, 0.08, wood);
+      s.surface(SURFACE.plain);
+      farBox(s, -0.09, 0.1, -0.06, 0.09, 0.15, 0.06, C.apple, 'bfk');
+    },
+  );
+});
+
+export const goodsCandleRack: Kit = goodsPiece('goods-candle-rack', 39, (s, rnd) => {
+  const xs = [-0.09, -0.03, 0.03, 0.09];
+  const lens = xs.map(() => 0.1 + rnd() * 0.03);
+  const tints = xs.map(() => vary(C.candle, rnd, 0.5));
+  s.levels(
+    () => {
+      s.surface(SURFACE.woodGrain);
+      for (const x of [-0.13, 0.13]) beam(s, [x, 0, 0], [x, 0.3, 0], 0.011, palette.timber);
+      for (const x of [-0.13, 0.13]) beam(s, [x, 0.01, -0.06], [x, 0.01, 0.06], 0.01, palette.timber);
+      beam(s, [-0.15, 0.3, 0], [0.15, 0.3, 0], 0.008, palette.wood);
+      s.surface(SURFACE.plain);
+      xs.forEach((x, i) => {
+        for (const dx of [-0.011, 0.011])
+          s.box(x + dx - 0.007, 0.29 - lens[i]!, -0.007, x + dx + 0.007, 0.29, 0.007, tints[i]!, 'b');
+      });
+    },
+    () => {
+      s.surface(SURFACE.woodGrain);
+      for (const x of [-0.13, 0.13])
+        farBox(s, x - 0.012, 0, -0.012, x + 0.012, 0.3, 0.012, palette.timber, 'bkt');
+      s.surface(SURFACE.plain);
+      farBox(s, -0.1, 0.17, -0.01, 0.1, 0.29, 0.01, C.candle, 'bkrl');
+    },
+  );
+});
+
+export const goodsFleece: Kit = goodsPiece('goods-fleece', 41, (s, rnd) => {
+  const rolls: [number, number, number][] = [
+    [-0.1, 0.045, -0.01],
+    [0.0, 0.045, 0.012],
+    [0.1, 0.045, -0.005],
+    [-0.05, 0.125, 0.0],
+    [0.055, 0.125, 0.008],
+  ];
+  const cols = rolls.map(() => vary(rnd() < 0.5 ? C.wool : C.woolShade, rnd, 0.5));
+  s.levels(
+    () => {
+      s.surface(SURFACE.cloth);
+      rolls.forEach(([x, y, z], i) => cylZ(s, z - 0.065, z + 0.065, x, y, 0.045, cols[i]!, 6, C.woolShade));
+      s.blob(0.0, 0.2, 0.0, 0.07, 0.03, 0.05, vary(C.wool, rnd, 0.4), 1, rnd, 0.01);
+    },
+    () => {
+      s.surface(SURFACE.cloth);
+      farBox(s, -0.15, 0, -0.07, 0.15, 0.09, 0.07, cols[0]!);
+      farBox(s, -0.1, 0.09, -0.06, 0.11, 0.17, 0.06, cols[3]!);
+    },
+  );
+});
+
+export const goodsFishRack: Kit = goodsPiece('goods-fish-rack', 43, (s, rnd) => {
+  const fish = [-0.12, -0.06, 0.0, 0.06, 0.12].map((x) => ({
+    x,
+    y: 0.27 + rnd() * 0.03,
+    hex: vary(C.fish, rnd, 0.8),
+  }));
+  s.levels(
+    () => {
+      s.surface(SURFACE.woodGrain);
+      for (const x of [-0.17, 0.17]) {
+        beam(s, [x, 0.38, 0], [x, 0, -0.055], 0.011, palette.timber);
+        beam(s, [x, 0.38, 0], [x, 0, 0.055], 0.011, palette.timber);
+      }
+      beam(s, [-0.2, 0.38, 0], [0.2, 0.38, 0], 0.01, palette.wood);
+      s.surface(SURFACE.plain);
+      for (const f of fish) {
+        s.quad(
+          [f.x - 0.002, 0.37, 0],
+          [f.x + 0.002, 0.37, 0],
+          [f.x + 0.002, f.y + 0.06, 0],
+          [f.x - 0.002, f.y + 0.06, 0],
+          C.rope,
+          [0, 0, 1],
+        );
+        s.blob(f.x, f.y, 0, 0.02, 0.062, 0.013, f.hex, 0);
+      }
+    },
+    () => {
+      s.surface(SURFACE.woodGrain);
+      for (const x of [-0.17, 0.17])
+        farBox(s, x - 0.012, 0, -0.05, x + 0.012, 0.38, 0.05, palette.timber, 'btfk');
+      farBox(s, -0.2, 0.37, -0.01, 0.2, 0.39, 0.01, palette.wood, 'bkrl');
+      s.surface(SURFACE.plain);
+      farBox(s, -0.15, 0.2, -0.01, 0.15, 0.34, 0.01, C.fish, 'bktrl');
+    },
+  );
+});
