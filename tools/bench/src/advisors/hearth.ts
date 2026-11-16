@@ -20,6 +20,7 @@ import {
 } from '@qoti/sim';
 import type { Planner } from '../planner';
 import { count, G, idx, S, sites } from '../town';
+import { wellFor } from './siting';
 import type { Advisor, AdvisorDef } from './types';
 
 /** A tree on the map, grown to at least `stage`, within `r` tiles of a building. */
@@ -68,23 +69,6 @@ class Hearth implements Advisor {
           return !!this.p.buildAt('a garden bed for a wish', 'garden-bed', x, z, 0, true);
         }
     return false;
-  }
-
-  /**
-   * R1X: a well within reach of the door that asked, and half a reach clear of every other well (the
-   * sim's service-clustered check). It used to go wherever a well first fit from the town's middle,
-   * so the far household's wish stayed open and the next one stood beside it: seven on one green.
-   */
-  private wellFor(hx: number, hz: number): Building | null {
-    const r = content.buildingById.get('well')?.coverage?.find((c) => c.kind === 'water')?.radius ?? 8;
-    const wells = this.w.buildings.filter((b) => b.def === 'well');
-    const only = (x: number, z: number): boolean => {
-      // The sim measures a well's reach from its corner tile to the door (residents/needs).
-      if ((x - hx) * (x - hx) + (z - hz) * (z - hz) > (r - 1) * (r - 1)) return false;
-      for (const o of wells) if ((o.x - x) * (o.x - x) + (o.z - z) * (o.z - z) < (r * r) / 4) return false;
-      return true;
-    };
-    return this.p.build('well', only);
   }
 
   private commutePath(home: number, work: number): boolean {
@@ -179,7 +163,7 @@ class Hearth implements Advisor {
             sites(w) < 3 &&
             count(w, 'well') <= w.residents.length / 10
           )
-            ok = !!this.wellFor(hx, hz);
+            ok = !!wellFor(p, hx, hz);
           break;
         default:
           break;
