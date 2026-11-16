@@ -10,7 +10,10 @@
 // street furniture rows through V3A, one row each. Rule ids are append-only: they seed placements
 // and show up in tests and shots. Add a rule as one line in its place (grouped by who it dresses).
 
-/** Who a building is for the dressing: a home, a business on a zoned lot, or a specialized building. */
+/**
+ * Who a building is for the dressing: a home, a business on a zoned lot, or a specialized building
+ * (V3X: any other building, dressed only by rules that name its def).
+ */
 export type DressingKind = 'home' | 'business' | 'specialized';
 
 /** The plot anchors a rule can name (the art package's `ANCHOR_NAMES`, kept equal by a test). */
@@ -194,6 +197,13 @@ export const dressingRules: readonly DressingRule[] = [
   { id: 'weaver-cloth', who: { trade: ['weaver'] }, anchor: 'yard', piece: { kit: 'yard-cloth-frame' }, count: { base: 1, stat: 'workers', perUnit: 0.5, max: 2 }, seed: 112 },
   { id: 'fishery-nets', who: { def: ['fishery'] }, anchor: 'yard', piece: { kit: 'yard-nets' }, count: { base: 1, max: 1 }, seed: 113 },
   { id: 'fishery-fish', who: { def: ['fishery'] }, anchor: 'eaves', piece: { kit: 'goods-fish-rack' }, count: { base: 1, max: 1 }, seed: 114 },
+  // V3X: buildings that dressed with nothing on the grown village, so a street still says who works there.
+  { id: 'forester-logs', who: { def: ['foresters-lodge'] }, anchor: 'eaves', piece: { kit: 'yard-woodpile' }, count: { base: 3, max: 4 }, seed: 410 },
+  { id: 'forester-block', who: { def: ['foresters-lodge'] }, anchor: 'yard', piece: { kit: 'yard-chopping-block' }, count: { base: 1, max: 1 }, seed: 411 },
+  { id: 'herbalist-greens', who: { def: ['herbalist'] }, anchor: 'yard', piece: { kit: 'goods-display', params: { good: 'vegetables' } }, count: { base: 1, max: 1 }, seed: 412 },
+  { id: 'herbalist-butt', who: { def: ['herbalist'] }, anchor: 'eaves', piece: { kit: 'yard-water-butt' }, count: { base: 1, max: 1 }, seed: 413 },
+  { id: 'tavern-cider', who: { def: ['tavern'] }, anchor: 'front', piece: { kit: 'goods-display', params: { good: 'cider' } }, count: { base: 1, max: 1 }, seed: 414 },
+  { id: 'tavern-lamp', who: { def: ['tavern'] }, anchor: 'door', piece: { kit: 'yard-lamp' }, count: { base: 1, max: 1 }, seed: 415 },
 
   // By household: a woodpile as big as the firewood, washing once there is cloth, a pram after a
   // birth, and the odd pair of boots, cat, water butt or chopping block. Lamps join the night.

@@ -103,7 +103,9 @@ export function dressingSubject(mirror: Mirror, b: BuildingView): DressingSubjec
   if (b.stage === 'built' && def) {
     if (b.trade) kind = 'business';
     else if (def.category === 'home') kind = 'home';
-    else if (def.specialized) kind = 'specialized';
+    // V3X: any other building (a fishery, a lodge, and a tavern or herbalist too) is 'specialized':
+    // every rule names a kind, a def or a trade, so this opens it only to rules that name its def.
+    else kind = 'specialized';
   }
   const level = b.level ?? 1;
   const h = householdOf(mirror, b.id);

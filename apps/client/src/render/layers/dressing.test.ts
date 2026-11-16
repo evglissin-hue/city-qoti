@@ -197,11 +197,20 @@ describe('dressingSubject (V3.0)', () => {
     expect(s.stats.fill).toBe(50);
   });
 
-  it('gives kind null for a construction site and for a def that is none of the three', () => {
+  it('gives kind null for a construction site, and specialized to any other built building (V3X)', () => {
     const site = building(4, 'cottage', { stage: 'construction' });
     expect(dressingSubject(mirrorOf({ buildings: [site] }), site).kind).toBeNull();
+    // A tavern or a well is neither a home nor a business: only rules naming its def dress it.
     const well = building(5, 'well');
-    expect(dressingSubject(mirrorOf({ buildings: [well] }), well).kind).toBeNull();
+    expect(dressingSubject(mirrorOf({ buildings: [well] }), well).kind).toBe('specialized');
+  });
+
+  it('dresses no building through its kind alone: every shipped rule names a kind other than specialized, a def or a trade', () => {
+    for (const r of content.dressingRules ?? []) {
+      const named = (r.who.def?.length ?? 0) + (r.who.trade?.length ?? 0);
+      const kinds = r.who.kind ?? [];
+      expect(named > 0 || (kinds.length > 0 && !kinds.includes('specialized')), r.id).toBe(true);
+    }
   });
 
   it('reads missing data as 0', () => {
@@ -609,7 +618,9 @@ describe('dressingLayer, front and door pieces fit every plot they match (V3X)',
     for (const def of content.buildingById.values()) {
       if (def.specialized) continue;
       const trades = [...content.tradeById.values()].filter((t) => t.building === def.id);
-      const asks: (string | undefined)[] = def.category === 'home' ? [undefined] : trades.map((t) => t.id);
+      // A home, or a building with no trade (a tavern: V3X dresses it by def), is asked as itself.
+      const asks: (string | undefined)[] =
+        def.category === 'home' || trades.length === 0 ? [undefined] : trades.map((t) => t.id);
       for (const trade of asks) {
         const b = building(1, def.id, { ...(trade ? { trade, level: 3 } : {}) });
         const households: Partial<HouseholdView>[] =
