@@ -15,10 +15,10 @@ export const craftsfolk: NeedsBasket = {
     { family: 'wares', amount: 0.2, perHousehold: true, variety: 1 },
     { family: 'treats', amount: 0.2, variety: 1 },
   ],
-  services: ['health', 'social'],
-  charm: 25,
-  // R2 stand-in (R2B): R2B's tiers read `evenings` in place of the tavern ('social') and `charm`,
-  // and drop both from this basket; until then the R1 gates stand and `evenings` is unread.
+  // R2B: good evenings out stand in for the tavern and the street's charm (charm at the door still
+  // feeds desirability, arrivals and the dressing ladder).
+  services: ['health'],
+  charm: 0,
   evenings: 50,
   // R1X: 12 (was 20): households spend most of what they earn on their baskets, and twenty coins
   // put by kept nearly every household from moving up at day 70 on every seed.

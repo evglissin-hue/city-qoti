@@ -3,6 +3,7 @@
 // (social) and the herbalist (health); their children care about the herbalist and the school
 // (education) instead of the tavern. A need a resident does not have weighs nothing and stays at
 // 100. A leaf module: the residents' mood code and the inspector read it.
+import { content } from '@qoti/content';
 import { NEED_IDS, NEED_WEIGHTS, TIERS } from '../../constants';
 import type { LifeStage, Resident, TierId } from '../../contracts';
 
@@ -30,6 +31,8 @@ export function hasServiceNeed(tier: TierId, stage: LifeStage, kind: ServiceKind
 }
 
 const GOODS = NEED_IDS.indexOf('goods');
+const BEAUTY = NEED_IDS.indexOf('beauty');
+const EVENINGS = NEED_IDS.indexOf('evenings');
 
 /**
  * The weights a resident's mood uses, by tier and stage (cached rows). C4X: the `goods` need (the
@@ -41,8 +44,12 @@ export function weightRow(tier: TierId, stage: LifeStage, market = false): Weigh
   if (!row) {
     const w = NEED_IDS.map((_, i) => (i === GOODS && !market ? 0 : (NEED_WEIGHTS[i] ?? 0)));
     for (const kind of SERVICE_KINDS) {
-      w[SERVICE_NEED[kind]] = hasServiceNeed(tier, stage, kind) ? SERVICE_WEIGHT : 0;
+      w[SERVICE_NEED[kind]] = hasServiceNeed(tier, stage, kind) && kind !== 'social' ? SERVICE_WEIGHT : 0;
     }
+    // R2B: evenings out take beauty's weight and the tavern's social need (the tavern is a place on
+    // the round now).
+    w[BEAUTY] = 0;
+    w[EVENINGS] = content.places.needWeight;
     row = { w, total: w.reduce((a, b) => a + b, 0) };
     rows.set(key, row);
   }
@@ -75,6 +82,12 @@ const SERVICE_WORDS: readonly (readonly [min: number, text: string])[][] = [
     [85, 'Learning their letters'],
     [45, 'Lessons at the kitchen table'],
     [0, 'No school within reach'],
+  ],
+  [
+    [85, 'Fine evenings out'],
+    [55, 'Evenings out, of a sort'],
+    [30, 'Mostly evenings in'],
+    [0, 'Nowhere to go of an evening'],
   ],
 ];
 
