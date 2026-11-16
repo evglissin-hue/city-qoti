@@ -46,7 +46,12 @@ export type Activity =
   /** A logistics or construction task (C3C): porter trips and builder work. */
   | { kind: 'task'; taskId: number };
 
-export type MoveReason = 'schedule' | 'task' | 'arrive' | 'leave' | 'shop' | 'leisure';
+/**
+ * Why a resident walks. R2 (R2A, additive): 'round' is a walk to or between the stops of an evening
+ * round: it takes the evening route grid (pathFor's 'round' mode) and its steps count for the
+ * evening footfall layer instead of the day's.
+ */
+export type MoveReason = 'schedule' | 'task' | 'arrive' | 'leave' | 'shop' | 'leisure' | 'round';
 
 /** Path progress when walking. Tiles are indexes z * size + x. */
 export interface MoveState {
