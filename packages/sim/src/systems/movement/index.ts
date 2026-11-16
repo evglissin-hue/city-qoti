@@ -5,13 +5,15 @@
 // path is left the resident stops and is marked stuck for the schedule to deal with.
 // I2 (C4B): every step onto open ground wears a desire path in (systems/traffic/wear).
 import { content } from '@qoti/content';
-import { ResidentFlags } from '../../constants';
-import type { Resident, System, WorldState } from '../../contracts';
+import { FOOTFALL_HALVE_HOUR, FOOTFALL_MAX, ResidentFlags, TICKS_PER_HOUR } from '../../constants';
+import type { Resident, System, TickCtx, WorldState } from '../../contracts';
 import { isStandard } from '../../state/hamlet';
 import { wearStep } from '../traffic/wear';
 import { walkPermille } from './factors';
 import { walkGrid } from './grid';
-import { pathBetween } from './paths';
+import { tickOfDay } from '../residents/time';
+import { pathFor } from './paths';
+import { dropRouteGrid } from './routes';
 
 /** Walk speed percent by trait id (100 = normal; Sporty 80 means 80% of the ticks per tile). */
 const walkPercent = new Map<string, number>();
@@ -49,6 +51,23 @@ export function advance(progress: number, T: number): number {
   return Math.floor((256 * (k + 1)) / T);
 }
 
+/** Footfall's clock: the 04:00 halving (and the route grid's end) and the evening's hourly views. */
+function footfallClock(state: WorldState, ctx: TickCtx): void {
+  const t = tickOfDay(state.tick);
+  if (t % TICKS_PER_HOUR !== 0) return;
+  const hour = t / TICKS_PER_HOUR;
+  const { eveningHour, homeHour } = content.places;
+  const { footfallDay, footfallEve } = state.map;
+  if (hour === FOOTFALL_HALVE_HOUR) {
+    for (let i = 0; i < footfallDay.length; i++) {
+      footfallDay[i]! >>= 1;
+      footfallEve[i]! >>= 1;
+    }
+    dropRouteGrid(state);
+  } else if (hour < eveningHour || hour > homeHour) return;
+  ctx.events.push({ e: 'footfall.updated', f: { day: footfallDay.slice(), eve: footfallEve.slice() } });
+}
+
 export const movement: System = {
   id: 'movement',
   order: 52,
@@ -57,6 +76,8 @@ export const movement: System = {
     if (!isStandard(state)) return;
     const residents = state.residents;
     let grid = walkGrid(state);
+    footfallClock(state, ctx);
+    const { footfallDay, footfallEve } = state.map;
     for (let i = 0; i < residents.length; i++) {
       const r = residents[i]!;
       const m = r.move;
@@ -73,6 +94,8 @@ export const movement: System = {
       if (m.progress < 256) continue;
       r.tile = next;
       wearStep(state, ctx, next);
+      const layer = m.reason === 'round' ? footfallEve : footfallDay;
+      if (layer[next]! < FOOTFALL_MAX) layer[next]! += 1;
       m.step += 1;
       if (m.step >= m.path.length) {
         r.move = null;
@@ -82,7 +105,7 @@ export const movement: System = {
       const ahead = m.path[m.step]!;
       if (grid.cost[ahead] === 0 && ahead !== m.target) {
         // The way ahead closed since the walk was planned: find another one from here.
-        const path = pathBetween(state, r.tile, m.target);
+        const path = pathFor(state, r.tile, m.target, m.reason === 'round' ? 'round' : 'walk');
         grid = walkGrid(state);
         if (!path || path.length === 0) {
           r.move = null;

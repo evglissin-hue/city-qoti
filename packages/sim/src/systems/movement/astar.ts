@@ -61,6 +61,10 @@ function pop(): number {
  * The cheapest path from `from` to `to` as tiles after `from` (ending with `to`), [] when they are
  * the same tile, or null when unreachable within MAX_PATH_EXPANSIONS. The start and target tiles
  * are always enterable, so walkers can leave and reach building doors.
+ *
+ * R2A: `cost` is the step cost layer (the walk grid's by default) and `scale` the cost of one plain
+ * step in it (a layer scaled by 4 passes 4): a blocked target costs `scale`, an uphill step adds
+ * `scale`, and the heuristic is the Manhattan distance times `scale`. Ties still break on the raw h.
  */
 export function findPath(
   grid: WalkGrid,
@@ -68,10 +72,11 @@ export function findPath(
   from: number,
   to: number,
   maxExpansions = MAX_PATH_EXPANSIONS,
+  cost: Uint8Array = grid.cost,
+  scale = 1,
 ): number[] | null {
   if (from === to) return [];
   if (from < 0 || to < 0 || from >= N || to >= N) return null;
-  const cost = grid.cost;
   search = (search + 1) >>> 0;
   if (search === 0) {
     seen.fill(0);
@@ -91,7 +96,7 @@ export function findPath(
   parent[from] = -1;
   seen[from] = id;
   const h0 = hOf(from);
-  push((h0 * H_SLOTS + h0) * TILE_SLOTS + from);
+  push((h0 * scale * H_SLOTS + h0) * TILE_SLOTS + from);
   let expansions = 0;
   while (heapSize > 0) {
     const key = pop();
@@ -126,19 +131,19 @@ export function findPath(
       let step = cost[nb]!;
       if (step === 0) {
         if (nb !== to) continue;
-        step = 1;
+        step = scale;
       }
       const hn = height[nb]!;
       const dh = hn - hc;
       if (dh >= 2 || dh <= -2) continue;
-      if (dh > 0) step += 1;
+      if (dh > 0) step += scale;
       const gn = gc + step;
       if (seen[nb] === id && g[nb]! <= gn) continue;
       seen[nb] = id;
       g[nb] = gn;
       parent[nb] = cur;
       const h = hOf(nb);
-      push(((gn + h) * H_SLOTS + h) * TILE_SLOTS + nb);
+      push(((gn + h * scale) * H_SLOTS + h) * TILE_SLOTS + nb);
     }
   }
   lastExpansions = expansions;
