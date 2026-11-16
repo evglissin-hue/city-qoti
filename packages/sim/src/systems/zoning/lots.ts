@@ -32,7 +32,7 @@
 //   row) becomes garden lots, never built on, in no zone; a block open on any side stays open to the
 //   fields. Erasing a road or a row opens the block and the gardens go with the next pass.
 import { content, type LotDef, type RoadLotsDef } from '@qoti/content';
-import { DECOR_BUILDING_MARGIN, MAP_SIZE, TILE_FP } from '../../constants';
+import { DECOR_BUILDING_MARGIN, MAP_SIZE, TILE_FP, Zone } from '../../constants';
 import type { Lot, Rot4, TickCtx, WorldState } from '../../contracts';
 import { Road } from '../../map/layers';
 import { inClearance } from '../../rules/clearance';
@@ -719,10 +719,14 @@ function mark(i: number, v: number): void {
   seenMark[i] = v;
 }
 
-/** True when a tile is open ground a garden may take: no road, water, field, building or lot. */
+/**
+ * True when a tile is open ground a garden may take: no road, water, field, building or lot, and not
+ * Farmland (free farm ground is a farm's fields, so a block that holds some is open to the fields).
+ */
 function gardenGround(state: WorldState, i: number): boolean {
   const m = state.map;
   if (m.road[i] || m.water[i] || m.fieldOwner[i] || m.occupant[i] || m.lot[i]) return false;
+  if (m.zone[i] === Zone.farms) return false;
   const x = i % S;
   return worldIndex(state).reader.parcelUnlocked(x, (i - x) / S);
 }
