@@ -221,3 +221,48 @@ export const TERRAIN_COLORS: readonly number[] = [
   palette.riverbed,
   palette.field,
 ];
+
+/**
+ * V3D: paper and ink tokens for the endpaper map (the valley drawn as a hand-inked storybook map,
+ * apps/client/src/worker/endpaperDraw.ts). Warm paper, brown-black ink, a few muted washes.
+ */
+export const endpaperInk = {
+  /** The sheet (same as the renderer's PARCHMENT) and its aged edge. */
+  paper: 0xeee2c2,
+  paperShade: 0xb89c6c,
+  paperLight: 0xf7efd9,
+  /** Linework: the main ink and a fainter one for contours. */
+  ink: 0x4a3626,
+  inkFaint: 0x8a7050,
+  /** Water wash, its deeper channel, and the lettering ink used over water. */
+  water: 0xa8c3c6,
+  waterDeep: 0x7ea3ad,
+  waterInk: 0x35596b,
+  /** Trees: crowns, their shadow sides, trunks. */
+  oak: 0x93ab62,
+  oakDark: 0x62804a,
+  birch: 0xb7c986,
+  birchDark: 0x8ba35e,
+  pine: 0x5f8561,
+  pineDark: 0x3f6249,
+  trunk: 0x7b5a3a,
+  /** Worked fields (hatch), meadow tint, rock and sand marks. */
+  field: 0x9c8032,
+  meadow: 0xa6b877,
+  rock: 0x6e5a44,
+  sand: 0x9a7b4a,
+  /** Roofs: brick-sepia fill and its ink. */
+  roof: 0xb86a4a,
+  roofInk: 0x4f2c20,
+  /** Road: pale cased fill, sepia path. */
+  road: 0xf6ecd0,
+  path: 0x8c6644,
+  /** Plans in blueprint ink and its pale wash. */
+  blueprint: 0x3c68a6,
+  blueprintWash: 0xa9c6e6,
+  /** The two inks: goods routes (ochre) and evening footfall (sage). */
+  goods: 0xd39a2c,
+  footfall: 0x7f9d62,
+  /** The parchment halo behind lettering. */
+  halo: 0xf5ecd2,
+} as const;
