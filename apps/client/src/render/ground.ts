@@ -48,6 +48,9 @@ function smoothstep(a: number, b: number, x: number): number {
 }
 
 type RGB = [number, number, number];
+/** V3C: an sRGB hex as a GLSL vec3 in 0 to 1 (for qSrgb in the shader). */
+const glslColor = (hex: number): string =>
+  `vec3(${(((hex >> 16) & 255) / 255).toFixed(4)}, ${(((hex >> 8) & 255) / 255).toFixed(4)}, ${((hex & 255) / 255).toFixed(4)})`;
 const rgb = (hex: number): RGB => [(hex >> 16) & 255, (hex >> 8) & 255, hex & 255];
 const mix = (a: RGB, b: RGB, t: number): RGB => [
   a[0] + (b[0] - a[0]) * t,
@@ -777,9 +780,23 @@ float qCloudShade(vec2 wp) {
   return 1.0 - c * 0.2 * uClouds;
 }
 
-float qRimMist(vec2 wp) {
+// V3C: the valley's rim (the sim's ring of mountain tiles and the cliff below it) painted as the foot
+// of the horizon's near hills (layers/horizon.ts, the same palette), in woods and grassy clearings,
+// so the valley runs on into the hills with no box. Only the raised rim: the river's notch keeps its
+// banks. Snow settles on it and its woods warm in autumn, as the horizon's do.
+vec3 qRim(vec3 col) {
+  vec2 wp = vQWorld.xz;
   float e = min(min(wp.x, wp.y), min(${N.toFixed(1)} - wp.x, ${N.toFixed(1)} - wp.y));
-  return 1.0 - smoothstep(0.0, 16.0, e);
+  float k = (1.0 - smoothstep(4.5, 7.5, e)) * smoothstep(3.6, 5.2, vQWorld.y);
+  if (k < 0.001) return col;
+  float wn = qFbm(wp * 0.09 + 3.7);
+  float woods = smoothstep(0.38, 0.55, wn);
+  vec3 hill = mix(qSrgb(${glslColor(palette.horizonNear)}), qSrgb(${glslColor(palette.horizonWoods)}), woods);
+  hill *= 0.86 + 0.24 * qNoise(wp * 0.7) + 0.1 * qNoise(wp * 3.1);
+  vec3 fall = qSrgb(vec3(0.66, 0.4, 0.17)) * (0.7 + 0.5 * qNoise(wp * 0.5 + 9.0));
+  hill = mix(hill, fall, uAutumn * woods * 0.6);
+  hill = mix(hill, qSrgb(vec3(0.93, 0.94, 0.96)), uSnow * 0.8);
+  return mix(col, hill, k);
 }
 `;
 
@@ -862,7 +879,7 @@ export function createGroundMaterial(tex: GroundTextures, env: WorldEnv): MeshSt
       )
       .replace(
         '#include <color_fragment>',
-        '#include <color_fragment>\n#ifdef USE_FOG\ngQSky = fogColor;\n#endif\ndiffuseColor.rgb = qGround(diffuseColor.rgb) * qCloudShade(vQWorld.xz);',
+        '#include <color_fragment>\n#ifdef USE_FOG\ngQSky = fogColor;\n#endif\ndiffuseColor.rgb = qRim(qGround(diffuseColor.rgb)) * qCloudShade(vQWorld.xz);',
       )
       .replace(
         '#include <roughnessmap_fragment>',
@@ -875,10 +892,6 @@ export function createGroundMaterial(tex: GroundTextures, env: WorldEnv): MeshSt
             // not an olive one), and a breath of warm air over the pool.
             '#include <emissivemap_fragment>\n{ vec3 qG = qGlow(); totalEmissiveRadiance += qLampAlbedo(diffuseColor.rgb) * qG * 1.3 + qG * 0.035; }'
           : '#include <emissivemap_fragment>\ntotalEmissiveRadiance += diffuseColor.rgb * qGlow() * 1.3;',
-      )
-      .replace(
-        '#include <fog_fragment>',
-        '#include <fog_fragment>\n#ifdef USE_FOG\ngl_FragColor.rgb = mix(gl_FragColor.rgb, fogColor, qRimMist(vQWorld.xz) * 0.55);\n#endif',
       );
   };
   m.customProgramCacheKey = () => (map ? 'qoti-ground-lightmap' : 'qoti-ground');

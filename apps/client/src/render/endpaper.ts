@@ -17,6 +17,8 @@ import {
 import { footprintSize } from '@qoti/sim';
 import type { Mirror } from '../state/mirror';
 import { drawDef } from './defs';
+import { riverCourse } from './layers/water';
+import { endpaperStreets } from './lots';
 
 /** Camera distance in tiles where the map starts to show, and where it covers the view. */
 export const ENDPAPER_NEAR = 200;
@@ -141,6 +143,10 @@ export interface EndpaperInput {
   rows?: EndpaperRoof[][];
   /** V3D, fed by V3B (`endpaperFeeds.gardens`): garden lots behind the rows, in tiles, drawn as hedged greens. */
   gardens?: { x: number; z: number; w: number; d: number }[];
+  /** V3C: the river's centerline as x, z pairs in tiles, from `riverCourse` in `layers/water.ts`. */
+  riverPoints?: Float32Array;
+  /** V3C: the river's width in tiles at each point of `riverPoints`, from `riverCourse`. */
+  riverWidths?: Float32Array;
 }
 
 /** V3D: the river's course (V3C's): x, z pairs in tiles along the river, and its width in tiles at each point. */
@@ -151,8 +157,8 @@ export interface EndpaperRiver {
 
 /**
  * V3D: where `endpaperInput` takes V3B's rows and V3C's river from, so neither track edits this
- * file: each sets its function here once (V3X wires them), from shared Mirror state only. Unset (as
- * on this branch) the map draws plain footprints and finds the river in `water`.
+ * file: each sets its function here once (V3X wired them), from shared Mirror state only. Unset, the
+ * map draws plain footprints and finds the river in `water`.
  */
 export interface EndpaperFeeds {
   river?: (mirror: Mirror) => EndpaperRiver | null;
@@ -163,8 +169,7 @@ export interface EndpaperFeeds {
 /**
  * V3D: V3B's `endpaperStreets(mirror).rooflines` (`render/lots.ts` on V3B's branch) as the map's
  * rows: rooflines sharing a row id above 0 make one row, in the order given; row 0 (a lone lot) makes
- * none. V3X wires it: `endpaperFeeds.rows = (m) => rowsOfRooflines(endpaperStreets(m).rooflines)` and
- * `endpaperFeeds.gardens = (m) => endpaperStreets(m).gardens`.
+ * none. V3X wired it into `endpaperFeeds.rows`, and V3B's gardens into `endpaperFeeds.gardens`.
  */
 export function rowsOfRooflines(
   rooflines: readonly {
@@ -187,8 +192,27 @@ export function rowsOfRooflines(
   return [...rows.values()];
 }
 
-/** V3D: the feeds `endpaperInput` uses by default. */
-export const endpaperFeeds: EndpaperFeeds = {};
+/** V3X: the river's course for the map: V3C's `riverCourse` over the shared water layer. */
+export function riverOfMirror(mirror: Mirror): EndpaperRiver | null {
+  const tiles = mirror.size;
+  const water = mirror.layers.water;
+  if (!water) return null;
+  const course = riverCourse(
+    { water: (x, z) => (x < tiles && z < tiles ? (water[z * tiles + x] ?? 0) : 0) },
+    mirror.meta?.flow,
+  );
+  return { points: course.points, widths: course.widths };
+}
+
+/**
+ * V3D: the feeds `endpaperInput` uses by default. V3X wired them: V3B's rows and gardens
+ * (`endpaperStreets` in `lots.ts`) and V3C's river (`riverCourse` in `layers/water.ts`).
+ */
+export const endpaperFeeds: EndpaperFeeds = {
+  river: riverOfMirror,
+  rows: (m) => rowsOfRooflines(endpaperStreets(m).rooflines),
+  gardens: (m) => endpaperStreets(m).gardens,
+};
 
 /**
  * The map as the renderer sees it. `texture` is written only through the `EndpaperWriter` (with the
@@ -329,7 +353,12 @@ export function endpaperInput(
     terrain: layerCopy(L.terrain, n),
   };
   const river = feeds.river?.(mirror);
-  if (river && river.points.length >= 4) input.river = river;
+  if (river && river.points.length >= 4) {
+    input.river = river;
+    // V3C's two fields carry the same course (append-only; the drawing reads `river`).
+    input.riverPoints = river.points;
+    input.riverWidths = river.widths;
+  }
   const rows = feeds.rows?.(mirror);
   if (rows && rows.length) input.rows = rows;
   const gardens = feeds.gardens?.(mirror);

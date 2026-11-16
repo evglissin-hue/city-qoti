@@ -13,6 +13,7 @@ import {
   endpaperSignature,
   type EndpaperInput,
   endpaperCover,
+  endpaperFeeds,
   endpaperInput,
   EndpaperWriter,
   type EndpaperReply,
@@ -68,6 +69,12 @@ function fakeMirror(): Mirror {
       [2, { id: 2, def: 'cottage', x: 5, z: 3, rot: 1, stage: 'construction' }],
     ]),
     settings: { value: { valleyName: 'Hollowmere' } },
+    // V3X: the default feeds read the lots (V3B's rows) and the flow (V3C's river).
+    lots: new Map(),
+    meta: { flow: 'ns' },
+    occupant: () => 0,
+    road: () => 0,
+    height: () => 2,
   } as unknown as Mirror;
 }
 
@@ -216,7 +223,7 @@ describe('the endpaper input (V3D)', () => {
 
 describe('the endpaper feeds (V3D, for V3B and V3C)', () => {
   it("takes V3C's river and V3B's rows from the feeds, and leaves them absent when unset", () => {
-    const plain = endpaperInput(fakeMirror());
+    const plain = endpaperInput(fakeMirror(), {}, {});
     expect(plain.river).toBeUndefined();
     expect(plain.rows).toBeUndefined();
     const river = { points: new Float32Array([0, 0, 10, 10]), widths: new Float32Array([3, 3]) };
@@ -229,6 +236,21 @@ describe('the endpaper feeds (V3D, for V3B and V3C)', () => {
     const fed = endpaperInput(fakeMirror(), {}, { river: () => river, rows: () => rows });
     expect(fed.river).toBe(river);
     expect(fed.rows).toBe(rows);
+  });
+
+  it("wires V3C's river and V3B's rows and gardens by default (V3X)", () => {
+    expect(endpaperFeeds.river && endpaperFeeds.rows && endpaperFeeds.gardens).toBeTruthy();
+    // A dry valley has no course; a river down a column has one, in both of V3C's fields too.
+    expect(endpaperInput(fakeMirror()).river).toBeUndefined();
+    const wet = fakeMirror();
+    for (let z = 0; z < N; z++) (wet.layers.water as Uint8Array)[z * N + 4] = 1;
+    const inp = endpaperInput(wet);
+    expect(inp.river).toBeDefined();
+    expect(inp.riverPoints).toBe(inp.river!.points);
+    expect(inp.riverWidths).toBe(inp.river!.widths);
+    // No lots on the fake, so no rows or gardens (absent, not empty).
+    expect(inp.rows).toBeUndefined();
+    expect(inp.gardens).toBeUndefined();
   });
 
   it("groups V3B's rooflines into rows by row id, leaving lone lots out", () => {

@@ -44,6 +44,12 @@ function fakeMirror(): Mirror {
       [2, { id: 2, def: 'cottage', x: 5, z: 3, rot: 1, stage: 'construction' }],
     ]),
     settings: { value: { valleyName: 'Hollowmere' } },
+    // V3X: the default feeds read the lots (V3B's rows) and the flow (V3C's river).
+    lots: new Map(),
+    meta: { flow: 'ns' },
+    occupant: () => 0,
+    road: () => 0,
+    height: () => 2,
   } as unknown as Mirror;
 }
 

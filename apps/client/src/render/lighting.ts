@@ -1,6 +1,17 @@
 import { LAMP_COLORS } from '@qoti/art';
 import type { Era } from '@qoti/content';
-import { Color } from 'three';
+import { MAP_SIZE } from '@qoti/sim';
+import {
+  Color,
+  DataTexture,
+  LinearFilter,
+  RedFormat,
+  ShaderChunk,
+  ShaderLib,
+  UniformsLib,
+  Vector4,
+  type IUniform,
+} from 'three';
 
 export interface Lighting {
   sky: Color;
@@ -279,3 +290,179 @@ export function lampEra(eras?: readonly Era[]): Era {
 export function lampColor(eras?: readonly Era[]): number {
   return LAMP_COLORS[lampEra(eras)];
 }
+
+// --- V3C: haze with height ------------------------------------------------------------------
+
+/**
+ * V3C: the haze's shared uniforms. Every material that fogs goes through three's fog chunks, which
+ * `installHazeChunks` patches once at startup; these uniforms reach every one of those materials
+ * with no edit in their files (`HAZE_UNIFORMS` below). All zero is plain fog, as before V3C.
+ * - `terms`: x how much the fog thins at height (0 to 1), y the valley floor's world height, z the
+ *   height over which it thins, w unused.
+ * - `adds`: x the river's dawn mist (0 to 1), y the chimneys' winter evening haze (0 to 1), zw unused.
+ * - `town`: the chimneys' haze center (xz, world) and radius (z), w unused.
+ * - `river`: the river's nearness over the valley (`RIVER_HAZE_SIZE` square, 1 on the water fading to
+ *   0 some tiles away), written by the water layer with `setRiverHaze`.
+ */
+export interface HazeUniforms {
+  terms: { value: Vector4 };
+  adds: { value: Vector4 };
+  town: { value: Vector4 };
+  river: { value: DataTexture };
+}
+
+/** Texels a side of the river's nearness map (3 tiles a texel on a 192-tile valley). */
+export const RIVER_HAZE_SIZE = 64;
+
+/**
+ * A uniform value shared by reference: three clones every material's uniforms when it compiles
+ * (`UniformsUtils.cloneUniforms` calls `clone()`), so the value's clone is itself, and a change to it
+ * reaches every program that holds it.
+ */
+function shared<T extends { clone(): unknown }>(v: T): T {
+  v.clone = () => v;
+  return v;
+}
+
+function riverTexture(): DataTexture {
+  const t = new DataTexture(
+    new Uint8Array(RIVER_HAZE_SIZE * RIVER_HAZE_SIZE),
+    RIVER_HAZE_SIZE,
+    RIVER_HAZE_SIZE,
+    RedFormat,
+  );
+  t.magFilter = LinearFilter;
+  t.minFilter = LinearFilter;
+  t.needsUpdate = true;
+  return shared(t);
+}
+
+/** The one set of haze uniforms (module-wide, like the fog chunks it feeds). */
+export const HAZE: HazeUniforms = {
+  terms: { value: shared(new Vector4(0, 0, 0, 0)) },
+  adds: { value: shared(new Vector4(0, 0, 0, 0)) },
+  town: { value: shared(new Vector4(0, 0, 1, 0)) },
+  river: { value: riverTexture() },
+};
+
+/** Writes the river's nearness map (`RIVER_HAZE_SIZE` squared, 0 to 255, row by row in z). */
+export function setRiverHaze(haze: HazeUniforms, data: Uint8Array): void {
+  const t = haze.river.value;
+  (t.image.data as Uint8Array).set(data.subarray(0, RIVER_HAZE_SIZE * RIVER_HAZE_SIZE));
+  t.needsUpdate = true;
+}
+
+/** How much the fog thins at the top of the height span, and the span in world units. *(tune)* */
+export const HAZE_LIFT = 0.55;
+export const HAZE_SPAN = 6;
+
+/**
+ * The haze's time terms for an hour, a season blend and a count of hearths: the river's mist from
+ * before dawn to mid morning, and a town of many chimneys hazing over on winter evenings. Pure, so
+ * it is the same on every frame drawn at one light step.
+ */
+export function hazeTermsAt(
+  hour: number,
+  winter: number,
+  hearths: number,
+): { river: number; chimney: number } {
+  const h = ((hour % 24) + 24) % 24;
+  // Mist on the water: rises at 4:30, thickest from 5:30 to 7, gone by 10.
+  const river = ramp(h, 4.5, 5.5) * (1 - ramp(h, 7, 10));
+  // Hearth smoke on a still winter evening: from 16:00, thickest 18:30 to 22, thinning by 1:00.
+  const evening = h >= 12 ? ramp(h, 16, 18.5) * (1 - ramp(h, 22, 25)) : 1 - ramp(h + 24, 22, 25);
+  const town = Math.min(1, Math.max(0, (hearths - 12) / 60));
+  return { river: river * 0.32, chimney: Math.round(evening * winter * town * 0.5 * 32) / 32 };
+}
+
+function ramp(x: number, a: number, b: number): number {
+  const t = Math.min(1, Math.max(0, (x - a) / (b - a)));
+  return t * t * (3 - 2 * t);
+}
+
+const FOG_PARS_VERTEX = /* glsl */ `
+#ifdef USE_FOG
+  varying float vFogDepth;
+  varying vec3 vQHazeWorld;
+#endif
+`;
+
+// The world position from the view-space one (a rigid view matrix: w = R^T (mv - t)), so instanced
+// and batched meshes need nothing of their own.
+const FOG_VERTEX = /* glsl */ `
+#ifdef USE_FOG
+  vFogDepth = - mvPosition.z;
+  vQHazeWorld = (mvPosition.xyz - viewMatrix[3].xyz) * mat3(viewMatrix);
+#endif
+`;
+
+const FOG_PARS_FRAGMENT = /* glsl */ `
+#ifdef USE_FOG
+  uniform vec3 fogColor;
+  varying float vFogDepth;
+  varying vec3 vQHazeWorld;
+  uniform vec4 qHazeTerms;
+  uniform vec4 qHazeAdds;
+  uniform vec4 qHazeTown;
+  uniform sampler2D qHazeRiver;
+  #ifdef FOG_EXP2
+    uniform float fogDensity;
+  #else
+    uniform float fogNear;
+    uniform float fogFar;
+  #endif
+#endif
+`;
+
+// V3C: the fog thins with height above the valley floor (far views only: the fog's near distance
+// follows the camera's, so a street close-up is untouched), and thickens low over the river at dawn
+// and over a town of many chimneys on winter evenings. Unset uniforms (a shader material that never
+// asked for them) are zero: plain fog.
+const FOG_FRAGMENT = /* glsl */ `
+#ifdef USE_FOG
+  #ifdef FOG_EXP2
+    float fogFactor = 1.0 - exp( - fogDensity * fogDensity * vFogDepth * vFogDepth );
+  #else
+    float fogFactor = smoothstep( fogNear, fogFar, vFogDepth );
+    float qHzUp = clamp( ( vQHazeWorld.y - qHazeTerms.y ) / max( qHazeTerms.z, 0.001 ), 0.0, 1.0 );
+    fogFactor *= 1.0 - qHazeTerms.x * smoothstep( 50.0, 110.0, fogNear ) * qHzUp * ( 2.0 - qHzUp );
+    if ( qHazeAdds.x + qHazeAdds.y > 0.0 ) {
+      float qHzLow = ( 1.0 - qHzUp ) * smoothstep( 25.0, 70.0, fogNear ) * smoothstep( fogNear * 0.3, fogNear * 1.2, vFogDepth );
+      float qHzRiver = qHazeAdds.x > 0.0 ? pow( texture2D( qHazeRiver, vQHazeWorld.xz / ${MAP_SIZE.toFixed(1)} ).r, 2.0 ) * qHazeAdds.x : 0.0;
+      float qHzTown = qHazeAdds.y * ( 1.0 - smoothstep( qHazeTown.z * 0.5, qHazeTown.z * 1.3, distance( vQHazeWorld.xz, qHazeTown.xy ) ) );
+      fogFactor += ( 1.0 - fogFactor ) * clamp( qHzRiver + qHzTown, 0.0, 0.6 ) * qHzLow;
+    }
+  #endif
+  gl_FragColor.rgb = mix( gl_FragColor.rgb, fogColor, fogFactor );
+#endif
+`;
+
+let hazeInstalled = false;
+
+/**
+ * V3C: patches three's fog chunks and adds the haze's uniforms to every built-in material that fogs
+ * (and to `UniformsLib.fog`, which fogging shader materials merge). Idempotent; runs when this module
+ * loads, before any material compiles.
+ */
+export function installHazeChunks(): void {
+  if (hazeInstalled) return;
+  hazeInstalled = true;
+  ShaderChunk.fog_pars_vertex = FOG_PARS_VERTEX;
+  ShaderChunk.fog_vertex = FOG_VERTEX;
+  ShaderChunk.fog_pars_fragment = FOG_PARS_FRAGMENT;
+  ShaderChunk.fog_fragment = FOG_FRAGMENT;
+  const add = (u: Record<string, IUniform>): void => {
+    u.qHazeTerms = HAZE.terms;
+    u.qHazeAdds = HAZE.adds;
+    u.qHazeTown = HAZE.town;
+    u.qHazeRiver = HAZE.river;
+  };
+  add(UniformsLib.fog as unknown as Record<string, IUniform>);
+  for (const lib of Object.values(ShaderLib) as {
+    uniforms: Record<string, IUniform>;
+    fragmentShader: string;
+  }[])
+    if (lib.fragmentShader.includes('<fog_fragment>')) add(lib.uniforms);
+}
+
+installHazeChunks();
