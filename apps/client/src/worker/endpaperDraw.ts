@@ -2,10 +2,14 @@
 // context and the compact `EndpaperInput`: parchment, relief, water, fields, woods, roads, roofs,
 // plans, the two inks, lettering and a hand-drawn border. Every wobble comes from a hash of position
 // (endpaperGeo.ts), so the same input draws the same picture and a small change moves only its spot.
-import { roads as roadTable } from '@qoti/content';
+// The road table straight from its file (a relative import, so the worker does not pull in all of
+// `@qoti/content`: that index would add about 900 kB); a test checks it equals content's `roads`.
+import * as roadDefs from '../../../../packages/content/src/roads';
 import { endpaperInk as K } from '../../../../packages/art/src/palette';
-import { endpaperSpan, ENDPAPER_MARGIN, type EndpaperInput, type EndpaperRoof } from '../render/endpaper';
+import type { EndpaperInput, EndpaperRoof } from '../render/endpaper';
 import {
+  ENDPAPER_MARGIN,
+  endpaperSpan,
   blur,
   contours,
   hash2,
@@ -27,6 +31,9 @@ import {
 } from './endpaperGlyphs';
 
 export type { Ctx, MakeCanvas } from './endpaperGlyphs';
+
+/** Every road def, as content lists them (checked against `roads` in the tests). */
+export const roadTable: readonly { id: string; layerValue: number }[] = Object.values(roadDefs);
 
 export const MAP_FONT = 'Alegreya, Georgia, serif';
 
@@ -101,7 +108,7 @@ function parchment(c: Cx): void {
   g.fillStyle = css(K.paper);
   g.fillRect(0, 0, size, size);
   // Soft aged blotches.
-  for (let i = 0; i < 9; i++) {
+  for (let i = 0; i < 6; i++) {
     const x = hash2(i, 1, 41) * size;
     const y = hash2(i, 2, 41) * size;
     const r = size * (0.07 + hash2(i, 3, 41) * 0.16);
@@ -198,6 +205,7 @@ function relief(c: Cx): void {
           dz = -gz / mag;
         }
         if (t === 4 && hash2(x, z, 12) < 0.4) continue;
+        if (t === 5 && hash2(x, z, 13) < 0.35) continue;
         const n = t === 5 ? 2 : 1;
         const len = (t === 5 ? 0.62 : 0.45) * (0.8 + 0.4 * hash2(x, z, 8));
         for (let k = 0; k < n; k++) {
@@ -225,6 +233,29 @@ function relief(c: Cx): void {
     ink(g, 'fill', K.sand, 0.4);
     g.fill();
   }
+}
+
+function box(p: Poly): [number, number, number, number] {
+  let x0 = Infinity;
+  let z0 = Infinity;
+  let x1 = -Infinity;
+  let z1 = -Infinity;
+  for (let i = 0; i < p.pts.length; i += 2) {
+    x0 = Math.min(x0, p.pts[i]!);
+    x1 = Math.max(x1, p.pts[i]!);
+    z0 = Math.min(z0, p.pts[i + 1]!);
+    z1 = Math.max(z1, p.pts[i + 1]!);
+  }
+  return [x0, z0, x1, z1];
+}
+
+/** Whether some shore outline's box sits inside this outline's box. */
+function enclosesShore(p: Poly, shore: Poly[]): boolean {
+  const [x0, z0, x1, z1] = box(p);
+  return shore.some((q) => {
+    const [a, b, c, d] = box(q);
+    return a >= x0 && b >= z0 && c <= x1 && d <= z1;
+  });
 }
 
 // 3. Water ---------------------------------------------------------------------------------------
@@ -290,7 +321,8 @@ function water(c: Cx): void {
     [0.3, 0.42],
     [0.12, 0.28],
   ] as const) {
-    path(contours(f, W, W, lvl).filter((p) => p.pts.length >= 8));
+    // Only lines that enclose some inked shore (the faint halo of a speck is not a lake).
+    path(contours(f, W, W, lvl).filter((p) => p.pts.length >= 8 && enclosesShore(p, shore)));
     ink(g, 'stroke', K.waterInk, a);
     g.lineWidth = 1.5 * ls;
     g.stroke();

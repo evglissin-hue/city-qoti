@@ -1,11 +1,22 @@
 // V3D: the endpaper map's drawing, against a recording fake 2D context. Each element draws when its
 // input has it and nothing when it does not; the same input gives the same calls; lettering follows
 // the river; nothing reads upside down; nothing is random.
+import { roads as contentRoads } from '@qoti/content';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { endpaperInk as K } from '../../../../packages/art/src/palette';
-import { ENDPAPER_MARGIN, endpaperSpan, type EndpaperInput } from '../render/endpaper';
-import { drawMap, type Ctx, type MakeCanvas } from './endpaperDraw';
-import { blur, contours, padded, patches, riverCenterline, upright } from './endpaperGeo';
+import * as render from '../render/endpaper';
+import type { EndpaperInput } from '../render/endpaper';
+import { drawMap, roadTable, type Ctx, type MakeCanvas } from './endpaperDraw';
+import {
+  ENDPAPER_MARGIN,
+  endpaperSpan,
+  blur,
+  contours,
+  padded,
+  patches,
+  riverCenterline,
+  upright,
+} from './endpaperGeo';
 import { css } from './endpaperGlyphs';
 
 interface Call {
@@ -267,6 +278,20 @@ describe('the endpaper drawing', () => {
     );
     const b = run(blank({ roofs: [{ x: 5, z: 5, w: 2, d: 2, rot: 0 }] }));
     expect(a.length).toBeGreaterThan(b.length);
+  });
+});
+
+describe('the map frame', () => {
+  it('matches the renderer side', () => {
+    expect(ENDPAPER_MARGIN).toBe(render.ENDPAPER_MARGIN);
+    expect(endpaperSpan(192)).toBe(render.endpaperSpan(192));
+  });
+});
+
+describe('the road table', () => {
+  it('is the content road table', () => {
+    const key = (r: { id: string; layerValue: number }): string => `${r.id}:${r.layerValue}`;
+    expect(roadTable.map(key).sort()).toEqual(contentRoads.map(key).sort());
   });
 });
 

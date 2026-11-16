@@ -2,6 +2,15 @@
 // without a context): a stable hash, the hand-ink warp, marching squares with chained outlines,
 // connected patches, and the river's centerline. Drawing happens in endpaperDraw.ts.
 
+/**
+ * The map's margin and span, copied from render/endpaper.ts (a value import of that file would drag
+ * three.js and the sim into the worker); a test checks they match.
+ */
+export const ENDPAPER_MARGIN = 14;
+export function endpaperSpan(tiles: number): number {
+  return tiles + 2 * ENDPAPER_MARGIN;
+}
+
 /** Stable value in [0, 1) per integer pair (visual variety only; the same as render/coords.ts's hash). */
 export function hash2(x: number, z: number, salt = 0): number {
   let h = Math.imul(x + 0x9e37, 0x85ebca6b) ^ Math.imul(z + 0x7f4a + salt, 0xc2b2ae35);
@@ -119,6 +128,16 @@ export interface Poly {
   closed: boolean;
 }
 
+let scratch: {
+  ne: number;
+  ex: Float32Array;
+  ez: Float32Array;
+  adj0: Int32Array;
+  adj1: Int32Array;
+  mark: Uint8Array;
+  seen: Uint8Array;
+} | null = null;
+
 /**
  * Marching squares at `level` over a W x H field (a sample is "in" at or above the level), chained
  * into outlines. Points sit on cell edges by linear interpolation, in grid coordinates (sample
@@ -126,12 +145,19 @@ export interface Poly {
  */
 export function contours(f: Float32Array, W: number, H: number, level: number): Poly[] {
   const ne = W * H * 2;
-  const ex = new Float32Array(ne);
-  const ez = new Float32Array(ne);
-  const adj0 = new Int32Array(ne).fill(-1);
-  const adj1 = new Int32Array(ne).fill(-1);
-  const mark = new Uint8Array(ne);
-  const seen = new Uint8Array(ne);
+  // Scratch arrays are kept between calls (cleared by their touched entries on the way out).
+  if (!scratch || scratch.ne < ne) {
+    scratch = {
+      ne,
+      ex: new Float32Array(ne),
+      ez: new Float32Array(ne),
+      adj0: new Int32Array(ne).fill(-1),
+      adj1: new Int32Array(ne).fill(-1),
+      mark: new Uint8Array(ne),
+      seen: new Uint8Array(ne),
+    };
+  }
+  const { ex, ez, adj0, adj1, mark, seen } = scratch;
   const touched: number[] = [];
   const edgeH = (i: number, j: number): number => {
     const id = (j * W + i) * 2;
@@ -227,6 +253,12 @@ export function contours(f: Float32Array, W: number, H: number, level: number): 
   };
   for (const id of touched) if (!seen[id] && adj1[id] === -1) walk(id, false);
   for (const id of touched) if (!seen[id]) walk(id, true);
+  for (const id of touched) {
+    adj0[id] = -1;
+    adj1[id] = -1;
+    mark[id] = 0;
+    seen[id] = 0;
+  }
   return out;
 }
 
