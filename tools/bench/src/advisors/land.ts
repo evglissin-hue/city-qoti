@@ -43,7 +43,7 @@ import {
   type Planner,
   type Want,
 } from '../planner';
-import { count, countTrade, FOODS, G, S } from '../town';
+import { count, countTrade, FOODS, G, growableLots, S } from '../town';
 import {
   BAR_ZONES,
   frontageFor,
@@ -56,6 +56,7 @@ import {
   zoneHighStreet,
   zoneStreetFor,
 } from '../village';
+import { walkFrontage } from './shops';
 import type { Advisor, AdvisorDef, Visit } from './types';
 
 /** Streets the Ledger lays at most, the high street included. */
@@ -171,9 +172,15 @@ class Land implements Advisor {
       const def = content.zoneById.get(zone);
       if (!def || !meetsRequires(w, def.requires)) return;
       const z = def.layerValue;
-      if (w.lots.some((l) => !l.buildingId && (l.zone === z || (i === 0 && l.zone === Zone.homesMedium))))
+      // R2F: a garden lot is never an empty lot something could grow on.
+      if (
+        growableLots(w).some(
+          (l) => !l.buildingId && (l.zone === z || (i === 0 && l.zone === Zone.homesMedium)),
+        )
+      )
         return;
-      const tiles = frontageFor(w, zone);
+      // R2E: shops go along the walks once there is footfall or a live place; else as before.
+      const tiles = (zone === 'shops' ? walkFrontage(w) : null) ?? frontageFor(w, zone);
       if (tiles && p.do(`zone ${zone} for its bar`, [{ t: 'zone.paint', zone, tiles }])) {
         this.painted.set(zone, today);
         if (tiles.length >= ENOUGH_FRONTAGE) return;
