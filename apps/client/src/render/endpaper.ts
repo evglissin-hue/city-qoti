@@ -4,7 +4,16 @@
 // town changes (never per frame) and shown on one quad by `layers/endpaper.ts`. V3.0's stub draws
 // plain parchment and keeps `cover` at 0, so nothing on screen changes; V3D draws the map and turns
 // it on (`ENDPAPER_ON`), and adds the renderer's one-line skip of the scene pass on `env.skipScene`.
-import { DataTexture, RGBAFormat, SRGBColorSpace, type Texture } from 'three';
+import {
+  DataTexture,
+  LinearMipmapLinearFilter,
+  Matrix4,
+  NoColorSpace,
+  RGBAFormat,
+  Texture,
+  Vector2,
+  Vector3,
+} from 'three';
 import { footprintSize } from '@qoti/sim';
 import type { Mirror } from '../state/mirror';
 import { drawDef } from './defs';
@@ -39,7 +48,19 @@ export function endpaperSpan(tiles: number): number {
  * V3D turns this on. Until then `cover` stays 0 whatever the distance, the worker is never made and
  * the scene is always drawn: V3.0 is a no-op on screen.
  */
-export const ENDPAPER_ON = false;
+export const ENDPAPER_ON = true;
+
+/**
+ * V3D: the writer asks for the first drawing when the camera is this many tiles short of where the
+ * map begins to show, so it is ready when the fade starts (no blank or parchment-only frame).
+ */
+export const ENDPAPER_LOOKAHEAD = 20;
+
+/** V3D: the page's pitch at full cover, radians (68 degrees): the sheet tilts up toward the reader. Never lower than the real pitch. */
+export const ENDPAPER_PAGE_PITCH = (68 * Math.PI) / 180;
+
+/** V3D: the table the sheet lies on, a deeper, warmer parchment than the sheet's edge (sRGB, 0 to 1). */
+export const ENDPAPER_TABLE = [0.78, 0.67, 0.5] as const;
 
 /** How much the map covers the view at a camera distance: 0 to 200 tiles, rising to 1 at 240. */
 export function endpaperCover(distance: number): number {
@@ -121,16 +142,88 @@ export interface EndpaperMap {
   revision: number;
   size: number;
   cover: number;
+  /** V3D: the map's own uniform objects (the final pass shares them; see `ENDPAPER_GLSL`). */
+  uniforms: EndpaperUniforms;
+  /** V3D: a real bitmap is in the texture (false in a browser whose worker cannot draw). */
+  ready: boolean;
+  /** V3D: the last drawing's time in the worker, ms (the `?debug` overlay). */
+  ms: number;
 }
+
+/** The uniforms `ENDPAPER_GLSL` reads. */
+export interface EndpaperUniforms {
+  tEndpaper: { value: Texture };
+  uEndpaperCover: { value: number };
+  /** The page camera's world matrix times its inverse projection: ndc to world. */
+  uEndpaperInv: { value: Matrix4 };
+  /** The height of the plane the map is laid on (the focus's y). */
+  uEndpaperGround: { value: number };
+  /** The map's world origin (-M on both axes) in x, its span in tiles in y. */
+  uEndpaperSpan: { value: Vector2 };
+  uEndpaperTable: { value: Vector3 };
+}
+
+export function endpaperUniforms(texture: Texture): EndpaperUniforms {
+  return {
+    tEndpaper: { value: texture },
+    uEndpaperCover: { value: 0 },
+    uEndpaperInv: { value: new Matrix4() },
+    uEndpaperGround: { value: 0 },
+    uEndpaperSpan: { value: new Vector2(-ENDPAPER_MARGIN, 1) },
+    uEndpaperTable: { value: new Vector3(...ENDPAPER_TABLE) },
+  };
+}
+
+/**
+ * V3D: the final pass's map overlay. `endpaperOver(c, uv)` mixes the map over the graded, sRGB color
+ * `c` with opacity `uEndpaperCover` (it returns `c` untouched, with no fetch, at 0). Per pixel it casts
+ * the page camera's ray onto the plane y = ground and samples the map there, so at small cover the
+ * ink lies over the valley it maps. Rays that miss the sheet or point up see the table, and the
+ * sheet's border fades into it softly. The texture holds raw sRGB values (no color space), as the
+ * final pass's output is sRGB. The sample is taken before any branch so its derivatives stay valid.
+ */
+export const ENDPAPER_GLSL = /* glsl */ `
+  uniform sampler2D tEndpaper;
+  uniform float uEndpaperCover;
+  uniform mat4 uEndpaperInv;
+  uniform float uEndpaperGround;
+  uniform vec2 uEndpaperSpan;
+  uniform vec3 uEndpaperTable;
+  vec3 endpaperOver(vec3 c, vec2 uv) {
+    if (uEndpaperCover <= 0.0) return c;
+    vec2 ndc = uv * 2.0 - 1.0;
+    vec4 n = uEndpaperInv * vec4(ndc, -1.0, 1.0);
+    vec4 f = uEndpaperInv * vec4(ndc, 1.0, 1.0);
+    vec3 o = n.xyz / n.w;
+    vec3 d = f.xyz / f.w - o;
+    float t = (uEndpaperGround - o.y) / (abs(d.y) < 1e-6 ? -1e-6 : d.y);
+    bool hit = d.y < 0.0 && t > 0.0;
+    vec3 p = o + d * (hit ? t : 0.0);
+    vec2 mapUv = (p.xz - vec2(uEndpaperSpan.x)) / uEndpaperSpan.y;
+    vec3 ink = texture2D(tEndpaper, clamp(mapUv, 0.0, 1.0)).rgb;
+    vec2 e = min(mapUv, 1.0 - mapUv);
+    float on = hit ? smoothstep(0.0, 0.012, min(e.x, e.y)) : 0.0;
+    vec3 m = mix(uEndpaperTable, ink, on);
+    return mix(c, m, uEndpaperCover);
+  }
+`;
 
 /** A blank map: one parchment texel until the first drawing arrives. */
 export function createEndpaperMap(size = 2048): EndpaperMap {
   const c = PARCHMENT;
   const data = new Uint8Array([(c >> 16) & 255, (c >> 8) & 255, c & 255, 255]);
   const texture = new DataTexture(data, 1, 1, RGBAFormat);
-  texture.colorSpace = SRGBColorSpace;
+  texture.colorSpace = NoColorSpace;
   texture.needsUpdate = true;
-  return { texture, revision: 0, size, cover: 0 };
+  return {
+    texture,
+    revision: 0,
+    size,
+    cover: 0,
+    uniforms: endpaperUniforms(texture),
+    ready: false,
+    ms: 0,
+  };
 }
 
 function layerCopy(
@@ -218,6 +311,10 @@ export class EndpaperWriter {
   private inFlight = 0;
   private nextId = 1;
   private fresh = false;
+  /** The size of the last drawing asked for: a different `map.size` (a preset change) redraws. */
+  private askedSize: number;
+  /** The bitmap now in the texture, closed when the next one replaces it. */
+  private bitmap: { close?: () => void } | null = null;
   private worker: EndpaperWorkerLike | null = null;
   /** The last drawing's time in the worker, ms (for the `?debug` overlay and V3D's budget check). */
   lastMs = 0;
@@ -229,7 +326,9 @@ export class EndpaperWriter {
     readonly map: EndpaperMap,
     private readonly makeWorker: () => EndpaperWorkerLike = createEndpaperWorker,
     private readonly debounceMs = ENDPAPER_DEBOUNCE_MS,
-  ) {}
+  ) {
+    this.askedSize = map.size;
+  }
 
   /** The town changed at `now` (ms): a redraw is due once it has been quiet for the debounce. */
   townChanged(now: number): void {
@@ -239,7 +338,9 @@ export class EndpaperWriter {
 
   /** Whether a drawing is due now (dirty, quiet long enough, showing, none in flight). */
   due(now: number, cover: number): boolean {
-    return this.dirty && this.inFlight === 0 && cover > 0 && now - this.lastChange >= this.debounceMs;
+    if (this.inFlight !== 0 || cover <= 0) return false;
+    if (this.map.size !== this.askedSize) return true;
+    return this.dirty && now - this.lastChange >= this.debounceMs;
   }
 
   /**
@@ -253,6 +354,7 @@ export class EndpaperWriter {
       this.inFlight = id;
       this.dirty = false;
       this.asked++;
+      this.askedSize = this.map.size;
       this.worker.postMessage({ type: 'draw', id, size: this.map.size, input: input() });
     }
     const f = this.fresh;
@@ -270,12 +372,24 @@ export class EndpaperWriter {
     this.inFlight = 0;
     this.lastMs = r.ms;
     this.drawn++;
+    this.map.ms = r.ms;
     if (r.bitmap) {
-      const tex = this.map.texture as Texture & { image: unknown };
-      const old = tex.image as { close?: () => void } | undefined;
-      tex.image = r.bitmap;
+      // A new texture each time: three uploads a bitmap-backed texture once, and a new one is the
+      // simple way to replace it (the old one's GPU copy goes with `dispose`).
+      const tex = new Texture(r.bitmap as unknown as TexImageSource);
+      tex.flipY = false;
+      tex.colorSpace = NoColorSpace;
+      tex.minFilter = LinearMipmapLinearFilter;
+      tex.generateMipmaps = true;
+      tex.anisotropy = 8;
       tex.needsUpdate = true;
-      old?.close?.();
+      const old = this.map.texture;
+      this.map.texture = tex;
+      this.map.uniforms.tEndpaper.value = tex;
+      old.dispose();
+      this.bitmap?.close?.();
+      this.bitmap = r.bitmap;
+      this.map.ready = true;
     }
     this.map.revision++;
     this.fresh = true;
