@@ -1421,6 +1421,14 @@ export interface PlacesTuning {
   festivalStanding: number;
   /** A place with room only later in the evening scores this much less for every hour they would wait at home first (2). */
   waitPerHour: number;
+  /**
+   * R2X: newcomers follow good evenings. A town of this many households or more builds homes for
+   * newcomers only as fast as its recent fair evenings send folk out (optional: absent, homes come
+   * at the jobs' pace).
+   */
+  growthFreeHouseholds?: number;
+  /** R2X: the share of grown-ups out on recent fair evenings, percent, at which homes come at the jobs' full pace. */
+  growthFullOutPercent?: number;
 }
 
 /** R2 (R2.0): the gaps (docs/spec/19-evenings.md, Gaps). Index order is the sim's GAP_KINDS; append-only. */

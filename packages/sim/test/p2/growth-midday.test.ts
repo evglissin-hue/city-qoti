@@ -316,6 +316,7 @@ describe("the bars' words", () => {
       materials: { code: 'materials', good: 'timber' },
       sitesBusy: { code: 'sitesBusy', value: 3 },
       unservedPlaces: { code: 'unservedPlaces', value: 2 },
+      quietEvenings: { code: 'quietEvenings', value: 12 },
     };
     const codes: DemandReasonCode[] = [
       'newcomers',
@@ -335,6 +336,7 @@ describe("the bars' words", () => {
       'materials',
       'sitesBusy',
       'unservedPlaces',
+      'quietEvenings',
     ];
     for (const code of codes) {
       const r = all[code];

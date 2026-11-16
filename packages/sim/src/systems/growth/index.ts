@@ -56,6 +56,7 @@ import { announceServers } from '../specialized/announce';
 import { growLot, lotPlacement } from './api';
 import { BAR_ZONES, computeBars, craftPull, HOME_ZONES, writeBars, type BarInputs } from './bars';
 import { mix, servicesOf } from './desirability';
+import { homesPace } from './evenings';
 import {
   homeDoorTiles,
   HOUSEHOLDS_PER_SHOP,
@@ -250,13 +251,24 @@ function census(state: WorldState, known?: Defs, stock?: number[]): Census {
   return { open, handsWaiting, outlets, homesWaiting };
 }
 
-/** Homes wanted beyond those waiting: newcomers would come, and there is work for them. */
-function homesWanted(state: WorldState, stock: readonly number[] | undefined, seen: Census): number {
+/**
+ * Homes wanted beyond those waiting: newcomers would come, and there is work for them. R2X: past the
+ * free households, only as fast as recent fair evenings send folk out (./evenings); `held` is how many
+ * the jobs alone would have asked for that the evenings hold back.
+ */
+function homesWanted(
+  state: WorldState,
+  stock: readonly number[] | undefined,
+  seen: Census,
+): { homes: number; held: number } {
   const open = seen.open;
-  if (open <= 0 || attractiveness(state, [], stock, open) < HOMES_PULL) return 0;
+  if (open <= 0 || attractiveness(state, [], stock, open) < HOMES_PULL) return { homes: 0, held: 0 };
   const waiting = seen.homesWaiting;
   const target = Math.min(HOMES_WAITING + Math.floor(state.residents.length / 30), Math.ceil(open / 2));
-  return Math.max(0, target - waiting);
+  const pace = homesPace(state);
+  const paced = pace >= 100 ? target : Math.floor((target * pace) / 100);
+  const homes = Math.max(0, paced - waiting);
+  return { homes, held: Math.max(0, target - waiting) - homes };
 }
 
 /**
@@ -275,6 +287,8 @@ interface Night {
   shops: TradeDef[];
   /** Homes wanted beyond those waiting. */
   homes: number;
+  /** R2X: homes the jobs would ask for that quiet evenings hold back (./evenings). */
+  homesHeld: number;
   /** R1X: HANDS_WAITING or more businesses stand with nobody at work: no new business tonight. */
   handsShort: boolean;
   /** Trades with a business going up, and businesses of each trade in town. */
@@ -410,6 +424,7 @@ function readNight(state: WorldState): Night {
     farms: zoned.farms,
     shops: zoned.shops,
     homes: 0,
+    homesHeld: 0,
     handsShort: seen.handsWaiting >= HANDS_WAITING,
     goingUp: new Set(),
     counts: new Map(),
@@ -419,7 +434,9 @@ function readNight(state: WorldState): Night {
     porters: lazily(() => porterIndex(services.reach)),
     nearStore: lazily(() => porterIndex(services.reach, NEAR_STORE_SLACK)),
   };
-  night.homes = homesWanted(state, night.needs.stock, seen);
+  const wanted = homesWanted(state, night.needs.stock, seen);
+  night.homes = wanted.homes;
+  night.homesHeld = wanted.held;
   countTrades(state, night);
   return night;
 }
@@ -903,6 +920,7 @@ export function writeDemand(
     cache: night.cache,
     services: night.services,
     homes: night.homes,
+    homesHeld: night.homesHeld,
     doors: night.doors,
     crafts: night.crafts,
     farms: night.farms,

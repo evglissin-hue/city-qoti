@@ -24,6 +24,7 @@ import {
   unservedPlaces,
   type Services,
 } from './outlets';
+import { recentOutShare } from './evenings';
 import type { SiteCache } from './site';
 import { anyRoom, siteMeets, unmetWant } from './site';
 import {
@@ -52,6 +53,8 @@ export interface BarInputs {
   services: Services;
   /** Homes wanted beyond those waiting (growthDemand's homes). */
   homes: number;
+  /** R2X: homes the jobs would ask for that quiet evenings hold back (absent: none). */
+  homesHeld?: number;
   /** Home doors no outlet reaches. */
   doors: [number, number][];
   /** Trades of the Workshops zone the valley allows, and of Farmland. */
@@ -140,10 +143,13 @@ interface Bar {
   stand?: DemandReason;
 }
 
-function homesBar(_state: WorldState, x: BarInputs): Bar {
+function homesBar(state: WorldState, x: BarInputs): Bar {
   const value = Math.min(100, x.homes * BAR_A_HOME);
   const waiting = value > 0 && x.empty.some((l) => freeFor(x, l, HOME_ZONES));
-  return { value, reasons: value > 0 ? [{ code: 'newcomers', value: x.homes }] : [], waiting, zoned: true };
+  const reasons: DemandReason[] = value > 0 ? [{ code: 'newcomers', value: x.homes }] : [];
+  // R2X: newcomers follow good evenings; the Ledger's bar says what the Hearth could do for it.
+  if (x.homesHeld) reasons.push({ code: 'quietEvenings', value: recentOutShare(state) ?? 0 });
+  return { value, reasons, waiting, zoned: true };
 }
 
 function shopsBar(state: WorldState, x: BarInputs): Bar {

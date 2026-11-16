@@ -98,6 +98,11 @@ export type DemandKind = 'homes' | 'shops' | 'workshops' | 'farmland';
 export type DemandReasonCode =
   /** Homes: households would come (the town's pull is 25+) and jobs are open. */
   | 'newcomers'
+  /**
+   * R2X, Homes: newcomers hold back for want of good evenings: past `PlacesTuning.growthFreeHouseholds`
+   * homes come only as fast as recent fair evenings send folk out (`value`: the percent out).
+   */
+  | 'quietEvenings'
   /** Shops: households no outlet reaches (`value` of them). */
   | 'noOutlet'
   /** Shops: more than eight households an outlet. */

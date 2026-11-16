@@ -37,6 +37,10 @@ export function demandWhy(r: DemandReason): string {
   switch (r.code) {
     case 'newcomers':
       return 'Newcomers would come: there is work, and the town draws them.';
+    case 'quietEvenings':
+      return (r.value ?? 0) === 0
+        ? 'Newcomers ask what there is to do of an evening, and nobody has an answer. Places to go would bring them.'
+        : `Newcomers ask what there is to do of an evening. ${r.value}% of the town goes out; places worth the walk would bring more.`;
     case 'noOutlet':
       return `${r.value ?? 'Some'} households have no shop in reach.`;
     case 'crowded':

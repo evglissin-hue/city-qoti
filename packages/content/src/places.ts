@@ -94,4 +94,8 @@ export const PLACES: PlacesTuning = {
   iceKinds: ['play', 'view'],
   festivalStanding: 40,
   waitPerHour: 2,
+  // R2X: newcomers follow good evenings (the lanes test: a town with nowhere to go stops growing
+  // past its first twenty households, however many jobs it opens).
+  growthFreeHouseholds: 20,
+  growthFullOutPercent: 40,
 };
