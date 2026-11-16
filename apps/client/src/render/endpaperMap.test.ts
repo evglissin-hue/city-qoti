@@ -262,6 +262,7 @@ describe('the endpaper layer (V3D)', () => {
     t.at(240);
     t.frame();
     expect(t.env.endpaper.cover).toBe(1);
+    expect(t.env.endpaper.uniforms.uEndpaperSpan.value.y).toBe(N + 28);
     expect(t.env.skipScene).toBe(true);
     t.at(239);
     t.frame();

@@ -12,11 +12,13 @@ import { PerspectiveCamera, Vector3, type Matrix4 } from 'three';
 import type { MirrorChange } from '../../state/mirror';
 import {
   ENDPAPER_LOOKAHEAD,
+  ENDPAPER_MARGIN,
   ENDPAPER_ON,
   ENDPAPER_PAGE_PITCH,
   EndpaperWriter,
   endpaperCover,
   endpaperInput,
+  endpaperSpan,
   type EndpaperWorkerLike,
 } from '../endpaper';
 import type { WorldEnv } from '../env';
@@ -121,6 +123,7 @@ export function endpaperLayer(opts: EndpaperLayerOptions = {}): RenderLayer {
       if (cover > 0) {
         pageCamera(env.camera, env.focus, cover, u.uEndpaperInv.value);
         u.uEndpaperGround.value = env.focus.y;
+        u.uEndpaperSpan.value.set(-ENDPAPER_MARGIN, endpaperSpan(mirror.size));
       }
       const moved = cover !== lastCover;
       lastCover = cover;
