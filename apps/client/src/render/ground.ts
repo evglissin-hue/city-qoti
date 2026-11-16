@@ -610,7 +610,8 @@ vec3 qRim(vec3 col) {
   float woods = smoothstep(0.38, 0.55, wn);
   vec3 hill = mix(qSrgb(${glslColor(palette.horizonNear)}), qSrgb(${glslColor(palette.horizonWoods)}), woods);
   hill *= 0.86 + 0.24 * qNoise(wp * 0.7) + 0.1 * qNoise(wp * 3.1);
-  hill = mix(hill, hill * vec3(1.55, 0.95, 0.5) + vec3(0.03, 0.01, 0.0), uAutumn * woods * 0.7);
+  vec3 fall = qSrgb(vec3(0.66, 0.4, 0.17)) * (0.7 + 0.5 * qNoise(wp * 0.5 + 9.0));
+  hill = mix(hill, fall, uAutumn * woods * 0.6);
   hill = mix(hill, qSrgb(vec3(0.93, 0.94, 0.96)), uSnow * 0.8);
   return mix(col, hill, k);
 }

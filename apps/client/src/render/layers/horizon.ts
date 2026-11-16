@@ -492,7 +492,9 @@ void main() {
   vec3 col = vColor;
   // The season: foliage takes the tint, woods warm in autumn, snow whitens upward faces.
   col *= mix(vec3(1.0), uSeasonTint, tint);
-  col = mix(col, col * vec3(1.55, 0.95, 0.5) + vec3(0.06, 0.02, 0.0), uAutumn * woods * 0.8);
+  // Autumn: the woods turn russet and gold (a warm color, not a tint: a tinted dark green stays green).
+  vec3 fall = vec3(0.55, 0.22, 0.05) * (0.75 + 0.5 * fract(sin(dot(vColor.rg, vec2(91.3, 47.1))) * 4375.85));
+  col = mix(col, fall, uAutumn * woods * 0.8);
   col = mix(col, vec3(0.9, 0.93, 0.98), uSnow * smoothstep(0.55, 0.9, n.y) * 0.85 * (1.0 - haze * 0.4));
   // Simple light: the sky's fill from above and the sun on the faces that look at it.
   float ndl = max(dot(n, normalize(uSunDir)), 0.0);

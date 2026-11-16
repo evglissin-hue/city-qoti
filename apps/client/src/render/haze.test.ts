@@ -30,7 +30,7 @@ describe('haze with height (V3C)', () => {
   });
 
   it('mists the river at dawn only', () => {
-    expect(hazeTermsAt(6, 0, 0).river).toBeGreaterThan(0.4);
+    expect(hazeTermsAt(6, 0, 0).river).toBeGreaterThan(0.25);
     expect(hazeTermsAt(12, 0, 0).river).toBe(0);
     expect(hazeTermsAt(22, 0, 0).river).toBe(0);
     expect(hazeTermsAt(3, 0, 0).river).toBe(0);

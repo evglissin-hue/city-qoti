@@ -372,7 +372,7 @@ export function hazeTermsAt(
   // Hearth smoke on a still winter evening: from 16:00, thickest 18:30 to 22, thinning by 1:00.
   const evening = h >= 12 ? ramp(h, 16, 18.5) * (1 - ramp(h, 22, 25)) : 1 - ramp(h + 24, 22, 25);
   const town = Math.min(1, Math.max(0, (hearths - 12) / 60));
-  return { river: river * 0.55, chimney: Math.round(evening * winter * town * 0.5 * 32) / 32 };
+  return { river: river * 0.32, chimney: Math.round(evening * winter * town * 0.5 * 32) / 32 };
 }
 
 function ramp(x: number, a: number, b: number): number {
@@ -428,9 +428,9 @@ const FOG_FRAGMENT = /* glsl */ `
     fogFactor *= 1.0 - qHazeTerms.x * smoothstep( 50.0, 110.0, fogNear ) * qHzUp * ( 2.0 - qHzUp );
     if ( qHazeAdds.x + qHazeAdds.y > 0.0 ) {
       float qHzLow = ( 1.0 - qHzUp ) * smoothstep( 25.0, 70.0, fogNear ) * smoothstep( fogNear * 0.3, fogNear * 1.2, vFogDepth );
-      float qHzRiver = qHazeAdds.x > 0.0 ? texture2D( qHazeRiver, vQHazeWorld.xz / ${MAP_SIZE.toFixed(1)} ).r * qHazeAdds.x : 0.0;
+      float qHzRiver = qHazeAdds.x > 0.0 ? pow( texture2D( qHazeRiver, vQHazeWorld.xz / ${MAP_SIZE.toFixed(1)} ).r, 2.0 ) * qHazeAdds.x : 0.0;
       float qHzTown = qHazeAdds.y * ( 1.0 - smoothstep( qHazeTown.z * 0.5, qHazeTown.z * 1.3, distance( vQHazeWorld.xz, qHazeTown.xy ) ) );
-      fogFactor += ( 1.0 - fogFactor ) * clamp( qHzRiver + qHzTown, 0.0, 0.85 ) * qHzLow;
+      fogFactor += ( 1.0 - fogFactor ) * clamp( qHzRiver + qHzTown, 0.0, 0.6 ) * qHzLow;
     }
   #endif
   gl_FragColor.rgb = mix( gl_FragColor.rgb, fogColor, fogFactor );
