@@ -322,7 +322,8 @@ describe('the round', () => {
       )!;
       // Food on the stalls, none at home.
       const bread = content.goodIndex.get('bread')!;
-      for (const b of s.buildings) if (b.def === 'market-stall' || b.def === 'granary') b.rt!.store[bread] = 30;
+      for (const b of s.buildings)
+        if (b.def === 'market-stall' || b.def === 'granary') b.rt!.store[bread] = 30;
       h.pantry.fill(0);
       let shopped = false;
       runTo(s, ctx, at(1, 20), () => {
