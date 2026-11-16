@@ -23,6 +23,19 @@ export const ENDPAPER_DRAW_BUDGET_MS = 150;
 export const PARCHMENT = 0xeee2c2;
 
 /**
+ * V3D: the map's margin in tiles round the valley. The texture covers world tiles [-M, tiles + M] on
+ * both axes, square: texel (px, py) of a `size` map is tile x = -M + px * span / size, z = -M + py *
+ * span / size, where span = tiles + 2M. Canvas y runs down the page, which is +z; the texture is
+ * uploaded with flipY off, so v = 0 is the canvas's top row (z = -M).
+ */
+export const ENDPAPER_MARGIN = 14;
+
+/** V3D: the side of the map's texture in tiles (the valley plus its margins). */
+export function endpaperSpan(tiles: number): number {
+  return tiles + 2 * ENDPAPER_MARGIN;
+}
+
+/**
  * V3D turns this on. Until then `cover` stays 0 whatever the distance, the worker is never made and
  * the scene is always drawn: V3.0 is a no-op on screen.
  */
@@ -79,7 +92,7 @@ export interface EndpaperInput {
   tiles: number;
   /** Height level per tile. */
   heights: Uint8Array;
-  /** Water depth per tile (0 dry). */
+  /** Water per tile, the sim's `Water` kind (0 dry, 1 river, 2 deep river, 3 pond, 4 canal). */
   water: Uint8Array;
   /** Trees per tile (the tree layer; 0 none). */
   woods: Uint8Array;
@@ -93,6 +106,8 @@ export interface EndpaperInput {
   plans: EndpaperRoof[];
   labels: EndpaperLabel[];
   inks: EndpaperInks;
+  /** V3D: the terrain layer's kind per tile (sim `Terrain`: grass, meadow, forest floor, sand, rock, mountain, water, field). */
+  terrain: Uint8Array;
 }
 
 /**
@@ -155,6 +170,7 @@ export function endpaperInput(mirror: Mirror, inks: EndpaperInks = {}): Endpaper
     plans,
     labels,
     inks,
+    terrain: layerCopy(L.terrain, n),
   };
 }
 
