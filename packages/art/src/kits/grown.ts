@@ -789,7 +789,8 @@ function townhouseOf(opts: KitBuildOptions | undefined): Built {
       if (right ? row.r : row.l) continue;
       // A corner house's street side gets the front's windows, boxes and all.
       const street = right ? row.streetR : row.streetL;
-      const st = street ? { ...style, box: true } : side;
+      // V3X: a street side's windows are glass alone at the far level (the budget; they are small there).
+      const st = street ? { ...style, box: true, lean: true } : side;
       for (let i = 1; i < floors; i++) upper(i, f, oz0, oz1, st, street ? 0.5 : 0.85, [0.18, 0.26]);
       windowRow(
         s,
@@ -806,7 +807,9 @@ function townhouseOf(opts: KitBuildOptions | undefined): Built {
         clad,
       );
     }
-    for (let i = 1; i < floors; i++) upper(i, { dir: 'z-', plane: oz0 }, ox0, ox1, side, 0.7, [0.2, 0.26]);
+    // V3X: the back wall's windows are glass alone at the far level (nobody looks, and the budget).
+    for (let i = 1; i < floors; i++)
+      upper(i, { dir: 'z-', plane: oz0 }, ox0, ox1, { ...side, lean: true }, 0.7, [0.2, 0.26]);
     if (gableFront) {
       // An attic window high in the gable, and decorative bargeboards on timber fronts.
       if (N > 1) {
@@ -1091,7 +1094,7 @@ export function shopOf(opts: KitBuildOptions | undefined): Built {
         z0 + 0.04,
         sz0 - 0.08,
         0.42,
-        { ...windowsOf(L, true) },
+        { ...windowsOf(L, true), lean: true },
         rnd,
         anchors.lights!,
         [],
@@ -1218,14 +1221,20 @@ export function shopOf(opts: KitBuildOptions | undefined): Built {
           oz0,
           oz1,
           // A corner's second face keeps its windows inside the lot, so no boxes hang over the street.
-          street && corner !== (right ? 'R' : 'L') ? style : side,
+          // V3X: on a corner shop the side windows are glass alone at the far level (the budget).
+          corner
+            ? { ...(street && corner !== (right ? 'R' : 'L') ? style : side), lean: true }
+            : street
+              ? style
+              : side,
           street ? 0.5 : 0.9,
           [0.18, 0.24],
         );
     }
     // R1E: a level 1 shop leaves the back wall's windows out (the budget, and nobody looks).
     if (lv !== 1)
-      for (let i = 1; i < floors; i++) upper(i, { dir: 'z-', plane: oz0 }, ox0, ox1, side, 0.7, [0.2, 0.24]);
+      for (let i = 1; i < floors; i++)
+        upper(i, { dir: 'z-', plane: oz0 }, ox0, ox1, { ...side, lean: true }, 0.7, [0.2, 0.24]);
     if (wide) {
       if (dormers)
         for (const u of [ox0 + 0.55, ox1 - 0.55])

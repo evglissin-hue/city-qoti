@@ -471,6 +471,8 @@ export interface WindowStyle {
   sill?: number;
   /** V1B: panes per row and rows (muntins between them), 2 by 2 when absent. */
   panes?: [number, number];
+  /** V3X: at the far level draw only the lit glass (no shutters, frame or box): a window too small to read. */
+  lean?: boolean;
 }
 
 /** V1B: a window's lintel and sill color for a wall material (stone dressings on brick and stone). */
@@ -501,6 +503,12 @@ export function windowPart(
   s.levels(
     () => windowNear(s, f, u, y, w, h, style, rnd, o),
     () => {
+      if (style.lean) {
+        s.glow(1).surface(SURFACE.glass);
+        faceQuad(s, f, u - w / 2, y - h / 2, u + w / 2, y + h / 2, o + 0.026, palette.windowDay);
+        s.glow(0).surface(SURFACE.plain);
+        return;
+      }
       // Layered quads, far enough apart not to fight in depth: the shutters as one board behind the
       // glass (or the frame, for a window without them), the glass; the flower box in front.
       if (style.shutter !== null) {
