@@ -175,6 +175,6 @@ describe('the chapter numbers', () => {
     expect(text).toContain('Town Charter comes in a later update');
     expect(text).toContain('Found a new valley');
     expect(text).toContain('Every valley');
-    expect(text).not.toMatch(/—/);
+    expect(text).not.toMatch(/\u2014/);
   });
 });

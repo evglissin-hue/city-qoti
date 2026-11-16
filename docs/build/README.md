@@ -64,7 +64,7 @@ One row per cycle. A cycle is one agent session working from one brief on one br
 | R2A Places and the round | R2 | parallel | `cycle-r2a-places-round.md` | R2.0 | ready: branch from `cycle/r2x-integration` |
 | R2B Evening trade | R2 | parallel | `cycle-r2b-evening-trade.md` | R2.0 | ready: branch from `cycle/r2x-integration` |
 | R2C Gaps and the evening's book | R2 | parallel | `cycle-r2c-gaps-book.md` | R2.0 | ready: branch from `cycle/r2x-integration` |
-| R2D The interface | R2 | parallel | `cycle-r2d-interface.md` | R2.0 | ready: branch from `cycle/r2x-integration` |
+| R2D The interface | R2 | parallel | `cycle-r2d-interface.md` | R2.0 | PR open into `cycle/r2x-integration`; screenshots `r2d-*` |
 | R2E The bench | R2 | parallel | `cycle-r2e-bench.md` | R2.0 | ready: branch from `cycle/r2x-integration` |
 | R2F Lots for streets | R2 | parallel | `cycle-r2f-street-lots.md` | R2.0 | ready: branch from `cycle/r2x-integration` |
 | R2X R2 integration and tuning | R2 | integration | `cycle-r2x-integration.md` | R2A to R2F | waiting; merges the wave on `cycle/r2x-integration`, one PR into `main` |

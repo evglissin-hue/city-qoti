@@ -39,11 +39,11 @@ The R2D paths in `r2-wave-notes.md`: `apps/client/src/ui/panels/{PlaceCard,Day,E
 
 ## Acceptance criteria
 
-- [ ] From the screen alone a player can name what the other's work did for theirs today: the edition, the two inks and a closed gap (a screenshot set and an e2e step).
-- [ ] The Town overlay is in both lenses' View lists; a place card opens from a click and shows the draw in parts; a resident's day draws on the ground.
-- [ ] `OWED_SENDERS` has no R2D entries; each command has undo.
-- [ ] Cards never cover one another; the edition and a season page queue; no two feed lines read the same (identical alerts fold into one counted line); words are warm, dry, US spelling, no em dashes.
-- [ ] e2e, typecheck, lint, unit tests and build pass; the interface holds at 1x with the evening lingering.
+- [x] From the screen alone a player can name what the other's work did for theirs today: the edition, the two inks and a closed gap (a screenshot set and an e2e step).
+- [x] The Town overlay is in both lenses' View lists; a place card opens from a click and shows the draw in parts; a resident's day draws on the ground.
+- [x] `OWED_SENDERS` has no R2D entries; each command has undo.
+- [x] Cards never cover one another; the edition and a season page queue; no two feed lines read the same (identical alerts fold into one counted line); words are warm, dry, US spelling, no em dashes.
+- [x] e2e, typecheck, lint, unit tests and build pass; the interface holds at 1x with the evening lingering.
 
 ## Out of scope
 
@@ -55,3 +55,17 @@ The sim behind any of this (R2A to R2C); drawing seats, mugs, lamplit rows and s
 - `render/` is V3's but for the two files above; if V3's wave notes claim `overlays.ts`, draw through `setOverlay` and `highlight` and ask in the PR.
 - From P2 (wave notes, Starting after P2): the Ledger's strip is its own row at laptop widths and cards sit under the bar; the Hearth's strip sits beside it and follows its layout; P2's feed lines (waiting sites, wanted zones, waiting lots) set the style gap rows follow; `overlays.ts` already draws P2's waiting-site markers in the Ledger lens.
 - A place id is a string (`seats:12`, `host:40`); keep it a string in the client.
+
+## As built
+
+Built as the build and review loop: the master wrote the Mirror and the mock evening, five executors built the rest in parallel worktrees (the Town overlay; the place card, a resident's day and rename; the edition, settings and the season spread; gaps, the feed fold and the Hearth strip; the evening street brush and undo), and the master merged, played it at 1250 px by day and lamplight, and fixed what read wrong.
+
+- **The Mirror** (`state/mirror.ts`) keeps `places` (by string id), `gaps`, `evening`, `streets` and `footfall` from the snapshot and their events, each replaced whole, with `placesRevision` and `streetsRevision`; `placeAt(tile)`, `placeOf(member)`, `streetAt(tile)` and `eveningStreet(x, z)` index them. `MirrorChange` gains `places`, `gaps`, `streets`, `footfall` and `evening` (the edition, when `evening.closed` arrived).
+- **Mocks**: `?debug&fixture=village&mock&evening` lays a mock evening over any fixture (`ui/mocks/evening.ts`: hosts, seat pieces and porches as places, footfall walked along the roads, two open gaps and one closed today by Bo, named streets, store-to-door flows, the edition crediting both seats, a resident's round through inspect). Every R2D shot and e2e step reads them until R2A to R2C land.
+- **Town overlay**: `render/overlayTown.ts` (`townInk`, three-free and unit-tested: what V3D's endpaper reads) and `render/overlayTownDraw.ts` (the drawing; a second new render file, split so the data tests in node), dispatched from `render/layers/overlays.ts` as `town:hearth` and `town:ledger`; `Toolbar.tsx` sends `town:<lens>` so one View entry stays on across a lens switch.
+- **Senders**: `road.setEvening` (the Evening streets tool, `input/tools/evening.ts`), `road.rename` (the street block of the tile inspector) and `place.rename` (the place card); `OWED_SENDERS` is empty. Undo inverts all three.
+- **Contract (additive, own commit)**: `SeasonReportView.cross?: EditionLine[]`, the joint report's cross-lane lines; R2C fills it, the spread shows it first.
+- **The player's chair** (1250 x 800, day and lamplight) found and fixed: gap tags cut from the feed's sentence read "The well by the Featherston..." (now they say what the gap is: "Nothing to sell here"); the cursor hint ran off the right edge (it flips to the cursor's other side); with an overlay named on the View button the Hearth's last tool was cut to "Era" (a little less air per tool under 1360 px); P2's line "Granary: nobody works here yet. 0 jobs are open" (no job count when there are none); the Ledger's Town showed no ochre on a fixture whose porters had carried nothing (the mocks lay flows); the mock edition named one stall twice and took "0 coins".
+- **Outside the owned paths** (small, listed in the PR): `input/context.ts` (the `place` selection), `ui/panels/Inspector.tsx` and `BuildingInspector.tsx`, `ui/alerts.ts` and `panels/Alerts.tsx` (gap rows, the fold, the edition line, the jobs wording), `ui/format.ts` (`pluralName`), `ui/TopBar.tsx`, `ui/state.ts`, `ui/GameUI.tsx`, `ui/icons.tsx`, `ui/theme.css`, `ui/hamlet.css`, `ui/copy.ts`, `input/copy.ts`, `input/hint.ts`, `input/tools/index.ts`, `app/fixture.ts`, `app/debug.ts`, `app/seasonsHook.ts`, `ui/mocks/seasons.ts`, `e2e/helpers.ts`, `test/every-command-has-a-sender.test.ts`, and the registries and toolbar tests' expected lists.
+- **Left for others**: the place card, the day, the edition and the gaps read real data once R2A to R2C fill the views; the brush's "will wait for its carts" names buildings whose door is on the stretch, not ones with a delivery pending (R2B's logistics could say so); the edition's first line and the spread's cross lines are R2C's words.
+

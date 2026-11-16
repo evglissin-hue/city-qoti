@@ -57,7 +57,7 @@ describe('the evening edition card', () => {
     expect(names.map((n) => n.textContent)).toEqual(['Bo', 'Ada']);
     expect(names[0]!.style.getPropertyValue('--seat')).toBe('#3f7f7a');
     expect(names[1]!.style.getPropertyValue('--seat')).toBe('#d9a441');
-    expect(card.textContent).not.toMatch(/—/);
+    expect(card.textContent).not.toMatch(/\u2014/);
   });
 
   it('says the tally when the lines do not, and keeps quiet when they do', () => {

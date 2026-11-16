@@ -187,6 +187,7 @@ The carrier collects surplus Treats at makers' doors before the shelves (R1X), a
 | Gaps (feed and tags) | `GapsView` (`text`, `closes`, `tile`, `lane`) |
 | The Hearth's strip | `TownView.evenings`, `GapsView.open.length` |
 | Evening street brush, street rename | the flags layer, `StreetView`; sends `road.setEvening`, `road.rename` |
+| The season spread | `SeasonReportView.cross` (`EditionLine[]`, optional; R2D added the member in its own commit, R2C fills it in `view/season/index.ts`; absent, the spread has no cross-lane block) |
 
 ### The order of an evening (where each R2 system runs)
 

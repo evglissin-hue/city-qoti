@@ -34,7 +34,7 @@ describe('the seed in Settings', () => {
       'Valley seed: abc123def456. Share it and a friend can found the very same valley.',
     );
     expect(view.find('copy-seed')).not.toBeNull();
-    expect(line).not.toMatch(/—/);
+    expect(line).not.toMatch(/\u2014/);
   });
 
   it('shows nothing before the valley meta arrives', async () => {
