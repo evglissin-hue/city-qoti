@@ -6,7 +6,9 @@ import { yearRow } from './yearRow';
 describe('the year view', () => {
   it('prints clear weather and a dash for every I3 column a new valley has nothing in', () => {
     const w = startingTown('willow').world;
-    expect(yearRow(w, 1)).toBe('  1   1 Spring 1  clear       -     - -          -          -      -');
+    expect(yearRow(w, 1)).toBe(
+      '  1   1 Spring 1  clear       -     - -          -          -      -         -   -       -    -',
+    );
   });
 
   it('reads the weather, warmth, festival, threat and raid once the tracks fill them', () => {
@@ -43,6 +45,27 @@ describe('the year view', () => {
       signs: [],
     };
     w.threats.history.push({ tick: 0, band: 'small', side: 'e', stolen: 0, captured: 1, repelled: true });
-    expect(yearRow(w, 9)).toBe('  9   1 Spring 1  snow*       1     4 medium     held       -      -');
+    expect(yearRow(w, 9)).toBe(
+      '  9   1 Spring 1  snow*       1     4 medium     held       -      -         -   -       -    -',
+    );
+  });
+
+  it('reads the evening and the gaps once R2 fills them', () => {
+    const w = startingTown('willow').world;
+    w.evenings.tonight = {
+      ...w.evenings.tonight,
+      day: 12,
+      weather: 'fair',
+      grownups: 20,
+      out: 15,
+      scoreSum: 1300,
+      treatsAtStops: 6,
+      treatsPassing: 2,
+      treatsDoorstep: 2,
+    };
+    w.gaps.open.push({ id: 1, kind: 'noTreats', subject: 'x', tile: 0, openedDay: 11, n: 4 } as never);
+    expect(yearRow(w, 12)).toBe(
+      ' 12   1 Spring 1  clear       -     - -          -          -      -        75  65      80    1',
+    );
   });
 });
