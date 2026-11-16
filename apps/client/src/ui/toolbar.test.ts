@@ -126,6 +126,7 @@ describe('lens toolbars', () => {
       'bubbles',
       'charm',
       'habitats',
+      'town',
       'warmth',
     ]);
     await view.click('overlays');
@@ -167,6 +168,7 @@ describe('lens toolbars', () => {
       'resources',
       'status',
       'threat',
+      'town',
       'clear',
     ]);
     await view.click('overlay-flows');
