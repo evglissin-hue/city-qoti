@@ -83,6 +83,7 @@ export const PLACES: PlacesTuning = {
   goodForHeart: 4,
   heartsMax: 5,
   tierDays: 3,
+  eveningsSlack: 10,
   // Places remembered
   forgetDays: 6,
 };

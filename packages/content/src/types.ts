@@ -1381,6 +1381,8 @@ export interface PlacesTuning {
   heartsMax: number;
   /** Tiers ask their grown-ups' average evening (NeedsBasket.evenings) this many days running (3). */
   tierDays: number;
+  /** R2B: a household staying at its tier is forgiven this much under the tier's evenings (10), as charm had its slack. */
+  eveningsSlack: number;
   // Places remembered
   /** A place the pass no longer finds keeps its row this many days (6). */
   forgetDays: number;
