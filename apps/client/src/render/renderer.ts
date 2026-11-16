@@ -625,6 +625,9 @@ export class Renderer implements RenderApi {
     // with no still frame to draw, this is the only frame that would).
     const shadowsDue =
       this.three.shadowMap.enabled && this.still.rested(now) && this.statics.casters !== this.shadowStatic;
+    // V3X: under the full map nothing the scene does shows: at rest only a new map (a static
+    // change, so the still frame is due), the view or a resize draws a frame.
+    if (this.env.skipScene && resting && !stillDue) dirty = false;
     if (!dirty && !this.needsRender && !stillDue && !shadowsDue) {
       this.gpuTimer.poll();
       this.resolution.frame(now, false, this.basePixelRatio);

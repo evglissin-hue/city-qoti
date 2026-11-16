@@ -27,14 +27,7 @@ import {
   type DressingStat,
   type DressingTier,
 } from '@qoti/content';
-import {
-  MAP_SIZE,
-  START_HOUR,
-  TICKS_PER_DAY,
-  TICKS_PER_HOUR,
-  type BuildingView,
-  type LotView,
-} from '@qoti/sim';
+import { MAP_SIZE, START_HOUR, TICKS_PER_DAY, TICKS_PER_HOUR, type BuildingView } from '@qoti/sim';
 import { Matrix4, Quaternion, Vector3, type BufferGeometry } from 'three';
 import type { Mirror } from '../../state/mirror';
 import { fpToWorld } from '../coords';
@@ -43,6 +36,7 @@ import { DressingBatch } from '../dressingBatch';
 import { buildingKey, buildingMatrix, buildingVariantGeometry, standLevel } from '../kitGeometry';
 import type { LightDisc } from '../lightMap';
 import { lampColor } from '../lighting';
+import { lotsFor, yardOf, type ScreenLots, type YardRect } from '../lots';
 import { levelFor, SMALL_RADIUS, type Level } from '../lod';
 import { groundY } from '../surface';
 import type { LayerContext, RenderLayer } from './types';
@@ -156,7 +150,7 @@ const corner = new Vector3();
  * lot's world corners through the inverse of the building's own matrix, so side and back gardens
  * land where the kit sees them. Exported for its test.
  */
-export function lotBox(b: BuildingView, lot: LotView): GroundBox {
+export function lotBox(b: BuildingView, lot: YardRect): GroundBox {
   buildingMatrix(b.def, b.x, b.z, b.rot, 0, toLocal).invert();
   let x0 = Infinity;
   let z0 = Infinity;
@@ -179,10 +173,11 @@ export function lotBox(b: BuildingView, lot: LotView): GroundBox {
 }
 
 /**
- * V3A: how far a yard may reach past its lot onto free ground beside it (tiles). Half a tile, so two
- * neighbours across a one-tile gap share it. A stand-in until V3B's `yardOf` (wave notes, Stand-ins):
- * grown kits fill their plots almost to the edge, so on a lot the size of its house the dressing would
- * otherwise have nowhere to stand.
+ * V3A: how far a yard may reach past its free yard (V3B's `yardOf`) onto free ground beside it
+ * (tiles). Half a tile, so two neighbours across a one-tile gap share it. V3X kept it on top of
+ * `yardOf`: grown kits fill their plots almost to the edge, so on a lot the size of its house the
+ * dressing would otherwise have nowhere to stand. A joined side or a garden lot is never free, so the
+ * reach never crosses a party wall or into a garden.
  */
 export const YARD_REACH = 0.5;
 
@@ -205,10 +200,11 @@ export function decorTilesOf(mirror: Mirror): Set<number> {
 }
 
 /**
- * The lot grown by `YARD_REACH` on each side whose whole strip of neighbouring tiles is free (world
- * space, as `LotView`): the yard a building's dressing may use. The road side is never free.
+ * The yard (V3B's `yardOf`, or any tile rectangle) grown by `YARD_REACH` on each side whose whole
+ * strip of neighbouring tiles is free (world space): the ground a building's dressing may use. The
+ * road side is never free.
  */
-export function roomyLot(mirror: Mirror, decorTiles: ReadonlySet<number>, lot: LotView): LotView {
+export function roomyLot<T extends YardRect>(mirror: Mirror, decorTiles: ReadonlySet<number>, lot: T): T {
   const { x, z, w, d } = lot;
   const strip = (tiles: [number, number][]): boolean =>
     tiles.every(([tx, tz]) => freeTile(mirror, decorTiles, tx, tz));
@@ -222,6 +218,21 @@ export function roomyLot(mirror: Mirror, decorTiles: ReadonlySet<number>, lot: L
   const x0 = x - (west ? r : 0);
   const z0 = z - (north ? r : 0);
   return { ...lot, x: x0, z: z0, w: x + w + (east ? r : 0) - x0, d: z + d + (south ? r : 0) - z0 };
+}
+
+/**
+ * V3X: the ground a building's dressing may use, in world tiles: V3B's free yard (`yardOf`: the lot
+ * less joined sides and garden lots) grown by V3A's reach onto free ground. Null when the building has
+ * no lot. `screen` is one `lotsFor(mirror)` for a whole rebuild.
+ */
+export function dressingYard(
+  mirror: Mirror,
+  decorTiles: ReadonlySet<number>,
+  id: number,
+  screen: ScreenLots = lotsFor(mirror),
+): YardRect | null {
+  const yard = yardOf(mirror, id, screen);
+  return yard ? roomyLot(mirror, decorTiles, yard) : null;
 }
 
 export interface DressingLayer extends RenderLayer {
@@ -558,12 +569,13 @@ export function dressingLayer(rules: readonly DressingRule[] = content.dressingR
     let changed = false;
     const seen = new Set<number>();
     const decorTiles = decorTilesOf(mirror);
+    const screen = lotsFor(mirror);
     for (const b of mirror.buildings.values()) {
       seen.add(b.id);
       const subject = dressingSubject(mirror, b);
       const def = drawDef(b.def);
-      const lot = b.lot !== undefined ? mirror.lots.get(b.lot) : undefined;
-      const box = def && lot ? lotBox(b, roomyLot(mirror, decorTiles, lot)) : undefined;
+      const yard = def ? dressingYard(mirror, decorTiles, b.id, screen) : null;
+      const box = yard ? lotBox(b, yard) : undefined;
       const dressed = subject.kind !== null && !!def;
       const level = dressed ? standLevel(mirror, b.def, b.x, b.z, b.rot) : 0;
       const key = `${subjectKey(subject)}|${box ? box.join(',') : ''}|${dressed ? buildingKey(b, 'high') : ''}`;

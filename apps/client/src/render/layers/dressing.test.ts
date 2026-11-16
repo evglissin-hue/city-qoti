@@ -17,6 +17,7 @@ import { MeshBasicMaterial, Matrix4, PerspectiveCamera, Scene, type BatchedMesh 
 import type { Mirror, MirrorChange } from '../../state/mirror';
 import { createWorldEnv } from '../env';
 import { buildingVariantGeometry } from '../kitGeometry';
+import { yardOf } from '../lots';
 import { groundY } from '../surface';
 import {
   decorTilesOf,
@@ -24,6 +25,7 @@ import {
   DRESSING_SEED,
   dressingLayer,
   dressingSubject,
+  dressingYard,
   lotBox,
   roomyLot,
 } from './dressing';
@@ -54,9 +56,14 @@ function mirrorOf(w: World): Mirror {
         .map((b) => {
           // A lot a tile wider each side, two tiles behind and a tile in front of the house (turn 0).
           const [sw, sd] = content.buildingById.get(b.def)?.size ?? [1, 1];
-          return [b.lot!, { id: b.lot, x: b.x - 1, z: b.z - 2, w: sw + 2, d: sd + 3 } as LotView] as const;
+          const lot = { id: b.lot, x: b.x - 1, z: b.z - 2, w: sw + 2, d: sd + 3, buildingId: b.id };
+          return [b.lot!, lot as LotView] as const;
         }),
-      ...(w.lots ?? []).map((l) => [l.id!, l as LotView] as const),
+      // A lot names its building (as the sim's do; V3B's `yardOf` finds the lot that way).
+      ...(w.lots ?? []).map((l) => {
+        const owner = w.buildings.find((b) => b.lot === l.id);
+        return [l.id!, { buildingId: owner?.id, ...l } as LotView] as const;
+      }),
     ]),
     clock: { value: { season: w.season ?? 1 } },
     tick: { value: tick },
@@ -406,7 +413,7 @@ describe('dressingLayer clearance, every home and anchor (V3A)', () => {
       const g = buildingVariantGeometry(b, 'high');
       const [w, d] = def.size;
       // The yard reaches onto free ground beside the lot (here all of it is free).
-      const lot = lotBox(b, roomyLot(mirror, decorTilesOf(mirror), mirror.lots.get(b.lot!)!));
+      const lot = lotBox(b, roomyLot(mirror, decorTilesOf(mirror), yardOf(mirror, b.id)!));
       const base = clearanceOf(
         g,
         [w, d],
@@ -528,6 +535,37 @@ describe('dressingLayer ground, distance and light (V3A)', () => {
     );
     layer.frame?.(0.016);
     expect(layer.placementsOf(1).every((p) => p.rule === 'v3a-eaves')).toBe(true);
+  });
+});
+
+describe('dressingYard (V3X: V3B yardOf, then V3A reach)', () => {
+  it('keeps the dressing off a garden lot behind the house', () => {
+    const b = building(1, 'cottage');
+    // The plot (turn 0, the front at z+): a tile each side, two behind, one in front.
+    const plot = { id: 1, x: 9, z: 8, w: 3, d: 4, buildingId: 1, row: 7 } as unknown as LotView;
+    // A garden lot of the same row over the plot's back strip and beyond.
+    const garden = { id: 2, x: 9, z: 6, w: 3, d: 3, kind: 'garden', row: 7 } as unknown as LotView;
+    // The lot layer marks every lot's tiles, as the sim's does (so the reach never crosses a lot).
+    const withLots = (m: Mirror, lots: LotView[]): Mirror => {
+      const lot = new Uint16Array(MAP_SIZE * MAP_SIZE);
+      for (const l of lots)
+        for (let z = l.z; z < l.z + l.d; z++)
+          for (let x = l.x; x < l.x + l.w; x++) lot[z * MAP_SIZE + x] = l.id;
+      return { ...m, layers: { lot } } as unknown as Mirror;
+    };
+    const mirror = withLots(mirrorOf({ buildings: [b], lots: [plot, garden] }), [plot, garden]);
+    const yard = dressingYard(mirror, new Set(), 1)!;
+    expect(yard).not.toBeNull();
+    // Nothing of the yard is left on the garden (z below 9), whatever the reach.
+    expect(yard.z).toBeGreaterThanOrEqual(9);
+    // Without the garden the yard reaches back past the plot's own edge onto free ground.
+    const open = dressingYard(withLots(mirrorOf({ buildings: [b], lots: [plot] }), [plot]), new Set(), 1)!;
+    expect(open.z).toBeLessThan(8);
+  });
+
+  it('is null for a building with no lot', () => {
+    const b = building(1, 'cottage', { lot: undefined });
+    expect(dressingYard(mirrorOf({ buildings: [b] }), new Set(), 1)).toBeNull();
   });
 });
 
