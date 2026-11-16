@@ -170,3 +170,21 @@ What they say for the wave:
 - **The endpaper's drawing surface**: an `OffscreenCanvas` in a module worker returning an `ImageBitmap`. Where OffscreenCanvas is missing the worker replies with no bitmap and the map stays parchment; a main-thread canvas fallback (Safari, Low only) is V3D's to add if it wants one.
 - **The redraw debounce**: 2 s after the town's last change, and only while the map shows (`cover` above 0): no redraw at rest at `cover` 0. The first time the map shows it draws at once (it has never been drawn).
 - **The dressing layer's `frame()`** returns true when some building's placements change, not on every input change, so an input change that moves nothing on screen drops no still frame.
+
+## V3C's after numbers and V3X's list (the far view)
+
+V3C's table is `docs/build/screenshots/v3-v3c-perf.md` (same method as the before table). Draws moving at 11:00, before and after:
+
+| Scene | Low | Medium | High | Ultra |
+|---|---|---|---|---|
+| far120 | 137 to 99 | 186 to 122 | 266 to 182 | 479 to 246 |
+| far200 | 171 to 97 | 219 to 93 | 234 to 131 | 364 to 190 |
+| far240 | 179 to 97 | 231 to 88 | 239 to 111 | 379 to 258 |
+
+Nearly all of it is the ground and the water joined by block (`ChunkedMeshes` with `group`, V3C): the terrain drew one call per 16-tile chunk (54 of them at far120 on Ultra, 115 at far200), now one per 3 x 3 block; the water one per chunk, now one per 4 x 4. The horizon adds one draw everywhere.
+
+What V3C found the far camera still pays for, in V3X's files (measured per layer on Ultra at far120, `__qoti.renderer()` with one layer root shown at a time; scene pass, then the shadow pass):
+
+- **The shadow pass**: a moving frame that re-renders the sun's shadows draws the casters again over a frustum of up to 140 tiles a side (`shadows.ts`, `MAX_HALF`): trees 17 draws and 1.0 to 1.3 M triangles at full detail, nature 9, decor 7, roads 8, fields 4. Before V3C the 479 on Ultra was frames like these. A far view could cap the frustum (haze covers the far half) or draw trees' far level into it.
+- **Ultra's still frame** draws the static scene twice (the still pass and the AO normal pass, GTAOPass): about 300 draws at far120 after V3C (440 before). Joining more layers by block halves twice.
+- **Nature** (28 to 33 draws, per chunk), **trees** (17 to 31, per chunk and level) and **decor** (7 to 13) are per-chunk instanced draws that could join by block the way the ground now does.
