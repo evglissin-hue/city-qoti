@@ -383,6 +383,9 @@ export function installDebugHook(getSession: () => Session | null): void {
     roadAt: (x: number, z: number) => s()?.mirror.road(x, z) ?? 0,
     /** R2D: whether a road tile is kept for evening strolling. */
     eveningAt: (x: number, z: number) => s()?.mirror.eveningStreet(x, z) ?? false,
+    /** R2D: the places and gaps the Mirror holds (the &evening mocks until R2A and R2C land). */
+    places: () => [...(s()?.mirror.places.values() ?? [])],
+    gaps: () => s()?.mirror.gaps.value ?? null,
     /** Interface size, 0.8 to 1.4, as the settings slider sets it. */
     setUiScale: (scale: number) => applySettings({ ...loadSettings(), uiScale: scale }),
     awayLetter: async () => (await s()?.inspect('away', s()!.seat)) ?? null,
