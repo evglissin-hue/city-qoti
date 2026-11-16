@@ -37,11 +37,11 @@ The R2C paths in `r2-wave-notes.md`: `packages/sim/src/systems/gaps/**`, `view/g
 
 ## Acceptance criteria
 
-- [ ] `grep -rn "R2 stand-in (R2C)" packages apps tools --exclude-dir=dist` is empty.
-- [ ] Each R2 gap opens and closes in the bench's autoplayed town, and closing one credits the right seat (R2E runs it; your own test until then).
-- [ ] The edition has 3 to 5 lines on a day with news (one honest line otherwise), names the seat and the numbers, and is the same in both seats' snapshots.
-- [ ] No goal, gap or feat is unreachable (the achievable check passes with the new rows); the Village is still claimed on every bench seed.
-- [ ] A year hashes the same in Node and a browser worker; typecheck, lint, unit tests and build pass.
+- [x] `grep -rn "R2 stand-in (R2C)" packages apps tools --exclude-dir=dist` is empty.
+- [x] Each R2 gap opens and closes in the bench's autoplayed town, and closing one credits the right seat (R2E runs it; your own test until then). (R2C's own tests, `test/r2c/gaps.test.ts`.)
+- [x] The edition has 3 to 5 lines on a day with news (one honest line otherwise), names the seat and the numbers, and is the same in both seats' snapshots.
+- [ ] No goal, gap or feat is unreachable (the achievable check passes with the new rows); the Village is still claimed on every bench seed. (The achievable half passes, gap-dead-end included; the Village claim waits for R2A's 17:00 roll, so R2X merges R2A first.)
+- [x] A year hashes the same in Node and a browser worker; typecheck, lint, unit tests and build pass.
 
 ## Out of scope
 
