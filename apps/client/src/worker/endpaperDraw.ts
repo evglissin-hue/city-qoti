@@ -620,33 +620,65 @@ function roofs(c: Cx): void {
   ink(g, 'stroke', K.roofInk, 0.95);
   g.lineWidth = 1.6 * ls;
   g.stroke();
-  // Ridge along the long axis (a cross for a square roof).
+  // Hipped roofs seen from above: a ridge along the long axis (a point on a square roof) and hips
+  // to the corners, with the faces turned away from the light (south and east) a shade darker, so
+  // a roof reads as a roof and a row as a row, not as a stack of crates.
+  const faces = (r: EndpaperRoof): { ridge: [number, number, number, number]; c: number[] } => {
+    const x0 = r.x + 0.05;
+    const z0 = r.z + 0.05;
+    const x1 = r.x + r.w - 0.05;
+    const z1 = r.z + r.d - 0.05;
+    const h = Math.min(x1 - x0, z1 - z0) / 2;
+    const ridge: [number, number, number, number] =
+      x1 - x0 >= z1 - z0
+        ? [x0 + h, (z0 + z1) / 2, x1 - h, (z0 + z1) / 2]
+        : [(x0 + x1) / 2, z0 + h, (x0 + x1) / 2, z1 - h];
+    return { ridge, c: [x0, z0, x1, z1] };
+  };
+  const poly = (pts: number[]): void => {
+    for (let i = 0; i < pts.length; i += 2) {
+      P.at(pts[i]!, pts[i + 1]!);
+      if (i) g.lineTo(P.x, P.y);
+      else g.moveTo(P.x, P.y);
+    }
+    g.closePath();
+  };
   g.beginPath();
   for (const r of list) {
-    const m = 0.2;
-    if (Math.abs(r.w - r.d) < 0.01) {
-      P.at(r.x + m, r.z + m);
+    const {
+      ridge: [ax, az, bx, bz],
+      c: [x0, z0, x1, z1],
+    } = faces(r);
+    // The south face (from the ridge down to z1) and the east face (to x1).
+    poly([x0!, z1!, x1!, z1!, bx, bz, ax, az]);
+    poly([x1!, z0!, x1!, z1!, bx, bz]);
+  }
+  ink(g, 'fill', K.roofInk, 0.22);
+  g.fill();
+  g.beginPath();
+  for (const r of list) {
+    const {
+      ridge: [ax, az, bx, bz],
+      c: [x0, z0, x1, z1],
+    } = faces(r);
+    P.at(ax, az);
+    g.moveTo(P.x, P.y);
+    P.at(bx, bz);
+    g.lineTo(P.x, P.y);
+    for (const [cx, cz, ex, ez] of [
+      [x0!, z0!, ax, az],
+      [x0!, z1!, ax, az],
+      [x1!, z0!, bx, bz],
+      [x1!, z1!, bx, bz],
+    ] as const) {
+      P.at(cx, cz);
       g.moveTo(P.x, P.y);
-      P.at(r.x + r.w - m, r.z + r.d - m);
-      g.lineTo(P.x, P.y);
-      P.at(r.x + r.w - m, r.z + m);
-      g.moveTo(P.x, P.y);
-      P.at(r.x + m, r.z + r.d - m);
-      g.lineTo(P.x, P.y);
-    } else if (r.w > r.d) {
-      P.at(r.x + m, r.z + r.d / 2);
-      g.moveTo(P.x, P.y);
-      P.at(r.x + r.w - m, r.z + r.d / 2);
-      g.lineTo(P.x, P.y);
-    } else {
-      P.at(r.x + r.w / 2, r.z + m);
-      g.moveTo(P.x, P.y);
-      P.at(r.x + r.w / 2, r.z + r.d - m);
+      P.at(ex, ez);
       g.lineTo(P.x, P.y);
     }
   }
-  ink(g, 'stroke', K.roofInk, 0.34);
-  g.lineWidth = 1.5 * ls;
+  ink(g, 'stroke', K.roofInk, 0.4);
+  g.lineWidth = 1.1 * ls;
   g.stroke();
 }
 
@@ -772,77 +804,147 @@ function placeLabel(
   g.restore();
 }
 
-/** Letters the valley's name along the river; straight at (x, z) where there is no river. */
+/**
+ * Letters the valley's name along the river, the old map way: spaced capitals set beside the water
+ * on the side away from the town, following the river's bend, reading left to right (or top to
+ * bottom on a river that runs down the page). Straight at (x, z) where there is no river.
+ */
 function valleyLabel(c: Cx, text: string, x: number, z: number, angle: number): void {
   const { g, inp, tiles, P, sc } = c;
-  let fs = sc * 2.4;
-  g.font = `italic 400 ${fs}px ${MAP_FONT}`;
+  const caps = text.toUpperCase();
+  let fs = sc * 3.1;
+  const setFont = (): void => {
+    g.font = `italic 400 ${fs}px ${MAP_FONT}`;
+  };
+  setFont();
   g.textAlign = 'center';
   g.textBaseline = 'middle';
   const line = riverCenterline(inp.water, tiles);
-  const letters = [...text];
-  const track = 0.14;
+  const letters = [...caps];
+  const track = 0.42;
   const widths = (): number[] => letters.map((ch) => g.measureText(ch).width + fs * track);
   let w = widths();
-  let total = w.reduce((a, b) => a + b, 0);
-  const arc: number[] = [];
-  const px: number[] = [];
-  const py: number[] = [];
-  let curveLen = 0;
-  if (line) {
-    const n = line.pts.length / 2;
-    for (let i = 0; i < n; i++) {
-      const a = line.pts[2 * i]!;
-      const b = line.pts[2 * i + 1]!;
-      P.at(line.axis === 'x' ? a : b, line.axis === 'x' ? b : a);
-      px.push(P.x);
-      py.push(P.y);
-      arc.push(i ? arc[i - 1]! + Math.hypot(px[i]! - px[i - 1]!, py[i]! - py[i - 1]!) : 0);
-    }
-    curveLen = arc[n - 1]!;
-    if (curveLen < total * 1.05) {
-      fs = Math.max(sc * 1.3, (fs * curveLen) / (total * 1.1));
-      g.font = `italic 400 ${fs}px ${MAP_FONT}`;
-      w = widths();
-      total = w.reduce((a, b) => a + b, 0);
-    }
-  }
-  if (!line || curveLen < total * 1.02) {
+  let total = w.reduce((s2, v) => s2 + v, 0) - fs * track;
+  const straight = (): void => {
     P.at(x, z);
     g.save();
     g.translate(P.x, P.y);
     g.rotate(upright(angle));
-    halo(c, text, fs);
+    halo(c, caps, fs);
     ink(g, 'fill', K.waterInk, 1);
-    g.fillText(text, 0, 0);
+    g.fillText(caps, 0, 0);
     g.restore();
-    return;
+  };
+  if (!line) return straight();
+  // The centerline in pixels, smoothed so the lettering flows rather than wobbles.
+  const n = line.pts.length / 2;
+  let px: number[] = [];
+  let py: number[] = [];
+  for (let i = 0; i < n; i++) {
+    const u = line.pts[2 * i]!;
+    const v = line.pts[2 * i + 1]!;
+    P.at(line.axis === 'x' ? u : v, line.axis === 'x' ? v : u);
+    px.push(P.x);
+    py.push(P.y);
   }
-  // The stretch nearest the label's x, z (along the river's long axis), clamped inside the curve.
-  const want = line.axis === 'x' ? x : z;
-  let bi = 0;
-  for (let i = 0; i < line.pts.length / 2; i++) {
-    if (Math.abs(line.pts[2 * i]! - want) < Math.abs(line.pts[2 * bi]! - want)) bi = i;
+  for (let pass = 0; pass < 6; pass++) {
+    const qx = px.slice();
+    const qy = py.slice();
+    for (let i = 1; i < n - 1; i++) {
+      qx[i] = (px[i - 1]! + 2 * px[i]! + px[i + 1]!) / 4;
+      qy[i] = (py[i - 1]! + 2 * py[i]! + py[i + 1]!) / 4;
+    }
+    px = qx;
+    py = qy;
   }
-  const start = Math.min(Math.max(arc[bi]! - total / 2, 0), curveLen - total);
-  const sample = (s: number): [number, number] => {
+  const arcOf = (): number[] => {
+    const arc = [0];
+    for (let i = 1; i < px.length; i++)
+      arc.push(arc[i - 1]! + Math.hypot(px[i]! - px[i - 1]!, py[i]! - py[i - 1]!));
+    return arc;
+  };
+  let arc = arcOf();
+  let curveLen = arc[n - 1]!;
+  if (curveLen < total * 1.3) {
+    fs = Math.max(sc * 1.4, (fs * curveLen) / (total * 1.4));
+    setFont();
+    w = widths();
+    total = w.reduce((s2, v) => s2 + v, 0) - fs * track;
+  }
+  if (curveLen < total * 1.05) return straight();
+  // Read left to right: reverse the path if its run would set the letters upside down.
+  const chord = Math.atan2(py[n - 1]! - py[0]!, px[n - 1]! - px[0]!);
+  if (Math.abs(upright(chord) - chord) > 1e-6) {
+    px.reverse();
+    py.reverse();
+    arc = arcOf();
+    curveLen = arc[n - 1]!;
+  }
+  const sample = (s0: number): [number, number] => {
+    const s1 = Math.min(Math.max(s0, 0), curveLen);
     let i = 1;
-    while (i < arc.length - 1 && arc[i]! < s) i++;
-    const t = (s - arc[i - 1]!) / Math.max(1e-6, arc[i]! - arc[i - 1]!);
+    while (i < arc.length - 1 && arc[i]! < s1) i++;
+    const t = (s1 - arc[i - 1]!) / Math.max(1e-6, arc[i]! - arc[i - 1]!);
     return [px[i - 1]! + (px[i]! - px[i - 1]!) * t, py[i - 1]! + (py[i]! - py[i - 1]!) * t];
   };
+  // The stretch nearest the label's x, z, kept inside the curve with a little room at each end.
+  P.at(x, z);
+  const lx = P.x;
+  const ly = P.y;
+  let best = 0;
+  let bestD = Infinity;
+  for (let i = 0; i < n; i++) {
+    const d = (px[i]! - lx) ** 2 + (py[i]! - ly) ** 2;
+    if (d < bestD) {
+      bestD = d;
+      best = i;
+    }
+  }
+  const room = Math.min(fs * 2, (curveLen - total) / 2);
+  const start = Math.min(Math.max(arc[best]! - total / 2, room), curveLen - total - room);
+  // Beside the water, on the side away from the town (the roofs' middle), or the north or west side.
+  let tx = 0;
+  let tz = 0;
+  for (const r of inp.roofs) {
+    tx += r.x + r.w / 2;
+    tz += r.z + r.d / 2;
+  }
+  const [mx, my] = sample(start + total / 2);
+  const [m0x, m0y] = sample(start + total / 2 - fs);
+  const [m1x, m1y] = sample(start + total / 2 + fs);
+  let nx = -(m1y - m0y);
+  let ny = m1x - m0x;
+  const nl = Math.hypot(nx, ny) || 1;
+  nx /= nl;
+  ny /= nl;
+  let side = 1;
+  if (inp.roofs.length) {
+    P.at(tx / inp.roofs.length, tz / inp.roofs.length);
+    if ((P.x - mx) * nx + (P.y - my) * ny > 0) side = -1;
+  } else if (ny > 0) side = -1;
+  // The river's half width there, from the water layer, plus a little air.
+  let half = 1;
+  for (let k = 1; k < 6; k++) {
+    const tX = Math.floor(mx / sc - ENDPAPER_MARGIN + (nx * k) / 2);
+    const tZ = Math.floor(my / sc - ENDPAPER_MARGIN + (ny * k) / 2);
+    if (tX < 0 || tZ < 0 || tX >= tiles || tZ >= tiles) break;
+    const v = inp.water[tZ * tiles + tX]!;
+    if (v === 1 || v === 2 || v === 4) half = k / 2 + 0.5;
+  }
+  const off = side * (half * sc + fs * 0.78);
   let pos = start;
   for (let i = 0; i < letters.length; i++) {
-    const mid = pos + w[i]! / 2;
-    const [cx, cy] = sample(mid);
-    const [ax, ay] = sample(Math.max(0, mid - fs * 0.6));
-    const [bx, by] = sample(Math.min(curveLen, mid + fs * 0.6));
+    const mid = pos + (w[i]! - fs * track) / 2;
     pos += w[i]!;
     if (letters[i] === ' ') continue;
+    const [cx, cy] = sample(mid);
+    const [ax, ay] = sample(mid - fs * 0.8);
+    const [bx, by] = sample(mid + fs * 0.8);
+    const a2 = Math.atan2(by - ay, bx - ax);
     g.save();
-    g.translate(cx, cy);
-    g.rotate(upright(Math.atan2(by - ay, bx - ax)));
-    halo(c, letters[i]!, fs, 0.12);
+    g.translate(cx - Math.sin(a2) * off, cy + Math.cos(a2) * off);
+    g.rotate(a2);
+    halo(c, letters[i]!, fs, 0.16);
     ink(g, 'fill', K.waterInk, 1);
     g.fillText(letters[i]!, 0, 0);
     g.restore();

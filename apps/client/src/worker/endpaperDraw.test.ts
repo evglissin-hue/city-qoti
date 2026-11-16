@@ -228,12 +228,12 @@ describe('the endpaper drawing', () => {
     ).not.toThrow();
   });
 
-  it('letters the valley name along the river, letter by letter', () => {
+  it('letters the valley name in spaced capitals beside the river, letter by letter', () => {
     const input = riverInput({ labels: [{ text: 'Test Vale', x: 24, z: 20, angle: 0, kind: 'valley' }] });
     const letters = run(input).filter(
       (c) => c.name === 'fillText' && String(c.args[0]).length === 1 && c.fill === css(K.waterInk),
     );
-    expect(letters.map((c) => c.args[0]).join('')).toBe('TestVale');
+    expect(letters.map((c) => c.args[0]).join('')).toBe('TESTVALE');
     const wet = new Set<number>();
     for (let i = 0; i < input.water.length; i++) if (input.water[i]) wet.add(i);
     for (const c of letters) {
@@ -241,7 +241,8 @@ describe('the endpaper drawing', () => {
       let near = 99;
       for (const t of wet)
         near = Math.min(near, Math.hypot((t % TILES) + 0.5 - x, Math.floor(t / TILES) + 0.5 - z));
-      expect(near).toBeLessThan(2.5);
+      // Beside the water, not on it: within the river's half width and a letter's height.
+      expect(near).toBeLessThan(5);
     }
     // The river runs downhill to the east, so the letters turn with it.
     expect(letters.some((c) => Math.abs(c.rot) > 0.05)).toBe(true);
@@ -249,7 +250,7 @@ describe('the endpaper drawing', () => {
 
   it('sets the valley name straight at x, z when there is no river', () => {
     const input = blank({ labels: [{ text: 'Test Vale', x: 20, z: 30, angle: 0, kind: 'valley' }] });
-    const text = run(input).filter((c) => c.name === 'fillText' && c.args[0] === 'Test Vale');
+    const text = run(input).filter((c) => c.name === 'fillText' && c.args[0] === 'TEST VALE');
     expect(text).toHaveLength(1);
     const [x, z] = px(text[0]!);
     expect(Math.hypot(x - 20, z - 30)).toBeLessThan(0.5);

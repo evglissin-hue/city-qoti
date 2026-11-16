@@ -47,10 +47,44 @@ export function drawEndpaper(req: EndpaperRequest, opts: DrawOpts = {}): ImageBi
   return canvas.transferToImageBitmap();
 }
 
+const warmed = new Set<string>();
+
+/**
+ * Once per worker and map size, before the first timed drawing: draws the valley small (256 texels,
+ * so every drawing path is compiled) and a blank valley with one tree of each kind at full size (the
+ * tree glyph atlas and the paper grain for that size), outside the timing, as the fonts are. The first map is asked 20 tiles before it shows (ENDPAPER_LOOKAHEAD), so the
+ * player never waits on this.
+ */
+function warm(req: EndpaperRequest): void {
+  const key = `${req.size}:${req.input.tiles}`;
+  if (warmed.has(key) || typeof OffscreenCanvas === 'undefined') return;
+  warmed.add(key);
+  drawEndpaper({ ...req, size: 256 })?.close();
+  const n = req.input.tiles * req.input.tiles;
+  const woods = new Uint8Array(n);
+  for (let s = 1; s <= 3; s++) for (let st = 0; st < 4; st++) woods[s * 4 + st] = s * 8 + st;
+  drawEndpaper({
+    ...req,
+    input: {
+      ...req.input,
+      heights: new Uint8Array(n),
+      water: new Uint8Array(n),
+      woods,
+      fields: new Uint8Array(n),
+      roads: new Uint8Array(n),
+      terrain: new Uint8Array(n),
+      roofs: [],
+      plans: [],
+      inks: {},
+    },
+  })?.close();
+}
+
 scope.onmessage = async (e) => {
   const req = e.data;
   if (req.type !== 'draw') return;
   await loadFonts();
+  warm(req);
   const t0 = performance.now();
   const bitmap = drawEndpaper(req);
   const reply: EndpaperReply = { type: 'drawn', id: req.id, bitmap, ms: performance.now() - t0 };

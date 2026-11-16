@@ -1,7 +1,7 @@
 // V3D: the endpaper map's shots and its handover check. Needs the client dev server
 // (`npm run dev`; QOTI_CLIENT_PORT, 5234 for V3D).
 //   node apps/client/e2e/v3d-endpaper.mjs [shots] [sweep]
-// `shots`: a fresh valley and the grown village (`?debug&fixture=grown`) at the cover ramp (200,
+// `shots`: a fresh valley (a new solo valley from the title screen) and the grown village (`?debug&fixture=grown`) at the cover ramp (200,
 // 220 and 240 tiles) by day (11:00) and night (22:20), and the grown village in winter at 220 and
 // 240; saves docs/build/screenshots/v3d-<valley>-<dist>-<hour>.png and prints draws and the map's
 // state. `sweep`: pulls the camera back from 190 to 250 tiles on the grown village, in steps and in
@@ -36,6 +36,8 @@ async function open(fixture, look) {
   await page.route('**/api/**', (r) => r.abort());
   const fx = fixture ? `&fixture=${fixture}` : '';
   await page.goto(`${base}/?debug${fx}&clean&fixedres&quality=${quality}&${look}`);
+  // No fixture: a brand new solo valley from the title screen, as a player starts one.
+  if (!fixture) await page.getByTestId('new-solo').click({ timeout: 240000 });
   await page.waitForFunction(() => window.__qoti?.status() === 'live', null, { timeout: 240000 });
   for (const name of ['Done', 'Close', 'Later']) {
     const b = page.getByRole('button', { name, exact: true });
@@ -172,7 +174,11 @@ if (want('sweep')) {
     const jump = prev ? Math.abs(l.mean - prev.mean) : 0;
     const flag = jump > 22 || l.sd < 4 ? '  <-- check' : '';
     if (flag) failed = true;
-    console.log(`  ${d} tiles`, JSON.stringify({ ...s, luma: Math.round(l.mean), sd: Math.round(l.sd) }), flag);
+    console.log(
+      `  ${d} tiles`,
+      JSON.stringify({ ...s, luma: Math.round(l.mean), sd: Math.round(l.sd) }),
+      flag,
+    );
     prev = l;
   }
   // One glide in from 250 to 190 and back out, as a player's wheel would.
