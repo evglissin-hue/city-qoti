@@ -295,11 +295,11 @@ export const PRICE_CLAMP = [40, 300] as const;
 export const TRADE_BUY_PERCENT = 120;
 export const TRADE_SELL_PERCENT = 85;
 /**
- * R2X: coins a Village keeps in hand before the carrier buys a site's Materials (Village debt: the
- * treasury borrowed to pay upkeep while Materials came in; with upkeep at 70%, no lean days on any
- * bench seed).
+ * R2X: coins a Village keeps in hand before the carrier buys a site's or a home upgrade's Materials
+ * (Village debt: the treasury borrowed to pay upkeep while Materials came in). 300 held birch's
+ * Craftsfolk upgrades back past day 50; 100 keeps no lean days on any bench seed with upkeep at 70%.
  */
-export const CARRIER_MATERIALS_RESERVE = 300;
+export const CARRIER_MATERIALS_RESERVE = 100;
 /** Drift: permille step up to 20 a day, bounded. Impact: permille per unit, recovery percent a day. */
 export const DRIFT_STEP = 20;
 export const DRIFT_RANGE = [700, 1400] as const;

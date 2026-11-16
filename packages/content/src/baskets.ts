@@ -21,9 +21,9 @@ export const craftsfolk: NeedsBasket = {
   charm: 0,
   evenings: 50,
   // R1X: 12 (was 20): households spend most of what they earn on their baskets, and twenty coins
-  // put by kept nearly every household from moving up at day 70 on every seed. R2X: 8 (it was the
-  // one thing missing for most of oak's and birch's households once evenings opened the tier).
-  savings: 8,
+  // put by kept nearly every household from moving up at day 70 on every seed. R2X: 6 (it was the
+  // one thing missing for most households on every seed once evenings and Wares opened the tier).
+  savings: 6,
 };
 
 export const settler: NeedsBasket = {
