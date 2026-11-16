@@ -9,7 +9,16 @@ import { TICKS_PER_DAY, TIER_DOWN_DAYS } from '../../constants';
 import type { System, TickCtx, WorldState } from '../../contracts';
 import { findById } from '../../state/entities';
 import { dailyOffset } from '../economy/time';
-import { checkTier, nextTier, slideBack, startUpgrade, tierUpDays, tierContext, tierIndex, tiersActive } from './api';
+import {
+  checkTier,
+  nextTier,
+  slideBack,
+  startUpgrade,
+  tierUpDays,
+  tierContext,
+  tierIndex,
+  tiersActive,
+} from './api';
 
 /** One daily pass over every household (exported for tests). */
 export function updateTiers(state: WorldState, ctx: TickCtx): void {
