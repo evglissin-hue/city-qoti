@@ -408,9 +408,9 @@ function cutRun(state: WorldState, ctx: TickCtx | null, run: Run, out: Lot[]): v
 }
 
 /**
- * R2F: cuts a street run into one row of lots that touch: shapes that leave the rest of the free
- * frontage fillable first (so nothing is left over), then any that fit; a tile nothing fits on is the
- * only gap. Choices depend on the place and the free frontage alone, never on the order of painting.
+ * R2F: cuts a street run into one row of lots that touch: shapes of the zone's commonest width that
+ * leave the rest of the free frontage fillable first, then any width that does (so nothing is left
+ * over), then any that fit; a tile nothing fits on is the only gap. Choices depend on the place and the free frontage alone, never on the order of painting.
  */
 function cutRow(
   state: WorldState,
@@ -426,6 +426,12 @@ function cutRow(
   for (let n = 1; n <= run.len; n++) {
     for (const s of shapes) if (s.size[0] <= n && fillable[n - s.size[0]]) fillable[n] = 1;
   }
+  // The commonest width (by weight): rows are filled with it, so the buildings, as wide as their lots,
+  // stand joined; another width only where the run would not come out even (once, at its end).
+  const byWidth = new Map<number, number>();
+  for (const s of shapes) byWidth.set(s.size[0], (byWidth.get(s.size[0]) ?? 0) + s.weight);
+  let common = 0;
+  for (const [w, weight] of byWidth) if (!common || weight > byWidth.get(common)!) common = w;
   let p = 0;
   while (p < run.len) {
     const fx = alongX ? run.x + p : run.x;
@@ -443,10 +449,10 @@ function cutRow(
     }
     const h = mix(fz * S + fx, run.dir);
     let cut: LotDef | null = null;
-    for (const pass of [0, 1]) {
+    for (const pass of [0, 1, 2]) {
       for (const shape of shapeOrder(shapes, h)) {
         const [w, d] = shape.size;
-        if (w > avail || (pass === 0 && !fillable[avail - w])) continue;
+        if (w > avail || (pass < 2 && !fillable[avail - w]) || (pass === 0 && w !== common)) continue;
         const [x0, z0, rw, rd] = shapeRect(run.dir, fx, fz, w, d);
         if (fits(state, run.zone, x0, z0, rw, rd)) {
           cut = shape;

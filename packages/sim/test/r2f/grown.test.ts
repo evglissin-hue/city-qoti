@@ -15,6 +15,8 @@ import { along, rowsOf, S, span } from './helpers';
 const VIEW: [number, number, number, number] = [62, 56, 90, 84];
 const view = (s: WorldState): string => '\n' + frontageMap(s, VIEW);
 
+/** A building's length along its road (a def's size is width along the road, then depth). */
+const buildingWidth = (b: { def: string }): number => content.buildingById.get(b.def)!.size[0];
 const storeysOf = (s: WorldState, l: Lot): number | undefined => findById(s.buildings, l.buildingId)?.storeys;
 const touch = (a: Lot, b: Lot): boolean => along(a) + span(a) === along(b) || along(b) + span(b) === along(a);
 
@@ -67,6 +69,27 @@ describe('a grown street', () => {
         const next = built.some((o) => o !== l && touch(l, o));
         expect(next, `lot ${l.x},${l.z} in row ${l.row}${view(state)}`).toBe(true);
       }
+    }
+  });
+
+  // From the player's chair (R2F's first round): a row of 2-wide townhouses was cut 3 + 2 + 3, so the
+  // lots touched and the houses stood a tile apart. The class: buildings of touching built lots stand
+  // wall to wall, save at most one gap a row (the odd tile where a run will not come out even).
+  it('stands the buildings of a row wall to wall, with at most one gap a row', () => {
+    for (const list of rowsOf(state).values()) {
+      const built = list.filter((l) => l.buildingId);
+      let gaps = 0;
+      for (let k = 1; k < built.length; k++) {
+        const p = built[k - 1]!;
+        const q = built[k]!;
+        if (!touch(p, q)) continue;
+        const a = findById(state.buildings, p.buildingId)!;
+        const b = findById(state.buildings, q.buildingId)!;
+        const [aAt, aLen] = p.rot % 2 === 0 ? [a.x, buildingWidth(a)] : [a.z, buildingWidth(a)];
+        const bAt = q.rot % 2 === 0 ? b.x : b.z;
+        if (aAt + aLen !== bAt) gaps++;
+      }
+      expect(gaps, `row ${list[0]!.row}${view(state)}`).toBeLessThanOrEqual(1);
     }
   });
 

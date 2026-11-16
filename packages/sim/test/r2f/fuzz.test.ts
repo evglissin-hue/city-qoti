@@ -1,3 +1,4 @@
+import { content } from '@qoti/content';
 // R2F: random street grids against the cutter's invariants (task 5 and the acceptance list): the same
 // lots whatever the order of painting, a pass that finds nothing the second time, a lot layer that
 // agrees with the lots, rows that touch, corners and gardens that are valid.
@@ -98,6 +99,17 @@ export function verify(s: WorldState, label: string): void {
   for (let i = 0; i < S * S; i++) if (s.map.lot[i]) layerTiles++;
   expect(layerTiles, `${label} stray lot tiles`).toBe(seen.size);
   for (const list of rowsOf(s).values()) {
+    // From the player's chair: lots wider than the zone's commonest width hold a building a tile short
+    // of its neighbor, so a row takes another width at most once (where it will not come out even).
+    const shapes = content.zoneByValue.get(list[0]!.zone)!.roads!.street!.lots;
+    const weight = new Map<number, number>();
+    for (const sh of shapes) weight.set(sh.size[0], (weight.get(sh.size[0]) ?? 0) + sh.weight);
+    const common = [...weight].sort((p, q) => q[1] - p[1] || p[0] - q[0])[0]![0];
+    const odd = list.filter((l) => span(l) !== common).length;
+    expect(
+      odd,
+      `${label} row ${list[0]!.row} has ${odd} lots off the common width${view()}`,
+    ).toBeLessThanOrEqual(1);
     // A row is one line of lots that touch.
     for (let i = 1; i < list.length; i++) {
       expect(along(list[i - 1]!) + span(list[i - 1]!), `${label} row gap${view()}`).toBe(along(list[i]!));

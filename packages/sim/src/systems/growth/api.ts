@@ -46,17 +46,15 @@ export function lotPlacement(state: WorldState, lot: Lot, def: BuildingDef): [x:
 
 /**
  * R2F: which end of the frontage a building on a row lot stands at, so a street fills side by side
- * instead of by the hash: a corner lot hugs the side its second road lies on, else the side touching
- * a built lot of the row, else the side touching any lot of it. Null leaves the hash order.
+ * instead of by the hash: the side touching a built lot of the row, else any lot of it, so the terrace
+ * stays unbroken and a wider lot's spare tile is a side garden at the row's end (on a corner, a garden
+ * on the corner: the player's chair found a corner house hugging its corner stood a tile off its row).
+ * A corner lot alone in its row hugs its corner. Null leaves the hash order.
  */
 function hugSide(state: WorldState, lot: Lot): 'low' | 'high' | null {
   const alongX = lot.rot % 2 === 0;
   const pos = alongX ? lot.x : lot.z;
   const len = alongX ? lot.w : lot.d;
-  if (lot.corner && lot.frontage2 !== undefined) {
-    const t = alongX ? lot.frontage2 % MAP_SIZE : Math.floor(lot.frontage2 / MAP_SIZE);
-    return t * 2 < pos * 2 + len ? 'low' : 'high';
-  }
   let builtSide: 'low' | 'high' | null = null;
   let anySide: 'low' | 'high' | null = null;
   for (const o of state.lots) {
@@ -71,7 +69,13 @@ function hugSide(state: WorldState, lot: Lot): 'low' | 'high' | null {
       if (builtSide === 'low') break;
     }
   }
-  return builtSide ?? anySide;
+  if (builtSide ?? anySide) return builtSide ?? anySide;
+  // A corner lot alone in its row stands on its corner.
+  if (lot.corner && lot.frontage2 !== undefined) {
+    const t = alongX ? lot.frontage2 % MAP_SIZE : Math.floor(lot.frontage2 / MAP_SIZE);
+    return t * 2 < pos * 2 + len ? 'low' : 'high';
+  }
+  return null;
 }
 
 /**
