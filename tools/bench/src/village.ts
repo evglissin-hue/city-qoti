@@ -600,7 +600,9 @@ export function planBlock(w: WorldState, anchor: readonly [number, number][]): B
         let hi = -Infinity;
         for (let z = z0; z < z0 + n && ok; z++) {
           for (let x = x0; x < x0 + n; x++) {
-            if (!open(w, x, z)) {
+            // Trees inside stay uncut (the cutter leaves them zoned), and open the hollow: bare ground only.
+            const edge = x === x0 || z === z0 || x === x0 + n - 1 || z === z0 + n - 1;
+            if (!open(w, x, z) || (!edge && w.map.tree[z * S + x])) {
               ok = false;
               break;
             }
