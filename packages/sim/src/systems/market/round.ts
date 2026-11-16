@@ -39,13 +39,36 @@ const TREAT_SET: ReadonlySet<number> = new Set(TREATS);
  */
 export function sellsTreats(_state: WorldState, b: Building): boolean {
   if (b.stage !== 'built') return false;
-  const tags = content.buildingById.get(b.def)?.tags ?? [];
-  if (tags.includes('tavern')) return true;
-  if (!tags.includes('market')) return false;
-  const trade = content.tradeById.get(b.trade ?? (tags.includes('shop') ? 'shop' : ''));
+  const kind = treatsKind(b.def);
+  if (kind === TreatsKind.tavern) return true;
+  if (kind === TreatsKind.never) return false;
+  const trade = content.tradeById.get(b.trade ?? (kind === TreatsKind.shop ? 'shop' : ''));
   if (!trade?.sells) return true;
   const level = Math.max(1, Math.min(trade.sells.length, b.level ?? 1));
   return trade.sells[level - 1]!.includes('treats');
+}
+
+/** What a def's tags say about Treats: never, a tavern (always), a market, or a shop (a market whose trade defaults to 'shop'). */
+const TreatsKind = { never: 0, tavern: 1, market: 2, shop: 3 } as const;
+type TreatsKind = (typeof TreatsKind)[keyof typeof TreatsKind];
+
+/** R2X: by def, found once (the place signature asks for every building every tick it is read). */
+const treatsKinds = new Map<string, TreatsKind>();
+
+function treatsKind(def: string): TreatsKind {
+  let k = treatsKinds.get(def);
+  if (k === undefined) {
+    const tags = content.buildingById.get(def)?.tags ?? [];
+    k = tags.includes('tavern')
+      ? TreatsKind.tavern
+      : !tags.includes('market')
+        ? TreatsKind.never
+        : tags.includes('shop')
+          ? TreatsKind.shop
+          : TreatsKind.market;
+    treatsKinds.set(def, k);
+  }
+  return k;
 }
 
 /** Whether it has a Treat on the shelf right now (read live; never cache it). */
