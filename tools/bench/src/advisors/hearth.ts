@@ -21,6 +21,7 @@ import {
   type WorldState,
 } from '@qoti/sim';
 import type { Planner } from '../planner';
+import { walledIn } from '../rows';
 import { count, G, idx, S, sites } from '../town';
 import { wellFor } from './siting';
 import type { Advisor, AdvisorDef } from './types';
@@ -72,6 +73,8 @@ class Hearth implements Advisor {
           const x = home.x + dx;
           const z = home.z + dz;
           if (!canPlaceBuilding(reader, def, x, z, 0).ok) continue;
+          // R2E: not in a closed block's hollow (its gardens), and no path laid into it.
+          if (walledIn(this.w, x, z)) continue;
           if (!townReachesDoor(this.w, { def: def.id, x, z, rot: 0 })) continue;
           return !!this.p.buildAt('a garden bed for a wish', 'garden-bed', x, z, 0, true);
         }

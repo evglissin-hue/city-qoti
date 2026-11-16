@@ -1,7 +1,7 @@
 // R2E: the land advisor cobbles the village core when Cobbles is open, and lays a lane when it is not
 // (then cobbles the lane once Cobbles opens). Cobbles is unlocked by hand in a short run.
 import { content } from '@qoti/content';
-import { PENNIES_PER_COIN, type WorldState } from '@qoti/sim';
+import { MAP_SIZE, PENNIES_PER_COIN, type WorldState } from '@qoti/sim';
 import { describe, expect, it } from 'vitest';
 import { autoplay } from '../autoplay';
 
@@ -62,5 +62,43 @@ describe('the land advisor lays streets', { timeout: 120_000 }, () => {
     expect(cobble, run.actions.join('\n')).toBeTruthy();
     expect(cobble!.cmd).toMatchObject({ t: 'road.paint', kind: 'street' });
     expect(cobble!.day).toBeGreaterThan(lay!.day);
+  });
+
+  it('lays one closed ring of street with homes-medium zoned inside, once the village street is cobbled', () => {
+    const run = autoplay('hazel', VILLAGE_DAY + 8, {
+      villageDay: VILLAGE_DAY,
+      onDay: (w, line) => {
+        if (line.day >= VILLAGE_DAY - 3) {
+          setCobbles(w, true);
+          stock(w);
+        }
+      },
+    });
+    const w = run.hamlet.world;
+    const lay = run.decisions.find((d) => d.label === 'lay a block of streets' && d.ok);
+    expect(lay, run.actions.join('\n')).toBeTruthy();
+    expect(lay!.cmd).toMatchObject({ t: 'road.paint', kind: 'street' });
+    expect(run.decisions.filter((d) => d.label === 'lay a block of streets' && d.ok)).toHaveLength(1);
+    const tiles = (lay!.cmd as { tiles: [number, number][] }).tiles;
+    // The ring: each tile touches the next, the last touches the first, and the ground is street now.
+    const n = tiles.findIndex(
+      ([x, z], k) => k > 0 && Math.abs(x - tiles[k - 1]![0]) + Math.abs(z - tiles[k - 1]![1]) !== 1,
+    );
+    const ring = n < 0 ? tiles : tiles.slice(0, n);
+    const [fx, fz] = ring[0]!;
+    const [lx, lz] = ring[ring.length - 1]!;
+    expect(Math.abs(fx - lx) + Math.abs(fz - lz)).toBe(1);
+    for (const [x, z] of tiles) expect(w.map.road[z * MAP_SIZE + x]).toBe(3);
+    // The inside is zoned homes-medium (shops on the side nearest the village street, when lit).
+    const xs = ring.map((t) => t[0]);
+    const zs = ring.map((t) => t[1]);
+    const mx = (Math.min(...xs) + Math.max(...xs)) >> 1;
+    const mz = (Math.min(...zs) + Math.max(...zs)) >> 1;
+    expect(w.map.zone[(Math.min(...zs) + 1) * MAP_SIZE + mx]).toBeGreaterThan(0);
+    expect(w.map.zone[mz * MAP_SIZE + Math.min(...xs) + 1]).toBeGreaterThan(0);
+    const zoned = run.decisions.find((d) => d.label === 'zone the block' && d.ok);
+    expect(zoned, run.actions.join('\n')).toBeTruthy();
+    // One road.paint for the ring and a few zone.paint strokes: a handful of decisions.
+    expect(run.decisions.filter((d) => d.ok && /block/.test(d.label)).length).toBeLessThanOrEqual(4);
   });
 });
