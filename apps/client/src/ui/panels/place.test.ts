@@ -81,9 +81,10 @@ describe('the place card', () => {
         [11, 10],
       ],
       tone: 'hearth',
+      outline: true,
     });
 
-    const input = view.get('place-rename-input') as HTMLInputElement;
+    const input = view.get('place-rename-input') as HTMLTextAreaElement;
     expect(input.maxLength).toBe(40);
     input.value = 'Bo’s Bench';
     input.dispatchEvent(new Event('input', { bubbles: true }));
@@ -194,7 +195,7 @@ describe('routing', () => {
     view.unmount();
     view = await mount(h(InspectorPanel, { session }));
     expect(view.get('street-evening').textContent).toContain('Kept for strolling from 17:00 to 21:00');
-    const input = view.get('street-rename-input') as HTMLInputElement;
+    const input = view.get('street-rename-input') as HTMLTextAreaElement;
     input.value = 'Honey Row';
     input.dispatchEvent(new Event('input', { bubbles: true }));
     await settle();

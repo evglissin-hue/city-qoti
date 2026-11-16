@@ -12,6 +12,7 @@ import {
   TIERS,
   type Lens,
   type LetterView,
+  type WishView,
 } from '@qoti/sim';
 import type { Mirror } from '../state/mirror';
 import { goodName, placeName, pluralName, seatLabel } from './format';
@@ -218,14 +219,14 @@ export function computeAlerts(
   const fresh = [...m.wishes.values()]
     .filter((w) => now - w.createdTick < TICKS_PER_DAY)
     .sort((a, b) => b.createdTick - a.createdTick);
-  for (const w of fresh) {
+  for (const g of foldWishes(m, fresh)) {
     out.push({
-      key: `wish-${w.id}`,
+      key: `wish-${g.ids.join('+')}`,
       lens: 'hearth',
       tone: 'news',
       icon: 'wishes',
-      text: w.text,
-      action: { kind: 'wish', id: w.id },
+      text: g.text,
+      action: { kind: 'wish', id: g.ids[0]! },
     });
   }
   out.push(...edition.filter((a) => a.lens === 'hearth'));
@@ -535,6 +536,46 @@ function sitesBuildersAlert(m: Mirror, sites: ReturnType<typeof readSites>): Ale
     text: `${n === 1 ? 'A site is' : `${n} sites are`} waiting for a builder. A Builder's Yard adds more of them.`,
     action: { kind: 'building', id: first },
   };
+}
+
+/** Verbs after a name that read the same for two or more ("Paprika and Bluebell would like ..."). */
+const PLURAL_SAFE = new Set(['would', 'cannot', 'reached', 'could', 'might']);
+
+/**
+ * R2D: the same wish from several residents is one line (the master's read of the feed: Paprika's and
+ * Bluebell's benches, word for word, back to back). Wishes fold when their template and their words
+ * match once each wisher's name is set aside: "Paprika and Bluebell would like a bench near home.",
+ * or, where the verb would need changing, the first wish with "Bluebell too." after it.
+ */
+export function foldWishes(m: Mirror, wishes: readonly WishView[]): { ids: number[]; text: string }[] {
+  const groups = new Map<string, { ids: number[]; names: string[]; first: WishView; shape: string }>();
+  const out: { ids: number[]; names: string[]; first: WishView; shape: string }[] = [];
+  for (const w of wishes) {
+    const name = m.residents.get(w.residentId)?.given ?? '';
+    const once =
+      name.length > 0 && w.text.indexOf(name) >= 0 && w.text.indexOf(name) === w.text.lastIndexOf(name);
+    const shape = once ? w.text.replace(name, '{name}') : `#${w.id}`;
+    const key = `${w.template}|${shape}`;
+    const g = groups.get(key);
+    if (g) {
+      g.ids.push(w.id);
+      g.names.push(name);
+    } else {
+      const fresh = { ids: [w.id], names: [name], first: w, shape };
+      groups.set(key, fresh);
+      out.push(fresh);
+    }
+  }
+  return out.map((g) => {
+    if (g.ids.length === 1) return { ids: g.ids, text: g.first.text };
+    const names = [...new Set(g.names)];
+    const after = g.shape.split('{name}')[1] ?? '';
+    const verb = after.trimStart().split(' ')[0] ?? '';
+    if (g.shape.startsWith('{name} ') && PLURAL_SAFE.has(verb))
+      return { ids: g.ids, text: `${list(names)}${after}` };
+    const others = names.slice(1);
+    return { ids: g.ids, text: `${g.first.text} ${list(others)} too.` };
+  });
 }
 
 /** Ledger: built workplaces with nobody at all, as one line. */

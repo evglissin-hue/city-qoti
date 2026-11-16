@@ -99,7 +99,7 @@ export interface RenderApi {
   highlight?(
     area:
       | { x: number; z: number; radius: number; tone?: 'hearth' | 'ledger' }
-      | { tiles: [number, number][]; tone?: 'hearth' | 'ledger' }
+      | { tiles: [number, number][]; tone?: 'hearth' | 'ledger'; outline?: boolean }
       | null,
   ): void;
 }

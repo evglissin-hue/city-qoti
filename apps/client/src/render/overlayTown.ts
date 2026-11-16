@@ -7,7 +7,7 @@
 //   - A glint where an outlet sells to the round (`PlaceView.serves`), a soft pulse and no more.
 //   - Evening streets, open gaps and places draw on it too.
 //   - The lens only decides which ink is stronger (Hearth: sage; Ledger: ochre).
-import { footprintSize, MAP_SIZE, type Lens } from '@qoti/sim';
+import { doorFront, footprintSize, MAP_SIZE, type Lens } from '@qoti/sim';
 import type { Mirror } from '../state/mirror';
 import { drawDef } from './defs';
 
@@ -177,4 +177,85 @@ export function contrast(a: Rgb, b: Rgb): number {
   const la = luminance(a);
   const lb = luminance(b);
   return (Math.max(la, lb) + 0.05) / (Math.min(la, lb) + 0.05);
+}
+
+/** One step of a goods route between two tile centers (a < b), and the units that pass along it. */
+export interface RouteEdge {
+  a: number;
+  b: number;
+  units: number;
+}
+
+const routeCache = new WeakMap<Mirror, { rev: number; paths: Map<string, number[]> }>();
+
+/**
+ * The way a route takes along the roads: breadth-first over road tiles from the tile in front of one
+ * door to the tile in front of the other, as tile indexes. Where the roads do not join, the two door
+ * tiles alone (drawn as one straight, fainter line). Cached per pair until the map changes.
+ */
+export function routePath(mirror: Mirror, from: number, to: number): number[] {
+  let cache = routeCache.get(mirror);
+  if (!cache || cache.rev !== mirror.layerRevision) {
+    cache = { rev: mirror.layerRevision, paths: new Map() };
+    routeCache.set(mirror, cache);
+  }
+  const key = `${from}>${to}`;
+  const hit = cache.paths.get(key);
+  if (hit) return hit;
+  const a = mirror.buildings.get(from);
+  const b = mirror.buildings.get(to);
+  if (!a || !b) return [];
+  const start = doorFront(a);
+  const goal = doorFront(b);
+  const road = mirror.layers.road;
+  const prev = new Map<number, number>([[start, -1]]);
+  const queue = [start];
+  for (let i = 0; i < queue.length && !prev.has(goal); i++) {
+    const t = queue[i]!;
+    const x = t % N;
+    for (const n of [t - N, t + N, x > 0 ? t - 1 : -1, x < N - 1 ? t + 1 : -1]) {
+      if (n < 0 || n >= N * N || prev.has(n)) continue;
+      if (!road[n] && n !== goal) continue;
+      prev.set(n, t);
+      queue.push(n);
+    }
+  }
+  let path: number[];
+  if (prev.has(goal)) {
+    path = [];
+    for (let t = goal; t !== -1; t = prev.get(t)!) path.push(t);
+    path.reverse();
+  } else path = [start, goal];
+  cache.paths.set(key, path);
+  return path;
+}
+
+/**
+ * The goods routes as steps between tile centers along the roads, each step once with every route's
+ * units that pass along it summed, so a road many routes share draws as one line, a little bolder.
+ * Routes with no road between their doors are left out (the player's chair: straight dashes across
+ * the fields read as roads that are not there).
+ */
+export function routeEdges(mirror: Mirror, routes: readonly [number, number, number][]): RouteEdge[] {
+  const sum = new Map<string, RouteEdge>();
+  for (const [from, to, units] of routes) {
+    const path = routePath(mirror, from, to);
+    // A route the roads do not carry is left out: a line across the fields says nothing true.
+    if (path.length === 2 && !adjacent(path[0]!, path[1]!)) continue;
+    for (let i = 1; i < path.length; i++) {
+      const a = Math.min(path[i - 1]!, path[i]!);
+      const b = Math.max(path[i - 1]!, path[i]!);
+      if (a === b) continue;
+      const key = `${a}:${b}`;
+      const e = sum.get(key);
+      if (e) e.units += units;
+      else sum.set(key, { a, b, units });
+    }
+  }
+  return [...sum.values()].sort((x, y) => x.a - y.a || x.b - y.b);
+}
+
+function adjacent(a: number, b: number): boolean {
+  const d = Math.abs(a - b);
+  return d === N || (d === 1 && Math.floor(a / N) === Math.floor(b / N));
 }

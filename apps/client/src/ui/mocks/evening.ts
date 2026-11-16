@@ -386,12 +386,12 @@ export function eveningMocks(m: Mirror): Mocks {
   const seller = [...places]
     .filter((p) => p.serves.length > 0)
     .sort((a, b) => (b.visitors.at(-1) ?? 0) - (a.visitors.at(-1) ?? 0))[0];
-  const top = places.filter((p) => p.source !== 'porch' && p.id !== seller?.id).slice(0, 3);
+  const top = places.filter((p) => p.source !== 'porch' && p.name !== seller?.name).slice(0, 3);
   const lines: EditionLine[] = [
     ...(seller
       ? [
           {
-            text: `${seller.visitors.at(-1)} folk came to ${seller.name}, and ${nameOf(1)}'s stall sold them ${seller.sold.at(-1)} treats: ${Math.round((seller.takings.at(-1) ?? 0) / PENNIES_PER_COIN)} coins.`,
+            text: `${seller.visitors.at(-1)} folk came to ${seller.name}, and ${nameOf(1)}'s stall sold them ${seller.sold.at(-1)} treats for ${Math.round((seller.takings.at(-1) ?? 0) / PENNIES_PER_COIN)} coins.`,
             seats: [1 as SeatId],
             refs: [seller.id],
           },

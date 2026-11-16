@@ -128,14 +128,21 @@ export function RenameField({
       }}
     >
       <div class="rename-row">
-        <input
-          type="text"
+        {/* A name wraps rather than hiding its end (the master's read: "the stall by the
+            Featherstone cottag"); Enter still renames, as in a one-line field. */}
+        <textarea
           value={text}
+          rows={text.length > 26 ? 2 : 1}
           maxLength={MAX_PLACE_NAME_CHARS}
           placeholder={generated}
           aria-label="Name"
           data-testid={`${testid}-input`}
-          onInput={(e) => setText((e.target as HTMLInputElement).value)}
+          onInput={(e) => setText((e.target as HTMLTextAreaElement).value.replace(/\n/g, ' '))}
+          onKeyDown={(e) => {
+            if (e.key !== 'Enter') return;
+            e.preventDefault();
+            save();
+          }}
         />
         <button type="submit" class="small-button" data-testid={`${testid}-save`}>
           Rename
@@ -209,7 +216,11 @@ export function PlaceCard({
   // The place's tiles are drawn on the ground while the card is open.
   useEffect(() => {
     if (!tilesKey) return;
-    session.render?.highlight?.({ tiles: tilePairs(tilesKey.split(',').map(Number)), tone: 'hearth' });
+    session.render?.highlight?.({
+      tiles: tilePairs(tilesKey.split(',').map(Number)),
+      tone: 'hearth',
+      outline: true,
+    });
     return () => session.render?.highlight?.(null);
   }, [tilesKey]);
   if (!p) return null;

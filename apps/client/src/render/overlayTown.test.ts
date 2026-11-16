@@ -1,5 +1,6 @@
 import { buildView, createWorld, defaultSettings, Flags, MAP_SIZE, type SimEvent } from '@qoti/sim';
 import { describe, expect, it } from 'vitest';
+import { villageFixture } from '../../../../packages/sim/test/fixtures/village';
 import { Mirror } from '../state/mirror';
 import { mockPlace } from '../ui/mocks/evening';
 import { overlays } from '../ui/lenses';
@@ -8,6 +9,8 @@ import {
   footfallWash,
   hexToRgb,
   inkStrength,
+  routeEdges,
+  routePath,
   simulate,
   TOWN_COLORS,
   townInk,
@@ -164,5 +167,49 @@ describe('the two inks', () => {
     // The gap's umber and the deeper street sage stay darker than the wash they sit on.
     expect(contrast(hexToRgb(TOWN_COLORS.gap), sage)).toBeGreaterThan(3);
     expect(contrast(hexToRgb(TOWN_COLORS.street), sage)).toBeGreaterThan(1.5);
+  });
+});
+
+describe('the ochre routes follow the roads', () => {
+  /** Two buildings joined by a road run, the Mirror's own placement of them. */
+  function joined() {
+    const m = new Mirror();
+    m.load(buildView(villageFixture().state));
+    const a = [...m.buildings.values()].find((x) => x.def === 'storehouse')!;
+    const b = [...m.buildings.values()].find((x) => x.def === 'market-stall')!;
+    return { m, a, b };
+  }
+
+  it('walks road tiles between the doors, and falls back to a straight step where none join', () => {
+    const { m, a, b } = joined();
+    const path = routePath(m, a.id, b.id);
+    expect(path.length).toBeGreaterThanOrEqual(2);
+    const road = m.layers.road;
+    const inner = path.slice(1, -1);
+    expect(path.length).toBeGreaterThan(2);
+    {
+      // Every step is to a neighbor, and the tiles between the doors are road.
+      for (let i = 1; i < path.length; i++) {
+        const d = Math.abs(path[i]! - path[i - 1]!);
+        expect(d === 1 || d === N).toBe(true);
+      }
+      expect(inner.every((t) => road[t]! > 0)).toBe(true);
+    }
+    // Cut every road: the route becomes the two door tiles, and the overlay leaves it out.
+    road.fill(0);
+    m.layerRevision++;
+    expect(routePath(m, a.id, b.id)).toHaveLength(2);
+    expect(routeEdges(m, [[a.id, b.id, 3]])).toEqual([]);
+  });
+
+  it('draws a road two routes share once, with the units of both', () => {
+    const { m, a, b } = joined();
+    const one = routeEdges(m, [[a.id, b.id, 3]]);
+    const two = routeEdges(m, [
+      [a.id, b.id, 3],
+      [b.id, a.id, 4],
+    ]);
+    expect(two).toHaveLength(one.length);
+    expect(two.every((e) => e.units === 7)).toBe(true);
   });
 });

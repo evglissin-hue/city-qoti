@@ -43,8 +43,8 @@ import {
   type Material,
 } from 'three';
 import type { Mirror } from '../../state/mirror';
-import { inkStrength, townInk, townLens, TOWN_COLORS } from '../overlayTown';
-import { townGlints, townSheet } from '../overlayTownDraw';
+import { inkStrength, routeEdges, townInk, townLens } from '../overlayTown';
+import { tileOutline, townGlints, townRoutes, townSheet } from '../overlayTownDraw';
 import { drapeGrid, drapeOutline, drapeRing, drapeTiles, groundY, mergeDrapes, type Rgba } from '../drape';
 import { iconAtlas, IconSprites, STATUS_ICONS } from '../icons';
 import { buildingGeometry, standLevel } from '../kitGeometry';
@@ -53,7 +53,8 @@ import type { LayerContext, RenderLayer } from './types';
 
 export type HighlightArea =
   | { x: number; z: number; radius: number; tone?: 'hearth' | 'ledger' }
-  | { tiles: [number, number][]; tone?: 'hearth' | 'ledger' }
+  /** R2D: `outline` inks the tiles' edge with the faintest wash inside, in place of a filled block. */
+  | { tiles: [number, number][]; tone?: 'hearth' | 'ledger'; outline?: boolean }
   | null;
 
 export interface OverlaysLayer extends RenderLayer {
@@ -257,9 +258,6 @@ export function overlaysLayer(): OverlaysLayer {
     depthWrite: false,
     side: DoubleSide,
   });
-  // R2D: the Town overlay's ochre routes: the same ribbons, in the ochre ink at the lens's strength.
-  const townFlowMaterial = flowMaterial.clone();
-  (townFlowMaterial.uniforms.uColor as { value: Color }).value = new Color(TOWN_COLORS.ochre);
   // The glints where an outlet sells: a soft pulse, never a flash.
   const glintMaterial = sheet.clone();
   const hlMaterial = sheet.clone();
@@ -567,8 +565,9 @@ export function overlaysLayer(): OverlaysLayer {
     const ink = townInk(ctx.mirror, flowsOf(ctx.mirror));
     const sheetGeo = townSheet(ctx.mirror, ink, strength);
     if (sheetGeo) add(sheetGeo);
-    (townFlowMaterial.uniforms.uStrength as { value: number }).value = strength.ochre;
-    flows(ink.routes, townFlowMaterial, 0.6 + 0.4 * strength.ochre);
+    // The ochre routes: fine dashes along the roads, as quiet as the sage (not the Flows ribbons).
+    const routes = townRoutes(ctx.mirror, routeEdges(ctx.mirror, ink.routes), strength);
+    if (routes) add(routes);
     const glints = townGlints(ctx.mirror, ink);
     if (glints) add(glints, glintMaterial).renderOrder = 7;
   }
@@ -1056,7 +1055,10 @@ export function overlaysLayer(): OverlaysLayer {
     const g = new Group();
     g.renderOrder = 5;
     const m = ctx.mirror;
-    if ('tiles' in area) {
+    if ('tiles' in area && area.outline) {
+      const geo = tileOutline(m, area.tiles, tone);
+      if (geo) add(geo, hlMaterial, g);
+    } else if ('tiles' in area) {
       const set = new Set(area.tiles.map(([x, z]) => z * MAP_SIZE + x));
       let x0 = MAP_SIZE;
       let z0 = MAP_SIZE;
@@ -1213,7 +1215,6 @@ export function overlaysLayer(): OverlaysLayer {
         dirty = true;
       }
       if (townLens(kind)) {
-        (townFlowMaterial.uniforms.uTime as { value: number }).value = time;
         // A slow pulse, about one breath every six seconds.
         glintMaterial.opacity = 0.65 + Math.sin(time * 1.05) * 0.25;
         dirty = true;
@@ -1248,7 +1249,6 @@ export function overlaysLayer(): OverlaysLayer {
       sheet.dispose();
       hlMaterial.dispose();
       flowMaterial.dispose();
-      townFlowMaterial.dispose();
       glintMaterial.dispose();
     },
   };
