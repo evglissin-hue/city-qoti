@@ -113,4 +113,30 @@ describe('lot bounds (P2-A)', () => {
       expect(bad).toEqual([]);
     },
   );
+
+  // V3B: a row kit of any storeys keeps its roof and walls inside the lot (the roof rides the walls).
+  it('keep the townhouse and the shop inside their lot at 1 to 4 storeys', { timeout: 120000 }, () => {
+    const bad: string[] = [];
+    for (const id of ['shop', 'townhouse'])
+      for (const style of STYLES)
+        for (const storeys of [1, 1.5, 2.5, 3, 3.5, 4])
+          for (const level of id === 'shop' ? LEVELS : [0])
+            for (let seed = 1; seed <= 6; seed++) {
+              const o = optsOf(id, style, level, seed);
+              o.params = { ...o.params, storeys };
+              const [w, d] = o.size!;
+              const pos = kitById.get(id)!.build(o).getAttribute('position');
+              for (let i = 0; i < pos.count; i++) {
+                if (pos.getY(i) < GROUND) continue;
+                const out = Math.max(-pos.getX(i), pos.getX(i) - w, -pos.getZ(i), pos.getZ(i) - d - FRONT);
+                if (out > EPS) {
+                  bad.push(
+                    `${id} ${style} storeys=${storeys} level=${level} seed=${seed} by ${out.toFixed(3)}`,
+                  );
+                  break;
+                }
+              }
+            }
+    expect(bad).toEqual([]);
+  });
 });

@@ -74,45 +74,47 @@ describe('roof verges and soffits (P2-E1)', () => {
     for (const shape of SHAPES)
       for (const material of MATERIALS)
         for (const ridgeAlongX of [true, false])
-          for (const lod of LODS) {
-            const label = `${shape} ${material} ${ridgeAlongX ? 'x' : 'z'} ${lod}`;
-            const s = new ShapeBuilder(lod);
-            const sh = shell(s, {
-              x0: 0.4,
-              z0: 0.4,
-              x1: ridgeAlongX ? 4.4 : 3.2,
-              z1: ridgeAlongX ? 3.2 : 4.4,
-              base: 0,
-              wallH: 1.6,
-              wall: 'plaster',
-              wallColor: 0xe0d0b0,
-              trim: 0x5a4434,
-              roof: { shape, material, color: 0xc8a060, rise: 1.1, overhang: 0.3, ridgeAlongX },
-              rnd: seeded(3),
-            });
-            const [wx0, wz0, wx1, wz1] = sh.outer;
-            const [w0, w1] = ridgeAlongX ? [wx0, wx1] : [wz0, wz1];
-            const cm = ridgeAlongX ? (wz0 + wz1) / 2 : (wx0 + wx1) / 2;
-            const r = new ShapeBuilder(lod);
-            roofPart(r, sh.roof);
-            const past0 = [0, 0];
-            const past1 = [0, 0];
-            const worst = { all: 0 };
-            for (const t of trisOf(r.build(false))) {
-              const a = t.p.map((v) => (ridgeAlongX ? v[0] : v[2]));
-              const c = t.p.reduce((m, v) => m + (ridgeAlongX ? v[2] : v[0]), 0) / 3;
-              const lo = w0 - Math.min(...a);
-              const hi = Math.max(...a) - w1;
-              worst.all = Math.max(worst.all, lo, hi);
-              if (Math.abs(c - cm) < 0.12) continue;
-              const side = c < cm ? 0 : 1;
-              past0[side] = Math.max(past0[side]!, lo);
-              past1[side] = Math.max(past1[side]!, hi);
+          for (const lod of LODS)
+            // V3B: row kits stand 1 to 4 storeys tall, so the roof rides walls of any height.
+            for (const wallH of [0.74, 1.6, 2.9]) {
+              const label = `${shape} ${material} ${ridgeAlongX ? 'x' : 'z'} ${lod} wall ${wallH}`;
+              const s = new ShapeBuilder(lod);
+              const sh = shell(s, {
+                x0: 0.4,
+                z0: 0.4,
+                x1: ridgeAlongX ? 4.4 : 3.2,
+                z1: ridgeAlongX ? 3.2 : 4.4,
+                base: 0,
+                wallH,
+                wall: 'plaster',
+                wallColor: 0xe0d0b0,
+                trim: 0x5a4434,
+                roof: { shape, material, color: 0xc8a060, rise: 1.1, overhang: 0.3, ridgeAlongX },
+                rnd: seeded(3),
+              });
+              const [wx0, wz0, wx1, wz1] = sh.outer;
+              const [w0, w1] = ridgeAlongX ? [wx0, wx1] : [wz0, wz1];
+              const cm = ridgeAlongX ? (wz0 + wz1) / 2 : (wx0 + wx1) / 2;
+              const r = new ShapeBuilder(lod);
+              roofPart(r, sh.roof);
+              const past0 = [0, 0];
+              const past1 = [0, 0];
+              const worst = { all: 0 };
+              for (const t of trisOf(r.build(false))) {
+                const a = t.p.map((v) => (ridgeAlongX ? v[0] : v[2]));
+                const c = t.p.reduce((m, v) => m + (ridgeAlongX ? v[2] : v[0]), 0) / 3;
+                const lo = w0 - Math.min(...a);
+                const hi = Math.max(...a) - w1;
+                worst.all = Math.max(worst.all, lo, hi);
+                if (Math.abs(c - cm) < 0.12) continue;
+                const side = c < cm ? 0 : 1;
+                past0[side] = Math.max(past0[side]!, lo);
+                past1[side] = Math.max(past1[side]!, hi);
+              }
+              expect(worst.all, label).toBeLessThanOrEqual(MAX_VERGE + 1e-6);
+              expect(past0[0]!, label).toBeCloseTo(past0[1]!, 6);
+              expect(past1[0]!, label).toBeCloseTo(past1[1]!, 6);
             }
-            expect(worst.all, label).toBeLessThanOrEqual(MAX_VERGE + 1e-6);
-            expect(past0[0]!, label).toBeCloseTo(past0[1]!, 6);
-            expect(past1[0]!, label).toBeCloseTo(past1[1]!, 6);
-          }
   });
 
   it('shade every face that looks down: the soffit is never the pale color of the top', () => {

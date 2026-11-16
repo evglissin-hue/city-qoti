@@ -141,7 +141,7 @@ describe('back garden kit (V3B-E4)', () => {
     for (let seed = 1; seed <= 8; seed++) {
       const hi = boundsOf(optsOf(3, 3, seed, COMBOS[2]!, 'timber', 1));
       const lo = boundsOf(optsOf(3, 3, seed, COMBOS[2]!, 'timber', 1, 'low'));
-      expect(Math.abs(hi.max[0] - lo.max[0])).toBeLessThan(0.5);
+      expect(Math.abs(hi.max[0]! - lo.max[0]!)).toBeLessThan(0.5);
     }
   });
 });
