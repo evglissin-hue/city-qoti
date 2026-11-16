@@ -29,6 +29,7 @@ import { findById } from '../../../packages/sim/src/state/entities';
 import { DEFAULT_SEEDS } from './audit';
 import { autoplay, type AutoplayOptions, type DayLine } from './autoplay';
 import { runCartScene, type CartRun } from './cartScene';
+import { NO_ROWS, rowsOf, type RowsMeasure } from './rows';
 
 export type Verdict = 'PASS' | 'MISS' | 'N/A';
 
@@ -95,6 +96,8 @@ export interface RunRecord {
   rooms: RoomSample[];
   daySamples: DaySample[];
   gaps: SeenGap[];
+  /** The street lots at the end of the run (R2F's rows and gardens). */
+  rows: RowsMeasure;
 }
 
 // --- Measuring functions (pure) --------------------------------------------------------------------
@@ -253,6 +256,18 @@ export function rowTreats(seed: string, evenings: readonly EveningSample[]): Out
     ...base,
     measured: `${pct(share)} (${m.onRound} of ${m.total} over ${m.evenings} evenings)`,
     verdict: share >= 0.8 ? 'PASS' : 'MISS',
+  };
+}
+
+/** Outcome 7: a street town has rows of 3+ lots with garden lots behind them (R2F cuts them). */
+export function rowStreetRows(seed: string, m: RowsMeasure): OutcomeRow {
+  return {
+    outcome: 'Street rows with gardens behind',
+    seed,
+    measured: `${m.rowLots} row lots in ${m.rows} rows (longest ${m.longestRow}, ${m.rowsOf3} of 3+), ${m.gardens} gardens, ${m.corners} corners, ${m.grownRowLots} grown`,
+    target: '>= 1 row of 3+ lots, >= 1 garden',
+    verdict: m.rowsOf3 >= 1 && m.gardens >= 1 ? 'PASS' : 'MISS',
+    needs: 'R2F (street lots), R2E (streets laid)',
   };
 }
 
@@ -457,7 +472,7 @@ export function sampleEvening(w: WorldState): EveningSample {
 
 /** Records an autoplay run's evenings, rooms, craftsfolk and gaps (this reads state; it changes none). */
 export function recordRun(seed: string, days: number, opts: AutoplayOptions = {}): RunRecord {
-  const rec: RunRecord = { seed, days, evenings: [], rooms: [], daySamples: [], gaps: [] };
+  const rec: RunRecord = { seed, days, evenings: [], rooms: [], daySamples: [], gaps: [], rows: NO_ROWS };
   const seenGap = new Map<number, SeenGap>();
   let lastEvening = -2;
   let lastRoom = -1;
@@ -498,7 +513,7 @@ export function recordRun(seed: string, days: number, opts: AutoplayOptions = {}
     const crafts = w.households.filter((h) => h.tier !== 'settler').length;
     rec.daySamples.push({ day: line.day, crafts, households: w.households.length });
   };
-  autoplay(seed, days, {
+  const run = autoplay(seed, days, {
     village: true,
     ...opts,
     onHour: (w) => {
@@ -510,6 +525,7 @@ export function recordRun(seed: string, days: number, opts: AutoplayOptions = {}
       opts.onDay?.(w, line);
     },
   });
+  rec.rows = rowsOf(run.hamlet.world);
   rec.gaps = [...seenGap.values()].sort((a, b) => a.id - b.id);
   return rec;
 }
@@ -530,6 +546,7 @@ export function seedRows(seed: string, both: RunRecord, hearthOff: RunRecord): O
     rowTreats(seed, both.evenings),
     rowFirstCraftsfolk(seed, both.daySamples),
     ...rowsGaps(seed, r2GapKinds(), both.gaps),
+    rowStreetRows(seed, both.rows),
   ];
 }
 

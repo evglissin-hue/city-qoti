@@ -65,6 +65,10 @@ const MAX_STREETS = 16;
 const ENOUGH_FRONTAGE = 24;
 /** Coins a tile of lane costs. */
 const LANE_COINS = content.roadById.get('lane')?.cost?.coins ?? 2;
+/** Coins and stone a tile of cobbled street costs (`street` in the road content). */
+const STREET_COINS = content.roadById.get('street')?.cost?.coins ?? 4;
+/** Stone kept in store after cobbling (the quarry's urgent mark: homes and lodges wait on it). */
+const STONE_KEEP = 16;
 /** A street's length in tiles: 22 when the treasury allows, never under 8 (a short lane still answers a bar). */
 const STREET_TILES = 30;
 const SHORT_STREET = 8;
@@ -114,6 +118,8 @@ class Land implements Advisor {
   private streets = 0;
   /** The Village's street (shops and townhouses) is laid. */
   private villageStreet = false;
+  /** R2E: lane tiles of a village or shop street laid before Cobbles opened, to be cobbled when it does. */
+  private lanes: [number, number][] = [];
   /** Day each zone was last painted for its bar. */
   private readonly painted = new Map<string, number>();
 
@@ -134,20 +140,57 @@ class Land implements Advisor {
     // R1X: a Village may lay its lanes on the County Bank's credit, as its services go up: growth
     // waited for coins while the Homes bar asked for land for days.
     const credit = overdraftLimit(p.w) / PENNIES_PER_COIN;
-    const length = Math.min(STREET_TILES, Math.floor((p.coins() + credit - MONEY_RESERVE) / LANE_COINS));
+    const means = p.coins() + credit - MONEY_RESERVE;
+    // R2E: the village core (the Village's street, and later streets that carry shops or townhouses)
+    // is cobbled when Cobbles is open and the coins and stone allow; every other street is a lane.
+    const core = (village && !zones) || !!zones?.some((z) => z === 'shops' || z === 'homes-medium');
+    const stone = townStock(p.w)[G('stone')]! - STONE_KEEP;
+    const cobbled =
+      core && hasInnovation(p.w, 'cobbles')
+        ? Math.min(STREET_TILES, Math.floor(means / STREET_COINS), stone)
+        : 0;
+    const asStreet = cobbled >= SHORT_STREET;
+    const length = asStreet ? cobbled : Math.min(STREET_TILES, Math.floor(means / LANE_COINS));
     if (length < SHORT_STREET) return false;
-    const street = planHighStreet(p.w, length);
+    let street = planHighStreet(p.w, length);
     if (!street) {
       p.actions.push(`no room for ${label}`);
       return false;
     }
-    if (!p.do(`lay ${label}`, [{ t: 'road.paint', kind: 'lane', tiles: street.tiles }])) return false;
+    let kind: 'lane' | 'street' = asStreet ? 'street' : 'lane';
+    if (!p.do(`lay ${label}`, [{ t: 'road.paint', kind, tiles: street.tiles }])) {
+      // The stone may sit in a place the road cannot draw from: a lane instead.
+      if (kind === 'lane') return false;
+      kind = 'lane';
+      street = planHighStreet(p.w, Math.min(STREET_TILES, Math.floor(means / LANE_COINS))) ?? street;
+      if (!p.do(`lay ${label}`, [{ t: 'road.paint', kind, tiles: street.tiles }])) return false;
+    }
+    if (core && kind === 'lane') this.lanes.push(...street.tiles);
     p.street ??= street;
     this.streets++;
     if (village && !zones) this.villageStreet = true;
     p.do(`zone ${label}`, zones ? zoneStreetFor(p.w, street, zones) : zoneHighStreet(p.w, street, village));
     for (const z of zones ?? []) this.painted.set(z, day(p.w));
     return true;
+  }
+
+  /**
+   * R2E: Cobbles is open now: cobble the core's lane tiles (one decision), as many as the coins and
+   * stone allow from the junction outward, keeping the planner's reserves.
+   */
+  private cobble(): void {
+    const p = this.p;
+    if (this.lanes.length === 0 || !hasInnovation(p.w, 'cobbles')) return;
+    const credit = overdraftLimit(p.w) / PENNIES_PER_COIN;
+    const n = Math.min(
+      this.lanes.length,
+      Math.floor((p.coins() + credit - MONEY_RESERVE) / STREET_COINS),
+      townStock(p.w)[G('stone')]! - STONE_KEEP,
+    );
+    if (n < Math.min(SHORT_STREET, this.lanes.length)) return;
+    const tiles = this.lanes.slice(0, n);
+    if (p.do('cobble the village street', [{ t: 'road.paint', kind: 'street', tiles }]))
+      this.lanes = this.lanes.slice(n);
   }
 
   /** The Village chapter: another street, with shops and townhouses now they are open. */
@@ -543,6 +586,7 @@ class Land implements Advisor {
       // A Village whose rank-up morning found no room for its street tries again.
       if (rankAtLeast(w, 'village') && !this.villageStreet && this.streets < MAX_STREETS)
         this.lay('the village street');
+      this.cobble();
       this.answerBars();
     }
     this.reachLots();

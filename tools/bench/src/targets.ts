@@ -7,10 +7,19 @@
 // the Hearth's decisions and R1's Craftsfolk lines as PASS/FAIL; '-' while no evening is tallied.
 // TARGETS_DAYS=1 adds a line per day with the numbers behind it.
 import { content } from '@qoti/content';
-import { calendar, loansOwed, PENNIES_PER_COIN, placesView, rankAtLeast, type WorldState } from '@qoti/sim';
+import {
+  calendar,
+  hasInnovation,
+  loansOwed,
+  PENNIES_PER_COIN,
+  placesView,
+  rankAtLeast,
+  type WorldState,
+} from '@qoti/sim';
 import { autoplay, type DayLine } from './autoplay';
 import { DEFAULT_SEEDS } from './audit';
 import { DECISIONS_DAYS, decisionVerdict, tallyDecisions } from './decisions';
+import { rowsOf } from './rows';
 import { charterOpen } from './town';
 
 export interface TargetRow {
@@ -58,6 +67,13 @@ export interface TargetRow {
   closedBySeat: string;
   /** The Hearth's accepted commands (reported; the Ledger's `decisions` has the limit). */
   hearthDecisions: number;
+  /** R2E: the day Cobbles unlocked (0: never), and the street lots at the end (R2F cuts rows and gardens). */
+  cobblesDay: number;
+  rowLots: number;
+  rows: number;
+  gardens: number;
+  corners: number;
+  grownRowLots: number;
   /** The first Craftsfolk came by day 40 (R1). */
   craftsBy40: boolean;
   /** A third of households are Craftsfolk at day 70 (R1). */
@@ -83,6 +99,7 @@ function craftsHouseholds(w: WorldState): [number, number] {
 
 export function targetRow(seed: string, days = DECISIONS_DAYS): { row: TargetRow; lines: string[] } {
   let villageDay = 0;
+  let cobblesDay = 0;
   let firstCraftsfolk = 0;
   let lowest = Infinity;
   let made = 0;
@@ -101,6 +118,7 @@ export function targetRow(seed: string, days = DECISIONS_DAYS): { row: TargetRow
   const gapIds = new Set<number>();
   const onDay = (w: WorldState, line: DayLine) => {
     if (!villageDay && rankAtLeast(w, 'village')) villageDay = line.day;
+    if (!cobblesDay && hasInnovation(w, 'cobbles')) cobblesDay = line.day;
     const [crafts, all] = craftsHouseholds(w);
     if (!firstCraftsfolk && crafts > 0) firstCraftsfolk = line.day;
     share70 = all ? crafts / all : 0;
@@ -138,6 +156,7 @@ export function targetRow(seed: string, days = DECISIONS_DAYS): { row: TargetRow
   const grownups = w.residents.filter((r) => r.stage === 'young' || r.stage === 'adult').length;
   const places = placesView(w).places;
   const seats = places.reduce((a, p) => a + p.seats, 0);
+  const street = rowsOf(w);
   const tally = tallyDecisions(run.decisions, Math.min(days, DECISIONS_DAYS));
   return {
     row: {
@@ -178,6 +197,12 @@ export function targetRow(seed: string, days = DECISIONS_DAYS): { row: TargetRow
       gapsClosed: w.gaps.closedCount,
       closedBySeat: w.gaps.closedBySeat.join('/'),
       hearthDecisions: tally.hearth,
+      cobblesDay,
+      rowLots: street.rowLots,
+      rows: street.rows,
+      gardens: street.gardens,
+      corners: street.corners,
+      grownRowLots: street.grownRowLots,
       craftsBy40: firstCraftsfolk > 0 && firstCraftsfolk <= FIRST_CRAFTSFOLK_BY,
       craftsThird70: share70 >= CRAFTSFOLK_SHARE,
     },
@@ -186,7 +211,7 @@ export function targetRow(seed: string, days = DECISIONS_DAYS): { row: TargetRow
 }
 
 export const TARGET_HEAD =
-  'seed     village  pop40 pop70 hh70  food%40 food%70 food%mean  decisions  1st crafts  crafts%70 best  stalls  low coins  coins70 owed70 tab70  firewood made/bought  lean  left  out%mean out%last evening seats/100  places  treats%round  gaps open/shut  by seat  hearth  crafts@40 third@70';
+  'seed     village  pop40 pop70 hh70  food%40 food%70 food%mean  decisions  1st crafts  crafts%70 best  stalls  low coins  coins70 owed70 tab70  firewood made/bought  lean  left  out%mean out%last evening seats/100  places  treats%round  gaps open/shut  by seat  hearth  cobbles  rowlots rows gardens corners grown  crafts@40 third@70';
 
 export function formatTarget(r: TargetRow): string {
   const pad = (v: string | number, n: number) => String(v).padStart(n);
@@ -220,6 +245,12 @@ export function formatTarget(r: TargetRow): string {
     pad(`${r.gapsOpened}/${r.gapsClosed}`, 14),
     pad(r.closedBySeat, 7),
     pad(r.hearthDecisions, 6),
+    pad(r.cobblesDay || '-', 7),
+    pad(r.rowLots, 8),
+    pad(r.rows, 4),
+    pad(r.gardens, 7),
+    pad(r.corners, 7),
+    pad(r.grownRowLots, 5),
     pad(r.craftsBy40 ? 'PASS' : 'FAIL', 9),
     pad(r.craftsThird70 ? `PASS ${r.craftsfolkShare70}%` : `FAIL ${r.craftsfolkShare70}%`, 9),
   ].join(' ');
