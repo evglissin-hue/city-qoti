@@ -48,7 +48,10 @@ export function stopNow(state: WorldState, r: Resident): RoundStop | null {
 
 function count(state: WorldState): Map<PlaceId, Occupancy> {
   const out = new Map<PlaceId, Occupancy>();
+  const day = dayIndex(state.tick);
   for (const r of state.residents) {
+    // stopNow's first checks, once here: most of a town is not out on a round at any moment.
+    if (r.roundDay !== day || !r.round || r.move || r.activity.kind !== 'leisure') continue;
     const stop = stopNow(state, r);
     if (stop) add(out, stop.place, r, stop.flags);
   }

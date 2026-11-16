@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 import type { Household, WorldState } from '../../src/contracts';
 import { insertBuilding } from '../../src/state/place';
 import { deserialize, serialize } from '../../src/state/serialize';
-import { refreshStreets, streetTiles } from '../../src/systems/places/streets';
+import { refreshStreets, streetDistance, streetTiles } from '../../src/systems/places/streets';
 import { createTickCtx } from '../../src/turn';
 import { flatWorld, run, S } from '../helpers';
 
@@ -216,5 +216,26 @@ describe('street keeping', () => {
     const ctx = refresh(back);
     expect(back.streets).toEqual(s.streets);
     expect(ctx.events.some((e) => e.e === 'streets.updated')).toBe(false);
+  });
+
+  it('streetDistance is the distance to the nearest tile of the street, for every street and tile', () => {
+    const s = flatWorld();
+    paint(s, 20, 30, 12, 'x');
+    paint(s, 40, 10, 9, 'z');
+    paint(s, 26, 24, 14, 'z');
+    paint(s, 60, 60, 5, 'x');
+    refresh(s);
+    expect(s.streets.length).toBeGreaterThan(2);
+    // A street whose run is gone measures to its anchor, as streetTiles lists it.
+    unpaint(s, 60, 60, 5, 'x');
+    for (const st of s.streets) {
+      const tiles = streetTiles(s, st);
+      for (let z = 0; z < 80; z += 3) {
+        for (let x = 0; x < 80; x += 3) {
+          const want = Math.min(...tiles.map((t) => Math.abs((t % S) - x) + Math.abs(Math.floor(t / S) - z)));
+          expect(streetDistance(s, st, x, z)).toBe(want);
+        }
+      }
+    }
   });
 });

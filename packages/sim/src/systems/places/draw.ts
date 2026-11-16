@@ -43,10 +43,7 @@ export function refreshDraws(
       if (tv && treeStage(tv) >= TREE_MATURE) mature = true;
     }
     // The bits that move with the map, for a resident's taste.
-    x.features =
-      (x.features & ~(PlaceFeature.quiet | PlaceFeature.tree)) |
-      (quiet ? PlaceFeature.quiet : 0) |
-      (mature ? PlaceFeature.tree : 0);
+    x.features = x.base | (quiet ? PlaceFeature.quiet : 0) | (mature ? PlaceFeature.tree : 0);
     const n = p.tiles.length;
     const avg = n > 0 ? Math.floor((sum + (n >> 1)) / n) : 0;
     const parts = p.parts;

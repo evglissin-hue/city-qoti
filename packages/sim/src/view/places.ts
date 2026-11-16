@@ -7,6 +7,7 @@ import type {
   FootfallView,
   Place,
   PlacesView,
+  PlaceState,
   PlaceView,
   Resident,
   RoundStopView,
@@ -17,7 +18,7 @@ import { findById } from '../state/entities';
 import { placeState, shownName } from '../state/evenings';
 import { hourOf } from '../systems/economy/time';
 import { placeIndex } from '../systems/places';
-import { placeDraw, placeServes } from '../systems/places/api';
+import { placeServes } from '../systems/places/api';
 import { presentAt } from '../systems/places/occupancy';
 import { streetTiles } from '../systems/places/streets';
 
@@ -72,8 +73,13 @@ function hasLight(state: WorldState, place: Place): boolean {
 
 /** A place for the card and lists: the derived place, its saved row and the live parts. */
 export function placeView(state: WorldState, place: Place): PlaceView {
-  const row = placeState(state, place.id);
-  const live = placeDraw(state, place);
+  return viewOf(state, place, placeState(state, place.id));
+}
+
+function viewOf(state: WorldState, place: Place, row: PlaceState | undefined): PlaceView {
+  // The live draw as placeDraw reads it, from the one read of the shelves.
+  const serves = placeServes(state, place);
+  const live = Math.max(0, Math.min(100, place.draw + (serves.length > 0 ? content.places.treatsBonus : 0)));
   const view: PlaceView = {
     id: place.id,
     name: row ? shownName(row) : place.def,
@@ -89,7 +95,7 @@ export function placeView(state: WorldState, place: Place): PlaceView {
     kinds: [...place.kinds],
     sheltered: place.sheltered,
     warm: place.warm,
-    serves: placeServes(state, place),
+    serves,
     draw: live,
     parts: { ...place.parts, treats: live - place.draw + place.parts.treats },
     visitors: row ? [...row.visitors] : [],
@@ -106,7 +112,15 @@ export function placeView(state: WorldState, place: Place): PlaceView {
 
 /** `places.updated` and the snapshot: every place the pass finds now, sorted by id. */
 export function placesView(state: WorldState): PlacesView {
-  return { places: placeIndex(state).places.map((p) => placeView(state, p)) };
+  // Rows and places are both sorted by id: walk them together.
+  const rows = state.places;
+  let i = 0;
+  return {
+    places: placeIndex(state).places.map((p) => {
+      while (i < rows.length && rows[i]!.id < p.id) i++;
+      return viewOf(state, p, i < rows.length && rows[i]!.id === p.id ? rows[i] : undefined);
+    }),
+  };
 }
 
 /** Every named street, sorted by id, with its run's tiles. */

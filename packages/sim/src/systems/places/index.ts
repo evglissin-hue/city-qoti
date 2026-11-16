@@ -18,10 +18,10 @@ import { TICKS_PER_HOUR } from '../../constants';
 import type { Place, PlaceId, System, WorldState } from '../../contracts';
 import { isStandard } from '../../state/hamlet';
 import { PATTERNS_OFFSET } from '../hearth/patterns';
-import { buildPlaces, type PlaceExtra } from './build';
+import { buildPlaces, placeExtra, type PlaceExtra } from './build';
 import { refreshDraws } from './draw';
 import { refreshRows } from './rows';
-import { placeSignature } from './signature';
+import { placeSignature, sameSignature } from './signature';
 import { refreshStreets } from './streets';
 
 /** The derived places, sorted by id, and a lookup by id. Never serialized, never hashed. */
@@ -33,8 +33,7 @@ export interface PlaceIndex {
 interface Memo {
   index: PlaceIndex;
   extras: PlaceExtra[];
-  sigA: number;
-  sigB: number;
+  sig: number[];
   // The cheap key of the last read.
   tick: number;
   turn: number;
@@ -86,15 +85,14 @@ export function placeIndex(state: WorldState): PlaceIndex {
   let m = memos.get(state);
   if (m && (m.building || sameKey(m, state))) return m.index;
   if (m) m.building = true;
-  const [sigA, sigB] = placeSignature(state);
-  if (!m || m.sigA !== sigA || m.sigB !== sigB) {
+  const sig = placeSignature(state);
+  if (!m || !sameSignature(m.sig, sig)) {
     const prev = m;
     if (!m) {
       m = {
         index: { places: [], byId: new Map() },
         extras: [],
-        sigA,
-        sigB,
+        sig,
         tick: -1,
         turn: -1,
         decor: -1,
@@ -108,11 +106,10 @@ export function placeIndex(state: WorldState): PlaceIndex {
       memos.set(state, m);
     }
     try {
-      const built = buildPlaces(state);
+      const built = buildPlaces(state, sig);
       m.index = { places: built.places, byId: new Map(built.places.map((p) => [p.id, p])) };
       m.extras = built.extras;
-      m.sigA = sigA;
-      m.sigB = sigB;
+      m.sig = sig;
     } finally {
       m.building = false;
       if (prev) prev.building = false;
@@ -126,25 +123,8 @@ export function placeIndex(state: WorldState): PlaceIndex {
 
 /** What stands at a place (PlaceFeature bits), for a resident's taste; 0 for a place not in the index now. */
 export function placeFeatures(state: WorldState, place: Place): number {
-  const index = placeIndex(state);
-  const m = memos.get(state);
-  if (!m || index.byId.get(place.id) !== place) return 0;
-  return m.extras[featureSlot(m, place)]?.features ?? 0;
-}
-
-/** The slot of a place in the memo's arrays (places are sorted by id: binary search). */
-function featureSlot(m: Memo, place: Place): number {
-  const list = m.index.places;
-  let lo = 0;
-  let hi = list.length - 1;
-  while (lo <= hi) {
-    const mid = (lo + hi) >> 1;
-    const id = list[mid]!.id;
-    if (id === place.id) return mid;
-    if (id < place.id) lo = mid + 1;
-    else hi = mid - 1;
-  }
-  return -1;
+  if (placeIndex(state).byId.get(place.id) !== place) return 0;
+  return placeExtra(place)?.features ?? 0;
 }
 
 /**

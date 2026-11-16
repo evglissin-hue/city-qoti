@@ -7,7 +7,7 @@ import { MAP_SIZE } from '../../constants';
 import type { Place, WorldState } from '../../contracts';
 import { householdIn, isHomeDef } from '../../conditions/geo';
 import { shownName } from '../../state/evenings';
-import { streetTiles } from './streets';
+import { streetDistance } from './streets';
 
 const S = MAP_SIZE;
 /** How far (Manhattan tiles) a home counts as the nearest family. */
@@ -27,12 +27,13 @@ function nearestFamily(state: WorldState, tile: number): { family: string; home:
   let bestDist = FAMILY_RANGE + 1;
   let bestId = 0;
   for (const b of state.buildings) {
-    if (b.stage !== 'built') continue;
-    const def = content.buildingById.get(b.def);
-    if (!isHomeDef(def)) continue;
+    // Distance first (the cheap test): only homes in range and no farther than the best so far.
     const d = Math.abs(b.x - x) + Math.abs(b.z - z);
     if (d > FAMILY_RANGE) continue;
     if (d > bestDist || (d === bestDist && b.id > bestId)) continue;
+    if (b.stage !== 'built') continue;
+    const def = content.buildingById.get(b.def);
+    if (!isHomeDef(def)) continue;
     const h = householdIn(state, b.id);
     if (!h) continue;
     best = { family: h.family, home: lower(def!.name) };
@@ -68,12 +69,12 @@ function streetBeside(state: WorldState, tile: number): string | null {
   let best: string | null = null;
   let bestDist = STREET_RANGE + 1;
   for (const st of state.streets) {
-    for (const t of streetTiles(state, st)) {
-      const d = Math.abs((t % S) - x) + Math.abs(Math.floor(t / S) - z);
-      if (d < bestDist) {
-        bestDist = d;
-        best = shownName(st);
-      }
+    // The nearest tile of the street's run (streetTiles' run, measured as a segment): the first
+    // street to come nearest wins, as when every tile is measured in turn.
+    const d = streetDistance(state, st, x, z);
+    if (d < bestDist) {
+      bestDist = d;
+      best = shownName(st);
     }
   }
   return best;

@@ -245,6 +245,8 @@ describe('the place index', () => {
     const stall = w.buildings.find((b) => b.def === 'market-stall')!;
     stall.level = 2;
     same('a level changed');
+    stall.trade = 'baker';
+    same('a business retooled (its taste bits read the trade)');
     const home = w.buildings.find((b) => b.def === 'cottage')!;
     home.rt!.modules = [['front', 'porch']];
     same('a porch went up');
@@ -257,5 +259,56 @@ describe('the place index', () => {
     same('the river froze');
     w.tick = 3 * DAYS_PER_SEASON * TICKS_PER_DAY + 13 * 200;
     same('winter, lanterns lit');
+  });
+
+  it('a fruit tree among its pieces gives a place the tree taste, kept as the hours move', () => {
+    const w = place('bench', 40, 40);
+    place('apple-tree', 41, 40, w);
+    const tree = 2; // PlaceFeature.tree
+    const p = placeIndex(w).places.find((q) => q.source === 'seats')!;
+    expect(placeFeatures(w, p) & tree).toBe(tree);
+    w.tick += 1;
+    const q = placeIndex(w).places.find((r) => r.source === 'seats')!;
+    expect(placeFeatures(w, q) & tree).toBe(tree);
+  });
+
+  it('kept from build to build, the index equals a fresh rebuild after each of a long run of random edits', () => {
+    const { state: w } = villageFixture();
+    let seed = 0x2a2a;
+    const rand = (n: number) => {
+      seed = (Math.imul(seed, 1103515245) + 12345) >>> 0;
+      return (seed >>> 8) % n;
+    };
+    const defs = ['bench', 'lantern', 'flower-bed', 'brazier', 'apple-tree', 'swing', 'ring-bench', 'hedge'];
+    const snapshot = (s: typeof w) =>
+      JSON.stringify(placeIndex(s).places.map((p) => [p, placeFeatures(s, p)]));
+    for (let step = 0; step < 160; step++) {
+      const k = rand(10);
+      const built = w.buildings.filter((b) => b.stage === 'built');
+      if (k <= 3 || w.decor.length === 0) {
+        const def = defs[rand(defs.length)]!;
+        run(w, { t: 'decor.place', def, fx: fp(36 + rand(50)), fz: fp(40 + rand(30)), rot: 0 });
+      } else if (k === 4) {
+        run(w, { t: 'decor.remove', ids: [w.decor[rand(w.decor.length)]!.id] });
+      } else if (k === 5) {
+        const d = w.decor[rand(w.decor.length)]!;
+        run(w, { t: 'decor.move', id: d.id, fx: fp(36 + rand(50)), fz: fp(40 + rand(30)), rot: 0 });
+      } else if (k === 6) {
+        const b = built[rand(built.length)]!;
+        b.trade = b.trade ? undefined : 'baker';
+      } else if (k === 7) {
+        const b = built[rand(built.length)]!;
+        b.level = 1 + rand(3);
+      } else if (k === 8) {
+        const hs = w.households;
+        hs[rand(hs.length)]!.homeId = hs[rand(hs.length)]!.homeId;
+      } else {
+        const homes = built.filter((b) => b.def === 'cottage');
+        const home = homes[rand(homes.length)]!;
+        home.rt!.modules = home.rt!.modules?.length ? [] : [['front', 'porch']];
+      }
+      w.tick += 1;
+      expect(snapshot(deserialize(serialize(w))), `step ${step}`).toBe(snapshot(w));
+    }
   });
 });
