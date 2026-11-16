@@ -548,6 +548,7 @@ export const openGround = open;
 /** A ring of street with lots cut inside it on all four sides, leaving a hollow behind their backs. */
 export interface Block {
   /** The ring's road tiles in walking order. */
+  /** The street tiles to lay: the ring in walking order, then a short stub to the road it joins. */
   ring: [number, number][];
   /** Min corner and side length of the ring's square. */
   x0: number;
@@ -560,7 +561,9 @@ export interface Block {
 /** Ring side lengths tried, in tiles: inside 9 (or 11) less two lots of depth 3 leaves a hollow of 3 (5); a side less the 3 a crossing run takes at a corner comes out in even 2-wide lots (6 or 8). */
 export const BLOCK_SIDES: readonly number[] = [11, 13];
 /** How far from the anchor (a tile of the village street) a block's middle may lie. */
-const BLOCK_REACH = 26;
+const BLOCK_REACH = 40;
+/** The longest stub of street from a ring to a road it joins. */
+const BLOCK_STUB = 6;
 const NEIGHBORS = [
   [1, 0],
   [-1, 0],
@@ -618,16 +621,50 @@ export function planBlock(w: WorldState, anchor: readonly [number, number][]): B
         for (let x = x0 + n - 2; x >= x0; x--) ring.push([x, z0 + n - 1]);
         for (let z = z0 + n - 2; z > z0; z--) ring.push([x0, z]);
         const inSquare = (x: number, z: number) => x >= x0 && x < x0 + n && z >= z0 && z < z0 + n;
-        const joined = ring.some(([x, z]) =>
-          NEIGHBORS.some(([dx, dz]) => {
-            const tx = x + dx;
-            const tz = z + dz;
-            return (
-              tx >= 0 && tz >= 0 && tx < S && tz < S && !inSquare(tx, tz) && w.map.road[tz * S + tx]! > 0
-            );
-          }),
-        );
-        if (!joined || !canPaintRoad(reader, 'street', ring).ok) continue;
+        // Joined to a road: a ring tile touches one from outside, or a short straight stub from the middle
+        // of a side reaches one over open ground (its tiles are laid with the ring).
+        let stub: [number, number][] | null = null;
+        for (const [x, z] of ring) {
+          if (
+            NEIGHBORS.some(([dx, dz]) => {
+              const tx = x + dx;
+              const tz = z + dz;
+              return (
+                tx >= 0 && tz >= 0 && tx < S && tz < S && !inSquare(tx, tz) && w.map.road[tz * S + tx]! > 0
+              );
+            })
+          ) {
+            stub = [];
+            break;
+          }
+        }
+        if (!stub) {
+          const mid = n >> 1;
+          const sides: [number, number, number, number][] = [
+            [x0 + mid, z0, 0, -1],
+            [x0 + mid, z0 + n - 1, 0, 1],
+            [x0, z0 + mid, -1, 0],
+            [x0 + n - 1, z0 + mid, 1, 0],
+          ];
+          for (const [mx, mz, dx, dz] of sides) {
+            const tiles: [number, number][] = [];
+            for (let k = 1; k <= BLOCK_STUB; k++) {
+              const tx = mx + dx * k;
+              const tz = mz + dz * k;
+              if (tx < 0 || tz < 0 || tx >= S || tz >= S) break;
+              if (w.map.road[tz * S + tx]! > 0) {
+                if (!stub || tiles.length < stub.length) stub = tiles;
+                break;
+              }
+              if (!open(w, tx, tz)) break;
+              tiles.push([tx, tz]);
+            }
+          }
+          if (stub) score -= stub.length;
+        }
+        if (!stub) continue;
+        const paint: [number, number][] = [...ring, ...stub];
+        if (!canPaintRoad(reader, 'street', paint).ok) continue;
         if (!reached(cx, cz)) score -= 30;
         if (score <= bestScore) continue;
         const inner = n - 2;
@@ -643,7 +680,7 @@ export function planBlock(w: WorldState, anchor: readonly [number, number][]): B
           band((k, d) => [x0 + n - 1 - d, z0 + 1 + k]),
         ];
         bestScore = score;
-        best = { ring, x0, z0, n, sides };
+        best = { ring: paint, x0, z0, n, sides };
       }
     }
   }
