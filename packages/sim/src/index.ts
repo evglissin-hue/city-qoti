@@ -47,6 +47,7 @@ export {
   createTickCtx,
   effectiveSpeed,
   executeCommand,
+  isLingeringDusk,
   runTick,
   type SimCtx,
 } from './turn';

@@ -18,7 +18,7 @@ import { worldIndex } from './state/worldIndex';
 import { isSkipped, pipeline } from './systems';
 import { clockView } from './view';
 
-export { effectiveSpeed } from './speed';
+export { effectiveSpeed, isLingeringDusk } from './speed';
 
 /** A TickCtx with the concrete Dirty tracker, so callers can collect LayerPatches. */
 export interface SimCtx extends TickCtx {
@@ -93,7 +93,7 @@ export function runTick(state: WorldState, ctx: TickCtx): void {
 
 /**
  * Applies a turn: its commands in order, then ticksThisTurn(state) ticks (the effective speed,
- * hurried at night). Turns must arrive in
+ * hurried at night and, R2, halved while dusk lingers from 17:00 to 21:00). Turns must arrive in
  * sequence; use applyTurns to fill gaps left by empty turns, which the room does not store.
  */
 export function applyTurn(state: WorldState, turn: Turn, ctx: TickCtx): void {
