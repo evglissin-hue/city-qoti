@@ -28,6 +28,7 @@ import { syntheticValley } from './synthetic';
 import { festivalsBench } from './festivals.bench';
 import { natureBench } from './nature.bench';
 import { r1Bench } from './r1.bench';
+import { r2Bench } from './r2.bench';
 import { raidsBench } from './raids.bench';
 import { seasonsBench } from './seasons.bench';
 import { villageBench } from './village.bench';
@@ -188,6 +189,10 @@ failures.push(...raidsResult.failures);
 const r1 = r1Bench();
 lines.push(...r1.lines);
 failures.push(...r1.failures);
+// 15. R2: the place pass, planning the round, a whole evening and the gaps pass, at Village and City scale.
+const r2 = r2Bench();
+lines.push(...r2.lines);
+failures.push(...r2.failures);
 
 const heapMb = process.memoryUsage().heapUsed / 1024 / 1024;
 lines.push(`memory          ${heapMb.toFixed(0)} MB heap in use`);
@@ -222,6 +227,7 @@ const report = {
   nature: nature.report,
   raids: raidsResult.report,
   r1: r1.report,
+  r2: r2.report,
   heapMb,
   failures,
 };
