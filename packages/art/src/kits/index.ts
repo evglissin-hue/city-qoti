@@ -22,6 +22,7 @@ import * as Ve from './vehicles';
 import type { Kit } from './types';
 import * as V from './village';
 import * as W from './workplaces';
+import * as Y from './yard';
 
 // prettier-ignore
 export const kits: readonly Kit[] = [
@@ -73,6 +74,13 @@ export const kits: readonly Kit[] = [
   Fd.fountain,
   Df.gateKitDef,
   Df.gateBanner,
+  G.goodsAppleCrate,
+  G.goodsCandleRack,
+  G.goodsChurns,
+  G.goodsDisplay,
+  G.goodsFishRack,
+  G.goodsFleece,
+  G.goodsSacks,
   Sp.granaryKit,
   N.grassTuft,
   G.handcart,
@@ -150,6 +158,23 @@ export const kits: readonly Kit[] = [
   B.windmill,
   W.woodcutterKit,
   Bz.workshop,
+  Y.yardAwning,
+  Y.yardBoots,
+  Y.yardCat,
+  Y.yardChairHalf,
+  Y.yardChoppingBlock,
+  Y.yardClothFrame,
+  Y.yardLamp,
+  Y.yardLoafTray,
+  Y.yardNets,
+  Y.yardPram,
+  Y.yardSign,
+  Y.yardSillLamp,
+  Y.yardSkep,
+  Y.yardWashingLine,
+  Y.yardWaterButt,
+  Y.yardWheelbarrow,
+  Y.yardWoodpile,
 ];
 
 export const kitById: ReadonlyMap<string, Kit> = new Map(kits.map((k) => [k.id, k]));
