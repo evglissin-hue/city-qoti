@@ -28,6 +28,7 @@ import { syntheticValley } from './synthetic';
 import { festivalsBench } from './festivals.bench';
 import { natureBench } from './nature.bench';
 import { r1Bench } from './r1.bench';
+import { r2aBench } from './r2a.bench';
 import { raidsBench } from './raids.bench';
 import { seasonsBench } from './seasons.bench';
 import { villageBench } from './village.bench';
@@ -188,6 +189,10 @@ failures.push(...raidsResult.failures);
 const r1 = r1Bench();
 lines.push(...r1.lines);
 failures.push(...r1.failures);
+// 15. R2A: the place pass at Village and City scale, and planning the evening round (2,000 residents).
+const r2a = r2aBench();
+lines.push(...r2a.lines);
+failures.push(...r2a.failures);
 
 const heapMb = process.memoryUsage().heapUsed / 1024 / 1024;
 lines.push(`memory          ${heapMb.toFixed(0)} MB heap in use`);
@@ -222,6 +227,7 @@ const report = {
   nature: nature.report,
   raids: raidsResult.report,
   r1: r1.report,
+  r2a: r2a.report,
   heapMb,
   failures,
 };
