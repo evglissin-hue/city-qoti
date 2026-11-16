@@ -153,6 +153,12 @@ export interface Resident {
   evening?: ResidentEvening;
   /** Today's round: the plan and what happened at each stop, kept until the next evening's plan. */
   round?: RoundStop[];
+  /**
+   * R2 (R2A, additive): the day index `round` was planned on, absent before their first plan. Elders
+   * and residents without work plan an afternoon round and the unemployed add an evening one to it,
+   * so the day's stops are one list and their best outing of the day counts.
+   */
+  roundDay?: number;
 }
 
 export interface Household {
