@@ -173,7 +173,7 @@ if (want('sweep')) {
     await page.waitForTimeout(1500);
     await frames(page, 3);
     const s = await state(page);
-    const l = await luma(await page.screenshot());
+    const l = await luma(await page.screenshot({ timeout: 240000 }));
     // The fade moves brightness smoothly: a 5 tile step is an eighth of the ramp.
     const jump = prev ? Math.abs(l.mean - prev.mean) : 0;
     const flag = jump > 22 || l.sd < 4 ? '  <-- check' : '';
@@ -190,6 +190,21 @@ if (want('sweep')) {
     await page.evaluate(([x, z, dd]) => window.__qoti.look(x, z, dd, 0, 0), [center[0], center[1], d]);
     await page.waitForTimeout(3000);
   }
+  // At rest under the full map: the frames drawn and the map's redraws over 20 seconds. A redraw
+  // needs a change to what the map draws (a finished building, a grown tree), never a turn alone.
+  await page.waitForTimeout(3000);
+  const before = await page.evaluate(() => ({
+    drawn: window.__qoti.stats().drawn,
+    rev: window.__qoti.renderer().env.endpaper.revision,
+  }));
+  await page.waitForTimeout(20000);
+  const after = await page.evaluate(() => ({
+    drawn: window.__qoti.stats().drawn,
+    rev: window.__qoti.renderer().env.endpaper.revision,
+  }));
+  console.log(
+    `\nat rest under the map for 20 s: ${after.drawn - before.drawn} frames drawn, ${after.rev - before.rev} map redraws`,
+  );
   const w = await page.evaluate(() => window.__v3dWatch);
   console.log(`\nwatched ${w.frames} frames; bad frames: ${w.bad.length}`, w.bad.slice(0, 5));
   if (w.bad.length) failed = true;

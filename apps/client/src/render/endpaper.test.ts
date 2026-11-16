@@ -78,9 +78,12 @@ describe('the endpaper writer (V3.0)', () => {
       return worker;
     });
     let inputs = 0;
+    // Each input differs (a new roof), as after a real change; V3D skips a drawing when nothing differs.
     const input = () => {
       inputs++;
-      return endpaperInput(fakeMirror());
+      const inp = endpaperInput(fakeMirror());
+      inp.roofs.push({ x: inputs, z: 1, w: 1, d: 1, rot: 0 });
+      return inp;
     };
     return { map, worker, writer, input, made: () => made, inputs: () => inputs };
   }

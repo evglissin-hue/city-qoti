@@ -337,6 +337,69 @@ export function endpaperInput(
   return input;
 }
 
+/**
+ * V3D: a fingerprint of everything the map draws (each layer, footprint, plan, label, ink and feed),
+ * so the writer redraws only when the picture would change. Two 32-bit FNV-1a hashes in different
+ * seeds over the numbers, joined: about 1 ms on the grown village, run only when a drawing is due.
+ */
+export function endpaperSignature(inp: EndpaperInput): string {
+  let a = 0x811c9dc5;
+  let b = 0x01000193;
+  const num = (v: number): void => {
+    const x = Math.round(v * 16) | 0;
+    a = Math.imul(a ^ x, 0x01000193);
+    b = Math.imul(b ^ (x + 0x9e3779b9), 0x85ebca6b);
+  };
+  const arr = (t: ArrayLike<number> | undefined): void => {
+    if (!t) return num(-1);
+    num(t.length);
+    for (let i = 0; i < t.length; i++) num(t[i]!);
+  };
+  const str = (s: string): void => {
+    num(s.length);
+    for (let i = 0; i < s.length; i++) num(s.charCodeAt(i));
+  };
+  const roofs = (list: readonly EndpaperRoof[]): void => {
+    num(list.length);
+    for (const r of list) {
+      num(r.x);
+      num(r.z);
+      num(r.w);
+      num(r.d);
+      num(r.rot);
+      num(r.storeys ?? 1);
+    }
+  };
+  num(inp.tiles);
+  for (const t of [inp.heights, inp.water, inp.woods, inp.fields, inp.roads, inp.terrain]) arr(t);
+  roofs(inp.roofs);
+  roofs(inp.plans);
+  num(inp.labels.length);
+  for (const l of inp.labels) {
+    str(l.text);
+    str(l.kind);
+    num(l.x);
+    num(l.z);
+    num(l.angle);
+  }
+  for (const ink of [inp.inks.goods, inp.inks.footfall]) {
+    arr(ink?.tiles);
+    num(ink?.color ?? -1);
+  }
+  arr(inp.river?.points);
+  arr(inp.river?.widths);
+  num(inp.rows?.length ?? -1);
+  for (const row of inp.rows ?? []) roofs(row);
+  num(inp.gardens?.length ?? -1);
+  for (const g of inp.gardens ?? []) {
+    num(g.x);
+    num(g.z);
+    num(g.w);
+    num(g.d);
+  }
+  return `${(a >>> 0).toString(36)}.${(b >>> 0).toString(36)}`;
+}
+
 /** Main thread to worker: draw this input at this size. */
 export interface EndpaperRequest {
   type: 'draw';
@@ -391,6 +454,10 @@ export class EndpaperWriter {
   /** Drawings asked for, and finished (for tests and the debug overlay). */
   asked = 0;
   drawn = 0;
+  /** Redraws found unneeded: the town changed, but nothing the map draws did. */
+  skipped = 0;
+  /** `endpaperSignature` of the last drawing asked. */
+  private drawnSig = '';
 
   constructor(
     readonly map: EndpaperMap,
@@ -419,13 +486,20 @@ export class EndpaperWriter {
    */
   tick(now: number, cover: number, input: () => EndpaperInput): boolean {
     if (this.due(now, cover)) {
-      this.worker ??= this.attach(this.makeWorker());
-      const id = this.nextId++;
-      this.inFlight = id;
       this.dirty = false;
-      this.asked++;
-      this.askedSize = this.map.size;
-      this.worker.postMessage({ type: 'draw', id, size: this.map.size, input: input() });
+      // A living town flags buildings and lots on most turns (stock, crews, plans' progress) while
+      // the map's own picture is unchanged: draw only when what the map draws differs.
+      const inp = input();
+      const sig = endpaperSignature(inp);
+      if (sig !== this.drawnSig || this.map.size !== this.askedSize) {
+        this.worker ??= this.attach(this.makeWorker());
+        const id = this.nextId++;
+        this.inFlight = id;
+        this.asked++;
+        this.askedSize = this.map.size;
+        this.drawnSig = sig;
+        this.worker.postMessage({ type: 'draw', id, size: this.map.size, input: inp });
+      } else this.skipped++;
     }
     const f = this.fresh;
     this.fresh = false;

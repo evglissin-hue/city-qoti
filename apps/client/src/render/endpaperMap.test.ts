@@ -10,6 +10,8 @@ import {
   ENDPAPER_ON,
   ENDPAPER_PAGE_PITCH,
   rowsOfRooflines,
+  endpaperSignature,
+  type EndpaperInput,
   endpaperCover,
   endpaperInput,
   EndpaperWriter,
@@ -78,9 +80,52 @@ describe('the endpaper writer (V3D)', () => {
     const map = createEndpaperMap(size);
     const worker = new FakeWorker();
     const writer = new EndpaperWriter(map, () => worker);
-    const input = () => endpaperInput(fakeMirror());
-    return { map, worker, writer, input };
+    let k = 0;
+    // Each input differs (a new roof), as after a real change; a same picture is not redrawn.
+    const input = () => {
+      const inp = endpaperInput(fakeMirror());
+      inp.roofs.push({ x: ++k, z: 1, w: 1, d: 1, rot: 0 });
+      return inp;
+    };
+    const same = () => endpaperInput(fakeMirror());
+    return { map, worker, writer, input, same };
   }
+
+  it('skips a redraw when the town changed but nothing the map draws did', () => {
+    const t = setup();
+    t.writer.tick(0, 1, t.same);
+    t.worker.finish(30, fakeBitmap());
+    for (let i = 1; i <= 5; i++) {
+      t.writer.townChanged(i * 5000);
+      t.writer.tick(i * 5000 + ENDPAPER_DEBOUNCE_MS, 1, t.same);
+    }
+    expect(t.writer.asked).toBe(1);
+    expect(t.writer.skipped).toBe(5);
+    // A real change (a new roof) is drawn.
+    t.writer.townChanged(40000);
+    t.writer.tick(40000 + ENDPAPER_DEBOUNCE_MS, 1, t.input);
+    expect(t.writer.asked).toBe(2);
+  });
+
+  it('signs every field the map draws', () => {
+    const base = endpaperInput(fakeMirror());
+    const sig = endpaperSignature(base);
+    expect(endpaperSignature(endpaperInput(fakeMirror()))).toBe(sig);
+    const n = base.tiles * base.tiles;
+    const changed: Partial<EndpaperInput>[] = [
+      { heights: Object.assign(new Uint8Array(n), { [n - 1]: 1 }) },
+      { woods: Object.assign(new Uint8Array(n), { 5: 9 }) },
+      { roads: Object.assign(new Uint8Array(n), { 7: 2 }) },
+      { terrain: Object.assign(new Uint8Array(n), { 3: 4 }) },
+      { plans: [{ x: 1, z: 2, w: 2, d: 2, rot: 0 }] },
+      { labels: [{ text: 'Elsewhere', x: 1, z: 1, angle: 0, kind: 'valley' }] },
+      { inks: { goods: { tiles: new Uint16Array(n).fill(1), color: 0xc08a2e } } },
+      { rows: [[{ x: 1, z: 1, w: 2, d: 2, rot: 0 }]] },
+      { gardens: [{ x: 1, z: 1, w: 2, d: 2 }] },
+      { river: { points: new Float32Array([0, 0, 5, 5]), widths: new Float32Array([2, 2]) } },
+    ];
+    for (const c of changed) expect(endpaperSignature({ ...base, ...c })).not.toBe(sig);
+  });
 
   it('swaps in a new texture (flipY off, no color space) and disposes the old one', () => {
     const t = setup();
