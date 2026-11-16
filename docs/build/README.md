@@ -63,7 +63,7 @@ One row per cycle. A cycle is one agent session working from one brief on one br
 | R2.0 Evenings contracts | R2 | serial | `cycle-r2-0-evenings-contracts.md` | R1X | done on `cycle/r2-0-evenings-contracts`, pushed as `cycle/r2x-integration` (no PR into `main`: the wave lands through R2X): the evening round's contracts (places, the round, the tally, gaps, streets, footfall), save version 8 with its migration from 7 (P2 took 7), the lot fields for V3, stand-ins, the wave notes and the six wave briefs plus R2X's |
 | R2A Places and the round | R2 | parallel | `cycle-r2a-places-round.md` | R2.0 | ready: branch from `cycle/r2x-integration` |
 | R2B Evening trade | R2 | parallel | `cycle-r2b-evening-trade.md` | R2.0 | ready: branch from `cycle/r2x-integration` |
-| R2C Gaps and the evening's book | R2 | parallel | `cycle-r2c-gaps-book.md` | R2.0 | ready: branch from `cycle/r2x-integration` |
+| R2C Gaps and the evening's book | R2 | parallel | `cycle-r2c-gaps-book.md` | R2.0 | PR open into `cycle/r2x-integration` (merge after R2A) |
 | R2D The interface | R2 | parallel | `cycle-r2d-interface.md` | R2.0 | ready: branch from `cycle/r2x-integration` |
 | R2E The bench | R2 | parallel | `cycle-r2e-bench.md` | R2.0 | ready: branch from `cycle/r2x-integration` |
 | R2F Lots for streets | R2 | parallel | `cycle-r2f-street-lots.md` | R2.0 | ready: branch from `cycle/r2x-integration` |
