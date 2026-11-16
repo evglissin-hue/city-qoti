@@ -57,7 +57,8 @@ function walkable(L: Layers, x: number, z: number, from: number): boolean {
   const i = z * N + x;
   if (L.water[i] || L.occupant[i] || L.tree[i] || L.road[i]) return false;
   const t = L.terrain[i];
-  if (t === Terrain.water || t === Terrain.mountain || t === Terrain.rock || t === Terrain.field) return false;
+  if (t === Terrain.water || t === Terrain.mountain || t === Terrain.rock || t === Terrain.field)
+    return false;
   return Math.abs(L.height[i]! - L.height[from]!) <= 1;
 }
 
@@ -127,8 +128,13 @@ export function buildWalk(mirror: Mirror, out: Uint8Array): void {
     if (wantsApron(b)) {
       const fi = front[1] * N + front[0];
       if (
-        front[0] >= 0 && front[1] >= 0 && front[0] < N && front[1] < N &&
-        !L.occupant[fi] && !L.water[fi] && (L.road[fi] ?? 0) < 3
+        front[0] >= 0 &&
+        front[1] >= 0 &&
+        front[0] < N &&
+        front[1] < N &&
+        !L.occupant[fi] &&
+        !L.water[fi] &&
+        (L.road[fi] ?? 0) < 3
       )
         out[fi * 4 + 2] = b.rot + 1;
     }

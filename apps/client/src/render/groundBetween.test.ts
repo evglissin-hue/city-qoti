@@ -14,8 +14,18 @@ function town(): Mirror {
   return m;
 }
 
-function put(m: Mirror, b: Partial<BuildingView> & { id: number; def: string; x: number; z: number }): BuildingView {
-  const view = { rot: 0, builtBy: 0, handmade: false, stage: 'built', foundation: false, ...b } as BuildingView;
+function put(
+  m: Mirror,
+  b: Partial<BuildingView> & { id: number; def: string; x: number; z: number },
+): BuildingView {
+  const view = {
+    rot: 0,
+    builtBy: 0,
+    handmade: false,
+    stage: 'built',
+    foundation: false,
+    ...b,
+  } as BuildingView;
   m.buildings.set(view.id, view);
   const size = view.def === 'corner-shop' ? [2, 3] : [2, 2];
   for (let dz = 0; dz < size[1]!; dz++)
@@ -109,7 +119,9 @@ describe('cobble aprons', () => {
 
   it('flags a level 1 business that is a shop front, not one that is a barn', () => {
     const m = town();
-    expect(wantsApron(put(m, { id: 1, def: 'corner-shop', x: 50, z: 50, trade: 'shop', level: 1 }))).toBe(true);
+    expect(wantsApron(put(m, { id: 1, def: 'corner-shop', x: 50, z: 50, trade: 'shop', level: 1 }))).toBe(
+      true,
+    );
     expect(wantsApron(put(m, { id: 2, def: 'cottage', x: 60, z: 50, trade: 'dairy', level: 1 }))).toBe(false);
   });
 });
@@ -131,7 +143,12 @@ describe('puddles after rain', () => {
     const m = new Mirror();
     const levels: number[] = [];
     const mem = new RainMemory(m, (v) => levels.push(v));
-    const rainy = (today: WeatherView['today']): WeatherView => ({ today, forecast: [], events: [], frozen: false });
+    const rainy = (today: WeatherView['today']): WeatherView => ({
+      today,
+      forecast: [],
+      events: [],
+      frozen: false,
+    });
     const clock = (tick: number) => ({ ...m.clock.value, tick });
     m.clock.value = clock(10 * TICKS_PER_DAY);
     m.weather.value = rainy('rain');
