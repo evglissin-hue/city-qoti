@@ -7,6 +7,7 @@
 import type { ShapeBuilder } from '../geometry';
 import { seeded, vary, type V3 } from '../geometry';
 import { palette } from '../palette';
+import { SURFACE } from '../surface';
 import { beam, cylX } from '../shapes';
 import { cottageChoices, cottageOf, houseKit, shell, signBoard, windowRow, type Built } from './buildings';
 import {
@@ -24,7 +25,7 @@ import {
   washingLine,
 } from './details';
 import { districtLook, VILLAGE_MIX, type DistrictLook } from './district';
-import { fitRow, rowOf } from './rows';
+import { fitRow, ROW_NATIVE_STOREYS, rowOf, STOREY_H, storeyLift, storeysOf, type Row } from './rows';
 import { orchardTree, seasonOf } from './village';
 import { crateOf, GOOD_COLORS, pileOf } from './goods';
 import {
@@ -389,6 +390,61 @@ export const cottage: Kit = houseKit('cottage', (opts) => {
   return L ? grownCottage(opts, L) : cottageOf(opts);
 });
 
+// --- Storeys and corners (V3B) -------------------------------------------------------------------
+
+/**
+ * V3B: a thin trim band round a row house at height `y` (a string course between floors), flush
+ * with any party wall. Near level only.
+ */
+function stringCourse(
+  s: ShapeBuilder,
+  row: Row,
+  outer: [number, number, number, number],
+  y: number,
+  hex: number,
+): void {
+  const [ox0, oz0, ox1, oz1] = outer;
+  const d = 0.015;
+  s.nearOnly(() => {
+    s.surface(SURFACE.timber);
+    s.box(
+      row.l ? ox0 : ox0 - d,
+      y,
+      oz0 - d,
+      row.r ? ox1 : ox1 + d,
+      y + 0.03,
+      oz1 + d,
+      hex,
+      (row.l ? 'l' : '') + (row.r ? 'r' : ''),
+    );
+    s.surface(SURFACE.plain);
+  });
+}
+
+/**
+ * V3B: a corner building's sills (`KitAnchors.sills`): under each lit ground-floor window on the
+ * street face (facing +z) and on the corner's second face (facing out along x). `lights` are the
+ * kit's window lights; `plane` is the corner side wall's x, `z1` the front wall's z.
+ */
+function cornerSills(
+  lights: readonly V3[],
+  corner: 'L' | 'R',
+  plane: number,
+  z1: number,
+): { at: [number, number, number]; facing: [number, number] }[] {
+  const out: { at: [number, number, number]; facing: [number, number] }[] = [];
+  const sx = corner === 'R' ? 1 : -1;
+  for (const [x, y, z] of lights) {
+    if (y >= 0.9) continue;
+    if (Math.abs(x - plane) < 0.14 && z < z1 - 0.1) {
+      out.push({ at: [x + sx * 0.04, Math.max(0.18, y - 0.12), z], facing: [sx, 0] });
+    } else if (z > z1 - 0.15) {
+      out.push({ at: [x, Math.max(0.18, y - 0.12), z + 0.04], facing: [0, 1] });
+    }
+  }
+  return out;
+}
+
 // --- Townhouse (Craftsfolk) ---------------------------------------------------------------------
 
 function townhouseOf(opts: KitBuildOptions | undefined): Built {
@@ -399,6 +455,12 @@ function townhouseOf(opts: KitBuildOptions | undefined): Built {
   const { s, anchors } = start(opts);
   const doorU = ex + 0.5;
   const row = rowOf(opts);
+  // V3B: storeys (absent draws the native two). Whole floors carry window rows; a half storey is a
+  // room in the roof under dormers.
+  const nat = storeysOf(opts);
+  const N = nat ?? ROW_NATIVE_STOREYS.townhouse!;
+  const floors = Math.floor(N);
+  const dormers = N === 2 || N > floors;
   const bw0 = clamp(w - 0.36, 1.4, 2.3);
   const bx0 = clamp(doorU - bw0 / 2, 0.18, w - 0.18 - bw0);
   const bz1 = d >= 3 ? d - 0.72 : d - 0.26;
@@ -417,11 +479,13 @@ function townhouseOf(opts: KitBuildOptions | undefined): Built {
     x1,
     z1,
     base: 0.12,
-    wallH: 1.46,
+    wallH: 1.46 + storeyLift('townhouse', nat),
     wall: L.wall,
     wallColor: L.wallColor,
     trim: L.trim,
-    upper: { at: 0.72, wall: L.upper, color: L.upperColor, jetty: timberUpper ? 0.08 : 0.025 },
+    ...(floors >= 2
+      ? { upper: { at: 0.72, wall: L.upper, color: L.upperColor, jetty: timberUpper ? 0.08 : 0.025 } }
+      : {}),
     roof: {
       shape: L.roofShape === 'hip' && gableFront ? 'halfHip' : L.roofShape,
       material: L.roofMaterial,
@@ -481,21 +545,38 @@ function townhouseOf(opts: KitBuildOptions | undefined): Built {
       if (Math.min(leftRoom, rightRoom) > 0.4)
         windowPart(s, front, other, 0.42, 0.18, 0.28, style, rnd, anchors.lights, clad);
     } else windowRow(s, front, x0, x1, 0.42, style, rnd, anchors.lights!, [doorU], 0.55, [0.2, 0.28], clad);
-    // Upper floor: taller windows with boxes; an oriel sometimes on timber fronts.
-    windowRow(
-      s,
-      upFront,
-      ox0,
-      ox1,
-      1.12,
-      { ...style, box: true },
-      rnd,
-      anchors.lights!,
-      [],
-      0.52,
-      [0.2, 0.3],
-      0.012,
-    );
+    // Upper floors: taller windows, boxes on the second floor and plainer above; from three storeys
+    // the first floor is the piano nobile, taller than the rest. Floors from the third up are near
+    // only (far off they are a taller box).
+    const upper = (
+      i: number,
+      f: Face,
+      u0: number,
+      u1: number,
+      st: WindowStyle,
+      spacing: number,
+      size: [number, number],
+    ): void => {
+      const nob = N >= 3 && i === 1 ? 0.08 : 0;
+      const draw = (): void =>
+        windowRow(
+          s,
+          f,
+          u0,
+          u1,
+          1.12 + (i - 1) * STOREY_H + nob / 2,
+          { ...st, box: st.box && i === 1 },
+          rnd,
+          anchors.lights!,
+          [],
+          spacing,
+          [size[0], size[1] + nob],
+          0.012,
+        );
+      if (i >= 2) s.nearOnly(draw);
+      else draw();
+    };
+    for (let i = 1; i < floors; i++) upper(i, upFront, ox0, ox1, { ...style, box: true }, 0.52, [0.2, 0.3]);
     const side = { ...style, box: false };
     for (const f of [
       { dir: 'x+', plane: ox1 },
@@ -506,7 +587,7 @@ function townhouseOf(opts: KitBuildOptions | undefined): Built {
       // A corner house's street side gets the front's windows, boxes and all.
       const street = right ? row.streetR : row.streetL;
       const st = street ? { ...style, box: true } : side;
-      windowRow(s, f, oz0, oz1, 1.12, st, rnd, anchors.lights!, [], street ? 0.5 : 0.85, [0.18, 0.26], 0.012);
+      for (let i = 1; i < floors; i++) upper(i, f, oz0, oz1, st, street ? 0.5 : 0.85, [0.18, 0.26]);
       windowRow(
         s,
         { dir: f.dir, plane: right ? x1 : x0 },
@@ -522,45 +603,34 @@ function townhouseOf(opts: KitBuildOptions | undefined): Built {
         clad,
       );
     }
-    windowRow(
-      s,
-      { dir: 'z-', plane: oz0 },
-      ox0,
-      ox1,
-      1.12,
-      side,
-      rnd,
-      anchors.lights!,
-      [],
-      0.7,
-      [0.2, 0.26],
-      0.012,
-    );
+    for (let i = 1; i < floors; i++) upper(i, { dir: 'z-', plane: oz0 }, ox0, ox1, side, 0.7, [0.2, 0.26]);
     if (gableFront) {
       // An attic window high in the gable, and decorative bargeboards on timber fronts.
-      windowPart(
-        s,
-        upFront,
-        (ox0 + ox1) / 2,
-        sh.top + 0.34,
-        0.16,
-        0.18,
-        { frame: L.frame, shutter: null, box: false, flowers: [], arch: look() < 0.5 },
-        rnd,
-        anchors.lights,
-        0.01,
-      );
-      if (look() < 0.5) {
-        // A hoist beam over the attic window: a craftsman's house stores its stock upstairs.
-        beam(
+      if (N > 1) {
+        windowPart(
           s,
-          facePoint(upFront, (ox0 + ox1) / 2, sh.top + 0.6, -0.1),
-          facePoint(upFront, (ox0 + ox1) / 2, sh.top + 0.6, 0.3),
-          0.022,
-          L.trim,
+          upFront,
+          (ox0 + ox1) / 2,
+          sh.top + 0.34,
+          0.16,
+          0.18,
+          { frame: L.frame, shutter: null, box: false, flowers: [], arch: look() < 0.5 },
+          rnd,
+          anchors.lights,
+          0.01,
         );
+        if (look() < 0.5) {
+          // A hoist beam over the attic window: a craftsman's house stores its stock upstairs.
+          beam(
+            s,
+            facePoint(upFront, (ox0 + ox1) / 2, sh.top + 0.6, -0.1),
+            facePoint(upFront, (ox0 + ox1) / 2, sh.top + 0.6, 0.3),
+            0.022,
+            L.trim,
+          );
+        }
       }
-    } else {
+    } else if (dormers) {
       const n = bw > 1.9 ? 2 : 1;
       for (let i = 0; i < n; i++) {
         const u = n === 1 ? (ox0 + ox1) / 2 : ox0 + ((ox1 - ox0) * (i + 0.5)) / n;
@@ -611,7 +681,12 @@ function townhouseOf(opts: KitBuildOptions | undefined): Built {
       );
     }
   }
-  if (L.custom.sign) signBoard(s, front, doorU, 0.92, 0.44, clad, anchors);
+  // V3B: from the third floor up a string course marks each floor line (the jetty's sill beam marks
+  // the first). A one storey house hangs its sign lower, under the eaves.
+  for (let i = 2; i < floors; i++) stringCourse(s, row, sh.outer, 0.12 + i * STOREY_H, L.trim);
+  if (L.custom.sign) signBoard(s, front, doorU, N < 2 ? 0.72 : 0.92, 0.44, clad, anchors);
+  // V3B: a corner house's sills, on both of its faces.
+  if (row.corner) anchors.sills = cornerSills(anchors.lights!, row.corner, row.corner === 'R' ? x1 : x0, z1);
   return { s, anchors };
 }
 

@@ -56,6 +56,11 @@ export interface ShellSpec {
   trim: number;
   /** An upper floor in another material, starting `at` above the base, oversailing by `jetty`. */
   upper?: { at: number; wall: WallMaterial; color: number; jetty: number };
+  /**
+   * V3B: draws the ground floor's walls in place of one box (a canted corner), given the spec the box
+   * would have had. Absent: `wallsOf`.
+   */
+  lowerWalls?: (s: ShapeBuilder, w: WallSpec) => void;
   roof: {
     shape: RoofShape;
     material: RoofMaterial;
@@ -109,7 +114,7 @@ export function shell(s: ShapeBuilder, sp: ShellSpec): Shell {
     skip ? { skip, partyFrom: { ...(pl ? { l: party.l! } : {}), ...(pr ? { r: party.r! } : {}) } } : {};
   if (sp.upper) {
     const yu = base + sp.upper.at;
-    wallsOf(s, {
+    (sp.lowerWalls ?? wallsOf)(s, {
       material: sp.wall,
       x0,
       z0,
@@ -155,7 +160,7 @@ export function shell(s: ShapeBuilder, sp: ShellSpec): Shell {
     topMaterial = sp.upper.wall;
     topColor = sp.upper.color;
   } else {
-    wallsOf(s, {
+    (sp.lowerWalls ?? wallsOf)(s, {
       material: sp.wall,
       x0,
       z0,
