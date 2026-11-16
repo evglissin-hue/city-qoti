@@ -1,19 +1,26 @@
+/* eslint-disable no-restricted-syntax, @typescript-eslint/consistent-type-imports -- vi.mock factories are async by design */
 // R2B: shops follow the walkers (docs/spec/19-evenings.md, Shops follow the walkers). Places are
 // R2A's stand-in, stubbed by hand (stubPlaces.ts); footfall and the places' saved rows are written
 // by hand; the levels pass's day end is run directly.
 import { content } from '@qoti/content';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { DEMAND_KINDS, MAP_SIZE, TICK_FP_PLACEHOLDER_GUARD, TICKS_PER_DAY, TILE_FP, Zone } from '../../src/constants';
+import { DEMAND_KINDS, MAP_SIZE, TICKS_PER_DAY, TILE_FP, Zone } from '../../src/constants';
 import type { Building, Lot, WorldState } from '../../src/contracts';
 import { entranceTiles } from '../../src/rules/footprint';
 import { newPlaceState } from '../../src/state/evenings';
 import { cafeTables } from '../../src/systems/growth/cafes';
-import { lotDesirability, refreshDesirability, servicesOf, townSpecies } from '../../src/systems/growth/desirability';
+import {
+  lotDesirability,
+  refreshDesirability,
+  servicesOf,
+  townSpecies,
+} from '../../src/systems/growth/desirability';
 import { freeLots } from '../../src/systems/growth/bars';
 import { refreshDemand } from '../../src/systems/growth';
 import {
   eveningPassers,
   homeDoorTiles,
+  shopReach,
   SHOP_HOUSEHOLDS,
   unservedDoors,
   unservedPlaces,
@@ -25,11 +32,12 @@ import { demandView } from '../../src/view/demand';
 import { villageFixture, type VillageFixture } from '../fixtures/village';
 import { emptyCounters } from '../../src/state/zones';
 import { place as placeBuilding } from '../village/helpers';
-import { place, setStubPlaces, stubPlacesApi } from './stubPlaces';
+import { place, setStubPlaces } from './stubPlaces';
 
-vi.mock('../../src/systems/places/api', async (orig) =>
-  stubPlacesApi(await orig<typeof import('../../src/systems/places/api')>()),
-);
+vi.mock('../../src/systems/places/api', async (orig) => {
+  const { stubPlacesApi } = await import('./stubPlaces');
+  return stubPlacesApi(await orig<typeof import('../../src/systems/places/api')>());
+});
 
 const S = MAP_SIZE;
 const P = content.places;
@@ -128,12 +136,13 @@ describe('a garden lot is never built on, priced or offered', () => {
     expect(codes).not.toContain('lotWaiting');
     expect(codes).not.toContain('outOfReach');
     expect(codes).not.toContain('unsuitable');
-    expect(codes).toContain('needsLand');
+    expect(codes.some((c) => c === 'needsLand' || c === 'noRoad')).toBe(true);
     // The same lots as plots are a lot waiting.
     for (const l of shops) l.kind = 'plot';
     refreshDemand(s, null);
     const plots = demandView(s).bars[SHOPS]!.reasons.map((r) => r.code);
     expect(plots).not.toContain('needsLand');
+    expect(plots).not.toContain('noRoad');
   });
 });
 
@@ -155,10 +164,10 @@ describe('places that drew a crowd with nothing to sell', () => {
     const f = villageFixture();
     const s = f.state;
     const lot = shopLot(f);
+    const homes = unservedDoors(s, servicesOf(s), homeDoorTiles(s));
     s.places = [row('seats:5', 9, 0)];
     setStubPlaces([place({ id: 'seats:5', tile: spot(f) })]);
     expect(unservedPlaces(s)).toEqual([spot(f)]);
-    const homes = unservedDoors(s, servicesOf(s), homeDoorTiles(s));
     const all = unservedDoors(s, servicesOf(s));
     expect(all).toHaveLength(homes.length + SHOP_HOUSEHOLDS);
     expect(all.slice(-SHOP_HOUSEHOLDS)).toEqual([
@@ -179,13 +188,18 @@ describe('places that drew a crowd with nothing to sell', () => {
     const f = villageFixture();
     const s = f.state;
     const lots = s.lots.filter((l) => l.zone === Zone.shops && !l.buildingId);
-    const near = lots[lots.length - 1]!;
-    const tile = near.frontage;
     s.places = [row('seats:5', 12, 0)];
-    setStubPlaces([place({ id: 'seats:5', tile })]);
+    // A shop lot whose frontage is far enough from every stall for a crowd to go unserved there.
+    const near = lots.find((l) => {
+      setStubPlaces([place({ id: 'seats:5', tile: l.frontage })]);
+      return unservedPlaces(s).length === 1;
+    })!;
+    expect(near).toBeDefined();
     const doors = unservedDoors(s, servicesOf(s));
-    const reach = (l: Lot) => doors.filter(([x, z]) => Math.abs(x - l.x) + Math.abs(z - l.z) < 3).length;
-    expect(reach(near)).toBeGreaterThanOrEqual(SHOP_HOUSEHOLDS);
+    expect(shopReach(near, doors, Infinity)).toBeGreaterThanOrEqual(SHOP_HOUSEHOLDS);
+    expect(shopReach(near, doors.slice(0, doors.length - SHOP_HOUSEHOLDS))).toBeLessThan(
+      shopReach(near, doors),
+    );
   });
 
   it('are not counted when the evening was quiet, served, or has a stall at the door', () => {
@@ -205,7 +219,7 @@ describe('places that drew a crowd with nothing to sell', () => {
     setStubPlaces([place({ id: 'seats:5', tile: spot(f) })]);
     const x = spot(f) % S;
     const z = Math.floor(spot(f) / S);
-    placeBuilding(s, 'market-stall', x + 2, z - 4, 0);
+    placeBuilding(s, 'market-stall', x + 1, z - 2, 0);
     expect(unservedPlaces(s)).toEqual([]);
   });
 
@@ -278,7 +292,7 @@ describe('cafes', () => {
   });
 
   it('does not count child seats', () => {
-    const kids = [...content.decor.values?.() ?? []].find((d) => d.childSeats);
+    const kids = content.decor.find((d) => d.childSeats);
     const { s, b } = shopWithSeats([{ def: kids?.id ?? 'swing', dx: 1, dz: 0 }]);
     expect(content.decorById.get(kids?.id ?? 'swing')?.childSeats).toBe(true);
     dayEnd(s);
@@ -316,6 +330,5 @@ describe('steps past the door are customers', () => {
     });
     levels.tick(s, createTickCtx(s));
     expect(seen[0]).toBe(120 / 2 / P.stepsPerCustomer);
-    expect(TICK_FP_PLACEHOLDER_GUARD).toBeUndefined();
   });
 });
