@@ -1078,8 +1078,8 @@ function sackBlob(
   hex = C.sack,
 ): void {
   s.surface(SURFACE.cloth);
-  s.blob(x, y + 0.054 * k, z, 0.07 * k, 0.052 * k, 0.055 * k, vary(hex, rnd, 0.6), 1, rnd, 0.01, C.sack);
-  s.blob(x + 0.006 * k, y + 0.098 * k, z, 0.02 * k, 0.014 * k, 0.02 * k, C.sackTie, 0);
+  s.blob(x, y + 0.067 * k, z, 0.065 * k, 0.062 * k, 0.052 * k, vary(hex, rnd, 0.6), 1, rnd, 0.01, C.sack);
+  s.blob(x + 0.006 * k, y + 0.122 * k, z, 0.02 * k, 0.014 * k, 0.02 * k, C.sackTie, 0);
 }
 
 export const goodsSacks: Kit = goodsPiece('goods-sacks', 31, (s, rnd) => {

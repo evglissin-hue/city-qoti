@@ -104,7 +104,14 @@ export const yardWoodpile: Kit = piece('yard-woodpile', 51, ({ s, rnd, seed }) =
       s.surface(SURFACE.woodGrain);
       const h = r + 3 * pitch + r * 0.6;
       farBox(s, -0.1, 0, -0.09, 0.1, h, frontZ, bark, 'bf');
-      s.quad([-0.1, 0, frontZ], [0.1, 0, frontZ], [0.1, h, frontZ], [-0.1, h, frontZ], C.logEnd, [0, 0, 1]);
+      s.quad(
+        [-0.1, 0, frontZ],
+        [0.1, 0, frontZ],
+        [0.1, h, frontZ],
+        [-0.1, h, frontZ],
+        mixHex(C.logEnd, C.bark, 0.4),
+        [0, 0, 1],
+      );
     },
   );
 });
