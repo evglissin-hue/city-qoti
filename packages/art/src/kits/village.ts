@@ -130,7 +130,7 @@ export function orchardTree(
   season: number,
   rnd: () => number,
   light = false,
-  dabs = light ? 34 : 68,
+  dabs = light ? 30 : 60,
 ): void {
   const trunk = vary(palette.bark, rnd, 0.6);
   // The far level is the crown alone, as a squat six-sided puff (orchards hold a dozen trees).
@@ -181,8 +181,9 @@ export function orchardTree(
   const heart: V3 = [x, 0.6 * k, z];
   const blobs: DabBlob[] = [
     { center: heart, radii: [0.3 * k, 0.22 * k, 0.3 * k], color: vary(leaf, rnd, 0.4) },
+    // V3B: the bough blobs sit in close to the heart, so the crown is one soft lump, not four.
     ...tips.map((t) => ({
-      center: [t[0], t[1] + 0.06 * k, t[2]] as V3,
+      center: [x + (t[0] - x) * 0.55, t[1] + 0.06 * k, z + (t[2] - z) * 0.55] as V3,
       radii: [0.17 * k, 0.14 * k, 0.17 * k] as V3,
       color: vary(leaf, rnd, 0.9),
     })),
@@ -202,7 +203,7 @@ export function orchardTree(
         rx * 0.8,
         ry * 0.8,
         rz * 0.8,
-        mixHex(bl.color, CORE_SHADE, 0.55),
+        mixHex(bl.color, CORE_SHADE, 0.3),
         0,
         rnd,
         i === 0 ? 0.04 : 0,
@@ -212,8 +213,8 @@ export function orchardTree(
     const seed = Math.floor(rnd() * 1e6);
     brushDabs(s, painted, {
       count: dabs,
-      size: (light ? 0.14 : 0.112) * k,
-      tintSpread: 0.28,
+      size: (light ? 0.15 : 0.13) * k,
+      tintSpread: 0.14,
       skyLighten: 0.5,
       gaps: 0,
       thin: 1,
