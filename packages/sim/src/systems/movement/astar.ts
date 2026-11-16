@@ -87,15 +87,10 @@ export function findPath(
   heapSize = 0;
   const tx = to % S;
   const tz = (to - tx) / S;
-  const hOf = (t: number): number => {
-    const x = t % S;
-    const z = (t - x) / S;
-    return (x > tx ? x - tx : tx - x) + (z > tz ? z - tz : tz - z);
-  };
   g[from] = 0;
   parent[from] = -1;
   seen[from] = id;
-  const h0 = hOf(from);
+  const h0 = hOf(from, tx, tz);
   push((h0 * scale * H_SLOTS + h0) * TILE_SLOTS + from);
   let expansions = 0;
   while (heapSize > 0) {
@@ -142,13 +137,20 @@ export function findPath(
       seen[nb] = id;
       g[nb] = gn;
       parent[nb] = cur;
-      const h = hOf(nb);
+      const h = hOf(nb, tx, tz);
       push(((gn + h * scale) * H_SLOTS + h) * TILE_SLOTS + nb);
     }
   }
   lastExpansions = expansions;
   totalExpansions += expansions;
   return null;
+}
+
+/** Manhattan distance from tile `t` to (tx, tz): the heuristic, in tiles. */
+function hOf(t: number, tx: number, tz: number): number {
+  const x = t % S;
+  const z = (t - x) / S;
+  return (x > tx ? x - tx : tx - x) + (z > tz ? z - tz : tz - z);
 }
 
 function reconstruct(from: number, to: number): number[] {

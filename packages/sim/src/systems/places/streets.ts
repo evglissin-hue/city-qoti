@@ -57,6 +57,37 @@ function runThrough(state: WorldState, tile: number, axis: 0 | 1): number[] | nu
   return tiles;
 }
 
+/** The extent of the run through `tile` along an axis, as tiles before and after it, or null (as runThrough). */
+function runExtent(state: WorldState, tile: number, axis: 0 | 1): [lo: number, hi: number] | null {
+  const road = state.map.road;
+  if (road[tile]! <= 0) return null;
+  const step = stepOf(axis);
+  const x = tile % S;
+  const z = (tile - x) / S;
+  const along = axis === 0 ? x : z;
+  let lo = 0;
+  while (along - lo - 1 >= 0 && road[tile - (lo + 1) * step]! > 0) lo++;
+  let hi = 0;
+  while (along + hi + 1 < S && road[tile + (hi + 1) * step]! > 0) hi++;
+  if (lo + hi + 1 < N.minTiles) return null;
+  return [lo, hi];
+}
+
+/** The Manhattan distance from (x, z) to the nearest tile of `streetTiles(state, street)`, without listing them. */
+export function streetDistance(state: WorldState, street: Street, x: number, z: number): number {
+  const ax = street.anchor % S;
+  const az = (street.anchor - ax) / S;
+  for (const axis of [0, 1] as const) {
+    const run = runExtent(state, street.anchor, axis);
+    if (!run) continue;
+    const a = axis === 0 ? ax : az;
+    const along = axis === 0 ? x : z;
+    const across = axis === 0 ? Math.abs(z - az) : Math.abs(x - ax);
+    return across + Math.max(0, a - run[0] - along, along - (a + run[1]));
+  }
+  return Math.abs(x - ax) + Math.abs(z - az);
+}
+
 /**
  * The tiles of a street's run, sorted (for labels, the endpaper map and rename by a click): the run
  * holding its anchor, the x-run when the anchor lies on two. `[anchor]` when no run holds it.

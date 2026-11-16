@@ -7,6 +7,7 @@ import { content, type DecorDef, type HostDef, type PlaceKind } from '@qoti/cont
 import { MAP_SIZE, PLACE_KINDS, TILE_FP } from '../../constants';
 import type { Building, Decor, EntityId, Place, PlaceSource, WorldState } from '../../contracts';
 import { buildingRect, decorTileX, decorTileZ, isHomeDef } from '../../conditions/geo';
+import { findById } from '../../state/entities';
 import {
   byPlaceId,
   festivalPlaceId,
@@ -23,6 +24,7 @@ import { doorTile } from '../movement/api';
 import { heldRect } from '../festivals/site';
 import { skatingSpots } from '../seasons/place';
 import { worldIndex } from '../../state/worldIndex';
+import { SIG, sameSignature } from './signature';
 import { hasTag } from '../../state/zones';
 
 const S = MAP_SIZE;
@@ -37,7 +39,9 @@ export interface PlaceExtra {
   lights: boolean;
   /** Winter spares it: sheltered, warm, or the ice. */
   winterExempt: boolean;
-  /** What stands there, for a resident's taste (PlaceFeature bits; tree and quiet set each tick). */
+  /** What stands there as found at rebuild (PlaceFeature bits: pieces, buildings, water). */
+  base: number;
+  /** `base` and the bits that move with the map (a mature tree, no road), set each tick by draw.ts. */
   features: number;
 }
 
@@ -82,6 +86,8 @@ const DECOR_INFO = new Map(
         light: def.tags.includes('light') || def.tags.includes('lantern'),
         play: def.tags.includes('play'),
         view: VIEW_PIECES.has(def.id),
+        seats: def.seats ?? 0,
+        warm: def.warm === true,
       },
     ] as const;
   }),
@@ -208,15 +214,23 @@ function addHost(d: Draft, b: Building, host: HostDef, door: number): void {
  * festival site on its night; sitting spots (seat pieces in no site, up to `spotMaxPieces` within
  * `spotRadius` of the lowest id); fires (joining a spot within `spotRadius`, else a place of their
  * own); porches; building hosts (a site member is part of its site); the skating ice. Then outlets
- * and cafe tables, kinds and standing.
+ * and cafe tables, kinds and standing. `sig` is the place signature (signature.ts) of the state now:
+ * with it, the drafts whose inputs did not change since this state's last build are kept.
  */
-export function buildPlaces(state: WorldState): BuiltPlaces {
+export function buildPlaces(state: WorldState, sig?: readonly number[]): BuiltPlaces {
   const drafts: Draft[] = [];
   const claimed = new Set<EntityId>();
-  const decorById = new Map<EntityId, Decor>();
-  for (const d of state.decor) decorById.set(d.id, d);
-  const buildingById = new Map<EntityId, Building>();
-  for (const b of state.buildings) buildingById.set(b.id, b);
+  const last = lastBuilds.get(state);
+  // Porches and hosts read the buildings, the households and the sites' claims; outlets and cafe
+  // tables the buildings alone. Unchanged parts of the signature keep last build's drafts of them.
+  const sameHosts =
+    sig !== undefined &&
+    last?.sig !== undefined &&
+    sameSignature(last.sig, sig, SIG.buildings, SIG.sites + 2);
+  const sameOutlets =
+    sig !== undefined &&
+    last?.sig !== undefined &&
+    sameSignature(last.sig, sig, SIG.buildings, SIG.buildings + 2);
 
   // The festival on its night: held on a pattern site, that site is the festival's place tonight.
   const plan = state.festival.live ? state.festival.plan : null;
@@ -231,14 +245,14 @@ export function buildPlaces(state: WorldState): BuiltPlaces {
     d.tiles.push(site.anchor);
     for (const id of site.members) {
       claimed.add(id);
-      const piece = decorById.get(id);
+      const piece = findById(state.decor, id);
       if (piece) {
         const def = content.decorById.get(piece.def);
         if (def) addPiece(d, piece, def);
         d.tiles.push(tileOfDecor(piece));
         continue;
       }
-      const b = buildingById.get(id);
+      const b = findById(state.buildings, id);
       if (!b) continue;
       const def = content.buildingById.get(b.def);
       const door = doorTile(b, def);
@@ -278,30 +292,39 @@ export function buildPlaces(state: WorldState): BuiltPlaces {
   }
 
   // Sitting spots: seat pieces in no site, by id; each takes the free seats within reach of it.
-  const seatPieces: Decor[] = [];
-  for (const piece of state.decor) {
-    if (claimed.has(piece.id)) continue;
-    if ((content.decorById.get(piece.def)?.seats ?? 0) > 0) seatPieces.push(piece);
-  }
-  seatPieces.sort((a, b) => a.id - b.id);
+  // (The decor list is sorted by id, so seeds come in id order. A piece is free while no site, the
+  // festival or an earlier spot has claimed it.)
   const spots: Draft[] = [];
-  const inSpot = new Set<EntityId>();
-  const free = new Set<EntityId>(seatPieces.map((p) => p.id));
-  const decorGrid = worldIndex(state).decorGrid;
-  for (const seed of seatPieces) {
-    if (inSpot.has(seed.id)) continue;
+  const seats = seatGrid(state, claimed);
+  const R = P.spotRadius;
+  for (const seed of seats) {
+    if (claimed.has(seed.id)) continue;
     const seedTile = tileOfDecor(seed);
+    const sx = seedTile % S;
+    const sz = (seedTile - sx) / S;
     const near: [dist: number, piece: Decor][] = [];
-    // A Manhattan reach of spotRadius lies inside the circle of that many tiles (plus a tile's width).
-    for (const other of decorGrid.near(seed.fx, seed.fz, (P.spotRadius + 1) * TILE_FP)) {
-      if (other === seed || !free.has(other.id) || inSpot.has(other.id)) continue;
-      const dist = manhattan(seedTile, tileOfDecor(other));
-      if (dist <= P.spotRadius) near.push([dist, other]);
+    // Every free seat piece within a Manhattan reach of spotRadius, tile by tile over the diamond.
+    for (let dz = -R; dz <= R; dz++) {
+      const z = sz + dz;
+      if (z < 0 || z >= S) continue;
+      const w = R - Math.abs(dz);
+      for (let dx = -w; dx <= w; dx++) {
+        const x = sx + dx;
+        if (x < 0 || x >= S) continue;
+        const t = z * S + x;
+        if (seatEpoch[t] !== seatEpochId) continue;
+        for (let j = seatHead[t]!; j >= 0; j = seatNext[j]!) {
+          const other = seats[j]!;
+          if (other === seed || claimed.has(other.id)) continue;
+          near.push([Math.abs(dx) + Math.abs(dz), other]);
+        }
+      }
     }
     near.sort((a, b) => a[0] - b[0] || a[1].id - b[1].id);
     const d = draft(seatsPlaceId(seed.id), 'seats', seed.def, seedTile);
-    for (const piece of [seed, ...near.slice(0, Math.max(0, P.spotMaxPieces - 1)).map((n) => n[1])]) {
-      inSpot.add(piece.id);
+    const take = Math.min(near.length, Math.max(0, P.spotMaxPieces - 1));
+    for (let k = -1; k < take; k++) {
+      const piece = k < 0 ? seed : near[k]![1];
       claimed.add(piece.id);
       addPiece(d, piece, content.decorById.get(piece.def)!);
       addAround(d.tiles, tileOfDecor(piece));
@@ -312,9 +335,8 @@ export function buildPlaces(state: WorldState): BuiltPlaces {
 
   // Fires: a fire within reach of a spot warms that spot; one on its own is a place of its own.
   for (const piece of state.decor) {
-    if (claimed.has(piece.id)) continue;
-    const def = content.decorById.get(piece.def);
-    if (!def?.warm) continue;
+    if (claimed.has(piece.id) || !DECOR_INFO.get(piece.def)?.warm) continue;
+    const def = content.decorById.get(piece.def)!;
     claimed.add(piece.id);
     const t = tileOfDecor(piece);
     const spot = spots.find((s) => manhattan(s.tile, t) <= P.spotRadius);
@@ -331,13 +353,26 @@ export function buildPlaces(state: WorldState): BuiltPlaces {
   }
 
   // Porches and building hosts.
-  for (const b of state.buildings) {
+  const hostDrafts: [draft: Draft, kinds: number][] = [];
+  if (sameHosts) {
+    for (const [d, kinds] of last!.hosts) {
+      const copy = { ...d, kinds };
+      hostDrafts.push([copy, kinds]);
+      drafts.push(copy);
+    }
+  }
+  let householdAt: Map<EntityId, EntityId> | null = null;
+  for (const b of sameHosts ? [] : state.buildings) {
     if (b.stage !== 'built' || claimed.has(b.id)) continue;
     const def = content.buildingById.get(b.def);
     if (!def) continue;
     if (isHomeDef(def) && b.rt?.modules?.some(([, m]) => m === 'porch')) {
-      let household: EntityId = 0;
-      for (const h of state.households) if (h.homeId === b.id) household = household || h.id;
+      if (!householdAt) {
+        // The first household (in list order) at each home, as the porch's own.
+        householdAt = new Map();
+        for (const h of state.households) if (!householdAt.has(h.homeId)) householdAt.set(h.homeId, h.id);
+      }
+      const household = householdAt.get(b.id) ?? 0;
       if (household) {
         const door = doorTile(b, def);
         const d = draft(porchPlaceId(b.id), 'porch', b.def, door);
@@ -347,6 +382,7 @@ export function buildPlaces(state: WorldState): BuiltPlaces {
         d.porch = true;
         d.kinds |= kindBit('sit');
         addAround(d.tiles, door);
+        hostDrafts.push([d, d.kinds]);
         drafts.push(d);
       }
     }
@@ -356,6 +392,7 @@ export function buildPlaces(state: WorldState): BuiltPlaces {
       addHost(d, b, def.host, door);
       const [x0, z0, x1, z1] = buildingRect(b, def);
       for (let z = z0; z <= z1; z++) for (let x = x0; x <= x1; x++) d.tiles.push(z * S + x);
+      hostDrafts.push([d, d.kinds]);
       drafts.push(d);
     }
   }
@@ -373,25 +410,25 @@ export function buildPlaces(state: WorldState): BuiltPlaces {
   }
 
   // Outlets that sell Treats, and shops with tables out (R2B decides both).
-  const outlets: [id: EntityId, door: number][] = [];
-  const cafes: [b: Building, door: number, seats: number][] = [];
-  for (const b of state.buildings) {
+  const outlets: [id: EntityId, door: number][] = sameOutlets ? last!.outletList : [];
+  const cafes: [id: EntityId, door: number, seats: number][] = sameOutlets ? last!.cafes : [];
+  for (const b of sameOutlets ? [] : state.buildings) {
     if (b.stage !== 'built') continue;
     const sells = sellsTreats(state, b);
     const tables = cafeTables(state, b);
     if (!sells && tables <= 0) continue;
     const door = doorTile(b);
     if (sells) outlets.push([b.id, door]);
-    if (tables > 0) cafes.push([b, door, tables]);
+    if (tables > 0) cafes.push([b.id, door, tables]);
   }
   drafts.sort(byPlaceId);
-  for (const [b, door, seats] of cafes) {
+  for (const [id, door, seats] of cafes) {
     const d = drafts.find(
       (p) => (p.source === 'seats' || p.source === 'site') && nearAny(p.tiles, door, P.cafeRadius),
     );
     if (!d) continue;
     d.seats += seats;
-    d.members.push(b.id);
+    d.members.push(id);
     d.tiles.push(door);
   }
 
@@ -401,9 +438,22 @@ export function buildPlaces(state: WorldState): BuiltPlaces {
   const grid = worldIndex(state).decorGrid;
   const wet = waterReach(state, P.waterRadius);
 
+  // What changed since this state's last build: a place whose draft is the same and none of whose
+  // inputs changed is the place that build finished (the loop below reads nothing else), so it is kept.
+  const changes = last ? changesSince(state, last, outlets, wet) : null;
+  const finished = new Map<string, Finished>();
+
   const places: Place[] = [];
   const extras: PlaceExtra[] = [];
   for (const d of drafts) {
+    const kinds0 = d.kinds;
+    const prev = changes ? last!.finished.get(d.id) : undefined;
+    if (prev && changes && unchanged(prev, d, changes)) {
+      places.push(prev.place);
+      extras.push(prev.extra);
+      finished.set(d.id, { draft: d, kinds0, place: prev.place, extra: prev.extra });
+      continue;
+    }
     const tiles = sortedUnique(d.tiles);
     // Mark this place's tiles on the scratch stamp (a membership test with no Set).
     stampId++;
@@ -471,8 +521,8 @@ export function buildPlaces(state: WorldState): BuiltPlaces {
       }
     }
     if (water) d.kinds |= kindBit('view');
-    for (const id of d.members) features |= buildingFeatures(buildingById.get(id));
-    for (const id of near) features |= buildingFeatures(buildingById.get(id));
+    for (const id of d.members) features |= buildingFeatures(findById(state.buildings, id));
+    for (const id of near) features |= buildingFeatures(findById(state.buildings, id));
     if (water) features |= PlaceFeature.water;
 
     let standing = d.standing;
@@ -505,10 +555,257 @@ export function buildPlaces(state: WorldState): BuiltPlaces {
       },
     };
     if (d.household !== undefined) place.household = d.household;
+    const extra: PlaceExtra = {
+      lights,
+      winterExempt: d.sheltered || d.warm || d.ice,
+      base: features,
+      features,
+    };
+    extraOf.set(place, extra);
     places.push(place);
-    extras.push({ lights, winterExempt: d.sheltered || d.warm || d.ice, features });
+    extras.push(extra);
+    finished.set(d.id, { draft: d, kinds0, place, extra });
   }
+  lastBuilds.set(state, {
+    sig,
+    hosts: hostDrafts,
+    outletList: outlets,
+    cafes,
+    finished,
+    decor: decorSnapshot(state),
+    buildings: buildingSnapshot(state),
+    outlets: outlets.flat(),
+    wet,
+  });
   return { places, extras };
+}
+
+// --- Keeping what did not change ----------------------------------------------------------------
+//
+// A place's finish (the loop above) reads its draft, the decor on its tiles, the water mask, the
+// outlets within serveRadius and the tags of its member and outlet buildings. The last build's
+// finished places are kept beside the inputs it read, and a place is taken over only when its draft
+// is equal field by field and none of those inputs changed: the result is then exactly what finishing
+// it again would give, so a state with a last build and a fresh one (a seat joining) see equal places.
+
+/** A finished place and the draft it was finished from (`kinds0`: the draft's kinds before finishing). */
+interface Finished {
+  draft: Draft;
+  kinds0: number;
+  place: Place;
+  extra: PlaceExtra;
+}
+
+/** Entities by id (both sorted ascending) with a packed value of what the finish reads of them. */
+interface Snapshot {
+  ids: Int32Array;
+  values: Int32Array;
+}
+
+interface LastBuild {
+  /** The signature it was built for (none when the caller gave none). */
+  sig: readonly number[] | undefined;
+  /** Porch and host drafts as drafted, with their kinds then (finishing adds kinds to a draft). */
+  hosts: [draft: Draft, kinds: number][];
+  outletList: [id: EntityId, door: number][];
+  cafes: [id: EntityId, door: number, seats: number][];
+  finished: Map<string, Finished>;
+  decor: Snapshot;
+  buildings: Snapshot;
+  /** The outlets as [id, door, id, door, ...] in building order. */
+  outlets: number[];
+  wet: Uint8Array;
+}
+
+/** Each state's last build (derived, never saved; a fresh state simply has none). */
+const lastBuilds = new WeakMap<WorldState, LastBuild>();
+
+const DECOR_INDEX = new Map(content.decor.map((d, i) => [d.id, i]));
+const BUILDING_INDEX = new Map(content.buildings.map((b, i) => [b.id, i]));
+const TRADE_INDEX = new Map(content.trades.map((t, i) => [t.id, i]));
+
+/** Each decor piece's def and tile, as def index times the map's tiles plus the tile. */
+function decorSnapshot(state: WorldState): Snapshot {
+  const n = state.decor.length;
+  const ids = new Int32Array(n);
+  const values = new Int32Array(n);
+  for (let i = 0; i < n; i++) {
+    const d = state.decor[i]!;
+    ids[i] = d.id;
+    values[i] = (DECOR_INDEX.get(d.def) ?? content.decor.length) * S * S + tileOfDecor(d);
+  }
+  return { ids, values };
+}
+
+/** Each building's def and trade (what hasTag reads), packed. */
+function buildingSnapshot(state: WorldState): Snapshot {
+  const n = state.buildings.length;
+  const ids = new Int32Array(n);
+  const values = new Int32Array(n);
+  for (let i = 0; i < n; i++) {
+    const b = state.buildings[i]!;
+    ids[i] = b.id;
+    const trade = b.trade === undefined ? 0 : (TRADE_INDEX.get(b.trade) ?? content.trades.length) + 1;
+    values[i] = (BUILDING_INDEX.get(b.def) ?? content.buildings.length) * 4096 + trade;
+  }
+  return { ids, values };
+}
+
+/** Calls `fn` with the value of every entity added, removed or changed between two snapshots. */
+function diff(a: Snapshot, b: Snapshot, fn: (id: number, value: number) => void): void {
+  let i = 0;
+  let j = 0;
+  while (i < a.ids.length || j < b.ids.length) {
+    const ai = i < a.ids.length ? a.ids[i]! : Infinity;
+    const bj = j < b.ids.length ? b.ids[j]! : Infinity;
+    if (ai === bj) {
+      if (a.values[i] !== b.values[j]) {
+        fn(ai, a.values[i]!);
+        fn(bj, b.values[j]!);
+      }
+      i++;
+      j++;
+    } else if (ai < bj) {
+      fn(ai, a.values[i]!);
+      i++;
+    } else {
+      fn(bj, b.values[j]!);
+      j++;
+    }
+  }
+}
+
+interface Changes {
+  /** dirty[tile] === dirtyId: a decor piece came, went or changed on the tile. */
+  dirtyId: number;
+  /** Buildings whose def or trade changed, or that came or went. */
+  buildings: Set<EntityId>;
+  /** Doors of outlets that came, went or moved. */
+  outletDoors: number[];
+}
+
+const dirty = new Int32Array(S * S);
+let dirtyId = 0;
+
+function changesSince(
+  state: WorldState,
+  last: LastBuild,
+  outlets: readonly [EntityId, number][],
+  wet: Uint8Array,
+): Changes | null {
+  // A new water mask (water or roads changed) touches places anywhere: finish them all.
+  if (wet !== last.wet) return null;
+  dirtyId++;
+  if (dirtyId === 0x7fffffff) {
+    dirty.fill(0);
+    dirtyId = 1;
+  }
+  const T = S * S;
+  diff(last.decor, decorSnapshot(state), (_id, value) => {
+    dirty[value % T] = dirtyId;
+  });
+  const buildings = new Set<EntityId>();
+  diff(last.buildings, buildingSnapshot(state), (id) => {
+    buildings.add(id);
+  });
+  // Outlets: the pairs in one list and not the other (both are in building order, by id).
+  const outletDoors: number[] = [];
+  const was = last.outlets;
+  let i = 0;
+  let j = 0;
+  while (i < was.length || j < outlets.length) {
+    const ai = i < was.length ? was[i]! : Infinity;
+    const bj = j < outlets.length ? outlets[j]![0] : Infinity;
+    if (ai === bj) {
+      if (was[i + 1] !== outlets[j]![1]) outletDoors.push(was[i + 1]!, outlets[j]![1]);
+      i += 2;
+      j++;
+    } else if (ai < bj) {
+      outletDoors.push(was[i + 1]!);
+      i += 2;
+    } else {
+      outletDoors.push(outlets[j]![1]);
+      j++;
+    }
+  }
+  return { dirtyId, buildings, outletDoors };
+}
+
+function sameNumbers(a: readonly number[], b: readonly number[]): boolean {
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return false;
+  return true;
+}
+
+/** True when the place `prev` finished is what finishing `d` now would give. */
+function unchanged(prev: Finished, d: Draft, c: Changes): boolean {
+  const a = prev.draft;
+  if (
+    a.source !== d.source ||
+    a.def !== d.def ||
+    a.tile !== d.tile ||
+    a.seats !== d.seats ||
+    a.childSeats !== d.childSeats ||
+    a.standing !== d.standing ||
+    prev.kinds0 !== d.kinds ||
+    a.sheltered !== d.sheltered ||
+    a.warm !== d.warm ||
+    a.ice !== d.ice ||
+    a.walkTiles !== d.walkTiles ||
+    a.household !== d.household ||
+    a.porch !== d.porch ||
+    !sameNumbers(a.tiles, d.tiles) ||
+    !sameNumbers(a.members, d.members)
+  ) {
+    return false;
+  }
+  const place = prev.place;
+  for (const t of place.tiles) if (dirty[t] === c.dirtyId) return false;
+  if (c.buildings.size > 0) {
+    for (const id of place.members) if (c.buildings.has(id)) return false;
+    for (const id of place.outlets) if (c.buildings.has(id)) return false;
+  }
+  for (const door of c.outletDoors) if (nearAny(place.tiles, door, P.serveRadius)) return false;
+  return true;
+}
+
+/** Each place's extra, by the place object (a place kept by a later build keeps its extra). */
+const extraOf = new WeakMap<Place, PlaceExtra>();
+
+/** The extra of a place this module finished. */
+export function placeExtra(place: Place): PlaceExtra | undefined {
+  return extraOf.get(place);
+}
+
+/** Seat pieces by tile for the spots pass: seatHead[tile] is valid when seatEpoch[tile] is current. */
+const seatEpoch = new Int32Array(S * S);
+const seatHead = new Int32Array(S * S);
+let seatNext = new Int32Array(256);
+let seatEpochId = 0;
+
+/** The seat pieces no site or the festival claimed, in id order, linked by tile (seatHead, seatNext). */
+function seatGrid(state: WorldState, claimed: ReadonlySet<EntityId>): Decor[] {
+  seatEpochId++;
+  if (seatEpochId === 0x7fffffff) {
+    seatEpoch.fill(0);
+    seatEpochId = 1;
+  }
+  const seats: Decor[] = [];
+  for (const d of state.decor) {
+    if (claimed.has(d.id) || (DECOR_INFO.get(d.def)?.seats ?? 0) <= 0) continue;
+    seats.push(d);
+  }
+  if (seatNext.length < seats.length) seatNext = new Int32Array(seats.length * 2);
+  for (let i = 0; i < seats.length; i++) {
+    const t = tileOfDecor(seats[i]!);
+    if (seatEpoch[t] !== seatEpochId) {
+      seatEpoch[t] = seatEpochId;
+      seatHead[t] = -1;
+    }
+    seatNext[i] = seatHead[t]!;
+    seatHead[t] = i;
+  }
+  return seats;
 }
 
 /** Places with no outlet near share this one empty list (callers never mutate a place). */

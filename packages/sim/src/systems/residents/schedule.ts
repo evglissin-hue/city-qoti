@@ -74,15 +74,28 @@ const LONG_DAY_END = at(BUILD_HOURS[1]);
 
 /** Playtest round five: builders and porters stay on into the evening (BUILD_HOURS). */
 function keepsLongHours(state: WorldState, r: Resident): boolean {
-  const job = findById(state.buildings, r.jobId);
-  const role = job ? content.buildingById.get(job.def)?.jobs?.role : undefined;
-  // R2 (R2B): a cart shed's carter keeps the porters' hours, to BUILD_HOURS[1].
-  return (
-    role === 'builder' ||
-    role === 'porter' ||
-    (!!job && !!content.buildingById.get(job.def)?.tags?.includes('cart-shed'))
-  );
+  if (r.jobId === 0) return false;
+  // By workplace, once a tick and turn (many work at each).
+  let m = longHoursMemo.get(state);
+  if (!m || m.tick !== state.tick || m.turn !== state.lastTurn) {
+    m = { tick: state.tick, turn: state.lastTurn, byJob: new Map() };
+    longHoursMemo.set(state, m);
+  }
+  let long = m.byJob.get(r.jobId);
+  if (long === undefined) {
+    const job = findById(state.buildings, r.jobId);
+    const role = job ? content.buildingById.get(job.def)?.jobs?.role : undefined;
+    // R2 (R2B): a cart shed's carter keeps the porters' hours, to BUILD_HOURS[1].
+    long =
+      role === 'builder' ||
+      role === 'porter' ||
+      (!!job && !!content.buildingById.get(job.def)?.tags?.includes('cart-shed'));
+    m.byJob.set(r.jobId, long);
+  }
+  return long;
 }
+
+const longHoursMemo = new WeakMap<WorldState, { tick: number; turn: number; byJob: Map<number, boolean> }>();
 
 /** What the resident wants in this block of their day. */
 export function goalFor(state: WorldState, r: Resident, block: BlockId, clock: number): Goal {
@@ -97,7 +110,7 @@ export function goalFor(state: WorldState, r: Resident, block: BlockId, clock: n
     case Block.day:
       return hasWork(state, r) ? 'work' : 'outing';
     case Block.evening:
-      return hasWork(state, r) && clock < LONG_DAY_END && keepsLongHours(state, r) ? 'work' : 'outing';
+      return clock < LONG_DAY_END && keepsLongHours(state, r) && hasWork(state, r) ? 'work' : 'outing';
     default:
       return 'home';
   }

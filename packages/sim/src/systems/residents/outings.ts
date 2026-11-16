@@ -258,8 +258,33 @@ export function chooseVisit(state: WorldState, r: Resident): [friend: number, do
  * corner, a Sweet Tooth and something to eat. The planner keeps it within tasteMin to tasteMax.
  */
 export function tasteFor(state: WorldState, r: Resident, place: Place): number {
-  const f = placeFeatures(state, place);
-  const sp = r.species;
+  return tasteWith(tasteOf(r), placeFeatures(state, place), place);
+}
+
+/** What a resident's traits and species make of places, worked out once for many places (tasteWith). */
+export interface Taste {
+  species: Resident['species'];
+  nature: number;
+  light: number;
+  romantic: boolean;
+  quiet: number;
+  bakery: number;
+}
+
+export function tasteOf(r: Resident): Taste {
+  return {
+    species: r.species,
+    nature: traitFactor(r, 'natureWeight'),
+    light: traitFactor(r, 'lightWeight'),
+    romantic: hasTrait(r, 'romantic'),
+    quiet: traitFactor(r, 'quietWeight'),
+    bakery: traitFactor(r, 'bakeryWeight'),
+  };
+}
+
+/** tasteFor with the resident's taste worked out (tasteOf) and the place's features read (placeFeatures). */
+export function tasteWith(t: Taste, f: number, place: Place): number {
+  const sp = t.species;
   let taste = 0;
   if (sp === 'rabbit' && f & PlaceFeature.flower) taste += 5;
   if (sp === 'squirrel' && f & PlaceFeature.tree) taste += 8;
@@ -268,15 +293,15 @@ export function tasteFor(state: WorldState, r: Resident, place: Place): number {
   if (sp === 'fox' && f & PlaceFeature.market) taste += 8;
   if (sp === 'mouse' && f & PlaceFeature.baker) taste += 6;
   if (sp === 'badger' && f & PlaceFeature.tavern) taste += 6;
-  const nature = traitFactor(r, 'natureWeight');
+  const nature = t.nature;
   if (nature !== 1 && f & (PlaceFeature.flower | PlaceFeature.tree)) taste += Math.round((nature - 1) * 4);
-  const light = traitFactor(r, 'lightWeight');
+  const light = t.light;
   if (light !== 1 && f & PlaceFeature.light) taste += Math.round((light - 1) * 3);
-  if (hasTrait(r, 'romantic') && f & PlaceFeature.water) taste += 3;
-  const quiet = traitFactor(r, 'quietWeight');
+  if (t.romantic && f & PlaceFeature.water) taste += 3;
+  const quiet = t.quiet;
   if (quiet !== 1)
     taste += f & PlaceFeature.quiet ? Math.round((quiet - 1) * 4) : -Math.round((quiet - 1) * 3);
-  const bakery = traitFactor(r, 'bakeryWeight');
+  const bakery = t.bakery;
   if (bakery !== 1 && (f & PlaceFeature.baker || place.kinds.includes('eat')))
     taste += Math.round((bakery - 1) * 3);
   return taste;

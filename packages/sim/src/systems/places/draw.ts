@@ -30,29 +30,31 @@ export function refreshDraws(
   const { charm, road, tree } = state.map;
   const lit = placeLightsLit(state.tick);
   const winter = seasonAt(state.tick).season === WINTER;
+  const cap = P.charmCap;
+  const litBonus = P.litBonus;
+  const cold = -P.winterPenalty;
   for (let i = 0; i < places.length; i++) {
     const p = places[i]!;
     const x = extras[i]!;
+    const tiles = p.tiles;
+    const n = tiles.length;
     let sum = 0;
     let quiet = true;
     let mature = false;
-    for (const t of p.tiles) {
+    for (let k = 0; k < n; k++) {
+      const t = tiles[k]!;
       sum += charm[t]!;
       if (road[t]) quiet = false;
       const tv = tree[t]!;
       if (tv && treeStage(tv) >= TREE_MATURE) mature = true;
     }
     // The bits that move with the map, for a resident's taste.
-    x.features =
-      (x.features & ~(PlaceFeature.quiet | PlaceFeature.tree)) |
-      (quiet ? PlaceFeature.quiet : 0) |
-      (mature ? PlaceFeature.tree : 0);
-    const n = p.tiles.length;
+    x.features = x.base | (quiet ? PlaceFeature.quiet : 0) | (mature ? PlaceFeature.tree : 0);
     const avg = n > 0 ? Math.floor((sum + (n >> 1)) / n) : 0;
     const parts = p.parts;
-    parts.charm = Math.min(P.charmCap, avg);
-    parts.lit = lit && x.lights ? P.litBonus : 0;
-    parts.winter = winter && !x.winterExempt ? -P.winterPenalty : 0;
+    parts.charm = avg < cap ? avg : cap;
+    parts.lit = lit && x.lights ? litBonus : 0;
+    parts.winter = winter && !x.winterExempt ? cold : 0;
     const total = parts.charm + parts.site + parts.pieces + parts.water + parts.lit + parts.winter;
     p.draw = Math.max(0, Math.min(100, total));
   }
