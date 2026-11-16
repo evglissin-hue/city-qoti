@@ -235,4 +235,37 @@ describe('the round', () => {
     expect(hashState(a.s)).toBe(hashState(b.s));
     expect(a.s.evenings.history.length).toBeGreaterThan(4);
   });
+
+  it('children play at a swing near home as well as on the grass', { timeout: 60_000 }, () => {
+    const { s, ctx } = town([]);
+    const kids = s.residents.filter((r) => r.stage === 'child');
+    expect(kids.length).toBeGreaterThan(0);
+    // A swing beside the first child's home.
+    const home = s.buildings.find(
+      (b) => b.id === s.households.find((h) => h.id === kids[0]!.householdId)!.homeId,
+    )!;
+    const ok = executeCommand(
+      s,
+      {
+        seat: 0,
+        seq: 1,
+        cmd: {
+          t: 'decor.place',
+          def: 'swing',
+          fx: home.x * TILE_FP + 128,
+          fz: (home.z + 4) * TILE_FP + 128,
+          rot: 0,
+        },
+      },
+      ctx,
+    );
+    expect(ok).toBe(true);
+    const swingPlace = placeIndex(s).places.find((p) => p.childSeats > 0)!;
+    let there = 0;
+    runTo(s, ctx, at(1, 21), () => {
+      for (const k of kids)
+        if (k.activity.kind === 'play' && swingPlace.tiles.includes(k.activity.tile)) there++;
+    });
+    expect(there).toBeGreaterThan(0);
+  });
 });

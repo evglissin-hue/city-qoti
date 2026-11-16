@@ -11,8 +11,9 @@ import { findById } from '../../state/entities';
 import { worldIndex } from '../../state/worldIndex';
 import { walkGrid } from '../movement/grid';
 import { placeFeatures } from '../places';
+import { placesNear } from '../places/api';
 import { PlaceFeature } from '../places/build';
-import { doorOf, eachBuildingNear, householdOf, tileX, tileZ } from './places';
+import { doorOf, eachBuildingNear, householdOf, manhattan, tileX, tileZ } from './places';
 import { hasTrait, traitFactor, traitPercent } from './traits';
 
 const S = MAP_SIZE;
@@ -279,4 +280,30 @@ export function tasteFor(state: WorldState, r: Resident, place: Place): number {
   if (bakery !== 1 && (f & PlaceFeature.baker || place.kinds.includes('eat')))
     taste += Math.round((bakery - 1) * 3);
   return taste;
+}
+
+/**
+ * R2 (R2A): a play place near home for a child (a swing or see-saw within `PLACES.homebodyRadius` of
+ * the door, docs/spec/19-evenings.md, The round: children play at play places and near home): the
+ * tile to make for, or -1 when there is none.
+ */
+export function playPlaceNear(state: WorldState, home: number): number {
+  const cost = walkGrid(state).cost;
+  let best = -1;
+  let bestDist = Infinity;
+  for (const p of placesNear(state, home, content.places.homebodyRadius)) {
+    if (p.childSeats <= 0) continue;
+    // A swing blocks the walk: they play on the ground beside it.
+    let tile = -1;
+    for (const t of p.tiles) {
+      if (cost[t]! > 0 && (tile < 0 || manhattan(t, p.tile) < manhattan(tile, p.tile))) tile = t;
+    }
+    if (tile < 0) continue;
+    const d = manhattan(p.tile, home);
+    if (d < bestDist) {
+      bestDist = d;
+      best = tile;
+    }
+  }
+  return best;
 }

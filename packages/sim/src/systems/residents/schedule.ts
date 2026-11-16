@@ -14,7 +14,7 @@ import { moveResident, setInside } from '../movement/api';
 import { STOP_TICKS, stopNow } from '../places/occupancy';
 import { addMoodModifier } from './api';
 import { assignJobs } from './jobs';
-import { chooseLeisure, choosePlay, chooseStroll, chooseVisit } from './outings';
+import { chooseLeisure, choosePlay, chooseStroll, chooseVisit, playPlaceNear } from './outings';
 import { scheduleOverride, scheduleOverrideExcept } from './overrides';
 import { doorOf, householdOf, isWorkingAge } from './places';
 import { loggedToday, pushHistory } from './records';
@@ -389,7 +389,9 @@ function chooseOuting(
   }
   if (r.stage === 'child') {
     if (rng.chance(block === Block.evening ? 0.55 : 0.7)) {
-      const tile = choosePlay(state, rng, r);
+      // R2 (R2A): a swing or see-saw near home, one time in two.
+      const swing = playPlaceNear(state, homeDoor);
+      const tile = swing >= 0 && rng.chance(0.5) ? swing : choosePlay(state, rng, r);
       setOff(state, ctx, r, h, homeDoor, tile, { kind: 'play', tile });
     } else {
       stayHome(state, ctx, r, h, homeDoor, 'home');

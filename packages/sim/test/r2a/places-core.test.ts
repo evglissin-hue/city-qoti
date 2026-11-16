@@ -6,6 +6,10 @@ import { insertBuilding } from '../../src/state/place';
 import { deserialize, serialize } from '../../src/state/serialize';
 import { invalidatePlaces, placeIndex } from '../../src/systems/places';
 import { placeById } from '../../src/systems/places/api';
+import { DAYS_PER_SEASON, TICKS_PER_DAY } from '../../src/constants';
+import { findById } from '../../src/state/entities';
+import { placeDraw, placeServes } from '../../src/systems/places/api';
+import { villageFixture } from '../fixtures/village';
 import { flatWorld, run, S } from '../helpers';
 
 const fp = (t: number) => t * TILE_FP + TILE_FP / 2;
@@ -95,5 +99,105 @@ describe('the place index', () => {
     const q = placeIndex(w).places[0]!;
     expect(q.parts.charm).toBe(content.places.charmCap);
     expect(q.draw).toBe(content.places.charmCap + q.parts.pieces + q.parts.water);
+  });
+
+  it('a pattern site holds its member seats, the site part of the draw, and a walk its strollers', () => {
+    const w = place('bench', 40, 40);
+    place('bench', 42, 40, w);
+    const tiles = [40 * S + 39, 40 * S + 40, 40 * S + 41, 40 * S + 42, 40 * S + 43];
+    w.hearth.sites.push({
+      pattern: 'lantern-walk',
+      anchor: 40 * S + 40,
+      members: w.decor.map((d) => d.id),
+      tiles,
+      seats: [0],
+      tick: 0,
+    });
+    const ps = placeIndex(w).places;
+    expect(ps.length).toBe(1);
+    const p = ps[0]!;
+    expect(p.id).toBe(`site:lantern-walk:${40 * S + 40}`);
+    expect(p.source).toBe('site');
+    expect(p.seats).toBe(4);
+    expect(p.kinds).toEqual(['sit', 'walk']);
+    expect(p.parts.site).toBe(content.places.siteBonus);
+    const strollers = Math.floor(tiles.length / content.places.walkTilesPerStroller);
+    expect(p.standing).toBe(strollers + Math.max(content.places.standingMin, 2));
+  });
+
+  it('a porch seats its own household; an outlet within reach serves a bench, live from its shelf', () => {
+    const { state: s, b, households } = villageFixture();
+    const home = findById(s.buildings, b.cottages[0]!)!;
+    home.rt!.modules = [['front', 'porch']];
+    const porch = placeById(s, `porch:${home.id}`)!;
+    expect(porch.seats).toBe(content.places.porchSeats);
+    expect(porch.standing).toBe(0);
+    expect(porch.household).toBe(s.households.find((h) => h.homeId === home.id)!.id);
+    expect(households.length).toBeGreaterThan(0);
+
+    // A bench across the lane from the first stall (stalls are outlets).
+    const stall = findById(s.buildings, b.stalls[0])!;
+    run(s, { t: 'decor.place', def: 'bench', fx: fp(stall.x), fz: fp(52), rot: 0 });
+    const bench = placeIndex(s).places.find((p) => p.source === 'seats')!;
+    expect(bench.outlets).toContain(stall.id);
+    expect(bench.kinds).toContain('eat');
+    const treats = content.goods.findIndex((g) => g.family === 'treats');
+    stall.rt!.store[treats] = 0;
+    for (let g = 0; g < content.goods.length; g++)
+      if (content.goods[g]!.family === 'treats') stall.rt!.store[g] = 0;
+    expect(placeServes(s, bench)).not.toContain(stall.id);
+    const dry = placeDraw(s, bench);
+    stall.rt!.store[treats] = 3;
+    expect(placeServes(s, bench)).toContain(stall.id);
+    expect(placeDraw(s, bench)).toBe(Math.min(100, dry + content.places.treatsBonus));
+  });
+
+  it('the frozen river makes skating ice; winter takes from an open bench and spares a fire', () => {
+    const { state: s } = villageFixture();
+    s.weather.river.frozen = true;
+    s.weather.river.frozenTick = 1;
+    const ice = placeIndex(s).places.filter((p) => p.id.startsWith('ice:'));
+    expect(ice.length).toBeGreaterThan(0);
+    expect(ice[0]!.standing).toBe(content.places.iceStanding + content.places.standingMin);
+    expect(ice[0]!.kinds).toEqual(
+      content.places.iceKinds
+        .slice()
+        .sort((a, b) => 'sit,eat,view,play,meet,walk'.indexOf(a) - 'sit,eat,view,play,meet,walk'.indexOf(b)),
+    );
+
+    const w = place('bench', 40, 40);
+    place('bench', 60, 40, w);
+    place('brazier', 61, 40, w);
+    w.tick = 3 * DAYS_PER_SEASON * TICKS_PER_DAY + 10;
+    const [cold, warm] = placeIndex(w).places;
+    expect(cold!.parts.winter).toBe(-content.places.winterPenalty);
+    expect(warm!.warm).toBe(true);
+    expect(warm!.parts.winter).toBe(0);
+    expect(ice[0]!.parts.winter).toBe(0);
+  });
+
+  it('the festival site is a place on its night, its pieces part of it', () => {
+    const w = place('festival-table', 50, 50);
+    expect(placeIndex(w).places[0]!.source).toBe('seats');
+    w.festival.live = true;
+    w.festival.plan = {
+      festival: content.festivals[0]!.id,
+      season: 0,
+      year: 0,
+      site: { rect: [48, 48, 54, 54] },
+      menu: [],
+      reserved: [],
+      twist: '',
+      music: 'none',
+      musician: 0,
+      by: 0,
+      tick: 0,
+    };
+    w.tick += 1;
+    const ps = placeIndex(w).places;
+    expect(ps.length).toBe(1);
+    expect(ps[0]!.id).toBe(`festival:${48 * S + 48}`);
+    expect(ps[0]!.seats).toBe(6);
+    expect(ps[0]!.standing).toBe(content.places.festivalStanding + 3);
   });
 });
