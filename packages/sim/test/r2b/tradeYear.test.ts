@@ -43,8 +43,8 @@ describe('the money invariant', () => {
           const p = places[(hi + mi) % places.length]!;
           // Most stand at a place; one in four walks past an outlet; some households stay in.
           if (hi % 5 === 4) r.round = undefined;
-          else if ((hi + mi) % 4 === 3) walkAt(r, p.tile, [stop(p.id, p.tile, -1)]);
-          else standAt(r, p.tile, [stop(p.id, p.tile, tickAt(day, 17))]);
+          else if ((hi + mi) % 4 === 3) walkAt(r, p.tile, [stop(p.id, p.tile, -1)], s);
+          else standAt(r, p.tile, [stop(p.id, p.tile, tickAt(day, 17))], s);
         });
       });
       while (s.tick < tickAt(day, 22)) applyTurn(s, { t: s.lastTurn + 1, cmds: [] }, ctx);
@@ -70,8 +70,8 @@ describe('the money invariant', () => {
         s.economy.treasury -= 300;
         const r = findById(s.residents, h.members[0]!)!;
         const p = places[hi % places.length]!;
-        if (hi % 3 === 0) standAt(r, p.tile, [stop(p.id, p.tile, s.tick)]);
-        else if (hi % 3 === 1) walkAt(r, p.tile, [stop(p.id, p.tile, -1)]);
+        if (hi % 3 === 0) standAt(r, p.tile, [stop(p.id, p.tile, s.tick)], s);
+        else if (hi % 3 === 1) walkAt(r, p.tile, [stop(p.id, p.tile, -1)], s);
         else r.round = undefined;
         for (const m of h.members) if (m !== r.id) findById(s.residents, m)!.round = undefined;
       });

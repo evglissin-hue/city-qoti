@@ -29,6 +29,7 @@ function grownup(s: WorldState, round: RoundStop[], stage: LifeStage = 'adult', 
     bond: 0,
     needs: NEED_IDS.map(() => 100),
     round,
+    roundDay: dayIndex(s.tick),
   } as unknown as Resident;
   r.needs[EVENINGS_NEED] = need;
   s.residents.push(r);

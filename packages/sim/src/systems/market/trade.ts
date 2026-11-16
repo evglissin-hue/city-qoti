@@ -3,7 +3,7 @@
 // so that round.ts stays a leaf and the places' cross-track API is never part of an import cycle.
 import { content } from '@qoti/content';
 import { MAP_SIZE, RoundFlags, TICKS_PER_HOUR } from '../../constants';
-import type { Building, EntityId, Household, RoundStop, TickCtx, WorldState } from '../../contracts';
+import type { Building, EntityId, Household, Resident, RoundStop, TickCtx, WorldState } from '../../contracts';
 import { findById } from '../../state/entities';
 import { calendar } from '../clock/calendar';
 import { dayIndex, tickOfDay } from '../economy/time';
@@ -52,14 +52,17 @@ export function accrueTreats(state: WorldState): void {
   }
 }
 
-/** A stop that belongs to tonight: arrived today, or still ahead (the plan is replaced each evening). */
-function isTonight(stop: RoundStop, today: number): boolean {
-  return stop.arrived < 0 || dayIndex(stop.arrived) === today;
-}
-
-/** True when a stop of tonight carries the treat flag (bought there, or passing on the way to it). */
-function boughtTonight(round: readonly RoundStop[], today: number): boolean {
-  for (const stop of round) if (isTonight(stop, today) && (stop.flags & RoundFlags.treat) !== 0) return true;
+/**
+ * True when a stop of tonight carries the treat flag (bought there, or passing on the way to it).
+ * R2X: tonight's plan is the one made today (`Resident.roundDay`, R2A's), so a plan left over from an
+ * evening skipped never counts; within it, a stop arrived on another day is not tonight's either.
+ */
+function boughtTonight(r: Resident, today: number): boolean {
+  if (r.roundDay !== today || !r.round) return false;
+  for (const stop of r.round) {
+    if (stop.arrived >= 0 && dayIndex(stop.arrived) !== today) continue;
+    if ((stop.flags & RoundFlags.treat) !== 0) return true;
+  }
   return false;
 }
 
@@ -185,7 +188,7 @@ export function tradePass(state: WorldState, ctx: TickCtx): void {
     const h = findById(state.households, r.householdId);
     const group = h ? treatsIndex(h) : -1;
     if (!h || group < 0 || h.owed![group]! < 100) continue;
-    if (boughtTonight(round, today)) continue;
+    if (boughtTonight(r, today)) continue;
     if (!r.move) {
       const stop = currentStop(round, today);
       if (!stop) continue;
@@ -259,8 +262,8 @@ export function doorstepErrand(state: WorldState, ctx: TickCtx): void {
     if (group < 0) continue;
     let roundUnits = 0;
     for (const id of h.members) {
-      const round = findById(state.residents, id)?.round;
-      if (round && boughtTonight(round, today)) roundUnits++;
+      const m = findById(state.residents, id);
+      if (m && boughtTonight(m, today)) roundUnits++;
     }
     const due = Math.floor(h.owed![group]! / 100);
     const before = h.savings;

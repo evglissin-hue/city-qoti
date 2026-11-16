@@ -101,7 +101,7 @@ describe('at a stop', () => {
     const r = resident(s, h.members[0]!);
     owe(h, 1);
     const stops = [stop('seats:1', door, s.tick - 8)];
-    standAt(r, door, stops);
+    standAt(r, door, stops, s);
     const before = moneySnapshot(s);
     const treasury = s.economy.treasury;
     const savings = h.savings;
@@ -128,7 +128,7 @@ describe('at a stop', () => {
     h.savings = 200 * PENNIES_PER_COIN;
     const r = resident(s, h.members[0]!);
     owe(h, 2);
-    standAt(r, door, [stop('seats:1', door, s.tick - 8)]);
+    standAt(r, door, [stop('seats:1', door, s.tick - 8)], s);
     tradePass(s, ctx);
     expect(s.evenings.tonight.treatsAtStops).toBe(2);
     expect(owedHundredths(h)).toBe(100);
@@ -139,10 +139,10 @@ describe('at a stop', () => {
     const h = findById(s.households, f.households[0]!)!;
     const r = resident(s, h.members[0]!);
     owe(h, 0.5);
-    standAt(r, door, [stop('seats:1', door, s.tick - 8)]);
+    standAt(r, door, [stop('seats:1', door, s.tick - 8)], s);
     tradePass(s, ctx);
     owe(h, 1);
-    standAt(r, door, [stop('seats:1', door, s.tick - 8 - 4800)]); // arrived yesterday
+    standAt(r, door, [stop('seats:1', door, s.tick - 8 - 4800)], s); // arrived yesterday
     tradePass(s, ctx);
     expect(s.evenings.tonight.treatsAtStops).toBe(0);
   });
@@ -158,7 +158,7 @@ describe('at a stop', () => {
     const h = findById(s.households, f.households[1]!)!;
     const r = resident(s, h.members[0]!);
     owe(h, 1);
-    standAt(r, doorOf(shop), [stop(`shop:${shop.id}`, doorOf(shop), s.tick - 4)]);
+    standAt(r, doorOf(shop), [stop(`shop:${shop.id}`, doorOf(shop), s.tick - 4)], s);
     tradePass(s, ctx);
     expect(treatCount(shop)).toBe(9);
     expect(r.carry).not.toBeNull();
@@ -175,7 +175,7 @@ describe('at a stop', () => {
     const h = findById(s.households, f.households[0]!)!;
     const r = resident(s, h.members[0]!);
     owe(h, 1);
-    standAt(r, door, [stop('seats:1', door, s.tick - 8)]);
+    standAt(r, door, [stop('seats:1', door, s.tick - 8)], s);
     r.carry = [goodIx('bread'), 2];
     tradePass(s, ctx);
     expect(r.carry).toEqual([goodIx('bread'), 2]);
@@ -190,9 +190,34 @@ describe('at a stop', () => {
     s.market.prices[goodIx('honey')] = 300;
     owe(h, 1);
     const r = resident(s, h.members[0]!);
-    standAt(r, door, [stop('seats:1', door, s.tick - 8)]);
+    standAt(r, door, [stop('seats:1', door, s.tick - 8)], s);
     tradePass(s, ctx);
     expect(r.carry![0]).toBe(goodIx('cider'));
+  });
+});
+
+describe("tonight's plan (R2X)", () => {
+  it("never reads a plan left from another day as tonight's", () => {
+    const f = hamletFixture();
+    const s = f.state;
+    const stall = findById(s.buildings, f.b.stall)!;
+    stockTreats(stall, 30);
+    const door = doorOf(stall);
+    setStubPlaces([place({ id: 'seats:1', tile: door, outlets: [stall.id] })]);
+    const ctx = createTickCtx(s);
+    const h = findById(s.households, f.households[2]!)!;
+    for (const id of h.members) resident(s, id).round = undefined;
+    const r = resident(s, h.members[0]!);
+    owe(h, 6);
+    s.tick = tickAt(2, 21, 100);
+    // Yesterday's plan bought a treat passing, on a stop never reached; tonight they stayed in.
+    const stale = stop('seats:1', door, -1);
+    stale.flags |= RoundFlags.treat;
+    standAt(r, doorOf(findById(s.buildings, h.homeId)!), [stale], s);
+    r.roundDay! -= 1;
+    doorstepErrand(s, ctx);
+    // Not tonight's plan, so not bought tonight: the doorstep errand serves the household.
+    expect(s.evenings.tonight.treatsDoorstep).toBeGreaterThan(0);
   });
 });
 
@@ -211,11 +236,11 @@ describe('a Hamlet pays nothing', () => {
     const before = money();
     // Stop.
     owe(h1!, 1);
-    standAt(resident(s, h1!.members[0]!), door, [stop('seats:1', door, s.tick - 8)]);
+    standAt(resident(s, h1!.members[0]!), door, [stop('seats:1', door, s.tick - 8)], s);
     // Passing: find a resident whose roll succeeds at this stall today.
     owe(h2!, 1);
     const walkers = h2!.members.map((id) => resident(s, id));
-    for (const w of walkers) walkAt(w, door, [stop('seats:1', door, -1)]);
+    for (const w of walkers) walkAt(w, door, [stop('seats:1', door, -1)], s);
     for (let i = 0; i < 4; i++) tradePass(s, ctx);
     const shelf = treatCount(stall);
     expect(shelf).toBeLessThan(60);
@@ -245,7 +270,7 @@ describe('passing trade', () => {
       for (const r of residents) {
         const h = findById(s.households, r.householdId)!;
         owe(h, 10);
-        walkAt(r, door, [stop('seats:1', door, -1)]);
+        walkAt(r, door, [stop('seats:1', door, -1)], s);
       }
       s.evenings.tonight.treatsPassing = 0;
       // Many passes in one evening must not change the odds, nor sell twice.
@@ -345,7 +370,7 @@ describe('the round sells most Treats', () => {
             return;
           }
           const k = hi % 3;
-          standAt(r, places[k]!.tile, [stop(places[k]!.id, places[k]!.tile, s.tick - 8)]);
+          standAt(r, places[k]!.tile, [stop(places[k]!.id, places[k]!.tile, s.tick - 8)], s);
         });
         tradePass(s, ctx);
         s.tick = tickAt(day + 2, 21, 100);

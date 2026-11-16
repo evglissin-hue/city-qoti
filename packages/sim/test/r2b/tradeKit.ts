@@ -6,6 +6,7 @@ import type { Building, EntityId, Household, Resident, RoundStop, WorldState } f
 import { findById } from '../../src/state/entities';
 import { insertBuilding } from '../../src/state/place';
 import { basketGroups, ensureBasket } from '../../src/systems/market/baskets';
+import { dayIndex } from '../../src/systems/economy/time';
 import { doorTile } from '../../src/systems/movement/api';
 
 /** Tick of `hour`:00 (06:00 or later) on day index `day`, plus `extra` ticks. */
@@ -47,18 +48,19 @@ export function stop(place: string, tile: number, arrived: number): RoundStop {
   return { place, kind: 'sit', tile, draw: 50, flags: arrived >= 0 ? RoundFlags.arrived : 0, arrived };
 }
 
-/** Stands a resident at a tile outdoors, still, with a round. */
-export function standAt(r: Resident, tile: number, round: RoundStop[]): void {
+/** Stands a resident at a tile outdoors, still, with a round planned today (R2A's `roundDay`). */
+export function standAt(r: Resident, tile: number, round: RoundStop[], state: WorldState): void {
   r.tile = tile;
   r.inside = 0;
   r.move = null;
   r.carry = null;
   r.round = round;
+  r.roundDay = dayIndex(state.tick);
 }
 
 /** Puts a resident on the move (any non-null path). */
-export function walkAt(r: Resident, tile: number, round: RoundStop[]): void {
-  standAt(r, tile, round);
+export function walkAt(r: Resident, tile: number, round: RoundStop[], state: WorldState): void {
+  standAt(r, tile, round, state);
   r.move = { path: [tile], step: 0, progress: 0, target: tile, reason: 'leisure', version: 0 };
 }
 

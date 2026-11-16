@@ -55,7 +55,7 @@ describe('an evening across R2B', () => {
       })!,
     );
     const stops = [stop('seats:1', door, s.tick - 4)];
-    standAt(r, door, stops);
+    standAt(r, door, stops, s);
     tradePass(s, ctx);
     expect(stops[0]!.flags & RoundFlags.treat).toBeTruthy();
 

@@ -18,7 +18,7 @@ function arrived(s: WorldState) {
     home: h.homeId,
     members: h.members.map((id) => {
       const r = s.residents.find((x) => x.id === id)!;
-      return [r.name, r.species, r.stage, [...r.traits]];
+      return [r.given, r.family, r.species, r.stage, [...r.traits]];
     }),
   }));
 }
