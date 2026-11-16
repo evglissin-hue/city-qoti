@@ -465,6 +465,80 @@ export const planter: Kit = {
   },
 };
 
+/**
+ * V3B: a short cast iron post at the curb (or a stone one with `params.stone`): a round foot, a
+ * collar and a domed cap, about 0.22 tall. The far level is a drum and a cap.
+ */
+export const bollard: Kit = {
+  id: 'bollard',
+  kind: 'decor',
+  build: (opts) => {
+    const stone = opts?.params?.stone === true;
+    const body = stone ? palette.stone : palette.metal;
+    const trim = stone ? mixHex(palette.stone, 0xffffff, 0.12) : mixHex(palette.metal, 0x8a8f96, 0.35);
+    const s = new ShapeBuilder(opts?.lod ?? 'high');
+    s.surface(stone ? SURFACE.stone : SURFACE.wroughtIron);
+    s.levels(
+      () => {
+        s.cylinder(0, 0, 0.062, 0.05, 0, 0.03, body, 8);
+        s.cylinder(0, 0, 0.042, 0.038, 0.03, 0.17, body, 8);
+        s.cylinder(0, 0, 0.056, 0.056, 0.14, 0.16, trim, 8);
+        s.cylinder(0, 0, 0.046, 0.046, 0.17, 0.19, body, 8);
+        s.blob(0, 0.19, 0, 0.046, 0.034, 0.046, body, 0);
+      },
+      () => {
+        farCylinder(s, 0, 0, 0.055, 0.04, 0, 0.17, body, 5, 0, false);
+        farCylinder(s, 0, 0, 0.046, 0.02, 0.17, 0.22, trim, 5);
+      },
+    );
+    s.surface(SURFACE.plain);
+    return s.build();
+  },
+};
+
+/**
+ * V3B: a tall cast iron street lamp (about 0.75): a round foot, a slim post and a short cross arm
+ * reaching toward -z (the road, when the piece's back is turned to the houses) with a lit lantern
+ * hanging at its end. The far level is the post, the arm and the flame.
+ */
+export const streetLamp: Kit = {
+  id: 'street-lamp',
+  kind: 'decor',
+  build: (opts) => {
+    const s = new ShapeBuilder(opts?.lod ?? 'high');
+    s.surface(SURFACE.wroughtIron);
+    s.levels(
+      () => {
+        s.cylinder(0, 0, 0.06, 0.045, 0, 0.1, palette.metal, 8);
+        s.cylinder(0, 0, 0.034, 0.034, 0.1, 0.13, palette.metal, 8);
+        s.cylinder(0, 0, 0.022, 0.016, 0.13, 0.72, palette.metal, 6);
+        s.cylinder(0, 0, 0.03, 0.03, 0.5, 0.53, palette.metal, 6);
+        s.box(-0.012, 0.69, -0.17, 0.012, 0.71, 0.012, palette.metal);
+        s.box(-0.04, 0.62, -0.21, 0.04, 0.635, -0.13, palette.metal);
+      },
+      () => {
+        farCylinder(s, 0, 0, 0.04, 0.018, 0, 0.72, palette.metal, 4, Math.PI / 4, false);
+        farBox(s, -0.012, 0.69, -0.17, 0.012, 0.71, 0.012, palette.metal, 'bf');
+      },
+    );
+    s.surface(SURFACE.plain);
+    s.glow(2);
+    s.levels(
+      () => s.box(-0.032, 0.635, -0.202, 0.032, 0.715, -0.138, palette.lantern),
+      () => farBox(s, -0.032, 0.635, -0.202, 0.032, 0.715, -0.138, palette.lantern, 'bt'),
+    );
+    s.glow(0);
+    s.surface(SURFACE.wroughtIron);
+    s.levels(
+      () => s.cylinder(0, -0.17, 0.056, 0, 0.715, 0.775, palette.metal, 4, Math.PI / 4),
+      () => farCylinder(s, 0, -0.17, 0.056, 0, 0.715, 0.775, palette.metal, 4, Math.PI / 4),
+    );
+    s.surface(SURFACE.plain);
+    return s.build();
+  },
+  anchors: () => ({ lights: [[0, 0.675, -0.17]] }),
+};
+
 export const signpost: Kit = {
   id: 'signpost',
   kind: 'decor',
