@@ -523,14 +523,14 @@ vec3 qPuddles(vec3 col, vec2 wp, float ao, float road, float worn, float fade) {
   float low = clamp((1.0 - ao) * 2.2, 0.0, 0.5);
   float tread = max(max(road, gQWalk * 0.8), worn * 0.6);
   float depth = basin + low * 0.4 + tread * 0.3 + (qNoise(wp * 7.0) - 0.5) * 0.04;
-  float thr = mix(0.95, 0.66, wetK);
+  float thr = mix(1.0, 0.76, wetK);
   float m = smoothstep(thr, thr + 0.05, depth) * (0.45 + 0.55 * fade);
   float ring = smoothstep(thr - 0.09, thr, depth) * (1.0 - m);
   col *= 1.0 - 0.14 * ring;
   vec3 sky = gQSky;
-  vec3 pc = mix(col * 0.58, sky * 0.8, 0.22);
+  vec3 pc = mix(col * mix(0.74, 0.56, clamp(tread * 2.0, 0.0, 1.0)), sky * 0.8, 0.22);
   gQPud = m;
-  return mix(col, pc, m * 0.85);
+  return mix(col, pc, m * mix(0.6, 0.9, clamp(tread * 2.0, 0.0, 1.0)));
 }
 
 vec3 qGround(vec3 base) {
@@ -711,7 +711,7 @@ vec3 qGroundSeason(vec3 col, vec2 wp, float road, float above, float ao, float g
       vec2 d = fract(g) - (vec2(qHash(cell + 3.3), qHash(cell + 7.7)) * 0.6 + 0.2);
       vec2 r = normalize(vec2(qHash(cell + 1.9) - 0.5, qHash(cell + 5.5) - 0.5) + 0.001);
       float e = length(vec2(dot(d, r), dot(d, vec2(-r.y, r.x))) / vec2(0.22, 0.1));
-      float dab = (1.0 - smoothstep(0.8, 1.0, e)) * step(qHash(cell + 11.0), leafK * (0.05 + 0.7 * drift) * land) * fade;
+      float dab = (1.0 - smoothstep(0.8, 1.0, e)) * step(qHash(cell + 11.0), leafK * (0.06 + 1.0 * drift) * land) * fade;
       float p = qHash(cell + 13.0);
       vec3 lc = p < 0.35 ? qSrgb(vec3(0.80, 0.58, 0.22)) : p < 0.65 ? qSrgb(vec3(0.66, 0.32, 0.15)) : p < 0.85 ? qSrgb(vec3(0.86, 0.70, 0.28)) : qSrgb(vec3(0.45, 0.30, 0.16));
       col = mix(col, col * vec3(1.08, 0.92, 0.72), drift * leafK * 0.22 * (1.0 - fade) * land);
@@ -722,7 +722,7 @@ vec3 qGroundSeason(vec3 col, vec2 wp, float road, float above, float ao, float g
       vec2 cell = floor(g);
       vec2 d = fract(g) - (vec2(qHash(cell + 3.9), qHash(cell + 6.3)) * 0.6 + 0.2);
       float e = length(d / vec2(0.15, 0.1));
-      float dab = (1.0 - smoothstep(0.7, 1.0, e)) * step(qHash(cell + 9.0), uBlossom * (0.03 + 0.4 * drift) * land) * fade;
+      float dab = (1.0 - smoothstep(0.7, 1.0, e)) * step(qHash(cell + 9.0), uBlossom * (0.015 + 0.4 * drift) * land) * fade;
       vec3 pc = qHash(cell + 17.0) < 0.6 ? qSrgb(vec3(0.97, 0.80, 0.85)) : qSrgb(vec3(0.98, 0.95, 0.93));
       col = mix(col, pc, dab * 0.9);
     }

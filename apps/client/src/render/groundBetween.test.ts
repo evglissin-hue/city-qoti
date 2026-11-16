@@ -61,7 +61,7 @@ describe('worn paths', () => {
     expect(pathTiles(w)).toEqual([at(51, 52), at(51, 53)]);
     // The first tile knows its door (to the north), the last runs into the road (to the south).
     expect(w[at(51, 52) * 4 + 1]).toBe(1 + 3);
-    expect(w[at(51, 53) * 4] >> 4).toBe(2);
+    expect(w[at(51, 53) * 4]! >> 4).toBe(2);
   });
 
   it('never crosses buildings, water or trees, and gives up beyond its reach', () => {
