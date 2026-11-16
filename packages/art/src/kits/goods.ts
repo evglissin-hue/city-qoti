@@ -1078,7 +1078,7 @@ function sackBlob(
   hex = C.sack,
 ): void {
   s.surface(SURFACE.cloth);
-  s.blob(x, y + 0.05 * k, z, 0.07 * k, 0.052 * k, 0.055 * k, vary(hex, rnd, 0.6), 1, rnd, 0.01, C.sack);
+  s.blob(x, y + 0.054 * k, z, 0.07 * k, 0.052 * k, 0.055 * k, vary(hex, rnd, 0.6), 1, rnd, 0.01, C.sack);
   s.blob(x + 0.006 * k, y + 0.098 * k, z, 0.02 * k, 0.014 * k, 0.02 * k, C.sackTie, 0);
 }
 
@@ -1159,7 +1159,18 @@ const DISPLAYS: Readonly<Record<string, { color: number; draw: DisplayDraw }>> =
         [0.1, -0.02, 0.09],
         [0.15, 0.03, 0.11],
       ] as const)
-        farCylinder(s, x, z, 0.017, 0.015, y + 0.012, y + 0.012 + h, vary(C.candle, rnd, 0.5), 4, Math.PI / 4);
+        farCylinder(
+          s,
+          x,
+          z,
+          0.017,
+          0.015,
+          y + 0.012,
+          y + 0.012 + h,
+          vary(C.candle, rnd, 0.5),
+          4,
+          Math.PI / 4,
+        );
     },
   },
   chair: {
@@ -1339,8 +1350,8 @@ export const goodsDisplay: Kit = goodsPiece('goods-display', 33, (s, rnd, params
       s.surface(SURFACE.woodGrain);
       s.rbox(-0.27, top, -0.1, 0.27, top + 0.015, 0.1, wood, 0.006);
       for (const x of [-0.2, 0.2]) {
-        beam(s, [x, top, 0], [x, 0, -0.085], 0.011, palette.timber);
-        beam(s, [x, top, 0], [x, 0, 0.085], 0.011, palette.timber);
+        beam(s, [x, top, 0], [x, 0.008, -0.085], 0.011, palette.timber);
+        beam(s, [x, top, 0], [x, 0.008, 0.085], 0.011, palette.timber);
       }
       beam(s, [-0.2, 0.06, 0], [0.2, 0.06, 0], 0.008, palette.timber);
       d.draw(s, rnd, top + 0.015);
@@ -1348,7 +1359,8 @@ export const goodsDisplay: Kit = goodsPiece('goods-display', 33, (s, rnd, params
     () => {
       s.surface(SURFACE.woodGrain);
       farBox(s, -0.27, top, -0.1, 0.27, top + 0.015, 0.1, wood);
-      for (const x of [-0.2, 0.2]) farBox(s, x - 0.012, 0, -0.085, x + 0.012, top, 0.085, palette.timber, 'btfk');
+      for (const x of [-0.2, 0.2])
+        farBox(s, x - 0.012, 0, -0.085, x + 0.012, top, 0.085, palette.timber, 'btfk');
       s.surface(SURFACE.plain);
       farBox(s, -0.22, top + 0.015, -0.06, 0.22, top + 0.085, 0.06, d.color);
     },
@@ -1382,7 +1394,7 @@ export const goodsChurns: Kit = goodsPiece('goods-churns', 35, (s, rnd) => {
     () => {
       s.surface(SURFACE.wroughtIron);
       spots.forEach(([x, z], i) =>
-        farCylinder(s, x, z, 0.044, 0.035, 0, 0.15, tint[i]!, n === 2 ? 5 : 4, Math.PI / 4),
+        farBox(s, x - 0.04, 0, z - 0.04, x + 0.04, 0.15, z + 0.04, tint[i]!, 'bk'),
       );
     },
   );
@@ -1477,8 +1489,8 @@ export const goodsFishRack: Kit = goodsPiece('goods-fish-rack', 43, (s, rnd) => 
     () => {
       s.surface(SURFACE.woodGrain);
       for (const x of [-0.17, 0.17]) {
-        beam(s, [x, 0.38, 0], [x, 0, -0.055], 0.011, palette.timber);
-        beam(s, [x, 0.38, 0], [x, 0, 0.055], 0.011, palette.timber);
+        beam(s, [x, 0.38, 0], [x, 0.008, -0.055], 0.011, palette.timber);
+        beam(s, [x, 0.38, 0], [x, 0.008, 0.055], 0.011, palette.timber);
       }
       beam(s, [-0.2, 0.38, 0], [0.2, 0.38, 0], 0.01, palette.wood);
       s.surface(SURFACE.plain);
