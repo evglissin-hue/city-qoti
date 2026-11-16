@@ -60,4 +60,3 @@ export function treatsOnShelf(_state: WorldState, b: Building): boolean {
 export function isTreat(good: number): boolean {
   return TREAT_SET.has(good);
 }
-

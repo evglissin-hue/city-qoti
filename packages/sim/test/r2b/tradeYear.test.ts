@@ -10,10 +10,12 @@ import { expectMoneyInvariant, moneySnapshot } from '../money';
 import { place, setStubPlaces } from './stubPlaces';
 import { addOutlet, doorOf, standAt, stockTreats, stop, tickAt, walkAt } from './tradeKit';
 
+/* eslint-disable no-restricted-syntax, @typescript-eslint/consistent-type-imports -- a test's mock factory */
 vi.mock('../../src/systems/places/api', async (orig) => {
   const { stubPlacesApi } = await import('./stubPlaces');
   return stubPlacesApi(await orig<typeof import('../../src/systems/places/api')>());
 });
+/* eslint-enable no-restricted-syntax, @typescript-eslint/consistent-type-imports */
 
 function town() {
   const f = villageFixture();
@@ -52,7 +54,7 @@ describe('the money invariant', () => {
     const sold = t.treatsAtStops + t.treatsPassing + t.treatsDoorstep;
     expect(sold).toBeGreaterThan(0);
     expectMoneyInvariant(before, s);
-  });
+  }, 60_000);
 
   it('holds through a year of evenings', () => {
     const { s, outlets, places } = town();

@@ -29,10 +29,12 @@ import {
   walkAt,
 } from './tradeKit';
 
+/* eslint-disable no-restricted-syntax, @typescript-eslint/consistent-type-imports -- a test's mock factory */
 vi.mock('../../src/systems/places/api', async (orig) => {
   const { stubPlacesApi } = await import('./stubPlaces');
   return stubPlacesApi(await orig<typeof import('../../src/systems/places/api')>());
 });
+/* eslint-enable no-restricted-syntax, @typescript-eslint/consistent-type-imports */
 
 const P = content.places;
 
@@ -77,7 +79,9 @@ describe('sellsTreats', () => {
       trade: 'shop',
     });
     shop.level = 1;
-    const tavern = insertBuilding(s, null, content.buildingById.get('tavern')!, 50, 56, 0, 0, { site: false });
+    const tavern = insertBuilding(s, null, content.buildingById.get('tavern')!, 50, 56, 0, 0, {
+      site: false,
+    });
     expect(sellsTreats(s, stall)).toBe(true);
     expect(sellsTreats(s, store)).toBe(false);
     expect(sellsTreats(s, granary)).toBe(false);
