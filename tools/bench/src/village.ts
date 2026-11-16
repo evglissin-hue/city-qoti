@@ -557,8 +557,8 @@ export interface Block {
   sides: [number, number][][];
 }
 
-/** Ring side lengths tried, in tiles: inner width 9 less two lots of depth 3 leaves a hollow of 3. */
-export const BLOCK_SIDES: readonly number[] = [11, 10, 12];
+/** Ring side lengths tried, in tiles: inside 9 (or 11) less two lots of depth 3 leaves a hollow of 3 (5); a side less the 3 a crossing run takes at a corner comes out in even 2-wide lots (6 or 8). */
+export const BLOCK_SIDES: readonly number[] = [11, 13];
 /** How far from the anchor (a tile of the village street) a block's middle may lie. */
 const BLOCK_REACH = 26;
 const NEIGHBORS = [
