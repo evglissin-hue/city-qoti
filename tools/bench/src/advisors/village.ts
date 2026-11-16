@@ -18,7 +18,14 @@
 // school, a Bath House, market stalls and builders for a bigger town. It pauses nothing: labor
 // needs no lever.
 import { content } from '@qoti/content';
-import { creditLimit, loansOwed, BuildingStatus, rankAtLeast, type WorldState } from '@qoti/sim';
+import {
+  BuildingStatus,
+  creditLimit,
+  loansOwed,
+  rankAtLeast,
+  type Building,
+  type WorldState,
+} from '@qoti/sim';
 import { costOf, VILLAGE_MARGIN, type Budget, type Planner } from '../planner';
 import { count, craftsfolk } from '../town';
 import { serveService } from './siting';
@@ -89,6 +96,7 @@ class Village implements Advisor {
     if (count(w, 'builders-yard') < Math.floor(w.residents.length / 40))
       this.want('builders-yard', 8, queued);
     this.buildVillage();
+    this.waresMakers();
   }
 
   /**
@@ -106,6 +114,50 @@ class Village implements Advisor {
       essential: essential(def),
       budget,
     });
+  }
+
+  /** Pins made so far, by trade: a pin the sim retools away (the site fails) is tried on another business, three times at most. */
+  private readonly pinned = new Map<string, number[]>();
+
+  /**
+   * R2X: Wares. Cloth is the one Wares good whose makers the town can always have (candles take
+   * honey from a few hives; furniture wants a sawmill's reach), and growth never picks the weaver
+   * while a few candles sit on one shelf (the flavor count is met), so the shelves stay bare and
+   * "wares (0 of 1 kinds)" held back a third of the Craftsfolk homes on two seeds. The Ledger pins
+   * a spare farm to a sheep run, then a spare workshop to a weaver, once there are homes to sell to.
+   */
+  private waresMakers(): void {
+    const w = this.w;
+    if (w.households.length < 14) return;
+    const built = (trade: string) =>
+      w.buildings.some((b) => b.trade === trade && (b.stage === 'built' || b.stage === 'construction'));
+    const spare = (zone: 'farms' | 'crafts', keep: string): Building | null => {
+      const of = w.buildings.filter(
+        (b) => b.stage === 'built' && b.trade && !b.pinned && content.tradeById.get(b.trade)?.zone === zone,
+      );
+      const counts = new Map<string, number>();
+      for (const b of of) counts.set(b.trade!, (counts.get(b.trade!) ?? 0) + 1);
+      let best: Building | null = null;
+      let bestN = 1;
+      for (const b of of) {
+        const n = counts.get(b.trade!)!;
+        if (b.trade === keep || n <= bestN) continue;
+        best = b;
+        bestN = n;
+      }
+      return best;
+    };
+    const pin = (zone: 'farms' | 'crafts', trade: string): void => {
+      const tried = this.pinned.get(trade) ?? [];
+      if (tried.length >= 3) return;
+      const b = spare(zone, trade);
+      if (!b || tried.includes(b.id)) return;
+      tried.push(b.id);
+      this.pinned.set(trade, tried);
+      this.p.do(`pin a ${trade} at business ${b.id}`, [{ t: 'build.pinRecipe', id: b.id, trade }]);
+    };
+    if (!built('sheep-run')) pin('farms', 'sheep-run');
+    else if (!built('weaver')) pin('crafts', 'weaver');
   }
 
   /** Services and a school (R1F: the specialized buildings are the land advisor's). */
