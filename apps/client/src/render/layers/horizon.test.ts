@@ -1,5 +1,5 @@
 import { MAP_SIZE } from '@qoti/sim';
-import { Color, Vector3, type Mesh } from 'three';
+import { Color, Vector3, Vector4, type Mesh } from 'three';
 import { describe, expect, it } from 'vitest';
 import type { Mirror } from '../../state/mirror';
 import type { WorldEnv } from '../env';
@@ -87,6 +87,10 @@ describe('the horizon layer (V3C)', () => {
       seasonTint: { value: new Color(1, 1, 1) },
       snow: { value: 0 },
       autumn: { value: 0 },
+      // V3X: the haze reads the camera's focus, a fog day and V3C's height terms.
+      focus: new Vector3(),
+      fog: { value: 0 },
+      haze: { terms: { value: new Vector4() } },
       skipScene: false,
     } as unknown as WorldEnv;
     const mirror = {
