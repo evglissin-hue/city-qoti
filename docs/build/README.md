@@ -66,7 +66,7 @@ One row per cycle. A cycle is one agent session working from one brief on one br
 | R2C Gaps and the evening's book | R2 | parallel | `cycle-r2c-gaps-book.md` | R2.0 | ready: branch from `cycle/r2x-integration` |
 | R2D The interface | R2 | parallel | `cycle-r2d-interface.md` | R2.0 | ready: branch from `cycle/r2x-integration` |
 | R2E The bench | R2 | parallel | `cycle-r2e-bench.md` | R2.0 | ready: branch from `cycle/r2x-integration` |
-| R2F Lots for streets | R2 | parallel | `cycle-r2f-street-lots.md` | R2.0 | ready: branch from `cycle/r2x-integration` |
+| R2F Lots for streets | R2 | parallel | `cycle-r2f-street-lots.md` | R2.0 | built on `cycle/r2f-street-lots`, PR into `cycle/r2x-integration`: street rows that touch, corner lots, garden lots, storeys by tier and row; shots `r2f-*` |
 | R2X R2 integration and tuning | R2 | integration | `cycle-r2x-integration.md` | R2A to R2F | waiting; merges the wave on `cycle/r2x-integration`, one PR into `main` |
 
 Status values: waiting (dependencies not merged), ready, in progress (add the session link), PR open (add the PR link), merged.
