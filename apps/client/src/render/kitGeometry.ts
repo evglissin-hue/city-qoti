@@ -109,9 +109,11 @@ function plotSoil(b: BuildingView): number {
  * occupant layer; the params carry it, so the key changes, and both houses rebuild, when a
  * neighbor comes, goes or changes.
  */
-let rowAt: ((b: BuildingView) => Record<string, string | boolean>) | null = null;
+let rowAt: ((b: BuildingView) => Record<string, string | number | boolean>) | null = null;
 
-export function setRowReader(read: ((b: BuildingView) => Record<string, string | boolean>) | null): void {
+export function setRowReader(
+  read: ((b: BuildingView) => Record<string, string | number | boolean>) | null,
+): void {
   rowAt = read;
 }
 
