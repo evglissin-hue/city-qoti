@@ -103,9 +103,9 @@ export const palette = {
   // V3C: the long view. The horizon's three bands (near hills and their woods, the far hills, the
   // sky's haze, which the layer melts into the fog's color), and the river by depth (sand-gold
   // shallows to green-blue pools; the older waterShallow and waterDeep stay for their readers).
-  horizonNear: 0x7f9a5a,
-  horizonWoods: 0x4c6a45,
-  horizonFar: 0x8fa3a0,
+  horizonNear: 0x88a553,
+  horizonWoods: 0x3f6e3c,
+  horizonFar: 0x8eaa98,
   horizonHaze: 0xc9d3d0,
   riverShallow: 0xc9b783,
   riverMid: 0x6fa9a4,
