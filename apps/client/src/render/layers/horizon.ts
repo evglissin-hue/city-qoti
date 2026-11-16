@@ -314,7 +314,9 @@ export function buildHorizon(input: HorizonInput): HorizonBuild {
       c.lerp(COL_WOODS, woods);
       // V3X: the haze grows from nothing at the rim (where the valley's own fog is light), so the
       // seam never shows as a line, and is nearly the sky's color by a hundred tiles out.
-      const haze = 0.97 * (1 - Math.exp(-Math.max(0, d - 4) / 26));
+      // Its bands wander with a broad noise, so they never trace the valley's square.
+      const dh = d + (d > 2 ? 22 * (vnoise(x, z, 38, seed + 53) - 0.5) : 0);
+      const haze = 0.97 * (1 - Math.exp(-Math.max(0, dh - 4) / 26));
       row.push(soup.vertex(x, y, z, c, haze, woods, mix(0.7, 0.2, far)));
       wrow.push(woods);
       yrow.push(y);

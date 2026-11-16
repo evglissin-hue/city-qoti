@@ -787,11 +787,12 @@ float qCloudShade(vec2 wp) {
 vec3 qRim(vec3 col) {
   vec2 wp = vQWorld.xz;
   float e = min(min(wp.x, wp.y), min(${N.toFixed(1)} - wp.x, ${N.toFixed(1)} - wp.y));
-  // V3X: the whole rim (drawn as a slope up from the valley, surface.ts rimLevel) takes the hills'
-  // paint, its foot frayed by noise so the line where the valley's ground ends is never straight;
-  // the river's gorge keeps its banks (below about level 2).
-  float fray = (qNoise(wp * 0.21 + 1.3) - 0.5) * 3.2 + (qNoise(wp * 0.9) - 0.5) * 0.8;
-  float k = (1.0 - smoothstep(4.2, 6.8, e + fray)) * smoothstep(0.7, 1.4, vQWorld.y);
+  // V3X: across the rim (drawn as a slope up from the valley, surface.ts rimLevel) the valley's own
+  // look at its foot turns by degrees into the hills' paint at the map's edge, where the horizon's
+  // first rows take it up (layers/horizon.ts): a gradient with a wandering middle, never a line. The
+  // river's gorge keeps its banks (below about level 2).
+  float fray = (qNoise(wp * 0.06 + 4.1) - 0.5) * 3.0 + (qNoise(wp * 0.21 + 1.3) - 0.5) * 1.2;
+  float k = (1.0 - smoothstep(0.0, 6.6, e + fray)) * smoothstep(0.7, 1.4, vQWorld.y);
   if (k < 0.001) return col;
   float wn = qFbm(wp * 0.09 + 3.7);
   // V3X: the horizon's first rows paint the same field (layers/horizon.ts), so it runs on past the rim.
