@@ -225,12 +225,14 @@ describe('garden lots (R2F)', { timeout: 120_000 }, () => {
     const p = new Planner(h);
     const adv = land.create(p) as unknown as { answerBars(): void };
     adv.answerBars();
-    expect(p.actions.some((a) => a.includes('zone shops for its bar'))).toBe(true);
+    // The garden is no offered lot, so the advisor adds land for the bar (beside a road, or a new street).
+    const addsLand = (a: string) => /zone shops for its bar|zone another street|lay another street/.test(a);
+    expect(p.actions.some(addsLand), p.actions.join('\n')).toBe(true);
     // The same lot as a plot is offered: the bar is left to it.
     garden.kind = 'plot';
     const q = new Planner(h);
     (land.create(q) as unknown as { answerBars(): void }).answerBars();
-    expect(q.actions.some((a) => a.includes('zone shops for its bar'))).toBe(false);
+    expect(q.actions.some(addsLand), q.actions.join('\n')).toBe(false);
   });
 });
 
