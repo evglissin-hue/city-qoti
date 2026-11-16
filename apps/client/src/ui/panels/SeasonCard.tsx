@@ -31,6 +31,7 @@ const TRACK_MARK: Record<SeasonReportLine['track'], string> = {
   festival: 'Festival',
   nature: 'Nature',
   threat: 'The Watch',
+  evening: 'Evenings',
 };
 
 export function SeasonCardPanel({ session }: { session: Session }) {
