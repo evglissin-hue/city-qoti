@@ -17,6 +17,7 @@ import { markCharmDirty, markCharmSoon } from '../charm/dirty';
 import { detectors } from './detectors';
 import { beginPass, endPass, type SiteCandidate } from './shared';
 import { addRenown, PATTERN_RENOWN } from '../../renown/api';
+import { bumpPlaceInputs } from '../../places/inputs';
 
 const S = MAP_SIZE;
 export const MAX_HINTS = 3;
@@ -144,6 +145,7 @@ function pass(state: WorldState, ctx: TickCtx): PatternPassResult {
     if (!discovering && !added && !removed && !changed) continue;
     // The views below read hearth.sites, so this pattern's sites are swapped in now.
     h.sites = [...h.sites.filter((s) => s.pattern !== def.id), ...fresh];
+    bumpPlaceInputs(state);
     if (discovering) {
       discover(state, ctx, def, fresh[0]!);
       result.discovered.push(def.id);
@@ -155,6 +157,7 @@ function pass(state: WorldState, ctx: TickCtx): PatternPassResult {
 
   next.sort((a, b) => (a.pattern < b.pattern ? -1 : a.pattern > b.pattern ? 1 : a.anchor - b.anchor));
   h.sites = next;
+  bumpPlaceInputs(state);
   if (charmTouched) markCharmSoon(state);
   refillHints(state, ctx);
   return result;

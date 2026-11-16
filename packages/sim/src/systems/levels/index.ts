@@ -18,6 +18,7 @@ import { wantsTables } from '../growth/cafes';
 import { eveningPassers } from '../growth/outlets';
 import { invalidatePlaces } from '../places';
 import { outOfSeason } from './season';
+import { bumpPlaceInputs } from '../places/inputs';
 
 /** Good days in a row that move a business up a level. */
 export const LEVEL_UP_DAYS = 3;
@@ -103,6 +104,7 @@ function settleCafe(state: WorldState, ctx: TickCtx, b: Building, levelBefore: n
   const changed = now !== !!b.cafe;
   if (now) b.cafe = true;
   else delete b.cafe;
+  if (changed) bumpPlaceInputs(state);
   if (!changed && levelOf(b) === levelBefore) return;
   invalidatePlaces(state);
   ctx.events.push({ e: 'building.updated', b: buildingView(b) });
@@ -138,12 +140,14 @@ function dayEnd(state: WorldState, ctx: TickCtx, b: Building): void {
       c.levelDays = Math.max(0, c.levelDays) + 1;
       if (c.levelDays >= LEVEL_UP_DAYS) {
         b.level = level + 1;
+        bumpPlaceInputs(state);
         c.levelDays = 0;
       }
     } else if (level >= 2 && !holdsLevel(c, trade, level)) {
       c.levelDays = Math.min(0, c.levelDays) - 1;
       if (c.levelDays <= -LEVEL_DOWN_DAYS) {
         b.level = level - 1;
+        bumpPlaceInputs(state);
         c.levelDays = 0;
         trimCrew(state, ctx, b);
       }

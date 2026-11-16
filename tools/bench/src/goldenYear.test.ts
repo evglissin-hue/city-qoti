@@ -1,6 +1,6 @@
 // R1X: the r1-year golden file is the autoplayer's own year, so its replay hash is the hash of the
 // autoplayer's end state, and the golden-hash script prints it.
-import { advanceTo, applyTurns, createTickCtx, createWorld, hashState } from '@qoti/sim';
+import { advanceTo, applyTurns, createTickCtx, createWorld, hashState, setPlaceVerify } from '@qoti/sim';
 import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -11,6 +11,8 @@ const root = fileURLToPath(new URL('../../..', import.meta.url));
 const file = `${root}/packages/sim/test/golden/r1-year.json`;
 
 test('r1-year replays to the hash of the autoplayer end state, and the script prints it', () => {
+  // R2X: the place index verifier is on for the replay (a missed bump throws).
+  setPlaceVerify(true);
   const played = playYear();
   const golden = JSON.parse(readFileSync(file, 'utf8')) as GoldenScript;
   // The file on disk is today's recording (regenerate with `npm run golden:year -w @qoti/bench`).

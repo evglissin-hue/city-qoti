@@ -31,6 +31,7 @@ import {
 } from '../systems/festivals/site';
 import { festivalView } from '../view/seasons';
 import type { HandlerFor } from './util';
+import { bumpPlaceInputs } from '../systems/places/inputs';
 
 /** Festival sites: at least FESTIVAL_SITE_MIN tiles a side (systems/festivals/site), at most this. */
 export { FESTIVAL_SITE_MIN };
@@ -125,6 +126,7 @@ export const plan: HandlerFor<'festival.plan'> = {
       const [cx, cz] = r ? rectCenter(r) : [MAP_SIZE >> 1, MAP_SIZE >> 1];
       returnReserved(state, back, cz * MAP_SIZE + cx);
     }
+    bumpPlaceInputs(state);
     state.festival.plan = {
       festival: content.seasons[season]?.festival ?? '',
       season,

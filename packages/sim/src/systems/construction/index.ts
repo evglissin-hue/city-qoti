@@ -20,6 +20,7 @@ import { available, finishTask, productivity, startTask, walkTo } from '../logis
 import { storehouseReach } from '../logistics/range';
 import { buildsFirst } from './first';
 import { allowedWork, computeStatus, materialsDue } from '../production/status';
+import { bumpPlaceInputs } from '../places/inputs';
 
 export const MAX_BUILDERS_PER_SITE = 3;
 const MATCH_EVERY = 20;
@@ -97,6 +98,7 @@ function repair(state: WorldState, b: Building, r: Resident): void {
 export function finish(state: WorldState, ctx: TickCtx, b: Building): void {
   const rt = b.rt!;
   b.stage = 'built';
+  bumpPlaceInputs(state);
   rt.construction = null;
   rt.condition = 100;
   rt.progress = 0;

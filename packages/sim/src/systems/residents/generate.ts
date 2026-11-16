@@ -6,6 +6,7 @@ import type { EntityId, Household, LifeStage, Resident, Rng, WorldState } from '
 import { goodsArray } from '../../state/hamlet';
 import { traitsCompatible } from './traits';
 import { dayIndex } from './time';
+import { bumpPlaceInputs } from '../places/inputs';
 
 /** Household makeup (tune): single 25%, couple 30%, family with children 35%, elder pair 10%. */
 export type Makeup = 'single' | 'couple' | 'family' | 'elders';
@@ -204,6 +205,7 @@ export function createHousehold(
     b.marriedDay = Math.max(1, today);
   }
   state.households.push(household);
+  bumpPlaceInputs(state);
   for (const r of members) state.residents.push(r);
   return { household, members };
 }

@@ -323,5 +323,6 @@ export { sellsTreats, treatsOnShelf } from './systems/market/round';
 export { pathFor, type PathMode } from './systems/movement/paths';
 export { placeById, placeDraw, placesNear, placeServes } from './systems/places/api';
 export { invalidatePlaces, placeIndex } from './systems/places/index';
+export { bumpPlaceInputs, setPlaceVerify } from './systems/places/inputs';
 export { streetTiles } from './systems/places/streets';
 export { townReachesDoor } from './state/reach';

@@ -9,6 +9,7 @@ import { footprintTiles } from '../rules/footprint';
 import { markCharmDirty } from '../systems/hearth/charm/dirty';
 import { buildingView } from '../view';
 import { createRuntime, isStandard } from './hamlet';
+import { bumpPlaceInputs } from '../systems/places/inputs';
 
 export interface InsertOptions {
   /** Standard valleys: start as a construction site (default true for player placements). */
@@ -61,6 +62,7 @@ export function insertBuilding(
     state.map.tree[tz * MAP_SIZE + tx] = 0;
   }
   state.buildings.push(b);
+  bumpPlaceInputs(state);
   state.networkVersion += 1;
   const rect = tilesRect(tiles);
   markCharmDirty(state, rect && [rect[0] - 1, rect[1] - 1, rect[2] + 1, rect[3] + 1]);

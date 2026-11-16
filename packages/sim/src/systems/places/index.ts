@@ -5,14 +5,15 @@
 // partner sees (the determinism rule on `Place` in contracts/evenings.ts). The pass also keeps the
 // saved rows (`state.places`: names and the evening counts) in step with what it finds.
 //
-// How the index stays a pure function of saved state (R2A): a read compares a cheap key (the tick,
-// the turn, and the counts that change when something is placed or pulled down) with the last read's.
-// When it differs, the structural signature (signature.ts: every input of buildPlaces) is hashed again
-// and the places rebuilt only if it changed; the draw's moving parts (charm, lanterns, winter, and the
-// tree and quiet taste bits) are recomputed for the new tick either way. A read in the same tick and turn returns what the first read
-// of that tick found, and the first read of a tick is at the same point of the same system on every
-// client (a snapshot is taken between turns, and reads between turns key on the turn before), so every
-// client sees the same places at every point of the sim. Stock is never cached: placeServes and
+// How the index stays a pure function of saved state (R2A, R2X): every writer of a structural input
+// (signature.ts: every input of buildPlaces) bumps a derived counter (inputs.ts). A read whose counter
+// matches its memo returns the memo; a moved counter, or no memo (a client that just loaded from a
+// snapshot builds fresh from saved state), hashes the structural signature and rebuilds the places
+// only if it changed. The draw's moving parts (charm, lanterns, winter, and the tree and quiet taste
+// bits) are recomputed for each new tick or turn either way. With the verifier on (setPlaceVerify:
+// tests, the audit, the golden year) a skipped rebuild also hashes the signature and throws if an input
+// changed behind the counter's back, so a writer that forgets to bump cannot ship. Every client
+// sees the same places at every point of the sim. Stock is never cached: placeServes and
 // placeDraw read shelves live.
 import { TICKS_PER_HOUR } from '../../constants';
 import type { Place, PlaceId, System, WorldState } from '../../contracts';
@@ -20,8 +21,9 @@ import { isStandard } from '../../state/hamlet';
 import { PATTERNS_OFFSET } from '../hearth/patterns';
 import { buildPlaces, placeExtra, type PlaceExtra } from './build';
 import { refreshDraws } from './draw';
+import { bumpPlaceInputs, placeInputsVersion, placeVerifyOn } from './inputs';
 import { refreshRows } from './rows';
-import { placeSignature, sameSignature } from './signature';
+import { placeSignature, sameSignature, SIG } from './signature';
 import { refreshStreets } from './streets';
 
 /** The derived places, sorted by id, and a lookup by id. Never serialized, never hashed. */
@@ -34,47 +36,29 @@ interface Memo {
   index: PlaceIndex;
   extras: PlaceExtra[];
   sig: number[];
-  // The cheap key of the last read.
+  /** The input counter (inputs.ts) the index was last checked against. */
+  version: number;
+  /** The road network version the index was last checked against (a cheap key; also in the signature). */
+  network: number;
+  // The tick and turn the draw's moving parts were last refreshed for.
   tick: number;
   turn: number;
-  decor: number;
-  lastDecor: number;
-  buildings: number;
-  lastBuilding: number;
-  households: number;
-  network: number;
   /** Set while building, so a re-entrant read (a stub that asks for places) gets the last index. */
   building: boolean;
 }
 
 const memos = new WeakMap<WorldState, Memo>();
 
-function sameKey(m: Memo, state: WorldState): boolean {
-  const nd = state.decor.length;
-  const nb = state.buildings.length;
-  return (
-    m.tick === state.tick &&
-    m.turn === state.lastTurn &&
-    m.decor === nd &&
-    m.lastDecor === (nd ? state.decor[nd - 1]!.id : 0) &&
-    m.buildings === nb &&
-    m.lastBuilding === (nb ? state.buildings[nb - 1]!.id : 0) &&
-    m.households === state.households.length &&
-    m.network === state.networkVersion
-  );
-}
+const PARTS = ['decor', 'buildings', 'households', 'sites', 'rest'] as const;
 
-function storeKey(m: Memo, state: WorldState): void {
-  const nd = state.decor.length;
-  const nb = state.buildings.length;
-  m.tick = state.tick;
-  m.turn = state.lastTurn;
-  m.decor = nd;
-  m.lastDecor = nd ? state.decor[nd - 1]!.id : 0;
-  m.buildings = nb;
-  m.lastBuilding = nb ? state.buildings[nb - 1]!.id : 0;
-  m.households = state.households.length;
-  m.network = state.networkVersion;
+/** The verifier: the inputs must not have changed behind the counter's back. */
+function verifyUnchanged(state: WorldState, m: Memo): void {
+  const sig = placeSignature(state);
+  if (sameSignature(m.sig, sig)) return;
+  const parts = PARTS.filter((p) => !sameSignature(m.sig, sig, SIG[p], SIG[p] + 2));
+  throw new Error(
+    `place index: ${parts.join(', ')} changed at tick ${state.tick} without bumpPlaceInputs (a writer forgot to bump)`,
+  );
 }
 
 /**
@@ -83,7 +67,17 @@ function storeKey(m: Memo, state: WorldState): void {
  */
 export function placeIndex(state: WorldState): PlaceIndex {
   let m = memos.get(state);
-  if (m && (m.building || sameKey(m, state))) return m.index;
+  if (m?.building) return m.index;
+  const version = placeInputsVersion(state);
+  if (m && m.version === version && m.network === state.networkVersion) {
+    if (placeVerifyOn()) verifyUnchanged(state, m);
+    if (m.tick !== state.tick || m.turn !== state.lastTurn) {
+      refreshDraws(state, m.index.places, m.extras);
+      m.tick = state.tick;
+      m.turn = state.lastTurn;
+    }
+    return m.index;
+  }
   if (m) m.building = true;
   const sig = placeSignature(state);
   if (!m || !sameSignature(m.sig, sig)) {
@@ -93,14 +87,10 @@ export function placeIndex(state: WorldState): PlaceIndex {
         index: { places: [], byId: new Map() },
         extras: [],
         sig,
+        version,
+        network: state.networkVersion,
         tick: -1,
         turn: -1,
-        decor: -1,
-        lastDecor: -1,
-        buildings: -1,
-        lastBuilding: -1,
-        households: -1,
-        network: -1,
         building: true,
       };
       memos.set(state, m);
@@ -117,7 +107,10 @@ export function placeIndex(state: WorldState): PlaceIndex {
   }
   m.building = false;
   refreshDraws(state, m.index.places, m.extras);
-  storeKey(m, state);
+  m.version = version;
+  m.network = state.networkVersion;
+  m.tick = state.tick;
+  m.turn = state.lastTurn;
   return m.index;
 }
 
@@ -132,8 +125,7 @@ export function placeFeatures(state: WorldState, place: Place): number {
  * input changed). Deterministic: call it from sim code.
  */
 export function recheckPlaces(state: WorldState): void {
-  const m = memos.get(state);
-  if (m) m.tick = -1;
+  bumpPlaceInputs(state);
 }
 
 /**
