@@ -16,6 +16,7 @@ import { Block, at } from '../../src/systems/residents/time';
 import { refreshStatus } from '../../src/systems/production/status';
 import { cartRoute } from '../../src/systems/traffic/api';
 import { streetNoise } from '../../src/systems/traffic/noise';
+import { businessView } from '../../src/view/businesses';
 import { createTickCtx } from '../../src/turn';
 import { buildingDetail } from '../../src/view/inspect';
 import { everyoneToWork, ticks, ticksUntil, toWork } from '../ledger/helpers';
@@ -238,6 +239,8 @@ describe('evening streets: deliveries', { timeout: 120_000 }, () => {
     expect(buildingDetail(state, stall.id)!.status).toContain(
       'On an evening street: no deliveries from 17:00 to 21:00',
     );
+    // The inspector of a specialized building reads the Businesses book's line (the player's chair).
+    expect(businessView(state, stall).status).toBe('Waiting till 21:00: no deliveries on an evening street');
     // After 21:00 the status goes, and the next working day a cart brings it food.
     ticksUntil(state, (s) => s.tick >= hour(21) + 5, H);
     refreshStatus(state, createTickCtx(state), stall);
