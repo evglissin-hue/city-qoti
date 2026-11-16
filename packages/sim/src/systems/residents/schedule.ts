@@ -26,6 +26,7 @@ import {
   hostInside,
   makePlan,
   noteFestival,
+  planIfDue,
   planned,
   planTick,
   type RoundWindow,
@@ -113,6 +114,8 @@ export function think(state: WorldState, ctx: TickCtx, rng: Rng, r: Resident): v
   // I3 (C5.0): the festival evening, the bell, Watch duty, storms and skating come first. R2 (R2A):
   // on the round, rain and the ice are the plan's to weigh.
   const window = roundWindow(state, r, hasWork(state, r));
+  if (window === 'evening')
+    planIfDue(state, ctx, r, h, homeDoor, hasWork(state, r) && keepsLongHours(state, r));
   const o = window
     ? scheduleOverrideExcept(state, r, hourOf(t), ROUND_SKIPS)
     : scheduleOverride(state, r, hourOf(t));

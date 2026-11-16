@@ -24,6 +24,7 @@ import { findById } from '../../state/entities';
 import { emptyTally, startPlaceEvening } from '../../state/evenings';
 import { nearestOutletWithFood } from '../economy/outlets';
 import { walkGrid } from '../movement/grid';
+import { fixRouteGrid } from '../movement/routes';
 import { placeIndex } from '../places';
 import { placeById, placeDraw, placesNear, recordVisit } from '../places/api';
 import { occupancy, occupy, STOP_TICKS, stopNow } from '../places/occupancy';
@@ -56,7 +57,7 @@ export function startEvening(state: WorldState, _ctx: TickCtx): void {
   ev.tonight = emptyTally(dayIndex(state.tick));
   ev.tonight.weather = eveningWeather(state);
   for (const row of state.places) startPlaceEvening(row);
-  // MERGE-A: fixRouteGrid(state) once the movement task lands.
+  fixRouteGrid(state);
 }
 
 /** How the weather takes this evening: a storm keeps everyone in, rain sends half to shelter. */
@@ -92,6 +93,22 @@ export function roundWindow(state: WorldState, r: Resident, working: boolean): R
     return r.stage === 'elder' || !working ? 'afternoon' : null;
   }
   return null;
+}
+
+/**
+ * Plans the evening at the resident's own minute whatever they are doing (a storm, the bell or the
+ * festival may still keep them from it), so the evening's tally counts every grown-up.
+ */
+export function planIfDue(
+  state: WorldState,
+  ctx: TickCtx,
+  r: Resident,
+  h: Household,
+  homeDoor: number,
+  late: boolean,
+): void {
+  if (planned(state, r, 'evening') || tickOfDay(state.tick) < planTick(r, 'evening', late)) return;
+  makePlan(state, ctx, r, h, homeDoor, 'evening');
 }
 
 /** True once the window's round is planned today. */
@@ -529,7 +546,8 @@ export function arriveAt(state: WorldState, r: Resident, k: number, window: Roun
   s.flags |= flags;
   s.arrived = state.tick;
   s.draw = placeDraw(state, place);
-  recordVisit(state, place.id, r, s.flags);
+  // The rows count evenings: an afternoon's stop takes its seat but is not an evening's visitor.
+  if (evening) recordVisit(state, place.id, r, s.flags);
   occupy(state, place.id, r, flags);
   return true;
 }

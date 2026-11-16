@@ -37,7 +37,11 @@ function town(spots: readonly [number, number][] = SPOTS): { s: WorldState; ctx:
     ] as const) {
       const ok = executeCommand(
         s,
-        { seat: 0, seq: 1, cmd: { t: 'decor.place', def, fx: (x + dx) * TILE_FP + 128, fz: z * TILE_FP + 128, rot: 0 } },
+        {
+          seat: 0,
+          seq: 1,
+          cmd: { t: 'decor.place', def, fx: (x + dx) * TILE_FP + 128, fz: z * TILE_FP + 128, rot: 0 },
+        },
         ctx,
       );
       expect(ok, `${def} at ${x + dx},${z}`).toBe(true);
@@ -62,7 +66,10 @@ function at(day: number, hour: number): number {
 
 const grownUps = (s: WorldState) => s.residents.filter((r) => r.stage === 'young' || r.stage === 'adult');
 const went = (r: Resident) =>
-  (r.round ?? []).slice(r.roundEvening ?? 0).some((x) => x.kind !== 'shop' && x.kind !== 'visit' && x.flags & RoundFlags.arrived);
+  r.roundEvening !== undefined &&
+  (r.round ?? [])
+    .slice(r.roundEvening)
+    .some((x) => x.kind !== 'shop' && x.kind !== 'visit' && x.flags & RoundFlags.arrived);
 
 describe('the round', () => {
   it('a town with no places worth the walk stays in', { timeout: 60_000 }, () => {
@@ -76,56 +83,64 @@ describe('the round', () => {
     for (const r of grownUps(s)) expect(went(r), r.given).toBe(false);
   });
 
-  it('folk go out, places fill to their room and no further, and the tally counts them', { timeout: 60_000 }, () => {
-    const { s, ctx } = town();
-    s.weather.today = 'clear';
-    runTo(s, ctx, at(1, 16));
-    s.weather.today = 'clear';
-    let peak = 0;
-    runTo(s, ctx, at(1, 22), () => {
-      for (const p of placeIndex(s).places) {
-        const o = occupancy(s, p.id);
-        expect(o.seated, p.id).toBeLessThanOrEqual(p.seats - p.childSeats);
-        expect(o.standing, p.id).toBeLessThanOrEqual(p.standing);
-        peak = Math.max(peak, o.seated + o.standing);
+  it(
+    'folk go out, places fill to their room and no further, and the tally counts them',
+    { timeout: 60_000 },
+    () => {
+      const { s, ctx } = town();
+      s.weather.today = 'clear';
+      runTo(s, ctx, at(1, 16));
+      s.weather.today = 'clear';
+      let peak = 0;
+      runTo(s, ctx, at(1, 22), () => {
+        for (const p of placeIndex(s).places) {
+          const o = occupancy(s, p.id);
+          expect(o.seated, p.id).toBeLessThanOrEqual(p.seats - p.childSeats);
+          expect(o.standing, p.id).toBeLessThanOrEqual(p.standing);
+          peak = Math.max(peak, o.seated + o.standing);
+        }
+      });
+      const t = s.evenings.tonight;
+      expect(t.weather).toBe('fair');
+      expect(t.out).toBeGreaterThan(5);
+      expect(peak).toBeGreaterThan(1);
+      const out = grownUps(s).filter(went).length;
+      expect(out).toBe(t.out);
+      // Every arrival at a place counts on its row; a seated arrival has a draw as found.
+      let visits = 0;
+      for (const r of s.residents) {
+        for (const x of (r.round ?? []).slice(r.roundEvening ?? (r.round ?? []).length)) {
+          if (!(x.flags & (RoundFlags.seated | RoundFlags.standing))) continue;
+          expect(x.draw).toBeGreaterThan(0);
+          visits++;
+        }
       }
-    });
-    const t = s.evenings.tonight;
-    expect(t.weather).toBe('fair');
-    expect(t.out).toBeGreaterThan(5);
-    expect(peak).toBeGreaterThan(1);
-    const out = grownUps(s).filter(went).length;
-    expect(out).toBe(t.out);
-    // Every arrival at a place counts on its row; a seated arrival has a draw as found.
-    let visits = 0;
-    for (const r of s.residents) {
-      for (const x of r.round ?? []) {
-        if (!(x.flags & (RoundFlags.seated | RoundFlags.standing))) continue;
-        expect(x.draw).toBeGreaterThan(0);
-        visits++;
-      }
-    }
-    const rows = s.places.reduce((n, row) => n + row.visitors[row.visitors.length - 1]!, 0);
-    expect(rows).toBeGreaterThanOrEqual(visits - 3 * 0);
-  });
+      const rows = s.places.reduce((n, row) => n + row.visitors[row.visitors.length - 1]!, 0);
+      expect(rows).toBe(visits);
+    },
+  );
 
-  it('spreads a town over the evening and over places (the second-best rule, set-off hours)', { timeout: 60_000 }, () => {
-    const { s, ctx } = town();
-    runTo(s, ctx, at(1, 16));
-    s.weather.today = 'clear';
-    runTo(s, ctx, at(1, 21));
-    const firstStops = new Map<string, number>();
-    const hours = new Set<number>();
-    for (const r of grownUps(s)) {
-      const k = r.roundEvening ?? 0;
-      const first = r.round?.[k];
-      if (!first || first.kind === 'shop' || first.kind === 'visit') continue;
-      firstStops.set(first.place, (firstStops.get(first.place) ?? 0) + 1);
-      hours.add(Math.floor((first.at ?? 0) / H));
-    }
-    expect(firstStops.size).toBeGreaterThan(2);
-    expect(hours.size).toBeGreaterThan(1);
-  });
+  it(
+    'spreads a town over the evening and over places (the second-best rule, set-off hours)',
+    { timeout: 60_000 },
+    () => {
+      const { s, ctx } = town();
+      runTo(s, ctx, at(1, 16));
+      s.weather.today = 'clear';
+      runTo(s, ctx, at(1, 21));
+      const firstStops = new Map<string, number>();
+      const hours = new Set<number>();
+      for (const r of grownUps(s)) {
+        const k = r.roundEvening ?? 0;
+        const first = r.round?.[k];
+        if (!first || first.kind === 'shop' || first.kind === 'visit') continue;
+        firstStops.set(first.place, (firstStops.get(first.place) ?? 0) + 1);
+        hours.add(Math.floor((first.at ?? 0) / H));
+      }
+      expect(firstStops.size).toBeGreaterThan(2);
+      expect(hours.size).toBeGreaterThan(1);
+    },
+  );
 
   it('a storm keeps everyone in; rain sends the rain-shy to shelter only', { timeout: 60_000 }, () => {
     const { s, ctx } = town();
@@ -135,6 +150,7 @@ describe('the round', () => {
     expect(s.evenings.tonight.weather).toBe('storm');
     expect(s.evenings.tonight.out).toBe(0);
     expect(s.evenings.tonight.nowhere).toBe(0);
+    expect(s.evenings.tonight.grownups).toBeGreaterThan(30);
     for (const r of grownUps(s)) expect(went(r)).toBe(false);
 
     const b = town();
@@ -146,24 +162,28 @@ describe('the round', () => {
     for (const r of grownUps(b.s)) {
       const shy = (r.id + day) % Math.round(100 / P.rainSkipPercent) === 0;
       if (!shy) continue;
-      for (const x of r.round ?? []) {
+      for (const x of (r.round ?? []).slice(r.roundEvening ?? (r.round ?? []).length)) {
         if (x.kind === 'shop' || x.kind === 'visit') continue;
         expect(placeIndex(b.s).byId.get(x.place)?.sheltered ?? true, r.given).toBe(true);
       }
     }
   });
 
-  it('starts the evening at 17:00: the tally rolls and every row gets a fresh evening', { timeout: 60_000 }, () => {
-    const { s, ctx } = town();
-    runTo(s, ctx, at(1, 16));
-    const rows = s.places.map((r) => r.visitors.length);
-    const before = s.evenings.tonight;
-    expect(before.day).toBe(0);
-    runTo(s, ctx, at(1, 17) + 1);
-    expect(s.evenings.tonight.day).toBe(1);
-    expect(s.evenings.history[s.evenings.history.length - 1]).toBe(before);
-    s.places.forEach((r, i) => expect(r.visitors.length).toBe(Math.min(6, rows[i]! + 1)));
-  });
+  it(
+    'starts the evening at 17:00: the tally rolls and every row gets a fresh evening',
+    { timeout: 60_000 },
+    () => {
+      const { s, ctx } = town();
+      runTo(s, ctx, at(1, 16));
+      const rows = s.places.map((r) => r.visitors.length);
+      const before = s.evenings.tonight;
+      expect(before.day).toBe(0);
+      runTo(s, ctx, at(1, 17) + 1);
+      expect(s.evenings.tonight.day).toBe(1);
+      expect(s.evenings.history[s.evenings.history.length - 1]).toBe(before);
+      s.places.forEach((r, i) => expect(r.visitors.length).toBe(Math.min(6, rows[i]! + 1)));
+    },
+  );
 
   it('builders and porters plan at 19:00; elders plan an afternoon round', { timeout: 60_000 }, () => {
     const { s, ctx } = town();
@@ -183,23 +203,29 @@ describe('the round', () => {
     for (const r of elders) expect(r.roundEvening).toBeUndefined();
   });
 
-  it('a seat joining from a snapshot mid-evening plans and walks exactly as its partner', { timeout: 120_000 }, () => {
-    const { s, ctx } = town();
-    runTo(s, ctx, at(1, 17) + 37);
-    const copy = deserialize(serialize(s));
-    const cctx = createTickCtx(copy);
-    expect(hashState(copy)).toBe(hashState(s));
-    const end = at(1, 22);
-    while (s.tick < end) {
-      advanceTo(s, s.lastTurn + 1, ctx);
-      advanceTo(copy, copy.lastTurn + 1, cctx);
-      ctx.events.length = 0;
-      cctx.events.length = 0;
-      if (tickOfDay(s.tick) % H === 0) expect(hashState(copy), `tick ${s.tick}`).toBe(hashState(s));
-    }
-    expect(JSON.stringify(copy.residents.map((r) => r.round))).toBe(JSON.stringify(s.residents.map((r) => r.round)));
-    expect(hashState(copy)).toBe(hashState(s));
-  });
+  it(
+    'a seat joining from a snapshot mid-evening plans and walks exactly as its partner',
+    { timeout: 120_000 },
+    () => {
+      const { s, ctx } = town();
+      runTo(s, ctx, at(1, 17) + 37);
+      const copy = deserialize(serialize(s));
+      const cctx = createTickCtx(copy);
+      expect(hashState(copy)).toBe(hashState(s));
+      const end = at(1, 22);
+      while (s.tick < end) {
+        advanceTo(s, s.lastTurn + 1, ctx);
+        advanceTo(copy, copy.lastTurn + 1, cctx);
+        ctx.events.length = 0;
+        cctx.events.length = 0;
+        if (tickOfDay(s.tick) % H === 0) expect(hashState(copy), `tick ${s.tick}`).toBe(hashState(s));
+      }
+      expect(JSON.stringify(copy.residents.map((r) => r.round))).toBe(
+        JSON.stringify(s.residents.map((r) => r.round)),
+      );
+      expect(hashState(copy)).toBe(hashState(s));
+    },
+  );
 
   it('two runs of a week hash the same', { timeout: 120_000 }, () => {
     const a = town();
