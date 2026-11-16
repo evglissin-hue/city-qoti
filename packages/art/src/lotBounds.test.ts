@@ -15,14 +15,25 @@ const FRONT = 0.25;
 /** Ground dressing (garden edging, flower beds, stepping stones) lies below this height and may spill a little. */
 const GROUND = 0.2;
 
-function optsOf(id: string, style: string, level: number, seed: number): KitBuildOptions {
+function optsOf(
+  id: string,
+  style: string,
+  level: number,
+  seed: number,
+  extra: Record<string, number | string> = {},
+): KitBuildOptions {
   const kit = kitById.get(id)!;
   const def = content.buildings.find((b) => artKitId(b.art) === id);
   return {
     size: def?.size ?? kit.footprint?.size ?? [2, 2],
     entrance: def?.entrance ?? kit.footprint?.entrance ?? [1, 1],
     seed,
-    params: { ...(def?.art.params ?? {}), ...(style ? { style } : {}), ...(level ? { level } : {}) },
+    params: {
+      ...(def?.art.params ?? {}),
+      ...(style ? { style } : {}),
+      ...(level ? { level } : {}),
+      ...extra,
+    },
   };
 }
 
@@ -61,6 +72,43 @@ describe('lot bounds (P2-A)', () => {
                 worst.set(k, Math.max(worst.get(k) ?? -Infinity, v));
               }
             }
+      const bad = [...worst].filter(([, v]) => v > EPS).map(([k, v]) => `${k} by ${v.toFixed(3)}`);
+      expect(bad).toEqual([]);
+    },
+  );
+
+  // V3B: taller and shorter cottages and houses, with and without a corner, stay in their lot too.
+  it(
+    'keep the cottage and the house inside their lot at every storeys, with and without a corner',
+    { timeout: 120000 },
+    () => {
+      const worst = new Map<string, number>();
+      for (const id of ['cottage', 'house'])
+        for (const style of STYLES)
+          for (const storeys of [1, 1.5, 2, 2.5, 3, 3.5, 4])
+            for (const corner of ['', 'L', 'R'])
+              for (let seed = 1; seed <= 8; seed++) {
+                const o = optsOf(id, style, style ? 1 : 0, seed, { storeys, ...(corner ? { corner } : {}) });
+                const [w, d] = o.size!;
+                const pos = kitById.get(id)!.build(o).getAttribute('position');
+                let minX = Infinity;
+                let maxX = -Infinity;
+                let minZ = Infinity;
+                let maxZ = -Infinity;
+                for (let i = 0; i < pos.count; i++) {
+                  if (pos.getY(i) < GROUND) continue;
+                  minX = Math.min(minX, pos.getX(i));
+                  maxX = Math.max(maxX, pos.getX(i));
+                  minZ = Math.min(minZ, pos.getZ(i));
+                  maxZ = Math.max(maxZ, pos.getZ(i));
+                }
+                const label = `${id} style=${style || '-'} storeys=${storeys} corner=${corner || '-'}`;
+                const over = { left: -minX, right: maxX - w, back: -minZ, front: maxZ - d - FRONT };
+                for (const [side, v] of Object.entries(over)) {
+                  const k = `${label} ${side}`;
+                  worst.set(k, Math.max(worst.get(k) ?? -Infinity, v));
+                }
+              }
       const bad = [...worst].filter(([, v]) => v > EPS).map(([k, v]) => `${k} by ${v.toFixed(3)}`);
       expect(bad).toEqual([]);
     },

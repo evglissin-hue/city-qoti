@@ -14,6 +14,7 @@ import {
   faceBox,
   facePoint,
   foundationPart,
+  outwardOf,
   porchPart,
   wallsOf,
   windowPart,
@@ -26,7 +27,7 @@ import {
   wallSurface,
 } from './parts';
 import { SURFACE } from '../surface';
-import { fitRow, rowOf } from './rows';
+import { fitRow, ROW_NATIVE_STOREYS, rowOf, STOREY_H, storeyLift, storeysOf } from './rows';
 import { barrel, bench, flowerPot, wallLantern, weathervane } from './props';
 import {
   gableEnds,
@@ -337,6 +338,111 @@ export function windowRow(
   }
 }
 
+// --- V3B: floors and corners of the cottage and the house -------------------------------------------
+
+/** V3B: the floors a row kit draws (`params.storeys`, or its native storeys when absent). */
+export interface Floors {
+  storeys: number;
+  /** Full floors. */
+  whole: number;
+  /** A room in the roof on top (a knee wall and a dormer). */
+  half: boolean;
+  /** Added to the kit's native wall height (`storeyLift`); zero at the native storeys. */
+  lift: number;
+  /** Storeys are absent or equal the kit's native: the kit draws exactly today's look. */
+  native: boolean;
+}
+
+export function floorsOf(kit: 'cottage' | 'house', opts: KitBuildOptions | undefined): Floors {
+  const given = storeysOf(opts);
+  const storeys = given ?? ROW_NATIVE_STOREYS[kit]!;
+  const whole = Math.floor(storeys);
+  return {
+    storeys,
+    whole,
+    half: storeys > whole,
+    lift: storeyLift(kit, given),
+    native: storeys === ROW_NATIVE_STOREYS[kit],
+  };
+}
+
+/** V3B: a window style for floor `i` (0 is the ground floor): flower boxes only on the lower two. */
+export function floorStyle(style: WindowStyle, i: number): WindowStyle {
+  return i >= 2 && style.box ? { ...style, box: false } : style;
+}
+
+/**
+ * V3B: thin trim bands (0.03 tall, a hair proud) around an outline at each height in `ys`, near
+ * level only. Party sides (`skip` letters 'l' and 'r') stay flush, so a band never crosses a party wall.
+ */
+export function stringCourses(
+  s: ShapeBuilder,
+  outer: readonly [number, number, number, number],
+  skip: string,
+  ys: readonly number[],
+  trim: number,
+): void {
+  if (!ys.length) return;
+  const [x0, z0, x1, z1] = outer;
+  s.nearOnly(() => {
+    s.surface(SURFACE.timber);
+    for (const y of ys)
+      s.box(
+        skip.includes('l') ? x0 : x0 - 0.02,
+        y - 0.015,
+        z0 - 0.02,
+        skip.includes('r') ? x1 : x1 + 0.02,
+        y + 0.015,
+        z1 + 0.02,
+        trim,
+        skip + 'b',
+      );
+    s.surface(SURFACE.plain);
+  });
+}
+
+/**
+ * V3B: a corner lot's second front, on one floor: front-quality windows (the front's boxes and
+ * shutters, each with its sill) along the side face, leaving the front corner to the lantern.
+ */
+export function cornerWindows(
+  s: ShapeBuilder,
+  f: Face,
+  z0: number,
+  z1: number,
+  y: number,
+  style: WindowStyle,
+  rnd: () => number,
+  lights: V3[],
+  o: number,
+  spacing = 0.5,
+): void {
+  windowRow(s, f, z0, Math.max(z0 + 0.4, z1 - 0.22), y, style, rnd, lights, [], spacing, [0.2, 0.22], o);
+}
+
+/**
+ * V3B: a lantern at the front corner of a corner lot's second face, and a small bench against it
+ * when the lot leaves room (a gap of 0.3 to 0.6 tiles; wider gaps hold a garden instead).
+ */
+export function cornerDressing(
+  s: ShapeBuilder,
+  side: 'L' | 'R',
+  wallX: number,
+  lotW: number,
+  z1: number,
+  y: number,
+  clad: number,
+  rnd: () => number,
+  lights: V3[],
+): void {
+  const f: Face = { dir: side === 'R' ? 'x+' : 'x-', plane: wallX };
+  s.detail(() => {
+    lights.push(wallLantern(s, facePoint(f, z1 - 0.08, y, clad), outwardOf(f)));
+    const gap = side === 'R' ? lotW - wallX : wallX;
+    if (gap >= 0.3 && gap <= 0.6) bench(s, side === 'R' ? wallX + 0.11 : wallX - 0.11, z1 - 0.34, false, rnd);
+  });
+}
+
 /** A hanging plank sign board for custom sign text, mounted above a door. */
 export function signBoard(
   s: ShapeBuilder,
@@ -407,6 +513,7 @@ export function cottageOf(opts: KitBuildOptions | undefined): Built {
   const s = kitBuilder(opts);
   const anchors: KitAnchors = { smoke: [], lights: [] };
   const row = rowOf(opts);
+  const F = floorsOf('cottage', opts);
   const [x0, z0, x1, z1] = fitRow(row, w, d, 0.22, w - 0.22, 0.3, d - 0.26);
   const sh = shell(s, {
     lot: [w, d],
@@ -415,7 +522,7 @@ export function cottageOf(opts: KitBuildOptions | undefined): Built {
     x1,
     z1,
     base: 0.1,
-    wallH: 0.78,
+    wallH: 0.78 + F.lift,
     wall: wallMat,
     wallColor,
     trim: vary(palette.timber, rnd, 0.4),
@@ -433,6 +540,14 @@ export function cottageOf(opts: KitBuildOptions | undefined): Built {
   const clad = claddingDepth(wallMat);
   const front: Face = { dir: 'z+', plane: z1 };
   const doorU = ex + 0.5;
+  // V3B: a string course at each floor line from the second floor up (flush with party walls).
+  stringCourses(
+    s,
+    sh.outer,
+    (row.l ? 'l' : '') + (row.r ? 'r' : ''),
+    Array.from({ length: Math.max(0, F.whole - 1) }, (_, i) => 0.1 + (i + 1) * STOREY_H),
+    sh.roof.trim,
+  );
   doorPart(s, front, doorU, 0.28, 0.62, accent, palette.timber, 'arched', clad);
   if (porch)
     porchPart(
@@ -450,32 +565,14 @@ export function cottageOf(opts: KitBuildOptions | undefined): Built {
     const style = windowStyle(c, accent, { box: false, shutters: true });
     windowRow(s, front, x0, x1, 0.52, style, rnd, anchors.lights!, [doorU], 0.6, [0.2, 0.22], clad);
     const side = { ...style, box: false };
-    if (!row.r)
-      windowPart(
-        s,
-        { dir: 'x+', plane: x1 },
-        (z0 + z1) / 2,
-        0.52,
-        0.18,
-        0.2,
-        side,
-        rnd,
-        anchors.lights,
-        clad,
-      );
-    if (!row.l)
-      windowPart(
-        s,
-        { dir: 'x-', plane: x0 },
-        (z0 + z1) / 2,
-        0.52,
-        0.18,
-        0.2,
-        side,
-        rnd,
-        anchors.lights,
-        clad,
-      );
+    // V3B: a corner lot's second face is a second front: the front's windows on every floor.
+    for (const right of [true, false]) {
+      if (right ? row.r : row.l) continue;
+      const f: Face = { dir: right ? 'x+' : 'x-', plane: right ? x1 : x0 };
+      if (row.corner === (right ? 'R' : 'L'))
+        cornerWindows(s, f, z0, z1, 0.52, style, rnd, anchors.lights!, clad);
+      else windowPart(s, f, (z0 + z1) / 2, 0.52, 0.18, 0.2, side, rnd, anchors.lights, clad);
+    }
     windowPart(s, { dir: 'z-', plane: z0 }, (x0 + x1) / 2, 0.52, 0.2, 0.22, side, rnd, anchors.lights, clad);
     // Doorstep life: pots, a bench or a rain barrel, stepping stones.
     flowerPot(s, doorU + 0.26, 0, z1 + 0.1, rnd);
@@ -492,6 +589,51 @@ export function cottageOf(opts: KitBuildOptions | undefined): Built {
         vary(palette.stone, rnd, 1.2),
         0.01,
       );
+    // V3B: the floors above the ground floor, from their own stream so the doorstep draws as it
+    // does at any storeys; a room in the roof (a half storey off the native) shows a dormer.
+    const urnd = seeded((opts?.seed ?? 1) * 211 + 17);
+    for (let i = 1; i < F.whole; i++) {
+      const y = 0.48 + i * STOREY_H;
+      const st = floorStyle(style, i);
+      windowRow(s, front, x0, x1, y, st, urnd, anchors.lights!, [], 0.6, [0.2, 0.22], clad);
+      s.nearOnly(() => {
+        for (const right of [true, false]) {
+          if (right ? row.r : row.l) continue;
+          const f: Face = { dir: right ? 'x+' : 'x-', plane: right ? x1 : x0 };
+          if (row.corner === (right ? 'R' : 'L'))
+            cornerWindows(s, f, z0, z1, y, st, urnd, anchors.lights!, clad);
+          else
+            windowPart(s, f, (z0 + z1) / 2, y, 0.18, 0.2, { ...st, box: false }, urnd, anchors.lights, clad);
+        }
+        windowPart(
+          s,
+          { dir: 'z-', plane: z0 },
+          (x0 + x1) / 2,
+          y,
+          0.2,
+          0.22,
+          { ...st, box: false },
+          urnd,
+          anchors.lights,
+          clad,
+        );
+      });
+    }
+    if (!F.native && F.half)
+      dormerPart(
+        s,
+        { dir: 'z+', plane: z1 - 0.1 },
+        (x0 + x1) / 2,
+        sh.top + 0.02,
+        0.28,
+        wallColor,
+        sh.roof.color,
+        palette.timber,
+        urnd,
+        anchors.lights,
+      );
+    if (row.corner)
+      cornerDressing(s, row.corner, row.corner === 'R' ? x1 : x0, w, z1, 0.7, clad, urnd, anchors.lights!);
   });
   if (c.chimney ?? true) {
     const side = look() < 0.5;
@@ -542,6 +684,9 @@ function houseOf(opts: KitBuildOptions | undefined): Built {
   const s = kitBuilder(opts);
   const anchors: KitAnchors = { smoke: [], lights: [] };
   const row = rowOf(opts);
+  const F = floorsOf('house', opts);
+  // V3B: below two storeys there is no jettied upper floor, only the one wall (and a room in the roof).
+  const hasUpper = F.whole >= 2;
   const [x0, z0, x1, z1] = fitRow(row, w, d, 0.2, w - 0.2, 0.25, d - 0.3);
   const jetty = 0.08;
   const sh = shell(s, {
@@ -551,11 +696,11 @@ function houseOf(opts: KitBuildOptions | undefined): Built {
     x1,
     z1,
     base: 0.1,
-    wallH: 1.36,
+    wallH: 1.36 + F.lift,
     wall: lower,
     wallColor: lowerColor,
     trim: vary(palette.timber, rnd, 0.4),
-    upper: { at: 0.66, wall: 'timber', color: upperColor, jetty },
+    ...(hasUpper ? { upper: { at: 0.66, wall: 'timber' as const, color: upperColor, jetty } } : {}),
     roof: {
       shape: gableFront ? 'gable' : 'halfHip',
       material,
@@ -572,33 +717,102 @@ function houseOf(opts: KitBuildOptions | undefined): Built {
   const front: Face = { dir: 'z+', plane: z1 };
   const upFront: Face = { dir: 'z+', plane: oz1 };
   const doorU = ex + 0.5;
+  // V3B: a string course at each floor line from the third floor up (the jetty beam marks the first).
+  stringCourses(
+    s,
+    sh.outer,
+    (row.l ? 'l' : '') + (row.r ? 'r' : ''),
+    Array.from({ length: Math.max(0, F.whole - 2) }, (_, i) => 0.76 + (i + 1) * STOREY_H),
+    palette.timber,
+  );
   doorPart(s, front, doorU, 0.28, 0.6, accent, palette.timber, look() < 0.5 ? 'arched' : 'dutch', clad);
   s.detail(() => {
     const style = windowStyle(c, accent, { box: false, shutters: true });
     windowRow(s, front, x0, x1, 0.45, style, rnd, anchors.lights!, [doorU], 0.6, [0.2, 0.22], clad);
-    windowRow(s, upFront, ox0, ox1, 1.12, style, rnd, anchors.lights!, [], 0.6, [0.22, 0.24], 0.012);
+    // The floors above the ground floor: floor i's windows at 1.12 for the first, a storey higher each.
+    const ups = Array.from({ length: hasUpper ? F.whole - 1 : 0 }, (_, k) => k + 1);
+    const upY = (i: number): number => 1.12 + (i - 1) * STOREY_H;
+    for (const i of ups)
+      windowRow(
+        s,
+        upFront,
+        ox0,
+        ox1,
+        upY(i),
+        floorStyle(style, i),
+        rnd,
+        anchors.lights!,
+        [],
+        0.6,
+        [0.22, 0.24],
+        0.012,
+      );
     const side = { ...style, box: false };
     for (const f of [
       { dir: 'x+', plane: ox1 },
       { dir: 'x-', plane: ox0 },
     ] as Face[]) {
-      if (f.dir === 'x+' ? row.r : row.l) continue;
-      windowRow(s, f, oz0, oz1, 1.12, side, rnd, anchors.lights!, [], 0.9, [0.18, 0.2], 0.012);
-      windowRow(
-        s,
-        { dir: f.dir, plane: f.dir === 'x+' ? x1 : x0 },
-        z0,
-        z1,
-        0.45,
-        side,
-        rnd,
-        anchors.lights!,
-        [],
-        1.1,
-        [0.18, 0.2],
-        clad,
-      );
+      const right = f.dir === 'x+';
+      if (right ? row.r : row.l) continue;
+      const gf: Face = { dir: f.dir, plane: right ? x1 : x0 };
+      // V3B: a corner lot's second face is a second front: the front's windows on every floor.
+      if (row.corner === (right ? 'R' : 'L')) {
+        for (const i of ups)
+          cornerWindows(s, f, oz0, oz1, upY(i), floorStyle(style, i), rnd, anchors.lights!, 0.012, 0.62);
+        cornerWindows(s, gf, z0, z1, 0.45, style, rnd, anchors.lights!, clad, 0.62);
+        continue;
+      }
+      for (const i of ups)
+        windowRow(s, f, oz0, oz1, upY(i), side, rnd, anchors.lights!, [], 0.9, [0.18, 0.2], 0.012);
+      windowRow(s, gf, z0, z1, 0.45, side, rnd, anchors.lights!, [], 1.1, [0.18, 0.2], clad);
     }
+    if (!F.native) {
+      // V3B: the back (today's native house has none): a row on each floor, near level only.
+      const urnd = seeded((opts?.seed ?? 1) * 211 + 19);
+      s.nearOnly(() => {
+        windowRow(
+          s,
+          { dir: 'z-', plane: z0 },
+          x0,
+          x1,
+          0.45,
+          side,
+          urnd,
+          anchors.lights!,
+          [],
+          0.9,
+          [0.2, 0.22],
+          clad,
+        );
+        for (const i of ups)
+          windowRow(
+            s,
+            { dir: 'z-', plane: oz0 },
+            ox0,
+            ox1,
+            upY(i),
+            floorStyle(side, i),
+            urnd,
+            anchors.lights!,
+            [],
+            0.9,
+            [0.2, 0.22],
+            0.012,
+          );
+      });
+    }
+    if (row.corner)
+      cornerDressing(
+        s,
+        row.corner,
+        row.corner === 'R' ? x1 : x0,
+        w,
+        z1,
+        0.62,
+        clad,
+        seeded((opts?.seed ?? 1) * 211 + 23),
+        anchors.lights!,
+      );
     if (gableFront) {
       // A small round window up in the gable.
       windowPart(
@@ -613,7 +827,8 @@ function houseOf(opts: KitBuildOptions | undefined): Built {
         anchors.lights,
         0.01,
       );
-      if (look() < 0.7) {
+      const roll = look() < 0.7;
+      if (F.native ? roll : F.half) {
         const dz = (oz0 + oz1) / 2;
         dormerPart(
           s,
@@ -628,7 +843,7 @@ function houseOf(opts: KitBuildOptions | undefined): Built {
           anchors.lights,
         );
       }
-    } else {
+    } else if (F.native || F.half) {
       dormerPart(
         s,
         { dir: 'z+', plane: (oz0 + oz1) / 2 + 0.5 },
