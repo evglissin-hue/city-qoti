@@ -2,6 +2,7 @@
 // it does not reach yet) and where a well goes (in reach of a door, clear of other wells).
 import { content } from '@qoti/content';
 import {
+  calendar,
   canPlaceBuilding,
   doorTile,
   overdraftLimit,
@@ -15,6 +16,7 @@ import {
   type WorldState,
 } from '@qoti/sim';
 import { carrierBrings, costOf, importPrice, MONEY_RESERVE, VILLAGE_MARGIN, type Planner } from '../planner';
+import { clearOfKind } from '../hamlet';
 import { count, G } from '../town';
 
 /**
@@ -59,6 +61,15 @@ export function serveService(p: Planner, def: string, kind: 'social' | 'health')
     imports += short * importPrice(w, G(g));
   }
   if (p.coins() + credit < costOf(def, VILLAGE_MARGIN).coins + imports + MONEY_RESERVE) return false;
+  // R2E: the carrier buys a site's Materials from coins in hand only, never on the bank's credit
+  // (carrier/index.ts, settle), so the imports wait for coins in hand: elm's second tavern went up on
+  // credit with 130 coins left, and its brick never came while the treasury paid for everything else.
+  if (imports > 0 && p.coins() < 2 * imports + MONEY_RESERVE) return false;
+  // R2E: nor from autumn's fourth day to the thaw, when the carrier buys toward the winter mark and
+  // snow closes the pass: elm's second tavern started in winter, and when the cart came back it spent
+  // the treasury on Food and Fuel first, so its brick waited (the audit's site-unsupplied).
+  const c = calendar(w.tick);
+  if (imports > 0 && (c.season === 3 || (c.season === 2 && c.day >= 4))) return false;
   const reader = worldIndex(w).reader;
   let tried = 0;
   for (const h of w.households) {
@@ -78,6 +89,7 @@ export function serveService(p: Planner, def: string, kind: 'social' | 'health')
             // that fits and stopping there left willow's tavern refused at one spot every visit
             // from day 30, so no Craftsfolk came.
             if (!townReachesDoor(w, { def, x, z, rot })) continue;
+            if (!clearOfKind(w, def, x, z)) continue;
             return !!p.buildAt(`build ${def} by the ${h.family}s`, def, x, z, rot, true);
           }
         }
