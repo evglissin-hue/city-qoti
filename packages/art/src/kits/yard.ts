@@ -119,56 +119,71 @@ export const yardWoodpile: Kit = piece('yard-woodpile', 51, ({ s, rnd, seed }) =
 // --- 2. nets -------------------------------------------------------------------------------------
 
 export const yardNets: Kit = piece('yard-nets', 52, ({ s, rnd }) => {
-  const net = vary(0x6f7f74, rnd, 0.8);
-  const net2 = vary(0x7a8a7c, rnd, 0.8);
-  const poles = [-0.3, 0.0, 0.3];
+  // Nets hung to dry: a crossbar on two trestle posts (a slim prop in the middle), the net draped
+  // over it in soft folds with a darker mesh tone, and a row of cork floats along the lower edge.
+  const light = vary(0xc2c9a6, rnd, 0.6);
+  const dark = vary(0x6d7d5c, rnd, 0.6);
+  const cork = vary(0xe0b574, rnd, 0.5);
+  const barY = 0.46;
+  const folds = 9;
+  const x0 = -0.27;
+  const x1 = 0.27;
+  // Hem heights per fold edge: ragged, deepest toward the middle.
+  const hem = Array.from({ length: folds + 1 }, (_, i) => {
+    const t = i / folds;
+    return 0.2 + 0.1 * (1 - Math.abs(2 * t - 1)) * 0 + 0.05 * Math.abs(2 * t - 1) + rnd() * 0.05;
+  });
+  const zAt = (i: number): number => (i % 2 === 0 ? 0.02 : 0.05);
   s.levels(
     () => {
       s.surface(SURFACE.woodGrain);
-      for (const x of poles) {
-        beam(s, [x, 0, 0], [x, 0.5, 0], 0.012, palette.timber);
-        beam(s, [x, 0.01, 0], [x + (x < 0.1 ? -0.03 : 0.03), 0.01, 0.08], 0.008, palette.timber);
+      for (const x of [-0.31, 0.31]) {
+        beam(s, [x, 0.011, -0.02], [x, barY + 0.02, 0], 0.011, palette.timber);
+        beam(s, [x, 0.011, 0.1], [x, barY + 0.02, 0], 0.011, palette.timber);
       }
-      beam(s, [-0.32, 0.47, 0], [0.32, 0.47, 0], 0.008, palette.timber);
+      beam(s, [-0.34, barY, 0], [0.34, barY, 0], 0.011, palette.timber);
       s.surface(SURFACE.cloth);
-      for (const [i, x0, x1, sag, hex] of [
-        [0, -0.3, 0.0, 0.17, net],
-        [1, 0.0, 0.3, 0.24, net2],
-      ] as const) {
-        const n = 3;
-        for (let k = 0; k < n; k++) {
-          const t0 = k / n;
-          const t1 = (k + 1) / n;
-          const xa = x0 + (x1 - x0) * t0;
-          const xb = x0 + (x1 - x0) * t1;
-          const ya = 0.46 - sag * (1 - Math.pow(2 * t0 - 1, 2));
-          const yb = 0.46 - sag * (1 - Math.pow(2 * t1 - 1, 2));
-          const z = 0.012 + i * 0.006;
+      for (let i = 0; i < folds; i++) {
+        const xa = x0 + ((x1 - x0) * i) / folds;
+        const xb = x0 + ((x1 - x0) * (i + 1)) / folds;
+        const hex = i % 2 === 0 ? light : dark;
+        panel(
+          s,
+          [xa, barY + 0.005, zAt(i) * 0.4],
+          [xb, barY + 0.005, zAt(i + 1) * 0.4],
+          [xb, hem[i + 1]!, zAt(i + 1)],
+          [xa, hem[i]!, zAt(i)],
+          hex,
+          dark,
+        );
+        // Mesh rows: two darker cords across each fold, a hair proud of the cloth.
+        for (const f of [0.33, 0.66]) {
+          const ya = barY + 0.005 + (hem[i]! - barY - 0.005) * f;
+          const yb = barY + 0.005 + (hem[i + 1]! - barY - 0.005) * f;
+          const za = zAt(i) * (0.4 + 0.6 * f) + 0.006;
+          const zb = zAt(i + 1) * (0.4 + 0.6 * f) + 0.006;
           panel(
             s,
-            [xa, 0.46, z],
-            [xb, 0.46, z],
-            [xb, yb, z + 0.02],
-            [xa, ya, z + 0.02],
-            hex,
-            vary(hex, () => 0.3, 1.5),
+            [xa, ya + 0.006, za],
+            [xb, yb + 0.006, zb],
+            [xb, yb - 0.006, zb],
+            [xa, ya - 0.006, za],
+            dark,
           );
         }
       }
       s.surface(SURFACE.plain);
-      for (const [x, y, hex] of [
-        [-0.15, 0.31, palette.white],
-        [0.15, 0.25, palette.accentRed],
-        [0.05, 0.27, palette.white],
-      ] as const)
-        s.blob(x, y, 0.036, 0.022, 0.022, 0.022, hex, 0);
+      for (let i = 0; i < folds; i += 2) {
+        const t = (i + 0.5) / folds;
+        s.blob(x0 + (x1 - x0) * t, hem[i]! + 0.006, zAt(i) + 0.014, 0.02, 0.016, 0.02, cork, 0);
+      }
     },
     () => {
       s.surface(SURFACE.woodGrain);
-      for (const x of poles) farBox(s, x - 0.012, 0, -0.012, x + 0.012, 0.5, 0.012, palette.timber, 'bkt');
+      for (const x of [-0.31, 0.31])
+        farBox(s, x - 0.012, 0, -0.02, x + 0.012, barY + 0.02, 0.012, palette.timber, 'bkt');
       s.surface(SURFACE.cloth);
-      panel(s, [-0.3, 0.46, 0.012], [0, 0.46, 0.012], [0, 0.24, 0.03], [-0.3, 0.24, 0.03], net);
-      panel(s, [0, 0.46, 0.018], [0.3, 0.46, 0.018], [0.3, 0.2, 0.036], [0, 0.2, 0.036], net2);
+      panel(s, [x0, barY, 0.008], [x1, barY, 0.008], [x1, 0.24, 0.04], [x0, 0.24, 0.04], light, dark);
     },
   );
 });
@@ -328,42 +343,103 @@ export const yardSkep: Kit = piece('yard-skep', 56, ({ s, rnd }) => {
 
 const PRAM_BLANKETS = [0xe9e1cf, 0xc9d8d2, 0xe6c6b5, 0xd8cde0] as const;
 
+/** A slim wheel in the plane x = `x`, facing `dir` (-1 or 1) so it reads from outside: a thin dark tire ring and two light spokes. */
+function wheel(s: ShapeBuilder, x: number, y: number, z: number, r: number, seg: number, dir: number): void {
+  const ri = r * 0.8;
+  const n: V3 = [dir, 0, 0];
+  for (let i = 0; i < seg; i++) {
+    const a0 = (i / seg) * Math.PI * 2;
+    const a1 = ((i + 1) / seg) * Math.PI * 2;
+    const p = (a: number, rr: number): V3 => [x, y + Math.cos(a) * rr, z + Math.sin(a) * rr];
+    // Wound so the front faces `dir`.
+    if (dir > 0) s.quad(p(a0, r), p(a1, r), p(a1, ri), p(a0, ri), palette.ink, n);
+    else s.quad(p(a0, r), p(a0, ri), p(a1, ri), p(a1, r), palette.ink, n);
+  }
+  const lw = 0.0035;
+  for (const a of [0.35, 1.92]) {
+    const c = Math.cos(a) * ri;
+    const d = Math.sin(a) * ri;
+    const ex = Math.cos(a + Math.PI / 2) * lw;
+    const ez = Math.sin(a + Math.PI / 2) * lw;
+    const q: V3[] = [
+      [x + dir * 0.001, y + c + ex, z + d + ez],
+      [x + dir * 0.001, y - c + ex, z - d + ez],
+      [x + dir * 0.001, y - c - ex, z - d - ez],
+      [x + dir * 0.001, y + c - ex, z + d - ez],
+    ];
+    if (dir > 0) s.quad(q[0]!, q[1]!, q[2]!, q[3]!, palette.metal, n);
+    else s.quad(q[0]!, q[3]!, q[2]!, q[1]!, palette.metal, n);
+  }
+}
+
 export const yardPram: Kit = piece('yard-pram', 57, ({ s, rnd, seed }) => {
   const wicker = vary(C.wicker, rnd, 0.6);
   const hood = vary(pick([0x4e7c78, 0x7a5a6c, 0x6b7f93, 0x9c4f43], seed), rnd, 0.6);
   const blanket = vary(pick(PRAM_BLANKETS, seed + 1), rnd, 0.5);
+  const wx = 0.07;
   s.levels(
     () => {
       s.surface(SURFACE.woodGrain);
-      s.rbox(-0.07, 0.07, -0.1, 0.07, 0.14, 0.08, wicker, 0.012);
+      s.rbox(-0.065, 0.082, -0.1, 0.065, 0.15, 0.075, wicker, 0.012);
       s.surface(SURFACE.cloth);
-      s.box(-0.062, 0.14, -0.02, 0.062, 0.15, 0.075, blanket, 'b');
-      panel(s, [-0.07, 0.2, -0.11], [0.07, 0.2, -0.11], [0.07, 0.15, -0.015], [-0.07, 0.15, -0.015], hood);
-      for (const x of [-0.07, 0.07])
-        s.tri([x, 0.14, -0.11], [x, 0.2, -0.11], [x, 0.14, -0.015], hood, [x < 0 ? -1 : 1, 0, 0]);
+      s.quad(
+        [-0.057, 0.152, -0.02],
+        [0.057, 0.152, -0.02],
+        [0.057, 0.152, 0.07],
+        [-0.057, 0.152, 0.07],
+        blanket,
+        [0, 1, 0],
+      );
+      // Folded hood: two stiff folds over the head end, closed at the sides.
+      panel(
+        s,
+        [-0.067, 0.2, -0.105],
+        [0.067, 0.2, -0.105],
+        [0.067, 0.212, -0.06],
+        [-0.067, 0.212, -0.06],
+        hood,
+      );
+      panel(
+        s,
+        [-0.067, 0.212, -0.06],
+        [0.067, 0.212, -0.06],
+        [0.067, 0.158, -0.01],
+        [-0.067, 0.158, -0.01],
+        hood,
+      );
+      for (const x of [-0.067, 0.067]) {
+        s.tri([x, 0.15, -0.1], [x, 0.2, -0.105], [x, 0.212, -0.06], hood, [x < 0 ? -1 : 1, 0, 0]);
+        s.tri([x, 0.15, -0.1], [x, 0.212, -0.06], [x, 0.158, -0.01], hood, [x < 0 ? -1 : 1, 0, 0]);
+      }
       s.surface(SURFACE.wroughtIron);
-      for (const x of [-0.05, 0.05]) beam(s, [x, 0.13, -0.1], [x, 0.24, -0.16], 0.006, palette.metal);
-      beam(s, [-0.05, 0.24, -0.16], [0.05, 0.24, -0.16], 0.007, palette.metal);
-      for (const x of [-0.088, 0.088]) {
-        cylX(s, x - 0.006, x + 0.006, 0.045, -0.06, 0.045, palette.ink, 5, palette.metal);
-        cylX(s, x - 0.006, x + 0.006, 0.032, 0.06, 0.032, palette.ink, 5, palette.metal);
+      for (const x of [-0.05, 0.05]) beam(s, [x, 0.14, -0.1], [x, 0.22, -0.17], 0.005, palette.metal);
+      beam(s, [-0.05, 0.22, -0.17], [0.05, 0.22, -0.17], 0.006, palette.metal);
+      for (const dir of [-1, 1]) {
+        wheel(s, dir * wx, 0.058, -0.07, 0.058, 8, dir);
+        wheel(s, dir * wx, 0.044, 0.06, 0.044, 8, dir);
       }
     },
     () => {
       s.surface(SURFACE.woodGrain);
-      farBox(s, -0.07, 0.07, -0.1, 0.07, 0.14, 0.08, wicker, 'bk');
+      farBox(s, -0.065, 0.1, -0.1, 0.065, 0.15, 0.075, wicker, 'bk');
       s.surface(SURFACE.cloth);
       s.quad(
-        [-0.07, 0.2, -0.11],
-        [0.07, 0.2, -0.11],
-        [0.07, 0.15, -0.015],
-        [-0.07, 0.15, -0.015],
+        [-0.067, 0.2, -0.105],
+        [0.067, 0.2, -0.105],
+        [0.067, 0.158, -0.01],
+        [-0.067, 0.158, -0.01],
         hood,
         [0, 1, 0],
       );
       s.surface(SURFACE.wroughtIron);
-      for (const x of [-0.09, 0.09])
-        farBox(s, x - 0.006, 0, -0.1, x + 0.006, 0.09, 0.09, palette.ink, 'btfk');
+      for (const dir of [-1, 1]) {
+        const x = dir * wx;
+        s.quad([x, 0, -0.128], [x, 0, -0.012], [x, 0.116, -0.012], [x, 0.116, -0.128], palette.ink, [
+          dir,
+          0,
+          0,
+        ]);
+      }
     },
   );
 });
