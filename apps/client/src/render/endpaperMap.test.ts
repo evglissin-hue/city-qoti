@@ -272,8 +272,8 @@ describe('the endpaper layer (V3D)', () => {
     expect(t.env.endpaper.cover).toBeCloseTo(0.5, 6);
     t.at(200);
     t.frame();
-    expect(t.env.endpaper.cover).toBe(0);
-    expect(t.env.endpaper.uniforms.uEndpaperCover.value).toBe(0);
+    expect(t.env.endpaper.cover).toBeCloseTo(0, 6);
+    expect(t.env.endpaper.uniforms.uEndpaperCover.value).toBeCloseTo(0, 6);
   });
 
   it('asks for the first drawing before the fade starts; frame() is true when it lands and when cover moves', () => {

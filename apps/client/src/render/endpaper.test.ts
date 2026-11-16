@@ -1,14 +1,12 @@
 // V3.0: the endpaper map's interface (render/endpaper.ts) and its stub layer.
 import { describe, expect, it } from 'vitest';
-import { PerspectiveCamera, Vector3 } from 'three';
 import { content } from '@qoti/content';
-import type { Mirror, MirrorChange } from '../state/mirror';
+import type { Mirror } from '../state/mirror';
 import {
   createEndpaperMap,
   ENDPAPER_DEBOUNCE_MS,
   ENDPAPER_FULL,
   ENDPAPER_NEAR,
-  ENDPAPER_ON,
   endpaperCover,
   endpaperInput,
   EndpaperWriter,
@@ -16,9 +14,6 @@ import {
   type EndpaperRequest,
   type EndpaperWorkerLike,
 } from './endpaper';
-import type { WorldEnv } from './env';
-import { endpaperLayer, townChanged } from './layers/endpaper';
-import type { LayerContext } from './layers/types';
 import { QUALITY_PRESETS } from './quality';
 
 /** A fake worker: records requests; `finish()` answers the oldest one. */
@@ -50,10 +45,6 @@ function fakeMirror(): Mirror {
     ]),
     settings: { value: { valleyName: 'Hollowmere' } },
   } as unknown as Mirror;
-}
-
-function change(over: Partial<MirrorChange> = {}): MirrorChange {
-  return { rects: new Map(), full: false, buildings: false, village: false, ...over } as MirrorChange;
 }
 
 describe('the endpaper cover (V3.0)', () => {
