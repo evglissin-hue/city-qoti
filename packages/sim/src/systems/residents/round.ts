@@ -32,7 +32,7 @@ import { weatherEffect } from '../weather/effects';
 import { chooseVisit, tasteFor } from './outings';
 import { doorOf, householdOf, isWorkingAge } from './places';
 import { needsShopping, someoneShopping } from './shopping';
-import { HOUR, dayIndex, tickOfDay } from './time';
+import { HOUR, dayIndex, scheduleClock, tickOfDay } from './time';
 import { hasTrait } from './traits';
 
 const P = content.places;
@@ -319,8 +319,16 @@ export function planRound(
   const counts = plannedCounts(state);
   const stops: RoundStop[] = [];
   const now = tickOfDay(state.tick);
-  const endHour = Math.floor((window === 'evening' ? homeTick(state) : P.eveningHour * HOUR) / HOUR);
-  let fromHour = Math.floor(now / HOUR);
+  let endTick = window === 'evening' ? homeTick(state) : P.eveningHour * HOUR;
+  let fromTick = now;
+  if (window === 'evening') {
+    // Their own evening: a Night Owl is free later, an Early Bird home earlier (the schedule clock).
+    const clock = scheduleClock(r, state.tick);
+    if (clock < P.eveningHour * HOUR) fromTick = now + (P.eveningHour * HOUR - clock);
+    endTick = Math.min(endTick, now + Math.max(0, P.homeHour * HOUR - clock));
+  }
+  const endHour = Math.floor(endTick / HOUR);
+  let fromHour = Math.floor(fromTick / HOUR);
 
   // Shopping first, by one member of the household; places wait the hour after.
   if (needsShopping(h) && !someoneShopping(state, h) && !householdShops(state, h, r)) {

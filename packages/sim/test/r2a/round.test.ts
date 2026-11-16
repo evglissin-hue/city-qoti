@@ -268,4 +268,25 @@ describe('the round', () => {
     });
     expect(there).toBeGreaterThan(0);
   });
+
+  it("a Night Owl's evening starts later and an Early Bird's ends sooner", { timeout: 60_000 }, () => {
+    const { s, ctx } = town();
+    const grown = grownUps(s);
+    const owl = grown[0]!;
+    const lark = grown[1]!;
+    owl.traits = ['night-owl', owl.traits.find((t) => t !== 'early-bird' && t !== 'night-owl') ?? 'cheerful'];
+    lark.traits = [
+      'early-bird',
+      lark.traits.find((t) => t !== 'early-bird' && t !== 'night-owl') ?? 'cheerful',
+    ];
+    runTo(s, ctx, at(1, 16));
+    s.weather.today = 'clear';
+    runTo(s, ctx, at(1, 21));
+    for (const x of (owl.round ?? []).slice(owl.roundEvening ?? 0)) {
+      if (x.kind !== 'shop') expect(x.at ?? 0, owl.given).toBeGreaterThanOrEqual(18 * H);
+    }
+    for (const x of (lark.round ?? []).slice(lark.roundEvening ?? 0)) {
+      expect(x.at ?? 0, lark.given).toBeLessThan(19 * H);
+    }
+  });
 });
