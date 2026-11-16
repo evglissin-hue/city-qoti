@@ -26,6 +26,7 @@ export const villagePhrases = {
     food: 'bread and another kind of food',
     savings: 'a little more put by',
     charm: 'a prettier street',
+    evenings: 'good evenings out',
     social: 'a tavern nearby',
     health: 'a herbalist nearby',
     education: 'a school nearby',

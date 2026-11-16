@@ -28,7 +28,7 @@ describe('resident inspector', () => {
   it('breaks mood down into needs, traits and modifiers that add up', () => {
     const f = hamletFixture();
     const clover = resident(f.state, f.residents[0]![0]!);
-    clover.needs = [90, 100, 100, 40, 55, 100];
+    clover.needs = [90, 100, 100, 40, 55, 100, 100, 100, 100, 55];
     addMoodModifier(f.state, clover.id, { kind: 'wish-granted', value: 12, ticks: TICKS_PER_DAY });
     const d = detail(f.state, clover.id);
     const labels = d.moodLines.map((l) => l.label);
@@ -36,7 +36,7 @@ describe('resident inspector', () => {
     expect(labels).toContain('Water close by');
     expect(labels).toContain('A roof of their own');
     expect(labels).toContain('Still making friends');
-    expect(labels).toContain('A pleasant enough lane');
+    expect(labels).toContain('Evenings out, of a sort');
     expect(labels).toContain('Cheerful');
     expect(labels).toContain('Wish granted');
     const sum = d.moodLines.reduce((a, l) => a + l.value, 0);

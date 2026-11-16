@@ -7,6 +7,7 @@ import { describe, expect, it } from 'vitest';
 import { BuildingStatus, TIER_DOWN_DAYS, TIER_UP_DAYS, TICKS_PER_HOUR } from '../../src/constants';
 import type { Building, Household, WorldState } from '../../src/contracts';
 import { findById } from '../../src/state/entities';
+import { EVENINGS_NEED } from '../../src/state/evenings';
 import { assignJobs } from '../../src/systems/residents/jobs';
 import { markSeen } from '../../src/systems/market/balances';
 import { basketGroups } from '../../src/systems/market/baskets';
@@ -106,10 +107,10 @@ describe('moving up', () => {
     const { state, h } = aspiringTown();
     days(state, 2);
     h.savings = 0;
-    state.map.charm.fill(5);
+    for (const id of h.members) findById(state.residents, id)!.needs[EVENINGS_NEED] = 10;
     const missing = tierProgress(state, h)!.missing;
     expect(missing).toContain(villagePhrases.missing.savings);
-    expect(missing).toContain(villagePhrases.missing.charm);
+    expect(missing).toContain(villagePhrases.missing.evenings);
     days(state, 1);
     expect(h.tierDays).toBe(0);
     const r = findById(state.residents, h.members[0]!)!;
@@ -122,7 +123,7 @@ describe('moving up', () => {
 
   // R1.0 stand-in: R1A/R1B rewrites this. The basket wants families by amount (Fuel only in
   // winter), and names the family that is missing, not a good.
-  it('wants the tavern and the herbalist in reach, and Wares on the shelves', () => {
+  it('wants the herbalist in reach, and Wares on the shelves, but no tavern', () => {
     const { state, h } = aspiringTown();
     for (const b of state.buildings) if (b.def === 'tavern') b.rt!.workers.length = 0;
     for (const b of state.buildings)
@@ -130,7 +131,7 @@ describe('moving up', () => {
     // R1A: nor seen in the last three days (a want of under a unit a day is met by a recent sighting).
     for (const id of ['cloth', 'furniture', 'candles']) h.seen![good(id)] = -1;
     const missing = tierProgress(state, h)!.missing;
-    expect(missing).toContain(villagePhrases.missing.social);
+    expect(missing).not.toContain(villagePhrases.missing.social);
     expect(missing).toContain('wares');
     expect(missing).not.toContain('treats');
     expect(missing).not.toContain(villagePhrases.missing.health);
@@ -153,10 +154,10 @@ describe('sliding back', () => {
     for (const [g, q] of content.buildingById.get('cottage')!.upgradesTo!.goods)
       deliverUpgrade(state, ctx, cottage, good(g), q);
     expect(h.tier).toBe('craftsfolk');
-    // The tavern closes: Craftsfolk fail their own basket.
-    const tavern = state.buildings.find((b) => b.def === 'tavern')!;
-    const workers = [...tavern.rt!.workers];
-    tavern.rt!.workers.length = 0;
+    // Evenings go sour: Craftsfolk fail their own basket (the tavern no longer matters).
+    const members = h.members.map((id) => findById(state.residents, id)!);
+    const were = members.map((r) => r.needs[EVENINGS_NEED]);
+    for (const r of members) r.needs[EVENINGS_NEED] = 10;
     days(state, TIER_DOWN_DAYS - 1);
     expect(h.tier).toBe('craftsfolk');
     expect(h.tierDays).toBe(-(TIER_DOWN_DAYS - 1));
@@ -165,9 +166,9 @@ describe('sliding back', () => {
     expect(cottage.def).toBe('townhouse');
     expect(cottage.rt!.tier).toBe('settler');
     for (const id of h.members) expect(findById(state.residents, id)!.tier).toBe('settler');
-    // It reopens: three good days later they are Craftsfolk again, in the same house.
-    tavern.rt!.workers.push(...workers);
-    days(state, TIER_UP_DAYS);
+    // Evenings pick up: good days later they are Craftsfolk again, in the same house.
+    members.forEach((r, i) => (r.needs[EVENINGS_NEED] = were[i]!));
+    days(state, content.places.tierDays);
     expect(h.tier).toBe('craftsfolk');
     expect(cottage.rt!.upgrade ?? null).toBeNull();
   });
