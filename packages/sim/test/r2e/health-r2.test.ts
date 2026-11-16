@@ -195,12 +195,21 @@ describe('place-unreachable', () => {
     reset();
     const { state: s } = villageFixture();
     wall(s, 20, 20);
-    fake.places = [place({ id: 'seats:910', tile: tile(20, 20) })];
+    fake.places = [place({ id: 'seats:910', tile: tile(20, 20), members: [910] })];
     const w = new HealthWatch();
     expect(lookdays(w, s, 'place-unreachable', 0, DAY - HOUR)).toHaveLength(0);
     const issues = lookdays(w, s, 'place-unreachable', DAY, DAY);
     expect(issues).toHaveLength(1);
     expect(issues[0]!.text).toContain('seats:910');
+    reset();
+  });
+
+  it('passes by the skating ice and any place nobody built (no members), however far', () => {
+    reset();
+    const { state: s } = villageFixture();
+    wall(s, 20, 20);
+    fake.places = [place({ id: `ice:${tile(20, 20)}`, tile: tile(20, 20), source: 'host', def: 'ice' })];
+    expect(lookdays(new HealthWatch(), s, 'place-unreachable', 0, 3 * DAY)).toHaveLength(0);
     reset();
   });
 

@@ -522,6 +522,10 @@ export class HealthWatch {
       const reach = sources.length > 0 ? townReach(reader, sources, gateTiles(state.buildings)) : null;
       if (reach && reach.some((v) => v === 1)) {
         for (const p of places) {
+          // Only places made of pieces someone built: the skating ice is found at bank tiles all along
+          // the river (R2A, seasons' skatingSpots), many on a far bank no home reaches, and nobody built
+          // it there or can move it (R2A's branch flagged it on four seeds).
+          if (p.members.length === 0) continue;
           if (p.tiles.some((t) => reachesTile(reach, reader, t))) continue;
           live.add(p.id);
           const since = this.placeSince.get(p.id) ?? now;
