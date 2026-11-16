@@ -65,7 +65,7 @@ One row per cycle. A cycle is one agent session working from one brief on one br
 | R2B Evening trade | R2 | parallel | `cycle-r2b-evening-trade.md` | R2.0 | ready: branch from `cycle/r2x-integration` |
 | R2C Gaps and the evening's book | R2 | parallel | `cycle-r2c-gaps-book.md` | R2.0 | ready: branch from `cycle/r2x-integration` |
 | R2D The interface | R2 | parallel | `cycle-r2d-interface.md` | R2.0 | ready: branch from `cycle/r2x-integration` |
-| R2E The bench | R2 | parallel | `cycle-r2e-bench.md` | R2.0 | ready: branch from `cycle/r2x-integration` |
+| R2E The bench | R2 | parallel | `cycle-r2e-bench.md` | R2.0 | done on `cycle/r2e-bench`, PR into `cycle/r2x-integration`: the Hearth's places advisor and the Ledger's shops advisor, streets and a closed block for R2F's rows, the lanes test enforced, the outcome report (`npm run outcomes`), five R2 health kinds, stuck commands and stalled Hearth sites in the audit, the R2 bench scenes; numbers in the brief's As built |
 | R2F Lots for streets | R2 | parallel | `cycle-r2f-street-lots.md` | R2.0 | ready: branch from `cycle/r2x-integration` |
 | R2X R2 integration and tuning | R2 | integration | `cycle-r2x-integration.md` | R2A to R2F | waiting; merges the wave on `cycle/r2x-integration`, one PR into `main` |
 
