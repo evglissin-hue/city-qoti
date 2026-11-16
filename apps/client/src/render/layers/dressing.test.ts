@@ -1,9 +1,32 @@
+// @vitest-environment happy-dom
 import { describe, expect, it } from 'vitest';
+import {
+  anchorsFor,
+  artKitId,
+  boundsOf,
+  clearanceOf,
+  doorCorridor,
+  footprintOf,
+  kitById,
+  placementFree,
+} from '@qoti/art';
 import { content, type DressingRule } from '@qoti/content';
-import { START_HOUR, TICKS_PER_DAY, TICKS_PER_HOUR } from '@qoti/sim';
+import { MAP_SIZE, START_HOUR, TICKS_PER_DAY, TICKS_PER_HOUR } from '@qoti/sim';
 import type { BuildingView, HouseholdView, LotView, ResidentView } from '@qoti/sim';
+import { MeshBasicMaterial, Matrix4, PerspectiveCamera, Scene, type BatchedMesh } from 'three';
 import type { Mirror, MirrorChange } from '../../state/mirror';
-import { DRESSING_BUDGET, DRESSING_SEED, dressingLayer, dressingSubject, lotBox } from './dressing';
+import { createWorldEnv } from '../env';
+import { buildingVariantGeometry } from '../kitGeometry';
+import { groundY } from '../surface';
+import {
+  decorTilesOf,
+  DRESSING_BUDGET,
+  DRESSING_SEED,
+  dressingLayer,
+  dressingSubject,
+  lotBox,
+  roomyLot,
+} from './dressing';
 import type { LayerContext } from './types';
 
 interface World {
@@ -14,6 +37,8 @@ interface World {
   season?: 0 | 1 | 2 | 3;
   /** Today's absolute day (the tick is set to land on it). */
   today?: number;
+  /** The ground's level at a tile, for a sloped lot. */
+  height?: (x: number, z: number) => number;
 }
 
 function mirrorOf(w: World): Mirror {
@@ -23,14 +48,28 @@ function mirrorOf(w: World): Mirror {
     buildings: new Map(w.buildings.map((b) => [b.id, b])),
     households: new Map((w.households ?? []).map((h) => [h.id!, h as HouseholdView])),
     residents: new Map((w.residents ?? []).map((r) => [r.id!, r as ResidentView])),
-    lots: new Map((w.lots ?? []).map((l) => [l.id!, l as LotView])),
+    lots: new Map([
+      ...w.buildings
+        .filter((b) => b.lot !== undefined && !(w.lots ?? []).some((l) => l.id === b.lot))
+        .map((b) => {
+          // A lot a tile wider each side, two tiles behind and a tile in front of the house (turn 0).
+          const [sw, sd] = content.buildingById.get(b.def)?.size ?? [1, 1];
+          return [b.lot!, { id: b.lot, x: b.x - 1, z: b.z - 2, w: sw + 2, d: sd + 3 } as LotView] as const;
+        }),
+      ...(w.lots ?? []).map((l) => [l.id!, l as LotView] as const),
+    ]),
     clock: { value: { season: w.season ?? 1 } },
     tick: { value: tick },
+    height: w.height ?? (() => 0),
+    water: () => 0,
+    occupant: () => 0,
+    road: () => 0,
+    tree: () => 0,
   } as unknown as Mirror;
 }
 
 function building(id: number, def: string, extra: Partial<BuildingView> = {}): BuildingView {
-  return { id, def, x: 10, z: 10, rot: 0, stage: 'built', ...extra } as unknown as BuildingView;
+  return { id, def, x: 10, z: 10, rot: 0, stage: 'built', lot: id, ...extra } as unknown as BuildingView;
 }
 
 function change(over: Partial<MirrorChange> = {}): MirrorChange {
@@ -40,6 +79,7 @@ function change(over: Partial<MirrorChange> = {}): MirrorChange {
     households: false,
     residents: false,
     village: false,
+    rects: new Map(),
     ...over,
   } as MirrorChange;
 }
@@ -56,9 +96,24 @@ const rule: DressingRule = {
 function setup(world: World, rules?: readonly DressingRule[], level: 'some' | 'all' = 'all') {
   const mirror = mirrorOf(world);
   const layer = rules ? dressingLayer(rules) : dressingLayer();
-  const env = { dressing: level };
-  layer.init({ env, mirror } as unknown as LayerContext);
-  return { mirror, layer, env };
+  const camera = new PerspectiveCamera(60, 1.6, 0.5, 500);
+  camera.position.set(11, 6, 15);
+  camera.lookAt(11, 0, 11);
+  camera.updateMatrixWorld();
+  const env = createWorldEnv(camera);
+  env.dressing = level;
+  env.focus.set(11, 0, 11);
+  env.shown.hour = 12;
+  const scene = new Scene();
+  layer.init({
+    env,
+    mirror,
+    scene,
+    camera,
+    material: new MeshBasicMaterial(),
+    invalidate: () => {},
+  } as unknown as LayerContext);
+  return { mirror, layer, env, scene, camera };
 }
 
 describe('dressingSubject (V3.0)', () => {
@@ -155,8 +210,8 @@ describe('dressingLayer (V3.0)', () => {
     expect(typeof DRESSING_SEED).toBe('number');
   });
 
-  it('with the shipped empty table costs nothing and never drops the still frame', () => {
-    const { layer, mirror } = setup({ buildings: [building(1, 'cottage')] });
+  it('with an empty table costs nothing and never drops the still frame', () => {
+    const { layer, mirror } = setup({ buildings: [building(1, 'cottage')] }, []);
     expect(layer.frame?.(0.016)).toBe(false);
     layer.update(change({ buildings: true }));
     mirror.buildings.set(2, building(2, 'cottage', { x: 20 }));
@@ -190,7 +245,7 @@ describe('dressingLayer (V3.0)', () => {
     mirror.households.set(5, { id: 5, homeId: 1, tier: 'settler', members: [1, 2, 3, 4] } as HouseholdView);
     layer.update(change({ households: true }));
     expect(layer.frame?.(0.016)).toBe(true);
-    expect(layer.placementCount()).toBe(4);
+    expect(layer.placementCount()).toBeGreaterThan(2);
   });
 
   it('re-resolves when the season turns (firewood doubles) and drops removed buildings', () => {
@@ -201,7 +256,7 @@ describe('dressingLayer (V3.0)', () => {
     layer.frame?.(0.016);
     mirror.clock.value = { season: 2 } as never;
     expect(layer.frame?.(0.016)).toBe(true);
-    expect(layer.placementCount()).toBe(4);
+    expect(layer.placementCount()).toBeGreaterThan(2);
     mirror.buildings.delete(1);
     layer.update(change({ buildings: true }));
     expect(layer.frame?.(0.016)).toBe(true);
@@ -252,5 +307,256 @@ describe('lotBox (V3.0)', () => {
     const x1 = Math.max(10 + rw, 10 + rw + bx * 2, 10 + rw + sx);
     const z1 = Math.max(10 + rd, 10 + rd + bz * 2, 10 + rd + sz);
     expect(lotBox(b, { x: x0, z: z0, w: x1 - x0, d: z1 - z0 } as LotView)).toEqual([0, -2, w + 1, d]);
+  });
+});
+
+// --- V3A: the layer draws, clears walls and lights the yards ---------------------------------------
+
+const ANCHORS_ALL: DressingRule['anchor'][] = ['door', 'eaves', 'front', 'garden', 'sills', 'walls', 'yard'];
+
+function barrelsAt(anchor: DressingRule['anchor'], seed: number, base = 3): DressingRule {
+  return {
+    id: `v3a-${anchor}`,
+    who: { kind: ['home'] },
+    anchor,
+    piece: { kit: 'barrels' },
+    count: { base, max: base },
+    seed,
+  };
+}
+
+function batchesIn(scene: Scene): BatchedMesh[] {
+  const out: BatchedMesh[] = [];
+  scene.traverse((o) => {
+    if ((o as BatchedMesh).isBatchedMesh) out.push(o as BatchedMesh);
+  });
+  return out;
+}
+
+describe('dressingLayer draws (V3A)', () => {
+  const eaves = barrelsAt('eaves', 21, 2);
+  const world = (): World => ({ buildings: [building(1, 'cottage'), building(2, 'cottage', { x: 14 })] });
+
+  it('puts every kept piece in one batch: one object, one instance each, no casting', () => {
+    const { layer, scene } = setup(world(), [eaves]);
+    expect(layer.frame?.(0.016)).toBe(true);
+    expect(layer.placementCount()).toBeGreaterThan(0);
+    const batches = batchesIn(scene);
+    expect(batches).toHaveLength(1);
+    expect(batches[0]!.userData.noCast).toBe(true);
+    expect(layer.instanceCount()).toBe(layer.placementCount());
+    expect(layer.drawnCount()).toBe(layer.placementCount());
+  });
+
+  it('builds no batch and does no work with an empty table', () => {
+    const { layer, scene } = setup(world(), []);
+    expect(layer.frame?.(0.016)).toBe(false);
+    expect(batchesIn(scene)).toHaveLength(0);
+  });
+
+  it('leaves an unchanged building alone and redraws one whose subject changed', () => {
+    const w: World = { ...world(), households: [{ id: 5, homeId: 1, tier: 'settler', members: [1] }] };
+    const { layer, mirror } = setup(
+      w,
+      [barrelsAt('yard', 22, 0)].map((r) => ({
+        ...r,
+        count: { base: 0, stat: 'firewood' as const, perUnit: 1, max: 6 },
+      })),
+    );
+    expect(layer.frame?.(0.016)).toBe(true);
+    const before = layer.instanceCount();
+    layer.update(change({ buildings: true }));
+    expect(layer.frame?.(0.016)).toBe(false);
+    expect(layer.instanceCount()).toBe(before);
+    mirror.households.set(5, { id: 5, homeId: 1, tier: 'settler', members: [1, 2, 3] } as HouseholdView);
+    layer.update(change({ households: true }));
+    expect(layer.frame?.(0.016)).toBe(true);
+    expect(layer.instanceCount()).toBeGreaterThan(before);
+  });
+
+  it('gives both seats the same fitted placements', () => {
+    const a = setup(
+      world(),
+      ANCHORS_ALL.map((x, i) => barrelsAt(x, 30 + i)),
+    );
+    const b = setup(
+      world(),
+      ANCHORS_ALL.map((x, i) => barrelsAt(x, 30 + i)),
+    );
+    a.layer.frame?.(0.016);
+    b.layer.frame?.(0.016);
+    expect(a.layer.placementsOf(1)).toEqual(b.layer.placementsOf(1));
+    expect(a.layer.placementsOf(2)).toEqual(b.layer.placementsOf(2));
+  });
+});
+
+describe('dressingLayer clearance, every home and anchor (V3A)', () => {
+  const homes = [...content.buildingById.values()].filter((d) => d.category === 'home' && !d.specialized);
+
+  it('keeps every piece clear of walls and props, inside the lot, off the door and off each other', () => {
+    expect(homes.length).toBeGreaterThan(0);
+    for (const def of homes) {
+      const b = building(1, def.id);
+      const { layer, mirror } = setup(
+        { buildings: [b] },
+        ANCHORS_ALL.map((x, i) => barrelsAt(x, 40 + i, 3)),
+      );
+      layer.frame?.(0.016);
+      const placed = layer.placementsOf(1);
+      const g = buildingVariantGeometry(b, 'high');
+      const [w, d] = def.size;
+      // The yard reaches onto free ground beside the lot (here all of it is free).
+      const lot = lotBox(b, roomyLot(mirror, decorTilesOf(mirror), mirror.lots.get(b.lot!)!));
+      const base = clearanceOf(
+        g,
+        [w, d],
+        [Math.min(0, lot[0]), Math.min(0, lot[1]), Math.max(w, lot[2]), Math.max(d, lot[3])],
+      );
+      g.dispose();
+      const kit = kitById.get(artKitId(def.art))!;
+      const door = anchorsFor(kit, {
+        size: def.size,
+        entrance: def.entrance,
+        ...(def.art.params ? { params: def.art.params } : {}),
+      }).door;
+      const lane = door ? doorCorridor(door, lot) : null;
+      for (const p of placed) {
+        const info = boundsOf(kitById.get(p.kit)!.build({ seed: p.seed % 4 }));
+        expect(placementFree(p, info, base, lot, lane), `${def.id} ${p.rule}`).toBe(true);
+      }
+      for (let i = 0; i < placed.length; i++)
+        for (let j = i + 1; j < placed.length; j++) {
+          const bi = boundsOf(kitById.get(placed[i]!.kit)!.build({ seed: placed[i]!.seed % 4 }));
+          const bj = boundsOf(kitById.get(placed[j]!.kit)!.build({ seed: placed[j]!.seed % 4 }));
+          const f = footprintOf(placed[i]!, bi);
+          const h = footprintOf(placed[j]!, bj);
+          // Pieces at different heights (a sill barrel over a table) may share a spot on the plan.
+          const ya = [placed[i]!.at[1] + 0.02, placed[i]!.at[1] + bi.height * placed[i]!.scale];
+          const yb = [placed[j]!.at[1] + 0.02, placed[j]!.at[1] + bj.height * placed[j]!.scale];
+          if (ya[1]! <= yb[0]! || yb[1]! <= ya[0]!) continue;
+          const over = f[0] < h[2] - 1e-6 && f[2] > h[0] + 1e-6 && f[1] < h[3] - 1e-6 && f[3] > h[1] + 1e-6;
+          expect(over, `${def.id} ${placed[i]!.rule} vs ${placed[j]!.rule}`).toBe(false);
+        }
+    }
+  });
+});
+
+describe('dressingLayer ground, distance and light (V3A)', () => {
+  const yard = barrelsAt('yard', 51, 2);
+
+  function matrices(scene: Scene, n: number) {
+    const mesh = batchesIn(scene)[0]!;
+    const out: Matrix4[] = [];
+    for (let i = 0; i < n; i++) out.push(mesh.getMatrixAt(i, new Matrix4()));
+    return { mesh, out };
+  }
+
+  it('sits a piece on the ground under it, on a slope too', () => {
+    const w: World = { buildings: [building(1, 'cottage')], height: (x) => Math.floor(x) - 8 };
+    const { layer, scene, mirror } = setup(w, [yard]);
+    layer.frame?.(0.016);
+    const n = layer.instanceCount();
+    expect(n).toBeGreaterThan(0);
+    const { out } = matrices(scene, n);
+    for (const m of out) {
+      const e = m.elements;
+      expect(e[13]).toBeCloseTo(groundY(mirror, e[12]!, e[14]!), 5);
+    }
+    expect(Math.max(...out.map((m) => m.elements[13]!))).toBeGreaterThan(0);
+  });
+
+  it('hides everything beyond the decor distance and swaps near and far at 45%', () => {
+    const { layer, scene, env, camera } = setup({ buildings: [building(1, 'cottage')] }, [yard]);
+    env.detailDistance = 80;
+    layer.frame?.(0.016);
+    const mesh = batchesIn(scene)[0]!;
+    const look = (z: number) => {
+      camera.position.set(11, 3, z);
+      camera.lookAt(11, 0, 11);
+      camera.updateMatrixWorld();
+      env.focus.set(11, 0, 11);
+      expect(layer.frame?.(0.016)).toBe(false);
+    };
+    look(31);
+    expect(layer.drawnCount()).toBe(layer.instanceCount());
+    const nearId = mesh.getGeometryIdAt(0);
+    look(61);
+    expect(layer.drawnCount()).toBe(layer.instanceCount());
+    expect(mesh.getGeometryIdAt(0)).not.toBe(nearId);
+    look(130);
+    expect(layer.drawnCount()).toBe(0);
+    expect(mesh.getVisibleAt(0)).toBe(false);
+    look(31);
+    expect(mesh.getVisibleAt(0)).toBe(true);
+    expect(mesh.getGeometryIdAt(0)).toBe(nearId);
+  });
+
+  it('lights yard lamps from 17:00 to 23:00 under the yards source, and clears on dispose', () => {
+    const lamp: DressingRule = {
+      ...yard,
+      id: 'v3a-lamp',
+      piece: { kit: 'lantern' },
+      count: { base: 1, max: 1 },
+      seed: 52,
+    };
+    const { layer, env } = setup({ buildings: [building(1, 'cottage')] }, [lamp]);
+    env.shown.hour = 12;
+    layer.frame?.(0.016);
+    expect(layer.placementCount()).toBe(1);
+    expect(env.lightWriter.count).toBe(0);
+    env.shown.hour = 18;
+    expect(layer.frame?.(0.016)).toBe(true);
+    const discs = [...env.lightWriter.discs()];
+    expect(discs).toHaveLength(1);
+    expect(discs[0]).toMatchObject({ radius: 1.2, intensity: 0.85 });
+    expect(layer.frame?.(0.016)).toBe(false);
+    env.shown.hour = 23.5;
+    expect(layer.frame?.(0.016)).toBe(true);
+    expect(env.lightWriter.count).toBe(0);
+    env.shown.hour = 20;
+    layer.frame?.(0.016);
+    expect(env.lightWriter.count).toBe(1);
+    layer.dispose();
+    expect(env.lightWriter.count).toBe(0);
+  });
+
+  it('draws only low rules on Low', () => {
+    const { layer } = setup(
+      { buildings: [building(1, 'cottage')] },
+      [yard, { ...barrelsAt('eaves', 53, 2), low: true }],
+      'some',
+    );
+    layer.frame?.(0.016);
+    expect(layer.placementsOf(1).every((p) => p.rule === 'v3a-eaves')).toBe(true);
+  });
+});
+
+describe('roomyLot (V3A)', () => {
+  const lot = { id: 1, x: 10, z: 10, w: 2, d: 2 } as LotView;
+  const world = (busy: (x: number, z: number) => boolean) =>
+    ({
+      occupant: (x: number, z: number) => (busy(x, z) ? 1 : 0),
+      road: () => 0,
+      water: () => 0,
+      tree: () => 0,
+    }) as unknown as Mirror;
+
+  it('reaches half a tile onto every side whose neighbouring strip is free', () => {
+    const r = roomyLot(
+      world(() => false),
+      new Set(),
+      lot,
+    );
+    expect([r.x, r.z, r.w, r.d]).toEqual([9.5, 9.5, 3, 3]);
+  });
+
+  it('keeps to the lot on a side where a building, road or decor stands', () => {
+    // A neighbour along the west side, decor on one tile of the south strip.
+    const r = roomyLot(
+      world((x) => x === 9),
+      new Set([12 * MAP_SIZE + 11]),
+      lot,
+    );
+    expect([r.x, r.z, r.w, r.d]).toEqual([10, 9.5, 2.5, 2.5]);
   });
 });

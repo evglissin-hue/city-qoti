@@ -57,7 +57,7 @@ Carve-outs inside another track's file (each one function body, no signature cha
 
 | Kit | Anchor | Why the derived one is wrong | Wanted | Asked by | Landed by |
 |---|---|---|---|---|---|
-| (none yet) | | | | | |
+| (none: V3A fits every piece to the geometry the buildings layer draws, `fitPlacement` in `art/dressing.ts`, so no derived anchor needed overriding) | | | | V3A | |
 
 ## Handshakes
 
@@ -110,12 +110,13 @@ Nothing a rule reads is private to one seat: every stat is `scope: 'shared'`, an
 | Stand-in | Where | Replaced by | When |
 |---|---|---|---|
 | Rows joined from the occupant layer; no gardens, no corners, storeys 1 | `render/lots.ts` | R2's lot fields through the same `lotsFor` | R2X lands on `main` (no V3 edit) |
-| Firewood from household size and season; cloth from tier | `layers/dressing.ts` (`dressingSubject`) | the sim's own counts, if R2X adds them | R2X's list |
+| Firewood from household size and season; cloth from tier (V3A: as specified; R1X's grown village is all settlers, so it shows no washing) | `layers/dressing.ts` (`dressingSubject`) | the sim's own counts, if R2X adds them | R2X's list |
 | No place kinds | `DressingSubject.place` unset | R2's places in the Mirror | R2X |
 | The endpaper's inks unset | `EndpaperInks` | the flows overlay's goods routes and R2's `map.footfallEve` | whichever of V3X and R2X lands second |
 | No street names on the map | `endpaperInput` labels: the valley's name only | R2's street names (`state.streets`) | R2X |
 | A plain parchment endpaper, `cover` 0 | `worker/endpaper.worker.ts`, `ENDPAPER_ON` | the inked map, cover from 200 to 240 tiles | V3D |
-| The building's whole lot as the yard | `layers/dressing.ts` | V3B's free yard (`lots.ts`) | V3B, wired in V3X if V3A lands first |
+| The building's whole lot as the yard, reaching half a tile onto free neighbouring ground (`roomyLot`, `YARD_REACH`): grown kits fill their plots almost to the edge | `layers/dressing.ts` | V3B's free yard (`lots.ts`, `yardOf`) | V3B, wired in V3X if V3A lands first |
+| Puddles a day after rain from the client's memory of the last rainy day it saw (the Mirror keeps no weather history): a seat that loads on the morning after rain shows none that day | `render/groundPaths.ts` (the rain memory) | yesterday's weather (or a wetness) in the Mirror | R2X's list |
 | R1X's grown village as the before scene | `?debug&fixture=grown` | the village regrown on R2's lots | R2X regrows it |
 
 ## Ports

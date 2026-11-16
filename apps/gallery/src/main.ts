@@ -42,6 +42,7 @@ import { makeFigure, type Figure } from './figures';
 import { buildSeasons, SEASON_NAMES } from './seasons';
 import { buildSurfaces, SURFACE_ORDER } from './surfaces';
 import { buildTrades } from './trades';
+import { buildYards } from './yards';
 
 const q = new URLSearchParams(location.search);
 const renderer = new WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
@@ -704,6 +705,25 @@ if (sceneName === 'lineup') {
   ground.scale.setScalar(3);
   state.spin = false;
   info.textContent = `trades, levels 1 to 3 and far (triangles): ${counts.join(', ')}`;
+} else if (sceneName === 'yards') {
+  // V3A: the yard and goods pieces, near in front and far behind, then signs and goods tables.
+  const { group, size, counts } = buildYards(q, material, state.seed);
+  holder.add(group);
+  const dist = Number(q.get('dist') ?? (q.has('row') ? 3.2 : Math.max(size[0] * 0.5, size[1]) + 3));
+  const yaw = Number(q.get('yaw') ?? 0.1);
+  camera.position.set(
+    Math.sin(yaw) * dist,
+    dist * Number(q.get('pitch') ?? 0.5),
+    Math.cos(yaw) * dist + size[1] * 0.4,
+  );
+  controls.target.set(
+    Number(q.get('tx') ?? 0),
+    Number(q.get('ty') ?? 0.15),
+    Number(q.get('tz') ?? size[1] * 0.3),
+  );
+  ground.scale.setScalar(2);
+  state.spin = false;
+  info.textContent = `yards, near/far triangles: ${counts.join(', ')}`;
 } else if (sceneName === 'residents') {
   buildResidents();
   camera.position.set(0.1, 1.1, 3.6);
