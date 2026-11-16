@@ -215,7 +215,10 @@ class Land implements Advisor {
     const p = this.p;
     const w = this.w;
     if (this.core.length === 0 || this.blocks >= 2 || !hasInnovation(w, 'cobbles')) return;
-    if (this.lanes.length > 0 || day(w) < this.blockTried + 3) return;
+    // The village street first: every tile of it cobbled.
+    const streetValue = content.roadById.get('street')?.layerValue ?? 3;
+    if (this.core.some(([x, z]) => w.map.road[z * S + x]! < streetValue) || day(w) < this.blockTried + 3)
+      return;
     if (this.blocks === 1 && (!w.demand.lit[0] || growableLots(w).some((l) => !l.buildingId))) return;
     const tiles = 4 * (Math.max(...BLOCK_SIDES) - 1);
     if (

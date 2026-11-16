@@ -547,7 +547,6 @@ export const openGround = open;
 
 /** A ring of street with lots cut inside it on all four sides, leaving a hollow behind their backs. */
 export interface Block {
-  /** The ring's road tiles in walking order. */
   /** The street tiles to lay: the ring in walking order, then a short stub to the road it joins. */
   ring: [number, number][];
   /** Min corner and side length of the ring's square. */
