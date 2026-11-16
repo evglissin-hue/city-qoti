@@ -20,7 +20,7 @@ import {
   type Building,
   type WorldState,
 } from '@qoti/sim';
-import type { Planner } from '../planner';
+import { TIMBER_RESERVE, type Planner } from '../planner';
 import { walledIn } from '../rows';
 import { count, G, idx, S, sites } from '../town';
 import { wellFor } from './siting';
@@ -68,6 +68,10 @@ class Hearth implements Advisor {
     // wishes and left oak's Charter 18 days later; beds that wait behind the homes are nudged.
     if (this.w.buildings.filter((b) => b.def === 'garden-bed' && b.stage === 'construction').length >= 2)
       return false;
+    // Nor from the timber the homes need: a bed takes 4, and hazel's first week went without a home
+    // while its beds waited (the planner's timber reserve, kept for homes and sites).
+    const timber = TIMBER_RESERVE.get('timber') ?? 16;
+    if (townStock(this.w)[G('timber')]! < timber + 4) return false;
     const reader = worldIndex(this.w).reader;
     for (let r = 1; r <= 2; r++)
       for (let dz = -r - 1; dz <= r + 1; dz++)
@@ -123,7 +127,7 @@ class Hearth implements Advisor {
 
   /**
    * R2E: a site of the Hearth's own (a garden bed, a well, the tavern) with every material in and no
-   * work for four hours goes to the front of the builders' queue, once. Hazel's bed waited 48 hours behind
+   * work for half a day goes to the front of the builders' queue, once. Hazel's bed waited 48 hours behind
    * the homes; a player who asked for it would nudge it.
    */
   private nudgeSites(): void {
@@ -141,7 +145,7 @@ class Hearth implements Advisor {
         this.siteSeen.set(b.id, [c.workDone, w.tick]);
         continue;
       }
-      if (!c.priority && w.tick - last[1] >= 4 * TICKS_PER_HOUR)
+      if (!c.priority && w.tick - last[1] >= 12 * TICKS_PER_HOUR)
         this.p.do(`raise the ${b.def}`, [{ t: 'build.setPriority', id: b.id, priority: true }]);
     }
     for (const id of [...this.siteSeen.keys()]) if (!live.has(id)) this.siteSeen.delete(id);

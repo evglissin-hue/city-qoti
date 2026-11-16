@@ -21,7 +21,14 @@
 // them). Exits non-zero when a dead-end flag appears. 'wish-never-granted' (a template offered three
 // times or more and never granted) is a warning: it prints but does not fail.
 import { content } from '@qoti/content';
-import { achievable, calendar, TICKS_PER_DAY, type HealthIssue, type WorldState } from '@qoti/sim';
+import {
+  achievable,
+  BUILD_HOURS,
+  calendar,
+  TICKS_PER_HOUR,
+  type HealthIssue,
+  type WorldState,
+} from '@qoti/sim';
 import { writeFileSync } from 'node:fs';
 import { autoplay, type AutoplayOptions } from './autoplay';
 import { stuckCommands, STUCK_DAYS, type StuckCommand } from './decisions';
@@ -92,14 +99,23 @@ export interface AuditResult {
 /**
  * R2E's class check for the Hearth's own sites (a garden bed, a well, a tavern): stricter than the
  * game's site-stalled (two days), a Hearth-lane site with every material in and no work for a whole
- * day is the autoplayer leaving its own piece behind (hazel's garden bed waited 48 hours).
+ * working day (the builders' hours) is the autoplayer leaving its own piece behind (hazel's garden bed waited 48 hours).
  */
 export class HearthSites {
-  private readonly seen = new Map<number, [work: number, since: number]>();
+  /** Site id: work done when last seen, and the builders' working hours it has waited since. */
+  private readonly seen = new Map<number, [work: number, hours: number]>();
+  private lastHour = -1;
   readonly stalled: string[] = [];
   private readonly told = new Set<number>();
 
   look(w: WorldState): void {
+    // Hourly; a working day is the builders' hours (BUILD_HOURS), so a bed stocked at 18:00 is not
+    // charged for the night.
+    const hour = Math.floor(w.tick / TICKS_PER_HOUR);
+    if (hour === this.lastHour) return;
+    this.lastHour = hour;
+    const h = calendar(w.tick).hour;
+    const working = h >= BUILD_HOURS[0] && h < BUILD_HOURS[1];
     for (const b of w.buildings) {
       const c = b.rt?.construction;
       if (b.stage !== 'construction' || !c || b.rt?.paused) continue;
@@ -109,13 +125,16 @@ export class HearthSites {
       const allIn = c.needs.every((n) => n <= 0);
       const last = this.seen.get(b.id);
       if (!last || last[0] !== c.workDone || !allIn) {
-        this.seen.set(b.id, [c.workDone, w.tick]);
+        this.seen.set(b.id, [c.workDone, 0]);
         continue;
       }
-      if (w.tick - last[1] >= TICKS_PER_DAY && !this.told.has(b.id)) {
+      if (working) last[1]++;
+      // A site the Hearth put first and still waiting waits on busy builders (the game's own
+      // site-stalled, two days, catches that); the autoplayer's fault is a stocked site left un-nudged.
+      if (last[1] >= BUILD_HOURS[1] - BUILD_HOURS[0] && !c.priority && !this.told.has(b.id)) {
         this.told.add(b.id);
         this.stalled.push(
-          `${b.def} #${b.id} has had every material a day with no work (day ${calendar(w.tick).day})`,
+          `${b.def} #${b.id} has had every material a working day with no work and was never put first (day ${calendar(w.tick).day})`,
         );
       }
     }
