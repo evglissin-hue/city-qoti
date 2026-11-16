@@ -84,10 +84,18 @@ describe('the places advisor', () => {
     const planner = new Planner(run.hamlet);
     planner.advisor = { id: 'places', lane: 'hearth' };
     const advisor = places.create(planner);
-    const before = planner.decisions.length;
-    advisor.visit({ afternoon: false });
-    const sent = planner.decisions.slice(before);
-    expect(sent.length).toBeLessThanOrEqual(3 + 2);
+    // R2X: a Village with no tavern gets its tavern first, which can take a whole visit; the rows
+    // come on the next.
+    let sent: typeof planner.decisions = [];
+    for (let v = 0; v < 2; v++) {
+      if (w.economy.treasury < 50000) w.economy.treasury = 50000;
+      const before = planner.decisions.length;
+      advisor.visit({ afternoon: false });
+      const visit = planner.decisions.slice(before);
+      expect(visit.length).toBeLessThanOrEqual(3 + 2);
+      sent = visit;
+      if (visit.some((r) => r.ok && r.label.startsWith('bench'))) break;
+    }
     const benches = sent.filter((r) => r.ok && r.cmd.t === 'decor.place' && r.label.startsWith('bench'));
     expect(benches.length, planner.actions.join('\n')).toBeGreaterThanOrEqual(2);
     const spot = content.places.spotRadius;

@@ -216,10 +216,15 @@ class Places implements Advisor {
     return placesView(this.w).places;
   }
 
-  /** Whether a home has a place or seat within reach: live places when there are any, else the decor-derived seats. */
-  private served(h: Building, seats: { tile: number }[], live: { tile: number }[]): boolean {
+  /**
+   * Whether a home has somewhere to sit within reach: live places with seats when there are any (R2X:
+   * a well or a stall is a place with standing room only, and a row of benches is for sitting), else
+   * the decor-derived seats.
+   */
+  private served(h: Building, seats: { tile: number }[], live: { tile: number; seats: number }[]): boolean {
     const d = doorTile(h);
-    if (live.length > 0) return live.some((pl) => manhattan(pl.tile, d) <= content.places.radius);
+    if (live.length > 0)
+      return live.some((pl) => pl.seats > 0 && manhattan(pl.tile, d) <= content.places.radius);
     return seats.some((s) => manhattan(s.tile, d) <= HOME_REACH);
   }
 
@@ -267,23 +272,36 @@ class Places implements Advisor {
       this.row(doorTile(far) % S, Math.floor(doorTile(far) / S), Math.min(2, this.left()), 'near a home');
   }
 
-  /** Places up to `n` benches that sit within the spot radius of each other; returns how many went down. */
+  /**
+   * Places up to `n` benches that sit within the spot radius of each other; returns how many went
+   * down. R2X: the spots are found before any is sent, and a row asked for two or more that cannot
+   * fit two sends nothing (a lone bench is no row), so the caller tries the next cluster.
+   */
   private row(cx: number, cz: number, n: number, why: string): number {
     const reach = content.places.spotRadius - 0.5;
-    const placed: Pt[] = [];
+    const planned: Pt[] = [];
+    const taken = new Set<number>();
     for (let k = 0; k < n; k++) {
       const near = (x: number, z: number): boolean =>
+        !taken.has(idx(x, z)) &&
         this.nextToRoad(x, z) &&
-        placed.every(
+        planned.every(
           ([px, pz]) => (px / TILE_FP - 0.5 - x) ** 2 + (pz / TILE_FP - 0.5 - z) ** 2 <= reach * reach,
         );
-      const first = placed[0];
+      const first = planned[0];
       const [ax, az] = first ? [Math.floor(first[0] / TILE_FP), Math.floor(first[1] / TILE_FP)] : [cx, cz];
       const at = this.bestSpot('bench', ax, az, first ? Math.floor(reach) : 5, near);
-      if (!at || !this.place('bench', at, why)) break;
-      placed.push(at);
+      if (!at) break;
+      planned.push(at);
+      taken.add(idx(Math.floor(at[0] / TILE_FP), Math.floor(at[1] / TILE_FP)));
     }
-    return placed.length;
+    if (planned.length < Math.min(2, n)) return 0;
+    let placed = 0;
+    for (const at of planned) {
+      if (!this.place('bench', at, why)) break;
+      placed++;
+    }
+    return placed;
   }
 
   /** A place whose last evening's visitors beat 3x its seats gets another bench beside it. */
