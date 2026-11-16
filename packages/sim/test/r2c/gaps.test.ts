@@ -407,3 +407,36 @@ describe('ranks and evenings', () => {
     expect(f.state.gaps.streaks).toEqual([]);
   });
 });
+
+describe('a kind the town cannot meet yet', () => {
+  it('opens nothing and keeps its streak, while an open gap of that kind still closes', async () => {
+    const { keepGaps } = await import('../../src/systems/gaps/rules');
+    const { passTick } = await import('./harness');
+    const f = village();
+    const state = f.state;
+    const OTHER = 'seats:2';
+    setPlaces([
+      mkPlace(PROMENADE, 70 * S + 60, [f.b.stalls[0]]),
+      mkPlace(OTHER, 90 * S + 90, [f.b.stalls[0]]),
+    ]);
+    const ctx = newCtx(state);
+    // One qualifying evening the ordinary way, so the Promenade has a streak toward opening.
+    night(state, ctx, { day: 0, places: { [PROMENADE]: { v: 9 } } });
+    const open = openGap(state, ctx, 'nothingToSell', OTHER, 90 * S + 90, 9);
+    for (let i = 1; i <= CLOSE_AFTER; i++) {
+      // The Promenade still has nothing to sell; the other place is served.
+      for (const p of injected.places) {
+        const row = rowOf(state, p.id);
+        row.visitors.push(p.id === PROMENADE ? 9 : 2);
+        row.served.push(p.id === PROMENADE ? 0 : 1);
+        row.seenDay = i;
+      }
+      state.tick = passTick(i);
+      keepGaps({ state, ctx, changed: false }, () => false);
+    }
+    expect(findGap(state, 'nothingToSell', PROMENADE)).toBeUndefined();
+    expect(state.gaps.streaks.find((x) => x.subject === PROMENADE)?.n).toBe(1);
+    expect(findGap(state, 'nothingToSell', OTHER)).toBeUndefined();
+    expect(state.gaps.closed.map((g) => g.id)).toContain(open.id);
+  });
+});

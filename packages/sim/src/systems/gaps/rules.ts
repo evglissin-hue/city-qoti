@@ -25,6 +25,11 @@ export interface GapPass {
   state: WorldState;
   ctx: TickCtx;
   changed: boolean;
+  /**
+   * The rule being read may open a gap: the town can build what would close it (achievable.ts).
+   * When it cannot, its opening streaks hold as they are, and open gaps still close or drop.
+   */
+  canOpen?: boolean;
 }
 
 // --- streaks -------------------------------------------------------------------------------------
@@ -101,6 +106,13 @@ function advance(
   const gap = findGap(state, def.kind, subject);
   if (!gap) {
     if (!r.opens) return;
+    if (pass.canOpen === false) {
+      // Nothing the town can build would close it yet: keep the streak, open nothing.
+      const at = streakIndex(state, def.kind, subject);
+      const row = state.gaps.streaks[at];
+      if (row && row.kind === def.kind && row.subject === subject) held.add(subject);
+      return;
+    }
     if (bump(state, held, def.kind, subject) < def.openAfter) return;
     clearStreak(state, def.kind, subject);
     openGap(state, ctx, def.kind, subject, tile, r.n);
@@ -323,7 +335,11 @@ function nowhereToGo(pass: GapPass): void {
 
 /** Reads the three R2 rules once. The caller has checked rank, the evening and the weather. */
 export function keepGaps(pass: GapPass, achievable: (kind: GapKind) => boolean): void {
-  if (achievable('nothingToSell')) nothingToSell(pass);
-  if (achievable('nobodyPasses')) nobodyPasses(pass);
-  if (achievable('nowhereToGo')) nowhereToGo(pass);
+  pass.canOpen = achievable('nothingToSell');
+  nothingToSell(pass);
+  pass.canOpen = achievable('nobodyPasses');
+  nobodyPasses(pass);
+  pass.canOpen = achievable('nowhereToGo');
+  nowhereToGo(pass);
+  pass.canOpen = true;
 }
