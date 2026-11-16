@@ -9,7 +9,7 @@ export const PLACES: PlacesTuning = {
   eveningHour: 17,
   homeHour: 21,
   festivalHomeHour: 22,
-  planMinutes: 30,
+  planMinutes: 60,
   latePlanHour: 19,
   lingerPercent: 50,
   // Where places come from
