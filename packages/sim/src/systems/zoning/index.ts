@@ -45,6 +45,56 @@ function inputsKey(state: WorldState): string {
   ].join(':');
 }
 
+/** R2F: what the last pass saw, to tell when only grown buildings came since. */
+interface Seen {
+  version: number;
+  epoch: number;
+  decor: string;
+  buildings: number;
+  lastBuilding: number;
+  lots: number;
+  lastLot: number;
+}
+const lastSeen = new WeakMap<WorldState, Seen>();
+
+function seenNow(state: WorldState): Seen {
+  const b = state.buildings;
+  const l = state.lots;
+  return {
+    version: state.networkVersion,
+    epoch: zoneEpochs.get(state) ?? 0,
+    decor: decorKey(state),
+    buildings: b.length,
+    lastBuilding: b.length ? b[b.length - 1]!.id : 0,
+    lots: l.length,
+    lastLot: l.length ? l[l.length - 1]!.id : 0,
+  };
+}
+
+/**
+ * R2F: true when all that changed since the last pass is buildings grown on lots (each bumped the
+ * network version once and stands on lot tiles, its door on the road), so the street lots stand as
+ * they are and the pass need not cut them again. A client that just loaded has no memory and runs the
+ * whole pass, which finds the same lots (the pass is idempotent on these inputs).
+ */
+function onlyGrown(state: WorldState, was: Seen | undefined): boolean {
+  if (!was) return false;
+  const now = seenNow(state);
+  const added = now.buildings - was.buildings;
+  if (added <= 0 || now.version - was.version !== added) return false;
+  if (
+    now.epoch !== was.epoch ||
+    now.decor !== was.decor ||
+    now.lots !== was.lots ||
+    now.lastLot !== was.lastLot
+  )
+    return false;
+  const b = state.buildings;
+  if (b[was.buildings - 1]?.id !== was.lastBuilding && was.buildings > 0) return false;
+  for (let i = was.buildings; i < b.length; i++) if (!b[i]!.lot) return false;
+  return true;
+}
+
 export const zoning: System = {
   id: 'zoning',
   order: 24,
@@ -63,10 +113,11 @@ export const zoning: System = {
     if (lastKeys.get(state) === key) return;
     // Lots last checked against this same decor need not be checked again.
     const decor = decorKey(state);
-    const cut = zoningPass(state, ctx, lastDecor.get(state) !== decor);
+    const cut = zoningPass(state, ctx, lastDecor.get(state) !== decor, onlyGrown(state, lastSeen.get(state)));
     // R1B: the free lots changed, so the demand bars read again whether land waits for them.
     if (cut.added + cut.removed > 0) refreshDemand(state, ctx);
     lastDecor.set(state, decor);
     lastKeys.set(state, inputsKey(state));
+    lastSeen.set(state, seenNow(state));
   },
 };
