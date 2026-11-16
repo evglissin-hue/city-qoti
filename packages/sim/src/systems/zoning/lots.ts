@@ -526,25 +526,43 @@ export interface ZoningResult {
   removed: number;
 }
 
-/** True when a road tile on one of the lot's four sides is a street (or an avenue). */
-function besideStreet(state: WorldState, lot: Lot): boolean {
+/** R2F: the deepest lot any zone cuts along a street in rows (how far a street's frontage reaches back). */
+let streetReach = -1;
+function rowReach(): number {
+  if (streetReach < 0) {
+    streetReach = 0;
+    for (const z of content.zones) {
+      if (!z.roads?.street?.row) continue;
+      for (const l of z.roads.street.lots) streetReach = Math.max(streetReach, l.size[1]);
+    }
+  }
+  return streetReach;
+}
+
+/**
+ * True when a street (or an avenue) lies within a street lot's depth of the lot, so a row along it
+ * may want the lot's ground (a lot cut by a lane before the street came stands in its way).
+ */
+function nearStreet(state: WorldState, lot: Lot): boolean {
   const road = state.map.road;
-  const at = (x: number, z: number): boolean =>
-    x >= 0 && z >= 0 && x < S && z < S && isStreet(road[z * S + x]!);
-  for (let x = lot.x; x < lot.x + lot.w; x++) if (at(x, lot.z - 1) || at(x, lot.z + lot.d)) return true;
-  for (let z = lot.z; z < lot.z + lot.d; z++) if (at(lot.x - 1, z) || at(lot.x + lot.w, z)) return true;
+  const r = rowReach();
+  const x0 = Math.max(0, lot.x - r);
+  const z0 = Math.max(0, lot.z - r);
+  const x1 = Math.min(S - 1, lot.x + lot.w - 1 + r);
+  const z1 = Math.min(S - 1, lot.z + lot.d - 1 + r);
+  for (let z = z0; z <= z1; z++) for (let x = x0; x <= x1; x++) if (isStreet(road[z * S + x]!)) return true;
   return false;
 }
 
 /**
  * R2F: an empty lot a street manages, cut again every pass: a garden, a row lot, or an empty lot of a
- * row zone beside a street (cut before the street came, or by a lane at its corner). None exist in a
- * town with no streets.
+ * row zone within a street lot's depth of a street (cut before the street came, or by a lane at its
+ * corner). None exist in a town with no streets.
  */
 function managed(state: WorldState, lot: Lot): boolean {
   if (lot.buildingId) return false;
   if (lot.kind === 'garden' || lot.row !== 0) return true;
-  return rowZone(lot.zone) && besideStreet(state, lot);
+  return rowZone(lot.zone) && nearStreet(state, lot);
 }
 
 /** R2F: lifts the managed empty lots off the lot layer, keyed by where they stood. */
@@ -620,6 +638,9 @@ function secondFrontage(state: WorldState, lot: Lot): number {
     const inside = a < a0 ? a0 : a0 + width(lot) - 1;
     const [fx, fz] = tileAt(lot, a, 0);
     if (fx < 0 || fz < 0 || fx >= S || fz >= S || m.road[fz * S + fx]! < Road.lane) continue;
+    // The entrance stays on the busier road: a busier cross road that did not cut this lot (a stub
+    // too short for a lot of its own) makes no corner of it.
+    if (m.road[fz * S + fx]! > m.road[lot.frontage]!) continue;
     for (const k of [(depth(lot) - 1) >> 1, 0]) {
       const [rx, rz] = tileAt(lot, a, k);
       const [ix, iz] = tileAt(lot, inside, k);
@@ -893,9 +914,15 @@ function addGarden(
  * lots, round after round until nothing more fits, so a second pass right after finds nothing.
  * `decorMoved` false skips looking for decor on lots that were clear of it when last checked (the
  * caller knows no decor came or went since). R2F: the empty lots streets manage are lifted first and
- * cut again with the rest, then rows are numbered, corners marked and gardens found.
+ * cut again with the rest, then rows are numbered, corners marked and gardens found; `streetsSettled`
+ * (only buildings grown on lots came since the last pass) leaves them standing.
  */
-export function zoningPass(state: WorldState, ctx: TickCtx | null, decorMoved = true): ZoningResult {
+export function zoningPass(
+  state: WorldState,
+  ctx: TickCtx | null,
+  decorMoved = true,
+  streetsSettled = false,
+): ZoningResult {
   let removed = 0;
   for (const lot of [...state.lots]) {
     if (lot.buildingId || lot.kind === 'garden') continue;
@@ -903,11 +930,14 @@ export function zoningPass(state: WorldState, ctx: TickCtx | null, decorMoved = 
     dropLot(state, ctx, lot);
     removed++;
   }
+  // R2F: when only buildings grown on lots came since the last pass (the caller knows), the street
+  // lots stand as they would be cut again, so they stay down unless this pass dropped one.
+  const settled = streetsSettled && removed === 0;
   const added: Lot[] = [];
   const changed = new Set<Lot>();
-  let gardens: Lot[];
+  let gardens: Lot[] = [];
   try {
-    const up = liftManaged(state);
+    const up = settled ? [] : liftManaged(state);
     // Zoned tiles outside any lot: the only places a new lot can start.
     const zoned: number[] = [];
     const zone = state.map.zone;
@@ -927,8 +957,10 @@ export function zoningPass(state: WorldState, ctx: TickCtx | null, decorMoved = 
       }
     }
     removed += dropUnused(state, ctx, up, false);
-    assignRows(state, changed);
-    gardens = planGardens(state, ctx, changed);
+    if (!settled || added.length > 0) {
+      assignRows(state, changed);
+      gardens = planGardens(state, ctx, changed);
+    }
     removed += dropUnused(state, ctx, up, true);
   } finally {
     lifted.clear();
