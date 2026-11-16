@@ -24,7 +24,6 @@ import type {
   LetterView,
   LoansView,
   Lot,
-  LotView,
   MarketView,
   Plan,
   PlanView,
@@ -48,6 +47,9 @@ import { basketGroups } from '../systems/market/baskets';
 import { targetPrice } from '../systems/market/prices';
 import { profitReport } from '../systems/market/profit';
 import { charmAt } from '../conditions';
+
+// R2 (R2.0): lotView moved to view/lots.ts (R2F's in the wave); re-exported for its callers.
+export { lotView } from './lots';
 
 const goodId = (i: number): string => content.goods[i]?.id ?? '';
 
@@ -194,21 +196,6 @@ export function loansView(state: WorldState): LoansView {
     loans: state.loans.loans.map((l) => ({ ...l })),
     owed,
     available: Math.max(0, creditLimit(state) - owed),
-  };
-}
-
-export function lotView(lot: Lot): LotView {
-  return {
-    id: lot.id,
-    zone: content.zoneByValue.get(lot.zone)?.id ?? '',
-    x: lot.x,
-    z: lot.z,
-    w: lot.w,
-    d: lot.d,
-    rot: lot.rot,
-    desirability: lot.desirability,
-    style: lot.style,
-    buildingId: lot.buildingId,
   };
 }
 

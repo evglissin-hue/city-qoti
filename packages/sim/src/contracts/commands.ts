@@ -134,7 +134,14 @@ export type Command =
   /** Pick up a decor piece and set it down elsewhere, keeping its identity (12-hearth.md, Move). */
   | { t: 'decor.move'; id: EntityId; fx: number; fz: number; rot: number }
   /** Move a hand-placed building: the builders take it down and raise it again for a third of its work. */
-  | { t: 'build.move'; id: EntityId; x: number; z: number; rot: Rot4 };
+  | { t: 'build.move'; id: EntityId; x: number; z: number; rot: Rot4 }
+  // R2 (R2.0). docs/spec/20-architecture.md, "R2 contracts"; docs/spec/19-evenings.md.
+  /** Mark road tiles an evening street (closed to carts 17:00 to 21:00), or clear them. Max 256 tiles. */
+  | { t: 'road.setEvening'; tiles: [number, number][]; on: boolean }
+  /** Rename a street (state.streets id); an empty name brings back the generated one. */
+  | { t: 'road.rename'; id: EntityId; name: string }
+  /** Rename a place (its PlaceId); an empty name brings back the generated one. */
+  | { t: 'place.rename'; id: string; name: string };
 
 /**
  * Customization fields (all optional; null clears a field back to the kit default). Swatch values

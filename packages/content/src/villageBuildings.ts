@@ -109,6 +109,7 @@ export const school: BuildingDef = {
 /** Social cover for 60 residents within 10 tiles; pours cider of an evening. */
 export const tavern: BuildingDef = {
   id: 'tavern',
+  host: { seats: 12, standing: 0, kinds: ['sit', 'eat', 'meet'], sheltered: true, warm: true },
   name: 'Tavern',
   lane: 'shared',
   category: 'service',
@@ -223,6 +224,7 @@ export const tradingPost: BuildingDef = {
  */
 export const marketSquare: BuildingDef = {
   id: 'market-square',
+  host: { seats: 0, standing: 12, kinds: ['meet', 'eat'] },
   name: 'Market square',
   lane: 'shared',
   category: 'service',

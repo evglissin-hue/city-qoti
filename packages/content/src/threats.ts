@@ -96,6 +96,7 @@ export const gateBanner: DecorDef = {
 /** Watch Lookout unlocks a bench with a spyglass on a post beside it. */
 export const lookoutBench: DecorDef = {
   id: 'lookout-bench',
+  seats: 2,
   name: 'Lookout bench',
   lane: 'hearth',
   radius: 48,

@@ -64,6 +64,7 @@ import {
 export * from './hamlet';
 export * from './village';
 import { balancesView, businessesView, demandView } from './zones';
+import { eveningView, footfallView, gapsView, placesView, streetViews } from './evenings';
 
 export function clockView(state: WorldState): ClockView {
   return { tick: state.tick, speed: effectiveSpeed(state), ...calendar(state.tick) };
@@ -89,6 +90,7 @@ export function buildingView(b: Building): BuildingView {
   if (b.trade) view.trade = b.trade;
   if (b.level && b.level > 1) view.level = b.level;
   if (b.keeperId) view.keeperId = b.keeperId;
+  if (b.storeys !== undefined) view.storeys = b.storeys;
   return view;
 }
 
@@ -146,7 +148,7 @@ export function buildView(state: WorldState): ViewSnapshot {
     market: marketView(state),
     levers: leversView(state),
     loans: loansView(state),
-    lots: state.lots.map(lotView),
+    lots: state.lots.map((l) => lotView(l, state)),
     trade: tradeView(state),
     charter: charterView(state),
     innovations: state.innovations.map((i) => innovationView(state, i.id)),
@@ -173,5 +175,11 @@ export function buildView(state: WorldState): ViewSnapshot {
     demand: demandView(state),
     balances: balancesView(state),
     businesses: businessesView(state),
+    // R2 (R2.0)
+    places: placesView(state),
+    gaps: gapsView(state),
+    evening: eveningView(state),
+    streets: streetViews(state),
+    footfall: footfallView(state),
   };
 }

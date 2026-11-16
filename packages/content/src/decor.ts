@@ -26,6 +26,7 @@ export const barrels: DecorDef = {
 
 export const bench: DecorDef = {
   id: 'bench',
+  seats: 2,
   name: 'Bench',
   lane: 'hearth',
   radius: 48,
@@ -105,6 +106,7 @@ export const lantern: DecorDef = {
 
 export const lowWall: DecorDef = {
   id: 'low-wall',
+  seats: 1,
   name: 'Low wall',
   lane: 'ledger',
   radius: 32,
@@ -151,6 +153,7 @@ export const birdbath: DecorDef = {
 
 export const curvedBench: DecorDef = {
   id: 'curved-bench',
+  seats: 3,
   name: 'Curved bench',
   lane: 'hearth',
   radius: 72,
@@ -198,6 +201,7 @@ export const mooringPost: DecorDef = {
 
 export const planterWall: DecorDef = {
   id: 'planter-wall',
+  seats: 1,
   name: 'Planter wall',
   lane: 'hearth',
   radius: 64,
@@ -211,6 +215,7 @@ export const planterWall: DecorDef = {
 
 export const ringBench: DecorDef = {
   id: 'ring-bench',
+  seats: 4,
   name: 'Ring bench',
   lane: 'hearth',
   radius: 96,

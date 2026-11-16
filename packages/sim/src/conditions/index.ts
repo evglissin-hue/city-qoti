@@ -228,7 +228,9 @@ export function countOf(state: WorldState, what: string, ref?: string): number {
       return n;
     }
     case 'requestsFulfilled':
-      return state.village.requestsFulfilled;
+      // R2 (R2C): gaps are the requests the town writes itself, and a closed one counts where a
+      // fulfilled request did (19-evenings.md, Gaps: Together goals, Odette's arc, the guide).
+      return state.village.requestsFulfilled + state.gaps.closedCount;
     case 'goodsAtMarket':
       return goodsAtMarket(state);
     case 'innovations': {
@@ -272,6 +274,18 @@ export function countOf(state: WorldState, what: string, ref?: string): number {
       return foodFlavorCount(state, ref);
     case 'importFreeWinters':
       return state.seasons.importFreeWinters ?? 0;
+    // R2 (R2C): the gaps pass keeps these (systems/gaps).
+    case 'gapsClosed':
+      return state.gaps.closedCount;
+    case 'gapsClosedEachSeat':
+      // The pair's two seats: the one that has closed fewer.
+      return Math.min(state.gaps.closedBySeat[0] ?? 0, state.gaps.closedBySeat[1] ?? 0);
+    case 'eveningsOut':
+      return state.evenings.outRun;
+    case 'eveningsAllOut':
+      return state.evenings.allOut;
+    case 'seatedSeasons':
+      return state.evenings.seatedSeasons;
     default:
       return 0;
   }

@@ -3,16 +3,19 @@
 // arrivals every two hours from 08:00 to 16:00, departures at 09:00, friendships hourly at an offset, each household's needs
 // (and its daily friendship chores) once an hour at its own tick, and each resident's schedule
 // every THINK_EVERY ticks at its own.
+import { content } from '@qoti/content';
 import { ResidentFlags } from '../../constants';
 import type { Resident, System, TickCtx, WorldState } from '../../contracts';
 import { isStandard } from '../../state/hamlet';
 import { modifierValue } from './api';
 import { decayFriendships, greetNeighbors, hourlyFriendships } from './friends';
 import { assignJobs, auditJobs, rebalanceJobs } from './jobs';
+import { closeEvening } from './evening';
 import { lifeEvening, lifeMorning } from './life';
 import { arrivals, attractiveness, departures, morningPass, rehouse, thinkLeaving } from './lifecycle';
 import { eatBreakfast, updateHouseholdNeeds } from './needs';
 import { syncResident } from './records';
+import { startEvening } from './round';
 import { THINK_EVERY, think, thinkArrival } from './schedule';
 import { HOUR, at, tickOfDay } from './time';
 
@@ -31,6 +34,12 @@ const ARRIVALS_EVERY = 2 * HOUR;
 const DEPARTURES = at(9);
 /** Weddings (C4D): the festival evening, or the couple's own chosen evening. */
 const WEDDINGS = at(18);
+/**
+ * R2 (R2.0): the evening round's two fixed moments (content.places.eveningHour and homeHour; R2A
+ * starts the evening, R2B closes it). Read once: content does not change while the sim runs.
+ */
+const EVENING = at(content.places.eveningHour);
+const HOME = at(content.places.homeHour);
 /** Friendships fade in the morning and neighbors wave over the fence in the evening. */
 const MORNING_HOUR = 6;
 const EVENING_HOUR = 18;
@@ -60,6 +69,8 @@ export function residentsTick(state: WorldState, ctx: TickCtx): void {
   }
   if (tod === DEPARTURES) departures(state, ctx);
   if (tod === WEDDINGS) lifeEvening(state, ctx);
+  if (tod === EVENING) startEvening(state, ctx);
+  if (tod === HOME) closeEvening(state, ctx);
   if (t % UPKEEP_EVERY === 0) {
     rehouse(state, ctx);
     auditJobs(state, ctx);

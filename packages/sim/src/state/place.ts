@@ -20,6 +20,8 @@ export interface InsertOptions {
   style?: string;
   /** R1 (R1.0): a business of this trade (content trade id), at level 1 with no keeper yet. */
   trade?: string;
+  /** R2 (R2.0): a grown building's storeys (Building.storeys), chosen by the lot pass. */
+  storeys?: number;
 }
 
 export function insertBuilding(
@@ -46,6 +48,7 @@ export function insertBuilding(
   };
   if (opts.lot) b.lot = opts.lot;
   if (opts.style) b.style = opts.style;
+  if (opts.storeys !== undefined) b.storeys = opts.storeys;
   if (opts.trade) {
     b.trade = opts.trade;
     b.keeperId = 0;

@@ -155,6 +155,7 @@ describe('content', () => {
         'lookout-bench',
         // I3 (C5.0): festival pieces
         'bonfire',
+        'brazier',
         'bunting',
         'festival-stage',
         'festival-stall',
@@ -354,8 +355,8 @@ describe('I1 content', () => {
     // P1 (playtest): A Second Well joined the twelve I1 wishes.
     expect(wishes).toHaveLength(13);
     expect(patterns).toHaveLength(20);
-    // R1 (R1D): Market Day, A Winter Without Imports, A Town That Builds Itself, Porridge No More.
-    expect(achievements).toHaveLength(20);
+    // R2.0 adds three evening feats. R1 (R1D): Market Day, A Winter Without Imports, A Town That Builds Itself, Porridge No More.
+    expect(achievements).toHaveLength(23);
     for (const w of wishes) {
       for (const ref of [...conditionRefs(w.when), ...conditionRefs(w.target)]) {
         expect(known(ref), `${w.id} ${ref}`).toBe(true);
@@ -371,6 +372,8 @@ describe('I1 content', () => {
       for (const ref of conditionRefs(a.condition)) expect(known(ref), `${a.id} ${ref}`).toBe(true);
     }
     const unlockable = new Set(patterns.flatMap((p) => p.unlocks));
+    // R2.0: a charter's unlock list opens pieces too (the brazier, from Village rank).
+    for (const c of content.charters) for (const u of c.unlocks) unlockable.add(u);
     // Festival pieces [I3] are placed by the festival planner, not unlocked by a pattern. The
     // callings' signature pieces [P1] wait, locked, for R3 to bring callings back earned.
     for (const d of decor.filter((x) => x.locked && !x.festival && !x.tags.includes('calling')))

@@ -1,9 +1,10 @@
 import { Gunzip, gunzipSync, gzipSync, strFromU8, strToU8 } from 'fflate';
 import { MAP_SIZE } from '../constants';
-import type { LayerName, MapLayers, WorldState } from '../contracts';
-import { createLayers, INT32_LAYERS, LAYER_NAMES } from '../map/layers';
+import type { LayerName, MapLayers, Uint16LayerName, WorldState } from '../contracts';
+import { createLayers, INT32_LAYERS, LAYER_NAMES, UINT16_LAYERS } from '../map/layers';
 import { RNG_STREAMS } from '../rng/streams';
 import { base64ToBytes, bytesToBase64, bytesToWords, wordsToBytes } from './base64';
+import { byPlaceId } from './evenings';
 import { checkSaveVersion, type SaveObject } from './version';
 
 // Save format: JSON where typed arrays are base64 (little-endian), then gzip. fflate keeps
@@ -18,7 +19,8 @@ interface SaveFile {
   time: WorldState['time'];
   rng: string;
   nextId: number;
-  map: Record<LayerName, string>;
+  /** R2 (R2.0): the Uint16 layers (UINT16_LAYERS) sit beside the others, little-endian. */
+  map: Record<LayerName | Uint16LayerName, string>;
   meta: WorldState['meta'];
   seats: WorldState['seats'];
   buildings: WorldState['buildings'];
@@ -65,14 +67,20 @@ interface SaveFile {
   carrier: WorldState['carrier'];
   seasonPlan: WorldState['seasonPlan'];
   demand: WorldState['demand'];
+  // R2 (R2.0)
+  places: WorldState['places'];
+  gaps: WorldState['gaps'];
+  streets: WorldState['streets'];
+  evenings: WorldState['evenings'];
 }
 
 export function serialize(state: WorldState): Uint8Array {
-  const map = {} as Record<LayerName, string>;
+  const map = {} as Record<LayerName | Uint16LayerName, string>;
   for (const name of LAYER_NAMES) {
     const layer = state.map[name];
     map[name] = bytesToBase64(layer instanceof Int32Array ? wordsToBytes(layer) : layer);
   }
+  for (const name of UINT16_LAYERS) map[name] = bytesToBase64(u16ToBytes(state.map[name]));
   const save: SaveFile = {
     saveVersion: state.saveVersion,
     seed: state.seed,
@@ -126,6 +134,10 @@ export function serialize(state: WorldState): Uint8Array {
     carrier: state.carrier,
     seasonPlan: state.seasonPlan,
     demand: state.demand,
+    places: state.places,
+    gaps: state.gaps,
+    streets: state.streets,
+    evenings: state.evenings,
   };
   // mtime 0 keeps the bytes a pure function of the state.
   return gzipSync(strToU8(JSON.stringify(save)), { level: 6, mtime: 0 });
@@ -173,6 +185,13 @@ function build(save: SaveFile): WorldState {
       if (bytes.length !== n) throw new Error(`Layer ${name} has the wrong size`);
       (map[name] as Uint8Array).set(bytes);
     }
+  }
+  for (const name of UINT16_LAYERS) {
+    const encoded = save.map[name];
+    if (typeof encoded !== 'string') throw new Error(`Save is missing layer ${name}`);
+    const bytes = base64ToBytes(encoded);
+    if (bytes.length !== n * 2) throw new Error(`Layer ${name} has the wrong size`);
+    bytesToU16(bytes, map[name]);
   }
   const rngBytes = base64ToBytes(save.rng);
   if (rngBytes.length !== RNG_STREAMS.length * 16) throw new Error('Save has the wrong RNG size');
@@ -230,5 +249,24 @@ function build(save: SaveFile): WorldState {
     carrier: save.carrier,
     seasonPlan: save.seasonPlan,
     demand: save.demand,
+    places: [...save.places].sort(byPlaceId),
+    gaps: { ...save.gaps, open: [...save.gaps.open].sort(byId) },
+    streets: [...save.streets].sort(byId),
+    evenings: save.evenings,
   };
+}
+
+/** Little-endian bytes of a Uint16 layer (saves read the same on any machine). */
+function u16ToBytes(layer: Uint16Array): Uint8Array {
+  const out = new Uint8Array(layer.length * 2);
+  for (let i = 0; i < layer.length; i++) {
+    const v = layer[i]!;
+    out[i * 2] = v & 0xff;
+    out[i * 2 + 1] = v >>> 8;
+  }
+  return out;
+}
+
+function bytesToU16(bytes: Uint8Array, into: Uint16Array): void {
+  for (let i = 0; i < into.length; i++) into[i] = bytes[i * 2]! | (bytes[i * 2 + 1]! << 8);
 }
