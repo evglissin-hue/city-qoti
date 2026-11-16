@@ -35,7 +35,8 @@ import { content, type LotDef, type RoadLotsDef } from '@qoti/content';
 import { DECOR_BUILDING_MARGIN, MAP_SIZE, TILE_FP, Zone } from '../../constants';
 import type { Lot, Rot4, TickCtx, WorldState } from '../../contracts';
 import { Road } from '../../map/layers';
-import { inClearance } from '../../rules/clearance';
+import { inClearance, MAX_CLEAR } from '../../rules/clearance';
+import { footprintSize } from '../../rules/footprint';
 import { decorRadius, distSqToRect, MAX_DECOR_RADIUS } from '../../rules/geometry';
 import { removeById } from '../../state/entities';
 import { worldIndex } from '../../state/worldIndex';
@@ -120,6 +121,48 @@ function markReserved(state: WorldState): void {
     const door = doorTile(b);
     if (door >= 0 && door < N && !road[door]) reserve(door);
   }
+}
+
+/**
+ * R2F: the pass's windmill clearance as a tile mask (marked: within some openGround building's
+ * clearance), built once a pass, so the many shapes a street tries ask one array instead of
+ * `inClearance`'s ring of occupant reads. Same answer: a rect is in clearance when one of its tiles is.
+ */
+const clearMask = new Uint8Array(N);
+const clearList: number[] = [];
+let clearReady = false;
+
+function buildClearMask(state: WorldState): void {
+  clearReady = true;
+  if (MAX_CLEAR <= 0) return;
+  for (const b of state.buildings) {
+    const def = content.buildingById.get(b.def);
+    const rule = def?.placement?.find((r) => r.kind === 'openGround');
+    if (!def || !rule || rule.kind !== 'openGround') continue;
+    const [w, d] = footprintSize(def, b.rot);
+    const c = rule.clear;
+    for (let z = Math.max(0, b.z - c); z <= Math.min(S - 1, b.z + d - 1 + c); z++) {
+      for (let x = Math.max(0, b.x - c); x <= Math.min(S - 1, b.x + w - 1 + c); x++) {
+        const i = z * S + x;
+        if (!clearMask[i]) clearList.push(i);
+        clearMask[i] = 1;
+      }
+    }
+  }
+}
+
+function clearClearMask(): void {
+  for (const i of clearList) clearMask[i] = 0;
+  clearList.length = 0;
+  clearReady = false;
+}
+
+/** True when the rect lies within a windmill's clearance (the mask while a pass holds one). */
+function cleared(state: WorldState, x0: number, z0: number, w: number, d: number): boolean {
+  if (!clearReady) return inClearance(worldIndex(state).reader, x0, z0, w, d);
+  if (clearList.length === 0) return false;
+  for (let z = z0; z < z0 + d; z++) for (let x = x0; x < x0 + w; x++) if (clearMask[z * S + x]) return true;
+  return false;
 }
 
 /** True when a tile may become part of a lot of `zone`. */
@@ -254,7 +297,7 @@ function fits(state: WorldState, zone: number, x0: number, z0: number, w: number
   }
   if (hi - lo > 1) return false;
   // A windmill keeps its open ground: no lot inside its clearance.
-  if (inClearance(reader, x0, z0, w, d)) return false;
+  if (cleared(state, x0, z0, w, d)) return false;
   return !swallowsDecor(state, x0, z0, w, d);
 }
 
@@ -503,7 +546,7 @@ function stillValid(state: WorldState, lot: Lot, decorMoved: boolean): boolean {
       if (h > hi) hi = h;
     }
   }
-  if (hi - lo > 1 || inClearance(worldIndex(state).reader, lot.x, lot.z, lot.w, lot.d)) return false;
+  if (hi - lo > 1 || cleared(state, lot.x, lot.z, lot.w, lot.d)) return false;
   return !decorMoved || !swallowsDecor(state, lot.x, lot.z, lot.w, lot.d);
 }
 
@@ -566,12 +609,9 @@ function managed(state: WorldState, lot: Lot): boolean {
 }
 
 /** R2F: lifts the managed empty lots off the lot layer, keyed by where they stood. */
-function liftManaged(state: WorldState): Lot[] {
-  const out: Lot[] = [];
+function liftManaged(state: WorldState, lots: readonly Lot[]): void {
   const layer = state.map.lot;
-  for (const lot of state.lots) {
-    if (!managed(state, lot)) continue;
-    out.push(lot);
+  for (const lot of lots) {
     const key =
       lot.kind === 'garden'
         ? gardenKey(lot.x, lot.z, lot.w, lot.d)
@@ -581,7 +621,6 @@ function liftManaged(state: WorldState): Lot[] {
       for (let x = lot.x; x < lot.x + lot.w; x++) if (layer[z * S + x] === lot.id) layer[z * S + x] = 0;
     }
   }
-  return out;
 }
 
 /** R2F: removes the lifted lots of one kind that were not cut again in place. Returns how many. */
@@ -831,24 +870,21 @@ function gardensOf(
   changed: Set<Lot>,
   added: Lot[],
 ): void {
-  const inHollow = new Set(tiles);
-  const used = new Set<number>();
-  const sorted = [...tiles].sort((p, q) => p - q);
+  // The hollow's tiles are marked 1 in seenMark; a tile given to a garden is marked 3.
+  const open = (i: number): boolean => seenMark[i] === 1;
+  const sorted = tiles.slice().sort((p, q) => p - q);
   for (const t of sorted) {
-    if (used.has(t)) continue;
+    if (!open(t)) continue;
     const x0 = t % S;
     const z0 = (t - x0) / S;
     let w = 1;
-    while (w < GARDEN_MAX_SIDE && x0 + w < S && inHollow.has(t + w) && !used.has(t + w)) w++;
+    while (w < GARDEN_MAX_SIDE && x0 + w < S && open(t + w)) w++;
     let d = 1;
     grow: while (d < GARDEN_MAX_SIDE && z0 + d < S) {
-      for (let x = 0; x < w; x++) {
-        const i = (z0 + d) * S + x0 + x;
-        if (!inHollow.has(i) || used.has(i)) break grow;
-      }
+      for (let x = 0; x < w; x++) if (!open((z0 + d) * S + x0 + x)) break grow;
       d++;
     }
-    for (let z = z0; z < z0 + d; z++) for (let x = x0; x < x0 + w; x++) used.add(z * S + x);
+    for (let z = z0; z < z0 + d; z++) for (let x = x0; x < x0 + w; x++) seenMark[z * S + x] = 3;
     // The row lot it backs onto: the first along its edge, else the one that found the hollow.
     let owner: Lot | undefined;
     for (let z = z0 - 1; z <= z0 + d && !owner; z++) {
@@ -923,9 +959,28 @@ export function zoningPass(
   decorMoved = true,
   streetsSettled = false,
 ): ZoningResult {
+  buildClearMask(state);
+  try {
+    return cutAll(state, ctx, decorMoved, streetsSettled);
+  } finally {
+    clearClearMask();
+  }
+}
+
+function cutAll(
+  state: WorldState,
+  ctx: TickCtx | null,
+  decorMoved: boolean,
+  streetsSettled: boolean,
+): ZoningResult {
   let removed = 0;
+  // R2F: the lots streets manage are lifted and cut again below (unless the streets are settled), so
+  // only the others are checked here; a managed lot the ground no longer allows is simply not cut again.
+  const up: Lot[] = [];
+  if (!streetsSettled) for (const lot of state.lots) if (managed(state, lot)) up.push(lot);
+  const lifting = new Set(up);
   for (const lot of [...state.lots]) {
-    if (lot.buildingId || lot.kind === 'garden') continue;
+    if (lot.buildingId || lot.kind === 'garden' || lifting.has(lot)) continue;
     if (stillValid(state, lot, decorMoved)) continue;
     dropLot(state, ctx, lot);
     removed++;
@@ -933,11 +988,12 @@ export function zoningPass(
   // R2F: when only buildings grown on lots came since the last pass (the caller knows), the street
   // lots stand as they would be cut again, so they stay down unless this pass dropped one.
   const settled = streetsSettled && removed === 0;
+  if (streetsSettled && !settled) for (const lot of state.lots) if (managed(state, lot)) up.push(lot);
   const added: Lot[] = [];
   const changed = new Set<Lot>();
   let gardens: Lot[] = [];
   try {
-    const up = settled ? [] : liftManaged(state);
+    if (!settled) liftManaged(state, up);
     // Zoned tiles outside any lot: the only places a new lot can start.
     const zoned: number[] = [];
     const zone = state.map.zone;

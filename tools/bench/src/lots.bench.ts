@@ -41,7 +41,7 @@ function median(values: number[]): number {
 }
 
 /** A flat standard world with a street grid and its blocks zoned (Townhouses and Shops in a checker). */
-function streetGrid(kind: number = Road.street): WorldState {
+export function streetGrid(kind: number = Road.street): WorldState {
   const world = createWorld('bench-r2f', { ...defaultSettings(), mode: 'standard' });
   const m = world.map;
   m.height.fill(2);
