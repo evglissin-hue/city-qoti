@@ -87,6 +87,8 @@ describe('hosts', () => {
 describe('places tuning and gaps', () => {
   it('numbers are whole and percents sit within 0..100', () => {
     for (const [k, v] of Object.entries(content.places)) {
+      // R2A's lists (walk and meet patterns, view pieces, the ice's kinds) are checked below.
+      if (Array.isArray(v)) continue;
       expect(Number.isInteger(v), k).toBe(true);
       if (/Percent$/.test(k) && k !== 'plainCostPercent' && k !== 'noisyCostPercent') {
         expect(v, k).toBeGreaterThanOrEqual(0);
@@ -94,6 +96,19 @@ describe('places tuning and gaps', () => {
       }
     }
     expect(content.places.standingShare).toBeLessThanOrEqual(100);
+  });
+
+  it("R2A's lists name real patterns, pieces and kinds", () => {
+    const p = content.places;
+    for (const id of [...p.walkPatterns, ...p.meetPatterns]) {
+      expect(
+        content.patterns.some((x) => x.id === id),
+        id,
+      ).toBe(true);
+    }
+    for (const id of p.viewPieces) expect(content.decorById.has(id), id).toBe(true);
+    for (const k of p.iceKinds) expect(['sit', 'eat', 'view', 'play', 'meet', 'walk']).toContain(k);
+    expect(p.afternoonHour).toBeLessThan(p.eveningHour);
   });
 
   it('the hours and scores are ordered', () => {

@@ -124,6 +124,29 @@ export function placeIndex(state: WorldState): PlaceIndex {
   return m.index;
 }
 
+/** What stands at a place (PlaceFeature bits), for a resident's taste; 0 for a place not in the index now. */
+export function placeFeatures(state: WorldState, place: Place): number {
+  const index = placeIndex(state);
+  const m = memos.get(state);
+  if (!m || index.byId.get(place.id) !== place) return 0;
+  return m.extras[featureSlot(m, place)]?.features ?? 0;
+}
+
+/** The slot of a place in the memo's arrays (places are sorted by id: binary search). */
+function featureSlot(m: Memo, place: Place): number {
+  const list = m.index.places;
+  let lo = 0;
+  let hi = list.length - 1;
+  while (lo <= hi) {
+    const mid = (lo + hi) >> 1;
+    const id = list[mid]!.id;
+    if (id === place.id) return mid;
+    if (id < place.id) lo = mid + 1;
+    else hi = mid - 1;
+  }
+  return -1;
+}
+
 /**
  * Drops the cached index (a Hearth command nearby, a building grown or gone); the next read rebuilds
  * it. The index already rebuilds whenever its inputs change, so this only ever costs time: call it

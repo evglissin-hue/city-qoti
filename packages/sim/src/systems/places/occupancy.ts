@@ -1,7 +1,8 @@
 // Who is at a place right now (docs/spec/19-evenings.md, The round: Seats): grown-ups seated, children
 // seated, and folk standing, read from every resident's round. Derived, never saved: a resident is at
-// a place while their latest stop there is under way (arrived, seated or standing, within
-// `PLACES.stopMinutes`), they stand still outdoors and they are on leisure. Counted once per tick and
+// a place while their latest stop is under way (arrived, seated or standing, within
+// `PLACES.stopMinutes`), they are on leisure and still there (on the stop's tile, or inside the
+// sheltered host it is). Counted once per tick and
 // turn (the same key discipline as the place index), and kept up to date within the tick as folk
 // arrive, so two arrivals in one tick never take the same seat.
 import { content } from '@qoti/content';
@@ -32,12 +33,15 @@ const memos = new WeakMap<WorldState, Memo>();
 export function stopNow(state: WorldState, r: Resident): RoundStop | null {
   const round = r.round;
   if (!round || round.length === 0 || r.roundDay !== dayIndex(state.tick)) return null;
-  if (r.move || r.inside || r.activity.kind !== 'leisure') return null;
+  if (r.move || r.activity.kind !== 'leisure') return null;
   for (let k = round.length - 1; k >= 0; k--) {
     const stop = round[k]!;
     if (stop.arrived < 0) continue;
     if (!(stop.flags & (RoundFlags.seated | RoundFlags.standing))) return null;
-    return state.tick - stop.arrived < STOP_TICKS ? stop : null;
+    if (state.tick - stop.arrived >= STOP_TICKS) return null;
+    // Still there: on its tile outdoors, or inside the sheltered host it is.
+    if (r.inside) return stop.place === `host:${r.inside}` ? stop : null;
+    return r.tile === stop.tile ? stop : null;
   }
   return null;
 }

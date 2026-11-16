@@ -5,19 +5,45 @@
 // boundary (phase from the look seed), so the town drifts about instead of moving in lockstep.
 // Residents on a 'task' belong to C3C until it hands them back.
 import { content } from '@qoti/content';
-import { BUILD_HOURS, ResidentFlags, TICKS_PER_DAY } from '../../constants';
+import { BUILD_HOURS, ResidentFlags, RoundFlags, TICKS_PER_DAY } from '../../constants';
 import type { Activity, Household, Resident, Rng, TickCtx, WorldState } from '../../contracts';
 import { findById } from '../../state/entities';
 import { hourOf } from '../economy/time';
+import { atFestival } from '../festivals/override';
 import { moveResident, setInside } from '../movement/api';
+import { STOP_TICKS, stopNow } from '../places/occupancy';
 import { addMoodModifier } from './api';
 import { assignJobs } from './jobs';
 import { chooseLeisure, choosePlay, chooseStroll, chooseVisit } from './outings';
-import { scheduleOverride } from './overrides';
+import { scheduleOverride, scheduleOverrideExcept } from './overrides';
 import { doorOf, householdOf, isWorkingAge } from './places';
 import { loggedToday, pushHistory } from './records';
+import {
+  arriveAt,
+  arriveAtShop,
+  currentStop,
+  homeTick,
+  hostInside,
+  makePlan,
+  noteFestival,
+  planned,
+  planTick,
+  type RoundWindow,
+  roundWindow,
+  visitHome,
+} from './round';
 import { buyAtOutlet, needsShopping, someoneShopping, startShopping, unpack } from './shopping';
-import { Block, type BlockId, HOUR, at, blockOf, dayIndex, scheduleClock, slotPhase } from './time';
+import {
+  Block,
+  type BlockId,
+  HOUR,
+  at,
+  blockOf,
+  dayIndex,
+  scheduleClock,
+  slotPhase,
+  tickOfDay,
+} from './time';
 import { hasTrait, traitPercent } from './traits';
 
 export const THINK_EVERY = 10;
@@ -73,6 +99,9 @@ export function goalFor(state: WorldState, r: Resident, block: BlockId, clock: n
 
 const OUTINGS = new Set<Activity['kind']>(['leisure', 'visit', 'play', 'stroll', 'shop', 'goHome', 'home']);
 
+/** Overrides the round weighs for itself (round.ts: the rain-shy plan shelter; the ice is a place). */
+const ROUND_SKIPS: readonly string[] = ['rain', 'skating'];
+
 export function think(state: WorldState, ctx: TickCtx, rng: Rng, r: Resident): void {
   const kind = r.activity.kind;
   if (kind === 'task' || kind === 'arrive' || kind === 'leave') return;
@@ -81,8 +110,12 @@ export function think(state: WorldState, ctx: TickCtx, rng: Rng, r: Resident): v
   const homeDoor = doorOf(state, h.homeId);
   if (homeDoor < 0) return; // Homeless for the moment: the upkeep pass rehouses them.
   const t = state.tick;
-  // I3 (C5.0): the festival evening, the bell, Watch duty, storms and skating come first.
-  const o = scheduleOverride(state, r, hourOf(t));
+  // I3 (C5.0): the festival evening, the bell, Watch duty, storms and skating come first. R2 (R2A):
+  // on the round, rain and the ice are the plan's to weigh.
+  const window = roundWindow(state, r, hasWork(state, r));
+  const o = window
+    ? scheduleOverrideExcept(state, r, hourOf(t), ROUND_SKIPS)
+    : scheduleOverride(state, r, hourOf(t));
   if (o && followOverride(state, ctx, r, h, homeDoor, o)) return;
   const clock = scheduleClock(r, t);
   const block = blockOf(clock);
@@ -92,6 +125,7 @@ export function think(state: WorldState, ctx: TickCtx, rng: Rng, r: Resident): v
   if (r.flags & ResidentFlags.stuck && (goal === 'work' || goal === 'outing') && !turned) goal = 'home';
   // Shopping finishes what it started, except at night.
   if (r.activity.kind === 'shop' && goal !== 'sleep' && goal !== 'ramble') {
+    arriveAtShop(state, r);
     shop(state, ctx, r, h, homeDoor);
     return;
   }
@@ -112,6 +146,7 @@ export function think(state: WorldState, ctx: TickCtx, rng: Rng, r: Resident): v
       stroll(state, ctx, rng, r, h, homeDoor, homeDoor, 5);
       return;
     case 'outing':
+      if (window && followRound(state, ctx, r, h, homeDoor, window, true)) return;
       if (OUTINGS.has(r.activity.kind) && !turned) {
         carryOn(state, ctx, rng, r, h, homeDoor);
         return;
@@ -156,7 +191,12 @@ function followOverride(
       return true;
     }
     case 'leisure':
-      if (r.activity.kind === 'leisure' && r.activity.tile === o.tile) return true;
+      if (r.activity.kind === 'leisure' && r.activity.tile === o.tile) {
+        // R2 (R2A): a festival guest on the site has the festival on their round.
+        if (!r.move && r.tile === o.tile && state.festival.live && atFestival(state, r))
+          noteFestival(state, r);
+        return true;
+      }
       return setOff(state, ctx, r, h, homeDoor, o.tile, o);
     default:
       return false;
@@ -379,6 +419,100 @@ function chooseOuting(
     return;
   }
   stroll(state, ctx, rng, r, h, homeDoor, homeDoor, evening ? 9 : 7);
+}
+
+/**
+ * R2 (R2A): the round (docs/spec/19-evenings.md, The round). Plans at the resident's own minute, then
+ * walks to each stop the pleasant way, takes a seat or standing room (round.ts arriveAt), stays an
+ * hour, and goes on to the next or home. Returns false to leave the resident to the day table (an
+ * afternoon before its round is planned, or after it is over).
+ */
+function followRound(
+  state: WorldState,
+  ctx: TickCtx,
+  r: Resident,
+  h: Household,
+  homeDoor: number,
+  window: RoundWindow,
+  again: boolean,
+): boolean {
+  if (r.carry) {
+    stayHome(state, ctx, r, h, homeDoor, 'home');
+    return true;
+  }
+  const tod = tickOfDay(state.tick);
+  if (!planned(state, r, window)) {
+    const late = window === 'evening' && hasWork(state, r) && keepsLongHours(state, r);
+    if (tod < planTick(r, window, late)) {
+      if (window === 'afternoon') return false;
+      // Their minute has not come: they finish an afternoon stop, or wait at home.
+      if (stopNow(state, r)) return true;
+      stayHome(state, ctx, r, h, homeDoor, 'home');
+      return true;
+    }
+    makePlan(state, ctx, r, h, homeDoor, window);
+  }
+  const round = r.round!;
+  const k = currentStop(state, r, window);
+  if (k < 0) {
+    if (window === 'afternoon') return false;
+    stayHome(state, ctx, r, h, homeDoor, 'home');
+    return true;
+  }
+  const s = round[k]!;
+  if (s.arrived >= 0) return true;
+  // Too late to make a stop worth the walk: home (or the rest of the afternoon as built).
+  const end = window === 'evening' ? homeTick(state) : content.places.eveningHour * HOUR;
+  if (tod > end - (STOP_TICKS >> 1)) {
+    if (window === 'afternoon') return false;
+    stayHome(state, ctx, r, h, homeDoor, 'home');
+    return true;
+  }
+  if (s.kind === 'shop') {
+    if (needsShopping(h) && !someoneShopping(state, h) && startShopping(state, r, h)) {
+      if (r.activity.kind === 'shop') {
+        s.place = `shop:${r.activity.outlet}`;
+        s.tile = doorOf(state, r.activity.outlet);
+      }
+      return true;
+    }
+    // Nothing to fetch after all, or nowhere to fetch it from: on to the next stop.
+    round.splice(k, 1);
+    return again ? followRound(state, ctx, r, h, homeDoor, window, false) : true;
+  }
+  if (r.move && r.move.target === s.tile) return true;
+  const res = r.tile === s.tile && !r.move ? 'arrived' : moveResident(state, r, s.tile, 'round');
+  if (res === 'walking') {
+    r.activity = visitActivity(state, r, s) ?? { kind: 'leisure', tile: s.tile };
+    r.flags &= ~ResidentFlags.stuck;
+    return true;
+  }
+  if (res === 'unreachable') {
+    s.flags |= RoundFlags.turnedAway;
+    return true;
+  }
+  if (!arriveAt(state, r, k, window)) return true;
+  r.move = null;
+  r.flags &= ~ResidentFlags.stuck;
+  const home = visitHome(state, s);
+  if (home) {
+    setInside(state, r, home);
+    r.activity = visitActivity(state, r, s) ?? { kind: 'home' };
+    return true;
+  }
+  const inside = hostInside(state, s);
+  if (inside && inside !== r.jobId) setInside(state, r, inside);
+  r.activity = { kind: 'leisure', tile: s.tile };
+  return true;
+}
+
+/** The activity for a visit stop: visiting a friend of theirs in that household (or its first member). */
+function visitActivity(state: WorldState, r: Resident, s: { kind: string; place: string }): Activity | null {
+  if (s.kind !== 'visit') return null;
+  const fh = findById(state.households, Number(s.place.slice(5)));
+  if (!fh || fh.members.length === 0) return null;
+  const friend = fh.members.find((id) => r.friends.some((f) => f.id === id)) ?? fh.members[0]!;
+  return { kind: 'visit', friend };
 }
 
 function shop(state: WorldState, ctx: TickCtx, r: Resident, h: Household, homeDoor: number): void {

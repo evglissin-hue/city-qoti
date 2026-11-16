@@ -59,3 +59,29 @@ export function scheduleOverride(state: WorldState, r: Resident, hour: number): 
   }
   return best;
 }
+
+/**
+ * R2 (R2A): scheduleOverride without the overrides named in `skip`. A resident on the evening round
+ * already weighs rain (the rain-shy plan sheltered places only) and the ice (a place like any other),
+ * so the round asks without 'rain' and 'skating'.
+ */
+export function scheduleOverrideExcept(
+  state: WorldState,
+  r: Resident,
+  hour: number,
+  skip: readonly string[],
+): Activity | null {
+  let best: Activity | null = null;
+  let bestPriority = -Infinity;
+  for (const list of [scheduleOverrides, extra]) {
+    for (const o of list) {
+      if (o.priority <= bestPriority || skip.includes(o.id)) continue;
+      const a = o.pick(state, r, hour);
+      if (a) {
+        best = a;
+        bestPriority = o.priority;
+      }
+    }
+  }
+  return best;
+}

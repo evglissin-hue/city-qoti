@@ -23,6 +23,8 @@ import { doorTile } from '../movement/api';
 import { heldRect } from '../festivals/site';
 import { skatingSpots } from '../seasons/place';
 import { worldIndex } from '../../state/worldIndex';
+import { hasTag } from '../../state/zones';
+import { TREE_MATURE, treeStage } from '../../map/layers';
 
 const S = MAP_SIZE;
 const P = content.places;
@@ -36,6 +38,51 @@ export interface PlaceExtra {
   lights: boolean;
   /** Winter spares it: sheltered, warm, or the ice. */
   winterExempt: boolean;
+  /** What stands there, for a resident's taste (PlaceFeature bits). */
+  features: number;
+}
+
+/** What stands at a place, as bits, for a resident's taste (residents/outings.ts tasteFor). */
+export const PlaceFeature = {
+  flower: 1,
+  tree: 2,
+  hedge: 4,
+  mooring: 8,
+  light: 16,
+  market: 32,
+  baker: 64,
+  tavern: 128,
+  well: 256,
+  herb: 512,
+  /** No road among its tiles. */
+  quiet: 1024,
+  water: 2048,
+} as const;
+
+const DECOR_FEATURES: readonly [tag: string, bit: number][] = [
+  ['flower', PlaceFeature.flower],
+  ['verge', PlaceFeature.flower],
+  ['blossom', PlaceFeature.flower],
+  ['tree', PlaceFeature.tree],
+  ['fruit', PlaceFeature.tree],
+  ['hedge', PlaceFeature.hedge],
+  ['mooring', PlaceFeature.mooring],
+  ['light', PlaceFeature.light],
+  ['lantern', PlaceFeature.light],
+  ['herb', PlaceFeature.herb],
+];
+const BUILDING_FEATURES: readonly [tag: string, bit: number][] = [
+  ['market', PlaceFeature.market],
+  ['baker', PlaceFeature.baker],
+  ['tavern', PlaceFeature.tavern],
+  ['well', PlaceFeature.well],
+];
+
+function buildingFeatures(b: Building | undefined): number {
+  if (!b) return 0;
+  let bits = 0;
+  for (const [tag, bit] of BUILDING_FEATURES) if (hasTag(b, tag)) bits |= bit;
+  return bits;
 }
 
 /** Built places, sorted by id, with their extras in the same order. */
@@ -328,8 +375,13 @@ export function buildPlaces(state: WorldState): BuiltPlaces {
     // Kinds: pieces and water decide most of them.
     let pieceKinds = 0;
     let lights = false;
+    let features = 0;
+    let quiet = true;
     const seen = new Set<string>();
     for (const t of tiles) {
+      if (state.map.road[t]) quiet = false;
+      const tv = state.map.tree[t]!;
+      if (tv && treeStage(tv) >= TREE_MATURE) features |= PlaceFeature.tree;
       for (const piece of decorOn(state, t)) {
         const def = content.decorById.get(piece.def);
         if (!def) continue;
@@ -338,6 +390,7 @@ export function buildPlaces(state: WorldState): BuiltPlaces {
           pieceKinds += 1;
         }
         if (def.tags.includes('light') || def.tags.includes('lantern')) lights = true;
+        for (const [tag, bit] of DECOR_FEATURES) if (def.tags.includes(tag)) features |= bit;
         if (def.tags.includes('play')) d.kinds.add('play');
         if (VIEW_PIECES.has(def.id)) d.kinds.add('view');
       }
@@ -347,6 +400,10 @@ export function buildPlaces(state: WorldState): BuiltPlaces {
     if (near.length > 0) d.kinds.add('eat');
     const water = waterNear(state, tiles, P.waterRadius);
     if (water) d.kinds.add('view');
+    for (const id of d.members) features |= buildingFeatures(buildingById.get(id));
+    for (const id of near) features |= buildingFeatures(buildingById.get(id));
+    if (quiet) features |= PlaceFeature.quiet;
+    if (water) features |= PlaceFeature.water;
 
     let standing = d.standing;
     if (d.walkTiles > 0) standing += Math.floor(d.walkTiles / Math.max(1, P.walkTilesPerStroller));
@@ -379,7 +436,7 @@ export function buildPlaces(state: WorldState): BuiltPlaces {
     };
     if (d.household !== undefined) place.household = d.household;
     places.push(place);
-    extras.push({ lights, winterExempt: d.sheltered || d.warm || d.ice });
+    extras.push({ lights, winterExempt: d.sheltered || d.warm || d.ice, features });
   }
   return { places, extras };
 }
