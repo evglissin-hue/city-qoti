@@ -220,3 +220,11 @@ The carrier collects surplus Treats at makers' doors before the shelves (R1X), a
 - **Tier gates wait for R2B.** `NeedsBasket.evenings` is in the data (Craftsfolk 50) and unread; Craftsfolk still need charm 25 and a tavern until R2B's tiers read evenings, so R1's Craftsfolk numbers hold on stand-ins.
 - **The R1 Craftsfolk targets and the stricter growth scene** (moved here by the owner, 2026-11-15) are R2B's and R2E's lines and R2X's acceptance: first Craftsfolk by day 40 and a third by day 70 on every bench seed; R1F's `r1 growth night` under 2 ms on a reference laptop. Village debt (616 to 3,080 coins owed at day 70 in R1X's run) is R2X's tuning; evening trade moves coins inside the valley and does not by itself mend it.
 - **The lanes test** is enforced from R2 (R2E): at R1's end the Hearth-off towns ended with 93 to 187% of the residents of the town played by both, so it fails until the evening round gives places their pull.
+
+## Found in R2X
+
+- **One RNG stream per kind of choice.** R2A's round took grown-ups' evenings off the shared `residents` stream and reshuffled who arrived (hazel's first families came smaller). Arrivals now draw from a per-wave generator seeded from the seed and the tick. A new behavior that draws dice takes its own stream or generator, never one another system already reads.
+- **A rule that counts a run resets on one bad day.** R2C's evening goal counted fair evenings running; a single thin evening held oak's Village back three weeks. Goals count whole unless the design says running.
+- **Derived caches need a writer list.** The place index's change counter is only as safe as the list of writers that bump it; the verifier (`setPlaceVerify`) is on in the sim tests, the audit and the golden year. A cycle that adds a place input adds its bump and lets the verifier prove it.
+- **Feed advice must follow the cause.** When homes wait on evenings, the P2 line "more Homes bring more folk" was wrong; a test now holds that no line suggests Homes while `quietEvenings` is the Homes bar's last reason.
+

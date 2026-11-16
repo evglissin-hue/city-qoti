@@ -50,3 +50,17 @@ New design (R3 and later); V3's look work beyond merging it and wiring the two i
 - Keep a list of what each cycle's PR left for you, and close it before the merge.
 - If R1's tuning moved a number this wave reads (tiers, baskets), say so in the PR (`13-ledger.md`, As built (R1X)).
 - R2.0 left the Village Charter without its evening goal (R2C adds it with its counter) and Craftsfolk's charm and tavern gates in the data until R2B's tiers read evenings: check both landed together with their readers.
+
+## As built (R2X, 2026-11-16)
+
+Run as the build and review loop: the master merged, made the hard calls (contracts, determinism, saves, tuning) and played from the player's chair; `executor` agents built the place index's change counter, the autoplayer's coverage fixes, the Village debt decomposition and the real-data shots; a general agent drafted R3's briefs.
+
+- **Merged** in order: R2F (#47), R2A (#49, then its perf head 5cb58a9), R2B (#48), R2C (#45), R2E (#53), R2D (#46, head 748bb95: R2C's `together`, no `cross`), and `main` (V3.0). Conflicts: board rows, the changelog, `bench.ts` (R2A's and R2E's bench files both kept), `view/health.ts` (below), `schedule.ts` (R2A's memo with R2B's carter), the golden year (re-recorded at the end).
+- **Saves stay at version 8.** Every R2X addition is optional or derived: `EveningsState.outFair`, arrivals' per-wave generator, the place counter.
+- **Fixed in the merge**: R2C's and R2E's `gap-dead-end` rules split (`gap-unmeetable`, R2C's: a kind the town cannot meet at all; `gap-dead-end`, R2E's: nothing could close it where it stands); R2B's shops test against R2F's `Lot`; R2B's readers on R2A's `tonightStops` (an elder keeps the afternoon round as their evening); R2F's no-streets test checks the lots' geometry against the wave base (the round moves the rest on purpose); the walled-in garden beds (an empty lot over a door tile goes; audit `building-cut-off`).
+- **Arrivals** draw from a per-wave generator (`arrivalsRng`), so evening behavior no longer reshuffles who arrives.
+- **The lanes test** (the master's ruling, option A): newcomers follow good evenings past 20 households (`content.places.growthFreeHouseholds`, `growthFullOutPercent`, `growthBareHomes` 0), told in the Homes bar (`quietEvenings`), the Ledger feed and, in a Hamlet, R2C's nowhere-to-go gap; audit `growth-waits-unseen`.
+- **Tuning**: composed places draw more, winters bite less, Craftsfolk keep their tier down to evenings of 35 and put by 6 coins; braziers one per 15 grown-ups (the autoplayer); planning over the hour; the Village's evening goal counted whole; the carrier keeps 100 coins before Materials and upkeep is 70%. The numbers are in `19-evenings.md` and `13-ledger.md`, As built (R2X), and the tables in the PR.
+- **Budgets**: the place index rebuilds only when a change counter moves (verified in tests, the audit and the golden year), bringing planning the round under 0.4 ms a tick.
+- **Missed, for R3**: a third of households Craftsfolk at day 70 (day 70 is a winter; best days 17 to 43%); R2F's gardens and corners in the regrown grown village (oak builds six single-lot rows; willow's 62 days build 30 row lots in 11 rows with 2 gardens and 4 corners); Village debt still tracks the credit line (17 to 19 coins a resident).
+- **Endpaper inks**: V3X has not landed, so the data stays ready (`townInk` and `routeEdges` in `render/overlayTown.ts`, `FootfallView.eve`) for V3X to wire into V3D's `EndpaperInks`.
