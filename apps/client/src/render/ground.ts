@@ -787,7 +787,11 @@ float qCloudShade(vec2 wp) {
 vec3 qRim(vec3 col) {
   vec2 wp = vQWorld.xz;
   float e = min(min(wp.x, wp.y), min(${N.toFixed(1)} - wp.x, ${N.toFixed(1)} - wp.y));
-  float k = (1.0 - smoothstep(4.5, 7.5, e)) * smoothstep(3.6, 5.2, vQWorld.y);
+  // V3X: the whole rim (drawn as a slope up from the valley, surface.ts rimLevel) takes the hills'
+  // paint, its foot frayed by noise so the line where the valley's ground ends is never straight;
+  // the river's gorge keeps its banks (below about level 2).
+  float fray = (qNoise(wp * 0.21 + 1.3) - 0.5) * 3.2 + (qNoise(wp * 0.9) - 0.5) * 0.8;
+  float k = (1.0 - smoothstep(4.2, 6.8, e + fray)) * smoothstep(0.7, 1.4, vQWorld.y);
   if (k < 0.001) return col;
   float wn = qFbm(wp * 0.09 + 3.7);
   float woods = smoothstep(0.38, 0.55, wn);

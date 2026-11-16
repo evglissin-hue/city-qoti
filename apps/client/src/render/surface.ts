@@ -46,6 +46,54 @@ function clampTile(v: number): number {
   return v < 0 ? 0 : v >= MAP_SIZE ? MAP_SIZE - 1 : v;
 }
 
+/**
+ * V3X: the width of the sim's mountain rim (worldgen's `BORDER`: the outer tiles of the map stand at
+ * levels 13 to 15, above a cliff from the valley; `surface.test.ts` checks it against a generated
+ * valley). Nothing is ever built there.
+ */
+export const RIM_TILES = 6;
+
+/**
+ * V3X: the level the ground is drawn at on the rim. Drawn as the sim has it, the rim is a straight
+ * wall round the valley and a box from far away, with a notch where the river leaves. Instead it is
+ * drawn rising one level a tile from the valley's own edge (the tile straight inward from it), never
+ * above the sim's level: one-level steps blend into slopes (as everywhere on the surface), so the
+ * valley runs up into the horizon's hills with a foot that follows its own ground, and the river
+ * leaves through a gorge. Drawing only: the sim's heights, and everything it does with them, are
+ * untouched.
+ */
+export function rimLevel(r: SurfaceReader, tx: number, tz: number): number {
+  const h = r.height(tx, tz);
+  const edge = Math.min(tx, tz, MAP_SIZE - 1 - tx, MAP_SIZE - 1 - tz);
+  if (edge >= RIM_TILES || r.water(tx, tz)) return h;
+  const lo = RIM_TILES;
+  const hi = MAP_SIZE - 1 - RIM_TILES;
+  const ix = tx < lo ? lo : tx > hi ? hi : tx;
+  const iz = tz < lo ? lo : tz > hi ? hi : tz;
+  // A river tile inward stands for its bank: the bed is drawn below level 0 anyway.
+  const inner = r.water(ix, iz) ? 0 : r.height(ix, iz);
+  let level = Math.min(h, inner + (RIM_TILES - edge));
+  // Where the river crosses the rim its banks rise a level a tile too, so it leaves through a
+  // gorge with sloping sides rather than a slot. The river crosses the rim across it, so look along
+  // the rim for the nearest water.
+  const alongX = tz < lo || tz > hi;
+  const alongZ = tx < lo || tx > hi;
+  for (let k = 1; k <= RIM_GORGE && k < level; k++) {
+    const wet =
+      (alongX && (wetAt(r, tx - k, tz) || wetAt(r, tx + k, tz))) ||
+      (alongZ && (wetAt(r, tx, tz - k) || wetAt(r, tx, tz + k)));
+    if (wet) level = k;
+  }
+  return level;
+}
+
+/** How far along the rim a river's banks slope up from it, in tiles. */
+const RIM_GORGE = 10;
+
+function wetAt(r: SurfaceReader, x: number, z: number): boolean {
+  return x >= 0 && z >= 0 && x < MAP_SIZE && z < MAP_SIZE && r.water(x, z) !== 0;
+}
+
 function ease(u: number): number {
   return u <= 0 ? 0 : u >= 1 ? 1 : u * u * (3 - 2 * u);
 }
@@ -120,7 +168,8 @@ export class SurfaceTiles {
 
   private readLevel(tx: number, tz: number): number {
     const r = this.reader;
-    return r.padLevel && r.occupant(tx, tz) && !r.water(tx, tz) ? r.padLevel(tx, tz) : r.height(tx, tz);
+    if (r.padLevel && r.occupant(tx, tz) && !r.water(tx, tz)) return r.padLevel(tx, tz);
+    return rimLevel(r, tx, tz);
   }
 
   private readY(tx: number, tz: number): number {

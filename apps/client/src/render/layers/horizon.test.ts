@@ -34,10 +34,10 @@ describe('the horizon build (V3C)', () => {
     expect(positions({ ...input(), seed: 99 })).not.toEqual(positions(input()));
   });
 
-  it('stays under 2,000 triangles', () => {
+  it('stays under 8,000 triangles (V3X: close rows near the rim)', () => {
     const b = buildHorizon(input());
-    expect(b.triangles).toBeLessThan(2000);
-    expect(b.triangles).toBeGreaterThan(1000);
+    expect(b.triangles).toBeLessThan(8000);
+    expect(b.triangles).toBeGreaterThan(3000);
   });
 
   it('puts the inner edge on the valley boundary, a hair under the terrain', () => {
