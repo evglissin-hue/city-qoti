@@ -5,7 +5,8 @@
 // every THINK_EVERY ticks at its own.
 import { content } from '@qoti/content';
 import { ResidentFlags } from '../../constants';
-import type { Resident, System, TickCtx, WorldState } from '../../contracts';
+import type { Resident, Rng, System, TickCtx, WorldState } from '../../contracts';
+import { rngFromSeed } from '../../rng/streams';
 import { isStandard } from '../../state/hamlet';
 import { modifierValue } from './api';
 import { decayFriendships, greetNeighbors, hourlyFriendships } from './friends';
@@ -53,6 +54,16 @@ function clearHop(state: WorldState, r: Resident): void {
   if (since >= HOUR || (granted && modifierValue(granted, state.tick) === 0)) r.flags &= ~ResidentFlags.hop;
 }
 
+/**
+ * R2X: each arrival wave draws from a generator of its own, seeded from the valley's seed and the
+ * wave's tick as a stream is seeded, so what residents do through the day and of an evening (the
+ * `residents` stream's other draws) never reshuffles who walks in. A pure function of saved state
+ * (the seed and the tick), so it is never saved and a seat joining from a snapshot draws alike.
+ */
+export function arrivalsRng(state: WorldState): Rng {
+  return rngFromSeed(`${state.seed}@${state.tick}`, 'arrivals');
+}
+
 export function residentsTick(state: WorldState, ctx: TickCtx): void {
   const t = state.tick;
   const tod = tickOfDay(t);
@@ -65,7 +76,7 @@ export function residentsTick(state: WorldState, ctx: TickCtx): void {
   if (tod >= FIRST_ARRIVALS && tod <= LAST_ARRIVALS && (tod - FIRST_ARRIVALS) % ARRIVALS_EVERY === 0) {
     // The morning's pull goes stale as homes go up and fill, so each wave weighs it afresh.
     if (tod !== FIRST_ARRIVALS) state.stats.attractiveness = attractiveness(state);
-    arrivals(state, ctx, rng);
+    arrivals(state, ctx, arrivalsRng(state));
   }
   if (tod === DEPARTURES) departures(state, ctx);
   if (tod === WEDDINGS) lifeEvening(state, ctx);
