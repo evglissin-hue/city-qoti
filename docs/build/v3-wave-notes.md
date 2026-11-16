@@ -117,6 +117,9 @@ Nothing a rule reads is private to one seat: every stat is `scope: 'shared'`, an
 | A plain parchment endpaper, `cover` 0 | `worker/endpaper.worker.ts`, `ENDPAPER_ON` | the inked map, cover from 200 to 240 tiles | V3D |
 | The building's whole lot as the yard | `layers/dressing.ts` | V3B's free yard (`lots.ts`) | V3B, wired in V3X if V3A lands first |
 | R1X's grown village as the before scene | `?debug&fixture=grown` | the village regrown on R2's lots | R2X regrows it |
+| The chimneys' winter haze counts hearths (households with a home), not the smoke layer's chimneys | `layers/sky.ts` (`hearthsOf`) | the smoke's own count, if P2-F's smoke exposes one (V3C read nothing from `layers/effects.ts`) | V3X, after P2-F |
+| Foam at bridges only: the Mirror has no weirs | `layers/water.ts` (`wfoam`, a road tile over water) | weirs, if a later cycle adds them | no cycle yet |
+| The horizon's seed is a hash of `mirror.meta` (the client holds no valley seed) | `layers/horizon.ts` (`horizonSeed`) | the valley's seed, if the Mirror ever carries it (both players already see the same bands) | none needed |
 
 ## Ports
 
