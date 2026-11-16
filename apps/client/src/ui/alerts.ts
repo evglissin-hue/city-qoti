@@ -3,6 +3,7 @@
 // Derived from the Mirror each time, so they clear themselves when the trouble does.
 import { content } from '@qoti/content';
 import {
+  MAP_SIZE,
   BuildingStatus,
   calendar,
   type DemandBarView,
@@ -588,7 +589,17 @@ function handsLine(m: Mirror, hands: ReturnType<typeof readHands>): Alert | null
   });
   // R2D (the player's chair): "nobody works here yet. 0 jobs are open" read as a contradiction.
   const open = hands.openJobs === 1 ? '1 job is open' : `${hands.openJobs} jobs are open`;
-  const jobs = hands.openJobs > 0 ? `${open}; more Homes bring more folk.` : 'More Homes bring more folk.';
+  // R2X: while homes wait on good evenings, more Homes would not help: newcomers want somewhere to go.
+  const quiet = homesWaitOnEvenings(m);
+  const remedy = quiet
+    ? "Newcomers want somewhere to go of an evening first; the Hearth's places bring them."
+    : 'more Homes bring more folk.';
+  const jobs =
+    hands.openJobs > 0
+      ? `${open}; ${quiet ? lowerFirst(remedy) : remedy}`
+      : quiet
+        ? remedy
+        : 'More Homes bring more folk.';
   const text =
     names.length === 1
       ? `${names[0]}: nobody works here yet. ${jobs}`
@@ -598,7 +609,9 @@ function handsLine(m: Mirror, hands: ReturnType<typeof readHands>): Alert | null
   const title =
     names.length === 1
       ? undefined
-      : `Nobody works at ${list(rest > 0 ? [...shown, `${rest} more`] : shown)} yet. ${hands.openJobs > 0 ? `${open} in town; more Homes bring more folk.` : 'More Homes bring more folk.'}`;
+      : `Nobody works at ${list(rest > 0 ? [...shown, `${rest} more`] : shown)} yet. ${hands.openJobs > 0 ? `${open} in town; ${quiet ? lowerFirst(remedy) : remedy}` : quiet ? remedy : 'More Homes bring more folk.'}`;
+  // R2X: the open nowhere-to-go gap says where folk stay in; the line points at it.
+  const gap = quiet ? m.gaps.value?.open.find((g) => g.kind === 'nowhereToGo') : undefined;
   return {
     key: 'hands-empty',
     lens: 'ledger',
@@ -606,8 +619,21 @@ function handsLine(m: Mirror, hands: ReturnType<typeof readHands>): Alert | null
     icon: 'people',
     text,
     ...(title ? { title } : {}),
-    action: { kind: 'building', id: first },
+    action: gap
+      ? { kind: 'place', x: gap.tile % MAP_SIZE, z: Math.floor(gap.tile / MAP_SIZE) }
+      : { kind: 'building', id: first },
   };
+}
+
+/** R2X: true when the Homes bar's last reason is quietEvenings (homes wait on good evenings). */
+export function homesWaitOnEvenings(m: Mirror): boolean {
+  const homes = m.demand.value?.bars.find((b) => b.kind === 'homes');
+  const last = homes?.reasons[homes.reasons.length - 1];
+  return last?.code === 'quietEvenings';
+}
+
+function lowerFirst(s: string): string {
+  return s.charAt(0).toLowerCase() + s.slice(1);
 }
 
 /** The icon of each demand bar's zone. */

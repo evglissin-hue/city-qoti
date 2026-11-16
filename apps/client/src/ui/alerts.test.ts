@@ -358,6 +358,21 @@ describe('hands', () => {
     expect(ledger(mock).filter((x) => x.key.startsWith('idle-'))).toHaveLength(0);
   });
 
+  it('never suggests Homes while homes wait on good evenings (R2X), and points at the gap', () => {
+    const quietWhy = 'Newcomers ask what there is to do of an evening, and nobody has an answer.';
+    const bars = QUIET_BARS().map((b) =>
+      b.kind === 'homes' ? bar('homes', 0, false, [{ code: 'quietEvenings', value: 0 }], [quietWhy]) : b,
+    );
+    for (const buildings of [[empty(1, 'granary')], [empty(1, 'granary'), empty(2, 'quarry')]]) {
+      const mock = world({ bars, buildings });
+      const lines = ledger(mock).filter((x) => x.key === 'hands-empty' || x.key.startsWith('growth-homes'));
+      expect(lines.length).toBeGreaterThan(0);
+      for (const l of lines)
+        expect(`${l.text} ${l.title ?? ''}`).not.toMatch(/\bHomes bring\b|zone more Homes/i);
+      expect(lines.find((x) => x.key === 'hands-empty')!.text).toMatch(/somewhere to go of an evening/);
+    }
+  });
+
   it('never says "0 jobs are open" beside a workplace with nobody', () => {
     const mock = world({ buildings: [built(1, 'granary', BuildingStatus.noWorkers, 0)] });
     const a = ledger(mock).find((x) => x.key === 'hands-empty');
