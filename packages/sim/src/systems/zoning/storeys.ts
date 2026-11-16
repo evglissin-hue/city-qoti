@@ -13,6 +13,7 @@ import { findById } from '../../state/entities';
 import { levelOf } from '../../state/zones';
 import { buildingView } from '../../view';
 import { lotView } from '../../view/lots';
+import { lotEpoch } from './lots';
 
 /** The cozy ceiling outside landmarks (18-eras.md). */
 export const MAX_STOREYS = 4;
@@ -92,6 +93,10 @@ function announce(state: WorldState, ctx: TickCtx | null, b: Building, lot: Lot)
   ctx.events.push({ e: 'lot.updated', l: lotView(lot, state) });
 }
 
+/** Scratch for refitLots, reused so a refit allocates nothing per row. */
+const scratchBuildings: (Building | undefined)[] = [];
+const scratchTarget: number[] = [];
+
 /**
  * Sets the storeys of every grown building on the plot lots of one row to the row rule, emitting
  * building.updated and lot.updated for each that changed.
@@ -99,8 +104,10 @@ function announce(state: WorldState, ctx: TickCtx | null, b: Building, lot: Lot)
 function refitLots(state: WorldState, ctx: TickCtx | null, lots: Lot[]): void {
   lots.sort((p, q) => along(p) - along(q) || p.id - q.id);
   const n = lots.length;
-  const bs: (Building | undefined)[] = new Array<Building | undefined>(n);
-  const target: number[] = new Array<number>(n);
+  const bs = scratchBuildings;
+  const target = scratchTarget;
+  bs.length = n;
+  target.length = n;
   for (let i = 0; i < n; i++) {
     const lot = lots[i]!;
     const b = lot.buildingId ? findById(state.buildings, lot.buildingId) : undefined;
@@ -124,9 +131,10 @@ function refitLots(state: WorldState, ctx: TickCtx | null, lots: Lot[]): void {
     b.storeys = want;
     announce(state, ctx, b, lots[i]!);
   }
+  bs.length = 0;
 }
 
-/** Refits the storeys of one row (a lot just grew on it). */
+/** Refits the storeys of one row (a lot just grew on it, or one of its buildings changed). */
 export function refitRow(state: WorldState, ctx: TickCtx | null, rowId: EntityId): void {
   if (rowId === 0) return;
   refitLots(
@@ -136,21 +144,109 @@ export function refitRow(state: WorldState, ctx: TickCtx | null, rowId: EntityId
   );
 }
 
+/** Refits one building on a lot in no row: its own base. */
+function refitAlone(state: WorldState, ctx: TickCtx | null, b: Building, lot: Lot): void {
+  const base = baseOf(b);
+  if (base === null || b.storeys === base) return;
+  b.storeys = base;
+  announce(state, ctx, b, lot);
+}
+
+/**
+ * What the last refit saw of a state, so a quiet hour refits only the rows whose buildings changed
+ * tier or level. Derived, never saved: a client that just loaded has none and refits everything, which
+ * finds what a running client keeps (the rule is a function of these inputs alone).
+ */
+interface Seen {
+  /** Anything that moves rows or their members: roads, buildings, lots, a pass that renumbered rows. */
+  key: string;
+  /** Per building, in building order: its def, level and whether it keeps a trade. */
+  defs: string[];
+  levels: number[];
+  trades: boolean[];
+}
+const seen = new WeakMap<WorldState, Seen>();
+
+function seenKey(state: WorldState): string {
+  const b = state.buildings;
+  const l = state.lots;
+  return [
+    state.networkVersion,
+    b.length,
+    b.length ? b[b.length - 1]!.id : 0,
+    l.length,
+    l.length ? l[l.length - 1]!.id : 0,
+    lotEpoch(state),
+  ].join(':');
+}
+
+function remember(state: WorldState, key: string): void {
+  const bs = state.buildings;
+  const was = seen.get(state);
+  const s: Seen = was ?? { key, defs: [], levels: [], trades: [] };
+  s.key = key;
+  s.defs.length = bs.length;
+  s.levels.length = bs.length;
+  s.trades.length = bs.length;
+  for (let i = 0; i < bs.length; i++) {
+    const b = bs[i]!;
+    s.defs[i] = b.def;
+    s.levels[i] = levelOf(b);
+    s.trades[i] = b.trade !== undefined;
+  }
+  seen.set(state, s);
+}
+
+/** Rows to refit this hour (reused). */
+const dirtyRows: EntityId[] = [];
+
+/** What a refit did: whether it looked at every building, and how many rows and lone lots it refit. */
+export interface RefitResult {
+  full: boolean;
+  refit: number;
+}
+
 /**
  * The hourly pass: every grown building's storeys follow its tier or level and its row, so a home
- * that moved up a tier or a business that gained a level lifts its neighbors too.
+ * that moved up a tier or a business that gained a level lifts its neighbors too. When nothing but
+ * tiers and levels moved since the last refit, only the rows of the buildings that changed are refit;
+ * `full` refits every row regardless.
  */
-export function refitStoreys(state: WorldState, ctx: TickCtx | null): void {
+export function refitStoreys(state: WorldState, ctx: TickCtx | null, full = false): RefitResult {
+  const key = seenKey(state);
+  const was = seen.get(state);
+  if (!full && was && was.key === key) {
+    const bs = state.buildings;
+    let refit = 0;
+    dirtyRows.length = 0;
+    for (let i = 0; i < bs.length; i++) {
+      const b = bs[i]!;
+      const level = levelOf(b);
+      const trade = b.trade !== undefined;
+      if (was.defs[i] === b.def && was.levels[i] === level && was.trades[i] === trade) continue;
+      was.defs[i] = b.def;
+      was.levels[i] = level;
+      was.trades[i] = trade;
+      const lot = b.lot ? findById(state.lots, b.lot) : undefined;
+      if (!lot || lot.kind === 'garden' || lot.buildingId !== b.id) continue;
+      if (lot.row === 0) {
+        refitAlone(state, ctx, b, lot);
+        refit++;
+      } else if (!dirtyRows.includes(lot.row)) dirtyRows.push(lot.row);
+    }
+    for (const row of dirtyRows) refitRow(state, ctx, row);
+    refit += dirtyRows.length;
+    dirtyRows.length = 0;
+    return { full: false, refit };
+  }
   let rows: Map<EntityId, Lot[]> | null = null;
+  let refit = 0;
   for (const lot of state.lots) {
     if (lot.kind === 'garden' || !lot.buildingId) continue;
     if (lot.row === 0) {
       const b = findById(state.buildings, lot.buildingId);
-      const base = b ? baseOf(b) : null;
-      if (b && base !== null && b.storeys !== base) {
-        b.storeys = base;
-        announce(state, ctx, b, lot);
-      }
+      if (b) refitAlone(state, ctx, b, lot);
+      refit++;
       continue;
     }
     rows ??= new Map();
@@ -160,4 +256,7 @@ export function refitStoreys(state: WorldState, ctx: TickCtx | null): void {
   }
   // Empty lots are left out, so a chain breaks where one stands (its neighbors no longer touch).
   if (rows) for (const list of rows.values()) refitLots(state, ctx, list);
+  refit += rows?.size ?? 0;
+  remember(state, key);
+  return { full: true, refit };
 }

@@ -569,6 +569,17 @@ export function dropLot(state: WorldState, ctx: TickCtx | null, lot: Lot): void 
   }
 }
 
+/**
+ * R2F: a count per state of the passes that changed some lot (cut, dropped, or a row or corner
+ * renumbered in place), so the storeys refit knows when rows may have changed. Derived, never saved.
+ */
+const lotEpochs = new WeakMap<WorldState, number>();
+
+/** R2F: how many passes have changed a lot of this state (see lotEpochs). */
+export function lotEpoch(state: WorldState): number {
+  return lotEpochs.get(state) ?? 0;
+}
+
 /** Counts of what a pass did, for tests and benches. */
 export interface ZoningResult {
   added: number;
@@ -1037,6 +1048,8 @@ function cutAll(
       lot.desirability = lotDesirability(state, lot, k < FULL_SCORES ? species : [], services);
     });
   }
+  if (added.length + gardens.length + removed + changed.size > 0)
+    lotEpochs.set(state, lotEpoch(state) + 1);
   if (ctx) {
     const fresh = new Set<Lot>([...added, ...gardens]);
     for (const lot of state.lots) {

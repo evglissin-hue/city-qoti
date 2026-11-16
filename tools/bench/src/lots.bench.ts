@@ -4,7 +4,8 @@
 //
 // - the full cut from scratch (a valley zoned in one go: not an hourly cost, reported against a generous cap);
 // - the pass after one building is added (its inputs changed, so the zoning system runs it; nothing new to cut);
-// - refitStoreys, which runs every in-game hour, over a street grid built up.
+// - refitStoreys, which runs every in-game hour, over a street grid built up: an hour with one tier
+//   change, a quiet hour, and every row (after lots or buildings moved).
 //
 // Wall time, median over samples, as the other benches do.
 import { content } from '@qoti/content';
@@ -137,19 +138,38 @@ export function lotsBench(): { lines: string[]; failures: string[]; report: obje
     l.buildingId = b.id;
   }
   refitStoreys(world, null);
+  // The hour as the zoning system runs it: one home moves up a tier (its def swaps, as tiers does),
+  // so the refit reads every building's tier and level and refits that home's row alone.
+  const homes = world.buildings.filter((b) => b.lot);
   const refit: number[] = [];
+  const quiet: number[] = [];
   for (let n = 0; n < 25; n++) {
+    const b = homes[(n * 37) % homes.length]!;
+    b.def = b.def === 'townhouse' ? 'cottage' : 'townhouse';
     const t0 = performance.now();
-    refitStoreys(world, null);
+    const r = refitStoreys(world, null);
     refit.push(performance.now() - t0);
+    if (r.full) failures.push('lots: the hourly refit after a tier change refit every row');
+    const t1 = performance.now();
+    refitStoreys(world, null);
+    quiet.push(performance.now() - t1);
   }
   const refitMs = median(refit);
+  const quietMs = median(quiet);
+  // Every row, as after the lots or buildings moved (or on a client that just loaded).
+  const whole: number[] = [];
+  for (let n = 0; n < 9; n++) {
+    const t0 = performance.now();
+    refitStoreys(world, null, true);
+    whole.push(performance.now() - t0);
+  }
+  const wholeRefitMs = median(whole);
 
   lines.push(
     `lots street grid  ${plots} row lots, ${gardens} gardens: full cut ${fullMs.toFixed(1)} ms (cap ${LOTS_BUDGET.fullCutMs}) ${ok(fullMs <= LOTS_BUDGET.fullCutMs)}`,
     `lots after a building  pass ${afterMs.toFixed(3)} ms (budget ${LOTS_BUDGET.afterBuildingMs}) ${ok(afterMs <= LOTS_BUDGET.afterBuildingMs)}; the same grid of lanes ${laneMs.toFixed(3)} ms (${lanes.lots.length} lots)`,
     `lots after a stroke  whole plan ${strokeMs.toFixed(3)} ms (budget ${LOTS_BUDGET.strokeMs}, worst tick) ${ok(strokeMs <= LOTS_BUDGET.strokeMs)}`,
-    `lots hourly refit  ${refitMs.toFixed(3)} ms over ${plots} built row lots (budget ${LOTS_BUDGET.refitMs}) ${ok(refitMs <= LOTS_BUDGET.refitMs)}`,
+    `lots hourly refit  ${refitMs.toFixed(3)} ms with a tier change, ${quietMs.toFixed(3)} ms quiet, over ${plots} built row lots (budget ${LOTS_BUDGET.refitMs}) ${ok(refitMs <= LOTS_BUDGET.refitMs)}; every row ${wholeRefitMs.toFixed(3)} ms (after lots or buildings move)`,
   );
   if (fullMs > LOTS_BUDGET.fullCutMs)
     failures.push(`lots full cut ${fullMs.toFixed(1)} ms over ${LOTS_BUDGET.fullCutMs}`);
@@ -162,6 +182,17 @@ export function lotsBench(): { lines: string[]; failures: string[]; report: obje
   return {
     lines,
     failures,
-    report: { plots, gardens, fullMs, afterMs, strokeMs, laneMs, refitMs, budget: LOTS_BUDGET },
+    report: {
+      plots,
+      gardens,
+      fullMs,
+      afterMs,
+      strokeMs,
+      laneMs,
+      refitMs,
+      quietMs,
+      wholeRefitMs,
+      budget: LOTS_BUDGET,
+    },
   };
 }
