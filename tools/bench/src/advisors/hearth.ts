@@ -11,7 +11,9 @@ import {
   doorTile,
   findById,
   findRoute,
+  TICKS_PER_DAY,
   TILE_FP,
+  townReachesDoor,
   townStock,
   treeStage,
   worldIndex,
@@ -59,6 +61,10 @@ class Hearth implements Advisor {
   private gardenBed(home: Building): boolean {
     const def = content.buildingById.get('garden-bed');
     if (!def) return false;
+    // R2E: one bed going up at a time, and only where folk can walk to its door: hazel queued four
+    // at once and one stood 48 hours with its timber in; yew's was cut off (build.place does not
+    // check reach for a 'connect' path that may not come).
+    if (this.w.buildings.some((b) => b.def === 'garden-bed' && b.stage === 'construction')) return false;
     const reader = worldIndex(this.w).reader;
     for (let r = 1; r <= 2; r++)
       for (let dz = -r - 1; dz <= r + 1; dz++)
@@ -66,6 +72,7 @@ class Hearth implements Advisor {
           const x = home.x + dx;
           const z = home.z + dz;
           if (!canPlaceBuilding(reader, def, x, z, 0).ok) continue;
+          if (!townReachesDoor(this.w, { def: def.id, x, z, rot: 0 })) continue;
           return !!this.p.buildAt('a garden bed for a wish', 'garden-bed', x, z, 0, true);
         }
     return false;
@@ -106,10 +113,38 @@ class Hearth implements Advisor {
     ]);
   }
 
+  /** Hearth sites by id: the work done when last seen, and the tick it last moved (or waited on materials). */
+  private readonly siteSeen = new Map<number, [work: number, since: number]>();
+
+  /**
+   * R2E: a site of the Hearth's own (a garden bed, a well, the tavern) with every material in and no
+   * work for a day goes to the front of the builders' queue, once. Hazel's bed waited 48 hours behind
+   * the homes; a player who asked for it would nudge it.
+   */
+  private nudgeSites(): void {
+    const w = this.w;
+    const live = new Set<number>();
+    for (const b of w.buildings) {
+      const c = b.rt?.construction;
+      if (b.stage !== 'construction' || !c || content.buildingById.get(b.def)?.lane !== 'hearth') continue;
+      live.add(b.id);
+      const allIn = c.needs.every((n) => n <= 0);
+      const last = this.siteSeen.get(b.id);
+      if (!last || last[0] !== c.workDone || !allIn) {
+        this.siteSeen.set(b.id, [c.workDone, w.tick]);
+        continue;
+      }
+      if (!c.priority && w.tick - last[1] >= TICKS_PER_DAY)
+        this.p.do(`raise the ${b.def}`, [{ t: 'build.setPriority', id: b.id, priority: true }]);
+    }
+    for (const id of [...this.siteSeen.keys()]) if (!live.has(id)) this.siteSeen.delete(id);
+  }
+
   /** Answer up to three wishes, then dress one lane. */
   visit(): void {
     const p = this.p;
     const w = this.w;
+    this.nudgeSites();
     let answered = 0;
     for (const wish of [...w.wishes]) {
       if (answered >= 3) break;

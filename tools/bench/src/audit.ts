@@ -21,7 +21,7 @@
 // them). Exits non-zero when a dead-end flag appears. 'wish-never-granted' (a template offered three
 // times or more and never granted) is a warning: it prints but does not fail.
 import { content } from '@qoti/content';
-import { achievable, type HealthIssue, type WorldState } from '@qoti/sim';
+import { achievable, calendar, TICKS_PER_DAY, type HealthIssue, type WorldState } from '@qoti/sim';
 import { writeFileSync } from 'node:fs';
 import { autoplay, type AutoplayOptions } from './autoplay';
 import { stuckCommands, STUCK_DAYS, type StuckCommand } from './decisions';
@@ -64,6 +64,8 @@ export interface AuditRun {
   issues: HealthIssue[];
   /** R2E: commands the autoplayer kept sending and the sim kept refusing (a stuck player, not a dead end in the game). */
   stuck: StuckCommand[];
+  /** R2E: Hearth sites left a day with every material in and no work (the player who asked would nudge them). */
+  hearthStalled: string[];
 }
 
 export interface AuditWarning {
@@ -83,6 +85,39 @@ export interface AuditResult {
   explained: (HealthIssue & { run: string; why: string })[];
   /** R2E: the autoplayer stuck on one refused command, by run; fails the audit like a flag. */
   stuck: (StuckCommand & { run: string })[];
+  /** R2E: Hearth sites left a day with every material and no work, by run; fails the audit. */
+  hearthStalled: { run: string; text: string }[];
+}
+
+/**
+ * R2E's class check for the Hearth's own sites (a garden bed, a well, a tavern): stricter than the
+ * game's site-stalled (two days), a Hearth-lane site with every material in and no work for a whole
+ * day is the autoplayer leaving its own piece behind (hazel's garden bed waited 48 hours).
+ */
+export class HearthSites {
+  private readonly seen = new Map<number, [work: number, since: number]>();
+  readonly stalled: string[] = [];
+  private readonly told = new Set<number>();
+
+  look(w: WorldState): void {
+    for (const b of w.buildings) {
+      const c = b.rt?.construction;
+      if (b.stage !== 'construction' || !c || b.rt?.paused) continue;
+      if (content.buildingById.get(b.def)?.lane !== 'hearth') continue;
+      const allIn = c.needs.every((n) => n <= 0);
+      const last = this.seen.get(b.id);
+      if (!last || last[0] !== c.workDone || !allIn) {
+        this.seen.set(b.id, [c.workDone, w.tick]);
+        continue;
+      }
+      if (w.tick - last[1] >= TICKS_PER_DAY && !this.told.has(b.id)) {
+        this.told.add(b.id);
+        this.stalled.push(
+          `${b.def} #${b.id} has had every material a day with no work (day ${calendar(w.tick).day})`,
+        );
+      }
+    }
+  }
 }
 
 /** Watches wishes at each hourly look: new ones are offered; ones that vanish were granted or let go. */
@@ -135,7 +170,14 @@ class WishLedger {
 
 function playOne(seed: string, days: number, label: string, opts: AutoplayOptions): AuditRun {
   const ledger = new WishLedger();
-  const run = autoplay(seed, days, { ...opts, onHour: (w) => ledger.look(w) });
+  const hearthSites = new HearthSites();
+  const run = autoplay(seed, days, {
+    ...opts,
+    onHour: (w) => {
+      ledger.look(w);
+      hearthSites.look(w);
+    },
+  });
   const last = run.days[run.days.length - 1]!;
   return {
     seed,
@@ -146,6 +188,7 @@ function playOne(seed: string, days: number, label: string, opts: AutoplayOption
     wishes: ledger.result(),
     issues: run.health,
     stuck: stuckCommands(run.decisions),
+    hearthStalled: hearthSites.stalled,
   };
 }
 
@@ -168,6 +211,7 @@ export function audit(
         `${r.issues.length} issue${r.issues.length === 1 ? '' : 's'}  (${((performance.now() - t0) / 1000).toFixed(0)} s)`,
     );
     for (const i of r.issues) log(`    ${i.kind}: ${i.text}`);
+    for (const t of r.hearthStalled) log(`    hearth site stalled: ${t}`);
     for (const s of r.stuck)
       log(`    stuck: ${s.advisor} "${s.label}" refused on ${s.days} days (${s.first} to ${s.last})`);
   }
@@ -202,7 +246,10 @@ export function audit(
     return why ? [{ ...i, why }] : [];
   });
   const stuck = runs.flatMap((r) => r.stuck.map((s) => ({ ...s, run: `${r.seed}/${r.label}` })));
-  return { runs, wishes, warnings, flags, explained: known, stuck };
+  const hearthStalled = runs.flatMap((r) =>
+    r.hearthStalled.map((text) => ({ run: `${r.seed}/${r.label}`, text })),
+  );
+  return { runs, wishes, warnings, flags, explained: known, stuck, hearthStalled };
 }
 
 export function formatSummary(r: AuditResult): string {
@@ -226,10 +273,12 @@ export function formatSummary(r: AuditResult): string {
     lines.push(
       `stuck  ${s.run} ${s.advisor}: "${s.label}" refused on ${s.days} days (${s.first} to ${s.last}; ${STUCK_DAYS}+ fails)`,
     );
+  for (const h of r.hearthStalled) lines.push(`hearth site stalled  ${h.run} ${h.text}`);
+  const bad = r.flags.length + r.stuck.length + r.hearthStalled.length;
   lines.push(
-    r.flags.length || r.stuck.length
-      ? `FAIL: ${r.flags.length} dead-end flag${r.flags.length === 1 ? '' : 's'}, ${r.stuck.length} stuck command${r.stuck.length === 1 ? '' : 's'}`
-      : 'PASS: no dead-end flags, no stuck commands',
+    bad
+      ? `FAIL: ${r.flags.length} dead-end flags, ${r.stuck.length} stuck commands, ${r.hearthStalled.length} Hearth sites stalled`
+      : 'PASS: no dead-end flags, no stuck commands, no Hearth site stalled',
   );
   return lines.join('\n');
 }
@@ -241,5 +290,5 @@ if (process.argv[1]?.endsWith('audit.ts')) {
   const result = audit(seeds, days, villageDays, VILLAGE_SEED, console.log);
   console.log(formatSummary(result));
   if (process.env.AUDIT_JSON) writeFileSync(process.env.AUDIT_JSON, `${JSON.stringify(result, null, 2)}\n`);
-  process.exit(result.flags.length || result.stuck.length ? 1 : 0);
+  process.exit(result.flags.length || result.stuck.length || result.hearthStalled.length ? 1 : 0);
 }
