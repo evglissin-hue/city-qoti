@@ -11,6 +11,7 @@ import { land } from './land';
 import { money } from './money';
 import { nature } from './nature';
 import { plan } from './plan';
+import { shops } from './shops';
 import { together } from './together';
 import type { AdvisorDef } from './types';
 import { village } from './village';
@@ -29,6 +30,7 @@ export const advisors: readonly AdvisorDef[] = [
   money,
   nature,
   plan,
+  shops,
   together,
   village,
   watch,

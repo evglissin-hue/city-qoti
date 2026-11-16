@@ -25,6 +25,7 @@ import {
   worldIndex,
   Zone,
 } from '@qoti/sim';
+import { growableLots, isGarden } from './town';
 
 const S = MAP_SIZE;
 
@@ -182,7 +183,7 @@ export function storehouseSpot(w: WorldState, street: HighStreet): [number, numb
   const stores = w.buildings
     .filter((b) => b.def === 'storehouse' && b.stage === 'built')
     .map((b) => doorTile(b));
-  const far = w.lots
+  const far = growableLots(w)
     .filter(
       (l) => !l.buildingId && !stores.some((d) => man(d, l.frontage % S, Math.floor(l.frontage / S)) <= 22),
     )
@@ -217,6 +218,15 @@ export function storehouseSpot(w: WorldState, street: HighStreet): [number, numb
 /** R1F: the zone id a demand bar asks for, in DEMAND_KINDS order (Homes, Shops, Workshops, Farmland). */
 export const BAR_ZONES: readonly string[] = ['homes-low', 'shops', 'crafts', 'farms'];
 
+/** What `frontageFor` reads; `rank` (R2E) adds to a candidate run's score from the road tiles it fronts and the lot tiles. */
+export interface FrontageOpts {
+  minLen?: number;
+  maxLen?: number;
+  depth?: number;
+  tiles?: number;
+  rank?: (road: readonly [number, number][], lots: readonly [number, number][]) => number;
+}
+
 /**
  * R1F: open frontage for `zone` along the town's roads, the way a player answers a lit demand bar:
  * a straight run of `minLen` to `maxLen` tiles beside a lane or street (or a path, which costs no
@@ -225,11 +235,7 @@ export const BAR_ZONES: readonly string[] = ['homes-low', 'shops', 'crafts', 'fa
  * 22 tiles of a storehouse door, and for Farmland on soil good enough to farm. The run nearest the
  * town center wins. Returns the tiles to paint, or null when no run fits.
  */
-export function frontageFor(
-  w: WorldState,
-  zone: string,
-  opts: { minLen?: number; maxLen?: number; depth?: number; tiles?: number } = {},
-): [number, number][] | null {
+export function frontageFor(w: WorldState, zone: string, opts: FrontageOpts = {}): [number, number][] | null {
   // R1F: several runs, best first, until about `tiles` tiles (a few lots) are found: one stroke a
   // bar, not one lot a day.
   const want = opts.tiles ?? 40;
@@ -247,7 +253,7 @@ export function frontageFor(
 function bestRun(
   w: WorldState,
   zone: string,
-  opts: { minLen?: number; maxLen?: number; depth?: number },
+  opts: FrontageOpts,
   taken: ReadonlySet<number>,
 ): [number, number][] | null {
   const farms = zone === 'farms';
@@ -304,12 +310,18 @@ function bestRun(
             const mx = x + ax * (from + (n >> 1));
             const mz = z + az * (from + (n >> 1));
             const lane = w.map.road[z * S + x]! >= Road.lane ? 6 : 0;
-            const score = n * 2 + lane - (Math.abs(mx - cx) + Math.abs(mz - cz)) * 0.5;
+            let score = n * 2 + lane - (Math.abs(mx - cx) + Math.abs(mz - cz)) * 0.5;
+            const run: [number, number][] = [];
+            for (let j = from; j < k; j++)
+              for (let d = 1; d <= depth; d++) run.push([x + ax * j + px * d, z + az * j + pz * d]);
+            if (opts.rank) {
+              const road: [number, number][] = [];
+              for (let j = from; j < k; j++) road.push([x + ax * j, z + az * j]);
+              score += opts.rank(road, run);
+            }
             if (score <= bestScore) continue;
             bestScore = score;
-            best = [];
-            for (let j = from; j < k; j++)
-              for (let d = 1; d <= depth; d++) best.push([x + ax * j + px * d, z + az * j + pz * d]);
+            best = run;
           }
         }
       }
@@ -367,7 +379,7 @@ export function farFrontages(w: WorldState): number[] {
       return [d % S, Math.floor(d / S)] as const;
     });
   const far: number[] = [];
-  for (const l of w.lots) {
+  for (const l of growableLots(w)) {
     if (l.buildingId) continue;
     const fx = l.frontage % S;
     const fz = Math.floor(l.frontage / S);
@@ -444,8 +456,11 @@ export function frontageAscii(w: WorldState, rect: Rect): string {
       else if (b && lot) {
         row += b.stage === 'built' ? (BUILT_CHAR[lot.zone] ?? 'G') : '+';
       } else if (b) row += 'B';
-      else if (m.lot[i]) row += ZONE_CHAR[w.lots.find((l) => l.id === m.lot[i])?.zone ?? 0] ?? ':';
-      else if (m.fieldOwner[i]) row += '~';
+      else if (m.lot[i]) {
+        const at = w.lots.find((l) => l.id === m.lot[i]);
+        // R2F: a garden lot is courtyard, drawn 'g', never an empty lot of its zone.
+        row += at && isGarden(at) ? 'g' : (ZONE_CHAR[at?.zone ?? 0] ?? ':');
+      } else if (m.fieldOwner[i]) row += '~';
       else if (m.zone[i]) row += ',';
       else if (m.water[i]) row += 'w';
       else if (m.tree[i]) row += '^';
@@ -504,7 +519,7 @@ export interface GrowthLine {
 
 export function growthLine(w: WorldState): GrowthLine {
   const out: GrowthLine = {
-    lots: w.lots.length,
+    lots: growableLots(w).length,
     homes: 0,
     shops: 0,
     crafts: 0,
@@ -524,3 +539,6 @@ export function growthLine(w: WorldState): GrowthLine {
   }
   return out;
 }
+
+/** R2E: whether a tile is open ground for zoning (no road, building, water, field, zone; inside the map's margin). */
+export const openGround = open;

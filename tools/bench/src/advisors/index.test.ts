@@ -16,6 +16,7 @@ describe('the advisors', () => {
       'village',
       // R1F: the land advisor took the street advisor's slot, the plan advisor the seasons advisor's.
       'land',
+      'shops',
       'charter',
       'money',
       'watch',

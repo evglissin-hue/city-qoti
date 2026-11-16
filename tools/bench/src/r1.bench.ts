@@ -20,6 +20,7 @@ import {
   type WorldState,
 } from '@qoti/sim';
 import { flatTown } from './residents';
+import { growableLots } from './town';
 
 export const R1_BUDGET = { growthMsPerNight: 2, carrierMsPerDay: 0.5 };
 
@@ -175,7 +176,7 @@ export function r1Bench(): { lines: string[]; failures: string[]; report: object
     const ms = night(world, ctx);
     nightMs.push(ms.growth ?? 0);
     zoningMs.push(ms.zoning ?? 0);
-    lots = world.lots.length;
+    lots = growableLots(world).length;
     grew = world.lots.filter((l) => l.buildingId).length - before;
   }
   const growthMs = median(nightMs);

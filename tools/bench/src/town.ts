@@ -1,7 +1,17 @@
 // Small readings of the town the planner, the advisors and the day lines share (C5.0: gathered
 // from the I1 and I2 players, unchanged).
 import { content } from '@qoti/content';
-import { evaluate, MAP_SIZE, type WorldState } from '@qoti/sim';
+import { evaluate, MAP_SIZE, type Lot, type WorldState } from '@qoti/sim';
+
+/** R2F: a garden lot is courtyard ground between rows; nothing ever grows on it, so no reader offers or counts it. */
+export function isGarden(lot: Pick<Lot, 'kind'>): boolean {
+  return lot.kind === 'garden';
+}
+
+/** The lots something could grow on: every lot but the garden lots. */
+export function growableLots(w: WorldState): Lot[] {
+  return w.lots.filter((l) => !isGarden(l));
+}
 
 /** Good indexes of the Food family (R1: `GoodDef.family`, grain is porridge). */
 export const FOODS = content.goods.flatMap((g, i) => (g.family === 'food' ? [i] : []));
