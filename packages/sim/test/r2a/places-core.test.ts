@@ -5,6 +5,7 @@ import { TILE_FP } from '../../src/constants';
 import { insertBuilding } from '../../src/state/place';
 import { deserialize, serialize } from '../../src/state/serialize';
 import { invalidatePlaces, placeFeatures, placeIndex } from '../../src/systems/places';
+import { bumpPlaceInputs } from '../../src/systems/places/inputs';
 import { placeById } from '../../src/systems/places/api';
 import { DAYS_PER_SEASON, TICKS_PER_DAY } from '../../src/constants';
 import { findById } from '../../src/state/entities';
@@ -193,6 +194,7 @@ describe('the place index', () => {
       by: 0,
       tick: 0,
     };
+    bumpPlaceInputs(w);
     w.tick += 1;
     const ps = placeIndex(w).places;
     expect(ps.length).toBe(1);
@@ -244,18 +246,23 @@ describe('the place index', () => {
     same('charm moved');
     const stall = w.buildings.find((b) => b.def === 'market-stall')!;
     stall.level = 2;
+    bumpPlaceInputs(w);
     same('a level changed');
     stall.trade = 'baker';
+    bumpPlaceInputs(w);
     same('a business retooled (its taste bits read the trade)');
     const home = w.buildings.find((b) => b.def === 'cottage')!;
     home.rt!.modules = [['front', 'porch']];
+    bumpPlaceInputs(w);
     same('a porch went up');
     w.households[0]!.homeId = w.households[1]!.homeId;
+    bumpPlaceInputs(w);
     same('a family moved');
     run(w, { t: 'decor.move', id: w.decor[0]!.id, fx: fp(70), fz: fp(60), rot: 0 });
     same('a piece moved');
     w.weather.river.frozen = true;
     w.weather.river.frozenTick = w.tick;
+    bumpPlaceInputs(w);
     same('the river froze');
     w.tick = 3 * DAYS_PER_SEASON * TICKS_PER_DAY + 13 * 200;
     same('winter, lanterns lit');
@@ -296,16 +303,20 @@ describe('the place index', () => {
       } else if (k === 6) {
         const b = built[rand(built.length)]!;
         b.trade = b.trade ? undefined : 'baker';
+        bumpPlaceInputs(w);
       } else if (k === 7) {
         const b = built[rand(built.length)]!;
         b.level = 1 + rand(3);
+        bumpPlaceInputs(w);
       } else if (k === 8) {
         const hs = w.households;
         hs[rand(hs.length)]!.homeId = hs[rand(hs.length)]!.homeId;
+        bumpPlaceInputs(w);
       } else {
         const homes = built.filter((b) => b.def === 'cottage');
         const home = homes[rand(homes.length)]!;
         home.rt!.modules = home.rt!.modules?.length ? [] : [['front', 'porch']];
+        bumpPlaceInputs(w);
       }
       w.tick += 1;
       expect(snapshot(deserialize(serialize(w))), `step ${step}`).toBe(snapshot(w));

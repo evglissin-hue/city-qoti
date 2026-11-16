@@ -23,6 +23,7 @@ import { skatingSpots } from './place';
 import { closeImportTally, openImportTally, tallyImports } from './imports';
 import { spoil } from './spoilage';
 import { townFocus } from './place';
+import { bumpPlaceInputs } from '../places/inputs';
 
 export const SEASONS_OFFSET = 2;
 /** The hour the season report goes out on the last day, after the festival. */
@@ -88,6 +89,7 @@ export function closeWinter(state: WorldState): void {
 
 export function freeze(state: WorldState, ctx: TickCtx): void {
   state.weather.river = { frozen: true, frozenTick: state.tick };
+  bumpPlaceInputs(state);
   markSkatingCharm(state);
   ctx.events.push({ e: 'weather.updated', w: weatherView(state) });
 }
@@ -96,6 +98,7 @@ export function thaw(state: WorldState, ctx: TickCtx): void {
   // The spots are cached per freeze, so mark them before the river opens.
   markSkatingCharm(state);
   state.weather.river = { frozen: false, frozenTick: -1 };
+  bumpPlaceInputs(state);
   ctx.events.push({ e: 'weather.updated', w: weatherView(state) });
 }
 

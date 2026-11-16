@@ -29,6 +29,7 @@ import {
   BUILD_HOURS,
   calendar,
   rankAtLeast,
+  setPlaceVerify,
   TICKS_PER_HOUR,
   type HealthIssue,
   type WorldState,
@@ -227,6 +228,8 @@ export function audit(
   villageSeed = VILLAGE_SEED,
   log: (line: string) => void = () => {},
 ): AuditResult {
+  // R2X: every seed plays with the place index verifier on (a writer that forgets to bump throws).
+  setPlaceVerify(true);
   const runs: AuditRun[] = [];
   const plan: [string, number, string][] = seeds.map((s) => [s, days, 'year']);
   if (villageDays > 0) plan.push([villageSeed, villageDays, 'village']);

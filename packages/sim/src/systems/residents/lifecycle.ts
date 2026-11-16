@@ -21,6 +21,7 @@ import { doorOf, tileX, tileZ, vacantHomes, type Vacancy } from './places';
 import { announceHousehold, announceResident, announceTown, forgetResident, pushHistory } from './records';
 import { dayIndex } from './time';
 import { renownEffect } from '../renown/api';
+import { bumpPlaceInputs } from '../places/inputs';
 
 /** Attractiveness needed for arrivals (tune). */
 export const ARRIVAL_THRESHOLD = 40;
@@ -270,6 +271,7 @@ export function setOffForGood(state: WorldState, ctx: TickCtx, h: Household, not
   const gate = gateTile(state);
   const members = [...h.members];
   h.homeId = 0;
+  bumpPlaceInputs(state);
   for (const id of members) {
     const r = findById(state.residents, id);
     if (!r) continue;
@@ -307,6 +309,7 @@ export function removeResident(state: WorldState, ctx: TickCtx, r: Resident): vo
     // I2 (C4A): the last one out takes the household's purse along (money leaving the valley).
     if (h.savings > 0) pay(state, { household: h.id }, 'outside', h.savings, null);
     removeById(state.households, h.id);
+    bumpPlaceInputs(state);
     ctx.events.push({ e: 'household.removed', id: h.id });
     announceTown(state, ctx);
   }
@@ -326,6 +329,7 @@ export function rehouse(state: WorldState, ctx: TickCtx): void {
     const [home] = bestHome(state, vacantHomes(state), first?.species ?? 'rabbit');
     if (home) {
       h.homeId = home.building.id;
+      bumpPlaceInputs(state);
       for (const id of h.members) {
         const r = findById(state.residents, id);
         if (!r) continue;

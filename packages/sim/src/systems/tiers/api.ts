@@ -22,6 +22,7 @@ import { averageAround } from '../residents/desirability';
 import { serviceCoverage } from '../services/coverage';
 import type { ServiceKind } from '../services/weights';
 import { dayIndex } from '../residents/time';
+import { bumpPlaceInputs } from '../places/inputs';
 
 /** Charm a home may fall short by before its household counts as failing its tier (hysteresis). */
 export const CHARM_SLACK = 5;
@@ -310,6 +311,7 @@ export function finishUpgrade(state: WorldState, ctx: TickCtx, b: Building): voi
   rt.upgrade = null;
   rt.status &= ~BuildingStatus.upgrading;
   b.def = to.id;
+  bumpPlaceInputs(state);
   const h = state.households.find((x) => x.homeId === b.id);
   const tier = to.tier ?? 'settler';
   if (h && tierIndex(h.tier) < tierIndex(tier)) {
