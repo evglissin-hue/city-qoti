@@ -514,14 +514,12 @@ export function arriveAt(state: WorldState, r: Resident, k: number, window: Roun
     return false;
   }
   const o = occupancy(state, place.id);
-  let flags = 0;
-  if (place.seats - place.childSeats - o.seated > 0) flags = RoundFlags.seated;
-  else if (place.standing - o.standing > 0) flags = RoundFlags.standing;
-  else {
+  const seat = place.seats - place.childSeats - o.seated > 0;
+  if (!seat && place.standing - o.standing <= 0) {
     s.flags |= RoundFlags.turnedAway;
     return false;
   }
-  flags |= RoundFlags.arrived;
+  let flags = (seat ? RoundFlags.seated : RoundFlags.standing) | RoundFlags.arrived;
   if (friendThere(state, r, place.id)) flags |= RoundFlags.friend;
   const tally = state.evenings.tonight;
   if (evening && tally.day === dayIndex(state.tick)) {
