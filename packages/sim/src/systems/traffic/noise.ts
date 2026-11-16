@@ -7,6 +7,7 @@
 import { MAP_SIZE } from '../../constants';
 import type { WorldState } from '../../contracts';
 import { markChunks } from '../hearth/charm/dirty';
+import { Flags } from '../../map/layers';
 import { roadNoise, trafficFlow } from './api';
 import { countedTiles } from './passes';
 
@@ -21,7 +22,8 @@ function tileNoise(state: WorldState, i: number): number {
   const road = state.map.road[i]!;
   if (!road) return 0;
   let n = roadNoise(road);
-  if (state.map.traffic[i])
+  // R2 (R2B): no cart noise falls on an evening street, all day: the calm is the street's gain.
+  if (state.map.traffic[i] && !(state.map.flags[i]! & Flags.evening))
     n += Math.min(TRAFFIC_NOISE_MAX, Math.floor(trafficFlow(state, i) / TRAFFIC_NOISE_FLOW));
   return n;
 }

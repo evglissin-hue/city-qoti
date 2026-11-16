@@ -12,6 +12,8 @@ import { content } from '@qoti/content';
 import { MAP_SIZE, TICKS_PER_HOUR, TRAFFIC_SLOWDOWN_MAX } from '../../constants';
 import type { Cart, EntityId, WorldState } from '../../contracts';
 import { findById } from '../../state/entities';
+import { Flags } from '../../map/layers';
+import { crossesClosed, eveningClosed, eveningEpoch } from './evening';
 
 const S = MAP_SIZE;
 const N = S * S;
@@ -105,7 +107,13 @@ function pop(): number {
 }
 
 /** The quickest drive, uncached. Keys pack (cost, tile) so ties go to the lower tile index. */
-function searchRoute(road: Uint8Array, height: Uint8Array, from: number, to: number): number[] | null {
+function searchRoute(
+  road: Uint8Array,
+  height: Uint8Array,
+  flags: Uint8Array | null,
+  from: number,
+  to: number,
+): number[] | null {
   search = (search + 1) >>> 0;
   if (search === 0) {
     seen.fill(0);
@@ -152,6 +160,8 @@ function searchRoute(road: Uint8Array, height: Uint8Array, from: number, to: num
       if (done[nb] === id) continue;
       const step = ROUTE_TICKS[road[nb]!]!;
       if (step === 0) continue;
+      // R2 (R2B): a closed evening street is no road for a cart (the tile it starts on is not tested).
+      if (flags && (flags[nb]! & Flags.evening) !== 0) continue;
       const dh = height[nb]! - hc;
       if (dh > 1 || dh < -1) continue;
       const dn = dc + step;
@@ -167,49 +177,71 @@ function searchRoute(road: Uint8Array, height: Uint8Array, from: number, to: num
 
 interface RouteCache {
   version: number;
+  /** R2 (R2B): the evening flags' change count the routes were planned under. */
+  epoch: number;
+  /** Routes planned with every street open. */
   routes: Map<number, number[] | null>;
+  /** Routes planned while evening streets are closed (a second cache: the clock flips between them). */
+  closedRoutes: Map<number, number[] | null>;
 }
 
 const caches = new WeakMap<WorldState, RouteCache>();
 /** Entries per valley before the cache is emptied and refilled. */
 const MAX_ROUTES = 4096;
 
-/**
- * The cart route from one tile to another over lanes and streets (tiles after `from`, ending at
- * `to`), or null when either end is off the cart network or they are not connected. The array is
- * shared with the cache: copy it before changing it.
- */
-export function cartRoute(state: WorldState, from: number, to: number): number[] | null {
+function routeVia(state: WorldState, from: number, to: number, closed: boolean): number[] | null {
   if (!cartTile(state, from) || !cartTile(state, to)) return null;
   if (from === to) return [];
+  const epoch = eveningEpoch(state);
   let c = caches.get(state);
   if (!c) {
-    c = { version: state.networkVersion, routes: new Map() };
+    c = { version: state.networkVersion, epoch, routes: new Map(), closedRoutes: new Map() };
     caches.set(state, c);
-  } else if (c.version !== state.networkVersion) {
+  } else if (c.version !== state.networkVersion || c.epoch !== epoch) {
     c.version = state.networkVersion;
+    c.epoch = epoch;
     c.routes.clear();
+    c.closedRoutes.clear();
   }
+  const map = closed ? c.closedRoutes : c.routes;
   const key = from * N + to;
-  const hit = c.routes.get(key);
+  const hit = map.get(key);
   if (hit !== undefined) return hit;
-  const route = searchRoute(state.map.road, state.map.height, from, to);
-  if (c.routes.size >= MAX_ROUTES) c.routes.clear();
-  c.routes.set(key, route);
+  const route = searchRoute(state.map.road, state.map.height, closed ? state.map.flags : null, from, to);
+  if (map.size >= MAX_ROUTES) map.clear();
+  map.set(key, route);
   return route;
+}
+
+/**
+ * The cart route from one tile to another over lanes and streets (tiles after `from`, ending at
+ * `to`), or null when either end is off the cart network or they are not connected. From 17:00 to
+ * 21:00 evening streets are closed (R2B); a cart standing on one may still drive off it. The array
+ * is shared with the cache: copy it before changing it.
+ */
+export function cartRoute(state: WorldState, from: number, to: number): number[] | null {
+  return routeVia(state, from, to, eveningClosed(state));
+}
+
+/** The route as if every evening street were open: tells a cart that must wait from one with no way at all. */
+export function cartRouteIgnoringEvening(state: WorldState, from: number, to: number): number[] | null {
+  return routeVia(state, from, to, false);
 }
 
 /** True when every tile of a planned route is still cart road. */
 export function routeStillOpen(state: WorldState, path: readonly number[], from: number): boolean {
   const road = state.map.road;
   for (let k = from; k < path.length; k++) if (!cartRoad(road[path[k]!]!)) return false;
-  return true;
+  return !crossesClosed(state, path, from);
 }
 
 // --- Driving ------------------------------------------------------------------------------------
 
-/** 'driving' (a route was found), 'arrived' (already there), 'unreachable' (no route; it stays put). */
-export type CartMoveResult = 'driving' | 'arrived' | 'unreachable';
+/**
+ * 'driving' (a route was found), 'arrived' (already there), 'unreachable' (no route; it stays put),
+ * 'waiting' (R2B: no route while evening streets are closed but one at 21:00; it waits where it stands).
+ */
+export type CartMoveResult = 'driving' | 'arrived' | 'unreachable' | 'waiting';
 
 /** Sends a cart to a tile on the cart network. The cart leaves its shed. */
 export function requestCartMove(state: WorldState, cartId: EntityId, target: number): CartMoveResult {
@@ -220,7 +252,7 @@ export function requestCartMove(state: WorldState, cartId: EntityId, target: num
   cart.move = null;
   if (cart.tile === target) return 'arrived';
   const path = cartRoute(state, cart.tile, target);
-  if (!path) return 'unreachable';
+  if (!path) return cartRouteIgnoringEvening(state, cart.tile, target) ? 'waiting' : 'unreachable';
   cart.move = {
     path: path.slice(),
     step: 0,

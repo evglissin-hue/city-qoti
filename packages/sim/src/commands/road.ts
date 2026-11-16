@@ -7,6 +7,8 @@ import { cleanName } from '../state/evenings';
 import { streetViews } from '../view/evenings';
 import { chargeRoad, roadBlocked } from '../systems/economy/api';
 import { afterRoadChange, chargeRoadGoods, roadPaintBlocked } from '../systems/traffic/streets';
+import { markCharmDirty } from '../systems/hearth/charm/dirty';
+import { noteEveningChange } from '../systems/traffic/evening';
 import { checkTiles, type HandlerFor, tilesChangedFor, worldChanged } from './util';
 
 export const paint: HandlerFor<'road.paint'> = {
@@ -71,7 +73,10 @@ export const setEvening: HandlerFor<'road.setEvening'> = {
       if (!road[i]) continue;
       flags[i] = cmd.on ? flags[i]! | Flags.evening : flags[i]! & ~Flags.evening;
     }
-    // Evening streets change no walkability: no networkVersion bump.
+    // Evening streets change no walkability: no networkVersion bump. The cart routes' cache keys on
+    // its own change count, and charm follows the calm (no cart noise falls on an evening street).
+    noteEveningChange(state);
+    markCharmDirty(state, tilesRect(cmd.tiles));
     tilesChangedFor(ctx, cmd.tiles, ['flags']);
   },
 };
