@@ -294,6 +294,24 @@ describe("V3B's rows and V3C's river, fed (synthetic inputs)", () => {
     expect(moves(alone) - moves(joined)).toBe(row.length * 5);
   });
 
+  it('draws fed gardens in their own green and hedge, and none when unfed', () => {
+    const fed = used(run(blank({ gardens: [{ x: 10, z: 10, w: 4, d: 3 }] })));
+    expect(fed.has(css(K.meadow))).toBe(true);
+    expect(fed.has(css(K.oakDark))).toBe(true);
+    expect(used(run(blank())).has(css(K.oakDark))).toBe(false);
+  });
+
+  it('casts a longer shadow under a taller roof', () => {
+    const shadowAt = (storeys: number): number => {
+      const log = run(blank({ roofs: [{ x: 10, z: 10, w: 2, d: 2, rot: 0, storeys }] }));
+      // The first moveTo of the drawing's roofs is the shadow's first corner.
+      const roof = log.findIndex((c) => c.name === 'fill' && c.fill === css(K.ink));
+      const moves = log.slice(0, roof).filter((c) => c.name === 'moveTo');
+      return Number(moves[moves.length - 1]!.args[0]);
+    };
+    expect(shadowAt(3)).toBeGreaterThan(shadowAt(1));
+  });
+
   it('ignores a row of one', () => {
     expect(moves(run(blank({ roofs: row, rows: [[row[0]!]] })))).toBe(moves(run(blank({ roofs: row }))));
   });

@@ -91,6 +91,8 @@ export interface EndpaperRoof {
   w: number;
   d: number;
   rot: number;
+  /** V3D, from V3B's rows: the building's storeys (absent 1); a taller roof casts a longer shadow on the map. */
+  storeys?: number;
 }
 
 /** Lettering on the map: the valley's name along the river, places and streets. Tiles, radians. */
@@ -137,6 +139,8 @@ export interface EndpaperInput {
    * is drawn alone (a hipped roof).
    */
   rows?: EndpaperRoof[][];
+  /** V3D, fed by V3B (`endpaperFeeds.gardens`): garden lots behind the rows, in tiles, drawn as hedged greens. */
+  gardens?: { x: number; z: number; w: number; d: number }[];
 }
 
 /** V3D: the river's course (V3C's): x, z pairs in tiles along the river, and its width in tiles at each point. */
@@ -153,6 +157,34 @@ export interface EndpaperRiver {
 export interface EndpaperFeeds {
   river?: (mirror: Mirror) => EndpaperRiver | null;
   rows?: (mirror: Mirror) => EndpaperRoof[][];
+  gardens?: (mirror: Mirror) => { x: number; z: number; w: number; d: number }[];
+}
+
+/**
+ * V3D: V3B's `endpaperStreets(mirror).rooflines` (`render/lots.ts` on V3B's branch) as the map's
+ * rows: rooflines sharing a row id above 0 make one row, in the order given; row 0 (a lone lot) makes
+ * none. V3X wires it: `endpaperFeeds.rows = (m) => rowsOfRooflines(endpaperStreets(m).rooflines)` and
+ * `endpaperFeeds.gardens = (m) => endpaperStreets(m).gardens`.
+ */
+export function rowsOfRooflines(
+  rooflines: readonly {
+    row: number;
+    x: number;
+    z: number;
+    w: number;
+    d: number;
+    rot: number;
+    storeys?: number;
+  }[],
+): EndpaperRoof[][] {
+  const rows = new Map<number, EndpaperRoof[]>();
+  for (const r of rooflines) {
+    if (r.row <= 0) continue;
+    let list = rows.get(r.row);
+    if (!list) rows.set(r.row, (list = []));
+    list.push({ x: r.x, z: r.z, w: r.w, d: r.d, rot: r.rot, storeys: r.storeys ?? 1 });
+  }
+  return [...rows.values()];
 }
 
 /** V3D: the feeds `endpaperInput` uses by default. */
@@ -300,6 +332,8 @@ export function endpaperInput(
   if (river && river.points.length >= 4) input.river = river;
   const rows = feeds.rows?.(mirror);
   if (rows && rows.length) input.rows = rows;
+  const gardens = feeds.gardens?.(mirror);
+  if (gardens && gardens.length) input.gardens = gardens;
   return input;
 }
 

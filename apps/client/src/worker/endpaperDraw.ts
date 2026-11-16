@@ -335,6 +335,23 @@ function water(c: Cx): void {
 
 // 4. Fields --------------------------------------------------------------------------------------
 
+/** V3B's garden lots, when fed: a soft green inside a dotted hedge. */
+function gardens(c: Cx): void {
+  const { g, inp, ls } = c;
+  const list = inp.gardens;
+  if (!list?.length) return;
+  g.beginPath();
+  for (const r of list) rectPath(c, { ...r, rot: 0 }, 0.1);
+  ink(g, 'fill', K.meadow, 0.45);
+  g.fill();
+  g.lineCap = 'round';
+  g.lineWidth = 2.4 * ls;
+  g.setLineDash([0.1, 3.2 * ls]);
+  ink(g, 'stroke', K.oakDark, 0.85);
+  g.stroke();
+  g.setLineDash([]);
+}
+
 function fields(c: Cx): void {
   const { g, inp, tiles, P, ls } = c;
   const { list } = patches(inp.fields, tiles);
@@ -599,7 +616,11 @@ function roofs(c: Cx): void {
   if (!list.length) return;
   g.lineJoin = 'round';
   g.beginPath();
-  for (const r of list) rectPath(c, r, 0.05, 0.22, 0.22);
+  for (const r of list) {
+    // A taller house (V3B's storeys) casts a longer shadow down the page.
+    const k = 0.22 * (1 + 0.5 * Math.max(0, (r.storeys ?? 1) - 1));
+    rectPath(c, r, 0.05, k, k);
+  }
   ink(g, 'fill', K.ink, 0.2);
   g.fill();
   g.beginPath();
@@ -1187,6 +1208,7 @@ export function drawMap(g: Ctx, inp: EndpaperInput, size: number, opts: DrawOpts
   run('relief', relief);
   run('water', water);
   run('fields', fields);
+  run('gardens', gardens);
   run('woods', woods);
   run('roads', roads);
   run('roofs', roofs);

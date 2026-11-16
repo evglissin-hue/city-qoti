@@ -9,6 +9,7 @@ import {
   ENDPAPER_NEAR,
   ENDPAPER_ON,
   ENDPAPER_PAGE_PITCH,
+  rowsOfRooflines,
   endpaperCover,
   endpaperInput,
   EndpaperWriter,
@@ -183,6 +184,19 @@ describe('the endpaper feeds (V3D, for V3B and V3C)', () => {
     const fed = endpaperInput(fakeMirror(), {}, { river: () => river, rows: () => rows });
     expect(fed.river).toBe(river);
     expect(fed.rows).toBe(rows);
+  });
+
+  it("groups V3B's rooflines into rows by row id, leaving lone lots out", () => {
+    const rows = rowsOfRooflines([
+      { row: 2, x: 1, z: 1, w: 2, d: 2, rot: 0, storeys: 2 },
+      { row: 0, x: 9, z: 9, w: 2, d: 2, rot: 0, storeys: 1 },
+      { row: 2, x: 3, z: 1, w: 2, d: 2, rot: 0, storeys: 1 },
+      { row: 5, x: 1, z: 7, w: 2, d: 2, rot: 1, storeys: 1 },
+    ]);
+    expect(rows).toHaveLength(2);
+    expect(rows[0]!.map((r) => r.x)).toEqual([1, 3]);
+    expect(rows[0]![0]!.storeys).toBe(2);
+    expect(rows[1]).toHaveLength(1);
   });
 
   it('drops a river feed with no course and an empty rows feed', () => {
