@@ -343,33 +343,30 @@ export const yardSkep: Kit = piece('yard-skep', 56, ({ s, rnd }) => {
 
 const PRAM_BLANKETS = [0xe9e1cf, 0xc9d8d2, 0xe6c6b5, 0xd8cde0] as const;
 
-/** A slim wheel in the plane x = `x`, facing `dir` (-1 or 1) so it reads from outside: a thin dark tire ring and two light spokes. */
-function wheel(s: ShapeBuilder, x: number, y: number, z: number, r: number, seg: number, dir: number): void {
-  const ri = r * 0.8;
-  const n: V3 = [dir, 0, 0];
+/** A slim wheel in the plane x = `x`: a thin dark tire ring and one light spoke strip, both faces drawn so it reads from either side. */
+function wheel(s: ShapeBuilder, x: number, y: number, z: number, r: number, seg: number): void {
+  const ri = r * 0.78;
+  const p = (a: number, rr: number): V3 => [x, y + Math.cos(a) * rr, z + Math.sin(a) * rr];
   for (let i = 0; i < seg; i++) {
     const a0 = (i / seg) * Math.PI * 2;
     const a1 = ((i + 1) / seg) * Math.PI * 2;
-    const p = (a: number, rr: number): V3 => [x, y + Math.cos(a) * rr, z + Math.sin(a) * rr];
-    // Wound so the front faces `dir`.
-    if (dir > 0) s.quad(p(a0, r), p(a1, r), p(a1, ri), p(a0, ri), palette.ink, n);
-    else s.quad(p(a0, r), p(a0, ri), p(a1, ri), p(a1, r), palette.ink, n);
+    panel(s, p(a0, r), p(a1, r), p(a1, ri), p(a0, ri), palette.ink);
   }
-  const lw = 0.0035;
-  for (const a of [0.35, 1.92]) {
-    const c = Math.cos(a) * ri;
-    const d = Math.sin(a) * ri;
-    const ex = Math.cos(a + Math.PI / 2) * lw;
-    const ez = Math.sin(a + Math.PI / 2) * lw;
-    const q: V3[] = [
-      [x + dir * 0.001, y + c + ex, z + d + ez],
-      [x + dir * 0.001, y - c + ex, z - d + ez],
-      [x + dir * 0.001, y - c - ex, z - d - ez],
-      [x + dir * 0.001, y + c - ex, z + d - ez],
-    ];
-    if (dir > 0) s.quad(q[0]!, q[1]!, q[2]!, q[3]!, palette.metal, n);
-    else s.quad(q[0]!, q[3]!, q[2]!, q[1]!, palette.metal, n);
-  }
+  // One spoke strip across the hub, lighter than the tire.
+  const a = 0.35;
+  const lw = 0.004;
+  const ex = Math.cos(a + Math.PI / 2) * lw;
+  const ez = Math.sin(a + Math.PI / 2) * lw;
+  const c = Math.cos(a) * ri;
+  const d = Math.sin(a) * ri;
+  panel(
+    s,
+    [x, y + c + ex, z + d + ez],
+    [x, y - c + ex, z - d + ez],
+    [x, y - c - ex, z - d - ez],
+    [x, y + c - ex, z + d - ez],
+    palette.metal,
+  );
 }
 
 export const yardPram: Kit = piece('yard-pram', 57, ({ s, rnd, seed }) => {
@@ -411,12 +408,28 @@ export const yardPram: Kit = piece('yard-pram', 57, ({ s, rnd, seed }) => {
         s.tri([x, 0.15, -0.1], [x, 0.2, -0.105], [x, 0.212, -0.06], hood, [x < 0 ? -1 : 1, 0, 0]);
         s.tri([x, 0.15, -0.1], [x, 0.212, -0.06], [x, 0.158, -0.01], hood, [x < 0 ? -1 : 1, 0, 0]);
       }
+      // The handle: flat iron strips, seen from either side.
       s.surface(SURFACE.wroughtIron);
-      for (const x of [-0.05, 0.05]) beam(s, [x, 0.14, -0.1], [x, 0.22, -0.17], 0.005, palette.metal);
-      beam(s, [-0.05, 0.22, -0.17], [0.05, 0.22, -0.17], 0.006, palette.metal);
+      for (const x of [-0.05, 0.05])
+        panel(
+          s,
+          [x - 0.004, 0.14, -0.1],
+          [x + 0.004, 0.14, -0.1],
+          [x + 0.004, 0.22, -0.17],
+          [x - 0.004, 0.22, -0.17],
+          palette.metal,
+        );
+      panel(
+        s,
+        [-0.05, 0.218, -0.17],
+        [0.05, 0.218, -0.17],
+        [0.05, 0.226, -0.17],
+        [-0.05, 0.226, -0.17],
+        palette.metal,
+      );
       for (const dir of [-1, 1]) {
-        wheel(s, dir * wx, 0.058, -0.07, 0.058, 8, dir);
-        wheel(s, dir * wx, 0.044, 0.06, 0.044, 8, dir);
+        wheel(s, dir * wx, 0.058, -0.07, 0.058, 6);
+        wheel(s, dir * wx, 0.044, 0.06, 0.044, 6);
       }
     },
     () => {
@@ -434,11 +447,7 @@ export const yardPram: Kit = piece('yard-pram', 57, ({ s, rnd, seed }) => {
       s.surface(SURFACE.wroughtIron);
       for (const dir of [-1, 1]) {
         const x = dir * wx;
-        s.quad([x, 0, -0.128], [x, 0, -0.012], [x, 0.116, -0.012], [x, 0.116, -0.128], palette.ink, [
-          dir,
-          0,
-          0,
-        ]);
+        panel(s, [x, 0, -0.128], [x, 0, -0.012], [x, 0.116, -0.012], [x, 0.116, -0.128], palette.ink);
       }
     },
   );
