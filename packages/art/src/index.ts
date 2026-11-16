@@ -13,14 +13,27 @@ export {
   type GroundBox,
 } from './anchors';
 export {
+  boundsOf,
+  CLEAR_BAND,
+  CLEAR_CELLS,
+  clearanceOf,
+  cloneClearance,
+  doorCorridor,
+  DOOR_HALF,
   dressingCount,
+  fitPlacement,
+  footprintOf,
+  FRONT_OVERHANG,
+  markPlacement,
   matches,
   mix32,
   resolveDressing,
   rulesFor,
   subjectKey,
   validateDressingRules,
+  type Clearance,
   type DressingSubject,
+  type PieceBounds,
   type Placement,
 } from './dressing';
 export {
