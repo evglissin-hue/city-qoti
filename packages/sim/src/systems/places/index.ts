@@ -22,6 +22,7 @@ import { buildPlaces, type PlaceExtra } from './build';
 import { refreshDraws } from './draw';
 import { refreshRows } from './rows';
 import { placeSignature } from './signature';
+import { refreshStreets } from './streets';
 
 /** The derived places, sorted by id, and a lookup by id. Never serialized, never hashed. */
 export interface PlaceIndex {
@@ -142,5 +143,6 @@ export const places: System = {
     // The patterns pass ran a moment ago in this tick: read the sites it found.
     invalidatePlaces(state);
     refreshRows(state, ctx);
+    refreshStreets(state, ctx);
   },
 };
