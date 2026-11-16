@@ -12,15 +12,36 @@ import { placeIndex } from './index';
 import { placeNameFor } from './names';
 
 /** The last fingerprint of the places we announced (events are presentation, never hashed). */
-const announced = new WeakMap<WorldState, string>();
+const announced = new WeakMap<WorldState, number>();
 
-/** A derived summary of what the places list shows structurally: ids, room, kinds, outlets, draw. */
-function fingerprint(state: WorldState): string {
-  let s = '';
+const KIND_BITS = new Map<string, number>([
+  ['sit', 1],
+  ['eat', 2],
+  ['view', 4],
+  ['play', 8],
+  ['meet', 16],
+  ['walk', 32],
+]);
+
+/** A derived hash of what the places list shows structurally: ids, room, kinds, outlets, draw. */
+function fingerprint(state: WorldState): number {
+  let h = 0x811c9dc5;
+  const mix = (v: number) => {
+    h = Math.imul(h ^ (v | 0), 0x01000193);
+  };
   for (const p of placeIndex(state).places) {
-    s += `${p.id}|${p.seats}|${p.childSeats}|${p.standing}|${p.kinds.join(',')}|${p.outlets.join(',')}|${p.draw};`;
+    for (let i = 0; i < p.id.length; i++) mix(p.id.charCodeAt(i));
+    mix(p.seats);
+    mix(p.childSeats);
+    mix(p.standing);
+    let kinds = 0;
+    for (const k of p.kinds) kinds |= KIND_BITS.get(k) ?? 0;
+    mix(kinds);
+    mix(p.outlets.length);
+    for (const o of p.outlets) mix(o);
+    mix(p.draw);
   }
-  return s;
+  return h >>> 0;
 }
 
 /** Inserts a row keeping `state.places` sorted by id. */

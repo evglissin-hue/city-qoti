@@ -149,7 +149,7 @@ export function think(state: WorldState, ctx: TickCtx, rng: Rng, r: Resident): v
       stroll(state, ctx, rng, r, h, homeDoor, homeDoor, 5);
       return;
     case 'outing':
-      if (window && followRound(state, ctx, r, h, homeDoor, window, true)) return;
+      if (window && followRound(state, ctx, r, h, homeDoor, window, turned, true)) return;
       if (OUTINGS.has(r.activity.kind) && !turned) {
         carryOn(state, ctx, rng, r, h, homeDoor);
         return;
@@ -439,6 +439,7 @@ function followRound(
   h: Household,
   homeDoor: number,
   window: RoundWindow,
+  turned: boolean,
   again: boolean,
 ): boolean {
   if (r.carry) {
@@ -462,7 +463,7 @@ function followRound(
   if (k < 0) {
     if (window === 'afternoon') return false;
     // The round is over; a pantry that ran low since is still fetched for, as built.
-    if (shopIfLow(state, r, h)) return true;
+    if (turned && shopIfLow(state, r, h)) return true;
     stayHome(state, ctx, r, h, homeDoor, 'home');
     return true;
   }
@@ -471,8 +472,8 @@ function followRound(
   // Not before the hour they planned to set off: they wait at home (or where an afternoon finds them).
   if (s.at !== undefined && tod < s.at && !(r.move && r.move.target === s.tile)) {
     if (window === 'afternoon') return false;
-    // Waiting for their hour: an errand first if the pantry ran low.
-    if (shopIfLow(state, r, h)) return true;
+    // Waiting for their hour: an errand first if the pantry ran low (checked hourly, as built).
+    if (turned && shopIfLow(state, r, h)) return true;
     stayHome(state, ctx, r, h, homeDoor, 'home');
     return true;
   }
@@ -493,7 +494,7 @@ function followRound(
     }
     // Nothing to fetch after all, or nowhere to fetch it from: on to the next stop.
     round.splice(k, 1);
-    return again ? followRound(state, ctx, r, h, homeDoor, window, false) : true;
+    return again ? followRound(state, ctx, r, h, homeDoor, window, turned, false) : true;
   }
   if (r.move && r.move.target === s.tile) return true;
   const res =

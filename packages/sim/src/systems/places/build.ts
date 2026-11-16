@@ -258,12 +258,15 @@ export function buildPlaces(state: WorldState): BuiltPlaces {
   seatPieces.sort((a, b) => a.id - b.id);
   const spots: Draft[] = [];
   const inSpot = new Set<EntityId>();
+  const free = new Set<EntityId>(seatPieces.map((p) => p.id));
+  const decorGrid = worldIndex(state).decorGrid;
   for (const seed of seatPieces) {
     if (inSpot.has(seed.id)) continue;
     const seedTile = tileOfDecor(seed);
     const near: [dist: number, piece: Decor][] = [];
-    for (const other of seatPieces) {
-      if (other === seed || inSpot.has(other.id)) continue;
+    // A Manhattan reach of spotRadius lies inside the circle of that many tiles (plus a tile's width).
+    for (const other of decorGrid.near(seed.fx, seed.fz, (P.spotRadius + 1) * TILE_FP)) {
+      if (other === seed || !free.has(other.id) || inSpot.has(other.id)) continue;
       const dist = manhattan(seedTile, tileOfDecor(other));
       if (dist <= P.spotRadius) near.push([dist, other]);
     }
@@ -364,41 +367,73 @@ export function buildPlaces(state: WorldState): BuiltPlaces {
     d.tiles.add(door);
   }
 
+  // Outlets by a coarse cell of their door, so each place checks only those near it.
+  const outletCells = new Map<number, [id: EntityId, door: number][]>();
+  for (const o of outlets) {
+    const key = cellOf(o[1]);
+    const list = outletCells.get(key);
+    if (list) list.push(o);
+    else outletCells.set(key, [o]);
+  }
+  const grid = worldIndex(state).decorGrid;
+  const { road, tree } = state.map;
+
   const places: Place[] = [];
   const extras: PlaceExtra[] = [];
   for (const d of drafts) {
     const tiles = [...d.tiles].sort((a, b) => a - b);
+    let x0 = S;
+    let z0 = S;
+    let x1 = -1;
+    let z1 = -1;
+    for (const t of tiles) {
+      const x = t % S;
+      const z = (t - x) / S;
+      if (x < x0) x0 = x;
+      if (x > x1) x1 = x;
+      if (z < z0) z0 = z;
+      if (z > z1) z1 = z;
+    }
     const near: EntityId[] = [];
-    for (const [id, door] of outlets) if (nearAny(d.tiles, door, P.serveRadius)) near.push(id);
+    const r = P.serveRadius;
+    for (let cz = cellCoord(z0 - r); cz <= cellCoord(z1 + r); cz++) {
+      for (let cx = cellCoord(x0 - r); cx <= cellCoord(x1 + r); cx++) {
+        for (const [id, door] of outletCells.get(cz * CELLS + cx) ?? []) {
+          if (nearAny(tiles, door, r)) near.push(id);
+        }
+      }
+    }
     near.sort((a, b) => a - b);
 
-    // Kinds: pieces and water decide most of them.
+    // Kinds: pieces and water decide most of them. One query for the decor over the place's box.
     let pieceKinds = 0;
     let lights = false;
     let features = 0;
     let quiet = true;
-    const seen = new Set<string>();
     for (const t of tiles) {
-      if (state.map.road[t]) quiet = false;
-      const tv = state.map.tree[t]!;
+      if (road[t]) quiet = false;
+      const tv = tree[t]!;
       if (tv && treeStage(tv) >= TREE_MATURE) features |= PlaceFeature.tree;
-      for (const piece of decorOn(state, t)) {
-        const def = content.decorById.get(piece.def);
-        if (!def) continue;
-        if (!seen.has(def.id)) {
-          seen.add(def.id);
-          pieceKinds += 1;
-        }
-        if (def.tags.includes('light') || def.tags.includes('lantern')) lights = true;
-        for (const [tag, bit] of DECOR_FEATURES) if (def.tags.includes(tag)) features |= bit;
-        if (def.tags.includes('play')) d.kinds.add('play');
-        if (VIEW_PIECES.has(def.id)) d.kinds.add('view');
+    }
+    const seen = new Set<string>();
+    const reach = ((x1 - x0 + 1 + (z1 - z0 + 1)) * TILE_FP) / 2 + TILE_FP;
+    for (const piece of grid.near(((x0 + x1 + 1) * TILE_FP) / 2, ((z0 + z1 + 1) * TILE_FP) / 2, reach)) {
+      if (!d.tiles.has(tileOfDecor(piece))) continue;
+      const def = content.decorById.get(piece.def);
+      if (!def) continue;
+      if (!seen.has(def.id)) {
+        seen.add(def.id);
+        pieceKinds += 1;
       }
+      if (def.tags.includes('light') || def.tags.includes('lantern')) lights = true;
+      for (const [tag, bit] of DECOR_FEATURES) if (def.tags.includes(tag)) features |= bit;
+      if (def.tags.includes('play')) d.kinds.add('play');
+      if (VIEW_PIECES.has(def.id)) d.kinds.add('view');
     }
     if (d.seats - d.childSeats > 0) d.kinds.add('sit');
     if (d.childSeats > 0) d.kinds.add('play');
     if (near.length > 0) d.kinds.add('eat');
-    const water = waterNear(state, tiles, P.waterRadius);
+    const water = waterNear(state, tiles, [x0, z0, x1, z1], P.waterRadius);
     if (water) d.kinds.add('view');
     for (const id of d.members) features |= buildingFeatures(buildingById.get(id));
     for (const id of near) features |= buildingFeatures(buildingById.get(id));
@@ -441,38 +476,46 @@ export function buildPlaces(state: WorldState): BuiltPlaces {
   return { places, extras };
 }
 
-/** True when some tile of the set lies within `radius` (Manhattan) of `tile`. */
-function nearAny(tiles: ReadonlySet<number>, tile: number, radius: number): boolean {
+/** Coarse cells for finding outlets near a place (tiles per side). */
+const CELL = 8;
+const CELLS = Math.ceil(S / CELL);
+
+function cellCoord(v: number): number {
+  return Math.max(0, Math.min(CELLS - 1, Math.floor(v / CELL)));
+}
+
+function cellOf(tile: number): number {
+  const x = tile % S;
+  return cellCoord((tile - x) / S) * CELLS + cellCoord(x);
+}
+
+/** True when some tile lies within `radius` (Manhattan) of `tile`. */
+function nearAny(tiles: Iterable<number>, tile: number, radius: number): boolean {
   for (const t of tiles) if (manhattan(t, tile) <= radius) return true;
   return false;
 }
 
-/** Decor standing on a tile (its center inside the tile), in id order. */
-function decorOn(state: WorldState, tile: number): Decor[] {
-  const x = tile % S;
-  const z = (tile - x) / S;
-  const out: Decor[] = [];
-  for (const d of worldIndex(state).decorGrid.near(x * TILE_FP + 128, z * TILE_FP + 128, TILE_FP)) {
-    if (decorTileX(d) === x && decorTileZ(d) === z) out.push(d);
-  }
-  return out.sort((a, b) => a.id - b.id);
-}
-
-/** Water (not under a road) within `radius` tiles (Chebyshev) of any of the tiles. */
-function waterNear(state: WorldState, tiles: readonly number[], radius: number): boolean {
+/**
+ * Water (not under a road) within `radius` tiles (Chebyshev) of any of the tiles: the water in the
+ * place's box grown by `radius`, each checked against the tiles.
+ */
+function waterNear(
+  state: WorldState,
+  tiles: readonly number[],
+  box: readonly [number, number, number, number],
+  radius: number,
+): boolean {
   const water = state.map.water;
   const road = state.map.road;
-  for (const t of tiles) {
-    const x = t % S;
-    const z = (t - x) / S;
-    for (let dz = -radius; dz <= radius; dz++) {
-      const nz = z + dz;
-      if (nz < 0 || nz >= S) continue;
-      for (let dx = -radius; dx <= radius; dx++) {
-        const nx = x + dx;
-        if (nx < 0 || nx >= S) continue;
-        const i = nz * S + nx;
-        if (water[i] && !road[i]) return true;
+  const [x0, z0, x1, z1] = box;
+  for (let z = Math.max(0, z0 - radius); z <= Math.min(S - 1, z1 + radius); z++) {
+    for (let x = Math.max(0, x0 - radius); x <= Math.min(S - 1, x1 + radius); x++) {
+      const i = z * S + x;
+      if (!water[i] || road[i]) continue;
+      for (const t of tiles) {
+        const tx = t % S;
+        const tz = (t - tx) / S;
+        if (Math.abs(tx - x) <= radius && Math.abs(tz - z) <= radius) return true;
       }
     }
   }

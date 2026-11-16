@@ -148,12 +148,33 @@ function featureSlot(m: Memo, place: Place): number {
 }
 
 /**
+ * The next read checks the signature again even within this tick and turn (and rebuilds only if an
+ * input changed). Deterministic: call it from sim code.
+ */
+export function recheckPlaces(state: WorldState): void {
+  const m = memos.get(state);
+  if (m) m.tick = -1;
+}
+
+/**
  * Drops the cached index (a Hearth command nearby, a building grown or gone); the next read rebuilds
  * it. The index already rebuilds whenever its inputs change, so this only ever costs time: call it
  * from sim code (commands, systems), never from views.
  */
 export function invalidatePlaces(state: WorldState): void {
   memos.delete(state);
+}
+
+/** The road layer each state's street pass last ran on (derived, never saved). */
+const streetsSeen = new WeakMap<WorldState, number>();
+
+/** A 32-bit hash of the road layer (word by word). */
+function roadHash(state: WorldState): number {
+  const road = state.map.road;
+  const words = new Uint32Array(road.buffer, road.byteOffset, road.byteLength >>> 2);
+  let h = 0x811c9dc5;
+  for (let i = 0; i < words.length; i++) h = Math.imul(h ^ words[i]!, 0x01000193);
+  return h >>> 0;
 }
 
 export const places: System = {
@@ -163,10 +184,16 @@ export const places: System = {
   offset: PATTERNS_OFFSET,
   tick(state, ctx) {
     if (!isStandard(state)) return;
-    // The patterns pass ran a moment ago in this tick: read the sites it found.
-    invalidatePlaces(state);
-    // Streets first, so a place first found today can be named for the street beside it.
-    refreshStreets(state, ctx);
+    // The patterns pass ran a moment ago in this tick: check the signature again (it rebuilds only
+    // when something changed), so the pass reads the sites it found.
+    recheckPlaces(state);
+    // Streets first, so a place first found today can be named for the street beside it. Runs
+    // change only with the road layer: unchanged roads mean the street pass would change nothing.
+    const roads = roadHash(state);
+    if (streetsSeen.get(state) !== roads) {
+      refreshStreets(state, ctx);
+      streetsSeen.set(state, roads);
+    }
     refreshRows(state, ctx);
   },
 };
