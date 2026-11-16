@@ -1,5 +1,7 @@
 import { BackSide, Mesh, PerspectiveCamera, ShaderMaterial, SphereGeometry } from 'three';
+import type { Mirror } from '../../state/mirror';
 import { createWorldEnv, NOISE_GLSL, type WorldEnv } from '../env';
+import { HAZE_LIFT, HAZE_SPAN, hazeTermsAt } from '../lighting';
 import type { LayerContext, RenderLayer } from './types';
 
 /**
@@ -44,12 +46,38 @@ void main() {
 }
 `;
 
+/** V3C: the hearths (households with a home) and where they gather, for the chimneys' winter haze. */
+export function hearthsOf(mirror: Mirror): { count: number; x: number; z: number; radius: number } {
+  let count = 0;
+  let sx = 0;
+  let sz = 0;
+  const homes: [number, number][] = [];
+  for (const h of mirror.households.values()) {
+    const b = mirror.buildings.get(h.homeId);
+    if (!b) continue;
+    count++;
+    sx += b.x;
+    sz += b.z;
+    homes.push([b.x, b.z]);
+  }
+  if (count === 0) return { count: 0, x: 0, z: 0, radius: 1 };
+  const x = sx / count;
+  const z = sz / count;
+  let r2 = 0;
+  for (const [hx, hz] of homes) r2 += (hx - x) ** 2 + (hz - z) ** 2;
+  // Most homes fall inside 1.6 times the spread; the haze reaches a little past them.
+  return { count, x, z, radius: Math.sqrt(r2 / count) * 1.6 + 8 };
+}
+
 export function skyLayer(): RenderLayer {
   let ctx: LayerContext | null = null;
   let env: WorldEnv | null = null;
   let dome: Mesh | null = null;
   const geometry = new SphereGeometry(1200, 32, 16);
   let material: ShaderMaterial | null = null;
+  let hearths = { count: 0, x: 0, z: 0, radius: 1 };
+  let hearthsRevision = -1;
+  let mirrorRevision = 0;
 
   return {
     id: 'sky',
@@ -82,9 +110,26 @@ export function skyLayer(): RenderLayer {
       dome.renderOrder = -1000;
       dome.userData.qotiShadows = false;
       dome.matrixAutoUpdate = true;
+      // V3C: the haze's terms are set as the dome draws (it is drawn first and every frame the scene
+      // is), from the light step the renderer has just applied, so every material that fogs reads
+      // the same terms on that frame and a still frame keeps them.
+      dome.onBeforeRender = () => {
+        if (!env) return;
+        if (hearthsRevision !== mirrorRevision && ctx) {
+          hearths = hearthsOf(ctx.mirror);
+          hearthsRevision = mirrorRevision;
+        }
+        const winter = env.shown.season === 3 ? 1 : 0;
+        const t = hazeTermsAt(env.shown.hour, winter, hearths.count);
+        env.haze.terms.value.set(HAZE_LIFT, 0, HAZE_SPAN, 0);
+        env.haze.adds.value.set(t.river, t.chimney, 0, 0);
+        env.haze.town.value.set(hearths.x, hearths.z, hearths.radius, 0);
+      };
       ctx.scene.add(dome);
     },
-    update() {},
+    update(change) {
+      if (change.full || change.households || change.buildings) mirrorRevision++;
+    },
     frame() {
       if (dome && env) dome.position.copy(env.camera.position);
       return false;

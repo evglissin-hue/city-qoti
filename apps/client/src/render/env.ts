@@ -9,6 +9,7 @@ import {
 } from 'three';
 import { createEndpaperMap, type EndpaperMap } from './endpaper';
 import { createLightMapTarget, LightMapWriter } from './lightMap';
+import { HAZE, type HazeUniforms } from './lighting';
 import type { Quality } from './quality';
 import type { SeasonBlend } from './seasons';
 
@@ -122,6 +123,13 @@ export interface WorldEnv {
    * layer (never true in V3.0); the renderer's one-line check is V3D's.
    */
   skipScene: boolean;
+  // V3C additions.
+  /**
+   * V3C: haze with height (`lighting.ts`, `HazeUniforms`): the fog chunks' shared uniforms, the one
+   * module-wide set. The sky layer sets the terms on the frame drawn; the water layer writes the
+   * river's nearness map.
+   */
+  haze: HazeUniforms;
 }
 
 /** The renderer's season names, in the sim calendar's order (0 spring to 3 winter). */
@@ -230,6 +238,7 @@ export function createWorldEnv(camera: PerspectiveCamera): WorldEnv {
     dressing: 'all',
     endpaper: createEndpaperMap(),
     skipScene: false,
+    haze: HAZE,
   };
 }
 
