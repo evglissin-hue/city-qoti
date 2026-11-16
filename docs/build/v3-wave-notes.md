@@ -112,9 +112,10 @@ Nothing a rule reads is private to one seat: every stat is `scope: 'shared'`, an
 | Rows joined from the occupant layer; no gardens, no corners, storeys 1 | `render/lots.ts` | R2's lot fields through the same `lotsFor` | R2X lands on `main` (no V3 edit) |
 | Firewood from household size and season; cloth from tier | `layers/dressing.ts` (`dressingSubject`) | the sim's own counts, if R2X adds them | R2X's list |
 | No place kinds | `DressingSubject.place` unset | R2's places in the Mirror | R2X |
-| The endpaper's inks unset | `EndpaperInks` | the flows overlay's goods routes and R2's `map.footfallEve` | whichever of V3X and R2X lands second |
-| No street names on the map | `endpaperInput` labels: the valley's name only | R2's street names (`state.streets`) | R2X |
-| A plain parchment endpaper, `cover` 0 | `worker/endpaper.worker.ts`, `ENDPAPER_ON` | the inked map, cover from 200 to 240 tiles | V3D |
+| The endpaper's inks unset | `EndpaperInks` (V3D draws `goods` in ochre and `footfall` in sage when set, tested with synthetic layers) | the flows overlay's goods routes and R2's `map.footfallEve`, passed as `endpaperInput`'s `inks` from the layer | whichever of V3X and R2X lands second |
+| No street names on the map | `endpaperInput` labels: the valley's name only (V3D draws `place` and `street` labels along their angle with a halo, never upside down) | R2's street names (`state.streets`) | R2X |
+| A plain parchment endpaper, `cover` 0 | `worker/endpaper.worker.ts`, `ENDPAPER_ON` | the inked map, cover from 200 to 240 tiles | done in V3D |
+| No rows, gardens or fed river course on the map: plain hipped footprints, the course found in `water` | `endpaperFeeds` (`render/endpaper.ts`) unset | V3B's `endpaperStreets` through `rowsOfRooflines` (rows, storeys) and its gardens; V3C's river course, if it exports one | V3X, one line each (`endpaperFeeds.rows`, `.gardens`, `.river`) |
 | The building's whole lot as the yard | `layers/dressing.ts` | V3B's free yard (`lots.ts`) | V3B, wired in V3X if V3A lands first |
 | R1X's grown village as the before scene | `?debug&fixture=grown` | the village regrown on R2's lots | R2X regrows it |
 
