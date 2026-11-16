@@ -106,7 +106,7 @@ export function refreshDesirability(state: WorldState, ctx: TickCtx | null, slic
     n++;
     if (d === lot.desirability) continue;
     lot.desirability = d;
-    ctx?.events.push({ e: 'lot.updated', l: lotView(lot) });
+    ctx?.events.push({ e: 'lot.updated', l: lotView(lot, state) });
   }
   return n;
 }

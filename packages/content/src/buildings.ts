@@ -154,6 +154,7 @@ export const house: BuildingDef = {
 
 export const marketStall: BuildingDef = {
   id: 'market-stall',
+  host: { seats: 0, standing: 4, kinds: ['eat', 'meet'] },
   name: 'Market stall',
   lane: 'shared',
   category: 'service',
@@ -321,6 +322,7 @@ export const gardenBed: BuildingDef = {
 
 export const well: BuildingDef = {
   id: 'well',
+  host: { seats: 0, standing: 4, kinds: ['meet'] },
   name: 'Well',
   lane: 'shared',
   category: 'service',

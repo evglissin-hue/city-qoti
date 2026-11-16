@@ -48,6 +48,7 @@ export const apiary: BuildingDef = {
  */
 export const bathHouse: BuildingDef = {
   id: 'bath-house',
+  host: { seats: 8, standing: 0, kinds: ['sit', 'meet'], sheltered: true, warm: true },
   name: 'Bath House',
   lane: 'shared',
   category: 'service',

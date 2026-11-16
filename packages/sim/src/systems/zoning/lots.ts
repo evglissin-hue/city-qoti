@@ -336,6 +336,10 @@ function addLot(
     style: '',
     buildingId: 0,
     tick: state.tick,
+    // R2 stand-in (R2F): every lot is a plot in no row, never a corner; R2F's cutter fills rows,
+    // gardens and corners.
+    row: 0,
+    kind: 'plot',
   };
   const layer = state.map.lot;
   for (let z = z0; z < z0 + rd; z++) for (let x = x0; x < x0 + rw; x++) layer[z * S + x] = lot.id;
@@ -424,7 +428,7 @@ export function zoningPass(state: WorldState, ctx: TickCtx | null, decorMoved = 
     const services = servicesOf(state);
     added.forEach((lot, k) => {
       lot.desirability = lotDesirability(state, lot, k < FULL_SCORES ? species : [], services);
-      ctx?.events.push({ e: 'lot.added', l: lotView(lot) });
+      ctx?.events.push({ e: 'lot.added', l: lotView(lot, state) });
     });
   }
   return { added: added.length, removed };

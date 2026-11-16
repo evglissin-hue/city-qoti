@@ -126,12 +126,22 @@ const SETUPS = new Map<string, (s: WorldState) => void>([
   ],
 ]);
 
+// R2 stand-in (R2C): R2.0 wrote the evening feats as data; their counts (gapsClosed,
+// gapsClosedEachSeat, eveningsAllOut, seatedSeasons) are R2C's, which adds their setups here and
+// deletes this list.
+const PENDING = new Set(['a-seat-for-everyone', 'mind-the-gap', 'out-of-an-evening']);
+
 describe('every achievement', () => {
   it('has a setup', () => {
-    expect([...SETUPS.keys()].sort()).toEqual(content.achievements.map((a) => a.id).sort());
+    expect([...SETUPS.keys()].sort()).toEqual(
+      content.achievements
+        .map((a) => a.id)
+        .filter((id) => !PENDING.has(id))
+        .sort(),
+    );
   });
 
-  for (const a of content.achievements) {
+  for (const a of content.achievements.filter((x) => !PENDING.has(x.id))) {
     it(`${a.id}: unlocks once, with a plaque, a line and a notice`, () => {
       const f = hamletFixture();
       const s = f.state;

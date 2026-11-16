@@ -21,10 +21,14 @@ export const NO_CLIENT_SENDER: Record<string, string> = {
 };
 
 /**
- * R1.0: commands that land before their buttons. Each names the cycle that owes the sender and why;
+ * R1.0: commands that land before their buttons (R2.0 adds R2D's). Each names the cycle that owes the sender and why;
  * the entry comes off when that cycle ships it (the test says so), so this list only shrinks.
  */
-export const OWED_SENDERS: Record<string, { cycle: 'R1C' | 'R1D'; why: string }> = {};
+export const OWED_SENDERS: Record<string, { cycle: 'R1C' | 'R1D' | 'R2D'; why: string }> = {
+  'place.rename': { cycle: 'R2D', why: 'the place inspector owes a rename field; R2D adds the button' },
+  'road.rename': { cycle: 'R2D', why: 'the street inspector owes a rename field; R2D adds the button' },
+  'road.setEvening': { cycle: 'R2D', why: 'the evening street brush on the Ledger road tool; R2D adds it' },
+};
 
 function commandTypes(): string[] {
   const src = readFileSync(join(root, 'packages/sim/src/contracts/commands.ts'), 'utf8');
@@ -70,11 +74,11 @@ describe('every command has a sender', () => {
     expect(missing, 'commands no client code sends (add a sender or allowlist with a reason)').toEqual([]);
   });
 
-  it('keeps the owed list honest: real commands, not sent yet, owed by R1C or R1D', () => {
+  it('keeps the owed list honest: real commands, not sent yet, owed by R1C, R1D or R2D', () => {
     for (const [t, owed] of Object.entries(OWED_SENDERS)) {
       expect(types, `${t} is not a command`).toContain(t);
       expect(sent(t), `${t} is sent now: take it off OWED_SENDERS`).toBe(false);
-      expect(['R1C', 'R1D'], `${t} must name the cycle that owes its sender`).toContain(owed.cycle);
+      expect(['R1C', 'R1D', 'R2D'], `${t} must name the cycle that owes its sender`).toContain(owed.cycle);
       expect(owed.why.length, `${t} needs a reason`).toBeGreaterThan(10);
       expect(t in NO_CLIENT_SENDER, `${t} is both owed and allowlisted`).toBe(false);
     }
