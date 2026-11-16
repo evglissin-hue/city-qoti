@@ -72,7 +72,7 @@ One row per cycle. A cycle is one agent session working from one brief on one br
 | R2D The interface | R2 | parallel | `cycle-r2d-interface.md` | R2.0 | PR open into `cycle/r2x-integration`; screenshots `r2d-*` |
 | R2E The bench | R2 | parallel | `cycle-r2e-bench.md` | R2.0 | done on `cycle/r2e-bench`, PR into `cycle/r2x-integration`: the Hearth's places advisor and the Ledger's shops advisor, streets and a closed block for R2F's rows, the lanes test enforced, the outcome report (`npm run outcomes`), five R2 health kinds, stuck commands and stalled Hearth sites in the audit, the R2 bench scenes; numbers in the brief's As built |
 | R2F Lots for streets | R2 | parallel | `cycle-r2f-street-lots.md` | R2.0 | built on `cycle/r2f-street-lots`, PR into `cycle/r2x-integration`: street rows that touch, corner lots, garden lots, storeys by tier and row; shots `r2f-*` |
-| R2X R2 integration and tuning | R2 | integration | `cycle-r2x-integration.md` | R2A to R2F | waiting; merges the wave on `cycle/r2x-integration`, one PR into `main` |
+| R2X R2 integration and tuning | R2 | integration | `cycle-r2x-integration.md` | R2A to R2F | done on `cycle/r2x-integration`, one PR into `main` ("R2X: the evening round"; see As built in the brief); wrote R3's briefs; shots `r2x-*` |
 | R3.0 Supplies, masters and Town Book contracts | R3 | serial | `cycle-r3-0-supplies-contracts.md` | R2X | waiting: after R2X |
 | R3A Supplies and the lamplighter | R3 | parallel | `cycle-r3a-supplies-lamplighter.md` | R3.0 | waiting: after R3.0 |
 | R3B Masters | R3 | parallel | `cycle-r3b-masters.md` | R3.0 | waiting: after R3.0 |

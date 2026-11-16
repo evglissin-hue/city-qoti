@@ -330,3 +330,11 @@ With the founders' larder at 44 Food (R1X's earlier runs, before the dead-end fi
 - **The lanes need each other**: recorded in `22-quality.md` (The lanes test, R1X's run). Enforced from R2.
 - **The town makes its own firewood**: the Lodges cut 732 to 1,278 firewood over the 70 days against 16 to 134 bought.
 - **Lean days**: none on three seeds; one on hazel (day 50, the treasury at -222). The autoplayer keeps a tenth of its credit line back since R1X's last round (a town that borrowed to the end of its line and then shrank owed past it), so on that day it could borrow 116 coins where it used to take 298. R2's Village debt work takes it up.
+
+### What holds (R2X, 2026-11-16)
+
+Measured with the autoplayer on the four bench seeds (willow, hazel, oak, birch), 70 days, every system on, after R2X's tuning (`19-evenings.md`, As built (R2X)):
+
+- **Tiers move**: the first Craftsfolk household comes on day 23 / 38 / 33 / 39, inside day 40 on every seed. A third of households at day 70 holds on no seed (3 / 28 / 16 / 16%; the best day of each run 17 to 43%): day 70 falls in the third winter, when Craftsfolk slide back on the basket's staying asks (Treats, Wares, Food variety) and the evenings need. Recorded as missed for R3, whose masters and varieties feed the same baskets.
+- **Village money**: what crosses the valley's edge was the drain. After day 50 every loan the autoplayer took paid upkeep (60 to 90 coins a day at 140 residents against about 40 a day from exports, commissions and fees), and the carrier bought a site's Materials on the treasury's last coins. R2X sets standard upkeep at 70% (`economy/dial.ts`) and keeps 100 coins in hand from Village rank before the carrier buys Materials (`CARRIER_MATERIALS_RESERVE`). No lean days on any seed. Loans owed at day 70 still track the autoplayer's 90% of the credit line, 17 to 19 coins a resident, because it spends every coin over its cushion on growth: debt per resident, not coins, is the measure to read (`tools/bench/src/debt.ts` decomposes it by ledger category, seed by seed). The household loop still nets the treasury nothing; outside income that grows with the town (visitors, masters' goods sold to neighbors) is R3's.
+- **The lanes need each other**: enforced, and passing on willow, oak and birch (`22-quality.md`, the lanes test, R2X's run).
