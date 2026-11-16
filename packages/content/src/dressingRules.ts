@@ -143,5 +143,90 @@ export interface DressingRule {
 /** The most pieces one rule puts on one plot, whatever its `max`. */
 export const DRESSING_MAX_PER_RULE = 24;
 
-/** The rules, empty until V3A. */
-export const dressingRules: readonly DressingRule[] = [];
+/** Every trade that keeps a shop front or a workshop on the street, for awnings and bigger yards. */
+const STREET_TRADES = ['baker', 'carpenter', 'chandler', 'cider-maker', 'shop', 'weaver'];
+
+/**
+ * A level 2 business's painted sign and goods out front, one pair of rules per trade, the emblem
+ * and the goods by what it makes. The orchard has none: it belongs to the valley (P2-E2), no lot.
+ */
+function levelTwo(trade: string, good: string, seed: number): DressingRule[] {
+  return [
+    {
+      id: `sign-${trade}`,
+      who: { kind: ['business'], trade: [trade], minLevel: 2 },
+      anchor: 'door',
+      piece: { kit: 'yard-sign', params: { emblem: good } },
+      count: { base: 1, max: 1 },
+      seed,
+      low: true,
+    },
+    {
+      id: `goods-${trade}`,
+      who: { kind: ['business'], trade: [trade], minLevel: 2 },
+      anchor: 'front',
+      piece: { kit: 'goods-display', params: { good } },
+      count: { base: 1, max: 1 },
+      seed: seed + 1,
+    },
+  ];
+}
+
+/**
+ * V3A: the rules. Grouped by who they dress; within a group, one line each in its place. Counts read
+ * the stats in `DRESSING_STATS` (firewood and cloth are stand-ins until R2X). A yard is a few well
+ * chosen things: chances keep homes from all looking stamped from one mold.
+ */
+// prettier-ignore
+export const dressingRules: readonly DressingRule[] = [
+  // By trade (the fishery is a building, not a trade: it matches by def).
+  { id: 'baker-loaves', who: { trade: ['baker'] }, anchor: 'sills', piece: { kit: 'yard-loaf-tray' }, count: { base: 1, stat: 'stock', perUnit: 0.5, max: 3 }, seed: 101 },
+  { id: 'baker-sacks', who: { trade: ['baker'] }, anchor: 'eaves', piece: { kit: 'goods-sacks' }, count: { base: 1, max: 1 }, seed: 102 },
+  { id: 'carpenter-chair', who: { trade: ['carpenter'] }, anchor: 'yard', piece: { kit: 'yard-chair-half' }, count: { base: 1, stat: 'workers', perUnit: 0.5, max: 2 }, seed: 103 },
+  { id: 'chandler-candles', who: { trade: ['chandler'] }, anchor: 'yard', piece: { kit: 'goods-candle-rack' }, count: { base: 1, max: 1 }, seed: 104 },
+  { id: 'cider-apples', who: { trade: ['cider-maker'] }, anchor: 'yard', piece: { kit: 'goods-apple-crate' }, count: { base: 1, stat: 'stock', perUnit: 0.25, max: 3 }, seed: 105 },
+  { id: 'cider-barrels', who: { trade: ['cider-maker'] }, anchor: 'eaves', piece: { kit: 'barrels' }, count: { base: 1, max: 1 }, seed: 106 },
+  { id: 'dairy-churns', who: { trade: ['dairy'] }, anchor: 'door', piece: { kit: 'goods-churns' }, count: { base: 1, max: 1 }, seed: 107 },
+  { id: 'grain-sacks', who: { trade: ['grain-farm'] }, anchor: 'eaves', piece: { kit: 'goods-sacks' }, count: { base: 1, stat: 'stock', perUnit: 0.2, max: 3 }, seed: 108 },
+  { id: 'hives-skeps', who: { trade: ['hives'] }, anchor: 'yard', piece: { kit: 'yard-skep' }, count: { base: 2, stat: 'workers', perUnit: 1, max: 5 }, seed: 109 },
+  { id: 'market-garden-barrow', who: { trade: ['market-garden'] }, anchor: 'yard', piece: { kit: 'yard-wheelbarrow' }, count: { base: 1, max: 1 }, seed: 110 },
+  { id: 'sheep-fleece', who: { trade: ['sheep-run'] }, anchor: 'eaves', piece: { kit: 'goods-fleece' }, count: { base: 1, stat: 'stock', perUnit: 0.25, max: 3 }, seed: 111 },
+  { id: 'weaver-cloth', who: { trade: ['weaver'] }, anchor: 'yard', piece: { kit: 'yard-cloth-frame' }, count: { base: 1, stat: 'workers', perUnit: 0.5, max: 2 }, seed: 112 },
+  { id: 'fishery-nets', who: { def: ['fishery'] }, anchor: 'yard', piece: { kit: 'yard-nets' }, count: { base: 1, max: 1 }, seed: 113 },
+  { id: 'fishery-fish', who: { def: ['fishery'] }, anchor: 'eaves', piece: { kit: 'goods-fish-rack' }, count: { base: 1, max: 1 }, seed: 114 },
+
+  // By household: a woodpile as big as the firewood, washing once there is cloth, a pram after a
+  // birth, and the odd pair of boots, cat, water butt or chopping block. Lamps join the night.
+  { id: 'home-woodpile', who: { kind: ['home'] }, anchor: 'eaves', piece: { kit: 'yard-woodpile' }, count: { base: 0.5, stat: 'firewood', perUnit: 0.5, max: 4 }, seed: 201 },
+  { id: 'home-washing', who: { kind: ['home'] }, anchor: 'yard', piece: { kit: 'yard-washing-line' }, count: { base: 0, stat: 'cloth', perUnit: 1, max: 1 }, seed: 202 },
+  { id: 'home-pram', who: { kind: ['home'] }, anchor: 'yard', piece: { kit: 'yard-pram' }, count: { base: 0, stat: 'births', perUnit: 1, max: 1 }, seed: 203 },
+  { id: 'home-boots', who: { kind: ['home'], tier: ['settler', 'craftsfolk'] }, anchor: 'door', piece: { kit: 'yard-boots' }, count: { base: 1, max: 1 }, seed: 204, chance: 0.45 },
+  { id: 'home-cat', who: { kind: ['home'] }, anchor: 'yard', piece: { kit: 'yard-cat' }, count: { base: 1, max: 1 }, seed: 205, chance: 0.16 },
+  { id: 'home-chopping', who: { kind: ['home'], tier: ['settler', 'craftsfolk'] }, anchor: 'yard', piece: { kit: 'yard-chopping-block' }, count: { base: 1, max: 1 }, seed: 206, chance: 0.3 },
+  { id: 'home-water-butt', who: { kind: ['home'] }, anchor: 'eaves', piece: { kit: 'yard-water-butt' }, count: { base: 1, max: 1 }, seed: 207, chance: 0.35 },
+  { id: 'home-barrow', who: { kind: ['home'] }, anchor: 'garden', piece: { kit: 'yard-wheelbarrow' }, count: { base: 1, max: 1 }, seed: 208, chance: 0.12 },
+  { id: 'home-lamp', who: { kind: ['home'], tier: ['merchant', 'patron'] }, anchor: 'yard', piece: { kit: 'yard-lamp' }, count: { base: 1, max: 1 }, seed: 209, chance: 0.6 },
+  { id: 'home-sill-lamp', who: { kind: ['home'] }, anchor: 'sills', piece: { kit: 'yard-sill-lamp' }, count: { base: 1, max: 1 }, seed: 210, chance: 0.3 },
+
+  // By level: a level 2 business hangs a painted sign and sets goods out front; level 3 adds an
+  // awning (on the street trades) and a bigger yard.
+  ...levelTwo('baker', 'bread', 301),
+  ...levelTwo('carpenter', 'chair', 303),
+  ...levelTwo('chandler', 'candles', 305),
+  ...levelTwo('cider-maker', 'cider', 307),
+  ...levelTwo('dairy', 'cheese', 309),
+  ...levelTwo('grain-farm', 'grain', 311),
+  ...levelTwo('hives', 'honey', 313),
+  ...levelTwo('market-garden', 'veg', 315),
+  ...levelTwo('sheep-run', 'wool', 317),
+  ...levelTwo('shop', 'sundries', 319),
+  ...levelTwo('weaver', 'cloth', 321),
+  { id: 'awning-l3', who: { kind: ['business'], trade: STREET_TRADES, minLevel: 3 }, anchor: 'front', piece: { kit: 'yard-awning' }, count: { base: 1, max: 1 }, seed: 351 },
+  { id: 'yard-l3', who: { kind: ['business'], trade: [...STREET_TRADES, 'dairy', 'grain-farm', 'hives', 'market-garden', 'sheep-run'], minLevel: 3 }, anchor: 'yard', piece: { kit: 'crates' }, count: { base: 1, max: 2 }, seed: 352 },
+
+  // By stock: sacks and barrels pile up at granaries and storehouses as they fill (kept on Low).
+  { id: 'granary-sacks', who: { def: ['granary'] }, anchor: 'yard', piece: { kit: 'goods-sacks' }, count: { base: 0, stat: 'fill', perUnit: 0.08, max: 8 }, seed: 401, low: true },
+  { id: 'storehouse-crates', who: { def: ['storehouse'] }, anchor: 'yard', piece: { kit: 'crates' }, count: { base: 0, stat: 'fill', perUnit: 0.05, max: 5 }, seed: 402, low: true },
+  { id: 'storehouse-barrels', who: { def: ['storehouse'] }, anchor: 'eaves', piece: { kit: 'barrels' }, count: { base: 0, stat: 'fill', perUnit: 0.03, max: 3 }, seed: 403, low: true },
+  { id: 'storehouse-sacks', who: { def: ['storehouse'] }, anchor: 'yard', piece: { kit: 'goods-sacks' }, count: { base: 0, stat: 'fill', perUnit: 0.04, max: 4 }, seed: 404, low: true },
+];

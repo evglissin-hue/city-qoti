@@ -52,8 +52,8 @@ const ANCHORS = deriveAnchors(
 );
 
 describe('the dressing table (V3.0)', () => {
-  it('ships empty, and sound', () => {
-    expect(content.dressingRules).toEqual([]);
+  it('ships sound (V3A fills it; dressingRules.test.ts tests what it says)', () => {
+    expect(content.dressingRules.length).toBeGreaterThan(0);
     expect(validateDressingRules(content.dressingRules, isKit, isTrade, isDef)).toEqual([]);
   });
 
