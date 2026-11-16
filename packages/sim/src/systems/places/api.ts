@@ -14,17 +14,19 @@ const S = MAP_SIZE;
 const CELL = 16;
 const CELLS = Math.ceil(S / CELL);
 
-/** Places by the cell of their anchor tile, in id order within a cell; built once per index. */
-const grids = new WeakMap<PlaceIndex, Place[][]>();
+/** Places' slots (their order in the index, by id) by the cell of their anchor tile; built once per index. */
+const grids = new WeakMap<PlaceIndex, number[][]>();
 
-function gridOf(index: PlaceIndex): Place[][] {
+function gridOf(index: PlaceIndex): number[][] {
   let grid = grids.get(index);
   if (!grid) {
     grid = Array.from({ length: CELLS * CELLS }, () => []);
-    for (const p of index.places) {
-      const x = p.tile % S;
-      const z = (p.tile - x) / S;
-      grid[Math.floor(z / CELL) * CELLS + Math.floor(x / CELL)]!.push(p);
+    const places = index.places;
+    for (let i = 0; i < places.length; i++) {
+      const tile = places[i]!.tile;
+      const x = tile % S;
+      const z = (tile - x) / S;
+      grid[Math.floor(z / CELL) * CELLS + Math.floor(x / CELL)]!.push(i);
     }
     grids.set(index, grid);
   }
@@ -35,22 +37,33 @@ function gridOf(index: PlaceIndex): Place[][] {
 export function placesNear(state: WorldState, tile: number, radius: number): Place[] {
   const x = tile % S;
   const z = (tile - x) / S;
-  const grid = gridOf(placeIndex(state));
-  const out: Place[] = [];
+  const index = placeIndex(state);
+  const places = index.places;
+  const grid = gridOf(index);
+  const slots: number[] = [];
   const cz0 = Math.max(0, Math.floor((z - radius) / CELL));
   const cz1 = Math.min(CELLS - 1, Math.floor((z + radius) / CELL));
   const cx0 = Math.max(0, Math.floor((x - radius) / CELL));
   const cx1 = Math.min(CELLS - 1, Math.floor((x + radius) / CELL));
   for (let cz = cz0; cz <= cz1; cz++) {
     for (let cx = cx0; cx <= cx1; cx++) {
-      for (const p of grid[cz * CELLS + cx]!) {
-        const px = p.tile % S;
-        const pz = (p.tile - px) / S;
-        if (Math.abs(px - x) + Math.abs(pz - z) <= radius) out.push(p);
+      for (const i of grid[cz * CELLS + cx]!) {
+        const t = places[i]!.tile;
+        const px = t % S;
+        const pz = (t - px) / S;
+        if (Math.abs(px - x) + Math.abs(pz - z) <= radius) slots.push(i);
       }
     }
   }
-  return out.sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+  // Slots are the index's order, which is by id.
+  slots.sort(ascending);
+  const out = new Array<Place>(slots.length);
+  for (let k = 0; k < slots.length; k++) out[k] = places[slots[k]!]!;
+  return out;
+}
+
+function ascending(a: number, b: number): number {
+  return a - b;
 }
 
 /** A place by its stable id, or undefined when the pass does not find it now. */

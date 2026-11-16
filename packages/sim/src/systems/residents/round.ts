@@ -29,7 +29,7 @@ import { PlaceFeature } from '../places/build';
 import { placeById, placeDraw, placesNear, recordVisit } from '../places/api';
 import { occupancy, occupy, STOP_TICKS, stopNow } from '../places/occupancy';
 import { weatherEffect } from '../weather/effects';
-import { chooseVisit, tasteFor } from './outings';
+import { chooseVisit, tasteOf, tasteWith, type Taste } from './outings';
 import { doorOf, householdOf, isWorkingAge } from './places';
 import { needsShopping, someoneShopping } from './shopping';
 import { HOUR, dayIndex, scheduleClock, tickOfDay } from './time';
@@ -178,8 +178,11 @@ function manhattan(a: number, b: number): number {
 }
 
 /** Where a resident makes for at a place: its anchor when it can be stood on, else a neighbor. */
-export function approachTile(state: WorldState, place: Place): number {
-  const cost = walkGrid(state).cost;
+export function approachTile(
+  state: WorldState,
+  place: Place,
+  cost: ReturnType<typeof walkGrid>['cost'] = walkGrid(state).cost,
+): number {
   if (cost[place.tile]! > 0) return place.tile;
   const S = MAP_SIZE;
   const x = place.tile % S;
@@ -212,16 +215,26 @@ function kindOf(place: Place): RoundStopKind {
   return place.kinds[0] ?? 'sit';
 }
 
-/** True when the resident's friends (level 1+) plan the place today. */
-function friendGoing(state: WorldState, r: Resident, place: PlaceId): boolean {
+/** The places the resident's friends (level 1+) plan today (a friend going, for each place, at once). */
+function friendsGoing(state: WorldState, r: Resident): ReadonlySet<PlaceId> {
   const day = dayIndex(state.tick);
+  let out: Set<PlaceId> | null = null;
   for (const f of r.friends) {
     if (f.level < 1) continue;
     const o = findById(state.residents, f.id);
     if (!o || o.roundDay !== day || !o.round) continue;
-    for (const s of o.round) if (s.place === place) return true;
+    for (const s of o.round) (out ??= new Set()).add(s.place);
   }
-  return false;
+  return out ?? NO_PLACES;
+}
+
+const NO_PLACES: ReadonlySet<PlaceId> = new Set();
+
+/** What a plan reads of the resident once, for every place it weighs. */
+interface Planner {
+  r: Resident;
+  taste: Taste;
+  friends: ReadonlySet<PlaceId>;
 }
 
 interface Candidate {
@@ -237,10 +250,11 @@ interface Candidate {
  * A resident's liking for a place, in hundredths, before crowding: its draw, their taste for it, a
  * friend going, distance from `from`, and the whim (one draw from the stream).
  */
-function liking(state: WorldState, rng: Rng, r: Resident, place: Place, from: number): number {
+function liking(state: WorldState, rng: Rng, who: Planner, place: Place, from: number): number {
   let score = placeDraw(state, place) * 100;
-  score += Math.max(P.tasteMin, Math.min(P.tasteMax, tasteFor(state, r, place))) * 100;
-  if (friendGoing(state, r, place.id)) score += P.friendBonus * 100;
+  const taste = tasteWith(who.taste, placeFeatures(state, place), place);
+  score += Math.max(P.tasteMin, Math.min(P.tasteMax, taste)) * 100;
+  if (who.friends.has(place.id)) score += P.friendBonus * 100;
   score -= manhattan(from, place.tile) * P.distanceHundredths;
   score += (rng.int(2 * P.whim + 1) - P.whim) * 100;
   return score;
@@ -248,7 +262,12 @@ function liking(state: WorldState, rng: Rng, r: Resident, place: Place, from: nu
 
 /** Off the score for the crowd beyond a place's room at an hour (planned visitors and this one). */
 function crowding(place: Place, counts: Map<PlaceId, number[]>, hour: number): number {
-  const planned = counts.get(place.id)?.[hour] ?? 0;
+  return crowdAt(place, counts.get(place.id), hour);
+}
+
+/** crowding, with the place's planned counts by hour already looked up. */
+function crowdAt(place: Place, byHour: readonly number[] | undefined, hour: number): number {
+  const planned = byHour?.[hour] ?? 0;
   const beyond = planned + 1 - grownUpRoom(place);
   return beyond > 0 ? beyond * P.crowdPenalty * 100 : 0;
 }
@@ -259,6 +278,12 @@ function crowding(place: Place, counts: Map<PlaceId, number[]>, hour: number): n
  */
 function lightsAhead(state: WorldState, place: Place, hour: number): number {
   if (place.parts.lit > 0 || hour < P.litHour) return 0;
+  return placeFeatures(state, place) & PlaceFeature.light ? P.litBonus * 100 : 0;
+}
+
+/** The lit part lightsAhead adds from `litHour` on (0 when it adds nothing at any hour). */
+function lightsLater(state: WorldState, place: Place): number {
+  if (place.parts.lit > 0) return 0;
   return placeFeatures(state, place) & PlaceFeature.light ? P.litBonus * 100 : 0;
 }
 
@@ -275,13 +300,20 @@ function bestHour(
   from: number,
   last: number,
 ): [hour: number, score: number] {
-  let best: [number, number] | null = null;
+  const byHour = counts.get(place.id);
+  const lit = lightsLater(state, place);
+  let bestHourAt = -1;
+  let bestScore = 0;
   for (let hour = from; hour <= last; hour++) {
-    if (crowding(place, counts, hour) > 0) continue;
-    const score = base + lightsAhead(state, place, hour) - (hour - from) * P.waitPerHour * 100;
-    if (!best || score > best[1]) best = [hour, score];
+    if (crowdAt(place, byHour, hour) > 0) continue;
+    const score = base + (hour < P.litHour ? 0 : lit) - (hour - from) * P.waitPerHour * 100;
+    if (bestHourAt < 0 || score > bestScore) {
+      bestHourAt = hour;
+      bestScore = score;
+    }
   }
-  return best ?? [from, base + lightsAhead(state, place, from) - crowding(place, counts, from)];
+  if (bestHourAt >= 0) return [bestHourAt, bestScore];
+  return [from, base + (from < P.litHour ? 0 : lit) - crowdAt(place, byHour, from)];
 }
 
 /** One in n residents (by id and day) are the rain-shy and skip open-air places, as rain keeps them in. */
@@ -298,6 +330,22 @@ function eligible(r: Resident, place: Place, rainy: boolean): boolean {
   if (grownUpRoom(place) <= 0) return false;
   if (rainy && !place.sheltered) return false;
   return true;
+}
+
+/** The tick to set off for a stop planned for `hour`: that hour, or from `fromTick` if later. */
+function setOff(fromTick: number, hour: number): number {
+  return Math.max(fromTick, hour * HOUR);
+}
+
+/** True when the place offers a kind not yet in `kinds`. */
+function hasNewKind(place: Place, kinds: ReadonlySet<string>): boolean {
+  for (const k of place.kinds) if (!kinds.has(k)) return true;
+  return false;
+}
+
+/** Best score first; equal scores by place id. */
+function byScore(a: Candidate, b: Candidate): number {
+  return b.score - a.score || (a.place.id < b.place.id ? -1 : 1);
 }
 
 /** The result of planning: the stops, and whether a place was worth the walk. */
@@ -352,27 +400,28 @@ export function planRound(
     fromHour += 1;
   }
   const lastHour = endHour - 1;
-  const at = (hour: number) => Math.max(fromTick, hour * HOUR);
 
   const rainy = rainShy(state, r);
   const candidates: Candidate[] = [];
+  const who: Planner = { r, taste: tasteOf(r), friends: friendsGoing(state, r) };
   if (fromHour <= lastHour) {
+    const cost = walkGrid(state).cost;
     for (const place of placesNear(state, homeDoor, leisureRadius(r))) {
       if (!eligible(r, place, rainy)) continue;
-      const tile = approachTile(state, place);
+      const tile = approachTile(state, place, cost);
       if (tile < 0) continue;
       const [hour, score] = bestHour(
         state,
         place,
         counts,
-        liking(state, rng, r, place, homeDoor),
+        liking(state, rng, who, place, homeDoor),
         fromHour,
         lastHour,
       );
       if (score >= P.minScore * 100) candidates.push({ place, tile, hour, score });
     }
   }
-  candidates.sort((a, b) => b.score - a.score || (a.place.id < b.place.id ? -1 : 1));
+  candidates.sort(byScore);
 
   // A friend's home: a draw of its own, no bonus for the friend.
   const [friend, friendDoor] = chooseVisit(state, r);
@@ -391,13 +440,13 @@ export function planRound(
   const secondFirst = ((r.id * 31 + day * 17) >>> 0) % 100 < P.secondBestPercent;
   if (secondFirst && candidates.length > 1) first = candidates[1]!;
   if (visit && (!first || visit.score > first.score)) {
-    stops.push(stop(`home:${visit.household}`, 'visit', visit.door, at(fromHour)));
+    stops.push(stop(`home:${visit.household}`, 'visit', visit.door, setOff(fromTick, fromHour)));
     return { stops, nowhere };
   }
   if (!first) return { stops, nowhere };
 
   const chosen: Place[] = [first.place];
-  stops.push(stop(first.place.id, kindOf(first.place), first.tile, at(first.hour)));
+  stops.push(stop(first.place.id, kindOf(first.place), first.tile, setOff(fromTick, first.hour)));
   const kinds = new Set(first.place.kinds);
   let last = first.place.tile;
   let hour = first.hour;
@@ -407,9 +456,9 @@ export function planRound(
     for (const c of candidates) {
       if (chosen.includes(c.place)) continue;
       if (manhattan(last, c.place.tile) > P.nextStopRadius) continue;
-      if (!c.place.kinds.some((k) => !kinds.has(k))) continue;
+      if (!hasNewKind(c.place, kinds)) continue;
       const score =
-        liking(state, rng, r, c.place, last) +
+        liking(state, rng, who, c.place, last) +
         lightsAhead(state, c.place, hour) -
         crowding(c.place, counts, hour);
       if (score < P.minScore * 100) continue;
@@ -418,7 +467,7 @@ export function planRound(
     if (!best) break;
     chosen.push(best.place);
     for (const k of best.place.kinds) kinds.add(k);
-    stops.push(stop(best.place.id, kindOf(best.place), best.tile, at(hour)));
+    stops.push(stop(best.place.id, kindOf(best.place), best.tile, setOff(fromTick, hour)));
     last = best.place.tile;
   }
   return { stops, nowhere };
