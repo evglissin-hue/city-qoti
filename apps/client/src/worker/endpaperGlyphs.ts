@@ -23,9 +23,13 @@ export function css(n: number): string {
   return s;
 }
 
-/** One tree mark: a canvas, and where the tree's foot sits in it. */
+/** One tree mark: a cell of the glyph atlas, and where the tree's foot sits in it. */
 export interface Glyph {
   canvas: GlyphCanvas;
+  sx: number;
+  sy: number;
+  w: number;
+  h: number;
   ax: number;
   ay: number;
 }
@@ -55,9 +59,17 @@ function lump(g: Ctx, cx: number, cy: number, rx: number, ry: number, seed: numb
   g.closePath();
 }
 
-function drawTree(g: Ctx, species: number, stage: number, variant: number, ax: number, ay: number, sc: number): void {
+function drawTree(
+  g: Ctx,
+  species: number,
+  stage: number,
+  variant: number,
+  ax: number,
+  ay: number,
+  sc: number,
+): void {
   const k = STAGE_SCALE[stage]!;
-  const lw = Math.max(1, sc * 0.11);
+  const lw = Math.max(0.75, sc * 0.1);
   g.lineJoin = 'round';
   g.lineCap = 'round';
   g.lineWidth = lw;
@@ -165,16 +177,24 @@ export function treeGlyphs(make: MakeCanvas, sc: number): Glyph[][] {
   const out: Glyph[][] = [];
   const W = Math.ceil(sc * 1.5) + 4;
   const H = Math.ceil(sc * 2.1) + 4;
+  const cols = VARIANTS * 4;
+  const atlas = make(W * cols, H * 4);
+  const g = atlas.getContext('2d');
   for (let species = 0; species < 4; species++) {
     const row: Glyph[] = [];
     for (let v = 0; v < VARIANTS; v++) {
       for (let stage = 0; stage < 4; stage++) {
-        const canvas = make(W, H);
-        const g = canvas.getContext('2d');
+        const sx = (v * 4 + stage) * W;
+        const sy = species * H;
         const ax = W / 2;
         const ay = H - 2;
-        if (g) drawTree(g, species === 0 ? 1 : species, stage, v, ax, ay, sc);
-        row.push({ canvas, ax, ay });
+        if (g) {
+          g.save();
+          g.translate(sx, sy);
+          drawTree(g, species === 0 ? 1 : species, stage, v, ax, ay, sc);
+          g.restore();
+        }
+        row.push({ canvas: atlas, sx, sy, w: W, h: H, ax, ay });
       }
     }
     out.push(row);

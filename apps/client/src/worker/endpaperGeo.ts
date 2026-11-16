@@ -303,8 +303,8 @@ export function riverCenterline(water: ArrayLike<number>, tiles: number): Center
     const x = t % tiles;
     const z = (t - x) / tiles;
     const a = (axis === 'x' ? x : z) - lo;
-    sum[a] += axis === 'x' ? z + 0.5 : x + 0.5;
-    cnt[a]++;
+    sum[a] = sum[a]! + (axis === 'x' ? z + 0.5 : x + 0.5);
+    cnt[a] = cnt[a]! + 1;
   }
   const v = new Float64Array(n);
   for (let i = 0; i < n; i++) v[i] = cnt[i]! > 0 ? sum[i]! / cnt[i]! : NaN;

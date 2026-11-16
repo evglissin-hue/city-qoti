@@ -71,13 +71,23 @@ function addPoly(c: Cx, poly: Poly, o: number): void {
     g.moveTo((px[2 * n - 2]! + px[0]!) / 2, (px[2 * n - 1]! + px[1]!) / 2);
     for (let i = 0; i < n; i++) {
       const j = (i + 1) % n;
-      g.quadraticCurveTo(px[2 * i]!, px[2 * i + 1]!, (px[2 * i]! + px[2 * j]!) / 2, (px[2 * i + 1]! + px[2 * j + 1]!) / 2);
+      g.quadraticCurveTo(
+        px[2 * i]!,
+        px[2 * i + 1]!,
+        (px[2 * i]! + px[2 * j]!) / 2,
+        (px[2 * i + 1]! + px[2 * j + 1]!) / 2,
+      );
     }
     g.closePath();
   } else {
     g.moveTo(px[0]!, px[1]!);
     for (let i = 1; i < n - 1; i++) {
-      g.quadraticCurveTo(px[2 * i]!, px[2 * i + 1]!, (px[2 * i]! + px[2 * i + 2]!) / 2, (px[2 * i + 1]! + px[2 * i + 3]!) / 2);
+      g.quadraticCurveTo(
+        px[2 * i]!,
+        px[2 * i + 1]!,
+        (px[2 * i]! + px[2 * i + 2]!) / 2,
+        (px[2 * i + 1]! + px[2 * i + 3]!) / 2,
+      );
     }
     g.lineTo(px[2 * n - 2]!, px[2 * n - 1]!);
   }
@@ -91,7 +101,7 @@ function parchment(c: Cx): void {
   g.fillStyle = css(K.paper);
   g.fillRect(0, 0, size, size);
   // Soft aged blotches.
-  for (let i = 0; i < 16; i++) {
+  for (let i = 0; i < 9; i++) {
     const x = hash2(i, 1, 41) * size;
     const y = hash2(i, 2, 41) * size;
     const r = size * (0.07 + hash2(i, 3, 41) * 0.16);
@@ -139,7 +149,7 @@ function relief(c: Cx): void {
     const f = blur(padded(meadow, tiles, pad, false), W, W, 1);
     g.beginPath();
     for (const p of contours(f, W, W, 0.4)) if (p.pts.length >= 8) addPoly(c, p, o);
-    ink(g, 'fill', K.meadow, 0.13);
+    ink(g, 'fill', K.meadow, 0.1);
     g.fill('evenodd');
   }
   // Contours at each height step.
@@ -154,10 +164,10 @@ function relief(c: Cx): void {
     const f = blur(padded(inp.heights, tiles, pad, true), W, W, 2);
     g.lineJoin = 'round';
     g.lineCap = 'round';
-    for (let lvl = lo + 1; lvl <= hi; lvl++) {
+    for (let lvl = lo + 1; lvl <= hi; lvl += 2) {
       const polys = contours(f, W, W, lvl - 0.5).filter((p) => p.pts.length >= 12);
       if (!polys.length) continue;
-      const major = lvl % 4 === 0;
+      const major = (lvl - lo - 1) % 8 === 0;
       g.beginPath();
       for (const p of polys) addPoly(c, p, o);
       ink(g, 'stroke', K.inkFaint, major ? 0.34 : 0.2);
@@ -187,7 +197,8 @@ function relief(c: Cx): void {
           dx = -gx / mag;
           dz = -gz / mag;
         }
-        const n = t === 5 ? 3 : 2;
+        if (t === 4 && hash2(x, z, 12) < 0.4) continue;
+        const n = t === 5 ? 2 : 1;
         const len = (t === 5 ? 0.62 : 0.45) * (0.8 + 0.4 * hash2(x, z, 8));
         for (let k = 0; k < n; k++) {
           const sx = x + (k + 0.5 + (hash2(x, z, 9 + k) - 0.5) * 0.5) / n;
@@ -224,9 +235,13 @@ function water(c: Cx): void {
   const deep = new Uint8Array(tiles * tiles);
   let any = false;
   let anyDeep = false;
+  // Specks of water under four tiles are noise on a map: leave them out.
+  const { list: ponds } = patches(inp.water, tiles);
+  const speck = new Uint8Array(tiles * tiles);
+  for (const l of ponds) if (l.length < 4) for (const t of l) speck[t] = 1;
   for (let i = 0; i < mask.length; i++) {
     const w = inp.water[i]!;
-    if (w) {
+    if (w && !speck[i]) {
       mask[i] = 1;
       any = true;
       if (w === 2) {
@@ -260,9 +275,8 @@ function water(c: Cx): void {
   g.clip('evenodd');
   g.lineJoin = 'round';
   for (const [wd, a] of [
-    [1.5, 0.08],
-    [0.95, 0.1],
-    [0.5, 0.12],
+    [1.3, 0.1],
+    [0.6, 0.12],
   ] as const) {
     path(shore);
     ink(g, 'stroke', K.waterInk, a);
@@ -345,7 +359,7 @@ function fields(c: Cx): void {
       P.at(ox + ca * R, oz + sa * R);
       g.lineTo(P.x, P.y);
     }
-    ink(g, 'stroke', K.field, 0.5);
+    ink(g, 'stroke', K.field, 0.68);
     g.lineWidth = 1.5 * ls;
     g.stroke();
     g.restore();
@@ -387,7 +401,17 @@ function woods(c: Cx): void {
       const variant = Math.floor(hash2(x, z, 3) * VARIANTS);
       const gl = glyphs[species]![variant * 4 + stage]!;
       P.at(x + 0.5 + (hash2(x, z, 4) - 0.5) * 0.5, z + 0.85 + (hash2(x, z, 6) - 0.5) * 0.3);
-      g.drawImage(gl.canvas as unknown as CanvasImageSource, Math.round(P.x - gl.ax), Math.round(P.y - gl.ay));
+      g.drawImage(
+        gl.canvas as unknown as CanvasImageSource,
+        gl.sx,
+        gl.sy,
+        gl.w,
+        gl.h,
+        Math.round(P.x - gl.ax),
+        Math.round(P.y - gl.ay),
+        gl.w,
+        gl.h,
+      );
     }
   }
 }
@@ -405,7 +429,7 @@ interface RoadStyle {
 /** Style per road id; an unknown id reads as a lane. */
 const ROAD_STYLE: Record<string, RoadStyle> = {
   path: { width: 0.2, casing: false, fill: K.path, edge: K.path, dash: true },
-  lane: { width: 0.34, casing: false, fill: K.ink, edge: K.ink, dash: false },
+  lane: { width: 0.42, casing: false, fill: K.ink, edge: K.ink, dash: false },
   street: { width: 0.6, casing: true, fill: K.road, edge: K.ink, dash: false },
   avenue: { width: 0.9, casing: true, fill: K.road, edge: K.ink, dash: false },
 };
@@ -447,10 +471,14 @@ function roads(c: Cx): void {
       let any = false;
       const e = at(x + 1, z) !== 0;
       const s = at(x, z + 1) !== 0;
-      if (e) (link(x, z, x + 1, z), (any = true));
-      if (s) (link(x, z, x, z + 1), (any = true));
-      if (!e && !s && at(x + 1, z + 1)) (link(x, z, x + 1, z + 1), (any = true));
-      if (!s && !at(x - 1, z) && at(x - 1, z + 1)) (link(x, z, x - 1, z + 1), (any = true));
+      const go = (nx: number, nz: number): void => {
+        link(x, z, nx, nz);
+        any = true;
+      };
+      if (e) go(x + 1, z);
+      if (s) go(x, z + 1);
+      if (!e && !s && at(x + 1, z + 1)) go(x + 1, z + 1);
+      if (!s && !at(x - 1, z) && at(x - 1, z + 1)) go(x - 1, z + 1);
       if (!any) {
         const w = at(x - 1, z) || at(x, z - 1) || at(x - 1, z - 1) || at(x + 1, z - 1) || at(x - 1, z + 1);
         if (!w) segs[cls(at(x, z))]!.push(x + 0.5, z + 0.5, x + 0.5, z + 0.5 + 0.001);
@@ -585,7 +613,7 @@ function roofs(c: Cx): void {
       g.lineTo(P.x, P.y);
     }
   }
-  ink(g, 'stroke', K.roofInk, 0.5);
+  ink(g, 'stroke', K.roofInk, 0.34);
   g.lineWidth = 1.5 * ls;
   g.stroke();
 }
@@ -649,7 +677,12 @@ function inkLayer(c: Cx, layer: { tiles: Uint16Array; color: number } | undefine
         [-1, 1],
       ] as const) {
         if (strong(x + dx, z + dz)) {
-          bins[bin]!.push(x + 0.5 + wob(x, z, 1), z + 0.5 + wob(x, z, 2), x + dx + 0.5 + wob(x + dx, z + dz, 1), z + dz + 0.5 + wob(x + dx, z + dz, 2));
+          bins[bin]!.push(
+            x + 0.5 + wob(x, z, 1),
+            z + 0.5 + wob(x, z, 2),
+            x + dx + 0.5 + wob(x + dx, z + dz, 1),
+            z + dz + 0.5 + wob(x + dx, z + dz, 2),
+          );
           any = true;
         }
       }
@@ -676,15 +709,22 @@ function inkLayer(c: Cx, layer: { tiles: Uint16Array; color: number } | undefine
 
 // 10. Labels ---------------------------------------------------------------------------------------
 
-function halo(c: Cx, text: string, fs: number): void {
+function halo(c: Cx, text: string, fs: number, k = 0.22): void {
   const { g } = c;
   g.lineJoin = 'round';
-  g.lineWidth = fs * 0.22;
+  g.lineWidth = fs * k;
   ink(g, 'stroke', K.halo, 0.9);
   g.strokeText(text, 0, 0);
 }
 
-function placeLabel(c: Cx, text: string, x: number, z: number, angle: number, kind: 'place' | 'street'): void {
+function placeLabel(
+  c: Cx,
+  text: string,
+  x: number,
+  z: number,
+  angle: number,
+  kind: 'place' | 'street',
+): void {
   const { g, P, sc } = c;
   const fs = Math.max(11, sc * (kind === 'place' ? 1.6 : 1.25));
   g.font = kind === 'place' ? `700 ${fs}px ${MAP_FONT}` : `italic 400 ${fs}px ${MAP_FONT}`;
@@ -703,7 +743,7 @@ function placeLabel(c: Cx, text: string, x: number, z: number, angle: number, ki
 /** Letters the valley's name along the river; straight at (x, z) where there is no river. */
 function valleyLabel(c: Cx, text: string, x: number, z: number, angle: number): void {
   const { g, inp, tiles, P, sc } = c;
-  let fs = sc * 2.2;
+  let fs = sc * 2.4;
   g.font = `italic 400 ${fs}px ${MAP_FONT}`;
   g.textAlign = 'center';
   g.textBaseline = 'middle';
@@ -713,9 +753,9 @@ function valleyLabel(c: Cx, text: string, x: number, z: number, angle: number): 
   const widths = (): number[] => letters.map((ch) => g.measureText(ch).width + fs * track);
   let w = widths();
   let total = w.reduce((a, b) => a + b, 0);
-  let arc: number[] = [];
-  let px: number[] = [];
-  let py: number[] = [];
+  const arc: number[] = [];
+  const px: number[] = [];
+  const py: number[] = [];
   let curveLen = 0;
   if (line) {
     const n = line.pts.length / 2;
@@ -770,7 +810,7 @@ function valleyLabel(c: Cx, text: string, x: number, z: number, angle: number): 
     g.save();
     g.translate(cx, cy);
     g.rotate(upright(Math.atan2(by - ay, bx - ax)));
-    halo(c, letters[i]!, fs);
+    halo(c, letters[i]!, fs, 0.12);
     ink(g, 'fill', K.waterInk, 1);
     g.fillText(letters[i]!, 0, 0);
     g.restore();
@@ -855,7 +895,10 @@ function border(c: Cx): void {
   ink(g, 'stroke', K.ink, 0.7);
   g.lineWidth = 1.5 * ls;
   g.stroke();
-  const pt = (ang: number, len: number): [number, number] => [cxp + Math.sin(ang) * len, cyp - Math.cos(ang) * len];
+  const pt = (ang: number, len: number): [number, number] => [
+    cxp + Math.sin(ang) * len,
+    cyp - Math.cos(ang) * len,
+  ];
   for (let k = 0; k < 8; k++) {
     const major = k % 2 === 0;
     const a = (k * Math.PI) / 4;
@@ -943,7 +986,11 @@ export function drawMap(g: Ctx, inp: EndpaperInput, size: number, opts: DrawOpts
     fn(c);
     g.restore();
     g.globalAlpha = 1;
-    if (t) t[name] = performance.now() - t0;
+    // Timing mode only: reading a pixel forces the queued drawing to run, so the pass owns its cost.
+    if (t) {
+      g.getImageData(0, 0, 1, 1);
+      t[name] = performance.now() - t0;
+    }
   };
   run('parchment', parchment);
   run('relief', relief);
