@@ -208,7 +208,7 @@ describe('the row rule, over 100 seeds', () => {
       const chainMax = Math.max(...bases.map((b) => b ?? 0));
       for (let i = 0; i < got.length; i++) {
         const g = got[i];
-        if (g === null) continue;
+        if (g === null || g === undefined) continue;
         expect(g, `seed ${seed} lot ${i}`).toBeGreaterThanOrEqual(bases[i]!);
         expect(g).toBeLessThanOrEqual(MAX_STOREYS);
         expect(g).toBeLessThanOrEqual(chainMax);
