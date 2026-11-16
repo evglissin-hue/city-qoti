@@ -8,6 +8,7 @@ import { DataTexture, RGBAFormat, SRGBColorSpace, type Texture } from 'three';
 import { footprintSize } from '@qoti/sim';
 import type { Mirror } from '../state/mirror';
 import { drawDef } from './defs';
+import { riverCourse } from './layers/water';
 
 /** Camera distance in tiles where the map starts to show, and where it covers the view. */
 export const ENDPAPER_NEAR = 200;
@@ -93,6 +94,10 @@ export interface EndpaperInput {
   plans: EndpaperRoof[];
   labels: EndpaperLabel[];
   inks: EndpaperInks;
+  /** V3C: the river's centerline as x, z pairs in tiles, from `riverCourse` in `layers/water.ts`. */
+  riverPoints?: Float32Array;
+  /** V3C: the river's width in tiles at each point of `riverPoints`, from `riverCourse`. */
+  riverWidths?: Float32Array;
 }
 
 /**
@@ -144,6 +149,10 @@ export function endpaperInput(mirror: Mirror, inks: EndpaperInks = {}): Endpaper
   const labels: EndpaperLabel[] = [];
   const name = mirror.settings.value.valleyName;
   if (name) labels.push({ text: name, x: tiles / 2, z: tiles / 2, angle: 0, kind: 'valley' });
+  const course = riverCourse(
+    { water: (x, z) => (x < tiles && z < tiles ? (L.water[z * tiles + x] ?? 0) : 0) },
+    mirror.meta?.flow,
+  );
   return {
     tiles,
     heights: layerCopy(L.height, n),
@@ -155,6 +164,8 @@ export function endpaperInput(mirror: Mirror, inks: EndpaperInks = {}): Endpaper
     plans,
     labels,
     inks,
+    riverPoints: course.points,
+    riverWidths: course.widths,
   };
 }
 
