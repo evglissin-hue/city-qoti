@@ -1340,7 +1340,7 @@ const DISPLAYS: Readonly<Record<string, { color: number; draw: DisplayDraw }>> =
 /** The good ids a display (and a sign emblem) knows; anything else reads as sundries. */
 export const DISPLAY_GOODS: readonly string[] = Object.keys(DISPLAYS);
 
-export const goodsDisplay: Kit = goodsPiece('goods-display', 33, (s, rnd, params) => {
+const goodsDisplayFull: Kit = goodsPiece('goods-display', 33, (s, rnd, params) => {
   const good = typeof params.good === 'string' && DISPLAYS[params.good] ? params.good : 'sundries';
   const d = DISPLAYS[good]!;
   const wood = vary(palette.wood, rnd, 0.6);
@@ -1366,6 +1366,39 @@ export const goodsDisplay: Kit = goodsPiece('goods-display', 33, (s, rnd, params
     },
   );
 });
+
+/**
+ * V3X: the table, squeezed to a trestle 0.47 wide and 0.13 deep (the drawn table is 0.54 by 0.2). A shop
+ * front has only the 0.15 of verge in front of its wall (a lot is its footprint and the clearance grid
+ * is in eighths), so a table deeper than that found no spot at all. Heights stay; normals follow.
+ */
+const DISPLAY_KX = 0.87;
+const DISPLAY_KZ = 0.65;
+
+export const goodsDisplay: Kit = {
+  ...goodsDisplayFull,
+  build: (opts) => {
+    const g = goodsDisplayFull.build(opts);
+    const pos = g.getAttribute('position');
+    const nor = g.getAttribute('normal');
+    for (let i = 0; i < pos.count; i++) {
+      pos.setX(i, pos.getX(i) * DISPLAY_KX);
+      pos.setZ(i, pos.getZ(i) * DISPLAY_KZ);
+      if (nor) {
+        const x = nor.getX(i) / DISPLAY_KX;
+        const y = nor.getY(i);
+        const z = nor.getZ(i) / DISPLAY_KZ;
+        const l = Math.sqrt(x * x + y * y + z * z) || 1;
+        nor.setXYZ(i, x / l, y / l, z / l);
+      }
+    }
+    pos.needsUpdate = true;
+    if (nor) nor.needsUpdate = true;
+    g.computeBoundingBox();
+    g.computeBoundingSphere();
+    return g;
+  },
+};
 
 export const goodsChurns: Kit = goodsPiece('goods-churns', 35, (s, rnd) => {
   const n = 2 + Math.floor(rnd() * 2);

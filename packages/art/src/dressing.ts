@@ -418,6 +418,8 @@ export function markPlacement(c: Clearance, p: Placement, b: PieceBounds): void 
 export const DOOR_HALF = 0.25;
 /** How far a front or doorstep piece may overhang the lot's front edge (onto the verge). */
 export const FRONT_OVERHANG = 0.15;
+/** How far an awning may reach out past the lot's front edge (V3X). */
+export const AWNING_OVERHANG = 0.45;
 const SNAP_STEP = 1 / 16;
 const SNAP_REACH = 1;
 const SHIFTS = [0, 0.12, -0.12, 0.25, -0.25, 0.4, -0.4] as const;
@@ -461,7 +463,10 @@ export function placementFree(
   mask: number = spanMask(q, bounds),
 ): boolean {
   const over = q.anchor === 'front' || q.anchor === 'door';
-  const room: GroundBox = [lot[0], lot[1], lot[2], over ? lot[3] + FRONT_OVERHANG : lot[3]];
+  // V3X: an awning is meant to reach out over the verge, so a shop on a plot that is only its footprint
+  // may still hang one.
+  const reach = q.kit === 'yard-awning' ? AWNING_OVERHANG : FRONT_OVERHANG;
+  const room: GroundBox = [lot[0], lot[1], lot[2], over ? lot[3] + reach : lot[3]];
   const b = footprintOf(q, bounds);
   const inside =
     b[0] >= room[0] - 1e-6 && b[1] >= room[1] - 1e-6 && b[2] <= room[2] + 1e-6 && b[3] <= room[3] + 1e-6;
@@ -477,6 +482,25 @@ export function placementFree(
  * door; wall pieces (eaves, sills, front, awnings) first snap to the wall. Deterministic.
  */
 export function fitPlacement(
+  p: Placement,
+  bounds: PieceBounds,
+  clear: Clearance,
+  lot: GroundBox,
+  door?: AnchorPoint,
+): Placement | null {
+  const fitted = fitTurned(p, bounds, clear, lot, door);
+  if (fitted || !(p.anchor === 'front' || p.anchor === 'door')) return fitted;
+  // V3X: a table set a little askew has a deeper footprint than the strip of verge in front of a
+  // shop's wall (a quarter turn of jitter on half a tile of table adds a tenth of a tile of depth):
+  // when it finds no spot as turned, stand it square to the facade.
+  const sx = Math.sin(p.yaw);
+  const sz = Math.cos(p.yaw);
+  const square =
+    Math.abs(sx) > Math.abs(sz) ? Math.atan2(Math.sign(sx), 0) : Math.atan2(0, Math.sign(sz) || 1);
+  return Math.abs(square - p.yaw) < 1e-9 ? null : fitTurned({ ...p, yaw: square }, bounds, clear, lot, door);
+}
+
+function fitTurned(
   p: Placement,
   bounds: PieceBounds,
   clear: Clearance,
@@ -502,6 +526,14 @@ export function fitPlacement(
         const nx = x + fx * i * SNAP_STEP;
         const nz = z + fz * i * SNAP_STEP;
         if (free(moved(nx, nz))) return [nx, nz];
+      }
+      // V3X: the steps may jump a strip as narrow as the piece; stand it flush with the front edge.
+      if (fz > 0 && (p.anchor === 'front' || p.anchor === 'door')) {
+        const out =
+          lot[3] +
+          (p.kit === 'yard-awning' ? AWNING_OVERHANG : FRONT_OVERHANG) -
+          footprintOf(moved(x, z), bounds)[3];
+        if (out > 0 && out <= SNAP_REACH && free(moved(x, z + out))) return [x, z + out];
       }
       return null;
     }

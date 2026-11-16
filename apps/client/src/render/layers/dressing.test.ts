@@ -8,6 +8,7 @@ import {
   doorCorridor,
   footprintOf,
   kitById,
+  matches,
   placementFree,
 } from '@qoti/art';
 import { content, type DressingRule } from '@qoti/content';
@@ -597,4 +598,70 @@ describe('roomyLot (V3A)', () => {
     );
     expect([r.x, r.z, r.w, r.d]).toEqual([10, 9.5, 2.5, 2.5]);
   });
+});
+
+// --- V3X: no shop-front piece is unplaceable by size alone ------------------------------------------
+
+describe('dressingLayer, front and door pieces fit every plot they match (V3X)', () => {
+  /** Every building (and trade look) a rule can match: def, trade at level 3, a household for a tier. */
+  function candidates(rule: DressingRule): { b: BuildingView; households: Partial<HouseholdView>[] }[] {
+    const out: { b: BuildingView; households: Partial<HouseholdView>[] }[] = [];
+    for (const def of content.buildingById.values()) {
+      if (def.specialized) continue;
+      const trades = [...content.tradeById.values()].filter((t) => t.building === def.id);
+      const asks: (string | undefined)[] = def.category === 'home' ? [undefined] : trades.map((t) => t.id);
+      for (const trade of asks) {
+        const b = building(1, def.id, { ...(trade ? { trade, level: 3 } : {}) });
+        const households: Partial<HouseholdView>[] =
+          def.category === 'home'
+            ? [
+                {
+                  id: 5,
+                  homeId: 1,
+                  tier: rule.who.tier?.[0] ?? 'settler',
+                  members: [1],
+                } as Partial<HouseholdView>,
+              ]
+            : [];
+        if (matches(rule, dressingSubject(mirrorOf({ buildings: [b], households }), b)))
+          out.push({ b, households });
+      }
+    }
+    return out;
+  }
+
+  const rules = content.dressingRules.filter((r) => r.anchor === 'front' || r.anchor === 'door');
+
+  it('covers the shipped front and door rules', () => {
+    expect(rules.length).toBeGreaterThan(10);
+  });
+
+  for (const rule of rules) {
+    it(`${rule.id}: placed on an open plot and on one squeezed between neighbors`, () => {
+      const cands = candidates(rule);
+      expect(cands.length, rule.id).toBeGreaterThan(0);
+      const { chance: _chance, ...rest } = rule;
+      const sure: DressingRule = { ...rest, count: { base: 1, max: 1 } };
+      for (const { b, households } of cands) {
+        const def = content.buildingById.get(b.def)!;
+        for (const squeezed of [false, true]) {
+          // Squeezed: the lot is the footprint and nothing else, with no free ground around it (as the
+          // grown village's farms and shops: lot w x d, neighbors and roads on every side).
+          const lots = squeezed
+            ? [{ id: b.lot, x: b.x, z: b.z, w: def.size[0], d: def.size[1], buildingId: b.id }]
+            : undefined;
+          const world: World = { buildings: [b], households, ...(lots ? { lots } : {}) };
+          const { layer, mirror } = setup(world, [sure]);
+          if (squeezed) {
+            (mirror as { occupant: (x: number, z: number) => number }).occupant = (x, z) =>
+              x < b.x || x >= b.x + def.size[0] || z < b.z || z >= b.z + def.size[1] ? 1 : 0;
+          }
+          layer.frame?.(0.016);
+          const placed = layer.placementsOf(1).filter((p) => p.rule === rule.id);
+          const label = `${rule.id} on ${b.def} ${b.trade ?? ''} ${squeezed ? 'squeezed' : 'open'}`;
+          expect(placed.length, label).toBeGreaterThan(0);
+        }
+      }
+    });
+  }
 });

@@ -123,6 +123,56 @@ describe('yard and goods pieces (V3A)', () => {
       }
   });
 
+  it('keeps a goods table a trestle: under half a tile wide and 0.14 deep, to fit a shop front', () => {
+    for (const good of DISPLAY_GOODS)
+      for (let seed = 0; seed < 4; seed++)
+        for (const lod of ['high', 'low'] as const) {
+          const b = bounds(kitById.get('goods-display')!.build({ seed, params: { good }, lod }));
+          expect(b[3]! - b[0]!, `${good} w`).toBeLessThanOrEqual(0.5);
+          expect(b[5]! - b[2]!, `${good} d`).toBeLessThanOrEqual(0.14);
+        }
+  });
+
+  it('winds every triangle to agree with its vertex normals, so none is culled from its good side', () => {
+    const bad: string[] = [];
+    for (const { id } of SPECS) {
+      const kit = kitById.get(id)!;
+      for (const lod of ['high', 'low'] as const)
+        for (let seed = 0; seed < 4; seed++) {
+          const params: Record<string, string> =
+            id === 'goods-display'
+              ? { good: DISPLAY_GOODS[seed % DISPLAY_GOODS.length]! }
+              : id === 'yard-sign'
+                ? { emblem: SIGN_EMBLEMS[seed % SIGN_EMBLEMS.length]! }
+                : {};
+          const g = kit.build({ seed, params, lod });
+          const pos = g.getAttribute('position');
+          const nor = g.getAttribute('normal');
+          let flipped = 0;
+          for (let t = 0; t < pos.count; t += 3) {
+            const [a, b, c] = [t, t + 1, t + 2].map(
+              (i) => [pos.getX(i), pos.getY(i), pos.getZ(i)] as [number, number, number],
+            ) as unknown as [number[], number[], number[]];
+            const u = [b[0]! - a[0]!, b[1]! - a[1]!, b[2]! - a[2]!];
+            const v = [c[0]! - a[0]!, c[1]! - a[1]!, c[2]! - a[2]!];
+            const n = [
+              u[1]! * v[2]! - u[2]! * v[1]!,
+              u[2]! * v[0]! - u[0]! * v[2]!,
+              u[0]! * v[1]! - u[1]! * v[0]!,
+            ];
+            let dot = 0;
+            for (let k = 0; k < 3; k++)
+              dot +=
+                n[0]! * (nor.getX(t + k) / 3) + n[1]! * (nor.getY(t + k) / 3) + n[2]! * (nor.getZ(t + k) / 3);
+            if (dot <= 0) flipped++;
+          }
+          if (flipped > 0)
+            bad.push(`${id} ${lod} seed ${seed}: ${flipped} of ${pos.count / 3} triangles flipped`);
+        }
+    }
+    expect(bad).toEqual([]);
+  });
+
   it('lights the lamps: a flame anchor inside the bounding box', () => {
     for (const id of ['yard-lamp', 'yard-sill-lamp']) {
       const kit = kitById.get(id)!;
