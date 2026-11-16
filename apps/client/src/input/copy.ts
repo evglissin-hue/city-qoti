@@ -31,8 +31,8 @@ export const INPUT_COPY = {
       ? 'Kept for strolling from 17:00 to 21:00. Carts go the long way round.'
       : `Kept for strolling from 17:00 to 21:00. ${
           waits.length === 1
-            ? `The ${waits[0]} will wait for its carts till 21:00.`
-            : `The ${waits[0]} and ${waits.length - 1} more will wait for their carts till 21:00.`
+            ? `The ${waits[0]} takes no deliveries till 21:00.`
+            : `The ${waits[0]} and ${waits.length - 1} more take no deliveries till 21:00.`
         }`,
   eveningSame: (unmark: boolean) =>
     unmark ? 'Nothing here was kept for strolling.' : 'Already kept for strolling.',

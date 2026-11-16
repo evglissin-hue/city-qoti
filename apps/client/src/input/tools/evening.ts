@@ -8,7 +8,10 @@ import type { Tool } from '../tool';
 
 type Tile = [number, number];
 
-/** Names of the workshops, sheds and stores whose door opens on a marked tile (they wait for carts). */
+/**
+ * Names of the workshops, sheds and stores whose door opens on a marked tile: no cart or porter job
+ * runs to or from them from 17:00 to 21:00 (R2B's eveningStreet), whether or not one is due tonight.
+ */
 export function waiting(ctx: ToolContext, marked: ReadonlySet<number>): string[] {
   const names: string[] = [];
   for (const b of ctx.mirror.buildings.values()) {

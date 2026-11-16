@@ -47,7 +47,7 @@ function marks(s: WorldState): string {
   return `${food?.mark ?? DASH}/${fuel?.mark ?? DASH}`;
 }
 
-/** The last tallied evening, or null while none has been (R2 stand-ins leave the tally at day -1). */
+/** The last tallied evening, or null while none has been (the tally keeps day -1 until the first 17:00). */
 function evening(s: WorldState) {
   const t = s.evenings.tonight;
   return t.day >= 0 && t.grownups > 0 ? t : null;
