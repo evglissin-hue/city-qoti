@@ -401,8 +401,10 @@ export function buildHorizon(input: HorizonInput): HorizonBuild {
       const hs = hash2(c.i * 7 + k, c.r, seed + 47);
       const x = c.x + (hx - 0.5) * 7;
       const z = c.z + (hz - 0.5) * 7;
-      const radius = 2 + hs * 1.5;
-      const height = 5 + hs * 5;
+      // Squat crowns a little bigger than the valley's own trees: from a far camera, dabs of
+      // woods, never tall spikes.
+      const radius = 1.6 + hs * 1.0;
+      const height = 2.4 + hs * 1.6;
       const haze = soup.meta[ring[c.r]![c.i]! * 3]!;
       const rot = hx * 6.28;
       const dark = COL_WOODS.clone().multiplyScalar(0.8 + 0.2 * hs);
