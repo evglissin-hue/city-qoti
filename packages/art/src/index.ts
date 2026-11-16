@@ -70,6 +70,7 @@ export {
   type GardenEdge,
 } from './kits/district';
 export { orchardTree, seasonOf } from './kits/village';
+export { backGarden } from './kits/gardens';
 export { businessParams, type BusinessLevel } from './kits/business';
 export {
   CLOTH_COLORS,
@@ -92,7 +93,16 @@ export {
 export { wheatTileGeometry } from './kits/fields';
 export { constructionGeometry, upgradeScaffold, type ConstructionOptions } from './kits/construction';
 export { ACCENT_SWATCHES, ROOF_MATERIALS, ROOF_SWATCHES, WALL_SWATCHES } from './kits/style';
-export { isRowKit, ROW_EAVES } from './kits/rows';
+export {
+  clampStoreys,
+  isRowKit,
+  MAX_ROW_STOREYS,
+  ROW_EAVES,
+  ROW_NATIVE_STOREYS,
+  rowEaves,
+  storeyLift,
+  storeyWall,
+} from './kits/rows';
 export { BUNDLE_GOODS, bundleGeometry, crateOf, GOOD_COLORS, pileLevel, pileOf } from './kits/goods';
 export { PAINT, RIG, RIG_PIVOTS, RigBuilder, type Channel } from './rig';
 export { beam, cylX, cylZ, panel } from './shapes';

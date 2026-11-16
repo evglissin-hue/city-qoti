@@ -23,6 +23,7 @@ import { layOut } from '../input/layoutPick';
 import { applySettings, loadSettings } from '../ui/settings';
 import { folkShowcase } from '../render/folkShowcase';
 import { fitShowcase } from '../render/fitShowcase';
+import { streetsShowcase } from '../render/streetsShowcase';
 import { roadsShowcase } from '../render/roadShowcase';
 import { audio, type SoundCueId } from '../audio/api';
 import { audioEngine } from '../audio/install';
@@ -547,6 +548,11 @@ export function installDebugHook(getSession: () => Session | null): void {
     fitShowcase: (x?: number, z?: number) => {
       const session = s();
       return session ? fitShowcase(session.mirror, x, z) : null;
+    },
+    /** V3B: a synthetic block with rows, gardens, corners and a stepped row, for the street look. */
+    streetsShowcase: (x?: number, z?: number) => {
+      const session = s();
+      return session ? streetsShowcase(session.mirror, x, z) : null;
     },
     /** C5E part 2: every I3 building, defense and festival piece side by side, for art review. */
     seasonsShowcase: (x?: number, z?: number) => {

@@ -9,6 +9,7 @@ import * as Df from './defenses';
 import * as Fe from './festival';
 import * as Fd from './fineDecor';
 import * as Gd from './garden';
+import * as Gy from './gardens';
 import * as Gn from './greens';
 import * as G from './goods';
 import * as Gr from './grown';
@@ -29,6 +30,7 @@ export const kits: readonly Kit[] = [
   Tr.apiaryKit,
   D.appleTree,
   Gn.arborSeat,
+  Gy.backGarden,
   W.bakeryKit,
   D.barrels,
   Tr.bathHouseKit,
@@ -36,6 +38,7 @@ export const kits: readonly Kit[] = [
   D.bench,
   T.birch,
   Gd.birdbath,
+  D.bollard,
   Fe.bonfire,
   V.brickKilnKit,
   Sp.brickworksKit,
@@ -139,6 +142,7 @@ export const kits: readonly Kit[] = [
   Tr.stoneBridgeKit,
   Df.stoneWallKit,
   W.storehouseKit,
+  D.streetLamp,
   Gn.swing,
   Tr.tailorKit,
   Sv.tavernKit,
