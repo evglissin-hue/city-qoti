@@ -274,7 +274,7 @@ export function waterLayer(): RenderLayer {
       const flow = ctx.mirror.meta.flow === 'ns' ? new Vector2(0, 0.35) : new Vector2(0.35, 0);
       material = createWaterMaterial(env, flow);
       const tiles = new SurfaceTiles(ctx.mirror);
-      chunks = new ChunkedMeshes(ctx.scene, material, (cx, cz) => waterGeometry(tiles, cx, cz), 2);
+      chunks = new ChunkedMeshes(ctx.scene, material, (cx, cz) => waterGeometry(tiles, cx, cz), 2, true, 4);
       chunks.markAll();
       chunks.rebuild(Infinity, nearOf(env, ctx.mirror.meta.startArea), FIRST_FRAME_RADIUS);
       start = ctx.mirror.meta.startArea;

@@ -325,7 +325,12 @@ function shared<T extends { clone(): unknown }>(v: T): T {
 }
 
 function riverTexture(): DataTexture {
-  const t = new DataTexture(new Uint8Array(RIVER_HAZE_SIZE * RIVER_HAZE_SIZE), RIVER_HAZE_SIZE, RIVER_HAZE_SIZE, RedFormat);
+  const t = new DataTexture(
+    new Uint8Array(RIVER_HAZE_SIZE * RIVER_HAZE_SIZE),
+    RIVER_HAZE_SIZE,
+    RIVER_HAZE_SIZE,
+    RedFormat,
+  );
   t.magFilter = LinearFilter;
   t.minFilter = LinearFilter;
   t.needsUpdate = true;
@@ -356,7 +361,11 @@ export const HAZE_SPAN = 6;
  * before dawn to mid morning, and a town of many chimneys hazing over on winter evenings. Pure, so
  * it is the same on every frame drawn at one light step.
  */
-export function hazeTermsAt(hour: number, winter: number, hearths: number): { river: number; chimney: number } {
+export function hazeTermsAt(
+  hour: number,
+  winter: number,
+  hearths: number,
+): { river: number; chimney: number } {
   const h = ((hour % 24) + 24) % 24;
   // Mist on the water: rises at 4:30, thickest from 5:30 to 7, gone by 10.
   const river = ramp(h, 4.5, 5.5) * (1 - ramp(h, 7, 10));
@@ -449,7 +458,10 @@ export function installHazeChunks(): void {
     u.qHazeRiver = HAZE.river;
   };
   add(UniformsLib.fog as unknown as Record<string, IUniform>);
-  for (const lib of Object.values(ShaderLib) as { uniforms: Record<string, IUniform>; fragmentShader: string }[])
+  for (const lib of Object.values(ShaderLib) as {
+    uniforms: Record<string, IUniform>;
+    fragmentShader: string;
+  }[])
     if (lib.fragmentShader.includes('<fog_fragment>')) add(lib.uniforms);
 }
 
