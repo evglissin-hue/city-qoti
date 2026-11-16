@@ -178,13 +178,16 @@ export function checkTier(
   return { tier: basket.tier, missing };
 }
 
-/** The average evenings need of a household's young and adult members, or null with none. */
+/**
+ * The average evenings need of a household's grown-ups (every member who is not a child, elders
+ * included: a lone elder household otherwise skipped the gate), or null with none.
+ */
 function grownupsEvenings(state: WorldState, h: Household): number | null {
   let sum = 0;
   let n = 0;
   for (const id of h.members) {
     const r = findById(state.residents, id);
-    if (!r || (r.stage !== 'young' && r.stage !== 'adult')) continue;
+    if (!r || r.stage === 'child') continue;
     sum += eveningsNeed(r);
     n++;
   }

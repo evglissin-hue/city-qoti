@@ -76,8 +76,9 @@ export function closeEvening(state: WorldState, _ctx: TickCtx): void {
   const cal = calendar(state.tick);
   const season = cal.year * 4 + cal.season;
   for (const r of state.residents) {
+    // Every grown-up's evening counts, elders' too (their afternoon round's best stop, or the floor
+    // for staying in): an elder left unscored kept a newcomer's 50 and passed the tiers' evenings.
     if (r.stage === 'child') continue;
-    if (r.stage === 'elder' && arrivedToday(state, r).length === 0) continue;
     const score = eveningScore(state, r);
     const need = eveningsNeed(r);
     r.needs[EVENINGS_NEED] = Math.max(0, Math.min(100, need + Math.round((score - need) / P.needStepOneIn)));

@@ -128,7 +128,7 @@ describe('closing the evening', () => {
     expect(s.evenings.tonight.weather).toBe('rain');
   });
 
-  it('does not score children, nor elders who stayed in', () => {
+  it('does not score children; an elder who stayed in scores the floor like anyone', () => {
     const s = at21();
     const kid = grownup(s, [stop('eat', 90)], 'child');
     const homebody = grownup(s, [], 'elder');
@@ -136,7 +136,8 @@ describe('closing the evening', () => {
     closeEvening(s, createTickCtx(s));
     expect(kid.needs[EVENINGS_NEED]).toBe(50);
     expect(kid.evening).toBeUndefined();
-    expect(homebody.needs[EVENINGS_NEED]).toBe(50);
+    expect(homebody.needs[EVENINGS_NEED]).toBe(50 + Math.round((P.stayInScore - 50) / P.needStepOneIn));
+    expect(homebody.evening?.score).toBe(P.stayInScore);
     expect(out.needs[EVENINGS_NEED]).toBe(60);
   });
 

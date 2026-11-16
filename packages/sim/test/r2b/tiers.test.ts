@@ -33,7 +33,7 @@ function town(): { state: WorldState; h: Household } {
 function setEvenings(state: WorldState, h: Household, value: number): void {
   for (const id of h.members) {
     const r = findById(state.residents, id)!;
-    if (r.stage === 'young' || r.stage === 'adult') r.needs[EVENINGS_NEED] = value;
+    if (r.stage !== 'child') r.needs[EVENINGS_NEED] = value;
   }
 }
 
@@ -81,6 +81,15 @@ describe('staying Craftsfolk', () => {
     findById(t.state.buildings, t.h.homeId)!.rt!.tier = 'craftsfolk';
     return t;
   }
+
+  it('asks a household of elders alone for its evenings too (a lone elder once passed unasked)', () => {
+    const { state, h } = town();
+    for (const id of h.members) findById(state.residents, id)!.stage = 'elder';
+    setEvenings(state, h, 21);
+    expect(tierProgress(state, h)!.missing).toContain(villagePhrases.missing.evenings);
+    days(state, P.tierDays + 1);
+    expect(findById(state.buildings, h.homeId)!.rt!.upgrade).toBeFalsy();
+  });
 
   it('holds at 42 (slack), slides after TIER_DOWN_DAYS at 38', () => {
     const { state, h } = craftsfolk();
