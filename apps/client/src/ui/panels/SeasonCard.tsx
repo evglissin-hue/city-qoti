@@ -1,7 +1,13 @@
 // I3 (C5F): the almanac. A card opens each season (the Charter or trial steps that matter now, the
 // festival's date, the forecast, a telegraphed threat), and a two-page report closes it: the
 // Hearth's page and the Ledger's page, from SeasonReportView. Paper tinted by the season.
-import { TICKS_PER_DAY, type SeasonCardView, type SeasonReportLine, type SeasonReportView } from '@qoti/sim';
+import {
+  TICKS_PER_DAY,
+  type SeasonCardView,
+  type SeasonReportLine,
+  type SeasonReportView,
+  type SeatId,
+} from '@qoti/sim';
 import type { ComponentChildren } from 'preact';
 import type { Session } from '../../app/session';
 import { closeAlmanac } from '../../app/seasonsHook';
@@ -17,6 +23,7 @@ import {
   whenWord,
 } from '../seasons';
 import { toggleBook } from '.';
+import { creditedText } from './Edition';
 import { SeasonPlanQuestions } from './SeasonPlan';
 
 const TRACK_MARK: Record<SeasonReportLine['track'], string> = {
@@ -168,6 +175,22 @@ export function Forecast({ session, weather }: { session: Session; weather: Seas
   );
 }
 
+/**
+ * R2D: a line of the joint report that belongs to neither lane alone ("the lantern walk fed the pie
+ * stall"). R2C's `view/season/index.ts` fills `cross` on the report; until then it is absent and the
+ * spread simply has no such block.
+ */
+export interface CrossLine {
+  text: string;
+  seats?: SeatId[];
+}
+
+/** The report's cross-lane lines, or none (never an empty heading). */
+export function crossLines(view: SeasonReportView): CrossLine[] {
+  const c = (view as SeasonReportView & { cross?: CrossLine[] }).cross;
+  return Array.isArray(c) ? c.filter((l) => !!l && typeof l.text === 'string' && l.text.length > 0) : [];
+}
+
 export function SeasonReport({
   session,
   view,
@@ -185,6 +208,8 @@ export function SeasonReport({
     if (a?.kind === 'report') session.ui.almanac.value = { ...a, page: p };
   };
   const stars = view.hearth.find((l) => l.track === 'festival')?.value;
+  const cross = crossLines(view);
+  const seats = session.mirror.seats.value;
   return (
     <div
       class={`almanac-report paper-${SEASON_KEY[view.season]} on-page-${page}`}
@@ -199,6 +224,18 @@ export function SeasonReport({
           {names[view.season]}, year {view.year + 1}
         </h2>
       </header>
+      {cross.length > 0 && (
+        <section class="report-cross" data-testid="report-cross">
+          <h3>Between the two of you</h3>
+          <ul>
+            {cross.map((l, i) => (
+              <li key={i} class="report-line">
+                <span>{creditedText(l.text, { text: l.text, seats: l.seats ?? [], refs: [] }, seats)}</span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
       <div class="report-spread">
         <ReportPage title="The Hearth" lines={view.hearth} lens="hearth" testid="report-hearth">
           {stars !== undefined && <Stars n={stars} />}

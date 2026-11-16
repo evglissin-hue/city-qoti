@@ -17,6 +17,7 @@ import { ChapterPanel } from './Chapter';
 import { CharterPanel } from './Charter';
 import { ChroniclePanel } from './Chronicle';
 import { CustomizePanel } from './Customize';
+import { EditionPanel } from './Edition';
 import { FestivalPanel, FestivalResultPanel } from './Festival';
 import { FieldGuidePanel } from './FieldGuide';
 import { GuidePanel } from './Guide';
@@ -73,6 +74,7 @@ export const panels: readonly PanelDef[] = [
   { id: 'charter', side: 'book', component: CharterPanel, lens: 'shared', label: 'Charter', icon: 'charter', key: 'h', modes: STANDARD, hidden: true },
   { id: 'chronicle', side: 'book', component: ChroniclePanel, lens: 'hearth', label: 'Chronicle', icon: 'chronicle', key: 'c', modes: STANDARD, order: 30 },
   { id: 'customize', side: 'right', component: CustomizePanel },
+  { id: 'edition', side: 'overlay', component: EditionPanel },
   { id: 'festival', side: 'book', component: FestivalPanel, lens: 'hearth', label: 'Festival', icon: 'festival', modes: STANDARD, order: 15 },
   { id: 'festival-result', side: 'overlay', component: FestivalResultPanel },
   { id: 'field-guide', side: 'book', component: FieldGuidePanel, lens: 'hearth', label: 'Field Guide', icon: 'fieldguide', modes: STANDARD, order: 25 },

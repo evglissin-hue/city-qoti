@@ -273,6 +273,14 @@ export function installDebugHook(getSession: () => Session | null): void {
       session.ui.almanac.value = { kind: 'card', view };
       return true;
     },
+    /** R2D: shows the last evening edition as the card (the &evening mocks fill it); false when there is none. */
+    edition: () => {
+      const session = s();
+      const v = session?.mirror.evening.value;
+      if (!session || !v) return false;
+      session.ui.edition.value = v;
+      return true;
+    },
     // I1 (C3E): hamlet UI helpers for tests and screenshots.
     mode: () => s()?.mirror.settings.value.mode ?? null,
     town: () => s()?.mirror.town.value ?? null,
@@ -330,7 +338,7 @@ export function installDebugHook(getSession: () => Session | null): void {
       };
     },
     /** I3 (C5F): puts a season page on the desk from the I3 mocks ('card', 'report', 'festival', 'raid'). */
-    seasonsMock: async (what: 'card' | 'report' | 'festival' | 'raid') => {
+    seasonsMock: async (what: 'card' | 'report' | 'report-cross' | 'festival' | 'raid') => {
       const session = s();
       if (!session) return;
       const mk = await import('../ui/mocks/seasons');
@@ -338,6 +346,8 @@ export function installDebugHook(getSession: () => Session | null): void {
       if (what === 'card')
         ui.almanac.value = { kind: 'card', view: session.mirror.seasonCard.value ?? mk.mockSeasonCard };
       if (what === 'report') ui.almanac.value = { kind: 'report', view: mk.mockSeasonReport, page: 0 };
+      if (what === 'report-cross')
+        ui.almanac.value = { kind: 'report', view: mk.mockSeasonReportCross, page: 0 };
       if (what === 'festival') ui.festivalCard.value = mk.mockFestivalResult;
       if (what === 'raid') ui.raidCard.value = mk.mockRaidResult;
     },

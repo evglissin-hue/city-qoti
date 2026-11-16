@@ -13,6 +13,7 @@ function fakeSession() {
     raidCard: signal<unknown>(null),
     rankUp: signal<unknown>(null),
     almanac: signal<unknown>(null),
+    edition: signal<unknown>(null),
     storyLetter: signal<unknown>(null),
   };
   return { ui, session: { ui } as unknown as Session };
