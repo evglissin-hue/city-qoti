@@ -282,6 +282,41 @@ describe('the endpaper drawing', () => {
   });
 });
 
+describe("V3B's rows and V3C's river, fed (synthetic inputs)", () => {
+  const row = [0, 1, 2, 3].map((k) => ({ x: 10 + k * 2, z: 20, w: 2, d: 2, rot: 0 }));
+  const moves = (log: Call[]): number => log.filter((c) => c.name === 'moveTo').length;
+
+  it('draws a roof in a row with one gable ridge, no hips', () => {
+    const alone = run(blank({ roofs: row }));
+    const joined = run(blank({ roofs: row, rows: [row] }));
+    // A hipped roof shades two faces (south, east) and strokes a ridge and four hips; a gable in a
+    // row shades one half and strokes its ridge only: five fewer moves a roof.
+    expect(moves(alone) - moves(joined)).toBe(row.length * 5);
+  });
+
+  it('ignores a row of one', () => {
+    expect(moves(run(blank({ roofs: row, rows: [[row[0]!]] })))).toBe(moves(run(blank({ roofs: row }))));
+  });
+
+  it('letters the valley along the fed course, even where the water layer has no river', () => {
+    const points = new Float32Array([4, 36, 14, 34, 24, 32, 34, 30, 44, 28]);
+    const widths = new Float32Array([3, 3, 3, 3, 3]);
+    const input = blank({
+      river: { points, widths },
+      labels: [{ text: 'Fed Vale', x: 24, z: 32, angle: 0, kind: 'valley' }],
+    });
+    const letters = run(input).filter(
+      (c) => c.name === 'fillText' && String(c.args[0]).length === 1 && c.fill === css(K.waterInk),
+    );
+    expect(letters.map((c) => c.args[0]).join('')).toBe('FEDVALE');
+    for (const c of letters) {
+      const [x, z] = px(c);
+      // The course runs z = 36 - x / 5: every letter sits beside it, within the half width and a letter.
+      expect(Math.abs(z - (36 - (x - 4) / 5))).toBeLessThan(6);
+    }
+  });
+});
+
 describe('the map frame', () => {
   it('matches the renderer side', () => {
     expect(ENDPAPER_MARGIN).toBe(render.ENDPAPER_MARGIN);

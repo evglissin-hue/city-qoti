@@ -168,6 +168,38 @@ describe('the endpaper input (V3D)', () => {
   });
 });
 
+describe('the endpaper feeds (V3D, for V3B and V3C)', () => {
+  it("takes V3C's river and V3B's rows from the feeds, and leaves them absent when unset", () => {
+    const plain = endpaperInput(fakeMirror());
+    expect(plain.river).toBeUndefined();
+    expect(plain.rows).toBeUndefined();
+    const river = { points: new Float32Array([0, 0, 10, 10]), widths: new Float32Array([3, 3]) };
+    const rows = [
+      [
+        { x: 1, z: 1, w: 2, d: 2, rot: 0 },
+        { x: 3, z: 1, w: 2, d: 2, rot: 0 },
+      ],
+    ];
+    const fed = endpaperInput(fakeMirror(), {}, { river: () => river, rows: () => rows });
+    expect(fed.river).toBe(river);
+    expect(fed.rows).toBe(rows);
+  });
+
+  it('drops a river feed with no course and an empty rows feed', () => {
+    const none = endpaperInput(
+      fakeMirror(),
+      {},
+      {
+        river: () => ({ points: new Float32Array([1, 1]), widths: new Float32Array([2]) }),
+        rows: () => [],
+      },
+    );
+    expect(none.river).toBeUndefined();
+    expect(none.rows).toBeUndefined();
+    expect(endpaperInput(fakeMirror(), {}, { river: () => null }).river).toBeUndefined();
+  });
+});
+
 describe('the page camera (V3D)', () => {
   function cam(pitchDeg: number, dist = 100) {
     const camera = new PerspectiveCamera(30, 1.6, 1, 1000);

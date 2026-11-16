@@ -129,7 +129,34 @@ export interface EndpaperInput {
   inks: EndpaperInks;
   /** V3D: the terrain layer's kind per tile (sim `Terrain`: grass, meadow, forest floor, sand, rock, mountain, water, field). */
   terrain: Uint8Array;
+  /** V3D, fed by V3C (`endpaperFeeds.river`): the river's course. Absent, the drawing derives one from `water`. */
+  river?: EndpaperRiver;
+  /**
+   * V3D, fed by V3B (`endpaperFeeds.rows`): roofs joined into rows, each row's footprints in order
+   * along it. A roof in a row is drawn with one ridge running the row's length. Absent, every roof
+   * is drawn alone (a hipped roof).
+   */
+  rows?: EndpaperRoof[][];
 }
+
+/** V3D: the river's course (V3C's): x, z pairs in tiles along the river, and its width in tiles at each point. */
+export interface EndpaperRiver {
+  points: Float32Array;
+  widths: Float32Array;
+}
+
+/**
+ * V3D: where `endpaperInput` takes V3B's rows and V3C's river from, so neither track edits this
+ * file: each sets its function here once (V3X wires them), from shared Mirror state only. Unset (as
+ * on this branch) the map draws plain footprints and finds the river in `water`.
+ */
+export interface EndpaperFeeds {
+  river?: (mirror: Mirror) => EndpaperRiver | null;
+  rows?: (mirror: Mirror) => EndpaperRoof[][];
+}
+
+/** V3D: the feeds `endpaperInput` uses by default. */
+export const endpaperFeeds: EndpaperFeeds = {};
 
 /**
  * The map as the renderer sees it. `texture` is written only through the `EndpaperWriter` (with the
@@ -237,7 +264,11 @@ function layerCopy(
 }
 
 /** The worker's copy of the valley, from shared Mirror state only (both seats draw the same map). */
-export function endpaperInput(mirror: Mirror, inks: EndpaperInks = {}): EndpaperInput {
+export function endpaperInput(
+  mirror: Mirror,
+  inks: EndpaperInks = {},
+  feeds: EndpaperFeeds = endpaperFeeds,
+): EndpaperInput {
   const tiles = mirror.size;
   const n = tiles * tiles;
   const L = mirror.layers;
@@ -252,7 +283,7 @@ export function endpaperInput(mirror: Mirror, inks: EndpaperInks = {}): Endpaper
   const labels: EndpaperLabel[] = [];
   const name = mirror.settings.value.valleyName;
   if (name) labels.push({ text: name, x: tiles / 2, z: tiles / 2, angle: 0, kind: 'valley' });
-  return {
+  const input: EndpaperInput = {
     tiles,
     heights: layerCopy(L.height, n),
     water: layerCopy(L.water, n),
@@ -265,6 +296,11 @@ export function endpaperInput(mirror: Mirror, inks: EndpaperInks = {}): Endpaper
     inks,
     terrain: layerCopy(L.terrain, n),
   };
+  const river = feeds.river?.(mirror);
+  if (river && river.points.length >= 4) input.river = river;
+  const rows = feeds.rows?.(mirror);
+  if (rows && rows.length) input.rows = rows;
+  return input;
 }
 
 /** Main thread to worker: draw this input at this size. */

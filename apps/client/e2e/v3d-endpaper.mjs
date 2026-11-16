@@ -7,7 +7,8 @@
 // state. `sweep`: pulls the camera back from 190 to 250 tiles on the grown village, in steps and in
 // one glide, and fails on a frame where the map shows before it was drawn, a skipped scene with no
 // map, or a jump in the picture's brightness between steps larger than the fade explains.
-// Env: QOTI_QUALITY (medium), QOTI_OUT (the screenshots folder), QOTI_WAIT (ms per shot, 6000).
+// Env: QOTI_QUALITY (medium), QOTI_OUT (the screenshots folder), QOTI_WAIT (ms per shot, 6000),
+// QOTI_VALLEYS (only these of fresh, grown, winter, comma separated).
 import { chromium } from 'playwright';
 import sharp from 'sharp';
 
@@ -32,6 +33,7 @@ const browser = await chromium.launch({
 async function open(fixture, look) {
   const page = await browser.newPage({ viewport: { width: vw, height: vh } });
   page.on('pageerror', (e) => console.log('pageerror:', e.message));
+  page.on('framenavigated', (f) => f === page.mainFrame() && console.log('  (page at', f.url(), ')'));
   page.on('console', (m) => m.type() === 'error' && console.log('console:', m.text()));
   await page.route('**/api/**', (r) => r.abort());
   const fx = fixture ? `&fixture=${fixture}` : '';
@@ -109,7 +111,9 @@ if (want('shots')) {
     { valley: 'winter', fixture: 'grown', look: WINTER, dists: [220, 240], hours: ['day'] },
   ];
   const HOUR = { day: 11, night: 22.3 };
+  const only = process.env.QOTI_VALLEYS?.split(',');
   for (const set of sets) {
+    if (only && !only.includes(set.valley)) continue;
     const { page, center } = await open(set.fixture, set.look);
     for (const dist of set.dists)
       for (const hour of set.hours) {

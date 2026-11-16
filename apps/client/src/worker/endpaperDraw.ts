@@ -623,11 +623,28 @@ function roofs(c: Cx): void {
   // Hipped roofs seen from above: a ridge along the long axis (a point on a square roof) and hips
   // to the corners, with the faces turned away from the light (south and east) a shade darker, so
   // a roof reads as a roof and a row as a row, not as a stack of crates.
-  const faces = (r: EndpaperRoof): { ridge: [number, number, number, number]; c: number[] } => {
+  // V3B's rows, when fed: a roof in a row takes one gable ridge along the row's length instead.
+  const inRow = new Map<string, 'x' | 'z'>();
+  for (const row of inp.rows ?? []) {
+    if (row.length < 2) continue;
+    const a = row[0]!;
+    const b = row[row.length - 1]!;
+    const axis =
+      Math.abs(b.x + b.w / 2 - a.x - a.w / 2) >= Math.abs(b.z + b.d / 2 - a.z - a.d / 2) ? 'x' : 'z';
+    for (const r of row) inRow.set(`${r.x},${r.z}`, axis);
+  }
+  const faces = (
+    r: EndpaperRoof,
+  ): { ridge: [number, number, number, number]; c: number[]; gable?: 'x' | 'z' } => {
     const x0 = r.x + 0.05;
     const z0 = r.z + 0.05;
     const x1 = r.x + r.w - 0.05;
     const z1 = r.z + r.d - 0.05;
+    const gable = inRow.get(`${r.x},${r.z}`);
+    if (gable === 'x')
+      return { ridge: [r.x, (z0 + z1) / 2, r.x + r.w, (z0 + z1) / 2], c: [x0, z0, x1, z1], gable };
+    if (gable === 'z')
+      return { ridge: [(x0 + x1) / 2, r.z, (x0 + x1) / 2, r.z + r.d], c: [x0, z0, x1, z1], gable };
     const h = Math.min(x1 - x0, z1 - z0) / 2;
     const ridge: [number, number, number, number] =
       x1 - x0 >= z1 - z0
@@ -648,7 +665,17 @@ function roofs(c: Cx): void {
     const {
       ridge: [ax, az, bx, bz],
       c: [x0, z0, x1, z1],
+      gable,
     } = faces(r);
+    // A gable in a row: the half beyond the ridge, away from the light.
+    if (gable === 'x') {
+      poly([x0!, az, x1!, az, x1!, z1!, x0!, z1!]);
+      continue;
+    }
+    if (gable === 'z') {
+      poly([ax, z0!, x1!, z0!, x1!, z1!, ax, z1!]);
+      continue;
+    }
     // The south face (from the ridge down to z1) and the east face (to x1).
     poly([x0!, z1!, x1!, z1!, bx, bz, ax, az]);
     poly([x1!, z0!, x1!, z1!, bx, bz]);
@@ -660,11 +687,13 @@ function roofs(c: Cx): void {
     const {
       ridge: [ax, az, bx, bz],
       c: [x0, z0, x1, z1],
+      gable,
     } = faces(r);
     P.at(ax, az);
     g.moveTo(P.x, P.y);
     P.at(bx, bz);
     g.lineTo(P.x, P.y);
+    if (gable) continue;
     for (const [cx, cz, ex, ez] of [
       [x0!, z0!, ax, az],
       [x0!, z1!, ax, az],
@@ -819,7 +848,23 @@ function valleyLabel(c: Cx, text: string, x: number, z: number, angle: number): 
   setFont();
   g.textAlign = 'center';
   g.textBaseline = 'middle';
-  const line = riverCenterline(inp.water, tiles);
+  // V3C's course when it feeds one, else the course found in the water layer.
+  const fed = inp.river && inp.river.points.length >= 4 ? inp.river : null;
+  const line = fed ? null : riverCenterline(inp.water, tiles);
+  const cx0: number[] = [];
+  const cz0: number[] = [];
+  if (fed)
+    for (let i = 0; i + 1 < fed.points.length; i += 2) {
+      cx0.push(fed.points[i]!);
+      cz0.push(fed.points[i + 1]!);
+    }
+  else if (line)
+    for (let i = 0; i < line.pts.length; i += 2) {
+      const u = line.pts[i]!;
+      const v = line.pts[i + 1]!;
+      cx0.push(line.axis === 'x' ? u : v);
+      cz0.push(line.axis === 'x' ? v : u);
+    }
   const letters = [...caps];
   const track = 0.42;
   const widths = (): number[] => letters.map((ch) => g.measureText(ch).width + fs * track);
@@ -835,15 +880,13 @@ function valleyLabel(c: Cx, text: string, x: number, z: number, angle: number): 
     g.fillText(caps, 0, 0);
     g.restore();
   };
-  if (!line) return straight();
+  if (cx0.length < 2) return straight();
   // The centerline in pixels, smoothed so the lettering flows rather than wobbles.
-  const n = line.pts.length / 2;
+  const n = cx0.length;
   let px: number[] = [];
   let py: number[] = [];
   for (let i = 0; i < n; i++) {
-    const u = line.pts[2 * i]!;
-    const v = line.pts[2 * i + 1]!;
-    P.at(line.axis === 'x' ? u : v, line.axis === 'x' ? v : u);
+    P.at(cx0[i]!, cz0[i]!);
     px.push(P.x);
     py.push(P.y);
   }
@@ -924,13 +967,27 @@ function valleyLabel(c: Cx, text: string, x: number, z: number, angle: number): 
   } else if (ny > 0) side = -1;
   // The river's half width there, from the water layer, plus a little air.
   let half = 1;
-  for (let k = 1; k < 6; k++) {
-    const tX = Math.floor(mx / sc - ENDPAPER_MARGIN + (nx * k) / 2);
-    const tZ = Math.floor(my / sc - ENDPAPER_MARGIN + (ny * k) / 2);
-    if (tX < 0 || tZ < 0 || tX >= tiles || tZ >= tiles) break;
-    const v = inp.water[tZ * tiles + tX]!;
-    if (v === 1 || v === 2 || v === 4) half = k / 2 + 0.5;
-  }
+  if (fed) {
+    // The fed width at the course point nearest the stretch's middle.
+    let bj = 0;
+    let bd = Infinity;
+    for (let j = 0; j < n; j++) {
+      P.at(cx0[j]!, cz0[j]!);
+      const d = (P.x - mx) ** 2 + (P.y - my) ** 2;
+      if (d < bd) {
+        bd = d;
+        bj = j;
+      }
+    }
+    half = (fed.widths[bj] ?? 2) / 2 + 0.5;
+  } else
+    for (let k = 1; k < 6; k++) {
+      const tX = Math.floor(mx / sc - ENDPAPER_MARGIN + (nx * k) / 2);
+      const tZ = Math.floor(my / sc - ENDPAPER_MARGIN + (ny * k) / 2);
+      if (tX < 0 || tZ < 0 || tX >= tiles || tZ >= tiles) break;
+      const v = inp.water[tZ * tiles + tX]!;
+      if (v === 1 || v === 2 || v === 4) half = k / 2 + 0.5;
+    }
   const off = side * (half * sc + fs * 0.78);
   let pos = start;
   for (let i = 0; i < letters.length; i++) {
