@@ -17,6 +17,7 @@ import { LIGHT_LOOP, LIGHT_MAP_GLSL, lightMapUniforms } from './lightMap';
 import { drawDef } from './defs';
 import { flowerDrift } from './drifts';
 import { GROUND_AO_GLSL, groundAoFor } from './groundAo';
+import { RIM_WOODS_GLSL } from './layers/horizon';
 import { DOOR_KIND, ROAD_GLSL } from './layers/roads';
 import { WATER_Y } from './surface';
 
@@ -601,14 +602,18 @@ float qCloudShade(vec2 wp) {
 // of the horizon's near hills (layers/horizon.ts, the same palette), in woods and grassy clearings,
 // so the valley runs on into the hills with no box. Only the raised rim: the river's notch keeps its
 // banks. Snow settles on it and its woods warm in autumn, as the horizon's do.
+${RIM_WOODS_GLSL}
 vec3 qRim(vec3 col) {
   vec2 wp = vQWorld.xz;
   float e = min(min(wp.x, wp.y), min(${N.toFixed(1)} - wp.x, ${N.toFixed(1)} - wp.y));
-  float k = (1.0 - smoothstep(4.5, 7.5, e)) * smoothstep(3.6, 5.2, vQWorld.y);
+  // The painted edge wanders a few tiles either side of the cliff, so it never runs as a ruled line.
+  float reach = 4.0 + 3.5 * qNoise(wp * 0.11 + 1.3);
+  float k = (1.0 - smoothstep(reach, reach + 2.5, e)) * smoothstep(3.6, 5.2, vQWorld.y);
   if (k < 0.001) return col;
-  float wn = qFbm(wp * 0.09 + 3.7);
-  float woods = smoothstep(0.38, 0.55, wn);
-  vec3 hill = mix(qSrgb(${glslColor(palette.horizonNear)}), qSrgb(${glslColor(palette.horizonWoods)}), woods);
+  // The valley's own grass (the horizon's near hills start in the same), with ragged woods.
+  float woods = qRimWoods(wp, -e);
+  vec3 grass = mix(qSrgb(${glslColor(palette.horizonNear)}), qSrgb(${glslColor(0x789d55)}), qNoise(wp * 0.23 + 4.1));
+  vec3 hill = mix(grass, qSrgb(${glslColor(palette.horizonWoods)}), woods);
   hill *= 0.86 + 0.24 * qNoise(wp * 0.7) + 0.1 * qNoise(wp * 3.1);
   vec3 fall = qSrgb(vec3(0.66, 0.4, 0.17)) * (0.7 + 0.5 * qNoise(wp * 0.5 + 9.0));
   hill = mix(hill, fall, uAutumn * woods * 0.6);

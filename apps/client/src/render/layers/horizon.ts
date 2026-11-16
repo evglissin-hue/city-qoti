@@ -11,7 +11,7 @@ import {
 } from 'three';
 import type { Mirror } from '../../state/mirror';
 import { hash2 } from '../coords';
-import { createWorldEnv, type WorldEnv } from '../env';
+import { createWorldEnv, NOISE_GLSL, type WorldEnv } from '../env';
 import { SurfaceTiles, surfaceY, WATER_Y } from '../surface';
 import type { LayerContext, RenderLayer } from './types';
 
@@ -24,7 +24,9 @@ import type { LayerContext, RenderLayer } from './types';
  */
 
 /** Rows of the rings, in tiles out from the valley's boundary. */
-const ROWS = [0, 14, 32, 54, 80, 150, 230];
+// V3C round two: a crest just outside the rim (rows 3 and 9) rises above the rim's edge, so from a
+// far camera no straight edge of the valley's square shows.
+const ROWS = [0, 3, 9, 24, 50, 100, 230];
 /** Hill amplitude (world units above the base) at the control distances. */
 const AMP_AT = [
   [0, 0],
@@ -36,13 +38,12 @@ const AMP_AT = [
 /** The haze curtain's height above the outer far row. */
 const CURTAIN_HEIGHT = 60;
 /** Outline points per valley side, and arc steps per corner. */
-const SIDE_SEGS = 18;
+const SIDE_SEGS = 24;
 const CORNER_STEPS = 3;
 /** Reach and look of the river's channel in the near band. */
-const CHANNEL_LENGTH = 46;
+const CHANNEL_LENGTH = 72;
 const CHANNEL_Y = WATER_Y - 0.02;
 const TROUGH_Y = WATER_Y - 0.3;
-const MAX_TREES = 150;
 /** How far the inner edge sits under the terrain. */
 const SINK = 0.03;
 
@@ -211,6 +212,12 @@ export function horizonSeed(meta: {
   return Math.floor(hash2(s, s >>> 7, 91) * 65536);
 }
 
+/** An sRGB hex as a GLSL vec3 in 0 to 1 (for qSrgb). */
+function glslHex(hex: number): string {
+  const c = (v: number): string => (v / 255).toFixed(4);
+  return `vec3(${c((hex >> 16) & 255)}, ${c((hex >> 8) & 255)}, ${c(hex & 255)})`;
+}
+
 const COL_NEAR = new Color().setHex(palette.horizonNear);
 const COL_WOODS = new Color().setHex(palette.horizonWoods);
 const COL_FAR = new Color().setHex(palette.horizonFar);
@@ -235,6 +242,9 @@ class Soup {
 /** Builds the horizon: pure and deterministic from its input. */
 export function buildHorizon(input: HorizonInput): HorizonBuild {
   const { size, seed } = input;
+  // The river winds on into the hills: its sideways drift (tiles) at a distance past the rim.
+  const meander = (e: RiverExit, along: number): number =>
+    Math.sin(along * 0.075 + (seed % 97) * 0.13 + e.x * 0.01) * Math.min(Math.max(along, 0) * 0.3, 9);
   const outline = outlineOf(size, input.exits);
   const n = outline.length;
   const soup = new Soup();
@@ -264,7 +274,7 @@ export function buildHorizon(input: HorizonInput): HorizonBuild {
     for (const e of input.exits) {
       const along = (x - e.x) * e.nx + (z - e.z) * e.nz;
       if (along < -2) continue;
-      const lat = Math.abs((x - e.x) * e.nz - (z - e.z) * e.nx);
+      const lat = Math.abs((x - e.x) * e.nz - (z - e.z) * e.nx - meander(e, along));
       const w = 5 + e.width * 0.5;
       const lengthFade = 1 - smooth((along - CHANNEL_LENGTH * 0.6) / (CHANNEL_LENGTH * 0.5));
       t = Math.max(t, (1 - smooth((lat - w) / 10)) * lengthFade);
@@ -275,7 +285,9 @@ export function buildHorizon(input: HorizonInput): HorizonBuild {
   const heightAt = (i: number, d: number, x: number, z: number): number => {
     const h =
       0.55 * vnoise(x, z, 46, seed) + 0.3 * vnoise(x, z, 19, seed + 7) + 0.15 * vnoise(x, z, 8, seed + 13);
-    let y = mix(rim[i]!, base, smooth(d / 40)) + ampAt(d) * h * 1.25;
+    // The crest: hills right outside the rim, 1.5 to 6.5 above its edge, rising within 3 tiles.
+    const crest = smooth(d / 3) * (1 - smooth((d - 9) / 18)) * (1.5 + 5 * vnoise(x, z, 11, seed + 51));
+    let y = mix(rim[i]!, base, smooth(d / 40)) + ampAt(d) * h * 1.25 + crest;
     y = mix(y, TROUGH_Y, troughAt(x, z) * smooth(d / 14));
     return y;
   };
@@ -296,16 +308,14 @@ export function buildHorizon(input: HorizonInput): HorizonBuild {
       const y = heightAt(i, d, x, z);
       const wn = vnoise(x, z, 24, seed + 29);
       const woods =
-        smooth((wn - 0.44) / 0.12) *
-        smooth((d - 5) / 10) *
-        (1 - smooth((d - 62) / 28)) *
-        (1 - troughAt(x, z));
+        smooth((wn - 0.4) / 0.12) * smooth((d - 1) / 4) * (1 - smooth((d - 62) / 28)) * (1 - troughAt(x, z));
       const far = smooth((d - 55) / 75);
       const c = COL_NEAR.clone().lerp(COL_FAR, far);
       // A little tonal drift so the bands are painted, not flat.
       c.multiplyScalar(0.8 + 0.4 * vnoise(x, z, 26, seed + 3) + (0.06 * (y - base)) / 10);
       c.lerp(COL_WOODS, woods);
-      const haze = mix(0.0, 0.8, smooth((d - 30) / 200));
+      // Aerial perspective: clear on the crest, half gone by 50 tiles out, nearly sky at the far row.
+      const haze = d <= 3 ? 0 : 0.86 * (1 - Math.exp(-(d - 3) / 42));
       row.push(soup.vertex(x, y, z, c, haze, woods, mix(0.7, 0.2, far)));
       wrow.push(woods);
       yrow.push(y);
@@ -352,7 +362,7 @@ export function buildHorizon(input: HorizonInput): HorizonBuild {
   const curtainEnd = soup.idx.length;
 
   // The river's channels: a ribbon that narrows and takes the hills' color as it goes.
-  const CH_ROWS = 7;
+  const CH_ROWS = 12;
   for (const e of input.exits) {
     const tx = -e.nz;
     const tz = e.nx;
@@ -361,12 +371,15 @@ export function buildHorizon(input: HorizonInput): HorizonBuild {
     for (let k = 0; k < CH_ROWS; k++) {
       const a = 0.3 + (k / (CH_ROWS - 1)) * (CHANNEL_LENGTH - 0.3);
       const t = k / (CH_ROWS - 1);
-      const w = w0 * Math.pow(1 - t, 0.9);
-      const x = e.x + e.nx * a;
-      const z = e.z + e.nz * a;
-      const c = COL_RIVER.clone().lerp(COL_NEAR, smooth(t * 1.25));
-      const l = soup.vertex(x - tx * w, CHANNEL_Y, z - tz * w, c, 0.1, 0, 0);
-      const rr = soup.vertex(x + tx * w, CHANNEL_Y, z + tz * w, c, 0.1, 0, 0);
+      // It narrows as it goes and winds away into the haze, rather than ending at a stub.
+      const w = w0 * (1 - 0.6 * t);
+      const m = meander(e, a);
+      const x = e.x + e.nx * a - tx * m;
+      const z = e.z + e.nz * a - tz * m;
+      const c = COL_RIVER.clone().lerp(COL_HAZE, smooth(t) * 0.5);
+      const hz = mix(0.02, 0.5, smooth(t));
+      const l = soup.vertex(x - tx * w, CHANNEL_Y, z - tz * w, c, hz, 0, 0);
+      const rr = soup.vertex(x + tx * w, CHANNEL_Y, z + tz * w, c, hz, 0, 0);
       rows.push([l, rr]);
     }
     for (let k = 0; k + 1 < CH_ROWS; k++) {
@@ -376,62 +389,6 @@ export function buildHorizon(input: HorizonInput): HorizonBuild {
     }
   }
   const channelsEnd = soup.idx.length;
-
-  // Trees: small cones clustered on the woods, standing on the near hills' vertices.
-  const cands: { x: number; y: number; z: number; w: number; i: number; r: number }[] = [];
-  for (let r = 1; r <= 4; r++) {
-    for (let i = 0; i < n; i++) {
-      const w = woodsAt[r]![i]!;
-      if (w < 0.5) continue;
-      const bi = ring[r]![i]!;
-      cands.push({ x: soup.pos[bi * 3]!, y: soup.pos[bi * 3 + 1]!, z: soup.pos[bi * 3 + 2]!, w, i, r });
-    }
-  }
-  const perCand = Math.max(1, Math.min(3, Math.ceil(MAX_TREES / Math.max(cands.length, 1))));
-  const picked: typeof cands = [];
-  const stride = Math.max(1, cands.length / (MAX_TREES / perCand));
-  for (let f = 0; f < cands.length && picked.length * perCand < MAX_TREES; f += stride)
-    picked.push(cands[Math.floor(f)]!);
-  let trees = 0;
-  const treeNormals: [number, number, number, number][] = [];
-  for (const c of picked) {
-    for (let k = 0; k < perCand && trees < MAX_TREES; k++) {
-      const hx = hash2(c.i * 7 + k, c.r, seed + 41);
-      const hz = hash2(c.i * 7 + k, c.r, seed + 43);
-      const hs = hash2(c.i * 7 + k, c.r, seed + 47);
-      const x = c.x + (hx - 0.5) * 7;
-      const z = c.z + (hz - 0.5) * 7;
-      // Squat crowns a little bigger than the valley's own trees: from a far camera, dabs of
-      // woods, never tall spikes.
-      const radius = 1.6 + hs * 1.0;
-      const height = 2.4 + hs * 1.6;
-      const haze = soup.meta[ring[c.r]![c.i]! * 3]!;
-      const rot = hx * 6.28;
-      const dark = COL_WOODS.clone().multiplyScalar(0.8 + 0.2 * hs);
-      const light = COL_WOODS.clone()
-        .multiplyScalar(1.12 + 0.15 * hs)
-        .lerp(COL_NEAR, 0.15);
-      const v: number[] = [];
-      for (let q = 0; q < 3; q++) {
-        const th = rot + (q * Math.PI * 2) / 3;
-        const vi = soup.vertex(
-          x + Math.cos(th) * radius,
-          c.y - 0.4,
-          z + Math.sin(th) * radius,
-          dark,
-          haze,
-          1,
-          1,
-        );
-        treeNormals.push([vi, Math.cos(th) * 0.75, 0.66, Math.sin(th) * 0.75]);
-        v.push(vi);
-      }
-      const apex = soup.vertex(x, c.y + height, z, light, haze, 1, 1);
-      treeNormals.push([apex, 0, 1, 0]);
-      soup.idx.push(v[0]!, v[2]!, apex, v[2]!, v[1]!, apex, v[1]!, v[0]!, apex);
-      trees++;
-    }
-  }
 
   const geometry = new BufferGeometry();
   geometry.setAttribute('position', new BufferAttribute(new Float32Array(soup.pos), 3));
@@ -449,11 +406,23 @@ export function buildHorizon(input: HorizonInput): HorizonBuild {
   };
   fix(curtainStart, curtainEnd);
   fix(curtainEnd, channelsEnd);
-  for (const [vi, x, y, z] of treeNormals) normal.setXYZ(vi, x, y, z);
   normal.needsUpdate = true;
   geometry.computeBoundingSphere();
   return { geometry, triangles: soup.idx.length / 3, outlineCount: n, rows: ROWS.length };
 }
+
+/**
+ * V3C: woods along the valley's edge in world space, the same on both sides of it, so the ground's
+ * rim (`qRim` in ground.ts) and the horizon's crest paint one ragged band of woods across the line
+ * where they meet. `d` is tiles outside the valley's edge (negative inside). Needs `NOISE_GLSL`.
+ */
+export const RIM_WOODS_GLSL = /* glsl */ `
+float qRimWoods(vec2 wp, float d) {
+  float n = qFbm(wp * 0.1 + 3.7);
+  float hug = 1.0 - smoothstep(0.0, 5.0, abs(d + 1.0));
+  return smoothstep(0.46, 0.6, n + 0.06 * hug) * (1.0 - smoothstep(7.0, 13.0, abs(d)));
+}
+`;
 
 const VERT = /* glsl */ `
 attribute vec3 aMeta;
@@ -461,12 +430,14 @@ varying vec3 vColor;
 varying vec3 vNormal;
 varying vec3 vMeta;
 varying float vDist;
+varying vec3 vWorld;
 void main() {
   vColor = color;
   vNormal = normal;
   vMeta = aMeta;
   vec4 wp = modelMatrix * vec4(position, 1.0);
   vDist = distance(wp.xyz, cameraPosition);
+  vWorld = wp.xyz;
   gl_Position = projectionMatrix * viewMatrix * wp;
 }
 `;
@@ -484,12 +455,21 @@ varying vec3 vColor;
 varying vec3 vNormal;
 varying vec3 vMeta;
 varying float vDist;
+varying vec3 vWorld;
+${NOISE_GLSL}
+${RIM_WOODS_GLSL}
 void main() {
   vec3 n = normalize(vNormal);
   float haze = vMeta.x;
   float woods = vMeta.y;
   float tint = vMeta.z;
   vec3 col = vColor;
+  // The ragged woods that cross the valley's edge, painted as the ground's rim paints them.
+  vec2 wq = vWorld.xz;
+  float edgeD = max(max(-wq.x, -wq.y), max(wq.x - ${MAP_SIZE.toFixed(1)}, wq.y - ${MAP_SIZE.toFixed(1)}));
+  float rimWood = qRimWoods(wq, edgeD) * step(woods, 0.99);
+  col = mix(col, qSrgb(${glslHex(palette.horizonWoods)}) * (0.86 + 0.24 * qNoise(wq * 0.7)), rimWood);
+  woods = max(woods, rimWood);
   // The season: foliage takes the tint, woods warm in autumn, snow whitens upward faces.
   col *= mix(vec3(1.0), uSeasonTint, tint);
   // Autumn: the woods turn russet and gold (a warm color, not a tint: a tinted dark green stays green).
@@ -503,8 +483,12 @@ void main() {
   // Night: moonlit blue-gray, never black (the haze takes the rest toward the night sky).
   lit = mix(lit, col * vec3(0.2, 0.26, 0.42) + uSky * 0.12, uNight);
   // Aerial perspective: by band, and more with distance from the camera.
-  float far = haze + (1.0 - haze) * 0.4 * smoothstep(120.0, 520.0, vDist);
-  vec3 outc = mix(lit, uSky, clamp(far, 0.0, 1.0));
+  // Aerial perspective toward the sky's own color (blue-grey by day, warm at golden hour): the
+  // land goes paler and greyer with distance, never a saturated smear.
+  float far = clamp(haze + (1.0 - haze) * 0.45 * smoothstep(140.0, 560.0, vDist), 0.0, 1.0);
+  float luma = dot(lit, vec3(0.2126, 0.7152, 0.0722));
+  lit = mix(lit, vec3(luma) * mix(vec3(1.0), uSky / max(dot(uSky, vec3(0.2126, 0.7152, 0.0722)), 0.05), 0.6), far * 0.75);
+  vec3 outc = mix(lit, uSky, far);
   gl_FragColor = vec4(outc, 1.0);
   #include <tonemapping_fragment>
   #include <colorspace_fragment>
