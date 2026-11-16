@@ -163,6 +163,17 @@ In software the two nights cannot be told apart: the map was cheaper on the fina
 | Planning the round [R2] | under 0.4 ms a tick for 2,000 residents between 17:00 and 17:30 |
 | Gaps, supplies, masters, the Town Book [R2, R3] | under 1 ms an hour together |
 
+**V3's headroom** [V3.0 records the before, V3X fills the laptops]. Worst moving scene per preset on the grown village (`v3-perf.mjs`, 11:00, sim running; `docs/build/screenshots/v3-before-perf.md`), against V2X's table, with the laptops' columns for V3X:
+
+| Preset | Budget (draws, triangles) | V2X, worst moving | V3.0 before, worst draws | V3.0 before, worst triangles | V3X after | Owner's laptop, night GPU ms | Kat's laptop, night GPU ms |
+|---|---|---|---|---|---|---|---|
+| Low | 300, 1.5 M | 133, 0.36 M | 179 (far240) | 0.45 M (street) | TBD | TBD | TBD |
+| Medium | 300, 3 M | 214, 0.80 M | 231 (far240) | 0.63 M (far240) | TBD | TBD | TBD |
+| High | 450, 6 M | 225, 4.03 M | 266 (far120) | 2.23 M (far120) | TBD | TBD | TBD |
+| Ultra | 450, 12 M | 374, 5.41 M | **479 (far120), over** | 6.79 M (far120) | TBD | TBD | TBD |
+
+The far scenes are new in V3 (V2X measured no camera past the grown village's wide shot), so they set the worst rows; Ultra's far120 is over its draw budget on `main` before any V3 change, and is V3C's and V3X's to bring under. V3.0 adds no draw and no triangle (its two layers draw nothing).
+
 **The lanes test** [R1 records it, R2 enforces it]. P2 becomes a bench assertion. `npm run lanes -w @qoti/bench` plays each bench seed for 70 days three ways: both lanes, the Hearth's advisors off, and the Ledger's off after founding (no new zones, specialized buildings or streets; the carrier on its defaults). From R2 it fails unless each one-lane town ends with at most three quarters of the residents of the town played by both, and no more than half its Craftsfolk households. The Ledger's advisor places no decor and the Hearth's zones nothing, so neither can stand in for the other. On 2026-11-10, before the redesign, the Hearth-off town ended with 106% (willow) and 84% (hazel) of the residents (`19-evenings.md`).
 
 *R1X's run (2026-11-15, recorded, not enforced)*: residents and Craftsfolk households at day 70, and the percent of the town played by both:
