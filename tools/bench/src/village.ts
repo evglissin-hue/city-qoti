@@ -609,7 +609,7 @@ export function planBlock(w: WorldState, anchor: readonly [number, number][]): B
             hi = Math.max(hi, h);
           }
         }
-        if (!ok || hi - lo > 2) continue;
+        if (!ok || hi - lo > 1) continue;
         const ring: [number, number][] = [];
         for (let x = x0; x < x0 + n; x++) ring.push([x, z0]);
         for (let z = z0 + 1; z < z0 + n; z++) ring.push([x0 + n - 1, z]);
