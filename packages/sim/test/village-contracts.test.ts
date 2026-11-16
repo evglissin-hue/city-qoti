@@ -252,8 +252,8 @@ describe('I2 commands', () => {
     // Meet every Village goal by hand.
     s.stats.wishesGranted = 5;
     s.economy.seasonsInSurplus = 1;
-    // R2C's evening goal: half the grown-ups out three fair evenings running.
-    s.evenings.outRun = 3;
+    // R2C's evening goal: half the grown-ups out on three fair evenings (counted whole since R2X).
+    s.evenings.outFair = 3;
     for (let i = 0; i < 3; i++)
       s.hearth.discovered.push({ pattern: `p${i}`, tick: 0, seat: 0, together: false, anchor: i });
     while (s.residents.length < 30) s.residents.push({ ...s.residents[0]!, id: s.nextId++ });
