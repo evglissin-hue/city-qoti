@@ -60,3 +60,33 @@ export function rowsOf(w: Pick<WorldState, 'lots'>): RowsMeasure {
     grownRowLots: grown,
   };
 }
+
+/**
+ * R2E: whether a tile lies in a hollow the lots and buildings wall in (a ray each way meets a lot or a
+ * building within 8 tiles before any road). R2F makes gardens of such ground, so nothing of the Hearth's
+ * goes there, and no path is laid into it, which would open the hollow again.
+ */
+export function walledIn(w: Pick<WorldState, 'map'>, x: number, z: number): boolean {
+  const S = Math.sqrt(w.map.road.length);
+  for (const [dx, dz] of [
+    [1, 0],
+    [-1, 0],
+    [0, 1],
+    [0, -1],
+  ] as const) {
+    let hit = false;
+    for (let k = 1; k <= 8; k++) {
+      const tx = x + dx * k;
+      const tz = z + dz * k;
+      if (tx < 0 || tz < 0 || tx >= S || tz >= S) return false;
+      const i = tz * S + tx;
+      if (w.map.road[i]) return false;
+      if (w.map.lot[i] || w.map.occupant[i]) {
+        hit = true;
+        break;
+      }
+    }
+    if (!hit) return false;
+  }
+  return true;
+}
