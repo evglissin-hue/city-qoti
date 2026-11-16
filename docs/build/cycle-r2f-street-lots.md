@@ -36,11 +36,11 @@ Not yours: `systems/growth/{desirability,bars,outlets,cafes}.ts` (R2B), anything
 
 ## Acceptance criteria
 
-- [ ] `grep -rn "R2 stand-in (R2F)" packages apps tools --exclude-dir=dist` is empty.
-- [ ] In a grown Village street, every lot on a street frontage touches its neighbors (no one-tile gap) and a closed block has a garden lot; nothing stands alone on a lawn where a street has grown (a test over a grown fixture).
-- [ ] A corner lot has two valid frontages; `storeys` obeys its rules over 100 seeds; occupied lots are never disturbed.
-- [ ] A year hashes the same in Node and a browser worker; typecheck, lint, unit tests and build pass.
-- [ ] The PR notes V3.0's author has the fields V3B needs (through the master), with any field you added.
+- [x] `grep -rn "R2 stand-in (R2F)" packages apps tools --exclude-dir=dist` is empty.
+- [x] In a grown Village street, every lot on a street frontage touches its neighbors (no one-tile gap) and a closed block has a garden lot; nothing stands alone on a lawn where a street has grown (a test over a grown fixture).
+- [x] A corner lot has two valid frontages; `storeys` obeys its rules over 100 seeds; occupied lots are never disturbed.
+- [x] A year hashes the same in Node and a browser worker; typecheck, lint, unit tests and build pass.
+- [x] The PR notes V3.0's author has the fields V3B needs (through the master), with any field you added.
 
 ## Out of scope
 
@@ -51,3 +51,17 @@ Drawing any of it (V3B); street furniture (client-side, V3B); shop desirability 
 - The growth budget (trade choice and growth under 2 ms a night at City scale) holds; rows are cut hourly, not nightly.
 - From P2 (wave notes, Starting after P2): growth's `index.ts` and `site.ts` carry P2's waiting reasons and its switched-off midday pass; garden lots are never free lots in any of those reasons. Roofs keep to their own lot (`ShellSpec.lot`), so a row's lots must be the lots its buildings stand in.
 - V3B will ask whether a row restyles as one (no: house by house, R2.0's answer) and how a corner def is picked (by the busier road): answer in the PR with what you built.
+
+## As built (2026-11-16)
+
+The rules are in `13-ledger.md`, Lots, As built (R2F). What the cycle found and decided:
+
+- **Content**: `ZoneDef.roads` (`RoadLotsDef`, additive): shapes and `row` per class of road. Townhouses and Shops fill streets in rows (2x3 mostly, 2x2 and 3x3 now and then); every other zone and class keeps C4B's cut, so a town with no streets is cut exactly as before (the autoplayer lays lanes, so R1X's tuning, the audit and the golden year are untouched).
+- **Order of painting**: the empty lots a street manages are lifted each pass and cut again; a lot cut again in place keeps its id. The tests' per-stroke fuzz found that a lane lot cut before a street came, a tile or two back from it, kept the street from its depth: a street now lifts every empty row-zone lot within a street lot's depth. 40 random street grids give the same street lots and rows painted all at once, zones first, reversed, or with a pass after every stroke.
+- **From the player's chair** (the shots): a run of 2-wide townhouses cut 3 + 2 + 3 left the houses a tile apart although the lots touched, and a corner house hugging its corner stood a tile off its row. Rows are now filled with the zone's commonest width (another only where the run will not come out even, once at its end), and a building narrower than its lot stands against its row neighbor; the fuzz checks the class (four seeds failed before), the grown street checks its houses stand wall to wall.
+- **Corners**: the entrance stays on the busier road; a busier stub too short to cut a lot makes no corner. Built row lots recompute their corner when roads change.
+- **Gardens** are in no zone (`zone` 0), so every reader that filters lots by zone (the bars, desirability's styles, shops opening, the health watch, the autoplayer) passes them by already; they never take Farmland (free farm ground is fields), and a block holding some is open.
+- **Growth fills a row from one end** (its corner first), as an order, never a refusal: lots that would stand alone are tried after every other free lot.
+- **Storeys**: the upper envelope along a row's built chain; set at growth (the row refit at once) and kept hourly. A town with no streets hashes as on the wave's base except `storeys` on grown buildings, which R2.0's stand-in left unset after growth (`test/r2f/noStreets.test.ts` compares the hash with storeys stripped, and they match field for field otherwise).
+- **Budgets** (`tools/bench/src/lots.bench.ts`, a grid of 852 row lots and 353 gardens): the pass after a grown building 0.13 to 0.87 ms (budget 1; the same grid of lanes 0.56 to 1.35), the whole plan after a road or zone stroke 2.9 ms (6, half the worst-tick budget; it runs only on a stroke or a fresh load), the hourly storeys refit 0.14 to 0.44 ms (0.5), a full cut from scratch 9 to 15 ms (a one-off). The zoning system takes a quick path when only buildings grown on lots came since its last pass, and every pass reads windmills' clearance from one mask.
+- **Shots**: `docs/build/screenshots/r2f-{before,after}-{day,street,ledger,row}.png`, grown by `apps/client/e2e/r2f-street-grow.ts` and taken by `r2f-street.mjs`. Growth on a new street is slow in both (10 of 36 lots in 20 days, on ground at the edge of the porters' reach): the street is limited by demand and reach, not the cutter.
