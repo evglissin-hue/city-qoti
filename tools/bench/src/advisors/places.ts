@@ -39,6 +39,8 @@ const WELL_CLUSTER = 4;
 const VISIT_COMMANDS = 3;
 /** Under this many coins the advisor sends nothing (as the hearth advisor). */
 const MIN_COINS = 40;
+/** R2X: one brazier for about this many grown-ups, each beside a busy open-air sitting spot. */
+const BRAZIER_GROWNUPS = 15;
 const AUTUMN = 2;
 
 type Pt = [x: number, z: number];
@@ -397,12 +399,15 @@ class Places implements Advisor {
     for (const s of spots) if (attempt(s.close, s.dx, s.dz) !== 'no') return;
   }
 
-  /** In autumn, a brazier beside each of the two busiest open-air sitting spots (one per ~40 grown-ups). */
+  /**
+   * In autumn, a brazier beside the busiest open-air sitting spots, one per ~15 grown-ups (R2X: two
+   * for a whole town let every Craftsfolk household slide back over the winter).
+   */
   private brazier(): void {
     const w = this.w;
     if (calendar(w.tick).season !== AUTUMN) return;
     if (!w.hearth.unlocked.includes('brazier') || !content.decorById.has('brazier')) return;
-    const cap = Math.min(2, Math.ceil(grownups(w) / 40));
+    const cap = Math.ceil(grownups(w) / BRAZIER_GROWNUPS);
     const braziers = w.decor.filter((d) => d.def === 'brazier');
     if (braziers.length >= cap) return;
     const live = this.livePlaces().filter((pl) => pl.seats > 0 && !pl.sheltered && !pl.warm);
@@ -430,11 +435,19 @@ class Places implements Advisor {
       }
     }
     spots.sort((a, b) => b.weight - a.weight);
-    for (const s of spots.slice(0, 2)) {
-      if (braziers.some((b) => (b.fx / TILE_FP - 0.5 - s.x) ** 2 + (b.fz / TILE_FP - 0.5 - s.z) ** 2 <= 16))
-        continue;
+    let have = braziers.length;
+    const placed: Pt[] = [];
+    for (const s of spots) {
+      if (have >= cap || this.left() <= 0) return;
+      const near = (fx: number, fz: number) =>
+        (fx / TILE_FP - 0.5 - s.x) ** 2 + (fz / TILE_FP - 0.5 - s.z) ** 2 <= 16;
+      if (braziers.some((b) => near(b.fx, b.fz)) || placed.some(([fx, fz]) => near(fx, fz))) continue;
       const at = this.bestSpot('brazier', s.x, s.z, 3, () => true);
-      if (at && this.place('brazier', at, 'for winter')) return;
+      if (at && this.place('brazier', at, 'for winter')) {
+        placed.push(at);
+        have++;
+        this.used++;
+      }
     }
   }
 }

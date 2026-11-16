@@ -24,14 +24,14 @@ export const PLACES: PlacesTuning = {
   waterRadius: 3,
   // Draw
   charmCap: 70,
-  siteBonus: 8,
-  pieceKindBonus: 2,
-  pieceKindMax: 8,
+  siteBonus: 12,
+  pieceKindBonus: 5,
+  pieceKindMax: 15,
   waterBonus: 5,
-  litBonus: 5,
+  litBonus: 8,
   litHour: 18,
   treatsBonus: 4,
-  winterPenalty: 20,
+  winterPenalty: 12,
   // The round
   radius: 12,
   curiousRadius: 18,
@@ -83,7 +83,7 @@ export const PLACES: PlacesTuning = {
   goodForHeart: 4,
   heartsMax: 5,
   tierDays: 3,
-  eveningsSlack: 10,
+  eveningsSlack: 15,
   // Places remembered
   forgetDays: 6,
   // R2A: places and the round (beyond the spec's table)
