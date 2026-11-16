@@ -466,6 +466,12 @@ function followRound(
   }
   const s = round[k]!;
   if (s.arrived >= 0) return true;
+  // Not before the hour they planned to set off: they wait at home (or where an afternoon finds them).
+  if (s.at !== undefined && tod < s.at && !(r.move && r.move.target === s.tile)) {
+    if (window === 'afternoon') return false;
+    stayHome(state, ctx, r, h, homeDoor, 'home');
+    return true;
+  }
   // Too late to make a stop worth the walk: home (or the rest of the afternoon as built).
   const end = window === 'evening' ? homeTick(state) : content.places.eveningHour * HOUR;
   if (tod > end - (STOP_TICKS >> 1)) {

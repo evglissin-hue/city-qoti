@@ -117,6 +117,19 @@ describe('the round', () => {
       }
       const rows = s.places.reduce((n, row) => n + row.visitors[row.visitors.length - 1]!, 0);
       expect(rows).toBe(visits);
+      // Nobody sets off before the hour they planned, and a seat serves more than one resident an
+      // evening (the hours spread them).
+      for (const r of s.residents) {
+        for (const x of (r.round ?? []).slice(r.roundEvening ?? (r.round ?? []).length)) {
+          if (x.arrived < 0 || x.at === undefined) continue;
+          expect(tickOfDay(x.arrived), `${r.given} at ${x.place}`).toBeGreaterThanOrEqual(x.at);
+        }
+      }
+      const busiest = Math.max(...s.places.map((row) => row.visitors[row.visitors.length - 1]!));
+      const seatsThere = placeIndex(s).places.find(
+        (p) => p.id === s.places.find((row) => row.visitors[row.visitors.length - 1] === busiest)!.id,
+      )!;
+      expect(busiest).toBeGreaterThan(seatsThere.seats - seatsThere.childSeats);
     },
   );
 

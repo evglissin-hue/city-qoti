@@ -25,7 +25,8 @@ import { emptyTally, startPlaceEvening } from '../../state/evenings';
 import { nearestOutletWithFood } from '../economy/outlets';
 import { walkGrid } from '../movement/grid';
 import { fixRouteGrid } from '../movement/routes';
-import { placeIndex } from '../places';
+import { placeFeatures, placeIndex } from '../places';
+import { PlaceFeature } from '../places/build';
 import { placeById, placeDraw, placesNear, recordVisit } from '../places/api';
 import { occupancy, occupy, STOP_TICKS, stopNow } from '../places/occupancy';
 import { weatherEffect } from '../weather/effects';
@@ -254,20 +255,34 @@ function crowding(place: Place, counts: Map<PlaceId, number[]>, hour: number): n
 }
 
 /**
- * The hour to set off for a first stop: the first hour from `from` to `last` with room, and its
- * score less a little for each hour of waiting; with no room in any hour, now, less the crowd.
+ * The lanterns a place will have lit by the hour they set off, in hundredths (they plan at 17:00,
+ * before the lights go on at 18:00, and judge a place as it will be when they get there).
+ */
+function lightsAhead(state: WorldState, place: Place, hour: number): number {
+  if (place.parts.lit > 0 || hour < P.litHour) return 0;
+  return placeFeatures(state, place) & PlaceFeature.light ? P.litBonus * 100 : 0;
+}
+
+/**
+ * The hour to set off for a first stop: of the hours from `from` to `last` with room, the best (its
+ * lanterns lit by then, less a little for each hour of waiting; the earliest of equals); with no room
+ * in any hour, now, less the crowd.
  */
 function bestHour(
+  state: WorldState,
   place: Place,
   counts: Map<PlaceId, number[]>,
   base: number,
   from: number,
   last: number,
 ): [hour: number, score: number] {
+  let best: [number, number] | null = null;
   for (let hour = from; hour <= last; hour++) {
-    if (crowding(place, counts, hour) === 0) return [hour, base - (hour - from) * P.waitPerHour * 100];
+    if (crowding(place, counts, hour) > 0) continue;
+    const score = base + lightsAhead(state, place, hour) - (hour - from) * P.waitPerHour * 100;
+    if (!best || score > best[1]) best = [hour, score];
   }
-  return [from, base - crowding(place, counts, from)];
+  return best ?? [from, base + lightsAhead(state, place, from) - crowding(place, counts, from)];
 }
 
 /** One in n residents (by id and day) are the rain-shy and skip open-air places, as rain keeps them in. */
@@ -340,7 +355,7 @@ export function planRound(
     }
   }
   const lastHour = endHour - 1;
-  const at = (hour: number) => Math.max(now, hour * HOUR);
+  const at = (hour: number) => Math.max(fromTick, hour * HOUR);
 
   const rainy = rainShy(state, r);
   const candidates: Candidate[] = [];
@@ -350,6 +365,7 @@ export function planRound(
       const tile = approachTile(state, place);
       if (tile < 0) continue;
       const [hour, score] = bestHour(
+        state,
         place,
         counts,
         liking(state, rng, r, place, homeDoor),
@@ -395,7 +411,10 @@ export function planRound(
       if (chosen.includes(c.place)) continue;
       if (manhattan(last, c.place.tile) > P.nextStopRadius) continue;
       if (!c.place.kinds.some((k) => !kinds.has(k))) continue;
-      const score = liking(state, rng, r, c.place, last) - crowding(c.place, counts, hour);
+      const score =
+        liking(state, rng, r, c.place, last) +
+        lightsAhead(state, c.place, hour) -
+        crowding(c.place, counts, hour);
       if (score < P.minScore * 100) continue;
       if (!best || score > best.score) best = { place: c.place, tile: c.tile, hour, score };
     }
