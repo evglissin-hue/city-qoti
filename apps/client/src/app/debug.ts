@@ -371,6 +371,8 @@ export function installDebugHook(getSession: () => Session | null): void {
     waterAt: (x: number, z: number) => s()?.mirror.water(x, z) ?? 0,
     /** R1D: the road value on a tile (1 path, 2 lane, 3 street). */
     roadAt: (x: number, z: number) => s()?.mirror.road(x, z) ?? 0,
+    /** R2D: whether a road tile is kept for evening strolling. */
+    eveningAt: (x: number, z: number) => s()?.mirror.eveningStreet(x, z) ?? false,
     /** Interface size, 0.8 to 1.4, as the settings slider sets it. */
     setUiScale: (scale: number) => applySettings({ ...loadSettings(), uiScale: scale }),
     awayLetter: async () => (await s()?.inspect('away', s()!.seat)) ?? null,

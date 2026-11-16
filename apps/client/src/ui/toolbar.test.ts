@@ -141,6 +141,7 @@ describe('lens toolbars', () => {
     expect(ids(view.root, 'tool-')).toEqual([
       'lane',
       'street',
+      'evening',
       'building',
       'wall',
       'terrain',
