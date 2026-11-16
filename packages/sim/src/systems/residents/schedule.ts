@@ -461,6 +461,8 @@ function followRound(
   const k = currentStop(state, r, window);
   if (k < 0) {
     if (window === 'afternoon') return false;
+    // The round is over; a pantry that ran low since is still fetched for, as built.
+    if (shopIfLow(state, r, h)) return true;
     stayHome(state, ctx, r, h, homeDoor, 'home');
     return true;
   }
@@ -469,6 +471,8 @@ function followRound(
   // Not before the hour they planned to set off: they wait at home (or where an afternoon finds them).
   if (s.at !== undefined && tod < s.at && !(r.move && r.move.target === s.tile)) {
     if (window === 'afternoon') return false;
+    // Waiting for their hour: an errand first if the pantry ran low.
+    if (shopIfLow(state, r, h)) return true;
     stayHome(state, ctx, r, h, homeDoor, 'home');
     return true;
   }
@@ -518,6 +522,14 @@ function followRound(
   if (inside && inside !== r.jobId) setInside(state, r, inside);
   r.activity = { kind: 'leisure', tile: s.tile };
   return true;
+}
+
+/**
+ * R2 (R2A): the evening's shopping as built: when the pantry runs low and nobody in the household is
+ * out for it, a grown-up between stops (waiting for their hour, or with the round done) goes.
+ */
+function shopIfLow(state: WorldState, r: Resident, h: Household): boolean {
+  return needsShopping(h) && !someoneShopping(state, h) && startShopping(state, r, h);
 }
 
 /** The activity for a visit stop: visiting a friend of theirs in that household (or its first member). */

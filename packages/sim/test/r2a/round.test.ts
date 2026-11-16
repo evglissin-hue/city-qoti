@@ -302,4 +302,34 @@ describe('the round', () => {
       expect(x.at ?? 0, lark.given).toBeLessThan(19 * H);
     }
   });
+
+  it(
+    'a pantry that runs low in the evening is still fetched for (shopping as built)',
+    { timeout: 60_000 },
+    () => {
+      const { s, ctx } = town();
+      runTo(s, ctx, at(1, 18) + 50);
+      const long = (r: Resident) => {
+        const job = s.buildings.find((b) => b.id === r.jobId);
+        const role = job ? content.buildingById.get(job.def)?.jobs?.role : undefined;
+        return role === 'builder' || role === 'porter';
+      };
+      const h = s.households.find((x) =>
+        x.members.some((id) => {
+          const r = s.residents.find((y) => y.id === id)!;
+          return r.stage === 'adult' && !long(r) && r.activity.kind === 'home';
+        }),
+      )!;
+      // Food on the stalls, none at home.
+      const bread = content.goodIndex.get('bread')!;
+      for (const b of s.buildings) if (b.def === 'market-stall' || b.def === 'granary') b.rt!.store[bread] = 30;
+      h.pantry.fill(0);
+      let shopped = false;
+      runTo(s, ctx, at(1, 20), () => {
+        if (h.members.some((id) => s.residents.find((y) => y.id === id)!.activity.kind === 'shop'))
+          shopped = true;
+      });
+      expect(shopped).toBe(true);
+    },
+  );
 });
