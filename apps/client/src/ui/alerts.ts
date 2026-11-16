@@ -12,9 +12,13 @@ import {
   TIERS,
   type Lens,
   type LetterView,
+  type WishView,
 } from '@qoti/sim';
 import type { Mirror } from '../state/mirror';
-import { goodName, placeName, seatLabel } from './format';
+import { goodName, placeName, pluralName, seatLabel } from './format';
+import { editionFeedAlerts } from './eveningFeed';
+import { gapAlerts } from './gaps';
+import { loadSettings } from './settings';
 import { readHands } from './hands';
 import { readSites } from './sites';
 import { coverDays, DEMAND_BAR } from './topbar/strip';
@@ -53,6 +57,8 @@ export interface Alert {
   text: string;
   /** The full words for the hover, when the line says it in fewer. */
   title?: string;
+  /** A second, muted line under the text (a gap says what would close it). */
+  note?: string;
   action?: AlertAction;
 }
 
@@ -111,7 +117,7 @@ export function computeAlerts(
   const short = new Map<string, string[]>();
   const hands = readHands(m);
   const handsEmpty = new Set(hands.empty);
-  const idle: Alert[] = [];
+  const idle: { id: number; own: number; name: string; words: string; count: number }[] = [];
   for (const b of m.buildings.values()) {
     const bits = b.rt?.status ?? 0;
     if (b.stage !== 'built' || !(bits & IDLE_BITS)) continue;
@@ -129,15 +135,24 @@ export function computeAlerts(
     // P2-D: "nobody works here yet" is one line for the town (below), not one per building.
     const own = bits & IDLE_BITS & ~(handsEmpty.has(b.id) ? BuildingStatus.noWorkers : 0);
     if (!own) continue;
-    idle.push({
-      key: `idle-${b.id}-${own}`,
-      lens: 'ledger',
-      tone: 'quiet',
-      icon: 'status',
-      text: `${placeName(b)}: ${statusWords(own).join(', ').toLowerCase()}.`,
-      action: { kind: 'building', id: b.id },
-    });
+    const words = `${statusWords(own).join(', ').toLowerCase()}.`;
+    const name = placeName(b);
+    // Identical lines fold into one counted line ("2 Forester's lodges: no mature trees in reach.").
+    const twin = idle.find((g) => g.name === name && g.words === words);
+    if (twin) {
+      twin.count++;
+      continue;
+    }
+    idle.push({ id: b.id, own, name, words, count: 1 });
   }
+  const idleAlerts: Alert[] = idle.map((g) => ({
+    key: g.count > 1 ? `idle-${g.id}-${g.own}-x${g.count}` : `idle-${g.id}-${g.own}`,
+    lens: 'ledger',
+    tone: 'quiet',
+    icon: 'status',
+    text: `${g.count > 1 ? `${g.count} ${pluralName(g.name)}` : g.name}: ${g.words}`,
+    action: g.count > 1 ? { kind: 'panel', panel: 'businesses' } : { kind: 'building', id: g.id },
+  }));
 
   const sites = readSites(m);
   const materials = sitesMaterialsAlert(m, sites);
@@ -177,14 +192,21 @@ export function computeAlerts(
       break;
     }
   }
-  out.push(...idle.slice(0, MAX_IDLE));
-  if (idle.length > MAX_IDLE) {
+  // Gaps first (the town's own asks), the ledger's copies here and the hearth's with its news.
+  const gaps = gapAlerts(m, who);
+  // R2D: the evening edition as a feed line, for a player who chose it over the card.
+  const edition = editionFeedAlerts(m, loadSettings().editionInFeed);
+  out.push(...edition.filter((a) => a.lens === 'ledger'));
+  out.push(...gaps.filter((a) => a.lens === 'ledger'));
+  out.push(...idleAlerts.slice(0, MAX_IDLE));
+  const hidden = idle.slice(MAX_IDLE).reduce((n, g) => n + g.count, 0);
+  if (hidden > 0) {
     out.push({
-      key: `idle-more-${idle.length}`,
+      key: `idle-more-${idle.length}-${hidden}`,
       lens: 'ledger',
       tone: 'quiet',
       icon: 'status',
-      text: `And ${idle.length - MAX_IDLE} more buildings standing about.`,
+      text: `And ${hidden} more building${hidden === 1 ? '' : 's'} standing about.`,
       action: { kind: 'panel', panel: 'businesses' },
     });
   }
@@ -197,16 +219,18 @@ export function computeAlerts(
   const fresh = [...m.wishes.values()]
     .filter((w) => now - w.createdTick < TICKS_PER_DAY)
     .sort((a, b) => b.createdTick - a.createdTick);
-  for (const w of fresh) {
+  for (const g of foldWishes(m, fresh)) {
     out.push({
-      key: `wish-${w.id}`,
+      key: `wish-${g.ids.join('+')}`,
       lens: 'hearth',
       tone: 'news',
       icon: 'wishes',
-      text: w.text,
-      action: { kind: 'wish', id: w.id },
+      text: g.text,
+      action: { kind: 'wish', id: g.ids[0]! },
     });
   }
+  out.push(...edition.filter((a) => a.lens === 'hearth'));
+  out.push(...gaps.filter((a) => a.lens === 'hearth'));
   const hints = [...m.patterns.values()].filter((p) => p.hinted && !p.discovered).map((p) => p.id);
   if (hints.length === 1) {
     const def = content.patternById.get(hints[0]!);
@@ -242,6 +266,23 @@ export function computeAlerts(
       text: l.text,
       ...(l.at ? { action: { kind: 'place' as const, x: l.at[0], z: l.at[1] } } : {}),
     });
+  }
+  return foldSame(out);
+}
+
+/**
+ * The safety net for the whole class: two lines of one lens that read the same are one line (a
+ * feed that says a thing twice reads like a bug). Counted lines are made at the source; this keeps
+ * the first.
+ */
+export function foldSame(all: readonly Alert[]): Alert[] {
+  const seen = new Set<string>();
+  const out: Alert[] = [];
+  for (const a of all) {
+    const k = `${a.lens}|${a.text}`;
+    if (seen.has(k)) continue;
+    seen.add(k);
+    out.push(a);
   }
   return out;
 }
@@ -497,6 +538,46 @@ function sitesBuildersAlert(m: Mirror, sites: ReturnType<typeof readSites>): Ale
   };
 }
 
+/** Verbs after a name that read the same for two or more ("Paprika and Bluebell would like ..."). */
+const PLURAL_SAFE = new Set(['would', 'cannot', 'reached', 'could', 'might']);
+
+/**
+ * R2D: the same wish from several residents is one line (the master's read of the feed: Paprika's and
+ * Bluebell's benches, word for word, back to back). Wishes fold when their template and their words
+ * match once each wisher's name is set aside: "Paprika and Bluebell would like a bench near home.",
+ * or, where the verb would need changing, the first wish with "Bluebell too." after it.
+ */
+export function foldWishes(m: Mirror, wishes: readonly WishView[]): { ids: number[]; text: string }[] {
+  const groups = new Map<string, { ids: number[]; names: string[]; first: WishView; shape: string }>();
+  const out: { ids: number[]; names: string[]; first: WishView; shape: string }[] = [];
+  for (const w of wishes) {
+    const name = m.residents.get(w.residentId)?.given ?? '';
+    const once =
+      name.length > 0 && w.text.indexOf(name) >= 0 && w.text.indexOf(name) === w.text.lastIndexOf(name);
+    const shape = once ? w.text.replace(name, '{name}') : `#${w.id}`;
+    const key = `${w.template}|${shape}`;
+    const g = groups.get(key);
+    if (g) {
+      g.ids.push(w.id);
+      g.names.push(name);
+    } else {
+      const fresh = { ids: [w.id], names: [name], first: w, shape };
+      groups.set(key, fresh);
+      out.push(fresh);
+    }
+  }
+  return out.map((g) => {
+    if (g.ids.length === 1) return { ids: g.ids, text: g.first.text };
+    const names = [...new Set(g.names)];
+    const after = g.shape.split('{name}')[1] ?? '';
+    const verb = after.trimStart().split(' ')[0] ?? '';
+    if (g.shape.startsWith('{name} ') && PLURAL_SAFE.has(verb))
+      return { ids: g.ids, text: `${list(names)}${after}` };
+    const others = names.slice(1);
+    return { ids: g.ids, text: `${g.first.text} ${list(others)} too.` };
+  });
+}
+
 /** Ledger: built workplaces with nobody at all, as one line. */
 function handsLine(m: Mirror, hands: ReturnType<typeof readHands>): Alert | null {
   const first = hands.empty[0];
@@ -505,7 +586,9 @@ function handsLine(m: Mirror, hands: ReturnType<typeof readHands>): Alert | null
     const b = m.buildings.get(id);
     return b ? placeName(b) : 'workplace';
   });
-  const jobs = `${hands.openJobs === 1 ? '1 job is' : `${hands.openJobs} jobs are`} open; more Homes bring more folk.`;
+  // R2D (the player's chair): "nobody works here yet. 0 jobs are open" read as a contradiction.
+  const open = hands.openJobs === 1 ? '1 job is open' : `${hands.openJobs} jobs are open`;
+  const jobs = hands.openJobs > 0 ? `${open}; more Homes bring more folk.` : 'More Homes bring more folk.';
   const text =
     names.length === 1
       ? `${names[0]}: nobody works here yet. ${jobs}`
@@ -515,7 +598,7 @@ function handsLine(m: Mirror, hands: ReturnType<typeof readHands>): Alert | null
   const title =
     names.length === 1
       ? undefined
-      : `Nobody works at ${list(rest > 0 ? [...shown, `${rest} more`] : shown)} yet. ${hands.openJobs === 1 ? '1 job is' : `${hands.openJobs} jobs are`} open in town; more Homes bring more folk.`;
+      : `Nobody works at ${list(rest > 0 ? [...shown, `${rest} more`] : shown)} yet. ${hands.openJobs > 0 ? `${open} in town; more Homes bring more folk.` : 'More Homes bring more folk.'}`;
   return {
     key: 'hands-empty',
     lens: 'ledger',

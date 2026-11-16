@@ -682,6 +682,19 @@ input::placeholder {
   margin-left: 10px;
 }
 
+/* R2D (the player's chair at 1250 px): with an overlay named on the View button, the Hearth's last
+   tool scrolled half out of the strip ("Era"). A little less air per tool keeps every one whole. */
+@media (max-width: 1360px) {
+  .tool {
+    min-width: 46px;
+    padding: 4px 4px 3px;
+  }
+
+  .tool.band {
+    margin-left: 8px;
+  }
+}
+
 /* The bar sizes to its narrowest fit, so a two-word label ("Cart lane") would break over two
    lines and make the Ledger's bar taller than the Hearth's. */
 .tool .label {

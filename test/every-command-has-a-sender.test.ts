@@ -24,11 +24,7 @@ export const NO_CLIENT_SENDER: Record<string, string> = {
  * R1.0: commands that land before their buttons (R2.0 adds R2D's). Each names the cycle that owes the sender and why;
  * the entry comes off when that cycle ships it (the test says so), so this list only shrinks.
  */
-export const OWED_SENDERS: Record<string, { cycle: 'R1C' | 'R1D' | 'R2D'; why: string }> = {
-  'place.rename': { cycle: 'R2D', why: 'the place inspector owes a rename field; R2D adds the button' },
-  'road.rename': { cycle: 'R2D', why: 'the street inspector owes a rename field; R2D adds the button' },
-  'road.setEvening': { cycle: 'R2D', why: 'the evening street brush on the Ledger road tool; R2D adds it' },
-};
+export const OWED_SENDERS: Record<string, { cycle: 'R1C' | 'R1D' | 'R2D'; why: string }> = {};
 
 function commandTypes(): string[] {
   const src = readFileSync(join(root, 'packages/sim/src/contracts/commands.ts'), 'utf8');

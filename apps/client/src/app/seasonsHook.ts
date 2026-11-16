@@ -3,6 +3,7 @@
 // get their cards, first sightings and together moments a quiet line, and notable Chronicle entries
 // a snapshot (app/snapshots.ts).
 import type { FestivalResultView } from '@qoti/sim';
+import { loadSettings } from '../ui/settings';
 import type { MirrorChange } from '../state/mirror';
 import type { Almanac, UiState } from '../ui/state';
 import { speciesName } from '../ui/seasons';
@@ -51,6 +52,8 @@ export function seasonsAfterUpdate(s: Hooked, change: MirrorChange): void {
   const ui = s.ui;
   if (change.seasonReport) showAlmanac(ui, { kind: 'report', view: change.seasonReport, page: 0 });
   if (change.seasonCard) showAlmanac(ui, { kind: 'card', view: change.seasonCard });
+  // R2D: the evening edition is a card at 21:00, or a line in the feed when the player chose that.
+  if (change.evening && !loadSettings().editionInFeed) ui.edition.value = change.evening;
   if (change.raidResult) ui.raidCard.value = change.raidResult;
   const fr = s.mirror.festivalResult.value;
   if (change.full) lastFestival.set(ui, fr);
@@ -80,6 +83,10 @@ export function seasonsEscape(ui: UiState): boolean {
   }
   if (ui.almanac.value) {
     closeAlmanac(ui);
+    return true;
+  }
+  if (ui.edition.value) {
+    ui.edition.value = null;
     return true;
   }
   if (ui.raidCard.value || ui.festivalCard.value) {

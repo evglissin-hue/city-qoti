@@ -23,6 +23,7 @@ export interface CardKind {
 export const CARDS: readonly CardKind[] = [
   { panel: 'away', pending: (s) => !!s.ui.letter.value },
   { panel: 'chapter', pending: (s) => !!s.ui.chapter.value },
+  { panel: 'edition', pending: (s) => !!s.ui.edition.value },
   { panel: 'festival-result', pending: (s) => !!s.ui.festivalCard.value },
   { panel: 'raid', pending: (s) => !!s.ui.raidCard.value, ownsTurn: true },
   { panel: 'rankup', pending: (s) => !!s.ui.rankUp.value },

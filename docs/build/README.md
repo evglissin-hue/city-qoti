@@ -64,7 +64,7 @@ One row per cycle. A cycle is one agent session working from one brief on one br
 | R2A Places and the round | R2 | parallel | `cycle-r2a-places-round.md` | R2.0 | PR open into `cycle/r2x-integration` ([evglissin-hue/city-qoti#49](https://github.com/evglissin-hue/city-qoti/pull/49); see As built in the brief) |
 | R2B Evening trade | R2 | parallel | `cycle-r2b-evening-trade.md` | R2.0 | PR open into `cycle/r2x-integration` ([evglissin-hue/city-qoti#48](https://github.com/evglissin-hue/city-qoti/pull/48)) |
 | R2C Gaps and the evening's book | R2 | parallel | `cycle-r2c-gaps-book.md` | R2.0 | PR open into `cycle/r2x-integration` (merge after R2A) |
-| R2D The interface | R2 | parallel | `cycle-r2d-interface.md` | R2.0 | ready: branch from `cycle/r2x-integration` |
+| R2D The interface | R2 | parallel | `cycle-r2d-interface.md` | R2.0 | PR open into `cycle/r2x-integration`; screenshots `r2d-*` |
 | R2E The bench | R2 | parallel | `cycle-r2e-bench.md` | R2.0 | done on `cycle/r2e-bench`, PR into `cycle/r2x-integration`: the Hearth's places advisor and the Ledger's shops advisor, streets and a closed block for R2F's rows, the lanes test enforced, the outcome report (`npm run outcomes`), five R2 health kinds, stuck commands and stalled Hearth sites in the audit, the R2 bench scenes; numbers in the brief's As built |
 | R2F Lots for streets | R2 | parallel | `cycle-r2f-street-lots.md` | R2.0 | built on `cycle/r2f-street-lots`, PR into `cycle/r2x-integration`: street rows that touch, corner lots, garden lots, storeys by tier and row; shots `r2f-*` |
 | R2X R2 integration and tuning | R2 | integration | `cycle-r2x-integration.md` | R2A to R2F | waiting; merges the wave on `cycle/r2x-integration`, one PR into `main` |

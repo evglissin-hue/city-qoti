@@ -2,6 +2,7 @@ import { signal } from '@preact/signals';
 import { content } from '@qoti/content';
 import {
   DecorGrid,
+  Flags,
   defaultSettings,
   doorReached,
   inBounds,
@@ -57,6 +58,13 @@ import {
   type WishView,
   type DecorView,
   type EntityId,
+  type EveningView,
+  type FootfallView,
+  type GapsView,
+  type PlaceId,
+  type PlaceView,
+  type PlacesView,
+  type StreetView,
   type LayerName,
   type MapReader,
   type NoteView,
@@ -123,6 +131,13 @@ export interface MirrorChange {
   seasonReport: SeasonReportView | null;
   /** A raid ended in this update. */
   raidResult: RaidResultView | null;
+  // R2 (R2D): the evening round.
+  places: boolean;
+  gaps: boolean;
+  streets: boolean;
+  footfall: boolean;
+  /** The evening edition, when evening.closed arrived in this update (21:00). */
+  evening: EveningView | null;
 }
 
 /** I1 (C3.0): the latest agent frames, for interpolation between turns. */
@@ -164,6 +179,11 @@ function emptyChange(full = false): MirrorChange {
     seasonCard: null,
     seasonReport: null,
     raidResult: null,
+    places: full,
+    gaps: full,
+    streets: full,
+    footfall: full,
+    evening: null,
   };
 }
 
@@ -244,6 +264,22 @@ export class Mirror implements MapReader {
   readonly businesses = new Map<EntityId, BusinessView>();
   /** Bumps whenever commissions, the Field Guide or habitats change. */
   readonly seasonsRevision = signal(0);
+  // R2 (R2D): the evening round, from the snapshot and its events. Panels read these, never the sim.
+  /** Every place by id (a string: `seats:12`, `host:40`), from places.updated, replaced whole. */
+  readonly places = new Map<PlaceId, PlaceView>();
+  readonly placesRevision = signal(0);
+  /** Open and lately closed gaps (gaps.updated). */
+  readonly gaps = signal<GapsView | null>(null);
+  /** The last evening's tally and edition (evening.closed), null before the first. */
+  readonly evening = signal<EveningView | null>(null);
+  /** Named street runs by id (streets.updated), replaced whole. */
+  readonly streets = new Map<EntityId, StreetView>();
+  readonly streetsRevision = signal(0);
+  /** The two footfall layers, replaced whole on footfall.updated (never patched). */
+  readonly footfall = signal<FootfallView | null>(null);
+  private placeTiles: { rev: number; at: Map<number, PlaceId>; members: Map<EntityId, PlaceId> } | null =
+    null;
+  private streetTiles: { rev: number; at: Map<number, EntityId> } | null = null;
   agents: AgentFrames = { prev: EMPTY_FRAME, prevAt: 0, latest: EMPTY_FRAME, latestAt: 0, t: 0 };
   /** Bumps on every layer patch and snapshot, for caches derived from the map (the town's reach). */
   layerRevision = 0;
@@ -344,6 +380,11 @@ export class Mirror implements MapReader {
     for (const c of view.commissions ?? []) this.commissions.set(c.id, c);
     for (const g of view.fieldGuide ?? []) this.fieldGuide.set(g.species, g);
     this.seasonsRevision.value++;
+    this.setPlaces(view.places ?? { places: [] });
+    this.setStreets(view.streets ?? []);
+    this.gaps.value = view.gaps ?? null;
+    this.evening.value = view.evening ?? null;
+    this.footfall.value = view.footfall ?? null;
     this.agents = { prev: EMPTY_FRAME, prevAt: 0, latest: EMPTY_FRAME, latestAt: 0, t: view.lastTurn };
     this.revision.value++;
     this.hamletRevision.value++;
@@ -667,6 +708,27 @@ export class Mirror implements MapReader {
           this.businesses.set(e.b.id, e.b);
           change.village = true;
           break;
+        // R2 (R2D)
+        case 'places.updated':
+          this.setPlaces(e.p);
+          change.places = true;
+          break;
+        case 'streets.updated':
+          this.setStreets(e.s);
+          change.streets = true;
+          break;
+        case 'gaps.updated':
+          this.gaps.value = e.g;
+          change.gaps = true;
+          break;
+        case 'evening.closed':
+          this.evening.value = e.v;
+          change.evening = e.v;
+          break;
+        case 'footfall.updated':
+          this.footfall.value = e.f;
+          change.footfall = true;
+          break;
       }
     }
     if (change.residents || change.households || change.wishes || change.patterns) {
@@ -680,6 +742,68 @@ export class Mirror implements MapReader {
     if (change.buildings || change.decor || change.notes) this.revision.value++;
     this.emit(change);
     return change;
+  }
+
+  /** R2: replaces every place (places.updated carries the whole list). */
+  setPlaces(view: PlacesView): void {
+    this.places.clear();
+    for (const p of view.places) this.places.set(p.id, p);
+    this.placesRevision.value++;
+  }
+
+  /** R2: replaces every street (streets.updated carries the whole list). */
+  setStreets(list: readonly StreetView[]): void {
+    this.streets.clear();
+    for (const st of list) this.streets.set(st.id, st);
+    this.streetsRevision.value++;
+  }
+
+  /** R2: the place covering a tile (tile index z * size + x), if any. Indexed until places change. */
+  placeAt(tile: number): PlaceView | undefined {
+    const id = this.placeIndex().at.get(tile);
+    return id === undefined ? undefined : this.places.get(id);
+  }
+
+  /** R2: the place a decor piece or building belongs to (a bench in a sitting spot, a tavern host). */
+  placeOf(member: EntityId): PlaceView | undefined {
+    const id = this.placeIndex().members.get(member);
+    return id === undefined ? undefined : this.places.get(id);
+  }
+
+  private placeIndex(): { at: Map<number, PlaceId>; members: Map<EntityId, PlaceId> } {
+    const rev = this.placesRevision.peek();
+    if (this.placeTiles?.rev === rev) return this.placeTiles;
+    const at = new Map<number, PlaceId>();
+    const members = new Map<EntityId, PlaceId>();
+    // Places are sorted by id; a tile or member two places share goes to the smaller one (a porch
+    // never overlaps a site, but a bench may sit in both a site's reach and a sitting spot's).
+    for (const p of this.places.values()) {
+      for (const t of p.tiles) if (!at.has(t)) at.set(t, p.id);
+      if (!at.has(p.tile)) at.set(p.tile, p.id);
+      for (const id of p.members) if (!members.has(id)) members.set(id, p.id);
+    }
+    this.placeTiles = { rev, at, members };
+    return this.placeTiles;
+  }
+
+  /** R2: the named street whose run holds a tile (tile index), if any. */
+  streetAt(tile: number): StreetView | undefined {
+    const rev = this.streetsRevision.peek();
+    if (this.streetTiles?.rev !== rev) {
+      const at = new Map<number, EntityId>();
+      for (const st of this.streets.values()) {
+        for (const t of st.tiles) if (!at.has(t)) at.set(t, st.id);
+        if (!at.has(st.anchor)) at.set(st.anchor, st.id);
+      }
+      this.streetTiles = { rev, at };
+    }
+    const id = this.streetTiles.at.get(tile);
+    return id === undefined ? undefined : this.streets.get(id);
+  }
+
+  /** R2: true when a road tile is marked for evening strolling (Flags.evening in the flags layer). */
+  eveningStreet(x: number, z: number): boolean {
+    return (this.read('flags', x, z) & Flags.evening) !== 0;
   }
 
   /** Effective speed right now (the minimum desired speed over connected seats). */

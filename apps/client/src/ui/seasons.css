@@ -1178,3 +1178,31 @@
 .card-stack-sheets i:first-child {
   transform: rotate(-8deg) translate(-2px, 1px);
 }
+
+/* R2D: the season report is one spread: the lines that cross lanes first, then the two pages. */
+.almanac-report:has(.report-cross) {
+  width: min(760px, 94vw);
+}
+.report-cross {
+  margin: 6px 0 4px;
+  padding: 8px 16px 10px;
+  text-align: left;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--paper-light) 70%, transparent);
+  border: 1.5px dashed color-mix(in srgb, var(--ink-line) 45%, transparent);
+}
+.report-cross h3 {
+  margin: 0 0 4px;
+  font-family: 'Alegreya', Georgia, serif;
+  color: var(--river);
+}
+.report-cross ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 5px;
+}
+.report-cross .report-line {
+  display: block;
+}

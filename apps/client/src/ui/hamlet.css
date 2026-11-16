@@ -1802,7 +1802,26 @@ li.alert.tone-news {
   box-shadow: none;
 }
 
-.alert-body > span:last-child {
+.alert-stack {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  gap: 1px;
+}
+
+.alert-note {
+  color: var(--ink-soft);
+  font-size: 0.78rem;
+  font-style: italic;
+  line-height: 1.2;
+  text-wrap: pretty;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.alert-line {
   /* P2-D: no single word alone on a last line, where the browser can help. */
   text-wrap: pretty;
   display: -webkit-box;

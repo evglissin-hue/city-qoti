@@ -349,6 +349,12 @@ describe('hands', () => {
     expect(ledger(mock).filter((x) => x.key.startsWith('idle-'))).toHaveLength(0);
   });
 
+  it('never says "0 jobs are open" beside a workplace with nobody', () => {
+    const mock = world({ buildings: [built(1, 'granary', BuildingStatus.noWorkers, 0)] });
+    const a = ledger(mock).find((x) => x.key === 'hands-empty');
+    if (a) expect(a.text).not.toMatch(/\b0 jobs/);
+  });
+
   it('groups several, names three, and counts the rest', () => {
     const three = world({ buildings: [empty(1, 'granary'), empty(2, 'market-stall'), empty(3, 'quarry')] });
     expect(texts(three)[0]).toBe(
