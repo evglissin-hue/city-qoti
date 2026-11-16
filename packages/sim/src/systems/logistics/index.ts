@@ -50,6 +50,7 @@ import { deliverModule } from '../modules';
 import { isCartJob, keepCarts, matchCarts, stepCartJob, tickIdleCarts, type CartHooks } from './carts';
 import { available, finishTask, startTask, tickReturning, walkTo } from './tasks';
 import { countSold } from '../levels/counters';
+import { INPUT_ONLY } from '../market/balances';
 
 /** Job classes in matching order: lower is more urgent (PorterJob.priority). */
 export const JobClass = { prioritySite: 0, stallFood: 1, input: 2, site: 3, clearing: 4 } as const;
@@ -129,11 +130,18 @@ function spotsOf(state: WorldState): Spot[] {
   return out;
 }
 
-/** Units a porter may pick up here: storehouse stock or a producer's output. Stalls keep theirs. */
+/**
+ * Units a porter may pick up here: storehouse stock or a producer's output. Stalls keep theirs, but
+ * for a good no household buys (wool): R2B, one a shop took onto its shelf before shelves kept to what
+ * households buy goes on to the maker that wants it.
+ */
 export function sourceAvail(b: Building, def: BuildingDef | undefined, good: number): number {
   const rt = b.rt;
   if (!rt || b.stage !== 'built') return 0;
   if (isStorehouse(def)) return (rt.store[good] ?? 0) - (rt.reservedOut[good] ?? 0);
+  if (isMarket(def) && INPUT_ONLY.has(content.goods[good]?.id ?? '')) {
+    return (rt.store[good] ?? 0) - (rt.reservedOut[good] ?? 0);
+  }
   if (isStorage(def)) return 0;
   return (rt.output[good] ?? 0) - (rt.reservedOut[good] ?? 0);
 }
@@ -176,6 +184,10 @@ function needsOf(spots: readonly Spot[]): Need[] {
       for (let g = 0; g < content.goods.length; g++) {
         const family = content.goods[g]!.family;
         if ((family !== 'wares' && family !== 'treats') || !takes(def, g)) continue;
+        // R2B: a shelf holds what households buy; wool is the weaver's input, never a Wares flavor
+        // (a Village's shops each kept eight while its weaver went without, and the carrier would
+        // not buy what the town held).
+        if (INPUT_ONLY.has(content.goods[g]!.id)) continue;
         const room = Math.min(
           MARKET_GOODS_TARGET - (rt.store[g] ?? 0) - (rt.reservedIn[g] ?? 0),
           storageSpace(def, rt),
