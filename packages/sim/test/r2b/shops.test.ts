@@ -151,7 +151,7 @@ describe('a garden lot is never built on, priced or offered', () => {
     const s = f.state;
     const [a, b] = s.lots.filter((l) => l.zone === Zone.shops && !l.buildingId);
     expect(a && b).toBeTruthy();
-    delete b!.style;
+    b!.style = '';
     const alone = pickStyle(s, a!);
     // A garden lot in the same row, painted every other style, is read as nothing.
     b!.kind = 'garden';
