@@ -117,6 +117,19 @@ export function planned(state: WorldState, r: Resident, window: RoundWindow): bo
   return window === 'afternoon' || r.roundEvening !== undefined;
 }
 
+/**
+ * Tonight's stops (what the evening trade and the evening's score mean by "tonight"): the stops of
+ * the evening round planned today, after any afternoon stops in the same list; none before the
+ * resident plans the evening, so a plan left from an earlier day, or an afternoon round, is never
+ * tonight's.
+ */
+export function tonightStops(state: WorldState, r: Resident): readonly RoundStop[] {
+  if (!planned(state, r, 'evening')) return NO_STOPS;
+  return r.round!.slice(r.roundEvening ?? 0);
+}
+
+const NO_STOPS: readonly RoundStop[] = [];
+
 /** Index of the first stop of the window's round. */
 export function windowStart(r: Resident, window: RoundWindow): number {
   return window === 'evening' ? (r.roundEvening ?? 0) : 0;

@@ -9,7 +9,8 @@ import { hashState } from '../../src/state/hash';
 import { deserialize, serialize } from '../../src/state/serialize';
 import { placeIndex } from '../../src/systems/places';
 import { occupancy } from '../../src/systems/places/occupancy';
-import { tickOfDay } from '../../src/systems/residents/time';
+import { tonightStops } from '../../src/systems/residents/round';
+import { dayIndex, tickOfDay } from '../../src/systems/residents/time';
 import { advanceTo, createTickCtx, executeCommand, type SimCtx } from '../../src/turn';
 import { villageFixture } from '../fixtures/village';
 
@@ -333,4 +334,20 @@ describe('the round', () => {
       expect(shopped).toBe(true);
     },
   );
+
+  it("tonight's stops are the evening's planned today, after an afternoon's, and none from an earlier day", () => {
+    const { s } = town();
+    const r = s.residents.find((x) => x.stage !== 'child')!;
+    const today = dayIndex(s.tick);
+    const at = (place: string) => ({ place, kind: 'sit' as const, tile: 0, draw: 0, flags: 0, arrived: -1 });
+    r.roundDay = today;
+    r.round = [at('seats:1'), at('seats:2'), at('seats:3')];
+    r.roundEvening = 1;
+    expect(tonightStops(s, r).map((x) => x.place)).toEqual(['seats:2', 'seats:3']);
+    delete r.roundEvening;
+    expect(tonightStops(s, r)).toEqual([]);
+    r.roundEvening = 0;
+    r.roundDay = today - 1;
+    expect(tonightStops(s, r)).toEqual([]);
+  });
 });
