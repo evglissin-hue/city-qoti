@@ -30,8 +30,9 @@ export function TopBar({ session, onLeave }: { session: Session; onLeave: () => 
   const note = speedNote(seats, speed, session.seat, settings.togetherOnly);
   const standard = settings.mode === 'standard';
   const lens = session.ui.lens.value;
-  // The Ledger's strip (folk, stores, demand) has its own slim row under the rest of the bar.
-  const ledgerRow = standard && lens !== 'hearth';
+  // R2D: the lens strip (the Ledger's folk, stores and demand; the Hearth's mood, wishes, evenings
+  // and gaps) has its own slim row under the rest of the bar.
+  const ledgerRow = standard;
 
   return (
     <header class={`topbar panel ${ledgerRow ? 'strip-row' : ''}`}>

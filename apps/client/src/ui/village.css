@@ -2443,3 +2443,85 @@ li.plan.settled p {
 .ui-large .goal-pill .goal-head {
   font-size: 0.64rem;
 }
+
+/* --- R2D: gap tags, paper slips on the ground ----------------------------------------------- */
+
+.gap-layer {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none !important;
+}
+
+.gap-anchor {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 0;
+  height: 0;
+  will-change: transform;
+}
+
+/* A slip above its tile, tied to it by a thread and a pin. Only the slip takes the pointer. */
+button.gap-tag {
+  --slip: #fbf2d8;
+  --slip-edge: var(--ochre-deep);
+  position: absolute;
+  left: 0;
+  bottom: 10px;
+  transform: translateX(-50%) rotate(var(--tilt, 0deg));
+  transform-origin: 50% 100%;
+  max-width: 16rem;
+  padding: 2px 9px 3px;
+  border: 1.5px solid var(--slip-edge);
+  border-radius: 3px 5px 4px 6px;
+  background: var(--slip);
+  color: var(--ink);
+  font-family: 'Alegreya', Georgia, serif;
+  font-size: 0.8rem;
+  font-weight: 700;
+  line-height: 1.2;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  box-shadow: 0 2px 5px rgba(60, 40, 20, 0.3);
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+button.gap-tag.lane-hearth {
+  --slip: #f9e3d9;
+  --slip-edge: var(--rose);
+}
+
+button.gap-tag:hover {
+  transform: translateX(-50%) rotate(0deg) translateY(-2px);
+  box-shadow: 0 4px 8px rgba(60, 40, 20, 0.35);
+}
+
+/* The pin on the tile: a dot with a short thread up to the slip. */
+.gap-anchor::before {
+  content: '';
+  position: absolute;
+  left: -4px;
+  top: -4px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--ochre-deep);
+  border: 1.5px solid #fffaf0;
+  box-shadow: 0 1px 3px rgba(60, 40, 20, 0.4);
+}
+
+.gap-anchor:has(.lane-hearth)::before {
+  background: var(--rose);
+}
+
+.game-ui.lamplight button.gap-tag {
+  --slip: #efdfb8;
+}
+
+.game-ui.lamplight button.gap-tag.lane-hearth {
+  --slip: #eccfc2;
+}

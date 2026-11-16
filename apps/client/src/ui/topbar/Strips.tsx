@@ -5,6 +5,7 @@ import { DEMAND_KINDS, type MoodBand } from '@qoti/sim';
 import type { Session } from '../../app/session';
 import { GoodIcon } from '../goodIcons';
 import { MOOD_WORD } from '../hamlet';
+import { gapSpot } from '../gaps';
 import { Glyph } from '../icons';
 import { toggleBook } from '../panels';
 import { FestivalChip, RenownChip } from '../SeasonChips';
@@ -16,7 +17,9 @@ import {
   chipReading,
   DEMAND_BAR,
   demandTitle,
+  eveningReading,
   folkReading,
+  gapsReading,
   materialReadings,
   winterReading,
   type ChipReading,
@@ -219,6 +222,9 @@ export function HearthStrip({ session }: { session: Session }) {
   }
   const band = folk ? Math.round(mood / folk) : 2;
   const wishes = m.wishes.size;
+  const evening = eveningReading(m.town.value?.evenings);
+  const gaps = m.gaps.value?.open;
+  const gapsRead = gapsReading(gaps);
   return (
     <div class="lens-strip hearth-strip" data-testid="hearth-strip">
       <button
@@ -243,11 +249,48 @@ export function HearthStrip({ session }: { session: Session }) {
         onClick={() => toggleBook(session, 'wishes')}
       >
         <Glyph id="wishes" />
-        <span>{wishes}</span>
-        <span class="strip-word">{wishes === 1 ? 'wish' : 'wishes'}</span>
+        {wishes > 0 ? (
+          <>
+            <span>{wishes}</span>
+            <span class="strip-word">{wishes === 1 ? 'wish' : 'wishes'}</span>
+          </>
+        ) : (
+          <span class="strip-word">no wishes waiting</span>
+        )}
       </button>
-      <FestivalChip session={session} />
-      <RenownChip session={session} />
+      {evening && (
+        <button
+          type="button"
+          class="strip-chip evening-chip"
+          data-testid="hearth-evenings"
+          title={evening.title}
+          onClick={() => toggleBook(session, 'chronicle')}
+        >
+          <Glyph id="lantern" />
+          <span>{evening.out}</span>
+          <span class="strip-word">{evening.word}</span>
+          <CoverBar r={{ fill: evening.fill, reserveAt: null, markAt: null }} />
+        </button>
+      )}
+      {gapsRead && gaps && (
+        <button
+          type="button"
+          class="strip-chip gaps-chip"
+          data-testid="hearth-gaps"
+          title={gapsRead.title}
+          onClick={() => {
+            const { x, z } = gapSpot(gaps[0]!);
+            session.render?.focus(x, z);
+          }}
+        >
+          <Glyph id="note" />
+          <span>{gapsRead.label}</span>
+        </button>
+      )}
+      <span class="strip-end">
+        <FestivalChip session={session} />
+        <RenownChip session={session} />
+      </span>
     </div>
   );
 }
