@@ -238,6 +238,11 @@ export const BuildingStatus = {
   // R1 (R1B)
   /** A business with nothing to do (out of season, no raw good, a full shelf): it frees its hands. */
   resting: 16384,
+  // R2 (R2B): evening streets (docs/spec/19-evenings.md, Evening streets)
+  /** A stall or workshop whose door opens onto an evening street: no deliveries from 17:00 to 21:00. */
+  eveningStreet: 32768,
+  /** A cart shed or store whose cart or barrow waits at the edge of an evening street for 21:00. */
+  eveningWait: 65536,
 } as const;
 
 // ---------------------------------------------------------------------------------------------
