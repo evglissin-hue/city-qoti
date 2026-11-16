@@ -601,7 +601,12 @@ function cantPoints(corner: 'L' | 'R', xe: number, z1: number, c: number): [V3, 
       ];
 }
 
-/** V3B: the shop door in the cant: a half glazed door between pilasters under a fascia, and a step. */
+/**
+ * V3B: the shop door in the cant, in the shop's colors. V3X: a proper door: a painted leaf (half
+ * glazed, with a kick panel and a brass handle) in a frame, a lit transom with glazing bars over it,
+ * and a small bracketed hood in the roof's color, under the name board; and a step.
+ * `frame` is the window frame color, `trim` the timber of the brackets, `hood` the roof color.
+ */
 function cantEntrance(
   s: ShapeBuilder,
   corner: 'L' | 'R',
@@ -609,6 +614,9 @@ function cantEntrance(
   z1: number,
   c: number,
   paint: number,
+  frame: number,
+  trim: number,
+  hood: number,
   rnd: () => number,
   lights: V3[],
 ): void {
@@ -624,19 +632,68 @@ function cantEntrance(
     s.quad(at(t0, y0, o), at(t1, y0, o), at(t1, y1, o), at(t0, y1, o), hex, [nx, 0, nz]);
   };
   const h = 0.66;
-  const door = vary(paint, rnd, 1.2);
+  const leaf = vary(paint, rnd, 1.2);
   const fascia = vary(paint, rnd, 0.8);
+  const kick = vary(paint, rnd, 0.9);
   s.levels(
     () => {
+      // The door: a leaf in a frame (jambs, head and a sill), half glazed over a kick panel.
+      const dh = 0.54;
       s.surface(SURFACE.timber);
-      q(0, 0, 0.14, h, 0.03, paint);
-      q(0.86, 0, 1, h, 0.03, paint);
-      q(0.14, 0.02, 0.86, h - 0.02, 0.02, door);
+      q(0, 0, 1, h + 0.08, 0.03, paint); // the pilasters and the wall behind the door
+      q(0.1, 0.02, 0.9, dh, 0.034, leaf);
+      q(0.14, 0.04, 0.86, 0.2, 0.038, kick);
       s.glow(1).surface(SURFACE.glass);
-      q(0.2, h * 0.5, 0.8, h - 0.06, 0.03, palette.windowDay);
+      q(0.17, 0.26, 0.83, dh - 0.05, 0.04, palette.windowDay);
       s.glow(0).surface(SURFACE.timber);
-      q(0, h, 1, h + 0.15, 0.04, paint);
-      q(0, h + 0.15, 1, h + 0.18, 0.06, fascia);
+      q(0.49, 0.26, 0.51, dh - 0.05, 0.044, frame); // the glazing bar
+      s.surface(SURFACE.plain);
+      q(0.06, 0, 0.12, dh + 0.06, 0.046, frame); // jambs
+      q(0.88, 0, 0.94, dh + 0.06, 0.046, frame);
+      q(0.06, dh, 0.94, dh + 0.06, 0.05, frame); // head
+      const hd = at(0.8, 0.28, 0.05);
+      s.box(
+        hd[0] - 0.012,
+        hd[1] - 0.012,
+        hd[2] - 0.012,
+        hd[0] + 0.012,
+        hd[1] + 0.012,
+        hd[2] + 0.012,
+        0xd9b04a,
+      );
+      // The transom: a lit light in its own frame, with two glazing bars.
+      const ty0 = dh + 0.06;
+      const ty1 = h + 0.04;
+      q(0.06, ty0, 0.94, ty1 + 0.03, 0.04, frame);
+      s.glow(1).surface(SURFACE.glass);
+      q(0.1, ty0 + 0.015, 0.9, ty1, 0.046, palette.windowDay);
+      s.glow(0).surface(SURFACE.plain);
+      for (const tb of [0.37, 0.63]) q(tb - 0.012, ty0 + 0.015, tb + 0.012, ty1, 0.05, frame);
+      // The name board above, and the step.
+      s.surface(SURFACE.timber);
+      q(0, h + 0.08, 1, h + 0.26, 0.04, paint);
+      q(0, h + 0.26, 1, h + 0.29, 0.06, fascia);
+      // The hood: a small sloping roof on two brackets, between the transom and the name board.
+      const hy = h + 0.1;
+      const out = 0.17;
+      const [ha, hb, hc, hd2] = [
+        at(-0.08, hy + 0.05, 0.03),
+        at(1.08, hy + 0.05, 0.03),
+        at(1.08, hy, out),
+        at(-0.08, hy, out),
+      ];
+      s.quad(ha, hb, hc, hd2, hood, [nx * 0.3, 0.95, nz * 0.3]);
+      s.quad(hd2, hc, at(1.08, hy - 0.035, out), at(-0.08, hy - 0.035, out), vary(hood, rnd, 0.8), [
+        nx,
+        0,
+        nz,
+      ]);
+      const tx = (p1[0] - p0[0]) / c / Math.SQRT2;
+      const tz = (p1[2] - p0[2]) / c / Math.SQRT2;
+      s.tri(ha, hd2, at(-0.08, hy - 0.035, out), hood, [-tx, 0, -tz]);
+      s.tri(hb, at(1.08, hy - 0.035, out), hc, hood, [tx, 0, tz]);
+      for (const tb of [0.04, 0.96])
+        beam(s, at(tb, hy - 0.13, 0.03), at(tb, hy - 0.02, out - 0.03), 0.013, trim);
       s.surface(SURFACE.plain);
       const m = at(0.5, 0, 0.13);
       s.box(m[0] - 0.1, 0, m[2] - 0.1, m[0] + 0.1, 0.03, m[2] + 0.1, palette.stone);
@@ -1093,7 +1150,19 @@ export function shopOf(opts: KitBuildOptions | undefined): Built {
   const sz0 = Math.max(z0 + 0.3, sz1 - 1.0);
   if (sideFace) {
     shopfront(s, sideFace, sz0, sz1, 0, 0.66, paint, rnd, anchors.lights!, 0.012, false);
-    cantEntrance(s, corner!, corner === 'R' ? x1 : x0, z1, CANT, paint, rnd, anchors.lights!);
+    cantEntrance(
+      s,
+      corner!,
+      corner === 'R' ? x1 : x0,
+      z1,
+      CANT,
+      paint,
+      L.frame,
+      L.trim,
+      L.roofColor,
+      rnd,
+      anchors.lights!,
+    );
     if (sz0 - z0 > 0.45)
       windowRow(
         s,
