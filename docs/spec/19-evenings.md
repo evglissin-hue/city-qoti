@@ -45,6 +45,10 @@ A place is a spot where folk spend time. Places are derived, never built as such
 
 A place is named for what stands there and the nearest family, as Chronicle places are ("the bench by the Underbank cottage"), and either seat may rename it.
 
+*As built (R2A)*: a sitting spot covers the tiles around its seat pieces, so a flower bed or a lantern beside a bench counts among its pieces and lights it; a fire within 3 tiles of a sitting spot joins and warms it, and stands alone otherwise; a host that is a member of a pattern site (a well in the Well Gathering Place) is part of that site; on the festival's night its site is a place of its own with its pieces' seats and room for 40 standing; the skating ice is a place at each skating spot while the river is frozen; a porch has no standing room. Names: with no family near, a place is named for a street beside it ("the bench on Mill Lane"), else the water, else "at the edge of town"; a second bench by the same cottage is "the other bench".
+
+*Determinism (R2A)*: the place index is rebuilt whenever a structural signature of its inputs changes (decor, buildings and whether each sells Treats or has tables out, homes and households, pattern sites, the ice, the festival), checked at most once a tick and turn; the draw's moving parts (charm, lanterns, winter) are recomputed each tick. So every client reads the same places at every point of the sim, a seat joining from a snapshot included. `sellsTreats` and `cafeTables` must never read the place index.
+
 ## The round [R2]
 
 - Between 17:00 and 17:30, at their own minute, every young and adult resident plans an evening of one to three stops (`chooseLeisure`, grown into a plan). Builders and porters plan at 19:00.
@@ -57,6 +61,10 @@ A place is named for what stands there and the nearest family, as Chronicle plac
 - **Weather** as built: in rain one resident in two skips open-air places; in a storm everyone stays in.
 - Children play at play places and near home as built. Elders and residents without work also make a round in the afternoon, and their best outing of the day counts.
 - The festival is the season's great round and keeps its own rules (`12-hearth.md`).
+
+*As built (R2A)*: the planner gives each stop the hour it sets off (`RoundStop.at`): a place full at the first hour may have room at a later one, a little less tempting for each hour of waiting (`waitPerHour`), so a seat serves three or four residents an evening and folk wait at home for their hour. The crowd penalty counts the residents planning a place for that hour. Everyone plans at their own minute even when a storm, the bell or the festival keeps them in, so the tally counts every grown-up; on the round, rain and the ice are the plan's to weigh (the rain-shy plan sheltered places only, the ice is a place like any other). Elders and residents without work plan an afternoon round at 14:00 (`afternoonHour`), whose stops come first in the day's list (`Resident.roundEvening` marks where the evening begins) and are not an evening's visitors; their walks count for the day's footfall. A sheltered host (the tavern, the Bath House) is spent inside. Children go to a swing or see-saw within 6 tiles of home one time in two when they play.
+
+*Routes as built (R2A)*: the evening grid's classes (pleasant, plain, noisy, evening street) are fixed at 17:00 and saved (`EveningsState.routes`, dropped at 04:00), so a seat joining mid-evening routes as its partner does; A* runs at four times the cost scale with the heuristic scaled to match. Barrows read the live evening flag from 17:00 to 21:00.
 
 **Footfall**: every step a resident takes adds one to the tile's count for the day (`map.footfallDay`); steps on the way to a stop or between stops of a round count for the evening instead (`map.footfallEve`), and the walk home from work or to bed does not, so a street is busy of an evening only when it leads somewhere; both halve at 04:00, so each reads as about two days of walking. The `wear` layer keeps its own job (desire paths).
 
