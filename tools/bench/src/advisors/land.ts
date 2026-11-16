@@ -386,7 +386,11 @@ class Land implements Advisor {
     // The Village's buildings, three starts a turn.
     const vb: Budget = { left: 3 };
     if (count(w, 'trading-post') === 0 && p.coins() > 150) this.want('trading-post', { budget: vb });
-    if (count(w, 'market-square') === 0 && pop >= 40) this.want('market-square', { budget: vb });
+    // R2X: pressing. The square is the one shelf that holds Wares and Treats for every home within
+    // twenty tiles (a stall takes Food and Treats only, and a shop stocks what its zone's makers
+    // bring), and a Village in debt never had 80 coins in hand on the turn it asked: none stood in
+    // any of the four seeds by day 70, and Wares blocked Craftsfolk homes in three of them.
+    if (count(w, 'market-square') === 0 && pop >= 40) this.want('market-square', { budget: vb, pressing: true });
     if (hasInnovation(w, 'water-wheel') && count(w, 'sawmill') === 0) this.want('sawmill', { budget: vb });
     if (hasInnovation(w, 'brick-kiln') && count(w, 'brickworks') < 1 + Math.floor(pop / 80))
       this.withOutpost('brickworks', { budget: vb, pressing: stock[G('brick')]! < 20 });

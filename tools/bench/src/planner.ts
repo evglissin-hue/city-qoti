@@ -206,6 +206,24 @@ export class Planner {
     return (income(s) - expenses(s)) / PENNIES_PER_COIN;
   }
 
+  /**
+   * Whether a decor piece that blocks walking would stand on a door's front tile or a tile beside it
+   * (R2X: hazel's herbalist site was boxed in by two cherry trees the Hearth set at its door, so no
+   * porter could carry to it and it stood at 0 of 22 materials from day 25 to 70).
+   */
+  wallsDoor(def: string, fx: number, fz: number): boolean {
+    if (!content.decorById.get(def)?.blocksWalking) return false;
+    const tx = Math.floor(fx / TILE_FP);
+    const tz = Math.floor(fz / TILE_FP);
+    for (const b of this.w.buildings) {
+      const door = doorTile(b);
+      const dx = Math.abs((door % S) - tx);
+      const dz = Math.abs(Math.floor(door / S) - tz);
+      if (dx + dz <= 1) return true;
+    }
+    return false;
+  }
+
   /** Runs commands as a seat and logs them (R1F: and counts them by lane; a lane that is off sends nothing). */
   do(label: string, cmds: Command[], seat: 0 | 1 = 0): boolean {
     const day = this.runDay;
@@ -214,6 +232,10 @@ export class Planner {
     const lane: PlayLane = adv === 'both' ? (seat === 0 ? 'ledger' : 'hearth') : adv;
     if (this.offLanes.has(lane)) {
       this.actions.push(`${calendar(this.w.tick).day}:${label} (lane off)`);
+      return false;
+    }
+    if (cmds.some((c) => c.t === 'decor.place' && this.wallsDoor(c.def, c.fx, c.fz))) {
+      this.actions.push(`${calendar(this.w.tick).day}:${label} (would wall a door)`);
       return false;
     }
     const oks = command(this.h, cmds, seat);
@@ -374,6 +396,7 @@ export class Planner {
         const fx = Math.round((x + 0.5 + ox) * TILE_FP);
         const fz = Math.round((z + 0.5 + oz) * TILE_FP);
         if (near && !near(fx, fz)) continue;
+        if (this.wallsDoor(def, fx, fz)) continue;
         // A thoughtful Hearth leaves zoned plots to grow (C4B): decor on a lot would stop it.
         const ti = Math.floor(fz / TILE_FP) * S + Math.floor(fx / TILE_FP);
         if (this.w.map.zone[ti] && !this.w.map.occupant[ti]) continue;
