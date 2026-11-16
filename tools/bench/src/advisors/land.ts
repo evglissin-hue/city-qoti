@@ -68,7 +68,7 @@ const LANE_COINS = content.roadById.get('lane')?.cost?.coins ?? 2;
 /** Coins and stone a tile of cobbled street costs (`street` in the road content). */
 const STREET_COINS = content.roadById.get('street')?.cost?.coins ?? 4;
 /** Stone kept in store after cobbling (the quarry's urgent mark: homes and lodges wait on it). */
-const STONE_KEEP = 16;
+const STONE_KEEP = 30;
 /** A street's length in tiles: 22 when the treasury allows, never under 8 (a short lane still answers a bar). */
 const STREET_TILES = 30;
 const SHORT_STREET = 8;
@@ -147,7 +147,7 @@ class Land implements Advisor {
     const stone = townStock(p.w)[G('stone')]! - STONE_KEEP;
     const cobbled =
       core && hasInnovation(p.w, 'cobbles')
-        ? Math.min(STREET_TILES, Math.floor(means / STREET_COINS), stone)
+        ? Math.min(STREET_TILES, Math.floor((p.coins() - MONEY_RESERVE) / STREET_COINS), stone)
         : 0;
     const asStreet = cobbled >= SHORT_STREET;
     const length = asStreet ? cobbled : Math.min(STREET_TILES, Math.floor(means / LANE_COINS));
@@ -181,10 +181,9 @@ class Land implements Advisor {
   private cobble(): void {
     const p = this.p;
     if (this.lanes.length === 0 || !hasInnovation(p.w, 'cobbles')) return;
-    const credit = overdraftLimit(p.w) / PENNIES_PER_COIN;
     const n = Math.min(
       this.lanes.length,
-      Math.floor((p.coins() + credit - MONEY_RESERVE) / STREET_COINS),
+      Math.floor((p.coins() - MONEY_RESERVE) / STREET_COINS),
       townStock(p.w)[G('stone')]! - STONE_KEEP,
     );
     if (n < Math.min(SHORT_STREET, this.lanes.length)) return;
