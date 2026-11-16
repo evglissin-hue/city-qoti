@@ -446,6 +446,25 @@ function snaps(p: Placement): boolean {
 }
 
 /**
+ * True when a piece stands clear: inside the lot (a front piece may overhang its front edge by
+ * `FRONT_OVERHANG`), off the door corridor and over no band of its own height that `clear` has set.
+ */
+export function placementFree(
+  q: Placement,
+  bounds: PieceBounds,
+  clear: Clearance,
+  lot: GroundBox,
+  lane: GroundBox | null,
+  mask: number = spanMask(q, bounds),
+): boolean {
+  const room: GroundBox = [lot[0], lot[1], lot[2], q.anchor === 'front' ? lot[3] + FRONT_OVERHANG : lot[3]];
+  const b = footprintOf(q, bounds);
+  const inside =
+    b[0] >= room[0] - 1e-6 && b[1] >= room[1] - 1e-6 && b[2] <= room[2] + 1e-6 && b[3] <= room[3] + 1e-6;
+  return inside && !(lane && overlaps(b, lane)) && !hits(clear, b, mask);
+}
+
+/**
  * Moves a piece to the nearest clear spot, or returns null to drop it. `bounds` is the piece's near
  * geometry's (`boundsOf`), `clear` the plot's clearance with the pieces placed so far marked in
  * (`markPlacement`), `lot` the box the piece must stay in (a front piece may overhang its front edge
@@ -468,15 +487,9 @@ export function fitPlacement(
   const ax = fz;
   const az = -fx;
   const mask = spanMask(p, bounds);
-  const room: GroundBox = [lot[0], lot[1], lot[2], p.anchor === 'front' ? lot[3] + FRONT_OVERHANG : lot[3]];
   const lane = door ? doorCorridor(door, lot) : null;
   const moved = (x: number, z: number): Placement => ({ ...p, at: [x, p.at[1], z] });
-  const free = (q: Placement): boolean => {
-    const b = footprintOf(q, bounds);
-    const inside =
-      b[0] >= room[0] - 1e-6 && b[1] >= room[1] - 1e-6 && b[2] <= room[2] + 1e-6 && b[3] <= room[3] + 1e-6;
-    return inside && !(lane && overlaps(b, lane)) && !hits(clear, b, mask);
-  };
+  const free = (q: Placement): boolean => placementFree(q, bounds, clear, lot, lane, mask);
 
   /** March to the wall behind the piece (-facing), or out of what it stands in (+facing). */
   function snap(x: number, z: number): [number, number] | null {
@@ -508,7 +521,8 @@ export function fitPlacement(
       DOOR_HALF +
       0.04;
     const shift = door.at[0] * ax + door.at[2] * az - (p.at[0] * ax + p.at[2] * az);
-    for (const s of [1, -1]) tries.push([p.at[0] + ax * (shift + s * half), p.at[2] + az * (shift + s * half)]);
+    for (const s of [1, -1])
+      tries.push([p.at[0] + ax * (shift + s * half), p.at[2] + az * (shift + s * half)]);
   }
   for (const [x, z] of tries) {
     if (snaps(p)) {

@@ -25,6 +25,7 @@ export {
   footprintOf,
   FRONT_OVERHANG,
   markPlacement,
+  placementFree,
   matches,
   mix32,
   resolveDressing,

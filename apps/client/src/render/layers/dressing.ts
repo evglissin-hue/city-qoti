@@ -1,12 +1,20 @@
 import {
   anchorsFor,
   artKitId,
+  boundsOf,
+  clearanceOf,
+  cloneClearance,
+  fitPlacement,
   kitById,
+  markPlacement,
   resolveDressing,
   rulesFor,
   subjectKey,
+  type AnchorPoint,
+  type Clearance,
   type DressingSubject,
   type GroundBox,
+  type PieceBounds,
   type Placement,
 } from '@qoti/art';
 import {
@@ -17,10 +25,15 @@ import {
   type DressingTier,
 } from '@qoti/content';
 import { START_HOUR, TICKS_PER_DAY, TICKS_PER_HOUR, type BuildingView, type LotView } from '@qoti/sim';
-import { Matrix4, Vector3 } from 'three';
+import { Matrix4, Quaternion, Vector3, type BufferGeometry } from 'three';
 import type { Mirror } from '../../state/mirror';
 import { drawDef } from '../defs';
-import { buildingMatrix } from '../kitGeometry';
+import { DressingBatch } from '../dressingBatch';
+import { buildingKey, buildingMatrix, buildingVariantGeometry, standLevel } from '../kitGeometry';
+import type { LightDisc } from '../lightMap';
+import { lampColor } from '../lighting';
+import { levelFor, SMALL_RADIUS, type Level } from '../lod';
+import { groundY } from '../surface';
 import type { LayerContext, RenderLayer } from './types';
 
 /**
@@ -155,30 +168,276 @@ export function lotBox(b: BuildingView, lot: LotView): GroundBox {
 }
 
 export interface DressingLayer extends RenderLayer {
-  /** The placements on one building's plot (kit-local), empty when none. */
+  /** The placements on one building's plot (kit-local, after fitting), empty when none. */
   placementsOf(id: number): readonly Placement[];
   /** All placements over all buildings, for the debug overlay. */
   placementCount(): number;
+  /** V3A: instances visible after the last camera update (for tests and the perf overlay). */
+  drawnCount(): number;
+  /** V3A: instances in the batch, visible or not. */
+  instanceCount(): number;
+}
+
+/** One drawn piece: its batch instance and what the camera pass needs. */
+interface Inst {
+  instance: number;
+  /** The world matrix, unshrunk. */
+  m: Matrix4;
+  x: number;
+  y: number;
+  z: number;
+  near: number;
+  far: number;
+  small: boolean;
+  level: Level | undefined;
+  shown: boolean;
+  /** The shrink currently written into the instance matrix. */
+  shrink: number;
 }
 
 interface Cached {
   key: string;
+  /** Where the building stands (position, turn, pad level): the pieces' matrices follow it. */
+  mkey: string;
   placements: Placement[];
+  insts: Inst[];
+  lamps: LightDisc[];
+}
+
+interface PieceInfo {
+  bounds: PieceBounds;
+  /** Bounding radius (tiles) of the piece, for the small-prop test. */
+  radius: number;
+  lights: readonly [number, number, number][];
 }
 
 function signature(p: readonly Placement[]): string {
   let s = '';
   for (const q of p)
-    s += `${q.rule}|${q.kit}|${q.at.join(',')}|${q.yaw}|${q.scale}|${q.seed}|${JSON.stringify(q.params ?? null)};`;
+    s += `${q.rule}|${q.anchor ?? ''}|${q.kit}|${q.at.join(',')}|${q.yaw}|${q.scale}|${q.seed}|${JSON.stringify(q.params ?? null)};`;
   return s;
+}
+
+/** The lamplighter's hours for the yards: 17:00 to 23:00. */
+export function yardsLit(hour: number): boolean {
+  return hour >= 17 && hour < 23;
+}
+
+/** How far a yard lamp throws, by kit (a sill lamp less far). */
+function lampRadius(kit: string): number {
+  return kit === 'yard-lamp' ? 1.3 : kit === 'yard-sill-lamp' ? 0.8 : 1.2;
+}
+
+const LAMP_INTENSITY = 0.85;
+const GOODS_DISC: readonly [radius: number, intensity: number] = [1.1, 0.5];
+/** The share of the detail distance within which pieces draw near. */
+const NEAR_SHARE = 0.45;
+/** Small pieces shrink over the last share of the distance. */
+const FADE_SHARE = 0.85;
+
+const UP = new Vector3(0, 1, 0);
+const baseM = new Matrix4();
+const localM = new Matrix4();
+const shrunkM = new Matrix4();
+const posV = new Vector3();
+const quatQ = new Quaternion();
+const sclV = new Vector3();
+const lampV = new Vector3();
+
+function variantOf(p: Placement): number {
+  return p.seed % 4;
+}
+
+function geoKey(p: Placement): string {
+  return `${p.kit}|${JSON.stringify(p.params ?? null)}|${variantOf(p)}`;
 }
 
 export function dressingLayer(rules: readonly DressingRule[] = content.dressingRules): DressingLayer {
   let ctx: LayerContext | null = null;
   let dirty = true;
+  let reground = false;
   let lastSeason = '';
   let lastLevel = '';
   const cache = new Map<number, Cached>();
+  let batch: DressingBatch | null = null;
+  const geoms = new Map<string, BufferGeometry>();
+  const infos = new Map<string, PieceInfo | null>();
+  const clearances = new Map<string, Clearance>();
+  // The camera pass.
+  const lastPos = new Vector3(Infinity, 0, 0);
+  const lastDir = new Vector3();
+  const dir = new Vector3();
+  let lastDetail = -1;
+  let viewDirty = true;
+  let drawn = 0;
+  // The yard lamps.
+  let lampsDirty = true;
+  let lastLit: boolean | null = null;
+  let fed = false;
+
+  /** A piece's geometry at a level, built once. */
+  function pieceGeometry(p: Placement, lod: 'high' | 'low'): BufferGeometry | null {
+    const key = `${geoKey(p)}|${lod}`;
+    let g = geoms.get(key);
+    if (!g) {
+      const kit = kitById.get(p.kit);
+      if (!kit) return null;
+      g = kit.build({ seed: variantOf(p), lod, ...(p.params ? { params: { ...p.params } } : {}) });
+      geoms.set(key, g);
+    }
+    return g;
+  }
+
+  function pieceInfo(p: Placement): PieceInfo | null {
+    const key = geoKey(p);
+    if (infos.has(key)) return infos.get(key) ?? null;
+    const g = pieceGeometry(p, 'high');
+    let info: PieceInfo | null = null;
+    if (g) {
+      const bounds = boundsOf(g);
+      const kit = kitById.get(p.kit);
+      const lights = kit?.anchors?.({
+        seed: variantOf(p),
+        ...(p.params ? { params: { ...p.params } } : {}),
+      }).lights;
+      info = {
+        bounds,
+        radius: Math.sqrt((bounds.x1 - bounds.x0) ** 2 + (bounds.z1 - bounds.z0) ** 2) / 2,
+        lights: lights ?? [],
+      };
+    }
+    infos.set(key, info);
+    return info;
+  }
+
+  /** The clearance of the geometry the buildings layer draws for this building, over plot and lot. */
+  function clearanceFor(b: BuildingView, size: readonly [number, number], extent: GroundBox): Clearance {
+    const key = `${buildingKey(b, 'high')}|${extent.join(',')}`;
+    let c = clearances.get(key);
+    if (!c) {
+      if (clearances.size > 512) clearances.clear();
+      const g = buildingVariantGeometry(b, 'high');
+      c = clearanceOf(g, size, extent);
+      g.dispose();
+      clearances.set(key, c);
+    }
+    return c;
+  }
+
+  /** Fits resolved pieces to the walls, the door corridor, the lot and each other, in order. */
+  function fitAll(
+    b: BuildingView,
+    size: readonly [number, number],
+    raw: readonly Placement[],
+    lot: GroundBox,
+    door: AnchorPoint | undefined,
+  ): Placement[] {
+    if (raw.length === 0) return [];
+    const extent: GroundBox = [
+      Math.min(0, lot[0]),
+      Math.min(0, lot[1]),
+      Math.max(size[0], lot[2]),
+      Math.max(size[1], lot[3]),
+    ];
+    const mask = cloneClearance(clearanceFor(b, size, extent));
+    const out: Placement[] = [];
+    for (const p of raw) {
+      const info = pieceInfo(p);
+      if (!info) continue;
+      const q = fitPlacement(p, info.bounds, mask, lot, door);
+      if (!q) continue;
+      markPlacement(mask, q, info.bounds);
+      out.push(q);
+    }
+    return out;
+  }
+
+  /** A piece's world matrix: the building's, then the piece's, then onto the ground (sills keep height). */
+  function worldOf(b: BuildingView, level: number, p: Placement, out: Matrix4): Matrix4 {
+    buildingMatrix(b.def, b.x, b.z, b.rot, level, baseM);
+    posV.set(p.at[0], p.at[1], p.at[2]);
+    quatQ.setFromAxisAngle(UP, p.yaw);
+    sclV.setScalar(p.scale);
+    localM.compose(posV, quatQ, sclV);
+    out.multiplyMatrices(baseM, localM);
+    if (p.anchor !== 'sills' && ctx) {
+      const e = out.elements;
+      e[13] = groundY(ctx.mirror, e[12]!, e[14]!) + p.at[1];
+    }
+    return out;
+  }
+
+  function sameMatrices(insts: readonly Inst[], ms: readonly Matrix4[]): boolean {
+    if (insts.length !== ms.length) return false;
+    for (let i = 0; i < ms.length; i++) if (!insts[i]!.m.equals(ms[i]!)) return false;
+    return true;
+  }
+
+  function dropInsts(c: Cached): void {
+    for (const i of c.insts) batch?.remove(i.instance);
+    c.insts = [];
+  }
+
+  function lampsOf(b: BuildingView, placements: readonly Placement[], insts: readonly Inst[]): LightDisc[] {
+    const out: LightDisc[] = [];
+    const color = lampColor(drawDef(b.def)?.eras);
+    for (let i = 0; i < placements.length; i++) {
+      const p = placements[i]!;
+      const inst = insts[i];
+      if (!inst) continue;
+      for (const l of pieceInfo(p)?.lights ?? []) {
+        lampV.set(l[0], l[1], l[2]).applyMatrix4(inst.m);
+        out.push({
+          x: lampV.x,
+          z: lampV.z,
+          radius: lampRadius(p.kit),
+          color,
+          intensity: LAMP_INTENSITY,
+        });
+      }
+      if (p.kit === 'goods-display') {
+        lampV.set(0, 0, 0.35).applyMatrix4(inst.m);
+        out.push({ x: lampV.x, z: lampV.z, radius: GOODS_DISC[0], color, intensity: GOODS_DISC[1] });
+      }
+    }
+    return out;
+  }
+
+  /** Writes one building's instances into the batch (after dropping its old ones). */
+  function writeInsts(c: Cached, b: BuildingView, ms: Matrix4[]): void {
+    dropInsts(c);
+    const mesh = (batch ??= new DressingBatch(ctx!.scene, ctx!.material));
+    const insts: Inst[] = [];
+    const kept: Placement[] = [];
+    c.placements.forEach((p, i) => {
+      const info = pieceInfo(p);
+      const near = pieceGeometry(p, 'high');
+      const far = pieceGeometry(p, 'low');
+      if (!info || !near || !far) return;
+      const m = ms[i]!;
+      const nearId = mesh.geometry(`${geoKey(p)}|high`, () => near);
+      const farId = mesh.geometry(`${geoKey(p)}|low`, () => far);
+      const e = m.elements;
+      insts.push({
+        instance: mesh.add(nearId, m),
+        m,
+        x: e[12]!,
+        y: e[13]!,
+        z: e[14]!,
+        near: nearId,
+        far: farId,
+        small: info.radius * p.scale < SMALL_RADIUS,
+        level: undefined,
+        shown: true,
+        shrink: 1,
+      });
+      kept.push(p);
+    });
+    c.insts = insts;
+    c.lamps = lampsOf(b, kept, insts);
+    lampsDirty = true;
+    viewDirty = true;
+  }
 
   function rebuild(active: readonly DressingRule[]): boolean {
     if (!ctx) return false;
@@ -191,39 +450,123 @@ export function dressingLayer(rules: readonly DressingRule[] = content.dressingR
       const def = drawDef(b.def);
       const lot = b.lot !== undefined ? mirror.lots.get(b.lot) : undefined;
       const box = def && lot ? lotBox(b, lot) : undefined;
-      const key = `${subjectKey(subject)}|${box ? box.join(',') : ''}`;
+      const dressed = subject.kind !== null && !!def;
+      const level = dressed ? standLevel(mirror, b.def, b.x, b.z, b.rot) : 0;
+      const key = `${subjectKey(subject)}|${box ? box.join(',') : ''}|${dressed ? buildingKey(b, 'high') : ''}`;
+      const mkey = `${b.x},${b.z},${b.rot},${level}`;
       const hit = cache.get(b.id);
-      if (hit && hit.key === key) continue;
-      let placements: Placement[] = [];
-      if (subject.kind !== null && def) {
-        const trade = b.trade ? content.tradeById.get(b.trade) : undefined;
-        const art = trade ? trade.look : def.art;
-        const kit = kitById.get(artKitId(art));
-        if (kit) {
-          const anchors = anchorsFor(kit, {
-            size: def.size,
-            entrance: def.entrance,
-            ...(art.params ? { params: art.params } : {}),
-            ...(box ? { lot: box } : {}),
-          });
-          placements = resolveDressing(subject, active, anchors, DRESSING_SEED);
+      if (hit && hit.key === key && hit.mkey === mkey && !reground) continue;
+      let placements: Placement[] = hit && hit.key === key ? hit.placements : [];
+      if (!hit || hit.key !== key) {
+        placements = [];
+        if (dressed && def) {
+          const trade = b.trade ? content.tradeById.get(b.trade) : undefined;
+          const art = trade ? trade.look : def.art;
+          const kit = kitById.get(artKitId(art));
+          if (kit) {
+            const anchors = anchorsFor(kit, {
+              size: def.size,
+              entrance: def.entrance,
+              ...(art.params ? { params: art.params } : {}),
+              ...(box ? { lot: box } : {}),
+            });
+            const raw = resolveDressing(subject, active, anchors, DRESSING_SEED);
+            placements = fitAll(b, def.size, raw, box ?? [0, 0, def.size[0], def.size[1]], anchors.door);
+          }
         }
       }
       const before = hit?.placements ?? [];
-      if (signature(before) === signature(placements)) {
-        // Same pieces: keep the old array, so a no-op re-resolve is not a change.
-        cache.set(b.id, { key, placements: hit ? hit.placements : placements });
+      const samePlacements = signature(before) === signature(placements);
+      const entry: Cached = hit ?? { key, mkey, placements, insts: [], lamps: [] };
+      entry.key = key;
+      entry.mkey = mkey;
+      if (samePlacements && hit) {
+        // Same pieces: keep the old array. Only a moved building or ground rewrites the matrices.
+        const ms = entry.placements.map((p) => worldOf(b, level, p, new Matrix4()));
+        if (!sameMatrices(entry.insts, ms)) {
+          writeInsts(entry, b, ms);
+          changed = true;
+        }
       } else {
-        cache.set(b.id, { key, placements });
-        changed = true;
+        entry.placements = placements;
+        const ms = placements.map((p) => worldOf(b, level, p, new Matrix4()));
+        if (placements.length > 0 || entry.insts.length > 0) writeInsts(entry, b, ms);
+        if (before.length > 0 || placements.length > 0) changed = true;
       }
+      cache.set(b.id, entry);
     }
     for (const [id, c] of cache) {
       if (seen.has(id)) continue;
       cache.delete(id);
-      if (c.placements.length > 0) changed = true;
+      dropInsts(c);
+      if (c.placements.length > 0) {
+        changed = true;
+        lampsDirty = true;
+      }
     }
+    reground = false;
     return changed;
+  }
+
+  /** Distance and level: only when the camera moved enough or the instances changed. */
+  function updateView(): void {
+    if (!ctx || !batch) return;
+    const env = ctx.env;
+    const detail = env?.detailDistance ?? 80;
+    const cam = ctx.camera;
+    cam.getWorldDirection(dir);
+    const focusDist = env ? cam.position.distanceTo(env.focus) : 0;
+    const moved = cam.position.distanceTo(lastPos);
+    const turned = dir.angleTo(lastDir);
+    if (!viewDirty && detail === lastDetail && moved < 0.4 + focusDist * 0.02 && turned < 0.02) return;
+    viewDirty = false;
+    lastDetail = detail;
+    lastPos.copy(cam.position);
+    lastDir.copy(dir);
+    const mesh = batch.mesh;
+    const fadeFrom = detail * FADE_SHARE;
+    drawn = 0;
+    for (const c of cache.values()) {
+      for (const i of c.insts) {
+        const dx = i.x - cam.position.x;
+        const dy = i.y - cam.position.y;
+        const dz = i.z - cam.position.z;
+        const d = Math.sqrt(dx * dx + dy * dy + dz * dz);
+        const show = d < detail;
+        if (show !== i.shown) {
+          mesh.setVisibleAt(i.instance, show);
+          i.shown = show;
+        }
+        if (!show) continue;
+        drawn++;
+        const lv = levelFor(i.level, d, detail * NEAR_SHARE);
+        if (lv !== i.level) {
+          mesh.setGeometryIdAt(i.instance, lv === 'high' ? i.near : i.far);
+          i.level = lv;
+        }
+        const s = i.small && d > fadeFrom ? Math.max(0, 1 - (d - fadeFrom) / (detail - fadeFrom)) : 1;
+        if (Math.abs(s - i.shrink) > 1e-3) {
+          shrunkM.copy(i.m);
+          const e = shrunkM.elements;
+          for (const k of [0, 1, 2, 4, 5, 6, 8, 9, 10]) e[k]! *= s;
+          mesh.setMatrixAt(i.instance, shrunkM);
+          i.shrink = s;
+        }
+      }
+    }
+  }
+
+  /** Feeds the yard lamps to the light map on the lamplighter's hours. */
+  function syncLamps(): void {
+    const env = ctx?.env;
+    if (!env) return;
+    const lit = yardsLit(env.shown.hour);
+    if (!lampsDirty && lit === lastLit) return;
+    lampsDirty = false;
+    lastLit = lit;
+    const discs: LightDisc[] = [];
+    if (lit) for (const c of cache.values()) discs.push(...c.lamps);
+    if (env.lightWriter.set('yards', discs)) fed = true;
   }
 
   return {
@@ -237,9 +580,13 @@ export function dressingLayer(rules: readonly DressingRule[] = content.dressingR
     update(change) {
       if (change.full || change.buildings || change.households || change.residents || change.village)
         dirty = true;
+      if (change.full || change.rects.has('height')) {
+        dirty = true;
+        reground = true;
+      }
     },
     frame() {
-      // The shipped table is empty: nothing to resolve, nothing to draw, no cost.
+      // The shipped table may be empty: nothing to resolve, nothing to draw, no cost.
       if (!ctx || rules.length === 0) return false;
       const level = ctx.env?.dressing ?? 'all';
       const season = seasonOf(ctx.mirror);
@@ -248,9 +595,18 @@ export function dressingLayer(rules: readonly DressingRule[] = content.dressingR
         lastLevel = level;
         dirty = true;
       }
-      if (!dirty) return false;
-      dirty = false;
-      return rebuild(rulesFor(level, rules));
+      let changed = false;
+      if (dirty) {
+        dirty = false;
+        changed = rebuild(rulesFor(level, rules));
+      }
+      updateView();
+      syncLamps();
+      if (fed) {
+        fed = false;
+        changed = true;
+      }
+      return changed;
     },
     placementsOf(id) {
       return cache.get(id)?.placements ?? [];
@@ -260,7 +616,20 @@ export function dressingLayer(rules: readonly DressingRule[] = content.dressingR
       for (const c of cache.values()) n += c.placements.length;
       return n;
     },
+    drawnCount() {
+      return drawn;
+    },
+    instanceCount() {
+      return batch?.size ?? 0;
+    },
     dispose() {
+      ctx?.env?.lightWriter.clear('yards');
+      batch?.dispose();
+      batch = null;
+      for (const g of geoms.values()) g.dispose();
+      geoms.clear();
+      infos.clear();
+      clearances.clear();
       cache.clear();
       ctx = null;
     },
