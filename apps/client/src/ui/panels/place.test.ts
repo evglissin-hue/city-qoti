@@ -37,7 +37,9 @@ describe('the place card words', () => {
     expect(seatsWords({ seats: 4, childSeats: 2, standing: 2 })).toBe(
       '4 seats, 2 for children only, room for 2 more on their feet',
     );
-    expect(seatsWords({ seats: 0, childSeats: 0, standing: 4 })).toBe('No seats, room for 4 more on their feet');
+    expect(seatsWords({ seats: 0, childSeats: 0, standing: 4 })).toBe(
+      'No seats, room for 4 more on their feet',
+    );
     expect(tookWords(0, 0)).toBe('');
     expect(tookWords(120, 3)).toBe('3 treats sold, 1 coin taken');
     expect(tookWords(40, 1)).toBe('1 treat sold, a few pennies taken');
@@ -68,7 +70,9 @@ describe('the place card', () => {
     expect(text).toContain('2 here now');
     expect(text).toContain('Named by Bo');
     expect(text).toContain('A stall would sell to the 14 who come.');
-    expect(view.get('place-draw-sum').textContent).toBe('38 charm + 4 pieces + 5 lanterns lit + 4 treats = 51');
+    expect(view.get('place-draw-sum').textContent).toBe(
+      '38 charm + 4 pieces + 5 lanterns lit + 4 treats = 51',
+    );
     expect(view.get('place-visitors').textContent).toContain('12 visitors');
     expect(view.get('place-took').textContent).toBe('3 treats sold, 1 coin taken');
     expect(calls.find((c) => c.method === 'highlight')?.args[0]).toEqual({
@@ -152,7 +156,9 @@ describe('routing', () => {
   it('a building that hosts a place keeps its inspector and offers the card', async () => {
     const { session } = mockSession();
     const b = [...session.mirror.buildings.values()][0]!;
-    session.mirror.setPlaces({ places: [mockPlace({ id: `host:${b.id}`, name: 'the well', members: [b.id] })] });
+    session.mirror.setPlaces({
+      places: [mockPlace({ id: `host:${b.id}`, name: 'the well', members: [b.id] })],
+    });
     session.ui.selection.value = { kind: 'building', id: b.id };
     view = await mount(h(InspectorPanel, { session }));
     expect(view.find('building-inspector')).not.toBeNull();

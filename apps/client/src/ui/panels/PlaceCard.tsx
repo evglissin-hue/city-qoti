@@ -168,9 +168,7 @@ export function StreetLines({
         <b>{street.name}</b>
       </p>
       {by && <p class="muted small">{by}</p>}
-      {evening && (
-        <p data-testid="street-evening">Kept for strolling from 17:00 to 21:00; carts go round.</p>
-      )}
+      {evening && <p data-testid="street-evening">Kept for strolling from 17:00 to 21:00; carts go round.</p>}
       <RenameField
         key={street.id}
         testid="street-rename"
@@ -236,7 +234,6 @@ export function PlaceCard({
       class="inspector-panel place"
       kicker={goes}
       title={capital(p.name)}
-      icon="wishes"
       onClose={close}
     >
       {by && <p class="muted small">{by}</p>}
@@ -258,9 +255,7 @@ export function PlaceCard({
         <div>
           <dt>{when}</dt>
           <dd data-testid="place-visitors">
-            {visitors === 0
-              ? 'Nobody came'
-              : `${visitors} ${visitors === 1 ? 'visitor' : 'visitors'}`}
+            {visitors === 0 ? 'Nobody came' : `${visitors} ${visitors === 1 ? 'visitor' : 'visitors'}`}
             {p.present > 0 ? `, ${p.present} here now` : ''}
           </dd>
         </div>
