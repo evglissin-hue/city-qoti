@@ -130,7 +130,8 @@ function placeRows(world: WorldState, n: number): void {
   world.places = [];
   for (let i = 0; i < n; i++) {
     world.places.push({
-      id: 1000 + i,
+      // Place ids are strings kept sorted with `<`; equal-width numbers sort as numbers do.
+      id: `seats:${1000 + i}`,
       name: `Bench ${i}`,
       visitors: [3, 5, 2, 4, 6, 1, 0],
       takings: [0, 12, 0, 8, 0, 0, 0],
@@ -138,7 +139,7 @@ function placeRows(world: WorldState, n: number): void {
       served: [0, 1, 0, 1, 0, 0, 0],
       firstDay: 1,
       seenDay: 8,
-    } as PlaceState);
+    } satisfies PlaceState);
   }
 }
 
