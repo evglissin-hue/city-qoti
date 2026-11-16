@@ -26,6 +26,7 @@ import {
   type TextureDataType,
   type WebGLRenderer,
 } from 'three';
+import { ENDPAPER_GLSL, type EndpaperMap } from './endpaper';
 import {
   applyGrade,
   bloomFor,
@@ -146,6 +147,7 @@ const FINAL_FRAGMENT = /* glsl */ `
   uniform float uBloomOn;
   uniform float uBloomGain;
   ${LOOK_GLSL}
+  ${ENDPAPER_GLSL}
   varying vec2 vUv;
   void main() {
     vec3 c = texture2D(tScene, vUv).rgb;
@@ -161,6 +163,7 @@ const FINAL_FRAGMENT = /* glsl */ `
     vec4 o = lookSrgb(vec4(c, 1.0));
     o.rgb = lookGrade(o.rgb) * lookVignette(vUv);
     o.rgb = lookWeather(o.rgb, vUv);
+    o.rgb = endpaperOver(o.rgb, vUv);
     gl_FragColor = vec4(lookDither(o.rgb, gl_FragCoord.xy), 1.0);
   }
 `;
@@ -369,6 +372,15 @@ export class LeanFrame {
     this.setNight(0);
   }
 
+  /** V3D: the final pass overlays the endpaper map, sharing the map's uniform objects. */
+  useEndpaper(map: EndpaperMap): void {
+    Object.assign(this.final.uniforms, map.uniforms);
+    this.endpaperCover = map.uniforms.uEndpaperCover;
+  }
+
+  /** V3D: the map's cover uniform (0 until `useEndpaper`); at 1 or more nothing under it shows. */
+  private endpaperCover: { value: number } = { value: 0 };
+
   /** Draws `material` over the whole of `target` (null: the canvas). It covers it, so no clear. */
   pass(material: Material, target: WebGLRenderTarget | null): void {
     const r = this.renderer;
@@ -523,8 +535,10 @@ export class LeanFrame {
    */
   finish(src: WebGLRenderTarget, rest?: RestBloomSource): void {
     const f = this.final.uniforms;
-    const blurs = this.blurs && this.qa !== null && this.qb !== null;
-    const blooms = this.blooms && this.qc !== null && this.qd !== null;
+    // V3D: under a full map nothing of the scene shows, so the frame is the final pass alone.
+    const covered = this.endpaperCover.value >= 1;
+    const blurs = !covered && this.blurs && this.qa !== null && this.qb !== null;
+    const blooms = !covered && this.blooms && this.qc !== null && this.qd !== null;
     if (blurs) {
       this.down.uniforms.tSrc!.value = src.texture;
       this.pass(this.down, this.qa);
