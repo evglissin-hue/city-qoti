@@ -137,6 +137,12 @@ export interface RoundStop {
   flags: number;
   /** Tick they arrived, or -1 while it is still ahead of them. */
   arrived: number;
+  /**
+   * R2 (R2A, additive): the tick of day they set off for it, not before (the planner spreads a
+   * town's evening over the hours, so a seat serves three or four residents). Absent: as soon as the
+   * stop before it is done.
+   */
+  at?: number;
 }
 
 /** A resident's last evening (19-evenings.md, Good evenings); the need itself is needs[evenings]. */
