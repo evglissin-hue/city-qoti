@@ -1,6 +1,7 @@
 // V2X: the bloom at rest is built once from the still frame and reused by idle frames.
 import { WebGLRenderTarget, type WebGLRenderer } from 'three';
 import { describe, expect, it } from 'vitest';
+import { createEndpaperMap } from './endpaper';
 import { LeanFrame, LIVE_BLOOM_EVERY, restBloomFresh } from './post';
 
 /** Enough of a WebGLRenderer for LeanFrame's passes; counts the full-screen draws. */
@@ -103,5 +104,29 @@ describe('the bloom at rest (V2X)', () => {
     expect(restBloomFresh(s, { ...s, key: 'j' })).toBe(false);
     expect(restBloomFresh(s, { ...s, threshold: 0.71 })).toBe(false);
     expect(restBloomFresh(s, { ...s, revision: 2 })).toBe(false);
+  });
+});
+
+describe('the endpaper overlay in the final pass (V3D)', () => {
+  function drawsFor(cover: number): number {
+    const { lean, draws, picture } = nightFrame();
+    lean.setViewDistance(300); // tilt-shift in view, so the blur chain would draw
+    const map = createEndpaperMap(64);
+    lean.useEndpaper(map);
+    map.uniforms.uEndpaperCover.value = cover;
+    const target = lean.target('still');
+    const before = draws();
+    lean.finish(target, { picture, key: 'a' });
+    return draws() - before;
+  }
+
+  it('at cover 1 the frame is the final pass alone', () => {
+    expect(drawsFor(1)).toBe(1);
+  });
+
+  it('at cover 0.5 is the usual chain, and at 0 the same as before', () => {
+    const usual = drawsFor(0);
+    expect(usual).toBeGreaterThan(1);
+    expect(drawsFor(0.5)).toBe(usual);
   });
 });

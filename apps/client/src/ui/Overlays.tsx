@@ -151,6 +151,7 @@ export function DebugOverlay({ session }: { session: Session }) {
     return () => clearInterval(id);
   }, []);
   const s = session.renderer?.stats;
+  const ep = session.renderer?.env.endpaper;
   const m = session.mirror;
   const h = session.debug.lastHash;
   return (
@@ -159,6 +160,7 @@ export function DebugOverlay({ session }: { session: Session }) {
 gpu ${typeof s?.gpuMs === 'number' ? `${s.gpuMs.toFixed(1)} ms` : 'n/a'}  ${s?.mode ?? 'moving'}  ${session.renderer?.qualityLevel ?? '-'}  ${s?.engine ?? 'lean'}
 shadows ${s?.shadowRenders ?? 0}  stills ${s?.stillRenders ?? 0}
 draws ${s?.drawCalls ?? 0}  tris ${s?.triangles ?? 0}
+endpaper ${ep ? ep.cover.toFixed(2) : '0.00'} rev ${ep?.revision ?? 0} ${ep ? ep.ms.toFixed(0) : 0} ms
 turn ${m.lastTurn.value}  tick ${m.tick.value}
 hash ${h ? `${h.t} ${h.h}` : '-'}
 buildings ${m.buildings.size}  decor ${m.decor.size}  notes ${m.notes.size}
