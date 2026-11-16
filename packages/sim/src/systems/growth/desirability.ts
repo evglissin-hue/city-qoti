@@ -202,7 +202,14 @@ export function pickStyle(state: WorldState, lot: Lot): string {
   const near = styles.map(() => 0);
   const kind = zoneKind(lot.zone);
   for (const other of state.lots) {
-    if (other.id === lot.id || !other.style || other.rot !== lot.rot || zoneKind(other.zone) !== kind)
+    // R2B: a garden lot is never built on, so it sets no street's style.
+    if (
+      other.id === lot.id ||
+      other.kind === 'garden' ||
+      !other.style ||
+      other.rot !== lot.rot ||
+      zoneKind(other.zone) !== kind
+    )
       continue;
     if (frontLine(other) !== frontLine(lot)) continue;
     const [ox, oz] = lotMiddle(other);

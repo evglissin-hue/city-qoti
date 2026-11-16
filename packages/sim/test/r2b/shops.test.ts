@@ -11,6 +11,7 @@ import { newPlaceState } from '../../src/state/evenings';
 import { cafeTables } from '../../src/systems/growth/cafes';
 import {
   lotDesirability,
+  pickStyle,
   refreshDesirability,
   servicesOf,
   townSpecies,
@@ -143,6 +144,23 @@ describe('a garden lot is never built on, priced or offered', () => {
     const plots = demandView(s).bars[SHOPS]!.reasons.map((r) => r.code);
     expect(plots).not.toContain('needsLand');
     expect(plots).not.toContain('noRoad');
+  });
+
+  it("sets no street style: a garden neighbor never decides a new lot's look", () => {
+    const f = villageFixture();
+    const s = f.state;
+    const [a, b] = s.lots.filter((l) => l.zone === Zone.shops && !l.buildingId);
+    expect(a && b).toBeTruthy();
+    delete b!.style;
+    const alone = pickStyle(s, a!);
+    // A garden lot in the same row, painted every other style, is read as nothing.
+    b!.kind = 'garden';
+    for (const st of content.styles) {
+      if (st.id === alone) continue;
+      b!.style = st.id;
+      b!.rot = a!.rot;
+      expect(pickStyle(s, a!)).toBe(alone);
+    }
   });
 });
 
