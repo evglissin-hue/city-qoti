@@ -7,7 +7,8 @@ import type { CameraController } from './camera';
 
 export type Selection =
   | { kind: 'building' | 'decor' | 'note' | 'resident'; id: number }
-  | { kind: 'tree' | 'tile'; x: number; z: number };
+  | { kind: 'tree' | 'tile'; x: number; z: number }
+  | { kind: 'place'; id: string };
 
 /** What tools need from the UI: messages, questions and the inspector selection. */
 export interface UiApi {

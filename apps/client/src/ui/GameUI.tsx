@@ -12,6 +12,7 @@ import { Toolbar } from './Toolbar';
 import { TopBar } from './TopBar';
 import './hamlet.css';
 import './village.css';
+import './edition.css';
 import './seasons.css';
 import { seasonKey } from './seasons';
 
