@@ -116,6 +116,7 @@ Nothing a rule reads is private to one seat: every stat is `scope: 'shared'`, an
 | No street names on the map | `endpaperInput` labels: the valley's name only | R2's street names (`state.streets`) | R2X |
 | A plain parchment endpaper, `cover` 0 | `worker/endpaper.worker.ts`, `ENDPAPER_ON` | the inked map, cover from 200 to 240 tiles | V3D |
 | The building's whole lot as the yard, reaching half a tile onto free neighbouring ground (`roomyLot`, `YARD_REACH`): grown kits fill their plots almost to the edge | `layers/dressing.ts` | V3B's free yard (`lots.ts`, `yardOf`) | V3B, wired in V3X if V3A lands first |
+| Puddles a day after rain from the client's memory of the last rainy day it saw (the Mirror keeps no weather history): a seat that loads on the morning after rain shows none that day | `render/groundPaths.ts` (the rain memory) | yesterday's weather (or a wetness) in the Mirror | R2X's list |
 | R1X's grown village as the before scene | `?debug&fixture=grown` | the village regrown on R2's lots | R2X regrows it |
 
 ## Ports

@@ -487,8 +487,9 @@ vec3 qApronPaint(vec2 wp, vec3 col, float rot, float fade) {
   vec2 q = wp - (floor(wp) + 0.5);
   float lat = dot(q, vec2(-f.y, f.x));
   float out_ = dot(q, f) + 0.5;
-  float sd = length(vec2(lat, out_)) - 0.46 + (qNoise(wp * 11.0) - 0.5) * 0.05;
-  float on = 1.0 - smoothstep(-0.02, 0.025, sd);
+  // V3A review: a small apron (0.38 of a tile), its edge broken and soft, not a slab.
+  float sd = length(vec2(lat * 1.1, out_)) - 0.38 + (qNoise(wp * 11.0) - 0.5) * 0.09;
+  float on = 1.0 - smoothstep(-0.05, 0.035, sd);
   if (on <= 0.0) return col;
   vec2 u = vec2(lat * 10.0, out_ * 10.0);
   float row = floor(u.y);
@@ -499,7 +500,7 @@ vec3 qApronPaint(vec2 wp, vec3 col, float rot, float fade) {
   vec2 qq = abs(cf) - vec2(0.33, 0.33);
   float sds = length(max(qq, 0.0)) + min(max(qq.x, qq.y), 0.0) - 0.1;
   float stone = 1.0 - smoothstep(-0.03, 0.05, sds);
-  vec3 cob = mix(qSrgb(vec3(0.72, 0.66, 0.56)), qSrgb(vec3(0.84, 0.77, 0.64)), h);
+  vec3 cob = mix(qSrgb(vec3(0.64, 0.58, 0.49)), qSrgb(vec3(0.76, 0.69, 0.57)), h);
   cob = mix(cob, qSrgb(vec3(0.66, 0.57, 0.48)), step(0.84, qHash(cell + 4.1)) * 0.6);
   // Domed, lit from the upper left; the middle is worn smoother and paler.
   cob *= 0.9 + 0.16 * (1.0 - length(cf) * 1.4) + 0.12 * dot(cf, vec2(-0.6, -0.8));
@@ -512,7 +513,7 @@ vec3 qApronPaint(vec2 wp, vec3 col, float rot, float fade) {
   // Grass creeps in at the curved edge.
   float tuft = smoothstep(0.6, 0.78, qNoise(wp * 9.0 + 2.0)) * smoothstep(-0.1, 0.0, sd);
   gQWalk = max(gQWalk, on * 0.8);
-  return mix(col, mix(ap, col, tuft * 0.6), on * 0.92);
+  return mix(col, mix(ap, col, tuft * 0.6), on * 0.85);
 }
 // Puddles in the hollows while it rains and the day after (uWet is the rain itself, uPuddle what
 // it leaves): darker, a faint sky in them, soft edges, none bigger than a tile.
