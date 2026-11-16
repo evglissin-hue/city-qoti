@@ -155,6 +155,8 @@ describe('the Charter', () => {
     }
     s.stats.wishesGranted = 5;
     s.economy.seasonsInSurplus = 1;
+    // R2C's evening goal: half the grown-ups out three fair evenings running.
+    s.evenings.outRun = 3;
     findById(s.buildings, f.b.storehouses[0])!.rt!.store[content.goodIndex.get('bread')!] = 400;
     offerGoods(s, ['bread', 'fish', 'vegetables']);
     return { f, s };
