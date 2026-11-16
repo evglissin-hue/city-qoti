@@ -10,13 +10,14 @@ import {
   SRGBColorSpace,
   UnsignedByteType,
 } from 'three';
-import type { Mirror } from '../state/mirror';
+import type { Mirror, MirrorChange } from '../state/mirror';
 import { fpToWorld, hash2 } from './coords';
 import { MAX_GROUND_LIGHTS, NOISE_GLSL, type WorldEnv } from './env';
 import { LIGHT_LOOP, LIGHT_MAP_GLSL, lightMapUniforms } from './lightMap';
 import { drawDef } from './defs';
 import { flowerDrift } from './drifts';
 import { GROUND_AO_GLSL, groundAoFor } from './groundAo';
+import { buildWalk, RainMemory } from './groundPaths';
 import { DOOR_KIND, ROAD_GLSL } from './layers/roads';
 import { WATER_Y } from './surface';
 
@@ -37,6 +38,7 @@ import { WATER_Y } from './surface';
 export const GroundFlag = { water: 1, rowsAlongX: 2, built: 4, tree: 8 } as const;
 
 const N = MAP_SIZE;
+const WALK_LAYERS = ['road', 'occupant', 'water', 'tree', 'terrain', 'height'] as const;
 /** Tiles from a building within which lawns are mown. */
 export const MOWN = 4;
 
@@ -123,6 +125,13 @@ export class GroundTextures {
   readonly data: DataTexture;
   /** V1C: mown, worn, soil and meadow (see the header). */
   readonly detail: DataTexture;
+  /** V3A: worn paths and cobble aprons (groundPaths.ts), exact, one texel a tile. */
+  readonly walk: DataTexture;
+  /** V3A: puddles left by yesterday's rain, 0 to 1 (the weather's own wetness covers the rain itself). */
+  readonly puddle = { value: 0 };
+  private readonly walkBytes = new Uint8Array(N * N * 4);
+  private readonly rain: RainMemory;
+  private readonly stopChange: () => void;
   private readonly colorBytes = new Uint8Array(N * N * 4);
   private readonly dataBytes = new Uint8Array(N * N * 4);
   private readonly detailBytes = new Uint8Array(N * N * 4);
@@ -143,8 +152,30 @@ export class GroundTextures {
     this.detail.magFilter = LinearFilter;
     this.detail.minFilter = LinearFilter;
     this.detail.generateMipmaps = false;
+    this.walk = new DataTexture(this.walkBytes, N, N, RGBAFormat, UnsignedByteType);
+    this.walk.magFilter = NearestFilter;
+    this.walk.minFilter = NearestFilter;
+    this.walk.generateMipmaps = false;
     this.seats = this.readSeats();
     this.refresh([0, 0, N - 1, N - 1]);
+    this.syncWalk();
+    this.stopChange = mirror.onChange((c) => this.onMirror(c));
+    this.rain = new RainMemory(mirror, (v) => {
+      this.puddle.value = v;
+    });
+  }
+
+  /** V3A: paths and aprons follow the buildings, roads and the ground they cross, at rest. */
+  private onMirror(c: MirrorChange): void {
+    let stale = c.full || c.buildings;
+    for (const layer of WALK_LAYERS) if (!stale && c.rects.get(layer)?.length) stale = true;
+    if (stale) this.syncWalk();
+  }
+
+  /** Rebuilds the walk texture from the Mirror. */
+  syncWalk(): void {
+    buildWalk(this.mirror, this.walkBytes);
+    this.walk.needsUpdate = true;
   }
 
   /** Where seats wear the grass: each seat's tile, a little on its neighbors. */
@@ -354,6 +385,9 @@ export class GroundTextures {
     this.color.dispose();
     this.data.dispose();
     this.detail.dispose();
+    this.walk.dispose();
+    this.stopChange();
+    this.rain.dispose();
   }
 }
 
@@ -390,6 +424,115 @@ vec3 qFieldColor(vec2 wp, vec3 ground, float flags, float crop) {
   return mix(soil, crops, cover);
 }
 
+
+// V3A: how much a path or apron wears this fragment (0 to 1), for the puddles and the snow, and
+// how much puddle there is (0 to 1), for the roughness.
+float gQWalk = 0.0;
+float gQPud = 0.0;
+vec3 gQSky = vec3(0.6, 0.7, 0.8);
+vec4 qWalkAt(ivec2 t) {
+  return floor(texelFetch(uGroundWalk, clamp(t, ivec2(0), ivec2(${N - 1})), 0) * 255.0 + 0.5);
+}
+// Where a path crosses the edge between two tiles, along it; both tiles ask the same hash.
+float qWalkEdge(ivec2 t, int k) {
+  vec2 a = vec2(t);
+  if (k == 2) a.x -= 1.0;
+  else if (k == 3) a.y -= 1.0;
+  float h = (k == 0 || k == 2) ? qHash(a + vec2(3.1, 1.7)) : qHash(a + vec2(8.3, 5.9));
+  return (h - 0.5) * 0.3;
+}
+// A worn path: a narrow, slightly winding trodden line from this tile's middle to each edge it
+// continues over (the neighbor draws its own half), thinning where it reaches a door.
+vec3 qWalkPaint(vec2 wp, vec3 col, vec4 wk, ivec2 ti) {
+  vec2 base = vec2(ti) + 0.5;
+  vec2 c = base + (vec2(qHash(vec2(ti) + 1.3), qHash(vec2(ti) + 6.1)) - 0.5) * 0.2;
+  float strength = wk.a / 255.0;
+  float best = 9.0;
+  float alpha = 1.0;
+  float roadBits = floor(wk.r / 16.0);
+  float pathBits = wk.r - roadBits * 16.0;
+  for (int k = 0; k < 4; k++) {
+    float bit = k == 0 ? 1.0 : k == 1 ? 2.0 : k == 2 ? 4.0 : 8.0;
+    bool toPath = qBit(pathBits, bit);
+    bool toRoad = qBit(roadBits, bit);
+    bool toDoor = int(wk.g + 0.5) == k + 1;
+    if (!toPath && !toRoad && !toDoor) continue;
+    vec2 d = k == 0 ? vec2(1.0, 0.0) : k == 1 ? vec2(0.0, 1.0) : k == 2 ? vec2(-1.0, 0.0) : vec2(0.0, -1.0);
+    vec2 e = base + d * (toRoad ? 0.62 : 0.5) + vec2(-d.y, d.x) * qWalkEdge(ti, k);
+    vec2 pa = wp - c;
+    vec2 ba = e - c;
+    float h = clamp(dot(pa, ba) / dot(ba, ba), 0.0, 1.0);
+    float halfw = (0.06 + 0.035 * strength) * (toDoor ? mix(1.0, 0.55, h) : 1.0);
+    float ed = length(pa - ba * h) - halfw;
+    if (ed < best) {
+      best = ed;
+      alpha = toDoor ? mix(1.0, 0.5, smoothstep(0.3, 1.0, h)) : 1.0;
+    }
+  }
+  best += (qNoise(wp * 9.0) - 0.5) * 0.05 + (qNoise(wp * 3.0) - 0.5) * 0.04;
+  float on = 1.0 - smoothstep(-0.015, 0.04, best);
+  if (on <= 0.0) return col;
+  float core = 1.0 - smoothstep(-0.06, 0.0, best);
+  vec3 trod = mix(col * vec3(0.94, 0.91, 0.8), qSrgb(vec3(0.74, 0.63, 0.45)), 0.3 + 0.4 * core);
+  trod *= 0.95 + 0.1 * qNoise(wp * 14.0);
+  float tufts = smoothstep(0.5, 0.72, qNoise(wp * 10.0 + 3.0)) * (0.55 - 0.3 * core);
+  float k = on * alpha;
+  gQWalk = max(gQWalk, k);
+  return mix(col, mix(trod, col, tufts), k * (0.62 + 0.28 * strength));
+}
+// A cobble apron at a shop door: a half round of rounded stones set in mortar from the doorstep,
+// picked out by the sun, a little smoother and paler where feet cross it.
+vec3 qApronPaint(vec2 wp, vec3 col, float rot, float fade) {
+  vec2 f = rot < 1.5 ? vec2(0.0, 1.0) : rot < 2.5 ? vec2(-1.0, 0.0) : rot < 3.5 ? vec2(0.0, -1.0) : vec2(1.0, 0.0);
+  vec2 q = wp - (floor(wp) + 0.5);
+  float lat = dot(q, vec2(-f.y, f.x));
+  float out_ = dot(q, f) + 0.5;
+  float sd = length(vec2(lat, out_)) - 0.46 + (qNoise(wp * 11.0) - 0.5) * 0.05;
+  float on = 1.0 - smoothstep(-0.02, 0.025, sd);
+  if (on <= 0.0) return col;
+  vec2 u = vec2(lat * 10.0, out_ * 10.0);
+  float row = floor(u.y);
+  u.x += mod(row, 2.0) * 0.5;
+  vec2 cell = vec2(floor(u.x), row) + floor(wp) * 0.37;
+  vec2 cf = fract(u) - 0.5;
+  float h = qHash(cell + 0.7);
+  vec2 qq = abs(cf) - vec2(0.33, 0.33);
+  float sds = length(max(qq, 0.0)) + min(max(qq.x, qq.y), 0.0) - 0.1;
+  float stone = 1.0 - smoothstep(-0.03, 0.05, sds);
+  vec3 cob = mix(qSrgb(vec3(0.72, 0.66, 0.56)), qSrgb(vec3(0.84, 0.77, 0.64)), h);
+  cob = mix(cob, qSrgb(vec3(0.66, 0.57, 0.48)), step(0.84, qHash(cell + 4.1)) * 0.6);
+  // Domed, lit from the upper left; the middle is worn smoother and paler.
+  cob *= 0.9 + 0.16 * (1.0 - length(cf) * 1.4) + 0.12 * dot(cf, vec2(-0.6, -0.8));
+  float wear = (1.0 - smoothstep(0.0, 0.3, abs(lat))) * (1.0 - smoothstep(0.1, 0.7, out_));
+  cob *= 1.0 + 0.1 * wear;
+  vec3 mortar = mix(qSrgb(vec3(0.50, 0.44, 0.35)), qSrgb(vec3(0.66, 0.58, 0.46)), wear * 0.6);
+  vec3 ap = mix(mortar, cob, stone);
+  // Far off the stones melt into their average.
+  ap = mix(mix(mortar, cob, 0.7), ap, fade);
+  // Grass creeps in at the curved edge.
+  float tuft = smoothstep(0.6, 0.78, qNoise(wp * 9.0 + 2.0)) * smoothstep(-0.1, 0.0, sd);
+  gQWalk = max(gQWalk, on * 0.8);
+  return mix(col, mix(ap, col, tuft * 0.6), on * 0.92);
+}
+// Puddles in the hollows while it rains and the day after (uWet is the rain itself, uPuddle what
+// it leaves): darker, a faint sky in them, soft edges, none bigger than a tile.
+vec3 qPuddles(vec3 col, vec2 wp, float ao, float road, float worn, float fade) {
+  float wetK = max(uPuddle, smoothstep(0.05, 0.6, uWet)) * (1.0 - uSnow);
+  if (wetK < 0.01) return col;
+  float basin = qNoise(wp * 1.5 + 41.0) * 0.65 + qNoise(wp * 3.7 + 13.0) * 0.35;
+  float low = clamp((1.0 - ao) * 2.2, 0.0, 0.5);
+  float tread = max(max(road, gQWalk * 0.8), worn * 0.6);
+  float depth = basin + low * 0.4 + tread * 0.3 + (qNoise(wp * 7.0) - 0.5) * 0.04;
+  float thr = mix(1.0, 0.76, wetK);
+  float m = smoothstep(thr, thr + 0.05, depth) * (0.45 + 0.55 * fade);
+  float ring = smoothstep(thr - 0.09, thr, depth) * (1.0 - m);
+  col *= 1.0 - 0.14 * ring;
+  vec3 sky = gQSky;
+  vec3 pc = mix(col * mix(0.74, 0.56, clamp(tread * 2.0, 0.0, 1.0)), sky * 0.8, 0.22);
+  gQPud = m;
+  return mix(col, pc, m * mix(0.6, 0.9, clamp(tread * 2.0, 0.0, 1.0)));
+}
+
 vec3 qGround(vec3 base) {
   vec2 wp = vQWorld.xz;
   if (vQSurf < 0.5) {
@@ -418,6 +561,9 @@ vec3 qGround(vec3 base) {
   float fade = clamp(1.0 - length(fwidth(wp)) * 3.0, 0.0, 1.0);
   bool water = qBit(flags, 1.0);
   bool built = qBit(flags, 4.0);
+  gQWalk = 0.0;
+  gQPud = 0.0;
+  vec4 wk = qWalkAt(ti);
 
   // V1C: lawn, meadow, soil and wear (the detail texture), and the pattern array's grass grain.
   vec4 gd = texture2D(uGroundDetail, wp / ${N.toFixed(1)});
@@ -500,10 +646,15 @@ vec3 qGround(vec3 base) {
   }
 
   if (!water && !built) col = qTrailPaint(wp, col);
+  // V3A: worn paths from the doors to the roads.
+  if (!water && !built && (wk.r + wk.g > 0.5)) col = qWalkPaint(wp, col, wk, ti);
   // C5E: where a road or path is painted (the snow on it is trodden, the rain darkens it more).
   vec3 preRoad = col;
   if (!water) col = qRoadPaint(wp, col);
   float road = clamp(length(col - preRoad) * 6.0, 0.0, 1.0);
+  // V3A: the apron over the doorstep; the trodden snow and the puddles read it too.
+  if (!water && !built && wk.b > 0.5) col = qApronPaint(wp, col, wk.b, fade);
+  road = max(road, gQWalk * 0.6);
 
   // Banks: a sandy strip that follows the shore, damp sand at the waterline, the bed below it.
   float above = vQWorld.y - ${WATER_Y.toFixed(3)};
@@ -529,6 +680,8 @@ vec3 qGround(vec3 base) {
   // V1C: the ground AO texture, soft pools beside walls, in courtyards and narrow streets, under
   // crowns (gentler under a building's own lot, see groundAo.ts LOT_LIFT).
   float ao = qGroundAo(wp);
+  if (!water && !built && !(terrain > 6.5 && terrain < 7.5) && above > 0.08)
+    col = qPuddles(col, wp, ao, road, worn, fade);
   col *= ao * mix(1.0, 0.97, 1.0 - ao) + (1.0 - ao) * vec3(0.0, 0.004, 0.012);
   return qGroundSeason(col, wp, road, above, ao, grassy ? 1.0 : 0.0, fade);
 }
@@ -543,11 +696,40 @@ vec3 qGroundSeason(vec3 col, vec2 wp, float road, float above, float ao, float g
     float patchy = 0.6 + 0.4 * qNoise(wp * 0.6 + 4.0);
     col = mix(col, col * vec3(1.12, 1.0, 0.68), uDry * 0.55 * patchy);
   }
-  if (uWet > 0.001) col *= 1.0 - uWet * (0.08 + 0.1 * road);
+  float damp = max(uWet, uPuddle * 0.45);
+  if (damp > 0.001) col *= 1.0 - damp * (0.08 + 0.1 * road);
+  // Where the snow would drift (walls, hedges, crowns: the ground AO), autumn gathers fallen
+  // leaves and spring its petals, as small dabs.
+  float shelter = clamp((1.0 - ao) * 4.0, 0.0, 1.0);
+  float leafK = uAutumn * (0.35 + 0.65 * clamp(uBare * 1.8, 0.0, 1.0));
+  if ((leafK > 0.01 || uBlossom > 0.01) && above > 0.06 && uSnow < 0.9) {
+    float drift = smoothstep(0.1, 0.9, shelter * 0.8 + qNoise(wp * 0.8 + 5.0) * 0.45);
+    float land = 1.0 - road * 0.8;
+    if (leafK > 0.01) {
+      vec2 g = wp * 11.0;
+      vec2 cell = floor(g);
+      vec2 d = fract(g) - (vec2(qHash(cell + 3.3), qHash(cell + 7.7)) * 0.6 + 0.2);
+      vec2 r = normalize(vec2(qHash(cell + 1.9) - 0.5, qHash(cell + 5.5) - 0.5) + 0.001);
+      float e = length(vec2(dot(d, r), dot(d, vec2(-r.y, r.x))) / vec2(0.22, 0.1));
+      float dab = (1.0 - smoothstep(0.8, 1.0, e)) * step(qHash(cell + 11.0), leafK * (0.06 + 1.0 * drift) * land) * fade;
+      float p = qHash(cell + 13.0);
+      vec3 lc = p < 0.35 ? qSrgb(vec3(0.80, 0.58, 0.22)) : p < 0.65 ? qSrgb(vec3(0.66, 0.32, 0.15)) : p < 0.85 ? qSrgb(vec3(0.86, 0.70, 0.28)) : qSrgb(vec3(0.45, 0.30, 0.16));
+      col = mix(col, col * vec3(1.08, 0.92, 0.72), drift * leafK * 0.22 * (1.0 - fade) * land);
+      col = mix(col, lc * (0.92 + 0.16 * qHash(cell + 2.2)), dab * 0.9);
+    }
+    if (uBlossom > 0.01) {
+      vec2 g = wp * 14.0 + 40.0;
+      vec2 cell = floor(g);
+      vec2 d = fract(g) - (vec2(qHash(cell + 3.9), qHash(cell + 6.3)) * 0.6 + 0.2);
+      float e = length(d / vec2(0.15, 0.1));
+      float dab = (1.0 - smoothstep(0.7, 1.0, e)) * step(qHash(cell + 9.0), uBlossom * (0.015 + 0.4 * drift) * land) * fade;
+      vec3 pc = qHash(cell + 17.0) < 0.6 ? qSrgb(vec3(0.97, 0.80, 0.85)) : qSrgb(vec3(0.98, 0.95, 0.93));
+      col = mix(col, pc, dab * 0.9);
+    }
+  }
   if (uSnow < 0.001) return col;
   float lum = dot(col, vec3(0.2126, 0.7152, 0.0722));
   // Drifts: deeper where the AO is (walls, hedges, crowns), thinner on open ground as it starts.
-  float shelter = clamp((1.0 - ao) * 4.0, 0.0, 1.0);
   float n = qNoise(wp * 0.7) * 0.65 + qNoise(wp * 2.9 + 9.0) * 0.35;
   float cover = smoothstep(0.25, 0.65, n * 0.8 + uSnow * 0.75 + shelter * 0.35 * uSnow - 0.2);
   cover *= smoothstep(0.0, 0.08, above);
@@ -619,6 +801,9 @@ export function createGroundMaterial(tex: GroundTextures, env: WorldEnv): MeshSt
       uGroundColor: { value: tex.color },
       uGroundData: { value: tex.data },
       uGroundDetail: { value: tex.detail },
+      uGroundWalk: { value: tex.walk },
+      uPuddle: tex.puddle,
+      uBlossom: env.blossom,
       uGroundAo: groundAoFor(env),
       uPatterns: env.patterns,
       uSnow: snow,
@@ -649,6 +834,9 @@ export function createGroundMaterial(tex: GroundTextures, env: WorldEnv): MeshSt
           'uniform sampler2D uGroundColor;',
           'uniform sampler2D uGroundData;',
           'uniform sampler2D uGroundDetail;',
+          'uniform sampler2D uGroundWalk;',
+          'uniform float uPuddle;',
+          'uniform float uBlossom;',
           'precision highp sampler2DArray;',
           'uniform sampler2DArray uPatterns;',
           'uniform float uSnow;',
@@ -673,7 +861,11 @@ export function createGroundMaterial(tex: GroundTextures, env: WorldEnv): MeshSt
       )
       .replace(
         '#include <color_fragment>',
-        '#include <color_fragment>\ndiffuseColor.rgb = qGround(diffuseColor.rgb) * qCloudShade(vQWorld.xz);',
+        '#include <color_fragment>\n#ifdef USE_FOG\ngQSky = fogColor;\n#endif\ndiffuseColor.rgb = qGround(diffuseColor.rgb) * qCloudShade(vQWorld.xz);',
+      )
+      .replace(
+        '#include <roughnessmap_fragment>',
+        '#include <roughnessmap_fragment>\nroughnessFactor = mix(roughnessFactor, 0.3, gQPud);',
       )
       .replace(
         '#include <emissivemap_fragment>',
