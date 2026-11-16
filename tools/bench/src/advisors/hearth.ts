@@ -8,6 +8,7 @@ import {
   canPaintRoad,
   canPlaceBuilding,
   canPlaceDecor,
+  rankAtLeast,
   doorTile,
   findById,
   findRoute,
@@ -20,7 +21,7 @@ import {
   type Building,
   type WorldState,
 } from '@qoti/sim';
-import { TIMBER_RESERVE, type Planner } from '../planner';
+import type { Planner } from '../planner';
 import { walledIn } from '../rows';
 import { count, G, idx, S, sites } from '../town';
 import { wellFor } from './siting';
@@ -66,12 +67,6 @@ class Hearth implements Advisor {
     // four at once and one stood 48 hours with its timber in; yew's was cut off (build.place does not
     // check reach for a 'connect' path that may not come). One at a time granted fewer A Garden Plot
     // wishes and left oak's Charter 18 days later; beds that wait behind the homes are nudged.
-    if (this.w.buildings.filter((b) => b.def === 'garden-bed' && b.stage === 'construction').length >= 2)
-      return false;
-    // Nor from the timber the homes need: a bed takes 4, and hazel's first week went without a home
-    // while its beds waited (the planner's timber reserve, kept for homes and sites).
-    const timber = TIMBER_RESERVE.get('timber') ?? 16;
-    if (townStock(this.w)[G('timber')]! < timber + 4) return false;
     const reader = worldIndex(this.w).reader;
     for (let r = 1; r <= 2; r++)
       for (let dz = -r - 1; dz <= r + 1; dz++)
@@ -155,7 +150,8 @@ class Hearth implements Advisor {
   visit(): void {
     const p = this.p;
     const w = this.w;
-    this.nudgeSites();
+    // From Village rank: in a Hamlet the first homes go first (nudging beds there cost hazel a lean day).
+    if (rankAtLeast(w, 'village')) this.nudgeSites();
     let answered = 0;
     for (const wish of [...w.wishes]) {
       if (answered >= 3) break;

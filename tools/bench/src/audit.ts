@@ -25,6 +25,7 @@ import {
   achievable,
   BUILD_HOURS,
   calendar,
+  rankAtLeast,
   TICKS_PER_HOUR,
   type HealthIssue,
   type WorldState,
@@ -114,6 +115,9 @@ export class HearthSites {
     const hour = Math.floor(w.tick / TICKS_PER_HOUR);
     if (hour === this.lastHour) return;
     this.lastHour = hour;
+    // In a Hamlet the homes go first and the Hearth's beds wait behind them by design (nudging them
+    // there cost hazel a lean day); from Village rank the Hearth puts its own sites first.
+    if (!rankAtLeast(w, 'village')) return;
     const h = calendar(w.tick).hour;
     const working = h >= BUILD_HOURS[0] && h < BUILD_HOURS[1];
     for (const b of w.buildings) {
