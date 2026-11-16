@@ -140,6 +140,12 @@ export interface Building {
    * tier (homes) or level (businesses) and its row, saved so both seats see one skyline.
    */
   storeys?: number;
+  /**
+   * R2 (R2B): a shop that has put tables out and become a cafe (19-evenings.md, Shops follow the
+   * walkers): set and cleared by the levels pass at 23:30 (a shop of `PLACES.cafeLevel` whose door
+   * is within `cafeRadius` of `cafeSeats` seats); `cafeTables` reads it for the place pass.
+   */
+  cafe?: true;
 }
 
 export interface Decor {

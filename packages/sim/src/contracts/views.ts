@@ -50,6 +50,8 @@ export interface BuildingView {
   keeperId?: EntityId;
   /** R2 (R2.0): a grown building's storeys, in half-storey steps (Building.storeys; V3B's params.storeys). */
   storeys?: number;
+  /** R2 (R2B): the shop has put tables out (Building.cafe), for the art and the inspector. */
+  cafe?: true;
 }
 
 export interface DecorView {
