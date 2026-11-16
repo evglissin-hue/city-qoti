@@ -9,6 +9,7 @@ import { nearestOutletWithFood, outletFood, takeFromOutlet } from '../economy/ou
 import { isMarketDay, MARKET_CARRY } from '../festivals/levers';
 import { marketOpen } from '../market/api';
 import { shopFood } from '../market/baskets';
+import { isTreat } from '../market/round';
 import { moveResident } from '../movement/api';
 import { foodIndexes, pantryFood } from './needs';
 import { doorOf } from './places';
@@ -81,6 +82,11 @@ export function unpack(state: WorldState, ctx: TickCtx, r: Resident, h: Househol
   let more = false;
   if (r.carry) {
     const [g, qty] = r.carry;
+    // R2B: a Treat in hand was bought on the evening round and is eaten, never put by.
+    if (isTreat(g)) {
+      r.carry = null;
+      return false;
+    }
     h.pantry[g] = (h.pantry[g] ?? 0) + qty;
     r.carry = null;
     announceHousehold(state, ctx, h.id);
