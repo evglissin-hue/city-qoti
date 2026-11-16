@@ -429,6 +429,7 @@ vec3 qFieldColor(vec2 wp, vec3 ground, float flags, float crop) {
 // how much puddle there is (0 to 1), for the roughness.
 float gQWalk = 0.0;
 float gQPud = 0.0;
+vec3 gQSky = vec3(0.6, 0.7, 0.8);
 vec4 qWalkAt(ivec2 t) {
   return floor(texelFetch(uGroundWalk, clamp(t, ivec2(0), ivec2(${N - 1})), 0) * 255.0 + 0.5);
 }
@@ -461,23 +462,23 @@ vec3 qWalkPaint(vec2 wp, vec3 col, vec4 wk, ivec2 ti) {
     vec2 pa = wp - c;
     vec2 ba = e - c;
     float h = clamp(dot(pa, ba) / dot(ba, ba), 0.0, 1.0);
-    float halfw = (0.05 + 0.03 * strength) * (toDoor ? mix(1.0, 0.55, h) : 1.0);
+    float halfw = (0.06 + 0.035 * strength) * (toDoor ? mix(1.0, 0.55, h) : 1.0);
     float ed = length(pa - ba * h) - halfw;
     if (ed < best) {
       best = ed;
-      alpha = toDoor ? mix(1.0, 0.35, smoothstep(0.2, 1.0, h)) : 1.0;
+      alpha = toDoor ? mix(1.0, 0.5, smoothstep(0.3, 1.0, h)) : 1.0;
     }
   }
   best += (qNoise(wp * 9.0) - 0.5) * 0.05 + (qNoise(wp * 3.0) - 0.5) * 0.04;
   float on = 1.0 - smoothstep(-0.015, 0.04, best);
   if (on <= 0.0) return col;
   float core = 1.0 - smoothstep(-0.06, 0.0, best);
-  vec3 trod = mix(col * vec3(0.94, 0.91, 0.8), qSrgb(vec3(0.74, 0.63, 0.45)), 0.2 + 0.35 * core);
+  vec3 trod = mix(col * vec3(0.94, 0.91, 0.8), qSrgb(vec3(0.74, 0.63, 0.45)), 0.3 + 0.4 * core);
   trod *= 0.95 + 0.1 * qNoise(wp * 14.0);
   float tufts = smoothstep(0.5, 0.72, qNoise(wp * 10.0 + 3.0)) * (0.55 - 0.3 * core);
   float k = on * alpha;
   gQWalk = max(gQWalk, k);
-  return mix(col, mix(trod, col, tufts), k * (0.5 + 0.25 * strength));
+  return mix(col, mix(trod, col, tufts), k * (0.62 + 0.28 * strength));
 }
 // A cobble apron at a shop door: a half round of rounded stones set in mortar from the doorstep,
 // picked out by the sun, a little smoother and paler where feet cross it.
@@ -498,20 +499,20 @@ vec3 qApronPaint(vec2 wp, vec3 col, float rot, float fade) {
   vec2 qq = abs(cf) - vec2(0.33, 0.33);
   float sds = length(max(qq, 0.0)) + min(max(qq.x, qq.y), 0.0) - 0.1;
   float stone = 1.0 - smoothstep(-0.03, 0.05, sds);
-  vec3 cob = mix(qSrgb(vec3(0.62, 0.59, 0.54)), qSrgb(vec3(0.74, 0.70, 0.63)), h);
+  vec3 cob = mix(qSrgb(vec3(0.72, 0.66, 0.56)), qSrgb(vec3(0.84, 0.77, 0.64)), h);
   cob = mix(cob, qSrgb(vec3(0.66, 0.57, 0.48)), step(0.84, qHash(cell + 4.1)) * 0.6);
   // Domed, lit from the upper left; the middle is worn smoother and paler.
   cob *= 0.9 + 0.16 * (1.0 - length(cf) * 1.4) + 0.12 * dot(cf, vec2(-0.6, -0.8));
   float wear = (1.0 - smoothstep(0.0, 0.3, abs(lat))) * (1.0 - smoothstep(0.1, 0.7, out_));
   cob *= 1.0 + 0.1 * wear;
-  vec3 mortar = mix(qSrgb(vec3(0.36, 0.34, 0.30)), qSrgb(vec3(0.58, 0.52, 0.42)), wear * 0.6);
+  vec3 mortar = mix(qSrgb(vec3(0.50, 0.44, 0.35)), qSrgb(vec3(0.66, 0.58, 0.46)), wear * 0.6);
   vec3 ap = mix(mortar, cob, stone);
   // Far off the stones melt into their average.
   ap = mix(mix(mortar, cob, 0.7), ap, fade);
   // Grass creeps in at the curved edge.
   float tuft = smoothstep(0.6, 0.78, qNoise(wp * 9.0 + 2.0)) * smoothstep(-0.1, 0.0, sd);
   gQWalk = max(gQWalk, on * 0.8);
-  return mix(col, mix(ap, col, tuft * 0.6), on);
+  return mix(col, mix(ap, col, tuft * 0.6), on * 0.92);
 }
 // Puddles in the hollows while it rains and the day after (uWet is the rain itself, uPuddle what
 // it leaves): darker, a faint sky in them, soft edges, none bigger than a tile.
@@ -526,11 +527,7 @@ vec3 qPuddles(vec3 col, vec2 wp, float ao, float road, float worn, float fade) {
   float m = smoothstep(thr, thr + 0.05, depth) * (0.45 + 0.55 * fade);
   float ring = smoothstep(thr - 0.09, thr, depth) * (1.0 - m);
   col *= 1.0 - 0.14 * ring;
-#ifdef USE_FOG
-  vec3 sky = fogColor;
-#else
-  vec3 sky = vec3(0.6, 0.7, 0.8);
-#endif
+  vec3 sky = gQSky;
   vec3 pc = mix(col * 0.58, sky * 0.8, 0.22);
   gQPud = m;
   return mix(col, pc, m * 0.85);
@@ -864,7 +861,7 @@ export function createGroundMaterial(tex: GroundTextures, env: WorldEnv): MeshSt
       )
       .replace(
         '#include <color_fragment>',
-        '#include <color_fragment>\ndiffuseColor.rgb = qGround(diffuseColor.rgb) * qCloudShade(vQWorld.xz);',
+        '#include <color_fragment>\n#ifdef USE_FOG\ngQSky = fogColor;\n#endif\ndiffuseColor.rgb = qGround(diffuseColor.rgb) * qCloudShade(vQWorld.xz);',
       )
       .replace(
         '#include <roughnessmap_fragment>',
