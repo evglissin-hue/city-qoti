@@ -118,7 +118,7 @@ class Hearth implements Advisor {
 
   /**
    * R2E: a site of the Hearth's own (a garden bed, a well, the tavern) with every material in and no
-   * work for a day goes to the front of the builders' queue, once. Hazel's bed waited 48 hours behind
+   * work for half a day goes to the front of the builders' queue, once. Hazel's bed waited 48 hours behind
    * the homes; a player who asked for it would nudge it.
    */
   private nudgeSites(): void {
@@ -126,7 +126,9 @@ class Hearth implements Advisor {
     const live = new Set<number>();
     for (const b of w.buildings) {
       const c = b.rt?.construction;
-      if (b.stage !== 'construction' || !c || content.buildingById.get(b.def)?.lane !== 'hearth') continue;
+      const def = content.buildingById.get(b.def);
+      // Homes are the Ledger's to place, whatever their def's lane.
+      if (b.stage !== 'construction' || !c || def?.lane !== 'hearth' || def.housing) continue;
       live.add(b.id);
       const allIn = c.needs.every((n) => n <= 0);
       const last = this.siteSeen.get(b.id);
@@ -134,7 +136,7 @@ class Hearth implements Advisor {
         this.siteSeen.set(b.id, [c.workDone, w.tick]);
         continue;
       }
-      if (!c.priority && w.tick - last[1] >= TICKS_PER_DAY)
+      if (!c.priority && w.tick - last[1] >= TICKS_PER_DAY / 2)
         this.p.do(`raise the ${b.def}`, [{ t: 'build.setPriority', id: b.id, priority: true }]);
     }
     for (const id of [...this.siteSeen.keys()]) if (!live.has(id)) this.siteSeen.delete(id);

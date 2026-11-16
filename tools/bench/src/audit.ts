@@ -103,7 +103,9 @@ export class HearthSites {
     for (const b of w.buildings) {
       const c = b.rt?.construction;
       if (b.stage !== 'construction' || !c || b.rt?.paused) continue;
-      if (content.buildingById.get(b.def)?.lane !== 'hearth') continue;
+      const def = content.buildingById.get(b.def);
+      // Homes are the Ledger's to place (a cottage's def is in the Hearth's lane); the rest are the Hearth's own.
+      if (def?.lane !== 'hearth' || def.housing) continue;
       const allIn = c.needs.every((n) => n <= 0);
       const last = this.seen.get(b.id);
       if (!last || last[0] !== c.workDone || !allIn) {
