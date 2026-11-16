@@ -496,9 +496,12 @@ function createWaterMaterial(env: WorldEnv, flow: Vector2): MeshStandardMaterial
           'vec3 wn = qWaterNormal(wp, vFlow);',
           // Far away the ripples are finer than a pixel: flatten them instead of letting them shimmer.
           'wn = normalize(mix(wn, vec3(0.0, 1.0, 0.0), clamp(length(fwidth(wp)) * 6.0 - 0.2, 0.0, 0.85)));',
-          'float depthK = smoothstep(0.03, 0.42, vDepth);',
           // Sand-gold shallows, green-blue middle, deep pools.
-          'vec3 waterCol = mix(mix(uShallow, uMid, smoothstep(0.02, 0.36, vDepth)), uDeep * 0.92, smoothstep(0.3, 0.7, vDepth));',
+          // The bed (about 0.36 deep) reads as one deep green-blue, so a tile's pool never beads the
+          // course; the deepest pools darken a little more. The river darkens with the night.
+          'vec3 waterCol = mix(uShallow, uMid, smoothstep(0.015, 0.14, vDepth));',
+          'waterCol = mix(waterCol, uDeep, smoothstep(0.12, 0.33, vDepth));',
+          'waterCol = mix(waterCol, uDeep * 0.8, smoothstep(0.4, 0.6, vDepth)) * (1.0 - 0.3 * uNight);',
           'waterCol *= 0.94 + 0.1 * qNoise(wp * 0.8 - vFlow * uTime * 0.05);',
           // Foam: a soft band at the bank with a slow, broken pulse.
           'float pulse = 0.5 + 0.5 * sin(uTime * 0.9 + qNoise(wp * 2.0) * 6.2831);',
