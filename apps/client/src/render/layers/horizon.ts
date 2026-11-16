@@ -306,7 +306,10 @@ export function buildHorizon(input: HorizonInput): HorizonBuild {
       // same world-space field as the rim's own paint (ground.ts qRim), so patches run on across the
       // seam; these vertex woods take over beyond.
       const woods =
-        smooth((wn - 0.44) / 0.12) * smooth((d - 5) / 10) * (1 - smooth((d - 62) / 28)) * (1 - troughAt(x, z));
+        smooth((wn - 0.44) / 0.12) *
+        smooth((d - 5) / 10) *
+        (1 - smooth((d - 62) / 28)) *
+        (1 - troughAt(x, z));
       const far = smooth((d - 55) / 75);
       const c = COL_NEAR.clone().lerp(COL_FAR, far);
       // A little tonal drift so the bands are painted, not flat.
@@ -316,7 +319,7 @@ export function buildHorizon(input: HorizonInput): HorizonBuild {
       // seam never shows as a line, and is nearly the sky's color by a hundred tiles out.
       // Its bands wander with a broad noise, so they never trace the valley's square.
       const dh = d + (d > 2 ? 22 * (vnoise(x, z, 38, seed + 53) - 0.5) : 0);
-      const haze = 0.97 * (1 - Math.exp(-Math.max(0, dh - 4) / 26));
+      const haze = 0.97 * (1 - Math.exp(-Math.max(0, dh) / 22));
       row.push(soup.vertex(x, y, z, c, haze, woods, mix(0.7, 0.2, far)));
       wrow.push(woods);
       yrow.push(y);
@@ -536,9 +539,10 @@ void main() {
   vec3 fill = (vec3(0.55) + 0.2 * uSkyTop + 0.1 * n.y) * mix(vec3(1.0), uSky * 1.3, 0.4);
   // V3X: a shade under the old light, so the hills meet the rim's ground (lit by the scene's own
   // lights) at the same brightness.
-  vec3 lit = col * (fill + uSun * ndl * 0.6 * (1.0 - uNight)) * 0.84;
-  // Night: moonlit blue-gray, never black (the haze takes the rest toward the night sky).
-  lit = mix(lit, col * vec3(0.2, 0.26, 0.42) + uSky * 0.12, uNight);
+  vec3 lit = col * (fill + uSun * ndl * 0.45 * (1.0 - uNight)) * 0.84;
+  // Night: moonlit blue-gray, never black (the haze takes the rest toward the night sky). V3X: as
+  // dark as the valley's own ground by moonlight, so the hills never glow past the rim.
+  lit = mix(lit, col * vec3(0.1, 0.13, 0.22) + uSky * 0.05, uNight);
   // Aerial perspective (V3X): the band's haze, which grows outward from the rim, over the scene's
   // own fog as the valley's ground takes it (lighting.ts FOG_FRAGMENT: hazeFor's distances from the
   // camera's distance to the focus, a fog day's thickening, V3C's thinning with height), so the
