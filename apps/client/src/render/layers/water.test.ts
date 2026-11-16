@@ -88,7 +88,7 @@ describe('river course for the map', () => {
   });
 
   it('finds a west to east river by its extent', () => {
-    const c = riverCourse({ water: (x, z) => (z >= 50 && z < 54 ? 1 : 0) });
+    const c = riverCourse({ water: (_x, z) => (z >= 50 && z < 54 ? 1 : 0) });
     expect(c.points[0]).toBeLessThan(2);
     expect(c.points[c.points.length - 2]).toBeGreaterThan(MAP_SIZE - 2);
     expect(c.points[1]).toBeCloseTo(52, 5);
@@ -125,7 +125,7 @@ describe('river chunks', () => {
       expect(f.getY(i)).toBeGreaterThan(0.8);
       expect(Math.abs(f.getX(i))).toBeLessThan(0.3);
     }
-    const sideways = new SurfaceTiles(valley((x, z) => (z >= 90 && z < 96 ? 1 : 0), new Set(), 'we'));
+    const sideways = new SurfaceTiles(valley((_x, z) => (z >= 90 && z < 96 ? 1 : 0), new Set(), 'we'));
     const h = waterGeometry(sideways, 2, 5)!;
     const hf = h.getAttribute('wflow');
     for (let i = 0; i < hf.count; i++) expect(hf.getX(i)).toBeGreaterThan(0.8);

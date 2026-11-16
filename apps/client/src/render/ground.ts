@@ -46,6 +46,9 @@ function smoothstep(a: number, b: number, x: number): number {
 }
 
 type RGB = [number, number, number];
+/** V3C: an sRGB hex as a GLSL vec3 in 0 to 1 (for qSrgb in the shader). */
+const glslColor = (hex: number): string =>
+  `vec3(${(((hex >> 16) & 255) / 255).toFixed(4)}, ${(((hex >> 8) & 255) / 255).toFixed(4)}, ${((hex & 255) / 255).toFixed(4)})`;
 const rgb = (hex: number): RGB => [(hex >> 16) & 255, (hex >> 8) & 255, hex & 255];
 const mix = (a: RGB, b: RGB, t: number): RGB => [
   a[0] + (b[0] - a[0]) * t,
@@ -593,6 +596,24 @@ float qCloudShade(vec2 wp) {
   float c = smoothstep(0.5, 0.72, qFbm(p));
   return 1.0 - c * 0.2 * uClouds;
 }
+
+// V3C: the valley's rim (the sim's ring of mountain tiles and the cliff below it) painted as the foot
+// of the horizon's near hills (layers/horizon.ts, the same palette), in woods and grassy clearings,
+// so the valley runs on into the hills with no box. Only the raised rim: the river's notch keeps its
+// banks. Snow settles on it and its woods warm in autumn, as the horizon's do.
+vec3 qRim(vec3 col) {
+  vec2 wp = vQWorld.xz;
+  float e = min(min(wp.x, wp.y), min(${N.toFixed(1)} - wp.x, ${N.toFixed(1)} - wp.y));
+  float k = (1.0 - smoothstep(4.5, 7.5, e)) * smoothstep(3.6, 5.2, vQWorld.y);
+  if (k < 0.001) return col;
+  float wn = qFbm(wp * 0.09 + 3.7);
+  float woods = smoothstep(0.38, 0.55, wn);
+  vec3 hill = mix(qSrgb(${glslColor(palette.horizonNear)}), qSrgb(${glslColor(palette.horizonWoods)}), woods);
+  hill *= 0.86 + 0.24 * qNoise(wp * 0.7) + 0.1 * qNoise(wp * 3.1);
+  hill = mix(hill, hill * vec3(1.55, 0.95, 0.5) + vec3(0.03, 0.01, 0.0), uAutumn * woods * 0.7);
+  hill = mix(hill, qSrgb(vec3(0.93, 0.94, 0.96)), uSnow * 0.8);
+  return mix(col, hill, k);
+}
 `;
 
 /**
@@ -668,7 +689,7 @@ export function createGroundMaterial(tex: GroundTextures, env: WorldEnv): MeshSt
       )
       .replace(
         '#include <color_fragment>',
-        '#include <color_fragment>\ndiffuseColor.rgb = qGround(diffuseColor.rgb) * qCloudShade(vQWorld.xz);',
+        '#include <color_fragment>\ndiffuseColor.rgb = qRim(qGround(diffuseColor.rgb)) * qCloudShade(vQWorld.xz);',
       )
       .replace(
         '#include <emissivemap_fragment>',
