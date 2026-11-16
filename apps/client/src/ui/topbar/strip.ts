@@ -242,3 +242,54 @@ export function winterReading(b: BalancesView): WinterReading | null {
     title: `Put by for winter: ${parts.join(', ')}.`,
   };
 }
+
+// --- R2D: the Hearth's strip ---------------------------------------------------------------------
+
+export interface EveningReading {
+  /** "27 of 40 out". */
+  out: string;
+  /** The average evening in a word. */
+  word: string;
+  /** The average evening, 0 to 1, for the small bar. */
+  fill: number;
+  title: string;
+}
+
+/**
+ * An evening's score runs 0 to 100 and staying in is worth 20 (19-evenings.md); 50, 65 and 80 are
+ * what Craftsfolk, Merchants and Patrons ask of their grown-ups, so the words turn there.
+ */
+export function eveningWord(average: number): string {
+  if (average < 35) return 'quiet';
+  if (average < 50) return 'modest';
+  if (average < 65) return 'fair';
+  if (average < 80) return 'lively';
+  return 'merry';
+}
+
+/** The evenings chip, or null when no evening has been tallied yet (nothing to say). */
+export function eveningReading(
+  e: { out: number; grownups: number; average: number } | undefined,
+): EveningReading | null {
+  if (!e || e.grownups <= 0) return null;
+  const word = eveningWord(e.average);
+  return {
+    out: `${e.out} of ${e.grownups} out`,
+    word,
+    fill: Math.max(0, Math.min(1, e.average / 100)),
+    title:
+      `Last evening ${e.out} of ${e.grownups} grown-ups went out, and the average evening was ${word} ` +
+      `(${Math.round(e.average)} out of 100). Craftsfolk want 50, Merchants 65, Patrons 80. Click for the Chronicle.`,
+  };
+}
+
+/** The gaps chip, or null with none open. */
+export function gapsReading(
+  open: readonly { text: string }[] | undefined,
+): { label: string; title: string } | null {
+  if (!open?.length) return null;
+  return {
+    label: `${open.length} ${open.length === 1 ? 'gap' : 'gaps'} open`,
+    title: `${open.map((g) => g.text).join('\n')}\nClick to see the first.`,
+  };
+}

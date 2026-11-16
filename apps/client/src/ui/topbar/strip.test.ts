@@ -6,7 +6,10 @@ import {
   compact,
   coverNumber,
   demandTitle,
+  eveningReading,
+  eveningWord,
   folkReading,
+  gapsReading,
   materialReadings,
   winterReading,
 } from './strip';
@@ -278,5 +281,24 @@ describe('folk chip', () => {
     const r = folkReading({ folk: 0, working: 0, openJobs: 0, empty: [] }, 0);
     expect(r.amount).toBe('0');
     expect(r.title).toContain('Nobody has moved in yet');
+  });
+});
+
+describe('the Hearth strip readings (R2D)', () => {
+  it('says how evenings went, in a count and a word, and steps aside with none', () => {
+    const r = eveningReading({ out: 27, grownups: 40, average: 54 })!;
+    expect(r.out).toBe('27 of 40 out');
+    expect(r.word).toBe('fair');
+    expect(r.fill).toBeCloseTo(0.54);
+    expect(eveningReading(undefined)).toBeNull();
+    expect(eveningReading({ out: 0, grownups: 0, average: 0 })).toBeNull();
+  });
+  it('turns its words at the tier marks', () => {
+    expect([20, 40, 55, 70, 90].map(eveningWord)).toEqual(['quiet', 'modest', 'fair', 'lively', 'merry']);
+  });
+  it('counts open gaps and says nothing with none', () => {
+    expect(gapsReading([])).toBeNull();
+    expect(gapsReading([{ text: 'A.' }])!.label).toBe('1 gap open');
+    expect(gapsReading([{ text: 'A.' }, { text: 'B.' }])!.label).toBe('2 gaps open');
   });
 });

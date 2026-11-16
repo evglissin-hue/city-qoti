@@ -6,6 +6,7 @@ import type { Lens } from '@qoti/sim';
 import type { FunctionComponent } from 'preact';
 import type { Session } from '../../app/session';
 import { Blueprints } from '../Blueprints';
+import { GapTags } from '../GapTags';
 import { Minimap } from '../Minimap';
 import { AchievementsPanel } from './Achievements';
 import { AlertsPanel } from './Alerts';
@@ -75,6 +76,7 @@ export const panels: readonly PanelDef[] = [
   { id: 'festival', side: 'book', component: FestivalPanel, lens: 'hearth', label: 'Festival', icon: 'festival', modes: STANDARD, order: 15 },
   { id: 'festival-result', side: 'overlay', component: FestivalResultPanel },
   { id: 'field-guide', side: 'book', component: FieldGuidePanel, lens: 'hearth', label: 'Field Guide', icon: 'fieldguide', modes: STANDARD, order: 25 },
+  { id: 'gap-tags', side: 'world', component: GapTags },
   { id: 'guide', side: 'overlay', component: GuidePanel, modes: STANDARD },
   { id: 'inspector', side: 'right', component: InspectorPanel },
   { id: 'letters', side: 'book', component: LettersPanel, lens: 'hearth', label: 'Letters', icon: 'letter', key: 'o', modes: STANDARD, order: 35 },

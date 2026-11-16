@@ -52,11 +52,14 @@ export function AlertsPanel({ session }: { session: Session }) {
               <button
                 type="button"
                 class="alert-body"
-                title={a.title ?? a.text}
+                title={a.title ?? (a.note ? `${a.text}\n${a.note}` : a.text)}
                 onClick={() => act(session, a)}
               >
                 <Glyph id={a.icon} />
-                <span>{a.text}</span>
+                <span class="alert-stack">
+                  <span class="alert-line">{a.text}</span>
+                  {a.note && <small class="alert-note">{a.note}</small>}
+                </span>
               </button>
               <button type="button" class="dismiss" title="Got it" onClick={() => dismiss(a)}>
                 ×

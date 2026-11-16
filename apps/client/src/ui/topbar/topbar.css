@@ -357,6 +357,29 @@ button.winter-reserve {
 
 /* --- Hearth strip -------------------------------------------------------------------------- */
 
+/* R2D: it follows the Ledger's layout, a row of its own: the chips from the left, the festival
+   countdown and renown at the right. */
+.hearth-strip {
+  flex: 1 1 auto;
+  gap: 6px;
+}
+
+.hearth-strip .strip-end {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.hearth-strip .cover-bar {
+  width: 3.2rem;
+  flex: none;
+}
+
+.strip-chip.gaps-chip {
+  color: var(--ochre-deep);
+}
+
 button.strip-chip {
   display: inline-flex;
   align-items: center;
@@ -505,6 +528,11 @@ button.menu-item:hover {
 /* The Ledger's second row makes the bar taller; whatever hangs under it moves down by the row. */
 .game-ui:has(> .topbar.strip-row) {
   --strip-row: calc(54px * var(--ui-scale));
+}
+
+/* The Hearth's row is slimmer: one line of chips, no bars. */
+.game-ui:has(> .topbar.strip-row .hearth-strip) {
+  --strip-row: calc(32px * var(--ui-scale));
 }
 
 .game-ui:has(> .topbar.strip-row) .side {

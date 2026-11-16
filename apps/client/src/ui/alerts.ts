@@ -14,7 +14,8 @@ import {
   type LetterView,
 } from '@qoti/sim';
 import type { Mirror } from '../state/mirror';
-import { goodName, placeName, seatLabel } from './format';
+import { goodName, placeName, pluralName, seatLabel } from './format';
+import { gapAlerts } from './gaps';
 import { readHands } from './hands';
 import { readSites } from './sites';
 import { coverDays, DEMAND_BAR } from './topbar/strip';
@@ -53,6 +54,8 @@ export interface Alert {
   text: string;
   /** The full words for the hover, when the line says it in fewer. */
   title?: string;
+  /** A second, muted line under the text (a gap says what would close it). */
+  note?: string;
   action?: AlertAction;
 }
 
@@ -111,7 +114,7 @@ export function computeAlerts(
   const short = new Map<string, string[]>();
   const hands = readHands(m);
   const handsEmpty = new Set(hands.empty);
-  const idle: Alert[] = [];
+  const idle: { id: number; own: number; name: string; words: string; count: number }[] = [];
   for (const b of m.buildings.values()) {
     const bits = b.rt?.status ?? 0;
     if (b.stage !== 'built' || !(bits & IDLE_BITS)) continue;
@@ -129,15 +132,24 @@ export function computeAlerts(
     // P2-D: "nobody works here yet" is one line for the town (below), not one per building.
     const own = bits & IDLE_BITS & ~(handsEmpty.has(b.id) ? BuildingStatus.noWorkers : 0);
     if (!own) continue;
-    idle.push({
-      key: `idle-${b.id}-${own}`,
-      lens: 'ledger',
-      tone: 'quiet',
-      icon: 'status',
-      text: `${placeName(b)}: ${statusWords(own).join(', ').toLowerCase()}.`,
-      action: { kind: 'building', id: b.id },
-    });
+    const words = `${statusWords(own).join(', ').toLowerCase()}.`;
+    const name = placeName(b);
+    // Identical lines fold into one counted line ("2 Forester's lodges: no mature trees in reach.").
+    const twin = idle.find((g) => g.name === name && g.words === words);
+    if (twin) {
+      twin.count++;
+      continue;
+    }
+    idle.push({ id: b.id, own, name, words, count: 1 });
   }
+  const idleAlerts: Alert[] = idle.map((g) => ({
+    key: g.count > 1 ? `idle-${g.id}-${g.own}-x${g.count}` : `idle-${g.id}-${g.own}`,
+    lens: 'ledger',
+    tone: 'quiet',
+    icon: 'status',
+    text: `${g.count > 1 ? `${g.count} ${pluralName(g.name)}` : g.name}: ${g.words}`,
+    action: g.count > 1 ? { kind: 'panel', panel: 'businesses' } : { kind: 'building', id: g.id },
+  }));
 
   const sites = readSites(m);
   const materials = sitesMaterialsAlert(m, sites);
@@ -177,14 +189,18 @@ export function computeAlerts(
       break;
     }
   }
-  out.push(...idle.slice(0, MAX_IDLE));
-  if (idle.length > MAX_IDLE) {
+  // Gaps first (the town's own asks), the ledger's copies here and the hearth's with its news.
+  const gaps = gapAlerts(m, who);
+  out.push(...gaps.filter((a) => a.lens === 'ledger'));
+  out.push(...idleAlerts.slice(0, MAX_IDLE));
+  const hidden = idle.slice(MAX_IDLE).reduce((n, g) => n + g.count, 0);
+  if (hidden > 0) {
     out.push({
-      key: `idle-more-${idle.length}`,
+      key: `idle-more-${idle.length}-${hidden}`,
       lens: 'ledger',
       tone: 'quiet',
       icon: 'status',
-      text: `And ${idle.length - MAX_IDLE} more buildings standing about.`,
+      text: `And ${hidden} more building${hidden === 1 ? '' : 's'} standing about.`,
       action: { kind: 'panel', panel: 'businesses' },
     });
   }
@@ -207,6 +223,7 @@ export function computeAlerts(
       action: { kind: 'wish', id: w.id },
     });
   }
+  out.push(...gaps.filter((a) => a.lens === 'hearth'));
   const hints = [...m.patterns.values()].filter((p) => p.hinted && !p.discovered).map((p) => p.id);
   if (hints.length === 1) {
     const def = content.patternById.get(hints[0]!);
@@ -242,6 +259,23 @@ export function computeAlerts(
       text: l.text,
       ...(l.at ? { action: { kind: 'place' as const, x: l.at[0], z: l.at[1] } } : {}),
     });
+  }
+  return foldSame(out);
+}
+
+/**
+ * The safety net for the whole class: two lines of one lens that read the same are one line (a
+ * feed that says a thing twice reads like a bug). Counted lines are made at the source; this keeps
+ * the first.
+ */
+export function foldSame(all: readonly Alert[]): Alert[] {
+  const seen = new Set<string>();
+  const out: Alert[] = [];
+  for (const a of all) {
+    const k = `${a.lens}|${a.text}`;
+    if (seen.has(k)) continue;
+    seen.add(k);
+    out.push(a);
   }
   return out;
 }
