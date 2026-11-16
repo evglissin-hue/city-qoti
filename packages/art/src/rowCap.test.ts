@@ -20,12 +20,12 @@ describe('far level cap across the row matrix (V3X)', () => {
       for (const style of STYLES)
         for (const storeys of STOREYS)
           for (const corner of CORNERS)
-            for (const level of [1, 3])
+            for (const level of [0, 1, 2, 3])
               for (const seed of [1, 2, 3, 4, 5, 6]) {
                 const params: Record<string, string | number | boolean> = {};
                 if (style) params.style = style;
-                if (style) params.level = level;
-                else if (level === 3) continue;
+                if (style && level) params.level = level;
+                else if (!style && level) continue;
                 if (storeys) params.storeys = storeys;
                 if (corner) {
                   params.corner = corner;

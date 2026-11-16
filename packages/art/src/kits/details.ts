@@ -7,7 +7,7 @@ import { mixHex, vary, type ShapeBuilder, type V3 } from '../geometry';
 import { palette } from '../palette';
 import { beam, cylX, cylZ, panel } from '../shapes';
 import type { GardenEdge } from './district';
-import { faceBox, facePoint, faceQuad, outwardOf, type Face } from './parts';
+import { faceBox, facePoint, faceQuad, noteOpening, outwardOf, type Face } from './parts';
 import { picket, wattle } from './props';
 import { roofPart, type RoofMaterial } from './roofs';
 import { FLOWERS } from './style';
@@ -377,6 +377,7 @@ export function bayWindow(
   const half = w / 2;
   const front = half * 0.62;
   const out0 = outwardOf(f);
+  noteOpening(s, f, u - half - 0.04, y0 - 0.06, u + half + 0.04, y0 + h + 0.2);
   // V1B: the far level is the three lights as flat glass (lit at night) under the lead roof.
   if (s.low) {
     s.nearOnly(() => bayNear(s, f, u, y0, w, h, depth, frame, roof, rnd, [], o, box));
@@ -520,6 +521,7 @@ export function shopfront(
   o = 0,
   door = true,
 ): { fascia: V3; fasciaW: number } {
+  noteOpening(s, f, u0 - 0.04, 0, u1 + 0.04, h + 0.2);
   let r = { fascia: facePoint(f, (u0 + u1) / 2, h + 0.075, o + 0.062), fasciaW: u1 - u0 - 0.1 };
   s.levels(
     () => {

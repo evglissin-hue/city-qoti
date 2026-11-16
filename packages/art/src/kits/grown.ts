@@ -51,7 +51,9 @@ import {
   faceBox,
   facePoint,
   hangingSign,
+  holdFrames,
   porchPart,
+  releaseFrames,
   windowPart,
   type DoorExtras,
   type DoorKind,
@@ -251,6 +253,7 @@ function grownCottage(opts: KitBuildOptions | undefined, L: DistrictLook): Built
   const [ex] = opts?.entrance ?? [Math.floor(w / 2), d - 1];
   const { rnd, look } = L;
   const { s, anchors } = start(opts);
+  holdFrames(s);
   const doorU = ex + 0.5;
   const lean = L.leanTo;
   const row = rowOf(opts);
@@ -479,6 +482,7 @@ function grownCottage(opts: KitBuildOptions | undefined, L: DistrictLook): Built
     );
   }
   if (L.custom.sign) signBoard(s, front, doorU, 0.86, 0.46, clad, anchors);
+  releaseFrames(s);
   return { s, anchors };
 }
 
@@ -656,6 +660,7 @@ function townhouseOf(opts: KitBuildOptions | undefined): Built {
   const L = homeLook(opts, 31);
   const { rnd, look } = L;
   const { s, anchors } = start(opts);
+  holdFrames(s);
   const doorU = ex + 0.5;
   const row = rowOf(opts);
   // V3B: storeys (absent draws the native two). Whole floors carry window rows; a half storey is a
@@ -893,6 +898,7 @@ function townhouseOf(opts: KitBuildOptions | undefined): Built {
   if (L.custom.sign) signBoard(s, front, doorU, N < 2 ? 0.72 : 0.92, 0.44, clad, anchors);
   // V3B: a corner house's sills, on both of its faces.
   if (row.corner) anchors.sills = cornerSills(anchors.lights!, row.corner, row.corner === 'R' ? x1 : x0, z1);
+  releaseFrames(s);
   return { s, anchors };
 }
 
@@ -997,6 +1003,7 @@ export function shopOf(opts: KitBuildOptions | undefined): Built {
   const L = homeLook(opts, 41);
   const { rnd, look } = L;
   const { s, anchors } = start(opts);
+  holdFrames(s);
   let doorU = ex + 0.5;
   const row = rowOf(opts);
   // V3B: storeys (absent draws the native two): the ground floor is always the shopfront, the floors
@@ -1340,6 +1347,7 @@ export function shopOf(opts: KitBuildOptions | undefined): Built {
   // V3B: from the third floor up a string course marks each floor line, flush with party walls.
   for (let i = 2; i < floors; i++) stringCourse(s, row, sh.outer, 0.08 + 0.86 + (i - 1) * STOREY_H, L.trim);
   if (corner) anchors.sills = cornerSills(anchors.lights!, corner, corner === 'R' ? x1 : x0, z1);
+  releaseFrames(s);
   return { s, anchors };
 }
 

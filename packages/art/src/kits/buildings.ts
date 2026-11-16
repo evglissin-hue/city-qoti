@@ -14,8 +14,10 @@ import {
   faceBox,
   facePoint,
   foundationPart,
+  holdFrames,
   outwardOf,
   porchPart,
+  releaseFrames,
   wallsOf,
   windowPart,
   type Face,
@@ -518,6 +520,7 @@ export function cottageOf(opts: KitBuildOptions | undefined): Built {
   const [ex] = opts?.entrance ?? [Math.floor(w / 2), d - 1];
   const { shape, material, wallMat, wallColor, accent, porch, rnd, look, c } = cottageChoices(opts);
   const s = kitBuilder(opts);
+  holdFrames(s);
   const anchors: KitAnchors = { smoke: [], lights: [] };
   const row = rowOf(opts);
   const F = floorsOf('cottage', opts);
@@ -658,6 +661,7 @@ export function cottageOf(opts: KitBuildOptions | undefined): Built {
     );
   }
   if (c.sign) signBoard(s, front, doorU, 0.86, 0.46, clad, anchors);
+  releaseFrames(s);
   return { s, anchors };
 }
 
@@ -689,6 +693,7 @@ function houseOf(opts: KitBuildOptions | undefined): Built {
   const accent = c.accent ?? [palette.accentRed, palette.navy, palette.teal][Math.floor(look() * 3)]!;
   const gableFront = look() < 0.6 && !rowOf(opts).joined;
   const s = kitBuilder(opts);
+  holdFrames(s);
   const anchors: KitAnchors = { smoke: [], lights: [] };
   const row = rowOf(opts);
   const F = floorsOf('house', opts);
@@ -907,6 +912,7 @@ function houseOf(opts: KitBuildOptions | undefined): Built {
     anchors.smoke!.push(chimneyPart(s, cx, cz, sh.top - 0.1, sh.ridge + 0.1, palette.brick, row.r));
   }
   if (c.sign) signBoard(s, front, doorU, 0.78, 0.44, clad, anchors);
+  releaseFrames(s);
   return { s, anchors };
 }
 
