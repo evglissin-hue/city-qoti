@@ -112,7 +112,7 @@ describe('the rank pennant', () => {
     const pill = view.get('goal-pill');
     const done = mockCharter.goals.filter((g) => g.done).length;
     expect(pill.textContent).toContain('Village Charter');
-    expect(pill.textContent).toContain(`${done} of ${mockCharter.goals.length} goals`);
+    expect(pill.textContent).toContain(`${done}/${mockCharter.goals.length}`);
     await view.click('rank');
     expect(session.ui.panel.value).toBe('charter');
     await view.click('goal-pill');
@@ -154,27 +154,52 @@ describe('the goal pill', () => {
     ]);
     expect(nextGoal(c)?.id).toBe('b');
     expect(goalLine(c, null, 0)?.text).toBe('Village Charter: 4 of 5 wishes granted');
-    expect(goalLine(c, null, 0)?.count).toBe('0 of 3 goals');
+    expect(goalLine(c, null, 0)).toMatchObject({
+      name: 'Village Charter',
+      words: '4 of 5 wishes granted',
+      count: '0/3',
+      tone: 'charter',
+    });
   });
 
   it('says when the Charter is ready, then follows the trial, then rests', () => {
-    expect(goalLine(charter([goal('a', '1 thing', 1, 1)], 'village', true), null, 0)?.text).toBe(
-      'The Charter is ready to sign',
-    );
+    const ready = goalLine(charter([goal('a', '1 thing', 1, 1)], 'village', true), null, 0);
+    expect(ready?.text).toBe('The Charter is ready to sign');
+    expect(ready).toMatchObject({
+      name: 'Village Charter',
+      words: 'Ready to sign',
+      count: '1/1',
+      ready: true,
+    });
     const claimed = charter([], null);
     expect(goalLine(claimed, trial('upcoming'), 0)).toMatchObject({
       text: 'The First Winter: comes with the snow',
+      name: 'The First Winter',
+      words: 'comes with the snow',
+      count: '',
       opens: 'trial',
+      tone: 'trial',
     });
     expect(goalLine(claimed, trial('running'), 0)?.text).toContain('keep every home warm and fed');
+    expect(goalLine(claimed, trial('running'), 0)?.words).toMatch(/^day \d+ of \d+, keep every home/);
     // P1 (playtest item 13): once the winter is weathered the pill names the chapter and opens it.
     expect(goalLine(claimed, trial('passed'), 0)).toMatchObject({
       text: 'Village chapter complete',
+      name: 'Read it again',
+      words: 'Village chapter complete',
       opens: 'chapter',
       tone: 'rest',
     });
-    expect(goalLine(claimed, trial('failed'), 0)?.opens).toBe('trial');
+    expect(goalLine(claimed, trial('failed'), 0)).toMatchObject({
+      opens: 'trial',
+      words: 'not this time, it comes round again',
+    });
     expect(goalLine(claimed, null, 0)?.text).toBe('The County has nothing more to ask, for now');
+    expect(goalLine(claimed, null, 0)).toMatchObject({
+      name: 'The County',
+      words: 'Nothing more to ask, for now',
+      tone: 'rest',
+    });
   });
 });
 

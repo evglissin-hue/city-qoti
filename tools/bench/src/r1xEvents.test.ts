@@ -4,13 +4,13 @@ import { content } from '@qoti/content';
 import { describe, expect, it } from 'vitest';
 import { flatTown } from './residents';
 import { marketVillage } from './market';
-import { MAP_SIZE, TICKS_PER_DAY, TICKS_PER_HOUR } from '../../../packages/sim/src/constants';
+import { GROWTH_HOURS, MAP_SIZE, TICKS_PER_DAY, TICKS_PER_HOUR } from '../../../packages/sim/src/constants';
 import { Road } from '@qoti/sim';
 import { insertBuilding } from '../../../packages/sim/src/state/place';
 import { createTickCtx } from '../../../packages/sim/src/turn';
 import { pipeline } from '../../../packages/sim/src/systems';
 import { carrierDay } from '../../../packages/sim/src/systems/carrier';
-import { dayIndex } from '../../../packages/sim/src/systems/economy/time';
+import { dailyOffset, dayIndex } from '../../../packages/sim/src/systems/economy/time';
 import { BOAT_DAYS } from '../../../packages/sim/src/systems/carrier/terms';
 import { withTradingPost } from '../../../packages/sim/test/market/helpers';
 
@@ -97,7 +97,8 @@ function growthEvents(): Ev[] {
   const { world, ctx } = growthTown();
   const systems = pipeline.filter((s) => ['zoning', 'growth'].includes(s.id));
   world.tick = Math.ceil(world.tick / TICKS_PER_DAY) * TICKS_PER_DAY;
-  world.tick += pipeline.find((s) => s.id === 'growth')!.offset! - TICKS_PER_HOUR;
+  // P2: the growth system runs twice a day now (01:00 and 13:00); these are the nights' passes.
+  world.tick += dailyOffset(GROWTH_HOURS[0]) - TICKS_PER_HOUR;
   const out: Ev[] = [];
   for (let n = 0; n < 3; n++) {
     const end = world.tick + 3 * TICKS_PER_HOUR;
@@ -123,7 +124,9 @@ const EXPECT = {
     n: 44,
     kinds:
       '[["building.added",3],["business.updated",2],["demand.updated",3],["lot.updated",33],["tiles.changed",3]]',
-    sha: '4634846256528138',
+    // P2: the same 44 events; only the three demand.updated ones changed (a bar's last reason now
+    // says where it stands). The other 41 hash as they did on main (3e70e3ef6f193f69 on both).
+    sha: '4f2cb0a6bdef12cc',
   },
 };
 

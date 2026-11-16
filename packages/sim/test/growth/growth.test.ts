@@ -34,7 +34,9 @@ function grown(state: WorldState): Building[] {
   return state.buildings.filter((b) => b.lot && b.stage === 'construction');
 }
 
+/** A night's pass on a new day: the day's allowance of starts begins again (P2, state.demand.starts). */
 function night(state: WorldState): number {
+  state.demand.starts = { day: -1, n: 0 };
   return growthPass(state, createTickCtx(state));
 }
 

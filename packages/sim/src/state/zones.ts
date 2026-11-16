@@ -90,6 +90,7 @@ export function emptyDemand(): DemandState {
     bars: DEMAND_KINDS.map(() => 0),
     lit: DEMAND_KINDS.map(() => false),
     reasons: DEMAND_KINDS.map(() => []),
+    starts: { day: -1, n: 0 },
   };
 }
 

@@ -35,7 +35,7 @@ export interface RoofSpec {
   rnd: () => number;
   /** Skip the courses (low detail). */
   plain?: boolean;
-  /** Underside color (defaults to a lighter trim, so overhangs do not read as holes). */
+  /** Underside color (defaults to deep shade: shadowed timber, or a dark thatch, never pale). */
   soffit?: number;
   /** C4E: a lean-to's high side at c1 instead of c0 (for lean-tos on the low sides of a wall). */
   highAtC1?: boolean;
@@ -53,7 +53,17 @@ export const ROOF_MATERIAL_COLORS: Record<RoofMaterial, number> = {
 
 const COURSE_DEPTH: Record<RoofMaterial, number> = { tile: 0.13, slate: 0.1, thatch: 0.24, shingle: 0.09 };
 const LIP: Record<RoofMaterial, number> = { tile: 0.03, slate: 0.016, thatch: 0.035, shingle: 0.018 };
+/** The ridge cap pokes this far past the gable edge (the verge plus this stays modest). */
+const RIDGE_REACH = 0.012;
 const THICK: Record<RoofMaterial, number> = { tile: 0.06, slate: 0.05, thatch: 0.16, shingle: 0.05 };
+
+/** P2-E1: the underside of an overhang: shadowed timber or a deep shade of the thatch. */
+export function soffitOf(spec: RoofSpec): number {
+  return spec.soffit ?? (spec.material === 'thatch' ? lighten(spec.color, 0.3) : lighten(spec.trim, 0.6));
+}
+
+/** P2-E1: how far a gable roof reaches past its gable wall: the same on both slopes, and modest. */
+export const VERGE_OVERHANG = 0.05;
 
 function lighten(hex: number, k: number): number {
   const ch = (sh: number): number => Math.min(255, Math.round(((hex >> sh) & 255) * k));
@@ -164,23 +174,16 @@ function slopeNear(
   // Underside and the eave fascia.
   const down: V3 = [-n[0], -n[1], -n[2]];
   s.surface(SURFACE.timber);
-  s.quad(
-    add(bl, n, -t),
-    add(br, n, -t),
-    add(tr, n, -t),
-    add(tl, n, -t),
-    spec.soffit ?? lighten(spec.trim, 1.6),
-    down,
-  );
-  const eaveOut: V3 = [bl[0] - tl[0], 0, bl[2] - tl[2]];
-  s.quad(
-    add(bl, n, -t),
-    add(br, n, -t),
-    add(br, n, lip),
-    add(bl, n, lip),
-    m === 'thatch' ? vary(color, rnd, 1.2) : spec.trim,
-    eaveOut,
-  );
+  s.quad(add(bl, n, -t), add(br, n, -t), add(tr, n, -t), add(tl, n, -t), soffitOf(spec), down);
+  // The eave fascia only belongs to a slope that starts at the eaves. A half-hip's upper slopes and
+  // end triangles and a gambrel's upper slopes start at a break; a fascia there is a loose slab
+  // hanging below the roof (the far level skips it for the same reason). The random draw stays so
+  // the stream matches either way.
+  const fasciaHex = m === 'thatch' ? vary(color, rnd, 1.2) : spec.trim;
+  if (Math.abs(bl[1] - spec.y0) <= 1e-3) {
+    const eaveOut: V3 = [bl[0] - tl[0], 0, bl[2] - tl[2]];
+    s.quad(add(bl, n, -t), add(br, n, -t), add(br, n, lip), add(bl, n, lip), fasciaHex, eaveOut);
+  }
   s.surface(SURFACE.plain);
 }
 
@@ -208,7 +211,7 @@ function roofBody(s: ShapeBuilder, spec: RoofSpec): void {
       slope(s, spec, P(a0, y0, c1), P(a1, y0, c1), P(a1, y1, cm), P(a0, y1, cm), up(1), color);
       slope(s, spec, P(a1, y0, c0), P(a0, y0, c0), P(a0, y1, cm), P(a1, y1, cm), up(-1), color);
       verges(s, spec, P, a0, a1, c0, c1, cm, y0, y1);
-      ridge(s, spec, P(a0 - 0.02, y1, cm), P(a1 + 0.02, y1, cm));
+      ridge(s, spec, P(a0 - RIDGE_REACH, y1, cm), P(a1 + RIDGE_REACH, y1, cm));
       break;
     }
     case 'hip': {
@@ -283,7 +286,7 @@ function roofBody(s: ShapeBuilder, spec: RoofSpec): void {
         ] as const)
           board(s, spec, p0, p1, ridgeAlongX ? [da, 0, 0] : [0, 0, da]);
       }
-      ridge(s, spec, P(a0 - 0.02, y1, cm), P(a1 + 0.02, y1, cm));
+      ridge(s, spec, P(a0 - RIDGE_REACH, y1, cm), P(a1 + RIDGE_REACH, y1, cm));
       break;
     }
     case 'lean': {
@@ -304,23 +307,32 @@ function roofBody(s: ShapeBuilder, spec: RoofSpec): void {
   }
 }
 
-/** A flat verge or barge board along an edge, facing `out`. */
+/**
+ * P2-E1: the verge along a slope's gable edge a to b (eave end to top end), facing `out`: the slab's
+ * own thick edge for thatch, a barge board for tile, slate and shingle. It is cut square to the
+ * slope (not vertical), so it reads as the roof's edge, on both slopes of a gable alike. Near level
+ * only.
+ */
 function board(s: ShapeBuilder, spec: RoofSpec, a: V3, b: V3, out: V3): void {
-  // V1B: verge (barge) boards are near-only (no random draws, so the far level just skips them).
+  const thatch = spec.material === 'thatch';
+  // The draw comes before the level check, so the far level keeps the same random stream.
+  const hex = thatch ? vary(spec.color, spec.rnd, 1.4) : spec.trim;
+  // The far level draws no verge: an edge a tenth of a tile deep is under a pixel from there, and
+  // its eight triangles a gable took three kits past their far budgets.
   if (s.low) return;
-  s.surface(spec.material === 'thatch' ? SURFACE.thatch : SURFACE.timber);
-  const t = THICK[spec.material] + 0.03;
-  const lip = spec.plain ? 0.01 : LIP[spec.material] + 0.01;
-  const o: V3 = [out[0] * 0.012, 0, out[2] * 0.012];
-  const hex = spec.material === 'thatch' ? vary(spec.color, spec.rnd, 1.4) : spec.trim;
-  s.quad(
-    add(a, [0, 1, 0], lip),
-    add(b, [0, 1, 0], lip),
-    add(add(b, [0, -1, 0], t), o, 1),
-    add(add(a, [0, -1, 0], t), o, 1),
-    hex,
-    out,
-  );
+  const e: V3 = [b[0] - a[0], b[1] - a[1], b[2] - a[2]];
+  const u: V3 = [out[0], 0, out[2]];
+  let n: V3 = [e[1] * u[2] - e[2] * u[1], e[2] * u[0] - e[0] * u[2], e[0] * u[1] - e[1] * u[0]];
+  if (n[1] < 0) n = [-n[0], -n[1], -n[2]];
+  const nl = Math.sqrt(n[0] * n[0] + n[1] * n[1] + n[2] * n[2]) || 1;
+  n = [n[0] / nl, n[1] / nl, n[2] / nl];
+  // Thatch: the slab's own edge. Others: a barge board a little proud of the tiles and a little
+  // deeper than the slab.
+  const t = THICK[spec.material] + (thatch ? 0.02 : 0.03);
+  const lip = spec.plain ? 0.01 : LIP[spec.material] + (thatch ? 0 : 0.01);
+  const o: V3 = [u[0] * 0.012, 0, u[2] * 0.012];
+  s.surface(thatch ? SURFACE.thatch : SURFACE.timber);
+  s.quad(add(a, n, lip), add(b, n, lip), add(add(b, n, -t), o, 1), add(add(a, n, -t), o, 1), hex, out);
   s.surface(SURFACE.plain);
 }
 

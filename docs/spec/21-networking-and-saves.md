@@ -97,7 +97,7 @@ interface RoomStorage {
 - Until C2C builds this hand-over, a hello with a different `simVersion` is refused with `VERSION_MISMATCH` while another seat is connected; with nobody else connected, the newcomer's version becomes the active one.
 - A client whose `simVersion` differs from the room's active version, while seats with the old version are connected: the room asks an old client for a snapshot, sends `reloadRequired` to the old clients, then admits the new client from that snapshot. Nothing is lost.
 - If no one is connected, the new client loads the latest snapshot (migrating by `saveVersion`) and becomes the active version. Turns after that snapshot from an older `simVersion` cannot be replayed and are dropped (at most about 30 s of play, rarer thanks to snapshots on pause and leave). The client shows a short notice.
-- *Save versions*: 1 (I0), 2 (I1), 3 (I2), 4 (I3), 5 (P1: a town's optional `calling`, and a building's optional `custom.windowFlowers`) and 6 (R1, the fresh start: the zones-first Ledger's state; older saves are refused, below).
+- *Save versions*: 1 (I0), 2 (I1), 3 (I2), 4 (I3), 5 (P1: a town's optional `calling`, and a building's optional `custom.windowFlowers`) 6 (R1, the fresh start: the zones-first Ledger's state; older saves are refused, below) and 7 (P2, the R1 playtest: `demand.starts`, the grown sites started on a day, `{ day, n }`, for the growth pass's second run; the first migration since the fresh start adds it as `{ day: -1, n: 0 }`, with a test that a version 6 valley opens and hashes as a fresh version 7 one).
 
 ## The fresh start [R1]
 

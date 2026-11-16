@@ -106,6 +106,7 @@ function workshopBody(opts: KitBuildOptions | undefined, spec: BodySpec): Body {
   const wallColor = wall === L.wall ? L.wallColor : vary(0x8a6f58, rnd, 0.5);
   const storeys2 = level === 3;
   const sh = shell(s, {
+    lot: [w, d],
     x0,
     z0,
     x1,
