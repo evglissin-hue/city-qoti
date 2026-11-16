@@ -1,6 +1,7 @@
 // I3 view contracts (C5.0): what the worker sends the client about seasons, weather, festivals,
 // renown, commissions, the River Dock, nature, threats, the Watch, raids, trials and the guide.
 // docs/spec/20-architecture.md, "I3 contracts". Views name goods and content by id, never by index.
+import type { EditionLine } from './evenings';
 import type { EntityId, SeatId } from './ids';
 import type { RaidBand, RaidSide, SeasonIndex, WeatherKind } from './seasons';
 
@@ -69,6 +70,11 @@ export interface SeasonReportView {
   year: number;
   hearth: SeasonReportLine[];
   ledger: SeasonReportLine[];
+  /**
+   * R2 (R2D, filled by R2C in view/season/index.ts): the joint report's cross-lane lines, first in the
+   * spread, each crediting the seats it names. Absent before R2C (the spread then has no such block).
+   */
+  cross?: EditionLine[];
 }
 
 export interface FestivalPlanView {
