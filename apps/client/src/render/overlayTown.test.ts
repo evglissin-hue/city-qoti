@@ -59,7 +59,7 @@ describe('townInk', () => {
   it('reads evening streets, gaps, places, glints and routes from the Mirror', () => {
     const m = mirror();
     const flags = m.layers.flags as Uint8Array;
-    flags[7 * N + 9] |= Flags.evening;
+    flags[7 * N + 9] = flags[7 * N + 9]! | Flags.evening;
     const a = mockPlace({ id: 'seats:2', tile: 5 * N + 5, tiles: [5 * N + 6, 5 * N + 5] });
     const b = mockPlace({ id: 'seats:1', tile: 6 * N + 5, tiles: [5 * N + 6, 6 * N + 5] });
     apply(m, [
