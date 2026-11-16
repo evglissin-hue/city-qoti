@@ -1,6 +1,8 @@
 // R2 (R2.0): the places' views (docs/spec/20-architecture.md, R2 contracts): places, streets, a
 // resident's round, footfall. R2A owns this file. Panels read these through the Mirror, never the sim.
-import { content } from '@qoti/content';
+import { content, placeWords as W } from '@qoti/content';
+import { MAP_SIZE } from '../constants';
+import { decorTileX, decorTileZ } from '../conditions/geo';
 import type {
   FootfallView,
   Place,
@@ -13,9 +15,60 @@ import type {
 } from '../contracts';
 import { findById } from '../state/entities';
 import { placeState, shownName } from '../state/evenings';
+import { hourOf } from '../systems/economy/time';
 import { placeIndex } from '../systems/places';
 import { placeDraw, placeServes } from '../systems/places/api';
+import { presentAt } from '../systems/places/occupancy';
 import { streetTiles } from '../systems/places/streets';
+
+/** Tiles that hold a light or lantern, kept per tick and turn (the decor list changes rarely). */
+const lightMemo = new WeakMap<WorldState, { tick: number; turn: number; n: number; tiles: Set<number> }>();
+
+function lightTiles(state: WorldState): Set<number> {
+  const m = lightMemo.get(state);
+  if (m && m.tick === state.tick && m.turn === state.lastTurn && m.n === state.decor.length) return m.tiles;
+  const tiles = new Set<number>();
+  for (const d of state.decor) {
+    const tags = content.decorById.get(d.def)?.tags;
+    if (tags && (tags.includes('light') || tags.includes('lantern')))
+      tiles.add(decorTileZ(d) * MAP_SIZE + decorTileX(d));
+  }
+  lightMemo.set(state, { tick: state.tick, turn: state.lastTurn, n: state.decor.length, tiles });
+  return tiles;
+}
+
+/** Visitors of the last closed evening (the evening under way is the last entry from 17:00 to 21:00). */
+function lastClosedVisitors(state: WorldState, visitors: readonly number[]): number {
+  const h = hourOf(state.tick);
+  const underWay = h >= content.places.eveningHour && h < content.places.homeHour;
+  return visitors[visitors.length - (underWay ? 2 : 1)] ?? 0;
+}
+
+function fillN(template: string, n: number): string {
+  return template.replace('{n}', String(n));
+}
+
+/** What a place still wants, up to three short clauses (lower case, no final period). */
+function wantsOf(state: WorldState, place: Place, view: PlaceView): string[] {
+  const P = content.places;
+  const out: string[] = [];
+  const came = lastClosedVisitors(state, view.visitors);
+  if (view.serves.length === 0 && came >= P.unservedVisitors) out.push(fillN(W.wantStall, came));
+  const grown = place.seats - place.childSeats;
+  const slots = Math.floor(((P.homeHour - P.eveningHour) * 60) / P.stopMinutes);
+  if (grown <= 0) {
+    if (came > 0) out.push(fillN(W.wantBench, came));
+  } else if (came > grown * slots) out.push(fillN(W.wantSeats, came));
+  if (!place.sheltered && !hasLight(state, place)) out.push(W.wantLantern);
+  if (place.parts.winter < 0) out.push(W.wantBrazier);
+  return out.slice(0, 3);
+}
+
+function hasLight(state: WorldState, place: Place): boolean {
+  const lit = lightTiles(state);
+  for (const t of place.tiles) if (lit.has(t)) return true;
+  return false;
+}
 
 /** A place for the card and lists: the derived place, its saved row and the live parts. */
 export function placeView(state: WorldState, place: Place): PlaceView {
@@ -42,10 +95,10 @@ export function placeView(state: WorldState, place: Place): PlaceView {
     visitors: row ? [...row.visitors] : [],
     takings: row ? [...row.takings] : [],
     sold: row ? [...row.sold] : [],
-    // R2 stand-in (R2A): who is there now and what it still wants are R2A's to fill.
-    present: 0,
+    present: presentAt(state, place.id),
     wants: [],
   };
+  view.wants = wantsOf(state, place, view);
   if (row?.renamedBy !== undefined) view.renamedBy = row.renamedBy;
   if (place.household !== undefined) view.household = place.household;
   return view;

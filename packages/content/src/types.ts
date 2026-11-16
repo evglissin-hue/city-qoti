@@ -1463,3 +1463,36 @@ export interface StreetNamesTuning {
   /** The suffix when a family names the street and homes line it. */
   rowSuffix: string;
 }
+
+/** R2A: the phrase templates for place names and what a place still wants (content/placeWords.ts). */
+export interface PlaceWords {
+  /** "by the Underbank cottage" ({family} {home}). */
+  byFamily: string;
+  /** No family near, water within reach. */
+  byWater: string;
+  /** No family near, no water. */
+  atEdge: string;
+  /** {pattern} {piece} {building} {festival} {family} are filled by the sim. */
+  site: string;
+  seats: string;
+  host: string;
+  fire: string;
+  ice: string;
+  festival: string;
+  porch: string;
+  /** Prefixes when a name is taken ({stem}): "the other bench", "the third bench". */
+  other: string;
+  third: string;
+  /** "on Mill Lane" when a street can be read ({street}). */
+  onStreet: string;
+  /** Appended to a taken name, in order: " (the second)". */
+  ordinals: string[];
+  /** Appended past the ordinals, once per repeat. */
+  again: string;
+  /** What a place still wants; {n} is filled by the sim. */
+  wantStall: string;
+  wantBench: string;
+  wantSeats: string;
+  wantLantern: string;
+  wantBrazier: string;
+}

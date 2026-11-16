@@ -4,9 +4,18 @@
 // The client interpolates between frames. View code: floats are fine, nothing feeds back.
 // C3A: walks are smoothed (diagonals and rounded corners), walkers keep left, residents sharing a
 // tile spread round it, and idle residents face what they came to see.
-import { AGENT_STRIDE, AgentAnim, AgentFlags, MAP_SIZE, ResidentFlags, TICKS_PER_HOUR } from '../constants';
+import {
+  AGENT_STRIDE,
+  AgentAnim,
+  AgentFlags,
+  MAP_SIZE,
+  ResidentFlags,
+  RoundFlags,
+  TICKS_PER_HOUR,
+} from '../constants';
 import type { AgentPose, AgentView, Cart, Resident, WorldState } from '../contracts';
 import { tickOfDay } from '../systems/residents/time';
+import { stopNow } from '../systems/places/occupancy';
 import { isSkating } from '../systems/seasons/river';
 import { moodBand } from './hamlet';
 import { writeRaiderRows } from './season/raiders';
@@ -58,6 +67,9 @@ export function agentFrame(state: WorldState): Float32Array {
     let extra = 0;
     if (cold?.has(r.householdId)) extra |= AgentFlags.cold;
     if (frozen && r.activity.kind === 'leisure' && isSkating(state, r)) extra |= AgentFlags.skating;
+    // R2A: a resident on a stop of the round: seated on a seat, or skating on the ice.
+    const stop = r.round ? stopNow(state, r) : null;
+    if (stop?.place.startsWith('ice:')) extra |= AgentFlags.skating;
     // I3 (C5B): festival guests on the site; in the closing dance's hour, with both seats here, they dance.
     const guest = festive && atFestival(state, r);
     if (guest) extra |= AgentFlags.festival;
@@ -74,6 +86,7 @@ export function agentFrame(state: WorldState): Float32Array {
       standing.set(r.tile, crowd + 1);
     }
     writeRow(scratch, n * AGENT_STRIDE, r, S, h, crowd, night, extra);
+    if (stop && stop.flags & RoundFlags.seated) scratch[n * AGENT_STRIDE + 5] = AgentAnim.sit;
     if (guest && dancing && !r.move) scratch[n * AGENT_STRIDE + 5] = AgentAnim.dance;
     n++;
   }
