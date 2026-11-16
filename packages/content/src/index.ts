@@ -10,6 +10,7 @@ import * as Ch from './charters';
 import * as C from './chronicle';
 import * as D from './decor';
 import * as Dr from './dressing';
+import * as DrR from './dressingRules';
 import * as Co from './commissions';
 import * as Fe from './festivals';
 import * as FC from './festivalsChronicle';
@@ -92,6 +93,7 @@ export { lifePhrases } from './lives';
 export { familyNames, valleyNamePrefixes, valleyNameSuffixes } from './names';
 export { villagePhrases } from './villageText';
 export * from './types';
+export * from './dressingRules';
 
 // prettier-ignore
 export const buildings: readonly BuildingDef[] = [
@@ -688,6 +690,7 @@ export const content: Content = {
   renown,
   guide: Gu.firstDays,
   dressing: Dr.dressingSteps,
+  dressingRules: DrR.dressingRules,
   trades,
   tradeById: byId(trades),
   places: PLACES,

@@ -3,6 +3,8 @@
 // contracts, the one cycle allowed to remove) cut the chain economy's goods, methods and callings
 // and added families, trades and specialized buildings: docs/spec/20-architecture.md, R1 contracts.
 
+import type { DressingRule } from './dressingRules';
+
 /** Which lens a piece belongs to. Shared pieces show in both lens toolbars. */
 export type ContentLane = 'hearth' | 'ledger' | 'shared';
 
@@ -326,6 +328,8 @@ export interface Content {
   guide: GuideDef;
   /** P1: the ladder homes climb on their own, in order (systems/dressing). */
   dressing: readonly DressingStep[];
+  /** V3.0: the dressing layer's rules (dressingRules.ts), look data the sim never reads. */
+  dressingRules: readonly DressingRule[];
   // R1 additions (R1.0).
   /** What a business on a zoned lot can do, alphabetical by id (docs/spec/13-ledger.md, Trades). */
   trades: readonly TradeDef[];
