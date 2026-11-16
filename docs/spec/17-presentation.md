@@ -78,6 +78,7 @@ Accepted by the owner on 2026-11-10 ("how pretty it is, how cozy it is, and how 
 - **Streets that feel like a town** (the old V2): frontage without gaps on streets, rows that join, back gardens and courtyards, corner buildings, floors by tier, street furniture by district. Its sim half (`Lot.row`, garden lots, corner lots, `params.storeys`) is specified by R2.0 and built by R2F; the notes are `docs/build/i4-visual-planning-notes.md`.
 - **The ground between**: a worn path from each door to its road, cobble aprons at shop doors, puddles in the hollows for a day after rain, and autumn leaves and spring petals gathering where snow drifts already do (the ground AO's enclosure term).
 - Budget on Medium: 0.3 M triangles and 12 draws for dressing, drawn within the decor detail distance.
+- **Done (V3A, V3B, V3X)**: the dressing (52 rules plus V3X's six, 24 pieces, one draw), rows, storeys, corners, gardens and street furniture, and the ground between, as `20-architecture.md` (V3 contracts, As built) says. On `main` gardens, corners and storeys show once R2's lot fields land with R2X; until then the joined fallback draws rows as before. Weather history (puddles the morning after rain), a household's firewood and cloth, and place kinds are stand-ins on R2X's list.
 
 ### 5. The long view [V3]
 
@@ -87,6 +88,7 @@ Accepted by the owner on 2026-11-10 ("how pretty it is, how cozy it is, and how 
 - **Haze with height**: the fog the shaders already compute thins with height above the valley floor and thickens along the river at dawn and over a town of many chimneys on winter evenings.
 - **The river**: color by depth, flow along its course, foam at bridges and weirs, and the light map's reflections.
 - **Done (V3C)**: the horizon, haze with height and the river as `20-architecture.md`, V3 contracts, As built (V3C) says. The sim's rim (a ring of mountain tiles five wide, a cliff below it) is painted as the foot of the near hills rather than reshaped, since V3 changes no sim state; the Mirror has no weirs, so foam is at bridges only; the chimneys' haze counts hearths.
+- **Done (V3X)**: the sim's rim is drawn (not changed) as a slope rising a level a tile from the valley, with a gorge where the river leaves, painted from the valley's look at its foot to the hills' at the edge; the horizon's first rows paint the same woods, and its haze grows from the rim over the scene's own fog toward the sky's color. River banks follow a smooth mask (`20-architecture.md`, As built V3X). The endpaper map is done (V3D) with V3B's rows and V3C's river wired; its two inks and street names wait on R2X.
 - **The endpaper map**: from a camera distance of 200 tiles the valley cross-fades into its own inked map, complete at 240: parchment, the river lettered with the valley's name, woods as little trees, fields hatched, roads by class, roofs in rows, the names of places and streets, plans in blueprint ink and the two inks (see UI). It is drawn to one 2048 x 2048 texture on a canvas in a worker when the town changes, never per frame, and while it shows in full the 3D scene is not drawn at all.
 
 ### 6. The picture develops when you stop [V4]
