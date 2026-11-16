@@ -1,11 +1,11 @@
 // R2D: the evening street brush marks road tiles only, and Shift gives them back.
-import { Flags, MAP_SIZE, type Command } from '@qoti/sim';
+import { doorFront, Flags, MAP_SIZE, type BuildingView, type Command } from '@qoti/sim';
 import { describe, expect, it } from 'vitest';
 import { Mirror } from '../../state/mirror';
 import { mockView } from '../../ui/mocks/session';
 import type { ToolContext } from '../context';
 import type { PointerInfo } from '../tool';
-import { eveningTool } from './evening';
+import { eveningTool, waiting } from './evening';
 
 function rig() {
   const mirror = new Mirror();
@@ -87,5 +87,19 @@ describe('the evening street brush', () => {
     drag(tool, [40, 5], [44, 5]);
     expect(sent).toHaveLength(1);
     expect(toasts).toEqual(['No road here to keep for strolling.']);
+  });
+
+  it('names only the doors carts come to: a store waits, a town hall does not', () => {
+    const { mirror } = rig();
+    const view = (id: number, def: string, x: number): BuildingView =>
+      ({ ...[...mirror.buildings.values()][0]!, id, def, x, z: 60, rot: 0, stage: 'built' }) as BuildingView;
+    const store = view(9001, 'storehouse', 40);
+    const hall = view(9002, 'town-hall', 60);
+    mirror.buildings.set(store.id, store);
+    mirror.buildings.set(hall.id, hall);
+    const marked = new Set([doorFront(store), doorFront(hall)]);
+    const names = waiting({ mirror } as unknown as ToolContext, marked);
+    expect(names).toContain('Storehouse');
+    expect(names).not.toContain('Town hall');
   });
 });

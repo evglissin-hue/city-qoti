@@ -9,12 +9,18 @@ import type { Tool } from '../tool';
 type Tile = [number, number];
 
 /** Names of the workshops, sheds and stores whose door opens on a marked tile (they wait for carts). */
-function waiting(ctx: ToolContext, marked: ReadonlySet<number>): string[] {
+export function waiting(ctx: ToolContext, marked: ReadonlySet<number>): string[] {
   const names: string[] = [];
   for (const b of ctx.mirror.buildings.values()) {
     const def = content.buildingById.get(b.def);
     if (!def || def.category === 'home' || def.category === 'landmark') continue;
-    if (marked.has(doorFront(b))) names.push(def.name);
+    // Only doors carts come to: a maker that takes inputs, a store, an outlet or a site being built
+    // (the player's chair: "The Town hall will wait for its carts" named a door no cart visits).
+    const fed =
+      b.stage === 'construction' ||
+      (def.methods ?? []).some((m) => m.inputs.length > 0) ||
+      !!def.tags?.some((t) => t === 'storehouse' || t === 'outlet');
+    if (fed && marked.has(doorFront(b))) names.push(def.name);
   }
   return names;
 }
