@@ -660,6 +660,7 @@ export class Renderer implements RenderApi {
       resolutionStep: this.resolution.stepIndex,
       gpuMs: this.gpuTimer.ms,
       sampleGpuMs: null,
+      photo: this.photoOn,
       off: this.refineOff,
     };
   }
@@ -668,11 +669,12 @@ export class Renderer implements RenderApi {
    * V4: one sample of the static layers into `target` for the still-frame cache's `refine`. V4A
    * jitters it (the pixel through the camera's view offset, the sun inside its disc with a shadow
    * render, the lens about the focus, one sample in four lit from the sky); V4.0 draws it plain, and
-   * nothing calls it until V4A's `refine` does.
+   * nothing calls it until V4A's `refine` does. `camera` is the main one but for V4X's developed
+   * captures (`capture`'s `samples`, drawn from the capture camera).
    */
-  private drawSample(jitter: RefineJitter, target: WebGLRenderTarget): void {
+  private drawSample(jitter: RefineJitter, target: WebGLRenderTarget, camera = this.camera): void {
     void jitter;
-    this.scenePass(target, 'static');
+    this.scenePass(target, 'static', camera);
   }
 
   /** The lean engine's frame: a moving, still or idle scene pass, then the blur and final pass. */
@@ -780,9 +782,12 @@ export class Renderer implements RenderApi {
    * still-frame cache), or `idle` (the cache restored, then the moving layers). Layers the pass
    * does not draw are hidden for it, so three does not even walk them.
    */
-  private scenePass(target: WebGLRenderTarget, which: 'all' | 'static' | 'idle'): void {
+  private scenePass(
+    target: WebGLRenderTarget,
+    which: 'all' | 'static' | 'idle',
+    cam: PerspectiveCamera = this.camera,
+  ): void {
     if (this.env.skipScene) return;
-    const cam = this.camera;
     if (which === 'static') cam.layers.set(STATIC_LAYER);
     else if (which === 'idle') cam.layers.set(MOVING_LAYER);
     for (const r of this.roots)
@@ -965,6 +970,7 @@ export class Renderer implements RenderApi {
   readonly photo = {
     setPhoto: (on: boolean): void => {
       setFreeCamera(on);
+      this.photoOn = on;
       if (!on) {
         this.timeOfDay = null;
         this.lean.setDepthOfField(0);
@@ -986,6 +992,8 @@ export class Renderer implements RenderApi {
 
   /** C5E: extra resolution for photo mode's PNG (1 otherwise). */
   private photoBoost = 1;
+  /** V4: photo mode is on (the governor then develops to PHOTO_SAMPLES; V4A and V4B). */
+  private photoOn = false;
 
   private async savePng(): Promise<Blob> {
     const canvas = this.three.domElement;

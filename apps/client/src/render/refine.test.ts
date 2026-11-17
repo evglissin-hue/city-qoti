@@ -69,6 +69,7 @@ describe('V4.0: the refinement stubs change nothing', () => {
       resolutionStep: 0,
       gpuMs: 3,
       sampleGpuMs: 2,
+      photo: true,
       off: false,
     };
     expect(refineGoal(input)).toBe(0);

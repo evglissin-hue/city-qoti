@@ -93,6 +93,11 @@ export interface RefineGovernorInput {
   gpuMs: number | null;
   /** GPU ms of the last sample frames, or null before any (V4A measures them; null in V4.0). */
   sampleGpuMs: number | null;
+  /**
+   * Photo mode is on: the still frame develops to PHOTO_SAMPLES whatever the moving frames said (a
+   * photo is taken at rest and may wait for it), and Save PNG waits until `samples` reaches the goal.
+   */
+  photo: boolean;
   /** `?debug&refine=0`: refinement off on this build (the before for V4X's laptop tables). */
   off: boolean;
 }
@@ -101,7 +106,8 @@ export interface RefineGovernorInput {
  * How many samples this rest develops to: 0 keeps the plain still frame. V4.0's stub always says 0,
  * so nothing on screen changes. V4A: the preset's count, none when `off`, and none while moving
  * frames already run slow or a sample frame would not fit its 12 ms (22-quality.md, Rest-frame
- * refinement); Medium falls back to 0 on a laptop where the measured cost does not fit.
+ * refinement); Medium falls back to 0 on a laptop where the measured cost does not fit; PHOTO_SAMPLES
+ * in photo mode on every preset with the still-frame cache.
  */
 export function refineGoal(input: RefineGovernorInput): number {
   void input;
