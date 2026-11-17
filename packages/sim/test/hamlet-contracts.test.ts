@@ -101,7 +101,7 @@ describe('standard valley', () => {
 });
 
 describe('R1 shapes', () => {
-  it('has the sixteen goods in their fixed order', () => {
+  it('has the sixteen goods in their fixed order, then the nine masters\' goods', () => {
     expect(content.goods.map((g) => g.id)).toEqual([
       'grain',
       'vegetables',
@@ -119,6 +119,16 @@ describe('R1 shapes', () => {
       'candles',
       'honey',
       'cider',
+      // R3.0: the masters' goods, appended.
+      'pies',
+      'butter',
+      'jam',
+      'cordial',
+      'mead',
+      'coats',
+      'toys',
+      'soap',
+      'smoked-fish',
     ]);
   });
 
@@ -232,7 +242,7 @@ describe('views, frames and inspect', () => {
     const view = buildView(state);
     expect(view.residents).toHaveLength(9);
     expect(view.patterns).toHaveLength(content.patterns.length);
-    expect(view.achievements).toHaveLength(23);
+    expect(view.achievements).toHaveLength(26);
     expect(view.stocks!.lines.find((l) => l.good === 'bread')!.stock).toBe(26);
     expect(view.buildings.find((b) => b.trade === 'baker')!.rt!.input).toEqual([['grain', 4]]);
   });

@@ -146,12 +146,24 @@ const SETUPS = new Map<string, (s: WorldState) => void>([
   ],
 ]);
 
+// R3 (R3.0): the three R3 feats read counters whose stand-ins (R3.0) always give 0, so they cannot be
+// earned yet. R3A (lampSeasons, The Lamplighter's Round), R3B (mastersMade, Master of the House) and
+// R3C (pagesTogether, Made Together) replace the stand-ins and move each feat into SETUPS.
+const PENDING = new Set(['lamplighters-round', 'made-together', 'master-of-the-house']);
+
 describe('every achievement', () => {
-  it('has a setup', () => {
-    expect([...SETUPS.keys()].sort()).toEqual(content.achievements.map((a) => a.id).sort());
+  it('has a setup, or is pending on its R3 stand-in', () => {
+    expect([...SETUPS.keys(), ...PENDING].sort()).toEqual(content.achievements.map((a) => a.id).sort());
+    for (const id of PENDING) expect(SETUPS.has(id), `${id} has a setup now: take it off PENDING`).toBe(false);
   });
 
-  for (const a of content.achievements) {
+  it('does not unlock a pending feat on the stand-ins', () => {
+    const s = hamletFixture().state;
+    expect(checkAchievements(s, createTickCtx(s))).not.toEqual(expect.arrayContaining([...PENDING]));
+    for (const id of PENDING) expect(s.achievements.some((x) => x.id === id)).toBe(false);
+  });
+
+  for (const a of content.achievements.filter((x) => !PENDING.has(x.id))) {
     it(`${a.id}: unlocks once, with a plaque, a line and a notice`, () => {
       const f = hamletFixture();
       const s = f.state;
