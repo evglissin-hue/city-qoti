@@ -6,7 +6,8 @@
 //   QOTI_CHROMIUM=/opt/pw-browsers/chromium QOTI_CLIENT_PORT=5237 node apps/client/e2e/r2x-evening-shots.mjs
 // (QOTI_SAVES is the directory holding the three saves.) Optional: QOTI_ONLY=village|winter|first runs
 // one valley; the text file then holds only its shots (QOTI_TEXT overrides its name).
-// 1250 x 800, deviceScaleFactor 2, the interface kept. Saves docs/build/screenshots/r2x-*.png and
+// 1250 x 800 (QOTI_SCALE, default 1, as the earlier cycles' shots), the interface kept and the ?debug
+// overlay hidden (the script needs ?debug for window.__qoti). Saves docs/build/screenshots/r2x-*.png and
 // r2x-evening-text.md (innerText of the strip, feed, gap tags, card, inspector and edition per shot).
 import { chromium } from '@playwright/test';
 import { copyFileSync, writeFileSync } from 'node:fs';
@@ -18,6 +19,7 @@ const out = process.env.QOTI_OUT ?? 'docs/build/screenshots';
 const textFile = process.env.QOTI_TEXT ?? 'r2x-evening-text.md';
 const FIXTURE = 'apps/client/src/app/fixtures/grown.qoti';
 const N = 192;
+const scale = Number(process.env.QOTI_SCALE ?? 1);
 
 const browser = await chromium.launch({
   executablePath: process.env.QOTI_CHROMIUM ?? '/opt/pw-browsers/chromium',
@@ -27,13 +29,14 @@ const texts = [];
 
 async function openValley(file) {
   copyFileSync(`${saves}/${file}`, FIXTURE);
-  const page = await browser.newPage({ viewport: { width: 1250, height: 800 }, deviceScaleFactor: 2 });
+  const page = await browser.newPage({ viewport: { width: 1250, height: 800 }, deviceScaleFactor: scale });
   page.on('pageerror', (e) => console.log('pageerror:', e.message));
   page.on('console', (m) => {
     if (m.type() === 'error') console.log('console error:', m.text());
   });
   await page.route('**/api/**', (r) => r.abort());
   await page.goto(`http://localhost:${clientPort}/?debug&fixture=grown&quality=medium&noguide`);
+  await page.addStyleTag({ content: '.debug-overlay { display: none !important; }' });
   await page.waitForFunction(() => window.__qoti?.status() === 'live', null, { timeout: 240000 });
   await page.waitForFunction(() => window.__qoti.places().length > 0, null, { timeout: 60000 });
   for (const name of ['Done', 'Close', 'Later']) {
