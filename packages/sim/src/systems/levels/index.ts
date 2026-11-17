@@ -2,6 +2,7 @@
 // selling: a business moves up a level after three days running of steady custom, reliable inputs
 // and room to grow (and, for level 3, its keeper's 20 working days until R3's masters); it slides
 // back one level after four failing days, keeping its walls. Specialized buildings stay at 1.
+import { specializedDayEnd } from './specialized';
 import { content, type BuildingDef, type TradeDef } from '@qoti/content';
 import { BUSINESS_LEVEL_MAX, MAP_SIZE, TICKS_PER_DAY, Zone } from '../../constants';
 import type { Building, BusinessCounters, System, TickCtx, WorldState } from '../../contracts';
@@ -174,6 +175,9 @@ export const levels: System = {
     if (!isStandard(state)) return;
     for (const b of state.buildings) {
       if (b.trade && b.stage === 'built' && b.rt) dayEnd(state, ctx, b);
+      // R3.0: a specialized building with levels climbs and slides too (R3H, levels/specialized.ts).
+      else if (!b.trade && b.stage === 'built' && b.rt && content.buildingById.get(b.def)?.levels)
+        specializedDayEnd(state, ctx, b);
     }
   },
 };

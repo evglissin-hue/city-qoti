@@ -1,7 +1,7 @@
 # R3E: The bench
 
 **Iteration**: R3 Masters and the Town Book. **Wave**: parallel. **Branch**: `cycle/r3e-bench`, from `cycle/r3x-integration`; PR into `cycle/r3x-integration`. **Recommended effort**: high.
-**Depends on**: R3.0. **Runs alongside**: R3A to R3D, R3F, R3G, and V4's wave. **Ports**: client 5245, relay 8855.
+**Depends on**: R3.0. **Runs alongside**: R3A to R3D, R3F to R3H, V4's wave, and the playtest cycles P3A to P3C on `main`. **Ports**: client 5245, relay 8855.
 
 ## Goal
 
@@ -32,9 +32,10 @@ The autoplayer plays R3 the way a sensible pair would (the Hearth keeps its best
 5. **Variety**: show that the Merchants' wants (Food 5, Wares 3, Treats 3) and the Patrons' (7, 5, 5) can be met by masters, specialties and trade with no good the Ledger has to wire: a static check of which flavors can reach each family and from where (base goods, masters' goods by their families, specialties, neighbors' lists), and the most a bench town reaches by day 70 and in a year. Those tiers come in I4 and I5, so this is a content and bench reading.
 6. **Health kinds** (`view/health.ts`): a supplied piece that can never be supplied; a master's good with no shelf to sell from; a Town Book page or hint content cannot produce; the fourth gap under both rules (`gap-unmeetable`, `gap-dead-end`). Quiet on a sensible 70-day run once R3A to R3C land, or each flag explained for R3X.
 7. **The lanes test stays enforced** on every bench seed: supplies move draws, and since R2X draws move growth past 16 households, so report each seed's figure and never loosen the bar.
-8. **R2X's misses, measured** for R3X: a third of households Craftsfolk by day 70 (held on 1 of 4 seeds; day 70 is a winter), gardens behind rows (0 to 4 a seed), Treats in autoplayed towns, Village debt against the credit line; and the grown fixture: `npm run fixture:grown -w @qoti/client` lands at 108 residents under `grownFixture.test`'s floor of 130: pick a new seed or day count in `grow-fixture.mjs` (R3X regrows it on the merged wave).
-9. **The targets table and year view** gain R3's columns: lanterns lit (share, and in winter), candles and firewood drawn by places, fourth-kind gaps opened and closed, masters (first day, count, by trade), masters' goods sold, pages found by kind and seat, callings; extend `npm run targets`, never a second table.
-10. **Bench scenes** (`npm run bench`): the 17:30 settling and the walk at City scale, the masters' day, the Town Book's evening close, the thread counts; gaps, supplies, masters and the Town Book under 1 ms an hour together (`22-quality.md`); R3A to R3D's lines join through your scene list, one sorted line each.
+8. **P3A's finding**: at Village rank households with savings missed meals on 20 to 48 of 70 days while food stood on the shelves (prices against wages); P3A fixes it on `main`. Keep the audit's flag for it (add one if P3A did not: a household with savings and food in reach that goes hungry), and report it on every bench seed. **R3H's levels**: report the first climb of a specialized building by day and kind on every seed.
+9. **R2X's misses, measured** for R3X: a third of households Craftsfolk by day 70 (held on 1 of 4 seeds; day 70 is a winter), gardens behind rows (0 to 4 a seed), Treats in autoplayed towns, Village debt against the credit line; and the grown fixture: `npm run fixture:grown -w @qoti/client` lands at 108 residents under `grownFixture.test`'s floor of 130: pick a new seed or day count in `grow-fixture.mjs` (R3X regrows it on the merged wave).
+10. **The targets table and year view** gain R3's columns: lanterns lit (share, and in winter), candles and firewood drawn by places, fourth-kind gaps opened and closed, masters (first day, count, by trade), masters' goods sold, pages found by kind and seat, callings; extend `npm run targets`, never a second table.
+11. **Bench scenes** (`npm run bench`): the 17:30 settling and the walk at City scale, the masters' day, the Town Book's evening close, the thread counts, the specialized buildings' day (R3H); gaps, supplies, masters and the Town Book under 1 ms an hour together (`22-quality.md`); R3A to R3D's and R3H's lines join through your scene list, one sorted line each. Merge `main` often: P3A changes the levels and growth passes your advisors drive.
 
 ## Acceptance criteria
 

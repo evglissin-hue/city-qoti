@@ -81,7 +81,8 @@ One row per cycle. A cycle is one agent session working from one brief on one br
 | R3E The bench | R3 | parallel | `cycle-r3e-bench.md` | R3.0 | waiting: after R3.0 (high) |
 | R3F Lamplight and resting pieces | R3 | parallel | `cycle-r3f-lamplight.md` | R3.0 | waiting: after R3.0 (Opus, xhigh; R3's look, the master's ruling) |
 | R3G The storybook | R3 | parallel | `cycle-r3g-storybook.md` | R3.0 | waiting: after R3.0 (high; client only, split from R3D) |
-| R3X R3 integration and tuning | R3 | integration | `cycle-r3x-integration.md` | R3A to R3G | waiting; merges the wave on `cycle/r3x-integration`, one PR into `main` |
+| R3H Specialized buildings grow | R3 | parallel | `cycle-r3h-specialized-levels.md` | R3.0 | waiting: after R3.0 (Opus, xhigh; the master's ruling from the owner's playtest of `main`) |
+| R3X R3 integration and tuning | R3 | integration | `cycle-r3x-integration.md` | R3A to R3H | waiting; merges the wave on `cycle/r3x-integration`, one PR into `main` |
 
 Status values: waiting (dependencies not merged), ready, in progress (add the session link), PR open (add the PR link), merged.
 

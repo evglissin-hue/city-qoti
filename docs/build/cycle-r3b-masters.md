@@ -17,7 +17,7 @@ Good evenings grow masters. A young or adult resident with four hearts and 20 wo
 
 ## You own
 
-The R3B paths in the wave notes: `packages/sim/src/systems/masters/**`, `view/masters.ts`, `systems/levels/**`, `systems/residents/life.ts`, `systems/production/**`, `systems/market/**` but `round.ts`; content `masters.ts`, a new `masterDecor.ts`, the masters in `stories.ts`, `herbalist.ts` and `stonemason.ts`, the pie contest in `festivals.ts`; tests `packages/sim/test/r3b/**`.
+The R3B paths in the wave notes: `packages/sim/src/systems/masters/**`, `view/masters.ts`, `systems/levels/**` but `specialized.ts` (R3H's), `systems/residents/life.ts`, `systems/production/**`, `systems/market/**` but `round.ts`; content `masters.ts`, a new `masterDecor.ts`, the masters in `stories.ts`, `herbalist.ts` and `stonemason.ts`, the pie contest in `festivals.ts`; tests `packages/sim/test/r3b/**`.
 
 ## You can rely on
 
@@ -55,4 +55,5 @@ Supplies and the lamplighter (R3A); specialties named for masters' goods (R3C); 
 - A master's good is a flavor like any other (R1A's likes and prices), so it counts toward the Merchants' and Patrons' variety; R3E checks the families add up.
 - Choices go by days and id, never the `residents` stream.
 - Do not edit `systems/supplies/**`, `systems/townbook/**`, `systems/market/round.ts` or the client; ask in your PR.
+- P3A (on `main`, beside the wave) changes the levels pass (businesses climb after two good days) and job ranks: merge `main` before you change the levels pass, and build on its version. R3H calls `specializedDayEnd` from the same pass for specialized buildings: keep that call.
 - Runs as the build and review loop (`31-parallel-development.md`), one or two rounds of quality check, dead-end hunt and player's chair before the PR.

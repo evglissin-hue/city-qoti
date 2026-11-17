@@ -145,6 +145,34 @@ export interface BuildingDef {
   // R2 additions (R2.0). docs/spec/19-evenings.md, Places.
   /** A host on the evening round: its room and kinds (tavern, Bath House, Market Square, stall, well). */
   host?: HostDef;
+  // R3 additions (R3.0, for R3H: specialized buildings that grow with success).
+  /**
+   * The levels a specialized building may climb (`Building.level`, 1 to 3), as businesses do: a bigger
+   * building with a bigger crew, reach, store or room, never a multiplier (13-ledger.md, Levels).
+   * Absent: it stays at level 1.
+   */
+  levels?: SpecializedLevelsDef;
+}
+
+/**
+ * R3 (R3.0): what each level of a specialized building is (`BuildingDef.levels`). Each array holds one
+ * entry a level, level 1 first; a field left out keeps the building's own value at every level.
+ */
+export interface SpecializedLevelsDef {
+  /** Hands at each level (`jobs.count` at level 1). */
+  crew?: number[];
+  /** Reach in tiles at each level (the Forester's wood, the Market Stall's food reach). */
+  reach?: number[];
+  /** Storage in units at each level (the Granary, the Storehouse). */
+  storage?: number[];
+  /** Businesses it serves in its reach at each level (the Windmill's bakers). */
+  capacity?: number[];
+  /**
+   * What a good day is, toward the next level: its goods `carried` off (the Quarry, the Fishery, the
+   * Forester's Lodge), `customers` served (the Market Stall), everything it serves `served` (the Windmill:
+   * every baker in reach had grain), or `full` (a store at least half full with every porter at work).
+   */
+  good?: 'carried' | 'customers' | 'served' | 'full';
 }
 
 /**

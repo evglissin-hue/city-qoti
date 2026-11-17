@@ -103,7 +103,7 @@ describe('the stand-in comments', () => {
     { query: '?raw', import: 'default', eager: true },
   );
 
-  it('each `// R3 stand-in` names one of R3A to R3G', () => {
+  it('each `// R3 stand-in` names one of R3A to R3H', () => {
     let n = 0;
     // A test reading file text, not sim state: the order of the files does not matter.
     // eslint-disable-next-line no-restricted-properties
@@ -112,7 +112,7 @@ describe('the stand-in comments', () => {
       text.split('\n').forEach((line, i) => {
         if (!/\/\/ R3 stand-in/.test(line)) return;
         n++;
-        expect(line, `${file}:${i + 1}`).toMatch(/\/\/ R3 stand-in \(R3[A-G]\)/);
+        expect(line, `${file}:${i + 1}`).toMatch(/\/\/ R3 stand-in \(R3[A-H]\)/);
       });
     }
     expect(files.length).toBeGreaterThan(100);

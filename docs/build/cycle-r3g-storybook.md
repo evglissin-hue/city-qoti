@@ -24,7 +24,7 @@ A new `apps/client/src/ui/panels/Storybook.tsx` (one registry line), a print sty
 
 ## Tasks
 
-1. **Where it starts**: a "Print the storybook" line on a sealed chapter (the Chapter panel), opening the Storybook panel for that chapter.
+1. **Where it starts**: a "Print the storybook" line on a sealed chapter (the Chapter panel), opening the Storybook panel for that chapter; the panel is a registry line on the Books shelf (P3B's, on `main`: merge it first).
 2. **The layout**: the cover with the valley's name and the endpaper map (a still of it at print resolution through the one render API method you add); the chapter's Chronicle entries in order with their pictures (`pictureFor({ book: 'chronicle', id })`; a snapshot where one exists, else none); the Pattern Book and Town Book pages found in the chapter, each with its picture slot; the residents' portraits. Paper sizes A4 and Letter, margins for a home printer, page breaks that never split an entry from its picture; the browser's print dialog does the rest (`window.print()`, `@media print`).
 3. **The fallback**: when `pictureFor` gives null, a Chronicle entry prints its own snapshot where one exists (the panel's fallback, not a registered source), so the storybook prints the valley's own pictures before V4B lands.
 4. **e2e and shots**: a sealed Village chapter printed to PDF with `page.pdf` (the file has the cover map, at least one entry with its picture, a Town Book page slot); shots of the panel at 1250 px and of the PDF's first pages.

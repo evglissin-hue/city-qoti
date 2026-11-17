@@ -49,5 +49,6 @@ The rules behind the lamps, the walk, the candles and the rests (R3A); the panel
 
 - Read the light map's code before you design: V2A built it to redraw only when a light changes; a walk of 40 lamps over half an hour is 40 small changes, and batching by tick is the whole budget.
 - Prefer kit params to new geometry (an unlit lantern is the lit one with its flame part off and its glass dark); keep every new part opaque and instanced.
+- P3C (on `main`, beside the wave) patches `render/lighting.ts` for the night and adds small surface lines in kits you own: merge `main` first and start from P3C's `lighting.ts`. R3H shares `render/layers/buildings.ts` (the kit selection by a specialized building's level): your lines there are the candle windows.
 - From V2X and V3X: read every look in place from the default camera, by day, at golden hour and by lamplight; the screenshots are the evidence.
 - Runs as the build and review loop (`31-parallel-development.md`): one or two rounds of quality check and the player's chair (play an evening from 17:00 to 19:00 watching one street) before the PR.

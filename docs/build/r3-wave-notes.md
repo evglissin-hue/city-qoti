@@ -5,12 +5,12 @@ Read this with your brief. R3.0 fixed the types and shapes (`docs/spec/20-archit
 ## How the wave works
 
 - **Branches.** `cycle/r3x-integration` was cut at `main` (418fbdb) by the master, and R3.0 lands on it through its PR. Every wave cycle branches from `cycle/r3x-integration` after that merge and opens its PR into it, never into `main`. R3X merges the wave there, tunes, and opens the one PR into `main`. V4 merges into `main` as it goes; R3X merges `main` in before its PR.
-- **The cycles**: R3A supplies and the lamplighter (xhigh), R3B masters (xhigh), R3C the Town Book and earned callings (high), R3D Follow the thread and R3's interface (xhigh), R3E the bench (high), R3F lamplight and resting pieces (Opus, xhigh), R3G the storybook (high, client only), then R3X (high).
+- **The cycles**: R3A supplies and the lamplighter (xhigh), R3B masters (xhigh), R3C the Town Book and earned callings (high), R3D Follow the thread and R3's interface (xhigh), R3E the bench (high), R3F lamplight and resting pieces (Opus, xhigh), R3G the storybook (high, client only), R3H specialized buildings grow (Opus, xhigh), then R3X (high).
 - **Contracts are additive** (`31-parallel-development.md`, Contracts policy): new optional fields, new union members, new types, each new command or event in its own commit. R3 renames and removes nothing.
 - **Saves are at version 9** (R3.0, `state/migrate9.ts`, frozen: it reads no system code and keeps its own small tables). A change to the shape of saved state in the wave adds an optional field, absent until used, rather than bumping the version; if a cycle must change a saved shape, it bumps to 10 with a migration and a test and says so in its PR. R3X keeps one version for the merge.
-- **Mark your stand-ins.** R3.0 marked each in code with `// R3 stand-in (R3x): ...`, naming the cycle that replaces it. When you replace one, delete the comment. R3X's first step is `grep -rn "R3 stand-in" packages apps tools --exclude-dir=dist --exclude-dir=node_modules`: anything left is a cycle's unfinished work. A test (`test/r3-0/standins.test.ts`) holds that every marker names one of R3A to R3G.
+- **Mark your stand-ins.** R3.0 marked each in code with `// R3 stand-in (R3x): ...`, naming the cycle that replaces it. When you replace one, delete the comment. R3X's first step is `grep -rn "R3 stand-in" packages apps tools --exclude-dir=dist --exclude-dir=node_modules`: anything left is a cycle's unfinished work. A test (`test/r3-0/standins.test.ts`) holds that every marker names one of R3A to R3H.
 - **Numbers live in content.** Every number of `19-evenings.md` for R3 is in `content.supplies` (`SUPPLIES`, `content/supplies.ts`), `content.mastery` (`MASTERY`) and `content.masters` (`content/masters.ts`), `content.townBook` (`TOWN_BOOK`), `content.specialties`, `content.customs` (`content/townBook.ts`) and `content.callings` (`content/callings.ts`), never a literal in a system. A cycle that needs a new number adds an optional field to the tuning type (additive) and its value in its own file.
-- **Ports** (dev server and relay): R3A 5241 and 8851, R3B 5242 and 8852, R3C 5243 and 8853, R3D 5244 and 8854, R3E 5245 and 8855, R3F 5246 and 8856, R3G 5248 and 8858, R3X 5247 and 8857 (R3.0 had 5240 and 8840). V4's cycles may take the same numbers in their own containers; on one machine, V4 moves.
+- **Ports** (dev server and relay): R3A 5241 and 8851, R3B 5242 and 8852, R3C 5243 and 8853, R3D 5244 and 8854, R3E 5245 and 8855, R3F 5246 and 8856, R3G 5248 and 8858, R3H 5249 and 8859, R3X 5247 and 8857 (R3.0 had 5240 and 8840). V4's cycles may take the same numbers in their own containers; on one machine, V4 moves.
 
 ## Starting after R2X
 
@@ -51,6 +51,7 @@ R2X is merged into `main` (#56, with V3X #55), so the wave starts on it. What it
 - **A Hamlet's free lanterns** do not count for the Lamplighter's Round; it counts lanterns lit from Village rank.
 - **Town, Market Town and City Charters, Merchants and Patrons** arrive in I4 and I5: R3 adds counts and checks only (`masters`, `townBookPages`, `callings` CountWhats), and R3E checks that the Merchants' and Patrons' variety wants can be met.
 - **Callings**: a town may earn several, saved as an ordered list (`TownBookState.callings`); `WorldState.calling` comes back (additive, absent until earned) and mirrors the first earned. The style lean waits for I4's districts. P1's other effects, kept where they still make sense zones first (R3C builds them): Garden Village's day visitors (P1's numbers, `TOWN_BOOK.visitors`); Pilgrims' Rest's festival draw (a fifth more guests, one more renown at 2 stars) and its light on lit lanterns (+1, through `callingLanternCharm`, wired into charm); Mill Town's room for one more workshop in the reach of each mill (the Windmill and the Sawmill, `CallingDef.room`, through `callingRoom`, wired into `capacityOf`) in place of P1's yield line; each signature piece unlocked when earned. Dropped: the yield line (no calling is a percentage), the style weights (kept in content, unread until I4).
+- **Specialized buildings grow** (the master's ruling of 2026-11-17, from the owner's playtest of `main`): the buildings a player sites climb with success as businesses do, as their own cycle on Opus at xhigh (it crosses content, sim and art). The master named it R3G; R3G was already the storybook (the split of R3D he ruled earlier), so it is **R3H**. Its contract is in R3.0 (`BuildingDef.levels`, `SpecializedLevelsDef`: crew, reach, storage and capacity by level, and what a good day is); nothing new is saved, since `Building.level` and `Building.counters` are saved and hashed on every building, and the migration carries them as they are.
 - **Per-outlet evening customers** for "a shop nobody passes": R3.0's call is a small counter of its own, `Building.roundSales` (`{ day, customers }`, one a sale, written by `recordSale` for stops and passing trade alike), not R3D's door-pair counts, which decay over days and do not tell evening from day. R3X retunes the rule on it.
 
 ### R3.0's own calls
@@ -66,6 +67,14 @@ R2X is merged into `main` (#56, with V3X #55), so the wave starts on it. What it
 - **The tavern as a supply**: a tavern's pouring stock (its input of a Treat) counts as its shelf for the round, `sellsTreats`, `treatsOnShelf` and the cafe and festival tables in reach. R3A changes `systems/market/round.ts` for it (the one place those two live).
 - **Callings' content** is P1's three, ids unchanged, with a `leaning` and rewritten effect lines; no command picks one, and `calling.choose` stays removed.
 - **The picture seam** (for V4B): `apps/client/src/ui/pictures.ts`, created by R3.0: `PictureRef` (`{ book: 'townBook' | 'patternBook' | 'chronicle'; id }`), `pictureFor(ref)` (a URL or null, never throws) and `setPictureSource(fn)`. Slots are landscape 4:3: a book page 240 x 180 CSS px; in the printed storybook a Chronicle entry's picture at half the text width (80 x 60 mm), a book page's 60 x 45 mm; a source returns at least 1600 x 1200 px. V4B registers its source from its own module; whichever of R3X and V4X lands second makes that one call. The shape is fixed; nobody edits the file but for a bug.
+
+## Beside the wave: the playtest cycles P3A to P3C
+
+The owner's playtest of `main` (2026-11-17) runs three cycles from `main` beside this wave; they land in `main` before the wave ends, so R3X merges `main` into `cycle/r3x-integration`, and a wave cycle that meets their work merges `main` too.
+
+- **P3A, hands and food**: job ranks so food jobs fill first, homes before farms in the night's growth pass, basic buildings about 40% cheaper and quicker, businesses climbing after two good days (in `systems/{levels,residents}` and the growth pass; no saved shape, no contract). It found that at Village rank households with savings miss meals on 20 to 48 of 70 days while food stands on the shelves (prices against wages): P3A fixes it on `main`; R3E keeps the audit's flag for it, R3X keeps it clean after R3's tuning. R3B and R3H build on P3A's levels pass (two good days, not three, if P3A has landed).
+- **P3B, the interface's layout**: a grouped bottom bar and one Books shelf (`ui/{Toolbar,TopBar,GameUI,Minimap,Picker}.tsx`, `ui/toolGroups.ts`). R3D adds the Town Book and R3G the storybook as registry lines on P3B's shelf, not as buttons of their own.
+- **P3C, the look in rain and haze**: render and art paths, with small surface lines in kits R3F owns and a night patch in `render/lighting.ts`. R3F starts from P3C's `lighting.ts` (merge `main` first).
 
 ## Lessons carried over (read first)
 
@@ -93,7 +102,7 @@ Each path has one owner in the wave. Outside your paths: small, necessary edits 
 ### R3B, masters
 
 - `packages/sim/src/systems/masters/**` (`api.ts` bodies: `canReachLevel3`, `masterRoom`, `masterMakes`; the system: working days, becoming one, apprentices, losing one; `Building.masterId` kept in step), `view/masters.ts` (`residentMastery`, `buildingMastery`, `businessMastery`).
-- `systems/levels/**` (level 3 with a master on the crew; `levelKept`; the six days' grace and the slide), `systems/residents/life.ts` (apprenticeships under a master), `systems/production/**` (the master's recipe, made in the same building while a master is on the crew), `systems/market/**` except `round.ts` (a master's good joins `SHELF_GOODS`, the baskets and variety once made: R3A's and R3C's hooks there stay as wired).
+- `systems/levels/**` but `specialized.ts` (level 3 with a master on the crew; `levelKept`; the six days' grace and the slide), `systems/residents/life.ts` (apprenticeships under a master), `systems/production/**` (the master's recipe, made in the same building while a master is on the crew), `systems/market/**` except `round.ts` (a master's good joins `SHELF_GOODS`, the baskets and variety once made: R3A's and R3C's hooks there stay as wired).
 - Content: `masters.ts` (numbers, recipes, unlocks), the carved stone and ornamental trees as locked Hearth pieces in a new `masterDecor.ts` (each unlocked by its master; looks from existing kits until R3F gives them their own), the story characters' masteries in `stories.ts`, `herbalist.ts` and `stonemason.ts`, the pie contest in `festivals.ts` (its seasons and its goal on pies).
 - Tests: new `packages/sim/test/r3b/**`.
 
@@ -127,6 +136,13 @@ Each path has one owner in the wave. Outside your paths: small, necessary edits 
 - New `apps/client/src/ui/panels/Storybook.tsx` (one registry line), a print stylesheet `ui/storybook.css`, "Print the storybook" where a chapter closes (the Chapter panel's one line), the endpaper still for print (one method appended to `render/api.ts` and implemented in `render/endpaper.ts`, which neither V4 nor R3F claims), e2e `apps/client/e2e/r3g-*.spec.ts` (`page.pdf`), shots `docs/build/screenshots/r3g-*`.
 - It reads views through the Mirror (Chronicle entries and snapshots, the Pattern Book, `TownBookView`, residents' portraits) and pictures through `ui/pictures.ts`.
 
+### R3H, specialized buildings grow
+
+- `packages/sim/src/systems/levels/specialized.ts` (`specializedDayEnd`: the good day its def names, three days up, four down; the levels pass calls it for every built specialized building with `levels`), and the readers of a level, each its own small edit: `jobsOf` in `state/zones.ts` (`def.levels.crew[level - 1]` for a building with no trade), storage in `systems/logistics/stores.ts`, reach in `rules/reach` (or wherever a specialized building's reach is read), capacity in `systems/specialized/api.ts` (`capacityOf`: the level's capacity before R3B's `masterRoom` and R3C's `callingRoom` are added).
+- Content: `levels` on the specialized defs (`buildings.ts`, `villageBuildings.ts`), from P3A's table in the brief.
+- The look of a level on the specialized and services kits (`packages/art/src/kits/{specialized,services,workplaces}.ts`) and their lines in `render/layers/buildings.ts` (R3F has the candle windows' lines in that file: keep to the kit selection by level), the inspector line saying what the next level needs and how far along it is (`view/inspect.ts`, the building detail's level line), the feed line on a climb, and the audit's check that every level can be reached and nothing slides forever (one kind in `view/health.ts`, coordinated with R3E, and a static content test).
+- Tests: new `packages/sim/test/r3h/**`.
+
 ### Shared, by turn
 
 - `packages/sim/src/index.ts` (exports), `systems/index.ts`, `commands/index.ts`, `content/src/index.ts`, `apps/client/src/ui/panels/index.ts`: one sorted line each.
@@ -154,6 +170,7 @@ Each path has one owner in the wave. Outside your paths: small, necessary edits 
 | The Town Book's close | `systems/townbook/index.ts` | no counts closed, no page found | R3C |
 | Callings' effects | `systems/callings/{api,index}.ts` (`callingRoom`, `callingLanternCharm` 0; no visitors) | none | R3C |
 | The thread counts | `systems/threads/{api,index}.ts` (`recordThread` nothing; no halving) | none | R3D |
+| A specialized building's day | `systems/levels/specialized.ts` (`specializedDayEnd`) | no level; no def has `levels` | R3H |
 | The Thread | `view/threads.ts` (`threadView`) | "Nobody has followed this thread yet." | R3D |
 | The feats' setups | `packages/sim/test/hearth/achievements.test.ts` (`PENDING`) | The Lamplighter's Round, Master of the House and Made Together are left out of "every achievement has a setup and unlocks once" | R3A, R3B, R3C |
 
@@ -210,6 +227,7 @@ Not stand-ins (real from R3.0): the contracts and their helpers (`state/masters.
 | `callingRoom(state, specialized)`, `callingLanternCharm(state)` | `systems/callings/api.ts` | R3C | `capacityOf`, charm |
 | `hasCalling`, `callingsCount` | same | R3C (real) | conditions, R3C's effects |
 | `recordThread(state, from, to, good, qty)` | `systems/threads/api.ts` | R3D | logistics `deliver`, market `purchase`, `sellTreat`, `residents/shopping.ts` |
+| `specializedDayEnd(state, ctx, b)` | `systems/levels/specialized.ts` | R3H | the levels pass (23:30), for a built specialized building with `BuildingDef.levels` |
 | `threadView(state, subject)` | `view/threads.ts` | R3D | the client (a worker request R3D adds) |
 | `suppliesView`, `placeSupplies`, `placeResting`, `buildingSupplies` | `view/supplies.ts` | R3A | the snapshot, `placeView`, `buildingDetail` |
 | `townBookView` | `view/townBook.ts` | R3C (real) | the snapshot, `townBook.updated` |
@@ -234,7 +252,7 @@ Not stand-ins (real from R3.0): the contracts and their helpers (`state/masters.
 | 21:03 | gaps (79) | R2's three rules, then the fourth gap (`keepSupplyGaps`, R3A) |
 | 21:20 | townbook (81) | the evening's counts close (customers by good, evenings at 10+, visitors by day of the season), pages found, credit, renown, hints, callings (R3C) |
 | 21:30 | baskets (67) | the doorstep errand (R2B; its purchases record threads) |
-| 23:30 | levels (69) | level 3 through `canReachLevel3`; the grace and the slide (R3B) |
+| 23:30 | levels (69) | level 3 through `canReachLevel3`; the grace and the slide (R3B); a specialized building's day (`specializedDayEnd`, R3H) |
 | 23:45 | masters (87) | working days by trade, new masters (one a trade a season), apprentices, losses (R3B) |
 
 ### Events
