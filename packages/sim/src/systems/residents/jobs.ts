@@ -147,6 +147,11 @@ function makes(m: ProductionMethod | null, short: Shortages): 'short' | 'food' |
   return m.kind === 'farm' || m.outputs.some(([g]) => FOOD.has(g)) ? 'food' : 'other';
 }
 
+/** P3A: true when the method grows or makes Food. */
+function growsFood(m: ProductionMethod | null): boolean {
+  return !!m && (m.kind === 'farm' || m.outputs.some(([g]) => FOOD.has(g)));
+}
+
 /**
  * How much the k-th job at a building matters, lower first: 0 the first builder, the first porter
  * of each storehouse and anything making what the town is short of (food, or timber and stone the
@@ -180,7 +185,11 @@ export function slotPriority(
   // of everything (never poached from, see rebalanceJobs: only a first-hand hire goes this high).
   if (short.stoneRush && k === 0 && !!method?.outputs.some(([g]) => g === 'stone')) return -1;
   const kind = makes(method, short);
-  if (kind === 'short') return 0;
+  // P3A: a shortage puts every hand of a food workplace first, but only the first hand of one that
+  // makes some other short good (timber or stone for the sites): with a handful of hands and both
+  // short, a lodge and a quarry took every hand at the same rank as the first porter and the fishers,
+  // nobody carried, and food sat in the fishery's baskets while homes went hungry (the newcomer runs).
+  if (kind === 'short') return k === 0 || (short.food && growsFood(method)) ? 0 : 1;
   // C5A: food work, with the larder short of the winter in autumn: ahead of other workplaces, never
   // ahead of the first two builders and porters (or nothing reaches the shelves).
   if (kind === 'food' && short.winter) return 1;

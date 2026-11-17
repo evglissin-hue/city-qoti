@@ -36,7 +36,7 @@ import {
 } from '../../constants';
 import type { Building, DemandReason, Lot, System, TickCtx, WorldState } from '../../contracts';
 import { findById } from '../../state/entities';
-import { familyIndex, jobsOf } from '../../state/zones';
+import { familyIndex, jobsOf, methodOf } from '../../state/zones';
 import { isStandard } from '../../state/hamlet';
 import { hasInnovation, rankAtLeast } from '../../state/village';
 import { addStock, keepsNoGoods, townStock } from '../../view/hamlet';
@@ -199,6 +199,8 @@ interface Census {
   outlets: number;
   /** Vacant homes and homes going up (vacantHomes, plus housing under construction). */
   homesWaiting: number;
+  /** P3A: open job slots at built workplaces that grow or make Food. */
+  foodOpen: number;
 }
 
 /**
@@ -229,6 +231,7 @@ function census(state: WorldState, known?: Defs, stock?: number[]): Census {
   let handsWaiting = 0;
   let outlets = 0;
   let homesWaiting = 0;
+  let foodOpen = 0;
   for (let i = 0; i < buildings.length; i++) {
     const b = buildings[i]!;
     const def = defs ? defs[i] : content.buildingById.get(b.def);
@@ -239,6 +242,7 @@ function census(state: WorldState, known?: Defs, stock?: number[]): Census {
       const o = Math.max(0, (b.trade ? jobsOf(b) : (def?.jobs?.count ?? 0)) - rt.workers.length);
       open += o;
       if (o > 0 && b.trade && rt.workers.length === 0) handsWaiting++;
+      if (o > 0 && growsFood(b)) foodOpen += o;
     }
     if (!def) continue;
     if (def.tags?.includes('outlet')) outlets++;
@@ -248,7 +252,16 @@ function census(state: WorldState, known?: Defs, stock?: number[]): Census {
       if (livingIn(b.id) < housing.households) homesWaiting++;
     } else if (b.stage === 'construction') homesWaiting++;
   }
-  return { open, handsWaiting, outlets, homesWaiting };
+  return { open, handsWaiting, outlets, homesWaiting, foodOpen };
+}
+
+/** P3A: true when the building's method grows or makes Food. */
+function growsFood(b: Building): boolean {
+  const m = methodOf(b);
+  if (!m) return false;
+  if (m.kind === 'farm') return true;
+  for (const [g] of m.outputs) if (content.goodById.get(g)?.family === 'food') return true;
+  return false;
 }
 
 /**
@@ -304,6 +317,8 @@ interface Night {
   homesHeld: number;
   /** R1X: HANDS_WAITING or more businesses stand with nobody at work: no new business tonight. */
   handsShort: boolean;
+  /** P3A: food jobs stand open tonight, so homes (the hands) start before more farms. */
+  foodOpen: number;
   /** Trades with a business going up, and businesses of each trade in town. */
   goingUp: Set<string>;
   counts: Map<string, number>;
@@ -439,6 +454,7 @@ function readNight(state: WorldState): Night {
     homes: 0,
     homesHeld: 0,
     handsShort: seen.handsWaiting >= HANDS_WAITING,
+    foodOpen: seen.foodOpen,
     goingUp: new Set(),
     counts: new Map(),
     outlets,
@@ -831,9 +847,13 @@ function startSites(
   const demand = demandOf(state, night);
   const free = freeMaterials(state, night.needs.stock);
   let started = 0;
+  // P3A: farms first, as food matters most, unless food jobs already stand open: then the homes
+  // that bring the hands come first. A newcomer's town grew farm after farm on its Farmland while
+  // its homes waited behind them ("sitesBusy") and the farms stood with nobody at work.
+  const farms: [zones: readonly number[], n: number] = [[Zone.farms], demand.farms];
+  const homes: [zones: readonly number[], n: number] = [HOME_ZONES, demand.homes];
   const wants: [zones: readonly number[], n: number][] = [
-    [[Zone.farms], demand.farms],
-    [HOME_ZONES, demand.homes],
+    ...(night.foodOpen > 0 ? [homes, farms] : [farms, homes]),
     [[Zone.shops], demand.shops],
     [[Zone.crafts], demand.crafts],
   ];
