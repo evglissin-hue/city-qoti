@@ -63,6 +63,9 @@ export interface Alert {
   action?: AlertAction;
 }
 
+/** Lines the feed shows before "and N more" (the panel reads it; tests hold the order to it). */
+export const FEED_SHOWN = 5;
+
 /** Days of food in store below which the Ledger hears about it. */
 const FOOD_DAYS_WARN = 2;
 const MAX_IDLE = 4;
@@ -193,12 +196,14 @@ export function computeAlerts(
       break;
     }
   }
-  // Gaps first (the town's own asks), the ledger's copies here and the hearth's with its news.
+  // Gaps first (the town's own asks), in both lenses. R2X: the Hearth's came after the partner's
+  // letters, plans and the wishes, so a busy morning pushed "Closed by" (what the other lane did
+  // for this one) past the lines the feed shows.
   const gaps = gapAlerts(m, who);
   // R2D: the evening edition as a feed line, for a player who chose it over the card.
   const edition = editionFeedAlerts(m, loadSettings().editionInFeed);
-  out.push(...edition.filter((a) => a.lens === 'ledger'));
-  out.push(...gaps.filter((a) => a.lens === 'ledger'));
+  out.push(...edition);
+  out.push(...gaps);
   out.push(...idleAlerts.slice(0, MAX_IDLE));
   const hidden = idle.slice(MAX_IDLE).reduce((n, g) => n + g.count, 0);
   if (hidden > 0) {
@@ -230,8 +235,6 @@ export function computeAlerts(
       action: { kind: 'wish', id: g.ids[0]! },
     });
   }
-  out.push(...edition.filter((a) => a.lens === 'hearth'));
-  out.push(...gaps.filter((a) => a.lens === 'hearth'));
   const hints = [...m.patterns.values()].filter((p) => p.hinted && !p.discovered).map((p) => p.id);
   if (hints.length === 1) {
     const def = content.patternById.get(hints[0]!);
@@ -357,23 +360,25 @@ function villageAlerts(m: Mirror, who: AlertContext): Alert[] {
     }
   }
 
-  // Story letters that came this visit and are still sealed, one line per correspondent.
+  // Story letters that came this visit and are still sealed, one line per correspondent. R2X: by
+  // sender, not by story: Pippa Quill's two stories read "Two letters from Pippa Quill." and "A
+  // letter from Pippa Quill." side by side. The line opens the newest.
   const sealed = new Map<string, LetterView[]>();
   for (const l of m.letters.value) {
     if (who.lettersRead?.has(letterKey(l)) || now - l.tick > 2 * TICKS_PER_DAY) continue;
-    sealed.set(l.arc, [...(sealed.get(l.arc) ?? []), l]);
+    sealed.set(l.from, [...(sealed.get(l.from) ?? []), l]);
   }
-  for (const [arc, list] of sealed) {
-    const newest = list[list.length - 1]!;
+  for (const [from, list] of sealed) {
+    const newest = list.reduce((a, b) => (b.tick >= a.tick ? b : a));
     const count =
       list.length === 1 ? 'A letter' : list.length === 2 ? 'Two letters' : `${list.length} letters`;
     out.push(
       ...both({
-        key: `story-${arc}-${list.length}`,
+        key: `story-${from.toLowerCase().replace(/[^a-z]+/g, '-')}-${list.length}`,
         tone: 'news',
         icon: 'letter',
-        text: `${count} from ${newest.from}.`,
-        action: { kind: 'letter', arc, step: newest.step },
+        text: `${count} from ${from}.`,
+        action: { kind: 'letter', arc: newest.arc, step: newest.step },
       }),
     );
   }
