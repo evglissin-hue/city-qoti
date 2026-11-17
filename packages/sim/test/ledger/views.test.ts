@@ -5,7 +5,7 @@ import { buildingView, runtimeView, stocksView, workforceView } from '../../src/
 import { inspect } from '../../src/view/inspect';
 import { hamletFixture } from '../fixtures/hamlet';
 import { run } from '../helpers';
-import { building, everyoneToWork, good, ticks, toWork, untilHour } from './helpers';
+import { building, costOf, everyoneToWork, good, ticks, toWork, untilHour } from './helpers';
 
 const detail = (f: ReturnType<typeof hamletFixture>, id: number) =>
   inspect(f.state, 'building', id) as BuildingDetail;
@@ -42,8 +42,11 @@ describe('building views', () => {
     const site = f.state.buildings[f.state.buildings.length - 1]!;
     ticks(f.state, TICKS_PER_HOUR);
     const d = detail(f, site.id);
+    const cost = costOf('cottage');
     expect(site.rt!.status & BuildingStatus.noPorters).toBeFalsy();
-    expect(d.status).toContain('Waiting for 16 timber and 6 stone; the carrier brings some at ten');
+    expect(d.status).toContain(
+      `Waiting for ${cost.goods('timber')} timber and ${cost.goods('stone')} stone; the carrier brings some at ten`,
+    );
     expect(d.status).toContain(
       'Far from every storehouse: porters make the long walk, so deliveries come slowly',
     );

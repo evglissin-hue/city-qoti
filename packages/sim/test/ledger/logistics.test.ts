@@ -15,7 +15,7 @@ import {
 } from '../../src/systems/logistics/range';
 import { nearestOutletWithFood, outletFood, takeFromOutlet } from '../../src/systems/economy/outlets';
 import { hamletFixture } from '../fixtures/hamlet';
-import { run } from '../helpers';
+import { rejection, run } from '../helpers';
 import {
   building,
   everyoneToWork,
@@ -96,16 +96,25 @@ describe('porter matching', () => {
 
   it('serves raised construction before everything else', () => {
     const f = withoutStall();
-    run(f.state, { t: 'build.place', def: 'well', x: 47, z: 52, rot: 0 });
-    const well = f.state.buildings[f.state.buildings.length - 1]!;
-    run(f.state, { t: 'build.setPriority', id: well.id, priority: true });
+    // A well's stone is one porter load now, so raise two sites to have two trips to serve.
+    const wells = [
+      [47, 52],
+      [44, 52],
+    ].map(([x, z]) => {
+      expect(
+        rejection(run(f.state, { t: 'build.place', def: 'well', x: x!, z: z!, rot: 0 })),
+      ).toBeUndefined();
+      const well = f.state.buildings[f.state.buildings.length - 1]!;
+      run(f.state, { t: 'build.setPriority', id: well.id, priority: true });
+      return well;
+    });
     untilHour(f.state, 8);
     everyoneToWork(f.state);
     ticks(f.state, 5);
-    expect(f.state.logistics.jobs.map((j) => [j.to, j.priority])).toEqual([
-      [well.id, JobClass.prioritySite],
-      [well.id, JobClass.prioritySite],
-    ]);
+    const jobs = f.state.logistics.jobs;
+    expect(jobs.length).toBeGreaterThanOrEqual(2);
+    expect(jobs.every((j) => j.priority === JobClass.prioritySite)).toBe(true);
+    expect(new Set(jobs.map((j) => j.to))).toEqual(new Set(wells.map((w) => w.id)));
   });
 
   it('clears full output buffers into the store (bread to the granary)', () => {
