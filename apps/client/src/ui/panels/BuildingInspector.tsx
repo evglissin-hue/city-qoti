@@ -393,7 +393,12 @@ function VillageDetail({ session, detail }: { session: Session; detail: Building
   const zone = lot ? content.zoneById.get(lot.zone) : undefined;
   const style = b.style || lot?.style;
   // A home reads like its first resident does: the days toward the next tier and what is missing.
-  const first = detail.tier ? detail.household?.members[0]?.id : undefined;
+  // P3A: a Settler home's runtime keeps no tier until its household first moves up, so its tier and
+  // road are read from the household in the Mirror (the player's chair: no Settler home said either).
+  const home = !!content.buildingById.get(b.def)?.housing;
+  const hh = detail.household ? session.mirror.households.get(detail.household.id) : undefined;
+  const tier = detail.tier ?? (home ? hh?.tier : undefined);
+  const first = tier ? detail.household?.members[0]?.id : undefined;
   const homeDetail = useInspect<ResidentDetail>(
     (k, i) => session.inspect(k, i),
     'resident',
@@ -423,9 +428,9 @@ function VillageDetail({ session, detail }: { session: Session; detail: Building
           </span>
         </p>
       )}
-      {detail.tier && (
+      {tier && (
         <p class="small" data-testid="building-tier">
-          A {TIER_WORD[detail.tier]?.toLowerCase() ?? detail.tier} home.
+          A {TIER_WORD[tier]?.toLowerCase() ?? tier} home.
         </p>
       )}
       {homeLine && (
