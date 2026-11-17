@@ -1,5 +1,5 @@
-import { content } from '@qoti/content';
 // @vitest-environment happy-dom
+import { content } from '@qoti/content';
 import { h } from 'preact';
 import { afterEach, describe, expect, it } from 'vitest';
 import type { Session } from '../app/session';
