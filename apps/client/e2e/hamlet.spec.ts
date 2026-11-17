@@ -25,7 +25,7 @@ test('New valley makes a standard valley; the books, reports and inspectors open
     ['chronicle', 'chronicle'],
     ['achievements', 'achievements'],
   ] as const) {
-    await page.getByTestId(`book-${book}`).click();
+    await openBook(page, book);
     await expect(page.getByTestId(panel)).toBeVisible();
     await page.keyboard.press('Escape');
     await expect(page.getByTestId(panel)).toHaveCount(0);
