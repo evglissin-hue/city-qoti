@@ -568,3 +568,41 @@ describe('the panel', () => {
     expect(view.text()).toMatch(/and \d+ more/);
   });
 });
+
+describe('P3A: food short with food jobs open names the lever', () => {
+  /** A fishery with `workers` of its three hands. */
+  const fishery = (workers: number): BuildingView => ({
+    ...built(9, 'fishery', workers === 0 ? BuildingStatus.noWorkers : 0, 3),
+    rt: rt(workers === 0 ? BuildingStatus.noWorkers : 0, { jobs: 3, workers }),
+  });
+  const hungry = (b: BuildingView, food: number) => {
+    const mock = world({
+      buildings: [b],
+      stock: { grain: food, vegetables: 0, fruit: 0, fish: 0, cheese: 0, bread: 0 },
+    });
+    const m = mock.session.mirror;
+    m.town.value = { ...m.town.value!, population: 10 };
+    return mock;
+  };
+
+  it('adds the open food jobs and Homes to the food line', () => {
+    const line = ledger(hungry(fishery(1), 10)).find((a) => a.key === 'food-low')!;
+    expect(line.text).toBe(
+      'Food for about a day in store. 2 food jobs stand open: more Homes bring the hands.',
+    );
+  });
+
+  it('says it on a line of its own while food is under three days and not yet low', () => {
+    const line = ledger(hungry(fishery(2), 25)).find((a) => a.key === 'food-hands')!;
+    expect(line.text).toBe(
+      'Food for about 2 days in store. A food job stands open: more Homes bring the hands.',
+    );
+  });
+
+  it('is quiet with every food job filled, or with food enough', () => {
+    expect(ledger(hungry(fishery(3), 10)).find((a) => a.key === 'food-low')!.text).toBe(
+      'Food for about a day in store.',
+    );
+    expect(ledger(hungry(fishery(1), 40)).some((a) => a.key === 'food-hands')).toBe(false);
+  });
+});

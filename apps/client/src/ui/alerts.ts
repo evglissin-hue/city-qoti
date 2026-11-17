@@ -68,6 +68,8 @@ export const FEED_SHOWN = 5;
 
 /** Days of food in store below which the Ledger hears about it. */
 const FOOD_DAYS_WARN = 2;
+/** P3A: days of food under which open food jobs are the town's trouble (the jobs pass's own three). */
+const FOOD_HANDS_DAYS = 3;
 const MAX_IDLE = 4;
 /** Stone in store below which a waiting site raises the quarry alert. */
 const STONE_LOW = 10;
@@ -103,6 +105,17 @@ export function computeAlerts(
     const line = m.balances.value?.lines.find((l) => l.family === 'food');
     if (line) food = line.stock;
     const days = line ? coverDays(line) : food / population;
+    // P3A: the hands spiral (too few hands, then too little food). With food jobs standing open the
+    // line names the lever: hands come with homes (or, while homes wait on good evenings, places).
+    const foodJobs = readHands(m).foodJobs;
+    const lever =
+      foodJobs > 0 && days < FOOD_HANDS_DAYS
+        ? ` ${foodJobs === 1 ? 'A food job stands' : `${foodJobs} food jobs stand`} open: ${
+            homesWaitOnEvenings(m)
+              ? "newcomers want somewhere to go of an evening, and the Hearth's places bring them."
+              : 'more Homes bring the hands.'
+          }`
+        : '';
     if (days < FOOD_DAYS_WARN) {
       out.push({
         key: 'food-low',
@@ -110,9 +123,18 @@ export function computeAlerts(
         tone: 'warn',
         icon: 'good:bread',
         text:
-          food === 0
+          (food === 0
             ? 'The larders are empty. Bread, vegetables or fish, quickly please.'
-            : `Food for about ${days < 2 ? 'a day' : `${Math.floor(days)} days`} in store.`,
+            : `Food for about ${days < 2 ? 'a day' : `${Math.floor(days)} days`} in store.`) + lever,
+        action: { kind: 'panel', panel: 'balances', page: 'families' },
+      });
+    } else if (lever) {
+      out.push({
+        key: 'food-hands',
+        lens: 'ledger',
+        tone: 'warn',
+        icon: 'people',
+        text: `Food for about ${Math.floor(days)} days in store.${lever}`,
         action: { kind: 'panel', panel: 'balances', page: 'families' },
       });
     }
