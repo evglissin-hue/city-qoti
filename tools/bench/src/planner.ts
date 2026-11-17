@@ -211,6 +211,23 @@ export class Planner {
    * (R2X: hazel's herbalist site was boxed in by two cherry trees the Hearth set at its door, so no
    * porter could carry to it and it stood at 0 of 22 materials from day 25 to 70).
    */
+  /**
+   * Whether a building set down here would stand on another building's door tile (R2X: the audit's
+   * building-cut-off found hazel's tavern set across a well's door, so nobody could reach the well).
+   */
+  coversDoor(def: string, x: number, z: number, rot: Rot4): boolean {
+    const d = content.buildingById.get(def);
+    if (!d) return false;
+    const [w, dd] = rot % 2 === 0 ? d.size : [d.size[1], d.size[0]];
+    for (const b of this.w.buildings) {
+      const door = doorTile(b);
+      const dx = door % S;
+      const dz = Math.floor(door / S);
+      if (dx >= x && dx < x + w && dz >= z && dz < z + dd) return true;
+    }
+    return false;
+  }
+
   wallsDoor(def: string, fx: number, fz: number): boolean {
     if (!content.decorById.get(def)?.blocksWalking) return false;
     const tx = Math.floor(fx / TILE_FP);
@@ -234,7 +251,13 @@ export class Planner {
       this.actions.push(`${calendar(this.w.tick).day}:${label} (lane off)`);
       return false;
     }
-    if (cmds.some((c) => c.t === 'decor.place' && this.wallsDoor(c.def, c.fx, c.fz))) {
+    if (
+      cmds.some(
+        (c) =>
+          (c.t === 'decor.place' && this.wallsDoor(c.def, c.fx, c.fz)) ||
+          (c.t === 'build.place' && this.coversDoor(c.def, c.x, c.z, c.rot)),
+      )
+    ) {
       this.actions.push(`${calendar(this.w.tick).day}:${label} (would wall a door)`);
       return false;
     }
