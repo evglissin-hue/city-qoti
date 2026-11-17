@@ -30,6 +30,12 @@ export interface GapPass {
    * When it cannot, its opening streaks hold as they are, and open gaps still close or drop.
    */
   canOpen?: boolean;
+  /**
+   * R2X: whether something could close a gap of this kind about this subject where it stands (R2E's
+   * placement rule, view/health.ts gapClosable). A gap nothing could close is never opened: the audit
+   * flagged a shop with no room for a seat near its door.
+   */
+  closable?: (kind: GapKind, subject: string, tile: number) => boolean;
 }
 
 // --- streaks -------------------------------------------------------------------------------------
@@ -106,7 +112,7 @@ function advance(
   const gap = findGap(state, def.kind, subject);
   if (!gap) {
     if (!r.opens) return;
-    if (pass.canOpen === false) {
+    if (pass.canOpen === false || (pass.closable && !pass.closable(def.kind, subject, tile))) {
       // Nothing the town can build would close it yet: keep the streak, open nothing.
       const at = streakIndex(state, def.kind, subject);
       const row = state.gaps.streaks[at];

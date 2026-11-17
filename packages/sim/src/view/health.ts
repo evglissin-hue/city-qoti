@@ -1060,7 +1060,7 @@ function outletCouldStandNear(state: WorldState, tile: number, radius: number): 
  *   seat piece that fits within that radius of its anchor.
  * Any other kind (R3's shortOfSupplies, anything later) is never flagged: true.
  */
-function gapClosable(state: WorldState, gap: Gap): boolean {
+export function gapClosable(state: WorldState, gap: Gap): boolean {
   const p = content.places;
   if (gap.kind === 'nothingToSell') {
     const place = placeIndex(state).byId.get(gap.subject);

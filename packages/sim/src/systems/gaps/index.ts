@@ -5,6 +5,8 @@
 // are in rules.ts, the runs in runs.ts, the bookkeeping in api.ts, who is credited in credit.ts.
 import { TICKS_PER_DAY } from '../../constants';
 import type { System } from '../../contracts';
+import type { GapKind } from '@qoti/content';
+import { gapClosable } from '../../view/health';
 import { isStandard } from '../../state/hamlet';
 import { seasonAt } from '../../state/seasons';
 import { rankAtLeast } from '../../state/village';
@@ -38,7 +40,13 @@ export const gaps: System = {
     // R2X: a Hamlet whose growth waits on its evenings reads the nowhere-to-go rule too.
     const village = rankAtLeast(state, 'village');
     if (tally.weather === 'fair' && (village || growthWaitsOnEvenings(state))) {
-      const pass = { state, ctx, changed: false };
+      const pass = {
+        state,
+        ctx,
+        changed: false,
+        closable: (kind: GapKind, subject: string, tile: number) =>
+          gapClosable(state, { id: 0, kind, subject, tile, openedDay: 0, n: 0 }),
+      };
       if (village) keepGaps(pass, (kind) => gapAchievable(state, kind));
       else keepQuietStreets(pass, (kind) => gapAchievable(state, kind));
       if (pass.changed) ctx.events.push({ e: 'gaps.updated', g: gapsView(state) });
