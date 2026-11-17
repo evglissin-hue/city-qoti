@@ -19,6 +19,7 @@ import {
   TICKS_PER_DAY,
   TICKS_PER_HOUR,
   TILE_FP,
+  CARRIER_HOUR,
 } from '../constants';
 import type { Building, Gap, Place, WorldState } from '../contracts';
 import { Road, TREE_MATURE, treeStage } from '../map/layers';
@@ -206,6 +207,9 @@ export class HealthWatch {
   private cutOffHour = -1;
   /** R2X: the tick growth was first seen waiting on evenings with nothing saying so, or -1. */
   private unseenSince = -1;
+  /** R2X: the treasury at each day's carrier visit (the first look in CARRIER_HOUR), the last few days. */
+  private readonly visitTreasury: number[] = [];
+  private visitDay = -1;
   private unseenHour = -1;
   /** Site id → [workDone, tick it was first seen workable with builders free]. */
   private readonly waiting = new Map<number, [number, number]>();
@@ -248,6 +252,12 @@ export class HealthWatch {
     const out: HealthIssue[] = [];
     checkClusters(state, out);
     const now = state.tick;
+    const day = Math.floor(now / TICKS_PER_DAY);
+    if (hourOf(now) === CARRIER_HOUR && day !== this.visitDay) {
+      this.visitDay = day;
+      this.visitTreasury.push(state.economy.treasury);
+      if (this.visitTreasury.length > 8) this.visitTreasury.shift();
+    }
     const sites = state.buildings.filter((b) => b.stage === 'construction' && b.rt?.construction);
     const seen = new Set<number>();
     for (const b of sites) {
@@ -363,8 +373,13 @@ export class HealthWatch {
         if (carrierMayBuy(state, g)) {
           // R1X: a site's Materials are bought with coins in hand only, so a site waiting while the
           // treasury cannot pay for them waits on coins (taxes and exports refill it), not a dead end.
+          // R2X: as the treasury stood at the carrier's visits over the days waited (it refills after
+          // the visit from the day's sales; R2B's birch flag and R2X's hazel tavern were false).
           const price = state.market.prices[g] ?? content.goods[g]!.basePrice;
-          if (state.economy.treasury < need * price * 2) return;
+          const waited = Math.max(1, Math.ceil((now - since) / TICKS_PER_DAY));
+          const atVisits = this.visitTreasury.slice(-waited);
+          const inHand = atVisits.length > 0 ? Math.min(...atVisits) : state.economy.treasury;
+          if (inHand < need * price * 2) return;
           // The carrier may buy it, but did it? Look back over the days the site has waited.
           const days = Math.min(
             state.carrier.bought.length,
