@@ -6,10 +6,15 @@ export interface UiSettings {
   reducedMotion: boolean;
   /** R2D: the evening edition arrives as a line in the feed instead of a card at 21:00. */
   editionInFeed: boolean;
+  /**
+   * V4.0: tea-break mode (`input/teaBreak.ts`): after 90 s without input the camera drifts. On by
+   * default; V4C puts the switch in the settings panel.
+   */
+  teaBreak: boolean;
 }
 
 const KEY = 'qoti.settings.v1';
-const DEFAULTS: UiSettings = { uiScale: 1, reducedMotion: false, editionInFeed: false };
+const DEFAULTS: UiSettings = { uiScale: 1, reducedMotion: false, editionInFeed: false, teaBreak: true };
 
 export function clampScale(v: number): number {
   if (!Number.isFinite(v)) return 1;
@@ -25,6 +30,7 @@ export function loadSettings(): UiSettings {
       uiScale: clampScale(Number(parsed.uiScale ?? 1)),
       reducedMotion: parsed.reducedMotion === true,
       editionInFeed: parsed.editionInFeed === true,
+      teaBreak: parsed.teaBreak !== false,
     };
   } catch {
     return { ...DEFAULTS };

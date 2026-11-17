@@ -36,7 +36,8 @@ export interface PerfRunPart {
   gpuP95: number | null;
   draws: number;
   triangles: number;
-  modes?: { moving: number; still: number; idle: number };
+  /** V4.0: `sample`, frames that folded a sample into the developing still frame (V4A). */
+  modes?: { moving: number; still: number; idle: number; sample?: number };
   shadowRenders?: number;
 }
 
@@ -48,6 +49,8 @@ export interface PerfRunRow {
   hour?: number;
   moving: PerfRunPart;
   idle: PerfRunPart;
+  /** V4.0: the still frame's own cost (every frame drawing it again); absent on Low and in older runs. */
+  still?: PerfRunPart;
 }
 
 /** What the client sends. */
@@ -120,7 +123,8 @@ export function isPerfRunInput(v: unknown): v is PerfRunInput {
       typeof row.quality === 'string' &&
       (row.hour === undefined || isNum(row.hour)) &&
       isPart(row.moving) &&
-      isPart(row.idle)
+      isPart(row.idle) &&
+      (row.still === undefined || isPart(row.still))
     );
   });
 }
