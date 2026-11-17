@@ -217,6 +217,8 @@ export function computeAlerts(
     });
   }
   out.push(...zoneAlerts(m, 'growth'));
+  // P3A: a business that grew a level today is news, after the warnings so it never pushes them off.
+  out.push(...businessGrewAlerts(m));
 
   out.push(...villageAlerts(m, who));
   out.push(...seasonAlerts(m));
@@ -272,6 +274,39 @@ export function computeAlerts(
     });
   }
   return foldSame(out);
+}
+
+/**
+ * Businesses that reached a level in the last day, from the Chronicle: one shows its own sentence
+ * (click to the building), several fold into one counted line that opens the Businesses book.
+ */
+export function businessGrewAlerts(m: Mirror): Alert[] {
+  const now = m.tick.value;
+  const grew = m.chronicle.value.filter((e) => e.kind === 'business-grew' && now - e.tick < TICKS_PER_DAY);
+  if (grew.length === 0) return [];
+  if (grew.length === 1) {
+    const e = grew[0]!;
+    return [
+      {
+        key: `grew-${e.id}`,
+        lens: 'ledger',
+        tone: 'news',
+        icon: 'chart',
+        text: e.text,
+        ...(e.refs[0] ? { action: { kind: 'building' as const, id: e.refs[0] } } : {}),
+      },
+    ];
+  }
+  return [
+    {
+      key: `grew-${grew.map((e) => e.id).join('+')}`,
+      lens: 'ledger',
+      tone: 'news',
+      icon: 'chart',
+      text: `${grew.length} businesses grew a level today. Business is good.`,
+      action: { kind: 'panel', panel: 'businesses' },
+    },
+  ];
 }
 
 /**

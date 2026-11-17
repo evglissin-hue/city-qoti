@@ -101,6 +101,7 @@ export { insertBuilding } from './state/place';
 export { START_GOODS } from './systems/economy/start';
 export { settleHousehold } from './systems/residents/lifecycle';
 export { economyDial, type EconomyDial } from './systems/economy/dial';
+export { KEEPER_DAYS_L3, LEVEL_DOWN_DAYS, LEVEL_UP_DAYS, SHOP_CUSTOMERS } from './systems/levels';
 export { fieldCost, placementCost, roadCost } from './systems/economy/api';
 export { nearestOutletWithFood, outletFood, takeFromOutlet } from './systems/economy/outlets';
 export { doorTile } from './systems/movement/api';
