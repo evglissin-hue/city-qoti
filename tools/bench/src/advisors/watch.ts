@@ -110,13 +110,11 @@ class Watch implements Advisor {
     // Once raids are real, two at least: two members cost the work of half a hand.
     const allowed = Math.max(0, spareHands(w) - 1) * DUTY_EVERY;
     const want = Math.min(WATCH_TARGET, Math.max(allowed, this.threatened() ? WATCH_MIN : 0));
-    // R2X: with slack too: the spare hands move by one most days, and a target turned eleven times
-    // in seventy days (each turn re-setting the posture) is a chore. It moves on a step of two, on or
-    // off, or up to the minimum once raids are real.
+    // R2X: with slack too: the spare hands flip by one most days, and willow's target went 2, 4, 2,
+    // 4 eleven times in seventy days, each turn re-setting the posture (a chore). It rises when there
+    // is room, and comes down only when the town is more than a hand short of the watch it keeps.
     const cur = w.watch.target;
-    const moves =
-      want !== cur &&
-      ((want === 0) !== (cur === 0) || Math.abs(want - cur) >= 2 || (this.threatened() && cur < WATCH_MIN));
+    const moves = want > cur || (want < cur && allowed + DUTY_EVERY < cur);
     if (moves) this.p.do(`watch target ${want}`, [{ t: 'watch.setTarget', size: want }]);
     // R1F: with some slack either way, so the budget is not switched with every day's balance (a
     // lever turned thirteen times in seventy days is a chore).
