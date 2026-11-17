@@ -184,6 +184,9 @@ describe('outcome 6: carts and evening streets', () => {
 
   it('one road: waits and delivers after 21:00', () => {
     expect(rowCartOneRoad(cart({ deliveredAt: 21.4 })).verdict).toBe('PASS');
+    // R2X: past midnight counts on (the scene's long way round delivers at 00:23).
+    expect(rowCartOneRoad(cart({ deliveredAt: 24.4, endHour: 26 })).verdict).toBe('PASS');
+    expect(rowCartOneRoad(cart({ deliveredAt: 24.4, endHour: 26 })).measured).toContain('delivered 0:24');
     expect(rowCartOneRoad(cart({ deliveredAt: 20.4 })).verdict).toBe('MISS');
     expect(rowCartOneRoad(cart({ deliveredAt: 22, onEveningTiles: 3 })).verdict).toBe('MISS');
     expect(rowCartOneRoad(cart({ tripTicks: -1, deliveredAt: -1, parkedAtEnd: false })).verdict).toBe('MISS');

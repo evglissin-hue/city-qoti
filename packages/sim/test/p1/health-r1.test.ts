@@ -7,7 +7,7 @@ import type { WorldState } from '../../src/contracts';
 import { Road, Terrain, TREE_SPECIES, treeValue } from '../../src/map/layers';
 import { insertBuilding } from '../../src/state/place';
 import { PASS_EVENT } from '../../src/systems/carrier/api';
-import { HealthWatch } from '../../src/view/health';
+import { CARRIER_VISITS_WAITED, HealthWatch } from '../../src/view/health';
 import { hamletFixture } from '../fixtures/hamlet';
 
 const DAY = TICKS_PER_DAY;
@@ -81,7 +81,10 @@ describe('the zones-first health kinds', () => {
       const w = new HealthWatch();
       s.tick = 0;
       w.check(s);
+      // R2X: one visit with none brought is a full cart, not a dead end (the next brings it).
       s.tick = DAY + 1;
+      expect(kinds(w, s)).not.toContain('site-unsupplied');
+      s.tick = CARRIER_VISITS_WAITED * DAY + 1;
       expect(kinds(w, s)).toContain('site-unsupplied');
       s.carrier.bought[s.carrier.bought.length - 1]![TIMBER] = 6;
       expect(kinds(w, s)).not.toContain('site-unsupplied');
@@ -107,10 +110,12 @@ describe('the zones-first health kinds', () => {
       // The watch looks every hour; its last look before the thaw.
       s.tick = 2 * DAY - 1;
       w.check(s);
-      // The pass opens; a whole open day with nothing brought is a dead end again.
+      // The pass opens; two open visits with nothing brought is a dead end again (R2X: two, not one).
       s.tick = 2 * DAY + 1;
       expect(kinds(w, s)).not.toContain('site-unsupplied');
       s.tick = 3 * DAY + 2;
+      expect(kinds(w, s)).not.toContain('site-unsupplied');
+      s.tick = (2 + CARRIER_VISITS_WAITED) * DAY + 2;
       expect(kinds(w, s)).toContain('site-unsupplied');
     });
   });

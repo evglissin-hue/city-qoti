@@ -29,18 +29,23 @@ export interface CartRun {
   jobTaken: boolean;
   /** Ticks from the job taken to the delivery, or -1 for none by the end. */
   tripTicks: number;
-  /** Clock hour (fractional) of the delivery, or -1. */
+  /** Clock hour (fractional, past 24 after midnight) of the delivery, or -1. */
   deliveredAt: number;
   /** Ticks the cart stood on an evening tile between 17:00 and 21:00. */
   onEveningTiles: number;
   /** The cart was parked at its shed with no job at the end. */
   parkedAtEnd: boolean;
-  /** Clock hour of the end of the run. */
+  /** Clock hour of the end of the run (past 24 after midnight). */
   endHour: number;
 }
 
 function hourOf(w: WorldState): number {
   return ((w.tick + START_HOUR * H) % (24 * H)) / H;
+}
+
+/** The clock hour of a scene's tick, counting on past midnight (the scenes start on day 0 at 16:30). */
+function sceneHour(w: WorldState): number {
+  return START_HOUR + w.tick / H;
 }
 
 /** Marks a lane A stretch (x from..to at z 50) an evening street, as seat 0. */
@@ -56,7 +61,10 @@ function markStretch(w: WorldState, from: number, to: number): number[] {
   return tiles.map(([x, z]) => z * S + x);
 }
 
-/** Runs one scene from 16:30 to `until` o'clock (default 23:00) and measures the cart. */
+/**
+ * Runs one scene from 16:30 to `until` o'clock (default 23:00; past 24 runs on after midnight) and
+ * measures the cart.
+ */
 export function runCartScene(scene: CartScene, marked: boolean, until = 23): CartRun {
   const f = villageWith();
   const w = f.state;
@@ -108,11 +116,11 @@ export function runCartScene(scene: CartScene, marked: boolean, until = 23): Car
     if (hr >= 17 && hr < 21 && evenSet.has(c.tile) && !c.parked) run.onEveningTiles++;
     if (jobAt >= 0 && run.tripTicks < 0 && stallFood() > food0) {
       run.tripTicks = s.tick - jobAt;
-      run.deliveredAt = hr;
+      run.deliveredAt = sceneHour(s);
     }
   });
   const c = w.carts[0];
   run.parkedAtEnd = !!c && c.parked && c.job === 0;
-  run.endHour = hourOf(w);
+  run.endHour = sceneHour(w);
   return run;
 }

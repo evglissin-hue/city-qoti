@@ -145,6 +145,8 @@ export const IDLE_TICKS = 2 * TICKS_PER_HOUR;
 export const STUCK_TICKS = 6 * TICKS_PER_HOUR;
 /** No builder place beside a waiting site, an unachievable wish: a day before it counts. */
 export const DAY_TICKS = TICKS_PER_DAY;
+/** R2X: carrier visits a site's Materials may miss (a full cart) before site-unsupplied flags it. */
+export const CARRIER_VISITS_WAITED = 2;
 /** A season (6 days). */
 export const SEASON_TICKS = DAYS_PER_SEASON * TICKS_PER_DAY;
 /** A demand bar lit with no lot offered: three days before it counts. */
@@ -340,8 +342,8 @@ export class HealthWatch {
   /**
    * site-unsupplied: a site waits on a good with none in town stock, and nothing will bring it:
    * no built maker (a rising maker counts only when its own site is not waiting on that same good),
-   * and the carrier cannot or did not (its family is on Never, no neighbor sells it, or it bought
-   * none over the days the site has waited).
+   * and the carrier cannot or did not (its family is on Never or no neighbor sells it, after a day;
+   * or it bought none over CARRIER_VISITS_WAITED visits the treasury could pay for).
    */
   private checkSupply(state: WorldState, sites: Building[], out: HealthIssue[]): void {
     const now = state.tick;
@@ -374,12 +376,16 @@ export class HealthWatch {
           // R1X: a site's Materials are bought with coins in hand only, so a site waiting while the
           // treasury cannot pay for them waits on coins (taxes and exports refill it), not a dead end.
           // R2X: as the treasury stood at the carrier's visits over the days waited (it refills after
-          // the visit from the day's sales; R2B's birch flag and R2X's hazel tavern were false).
+          // the visit from the day's sales; R2B's birch flag was false).
           const price = state.market.prices[g] ?? content.goods[g]!.basePrice;
           const waited = Math.max(1, Math.ceil((now - since) / TICKS_PER_DAY));
           const atVisits = this.visitTreasury.slice(-waited);
           const inHand = atVisits.length > 0 ? Math.min(...atVisits) : state.economy.treasury;
           if (inHand < need * price * 2) return;
+          // R2X: the cart holds so much a visit and Food and Fuel load first, so a site's Materials
+          // that did not fit today come tomorrow (hazel's Village tavern waited on brick behind a full
+          // cart, and the next cart brought it). Two visits with none brought is the dead end.
+          if (now - since < CARRIER_VISITS_WAITED * DAY_TICKS) return;
           // The carrier may buy it, but did it? Look back over the days the site has waited.
           const days = Math.min(
             state.carrier.bought.length,

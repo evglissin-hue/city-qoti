@@ -142,7 +142,7 @@ describe('migrations 6 to 7 (P2) and 7 to 8 (R2.0)', () => {
   });
 
   it(
-    'runs 10 in-game days on the stand-ins, twice to the same hash, money intact',
+    'runs 10 in-game days with the evening round, twice to the same hash, money intact',
     { timeout: 60_000 },
     () => {
       const hashes: string[] = [];

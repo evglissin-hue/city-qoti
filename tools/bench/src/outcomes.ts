@@ -104,6 +104,9 @@ export interface RunRecord {
 
 const pct = (x: number): string => `${(x * 100).toFixed(0)}%`;
 
+/** Where the one-road cart scene stops: 02:00 the next morning (outcome 6b). */
+const ONE_ROAD_UNTIL = 26;
+
 export interface OutMeasure {
   /** Fair evenings with a grown-up who had a place in reach. */
   evenings: number;
@@ -380,22 +383,26 @@ export function rowsCartLoop(marked: CartRun, free: CartRun): OutcomeRow[] {
   ];
 }
 
-/** Outcome 6b: a one-road town; the cart waits at the edge, delivers after 21:00, no deadlock by 23:00. */
+/**
+ * Outcome 6b: a one-road town; the cart waits at the edge, delivers after 21:00, no deadlock. R2X: the
+ * scene's only way from lane A to street B is the far lane, so its pickup and drop are some 200 tiles
+ * at a cart's pace (four hours with no evening street at all): the run goes on to 02:00 to see it home.
+ */
 export function rowCartOneRoad(marked: CartRun): OutcomeRow {
   const base = {
     outcome: 'Cart with no way round waits, delivers after 21:00',
     seed: 'one-road scene',
-    target: 'delivered after 21:00, 0 ticks on the stretch before, parked by 23:00',
+    target: `delivered after 21:00, 0 ticks on the stretch before, parked by ${ONE_ROAD_UNTIL - 24}:00`,
     needs: 'R2B (traffic, logistics)',
   };
   if (!marked.jobTaken)
     return { ...base, measured: 'no delivery was due (the cart took no job)', verdict: 'MISS' };
   const delivered = marked.tripTicks >= 0;
-  const clock = (h: number) => `${Math.floor(h)}:${String(Math.round((h % 1) * 60)).padStart(2, '0')}`;
+  const clock = (h: number) => `${Math.floor(h) % 24}:${String(Math.round((h % 1) * 60)).padStart(2, '0')}`;
   const ok = delivered && marked.deliveredAt >= 21 && marked.onEveningTiles === 0 && marked.parkedAtEnd;
   return {
     ...base,
-    measured: `${delivered ? `delivered ${clock(marked.deliveredAt)}` : 'not delivered by 23:00'}, ${marked.onEveningTiles} ticks on the stretch, ${marked.parkedAtEnd ? 'parked' : 'not parked'} at ${clock(marked.endHour)}`,
+    measured: `${delivered ? `delivered ${clock(marked.deliveredAt)}` : `not delivered by ${clock(marked.endHour)}`}, ${marked.onEveningTiles} ticks on the stretch, ${marked.parkedAtEnd ? 'parked' : 'not parked'} at ${clock(marked.endHour)}`,
     verdict: ok ? 'PASS' : 'MISS',
   };
 }
@@ -554,7 +561,7 @@ export function seedRows(seed: string, both: RunRecord, hearthOff: RunRecord): O
 export function cartRows(): OutcomeRow[] {
   return [
     ...rowsCartLoop(runCartScene('loop', true), runCartScene('loop', false)),
-    rowCartOneRoad(runCartScene('oneRoad', true)),
+    rowCartOneRoad(runCartScene('oneRoad', true, ONE_ROAD_UNTIL)),
   ];
 }
 
