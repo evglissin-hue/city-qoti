@@ -31,6 +31,7 @@ import { doorFront, reachesTile, townReach } from '../rules/reach';
 import { gateTiles } from '../rules/wall';
 import { canPlantTree } from '../rules/tree';
 import { worldIndex } from '../state/worldIndex';
+import { findById } from '../state/entities';
 import { townReachesDoor } from '../state/reach';
 import { placeState } from '../state/evenings';
 import { rankAtLeast } from '../state/village';
@@ -256,7 +257,15 @@ export function handsSpiral(state: WorldState): string | null {
     }
     const role = def?.jobs?.role ?? 'worker';
     if (role !== 'worker' || def?.category === 'service') continue;
-    elsewhere += Math.max(0, rt.workers.length - 1);
+    // Past the first hand, and free to move: the jobs pass never moves an apprentice before their
+    // season is out (rebalanceJobs), so neither does this check.
+    const today = dayIndex(state.tick);
+    let movable = 0;
+    for (let k = 1; k < rt.workers.length; k++) {
+      const r = findById(state.residents, rt.workers[k]!);
+      if (r && !(r.apprentice && r.apprentice.untilDay > today)) movable++;
+    }
+    elsewhere += movable;
   }
   if (foodOpen === 0) return null;
   const days = Math.floor((food * 10) / pop) / 10;

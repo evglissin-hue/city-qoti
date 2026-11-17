@@ -62,6 +62,9 @@ export const HAUL_SHORT_SHARE = 0.25;
 /** C5A: the family the autumn gardens work for: food work leads while one this size could not move in. */
 export const WAITING_FAMILY = 4;
 
+/** P3A: hands that may move to more important work in an hour while the town is short of food (else one). */
+export const FOOD_MOVES = 4;
+
 /** Days of food in hand above which food jobs stop outranking other work (C4C). */
 export const PLENTY_DAYS = 8;
 
