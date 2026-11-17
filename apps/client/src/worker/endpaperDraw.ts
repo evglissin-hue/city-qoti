@@ -831,6 +831,36 @@ function halo(c: Cx, text: string, fs: number, k = 0.22): void {
   g.strokeText(text, 0, 0);
 }
 
+/** A place's or street's lettering: its size in pixels, with the font set on the context. */
+function labelFont(c: Cx, kind: 'place' | 'street'): number {
+  const fs = Math.max(11, c.sc * (kind === 'place' ? 1.6 : 1.25));
+  c.g.font = kind === 'place' ? `700 ${fs}px ${MAP_FONT}` : `italic 400 ${fs}px ${MAP_FONT}`;
+  return fs;
+}
+
+/** Where a label sits on the sheet, with its halo and a little air: an axis-aligned box in pixels. */
+type LabelBox = [x0: number, y0: number, x1: number, y1: number];
+
+function labelBox(
+  c: Cx,
+  text: string,
+  x: number,
+  z: number,
+  angle: number,
+  kind: 'place' | 'street',
+): LabelBox {
+  const fs = labelFont(c, kind);
+  const w = c.g.measureText(text).width + fs * 0.6;
+  const h = fs * 1.3;
+  const a = upright(angle);
+  const cos = Math.abs(Math.cos(a));
+  const sin = Math.abs(Math.sin(a));
+  const hw = (w * cos + h * sin) / 2;
+  const hh = (w * sin + h * cos) / 2;
+  c.P.at(x, z);
+  return [c.P.x - hw, c.P.y - hh, c.P.x + hw, c.P.y + hh];
+}
+
 function placeLabel(
   c: Cx,
   text: string,
@@ -839,9 +869,8 @@ function placeLabel(
   angle: number,
   kind: 'place' | 'street',
 ): void {
-  const { g, P, sc } = c;
-  const fs = Math.max(11, sc * (kind === 'place' ? 1.6 : 1.25));
-  g.font = kind === 'place' ? `700 ${fs}px ${MAP_FONT}` : `italic 400 ${fs}px ${MAP_FONT}`;
+  const { g, P } = c;
+  const fs = labelFont(c, kind);
   g.textAlign = 'center';
   g.textBaseline = 'middle';
   P.at(x, z);
@@ -1033,8 +1062,15 @@ function labels(c: Cx): void {
   for (const l of c.inp.labels) {
     if (l.kind === 'valley') valleyLabel(c, l.text, l.x, l.z, l.angle);
   }
+  // Places and streets in the order given (the main thread puts the longest streets first). One
+  // that would cross a name already lettered is left off, so names never pile up at a crossing.
+  const taken: LabelBox[] = [];
   for (const l of c.inp.labels) {
-    if (l.kind !== 'valley') placeLabel(c, l.text, l.x, l.z, l.angle, l.kind);
+    if (l.kind === 'valley') continue;
+    const b = labelBox(c, l.text, l.x, l.z, l.angle, l.kind);
+    if (taken.some((t) => b[0] < t[2] && t[0] < b[2] && b[1] < t[3] && t[1] < b[3])) continue;
+    taken.push(b);
+    placeLabel(c, l.text, l.x, l.z, l.angle, l.kind);
   }
 }
 
