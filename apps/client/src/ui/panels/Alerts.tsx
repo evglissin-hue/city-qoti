@@ -1,4 +1,5 @@
 import { content, type GoodFamily } from '@qoti/content';
+import { TICKS_PER_DAY } from '@qoti/sim';
 import type { Session } from '../../app/session';
 import { useState } from 'preact/hooks';
 import { alertsForLens, computeAlerts, type Alert } from '../alerts';
@@ -12,9 +13,26 @@ import { openLetter } from './StoryLetter';
  */
 export const FEED_AT_REST = 3;
 
+/** A line counts as new for half a day after this client first showed it. */
+const NEW_FOR = TICKS_PER_DAY / 2;
+/** When this client first showed each line (by key), in ticks. */
+const firstShown = new Map<string, number>();
+
+/** Whether any line is new; notes the lines seen for the first time. */
+export function anyNew(keys: readonly string[], now: number): boolean {
+  let fresh = false;
+  for (const k of keys) {
+    const at = firstShown.get(k) ?? now;
+    if (!firstShown.has(k)) firstShown.set(k, now);
+    if (now - at < NEW_FOR) fresh = true;
+  }
+  return fresh;
+}
+
 /** The left feed: a few lens-filtered alerts, each a click away from what it is about. */
 export function AlertsPanel({ session }: { session: Session }) {
   const [more, setMore] = useState(false);
+  const [peek, setPeek] = useState(false);
   const m = session.mirror;
   void m.revision.value;
   void m.hamletRevision.value;
@@ -34,19 +52,37 @@ export function AlertsPanel({ session }: { session: Session }) {
     session.ui.dismissed.value,
   );
   if (!all.length) return null;
-  const open = session.ui.alertsOpen.value;
+  // P3B: with nothing new in it, the feed rests as its title and count until asked; the player's
+  // own fold (the minus) always wins.
+  const fresh = anyNew(
+    all.map((a) => a.key),
+    m.tick.value,
+  );
+  const chosen = session.ui.alertsOpen.value;
+  const open = chosen && (fresh || peek);
+  const toggle = () => {
+    if (open) {
+      if (fresh) session.ui.alertsOpen.value = false;
+      setPeek(false);
+    } else {
+      session.ui.alertsOpen.value = true;
+      setPeek(true);
+    }
+  };
   const dismiss = (a: Alert) =>
     (session.ui.dismissed.value = new Set([...session.ui.dismissed.value, a.key]));
   return (
-    <section class={`panel alerts lens-${lens}`} data-testid="alerts">
+    <section class={`panel alerts lens-${lens} ${open ? '' : 'folded'}`} data-testid="alerts">
       <header>
         <h3>{lens === 'hearth' ? 'News from the lanes' : 'For the books'}</h3>
         <span class="alert-count">{all.length}</span>
         <button
           type="button"
           class="close"
-          title={open ? 'Fold away' : 'Unfold'}
-          onClick={() => (session.ui.alertsOpen.value = !open)}
+          title={open ? 'Fold away' : chosen ? 'Nothing new here: unfold to read them again' : 'Unfold'}
+          data-testid="feed-fold"
+          aria-expanded={open}
+          onClick={toggle}
         >
           {open ? '−' : '+'}
         </button>
