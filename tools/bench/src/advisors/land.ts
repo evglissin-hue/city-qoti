@@ -61,7 +61,8 @@ import {
   zoneStreetFor,
 } from '../village';
 import { walkFrontage } from './shops';
-import type { Advisor, AdvisorDef, Visit } from './types';
+import { NEWCOMER_FIRST_WORK, NEWCOMER_LUMP_EVERY, NEWCOMER_ZONES_FROM } from '../newcomer';
+import type { Advisor, AdvisorDef, AutoplayOptions, Visit } from './types';
 
 /** Streets the Ledger lays at most, the high street included. */
 const MAX_STREETS = 16;
@@ -132,7 +133,15 @@ class Land implements Advisor {
   /** Day each zone was last painted for its bar. */
   private readonly painted = new Map<string, number>();
 
-  constructor(readonly p: Planner) {}
+  /** P3A: playing as a newcomer pair (`newcomer.ts`). */
+  private readonly newcomer: boolean;
+
+  constructor(
+    readonly p: Planner,
+    opts: AutoplayOptions = {},
+  ) {
+    this.newcomer = !!opts.newcomer;
+  }
 
   get w(): WorldState {
     return this.p.w;
@@ -628,7 +637,53 @@ class Land implements Advisor {
     }
   }
 
+  /**
+   * P3A: a newcomer pair's Ledger. The first morning: the lane out to the first work, zoned for
+   * Workshops and Farmland only, and the workplaces set down all at once (no homes yet). Homes are
+   * zoned from NEWCOMER_ZONES_FROM, and the bars are answered only every NEWCOMER_LUMP_EVERY days,
+   * in a lump: a person looks at the zones now and then, not every morning. The rest (lodges,
+   * quarries, fisheries, stores, the Village's buildings) as the land advisor reads the town, but
+   * with no labor sums and several sites at once (the planner's newcomer rules).
+   */
+  private newcomerVisit(v: Visit): void {
+    const p = this.p;
+    const w = this.w;
+    const today = day(w);
+    if (!p.street) {
+      if (v.afternoon || w.settings.mode !== 'standard') return;
+      this.lay('the first lane', ['crafts', 'farms']);
+      for (const def of NEWCOMER_FIRST_WORK) this.want(def, { urgent: true, pressing: true });
+      return;
+    }
+    const lump = today >= NEWCOMER_ZONES_FROM && (today - NEWCOMER_ZONES_FROM) % NEWCOMER_LUMP_EVERY === 0;
+    if (lump && !v.afternoon) {
+      if (rankAtLeast(w, 'village') && !this.villageStreet && this.streets < MAX_STREETS)
+        this.lay('the village street');
+      // The first lump zones Homes whether or not its bar is lit (the guide's second letter).
+      if (today === NEWCOMER_ZONES_FROM) this.zoneHomes();
+      this.cobble();
+      this.block();
+      this.answerBars();
+      this.reachLots();
+    }
+    this.sites();
+  }
+
+  /** P3A: the newcomer's first Homes: along open frontage by a road, or a lane of their own. */
+  private zoneHomes(): void {
+    const tiles = frontageFor(this.w, 'homes-low');
+    if (tiles && this.p.do('zone homes-low at last', [{ t: 'zone.paint', zone: 'homes-low', tiles }])) {
+      this.painted.set('homes-low', day(this.w));
+      if (tiles.length >= ENOUGH_FRONTAGE) return;
+    }
+    if (this.streets < MAX_STREETS) this.lay('a lane for homes', ['homes-low']);
+  }
+
   visit(v: Visit): void {
+    if (this.newcomer) {
+      this.newcomerVisit(v);
+      return;
+    }
     const p = this.p;
     const w = this.w;
     // Founding day: the first street, laid and zoned with Homes, Workshops and Farmland (a street
@@ -654,5 +709,5 @@ export const land: AdvisorDef = {
   // Where the street advisor was: after the Village's services (10), before the charter (30).
   slot: 20,
   plays: () => true,
-  create: (p) => new Land(p),
+  create: (p, opts) => new Land(p, opts),
 };
