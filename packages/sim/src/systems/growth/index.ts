@@ -94,6 +94,8 @@ export const GROWTH_MAX_SITES = 3;
  */
 export const HANDS_WAITING = 2;
 export const GROWTH_PER_DAY = 2;
+/** P3A: open food jobs at which homes start before farms: a new farmstead's hands (its level 1 crew). */
+const FARM_HANDS = content.buildingById.get('farmstead')?.jobs?.count ?? 2;
 /**
  * Percent of a grown site's materials that must lie free in the storehouses (beyond what other
  * sites wait for) before it starts; porters bring the rest as the town makes it.
@@ -847,13 +849,13 @@ function startSites(
   const demand = demandOf(state, night);
   const free = freeMaterials(state, night.needs.stock);
   let started = 0;
-  // P3A: farms first, as food matters most, unless food jobs already stand open: then the homes
-  // that bring the hands come first. A newcomer's town grew farm after farm on its Farmland while
+  // P3A: farms first, as food matters most, unless a farm's worth of food jobs already stands open
+  // (FARM_HANDS): then the homes that bring the hands come first. A newcomer's town grew farm after farm on its Farmland while
   // its homes waited behind them ("sitesBusy") and the farms stood with nobody at work.
   const farms: [zones: readonly number[], n: number] = [[Zone.farms], demand.farms];
   const homes: [zones: readonly number[], n: number] = [HOME_ZONES, demand.homes];
   const wants: [zones: readonly number[], n: number][] = [
-    ...(night.foodOpen > 0 ? [homes, farms] : [farms, homes]),
+    ...(night.foodOpen >= FARM_HANDS ? [homes, farms] : [farms, homes]),
     [[Zone.shops], demand.shops],
     [[Zone.crafts], demand.crafts],
   ];

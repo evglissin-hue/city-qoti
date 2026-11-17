@@ -158,6 +158,8 @@ export const SPIRAL_HOUR = 12;
 export const SPIRAL_DAYS = 2;
 /** P3A: sites waiting at once that count as piling up. */
 export const SPIRAL_SITES = 3;
+/** P3A: a food workplace in this state can use no hands (the jobs pass's own STUCK bits). */
+const SPIRAL_STUCK = BuildingStatus.noTrees | BuildingStatus.noFields | BuildingStatus.missingInput;
 /** R2X: carrier visits a site's Materials may miss (a full cart) before site-unsupplied flags it. */
 export const CARRIER_VISITS_WAITED = 2;
 /** A season (6 days). */
@@ -247,6 +249,8 @@ export function handsSpiral(state: WorldState): string | null {
     if (b.stage !== 'built' || rt.paused || rt.status & BuildingStatus.resting) continue;
     const def = content.buildingById.get(b.def);
     if (feedsTown(b)) {
+      // A farm with no fields or a maker with no raw good can use no hands: the jobs pass ranks it last.
+      if (rt.status & SPIRAL_STUCK) continue;
       foodOpen += Math.max(0, (b.trade ? jobsOf(b) : (def?.jobs?.count ?? 0)) - rt.workers.length);
       continue;
     }

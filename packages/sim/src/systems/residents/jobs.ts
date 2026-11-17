@@ -153,13 +153,23 @@ function growsFood(m: ProductionMethod | null): boolean {
 }
 
 /**
- * How much the k-th job at a building matters, lower first: 0 the first builder, the first porter
- * of each storehouse and anything making what the town is short of (food, or timber and stone the
- * sites are waiting on); 1 the second builder, the second porter and stall vendors; 2 food when
- * there is enough; 3 everything else that makes things; 4 the remaining builders and porters (3
- * for the porters while goods pile up for want of them, C4X: never ahead of a workplace's first hand).
- * Without a porter nothing moves and without a builder nothing gets built, so those two are never
- * poached; past them a hamlet of eight keeps fed and keeps building before it hauls.
+ * P3A: the rank just behind the town's circulation (the first builder and each storehouse's first
+ * porter, 0): a food workplace's first hand, every food hand while the town is short of food, and the
+ * first hand of a workplace making another short good. Ahead of the second builder and porter, the
+ * vendors and the first hands of other work (1 and 2).
+ */
+export const FIRST_AFTER_CIRCULATION = 0.5;
+
+/**
+ * How much the k-th job at a building matters, lower first: 0 the first builder and the first porter
+ * of each storehouse; 0.5 (P3A, FIRST_AFTER_CIRCULATION) the first hand of a food workplace, every
+ * food hand while food is short and the first hand of a workplace making another short good (timber
+ * and stone the sites wait on); 1 the second builder, the second porter, stall vendors and the later
+ * hands of a workplace making a short good; 2 food when there is enough; 3 everything else that
+ * makes things; 4 the remaining builders and porters (3 for the porters while goods pile up for want
+ * of them, C4X: never ahead of a workplace's first hand). Without a porter nothing moves and without
+ * a builder nothing gets built, so those two are never poached; past them a hamlet of eight keeps fed
+ * and keeps building before it hauls.
  */
 export function slotPriority(
   def: BuildingDef,
@@ -185,17 +195,19 @@ export function slotPriority(
   // of everything (never poached from, see rebalanceJobs: only a first-hand hire goes this high).
   if (short.stoneRush && k === 0 && !!method?.outputs.some(([g]) => g === 'stone')) return -1;
   const kind = makes(method, short);
-  // P3A: a shortage puts every hand of a food workplace first, but only the first hand of one that
-  // makes some other short good (timber or stone for the sites): with a handful of hands and both
-  // short, a lodge and a quarry took every hand at the same rank as the first porter and the fishers,
+  // P3A: a shortage ranks every hand of a food workplace just behind the circulation, but only the
+  // first hand of one that makes some other short good (timber or stone for the sites): with a
+  // handful of hands and both short, a lodge and a quarry took every hand at the first porter's rank,
   // nobody carried, and food sat in the fishery's baskets while homes went hungry (the newcomer runs).
-  if (kind === 'short') return k === 0 || (short.food && growsFood(method)) ? 0 : 1;
+  if (kind === 'short') return k === 0 || (short.food && growsFood(method)) ? FIRST_AFTER_CIRCULATION : 1;
   // C5A: food work, with the larder short of the winter in autumn: ahead of other workplaces, never
   // ahead of the first two builders and porters (or nothing reaches the shelves).
   if (kind === 'food' && short.winter) return 1;
   // C4X: every workplace gets its first hand before any gets a second, so a building the Ledger
-  // places always starts (a clay pit that never digs never invents the kiln).
-  if (k === 0) return 2;
+  // places always starts (a clay pit that never digs never invents the kiln). P3A: a food
+  // workplace's first hand comes before the second builder and porter and the stall's vendor (a
+  // fresh hamlet's sixth hand kept the stall and left its one fishery empty).
+  if (k === 0) return growsFood(method) ? FIRST_AFTER_CIRCULATION : 2;
   // The mill and the bakery keep their hands: bread is its own need for Craftsfolk.
   const grows = method?.kind !== 'craft';
   return kind === 'food' ? (short.plenty && grows ? 5 : 2) : 3;
@@ -407,7 +419,8 @@ export function rebalanceJobs(state: WorldState, ctx?: TickCtx): boolean {
     if (!rt || !def || b === target || rt.workers.length === 0) continue;
     const p = jobPriority(b, def, rt.workers.length - 1, short);
     // Only a clear step up is worth the walk: two levels, or anything into a shortage.
-    if (p <= fromP || p < (targetP > 0 ? targetP + 2 : 1)) continue;
+    // P3A: a target ranked under 1 (the circulation, or just behind it) takes any hand from rank 1 on.
+    if (p <= fromP || p < (targetP >= 1 ? targetP + 2 : 1)) continue;
     // The newest hand at that building moves; never someone mid-task.
     for (let i = rt.workers.length - 1; i >= 0; i--) {
       const r = findById(state.residents, rt.workers[i]!);

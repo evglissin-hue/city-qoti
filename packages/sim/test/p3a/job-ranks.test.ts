@@ -5,7 +5,13 @@
 import { content } from '@qoti/content';
 import { describe, expect, it } from 'vitest';
 import type { Building, WorldState } from '../../src/contracts';
-import { assignJobs, shortages, slotPriority, type Shortages } from '../../src/systems/residents/jobs';
+import {
+  assignJobs,
+  FIRST_AFTER_CIRCULATION as FIRST,
+  shortages,
+  slotPriority,
+  type Shortages,
+} from '../../src/systems/residents/jobs';
 import { createTickCtx } from '../../src/turn';
 import { hamletFixture } from '../fixtures/hamlet';
 import { building, resident } from '../ledger/helpers';
@@ -15,26 +21,46 @@ const def = (id: string) => content.buildingById.get(id)!;
 const BOTH: Shortages = { food: true, goods: new Set(['timber', 'stone']) };
 
 describe('slotPriority with food and timber both short', () => {
-  it('ranks every hand of a food workplace 0', () => {
-    for (let k = 0; k < 3; k++) expect(slotPriority(def('fishery'), k, BOTH)).toBe(0);
+  it('ranks every hand of a food workplace just behind the circulation', () => {
+    for (let k = 0; k < 3; k++) expect(slotPriority(def('fishery'), k, BOTH)).toBe(FIRST);
+    expect(FIRST).toBeGreaterThan(0);
+    expect(FIRST).toBeLessThan(1);
   });
 
-  it('ranks a lodge’s first hand 0 and its later hands 1', () => {
-    expect(slotPriority(def('foresters-lodge'), 0, BOTH)).toBe(0);
+  it('ranks a lodge’s first hand just behind the circulation and its later hands 1', () => {
+    expect(slotPriority(def('foresters-lodge'), 0, BOTH)).toBe(FIRST);
     expect(slotPriority(def('foresters-lodge'), 1, BOTH)).toBe(1);
     expect(slotPriority(def('foresters-lodge'), 2, BOTH)).toBe(1);
   });
 
-  it('ranks a quarry’s first hand 0 and its later hands 1', () => {
-    expect(slotPriority(def('quarry'), 0, BOTH)).toBe(0);
+  it('ranks a quarry’s first hand just behind the circulation and its later hands 1', () => {
+    expect(slotPriority(def('quarry'), 0, BOTH)).toBe(FIRST);
     expect(slotPriority(def('quarry'), 1, BOTH)).toBe(1);
     expect(slotPriority(def('quarry'), 2, BOTH)).toBe(1);
   });
 
   it('does the same with timber alone short', () => {
     const timber: Shortages = { food: false, goods: new Set(['timber']) };
-    expect(slotPriority(def('foresters-lodge'), 0, timber)).toBe(0);
+    expect(slotPriority(def('foresters-lodge'), 0, timber)).toBe(FIRST);
     expect(slotPriority(def('foresters-lodge'), 2, timber)).toBe(1);
+  });
+});
+
+describe('the circulation first, then food', () => {
+  it('keeps the first builder and porter ahead of every food hand', () => {
+    expect(slotPriority(def('storehouse'), 0, BOTH)).toBe(0);
+    expect(slotPriority(def('builders-yard'), 0, BOTH)).toBe(0);
+    expect(slotPriority(def('fishery'), 0, BOTH)).toBeGreaterThan(0);
+  });
+
+  it('puts a fishery’s first hand ahead of the stall’s vendor and the second builder when food is fine', () => {
+    const none: Shortages = { food: false, goods: new Set() };
+    const fisher = slotPriority(def('fishery'), 0, none);
+    expect(fisher).toBe(FIRST);
+    expect(fisher).toBeLessThan(slotPriority(def('market-stall'), 0, none));
+    expect(fisher).toBeLessThan(slotPriority(def('builders-yard'), 1, none));
+    // Later fishers wait behind other work's first hands as before.
+    expect(slotPriority(def('fishery'), 1, none)).toBe(2);
   });
 });
 
