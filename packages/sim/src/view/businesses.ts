@@ -90,6 +90,10 @@ function statusWords(state: WorldState, b: Building): string {
   const rt = b.rt;
   if (!rt) return 'Standing';
   if (rt.paused) return 'Paused';
+  // R2 (R2B): an evening street's closed hours come first while they last (17:00 to 21:00).
+  if (rt.status & BuildingStatus.eveningWait) return 'Waiting at the edge of an evening street until 21:00';
+  if (rt.status & BuildingStatus.eveningStreet)
+    return 'Waiting till 21:00: no deliveries on an evening street';
   if (b.trade) return businessWords(state, b);
   if (rt.workers.length === 0 && jobsOf(b) > 0) return 'Waiting for hands';
   if (rt.present > 0) return 'At work';

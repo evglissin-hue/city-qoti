@@ -47,8 +47,40 @@ function marks(s: WorldState): string {
   return `${food?.mark ?? DASH}/${fuel?.mark ?? DASH}`;
 }
 
+/** The last tallied evening, or null while none has been (the tally keeps day -1 until the first 17:00). */
+function evening(s: WorldState) {
+  const t = s.evenings.tonight;
+  return t.day >= 0 && t.grownups > 0 ? t : null;
+}
+
+/** Percent of grown-ups out on the last evening, or '-'. */
+function shareOut(s: WorldState): string {
+  const t = evening(s);
+  return t ? String(Math.round((t.out / t.grownups) * 100)) : DASH;
+}
+
+/** The last evening's average score, or '-'. */
+function avgEvening(s: WorldState): string {
+  const t = evening(s);
+  return t ? String(Math.round(t.scoreSum / t.grownups)) : DASH;
+}
+
+/** Percent of that evening's Treats sold on the round, or '-' when none were sold. */
+function treatsRound(s: WorldState): string {
+  const t = evening(s);
+  const all = t ? t.treatsAtStops + t.treatsPassing + t.treatsDoorstep : 0;
+  return t && all > 0 ? String(Math.round(((t.treatsAtStops + t.treatsPassing) / all) * 100)) : DASH;
+}
+
+/** Open gaps, or '-' while the town has never had one (opened or closed). */
+function openGaps(s: WorldState): string {
+  const g = s.gaps;
+  return g.open.length || g.closed.length || g.closedCount ? String(g.open.length) : DASH;
+}
+
 /** Column heads for `yearRow`. */
-export const YEAR_HEAD = 'day  yr season    weather  cold stars threat     raid       marks  road';
+export const YEAR_HEAD =
+  'day  yr season    weather  cold stars threat     raid       marks  road   out% eve treats% gaps';
 
 /** One day of the year view (call at the day's end). */
 export function yearRow(state: WorldState, day: number): string {
@@ -63,6 +95,10 @@ export function yearRow(state: WorldState, day: number): string {
     band(state).padEnd(10),
     raid(state).padEnd(10),
     marks(state).padEnd(6),
-    balancesView(state).passClosed ? 'closed' : DASH,
+    (balancesView(state).passClosed ? 'closed' : DASH).padEnd(6),
+    shareOut(state).padStart(4),
+    avgEvening(state).padStart(3),
+    treatsRound(state).padStart(7),
+    openGaps(state).padStart(4),
   ].join(' ');
 }

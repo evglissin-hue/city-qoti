@@ -10,7 +10,8 @@ import { findById } from '../../state/entities';
 import { addMoodModifier } from './api';
 import { chebyshev, doorOf, eachBuildingNear, tileX, tileZ } from './places';
 import { pushHistory } from './records';
-import { dayIndex } from './time';
+import { stopNow } from '../places/occupancy';
+import { dayIndex, tickOfDay } from './time';
 import { compatibility, traitPercent } from './traits';
 
 export const FRIEND_LEVELS = [10, 30, 60, 100, 150] as const;
@@ -88,6 +89,11 @@ export function befriend(state: WorldState, a: Resident, b: Resident, points: nu
   fa.lastMet = fb.lastMet = day;
   fa.level = fb.level = levelFor(fa.points);
   if (fa.level > before && fa.level === 1) {
+    // R2 (R2A): friendships made between 17:00 and 21:00 count in the evening's tally.
+    const tally = state.evenings.tonight;
+    const tod = tickOfDay(state.tick);
+    const P = content.places;
+    if (tally.day === day && tod >= P.eveningHour * HOUR && tod < P.homeHour * HOUR) tally.friendships += 1;
     for (const [r, o] of [
       [a, b],
       [b, a],
@@ -109,8 +115,18 @@ export function pairPoints(a: Resident, b: Resident, base: number = POINTS_PER_H
 
 let keys = new Float64Array(256);
 
-/** Where a resident is for friendship purposes: a building, a 3 x 3 patch outdoors, or nowhere. */
-function placeKey(r: Resident): number {
+/**
+ * Where a resident is for friendship purposes: a building, a 3 x 3 patch outdoors, or nowhere. R2
+ * (R2A): folk at a stop of their round count as outdoors at the patch of the stop's tile, so everyone
+ * at one place (a bench, a tavern's room) shares it.
+ */
+function placeKey(state: WorldState, r: Resident): number {
+  const stop = stopNow(state, r);
+  if (stop) {
+    const sx = stop.tile % MAP_SIZE;
+    const sz = (stop.tile - sx) / MAP_SIZE;
+    return OUTDOORS + Math.floor(sz / 3) * 64 + Math.floor(sx / 3);
+  }
   if (r.inside) return r.inside;
   if (r.move) return 0;
   const k = r.activity.kind;
@@ -134,7 +150,7 @@ export function hourlyFriendships(state: WorldState): void {
   if (keys.length < rs.length) keys = new Float64Array(rs.length * 2);
   let n = 0;
   for (let i = 0; i < rs.length; i++) {
-    const key = placeKey(rs[i]!);
+    const key = placeKey(state, rs[i]!);
     if (key) keys[n++] = key * 65536 + i;
   }
   const sorted = keys.subarray(0, n).sort();

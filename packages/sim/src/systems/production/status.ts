@@ -13,6 +13,7 @@ import { doorTile } from '../movement/api';
 import { porterReachable, storehouseReach, type Reach } from '../logistics/range';
 import { defOf, isMarket, outputCap } from '../logistics/stores';
 import { cartShedStatus } from '../logistics/carts';
+import { eveningBits } from '../logistics/evening';
 import { CROP_YIELD, isFallow, ownedFields } from './fields';
 import { countMatureTrees, FORESTRY_RANGE } from './forestry';
 import { DISREPAIR_CONDITION } from './produce';
@@ -91,7 +92,8 @@ export function computeStatus(
   reaches: readonly Reach[],
 ): number {
   const rt = b.rt!;
-  let s = 0;
+  // R2 (R2B): an evening street's closed hours (no delivery, a cart or barrow waiting at the edge).
+  let s = eveningBits(state, b);
   if (rt.paused) s |= BuildingStatus.paused;
   const { front } = entranceTiles(def, b.x, b.z, b.rot);
   const roadAtDoor = !!state.map.road[front[1] * MAP_SIZE + front[0]];

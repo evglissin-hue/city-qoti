@@ -45,7 +45,15 @@ export function cursorHint(text: string | null, clientX = 0, clientY = 0): void 
     return;
   }
   if (l.textContent !== text) l.textContent = text;
-  l.style.left = `${clientX + 16}px`;
-  l.style.top = `${clientY + 18}px`;
+  // R2D: a long hint near the right or bottom edge flips to the cursor's other side, so it is read
+  // whole rather than cut off by the window ("Kept for strolling from 17:00 to 21:00. The Tow...").
+  const w = l.offsetWidth;
+  const h = l.offsetHeight;
+  const vw = typeof window === 'undefined' ? Infinity : window.innerWidth;
+  const vh = typeof window === 'undefined' ? Infinity : window.innerHeight;
+  const left = clientX + 16 + w > vw - 8 ? Math.max(8, clientX - 12 - w) : clientX + 16;
+  const top = clientY + 18 + h > vh - 8 ? Math.max(8, clientY - 12 - h) : clientY + 18;
+  l.style.left = `${left}px`;
+  l.style.top = `${top}px`;
   l.style.opacity = '1';
 }

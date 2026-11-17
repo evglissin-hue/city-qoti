@@ -6,6 +6,7 @@ import { recomputeDirty } from '../../src/systems/hearth/charm';
 import { markCharmDirty } from '../../src/systems/hearth/charm/dirty';
 import { lanternsLit } from '../../src/systems/hearth/charm/sources';
 import { runPatterns } from '../../src/systems/hearth/patterns/engine';
+import { withoutNightHurry } from '../../src/speed';
 import { advanceTo, createTickCtx } from '../../src/turn';
 import { hamletFixture } from '../fixtures/hamlet';
 import { run } from '../helpers';
@@ -193,9 +194,10 @@ describe('lanterns by day and night', () => {
     expect(charm(w, 'charmLight', 140, 60)).toBe(6);
     runHours(w, 1, ctx); // past 07:00
     expect(charm(w, 'charmLight', 140, 60)).toBe(2);
-    runHours(w, 11, ctx); // past 18:00
+    // R2B: dusk lingers from 17:00 (half the ticks a turn), so these steps count turns as ticks.
+    withoutNightHurry(() => runHours(w, 11, ctx)); // past 18:00
     expect(charm(w, 'charmLight', 140, 60)).toBe(6);
-    runHours(w, 13, ctx); // past 07:00 the next morning
+    withoutNightHurry(() => runHours(w, 13, ctx)); // past 07:00 the next morning
     expect(charm(w, 'charmLight', 140, 60)).toBe(2);
   });
 });

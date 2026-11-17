@@ -28,6 +28,8 @@ function lotAt(state: ReturnType<typeof hamletFixture>['state'], zone: number, x
     style: '',
     buildingId: 0,
     tick: 0,
+    row: 0,
+    kind: 'plot',
   };
   state.lots.push(lot);
   // The lot pass drops lots the map does not show, so paint it as the cutter would.

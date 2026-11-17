@@ -186,7 +186,9 @@ export function matchCarts(
       stage: 0,
       priority: best.cls,
     };
-    if (requestCartMove(state, c.id, best.src.door) === 'unreachable') continue;
+    // R2 (R2B): a haul the cart cannot set out on now (no way round a closed street) waits for another day.
+    const start = requestCartMove(state, c.id, best.src.door);
+    if (start === 'unreachable' || start === 'waiting') continue;
     best.src.rt.reservedOut[g]! += qty;
     best.dest.rt.reservedIn[g]! += qty;
     if (best.need) best.need.want -= qty;

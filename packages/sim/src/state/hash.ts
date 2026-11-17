@@ -1,5 +1,5 @@
 import type { WorldState } from '../contracts';
-import { LAYER_NAMES } from '../map/layers';
+import { LAYER_NAMES, UINT16_LAYERS } from '../map/layers';
 
 // 64-bit FNV-1a in two 32-bit lanes (hi, lo). The prime is 2^40 + 0x1b3, so
 // h * prime = h * 0x1b3 + (lo << 40): lo's product carries into hi, and lo * 2^8 lands in hi.
@@ -52,7 +52,7 @@ class WordHash {
     this.n += data.length;
   }
 
-  layer(layer: Uint8Array | Int32Array): void {
+  layer(layer: Uint8Array | Uint16Array | Int32Array): void {
     const aligned = layer.byteOffset % 4 === 0 ? layer : layer.slice();
     this.words(new Uint32Array(aligned.buffer, aligned.byteOffset, aligned.byteLength >>> 2));
   }
@@ -89,6 +89,7 @@ class WordHash {
 export function hashState(state: WorldState): string {
   const h = new WordHash();
   for (const name of LAYER_NAMES) h.layer(state.map[name]);
+  for (const name of UINT16_LAYERS) h.layer(state.map[name]);
   h.words(state.rng);
   h.text(
     JSON.stringify({
@@ -143,6 +144,11 @@ export function hashState(state: WorldState): string {
       carrier: state.carrier,
       seasonPlan: state.seasonPlan,
       demand: state.demand,
+      // R2 (R2.0)
+      places: state.places,
+      gaps: state.gaps,
+      streets: state.streets,
+      evenings: state.evenings,
     }),
   );
   return h.hex();

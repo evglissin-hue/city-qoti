@@ -4,10 +4,12 @@
 export interface UiSettings {
   uiScale: number;
   reducedMotion: boolean;
+  /** R2D: the evening edition arrives as a line in the feed instead of a card at 21:00. */
+  editionInFeed: boolean;
 }
 
 const KEY = 'qoti.settings.v1';
-const DEFAULTS: UiSettings = { uiScale: 1, reducedMotion: false };
+const DEFAULTS: UiSettings = { uiScale: 1, reducedMotion: false, editionInFeed: false };
 
 export function clampScale(v: number): number {
   if (!Number.isFinite(v)) return 1;
@@ -22,6 +24,7 @@ export function loadSettings(): UiSettings {
     return {
       uiScale: clampScale(Number(parsed.uiScale ?? 1)),
       reducedMotion: parsed.reducedMotion === true,
+      editionInFeed: parsed.editionInFeed === true,
     };
   } catch {
     return { ...DEFAULTS };

@@ -124,6 +124,26 @@ const SETUPS = new Map<string, (s: WorldState) => void>([
       }
     },
   ],
+  // R2 (R2C): the evening feats read the runs and the gaps the gaps pass keeps (test/r2c).
+  [
+    'out-of-an-evening',
+    (s) => {
+      s.evenings.allOut = 1;
+    },
+  ],
+  [
+    'a-seat-for-everyone',
+    (s) => {
+      s.evenings.seatedSeasons = 1;
+    },
+  ],
+  [
+    'mind-the-gap',
+    (s) => {
+      s.gaps.closedCount = 10;
+      s.gaps.closedBySeat = [3, 7, 0, 0];
+    },
+  ],
 ]);
 
 describe('every achievement', () => {

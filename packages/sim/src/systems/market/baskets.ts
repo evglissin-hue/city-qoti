@@ -9,24 +9,27 @@
 // Households buy the good with the best price for how much they like it: Thrifty households care
 // half as much which loaf it is, comfortable ones (savings in hand) a little more. The food group
 // is bought on the residents' shopping outings (C3A) through `shopFood`; every other group at the
-// 18:00 household pass, used up at supper. What a household could not get lowers that group's
+// 18:00 household pass, used up at supper; Treats (R2B) are bought on the evening round
+// (market/round.ts) and settled at 21:30, so the 18:00 pass only records their demand. What a household could not get lowers that group's
 // satisfaction (`household.basket`), and the `goods` need follows the basket's average.
 // Demand for the price rule is what households want, not what they managed to buy: each day the
 // household pass records every group's daily quantity, shared across its goods by preference
 // weight, so an empty shelf still shows up as wanted (and its price climbs).
 import { content, type GoodFamily, type NeedsBasket } from '@qoti/content';
-import { PENNIES_PER_COIN, TICKS_PER_DAY, TIERS } from '../../constants';
+import { PENNIES_PER_COIN, TICKS_PER_HOUR, TIERS } from '../../constants';
 import type { EntityId, Household, Resident, System, TickCtx, WorldState } from '../../contracts';
 import { foodDays } from '../../conditions';
 import { findById } from '../../state/entities';
 import { familyIndex } from '../../state/zones';
 import { calendar } from '../clock/calendar';
-import { dailyOffset, dayIndex } from '../economy/time';
+import { dailyOffset, dayIndex, tickOfDay } from '../economy/time';
 import { foodIndexes, pantryFood } from '../residents/needs';
 import { announceHousehold } from '../residents/records';
 import { countCustomer, countSold } from '../levels/counters';
 import { householdVariety, markSeen, SHELF_GOODS } from './balances';
 import { inStock, marketOpen, outletFree, purchase, tillPrice } from './api';
+import { ROUND_EVERY, TREATS_GROUP } from './round';
+import { accrueTreats, doorstepErrand, tradePass } from './trade';
 
 /** NEED_IDS index of the `goods` need. */
 export const GOODS_NEED = 5;
@@ -40,6 +43,8 @@ export const TREAT_FOOD_DAYS = 3;
 export const SLATE_DAYS = 2;
 /** 18:00, after wages at 17:00. */
 export const BASKETS_OFFSET = dailyOffset(18);
+/** 18:00 as a tick of the day (the system's own offset is now 0). */
+const BASKETS_OFFSET_TOD = 18 * TICKS_PER_HOUR;
 
 /**
  * A need group: what a household buys of one family, any of its goods doing (R1, from a FamilyWant).
@@ -115,7 +120,7 @@ export function likeHalves(weight: number, thrifty: boolean, comfortable: boolea
 }
 
 /** Value for money: liking per penny, scaled to stay an integer. Higher is better. */
-function valueOf(likes: number, price: number): number {
+export function valueOf(likes: number, price: number): number {
   return Math.floor((likes * 1_000_000) / Math.max(1, price));
 }
 
@@ -139,12 +144,12 @@ export function favoriteWeights(state: WorldState, h: Household): number[] {
   return w;
 }
 
-interface Taste {
+export interface Taste {
   thrifty: boolean;
   comfortable: boolean;
 }
 
-function tasteOf(state: WorldState, h: Household): Taste {
+export function tasteOf(state: WorldState, h: Household): Taste {
   return {
     thrifty: isThrifty(state, h),
     comfortable: h.savings >= COMFORTABLE_SAVINGS * Math.max(1, h.members.length),
@@ -161,7 +166,7 @@ export function ensureBasket(h: Household): NeedsBasket | undefined {
 }
 
 /** Moves a group's satisfaction halfway to `to`. */
-function satisfy(h: Household, group: number, to: number): void {
+export function satisfy(h: Household, group: number, to: number): void {
   const s = h.basket![group] ?? 100;
   h.basket![group] = Math.round((s + to) / 2);
 }
@@ -275,7 +280,7 @@ function canWork(state: WorldState, h: Household): boolean {
 }
 
 /** Units a group asks of a household per day, in hundredths. */
-function perDayHundredths(g: NeedGroup, h: Household): number {
+export function perDayHundredths(g: NeedGroup, h: Household): number {
   return Math.round(g.perDay * 100) * (g.perHousehold ? 1 : Math.max(1, h.members.length));
 }
 
@@ -399,7 +404,8 @@ export function shopBaskets(state: WorldState, ctx: TickCtx): void {
       const g = groups[i]!;
       if (g.season !== undefined && g.season !== season) continue;
       want(g, perDayHundredths(g, h), tally);
-      if (g.id === FOOD_GROUP) continue;
+      // Food is bought on outings; Treats (R2B) on the evening round and settled at 21:30.
+      if (g.id === FOOD_GROUP || g.id === TREATS_GROUP) continue;
       h.owed![i]! += perDayHundredths(g, h);
       const units = Math.floor(h.owed![i]! / 100);
       if (units <= 0) continue;
@@ -424,20 +430,44 @@ export function setGoodsNeed(state: WorldState, h: Household): void {
   }
 }
 
+/** Ticks of the day for each moment the baskets system works at (all multiples of ROUND_EVERY). */
+const TICK_ACCRUE = content.places.eveningHour * TICKS_PER_HOUR;
+const TICK_HOME = content.places.homeHour * TICKS_PER_HOUR;
+const TICK_DOORSTEP =
+  content.places.doorstepHour * TICKS_PER_HOUR +
+  Math.round((content.places.doorstepMinute * TICKS_PER_HOUR) / 60);
+
+/** The 18:00 household pass as built, minus Treats (R2B). */
+function householdPass(state: WorldState, ctx: TickCtx): void {
+  // The day's sightings come before any buying, market open or not.
+  if (state.settings.mode === 'standard') markSeen(state);
+  if (marketOpen(state)) {
+    shopBaskets(state, ctx);
+    return;
+  }
+  // Before the market opens nothing is for sale, so nobody misses anything.
+  if (state.settings.mode !== 'standard') return;
+  for (const h of state.households) setGoodsNeed(state, h);
+}
+
+/**
+ * R2B: runs every ROUND_EVERY ticks (a walker spends 4 ticks or more on any tile, so the evening
+ * pass sees every tile one stands on). At 17:00 Treats accrue; from 17:00 to 21:00 the evening trade
+ * pass runs (stops and passing trade); at 18:00 the household pass; at 21:30 the doorstep errand and
+ * the settling. Every moment is a multiple of ROUND_EVERY ticks into the day.
+ */
 export const baskets: System = {
   id: 'baskets',
   order: 67,
-  every: TICKS_PER_DAY,
-  offset: BASKETS_OFFSET,
+  every: ROUND_EVERY,
+  offset: 0,
   tick(state, ctx) {
-    // The day's sightings come before any buying, market open or not.
-    if (state.settings.mode === 'standard') markSeen(state);
-    if (marketOpen(state)) {
-      shopBaskets(state, ctx);
-      return;
-    }
-    // Before the market opens nothing is for sale, so nobody misses anything.
     if (state.settings.mode !== 'standard') return;
-    for (const h of state.households) setGoodsNeed(state, h);
+    // The clock (order 10) has already moved state.tick on; the schedule matched the tick before it.
+    const tod = tickOfDay(state.tick - 1);
+    if (tod === TICK_ACCRUE) accrueTreats(state);
+    if (tod >= TICK_ACCRUE && tod < TICK_HOME) tradePass(state, ctx);
+    if (tod === BASKETS_OFFSET_TOD) householdPass(state, ctx);
+    if (tod === TICK_DOORSTEP) doorstepErrand(state, ctx);
   },
 };

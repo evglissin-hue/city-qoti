@@ -5,11 +5,20 @@
 // place; see ./api). Anything else resets the count. Nothing moves until the valley unlocks a tier
 // above Settlers (the Village Charter unlocks Craftsfolk), so a Hamlet plays as in I1.
 import { content } from '@qoti/content';
-import { TICKS_PER_DAY, TIER_DOWN_DAYS, TIER_UP_DAYS } from '../../constants';
+import { TICKS_PER_DAY, TIER_DOWN_DAYS } from '../../constants';
 import type { System, TickCtx, WorldState } from '../../contracts';
 import { findById } from '../../state/entities';
 import { dailyOffset } from '../economy/time';
-import { checkTier, nextTier, slideBack, startUpgrade, tierContext, tierIndex, tiersActive } from './api';
+import {
+  checkTier,
+  nextTier,
+  slideBack,
+  startUpgrade,
+  tierUpDays,
+  tierContext,
+  tierIndex,
+  tiersActive,
+} from './api';
 
 /** One daily pass over every household (exported for tests). */
 export function updateTiers(state: WorldState, ctx: TickCtx): void {
@@ -34,7 +43,7 @@ export function updateTiers(state: WorldState, ctx: TickCtx): void {
       continue;
     }
     h.tierDays = Math.max(0, days) + 1;
-    if (h.tierDays >= TIER_UP_DAYS) startUpgrade(state, ctx, h, next);
+    if (h.tierDays >= tierUpDays(basket)) startUpgrade(state, ctx, h, next);
   }
 }
 

@@ -4,9 +4,18 @@
 // The client interpolates between frames. View code: floats are fine, nothing feeds back.
 // C3A: walks are smoothed (diagonals and rounded corners), walkers keep left, residents sharing a
 // tile spread round it, and idle residents face what they came to see.
-import { AGENT_STRIDE, AgentAnim, AgentFlags, MAP_SIZE, ResidentFlags, TICKS_PER_HOUR } from '../constants';
-import type { Cart, Resident, WorldState } from '../contracts';
+import {
+  AGENT_STRIDE,
+  AgentAnim,
+  AgentFlags,
+  MAP_SIZE,
+  ResidentFlags,
+  RoundFlags,
+  TICKS_PER_HOUR,
+} from '../constants';
+import type { AgentPose, AgentView, Cart, Resident, WorldState } from '../contracts';
 import { tickOfDay } from '../systems/residents/time';
+import { stopNow } from '../systems/places/occupancy';
 import { isSkating } from '../systems/seasons/river';
 import { moodBand } from './hamlet';
 import { writeRaiderRows } from './season/raiders';
@@ -58,6 +67,9 @@ export function agentFrame(state: WorldState): Float32Array {
     let extra = 0;
     if (cold?.has(r.householdId)) extra |= AgentFlags.cold;
     if (frozen && r.activity.kind === 'leisure' && isSkating(state, r)) extra |= AgentFlags.skating;
+    // R2A: a resident on a stop of the round: seated on a seat, or skating on the ice.
+    const stop = r.round ? stopNow(state, r) : null;
+    if (stop?.place.startsWith('ice:')) extra |= AgentFlags.skating;
     // I3 (C5B): festival guests on the site; in the closing dance's hour, with both seats here, they dance.
     const guest = festive && atFestival(state, r);
     if (guest) extra |= AgentFlags.festival;
@@ -74,6 +86,7 @@ export function agentFrame(state: WorldState): Float32Array {
       standing.set(r.tile, crowd + 1);
     }
     writeRow(scratch, n * AGENT_STRIDE, r, S, h, crowd, night, extra);
+    if (stop && stop.flags & RoundFlags.seated) scratch[n * AGENT_STRIDE + 5] = AgentAnim.sit;
     if (guest && dancing && !r.move) scratch[n * AGENT_STRIDE + 5] = AgentAnim.dance;
     n++;
   }
@@ -277,4 +290,32 @@ function writeRow(
   out[o + 5] = anim;
   out[o + 6] = r.carry ? r.carry[0] + 1 : 0;
   out[o + 7] = flags;
+}
+
+/**
+ * R2 (R2.0): how a resident on the round is posed (AgentPose), from an agent row's anim and carry
+ * fields: seated (AgentAnim.sit), carrying what they bought (a good in the carry field), else standing.
+ * V3 draws it; R2A sets the seat's anim and R2B the carried treat.
+ */
+export function agentPose(anim: number, carryField: number): AgentPose {
+  if (anim === AgentAnim.sit) return 'sit';
+  if (carryField > 0) return 'carry';
+  return 'stand';
+}
+
+/** R2 (R2.0): one agent row decoded (AgentView), `offset` its start in the frame. */
+export function readAgentRow(frame: Float32Array, offset: number): AgentView {
+  const anim = frame[offset + 5]!;
+  const carryField = frame[offset + 6]!;
+  return {
+    id: frame[offset]!,
+    x: frame[offset + 1]!,
+    z: frame[offset + 2]!,
+    y: frame[offset + 3]!,
+    heading: frame[offset + 4]!,
+    anim,
+    carry: carryField - 1,
+    flags: frame[offset + 7]!,
+    pose: agentPose(anim, carryField),
+  };
 }

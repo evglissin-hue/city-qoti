@@ -26,6 +26,7 @@ import {
   type WorldState,
 } from '@qoti/sim';
 import { flatTown, RESIDENT_BUDGET, type Town } from './residents';
+import { growableLots } from './town';
 
 export const GROWTH_BUDGET = { msPerHour: 2 };
 /** R1: trade choice and growth, under 2 ms a night at City scale (docs/spec/22-quality.md). */
@@ -188,7 +189,7 @@ function measure(
     mineWorstMs: mineWorst,
     tickAvgMs: total / ticks,
     tickWorstMs: worst,
-    lots: world.lots.length,
+    lots: growableLots(world).length,
     grown: world.buildings.filter((b) => b.lot).length,
   };
 }
@@ -306,7 +307,7 @@ function nightBench(lines: string[], failures: string[], stress: boolean): Growt
 
   // About 60 businesses on lots: trades spread over Workshops, Farmland and Shops.
   const byZone = new Map<number, number[]>();
-  for (const l of world.lots) {
+  for (const l of growableLots(world)) {
     if (l.buildingId) continue;
     const zl = byZone.get(l.zone) ?? [];
     zl.push(l.id);
@@ -347,7 +348,7 @@ function nightBench(lines: string[], failures: string[], stress: boolean): Growt
     if (i !== undefined) world.market.demand[i] = 60;
   }
 
-  const emptyLots = world.lots.filter((l) => !l.buildingId).length;
+  const emptyLots = growableLots(world).filter((l) => !l.buildingId).length;
   const times: number[] = [];
   for (let n = 0; n < WARMUP_NIGHTS + NIGHTS; n++) {
     // The night's pass starts from a standing town: finished sites back to built.
@@ -366,7 +367,7 @@ function nightBench(lines: string[], failures: string[], stress: boolean): Growt
   const sorted = [...times].sort((a, b) => a - b);
   const medianMs = sorted[Math.floor(sorted.length / 2)]!;
   const worstMs = sorted[sorted.length - 1]!;
-  const lotsNow = world.lots.length;
+  const lotsNow = growableLots(world).length;
   const bizNow = world.buildings.filter((b) => b.trade).length;
   const pass = medianMs <= GROWTH_NIGHT_BUDGET.msPerNight;
   const kinds = world.buildings.filter((b) => content.buildingById.get(b.def)?.specialized).length;

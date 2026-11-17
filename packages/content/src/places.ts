@@ -1,0 +1,106 @@
+import type { PlacesTuning } from './types';
+
+// The evening round's numbers (docs/spec/19-evenings.md, The day in two acts to Gaps), written in
+// R2.0 from the spec's starting values. Every number tunes in R2X, here and nowhere else: systems read
+// `content.places`, never a literal.
+
+export const PLACES: PlacesTuning = {
+  // The day in two acts
+  eveningHour: 17,
+  homeHour: 21,
+  festivalHomeHour: 22,
+  planMinutes: 60,
+  latePlanHour: 19,
+  lingerPercent: 50,
+  // Where places come from
+  spotRadius: 3,
+  spotMaxPieces: 4,
+  porchSeats: 2,
+  iceStanding: 12,
+  walkTilesPerStroller: 2,
+  standingShare: 50,
+  standingMin: 2,
+  serveRadius: 3,
+  waterRadius: 3,
+  // Draw
+  charmCap: 70,
+  siteBonus: 12,
+  pieceKindBonus: 5,
+  pieceKindMax: 15,
+  waterBonus: 5,
+  litBonus: 8,
+  litHour: 18,
+  treatsBonus: 4,
+  winterPenalty: 12,
+  // The round
+  radius: 12,
+  curiousRadius: 18,
+  homebodyRadius: 6,
+  tasteMin: -10,
+  tasteMax: 15,
+  friendBonus: 8,
+  distanceHundredths: 35,
+  crowdPenalty: 20,
+  whim: 4,
+  minScore: 20,
+  secondBestPercent: 50,
+  nextStopRadius: 8,
+  maxStops: 3,
+  stopMinutes: 60,
+  visitDraw: 30,
+  rainSkipPercent: 50,
+  // Routes
+  pleasantCharm: 40,
+  plainCostPercent: 125,
+  noisyCostPercent: 150,
+  noisyNoise: 3,
+  // Evening trade
+  passingRadius: 1,
+  passingOneIn: 5,
+  doorstepHour: 21,
+  doorstepMinute: 30,
+  doorstepPercent: 33,
+  // Shops follow the walkers
+  footfallDesirability: 30,
+  footfallFullPercent: 10,
+  placeNearShop: 10,
+  placeNearShopRadius: 3,
+  unservedVisitors: 8,
+  cafeLevel: 2,
+  cafeRadius: 2,
+  cafeSeats: 2,
+  stepsPerCustomer: 10,
+  // Good evenings
+  stayInScore: 20,
+  friendScore: 8,
+  treatScore: 8,
+  secondKindScore: 4,
+  standingPenalty: 10,
+  needStart: 50,
+  needStepOneIn: 3,
+  needWeight: 15,
+  goodEvening: 60,
+  goodForHeart: 4,
+  heartsMax: 5,
+  tierDays: 3,
+  eveningsSlack: 15,
+  // Places remembered
+  forgetDays: 6,
+  // R2A: places and the round (beyond the spec's table)
+  afternoonHour: 14,
+  walkPatterns: ['hedgerow-lane', 'lantern-walk', 'promenade-by-the-water'],
+  meetPatterns: ['pocket-park', 'well-gathering-place'],
+  viewPieces: ['lookout-bench'],
+  iceKinds: ['play', 'view'],
+  festivalStanding: 40,
+  waitPerHour: 2,
+  // R2X: newcomers follow good evenings (the lanes test). Past its first sixteen households a town
+  // builds homes for newcomers as fast as its fair evenings send folk out (sixteen: the Charter wants
+  // thirty residents, about twelve households, so the first days are as before). growthBareHomes would keep
+  // that many waiting for open jobs whatever the evenings: at 1 the Hearth-off hazel Hamlet still grew
+  // to 146 (new jobs open as fast as homes fill them), so it is 0. growthFullOutPercent 0 switches
+  // the term off.
+  growthFreeHouseholds: 16,
+  growthFullOutPercent: 40,
+  growthBareHomes: 0,
+};

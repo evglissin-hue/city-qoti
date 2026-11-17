@@ -112,6 +112,21 @@ export function placeName(b: { def: string; trade?: string }): string {
   return (b.trade && content.tradeById.get(b.trade)?.name) || buildingName(b.def);
 }
 
+/**
+ * "Cottage" to "Cottages", "Forester's lodge" to "Forester's lodges", "Bakery" to "Bakeries",
+ * "Bath House" to "Bath Houses". Only the last word moves; a name already in the plural ("Hives",
+ * "Brickworks") stays as it is.
+ */
+export function pluralName(name: string): string {
+  const at = name.lastIndexOf(' ') + 1;
+  const head = name.slice(0, at);
+  const w = name.slice(at);
+  if (/[^aeiou]y$/i.test(w)) return `${head}${w.slice(0, -1)}ies`;
+  if (/(ss|x|z|ch|sh)$/i.test(w)) return `${head}${w}es`;
+  if (/s$/i.test(w)) return name;
+  return `${name}s`;
+}
+
 export function personName(r: { given: string; family: string }): string {
   return `${r.given} ${r.family}`;
 }

@@ -33,6 +33,7 @@ export const setSettings: HandlerFor<'valley.setSettings'> = {
       return 'INVALID';
     }
     if (s.guide !== undefined && (fields++, typeof s.guide !== 'boolean')) return 'INVALID';
+    if (s.eveningLingers !== undefined && (fields++, typeof s.eveningLingers !== 'boolean')) return 'INVALID';
     return fields > 0 ? null : 'INVALID';
   },
   apply(state, seat, cmd, ctx) {
@@ -69,6 +70,7 @@ export const setSettings: HandlerFor<'valley.setSettings'> = {
     if (s.townName !== undefined) out.townName = trimmed(s.townName, MAX_VALLEY_NAME_CHARS)!;
     if (s.valleyName !== undefined) out.valleyName = trimmed(s.valleyName, MAX_VALLEY_NAME_CHARS)!;
     if (s.guide !== undefined) out.guide = s.guide;
+    if (s.eveningLingers !== undefined) out.eveningLingers = s.eveningLingers;
     ctx.events.push({ e: 'settings.updated', settings: { ...out } });
   },
 };

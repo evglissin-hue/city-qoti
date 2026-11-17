@@ -16,6 +16,7 @@ import { doorTile } from '../movement/api';
 import { advance } from '../movement';
 import { walkPermille } from '../movement/factors';
 import { cartRoute, cartTicks, cartTile, routeStillOpen, slowdownPercent } from './api';
+import { crossesClosed } from './evening';
 import { markNoisyChunks } from './noise';
 import { clearTraffic, countPass } from './passes';
 import { regrow } from './wear';
@@ -43,7 +44,9 @@ export const traffic: System = {
 function drive(state: WorldState, ctx: TickCtx, cart: Cart): void {
   const m = cart.move;
   if (!m) return;
-  if (m.version !== state.networkVersion) {
+  // R2 (R2B): at 17:00 (or on any step after) a route that enters a closed evening street is planned
+  // again: the cart goes round, or waits where it stands until 21:00.
+  if (m.version !== state.networkVersion || (m.progress === 0 && crossesClosed(state, m.path, m.step))) {
     if (!replan(state, cart)) return;
   }
   const move = cart.move!;

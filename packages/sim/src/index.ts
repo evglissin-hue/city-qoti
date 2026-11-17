@@ -18,6 +18,7 @@ export {
   inBounds,
   INT32_LAYERS,
   LAYER_NAMES,
+  UINT16_LAYERS,
   pasteRect,
   Road,
   Terrain,
@@ -46,6 +47,7 @@ export {
   createTickCtx,
   effectiveSpeed,
   executeCommand,
+  isLingeringDusk,
   runTick,
   type SimCtx,
 } from './turn';
@@ -77,7 +79,7 @@ export {
   wishView,
   workforceView,
 } from './view';
-export { agentFrame } from './view/agents';
+export { agentFrame, agentPose, readAgentRow } from './view/agents';
 export {
   awayLetter,
   buildingDetail,
@@ -88,6 +90,7 @@ export {
 } from './view/inspect';
 export { evaluate, type Binding } from './conditions';
 export { achievable, placeableNow } from './systems/hearth/wishes/achievable';
+export { gapAchievable } from './systems/gaps/achievable';
 export { gardenFlavors } from './systems/hearth/garden';
 export { HealthWatch, type HealthIssue, type HealthKind } from './view/health';
 
@@ -153,6 +156,9 @@ export { carrierDay } from './systems/carrier';
 export { basketGroups, type NeedGroup } from './systems/market/baskets';
 export { isLean, overdraftLimit } from './systems/loans/credit';
 export { growLot, lotPlacement } from './systems/growth/api';
+// R2F: the lot pass and the hourly storeys refit, for the bench.
+export { zoningPass } from './systems/zoning/lots';
+export { refitStoreys } from './systems/zoning/storeys';
 export { cartAt, cartRoute, cartTile, requestCartMove } from './systems/traffic/api';
 // I2 (C4B): growth, traffic, desire paths and stairs for the client (overlays, tools, previews).
 export { growthDemand, growthPass, type GrowthDemand } from './systems/growth';
@@ -293,3 +299,30 @@ export { pressureBand } from './view/season/threat';
 export { vacantHomes } from './systems/residents/places';
 // I3 (C5A): the winter stores, for the autoplayer and the tuner.
 export { larder, woodpile } from './systems/seasons/stores';
+// R2 (R2.0): the evening round's shared helpers and views.
+export {
+  byPlaceId,
+  cleanName,
+  emptyEveningsSlices,
+  EVENINGS_NEED,
+  eveningsNeed,
+  shownName,
+} from './state/evenings';
+export {
+  eveningView,
+  footfallView,
+  gapsView,
+  gapView,
+  placesView,
+  placeView,
+  streetViews,
+} from './view/evenings';
+// R2 (R2E): the cross-track APIs, read-only, for the autoplayer's advisors, the bench and the audit.
+export { findGap } from './systems/gaps/api';
+export { sellsTreats, treatsOnShelf } from './systems/market/round';
+export { pathFor, type PathMode } from './systems/movement/paths';
+export { placeById, placeDraw, placesNear, placeServes } from './systems/places/api';
+export { invalidatePlaces, placeIndex } from './systems/places/index';
+export { bumpPlaceInputs, setPlaceVerify } from './systems/places/inputs';
+export { streetTiles } from './systems/places/streets';
+export { townReachesDoor } from './state/reach';

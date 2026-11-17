@@ -73,7 +73,15 @@ describe('I0 contracts', () => {
       | 'wear'
     >();
     expectTypeOf<keyof ValleySettings>().toEqualTypeOf<
-      'mode' | 'economy' | 'threat' | 'togetherOnly' | 'townName' | 'valleyName' | 'guide'
+      | 'mode'
+      | 'economy'
+      | 'threat'
+      | 'togetherOnly'
+      | 'townName'
+      | 'valleyName'
+      | 'guide'
+      // R2 (R2.0)
+      | 'eveningLingers'
     >();
   });
 
@@ -145,6 +153,10 @@ describe('I0 contracts', () => {
       | 'season.setPlan'
       | 'decor.move'
       | 'build.move'
+      // R2 (R2.0)
+      | 'road.setEvening'
+      | 'road.rename'
+      | 'place.rename'
     >();
     expectTypeOf<SeatedCommand>().toEqualTypeOf<{ seat: SeatId; seq: number; cmd: Command }>();
     expectTypeOf<Turn>().toEqualTypeOf<{ t: number; cmds: SeatedCommand[] }>();
@@ -240,10 +252,16 @@ describe('I0 contracts', () => {
       | 'demand'
       | 'balances'
       | 'businesses'
+      // R2 (R2.0)
+      | 'places'
+      | 'gaps'
+      | 'evening'
+      | 'streets'
+      | 'footfall'
     >();
     expectTypeOf<ViewSnapshot['meta']>().toEqualTypeOf<WorldState['meta']>();
     expectTypeOf<keyof ClockView>().toEqualTypeOf<
-      'tick' | 'speed' | 'year' | 'season' | 'day' | 'hour' | 'minute'
+      'tick' | 'speed' | 'year' | 'season' | 'day' | 'hour' | 'minute' | 'lingering'
     >();
     expectTypeOf<keyof SeatView>().toEqualTypeOf<
       'seat' | 'name' | 'color' | 'lens' | 'connected' | 'desiredSpeed' | 'lastSeenTick'
@@ -331,6 +349,12 @@ describe('I0 contracts', () => {
       | 'demand.updated'
       | 'balances.updated'
       | 'business.updated'
+      // R2 (R2.0)
+      | 'places.updated'
+      | 'evening.closed'
+      | 'gaps.updated'
+      | 'streets.updated'
+      | 'footfall.updated'
     >();
     expectTypeOf<keyof LayerPatch>().toEqualTypeOf<'layer' | 'rect' | 'data'>();
   });

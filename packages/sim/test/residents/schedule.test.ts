@@ -157,20 +157,23 @@ describe('the day table', () => {
     expect(marina.inside).toBe(homeOf(f, marina));
   });
 
-  it('faces idle residents toward what they came to see, and keeps walkers to the left', () => {
+  it('faces idle residents toward what they came to see', () => {
+    // R2 (R2A): grown-ups' evenings are the round now (a Hamlet with nowhere worth the walk stays in),
+    // so the pose is set up by hand: an idle resident on leisure faces the tile they came to see.
     const f = hamletFixture();
-    const r = runner(f.state);
-    untilHour(r, 17);
-    let checked = 0;
-    for (let i = 0; i < 4 * TICKS_PER_HOUR && checked < 3; i++) {
-      ticks(r, 1);
-      const frame = agentFrame(f.state);
-      for (let o = 0; o < frame.length; o += AGENT_STRIDE) {
-        const p = resident(f.state, frame[o]!);
-        if (!p.move && p.activity.kind === 'leisure' && p.activity.tile !== p.tile) checked++;
-      }
+    const p = f.state.residents.find((x) => x.stage === 'adult')!;
+    p.inside = 0;
+    p.move = null;
+    p.tile = tileOf(50, 50);
+    p.activity = { kind: 'leisure', tile: tileOf(51, 50) };
+    const frame = agentFrame(f.state);
+    let found = false;
+    for (let o = 0; o < frame.length; o += AGENT_STRIDE) {
+      if (frame[o] !== p.id) continue;
+      found = true;
+      expect(frame[o + 4]).toBeCloseTo(Math.PI / 2, 5);
     }
-    expect(checked).toBeGreaterThan(0);
+    expect(found).toBe(true);
   });
 });
 

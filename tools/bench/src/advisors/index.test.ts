@@ -16,6 +16,7 @@ describe('the advisors', () => {
       'village',
       // R1F: the land advisor took the street advisor's slot, the plan advisor the seasons advisor's.
       'land',
+      'shops',
       'charter',
       'money',
       'watch',
@@ -23,6 +24,8 @@ describe('the advisors', () => {
       'plan',
       'festivals',
       'hearth',
+      // R2E: the Hearth's places, after the wishes
+      'places',
       // I3 (C5C)
       'nature',
       'together',

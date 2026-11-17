@@ -32,6 +32,7 @@ import type {
 } from './views';
 import type { RankId } from './village';
 import type { BalancesView, BusinessView, DemandView } from './zones';
+import type { EveningView, FootfallView, GapsView, PlacesView, StreetView } from './evenings';
 import type {
   ChronicleSnapshot,
   CommissionView,
@@ -154,7 +155,18 @@ export type SimEvent =
   /** The five families and the carrier's purse: at 00:00, after the carrier, and on carrier and plan commands. */
   | { e: 'balances.updated'; b: BalancesView }
   /** A business or specialized building's level, keeper, trade or status changed. */
-  | { e: 'business.updated'; b: BusinessView };
+  | { e: 'business.updated'; b: BusinessView }
+  // R2 (R2.0): the evening round's views (docs/spec/20-architecture.md, R2 contracts).
+  /** Places found, changed or gone (the place pass, when something changed), and their counts at 21:00 (R2A). */
+  | { e: 'places.updated'; p: PlacesView }
+  /** The evening's tally and the edition's lines, at 21:00 (R2C). */
+  | { e: 'evening.closed'; v: EveningView }
+  /** Gaps opened, refreshed or closed (R2C). */
+  | { e: 'gaps.updated'; g: GapsView }
+  /** Street names: a run named, renamed or gone (R2A). */
+  | { e: 'streets.updated'; s: StreetView[] }
+  /** The footfall layers, hourly from 17:00 to 21:00 and after the 04:00 halving (R2A). */
+  | { e: 'footfall.updated'; f: FootfallView };
 
 export interface LayerPatch {
   layer: LayerName;

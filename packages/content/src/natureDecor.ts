@@ -6,6 +6,7 @@ import type { ChronicleTemplate, DecorDef } from './types';
 
 export const arborSeat: DecorDef = {
   id: 'arbor-seat',
+  seats: 2,
   name: 'Arbor seat',
   lane: 'hearth',
   radius: 72,
@@ -45,6 +46,8 @@ export const reedBed: DecorDef = {
 
 export const seeSaw: DecorDef = {
   id: 'see-saw',
+  seats: 2,
+  childSeats: true,
   name: 'See-saw',
   lane: 'hearth',
   radius: 80,
@@ -57,6 +60,8 @@ export const seeSaw: DecorDef = {
 
 export const swing: DecorDef = {
   id: 'swing',
+  seats: 2,
+  childSeats: true,
   name: 'Swing',
   lane: 'hearth',
   radius: 72,

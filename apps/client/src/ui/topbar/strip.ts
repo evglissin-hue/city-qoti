@@ -242,3 +242,72 @@ export function winterReading(b: BalancesView): WinterReading | null {
     title: `Put by for winter: ${parts.join(', ')}.`,
   };
 }
+
+// --- R2D: the Hearth's strip ---------------------------------------------------------------------
+
+export interface EveningReading {
+  /** "27 of 40 out". */
+  out: string;
+  /** The average evening in a word. */
+  word: string;
+  /** The average evening, 0 to 1, for the small bar. */
+  fill: number;
+  title: string;
+}
+
+/**
+ * An evening's score runs 0 to 100 and staying in is worth 20 (19-evenings.md); 50, 65 and 80 are
+ * what Craftsfolk, Merchants and Patrons ask of their grown-ups, so the words turn there.
+ */
+export function eveningWord(average: number): string {
+  if (average < 35) return 'quiet';
+  if (average < 50) return 'modest';
+  if (average < 65) return 'fair';
+  if (average < 80) return 'lively';
+  return 'merry';
+}
+
+/** The tier marks an evening's average is read against, for the chip's title. */
+const EVENING_ASKS = 'Craftsfolk want 50, Merchants 65, Patrons 80.';
+
+/**
+ * The evenings chip, or null when no evening has been tallied yet (nothing to say). R2X: while the
+ * evening is under way (`live`) it counts tonight so far and says "so far": an evening is scored at
+ * 21:00, and an unscored one once read "quiet" all evening however full the benches were.
+ */
+export function eveningReading(
+  e: { out: number; grownups: number; average: number; live?: boolean } | undefined,
+): EveningReading | null {
+  if (!e || e.grownups <= 0) return null;
+  const word = eveningWord(e.average);
+  if (e.live) {
+    const last = e.average > 0 ? ` Last evening was ${word} (${Math.round(e.average)} out of 100).` : '';
+    return {
+      out: `${e.out} of ${e.grownups} out`,
+      word: 'so far',
+      fill: Math.max(0, Math.min(1, e.average / 100)),
+      title:
+        `Tonight so far ${e.out} of ${e.grownups} grown-ups are out. The evening is scored at 21:00, ` +
+        `as folk head home.${last} ${EVENING_ASKS} Click for the Chronicle.`,
+    };
+  }
+  return {
+    out: `${e.out} of ${e.grownups} out`,
+    word,
+    fill: Math.max(0, Math.min(1, e.average / 100)),
+    title:
+      `Last evening ${e.out} of ${e.grownups} grown-ups went out, and the average evening was ${word} ` +
+      `(${Math.round(e.average)} out of 100). ${EVENING_ASKS} Click for the Chronicle.`,
+  };
+}
+
+/** The gaps chip, or null with none open. */
+export function gapsReading(
+  open: readonly { text: string }[] | undefined,
+): { label: string; title: string } | null {
+  if (!open?.length) return null;
+  return {
+    label: `${open.length} ${open.length === 1 ? 'gap' : 'gaps'} open`,
+    title: `${open.map((g) => g.text).join('\n')}\nClick to see the first.`,
+  };
+}

@@ -5,6 +5,7 @@ import { TREE_SPECIES, treeValue } from '../../src/map/layers';
 import { content } from '@qoti/content';
 import { describe, expect, it } from 'vitest';
 import { insertBuilding } from '../../src/state/place';
+import { bumpPlaceInputs } from '../../src/systems/places/inputs';
 import { HealthWatch, quietSeasons } from '../../src/view/health';
 import { hamletFixture } from '../fixtures/hamlet';
 import { run } from '../helpers';
@@ -65,9 +66,11 @@ describe('the playability health kinds', () => {
       by: 0,
       tick: 0,
     };
+    bumpPlaceInputs(s);
     const w = new HealthWatch();
     expect(kinds(w, s)).toContain('festival-no-show');
     s.festival.live = true;
+    bumpPlaceInputs(s);
     expect(kinds(new HealthWatch(), s)).not.toContain('festival-no-show');
   });
 });

@@ -3,16 +3,20 @@
 // arrivals every two hours from 08:00 to 16:00, departures at 09:00, friendships hourly at an offset, each household's needs
 // (and its daily friendship chores) once an hour at its own tick, and each resident's schedule
 // every THINK_EVERY ticks at its own.
+import { content } from '@qoti/content';
 import { ResidentFlags } from '../../constants';
-import type { Resident, System, TickCtx, WorldState } from '../../contracts';
+import type { Resident, Rng, System, TickCtx, WorldState } from '../../contracts';
+import { rngFromSeed } from '../../rng/streams';
 import { isStandard } from '../../state/hamlet';
 import { modifierValue } from './api';
 import { decayFriendships, greetNeighbors, hourlyFriendships } from './friends';
 import { assignJobs, auditJobs, rebalanceJobs } from './jobs';
+import { closeEvening } from './evening';
 import { lifeEvening, lifeMorning } from './life';
 import { arrivals, attractiveness, departures, morningPass, rehouse, thinkLeaving } from './lifecycle';
 import { eatBreakfast, updateHouseholdNeeds } from './needs';
 import { syncResident } from './records';
+import { startEvening } from './round';
 import { THINK_EVERY, think, thinkArrival } from './schedule';
 import { HOUR, at, tickOfDay } from './time';
 
@@ -31,6 +35,12 @@ const ARRIVALS_EVERY = 2 * HOUR;
 const DEPARTURES = at(9);
 /** Weddings (C4D): the festival evening, or the couple's own chosen evening. */
 const WEDDINGS = at(18);
+/**
+ * R2 (R2.0): the evening round's two fixed moments (content.places.eveningHour and homeHour; R2A
+ * starts the evening, R2B closes it). Read once: content does not change while the sim runs.
+ */
+const EVENING = at(content.places.eveningHour);
+const HOME = at(content.places.homeHour);
 /** Friendships fade in the morning and neighbors wave over the fence in the evening. */
 const MORNING_HOUR = 6;
 const EVENING_HOUR = 18;
@@ -42,6 +52,16 @@ function clearHop(state: WorldState, r: Resident): void {
   );
   const since = granted ? state.tick - granted.from : HOUR;
   if (since >= HOUR || (granted && modifierValue(granted, state.tick) === 0)) r.flags &= ~ResidentFlags.hop;
+}
+
+/**
+ * R2X: each arrival wave draws from a generator of its own, seeded from the valley's seed and the
+ * wave's tick as a stream is seeded, so what residents do through the day and of an evening (the
+ * `residents` stream's other draws) never reshuffles who walks in. A pure function of saved state
+ * (the seed and the tick), so it is never saved and a seat joining from a snapshot draws alike.
+ */
+export function arrivalsRng(state: WorldState): Rng {
+  return rngFromSeed(`${state.seed}@${state.tick}`, 'arrivals');
 }
 
 export function residentsTick(state: WorldState, ctx: TickCtx): void {
@@ -56,10 +76,12 @@ export function residentsTick(state: WorldState, ctx: TickCtx): void {
   if (tod >= FIRST_ARRIVALS && tod <= LAST_ARRIVALS && (tod - FIRST_ARRIVALS) % ARRIVALS_EVERY === 0) {
     // The morning's pull goes stale as homes go up and fill, so each wave weighs it afresh.
     if (tod !== FIRST_ARRIVALS) state.stats.attractiveness = attractiveness(state);
-    arrivals(state, ctx, rng);
+    arrivals(state, ctx, arrivalsRng(state));
   }
   if (tod === DEPARTURES) departures(state, ctx);
   if (tod === WEDDINGS) lifeEvening(state, ctx);
+  if (tod === EVENING) startEvening(state, ctx);
+  if (tod === HOME) closeEvening(state, ctx);
   if (t % UPKEEP_EVERY === 0) {
     rehouse(state, ctx);
     auditJobs(state, ctx);

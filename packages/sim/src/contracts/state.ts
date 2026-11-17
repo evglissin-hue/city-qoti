@@ -30,6 +30,7 @@ import type {
   WatchState,
   WeatherState,
 } from './seasons';
+import type { EveningsState, GapsState, PlaceState, Street } from './evenings';
 import type { ValleySettings } from './settings';
 import type {
   Cart,
@@ -79,6 +80,12 @@ export interface MapLayers {
   traffic: Uint8Array;
   /** Desire path wear from residents walking off-road, 0 to 255 (C4B). */
   wear: Uint8Array;
+  // R2 (R2.0): footfall (19-evenings.md, Footfall), saturating at 65535, both halved at 04:00 (R2A).
+  // Uint16LayerName, not LayerName: hashed and saved, never patched to clients (FootfallView).
+  /** Steps taken on the tile by anyone walking, but on an evening round. */
+  footfallDay: Uint16Array;
+  /** Steps on the way to a stop or between the stops of a round (the walk home does not count). */
+  footfallEve: Uint16Array;
 }
 
 export interface WorldMeta {
@@ -126,6 +133,19 @@ export interface Building {
   pinned?: true;
   /** What its level and retooling read (R1B). */
   counters?: BusinessCounters;
+  // R2 (R2.0): floors by tier and row (i4-visual-planning-notes.md, V2 item 4; V3B draws it as
+  // `params.storeys`). Absent on hand-placed buildings.
+  /**
+   * Storeys of a grown building, in half-storey steps (1, 1.5, 2 up to 4): chosen by the sim from its
+   * tier (homes) or level (businesses) and its row, saved so both seats see one skyline.
+   */
+  storeys?: number;
+  /**
+   * R2 (R2B): a shop that has put tables out and become a cafe (19-evenings.md, Shops follow the
+   * walkers): set and cleared by the levels pass at 23:30 (a shop of `PLACES.cafeLevel` whose door
+   * is within `cafeRadius` of `cafeSeats` seats); `cafeTables` reads it for the place pass.
+   */
+  cafe?: true;
 }
 
 export interface Decor {
@@ -233,4 +253,14 @@ export interface WorldState {
   seasonPlan: SeasonPlan;
   /** The four demand bars and their reasons, from the 01:00 growth pass (R1B). */
   demand: DemandState;
+  // R2 slices (R2.0). docs/spec/20-architecture.md, "R2 contracts"; docs/spec/19-evenings.md, Data and
+  // budgets. Sandbox valleys keep them empty.
+  /** What the town remembers of each place, by stable id, sorted by id (R2A writes; R2B and R2C read). */
+  places: PlaceState[];
+  /** Open and lately closed gaps, their streaks and credits (R2C). */
+  gaps: GapsState;
+  /** Street names by road run, sorted by id (R2A; road.rename). */
+  streets: Street[];
+  /** The evening under way and the last few, for the edition, the Charter and the feats (R2A, R2B, R2C). */
+  evenings: EveningsState;
 }

@@ -20,6 +20,7 @@ import { markCharmDirty, markCharmSoon } from '../systems/hearth/charm/dirty';
 import { doorTile } from '../systems/movement/api';
 import { buildingView, decorView } from '../view';
 import { type HandlerFor, tilesChangedFor, worldChanged } from './util';
+import { bumpPlaceInputs } from '../systems/places/inputs';
 
 function decorRect(fx: number, fz: number): [number, number, number, number] {
   const x = Math.floor(fx / TILE_FP);
@@ -53,6 +54,7 @@ export const moveDecor: HandlerFor<'decor.move'> = {
     d.fx = cmd.fx;
     d.fz = cmd.fz;
     d.rot = cmd.rot;
+    bumpPlaceInputs(state);
     grid.add(d);
     // The client's mirror redraws a piece from remove then add (same id).
     ctx.events.push({ e: 'decor.removed', id: d.id });
@@ -107,6 +109,7 @@ export const moveBuilding: HandlerFor<'build.move'> = {
     b.x = cmd.x;
     b.z = cmd.z;
     b.rot = rot;
+    bumpPlaceInputs(state);
     b.foundation = placement.foundation;
     const newTiles = footprintTiles(def, b.x, b.z, b.rot);
     for (const [x, z] of newTiles) {
@@ -121,6 +124,7 @@ export const moveBuilding: HandlerFor<'build.move'> = {
     const rt = b.rt;
     if (rt && b.stage === 'built') {
       b.stage = 'construction';
+      bumpPlaceInputs(state);
       rt.construction = {
         needs: rt.input.map(() => 0),
         delivered: rt.input.map(() => 0),

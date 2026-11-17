@@ -16,6 +16,7 @@ import { announceServers } from '../specialized/announce';
 import type { SiteCache } from './site';
 import { siteMeets } from './site';
 import { needOf, tradeTerms, type TownNeeds } from './trades';
+import { bumpPlaceInputs } from '../places/inputs';
 
 /** Days in surplus before a business retools to a trade the town is short of. */
 export const SURPLUS_DAYS = 6;
@@ -64,6 +65,7 @@ export function retool(state: WorldState, ctx: TickCtx, b: Building, t: TradeDef
     clearFields(state, ctx, fieldsOf(state, b, def));
   }
   b.trade = t.id;
+  bumpPlaceInputs(state);
   delete b.pinned;
   if (b.rt) b.rt.progress = 0;
   const c = (b.counters ??= emptyCounters());

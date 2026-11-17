@@ -276,6 +276,14 @@ export function installDebugHook(getSession: () => Session | null): void {
       session.ui.almanac.value = { kind: 'card', view };
       return true;
     },
+    /** R2D: shows the last evening edition as the card (the &evening mocks fill it); false when there is none. */
+    edition: () => {
+      const session = s();
+      const v = session?.mirror.evening.value;
+      if (!session || !v) return false;
+      session.ui.edition.value = v;
+      return true;
+    },
     // I1 (C3E): hamlet UI helpers for tests and screenshots.
     mode: () => s()?.mirror.settings.value.mode ?? null,
     town: () => s()?.mirror.town.value ?? null,
@@ -333,7 +341,7 @@ export function installDebugHook(getSession: () => Session | null): void {
       };
     },
     /** I3 (C5F): puts a season page on the desk from the I3 mocks ('card', 'report', 'festival', 'raid'). */
-    seasonsMock: async (what: 'card' | 'report' | 'festival' | 'raid') => {
+    seasonsMock: async (what: 'card' | 'report' | 'report-cross' | 'festival' | 'raid') => {
       const session = s();
       if (!session) return;
       const mk = await import('../ui/mocks/seasons');
@@ -341,6 +349,8 @@ export function installDebugHook(getSession: () => Session | null): void {
       if (what === 'card')
         ui.almanac.value = { kind: 'card', view: session.mirror.seasonCard.value ?? mk.mockSeasonCard };
       if (what === 'report') ui.almanac.value = { kind: 'report', view: mk.mockSeasonReport, page: 0 };
+      if (what === 'report-cross')
+        ui.almanac.value = { kind: 'report', view: mk.mockSeasonReportCross, page: 0 };
       if (what === 'festival') ui.festivalCard.value = mk.mockFestivalResult;
       if (what === 'raid') ui.raidCard.value = mk.mockRaidResult;
     },
@@ -374,6 +384,13 @@ export function installDebugHook(getSession: () => Session | null): void {
     waterAt: (x: number, z: number) => s()?.mirror.water(x, z) ?? 0,
     /** R1D: the road value on a tile (1 path, 2 lane, 3 street). */
     roadAt: (x: number, z: number) => s()?.mirror.road(x, z) ?? 0,
+    /** R2X: the building on a tile, 0 for none (an e2e click aims beside one, not on it). */
+    occupantAt: (x: number, z: number) => s()?.mirror.occupant(x, z) ?? 0,
+    /** R2D: whether a road tile is kept for evening strolling. */
+    eveningAt: (x: number, z: number) => s()?.mirror.eveningStreet(x, z) ?? false,
+    /** R2D: the places and gaps the Mirror holds (the &evening mocks until R2A and R2C land). */
+    places: () => [...(s()?.mirror.places.values() ?? [])],
+    gaps: () => s()?.mirror.gaps.value ?? null,
     /** Interface size, 0.8 to 1.4, as the settings slider sets it. */
     setUiScale: (scale: number) => applySettings({ ...loadSettings(), uiScale: scale }),
     awayLetter: async () => (await s()?.inspect('away', s()!.seat)) ?? null,

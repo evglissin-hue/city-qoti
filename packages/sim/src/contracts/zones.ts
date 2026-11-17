@@ -98,6 +98,11 @@ export type DemandKind = 'homes' | 'shops' | 'workshops' | 'farmland';
 export type DemandReasonCode =
   /** Homes: households would come (the town's pull is 25+) and jobs are open. */
   | 'newcomers'
+  /**
+   * R2X, Homes: newcomers hold back for want of good evenings: past `PlacesTuning.growthFreeHouseholds`
+   * homes come only as fast as recent fair evenings send folk out (`value`: the percent out).
+   */
+  | 'quietEvenings'
   /** Shops: households no outlet reaches (`value` of them). */
   | 'noOutlet'
   /** Shops: more than eight households an outlet. */
@@ -145,7 +150,12 @@ export type DemandReasonCode =
    * P2: any bar: a lot waits its turn behind `value` grown sites going up already: the most at once,
    * the day's starts used on other land, or one business of its kind at a time (quiet).
    */
-  | 'sitesBusy';
+  | 'sitesBusy'
+  /**
+   * R2 (R2B): Shops: `value` places drew `PLACES.unservedVisitors` or more of an evening with
+   * nothing to sell them and no outlet at their door (19-evenings.md, Shops follow the walkers).
+   */
+  | 'unservedPlaces';
 
 export interface DemandReason {
   code: DemandReasonCode;

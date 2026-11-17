@@ -9,6 +9,7 @@ import { hasInnovation, rankAtLeast } from '../state/village';
 import { emitBuilding } from '../systems/economy/emit';
 import { businessView } from '../view/businesses';
 import type { HandlerFor } from './util';
+import { bumpPlaceInputs } from '../systems/places/inputs';
 
 export const pinRecipe: HandlerFor<'build.pinRecipe'> = {
   type: 'build.pinRecipe',
@@ -32,6 +33,7 @@ export const pinRecipe: HandlerFor<'build.pinRecipe'> = {
     } else {
       if (b.trade !== cmd.trade) {
         b.trade = cmd.trade;
+        bumpPlaceInputs(state);
         b.rt!.progress = 0;
       }
       b.pinned = true;

@@ -1,8 +1,9 @@
 // The lanes test (R1F, docs/spec/22-quality.md, "The lanes test"): each bench seed is played the
 // same number of days three ways: both lanes, the Hearth's lane off from the first day, and the
 // Ledger's lane off after founding (it still lays and zones the street on day 1). A town that
-// needs both players should lose much of its growth with either one gone. R1 only records that
-// (the R2 note); the run fails only on the decisions verdict of the both-lanes runs.
+// needs both players should lose much of its growth with either one gone. R2E enforces it: the run fails
+// when a one-lane town keeps more than R2_RESIDENTS of the residents or R2_CRAFTSFOLK of the
+// Craftsfolk households, or on the decisions verdict of the both-lanes runs.
 //
 // `npm run lanes -w @qoti/bench [seed ...]` (default `DEFAULT_SEEDS`). LANES_DAYS (default 70),
 // LANES_JOBS (default 4 child processes at a time), LANES_JSON=<file> writes the results.
@@ -62,11 +63,47 @@ export function playLane(seed: string, mode: LaneMode, days: number): LaneRun {
 
 const pct = (n: number, of: number) => (of > 0 ? Math.round((n / of) * 100) : 0);
 
-/** The R2 note for a one-lane town against the both-lanes town. */
-export function r2Note(one: LaneRun, both: LaneRun): string {
-  const ok =
-    one.residents <= R2_RESIDENTS * both.residents && one.craftsfolk <= R2_CRAFTSFOLK * both.craftsfolk;
-  return ok ? 'would pass' : 'would fail';
+/**
+ * Whether a one-lane town stays within the R2 targets against the both-lanes town: at most
+ * `R2_RESIDENTS` of its residents and at most `R2_CRAFTSFOLK` of its Craftsfolk households.
+ * The edge: a both-lanes town with no Craftsfolk (0 of 0) passes the Craftsfolk half, since
+ * 0 <= 0.5 * 0 holds; the residents half still bites, so a stalled both-lanes town cannot hide a leak.
+ */
+export function laneFailures(one: LaneRun, both: LaneRun): string[] {
+  const fails: string[] = [];
+  if (one.residents > R2_RESIDENTS * both.residents)
+    fails.push(
+      `${one.residents} of ${both.residents} residents (${pct(one.residents, both.residents)}%, limit ${R2_RESIDENTS * 100}%)`,
+    );
+  if (one.craftsfolk > R2_CRAFTSFOLK * both.craftsfolk)
+    fails.push(
+      `${one.craftsfolk} of ${both.craftsfolk} Craftsfolk households (${pct(one.craftsfolk, both.craftsfolk)}%, limit ${R2_CRAFTSFOLK * 100}%)`,
+    );
+  return fails;
+}
+
+const MODE_NAMES: Record<LaneMode, string> = {
+  both: 'both lanes',
+  hearthOff: 'Hearth off',
+  ledgerOff: 'Ledger off',
+};
+
+/** The lanes verdict: one failure line per one-lane town over the R2 limits, then the decisions verdict. */
+export function lanesVerdict(runs: readonly LaneRun[], seeds: readonly string[]): string[] {
+  const fails: string[] = [];
+  for (const seed of seeds) {
+    const both = runs.find((r) => r.seed === seed && r.mode === 'both');
+    if (!both) continue;
+    for (const mode of ['hearthOff', 'ledgerOff'] as const) {
+      const one = runs.find((r) => r.seed === seed && r.mode === mode);
+      if (!one) continue;
+      const f = laneFailures(one, both);
+      if (f.length) fails.push(`${seed}: ${MODE_NAMES[mode]} town keeps too much: ${f.join('; ')}`);
+    }
+    const days = Math.min(both.days, DECISIONS_DAYS);
+    for (const v of decisionVerdict(both.decisions, days)) fails.push(`${seed}: decisions: ${v}`);
+  }
+  return fails;
 }
 
 /** The lanes table, then the decisions tables. */
@@ -78,7 +115,7 @@ export function formatLanes(runs: readonly LaneRun[], seeds: readonly string[], 
   ];
   const find = (seed: string, mode: LaneMode) => runs.find((r) => r.seed === seed && r.mode === mode)!;
   const cell = (one: LaneRun, both: LaneRun) =>
-    `${String(one.residents).padStart(3)} ${String(pct(one.residents, both.residents)).padStart(3)}% ${String(one.craftsfolk).padStart(5)} ${String(pct(one.craftsfolk, both.craftsfolk)).padStart(3)}% ${r2Note(one, both).padEnd(10)}`;
+    `${String(one.residents).padStart(3)} ${String(pct(one.residents, both.residents)).padStart(3)}% ${String(one.craftsfolk).padStart(5)} ${String(pct(one.craftsfolk, both.craftsfolk)).padStart(3)}% ${(laneFailures(one, both).length ? 'FAIL' : 'PASS').padEnd(10)}`;
   for (const seed of seeds) {
     const both = find(seed, 'both');
     lines.push(
@@ -87,7 +124,7 @@ export function formatLanes(runs: readonly LaneRun[], seeds: readonly string[], 
   }
   lines.push(
     '',
-    `Decisions (the both-lanes runs, first ${DECISIONS_DAYS} days, Ledger limit ${DECISIONS_LIMIT})`,
+    `Decisions (the both-lanes runs, first ${DECISIONS_DAYS} days, Ledger limit ${DECISIONS_LIMIT}; the Hearth's are reported, not limited)`,
   );
   lines.push('seed     ledger hearth refused verdict');
   for (const seed of seeds) {
@@ -142,11 +179,10 @@ async function main(): Promise<void> {
   await Promise.all(Array.from({ length: Math.min(jobs, todo.length) }, worker));
   console.log(formatLanes(runs, seeds, days));
   if (process.env.LANES_JSON) writeFileSync(process.env.LANES_JSON, `${JSON.stringify(runs, null, 2)}\n`);
-  const failed = seeds.some((s) => {
-    const both = runs.find((r) => r.seed === s && r.mode === 'both')!;
-    return decisionVerdict(both.decisions, Math.min(days, DECISIONS_DAYS)).length > 0;
-  });
-  process.exit(failed ? 1 : 0);
+  const fails = lanesVerdict(runs, seeds);
+  if (fails.length) console.log(`\nLanes test FAILED\n${fails.join('\n')}`);
+  else console.log('\nLanes test passed');
+  process.exit(fails.length ? 1 : 0);
 }
 
 if (process.argv[1]?.endsWith('lanes.ts')) {

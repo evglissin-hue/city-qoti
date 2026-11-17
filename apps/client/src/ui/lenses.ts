@@ -44,6 +44,8 @@ export const overlays: readonly OverlayDef[] = [
   { id: 'resources', lens: 'ledger', label: 'Soil and stone', icon: 'soilstone', hint: 'Rich soil, clay and stone across the valley (the Ledger shows it until you pick another)' },
   { id: 'status', lens: 'ledger', label: 'Status', icon: 'status', hint: 'Buildings that want attention' },
   { id: 'threat', lens: 'ledger', label: 'Threat', icon: 'threat', hint: 'What the Watch can see, and where trouble is expected from' },
+  { id: 'town', lens: 'hearth', label: 'Town', icon: 'town', hint: 'Where folk go of an evening, and where the goods go by day' },
+  { id: 'town', lens: 'ledger', label: 'Town', icon: 'town', hint: 'Where the goods go by day, and who walks past the stalls at dusk' },
   { id: 'traffic', lens: 'ledger', label: 'Traffic', icon: 'traffic', hint: 'Where the carts crowd the roads', village: true },
   { id: 'warmth', lens: 'hearth', label: 'Warmth', icon: 'warmth', hint: 'Homes with someone cold in them, in blue' },
   { id: 'zones', lens: 'ledger', label: 'Zones', icon: 'zones', hint: 'Zoned land and the lots cut from it', village: true },

@@ -2,6 +2,7 @@
 // four tracks fill their own lines without touching each other's files.
 import type { SeasonIndex, SeasonReportView, WorldState } from '../../contracts';
 import { seasonAt } from '../../state/seasons';
+import { eveningSeasonLines } from './evening';
 import { festivalLines } from './festival';
 import { natureLines } from './nature';
 import { threatLines } from './threat';
@@ -15,6 +16,12 @@ const BUILDERS = [
   threatLines,
 ];
 
+// The cross-lane lines (the joint spread's): absent from the report when empty.
+// prettier-ignore
+const TOGETHER = [
+  eveningSeasonLines,
+];
+
 export function seasonReportView(state: WorldState): SeasonReportView {
   const { season, year } = seasonAt(state.tick);
   const out: SeasonReportView = { season: season as SeasonIndex, year, hearth: [], ledger: [] };
@@ -23,5 +30,8 @@ export function seasonReportView(state: WorldState): SeasonReportView {
     out.hearth.push(...lines.hearth);
     out.ledger.push(...lines.ledger);
   }
+  const together: SeasonReportView['together'] = [];
+  for (const build of TOGETHER) together.push(...build(state));
+  if (together.length > 0) out.together = together;
   return out;
 }

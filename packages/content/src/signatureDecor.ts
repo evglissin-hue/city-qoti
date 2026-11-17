@@ -6,6 +6,7 @@ import type { DecorDef } from './types';
 
 export const millstoneBench: DecorDef = {
   id: 'millstone-bench',
+  seats: 2,
   name: 'Millstone bench',
   lane: 'hearth',
   radius: 40,

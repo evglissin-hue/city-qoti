@@ -21,6 +21,21 @@ export const INPUT_COPY = {
   partner: 'Your partner',
   someone: 'Someone',
   piece: 'piece',
+  // R2D: the evening street brush.
+  eveningTool: 'Keep a road for strolling of an evening. Drag to mark, Shift+drag to give it back',
+  eveningHint: 'Drag along a road to keep it for strolling. Shift+drag gives it back to the carts.',
+  eveningNoRoad: 'No road here to keep for strolling.',
+  eveningOff: 'Open to carts again, evenings included.',
+  eveningOn: (waits: string[]) =>
+    waits.length === 0
+      ? 'Kept for strolling from 17:00 to 21:00. Carts go the long way round.'
+      : `Kept for strolling from 17:00 to 21:00. ${
+          waits.length === 1
+            ? `The ${waits[0]} takes no deliveries till 21:00.`
+            : `The ${waits[0]} and ${waits.length - 1} more take no deliveries till 21:00.`
+        }`,
+  eveningSame: (unmark: boolean) =>
+    unmark ? 'Nothing here was kept for strolling.' : 'Already kept for strolling.',
   roadHint: 'F flips the bend. Esc lets go.',
   // I2 (C4F)
   streetLocked: (innovation: string) =>

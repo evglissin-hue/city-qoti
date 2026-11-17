@@ -1,6 +1,7 @@
 import { signal } from '@preact/signals';
 import type {
   AwayLetter,
+  EveningView,
   FestivalResultView,
   GoodFamily,
   LetterView,
@@ -129,6 +130,8 @@ export function createUiState() {
     raidCard: signal<RaidResultView | null>(null),
     /** The festival's result card, while it is open. */
     festivalCard: signal<FestivalResultView | null>(null),
+    /** R2D: the evening edition card, while it is open. */
+    edition: signal<EveningView | null>(null),
     /** A quiet note while a together moment is on, or null. */
     together: signal<string | null>(null),
     /** Photo mode: the interface hidden, the camera free. */
