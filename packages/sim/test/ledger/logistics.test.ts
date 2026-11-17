@@ -191,6 +191,23 @@ describe('outlets', () => {
     expect(nearestOutletWithFood(f.state, 50 * MAP_SIZE + 72)).toBe(f.b.granary);
   });
 
+  it('P3A: a home beyond every stall’s reach walks to the nearest stall when no store has food', () => {
+    const f = hamletFixture();
+    const far = 50 * MAP_SIZE + 52;
+    const stall = building(f.state, f.b.stall);
+    // Food on the stall alone: the granary (the only store with food) runs bare.
+    building(f.state, f.b.granary).rt!.store.fill(0);
+    building(f.state, f.b.storehouse).rt!.store[good('bread')] = 0;
+    expect(outletFood(f.state, stall.id)).toBeGreaterThan(0);
+    expect(nearestOutletWithFood(f.state, far)).toBe(f.b.stall);
+    // Still the nearer store when one has food, and nothing at all when nobody does.
+    building(f.state, f.b.granary).rt!.store[good('bread')] = 5;
+    expect(nearestOutletWithFood(f.state, far)).toBe(f.b.granary);
+    building(f.state, f.b.granary).rt!.store.fill(0);
+    stall.rt!.store.fill(0);
+    expect(nearestOutletWithFood(f.state, far)).toBe(0);
+  });
+
   it('never hands out goods a porter has been promised', () => {
     const f = hamletFixture();
     const stall = building(f.state, f.b.stall);
