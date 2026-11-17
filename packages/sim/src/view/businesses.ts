@@ -1,5 +1,6 @@
 // The Businesses book's view (docs/spec/13-ledger.md, Reports: Businesses; R1B owns it). Split from
 // view/zones.ts on the wave's first day. Views may use floats freely: nothing here feeds state.
+import { businessMastery } from './masters';
 import { content } from '@qoti/content';
 import { BuildingStatus } from '../constants';
 import type { Building, BusinessView, WorldState } from '../contracts';
@@ -123,6 +124,8 @@ export function businessView(state: WorldState, b: Building): BusinessView {
     const takes = profit.lines.filter((l) => l.pennies > 0).reduce((n, l) => n + l.pennies, 0);
     view.profit = { takes, pays: takes - profit.perDay };
   }
+  // R3.0: its master, the master's good and the grace after one leaves (R3B).
+  Object.assign(view, businessMastery(state, b));
   return view;
 }
 

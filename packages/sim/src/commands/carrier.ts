@@ -20,13 +20,22 @@ export const setRule: HandlerFor<'carrier.setRule'> = {
     if (!isStandard(state)) return 'NOT_ALLOWED';
     if (family(cmd.family) < 0 || !RULES.includes(cmd.rule) || typeof cmd.sell !== 'boolean')
       return 'INVALID';
+    // R3.0: the switch to buy for places is optional; when sent it is a boolean.
+    if (cmd.places !== undefined && typeof cmd.places !== 'boolean') return 'INVALID';
     return null;
   },
-  apply(state, _seat, cmd, ctx) {
+  apply(state, seat, cmd, ctx) {
     const f = state.carrier.families[family(cmd.family)]!;
     f.rule = cmd.rule;
     f.sell = cmd.sell;
     f.set = true;
+    // R3.0: whether it buys for places too (R3A's carrier reads it), and who set it, for the fourth
+    // gap's credit. Absent in the command leaves it as it was.
+    if (cmd.places !== undefined) {
+      if (cmd.places) f.places = true;
+      else delete f.places;
+      f.placesSet = { seat, tick: state.tick };
+    }
     ctx.events.push({ e: 'balances.updated', b: balancesView(state) });
   },
 };

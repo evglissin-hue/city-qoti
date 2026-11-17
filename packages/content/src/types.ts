@@ -1147,6 +1147,11 @@ export interface FestivalTwistDef {
   seasons?: number[];
   /** What earns the twist bonus. */
   goal?: Condition;
+  /**
+   * R3 (R3.0): a custom's twist (docs/spec/19-evenings.md, The Town Book: a custom can be a festival's
+   * twist): offered only once this custom's page is found (a content custom id).
+   */
+  custom?: string;
 }
 
 export type HabitatName = 'pollinator' | 'wetland' | 'hedgerow' | 'woodland' | 'meadow' | 'garden';

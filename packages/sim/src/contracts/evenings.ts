@@ -5,6 +5,7 @@
 // content (`PLACES`, `GAPS`, `NeedsBasket.evenings`), never here.
 import type { GapKind, PlaceKind } from '@qoti/content';
 import type { EntityId, SeatId } from './ids';
+import type { PlaceSupplyView, RestingView } from './masters';
 
 export type { GapKind, PlaceKind };
 
@@ -36,8 +37,12 @@ export interface DrawParts {
   lit: number;
   /** It serves Treats: an outlet within reach has them on the shelf (a live part, see Place.draw). */
   treats: number;
-  /** Winter, open air, with no fire and no ice: zero or negative. */
+  /** Winter, open air, with no fire and no ice (or a cold one: R3): zero or negative. */
   winter: number;
+  /** R3 (R3.0): a specialty sold here (`TOWN_BOOK.specialtyDraw`; R3C's placeSpecialty). Absent reads 0. */
+  specialty?: number;
+  /** R3 (R3.0): a custom falls today here (`TOWN_BOOK.customDraw`; R3C's customToday). Absent reads 0. */
+  custom?: number;
 }
 
 /**
@@ -114,6 +119,30 @@ export interface PlaceState {
   firstDay: number;
   /** Day index the place pass last found it. */
   seenDay: number;
+  // R3 (R3.0), absent until used. docs/spec/19-evenings.md, Supplies and The Town Book.
+  /** R3A: the seat that last set `priority` and the tick (credit for the fourth gap). */
+  prioritySet?: { seat: SeatId; tick: number };
+  /**
+   * R3A: this season's supply record, for a custom of a kept supply (R3C): by SUPPLY_KINDS index, the
+   * nights its pieces of that kind were all supplied, and the nights one rested. `season` is the
+   * absolute season index the counts are for (a stale season reads as zeros).
+   */
+  supplied?: { season: number; kept: number[]; rested: number[] };
+  /**
+   * R3C: residents who bought each Treat here on the evening under way, by good index (recordSale
+   * counts one a sale); the evening's close reads it and the next 17:00 starts it again.
+   */
+  customers?: number[];
+  /**
+   * R3C: evenings this season with `TOWN_BOOK.specialtyCustomers` or more customers, by good index
+   * (`season`: the absolute season index; a stale season reads as zeros).
+   */
+  goodEvenings?: { season: number; n: number[] };
+  /**
+   * R3C: by day of the season (index 0 to DAYS_PER_SEASON - 1), seasons running in which the place
+   * drew `TOWN_BOOK.customVisitors` or more on that day; an evening lost to weather holds the run.
+   */
+  dayRuns?: number[];
 }
 
 // --- The round -----------------------------------------------------------------------------------
@@ -322,6 +351,15 @@ export interface PlaceView {
   /** What it still wants, one short clause each ("a stall would sell to the 14 who come"). */
   wants: string[];
   household?: EntityId;
+  // R3 (R3.0), absent before R3A and R3C fill them.
+  /** Keep first, as it comes, or let it rest (place.setPriority); absent reads 'normal'. */
+  priority?: PlacePriority;
+  /** Its supplied pieces by kind: what they want a night and how many rest tonight. */
+  supplies?: PlaceSupplyView[];
+  /** Pieces resting tonight, sorted by id. */
+  resting?: RestingView[];
+  /** Town Book pages found here (page ids). */
+  pages?: EntityId[];
 }
 
 /** `places.updated`: every place, sorted by id. */

@@ -260,6 +260,8 @@ export interface Apprenticeship {
   /** The trade: the business's trade id (R1), else the workplace's def id. */
   trade: string;
   untilDay: number;
+  /** R3 (R3.0): the master they serve under (19-evenings.md, Masters: apprentices); absent without one. */
+  master?: EntityId;
 }
 
 /** Town counters added in I2 (charter, Together achievements, letters). */

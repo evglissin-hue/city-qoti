@@ -23,7 +23,7 @@ import { scheduleOverride } from '../../src/systems/residents/overrides';
 import { isFlooded, isFrozen } from '../../src/systems/seasons/api';
 import { seasons, turnDay } from '../../src/systems/seasons';
 import { trees } from '../../src/systems/trees';
-import { skatingSpots } from '../../src/systems/seasons/place';
+import { findSkatingSpots } from '../../src/systems/seasons/place';
 import { recomputeDirty } from '../../src/systems/hearth/charm';
 import { wellPermille } from '../../src/systems/weather/effects';
 import {
@@ -94,7 +94,8 @@ describe('the season turns', () => {
     const comfortAt = (t: number) => state.map.charmComfort[t]!;
     state.tick = tickAt(0, 3, RIVER_FREEZE_DAY, 0) + 2;
     recomputeDirty(state, null);
-    const bank = skatingSpots(state)[0]!;
+    // R3.0: the spots are fixed at the freeze; before it, read where they will be from the map.
+    const bank = findSkatingSpots(state)[0]!;
     const spot = [bank - 1, bank + 1, bank - MAP_SIZE, bank + MAP_SIZE].find((t) => state.map.water[t])!;
     const bankBefore = comfortAt(bank);
     const before = comfortAt(spot);

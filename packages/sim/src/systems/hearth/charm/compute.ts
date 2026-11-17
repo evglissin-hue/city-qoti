@@ -39,6 +39,8 @@ import {
   YOUNG_TREE,
 } from './sources';
 import { isMarketDay, quietHours } from '../../festivals/levers';
+import { callingLanternCharm } from '../../callings/api';
+import { decorLit, pieceRests } from '../../supplies/api';
 
 const S = MAP_SIZE;
 const DECOR_INDEX = new Map(content.decor.map((d, i) => [d.id, i]));
@@ -75,6 +77,15 @@ const rowOf = new Int32Array(MAX_DECOR);
 const sortedX = new Float64Array(MAX_DECOR);
 const sortedZ = new Float64Array(MAX_DECOR);
 const sortedDef = new Int32Array(MAX_DECOR);
+// R3.0: each piece's own light and charm (supplies): lit tonight, the share of charm it keeps resting
+// (faded cloth, a dry fountain), and light added to a lit lantern's night value (a calling).
+const decorLitNow = new Uint8Array(MAX_DECOR);
+const decorScale = new Float64Array(MAX_DECOR);
+const decorExtra = new Float64Array(MAX_DECOR);
+const sortedLit = new Uint8Array(MAX_DECOR);
+const sortedScale = new Float64Array(MAX_DECOR);
+const sortedExtra = new Float64Array(MAX_DECOR);
+const NIGHTLY = content.decor.map((d) => d.supply?.kind === 'nightly');
 
 interface NearBuilding {
   x0: number;
@@ -115,11 +126,18 @@ const out = new Float64Array(6);
 
 let lit = false;
 let noise = 0;
+// The source being added: lit or not, the share of its value it keeps, light added at night (R3.0).
+// Buildings and the rest add at the night's `lit`, whole, with nothing added.
+let curLit = false;
+let curScale = 1;
+let curExtra = 0;
+let lanternExtra = 0;
 
 function add(s: Source, d: number): void {
   const reach = s.radius + 1;
   if (d >= reach) return;
-  const v = ((lit ? s.night : s.value) * (reach - d)) / reach;
+  const base = curLit ? (s.cat === CAT.light ? s.night + curExtra : s.night) : s.value;
+  const v = (base * curScale * (reach - d)) / reach;
   if (v < 0) {
     noise -= v;
     return;
@@ -178,6 +196,11 @@ export function recomputeChunk(
   wallCache: Map<number, boolean> = new Map(),
 ): boolean {
   lit = nightLights;
+  curLit = nightLights;
+  curScale = 1;
+  curExtra = 0;
+  // R3.0: a calling's light on lit lanterns (Pilgrims' Rest), once for the chunk.
+  lanternExtra = callingLanternCharm(state);
   const quiet = quietHours(state);
   const marketDay = isMarketDay(state);
   const decorSources = DECOR_SOURCES;
@@ -196,6 +219,10 @@ export function recomputeChunk(
     decorX[nd] = d.fx / TILE_FP;
     decorZ[nd] = d.fz / TILE_FP;
     decorDef[nd] = def;
+    decorLitNow[nd] = nightLights && decorLit(state, d) ? 1 : 0;
+    const rest = pieceRests(state, d);
+    decorScale[nd] = rest === 'faded' || rest === 'dry' ? content.supplies.restCharmPercent / 100 : 1;
+    decorExtra[nd] = NIGHTLY[def] ? lanternExtra : 0;
     const row = Math.min(ROWS - 1, Math.max(0, Math.floor(decorZ[nd]!) - rz0));
     rowOf[nd] = row;
     rowStart[row + 1]!++;
@@ -207,6 +234,9 @@ export function recomputeChunk(
     sortedX[at] = decorX[k]!;
     sortedZ[at] = decorZ[k]!;
     sortedDef[at] = decorDef[k]!;
+    sortedLit[at] = decorLitNow[k]!;
+    sortedScale[at] = decorScale[k]!;
+    sortedExtra[at] = decorExtra[k]!;
   }
   // rowStart[r] now holds the end of row r; shift back so rows span [rowStart[r], rowStart[r + 1]).
   for (let r = ROWS; r > 0; r--) rowStart[r] = rowStart[r - 1]!;
@@ -356,8 +386,14 @@ export function recomputeChunk(
         const sources = decorSources[def]!;
         if (sources.length === 0) continue;
         const d = Math.sqrt(d2);
+        curLit = sortedLit[k] === 1;
+        curScale = sortedScale[k]!;
+        curExtra = sortedExtra[k]!;
         for (const s of sources) add(s, d);
       }
+      curLit = lit;
+      curScale = 1;
+      curExtra = 0;
 
       for (const b of nearBuildings) {
         const d = rectDistance(px, pz, b);

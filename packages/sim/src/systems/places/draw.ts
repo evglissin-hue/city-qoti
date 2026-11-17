@@ -10,6 +10,9 @@ import { seasonAt } from '../../state/seasons';
 import { LIGHTS_OFF_HOUR } from '../hearth/charm/sources';
 import { TREE_MATURE, treeStage } from '../../map/layers';
 import { PlaceFeature, type PlaceExtra } from './build';
+import { findById } from '../../state/entities';
+import { decorLit, pieceRests } from '../supplies/api';
+import { customToday, placeSpecialty } from '../townbook/api';
 
 const P = content.places;
 const WINTER = 3;
@@ -21,7 +24,29 @@ export function placeLightsLit(tick: number): boolean {
   return hour >= P.litHour || hour < LIGHTS_OFF_HOUR;
 }
 
-/** Fills each place's charm, lit and winter parts and its draw (without the live Treats part). */
+/** True when one of these light pieces burns now (supplies' decorLit; R3A settles them). */
+function anyLit(state: WorldState, ids: readonly number[]): boolean {
+  for (const id of ids) {
+    const d = findById(state.decor, id);
+    if (d && decorLit(state, d)) return true;
+  }
+  return false;
+}
+
+/** True when one of these fires burns tonight (not resting cold: supplies' pieceRests). */
+function anyBurning(state: WorldState, ids: readonly number[]): boolean {
+  for (const id of ids) {
+    const d = findById(state.decor, id);
+    if (d && pieceRests(state, d) !== 'cold') return true;
+  }
+  return false;
+}
+
+/**
+ * Fills each place's charm, lit, winter, specialty and custom parts, its warmth and its draw (without
+ * the live Treats part). R3.0: a place's lit part needs a lantern that burns (a candle tonight), its
+ * warmth a fire that is not cold, and the Town Book's parts come from R3C's specialties and customs.
+ */
 export function refreshDraws(
   state: WorldState,
   places: readonly Place[],
@@ -53,9 +78,21 @@ export function refreshDraws(
     const avg = n > 0 ? Math.floor((sum + (n >> 1)) / n) : 0;
     const parts = p.parts;
     parts.charm = avg < cap ? avg : cap;
-    parts.lit = lit && x.lights ? litBonus : 0;
-    parts.winter = winter && !x.winterExempt ? cold : 0;
-    const total = parts.charm + parts.site + parts.pieces + parts.water + parts.lit + parts.winter;
+    parts.lit = lit && x.lights && anyLit(state, x.lamps) ? litBonus : 0;
+    // Warm: a heated host, or a fire that burns tonight (a cold one warms nothing).
+    p.warm = x.hostWarm || (x.fires.length > 0 && anyBurning(state, x.fires));
+    parts.winter = winter && !(x.exempt || p.warm) ? cold : 0;
+    parts.specialty = placeSpecialty(state, p);
+    parts.custom = customToday(state, p);
+    const total =
+      parts.charm +
+      parts.site +
+      parts.pieces +
+      parts.water +
+      parts.lit +
+      parts.winter +
+      parts.specialty +
+      parts.custom;
     p.draw = Math.max(0, Math.min(100, total));
   }
 }

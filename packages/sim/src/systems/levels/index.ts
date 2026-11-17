@@ -19,6 +19,7 @@ import { eveningPassers } from '../growth/outlets';
 import { invalidatePlaces } from '../places';
 import { outOfSeason } from './season';
 import { bumpPlaceInputs } from '../places/inputs';
+import { canReachLevel3, KEEPER_DAYS_L3 } from '../masters/api';
 
 /** Good days in a row that move a business up a level. */
 export const LEVEL_UP_DAYS = 3;
@@ -26,8 +27,8 @@ export const LEVEL_UP_DAYS = 3;
 export const LEVEL_DOWN_DAYS = 4;
 /** Customers a day a shop needs to hold level 2 and level 3 (and to climb toward them). */
 export const SHOP_CUSTOMERS: readonly number[] = [6, 15];
-/** Working days a keeper must have kept a business before level 3 (until R3's masters). */
-export const KEEPER_DAYS_L3 = 20;
+/** Working days a keeper must have kept a business before level 3 (until R3's masters; masters/api.ts). */
+export { KEEPER_DAYS_L3 };
 /** Free farm-zoned tiles needed in reach for each hand a farmstead's next level adds: a grain farm. */
 export const FIELD_TILES_A_HAND = 12;
 /** The same for any other farmland trade. */
@@ -135,7 +136,7 @@ function dayEnd(state: WorldState, ctx: TickCtx, b: Building): void {
       level < BUSINESS_LEVEL_MAX &&
       steady(c, trade, level) &&
       roomToGrow(state, b, trade, level + 1) &&
-      (level + 1 < 3 || c.keeperDays >= KEEPER_DAYS_L3);
+      (level + 1 < 3 || canReachLevel3(state, b, c));
     if (up) {
       c.levelDays = Math.max(0, c.levelDays) + 1;
       if (c.levelDays >= LEVEL_UP_DAYS) {

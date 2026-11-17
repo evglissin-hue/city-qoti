@@ -7,6 +7,7 @@
 // with ties going to the nearest source. A job reserves goods at the source (reservedOut) and
 // room at the destination (reservedIn), so nothing is promised twice. Trips walk through the
 // movement API and never assume arrival in the same tick.
+import { recordThread } from '../threads/api';
 import { FOOD_GOODS, methodOf } from '../../state/zones';
 import type { BuildingDef } from '@qoti/content';
 import { content } from '@qoti/content';
@@ -514,6 +515,8 @@ function deliver(state: WorldState, ctx: TickCtx, job: PorterJob, dst: Building)
     rt.input[g]! += n;
   }
   addFlow(state, job.from, job.to, n);
+  // R3.0: Follow the thread's door pairs (R3D's body).
+  recordThread(state, job.from, job.to, g, n);
 }
 
 const CART_HOOKS: CartHooks = {

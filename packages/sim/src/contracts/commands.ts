@@ -3,6 +3,7 @@
 // it fits; the sender test (test/every-command-has-a-sender.test.ts) reads this union.
 import type { EntityId, Lens, RoadKind, Rot4, SeatId, Speed, TreeSpecies } from './ids';
 import type { ValleySettings } from './settings';
+import type { PlacePriority } from './evenings';
 import type { FestivalSite } from './seasons';
 import type { PlanItem, RequestAsk } from './village';
 import type { CarrierRule, GoodFamily, SeasonPlanInput } from './zones';
@@ -123,8 +124,11 @@ export type Command =
   /** Hide or show the first days guide for the sending seat only (C5H). */
   | { t: 'guide.setHidden'; on: boolean }
   // R1 (R1.0). docs/spec/20-architecture.md, "R1 contracts"; docs/spec/13-ledger.md.
-  /** The carrier's rule for a family, and whether it sells what is over twice the reserve. */
-  | { t: 'carrier.setRule'; family: GoodFamily; rule: CarrierRule; sell: boolean }
+  /**
+   * The carrier's rule for a family, and whether it sells what is over twice the reserve. R3 (R3.0):
+   * `places`, when given, switches whether it buys for places too (absent leaves it as it was).
+   */
+  | { t: 'carrier.setRule'; family: GoodFamily; rule: CarrierRule; sell: boolean; places?: boolean }
   /** The reserve for a family: days of cover (Food, Fuel, Wares, Treats) or units (Materials). */
   | { t: 'carrier.setReserve'; family: GoodFamily; reserve: number }
   /** Most coins a day the carrier may spend on imports. */
@@ -141,7 +145,10 @@ export type Command =
   /** Rename a street (state.streets id); an empty name brings back the generated one. */
   | { t: 'road.rename'; id: EntityId; name: string }
   /** Rename a place (its PlaceId); an empty name brings back the generated one. */
-  | { t: 'place.rename'; id: string; name: string };
+  | { t: 'place.rename'; id: string; name: string }
+  // R3 (R3.0). docs/spec/20-architecture.md, "R3 contracts"; docs/spec/19-evenings.md, Supplies.
+  /** Keep a place first, take it as it comes, or let it rest, when supplies are short (its PlaceId). */
+  | { t: 'place.setPriority'; id: string; priority: PlacePriority };
 
 /**
  * Customization fields (all optional; null clears a field back to the kit default). Swatch values

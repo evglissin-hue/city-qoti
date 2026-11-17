@@ -331,6 +331,10 @@ export function charterView(state: WorldState): CharterView {
     }),
     ready: c.ready,
     history: c.history.map((h) => ({ ...h, seats: [...h.seats] })),
+    // R3.0: callings earned through the Town Book, in order (R3C earns them).
+    ...(state.townBook.callings.length > 0 && {
+      callings: state.townBook.callings.map((id) => ({ id, name: content.callingById.get(id)?.name ?? id })),
+    }),
   };
 }
 

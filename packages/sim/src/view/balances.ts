@@ -12,6 +12,7 @@
 // - history: the family's cover in hundredths at each day's end, oldest first, up to a year.
 // Around the lines: the carrier's budget and spend today, the County tab and its cap, whether the
 // pass is closed, the season plan and the deal offers.
+import { isMasterGood } from '../state/masters';
 import { content } from '@qoti/content';
 import { GOOD_FAMILIES, PENNIES_PER_COIN, TAB_PER_RESIDENT } from '../constants';
 import type { BalanceLine, BalancesView, WorldState } from '../contracts';
@@ -42,7 +43,11 @@ export function balancesView(
   const made = new Set<string>(pre?.made ?? madeGoods(state));
   const bought = state.market.bought;
   const lines: BalanceLine[] = GOOD_FAMILIES.map((family, f) => {
-    const goods = SHELF_GOODS[f]!;
+    // R3.0: a master's good is listed once some master makes it, it is in store or on offer, so the
+    // book shows nobody a flavor the town has never had (SHELF_GOODS holds none until R3B adds them).
+    const goods = SHELF_GOODS[f]!.filter(
+      (g) => !isMasterGood(g) || made.has(content.goods[g]!.id) || (stock[g] ?? 0) > 0 || offered[g] === true,
+    );
     const terms = c.families[f]!;
     const priceOf = (g: number): number => state.market.prices[g] ?? content.goods[g]!.basePrice;
     let weight = 0;

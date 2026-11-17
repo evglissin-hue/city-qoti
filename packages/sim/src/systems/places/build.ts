@@ -37,8 +37,16 @@ const VIEW_PIECES = new Set(P.viewPieces);
 export interface PlaceExtra {
   /** A lantern or other light stands on its tiles (the lit part after `PLACES.litHour`). */
   lights: boolean;
-  /** Winter spares it: sheltered, warm, or the ice. */
+  /** Winter spares it: sheltered, warm, or the ice. R3.0: a fire's warmth is read each tick (`fires`). */
   winterExempt: boolean;
+  /** R3.0: the light pieces on its tiles, sorted by id (its lit part reads supplies' decorLit each tick). */
+  lamps: EntityId[];
+  /** R3.0: its fires (members that warm), sorted by id: warm while one burns (supplies' pieceRests). */
+  fires: EntityId[];
+  /** R3.0: sheltered, heated or the ice: winter spares it whatever its fires do. */
+  exempt: boolean;
+  /** R3.0: a heated host (the Bath House, the tavern): warm whatever its fires do. */
+  hostWarm: boolean;
   /** What stands there as found at rebuild (PlaceFeature bits: pieces, buildings, water). */
   base: number;
   /** `base` and the bits that move with the map (a mature tree, no road), set each tick by draw.ts. */
@@ -138,6 +146,8 @@ interface Draft {
   kinds: number;
   sheltered: boolean;
   warm: boolean;
+  /** R3.0: warm from a heated host (the Bath House, the tavern), not a fire. */
+  hostWarm: boolean;
   ice: boolean;
   walkTiles: number;
   household?: EntityId;
@@ -159,6 +169,7 @@ function draft(id: string, source: PlaceSource, def: string, tile: number): Draf
     kinds: 0,
     sheltered: false,
     warm: false,
+    hostWarm: false,
     ice: false,
     walkTiles: 0,
     porch: false,
@@ -205,7 +216,10 @@ function addHost(d: Draft, b: Building, host: HostDef, door: number): void {
   d.standing += host.standing;
   for (const k of host.kinds) d.kinds |= kindBit(k);
   if (host.sheltered) d.sheltered = true;
-  if (host.warm) d.warm = true;
+  if (host.warm) {
+    d.warm = true;
+    d.hostWarm = true;
+  }
   addAround(d.tiles, door);
 }
 
@@ -492,6 +506,7 @@ export function buildPlaces(state: WorldState, sig?: readonly number[]): BuiltPl
     // Kinds: pieces and water decide most of them. One query for the decor over the place's box.
     let pieceKinds = 0;
     let lights = false;
+    const lamps: EntityId[] = [];
     // The tree and quiet bits move with the map (trees grow, roads come and go): draw.ts sets them
     // each tick from the place's tiles, so they are never a step behind a fresh rebuild.
     let features = 0;
@@ -505,7 +520,10 @@ export function buildPlaces(state: WorldState, sig?: readonly number[]): BuiltPl
         seenDefs.push(piece.def);
         pieceKinds += 1;
       }
-      if (info.light) lights = true;
+      if (info.light) {
+        lights = true;
+        lamps.push(piece.id);
+      }
       features |= info.features;
       if (info.play) d.kinds |= kindBit('play');
       if (info.view) d.kinds |= kindBit('view');
@@ -555,9 +573,19 @@ export function buildPlaces(state: WorldState, sig?: readonly number[]): BuiltPl
       },
     };
     if (d.household !== undefined) place.household = d.household;
+    const fires: EntityId[] = [];
+    for (const id of place.members) {
+      const m = findById(state.decor, id);
+      if (m && DECOR_INFO.get(m.def)?.warm) fires.push(id);
+    }
+    lamps.sort((a, b) => a - b);
     const extra: PlaceExtra = {
       lights,
       winterExempt: d.sheltered || d.warm || d.ice,
+      lamps,
+      fires,
+      exempt: d.sheltered || d.hostWarm || d.ice,
+      hostWarm: d.hostWarm,
       base: features,
       features,
     };
@@ -750,6 +778,7 @@ function unchanged(prev: Finished, d: Draft, c: Changes): boolean {
     prev.kinds0 !== d.kinds ||
     a.sheltered !== d.sheltered ||
     a.warm !== d.warm ||
+    a.hostWarm !== d.hostWarm ||
     a.ice !== d.ice ||
     a.walkTiles !== d.walkTiles ||
     a.household !== d.household ||

@@ -72,6 +72,13 @@ interface SaveFile {
   gaps: WorldState['gaps'];
   streets: WorldState['streets'];
   evenings: WorldState['evenings'];
+  // R3 (R3.0)
+  supplies: WorldState['supplies'];
+  masters: WorldState['masters'];
+  townBook: WorldState['townBook'];
+  threads: WorldState['threads'];
+  /** Absent until the first calling is earned. */
+  calling?: string;
 }
 
 export function serialize(state: WorldState): Uint8Array {
@@ -138,6 +145,11 @@ export function serialize(state: WorldState): Uint8Array {
     gaps: state.gaps,
     streets: state.streets,
     evenings: state.evenings,
+    supplies: state.supplies,
+    masters: state.masters,
+    townBook: state.townBook,
+    threads: state.threads,
+    ...(state.calling !== undefined && { calling: state.calling }),
   };
   // mtime 0 keeps the bytes a pure function of the state.
   return gzipSync(strToU8(JSON.stringify(save)), { level: 6, mtime: 0 });
@@ -253,6 +265,11 @@ function build(save: SaveFile): WorldState {
     gaps: { ...save.gaps, open: [...save.gaps.open].sort(byId) },
     streets: [...save.streets].sort(byId),
     evenings: save.evenings,
+    supplies: save.supplies,
+    masters: save.masters,
+    townBook: save.townBook,
+    threads: save.threads,
+    ...(save.calling !== undefined && { calling: save.calling }),
   };
 }
 

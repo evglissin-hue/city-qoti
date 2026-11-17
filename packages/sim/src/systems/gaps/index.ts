@@ -17,6 +17,7 @@ import { gapAchievable } from './achievable';
 import { growthWaitsOnEvenings } from '../growth/evenings';
 import { keepGaps, keepQuietStreets } from './rules';
 import { keepRuns } from './runs';
+import { keepSupplyGaps } from '../supplies/gaps';
 
 /** 21:00 and a little: after the residents' 21:00 score (order 50) and the places' evening close (73). */
 export const GAPS_OFFSET = dailyOffset(21, 10);
@@ -47,8 +48,11 @@ export const gaps: System = {
         closable: (kind: GapKind, subject: string, tile: number) =>
           gapClosable(state, { id: 0, kind, subject, tile, openedDay: 0, n: 0 }),
       };
-      if (village) keepGaps(pass, (kind) => gapAchievable(state, kind));
-      else keepQuietStreets(pass, (kind) => gapAchievable(state, kind));
+      if (village) {
+        keepGaps(pass, (kind) => gapAchievable(state, kind));
+        // R3.0: the fourth gap, a place short of supplies (R3A's rule).
+        keepSupplyGaps(pass, (kind) => gapAchievable(state, kind));
+      } else keepQuietStreets(pass, (kind) => gapAchievable(state, kind));
       if (pass.changed) ctx.events.push({ e: 'gaps.updated', g: gapsView(state) });
     }
 

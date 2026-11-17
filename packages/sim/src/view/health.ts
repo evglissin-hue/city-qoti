@@ -47,6 +47,7 @@ import { seasonNow } from '../systems/seasons/api';
 import { MAX_BUILDERS_PER_SITE } from '../systems/construction';
 import { available } from '../systems/logistics/tasks';
 import { allowedWork } from '../systems/production/status';
+import { supplyGapClosable } from '../systems/supplies/api';
 import { townStock } from './hamlet';
 
 export type HealthKind =
@@ -595,7 +596,8 @@ export class HealthWatch {
         continue;
       }
       // R2E's: closable is true when something could close it, and also when the kind is one this
-      // check has no rule for (R3's shortOfSupplies, or any later kind): never flag what is not understood.
+      // check has no rule for (any later kind): never flag what is not understood. R3's shortOfSupplies
+      // asks R3A's supplyGapClosable.
       if (gapClosable(state, gap)) continue;
       live.add(gap.id);
       const since = this.gapSince.get(gap.id) ?? now;
@@ -1079,7 +1081,8 @@ function outletCouldStandNear(state: WorldState, tile: number, radius: number): 
  *   (it can be improved), or an unlocked seat piece that fits within that radius of the door.
  * - nowhereToGo (subject `street:<id>`): a place already within `PLACES.radius` of the street, or a
  *   seat piece that fits within that radius of its anchor.
- * Any other kind (R3's shortOfSupplies, anything later) is never flagged: true.
+ * - shortOfSupplies: R3A's rule (supplies' supplyGapClosable).
+ * Any later kind is never flagged: true.
  */
 export function gapClosable(state: WorldState, gap: Gap): boolean {
   const p = content.places;
@@ -1096,6 +1099,8 @@ export function gapClosable(state: WorldState, gap: Gap): boolean {
     if (placeIndex(state).places.some((pl) => manhattan(pl.tile, door) <= p.placeNearShopRadius)) return true;
     return seatFitsNear(state, door, p.placeNearShopRadius);
   }
+  // R3.0: the fourth gap's own rule (R3A).
+  if (gap.kind === 'shortOfSupplies') return supplyGapClosable(state, gap);
   if (gap.kind === 'nowhereToGo') {
     const id = Number(gap.subject.replace(/^street:/, ''));
     const street = state.streets.find((s) => s.id === id);

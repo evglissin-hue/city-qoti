@@ -72,6 +72,7 @@ export const commandHandlers: readonly AnyHandler[] = [
   note.pin,
   note.remove,
   place.rename,
+  place.setPriority,
   plan.add,
   plan.approve,
   plan.comment,
