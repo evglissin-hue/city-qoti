@@ -550,7 +550,7 @@ describe('the panel', () => {
     expect(picked).toEqual([['zone', 'farms']]);
   });
 
-  it('shows five lines and counts the rest', async () => {
+  it('shows three lines at rest, counts the rest and unfolds them (P3B)', async () => {
     const mock = world({
       buildings: [
         site(1, [['timber', 12]], BuildingStatus.waitingMaterials),
@@ -564,7 +564,11 @@ describe('the panel', () => {
     });
     mock.session.ui.lens.value = 'ledger';
     view = await mount(h(AlertsPanel, { session: mock.session }));
-    expect(view.root.querySelectorAll('li.alert')).toHaveLength(5);
+    expect(view.root.querySelectorAll('li.alert')).toHaveLength(3);
     expect(view.text()).toMatch(/and \d+ more/);
+    const total = 3 + Number(/and (\d+) more/.exec(view.text())![1]);
+    await view.click(view.get('feed-more'));
+    expect(view.root.querySelectorAll('li.alert')).toHaveLength(total);
+    expect(view.text()).toContain('Fold the rest away');
   });
 });

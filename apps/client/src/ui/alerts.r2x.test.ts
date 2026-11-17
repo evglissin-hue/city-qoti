@@ -72,3 +72,19 @@ describe('gaps come first in the feed (R2X)', () => {
     }
   });
 });
+
+describe('the feed at rest (P3B)', () => {
+  it('a gap is among the three lines shown at rest, in both lenses', async () => {
+    const { FEED_AT_REST } = await import('./panels/Alerts');
+    const mock = mockSession();
+    const m = mock.session.mirror;
+    overlayEveningMocks(mock.session);
+    const now = m.tick.value;
+    const asks = ['bench', 'flowers', 'tree', 'pond', 'lamp', 'fence'];
+    asks.forEach((t, i) => m.wishes.set(900 + i, wish(900 + i, t, `Somebody would like a ${t}.`, now)));
+    for (const lens of ['hearth', 'ledger'] as const) {
+      const shown = alertsForLens(computeAlerts(m, [], { seat: 0 }), lens, new Set()).slice(0, FEED_AT_REST);
+      expect(shown.some((a) => a.key.startsWith('gap-'))).toBe(true);
+    }
+  });
+});

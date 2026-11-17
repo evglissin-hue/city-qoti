@@ -72,8 +72,10 @@ export function Toolbar({ session }: { session: Session }) {
 
   return (
     <>
-      <footer class={`toolbar bar-${BAR}`} style={{ '--accent': accent }}>
-        {current?.id === 'building' && lens === 'hearth' && <BuildingPicker session={session} tool={current} />}
+      <footer class="toolbar" style={{ '--accent': accent }}>
+        {current?.id === 'building' && lens === 'hearth' && (
+          <BuildingPicker session={session} tool={current} />
+        )}
         {/* R1C: the Ledger's picker has three shelves, and the zone brushes live on the first. */}
         {(current?.id === 'building' || current?.id === 'zone') && lens === 'ledger' && (
           <LedgerPicker session={session} tool={current} />
@@ -125,25 +127,23 @@ export function Toolbar({ session }: { session: Session }) {
               return slot.kind === 'group' ? (
                 <GroupButton key={slot.group.id} session={session} slot={slot} active={active} band={band} />
               ) : (
-                <ToolButton key={slot.tool.id} session={session} tool={slot.tool} active={active} band={band} />
+                <ToolButton
+                  key={slot.tool.id}
+                  session={session}
+                  tool={slot.tool}
+                  active={active}
+                  band={band}
+                />
               );
             })}
           </div>
-          {BAR === 'b' && books.length > 0 && <BooksShelf session={session} books={books} />}
+          {books.length > 0 && <BooksShelf session={session} books={books} />}
         </div>
       </footer>
-      {BAR === 'a' && books.length > 0 && (
-        <div class="books-corner panel" style={{ '--accent': accent }}>
-          <BooksShelf session={session} books={books} />
-        </div>
-      )}
       <ViewCorner session={session} options={lensOverlays} shown={shown} accent={accent} />
     </>
   );
 }
-
-/** P3B candidates while they are drawn: a, the books in their own corner; b, at the bar's end. */
-const BAR = new URLSearchParams(location.search).get('bar') === 'a' ? 'a' : 'b';
 
 /** Closes a popover on Escape or a press outside the element matching `inside`. */
 function useDismiss(open: boolean, close: () => void, inside: string) {
@@ -179,7 +179,8 @@ function ToolButton({
   const lens = session.ui.lens.value;
   // R1C: in a standard Ledger the Build button opens the picker on the Zones shelf (the zone tool
   // has no button of its own), so it reads as chosen while a brush is out.
-  const zoning = tool.id === 'building' && lens === 'ledger' && session.mirror.settings.value.mode === 'standard';
+  const zoning =
+    tool.id === 'building' && lens === 'ledger' && session.mirror.settings.value.mode === 'standard';
   const on = active === tool.id || (zoning && active === 'zone');
   return (
     <button
@@ -254,7 +255,12 @@ function KindShelf({
 }) {
   const manager = session.tools!;
   return (
-    <div class="kinds panel" role="group" aria-label={slot.group.label} data-testid={`kinds-${slot.group.id}`}>
+    <div
+      class="kinds panel"
+      role="group"
+      aria-label={slot.group.label}
+      data-testid={`kinds-${slot.group.id}`}
+    >
       {slot.members.map(({ tool, label }) => (
         <button
           key={tool.id}

@@ -617,7 +617,8 @@ input::placeholder {
   align-items: center;
   border-radius: 16px;
   border-top: 3px solid var(--accent, var(--ink-line));
-  max-width: calc(100vw - 16px);
+  /* P3B: clear of the view corner and the map on either side, so it is never under them. */
+  max-width: calc(100vw - 2 * (24px + 172px * var(--ui-scale)));
 }
 
 /* The toolbar is one quiet strip: its buttons have no boxes of their own, only the chosen tool
@@ -671,8 +672,8 @@ input::placeholder {
   display: grid;
   justify-items: center;
   gap: 1px;
-  min-width: 50px;
-  padding: 4px 6px 3px;
+  min-width: 54px;
+  padding: 4px 8px 3px;
   border-radius: 10px;
   font-size: 0.78rem;
   color: var(--ink);
@@ -680,19 +681,6 @@ input::placeholder {
 
 .tool.band {
   margin-left: 10px;
-}
-
-/* R2D (the player's chair at 1250 px): with an overlay named on the View button, the Hearth's last
-   tool scrolled half out of the strip ("Era"). A little less air per tool keeps every one whole. */
-@media (max-width: 1360px) {
-  .tool {
-    min-width: 46px;
-    padding: 4px 4px 3px;
-  }
-
-  .tool.band {
-    margin-left: 8px;
-  }
 }
 
 /* The bar sizes to its narrowest fit, so a two-word label ("Cart lane") would break over two
@@ -782,7 +770,7 @@ input::placeholder {
   align-items: center;
 }
 
-.bar-b .books-menu {
+.toolbar-row .books-menu {
   margin-left: 6px;
   padding-left: 8px;
   border-left: 1px solid color-mix(in srgb, var(--ink) 14%, transparent);
@@ -800,18 +788,10 @@ input::placeholder {
   white-space: nowrap;
 }
 
-.toolbar-row .books-button,
-.books-corner .books-button {
+.toolbar-row .books-button {
   border-color: transparent;
   background: transparent;
   box-shadow: none;
-}
-
-.books-corner .books-button:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--ink) 7%, transparent);
-  border-color: transparent;
-  box-shadow: none;
-  transform: none;
 }
 
 .books-button .glyph {
@@ -850,11 +830,6 @@ input::placeholder {
   padding: 6px;
   border-radius: 14px;
   animation: panel-in 140ms ease-out;
-}
-
-.books-corner .books-list {
-  right: auto;
-  left: -6px;
 }
 
 .books-list button {
@@ -905,16 +880,6 @@ input::placeholder {
 
 .books-list kbd:only-of-type {
   grid-column: 4;
-}
-
-/* Candidate a: the books in the bottom left corner, on paper of their own. */
-.books-corner {
-  position: absolute;
-  left: 10px;
-  bottom: 12px;
-  padding: 4px;
-  border-radius: 14px;
-  border-top: 3px solid var(--accent);
 }
 
 /* P3B: View, undo and the camera keep to the bottom right corner, under the map, apart from the

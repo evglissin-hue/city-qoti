@@ -95,21 +95,39 @@ describe('lens toolbars', () => {
   it('Hearth: decor, customize and the books; Ledger: fields, reports and overlays', async () => {
     const session = withTools(mockSession().session);
     view = await mount(h(Toolbar, { session }));
-    // Inspecting is the default click, so it has no button; pings are off for now.
+    // Inspecting is the default click, so it has no button; pings are off for now. P3B: tools that
+    // are one idea share a button (tool-group-*), whose kinds open on a shelf over the bar.
     expect(ids(view.root, 'tool-')).toEqual([
       'path',
       'building',
-      'decor',
-      'flowers',
+      'group-decor',
+      'group-nature',
       'move',
-      'customize',
-      'fence',
-      'tree',
-      'pond',
-      'note',
-      'plan',
+      'group-plans',
       'erase',
     ]);
+    await view.click('tool-group-decor');
+    expect(session.tools!.active.value).toBe('decor');
+    expect(ids(view.get('kinds-decor'), 'tool-')).toEqual(['decor', 'fence', 'customize']);
+    await view.click('tool-fence');
+    expect(session.tools!.active.value).toBe('fence');
+    await view.click('tool-group-decor');
+    expect(session.tools!.active.value).toBe('inspect');
+    expect(view.find('kinds-decor')).toBeNull();
+    // The group takes out the kind last used.
+    await view.click('tool-group-decor');
+    expect(session.tools!.active.value).toBe('fence');
+    await view.click('tool-group-decor');
+    await view.click('tool-group-nature');
+    expect(ids(view.get('kinds-nature'), 'tool-')).toEqual(['flowers', 'tree', 'pond']);
+    await view.click('tool-group-nature');
+    await view.click('tool-group-plans');
+    expect(ids(view.get('kinds-plans'), 'tool-')).toEqual(['plan', 'note']);
+    await view.click('tool-group-plans');
+    // P3B: the books open from one named Books button, each named on its shelf.
+    expect(view.get('books').textContent).toContain('Books');
+    expect(ids(view.root, 'book-')).toEqual([]);
+    await view.click('books');
     expect(ids(view.root, 'book-')).toEqual([
       'wishes',
       'festival',
@@ -119,6 +137,9 @@ describe('lens toolbars', () => {
       'letters',
       'achievements',
     ]);
+    for (const b of view.root.querySelectorAll('[data-testid^="book-"]'))
+      expect(b.textContent!.trim()).not.toBe('');
+    await view.click('books');
     // Overlays wait behind one View button.
     expect(ids(view.root, 'overlay-')).toEqual([]);
     await view.click('overlays');
@@ -130,8 +151,13 @@ describe('lens toolbars', () => {
       'warmth',
     ]);
     await view.click('overlays');
+    await view.click('books');
     await view.click('book-patterns');
     expect(session.ui.panel.value).toBe('patterns');
+    // The shelf closes behind the book, and the button names the book open.
+    expect(view.find('books-list')).toBeNull();
+    expect(view.get('books').textContent).toContain('Patterns');
+    await view.click('books');
     await view.click('book-patterns');
     expect(session.ui.panel.value).toBeNull();
 
@@ -139,18 +165,21 @@ describe('lens toolbars', () => {
     // Playtest round six: Fields waits for a grain farm (the mock valley has none). C5X: walls show
     // now that C5D opened the defense pieces (the mock valley is a Village).
     expect(ids(view.root, 'tool-')).toEqual([
-      'lane',
-      'street',
-      'evening',
+      'group-roads',
       'building',
-      'wall',
-      'terrain',
+      'group-land',
       'move',
-      'note',
-      'plan',
+      'group-plans',
       'erase',
     ]);
+    await view.click('tool-group-roads');
+    expect(ids(view.get('kinds-roads'), 'tool-')).toEqual(['lane', 'street', 'evening']);
+    await view.click('tool-group-roads');
+    await view.click('tool-group-land');
+    expect(ids(view.get('kinds-land'), 'tool-')).toEqual(['terrain', 'wall']);
+    await view.click('tool-group-land');
     // Playtest round five: the Pattern Book is on both lenses' shelves.
+    await view.click('books');
     expect(ids(view.root, 'book-')).toEqual([
       'balances',
       'patterns',
@@ -159,6 +188,7 @@ describe('lens toolbars', () => {
       'watch',
       'notebook',
     ]);
+    await view.click('books');
     await view.click('overlays');
     // Playtest round six: the Ledger shows the soil and stone until another view is picked.
     expect(view.get('overlays').textContent).toContain('Soil and stone');
@@ -340,5 +370,86 @@ describe('lens toolbars', () => {
     expect(view.get('variant-curved-bench').getAttribute('aria-disabled')).toBe('false');
     await view.click('variant-curved-bench');
     expect(session.tools!.tool('decor')!.variant!.value).toBe('curved-bench');
+  });
+});
+
+describe('everything stays in reach (P3B)', () => {
+  // Tools that wait for something in the world (a grain farm, a chosen layout) are shown here as
+  // if it were there; the ones that never have a button open from somewhere else, named below.
+  const OPENED_ELSEWHERE: Record<string, [file: string, needle: string]> = {
+    'festival-site': ['panels/Festival.tsx', "'festival-site'"],
+    guard: ['panels/Watch.tsx', "'guard'"],
+    inspect: ['../input/manager.ts', "'inspect'"],
+    zone: ['Toolbar.tsx', "manager.select('zone')"],
+  };
+  const source = async (file: string) =>
+    (await import('node:fs')).readFileSync(new URL(file, import.meta.url), 'utf8');
+
+  it('every tool is a button or one click away on its group shelf, in its lens', async () => {
+    const session = withTools(mockSession().session);
+    const all = session.tools!.tools;
+    for (const t of all) if (t.id === 'field' || t.id === 'layout') t.hidden = () => false;
+    view = await mount(h(Toolbar, { session }));
+    const reached = new Set<string>();
+    for (const lens of ['hearth', 'ledger'] as const) {
+      await view.click(`lens-${lens}`);
+      const bar = [...view.root.querySelectorAll('.tools > [data-testid^="tool-"]')];
+      // About seven or fewer named tools a lens, every one with a label.
+      expect(bar.length).toBeLessThanOrEqual(7);
+      for (const b of bar) expect(b.querySelector('.label')!.textContent!.trim()).not.toBe('');
+      for (const b of bar) {
+        const id = b.getAttribute('data-testid')!.slice('tool-'.length);
+        if (!id.startsWith('group-')) {
+          reached.add(id);
+          continue;
+        }
+        await view.click(b);
+        const shelf = view.get(`kinds-${id.slice('group-'.length)}`);
+        for (const k of ids(shelf, 'tool-')) reached.add(k);
+        await view.click(b);
+      }
+    }
+    for (const t of all) {
+      if (reached.has(t.id)) continue;
+      const elsewhere = OPENED_ELSEWHERE[t.id];
+      expect(elsewhere, `tool ${t.id} has no way in`).toBeDefined();
+      expect(await source(elsewhere![0])).toContain(elsewhere![1]);
+    }
+    // Every group names real tools.
+    const { toolGroups } = await import('./toolGroups');
+    const known = new Set(all.map((t) => t.id));
+    for (const g of toolGroups) for (const [id] of g.members) expect(known.has(id), id).toBe(true);
+  });
+
+  it('every overlay is on its lens View list, and every book on its shelf or a key away', async () => {
+    const { session } = mockSession();
+    withTools(session);
+    session.mirror.town.value = { ...session.mirror.town.value!, rank: 'village' };
+    view = await mount(h(Toolbar, { session }));
+    const { overlays } = await import('./lenses');
+    const { panels, booksFor } = await import('./panels');
+    for (const lens of ['hearth', 'ledger'] as const) {
+      await view.click(`lens-${lens}`);
+      await view.click('overlays');
+      const listed = ids(view.get('overlay-list'), 'overlay-');
+      for (const o of overlays.filter((x) => x.lens === lens))
+        expect(listed, `${lens} ${o.id}`).toContain(o.id);
+      await view.click('overlays');
+      await view.click('books');
+      const shelf = ids(view.get('books-list'), 'book-');
+      expect(shelf).toEqual(booksFor(lens, 'standard').map((b) => b.id));
+      await view.click('books');
+    }
+    // Books with no shelf place open from a key, the top bar or a tool.
+    const OPENERS: Record<string, [file: string, needle: string]> = {
+      plans: ['../input/tools/plan.ts', "openPanel?.('plans')"],
+      trial: ['panels/Charter.tsx', "'trial'"],
+    };
+    for (const p of panels.filter((x) => x.side === 'book' && x.hidden)) {
+      if (p.key) continue;
+      const opener = OPENERS[p.id];
+      expect(opener, `book ${p.id} has no way in`).toBeDefined();
+      expect(await source(opener![0])).toContain(opener![1]);
+    }
   });
 });

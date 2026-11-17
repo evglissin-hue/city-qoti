@@ -48,7 +48,8 @@ export function barSlots(tools: readonly Tool[], lens: Lens): BarSlot[] {
     if (members.length === 1) slots.push({ kind: 'tool', tool: members[0]!.tool, order: group.order });
     else if (members.length > 1) slots.push({ kind: 'group', group, members, order: group.order });
   }
-  for (const tool of tools) if (!grouped.has(tool.id)) slots.push({ kind: 'tool', tool, order: tool.order ?? 50 });
+  for (const tool of tools)
+    if (!grouped.has(tool.id)) slots.push({ kind: 'tool', tool, order: tool.order ?? 50 });
   return slots.sort((a, b) => a.order - b.order);
 }
 
