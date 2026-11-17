@@ -252,7 +252,11 @@ class TreeBuilder {
     nor.needsUpdate = true;
     // V2B: dab vertices, for the foliage shader (both levels carry the attribute).
     const dab = new Float32Array(pos.count);
-    for (const [a, b] of this.dabbed) dab.fill(1, a, b);
+    // P3C: 1 plus a fraction of its own per dab (one triangle), so the foliage shader can pick
+    // whole dabs (blossom strokes) where noise across the crown cut each dab in two.
+    for (const [a, b] of this.dabbed)
+      for (let v = a; v + 2 < b; v += 3)
+        dab.fill(1 + ((Math.imul(v / 3 + 1, 2654435761) >>> 0) / 4294967296) * 0.999, v, v + 3);
     g.setAttribute('dab', new Float32BufferAttribute(dab, 1));
     return g;
   }
@@ -262,7 +266,16 @@ class TreeBuilder {
  * P3C: a limb, a frustum from `a` (radius r0) to `b` (radius r1) along any direction, open at both
  * ends (its ends sit inside a trunk or a crown), smooth-shaded round its axis.
  */
-export function limb(s: ShapeBuilder, a: V3, b: V3, r0: number, r1: number, hex: number, seg: number, top = hex): void {
+export function limb(
+  s: ShapeBuilder,
+  a: V3,
+  b: V3,
+  r0: number,
+  r1: number,
+  hex: number,
+  seg: number,
+  top = hex,
+): void {
   const ax = b[0] - a[0];
   const ay = b[1] - a[1];
   const az = b[2] - a[2];
@@ -288,8 +301,16 @@ export function limb(s: ShapeBuilder, a: V3, b: V3, r0: number, r1: number, hex:
   for (let i = 0; i < seg; i++) {
     const t0 = (i / seg) * Math.PI * 2;
     const t1 = ((i + 1) / seg) * Math.PI * 2;
-    const n0: V3 = [ux * Math.cos(t0) + vx * Math.sin(t0), uy * Math.cos(t0) + vy * Math.sin(t0), uz * Math.cos(t0) + vz * Math.sin(t0)];
-    const n1: V3 = [ux * Math.cos(t1) + vx * Math.sin(t1), uy * Math.cos(t1) + vy * Math.sin(t1), uz * Math.cos(t1) + vz * Math.sin(t1)];
+    const n0: V3 = [
+      ux * Math.cos(t0) + vx * Math.sin(t0),
+      uy * Math.cos(t0) + vy * Math.sin(t0),
+      uz * Math.cos(t0) + vz * Math.sin(t0),
+    ];
+    const n1: V3 = [
+      ux * Math.cos(t1) + vx * Math.sin(t1),
+      uy * Math.cos(t1) + vy * Math.sin(t1),
+      uz * Math.cos(t1) + vz * Math.sin(t1),
+    ];
     const p0 = ring(a, r0, t0);
     const p1 = ring(a, r0, t1);
     const q0 = ring(b, r1, t0);
@@ -304,7 +325,14 @@ export function limb(s: ShapeBuilder, a: V3, b: V3, r0: number, r1: number, hex:
  * P3C: a tree's trunk into `s`: root spurs and a darker flare at the foot, then a bole of two
  * limbs bending a little (the bend's way from `seed`), tapering from `r` to 0.6 of it at `h`.
  */
-export function trunkInto(s: ShapeBuilder, r: number, h: number, hex: number, seg: number, seed: number): void {
+export function trunkInto(
+  s: ShapeBuilder,
+  r: number,
+  h: number,
+  hex: number,
+  seg: number,
+  seed: number,
+): void {
   const rnd = seeded(seed * 31 + 7);
   const foot = mixHex(hex, 0x2e2118, 0.28);
   const a = rnd() * Math.PI * 2;
@@ -321,7 +349,15 @@ export function trunkInto(s: ShapeBuilder, r: number, h: number, hex: number, se
     const t = a + (i / roots) * Math.PI * 2 + (rnd() - 0.5) * 0.7;
     const out = r * (1.9 + rnd() * 0.5);
     const y0 = Math.max(h * 0.08, r * 0.5);
-    limb(s, [Math.cos(t) * r * 0.6, y0, Math.sin(t) * r * 0.6], [Math.cos(t) * out, r * 0.14, Math.sin(t) * out], r * 0.42, r * 0.12, foot, 3);
+    limb(
+      s,
+      [Math.cos(t) * r * 0.6, y0, Math.sin(t) * r * 0.6],
+      [Math.cos(t) * out, r * 0.14, Math.sin(t) * out],
+      r * 0.42,
+      r * 0.12,
+      foot,
+      3,
+    );
   }
 }
 

@@ -72,7 +72,8 @@ export function fruitTree(
       brushDabs(s, toward(blobs, [0, 0.7, 0], 0.45), {
         count: 190,
         size: 0.11,
-        tintSpread: petals ? 0.22 : 0.28,
+        // P3C: blossom dabs wander more (0.38, was 0.22), so the crown reads as strokes, not paper.
+        tintSpread: petals ? 0.38 : 0.28,
         skyLighten: 0.5,
         gaps: 0.02,
         // V2X: orchard trees thin through autumn like the forest (`params.thin`, default 1).

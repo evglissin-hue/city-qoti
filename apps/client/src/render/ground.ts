@@ -546,15 +546,16 @@ vec3 qPuddles(vec3 col, vec2 wp, float ao, float road, float worn, float fade) {
   float low = clamp((1.0 - ao) * 2.2, 0.0, 0.5);
   float tread = max(max(road, gQWalk * 0.8), worn * 0.6);
   float trod = smoothstep(0.1, 0.6, tread);
-  float depth = basin * mix(0.8, 1.0, trod) + low * 0.3 + trod * 0.2 + (qNoise(wp * 7.0) - 0.5) * 0.05;
-  float thr = mix(1.04, 0.8, wetK);
+  // Off the trodden ground only the deepest hollows hold water (a lawn by a wall is not a pond).
+  float depth = basin * mix(0.7, 1.0, trod) + low * mix(0.12, 0.3, trod) + trod * 0.2 + (qNoise(wp * 7.0) - 0.5) * 0.05;
+  float thr = mix(1.04, 0.85, wetK);
   float m = smoothstep(thr, thr + 0.09, depth) * (0.45 + 0.55 * fade);
   // The wet margin: darker earth round the water, a little wider than it.
   float margin = smoothstep(thr - 0.1, thr + 0.03, depth) * (1.0 - m);
   col *= 1.0 - 0.2 * margin * (0.4 + 0.6 * trod);
   gQPud = m;
   // Through the water: the ground, darker and a touch cooler.
-  return mix(col, col * vec3(0.46, 0.48, 0.52), m);
+  return mix(col, col * vec3(0.52, 0.54, 0.58), m);
 }
 
 vec3 qGround(vec3 base) {
@@ -732,7 +733,8 @@ vec3 qGroundSeason(vec3 col, vec2 wp, float road, float above, float ao, float g
   float shelter = clamp((1.0 - ao) * 4.0, 0.0, 1.0);
   float leafK = uAutumn * (0.35 + 0.65 * clamp(uBare * 1.8, 0.0, 1.0));
   if ((leafK > 0.01 || uBlossom > 0.01) && above > 0.06 && uSnow < 0.9) {
-    float drift = smoothstep(0.1, 0.9, shelter * 0.8 + qNoise(wp * 0.8 + 5.0) * 0.45);
+    // P3C: drifts are where the shelter is (walls, hedges, crowns); the noise only breaks them up.
+    float drift = smoothstep(0.15, 0.9, shelter * 0.85 + qNoise(wp * 0.8 + 5.0) * 0.28);
     float land = 1.0 - road * 0.8;
     if (leafK > 0.01) {
       vec2 g = wp * 11.0;
@@ -814,8 +816,8 @@ float qCloudShade(vec2 wp) {
 vec3 qPudSheen(vec3 n, vec3 glow) {
   if (gQPud <= 0.0) return vec3(0.0);
   float ndv = clamp(dot(normalize(n), normalize(vViewPosition)), 0.0, 1.0);
-  float sheen = 0.16 + 0.3 * pow(1.0 - ndv, 2.0);
-  return (gQSky * sheen + glow * 0.9) * gQPud;
+  float sheen = 0.07 + 0.16 * pow(1.0 - ndv, 2.0);
+  return (gQSky * sheen + glow * 0.25) * gQPud;
 }
 
 // V3C: the valley's rim (the sim's ring of mountain tiles and the cliff below it) painted as the foot

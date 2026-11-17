@@ -127,7 +127,7 @@ export function skyLayer(): RenderLayer {
         // P3C: the moon's muting follows the light step's night (lighting.ts, MOON).
         const moon = moonTermsAt(env.night.value);
         const tune = (globalThis as { __p3cMoon?: number[] }).__p3cMoon;
-        if (tune) MOON.value.set(tune[0]! * moon.mute / 0.72, tune[1]!, tune[2]! * (moon.hold / 30), 0);
+        if (tune) MOON.value.set((tune[0]! * moon.mute) / 0.55, tune[1]!, tune[2]! * (moon.hold / 30), 0);
         else MOON.value.set(moon.mute, moon.knee, moon.hold, 0);
       };
       ctx.scene.add(dome);

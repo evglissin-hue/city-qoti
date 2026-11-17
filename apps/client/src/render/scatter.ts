@@ -510,23 +510,23 @@ export function createFoliageMaterial(env: WorldEnv): MeshStandardMaterial {
           '      float k = uAutumn * (0.75 + 0.25 * qNoise(vQWorld.xz * 1.7));',
           '      c = mix(c, au * (0.55 + lum * 2.4), k);',
           '    }',
-          // P3C: blossom on some of the wood's trees only (a wild cherry or a blackthorn among
-          // fresh green, not a white and pink forest), in soft clusters about two dabs across with
-          // gentle edges, in softer colors. At seven to a tile with hard edges the speckles cut each
-          // dab in two, which close up read as a crown of crumpled pink and olive paper.
+          // P3C: blossom on some of the wood's trees only (a wild cherry or a blackthorn among fresh
+          // green, not a white and pink forest), and dab by dab: each dab (its `dab` attribute carries
+          // a fraction of its own, trees.ts) is a pink or white stroke or stays green, and the core
+          // stays the crown's shade. Speckles at seven to a tile cut each dab in two, which close up
+          // read as a crown of crumpled pink and olive paper; far crowns take a soft tint.
           '    float qBloomTree = step(vQSeed, 0.42);',
           '    if (decid > 0.5 && uBlossom > 0.001 && qBloomTree > 0.5) {',
-          '      vec2 bp = vQWorld.xz * 3.2 + vQWorld.y * 2.0 + vQSeed * 17.0;',
-          '      float cl = qNoise(bp) * 0.7 + qNoise(bp * 2.1) * 0.3;',
-          '      vec3 petal = fract(vQSeed * 7.3) < 0.55 ? vec3(0.93, 0.76, 0.8) : vec3(0.93, 0.91, 0.89);',
-          '      float on = smoothstep(0.5 - uBlossom * 0.2, 0.72 - uBlossom * 0.12, cl);',
-          '      c = mix(c, petal * 0.82, mix(on * 0.9, uBlossom * 0.4, far) * uBlossom);',
+          '      float qH = fract(vQDab + vQSeed * 7.13);',
+          '      vec3 petal = fract(qH * 7.31) < 0.55 ? vec3(0.93, 0.76, 0.8) : vec3(0.94, 0.88, 0.87);',
+          '      float onDab = step(0.5, vQDab) * step(qH, 0.42 * uBlossom);',
+          '      c = mix(c, petal * 0.84, mix(onDab * 0.92, uBlossom * 0.35, far));',
           '    }',
           '    if (decid > 0.5 && uBare > 0.001) {',
           // Bare: warm grey-brown twigs, mottled, with holes through to the boughs.
           '      float tw = qNoise(vQWorld.xz * 6.0 + vQWorld.y * 4.0);',
           '      vec3 twig = mix(vec3(0.13, 0.08, 0.05), vec3(0.3, 0.2, 0.13), tw);',
-          '      c = mix(c, twig, uBare * (1.0 - 0.7 * vQDab));',
+          '      c = mix(c, twig, uBare * (1.0 - 0.7 * step(0.5, vQDab)));',
           '      float hole = qNoise(vQWorld.xz * 3.6 + vQWorld.y * 5.0 + vQSeed * 7.0);',
           '      if (vQDab < 0.5 && hole < (uBare - 0.3) * 0.85 * (1.0 - far)) discard;',
           '    }',

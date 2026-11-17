@@ -61,7 +61,10 @@ function standIn(g: BufferGeometry, building: boolean, sunk: boolean, far = fals
   let badNormals = 0;
   for (let v = 0; v < pos.count; v++) {
     const y = pos.getY(v);
-    if (!Number.isFinite(pos.getX(v) + y + pos.getZ(v)) || !Number.isFinite(col.getX(v) + col.getY(v) + col.getZ(v)))
+    if (
+      !Number.isFinite(pos.getX(v) + y + pos.getZ(v)) ||
+      !Number.isFinite(col.getX(v) + col.getY(v) + col.getZ(v))
+    )
       out.push(`vertex ${v} not finite`);
     const n = Math.hypot(nor.getX(v), nor.getY(v), nor.getZ(v));
     if (!(Math.abs(n - 1) < 0.05)) badNormals++;
@@ -89,16 +92,25 @@ function standIn(g: BufferGeometry, building: boolean, sunk: boolean, far = fals
 }
 
 describe('stand-ins (P3C)', () => {
-  it('no kit, at any level or stage, draws a stand-in, an unlit face or a piece off its anchor', { timeout: 120000 }, () => {
-    const bad: string[] = [];
-    for (const kit of kits) {
-      for (const opts of variants(kit)) {
-        const found = standIn(kit.build(opts), kit.kind === 'building', PLACED_SUNK.has(kit.id), opts.lod === 'low');
-        for (const f of found) bad.push(`${kit.id} ${JSON.stringify(opts)}: ${f}`);
+  it(
+    'no kit, at any level or stage, draws a stand-in, an unlit face or a piece off its anchor',
+    { timeout: 120000 },
+    () => {
+      const bad: string[] = [];
+      for (const kit of kits) {
+        for (const opts of variants(kit)) {
+          const found = standIn(
+            kit.build(opts),
+            kit.kind === 'building',
+            PLACED_SUNK.has(kit.id),
+            opts.lod === 'low',
+          );
+          for (const f of found) bad.push(`${kit.id} ${JSON.stringify(opts)}: ${f}`);
+        }
       }
-    }
-    expect(bad).toEqual([]);
-  });
+      expect(bad).toEqual([]);
+    },
+  );
 
   it('no construction site stage of any building draws one either', { timeout: 120000 }, () => {
     const bad: string[] = [];
@@ -109,7 +121,12 @@ describe('stand-ins (P3C)', () => {
       for (const stage of [0, 1, 2, 3]) {
         for (const lod of ['high', 'low'] as const) {
           sites++;
-          for (const f of standIn(constructionGeometry({ kit: kit.id, size, stage, lod }), true, false, lod === 'low'))
+          for (const f of standIn(
+            constructionGeometry({ kit: kit.id, size, stage, lod }),
+            true,
+            false,
+            lod === 'low',
+          ))
             bad.push(`site ${kit.id} stage ${stage} ${lod}: ${f}`);
         }
       }

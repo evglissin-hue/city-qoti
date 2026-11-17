@@ -459,13 +459,13 @@ const FOG_FRAGMENT = /* glsl */ `
 export const MOON = { value: shared(new Vector4(0, 0, 0, 0)) };
 
 /** The moon's tint for muted color, at luma 1 (a cool blue grey). *(tune)* */
-const MOON_TINT = [0.84, 1.0, 1.26] as const;
+const MOON_TINT = [0.76, 0.97, 1.36] as const;
 
 /** The moon's terms for a night value (0 by day, 1 at full night). Pure. *(tune)* */
 export function moonTermsAt(night: number): { mute: number; knee: number; hold: number } {
   const n = Math.min(1, Math.max(0, night));
   const k = n * n * (3 - 2 * n);
-  return { mute: 0.72 * k, knee: 0.012, hold: 30 * k };
+  return { mute: 0.55 * k, knee: 0.012, hold: 30 * k };
 }
 
 const MOON_PARS = /* glsl */ `
