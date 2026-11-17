@@ -189,6 +189,8 @@ The Ledger-off towns would pass R2's rule on every seed; the Hearth-off towns wo
 
 *R2E's run (2026-11-16, enforced: `npm run lanes` exits 1 past either bar)*: on R2.0's stand-ins nobody goes out and the seeds stand where R1X left them (Hearth off 145 to 172% of the residents, Ledger off 21 to 32%). On a trial merge with R2A to R2C and R2F the Hearth starts to matter for growth: oak's Hearth-off town ends at 56% (pass), willow's at 66% with R2A to R2C alone, and every one-lane town has no Craftsfolk while the both-lanes towns have 2 to 8 households; willow (110%), hazel (135%) and birch (153%) still fail on residents. The tables are in `docs/build/cycle-r2e-bench.md`, As built; R2X tunes against them.
 
+*R2X's run (2026-11-17, the wave merged and tuned)*: passes on every seed. Hearth off ends at 38 / 48 / 33 / 64% of the both-lanes town's residents (willow, hazel, oak, birch) and Ledger off at 21 / 30 / 19 / 39%; no one-lane town has a Craftsfolk household, while the both-lanes towns have 2 to 9. What carries it is the master's ruling of 2026-11-16: past 16 households newcomers come only as fast as fair evenings send folk out (`19-evenings.md`, As built (R2X)). The Ledger sent 91 to 132 commands in 70 days with raids on (willow's watch target had turned 2, 4, 2, 4 eleven times, putting it at 153 until the autoplayer gave it slack).
+
 **Decisions, not chores** [R1]. The bench counts the autoplayer's commands by kind and fails if the Ledger needed more than 150 in 70 days or used a pause to balance labor (`13-ledger.md`, Tuning targets). The count before the redesign was about 700, 261 of them pauses and 321 order changes.
 
 ## Tests
