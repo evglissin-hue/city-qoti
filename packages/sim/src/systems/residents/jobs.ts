@@ -162,13 +162,19 @@ function growsFood(m: ProductionMethod | null): boolean {
  * vendors and the first hands of other work (1 and 2).
  */
 export const FIRST_AFTER_CIRCULATION = 0.5;
+/**
+ * P3A: the later hands of a workplace making a short good that is not food (a lodge's second and
+ * third while sites wait on timber): after every food hand, ahead of the second builder and porter.
+ * At 1 beside them, oak's one lodge kept a single hand for ten days and its homes waited on timber.
+ */
+export const SHORT_LATER_HANDS = 0.75;
 
 /**
  * How much the k-th job at a building matters, lower first: 0 the first builder and the first porter
  * of each storehouse; 0.5 (P3A, FIRST_AFTER_CIRCULATION) the first hand of a food workplace, every
  * food hand while food is short and the first hand of a workplace making another short good (timber
- * and stone the sites wait on); 1 the second builder, the second porter, stall vendors and the later
- * hands of a workplace making a short good; 2 food when there is enough; 3 everything else that
+ * and stone the sites wait on); 0.75 (SHORT_LATER_HANDS) the later hands of such a workplace; 1 the
+ * second builder, the second porter and stall vendors; 2 food when there is enough; 3 everything else that
  * makes things; 4 the remaining builders and porters (3 for the porters while goods pile up for want
  * of them, C4X: never ahead of a workplace's first hand). Without a porter nothing moves and without
  * a builder nothing gets built, so those two are never poached; past them a hamlet of eight keeps fed
@@ -202,7 +208,8 @@ export function slotPriority(
   // first hand of one that makes some other short good (timber or stone for the sites): with a
   // handful of hands and both short, a lodge and a quarry took every hand at the first porter's rank,
   // nobody carried, and food sat in the fishery's baskets while homes went hungry (the newcomer runs).
-  if (kind === 'short') return k === 0 || (short.food && growsFood(method)) ? FIRST_AFTER_CIRCULATION : 1;
+  if (kind === 'short')
+    return k === 0 || (short.food && growsFood(method)) ? FIRST_AFTER_CIRCULATION : SHORT_LATER_HANDS;
   // C5A: food work, with the larder short of the winter in autumn: ahead of other workplaces, never
   // ahead of the first two builders and porters (or nothing reaches the shelves).
   if (kind === 'food' && short.winter) return 1;

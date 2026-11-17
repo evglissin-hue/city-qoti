@@ -92,7 +92,7 @@ describe('the places advisor', () => {
       const before = planner.decisions.length;
       advisor.visit({ afternoon: false });
       const visit = planner.decisions.slice(before);
-      expect(visit.length).toBeLessThanOrEqual(3 + 2);
+      expect(visit.length, visit.map((r) => `${r.kind} ${r.label}`).join('\n')).toBeLessThanOrEqual(3 + 2);
       sent = visit;
       if (visit.some((r) => r.ok && r.label.startsWith('bench'))) break;
     }

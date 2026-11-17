@@ -8,6 +8,7 @@ import type { Building, WorldState } from '../../src/contracts';
 import {
   assignJobs,
   FIRST_AFTER_CIRCULATION as FIRST,
+  SHORT_LATER_HANDS,
   shortages,
   slotPriority,
   type Shortages,
@@ -29,20 +30,20 @@ describe('slotPriority with food and timber both short', () => {
 
   it('ranks a lodge’s first hand just behind the circulation and its later hands 1', () => {
     expect(slotPriority(def('foresters-lodge'), 0, BOTH)).toBe(FIRST);
-    expect(slotPriority(def('foresters-lodge'), 1, BOTH)).toBe(1);
-    expect(slotPriority(def('foresters-lodge'), 2, BOTH)).toBe(1);
+    expect(slotPriority(def('foresters-lodge'), 1, BOTH)).toBe(SHORT_LATER_HANDS);
+    expect(slotPriority(def('foresters-lodge'), 2, BOTH)).toBe(SHORT_LATER_HANDS);
   });
 
   it('ranks a quarry’s first hand just behind the circulation and its later hands 1', () => {
     expect(slotPriority(def('quarry'), 0, BOTH)).toBe(FIRST);
-    expect(slotPriority(def('quarry'), 1, BOTH)).toBe(1);
-    expect(slotPriority(def('quarry'), 2, BOTH)).toBe(1);
+    expect(slotPriority(def('quarry'), 1, BOTH)).toBe(SHORT_LATER_HANDS);
+    expect(slotPriority(def('quarry'), 2, BOTH)).toBe(SHORT_LATER_HANDS);
   });
 
   it('does the same with timber alone short', () => {
     const timber: Shortages = { food: false, goods: new Set(['timber']) };
     expect(slotPriority(def('foresters-lodge'), 0, timber)).toBe(FIRST);
-    expect(slotPriority(def('foresters-lodge'), 2, timber)).toBe(1);
+    expect(slotPriority(def('foresters-lodge'), 2, timber)).toBe(SHORT_LATER_HANDS);
   });
 });
 
