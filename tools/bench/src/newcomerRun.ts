@@ -8,7 +8,7 @@ import { rankAtLeast, TICKS_PER_DAY, townStock, type WorldState } from '@qoti/si
 import { autoplay } from './autoplay';
 import { DEFAULT_SEEDS } from './audit';
 import { charterOpen, FOODS } from './town';
-import { handsNow, hourAt, hungerNow, isHomeDef, SiteClock, type HandsNow } from './newcomer';
+import { handsNow, hourAt, hungerNow, isHomeDef, SiteClock, type HandsNow, type Hunger } from './newcomer';
 
 export interface NewcomerDay {
   day: number;
@@ -18,7 +18,7 @@ export interface NewcomerDay {
   /** Days of Food in hand (stock and pantries a resident). */
   foodDays: number;
   /** Residents and households who missed this morning's meal (read at 08:00). */
-  hungry: { residents: number; households: number };
+  hungry: Hunger;
   sites: number;
   rank: string;
   /** The Homes bar's reasons, codes joined. */
@@ -43,6 +43,8 @@ export interface NewcomerRow {
   /** Days some household missed breakfast; the worst day's households. */
   hungryDays: number;
   worstHungry: number;
+  /** Days some household missed a meal for another reason than an empty purse (food short, or out of reach). */
+  hungryUnpaidDays: number;
   /** Days with food jobs open while Food was under three days in hand. */
   foodShortOpenDays: number;
   /** The first day a business stood at level 2 (0: none). */
@@ -64,7 +66,7 @@ function foodDaysInHand(w: WorldState): number {
 
 export function newcomerRow(seed: string, days: number, newcomer = true): NewcomerRow {
   const clock = new SiteClock();
-  let hungry = { residents: 0, households: 0 };
+  let hungry: Hunger = { residents: 0, households: 0, noOutlet: 0, broke: 0 };
   const out: NewcomerDay[] = [];
   autoplay(seed, days, {
     village: true,
@@ -104,6 +106,7 @@ export function newcomerRow(seed: string, days: number, newcomer = true): Newcom
     firstFarmstead: clock.first((d) => d === 'farmstead', 1),
     hungryDays: out.filter((l) => l.hungry.households > 0).length,
     worstHungry: Math.max(0, ...out.map((l) => l.hungry.households)),
+    hungryUnpaidDays: out.filter((l) => l.hungry.households - l.hungry.broke > 0).length,
     foodShortOpenDays: out.filter((l) => l.hands.foodOpen > 0 && l.foodDays < 3).length,
     firstLevel2: out.find((l) => l.level2 + l.level3 > 0)?.day ?? 0,
     days: out,
@@ -111,7 +114,7 @@ export function newcomerRow(seed: string, days: number, newcomer = true): Newcom
 }
 
 export const NEWCOMER_HEAD =
-  'seed     profile   village  pop20 pop40 pop70  homes h (day)        farmstead h (day)  hungry days (worst)  food open+short days  1st L2';
+  'seed     profile   village  pop20 pop40 pop70  homes h (day)        farmstead h (day)  hungry (worst) not purse  food open+short days  1st L2';
 
 export function formatNewcomer(r: NewcomerRow): string {
   const t = (xs: [number, number][]) => xs.map(([h, d]) => `${h}h (d${d})`).join(', ') || 'none';
@@ -125,14 +128,14 @@ export function formatNewcomer(r: NewcomerRow): string {
     ' ',
     t(r.firstHomes).padEnd(20),
     t(r.firstFarmstead).padEnd(18),
-    `${r.hungryDays} (${r.worstHungry})`.padStart(19),
+    `${r.hungryDays} (${r.worstHungry}) ${r.hungryUnpaidDays}`.padStart(19),
     String(r.foodShortOpenDays).padStart(21),
     String(r.firstLevel2 || '-').padStart(6),
   ].join(' ');
 }
 
 export const DAY_HEAD =
-  'day  pop hh idle food haul othr fOpen oOpen fEmpty foodD hungry sites biz/L2/L3 rank    homes';
+  'day  pop hh idle food haul othr fOpen oOpen fEmpty foodD    hungry sites biz/L2/L3 rank    homes';
 
 export function formatDay(l: NewcomerDay): string {
   const h = l.hands;
@@ -148,7 +151,7 @@ export function formatDay(l: NewcomerDay): string {
     String(h.otherOpen).padStart(5),
     String(h.foodEmpty).padStart(6),
     String(l.foodDays).padStart(5),
-    `${l.hungry.households}/${l.hungry.residents}`.padStart(6),
+    `${l.hungry.households}/${l.hungry.residents}${l.hungry.noOutlet ? `o${l.hungry.noOutlet}` : ''}${l.hungry.broke ? `b${l.hungry.broke}` : ''}`.padStart(9),
     String(l.sites).padStart(5),
     `${l.businesses}/${l.level2}/${l.level3}`.padStart(9),
     l.rank.padEnd(7),

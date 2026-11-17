@@ -9,8 +9,11 @@
 import { content } from '@qoti/content';
 import {
   BuildingStatus,
+  doorTile,
   jobsOf,
   methodOf,
+  nearestOutletWithFood,
+  rankAtLeast,
   START_HOUR,
   TICKS_PER_DAY,
   TICKS_PER_HOUR,
@@ -94,23 +97,41 @@ export function handsNow(w: WorldState): HandsNow {
   return out;
 }
 
+/** Residents and households who missed a meal, and why the households did, as far as it shows. */
+export interface Hunger {
+  residents: number;
+  households: number;
+  /** Hungry households with no outlet with food they may shop at. */
+  noOutlet: number;
+  /** Hungry households at Village rank whose purse holds less than the cheapest food. */
+  broke: number;
+}
+
 /** Residents and households whose food need says they missed a meal. */
-export function hungerNow(w: WorldState): { residents: number; households: number } {
-  let residents = 0;
-  let households = 0;
+export function hungerNow(w: WorldState): Hunger {
+  const out: Hunger = { residents: 0, households: 0, noOutlet: 0, broke: 0 };
   const byId = new Map(w.residents.map((r) => [r.id, r]));
+  const village = rankAtLeast(w, 'village');
+  let cheapest = Infinity;
+  content.goods.forEach((g, i) => {
+    if (g.family === 'food') cheapest = Math.min(cheapest, w.market.prices[i] ?? Infinity);
+  });
   for (const h of w.households) {
     let any = false;
     for (const id of h.members) {
       const r = byId.get(id);
       if (r && (r.needs[0] ?? 100) < HUNGRY_BELOW) {
-        residents++;
+        out.residents++;
         any = true;
       }
     }
-    if (any) households++;
+    if (!any) continue;
+    out.households++;
+    const home = w.buildings.find((b) => b.id === h.homeId);
+    if (home && !nearestOutletWithFood(w, doorTile(home))) out.noOutlet++;
+    else if (village && h.savings < cheapest) out.broke++;
   }
-  return { residents, households };
+  return out;
 }
 
 /** How long sites took: the hour each grown or placed building was first seen going up, and built. */

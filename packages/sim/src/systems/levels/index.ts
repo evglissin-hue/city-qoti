@@ -19,9 +19,13 @@ import { eveningPassers } from '../growth/outlets';
 import { invalidatePlaces } from '../places';
 import { outOfSeason } from './season';
 import { bumpPlaceInputs } from '../places/inputs';
+import { chronicle } from '../chronicle/api';
 
-/** Good days in a row that move a business up a level. */
-export const LEVEL_UP_DAYS = 3;
+/**
+ * Good days in a row that move a business up a level. P3A: two (was three), so a business that does
+ * well from the start is level 2 by its fourth or fifth evening, where a player still notices it.
+ */
+export const LEVEL_UP_DAYS = 2;
 /** Failing days in a row that move a business down a level. */
 export const LEVEL_DOWN_DAYS = 4;
 /** Customers a day a shop needs to hold level 2 and level 3 (and to climb toward them). */
@@ -110,6 +114,28 @@ function settleCafe(state: WorldState, ctx: TickCtx, b: Building, levelBefore: n
   ctx.events.push({ e: 'building.updated', b: buildingView(b) });
 }
 
+/**
+ * P3A: the first time a business reaches a level, the Chronicle says so (and the Ledger's feed reads
+ * it there). A business that slid back and climbs again is not news twice: the entries it already
+ * has count the levels it reached before.
+ */
+function announceGrowth(state: WorldState, ctx: TickCtx, b: Building, trade: TradeDef): void {
+  const level = levelOf(b);
+  let before = 0;
+  for (const e of state.chronicle) if (e.kind === 'business-grew' && e.refs[0] === b.id) before++;
+  if (before >= level - 1) return;
+  const keeper = b.keeperId ? findById(state.residents, b.keeperId) : undefined;
+  const name = trade.name.toLowerCase();
+  chronicle(state, ctx, 'business-grew', {
+    text: [
+      ['business', keeper ? `the ${keeper.family} ${name}` : `the ${name}`],
+      ['level', String(level)],
+      ['hands', String(trade.crew[level - 1] ?? 0)],
+    ],
+    refs: keeper ? [b.id, keeper.id] : [b.id],
+  });
+}
+
 /** One business's day end. */
 function dayEnd(state: WorldState, ctx: TickCtx, b: Building): void {
   const trade = content.tradeById.get(b.trade ?? '');
@@ -142,6 +168,7 @@ function dayEnd(state: WorldState, ctx: TickCtx, b: Building): void {
         b.level = level + 1;
         bumpPlaceInputs(state);
         c.levelDays = 0;
+        announceGrowth(state, ctx, b, trade);
       }
     } else if (level >= 2 && !holdsLevel(c, trade, level)) {
       c.levelDays = Math.min(0, c.levelDays) - 1;
