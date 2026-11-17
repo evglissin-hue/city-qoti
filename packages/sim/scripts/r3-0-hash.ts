@@ -4,6 +4,7 @@
 // migration runs in the browser too) and compares the hash.
 //   npx tsx packages/sim/scripts/r3-0-hash.ts v8 | fresh
 import { readFileSync } from 'node:fs';
+import { gunzipSync, gzipSync, strFromU8, strToU8 } from 'fflate';
 import { fileURLToPath } from 'node:url';
 import {
   advanceTo,
@@ -26,7 +27,11 @@ if (which === 'v8') {
   const v8 = JSON.parse(
     readFileSync(fileURLToPath(new URL('../test/golden/v8-willow-day70.json', import.meta.url)), 'utf8'),
   ) as { save: string };
-  data = base64ToBytes(v8.save);
+  // The fixture was saved with nobody connected, and time stands still then: seat both, in the raw
+  // version 8 save (so the migration still runs on load, in Node and in the browser worker).
+  const raw = JSON.parse(strFromU8(gunzipSync(base64ToBytes(v8.save)))) as { time: { connected: number[] } };
+  raw.time.connected = [0, 1];
+  data = gzipSync(strToU8(JSON.stringify(raw)), { level: 6, mtime: 0 });
 } else {
   const fresh = createWorld('willow', { ...defaultSettings(), mode: 'standard' });
   fresh.time.connected = [0, 1];
