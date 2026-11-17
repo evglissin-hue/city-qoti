@@ -1,5 +1,5 @@
 import { MAP_SIZE } from '@qoti/sim';
-import { Color, Vector3, Vector4, type Mesh } from 'three';
+import { Color, Vector3, type Mesh } from 'three';
 import { describe, expect, it } from 'vitest';
 import type { Mirror } from '../../state/mirror';
 import type { WorldEnv } from '../env';
@@ -34,10 +34,10 @@ describe('the horizon build (V3C)', () => {
     expect(positions({ ...input(), seed: 99 })).not.toEqual(positions(input()));
   });
 
-  it('stays under 8,000 triangles (V3X: close rows near the rim)', () => {
+  it('stays under 2,000 triangles', () => {
     const b = buildHorizon(input());
-    expect(b.triangles).toBeLessThan(8000);
-    expect(b.triangles).toBeGreaterThan(3000);
+    expect(b.triangles).toBeLessThan(2000);
+    expect(b.triangles).toBeGreaterThan(1000);
   });
 
   it('puts the inner edge on the valley boundary, a hair under the terrain', () => {
@@ -87,10 +87,6 @@ describe('the horizon layer (V3C)', () => {
       seasonTint: { value: new Color(1, 1, 1) },
       snow: { value: 0 },
       autumn: { value: 0 },
-      // V3X: the haze reads the camera's focus, a fog day and V3C's height terms.
-      focus: new Vector3(),
-      fog: { value: 0 },
-      haze: { terms: { value: new Vector4() } },
       skipScene: false,
     } as unknown as WorldEnv;
     const mirror = {

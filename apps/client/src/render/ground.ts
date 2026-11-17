@@ -18,8 +18,9 @@ import { drawDef } from './defs';
 import { flowerDrift } from './drifts';
 import { GROUND_AO_GLSL, groundAoFor } from './groundAo';
 import { buildWalk, RainMemory } from './groundPaths';
+import { RIM_WOODS_GLSL } from './layers/horizon';
 import { DOOR_KIND, ROAD_GLSL } from './layers/roads';
-import { WATER_Y } from './surface';
+import { RIM_TILES, WATER_Y } from './surface';
 
 /**
  * C3D-1: the painted ground. Two small textures cover the map, one texel per tile:
@@ -70,6 +71,12 @@ const FOREST = rgb(palette2.forestFloor);
 const CANOPY = rgb(0x4f6a3c);
 const SAND = rgb(palette.sand);
 const ROCK = rgb(palette.rock);
+/** V3X: the rim's mossy hillside (the horizon's woods and near hills, halfway). */
+const HILLSIDE: RGB = [
+  (((palette.horizonNear >> 16) & 255) + ((palette.horizonWoods >> 16) & 255)) / 2,
+  (((palette.horizonNear >> 8) & 255) + ((palette.horizonWoods >> 8) & 255)) / 2,
+  ((palette.horizonNear & 255) + (palette.horizonWoods & 255)) / 2,
+];
 const MOUNTAIN = rgb(palette.mountain);
 const BED = rgb(0x8f8a62);
 const FIELD = rgb(0x8a6a48);
@@ -251,7 +258,9 @@ export class GroundTextures {
         const near = Math.abs(dx) <= 1 && Math.abs(dz) <= 1;
         if (near && L.tree[j]) trees += dx === 0 && dz === 0 ? 2 : 1;
         if (L.water[j]) wet = Math.max(wet, near ? 2 : 1);
-        if (near && !L.water[j] && Math.abs(L.height[j]! - level) >= 2) cliff = true;
+        // V3X: the rim is drawn as a slope (surface.ts rimLevel), so a step onto it is no cliff.
+        const rim = Math.min(nx, nz, N - 1 - nx, N - 1 - nz) < RIM_TILES;
+        if (near && !rim && !L.water[j] && Math.abs(L.height[j]! - level) >= 2) cliff = true;
       }
     }
     // V1C: lawns are mown within a few tiles of a building; long grass grows farther out.
@@ -320,6 +329,12 @@ export class GroundTextures {
     if (trees > 0 && !water) c = mix(c, CANOPY, Math.min(1, trees / 8) * 0.6);
     // Stony ground around rocky faces, so a cliff reads as an outcrop, not a crack.
     if (cliff && !water) c = mix(c, ROCK, 0.45);
+    // V3X: rock and mountain near the valley's edge are the foot of the wooded hills beyond (the
+    // rim's paint and the horizon take it on): mossy hillside, fading in over 14 tiles, so no gray
+    // band runs straight along the edge. Partial, so rock still reads as rock up close.
+    const edge = Math.min(x, z, N - 1 - x, N - 1 - z);
+    if (!water && (terrain === Terrain.rock || terrain === Terrain.mountain) && edge < RIM_TILES + 8)
+      c = mix(c, HILLSIDE, 0.65 * (1 - smoothstep(RIM_TILES, RIM_TILES + 8, edge)));
     // A whisper of per-tile value jitter; the filter turns it into soft blotches, not a grid.
     const k = 0.975 + hash2(x, z, 21) * 0.05;
     if (L.occupant[i] || road) flowers = 0;
@@ -784,20 +799,20 @@ float qCloudShade(vec2 wp) {
 // of the horizon's near hills (layers/horizon.ts, the same palette), in woods and grassy clearings,
 // so the valley runs on into the hills with no box. Only the raised rim: the river's notch keeps its
 // banks. Snow settles on it and its woods warm in autumn, as the horizon's do.
+${RIM_WOODS_GLSL}
 vec3 qRim(vec3 col) {
   vec2 wp = vQWorld.xz;
   float e = min(min(wp.x, wp.y), min(${N.toFixed(1)} - wp.x, ${N.toFixed(1)} - wp.y));
-  // V3X: across the rim (drawn as a slope up from the valley, surface.ts rimLevel) the valley's own
-  // look at its foot turns by degrees into the hills' paint at the map's edge, where the horizon's
-  // first rows take it up (layers/horizon.ts): a gradient with a wandering middle, never a line. The
-  // river's gorge keeps its banks (below about level 2).
-  float fray = (qNoise(wp * 0.06 + 4.1) - 0.5) * 3.0 + (qNoise(wp * 0.21 + 1.3) - 0.5) * 1.2;
-  float k = (1.0 - smoothstep(0.0, 6.6, e + fray)) * smoothstep(0.7, 1.4, vQWorld.y);
+  // The painted edge wanders a few tiles either side of the cliff, so it never runs as a ruled line.
+  float reach = 4.0 + 3.5 * qNoise(wp * 0.11 + 1.3);
+  // V3X: the rim is drawn as a slope from the valley (surface.ts rimLevel), so it is painted down to
+  // the foot; only the river's gorge keeps its banks (below about level 2).
+  float k = (1.0 - smoothstep(reach, reach + 2.5, e)) * smoothstep(0.7, 1.4, vQWorld.y);
   if (k < 0.001) return col;
-  float wn = qFbm(wp * 0.09 + 3.7);
-  // V3X: the horizon's first rows paint the same field (layers/horizon.ts), so it runs on past the rim.
-  float woods = smoothstep(0.38, 0.55, wn);
-  vec3 hill = mix(qSrgb(${glslColor(palette.horizonNear)}), qSrgb(${glslColor(palette.horizonWoods)}), woods);
+  // The valley's own grass (the horizon's near hills start in the same), with ragged woods.
+  float woods = qRimWoods(wp, -e);
+  vec3 grass = mix(qSrgb(${glslColor(palette.horizonNear)}), qSrgb(${glslColor(0x789d55)}), qNoise(wp * 0.23 + 4.1));
+  vec3 hill = mix(grass, qSrgb(${glslColor(palette.horizonWoods)}), woods);
   hill *= 0.86 + 0.24 * qNoise(wp * 0.7) + 0.1 * qNoise(wp * 3.1);
   vec3 fall = qSrgb(vec3(0.66, 0.4, 0.17)) * (0.7 + 0.5 * qNoise(wp * 0.5 + 9.0));
   hill = mix(hill, fall, uAutumn * woods * 0.6);
