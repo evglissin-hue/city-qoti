@@ -90,7 +90,7 @@ async function grab(page, name, note = '') {
       feed: t('alerts'),
       tags: t('gap-tags'),
       card: t('place-card'),
-      inspector: t('inspector') ?? (document.querySelector('.inspector-panel.resident')?.innerText ?? null),
+      inspector: t('inspector') ?? document.querySelector('.inspector-panel.resident')?.innerText ?? null,
       edition: t('edition'),
     };
   });
@@ -146,7 +146,9 @@ async function showDay(page, name, id) {
   await settle(page, 2500);
   // The inspector must be on screen before the shot (one run caught the frame without it).
   for (let k = 0; k < 10; k++) {
-    const r = await page.evaluate(() => document.querySelector('.inspector-panel.resident')?.getBoundingClientRect().toJSON() ?? null);
+    const r = await page.evaluate(
+      () => document.querySelector('.inspector-panel.resident')?.getBoundingClientRect().toJSON() ?? null,
+    );
     if (r && r.width > 0 && r.right <= 1250) break;
     console.log('inspector not on screen yet', JSON.stringify(r));
     await select(page, { kind: 'resident', id });
