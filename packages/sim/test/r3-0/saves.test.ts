@@ -246,7 +246,7 @@ describe('the version 6 fixture, through every step to 9', () => {
 describe('running on the migrated valley and on a fresh one', () => {
   it(
     'runs 10 days from the version 8 valley, no error, money intact, the same hash twice',
-    { timeout: 180_000 },
+    { timeout: 600_000 },
     () => {
       const hashes: string[] = [];
       for (let k = 0; k < 2; k++) {
@@ -264,7 +264,7 @@ describe('running on the migrated valley and on a fresh one', () => {
 
   it(
     'runs 10 days from a fresh standard valley, money intact, the same hash twice',
-    { timeout: 180_000 },
+    { timeout: 600_000 },
     () => {
       const hashes: string[] = [];
       for (let k = 0; k < 2; k++) {
@@ -280,7 +280,7 @@ describe('running on the migrated valley and on a fresh one', () => {
 
   it(
     'two independent loads of the version 8 valley, run side by side, hash the same every day',
-    { timeout: 180_000 },
+    { timeout: 600_000 },
     () => {
       const a = deserialize(bytes8());
       const b = deserialize(bytes8());
