@@ -241,6 +241,21 @@ describe('places that drew a crowd with nothing to sell', () => {
     expect(unservedPlaces(s)).toEqual([]);
   });
 
+  it('counts a tavern at the door only once its shelf holds Treats (R2X)', () => {
+    const f = villageFixture();
+    const s = f.state;
+    setStubPlaces([place({ id: 'seats:5', tile: spot(f) })]);
+    s.places = [row('seats:5', 9, 0)];
+    const x = spot(f) % S;
+    const z = Math.floor(spot(f) / S);
+    const tavern = placeBuilding(s, 'tavern', x + 1, z - 3, 0);
+    // An empty shelf serves nobody (porters stock only market shelves): the crowd still asks for a shop.
+    expect(unservedPlaces(s)).toEqual([spot(f)]);
+    const cider = content.goodIndex.get('cider')!;
+    tavern.rt!.store[cider] = 3;
+    expect(unservedPlaces(s)).toEqual([]);
+  });
+
   it('counts the evening before while tonight is under way, and nothing before Village rank', () => {
     const f = villageFixture();
     const s = f.state;
