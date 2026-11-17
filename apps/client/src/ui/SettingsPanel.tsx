@@ -97,8 +97,20 @@ export function SettingsPanel({ session }: { session: Session }) {
             {copy.settings.reducedMotion} <span class="muted">{copy.settings.reducedMotionHint}</span>
           </span>
         </label>
+        <label class="check">
+          <input
+            type="checkbox"
+            checked={s.editionInFeed}
+            data-testid="edition-in-feed"
+            onChange={(e) => update({ ...s, editionInFeed: (e.target as HTMLInputElement).checked })}
+          />
+          <span>
+            {copy.settings.editionInFeed} <span class="muted">{copy.settings.editionInFeedHint}</span>
+          </span>
+        </label>
         <ValleySeed session={session} />
         {session.mirror.settings.value.mode === 'standard' && <ValleyDials session={session} />}
+        <EveningLingers session={session} />
         <GuideSetting session={session} />
         <SoundSettings />
         <fieldset class="keep-copy">
@@ -298,5 +310,28 @@ export function ValleyDials({ session }: { session: Session }) {
       {row('economy', copy.title.economy, copy.title.economyOptions)}
       {row('threat', copy.title.threat, copy.title.threatOptions)}
     </fieldset>
+  );
+}
+
+/** R2D: the lingering evening, a valley setting either seat may turn (absent means on). */
+export function EveningLingers({ session }: { session: Session }) {
+  const on = session.mirror.settings.value.eveningLingers !== false;
+  return (
+    <label class="check" data-testid="evening-lingers-row">
+      <input
+        type="checkbox"
+        checked={on}
+        data-testid="evening-lingers"
+        onChange={(e) =>
+          session.submit({
+            t: 'valley.setSettings',
+            settings: { eveningLingers: (e.target as HTMLInputElement).checked },
+          })
+        }
+      />
+      <span>
+        {copy.settings.eveningLingers} <span class="muted">{copy.settings.eveningLingersHint}</span>
+      </span>
+    </label>
   );
 }

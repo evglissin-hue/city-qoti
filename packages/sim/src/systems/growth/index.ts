@@ -56,6 +56,7 @@ import { announceServers } from '../specialized/announce';
 import { growLot, lotPlacement } from './api';
 import { BAR_ZONES, computeBars, craftPull, HOME_ZONES, writeBars, type BarInputs } from './bars';
 import { mix, servicesOf } from './desirability';
+import { homesPace } from './evenings';
 import {
   homeDoorTiles,
   HOUSEHOLDS_PER_SHOP,
@@ -250,13 +251,37 @@ function census(state: WorldState, known?: Defs, stock?: number[]): Census {
   return { open, handsWaiting, outlets, homesWaiting };
 }
 
-/** Homes wanted beyond those waiting: newcomers would come, and there is work for them. */
-function homesWanted(state: WorldState, stock: readonly number[] | undefined, seen: Census): number {
+/**
+ * R2X: the homes the jobs would ask for tonight that quiet evenings hold back (0 when none), for the
+ * audit's check that a town whose growth waits on evenings is told so.
+ */
+export function homesHeldNow(state: WorldState): number {
+  if (homesPace(state) >= 100) return 0;
+  const stock = townStock(state);
+  return homesWanted(state, stock, census(state, undefined, stock)).held;
+}
+
+/**
+ * Homes wanted beyond those waiting: newcomers would come, and there is work for them. R2X: past the
+ * free households, only as fast as recent fair evenings send folk out (./evenings); `held` is how many
+ * the jobs alone would have asked for that the evenings hold back.
+ */
+function homesWanted(
+  state: WorldState,
+  stock: readonly number[] | undefined,
+  seen: Census,
+): { homes: number; held: number } {
   const open = seen.open;
-  if (open <= 0 || attractiveness(state, [], stock, open) < HOMES_PULL) return 0;
+  if (open <= 0 || attractiveness(state, [], stock, open) < HOMES_PULL) return { homes: 0, held: 0 };
   const waiting = seen.homesWaiting;
   const target = Math.min(HOMES_WAITING + Math.floor(state.residents.length / 30), Math.ceil(open / 2));
-  return Math.max(0, target - waiting);
+  // R2X: the jobs always get their bare homes (growthBareHomes waiting at once); past that, homes
+  // come as fast as the evenings send folk out.
+  const pace = homesPace(state);
+  const bare = Math.min(target, content.places.growthBareHomes ?? target);
+  const paced = pace >= 100 ? target : bare + Math.floor(((target - bare) * pace) / 100);
+  const homes = Math.max(0, paced - waiting);
+  return { homes, held: Math.max(0, target - waiting) - homes };
 }
 
 /**
@@ -275,6 +300,8 @@ interface Night {
   shops: TradeDef[];
   /** Homes wanted beyond those waiting. */
   homes: number;
+  /** R2X: homes the jobs would ask for that quiet evenings hold back (./evenings). */
+  homesHeld: number;
   /** R1X: HANDS_WAITING or more businesses stand with nobody at work: no new business tonight. */
   handsShort: boolean;
   /** Trades with a business going up, and businesses of each trade in town. */
@@ -284,11 +311,64 @@ interface Night {
   outlets: number;
   /** More households than the outlets in town can serve. */
   crowded: boolean;
-  /** Empty lots with a road at the frontage, best first (desirability, then id). */
+  /**
+   * Empty lots with a road at the frontage, best first (desirability, then id). R2F: a row lot that
+   * does not carry its row on (see rowWaits) comes after all the rest.
+   */
   empty: Lot[];
   /** porterServed, and the looser "about in reach" (nearAStore), for many tiles. */
   porters: (tile: number) => boolean;
   nearStore: (tile: number) => boolean;
+}
+
+/**
+ * R2F: the row lots that wait their turn, so a street fills from one end and nothing stands alone on
+ * a lawn: in a row with no building yet, every lot but its corner lot (else its first along the
+ * road); in a row going up, every lot that touches no built one. They are still offered, after every
+ * other lot, so a row whose next lot cannot take a site never stops the street. None in a town with
+ * no streets.
+ */
+function rowWaits(state: WorldState): Set<number> {
+  const waits = new Set<number>();
+  const rows = new Map<number, Lot[]>();
+  for (const l of state.lots) {
+    if (l.kind !== 'plot' || !l.row) continue;
+    let list = rows.get(l.row);
+    if (!list) rows.set(l.row, (list = []));
+    list.push(l);
+  }
+  const at = (l: Lot): number => (l.rot % 2 === 0 ? l.x : l.z);
+  const len = (l: Lot): number => (l.rot % 2 === 0 ? l.w : l.d);
+  for (const list of rows.values()) {
+    list.sort((p, q) => at(p) - at(q) || p.id - q.id);
+    const built = list.some((l) => l.buildingId);
+    const start = list.find((l) => l.corner) ?? list[0]!;
+    list.forEach((l, k) => {
+      if (l.buildingId) return;
+      if (!built) {
+        if (l !== start) waits.add(l.id);
+        return;
+      }
+      const prev = list[k - 1];
+      const next = list[k + 1];
+      const joins =
+        (prev?.buildingId && at(prev) + len(prev) === at(l)) ||
+        (next?.buildingId && at(l) + len(l) === at(next));
+      if (!joins) waits.add(l.id);
+    });
+  }
+  return waits;
+}
+
+/** Empty lots with a road at the frontage, best first (Night.empty); never a garden. */
+function emptyLots(state: WorldState): Lot[] {
+  const waits = rowWaits(state);
+  return state.lots
+    .filter((l) => l.kind !== 'garden' && !l.buildingId && state.map.road[l.frontage])
+    .sort(
+      (p, q) =>
+        Number(waits.has(p.id)) - Number(waits.has(q.id)) || q.desirability - p.desirability || p.id - q.id,
+    );
 }
 
 /** A tile question whose index is built when it is first asked (a night that asks nothing builds nothing). */
@@ -357,18 +437,19 @@ function readNight(state: WorldState): Night {
     farms: zoned.farms,
     shops: zoned.shops,
     homes: 0,
+    homesHeld: 0,
     handsShort: seen.handsWaiting >= HANDS_WAITING,
     goingUp: new Set(),
     counts: new Map(),
     outlets,
     crowded,
-    empty: state.lots
-      .filter((l) => !l.buildingId && state.map.road[l.frontage])
-      .sort((p, q) => q.desirability - p.desirability || p.id - q.id),
+    empty: emptyLots(state),
     porters: lazily(() => porterIndex(services.reach)),
     nearStore: lazily(() => porterIndex(services.reach, NEAR_STORE_SLACK)),
   };
-  night.homes = homesWanted(state, night.needs.stock, seen);
+  const wanted = homesWanted(state, night.needs.stock, seen);
+  night.homes = wanted.homes;
+  night.homesHeld = wanted.held;
   countTrades(state, night);
   return night;
 }
@@ -407,6 +488,7 @@ function demandOf(state: WorldState, night: Night): GrowthDemand {
     if (night.doors.length >= SHOP_HOUSEHOLDS) {
       for (const l of state.lots) {
         if (
+          l.kind !== 'garden' &&
           !l.buildingId &&
           l.zone === Zone.shops &&
           shopReach(l, night.doors, SHOP_HOUSEHOLDS) >= SHOP_HOUSEHOLDS
@@ -779,7 +861,7 @@ function startSites(
       // porters can about reach (canGrow checks the very door), the best few.
       const lots: Lot[] = [];
       for (const l of night.empty) {
-        if (l.buildingId || !zones.includes(l.zone)) continue;
+        if (l.kind === 'garden' || l.buildingId || !zones.includes(l.zone)) continue;
         if (shop && (reachOf.get(l.id) ?? 0) < reachOnly) continue;
         if (!night.nearStore(l.frontage)) continue;
         lots.push(l);
@@ -851,6 +933,7 @@ export function writeDemand(
     cache: night.cache,
     services: night.services,
     homes: night.homes,
+    homesHeld: night.homesHeld,
     doors: night.doors,
     crafts: night.crafts,
     farms: night.farms,

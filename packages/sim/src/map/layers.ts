@@ -1,5 +1,5 @@
 import { MAP_SIZE } from '../constants';
-import type { LayerName, MapLayers, Rect } from '../contracts';
+import type { LayerName, MapLayers, Rect, Uint16LayerName } from '../contracts';
 
 /** Fixed iteration order for layers (hashing, serialization, patches). */
 export const LAYER_NAMES: readonly LayerName[] = [
@@ -28,6 +28,12 @@ export const LAYER_NAMES: readonly LayerName[] = [
   'wear',
 ];
 
+/**
+ * R2 (R2.0): the 16-bit layers, hashed and saved after LAYER_NAMES in this order (append-only). Never
+ * in layer patches or ViewSnapshot.layers: the client gets them as a FootfallView.
+ */
+export const UINT16_LAYERS: readonly Uint16LayerName[] = ['footfallDay', 'footfallEve'];
+
 /** Layers stored as Int32Array; all others are Uint8Array. */
 export const INT32_LAYERS: ReadonlySet<LayerName> = new Set<LayerName>(['occupant', 'fieldOwner', 'lot']);
 
@@ -48,8 +54,13 @@ export const Deposit = { none: 0, stone: 1, clay: 2, sand: 3, coal: 4 } as const
 
 export const Road = { none: 0, path: 1, lane: 2, street: 3, avenue: 4 } as const;
 
-/** I2 (C4.0): `stairs` on a path tile that climbs one level (C4B). */
-export const Flags = { floodplain: 1, valleyGate: 2, startArea: 4, stairs: 8 } as const;
+/**
+ * I2 (C4.0): `stairs` on a path tile that climbs one level (C4B). R2 (R2.0): `evening` on a road tile
+ * marked an evening street (road.setEvening; 19-evenings.md, Evening streets). It lives here, beside
+ * `stairs`, not in the road layer's spare bits: the road layer's value is compared and indexed as a
+ * road kind in over a hundred places. road.remove clears it with the road.
+ */
+export const Flags = { floodplain: 1, valleyGate: 2, startArea: 4, stairs: 8, evening: 16 } as const;
 
 /** Tree layer value: species * 8 + stage. Species 1 oak, 2 birch, 3 pine; stage 0 sapling to 3 mature. */
 export const TREE_SPECIES = { oak: 1, birch: 2, pine: 3 } as const;
@@ -92,6 +103,8 @@ export function createLayers(size = MAP_SIZE): MapLayers {
     lot: new Int32Array(n),
     traffic: new Uint8Array(n),
     wear: new Uint8Array(n),
+    footfallDay: new Uint16Array(n),
+    footfallEve: new Uint16Array(n),
   };
 }
 

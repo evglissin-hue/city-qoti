@@ -126,6 +126,7 @@ describe('lens toolbars', () => {
       'bubbles',
       'charm',
       'habitats',
+      'town',
       'warmth',
     ]);
     await view.click('overlays');
@@ -140,6 +141,7 @@ describe('lens toolbars', () => {
     expect(ids(view.root, 'tool-')).toEqual([
       'lane',
       'street',
+      'evening',
       'building',
       'wall',
       'terrain',
@@ -167,6 +169,7 @@ describe('lens toolbars', () => {
       'resources',
       'status',
       'threat',
+      'town',
       'clear',
     ]);
     await view.click('overlay-flows');

@@ -16,7 +16,15 @@ import { familyIndex } from '../../state/zones';
 import { rankAtLeast } from '../../state/village';
 import { demandView } from '../../view/demand';
 import { porterServed } from '../logistics/range';
-import { HOUSEHOLDS_PER_SHOP, outletCount, SHOP_HOUSEHOLDS, shopReach, type Services } from './outlets';
+import {
+  HOUSEHOLDS_PER_SHOP,
+  outletCount,
+  SHOP_HOUSEHOLDS,
+  shopReach,
+  unservedPlaces,
+  type Services,
+} from './outlets';
+import { recentOutShare } from './evenings';
 import type { SiteCache } from './site';
 import { anyRoom, siteMeets, unmetWant } from './site';
 import {
@@ -45,6 +53,8 @@ export interface BarInputs {
   services: Services;
   /** Homes wanted beyond those waiting (growthDemand's homes). */
   homes: number;
+  /** R2X: homes the jobs would ask for that quiet evenings hold back (absent: none). */
+  homesHeld?: number;
   /** Home doors no outlet reaches. */
   doors: [number, number][];
   /** Trades of the Workshops zone the valley allows, and of Farmland. */
@@ -79,7 +89,7 @@ export const BAR_ZONES: readonly (readonly number[])[] = [
 
 /** True when the lot is still free, of one of the zones, and porters reach it. */
 function freeFor(x: BarInputs, l: Lot, zones: readonly number[]): boolean {
-  return !l.buildingId && zones.includes(l.zone) && x.porters(l);
+  return !l.buildingId && l.kind !== 'garden' && zones.includes(l.zone) && x.porters(l);
 }
 
 /** A Workshops trade's pull on the bar, permille: need x supply x keeper where some site could take it. */
@@ -104,6 +114,7 @@ export function freeLots(state: WorldState, zones: readonly number[], services: 
   return state.lots.filter(
     (l) =>
       !l.buildingId &&
+      l.kind !== 'garden' &&
       zones.includes(l.zone) &&
       state.map.road[l.frontage]! > 0 &&
       porterServed(services.reach, l.frontage),
@@ -132,15 +143,20 @@ interface Bar {
   stand?: DemandReason;
 }
 
-function homesBar(_state: WorldState, x: BarInputs): Bar {
+function homesBar(state: WorldState, x: BarInputs): Bar {
   const value = Math.min(100, x.homes * BAR_A_HOME);
   const waiting = value > 0 && x.empty.some((l) => freeFor(x, l, HOME_ZONES));
-  return { value, reasons: value > 0 ? [{ code: 'newcomers', value: x.homes }] : [], waiting, zoned: true };
+  const reasons: DemandReason[] = value > 0 ? [{ code: 'newcomers', value: x.homes }] : [];
+  // R2X: newcomers follow good evenings; the Ledger's bar says what the Hearth could do for it.
+  if (x.homesHeld) reasons.push({ code: 'quietEvenings', value: recentOutShare(state) ?? 0 });
+  return { value, reasons, waiting, zoned: true };
 }
 
 function shopsBar(state: WorldState, x: BarInputs): Bar {
   const households = state.households.length;
-  const unserved = x.doors.length;
+  // R2B: the doors list ends with the unserved places' pseudo-doors (see outlets.ts); households only here.
+  const places = unservedPlaces(state).length;
+  const unserved = Math.max(0, x.doors.length - places * SHOP_HOUSEHOLDS);
   const outlets = x.outlets ?? outletCount(state);
   const over = households - HOUSEHOLDS_PER_SHOP * outlets;
   const crowded = Math.floor(households / HOUSEHOLDS_PER_SHOP) > outlets;
@@ -153,6 +169,10 @@ function shopsBar(state: WorldState, x: BarInputs): Bar {
   if (crowded) {
     value = Math.max(value, Math.min(100, Math.floor((over * 100) / HOUSEHOLDS_PER_SHOP)));
     reasons.push({ code: 'crowded' });
+  }
+  if (places > 0) {
+    value = Math.max(value, Math.min(100, 20 + 20 * places));
+    reasons.push({ code: 'unservedPlaces', value: places });
   }
   const zoned = rankAtLeast(state, 'village');
   if (value > 0 && !zoned) reasons.push({ code: 'marketStall' });
@@ -262,7 +282,7 @@ function landReason(state: WorldState, x: BarInputs, i: number, bar: Bar): Deman
   const zones = BAR_ZONES[i]!;
   let onRoad = false;
   for (const l of x.empty) {
-    if (l.buildingId || !zones.includes(l.zone)) continue;
+    if (l.buildingId || l.kind === 'garden' || !zones.includes(l.zone)) continue;
     onRoad = true;
     // A free lot on a street that porters reach: the land is there, it does not suit.
     if (x.porters(l)) return bar.unmet ?? { code: 'unsuitable' };
@@ -270,7 +290,7 @@ function landReason(state: WorldState, x: BarInputs, i: number, bar: Bar): Deman
   if (onRoad) return { code: 'outOfReach' };
   let lots = false;
   for (const l of state.lots) {
-    if (!zones.includes(l.zone)) continue;
+    if (l.kind === 'garden' || !zones.includes(l.zone)) continue;
     // A free lot whose street is gone.
     if (!l.buildingId) return { code: 'noRoad' };
     lots = true;

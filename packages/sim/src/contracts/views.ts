@@ -19,8 +19,9 @@ import type {
   WatchView,
   WeatherView,
 } from './seasonViews';
-import type { PlanItem, RankId, RequestAsk } from './village';
+import type { LotKind, PlanItem, RankId, RequestAsk } from './village';
 import type { BalancesView, BusinessView, DemandView } from './zones';
+import type { EveningView, FootfallView, GapsView, PlacesView, RoundStopView, StreetView } from './evenings';
 
 export interface BuildingView {
   id: EntityId;
@@ -47,6 +48,10 @@ export interface BuildingView {
   level?: number;
   /** The keeper, whose family name goes on the sign. */
   keeperId?: EntityId;
+  /** R2 (R2.0): a grown building's storeys, in half-storey steps (Building.storeys; V3B's params.storeys). */
+  storeys?: number;
+  /** R2 (R2B): the shop has put tables out (Building.cafe), for the art and the inspector. */
+  cafe?: true;
 }
 
 export interface DecorView {
@@ -86,6 +91,11 @@ export interface ClockView {
   day: number;
   hour: number;
   minute: number;
+  /**
+   * R2 (R2B): dusk lingers now: from 17:00 to 21:00 each turn runs `PLACES.lingerPercent` of the
+   * effective speed's ticks (19-evenings.md, The evening lingers). Absent otherwise.
+   */
+  lingering?: true;
 }
 
 export interface ViewSnapshot {
@@ -145,6 +155,13 @@ export interface ViewSnapshot {
   balances?: BalancesView;
   /** Every business and specialized building, sorted by id. */
   businesses?: BusinessView[];
+  // R2 (R2.0)
+  places?: PlacesView;
+  gaps?: GapsView;
+  /** The last evening's tally and edition, null before the first. */
+  evening?: EveningView | null;
+  streets?: StreetView[];
+  footfall?: FootfallView;
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -361,6 +378,18 @@ export interface TownView {
   festivals?: { held: number; bestStars: number };
   /** The first days guide, while it is open (C5H). */
   guide?: GuideView;
+  /** R2 (R2.0): the Hearth's strip, how evenings are going: the last evening's share out and average score. */
+  evenings?: {
+    out: number;
+    grownups: number;
+    average: number;
+    /**
+     * R2X (additive): set while tonight's evening is under way (17:00 to 21:00, before it is scored):
+     * `out` and `grownups` count tonight so far, and `average` is the last scored evening's (0 with
+     * none), so the strip never calls an evening quiet before it is over.
+     */
+    live?: boolean;
+  };
 }
 
 /** Full resident detail for the inspector (worker `inspect`). */
@@ -397,6 +426,16 @@ export interface ResidentDetail {
   /** Watch members: next duty day and shaken (C5D). */
   watch?: { dutyDay: number; shaken: boolean };
   reformed?: boolean;
+  // R2 (R2.0), present once they have had an evening.
+  /** Today's round as a line of stops (drawn on the ground through the highlight API). */
+  round?: RoundStopView[];
+  /**
+   * R2X (additive): set when `round` was planned on an earlier day (the last one they made: grown-ups
+   * plan at 17:00, builders and porters at 19:00), so it is never read as tonight's.
+   */
+  roundEarlier?: boolean;
+  /** The evenings need and the last evening's score. */
+  evening?: { need: number; score: number };
 }
 
 /** Full building detail for the inspector (worker `inspect`). */
@@ -562,6 +601,19 @@ export interface LotView {
   desirability: number;
   style: string;
   buildingId: EntityId;
+  // R2 (R2.0): the lot fields V3 draws (rows, gardens, corners, storeys). Optional in the view so a
+  // view written before them still reads; the sim always fills `row` and `kind`.
+  /** The road tile in front of the entrance (tile index). */
+  frontage?: number;
+  /** An id shared by the lots cut from one frontage run; 0 for none. */
+  row?: EntityId;
+  /** 'garden' for the tiles inside a block, never built on; absent reads 'plot'. */
+  kind?: LotKind;
+  /** A corner lot, fronting `frontage` (the entrance) and `frontage2`. */
+  corner?: true;
+  frontage2?: number;
+  /** The storeys of the building grown on it (BuildingView.storeys), absent while empty. */
+  storeys?: number;
 }
 
 /** The neighbors and the trade log (R1: the carrier trades; BalancesView carries its terms). */
@@ -658,3 +710,29 @@ export interface LetterView {
 }
 
 export type LifeEventKind = 'couple' | 'wedding' | 'birth' | 'apprentice' | 'retired' | 'seaside';
+
+// ---------------------------------------------------------------------------------------------
+// R2 (R2.0): agents on the round.
+
+/**
+ * How a resident on the round is posed, for V3 to draw (folk sit at the places they chose, stand at
+ * the stalls, and carry what they bought): read from an agent row by `agentPose` (view/agents.ts).
+ * 'sit' is the row's anim AgentAnim.sit; 'carry' a row whose carry field holds a good (a mug, a slice).
+ */
+export type AgentPose = 'stand' | 'sit' | 'carry';
+
+/** One agent row decoded ([id, x, z, y, heading, anim, carryGood + 1, flags]; readAgentRow in view/agents.ts). */
+export interface AgentView {
+  id: EntityId;
+  x: number;
+  z: number;
+  y: number;
+  heading: number;
+  /** AgentAnim value. */
+  anim: number;
+  /** Good index carried, or -1. */
+  carry: number;
+  /** AgentFlags bits. */
+  flags: number;
+  pose: AgentPose;
+}

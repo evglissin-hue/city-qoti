@@ -16,6 +16,7 @@ import {
   doorTile,
   findById,
   insertBuilding,
+  isStandard,
   jobsOf,
   MAP_SIZE,
   NEED_IDS,
@@ -26,6 +27,7 @@ import {
   TICKS_PER_DAY,
   TICKS_PER_HOUR,
   TREE_MATURE,
+  townReachesDoor,
   treeStage,
   type Building,
   type Command,
@@ -372,6 +374,10 @@ export function findSpot(
           // C4C: never a door that opens onto the water (porters cannot walk into the river).
           const door = doorTile({ def: defId, x, z, rot } as Building, def);
           if (world.map.water[door]) continue;
+          // R2E: build.place refuses a site nobody can walk to (CUT_OFF), so never offer one: hazel's
+          // well went to one such spot on six days running.
+          if (isStandard(world) && !townReachesDoor(world, { def: defId, x, z, rot })) continue;
+          if (!clearOfKind(world, defId, x, z)) continue;
           let score = p.warnings.includes('NO_ROAD') ? 0 : 1;
           if (!r1Site(world, def, p.tiles, x, z, w, d, p.warnings.includes('NO_ROAD'))) score = -1;
           if (score > bestScore) {
@@ -384,6 +390,30 @@ export function findSpot(
     if (best && bestScore >= 0) return best;
   }
   return null;
+}
+
+/** A service's reach (its widest coverage but porters'), as the health watch's service-clustered check reads it. */
+function serviceReach(defId: string): number {
+  let r = 0;
+  for (const c of content.buildingById.get(defId)?.coverage ?? [])
+    if (c.kind !== 'logistics' && c.radius > r) r = c.radius;
+  return r;
+}
+
+/**
+ * R2E: a service (a well, a stall, a school, a tavern) never goes within half its reach of another
+ * of its kind placed by hand, the sim's `service-clustered` rule, measured as it measures (corner to
+ * corner). The hamlet advisor's second well went wherever one first fit from the town's middle, four
+ * tiles from the first; every spot the autoplayer picks now keeps the rule, whichever advisor asks.
+ */
+export function clearOfKind(world: WorldState, defId: string, x: number, z: number): boolean {
+  const half = serviceReach(defId) / 2;
+  if (half <= 0) return true;
+  for (const o of world.buildings) {
+    if (o.def !== defId || o.lot) continue;
+    if ((o.x - x) * (o.x - x) + (o.z - z) * (o.z - z) < half * half) return false;
+  }
+  return true;
 }
 
 /** Keeps new buildings within porter range (22 of 24 tiles) of a storehouse door. */

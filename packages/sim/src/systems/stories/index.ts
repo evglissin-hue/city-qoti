@@ -21,6 +21,7 @@ import { doorOf, vacantHomes } from '../residents/places';
 import { announceHousehold, announceResident, announceTown } from '../residents/records';
 import { dayIndex, tickOfDay } from '../residents/time';
 import { storyStep } from './api';
+import { bumpPlaceInputs } from '../places/inputs';
 
 /** Hours between the hello letter and the first step's letter. */
 export const SETTLE_TICKS = 4 * TICKS_PER_HOUR;
@@ -148,6 +149,7 @@ export function arrive(state: WorldState, ctx: TickCtx, arc: StoryArc, s: StoryS
   };
   h.members.push(r.id);
   state.households.push(h);
+  bumpPlaceInputs(state);
   state.residents.push(r);
   moveResident(state, r, doorOf(state, home.id), 'arrive');
   s.residentId = r.id;

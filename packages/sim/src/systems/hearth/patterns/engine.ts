@@ -1,5 +1,6 @@
 // The Pattern Book engine (docs/spec/12-hearth.md). Each pass runs every pattern's detector,
-// keys instances by (pattern, anchor tile) so they stay stable, and diffs them against the stored
+// keys instances by (pattern, anchor tile) so they stay stable (a grown site keeps its old anchor
+// while that tile is still part of it, R2X), and diffs them against the stored
 // sites: new sites are added, vanished ones removed with their bonus, changed ones updated. The
 // first valid instance of a pattern anywhere is its discovery: a Book entry, a Chronicle line, a
 // notice for both seats, unlocks and the next hint. Credit goes to the seat that placed most of the
@@ -17,6 +18,7 @@ import { markCharmDirty, markCharmSoon } from '../charm/dirty';
 import { detectors } from './detectors';
 import { beginPass, endPass, type SiteCandidate } from './shared';
 import { addRenown, PATTERN_RENOWN } from '../../renown/api';
+import { bumpPlaceInputs } from '../../places/inputs';
 
 const S = MAP_SIZE;
 export const MAX_HINTS = 3;
@@ -113,10 +115,33 @@ function pass(state: WorldState, ctx: TickCtx): PatternPassResult {
     let added = 0;
     let removed = 0;
     let changed = 0;
+    // R2X: a site that grows keeps its anchor while that tile is still one of its own (most detectors
+    // anchor on a site's smallest tile, so a Lantern Walk lengthened at its low end was re-keyed: its
+    // place lost its name, its evening counts and its open gaps). Exact anchors are matched first.
+    const exact = new Set<number>();
+    for (const c of found) if (oldByAnchor.has(c.anchor)) exact.add(c.anchor);
+    const claimed = new Set<number>();
+    let lastAnchor = -1;
     for (const c of found) {
-      if (fresh.length > 0 && fresh[fresh.length - 1]!.anchor === c.anchor) continue;
-      const prev = oldByAnchor.get(c.anchor);
-      const site = toSite(state, def, c, prev ? prev.tick : state.tick);
+      if (c.anchor === lastAnchor) continue;
+      lastAnchor = c.anchor;
+      let prev = oldByAnchor.get(c.anchor);
+      let anchor = c.anchor;
+      if (!prev && c.tiles.length > 0) {
+        for (const o of old) {
+          if (exact.has(o.anchor) || claimed.has(o.anchor) || !c.tiles.includes(o.anchor)) continue;
+          prev = o;
+          anchor = o.anchor;
+          break;
+        }
+      }
+      if (prev) claimed.add(prev.anchor);
+      const site = toSite(
+        state,
+        def,
+        anchor === c.anchor ? c : { ...c, anchor },
+        prev ? prev.tick : state.tick,
+      );
       if (!prev) {
         added++;
         markCharmDirty(state, siteRect(site));
@@ -129,6 +154,7 @@ function pass(state: WorldState, ctx: TickCtx): PatternPassResult {
       }
       fresh.push(site);
     }
+    fresh.sort((a, b) => a.anchor - b.anchor);
     const kept = new Set(fresh.map((s) => s.anchor));
     for (const s of old) {
       if (kept.has(s.anchor)) continue;
@@ -144,6 +170,7 @@ function pass(state: WorldState, ctx: TickCtx): PatternPassResult {
     if (!discovering && !added && !removed && !changed) continue;
     // The views below read hearth.sites, so this pattern's sites are swapped in now.
     h.sites = [...h.sites.filter((s) => s.pattern !== def.id), ...fresh];
+    bumpPlaceInputs(state);
     if (discovering) {
       discover(state, ctx, def, fresh[0]!);
       result.discovered.push(def.id);
@@ -155,6 +182,7 @@ function pass(state: WorldState, ctx: TickCtx): PatternPassResult {
 
   next.sort((a, b) => (a.pattern < b.pattern ? -1 : a.pattern > b.pattern ? 1 : a.anchor - b.anchor));
   h.sites = next;
+  bumpPlaceInputs(state);
   if (charmTouched) markCharmSoon(state);
   refillHints(state, ctx);
   return result;

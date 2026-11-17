@@ -2,7 +2,9 @@ import type { ZoneDef } from './types';
 
 // Zones the Ledger paints (docs/spec/13-ledger.md, Zoning and growth). `layerValue` is what the
 // `zone` map layer stores; it never changes once shipped. Lot sizes are (width along the road,
-// depth away from it); C4B tunes them.
+// depth away from it); C4B tunes them. R2 (R2F): `roads` gives a class of road its own shapes, and
+// `row` cuts a street's frontage into lots that touch (gardens behind, a lot on each corner); the
+// art cycles tune these here, never in sim code. Lanes and paths keep C4B's cut and its gaps.
 
 export const crafts: ZoneDef = {
   id: 'crafts',
@@ -51,6 +53,18 @@ export const homesMedium: ZoneDef = {
     { size: [2, 3], weight: 2 },
     { size: [2, 2], weight: 1 },
   ],
+  // R2 (R2F): a street of townhouses stands shoulder to shoulder, mostly two tiles wide (the
+  // townhouse's own width), a wider plot now and then at a row's end.
+  roads: {
+    street: {
+      row: true,
+      lots: [
+        { size: [2, 3], weight: 3 },
+        { size: [2, 2], weight: 1 },
+        { size: [3, 3], weight: 1 },
+      ],
+    },
+  },
   token: 'plum',
   requires: { rank: 'village' },
 };
@@ -65,6 +79,16 @@ export const shops: ZoneDef = {
     { size: [2, 3], weight: 2 },
     { size: [3, 3], weight: 1 },
   ],
+  // R2 (R2F): a parade of shops along a street, joined, each as wide as the shop.
+  roads: {
+    street: {
+      row: true,
+      lots: [
+        { size: [2, 3], weight: 3 },
+        { size: [3, 3], weight: 1 },
+      ],
+    },
+  },
   token: 'teal',
   requires: { rank: 'village' },
 };

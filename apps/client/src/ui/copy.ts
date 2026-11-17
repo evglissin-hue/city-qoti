@@ -78,6 +78,12 @@ export const copy = {
     uiScale: 'Interface size',
     reducedMotion: 'Calm motion',
     reducedMotionHint: 'Fewer wiggles and slides',
+    // R2D: the evening.
+    editionInFeed: 'Evening edition in the feed',
+    editionInFeedHint: 'A line in the left feed at 21:00 instead of a card. The rest is in its hover.',
+    eveningLingers: 'A lingering evening',
+    eveningLingersHint:
+      'Dusk runs at half speed from 17:00 to 21:00, so you can watch the round. Both of you feel it.',
     // I3 (C5F)
     dials: "The valley's dials",
     dialsHint:

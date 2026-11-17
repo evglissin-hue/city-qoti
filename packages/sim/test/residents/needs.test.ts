@@ -106,18 +106,18 @@ describe('mood', () => {
     const f = hamletFixture();
     const clover = resident(f.state, f.residents[0]![0]!); // Cheerful +5
     const wendell = resident(f.state, f.residents[1]![0]!); // Grumpy -5, Practical +5% work
-    clover.needs = [100, 100, 100, 100, 100, 100];
-    wendell.needs = [100, 100, 100, 100, 100, 100];
+    clover.needs = [100, 100, 100, 100, 100, 100, 100, 100, 100, 100];
+    wendell.needs = [100, 100, 100, 100, 100, 100, 100, 100, 100, 100];
     expect(computeMood(f.state, clover)).toBe(100);
     expect(computeMood(f.state, wendell)).toBe(95);
-    clover.needs = [50, 50, 50, 50, 50, 50];
+    clover.needs = [50, 50, 50, 50, 50, 50, 50, 50, 50, 50];
     expect(computeMood(f.state, clover)).toBe(55);
     addMoodModifier(f.state, clover.id, { kind: 'wish-granted', value: 15, ticks: 3 * TICKS_PER_DAY });
     expect(computeMood(f.state, clover)).toBe(70);
     removeMoodModifier(f.state, clover.id, 'wish-granted');
     addMoodModifier(f.state, clover.id, { kind: 'lean-times', value: -5, ticks: 0 });
     expect(computeMood(f.state, clover)).toBe(50);
-    clover.needs = [0, 0, 0, 0, 0, 0];
+    clover.needs = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
     expect(computeMood(f.state, clover)).toBe(0);
 
     for (const [mood, band] of [
@@ -189,7 +189,7 @@ describe('bonds', () => {
     clover.bond = 2;
     // Day 6 is the first day of the second season.
     ticks(r, 6 * TICKS_PER_DAY - 10);
-    clover.needs = [0, 0, 0, 0, 0, 0];
+    clover.needs = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
     clover.mood = 5;
     clover.modifiers = [];
     untilHour(r, 6.01);

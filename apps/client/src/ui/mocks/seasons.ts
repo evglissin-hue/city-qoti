@@ -136,6 +136,23 @@ export const mockSeasonReport: SeasonReportView = {
   ],
 };
 
+/** R2D: the same report with the joint lines R2C adds (`together`), crediting Ada and Bo. */
+export const mockSeasonReportCross = {
+  ...mockSeasonReport,
+  together: [
+    {
+      text: "Ada's lantern walk brought 34 folk past Bo's pie stall: 21 coins.",
+      track: 'evening',
+      seats: [0, 1],
+    },
+    {
+      text: 'Three gaps closed this season. Bo closed two of them before breakfast.',
+      track: 'evening',
+      seats: [1],
+    },
+  ],
+} satisfies SeasonReportView;
+
 /** A guide step as C5H will send it (the stub guide's letters are empty until then). */
 export const mockGuide: GuideView = {
   ...guideView(w),

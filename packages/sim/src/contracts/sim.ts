@@ -15,7 +15,9 @@ export type RngStream =
   | 'misc'
   // I3 (C5.0): never borrow 'misc' for these, it would shift who arrives next.
   | 'nature'
-  | 'festival';
+  | 'festival'
+  // R2 (R2.0): the evening round's whims (the planner's whim, second-best, passing trade).
+  | 'round';
 
 export interface Rng {
   /** Uniform 32-bit unsigned integer. */

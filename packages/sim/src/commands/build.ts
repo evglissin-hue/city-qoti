@@ -14,6 +14,7 @@ import { chargePlacement, matureTreesUnder, placementBlocked, refundRemoval } fr
 import { meetsRequires } from '../systems/innovations/api';
 import { announceServers } from '../systems/specialized/announce';
 import { checkIds, type HandlerFor, tilesChangedFor, worldChanged } from './util';
+import { bumpPlaceInputs } from '../systems/places/inputs';
 
 export const place: HandlerFor<'build.place'> = {
   type: 'build.place',
@@ -89,6 +90,7 @@ export const remove: HandlerFor<'build.remove'> = {
       if (def) refundRemoval(state, ctx, existing, def);
       // Residents and households notice the missing building on their next tick (C3A).
       const b = removeById(state.buildings, id)!;
+      bumpPlaceInputs(state);
       // I2 (C4.0): a grown building's lot is free again.
       if (b.lot) {
         const lot = findById(state.lots, b.lot);

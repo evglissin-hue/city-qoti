@@ -1,11 +1,9 @@
 import { content, type GoodFamily } from '@qoti/content';
 import type { Session } from '../../app/session';
-import { alertsForLens, computeAlerts, type Alert } from '../alerts';
+import { alertsForLens, computeAlerts, FEED_SHOWN, type Alert } from '../alerts';
 import { Glyph } from '../icons';
 import { showPlan } from './Plans';
 import { openLetter } from './StoryLetter';
-
-const SHOWN = 5;
 
 /** The left feed: a few lens-filtered alerts, each a click away from what it is about. */
 export function AlertsPanel({ session }: { session: Session }) {
@@ -47,23 +45,26 @@ export function AlertsPanel({ session }: { session: Session }) {
       </header>
       {open && (
         <ul>
-          {all.slice(0, SHOWN).map((a) => (
+          {all.slice(0, FEED_SHOWN).map((a) => (
             <li key={a.key} class={`alert tone-${a.tone}`} data-testid={`alert-${a.key}`}>
               <button
                 type="button"
                 class="alert-body"
-                title={a.title ?? a.text}
+                title={a.title ?? (a.note ? `${a.text}\n${a.note}` : a.text)}
                 onClick={() => act(session, a)}
               >
                 <Glyph id={a.icon} />
-                <span>{a.text}</span>
+                <span class="alert-stack">
+                  <span class="alert-line">{a.text}</span>
+                  {a.note && <small class="alert-note">{a.note}</small>}
+                </span>
               </button>
               <button type="button" class="dismiss" title="Got it" onClick={() => dismiss(a)}>
                 ×
               </button>
             </li>
           ))}
-          {all.length > SHOWN && <li class="muted small more">and {all.length - SHOWN} more</li>}
+          {all.length > FEED_SHOWN && <li class="muted small more">and {all.length - FEED_SHOWN} more</li>}
         </ul>
       )}
     </section>

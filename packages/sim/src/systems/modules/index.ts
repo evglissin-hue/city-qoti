@@ -17,6 +17,7 @@ import { cancelJobsFor } from '../logistics';
 import { stowNearest } from '../logistics/stores';
 import { doorTile } from '../movement/api';
 import { isBuildTime } from '../economy/time';
+import { bumpPlaceInputs } from '../places/inputs';
 
 /** Coins for a module, in pennies. */
 export function moduleCoins(m: ModuleDef): number {
@@ -41,6 +42,7 @@ export function moduleDue(b: Building): boolean {
 
 function touched(state: WorldState, b: Building): void {
   markCharmDirty(state, buildingRect(b));
+  bumpPlaceInputs(state);
   markCharmSoon(state);
 }
 

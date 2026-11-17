@@ -25,6 +25,15 @@ export const villageCharter: CharterDef = {
       measure: { what: 'foodDays', flavors: 3 },
       target: 5,
     },
+    // R2 (R2C): the evenings. R2X counts them whole (state.evenings.outFair): one thin evening reset
+    // a run of ten on oak the day before its claim and held its Village back three weeks.
+    {
+      id: 'evenings',
+      text: 'Half the grown-ups out on 3 fair evenings',
+      lane: 'hearth',
+      measure: { what: 'eveningsHalfOut' },
+      target: 3,
+    },
     {
       id: 'surplus',
       text: 'A season ended in surplus',
@@ -49,6 +58,7 @@ export const villageCharter: CharterDef = {
     'school',
     'tavern',
     'herbalist',
+    'brazier',
     'carts',
     'street',
     'loans',

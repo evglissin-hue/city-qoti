@@ -7,6 +7,7 @@ import { buildingName, coins, dayDate, placeName } from '../format';
 import { HISTORY_WORD, MOOD_LINE, MOOD_WORD, NEED_LABEL, STAGE_WORD, TIER_WORD } from '../hamlet';
 import { lettersOf, stepWord } from '../letters';
 import { openLetter } from './StoryLetter';
+import { Day } from './Day';
 import { Glyph } from '../icons';
 import { Portrait } from '../Portrait';
 import { Empty, Frame, Hearts, Heading, Meter, useInspect } from './parts';
@@ -181,6 +182,8 @@ export function ResidentInspector({ session, id }: { session: Session; id: numbe
           )}
         </div>
       )}
+
+      {detail && <Day session={session} detail={detail} />}
 
       {detail?.story && <StoryThread session={session} detail={detail} />}
 

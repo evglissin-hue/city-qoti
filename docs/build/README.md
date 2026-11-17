@@ -65,14 +65,21 @@ One row per cycle. A cycle is one agent session working from one brief on one br
 | R1F The bench | R1 | parallel | `cycle-r1f-bench.md` | R1.0 | done on `cycle/r1f-bench`, merged into `cycle/r1x-integration` by R1X (#30) (see As built in the brief) |
 | R1X R1 integration and tuning | R1 | integration | `cycle-r1x-integration.md` | R1A to R1F | done on `cycle/r1x-integration`, one PR into `main` ([#40](https://github.com/evglissin-hue/city-qoti/pull/40), R1X: zones first; the owner moved the Craftsfolk targets and R1F's stricter growth scene to R2), on top of the V2 wave (the grown village regrown under R1's rules): the six wave PRs merged, tuned on every bench seed (`13-ledger.md`, What holds: hands, decisions, stalls, winter and no lean days hold; the Craftsfolk targets do not yet), the old valley refused with `OLD_VALLEY` and its file still saved, one status and a profit line in the Businesses book, reach along the roads, two speed rounds (the bench lines straddle their budgets in the container), a year's golden hash in Node and a browser, the lanes test recorded, `chains-final` on `main` before R1 lands (7f4864b, or 68b2ba0 since V2X's follow-up; pushed by the owner), R2's briefs drafted; see As built in the brief |
 | P2 The R1 playtest | R1 to R2 | serial | `cycle-p2-playtest.md` | R1X | PR open ([evglissin-hue/city-qoti#43](https://github.com/evglissin-hue/city-qoti/pull/43); see the brief's As built): the owner's playtest of the R1 build turned into fixes by the build and review loop: the top bar and the feed say what the town has, lacks and waits for; the zone bars give the true reason nothing starts; roofs, the orchard, smoke and close-ups from his screenshots; save version 7; a midday growth pass built and switched off after it moved R1X's tuning |
-| R2.0 Evenings contracts | R2 | serial | `cycle-r2-0-evenings-contracts.md` | R1X | waiting on R1X; creates `cycle/r2x-integration`, writes the final R2 briefs and wave notes |
-| R2A Places and the round | R2 | parallel | `cycle-r2a-places-round.md` | R2.0 | waiting |
-| R2B Evening trade | R2 | parallel | `cycle-r2b-evening-trade.md` | R2.0 | waiting |
-| R2C Gaps and the evening's book | R2 | parallel | `cycle-r2c-gaps-book.md` | R2.0 | waiting |
-| R2D The interface | R2 | parallel | `cycle-r2d-interface.md` | R2.0 | waiting |
-| R2E The bench | R2 | parallel | `cycle-r2e-bench.md` | R2.0 | waiting |
-| R2F Lots for streets | R2 | parallel | `cycle-r2f-street-lots.md` | R2.0 | waiting |
-| R2X R2 integration and tuning | R2 | integration | `cycle-r2x-integration.md` | R2A to R2F | waiting; merges the wave on `cycle/r2x-integration`, one PR into `main` |
+| R2.0 Evenings contracts | R2 | serial | `cycle-r2-0-evenings-contracts.md` | R1X | done on `cycle/r2-0-evenings-contracts`, pushed as `cycle/r2x-integration` (no PR into `main`: the wave lands through R2X): the evening round's contracts (places, the round, the tally, gaps, streets, footfall), save version 8 with its migration from 7 (P2 took 7), the lot fields for V3, stand-ins, the wave notes and the six wave briefs plus R2X's |
+| R2A Places and the round | R2 | parallel | `cycle-r2a-places-round.md` | R2.0 | PR open into `cycle/r2x-integration` ([evglissin-hue/city-qoti#49](https://github.com/evglissin-hue/city-qoti/pull/49); see As built in the brief) |
+| R2B Evening trade | R2 | parallel | `cycle-r2b-evening-trade.md` | R2.0 | PR open into `cycle/r2x-integration` ([evglissin-hue/city-qoti#48](https://github.com/evglissin-hue/city-qoti/pull/48)) |
+| R2C Gaps and the evening's book | R2 | parallel | `cycle-r2c-gaps-book.md` | R2.0 | PR open into `cycle/r2x-integration` (merge after R2A) |
+| R2D The interface | R2 | parallel | `cycle-r2d-interface.md` | R2.0 | PR open into `cycle/r2x-integration`; screenshots `r2d-*` |
+| R2E The bench | R2 | parallel | `cycle-r2e-bench.md` | R2.0 | done on `cycle/r2e-bench`, PR into `cycle/r2x-integration`: the Hearth's places advisor and the Ledger's shops advisor, streets and a closed block for R2F's rows, the lanes test enforced, the outcome report (`npm run outcomes`), five R2 health kinds, stuck commands and stalled Hearth sites in the audit, the R2 bench scenes; numbers in the brief's As built |
+| R2F Lots for streets | R2 | parallel | `cycle-r2f-street-lots.md` | R2.0 | built on `cycle/r2f-street-lots`, PR into `cycle/r2x-integration`: street rows that touch, corner lots, garden lots, storeys by tier and row; shots `r2f-*` |
+| R2X R2 integration and tuning | R2 | integration | `cycle-r2x-integration.md` | R2A to R2F | PR open ([evglissin-hue/city-qoti#56](https://github.com/evglissin-hue/city-qoti/pull/56), "R2X: the evening round"; see As built in the brief); wrote R3's briefs; shots `r2x-*` |
+| R3.0 Supplies, masters and Town Book contracts | R3 | serial | `cycle-r3-0-supplies-contracts.md` | R2X | waiting: after R2X |
+| R3A Supplies and the lamplighter | R3 | parallel | `cycle-r3a-supplies-lamplighter.md` | R3.0 | waiting: after R3.0 |
+| R3B Masters | R3 | parallel | `cycle-r3b-masters.md` | R3.0 | waiting: after R3.0 |
+| R3C The Town Book and earned callings | R3 | parallel | `cycle-r3c-town-book.md` | R3.0 | waiting: after R3.0 |
+| R3D Follow the thread | R3 | parallel | `cycle-r3d-follow-the-thread.md` | R3.0 | waiting: after R3.0 |
+| R3E The bench | R3 | parallel | `cycle-r3e-bench.md` | R3.0 | waiting: after R3.0 |
+| R3X R3 integration and tuning | R3 | integration | `cycle-r3x-integration.md` | R3A to R3E | waiting; merges the wave on `cycle/r3x-integration`, one PR into `main` |
 
 Status values: waiting (dependencies not merged), ready, in progress (add the session link), PR open (add the PR link), merged.
 

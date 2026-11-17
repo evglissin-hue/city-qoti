@@ -29,6 +29,8 @@ import { emitBuilding } from '../economy/emit';
 import { isBuildTime, tickOfDay } from '../economy/time';
 import { doorTile } from '../movement/api';
 import { pathBetween } from '../movement/paths';
+import { eveningClosed, eveningTile } from '../traffic/evening';
+import { syncEveningStatus } from './evening';
 import { adoptStrays, staffed, storehouseReach, within, type Reach } from './range';
 import {
   defOf,
@@ -48,6 +50,7 @@ import { deliverModule } from '../modules';
 import { isCartJob, keepCarts, matchCarts, stepCartJob, tickIdleCarts, type CartHooks } from './carts';
 import { available, finishTask, startTask, tickReturning, walkTo } from './tasks';
 import { countSold } from '../levels/counters';
+import { INPUT_ONLY } from '../market/balances';
 
 /** Job classes in matching order: lower is more urgent (PorterJob.priority). */
 export const JobClass = { prioritySite: 0, stallFood: 1, input: 2, site: 3, clearing: 4 } as const;
@@ -89,6 +92,8 @@ export const logistics: System = {
     if (state.tick % PORTER_MATCH_EVERY === MATCH_OFFSET) keepCarts(state);
     if (state.carts.length > 0) tickIdleCarts(state);
     if (workTime && state.tick % PORTER_MATCH_EVERY === MATCH_OFFSET) matchPorters(state);
+    // R2 (R2B): the evening bits follow the street's hours and the carts' waits within a match period.
+    if (state.tick % PORTER_MATCH_EVERY === MATCH_OFFSET) syncEveningStatus(state, ctx);
     if (tickOfDay(state.tick) === 0) decayFlows(state);
   },
 };
@@ -108,6 +113,7 @@ export function carryOf(state: WorldState, good: number): number {
 
 function spotsOf(state: WorldState): Spot[] {
   const out: Spot[] = [];
+  const closed = eveningClosed(state);
   for (const b of state.buildings) {
     const def = defOf(b);
     if (!b.rt || !def) continue;
@@ -116,16 +122,26 @@ function spotsOf(state: WorldState): Spot[] {
     // walked to; matching it would send porters on the same failed trip every round while other
     // sites wait (a Village autoplay stalled on two such huts).
     if (state.map.water[door]) continue;
+    // R2 (R2B): from 17:00 to 21:00 no job runs to or from a door on an evening street (a barrow
+    // cannot reach it, and carts keep off it).
+    if (closed && eveningTile(state, door)) continue;
     out.push({ b, def, rt: b.rt, door });
   }
   return out;
 }
 
-/** Units a porter may pick up here: storehouse stock or a producer's output. Stalls keep theirs. */
+/**
+ * Units a porter may pick up here: storehouse stock or a producer's output. Stalls keep theirs, but
+ * for a good no household buys (wool): R2B, one a shop took onto its shelf before shelves kept to what
+ * households buy goes on to the maker that wants it.
+ */
 export function sourceAvail(b: Building, def: BuildingDef | undefined, good: number): number {
   const rt = b.rt;
   if (!rt || b.stage !== 'built') return 0;
   if (isStorehouse(def)) return (rt.store[good] ?? 0) - (rt.reservedOut[good] ?? 0);
+  if (isMarket(def) && INPUT_ONLY.has(content.goods[good]?.id ?? '')) {
+    return (rt.store[good] ?? 0) - (rt.reservedOut[good] ?? 0);
+  }
   if (isStorage(def)) return 0;
   return (rt.output[good] ?? 0) - (rt.reservedOut[good] ?? 0);
 }
@@ -168,6 +184,10 @@ function needsOf(spots: readonly Spot[]): Need[] {
       for (let g = 0; g < content.goods.length; g++) {
         const family = content.goods[g]!.family;
         if ((family !== 'wares' && family !== 'treats') || !takes(def, g)) continue;
+        // R2B: a shelf holds what households buy; wool is the weaver's input, never a Wares flavor
+        // (a Village's shops each kept eight while its weaver went without, and the carrier would
+        // not buy what the town held).
+        if (INPUT_ONLY.has(content.goods[g]!.id)) continue;
         const room = Math.min(
           MARKET_GOODS_TARGET - (rt.store[g] ?? 0) - (rt.reservedIn[g] ?? 0),
           storageSpace(def, rt),

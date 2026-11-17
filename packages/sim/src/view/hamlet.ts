@@ -33,6 +33,7 @@ import { footprintSize } from '../rules/footprint';
 import { findById } from '../state/entities';
 import { cycleWork } from '../systems/production/cycle';
 import { type Defs, usable } from '../systems/growth/defs';
+import { townEvenings } from './evenings';
 
 export function moodBand(mood: number): MoodBand {
   let band = 0;
@@ -418,6 +419,8 @@ export function townView(state: WorldState): TownView {
       bestStars: state.seasons.bestStars,
     },
     ...(!state.guide.over && { guide: guideView(state) }),
+    // R2 (R2.0): absent before the first evening.
+    ...(townEvenings(state) && { evenings: townEvenings(state) }),
   };
 }
 

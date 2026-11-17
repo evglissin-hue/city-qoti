@@ -142,6 +142,29 @@ export interface BuildingDef {
   enables?: string[];
   /** The families its storage takes (the Granary Food; the Storehouse the other four); all when absent. */
   stores?: GoodFamily[];
+  // R2 additions (R2.0). docs/spec/19-evenings.md, Places.
+  /** A host on the evening round: its room and kinds (tavern, Bath House, Market Square, stall, well). */
+  host?: HostDef;
+}
+
+/**
+ * R2 (R2.0): what a place is for (docs/spec/19-evenings.md, Places: Kinds). Index order is the sim's
+ * PLACE_KINDS; append-only.
+ */
+export type PlaceKind = 'sit' | 'eat' | 'view' | 'play' | 'meet' | 'walk';
+
+/** R2 (R2.0): a building that is a place on the evening round (docs/spec/19-evenings.md, Hosts). */
+export interface HostDef {
+  /** Seats (tavern 12, Bath House 8). */
+  seats: number;
+  /** Standing room where folk gather on their feet (a well 4, a stall 4). */
+  standing: number;
+  /** What it offers (the tavern sits, eats and meets). */
+  kinds: PlaceKind[];
+  /** Under a roof: rain spares it. */
+  sheltered?: boolean;
+  /** Heated: winter spares it. */
+  warm?: boolean;
 }
 
 export interface DecorDef {
@@ -175,6 +198,15 @@ export interface DecorDef {
   // V1 additions (V1.0).
   /** Eras this piece belongs to (18-eras.md); absent means every era. Reserved, filled in I4. */
   eras?: Era[];
+  // R2 additions (R2.0). docs/spec/19-evenings.md, Places (every number tunes).
+  /** Room for sitters (bench 2, curved bench 3, ring bench 4, cafe table 4); content tests check every seat piece has some. */
+  seats?: number;
+  /** The seats are for children only (swing, see-saw): grown-ups never take them. */
+  childSeats?: true;
+  /** Room for folk on their feet where they gather (a fire 8). */
+  standing?: number;
+  /** A fire: the place it stands in is warm (bonfire, brazier). */
+  warm?: true;
 }
 
 export interface RoadDef {
@@ -302,6 +334,12 @@ export interface Content {
   /** What a business on a zoned lot can do, alphabetical by id (docs/spec/13-ledger.md, Trades). */
   trades: readonly TradeDef[];
   tradeById: ReadonlyMap<string, TradeDef>;
+  // R2 additions (R2.0).
+  /** The evening round's numbers (docs/spec/19-evenings.md), one table so R2X tunes in one file. */
+  places: PlacesTuning;
+  /** The gaps, in GAP_KINDS order. */
+  gaps: readonly GapDef[];
+  gapByKind: ReadonlyMap<GapKind, GapDef>;
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -561,7 +599,7 @@ export type CountWhat =
   | 'foodDays'
   /** Residents of the tier named in `ref`. */
   | 'tierResidents'
-  /** Requests between seats fulfilled. */
+  /** Requests between seats fulfilled (R2: and gaps closed, which count where requests did). */
   | 'requestsFulfilled'
   /** Distinct goods in stock at market outlets. */
   | 'goodsAtMarket'
@@ -601,7 +639,23 @@ export type CountWhat =
   /** Flavors of Food on offer in town (R1A's flavorsOnOffer); `ref` a family id counts that family instead. */
   | 'foodFlavors'
   /** Winters with no Food or Fuel imported and nobody hungry or cold. */
-  | 'importFreeWinters';
+  | 'importFreeWinters'
+  // R2 (R2.0); R2C counts them (state.gaps, state.evenings).
+  /** Gaps closed. */
+  | 'gapsClosed'
+  /** Gaps closed by the seat that has closed fewest (Mind the Gap: three by each). */
+  | 'gapsClosedEachSeat'
+  /** Fair evenings running with at least half the grown-ups out (R2C's run). */
+  | 'eveningsOut'
+  /**
+   * R2X: fair evenings with at least half the grown-ups out, counted whole (the Village's evening goal;
+   * a thin evening no longer starts it again, as 15-progression.md asks for three, not three running).
+   */
+  | 'eveningsHalfOut'
+  /** Fair evenings on which every grown-up went out (Out of an Evening). */
+  | 'eveningsAllOut'
+  /** Whole seasons in which nobody stood for want of a seat (A Seat for Everyone). */
+  | 'seatedSeasons';
 
 // --- Hearth content ---------------------------------------------------------------------------
 
@@ -744,6 +798,12 @@ export interface NeedsBasket {
   charm: number;
   /** Savings in coins a household needs before its home upgrades to this tier. */
   savings: number;
+  /**
+   * R2 (R2.0): the evenings its grown-ups must average, `PLACES.tierDays` days running (Craftsfolk 50,
+   * Merchants 65, Patrons 80; docs/spec/19-evenings.md, Good evenings). R2B's tiers read it in place
+   * of `charm` and the tavern in `services`; absent asks nothing.
+   */
+  evenings?: number;
 }
 
 /** A zone the Ledger paints (docs/spec/13-ledger.md, Zoning and growth). */
@@ -761,6 +821,22 @@ export interface ZoneDef {
   token: string;
   /** R1: the rank before it may be painted (Shops and Townhouses: Village); open at founding when absent. */
   requires?: { rank?: RankName };
+  /**
+   * R2 (R2F): how frontage on each class of road is cut (13-ledger.md, Lots). A class left out cuts
+   * `lots` as C4B did, gaps and all; `street` covers avenues too.
+   */
+  roads?: { street?: RoadLotsDef; lane?: RoadLotsDef; path?: RoadLotsDef };
+}
+
+/** R2 (R2F): how a zone's frontage along one class of road is cut into lots. */
+export interface RoadLotsDef {
+  /** Lot shapes along this class of road: widths 1 to 3 along it, depths 2 to 4 back from it. */
+  lots: LotDef[];
+  /**
+   * True: each frontage run is cut into lots that touch, one row with no gaps, with garden lots in
+   * the block behind and a corner lot where two roads meet (V3B joins and draws them).
+   */
+  row?: boolean;
 }
 
 /** A lot shape for a zone: a footprint facing the road. */
@@ -1195,4 +1271,275 @@ export interface GuideDef {
   farewell?: string;
   /** C5H: the last letter when Pippa Quill already lives in the valley. */
   farewellAfterPippa?: string;
+}
+
+// --- The evening round (R2.0) -----------------------------------------------------------------
+// docs/spec/19-evenings.md. Every number of its R2 sections lives in `PLACES` (content/places.ts) or
+// the gap table, never in a system, so R2X tunes in one file. All *(tune)*.
+
+/** R2 (R2.0): the evening round's numbers (docs/spec/19-evenings.md, The day in two acts to Gaps). */
+export interface PlacesTuning {
+  // The day in two acts
+  /** The evening: from this hour to `homeHour` folk make their round. */
+  eveningHour: number;
+  /** Folk set off home (21:00), and on a festival night at `festivalHomeHour` (22:00). */
+  homeHour: number;
+  festivalHomeHour: number;
+  /** Minutes after `eveningHour` over which grown-ups plan, each at their own minute (30). */
+  planMinutes: number;
+  /** Builders and porters plan at this hour (19:00). */
+  latePlanHour: number;
+  /** The lingering evening: the clock runs at this percent of the chosen speed from `eveningHour` to `homeHour` (50). */
+  lingerPercent: number;
+  // Where places come from
+  /** Seat pieces in no pattern site within this many tiles of each other make one sitting spot (3)... */
+  spotRadius: number;
+  /** ...of at most this many pieces (4). */
+  spotMaxPieces: number;
+  /** A porch's seats, for its own household (2). */
+  porchSeats: number;
+  /** The skating ice's standing room (12). */
+  iceStanding: number;
+  /** A walk holds one stroller for every this many tiles (2). */
+  walkTilesPerStroller: number;
+  /** Beyond its seats a place has standing room for this percent of them again (50), at least `standingMin` (2). */
+  standingShare: number;
+  standingMin: number;
+  /** Outlets with Treats within this many tiles serve a place (3). */
+  serveRadius: number;
+  /** Water within this many tiles makes a place a view (3). */
+  waterRadius: number;
+  // Draw (0 to 100)
+  /** Charm counts up to this (70). */
+  charmCap: number;
+  /** A pattern site (8). */
+  siteBonus: number;
+  /** Each kind of piece in it (2), up to `pieceKindMax` (8). */
+  pieceKindBonus: number;
+  pieceKindMax: number;
+  /** Water within `waterRadius` (5). */
+  waterBonus: number;
+  /** Its lanterns lit from `litHour` (5 from 18:00). */
+  litBonus: number;
+  litHour: number;
+  /** It serves Treats (4). */
+  treatsBonus: number;
+  /** Open air in winter with no fire and no ice (20 off). */
+  winterPenalty: number;
+  // The round
+  /** Leisure radius in tiles (12; Curious 18; Homebody 6). */
+  radius: number;
+  curiousRadius: number;
+  homebodyRadius: number;
+  /** A resident's taste for a place, species and traits as built, kept within these (-10 to 15). */
+  tasteMin: number;
+  tasteMax: number;
+  /** A friend is going (8). */
+  friendBonus: number;
+  /** Off the score per tile of Manhattan distance, in hundredths (35). */
+  distanceHundredths: number;
+  /** Off for every seat's worth of crowd beyond its room (20). */
+  crowdPenalty: number;
+  /** The whim: up to this many points either way, from the `round` stream (4). */
+  whim: number;
+  /** Under this a place is not worth the walk: they stay in (20). */
+  minScore: number;
+  /** Percent of residents (by id and day) who take their second best first (50). */
+  secondBestPercent: number;
+  /** A second and third stop, each within this many tiles of the last (8), up to `maxStops` (3). */
+  nextStopRadius: number;
+  maxStops: number;
+  /** A stop lasts about this many minutes (60). */
+  stopMinutes: number;
+  /** An evening at a friend's home draws this (30), with no bonus for meeting the friend. */
+  visitDraw: number;
+  /** In rain this percent of residents skip open-air places (50); in a storm everyone stays in. */
+  rainSkipPercent: number;
+  // Routes
+  /** Tiles at this charm or more (40), and evening streets, cost what they always do... */
+  pleasantCharm: number;
+  /** ...plain tiles this percent (125)... */
+  plainCostPercent: number;
+  /** ...and tiles with noise `noisyNoise` (3) or more this percent (150). */
+  noisyCostPercent: number;
+  noisyNoise: number;
+  // Evening trade
+  /** Passing within this many tiles of an outlet with Treats (1), a resident still owed one buys one time in `passingOneIn` (5). */
+  passingRadius: number;
+  passingOneIn: number;
+  /** The doorstep errand: at this hour and minute (21:30) a household that bought nothing on the round sends for this percent of what it is owed (33). */
+  doorstepHour: number;
+  doorstepMinute: number;
+  doorstepPercent: number;
+  // Shops follow the walkers
+  /** A Shops lot's desirability gains up to this for evening footfall at its frontage (30)... */
+  footfallDesirability: number;
+  /** ...in full when this percent of the town's grown-ups pass (10). */
+  footfallFullPercent: number;
+  /** And this for a place within `placeNearShopRadius` tiles (10 within 3). */
+  placeNearShop: number;
+  placeNearShopRadius: number;
+  /** The Shops bar counts each place that drew this many visitors (8) with nothing to sell them. */
+  unservedVisitors: number;
+  /** A shop of this level (2) whose door is within `cafeRadius` tiles (2) of `cafeSeats` seats (2) puts tables out. */
+  cafeLevel: number;
+  cafeRadius: number;
+  cafeSeats: number;
+  /** Every this many evening steps past a shop's door count as one more customer for its level (10). */
+  stepsPerCustomer: number;
+  // Good evenings
+  /** Staying in scores this, every evening's floor (20). */
+  stayInScore: number;
+  /** Meeting a friend at a stop (8), a treat (8), a second kind of stop (4), standing (10 off). */
+  friendScore: number;
+  treatScore: number;
+  secondKindScore: number;
+  standingPenalty: number;
+  /** The evenings need starts here for a newcomer (50) and moves this fraction of the way to the evening's score at `homeHour` (1 in 3). */
+  needStart: number;
+  needStepOneIn: number;
+  /** Its weight in mood, in beauty's place (15). */
+  needWeight: number;
+  /** An evening at this score or more is a good one (60); `goodForHeart` (4) of a season's six give a heart, up to `heartsMax` (5). */
+  goodEvening: number;
+  goodForHeart: number;
+  heartsMax: number;
+  /** Tiers ask their grown-ups' average evening (NeedsBasket.evenings) this many days running (3). */
+  tierDays: number;
+  /** R2B: a household staying at its tier is forgiven this much under the tier's evenings (10), as charm had its slack. */
+  eveningsSlack: number;
+  // Places remembered
+  /** A place the pass no longer finds keeps its row this many days (6). */
+  forgetDays: number;
+  // R2A additions (additive): what the place pass and the planner read beyond the spec's table.
+  /** Elders and residents without work make a round in the afternoon, planned from this hour (14) to `eveningHour`. */
+  afternoonHour: number;
+  /** Pattern ids that are linear walks (kind `walk`, strollers by length). */
+  walkPatterns: string[];
+  /** Pattern ids where folk gather (kind `meet`: a green, a square, a well). */
+  meetPatterns: string[];
+  /** Decor ids that make a place a `view` wherever they stand (a lookout). */
+  viewPieces: string[];
+  /** What the skating ice offers. */
+  iceKinds: PlaceKind[];
+  /** The festival site's standing room on its night, beside the seats of the pieces on it (40). */
+  festivalStanding: number;
+  /** A place with room only later in the evening scores this much less for every hour they would wait at home first (2). */
+  waitPerHour: number;
+  /**
+   * R2X: newcomers follow good evenings. A town of this many households or more builds homes for
+   * newcomers only as fast as its recent fair evenings send folk out (optional: absent, homes come
+   * at the jobs' pace).
+   */
+  growthFreeHouseholds?: number;
+  /**
+   * R2X: the share of grown-ups out on recent fair evenings, percent, at which homes come at the jobs'
+   * full pace. 0 switches the evenings term off.
+   */
+  growthFullOutPercent?: number;
+  /** R2X: homes the open jobs always get waiting at once, however quiet the evenings (the jobs keep filling). */
+  growthBareHomes?: number;
+}
+
+/** R2 (R2.0): the gaps (docs/spec/19-evenings.md, Gaps). Index order is the sim's GAP_KINDS; append-only. */
+export type GapKind = 'nothingToSell' | 'nobodyPasses' | 'nowhereToGo' | 'shortOfSupplies';
+
+/** R2 (R2.0): a gap's rule and words (content/gaps.ts; R2C writes the words and opens them). */
+export interface GapDef {
+  kind: GapKind;
+  /** The iteration that builds it: R3's row is in the table but never opens before R3. */
+  from: 'R2' | 'R3';
+  /** Whose work usually closes it (the feed's ink): the Ledger's outlet, the Hearth's place. */
+  lane: 'hearth' | 'ledger';
+  /** The rule's number: 8 visitors, under 4 customers, 6 households. */
+  threshold: number;
+  /** Evenings running the rule must hold before it opens (2, 3, 3), and the closing rule before it closes. */
+  openAfter: number;
+  closeAfter: number;
+  /** What it reads like, variants picked deterministically; placeholders {place}, {shop}, {street}, {n}; R2C adds {folk} ("nobody", "one soul", "3 folk"). */
+  text: string[];
+  /** What would close it, in words. */
+  closes: string;
+  /**
+   * R2 (R2C, additive): the evening edition's line when it closes, crediting the seats who closed
+   * it ({closers}, "Kat" or "Kat and Sam"); placeholders as `text`. Absent: the edition says it plainly.
+   */
+  closed?: string;
+  /** R2 (R2C, additive): the closing line when nobody is credited (the place was credited this season). */
+  closedQuiet?: string;
+}
+
+/**
+ * R2 (R2A): the words and numbers behind generated street names (`packages/sim/src/systems/places/streets.ts`).
+ * A name is a word and a suffix ("Mill Lane"); the sim holds no words.
+ */
+export interface StreetNamesTuning {
+  /** A run of road is a street from this many tiles. */
+  minTiles: number;
+  /** How far from the run, in tiles, a thing counts as standing along it. */
+  reach: number;
+  /** A family names a street when this many of its homes stand along it. */
+  homeMin: number;
+  /** "Row" instead of the road kind's suffix when homes of that family line this share (percent) of the run. */
+  rowShare: number;
+  /** Trees along a run (tiles) before they name it. */
+  treeMin: number;
+  /** Fruit trees along a run before they name it. */
+  orchardMin: number;
+  /** The longest generated name. */
+  maxLength: number;
+  /** Building def ids that are homes (a family can name a street by them). */
+  homeDefs: readonly string[];
+  /** Notable buildings, in priority order: [building def id, first word]. */
+  buildingWords: readonly (readonly [def: string, word: string])[];
+  /** Notable trades (a business answers to its trade), after the building words: [trade id, first word]. */
+  tradeWords: readonly (readonly [trade: string, word: string])[];
+  /** Water beside a run: [water layer value, words]; one is picked by the run's anchor. */
+  waterWords: readonly (readonly [water: number, words: readonly string[]])[];
+  /** Fruit tree decor def ids and the word they give. */
+  orchardDecor: readonly string[];
+  orchardWord: string;
+  /** Forest trees beside a run: [tree species (1 oak, 2 birch, 3 pine), word]. */
+  treeWords: readonly (readonly [species: number, word: string])[];
+  /** Plain first words when nothing notable stands along a run. */
+  fallbackWords: readonly string[];
+  /** Tried before any other fallback when a name is taken. */
+  prefixes: readonly string[];
+  /** Suffixes by road layer value (1 path, 2 lane, 3 street, 4 avenue); one is picked by the run's anchor. */
+  suffixes: readonly (readonly [road: number, words: readonly string[]])[];
+  /** The suffix when a family names the street and homes line it. */
+  rowSuffix: string;
+}
+
+/** R2A: the phrase templates for place names and what a place still wants (content/placeWords.ts). */
+export interface PlaceWords {
+  /** "by the Underbank cottage" ({family} {home}). */
+  byFamily: string;
+  /** No family near, water within reach. */
+  byWater: string;
+  /** No family near, no water. */
+  atEdge: string;
+  /** {pattern} {piece} {building} {festival} {family} are filled by the sim. */
+  site: string;
+  seats: string;
+  host: string;
+  fire: string;
+  ice: string;
+  festival: string;
+  porch: string;
+  /** Prefixes when a name is taken ({stem}): "the other bench", "the third bench". */
+  other: string;
+  third: string;
+  /** "on Mill Lane" when a street can be read ({street}). */
+  onStreet: string;
+  /** Appended to a taken name, in order: " (the second)". */
+  ordinals: string[];
+  /** Appended past the ordinals, once per repeat. */
+  again: string;
+  /** What a place still wants; {n} is filled by the sim. */
+  wantStall: string;
+  wantBench: string;
+  wantSeats: string;
+  wantLantern: string;
+  wantBrazier: string;
 }

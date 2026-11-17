@@ -1,12 +1,13 @@
 // R1.0 saves (docs/spec/21-networking-and-saves.md, The fresh start): a current valley round-trips
-// to an equal hash; the same bytes under a version before 6 are refused as an old valley. P2: the
-// current version is 7, and a version 6 valley migrates (the day's growth starts, none yet).
+// to an equal hash; the same bytes under a version before 6 are refused as an old valley. P2 took
+// version 7 (the day's growth starts) and R2.0 version 8 (the evening round); R2.0's chain from a
+// real version 6 valley is tested in test/r2-0/saves.test.ts.
 import { gunzipSync, gzipSync, strFromU8, strToU8 } from 'fflate';
 import { describe, expect, it } from 'vitest';
 import { createWorld, defaultSettings } from '../../src/state/create';
 import { hashState } from '../../src/state/hash';
 import { deserialize, peekSaveVersion, serialize } from '../../src/state/serialize';
-import { OldValleyError, SAVE_VERSION } from '../../src/state/version';
+import { migrations, OldValleyError, SAVE_VERSION, type SaveObject } from '../../src/state/version';
 import { villageFixture } from '../fixtures/village';
 
 /** The save's bytes with `saveVersion` rewritten. */
@@ -19,34 +20,33 @@ function withVersion(bytes: Uint8Array, version: number): Uint8Array {
 describe('R1 saves', () => {
   it('peeks a save version from the header without building a world', () => {
     const bytes = serialize(createWorld('willow', { ...defaultSettings(), mode: 'standard' }));
-    expect(peekSaveVersion(bytes)).toBe(7);
+    expect(peekSaveVersion(bytes)).toBe(SAVE_VERSION);
     expect(peekSaveVersion(withVersion(bytes, 5))).toBe(5);
     expect(peekSaveVersion(new Uint8Array([1, 2, 3]))).toBeNull();
   });
 
-  it('is version 7', () => {
-    expect(SAVE_VERSION).toBe(7);
+  it('is version 8 (R2.0; P2 took 7)', () => {
+    expect(SAVE_VERSION).toBe(8);
   });
 
-  it('opens a version 6 valley by migrating it: the growth starts are added, the rest is kept', () => {
+  it('migrates 6 to 7 (P2): the growth starts are added, the rest is kept', () => {
     const state = createWorld('willow', { ...defaultSettings(), mode: 'standard' });
-    const save = JSON.parse(strFromU8(gunzipSync(serialize(state)))) as {
-      saveVersion: number;
+    const save = JSON.parse(strFromU8(gunzipSync(serialize(state)))) as SaveObject & {
       demand: Record<string, unknown>;
     };
     save.saveVersion = 6;
     delete save.demand.starts;
-    const old = gzipSync(strToU8(JSON.stringify(save)), { level: 6, mtime: 0 });
-    expect(peekSaveVersion(old)).toBe(6);
-    const back = deserialize(old);
-    expect(back.saveVersion).toBe(7);
-    expect(back.demand.starts).toEqual({ day: -1, n: 0 });
-    expect(hashState(back)).toBe(hashState(state));
+    const next = migrations.get(6)!(save) as typeof save;
+    expect(next.saveVersion).toBe(7);
+    expect(next.demand.starts).toEqual({ day: -1, n: 0 });
+    expect(JSON.stringify({ ...next, saveVersion: 0 })).toBe(
+      JSON.stringify({ ...save, saveVersion: 0, demand: { ...save.demand, starts: { day: -1, n: 0 } } }),
+    );
   });
 
-  it('round-trips a version 7 standard valley to an equal hash', () => {
+  it('round-trips a current standard valley to an equal hash', () => {
     const state = createWorld('willow', { ...defaultSettings(), mode: 'standard' });
-    expect(state.saveVersion).toBe(7);
+    expect(state.saveVersion).toBe(SAVE_VERSION);
     const back = deserialize(serialize(state));
     expect(hashState(back)).toBe(hashState(state));
     expect(back.carrier).toEqual(state.carrier);

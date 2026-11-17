@@ -165,6 +165,9 @@ function statusLines(state: WorldState, b: Building, def: BuildingDef | undefine
     out.push(due ? `Becoming a ${to}: waiting for ${due}` : `Becoming a ${to}`);
   }
   if (has(BuildingStatus.noCartRoad)) out.push('No lane or street at the door for the cart');
+  // R2 (R2B)
+  if (has(BuildingStatus.eveningStreet)) out.push('On an evening street: no deliveries from 17:00 to 21:00');
+  if (has(BuildingStatus.eveningWait)) out.push('Waiting at the edge of an evening street until 21:00');
   if (has(BuildingStatus.disrepair)) out.push(`In disrepair (${rt.condition}%)`);
   else if (rt.condition < WORN_CONDITION) out.push(`A little worn (${rt.condition}%)`);
   return out;
@@ -370,7 +373,7 @@ function addVillageDetail(state: WorldState, b: Building, def: BuildingDef, deta
   if (def.specialized && def.reach) {
     detail.reach = { tiles: def.reach, served: served(state, b), capacity: capacityOf(state, b) };
   }
-  if (lot) detail.lot = lotView(lot);
+  if (lot) detail.lot = lotView(lot, state);
   if (rt.tier) detail.tier = rt.tier;
   if (rt.upgrade && def.upgradesTo)
     detail.upgrade = { to: def.upgradesTo.def, waiting: goodPairs(rt.upgrade) };

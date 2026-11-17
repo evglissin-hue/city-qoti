@@ -31,7 +31,7 @@ import type {
   WorldState,
 } from '../contracts';
 import { LAYER_NAMES } from '../map/layers';
-import { effectiveSpeed } from '../speed';
+import { effectiveSpeed, isLingeringDusk } from '../speed';
 import { calendar } from '../systems/clock/calendar';
 import { SIM_VERSION } from '../version.generated';
 import { content } from '@qoti/content';
@@ -64,9 +64,13 @@ import {
 export * from './hamlet';
 export * from './village';
 import { balancesView, businessesView, demandView } from './zones';
+import { eveningView, footfallView, gapsView, placesView, streetViews } from './evenings';
 
 export function clockView(state: WorldState): ClockView {
-  return { tick: state.tick, speed: effectiveSpeed(state), ...calendar(state.tick) };
+  const view: ClockView = { tick: state.tick, speed: effectiveSpeed(state), ...calendar(state.tick) };
+  // R2 (R2B): dusk at half speed, for the top bar.
+  if (isLingeringDusk(state)) view.lingering = true;
+  return view;
 }
 
 export function buildingView(b: Building): BuildingView {
@@ -86,9 +90,11 @@ export function buildingView(b: Building): BuildingView {
   if (b.style) view.style = b.style;
   if (b.rt?.modules?.length) view.modules = b.rt.modules.map(([s, m]) => [s, m]);
   if (b.rt) view.rt = runtimeView(b.def, b.rt, b);
+  if (b.cafe) view.cafe = true;
   if (b.trade) view.trade = b.trade;
   if (b.level && b.level > 1) view.level = b.level;
   if (b.keeperId) view.keeperId = b.keeperId;
+  if (b.storeys !== undefined) view.storeys = b.storeys;
   return view;
 }
 
@@ -146,7 +152,7 @@ export function buildView(state: WorldState): ViewSnapshot {
     market: marketView(state),
     levers: leversView(state),
     loans: loansView(state),
-    lots: state.lots.map(lotView),
+    lots: state.lots.map((l) => lotView(l, state)),
     trade: tradeView(state),
     charter: charterView(state),
     innovations: state.innovations.map((i) => innovationView(state, i.id)),
@@ -173,5 +179,11 @@ export function buildView(state: WorldState): ViewSnapshot {
     demand: demandView(state),
     balances: balancesView(state),
     businesses: businessesView(state),
+    // R2 (R2.0)
+    places: placesView(state),
+    gaps: gapsView(state),
+    evening: eveningView(state),
+    streets: streetViews(state),
+    footfall: footfallView(state),
   };
 }

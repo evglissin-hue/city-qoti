@@ -16,6 +16,7 @@ import * as Fe from './festivals';
 import * as FC from './festivalsChronicle';
 import * as FD from './fineDecor';
 import * as G from './goods';
+import * as Gp from './gaps';
 import * as Gu from './guide';
 import * as He from './herbalist';
 import * as I from './innovations';
@@ -25,6 +26,7 @@ import * as N from './neighbors';
 import * as Na from './nature';
 import * as ND from './natureDecor';
 import * as P from './patterns';
+import { PLACES } from './places';
 import * as R from './roads';
 import * as SA from './seasonsAchievements';
 import * as SB from './seasonsBuildings';
@@ -59,6 +61,7 @@ import type {
   EventDef,
   FestivalDef,
   FestivalTwistDef,
+  GapDef,
   GoodDef,
   InnovationDef,
   ModuleDef,
@@ -83,6 +86,9 @@ import type {
 
 export { chroniclePhrases } from './chronicle';
 export { festivalTuning } from './festivals';
+export { PLACES } from './places';
+export { placeWords } from './placeWords';
+export { STREET_NAMES } from './streetNames';
 export { lifePhrases } from './lives';
 export { familyNames, valleyNamePrefixes, valleyNameSuffixes } from './names';
 export { villagePhrases } from './villageText';
@@ -140,6 +146,7 @@ export const decor: readonly DecorDef[] = [
   D.bench,
   D.birdbath,
   Fe.bonfire,
+  VD.brazier,
   Fe.bunting,
   VD.cafeTable,
   D.cherryTree,
@@ -296,6 +303,7 @@ export const patterns: readonly PatternDef[] = [
 
 // prettier-ignore
 export const achievements: readonly AchievementDef[] = [
+  A.aSeatForEveryone,
   A.aTownThatBuildsItself,
   SA.aWinterWithoutImports,
   A.balancedBooks,
@@ -307,6 +315,8 @@ export const achievements: readonly AchievementDef[] = [
   SA.fiveStars,
   A.hearthAndHome,
   A.marketDay,
+  A.mindTheGap,
+  A.outOfAnEvening,
   A.plankByPlank,
   A.porridgeNoMore,
   SA.theFirstWinter,
@@ -605,6 +615,15 @@ function byId<T extends { id: string }>(list: readonly T[]): ReadonlyMap<string,
   return new Map(list.map((item) => [item.id, item]));
 }
 
+/** APPEND-ONLY: in the sim's GAP_KINDS order (R2.0). */
+// prettier-ignore
+export const gaps: readonly GapDef[] = [
+  Gp.nothingToSell,
+  Gp.nobodyPasses,
+  Gp.nowhereToGo,
+  Gp.shortOfSupplies,
+];
+
 export const content: Content = {
   buildings,
   decor,
@@ -674,4 +693,7 @@ export const content: Content = {
   dressingRules: DrR.dressingRules,
   trades,
   tradeById: byId(trades),
+  places: PLACES,
+  gaps,
+  gapByKind: new Map(gaps.map((g) => [g.kind, g])),
 };

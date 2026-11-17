@@ -9,7 +9,14 @@ export default defineConfig({
     testTimeout: 20_000,
     projects: [
       { extends: true, test: { name: 'content', include: ['packages/content/**/*.test.ts'] } },
-      { extends: true, test: { name: 'sim', include: ['packages/sim/**/*.test.ts'] } },
+      {
+        extends: true,
+        test: {
+          name: 'sim',
+          include: ['packages/sim/**/*.test.ts'],
+          setupFiles: ['packages/sim/test/places-verify.setup.ts'],
+        },
+      },
       { extends: true, test: { name: 'protocol', include: ['packages/protocol/**/*.test.ts'] } },
       { extends: true, test: { name: 'art', include: ['packages/art/**/*.test.ts'] } },
       { extends: true, test: { name: 'client', include: ['apps/client/src/**/*.test.ts'] } },

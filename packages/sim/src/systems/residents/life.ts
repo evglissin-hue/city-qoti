@@ -45,6 +45,7 @@ import { doorOf, manhattan, vacantHomes } from './places';
 import { announceHousehold, announceResident, announceTown, pushHistory, syncResident } from './records';
 import { compatibility, hasTrait, traitsCompatible } from './traits';
 import { dayIndex } from './time';
+import { bumpPlaceInputs } from '../places/inputs';
 
 /**
  * Friendship level two residents need before they become a couple: friends (2) when one of
@@ -290,6 +291,7 @@ export function moveInTogether(state: WorldState, ctx: TickCtx, a: Resident, b: 
     lowMoodDays: 0,
   };
   state.households.push(h);
+  bumpPlaceInputs(state);
   announceHousehold(state, ctx, h.id, true);
   joinHousehold(state, ctx, a, h);
   joinHousehold(state, ctx, b, h);
@@ -311,6 +313,7 @@ export function joinHousehold(state: WorldState, ctx: TickCtx, r: Resident, to: 
     if (last) {
       for (let g = 0; g < from.pantry.length; g++) to.pantry[g] = (to.pantry[g] ?? 0) + (from.pantry[g] ?? 0);
       removeById(state.households, from.id);
+      bumpPlaceInputs(state);
       ctx.events.push({ e: 'household.removed', id: from.id });
     } else announceHousehold(state, ctx, from.id);
   }
@@ -612,6 +615,7 @@ export function goToSeaside(state: WorldState, ctx: TickCtx, leavers: Resident[]
     const share = all ? h.savings : Math.floor((h.savings * leavers.length) / Math.max(1, h.members.length));
     pay(state, { household: h.id }, 'outside', share, null);
     if (all) h.homeId = 0;
+    if (all) bumpPlaceInputs(state);
   }
   const name = leavers.length === 2 ? pairName(leavers[0]!, leavers[1]!) : residentName(first);
   const n = state.village.seaside;

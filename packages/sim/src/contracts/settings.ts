@@ -11,4 +11,9 @@ export interface ValleySettings {
   valleyName: string;
   /** I3 (C5.0, C5H): show the first days guide (new standard valleys default to on). */
   guide?: boolean;
+  /**
+   * R2 (R2.0): the lingering evening (19-evenings.md, The day in two acts): from 17:00 to 21:00 the
+   * clock runs at half the chosen speed. Absent means on; valley.setSettings may turn it off.
+   */
+  eveningLingers?: boolean;
 }

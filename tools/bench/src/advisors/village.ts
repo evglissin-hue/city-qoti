@@ -19,31 +19,16 @@
 // needs no lever.
 import { content } from '@qoti/content';
 import {
+  BuildingStatus,
   creditLimit,
   loansOwed,
-  overdraftLimit,
-  PENNIES_PER_COIN,
-  BuildingStatus,
-  canPlaceBuilding,
-  doorTile,
   rankAtLeast,
-  serviceCoverage,
-  townStock,
-  worldIndex,
   type Building,
-  type Rot4,
   type WorldState,
 } from '@qoti/sim';
-import {
-  carrierBrings,
-  costOf,
-  importPrice,
-  MONEY_RESERVE,
-  VILLAGE_MARGIN,
-  type Budget,
-  type Planner,
-} from '../planner';
-import { count, craftsfolk, G } from '../town';
+import { costOf, VILLAGE_MARGIN, type Budget, type Planner } from '../planner';
+import { count, craftsfolk } from '../town';
+import { serveService } from './siting';
 import type { Advisor, AdvisorDef, Visit } from './types';
 
 /** Timber, stone and food buildings may dip into the reserve. */
@@ -56,10 +41,6 @@ class Village implements Advisor {
 
   get w(): WorldState {
     return this.p.w;
-  }
-
-  private coins(): number {
-    return this.p.coins();
   }
 
   /** Construction progress last seen per site, and the day it last moved. */
@@ -115,6 +96,7 @@ class Village implements Advisor {
     if (count(w, 'builders-yard') < Math.floor(w.residents.length / 40))
       this.want('builders-yard', 8, queued);
     this.buildVillage();
+    this.waresMakers();
   }
 
   /**
@@ -134,13 +116,57 @@ class Village implements Advisor {
     });
   }
 
+  /** Pins made so far, by trade: a pin the sim retools away (the site fails) is tried on another business, three times at most. */
+  private readonly pinned = new Map<string, number[]>();
+
+  /**
+   * R2X: Wares. Cloth is the one Wares good whose makers the town can always have (candles take
+   * honey from a few hives; furniture wants a sawmill's reach), and growth never picks the weaver
+   * while a few candles sit on one shelf (the flavor count is met), so the shelves stay bare and
+   * "wares (0 of 1 kinds)" held back a third of the Craftsfolk homes on two seeds. The Ledger pins
+   * a spare farm to a sheep run, then a spare workshop to a weaver, once there are homes to sell to.
+   */
+  private waresMakers(): void {
+    const w = this.w;
+    if (w.households.length < 14) return;
+    const built = (trade: string) =>
+      w.buildings.some((b) => b.trade === trade && (b.stage === 'built' || b.stage === 'construction'));
+    const spare = (zone: 'farms' | 'crafts', keep: string): Building | null => {
+      const of = w.buildings.filter(
+        (b) => b.stage === 'built' && b.trade && !b.pinned && content.tradeById.get(b.trade)?.zone === zone,
+      );
+      const counts = new Map<string, number>();
+      for (const b of of) counts.set(b.trade!, (counts.get(b.trade!) ?? 0) + 1);
+      let best: Building | null = null;
+      let bestN = 1;
+      for (const b of of) {
+        const n = counts.get(b.trade!)!;
+        if (b.trade === keep || n <= bestN) continue;
+        best = b;
+        bestN = n;
+      }
+      return best;
+    };
+    const pin = (zone: 'farms' | 'crafts', trade: string): void => {
+      const tried = this.pinned.get(trade) ?? [];
+      if (tried.length >= 3) return;
+      const b = spare(zone, trade);
+      if (!b || tried.includes(b.id)) return;
+      tried.push(b.id);
+      this.pinned.set(trade, tried);
+      this.p.do(`pin a ${trade} at business ${b.id}`, [{ t: 'build.pinRecipe', id: b.id, trade }]);
+    };
+    if (!built('sheep-run')) pin('farms', 'sheep-run');
+    else if (!built('weaver')) pin('crafts', 'weaver');
+  }
+
   /** Services and a school (R1F: the specialized buildings are the land advisor's). */
   private buildVillage(): void {
     const w = this.w;
-    // Services: Craftsfolk want a tavern and a herbalist in reach (C4X: first, and outside the
-    // turn's budget, one site of each at a time).
-    this.serve('tavern', 'social');
-    this.serve('herbalist', 'health');
+    // Services: Craftsfolk want a herbalist in reach (C4X: first, and outside the turn's budget,
+    // one site at a time).
+    // R2E: the tavern is the Hearth's now (the places advisor sites it where folk live).
+    serveService(this.p, 'herbalist', 'health');
     // Skilled work, once there are Craftsfolk to do it.
     if (craftsfolk(w) >= 8 && count(w, 'school') === 0) this.want('school', 5);
     // C5A (the seasons advisor's until R1F): a Village with a dozen homes asks for a Bath House.
@@ -160,56 +186,6 @@ class Village implements Advisor {
     const w = this.w;
     const pop = w.residents.length;
     if (pop >= 30 && count(w, 'market-stall') < 1 + Math.floor(pop / 40)) this.want('market-stall', 5);
-  }
-
-  /**
-   * A service where it is missed: next to the home of the first household (by id) that the tavern
-   * or herbalist does not reach yet. At most one under way of each kind.
-   */
-  private serve(def: string, kind: 'social' | 'health'): boolean {
-    const w = this.w;
-    if (w.buildings.some((b) => b.def === def && b.stage === 'construction')) return false;
-    if (count(w, def) >= 1 + Math.floor(w.residents.length / 30)) return false;
-    if (!this.p.staffs(def, true)) return false;
-    const covered = serviceCoverage(w, kind).quality;
-    const d = content.buildingById.get(def)!;
-    // R1X: the services are what Craftsfolk wait on, so a Village builds them on the County Bank's
-    // credit when the treasury is short (taxes on Craftsfolk wages pay it back); in a broke town
-    // they waited for coins that never came while every household lacked a tavern.
-    const credit = overdraftLimit(w) / PENNIES_PER_COIN;
-    // What the store lacks the carrier brings to the open site (a tavern's brick before any
-    // Brickworks), at its markup.
-    const stock = townStock(w);
-    let imports = 0;
-    for (const [g, q] of d.cost?.goods ?? []) {
-      const short = q - stock[G(g)]!;
-      if (short <= 0) continue;
-      if (!carrierBrings(w, G(g))) return false;
-      imports += short * importPrice(w, G(g));
-    }
-    if (this.coins() + credit < costOf(def, VILLAGE_MARGIN).coins + imports + MONEY_RESERVE) return false;
-    const reader = worldIndex(w).reader;
-    let tried = 0;
-    for (const h of w.households) {
-      if (!h.homeId || covered.has(h.id) || tried++ >= 24) continue;
-      const home = w.buildings.find((b) => b.id === h.homeId);
-      if (!home) continue;
-      for (let r = 2; r <= 9; r++) {
-        for (let dz = -r; dz <= r; dz++) {
-          for (let dx = -r; dx <= r; dx++) {
-            if (Math.max(Math.abs(dx), Math.abs(dz)) !== r) continue;
-            for (let rot = 0 as Rot4; rot < 4; rot = (rot + 1) as Rot4) {
-              const x = home.x + dx;
-              const z = home.z + dz;
-              if (!canPlaceBuilding(reader, d, x, z, rot).ok) continue;
-              if (w.map.water[doorTile({ def, x, z, rot } as Building, d)]) continue;
-              return !!this.p.buildAt(`build ${def} by the ${h.family}s`, def, x, z, rot, true);
-            }
-          }
-        }
-      }
-    }
-    return false;
   }
 }
 

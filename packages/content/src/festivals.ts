@@ -132,6 +132,8 @@ export const festivalTuning: FestivalTuning = {
 
 export const bonfire: DecorDef = {
   id: 'bonfire',
+  standing: 8,
+  warm: true,
   name: 'Bonfire',
   lane: 'hearth',
   radius: 96,
@@ -181,6 +183,7 @@ export const festivalStall: DecorDef = {
 
 export const festivalTable: DecorDef = {
   id: 'festival-table',
+  seats: 6,
   name: 'Festival Table',
   lane: 'hearth',
   radius: 80,

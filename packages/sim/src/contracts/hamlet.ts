@@ -3,6 +3,7 @@
 // Additive changes only during the I1 wave. Per-good quantities are arrays indexed by good index
 // (content.goods order, append-only); per-need values are arrays indexed by NEED_IDS order.
 import type { EntityId, SeatId } from './ids';
+import type { ResidentEvening, RoundStop } from './evenings';
 import type { HouseholdWarmth } from './seasons';
 import type { Apprenticeship } from './village';
 
@@ -20,7 +21,10 @@ export type NeedId =
   | 'goods'
   | 'social'
   | 'health'
-  | 'education';
+  | 'education'
+  // R2 (R2.0): how good their evenings are; takes beauty's weight in mood and the tavern's social need
+  // for Craftsfolk (19-evenings.md, Good evenings). Beauty and social stay in the union, unused by tiers.
+  | 'evenings';
 /** 0 Miserable, 1 Unhappy, 2 Meh, 3 Content, 4 Glowing. */
 export type MoodBand = 0 | 1 | 2 | 3 | 4;
 
@@ -42,7 +46,12 @@ export type Activity =
   /** A logistics or construction task (C3C): porter trips and builder work. */
   | { kind: 'task'; taskId: number };
 
-export type MoveReason = 'schedule' | 'task' | 'arrive' | 'leave' | 'shop' | 'leisure';
+/**
+ * Why a resident walks. R2 (R2A, additive): 'round' is a walk to or between the stops of an evening
+ * round: it takes the evening route grid (pathFor's 'round' mode) and its steps count for the
+ * evening footfall layer instead of the day's.
+ */
+export type MoveReason = 'schedule' | 'task' | 'arrive' | 'leave' | 'shop' | 'leisure' | 'round';
 
 /** Path progress when walking. Tiles are indexes z * size + x. */
 export interface MoveState {
@@ -139,6 +148,23 @@ export interface Resident {
   reformed?: true;
   /** Watch members: the absolute day of their next duty, and the tick they are shaken until. */
   watch?: { dutyDay: number; shakenUntil: number };
+  // R2 (R2.0), absent until their first evening (19-evenings.md, The round and Good evenings).
+  /** Their last evening: its score and this season's good evenings (the need is needs[evenings]). */
+  evening?: ResidentEvening;
+  /** Today's round: the plan and what happened at each stop, kept until the next evening's plan. */
+  round?: RoundStop[];
+  /**
+   * R2 (R2A, additive): the day index `round` was planned on, absent before their first plan. Elders
+   * and residents without work plan an afternoon round and the unemployed add an evening one to it,
+   * so the day's stops are one list and their best outing of the day counts.
+   */
+  roundDay?: number;
+  /**
+   * R2 (R2A, additive): where tonight's evening stops begin in `round` (the afternoon's stops come
+   * first), set when the evening is planned on `roundDay` and absent until then; equal to the length
+   * when they stayed in.
+   */
+  roundEvening?: number;
 }
 
 export interface Household {
@@ -172,6 +198,12 @@ export interface Household {
    * days. Absent until the first household pass.
    */
   seen?: number[];
+  /**
+   * R2 (R2B): hundredths of a Treat the doorstep errand has put toward a unit (19-evenings.md,
+   * Evening trade: a household that bought nothing on the round sends at 21:30 for a third of what
+   * it is owed, in hundredths, as the basket accrues). Absent until its first errand.
+   */
+  doorstep?: number;
 }
 
 /** Construction progress of a site (standard valleys). */

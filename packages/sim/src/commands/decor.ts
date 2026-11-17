@@ -9,6 +9,7 @@ import { currentPlan } from '../systems/festivals/api';
 import { markCharmSoon } from '../systems/hearth/charm/dirty';
 import { decorView } from '../view';
 import { checkIds, type HandlerFor, takeId, worldChanged } from './util';
+import { bumpPlaceInputs } from '../systems/places/inputs';
 
 /** Rect of tiles around a decor center, for charm and walkability. */
 function decorRect(fx: number, fz: number): [number, number, number, number] {
@@ -53,6 +54,7 @@ function addDecor(
     state.festival.pieces.push(d.id);
   }
   state.decor.push(d);
+  bumpPlaceInputs(state);
   worldIndex(state).decorGrid.add(d);
   ctx.events.push({ e: 'decor.added', d: decorView(d) });
   worldChanged(state, decorRect(fx, fz), !!content.decorById.get(def)?.blocksWalking);
@@ -143,6 +145,7 @@ export const remove: HandlerFor<'decor.remove'> = {
     for (const id of cmd.ids) {
       const d = removeById(state.decor, id);
       if (!d) continue;
+      bumpPlaceInputs(state);
       // A piece that cost something comes back in full (festival pieces never cost anything).
       const def = content.decorById.get(d.def);
       if (def && !d.festival) refundDecor(state, ctx, def, d.fx, d.fz);

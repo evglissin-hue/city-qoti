@@ -43,6 +43,8 @@ import {
   type Material,
 } from 'three';
 import type { Mirror } from '../../state/mirror';
+import { inkStrength, routeEdges, townInk, townLens } from '../overlayTown';
+import { tileOutline, townGlints, townRoutes, townSheet } from '../overlayTownDraw';
 import { drapeGrid, drapeOutline, drapeRing, drapeTiles, groundY, mergeDrapes, type Rgba } from '../drape';
 import { iconAtlas, IconSprites, STATUS_ICONS } from '../icons';
 import { buildingGeometry, standLevel } from '../kitGeometry';
@@ -51,7 +53,8 @@ import type { LayerContext, RenderLayer } from './types';
 
 export type HighlightArea =
   | { x: number; z: number; radius: number; tone?: 'hearth' | 'ledger' }
-  | { tiles: [number, number][]; tone?: 'hearth' | 'ledger' }
+  /** R2D: `outline` inks the tiles' edge with the faintest wash inside, in place of a filled block. */
+  | { tiles: [number, number][]; tone?: 'hearth' | 'ledger'; outline?: boolean }
   | null;
 
 export interface OverlaysLayer extends RenderLayer {
@@ -208,6 +211,7 @@ void main() {
 const FLOW_FRAGMENT = /* glsl */ `
 uniform float uTime;
 uniform vec3 uColor;
+uniform float uStrength;
 varying float vAlong;
 varying float vSide;
 varying float vWeight;
@@ -220,7 +224,7 @@ void main() {
   float edge = smoothstep(1.0, 0.75, v);
   float a = (0.28 + chevron * 0.72) * edge;
   if (a < 0.02) discard;
-  gl_FragColor = vec4(mix(uColor, vec3(1.0, 0.97, 0.88), chevron * 0.35), a * 0.92);
+  gl_FragColor = vec4(mix(uColor, vec3(1.0, 0.97, 0.88), chevron * 0.35), a * 0.92 * uStrength);
   #include <colorspace_fragment>
 }
 `;
@@ -248,11 +252,14 @@ export function overlaysLayer(): OverlaysLayer {
     uniforms: {
       uTime: { value: 0 },
       uColor: { value: new Color(palette.ledger).lerp(new Color(0x7fd4a8), 0.35) },
+      uStrength: { value: 1 },
     },
     transparent: true,
     depthWrite: false,
     side: DoubleSide,
   });
+  // The glints where an outlet sells: a soft pulse, never a flash.
+  const glintMaterial = sheet.clone();
   const hlMaterial = sheet.clone();
   let status: IconSprites | null = null;
   const charmChunks: (Mesh | null)[] = new Array<Mesh | null>(CHUNKS_PER_SIDE * CHUNKS_PER_SIDE).fill(null);
@@ -494,9 +501,13 @@ export function overlaysLayer(): OverlaysLayer {
     }
   }
 
-  function flows(): void {
+  function flows(
+    list: readonly [number, number, number][] | null = null,
+    material: Material = flowMaterial,
+    widthScale = 1,
+  ): void {
     if (!ctx) return;
-    const list = flowsOf(ctx.mirror);
+    list ??= flowsOf(ctx.mirror);
     const pos: number[] = [];
     const along: number[] = [];
     const side: number[] = [];
@@ -511,7 +522,7 @@ export function overlaysLayer(): OverlaysLayer {
       const dz = b[2] - a[2];
       const len = Math.sqrt(dx * dx + dz * dz);
       if (len < 0.5) continue;
-      const w = 0.12 + 0.28 * Math.sqrt(units / max);
+      const w = (0.12 + 0.28 * Math.sqrt(units / max)) * widthScale;
       const nx = -dz / len;
       const nz = dx / len;
       const seg = Math.max(8, Math.round(len * 2));
@@ -542,8 +553,23 @@ export function overlaysLayer(): OverlaysLayer {
     g.setAttribute('side', new Float32BufferAttribute(side, 1));
     g.setAttribute('weight', new Float32BufferAttribute(weight, 1));
     g.setIndex(idx);
-    const mesh = add(g, flowMaterial);
+    const mesh = add(g, material);
     mesh.renderOrder = 6;
+  }
+
+  // --- R2D: Town, one map and two inks ------------------------------------------------------------------
+
+  function town(lens: 'hearth' | 'ledger'): void {
+    if (!ctx) return;
+    const strength = inkStrength(lens);
+    const ink = townInk(ctx.mirror, flowsOf(ctx.mirror));
+    const sheetGeo = townSheet(ctx.mirror, ink, strength);
+    if (sheetGeo) add(sheetGeo);
+    // The ochre routes: fine dashes along the roads, as quiet as the sage (not the Flows ribbons).
+    const routes = townRoutes(ctx.mirror, routeEdges(ctx.mirror, ink.routes), strength);
+    if (routes) add(routes);
+    const glints = townGlints(ctx.mirror, ink);
+    if (glints) add(glints, glintMaterial).renderOrder = 7;
   }
 
   function statusIcons(): void {
@@ -997,6 +1023,7 @@ export function overlaysLayer(): OverlaysLayer {
     } else if (kind === 'coverage') coverage();
     else if (kind === 'fields') fields();
     else if (kind === 'flows') flows();
+    else if (townLens(kind)) town(townLens(kind)!);
     else if (kind === 'zones') merged(zones);
     else if (kind === 'traffic') merged(traffic);
     else if (kind === 'land') merged(land);
@@ -1028,7 +1055,10 @@ export function overlaysLayer(): OverlaysLayer {
     const g = new Group();
     g.renderOrder = 5;
     const m = ctx.mirror;
-    if ('tiles' in area) {
+    if ('tiles' in area && area.outline) {
+      const geo = tileOutline(m, area.tiles, tone);
+      if (geo) add(geo, hlMaterial, g);
+    } else if ('tiles' in area) {
       const set = new Set(area.tiles.map(([x, z]) => z * MAP_SIZE + x));
       let x0 = MAP_SIZE;
       let z0 = MAP_SIZE;
@@ -1127,6 +1157,18 @@ export function overlaysLayer(): OverlaysLayer {
           change.rects.has('tree')
         )
           rebuild();
+      } else if (townLens(kind)) {
+        // Footfall arrives hourly (17:00 to 21:00); the rest rarely moves.
+        if (
+          change.full ||
+          change.footfall ||
+          change.places ||
+          change.gaps ||
+          change.buildings ||
+          change.rects.has('flags') ||
+          change.rects.has('road')
+        )
+          rebuild();
       } else if (
         change.full ||
         change.buildings ||
@@ -1172,6 +1214,11 @@ export function overlaysLayer(): OverlaysLayer {
         (flowMaterial.uniforms.uTime as { value: number }).value = time;
         dirty = true;
       }
+      if (townLens(kind)) {
+        // A slow pulse, about one breath every six seconds.
+        glintMaterial.opacity = 0.65 + Math.sin(time * 1.05) * 0.25;
+        dirty = true;
+      }
       if (highlightGroup) {
         // A slow, gentle breathing so the area is noticed without flashing.
         hlMaterial.opacity = 0.62 + Math.sin(time * 1.6) * 0.14;
@@ -1202,6 +1249,7 @@ export function overlaysLayer(): OverlaysLayer {
       sheet.dispose();
       hlMaterial.dispose();
       flowMaterial.dispose();
+      glintMaterial.dispose();
     },
   };
 }

@@ -17,6 +17,7 @@ import {
   whenWord,
 } from '../seasons';
 import { toggleBook } from '.';
+import { creditedText } from './Edition';
 import { SeasonPlanQuestions } from './SeasonPlan';
 
 const TRACK_MARK: Record<SeasonReportLine['track'], string> = {
@@ -24,6 +25,7 @@ const TRACK_MARK: Record<SeasonReportLine['track'], string> = {
   festival: 'Festival',
   nature: 'Nature',
   threat: 'The Watch',
+  evening: 'Evenings',
 };
 
 export function SeasonCardPanel({ session }: { session: Session }) {
@@ -168,6 +170,15 @@ export function Forecast({ session, weather }: { session: Session; weather: Seas
   );
 }
 
+/**
+ * R2D: the joint report's cross-lane lines ("the lantern walk fed the pie stall"):
+ * `SeasonReportView.together`, which R2C's `view/season/index.ts` fills, first on the spread. Absent
+ * before R2C and in a season with none, and then the spread simply has no such block.
+ */
+export function togetherLines(view: SeasonReportView): SeasonReportLine[] {
+  return (view.together ?? []).filter((l) => l.text.length > 0);
+}
+
 export function SeasonReport({
   session,
   view,
@@ -185,6 +196,8 @@ export function SeasonReport({
     if (a?.kind === 'report') session.ui.almanac.value = { ...a, page: p };
   };
   const stars = view.hearth.find((l) => l.track === 'festival')?.value;
+  const together = togetherLines(view);
+  const seats = session.mirror.seats.value;
   return (
     <div
       class={`almanac-report paper-${SEASON_KEY[view.season]} on-page-${page}`}
@@ -199,6 +212,18 @@ export function SeasonReport({
           {names[view.season]}, year {view.year + 1}
         </h2>
       </header>
+      {together.length > 0 && (
+        <section class="report-cross" data-testid="report-cross">
+          <h3>Between the two of you</h3>
+          <ul>
+            {together.map((l, i) => (
+              <li key={i} class="report-line">
+                <span>{creditedText(l.text, { text: l.text, seats: l.seats ?? [], refs: [] }, seats)}</span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
       <div class="report-spread">
         <ReportPage title="The Hearth" lines={view.hearth} lens="hearth" testid="report-hearth">
           {stars !== undefined && <Stars n={stars} />}

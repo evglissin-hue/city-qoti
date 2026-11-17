@@ -2,9 +2,9 @@
 // storehouses when no stall is within reach. Porters keep stalls stocked to STALL_RESTOCK_TARGET
 // food (logistics); goods a porter has been promised (reservedOut) are never handed out.
 import { isFood } from '../../state/zones';
-import { content } from '@qoti/content';
+import { content, type BuildingDef } from '@qoti/content';
 import { MAP_SIZE } from '../../constants';
-import type { EntityId, WorldState } from '../../contracts';
+import type { BuildingRuntime, EntityId, WorldState } from '../../contracts';
 import { findById } from '../../state/entities';
 import { countCustomer, countSold } from '../levels/counters';
 import { doorTile } from '../movement/api';
@@ -30,15 +30,47 @@ export function takeFromOutlet(
   return n;
 }
 
+/** Food good indexes, found once (content does not change while the sim runs). */
+let foodGoods: number[] | null = null;
+
+function foodIndexes(): readonly number[] {
+  if (!foodGoods) {
+    foodGoods = [];
+    for (let i = 0; i < content.goods.length; i++) if (isFood(i)) foodGoods.push(i);
+  }
+  return foodGoods;
+}
+
+/** Food units a store can hand out now (none promised to porters). */
+function storeFood(rt: BuildingRuntime): number {
+  let n = 0;
+  for (const i of foodIndexes()) n += Math.max(0, (rt.store[i] ?? 0) - (rt.reservedOut[i] ?? 0));
+  return n;
+}
+
 /** Food units an outlet can hand out now. */
 export function outletFood(state: WorldState, buildingId: EntityId): number {
   const rt = findById(state.buildings, buildingId)?.rt;
-  if (!rt) return 0;
-  let n = 0;
-  for (let i = 0; i < content.goods.length; i++) {
-    if (isFood(i)) n += Math.max(0, (rt.store[i] ?? 0) - (rt.reservedOut[i] ?? 0));
+  return rt ? storeFood(rt) : 0;
+}
+
+/**
+ * R2X: the outlet defs, and for a market its food coverage radius squared, found once (evening
+ * shopping asks for the nearest outlet for every shopper; the scan read each building's tags).
+ */
+let outletDefs: Map<string, { def: BuildingDef; market: boolean; r2: number }> | null = null;
+
+function outletDef(id: string) {
+  if (!outletDefs) {
+    outletDefs = new Map();
+    for (const def of content.buildings) {
+      if (!def.tags?.includes('outlet')) continue;
+      const market = def.tags.includes('market');
+      const r = market ? (def.coverage?.find((c) => c.kind === 'food')?.radius ?? 14) : 0;
+      outletDefs.set(def.id, { def, market, r2: r * r });
+    }
   }
-  return n;
+  return outletDefs.get(id);
 }
 
 /**
@@ -54,15 +86,14 @@ export function nearestOutletWithFood(state: WorldState, tile: number): EntityId
   let bestStoreD = Infinity;
   for (const b of state.buildings) {
     if (b.stage !== 'built' || !b.rt) continue;
-    const def = content.buildingById.get(b.def);
-    if (!def?.tags?.includes('outlet') || outletFood(state, b.id) <= 0) continue;
-    const door = doorTile(b, def);
+    const o = outletDef(b.def);
+    if (!o || storeFood(b.rt) <= 0) continue;
+    const door = doorTile(b, o.def);
     const dx = (door % MAP_SIZE) - x;
     const dz = Math.floor(door / MAP_SIZE) - z;
     const d = dx * dx + dz * dz;
-    if (def.tags.includes('market')) {
-      const r = def.coverage?.find((c) => c.kind === 'food')?.radius ?? 14;
-      if (d <= r * r && d < bestStallD) {
+    if (o.market) {
+      if (d <= o.r2 && d < bestStallD) {
         bestStallD = d;
         bestStall = b.id;
       }

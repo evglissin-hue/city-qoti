@@ -1,5 +1,9 @@
 // Requests between seats (C4.0 baseline; C4D owns them). docs/spec/16-coop.md, Requests: goods
 // (good, quantity, by when, where), charm (an area and a target) or free text.
+// R2 (R2C): requests return without a form. The town writes its own (gaps, systems/gaps), and a
+// closed gap counts where a fulfilled request did (conditions, 'requestsFulfilled'); request.* stays
+// for free-text asks between the seats, which show as notes do. The goods and charm asks still
+// validate and close themselves, for valleys and plans that already hold them.
 import { content } from '@qoti/content';
 import { MAP_SIZE, MAX_NOTE_CHARS, MAX_REQUESTS } from '../constants';
 import type { RequestAsk, SeatRequest } from '../contracts';

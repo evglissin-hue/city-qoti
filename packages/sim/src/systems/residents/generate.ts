@@ -6,6 +6,7 @@ import type { EntityId, Household, LifeStage, Resident, Rng, WorldState } from '
 import { goodsArray } from '../../state/hamlet';
 import { traitsCompatible } from './traits';
 import { dayIndex } from './time';
+import { bumpPlaceInputs } from '../places/inputs';
 
 /** Household makeup (tune): single 25%, couple 30%, family with children 35%, elder pair 10%. */
 export type Makeup = 'single' | 'couple' | 'family' | 'elders';
@@ -121,13 +122,14 @@ export interface NewHousehold {
   activity: Resident['activity'];
 }
 
-/** Starting needs of a newcomer, NEED_IDS order: fed, watered, housed, a stranger, curious. */
+/** Starting needs of a newcomer, NEED_IDS order: fed, watered, housed, a stranger, curious, an evening out. */
 const NEWCOMER_NEEDS: Record<string, number> = {
   food: 75,
   water: 70,
   shelter: 100,
   belonging: 40,
   beauty: 50,
+  evenings: content.places.needStart,
 };
 
 /** Builds a household and its residents into state (sorted by id) and returns them. */
@@ -203,6 +205,7 @@ export function createHousehold(
     b.marriedDay = Math.max(1, today);
   }
   state.households.push(household);
+  bumpPlaceInputs(state);
   for (const r of members) state.residents.push(r);
   return { household, members };
 }

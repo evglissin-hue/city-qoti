@@ -99,9 +99,12 @@ export const NEED_IDS = [
   'social',
   'health',
   'education',
+  // R2 (R2.0): the evenings need (docs/spec/19-evenings.md, Good evenings). It weighs nothing until R2B
+  // moves beauty's 15 to it (content.places.needWeight); a newcomer starts at content.places.needStart.
+  'evenings',
 ] as const;
 /** Mood weights per need, same order (docs/spec/11-residents.md, Mood). C4A weighs `goods` at 10. */
-export const NEED_WEIGHTS: readonly number[] = [25, 15, 20, 15, 15, 10, 0, 0, 0];
+export const NEED_WEIGHTS: readonly number[] = [25, 15, 20, 15, 15, 10, 0, 0, 0, 0];
 /** Lower bounds of mood bands 1 to 4: Unhappy 20, Meh 40, Content 60, Glowing 80. */
 export const MOOD_BAND_MIN = [20, 40, 60, 80] as const;
 export const MOOD_BAND_NAMES = ['Miserable', 'Unhappy', 'Meh', 'Content', 'Glowing'] as const;
@@ -178,7 +181,18 @@ export const AGENT_STRIDE = 8;
 export const AgentField = { id: 0, x: 1, z: 2, y: 3, heading: 4, anim: 5, carry: 6, flags: 7 } as const;
 /** I2 (C4.0): `cart` rows are carts (state.carts), not residents; carry is the first load good. */
 /** I3 (C5.0) adds run (raiders, the Watch turning out, folk hurrying home) and dance (festivals). */
-export const AgentAnim = { idle: 0, walk: 1, carry: 2, hop: 3, work: 4, cart: 5, run: 6, dance: 7 } as const;
+export const AgentAnim = {
+  idle: 0,
+  walk: 1,
+  carry: 2,
+  hop: 3,
+  work: 4,
+  cart: 5,
+  run: 6,
+  dance: 7,
+  sit: 8,
+} as const;
+/** R2 (R2.0): `sit` is a resident seated at a place on the round (AgentPose 'sit'; V3 draws it). */
 /** Agent row flags (bubbles and look hints). */
 export const AgentFlags = {
   wish: 1,
@@ -224,6 +238,11 @@ export const BuildingStatus = {
   // R1 (R1B)
   /** A business with nothing to do (out of season, no raw good, a full shelf): it frees its hands. */
   resting: 16384,
+  // R2 (R2B): evening streets (docs/spec/19-evenings.md, Evening streets)
+  /** A stall or workshop whose door opens onto an evening street: no deliveries from 17:00 to 21:00. */
+  eveningStreet: 32768,
+  /** A cart shed or store whose cart or barrow waits at the edge of an evening street for 21:00. */
+  eveningWait: 65536,
 } as const;
 
 // ---------------------------------------------------------------------------------------------
@@ -393,3 +412,37 @@ export const WINTER_RESERVE_MAX = 30;
 export const BUSINESS_LEVEL_MAX = 3;
 /** A porter's load with Wheelbarrows (R1: 8, was 6). */
 export const WHEELBARROW_CARRY = 8;
+
+// ---------------------------------------------------------------------------------------------
+// R2 (R2.0): the evening round (docs/spec/19-evenings.md). Structure only: every tunable number is in
+// content (content.places, content.gaps), so R2X tunes in one file.
+
+/** Index order of a place's kinds (PlaceKind). Append-only. */
+export const PLACE_KINDS = ['sit', 'eat', 'view', 'play', 'meet', 'walk'] as const;
+/** Index order of gap kinds (GapKind) and content.gaps. Append-only; `shortOfSupplies` is R3's. */
+export const GAP_KINDS = ['nothingToSell', 'nobodyPasses', 'nowhereToGo', 'shortOfSupplies'] as const;
+/** Evenings a place remembers (PlaceState's arrays) and the town keeps (EveningsState.history), and days a closed gap stays listed. */
+export const PLACE_EVENINGS = 6;
+/** Longest name a seat may give a place or a street (place.rename, road.rename). */
+export const MAX_PLACE_NAME_CHARS = 40;
+/** Footfall saturates here (16 bits a tile). */
+export const FOOTFALL_MAX = 65535;
+/** Footfall halves at this hour each day. */
+export const FOOTFALL_HALVE_HOUR = 4;
+/** RoundStop.flags bits: what happened at a stop. */
+export const RoundFlags = {
+  /** They got there. */
+  arrived: 1,
+  /** They took a seat. */
+  seated: 2,
+  /** They stood (no seat left): 10 off the evening. */
+  standing: 4,
+  /** Neither seat nor standing room: they went on to their next choice, or home. */
+  turnedAway: 8,
+  /** A friend was there. */
+  friend: 16,
+  /** They bought a treat there (or passing on the way). */
+  treat: 32,
+  /** Rain kept them from it (an open-air place). */
+  rained: 64,
+} as const;

@@ -38,6 +38,7 @@ import { grantFestival } from './rewards';
 import { scoreFestival } from './score';
 import { heldRect, rectCenter, siteRect } from './site';
 import { celebrationDue, togetherMoment } from './together';
+import { bumpPlaceInputs } from '../places/inputs';
 
 /** The hour of the closing dance and the fireworks. */
 export const DANCE_HOUR = 21;
@@ -48,6 +49,7 @@ export const STROLL = { day: 3, hour: 20 } as const;
 function takeDown(state: WorldState, ctx: TickCtx, id: number): void {
   const d = removeById(state.decor, id);
   if (!d) return;
+  bumpPlaceInputs(state);
   worldIndex(state).decorGrid.remove(d);
   ctx.events.push({ e: 'decor.removed', id });
   const x = Math.floor(d.fx / TILE_FP);
@@ -79,10 +81,12 @@ export function tidyFestival(state: WorldState, ctx: TickCtx): void {
     const [cx, cz] = rect ? rectCenter(rect) : [MAP_SIZE >> 1, MAP_SIZE >> 1];
     returnReserved(state, p.reserved, cz * MAP_SIZE + cx);
     f.plan = null;
+    bumpPlaceInputs(state);
     changed = true;
   }
   if (f.live) {
     f.live = false;
+    bumpPlaceInputs(state);
     delete f.guests;
   }
   if (changed) ctx.events.push({ e: 'festival.updated', f: festivalView(state) });
@@ -106,6 +110,7 @@ export function startFestival(state: WorldState, ctx: TickCtx): boolean {
   const rect = p ? heldRect(state, p.site) : null;
   if (!p || !rect || f.live) return false;
   f.live = true;
+  bumpPlaceInputs(state);
   f.outcome = null;
   f.guests = chooseGuests(state, rect);
   ctx.events.push({ e: 'festival.started', f: festivalView(state) });
@@ -124,12 +129,14 @@ export function endFestival(state: WorldState, ctx: TickCtx): boolean {
   const p = currentPlan(state);
   if (!f.live || !p) {
     f.live = false;
+    bumpPlaceInputs(state);
     delete f.guests;
     return false;
   }
   const rect: Rect | null = heldRect(state, p.site);
   const guests = f.guests ?? [];
   f.live = false;
+  bumpPlaceInputs(state);
   delete f.guests;
   if (!rect) return false;
   const outcome = scoreFestival(state, p, rect, guests.length, inReach(state, rect).length);

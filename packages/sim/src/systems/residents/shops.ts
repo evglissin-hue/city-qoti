@@ -60,7 +60,7 @@ export function openShop(state: WorldState, ctx: TickCtx | null): Building | nul
   const who = shopkeeper(state);
   if (!who) return null;
   for (const lot of state.lots) {
-    if (lot.buildingId || lot.zone !== Zone.shops) continue;
+    if (lot.buildingId || lot.kind === 'garden' || lot.zone !== Zone.shops) continue;
     const b = growLot(state, ctx, lot.id, def.id);
     if (!b) continue;
     b.custom = { ...(b.custom ?? {}), sign: who.sign };

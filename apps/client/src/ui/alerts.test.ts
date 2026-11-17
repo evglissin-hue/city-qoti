@@ -288,6 +288,15 @@ describe('growth on its way or held', () => {
   const quiet = (kind: DemandKind, value: number, code: DemandReason, why: string) =>
     QUIET_BARS().map((b) => (b.kind === kind ? bar(kind, value, false, [code], [why]) : b));
 
+  it('tells the Ledger when homes wait on good evenings (R2X), even with the bar at nothing', () => {
+    const why =
+      'Newcomers ask what there is to do of an evening, and nobody has an answer. Places to go would bring them.';
+    const m = world({ bars: quiet('homes', 0, { code: 'quietEvenings', value: 0 }, why) });
+    const a = ledger(m).find((x) => x.key === 'growth-homes-quietEvenings')!;
+    expect(a.text.startsWith('Homes: newcomers')).toBe(true);
+    expect(a.tone).toBe('quiet');
+  });
+
   it('says when a free lot will start, and what holds one back', () => {
     const waiting = world({
       bars: quiet(
@@ -347,6 +356,27 @@ describe('hands', () => {
     expect(a.action).toEqual({ kind: 'building', id: 1 });
     // The one line stands in for the per-building line.
     expect(ledger(mock).filter((x) => x.key.startsWith('idle-'))).toHaveLength(0);
+  });
+
+  it('never suggests Homes while homes wait on good evenings (R2X), and points at the gap', () => {
+    const quietWhy = 'Newcomers ask what there is to do of an evening, and nobody has an answer.';
+    const bars = QUIET_BARS().map((b) =>
+      b.kind === 'homes' ? bar('homes', 0, false, [{ code: 'quietEvenings', value: 0 }], [quietWhy]) : b,
+    );
+    for (const buildings of [[empty(1, 'granary')], [empty(1, 'granary'), empty(2, 'quarry')]]) {
+      const mock = world({ bars, buildings });
+      const lines = ledger(mock).filter((x) => x.key === 'hands-empty' || x.key.startsWith('growth-homes'));
+      expect(lines.length).toBeGreaterThan(0);
+      for (const l of lines)
+        expect(`${l.text} ${l.title ?? ''}`).not.toMatch(/\bHomes bring\b|zone more Homes/i);
+      expect(lines.find((x) => x.key === 'hands-empty')!.text).toMatch(/somewhere to go of an evening/);
+    }
+  });
+
+  it('never says "0 jobs are open" beside a workplace with nobody', () => {
+    const mock = world({ buildings: [built(1, 'granary', BuildingStatus.noWorkers, 0)] });
+    const a = ledger(mock).find((x) => x.key === 'hands-empty');
+    if (a) expect(a.text).not.toMatch(/\b0 jobs/);
   });
 
   it('groups several, names three, and counts the rest', () => {

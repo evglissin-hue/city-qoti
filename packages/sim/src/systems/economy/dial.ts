@@ -14,7 +14,8 @@ export interface EconomyDial {
 }
 
 const GENTLE: EconomyDial = { upkeepPercent: 70, leanDecay: 1, repairPerHour: 15 };
-const STANDARD: EconomyDial = { upkeepPercent: 100, leanDecay: 2, repairPerHour: 10 };
+// R2X: 70 (was 100): upkeep ran 60 to 90 coins a day past what came in from outside.
+const STANDARD: EconomyDial = { upkeepPercent: 70, leanDecay: 2, repairPerHour: 10 };
 const THOUGHTFUL: EconomyDial = { upkeepPercent: 125, leanDecay: 3, repairPerHour: 8 };
 
 export function economyDial(settings: ValleySettings['economy']): EconomyDial {
