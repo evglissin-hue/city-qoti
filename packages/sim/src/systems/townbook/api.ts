@@ -33,6 +33,15 @@ export function townBookSale(_state: WorldState, _row: PlaceState, _good: number
   // R3 stand-in (R3C): nothing is counted.
 }
 
+/**
+ * The good (by index) is one of the town's specialties: the carrier sells it to neighbors at their full
+ * price (`cartPercent`, systems/carrier/terms.ts).
+ */
+export function specialtyGood(_state: WorldState, _good: number): boolean {
+  // R3 stand-in (R3C): no specialties.
+  return false;
+}
+
 /** True once a page of this custom (a content custom id) has been found. */
 export function customFound(state: WorldState, id: string): boolean {
   for (const p of state.townBook.pages) if (p.kind === 'custom' && p.def === id) return true;
