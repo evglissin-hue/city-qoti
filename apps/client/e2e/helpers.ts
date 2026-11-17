@@ -36,6 +36,8 @@ export interface QotiHook {
   edition(): boolean;
   eveningAt(x: number, z: number): boolean;
   roadAt(x: number, z: number): number;
+  /** R2X: the building on a tile, 0 for none. */
+  occupantAt(x: number, z: number): number;
   places(): { id: string; name: string; tile: number; tiles: number[]; members: number[]; source: string }[];
   gaps(): { open: { id: number; tile: number; text: string }[]; closed: { id: number }[] } | null;
   focusTile(x: number, z: number, distance?: number): void;
