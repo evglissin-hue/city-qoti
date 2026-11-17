@@ -14,12 +14,16 @@ import {
   type EndpaperInput,
   endpaperCover,
   endpaperFeeds,
+  endpaperInks,
   endpaperInput,
+  MAP_FOOTFALL_INK,
+  streetLabels,
   EndpaperWriter,
   type EndpaperReply,
   type EndpaperRequest,
   type EndpaperWorkerLike,
 } from './endpaper';
+import { MAP_SIZE } from '@qoti/sim';
 import type { WorldEnv } from './env';
 import { endpaperLayer, pageCamera, townChanged } from './layers/endpaper';
 import type { LayerContext } from './layers/types';
@@ -71,6 +75,8 @@ function fakeMirror(): Mirror {
     settings: { value: { valleyName: 'Hollowmere' } },
     // V3X: the default feeds read the lots (V3B's rows) and the flow (V3C's river).
     lots: new Map(),
+    streets: new Map(),
+    footfall: { value: null },
     meta: { flow: 'ns' },
     occupant: () => 0,
     road: () => 0,
@@ -426,5 +432,43 @@ describe('the endpaper layer (V3D)', () => {
     expect(townChanged(change({ rects: new Map([['terrain', []]]) }))).toBe(true);
     expect(townChanged(change())).toBe(false);
     expect(townChanged(change({ rects: new Map([['charm', []]]) }))).toBe(false);
+    // V3X follow-up: R2's street names and evening footfall redraw it too.
+    expect(townChanged(change({ streets: true }))).toBe(true);
+    expect(townChanged(change({ footfall: true }))).toBe(true);
+  });
+});
+
+describe('the map lettering and inks from R2 (V3X follow-up)', () => {
+  const street = (id: number, name: string, tiles: number[]) => ({
+    id,
+    name,
+    generated: name,
+    anchor: 0,
+    tiles,
+  });
+
+  it('letters each named street at its middle, along its longer side, longest first', () => {
+    const m = fakeMirror() as unknown as { streets: Map<number, unknown> };
+    m.streets.set(9, street(9, 'Mill Lane', [1 * N + 2, 2 * N + 2, 3 * N + 2, 4 * N + 2, 5 * N + 2]));
+    m.streets.set(4, street(4, 'Underbank Row', [6 * N + 1, 6 * N + 2, 6 * N + 3, 6 * N + 4]));
+    m.streets.set(5, street(5, 'Nook', [0, 1]));
+    const labels = streetLabels(m as unknown as Mirror);
+    expect(labels.map((l) => l.text)).toEqual(['Mill Lane', 'Underbank Row']);
+    expect(labels[0]).toMatchObject({ x: 2.5, z: 3.5, angle: Math.PI / 2, kind: 'street' });
+    expect(labels[1]).toMatchObject({ x: 2.5, z: 6.5, angle: 0, kind: 'street' });
+    expect(endpaperInput(m as unknown as Mirror).labels.filter((l) => l.kind === 'street')).toHaveLength(2);
+  });
+
+  it('inks the evening footfall where folk walked, and leaves out an ink with nothing in it', () => {
+    const m = { ...fakeMirror(), size: MAP_SIZE, footfall: { value: null } } as unknown as Mirror;
+    expect(endpaperInks(m, [])).toEqual({});
+    const eve = new Uint16Array(MAP_SIZE * MAP_SIZE);
+    eve[40 * MAP_SIZE + 30] = 12;
+    const walked = { ...m, footfall: { value: { eve } } } as unknown as Mirror;
+    const inks = endpaperInks(walked, []);
+    expect(inks.goods).toBeUndefined();
+    expect(inks.footfall!.color).toBe(MAP_FOOTFALL_INK);
+    expect(inks.footfall!.tiles[40 * MAP_SIZE + 30]).toBeGreaterThan(0);
+    expect(inks.footfall!.tiles[10 * MAP_SIZE + 10]).toBe(0);
   });
 });

@@ -46,6 +46,8 @@ function fakeMirror(): Mirror {
     settings: { value: { valleyName: 'Hollowmere' } },
     // V3X: the default feeds read the lots (V3B's rows) and the flow (V3C's river).
     lots: new Map(),
+    streets: new Map(),
+    footfall: { value: null },
     meta: { flow: 'ns' },
     occupant: () => 0,
     road: () => 0,
