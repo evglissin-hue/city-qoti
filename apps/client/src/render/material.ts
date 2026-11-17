@@ -103,7 +103,9 @@ function patchNightGlow(
           : `totalEmissiveRadiance += ${GLOW} * vGlow * uNight;`,
         // P3C: the moon's glint a twentieth of the sun's (its full strength on a well's water
         // bloomed into a cyan orb at night).
-        glint ? 'totalEmissiveRadiance += qKitGlint(max(min(vGlow * uNight * 2.0, 1.0), uNight * 0.95));' : '',
+        glint
+          ? 'totalEmissiveRadiance += qKitGlint(max(min(vGlow * uNight * 2.0, 1.0), uNight * 0.95));'
+          : '',
       ].join('\n'),
     );
 }
