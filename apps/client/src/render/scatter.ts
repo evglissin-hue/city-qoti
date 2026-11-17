@@ -510,13 +510,17 @@ export function createFoliageMaterial(env: WorldEnv): MeshStandardMaterial {
           '      float k = uAutumn * (0.75 + 0.25 * qNoise(vQWorld.xz * 1.7));',
           '      c = mix(c, au * (0.55 + lum * 2.4), k);',
           '    }',
-          '    if (decid > 0.5 && uBlossom > 0.001) {',
-          // Blossom: soft pink and white speckles over the fresh green, in clusters.
-          '      vec2 bp = vQWorld.xz * 7.0 + vQWorld.y * 3.0;',
-          '      float cl = qNoise(bp) * 0.7 + qNoise(bp * 2.3) * 0.3;',
-          '      vec3 petal = vQSeed < 0.5 ? vec3(0.98, 0.72, 0.78) : vec3(0.97, 0.93, 0.92);',
-          '      float on = smoothstep(0.62 - uBlossom * 0.25, 0.7 - uBlossom * 0.2, cl);',
-          '      c = mix(c, petal * 0.85, mix(on, uBlossom * 0.35, far) * uBlossom);',
+          // P3C: blossom on some of the wood's trees only (a wild cherry or a blackthorn among
+          // fresh green, not a white and pink forest), in soft clusters about two dabs across with
+          // gentle edges, in softer colors. At seven to a tile with hard edges the speckles cut each
+          // dab in two, which close up read as a crown of crumpled pink and olive paper.
+          '    float qBloomTree = step(vQSeed, 0.42);',
+          '    if (decid > 0.5 && uBlossom > 0.001 && qBloomTree > 0.5) {',
+          '      vec2 bp = vQWorld.xz * 3.2 + vQWorld.y * 2.0 + vQSeed * 17.0;',
+          '      float cl = qNoise(bp) * 0.7 + qNoise(bp * 2.1) * 0.3;',
+          '      vec3 petal = fract(vQSeed * 7.3) < 0.55 ? vec3(0.93, 0.76, 0.8) : vec3(0.93, 0.91, 0.89);',
+          '      float on = smoothstep(0.5 - uBlossom * 0.2, 0.72 - uBlossom * 0.12, cl);',
+          '      c = mix(c, petal * 0.82, mix(on * 0.9, uBlossom * 0.4, far) * uBlossom);',
           '    }',
           '    if (decid > 0.5 && uBare > 0.001) {',
           // Bare: warm grey-brown twigs, mottled, with holes through to the boughs.

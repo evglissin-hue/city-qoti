@@ -5,7 +5,7 @@ import { mixHex, seeded, ShapeBuilder, vary } from '../geometry';
 import { palette } from '../palette';
 import { SURFACE } from '../surface';
 import { farBox, farCylinder } from './decorFar';
-import { CORE_SHADE, toward } from './trees';
+import { CORE_SHADE, limb, toward, trunkInto } from './trees';
 import type { Kit, KitBuildOptions } from './types';
 
 /** A small orchard tree: a sturdy trunk, a lumpy layered canopy and dots of fruit or blossom. */
@@ -19,8 +19,15 @@ export function fruitTree(
   const leaf = vary(canopy, rnd);
   // V1B: the far level is the trunk and one round crown (fruit, petals and the bough drop out).
   const s = new ShapeBuilder(opts?.lod ?? 'high');
-  s.cylinder(0, 0, 0.07, 0.05, 0, 0.46, palette.bark, 6);
-  s.box(-0.015, 0.34, -0.015, 0.15, 0.38, 0.015, palette.bark);
+  // P3C: near, a trunk that bends and forks into the crown (trees.ts trunkInto and limb) where it
+  // was a six-sided post with a box for a bough; far, the post.
+  s.levels(
+    () => {
+      trunkInto(s, 0.06, 0.5, palette.bark, 7, opts?.seed ?? 5);
+      limb(s, [0.01, 0.36, 0], [0.16, 0.6, 0.05], 0.035, 0.018, palette.bark, 4);
+    },
+    () => void s.cylinder(0, 0, 0.07, 0.05, 0, 0.46, palette.bark, 6),
+  );
   // V2B: near, the crown is brush dabs (`dabs.ts`) over a deeper core, its clumps shading as one
   // mass from the crown's heart; far, the one round crown lit a little toward the sky with the
   // dabs' tint. Blossom crowns (the cherry) keep a pink core rather than a green one.
@@ -31,6 +38,13 @@ export function fruitTree(
     { center: [-0.16, 0.64, -0.12], radii: [0.21, 0.18, 0.21], color: vary(leaf, rnd) },
     { center: [0.03, 0.88, 0.02], radii: [0.2, 0.15, 0.2], color: vary(leaf, rnd, 1.5) },
   ];
+  if (petals) {
+    // P3C: blossom is soft, not one loud pink: a deeper pink clump, a paler one near white and
+    // fresh leaves coming through low down.
+    blobs[1]!.color = mixHex(blobs[1]!.color, 0xd98fa6, 0.3);
+    blobs[2]!.color = mixHex(blobs[2]!.color, 0xa5c27a, 0.28);
+    blobs[3]!.color = mixHex(blobs[3]!.color, 0xf7efea, 0.4);
+  }
   const shade = petals ? 0x5a3a46 : CORE_SHADE;
   s.levels(
     () => {
@@ -53,9 +67,11 @@ export function fruitTree(
           0.06,
         );
       });
+      // P3C: more and smaller dabs (190 of 0.11, were 140 of 0.14), so close up the crown is
+      // brushwork rather than big flat facets.
       brushDabs(s, toward(blobs, [0, 0.7, 0], 0.45), {
-        count: 140,
-        size: 0.14,
+        count: 190,
+        size: 0.11,
         tintSpread: petals ? 0.22 : 0.28,
         skyLighten: 0.5,
         gaps: 0.02,
@@ -82,16 +98,8 @@ export function fruitTree(
       0,
     );
   }
-  if (petals) {
-    // A few fallen petals on the grass.
-    for (let i = 0; i < 6; i++) {
-      const a = rnd() * Math.PI * 2;
-      const r = 0.15 + rnd() * 0.25;
-      const x = Math.cos(a) * r;
-      const z = Math.sin(a) * r;
-      s.box(x - 0.02, 0, z - 0.015, x + 0.02, 0.006, z + 0.015, leaf);
-    }
-  }
+  // P3C: no fallen petals as pink boxes round the foot all year: the ground paints petals in
+  // drifts under the crowns while the blossom is out (ground.ts qGroundSeason).
   return s;
 }
 
@@ -172,7 +180,8 @@ export const bench: Kit = {
 export const cherryTree: Kit = {
   id: 'cherry-tree',
   kind: 'decor',
-  build: (opts) => fruitTree(opts, palette.blossom, 0xe6a2b5, true).build(),
+  // P3C: a paler blossom than the swatch (toward white), so a street of them is soft, not loud.
+  build: (opts) => fruitTree(opts, mixHex(palette.blossom, 0xf6eeea, 0.3), 0xe6a2b5, true).build(),
 };
 
 export const crates: Kit = {

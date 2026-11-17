@@ -265,8 +265,18 @@ export function lightingAt(hour: number): Lighting {
  * 4.2 times the camera's distance to what it looks at), so a close street and a wide valley get
  * the same depth of air. The fog's color is the lighting's horizon (`sky`).
  */
-export function hazeFor(distance: number): { near: number; far: number } {
-  return { near: distance * 0.93, far: distance * 4.2 + 20 };
+export function hazeFor(distance: number, fog = 0): { near: number; far: number } {
+  const near = distance * 0.93;
+  const far = distance * 4.2 + 20;
+  if (fog <= 0) return { near, far };
+  // P3C: a fog day closes the view in world distance, not in multiples of the camera's: a street
+  // close up keeps its contrast with the rooftops beyond going soft, and a wide view fills with
+  // fog. Before, both ends were pulled in by the same share at every zoom (and the final pass laid
+  // a flat wash over the screen), so even the nearest camera stood in a tan cloud.
+  const k = Math.min(1, fog);
+  const nearFog = Math.min(near, 6 + distance * 0.25);
+  const farFog = Math.min(far, 70 + distance * 1.2);
+  return { near: near + (nearFog - near) * k, far: far + (farFog - far) * k };
 }
 
 /**
@@ -437,6 +447,45 @@ const FOG_FRAGMENT = /* glsl */ `
 #endif
 `;
 
+// --- P3C: the moon's light mutes color ---------------------------------------------------------
+
+/**
+ * P3C: how the moon and the night sky light the valley, one shared uniform for every lit material
+ * (`installHazeChunks` adds it with the haze's): x how far moonlit color goes to the moon's grey (0
+ * by day), y the luma (linear) above which a moonlit surface is held back, z how hard. Lamplight,
+ * windows and flames are emissive in every material here, so they keep their warmth: at night only
+ * what a lamp reaches is warm and colored (the owner's playtest of V3: "day colors pushed purple").
+ */
+export const MOON = { value: shared(new Vector4(0, 0, 0, 0)) };
+
+/** The moon's tint for muted color, at luma 1 (a cool blue grey). *(tune)* */
+const MOON_TINT = [0.84, 1.0, 1.26] as const;
+
+/** The moon's terms for a night value (0 by day, 1 at full night). Pure. *(tune)* */
+export function moonTermsAt(night: number): { mute: number; knee: number; hold: number } {
+  const n = Math.min(1, Math.max(0, night));
+  const k = n * n * (3 - 2 * n);
+  return { mute: 0.72 * k, knee: 0.012, hold: 30 * k };
+}
+
+const MOON_PARS = /* glsl */ `
+uniform vec4 qMoon;
+vec3 qMoonlit(vec3 c) {
+  if (qMoon.x <= 0.0) return c;
+  float l = dot(c, vec3(0.2126, 0.7152, 0.0722));
+  // A pale surface under the moon is held back, so blossom and plaster never outshine lamplit ground.
+  float held = l / (1.0 + max(l - qMoon.y, 0.0) * qMoon.z);
+  vec3 grey = vec3(held) * vec3(${MOON_TINT.map((v) => (v / (0.2126 * MOON_TINT[0] + 0.7152 * MOON_TINT[1] + 0.0722 * MOON_TINT[2])).toFixed(4)).join(', ')});
+  return mix(c * (held / max(l, 1e-5)), grey, qMoon.x);
+}
+`;
+
+const MOON_END = /* glsl */ `
+reflectedLight.directDiffuse = qMoonlit( reflectedLight.directDiffuse );
+reflectedLight.indirectDiffuse = qMoonlit( reflectedLight.indirectDiffuse );
+reflectedLight.directSpecular = qMoonlit( reflectedLight.directSpecular );
+`;
+
 let hazeInstalled = false;
 
 /**
@@ -451,6 +500,9 @@ export function installHazeChunks(): void {
   ShaderChunk.fog_vertex = FOG_VERTEX;
   ShaderChunk.fog_pars_fragment = FOG_PARS_FRAGMENT;
   ShaderChunk.fog_fragment = FOG_FRAGMENT;
+  // P3C: the moon's muting, after every light is gathered (emissive is added after this chunk).
+  ShaderChunk.lights_pars_begin = `${ShaderChunk.lights_pars_begin}\n${MOON_PARS}`;
+  ShaderChunk.lights_fragment_end = `${ShaderChunk.lights_fragment_end}\n${MOON_END}`;
   const add = (u: Record<string, IUniform>): void => {
     u.qHazeTerms = HAZE.terms;
     u.qHazeAdds = HAZE.adds;
@@ -458,11 +510,14 @@ export function installHazeChunks(): void {
     u.qHazeRiver = HAZE.river;
   };
   add(UniformsLib.fog as unknown as Record<string, IUniform>);
+  (UniformsLib.lights as unknown as Record<string, IUniform>).qMoon = MOON;
   for (const lib of Object.values(ShaderLib) as {
     uniforms: Record<string, IUniform>;
     fragmentShader: string;
-  }[])
+  }[]) {
     if (lib.fragmentShader.includes('<fog_fragment>')) add(lib.uniforms);
+    if (lib.fragmentShader.includes('<lights_fragment_end>')) lib.uniforms.qMoon = MOON;
+  }
 }
 
 installHazeChunks();
