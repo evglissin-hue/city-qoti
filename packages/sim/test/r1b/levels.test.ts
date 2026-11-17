@@ -1,4 +1,4 @@
-// R1B levels (docs/spec/13-ledger.md, Levels): up after three good days, down after four failing
+// R1B levels (docs/spec/13-ledger.md, Levels): up after two good days, down after four failing
 // ones, out-of-season days count neither, room to grow, the keeper's days for level 3, and a crew
 // that grows with the level. The levels system's day end is run directly, so the rest of the town
 // stays out of it.
@@ -53,7 +53,7 @@ function atSeason(state: WorldState, season: number): void {
 }
 
 describe('levels', () => {
-  it('moves up after three good days and not after two', () => {
+  it('moves up after two good days and not after one', () => {
     const { state, b } = bakery();
     state.map.road[frontOf(b)] = Road.lane;
     for (let d = 1; d < LEVEL_UP_DAYS; d++) endDay(state, b, GOOD);
@@ -67,8 +67,7 @@ describe('levels', () => {
   it('resets the day counters and a day that is not good starts the count again', () => {
     const { state, b } = bakery();
     state.map.road[frontOf(b)] = Road.lane;
-    endDay(state, b, GOOD);
-    endDay(state, b, GOOD);
+    for (let d = 1; d < LEVEL_UP_DAYS; d++) endDay(state, b, GOOD);
     endDay(state, b, { madeToday: 10, soldToday: 3 });
     expect(b.counters!.levelDays).toBe(0);
     expect(b.counters!.madeToday).toBe(0);
@@ -221,5 +220,60 @@ describe('levels', () => {
     expect(at2).toBe(at1 * 2);
     expect(at3).toBe(at1 * 4);
     expect(findById(state.buildings, b.id)).toBe(b);
+  });
+});
+
+describe('the Chronicle says when a business first reaches a level (P3A)', () => {
+  const grew = (state: WorldState) => state.chronicle.filter((e) => e.kind === 'business-grew');
+
+  it('writes one entry naming the business, the level and the hands, refs the building', () => {
+    const { state, b } = bakery();
+    b.keeperId = 0;
+    state.map.road[frontOf(b)] = Road.lane;
+    for (let d = 0; d < LEVEL_UP_DAYS; d++) endDay(state, b, GOOD);
+    expect(b.level).toBe(2);
+    const [e, ...rest] = grew(state);
+    expect(rest).toEqual([]);
+    expect(e!.refs).toEqual([b.id]);
+    expect(e!.text).toContain('the baker');
+    expect(e!.text).toMatch(/level 2/i);
+    expect(e!.text).toContain('2 hands');
+  });
+
+  it('puts the keeper second and names the family when there is one', () => {
+    const { state, b } = bakery();
+    state.map.road[frontOf(b)] = Road.lane;
+    b.keeperId = b.rt!.workers[0]!;
+    const keeper = findById(state.residents, b.keeperId)!;
+    for (let d = 0; d < LEVEL_UP_DAYS; d++) endDay(state, b, GOOD);
+    const [e] = grew(state);
+    expect(e!.refs).toEqual([b.id, keeper.id]);
+    expect(e!.text).toContain(`the ${keeper.family} baker`);
+  });
+
+  it('writes nothing when no level was reached', () => {
+    const { state, b } = bakery();
+    state.map.road[frontOf(b)] = Road.lane;
+    for (let d = 1; d < LEVEL_UP_DAYS; d++) endDay(state, b, GOOD);
+    expect(grew(state)).toHaveLength(0);
+  });
+
+  it('writes none when a business that slid back climbs to the same level again, one for a new level', () => {
+    const { state, b } = bakery();
+    state.map.road[frontOf(b)] = Road.street;
+    for (let d = 0; d < LEVEL_UP_DAYS; d++) endDay(state, b, GOOD);
+    expect(b.level).toBe(2);
+    expect(grew(state)).toHaveLength(1);
+    for (let d = 0; d < LEVEL_DOWN_DAYS; d++) endDay(state, b, FAILING);
+    expect(b.level).toBe(1);
+    for (let d = 0; d < LEVEL_UP_DAYS; d++) endDay(state, b, GOOD);
+    expect(b.level).toBe(2);
+    expect(grew(state)).toHaveLength(1);
+    // Level 3 is news: the keeper's days are in and the door is on a street.
+    b.counters!.keeperDays = 20;
+    for (let d = 0; d < LEVEL_UP_DAYS; d++) endDay(state, b, GOOD);
+    expect(b.level).toBe(3);
+    expect(grew(state)).toHaveLength(2);
+    expect(grew(state)[1]!.text).toMatch(/level 3/i);
   });
 });
