@@ -18,7 +18,9 @@ import { footprintSize } from '@qoti/sim';
 import type { Mirror } from '../state/mirror';
 import { drawDef } from './defs';
 import { riverCourse } from './layers/water';
+import { flowsOf } from './layers/overlays';
 import { endpaperStreets } from './lots';
+import { footfallWash, routeEdges, TOWN_COLORS } from './overlayTown';
 
 /** Camera distance in tiles where the map starts to show, and where it covers the view. */
 export const ENDPAPER_NEAR = 200;
@@ -78,8 +80,8 @@ export interface InkLayer {
 
 /**
  * The map's two inks (17-presentation.md, One map, two inks): goods routes (ochre, from the flows
- * overlay) and evening footfall (sage, from R2's `map.footfallEve`). Unset draws nothing. Whichever
- * of V3X and R2X lands second wires them; V3.0's stub and V3D draw neither until then.
+ * overlay) and evening footfall (sage, from R2's `map.footfallEve`). Unset draws nothing. R2X landed
+ * first, so the V3X follow-up wired them: the layer passes `endpaperInks(mirror)`.
  */
 export interface EndpaperInks {
   goods?: InkLayer;
@@ -319,6 +321,94 @@ function layerCopy(
   return out;
 }
 
+/** Footfall ink on the map: the Town overlay's sage, deeper, since the ground's light sage washes out on parchment. */
+export const MAP_FOOTFALL_INK = TOWN_COLORS.street;
+
+/**
+ * The map's two inks from the Mirror (V3X follow-up, once R2 landed), as the Town overlay reads them:
+ * goods routes along the roads (R2D's `routeEdges` over the flows overlay's list) and the evening
+ * footfall (R2D's soft wash of `FootfallView.eve`). A strength per tile; the drawing scales each ink
+ * by its own busiest tile, and leaves out an ink with nothing in it.
+ */
+export function endpaperInks(
+  mirror: Mirror,
+  routes: readonly [number, number, number][] = flowsOf(mirror),
+): EndpaperInks {
+  const n = mirror.size * mirror.size;
+  const inks: EndpaperInks = {};
+  const goods = new Uint16Array(n);
+  let any = false;
+  for (const e of routeEdges(mirror, routes))
+    for (const t of [e.a, e.b]) {
+      goods[t] = Math.min(65535, goods[t]! + Math.round(e.units));
+      any ||= goods[t]! > 0;
+    }
+  if (any) inks.goods = { tiles: goods, color: TOWN_COLORS.ochre };
+  const wash = footfallWash(mirror.footfall.value?.eve);
+  const foot = new Uint16Array(n);
+  any = false;
+  for (let i = 0; i < n; i++) {
+    foot[i] = Math.round((wash[i] ?? 0) * 1000);
+    any ||= foot[i]! > 0;
+  }
+  if (any) inks.footfall = { tiles: foot, color: MAP_FOOTFALL_INK };
+  return inks;
+}
+
+/** A street this short has no room for its name on the map. */
+const STREET_LABEL_TILES = 3;
+
+/**
+ * R2's named streets as the map's lettering: each name at the tile of its run nearest the run's
+ * middle, along the run's longer side. Longest streets first (then by id, so both seats letter the
+ * same map): the drawing leaves off a name that would cross one already lettered.
+ */
+export function streetLabels(mirror: Mirror): EndpaperLabel[] {
+  const N = mirror.size;
+  const out: EndpaperLabel[] = [];
+  const streets = [...mirror.streets.values()].sort((a, b) => b.tiles.length - a.tiles.length || a.id - b.id);
+  for (const s of streets) {
+    if (!s.name || s.tiles.length < STREET_LABEL_TILES) continue;
+    let sx = 0;
+    let sz = 0;
+    let x0 = N;
+    let x1 = 0;
+    let z0 = N;
+    let z1 = 0;
+    for (const t of s.tiles) {
+      const x = t % N;
+      const z = (t - x) / N;
+      sx += x;
+      sz += z;
+      x0 = Math.min(x0, x);
+      x1 = Math.max(x1, x);
+      z0 = Math.min(z0, z);
+      z1 = Math.max(z1, z);
+    }
+    const mx = sx / s.tiles.length;
+    const mz = sz / s.tiles.length;
+    let best = s.tiles[0]!;
+    let bestD = Infinity;
+    for (const t of s.tiles) {
+      const x = t % N;
+      const d = (x - mx) ** 2 + ((t - x) / N - mz) ** 2;
+      if (d < bestD) {
+        bestD = d;
+        best = t;
+      }
+    }
+    const bx = best % N;
+    out.push({
+      text: s.name,
+      x: bx + 0.5,
+      z: (best - bx) / N + 0.5,
+      angle: x1 - x0 >= z1 - z0 ? 0 : Math.PI / 2,
+      kind: 'street',
+    });
+  }
+  return out;
+}
+
 /** The worker's copy of the valley, from shared Mirror state only (both seats draw the same map). */
 export function endpaperInput(
   mirror: Mirror,
@@ -339,6 +429,7 @@ export function endpaperInput(
   const labels: EndpaperLabel[] = [];
   const name = mirror.settings.value.valleyName;
   if (name) labels.push({ text: name, x: tiles / 2, z: tiles / 2, angle: 0, kind: 'valley' });
+  labels.push(...streetLabels(mirror));
   const input: EndpaperInput = {
     tiles,
     heights: layerCopy(L.height, n),
