@@ -1,6 +1,6 @@
 import { BuildingSeasonLines } from './seasonParts';
 import { content } from '@qoti/content';
-import type { BuildingDetail, BuildingView } from '@qoti/sim';
+import type { BuildingDetail, BuildingView, ResidentDetail } from '@qoti/sim';
 import { useState } from 'preact/hooks';
 import type { Session } from '../../app/session';
 import { removeWithCare } from '../../input/removal';
@@ -9,6 +9,7 @@ import { rejectText } from '../messages';
 import { CATEGORY_WORD, CONSTRUCTION_STAGES, statusWords, TIER_WORD } from '../hamlet';
 import { zoneInk } from '../village';
 import { Price } from './villageParts';
+import { homeProgressLine, nextLevelLine } from './levelWords';
 import {
   handsText,
   keeperFamily,
@@ -305,6 +306,7 @@ function BusinessLines({ session, id }: { session: Session; id: number }) {
   const biz = session.mirror.businesses.get(id);
   if (!biz?.trade) return null;
   const family = keeperFamily(session, biz);
+  const next = nextLevelLine(biz, content.tradeById.get(biz.trade));
   return (
     <div class="business-inspect" data-testid="business-lines">
       <p class="business-name">
@@ -315,6 +317,11 @@ function BusinessLines({ session, id }: { session: Session; id: number }) {
       <p class="small muted">
         {keeperLine(family)}. {handsText(biz)}.
       </p>
+      {next && (
+        <p class="small muted" data-testid="business-next">
+          {next}
+        </p>
+      )}
       {biz.pinned && <p class="small muted">Pinned: it keeps its trade.</p>}
     </div>
   );
@@ -385,6 +392,15 @@ function VillageDetail({ session, detail }: { session: Session; detail: Building
   const lot = detail.lot;
   const zone = lot ? content.zoneById.get(lot.zone) : undefined;
   const style = b.style || lot?.style;
+  // A home reads like its first resident does: the days toward the next tier and what is missing.
+  const first = detail.tier ? detail.household?.members[0]?.id : undefined;
+  const homeDetail = useInspect<ResidentDetail>(
+    (k, i) => session.inspect(k, i),
+    'resident',
+    first ?? null,
+    session.mirror.hamletRevision.value,
+  );
+  const homeLine = homeDetail ? homeProgressLine(homeDetail.tierProgress) : null;
   return (
     <>
       {lot && (
@@ -410,6 +426,11 @@ function VillageDetail({ session, detail }: { session: Session; detail: Building
       {detail.tier && (
         <p class="small" data-testid="building-tier">
           A {TIER_WORD[detail.tier]?.toLowerCase() ?? detail.tier} home.
+        </p>
+      )}
+      {homeLine && (
+        <p class="small muted" data-testid="home-progress">
+          {homeLine}
         </p>
       )}
       {detail.upgrade && (
