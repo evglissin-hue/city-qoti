@@ -249,7 +249,7 @@ describe('R3 writing', () => {
         ['lamplighters-round', 'master-of-the-house', 'made-together'].includes(a.id),
       ),
     ];
-    for (const s of strings(everything)) expect(s).not.toMatch(/—/);
+    for (const s of strings(everything)) expect(s).not.toContain(String.fromCharCode(0x2014));
   });
 
   it('adds the three achievements, shared', () => {
