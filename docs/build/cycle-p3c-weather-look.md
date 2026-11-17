@@ -77,3 +77,43 @@ Outside these paths: only small, necessary edits, listed in the PR. Keep out of 
 - Every static change goes through `ctx.invalidate()`. Contracts additive.
 - The frame budget is the floor: moving and idle frames cost no more than on `main` on every preset.
 - Known CI noise: the bench line "growth night R1B" swings around its 2 ms budget; `street.test.ts` "runs in well under 2 ms" failed once at 6.06 ms against 6.
+
+## As built
+
+Built on `cycle/p3c-weather-look` by the build and review loop's master alone: every look decision was made from the shots, and no executor was needed for the mechanical work this time. Before shots come from `main` served from a worktree (`p3c-before-*`), after shots from the branch (`p3c-after-*`), same cameras.
+
+### What each of the owner's frames was, in code
+
+| The owner saw | The cause |
+|---|---|
+| Puddles as flat, saturated lavender-blue shapes, the brightest thing at night | `ground.ts` `qPuddles`: a hard-edged mask over any hollow, grass included, whose roughness dropped to 0.3, so the moon's specular lit each one as a lavender sheet. |
+| Clusters of short parallel diagonal stripes, lavender-white and orange-pink | The meadow carpet (`layers/meadow.ts`): a share of blades in a flower drift took the flower's color foot to tip, and blades in a drift all lean one comb direction, so they read as hatching; at night they kept 35% of their day color. |
+| Blossom loud magenta at night, crowns as crumpled facets | No night term reached albedo: moonlight is just a bluish light on day colors, so pink went magenta and red roofs stayed saturated. The cherry is a decor kit painted in one blossom pink; forest blossom was noise patches at seven to a tile, which cut every dab in two. |
+| The dirt path blotchy purple-brown | Puddles (above) on the moonlit dirt. |
+| A blossom tree close up as big pink and olive facets on a six-sided post | Dabs of 0.255 tiles on an oak (0.14 on the cherry) at the nearest zoom, the forest blossom noise above, and `TreeBuilder.trunk`'s two straight cylinders. |
+| A heavy tan haze over the whole frame at street zoom | A fog day: `renderer.ts` pulled the fog's near and far in by a share of the camera's distance at every zoom, and `lookWeather` laid a flat wash over 22 to 67 percent of the screen. A clear day's haze is about 1 percent of the frame at every camera, before and after. |
+| Thin streaks of many colors across the frame | Autumn leaves and rain from `layers/weather.ts`, whose box reaches past a close camera, so particles a tile or two from the lens filled the frame. |
+| Small white specks on the ground | Petals (spring) and leaf litter (autumn) in `qGroundSeason`, a base share sprinkled on every tile. |
+| A flight of five pale steps and a long tilted slab with teeth | Road stairs (`layers/roads.ts`, C4P): tread boxes that reached down to the lowest ground under them and ratcheted up over any dip, plus a straight sloped kerb, in pale sandstone with no surface. Beside a building's pinned pad (the grown village's garden beds at 92, 99 to 94, 101) they stood as a plinth. |
+
+### What changed
+
+- **Night**: `lighting.ts` patches three's light chunks once (as V3C's haze does): after every lit material gathers its light, the moon's and the night sky's light (direct, ambient and specular) goes toward a cool blue of the same brightness, about half way at full night, and a pale surface is held back. Lamps, windows and flames are emissive everywhere, so they keep their warmth. The terms come in from the violet twilight (night 0.6); dusk and dawn are untouched. The sky dome sets them on each light step. The moon's glint on glass and water is a twentieth of the sun's (a well's water bloomed into a cyan orb); fireflies are sparks with a small halo (a cluster bloomed into a green cloud).
+- **Rain**: puddles stand on roads, paths and worn ground (only the deepest hollows elsewhere), darker than the ground with a soft wet margin, holding the sky and a lamp's pool as an emissive sheen; roughness 0.6, not 0.3. Wet roads are darker and a little richer. Rain is fainter at night and nothing falls in front of the lens.
+- **Haze**: `hazeFor(distance, fog)` closes a fog day in world distance; `lookWeather`'s fog is a breath of wisps at the top of the frame. River mist at dawn and the long view are V3C's, unchanged.
+- **Green**: more, smaller dabs, smaller toward the sides and underside, a deeper and cooler belly, a darker root to each stroke; trunks bend over three root spurs; the cherry is paler with a deeper clump, a near-white one and fresh leaves, with no year-round petal boxes; woodland blossom on 42% of deciduous trees, dab by dab (each dab's `dab` attribute carries its own random); litter in drifts; meadow flowers as heads on the top fifth of a blade.
+- **Stairs and stand-ins**: stairs are risers let into the slope, every corner on the drawn ground (`village.test.ts` checks every vertex on a falling hillside and beside a pad). `packages/art/src/standIns.test.ts` builds every kit at both levels and every tree stage, and every site stage of every building kit, and fails on missing attributes or bad normals, a near pale face with no surface over 0.1 square tiles, or a near base floating over 3 cm or sunk. It found: stage-3 sites drawing their walls as one pale plain box, the windmill's tower, the quarry's blocks, the town hall's clock tower, cloth and boards on the market stall, square and cart shed, and the bush, hedgerow and flower cart floating; all fixed.
+- **The contact sheet**: `apps/client/e2e/p3c-contact.mjs` loads the grown village and a fresh hamlet once each, switches season and weather in place (the renderer's debug look pins), and shoots the default and nearest cameras at noon, dusk, 22:00 and dawn: sheets `p3c-after-sheet-<fixture>-<season>.png`.
+
+### Outside the owned paths (all small)
+
+`render/renderer.ts` (`fitView`: the fog day goes through `hazeFor`, three lines), `render/ground.ts` (the terrain layer's painting: puddles, wet ground, litter), `render/scatter.ts` (the foliage shader's blossom), `render/material.ts` (the moon's glint, one line), `render/layers/critters.ts` (the fireflies' brightness, one line), `packages/art/src/kits/decor.ts` (the orchard tree's crown and trunk), and surface lines in `kits/{buildings,construction,services,specialized,workplaces,fineDecor}.ts`. Nothing in V4's files or R3's light map and lights, decor, agents and buildings layers.
+
+### What is left
+
+- The cherry (decor) keeps its blossom all year: salmon under autumn's tint, pink in the snow. A seasonal cherry needs the decor layer to hand the kit the season, as it hands orchard trees their thinning (`layers/decor.ts`, R3's look cycle).
+- Lamp pools keep V2X's hard edge on pale paths, most visible at dusk (the light map's curve, R3's).
+- Dusk keeps V1A's rose and violet split tone, which turns streets and roofs strongly purple for an hour; the owner's note was about night, so it is unchanged.
+- A dab is one triangle, so at the nearest zoom a crown still shows triangles up close, now smaller and varied. A rounded two-triangle dab would double a near crown's dabs.
+- `CameraController.snap()` does not apply the view when the ground under it is unchanged (V4's `input/camera.ts`): the P3C scripts call `rig.apply()` after it.
+- The numbers are the container's software renderer; the laptop rows are the owner's and Kat's.
