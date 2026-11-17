@@ -20,6 +20,7 @@ import {
   TICKS_PER_HOUR,
   TILE_FP,
   CARRIER_HOUR,
+  BuildingStatus,
 } from '../constants';
 import type { Building, Gap, Place, WorldState } from '../contracts';
 import { Road, TREE_MATURE, treeStage } from '../map/layers';
@@ -33,7 +34,7 @@ import { worldIndex } from '../state/worldIndex';
 import { townReachesDoor } from '../state/reach';
 import { placeState } from '../state/evenings';
 import { rankAtLeast } from '../state/village';
-import { familyIndex, methodOf } from '../state/zones';
+import { familyIndex, jobsOf, methodOf } from '../state/zones';
 import { isStandard } from '../state/hamlet';
 import { carrierCovers, passClosed } from '../systems/carrier/api';
 import { dayIndex, hourOf, isBuildTime } from '../systems/economy/time';
@@ -128,7 +129,14 @@ export type HealthKind =
    * R2E: a garden lot (`Lot.kind` 'garden') that something grew on or tried to: a building id on it,
    * a building or site on its tiles, or a building whose `lot` is it. Flagged at once, once per lot.
    */
-  | 'garden-grown';
+  | 'garden-grown'
+  /**
+   * P3A: the hands spiral the owner met (too few hands, then too little food): food under three days
+   * in hand and food jobs open at two midday looks running, while hands work past the first at
+   * workplaces that do not feed the town (the job ranks failed), or three sites wait and the Homes
+   * bar names no lever (nothing on screen says what would bring hands).
+   */
+  | 'hands-spiral';
 
 export interface HealthIssue {
   kind: HealthKind;
@@ -145,6 +153,11 @@ export const IDLE_TICKS = 2 * TICKS_PER_HOUR;
 export const STUCK_TICKS = 6 * TICKS_PER_HOUR;
 /** No builder place beside a waiting site, an unachievable wish: a day before it counts. */
 export const DAY_TICKS = TICKS_PER_DAY;
+/** P3A: the hour the hands-spiral check looks (folk at work), and the days running it must hold. */
+export const SPIRAL_HOUR = 12;
+export const SPIRAL_DAYS = 2;
+/** P3A: sites waiting at once that count as piling up. */
+export const SPIRAL_SITES = 3;
 /** R2X: carrier visits a site's Materials may miss (a full cart) before site-unsupplied flags it. */
 export const CARRIER_VISITS_WAITED = 2;
 /** A season (6 days). */
@@ -195,6 +208,59 @@ export function quietSeasons(good: string, seen: ReadonlySet<string> = new Set()
     producers.length === 0 ? ALL_YEAR : new Set([0, 1, 2, 3].filter((q) => producers.every((p) => p.has(q))));
   if (seen.size === 0) quietCache.set(good, out);
   return out;
+}
+
+/** P3A: true when the building's method grows or makes Food. */
+function feedsTown(b: Building): boolean {
+  const m = methodOf(b);
+  if (!m) return false;
+  if (m.kind === 'farm') return true;
+  return m.outputs.some(([g]) => content.goodById.get(g)?.family === 'food');
+}
+
+/**
+ * P3A: the hands spiral at this moment, in words, or null: food under three days in hand (stock and
+ * pantries, the jobs pass's own test) and food jobs open, while hands work past the first at a
+ * workplace that does not feed the town, or SPIRAL_SITES sites wait with the Homes bar silent.
+ */
+export function handsSpiral(state: WorldState): string | null {
+  const pop = state.residents.length;
+  if (pop === 0) return null;
+  const stock = townStock(state);
+  let food = 0;
+  content.goods.forEach((g, i) => {
+    if (g.family !== 'food') return;
+    food += stock[i] ?? 0;
+    for (const h of state.households) food += h.pantry[i] ?? 0;
+  });
+  if (food >= 3 * pop) return null;
+  let foodOpen = 0;
+  let elsewhere = 0;
+  let waiting = 0;
+  for (const b of state.buildings) {
+    const rt = b.rt;
+    if (!rt) continue;
+    if (b.stage === 'construction') {
+      if (rt.status & (BuildingStatus.waitingMaterials | BuildingStatus.waitingBuilders)) waiting++;
+      continue;
+    }
+    if (b.stage !== 'built' || rt.paused || rt.status & BuildingStatus.resting) continue;
+    const def = content.buildingById.get(b.def);
+    if (feedsTown(b)) {
+      foodOpen += Math.max(0, (b.trade ? jobsOf(b) : (def?.jobs?.count ?? 0)) - rt.workers.length);
+      continue;
+    }
+    const role = def?.jobs?.role ?? 'worker';
+    if (role !== 'worker' || def?.category === 'service') continue;
+    elsewhere += Math.max(0, rt.workers.length - 1);
+  }
+  if (foodOpen === 0) return null;
+  const days = Math.floor((food * 10) / pop) / 10;
+  if (elsewhere > 0)
+    return `${foodOpen} food jobs open with ${days} days of food in hand, while ${elsewhere} hands work past the first at other workplaces`;
+  if (waiting >= SPIRAL_SITES && (state.demand.reasons[0] ?? []).length === 0)
+    return `${foodOpen} food jobs open with ${days} days of food in hand and ${waiting} sites waiting, and the Homes bar names no lever`;
+  return null;
 }
 
 /**
@@ -248,6 +314,9 @@ export class HealthWatch {
   private unsoldDay = -1;
   /** R2E: tiers (and `lot:<id>` rows) already reported, so each is said once. */
   private readonly reported = new Set<string>();
+  /** P3A: the day of the last hands-spiral look, and how many looks running it held. */
+  private spiralDay = -1;
+  private spiralRun = 0;
 
   check(state: WorldState): HealthIssue[] {
     if (!isStandard(state)) return [];
@@ -284,6 +353,7 @@ export class HealthWatch {
     for (const id of [...this.progress.keys()]) if (!seen.has(id)) this.progress.delete(id);
     this.checkCutOff(state, out);
     this.checkGrowthWaits(state, out);
+    this.checkHandsSpiral(state, out);
 
     // Builders idle beside work they could do: a reachable site with work allowed and room in its
     // crew that has not moved for a while, though builders stood free at every look.
@@ -517,6 +587,16 @@ export class HealthWatch {
       });
     }
     for (const k of [...this.ruleSince.keys()]) if (!live.has(k)) this.ruleSince.delete(k);
+  }
+
+  /** hands-spiral: handsSpiral at the day's first look from SPIRAL_HOUR, SPIRAL_DAYS days running. */
+  private checkHandsSpiral(state: WorldState, out: HealthIssue[]): void {
+    const day = Math.floor(state.tick / TICKS_PER_DAY);
+    if (hourOf(state.tick) < SPIRAL_HOUR || day === this.spiralDay) return;
+    this.spiralDay = day;
+    const why = handsSpiral(state);
+    this.spiralRun = why ? this.spiralRun + 1 : 0;
+    if (why && this.spiralRun >= SPIRAL_DAYS) out.push({ kind: 'hands-spiral', id: 0, text: why });
   }
 
   /** growth-waits-unseen: homes held back by quiet evenings a whole day, with no reason shown and no gap open (looked at hourly). */

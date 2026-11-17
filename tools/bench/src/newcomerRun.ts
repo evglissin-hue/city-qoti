@@ -49,6 +49,8 @@ export interface NewcomerRow {
   foodShortOpenDays: number;
   /** The first day a business stood at level 2 (0: none). */
   firstLevel2: number;
+  /** The health watch's issues of the run, by kind and text. */
+  health: string[];
   days: NewcomerDay[];
 }
 
@@ -68,7 +70,7 @@ export function newcomerRow(seed: string, days: number, newcomer = true): Newcom
   const clock = new SiteClock();
   let hungry: Hunger = { residents: 0, households: 0, noOutlet: 0, broke: 0 };
   const out: NewcomerDay[] = [];
-  autoplay(seed, days, {
+  const run = autoplay(seed, days, {
     village: true,
     threat: 'standard',
     newcomer,
@@ -109,6 +111,7 @@ export function newcomerRow(seed: string, days: number, newcomer = true): Newcom
     hungryUnpaidDays: out.filter((l) => l.hungry.households - l.hungry.broke > 0).length,
     foodShortOpenDays: out.filter((l) => l.hands.foodOpen > 0 && l.foodDays < 3).length,
     firstLevel2: out.find((l) => l.level2 + l.level3 > 0)?.day ?? 0,
+    health: run.health.map((i) => `${i.kind}: ${i.text}`),
     days: out,
   };
 }
@@ -174,6 +177,7 @@ if (process.argv[1]?.endsWith('newcomerRun.ts')) {
         for (const l of r.days) console.log(formatDay(l));
       }
       console.log(`${seed} ${r.profile}: ${((Date.now() - t0) / 1000).toFixed(0)} s`);
+      for (const h of r.health) console.log(`  ${h}`);
     }
   }
   console.log(`\n${NEWCOMER_HEAD}`);
