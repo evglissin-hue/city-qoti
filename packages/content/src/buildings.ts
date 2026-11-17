@@ -73,7 +73,7 @@ export const fishery: BuildingDef = {
   size: [2, 2],
   entrance: [1, 1],
   placement: [{ kind: 'waterEdge' }],
-  cost: { coins: 20, goods: [['timber', 9]] },
+  cost: { coins: 15, goods: [['timber', 9]] },
   upkeep: 1,
   jobs: { count: 3, role: 'worker' },
   methods: [
@@ -104,7 +104,7 @@ export const forestersLodge: BuildingDef = {
   entrance: [1, 1],
   placement: [{ kind: 'woods', trees: 12, within: 8 }],
   cost: {
-    coins: 20,
+    coins: 15,
     goods: [
       ['timber', 8],
       ['stone', 3],
@@ -183,7 +183,7 @@ export const quarry: BuildingDef = {
   size: [3, 3],
   entrance: [1, 2],
   placement: [{ kind: 'deposit', deposit: 'stone', minTiles: 4 }],
-  cost: { coins: 30, goods: [['timber', 8]] },
+  cost: { coins: 25, goods: [['timber', 8]] },
   upkeep: 2,
   jobs: { count: 3, role: 'worker' },
   methods: [
@@ -226,7 +226,7 @@ export const storehouse: BuildingDef = {
   entrance: [1, 2],
   placement: [{ kind: 'road' }],
   cost: {
-    coins: 40,
+    coins: 30,
     goods: [
       ['timber', 20],
       ['stone', 6],
@@ -258,7 +258,7 @@ export const granary: BuildingDef = {
   entrance: [1, 2],
   placement: [{ kind: 'road' }],
   cost: {
-    coins: 40,
+    coins: 30,
     goods: [
       ['timber', 20],
       ['stone', 6],

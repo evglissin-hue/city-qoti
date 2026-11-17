@@ -185,6 +185,12 @@ export class Planner {
    * whatever the hands, up to NEWCOMER_SITES sites at once.
    */
   newcomer = false;
+  /**
+   * P3A: coins the land advisor is saving for a lane a lit bar needs (a broke Hamlet whose Farmland
+   * bar asked for land for days, while every coin over the reserve went on a well or a stall).
+   * Wants that can wait leave it in the treasury too.
+   */
+  laneReserve = 0;
   private readonly noSpot = new Map<string, number>();
 
   constructor(readonly h: Hamlet) {}
@@ -258,6 +264,18 @@ export class Planner {
       this.actions.push(`${calendar(this.w.tick).day}:${label} (lane off)`);
       return false;
     }
+    // P3A: while the Ledger saves for a lane a lit bar needs, the Hearth's spending waits for it (the
+    // pair agree the lane comes first; oak's broke Hamlet spent every coin on flower beds and festival
+    // stalls while its Farmland bar asked for land for five days).
+    if (
+      this.laneReserve > 0 &&
+      lane === 'hearth' &&
+      this.coins() < this.laneReserve + MONEY_RESERVE &&
+      cmds.some((c) => c.t === 'decor.place' || c.t === 'build.place' || c.t === 'festival.plan')
+    ) {
+      this.actions.push(`${calendar(this.w.tick).day}:${label} (waits: saving for a lane)`);
+      return false;
+    }
     if (
       cmds.some(
         (c) =>
@@ -316,7 +334,8 @@ export class Planner {
     if (!this.staffs(want.def, want.pressing)) return false;
     // C5A: an urgent want that keeps the town going may spend the reserve, which is there for it (a
     // Hamlet down to 37 coins could never replace its last woodcutter, and with no logs, nothing else).
-    const reserve = want.essential && want.priority === URGENT ? 0 : MONEY_RESERVE;
+    const reserve =
+      want.essential && want.priority === URGENT ? 0 : MONEY_RESERVE + (want.pressing ? 0 : this.laneReserve);
     if (this.coins() < want.cost.coins + reserve) return false;
     // C5A: late in a season the Charter's surplus wants, nothing that can wait may tip it into deficit.
     // C5X: counting the upkeep still to pay this season and a path, and only food or materials

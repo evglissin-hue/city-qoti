@@ -77,6 +77,8 @@ const STONE_KEEP = 30;
 /** A street's length in tiles: 22 when the treasury allows, never under 8 (a short lane still answers a bar). */
 const STREET_TILES = 30;
 const SHORT_STREET = 8;
+/** P3A: the shortest lane a lit bar is answered with when coins are short (a lot or two of frontage). */
+const BAR_STUB = 4;
 /** The Hamlet's build queue for specialized buildings (I1's three). */
 const QUEUE = 3;
 /** Food in store a resident before a granary goes up. */
@@ -150,15 +152,16 @@ class Land implements Advisor {
   // --- Streets and zones -----------------------------------------------------------------------
 
   /** Lays a street off the lanes and zones it (the first becomes the high street). */
-  private lay(label: string, zones?: readonly string[]): boolean {
+  private lay(label: string, zones?: readonly string[], forBar = false): boolean {
     const p = this.p;
     const village = rankAtLeast(p.w, 'village');
     // R1F: as long as the treasury allows, keeping the planner's reserve (a Hamlet down to fifty
     // coins still lays a short lane for the homes its bar asks for).
     // R1X: a Village may lay its lanes on the County Bank's credit, as its services go up: growth
     // waited for coins while the Homes bar asked for land for days.
+    // P3A: a lane a lit bar asks for may spend the reserve, which is there for such things.
     const credit = overdraftLimit(p.w) / PENNIES_PER_COIN;
-    const means = p.coins() + credit - MONEY_RESERVE;
+    const means = p.coins() + credit - (forBar ? 0 : MONEY_RESERVE);
     // R2E: the village core (the Village's street, and later streets that carry shops or townhouses)
     // is cobbled when Cobbles is open and the coins and stone allow; every other street is a lane.
     const core = (village && !zones) || !!zones?.some((z) => z === 'shops' || z === 'homes-medium');
@@ -169,7 +172,8 @@ class Land implements Advisor {
         : 0;
     const asStreet = cobbled >= SHORT_STREET;
     const length = asStreet ? cobbled : Math.min(STREET_TILES, Math.floor(means / LANE_COINS));
-    if (length < SHORT_STREET) return false;
+    // P3A: a lit bar takes a stub of a lane (a lot or two of frontage) when that is all there is.
+    if (length < (forBar ? BAR_STUB : SHORT_STREET)) return false;
     let street = planHighStreet(p.w, length);
     if (!street) {
       p.actions.push(`no room for ${label}`);
@@ -287,7 +291,11 @@ class Land implements Advisor {
       }
       left.push(zone);
     });
-    if (left.length > 0 && this.streets < MAX_STREETS) this.lay('another street', left);
+    // P3A: a lane the treasury cannot pay for yet is saved for (the planner's laneReserve), so a
+    // broke Hamlet's lit bar is answered in a day or two instead of never.
+    if (left.length > 0 && this.streets < MAX_STREETS) {
+      p.laneReserve = this.lay('another street', left, true) ? 0 : BAR_STUB * LANE_COINS;
+    } else p.laneReserve = 0;
   }
 
   /** A storehouse toward lots no porter reaches, raised to the front (one site at a time). */
