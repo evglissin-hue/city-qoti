@@ -9,7 +9,7 @@
 // The stage names the sheets: docs/build/screenshots/p3c-<stage>-sheet-<fixture>-<season>.png. The
 // frames themselves go to QOTI_FRAMES (a folder in the system's temp dir by default).
 // Env: QOTI_SEASONS (spring,summer,autumn,winter), QOTI_HOURS (noon,dusk,night,dawn), QOTI_SIZE (a
-// frame, 720x450), QOTI_QUALITY (medium), QOTI_WAIT (least ms per frame, 5000), QOTI_OUT (the sheets'
+// frame, 720x450), QOTI_QUALITY (medium), QOTI_WAIT (least ms per frame, 4000), QOTI_OUT (the sheets'
 // folder), QOTI_FRAMES. Each frame waits until the scene has finished streaming (as v3-shots.mjs).
 import { mkdirSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -71,28 +71,41 @@ const browser = await chromium.launch({
 });
 
 for (const fixture of FIXTURES) {
+  // One page a fixture: the season and the weather are the renderer's debug look override (the
+  // ?season, ?day and ?weather pins), switched in place, which loads a valley once, not 22 times.
+  const page = await browser.newPage({ viewport: { width: vw, height: vh } });
+  page.on('pageerror', (e) => console.log('pageerror:', e.message));
+  await page.route('**/api/**', (r) => r.abort());
+  await page.goto(
+    `${base}/?debug&fixture=${fixture}&clean&fixedres&quality=${quality}&season=spring&day=3&weather=clear`,
+  );
+  await page.waitForFunction(() => window.__qoti?.status() === 'live', null, { timeout: 240000 });
+  for (const name of ['Done', 'Close', 'Later']) {
+    const b = page.getByRole('button', { name, exact: true });
+    if (await b.count())
+      await b
+        .first()
+        .click()
+        .catch(() => {});
+  }
+  await page.addStyleTag({ content: '.game-ui { display: none !important; }' });
+  const info = await page.evaluate(() => window.__qoti.grownInfo());
   for (const season of seasons) {
     const spec = SEASONS[season];
     if (!spec) continue;
     const cells = [];
     for (const weather of spec.weathers) {
-      const page = await browser.newPage({ viewport: { width: vw, height: vh } });
-      page.on('pageerror', (e) => console.log('pageerror:', e.message));
-      await page.route('**/api/**', (r) => r.abort());
-      await page.goto(
-        `${base}/?debug&fixture=${fixture}&clean&fixedres&quality=${quality}&season=${season}&day=${spec.day}&weather=${weather}`,
+      await page.evaluate(
+        ([si, day, w]) => {
+          const o = window.__qoti.renderer().lookOverride;
+          o.season = si;
+          o.day = day;
+          o.weather = w;
+        },
+        [Object.keys(SEASONS).indexOf(season), spec.day, weather],
       );
-      await page.waitForFunction(() => window.__qoti?.status() === 'live', null, { timeout: 240000 });
-      for (const name of ['Done', 'Close', 'Later']) {
-        const b = page.getByRole('button', { name, exact: true });
-        if (await b.count())
-          await b
-            .first()
-            .click()
-            .catch(() => {});
-      }
-      await page.addStyleTag({ content: '.game-ui { display: none !important; }' });
-      const info = await page.evaluate(() => window.__qoti.grownInfo());
+      // The weather eases in over a few seconds.
+      await page.waitForTimeout(6000);
       for (const cam of CAMERAS) {
         // The nearest camera looks at the high street's door when there is one, else the middle.
         const at = cam.name === 'nearest' && info?.door ? [info.door.x, info.door.z] : info.center;
@@ -111,14 +124,13 @@ for (const fixture of FIXTURES) {
             },
             [at[0], at[1], cam.dist, HOURS[hour], cam.pitch],
           );
-          await settle(page, Number(process.env.QOTI_WAIT ?? 5000));
+          await settle(page, Number(process.env.QOTI_WAIT ?? 4000));
           const file = join(frames, `${fixture}-${season}-${weather}-${cam.name}-${hour}.png`);
           await page.screenshot({ path: file, timeout: 240000 });
           cells.push({ row: `${weather}, ${cam.name}`, hour, file });
           console.log(file);
         }
       }
-      await page.close();
     }
     // The sheet: a row per weather and camera, a column per hour, each frame at half size.
     const rows = [...new Set(cells.map((c) => c.row))];
@@ -149,5 +161,6 @@ for (const fixture of FIXTURES) {
     await sheet.close();
     console.log('sheet', path);
   }
+  await page.close();
 }
 await browser.close();
