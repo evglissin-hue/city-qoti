@@ -47,7 +47,8 @@ describe('a few hands in a hungry, timber-short town', () => {
     // Nothing in the larder or the stores, and every adult out of work.
     for (const x of state.buildings) {
       if (!x.rt) continue;
-      for (const k of ['store', 'input', 'output'] as const) (x.rt as unknown as Record<string, number[] | undefined>)[k]?.fill?.(0);
+      for (const k of ['store', 'input', 'output'] as const)
+        (x.rt as unknown as Record<string, number[] | undefined>)[k]?.fill?.(0);
       x.rt.workers.length = 0;
     }
     for (const h of state.households) h.pantry.fill(0);

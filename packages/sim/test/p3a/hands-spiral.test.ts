@@ -21,7 +21,8 @@ function hungry() {
   for (const h of s.households) h.pantry.fill(0);
   const farm = place(s, 'farmstead', 60, 30, 0, 'grain-farm');
   // Quiet to begin with: nobody works past the first hand anywhere that does not feed the town.
-  for (const b of s.buildings) if (b.rt && b.id !== farm.id && b.rt.workers.length > 1) b.rt.workers.length = 1;
+  for (const b of s.buildings)
+    if (b.rt && b.id !== farm.id && b.rt.workers.length > 1) b.rt.workers.length = 1;
   return { f, s, farm };
 }
 
