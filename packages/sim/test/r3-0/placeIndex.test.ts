@@ -4,8 +4,6 @@
 // the memoized index is compared with a full rebuild from a save of the same world: what a seat
 // joining at that moment would see. R3 puts the skating spots, lamps and rests into the inputs, so
 // this is the check that no writer of them forgets to bump.
-import { readFileSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { TICKS_PER_HOUR } from '../../src/constants';
 import type { Place, Turn, ValleySettings, WorldState } from '../../src/contracts';
@@ -14,6 +12,7 @@ import { deserialize, serialize } from '../../src/state/serialize';
 import { placeIndex } from '../../src/systems/places';
 import { setPlaceVerify } from '../../src/systems/places/inputs';
 import { applyTurn, createTickCtx } from '../../src/turn';
+import yearScript from '../golden/r1-year.json';
 
 interface GoldenScript {
   seed: string;
@@ -21,8 +20,6 @@ interface GoldenScript {
   lastTurn: number;
   turns: Turn[];
 }
-
-const file = fileURLToPath(new URL('../golden/r1-year.json', import.meta.url));
 
 /** The parts of a place a seat could see differ in; the draw and its parts are derived the same way. */
 function shape(p: Place): unknown {
@@ -53,7 +50,7 @@ describe('the place index over the golden year', () => {
     { timeout: 600_000 },
     () => {
       setPlaceVerify(true);
-      const golden = JSON.parse(readFileSync(file, 'utf8')) as GoldenScript;
+      const golden = yearScript as unknown as GoldenScript;
       const world = createWorld(golden.seed, golden.settings);
       const ctx = createTickCtx(world);
       const byTurn = new Map<number, Turn>(golden.turns.map((t) => [t.t, t]));
@@ -61,7 +58,6 @@ describe('the place index over the golden year', () => {
       let nextCheck = every;
       let compared = 0;
       let reads = 0;
-      const started = Date.now();
       while (world.lastTurn < golden.lastTurn) {
         const t = world.lastTurn + 1;
         applyTurn(world, byTurn.get(t) ?? { t, cmds: [] }, ctx);
@@ -76,9 +72,7 @@ describe('the place index over the golden year', () => {
       compare(world);
       expect(placeIndex(world).places.length).toBeGreaterThan(0);
       expect(compared).toBeGreaterThan(100);
-      console.log(
-        `placeIndex year: ${reads} turns read, ${compared + 1} rebuild comparisons, ${((Date.now() - started) / 1000).toFixed(1)}s`,
-      );
+      expect(reads).toBe(golden.lastTurn);
     },
   );
 });

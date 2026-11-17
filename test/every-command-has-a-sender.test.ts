@@ -90,7 +90,9 @@ describe('every command has a sender', () => {
     for (const [t, owed] of Object.entries(OWED_SENDERS)) {
       expect(types, `${t} is not a command`).toContain(t);
       expect(sent(t), `${t} is sent now: take it off OWED_SENDERS`).toBe(false);
-      expect(['R1C', 'R1D', 'R2D', 'R3D'], `${t} must name the cycle that owes its sender`).toContain(owed.cycle);
+      expect(['R1C', 'R1D', 'R2D', 'R3D'], `${t} must name the cycle that owes its sender`).toContain(
+        owed.cycle,
+      );
       expect(owed.why.length, `${t} needs a reason`).toBeGreaterThan(10);
       expect(t in NO_CLIENT_SENDER, `${t} is both owed and allowlisted`).toBe(false);
     }
@@ -113,7 +115,13 @@ describe('every command has a sender', () => {
       const at = key.lastIndexOf('.');
       const t = key.slice(0, at);
       const field = key.slice(at + 1);
-      const member = block.split(/^ {2}\| /m).find((m) => m.trimStart().startsWith(`{ t: '${t}'`) || new RegExp(`^\\{\\s*t: '${t.replace('.', '\\.')}'`).test(m));
+      const member = block
+        .split(/^ {2}\| /m)
+        .find(
+          (m) =>
+            m.trimStart().startsWith(`{ t: '${t}'`) ||
+            new RegExp(`^\\{\\s*t: '${t.replace('.', '\\.')}'`).test(m),
+        );
       expect(member, `${t} is not a command`).toBeDefined();
       expect(member, `${key}: the field is not in the union member`).toMatch(new RegExp(`\\b${field}\\??:`));
       expect(owed.why.length).toBeGreaterThan(10);

@@ -101,7 +101,7 @@ describe('standard valley', () => {
 });
 
 describe('R1 shapes', () => {
-  it('has the sixteen goods in their fixed order, then the nine masters\' goods', () => {
+  it("has the sixteen goods in their fixed order, then the nine masters' goods", () => {
     expect(content.goods.map((g) => g.id)).toEqual([
       'grain',
       'vegetables',

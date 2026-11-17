@@ -154,7 +154,8 @@ const PENDING = new Set(['lamplighters-round', 'made-together', 'master-of-the-h
 describe('every achievement', () => {
   it('has a setup, or is pending on its R3 stand-in', () => {
     expect([...SETUPS.keys(), ...PENDING].sort()).toEqual(content.achievements.map((a) => a.id).sort());
-    for (const id of PENDING) expect(SETUPS.has(id), `${id} has a setup now: take it off PENDING`).toBe(false);
+    for (const id of PENDING)
+      expect(SETUPS.has(id), `${id} has a setup now: take it off PENDING`).toBe(false);
   });
 
   it('does not unlock a pending feat on the stand-ins', () => {
