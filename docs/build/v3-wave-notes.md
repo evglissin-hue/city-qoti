@@ -57,7 +57,8 @@ Carve-outs inside another track's file (each one function body, no signature cha
 
 | Kit | Anchor | Why the derived one is wrong | Wanted | Asked by | Landed by |
 |---|---|---|---|---|---|
-| (none yet) | | | | | |
+| (none: V3A fits every piece to the geometry the buildings layer draws, `fitPlacement` in `art/dressing.ts`, so no derived anchor needed overriding) | | | | V3A | |
+| (none asked by V3B's PR; the corner shop gives `anchors.sills` on both faces, V3B) | | | | | |
 
 ## Handshakes
 
@@ -109,14 +110,19 @@ Nothing a rule reads is private to one seat: every stat is `scope: 'shared'`, an
 
 | Stand-in | Where | Replaced by | When |
 |---|---|---|---|
-| Rows joined from the occupant layer; no gardens, no corners, storeys 1 | `render/lots.ts` | R2's lot fields through the same `lotsFor` | R2X lands on `main` (no V3 edit) |
-| Firewood from household size and season; cloth from tier | `layers/dressing.ts` (`dressingSubject`) | the sim's own counts, if R2X adds them | R2X's list |
+| Rows joined from the occupant layer; no gardens, no corners, storeys 1 | `render/lots.ts` | R2's lot fields through the same `lotsFor` | R2X lands on `main` (no V3 edit). V3B draws gardens (`back-garden`), corners (`params.corner`) and storeys (`params.storeys`) from them already, tested on synthetic lots and shown by `__qoti.streetsShowcase()`; on the fallback `rowParams` equals `rowNeighbors` exactly, so the grown village's rows are unchanged |
+| Firewood from household size and season; cloth from tier (V3A: as specified; R1X's grown village is all settlers, so it shows no washing) | `layers/dressing.ts` (`dressingSubject`) | the sim's own counts, if R2X adds them | R2X's list |
 | No place kinds | `DressingSubject.place` unset | R2's places in the Mirror | R2X |
-| The endpaper's inks unset | `EndpaperInks` | the flows overlay's goods routes and R2's `map.footfallEve` | whichever of V3X and R2X lands second |
-| No street names on the map | `endpaperInput` labels: the valley's name only | R2's street names (`state.streets`) | R2X |
-| A plain parchment endpaper, `cover` 0 | `worker/endpaper.worker.ts`, `ENDPAPER_ON` | the inked map, cover from 200 to 240 tiles | V3D |
-| The building's whole lot as the yard | `layers/dressing.ts` | V3B's free yard (`lots.ts`) | V3B, wired in V3X if V3A lands first |
+| The endpaper's inks unset | `EndpaperInks` (V3D draws `goods` in ochre and `footfall` in sage when set, tested with synthetic layers) | the flows overlay's goods routes and R2's `map.footfallEve`, passed as `endpaperInput`'s `inks` from the layer | whichever of V3X and R2X lands second |
+| No street names on the map | `endpaperInput` labels: the valley's name only (V3D draws `place` and `street` labels along their angle with a halo, never upside down) | R2's street names (`state.streets`) | R2X |
+| A plain parchment endpaper, `cover` 0 | `worker/endpaper.worker.ts`, `ENDPAPER_ON` | the inked map, cover from 200 to 240 tiles | done in V3D |
+| No rows, gardens or fed river course on the map: plain hipped footprints, the course found in `water` | `endpaperFeeds` (`render/endpaper.ts`) unset | V3B's `endpaperStreets` through `rowsOfRooflines` (rows, storeys) and its gardens; V3C's river course, if it exports one | wired by V3X: `endpaperFeeds` defaults to V3B's rows and gardens and V3C's `riverCourse` (`riverOfMirror`); done |
+| The building's whole lot as the yard, reaching half a tile onto free neighbouring ground (`roomyLot`, `YARD_REACH`): grown kits fill their plots almost to the edge | `layers/dressing.ts` | V3B's free yard (`lots.ts`, `yardOf`) | retired as the base by V3X: `dressingYard` is V3B's `yardOf` grown by `YARD_REACH` onto free ground (the reach kept: grown kits fill their plots); done |
+| Puddles a day after rain from the client's memory of the last rainy day it saw (the Mirror keeps no weather history): a seat that loads on the morning after rain shows none that day | `render/groundPaths.ts` (the rain memory) | yesterday's weather (or a wetness) in the Mirror | R2X's list |
 | R1X's grown village as the before scene | `?debug&fixture=grown` | the village regrown on R2's lots | R2X regrows it |
+| The chimneys' winter haze counts hearths (households with a home), not the smoke layer's chimneys | `layers/sky.ts` (`hearthsOf`) | the smoke's own count, if P2-F's smoke exposes one (V3C read nothing from `layers/effects.ts`) | V3X, after P2-F |
+| Foam at bridges only: the Mirror has no weirs | `layers/water.ts` (`wfoam`, a road tile over water) | weirs, if a later cycle adds them | no cycle yet |
+| The horizon's seed is a hash of `mirror.meta` (the client holds no valley seed) | `layers/horizon.ts` (`horizonSeed`) | the valley's seed, if the Mirror ever carries it (both players already see the same bands) | none needed |
 
 ## Ports
 
@@ -167,3 +173,30 @@ What they say for the wave:
 - **The endpaper's drawing surface**: an `OffscreenCanvas` in a module worker returning an `ImageBitmap`. Where OffscreenCanvas is missing the worker replies with no bitmap and the map stays parchment; a main-thread canvas fallback (Safari, Low only) is V3D's to add if it wants one.
 - **The redraw debounce**: 2 s after the town's last change, and only while the map shows (`cover` above 0): no redraw at rest at `cover` 0. The first time the map shows it draws at once (it has never been drawn).
 - **The dressing layer's `frame()`** returns true when some building's placements change, not on every input change, so an input change that moves nothing on screen drops no still frame.
+
+## V3C's after numbers and V3X's list (the far view)
+
+V3C's table is `docs/build/screenshots/v3-v3c-perf.md` (same method as the before table). Draws moving at 11:00, before and after:
+
+| Scene | Low | Medium | High | Ultra |
+|---|---|---|---|---|
+| far120 | 137 to 99 | 186 to 122 | 266 to 182 | 479 to 246 |
+| far200 | 171 to 97 | 219 to 93 | 234 to 131 | 364 to 190 |
+| far240 | 179 to 97 | 231 to 88 | 239 to 111 | 379 to 258 |
+
+Nearly all of it is the ground and the water joined by block (`ChunkedMeshes` with `group`, V3C): the terrain drew one call per 16-tile chunk (54 of them at far120 on Ultra, 115 at far200), now one per 3 x 3 block; the water one per chunk, now one per 4 x 4. The horizon adds one draw everywhere.
+
+What V3C found the far camera still pays for, in V3X's files (measured per layer on Ultra at far120, `__qoti.renderer()` with one layer root shown at a time; scene pass, then the shadow pass):
+
+- **The shadow pass**: a moving frame that re-renders the sun's shadows draws the casters again over a frustum of up to 140 tiles a side (`shadows.ts`, `MAX_HALF`): trees 17 draws and 1.0 to 1.3 M triangles at full detail, nature 9, decor 7, roads 8, fields 4. Before V3C the 479 on Ultra was frames like these. A far view could cap the frustum (haze covers the far half) or draw trees' far level into it.
+- **Ultra's still frame** draws the static scene twice (the still pass and the AO normal pass, GTAOPass): about 300 draws at far120 after V3C (440 before). Joining more layers by block halves twice.
+- **Nature** (28 to 33 draws, per chunk), **trees** (17 to 31, per chunk and level) and **decor** (7 to 13) are per-chunk instanced draws that could join by block the way the ground now does.
+
+## V3X: what the integration decided
+
+- **Merge order**: V3A, V3B, V3D, then V3C (V3C was still pushing when the others were ready; the master's order), then V3C's second round (`964397f`, a crest past the rim, woods shared with the rim's paint, the river winding off into the haze), whose far-view code ships (the master's call: V3X's own haze work on the same finding was set aside).
+- **The far view's box** (the master's finding on V3C's round two: a gray cliff band along the edge and a pale wedge at the river's notch): the rim, the sim's six-tile ring of mountain above a cliff, is now drawn (not changed) as a slope rising a level a tile from the valley's own edge, with a gorge where the river leaves (`surface.ts`, `rimLevel`); V3C's rim paint reaches down to the slope's foot; the ground painter's cliff test ignores the rim; rock and mountain near the edge take a mossy hillside tint. What still shows from far200 is the valley's rocky upland just inside: sim terrain, so a worldgen follow-up (a valley that slopes out into the hills, for new valleys only).
+- **The river** (the owner's note during V3X: "river also doesn't look smooth"): the shoreline followed a 3 x 3 water share eased between tile centers, so a river stepping across the grid bulged once a tile; it is now a 5 x 5 binomial share, linear between centers, shaping the whole bank, with a test that walks a stepping river.
+- **Undressed buildings**: on the grown village five herbalists, five forester's lodges and the tavern wore nothing (no trade, not a home: no kind). Any other built building is now `'specialized'`, reached only by rules that name its def; six rules dress the three. The tavern's pieces fit in isolation but find no room in the grown village's tight spot.
+- **Kept for later**: the brown lattice of worn lines by the fisheries is in the V3.0 before shots too (not a V3 change); the endpaper map is the same parchment at every hour (a night tint is the owner's call, V3D's note); the inks and street names wait on R2X.
+

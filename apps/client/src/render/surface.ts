@@ -25,7 +25,7 @@ const PIN_APRON = 0.2;
 /** Beyond the apron, how far the ground takes to ease back to the hillside, in tiles. */
 const PIN_REACH = 0.6;
 /** Shoreline shaping: half-width of the band around the mask's middle line, and its slope. */
-const SHORE_BAND = 0.14;
+const SHORE_BAND = 0.3;
 const SHORE_SLOPE = 1.6;
 /**
  * Grid cells per tile side where the ground is not flat. The grid's vertices are the tile centers,
@@ -42,8 +42,59 @@ export interface SurfaceReader {
   padLevel?(x: number, z: number): number;
 }
 
+/** V3X: the shoreline mask's weights, one axis (their product sums to 256). */
+const WET_W = [1, 4, 6, 4, 1] as const;
+
 function clampTile(v: number): number {
   return v < 0 ? 0 : v >= MAP_SIZE ? MAP_SIZE - 1 : v;
+}
+
+/**
+ * V3X: the width of the sim's mountain rim (worldgen's `BORDER`: the outer tiles of the map stand at
+ * levels 13 to 15, above a cliff from the valley; `surface.test.ts` checks it against a generated
+ * valley). Nothing is ever built there.
+ */
+export const RIM_TILES = 6;
+
+/**
+ * V3X: the level the ground is drawn at on the rim. Drawn as the sim has it, the rim is a straight
+ * wall round the valley and a box from far away, with a notch where the river leaves. Instead it is
+ * drawn rising one level a tile from the valley's own edge (the tile straight inward from it), never
+ * above the sim's level: one-level steps blend into slopes (as everywhere on the surface), so the
+ * valley runs up into the horizon's hills with a foot that follows its own ground, and the river
+ * leaves through a gorge. Drawing only: the sim's heights, and everything it does with them, are
+ * untouched.
+ */
+export function rimLevel(r: SurfaceReader, tx: number, tz: number): number {
+  const h = r.height(tx, tz);
+  const edge = Math.min(tx, tz, MAP_SIZE - 1 - tx, MAP_SIZE - 1 - tz);
+  if (edge >= RIM_TILES || r.water(tx, tz)) return h;
+  const lo = RIM_TILES;
+  const hi = MAP_SIZE - 1 - RIM_TILES;
+  const ix = tx < lo ? lo : tx > hi ? hi : tx;
+  const iz = tz < lo ? lo : tz > hi ? hi : tz;
+  // A river tile inward stands for its bank: the bed is drawn below level 0 anyway.
+  const inner = r.water(ix, iz) ? 0 : r.height(ix, iz);
+  let level = Math.min(h, inner + (RIM_TILES - edge));
+  // Where the river crosses the rim its banks rise a level a tile too, so it leaves through a
+  // gorge with sloping sides rather than a slot. The river crosses the rim across it, so look along
+  // the rim for the nearest water.
+  const alongX = tz < lo || tz > hi;
+  const alongZ = tx < lo || tx > hi;
+  for (let k = 1; k <= RIM_GORGE && k < level; k++) {
+    const wet =
+      (alongX && (wetAt(r, tx - k, tz) || wetAt(r, tx + k, tz))) ||
+      (alongZ && (wetAt(r, tx, tz - k) || wetAt(r, tx, tz + k)));
+    if (wet) level = k;
+  }
+  return level;
+}
+
+/** How far along the rim a river's banks slope up from it, in tiles. */
+const RIM_GORGE = 10;
+
+function wetAt(r: SurfaceReader, x: number, z: number): boolean {
+  return x >= 0 && z >= 0 && x < MAP_SIZE && z < MAP_SIZE && r.water(x, z) !== 0;
 }
 
 function ease(u: number): number {
@@ -64,7 +115,7 @@ export class SurfaceTiles {
   private pins = new Uint8Array(0);
   /** 1 when a pinned tile lies in the 3 x 3 block around the tile (cached regions only). */
   private nearPins = new Uint8Array(0);
-  /** Share of water tiles in the 3 x 3 block around each tile (the shoreline's smooth mask). */
+  /** Share of water round each tile (5 x 5, binomial weights: the shoreline's smooth mask). */
   private wets = new Float32Array(0);
 
   constructor(readonly reader: SurfaceReader) {}
@@ -120,7 +171,8 @@ export class SurfaceTiles {
 
   private readLevel(tx: number, tz: number): number {
     const r = this.reader;
-    return r.padLevel && r.occupant(tx, tz) && !r.water(tx, tz) ? r.padLevel(tx, tz) : r.height(tx, tz);
+    if (r.padLevel && r.occupant(tx, tz) && !r.water(tx, tz)) return r.padLevel(tx, tz);
+    return rimLevel(r, tx, tz);
   }
 
   private readY(tx: number, tz: number): number {
@@ -130,13 +182,16 @@ export class SurfaceTiles {
   }
 
   private readWet(x: number, z: number): number {
+    // V3X: a 5 x 5 binomial weighting (1 4 6 4 1 each way) rather than a 3 x 3 box, so a river that
+    // steps across the tile grid has a mask that runs smoothly along it, not one that jogs per tile.
     let n = 0;
-    for (let dz = -1; dz <= 1; dz++)
-      for (let dx = -1; dx <= 1; dx++) if (this.reader.water(clampTile(x + dx), clampTile(z + dz))) n++;
-    return n / 9;
+    for (let dz = -2; dz <= 2; dz++)
+      for (let dx = -2; dx <= 2; dx++)
+        if (this.reader.water(clampTile(x + dx), clampTile(z + dz))) n += WET_W[dx + 2]! * WET_W[dz + 2]!;
+    return n / 256;
   }
 
-  /** Share of water in the 3 x 3 block around a tile. */
+  /** Share of water around a tile (the 5 x 5 binomial weighting of `readWet`). */
   wet(x: number, z: number): number {
     const i = this.slot(x, z);
     return i >= 0 ? this.wets[i]! : this.readWet(x, z);
@@ -249,8 +304,10 @@ export function tileSurfaceY(t: SurfaceTiles, tx: number, tz: number, px: number
   let wetCell = false;
   for (let k = 0; k < 4; k++) if (IN[k] && Y[k]! < 0) wetCell = true;
   if (wetCell) {
-    const eu = ease(u);
-    const ev = ease(v);
+    // V3X: plain bilinear between the tile centers. The eased weights it had held the mask flat at
+    // each tile center, so the shoreline bulged once a tile wherever the river crossed the grid.
+    const eu = u;
+    const ev = v;
     const w0 = t.wet(i0, j0);
     const w1 = t.wet(i0 + 1, j0);
     const w2 = t.wet(i0, j0 + 1);

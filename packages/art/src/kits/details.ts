@@ -7,7 +7,7 @@ import { mixHex, vary, type ShapeBuilder, type V3 } from '../geometry';
 import { palette } from '../palette';
 import { beam, cylX, cylZ, panel } from '../shapes';
 import type { GardenEdge } from './district';
-import { faceBox, facePoint, faceQuad, outwardOf, type Face } from './parts';
+import { faceBox, facePoint, faceQuad, noteOpening, outwardOf, type Face } from './parts';
 import { picket, wattle } from './props';
 import { roofPart, type RoofMaterial } from './roofs';
 import { FLOWERS } from './style';
@@ -377,6 +377,7 @@ export function bayWindow(
   const half = w / 2;
   const front = half * 0.62;
   const out0 = outwardOf(f);
+  noteOpening(s, f, u - half - 0.04, y0 - 0.06, u + half + 0.04, y0 + h + 0.2);
   // V1B: the far level is the three lights as flat glass (lit at night) under the lead roof.
   if (s.low) {
     s.nearOnly(() => bayNear(s, f, u, y0, w, h, depth, frame, roof, rnd, [], o, box));
@@ -518,30 +519,34 @@ export function shopfront(
   rnd: () => number,
   lights: V3[],
   o = 0,
+  door = true,
 ): { fascia: V3; fasciaW: number } {
+  noteOpening(s, f, u0 - 0.04, 0, u1 + 0.04, h + 0.2);
   let r = { fascia: facePoint(f, (u0 + u1) / 2, h + 0.075, o + 0.062), fasciaW: u1 - u0 - 0.1 };
   s.levels(
     () => {
-      r = shopfrontNear(s, f, u0, u1, doorU, h, paint, rnd, lights, o);
+      r = shopfrontNear(s, f, u0, u1, doorU, h, paint, rnd, lights, o, door);
     },
     () => {
       // V1B: the far level: fascia, stall riser, the two display windows (lit) and the door, flat.
       const riser = 0.16;
-      const door = 0.15;
+      const dw = 0.15;
       s.surface(SURFACE.timber);
       faceQuad(s, f, u0 - 0.04, h, u1 + 0.04, h + 0.18, o + 0.07, paint);
       faceQuad(s, f, u0, 0, u1, h, o + 0.02, paint);
       s.glow(1).surface(SURFACE.glass);
-      for (const [a, b] of [
-        [u0 + 0.03, doorU - door - 0.03],
-        [doorU + door + 0.03, u1 - 0.03],
-      ] as const) {
+      for (const [a, b] of (door
+        ? [
+            [u0 + 0.03, doorU - dw - 0.03],
+            [doorU + dw + 0.03, u1 - 0.03],
+          ]
+        : [[u0 + 0.03, u1 - 0.03]]) as [number, number][]) {
         if (b - a < 0.08) continue;
         faceQuad(s, f, a, riser + 0.02, b, h - 0.04, o + 0.035, palette.windowDay);
         lights.push(facePoint(f, (a + b) / 2, (riser + h) / 2, o + 0.08));
       }
       s.glow(0).surface(SURFACE.timber);
-      faceQuad(s, f, doorU - door + 0.03, 0.02, doorU + door - 0.03, h - 0.02, o + 0.035, paint);
+      if (door) faceQuad(s, f, doorU - dw + 0.03, 0.02, doorU + dw - 0.03, h - 0.02, o + 0.035, paint);
       s.surface(SURFACE.plain);
     },
   );
@@ -559,18 +564,21 @@ function shopfrontNear(
   rnd: () => number,
   lights: V3[],
   o: number,
+  hasDoor = true,
 ): { fascia: V3; fasciaW: number } {
   const riser = 0.16;
   const door = 0.15;
   const ins = o + 0.02;
   // Pilasters at the ends and either side of the door.
-  for (const u of [u0, u1, doorU - door, doorU + door])
+  for (const u of hasDoor ? [u0, u1, doorU - door, doorU + door] : [u0, u1])
     faceBox(s, f, u - 0.03, 0, o, u + 0.03, h, o + 0.05, paint);
   // Stall risers and glass.
-  for (const [a, b] of [
-    [u0 + 0.03, doorU - door - 0.03],
-    [doorU + door + 0.03, u1 - 0.03],
-  ] as const) {
+  for (const [a, b] of (hasDoor
+    ? [
+        [u0 + 0.03, doorU - door - 0.03],
+        [doorU + door + 0.03, u1 - 0.03],
+      ]
+    : [[u0 + 0.03, u1 - 0.03]]) as [number, number][]) {
     if (b - a < 0.08) continue;
     faceBox(s, f, a, 0, o, b, riser, o + 0.04, vary(paint, rnd, 0.6));
     faceBox(s, f, a - 0.005, riser, o, b + 0.005, riser + 0.02, o + 0.06, paint);
@@ -597,6 +605,23 @@ function shopfrontNear(
     lights.push(facePoint(f, (a + b) / 2, (riser + h) / 2, o + 0.08));
   }
   // The door: half glazed.
+  if (hasDoor) shopDoor(s, f, doorU, door, h, paint, rnd, o);
+  // Fascia and cornice.
+  faceBox(s, f, u0 - 0.04, h, o, u1 + 0.04, h + 0.15, o + 0.06, paint);
+  faceBox(s, f, u0 - 0.06, h + 0.15, o, u1 + 0.06, h + 0.18, o + 0.09, vary(paint, rnd, 0.8));
+  return { fascia: facePoint(f, (u0 + u1) / 2, h + 0.075, o + 0.062), fasciaW: u1 - u0 - 0.1 };
+}
+
+function shopDoor(
+  s: ShapeBuilder,
+  f: Face,
+  doorU: number,
+  door: number,
+  h: number,
+  paint: number,
+  rnd: () => number,
+  o: number,
+): void {
   faceBox(
     s,
     f,
@@ -624,10 +649,6 @@ function shopfrontNear(
   const knob = facePoint(f, doorU + door - 0.07, h * 0.42, o + 0.035);
   s.blob(knob[0], knob[1], knob[2], 0.012, 0.012, 0.012, palette.mustard, 0);
   faceBox(s, f, doorU - door - 0.02, 0, o, doorU + door + 0.02, 0.03, o + 0.14, palette.stone);
-  // Fascia and cornice.
-  faceBox(s, f, u0 - 0.04, h, o, u1 + 0.04, h + 0.15, o + 0.06, paint);
-  faceBox(s, f, u0 - 0.06, h + 0.15, o, u1 + 0.06, h + 0.18, o + 0.09, vary(paint, rnd, 0.8));
-  return { fascia: facePoint(f, (u0 + u1) / 2, h + 0.075, o + 0.062), fasciaW: u1 - u0 - 0.1 };
 }
 
 /** A washing line between two posts with a few things pegged out. */

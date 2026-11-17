@@ -315,9 +315,105 @@ function cornerPosts(s: ShapeBuilder, w: WallSpec): void {
   ringBox(s, w, 0.03, y0, y0 + 0.05, w.trim);
 }
 
+// --- V3X: braces wait for the openings ---------------------------------------------------------------
+
+/** An opening in a wall face (a window, a door, a shopfront), in the face's (u, y) frame. */
+export interface Opening {
+  f: Face;
+  u0: number;
+  y0: number;
+  u1: number;
+  y1: number;
+}
+
+/** A timber brace on a wall face, from (ua, ya) to (ub, yb). */
+export interface Brace {
+  f: Face;
+  ua: number;
+  ya: number;
+  ub: number;
+  yb: number;
+  hex: number;
+}
+
+interface FrameHold {
+  braces: Brace[];
+  openings: Opening[];
+}
+
+/** Builders whose kit holds its timber braces until its windows and doors are drawn. */
+const HOLDS = new WeakMap<ShapeBuilder, FrameHold>();
+
+/** A test probe: the braces drawn and every opening noted, per `probeFrames`. */
+let probe: { braces: Brace[]; openings: Opening[] } | null = null;
+
+/** V3X: records every brace drawn and every opening noted on a held builder (tests); null stops. */
+export function probeFrames(on: boolean): { braces: Brace[]; openings: Opening[] } | null {
+  probe = on ? { braces: [], openings: [] } : null;
+  return probe;
+}
+
+/** Braces keep this far (tiles) off an opening's edge. */
+const BRACE_CLEAR = 0.03;
+
+/** True when the brace's line passes through the opening (with `pad` clearance). */
+export function braceCrosses(b: Brace, o: Opening, pad = 0): boolean {
+  if (b.f.dir !== o.f.dir || Math.abs(b.f.plane - o.f.plane) > 0.06) return false;
+  const n = 16;
+  for (let i = 0; i <= n; i++) {
+    const t = i / n;
+    const u = b.ua + (b.ub - b.ua) * t;
+    const y = b.ya + (b.yb - b.ya) * t;
+    if (u > o.u0 - pad && u < o.u1 + pad && y > o.y0 - pad && y < o.y1 + pad) return true;
+  }
+  return false;
+}
+
+/**
+ * V3X: a kit with timber walls calls this first: its braces are then drawn by `releaseFrames`,
+ * after the windows and doors, and leave out any brace that would cross one.
+ */
+export function holdFrames(s: ShapeBuilder): void {
+  HOLDS.set(s, { braces: [], openings: [] });
+}
+
+/** V3X: notes an opening on a held builder, so no brace crosses it. */
+export function noteOpening(s: ShapeBuilder, f: Face, u0: number, y0: number, u1: number, y1: number): void {
+  const o = { f, u0, y0, u1, y1 };
+  HOLDS.get(s)?.openings.push(o);
+  probe?.openings.push(o);
+}
+
+/** V3X: draws the held braces that clear every noted opening, then lets go of the hold. */
+export function releaseFrames(s: ShapeBuilder): void {
+  const hold = HOLDS.get(s);
+  if (!hold) return;
+  HOLDS.delete(s);
+  s.nearOnly(() => {
+    s.surface(SURFACE.timber);
+    for (const b of hold.braces) {
+      if (hold.openings.some((o) => braceCrosses(b, o, BRACE_CLEAR))) continue;
+      probe?.braces.push(b);
+      beam(s, facePoint(b.f, b.ua, b.ya, 0.016), facePoint(b.f, b.ub, b.yb, 0.016), 0.016, b.hex);
+    }
+    s.surface(SURFACE.plain);
+  });
+}
+
+/** A floor's height, in tiles: a taller stretch of wall braces floor by floor. */
+const BRACE_FLOOR = 0.72;
+
 /** Studs and diagonal braces on every face, between the floor beams. */
 function timberFrame(s: ShapeBuilder, w: WallSpec): void {
   const levels = [w.y0, ...(w.beams ?? []), w.y1];
+  // V3X: a wall of several added floors braces floor by floor, not corner to corner.
+  for (let i = levels.length - 2; i >= 0; i--) {
+    const a = levels[i]!;
+    const h = levels[i + 1]! - a;
+    const n = h > 1.0 ? Math.round(h / BRACE_FLOOR) : 1;
+    for (let k = n - 1; k >= 1; k--) levels.splice(i + 1, 0, a + (h * k) / n);
+  }
+  const hold = HOLDS.get(s);
   for (const { f, u0, u1 } of wallFaces(w)) {
     const len = u1 - u0;
     const bays = Math.max(1, Math.round(len / 0.5));
@@ -332,8 +428,14 @@ function timberFrame(s: ShapeBuilder, w: WallSpec): void {
       const bw = len / bays;
       if (bw > 0.25) {
         const k = 0.016;
-        beam(s, facePoint(f, u0 + 0.04, ya, k), facePoint(f, u0 + bw * 0.85, yb, k), 0.016, w.trim);
-        beam(s, facePoint(f, u1 - 0.04, ya, k), facePoint(f, u1 - bw * 0.85, yb, k), 0.016, w.trim);
+        const braces: Brace[] = [
+          { f, ua: u0 + 0.04, ya, ub: u0 + bw * 0.85, yb, hex: w.trim },
+          { f, ua: u1 - 0.04, ya, ub: u1 - bw * 0.85, yb, hex: w.trim },
+        ];
+        for (const b of braces) {
+          if (hold) hold.braces.push(b);
+          else beam(s, facePoint(f, b.ua, b.ya, k), facePoint(f, b.ub, b.yb, k), 0.016, w.trim);
+        }
       }
     }
   }
@@ -471,6 +573,8 @@ export interface WindowStyle {
   sill?: number;
   /** V1B: panes per row and rows (muntins between them), 2 by 2 when absent. */
   panes?: [number, number];
+  /** V3X: at the far level draw only the lit glass (no shutters, frame or box): a window too small to read. */
+  lean?: boolean;
 }
 
 /** V1B: a window's lintel and sill color for a wall material (stone dressings on brick and stone). */
@@ -498,9 +602,23 @@ export function windowPart(
   o = 0,
 ): void {
   const fw = 0.035;
+  noteOpening(
+    s,
+    f,
+    u - w / 2 - fw - (style.shutter !== null ? w * 0.42 : 0),
+    y - h / 2 - fw - (style.box ? 0.17 : 0.05),
+    u + w / 2 + fw + (style.shutter !== null ? w * 0.42 : 0),
+    y + h / 2 + fw + (style.arch ? w / 2 + fw : 0.07),
+  );
   s.levels(
     () => windowNear(s, f, u, y, w, h, style, rnd, o),
     () => {
+      if (style.lean) {
+        s.glow(1).surface(SURFACE.glass);
+        faceQuad(s, f, u - w / 2, y - h / 2, u + w / 2, y + h / 2, o + 0.026, palette.windowDay);
+        s.glow(0).surface(SURFACE.plain);
+        return;
+      }
       // Layered quads, far enough apart not to fight in depth: the shutters as one board behind the
       // glass (or the frame, for a window without them), the glass; the flower box in front.
       if (style.shutter !== null) {
@@ -667,6 +785,7 @@ export function doorPart(
   extras: DoorExtras = {},
 ): void {
   const r = w / 2;
+  noteOpening(s, f, u - r - 0.12, 0, u + r + 0.12, h + 0.32);
   s.levels(
     () => {
       doorNear(s, f, u, w, h, hex, frame, kind, o);

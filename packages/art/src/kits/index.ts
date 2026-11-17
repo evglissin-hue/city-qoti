@@ -9,6 +9,7 @@ import * as Df from './defenses';
 import * as Fe from './festival';
 import * as Fd from './fineDecor';
 import * as Gd from './garden';
+import * as Gy from './gardens';
 import * as Gn from './greens';
 import * as G from './goods';
 import * as Gr from './grown';
@@ -22,12 +23,14 @@ import * as Ve from './vehicles';
 import type { Kit } from './types';
 import * as V from './village';
 import * as W from './workplaces';
+import * as Y from './yard';
 
 // prettier-ignore
 export const kits: readonly Kit[] = [
   Tr.apiaryKit,
   D.appleTree,
   Gn.arborSeat,
+  Gy.backGarden,
   W.bakeryKit,
   D.barrels,
   Tr.bathHouseKit,
@@ -35,6 +38,7 @@ export const kits: readonly Kit[] = [
   D.bench,
   T.birch,
   Gd.birdbath,
+  D.bollard,
   Fe.bonfire,
   V.brickKilnKit,
   Sp.brickworksKit,
@@ -73,6 +77,13 @@ export const kits: readonly Kit[] = [
   Fd.fountain,
   Df.gateKitDef,
   Df.gateBanner,
+  G.goodsAppleCrate,
+  G.goodsCandleRack,
+  G.goodsChurns,
+  G.goodsDisplay,
+  G.goodsFishRack,
+  G.goodsFleece,
+  G.goodsSacks,
   Sp.granaryKit,
   N.grassTuft,
   G.handcart,
@@ -131,6 +142,7 @@ export const kits: readonly Kit[] = [
   Tr.stoneBridgeKit,
   Df.stoneWallKit,
   W.storehouseKit,
+  D.streetLamp,
   Gn.swing,
   Tr.tailorKit,
   Sv.tavernKit,
@@ -150,6 +162,23 @@ export const kits: readonly Kit[] = [
   B.windmill,
   W.woodcutterKit,
   Bz.workshop,
+  Y.yardAwning,
+  Y.yardBoots,
+  Y.yardCat,
+  Y.yardChairHalf,
+  Y.yardChoppingBlock,
+  Y.yardClothFrame,
+  Y.yardLamp,
+  Y.yardLoafTray,
+  Y.yardNets,
+  Y.yardPram,
+  Y.yardSign,
+  Y.yardSillLamp,
+  Y.yardSkep,
+  Y.yardWashingLine,
+  Y.yardWaterButt,
+  Y.yardWheelbarrow,
+  Y.yardWoodpile,
 ];
 
 export const kitById: ReadonlyMap<string, Kit> = new Map(kits.map((k) => [k.id, k]));

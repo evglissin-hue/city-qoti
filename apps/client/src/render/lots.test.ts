@@ -96,12 +96,13 @@ describe('lotsFor, sim path', () => {
 
   it('reads storeys from the field or from params, clamped to a half', () => {
     const bs = [
+      // A tile apart, so the one-step rule (lotsFor clamps touching neighbors) leaves them be.
       home(1, 'cottage', 10, 10, 0, { storeys: 2 }),
-      home(2, 'cottage', 12, 10, 0, { params: { storeys: 1.5 } }),
-      home(3, 'cottage', 14, 10, 0, { storeys: 9 }),
-      home(4, 'cottage', 16, 10, 0, { storeys: 0 }),
-      home(5, 'cottage', 18, 10, 0, { params: { storeys: 2.26 } }),
-      home(6, 'cottage', 20, 10, 0),
+      home(2, 'cottage', 13, 10, 0, { params: { storeys: 1.5 } }),
+      home(3, 'cottage', 16, 10, 0, { storeys: 9 }),
+      home(4, 'cottage', 19, 10, 0, { storeys: 0 }),
+      home(5, 'cottage', 22, 10, 0, { params: { storeys: 2.26 } }),
+      home(6, 'cottage', 25, 10, 0),
     ];
     const r = lotsFor(
       mirrorOf(bs, [...bs.map((b) => lot(b.id, b, { row: 1 })), lot(7, 0, { row: 1 }, [30, 10, 0])]),

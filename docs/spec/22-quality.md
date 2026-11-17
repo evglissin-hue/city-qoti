@@ -167,12 +167,14 @@ In software the two nights cannot be told apart: the map was cheaper on the fina
 
 | Preset | Budget (draws, triangles) | V2X, worst moving | V3.0 before, worst draws | V3.0 before, worst triangles | V3X after | Owner's laptop, night GPU ms | Kat's laptop, night GPU ms |
 |---|---|---|---|---|---|---|---|
-| Low | 300, 1.5 M | 133, 0.36 M | 179 (far240) | 0.45 M (street) | TBD | TBD | TBD |
-| Medium | 300, 3 M | 214, 0.80 M | 231 (far240) | 0.63 M (far240) | TBD | TBD | TBD |
-| High | 450, 6 M | 225, 4.03 M | 266 (far120) | 2.23 M (far120) | TBD | TBD | TBD |
-| Ultra | 450, 12 M | 374, 5.41 M | **479 (far120), over** | 6.79 M (far120) | TBD | TBD | TBD |
+| Low | 300, 1.5 M | 133, 0.36 M | 179 (far240) | 0.45 M (street) | 124 (street), 0.58 M (far200) | waits on Measure this laptop | waits on Measure this laptop |
+| Medium | 300, 3 M | 214, 0.80 M | 231 (far240) | 0.63 M (far240) | 167 (village), 0.69 M (village); 22:00: 167, 0.82 M (village) | waits on Measure this laptop | waits on Measure this laptop |
+| High | 450, 6 M | 225, 4.03 M | 266 (far120) | 2.23 M (far120) | 194 (village), 2.48 M (village) | waits on Measure this laptop | waits on Measure this laptop |
+| Ultra | 450, 12 M | 374, 5.41 M | **479 (far120), over** | 6.79 M (far120) | 366 (far120), 7.06 M (far120): inside | waits on Measure this laptop | waits on Measure this laptop |
 
 The far scenes are new in V3 (V2X measured no camera past the grown village's wide shot), so they set the worst rows; Ultra's far120 is over its draw budget on `main` before any V3 change, and is V3C's and V3X's to bring under. V3.0 adds no draw and no triangle (its two layers draw nothing).
+
+*As built (V3X, 2026-11-16)*: `docs/build/screenshots/v3-after-perf.md`, the same method in the same container (software renderer: draws and triangles only). Every scene on every preset is inside its draw and triangle budget, moving and at rest; Ultra's far120 is back inside (366 of 450 draws, after V3C joined the ground and water by block). The far views are no longer the dearest: from 240 tiles the map draws alone (1 draw a frame under it; the table's 8 to 14 on Low, Medium and High are means over a path that zooms in and out), and the worst rows are the village's on Low to High. Dressing: one draw, about 2,300 triangles at the street and village cameras (V3A's A/B), against 12 and 0.3 M; the horizon one draw, about 1,600 triangles. The endpaper map draws in its worker in 34 to 117 ms at 2048 (V3D's runs), under 150 ms, and never on the main thread. What the far camera still pays for (the shadow pass, Ultra's second still pass for the AO, nature, trees and decor per chunk) is inside the budgets and left for V4, whose subject is the still frame. The laptops' GPU columns wait on Measure this laptop on the live link (`docs/playtests/V3.md`); the Medium rows must hold 12 ms GPU moving and 4 ms idle on Kat's laptop.
 
 **The lanes test** [R1 records it, R2 enforces it]. P2 becomes a bench assertion. `npm run lanes -w @qoti/bench` plays each bench seed for 70 days three ways: both lanes, the Hearth's advisors off, and the Ledger's off after founding (no new zones, specialized buildings or streets; the carrier on its defaults). From R2 it fails unless each one-lane town ends with at most three quarters of the residents of the town played by both, and no more than half its Craftsfolk households. The Ledger's advisor places no decor and the Hearth's zones nothing, so neither can stand in for the other. On 2026-11-10, before the redesign, the Hearth-off town ended with 106% (willow) and 84% (hazel) of the residents (`19-evenings.md`).
 

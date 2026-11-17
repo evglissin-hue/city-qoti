@@ -237,6 +237,7 @@ export class Renderer implements RenderApi {
     }
     this.still = new StillCache(this.scene, this.camera);
     this.lean = new LeanFrame(this.three, QUALITY_PRESETS.ultra.msaa);
+    this.lean.useEndpaper(this.env.endpaper);
     this.setQuality(quality);
     this.rig = new CameraController(this.camera, mirror, this.three.domElement);
 
@@ -624,6 +625,9 @@ export class Renderer implements RenderApi {
     // with no still frame to draw, this is the only frame that would).
     const shadowsDue =
       this.three.shadowMap.enabled && this.still.rested(now) && this.statics.casters !== this.shadowStatic;
+    // V3X: under the full map nothing the scene does shows: at rest only a new map (a static
+    // change, so the still frame is due), the view or a resize draws a frame.
+    if (this.env.skipScene && resting && !stillDue) dirty = false;
     if (!dirty && !this.needsRender && !stillDue && !shadowsDue) {
       this.gpuTimer.poll();
       this.resolution.frame(now, false, this.basePixelRatio);
@@ -703,6 +707,7 @@ export class Renderer implements RenderApi {
    * does not draw are hidden for it, so three does not even walk them.
    */
   private scenePass(target: WebGLRenderTarget, which: 'all' | 'static' | 'idle'): void {
+    if (this.env.skipScene) return;
     const cam = this.camera;
     if (which === 'static') cam.layers.set(STATIC_LAYER);
     else if (which === 'idle') cam.layers.set(MOVING_LAYER);
@@ -791,6 +796,7 @@ export class Renderer implements RenderApi {
   setQuality(q: Quality): void {
     const preset = QUALITY_PRESETS[q];
     this.quality = q;
+    this.env.endpaper.size = preset.endpaperSize;
     this.resolution.reset();
     const shadows = preset.shadowMap > 0;
     if (shadows !== this.three.shadowMap.enabled) {

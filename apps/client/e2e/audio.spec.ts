@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { DEBUG_QUERY, waitLive } from './helpers';
+import { AUDIO_SEED } from './seeds';
 import type * as Mixbus from '../src/audio/mixbus';
 
 // C5G acceptance: the title screen loads no audio; the first click in the valley starts the
@@ -37,6 +38,9 @@ test('sound starts on the first gesture and follows the sliders', async ({ page 
   );
   expect(audioRequests).toEqual([]);
 
+  // A known valley, whose first piece has recordings to fetch (seeds.ts says why a random one may not).
+  await page.locator('details.title-options').evaluate((d) => ((d as HTMLDetailsElement).open = true));
+  await page.getByTestId('seed').fill(AUDIO_SEED);
   await page.getByTestId('new-solo').click();
   await waitLive(page);
   // Entering the valley is not yet a gesture inside it: still silent, nothing loaded.

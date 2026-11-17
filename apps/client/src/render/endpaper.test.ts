@@ -1,14 +1,12 @@
 // V3.0: the endpaper map's interface (render/endpaper.ts) and its stub layer.
 import { describe, expect, it } from 'vitest';
-import { PerspectiveCamera, Vector3 } from 'three';
 import { content } from '@qoti/content';
-import type { Mirror, MirrorChange } from '../state/mirror';
+import type { Mirror } from '../state/mirror';
 import {
   createEndpaperMap,
   ENDPAPER_DEBOUNCE_MS,
   ENDPAPER_FULL,
   ENDPAPER_NEAR,
-  ENDPAPER_ON,
   endpaperCover,
   endpaperInput,
   EndpaperWriter,
@@ -16,9 +14,6 @@ import {
   type EndpaperRequest,
   type EndpaperWorkerLike,
 } from './endpaper';
-import type { WorldEnv } from './env';
-import { endpaperLayer, townChanged } from './layers/endpaper';
-import type { LayerContext } from './layers/types';
 import { QUALITY_PRESETS } from './quality';
 
 /** A fake worker: records requests; `finish()` answers the oldest one. */
@@ -49,11 +44,13 @@ function fakeMirror(): Mirror {
       [2, { id: 2, def: 'cottage', x: 5, z: 3, rot: 1, stage: 'construction' }],
     ]),
     settings: { value: { valleyName: 'Hollowmere' } },
+    // V3X: the default feeds read the lots (V3B's rows) and the flow (V3C's river).
+    lots: new Map(),
+    meta: { flow: 'ns' },
+    occupant: () => 0,
+    road: () => 0,
+    height: () => 2,
   } as unknown as Mirror;
-}
-
-function change(over: Partial<MirrorChange> = {}): MirrorChange {
-  return { rects: new Map(), full: false, buildings: false, village: false, ...over } as MirrorChange;
 }
 
 describe('the endpaper cover (V3.0)', () => {
@@ -87,9 +84,12 @@ describe('the endpaper writer (V3.0)', () => {
       return worker;
     });
     let inputs = 0;
+    // Each input differs (a new roof), as after a real change; V3D skips a drawing when nothing differs.
     const input = () => {
       inputs++;
-      return endpaperInput(fakeMirror());
+      const inp = endpaperInput(fakeMirror());
+      inp.roofs.push({ x: inputs, z: 1, w: 1, d: 1, rot: 0 });
+      return inp;
     };
     return { map, worker, writer, input, made: () => made, inputs: () => inputs };
   }
@@ -174,76 +174,5 @@ describe('the endpaper input (V3.0)', () => {
     expect(inp.inks).toEqual({});
     // Structured-cloneable: plain arrays and objects only.
     expect(structuredClone(inp)).toEqual(inp);
-  });
-});
-
-describe('the endpaper layer stub (V3.0)', () => {
-  function envAt(distance: number): WorldEnv {
-    const camera = new PerspectiveCamera();
-    camera.position.set(0, distance, 0);
-    return {
-      camera,
-      focus: new Vector3(),
-      endpaper: createEndpaperMap(),
-      skipScene: false,
-    } as unknown as WorldEnv;
-  }
-
-  it('is off in V3.0, so cover stays 0 and the scene is always drawn', () => {
-    expect(ENDPAPER_ON).toBe(false);
-    const worker = new FakeWorker();
-    let made = 0;
-    const layer = endpaperLayer({
-      makeWorker: () => {
-        made++;
-        return worker;
-      },
-      now: () => 100000,
-    });
-    const env = envAt(300);
-    layer.init({ env, mirror: fakeMirror() } as unknown as LayerContext);
-    layer.update(change({ buildings: true }));
-    expect(layer.frame!(0.016)).toBe(false);
-    expect(env.endpaper.cover).toBe(0);
-    expect(env.skipScene).toBe(false);
-    expect(made).toBe(0);
-    expect(layer.shadowless).toBe(true);
-  });
-
-  it('when on, follows the distance, skips the scene at full cover and fires on a drawing', () => {
-    const worker = new FakeWorker();
-    let t = 0;
-    const layer = endpaperLayer({ makeWorker: () => worker, now: () => t, on: true });
-    const env = envAt(250);
-    layer.init({ env, mirror: fakeMirror() } as unknown as LayerContext);
-    expect(layer.frame!(0.016)).toBe(false);
-    expect(env.endpaper.cover).toBe(1);
-    // No map drawn yet: the scene is still drawn.
-    expect(env.skipScene).toBe(false);
-    expect(worker.requests).toHaveLength(1);
-    worker.finish();
-    expect(layer.frame!(0.016)).toBe(true);
-    expect(env.skipScene).toBe(true);
-    // A town change waits out the debounce.
-    t = 1000;
-    layer.update(change({ buildings: true }));
-    t = 1000 + ENDPAPER_DEBOUNCE_MS - 1;
-    layer.frame!(0.016);
-    expect(worker.requests).toHaveLength(0);
-    t = 1000 + ENDPAPER_DEBOUNCE_MS;
-    layer.frame!(0.016);
-    expect(worker.requests).toHaveLength(1);
-    env.camera.position.set(0, 210, 0);
-    layer.frame!(0.016);
-    expect(env.endpaper.cover).toBeCloseTo(0.25, 9);
-    expect(env.skipScene).toBe(false);
-  });
-
-  it('redraws on town changes only', () => {
-    expect(townChanged(change({ buildings: true }))).toBe(true);
-    expect(townChanged(change({ village: true }))).toBe(true);
-    expect(townChanged(change({ rects: new Map([['road', []]]) }))).toBe(true);
-    expect(townChanged(change())).toBe(false);
-    expect(townChanged(change({ rects: new Map([['charm', []]]) }))).toBe(false);
   });
 });

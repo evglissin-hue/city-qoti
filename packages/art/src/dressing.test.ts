@@ -8,14 +8,24 @@ import {
 } from '@qoti/content';
 import { ANCHOR_NAMES, anchorsFor, deriveAnchors } from './anchors';
 import {
+  boundsOf,
+  clearanceOf,
+  cloneClearance,
+  doorCorridor,
   dressingCount,
+  fitPlacement,
+  footprintOf,
+  markPlacement,
   matches,
   resolveDressing,
   rulesFor,
   subjectKey,
   validateDressingRules,
   type DressingSubject,
+  type PieceBounds,
+  type Placement,
 } from './dressing';
+import { ShapeBuilder } from './geometry';
 import { kitById } from './kits';
 
 const isKit = (id: string): boolean => kitById.has(id);
@@ -52,8 +62,8 @@ const ANCHORS = deriveAnchors(
 );
 
 describe('the dressing table (V3.0)', () => {
-  it('ships empty, and sound', () => {
-    expect(content.dressingRules).toEqual([]);
+  it('ships sound (V3A fills it; dressingRules.test.ts tests what it says)', () => {
+    expect(content.dressingRules.length).toBeGreaterThan(0);
     expect(validateDressingRules(content.dressingRules, isKit, isTrade, isDef)).toEqual([]);
   });
 
@@ -241,5 +251,139 @@ describe('resolveDressing (V3.0)', () => {
     const anchors = anchorsFor(kit, { size: [2, 2], entrance: [1, 1] });
     const out = resolveDressing(home(), [rule({ id: 'y', seed: 1, count: { base: 2, max: 2 } })], anchors, 1);
     expect(out).toHaveLength(2);
+  });
+});
+
+// --- V3A: clearance and fitting ---------------------------------------------------------------
+
+/** A 3 x 3 plot with a wall slab on its left (x 0.4 to 0.5) and a flat path patch by the door. */
+function house() {
+  const s = new ShapeBuilder();
+  s.box(0.4, 0, 0.3, 0.5, 1.0, 2.7, 0xaaaaaa);
+  s.box(1.0, 0, 0.2, 2.6, 0.01, 0.4, 0x888888);
+  return s.build();
+}
+const BOX: PieceBounds = { x0: -0.1, z0: -0.1, x1: 0.1, z1: 0.1, height: 0.3 };
+const LOT: [number, number, number, number] = [0, 0, 3, 3];
+const DOOR = { at: [1.5, 0, 3] as [number, number, number], facing: [0, 1] as [number, number] };
+
+function piece(over: Partial<Placement> = {}): Placement {
+  return { rule: 'r', kit: 'barrels', at: [1, 0, 1], yaw: 0, scale: 1, seed: 1, ...over };
+}
+
+describe('clearanceOf (V3A)', () => {
+  const clear = clearanceOf(house(), [3, 3]);
+  const cell = (x: number, z: number) =>
+    clear.cells[(Math.floor(z * 8) - clear.z0) * clear.nx + Math.floor(x * 8) - clear.x0]!;
+
+  it('marks the bands the walls occupy and leaves open ground clear', () => {
+    expect(cell(0.45, 1.5) & 1).toBe(1);
+    expect(cell(0.45, 1.5) & (1 << 9)).toBeTruthy();
+    expect(cell(0.45, 1.5) & (1 << 10)).toBe(0);
+    expect(cell(2, 1.5)).toBe(0);
+  });
+
+  it('ignores ground patches below y = 0.03', () => {
+    expect(cell(1.5, 0.3)).toBe(0);
+  });
+
+  it('is pure: the same geometry gives the same grid', () => {
+    expect([...clearanceOf(house(), [3, 3]).cells]).toEqual([...clear.cells]);
+  });
+
+  it('measures a piece geometry', () => {
+    const g = new ShapeBuilder().box(-0.2, 0, -0.1, 0.2, 0.5, 0.1, 0xffffff).build();
+    const b = boundsOf(g);
+    expect(b.x0).toBeCloseTo(-0.2, 5);
+    expect(b.x1).toBeCloseTo(0.2, 5);
+    expect(b.z1).toBeCloseTo(0.1, 5);
+    expect(b.height).toBeCloseTo(0.5, 5);
+  });
+});
+
+describe('fitPlacement (V3A)', () => {
+  const clear = clearanceOf(house(), [3, 3]);
+
+  it('leaves a clear piece where it is', () => {
+    const p = piece({ at: [2, 0, 1] });
+    expect(fitPlacement(p, BOX, clear, LOT, DOOR)).toEqual(p);
+  });
+
+  it('moves a piece out of a wall it was placed in', () => {
+    const p = piece({ at: [0.45, 0, 1.5], yaw: -Math.PI / 2, anchor: 'eaves' });
+    const q = fitPlacement(p, BOX, clear, LOT, DOOR)!;
+    expect(q).not.toBeNull();
+    const f = footprintOf(q, BOX);
+    // Off the slab (x 0.4 to 0.5), inside the lot.
+    expect(f[2] <= 0.4 + 1e-6 || f[0] >= 0.5 - 1e-6).toBe(true);
+    expect(f[0]).toBeGreaterThanOrEqual(0);
+  });
+
+  it('snaps an eaves piece to the wall it faces away from', () => {
+    const p = piece({ at: [1.3, 0, 1.5], yaw: Math.PI / 2, anchor: 'eaves' });
+    const q = fitPlacement(p, BOX, clear, LOT, DOOR)!;
+    // Facing +x means the wall is at -x: the slab's right face is 0.5.
+    expect(q.at[0]).toBeLessThan(p.at[0]);
+    expect(footprintOf(q, BOX)[0]).toBeLessThan(0.5 + 0.2);
+    expect(footprintOf(q, BOX)[0]).toBeGreaterThanOrEqual(0.5 - 1e-6);
+  });
+
+  it('drops a piece when nothing is clear', () => {
+    const tiny: [number, number, number, number] = [0.4, 1, 0.5, 2];
+    expect(fitPlacement(piece({ at: [0.45, 0, 1.5] }), BOX, clear, tiny, undefined)).toBeNull();
+  });
+
+  it('moves a door piece to stand beside the door, out of its corridor', () => {
+    const lot: [number, number, number, number] = [0, 0, 3, 3.5];
+    const q = fitPlacement(piece({ at: [1.5, 0, 3], anchor: 'door' }), BOX, clear, lot, DOOR)!;
+    expect(q).not.toBeNull();
+    const lane = doorCorridor(DOOR, lot);
+    const f = footprintOf(q, BOX);
+    expect(f[2] <= lane[0] + 1e-6 || f[0] >= lane[2] - 1e-6).toBe(true);
+  });
+
+  it('never leaves a yard piece in the corridor', () => {
+    const lot: [number, number, number, number] = [0, 0, 3, 3.5];
+    const lane = doorCorridor(DOOR, lot);
+    for (let x = 1.1; x <= 1.9; x += 0.05) {
+      const q = fitPlacement(piece({ at: [x, 0, 3.1], anchor: 'yard' }), BOX, clear, lot, DOOR);
+      if (!q) continue;
+      const f = footprintOf(q, BOX);
+      expect(f[2] <= lane[0] + 1e-6 || f[0] >= lane[2] - 1e-6).toBe(true);
+    }
+  });
+
+  it('lets a front piece overhang the front edge by 0.15 and no more', () => {
+    const q = fitPlacement(piece({ at: [2.2, 0, 3.05], anchor: 'front' }), BOX, clear, LOT, DOOR);
+    expect(q).not.toBeNull();
+    expect(footprintOf(q!, BOX)[3]).toBeLessThanOrEqual(3.15 + 1e-6);
+    const far = fitPlacement(piece({ at: [2.2, 0, 3.4], anchor: 'front' }), BOX, clear, LOT, DOOR);
+    if (far) expect(footprintOf(far, BOX)[3]).toBeLessThanOrEqual(3.15 + 1e-6);
+  });
+
+  it('never overlaps two pieces on one plot, and is deterministic', () => {
+    const run = () => {
+      const mask = cloneClearance(clear);
+      const out: Placement[] = [];
+      for (let i = 0; i < 4; i++) {
+        const q = fitPlacement(piece({ at: [2, 0, 1], seed: i }), BOX, mask, LOT, DOOR);
+        if (!q) continue;
+        markPlacement(mask, q, BOX);
+        out.push(q);
+      }
+      return out;
+    };
+    const a = run();
+    expect(a.length).toBeGreaterThan(1);
+    for (let i = 0; i < a.length; i++)
+      for (let j = i + 1; j < a.length; j++) {
+        const f = footprintOf(a[i]!, BOX);
+        const g = footprintOf(a[j]!, BOX);
+        const overlap = f[0] < g[2] - 1e-6 && f[2] > g[0] + 1e-6 && f[1] < g[3] - 1e-6 && f[3] > g[1] + 1e-6;
+        expect(overlap).toBe(false);
+      }
+    expect(run()).toEqual(a);
+    // The base grid is untouched by the per-plot copy.
+    expect([...clear.cells]).toEqual([...clearanceOf(house(), [3, 3]).cells]);
   });
 });

@@ -421,7 +421,7 @@ export function terrainLayer(): TerrainLayer {
       const t = tiles;
       // The ground receives shadows but casts none: rolling hills would only shadow themselves,
       // and it keeps a whole pass of draw calls off the frame.
-      chunks = new ChunkedMeshes(ctx.scene, material, (cx, cz) => buildTerrainChunk(t, cx, cz), 0, false);
+      chunks = new ChunkedMeshes(ctx.scene, material, (cx, cz) => buildTerrainChunk(t, cx, cz), 0, false, 3);
       chunks.markAll();
       chunks.rebuild(Infinity, nearOf(ctx.env, ctx.mirror.meta.startArea), FIRST_FRAME_RADIUS);
       env = ctx.env;
