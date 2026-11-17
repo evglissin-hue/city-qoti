@@ -27,10 +27,11 @@ function onlyOneStart(foodOpen: boolean) {
 }
 
 describe('the night’s pass with one start left', () => {
-  it('starts a farm first when no food job stands open', () => {
-    const { started, grown } = onlyOneStart(false);
-    expect(started).toBe(1);
-    expect(grown.map((b) => b.def)).toEqual(['farmstead']);
+  it('starts a farm first when no food job stands open (homes then take their extra start)', () => {
+    const { grown } = onlyOneStart(false);
+    expect(grown[0]?.def).toBe('farmstead');
+    // HOMES_EXTRA: homes may start one beyond the businesses' allowance, after the farm.
+    expect(grown.slice(1).every((b) => b.def === 'cottage')).toBe(true);
   });
 
   it('starts a home first while a food job stands open', () => {

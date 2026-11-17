@@ -429,8 +429,10 @@ export function rebalanceJobs(state: WorldState, ctx?: TickCtx): boolean {
     if (!rt || !def || b === target || rt.workers.length === 0) continue;
     const p = jobPriority(b, def, rt.workers.length - 1, short);
     // Only a clear step up is worth the walk: two levels, or anything into a shortage.
-    // P3A: a target ranked under 1 (the circulation, or just behind it) takes any hand from rank 1 on.
-    if (p <= fromP || p < (targetP >= 1 ? targetP + 2 : 1)) continue;
+    // P3A: a target ranked under 1 (the circulation, or food and short goods just behind it) takes a
+    // hand from a short good's later hands (SHORT_LATER_HANDS) or anything after them, never from
+    // another food hand or a short good's first.
+    if (p <= fromP || p < (targetP >= 1 ? targetP + 2 : SHORT_LATER_HANDS)) continue;
     // The newest hand at that building moves; never someone mid-task.
     for (let i = rt.workers.length - 1; i >= 0; i--) {
       const r = findById(state.residents, rt.workers[i]!);
