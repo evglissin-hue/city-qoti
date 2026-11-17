@@ -2,7 +2,7 @@
 
 ## r2x-hearth-evening
 
-clock: {"tick":305208,"speed":0,"year":3,"season":2,"day":4,"hour":20,"minute":2,"lingering":true}
+clock: {"tick":305206,"speed":0,"year":3,"season":2,"day":4,"hour":20,"minute":1,"lingering":true}
 
 ### strip
 
@@ -11,7 +11,7 @@ Glowing
 8
 wishes
 54 of 93 out
-quiet
+so far
 1 gap open
 Festival in 2 days
 3
@@ -42,7 +42,7 @@ Nobody walks this way
 
 ## r2x-town-hearth-evening
 
-clock: {"tick":305208,"speed":0,"year":3,"season":2,"day":4,"hour":20,"minute":2,"lingering":true}
+clock: {"tick":305206,"speed":0,"year":3,"season":2,"day":4,"hour":20,"minute":1,"lingering":true}
 
 ### strip
 
@@ -51,7 +51,7 @@ Glowing
 8
 wishes
 54 of 93 out
-quiet
+so far
 1 gap open
 Festival in 2 days
 3
@@ -82,7 +82,7 @@ Nobody walks this way
 
 ## r2x-town-ledger-evening
 
-clock: {"tick":305208,"speed":0,"year":3,"season":2,"day":4,"hour":20,"minute":2,"lingering":true}
+clock: {"tick":305206,"speed":0,"year":3,"season":2,"day":4,"hour":20,"minute":1,"lingering":true}
 
 ### strip
 
@@ -144,7 +144,7 @@ Nobody walks this way
 
 Place: the bench by the Bracewell cottage, present 3
 
-clock: {"tick":305208,"speed":0,"year":3,"season":2,"day":4,"hour":20,"minute":2,"lingering":true}
+clock: {"tick":305206,"speed":0,"year":3,"season":2,"day":4,"hour":20,"minute":1,"lingering":true}
 
 ### strip
 
@@ -153,7 +153,7 @@ Glowing
 8
 wishes
 54 of 93 out
-quiet
+so far
 1 gap open
 Festival in 2 days
 3
@@ -212,7 +212,7 @@ Leave it empty and it goes back to "the bench by the Bracewell cottage".
 
 Resident id 21
 
-clock: {"tick":305208,"speed":0,"year":3,"season":2,"day":4,"hour":20,"minute":2,"lingering":true}
+clock: {"tick":305206,"speed":0,"year":3,"season":2,"day":4,"hour":20,"minute":1,"lingering":true}
 
 ### strip
 
@@ -221,7 +221,7 @@ Glowing
 8
 wishes
 54 of 93 out
-quiet
+so far
 1 gap open
 Festival in 2 days
 3
@@ -313,7 +313,7 @@ Evenings out
 
 ## r2x-town-ledger-day
 
-clock: {"tick":305208,"speed":0,"year":3,"season":2,"day":4,"hour":20,"minute":2,"lingering":true}
+clock: {"tick":305206,"speed":0,"year":3,"season":2,"day":4,"hour":20,"minute":1,"lingering":true}
 
 ### strip
 
@@ -369,7 +369,7 @@ and 6 more
 
 Place: the bench by the Bracewell cottage
 
-clock: {"tick":305208,"speed":0,"year":3,"season":2,"day":4,"hour":20,"minute":2,"lingering":true}
+clock: {"tick":305206,"speed":0,"year":3,"season":2,"day":4,"hour":20,"minute":1,"lingering":true}
 
 ### strip
 
@@ -378,7 +378,7 @@ Glowing
 8
 wishes
 54 of 93 out
-quiet
+so far
 1 gap open
 Festival in 2 days
 3
@@ -429,7 +429,7 @@ Leave it empty and it goes back to "the bench by the Bracewell cottage".
 
 ## r2x-edition
 
-clock: {"tick":305457,"speed":3,"year":3,"season":2,"day":4,"hour":21,"minute":0}
+clock: {"tick":305491,"speed":3,"year":3,"season":2,"day":4,"hour":21,"minute":0}
 
 ### strip
 
@@ -438,7 +438,7 @@ Glowing
 8
 wishes
 58 of 93 out
-quiet
+so far
 1 gap open
 Festival in 2 days
 3
@@ -472,7 +472,7 @@ Autumn 4, Year 3. A fair evening.
 The Lantern Walk by the Oatley cottage, Player 1's doing, drew 7 folk tonight.
 
 •
-58 of 93 grown-ups went out, and the evening averaged 61.
+58 of 93 grown-ups went out, and the evening averaged 61 out of 100.
 
 •
 4 treats went on the round, 3 of them bought in passing.
@@ -490,7 +490,7 @@ Put it down
 
 braziers: 1
 
-clock: {"tick":324356,"speed":0,"year":3,"season":3,"day":2,"hour":19,"minute":46,"lingering":true}
+clock: {"tick":324355,"speed":0,"year":3,"season":3,"day":2,"hour":19,"minute":46,"lingering":true}
 
 ### strip
 
@@ -499,7 +499,7 @@ Glowing
 11
 wishes
 42 of 81 out
-quiet
+so far
 1 gap open
 3
 ```
@@ -519,15 +519,9 @@ A place within three tiles that draws eight or more of an evening: seats, some c
 ×
 ```
 
-### tags
-
-```
-Nobody walks this way
-```
-
 ## r2x-first-evening
 
-clock: {"tick":7505,"speed":0,"year":1,"season":0,"day":2,"hour":19,"minute":31,"lingering":true}
+clock: {"tick":7506,"speed":0,"year":1,"season":0,"day":2,"hour":19,"minute":31,"lingering":true}
 
 ### strip
 
@@ -536,7 +530,7 @@ Content
 2
 wishes
 3 of 5 out
-quiet
+so far
 Festival in 4 days
 0
 ```
@@ -559,7 +553,7 @@ Heather would like some flowers out front. Three at least; two looks like an acc
 
 Resident id 12
 
-clock: {"tick":7505,"speed":0,"year":1,"season":0,"day":2,"hour":19,"minute":31,"lingering":true}
+clock: {"tick":7506,"speed":0,"year":1,"season":0,"day":2,"hour":19,"minute":31,"lingering":true}
 
 ### strip
 
@@ -568,7 +562,7 @@ Content
 2
 wishes
 3 of 5 out
-quiet
+so far
 Festival in 4 days
 0
 ```
@@ -615,7 +609,7 @@ Fondness for the town
 Jonquil would like a bench near home. Their knees have been very clear about it.
 
 Show me where
-Their evening
+Their last evening
 19:32
 Granary to shop
 Got there.
