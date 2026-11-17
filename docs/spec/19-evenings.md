@@ -188,6 +188,8 @@ A shared book in both lenses, kept like the Pattern Book: found pages, and hints
 - **Arrivals** draw from a generator of their own per wave (`arrivalsRng`: seeded from the valley's seed and the tick, never saved), so evening behavior no longer reshuffles who arrives.
 - **The place index** rebuilds only when a change counter moves (every writer of a place input bumps it; a verifier re-hashes the full signature in tests, the audit and the golden year).
 - **Lots and doors**: an empty lot that covers a building's door tile goes (a garden bed set down facing a lot is never walled in); the audit's `building-cut-off` checks the class.
+- **Read from the player's chair**: the Hearth strip counts tonight "so far" until the evening is scored at 21:00 (`TownView.evenings.live`; before, an unscored evening read "quiet" however full the benches were), the edition gives an average its scale ("61 out of 100"), and a resident's Day titles a round planned on an earlier day "Their last evening" (`ResidentDetail.roundEarlier`; a porter, who plans at 19:00, showed last night's stops as tonight's).
+- **The cart with no way round** (R2E's one-road scene) waits off the stretch from 17:00 to 21:00 and goes the long way after: the scene's only way round is some 200 tiles, so it delivers at 00:23 and parks by 02:00 (the outcome runs to 02:00). None deadlocks.
 
 **R3**
 
