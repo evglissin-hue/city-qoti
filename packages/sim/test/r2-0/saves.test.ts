@@ -54,13 +54,13 @@ describe('the version 6 fixture', () => {
   });
 });
 
-describe('migrations 6 to 7 (P2) and 7 to 8 (R2.0)', () => {
+describe('migrations 6 to 7 (P2) and 7 to 8 (R2.0), on the way to the current version', () => {
   const raw = parseV6();
   const state = deserialize(loadV6());
 
-  it("lands on version 8, with P2's growth starts on the way", () => {
-    expect(SAVE_VERSION).toBe(8);
-    expect(state.saveVersion).toBe(8);
+  it("lands on the current version (9 since R3.0), with P2's growth starts on the way", () => {
+    expect(SAVE_VERSION).toBe(9);
+    expect(state.saveVersion).toBe(9);
     expect(state.demand.starts).toEqual({ day: -1, n: 0 });
   });
 
