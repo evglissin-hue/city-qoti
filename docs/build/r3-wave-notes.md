@@ -62,7 +62,7 @@ R2X is merged into `main` (#56, with V3X #55), so the wave starts on it. What it
 - **The defenses' lantern cache** (`systems/defenses/index.ts`) keyed on the decor alone; it now keys on the night settled too, so a seat joining mid-raid reads the lit tiles its partner reads.
 - **Lit for the rules and lit for the threats**: `decorLit(state, decor)` is "burns now" (charm's night values and the place draw), `decorLitTonight` is "has a candle for the night settled last" (the threats read it at any hour: a raid at dusk never finds a town half lit). On stand-ins every light burns from 18:00 to 07:00 and every lantern counts, as before R3.
 - **The Thread's write points** (`recordThread`): porters' and carts' deliveries (logistics `deliver`, building to building), every household purchase at an outlet (market `purchase`: outlet to home), a Treat at a stop (to the place; a shop stop's goes home) or in a Hamlet (market trade's `sellTreat`), and a Hamlet shopping trip (`residents/shopping.ts`). `recordSale` itself records no thread (`sellTreat` did).
-- **The lamplighter's job** is held at the Town Hall: lamplighters are listed in `SuppliesState.lamplighters`, their `jobId` is the Town Hall's, and they are not among its builders. His walk is a schedule override (`lamplighter`, priority 60: above the festival, below the storm and the bell). On the agent row he carries `AgentFlags.lamplighter` (8192), and `AgentAnim.lightLamp` (9) while he lights one.
+- **The lamplighter's job** is held at the Town Hall: lamplighters are listed in `SuppliesState.lamplighters`, their `jobId` is the Town Hall's, and they are not among its builders. His walk is a schedule override (`lamplighterRound` in `supplies/lamplighter.ts`, priority 60: above the festival, below the storm and the bell), which R3A adds to the registry in `residents/overrides.ts` as one line when the walk is real: R3.0 left the stand-in out, because every override costs every resident a call on every schedule decision (with it, the R2A planning line rose from 0.36 to 0.44 ms a tick against its 0.4 ms budget). Make the pick return at once for anyone not in `SuppliesState.lamplighters`. On the agent row he carries `AgentFlags.lamplighter` (8192), and `AgentAnim.lightLamp` (9) while he lights one.
 - **The tavern as a supply**: a tavern's pouring stock (its input of a Treat) counts as its shelf for the round, `sellsTreats`, `treatsOnShelf` and the cafe and festival tables in reach. R3A changes `systems/market/round.ts` for it (the one place those two live).
 - **Callings' content** is P1's three, ids unchanged, with a `leaning` and rewritten effect lines; no command picks one, and `calling.choose` stays removed.
 - **The picture seam** (for V4B): `apps/client/src/ui/pictures.ts`, created by R3.0: `PictureRef` (`{ book: 'townBook' | 'patternBook' | 'chronicle'; id }`), `pictureFor(ref)` (a URL or null, never throws) and `setPictureSource(fn)`. Slots are landscape 4:3: a book page 240 x 180 CSS px; in the printed storybook a Chronicle entry's picture at half the text width (80 x 60 mm), a book page's 60 x 45 mm; a source returns at least 1600 x 1200 px. V4B registers its source from its own module; whichever of R3X and V4X lands second makes that one call. The shape is fixed; nobody edits the file but for a bug.
@@ -130,7 +130,7 @@ Each path has one owner in the wave. Outside your paths: small, necessary edits 
 ### Shared, by turn
 
 - `packages/sim/src/index.ts` (exports), `systems/index.ts`, `commands/index.ts`, `content/src/index.ts`, `apps/client/src/ui/panels/index.ts`: one sorted line each.
-- `packages/sim/src/systems/residents/index.ts` and `residents/overrides.ts`: nobody edits them in the wave (R3.0 registered the lamplighter's override).
+- `packages/sim/src/systems/residents/index.ts`: nobody edits it in the wave. `residents/overrides.ts` is a registry: R3A adds the lamplighter's one line, nobody else edits it.
 - `apps/client/src/ui/pictures.ts`: R3.0's seam; shape fixed.
 - `CHANGELOG.md`, `docs/build/README.md`: one line each, merged by R3X.
 
@@ -194,7 +194,7 @@ Not stand-ins (real from R3.0): the contracts and their helpers (`state/masters.
 | `supplyGapAchievable(state)`, `supplyGapClosable(state, gap)` | same | R3A | `gaps/achievable.ts`, `view/health.ts` `gapClosable` |
 | `keepSupplyGaps(pass, achievable)` | `systems/supplies/gaps.ts` | R3A | the gaps pass (`gaps/index.ts`), after R2's rules |
 | `householdBought(state, h, good, units)` | `systems/supplies/api.ts` | R3A | the baskets' Wares purchase (`market/baskets.ts`) |
-| `lamplighterRound(state, r, hour)` | `systems/supplies/lamplighter.ts` | R3A | the schedule overrides (`residents/overrides.ts`) |
+| `lamplighterRound(state, r, hour)` | `systems/supplies/lamplighter.ts` | R3A | the schedule overrides (`residents/overrides.ts`): R3A adds its registry line |
 | `lampSeasons`, `candleHomes`, `supplyOf` | `systems/supplies/api.ts` | R3A (real) | conditions, views |
 | `isMaster(r)`, `masterOf(state, b)`, `mastersCount(state, trade?)`, `mastersMade(state)` | `systems/masters/api.ts` | R3B (real) | conditions, views |
 | `canReachLevel3(state, b, counters)` | same | R3B | the levels pass |

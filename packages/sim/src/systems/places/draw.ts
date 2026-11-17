@@ -58,6 +58,7 @@ export function refreshDraws(
   const cap = P.charmCap;
   const litBonus = P.litBonus;
   const cold = -P.winterPenalty;
+  const book = state.townBook.pages.length > 0;
   for (let i = 0; i < places.length; i++) {
     const p = places[i]!;
     const x = extras[i]!;
@@ -82,8 +83,9 @@ export function refreshDraws(
     // Warm: a heated host, or a fire that burns tonight (a cold one warms nothing).
     p.warm = x.hostWarm || (x.fires.length > 0 && anyBurning(state, x.fires));
     parts.winter = winter && !(x.exempt || p.warm) ? cold : 0;
-    parts.specialty = placeSpecialty(state, p);
-    parts.custom = customToday(state, p);
+    // The Town Book's parts: none before its first page (the draw runs each tick; keep it cheap).
+    parts.specialty = book ? placeSpecialty(state, p) : 0;
+    parts.custom = book ? customToday(state, p) : 0;
     const total =
       parts.charm +
       parts.site +
