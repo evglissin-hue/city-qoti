@@ -258,6 +258,28 @@ describe('a resident day', () => {
     expect(calls.filter((c) => c.method === 'highlight').pop()?.args[0]).toBeNull();
   });
 
+  it('titles a round from an earlier day as their last evening, its missed stops behind them (R2X)', async () => {
+    const { session } = mockSession();
+    session.mirror.setPlaces({
+      places: [
+        mockPlace({ id: 'seats:1', tile: tile(30, 30), name: 'the bench by the mill', kinds: ['sit'] }),
+        mockPlace({ id: 'host:2', tile: tile(34, 33), name: 'the well by the lane', kinds: ['meet'] }),
+      ],
+    });
+    const base = await detailOf(session);
+    const round = mockRound(session.mirror, 12).map((s, i) =>
+      i === 1 ? { ...s, arrived: -1, flags: 0 } : s,
+    );
+    view = await mount(
+      h(Day, { session, detail: { ...base, round, roundEarlier: true, evening: { need: 58, score: 64 } } }),
+    );
+    const text = view.text();
+    expect(text).toContain('Their last evening');
+    expect(text).toContain('They never got there.');
+    expect(text).not.toContain('Still ahead of them.');
+    expect(text).not.toContain('later');
+  });
+
   it('says they stayed in when the round is empty, and shows nothing without a round', async () => {
     const { session, calls } = mockSession();
     const base = await detailOf(session);

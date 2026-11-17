@@ -331,7 +331,12 @@ export function residentDetail(state: WorldState, id: EntityId): ResidentDetail 
   if (wish) detail.wish = wishView(state, wish);
   addLives(state, r, detail);
   // R2 (R2.0): today's round and the evenings need, once they have had an evening.
-  if (r.round?.length) detail.round = roundStopViews(state, r);
+  if (r.round?.length) {
+    detail.round = roundStopViews(state, r);
+    // R2X: a round planned on an earlier day is the last one they made, not today's (a porter at
+    // 19:31 showed the stops of the night before as tonight's, "Seated." at 20:17).
+    if (r.roundDay !== dayIndex(state.tick)) detail.roundEarlier = true;
+  }
   const evening = residentEvening(r);
   if (evening) detail.evening = evening;
   return detail;

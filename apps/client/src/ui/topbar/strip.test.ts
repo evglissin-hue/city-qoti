@@ -293,6 +293,18 @@ describe('the Hearth strip readings (R2D)', () => {
     expect(eveningReading(undefined)).toBeNull();
     expect(eveningReading({ out: 0, grownups: 0, average: 0 })).toBeNull();
   });
+  it('says "so far" while the evening is under way, never a score it has not got (R2X)', () => {
+    const r = eveningReading({ out: 54, grownups: 93, average: 61, live: true })!;
+    expect(r.out).toBe('54 of 93 out');
+    expect(r.word).toBe('so far');
+    expect(r.title).toContain('Tonight so far 54 of 93');
+    expect(r.title).toContain('Last evening was fair (61 out of 100)');
+    // The first evening of all: nothing scored before it, so no last evening to name.
+    const first = eveningReading({ out: 3, grownups: 5, average: 0, live: true })!;
+    expect(first.word).toBe('so far');
+    expect(first.title).not.toContain('Last evening');
+    expect(first.title).not.toContain('quiet');
+  });
   it('turns its words at the tier marks', () => {
     expect([20, 40, 55, 70, 90].map(eveningWord)).toEqual(['quiet', 'modest', 'fair', 'lively', 'merry']);
   });

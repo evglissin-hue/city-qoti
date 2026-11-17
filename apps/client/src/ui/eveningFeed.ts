@@ -20,7 +20,7 @@ export function tallyLine(v: EveningView): string | null {
   if (t.grownups <= 0) return null;
   if (v.lines.some((l) => l.text.includes(`${t.out} of ${t.grownups}`))) return null;
   const avg = Math.round(t.scoreSum / t.grownups);
-  const parts = [`${t.out} of ${t.grownups} went out`, `the average evening scored ${avg}`];
+  const parts = [`${t.out} of ${t.grownups} went out`, `the average evening scored ${avg} out of 100`];
   if (t.friendships > 0) {
     parts.push(t.friendships === 1 ? 'one new friendship' : `${t.friendships} new friendships`);
   }

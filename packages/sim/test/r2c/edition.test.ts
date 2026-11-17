@@ -130,7 +130,7 @@ describe('the evening edition', () => {
       const { state } = evening({ grownups: 4, out: 2, scoreSum: 200 });
       const view = eveningView(state)!;
       expect(view.lines.map((l) => l.text)).toEqual([
-        '2 of 4 grown-ups went out, and the evening averaged 50.',
+        '2 of 4 grown-ups went out, and the evening averaged 50 out of 100.',
         'Not one treat was sold on the round. The shelves and the walkers kept to different streets.',
         'The rest of the evening passed without remark.',
       ]);
@@ -147,7 +147,7 @@ describe('the evening edition', () => {
       });
       const texts = eveningView(state)!.lines.map((l) => l.text);
       expect(texts).toEqual([
-        "The town's one grown-up went out, and the evening scored 70.",
+        "The town's one grown-up went out, and the evening scored 70 out of 100.",
         'One treat went on the round, bought in passing.',
         'Two folk became friends tonight, which is how it starts.',
         'One soul stood for want of a seat. A bench or two would not go amiss.',
@@ -164,7 +164,9 @@ describe('the evening edition', () => {
         stood: 12,
       });
       const texts = eveningView(state)!.lines.map((l) => l.text);
-      expect(texts[0]).toBe('Every grown-up in town went out, all 8 of them, and the evening averaged 65.');
+      expect(texts[0]).toBe(
+        'Every grown-up in town went out, all 8 of them, and the evening averaged 65 out of 100.',
+      );
       expect(texts[1]).toBe('6 treats went on the round, every one of them at a stop.');
       expect(texts[2]).toBe('3 new friendships were struck up tonight.');
       expect(texts[3]).toBe('12 folk stood for want of a seat. A bench or two would not go amiss.');

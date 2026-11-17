@@ -19,11 +19,15 @@ const PURPOSE: Record<RoundStopKind, string> = {
   visit: 'to visit friends',
 };
 
-/** What happened at a stop, from its flags. */
-export function stopWords(flags: number, arrived: number): string {
+/**
+ * What happened at a stop, from its flags. R2X: on a round from an earlier day (`earlier`) a stop
+ * they never reached is behind them, not ahead.
+ */
+export function stopWords(flags: number, arrived: number, earlier = false): string {
   if (flags & RoundFlags.rained) return 'Rain kept them in.';
   if (flags & RoundFlags.turnedAway) return 'Turned away: no room.';
-  if (arrived < 0 && !(flags & RoundFlags.arrived)) return 'Still ahead of them.';
+  if (arrived < 0 && !(flags & RoundFlags.arrived))
+    return earlier ? 'They never got there.' : 'Still ahead of them.';
   const bits: string[] = [];
   if (flags & RoundFlags.seated) bits.push('seated');
   else if (flags & RoundFlags.standing) bits.push('stood, no seat left');
@@ -94,9 +98,12 @@ export function Day({ session, detail }: { session: Session; detail: ResidentDet
   }, [key]);
   if (!round) return null;
   const ev = detail.evening;
+  // R2X: a round from an earlier day is their last evening, not tonight's (they plan at 17:00,
+  // builders and porters at 19:00).
+  const earlier = !!detail.roundEarlier;
   return (
     <div class="day" data-testid="resident-day">
-      <Heading>Their evening</Heading>
+      <Heading>{earlier ? 'Their last evening' : 'Their evening'}</Heading>
       {round.length === 0 ? (
         ev && (
           <p class="day-stayed" data-testid="day-stayed">
@@ -107,11 +114,11 @@ export function Day({ session, detail }: { session: Session; detail: ResidentDet
         <ol class="stops" data-testid="day-stops">
           {round.map((s, i) => (
             <li key={`${s.place}:${i}`}>
-              <span class="stop-time">{s.arrived >= 0 ? formatTime(s.arrived) : 'later'}</span>
+              <span class="stop-time">{s.arrived >= 0 ? formatTime(s.arrived) : earlier ? '' : 'later'}</span>
               <span class="stop-what">
                 <b>{capital(s.name)}</b> <span class="muted">{PURPOSE[s.kind] ?? ''}</span>
                 <br />
-                <span class="stop-flags">{stopWords(s.flags, s.arrived)}</span>
+                <span class="stop-flags">{stopWords(s.flags, s.arrived, earlier)}</span>
               </span>
             </li>
           ))}

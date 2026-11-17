@@ -379,7 +379,17 @@ export interface TownView {
   /** The first days guide, while it is open (C5H). */
   guide?: GuideView;
   /** R2 (R2.0): the Hearth's strip, how evenings are going: the last evening's share out and average score. */
-  evenings?: { out: number; grownups: number; average: number };
+  evenings?: {
+    out: number;
+    grownups: number;
+    average: number;
+    /**
+     * R2X (additive): set while tonight's evening is under way (17:00 to 21:00, before it is scored):
+     * `out` and `grownups` count tonight so far, and `average` is the last scored evening's (0 with
+     * none), so the strip never calls an evening quiet before it is over.
+     */
+    live?: boolean;
+  };
 }
 
 /** Full resident detail for the inspector (worker `inspect`). */
@@ -419,6 +429,11 @@ export interface ResidentDetail {
   // R2 (R2.0), present once they have had an evening.
   /** Today's round as a line of stops (drawn on the ground through the highlight API). */
   round?: RoundStopView[];
+  /**
+   * R2X (additive): set when `round` was planned on an earlier day (the last one they made: grown-ups
+   * plan at 17:00, builders and porters at 19:00), so it is never read as tonight's.
+   */
+  roundEarlier?: boolean;
   /** The evenings need and the last evening's score. */
   evening?: { need: number; score: number };
 }

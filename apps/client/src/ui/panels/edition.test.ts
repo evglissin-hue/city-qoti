@@ -63,6 +63,8 @@ describe('the evening edition card', () => {
   it('says the tally when the lines do not, and keeps quiet when they do', () => {
     const v = edition();
     expect(tallyLine(v)).toContain('27 of 40 went out');
+    // R2X: a score always carries its scale, so a newcomer can read "61" (the class: a bare number).
+    expect(tallyLine(v)).toMatch(/scored \d+ out of 100/);
     const said = edition({
       lines: [{ text: '27 of 40 grown-ups went out.', seats: [], refs: [] }],
     });

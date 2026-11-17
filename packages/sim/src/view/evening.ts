@@ -13,9 +13,11 @@ import type {
   TownView,
   WorldState,
 } from '../contracts';
-import { PENNIES_PER_COIN } from '../constants';
+import { content } from '@qoti/content';
+import { PENNIES_PER_COIN, TICKS_PER_HOUR } from '../constants';
 import { findById } from '../state/entities';
 import { eveningsNeed, shownName } from '../state/evenings';
+import { dayIndex, tickOfDay } from '../systems/economy/time';
 import { buildingCredit, placeCredit } from '../systems/gaps/credit';
 import { sellsTreats } from '../systems/market/round';
 import { placeById, placeServes } from '../systems/places/api';
@@ -174,9 +176,9 @@ export function eveningView(state: WorldState): EveningView | null {
     const text =
       t.out === t.grownups
         ? t.grownups === 1
-          ? `The town's one grown-up went out, and the evening scored ${avg}.`
-          : `Every grown-up in town went out, all ${t.grownups} of them, and the evening averaged ${avg}.`
-        : `${t.out} of ${t.grownups} grown-ups went out, and the evening averaged ${avg}.`;
+          ? `The town's one grown-up went out, and the evening scored ${avg} out of 100.`
+          : `Every grown-up in town went out, all ${t.grownups} of them, and the evening averaged ${avg} out of 100.`
+        : `${t.out} of ${t.grownups} grown-ups went out, and the evening averaged ${avg} out of 100.`;
     lines.push({ text, seats: [], refs: [] });
   }
   if (t.out > 0) {
@@ -243,11 +245,30 @@ export function eveningView(state: WorldState): EveningView | null {
   return { tally, lines: out, places };
 }
 
-/** The Hearth's strip: the last evening's share out and average score, absent before the first. */
+/**
+ * The Hearth's strip: the last evening's share out and average score, absent before the first. R2X:
+ * while tonight is under way (scored only at 21:00) it counts tonight so far and keeps the last scored
+ * evening's average (`live`), since tonight's sum is empty until folk head home.
+ */
 export function townEvenings(state: WorldState): TownView['evenings'] {
-  const t = state.evenings.tonight;
+  const ev = state.evenings;
+  const t = ev.tonight;
   if (t.day < 0 || t.grownups === 0) return undefined;
-  return { out: t.out, grownups: t.grownups, average: Math.round(t.scoreSum / t.grownups) };
+  const P = content.places;
+  const tod = tickOfDay(state.tick);
+  const live =
+    t.day === dayIndex(state.tick) &&
+    tod >= P.eveningHour * TICKS_PER_HOUR &&
+    tod < P.homeHour * TICKS_PER_HOUR;
+  if (!live) return { out: t.out, grownups: t.grownups, average: Math.round(t.scoreSum / t.grownups) };
+  let average = 0;
+  for (let i = ev.history.length - 1; i >= 0; i--) {
+    const h = ev.history[i]!;
+    if (h.day < 0 || h.grownups <= 0 || h.weather === 'storm') continue;
+    average = Math.round(h.scoreSum / h.grownups);
+    break;
+  }
+  return { out: t.out, grownups: t.grownups, average, live: true };
 }
 
 /** The inspector's evening: the need and the last score, once they have had an evening. */

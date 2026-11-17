@@ -267,19 +267,37 @@ export function eveningWord(average: number): string {
   return 'merry';
 }
 
-/** The evenings chip, or null when no evening has been tallied yet (nothing to say). */
+/** The tier marks an evening's average is read against, for the chip's title. */
+const EVENING_ASKS = 'Craftsfolk want 50, Merchants 65, Patrons 80.';
+
+/**
+ * The evenings chip, or null when no evening has been tallied yet (nothing to say). R2X: while the
+ * evening is under way (`live`) it counts tonight so far and says "so far": an evening is scored at
+ * 21:00, and an unscored one once read "quiet" all evening however full the benches were.
+ */
 export function eveningReading(
-  e: { out: number; grownups: number; average: number } | undefined,
+  e: { out: number; grownups: number; average: number; live?: boolean } | undefined,
 ): EveningReading | null {
   if (!e || e.grownups <= 0) return null;
   const word = eveningWord(e.average);
+  if (e.live) {
+    const last = e.average > 0 ? ` Last evening was ${word} (${Math.round(e.average)} out of 100).` : '';
+    return {
+      out: `${e.out} of ${e.grownups} out`,
+      word: 'so far',
+      fill: Math.max(0, Math.min(1, e.average / 100)),
+      title:
+        `Tonight so far ${e.out} of ${e.grownups} grown-ups are out. The evening is scored at 21:00, ` +
+        `as folk head home.${last} ${EVENING_ASKS} Click for the Chronicle.`,
+    };
+  }
   return {
     out: `${e.out} of ${e.grownups} out`,
     word,
     fill: Math.max(0, Math.min(1, e.average / 100)),
     title:
       `Last evening ${e.out} of ${e.grownups} grown-ups went out, and the average evening was ${word} ` +
-      `(${Math.round(e.average)} out of 100). Craftsfolk want 50, Merchants 65, Patrons 80. Click for the Chronicle.`,
+      `(${Math.round(e.average)} out of 100). ${EVENING_ASKS} Click for the Chronicle.`,
   };
 }
 
