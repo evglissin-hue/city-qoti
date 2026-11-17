@@ -94,6 +94,8 @@ export const GROWTH_MAX_SITES = 3;
  */
 export const HANDS_WAITING = 2;
 export const GROWTH_PER_DAY = 2;
+/** P3A: starts a night, and sites at once, that homes may take beyond GROWTH_PER_DAY and GROWTH_MAX_SITES. */
+export const HOMES_EXTRA = 1;
 /** P3A: open food jobs at which homes start before farms: a new farmstead's hands (its level 1 crew). */
 const FARM_HANDS = content.buildingById.get('farmstead')?.jobs?.count ?? 2;
 /**
@@ -103,8 +105,8 @@ const FARM_HANDS = content.buildingById.get('farmstead')?.jobs?.count ?? 2;
 export const GROWTH_SHARE = 50;
 /** Town pull (attractiveness before vacant homes count) that makes homes worth building. */
 export const HOMES_PULL = 25;
-/** Empty homes (built or going up) a growing town keeps waiting for newcomers, plus one per 30 folk. */
-export const HOMES_WAITING = 2;
+/** Empty homes (built or going up) a growing town keeps waiting for newcomers, plus one per 30 folk. P3A: 3 (was 2). */
+export const HOMES_WAITING = 3;
 /** Lots tried a night for each thing wanted, best first. */
 const LOTS_TRIED = 6;
 
@@ -870,7 +872,10 @@ function startSites(
       // The day's starts are used up, or the most sites at once are going up: every kind still
       // wanted waits its turn behind the sites in hand (crafts come last and can wait some nights).
       const up = grownSites(state);
-      if (already + started >= GROWTH_PER_DAY || up >= GROWTH_MAX_SITES) {
+      // P3A: homes have one start and one site more than businesses (they cost no upkeep, and every
+      // hand the town has came through a home's door).
+      const extra = zones === HOME_ZONES ? HOMES_EXTRA : 0;
+      if (already + started >= GROWTH_PER_DAY + extra || up >= GROWTH_MAX_SITES + extra) {
         for (let v = w; v < wants.length; v++) {
           const bar = barOf(wants[v]![0]);
           if (wants[v]![1] > 0 && !held[bar] && up > 0) held[bar] = { code: 'sitesBusy', value: up };

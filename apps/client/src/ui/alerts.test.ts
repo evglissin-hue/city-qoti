@@ -585,10 +585,10 @@ describe('P3A: food short with food jobs open names the lever', () => {
     return mock;
   };
 
-  it('adds the open food jobs and Homes to the food line', () => {
+  it('under two days, says newcomers wait and names food, not Homes', () => {
     const line = ledger(hungry(fishery(1), 10)).find((a) => a.key === 'food-low')!;
     expect(line.text).toBe(
-      'Food for about a day in store. 2 food jobs stand open: more Homes bring the hands.',
+      'Food for about a day in store. Newcomers wait till there is enough to share; a fishery or more Farmland fills the larder.',
     );
   });
 
@@ -600,9 +600,7 @@ describe('P3A: food short with food jobs open names the lever', () => {
   });
 
   it('is quiet with every food job filled, or with food enough', () => {
-    expect(ledger(hungry(fishery(3), 10)).find((a) => a.key === 'food-low')!.text).toBe(
-      'Food for about a day in store.',
-    );
+    expect(ledger(hungry(fishery(3), 25)).some((a) => a.key === 'food-hands')).toBe(false);
     expect(ledger(hungry(fishery(1), 40)).some((a) => a.key === 'food-hands')).toBe(false);
   });
 });

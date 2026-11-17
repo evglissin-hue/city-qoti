@@ -123,9 +123,11 @@ export function computeAlerts(
         tone: 'warn',
         icon: 'good:bread',
         text:
+          // P3A: under two days nobody moves in (ARRIVAL_FOOD_DAYS), so Homes are not the lever then.
           (food === 0
             ? 'The larders are empty. Bread, vegetables or fish, quickly please.'
-            : `Food for about ${days < 2 ? 'a day' : `${Math.floor(days)} days`} in store.`) + lever,
+            : `Food for about ${days < 2 ? 'a day' : `${Math.floor(days)} days`} in store.`) +
+          ' Newcomers wait till there is enough to share; a fishery or more Farmland fills the larder.',
         action: { kind: 'panel', panel: 'balances', page: 'families' },
       });
     } else if (lever) {
