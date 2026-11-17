@@ -47,7 +47,7 @@ New design (I4 and later); V4's look work beyond merging it and the seams the ru
 - **From R2X** (the wave notes have them; check each still holds after the merge):
   - `SAVE_VERSION` was 8 after R2 (R2X did not bump it); R3.0 took 9. If a wave cycle bumped it again, keep one version for the merge and say so.
   - Household arrivals draw from a generator of their own per wave (`arrivalsRng`, seeded from the valley's seed and tick), so the evening and the day no longer reshuffle who arrives; R3's new choices use their own stream or a hash, never the `residents` stream.
-  - Newcomers follow good evenings: past `content.places.growthFreeHouseholds` (20) households, homes come only as fast as recent fair evenings send grown-ups out (full pace at `growthFullOutPercent`, 40%; the Homes bar's `quietEvenings`). It is what makes the lanes test pass, and unlit lanterns and cold fires work against it.
+  - Newcomers follow good evenings: past `content.places.growthFreeHouseholds` (16) households, homes come only as fast as recent fair evenings send grown-ups out (full pace at `growthFullOutPercent`, 40%; the Homes bar's `quietEvenings`). It is what makes the lanes test pass, and unlit lanterns and cold fires work against it.
   - The audit's gap kinds are two: `gap-unmeetable` (a kind the town cannot meet at all) and `gap-dead-end` (no command could close it where it stands); `shortOfSupplies` must pass both, and `building-cut-off` stays quiet.
   - R2C's "a shop nobody passes" read visitors near the shop for want of per-outlet sales; if R3D's counts now give them, retune that gap on them and say so.
   - The place index's check was the main evening cost at City scale; read R3.0's decision and R3E's line before tuning anything that adds place inputs.

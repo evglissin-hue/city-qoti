@@ -48,7 +48,7 @@ Changing a system to make a number pass (report it to R3X); the interface (R3D);
 
 ## Notes
 
-- R2X's record: past `growthFreeHouseholds` (20) households homes come only as fast as fair evenings send folk out, which is why the lanes test passes; a town short of candles has darker evenings and moves it.
+- R2X's record: past `growthFreeHouseholds` (16) households homes come only as fast as fair evenings send folk out, which is why the lanes test passes; a town short of candles has darker evenings and moves it.
 - The audit has two gap kinds since R2X: `gap-unmeetable` (the kind cannot be met at all, `gaps/achievable.ts`) and `gap-dead-end` (nothing could close it where it stands, `gapClosable`); keep both, and keep `building-cut-off`.
 - Variance between runs is large (R1X, R2E): read every target over several seeds and runs; the container's timings swing by half, so medians.
 - Arrivals have their own generator since R2X, so new evening behavior no longer moves who arrives; the schedule still shares the `residents` stream, so seed-specific assertions can still move: report them with measurements.
