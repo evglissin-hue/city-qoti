@@ -155,7 +155,9 @@ export class SiteClock {
     const done = [...this.seen.values()]
       .filter((s) => s.built !== undefined && pick(s.def, s.trade))
       .sort((a, b) => a.built! - b.built!);
-    return done.slice(0, n).map((s) => [s.built! - s.from, Math.floor((s.built! * TICKS_PER_HOUR) / TICKS_PER_DAY) + 1]);
+    return done
+      .slice(0, n)
+      .map((s) => [s.built! - s.from, Math.floor((s.built! * TICKS_PER_HOUR) / TICKS_PER_DAY) + 1]);
   }
 }
 

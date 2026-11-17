@@ -154,7 +154,9 @@ export function formatDay(l: NewcomerDay): string {
     String(h.otherOpen).padStart(5),
     String(h.foodEmpty).padStart(6),
     String(l.foodDays).padStart(5),
-    `${l.hungry.households}/${l.hungry.residents}${l.hungry.noOutlet ? `o${l.hungry.noOutlet}` : ''}${l.hungry.broke ? `b${l.hungry.broke}` : ''}`.padStart(9),
+    `${l.hungry.households}/${l.hungry.residents}${l.hungry.noOutlet ? `o${l.hungry.noOutlet}` : ''}${l.hungry.broke ? `b${l.hungry.broke}` : ''}`.padStart(
+      9,
+    ),
     String(l.sites).padStart(5),
     `${l.businesses}/${l.level2}/${l.level3}`.padStart(9),
     l.rank.padEnd(7),
