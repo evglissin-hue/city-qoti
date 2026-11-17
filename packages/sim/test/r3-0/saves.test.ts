@@ -103,8 +103,8 @@ describe('migration 8 to 9 (R3.0) on the real valley', () => {
       expect(h.pantry.slice(V8)).toEqual(new Array(V9 - V8).fill(0));
     }
     for (const k of ['today', 'yesterday', 'season', 'lastSeason'] as const) {
-      expect(state.economy[k].produced).toHaveLength(V9);
-      expect(state.economy[k].consumed).toHaveLength(V9);
+      expect(state.economy[k]!.produced).toHaveLength(V9);
+      expect(state.economy[k]!.consumed).toHaveLength(V9);
     }
     allLong(state.economy.stockHistory as unknown[]);
     expect(state.economy.everProduced).toHaveLength(V9);
