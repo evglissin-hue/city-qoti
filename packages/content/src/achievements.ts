@@ -130,6 +130,32 @@ export const aSeatForEveryone: AchievementDef = {
   condition: { count: { what: 'seatedSeasons', atLeast: 1 } },
 };
 
+// R3.0: the lamps, the masters and the Town Book (docs/spec/19-evenings.md).
+
+export const lamplightersRound: AchievementDef = {
+  id: 'lamplighters-round',
+  name: "The Lamplighter's Round",
+  description: 'Every lantern in town was lit, every night of a season, and nobody had to ask twice.',
+  lane: 'shared',
+  condition: { count: { what: 'lampSeasons', atLeast: 1 } },
+};
+
+export const madeTogether: AchievementDef = {
+  id: 'made-together',
+  name: 'Made Together',
+  description: 'A page of the Town Book that neither of you could have written alone.',
+  lane: 'shared',
+  condition: { count: { what: 'pagesTogether', atLeast: 1 } },
+};
+
+export const masterOfTheHouse: AchievementDef = {
+  id: 'master-of-the-house',
+  name: 'Master of the House',
+  description: 'The first master took up the trade, and the apprentices began to stand a little straighter.',
+  lane: 'shared',
+  condition: { count: { what: 'mastersMade', atLeast: 1 } },
+};
+
 export const mindTheGap: AchievementDef = {
   id: 'mind-the-gap',
   name: 'Mind the Gap',

@@ -142,6 +142,7 @@ export const bonfire: DecorDef = {
   art: { kit: 'lantern', params: { kit: 'bonfire' } },
   locked: true,
   festival: {},
+  supply: { kind: 'evening', good: 'firewood', qty: 1, seasons: [2, 3], rests: 'cold' },
 };
 
 export const bunting: DecorDef = {
@@ -155,6 +156,7 @@ export const bunting: DecorDef = {
   art: { kit: 'fence', params: { kit: 'bunting' } },
   locked: true,
   festival: { keepable: true },
+  supply: { kind: 'season', good: 'cloth', qty: 2, rests: 'faded' },
 };
 
 export const festivalStage: DecorDef = {
@@ -167,6 +169,7 @@ export const festivalStage: DecorDef = {
   art: { kit: 'crates', params: { kit: 'festival-stage' } },
   locked: true,
   festival: {},
+  supply: { kind: 'season', good: 'cloth', qty: 2, rests: 'faded' },
 };
 
 export const festivalStall: DecorDef = {
@@ -192,6 +195,7 @@ export const festivalTable: DecorDef = {
   art: { kit: 'bench', params: { kit: 'festival-table' } },
   locked: true,
   festival: {},
+  supply: { kind: 'outlet', radius: 3, rests: 'bare' },
 };
 
 export const flowerArch: DecorDef = {
@@ -204,4 +208,5 @@ export const flowerArch: DecorDef = {
   art: { kit: 'flower-bed', params: { kit: 'flower-arch' } },
   locked: true,
   festival: { keepable: true },
+  supply: { kind: 'season', good: 'cloth', qty: 2, rests: 'faded' },
 };

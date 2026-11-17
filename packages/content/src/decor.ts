@@ -102,6 +102,7 @@ export const lantern: DecorDef = {
   tags: ['lantern', 'light'],
   art: { kit: 'lantern' },
   charm: [{ category: 'light', value: 2, radius: 3, nightValue: 6 }],
+  supply: { kind: 'nightly', good: 'candles', qty: 1, per: 4, rests: 'unlit' },
 };
 
 export const lowWall: DecorDef = {
@@ -149,6 +150,7 @@ export const birdbath: DecorDef = {
   art: { kit: 'birdbath' },
   charm: [{ category: 'comfort', value: 6, radius: 3 }],
   locked: true,
+  supply: { kind: 'well', radius: 8, rests: 'dry' },
 };
 
 export const curvedBench: DecorDef = {
@@ -174,6 +176,7 @@ export const hangingLantern: DecorDef = {
   art: { kit: 'hanging-lantern' },
   charm: [{ category: 'light', value: 3, radius: 3, nightValue: 7 }],
   locked: true,
+  supply: { kind: 'nightly', good: 'candles', qty: 1, per: 4, rests: 'unlit' },
 };
 
 export const herbPlanter: DecorDef = {

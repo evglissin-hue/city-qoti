@@ -5,6 +5,7 @@
 import * as A from './achievements';
 import * as Ba from './baskets';
 import * as B from './buildings';
+import * as Cl from './callings';
 import * as Ca from './carts';
 import * as Ch from './charters';
 import * as C from './chronicle';
@@ -21,6 +22,7 @@ import * as Gu from './guide';
 import * as He from './herbalist';
 import * as I from './innovations';
 import * as L from './lives';
+import * as Ma from './masters';
 import { familyNames } from './names';
 import * as N from './neighbors';
 import * as Na from './nature';
@@ -38,7 +40,9 @@ import * as Sp from './species';
 import * as St from './styles';
 import * as Sm from './stonemason';
 import * as Si from './signatureDecor';
+import { SUPPLIES } from './supplies';
 import * as Sw from './swatches';
+import * as TB from './townBook';
 import * as T from './trees';
 import * as Th from './threats';
 import * as Tr from './traits';
@@ -51,11 +55,13 @@ import * as Z from './zones';
 import type {
   AchievementDef,
   BuildingDef,
+  CallingDef,
   CartDef,
   CharterDef,
   CommissionDef,
   ChronicleTemplate,
   Content,
+  CustomDef,
   DecorDef,
   DistrictStyleDef,
   EventDef,
@@ -64,6 +70,7 @@ import type {
   GapDef,
   GoodDef,
   InnovationDef,
+  MasterDef,
   ModuleDef,
   NeedsBasket,
   NeighborDef,
@@ -72,6 +79,7 @@ import type {
   RoadDef,
   SeasonDef,
   SpeciesDef,
+  SpecialtyDef,
   StoryArc,
   SwatchDef,
   ThreatDef,
@@ -84,11 +92,15 @@ import type {
   ZoneDef,
 } from './types';
 
+export { callingPhrases } from './callings';
 export { chroniclePhrases } from './chronicle';
+export { MASTERY } from './masters';
 export { festivalTuning } from './festivals';
 export { PLACES } from './places';
 export { placeWords } from './placeWords';
 export { STREET_NAMES } from './streetNames';
+export { SUPPLIES } from './supplies';
+export { TOWN_BOOK } from './townBook';
 export { lifePhrases } from './lives';
 export { familyNames, valleyNamePrefixes, valleyNameSuffixes } from './names';
 export { villagePhrases } from './villageText';
@@ -206,7 +218,8 @@ export const trees: readonly TreeDef[] = [
 
 /**
  * APPEND-ONLY from R1.0. Never reorder or remove: saves store per-good arrays by these indexes. The
- * order is docs/spec/13-ledger.md's list of the sixteen goods.
+ * order is docs/spec/13-ledger.md's list of the sixteen goods; R3.0 appended the nine masters' goods
+ * after cider.
  */
 // prettier-ignore
 export const goods: readonly GoodDef[] = [
@@ -226,6 +239,16 @@ export const goods: readonly GoodDef[] = [
   G.candles,
   G.honey,
   G.cider,
+  // R3.0: the nine masters' goods.
+  G.pies,
+  G.butter,
+  G.jam,
+  G.cordial,
+  G.mead,
+  G.coats,
+  G.toys,
+  G.soap,
+  G.smokedFish,
 ];
 
 // prettier-ignore
@@ -314,7 +337,10 @@ export const achievements: readonly AchievementDef[] = [
   A.firstFootsteps,
   SA.fiveStars,
   A.hearthAndHome,
+  A.lamplightersRound,
+  A.madeTogether,
   A.marketDay,
+  A.masterOfTheHouse,
   A.mindTheGap,
   A.outOfAnEvening,
   A.plankByPlank,
@@ -334,6 +360,7 @@ export const chronicle: readonly ChronicleTemplate[] = [
   Th.banditHome,
   Th.banditSent,
   L.birth,
+  Cl.calling,
   SC.circus,
   SC.coldSnap,
   FC.commissionDone,
@@ -615,6 +642,77 @@ function byId<T extends { id: string }>(list: readonly T[]): ReadonlyMap<string,
   return new Map(list.map((item) => [item.id, item]));
 }
 
+// --- R3 (R3.0) ---------------------------------------------------------------------------------
+
+// prettier-ignore
+export const masters: readonly MasterDef[] = [
+  Ma.baker,
+  Ma.carpenter,
+  Ma.chandler,
+  Ma.ciderMaker,
+  Ma.dairy,
+  Ma.fishery,
+  Ma.forestersLodge,
+  Ma.grainFarm,
+  Ma.hives,
+  Ma.marketGarden,
+  Ma.orchard,
+  Ma.quarry,
+  Ma.sheepRun,
+  Ma.shop,
+  Ma.weaver,
+  Ma.windmill,
+];
+
+// prettier-ignore
+export const specialties: readonly SpecialtyDef[] = [
+  TB.bridgeCrossingCider,
+  TB.cornerCafeCordial,
+  TB.cornerCafePies,
+  TB.hedgerowLaneHoney,
+  TB.lanternWalkHoney,
+  TB.lanternWalkMead,
+  TB.marketCrossCider,
+  TB.marketCrossPies,
+  TB.orchardPathCider,
+  TB.orchardPathJam,
+  TB.pocketParkHoney,
+  TB.pondGardenHoney,
+  TB.promenadeCordial,
+  TB.readingNookCordial,
+  TB.sittingWallMead,
+  TB.smallSquareCider,
+  TB.townGateMead,
+  TB.villageGreenPies,
+  TB.watchLookoutMead,
+  TB.wellGatheringCider,
+  TB.windowGardensJam,
+];
+
+// prettier-ignore
+export const customs: readonly CustomDef[] = [
+  TB.buntingSeason,
+  TB.eveningWalk,
+  TB.greenEvenings,
+  TB.lanternRound,
+  TB.longTable,
+  TB.marketNight,
+  TB.orchardStroll,
+  TB.pondEvening,
+  TB.promenade,
+  TB.squareNight,
+  TB.tavernNight,
+  TB.wellGathering,
+  TB.winterFires,
+];
+
+// prettier-ignore
+export const callings: readonly CallingDef[] = [
+  Cl.gardenVillage,
+  Cl.millTown,
+  Cl.pilgrimsRest,
+];
+
 /** APPEND-ONLY: in the sim's GAP_KINDS order (R2.0). */
 // prettier-ignore
 export const gaps: readonly GapDef[] = [
@@ -696,4 +794,15 @@ export const content: Content = {
   places: PLACES,
   gaps,
   gapByKind: new Map(gaps.map((g) => [g.kind, g])),
+  supplies: SUPPLIES,
+  masters,
+  masterByOf: new Map(masters.map((m) => [m.of, m])),
+  mastery: Ma.MASTERY,
+  specialties,
+  specialtyById: byId(specialties),
+  customs,
+  customById: byId(customs),
+  townBook: TB.TOWN_BOOK,
+  callings,
+  callingById: byId(callings),
 };

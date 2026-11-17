@@ -55,6 +55,8 @@ describe('I2 buildings', () => {
     const made = new Set([
       ...content.buildings.flatMap((b) => (b.methods ?? []).flatMap((m) => m.outputs.map(([g]) => g))),
       ...content.trades.flatMap((t) => (t.makes ? [t.makes] : [])),
+      // R3.0: a master's method makes the master's good.
+      ...content.masters.flatMap((m) => (m.method ? m.method.outputs.map(([g]) => g) : [])),
     ]);
     // A good a neighbor sells counts as one the town can get: the carrier brings it.
     for (const n of content.neighbors) for (const [g] of n.sells) made.add(g);
