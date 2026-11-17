@@ -23,11 +23,20 @@ async function open(page: Page) {
   await page.waitForFunction(() => window.__qoti.places().length > 0, null, { timeout: 30_000 });
 }
 
-/** The well or stall nearest the start, and a tile of its place beside the building (not under it). */
+/**
+ * The well or stall nearest the start, and a tile of its place beside the building (not under it).
+ * R2X: on real data a host's tiles include its own footprint, so the tile is neither road nor
+ * building, and the one nearest the camera (the largest z), so the building's model cannot hide it.
+ */
 async function aPlace(page: Page) {
   return page.evaluate((n) => {
     const p = window.__qoti.places().find((q) => q.source === 'host')!;
-    const tile = p.tiles.find((t) => window.__qoti.roadAt(t % n, Math.floor(t / n)) === 0) ?? p.tile;
+    const free = p.tiles.filter((t) => {
+      const x = t % n;
+      const z = Math.floor(t / n);
+      return window.__qoti.roadAt(x, z) === 0 && window.__qoti.occupantAt(x, z) === 0;
+    });
+    const tile = free.sort((a, b) => b - a)[0] ?? p.tile;
     return { id: p.id, name: p.name, x: tile % n, z: Math.floor(tile / n) };
   }, N);
 }

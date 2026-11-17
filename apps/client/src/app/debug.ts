@@ -383,6 +383,8 @@ export function installDebugHook(getSession: () => Session | null): void {
     waterAt: (x: number, z: number) => s()?.mirror.water(x, z) ?? 0,
     /** R1D: the road value on a tile (1 path, 2 lane, 3 street). */
     roadAt: (x: number, z: number) => s()?.mirror.road(x, z) ?? 0,
+    /** R2X: the building on a tile, 0 for none (an e2e click aims beside one, not on it). */
+    occupantAt: (x: number, z: number) => s()?.mirror.occupant(x, z) ?? 0,
     /** R2D: whether a road tile is kept for evening strolling. */
     eveningAt: (x: number, z: number) => s()?.mirror.eveningStreet(x, z) ?? false,
     /** R2D: the places and gaps the Mirror holds (the &evening mocks until R2A and R2C land). */
