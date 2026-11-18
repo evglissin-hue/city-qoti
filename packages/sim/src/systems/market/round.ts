@@ -11,9 +11,10 @@
 // carrier comes at 10:00 and takes surplus only from makers' output buffers and the storehouses,
 // never from a stall's or shop's shelf; the round takes only from those shelves (store minus
 // reservedOut, never what porters or the carrier reserved). R3A: a tavern's shelf is its pouring
-// stock (`rt.input`, delivered by porters as ever; `shelfOf`), with nothing reserved: no second shelf. One stock, two buffers: porters
-// restock the shelves through the day, the round sells off them in the evening, and at 21:30 the
-// doorstep errand goes to the next outlet in reach when a shelf is empty.
+// stock (`rt.input`, delivered by porters as ever; `shelfOf`), with nothing reserved: no second
+// shelf. One stock, two buffers: porters restock the shelves through the day, the round sells off
+// them in the evening, and at 21:30 the doorstep errand goes to the next outlet in reach when a
+// shelf is empty.
 //
 // Purity: nothing is cached across ticks and nothing draws from an RNG stream here. Passing trade
 // rolls a hash of (resident, outlet, day), so the odds do not depend on how long they stand by a door.
