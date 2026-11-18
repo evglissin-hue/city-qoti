@@ -30,7 +30,7 @@ export function comparePairKey(
   return a.good - good;
 }
 
-/** The first index whose key is not below (from, to, place, good). */
+/** The first index whose key is not below (from, to, place, good). The compare is inlined: it runs on every write. */
 function lowerBound(
   pairs: readonly ThreadPair[],
   from: EntityId,
@@ -42,7 +42,13 @@ function lowerBound(
   let hi = pairs.length;
   while (lo < hi) {
     const mid = (lo + hi) >>> 1;
-    if (comparePairKey(pairs[mid]!, from, to, place, good) < 0) lo = mid + 1;
+    const p = pairs[mid]!;
+    let below: boolean;
+    if (p.from !== from) below = p.from < from;
+    else if (p.to !== to) below = p.to < to;
+    else if (p.place !== place) below = p.place === undefined || (place !== undefined && p.place < place);
+    else below = p.good < good;
+    if (below) lo = mid + 1;
     else hi = mid;
   }
   return lo;
@@ -111,9 +117,7 @@ export function recordThread(
     return;
   }
   const pair: ThreadPair =
-    place === undefined
-      ? { from, to: toId, good, units: qty }
-      : { from, to: 0, place, good, units: qty };
+    place === undefined ? { from, to: toId, good, units: qty } : { from, to: 0, place, good, units: qty };
   pairs.splice(i, 0, pair);
   bound(pairs, from, good);
 }
