@@ -60,3 +60,27 @@ Outside these paths: only small, necessary edits (registry lines, exports, addit
 - Tools merge in the layout, not in the registry: no tool id is renamed or removed (`ui/toolGroups.ts` is the layout's own registry).
 - Known CI noise: the bench line "growth night R1B" swings around its 2 ms budget; `street.test.ts` "runs in well under 2 ms" failed once at 6.06 ms against 6.
 - Ports for this checkout: client 5251, relay 8861.
+
+## As built (P3B, 2026-11-18)
+
+**Look and count** (task 1). Before, the bottom bar held 22 to 24 controls of four kinds in one strip (the lens switch, 10 to 12 tools, 6 or 7 unlabeled book icons, View, undo and the camera), the Ledger's second row of the top bar carried eight stocks with a meter and a count of days each, and the feed showed five cards. Shots `p3b-before-*`, measures `p3b-before-measures.md`.
+
+**Candidates** (task 4). A: the books on paper of their own in the bottom left corner. B: the books at the bar's end after a hairline. Both: grouped tools and a view corner. Shots `p3b-candidate-*`. The pick, B, agreed by the master: the books belong to the lens and change with its switch, so they stay on the lens's bar in its accent, and the bottom edge is two pieces rather than three.
+
+**The bottom bar** (task 2).
+- Tools that are one idea share a button with a small caret: Ledger Roads (Cart lane, Street, Evening streets), Build, Land (Earthworks, Walls, Fields once there is a grain farm), Move, Plans (Plans, Note), Erase: 6. Hearth Footpath, Build, Decor (Pieces, Fences, Dress up), Nature (Flowers, Trees, Pond), Move, Plans (Plans, Note, Lay it out while a layout is chosen), Erase: 7. The group's button takes out the kind used last, so every tool is one click, or two the first time; its tip names the kinds. The kinds sit on a slim shelf over the bar, or lead the tool's own row when it has one (the Decor picker's head, the Earthworks and Walls variants, the Fields line), so the stack over the bar never grows by a row.
+- `ui/toolGroups.ts` is the layout's own registry (one sorted line a group). Tool ids are unchanged; a tool no group names keeps its own button, and a group with one tool showing is just that tool.
+- One Books button with a count of what waits; its shelf names every book of the lens with its key and marks "2 new" letters, "7 waiting" wishes and "3 hinted" Pattern Book pages (`ui/bookMarks.ts`, one line a mark; a new book in the panel registry shows on the shelf with no line here). The button names the book while it is open. A new `books` glyph.
+- View, undo and the camera are a small cluster in the bottom right corner, the minimap above it; the bar is capped clear of both.
+
+**The rest of the frame** (task 3).
+- The Ledger's row draws a store with ten days or more in hand (and above its reserve) quiet: soft ink, no bar, no count of days, the room kept so the row never changes height. A material with no site short of it is quiet too. The Hearth's "no wishes waiting" sits quiet.
+- The feed shows three lines at rest in R2X's order; "and N more" unfolds the rest in place. At the master's note it rests as its title and count when nothing in it is new (half a game day after a line first showed), opens again when a line arrives, and its plus peeks.
+- At the master's note (the owner's shots): the ground's hover line ("Grass. Soil 91 (rich).") waits 1.6 s of rest; a building's still says itself after 0.45 s (`input/tools/inspect.ts`).
+- The first-days guide points at the group's button or the Books button while the thing it names is folded away (`ui/guide.ts`).
+
+**Measures** (`p3b-compare.md`; 768 px tall, day and lamplight the same). The frame covers 21.7 to 28.6% of the screen, down from 24.2 to 33.8% (the grown Ledger at 1250 px: 33.8% to 28.6%); the bar has 9 or 10 buttons, down from 22 to 24, the corner 2 to 4; nothing overlaps at 1250, 1366 or 1440 px. Shots `p3b-after-*` (both lenses, three widths, the hamlet and the grown village, day and lamplight) and `p3b-after-play-*` (the shelves, the pickers and the Books list by day and lamplight).
+
+**Keeping what works** (task 5). A unit test walks the tool, overlay and book registries and finds each one on the bar, a group's shelf, the View list, the Books shelf, a key or a named opener (`toolbar.test.ts`, "everything stays in reach"); the e2e specs use `takeTool` and `openBook` (`e2e/helpers.ts`). Group buttons, kinds and book entries carry `aria-pressed`, `aria-expanded` or `aria-current`; Esc closes a shelf before it puts a tool away.
+
+**Outside the owned paths** (small, listed in the PR): `ui/icons.tsx` (the books glyph), `ui/guide.ts` and its test (group and Books targets), `input/tools/inspect.ts` (the ground's dwell), `ui/village.css` (the minimap's place), `ui/hamlet.css` (the feed's fold line), the e2e specs and helpers.
