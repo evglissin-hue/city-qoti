@@ -44,6 +44,6 @@ for (const paper of ['a4', 'letter']) {
   writeFileSync(file, pdf);
   const info = execFileSync('pdfinfo', [file], { encoding: 'utf8' });
   console.log(paper, info.match(/Pages:\s+\d+/)?.[0], info.match(/Page size:.*/)?.[0]);
-  execFileSync('pdftoppm', ['-png', '-r', '60', file, `${out}/r3g-${paper}-page`]);
+  execFileSync('pdftoppm', ['-png', '-r', '90', file, `${out}/r3g-${paper}-page`]);
 }
 await browser.close();

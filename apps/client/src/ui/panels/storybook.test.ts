@@ -324,7 +324,7 @@ describe('the picture seam', () => {
       await settle();
       await new Promise((r) => setTimeout(r, 0));
     }
-    // The print root is `div.storybook-print`; the panel's Print button shares its test id.
+    // The print root, on <body> beside the app.
     const root = document.querySelector('div[data-testid="storybook-print"]');
     expect(root).not.toBeNull();
     const imgs = [...root!.querySelectorAll('[data-testid="storybook-entry-picture"] img')];

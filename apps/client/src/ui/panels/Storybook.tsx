@@ -291,7 +291,7 @@ function ChapterBook({
         <button
           type="button"
           class="primary"
-          data-testid="storybook-print"
+          data-testid="storybook-print-button"
           disabled={!ready}
           onClick={() => window.print()}
         >
