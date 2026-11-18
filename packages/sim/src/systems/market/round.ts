@@ -9,8 +9,9 @@
 //
 // Which takes first (R2B decides; docs/build/r2-wave-notes.md, Evening trade and the carrier): the
 // carrier comes at 10:00 and takes surplus only from makers' output buffers and the storehouses,
-// never from a stall's, shop's or the tavern's shelf; the round takes only from those shelves (store
-// minus reservedOut, never what porters or the carrier reserved). One stock, two buffers: porters
+// never from a stall's or shop's shelf; the round takes only from those shelves (store minus
+// reservedOut, never what porters or the carrier reserved). R3A: a tavern's shelf is its pouring
+// stock (`rt.input`, delivered by porters as ever; `shelfOf`), with nothing reserved: no second shelf. One stock, two buffers: porters
 // restock the shelves through the day, the round sells off them in the evening, and at 21:30 the
 // doorstep errand goes to the next outlet in reach when a shelf is empty.
 //
@@ -71,11 +72,23 @@ function treatsKind(def: string): TreatsKind {
   return k;
 }
 
+/**
+ * The buffer a building sells Treats from, and what is promised away from it (R3A): a tavern's
+ * pouring stock (`rt.input`, nothing reserved), everyone else's `store` less `reservedOut`.
+ */
+export function shelfOf(b: Building): { stock: number[]; reserved: number[] | null } | null {
+  const rt = b.rt;
+  if (!rt) return null;
+  return treatsKind(b.def) === TreatsKind.tavern
+    ? { stock: rt.input, reserved: null }
+    : { stock: rt.store, reserved: rt.reservedOut };
+}
+
 /** Whether it has a Treat on the shelf right now (read live; never cache it). */
 export function treatsOnShelf(_state: WorldState, b: Building): boolean {
-  const store = b.rt?.store;
-  if (!store) return false;
-  for (const g of TREATS) if ((store[g] ?? 0) - (b.rt?.reservedOut[g] ?? 0) > 0) return true;
+  const shelf = shelfOf(b);
+  if (!shelf) return false;
+  for (const g of TREATS) if ((shelf.stock[g] ?? 0) - (shelf.reserved?.[g] ?? 0) > 0) return true;
   return false;
 }
 
