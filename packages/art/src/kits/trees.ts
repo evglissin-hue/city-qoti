@@ -98,15 +98,25 @@ class TreeBuilder {
    * shade, round (soft normals), showing through the gaps as depth. Bare (`thin` 0, no dabs left)
    * it is today's whole crown with its sunlit top, which the foliage shader turns to winter twigs.
    */
-  core(blobs: readonly DabBlob[], k: number, seed: number, shade: number, thin: number, detail = 1): this {
+  core(
+    blobs: readonly DabBlob[],
+    k: number,
+    seed: number,
+    shade: number,
+    thin: number,
+    detail = 1,
+    restDetail = detail,
+  ): this {
     const rnd = seeded(seed);
-    for (const bl of blobs) {
+    for (const [i, bl] of blobs.entries()) {
       if (thin <= 0) {
         this.crown(bl.center, bl.radii, bl.color, 1, rnd, 0.1, sunlit(bl.color));
         continue;
       }
       const r: V3 = [bl.radii[0] * k, bl.radii[1] * k, bl.radii[2] * k];
-      this.crown(bl.center, r, mixHex(bl.color, CORE_SHADE, shade), detail, rnd, 0.06);
+      // P3C: `restDetail` for the clumps after the first: they show only through the gaps, shaded
+      // round by their soft normals whatever their facets (an orchard tree's do the same).
+      this.crown(bl.center, r, mixHex(bl.color, CORE_SHADE, shade), i === 0 ? detail : restDetail, rnd, 0.06);
     }
     return this;
   }
@@ -223,8 +233,8 @@ class TreeBuilder {
    * second leaning on from the first), root spurs at its foot and bark a shade darker low down,
    * where the owner's playtest of V3 found a plain six-sided post with a skirt.
    */
-  trunk(r: number, h: number, hex: number, seg: number, seed = 1): this {
-    trunkInto(this.s, r, h, hex, Math.max(seg, 7), seed);
+  trunk(r: number, h: number, hex: number, seg: number, seed = 1, roots = 3): this {
+    trunkInto(this.s, r, h, hex, seg, seed, roots);
     return this;
   }
 
@@ -332,6 +342,7 @@ export function trunkInto(
   hex: number,
   seg: number,
   seed: number,
+  roots = 3,
 ): void {
   const rnd = seeded(seed * 31 + 7);
   const foot = mixHex(hex, 0x2e2118, 0.28);
@@ -344,7 +355,6 @@ export function trunkInto(
   limb(s, [0, h * 0.1, 0], mid, r * 1.0, r * 0.8, foot, seg, hex);
   limb(s, mid, top, r * 0.8, r * 0.6, hex, seg);
   // Root spurs: three low wedges running out from the foot.
-  const roots = 3;
   for (let i = 0; i < roots; i++) {
     const t = a + (i / roots) * Math.PI * 2 + (rnd() - 0.5) * 0.7;
     const out = r * (1.9 + rnd() * 0.5);
@@ -496,7 +506,8 @@ export const oak: Kit = {
     }
     t.s.surface(SURFACE.leaf);
     const heart: V3 = [lx, stage === 0 ? 0.85 : O.y, lz];
-    t.core(blobs, 0.82, (opts?.seed ?? 7) + 1, 0.55, thinOf(opts));
+    // P3C: the main clump's core round, the others cheap, which pays for the finer dabs.
+    t.core(blobs, 0.82, (opts?.seed ?? 7) + 1, 0.55, thinOf(opts), 1, 0);
     t.dabs(toward(blobs, heart, 0.45), {
       // P3C: more, smaller dabs (240 of 0.2, were 180 of 0.255): close up a crown is brushwork,
       // not a lump of big flat facets; the core shows a little more between them, as depth.
@@ -635,7 +646,7 @@ export const birch: Kit = {
     // Dark bark marks.
     for (const y of [0.2, 0.47]) t.s.box(-0.058, y, -0.022, 0.058, y + 0.035, 0.022, palette.birchMark);
     t.s.surface(SURFACE.leaf);
-    t.core(blobs, 0.8, (opts?.seed ?? 11) + 1, 0.42, thinOf(opts));
+    t.core(blobs, 0.8, (opts?.seed ?? 11) + 1, 0.42, thinOf(opts), 1, 0);
     t.dabs(toward(blobs, [lx, stage === 3 ? B.y : 1.1, lz], 0.55), {
       // P3C: as the oak's, more and smaller (180 of 0.17, were 138 of 0.21).
       count: [44, 84, 132, 180][stage]!,
@@ -678,7 +689,8 @@ export const pine: Kit = {
       return t.build(STAGE_SCALE[stage]!);
     }
     t.s.surface(SURFACE.timber);
-    t.trunk(0.07, 0.36, palette.bark, 6, opts?.seed ?? 3);
+    // P3C: no root spurs under a pine: its lowest tier hides the foot.
+    t.trunk(0.07, 0.36, palette.bark, 5, opts?.seed ?? 3, 0);
     t.s.surface(SURFACE.leaf);
     // Tiers from the bottom up: wide and dark below, narrower and lighter above, each tilted a
     // little and turned so the edges do not line up.
