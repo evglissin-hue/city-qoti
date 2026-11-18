@@ -600,6 +600,9 @@ input::placeholder {
   bottom: 12px;
   left: 50%;
   transform: translateX(-50%);
+  /* P3B: over the raid bar (12), so a shelf or picker opened from the bar is never under it; under
+     the cards (14 and up). */
+  z-index: 13;
   display: grid;
   justify-items: center;
   gap: 8px;
@@ -928,6 +931,7 @@ input::placeholder {
   position: absolute;
   right: 10px;
   bottom: 12px;
+  z-index: 13;
   display: flex;
   align-items: center;
   gap: 2px;
