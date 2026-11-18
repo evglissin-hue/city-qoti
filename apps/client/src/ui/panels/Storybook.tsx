@@ -85,8 +85,27 @@ export function forewordCounts(seasons: readonly StorySeason[], patterns: number
     [patterns, 'page of the Pattern Book is written', 'pages of the Pattern Book are written'],
     [pages, 'page of the Town Book is found', 'pages of the Town Book are found'],
   ];
-  return lines.filter(([n]) => n > 0).map(([n, one, many]) => plural(n, one, many));
+  return lines
+    .filter(([n]) => n > 0)
+    .map(([n, one, many]) => `${NUMBER_WORDS[n] ?? n} ${n === 1 ? one : many}`);
 }
+
+/** Small numbers in words, as a book sets them ("one child is born"); larger ones in figures. */
+const NUMBER_WORDS = [
+  'no',
+  'one',
+  'two',
+  'three',
+  'four',
+  'five',
+  'six',
+  'seven',
+  'eight',
+  'nine',
+  'ten',
+  'eleven',
+  'twelve',
+];
 
 /** The storybook panel: the chapter's title page on screen, and the book itself in the print root. */
 export function StorybookPanel({ session }: { session: Session }) {

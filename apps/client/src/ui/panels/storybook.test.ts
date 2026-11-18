@@ -355,9 +355,9 @@ describe('the panel', () => {
       chapter(0, 10),
     );
     expect(forewordCounts(seasons, 1, 0)).toEqual([
-      '2 households move in',
-      '1 child is born',
-      '1 page of the Pattern Book is written',
+      'two households move in',
+      'one child is born',
+      'one page of the Pattern Book is written',
     ]);
     expect(forewordCounts([], 0, 0)).toEqual([]);
   });
