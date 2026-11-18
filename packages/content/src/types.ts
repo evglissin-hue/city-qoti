@@ -1684,6 +1684,17 @@ export interface SuppliesTuning {
   candleUntilHour: number;
   /** A faded or dry piece keeps this percent of its charm (50). */
   restCharmPercent: number;
+  /**
+   * R3A (additive): ticks a tile the lamplighter's walk is reckoned at when the settling gives each
+   * lamp its reach tick (a brisk walk on the road); a round too long for the half hour is pressed
+   * into it. Absent reads 5.
+   */
+  walkTicks?: number;
+  /**
+   * R3A (additive): how often a kind of piece wants its good, for the fourth gap's words ("6 candles
+   * a night"): nightly, evening and season kinds.
+   */
+  gapWhen?: { nightly: string; evening: string; season: string };
 }
 
 /**

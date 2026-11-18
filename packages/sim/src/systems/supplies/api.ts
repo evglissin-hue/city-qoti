@@ -12,6 +12,7 @@
 import { content, type RestKind, type SupplyDef } from '@qoti/content';
 import type { Decor, EntityId, Gap, Household, WorldState } from '../../contracts';
 import { lanternsLit } from '../hearth/charm/sources';
+import { shortGapAchievable, shortGapClosable } from './gapChecks';
 
 /** A decor piece's supply, or undefined when it needs none. */
 export function supplyOf(decor: Decor): SupplyDef | undefined {
@@ -48,9 +49,8 @@ export function pieceRests(_state: WorldState, _decor: Decor): RestKind | null {
  * The fourth gap can be met at all in this valley (gaps/achievable.ts; the audit's `gap-unmeetable`):
  * what its pieces burn can be made here or bought from a neighbor under some carrier rule.
  */
-export function supplyGapAchievable(_state: WorldState): boolean {
-  // R3 stand-in (R3A): never, so the fourth gap never opens on stand-ins.
-  return false;
+export function supplyGapAchievable(state: WorldState): boolean {
+  return shortGapAchievable(state);
 }
 
 /**
@@ -58,9 +58,8 @@ export function supplyGapAchievable(_state: WorldState): boolean {
  * `gap-dead-end`): a lot where a chandler could grow with honey in reach, a carrier rule, a lower
  * reserve, a priority.
  */
-export function supplyGapClosable(_state: WorldState, _gap: Gap): boolean {
-  // R3 stand-in (R3A): never flag what is not understood.
-  return true;
+export function supplyGapClosable(state: WorldState, gap: Gap): boolean {
+  return shortGapClosable(state, gap);
 }
 
 /**
