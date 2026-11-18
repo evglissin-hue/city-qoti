@@ -99,6 +99,7 @@ const ICONS: Record<string, () => JSX.Element> = {
   threat: () => svg([<path key="s" d="M12 3.5 19 6v5.5c0 4-3 7-7 9-4-2-7-5-7-9V6z" />, <path key="e" d="M12 8.5v4M12 15.6v.1" />]),
   trade: () => svg([<path key="s" d="M12 4v15.5" />, <path key="b" d="M8 19.5h8" />, <path key="a" d="M5 7h14" />, <path key="l" d="m5 7-2.5 6h5zM19 7l-2.5 6h5z" />, <path key="t" d="M2.5 13a2.5 1.4 0 0 0 5 0M16.5 13a2.5 1.4 0 0 0 5 0" />]),
   town: () => svg([<path key="h" d="M4 18.5v-6l4-3.5 4 3.5v6z" />, <path key="p" d="M14 18.5h6M16 15.5h2.5" />, <circle key="m" cx="17.5" cy="9" r="2.2" />]),
+  townbook: () => svg([<path key="c" d="M6.5 3.5h10a1.5 1.5 0 0 1 1.5 1.5v14.5H8a1.5 1.5 0 0 1-1.5-1.5z" />, <path key="s" d="M6.5 18a1.5 1.5 0 0 1 1.5-1.5h10" />, <path key="r" d="M14 3.5v6l-1.8-1.3L10.4 9.5v-6" />, <path key="l" d="M9.5 12.5h5" />]),
   traffic: () => svg([<circle key="w" cx="8" cy="15.5" r="3" />, <path key="s" d="M8 12.5v6M5 15.5h6" />, <path key="b" d="M11 13h7.5l-1-4.5H11z" />, <path key="a" d="M15 19h4.5M17.5 17l2 2-2 2" />]),
   tree: () => svg([<path key="t" d="M12 20v-6" />, <path key="c" d="M12 3.5c-3.5 0-5.5 2.6-5.5 5.4 0 2.8 2.3 5.1 5.5 5.1s5.5-2.3 5.5-5.1c0-2.8-2-5.4-5.5-5.4z" />]),
   trial: () => svg([<circle key="s" cx="12" cy="10" r="5.5" />, <path key="c" d="m9.6 10 1.7 1.7 3.2-3.4" />, <path key="r" d="m9 15 -1.5 5.5L12 18.5l4.5 2-1.5-5.5" />]),

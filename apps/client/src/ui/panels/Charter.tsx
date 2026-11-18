@@ -4,6 +4,7 @@ import type { Session } from '../../app/session';
 import { seatList, shortDate } from '../format';
 import { Glyph } from '../icons';
 import { RANK_WORD } from '../village';
+import { Callings } from './masterLines';
 import { Empty, Frame, Meter } from './parts';
 import { LaneTag } from './villageParts';
 
@@ -113,6 +114,7 @@ function Board({ session, c }: { session: Session; c: CharterView }) {
         ) : (
           <p class="proclamation">The County has nothing more to ask of {town} for now. Enjoy it.</p>
         )}
+        <Callings callings={c.callings} />
         <History session={session} c={c} />
       </div>
     );
@@ -179,6 +181,7 @@ function Board({ session, c }: { session: Session; c: CharterView }) {
       >
         <Glyph id="charter" /> {c.ready ? `Claim the ${RANK_WORD[c.next]} Charter` : 'Not ready to claim yet'}
       </button>
+      <Callings callings={c.callings} />
       <History session={session} c={c} />
       {c.history.length === 0 && (
         <p class="muted small">Either of you can claim it, though it is nicer together.</p>
