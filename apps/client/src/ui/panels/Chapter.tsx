@@ -131,6 +131,13 @@ export function ChapterPanel({ session }: { session: Session }) {
           <button type="button" class="primary" data-testid="chapter-close" onClick={close}>
             <Glyph id="rank" /> Keep going
           </button>
+          <button
+            type="button"
+            data-testid="chapter-storybook"
+            onClick={() => (close(), (session.ui.panel.value = 'storybook'))}
+          >
+            <Glyph id="chronicle" /> Print the storybook
+          </button>
           <button type="button" data-testid="chapter-new-valley" onClick={found}>
             <Glyph id="charter" /> Found a new valley
           </button>
