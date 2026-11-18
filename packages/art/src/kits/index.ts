@@ -13,6 +13,7 @@ import * as Gy from './gardens';
 import * as Gn from './greens';
 import * as G from './goods';
 import * as Gr from './grown';
+import * as Lm from './lamplight';
 import * as N from './nature';
 import * as R from './residents';
 import * as Sp from './specialized';
@@ -40,6 +41,7 @@ export const kits: readonly Kit[] = [
   Gd.birdbath,
   D.bollard,
   Fe.bonfire,
+  Lm.brazier,
   V.brickKilnKit,
   Sp.brickworksKit,
   W.buildersYardKit,
