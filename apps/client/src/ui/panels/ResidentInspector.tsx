@@ -10,6 +10,7 @@ import { openLetter } from './StoryLetter';
 import { Day } from './Day';
 import { Glyph } from '../icons';
 import { Portrait } from '../Portrait';
+import { ResidentMasterLines } from './masterLines';
 import { Empty, Frame, Hearts, Heading, Meter, useInspect } from './parts';
 
 type Tab = 'today' | 'story';
@@ -66,6 +67,7 @@ export function ResidentInspector({ session, id }: { session: Session; id: numbe
         <Portrait species={r.species} look={r.look} stage={r.stage} size={68} mood={r.moodBand} />
         <div class="resident-facts">
           <p class="doing">{detail?.doing ?? ''}</p>
+          {detail && <ResidentMasterLines session={session} detail={detail} />}
           <div class="traits">
             {r.traits.map((t) => {
               const def = content.traitById.get(t);

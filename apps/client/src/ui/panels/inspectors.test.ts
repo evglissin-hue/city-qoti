@@ -4,7 +4,7 @@ import { h } from 'preact';
 import { afterEach, describe, expect, it } from 'vitest';
 import { removalRequest } from '../../input/removal';
 import { mockBuildings } from '../mocks/hamlet';
-import { mockSession, mockView } from '../mocks/session';
+import { mockInspect, mockSession, mockView } from '../mocks/session';
 import { button, mount, settle, type Mounted } from '../test/dom';
 import { InspectorPanel } from './Inspector';
 
@@ -173,5 +173,173 @@ describe('building inspector', () => {
       z: 47,
       text: 'Ada removed your workshop: The mill needs the spot',
     });
+  });
+});
+
+/** A session whose inspect reply for one entity carries extra R3 fields. */
+function withDetail(kind: 'resident' | 'building', id: number, extra: Record<string, unknown>) {
+  const out = mockSession();
+  (out.session as { inspect: unknown }).inspect = (k: 'resident' | 'building', i: number) => {
+    const base = mockInspect(k, i);
+    return Promise.resolve(k === kind && i === id && base ? { ...base, ...extra } : base);
+  };
+  out.session.ui.selection.value = { kind, id };
+  return out;
+}
+
+describe('resident inspector, masters and craft (R3D)', () => {
+  it('shows nothing extra without the fields', async () => {
+    const { session } = mockSession();
+    session.ui.selection.value = { kind: 'resident', id: 12 };
+    view = await mount(h(InspectorPanel, { session }));
+    expect(view.find('resident-master-lines')).toBeNull();
+  });
+
+  it('says a master is a master, and leaves their craft out', async () => {
+    const { session } = withDetail('resident', 12, {
+      master: { trade: 'baker', title: 'master baker' },
+      craft: [{ trade: 'baker', days: 40 }],
+    });
+    view = await mount(h(InspectorPanel, { session }));
+    expect(view.get('resident-master').textContent).toBe('Master baker.');
+    expect(view.find('resident-craft')).toBeNull();
+  });
+
+  it('names an apprentice master as a link, with the title from the master business', async () => {
+    const { session } = withDetail('resident', 12, { apprenticeOf: { id: 17, name: 'Hazel' } });
+    session.mirror.businesses.set(6, {
+      id: 6,
+      def: 'workshop',
+      trade: 'baker',
+      level: 3,
+      keeperId: 0,
+      pinned: false,
+      hands: 1,
+      crew: 2,
+      status: 'Baking',
+      levelDays: 0,
+      masterId: 17,
+    });
+    view = await mount(h(InspectorPanel, { session }));
+    expect(view.get('resident-apprentice').textContent).toBe('Apprenticed to Hazel, master baker.');
+    await view.click(button(view.get('resident-apprentice'), 'Hazel'));
+    expect(session.ui.selection.value).toEqual({ kind: 'resident', id: 17 });
+  });
+
+  it('shows the craft, most days first, at most two trades', async () => {
+    const { session } = withDetail('resident', 12, {
+      craft: [
+        { trade: 'windmill', days: 6 },
+        { trade: 'baker', days: 34 },
+        { trade: 'weaver', days: 2 },
+      ],
+    });
+    view = await mount(h(InspectorPanel, { session }));
+    expect(view.get('resident-craft').textContent).toBe('34 days at baking, 6 at milling.');
+  });
+
+  it('shows no craft for someone with no working days', async () => {
+    const { session } = withDetail('resident', 12, { craft: [{ trade: 'baker', days: 0 }] });
+    view = await mount(h(InspectorPanel, { session }));
+    expect(view.find('resident-craft')).toBeNull();
+  });
+});
+
+describe('building inspector, masters, lamplighter and candle (R3D)', () => {
+  it('shows nothing extra without the fields', async () => {
+    const { session } = mockSession();
+    session.ui.selection.value = { kind: 'building', id: 6 };
+    view = await mount(h(InspectorPanel, { session }));
+    expect(view.find('building-master-lines')).toBeNull();
+  });
+
+  it('shows the master and the apprentices as links', async () => {
+    const master = {
+      id: 12,
+      name: 'Hazel',
+      trade: 'baker',
+      title: 'master baker',
+      apprentices: [
+        { id: 17, name: 'Fig' },
+        { id: 18, name: 'Tansy' },
+      ],
+    };
+    const { session } = withDetail('building', 6, { master });
+    view = await mount(h(InspectorPanel, { session }));
+    expect(view.get('building-master').textContent).toBe('Master: Hazel, master baker.');
+    expect(view.get('building-apprentices').textContent).toBe('Apprentices: Fig and Tansy.');
+    await view.click(button(view.get('building-apprentices'), 'Tansy'));
+    expect(session.ui.selection.value).toEqual({ kind: 'resident', id: 18 });
+    view.unmount();
+    const three = withDetail('building', 6, {
+      master: { ...master, apprentices: [...master.apprentices, { id: 19, name: 'Wren' }] },
+    });
+    view = await mount(h(InspectorPanel, { session: three.session }));
+    expect(view.get('building-apprentices').textContent).toBe('Apprentices: Fig, Tansy and Wren.');
+  });
+
+  it('leaves the apprentices line out when there are none', async () => {
+    const { session } = withDetail('building', 6, {
+      master: { id: 12, name: 'Hazel', trade: 'baker', title: 'master baker', apprentices: [] },
+    });
+    view = await mount(h(InspectorPanel, { session }));
+    expect(view.find('building-master')).not.toBeNull();
+    expect(view.find('building-apprentices')).toBeNull();
+  });
+
+  it('says who holds the lamplighter jobs and what tonight needs', async () => {
+    const { session } = withDetail('building', 6, {
+      lamplighter: { jobs: 1, held: [{ id: 12, name: 'Rowan' }], lanterns: 24, candles: 6 },
+    });
+    view = await mount(h(InspectorPanel, { session }));
+    expect(view.get('building-lamplighter').textContent).toBe('Lamplighter: Rowan.');
+    expect(view.get('building-lanterns').textContent).toBe('Tonight: 24 lanterns, 6 candles.');
+    await view.click(button(view.get('building-lamplighter'), 'Rowan'));
+    expect(session.ui.selection.value).toEqual({ kind: 'resident', id: 12 });
+  });
+
+  it('says a lamplighter job is open, and two hold the jobs', async () => {
+    let out = withDetail('building', 6, { lamplighter: { jobs: 1, held: [], lanterns: 0, candles: 0 } });
+    view = await mount(h(InspectorPanel, { session: out.session }));
+    expect(view.get('building-lamplighter').textContent).toBe("The lamplighter's job is open.");
+    expect(view.find('building-lanterns')).toBeNull();
+    view.unmount();
+    out = withDetail('building', 6, {
+      lamplighter: { jobs: 2, held: [{ id: 12, name: 'Rowan' }], lanterns: 3, candles: 0 },
+    });
+    view = await mount(h(InspectorPanel, { session: out.session }));
+    expect(view.get('building-lamplighter').textContent).toBe(
+      'Lamplighter: Rowan. One of 2 lamplighter jobs is open.',
+    );
+    expect(view.get('building-lanterns').textContent).toBe('Tonight: 3 lanterns.');
+    view.unmount();
+    out = withDetail('building', 6, {
+      lamplighter: {
+        jobs: 2,
+        held: [
+          { id: 12, name: 'Rowan' },
+          { id: 17, name: 'Moss' },
+        ],
+        lanterns: 1,
+        candles: 1,
+      },
+    });
+    view = await mount(h(InspectorPanel, { session: out.session }));
+    expect(view.get('building-lamplighter').textContent).toBe('Lamplighters: Rowan and Moss.');
+    expect(view.get('building-lanterns').textContent).toBe('Tonight: 1 lantern, 1 candle.');
+  });
+
+  it("counts a home's candlelight", async () => {
+    let out = withDetail('building', 6, { candle: 3 });
+    view = await mount(h(InspectorPanel, { session: out.session }));
+    expect(view.get('building-candle').textContent).toBe('Candlelight for 3 more nights.');
+    view.unmount();
+    out = withDetail('building', 6, { candle: 1 });
+    view = await mount(h(InspectorPanel, { session: out.session }));
+    expect(view.get('building-candle').textContent).toBe('Candlelight for one more night.');
+    view.unmount();
+    out = withDetail('building', 6, { candle: 0 });
+    view = await mount(h(InspectorPanel, { session: out.session }));
+    expect(view.find('building-candle')).toBeNull();
   });
 });

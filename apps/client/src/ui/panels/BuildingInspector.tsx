@@ -19,6 +19,7 @@ import {
   statusIsTrouble,
 } from './Businesses';
 import { Glyph } from '../icons';
+import { BuildingMasterLines } from './masterLines';
 import { Empty, Frame, GoodChip, GoodList, Heading, Meter, Toggle, useInspect } from './parts';
 
 /**
@@ -224,6 +225,8 @@ export function BuildingInspector({ session, id }: { session: Session; id: numbe
           )}
         </>
       )}
+
+      {detail && <BuildingMasterLines session={session} detail={detail} />}
 
       {detail && <VillageDetail session={session} detail={detail} />}
 
