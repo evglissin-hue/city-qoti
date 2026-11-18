@@ -21,4 +21,9 @@ export const SUPPLIES: SuppliesTuning = {
   candleUntilHour: 22,
   // A faded or dry piece keeps half its charm.
   restCharmPercent: 50,
+  // The lamplighter's walk is reckoned at a road's pace, five ticks a tile; a round too long for the
+  // half hour from the settling is pressed into it.
+  walkTicks: 5,
+  // The fourth gap's words: "6 candles a night", "2 firewood an evening", "4 cloth this season".
+  gapWhen: { nightly: 'a night', evening: 'an evening', season: 'this season' },
 };
