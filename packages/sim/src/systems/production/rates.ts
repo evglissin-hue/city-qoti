@@ -40,7 +40,9 @@ export function dailyRates(state: WorldState, b: Building, def: BuildingDef): Da
   // R3H: a specialized building at a higher level works with its level's bigger crew.
   const hands = def.levels?.crew ? Math.max(1, jobsOf(b)) : Math.max(1, method.workers);
   const cycles =
-    (WORK_DAY_HOURS / method.hours) * (method.perWorker ? hands : hands / Math.max(1, method.workers)) * scale;
+    (WORK_DAY_HOURS / method.hours) *
+    (method.perWorker ? hands : hands / Math.max(1, method.workers)) *
+    scale;
   return {
     inputs: method.inputs.map(([g, q]) => [g, tenth(q * cycles)]),
     outputs: method.outputs.filter(([g]) => content.goodIndex.has(g)).map(([g, q]) => [g, tenth(q * cycles)]),

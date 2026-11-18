@@ -16,7 +16,7 @@
 // (13-ledger.md, Levels). Nothing new is saved: `Building.level` and `Building.counters` are.
 import { content, type BuildingDef, type SpecializedLevelsDef } from '@qoti/content';
 import { BUSINESS_LEVEL_MAX } from '../../constants';
-import type { Building, BusinessCounters, TickCtx, WorldState } from '../../contracts';
+import type { Building, BusinessCounters, SpecializedClimbView, TickCtx, WorldState } from '../../contracts';
 import { findById } from '../../state/entities';
 import { emptyCounters, jobsOf, levelOf, storageOf } from '../../state/zones';
 import { buildingView } from '../../view';
@@ -42,7 +42,12 @@ export type SpecializedDay = 'good' | 'failing' | 'quiet' | 'resting';
 export function specializedMaxLevel(def: BuildingDef | undefined): number {
   const l = def?.levels;
   if (!l) return 1;
-  const n = Math.max(l.crew?.length ?? 0, l.reach?.length ?? 0, l.storage?.length ?? 0, l.capacity?.length ?? 0);
+  const n = Math.max(
+    l.crew?.length ?? 0,
+    l.reach?.length ?? 0,
+    l.storage?.length ?? 0,
+    l.capacity?.length ?? 0,
+  );
   return Math.min(BUSINESS_LEVEL_MAX, Math.max(1, n));
 }
 
@@ -147,9 +152,7 @@ export function levelGains(def: BuildingDef, to: number): string[] {
   if (crew !== undefined && crewBefore !== undefined && crew > crewBefore) {
     const word = handWord(def);
     out.push(
-      crew - crewBefore === 1
-        ? `a ${ORDINAL[crew] ?? 'new'} ${word}`
-        : `${crew - crewBefore} more ${word}s`,
+      crew - crewBefore === 1 ? `a ${ORDINAL[crew] ?? 'new'} ${word}` : `${crew - crewBefore} more ${word}s`,
     );
   }
   const reach = at(l.reach, to);
@@ -164,7 +167,8 @@ export function levelGains(def: BuildingDef, to: number): string[] {
     );
   }
   const storage = at(l.storage, to);
-  if (storage !== undefined && storage !== at(l.storage, to - 1)) out.push(`room for ${count(storage)} goods`);
+  if (storage !== undefined && storage !== at(l.storage, to - 1))
+    out.push(`room for ${count(storage)} goods`);
   const cap = at(l.capacity, to);
   const capBefore = at(l.capacity, to - 1);
   if (cap !== undefined && capBefore !== undefined && cap > capBefore) {
@@ -271,4 +275,51 @@ export function specializedDayEnd(state: WorldState, ctx: TickCtx, b: Building):
   c.shortToday = false;
   // One event a day keeps the Businesses book's days fresh, as for a business.
   ctx.events.push({ e: 'business.updated', b: businessView(state, b) });
+}
+
+/**
+ * The inspector's view of a specialized building's climb (BuildingDetail.climb): its level, the days
+ * so far, what a good day is and how today stands against it, and what the next level brings. Null
+ * for a building without levels.
+ */
+export function specializedClimb(state: WorldState, b: Building): SpecializedClimbView | null {
+  const def = content.buildingById.get(b.def);
+  const levels = def?.levels;
+  if (!def || !levels?.good || !b.rt) return null;
+  const level = levelOf(b);
+  const max = specializedMaxLevel(def);
+  const c = b.counters ?? emptyCounters();
+  let today: { have: number; need: number };
+  switch (levels.good) {
+    case 'carried':
+      today = { have: c.soldToday, need: c.madeToday };
+      break;
+    case 'customers': {
+      // The mark toward the next level, or at the top the one that holds it.
+      const need = STALL_CUSTOMERS[Math.min(level, max - 1) - 1] ?? STALL_CUSTOMERS[0]!;
+      today = { have: c.customersToday, need: level >= max ? (STALL_CUSTOMERS[level - 2] ?? need) : need };
+      break;
+    }
+    case 'served': {
+      const list = servedToday(state, b);
+      today = { have: list.filter((s) => !s.counters?.shortToday).length, need: list.length };
+      break;
+    }
+    case 'full':
+      today = { have: stored(b), need: Math.ceil(storageOf({ def: b.def, level }) / 2) };
+      break;
+  }
+  const view: SpecializedClimbView = {
+    level,
+    max,
+    days: c.levelDays,
+    upDays: LEVEL_UP_DAYS,
+    downDays: LEVEL_DOWN_DAYS,
+    good: levels.good,
+    today,
+    next: level < max ? levelGains(def, level + 1) : [],
+    lose: level > 1 ? levelGains(def, level) : [],
+  };
+  if (resting(state, b, def)) view.resting = true;
+  return view;
 }

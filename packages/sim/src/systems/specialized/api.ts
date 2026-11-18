@@ -51,7 +51,9 @@ export function specializedReach(b: Pick<Building, 'def' | 'level'>): number {
   const def = content.buildingById.get(b.def);
   if (!def) return 0;
   if (def.reach) return atLevel(b, 'reach', def.reach);
-  return def.specialized && (def.enables?.length || def.stores?.length) ? atLevel(b, 'reach', DEFAULT_REACH) : 0;
+  return def.specialized && (def.enables?.length || def.stores?.length)
+    ? atLevel(b, 'reach', DEFAULT_REACH)
+    : 0;
 }
 
 /** R3H: the farthest a building of this def reaches at any level (bounds for searches around it). */
@@ -149,7 +151,14 @@ function reachGrid(state: WorldState, b: Building): ReachGrid {
   }
   const hit = perState.get(b.id);
   const reach = specializedReach(b);
-  if (hit && hit.def === b.def && hit.x === b.x && hit.z === b.z && hit.rot === b.rot && hit.reach === reach) {
+  if (
+    hit &&
+    hit.def === b.def &&
+    hit.x === b.x &&
+    hit.z === b.z &&
+    hit.rot === b.rot &&
+    hit.reach === reach
+  ) {
     if (hit.version === state.networkVersion) return hit;
     // No road anywhere changed since it was walked, or none in its own box did.
     if (roadEpoch(state) <= hit.version || sameRoads(state, hit)) {

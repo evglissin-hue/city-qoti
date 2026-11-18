@@ -229,7 +229,9 @@ export class SiteCache {
         // A business counts going up or built alike; only a specialized building's stage matters,
         // and (R3H) its level, which may reach farther.
         sig[3 + i * 3] =
-          b.stage === 'built' && (defs ? !!defs[i]?.specialized : SPECIALIZED.has(b.def)) ? (b.level ?? 1) : 0;
+          b.stage === 'built' && (defs ? !!defs[i]?.specialized : SPECIALIZED.has(b.def))
+            ? (b.level ?? 1)
+            : 0;
       }
       this.sig = sig;
     }

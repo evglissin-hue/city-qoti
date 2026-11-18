@@ -118,7 +118,10 @@ export function computeStatus(
   if (!method) return s;
   if (method.kind === 'craft' && inputsShort(rt, method)) s |= BuildingStatus.missingInput;
   if (outputBlocked(def, rt, method)) s |= BuildingStatus.outputFull;
-  if (method.kind === 'fell' && countMatureTrees(state, b, def, atLevel(b, 'reach', method.range ?? FORESTRY_RANGE)) === 0) {
+  if (
+    method.kind === 'fell' &&
+    countMatureTrees(state, b, def, atLevel(b, 'reach', method.range ?? FORESTRY_RANGE)) === 0
+  ) {
     s |= BuildingStatus.noTrees;
   }
   if (method.kind === 'farm' && ownedFields(state, b, def) === 0) s |= BuildingStatus.noFields;

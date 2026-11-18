@@ -236,7 +236,10 @@ function census(state: WorldState, known?: Defs, stock?: number[]): Census {
     if (stock && rt && b.stage === 'built' && !keepsNoGoods(def)) addStock(stock, rt);
     // openJobs, with the def already in hand: built, not paused, not resting, hands wanted less hands.
     if (b.stage === 'built' && rt && !rt.paused && !isResting(b)) {
-      const o = Math.max(0, (b.trade || def?.levels ? jobsOf(b) : (def?.jobs?.count ?? 0)) - rt.workers.length);
+      const o = Math.max(
+        0,
+        (b.trade || def?.levels ? jobsOf(b) : (def?.jobs?.count ?? 0)) - rt.workers.length,
+      );
       open += o;
       if (o > 0 && b.trade && rt.workers.length === 0) handsWaiting++;
     }

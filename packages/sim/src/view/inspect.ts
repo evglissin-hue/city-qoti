@@ -40,6 +40,7 @@ import { buildingProfit } from '../systems/market/profit';
 import { siteFits, tradesOf } from '../systems/growth';
 import { servedBy } from '../systems/services/coverage';
 import { capacityOf, served, specializedReach } from '../systems/specialized/api';
+import { specializedClimb } from '../systems/levels/specialized';
 import type { ServiceKind } from '../systems/services/weights';
 
 export { residentDetail };
@@ -376,6 +377,11 @@ function addVillageDetail(state: WorldState, b: Building, def: BuildingDef, deta
   // R1B: a specialized building's reach, who it serves and how many it may (R3H: at its level).
   if (def.specialized && def.reach) {
     detail.reach = { tiles: specializedReach(b), served: served(state, b), capacity: capacityOf(state, b) };
+  }
+  // R3H: a specialized building's climb (the level line).
+  if (def.levels && b.stage === 'built') {
+    const climb = specializedClimb(state, b);
+    if (climb) detail.climb = climb;
   }
   if (lot) detail.lot = lotView(lot, state);
   if (rt.tier) detail.tier = rt.tier;

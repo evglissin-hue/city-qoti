@@ -58,7 +58,8 @@ export function outletFood(state: WorldState, buildingId: EntityId): number {
  * R2X: the outlet defs, and for a market its food coverage radius squared, found once (evening
  * shopping asks for the nearest outlet for every shopper; the scan read each building's tags).
  */
-let outletDefs: Map<string, { def: BuildingDef; market: boolean; r2: number; levelled: boolean }> | null = null;
+let outletDefs: Map<string, { def: BuildingDef; market: boolean; r2: number; levelled: boolean }> | null =
+  null;
 
 function outletDef(id: string) {
   if (!outletDefs) {
