@@ -94,7 +94,7 @@ import type {
 
 export { callingPhrases } from './callings';
 export { chroniclePhrases } from './chronicle';
-export { MASTERY } from './masters';
+export { MASTERY, masterWords } from './masters';
 export { festivalTuning } from './festivals';
 export { PLACES } from './places';
 export { placeWords } from './placeWords';
@@ -375,6 +375,8 @@ export const chronicle: readonly ChronicleTemplate[] = [
   Gu.guideDone,
   C.householdArrived,
   C.householdLeft,
+  Ma.masterLost,
+  Ma.masterMade,
   C.patternDiscovered,
   Th.raidHeld,
   Th.raidLost,

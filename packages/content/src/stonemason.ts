@@ -8,6 +8,8 @@ import type { StoryArc } from './types';
 
 export const stonemason: StoryArc = {
   id: 'stonemason',
+  // R3B: a master from the day they arrive (a story master counts for Master of the House only).
+  mastery: 'quarry',
   character: {
     given: 'Barnaby',
     family: 'Ashcombe',

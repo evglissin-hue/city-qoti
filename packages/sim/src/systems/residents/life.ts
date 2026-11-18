@@ -8,7 +8,7 @@
 // Every draw comes from the 'misc' stream, so life events never change who arrives next (the
 // 'residents' stream picks arrivals). Chronicle and notice lines rotate through their
 // variants (rotation) so the same words never come round twice in a row.
-import { content, lifePhrases } from '@qoti/content';
+import { content, lifePhrases, masterWords } from '@qoti/content';
 import {
   APPRENTICE_DAYS,
   DAYS_PER_SEASON,
@@ -46,6 +46,7 @@ import { announceHousehold, announceResident, announceTown, pushHistory, syncRes
 import { compatibility, hasTrait, traitsCompatible } from './traits';
 import { dayIndex } from './time';
 import { bumpPlaceInputs } from '../places/inputs';
+import { masterDefOf, masteryKey, masterOf, masterTitle } from '../masters/api';
 
 /**
  * Friendship level two residents need before they become a couple: friends (2) when one of
@@ -128,7 +129,8 @@ export function lifeMorning(state: WorldState, ctx: TickCtx): void {
   const today = dayIndex(state.tick);
   const rng = ctx.rng('misc');
   forgetGonePartners(state);
-  retire(state, ctx);
+  const retiredMasters = retire(state, ctx);
+  loseMasters(state, ctx, today, retiredMasters);
   graduate(state, ctx, today);
   apprentices(state, ctx, today);
   couples(state, ctx, rng, today);
@@ -468,8 +470,12 @@ function bear(
 
 // --- Work: apprentices and retiring --------------------------------------------------------------
 
-/** Elders stop working (and arrivals who are already elders count as retired). */
-function retire(state: WorldState, ctx: TickCtx): void {
+/**
+ * Elders stop working (and arrivals who are already elders count as retired). Returns the masters
+ * who stopped working today (R3B: losing one), in resident order.
+ */
+function retire(state: WorldState, ctx: TickCtx): Resident[] {
+  const masters: Resident[] = [];
   for (const r of state.residents) {
     if (r.stage !== 'elder' || r.retired) continue;
     r.retired = true;
@@ -482,8 +488,55 @@ function retire(state: WorldState, ctx: TickCtx): void {
       ['place', placeName(b)],
     ]);
     emit(ctx, 'retired', [r.id], text);
+    if (masterTitle(r) && !r.story) masters.push(r);
     syncResident(state, ctx, r);
   }
+  return masters;
+}
+
+/**
+ * R3B, losing one: a Chronicle line and a notice for each master who retired today and for each
+ * master whose household the morning pass flagged as leaving (the flag is set at 06:00 just before
+ * this runs, and the household walks out at 09:00, so the name is still at hand). The guard: a
+ * household that has already set off has no home (`homeId` 0), so one that stays flagged on the walk
+ * to the gate is not announced twice. Story characters never leave and are not announced when they
+ * retire. The 23:45 masters step clears `masterId`; the levels pass counts the grace.
+ */
+function loseMasters(state: WorldState, ctx: TickCtx, today: number, retired: readonly Resident[]): void {
+  const gone: [Resident, boolean][] = retired.map((r) => [r, true]);
+  for (const h of state.households) {
+    if (!h.homeId) continue;
+    for (const id of h.members) {
+      const r = findById(state.residents, id);
+      if (r && r.flags & ResidentFlags.leaving && !r.story && masterTitle(r) && !retired.includes(r))
+        gone.push([r, false]);
+    }
+  }
+  const kind = content.chronicleByKind.get('master-lost')?.text.length ?? 1;
+  gone.forEach(([r, retiredNow], i) => {
+    const title = masterTitle(r)!;
+    const n = r.id + today + i;
+    const why = retiredNow ? masterWords.whyRetired : masterWords.whyLeft;
+    chronicle(state, ctx, 'master-lost', {
+      text: [
+        ['name', residentName(r)],
+        ['title', title],
+        ['why', why[rotation(state, n, why.length)] ?? ''],
+      ],
+      refs: [r.id],
+      variant: rotation(state, n, kind),
+    });
+    const list = retiredNow ? masterWords.lostRetired : masterWords.lostLeft;
+    emit(
+      ctx,
+      'masterLost',
+      [r.id],
+      line(state, list, n, [
+        ['name', residentName(r)],
+        ['title', title],
+      ]),
+    );
+  });
 }
 
 /** A built school (by tag or id) is open in town. */
@@ -502,25 +555,51 @@ function isWorkshop(b: Building | undefined): b is Building {
   );
 }
 
-/** Young residents with schooling start a season's apprenticeship at a workshop. */
+/**
+ * The master a resident's job puts them under (R3B): the master of the building they work at, when
+ * that trade takes apprentices; `undefined` when there is none, or the resident is the master.
+ */
+function masterAt(state: WorldState, r: Resident, at: Building | undefined): EntityId | undefined {
+  if (!at || at.stage !== 'built' || !at.rt) return undefined;
+  const m = at.masterId ?? masterOf(state, at);
+  if (!m || m === r.id || !masterDefOf(masteryKey(at))?.apprentices) return undefined;
+  return m;
+}
+
+/**
+ * Young residents start a season's apprenticeship: under the master of the place they already work
+ * at (the master path, no school needed: a master's bond is how a trade spreads), or, with a school
+ * in town and schooling enough, at a workshop (the school path), under its master if it has one.
+ */
 function apprentices(state: WorldState, ctx: TickCtx, today: number): void {
-  if (!schoolOpen(state)) return;
+  const school = schoolOpen(state);
   let started = 0;
   for (const r of state.residents) {
     if (started >= MAX_APPRENTICES_PER_DAY) return;
     if (r.stage !== 'young' || r.apprentice || r.story || busy(r)) continue;
-    if (EDUCATION >= 0 && (r.needs[EDUCATION] ?? 100) < EDUCATION_MIN) continue;
-    const h = findById(state.households, r.householdId);
-    if (!h?.homeId) continue;
     let at = r.jobId ? findById(state.buildings, r.jobId) : undefined;
-    if (!isWorkshop(at)) {
-      at = nearestOpenWorkshop(state, doorOf(state, h.homeId));
-      if (!at) continue;
-      if (r.jobId) release(state, r);
-      hire(state, r, at);
+    let master = masterAt(state, r, at);
+    if (!master) {
+      if (!school) continue;
+      if (EDUCATION >= 0 && (r.needs[EDUCATION] ?? 100) < EDUCATION_MIN) continue;
+      const h = findById(state.households, r.householdId);
+      if (!h?.homeId) continue;
+      if (!isWorkshop(at)) {
+        at = nearestOpenWorkshop(state, doorOf(state, h.homeId));
+        if (!at) continue;
+        if (r.jobId) release(state, r);
+        hire(state, r, at);
+      }
+      master = masterAt(state, r, at);
     }
+    if (!at) continue;
     // R1: a business's trade id (Apprenticeship.trade), else the workplace's def id.
-    r.apprentice = { at: at.id, trade: at.trade ?? at.def, untilDay: today + APPRENTICE_DAYS };
+    r.apprentice = {
+      at: at.id,
+      trade: at.trade ?? at.def,
+      untilDay: today + APPRENTICE_DAYS,
+      ...(master && { master }),
+    };
     pushHistory(state, r, 'apprentice', at.id);
     const text = line(state, lifePhrases.apprentice, r.id + today, [
       ['name', residentName(r)],
@@ -553,7 +632,11 @@ function graduate(state: WorldState, ctx: TickCtx, today: number): void {
     const at = findById(state.buildings, r.apprentice.at);
     pushHistory(state, r, 'trained', r.apprentice.at);
     addMoodModifier(state, r.id, { kind: 'trained', value: 8, ticks: 3 * TICKS_PER_DAY });
-    const skilled = skilledOpening(state, r);
+    // R3B: an apprentice of a master who still works at a building of the trade stays, so their
+    // days of their own count toward becoming one.
+    const here = r.apprentice.master && r.jobId ? findById(state.buildings, r.jobId) : undefined;
+    const stays = !!here && masteryKey(here) === r.apprentice.trade;
+    const skilled = stays ? undefined : skilledOpening(state, r);
     if (skilled && skilled.id !== r.jobId) {
       release(state, r);
       hire(state, r, skilled);
