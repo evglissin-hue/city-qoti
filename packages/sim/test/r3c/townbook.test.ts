@@ -15,6 +15,7 @@ import {
 import type { PlaceId, PlaceState, WorldState } from '../../src/contracts';
 import { emptyTally, newPlaceState, byPlaceId } from '../../src/state/evenings';
 import { hashState } from '../../src/state/hash';
+import { deserialize, serialize } from '../../src/state/serialize';
 import { isMasterGood } from '../../src/state/masters';
 import { defPossible } from '../../src/systems/townbook/achievable';
 import {
@@ -224,7 +225,7 @@ describe('a specialty', () => {
     sellCider(s, a.id);
     close(s, 0, { [b.id]: { customers: [[CIDER, 10]] } });
     for (const d of [1, 2, 3]) close(s, d, { [b.id]: { customers: [[CIDER, 10]] } });
-    expect(s.townBook.pages.map((p) => p.name)).toEqual(['Orchard Walk Cider', 'The Old Orchard Cider']);
+    expect(s.townBook.pages.map((p) => p.name)).toEqual(['Orchard Walk Cider', 'Cider at The Old Orchard']);
     expect(pagesFound(s, 'specialty')).toBe(2);
   });
 });
@@ -450,7 +451,7 @@ describe('seats and snapshots', () => {
     expect(row.dayRuns![d]).toBe(3);
     expect(s.townBook.pages.map((p) => p.kind)).toEqual(['specialty', 'custom']);
     bumpPlaceInputs(s);
-    const copy = structuredClone(s);
+    const copy = deserialize(serialize(s));
     bumpPlaceInputs(copy);
     for (const k of [0, 1, 2, 3, 4, 5]) {
       s.tick = copy.tick = tickAt(3 * DAYS_PER_SEASON + k, 12);

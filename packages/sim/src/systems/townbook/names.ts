@@ -2,11 +2,12 @@
 // {family} filled from the place, and a fallback when another page already has it. The places' own
 // naming helpers are private to systems/places, so these are small copies of the same ideas.
 // Deterministic and RNG-free.
-import { content } from '@qoti/content';
+import { content, townBookPhrases } from '@qoti/content';
 import { MAP_SIZE } from '../../constants';
 import type { Place, PlaceState, WorldState } from '../../contracts';
 import { householdIn, isHomeDef } from '../../conditions/geo';
 import { shownName } from '../../state/evenings';
+import { fillText } from '../../view/hamlet';
 import { streetDistance } from '../places/streets';
 
 const S = MAP_SIZE;
@@ -14,10 +15,6 @@ const S = MAP_SIZE;
 const FAMILY_RANGE = 10;
 /** How far a street's run counts as beside a place. */
 const STREET_RANGE = 3;
-
-function capital(s: string): string {
-  return s.length > 0 ? s[0]!.toUpperCase() + s.slice(1) : s;
-}
 
 /** The family name of the nearest built home with a household within range (ties by building id). */
 function nearestFamilyName(state: WorldState, tile: number): string | null {
@@ -67,8 +64,8 @@ function streetNear(state: WorldState, tile: number): string | null {
 
 /**
  * The page's name for a specialty at a place. {street} and {family} are filled from the place; when
- * one cannot be, the name falls back to the place's own name and the good ("the old orchard Cider").
- * `taken` holds the names of the pages already in the book: a repeat becomes `<place> <Good>` too.
+ * one cannot be, the name falls back to the good at the place ("Cider at the other orchard path").
+ * `taken` holds the names of the pages already in the book: a repeat becomes `<Good> at <place>` too.
  */
 export function specialtyName(
   state: WorldState,
@@ -78,8 +75,10 @@ export function specialtyName(
   row: PlaceState,
   taken: ReadonlySet<string>,
 ): string {
-  const shown = capital(shownName(row));
-  const fallback = `${shown} ${goodName}`;
+  const fallback = fillText(townBookPhrases.at, [
+    ['good', goodName],
+    ['place', shownName(row)],
+  ]);
   let name = template;
   if (name.includes('{street}')) {
     const street = streetNear(state, place.tile);

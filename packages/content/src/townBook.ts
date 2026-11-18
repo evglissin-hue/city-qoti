@@ -336,7 +336,7 @@ export const squareNight: CustomDef = {
   pattern: 'small-square',
   name: 'Square Night',
   leaning: 'industry',
-  text: 'On {day}, the square. Folk arrive for no reason in particular and leave with a reason, usually a pastry.',
+  text: 'On {day}, the square fills up for no reason in particular. Folk leave with a reason, usually a pastry.',
   hint: 'A paved square, an unplanned crowd, and the same night coming round again.',
 };
 
@@ -391,7 +391,9 @@ export const townBookPhrases = {
   /** {place} when a page's place has no row to name it. */
   anyPlace: 'the town',
   /** The letter for a page ({page}, {place}, {text}). */
-  page: 'A page has been added to the Town Book: "{page}", at {place}. It reads: {text}',
+  page: 'The Town Book has a new page, and the ink is barely dry: "{page}", at {place}. {text}',
+  /** A specialty's name when its own will not do (a repeat, or no street or family to fill): {good}, {place}. */
+  at: '{good} at {place}',
 };
 
 /** The Chronicle's line for a page found ({page}, {place}, {text}, {credit}). */
@@ -400,6 +402,6 @@ export const townBookPage: ChronicleTemplate = {
   text: [
     'A new page in the Town Book: {page}, at {place}. {text} Credit to {credit}.',
     'The Town Book has a page for {page} now, at {place}. {text} Credit to {credit}.',
-    '{page}, at {place}, has made it into the Town Book. {text} Credit to {credit}.',
+    'Into the Town Book goes {page}, at {place}. {text} Credit to {credit}.',
   ],
 };
