@@ -120,6 +120,29 @@ const settling = (page, limit) =>
     };
   }, limit);
 
+const HEAD = [
+  '| Scene | Preset | Moving GPU ms (avg / p95) | Moving draws, triangles | Settle ms (frames, samples) | Still frame GPU ms (avg / p95), draws | Settled idle GPU ms (avg / p95) | Rest frames moving / still / idle / sample |',
+  '|---|---|---|---|---|---|---|---|',
+];
+
+/** One row of the table. Low has no still-frame cache, so it never settles into a still frame. */
+function line({ scene, preset, row, s }) {
+  const m = row.moving;
+  const frames = Object.values(s.modes).reduce((a, b) => a + b, 0);
+  const sGpu = avg(s.gpu);
+  const settleText =
+    preset === 'low'
+      ? 'n/a (no still-frame cache)'
+      : `${Math.round(s.ms)}${s.done ? '' : ' (not settled)'} (${frames}, ${s.samples}${s.goal ? ` of ${s.goal}` : ''})${sGpu === null ? `, ${fmt(avg(s.frameMs))} frame` : `, ${fmt(sGpu)} GPU`}`;
+  const st = row.still;
+  const stillText = st ? `${gpuOrFrame(st)}, ${st.draws}` : 'n/a';
+  const i = row.idle;
+  const modes = `${i.modes.moving} / ${i.modes.still} / ${i.modes.idle} / ${i.modes.sample}`;
+  return `| ${scene} | ${preset} | ${gpuOrFrame(m)} | ${m.draws}, ${(m.triangles / 1e6).toFixed(2)} M | ${settleText} | ${stillText} | ${gpuOrFrame(i)} | ${modes} |`;
+}
+
+// Each row is printed as it is measured too (a long software run can be cut short).
+console.log(HEAD.join('\n'));
 const rows = [];
 for (const [scene, def] of Object.entries(SCENES)) {
   if (only.length ? !only.includes(scene) : def.only) continue;
@@ -199,6 +222,7 @@ for (const [scene, def] of Object.entries(SCENES)) {
       JSON.stringify({ settle: { done: s.done, ms: Math.round(s.ms), modes: s.modes, goal: s.goal } }),
     );
     rows.push({ scene, preset, row, s });
+    console.log(line(rows[rows.length - 1]));
   }
   await page.close();
 }
@@ -207,20 +231,5 @@ await browser.close();
 console.log(
   `\n${headed ? 'headed' : 'headless (software renderer)'}, lean engine${fixedres ? ', fixed resolution' : ''}${process.env.QOTI_HOLD === '1' ? ', sim paused' : ''}, ${vw} x ${vh}, ${move} s moving, ${rest} s rest, ${still} s still:\n`,
 );
-console.log(
-  '| Scene | Preset | Moving GPU ms (avg / p95) | Moving draws, triangles | Settle ms (frames, samples) | Still frame GPU ms (avg / p95), draws | Settled idle GPU ms (avg / p95) | Rest frames moving / still / idle / sample |',
-);
-console.log('|---|---|---|---|---|---|---|---|');
-for (const { scene, preset, row, s } of rows) {
-  const m = row.moving;
-  const frames = Object.values(s.modes).reduce((a, b) => a + b, 0);
-  const sGpu = avg(s.gpu);
-  const settleText = `${Math.round(s.ms)}${s.done ? '' : ' (not settled)'} (${frames}, ${s.samples}${s.goal ? ` of ${s.goal}` : ''})${sGpu === null ? `, ${fmt(avg(s.frameMs))} frame` : `, ${fmt(sGpu)} GPU`}`;
-  const st = row.still;
-  const stillText = st ? `${gpuOrFrame(st)}, ${st.draws}` : 'n/a';
-  const i = row.idle;
-  const modes = `${i.modes.moving} / ${i.modes.still} / ${i.modes.idle} / ${i.modes.sample}`;
-  console.log(
-    `| ${scene} | ${preset} | ${gpuOrFrame(m)} | ${m.draws}, ${(m.triangles / 1e6).toFixed(2)} M | ${settleText} | ${stillText} | ${gpuOrFrame(i)} | ${modes} |`,
-  );
-}
+console.log(HEAD.join('\n'));
+for (const r of rows) console.log(line(r));
