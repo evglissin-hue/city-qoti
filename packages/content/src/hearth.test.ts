@@ -55,6 +55,8 @@ describe('the Chronicle', () => {
     'threat-dial': ['who', 'dial'],
     'household-arrived': ['family', 'place'],
     'household-left': ['family', 'place'],
+    'master-lost': ['name', 'title', 'why'],
+    'master-made': ['name', 'title', 'place'],
     'pattern-discovered': ['pattern', 'place', 'credit', 'flavor'],
     'season-summary': ['season', 'year', 'people', 'coins', 'pages', 'wishes', 'books'],
     'wishes-digest': ['wishes', 'examples'],
