@@ -65,6 +65,13 @@ export interface QualityPreset {
   dressing: 'some' | 'all';
   /** V3: the endpaper map's texture, square, in texels (`render/endpaper.ts`). */
   endpaperSize: 1024 | 2048;
+  // V4 additions (V4.0).
+  /**
+   * V4: the samples the still frame develops to at rest (`render/refine.ts`, the cache's
+   * `refine`): 0 keeps today's still frame (Low has no cache at all). *(tune)* against both laptops;
+   * Medium falls back to 0 if its sample frames do not fit Kat's laptop (30-roadmap.md, V4).
+   */
+  refineSamples: number;
 }
 
 export const QUALITY_PRESETS: Record<Quality, QualityPreset> = {
@@ -87,6 +94,7 @@ export const QUALITY_PRESETS: Record<Quality, QualityPreset> = {
     meadowCarpet: 45,
     dressing: 'all',
     endpaperSize: 2048,
+    refineSamples: 16,
   },
   low: {
     maxDpr: 1,
@@ -107,6 +115,7 @@ export const QUALITY_PRESETS: Record<Quality, QualityPreset> = {
     meadowCarpet: 0,
     dressing: 'some',
     endpaperSize: 1024,
+    refineSamples: 0,
   },
   medium: {
     // Playtest round three: 1.5 on a Retina screen looked soft. V1D: moving frames draw at 1 (with
@@ -129,6 +138,7 @@ export const QUALITY_PRESETS: Record<Quality, QualityPreset> = {
     meadowCarpet: 30,
     dressing: 'all',
     endpaperSize: 2048,
+    refineSamples: 8,
   },
   // V1.0: for the stronger laptop or a desktop; never auto-detected.
   ultra: {
@@ -150,6 +160,7 @@ export const QUALITY_PRESETS: Record<Quality, QualityPreset> = {
     meadowCarpet: 60,
     dressing: 'all',
     endpaperSize: 2048,
+    refineSamples: 32,
   },
 };
 
