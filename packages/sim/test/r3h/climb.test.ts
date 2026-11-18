@@ -3,16 +3,22 @@
 // crew on the way down, resting days holding the run, the Chronicle and the events hearing of both.
 import { describe, expect, it } from 'vitest';
 import type { Building, BusinessCounters, SimEvent, WorldState } from '../../src/contracts';
-import { jobsOf } from '../../src/state/zones';
+import { emptyCounters, jobsOf } from '../../src/state/zones';
 import { levels, LEVEL_DOWN_DAYS, LEVEL_UP_DAYS } from '../../src/systems/levels';
 import { createTickCtx } from '../../src/turn';
 import { hamletFixture } from '../fixtures/hamlet';
 import { hire } from '../ledger/helpers';
-import { spot, today } from './helpers';
+import { spot } from './helpers';
 
 /** A day's counters, then the 23:30 pass; the events it pushed. */
 function endDay(state: WorldState, b: Building, counters: Partial<BusinessCounters>): SimEvent[] {
-  today(b, counters);
+  Object.assign((b.counters ??= emptyCounters()), {
+    madeToday: 0,
+    soldToday: 0,
+    customersToday: 0,
+    shortToday: false,
+    ...counters,
+  });
   const ctx = createTickCtx(state);
   levels.tick(state, ctx);
   return ctx.events;
@@ -60,9 +66,9 @@ describe('climbing', () => {
     let events: SimEvent[] = [];
     for (let d = 0; d < LEVEL_UP_DAYS; d++) events = endDay(state, q, GOOD);
     expect(events.some((e) => e.e === 'building.updated' && e.b.id === q.id)).toBe(true);
-    const grew = state.chronicle.filter((c) => c.kind === 'specialized-grew');
+    // The fixture's own Windmill serves its baker and climbs beside it: look at the Quarry's entry.
+    const grew = state.chronicle.filter((c) => c.kind === 'specialized-grew' && c.refs?.includes(q.id));
     expect(grew).toHaveLength(1);
-    expect(grew[0]!.refs).toContain(q.id);
     expect(grew[0]!.text.toLowerCase()).toContain('quarry');
     expect(state.chronicle.some((c) => c.kind === 'specialized-shrank')).toBe(false);
   });
