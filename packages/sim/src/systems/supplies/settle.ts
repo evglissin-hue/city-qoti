@@ -184,7 +184,10 @@ export function settle(state: WorldState, ctx: TickCtx): void {
         start,
         lanterns.filter((i) => ranks[i]! > Rank.rest),
       );
-      let lit = Math.min(eligible.length, per * Math.max(0, Math.min(purse.free[good] ?? 0, purse.surplus[familyOf(good)] ?? 0)));
+      let lit = Math.min(
+        eligible.length,
+        per * Math.max(0, Math.min(purse.free[good] ?? 0, purse.surplus[familyOf(good)] ?? 0)),
+      );
       const taken = drawForPlaces(state, purse, good, Math.ceil(lit / per), start);
       lit = Math.min(lit, per * taken);
       addDrawn(state, good, taken);
@@ -225,7 +228,9 @@ export function settle(state: WorldState, ctx: TickCtx): void {
     for (const i of fires) if (!burning.includes(i)) rec(ix.list[i]!.id).rested = 0;
     if (burning.length > 0) {
       const { good, qty } = supplyOfPiece(ix, burning[0]!);
-      const room = Math.floor(Math.max(0, Math.min(purse.free[good] ?? 0, purse.surplus[familyOf(good)] ?? 0)) / qty);
+      const room = Math.floor(
+        Math.max(0, Math.min(purse.free[good] ?? 0, purse.surplus[familyOf(good)] ?? 0)) / qty,
+      );
       const order = settledOrder(
         ix,
         ranks,
@@ -392,4 +397,3 @@ export function drawFires(state: WorldState, ctx: TickCtx): void {
   }
   if (took) ctx.events.push({ e: 'balances.updated', b: balancesView(state) });
 }
-

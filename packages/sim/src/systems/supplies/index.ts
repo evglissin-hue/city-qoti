@@ -33,7 +33,8 @@ export const supplies: System = {
   tick(state, ctx) {
     if (!isStandard(state)) return;
     rollRound(state);
-    const at = state.tick % TICKS_PER_DAY;
+    // The clock ran first this tick: the schedule's tick is the one before.
+    const at = (state.tick - 1 + TICKS_PER_DAY) % TICKS_PER_DAY;
     if (at === SUPPLIES_OFFSET) settle(state, ctx);
     else if (at === FIRE_OFFSET) drawFires(state, ctx);
     else if (at === OUT_OFFSET) ctx.events.push({ e: 'supplies.updated', s: suppliesView(state) });
