@@ -227,7 +227,7 @@ class Supplies implements Advisor {
 export const supplies: AdvisorDef = {
   id: 'supplies',
   lane: 'ledger',
-  slot: 45,
+  slot: 42,
   plays: (opts) => !!opts.village,
   create: (p) => new Supplies(p),
 };
