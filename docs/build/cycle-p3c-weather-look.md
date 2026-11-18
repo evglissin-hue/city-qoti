@@ -117,3 +117,29 @@ Built on `cycle/p3c-weather-look` by the build and review loop's master alone: e
 - A dab is one triangle, so at the nearest zoom a crown still shows triangles up close, now smaller and varied. A rounded two-triangle dab would double a near crown's dabs.
 - `CameraController.snap()` does not apply the view when the ground under it is unchanged (V4's `input/camera.ts`): the P3C scripts call `rig.apply()` after it.
 - The numbers are the container's software renderer; the laptop rows are the owner's and Kat's.
+
+### Numbers
+
+All in the build container's software renderer (headless Chromium on SwiftShader, 1440 x 900, `QOTI_FIXEDRES=1 QOTI_HOLD=1`, `apps/client/e2e/v3-perf.mjs`): milliseconds are the CPU doing the GPU's work and a phase holds a handful of frames, so a single run swings by 10% or more. `main` is `8d00cb7`, served from a worktree. P3C is this branch.
+
+**Medium, three alternating rounds** (`QOTI_PRESETS=medium QOTI_MOVE=20`), moving frame ms:
+
+| Scene | `main` (three runs, median) | P3C (three runs, median) | Draws | Triangles |
+|---|---|---|---|---|
+| street | 1490, 1555, 1650 (1555) | 1598, 1565, 1657 (1598) | 106 to 109 both | 0.50 to 0.55 M both |
+| village | 2046, 1965, 1970 (1970) | 1970, 1983, 1837 (1970) | 122 to 127 both | 0.55 M, P3C 0.51 to 0.55 M |
+
+**High, three alternating rounds** (`QOTI_PRESETS=high`), the village: `main` 3180, 3292, 3319 (median 3292), P3C 3194, 3255, 3380 (median 3255); triangles `main` 1.65 to 1.88 M, P3C 1.44 to 1.51 M; draws 158 to 159 and 151 to 160.
+
+So moving frames cost the same as `main` within the software renderer's spread on Medium and High. Idle frames can't be compared here: at rest one software frame spans most of the 10 s phase, so both builds mostly draw still frames there (V1X's note in `22-quality.md`). Every preset in one pass, by day and at 22:00 (single runs), stays inside the budgets: at most 174 draws (High, budget 450) and 166 on Medium (300), and at most 2.08 M triangles (Ultra, 12 M) and 0.69 M on Medium (3 M). Near crowns cost less than on `main` (a mature oak 371 triangles, was 464; birch 300, was 368; pine 206, was 216); the orchard tree costs more (361, was 281 for the apple, 353 for the cherry), under its 400 budget.
+
+**The haze's share of a frame** (the mean fog over the pixels that see the ground, 3D fog and the final pass's wash, `hazeFor` and `lookWeather` on a flat valley floor):
+
+| Camera | Clear day, before | Clear day, after | Fog day, before | Fog day, after |
+|---|---|---|---|---|
+| nearest (12 tiles, 30 degrees) | 1% | 1% | 52% | 7% |
+| street (12, 45) | 0% | 0% | 51% | 6% |
+| default (70, 45) | 1% | 1% | 56% | 34% |
+| far (200, 45) | 1% | 1% | 57% | 63% |
+
+**Shots**: the owner's three frames before (`main`) and after: `p3c-{before,after}-1-night-rain`, `-1b-night-rain-meadow`, `-2-blossom-haze`, `-3-autumn-haze`, `-3b-autumn-clear`. The long view after: `p3c-after-far120-{dawn,noon,golden,night}`, `p3c-after-far200-{autumn,winter,fog}`. The contact sheets: `p3c-after-sheet-{grown,hamlet}-{spring,summer,autumn,winter}`.
