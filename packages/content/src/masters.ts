@@ -128,6 +128,7 @@ export const fishery: MasterDef = {
 export const forestersLodge: MasterDef = {
   of: 'foresters-lodge',
   title: 'master forester',
+  unlocks: ['ornamental-tree'],
   apprentices: true,
 };
 
@@ -183,6 +184,7 @@ export const orchard: MasterDef = {
 export const quarry: MasterDef = {
   of: 'quarry',
   title: 'master quarryman',
+  unlocks: ['carved-stone'],
   apprentices: true,
 };
 
