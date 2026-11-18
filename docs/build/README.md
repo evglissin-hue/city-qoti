@@ -83,7 +83,7 @@ One row per cycle. A cycle is one agent session working from one brief on one br
 | R3B Masters | R3 | parallel | `cycle-r3b-masters.md` | R3.0 | waiting: after R3.0 (xhigh) |
 | R3C The Town Book and earned callings | R3 | parallel | `cycle-r3c-town-book.md` | R3.0 | waiting: after R3.0 (high) |
 | R3D Follow the thread, the Town Book and R3's interface | R3 | parallel | `cycle-r3d-follow-the-thread.md` | R3.0 | waiting: after R3.0 (xhigh) |
-| R3E The bench | R3 | parallel | `cycle-r3e-bench.md` | R3.0 | in progress on `cycle/r3e-bench` (draft PR into `cycle/r3x-integration`) |
+| R3E The bench | R3 | parallel | `cycle-r3e-bench.md` | R3.0 | in progress on `cycle/r3e-bench` ([evglissin-hue/city-qoti#64](https://github.com/evglissin-hue/city-qoti/pull/64), draft, into `cycle/r3x-integration`) |
 | R3F Lamplight and resting pieces | R3 | parallel | `cycle-r3f-lamplight.md` | R3.0 | waiting: after R3.0 (Opus, xhigh; R3's look, the master's ruling) |
 | R3G The storybook | R3 | parallel | `cycle-r3g-storybook.md` | R3.0 | waiting: after R3.0 (high; client only, split from R3D) |
 | R3H Specialized buildings grow | R3 | parallel | `cycle-r3h-specialized-levels.md` | R3.0 | waiting: after R3.0 (Opus, xhigh; the master's ruling from the owner's playtest of `main`) |
