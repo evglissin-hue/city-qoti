@@ -78,7 +78,7 @@ function tickAt(day: number, hour: number, extra = 0): number {
  * Dresses a flat town with seats: benches, lanterns and flower beds on free verge tiles beside the
  * lanes (so beside the homes), and `taverns` taverns in clear ground below the last lane.
  */
-function dress(town: Town, taverns: number): { benches: number; lanterns: number; beds: number } {
+export function dress(town: Town, taverns: number): { benches: number; lanterns: number; beds: number } {
   const { world } = town;
   const m = world.map;
   const grid = worldIndex(world).decorGrid;
@@ -126,7 +126,7 @@ function dress(town: Town, taverns: number): { benches: number; lanterns: number
 }
 
 /** Place rows as the pass would have written them: `n` rows with their evening counts. */
-function placeRows(world: WorldState, n: number): void {
+export function placeRows(world: WorldState, n: number): void {
   world.places = [];
   for (let i = 0; i < n; i++) {
     world.places.push({

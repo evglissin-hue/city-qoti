@@ -31,6 +31,7 @@ import { natureBench } from './nature.bench';
 import { r1Bench } from './r1.bench';
 import { r2aBench } from './r2a.bench';
 import { r2Bench } from './r2.bench';
+import { r3Bench } from './r3.bench';
 import { raidsBench } from './raids.bench';
 import { seasonsBench } from './seasons.bench';
 import { villageBench } from './village.bench';
@@ -202,6 +203,11 @@ failures.push(...r2a.failures);
 const r2 = r2Bench();
 lines.push(...r2.lines);
 failures.push(...r2.failures);
+// 17. R3: the settling and the walk, the masters' day, the Town Book's close, the thread counts, the
+// specialized buildings' day, and gaps, supplies, masters and the Book together, per hour.
+const r3 = r3Bench();
+lines.push(...r3.lines);
+failures.push(...r3.failures);
 
 const heapMb = process.memoryUsage().heapUsed / 1024 / 1024;
 lines.push(`memory          ${heapMb.toFixed(0)} MB heap in use`);
@@ -239,6 +245,7 @@ const report = {
   r1: r1.report,
   r2a: r2a.report,
   r2: r2.report,
+  r3: r3.report,
   heapMb,
   failures,
 };

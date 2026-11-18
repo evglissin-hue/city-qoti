@@ -207,7 +207,14 @@ export { businessesView, businessView, isBusinessLike } from './view/businesses'
 export { demandView, demandWhy } from './view/demand';
 // R1 (R1.0): the cross-track APIs of docs/build/r1-wave-notes.md (stubs; their owners fill them).
 export { carrierBrought, winterMark } from './systems/carrier/api';
-export { familyCover, familyUse, flavorsOnOffer } from './systems/market/balances';
+export {
+  familyCover,
+  familyUse,
+  flavorsOnOffer,
+  householdVariety,
+  SHELF_GOODS,
+  VARIETY_DAYS,
+} from './systems/market/balances';
 export {
   capacityOf,
   hasRoomFor,
