@@ -100,6 +100,17 @@ export function SettingsPanel({ session }: { session: Session }) {
         <label class="check">
           <input
             type="checkbox"
+            checked={s.teaBreak}
+            data-testid="tea-break"
+            onChange={(e) => update({ ...s, teaBreak: (e.target as HTMLInputElement).checked })}
+          />
+          <span>
+            {copy.settings.teaBreak} <span class="muted">{copy.settings.teaBreakHint}</span>
+          </span>
+        </label>
+        <label class="check">
+          <input
+            type="checkbox"
             checked={s.editionInFeed}
             data-testid="edition-in-feed"
             onChange={(e) => update({ ...s, editionInFeed: (e.target as HTMLInputElement).checked })}
