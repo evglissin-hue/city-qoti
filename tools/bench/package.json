@@ -14,7 +14,8 @@
     "targets": "tsx src/targets.ts",
     "tune": "tsx src/tune.ts",
     "tune:summary": "tsx src/tuneSummary.ts",
-    "typecheck": "tsc -p . --noEmit"
+    "typecheck": "tsc -p . --noEmit",
+    "variety": "tsx src/variety.ts"
   },
   "dependencies": {
     "@qoti/content": "*",
