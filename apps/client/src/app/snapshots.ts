@@ -8,7 +8,7 @@
 // drawn, photo mode that only hid the interface) are gone; with no renderer there is no picture.
 import type { ChronicleSnapshot, EntityId } from '@qoti/sim';
 import { snapshotStore, type SnapshotStore } from '../net/images';
-import type { RenderApi } from '../render/api';
+import type { CaptureOptions, RenderApi } from '../render/api';
 import type { MirrorChange } from '../state/mirror';
 import type { UiState } from '../ui/state';
 
@@ -21,10 +21,13 @@ export interface PhotoApi {
   savePng?(): Promise<Blob>;
 }
 
-/** The renderer as C5F reads it: RenderApi plus C5E's photo mode and capture, when present. */
+/**
+ * The renderer as C5F reads it: RenderApi plus C5E's photo mode and capture, when present. V4.0:
+ * `capture` takes `CaptureOptions` (a `style` and `samples` beside C5E's three).
+ */
 export type SeasonRender = RenderApi & {
   photo?: PhotoApi;
-  capture?(opts: { focus: [number, number]; radius: number; size: [number, number] }): Promise<Blob | null>;
+  capture?(opts: CaptureOptions): Promise<Blob | null>;
 };
 
 /** A thumbnail's size, the Chronicle's column width at 2x. */
