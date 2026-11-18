@@ -35,6 +35,8 @@ const SMOOTH_REDUCED = 0.04;
  * walk beside them and the move from the player's view to the busiest place takes a few seconds.
  */
 export const SMOOTH_DRIFT = 1.6;
+/** V4C: while a tea break follows a resident the view turns about them, a full turn in four minutes. */
+export const DRIFT_TURN = (2 * Math.PI) / 240;
 /** V4C: a tea break circles at the play camera's default pitch, inside the play clamp. */
 export const ORBIT_PITCH = MathUtils.degToRad(45);
 /** V4C: a tea break never circles faster than a full turn in a minute. */
@@ -416,8 +418,11 @@ export class CameraController {
     if (k.has('g')) this.rotateBy(0, -0.9 * dt);
     if (k.has('+') || k.has('=')) this.zoomBy(Math.exp(-1.4 * dt));
     if (k.has('-') || k.has('_')) this.zoomBy(Math.exp(1.4 * dt));
-    // V4C: the tea break's circle turns the goal's yaw; the drift's glide follows it round.
-    if (this.around && !this.reducedMotion) this.goal.yaw += this.around.speed * Math.min(dt, 0.1);
+    // V4C: the tea break's circle turns the goal's yaw; the drift's glide follows it round. A drift
+    // with no circle (a follow) turns too, slower, so the view never comes to rest during a tea break
+    // (a tea break is a moving camera: the still frame and its refinement never run under one).
+    const turn = this.around ? this.around.speed : this.drift ? DRIFT_TURN : 0;
+    if (turn !== 0 && !this.reducedMotion) this.goal.yaw += turn * Math.min(dt, 0.1);
 
     const v = this.view;
     const g = this.goal;

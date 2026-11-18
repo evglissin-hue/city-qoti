@@ -125,6 +125,21 @@ describe('V4C: the tea break orbit', () => {
     expect(settle(true)).toBeLessThan(settle(false));
   });
 
+  it('a drifting follow never comes to rest: the view turns slowly about the resident', () => {
+    const rig = make();
+    rig.snap();
+    rig.setDrift(true);
+    rig.focus(rig.saveView().x, rig.saveView().z);
+    const y0 = rig.saveView().yaw;
+    let moving = true;
+    for (let i = 0; i < 600; i++) moving = rig.update(1 / 60) && moving;
+    expect(moving).toBe(true);
+    // Ten seconds at a full turn in four minutes.
+    expect(rig.saveView().yaw - y0).toBeCloseTo((10 * 2 * Math.PI) / 240, 3);
+    rig.setDrift(false);
+    rig.dispose();
+  });
+
   it('with calm motion the circle does not turn the yaw', () => {
     const rig = make();
     rig.reducedMotion = true;

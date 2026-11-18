@@ -70,39 +70,43 @@ export class TeaBreakHost {
   readonly guards: TeaBreakGuards = {
     enabled: () => !this.automated && loadSettings().teaBreak,
     toolInHand: () => (this.session.tools?.active.value ?? 'inspect') !== 'inspect',
-    cardOpen: () => {
-      const ui = this.session.ui;
-      return (
-        ui.selection.value !== null ||
-        ui.panel.value !== null ||
-        ui.dialog.value !== null ||
-        ui.letter.value !== null ||
-        ui.storyLetter.value !== null ||
-        ui.almanac.value !== null ||
-        ui.raidCard.value !== null ||
-        ui.festivalCard.value !== null ||
-        ui.edition.value !== null ||
-        ui.chapter.value ||
-        ui.settingsOpen.value ||
-        ui.inviteOpen.value ||
-        ui.helpOpen.value ||
-        ui.asking.value ||
-        ui.rankUp.value !== null ||
-        ui.customize.value !== null ||
-        ui.sketch.value !== null ||
-        ui.festivalDraft.value !== null ||
-        ui.postureDraft.value !== null
-      );
-    },
+    cardOpen: () => this.openCards().length > 0,
     busy: () =>
       this.session.phase.value !== 'ready' ||
       !this.session.renderer ||
       !this.session.tools ||
       this.session.ui.photo.value ||
       this.session.ui.following.value !== null ||
-      measureState.value.k !== 'closed' ||
       (typeof document !== 'undefined' && document.visibilityState === 'hidden'),
   };
+
+  /** The names of UiState's open cards, books, letters and dialogs (none: nothing is open). */
+  openCards(): string[] {
+    const ui = this.session.ui;
+    const open: [string, boolean][] = [
+      ['selection', ui.selection.value !== null],
+      ['panel', ui.panel.value !== null],
+      ['dialog', ui.dialog.value !== null],
+      ['letter', ui.letter.value !== null],
+      ['storyLetter', ui.storyLetter.value !== null],
+      ['almanac', ui.almanac.value !== null],
+      ['raidCard', ui.raidCard.value !== null],
+      ['festivalCard', ui.festivalCard.value !== null],
+      ['edition', ui.edition.value !== null],
+      ['chapter', ui.chapter.value],
+      ['settingsOpen', ui.settingsOpen.value],
+      ['inviteOpen', ui.inviteOpen.value],
+      ['helpOpen', ui.helpOpen.value],
+      ['asking', ui.asking.value],
+      ['rankUp', ui.rankUp.value !== null],
+      ['customize', ui.customize.value !== null],
+      ['sketch', ui.sketch.value !== null],
+      ['festivalDraft', ui.festivalDraft.value !== null],
+      ['postureDraft', ui.postureDraft.value !== null],
+      ['measure', measureState.value.k !== 'closed'],
+    ];
+    return open.filter(([, on]) => on).map(([name]) => name);
+  }
 
   /** Starts listening and checking; returns the host, which stops itself when the canvas goes. */
   install(): this {
@@ -135,6 +139,14 @@ export class TeaBreakHost {
         state: () => this.state,
         idleFor: () => this.timer.idleFor(this.now()),
         due: () => this.timer.due(this.now(), this.guards),
+        /** Each guard's answer now, to see what holds a tea break back. */
+        guards: () => ({
+          enabled: this.guards.enabled(),
+          toolInHand: this.guards.toolInHand(),
+          cardOpen: this.guards.cardOpen(),
+          busy: this.guards.busy(),
+          open: this.openCards(),
+        }),
       };
     }
     return this;
