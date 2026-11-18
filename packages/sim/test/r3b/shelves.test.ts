@@ -117,7 +117,8 @@ describe('a good no master makes', () => {
     for (const id of MASTER_GOODS) expect(s.market.demandToday[goodIx(id)] ?? 0, id).toBe(0);
     expect(s.market.demandToday[goodIx('cider')]).toBeGreaterThan(0);
     updatePrices(s);
-    for (const id of MASTER_GOODS) expect(s.market.prices[goodIx(id)], id).toBe(content.goodById.get(id)!.basePrice);
+    for (const id of MASTER_GOODS)
+      expect(s.market.prices[goodIx(id)], id).toBe(content.goodById.get(id)!.basePrice);
   });
 
   it('is asked for once a master makes it, and again not once the master is gone and the stock sold', () => {

@@ -137,7 +137,10 @@ describe('every master with a recipe', () => {
     for (const m of content.masters) {
       if (!m.method) continue;
       expect(m.good, m.of).toBeDefined();
-      expect(m.method.outputs.map(([g]) => g), m.of).toContain(m.good);
+      expect(
+        m.method.outputs.map(([g]) => g),
+        m.of,
+      ).toContain(m.good);
     }
   });
 });
