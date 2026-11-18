@@ -20,7 +20,7 @@ import { eveningPassers } from '../growth/outlets';
 import { invalidatePlaces } from '../places';
 import { outOfSeason } from './season';
 import { bumpPlaceInputs } from '../places/inputs';
-import { canReachLevel3, KEEPER_DAYS_L3 } from '../masters/api';
+import { canReachLevel3 } from '../masters/api';
 
 /** Good days in a row that move a business up a level. */
 export const LEVEL_UP_DAYS = 3;
@@ -28,8 +28,6 @@ export const LEVEL_UP_DAYS = 3;
 export const LEVEL_DOWN_DAYS = 4;
 /** Customers a day a shop needs to hold level 2 and level 3 (and to climb toward them). */
 export const SHOP_CUSTOMERS: readonly number[] = [6, 15];
-/** Working days a keeper must have kept a business before level 3 (until R3's masters; masters/api.ts). */
-export { KEEPER_DAYS_L3 };
 /** Free farm-zoned tiles needed in reach for each hand a farmstead's next level adds: a grain farm. */
 export const FIELD_TILES_A_HAND = 12;
 /** The same for any other farmland trade. */
