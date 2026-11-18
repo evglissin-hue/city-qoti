@@ -488,7 +488,7 @@ function retire(state: WorldState, ctx: TickCtx): Resident[] {
       ['place', placeName(b)],
     ]);
     emit(ctx, 'retired', [r.id], text);
-    if (masterTitle(r) && !r.story) masters.push(r);
+    if (masterTitle(r) && !(r.flags & ResidentFlags.story)) masters.push(r);
     syncResident(state, ctx, r);
   }
   return masters;
@@ -508,7 +508,13 @@ function loseMasters(state: WorldState, ctx: TickCtx, today: number, retired: re
     if (!h.homeId) continue;
     for (const id of h.members) {
       const r = findById(state.residents, id);
-      if (r && r.flags & ResidentFlags.leaving && !r.story && masterTitle(r) && !retired.includes(r))
+      if (
+        r &&
+        r.flags & ResidentFlags.leaving &&
+        !(r.flags & ResidentFlags.story) &&
+        masterTitle(r) &&
+        !retired.includes(r)
+      )
         gone.push([r, false]);
     }
   }
