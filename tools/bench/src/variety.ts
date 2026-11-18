@@ -171,6 +171,12 @@ export function formatReach(): string[] {
   lines.push(
     'Wants against sources (Craftsfolk from content, Merchants and Patrons from 13-ledger.md)',
     ...summary,
+    '',
+    'Reading: "masters needed" is the masters\' goods wanted beyond the base shelf; "no-chain flavors" counts raw base goods,',
+    "masters' goods and specialties (no made base good to wire; a master's own trade must still stand, and a household's",
+    'round passes only some specialties, so the specialty count is a ceiling). Neighbors sell base goods only: trade fills a',
+    'missing base good (cloth, candles, cheese) but adds no new flavor. Specialties are Treats only, so Wares beyond the base',
+    'come from masters alone.',
   );
   return lines;
 }
