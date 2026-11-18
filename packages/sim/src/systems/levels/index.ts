@@ -1,7 +1,8 @@
 // Business levels (docs/spec/13-ledger.md, Levels; R1B builds it). Daily at 23:30, after the day's
 // selling: a business moves up a level after three days running of steady custom, reliable inputs
 // and room to grow (and, for level 3, its keeper's 20 working days until R3's masters); it slides
-// back one level after four failing days, keeping its walls. Specialized buildings stay at 1.
+// back one level after four failing days, keeping its walls. Specialized buildings climb by their
+// own good days (R3H, levels/specialized.ts).
 import { specializedDayEnd } from './specialized';
 import { content, type BuildingDef, type TradeDef } from '@qoti/content';
 import { BUSINESS_LEVEL_MAX, MAP_SIZE, TICKS_PER_DAY, Zone } from '../../constants';
@@ -173,11 +174,12 @@ export const levels: System = {
   offset: dailyOffset(23, 100),
   tick(state, ctx) {
     if (!isStandard(state)) return;
+    // R3H: specialized buildings with levels first: a Windmill's day reads its bakers' counters
+    // before their own day end resets them (levels/specialized.ts).
     for (const b of state.buildings) {
-      if (b.trade && b.stage === 'built' && b.rt) dayEnd(state, ctx, b);
-      // R3.0: a specialized building with levels climbs and slides too (R3H, levels/specialized.ts).
-      else if (!b.trade && b.stage === 'built' && b.rt && content.buildingById.get(b.def)?.levels)
+      if (!b.trade && b.stage === 'built' && b.rt && content.buildingById.get(b.def)?.levels)
         specializedDayEnd(state, ctx, b);
     }
+    for (const b of state.buildings) if (b.trade && b.stage === 'built' && b.rt) dayEnd(state, ctx, b);
   },
 };

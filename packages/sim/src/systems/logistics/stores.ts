@@ -1,8 +1,8 @@
 // Buffers and storage shared by construction, production, logistics and the books. A building
 // keeps goods in one of three places: `store` (storehouses and market stalls, all goods sharing
-// `def.storage`), `output` (what a producer made, `def.outputBuffer` per good) or `input` (what a
+// `def.storage`, bigger at each level a store climbs: `storageOf`), `output` (what a producer made, `def.outputBuffer` per good) or `input` (what a
 // producer is waiting to use). Construction sites keep theirs in `construction`.
-import { isFood } from '../../state/zones';
+import { isFood, storageOf } from '../../state/zones';
 import type { BuildingDef } from '@qoti/content';
 import { content } from '@qoti/content';
 import { MAP_SIZE } from '../../constants';
@@ -50,9 +50,9 @@ export function sum(values: readonly number[]): number {
   return n;
 }
 
-/** Free units in a storage building, counting goods already on their way in. */
-export function storageSpace(def: BuildingDef | undefined, rt: BuildingRuntime): number {
-  return Math.max(0, (def?.storage ?? 0) - sum(rt.store) - sum(rt.reservedIn));
+/** Free units in a storage building at its level (R3H: `storageOf`), counting goods on their way in. */
+export function storageSpace(b: Pick<Building, 'def' | 'level'>, rt: BuildingRuntime): number {
+  return Math.max(0, storageOf(b) - sum(rt.store) - sum(rt.reservedIn));
 }
 
 /** Food units in a building's store plus those on their way in. */
@@ -89,7 +89,7 @@ export function stowNearest(
     for (const b of state.buildings) {
       if (b.id === exclude || b.stage !== 'built' || !b.rt) continue;
       const def = defOf(b);
-      if (!isStorehouse(def) || !takes(def, good) || storageSpace(def, b.rt) <= 0) continue;
+      if (!isStorehouse(def) || !takes(def, good) || storageSpace(b, b.rt) <= 0) continue;
       const d = tileDistance(tile, doorTile(b, def));
       if (d < bestD) {
         bestD = d;
@@ -97,7 +97,7 @@ export function stowNearest(
       }
     }
     if (!best) break;
-    const n = Math.min(left, storageSpace(defOf(best), best.rt!));
+    const n = Math.min(left, storageSpace(best, best.rt!));
     best.rt!.store[good]! += n;
     left -= n;
   }
