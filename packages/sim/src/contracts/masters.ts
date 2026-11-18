@@ -24,6 +24,11 @@ export interface LampState {
    * this says: the walk is there to be watched, and the rules never wait for it.
    */
   reach: number;
+  /**
+   * R3A (additive): the lamplighter who walks to it tonight (a resident id); absent when nobody holds
+   * the job (it comes on at `litHour` with the rest) or in a Hamlet.
+   */
+  by?: EntityId;
 }
 
 /** What a supplied piece remembers (only what cannot be derived from the map and stock). */
