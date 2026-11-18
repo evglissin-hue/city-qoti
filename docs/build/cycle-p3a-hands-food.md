@@ -63,3 +63,15 @@ Outside these paths: only small, necessary edits, listed in the PR.
 - R3.0 is wiring one-line readers into `systems/{residents,production,levels,market,carrier,festivals,gaps,logistics}`: keep edits there small and local so the merge is easy.
 - Known CI noise: the bench line "growth night R1B" swings around its 2 ms budget; `street.test.ts` "runs in well under 2 ms" failed once at 6.06 ms against 6.
 - Report to the master session (`session_01PQ4wXdf2kocite7BdVtBYP`) with `send_message`: a short note once task 1 has an answer, then the PR link, the cause, before and after numbers, what passed and what is left.
+
+## As built (draft, 2026-11-18)
+
+Run as the build and review loop: the master traced, decided and tuned; three `executor` agents built the client's level and tier words, the sim tests for the six new rules, and the tests that pinned the old building numbers. This is a draft: the standing targets do not all hold yet (below), and the PR lists what remains.
+
+**Task 1, the cause.** The newcomer profile (`tools/bench/src/newcomer.ts`, `npm run newcomer -w @qoti/bench`) reproduced the owner's spiral on `main`: birch never reached Village in 70 days (12 to 13 residents for three weeks), willow and oak only on days 37 and 38, with households missing breakfast on 20 to 22 Hamlet days. The causes, traced in the runs: (1) job ranks: with timber or stone short for sites and food short, a lodge's and a quarry's every hand tied with the first porter, the first builder and every fisher, so a hamlet of 13 had its lodge and quarry full and no porter, and nothing reached a site or a shelf; (2) growth started farms before homes, so homes, the only source of hands, waited behind farms that stood empty; (3) basic buildings needed many porter trips; (4) food did not reach homes beyond a stall's reach once porters had stocked the stall from a bare granary, and a lone Early Bird's evening errand fell after their bedtime; (5) in spring a town that ate its larder in winter took a crowd of newcomers. The evenings gate was not the cause (2 of 280 newcomer days).
+
+**What changed**: `13-ledger.md`, As built (P3A), under Zoning and growth, Construction and Levels; `22-quality.md`, Playability (`hands-spiral`, the newcomer runs in the audit). Screenshots `docs/build/screenshots/p3a-*` (the player's chair: a business's road to its next level, a Settler home's road to Craftsfolk, the Ledger's feed in a newcomer's hamlet and in a Village, the first morning of a fresh valley played as a newcomer).
+
+**Numbers** (70 days; first homes and first farmstead from site to roof): see the PR for the tables. The newcomer profile reaches Village on every seed (day 13 to 33 on the six bench seeds, against 37, 19, 38 and never on `main`'s four), its first homes go up in 9 to 15 hours and its first farmstead in 14 hours (11 to 204 and 31 to 34 on `main`), and Hamlet days with a household missing breakfast fall from 5 / 0 / 20 / 22 to 0 / 0 / 0 / 1.
+
+**Left**: see the PR (standing targets that moved, failing bench tests, the Village purse hunger found on `main` too, the specialized buildings' levels proposal with the master).
