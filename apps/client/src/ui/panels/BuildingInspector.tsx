@@ -6,7 +6,8 @@ import type { Session } from '../../app/session';
 import { removeWithCare } from '../../input/removal';
 import { buildingName, capital, coins, placeName, seatLabel } from '../format';
 import { rejectText } from '../messages';
-import { CATEGORY_WORD, CONSTRUCTION_STAGES, statusWords, TIER_WORD } from '../hamlet';
+import { CONSTRUCTION_STAGES, statusWords, TIER_WORD } from '../hamlet';
+import { doingLine, homesBeside, kindWord } from './buildingWords';
 import { zoneInk } from '../village';
 import { Price } from './villageParts';
 import { homeProgressLine, nextLevelLine } from './levelWords';
@@ -54,11 +55,20 @@ export function BuildingInspector({ session, id }: { session: Session; id: numbe
         : statusWords(rt?.status ?? 0);
   const household = detail?.household ?? findHousehold(session, b);
   // R1: a business (a farmstead, workshop or shop with a trade) says so, whatever its building.
-  const kicker = site
-    ? 'Construction site'
-    : b.trade
-      ? 'Business'
-      : (CATEGORY_WORD[def?.category ?? ''] ?? 'Building');
+  const kicker = site ? 'Construction site' : kindWord(def, b.trade);
+  // P3A: what it does where it stands, in words that are true of this building (buildingWords.ts).
+  const doing = site
+    ? null
+    : doingLine(def, {
+        detail: detail ?? undefined,
+        family: household?.family,
+        winter: m.clock.value.season === 3,
+        beside:
+          def?.tags?.includes('garden-bed') && b.stage === 'built'
+            ? homesBeside(b, m.buildings.values(), m.households.values())
+            : undefined,
+        tradeBlurb: b.trade ? content.tradeById.get(b.trade)?.blurb : undefined,
+      });
   // P1 (playtest): a standard valley keeps its town hall, so it offers no Remove.
   const hostedPlace = m.placeOf(id);
   const keepsHall = b.def === 'town-hall' && m.settings.value.mode === 'standard';
@@ -82,6 +92,11 @@ export function BuildingInspector({ session, id }: { session: Session; id: numbe
               : site
                 ? 'Coming along nicely.'
                 : quietLine(b)}
+        </p>
+      )}
+      {doing && (
+        <p class="small" data-testid="building-does">
+          {doing}
         </p>
       )}
       {hostedPlace && (
@@ -336,12 +351,11 @@ function signTitle(b: BuildingView): string | null {
   return typeof sign === 'string' && sign.trim() ? sign.trim() : null;
 }
 
+/** Nothing is wrong. What the building does is its own line (`doingLine`), so this only says how it is. */
 function quietLine(b: BuildingView): string {
-  const def = content.buildingById.get(b.def);
   if (b.rt?.paused) return 'Paused.';
-  if (def?.housing) return 'A home, lived in.';
-  if (!b.rt?.jobs) return 'Standing there being useful.';
-  return 'Humming along.';
+  if (b.rt?.jobs) return 'Humming along.';
+  return 'All in order.';
 }
 
 /** Needs still to come and delivered so far, as chips per good: delivered of total. */

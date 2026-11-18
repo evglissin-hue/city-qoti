@@ -2,6 +2,7 @@ import { content } from '@qoti/content';
 import { MAP_SIZE, treeSpecies, treeStage, type PlaceView, type SeatId, type StreetView } from '@qoti/sim';
 import type { Session } from '../../app/session';
 import { BuildingInspector } from './BuildingInspector';
+import { decorLine } from './buildingWords';
 import { PlaceCard, pieceWord, StreetLines } from './PlaceCard';
 import { ResidentInspector } from './ResidentInspector';
 
@@ -36,6 +37,9 @@ export function InspectorPanel({ session }: { session: Session }) {
     const d = m.decor.get(sel.id);
     if (!d) return null;
     title = content.decorById.get(d.def)?.name ?? d.def;
+    // P3A: what the piece does, then who placed it.
+    const does = decorLine(content.decorById.get(d.def));
+    if (does) lines.push(does);
     lines.push(`Placed by hand by ${seatName(session, d.builtBy)}.`);
     remove = () => session.submit({ t: 'decor.remove', ids: [d.id] });
     // R2D: a piece that belongs to a place opens the place's card, with its own Remove still there.
