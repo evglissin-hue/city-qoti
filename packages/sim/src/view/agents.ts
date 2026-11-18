@@ -17,6 +17,7 @@ import type { AgentPose, AgentView, Cart, Resident, WorldState } from '../contra
 import { tickOfDay } from '../systems/residents/time';
 import { stopNow } from '../systems/places/occupancy';
 import { isSkating } from '../systems/seasons/river';
+import { lamplighterPose } from '../systems/supplies/lamplighter';
 import { moodBand } from './hamlet';
 import { writeRaiderRows } from './season/raiders';
 import { writeVisitorRows } from './season/visitors';
@@ -61,6 +62,7 @@ export function agentFrame(state: WorldState): Float32Array {
   const frozen = state.weather.river.frozen;
   const festive = state.festival.live;
   const dancing = festive && hourOf(state.tick) >= DANCE_HOUR && bothConnected(state);
+  const lampers = state.supplies.lamplighters.length > 0 ? state.supplies.lamplighters : null;
   let n = 0;
   for (const r of state.residents) {
     if (r.inside) continue;
@@ -75,6 +77,9 @@ export function agentFrame(state: WorldState): Float32Array {
     if (guest) extra |= AgentFlags.festival;
     // I3 (C5D): the Watch on its feet (duty or a raid).
     if (r.watch && (state.raid || state.watch.duty.includes(r.id))) extra |= AgentFlags.watch;
+    // R3A: the lamplighter on his round (pose 2: at a lamp).
+    const pose = lampers && lampers.includes(r.id) ? lamplighterPose(state, r) : 0;
+    if (pose > 0) extra |= AgentFlags.lamplighter;
     if ((n + 1) * AGENT_STRIDE > scratch.length) {
       const bigger = new Float32Array(scratch.length * 2);
       bigger.set(scratch);
@@ -88,6 +93,7 @@ export function agentFrame(state: WorldState): Float32Array {
     writeRow(scratch, n * AGENT_STRIDE, r, S, h, crowd, night, extra);
     if (stop && stop.flags & RoundFlags.seated) scratch[n * AGENT_STRIDE + 5] = AgentAnim.sit;
     if (guest && dancing && !r.move) scratch[n * AGENT_STRIDE + 5] = AgentAnim.dance;
+    if (pose === 2) scratch[n * AGENT_STRIDE + 5] = AgentAnim.lightLamp;
     n++;
   }
   // I2 (C4.0): carts out on the roads, as rows with anim `cart` and their first load good.
