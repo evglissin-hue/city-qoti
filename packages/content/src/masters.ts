@@ -235,20 +235,20 @@ export const masterWords = {
   letter: [
     'A letter from the Guild of Nobody In Particular: {name} of {place} is now a {title}. A sign will go up over the door. The sign is rather proud of itself already.',
     'Word has gone round {town}: {name} has been named a {title}. Nobody was asked to vote, and nobody minded.',
-    'By long habit, steady hands and a great deal of getting up early, {name} is now a {title}. {place} has been informed, and has stood a little straighter.',
+    'By long habit, steady hands and a great deal of getting up early, {name} is now a {title}. Over at {place}, the sign has been told and is standing a little straighter.',
     'The valley has a new {title}: {name}, of {place}. A small crowd gathered to say it was about time. It was a very small crowd, and very sincere.',
   ],
   /** The notice when someone becomes a master ({name} {title} {place}). */
   made: [
     '{name} is now a {title}. The sign went up over {place} before the paint was dry.',
     '{name} has become a {title}, which at {place} mostly means the same work, said with more weight.',
-    'A good many good days later, {name} is a {title}. {place} is pleased and pretending not to be.',
+    'A good many good days later, {name} is a {title}. Everyone at {place} is pleased and pretending not to be.',
     '{name} was named a {title} today. The apprentices at {place} are taking notes.',
   ],
   /** The notice when a master retires ({name} {title}). */
   lostRetired: [
     '{name}, {title}, has retired. The trade will miss the hands, and the stories that came with them.',
-    'The {title} has hung up the apron: {name} is retired, still a master, and no longer on the rota.',
+    'The {title} has hung up the apron: {name} is retired, still a master, and off the schedule for good.',
     '{name} has stepped back from the work. A {title} does not stop being one, but the business will feel the gap.',
     'Retirement has found {name}, the {title}. The workshop is quiet, in the way a room is quiet after a good talker leaves.',
   ],
@@ -269,7 +269,7 @@ export const masterMade: ChronicleTemplate = {
   text: [
     '{name} became a {title} today, at {place}. The sign over the door is new, and so is the way the neighbors say hello.',
     'A {title} for {town}: {name}, of {place}. Years of habit, it turns out, add up to something you can paint on a board.',
-    '{name} is now a {title}. {place} has hung out a sign, and the sign has been polished twice by people who were only passing.',
+    '{name} is now a {title}. A sign went up over {place}, and it has been polished twice by people who were only passing.',
     'The valley counts a new {title}: {name}, at {place}. The apprentices have been told to look busy.',
   ],
   notable: true,

@@ -567,7 +567,8 @@ function isWorkshop(b: Building | undefined): b is Building {
  */
 function masterAt(state: WorldState, r: Resident, at: Building | undefined): EntityId | undefined {
   if (!at || at.stage !== 'built' || !at.rt) return undefined;
-  const m = at.masterId ?? masterOf(state, at);
+  // The crew, not the sign: `masterId` is settled at 23:45 and may still name a master who left today.
+  const m = masterOf(state, at);
   if (!m || m === r.id || !masterDefOf(masteryKey(at))?.apprentices) return undefined;
   return m;
 }
