@@ -3,10 +3,11 @@
 // and a flower arch; plus the circus tent and its wagons, and the festival's festoon lanterns, which
 // the renderer places itself. Decor is centered on the origin (linear pieces run along +x across
 // one tile). Every face carries its surface id; the far level keeps the outline and the colors.
-import { seeded, ShapeBuilder, vary, type V3 } from '../geometry';
+import { mixHex, seeded, ShapeBuilder, vary, type V3 } from '../geometry';
 import { palette } from '../palette';
 import { beam } from '../shapes';
 import { SURFACE } from '../surface';
+import { clothOf, faded, restOf } from './lamplight';
 import { FLOWERS } from './style';
 import type { Kit, KitBuildOptions } from './types';
 
@@ -17,8 +18,16 @@ export const FESTIVAL_COLORS: readonly number[] = [
 
 const builder = (opts?: KitBuildOptions): ShapeBuilder => new ShapeBuilder(opts?.lod ?? 'high');
 
-/** A sagging string of little triangular flags from a to b. */
-export function buntingRun(s: ShapeBuilder, a: V3, b: V3, n: number, rnd: () => number, sag = 0.08): void {
+/** A sagging string of little triangular flags from a to b; `fade` washes them toward the paper (R3F). */
+export function buntingRun(
+  s: ShapeBuilder,
+  a: V3,
+  b: V3,
+  n: number,
+  rnd: () => number,
+  sag = 0.08,
+  fade = false,
+): void {
   const pts: V3[] = [];
   for (let i = 0; i <= n; i++) {
     const t = i / n;
@@ -34,7 +43,8 @@ export function buntingRun(s: ShapeBuilder, a: V3, b: V3, n: number, rnd: () => 
       const p = pts[i]!;
       const q = pts[i + 1]!;
       const m: V3 = [(p[0] + q[0]) / 2, (p[1] + q[1]) / 2 - 0.075, (p[2] + q[2]) / 2];
-      const hex = FESTIVAL_COLORS[(i + off) % FESTIVAL_COLORS.length]!;
+      const flag = FESTIVAL_COLORS[(i + off) % FESTIVAL_COLORS.length]!;
+      const hex = fade ? faded(flag) : flag;
       // Two faces back to back, so a flag reads from both sides.
       const dx = q[0] - p[0];
       const dz = q[2] - p[2];
@@ -60,6 +70,9 @@ export const bonfire: Kit = {
   build: (opts) => {
     const rnd = seeded(opts?.seed ?? 73);
     const s = builder(opts);
+    // R3F: resting `cold` (no firewood tonight), the embers are grey ash, the teepee has burned down
+    // to charred stubs and nothing glows (the festival effects draw no flames over it).
+    const cold = restOf(opts) === 'cold';
     // A ring of stones, a bed of embers and a teepee of logs; the flames are the effects' job.
     s.surface(SURFACE.stone);
     const n = 9;
@@ -82,19 +95,30 @@ export const bonfire: Kit = {
     s.surface(SURFACE.dirt);
     s.cylinder(0, 0, 0.24, 0.22, 0, 0.015, 0x4a3a2e, 10);
     s.surface(SURFACE.plain);
-    s.glow(2);
-    s.blob(0, 0.03, 0, 0.14, 0.03, 0.14, 0xff9a4a, 0);
+    s.glow(cold ? 0 : 2);
+    s.blob(0, 0.03, 0, 0.14, cold ? 0.04 : 0.03, 0.14, cold ? palette.ash : 0xff9a4a, 0);
     s.glow(0);
     s.surface(SURFACE.timber);
     for (let i = 0; i < 6; i++) {
       const a = (i / 6) * Math.PI * 2 + rnd() * 0.3;
-      beam(
-        s,
-        [Math.cos(a) * 0.17, 0.03, Math.sin(a) * 0.17],
-        [Math.cos(a) * 0.02, 0.36, Math.sin(a) * 0.02],
-        0.026,
-        vary(0x6b4a30, rnd, 0.6),
-      );
+      const log = vary(0x6b4a30, rnd, 0.6);
+      if (cold)
+        // A stub burned to a point, black where it stood in the fire.
+        beam(
+          s,
+          [Math.cos(a) * 0.19, 0.03, Math.sin(a) * 0.19],
+          [Math.cos(a) * 0.1, 0.13, Math.sin(a) * 0.1],
+          0.024,
+          mixHex(log, palette.char, 0.75),
+        );
+      else
+        beam(
+          s,
+          [Math.cos(a) * 0.17, 0.03, Math.sin(a) * 0.17],
+          [Math.cos(a) * 0.02, 0.36, Math.sin(a) * 0.02],
+          0.026,
+          log,
+        );
     }
     // A stack of spare logs, and a bench log to sit on.
     s.nearOnly(() => {
@@ -126,16 +150,19 @@ export const bunting: Kit = {
     for (const x of [-0.47, 0.47]) {
       s.cylinder(x, 0, 0.02, 0.016, 0, 0.82, palette.timber, 6);
       s.surface(SURFACE.plain);
-      s.blob(x, 0.84, 0, 0.022, 0.022, 0.022, palette.mustard, 0);
+      s.blob(x, 0.84, 0, 0.022, 0.022, 0.022, clothOf(palette.mustard, opts), 0);
       s.surface(SURFACE.timber);
     }
-    buntingRun(s, [-0.47, 0.78, 0], [0.47, 0.78, 0], 7, rnd, 0.1);
+    // R3F: resting `faded` (no cloth this season), the flags are washed toward the paper and hang
+    // a little slacker.
+    const fade = restOf(opts) === 'faded';
+    buntingRun(s, [-0.47, 0.78, 0], [0.47, 0.78, 0], 7, rnd, fade ? 0.13 : 0.1, fade);
     s.levels(
       () => {},
       () => {
         // Far off the flags read as a soft band of color.
         s.surface(SURFACE.flags);
-        s.box(-0.45, 0.62, -0.004, 0.45, 0.72, 0.004, FESTIVAL_COLORS[0]!);
+        s.box(-0.45, 0.62, -0.004, 0.45, 0.72, 0.004, clothOf(FESTIVAL_COLORS[0]!, opts));
       },
     );
     s.surface(SURFACE.plain);
@@ -174,10 +201,13 @@ export const festivalStage: Kit = {
         D + 0.06 + i * 0.06,
         vary(palette.wood, rnd, 0.4),
       );
-    s.box(-W, deck, -D, W, deck + 0.42, -D + 0.035, vary(0x5b6f8a, rnd, 0.3));
+    // R3F: resting `faded` (no cloth this season), the backcloth, its painted sun, the canopy and
+    // its valance are washed toward the paper.
+    s.box(-W, deck, -D, W, deck + 0.42, -D + 0.035, clothOf(vary(0x5b6f8a, rnd, 0.3), opts));
+    const sun = clothOf(palette.mustard, opts);
     s.surface(SURFACE.plain);
     s.nearOnly(() => {
-      s.blob(0, deck + 0.24, -D + 0.04, 0.09, 0.09, 0.008, palette.mustard, 0);
+      s.blob(0, deck + 0.24, -D + 0.04, 0.09, 0.09, 0.008, sun, 0);
       for (let i = 0; i < 8; i++) {
         const a = (i / 8) * Math.PI * 2;
         beam(
@@ -185,7 +215,7 @@ export const festivalStage: Kit = {
           [Math.cos(a) * 0.1, deck + 0.24 + Math.sin(a) * 0.1, -D + 0.042],
           [Math.cos(a) * 0.15, deck + 0.24 + Math.sin(a) * 0.15, -D + 0.042],
           0.008,
-          palette.mustard,
+          sun,
         );
       }
     });
@@ -199,7 +229,16 @@ export const festivalStage: Kit = {
     ] as const)
       s.cylinder(x, z, 0.018, 0.018, deck, top, palette.timber, 6);
     s.surface(SURFACE.awning);
-    s.gable(-W - 0.06, -D - 0.04, W + 0.06, D + 0.08, top, top + 0.16, vary(0xe9707a, rnd, 0.3), true);
+    s.gable(
+      -W - 0.06,
+      -D - 0.04,
+      W + 0.06,
+      D + 0.08,
+      top,
+      top + 0.16,
+      clothOf(vary(0xe9707a, rnd, 0.3), opts),
+      true,
+    );
     // A scalloped valance along the front.
     s.surface(SURFACE.plain);
     s.nearOnly(() => {
@@ -209,7 +248,7 @@ export const festivalStage: Kit = {
           [x, top, D + 0.08],
           [x + (2 * W) / 8 - 0.01, top, D + 0.08],
           [x + W / 8, top - 0.05, D + 0.08],
-          i % 2 ? 0xf4ecdd : 0xe9707a,
+          clothOf(i % 2 ? 0xf4ecdd : 0xe9707a, opts),
           [0, 0, 1],
         );
       }
@@ -309,6 +348,9 @@ export const festivalTable: Kit = {
     const s = builder(opts);
     const wood = vary(palette.wood, rnd, 0.5);
     // A long trestle table under a checked cloth, benches both sides, jugs, a pie and a posy.
+    // R3F: resting `bare` (no outlet with Treats in reach), the cloth and the spread are cleared away
+    // and the planks show: seats only.
+    const bare = restOf(opts) === 'bare';
     s.surface(SURFACE.timber);
     s.box(-0.32, 0.18, -0.08, 0.32, 0.2, 0.08, wood);
     for (const x of [-0.27, 0.25]) s.box(x, 0, -0.06, x + 0.02, 0.18, 0.06, palette.timber);
@@ -316,8 +358,18 @@ export const festivalTable: Kit = {
       s.box(-0.32, 0.1, z - 0.035, 0.32, 0.12, z + 0.035, vary(wood, rnd, 0.4));
       for (const x of [-0.27, 0.25]) s.box(x, 0, z - 0.025, x + 0.02, 0.1, z + 0.025, palette.timber);
     }
+    const cloth = vary(0xe9a0a8, rnd, 0.2);
+    if (bare) {
+      // Three planks with dark seams where the cloth lay.
+      s.nearOnly(() => {
+        for (const z of [-0.027, 0.027])
+          s.box(-0.32, 0.2, z - 0.002, 0.32, 0.2015, z + 0.002, palette.darkWood);
+      });
+      s.surface(SURFACE.plain);
+      return s.build();
+    }
     s.surface(SURFACE.awning);
-    s.box(-0.3, 0.2, -0.085, 0.3, 0.205, 0.085, vary(0xe9a0a8, rnd, 0.2));
+    s.box(-0.3, 0.2, -0.085, 0.3, 0.205, 0.085, cloth);
     s.surface(SURFACE.plain);
     s.nearOnly(() => {
       for (let i = 0; i < 3; i++) {
@@ -344,6 +396,10 @@ export const flowerArch: Kit = {
   build: (opts) => {
     const rnd = seeded(opts?.seed ?? 101);
     const s = builder(opts);
+    // R3F: resting `faded` (no cloth this season), its flowers are washed toward the paper and its
+    // leaves gone dry, so it reads as last season's garland.
+    const fade = restOf(opts) === 'faded';
+    const leafOf = (hex: number): number => (fade ? mixHex(hex, 0xa89a6c, 0.55) : hex);
     // Two posts and a hoop of willow wound with leaves and flowers, over a path (along x).
     s.surface(SURFACE.timber);
     for (const x of [-0.42, 0.42]) s.cylinder(x, 0, 0.025, 0.022, 0, 0.55, vary(palette.wood, rnd, 0.4), 6);
@@ -358,11 +414,11 @@ export const flowerArch: Kit = {
       () => {
         for (let i = 0; i <= 9; i++) {
           const p = at(i / 9);
-          s.blob(p[0], p[1], p[2], 0.06, 0.05, 0.06, vary(palette.leaf, rnd, 0.8), 0, rnd, 0.2);
+          s.blob(p[0], p[1], p[2], 0.06, 0.05, 0.06, leafOf(vary(palette.leaf, rnd, 0.8)), 0, rnd, 0.2);
         }
         for (const x of [-0.42, 0.42])
           for (let i = 0; i < 3; i++)
-            s.blob(x, 0.12 + i * 0.15, 0.0, 0.05, 0.05, 0.05, vary(palette.leaf, rnd, 0.8), 0);
+            s.blob(x, 0.12 + i * 0.15, 0.0, 0.05, 0.05, 0.05, leafOf(vary(palette.leaf, rnd, 0.8)), 0);
         s.surface(SURFACE.flowers);
         for (let i = 0; i <= 12; i++) {
           const p = at(rnd());
@@ -373,14 +429,14 @@ export const flowerArch: Kit = {
             0.025,
             0.022,
             0.025,
-            FLOWERS[Math.floor(rnd() * FLOWERS.length)]!,
+            clothOf(FLOWERS[Math.floor(rnd() * FLOWERS.length)]!, opts),
             0,
           );
         }
       },
       () => {
-        for (let i = 0; i < 4; i++) beam(s, at(i / 4), at((i + 1) / 4), 0.06, palette.leaf);
-        for (const x of [-0.42, 0.42]) s.box(x - 0.05, 0, -0.05, x + 0.05, 0.55, 0.05, palette.leaf);
+        for (let i = 0; i < 4; i++) beam(s, at(i / 4), at((i + 1) / 4), 0.06, leafOf(palette.leaf));
+        for (const x of [-0.42, 0.42]) s.box(x - 0.05, 0, -0.05, x + 0.05, 0.55, 0.05, leafOf(palette.leaf));
       },
     );
     s.surface(SURFACE.plain);

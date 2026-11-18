@@ -89,8 +89,12 @@ export function festivalFxLayer(): FestivalFxLayer {
     clearFires();
     const mirror = ctx.mirror;
     fires = [];
+    // R3F: a bonfire resting cold tonight (no firewood) burns no flames.
+    const cold = new Set(
+      (mirror.supplies.value?.resting ?? []).filter((r) => r.kind === 'cold').map((r) => r.id),
+    );
     for (const d of mirror.decor.values()) {
-      if (d.def !== 'bonfire' || fires.length >= MAX_FIRES) continue;
+      if (d.def !== 'bonfire' || cold.has(d.id) || fires.length >= MAX_FIRES) continue;
       decorMatrix(mirror, d.fx, d.fz, d.rot, m);
       fires.push(new Vector3(...BONFIRE_FLAME).applyMatrix4(m));
     }
@@ -250,7 +254,7 @@ export function festivalFxLayer(): FestivalFxLayer {
       }
     },
     update(change) {
-      if (change.full || change.decor || change.rects.has('height')) rebuild();
+      if (change.full || change.decor || change.supplies || change.rects.has('height')) rebuild();
       if (change.together.includes('fireworks')) {
         const [x, z] = townMiddle();
         startShow(x, z);
