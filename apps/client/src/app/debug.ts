@@ -286,6 +286,8 @@ export function installDebugHook(getSession: () => Session | null): void {
     },
     // I1 (C3E): hamlet UI helpers for tests and screenshots.
     mode: () => s()?.mirror.settings.value.mode ?? null,
+    /** R3G: the Mirror itself, for the storybook's e2e (its Chronicle, and a Town Book laid in). */
+    mirror: () => s()?.mirror ?? null,
     town: () => s()?.mirror.town.value ?? null,
     budget: () => s()?.mirror.budget.value ?? null,
     residentIds: () => [...(s()?.mirror.residents.keys() ?? [])],
