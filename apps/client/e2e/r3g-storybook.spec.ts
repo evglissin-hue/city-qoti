@@ -43,9 +43,13 @@ test('the storybook opens with its parts, prints at A4 and Letter, and closes cl
 
   // Nothing after the chapter's end is in the Chronicle part.
   const expected = await page.evaluate(() => {
-    const m = window.__qoti.mirror();
-    const end = m.chronicle.value.find((e: { kind: string }) => e.kind === 'trial-passed')?.tick;
-    return m.chronicle.value.filter((e: { tick: number }) => end !== undefined && e.tick <= end).length;
+    // The debug hook's mirror is not in its declared type; the steps read it the same way.
+    const hook = window.__qoti as unknown as {
+      mirror: () => { chronicle: { value: { kind: string; tick: number }[] } };
+    };
+    const entries = hook.mirror().chronicle.value;
+    const end = entries.find((e) => e.kind === 'trial-passed')?.tick;
+    return entries.filter((e) => end !== undefined && e.tick <= end).length;
   });
   expect(expected).toBeGreaterThan(0);
   expect(await root.locator('.sb-entry').count()).toBe(expected);
