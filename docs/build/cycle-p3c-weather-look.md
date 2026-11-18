@@ -143,3 +143,7 @@ So moving frames cost the same as `main` within the software renderer's spread o
 | far (200, 45) | 1% | 1% | 57% | 63% |
 
 **Shots**: the owner's three frames before (`main`) and after: `p3c-{before,after}-1-night-rain`, `-1b-night-rain-meadow`, `-2-blossom-haze`, `-3-autumn-haze`, `-3b-autumn-clear`. The long view after: `p3c-after-far120-{dawn,noon,golden,night}`, `p3c-after-far200-{autumn,winter,fog}`. The contact sheets: `p3c-after-sheet-{grown,hamlet}-{spring,summer,autumn,winter}`.
+
+### Checks
+
+Typecheck, lint, build and the bench pass (`growth night R1B` 2.17 ms worst against its 2 ms budget, the known swing; the bench reports it OK). Unit tests: 3410 pass; the 4 ms rebuild budgets in `groundAo.test.ts` and `meadow.test.ts` failed once while a software render ran beside them and passed alone, and neither path changed. No file under `packages/sim`, `packages/protocol` or `packages/content` changed, and the determinism specs hash the same in Node and a browser. e2e: 47 of 50 pass on the branch and one is skipped by the suite (`r1x-old-valley.spec.ts` among the passes once Playwright starts the relay whose data folder it plants the old valley in; the first run reused the dev relay). The other two fail the same way on `main` in this container, each run with Playwright starting its own servers: `coop.spec.ts` (B sees a cottage 2.9 s after A's click against 250 ms, in software with two seats drawing: 2965 ms on `main`, 2869 on the branch) and `r2d-evening.spec.ts`'s click on a place, whose card does not open.
