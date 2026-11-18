@@ -75,3 +75,17 @@ Run as the build and review loop: the master traced, decided and tuned; three `e
 **Numbers** (70 days; first homes and first farmstead from site to roof): see the PR for the tables. The newcomer profile reaches Village on every seed (day 13 to 33 on the six bench seeds, against 37, 19, 38 and never on `main`'s four), its first homes go up in 9 to 15 hours and its first farmstead in 14 hours (11 to 204 and 31 to 34 on `main`), and Hamlet days with a household missing breakfast fall from 5 / 0 / 20 / 22 to 0 / 0 / 0 / 1.
 
 **Left**: see the PR (standing targets that moved, failing bench tests, the Village purse hunger found on `main` too, the specialized buildings' levels proposal with the master).
+
+**Levels for specialized buildings: handed to R3** (the master's call, 2026-11-17: none of it in P3A; its own cycle in the R3 wave, with the additive `BuildingDef.levels` landing with R3.0's contracts). The starting table, earned like a business's levels (good days running, sliding back after four failing), each level a bigger building, never a multiplier:
+
+| Building | A good day | Level 2 | Level 3 |
+|---|---|---|---|
+| Forester's Lodge | felled with its wood above its rule, the timber carried off | crew 4, wood reach 10 tiles | crew 5, reach 12 |
+| Quarry | cut and carried | crew 4 | crew 5 |
+| Fishery | a catch carried (frozen days count neither way) | crew 4, a second jetty | crew 5 |
+| Market Stall | 8 customers | food reach 18 tiles, a second vendor | reach 22 |
+| Granary, Storehouse | at least half full with every porter at work | storage +40%, one more porter | storage +80% |
+| Windmill | every baker in reach had grain | one more baker (2 to 3, raised 4 to 5) | one more again |
+| Sawmill, Brickworks, Trading Post | made, or carried, and taken off | crew or load one step | one step more |
+
+Nothing new in saved state (`Building.level` and `Building.counters` exist on every building). Needed elsewhere: the content field; `jobsOf` and the storage, reach and capacity readers reading it; `levels/counters.ts` counting made and sold for any building with `def.levels`; a look for each level in the art kits (none draws one for a specialized building today).
