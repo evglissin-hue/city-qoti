@@ -30,6 +30,40 @@ export function setFreeCamera(on: boolean): void {
 const SMOOTH_INPUT = 0.16;
 const SMOOTH_FOCUS = 0.42;
 const SMOOTH_REDUCED = 0.04;
+/**
+ * V4C: a tea break's glide (`setDrift`): long enough that following a resident looks like a slow
+ * walk beside them and the move from the player's view to the busiest place takes a few seconds.
+ */
+export const SMOOTH_DRIFT = 1.6;
+/** V4C: a tea break circles at the play camera's default pitch, inside the play clamp. */
+export const ORBIT_PITCH = MathUtils.degToRad(45);
+/** V4C: a tea break never circles faster than a full turn in a minute. */
+const ORBIT_MAX_SPEED = (2 * Math.PI) / 60;
+
+/**
+ * V4C: the pose a tea break's circle asks for, kept inside the play clamp whatever it is given (a
+ * pitch of 45 degrees and a distance from 12 to 320 tiles, so the camera sits above the roofs and
+ * never inside a wall), and its speed kept slow. Pure, for tests.
+ */
+export function orbitGoal(around: CameraOrbit): {
+  x: number;
+  z: number;
+  pitch: number;
+  distance: number;
+  speed: number;
+} {
+  return {
+    x: MathUtils.clamp(around.x, 0, MAP_SIZE),
+    z: MathUtils.clamp(around.z, 0, MAP_SIZE),
+    pitch: MathUtils.clamp(ORBIT_PITCH, PLAY.pitchMin, PLAY.pitchMax),
+    distance: MathUtils.clamp(around.distance, PLAY.distMin, PLAY.distMax),
+    speed: MathUtils.clamp(
+      Number.isFinite(around.speed) ? around.speed : 0,
+      -ORBIT_MAX_SPEED,
+      ORBIT_MAX_SPEED,
+    ),
+  };
+}
 
 type Field = 'x' | 'z' | 'yaw' | 'pitch' | 'distance';
 const FIELDS: readonly Field[] = ['x', 'z', 'yaw', 'pitch', 'distance'];
@@ -113,6 +147,10 @@ export class CameraController {
   };
   private readonly groundVel = { v: 0 };
   private smooth = SMOOTH_INPUT;
+  /** V4C: a tea break's slow glide is on. */
+  private drift = false;
+  /** V4C: the tea break's circle, while it turns. */
+  private around: ReturnType<typeof orbitGoal> | null = null;
   private readonly wheel = new WheelClassifier();
   private readonly ray = new Raycaster();
   private readonly ndc = new Vector2();
@@ -216,6 +254,7 @@ export class CameraController {
   /** Drag the ground: the point under the cursor follows it. */
   panByPixels(dx: number, dy: number): void {
     this.smooth = SMOOTH_INPUT;
+    this.around = null;
     const s = this.worldPerPixel;
     const forwardScale = s / Math.max(0.5, Math.sin(this.view.pitch));
     const yaw = this.goal.yaw;
@@ -230,12 +269,14 @@ export class CameraController {
 
   rotateBy(dYaw: number, dPitch: number): void {
     this.smooth = SMOOTH_INPUT;
+    this.around = null;
     this.goal.yaw += dYaw;
     this.goal.pitch = MathUtils.clamp(this.goal.pitch + dPitch, limits.pitchMin, limits.pitchMax);
   }
 
   zoomBy(factor: number): void {
     this.smooth = SMOOTH_INPUT;
+    this.around = null;
     this.goal.distance = MathUtils.clamp(this.goal.distance * factor, limits.distMin, limits.distMax);
   }
 
@@ -265,13 +306,19 @@ export class CameraController {
     return p;
   }
 
-  /** Glides to a spot (go to partner, inspector links). Instant when motion is reduced. */
-  focus(x: number, z: number, distance?: number): void {
-    this.smooth = SMOOTH_FOCUS;
+  /**
+   * Glides to a spot (go to partner, inspector links). Instant when motion is reduced. V4C: an
+   * optional pitch (radians, kept inside the clamp) for the tea break's follow.
+   */
+  focus(x: number, z: number, distance?: number, pitch?: number): void {
+    // V4C: while a tea break drifts, a follow glides slowly, like a walk beside the resident.
+    this.smooth = this.drift ? SMOOTH_DRIFT : SMOOTH_FOCUS;
+    this.around = null;
     this.goal.x = x;
     this.goal.z = z;
     if (distance !== undefined)
       this.goal.distance = MathUtils.clamp(distance, limits.distMin, limits.distMax);
+    if (pitch !== undefined) this.goal.pitch = MathUtils.clamp(pitch, limits.pitchMin, limits.pitchMax);
     this.clamp();
     if (this.reducedMotion) {
       Object.assign(this.view, this.goal);
@@ -289,24 +336,46 @@ export class CameraController {
    * a tea break restores the view where it was; no glide back, so nothing lands a pixel off).
    */
   restoreView(v: CameraView): void {
+    this.around = null;
+    this.drift = false;
+    this.smooth = SMOOTH_INPUT;
     Object.assign(this.goal, v);
     this.snap();
   }
 
   /**
-   * V4.0: tea-break mode's slow circle about a point (V4C), or null to stop. A stub until V4C: it
-   * does nothing, so the camera moves only as it did.
+   * V4.0, built by V4C: tea-break mode's slow circle about a point, or null to stop (the view stays
+   * where the circle left it). The circle's center, distance and the play camera's 45 degree pitch
+   * are the goal (inside the play clamp, `orbitGoal`), the yaw turns at `speed`, and the camera eases
+   * onto it with the drift's long glide. Any hands-on move, a `focus` or a `restoreView` ends it.
+   * With reduced motion the circle holds still (V4C's host never asks for one then).
    */
   orbit(around: CameraOrbit | null): void {
-    void around;
+    if (!around) {
+      this.around = null;
+      return;
+    }
+    const o = orbitGoal(around);
+    this.smooth = this.drift ? SMOOTH_DRIFT : SMOOTH_FOCUS;
+    this.goal.x = o.x;
+    this.goal.z = o.z;
+    this.goal.pitch = o.pitch;
+    this.goal.distance = o.distance;
+    this.around = o;
+  }
+
+  /** V4C: whether a tea break's circle is turning. */
+  get orbiting(): boolean {
+    return this.around !== null;
   }
 
   /**
-   * V4.0: tea-break mode's slow glide (V4C): `focus` and `orbit` ease with a long smoothing time
-   * while it is on. A stub until V4C: it does nothing.
+   * V4.0, built by V4C: tea-break mode's slow glide: while it is on, `focus` and `orbit` ease with
+   * `SMOOTH_DRIFT` instead of the interface's quicker glide. Off goes back to the hands-on glide.
    */
   setDrift(on: boolean): void {
-    void on;
+    this.drift = on;
+    this.smooth = on ? SMOOTH_DRIFT : SMOOTH_INPUT;
   }
 
   /** Jumps straight to a view, skipping the animation (first frame, tests). */
@@ -347,6 +416,8 @@ export class CameraController {
     if (k.has('g')) this.rotateBy(0, -0.9 * dt);
     if (k.has('+') || k.has('=')) this.zoomBy(Math.exp(-1.4 * dt));
     if (k.has('-') || k.has('_')) this.zoomBy(Math.exp(1.4 * dt));
+    // V4C: the tea break's circle turns the goal's yaw; the drift's glide follows it round.
+    if (this.around && !this.reducedMotion) this.goal.yaw += this.around.speed * Math.min(dt, 0.1);
 
     const v = this.view;
     const g = this.goal;
