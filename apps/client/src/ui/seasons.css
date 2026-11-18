@@ -1206,3 +1206,49 @@
 .report-cross .report-line {
   display: block;
 }
+
+/* V4B: a book's picture slot, the valley in ink and wash (240 x 180, landscape 4:3) */
+.ink-slot {
+  width: 240px;
+  max-width: 100%;
+  aspect-ratio: 4 / 3;
+  margin: 8px auto 6px;
+  padding: 0;
+  overflow: hidden;
+  border-radius: 2px;
+  background: #f4ead2;
+  box-shadow:
+    0 0 0 1px rgba(90, 66, 49, 0.18),
+    1px 2px 0 rgba(90, 66, 49, 0.1);
+}
+.ink-slot img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  animation: ink-develop 0.6s ease-out;
+}
+.ink-slot-wait {
+  display: grid;
+  place-items: center;
+  height: 100%;
+  opacity: 0.55;
+}
+.ink-slot-wait .vignette {
+  margin: 0 auto;
+}
+@keyframes ink-develop {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+:root.reduced-motion .ink-slot img {
+  animation: none;
+}
+.almanac-card .ink-slot {
+  width: 220px;
+  margin: 2px auto 10px;
+}

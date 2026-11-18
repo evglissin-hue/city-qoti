@@ -1,8 +1,10 @@
 import { content, type PatternDef } from '@qoti/content';
 import type { PatternProgressView, PatternView, ProgressList } from '@qoti/sim';
+import { inkPictureSource } from '../../app/inkPictures';
 import type { Session } from '../../app/session';
 import { layOut } from '../../input/layoutPick';
 import { seatLabel, seatList, shortDate } from '../format';
+import { InkSlot } from './InkSlot';
 import { useInspect } from './parts';
 
 /**
@@ -252,7 +254,15 @@ function Page({
     <article class="book-entry" data-testid="book-page">
       <p class="book-kicker">Pattern {folio}</p>
       <h3>{def.name}</h3>
-      <Vignette id={def.id} />
+      <InkSlot
+        render={session.render}
+        pictureKey={site ? def.id : null}
+        ask={() => inkPictureSource(session)({ book: 'patternBook', id: def.id })}
+        label={`${def.name}, as it stands in the valley`}
+        testid="page-picture"
+      >
+        <Vignette id={def.id} />
+      </InkSlot>
       <p class="flavor">{def.flavor}</p>
       <dl class="book-facts">
         <div>

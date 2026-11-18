@@ -59,6 +59,7 @@ import { hazeFor, lightingAt } from './lighting';
 import { LOOK_TONE_MAPPING } from './look';
 import { createWorldMaterial } from './material';
 import { pickTileFromRay } from './picking';
+import { untilDeveloped } from './photoSave';
 import { LeanFrame } from './post';
 import { buildingDetailNow, closeUpNow, pixelRatios, QUALITY_PRESETS, type Quality } from './quality';
 import { refineGoal, refineOffFromUrl, type RefineGovernorInput, type RefineJitter } from './refine';
@@ -1000,15 +1001,32 @@ export class Renderer implements RenderApi {
   /** V4: photo mode is on (the governor then develops to PHOTO_SAMPLES; V4A and V4B). */
   private photoOn = false;
 
+  /**
+   * C5E: draws the picture at one and a half times the still frame's resolution and saves it.
+   * V4B: when the governor develops photo mode's still (V4A's PHOTO_SAMPLES), it waits until the
+   * samples reach the goal (`untilDeveloped`, at most `PHOTO_DEVELOP_TIMEOUT_MS`), then takes the
+   * developed picture; with no refinement (V4.0's stub, Low) it saves at once, as before.
+   */
   private async savePng(): Promise<Blob> {
     const canvas = this.three.domElement;
     const max = this.three.capabilities.maxTextureSize || 4096;
     const big = Math.max(canvas.width, canvas.height) || 1;
     this.photoBoost = Math.max(1, Math.min(1.5, (max * 0.9) / big));
     this.applyLayout();
-    // Draw the picture now, at rest, and take the canvas in the same task (before it is cleared).
     this.updateLighting();
-    this.drawLean(performance.now(), true, QUALITY_PRESETS[this.quality].stillCache);
+    const cached = QUALITY_PRESETS[this.quality].stillCache;
+    const develops = cached && refineGoal(this.governorInput()) > 0;
+    if (develops && typeof requestAnimationFrame === 'function') {
+      this.invalidate();
+      await untilDeveloped(
+        () => this.stats,
+        () => new Promise((r) => requestAnimationFrame(r)),
+        () => performance.now(),
+      );
+    }
+    // Draw the picture now, at rest, and take the canvas in the same task (before it is cleared):
+    // the developed still as it stands, or a fresh still frame where nothing develops.
+    this.drawLean(performance.now(), !develops, cached);
     const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/png'));
     this.photoBoost = 1;
     this.applyLayout();
