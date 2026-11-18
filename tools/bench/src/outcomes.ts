@@ -23,7 +23,7 @@ import {
   loansOwed,
   mastersCount,
   mastersMade,
-  overdraftLimit,
+  creditLimit,
   pagesFound,
   PENNIES_PER_COIN,
   placesNear,
@@ -42,7 +42,7 @@ import { findById } from '../../../packages/sim/src/state/entities';
 import { MASTER_GOOD_IDS } from '../../../packages/sim/src/state/masters';
 import { tallyDecisions } from './decisions';
 import { DEFAULT_SEEDS } from './audit';
-import { autoplay, type AutoplayOptions, type DayLine } from './autoplay';
+import { autoplay, type AutoplayOptions, type AutoplayResult, type DayLine } from './autoplay';
 import { runCartScene, type CartRun } from './cartScene';
 import { NO_ROWS, rowsOf, type RowsMeasure } from './rows';
 
@@ -159,7 +159,7 @@ export interface R3DaySample {
   callings: number;
   /** Units of Treats-family goods in storehouses, stalls, shops and output buffers. */
   treats: number;
-  /** Coins. */
+  /** Coins; the credit line is what the County Bank lends in all (`creditLimit`). */
   treasury: number;
   owed: number;
   creditLine: number;
@@ -175,6 +175,8 @@ export interface R3Record {
   firstShelfDay: number;
   /** The day the town first stood at Village rank (0 never). */
   villageDay: number;
+  /** The first day a tavern stood built (0 never). */
+  tavernDay: number;
   /** Health issues seen over the run, counted by kind (the audit's watch). */
   health: Record<string, number>;
   /** Commands accepted by lane over the first 70 days, and refused. */
@@ -188,6 +190,7 @@ export const EMPTY_R3: R3Record = {
   firstMasterDay: 0,
   firstShelfDay: 0,
   villageDay: 0,
+  tavernDay: 0,
   health: {},
   decisions: { ledger: 0, hearth: 0, refused: 0 },
 };
@@ -653,7 +656,7 @@ export function sampleR3Day(w: WorldState, line: DayLine): R3DaySample {
     treats: TREATS_GOODS.reduce((n, g) => n + (stock[g] ?? 0), 0),
     treasury: Math.round(w.economy.treasury / PENNIES_PER_COIN),
     owed: Math.round(loansOwed(w) / PENNIES_PER_COIN),
-    creditLine: Math.round(overdraftLimit(w) / PENNIES_PER_COIN),
+    creditLine: Math.round(creditLimit(w) / PENNIES_PER_COIN),
   };
 }
 
@@ -675,6 +678,15 @@ export function healthByKind(issues: readonly Pick<HealthIssue, 'kind'>[]): Reco
 
 /** Records an autoplay run's evenings, rooms, craftsfolk and gaps (this reads state; it changes none). */
 export function recordRun(seed: string, days: number, opts: AutoplayOptions = {}): RunRecord {
+  return recordRunWith(seed, days, opts).rec;
+}
+
+/** As `recordRun`, and the run itself too (its world, for the scripted scenes that go on from it). */
+export function recordRunWith(
+  seed: string,
+  days: number,
+  opts: AutoplayOptions = {},
+): { rec: RunRecord; run: AutoplayResult } {
   const r3: R3Record = { ...EMPTY_R3, nights: [], days: [], health: {} };
   const rec: RunRecord = { seed, days, evenings: [], rooms: [], daySamples: [], gaps: [], rows: NO_ROWS, r3 };
   const seenGap = new Map<number, SeenGap>();
@@ -727,6 +739,8 @@ export function recordRun(seed: string, days: number, opts: AutoplayOptions = {}
     if (r3.villageDay === 0 && rankIndex(w.charter.rank) >= rankIndex('village')) r3.villageDay = line.day;
     if (r3.firstMasterDay === 0 && d.masters > 0) r3.firstMasterDay = line.day;
     if (r3.firstShelfDay === 0 && d.masterShelf > 0) r3.firstShelfDay = line.day;
+    if (r3.tavernDay === 0 && w.buildings.some((b) => b.def === 'tavern' && b.stage === 'built'))
+      r3.tavernDay = line.day;
     if (!r3.firstClimb) r3.firstClimb = specializedClimb(w, line.day);
   };
   const run = autoplay(seed, days, {
@@ -747,7 +761,7 @@ export function recordRun(seed: string, days: number, opts: AutoplayOptions = {}
     tallyDecisions(run.decisions, 70),
   );
   rec.gaps = [...seenGap.values()].sort((a, b) => a.id - b.id);
-  return rec;
+  return { rec, run };
 }
 
 // --- The report ---------------------------------------------------------------------------------------
