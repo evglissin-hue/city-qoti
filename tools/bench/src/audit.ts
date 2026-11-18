@@ -1,5 +1,6 @@
 // The playability audit (the dead-end hunt, docs/spec/31-parallel-development.md): the autoplayer
-// plays several seeds through a full year (24 days) and one seed on through the Village chapter,
+// plays several seeds through a full year (24 days), each again as a newcomer pair (P3A, newcomer.ts),
+// and one seed on through the Village chapter,
 // and everything that would stop a player is collected: the health watch's issues (site-stalled,
 // site-cut-off, builders-idle, resident-stuck, no-builders, festival-no-show and, for the zones-first
 // Ledger: business-short, a business or specialized building a whole day short of an input the
@@ -13,7 +14,8 @@
 // could close, a day), place-unreachable (a place no home door can walk to, a day), treats-unsold (an
 // outlet with Treats on its shelf and a place in reach whose visitors bought none for a season of
 // evenings), tier-unreachable (an evenings gate no town can build) and garden-grown (a garden lot
-// something grew on); all quiet on the stand-ins, so `EXPLAINED` stays empty;
+// something grew on); P3A, hands-spiral (food short and food jobs open two middays running while
+// hands work past the first elsewhere, or sites pile up with the Homes bar silent); all quiet on the stand-ins, so `EXPLAINED` stays empty;
 // site-rule-broken, a specialized building whose woods, open ground or road went; wish-dead-end,
 // guide-dead-end and story-dead-end, a goal nothing can meet) and, per wish template, how many were
 // offered, granted and let go (and how many let go while impossible). R1.0: standing orders are
@@ -233,9 +235,11 @@ export function audit(
   const runs: AuditRun[] = [];
   const plan: [string, number, string][] = seeds.map((s) => [s, days, 'year']);
   if (villageDays > 0) plan.push([villageSeed, villageDays, 'village']);
+  // P3A: and every seed as a newcomer pair plays it (newcomer.ts), where the hands spiral lives.
+  for (const s of seeds) plan.push([s, days, 'newcomer']);
   for (const [seed, d, label] of plan) {
     const t0 = performance.now();
-    const r = playOne(seed, d, label, {});
+    const r = playOne(seed, d, label, label === 'newcomer' ? { newcomer: true } : {});
     runs.push(r);
     log(
       `${seed.padEnd(7)} ${label.padEnd(7)} ${String(d).padStart(2)} days  ${String(r.residents).padStart(3)} residents  ${r.rank.padEnd(8)} ` +

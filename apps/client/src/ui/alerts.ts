@@ -68,6 +68,8 @@ export const FEED_SHOWN = 5;
 
 /** Days of food in store below which the Ledger hears about it. */
 const FOOD_DAYS_WARN = 2;
+/** P3A: days of food under which open food jobs are the town's trouble (the jobs pass's own three). */
+const FOOD_HANDS_DAYS = 3;
 const MAX_IDLE = 4;
 /** Stone in store below which a waiting site raises the quarry alert. */
 const STONE_LOW = 10;
@@ -103,6 +105,17 @@ export function computeAlerts(
     const line = m.balances.value?.lines.find((l) => l.family === 'food');
     if (line) food = line.stock;
     const days = line ? coverDays(line) : food / population;
+    // P3A: the hands spiral (too few hands, then too little food). With food jobs standing open the
+    // line names the lever: hands come with homes (or, while homes wait on good evenings, places).
+    const foodJobs = readHands(m).foodJobs;
+    const lever =
+      foodJobs > 0 && days < FOOD_HANDS_DAYS
+        ? ` ${foodJobs === 1 ? 'A food job stands' : `${foodJobs} food jobs stand`} open: ${
+            homesWaitOnEvenings(m)
+              ? "newcomers want somewhere to go of an evening, and the Hearth's places bring them."
+              : 'more Homes bring the hands.'
+          }`
+        : '';
     if (days < FOOD_DAYS_WARN) {
       out.push({
         key: 'food-low',
@@ -110,12 +123,40 @@ export function computeAlerts(
         tone: 'warn',
         icon: 'good:bread',
         text:
-          food === 0
+          // P3A: under two days nobody moves in (ARRIVAL_FOOD_DAYS), so Homes are not the lever then.
+          (food === 0
             ? 'The larders are empty. Bread, vegetables or fish, quickly please.'
-            : `Food for about ${days < 2 ? 'a day' : `${Math.floor(days)} days`} in store.`,
+            : `Food for about ${days < 2 ? 'a day' : `${Math.floor(days)} days`} in store.`) +
+          ' Newcomers wait till there is enough to share; a fishery or more Farmland fills the larder.',
+        action: { kind: 'panel', panel: 'balances', page: 'families' },
+      });
+    } else if (lever) {
+      out.push({
+        key: 'food-hands',
+        lens: 'ledger',
+        tone: 'warn',
+        icon: 'people',
+        text: `Food for about ${Math.floor(days)} days in store.${lever}`,
         action: { kind: 'panel', panel: 'balances', page: 'families' },
       });
     }
+  }
+  // P3A (meals): households in work that cannot pay for tomorrow's breakfast while the stalls hold food.
+  const unpaid = unpaidBreakfasts(m);
+  if (unpaid > 0) {
+    const text = fits(
+      `${unpaid === 1 ? 'A working household' : `${unpaid} working households`} can't pay for tomorrow's breakfast. Wages buy too little.`,
+      `${unpaid} ${unpaid === 1 ? 'household' : 'households'} can't pay for breakfast. Wages are too low.`,
+    );
+    out.push({
+      key: 'meals-unpaid',
+      lens: 'ledger',
+      tone: 'warn',
+      icon: 'good:bread',
+      text,
+      title: `${unpaid === 1 ? 'A household with a wage coming in' : `${unpaid} households with a wage coming in`} cannot pay for tomorrow's breakfast at the cheapest price on the shelf, so the stall puts it on the slate and the household goes short on its basket. Wages buy too little: the Wage level on the Purse page is the lever.`,
+      action: { kind: 'panel', panel: 'purse' },
+    });
   }
   const stockOf = new Map(stocks.map((l) => [l.good, l.stock]));
   const short = new Map<string, string[]>();
@@ -217,6 +258,8 @@ export function computeAlerts(
     });
   }
   out.push(...zoneAlerts(m, 'growth'));
+  // P3A: a business that grew a level today is news, after the warnings so it never pushes them off.
+  out.push(...businessGrewAlerts(m));
 
   out.push(...villageAlerts(m, who));
   out.push(...seasonAlerts(m));
@@ -272,6 +315,39 @@ export function computeAlerts(
     });
   }
   return foldSame(out);
+}
+
+/**
+ * Businesses that reached a level in the last day, from the Chronicle: one shows its own sentence
+ * (click to the building), several fold into one counted line that opens the Businesses book.
+ */
+export function businessGrewAlerts(m: Mirror): Alert[] {
+  const now = m.tick.value;
+  const grew = m.chronicle.value.filter((e) => e.kind === 'business-grew' && now - e.tick < TICKS_PER_DAY);
+  if (grew.length === 0) return [];
+  if (grew.length === 1) {
+    const e = grew[0]!;
+    return [
+      {
+        key: `grew-${e.id}`,
+        lens: 'ledger',
+        tone: 'news',
+        icon: 'chart',
+        text: e.text,
+        ...(e.refs[0] ? { action: { kind: 'building' as const, id: e.refs[0] } } : {}),
+      },
+    ];
+  }
+  return [
+    {
+      key: `grew-${grew.map((e) => e.id).join('+')}`,
+      lens: 'ledger',
+      tone: 'news',
+      icon: 'chart',
+      text: `${grew.length} businesses grew a level today. Business is good.`,
+      action: { kind: 'panel', panel: 'businesses' },
+    },
+  ];
 }
 
 /**
@@ -468,6 +544,31 @@ function makerOf(m: Mirror, good: string): string | null {
 export const FEED_FIT = 88;
 const fits = (...options: string[]): string =>
   options.find((t) => t.length <= FEED_FIT) ?? options[options.length - 1]!;
+
+/**
+ * P3A (meals): households with somebody in work whose pantry does not cover tomorrow's breakfast and
+ * whose purse cannot pay the cheapest food on a shelf for what is missing, with food in the stalls (at
+ * Village rank, when purses matter). The stall puts it on the slate; the line says why it had to.
+ */
+export function unpaidBreakfasts(m: Mirror): number {
+  const rank = m.charter.value?.rank ?? m.town.value?.rank;
+  if (rank === undefined || rank === 'hamlet') return 0;
+  const stocked = new Map((m.stocks.value?.lines ?? []).map((l) => [l.good, l.stock]));
+  let cheapest = Infinity;
+  for (const l of m.market.value?.lines ?? [])
+    if (content.goodById.get(l.good)?.family === 'food' && (stocked.get(l.good) ?? 0) > 0)
+      cheapest = Math.min(cheapest, l.cap > 0 && l.price > l.cap ? l.cap : l.price);
+  if (cheapest === Infinity) return 0;
+  const working = new Set<number>();
+  for (const r of m.residents.values()) if (r.jobId) working.add(r.householdId);
+  let n = 0;
+  for (const h of m.households.values()) {
+    if (!working.has(h.id) || h.savings === undefined) continue;
+    const short = h.members.length - h.pantryFood;
+    if (short > 0 && h.savings < short * cheapest) n++;
+  }
+  return n;
+}
 
 /** Ledger: open sites that wait on goods the stores cannot cover, and what to do about it. */
 function sitesMaterialsAlert(m: Mirror, sites: ReturnType<typeof readSites>): Alert | null {

@@ -34,6 +34,7 @@ import {
   visitHome,
 } from './round';
 import { buyAtOutlet, needsShopping, someoneShopping, startShopping, unpack } from './shopping';
+import { pantryFood } from './needs';
 import {
   Block,
   type BlockId,
@@ -150,6 +151,18 @@ export function think(state: WorldState, ctx: TickCtx, rng: Rng, r: Resident): v
     shop(state, ctx, r, h, homeDoor);
     return;
   }
+  // P3A: an empty larder is fetched for before bed and at dawn, whatever the round planned. A
+  // worker on their own, home from work at 17:00 with an Early Bird's bedtime, had the round's
+  // errand planned for after it and went without for six days with the granary full (willow).
+  if (
+    goal === 'home' &&
+    turned &&
+    r.stage !== 'child' &&
+    pantryFood(h) === 0 &&
+    !someoneShopping(state, h) &&
+    startShopping(state, r, h)
+  )
+    return;
   switch (goal) {
     case 'sleep':
     case 'home':

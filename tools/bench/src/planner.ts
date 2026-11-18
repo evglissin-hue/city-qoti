@@ -63,6 +63,8 @@ export const TIMBER_RESERVE: ReadonlyMap<string, number> = new Map([['timber', 1
 export const REPAY_RESERVE = 350;
 /** A want with this priority joins any build queue. */
 export const URGENT = Infinity;
+/** P3A: sites a newcomer pair has going up at once at most (several, without a queue). */
+export const NEWCOMER_SITES = 6;
 /** C5X: coins a new building's path may cost, kept back while the Charter wants a season in surplus. */
 const PATH_ALLOWANCE = 10;
 
@@ -178,6 +180,17 @@ export class Planner {
   offLanes = new Set<PlayLane>();
   /** R1F: every command the players sent, by lane and kind (the decisions count). */
   readonly decisions: DecisionRecord[] = [];
+  /**
+   * P3A: a newcomer pair (`newcomer.ts`) keeps no labor sums and no build queue: a want starts
+   * whatever the hands, up to NEWCOMER_SITES sites at once.
+   */
+  newcomer = false;
+  /**
+   * P3A: coins the land advisor is saving for a lane a lit bar needs (a broke Hamlet whose Farmland
+   * bar asked for land for days, while every coin over the reserve went on a well or a stall).
+   * Wants that can wait leave it in the treasury too.
+   */
+  laneReserve = 0;
   private readonly noSpot = new Map<string, number>();
 
   constructor(readonly h: Hamlet) {}
@@ -251,6 +264,18 @@ export class Planner {
       this.actions.push(`${calendar(this.w.tick).day}:${label} (lane off)`);
       return false;
     }
+    // P3A: while the Ledger saves for a lane a lit bar needs, the Hearth's spending waits for it (the
+    // pair agree the lane comes first; oak's broke Hamlet spent every coin on flower beds and festival
+    // stalls while its Farmland bar asked for land for five days).
+    if (
+      this.laneReserve > 0 &&
+      lane === 'hearth' &&
+      this.coins() < this.laneReserve + MONEY_RESERVE &&
+      cmds.some((c) => c.t === 'decor.place' || c.t === 'build.place' || c.t === 'festival.plan')
+    ) {
+      this.actions.push(`${calendar(this.w.tick).day}:${label} (waits: saving for a lane)`);
+      return false;
+    }
     if (
       cmds.some(
         (c) =>
@@ -286,7 +311,7 @@ export class Planner {
 
   /** The labor budget: whether a new `def` can be staffed (pressing wants may use the reserve). */
   staffs(def: string, pressing: boolean): boolean {
-    return canStaff(this.w, def, pressing);
+    return this.newcomer || canStaff(this.w, def, pressing);
   }
 
   /** Goods free of what sites (and upgrades) have been promised. */
@@ -305,11 +330,12 @@ export class Planner {
   allows(want: Want): boolean {
     const w = this.w;
     if (want.budget && want.budget.left <= 0) return false;
-    if (sites(w) >= want.priority) return false;
+    if (sites(w) >= (this.newcomer ? NEWCOMER_SITES : want.priority)) return false;
     if (!this.staffs(want.def, want.pressing)) return false;
     // C5A: an urgent want that keeps the town going may spend the reserve, which is there for it (a
     // Hamlet down to 37 coins could never replace its last woodcutter, and with no logs, nothing else).
-    const reserve = want.essential && want.priority === URGENT ? 0 : MONEY_RESERVE;
+    const reserve =
+      want.essential && want.priority === URGENT ? 0 : MONEY_RESERVE + (want.pressing ? 0 : this.laneReserve);
     if (this.coins() < want.cost.coins + reserve) return false;
     // C5A: late in a season the Charter's surplus wants, nothing that can wait may tip it into deficit.
     // C5X: counting the upkeep still to pay this season and a path, and only food or materials

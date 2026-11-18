@@ -1,5 +1,6 @@
 // A cut-down playability audit (npm run audit -w @qoti/bench is the full one): two seeds for
-// twelve days must raise no dead-end flag, and the wish ledger must see wishes come and go.
+// twelve days, each played by the autoplayer and by a newcomer pair (P3A), must raise no dead-end
+// flag, and the wish ledger must see wishes come and go.
 import { describe, expect, it } from 'vitest';
 import { audit, formatSummary } from './audit';
 
@@ -10,7 +11,12 @@ describe('the playability audit', { timeout: 90_000 }, () => {
     expect(r.flags, why).toEqual([]);
     expect(r.stuck, why).toEqual([]);
     expect(r.hearthStalled, why).toEqual([]);
-    expect(r.runs).toHaveLength(2);
+    expect(r.runs.map((x) => `${x.seed}/${x.label}`)).toEqual([
+      'willow/year',
+      'hazel/year',
+      'willow/newcomer',
+      'hazel/newcomer',
+    ]);
     const offered = r.wishes.reduce((n, s) => n + s.offered, 0);
     expect(offered, why).toBeGreaterThan(0);
     expect(

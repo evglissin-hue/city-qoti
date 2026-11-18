@@ -9,9 +9,10 @@ import { buildsFirst } from '../../src/systems/construction/first';
 import { inspect } from '../../src/view/inspect';
 import { hamletFixture } from '../fixtures/hamlet';
 import { rejection, run, S } from '../helpers';
-import { everyoneToWork, ticks, ticksUntil, untilHour, withoutStall } from '../ledger/helpers';
+import { costOf, everyoneToWork, ticks, ticksUntil, untilHour, withoutStall } from '../ledger/helpers';
 
 const H = TICKS_PER_HOUR;
+const cottageNeeds = `${costOf('cottage').goods('timber')} timber and ${costOf('cottage').goods('stone')} stone`;
 const zoneValue = (id: string) => content.zoneById.get(id)!.layerValue;
 
 function lotAt(state: ReturnType<typeof hamletFixture>['state'], zone: number, x: number, z: number): Lot {
@@ -119,7 +120,7 @@ describe('a site short of a material', () => {
   it('names the material and says the carrier brings some while its rule allows', () => {
     const { f, site } = waiting();
     f.state.carrier.families[2]!.rule = 'essentials';
-    expect(lines(f, site.id)).toContain('Waiting for 16 timber and 6 stone; the carrier brings some at ten');
+    expect(lines(f, site.id)).toContain(`Waiting for ${cottageNeeds}; the carrier brings some at ten`);
   });
 
   // P2: the carrier buys a site's materials with coins in hand only, and not through a closed pass.
@@ -128,7 +129,7 @@ describe('a site short of a material', () => {
     f.state.carrier.families[2]!.rule = 'essentials';
     f.state.economy.treasury = 0;
     expect(lines(f, site.id)).toContain(
-      'Waiting for 16 timber and 6 stone; the carrier buys none while the treasury is empty',
+      `Waiting for ${cottageNeeds}; the carrier buys none while the treasury is empty`,
     );
   });
 
@@ -143,14 +144,14 @@ describe('a site short of a material', () => {
       forecastTick: 0,
     });
     expect(lines(f, site.id)).toContain(
-      'Waiting for 16 timber and 6 stone; the carrier cannot come while snow closes the pass',
+      `Waiting for ${cottageNeeds}; the carrier cannot come while snow closes the pass`,
     );
   });
 
   it('leaves the carrier out when the Materials rule is never', () => {
     const { f, site } = waiting();
     f.state.carrier.families[2]!.rule = 'never';
-    expect(lines(f, site.id)).toContain('Waiting for 16 timber and 6 stone');
+    expect(lines(f, site.id)).toContain(`Waiting for ${cottageNeeds}`);
   });
 });
 

@@ -1,14 +1,16 @@
 import { BuildingSeasonLines } from './seasonParts';
 import { content } from '@qoti/content';
-import type { BuildingDetail, BuildingView } from '@qoti/sim';
+import type { BuildingDetail, BuildingView, ResidentDetail } from '@qoti/sim';
 import { useState } from 'preact/hooks';
 import type { Session } from '../../app/session';
 import { removeWithCare } from '../../input/removal';
 import { buildingName, capital, coins, placeName, seatLabel } from '../format';
 import { rejectText } from '../messages';
-import { CATEGORY_WORD, CONSTRUCTION_STAGES, statusWords, TIER_WORD } from '../hamlet';
+import { CONSTRUCTION_STAGES, statusWords, TIER_WORD } from '../hamlet';
+import { doingLine, homesBeside, kindWord } from './buildingWords';
 import { zoneInk } from '../village';
 import { Price } from './villageParts';
+import { homeProgressLine, nextLevelLine } from './levelWords';
 import {
   handsText,
   keeperFamily,
@@ -53,11 +55,20 @@ export function BuildingInspector({ session, id }: { session: Session; id: numbe
         : statusWords(rt?.status ?? 0);
   const household = detail?.household ?? findHousehold(session, b);
   // R1: a business (a farmstead, workshop or shop with a trade) says so, whatever its building.
-  const kicker = site
-    ? 'Construction site'
-    : b.trade
-      ? 'Business'
-      : (CATEGORY_WORD[def?.category ?? ''] ?? 'Building');
+  const kicker = site ? 'Construction site' : kindWord(def, b.trade);
+  // P3A: what it does where it stands, in words that are true of this building (buildingWords.ts).
+  const doing = site
+    ? null
+    : doingLine(def, {
+        detail: detail ?? undefined,
+        family: household?.family,
+        winter: m.clock.value.season === 3,
+        beside:
+          def?.tags?.includes('garden-bed') && b.stage === 'built'
+            ? homesBeside(b, m.buildings.values(), m.households.values())
+            : undefined,
+        tradeBlurb: b.trade ? content.tradeById.get(b.trade)?.blurb : undefined,
+      });
   // P1 (playtest): a standard valley keeps its town hall, so it offers no Remove.
   const hostedPlace = m.placeOf(id);
   const keepsHall = b.def === 'town-hall' && m.settings.value.mode === 'standard';
@@ -81,6 +92,11 @@ export function BuildingInspector({ session, id }: { session: Session; id: numbe
               : site
                 ? 'Coming along nicely.'
                 : quietLine(b)}
+        </p>
+      )}
+      {doing && (
+        <p class="small" data-testid="building-does">
+          {doing}
         </p>
       )}
       {hostedPlace && (
@@ -305,6 +321,7 @@ function BusinessLines({ session, id }: { session: Session; id: number }) {
   const biz = session.mirror.businesses.get(id);
   if (!biz?.trade) return null;
   const family = keeperFamily(session, biz);
+  const next = nextLevelLine(biz, content.tradeById.get(biz.trade));
   return (
     <div class="business-inspect" data-testid="business-lines">
       <p class="business-name">
@@ -315,6 +332,11 @@ function BusinessLines({ session, id }: { session: Session; id: number }) {
       <p class="small muted">
         {keeperLine(family)}. {handsText(biz)}.
       </p>
+      {next && (
+        <p class="small muted" data-testid="business-next">
+          {next}
+        </p>
+      )}
       {biz.pinned && <p class="small muted">Pinned: it keeps its trade.</p>}
     </div>
   );
@@ -329,12 +351,11 @@ function signTitle(b: BuildingView): string | null {
   return typeof sign === 'string' && sign.trim() ? sign.trim() : null;
 }
 
+/** Nothing is wrong. What the building does is its own line (`doingLine`), so this only says how it is. */
 function quietLine(b: BuildingView): string {
-  const def = content.buildingById.get(b.def);
   if (b.rt?.paused) return 'Paused.';
-  if (def?.housing) return 'A home, lived in.';
-  if (!b.rt?.jobs) return 'Standing there being useful.';
-  return 'Humming along.';
+  if (b.rt?.jobs) return 'Humming along.';
+  return 'All in order.';
 }
 
 /** Needs still to come and delivered so far, as chips per good: delivered of total. */
@@ -385,6 +406,20 @@ function VillageDetail({ session, detail }: { session: Session; detail: Building
   const lot = detail.lot;
   const zone = lot ? content.zoneById.get(lot.zone) : undefined;
   const style = b.style || lot?.style;
+  // A home reads like its first resident does: the days toward the next tier and what is missing.
+  // P3A: a Settler home's runtime keeps no tier until its household first moves up, so its tier and
+  // road are read from the household in the Mirror (the player's chair: no Settler home said either).
+  const home = !!content.buildingById.get(b.def)?.housing;
+  const hh = detail.household ? session.mirror.households.get(detail.household.id) : undefined;
+  const tier = detail.tier ?? (home ? hh?.tier : undefined);
+  const first = tier ? detail.household?.members[0]?.id : undefined;
+  const homeDetail = useInspect<ResidentDetail>(
+    (k, i) => session.inspect(k, i),
+    'resident',
+    first ?? null,
+    session.mirror.hamletRevision.value,
+  );
+  const homeLine = homeDetail ? homeProgressLine(homeDetail.tierProgress) : null;
   return (
     <>
       {lot && (
@@ -407,9 +442,14 @@ function VillageDetail({ session, detail }: { session: Session; detail: Building
           </span>
         </p>
       )}
-      {detail.tier && (
+      {tier && (
         <p class="small" data-testid="building-tier">
-          A {TIER_WORD[detail.tier]?.toLowerCase() ?? detail.tier} home.
+          A {TIER_WORD[tier]?.toLowerCase() ?? tier} home.
+        </p>
+      )}
+      {homeLine && (
+        <p class="small muted" data-testid="home-progress">
+          {homeLine}
         </p>
       )}
       {detail.upgrade && (

@@ -10,7 +10,7 @@ import { rngFromSeed } from '../../rng/streams';
 import { isStandard } from '../../state/hamlet';
 import { modifierValue } from './api';
 import { decayFriendships, greetNeighbors, hourlyFriendships } from './friends';
-import { assignJobs, auditJobs, rebalanceJobs } from './jobs';
+import { assignJobs, auditJobs, FOOD_MOVES, rebalanceJobs, shortages } from './jobs';
 import { closeEvening } from './evening';
 import { lifeEvening, lifeMorning } from './life';
 import { arrivals, attractiveness, departures, morningPass, rehouse, thinkLeaving } from './lifecycle';
@@ -88,7 +88,10 @@ export function residentsTick(state: WorldState, ctx: TickCtx): void {
   }
   if (t % HOUR === JOBS_OFFSET) {
     assignJobs(state, ctx);
-    rebalanceJobs(state, ctx);
+    // P3A: one hand an hour moves to more important work, or FOOD_MOVES while the town is short of
+    // food: in spring a dozen fields stood unworked for a day while lodges and kilns kept their crews.
+    const moves = shortages(state).food ? FOOD_MOVES : 1;
+    for (let i = 0; i < moves && rebalanceJobs(state, ctx); i++);
   }
   if (t % HOUR === FRIENDS_OFFSET) hourlyFriendships(state);
 

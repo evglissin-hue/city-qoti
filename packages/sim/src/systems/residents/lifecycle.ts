@@ -27,6 +27,22 @@ import { bumpPlaceInputs } from '../places/inputs';
 export const ARRIVAL_THRESHOLD = 40;
 /** Households per arrival wave; waves come every two hours from 08:00 to 16:00. */
 export const MAX_ARRIVALS_PER_DAY = 3;
+/**
+ * P3A: days of food in hand (stores and pantries) for the town and the newcomers together below
+ * which no family moves in, in any season. In spring a town that ate its larder bare in winter took
+ * seventeen newcomers in a day and went hungry for a week while its fields were still being sown.
+ */
+export const ARRIVAL_FOOD_DAYS = 2;
+
+/** P3A: true when the town's food in hand would feed it and `newcomers` more for ARRIVAL_FOOD_DAYS. */
+export function foodWelcomes(state: WorldState, newcomers: number): boolean {
+  let food = 0;
+  const stock = townStock(state);
+  for (const g of foodIndexes()) food += stock[g] ?? 0;
+  for (const h of state.households) food += pantryFood(h);
+  return food >= (state.residents.length + newcomers) * ARRIVAL_FOOD_DAYS;
+}
+
 /** Consecutive low-mood days before a household leaves. */
 export const LOW_MOOD_DAYS = 3;
 
@@ -126,7 +142,7 @@ export function arrivals(state: WorldState, ctx: TickCtx, rng: Rng): number {
   else if (state.stats.attractiveness < ARRIVAL_THRESHOLD) return 0;
   // C5A: from autumn to the thaw families wait while the larder could not see one more through
   // the winter (each family below counts its own mouths).
-  if (!founding && !larderWelcomes(state, 1)) return 0;
+  if (!founding && (!larderWelcomes(state, 1) || !foodWelcomes(state, 1))) return 0;
   // A story character ready to move in gets the last home (C4D; playtest round five).
   const room = founding || !storyWaiting(state) ? vac.length : vac.length - 1;
   const k = founding
@@ -157,7 +173,7 @@ export function arrivals(state: WorldState, ctx: TickCtx, rng: Rng): number {
     const stages: LifeStage[] = founding
       ? (['adult', 'adult', 'young', 'child'] as LifeStage[]).slice(0, Math.max(1, home.residents))
       : stagesFor(pickMakeup(rng), rng, home.residents);
-    if (!founding && !larderWelcomes(state, stages.length)) break;
+    if (!founding && (!larderWelcomes(state, stages.length) || !foodWelcomes(state, stages.length))) break;
     const { household, members } = createHousehold(state, rng, {
       species,
       stages,

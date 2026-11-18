@@ -61,7 +61,8 @@ import {
   zoneStreetFor,
 } from '../village';
 import { walkFrontage } from './shops';
-import type { Advisor, AdvisorDef, Visit } from './types';
+import { NEWCOMER_FIRST_WORK, NEWCOMER_LUMP_EVERY, NEWCOMER_ZONES_FROM } from '../newcomer';
+import type { Advisor, AdvisorDef, AutoplayOptions, Visit } from './types';
 
 /** Streets the Ledger lays at most, the high street included. */
 const MAX_STREETS = 16;
@@ -76,6 +77,10 @@ const STONE_KEEP = 30;
 /** A street's length in tiles: 22 when the treasury allows, never under 8 (a short lane still answers a bar). */
 const STREET_TILES = 30;
 const SHORT_STREET = 8;
+/** P3A: the shortest lane a lit bar is answered with when coins are short (a lot or two of frontage). */
+const BAR_STUB = 4;
+/** P3A: mornings a bar is lit before its lane may spend the reserve and be a stub. */
+const BAR_WAIT_DAYS = 2;
 /** The Hamlet's build queue for specialized buildings (I1's three). */
 const QUEUE = 3;
 /** Food in store a resident before a granary goes up. */
@@ -131,8 +136,18 @@ class Land implements Advisor {
   private blockTried = 0;
   /** Day each zone was last painted for its bar. */
   private readonly painted = new Map<string, number>();
+  /** P3A: the first morning each bar was seen lit, while it stays lit. */
+  private readonly litSince = new Map<string, number>();
 
-  constructor(readonly p: Planner) {}
+  /** P3A: playing as a newcomer pair (`newcomer.ts`). */
+  private readonly newcomer: boolean;
+
+  constructor(
+    readonly p: Planner,
+    opts: AutoplayOptions = {},
+  ) {
+    this.newcomer = !!opts.newcomer;
+  }
 
   get w(): WorldState {
     return this.p.w;
@@ -141,15 +156,18 @@ class Land implements Advisor {
   // --- Streets and zones -----------------------------------------------------------------------
 
   /** Lays a street off the lanes and zones it (the first becomes the high street). */
-  private lay(label: string, zones?: readonly string[]): boolean {
+  private lay(label: string, zones?: readonly string[], forBar = false): boolean {
     const p = this.p;
     const village = rankAtLeast(p.w, 'village');
     // R1F: as long as the treasury allows, keeping the planner's reserve (a Hamlet down to fifty
     // coins still lays a short lane for the homes its bar asks for).
     // R1X: a Village may lay its lanes on the County Bank's credit, as its services go up: growth
     // waited for coins while the Homes bar asked for land for days.
+    // P3A: in a Hamlet (no credit), a lane a lit bar has asked for two mornings may spend the
+    // reserve, which is there for such things; a Village keeps it (spent on credit it ran willow
+    // into ten lean days).
     const credit = overdraftLimit(p.w) / PENNIES_PER_COIN;
-    const means = p.coins() + credit - MONEY_RESERVE;
+    const means = p.coins() + credit - (forBar && !village ? 0 : MONEY_RESERVE);
     // R2E: the village core (the Village's street, and later streets that carry shops or townhouses)
     // is cobbled when Cobbles is open and the coins and stone allow; every other street is a lane.
     const core = (village && !zones) || !!zones?.some((z) => z === 'shops' || z === 'homes-medium');
@@ -160,7 +178,8 @@ class Land implements Advisor {
         : 0;
     const asStreet = cobbled >= SHORT_STREET;
     const length = asStreet ? cobbled : Math.min(STREET_TILES, Math.floor(means / LANE_COINS));
-    if (length < SHORT_STREET) return false;
+    // P3A: a lit bar takes a stub of a lane (a lot or two of frontage) when that is all there is.
+    if (length < (forBar && !village ? BAR_STUB : SHORT_STREET)) return false;
     let street = planHighStreet(p.w, length);
     if (!street) {
       p.actions.push(`no room for ${label}`);
@@ -259,6 +278,8 @@ class Land implements Advisor {
     const today = day(w);
     const left: string[] = [];
     BAR_ZONES.forEach((zone, i) => {
+      if (!w.demand.lit[i]) this.litSince.delete(zone);
+      else if (!this.litSince.has(zone)) this.litSince.set(zone, today);
       if (!w.demand.lit[i] || this.painted.get(zone) === today) return;
       const def = content.zoneById.get(zone);
       if (!def || !meetsRequires(w, def.requires)) return;
@@ -278,7 +299,14 @@ class Land implements Advisor {
       }
       left.push(zone);
     });
-    if (left.length > 0 && this.streets < MAX_STREETS) this.lay('another street', left);
+    // P3A: a lane the treasury cannot pay for yet is saved for (the planner's laneReserve), so a
+    // broke Hamlet's lit bar is answered in a day or two instead of never.
+    if (left.length > 0 && this.streets < MAX_STREETS) {
+      // The reserve and a stub only for a bar lit two mornings running: most days the coins come
+      // and a full lane follows (stubs every day cost oak eight more decisions than its limit).
+      const waited = left.some((z) => today - (this.litSince.get(z) ?? today) >= BAR_WAIT_DAYS);
+      p.laneReserve = this.lay('another street', left, waited) ? 0 : BAR_STUB * LANE_COINS;
+    } else p.laneReserve = 0;
   }
 
   /** A storehouse toward lots no porter reaches, raised to the front (one site at a time). */
@@ -628,7 +656,53 @@ class Land implements Advisor {
     }
   }
 
+  /**
+   * P3A: a newcomer pair's Ledger. The first morning: the lane out to the first work, zoned for
+   * Workshops and Farmland only, and the workplaces set down all at once (no homes yet). Homes are
+   * zoned from NEWCOMER_ZONES_FROM, and the bars are answered only every NEWCOMER_LUMP_EVERY days,
+   * in a lump: a person looks at the zones now and then, not every morning. The rest (lodges,
+   * quarries, fisheries, stores, the Village's buildings) as the land advisor reads the town, but
+   * with no labor sums and several sites at once (the planner's newcomer rules).
+   */
+  private newcomerVisit(v: Visit): void {
+    const p = this.p;
+    const w = this.w;
+    const today = day(w);
+    if (!p.street) {
+      if (v.afternoon || w.settings.mode !== 'standard') return;
+      this.lay('the first lane', ['crafts', 'farms']);
+      for (const def of NEWCOMER_FIRST_WORK) this.want(def, { urgent: true, pressing: true });
+      return;
+    }
+    const lump = today >= NEWCOMER_ZONES_FROM && (today - NEWCOMER_ZONES_FROM) % NEWCOMER_LUMP_EVERY === 0;
+    if (lump && !v.afternoon) {
+      if (rankAtLeast(w, 'village') && !this.villageStreet && this.streets < MAX_STREETS)
+        this.lay('the village street');
+      // The first lump zones Homes whether or not its bar is lit (the guide's second letter).
+      if (today === NEWCOMER_ZONES_FROM) this.zoneHomes();
+      this.cobble();
+      this.block();
+      this.answerBars();
+      this.reachLots();
+    }
+    this.sites();
+  }
+
+  /** P3A: the newcomer's first Homes: along open frontage by a road, or a lane of their own. */
+  private zoneHomes(): void {
+    const tiles = frontageFor(this.w, 'homes-low');
+    if (tiles && this.p.do('zone homes-low at last', [{ t: 'zone.paint', zone: 'homes-low', tiles }])) {
+      this.painted.set('homes-low', day(this.w));
+      if (tiles.length >= ENOUGH_FRONTAGE) return;
+    }
+    if (this.streets < MAX_STREETS) this.lay('a lane for homes', ['homes-low']);
+  }
+
   visit(v: Visit): void {
+    if (this.newcomer) {
+      this.newcomerVisit(v);
+      return;
+    }
     const p = this.p;
     const w = this.w;
     // Founding day: the first street, laid and zoned with Homes, Workshops and Farmland (a street
@@ -654,5 +728,5 @@ export const land: AdvisorDef = {
   // Where the street advisor was: after the Village's services (10), before the charter (30).
   slot: 20,
   plays: () => true,
-  create: (p) => new Land(p),
+  create: (p, opts) => new Land(p, opts),
 };

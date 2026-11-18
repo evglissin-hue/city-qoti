@@ -10,13 +10,16 @@
 import { creditLimit, larderWelcomes, loansOwed, rankAtLeast, townStock } from '@qoti/sim';
 import { costOf, URGENT, type Planner } from '../planner';
 import { charterOpen, count, FOODS, storyWaiting, vacantHomes } from '../town';
-import type { Advisor, AdvisorDef } from './types';
+import type { Advisor, AdvisorDef, AutoplayOptions } from './types';
 
 /** The I1 build queue: three sites under way unless a want is urgent. */
 const QUEUE = 3;
 
 class Hamlet implements Advisor {
-  constructor(readonly p: Planner) {}
+  constructor(
+    readonly p: Planner,
+    private readonly opts: AutoplayOptions = {},
+  ) {}
 
   visit(): void {
     const p = this.p;
@@ -61,7 +64,12 @@ class Hamlet implements Advisor {
     const holdHomes = (larderLow && pop >= 30 && foodLast) || indebted || winterHold;
     // C4X: with no home empty or going up, the next cottage jumps the queue (nobody moves in
     // without one; a hamlet sat at 13 residents for six days behind its other sites).
-    want(!p.street && !holdHomes && homesComing < 2 + waiting, 'cottage', homesComing === 0);
+    // P3A: a newcomer pair sets down no cottage by hand (the guide: "you need not draw a single cottage").
+    want(
+      !this.opts.newcomer && !p.street && !holdHomes && homesComing < 2 + waiting,
+      'cottage',
+      homesComing === 0,
+    );
     want(pop >= 10 && count(w, 'market-stall') === 0, 'market-stall');
     want(pop >= 14 && count(w, 'builders-yard') === 0, 'builders-yard');
     // P1: a growing hamlet puts up a second well on its own, for its comfort and its gathering place.
@@ -74,5 +82,5 @@ export const hamlet: AdvisorDef = {
   lane: 'ledger',
   slot: 50,
   plays: () => true,
-  create: (p) => new Hamlet(p),
+  create: (p, opts) => new Hamlet(p, opts),
 };
