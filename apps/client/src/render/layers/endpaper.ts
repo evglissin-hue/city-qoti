@@ -17,6 +17,7 @@ import {
   ENDPAPER_PAGE_PITCH,
   EndpaperWriter,
   endpaperCover,
+  endpaperInks,
   endpaperInput,
   endpaperSpan,
   type EndpaperWorkerLike,
@@ -26,7 +27,7 @@ import type { LayerContext, RenderLayer } from './types';
 
 /** Mirror changes that redraw the map: anything about the town's shape, never folk or the clock. */
 export function townChanged(c: MirrorChange): boolean {
-  if (c.full || c.buildings || c.village) return true;
+  if (c.full || c.buildings || c.village || c.streets || c.footfall) return true;
   for (const name of ['height', 'water', 'road', 'tree', 'fieldOwner', 'lot', 'terrain'] as const)
     if (c.rects.has(name)) return true;
   return false;
@@ -111,7 +112,7 @@ export function endpaperLayer(opts: EndpaperLayerOptions = {}): RenderLayer {
       const mirror = ctx.mirror;
       // The first drawing is asked a little before the fade starts, so it is ready when it does.
       const landed = writer.tick(now(), on ? endpaperCover(distance + ENDPAPER_LOOKAHEAD) : 0, () =>
-        endpaperInput(mirror),
+        endpaperInput(mirror, endpaperInks(mirror)),
       );
       // Cover follows the camera only once a real bitmap is in: a browser that never draws a map
       // never fades to blank parchment, and its scene is never skipped.

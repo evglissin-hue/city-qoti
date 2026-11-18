@@ -4,6 +4,8 @@
 //
 // Reach is walking distance along road tiles from the building's door front, with a short hop
 // (Manhattan HOP tiles) from a road tile to a door or lot that does not stand on one.
+import { masterRoom } from '../masters/api';
+import { callingRoom } from '../callings/api';
 import { content } from '@qoti/content';
 import { MAP_SIZE } from '../../constants';
 import type { Building, EntityId, WorldState } from '../../contracts';
@@ -431,5 +433,7 @@ export function capacityOf(state: WorldState, specialized: Building): number {
     cap = Math.max(cap, def.raisedCapacity[1]);
   }
   if (def.id === 'sawmill' && state.weather.river.frozen) cap -= 1;
+  // R3.0: a master miller's room for one more baker (R3B), Mill Town's room by each mill (R3C).
+  cap += masterRoom(state, specialized) + callingRoom(state, specialized);
   return Math.max(0, cap);
 }

@@ -1,5 +1,7 @@
 // Places the seasons read (C5A): the middle of town for Chronicle snapshots, and the skating spots on
-// the bank beside the ice. Pure: reads state; the spots are cached per freeze, never saved.
+// the bank beside the ice. R3.0: the spots are fixed when the river freezes and saved with it
+// (`weather.river.spots`), so a seat joining mid-freeze reads the spots its partner reads, whatever
+// was built or planted on the bank since. Pure: reads state.
 import { MAP_SIZE } from '../../constants';
 import type { WorldState } from '../../contracts';
 import { Water } from '../../map/layers';
@@ -13,8 +15,7 @@ export function townFocus(state: WorldState): [number, number] {
 /** Skating spots kept along the bank (one in every SPOT_STRIDE bank tiles, at most SPOTS_MAX). */
 const SPOT_STRIDE = 24;
 const SPOTS_MAX = 16;
-
-const spotCache = new WeakMap<WorldState, { key: number; spots: number[] }>();
+const NONE: readonly number[] = [];
 
 function isRiver(w: number): boolean {
   return w === Water.river || w === Water.riverDeep;
@@ -22,12 +23,10 @@ function isRiver(w: number): boolean {
 
 /**
  * Dry, open bank tiles beside river water (the edge of the ice), spaced along the river, row-major
- * order. Skating is an outing on the ice by the bank, not a route across the river.
+ * order, read from the map as it is now. The freeze calls it once and saves the answer; everything
+ * else reads `skatingSpots`.
  */
-export function skatingSpots(state: WorldState): readonly number[] {
-  const key = state.weather.river.frozenTick;
-  const cached = spotCache.get(state);
-  if (cached && cached.key === key) return cached.spots;
+export function findSkatingSpots(state: WorldState): number[] {
   const S = MAP_SIZE;
   const m = state.map;
   const spots: number[] = [];
@@ -46,8 +45,19 @@ export function skatingSpots(state: WorldState): readonly number[] {
       if (seen++ % SPOT_STRIDE === 0) spots.push(i);
     }
   }
-  spotCache.set(state, { key, spots });
   return spots;
+}
+
+/**
+ * The skating spots while the river is frozen: the ones fixed at the freeze (saved). None while the
+ * river is open. Skating is an outing on the ice by the bank, not a route across the river.
+ */
+export function skatingSpots(state: WorldState): readonly number[] {
+  const river = state.weather.river;
+  if (!river.frozen) return NONE;
+  // A frozen river written by hand (tests) has no saved spots: read them from the map, uncached, so
+  // two states equal now read the same spots (never a cache that outlives a change, the old hazard).
+  return river.spots ?? findSkatingSpots(state);
 }
 
 /** The skating spot nearest a tile (straight line), or -1 when the river has no open bank. */

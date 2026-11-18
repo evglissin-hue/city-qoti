@@ -268,6 +268,24 @@ describe('the endpaper drawing', () => {
     }
   });
 
+  it('leaves off a street name that would cross one already lettered (V3X follow-up)', () => {
+    const street = (text: string, x: number, z: number, angle = 0) =>
+      ({ text, x, z, angle, kind: 'street' }) as const;
+    const lettered = (labels: ReturnType<typeof street>[]) =>
+      run(blank({ labels }))
+        .filter((c) => c.name === 'fillText' && labels.some((l) => l.text === c.args[0]))
+        .map((c) => c.args[0]);
+    // The second crosses the first at a crossing; the third is far off; the fourth runs along the first.
+    expect(
+      lettered([
+        street('Mill Lane', 20, 30),
+        street('Well Walk', 20, 30, Math.PI / 2),
+        street('Quiet Path', 20, 50),
+        street('Hall Walk', 21, 30),
+      ]),
+    ).toEqual(['Mill Lane', 'Quiet Path']);
+  });
+
   it('draws a roof only where it is: moving one roof leaves the rest of the calls alone', () => {
     const a = run(
       blank({

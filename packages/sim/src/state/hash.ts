@@ -149,6 +149,12 @@ export function hashState(state: WorldState): string {
       gaps: state.gaps,
       streets: state.streets,
       evenings: state.evenings,
+      // R3 (R3.0)
+      supplies: state.supplies,
+      masters: state.masters,
+      townBook: state.townBook,
+      threads: state.threads,
+      calling: state.calling ?? null,
     }),
   );
   return h.hex();

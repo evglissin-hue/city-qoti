@@ -4,9 +4,10 @@
 // (baskets.ts) records what every household wants each day instead, whether or not the shelves
 // have it, and buys without recording twice. Price caps and subsidies (levers) apply at the till,
 // and what they cost the town shows in the Budget as subsidies.
+import { recordThread } from '../threads/api';
 import { content } from '@qoti/content';
 import { LEDGER_CATEGORIES, type LedgerCategoryId } from '../../constants';
-import type { EntityId, Household, WorldState } from '../../contracts';
+import type { EntityId, Household, PlaceId, WorldState } from '../../contracts';
 import { findById } from '../../state/entities';
 import { isStandard } from '../../state/hamlet';
 import { rankAtLeast } from '../../state/village';
@@ -68,6 +69,7 @@ export function purchase(
   qty: number,
   outlet: EntityId = 0,
   record = false,
+  to: EntityId | PlaceId = h.homeId,
 ): number {
   if (qty <= 0) return 0;
   if (record) state.market.demandToday[good] = (state.market.demandToday[good] ?? 0) + qty;
@@ -80,6 +82,8 @@ export function purchase(
   for (const id of outlets) {
     if (want <= 0) break;
     const n = takeFromOutlet(state, id, good, want);
+    // R3.0: Follow the thread's door pairs: outlet to home, or to the place it was bought at (R3D).
+    if (n > 0) recordThread(state, id, to, good, n);
     got += n;
     want -= n;
   }

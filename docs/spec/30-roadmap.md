@@ -222,7 +222,7 @@ Every wave runs the build and review loop (`31-parallel-development.md`), and ea
 
 **Scope**: `19-evenings.md` from The day in two acts to Gaps, with its data and its R2 acceptance; everything tagged [R2] or marked "from R2" in `02-game-overview.md`, `10-world-and-building.md`, `11-residents.md`, `12-hearth.md`, `13-ledger.md`, `14-challenge.md`, `15-progression.md`, `16-coop.md` and `17-presentation.md`.
 
-**Acceptance**: the R2 list in `19-evenings.md`, and:
+**Acceptance**: the R2 list in `19-evenings.md` (its first line in the owner's wording of 2026-11-17: every grown-up with a place worth the walk goes out on a fair evening), and:
 
 - Each player can say, from the screen alone, what the other's work did for theirs today (the evening edition, the two inks, a gap closed).
 - The lanes test passes on every bench seed.
@@ -248,7 +248,7 @@ Every wave runs the build and review loop (`31-parallel-development.md`), and ea
 
 **Goal**: good evenings turn into something lasting. Places come alive when supplied, residents grow into masters who bring the town new flavors, and what the town is known for is discovered where a place and a trade keep meeting.
 
-**Cycles**: R3.0 contracts (serial) → R3A supplies and the lamplighter (resting pieces, household candles, place priorities, the fourth gap), R3B masters, apprentices and masters' goods, R3C the Town Book and earned callings, R3D Follow the thread (its door-pair counts in the sim and its card), with the Town Book's pages and the storybook's print layout, R3E the bench (parallel) → R3X integration and tuning.
+**Cycles**: R3.0 contracts (serial) → R3A supplies and the lamplighter (resting pieces, household candles, place priorities, the fourth gap), R3B masters, apprentices and masters' goods, R3C the Town Book and earned callings, R3D Follow the thread (its door-pair counts in the sim and its card), with the Town Book's pages and the rest of R3's interface, R3E the bench, R3F lamplight and resting pieces (R3's look, on the R1E and R2D precedent), R3G the storybook's print layout, R3H specialized buildings that grow with success (from the owner's playtest of `main`) (parallel) → R3X integration and tuning. *As planned in R3.0 (2026-11-17)*: R3F, R3G and R3H were added by the master's rulings; the briefs and the rulings are in `docs/build/r3-wave-notes.md`.
 
 **Scope**: `19-evenings.md` from Supplies to the Town Book, with its R3 acceptance; everything tagged [R3] in `11-residents.md`, `12-hearth.md` (the storybook), `13-ledger.md` (level 3, later flavors), `14-challenge.md` (lit lanterns), `15-progression.md` (callings, the Charters' new goals, achievements) and `17-presentation.md`.
 
@@ -273,7 +273,7 @@ Every wave runs the build and review loop (`31-parallel-development.md`), and ea
 
 *Waits for R3 and V4 (the redesign above).*
 
-**Scope**: Town Charter and the bandit raid trial; the Age of Steam (`18-eras.md`: era state, steam works as specialized buildings, coal, smoke that costs charm and evenings, the era moment, restyling across eras, Old Town; V5 runs with this wave); Merchants tier by amount, variety and evenings; districts with policies and styles; contracts; Port Amberly and the flavors it trades; canals and barges; parcels and expansion (purchase, bridges, camps and dens with Watch expeditions); great owl, river raiders, bandit chief; block builder for landmarks; library, theater, post office, inn and tourism (visitors who walk the evening round); levees and irrigation; time-lapse; 8 new patterns, each a place; Captain Wendell Rook; more achievements.
+**Scope**: Town Charter and the bandit raid trial; the worldgen rim (a valley that slopes out into the hills, new valleys only; the owner's ruling of 2026-11-17), beside parcels and expansion; the Age of Steam (`18-eras.md`: era state, steam works as specialized buildings, coal, smoke that costs charm and evenings, the era moment, restyling across eras, Old Town; V5 runs with this wave); Merchants tier by amount, variety and evenings; districts with policies and styles; contracts; Port Amberly and the flavors it trades; canals and barges; parcels and expansion (purchase, bridges, camps and dens with Watch expeditions); great owl, river raiders, bandit chief; block builder for landmarks; library, theater, post office, inn and tourism (visitors who walk the evening round); levees and irrigation; time-lapse; 8 new patterns, each a place; Captain Wendell Rook; more achievements.
 
 *Changed by the redesign*: I4 adds no goods for the Ledger to wire. The nine goods it once listed (paper, books, glass, jam, tea, coal, iron, soap, music boxes) arrive as masters' goods (R3), as flavors that come by trade, or as one specialized building each (coal, glass); the rest are dropped.
 

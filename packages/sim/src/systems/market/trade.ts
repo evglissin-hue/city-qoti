@@ -1,12 +1,14 @@
 // The evening trade passes (docs/spec/19-evenings.md, Evening trade; the rules and who takes first are
 // in round.ts's header). R2B owns this file. It lives apart from round.ts, which the place pass imports,
 // so that round.ts stays a leaf and the places' cross-track API is never part of an import cycle.
+import { recordThread } from '../threads/api';
 import { content } from '@qoti/content';
 import { MAP_SIZE, RoundFlags, TICKS_PER_HOUR } from '../../constants';
 import type {
   Building,
   EntityId,
   Household,
+  PlaceId,
   Resident,
   RoundStop,
   TickCtx,
@@ -128,18 +130,25 @@ function bestTreat(
   return best;
 }
 
-/** Sells `qty` of a Treat: paid through `purchase` from Village rank, free in a Hamlet. Counts what was eaten. */
+/**
+ * Sells `qty` of a Treat: paid through `purchase` from Village rank, free in a Hamlet. Counts what was
+ * eaten. R3.0: `to` is where it was enjoyed for Follow the thread: the stop's place, or the home.
+ */
 function sellTreat(
   state: WorldState,
   h: Household,
   outlet: EntityId,
   good: number,
   qty: number,
+  to: EntityId | PlaceId = h.homeId,
 ): { got: number; pennies: number } {
   const before = h.savings;
-  const got = marketOpen(state)
-    ? purchase(state, h, good, qty, outlet)
-    : takeFromOutlet(state, outlet, good, qty);
+  let got: number;
+  if (marketOpen(state)) got = purchase(state, h, good, qty, outlet, false, to);
+  else {
+    got = takeFromOutlet(state, outlet, good, qty);
+    if (got > 0) recordThread(state, outlet, to, good, got);
+  }
   if (got > 0) {
     state.economy.today.consumed[good]! += got;
     state.economy.season.consumed[good]! += got;
@@ -198,7 +207,9 @@ export function tradePass(state: WorldState, ctx: TickCtx): void {
       const pick = bestTreat(state, h, stopOutlets(state, stop));
       if (!pick) continue;
       const qty = 1 + (tasteOf(state, h).comfortable ? 1 : 0);
-      const { got, pennies } = sellTreat(state, h, pick.outlet, pick.good, qty);
+      // R3.0: enjoyed at the place (a shop stop's treat goes home), for Follow the thread.
+      const at = stop.place.startsWith('shop:') ? h.homeId : stop.place;
+      const { got, pennies } = sellTreat(state, h, pick.outlet, pick.good, qty, at);
       if (got <= 0) continue;
       h.owed![group]! -= 100;
       recordSale(state, stop.place, pick.outlet, pick.good, got, pennies);

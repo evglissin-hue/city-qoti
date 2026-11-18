@@ -2,7 +2,9 @@
 // edits the schedule. Each override names a priority and returns what a resident should be doing
 // this hour (an Activity) or null to leave them to the day table; the highest priority that has
 // something wins. C5B: the festival evening; C5D: the bell (indoors), Watch duty and turn-out;
-// C5A: skating and staying in during storms. The bell beats the festival.
+// C5A: skating and staying in during storms. The bell beats the festival. R3A adds the lamplighter's round
+// (`supplies/lamplighter.ts`, priority 60: above the festival, below the storm) when the walk is real:
+// every override costs every resident a call, so R3.0 left the stand-in out of the registry.
 import type { Activity, Resident, WorldState } from '../../contracts';
 import { FESTIVAL_PRIORITY, festivalGuest } from '../festivals/override';
 import { skating } from '../seasons/river';
@@ -11,7 +13,7 @@ import { rainIndoors, stormIndoors } from '../weather/effects';
 
 export interface ScheduleOverride {
   id: string;
-  /** Higher wins. Proposed: bell 100, Watch turn-out 90, storm 80, festival 50, Watch duty 40, skating 20. */
+  /** Higher wins. Proposed: bell 100, Watch turn-out 90, storm 80, lamplighter 60, festival 50, Watch duty 40, skating 20. */
   priority: number;
   /** Activity kinds acted on: home and sleep go home, work goes in at `at`, leisure walks to `tile`. */
   pick: (state: WorldState, r: Resident, hour: number) => Activity | null;

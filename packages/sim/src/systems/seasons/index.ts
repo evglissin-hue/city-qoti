@@ -19,7 +19,7 @@ import { SKATING_COMFORT } from '../hearth/charm/sources';
 import { endWinter } from '../warmth';
 import { dayIndex, hourOf } from '../economy/time';
 import { seasonNow } from './api';
-import { skatingSpots } from './place';
+import { findSkatingSpots, skatingSpots } from './place';
 import { closeImportTally, openImportTally, tallyImports } from './imports';
 import { spoil } from './spoilage';
 import { townFocus } from './place';
@@ -88,14 +88,15 @@ export function closeWinter(state: WorldState): void {
 }
 
 export function freeze(state: WorldState, ctx: TickCtx): void {
-  state.weather.river = { frozen: true, frozenTick: state.tick };
+  // R3.0: the spots are fixed now and saved, so a seat joining mid-freeze reads the same ones.
+  state.weather.river = { frozen: true, frozenTick: state.tick, spots: findSkatingSpots(state) };
   bumpPlaceInputs(state);
   markSkatingCharm(state);
   ctx.events.push({ e: 'weather.updated', w: weatherView(state) });
 }
 
 export function thaw(state: WorldState, ctx: TickCtx): void {
-  // The spots are cached per freeze, so mark them before the river opens.
+  // The spots go with the ice, so mark them before the river opens.
   markSkatingCharm(state);
   state.weather.river = { frozen: false, frozenTick: -1 };
   bumpPlaceInputs(state);

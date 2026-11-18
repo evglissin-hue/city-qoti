@@ -326,3 +326,29 @@ export { invalidatePlaces, placeIndex } from './systems/places/index';
 export { bumpPlaceInputs, setPlaceVerify } from './systems/places/inputs';
 export { streetTiles } from './systems/places/streets';
 export { townReachesDoor } from './state/reach';
+// R3 (R3.0): masters and the Town Book. The cross-track APIs (read-only outside their owners), the
+// views, and the slices' helpers, for the client, the autoplayer's advisors, the bench and the audit.
+export { craftDays, emptyMastersSlices, pieceSupply, residentIsMaster } from './state/masters';
+export { callingsCount, hasCalling } from './systems/callings/api';
+export { isMaster, masterOf, mastersCount, mastersMade } from './systems/masters/api';
+export {
+  candleHomes,
+  decorLit,
+  decorLitTonight,
+  lampSeasons,
+  pieceRests,
+  supplyGapAchievable,
+  supplyGapClosable,
+  supplyOf,
+} from './systems/supplies/api';
+export {
+  customToday,
+  pagesFound,
+  pagesTogether,
+  placeSpecialty,
+  specialtiesOnRound,
+} from './systems/townbook/api';
+export { placeResting, placeSupplies, suppliesView } from './view/supplies';
+export { threadView } from './view/threads';
+export { townBookView } from './view/townBook';
+export { findSkatingSpots, skatingSpots } from './systems/seasons/place';

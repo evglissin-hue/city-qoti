@@ -145,6 +145,34 @@ export interface BuildingDef {
   // R2 additions (R2.0). docs/spec/19-evenings.md, Places.
   /** A host on the evening round: its room and kinds (tavern, Bath House, Market Square, stall, well). */
   host?: HostDef;
+  // R3 additions (R3.0, for R3H: specialized buildings that grow with success).
+  /**
+   * The levels a specialized building may climb (`Building.level`, 1 to 3), as businesses do: a bigger
+   * building with a bigger crew, reach, store or room, never a multiplier (13-ledger.md, Levels).
+   * Absent: it stays at level 1.
+   */
+  levels?: SpecializedLevelsDef;
+}
+
+/**
+ * R3 (R3.0): what each level of a specialized building is (`BuildingDef.levels`). Each array holds one
+ * entry a level, level 1 first; a field left out keeps the building's own value at every level.
+ */
+export interface SpecializedLevelsDef {
+  /** Hands at each level (`jobs.count` at level 1). */
+  crew?: number[];
+  /** Reach in tiles at each level (the Forester's wood, the Market Stall's food reach). */
+  reach?: number[];
+  /** Storage in units at each level (the Granary, the Storehouse). */
+  storage?: number[];
+  /** Businesses it serves in its reach at each level (the Windmill's bakers). */
+  capacity?: number[];
+  /**
+   * What a good day is, toward the next level: its goods `carried` off (the Quarry, the Fishery, the
+   * Forester's Lodge), `customers` served (the Market Stall), everything it serves `served` (the Windmill:
+   * every baker in reach had grain), or `full` (a store at least half full with every porter at work).
+   */
+  good?: 'carried' | 'customers' | 'served' | 'full';
 }
 
 /**
@@ -207,6 +235,48 @@ export interface DecorDef {
   standing?: number;
   /** A fire: the place it stands in is warm (bonfire, brazier). */
   warm?: true;
+  // R3 additions (R3.0). docs/spec/19-evenings.md, Supplies (every number tunes).
+  /**
+   * What the piece draws on to be at its best, and how it rests without it (lanterns burn candles,
+   * fires firewood, cafe tables the outlet beside them, festival cloth fades, fountains want a well).
+   * Absent: it needs nothing. From Village rank; in a Hamlet every piece is supplied for nothing.
+   */
+  supply?: SupplyDef;
+}
+
+/**
+ * R3 (R3.0): how a supplied piece rests without its supply (docs/spec/19-evenings.md, Supplies). It
+ * stays where it is, costs nothing and loses only this: an unlit lantern its night charm, night draw
+ * and deterrence; a cold fire its place's warmth; a bare table what it serves (seats only); faded
+ * cloth and a dry fountain half their charm. Index order is the sim's REST_KINDS; append-only.
+ */
+export type RestKind = 'unlit' | 'cold' | 'bare' | 'faded' | 'dry';
+
+/**
+ * R3 (R3.0): how a piece is supplied. Index order is the sim's SUPPLY_KINDS; append-only.
+ * - nightly: `good`, one unit a night for every `per` pieces (lanterns: a candle for every 4);
+ * - evening: `qty` of `good` on an evening someone comes to its place, in `seasons` (a fire's firewood);
+ * - season: `qty` of `good` when put up, once a season (festival cloth);
+ * - outlet: an outlet within `radius` with Treats on its shelf, read live (cafe and festival tables);
+ * - well: a well within `radius` tiles (fountain, birdbath).
+ */
+export type SupplyKind = 'nightly' | 'evening' | 'season' | 'outlet' | 'well';
+
+/** R3 (R3.0): a supplied piece's supply (DecorDef.supply). Content validation checks each kind's fields. */
+export interface SupplyDef {
+  kind: SupplyKind;
+  /** nightly, evening, season: the good it burns or wears (a content good id). */
+  good?: string;
+  /** evening, season: units drawn each time; nightly: units a night for `per` pieces (1). */
+  qty?: number;
+  /** nightly: pieces one `qty` supplies a night (lanterns 4). */
+  per?: number;
+  /** evening: the season indexes it burns in (autumn and winter; the thaw ends winter's). */
+  seasons?: number[];
+  /** outlet, well: tiles to the outlet or the well. */
+  radius?: number;
+  /** How it rests without its supply. */
+  rests: RestKind;
 }
 
 export interface RoadDef {
@@ -340,6 +410,24 @@ export interface Content {
   /** The gaps, in GAP_KINDS order. */
   gaps: readonly GapDef[];
   gapByKind: ReadonlyMap<GapKind, GapDef>;
+  // R3 additions (R3.0). docs/spec/19-evenings.md, Supplies, Masters, The Town Book.
+  /** The supplies' numbers (the lamplighter, candles, resting), one table so R3X tunes in one file. */
+  supplies: SuppliesTuning;
+  /** What each trade's or building's master brings, sorted by `of`. */
+  masters: readonly MasterDef[];
+  /** By `of`: a trade id or a specialized building's def id. */
+  masterByOf: ReadonlyMap<string, MasterDef>;
+  /** Masters' numbers (hearts, days, apprentices, the six days' grace). */
+  mastery: MasteryTuning;
+  /** The Town Book: specialties (pattern and good) and customs, each with a leaning, sorted by id. */
+  specialties: readonly SpecialtyDef[];
+  specialtyById: ReadonlyMap<string, SpecialtyDef>;
+  customs: readonly CustomDef[];
+  customById: ReadonlyMap<string, CustomDef>;
+  townBook: TownBookTuning;
+  /** The three callings, earned through the Town Book's leanings (no command picks one), sorted by id. */
+  callings: readonly CallingDef[];
+  callingById: ReadonlyMap<string, CallingDef>;
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -348,7 +436,17 @@ export interface Content {
 export type ValleyMode = 'sandbox' | 'standard';
 
 /** Who fills a building's jobs. Porters work at storehouses, builders at the town hall and yard. */
-export type JobRole = 'worker' | 'builder' | 'porter' | 'vendor';
+export type JobRole =
+  | 'worker'
+  | 'builder'
+  | 'porter'
+  | 'vendor'
+  /**
+   * R3 (R3.0): the lamplighter, held at the Town Hall beside its builders (docs/spec/19-evenings.md,
+   * Supplies): one job for every `SuppliesTuning.lanternsPerLamplighter` supplied lanterns. No
+   * building def carries this role; it names the job in views and the jobs code.
+   */
+  | 'lamplighter';
 
 /**
  * R1: the five families every good belongs to (docs/spec/13-ledger.md, The five rules, rule 4). The
@@ -655,7 +753,20 @@ export type CountWhat =
   /** Fair evenings on which every grown-up went out (Out of an Evening). */
   | 'eveningsAllOut'
   /** Whole seasons in which nobody stood for want of a seat (A Seat for Everyone). */
-  | 'seatedSeasons';
+  | 'seatedSeasons'
+  // R3 (R3.0). Each calls its owner's body: supplies (R3A), masters (R3B), the Town Book (R3C).
+  /** Seasons from Village rank in which every lantern was lit every night (The Lamplighter's Round). */
+  | 'lampSeasons'
+  /** Masters in town now; `ref` a trade id (or a specialized building's def id) keeps that trade's. */
+  | 'masters'
+  /** Masters ever made in the valley (Master of the House). */
+  | 'mastersMade'
+  /** Town Book pages found; `ref` 'specialty', 'custom' or a leaning keeps those. */
+  | 'townBookPages'
+  /** Town Book pages credited to two seats (Made Together). */
+  | 'pagesTogether'
+  /** Callings earned; `ref` a calling id counts 1 once it is earned. */
+  | 'callings';
 
 // --- Hearth content ---------------------------------------------------------------------------
 
@@ -1064,6 +1175,11 @@ export interface FestivalTwistDef {
   seasons?: number[];
   /** What earns the twist bonus. */
   goal?: Condition;
+  /**
+   * R3 (R3.0): a custom's twist (docs/spec/19-evenings.md, The Town Book: a custom can be a festival's
+   * twist): offered only once this custom's page is found (a content custom id).
+   */
+  custom?: string;
 }
 
 export type HabitatName = 'pollinator' | 'wetland' | 'hedgerow' | 'woodland' | 'meadow' | 'garden';
@@ -1542,4 +1658,163 @@ export interface PlaceWords {
   wantSeats: string;
   wantLantern: string;
   wantBrazier: string;
+}
+
+// ---------------------------------------------------------------------------------------------
+// R3 content types (R3.0). docs/spec/19-evenings.md, Supplies, Masters, The Town Book;
+// docs/spec/15-progression.md, Callings. Every number is *(tune)* and lives here, never in a system.
+
+/** R3: the supplies' numbers (content/supplies.ts, `SUPPLIES`). */
+export interface SuppliesTuning {
+  /** Pieces draw on the town's goods from this rank; below it every piece is supplied for nothing (village). */
+  fromRank: RankName;
+  /** The settling: at this hour and minute (17:30) the night's candles, and which lanterns get them, are decided. */
+  settleHour: number;
+  settleMinute: number;
+  /** Settled lanterns count as lit for every rule (charm, the draw, raiders) from this hour (18) to `outHour` (7). */
+  litHour: number;
+  outHour: number;
+  /** One lamplighter job for every this many supplied lanterns, rounded up (40); at least one from `fromRank` once a lantern stands. */
+  lanternsPerLamplighter: number;
+  /** Ticks the lamplighter stands at each lantern to light it (the walk between is the residents' pace). */
+  lightTicks: number;
+  /** A household's candle (one unit of candles, bought within its Wares) lasts this many nights (5). */
+  candleNights: number;
+  /** A home with a candle lights every window from dusk until this hour (22, bedtime). */
+  candleUntilHour: number;
+  /** A faded or dry piece keeps this percent of its charm (50). */
+  restCharmPercent: number;
+}
+
+/**
+ * R3: what a master brings (docs/spec/19-evenings.md, Masters; content/masters.ts, `MASTERS`). One
+ * row for each trade and each specialized building that has masters.
+ */
+export interface MasterDef {
+  /** A trade id (content.trades) or a specialized building's def id (the Fishery, the Quarry, the Windmill). */
+  of: string;
+  /** What the town calls one ("master baker"), lower case, for sentences. */
+  title: string;
+  /**
+   * The master's good (a content good id): made in the same building from the raw good the trade
+   * already takes (a land trade from what it grows), sold like any flavor. Absent: no good.
+   */
+  good?: string;
+  /** How the master's good is made, while a master is on the crew (inputs are raw goods only, rule 2). */
+  method?: ProductionMethod;
+  /** Their business may reach level 3 (`13-ledger.md`, Levels). */
+  level3?: boolean;
+  /** They take apprentices, so the trade spreads. */
+  apprentices?: boolean;
+  /** Hearth pieces a master unlocks (the quarryman's carved stone, the forester's ornamental trees). */
+  unlocks?: string[];
+  /** Room for one more business of this trade in the reach of their building (the miller: one more baker). */
+  room?: string;
+}
+
+/** R3: masters' numbers (content/masters.ts, `MASTERY`). */
+export interface MasteryTuning {
+  /** Hearts a resident needs (4)... */
+  hearts: number;
+  /** ...and working days in one trade (20), apprentice days counting `apprenticeWeight` (2) times. */
+  days: number;
+  apprenticeWeight: number;
+  /** In a business of this level or more (2), or at a specialized building. */
+  level: number;
+  /** New masters a trade a season (1). */
+  perTradeSeason: number;
+  /** An apprentice who served a season under a master becomes one after this many working days of their own (10). */
+  apprenticeDays: number;
+  /** A business keeps its level this many days after its last master leaves or retires (6), then slides. */
+  graceDays: number;
+}
+
+/** R3: what a Town Book page leans to; three of one leaning earn that calling. Index order is the sim's LEANINGS. */
+export type Leaning = 'industry' | 'gardens' | 'pilgrimage';
+
+/**
+ * R3: a specialty's pair (docs/spec/19-evenings.md, The Town Book): a Treat sold at a place of this
+ * pattern to `TownBookTuning.specialtyCustomers` customers on `specialtyEvenings` evenings of a season.
+ */
+export interface SpecialtyDef {
+  id: string;
+  /** The pattern the place is a site of (a content pattern id). */
+  pattern: string;
+  /** The flavor (a content good id of the Treats family: what the round sells). */
+  good: string;
+  /** Its name in the book ("Orchard Walk Cider"); {street} and {family} are filled from the place when present. */
+  name: string;
+  leaning: Leaning;
+  /** The page's words once found, in the town's voice. */
+  text: string;
+  /** The hint before it is found. */
+  hint: string;
+}
+
+/**
+ * R3: a custom (docs/spec/19-evenings.md, The Town Book): a habit the town falls into. `day`: the same
+ * place drawing `customVisitors`+ on the same day of the season, `customSeasons` seasons running.
+ * `supply`: a place's pieces of `supply` kind kept every night of a season ("the Lantern Round").
+ */
+export interface CustomDef {
+  id: string;
+  kind: 'day' | 'supply';
+  /** day: the pattern the place is a site of; absent with `host`, or for any place. */
+  pattern?: string;
+  /** day: a host building's def id (the tavern) instead of a pattern. */
+  host?: string;
+  /** supply: which supply was kept. */
+  supply?: SupplyKind;
+  /** Its name ("Market Night"); {place} and {day} are filled by the sim. */
+  name: string;
+  leaning: Leaning;
+  text: string;
+  hint: string;
+}
+
+/** R3: the Town Book's numbers (content/townBook.ts, `TOWN_BOOK`). */
+export interface TownBookTuning {
+  /** A specialty: this many customers (10) on this many evenings of a season (4); then it adds `specialtyDraw` (5) to the place's draw. */
+  specialtyCustomers: number;
+  specialtyEvenings: number;
+  specialtyDraw: number;
+  /** A custom: this many visitors (20) on the same day of `customSeasons` (3) seasons running; on its day the place draws `customDraw` (15) more. */
+  customVisitors: number;
+  customSeasons: number;
+  customDraw: number;
+  /** Renown for a page, as for a pattern (2). */
+  pageRenown: number;
+  /** Hints shown at once for pages not yet found (3). */
+  hints: number;
+  /** Pages of one leaning that earn its calling (3). */
+  pagesForCalling: number;
+  /** Garden Village's day visitors (P1's numbers): the hour they spend, pennies per average door charm point and per renown level, the daily cap, and how often the feed says so. */
+  visitors: { hour: number; perCharm: number; perRenown: number; cap: number; noticeEveryDays: number };
+}
+
+/**
+ * R3: a calling, earned when `TownBookTuning.pagesForCalling` pages of its leaning are found
+ * (docs/spec/15-progression.md, Callings). P1's three, ids unchanged; no command picks one.
+ */
+export interface CallingDef {
+  id: string;
+  name: string;
+  blurb: string;
+  /** Glyph id for the Charter board (apps/client/src/ui/icons). */
+  icon: string;
+  leaning: Leaning;
+  /** Plain words, one line per effect, for the Charter board. */
+  effectLines: string[];
+  /** The decor piece it unlocks (a locked decor id). */
+  signature: string;
+  /** Garden Village: day visitors spend each afternoon (TownBookTuning.visitors). */
+  visitors?: boolean;
+  /** Pilgrims' Rest: festivals draw more guests (permille added to each resident's chance) and give more renown. */
+  festival?: { guestsPermille: number; renown: number; minStars: number };
+  /** Pilgrims' Rest: added to the night value of every lit lantern's light charm. */
+  lanternCharm?: number;
+  /** Mill Town: room for `extra` more businesses in the reach of each of these specialized buildings (the mills). */
+  room?: { buildings: string[]; extra: number };
+  /** The district style lean: kept for I4's districts, unread before them. */
+  styleWeights?: [style: string, weight: number][];
 }

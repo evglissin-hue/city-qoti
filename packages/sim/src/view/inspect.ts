@@ -1,5 +1,7 @@
 // Inspect request builders (C3.0 contract): full detail on demand for the inspectors and the
 // while-you-were-away letter. Baselines here; C3A enriches residents, C3C buildings, C3B the letter.
+import { buildingSupplies } from './supplies';
+import { buildingMastery } from './masters';
 import { chroniclePhrases, content, type BuildingDef } from '@qoti/content';
 import { BuildingStatus, TICKS_PER_DAY } from '../constants';
 import type {
@@ -349,6 +351,8 @@ export function buildingDetail(state: WorldState, id: EntityId): BuildingDetail 
     if (method) detail.producedToday = made;
   }
   if (def && rt) addVillageDetail(state, b, def, detail);
+  // R3.0: masters (R3B), the lamplighter and a home's candle (R3A).
+  Object.assign(detail, buildingMastery(state, b), buildingSupplies(state, b));
   return detail;
 }
 

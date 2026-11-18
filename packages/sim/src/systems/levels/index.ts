@@ -2,6 +2,7 @@
 // selling: a business moves up a level after three days running of steady custom, reliable inputs
 // and room to grow (and, for level 3, its keeper's 20 working days until R3's masters); it slides
 // back one level after four failing days, keeping its walls. Specialized buildings stay at 1.
+import { specializedDayEnd } from './specialized';
 import { content, type BuildingDef, type TradeDef } from '@qoti/content';
 import { BUSINESS_LEVEL_MAX, MAP_SIZE, TICKS_PER_DAY, Zone } from '../../constants';
 import type { Building, BusinessCounters, System, TickCtx, WorldState } from '../../contracts';
@@ -19,6 +20,7 @@ import { eveningPassers } from '../growth/outlets';
 import { invalidatePlaces } from '../places';
 import { outOfSeason } from './season';
 import { bumpPlaceInputs } from '../places/inputs';
+import { canReachLevel3, KEEPER_DAYS_L3 } from '../masters/api';
 
 /** Good days in a row that move a business up a level. */
 export const LEVEL_UP_DAYS = 3;
@@ -26,8 +28,8 @@ export const LEVEL_UP_DAYS = 3;
 export const LEVEL_DOWN_DAYS = 4;
 /** Customers a day a shop needs to hold level 2 and level 3 (and to climb toward them). */
 export const SHOP_CUSTOMERS: readonly number[] = [6, 15];
-/** Working days a keeper must have kept a business before level 3 (until R3's masters). */
-export const KEEPER_DAYS_L3 = 20;
+/** Working days a keeper must have kept a business before level 3 (until R3's masters; masters/api.ts). */
+export { KEEPER_DAYS_L3 };
 /** Free farm-zoned tiles needed in reach for each hand a farmstead's next level adds: a grain farm. */
 export const FIELD_TILES_A_HAND = 12;
 /** The same for any other farmland trade. */
@@ -135,7 +137,7 @@ function dayEnd(state: WorldState, ctx: TickCtx, b: Building): void {
       level < BUSINESS_LEVEL_MAX &&
       steady(c, trade, level) &&
       roomToGrow(state, b, trade, level + 1) &&
-      (level + 1 < 3 || c.keeperDays >= KEEPER_DAYS_L3);
+      (level + 1 < 3 || canReachLevel3(state, b, c));
     if (up) {
       c.levelDays = Math.max(0, c.levelDays) + 1;
       if (c.levelDays >= LEVEL_UP_DAYS) {
@@ -173,6 +175,9 @@ export const levels: System = {
     if (!isStandard(state)) return;
     for (const b of state.buildings) {
       if (b.trade && b.stage === 'built' && b.rt) dayEnd(state, ctx, b);
+      // R3.0: a specialized building with levels climbs and slides too (R3H, levels/specialized.ts).
+      else if (!b.trade && b.stage === 'built' && b.rt && content.buildingById.get(b.def)?.levels)
+        specializedDayEnd(state, ctx, b);
     }
   },
 };

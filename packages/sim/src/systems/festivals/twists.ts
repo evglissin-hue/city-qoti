@@ -1,6 +1,8 @@
 // R1 (R1D): which twists a festival may be planned with (docs/spec/12-hearth.md, Festivals, the
 // [R1] note): a twist that names a good the town cannot yet make is not offered (the costume parade
 // asks for cloth; the pie contest waits for a master baker, R3, and is in no season). Pure.
+import { customFound } from '../townbook/api';
+import { masterMakes } from '../masters/api';
 import { content, type Condition } from '@qoti/content';
 import type { WorldState } from '../../contracts';
 import { seasonAt } from '../../state/seasons';
@@ -29,7 +31,8 @@ export function goodMakeable(state: WorldState, good: string): boolean {
     const def = content.buildingById.get(b.def);
     if (!b.trade && def?.methods?.some((m) => m.outputs.some(([o]) => o === good))) return true;
   }
-  return false;
+  // R3.0: a master's good, while a master of its trade works where it is made (R3B's body).
+  return masterMakes(state, good);
 }
 
 /** True when the twist can be planned now: in this season, and every good it names can be had. */
@@ -37,6 +40,8 @@ export function twistOffered(state: WorldState, id: string): boolean {
   const t = content.twistById.get(id);
   if (!t) return false;
   if (t.seasons && !t.seasons.includes(seasonAt(state.tick).season)) return false;
+  // R3.0: a custom's twist waits for its page (R3C writes the twists).
+  if (t.custom !== undefined && !customFound(state, t.custom)) return false;
   return (t.goal ? goodsNamed(t.goal) : []).every((g) => goodMakeable(state, g));
 }
 

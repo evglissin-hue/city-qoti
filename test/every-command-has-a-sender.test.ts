@@ -24,7 +24,23 @@ export const NO_CLIENT_SENDER: Record<string, string> = {
  * R1.0: commands that land before their buttons (R2.0 adds R2D's). Each names the cycle that owes the sender and why;
  * the entry comes off when that cycle ships it (the test says so), so this list only shrinks.
  */
-export const OWED_SENDERS: Record<string, { cycle: 'R1C' | 'R1D' | 'R2D'; why: string }> = {};
+export const OWED_SENDERS: Record<string, { cycle: 'R1C' | 'R1D' | 'R2D' | 'R3D'; why: string }> = {
+  'place.setPriority': {
+    cycle: 'R3D',
+    why: "R3D's place card sends the keep and rest buttons; R3.0 lands the command first",
+  },
+};
+
+/**
+ * R3.0: optional fields on commands the client already sends, owed by a named cycle. Keyed
+ * `<command>.<field>`; the entry comes off when a client literal sends the field.
+ */
+export const OWED_FIELDS: Record<string, { cycle: 'R3D'; why: string }> = {
+  'carrier.setRule.places': {
+    cycle: 'R3D',
+    why: "R3D's carrier rule panel gets the places toggle; R3.0 lands the field first",
+  },
+};
 
 function commandTypes(): string[] {
   const src = readFileSync(join(root, 'packages/sim/src/contracts/commands.ts'), 'utf8');
@@ -70,11 +86,13 @@ describe('every command has a sender', () => {
     expect(missing, 'commands no client code sends (add a sender or allowlist with a reason)').toEqual([]);
   });
 
-  it('keeps the owed list honest: real commands, not sent yet, owed by R1C, R1D or R2D', () => {
+  it('keeps the owed list honest: real commands, not sent yet, owed by R1C, R1D, R2D or R3D', () => {
     for (const [t, owed] of Object.entries(OWED_SENDERS)) {
       expect(types, `${t} is not a command`).toContain(t);
       expect(sent(t), `${t} is sent now: take it off OWED_SENDERS`).toBe(false);
-      expect(['R1C', 'R1D', 'R2D'], `${t} must name the cycle that owes its sender`).toContain(owed.cycle);
+      expect(['R1C', 'R1D', 'R2D', 'R3D'], `${t} must name the cycle that owes its sender`).toContain(
+        owed.cycle,
+      );
       expect(owed.why.length, `${t} needs a reason`).toBeGreaterThan(10);
       expect(t in NO_CLIENT_SENDER, `${t} is both owed and allowlisted`).toBe(false);
     }
@@ -85,6 +103,31 @@ describe('every command has a sender', () => {
       expect(types, `${t} is not a command`).toContain(t);
       expect(sent(t), `${t} is sent now: take it off the allowlist`).toBe(false);
       expect(why.length, `${t} needs a reason`).toBeGreaterThan(10);
+    }
+  });
+
+  it('keeps the owed fields honest: in the command union, not sent by the client yet', () => {
+    const src = readFileSync(join(root, 'packages/sim/src/contracts/commands.ts'), 'utf8');
+    const start = src.indexOf('export type Command =');
+    const end = src.indexOf('\nexport ', start + 1);
+    const block = src.slice(start, end < 0 ? undefined : end);
+    for (const [key, owed] of Object.entries(OWED_FIELDS)) {
+      const at = key.lastIndexOf('.');
+      const t = key.slice(0, at);
+      const field = key.slice(at + 1);
+      const member = block
+        .split(/^ {2}\| /m)
+        .find(
+          (m) =>
+            m.trimStart().startsWith(`{ t: '${t}'`) ||
+            new RegExp(`^\\{\\s*t: '${t.replace('.', '\\.')}'`).test(m),
+        );
+      expect(member, `${t} is not a command`).toBeDefined();
+      expect(member, `${key}: the field is not in the union member`).toMatch(new RegExp(`\\b${field}\\??:`));
+      expect(owed.why.length).toBeGreaterThan(10);
+      // A client object literal with this command type that also sends the field.
+      const literal = new RegExp(`t: '${t.replace('.', '\\.')}'[^}]*\\b${field}:`);
+      expect(literal.test(client), `${key} is sent now: take it off OWED_FIELDS`).toBe(false);
     }
   });
 });

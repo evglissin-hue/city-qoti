@@ -1,4 +1,6 @@
 // View builders. Their output never feeds back into state, so they may compute floats freely.
+import { suppliesView } from './supplies';
+import { townBookView } from './townBook';
 import {
   commissionView,
   dockView,
@@ -95,6 +97,8 @@ export function buildingView(b: Building): BuildingView {
   if (b.level && b.level > 1) view.level = b.level;
   if (b.keeperId) view.keeperId = b.keeperId;
   if (b.storeys !== undefined) view.storeys = b.storeys;
+  // R3.0: a master works here: the sign over the door (R3B keeps Building.masterId).
+  if (b.masterId) view.master = true;
   return view;
 }
 
@@ -185,5 +189,8 @@ export function buildView(state: WorldState): ViewSnapshot {
     evening: eveningView(state),
     streets: streetViews(state),
     footfall: footfallView(state),
+    // R3 (R3.0)
+    supplies: suppliesView(state),
+    townBook: townBookView(state),
   };
 }

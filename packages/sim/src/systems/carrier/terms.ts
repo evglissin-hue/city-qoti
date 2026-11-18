@@ -11,6 +11,7 @@
 // cart's percent for its neighbor and family on its side. Renown's `trade` effect improves every
 // price. Each unit moves the neighbor's price (nudge), so a flood of timber cheapens timber; the
 // trade log keeps the last TRADE_LOG_MAX deals.
+import { specialtyGood } from '../townbook/api';
 import { content } from '@qoti/content';
 import { PEDDLER_TERMS, RANKS, TRADE_BUY_PERCENT, TRADE_LOG_MAX, TRADE_SELL_PERCENT } from '../../constants';
 import type { Building, DealOffer, NeighborState, WorldState } from '../../contracts';
@@ -89,10 +90,13 @@ export function cartPercent(
   terms: CarrierTerms = carrierTerms(state),
   deal: DealOffer | null = activeDeal(state),
 ): number {
+  let percent = selling ? terms.sell : terms.buy;
   if (deal && deal.neighbor === neighbor && deal.side === (selling ? 'sell' : 'buy')) {
-    if (deal.family === familyOf(good)) return deal.percent;
+    if (deal.family === familyOf(good)) percent = deal.percent;
   }
-  return selling ? terms.sell : terms.buy;
+  // R3.0: a specialty sells to neighbors at their full price (R3C's specialtyGood).
+  if (selling && percent < 100 && specialtyGood(state, good)) return 100;
+  return percent;
 }
 
 /** What the carrier pays a neighbor per unit of a good it sells, pennies; null when it does not. */

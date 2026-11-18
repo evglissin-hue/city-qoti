@@ -1,5 +1,6 @@
 // R2 (R2.0): the places' views (docs/spec/20-architecture.md, R2 contracts): places, streets, a
 // resident's round, footfall. R2A owns this file. Panels read these through the Mirror, never the sim.
+import { placeResting, placeSupplies } from './supplies';
 import { content, placeWords as W } from '@qoti/content';
 import { MAP_SIZE } from '../constants';
 import { decorTileX, decorTileZ } from '../conditions/geo';
@@ -107,6 +108,14 @@ function viewOf(state: WorldState, place: Place, row: PlaceState | undefined): P
   view.wants = wantsOf(state, place, view);
   if (row?.renamedBy !== undefined) view.renamedBy = row.renamedBy;
   if (place.household !== undefined) view.household = place.household;
+  // R3.0: its priority, supplies and resting pieces (R3A), and the Town Book's pages found there (R3C).
+  if (row?.priority !== undefined) view.priority = row.priority;
+  const supplies = placeSupplies(state, place);
+  if (supplies) view.supplies = supplies;
+  const resting = placeResting(state, place);
+  if (resting) view.resting = resting;
+  const pages = state.townBook.pages.filter((p) => p.place === place.id).map((p) => p.id);
+  if (pages.length > 0) view.pages = pages;
   return view;
 }
 

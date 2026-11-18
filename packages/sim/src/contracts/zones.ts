@@ -3,7 +3,7 @@
 // Additive changes only during the R1 wave. Per-family values are arrays indexed by GOOD_FAMILIES;
 // per-good values by good index; per-bar values by DEMAND_KINDS. Content ids are strings, never keys.
 import type { GoodFamily } from '@qoti/content';
-import type { EntityId } from './ids';
+import type { EntityId, SeatId } from './ids';
 
 export type { GoodFamily };
 
@@ -28,6 +28,14 @@ export interface CarrierFamily {
   sell: boolean;
   /** The Ledger set this family's rule by hand; until then the rule follows the rank's default. */
   set?: true;
+  /**
+   * R3 (R3.0): the carrier buys for places too (carrier.setRule's `places`; 19-evenings.md, Supplies):
+   * within the day's budget and never on the County tab. Absent or false: places draw only on what
+   * the town holds above the reserve and the winter mark.
+   */
+  places?: boolean;
+  /** R3: the seat that last set `places` and the tick (credit for the fourth gap). */
+  placesSet?: { seat: SeatId; tick: number };
 }
 
 /** A neighbor's terms for one family this season (R1A offers them; the season plan takes one). */
@@ -206,6 +214,18 @@ export interface BusinessCounters {
   siteDays: number;
   /** Working days its keeper has kept it (level 3 until R3's masters). */
   keeperDays: number;
+  /**
+   * R3 (R3.0): the day index its last master left or retired (19-evenings.md, Masters: losing one): it
+   * keeps its level `MASTERY.graceDays` days from then, then slides as the levels pass slides any
+   * business. Absent while it has a master, or never had one.
+   */
+  masterGone?: number;
+  /**
+   * R3 (R3.0, the 8-to-9 migration): it reached level 3 on its keeper's working days before masters
+   * existed, and keeps level 3 without a master (13-ledger.md, Levels); it can still slide for the
+   * other reasons. Cleared once a master works there.
+   */
+  levelKept?: true;
 }
 
 // --- Views -------------------------------------------------------------------------------------
@@ -261,6 +281,10 @@ export interface BalanceLine {
   mark: number | null;
   /** Days of cover in hundredths at each day's end, oldest first, up to a year (R1A keeps it). */
   history: number[];
+  /** R3 (R3.0): units places drew last night and the night before (lanterns, fires, cloth); absent before R3A. */
+  drawnByPlaces?: { lastNight: number; before: number };
+  /** R3: the carrier buys this family for places too (CarrierFamily.places). */
+  forPlaces?: boolean;
 }
 
 /** `balances.updated`: the five families and the carrier's purse, for the Ledger's top bar and book. */
@@ -305,4 +329,13 @@ export interface BusinessView {
    * computed where the view is built, never stored.
    */
   profit?: { takes: number; pays: number };
+  // R3 (R3.0), absent until they apply (19-evenings.md, Masters).
+  /** The master on its crew, or absent. */
+  masterId?: EntityId;
+  /** The master's good it makes while a master is on the crew (a good id). */
+  masterGood?: string;
+  /** Apprentices serving under its master, sorted. */
+  apprentices?: EntityId[];
+  /** Days left of the grace after its last master went, before it slides. */
+  graceDays?: number;
 }

@@ -33,6 +33,7 @@ import type {
 import type { RankId } from './village';
 import type { BalancesView, BusinessView, DemandView } from './zones';
 import type { EveningView, FootfallView, GapsView, PlacesView, StreetView } from './evenings';
+import type { SuppliesView, TownBookView } from './masters';
 import type {
   ChronicleSnapshot,
   CommissionView,
@@ -166,7 +167,12 @@ export type SimEvent =
   /** Street names: a run named, renamed or gone (R2A). */
   | { e: 'streets.updated'; s: StreetView[] }
   /** The footfall layers, hourly from 17:00 to 21:00 and after the 04:00 halving (R2A). */
-  | { e: 'footfall.updated'; f: FootfallView };
+  | { e: 'footfall.updated'; f: FootfallView }
+  // R3 (R3.0): masters and the Town Book (docs/spec/20-architecture.md, R3 contracts).
+  /** Tonight's lamps, resting pieces and candle-lit homes: at the settling (17:30), at 07:00, and on a change (R3A). */
+  | { e: 'supplies.updated'; s: SuppliesView }
+  /** A page found, the hints moved on, a calling earned (R3C). */
+  | { e: 'townBook.updated'; t: TownBookView };
 
 export interface LayerPatch {
   layer: LayerName;

@@ -211,7 +211,11 @@ export function AskForm({ session }: { session: Session }) {
   const m = session.mirror;
   const standard = m.settings.value.mode === 'standard';
   const [kind, setKind] = useState<Kind>(standard ? 'goods' : 'text');
-  const goods = content.goods.map((g) => g.id).sort(goodOrder);
+  // R3.0: a master's good is asked for once a master makes it (R3D brings it in); until then none is listed.
+  const goods = content.goods
+    .filter((g) => !content.masters.some((m) => m.good === g.id))
+    .map((g) => g.id)
+    .sort(goodOrder);
   const [good, setGood] = useState('bread');
   const [qty, setQty] = useState(10);
   const [days, setDays] = useState(2);

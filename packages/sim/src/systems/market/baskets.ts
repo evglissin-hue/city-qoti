@@ -15,6 +15,7 @@
 // Demand for the price rule is what households want, not what they managed to buy: each day the
 // household pass records every group's daily quantity, shared across its goods by preference
 // weight, so an empty shelf still shows up as wanted (and its price climbs).
+import { householdBought } from '../supplies/api';
 import { content, type GoodFamily, type NeedsBasket } from '@qoti/content';
 import { PENNIES_PER_COIN, TICKS_PER_HOUR, TIERS } from '../../constants';
 import type { EntityId, Household, Resident, System, TickCtx, WorldState } from '../../contracts';
@@ -319,6 +320,8 @@ function buyGroup(
       state.economy.today.consumed[best]! += got;
       state.economy.season.consumed[best]! += got;
       left -= got;
+      // R3.0: a candle bought within its Wares lights its windows (R3A's body).
+      householdBought(state, h, best, got);
     }
   }
   return units - left;

@@ -45,6 +45,11 @@ export interface WeatherState {
     frozen: boolean;
     /** Tick it froze, or -1 while open. */
     frozenTick: number;
+    /**
+     * R3 (R3.0): the skating spots, fixed at the freeze (tile indexes, row-major), so a seat joining
+     * mid-freeze sees the spots its partner sees whatever was built on the bank since. Absent while open.
+     */
+    spots?: number[];
   };
 }
 
