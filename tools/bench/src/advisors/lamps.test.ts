@@ -13,7 +13,7 @@ import { candlesAllow, firewoodAllows, lamps, priorityChanges, specialtyNear } f
 const S = 128;
 
 /** A willow town at the given rank with `lanterns` lanterns (ids 9001 up) and `candles` candles in one storehouse. */
-export function town(lanterns: number, candles: number, rank: 'hamlet' | 'village' = 'village'): WorldState {
+function town(lanterns: number, candles: number, rank: 'hamlet' | 'village' = 'village'): WorldState {
   const w = startingTown('willow').world;
   w.charter.rank = rank;
   w.decor = [];
