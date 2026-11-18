@@ -8,6 +8,7 @@ import { rankAtLeast, TICKS_PER_DAY, townStock, type WorldState } from '@qoti/si
 import { autoplay } from './autoplay';
 import { DEFAULT_SEEDS } from './audit';
 import { charterOpen, FOODS } from './town';
+import { describeMeal, MealTrace, mealShares, MEAL_CAUSES, type MealCase } from './newcomerMeals';
 import { handsNow, hourAt, hungerNow, isHomeDef, SiteClock, type HandsNow, type Hunger } from './newcomer';
 
 export interface NewcomerDay {
@@ -17,6 +18,8 @@ export interface NewcomerDay {
   hands: HandsNow;
   /** Days of Food in hand (stock and pantries a resident). */
   foodDays: number;
+  /** The treasury, coins. */
+  coins: number;
   /** Residents and households who missed this morning's meal (read at 08:00). */
   hungry: Hunger;
   sites: number;
@@ -52,6 +55,8 @@ export interface NewcomerRow {
   /** The health watch's issues of the run, by kind and text. */
   health: string[];
   days: NewcomerDay[];
+  /** Every Village morning's hungry households with their causes (MEALS=1 prints them). */
+  meals: { day: number; cases: MealCase[] }[];
 }
 
 function dayOf(w: WorldState): number {
@@ -70,13 +75,19 @@ export function newcomerRow(seed: string, days: number, newcomer = true): Newcom
   const clock = new SiteClock();
   let hungry: Hunger = { residents: 0, households: 0, noOutlet: 0, broke: 0 };
   const out: NewcomerDay[] = [];
+  const trace = new MealTrace();
+  const meals: { day: number; cases: MealCase[] }[] = [];
   const run = autoplay(seed, days, {
     village: true,
     threat: 'standard',
     newcomer,
     onHour: (w) => {
       clock.look(w);
-      if (hourAt(w.tick) === 8) hungry = hungerNow(w);
+      if (hourAt(w.tick) === 8) {
+        hungry = hungerNow(w);
+        const cases = trace.classifyHungry(w);
+        if (cases.length > 0) meals.push({ day: dayOf(w), cases });
+      } else trace.look(w);
     },
     onDay: (w) => {
       out.push({
@@ -85,6 +96,7 @@ export function newcomerRow(seed: string, days: number, newcomer = true): Newcom
         households: w.households.length,
         hands: handsNow(w),
         foodDays: Math.round(foodDaysInHand(w) * 10) / 10,
+        coins: Math.round(w.economy.treasury / 100),
         hungry,
         sites: w.buildings.filter((b) => b.stage === 'construction').length,
         rank: rankAtLeast(w, 'village') ? 'village' : 'hamlet',
@@ -113,6 +125,7 @@ export function newcomerRow(seed: string, days: number, newcomer = true): Newcom
     firstLevel2: out.find((l) => l.level2 + l.level3 > 0)?.day ?? 0,
     health: run.health.map((i) => `${i.kind}: ${i.text}`),
     days: out,
+    meals,
   };
 }
 
@@ -138,7 +151,7 @@ export function formatNewcomer(r: NewcomerRow): string {
 }
 
 export const DAY_HEAD =
-  'day  pop hh idle food haul othr fOpen oOpen fEmpty foodD    hungry sites biz/L2/L3 rank    homes';
+  'day  pop hh idle food haul othr fOpen oOpen fEmpty foodD coins    hungry sites biz/L2/L3 rank    homes';
 
 export function formatDay(l: NewcomerDay): string {
   const h = l.hands;
@@ -154,6 +167,7 @@ export function formatDay(l: NewcomerDay): string {
     String(h.otherOpen).padStart(5),
     String(h.foodEmpty).padStart(6),
     String(l.foodDays).padStart(5),
+    String(l.coins).padStart(6),
     `${l.hungry.households}/${l.hungry.residents}${l.hungry.noOutlet ? `o${l.hungry.noOutlet}` : ''}${l.hungry.broke ? `b${l.hungry.broke}` : ''}`.padStart(
       9,
     ),
@@ -180,6 +194,20 @@ if (process.argv[1]?.endsWith('newcomerRun.ts')) {
       }
       console.log(`${seed} ${r.profile}: ${((Date.now() - t0) / 1000).toFixed(0)} s`);
       for (const h of r.health) console.log(`  ${h}`);
+      if (process.env.MEALS) {
+        const all = r.meals.flatMap((m) => m.cases);
+        const sh = mealShares(all);
+        console.log(
+          `  meals missed at Village rank: ${all.length} household-mornings on ${r.meals.length} days; ` +
+            MEAL_CAUSES.map(
+              (c) => `${c} ${sh[c]} (${Math.round((100 * sh[c]) / Math.max(1, all.length))}%)`,
+            ).join(', '),
+        );
+        for (const c of MEAL_CAUSES) {
+          const sample = all.filter((x) => x.cause === c).slice(0, 2);
+          for (const e of sample) console.log(`    e.g. ${describeMeal(e)}`);
+        }
+      }
     }
   }
   console.log(`\n${NEWCOMER_HEAD}`);
