@@ -155,7 +155,13 @@ export function levelGains(def: BuildingDef, to: number): string[] {
   const reach = at(l.reach, to);
   if (reach !== undefined && reach !== at(l.reach, to - 1)) {
     const fells = def.methods?.some((m) => m.kind === 'fell') === true;
-    out.push(fells ? `its woods out to ${reach} tiles` : `its reach out to ${reach} tiles`);
+    out.push(
+      fells
+        ? `its woods out to ${reach} tiles`
+        : l.good === 'customers'
+          ? `customers from ${reach} tiles away`
+          : `its reach out to ${reach} tiles`,
+    );
   }
   const storage = at(l.storage, to);
   if (storage !== undefined && storage !== at(l.storage, to - 1)) out.push(`room for ${count(storage)} goods`);
@@ -193,9 +199,9 @@ function slideWhy(def: BuildingDef): string {
   }
 }
 
-/** "the Forester's lodge" for the Chronicle. */
-function buildingName(def: BuildingDef): string {
-  return `the ${def.name}`;
+/** "the forester's lodge", "the granary": the Chronicle's way with a building. */
+export function specializedName(def: BuildingDef): string {
+  return `the ${def.name.toLowerCase()}`;
 }
 
 /** Hands past the level's crew go home, newest first, never mid-task or carrying (as a business). */
@@ -216,7 +222,7 @@ function changed(state: WorldState, ctx: TickCtx, b: Building, def: BuildingDef,
   bumpPlaceInputs(state);
   if (def.host) invalidatePlaces(state);
   ctx.events.push({ e: 'building.updated', b: buildingView(b) });
-  const name = buildingName(def);
+  const name = specializedName(def);
   chronicle(state, ctx, up ? 'specialized-grew' : 'specialized-shrank', {
     text: [
       ['building', name],
