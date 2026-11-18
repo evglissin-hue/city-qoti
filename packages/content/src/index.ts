@@ -384,6 +384,8 @@ export const chronicle: readonly ChronicleTemplate[] = [
   L.seaside,
   C.seasonSummary,
   FC.shopOpened,
+  C.specializedGrew,
+  C.specializedShrank,
   L.storyArrived,
   L.storyFinale,
   C.threatDial,

@@ -43,6 +43,8 @@ export const brickworks: BuildingDef = {
   tags: ['workshop', 'kiln'],
   requires: { innovation: 'brick-kiln' },
   specialized: true,
+  // R3H: its levels (fired and carried off); every number tune.
+  levels: { crew: [3, 4, 5], good: 'carried' },
   art: { kit: 'brick-kiln', params: { kit: 'brickworks' } },
 };
 
@@ -72,6 +74,8 @@ export const sawmill: BuildingDef = {
   tags: ['workshop', 'mill'],
   requires: { innovation: 'water-wheel' },
   specialized: true,
+  // R3H: its levels (every carpenter it saws for had timber; room for one more a level); every number tune.
+  levels: { capacity: [3, 4, 5], good: 'served' },
   reach: 24,
   capacity: 3,
   enables: ['carpenter'],
@@ -215,6 +219,8 @@ export const tradingPost: BuildingDef = {
   tags: ['trading-post', 'storehouse', 'outlet'],
   requires: { rank: 'village' },
   specialized: true,
+  // R3H: its levels (half full with every porter at work); every number tune.
+  levels: { crew: [2, 3, 4], storage: [200, 280, 360], good: 'full' },
   art: { kit: 'trading-post' },
 };
 

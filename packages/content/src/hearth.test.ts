@@ -88,6 +88,9 @@ describe('the Chronicle', () => {
     'guide-done': ['surveyor'],
     // P1 (callings)
     calling: ['calling', 'credit'],
+    // R3H
+    'specialized-grew': ['building', 'level', 'more'],
+    'specialized-shrank': ['building', 'level', 'why'],
   };
 
   it('has at least three variants per kind, using only the params its callers pass', () => {

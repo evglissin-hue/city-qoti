@@ -10,7 +10,7 @@ import { findById } from '../../state/entities';
 import { doorTile } from '../movement/api';
 import { FIELD_TILES_PER_WORKER } from '../production/fields';
 import { chunkOfTile, scoreAt } from '../nature/habitats';
-import { capacityOf, reachTest, withinReach } from '../specialized/api';
+import { capacityOf, maxReach, reachTest, withinReach } from '../specialized/api';
 import { lotMiddle } from './desirability';
 import { type Defs, usable } from './defs';
 
@@ -226,9 +226,12 @@ export class SiteCache {
         const b = list[i]!;
         sig[1 + i * 3] = b.id;
         sig[2 + i * 3] = b.trade ? (TRADE_INDEX.get(b.trade) ?? -2) : -1;
-        // A business counts going up or built alike; only a specialized building's stage matters.
+        // A business counts going up or built alike; only a specialized building's stage matters,
+        // and (R3H) its level, which may reach farther.
         sig[3 + i * 3] =
-          b.stage === 'built' && (defs ? !!defs[i]?.specialized : SPECIALIZED.has(b.def)) ? 1 : 0;
+          b.stage === 'built' && (defs ? !!defs[i]?.specialized : SPECIALIZED.has(b.def))
+            ? (b.level ?? 1)
+            : 0;
       }
       this.sig = sig;
     }
@@ -309,7 +312,7 @@ export class SiteCache {
         ]!.push([o, door]);
       }
     }
-    const span = (content.buildingById.get(defId)?.reach ?? 24) + 2 * REACH_HOP;
+    const span = maxReach(content.buildingById.get(defId)) + 2 * REACH_HOP;
     for (const sb of this.built(defId)) {
       const ids: EntityId[] = [];
       if (seen.size > 0) {
@@ -341,7 +344,7 @@ export class SiteCache {
     if (!idx) {
       const n = Math.ceil(S / NEAR_BUCKET);
       const buckets: Building[][] = Array.from({ length: n * n }, () => []);
-      const span = (content.buildingById.get(defId)?.reach ?? 24) + 2 * REACH_HOP;
+      const span = maxReach(content.buildingById.get(defId)) + 2 * REACH_HOP;
       for (const sb of this.built(defId)) {
         const d = this.door(sb);
         const x = d % S;

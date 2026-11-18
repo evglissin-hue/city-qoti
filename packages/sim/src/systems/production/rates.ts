@@ -5,7 +5,7 @@ import type { BuildingDef } from '@qoti/content';
 import { content } from '@qoti/content';
 import { DAYS_PER_YEAR, WORK_HOURS } from '../../constants';
 import type { Building, WorldState } from '../../contracts';
-import { methodOf } from '../../state/zones';
+import { jobsOf, methodOf } from '../../state/zones';
 import { FIELD_TILES_PER_WORKER, HARVEST_STEP, ownedFields, tileHarvest } from './fields';
 import { yieldPermille } from './modifiers';
 import { conditionPercent, heightPercent } from './produce';
@@ -37,8 +37,12 @@ export function dailyRates(state: WorldState, b: Building, def: BuildingDef): Da
     const cond = (conditionPercent(rt) * heightPercent(state, b, def, method)) / 10000;
     return { inputs: [], outputs: method.outputs.map(([g]) => [g, tenth(tiles * perTile * cond)]) };
   }
+  // R3H: a specialized building at a higher level works with its level's bigger crew.
+  const hands = def.levels?.crew ? Math.max(1, jobsOf(b)) : Math.max(1, method.workers);
   const cycles =
-    (WORK_DAY_HOURS / method.hours) * (method.perWorker ? Math.max(1, method.workers) : 1) * scale;
+    (WORK_DAY_HOURS / method.hours) *
+    (method.perWorker ? hands : hands / Math.max(1, method.workers)) *
+    scale;
   return {
     inputs: method.inputs.map(([g, q]) => [g, tenth(q * cycles)]),
     outputs: method.outputs.filter(([g]) => content.goodIndex.has(g)).map(([g, q]) => [g, tenth(q * cycles)]),

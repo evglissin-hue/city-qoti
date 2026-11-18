@@ -510,6 +510,37 @@ export interface BuildingDetail {
   lamplighter?: { jobs: number; held: { id: EntityId; name: string }[]; lanterns: number; candles: number };
   /** A home: nights of candlelight left (R3A). */
   candle?: number;
+  /** A specialized building that climbs levels: how its climb stands (R3H). */
+  climb?: SpecializedClimbView;
+}
+
+/**
+ * R3 (R3H): a specialized building's climb, for the inspector's level line ("Two more good days of
+ * timber carried off and the Lodge takes on a fourth hand"). Numbers only; the client words them.
+ */
+export interface SpecializedClimbView {
+  /** 1 to `max`. */
+  level: number;
+  /** Its top level (the length of its def's levels). */
+  max: number;
+  /** Good days running toward the next level (positive), or failing days toward a slide (negative). */
+  days: number;
+  /** Good days running that climb a level, and failing days that slide one (the businesses' own). */
+  upDays: number;
+  downDays: number;
+  /** What a good day is (`SpecializedLevelsDef.good`). */
+  good: 'carried' | 'customers' | 'served' | 'full';
+  /**
+   * Today so far: units carried off of those made (`carried`), customers of the mark (`customers`),
+   * businesses served without going short of those served (`served`), goods in store of the mark (`full`).
+   */
+  today: { have: number; need: number };
+  /** What the next level brings, in words ("a fourth hand", "its woods out to 10 tiles"); empty at the top. */
+  next: string[];
+  /** What the level below has that this one gives up on a slide (empty at level 1). */
+  lose: string[];
+  /** It rests today (a frozen river): its days wait for the thaw. */
+  resting?: true;
 }
 
 /** I1 (C3C): the Workforce report. Jobs per building and the town's totals. */

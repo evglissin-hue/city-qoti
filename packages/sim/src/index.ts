@@ -329,8 +329,19 @@ export { townReachesDoor } from './state/reach';
 // R3 (R3.0): masters and the Town Book. The cross-track APIs (read-only outside their owners), the
 // views, and the slices' helpers, for the client, the autoplayer's advisors, the bench and the audit.
 export { craftDays, emptyMastersSlices, pieceSupply, residentIsMaster } from './state/masters';
+export { atLevel, coverageAt, storageOf } from './state/zones';
 export { callingsCount, hasCalling } from './systems/callings/api';
+export {
+  joinWords,
+  levelGains,
+  specializedClimb,
+  specializedDay,
+  specializedMaxLevel,
+  specializedName,
+  STALL_CUSTOMERS,
+} from './systems/levels/specialized';
 export { isMaster, masterOf, mastersCount, mastersMade } from './systems/masters/api';
+export { maxReach, specializedReach } from './systems/specialized/api';
 export {
   candleHomes,
   decorLit,
