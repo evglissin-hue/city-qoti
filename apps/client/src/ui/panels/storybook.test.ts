@@ -82,6 +82,7 @@ function sessionWith(
     history: [{ rank: 'village', tick: rankTick, seats: [0] }],
   };
   m.chronicle.value = entries;
+  m.tick.value = dayTick(20); // the village view's clock stands at 0
   m.patterns.clear();
   return { session, m };
 }
@@ -326,7 +327,6 @@ describe('the picture seam', () => {
     // The print root is `div.storybook-print`; the panel's Print button shares its test id.
     const root = document.querySelector('div[data-testid="storybook-print"]');
     expect(root).not.toBeNull();
-    console.log(session.mirror.tick.value, JSON.stringify(session.mirror.chronicle.value.map(e=>e.tick)), root!.outerHTML.length, root!.querySelector('article')?.getAttribute('data-ready'), root!.querySelectorAll('.sb-entry').length, document.body.innerHTML.match(/Setting the type|Print the storybook/)?.[0]);
     const imgs = [...root!.querySelectorAll('[data-testid="storybook-entry-picture"] img')];
     expect(imgs.map((i) => i.getAttribute('src'))).toEqual([
       `data:image/png;base64,FAKE${entries[0]!.id}`,
@@ -334,6 +334,7 @@ describe('the picture seam', () => {
     ]);
     view.unmount();
     view = null;
+    await settle(); // effect cleanups run after the render
     expect(document.body.classList.contains('qoti-storybook')).toBe(false);
     expect(document.querySelector('div[data-testid="storybook-print"]')).toBeNull();
   });
