@@ -282,6 +282,14 @@ export interface BuildingRuntime {
   moduleNext?: [slot: string, module: string];
   /** Under flood water until this tick (C5A). */
   flooded?: number;
+  // R3 (R3B), absent until used.
+  /**
+   * Work toward the master's own cycle (19-evenings.md, Masters: the master's good), in worker-ticks:
+   * while a master of the building's trade is inside, their own work goes to the master's recipe
+   * (`MasterDef.method`) instead of the trade's, so the master's good is made in the same building
+   * from the same raw good, never as a multiplier. Absent until a master first works there.
+   */
+  masterProgress?: number;
 }
 
 export interface PorterJob {
