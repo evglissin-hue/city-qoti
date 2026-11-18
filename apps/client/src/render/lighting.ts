@@ -469,18 +469,23 @@ const MOON_TINT = [0.76, 0.97, 1.36] as const;
 export function moonTermsAt(night: number): { mute: number; knee: number; hold: number } {
   const n = Math.min(1, Math.max(0, (night - 0.6) / 0.4));
   const k = n * n * (3 - 2 * n);
-  return { mute: 0.55 * k, knee: 0.012, hold: 30 * k };
+  // Half way to the moon's grey at full night; only what is paler than the moonlit grass is held
+  // back, so the valley keeps V2's readable night (a knee at the grass's own light took the whole
+  // ground down and the night went muddy).
+  return { mute: 0.5 * k, knee: 0.05, hold: 20 * k };
 }
 
 const MOON_PARS = /* glsl */ `
 uniform vec4 qMoon;
 vec3 qMoonlit(vec3 c) {
-  if (qMoon.x <= 0.0) return c;
   float l = dot(c, vec3(0.2126, 0.7152, 0.0722));
+  // A light at or under black (or not a number) is left as it is: the ratio below would blow it up
+  // into a point the night bloom spreads into a green blob (the meadow's blades did).
+  if (qMoon.x <= 0.0 || !(l > 1e-5)) return c;
   // A pale surface under the moon is held back, so blossom and plaster never outshine lamplit ground.
   float held = l / (1.0 + max(l - qMoon.y, 0.0) * qMoon.z);
   vec3 grey = vec3(held) * vec3(${MOON_TINT.map((v) => (v / (0.2126 * MOON_TINT[0] + 0.7152 * MOON_TINT[1] + 0.0722 * MOON_TINT[2])).toFixed(4)).join(', ')});
-  return mix(c * (held / max(l, 1e-5)), grey, qMoon.x);
+  return mix(c * (held / l), grey, qMoon.x);
 }
 `;
 

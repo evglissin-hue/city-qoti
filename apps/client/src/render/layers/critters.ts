@@ -136,9 +136,8 @@ void main() {
     float d = length(c);
     float a = (1.0 - smoothstep(0.0, 0.5, d)) * vGlow;
     if (a < 0.02) discard;
-    // Bright enough for the night's bloom to halo them. P3C: a spark with a small halo (a core of
-    // 2.2, was 3.8): a cluster at 3.8 bloomed into a green cloud tiles across from the default camera.
-    gl_FragColor = vec4(vec3(1.0, 0.92, 0.45) * (0.9 + 1.3 * (1.0 - smoothstep(0.0, 0.18, d))), a);
+    // Bright enough for the night's bloom to halo them.
+    gl_FragColor = vec4(vec3(1.0, 0.92, 0.45) * (1.2 + 2.6 * (1.0 - smoothstep(0.0, 0.18, d))), a);
     return;
   }
   // Wing shapes in the quad: rounded for butterflies, narrow for dragonflies, birds' wings taper.

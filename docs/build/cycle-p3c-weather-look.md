@@ -80,7 +80,7 @@ Outside these paths: only small, necessary edits, listed in the PR. Keep out of 
 
 ## As built
 
-Built on `cycle/p3c-weather-look` by the build and review loop's master alone: every look decision was made from the shots, and no executor was needed for the mechanical work this time. Before shots come from `main` served from a worktree (`p3c-before-*`), after shots from the branch (`p3c-after-*`), same cameras.
+Built on `cycle/p3c-weather-look` by the build and review loop's master alone: every look decision was made from the shots, and no executor was needed for the mechanical work this time. Before shots come from `main` served from a worktree (`p3c-before-*`), after shots from the branch (`p3c-after-*`), same cameras. The owner's own frames (`docs/playtests/r2-owner-shots/` on the master's branch) are matched by `p3c-{before,after}-o1-night-rain-meadow` (a meadow by the woods with a path and a roof corner, rain, 21:00, when the violet twilight is in the puddles), `-o3-blossom-tree-haze` (one woodland blossom tree at the nearest zoom in fog) and `-o4-haze-cottages-stairs` (the garden bed, cottages and stairs at street zoom in fog); `p3c-{before,after}-{1,1b,2,3,3b}-*` are the first set, from the written description.
 
 ### What each of the owner's frames was, in code
 
@@ -98,7 +98,7 @@ Built on `cycle/p3c-weather-look` by the build and review loop's master alone: e
 
 ### What changed
 
-- **Night**: `lighting.ts` patches three's light chunks once (as V3C's haze does): after every lit material gathers its light, the moon's and the night sky's light (direct, ambient and specular) goes toward a cool blue of the same brightness, about half way at full night, and a pale surface is held back. Lamps, windows and flames are emissive everywhere, so they keep their warmth. The terms come in from the violet twilight (night 0.6); dusk and dawn are untouched. The sky dome sets them on each light step. The moon's glint on glass and water is a twentieth of the sun's (a well's water bloomed into a cyan orb); fireflies are sparks with a small halo (a cluster bloomed into a green cloud).
+- **Night**: `lighting.ts` patches three's light chunks once (as V3C's haze does): after every lit material gathers its light, the moon's and the night sky's light (direct, ambient and specular) goes toward a cool blue of the same brightness, half way at full night, and only a surface paler than the moonlit grass is held back (blossom, plaster, a pale roof). The first cut held back everything brighter than the grass itself, and the master's comparison against V2's and V3's night shots showed the valley going muddy (median luma 26 at the village camera against V3's 38); retuned, the village is 33 against 38, the street 39 against 42, the far view 39 and 53 against 42 and 51, with the lamplit streets as warm as before and the town still a glow from the valley's edge (`p3c-night-*` beside `v2-after-*` and `v3-after-*-night`). Lamps, windows and flames are emissive everywhere, so they keep their warmth. The terms come in from the violet twilight (night 0.6); dusk and dawn are untouched. The sky dome sets them on each light step. The moon's glint on glass and water is a twentieth of the sun's (a well's water bloomed into a cyan orb). A light at or under black is left alone: the first cut divided it by a hair, and a few of the meadow's blade pixels came out as hot green points the night bloom spread into soft green blobs at the default camera (found in the contact sheet; fireflies were suspected first and are as on `main`).
 - **Rain**: puddles stand on roads, paths and worn ground (only the deepest hollows elsewhere), darker than the ground with a soft wet margin, holding the sky and a lamp's pool as an emissive sheen; roughness 0.6, not 0.3. Wet roads are darker and a little richer. Rain is fainter at night and nothing falls in front of the lens.
 - **Haze**: `hazeFor(distance, fog)` closes a fog day in world distance; `lookWeather`'s fog is a breath of wisps at the top of the frame. River mist at dawn and the long view are V3C's, unchanged.
 - **Green**: more, smaller dabs, smaller toward the sides and underside, a deeper and cooler belly, a darker root to each stroke; trunks bend over three root spurs; the cherry is paler with a deeper clump, a near-white one and fresh leaves, with no year-round petal boxes; woodland blossom on 42% of deciduous trees, dab by dab (each dab's `dab` attribute carries its own random); litter in drifts; meadow flowers as heads on the top fifth of a blade.
@@ -107,7 +107,7 @@ Built on `cycle/p3c-weather-look` by the build and review loop's master alone: e
 
 ### Outside the owned paths (all small)
 
-`render/renderer.ts` (`fitView`: the fog day goes through `hazeFor`, three lines), `render/ground.ts` (the terrain layer's painting: puddles, wet ground, litter), `render/scatter.ts` (the foliage shader's blossom), `render/material.ts` (the moon's glint, one line), `render/layers/critters.ts` (the fireflies' brightness, one line), `packages/art/src/kits/decor.ts` (the orchard tree's crown and trunk), and surface lines in `kits/{buildings,construction,services,specialized,workplaces,fineDecor}.ts`. Nothing in V4's files or R3's light map and lights, decor, agents and buildings layers.
+`render/renderer.ts` (`fitView`: the fog day goes through `hazeFor`, three lines), `render/ground.ts` (the terrain layer's painting: puddles, wet ground, litter), `render/scatter.ts` (the foliage shader's blossom), `render/material.ts` (the moon's glint, one line), `packages/art/src/kits/decor.ts` (the orchard tree's crown and trunk), and surface lines in `kits/{buildings,construction,services,specialized,workplaces,fineDecor}.ts`. Nothing in V4's files or R3's light map and lights, decor, agents and buildings layers.
 
 ### What is left
 
@@ -116,6 +116,8 @@ Built on `cycle/p3c-weather-look` by the build and review loop's master alone: e
 - Dusk keeps V1A's rose and violet split tone, which turns streets and roofs strongly purple for an hour; the owner's note was about night, so it is unchanged.
 - A dab is one triangle, so at the nearest zoom a crown still shows triangles up close, now smaller and varied. A rounded two-triangle dab would double a near crown's dabs.
 - `CameraController.snap()` does not apply the view when the ground under it is unchanged (V4's `input/camera.ts`): the P3C scripts call `rig.apply()` after it.
+- In autumn fog at noon one frame of the sheet shows a soft white spot at a chimney at the default camera, most likely a smoke puff (`layers/effects.ts` takes the fog chunks) catching the pale haze; not traced.
+- A fog day at the nearest zoom now reads nearly clear (haze 7 percent of the frame, the brief's street contrast); the fog shows from the default camera out and in the wisps. If the owner wants more fog close up, `hazeFor`'s fog terms are the dial.
 - The numbers are the container's software renderer; the laptop rows are the owner's and Kat's.
 
 ### Numbers
@@ -142,7 +144,7 @@ So moving frames cost the same as `main` within the software renderer's spread o
 | default (70, 45) | 1% | 1% | 56% | 34% |
 | far (200, 45) | 1% | 1% | 57% | 63% |
 
-**Shots**: the owner's three frames before (`main`) and after: `p3c-{before,after}-1-night-rain`, `-1b-night-rain-meadow`, `-2-blossom-haze`, `-3-autumn-haze`, `-3b-autumn-clear`. The long view after: `p3c-after-far120-{dawn,noon,golden,night}`, `p3c-after-far200-{autumn,winter,fog}`. The contact sheets: `p3c-after-sheet-{grown,hamlet}-{spring,summer,autumn,winter}`.
+**Shots**: the owner's own frames matched, before (`main`) and after: `p3c-{before,after}-o1-night-rain-meadow`, `-o3-blossom-tree-haze`, `-o4-haze-cottages-stairs`. The night against V2's and V3's: `p3c-night-v2-{hamlet,village,town,winter,grown,grownwinter}-night`, `p3c-night-v2-grown-nightstreet` and `p3c-night-v3-{street,village,far120,far200,far240}` (the V2 and V3 scripts' own cameras, beside `v2-after-*` and `v3-after-*-night`). The first set, from the written description: `p3c-{before,after}-1-night-rain`, `-1b-night-rain-meadow`, `-2-blossom-haze`, `-3-autumn-haze`, `-3b-autumn-clear`. The long view after: `p3c-after-far120-{dawn,noon,golden,night}`, `p3c-after-far200-{autumn,winter,fog}`. The contact sheets: `p3c-after-sheet-{grown,hamlet}-{spring,summer,autumn,winter}`.
 
 ### Checks
 
