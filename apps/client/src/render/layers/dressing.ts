@@ -27,7 +27,7 @@ import {
   type DressingStat,
   type DressingTier,
 } from '@qoti/content';
-import { MAP_SIZE, START_HOUR, TICKS_PER_DAY, TICKS_PER_HOUR, type BuildingView } from '@qoti/sim';
+import { MAP_SIZE, START_HOUR, storageOf, TICKS_PER_DAY, TICKS_PER_HOUR, type BuildingView } from '@qoti/sim';
 import { Matrix4, Quaternion, Vector3, type BufferGeometry } from 'three';
 import type { Mirror } from '../../state/mirror';
 import { fpToWorld } from '../coords';
@@ -119,7 +119,7 @@ export function dressingSubject(mirror: Mirror, b: BuildingView): DressingSubjec
       if (r && r.stage === 'child' && r.bornDay !== undefined && today - r.bornDay < BIRTH_DAYS) births++;
     }
   }
-  const capacity = def?.storage ?? 0;
+  const capacity = def?.storage ? storageOf(b) : 0;
   const fill = capacity > 0 ? Math.min(100, Math.max(0, Math.round((sum(b.rt?.store) / capacity) * 100))) : 0;
   const stats: Partial<Record<DressingStat, number>> = {
     births,

@@ -1,6 +1,6 @@
 import { BuildingSeasonLines } from './seasonParts';
-import { content } from '@qoti/content';
-import type { BuildingDetail, BuildingView } from '@qoti/sim';
+import { content, type BuildingDef } from '@qoti/content';
+import { storageOf, type BuildingDetail, type BuildingView, type SpecializedClimbView } from '@qoti/sim';
 import { useState } from 'preact/hooks';
 import type { Session } from '../../app/session';
 import { removeWithCare } from '../../input/removal';
@@ -19,6 +19,7 @@ import {
   statusIsTrouble,
 } from './Businesses';
 import { Glyph } from '../icons';
+import { climbLine, todayLine } from './specializedWords';
 import { Empty, Frame, GoodChip, GoodList, Heading, Meter, Toggle, useInspect } from './parts';
 
 /**
@@ -96,6 +97,7 @@ export function BuildingInspector({ session, id }: { session: Session; id: numbe
       )}
       {detail && <BuildingSeasonLines session={session} detail={detail} />}
       <BusinessLines session={session} id={b.id} />
+      {detail?.climb && def && !site && <ClimbLines climb={detail.climb} def={def} />}
 
       {site && rt?.construction && (
         <div class="site">
@@ -195,9 +197,9 @@ export function BuildingInspector({ session, id }: { session: Session; id: numbe
           {!!def?.storage && (
             <>
               <Heading>
-                Stores <span class="muted">{`${sum(rt.store)} of ${def.storage}`}</span>
+                Stores <span class="muted">{`${sum(rt.store)} of ${storageOf(b)}`}</span>
               </Heading>
-              <Meter value={sum(rt.store) / def.storage} tone="river" />
+              <Meter value={sum(rt.store) / storageOf(b)} tone="river" />
               <GoodList items={rt.store} empty="Empty shelves." />
             </>
           )}
@@ -445,5 +447,20 @@ function VillageDetail({ session, detail }: { session: Session; detail: Building
         </div>
       )}
     </>
+  );
+}
+
+/** R3H: a specialized building's level and how its climb stands, in the muted small style. */
+function ClimbLines({ climb, def }: { climb: SpecializedClimbView; def: BuildingDef }) {
+  const today = todayLine(climb, def);
+  return (
+    <div class="business-inspect" data-testid="climb-lines">
+      <p class="business-name">
+        <strong>Level {climb.level}</strong>
+        <LevelPips level={climb.level} />
+      </p>
+      <p class="small muted">{climbLine(climb, def)}</p>
+      {today && !climb.resting && <p class="small muted">{today}</p>}
+    </div>
   );
 }
