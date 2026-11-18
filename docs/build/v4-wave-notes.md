@@ -88,7 +88,7 @@ What "fold in" means is V4A's to build and tune: one way is to draw the new stil
 
 ## Before numbers
 
-V4.0 changes nothing on screen, so its branch is the before. The software tables (the build container's SwiftShader: draws and triangles are real, milliseconds are ratios at best) are in `22-quality.md` (V4's before) and `docs/build/screenshots/v4-before-perf.md`; the shots are `docs/build/screenshots/v4-before-*.png`. The laptops' tables go in `docs/playtests/V4.md` (Before).
+V4.0 changes nothing on screen, so its branch is the before. The software tables (the build container's SwiftShader: draws and triangles are real, milliseconds are ratios at best) are in `22-quality.md` (V4's before) and `docs/build/screenshots/v4-before-perf.md`; the shots are `docs/build/screenshots/v4-before-*.png` (the street and village at rest by day, golden hour and night, and the lamps scene before and after its 12 lamps; the script's 0.3 and 0.6 s shots are left out, since with no refinement they show the same picture). Today the street's still frame draws 129 to 219 calls and the village's 199 to 323 on Medium to Ultra (`22-quality.md`, V4's before): a refinement sample is about a moving frame's work. The laptops' tables go in `docs/playtests/V4.md` (Before).
 
 ## What V3 leaves (V3X's list, placed)
 
