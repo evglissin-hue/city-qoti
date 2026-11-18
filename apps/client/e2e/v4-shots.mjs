@@ -16,15 +16,19 @@
 // saves v4-<stage>-lamps-<shot>-rest.png and v4-<stage>-lamps-<shot>-<lit lamps>.png).
 // `compare` sets every PNG pair of two stages side by side pixel by pixel (decoded in Chromium; no
 // image library needed) and exits 1 when a pair differs by more than QOTI_TOLERANCE (the share of
-// differing pixels in percent, 0 by default: exact). Two runs of one build can differ a little in
-// software (water, smoke); the sim is paused by default so residents hold still (QOTI_HOLD=0 lets
-// it run).
+// differing pixels in percent, 0 by default: exact). So that two runs of one build draw the same
+// pixels, the sim is paused the moment the valley is live (QOTI_HOLD=0 lets it run) and the
+// animation clock (water, clouds, smoke, the meadow's sway) is stopped at one time before each shot
+// (QOTI_FREEZE=0 lets it run). Chimney smoke keeps a clock of its own (the effects layer's, which
+// also turns the sails), so it still differs from run to run: QOTI_SMOKE=0 hides it for an exact
+// comparison (the no-op check: `QOTI_SMOKE=0`, then `compare` at tolerance 0).
 // Env: QOTI_QUALITY (medium), QOTI_OUT (the screenshots folder), QOTI_WAIT (least ms per scene
 // before settling, 8000), QOTI_SETTLE_MAX (most ms to wait for a scene to settle, 240000), QOTI_SIZE
 // (1440x900), QOTI_SHOTS (only these shot names, comma separated), QOTI_HUD=1 keeps the interface,
 // QOTI_LAYERS=1 also prints triangles per render layer (slow), QOTI_QUERY (more URL parameters,
 // e.g. refine=0), QOTI_HOLD (1: the sim paused; 0 to run it), QOTI_LAMP_MS (ms between lamps, 400),
-// QOTI_TOLERANCE (compare: the most percent of pixels that may differ, 0).
+// QOTI_TOLERANCE (compare: the most percent of pixels that may differ, 0), QOTI_FREEZE (1: the
+// animation clock stopped for each shot; 0 to let it run).
 import { chromium } from '@playwright/test';
 import { readFileSync, existsSync, readdirSync } from 'node:fs';
 
@@ -36,6 +40,8 @@ const out = process.env.QOTI_OUT ?? 'docs/build/screenshots';
 const quality = process.env.QOTI_QUALITY ?? 'medium';
 const [vw, vh] = (process.env.QOTI_SIZE ?? '1440x900').split('x').map(Number);
 const hold = process.env.QOTI_HOLD !== '0';
+const freeze = process.env.QOTI_FREEZE !== '0';
+const smoke = process.env.QOTI_SMOKE !== '0';
 const extra = process.env.QOTI_QUERY ? `&${process.env.QOTI_QUERY}` : '';
 
 const launch = () =>
@@ -222,6 +228,15 @@ for (const [scene, def] of Object.entries(SCENES)) {
   page.on('pageerror', (e) => console.log('pageerror:', e.message));
   page.on('console', (m) => m.type() === 'error' && console.log('console:', m.text()));
   await page.route('**/api/**', (r) => r.abort());
+  // Paused the moment the valley is live, so every run holds the fixture at the same turn.
+  if (hold)
+    await page.addInitScript(() => {
+      const t = setInterval(() => {
+        if (window.__qoti?.status?.() !== 'live') return;
+        window.__qoti.submit({ t: 'time.setSpeed', speed: 0 });
+        clearInterval(t);
+      }, 5);
+    });
   await page.goto(`${base}/?debug&fixture=grown&clean&fixedres&quality=${quality}&${SUMMER}${extra}`);
   await page.waitForFunction(() => window.__qoti?.status() === 'live', null, { timeout: 240000 });
   for (const name of ['Done', 'Close', 'Later']) {
@@ -263,6 +278,16 @@ for (const [scene, def] of Object.entries(SCENES)) {
     );
     if (shot.tilt) tilted = true;
     await settle(page, Number(process.env.QOTI_WAIT ?? 8000));
+    // The animation clock stopped at one time, so water, clouds and smoke draw alike in every run.
+    if (freeze)
+      await page.evaluate((smokeOn) => {
+        const r = window.__qoti.renderer();
+        r.env.motion = false;
+        r.env.time.value = 100;
+        r.env.staticTime.value = 100;
+        if (!smokeOn) r.layers.find((l) => l.id === 'effects')?.setSmoke(false);
+        r.invalidateStatic('shots');
+      }, smoke);
     const t0 = await freshRest(page);
     const record = (file, planned, s, tag) => {
       rows.push({ scene, shot: shot.name, tag, planned, ...s });
