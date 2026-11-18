@@ -74,7 +74,7 @@ const QUICK: MeasureOptions | null = (() => {
   try {
     const q = new URLSearchParams(location.search);
     return q.has('debug') && q.get('measure') === 'quick'
-      ? { move: 1, rest: 1, settle: 0.5, settleMax: 4 }
+      ? { move: 1, rest: 1, settle: 0.5, settleMax: 4, still: 0.5 }
       : null;
   } catch {
     return null;
@@ -186,7 +186,10 @@ const ms = (v: number | null): string => (v === null ? 'n/a' : v.toFixed(1));
 const pair = (frames: number, avg: number | null, p95: number | null): string =>
   frames > 0 && avg !== null ? `${ms(avg)} / ${ms(p95)}` : 'n/a';
 
-/** The rows as a table: frame and GPU ms (average and 95th percentile), moving and idle. */
+/**
+ * The rows as a table: frame and GPU ms (average and 95th percentile), moving and idle. V4.0: and
+ * the still frame's GPU ms (frame ms where the browser has no GPU timer), n/a on Low.
+ */
 export function MeasureTable({ rows }: { rows: readonly PerfRow[] }) {
   return (
     <div class="measure-table-wrap">
@@ -200,6 +203,7 @@ export function MeasureTable({ rows }: { rows: readonly PerfRow[] }) {
             <th colSpan={2}>Idle, ms avg / p95</th>
             <th rowSpan={2}>Draws</th>
             <th rowSpan={2}>Triangles</th>
+            <th rowSpan={2}>Still frame, ms avg / p95</th>
           </tr>
           <tr>
             <th>Frame</th>
@@ -224,6 +228,15 @@ export function MeasureTable({ rows }: { rows: readonly PerfRow[] }) {
               <td>{pair(r.idle.frames, r.idle.gpuAvg, r.idle.gpuP95)}</td>
               <td>{r.moving.frames > 0 ? r.moving.draws : 'n/a'}</td>
               <td>{r.moving.frames > 0 ? `${(r.moving.triangles / 1e6).toFixed(2)} M` : 'n/a'}</td>
+              <td>
+                {r.still
+                  ? pair(
+                      r.still.frames,
+                      r.still.gpuAvg ?? r.still.frameAvg,
+                      r.still.gpuP95 ?? r.still.frameP95,
+                    )
+                  : 'n/a'}
+              </td>
             </tr>
           ))}
         </tbody>

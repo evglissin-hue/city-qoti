@@ -45,9 +45,20 @@ export class DynamicResolution {
   /** Moving time (ms) since the last step-up. */
   private sinceUp = Infinity;
 
+  /**
+   * V4: the mean ms between moving frames over the last judged window, or null before one (and
+   * after a reset). The refinement's governor reads it (`render/refine.ts`, `RefineGovernorInput`).
+   */
+  movingMs: number | null = null;
+
   /** The current render scale of moving frames (1 = the preset's full pixel ratio). */
   get scale(): number {
     return RESOLUTION_STEPS[this.step]!;
+  }
+
+  /** V4: the step in RESOLUTION_STEPS moving frames draw at (0 is full; the governor reads it). */
+  get stepIndex(): number {
+    return this.step;
   }
 
   /** How long a step-up waits now (ms of moving time with headroom). */
@@ -64,6 +75,7 @@ export class DynamicResolution {
     this.upWait = UP_WAIT_MS;
     this.sinceUp = Infinity;
     this.lastDrawn = -1;
+    this.movingMs = null;
   }
 
   /**
@@ -87,6 +99,7 @@ export class DynamicResolution {
     if (this.count < WINDOW) return false;
     const span = this.sum;
     const avg = span / this.count;
+    this.movingMs = avg;
     this.sum = 0;
     this.count = 0;
     if (avg > SLOW_MS) {
