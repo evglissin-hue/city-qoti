@@ -102,4 +102,9 @@ export interface RenderApi {
       | { tiles: [number, number][]; tone?: 'hearth' | 'ledger'; outline?: boolean }
       | null,
   ): void;
+  /**
+   * R3G (additive): the endpaper map as a still at print resolution (2048 px a side by default), a
+   * PNG, or null; for the printed storybook's cover.
+   */
+  endpaperStill?(size?: number): Promise<Blob | null>;
 }
