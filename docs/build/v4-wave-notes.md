@@ -84,7 +84,7 @@ What "fold in" means is V4A's to build and tune: one way is to draw the new stil
 
 - `apps/client/e2e/v4-shots.mjs <stage> [scene ...]`: the grown village (`?debug&fixture=grown`, summer, clear) at V3's `street` (the doorstep, 12 tiles) and `village` (70 tiles) cameras, by day, golden hour and night; each shot is a rest taken at 0, 0.3 and 0.6 s after the still frame, recording `samples`, `sampleGoal`, `stillChange` and the mode; the `lamps` scene (above). Saves `docs/build/screenshots/v4-<stage>-<scene>-<shot>-<t>.png`. `v4-shots.mjs compare <stageA> <stageB>` compares the two stages pixel by pixel (exit 1 past `QOTI_TOLERANCE`).
 - `apps/client/e2e/v4-perf.mjs [scene ...]`: per scene and preset, moving (V3's path), settling (from the first rest frame until `samples` reaches `sampleGoal`: time, frames, samples) and settled (idle frames after), with the still frame's own cost.
-- Measure this laptop (Settings) gains a still part per row with a still-frame cache: 3 s in which every frame draws the still frame again (a shadowless static change each frame; the shadow map is left alone), the table's last column. That is what each sample of the refinement adds to a resting frame, near enough, so it is V4's real before on the laptops.
+- Measure this laptop (Settings) gains a still part per row with a still-frame cache: back at the scene's own view, 3 s in which every frame draws the still frame again (a shadowless static change each frame; the shadow map is left alone), the table's last column. That is what each sample of the refinement adds to a resting frame, near enough, so it is V4's real before on the laptops.
 
 ## Before numbers
 

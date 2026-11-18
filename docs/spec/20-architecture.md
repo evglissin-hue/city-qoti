@@ -726,7 +726,7 @@ Defined in cycle V4.0, then changed only additively during the V4 wave (V4A rest
 - **The camera** (`camera.ts`, additive): `CameraView` (x, z, yaw, pitch, distance), `CameraOrbit { x, z, distance, speed }`; `CameraController.saveView()` (the goal), `restoreView(v)` (the goal and the shown view at once: an exact snap), `orbit(around | null)` and `setDrift(on)` (V4.0: stubs that do nothing).
 - **The setting** (`ui/settings.ts`, additive): `UiSettings.teaBreak`, on by default (absent reads true).
 
-**Measure this laptop** (`app/perf.ts`, `packages/protocol/src/perf.ts`, additive): `PerfRow.still` (and `PerfRunRow.still`): on presets with the still-frame cache, a still part after the rest (`PerfOptions.still`, `MeasureOptions.still`, 3 s by default) where every frame draws the still frame again (a shadowless static change from `measure`); its GPU ms and draws are the table's last column (`Still frame GPU ms (avg / p95), draws`), absent from tables without one. `PerfPart.modes.sample` counts sample frames. A full run takes about eight minutes.
+**Measure this laptop** (`app/perf.ts`, `packages/protocol/src/perf.ts`, additive): `PerfRow.still` (and `PerfRunRow.still`): on presets with the still-frame cache, a still part after the rest (`PerfOptions.still`, `MeasureOptions.still`, 3 s by default), back at the scene's own view, where every frame draws the still frame again (a shadowless static change from `measure`); its GPU ms and draws are the table's last column (`Still frame GPU ms (avg / p95), draws`), absent from tables without one. `PerfPart.modes.sample` counts sample frames. A full run takes about eight minutes.
 
 ## Client
 
