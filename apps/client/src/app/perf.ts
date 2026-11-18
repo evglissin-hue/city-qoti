@@ -270,19 +270,26 @@ export async function runPerf(renderer: Renderer, opts: PerfOptions = {}): Promi
       rig.snap();
       renderer.invalidate();
       const idle = await phase(renderer, rest, Math.min(1.5, rest / 2), () => {}, signal);
-      // V4.0: the still frame's own cost. Every frame drops the still frame with a shadowless static
-      // change (the shadow map stays), so each one draws it again: what a refinement sample adds.
+      // V4.0: the still frame's own cost, from the scene's own view (the path may end far off: in
+      // a software renderer its zoom, scaled by frame time, reaches the map). Every frame drops the
+      // still frame with a shadowless static change (the shadow map stays), so each one draws it
+      // again: what a refinement sample adds to a resting frame.
       const stillFor = opts.still ?? 3;
-      const still =
-        stillFor > 0 && QUALITY_PRESETS[quality].stillCache
-          ? await phase(
-              renderer,
-              stillFor,
-              Math.min(0.5, stillFor / 3),
-              () => renderer.invalidateStatic('measure', true),
-              signal,
-            )
-          : undefined;
+      const hasStill = stillFor > 0 && QUALITY_PRESETS[quality].stillCache;
+      if (hasStill) {
+        goHome();
+        // Rested before it starts (the jump home is a moving frame, seconds long in software).
+        await phase(renderer, 0.4, 99, () => {}, signal);
+      }
+      const still = hasStill
+        ? await phase(
+            renderer,
+            stillFor,
+            Math.min(0.5, stillFor / 3),
+            () => renderer.invalidateStatic('measure', true),
+            signal,
+          )
+        : undefined;
       rows.push({
         scene,
         quality,

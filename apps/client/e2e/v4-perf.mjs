@@ -16,7 +16,8 @@
 // (seconds of the still part, 3), QOTI_SIZE (1440x900), QOTI_SETTLE (ms after a scene loads, 12000;
 // then until no static layer changes, at most QOTI_SETTLE_MAX, 300000), QOTI_FIXEDRES=1 (dynamic
 // resolution off), QOTI_HOLD=1 (the sim paused and the hour pinned), QOTI_HOUR (the hour to pin, 11
-// with QOTI_HOLD), QOTI_QUERY (more URL parameters, e.g. refine=0) and QOTI_HEADED=1.
+// with QOTI_HOLD), QOTI_QUERY (more URL parameters, e.g. refine=0), QOTI_SETTLE_LIMIT (the most
+// seconds settling waits for, 60) and QOTI_HEADED=1.
 import { chromium } from '@playwright/test';
 
 const clientPort = Number(process.env.QOTI_CLIENT_PORT ?? 5260);
@@ -215,7 +216,8 @@ for (const [scene, def] of Object.entries(SCENES)) {
     });
     const row = r.rows[0];
     await page.evaluate((q) => window.__qoti.renderer().setQuality(q), preset);
-    const s = await settling(page, rest);
+    // A software frame can take seconds: settling waits up to QOTI_SETTLE_LIMIT s (60).
+    const s = await settling(page, Number(process.env.QOTI_SETTLE_LIMIT ?? 60));
     console.log(
       scene,
       preset,
