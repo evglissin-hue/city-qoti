@@ -39,6 +39,17 @@ export const RULE_WORD: Record<CarrierRule, string> = {
 };
 
 const RULES: CarrierRule[] = ['always', 'essentials', 'never'];
+const PLACES_TITLE =
+  "Places draw only on what the town holds above its reserves. With this on, the carrier also buys them their share, within the day's budget.";
+
+/** The families places draw from: the goods any decor piece's supply names, from content. */
+const PLACE_FAMILIES = new Set<string>(
+  [...content.decorById.values()]
+    .map((d) => d.supply?.good)
+    .filter((g): g is string => !!g)
+    .map((g) => content.goodById.get(g)?.family)
+    .filter((f): f is NonNullable<typeof f> => !!f),
+);
 /** Days of cover a bar shows full. */
 const FULL_DAYS = 10;
 
@@ -217,6 +228,9 @@ function FamilyDetail({ session, line }: { session: Session; line: BalanceLine }
     : undefined;
   const setTerms = (rule: CarrierRule, sell: boolean) =>
     session.submit({ t: 'carrier.setRule', family: line.family, rule, sell });
+  const drew = line.drawnByPlaces;
+  const placesDrawn = !!drew && (drew.lastNight > 0 || drew.before > 0);
+  const placesFamily = PLACE_FAMILIES.has(line.family);
   const materials = line.family === 'materials';
   const makers = line.flavors.map((fl) => makersText(session, fl.good)).filter(Boolean);
   return (
@@ -250,6 +264,11 @@ function FamilyDetail({ session, line }: { session: Session; line: BalanceLine }
           );
         })}
       </ul>
+      {placesDrawn && (
+        <p class="small muted places-drew" data-testid={`places-drew-${line.family}`}>
+          Places drew {drew.lastNight} last night, {drew.before} the night before.
+        </p>
+      )}
       <p class="small muted who-makes" data-testid={`makers-${line.family}`}>
         {makers.length ? `Made here by ${makers.join('; ')}.` : 'Nobody makes it here yet.'}
       </p>
@@ -282,6 +301,24 @@ function FamilyDetail({ session, line }: { session: Session; line: BalanceLine }
           testid={`sell-${line.family}`}
           onChange={(sell) => setTerms(line.rule, sell)}
         />
+        {placesFamily && (
+          <span title={PLACES_TITLE}>
+            <Toggle
+              on={line.forPlaces ?? false}
+              label="Buy for places too"
+              testid={`carrier-places-${line.family}`}
+              onChange={(places) =>
+                session.submit({
+                  t: 'carrier.setRule',
+                  family: line.family,
+                  rule: line.rule,
+                  sell: line.sell,
+                  places,
+                })
+              }
+            />
+          </span>
+        )}
         <p class="small muted">
           {line.mark !== null
             ? `A winter mark of ${line.mark} days stands in for the reserve until the thaw.`

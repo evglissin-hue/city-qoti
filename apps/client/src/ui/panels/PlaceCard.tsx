@@ -8,14 +8,18 @@ import {
   MAX_PLACE_NAME_CHARS,
   PENNIES_PER_COIN,
   type PlaceKind,
+  type PlacePriority,
   type PlaceView,
+  type RestKind,
   type SeatId,
   type StreetView,
 } from '@qoti/sim';
 import { useEffect, useState } from 'preact/hooks';
 import type { Session } from '../../app/session';
-import { capital, placeName, seatLabel } from '../format';
+import { capital, goodName, placeName, seatLabel } from '../format';
+import { rankAtLeast } from '../village';
 import { Frame, Heading, Meter, Sparkline } from './parts';
+import { Dial } from './villageParts';
 import './place.css';
 
 const KIND_WORD: Record<PlaceKind, string> = {
@@ -97,6 +101,160 @@ export function coverWords(p: Pick<PlaceView, 'sheltered' | 'warm'>): string {
   if (p.sheltered) return 'Under a roof';
   if (p.warm) return 'Open air, with a fire';
   return 'Open air';
+}
+
+// --- R3D: supplies, in words and one control -----------------------------------------------------
+
+const PRIORITIES: { value: PlacePriority; label: string }[] = [
+  { value: 'keep', label: 'Keep first' },
+  { value: 'normal', label: 'As it comes' },
+  { value: 'rest', label: 'Let it rest' },
+];
+
+const PRIORITY_TITLE =
+  'When candles, firewood or cloth run short, places kept first are supplied before the rest, and a place let rest takes nothing.';
+
+const UNCOUNTED = new Set(['bunting']);
+
+/** "lantern" to "lanterns", "flower arch" to "flower arches". */
+function pluralWord(name: string): string {
+  if (UNCOUNTED.has(name)) return name;
+  return /(s|x|ch|sh)$/.test(name) ? `${name}es` : `${name}s`;
+}
+
+/** The place's supplied pieces' defs by supply kind, from its members. */
+function suppliedDefs(session: Session, p: Pick<PlaceView, 'members'>) {
+  const out: { id: number; name: string; supply: NonNullable<ReturnType<typeof defSupply>> }[] = [];
+  for (const id of p.members) {
+    const d = session.mirror.decor.get(id);
+    const supply = d ? defSupply(d.def) : undefined;
+    if (d && supply)
+      out.push({ id, name: (content.decorById.get(d.def)?.name ?? d.def).toLowerCase(), supply });
+  }
+  return out;
+}
+
+function defSupply(def: string) {
+  return content.decorById.get(def)?.supply;
+}
+
+/** A good's unit as "a candle" for one, "2 candles" for more, "firewood" for none counted. */
+function unitWords(good: string, qty: number): string {
+  const label = goodName(good).toLowerCase();
+  if (qty === 1) return label.endsWith('s') ? `a ${label.slice(0, -1)}` : label;
+  return `${qty} ${label}`;
+}
+
+type Supplied = ReturnType<typeof suppliedDefs>;
+
+/** The name of a group of pieces: their shared name, or a fallback when they differ. */
+function groupName(names: string[], n: number, fallback: string): string {
+  const one = new Set(names).size === 1 ? names[0]! : fallback;
+  return n === 1 ? one : pluralWord(one);
+}
+
+/** What the place's supplied pieces draw, in words: "3 lanterns burn a candle a night for every 4." */
+export function suppliesWords(p: Pick<PlaceView, 'supplies'>, supplied: Supplied): string {
+  const out: string[] = [];
+  for (const s of p.supplies ?? []) {
+    const defs = supplied.filter((d) => d.supply.kind === s.kind && (d.supply.good ?? '') === (s.good ?? ''));
+    const sample = defs[0]?.supply;
+    const n = s.pieces;
+    const name = groupName(
+      defs.map((d) => d.name),
+      n,
+      s.kind === 'nightly' ? 'lantern' : 'piece',
+    );
+    const one = n === 1;
+    const subject = one ? `The ${name}` : `The ${n} ${name}`;
+    switch (s.kind) {
+      case 'nightly': {
+        const per = sample?.per ?? 1;
+        const qty = sample?.qty ?? 1;
+        out.push(
+          `${n} ${name} ${one ? 'burns' : 'burn'} ${unitWords(s.good ?? '', qty)} a night for every ${per}.`,
+        );
+        break;
+      }
+      case 'evening':
+        out.push(
+          `${subject} ${one ? 'wants' : 'want'} ${goodName(s.good ?? '').toLowerCase()} on an evening someone comes.`,
+        );
+        break;
+      case 'season':
+        out.push(`${subject} ${one ? 'wants' : 'want'} ${unitWords(s.good ?? '', s.wants)} a season.`);
+        break;
+      case 'outlet':
+        out.push(
+          `${subject} ${one ? 'is' : 'are'} served from an outlet within ${sample?.radius ?? 3} tiles.`,
+        );
+        break;
+      case 'well':
+        out.push(`${subject} ${one ? 'wants' : 'want'} a well within ${sample?.radius ?? 8} tiles.`);
+        break;
+    }
+  }
+  return out.join(' ');
+}
+
+const REST_WORD: Record<RestKind, string> = {
+  unlit: 'unlit',
+  cold: 'cold',
+  bare: 'bare',
+  faded: 'faded',
+  dry: 'dry',
+};
+
+/** What rests tonight: "Resting tonight: 2 lanterns unlit, the brazier cold." Never alarmed. */
+export function restingWords(session: Session, p: Pick<PlaceView, 'resting'>): string {
+  const groups = new Map<string, { name: string; kind: RestKind; n: number }>();
+  for (const r of p.resting ?? []) {
+    const d = session.mirror.decor.get(r.id);
+    const name = (content.decorById.get(d?.def ?? '')?.name ?? 'piece').toLowerCase();
+    const key = `${name}|${r.kind}`;
+    const g = groups.get(key) ?? { name, kind: r.kind, n: 0 };
+    g.n++;
+    groups.set(key, g);
+  }
+  if (groups.size === 0) return 'Everything is supplied tonight.';
+  const bits = [...groups.values()].map((g) =>
+    g.n === 1 ? `the ${g.name} ${REST_WORD[g.kind]}` : `${g.n} ${pluralWord(g.name)} ${REST_WORD[g.kind]}`,
+  );
+  return `Resting tonight: ${bits.join(', ')}.`;
+}
+
+/** The priority control and the supplies in words; nothing at all without a supplied piece. */
+function PlaceSupplies({ session, p }: { session: Session; p: PlaceView }) {
+  const m = session.mirror;
+  void m.revision.value;
+  if (!rankAtLeast(m.charter.value?.rank, content.supplies.fromRank)) return null;
+  const supplied = suppliedDefs(session, p);
+  if (supplied.length === 0) return null;
+  const current = p.priority ?? 'normal';
+  const draws = p.supplies?.length ? suppliesWords(p, supplied) : '';
+  return (
+    <section class="place-supplies-block" data-testid="place-supplies-block">
+      <Heading>When supplies run short</Heading>
+      <div title={PRIORITY_TITLE}>
+        <Dial
+          label="When supplies run short"
+          testid="place-priority"
+          value={current}
+          options={PRIORITIES}
+          onChange={(priority) => {
+            if (priority !== current) session.submit({ t: 'place.setPriority', id: p.id, priority });
+          }}
+        />
+      </div>
+      {p.supplies && p.supplies.length > 0 && (
+        <p class="supplies-words small muted" data-testid="place-supplies">
+          {draws}
+          <br />
+          {restingWords(session, p)}
+        </p>
+      )}
+    </section>
+  );
 }
 
 /** A rename field: type, press Enter or Rename. An empty name restores the generated one. */
@@ -302,6 +460,8 @@ export function PlaceCard({
           <span class="muted small">Visitors, the last {p.visitors.length} evenings</span>
         </div>
       )}
+
+      <PlaceSupplies session={session} p={p} />
 
       {p.wants.length > 0 && (
         <>
