@@ -1,6 +1,6 @@
 import { content, type BuildingDef } from '@qoti/content';
 import type { JSX } from 'preact';
-import { useEffect, useState } from 'preact/hooks';
+import { useEffect, useRef, useState } from 'preact/hooks';
 import type { Session } from '../app/session';
 import {
   buildingChoices,
@@ -159,15 +159,27 @@ export function Toolbar({ session }: { session: Session }) {
   );
 }
 
-/** Closes a popover on Escape or a press outside the element matching `inside`. */
-function useDismiss(open: boolean, close: () => void, inside: string) {
+/**
+ * Closes a popover on Escape or a press outside the element matching `inside`, and returns the way
+ * to close it from within. The listener asks whether the popover is open now, not when it was
+ * attached: Preact removes it only after the next paint, and a quick Escape after a book was picked
+ * from the shelf must reach the book, not a shelf that is already shut (P3B, CI).
+ */
+function useDismiss(open: boolean, close: () => void, inside: string): () => void {
+  const live = useRef(open);
+  live.current = open;
+  const shut = () => {
+    live.current = false;
+    close();
+  };
   useEffect(() => {
     if (!open) return;
     const handler = (e: Event) => {
+      if (!live.current) return;
       if (e instanceof KeyboardEvent && e.key !== 'Escape') return;
       if (e instanceof PointerEvent && (e.target as Element | null)?.closest(inside)) return;
       if (e instanceof KeyboardEvent) e.stopPropagation();
-      close();
+      shut();
     };
     addEventListener('pointerdown', handler, true);
     addEventListener('keydown', handler, true);
@@ -176,6 +188,7 @@ function useDismiss(open: boolean, close: () => void, inside: string) {
       removeEventListener('keydown', handler, true);
     };
   }, [open]);
+  return shut;
 }
 
 function ToolButton({
@@ -302,7 +315,7 @@ function KindShelf({
 /** P3B: one named Books button; its shelf names every book of the lens and marks what is new. */
 function BooksShelf({ session, books }: { session: Session; books: PanelDef[] }) {
   const [open, setOpen] = useState(false);
-  useDismiss(open, () => setOpen(false), '.books-menu');
+  const shut = useDismiss(open, () => setOpen(false), '.books-menu');
   const panel = session.ui.panel.value;
   const reading = books.find((b) => b.id === panel);
   void session.ui.lettersRead.value;
@@ -324,7 +337,7 @@ function BooksShelf({ session, books }: { session: Session; books: PanelDef[] })
                 aria-current={panel === b.id}
                 data-testid={`book-${b.id}`}
                 onClick={() => {
-                  setOpen(false);
+                  shut();
                   toggleBook(session, b.id);
                 }}
               >
@@ -344,7 +357,7 @@ function BooksShelf({ session, books }: { session: Session; books: PanelDef[] })
         aria-expanded={open}
         data-testid="books"
         title={`The ${session.ui.lens.value === 'hearth' ? 'Hearth' : 'Ledger'}'s books${reading ? `; ${reading.label} is open` : ''}. Each has its key on the shelf.`}
-        onClick={() => setOpen(!open)}
+        onClick={() => (open ? shut() : setOpen(true))}
       >
         <Glyph id="books" />
         <span>{reading ? reading.label : 'Books'}</span>
@@ -416,7 +429,7 @@ function OverlayMenu({
   pick: (id: string | null) => void;
 }) {
   const [open, setOpen] = useState(false);
-  useDismiss(open, () => setOpen(false), '.overlay-menu');
+  const shut = useDismiss(open, () => setOpen(false), '.overlay-menu');
   const current = options.find((o) => o.id === shown);
   return (
     <div class="overlay-menu">
@@ -432,7 +445,7 @@ function OverlayMenu({
               data-testid={`overlay-${o.id}`}
               onClick={() => {
                 pick(shown === o.id ? null : o.id);
-                setOpen(false);
+                shut();
               }}
             >
               <Glyph id={o.icon} />
@@ -451,7 +464,7 @@ function OverlayMenu({
         aria-expanded={open}
         data-testid="overlays"
         data-tip="Overlays: see the valley another way"
-        onClick={() => setOpen(!open)}
+        onClick={() => (open ? shut() : setOpen(true))}
       >
         <Glyph id={current?.icon ?? 'eye'} />
         <span>{current ? current.label : 'View'}</span>

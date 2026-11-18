@@ -7,7 +7,7 @@ import { ToolManager } from '../input/manager';
 import type { RenderApi } from '../render/api';
 import { mockTown } from './mocks/hamlet';
 import { mockSession, mockView } from './mocks/session';
-import { mount, type Mounted } from './test/dom';
+import { mount, settle, type Mounted } from './test/dom';
 import { Toolbar } from './Toolbar';
 import { TopBar } from './TopBar';
 
@@ -451,5 +451,55 @@ describe('everything stays in reach (P3B)', () => {
       expect(opener, `book ${p.id} has no way in`).toBeDefined();
       expect(await source(opener![0])).toContain(opener![1]);
     }
+  });
+});
+
+describe('Escape closes what was opened last (P3B, CI)', () => {
+  /** Whether an Escape pressed now reaches the game's own keys (a listener on the window). */
+  const escapeReachesGame = () => {
+    let reached = false;
+    const hear = (e: KeyboardEvent) => (reached ||= e.key === 'Escape');
+    addEventListener('keydown', hear);
+    dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    removeEventListener('keydown', hear);
+    return reached;
+  };
+
+  it('every book picked from the shelf, at once and in both lenses, leaves Escape to the book', async () => {
+    const session = withTools(mockSession().session);
+    view = await mount(h(Toolbar, { session }));
+    for (const lens of ['hearth', 'ledger'] as const) {
+      await view.click(`lens-${lens}`);
+      await view.click('books');
+      const books = ids(view.get('books-list'), 'book-');
+      await view.click('books');
+      for (const id of books) {
+        await view.click('books');
+        // With the shelf open, Escape shuts the shelf and goes no further.
+        expect(escapeReachesGame()).toBe(false);
+        await settle();
+        expect(view.find('books-list')).toBeNull();
+        await view.click('books');
+        // Picked and pressed at once, before Preact has painted or dropped the shelf's listener.
+        (view.get(`book-${id}`) as HTMLElement).click();
+        expect(escapeReachesGame(), `${lens} ${id}`).toBe(true);
+        await settle();
+        session.ui.panel.value = null;
+      }
+    }
+  });
+
+  it('a View entry picked from the list leaves Escape to the game too', async () => {
+    const session = withTools(mockSession().session);
+    view = await mount(h(Toolbar, { session }));
+    await view.click('lens-ledger');
+    await view.click('overlays');
+    (view.get('overlay-flows') as HTMLElement).click();
+    expect(escapeReachesGame()).toBe(true);
+    await settle();
+    // Opened and shut again by its own button, at once.
+    await view.click('overlays');
+    (view.get('overlays') as HTMLElement).click();
+    expect(escapeReachesGame()).toBe(true);
   });
 });
