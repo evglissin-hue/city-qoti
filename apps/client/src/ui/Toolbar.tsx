@@ -1,4 +1,5 @@
 import { content, type BuildingDef } from '@qoti/content';
+import type { JSX } from 'preact';
 import { useEffect, useState } from 'preact/hooks';
 import type { Session } from '../app/session';
 import {
@@ -69,6 +70,13 @@ export function Toolbar({ session }: { session: Session }) {
     (s): s is Extract<BarSlot, { kind: 'group' }> =>
       s.kind === 'group' && s.members.some((x) => x.tool.id === active),
   );
+  // A tool with a picker or a row of its own carries its group's kinds in that row, so the stack
+  // over the bar never grows by a row; the others get the kinds on a slim shelf of their own.
+  const hasPicker = current?.id === 'decor' || current?.id === 'fence';
+  const hasVariants =
+    !!current?.variants && !!current.variant && !['building', 'decor', 'fence', 'zone'].includes(current.id);
+  const inRow = hasPicker || hasVariants || current?.id === 'field';
+  const kinds = openGroup && <KindShelf session={session} slot={openGroup} active={active} inline={inRow} />;
 
   return (
     <>
@@ -81,13 +89,19 @@ export function Toolbar({ session }: { session: Session }) {
           <LedgerPicker session={session} tool={current} />
         )}
         {(current?.id === 'decor' || current?.id === 'fence') && (
-          <DecorPicker session={session} tool={current} linear={current.id === 'fence'} />
+          <DecorPicker
+            session={session}
+            tool={current}
+            linear={current.id === 'fence'}
+            kinds={hasPicker ? kinds : null}
+          />
         )}
         {session.ui.sketch.value && <SketchBar session={session} />}
         {current?.variants &&
           current.variant &&
           !['building', 'decor', 'fence', 'zone'].includes(current.id) && (
             <div class="variants panel">
+              {kinds}
               {current.variants.map((v) => (
                 <button
                   key={v.id}
@@ -102,8 +116,8 @@ export function Toolbar({ session }: { session: Session }) {
               {current.hint && <span class="muted hint">{current.hint}</span>}
             </div>
           )}
-        {current?.id === 'field' && <FieldHint session={session} />}
-        {openGroup && <KindShelf session={session} slot={openGroup} active={active} />}
+        {current?.id === 'field' && <FieldHint session={session} kinds={kinds} />}
+        {!inRow && kinds}
         <div class="toolbar-row panel">
           <div class="lenses" role="group" aria-label="Lens" title="Tab switches lens">
             {lenses.map((l) => (
@@ -248,15 +262,18 @@ function KindShelf({
   session,
   slot,
   active,
+  inline = false,
 }: {
   session: Session;
   slot: Extract<BarSlot, { kind: 'group' }>;
   active: string;
+  /** In the tool's own picker or row rather than on a shelf of its own. */
+  inline?: boolean;
 }) {
   const manager = session.tools!;
   return (
     <div
-      class="kinds panel"
+      class={`kinds ${inline ? 'inline' : 'panel'}`}
       role="group"
       aria-label={slot.group.label}
       data-testid={`kinds-${slot.group.id}`}
@@ -523,7 +540,18 @@ function BuildingPicker({ session, tool }: { session: Session; tool: Tool }) {
 }
 
 /** Decor and fence pickers: Pattern Book pieces show locked, with the hint that unlocks them. */
-function DecorPicker({ session, tool, linear }: { session: Session; tool: Tool; linear: boolean }) {
+function DecorPicker({
+  session,
+  tool,
+  linear,
+  kinds,
+}: {
+  session: Session;
+  tool: Tool;
+  linear: boolean;
+  /** P3B: the group's kinds (Pieces, Fences, Dress up) lead the picker's head row. */
+  kinds?: JSX.Element | null | undefined;
+}) {
   const m = session.mirror;
   const free = m.settings.value.mode !== 'standard';
   const all = decorChoices(m, 'hearth', linear);
@@ -535,8 +563,15 @@ function DecorPicker({ session, tool, linear }: { session: Session; tool: Tool; 
   const choices = showing ? all.filter((c) => choiceGroup(c) === showing) : all;
   return (
     <div class="picker panel decor-picker" data-testid={linear ? 'fence-picker' : 'decor-picker'}>
+      {kinds && groups.length <= 1 && (
+        <div class="picker-groups">
+          {kinds}
+          {tool.hint && <span class="muted hint">{tool.hint}</span>}
+        </div>
+      )}
       {groups.length > 1 && (
         <div class="picker-groups" role="tablist">
+          {kinds}
           {groups.map((g) => (
             <button
               key={g}
@@ -587,17 +622,18 @@ function DecorPicker({ session, tool, linear }: { session: Session; tool: Tool; 
           );
         })}
       </div>
-      {groups.length <= 1 && tool.hint && <span class="muted hint picker-hint">{tool.hint}</span>}
+      {groups.length <= 1 && !kinds && tool.hint && <span class="muted hint picker-hint">{tool.hint}</span>}
     </div>
   );
 }
 
 /** Which grain farm the field tool is sowing for. */
-function FieldHint({ session }: { session: Session }) {
+function FieldHint({ session, kinds }: { session: Session; kinds?: JSX.Element | null | undefined }) {
   const id = session.ui.farm.value;
   const b = id !== null ? session.mirror.buildings.get(id) : undefined;
   return (
     <div class="variants panel field-hint" data-testid="field-hint">
+      {kinds}
       <Glyph id="field" />
       <span>
         {b
