@@ -1,0 +1,131 @@
+/* The Town Book: the Pattern Book's spread (hamlet.css), with a picture slot and a calling tally. */
+
+.town-book .tb-contents {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.town-book .tb-leaning {
+  margin: 0 0 2px;
+  font-family: 'Alegreya', Georgia, serif;
+  font-size: 0.78rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+
+.town-book ul.tb-tally {
+  list-style: none;
+  margin: 10px 0 0;
+  padding: 8px 0 0;
+  border-top: 1px solid rgba(90, 66, 49, 0.3);
+  display: grid;
+  gap: 2px;
+  font-family: 'Alegreya', Georgia, serif;
+  font-style: italic;
+  font-size: 0.9rem;
+  color: var(--ink-soft);
+}
+
+.town-book ul.tb-tally b {
+  font-style: normal;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.town-book .tb-picture {
+  box-sizing: border-box;
+  width: 240px;
+  height: 180px;
+  max-width: 100%;
+  margin: 0 auto 10px;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border: 2px solid var(--ink-line);
+  border-radius: 4px;
+  background: rgba(255, 250, 235, 0.5);
+  box-shadow:
+    0 0 0 3px rgba(251, 244, 227, 0.9),
+    0 0 0 4px rgba(90, 66, 49, 0.35);
+}
+
+.town-book .tb-picture img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.town-book .tb-frame-name {
+  padding: 0 16px;
+  text-align: center;
+  font-family: 'Alegreya', Georgia, serif;
+  font-style: italic;
+  font-size: 1.25rem;
+  line-height: 1.2;
+  color: var(--ink-soft);
+}
+
+.town-book .tb-empty {
+  margin: 0;
+  font-style: italic;
+  color: var(--ink-soft);
+}
+
+.town-book ul.book-hints li {
+  padding-left: 18px;
+}
+
+.town-book .tb-hint-leaning {
+  display: inline-block;
+  margin-left: 4px;
+  font-style: normal;
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+
+.town-book ul.tb-callings {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 10px;
+  text-align: left;
+}
+
+.town-book .tb-callings > li {
+  padding: 8px 10px;
+  border: 1.5px solid var(--ink-line);
+  border-radius: 6px;
+  background: rgba(255, 250, 235, 0.45);
+}
+
+.town-book .tb-callings b {
+  font-family: 'Alegreya', Georgia, serif;
+  font-size: 1.05rem;
+}
+
+.town-book .tb-blurb {
+  margin: 2px 0 4px;
+  font-style: italic;
+  font-size: 0.9rem;
+}
+
+.town-book ul.tb-effects {
+  margin: 0;
+  padding-left: 16px;
+  font-size: 0.85rem;
+}
+
+.town-book .tb-seat {
+  color: color-mix(in srgb, var(--seat, var(--ink)) 72%, var(--ink));
+  border-bottom: 2px solid var(--seat, currentColor);
+}
+
+.town-book .together {
+  margin-left: 0;
+}
