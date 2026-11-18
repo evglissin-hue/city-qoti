@@ -104,6 +104,10 @@ export { economyDial, type EconomyDial } from './systems/economy/dial';
 export { KEEPER_DAYS_L3, LEVEL_DOWN_DAYS, LEVEL_UP_DAYS, SHOP_CUSTOMERS } from './systems/levels';
 export { fieldCost, placementCost, roadCost } from './systems/economy/api';
 export { nearestOutletWithFood, outletFood, takeFromOutlet } from './systems/economy/outlets';
+// P3A (meals): the pantry and the shelf, read by the bench's meal trace.
+export { foodIndexes, pantryFood } from './systems/residents/needs';
+export { outletFree } from './systems/market/api';
+export { onTheSlate } from './systems/market/baskets';
 export { doorTile } from './systems/movement/api';
 export {
   CROP_RIPE,

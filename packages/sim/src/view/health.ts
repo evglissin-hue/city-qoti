@@ -38,6 +38,8 @@ import { rankAtLeast } from '../state/village';
 import { familyIndex, jobsOf, methodOf } from '../state/zones';
 import { isStandard } from '../state/hamlet';
 import { carrierCovers, passClosed } from '../systems/carrier/api';
+import { nearestOutletWithFood } from '../systems/economy/outlets';
+import { doorTile } from '../systems/movement/api';
 import { dayIndex, hourOf, isBuildTime } from '../systems/economy/time';
 import { currentPlan, isFestivalDay } from '../systems/festivals/api';
 import { gapAchievable } from '../systems/gaps/achievable';
@@ -137,7 +139,14 @@ export type HealthKind =
    * workplaces that do not feed the town (the job ranks failed), or three sites wait and the Homes
    * bar names no lever (nothing on screen says what would bring hands).
    */
-  | 'hands-spiral';
+  | 'hands-spiral'
+  /**
+   * P3A (meals): households that went without breakfast on two mornings running (a member's food
+   * need under MEAL_MISSED_BELOW at the 08:00 look) while an outlet with food stood in reach of their
+   * door (`nearestOutletWithFood`): the town has the food and the household does not eat it (a purse
+   * too thin for the shelf's prices, a trip that never comes). Names the households and the shelf.
+   */
+  | 'meals-missed';
 
 export interface HealthIssue {
   kind: HealthKind;
@@ -157,6 +166,9 @@ export const DAY_TICKS = TICKS_PER_DAY;
 /** P3A: the hour the hands-spiral check looks (folk at work), and the days running it must hold. */
 export const SPIRAL_HOUR = 12;
 export const SPIRAL_DAYS = 2;
+/** P3A (meals): the hour the meals-missed check looks (an hour after breakfast), and the food need that counts as a missed meal. */
+export const MEALS_HOUR = 8;
+export const MEAL_MISSED_BELOW = 60;
 /** P3A: sites waiting at once that count as piling up. */
 export const SPIRAL_SITES = 3;
 /** P3A: a food workplace in this state can use no hands (the jobs pass's own STUCK bits). */
@@ -219,6 +231,50 @@ function feedsTown(b: Building): boolean {
   if (!m) return false;
   if (m.kind === 'farm') return true;
   return m.outputs.some(([g]) => content.goodById.get(g)?.family === 'food');
+}
+
+/** P3A (meals): ids of the households with a member whose food need says they missed this morning's meal. */
+export function hungryHouseholds(state: WorldState): Set<number> {
+  const out = new Set<number>();
+  for (const h of state.households) {
+    if (!h.homeId) continue;
+    for (const id of h.members) {
+      const r = findById(state.residents, id);
+      if (r && (r.needs[0] ?? 100) < MEAL_MISSED_BELOW) {
+        out.add(h.id);
+        break;
+      }
+    }
+  }
+  return out;
+}
+
+/**
+ * P3A (meals): the households that missed breakfast this morning and the one before (`before`: the
+ * hungry households of yesterday's look) with food on a shelf in reach of their door, in words, or
+ * null. The words name the count and the shelf most of them could have shopped at.
+ */
+export function mealsMissed(state: WorldState, before: ReadonlySet<number>): string | null {
+  const now = hungryHouseholds(state);
+  const shelves = new Map<number, number>();
+  let n = 0;
+  for (const h of state.households) {
+    if (!now.has(h.id) || !before.has(h.id)) continue;
+    const home = findById(state.buildings, h.homeId);
+    if (!home) continue;
+    const shelf = nearestOutletWithFood(state, doorTile(home));
+    if (!shelf) continue;
+    n++;
+    shelves.set(shelf, (shelves.get(shelf) ?? 0) + 1);
+  }
+  if (n === 0) return null;
+  let top = 0;
+  for (const [id, c] of shelves) if (c > (shelves.get(top) ?? 0)) top = id;
+  const shelf = findById(state.buildings, top);
+  return (
+    `${n} household${n === 1 ? '' : 's'} went without breakfast two mornings running with food on ` +
+    `${shelf ? `${shelf.def} #${shelf.id}` : 'a shelf'} in reach`
+  );
 }
 
 /**
@@ -330,6 +386,9 @@ export class HealthWatch {
   /** P3A: the day of the last hands-spiral look, and how many looks running it held. */
   private spiralDay = -1;
   private spiralRun = 0;
+  /** P3A (meals): the day of the last morning look, and the households that were hungry at it. */
+  private mealDay = -1;
+  private mealHungry: ReadonlySet<number> = new Set();
 
   check(state: WorldState): HealthIssue[] {
     if (!isStandard(state)) return [];
@@ -367,6 +426,7 @@ export class HealthWatch {
     this.checkCutOff(state, out);
     this.checkGrowthWaits(state, out);
     this.checkHandsSpiral(state, out);
+    this.checkMealsMissed(state, out);
 
     // Builders idle beside work they could do: a reachable site with work allowed and room in its
     // crew that has not moved for a while, though builders stood free at every look.
@@ -610,6 +670,17 @@ export class HealthWatch {
     const why = handsSpiral(state);
     this.spiralRun = why ? this.spiralRun + 1 : 0;
     if (why && this.spiralRun >= SPIRAL_DAYS) out.push({ kind: 'hands-spiral', id: 0, text: why });
+  }
+
+  /** meals-missed: at the day's first look from MEALS_HOUR, the households hungry now and at the last look too, with food in reach. */
+  private checkMealsMissed(state: WorldState, out: HealthIssue[]): void {
+    const day = Math.floor(state.tick / TICKS_PER_DAY);
+    if (hourOf(state.tick) < MEALS_HOUR || day === this.mealDay) return;
+    const consecutive = day === this.mealDay + 1;
+    this.mealDay = day;
+    const why = consecutive ? mealsMissed(state, this.mealHungry) : null;
+    this.mealHungry = hungryHouseholds(state);
+    if (why) out.push({ kind: 'meals-missed', id: 0, text: why });
   }
 
   /** growth-waits-unseen: homes held back by quiet evenings a whole day, with no reason shown and no gap open (looked at hourly). */

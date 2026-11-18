@@ -141,6 +141,23 @@ export function computeAlerts(
       });
     }
   }
+  // P3A (meals): households in work that cannot pay for tomorrow's breakfast while the stalls hold food.
+  const unpaid = unpaidBreakfasts(m);
+  if (unpaid > 0) {
+    const text = fits(
+      `${unpaid === 1 ? 'A working household' : `${unpaid} working households`} can't pay for tomorrow's breakfast. Wages buy too little.`,
+      `${unpaid} ${unpaid === 1 ? 'household' : 'households'} can't pay for breakfast. Wages are too low.`,
+    );
+    out.push({
+      key: 'meals-unpaid',
+      lens: 'ledger',
+      tone: 'warn',
+      icon: 'good:bread',
+      text,
+      title: `${unpaid === 1 ? 'A household with a wage coming in' : `${unpaid} households with a wage coming in`} cannot pay for tomorrow's breakfast at the cheapest price on the shelf, so the stall puts it on the slate and the household goes short on its basket. Wages buy too little: the Wage level on the Purse page is the lever.`,
+      action: { kind: 'panel', panel: 'purse' },
+    });
+  }
   const stockOf = new Map(stocks.map((l) => [l.good, l.stock]));
   const short = new Map<string, string[]>();
   const hands = readHands(m);
@@ -527,6 +544,31 @@ function makerOf(m: Mirror, good: string): string | null {
 export const FEED_FIT = 88;
 const fits = (...options: string[]): string =>
   options.find((t) => t.length <= FEED_FIT) ?? options[options.length - 1]!;
+
+/**
+ * P3A (meals): households with somebody in work whose pantry does not cover tomorrow's breakfast and
+ * whose purse cannot pay the cheapest food on a shelf for what is missing, with food in the stalls (at
+ * Village rank, when purses matter). The stall puts it on the slate; the line says why it had to.
+ */
+export function unpaidBreakfasts(m: Mirror): number {
+  const rank = m.charter.value?.rank ?? m.town.value?.rank;
+  if (rank === undefined || rank === 'hamlet') return 0;
+  const stocked = new Map((m.stocks.value?.lines ?? []).map((l) => [l.good, l.stock]));
+  let cheapest = Infinity;
+  for (const l of m.market.value?.lines ?? [])
+    if (content.goodById.get(l.good)?.family === 'food' && (stocked.get(l.good) ?? 0) > 0)
+      cheapest = Math.min(cheapest, l.cap > 0 && l.price > l.cap ? l.cap : l.price);
+  if (cheapest === Infinity) return 0;
+  const working = new Set<number>();
+  for (const r of m.residents.values()) if (r.jobId) working.add(r.householdId);
+  let n = 0;
+  for (const h of m.households.values()) {
+    if (!working.has(h.id) || h.savings === undefined) continue;
+    const short = h.members.length - h.pantryFood;
+    if (short > 0 && h.savings < short * cheapest) n++;
+  }
+  return n;
+}
 
 /** Ledger: open sites that wait on goods the stores cannot cover, and what to do about it. */
 function sitesMaterialsAlert(m: Mirror, sites: ReturnType<typeof readSites>): Alert | null {

@@ -604,3 +604,55 @@ describe('P3A: food short with food jobs open names the lever', () => {
     expect(ledger(hungry(fishery(1), 40)).some((a) => a.key === 'food-hands')).toBe(false);
   });
 });
+
+// P3A (meals): a household in work that cannot pay for tomorrow's breakfast while the stalls hold
+// food is told to the Ledger, with the lever (the wage level), instead of going hungry unseen.
+describe('breakfast the wages cannot pay for', () => {
+  /** A Village with food in the stalls at 120 pennies, one household in work, one without. */
+  function village(savings: number, pantryFood = 0) {
+    const mock = world({ stock: { vegetables: 400 } });
+    const m = mock.session.mirror;
+    m.charter.value = { ...m.charter.value!, rank: 'village' };
+    m.market.value = {
+      lines: [
+        { good: 'vegetables', price: 120, base: 100, demand: 4, cover: 3, history: [], cap: 0, subsidy: 0 },
+      ],
+    };
+    m.residents.clear();
+    m.households.clear();
+    const res = (id: number, householdId: number, jobId: number) =>
+      m.residents.set(id, { id, householdId, jobId } as never);
+    res(1, 10, 7);
+    res(2, 10, 7);
+    res(3, 11, 0);
+    m.households.set(10, { id: 10, members: [1, 2], pantryFood, savings } as never);
+    m.households.set(11, { id: 11, members: [3], pantryFood: 0, savings: 0 } as never);
+    return mock;
+  }
+  const line = (mock: MockSession) => ledger(mock).find((a) => a.key === 'meals-unpaid');
+
+  it('names the working households whose purse is short of the cheapest food, and the lever', () => {
+    const l = line(village(100))!;
+    expect(l.text).toBe("A working household can't pay for tomorrow's breakfast. Wages buy too little.");
+    expect(l.text.length).toBeLessThanOrEqual(FEED_FIT);
+    expect(l.title).toContain('Wage level');
+    expect(l.action).toEqual({ kind: 'panel', panel: 'purse' });
+  });
+
+  it('is quiet when the purse can pay, the pantry is full, or the household has no work', () => {
+    expect(line(village(500))).toBeUndefined();
+    expect(line(village(0, 2))).toBeUndefined();
+  });
+
+  it('is quiet in a Hamlet, where food is free, and when no shelf holds food', () => {
+    const hamlet = village(0);
+    hamlet.session.mirror.charter.value = { ...hamlet.session.mirror.charter.value!, rank: 'hamlet' };
+    hamlet.session.mirror.town.value = { ...hamlet.session.mirror.town.value!, rank: 'hamlet' };
+    expect(line(hamlet)).toBeUndefined();
+    const bare = village(0);
+    bare.session.mirror.stocks.value = {
+      lines: bare.session.mirror.stocks.value!.lines.map((l) => ({ ...l, stock: 0 })),
+    };
+    expect(line(bare)).toBeUndefined();
+  });
+});
