@@ -50,7 +50,8 @@ export function plankStack(
       t.box(x - 0.025, 0, z0, x + 0.025, 0.04, z1, palette.timber);
     for (let i = 0; i < layers; i++) {
       const y = 0.04 + i * 0.07;
-      t.box(x0, y, z0, x1, y + 0.06, z1, vary(i % 2 ? 0xd9b98a : 0xc9a46e, rnd, 0.7));
+      // Two tans, both under the pale mark (P3C), so the stack reads as wood and never a stand-in.
+      t.box(x0, y, z0, x1, y + 0.06, z1, vary(i % 2 ? 0xbc9763 : 0xc9a46e, rnd, 0.7));
     }
   });
 }
