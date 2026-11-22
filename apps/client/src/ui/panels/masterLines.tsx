@@ -174,11 +174,13 @@ export function Callings({ callings }: { callings: { id: string; name: string }[
           const def = content.callingById.get(c.id);
           return (
             <li key={c.id} data-testid={`calling-${c.id}`}>
-              {def?.icon ? <Glyph id={def.icon} /> : <span />}
-              <p>
-                <b>{def?.name ?? c.name}</b>
-              </p>
-              {def?.blurb && <p class="muted small">{def.blurb}</p>}
+              {def?.icon && <Glyph id={def.icon} />}
+              <div>
+                <p>
+                  <b>{def?.name ?? c.name}</b>
+                </p>
+                {def?.blurb && <p class="muted small">{def.blurb}</p>}
+              </div>
             </li>
           );
         })}

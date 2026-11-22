@@ -56,6 +56,8 @@ export interface QotiHook {
   undo(): void;
   openPanel(id: string | null): void;
   setUi(name: string, value: unknown): void;
+  businesses(): { id: number; masterId?: number; apprentices?: number[]; graceDays?: number }[];
+  supplies(): { candles: number[]; lamplighters: { jobs: number; held: number[] } } | null;
   /** Which ground layer shows: an inspector's own picture or a Thread's route. */
   groundHighlight(): 'inspector' | 'thread' | null;
   /** A cider's door pairs recorded in the real sim; null when the valley lacks a piece of it. */

@@ -101,6 +101,7 @@ test('a cider followed from the orchard to the folk who drank it, its route on t
     window.__qoti.openPanel('balances');
   });
   await expect(page.getByTestId('good-card').getByTestId('thread')).toContainText('Cider: fruit from');
+  await page.getByTestId('good-card').scrollIntoViewIfNeeded();
   await shot(page, 'thread-good-ledger');
   expect(place).toBeTruthy();
 });
@@ -181,6 +182,7 @@ test('a place kept first and one let rest, each undone; the carrier buys for pla
     });
     const toggle = page.getByTestId('carrier-places-wares');
     await expect(toggle).toBeVisible();
+    await toggle.scrollIntoViewIfNeeded();
     await shot(page, `balances-places-${light}`);
   }
   await page.evaluate(() => window.__qoti.setHour(13));
@@ -193,4 +195,53 @@ test('a place kept first and one let rest, each undone; the carrier buys for pla
   await expect.poll(() => page.evaluate(() => window.__qoti.undoSize())).toBe(size + 1);
   await page.evaluate(() => window.__qoti.undo());
   await expect.poll(() => page.evaluate(() => window.__qoti.undoSize())).toBe(size);
+});
+
+test('masters, apprentices, the lamplighter, a candle and callings, in both lenses', async ({ page }) => {
+  test.setTimeout(300_000);
+  await open(page, MOCKS);
+  await page.waitForFunction(() => window.__qoti.businesses().some((b) => b.masterId));
+  const ids = await page.evaluate(() => {
+    const b = window.__qoti.businesses().find((x) => x.masterId)!;
+    const sup = window.__qoti.supplies();
+    return {
+      business: b.id,
+      master: b.masterId!,
+      apprentice: b.apprentices?.[0] ?? null,
+      hall: window.__qoti.buildingsOf('town-hall')[0]!,
+      home: sup?.candles[0] ?? null,
+    };
+  });
+  for (const [light, hour] of LIGHTS) {
+    await page.evaluate((h) => window.__qoti.setHour(h), hour);
+    for (const lens of LENSES) {
+      await page.getByTestId(`lens-${lens}`).click();
+      await page.evaluate((id) => window.__qoti.select({ kind: 'resident', id }), ids.master);
+      await expect(page.getByTestId('resident-master')).toBeVisible();
+      await shot(page, `resident-master-${lens}-${light}`);
+      await page.evaluate((id) => window.__qoti.select({ kind: 'building', id }), ids.business);
+      await expect(page.getByTestId('building-master')).toBeVisible();
+      await shot(page, `building-master-${lens}-${light}`);
+    }
+    await page.evaluate((id) => window.__qoti.select({ kind: 'building', id }), ids.hall);
+    await expect(page.getByTestId('building-lamplighter')).toBeVisible();
+    await shot(page, `town-hall-${light}`);
+    if (ids.home !== null) {
+      await page.evaluate((id) => window.__qoti.select({ kind: 'building', id }), ids.home);
+      await expect(page.getByTestId('building-candle')).toBeVisible();
+      await shot(page, `home-candle-${light}`);
+    }
+    if (ids.apprentice !== null) {
+      await page.evaluate((id) => window.__qoti.select({ kind: 'resident', id }), ids.apprentice);
+      await expect(page.getByTestId('resident-apprentice')).toBeVisible();
+    }
+    await page.evaluate(() => window.__qoti.select(null));
+    await page.evaluate(() => window.__qoti.openPanel('charter'));
+    await expect(page.getByTestId('charter-callings')).toBeVisible();
+    await shot(page, `charter-callings-${light}`);
+    await page.getByTestId('lens-ledger').click();
+    await page.evaluate(() => window.__qoti.openPanel('businesses'));
+    await shot(page, `businesses-${light}`);
+    await page.evaluate(() => window.__qoti.openPanel(null));
+  }
 });

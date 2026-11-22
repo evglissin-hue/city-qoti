@@ -23,16 +23,28 @@
 }
 
 .charter-callings li {
-  display: grid;
-  grid-template-columns: 18px 1fr;
-  gap: 2px 8px;
-  align-items: start;
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
 }
 
 .charter-callings li svg {
+  flex: none;
   width: 18px;
   height: 18px;
-  grid-row: span 2;
+  margin-top: 2px;
+}
+
+.charter-callings li > div {
+  min-width: 0;
+}
+
+.charter-callings .label {
+  margin: 0;
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  opacity: 0.7;
 }
 
 .charter-callings li p {

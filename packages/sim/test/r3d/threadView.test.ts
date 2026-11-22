@@ -232,7 +232,8 @@ describe('thin threads say so', () => {
     const home = [...homesOf(s)][0]!;
     const chandler = s.buildings.find((b) => b.trade === 'chandler');
     const hall = s.buildings.find((b) => b.def === 'town-hall')!;
-    expect(threadView(s, { kind: 'building', id: home })!.text).toBe('Nothing has come home here lately.');
+    // A home's purchase may be a single unit, halved away by morning: with nothing counted it says nothing.
+    expect(threadView(s, { kind: 'building', id: home })!.text).toBe('');
     if (chandler) {
       expect(threadView(s, { kind: 'building', id: chandler.id })!.text).toBe(
         'Nothing dipped here has gone anywhere lately.',
@@ -242,10 +243,12 @@ describe('thin threads say so', () => {
     expect(threadView(s, { kind: 'good', good: 'candles' })!.text).toBe(
       'Nobody has bought any candles lately.',
     );
-    const place = placeIndex(s).places[0];
-    if (place)
-      expect(threadView(s, { kind: 'place', id: place.id })!.text).toBe(
-        'Nobody has had a Treat here lately.',
+    // A place says nobody had a Treat only when its own evenings agree (a single sale halves away).
+    for (const p of placeIndex(s).places) {
+      const sold = (placeState(s, p.id)?.sold ?? []).some((n) => n > 0);
+      expect(threadView(s, { kind: 'place', id: p.id })!.text).toBe(
+        sold ? '' : 'Nobody has had a Treat here lately.',
       );
+    }
   });
 });

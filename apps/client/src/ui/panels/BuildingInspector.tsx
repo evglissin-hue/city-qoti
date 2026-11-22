@@ -169,6 +169,8 @@ export function BuildingInspector({ session, id }: { session: Session; id: numbe
               )}
             </>
           )}
+          {/* R3D: the master and apprentices beside the workers they name; the Town Hall's lamplighter; a home's candle. */}
+          {detail && <BuildingMasterLines session={session} detail={detail} />}
           {detail?.method && (
             <>
               <Heading>{detail.method.name}</Heading>
@@ -228,8 +230,6 @@ export function BuildingInspector({ session, id }: { session: Session; id: numbe
           )}
         </>
       )}
-
-      {detail && <BuildingMasterLines session={session} detail={detail} />}
 
       {detail && <VillageDetail session={session} detail={detail} />}
 

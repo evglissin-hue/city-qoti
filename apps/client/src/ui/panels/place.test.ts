@@ -362,8 +362,8 @@ describe('the place card, supplies (R3D)', () => {
     });
     view = await mount(h(InspectorPanel, { session }));
     const text = view.get('place-supplies').textContent!;
-    expect(text).toContain('3 lanterns burn a candle a night for every 4.');
-    expect(text).toContain('The brazier wants firewood on an evening someone comes.');
+    expect(text).toContain('Its 3 lanterns take a candle a night.');
+    expect(text).toContain('Its brazier takes firewood on an evening someone comes.');
     expect(text).toContain('Resting tonight: 2 lanterns unlit, the brazier cold.');
   });
 
@@ -385,10 +385,10 @@ describe('the place card, supplies (R3D)', () => {
       supply: content.decorById.get(def)!.supply!,
     }));
     const words = suppliesWords(p, defs as never);
-    expect(words).toContain('1 lantern burns a candle a night for every 4.');
-    expect(words).toContain('The 2 bunting want 4 cloth a season.');
-    expect(words).toContain('The cafe table is served from an outlet within 3 tiles.');
-    expect(words).toContain('The fountain wants a well within 8 tiles.');
+    expect(words).toContain('Its lantern takes a candle a night.');
+    expect(words).toContain('Its 2 bunting take 4 cloth a season.');
+    expect(words).toContain('Its cafe table is served by a stall or shop within 3 tiles.');
+    expect(words).toContain('Its fountain needs a well within 8 tiles.');
     expect(restingWords(session, { resting: [] })).toBe('Everything is supplied tonight.');
   });
 });

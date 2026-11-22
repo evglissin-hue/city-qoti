@@ -391,6 +391,10 @@ export function installDebugHook(getSession: () => Session | null): void {
     eveningAt: (x: number, z: number) => s()?.mirror.eveningStreet(x, z) ?? false,
     /** R2D: the places and gaps the Mirror holds (the &evening mocks until R2A and R2C land). */
     places: () => [...(s()?.mirror.places.values() ?? [])],
+    /** R3D: the businesses as the Ledger sees them (master fields included), for e2e. */
+    businesses: () => [...(s()?.mirror.businesses.values() ?? [])],
+    /** R3D: tonight's supplies view (lamps, candle-lit homes, the lamplighters), for e2e. */
+    supplies: () => s()?.mirror.supplies.value ?? null,
     /** R3D: which ground layer shows now (an inspector's own picture or a Thread's route), or null. */
     groundHighlight: () => {
       const session = s();

@@ -154,7 +154,7 @@ function groupName(names: string[], n: number, fallback: string): string {
   return n === 1 ? one : pluralWord(one);
 }
 
-/** What the place's supplied pieces draw, in words: "3 lanterns burn a candle a night for every 4." */
+/** What the place's supplied pieces take, in words: "Its 3 lamp posts take a candle a night." */
 export function suppliesWords(p: Pick<PlaceView, 'supplies'>, supplied: Supplied): string {
   const out: string[] = [];
   for (const s of p.supplies ?? []) {
@@ -167,31 +167,25 @@ export function suppliesWords(p: Pick<PlaceView, 'supplies'>, supplied: Supplied
       s.kind === 'nightly' ? 'lantern' : 'piece',
     );
     const one = n === 1;
-    const subject = one ? `The ${name}` : `The ${n} ${name}`;
+    const subject = one ? `Its ${name}` : `Its ${n} ${name}`;
+    const takes = one ? 'takes' : 'take';
     switch (s.kind) {
-      case 'nightly': {
-        const per = sample?.per ?? 1;
-        const qty = sample?.qty ?? 1;
-        out.push(
-          `${n} ${name} ${one ? 'burns' : 'burn'} ${unitWords(s.good ?? '', qty)} a night for every ${per}.`,
-        );
+      case 'nightly':
+        out.push(`${subject} ${takes} ${unitWords(s.good ?? '', Math.max(1, s.wants))} a night.`);
         break;
-      }
       case 'evening':
-        out.push(
-          `${subject} ${one ? 'wants' : 'want'} ${goodName(s.good ?? '').toLowerCase()} on an evening someone comes.`,
-        );
+        out.push(`${subject} ${takes} ${goodName(s.good ?? '').toLowerCase()} on an evening someone comes.`);
         break;
       case 'season':
-        out.push(`${subject} ${one ? 'wants' : 'want'} ${unitWords(s.good ?? '', s.wants)} a season.`);
+        out.push(`${subject} ${takes} ${unitWords(s.good ?? '', s.wants)} a season.`);
         break;
       case 'outlet':
         out.push(
-          `${subject} ${one ? 'is' : 'are'} served from an outlet within ${sample?.radius ?? 3} tiles.`,
+          `${subject} ${one ? 'is' : 'are'} served by a stall or shop within ${sample?.radius ?? 3} tiles.`,
         );
         break;
       case 'well':
-        out.push(`${subject} ${one ? 'wants' : 'want'} a well within ${sample?.radius ?? 8} tiles.`);
+        out.push(`${subject} ${one ? 'needs' : 'need'} a well within ${sample?.radius ?? 8} tiles.`);
         break;
     }
   }

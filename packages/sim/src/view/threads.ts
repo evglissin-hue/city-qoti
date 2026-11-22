@@ -571,21 +571,24 @@ function buildingThread(ctx: Ctx, subject: ThreadSubject & { kind: 'building' })
       g = -1;
   } else if (asked === undefined) g = most(goodsAt(ctx, b.id, isHome ? 'in' : 'both'));
   if (g < 0) {
-    if (isHome) return thin(subject, 'Nothing has come home here lately.');
+    // Thin lines only where the counts can say so honestly. Makers and stores move goods by the
+    // porter's load, which outlasts a night's halving; a home's purchase or a stall's sale may be a
+    // single unit, halved away by morning, so a home or a stall with no pairs says nothing rather
+    // than "nothing came" (the player's chair).
     const def = content.buildingById.get(b.def);
     if (made.length) {
       const first = made[0]!;
       const verb = (goodOf(first)?.raw ? GROWN : MADE).get(goodOf(first)?.id ?? '') ?? 'made';
       return thin(subject, `Nothing ${verb} here has gone anywhere lately.`);
     }
-    if (def?.tags?.includes('outlet')) return thin(subject, 'Nobody has bought anything here lately.');
-    if (isStorage(def)) return thin(subject, 'Nothing has passed through here lately.');
-    // A building goods never pass through (the Town Hall, a well): no thread to follow.
+    if (isStorehouse(def) || def?.id === 'granary')
+      return thin(subject, 'Nothing has passed through here lately.');
+    // A home, a stall or a shop with nothing counted, or a building goods never pass through (the
+    // Town Hall, a well): no thread to follow.
     return thin(subject, '');
   }
   const chain = chainThrough(ctx, b.id, g);
-  if (chain.steps.length === 1 && !chain.end)
-    return thin(subject, isHome ? 'Nothing has come home here lately.' : NOBODY_YET(g));
+  if (chain.steps.length === 1 && !chain.end) return thin(subject, isHome ? '' : NOBODY_YET(g));
   const voice: Voice = { ...NO_VOICE, here: isHome ? null : b.id, home: isHome ? b.id : null };
   return view(ctx, subject, leadFor(g, isHome ? 'home' : 'this'), chain, voice);
 }
@@ -632,7 +635,11 @@ function placeThread(ctx: Ctx, subject: ThreadSubject & { kind: 'place' }): Thre
     if (!best || p.units > best.units) from.set(p.good, p);
   }
   const g = most(units);
-  if (g < 0) return thin(subject, 'Nobody has had a Treat here lately.');
+  if (g < 0) {
+    // A single Treat halves away by morning: say "nobody" only when the place's own evenings agree.
+    const sold = placeState(ctx.state, id)?.sold ?? [];
+    return thin(subject, sold.some((n) => n > 0) ? '' : 'Nobody has had a Treat here lately.');
+  }
   const outlet = from.get(g)!;
   const seen = new Set<string>([`${outlet.from}:${g}`]);
   const up = before(ctx, outlet.from, g, seen, 0);
