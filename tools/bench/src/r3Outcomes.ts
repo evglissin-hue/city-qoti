@@ -61,6 +61,17 @@ export const DAYS_IN_YEAR = DAYS_PER_SEASON * SEASONS_PER_YEAR;
 /** R2X's floor for the worst fair evening, and R3's floor for the mean (the owner's ruling). */
 export const EVENING_WORST_FLOOR = 0.48;
 export const EVENING_MEAN_FLOOR = 0.76;
+/**
+ * Each bench seed's own worst and mean fair evening (whole percent) before R3, as measured at a9a51d3
+ * (R2X's numbers, R3.0 merged; `npm run r3report`): R3X keeps each seed's worst from falling. A seed
+ * not listed reads the floors above. The newcomer profile has no baseline before P3A.
+ */
+export const EVENING_BASELINE: ReadonlyMap<string, readonly [worst: number, mean: number]> = new Map([
+  ['birch', [58, 78]],
+  ['hazel', [48, 76]],
+  ['oak', [56, 76]],
+  ['willow', [54, 77]],
+]);
 /** Town Book pages a run should find. */
 export const PAGES_WANTED = 6;
 
@@ -357,18 +368,27 @@ export function rowTavernTreats(seed: string, r3: R3Record, gaps: readonly SeenG
 /** Outcome 8: the evening goal, the worst fair evening's share and the mean. */
 export function rowEveningGoal(seed: string, evenings: readonly EveningSample[]): OutcomeRow {
   const m = measureOut(evenings);
+  const [name, profile] = seed.split('/');
+  const [worstBar, meanBar] = EVENING_BASELINE.get(name ?? '') ?? [
+    Math.round(EVENING_WORST_FLOOR * 100),
+    Math.round(EVENING_MEAN_FLOOR * 100),
+  ];
   const base = {
     outcome: 'Evening goal: worst and mean fair evening',
     seed,
-    target: `worst >= ${pct(EVENING_WORST_FLOOR)}, mean >= ${pct(EVENING_MEAN_FLOOR)}`,
+    target: profile
+      ? 'reported (no baseline for this profile)'
+      : `worst >= ${worstBar}%, mean >= ${meanBar}% (before R3)`,
     needs: 'R3A (supplies lift the draw)',
   };
   if (m.evenings === 0)
     return { ...base, measured: 'no fair evening with a place in reach', verdict: 'MISS' };
+  // Compared in whole percent, as the baseline was read.
+  const ok = Math.round(m.worst * 100) >= worstBar && Math.round(m.mean * 100) >= meanBar;
   return {
     ...base,
     measured: `worst ${pct(m.worst)} (day ${m.worstDay}), mean ${pct(m.mean)}, ${m.evenings} evenings`,
-    verdict: m.worst >= EVENING_WORST_FLOOR && m.mean >= EVENING_MEAN_FLOOR ? 'PASS' : 'MISS',
+    verdict: profile ? 'N/A' : ok ? 'PASS' : 'MISS',
   };
 }
 

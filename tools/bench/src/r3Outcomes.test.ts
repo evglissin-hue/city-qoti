@@ -181,6 +181,15 @@ describe('row 8: the evening goal', () => {
     expect(rowEveningGoal('s', [fair(1, 7), fair(2, 7)]).verdict).toBe('MISS');
     expect(rowEveningGoal('s', []).verdict).toBe('MISS');
   });
+
+  it("holds each bench seed to its own evening before R3, and only reports the newcomer's", () => {
+    // willow's baseline is 54% worst: a 50% worst evening falls below it, though above the 48% floor.
+    const fair = (d: number, out: number) => eve({ day: d, out });
+    const evenings = [fair(1, 5), fair(2, 9), fair(3, 10), fair(4, 10)];
+    expect(rowEveningGoal('s', evenings).verdict).toBe('PASS');
+    expect(rowEveningGoal('willow', evenings).verdict).toBe('MISS');
+    expect(rowEveningGoal('willow/newcomer', evenings).verdict).toBe('N/A');
+  });
 });
 
 describe('helpers', () => {
