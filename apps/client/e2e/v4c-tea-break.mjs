@@ -77,6 +77,14 @@ async function shots(scenes) {
   const browser = await launch();
   for (const scene of scenes) {
     const page = await open(browser, process.env.QOTI_QUALITY ?? 'medium');
+    // QOTI_WARM (ms): let the sim run first, so a fresh hamlet has walked somewhere (90 s of quiet
+    // is about four and a half game hours at 1x; a skip has none of them).
+    const warm = Number(process.env.QOTI_WARM ?? 0);
+    if (warm > 0) {
+      await page.evaluate(() => window.__qoti.submit({ t: 'time.setSpeed', speed: 3 }));
+      await page.waitForTimeout(warm);
+      await page.evaluate(() => window.__qoti.submit({ t: 'time.setSpeed', speed: 1 }));
+    }
     if (scene === 'evening') await runTo(page, 18);
     else await page.evaluate(() => window.__qoti.setHour(11));
     const before = await view(page);
