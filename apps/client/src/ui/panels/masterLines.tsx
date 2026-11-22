@@ -155,8 +155,11 @@ export function BuildingMasterLines({ session, detail }: { session: Session; det
   );
 }
 
-function openJobs(jobs: number, open: number): ComponentChildren {
+/** The Town Hall's open lamplighter jobs in words. */
+export function openJobs(jobs: number, open: number): ComponentChildren {
   if (jobs <= 1) return "The lamplighter's job is open.";
+  if (open >= jobs)
+    return jobs === 2 ? 'Both lamplighter jobs are open.' : `All ${jobs} lamplighter jobs are open.`;
   return `${open === 1 ? 'One' : open} of ${jobs} lamplighter jobs ${open === 1 ? 'is' : 'are'} open.`;
 }
 

@@ -9,7 +9,7 @@ import { mockVillageSession } from '../mocks/session';
 import { mount, settle, type Mounted } from '../test/dom';
 import { masterLine, BusinessesPanel } from './Businesses';
 import { CharterPanel } from './Charter';
-import { craftLine, craftWord } from './masterLines';
+import { craftLine, craftWord, openJobs } from './masterLines';
 
 let view: Mounted | null = null;
 afterEach(() => {
@@ -128,5 +128,15 @@ describe('craftLine', () => {
   });
   it('has words for every trade and master building, never a raw id', () => {
     for (const m of content.masters) expect(craftWord(m.of)).not.toBe(m.of);
+  });
+});
+
+describe('openJobs', () => {
+  it('says how many lamplighter jobs stand open, in words that read', () => {
+    expect(openJobs(1, 1)).toBe("The lamplighter's job is open.");
+    expect(openJobs(2, 2)).toBe('Both lamplighter jobs are open.');
+    expect(openJobs(3, 3)).toBe('All 3 lamplighter jobs are open.');
+    expect(openJobs(2, 1)).toBe('One of 2 lamplighter jobs is open.');
+    expect(openJobs(4, 2)).toBe('2 of 4 lamplighter jobs are open.');
   });
 });
