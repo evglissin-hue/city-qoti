@@ -3,6 +3,8 @@
 // a building is the one moved, and a new master often is the newest.
 import { describe, expect, it } from 'vitest';
 import { ResidentFlags } from '../../src/constants';
+import type { Building, Resident } from '../../src/contracts';
+import { masterKeeps } from '../../src/systems/masters/api';
 import { rebalanceJobs } from '../../src/systems/residents/jobs';
 import { place } from '../village/helpers';
 import { masterWorld, res } from './masterFixture';
@@ -30,5 +32,25 @@ describe('the job rebalance and masters', () => {
 
   it('leaves a master baker at the bakery', () => {
     expect(moved(true)).toBe(false);
+  });
+});
+
+describe('who the rebalance keeps', () => {
+  const master = (mastery: string) => ({ flags: ResidentFlags.master, mastery }) as unknown as Resident;
+  const at = (def: string, trade?: string, level = 2) => ({ def, trade, level }) as unknown as Building;
+
+  it('keeps a master where the good, the room or level 3 needs them', () => {
+    expect(masterKeeps(master('baker'), at('workshop', 'baker'))).toBe(true);
+    expect(masterKeeps(master('windmill'), at('windmill'))).toBe(true);
+    expect(masterKeeps(master('shop'), at('corner-shop', 'shop', 3))).toBe(true);
+  });
+
+  it('lets a master go where their trade brings neither, and never keeps them at another trade', () => {
+    expect(masterKeeps(master('shop'), at('corner-shop', 'shop', 2))).toBe(false);
+    expect(masterKeeps(master('foresters-lodge'), at('foresters-lodge'))).toBe(false);
+    expect(masterKeeps(master('baker'), at('workshop', 'carpenter'))).toBe(false);
+    expect(
+      masterKeeps({ flags: 0, mastery: undefined } as unknown as Resident, at('workshop', 'baker')),
+    ).toBe(false);
   });
 });

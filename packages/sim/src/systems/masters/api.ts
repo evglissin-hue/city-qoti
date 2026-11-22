@@ -111,6 +111,19 @@ export function masterGoodsInTown(state: WorldState, stock?: readonly number[]):
   return out;
 }
 
+/**
+ * The job rebalance leaves this hand where they are (R3B): a master of the building's trade whose
+ * place on the crew counts now, in a business at level 3 (it slides after the grace without one), or
+ * where the master's good or the miller's room needs them. A master whose trade brings neither (a
+ * forester, a quarryman) may go where the town needs hands, like anyone.
+ */
+export function masterKeeps(r: Resident, b: Building): boolean {
+  if (!residentIsMaster(r) || r.mastery !== masteryKey(b)) return false;
+  const def = masterDefOf(r.mastery);
+  if (!def) return false;
+  return !!def.method || !!def.room || (!!b.trade && (b.level ?? 1) >= 3);
+}
+
 /** The resident's master title ("master baker"), or undefined. */
 export function masterTitle(r: Resident): string | undefined {
   if (!residentIsMaster(r) || r.mastery === undefined) return undefined;
