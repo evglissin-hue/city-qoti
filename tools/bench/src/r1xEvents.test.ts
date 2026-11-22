@@ -136,6 +136,16 @@ function withoutR2Fields(events: Ev[]): Ev[] {
       void storeys;
       return { ...e, b };
     }
+    // R3A: every Balances line says what places drew and whether the carrier buys for them.
+    const bal = (e as Ev & { b?: { lines?: Record<string, unknown>[] } }).b;
+    if (e.e === 'balances.updated' && bal?.lines) {
+      const lines = bal.lines.map((line) => {
+        const { drawnByPlaces, forPlaces, ...rest } = line;
+        void [drawnByPlaces, forPlaces];
+        return rest;
+      });
+      return { ...e, b: { ...bal, lines } };
+    }
     return ev;
   });
 }
