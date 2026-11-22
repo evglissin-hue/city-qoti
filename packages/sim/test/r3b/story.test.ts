@@ -29,7 +29,7 @@ describe('story masters', () => {
     expect(barnaby.mastery).toBe('quarry');
     expect(mastersMade(w.state)).toBe(1);
     expect(
-      w.state.chronicle.some((c) => c.kind === 'master-made' && c.text.includes('master quarryman')),
+      w.state.chronicle.some((c) => c.kind === 'master-arrived' && c.text.includes('master quarryman')),
     ).toBe(true);
     expect(events.some((e) => e.e === 'life.event' && e.kind === 'master')).toBe(true);
     expect(events.some((e) => e.e === 'notify' && e.kind === 'letter')).toBe(false);

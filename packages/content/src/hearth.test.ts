@@ -56,6 +56,7 @@ describe('the Chronicle', () => {
     'household-arrived': ['family', 'place'],
     'household-left': ['family', 'place'],
     'master-lost': ['name', 'title', 'why'],
+    'master-arrived': ['name', 'title', 'place'],
     'master-made': ['name', 'title', 'place'],
     'pattern-discovered': ['pattern', 'place', 'credit', 'flavor'],
     'season-summary': ['season', 'year', 'people', 'coins', 'pages', 'wishes', 'books'],

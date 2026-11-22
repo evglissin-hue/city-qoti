@@ -277,6 +277,17 @@ export const masterMade: ChronicleTemplate = {
   notable: true,
 };
 
+/** A story character who arrives a master already (StoryArc.mastery): no years of habit to count. */
+export const masterArrived: ChronicleTemplate = {
+  kind: 'master-arrived',
+  text: [
+    '{name} came to {town} a {title} already, and has been looking at {place} as if it owes them a good day.',
+    'It turns out {name} is a {title}, and has been one for longer than {town} has had a name. Word has been sent to {place}.',
+    'Among the luggage {name} carried in: the tools of a {title}, well worn, and opinions to match.',
+  ],
+  notable: true,
+};
+
 export const masterLost: ChronicleTemplate = {
   kind: 'master-lost',
   text: [

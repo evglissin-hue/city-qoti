@@ -378,6 +378,7 @@ export const chronicle: readonly ChronicleTemplate[] = [
   Gu.guideDone,
   C.householdArrived,
   C.householdLeft,
+  Ma.masterArrived,
   Ma.masterLost,
   Ma.masterMade,
   C.patternDiscovered,

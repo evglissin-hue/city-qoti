@@ -80,8 +80,10 @@ export function makeMaster(state: WorldState, ctx: TickCtx, r: Resident, key: st
     ['title', def?.title ?? 'master'],
     ['place', placeWords(key)],
   ];
-  const count = content.chronicleByKind.get('master-made')?.text.length ?? 1;
-  chronicle(state, ctx, 'master-made', {
+  // A story character arrives a master already: their line says so, not years of habit.
+  const kind = story ? 'master-arrived' : 'master-made';
+  const count = content.chronicleByKind.get(kind)?.text.length ?? 1;
+  chronicle(state, ctx, kind, {
     text: params,
     refs: at ? [r.id, at.id] : [r.id],
     variant: rotation(state, n, count),
