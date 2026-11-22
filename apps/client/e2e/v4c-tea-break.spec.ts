@@ -246,7 +246,11 @@ test('two seats: one seat on a tea break sends nothing and moves nobody else', a
     .poll(() => a.evaluate(() => !!(window as unknown as { __qotiTeaBreak?: unknown }).__qotiTeaBreak))
     .toBe(true);
   await closeCards(a);
+  // B has sat idle all through A's reload, which on a slow machine is over 90 s, so B may be on a
+  // tea break of its own by now. A key ends it and starts B's count over, leaving B a full 90 s.
+  await b.keyboard.press('Shift');
   await a.waitForTimeout(1500);
+  expect(await state(b)).toBeNull();
 
   const bView = await view(b);
   const aSubmit = await a.evaluate(() => window.__qoti.lastSubmitAt());
