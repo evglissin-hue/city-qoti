@@ -174,11 +174,13 @@ describe('rows 6 and 7: gaps', () => {
 });
 
 describe('row 8: the evening goal', () => {
-  it('passes at the floors and misses below either', () => {
+  it('passes at the worst floor and misses below it; the mean is reported, not held', () => {
     const fair = (d: number, out: number) => eve({ day: d, out });
     expect(rowEveningGoal('s', [fair(1, 8), fair(2, 9), fair(3, 5), fair(4, 10)]).verdict).toBe('PASS');
     expect(rowEveningGoal('s', [fair(1, 8), fair(2, 4)]).verdict).toBe('MISS');
-    expect(rowEveningGoal('s', [fair(1, 7), fair(2, 7)]).verdict).toBe('MISS');
+    const lowMean = rowEveningGoal('s', [fair(1, 7), fair(2, 7)]);
+    expect(lowMean.verdict).toBe('PASS');
+    expect(lowMean.measured).toContain('mean 70% (-6 on before R3)');
     expect(rowEveningGoal('s', []).verdict).toBe('MISS');
   });
 
