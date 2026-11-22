@@ -96,7 +96,7 @@ export const panels: readonly PanelDef[] = [
   { id: 'rankup', side: 'overlay', component: RankUpPanel },
   { id: 'season-card', side: 'overlay', component: SeasonCardPanel },
   { id: 'story-letter', side: 'overlay', component: StoryLetterPanel },
-  { id: 'storybook', side: 'book', component: StorybookPanel, lens: 'shared', label: 'Storybook', icon: 'chronicle', modes: STANDARD, order: 90, wide: true, hidden: true },
+  { id: 'storybook', side: 'book', component: StorybookPanel, lens: 'shared', label: 'Storybook', icon: 'chronicle', modes: STANDARD, order: 90, wide: true },
   { id: 'together', side: 'overlay', component: TogetherNote },
   { id: 'trial', side: 'book', component: TrialPanel, lens: 'shared', label: 'Trial', icon: 'trial', modes: STANDARD, hidden: true },
   { id: 'watch', side: 'book', component: WatchPanel, lens: 'ledger', label: 'Watch', icon: 'watch', modes: STANDARD, order: 40 },

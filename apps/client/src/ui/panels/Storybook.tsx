@@ -5,8 +5,9 @@
 // root on <body> that only `@media print` shows, and only while this panel is open (storybook.css),
 // so printing anything else is unchanged. Made from the Mirror alone; nothing here is sim state.
 import type { EntityId } from '@qoti/sim';
+import { effect } from '@preact/signals';
 import { createPortal } from 'preact/compat';
-import { useEffect, useMemo, useState } from 'preact/hooks';
+import { useEffect, useLayoutEffect, useMemo, useState } from 'preact/hooks';
 import type { Session } from '../../app/session';
 import { fetchSnapshot } from '../../app/snapshots';
 import { endpaperStill } from '../../render/endpaper';
@@ -34,6 +35,9 @@ import { Empty, Frame } from './parts';
 import '../storybook.css';
 
 export type Paper = 'a4' | 'letter';
+
+/** The panel's id in the registry. */
+const STORYBOOK = 'storybook';
 
 const PAPER_KEY = 'qoti.storybook.paper';
 
@@ -298,7 +302,7 @@ function ChapterBook({
           <Glyph id="chronicle" /> {ready ? 'Print the storybook' : 'Setting the type...'}
         </button>
       </div>
-      <PrintRoot>
+      <PrintRoot session={session}>
         <PrintedBook
           town={settings.townName}
           valley={settings.valleyName}
@@ -326,18 +330,31 @@ function keepersOf(session: Session): string {
 }
 
 /** The book's root on <body>, marked so the print stylesheet shows it and nothing else. */
-function PrintRoot({ children }: { children: preact.ComponentChildren }) {
+function PrintRoot({ session, children }: { session: Session; children: preact.ComponentChildren }) {
   const [root, setRoot] = useState<HTMLElement | null>(null);
-  useEffect(() => {
+  useLayoutEffect(() => {
     const el = document.createElement('div');
     el.className = 'storybook-print';
     el.setAttribute('data-testid', 'storybook-print');
     document.body.appendChild(el);
     document.body.classList.add('qoti-storybook');
     setRoot(el);
-    return () => {
+    let released = false;
+    const release = () => {
+      if (released) return;
+      released = true;
       document.body.classList.remove('qoti-storybook');
       el.remove();
+    };
+    // Every way out lets go at once, not when the unmount's cleanup gets round to it: the close
+    // button, Escape and another book all move the open panel, and a print after that must print
+    // the valley, not the book. The cleanup below is the backstop for an unmount from anywhere else.
+    const stop = effect(() => {
+      if (session.ui.panel.value !== STORYBOOK) release();
+    });
+    return () => {
+      stop();
+      release();
     };
   }, []);
   return root ? createPortal(<>{children}</>, root) : null;

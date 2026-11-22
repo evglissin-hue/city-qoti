@@ -73,6 +73,8 @@ test('the storybook opens with its parts, prints at A4 and Letter, and closes cl
 
   await page.getByTestId('storybook-close').click();
   await expect(page.getByTestId('storybook')).toHaveCount(0);
-  expect(await page.evaluate(() => document.body.classList.contains('qoti-storybook'))).toBe(false);
+  await expect
+    .poll(() => page.evaluate(() => document.body.classList.contains('qoti-storybook')))
+    .toBe(false);
   await expect(page.locator('.storybook-print')).toHaveCount(0);
 });

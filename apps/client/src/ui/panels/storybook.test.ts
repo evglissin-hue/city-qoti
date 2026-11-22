@@ -318,6 +318,8 @@ describe('the picture seam', () => {
     setPictureSource(fake);
     const entries = [entry(100, 'wedding', 'A wedding.'), entry(200, 'festival', 'A festival.')];
     const { session } = sessionWith('passed', entries, 0);
+    // The game mounts the book because the open panel names it.
+    session.ui.panel.value = 'storybook';
     view = await mount(h(StorybookPanel, { session }));
     expect(document.body.classList.contains('qoti-storybook')).toBe(true);
     for (let i = 0; i < 5; i++) {
@@ -341,6 +343,23 @@ describe('the picture seam', () => {
 });
 
 describe('the panel', () => {
+  it('lets go of the print at once on every way out, before any unmount', async () => {
+    const entries = [entry(100, 'wedding', 'A wedding.')];
+    for (const next of [null, 'chronicle']) {
+      const { session } = sessionWith('passed', entries, 0);
+      session.ui.panel.value = 'storybook';
+      view = await mount(h(StorybookPanel, { session }));
+      expect(document.body.classList.contains('qoti-storybook')).toBe(true);
+      // The close button and Escape set the panel to null; another book names itself.
+      session.ui.panel.value = next;
+      expect(document.body.classList.contains('qoti-storybook'), String(next)).toBe(false);
+      expect(document.querySelector('div[data-testid="storybook-print"]'), String(next)).toBeNull();
+      view.unmount();
+      view = null;
+      await settle();
+    }
+  });
+
   it('waits for a closed chapter, with no print root', async () => {
     const { session } = sessionWith('running');
     view = await mount(h(StorybookPanel, { session }));
