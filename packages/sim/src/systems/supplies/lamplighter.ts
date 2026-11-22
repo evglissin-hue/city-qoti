@@ -47,7 +47,11 @@ export interface Walker {
  * settling and `litHour`: the walk is there to be watched, and the rules never wait for it. Only the
  * lamps he reaches are planned, so a City's settling stays cheap.
  */
-export function walkLamps(lit: readonly LitLantern[], walkers: readonly Walker[], night: number): LampState[] {
+export function walkLamps(
+  lit: readonly LitLantern[],
+  walkers: readonly Walker[],
+  night: number,
+): LampState[] {
   const S = content.supplies;
   const litTick = tickAt(night, S.litHour);
   const out: LampState[] = lit.map((l) => ({ id: l.id, reach: litTick }));
