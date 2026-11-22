@@ -87,6 +87,10 @@ async function shots(scenes) {
     }
     if (scene === 'evening') await runTo(page, 18);
     else await page.evaluate(() => window.__qoti.setHour(11));
+    // A warm-up of over 90 s has no input either, so a real tea break may be under way: a key ends
+    // it (and puts the view back) before the view is recorded.
+    await page.keyboard.press('Shift');
+    await page.waitForTimeout(300);
     const before = await view(page);
     const pos = await camPos(page);
     await closeCards(page);
