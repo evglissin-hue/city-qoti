@@ -218,11 +218,13 @@ vec3 lookWeather(vec3 c, vec2 uv) {
   // Heat and drought: greens go straw, the light a shade warmer.
   float green = clamp((c.g - max(c.r, c.b)) * 6.0, 0.0, 1.0);
   c = mix(c, c * vec3(1.06, 0.99, 0.84), dry * (0.35 + 0.4 * green));
-  // Fog: thicker toward the top of the screen (farther away), in soft drifting wisps.
+  // Fog: soft drifting wisps toward the top of the screen (farther away). P3C: the fog itself is the
+  // haze's, by distance (lighting.ts hazeFor); this was a flat wash from 22 to 67 percent of the
+  // screen at every zoom, so the nearest camera lost its contrast. Now only a breath of wisps.
   if (fog > 0.001) {
     vec2 p = vec2(uv.x * 3.2 + uLookTime * 0.012, uv.y * 4.0 - uLookTime * 0.004);
     float wisp = lookWNoise(p) * 0.6 + lookWNoise(p * 2.3 + 7.0) * 0.4;
-    float k = fog * clamp(0.22 + 0.45 * uv.y + (wisp - 0.5) * 0.3, 0.0, 0.75);
+    float k = fog * clamp(0.16 * smoothstep(0.35, 1.0, uv.y) + (wisp - 0.5) * 0.14 * uv.y, 0.0, 0.2);
     c = mix(c, lookSrgb(vec4(uLookFogColor, 1.0)).rgb, k);
   }
   return c;
