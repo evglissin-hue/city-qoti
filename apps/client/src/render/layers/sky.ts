@@ -1,7 +1,7 @@
 import { BackSide, Mesh, PerspectiveCamera, ShaderMaterial, SphereGeometry } from 'three';
 import type { Mirror } from '../../state/mirror';
 import { createWorldEnv, NOISE_GLSL, type WorldEnv } from '../env';
-import { HAZE_LIFT, HAZE_SPAN, hazeTermsAt } from '../lighting';
+import { HAZE_LIFT, HAZE_SPAN, hazeTermsAt, MOON, moonTermsAt } from '../lighting';
 import type { LayerContext, RenderLayer } from './types';
 
 /**
@@ -124,6 +124,9 @@ export function skyLayer(): RenderLayer {
         env.haze.terms.value.set(HAZE_LIFT, 0, HAZE_SPAN, 0);
         env.haze.adds.value.set(t.river, t.chimney, 0, 0);
         env.haze.town.value.set(hearths.x, hearths.z, hearths.radius, 0);
+        // P3C: the moon's muting follows the light step's night (lighting.ts, MOON).
+        const moon = moonTermsAt(env.night.value);
+        MOON.value.set(moon.mute, moon.knee, moon.hold, 0);
       };
       ctx.scene.add(dome);
     },
