@@ -10,6 +10,7 @@ import { content, type MasterDef, type ProductionMethod } from '@qoti/content';
 import type { Building, BuildingRuntime, EntityId, Resident, TickCtx, WorldState } from '../../contracts';
 import { findById } from '../../state/entities';
 import { residentIsMaster } from '../../state/masters';
+import { countSold } from '../levels/counters';
 import { masterDefOf, masteryKey } from '../masters/api';
 import { outputCap } from '../logistics/stores';
 import { productivity } from '../logistics/tasks';
@@ -76,6 +77,9 @@ export function masterWork(
     const fromInput = Math.min(rt.input[g]!, qty);
     rt.input[g]! -= fromInput;
     rt.output[g]! -= qty - fromInput;
+    // The trade's own good, used here, is custom for its level as much as a porter's pickup: an
+    // orchard whose master boils jam from its fruit must not read as unsold (steady custom, levels).
+    countSold(b, qty - fromInput);
     consume(state, g, qty);
   }
   for (const [id, qty] of m.method.outputs) {

@@ -121,6 +121,9 @@ describe('a gatherer master', () => {
     expect(rt.output[gi('jam')]).toBeGreaterThan(0);
     expect(rt.output[gi('fruit')]! + 2 * (rt.output[gi('jam')]! / 2)).toBeLessThanOrEqual(6);
     expect(b.counters!.shortToday).toBe(false);
+    // The fruit boiled is custom for the orchard's level, as a porter's pickup would be: its own good
+    // used by its master never reads as unsold (steady custom).
+    expect(b.counters!.soldToday).toBe(6 - rt.output[gi('fruit')]!);
   });
 
   it('waits, quietly, when there is no fruit to boil', () => {
