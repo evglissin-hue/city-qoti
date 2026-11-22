@@ -229,7 +229,13 @@ export class SampleSun {
    * Swaps in the sample's shadow and places it for `dir`, its filter `radius` texels wide and its
    * map `mapSize` across (the cached one's by default); false (nothing changed) if it cannot.
    */
-  begin(light: DirectionalLight, cache: ShadowCache, dir: Vector3, radius?: number, mapSize?: number): boolean {
+  begin(
+    light: DirectionalLight,
+    cache: ShadowCache,
+    dir: Vector3,
+    radius?: number,
+    mapSize?: number,
+  ): boolean {
     if (this.plain) return false;
     const plain = light.shadow;
     const size = mapSize ?? plain.mapSize.x;

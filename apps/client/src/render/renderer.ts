@@ -3,11 +3,13 @@ import { calendar, MAP_SIZE, TILE_FP, type SeatId, type WeatherKind } from '@qot
 import {
   Color,
   DirectionalLight,
+  DoubleSide,
   FloatType,
   Fog,
   HemisphereLight,
   MathUtils,
   Mesh,
+  MeshLambertMaterial,
   PCFShadowMap,
   PerspectiveCamera,
   Quaternion,
@@ -18,8 +20,6 @@ import {
   Vector3,
   WebGLRenderer,
   WebGLRenderTarget,
-  DoubleSide,
-  MeshLambertMaterial,
   type Material,
 } from 'three';
 import { CameraController, FOV, setFreeCamera } from '../input/camera';
@@ -687,10 +687,10 @@ export class Renderer implements RenderApi {
   /**
    * V4: one sample of the static layers into `target` for the still-frame cache's `refine`. V4A:
    * the pixel moves by a sub-pixel offset of the projection and the eye about the focus (the lens,
-   * refine.ts `sampleProjection`); the sun moves inside its disc, or one sample in SKY_EVERY lights
-   * the scene from a part of the sky instead, each with a shadow map of its own (shadows.ts
-   * `SampleSun`), so the cached map moving layers receive stays as it was. Everything is put back
-   * after. `camera` is the main one but for V4X's developed captures (`capture`'s `samples`).
+   * refine.ts `sampleProjection`), and the sun moves inside its disc with a shadow map of its own
+   * (shadows.ts `SampleSun`), so the cached map moving layers receive stays as it was. Everything is
+   * put back after. Sky samples are `drawSky`'s. `camera` is the main one but for V4X's developed
+   * captures (`capture`'s `samples`; no lens there until V4X asks for one).
    */
   private drawSample(jitter: RefineJitter, target: WebGLRenderTarget, camera = this.camera): void {
     if (jitter.index <= 0) {
@@ -715,7 +715,15 @@ export class Renderer implements RenderApi {
           tanHalfFov: Math.tan(MathUtils.degToRad(camera.fov / 2)),
         })
       : 0;
-    const { eye, shift } = sampleProjection(jitter, target.width, target.height, aperture, focus, pm[0]!, pm[5]!);
+    const { eye, shift } = sampleProjection(
+      jitter,
+      target.width,
+      target.height,
+      aperture,
+      focus,
+      pm[0]!,
+      pm[5]!,
+    );
     pm[8] = e8 + shift[0];
     pm[9] = e9 + shift[1];
     camera.projectionMatrixInverse.copy(camera.projectionMatrix).invert();
@@ -1332,6 +1340,8 @@ export class Renderer implements RenderApi {
     this.gpuTimer.dispose();
     this.lean.dispose();
     this.still.dispose();
+    this.sampleSun.dispose();
+    this.skyMaterial.dispose();
     this.three.dispose();
     this.three.domElement.remove();
     this.scene.background = new Color(0);

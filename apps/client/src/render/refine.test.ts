@@ -195,7 +195,14 @@ describe('V4A: the governor', () => {
     for (const q of ['medium', 'high', 'ultra'] as const)
       expect(
         refineGoal(
-          roomy({ quality: q, photo: true, movingFrameMs: 40, resolutionStep: 3, sampleGpuMs: 30, gpuMs: 30 }),
+          roomy({
+            quality: q,
+            photo: true,
+            movingFrameMs: 40,
+            resolutionStep: 3,
+            sampleGpuMs: 30,
+            gpuMs: 30,
+          }),
         ),
       ).toBe(PHOTO_SAMPLES);
   });
@@ -275,7 +282,15 @@ describe("V4A: a sample's camera", () => {
     expect(pix.shift[0]).toBeCloseTo((2 * 0.25 * PIXEL_SPREAD) / w, 12);
     expect(pix.shift[1]).toBeCloseTo((2 * -0.5 * PIXEL_SPREAD) / h, 12);
     // The lens alone: the eye moves, the focus plane stays put, nearer things move.
-    const lens = sampleProjection({ ...jitter, pixel: [0, 0], lens: [0.6, -0.8] }, w, h, 2, focus, pm[0]!, pm[5]!);
+    const lens = sampleProjection(
+      { ...jitter, pixel: [0, 0], lens: [0.6, -0.8] },
+      w,
+      h,
+      2,
+      focus,
+      pm[0]!,
+      pm[5]!,
+    );
     expect(lens.eye[0]).toBeCloseTo(1.2, 12);
     expect(lens.eye[1]).toBeCloseTo(-1.6, 12);
     const moved = cam.clone();

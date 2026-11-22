@@ -174,3 +174,39 @@ describe('V4A: the developing still frame', () => {
     c.dispose();
   });
 });
+
+describe('V4A: sky samples', () => {
+  const renderer = {} as WebGLRenderer;
+
+  it('draws one sample in four as what the sky sees, into sums of their own, and starts them over on a restart', () => {
+    const c = new StillCache(new Scene(), new PerspectiveCamera());
+    c.enabled = true;
+    const f = fakeFrame();
+    const drawn: number[] = [];
+    const skies: number[] = [];
+    const ctx: RefineContext = {
+      renderer,
+      frame: f.frame,
+      draw: (j: RefineJitter) => drawn.push(j.index),
+      drawSky: (j: RefineJitter) => skies.push(j.index),
+    };
+    c.keep(renderer, f.frame, f.still, 'k1', 'first');
+    c.goal = 8;
+    for (let i = 0; i < 8; i++) c.refine(1, ctx);
+    expect(skies).toEqual([4, 8]);
+    expect(drawn).toEqual([1, 2, 3, 5, 6, 7]);
+    // The first sky sample writes the sums, the next adds to them; settling bakes the shade in.
+    expect(f.passes.filter((p) => p === 'StillSkyFirst')).toHaveLength(1);
+    expect(f.passes.filter((p) => p === 'StillSkyAdd')).toHaveLength(1);
+    expect(f.passes).toContain('StillShowSky');
+    // A content change weighs the sums down (fresh sky samples count for more there).
+    c.keep(renderer, f.frame, f.still, 'k2', 'content');
+    expect(f.passes).toContain('StillSkyDecay');
+    // A new view starts the sums over.
+    c.keep(renderer, f.frame, f.still, 'k3', 'view');
+    c.goal = 4;
+    for (let i = 0; i < 4; i++) c.refine(1, ctx);
+    expect(f.passes.filter((p) => p === 'StillSkyFirst')).toHaveLength(2);
+    c.dispose();
+  });
+});
