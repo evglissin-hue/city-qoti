@@ -31,27 +31,6 @@ function settleTick(night: number): number {
   return tickAt(night, content.supplies.settleHour, content.supplies.settleMinute);
 }
 
-/** A greedy nearest-next walk over `group` from tile `from` (ties by id), appended to `out`. */
-function walkOrder(group: LitLantern[], from: number, out: LitLantern[]): number {
-  const left = group.slice().sort((a, b) => a.id - b.id);
-  let at = from;
-  while (left.length > 0) {
-    let best = 0;
-    let bestD = tileDist(at, left[0]!.tile);
-    for (let i = 1; i < left.length; i++) {
-      const d = tileDist(at, left[i]!.tile);
-      if (d < bestD) {
-        bestD = d;
-        best = i;
-      }
-    }
-    const [next] = left.splice(best, 1);
-    out.push(next!);
-    at = next!.tile;
-  }
-  return at;
-}
-
 /** A lamplighter at the settling: who, and the tile he sets out from (where he stands at 17:30). */
 export interface Walker {
   id: EntityId;
@@ -59,80 +38,67 @@ export interface Walker {
 }
 
 /**
- * Tonight's lamps (sorted by id) with the tick each is reached. The lit lanterns are shared among the
- * `walkers` (the lamplighters, by id) in contiguous runs of the town's walking order from `start` (the
- * storehouse the candles came from: the kept lanterns first, then the rest, each walked nearest-next);
- * each walks his own run from where he stands, the kept ones first, nearest-next, at
- * `SUPPLIES.walkTicks` a tile and `lightTicks` at each lamp (and as long to take up his pole). A lamp he reaches before `litHour` comes
- * on then (lamps on one tile share the tick); the rest of his run comes on at `litHour` sharp with the
- * town, as every lamp does with nobody in the job (and then no `by`). So every reach lies between the
- * settling and `litHour`: the walk is there to be watched, and the rules never wait for it.
+ * Tonight's lamps (sorted by id) with the tick each comes on. Each lamplighter (in id order) sets out
+ * from where he stands and goes to the nearest lamp nobody has taken yet (the kept ones first while
+ * he can reach one; ties by id), at `SUPPLIES.walkTicks` a tile, a moment (`lightTicks`) to take up
+ * his pole and as long at each lamp, until the next would come after `litHour`. A lamp he reaches
+ * comes on then and carries his `by` (lamps on one tile share the tick); every other lamp comes on at
+ * `litHour` sharp with the town, as all do with nobody in the job. So every reach lies between the
+ * settling and `litHour`: the walk is there to be watched, and the rules never wait for it. Only the
+ * lamps he reaches are planned, so a City's settling stays cheap.
  */
-export function walkLamps(
-  lit: readonly LitLantern[],
-  start: number,
-  walkers: readonly Walker[],
-  night: number,
-): LampState[] {
+export function walkLamps(lit: readonly LitLantern[], walkers: readonly Walker[], night: number): LampState[] {
   const S = content.supplies;
-  const lampOut: LampState[] = [];
   const litTick = tickAt(night, S.litHour);
-  if (walkers.length === 0) {
-    for (const l of lit) lampOut.push({ id: l.id, reach: litTick });
-    return lampOut.sort((a, b) => a.id - b.id);
-  }
-  // The town's walking order, shared out in contiguous runs (the first runs one longer).
-  const order: LitLantern[] = [];
-  const at = walkOrder(
-    lit.filter((l) => l.rank >= Rank.keep),
-    start,
-    order,
-  );
-  walkOrder(
-    lit.filter((l) => l.rank < Rank.keep),
-    at,
-    order,
-  );
-  const settle = settleTick(night);
-  const pace = S.walkTicks ?? 5;
-  const k = walkers.length;
-  const base = Math.floor(order.length / k);
-  const extra = order.length % k;
-  let from = 0;
-  for (let h = 0; h < k; h++) {
-    const n = base + (h < extra ? 1 : 0);
-    const run = order.slice(from, from + n);
-    from += n;
-    const w = walkers[h]!;
-    // His own walk over his run, from where he stands: the kept ones first, nearest-next.
-    const route: LitLantern[] = [];
-    const then = walkOrder(
-      run.filter((l) => l.rank >= Rank.keep),
-      w.tile,
-      route,
-    );
-    walkOrder(
-      run.filter((l) => l.rank < Rank.keep),
-      then,
-      route,
-    );
-    // He takes up the candles and his pole first (and sets off at his next thought).
-    let cum = S.lightTicks;
-    let prev = w.tile;
-    let last = -1;
-    for (const l of route) {
-      const steps = tileDist(prev, l.tile);
-      // A second lamp on the same tile is lit in the same breath.
-      if (steps > 0 || last < 0) {
-        if (last >= 0) cum += S.lightTicks;
-        cum += steps * pace;
-        last = settle + cum;
+  const out: LampState[] = lit.map((l) => ({ id: l.id, reach: litTick }));
+  if (walkers.length > 0 && lit.length > 0) {
+    const settle = settleTick(night);
+    const pace = S.walkTicks ?? 5;
+    const taken = new Uint8Array(lit.length);
+    let keptLeft = 0;
+    for (const l of lit) if (l.rank >= Rank.keep) keptLeft++;
+    // The nearest lamp not taken (only kept ones when `kept`), ties by id; -1 when none.
+    const nearest = (at: number, kept: boolean): number => {
+      let best = -1;
+      let bestD = Infinity;
+      for (let i = 0; i < lit.length; i++) {
+        const l = lit[i]!;
+        if (taken[i] || (kept && l.rank < Rank.keep)) continue;
+        const d = tileDist(at, l.tile);
+        if (d < bestD || (d === bestD && l.id < lit[best]!.id)) {
+          bestD = d;
+          best = i;
+        }
       }
-      lampOut.push({ id: l.id, reach: last < litTick ? last : litTick, by: w.id });
-      prev = l.tile;
+      return best;
+    };
+    for (const w of walkers) {
+      let at = w.tile;
+      // He takes up the candles and his pole first (and sets off at his next thought).
+      let cum = S.lightTicks;
+      let last = -1;
+      for (;;) {
+        // When the lamp lands: on the tile he stands at, with the last one; else after the steps there.
+        const when = (i: number): number => {
+          const steps = tileDist(at, lit[i]!.tile);
+          if (steps === 0 && last >= 0) return last;
+          return (last >= 0 ? cum + S.lightTicks : cum) + steps * pace;
+        };
+        let pick = keptLeft > 0 ? nearest(at, true) : -1;
+        if (pick >= 0 && settle + when(pick) >= litTick) pick = -1;
+        if (pick < 0) pick = nearest(at, false);
+        if (pick < 0 || settle + when(pick) >= litTick) break;
+        const t = when(pick);
+        if (t !== last) cum = t;
+        last = t;
+        taken[pick] = 1;
+        if (lit[pick]!.rank >= Rank.keep) keptLeft--;
+        out[pick] = { id: lit[pick]!.id, reach: settle + t, by: w.id };
+        at = lit[pick]!.tile;
+      }
     }
   }
-  return lampOut.sort((a, b) => a.id - b.id);
+  return out.sort((x, y) => x.id - y.id);
 }
 
 /** Lamplighter jobs the town has now: the ceiling of tonight's lamps over 40, at least one from Village rank once a lantern stands. */

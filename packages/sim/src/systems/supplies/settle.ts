@@ -197,7 +197,7 @@ export function settle(state: WorldState, ctx: TickCtx): void {
         tile: ix.tile[i]!,
         rank: ranks[i]!,
       }));
-      lamps = lampsFor(order, start, walkers(state), night);
+      lamps = lampsFor(order, walkers(state), night);
     }
 
     // Cloth: put up once a season, if the purse can pay for it.
@@ -319,13 +319,8 @@ function walkers(state: WorldState): Walker[] {
  * are; should it ever return anything else than the lit lanterns, every lamp comes on at the hour, so
  * the settling stands on its own.
  */
-function lampsFor(
-  order: readonly LitLantern[],
-  start: number,
-  held: readonly Walker[],
-  night: number,
-): LampState[] {
-  const walked = walkLamps(order, start, held, night);
+function lampsFor(order: readonly LitLantern[], held: readonly Walker[], night: number): LampState[] {
+  const walked = walkLamps(order, held, night);
   const ids = order.map((l) => l.id).sort((a, b) => a - b);
   const got = walked.map((l) => l.id).sort((a, b) => a - b);
   if (ids.length === got.length && ids.every((id, k) => id === got[k])) return walked.map((l) => ({ ...l }));

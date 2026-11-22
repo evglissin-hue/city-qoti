@@ -25,8 +25,8 @@ export interface LampState {
    */
   reach: number;
   /**
-   * R3A (additive): the lamplighter who walks to it tonight (a resident id); absent when nobody holds
-   * the job (it comes on at `litHour` with the rest) or in a Hamlet.
+   * R3A (additive): the lamplighter who walks to it tonight (a resident id); absent when nobody reaches
+   * it before `litHour` (it comes on then with the rest), nobody holds the job, or in a Hamlet.
    */
   by?: EntityId;
 }
