@@ -120,6 +120,7 @@ describe('the stand-in comments', () => {
       });
     }
     expect(files.length).toBeGreaterThan(100);
-    expect(n).toBeGreaterThan(20);
+    // R3A landed its markers; the other cycles' still stand (each cycle that lands lowers this).
+    expect(n).toBeGreaterThan(10);
   });
 });
