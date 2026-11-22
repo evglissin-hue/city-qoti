@@ -70,6 +70,21 @@ interface View {
   distance: number;
 }
 
+/**
+ * V4.0: a camera pose to put back exactly (tea-break mode keeps the player's view while it drifts,
+ * and any input restores it): the ground point looked at, yaw and pitch in radians, the distance.
+ */
+export type CameraView = View;
+
+/** V4.0: what tea-break mode's camera circles (V4C): a ground point, at a distance, once a while. */
+export interface CameraOrbit {
+  x: number;
+  z: number;
+  distance: number;
+  /** Radians a second; tea-break mode keeps it slow (V4C tunes it). */
+  speed: number;
+}
+
 function isTyping(e: KeyboardEvent): boolean {
   const el = e.target as HTMLElement | null;
   return !!el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable);
@@ -262,6 +277,36 @@ export class CameraController {
       Object.assign(this.view, this.goal);
       for (const f of FIELDS) this.vel[f].v = 0;
     }
+  }
+
+  /** V4.0: the view the camera is settling on (its goal), to put back after a tea break. */
+  saveView(): CameraView {
+    return { ...this.goal };
+  }
+
+  /**
+   * V4.0: puts a saved view back exactly: the goal and the shown view both, at once (any input during
+   * a tea break restores the view where it was; no glide back, so nothing lands a pixel off).
+   */
+  restoreView(v: CameraView): void {
+    Object.assign(this.goal, v);
+    this.snap();
+  }
+
+  /**
+   * V4.0: tea-break mode's slow circle about a point (V4C), or null to stop. A stub until V4C: it
+   * does nothing, so the camera moves only as it did.
+   */
+  orbit(around: CameraOrbit | null): void {
+    void around;
+  }
+
+  /**
+   * V4.0: tea-break mode's slow glide (V4C): `focus` and `orbit` ease with a long smoothing time
+   * while it is on. A stub until V4C: it does nothing.
+   */
+  setDrift(on: boolean): void {
+    void on;
   }
 
   /** Jumps straight to a view, skipping the animation (first frame, tests). */

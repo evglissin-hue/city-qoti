@@ -87,7 +87,8 @@ export const flowerCart: Kit = {
     s.rbox(-0.2, 0.2, -0.12, -0.18, 0.3, 0.12, palette.teal, 0.01);
     s.rbox(0.18, 0.2, -0.12, 0.2, 0.3, 0.12, palette.teal, 0.01);
     s.nearOnly(() => {
-      for (const z of [-0.14, 0.14]) wheel(s, 0, 0.14, z, 0.12, palette.darkWood);
+      // P3C: the wheels on the ground (their rims stood 2 cm up).
+      for (const z of [-0.14, 0.14]) wheel(s, 0, 0.125, z, 0.12, palette.darkWood);
       beam(s, [0.2, 0.2, -0.08], [0.46, 0.1, -0.06], 0.014, palette.wood);
       beam(s, [0.2, 0.2, 0.08], [0.46, 0.1, 0.06], 0.014, palette.wood);
       beam(s, [0.46, 0.1, -0.06], [0.46, 0.1, 0.06], 0.012, palette.wood);

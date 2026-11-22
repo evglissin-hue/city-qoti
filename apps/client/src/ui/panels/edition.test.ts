@@ -181,7 +181,12 @@ describe('the edition as a feed line', () => {
 describe('settings', () => {
   it('loads old stored values without the edition setting', () => {
     localStorage.setItem('qoti.settings.v1', JSON.stringify({ uiScale: 1.2, reducedMotion: true }));
-    expect(loadSettings()).toEqual({ uiScale: 1.2, reducedMotion: true, editionInFeed: false });
+    expect(loadSettings()).toEqual({
+      uiScale: 1.2,
+      reducedMotion: true,
+      editionInFeed: false,
+      teaBreak: true,
+    });
     localStorage.setItem('qoti.settings.v1', JSON.stringify({ editionInFeed: 'yes' }));
     expect(loadSettings().editionInFeed).toBe(false);
     localStorage.setItem('qoti.settings.v1', JSON.stringify({ editionInFeed: true }));

@@ -192,7 +192,11 @@ function patchNightGlow(
             // R3F: a lamp the lamplighter lit (vFlame < 0) burns from dusk, LAMP_DUSK_FLOOR at least.
             `totalEmissiveRadiance += (vFlame != 0.0 ? uFlame * abs(vFlame) * 2.4 : vec3(1.0, 0.7, 0.36) * qRoomTint * 1.7) * vGlow * (vFlame < 0.0 ? max(uNight, ${LAMP_DUSK_FLOOR.toFixed(3)} * smoothstep(0.0, 0.025, uNight)) : uNight);`
           : `totalEmissiveRadiance += ${GLOW} * vGlow * uNight;`,
-        glint ? 'totalEmissiveRadiance += qKitGlint(min(vGlow * uNight * 2.0, 1.0));' : '',
+        // P3C: the moon's glint a twentieth of the sun's (its full strength on a well's water
+        // bloomed into a cyan orb at night).
+        glint
+          ? 'totalEmissiveRadiance += qKitGlint(max(min(vGlow * uNight * 2.0, 1.0), uNight * 0.95));'
+          : '',
       ].join('\n'),
     );
 }
