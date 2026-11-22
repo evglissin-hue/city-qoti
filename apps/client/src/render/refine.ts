@@ -3,10 +3,11 @@
 // folding samples into its picture, one a frame: each jitters the pixel, the sun inside a small
 // disc and the lens, and one in SKY_EVERY lights the scene from the sky instead of the sun.
 //
-// V4.0 fixes the interface with stubs that change nothing on screen: the jitter sequence (pure, and
-// unused until V4A), the governor's inputs and `refineGoal`, which keeps today's still frame (0
-// samples) until V4A builds the refinement. V4A owns this file.
-import type { Quality } from './quality';
+// V4.0 fixed the interface (the jitter sequence, the governor's inputs); V4A builds the governor
+// (`refineGoal`), the meter of sample frames it reads (`SampleMeter`) and the pure math of a
+// sample's camera (`sampleProjection`). The accumulation is cache.ts's, the drawing the renderer's
+// `drawSample`. V4A owns this file.
+import { QUALITY_PRESETS, type Quality } from './quality';
 
 /** Photo mode saves the developed picture at this many samples (V4B; `capture`'s `samples`). */
 export const PHOTO_SAMPLES = 64;
@@ -102,16 +103,117 @@ export interface RefineGovernorInput {
   off: boolean;
 }
 
+/** V4A: moving frames further apart than this (ms, under about 55 fps) leave no room for samples. */
+export const SLOW_MOVING_MS = 18;
+/** V4A: a sample frame's GPU budget (22-quality.md, Rest-frame refinement: each within 12 ms). */
+export const SAMPLE_BUDGET_MS = 12;
+
 /**
- * How many samples this rest develops to: 0 keeps the plain still frame. V4.0's stub always says 0,
- * so nothing on screen changes. V4A: the preset's count, none when `off`, and none while moving
- * frames already run slow or a sample frame would not fit its 12 ms (22-quality.md, Rest-frame
- * refinement); Medium falls back to 0 on a laptop where the measured cost does not fit; PHOTO_SAMPLES
- * in photo mode on every preset with the still-frame cache.
+ * How many samples this rest develops to: 0 keeps the plain still frame. None on a preset without
+ * the still-frame cache (Low) or when `off` (`?debug&refine=0`); PHOTO_SAMPLES in photo mode on
+ * every other preset, whatever the frames said (a photo is taken at rest and may wait for it);
+ * else none while moving frames already run slow (`movingFrameMs` over SLOW_MOVING_MS, or dynamic
+ * resolution stepped down) or a sample frame would not fit its SAMPLE_BUDGET_MS (`sampleGpuMs`,
+ * measured on earlier rests; before any, the recent frames' `gpuMs`), and otherwise the preset's
+ * count. Medium's fallback is its preset count of 0 (`QualityPreset.refineSamples`), taken if the
+ * laptops' tables say its sample frames do not fit Kat's laptop; on any laptop the measured sample
+ * frames turn it off by themselves.
  */
 export function refineGoal(input: RefineGovernorInput): number {
-  void input;
-  return 0;
+  if (input.off || !QUALITY_PRESETS[input.quality].stillCache) return 0;
+  if (input.photo) return PHOTO_SAMPLES;
+  if (input.presetSamples <= 0 || input.resolutionStep > 0) return 0;
+  if (input.movingFrameMs !== null && input.movingFrameMs > SLOW_MOVING_MS) return 0;
+  const sample = input.sampleGpuMs ?? input.gpuMs;
+  if (sample !== null && sample > SAMPLE_BUDGET_MS) return 0;
+  return input.presetSamples;
+}
+
+/** V4A: results that arrive before this many sample frames have drawn may belong to earlier frames. */
+const METER_SKIP = 4;
+/** V4A: a measure older than this (ms) is forgotten, so a laptop that was busy gets another try. */
+export const METER_STALE_MS = 60_000;
+
+/**
+ * V4A: the GPU ms of sample frames, for the governor's `sampleGpuMs`. The frame timer (`GpuTimer`)
+ * reads each frame's result back a frame or three later, in order; a development's frames are all
+ * sample frames, so the results that arrive from its fourth sample frame on are theirs. A running
+ * mean across rests, for one preset at a time, forgotten after METER_STALE_MS.
+ */
+export class SampleMeter {
+  private value: number | null = null;
+  private at = -Infinity;
+  private seen = 0;
+  private frames = 0;
+  private quality: Quality | null = null;
+
+  /** A development starts: the timer has delivered `total` results so far. */
+  start(total: number): void {
+    this.seen = total;
+    this.frames = 0;
+  }
+
+  /**
+   * A sample frame drew at `now` on `quality`; `total` and `history` are the timer's (`GpuTimer`).
+   * A new preset starts the measure over (it meant another preset).
+   */
+  sample(total: number, history: readonly number[], now: number, quality: Quality): void {
+    if (quality !== this.quality) {
+      this.value = null;
+      this.at = -Infinity;
+      this.quality = quality;
+    }
+    this.frames++;
+    const fresh = Math.min(total - this.seen, history.length);
+    this.seen = total;
+    if (this.frames < METER_SKIP || fresh <= 0) return;
+    for (const ms of history.slice(history.length - fresh)) {
+      this.value = this.value === null ? ms : this.value + (ms - this.value) * 0.25;
+    }
+    this.at = now;
+  }
+
+  /** The estimate on `quality` at `now`, or null before any (or once it is stale). */
+  read(now: number, quality: Quality): number | null {
+    return quality !== this.quality || now - this.at > METER_STALE_MS ? null : this.value;
+  }
+}
+
+/**
+ * V4A: the sun's disc, its angular radius in radians: each sample moves the sun inside it, so
+ * shadows soften with distance from what casts them (a real sun is about a quarter of a degree;
+ * the miniature's is wider) *(tune)*.
+ */
+export const SUN_DISC = 1.6 * (Math.PI / 180);
+
+/**
+ * V4A: how a sample moves the camera: `eye` is the lens offset in the camera's own x and y
+ * (world units), `shift` what is added to the projection matrix's elements 8 and 9 (its off-axis
+ * terms), which moves the picture by `jitter.pixel` pixels and keeps the focus plane (`focus` world
+ * units along the view axis) where it was, so everything there stays sharp while nearer and farther
+ * things blur by their depth.
+ * `p00` and `p11` are the projection matrix's scales, `width` and `height` the target in pixels,
+ * `aperture` the lens's radius in world units (0 for none).
+ */
+export function sampleProjection(
+  jitter: RefineJitter,
+  width: number,
+  height: number,
+  aperture: number,
+  focus: number,
+  p00: number,
+  p11: number,
+): { eye: [number, number]; shift: [number, number] } {
+  const ex = jitter.lens[0] * aperture;
+  const ey = jitter.lens[1] * aperture;
+  const f = Math.max(1e-3, focus);
+  return {
+    eye: [ex, ey],
+    shift: [
+      (2 * jitter.pixel[0]) / Math.max(1, width) - (p00 * ex) / f,
+      (2 * jitter.pixel[1]) / Math.max(1, height) - (p11 * ey) / f,
+    ],
+  };
 }
 
 /** `?debug&refine=0` turns refinement off on this build, to compare before and after on one build. */
