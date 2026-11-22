@@ -36,7 +36,7 @@ function goodDay(climb: SpecializedClimbView, def: BuildingDef): string {
       return `${servedTrade(def)} kept in ${raw ? goodName(raw).toLowerCase() : 'supplies'}`;
     }
     case 'full':
-      return 'the store half full with every porter in';
+      return 'a half-full store with every porter in';
   }
 }
 
@@ -44,9 +44,10 @@ function goodDay(climb: SpecializedClimbView, def: BuildingDef): string {
 export function climbLine(climb: SpecializedClimbView, def: BuildingDef): string {
   const name = specializedName(def);
   if (climb.resting) {
-    return climb.good === 'carried'
+    const water = def.placement?.some((r) => r.kind === 'river' || r.kind === 'waterEdge');
+    return water
       ? 'Resting while the river is frozen; its days wait for the thaw.'
-      : 'Resting for now; its days wait for the thaw.';
+      : 'Resting out of season; its days wait for better weather.';
   }
   if (climb.days < 0) {
     const left = Math.max(1, climb.downDays + climb.days);

@@ -60,7 +60,7 @@ describe('climbLine', () => {
       climb({ good: 'full', next: ['a third porter', 'room for 1,680 goods'] }),
       def('granary'),
     );
-    expect(gran).toContain('the store half full with every porter in');
+    expect(gran).toContain('a half-full store with every porter in');
   });
 
   it('rests while the river is frozen', () => {
