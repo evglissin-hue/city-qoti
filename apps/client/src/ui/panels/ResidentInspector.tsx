@@ -8,6 +8,7 @@ import { HISTORY_WORD, MOOD_LINE, MOOD_WORD, NEED_LABEL, STAGE_WORD, TIER_WORD }
 import { lettersOf, stepWord } from '../letters';
 import { openLetter } from './StoryLetter';
 import { Day } from './Day';
+import { Thread } from './Thread';
 import { Glyph } from '../icons';
 import { Portrait } from '../Portrait';
 import { ResidentMasterLines } from './masterLines';
@@ -68,6 +69,7 @@ export function ResidentInspector({ session, id }: { session: Session; id: numbe
         <div class="resident-facts">
           <p class="doing">{detail?.doing ?? ''}</p>
           {detail && <ResidentMasterLines session={session} detail={detail} />}
+          <Thread session={session} subject={{ kind: 'resident', id }} routeWhen="hover" />
           <div class="traits">
             {r.traits.map((t) => {
               const def = content.traitById.get(t);

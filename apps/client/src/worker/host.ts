@@ -1,4 +1,13 @@
-import type { InspectKind, InspectResult, LayerPatch, SimEvent, Turn, ViewSnapshot } from '@qoti/sim';
+import type {
+  InspectKind,
+  InspectResult,
+  LayerPatch,
+  SimEvent,
+  ThreadSubject,
+  ThreadView,
+  Turn,
+  ViewSnapshot,
+} from '@qoti/sim';
 import type { FromWorker, InitSource, ToWorker } from './messages';
 
 export interface WorkerUpdate {
@@ -24,6 +33,7 @@ export class SimHost {
   /** I1: agent frames after each batch of turns. */
   onAgents: ((t: number, data: Float32Array) => void) | null = null;
   private readonly inspectWaits = new Map<number, (data: InspectResult) => void>();
+  private readonly threadWaits = new Map<number, (data: ThreadView | null) => void>();
   onError: ((message: string) => void) | null = null;
 
   constructor() {
@@ -70,6 +80,10 @@ export class SimHost {
         this.inspectWaits.get(msg.reqId)?.(msg.data);
         this.inspectWaits.delete(msg.reqId);
         break;
+      case 'threaded':
+        this.threadWaits.get(msg.reqId)?.(msg.data);
+        this.threadWaits.delete(msg.reqId);
+        break;
       case 'error':
         this.fail(msg.message);
         break;
@@ -113,6 +127,14 @@ export class SimHost {
     const reqId = this.nextReq++;
     const promise = new Promise<InspectResult>((resolve) => this.inspectWaits.set(reqId, resolve));
     this.post({ k: 'inspect', reqId, kind, id });
+    return promise;
+  }
+
+  /** R3D: the Thread for a subject (null when it is gone). */
+  thread(subject: ThreadSubject): Promise<ThreadView | null> {
+    const reqId = this.nextReq++;
+    const promise = new Promise<ThreadView | null>((resolve) => this.threadWaits.set(reqId, resolve));
+    this.post({ k: 'thread', reqId, subject });
     return promise;
   }
 

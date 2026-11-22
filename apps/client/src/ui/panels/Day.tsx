@@ -4,6 +4,7 @@
 import { MAP_SIZE, RoundFlags, type ResidentDetail, type RoundStopKind } from '@qoti/sim';
 import { useEffect } from 'preact/hooks';
 import type { Session } from '../../app/session';
+import { setGroundLayer } from '../groundHighlight';
 import { capital, formatTime } from '../format';
 import { Heading } from './parts';
 import { tilePairs } from './PlaceCard';
@@ -93,8 +94,8 @@ export function Day({ session, detail }: { session: Session; detail: ResidentDet
   const key = round && round.length ? `${homeTile}:${round.map((s) => s.tile).join(',')}` : '';
   useEffect(() => {
     if (!key || !round) return;
-    session.render?.highlight?.({ tiles: tilePairs(roundTiles(homeTile, round)), tone: 'hearth' });
-    return () => session.render?.highlight?.(null);
+    setGroundLayer(session, 'inspector', { tiles: tilePairs(roundTiles(homeTile, round)), tone: 'hearth' });
+    return () => setGroundLayer(session, 'inspector', null);
   }, [key]);
   if (!round) return null;
   const ev = detail.evening;

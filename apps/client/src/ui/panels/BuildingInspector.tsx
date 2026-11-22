@@ -20,6 +20,7 @@ import {
 } from './Businesses';
 import { Glyph } from '../icons';
 import { BuildingMasterLines } from './masterLines';
+import { Thread } from './Thread';
 import { Empty, Frame, GoodChip, GoodList, Heading, Meter, Toggle, useInspect } from './parts';
 
 /**
@@ -97,6 +98,8 @@ export function BuildingInspector({ session, id }: { session: Session; id: numbe
       )}
       {detail && <BuildingSeasonLines session={session} detail={detail} />}
       <BusinessLines session={session} id={b.id} />
+
+      {!site && <Thread session={session} subject={{ kind: 'building', id: b.id }} routeWhen="open" />}
 
       {site && rt?.construction && (
         <div class="site">

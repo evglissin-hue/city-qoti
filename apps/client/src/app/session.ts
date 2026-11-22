@@ -8,6 +8,8 @@ import {
   TICKS_PER_DAY,
   type Command,
   type InspectKind,
+  type ThreadSubject,
+  type ThreadView,
   type InspectResult,
   type SeatId,
   type Speed,
@@ -132,6 +134,11 @@ export class Session {
   /** I1: full detail for an inspector or the away letter, from the sim worker. */
   inspect(kind: InspectKind, id: number): Promise<InspectResult> {
     return this.host.inspect(kind, id);
+  }
+
+  /** R3D: the Thread for a subject, from the sim worker. */
+  thread(subject: ThreadSubject): Promise<ThreadView | null> {
+    return this.host.thread(subject);
   }
 
   get seat(): SeatId {

@@ -11,6 +11,7 @@ import {
   inspect,
   serialize,
   type SimCtx,
+  threadView,
   type Turn,
   type WorldState,
 } from '@qoti/sim';
@@ -88,6 +89,11 @@ scope.onmessage = (e) => {
       case 'inspect': {
         if (!state) throw new Error('Inspect requested before init');
         post({ k: 'inspected', reqId: msg.reqId, data: inspect(state, msg.kind, msg.id) });
+        break;
+      }
+      case 'thread': {
+        if (!state) throw new Error('Thread requested before init');
+        post({ k: 'threaded', reqId: msg.reqId, data: threadView(state, msg.subject) });
         break;
       }
       case 'hash': {

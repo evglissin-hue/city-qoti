@@ -19,6 +19,8 @@ import type { Session } from '../../app/session';
 import { capital, goodName, placeName, seatLabel } from '../format';
 import { rankAtLeast } from '../village';
 import { Frame, Heading, Meter, Sparkline } from './parts';
+import { setGroundLayer } from '../groundHighlight';
+import { Thread } from './Thread';
 import { Dial } from './villageParts';
 import './place.css';
 
@@ -374,12 +376,12 @@ export function PlaceCard({
   // The place's tiles are drawn on the ground while the card is open.
   useEffect(() => {
     if (!tilesKey) return;
-    session.render?.highlight?.({
+    setGroundLayer(session, 'inspector', {
       tiles: tilePairs(tilesKey.split(',').map(Number)),
       tone: 'hearth',
       outline: true,
     });
-    return () => session.render?.highlight?.(null);
+    return () => setGroundLayer(session, 'inspector', null);
   }, [tilesKey]);
   if (!p) return null;
   const close = () => (session.ui.selection.value = null);
@@ -447,6 +449,8 @@ export function PlaceCard({
           </div>
         )}
       </dl>
+
+      <Thread session={session} subject={{ kind: 'place', id: p.id }} routeWhen="hover" />
 
       <Heading>Its draw</Heading>
       <Meter value={p.draw / 100} note={`${p.draw} of 100`} tone="ochre" testid="place-draw" />

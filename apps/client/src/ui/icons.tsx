@@ -97,6 +97,7 @@ const ICONS: Record<string, () => JSX.Element> = {
   street: () => svg([<path key="a" d="M5 20 8 4M19 20 16 4" />, <path key="c" d="M8.5 17.5h3M12.5 17.5h3M9 13.5h2.5M12.5 13.5h2.5M9.7 9.5h2M12.5 9.5h2M10.2 6h1.6M12.4 6h1.4" />]),
   summer: () => svg([<circle key="s" cx="12" cy="12" r="3.4" />, <path key="r" d="M12 3.5v2.2M12 18.3v2.2M3.5 12h2.2M18.3 12h2.2M6 6l1.6 1.6M16.4 16.4 18 18M6 18l1.6-1.6M16.4 7.6 18 6" />]),
   threat: () => svg([<path key="s" d="M12 3.5 19 6v5.5c0 4-3 7-7 9-4-2-7-5-7-9V6z" />, <path key="e" d="M12 8.5v4M12 15.6v.1" />]),
+  thread: () => svg([<circle key="s" cx="5" cy="15.5" r="1.6" />, <path key="t" d="M6.6 15.5c3.4 0 3-8 7-8s3 8 4.6 8c1 0 1.4-.8 1.8-1.8" />, <path key="e" d="M18.5 17.5l1.5 2" />]),
   trade: () => svg([<path key="s" d="M12 4v15.5" />, <path key="b" d="M8 19.5h8" />, <path key="a" d="M5 7h14" />, <path key="l" d="m5 7-2.5 6h5zM19 7l-2.5 6h5z" />, <path key="t" d="M2.5 13a2.5 1.4 0 0 0 5 0M16.5 13a2.5 1.4 0 0 0 5 0" />]),
   town: () => svg([<path key="h" d="M4 18.5v-6l4-3.5 4 3.5v6z" />, <path key="p" d="M14 18.5h6M16 15.5h2.5" />, <circle key="m" cx="17.5" cy="9" r="2.2" />]),
   townbook: () => svg([<path key="c" d="M6.5 3.5h10a1.5 1.5 0 0 1 1.5 1.5v14.5H8a1.5 1.5 0 0 1-1.5-1.5z" />, <path key="s" d="M6.5 18a1.5 1.5 0 0 1 1.5-1.5h10" />, <path key="r" d="M14 3.5v6l-1.8-1.3L10.4 9.5v-6" />, <path key="l" d="M9.5 12.5h5" />]),
