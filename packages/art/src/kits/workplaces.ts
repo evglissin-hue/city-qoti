@@ -4,6 +4,7 @@
 // the vegetable plot's beds, the fisher's jetty and boat, the storehouse yard and the market stall.
 // Runtime detail arrives in params: 'out:<good>', 'in:<good>' and 'stock:<good>' levels 0 to 4
 // and 'growth' 0 to 3, so piles and crops follow what the building is doing.
+import { SURFACE } from '../surface';
 import type { ShapeBuilder } from '../geometry';
 import { mixHex, vary, type V3 } from '../geometry';
 import { palette } from '../palette';
@@ -623,7 +624,10 @@ function quarry(opts: KitBuildOptions | undefined): Built {
       const bx1 = tx0 + ((tx1 - tx0) * (k + 1)) / n;
       const hh = h - (k % 2) * 0.04 - rnd() * 0.03;
       const col = vary(i === 0 ? 0x8f8a80 : k % 2 ? 0xb9b1a3 : 0xc8c0b0, rnd, 1.2);
+      // P3C: cut stone, with its surface (pale plain blocks read as a stand-in close up).
+      s.surface(SURFACE.stone);
       s.rbox(bx0 + 0.005, y0, tz0, bx1 - 0.005, hh, tz1 - (k % 3) * 0.03, col, 0.025);
+      s.surface(SURFACE.plain);
     }
   });
   for (let i = 0; i < 6; i++) {
@@ -981,7 +985,8 @@ function marketStall(opts: KitBuildOptions | undefined): Built {
     [x1, z1, frontH],
   ] as const)
     beam(s, [x, 0, z], [x, h, z], 0.025, palette.timber);
-  // Awning in stripes with a scalloped edge.
+  // Awning in stripes with a scalloped edge (P3C: cloth).
+  s.surface(SURFACE.cloth);
   const n = 6;
   for (let i = 0; i < n; i++) {
     const xa = x0 - 0.06 + ((x1 - x0 + 0.12) * i) / n;
@@ -1005,12 +1010,15 @@ function marketStall(opts: KitBuildOptions | undefined): Built {
       hex,
     );
   }
+  s.surface(SURFACE.plain);
   // The counter with a cloth and the goods on show, then crates and a barrel behind.
   const cz0 = z1 - 0.3;
   const cz1 = z1 + 0.02;
   s.rbox(x0 + 0.02, 0, cz0, x1 - 0.02, 0.36, cz1, vary(palette.wood, rnd, 0.5), 0.015);
   s.box(x0 + 0.01, 0.3, cz1, x1 - 0.01, 0.37, cz1 + 0.012, vary(accent, rnd, 0.5));
+  s.surface(SURFACE.cloth);
   s.box(x0, 0.36, cz0 - 0.01, x1, 0.38, cz1 + 0.01, palette.white);
+  s.surface(SURFACE.plain);
   const shown = STALL_GOODS.map((g) => [g, level(opts, `stock:${g}`)] as const).filter(([, lv]) => lv > 0);
   const display = shown.length > 0 ? shown.slice(0, 3) : ([['vegetables', 1]] as const);
   display.forEach(([good, lv], i) => {

@@ -1,4 +1,5 @@
 import { expect, type Page } from '@playwright/test';
+import { toolGroups } from '../src/ui/toolGroups';
 
 /** The window.__qoti debug hook (see src/app/debug.ts), typed loosely for tests. */
 export interface QotiHook {
@@ -143,4 +144,24 @@ export async function hashesAt(
     a: (await a.evaluate((turn) => window.__qoti.hashAt(turn), t))!,
     b: (await b.evaluate((turn) => window.__qoti.hashAt(turn), t))!,
   };
+}
+
+/**
+ * P3B: takes a tool out from the bottom bar. A tool in a group (Roads, Land, Decor, Nature, Plans)
+ * is on its group's shelf, so the group's button comes first.
+ */
+export async function takeTool(page: Page, id: string): Promise<void> {
+  const own = page.getByTestId(`tool-${id}`);
+  if (!(await own.isVisible())) {
+    const group = toolGroups.find((g) => g.members.some(([tool]) => tool === id));
+    if (!group) throw new Error(`tool ${id} is in no group and not on the bar`);
+    await page.getByTestId(`tool-group-${group.id}`).click();
+  }
+  if ((await own.getAttribute('aria-pressed')) !== 'true') await own.click();
+}
+
+/** P3B: opens a book from the Books shelf. */
+export async function openBook(page: Page, id: string): Promise<void> {
+  await page.getByTestId('books').click();
+  await page.getByTestId(`book-${id}`).click();
 }

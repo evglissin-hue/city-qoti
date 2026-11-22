@@ -34,6 +34,7 @@ import { fakeCharm, fakeRuntime, startSyntheticResidents, type SyntheticOptions 
 import { SimHost } from '../worker/host';
 import { overlayMocks, overlayVillageMocks } from './fixture';
 import type { GroundAo } from '../render/groundAo';
+import { startLampSequence, type LampSequence, type LampSequenceOptions } from '../render/lampSequence';
 import { layerTriangles, runPerf, type PerfOptions } from './perf';
 import type { Session } from './session';
 import { lamplitHour, lampOverride } from '../ui/cards';
@@ -73,6 +74,7 @@ export function installDebugHook(getSession: () => Session | null): void {
   if (!DEBUG) return;
   const s = () => getSession();
   let stopSynth: (() => void) | null = null;
+  let lamps: LampSequence | null = null;
   const hook = {
     status: () => s()?.connection?.status.value ?? 'none',
     phase: () => s()?.phase.value ?? 'none',
@@ -643,6 +645,25 @@ export function installDebugHook(getSession: () => Session | null): void {
     },
     /** C3D: the renderer, for render tests (overlays, bubbles, follow, stats). */
     renderer: () => s()?.renderer ?? null,
+    /**
+     * V4.0: V4A's test scene for the R3F handshake (render/lampSequence.ts): lamps lighting one by
+     * one at rest about the view's focus (or `center`), a light map change each. Returns how many
+     * lamps it will light; `lampSequenceLit()` counts the lit ones, `lampSequenceStop()` puts them out.
+     */
+    lampSequence: (opts: Partial<LampSequenceOptions> = {}) => {
+      const r = s()?.renderer;
+      if (!r) return 0;
+      lamps?.stop();
+      const f = r.env.focus;
+      const o: LampSequenceOptions = { center: [f.x, f.z], ...opts };
+      lamps = startLampSequence(r, o);
+      return Math.max(1, Math.floor(o.count ?? 12));
+    },
+    lampSequenceLit: () => lamps?.lit() ?? 0,
+    lampSequenceStop: () => {
+      lamps?.stop();
+      lamps = null;
+    },
     /** C3D-1: jumps the camera (no glide) to look at a tile from `distance`, for screenshots. */
     look: (x: number, z: number, distance: number, turn = 0, tilt = 0) => {
       const r = s()?.renderer;

@@ -4,6 +4,7 @@
 // reads (the bottle kiln and its smoke, the granary's tall body on its stones, six colored
 // canopies); the small things are near-only. Runtime piles follow `stock:<good>`, `out:<good>` and
 // `in:<good>` levels 0 to 4.
+import { SURFACE } from '../surface';
 import { vary, type V3 } from '../geometry';
 import type { ShapeBuilder } from '../geometry';
 import { palette } from '../palette';
@@ -423,8 +424,11 @@ function marketSquare(opts: KitBuildOptions | undefined): Built {
   const [w, d] = opts?.size ?? [3, 3];
   const { rnd } = streams(opts, 63);
   const { s, anchors } = start(opts);
-  // The paved square with a kerb round it and a ring of lighter stone about the cross.
+  // The paved square with a kerb round it and a ring of lighter stone about the cross. P3C: setts
+  // and stone with their surfaces (it was all plain, a pale slab close up).
+  s.surface(SURFACE.cobble);
   s.rbox(0.06, 0, 0.06, w - 0.06, 0.03, d - 0.06, vary(0xb4a994, rnd, 0.3), 0.02);
+  s.surface(SURFACE.stone);
   s.detail(() => {
     for (const x of [0.06, w - 0.1]) s.box(x, 0.03, 0.06, x + 0.04, 0.05, d - 0.06, 0xcfc6b2);
     for (const z of [0.06, d - 0.1]) s.box(0.06, 0.03, z, w - 0.06, 0.05, z + 0.04, 0xcfc6b2);
@@ -446,6 +450,7 @@ function marketSquare(opts: KitBuildOptions | undefined): Built {
     s.box(cx - 0.13, 0.62, cz - 0.03, cx + 0.13, 0.68, cz + 0.03, 0xd6cdb8);
     s.box(cx - 0.06, 0.78, cz - 0.06, cx + 0.06, 0.84, cz + 0.06, 0xbdb4a0);
   }
+  s.surface(SURFACE.plain);
   // Six stalls in two rows of three, all open toward the entrance.
   const cols = [0.58, 1.5, 2.42];
   const rows = [0.15, 1.6];
@@ -471,7 +476,9 @@ function marketSquare(opts: KitBuildOptions | undefined): Built {
       s.detail(() => {
         s.rbox(a + 0.03, 0.03, zf - 0.26, b - 0.03, 0.3, zf - 0.02, vary(palette.wood, rnd, 0.5), 0.012);
         s.box(a + 0.02, 0.18, zf - 0.02, b - 0.02, 0.3, zf + 0.004, vary(colorHex, rnd, 0.4));
+        s.surface(SURFACE.cloth);
         s.box(a + 0.01, 0.3, zf - 0.28, b - 0.01, 0.315, zf, palette.white);
+        s.surface(SURFACE.plain);
       });
       // Far off: the stall is a block under its canopy.
       if (s.low) s.box(a + 0.03, 0.03, zf - 0.26, b - 0.03, 0.55, zf - 0.02, 0x8a6a4a, 'tb');

@@ -26,6 +26,7 @@ const ICONS: Record<string, () => JSX.Element> = {
   autumn: () => svg([<path key="l" d="M5 19c0-8 4-13 14-14 0 9-4 14-12 14z" />, <path key="v" d="m5 19 8-8" />]),
   baby: () => svg([<path key="c" d="M4.5 12.5h15a7.5 6 0 0 1-15 0z" />, <path key="h" d="M7 12.5a5 5 0 0 1 9.5-2.2" />, <circle key="f" cx="10" cy="9.6" r="1.6" />, <path key="r" d="M6.5 18.5 5.5 20.5M17.5 18.5l1 2" />]),
   bell: () => svg([<path key="b" d="M6.5 16.5c1-1.2 1.5-3 1.5-5.5a4 4 0 0 1 8 0c0 2.5.5 4.3 1.5 5.5z" />, <path key="c" d="M10.5 19a1.6 1.6 0 0 0 3 0" />, <path key="t" d="M12 4.5V7" />]),
+  books: () => svg([<path key="a" d="M5 5.5h3v13H5zM9.5 4.5h3v14h-3z" />, <path key="b" d="m14.2 6.2 2.9-.8 3.4 12.6-2.9.8z" />, <path key="s" d="M3.5 20.5h17" />, <path key="t" d="M5 8.5h3M9.5 8h3" />]),
   building: () => svg([<path key="r" d="M3.5 11.5 12 4l8.5 7.5" />, <path key="w" d="M5.5 10v9.5h13V10" />, <path key="d" d="M10 19.5v-5h4v5" />]),
   caravan: () => svg([<path key="b" d="M3.5 15.5V9.5h11v6" />, <path key="c" d="M5 9.5c.5-3 3-4.5 4.5-4.5S13.5 6.5 14 9.5" />, <path key="s" d="M14.5 12h3.5l2.5 3.5h-17" />, <circle key="w1" cx="7.5" cy="17.5" r="2" />, <circle key="w2" cx="16" cy="17.5" r="2" />]),
   cart: () => svg([<path key="b" d="M3.5 7.5H6l2 8h9l1.7-6H7.2" />, <circle key="a" cx="9.5" cy="18.8" r="1.4" />, <circle key="c" cx="16" cy="18.8" r="1.4" />, <path key="h" d="M3.5 7.5h-1" />]),
