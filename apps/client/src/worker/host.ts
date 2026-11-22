@@ -138,6 +138,11 @@ export class SimHost {
     return promise;
   }
 
+  /** R3D, debug only (e2e): records door pairs in the sim, as if goods had moved. */
+  seedThreadsForTest(pairs: [from: number, to: number | string, good: string, units: number][]): void {
+    this.post({ k: 'debugThreads', pairs });
+  }
+
   /** Debug only: makes this sim drift from the room's (resync tests). */
   corruptForTest(): void {
     this.post({ k: 'debugCorrupt' });

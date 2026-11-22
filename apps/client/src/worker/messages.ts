@@ -33,7 +33,13 @@ export type ToWorker =
   /** R3D: a Thread, the one sentence of where a thing came from and where it goes. Answered by `threaded`. */
   | { k: 'thread'; reqId: number; subject: ThreadSubject }
   /** Debug only (C3X): nudges the state so this seat's hash drifts, for resync tests. */
-  | { k: 'debugCorrupt' };
+  | { k: 'debugCorrupt' }
+  /**
+   * R3D, debug only (e2e): records door pairs as if goods had moved, so a Thread can be read from the
+   * real sim on a fixture whose evenings sell few Treats. Each pair: from, to (a building id or a
+   * PlaceId), the good's id, units. Like debugCorrupt, this sim then drifts from a room's.
+   */
+  | { k: 'debugThreads'; pairs: [from: number, to: number | string, good: string, units: number][] };
 
 export type FromWorker =
   | { k: 'ready'; view: ViewSnapshot }

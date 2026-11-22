@@ -91,6 +91,7 @@ describe('Thread', () => {
         [2, 0],
       ],
       tone: 'ledger',
+      path: true,
     });
     await act(() => {
       view!.unmount();

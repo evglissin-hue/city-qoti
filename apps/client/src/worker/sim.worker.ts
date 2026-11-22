@@ -1,4 +1,5 @@
 // The sim worker: owns the WorldState, applies turns as they arrive, posts view updates.
+import { content } from '@qoti/content';
 import {
   agentFrame,
   applyTurn,
@@ -9,6 +10,7 @@ import {
   HASH_EVERY_TURNS,
   hashState,
   inspect,
+  recordThread,
   serialize,
   type SimCtx,
   threadView,
@@ -79,6 +81,15 @@ scope.onmessage = (e) => {
         if (!state) throw new Error('Snapshot requested before init');
         const data = serialize(state);
         post({ k: 'snapshot', reqId: msg.reqId, t: state.lastTurn, data }, [data.buffer as ArrayBuffer]);
+        break;
+      }
+      case 'debugThreads': {
+        if (state) {
+          for (const [from, to, good, units] of msg.pairs) {
+            const g = content.goodIndex.get(good);
+            if (g !== undefined) recordThread(state, from, to, g, units);
+          }
+        }
         break;
       }
       case 'debugCorrupt': {

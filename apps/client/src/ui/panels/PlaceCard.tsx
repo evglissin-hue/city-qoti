@@ -4,7 +4,6 @@
 import { content } from '@qoti/content';
 import {
   calendar,
-  MAP_SIZE,
   MAX_PLACE_NAME_CHARS,
   PENNIES_PER_COIN,
   type PlaceKind,
@@ -19,7 +18,7 @@ import type { Session } from '../../app/session';
 import { capital, goodName, placeName, seatLabel } from '../format';
 import { rankAtLeast } from '../village';
 import { Frame, Heading, Meter, Sparkline } from './parts';
-import { setGroundLayer } from '../groundHighlight';
+import { setGroundLayer, tilePairs } from '../groundHighlight';
 import { Thread } from './Thread';
 import { Dial } from './villageParts';
 import './place.css';
@@ -347,10 +346,8 @@ export function StreetLines({
   );
 }
 
-/** Tiles as [x, z] pairs for the highlight API. */
-export function tilePairs(tiles: readonly number[]): [number, number][] {
-  return tiles.map((t) => [t % MAP_SIZE, Math.floor(t / MAP_SIZE)] as [number, number]);
-}
+// Tiles as [x, z] pairs for the highlight API: kept with the ground's layers, re-exported here.
+export { tilePairs };
 
 /** "Tonight" while the evening is under way, "last evening" otherwise. */
 function evenLabel(tick: number): string {

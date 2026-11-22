@@ -185,6 +185,41 @@ export function townRoutes(
 }
 
 /**
+ * R3D: a Thread's route, tiles in walking order: the goods routes' ochre dashes, bolder, over a pale
+ * edge so they read on a brown road as on grass. Steps between tiles that are not neighbors (where
+ * the next leg starts again from a door) are skipped; a step walked twice is drawn once.
+ */
+export function threadPath(mirror: Mirror, tiles: readonly [number, number][]): BufferGeometry | null {
+  const edge = rgba(0xf3e7cc, 0.55);
+  const ink = rgba(TOWN_COLORS.ochre, 0.95);
+  const under: [number, number, number, number, Rgba, number][] = [];
+  const over: [number, number, number, number, Rgba, number][] = [];
+  const seen = new Set<string>();
+  for (let i = 1; i < tiles.length; i++) {
+    const [ax, az] = tiles[i - 1]!;
+    const [bx, bz] = tiles[i]!;
+    if (Math.abs(ax - bx) + Math.abs(az - bz) !== 1) continue;
+    const key = ax + az * N < bx + bz * N ? `${ax},${az}>${bx},${bz}` : `${bx},${bz}>${ax},${az}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    const [x0, z0, x1, z1] = [ax + 0.5, az + 0.5, bx + 0.5, bz + 0.5];
+    under.push([x0, z0, x1, z1, edge, 0.34]);
+    over.push([
+      x0 + (x1 - x0) * 0.2,
+      z0 + (z1 - z0) * 0.2,
+      x0 + (x1 - x0) * 0.8,
+      z0 + (z1 - z0) * 0.8,
+      ink,
+      0.2,
+    ]);
+  }
+  if (over.length === 0) return null;
+  const a = drapeSegments(mirror, under, 0.07);
+  const b = drapeSegments(mirror, over, 0.09);
+  return a && b ? mergeDrapes([a, b]) : (b ?? a);
+}
+
+/**
  * An inked outline round a set of tiles (a selected place), with the faintest wash inside, in place of
  * a filled block (the owner's note on P2's pale lot rectangle; the master's on the place card's).
  */

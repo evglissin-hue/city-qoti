@@ -69,7 +69,6 @@ export function ResidentInspector({ session, id }: { session: Session; id: numbe
         <div class="resident-facts">
           <p class="doing">{detail?.doing ?? ''}</p>
           {detail && <ResidentMasterLines session={session} detail={detail} />}
-          <Thread session={session} subject={{ kind: 'resident', id }} routeWhen="hover" />
           <div class="traits">
             {r.traits.map((t) => {
               const def = content.traitById.get(t);
@@ -166,6 +165,8 @@ export function ResidentInspector({ session, id }: { session: Session; id: numbe
           </dd>
         </div>
       </dl>
+
+      <Thread session={session} subject={{ kind: 'resident', id }} routeWhen="hover" />
 
       {wish && (
         <div class="wish-card" data-testid="resident-wish">

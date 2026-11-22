@@ -696,6 +696,11 @@ export class Session {
     if (held.length) this.host.turns(held);
   }
 
+  /** R3D, debug only (e2e): records door pairs in the sim, as if goods had moved. */
+  seedThreadsForTest(pairs: [from: number, to: number | string, good: string, units: number][]): void {
+    this.host.seedThreadsForTest(pairs);
+  }
+
   /** Debug only (?debug): makes this seat's sim drift from the room's, for resync tests. */
   corruptForTest(): void {
     this.host.corruptForTest();

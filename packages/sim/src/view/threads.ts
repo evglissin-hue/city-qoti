@@ -596,7 +596,6 @@ function residentThread(ctx: Ctx, subject: ThreadSubject & { kind: 'resident' })
   const given = r.given;
   // Their work first, where goods pass through it; else what comes home to them.
   const work = r.jobId ? building(ctx, r.jobId) : undefined;
-  let workThin = '';
   if (work && !ctx.homes.has(work.id)) {
     const units = goodsAt(ctx, work.id, 'both');
     const made = outputsOf(work).filter((g) => units[g]! > 0);
@@ -607,11 +606,6 @@ function residentThread(ctx: Ctx, subject: ThreadSubject & { kind: 'resident' })
         return view(ctx, subject, leadFor(g, given), chain, { ...NO_VOICE, work: work.id });
       }
     }
-    const first = outputsOf(work)[0];
-    if (first !== undefined) {
-      const verb = (goodOf(first)?.raw ? GROWN : MADE).get(goodOf(first)?.id ?? '') ?? 'made';
-      workThin = `Nothing ${verb} at ${doorName(ctx, work.id)} has gone anywhere lately.`;
-    }
   }
   const h = findById(ctx.state.households, r.householdId);
   const home = h ? h.homeId : -1;
@@ -620,8 +614,9 @@ function residentThread(ctx: Ctx, subject: ThreadSubject & { kind: 'resident' })
     const chain = chainThrough(ctx, home, g);
     return view(ctx, subject, leadFor(g, given), chain, { ...NO_VOICE, home });
   }
-  if (workThin) return thin(subject, workThin);
-  return thin(subject, h ? `Nothing has come home to ${given}'s household lately.` : '');
+  // A resident with no thread to follow says nothing: the same thin line on every inspector in town is
+  // noise (the player's chair). Their workplace and home say it for themselves.
+  return thin(subject, '');
 }
 
 function placeThread(ctx: Ctx, subject: ThreadSubject & { kind: 'place' }): ThreadView | null {

@@ -6,9 +6,8 @@ import { TICKS_PER_HOUR } from '@qoti/sim';
 import type { ComponentChildren } from 'preact';
 import { useEffect, useState } from 'preact/hooks';
 import type { Session } from '../../app/session';
-import { setGroundLayer } from '../groundHighlight';
+import { setGroundLayer, tilePairs } from '../groundHighlight';
 import { Glyph } from '../icons';
-import { tilePairs } from './PlaceCard';
 import './thread.css';
 
 /**
@@ -84,7 +83,11 @@ export function Thread({
   const show = !!routeKey && (routeWhen === 'open' || over);
   useEffect(() => {
     if (!show) return;
-    setGroundLayer(session, 'thread', { tiles: tilePairs(routeKey.split(',').map(Number)), tone: 'ledger' });
+    setGroundLayer(session, 'thread', {
+      tiles: tilePairs(routeKey.split(',').map(Number)),
+      tone: 'ledger',
+      path: true,
+    });
     return () => setGroundLayer(session, 'thread', null);
   }, [show, routeKey]);
   // A hover that outlives its line must not leave the pointer state behind.

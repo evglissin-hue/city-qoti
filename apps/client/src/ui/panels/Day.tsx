@@ -4,10 +4,9 @@
 import { MAP_SIZE, RoundFlags, type ResidentDetail, type RoundStopKind } from '@qoti/sim';
 import { useEffect } from 'preact/hooks';
 import type { Session } from '../../app/session';
-import { setGroundLayer } from '../groundHighlight';
+import { setGroundLayer, tilePairs } from '../groundHighlight';
 import { capital, formatTime } from '../format';
 import { Heading } from './parts';
-import { tilePairs } from './PlaceCard';
 
 const PURPOSE: Record<RoundStopKind, string> = {
   sit: 'to sit a while',

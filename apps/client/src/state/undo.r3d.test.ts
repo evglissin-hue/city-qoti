@@ -82,7 +82,7 @@ describe('undo for the carrier places switch', () => {
     r.submit({ t: 'carrier.setRule', family: 'fuel', rule, sell, places: true }, () =>
       setLine(r.mirror, { forPlaces: true }),
     );
-    expect(r.undo.undo(r.mirror, r.raw)).toMatchObject({ ok: true, label: 'the fuel places switch' });
+    expect(r.undo.undo(r.mirror, r.raw)).toMatchObject({ ok: true, label: 'buying fuel for places' });
     expect(r.sent).toEqual([{ t: 'carrier.setRule', family: 'fuel', rule, sell, places: false }]);
   });
 
@@ -100,5 +100,14 @@ describe('undo for the carrier places switch', () => {
     );
     setLine(r.mirror, { forPlaces: true });
     expect(r.undo.undo(r.mirror, r.raw)).toEqual({ ok: false, reason: 'CHANGED' });
+  });
+
+  it('still undoes while the view does not say whether places are bought for (before R3A fills it)', () => {
+    const r = rig();
+    setLine(r.mirror, { forPlaces: undefined });
+    const { rule, sell } = fuel(r.mirror);
+    r.submit({ t: 'carrier.setRule', family: 'fuel', rule, sell, places: true }, () => undefined);
+    expect(r.undo.undo(r.mirror, r.raw)).toMatchObject({ ok: true });
+    expect(r.sent).toEqual([{ t: 'carrier.setRule', family: 'fuel', rule, sell, places: false }]);
   });
 });

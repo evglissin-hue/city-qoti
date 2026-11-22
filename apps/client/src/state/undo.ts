@@ -505,13 +505,16 @@ function inverseOf(p: Pending, m: Mirror, change: MirrorChange, seat: SeatId): U
       return {
         label:
           cmd.places !== undefined && cmd.rule === before.rule && cmd.sell === before.sell
-            ? `the ${cmd.family} places switch`
+            ? `${cmd.places ? 'buying' : 'not buying'} ${cmd.family} for places`
             : `the ${cmd.family} rule`,
         inverse: [back],
+        // A view that does not say (`forPlaces` absent: R3A fills it) cannot contradict the switch.
         intact: (mm) =>
           line(mm)?.rule === cmd.rule &&
           line(mm)?.sell === cmd.sell &&
-          (cmd.places === undefined || (line(mm)?.forPlaces ?? false) === cmd.places),
+          (cmd.places === undefined ||
+            line(mm)?.forPlaces === undefined ||
+            line(mm)!.forPlaces === cmd.places),
       };
     }
     case 'carrier.setReserve': {
