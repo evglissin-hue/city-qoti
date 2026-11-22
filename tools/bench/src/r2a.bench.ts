@@ -33,12 +33,12 @@ const EVENINGS = 8;
 const HALF_HOUR = TICKS_PER_HOUR / 2;
 const COMPANIONS = ['ring-bench', 'lantern', 'flower-bed', 'brazier'];
 
-function median(values: number[]): number {
+export function median(values: number[]): number {
   const s = [...values].sort((a, b) => a - b);
   return s[Math.floor(s.length / 2)]!;
 }
 
-function worst(values: number[]): number {
+export function worst(values: number[]): number {
   return Math.max(...values);
 }
 
@@ -55,7 +55,7 @@ function markUsed(used: Set<number>, x: number, z: number): void {
 }
 
 /** Pushes one decor piece on tile (x, z) as `decor.place` adds it (next id, sorted, decor grid). */
-function pushDecor(world: WorldState, used: Set<number>, def: string, x: number, z: number): void {
+export function pushDecor(world: WorldState, used: Set<number>, def: string, x: number, z: number): void {
   const d = {
     id: world.nextId++,
     def,
@@ -70,7 +70,7 @@ function pushDecor(world: WorldState, used: Set<number>, def: string, x: number,
 }
 
 /** The nearest free tile around a building, scanning rings outward; null when none. */
-function tileNear(world: WorldState, used: Set<number>, b: Building): [number, number] | null {
+export function tileNear(world: WorldState, used: Set<number>, b: Building): [number, number] | null {
   for (let r = 1; r <= 5; r++) {
     for (let dz = -r; dz <= r + 2; dz++) {
       for (let dx = -r; dx <= r + 2; dx++) {
@@ -89,7 +89,7 @@ interface Scatter {
 }
 
 /** Places to find: a bench for every eight grown-ups near homes, with a companion piece beside every other one. */
-function scatterPlaces(world: WorldState): Scatter {
+export function scatterPlaces(world: WorldState): Scatter {
   const used = new Set<number>();
   for (const d of world.decor) markUsed(used, Math.floor(d.fx / TILE_FP), Math.floor(d.fz / TILE_FP));
   const homes = world.buildings.filter((b) => b.def === 'house' || b.def === 'cottage');
@@ -111,7 +111,7 @@ function scatterPlaces(world: WorldState): Scatter {
   return { used, benches, homes };
 }
 
-function advance(world: WorldState, ctx: SimCtx, ticks: number): void {
+export function advance(world: WorldState, ctx: SimCtx, ticks: number): void {
   for (let i = 0; i < ticks; i++) {
     applyTurn(world, { t: world.lastTurn + 1, cmds: [] }, ctx);
     ctx.events.length = 0;
