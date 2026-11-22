@@ -8,7 +8,8 @@
 // docs/build/screenshots/v4c-<fixture>-<scene>-<n>.png, and checks the first input puts the view back
 // exactly. `perf` runs, per preset, a tea break for `QOTI_SECONDS` (8) and then a scripted turn of
 // the camera for as long (a moving path, V3's kind), and prints the modes, draws, triangles and
-// frame times of each side by side: a tea break is a moving camera, so its frames must be moving
+// frame times of each side by side (QOTI_HOUR pins the light, 11 by default; `none` keeps the
+// valley's own hour, as for an evening save, where the tea break follows a resident on the round): a tea break is a moving camera, so its frames must be moving
 // frames inside the moving budget. In software (SwiftShader) draws and triangles are real and
 // milliseconds are ratios at best.
 import { chromium } from '@playwright/test';
@@ -169,7 +170,9 @@ async function perf() {
   ];
   for (const quality of ['low', 'medium', 'high', 'ultra']) {
     const page = await open(browser, quality);
-    await page.evaluate(() => window.__qoti.setHour(11));
+    // QOTI_HOUR=none keeps the fixture's own light (an evening save: the round's follow).
+    const hour = process.env.QOTI_HOUR ?? '11';
+    if (hour !== 'none') await page.evaluate((h) => window.__qoti.setHour(h), Number(hour));
     await closeCards(page);
     await page.evaluate(() => window.__qotiTeaBreak.skip(90000));
     const plan = await page.evaluate(() => window.__qotiTeaBreak.state()?.plan);
