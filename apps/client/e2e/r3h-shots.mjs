@@ -17,7 +17,9 @@ const browser = await chromium.launch({
 const page = await browser.newPage({ viewport: { width: 1250, height: 800 } });
 page.on('pageerror', (e) => console.log('pageerror:', e.message));
 await page.route('**/api/**', (r) => r.abort());
-await page.goto(`http://localhost:${port}/?debug&fixture=village&clean&quality=medium&fixedres&season=summer&day=3`);
+await page.goto(
+  `http://localhost:${port}/?debug&fixture=village&clean&quality=medium&fixedres&season=summer&day=3`,
+);
 await page.waitForFunction(() => window.__qoti?.status() === 'live', null, { timeout: 240000 });
 for (const name of ['Done', 'Close', 'Later']) {
   const b = page.getByRole('button', { name, exact: true });

@@ -443,7 +443,7 @@ function forester(opts: KitBuildOptions | undefined): Built {
     x1,
     z1,
     base: 0.06,
-    wallH: lv >= 2 ? 0.84 : 0.64,
+    wallH: lv >= 3 ? 1.02 : lv >= 2 ? 0.86 : 0.64,
     wall: 'log',
     wallColor: palette.wood,
     trim: palette.timber,
@@ -451,7 +451,7 @@ function forester(opts: KitBuildOptions | undefined): Built {
       shape: 'gable',
       material,
       color: vary(roofColor(c, material, 0x55625a), rnd, 0.5),
-      rise: 0.5,
+      rise: lv >= 3 ? 0.62 : 0.5,
       overhang: 0.18,
       ridgeAlongX: true,
     },
@@ -635,7 +635,7 @@ function sawpit(opts: KitBuildOptions | undefined): Built {
       bench(s, 0.22, 1.9, false, lr);
       sawhorse(s, 1.72, 0.8, false, lr);
       sawhorse(s, 1.72, 1.15, false, lr);
-      s.box(1.6, 0.17, 0.62, 1.84, 0.2, 1.3, vary(0xd9b98a, lr, 0.5));
+      s.box(1.6, 0.17, 0.62, 1.84, 0.2, 1.3, vary(0xc9a46e, lr, 0.5));
     });
     if (lv >= 3)
       leanTo(
@@ -862,7 +862,7 @@ function fishersHut(opts: KitBuildOptions | undefined): Built {
     x1,
     z1,
     base: 0.06,
-    wallH: 0.64,
+    wallH: lv >= 3 ? 0.98 : lv >= 2 ? 0.82 : 0.64,
     wall: 'weatherboard',
     wallColor: c.wall ?? vary(0x6f8fa3, rnd, 0.4),
     trim: palette.white,
