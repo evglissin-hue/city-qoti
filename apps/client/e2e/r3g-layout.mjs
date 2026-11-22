@@ -29,7 +29,8 @@ await openStorybook(page, base, valley, async () => {
 const settle = () => page.waitForTimeout(900);
 for (const lens of ['hearth', 'ledger']) {
   await page.evaluate((l) => window.__qoti.setLens(l), lens);
-  if ((await page.getByTestId('storybook').count()) === 0) await page.evaluate(() => window.__qoti.openPanel('storybook'));
+  if ((await page.getByTestId('storybook').count()) === 0)
+    await page.evaluate(() => window.__qoti.openPanel('storybook'));
   for (const [name, hour] of [
     ['day', 13],
     ['lamplight', 20.5],
