@@ -1,6 +1,14 @@
 import { MeshStandardMaterial, ShaderChunk, ShaderLib, UniformsLib, UniformsUtils } from 'three';
 import { describe, expect, it } from 'vitest';
-import { HAZE, hazeTermsAt, installHazeChunks, RIVER_HAZE_SIZE, setRiverHaze } from './lighting';
+import {
+  HAZE,
+  hazeTermsAt,
+  installHazeChunks,
+  MOON,
+  moonTermsAt,
+  RIVER_HAZE_SIZE,
+  setRiverHaze,
+} from './lighting';
 
 describe('haze with height (V3C)', () => {
   it('patches the fog chunks once, keeping the plain fog factor', () => {
@@ -56,5 +64,36 @@ describe('haze with height (V3C)', () => {
     setRiverHaze(HAZE, data);
     expect((HAZE.river.value.image.data as Uint8Array)[100]).toBe(7);
     expect(HAZE.river.value.version).toBeGreaterThan(v);
+  });
+});
+
+describe('the moon (P3C)', () => {
+  it('reaches every lit built-in material by reference, and the lights chunk once', () => {
+    installHazeChunks();
+    installHazeChunks();
+    for (const lib of [ShaderLib.standard, ShaderLib.lambert, ShaderLib.physical, ShaderLib.phong]) {
+      expect(UniformsUtils.clone(lib.uniforms).qMoon!.value).toBe(MOON.value);
+    }
+    expect(UniformsUtils.merge([UniformsLib.lights, {}]).qMoon!.value).toBe(MOON.value);
+    expect(
+      ShaderChunk.lights_fragment_end.match(/qMoonlit\( reflectedLight\.directDiffuse \)/g)?.length,
+    ).toBe(1);
+  });
+
+  it('comes in from the violet twilight, so dusk and dawn are untouched', () => {
+    expect(moonTermsAt(0.35).mute).toBe(0);
+    expect(moonTermsAt(0.6).hold).toBe(0);
+    expect(moonTermsAt(1).mute).toBeCloseTo(0.5);
+    expect(moonTermsAt(0.8).mute).toBeGreaterThan(0);
+    expect(moonTermsAt(0.8).mute).toBeLessThan(0.5);
+  });
+
+  it('leaves a light at or under black alone before it takes a ratio of it', () => {
+    // Dividing such a light by a hair made hot green points on the meadow that the night's bloom
+    // spread into soft blobs at the default camera.
+    const chunk = ShaderChunk.lights_pars_begin;
+    const guard = chunk.indexOf('!(l > 1e-5)) return c;');
+    expect(guard).toBeGreaterThan(0);
+    expect(chunk.indexOf('held / l')).toBeGreaterThan(guard);
   });
 });

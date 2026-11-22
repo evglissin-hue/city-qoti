@@ -1851,7 +1851,26 @@ li.alert .dismiss {
 }
 
 .alerts .more {
-  padding-left: 8px;
+  padding-left: 2px;
+}
+
+/* P3B: the folded rest of the feed, one quiet line that unfolds it. */
+.alerts .feed-more {
+  padding: 2px 6px;
+  border: none;
+  background: transparent;
+  box-shadow: none;
+  font-size: 0.86rem;
+  color: var(--ink-soft);
+  text-decoration: underline dotted;
+  text-underline-offset: 3px;
+}
+
+.alerts .feed-more:hover:not(:disabled) {
+  color: var(--ink);
+  background: transparent;
+  box-shadow: none;
+  transform: none;
 }
 
 /* Toolbar additions: pickers, books, overlays, undo */

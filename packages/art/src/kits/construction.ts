@@ -2,6 +2,7 @@
 // 1 a stone foundation, 2 a timber frame in scaffolding, 3 the roof going on. Delivered materials
 // sit in piles on the site. Each building kit has a massing (outline, wall height, roof) so the
 // frame grows into the shape the finished building will have.
+import { SURFACE } from '../surface';
 import type { BufferGeometry } from 'three';
 import { seeded, ShapeBuilder, vary, type V3 } from '../geometry';
 import { palette } from '../palette';
@@ -308,8 +309,11 @@ export function constructionGeometry(o: ConstructionOptions): BufferGeometry {
     materials(s, w, d, o.delivered ?? {}, rnd);
     return s.build();
   }
-  // Stage 1 on: the foundation, with the last course still going in.
+  // Stage 1 on: the foundation, with the last course still going in. P3C: stone, timber and plaster
+  // with their surfaces: a site was mostly plain faces, and its half-built walls a pale plain box,
+  // which close up read as a stand-in rather than work in progress.
   const fh = 0.12;
+  s.surface(SURFACE.stone);
   s.rbox(x0 - 0.05, 0, z0 - 0.05, x1 + 0.05, fh * 0.6, z1 + 0.05, vary(palette.foundation, rnd, 0.5), 0.02);
   const n = Math.max(4, Math.round(((x1 - x0) * 2 + (z1 - z0) * 2) / 0.22));
   const per = stage === 1 ? Math.floor(n * 0.6) : n;
@@ -318,6 +322,7 @@ export function constructionGeometry(o: ConstructionOptions): BufferGeometry {
     () => course(s, x0, z0, x1, z1, fh, n, per, rnd),
     () => s.box(x0 - 0.09, fh * 0.6, z0 - 0.07, x1 + 0.09, fh, z1 + 0.07, palette.stone),
   );
+  s.surface(SURFACE.plain);
   if (stage === 1) {
     s.cylinder(x1 + 0.2, z1 + 0.05, 0.08, 0.09, 0, 0.09, vary(palette.wood, rnd, 0.5), 8);
     s.cylinder(x1 + 0.2, z1 + 0.05, 0.075, 0.075, 0.085, 0.09, 0xd8d2c4, 8);
@@ -325,10 +330,14 @@ export function constructionGeometry(o: ConstructionOptions): BufferGeometry {
     return s.build();
   }
   const top = fh + m.wallH;
+  s.surface(SURFACE.woodGrain);
   frame(s, x0, z0, x1, z1, fh, top, rnd);
   scaffold(s, x0, z0, x1, z1, top, rnd);
+  s.surface(SURFACE.plain);
   if (stage >= 3) {
-    // Walls going up to about half, rafters over the frame, and one slope already covered.
+    // Walls going up to about half, rafters over the frame, and one slope already covered. P3C: the
+    // walls are rubble stone (the plaster goes on last), their top course ragged.
+    s.surface(SURFACE.stone);
     s.box(
       x0 + 0.01,
       fh,
@@ -336,8 +345,9 @@ export function constructionGeometry(o: ConstructionOptions): BufferGeometry {
       x1 - 0.01,
       fh + m.wallH * 0.45,
       z1 - 0.01,
-      vary(palette.plasterCream, rnd, 0.5),
+      vary(palette.foundation, rnd, 0.5),
     );
+    s.surface(SURFACE.woodGrain);
     const ridge = top + m.rise;
     const along = m.alongX;
     const a0 = along ? x0 - 0.06 : z0 - 0.06;
@@ -353,6 +363,7 @@ export function constructionGeometry(o: ConstructionOptions): BufferGeometry {
       if (m.shape !== 'lean') beam(s, P(a, top - 0.03, c0), P(a, ridge, cm), 0.018, vary(FRAME, rnd, 0.4));
     }
     beam(s, P(a0, ridge, cm), P(a1, ridge, cm), 0.025, FRAME);
+    s.surface(SURFACE.plain);
     roofPart(s, {
       shape: 'lean',
       material: 'tile',

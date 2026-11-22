@@ -2,6 +2,7 @@
 // with its bell cote and playground, the tavern with its inn sign on a post and a beer garden under
 // festoon lanterns, the herbalist's crooked cottage hung with bunches and bottles, the Trading Post's
 // veranda of crates under neighbor pennants, and the cart shed with its wide bay and pony stall.
+import { SURFACE } from '../surface';
 import type { ShapeBuilder } from '../geometry';
 import { vary, type V3 } from '../geometry';
 import { palette } from '../palette';
@@ -803,11 +804,16 @@ function cartShed(opts: KitBuildOptions | undefined): Built {
   // The bay: a wide dark opening under a cambered head, straw on the floor, harness on pegs.
   const bw = Math.min(0.9, x1 - x0 - 0.5);
   const bu = Math.min(Math.max(doorU, x0 + bw / 2 + 0.06), x1 - bw / 2 - 0.06);
+  // P3C: the bay's frame painted, with its surface (it was a pale plain board close up).
+  s.surface(SURFACE.paintedWood);
   faceBox(s, front, bu - bw / 2 - 0.05, 0, 0.0, bu + bw / 2 + 0.05, 0.8, 0.03, palette.white);
+  s.surface(SURFACE.plain);
   faceBox(s, front, bu - bw / 2, 0.02, 0.03, bu + bw / 2, 0.74, 0.035, 0x2a231d);
   s.box(bu - bw / 2, 0.02, z1 - 0.6, bu + bw / 2, 0.03, z1 + 0.02, 0xd9b96a);
   // The loft door with hay showing, and a hoist beam.
+  s.surface(SURFACE.paintedWood);
   faceBox(s, front, bu - 0.16, sh.top + 0.05, 0.0, bu + 0.16, sh.top + 0.33, 0.03, palette.white);
+  s.surface(SURFACE.plain);
   faceBox(s, front, bu - 0.13, sh.top + 0.07, 0.03, bu + 0.13, sh.top + 0.3, 0.035, 0x2a231d);
   s.blob(bu, sh.top + 0.1, z1 + 0.02, 0.12, 0.06, 0.04, 0xdcbc6a, 1);
   beam(
@@ -822,7 +828,9 @@ function cartShed(opts: KitBuildOptions | undefined): Built {
     const sideX = doorU < w / 2 ? x1 : x0;
     const side: Face = { dir: doorU < w / 2 ? 'x+' : 'x-', plane: sideX };
     const su = z1 - 0.45;
+    s.surface(SURFACE.paintedWood);
     faceBox(s, side, su - 0.18, 0, 0.0, su + 0.18, 0.62, 0.03, palette.white);
+    s.surface(SURFACE.plain);
     faceBox(s, side, su - 0.15, 0.32, 0.03, su + 0.15, 0.6, 0.035, 0x2a231d);
     faceBox(s, side, su - 0.15, 0.02, 0.03, su + 0.15, 0.32, 0.045, vary(0x6e4a2e, rnd, 0.5));
     const head = facePoint(side, su, 0.44, 0.08);
