@@ -1,14 +1,17 @@
 // The supplies system (R3A; docs/spec/19-evenings.md, Supplies): pieces draw on the town's goods from
 // Village rank, after homes and businesses, only above the reserves and winter marks. Once a day at the
 // settling (`SUPPLIES.settleHour`:`settleMinute`, 17:30) it decides tonight's lit lanterns and their
-// reach ticks (stock and priority only, never staffing), burns a night of each household's candle, and
-// keeps the pieces' records; at `outHour` (07:00) the lamps go out by themselves (decorLit reads the
-// hour) and the view says so. Where it runs in the day: docs/build/r3-wave-notes.md.
-import { TICKS_PER_HOUR } from '../../constants';
-import type { System } from '../../contracts';
+// reach ticks (stock and priority only, never staffing), puts up the season's cloth, burns a night of
+// each household's candle, and keeps the pieces' records; at 21:30 the fires someone sat by draw their
+// firewood; at `outHour` (07:00) the lamps go out by themselves (decorLit reads the hour) and the view
+// says so. Where it runs in the day: docs/build/r3-wave-notes.md. The work is in settle.ts.
 import { content } from '@qoti/content';
+import { TICKS_PER_DAY, TICKS_PER_HOUR } from '../../constants';
+import type { System } from '../../contracts';
 import { isStandard } from '../../state/hamlet';
+import { suppliesView } from '../../view/supplies';
 import { dailyOffset } from '../economy/time';
+import { drawFires, FIRE_HOUR, FIRE_MINUTE, rollRound, settle } from './settle';
 
 /** The settling's offset in the day's ticks (17:30), a multiple of the system's half hour. */
 export const SUPPLIES_OFFSET = dailyOffset(
@@ -16,16 +19,24 @@ export const SUPPLIES_OFFSET = dailyOffset(
   Math.round((content.supplies.settleMinute * TICKS_PER_HOUR) / 60),
 );
 
+/** The fires' draw (21:30) and the lamps' going out (07:00), in the day's ticks. */
+const FIRE_OFFSET = dailyOffset(FIRE_HOUR, Math.round((FIRE_MINUTE * TICKS_PER_HOUR) / 60));
+const OUT_OFFSET = dailyOffset(content.supplies.outHour);
+
 export const supplies: System = {
   id: 'supplies',
   order: 57,
-  // Every half hour, so the settling (17:30) and the lamps out (07:00) each land on a run; R3A may
-  // narrow it.
+  // Every half hour, so the settling (17:30), the fires' draw (21:30) and the lamps out (07:00) each
+  // land on a run.
   every: TICKS_PER_HOUR / 2,
   offset: 0,
-  tick(state) {
+  tick(state, ctx) {
     if (!isStandard(state)) return;
-    // R3 stand-in (R3A): no settling yet. Every lantern is lit from 18:00 to 07:00 (decorLit), nothing
-    // rests, and no candle burns.
+    rollRound(state);
+    // The clock ran first this tick: the schedule's tick is the one before.
+    const at = (state.tick - 1 + TICKS_PER_DAY) % TICKS_PER_DAY;
+    if (at === SUPPLIES_OFFSET) settle(state, ctx);
+    else if (at === FIRE_OFFSET) drawFires(state, ctx);
+    else if (at === OUT_OFFSET) ctx.events.push({ e: 'supplies.updated', s: suppliesView(state) });
   },
 };

@@ -144,12 +144,19 @@ const SETUPS = new Map<string, (s: WorldState) => void>([
       s.gaps.closedBySeat = [3, 7, 0, 0];
     },
   ],
+  // R3 (R3A): a season settled with every lantern lit counts for the lamplighter's round.
+  [
+    'lamplighters-round',
+    (s) => {
+      s.supplies.roundSeasons = 1;
+    },
+  ],
 ]);
 
-// R3 (R3.0): the three R3 feats read counters whose stand-ins (R3.0) always give 0, so they cannot be
-// earned yet. R3A (lampSeasons, The Lamplighter's Round), R3B (mastersMade, Master of the House) and
-// R3C (pagesTogether, Made Together) replace the stand-ins and move each feat into SETUPS.
-const PENDING = new Set(['lamplighters-round', 'made-together', 'master-of-the-house']);
+// R3 (R3.0): the R3 feats read counters whose stand-ins (R3.0) always give 0, so they cannot be earned
+// yet. R3B (mastersMade, Master of the House) and R3C (pagesTogether, Made Together) replace the
+// stand-ins and move each feat into SETUPS; R3A's Lamplighter's Round already has its setup.
+const PENDING = new Set(['made-together', 'master-of-the-house']);
 
 describe('every achievement', () => {
   it('has a setup, or is pending on its R3 stand-in', () => {
